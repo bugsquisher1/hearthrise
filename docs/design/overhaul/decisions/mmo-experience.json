@@ -161,7 +161,12 @@
       "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
       "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
       "waitsOn": "a playtest that shows whether players ask for what was removed",
-      "firstBuild": "in the first build: the rule"
+      "firstBuild": "in the first build: the rule",
+      "builtIn": {
+        "where": "waits",
+        "unplacedInThePlan": true,
+        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits on a playtest that shows whether players ask for what was removed. Nothing is cut."
+      }
     },
     {
       "id": "MM-2",
@@ -175,7 +180,14 @@
       "depends": "GR-28 and GR-30 (the boss door and the boss formula, world decider). GR-9 (scaling to a party Level). Chapter 09 owns the measured cost.",
       "status": "PROVISIONAL",
       "waitsOn": "the hall check at three Levels and one boss stood",
-      "firstBuild": "in the first build: one sample boss"
+      "firstBuild": "in the first build: one sample boss",
+      "builtIn": {
+        "where": "lane",
+        "lanes": [
+          "FB-13"
+        ],
+        "note": "In the first build. FB-13 lane/c-world-boss (13-build-plan.md section 2.6)."
+      }
     },
     {
       "id": "MM-3",
@@ -189,7 +201,14 @@
       "depends": "MM-4 sizes the pool to this window.",
       "status": "PROVISIONAL",
       "waitsOn": "the hall check at three Levels and one boss stood",
-      "firstBuild": "in the first build: one sample boss"
+      "firstBuild": "in the first build: one sample boss",
+      "builtIn": {
+        "where": "lane",
+        "lanes": [
+          "FB-13"
+        ],
+        "note": "In the first build. FB-13 lane/c-world-boss (13-build-plan.md section 2.6)."
+      }
     },
     {
       "id": "MM-4",
@@ -206,7 +225,14 @@
       "hypothesis": "HYPOTHESIS. This is the review's own design and nobody has played it.",
       "status": "PROVISIONAL",
       "waitsOn": "the hall check at three Levels and one boss stood",
-      "firstBuild": "in the first build: one sample boss"
+      "firstBuild": "in the first build: one sample boss",
+      "builtIn": {
+        "where": "lane",
+        "lanes": [
+          "FB-13"
+        ],
+        "note": "In the first build. FB-13 lane/c-world-boss (13-build-plan.md section 2.6)."
+      }
     },
     {
       "id": "MM-5",
@@ -223,7 +249,14 @@
       "hypothesis": "HYPOTHESIS until the hall grader plays it at Levels 25, 52 and 75.",
       "status": "PROVISIONAL",
       "waitsOn": "the hall check at three Levels and one boss stood",
-      "firstBuild": "in the first build: one sample boss"
+      "firstBuild": "in the first build: one sample boss",
+      "builtIn": {
+        "where": "lane",
+        "lanes": [
+          "FB-13"
+        ],
+        "note": "In the first build. FB-13 lane/c-world-boss (13-build-plan.md section 2.6)."
+      }
     },
     {
       "id": "MM-6",
@@ -241,7 +274,14 @@
       "fixNote": "The row added \"one extra roll on the boss line\", which could be a second piece against CE-1's cap of one. Nothing said what a late visitor earns once the boss has fallen.",
       "status": "PROVISIONAL",
       "waitsOn": "the hall check at three Levels and one boss stood",
-      "firstBuild": "planned, waits until the first boss has stood twice. The first boss keeps its chest"
+      "firstBuild": "planned, waits until the first boss has stood twice. The first boss keeps its chest",
+      "builtIn": {
+        "where": "lane",
+        "lanes": [
+          "FB-13"
+        ],
+        "note": "In the first build. FB-13 lane/c-world-boss (13-build-plan.md section 2.6). Part of it waits: The first boss has stood twice."
+      }
     },
     {
       "id": "MM-7",
@@ -259,7 +299,14 @@
       "status": "PROVISIONAL",
       "waitsOn": "a real death rate, and Tyler's answer on the hunting hours a death costs an idle party",
       "firstBuild": "in the first build: one sample boss",
-      "sitting": "S-6, option A. Deadly is a tier you watch or gamble on, and idle players mostly use Dangerous. The lost hunting time is accepted: 18 to 31% on the 8 hour bar and 25 to 42% on the 12 hour bar, before the 6%."
+      "sitting": "S-6, option A. Deadly is a tier you watch or gamble on, and idle players mostly use Dangerous. The lost hunting time is accepted: 18 to 31% on the 8 hour bar and 25 to 42% on the 12 hour bar, before the 6%.",
+      "builtIn": {
+        "where": "lane",
+        "lanes": [
+          "FB-13"
+        ],
+        "note": "In the first build. FB-13 lane/c-world-boss (13-build-plan.md section 2.6)."
+      }
     },
     {
       "id": "MM-8",
@@ -275,7 +322,14 @@
       "fixedBy": "review-3",
       "status": "PROVISIONAL",
       "waitsOn": "clans existing with people in them",
-      "firstBuild": "in the first build: the roster, the clan chat tab and the browser only"
+      "firstBuild": "in the first build: the roster, the clan chat tab and the browser only",
+      "builtIn": {
+        "where": "lane",
+        "lanes": [
+          "FB-12"
+        ],
+        "note": "In the first build. FB-12 lane/c-social (13-build-plan.md section 2.6)."
+      }
     },
     {
       "id": "MM-9",
@@ -297,7 +351,11 @@
       "firstBuild": "planned, waits until clans exist and people are in them",
       "madeInTheFold": "Rewritten in the fold 2026-11-21 after his picks. Not yet seen by Tyler.",
       "sitting": "S-7, option B. The full castle is ruled as the direction: five buildings of ten levels, labor, upkeep, votes, a treasury, about a year.",
-      "waitsOn": "Every size stays PROVISIONAL: stage prices, upkeep, labor value and the year. The fifth building is the library, which pays a standing Level XP bonus (S-4), and its size is owed by the design lane."
+      "waitsOn": "Every size stays PROVISIONAL: stage prices, upkeep, labor value and the year. The fifth building is the library, which pays a standing Level XP bonus (S-4), and its size is owed by the design lane.",
+      "builtIn": {
+        "where": "waits",
+        "note": "Not in the first build. It waits until: Clans exist and people are in them (13-build-plan.md section 1.2)."
+      }
     },
     {
       "id": "MM-10",
@@ -313,7 +371,11 @@
       "fixedBy": "review-4",
       "status": "PROVISIONAL",
       "waitsOn": "clans existing with people in them",
-      "firstBuild": "planned, waits until clans exist and people are in them"
+      "firstBuild": "planned, waits until clans exist and people are in them",
+      "builtIn": {
+        "where": "waits",
+        "note": "Not in the first build. It waits until: Clans exist and people are in them (13-build-plan.md section 1.2)."
+      }
     },
     {
       "id": "MM-11",
@@ -327,7 +389,14 @@
       "depends": "MM-42, GR-82 (weekend 1 is the Hearthrise), MM-3. Chapter 08 Week card and return card show the next weekend.",
       "status": "PROVISIONAL",
       "waitsOn": "the playtest or measurement its own row names",
-      "firstBuild": "in the first build: the calendar"
+      "firstBuild": "in the first build: the calendar",
+      "builtIn": {
+        "where": "lane",
+        "lanes": [
+          "FB-12"
+        ],
+        "note": "In the first build. FB-12 lane/c-social (13-build-plan.md section 2.6)."
+      }
     },
     {
       "id": "MM-42",
@@ -347,7 +416,11 @@
       "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
       "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
       "waitsOn": "one buff played in a cell",
-      "firstBuild": "planned, waits until Deadly is sized and one buff has been played in a cell"
+      "firstBuild": "planned, waits until Deadly is sized and one buff has been played in a cell",
+      "builtIn": {
+        "where": "waits",
+        "note": "Not in the first build. It waits until: Deadly is sized and one buff is played in a cell (13-build-plan.md section 1.2)."
+      }
     },
     {
       "id": "GR-82",
@@ -364,7 +437,14 @@
       "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
       "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
       "waitsOn": "the playtest or measurement its own row names",
-      "firstBuild": "in the first build: the Hearthrise weekend"
+      "firstBuild": "in the first build: the Hearthrise weekend",
+      "builtIn": {
+        "where": "lane",
+        "lanes": [
+          "FB-12"
+        ],
+        "note": "In the first build. FB-12 lane/c-social (13-build-plan.md section 2.6)."
+      }
     },
     {
       "id": "MM-24",
@@ -378,7 +458,11 @@
       "depends": "Core decider (GR-85, R20). Economy decider (MM-30, bought boosts are the same rows). Balance tools lane: drop chance and town work speed knobs are missing from knobs.json.",
       "status": "PROVISIONAL",
       "waitsOn": "one buff played in a cell",
-      "firstBuild": "planned, waits until Deadly is sized and one buff has been played in a cell"
+      "firstBuild": "planned, waits until Deadly is sized and one buff has been played in a cell",
+      "builtIn": {
+        "where": "waits",
+        "note": "Not in the first build. It waits until: Deadly is sized and one buff is played in a cell (13-build-plan.md section 1.2)."
+      }
     },
     {
       "id": "MM-25",
@@ -403,6 +487,10 @@
         "runs": "R1 and R2",
         "source": "docs/design/overhaul/12-balance-pass.md",
         "runIds": "R0 is GitHub run 44920906999 (the full matrix, 4,503 cells, 2 seeds of 2 hours). R1 is run 44924971088 (670 cells with five buff rows). R2 is run 44925664434 (the death sample, 4 seeds of 8 hours). R4 is run 44928035806 (the death sample with both tiers at 2.5, and the full matrix with the three picks in). L is local probes of 2 seeds of 1 hour."
+      },
+      "builtIn": {
+        "where": "waits",
+        "note": "Not in the first build. It waits until: Deadly is sized and one buff is played in a cell (13-build-plan.md section 1.2)."
       }
     },
     {
@@ -428,6 +516,10 @@
         "runs": "R1 and R2",
         "source": "docs/design/overhaul/12-balance-pass.md",
         "runIds": "R0 is GitHub run 44920906999 (the full matrix, 4,503 cells, 2 seeds of 2 hours). R1 is run 44924971088 (670 cells with five buff rows). R2 is run 44925664434 (the death sample, 4 seeds of 8 hours). R4 is run 44928035806 (the death sample with both tiers at 2.5, and the full matrix with the three picks in). L is local probes of 2 seeds of 1 hour."
+      },
+      "builtIn": {
+        "where": "waits",
+        "note": "Not in the first build. It waits until: Deadly is sized and one buff is played in a cell (13-build-plan.md section 1.2)."
       }
     },
     {
@@ -446,7 +538,11 @@
       "fixNote": "The Open Arena paid +5% damage for the next season and also read damage buffs, so last season's winners started the next one 5% stronger.",
       "status": "PROVISIONAL",
       "waitsOn": "the engine test of heroes against heroes",
-      "firstBuild": "planned, waits until the one-day engine test shows heroes can fight heroes"
+      "firstBuild": "planned, waits until the one-day engine test shows heroes can fight heroes",
+      "builtIn": {
+        "where": "waits",
+        "note": "Not in the first build. It waits until: FB-3's engine test shows heroes can fight heroes (13-build-plan.md section 1.2)."
+      }
     },
     {
       "id": "MM-12",
@@ -460,7 +556,11 @@
       "depends": "MM-41. Security review scope before Early Access.",
       "status": "PROVISIONAL",
       "waitsOn": "the engine test of heroes against heroes",
-      "firstBuild": "planned, waits until the one-day engine test shows heroes can fight heroes"
+      "firstBuild": "planned, waits until the one-day engine test shows heroes can fight heroes",
+      "builtIn": {
+        "where": "waits",
+        "note": "Not in the first build. It waits until: FB-3's engine test shows heroes can fight heroes (13-build-plan.md section 1.2)."
+      }
     },
     {
       "id": "MM-14",
@@ -477,7 +577,11 @@
       "hypothesis": "HYPOTHESIS. This is the review's own design and nobody has played it.",
       "status": "PROVISIONAL",
       "waitsOn": "the engine test of heroes against heroes",
-      "firstBuild": "planned, waits until the one-day engine test shows heroes can fight heroes"
+      "firstBuild": "planned, waits until the one-day engine test shows heroes can fight heroes",
+      "builtIn": {
+        "where": "waits",
+        "note": "Not in the first build. It waits until: FB-3's engine test shows heroes can fight heroes (13-build-plan.md section 1.2)."
+      }
     },
     {
       "id": "MM-15",
@@ -491,7 +595,11 @@
       "depends": "MM-40, MM-45, MM-21.",
       "status": "PROVISIONAL",
       "waitsOn": "the engine test of heroes against heroes",
-      "firstBuild": "planned, waits until the one-day engine test shows heroes can fight heroes"
+      "firstBuild": "planned, waits until the one-day engine test shows heroes can fight heroes",
+      "builtIn": {
+        "where": "waits",
+        "note": "Not in the first build. It waits until: FB-3's engine test shows heroes can fight heroes (13-build-plan.md section 1.2)."
+      }
     },
     {
       "id": "MM-40",
@@ -505,7 +613,11 @@
       "depends": "MM-15.",
       "status": "PROVISIONAL",
       "waitsOn": "the engine test of heroes against heroes",
-      "firstBuild": "planned, waits until the one-day engine test shows heroes can fight heroes"
+      "firstBuild": "planned, waits until the one-day engine test shows heroes can fight heroes",
+      "builtIn": {
+        "where": "waits",
+        "note": "Not in the first build. It waits until: FB-3's engine test shows heroes can fight heroes (13-build-plan.md section 1.2)."
+      }
     },
     {
       "id": "MM-16",
@@ -519,7 +631,11 @@
       "depends": "Security review. MM-12.",
       "status": "PROVISIONAL",
       "waitsOn": "the engine test of heroes against heroes",
-      "firstBuild": "planned, waits until the one-day engine test shows heroes can fight heroes"
+      "firstBuild": "planned, waits until the one-day engine test shows heroes can fight heroes",
+      "builtIn": {
+        "where": "waits",
+        "note": "Not in the first build. It waits until: FB-3's engine test shows heroes can fight heroes (13-build-plan.md section 1.2)."
+      }
     },
     {
       "id": "MM-17",
@@ -531,7 +647,12 @@
       "replaces": "",
       "money": false,
       "depends": "MM-20.",
-      "status": "DECIDED"
+      "status": "DECIDED",
+      "builtIn": {
+        "where": "waits",
+        "unplacedInThePlan": true,
+        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+      }
     },
     {
       "id": "MM-38",
@@ -545,7 +666,11 @@
       "depends": "Items decider (gear bands, GR-4). MM-14.",
       "status": "PROVISIONAL",
       "waitsOn": "the engine test of heroes against heroes",
-      "firstBuild": "planned, waits until the one-day engine test shows heroes can fight heroes"
+      "firstBuild": "planned, waits until the one-day engine test shows heroes can fight heroes",
+      "builtIn": {
+        "where": "waits",
+        "note": "Not in the first build. It waits until: FB-3's engine test shows heroes can fight heroes (13-build-plan.md section 1.2)."
+      }
     },
     {
       "id": "MM-39",
@@ -559,7 +684,11 @@
       "depends": "MM-13.",
       "status": "PROVISIONAL",
       "waitsOn": "the engine test of heroes against heroes",
-      "firstBuild": "planned, waits until the one-day engine test shows heroes can fight heroes"
+      "firstBuild": "planned, waits until the one-day engine test shows heroes can fight heroes",
+      "builtIn": {
+        "where": "waits",
+        "note": "Not in the first build. It waits until: FB-3's engine test shows heroes can fight heroes (13-build-plan.md section 1.2)."
+      }
     },
     {
       "id": "MM-41",
@@ -572,7 +701,14 @@
       "money": false,
       "depends": "Systems engineer runs it. MM-12, MM-13, MM-14 wait on it.",
       "status": "DECIDED",
-      "firstBuild": "in the first build: the one-day engine test"
+      "firstBuild": "in the first build: the one-day engine test",
+      "builtIn": {
+        "where": "lane",
+        "lanes": [
+          "FB-3"
+        ],
+        "note": "In the first build. FB-3 lane/b-matrix-next (13-build-plan.md section 2.6)."
+      }
     },
     {
       "id": "MM-18",
@@ -589,7 +725,12 @@
       "statusBeforeReissue": "OPEN (waiting on Tyler, T-fix-1)",
       "wasBeforeSitting": "Yes. No hire, no lending, no on-call board. Nobody else ever sends your hero. Two friends can still form a party by hand through an invite, both on purpose, with the shared supply bill of 25-8. It comes back to you only if playtest friends ask to lend heroes without being prompted.",
       "sitting": "S-1, his own words. It reverses the removal this row first decided. Ruling 25-1 stands in his new form.",
-      "supersededBy": "Tyler's ruling at the sitting of 2026-11-21 (S-1): on-call heroes are kept, in his words. The design is row CH11-1 and chapter 11."
+      "supersededBy": "Tyler's ruling at the sitting of 2026-11-21 (S-1): on-call heroes are kept, in his words. The design is row CH11-1 and chapter 11.",
+      "builtIn": {
+        "where": "waits",
+        "unplacedInThePlan": true,
+        "note": "The build plan names it in no lane and on no waits row (audit A-8). Nothing is built from this row. Nothing is cut."
+      }
     },
     {
       "id": "MM-19",
@@ -608,7 +749,15 @@
       "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
       "waitsOn": "a matrix cell with mixed Levels",
       "madeInTheFold": "Rewritten in the fold 2026-11-21 after his picks. Not yet seen by Tyler.",
-      "sitting": "S-1, as a knock-on. A hero from another account can join a party again, so the two thirds line has real cases."
+      "sitting": "S-1, as a knock-on. A hero from another account can join a party again, so the two thirds line has real cases.",
+      "builtIn": {
+        "where": "lane",
+        "lanes": [
+          "FB-2",
+          "FB-3"
+        ],
+        "note": "In the first build. FB-2 lane/c-formula-steps, FB-3 lane/b-matrix-next (13-build-plan.md section 2.6)."
+      }
     },
     {
       "id": "MM-20",
@@ -622,7 +771,14 @@
       "depends": "GR-70 (same system). Chapter 09 and study 48 own the measured cost. It is first in the planning order (MM-23).",
       "status": "PROVISIONAL",
       "waitsOn": "the playtest or measurement its own row names",
-      "firstBuild": "in the first build: presence"
+      "firstBuild": "in the first build: presence",
+      "builtIn": {
+        "where": "lane",
+        "lanes": [
+          "FB-12"
+        ],
+        "note": "In the first build. FB-12 lane/c-social (13-build-plan.md section 2.6)."
+      }
     },
     {
       "id": "GR-70",
@@ -636,7 +792,14 @@
       "depends": "MM-20. Home decider (chapter 07 section 2.9 draw rules). Chapter 09 cost budget of $0.15 an account.",
       "status": "PROVISIONAL",
       "waitsOn": "the playtest or measurement its own row names",
-      "firstBuild": "in the first build: presence in town, inside the cost budget"
+      "firstBuild": "in the first build: presence in town, inside the cost budget",
+      "builtIn": {
+        "where": "lane",
+        "lanes": [
+          "FB-12"
+        ],
+        "note": "In the first build. FB-12 lane/c-social (13-build-plan.md section 2.6)."
+      }
     },
     {
       "id": "GR-69",
@@ -652,7 +815,14 @@
       "tyler": "Held. Cuts 3 and 4 were not approved, and reversal 21 (GR-69) asks for the same removals. Not decided. The decision text is what the book reads until he answers.",
       "statusBeforeReissue": "OPEN (waiting on Tyler, T-fix-2)",
       "wasBeforeSitting": "Yes to all three. No Local tab. Town crier and NPC tip lines show as speech in the town itself and in the System tab, never in Global, because Global is for people. No live party finder: a party is your own four and friends invite by the right-click menu. The cap is four and \"maybe 5 later\" comes off the books.",
-      "sitting": "S-2, option B. The removal is ruled."
+      "sitting": "S-2, option B. The removal is ruled.",
+      "builtIn": {
+        "where": "lane",
+        "lanes": [
+          "FB-12"
+        ],
+        "note": "In the first build. FB-12 lane/c-social (13-build-plan.md section 2.6)."
+      }
     },
     {
       "id": "GR-71",
@@ -665,7 +835,12 @@
       "money": false,
       "depends": "Core decider sizes Bulwark and Reap (31-8) knowing all four heroes carry the same one. Side against side stays hidden until both sides can be filled and it passes rule 0.",
       "status": "DECIDED",
-      "firstBuild": "planned, waits until the first build is played"
+      "firstBuild": "planned, waits until the first build is played",
+      "builtIn": {
+        "where": "waits",
+        "unplacedInThePlan": true,
+        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+      }
     },
     {
       "id": "GR-72",
@@ -678,7 +853,14 @@
       "money": false,
       "depends": "MM-47 (friends are linked by account). Security: the link carries no value.",
       "status": "DECIDED",
-      "firstBuild": "in the first build: the friend link"
+      "firstBuild": "in the first build: the friend link",
+      "builtIn": {
+        "where": "lane",
+        "lanes": [
+          "FB-12"
+        ],
+        "note": "In the first build. FB-12 lane/c-social (13-build-plan.md section 2.6)."
+      }
     },
     {
       "id": "MM-21",
@@ -694,7 +876,12 @@
       "tyler": "He said yes on the page.",
       "wasBeforeTyler": "MONEY, TYLER CONFIRMS. Decided part: everything in the layer is open to every account. Recommended to you for Premium: arena tickets bank to 30. Not recommended: timed buffs lasting a quarter longer.",
       "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
-      "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling."
+      "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
+      "builtIn": {
+        "where": "waits",
+        "unplacedInThePlan": true,
+        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+      }
     },
     {
       "id": "MM-22",
@@ -710,7 +897,12 @@
       "fixedBy": "review-8",
       "status": "PROVISIONAL",
       "waitsOn": "the store-bill fault fixed and a wage formula that exists",
-      "firstBuild": "planned, waits until clans exist and people are in them"
+      "firstBuild": "planned, waits until clans exist and people are in them",
+      "builtIn": {
+        "where": "waits",
+        "unplacedInThePlan": true,
+        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits on the store-bill fault fixed and a wage formula that exists. Nothing is cut."
+      }
     },
     {
       "id": "MM-23",
@@ -722,7 +914,12 @@
       "replaces": "",
       "money": false,
       "depends": "The build plan. MM-41 can run now as a measurement.",
-      "status": "DECIDED"
+      "status": "DECIDED",
+      "builtIn": {
+        "where": "waits",
+        "unplacedInThePlan": true,
+        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+      }
     },
     {
       "id": "MM-27",
@@ -735,7 +932,12 @@
       "money": false,
       "depends": "Economy decider (the market and the Crowns book). Items decider.",
       "status": "DECIDED",
-      "firstBuild": "planned, waits until the first boss has stood twice. The first boss keeps its chest"
+      "firstBuild": "planned, waits until the first boss has stood twice. The first boss keeps its chest",
+      "builtIn": {
+        "where": "waits",
+        "unplacedInThePlan": true,
+        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+      }
     },
     {
       "id": "MM-43",
@@ -752,7 +954,14 @@
       "wasBeforeTyler": "THIS IS A GRANT. TYLER CONFIRMS. I do not decide it. Recommended: yes, for the wiped Discord playtest only, the same amount for every account, one server switch that is off by default and removed before Early Access, every grant journalled.",
       "statusBeforeReissue": "RULED (Tyler, 2026-11-21), an explicit yes",
       "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
-      "firstBuild": "in the first build: the playtest"
+      "firstBuild": "in the first build: the playtest",
+      "builtIn": {
+        "where": "lane",
+        "lanes": [
+          "FB-15"
+        ],
+        "note": "In the first build. FB-15 lane/c-test-crowns (13-build-plan.md section 2.6)."
+      }
     },
     {
       "id": "MM-44",
@@ -766,7 +975,11 @@
       "depends": "MM-8. A recurring server-side spend is a money surface for the Security review. Chapter 08 return card.",
       "status": "PROVISIONAL",
       "waitsOn": "clans existing with people in them",
-      "firstBuild": "planned, waits until clans exist and people are in them"
+      "firstBuild": "planned, waits until clans exist and people are in them",
+      "builtIn": {
+        "where": "waits",
+        "note": "Not in the first build. It waits until: Clans exist and people are in them (13-build-plan.md section 1.2)."
+      }
     },
     {
       "id": "MM-45",
@@ -780,7 +993,11 @@
       "depends": "MM-15, MM-16.",
       "status": "PROVISIONAL",
       "waitsOn": "the engine test of heroes against heroes",
-      "firstBuild": "planned, waits until the one-day engine test shows heroes can fight heroes"
+      "firstBuild": "planned, waits until the one-day engine test shows heroes can fight heroes",
+      "builtIn": {
+        "where": "waits",
+        "note": "Not in the first build. It waits until: FB-3's engine test shows heroes can fight heroes (13-build-plan.md section 1.2)."
+      }
     },
     {
       "id": "MM-46",
@@ -794,7 +1011,11 @@
       "depends": "MM-41. GR-71 (sides).",
       "status": "PROVISIONAL",
       "waitsOn": "the engine test of heroes against heroes",
-      "firstBuild": "planned, waits until the one-day engine test shows heroes can fight heroes"
+      "firstBuild": "planned, waits until the one-day engine test shows heroes can fight heroes",
+      "builtIn": {
+        "where": "waits",
+        "note": "Not in the first build. It waits until: FB-3's engine test shows heroes can fight heroes (13-build-plan.md section 1.2)."
+      }
     },
     {
       "id": "MM-47",
@@ -807,7 +1028,14 @@
       "money": false,
       "depends": "GR-72, MM-20 (friends sort first).",
       "status": "DECIDED",
-      "firstBuild": "in the first build: friends"
+      "firstBuild": "in the first build: friends",
+      "builtIn": {
+        "where": "lane",
+        "lanes": [
+          "FB-12"
+        ],
+        "note": "In the first build. FB-12 lane/c-social (13-build-plan.md section 2.6)."
+      }
     },
     {
       "id": "MM-48",
@@ -824,7 +1052,11 @@
       "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
       "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
       "waitsOn": "clans existing with people in them",
-      "firstBuild": "planned, waits until clans exist and people are in them"
+      "firstBuild": "planned, waits until clans exist and people are in them",
+      "builtIn": {
+        "where": "waits",
+        "note": "Not in the first build. It waits until: Clans exist and people are in them (13-build-plan.md section 1.2)."
+      }
     },
     {
       "id": "GR-79",
@@ -841,7 +1073,14 @@
       "hypothesis": "HYPOTHESIS. This is the review's own design and nobody has played it.",
       "fixNote": "Check C2 was run by the review and fails. Three new heroes together in the Mill Cellar earn 0.53 times what one earns alone, because the Cellar is spawn-limited. Alone, each recruit levels at the first hero's pace, so minute 36 stands.",
       "status": "PROVISIONAL",
-      "waitsOn": "being built and played past minute 17 by real new players"
+      "waitsOn": "being built and played past minute 17 by real new players",
+      "builtIn": {
+        "where": "lane",
+        "lanes": [
+          "FB-5"
+        ],
+        "note": "In the first build. FB-5 lane/c-first-hour (13-build-plan.md section 2.6)."
+      }
     },
     {
       "id": "GR-24",
@@ -857,7 +1096,14 @@
       "fixedBy": "review-6, review-7",
       "fixNote": "Core highlighted the hammer and this row preselected nothing. Merged.",
       "status": "PROVISIONAL",
-      "waitsOn": "being built and played past minute 17 by real new players"
+      "waitsOn": "being built and played past minute 17 by real new players",
+      "builtIn": {
+        "where": "lane",
+        "lanes": [
+          "FB-5"
+        ],
+        "note": "In the first build. FB-5 lane/c-first-hour (13-build-plan.md section 2.6)."
+      }
     },
     {
       "id": "GR-80",
@@ -870,7 +1116,14 @@
       "money": false,
       "depends": "Systems engineer: one Start is one intent the server expands through the same checks. GR-1 (town work in closed form). GR-48, GR-57, GR-58 in other areas.",
       "status": "PROVISIONAL",
-      "waitsOn": "being built and played past minute 17 by real new players"
+      "waitsOn": "being built and played past minute 17 by real new players",
+      "builtIn": {
+        "where": "lane",
+        "lanes": [
+          "FB-6"
+        ],
+        "note": "In the first build. FB-6 lane/c-company (13-build-plan.md section 2.6)."
+      }
     },
     {
       "id": "GR-78",
@@ -882,7 +1135,15 @@
       "replaces": "",
       "money": false,
       "depends": "GR-80.",
-      "status": "DECIDED"
+      "status": "DECIDED",
+      "builtIn": {
+        "where": "lane",
+        "lanes": [
+          "FB-5",
+          "FB-6"
+        ],
+        "note": "In the first build. FB-5 lane/c-first-hour, FB-6 lane/c-company (13-build-plan.md section 2.6)."
+      }
     },
     {
       "id": "GR-81",
@@ -894,7 +1155,14 @@
       "replaces": "None. 27-1 stands. The re-open is refused.",
       "money": false,
       "depends": "GR-80 (the rest plan and the return card). Chapter 08 section 2.2 drops the \"next ground when outgrown\" line.",
-      "status": "DECIDED"
+      "status": "DECIDED",
+      "builtIn": {
+        "where": "lane",
+        "lanes": [
+          "FB-6"
+        ],
+        "note": "In the first build. FB-6 lane/c-company (13-build-plan.md section 2.6)."
+      }
     },
     {
       "id": "GR-83",
@@ -906,7 +1174,12 @@
       "replaces": "",
       "money": false,
       "depends": "MM-11.",
-      "status": "DECIDED"
+      "status": "DECIDED",
+      "builtIn": {
+        "where": "waits",
+        "unplacedInThePlan": true,
+        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+      }
     },
     {
       "id": "GR-84",
@@ -921,7 +1194,14 @@
       "was": "Yes to all three. The Premium daily item lands in Storage on the first visit of the day with no press and the streak never resets. Setups, action sets and presets become one noun, Setup, remembered for each ground. A Week card on the first return after the weekly turn compares this week with your last and pays nothing, ever.",
       "fixedBy": "review-28",
       "status": "PROVISIONAL",
-      "waitsOn": "the playtest or measurement its own row names"
+      "waitsOn": "the playtest or measurement its own row names",
+      "builtIn": {
+        "where": "lane",
+        "lanes": [
+          "FB-6"
+        ],
+        "note": "In the first build. FB-6 lane/c-company (13-build-plan.md section 2.6)."
+      }
     },
     {
       "id": "CH11-1",
@@ -939,7 +1219,14 @@
       "source": "docs/design/overhaul/11-on-call-and-clan-xp.md",
       "decidedBy": "The on-call and clan XP design lane, 2026-11-21",
       "idNote": "The id CH11-1 was given by the integrator. Chapter 11 names no call id.",
-      "ruledPart": "RULED (Tyler, 2026-11-21): \"I just mean the person hiring them can see how much stamina the hired hand has and the person hiring can use all of it, hired stamina and regular stamina should be two different sets of stamina I think\". An on-call hero has a hire stamina pool separate from its own. The hirer sees the pool and may spend all of it. Hunting on call never spends the hero's own stamina. Chapter 11 section 1.2 is being updated by its designer to match."
+      "ruledPart": "RULED (Tyler, 2026-11-21): \"I just mean the person hiring them can see how much stamina the hired hand has and the person hiring can use all of it, hired stamina and regular stamina should be two different sets of stamina I think\". An on-call hero has a hire stamina pool separate from its own. The hirer sees the pool and may spend all of it. Hunting on call never spends the hero's own stamina. Chapter 11 section 1.2 is being updated by its designer to match.",
+      "builtIn": {
+        "where": "lane",
+        "lanes": [
+          "FB-14"
+        ],
+        "note": "In the first build. FB-14 lane/c-on-call (13-build-plan.md section 2.6)."
+      }
     },
     {
       "id": "CH11-2",
@@ -956,7 +1243,11 @@
       "waitsOn": "Section 8 of chapter 11: clans existing, and one buff played in a cell",
       "source": "docs/design/overhaul/11-on-call-and-clan-xp.md",
       "decidedBy": "The on-call and clan XP design lane, 2026-11-21",
-      "idNote": "The id CH11-2 was given by the integrator. Chapter 11 names no call id."
+      "idNote": "The id CH11-2 was given by the integrator. Chapter 11 names no call id.",
+      "builtIn": {
+        "where": "waits",
+        "note": "Not in the first build. It waits until: Clans exist and people are in them (13-build-plan.md section 1.2)."
+      }
     },
     {
       "id": "CH11-3",
@@ -973,7 +1264,12 @@
       "waitsOn": "Section 8 of chapter 11: a town-hour model in the matrix (band TD1), and the first build played",
       "source": "docs/design/overhaul/11-on-call-and-clan-xp.md",
       "decidedBy": "The on-call and clan XP design lane, 2026-11-21",
-      "idNote": "The id CH11-3 was given by the integrator. Chapter 11 names no call id."
+      "idNote": "The id CH11-3 was given by the integrator. Chapter 11 names no call id.",
+      "builtIn": {
+        "where": "waits",
+        "unplacedInThePlan": true,
+        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits on section 8 of chapter 11: a town-hour model in the matrix (band TD1), and the first build played. Nothing is cut."
+      }
     }
   ],
   "tylerAnswers": "Tyler answered his lists on 2026-11-21. Each row he touched carries a tyler field. The full record is in all.json.",

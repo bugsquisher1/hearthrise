@@ -590,7 +590,7 @@
       },
       {
         "id": "CORE-1",
-        "waitsOn": "The playtest death rate"
+        "waitsOn": "The playtest death rate. Its death numbers were played before the engine stall fixes at 02364f03a and wait on the replay"
       },
       {
         "id": "CORE-2",
@@ -618,15 +618,15 @@
       },
       {
         "id": "GR-6",
-        "waitsOn": "Tyler, 12 section 7 item 1, and the playtest death rate"
+        "waitsOn": "Tyler, S-11 of the second sitting, held until the replay on the fixed engine (02364f03a), and the playtest death rate"
       },
       {
         "id": "GR-6a",
-        "waitsOn": "Tyler, 12 section 7 item 1, and the playtest death rate"
+        "waitsOn": "Tyler, S-11 of the second sitting, held until the replay on the fixed engine (02364f03a), and the playtest death rate"
       },
       {
         "id": "GR-6b",
-        "waitsOn": "Tyler, 12 section 7 item 1, and the playtest death rate"
+        "waitsOn": "Tyler, S-11 of the second sitting, held until the replay on the fixed engine (02364f03a), and the playtest death rate"
       },
       {
         "id": "GR-8",
@@ -662,7 +662,7 @@
       },
       {
         "id": "GR-27",
-        "waitsOn": "The playtest death rate"
+        "waitsOn": "The playtest death rate. Its death numbers were played before the engine stall fixes at 02364f03a and wait on the replay"
       },
       {
         "id": "GR-28",
@@ -942,7 +942,7 @@
       "The cheap social layer: presence, Global chat, clan roster, chat and browser, the calendar with the Hearthrise weekend",
       "One world boss as a sample of one. It is an ordinary four in an ordinary room plus one shared number"
     ],
-    "plus": "Talents, a build choice every five Levels, by Tyler's ruling of 2026-11-21. The first build holds five tracks and the rank 3 unlocks. See 10-level-choices.md.",
+    "plus": "Talents, a build choice every five Levels, by Tyler's ruling of 2026-11-21: five tracks and the rank 3 unlocks (10-level-choices.md). On-call heroes with a hire stamina pool, by his ruling at the sitting: lane FB-14, the first lane to ship dark if the date slips (11-on-call-and-clan-xp.md).",
     "waits": [
       {
         "what": "Both arenas, their seasons, tickets and gear line",
@@ -965,8 +965,8 @@
         "until": "Test Crowns have run in the playtest"
       },
       {
-        "what": "The Blessing ladder's five hours, as a final number",
-        "until": "A real death rate exists"
+        "what": "The Blessing ladder's threshold as a final number: 2 hours, sized in chapter 12, PROVISIONAL",
+        "until": "A real death rate exists. The ladder itself is in the first build"
       },
       {
         "what": "The sixteen Necrotic and Storm spells, fists, status pairs",
@@ -985,8 +985,16 @@
         "until": "The sample of five tracks is played"
       },
       {
-        "what": "On-call heroes, the Library and the town day rule",
-        "until": "What section 8 of chapter 11 names for each. All three are designed there and all three are PROVISIONAL"
+        "what": "The Library and the week's castle labor (chapter 11)",
+        "until": "Clans exist and people are in them. Both are designed and PROVISIONAL"
+      },
+      {
+        "what": "Luck: the bar, the rivets and the Lucky ring (numbers ruled 2026-11-20)",
+        "until": "The plan owner gives it a lane. Its lane is parked and the build plan does not name it (audit A-8)"
+      },
+      {
+        "what": "The unbuilt phases of the itemization plan, which is a source of record (ruled 2026-11-21)",
+        "until": "The plan owner gives each phase a lane. The build plan does not name them (audit A-8)"
       }
     ]
   },
@@ -1652,7 +1660,7 @@
         "change": "A rest plan's usual ending is a standing job with no count, in place of \"wait in town\".",
         "ruling": "The 2026-11-20 ruling that a rest plan ends in \"wait in town\" or \"hunt again, once\" and never loops",
         "reason": "Chapter 11 reads it as inside the ruling, because it does not loop and starts no hunt, and asks that it be listed as a change.",
-        "answer": "Not put to Tyler. PROVISIONAL",
+        "answer": "The designer rules it (S-16 is withdrawn from the sitting) and lists it here for veto. PROVISIONAL",
         "status": "PROVISIONAL"
       }
     ],
@@ -1819,43 +1827,61 @@
     ],
     "stillOpen": [
       {
-        "id": "GR-25",
+        "id": "S-15",
         "what": "Five built special rules that were never put to him: gentle first grounds, the boss blow cap, three training bases, the roll rule and the tier flag",
         "conflict": "The formula brief says a deliberate special rule needs his explicit approval.",
         "calls": [
           "GR-25"
         ],
-        "bookReads": "The book is written with all five kept."
+        "bookReads": "The book is written with all five kept. Answer now. Source: docs/design/overhaul/review/03-sitting-2.md."
       },
       {
-        "id": "12-7-1",
-        "what": "Which four times the Level law: the four on Dangerous (1.266) or the four on Deadly",
-        "conflict": "He ruled the table as the clock of a four on the hardest tier it holds, and at the sitting he ruled Deadly a tier you watch or gamble on.",
+        "id": "S-17",
+        "what": "Premium and test Crowns in the first playtest",
+        "conflict": "Whether the first build carries them. A handful of accounts may not be able to answer the question test Crowns ask, and the amount granted is his to name.",
+        "calls": [
+          "MM-43",
+          "PREM-1",
+          "PREM-2"
+        ],
+        "bookReads": "Answer now. Source: docs/design/overhaul/review/03-sitting-2.md."
+      },
+      {
+        "id": "S-18",
+        "what": "Who plays the first build",
+        "conflict": "The build plan lists nine things the playtest must measure and never says how many accounts play. COMPUTED from the plan's own tests: the Talents test alone asks for about 30 accounts.",
+        "calls": [],
+        "bookReads": "New at the audit before wave 1. Answer now. Source: docs/design/overhaul/review/04-sitting-additions.json."
+      },
+      {
+        "id": "S-11",
+        "what": "Which four is the Level table's clock: the four on Dangerous (1.263) or a four on Deadly that never dies (1.579), on run 44931089433",
+        "conflict": "He ruled the table as the clock of a four on the hardest tier it holds, and at the sitting he ruled Deadly a tier you watch or gamble on. The other four reaches Level 400 on about day 305 or day 477.",
         "calls": [
           "GR-6",
           "GR-6a",
           "GR-6b"
         ],
-        "bookReads": "Both clocks are shown in chapter 05. The ruled table stays the target. Source: docs/design/overhaul/12-balance-pass.md, section 7."
+        "bookReads": "HELD until the replay on the fixed engine. The law is fitted at the ruled points, and chapter 05 shows both. It was item 12-7-1."
       },
       {
-        "id": "12-7-2",
-        "what": "Neither harder tier can hold his death count at every Level",
-        "conflict": "He ruled 10 to 30 deaths in 1,000 hours on Dangerous and 50 to 100 on Deadly. The engine gives a cliff: all cells together read 4 and 41.",
+        "id": "S-12",
+        "what": "What the ruled death count means, when neither harder tier can hold it at every Level",
+        "conflict": "He ruled 10 to 30 deaths in 1,000 hours on Dangerous and 50 to 100 on Deadly. The engine gives a cliff.",
         "calls": [
           "CORE-1",
           "GR-27"
         ],
-        "bookReads": "Both tiers at blows 2.5, PROVISIONAL. Source: docs/design/overhaul/12-balance-pass.md, section 7."
+        "bookReads": "HELD until the replay on the fixed engine, because a stalled cell reads no death. It was item 12-7-2."
       },
       {
-        "id": "12-7-3",
-        "what": "The leave rule for an account's own four",
-        "conflict": "His default is that the rest hunt on when one falls. Measured, the four died together in every sampled wipe.",
+        "id": "S-14",
+        "what": "When one of an account's own four falls",
+        "conflict": "His default is that the rest hunt on. The measured finding that the four died together was read on the path the engine fix changed.",
         "calls": [
           "GR-80"
         ],
-        "bookReads": "The ruled default stands, with the measured finding beside it. Source: docs/design/overhaul/12-balance-pass.md, section 7."
+        "bookReads": "HELD until the replay on the fixed engine. The ruled default stands. It was item 12-7-3."
       },
       {
         "id": "12-7-4",
@@ -1865,7 +1891,19 @@
           "MM-26",
           "MM-31"
         ],
-        "bookReads": "His yes stands as written, with the measured readings beside it. Check G keeps its clause, marked. Source: docs/design/overhaul/12-balance-pass.md, section 7."
+        "bookReads": "His yes stands as written, with the measured readings beside it. It is not a question of the second sitting. Source: docs/design/overhaul/12-balance-pass.md section 7."
+      }
+    ],
+    "forTheDesigner": [
+      {
+        "id": "S-13",
+        "what": "Party-wide damage as part of a tier",
+        "why": "A design and scope call. It is not new: whole-party monster spells are built as data rows, ruled on 2026-11-08. The designer rules it after S-12 is answered, at the data layer first."
+      },
+      {
+        "id": "S-16",
+        "what": "A standing job at the end of a rest plan",
+        "why": "A design call. It starts no hunt and does not loop. The designer rules it and lists it as reversal row 27 for veto."
       }
     ],
     "sitting": {
@@ -2699,9 +2737,12 @@
     }
   ],
   "then": [
-    "Fix the measuring tool first. Until then no tier, death, Blessing, buff or gold number is called decided.",
-    "Play the first hour with four heroes.",
-    "Build only the narrowed first build, plus level choices. Run the two cheap tests that size what waits.",
-    "Then the build plan."
+    "Done: the measuring tool is fixed.",
+    "Done: the first hour with four heroes was played.",
+    "Done: the balance pass is in (docs/design/overhaul/12-balance-pass.md).",
+    "Done: the build plan is written (docs/design/overhaul/13-build-plan.md).",
+    "Done: the audit before wave 1 is in, with the verdict go with changes (docs/design/overhaul/review/04-pre-wave-audit.md).",
+    "Next: the pre-wave fixes, and the replay of the matrix, the death sample and the lineup cells on the fixed engine.",
+    "Next: Tyler answers S-15, S-17 and S-18. S-11, S-12 and S-14 follow the replay."
   ]
 }

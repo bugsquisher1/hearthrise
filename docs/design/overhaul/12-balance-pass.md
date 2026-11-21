@@ -1,5 +1,9 @@
 # 12. The balance pass on the fixed simulator
 
+**Superseded since.** Section 3.5 and section 7 item 1 are superseded by run 44931089433, read in `13-build-plan.md`: the seats are 1.263 on Dangerous and 1.579 on Deadly, and the law is fitted at the ruled points.
+
+**Waits on the replay.** Every death number in this chapter, the Level 60 lineups of section 4.1 and the Muster Barrows rows were played before the two engine stall fixes at 02364f03a. They wait on the replay on the fixed engine.
+
 Written 2026-11-21 on `lane/d-balance-pass`, on `set/v0.2.144` at 14a8984a0. This is the last step before the build plan. It turns the book's PROVISIONAL numbers into MEASURED ones, or shows where they are wrong. No game code, data or migration was changed. The only files added are this chapter and the patches in `tools/balance-program/patches/`.
 
 Labels. MEASURED is a run on the real engine, with the run, the cells, the seeds and the hours. COMPUTED is arithmetic on named inputs. JUDGMENT is a design opinion. UNKNOWN means nobody knows. Nothing here is compared with the game that runs today.

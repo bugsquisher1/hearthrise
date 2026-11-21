@@ -105,16 +105,16 @@ The intentional special rules in combat, each with its status.
 
 | Rule | Design | Status |
 |---|---|---|
-| Gentle first grounds | A ground whose floor is Level 8 or under is gentle: monsters land 40% and their blow is 13.2% of a same-Level hero's health. From floor 16 they land 70% and hit 22%. A straight line between. It is the only Level threshold in monster stats | OPEN (GR-25, waiting on Tyler for his explicit approval) |
-| The boss blow cap | A boss's largest blow is held to a third of the health of the hero his ground is written for. The cap bounds his spells too, so no boss row needs a hand number | OPEN (GR-25, waiting on Tyler for his explicit approval) |
+| Gentle first grounds | A ground whose floor is Level 8 or under is gentle: monsters land 40% and their blow is 13.2% of a same-Level hero's health. From floor 16 they land 70% and hit 22%. A straight line between. It is the only Level threshold in monster stats | RULED (GR-25, Tyler 2026-11-21, the second sitting, S-15 a) |
+| The boss blow cap | A boss's largest blow is held to a third of the health of the hero his ground is written for. The cap bounds his spells too, so no boss row needs a hand number | RULED (GR-25, Tyler 2026-11-21, the second sitting, S-15 a) |
 | Built for a party | One encounter type with three numbers: health x2.5, blow x0.75, and XP per kill as an output of the kill reward | PROVISIONAL (GR-5, Tyler said yes on the page) |
-| A tier a ground or mode does not offer | One content flag. The Mill Cellar offers Normal only (RULED 11-05). A scaled hunt offers no Deadly through the same flag | OPEN (GR-25, waiting on Tyler for his explicit approval) |
+| A tier a ground or mode does not offer | One content flag. The Mill Cellar offers Normal only (RULED 11-05). A scaled hunt offers no Deadly through the same flag | RULED (GR-25, Tyler 2026-11-21, the second sitting, S-15 a) |
 | The beginner's floor | A cast never reads a blow under one stated number (2.8) | DECIDED (GR-11, Fable 2026-11-21) |
 | Mend heals a share of max health | The second of the two heal kinds | RULED 32-4 (11-21) |
 | Party-only rows | A row may fire only alone, only in a party, or only for a tank in a party | RULED 11-09 and 11-19 |
 | What a basic attack costs | A wand or staff swing costs 1 mana, a bow shot one arrow, a melee swing nothing | RULED 10-15 and 10-23 |
 | The training dummy | Its blow cannot kill and it cannot die | RULED 11-08 |
-| Three training bases | Melee and Ranged train on damage dealt, Magic on mana spent, Defense on blows taken | RULED 10-18 and 11-05 in parts. On record as one rule: OPEN (GR-25, waiting on Tyler for his explicit approval) |
+| Three training bases | Melee and Ranged train on damage dealt, Magic on mana spent, Defense on blows taken | RULED 10-18 and 11-05 in parts. On record as one rule: RULED (GR-25, Tyler 2026-11-21, the second sitting, S-15 a) |
 | Storm burns mana, Necrotic cuts healing | What makes the two elements different (2.5) | RULED 11-18 in kind. The game designer sizes the numbers on the matrix with the first seven spells (GR-16) |
 
 **Talents on the modifier table.** PROVISIONAL (TAL-1, `10-level-choices.md`). The table gains no key. Talent rows are sources on five keys that already exist: permanent damage (Force), the Defense rating (Footing), `heroHp` (Grit), `heroMana` (Reserve) and the status tick (Linger). The to-hit floor that CORE-4 owes now also bounds Footing, so it must land before Footing is final.
@@ -132,7 +132,7 @@ The intentional special rules in combat, each with its status.
 |---|---|---|
 | A hero with normal skills lands on a same-Level monster | 85% (`heroAccuracy`) | TARGET |
 | A same-Level monster lands on a hero with normal skills | 70% on a full ground (`monsterAccuracy`) | RULED 21-2 (11-20) |
-| The same on a gentle ground | 40% | OPEN (GR-25, waiting on Tyler for his explicit approval) |
+| The same on a gentle ground | 40% | RULED (GR-25, Tyler 2026-11-21, the second sitting, S-15 a) |
 | `toHitBase` | 20 | TARGET |
 | The rails | never under 5%, never over 97% | TARGET |
 | A weak-side weapon | x1.15 to the chance | TARGET |
@@ -190,14 +190,16 @@ Every weapon family can meet a weak monster. The unused "resists a weapon" colum
 
 | Order | Step | Weight | Formula | Label |
 |---|---|---|---|---|
-| 1 | Dodge | Medium (leather) | chance = 650 permille x P / (P + 0.4 x L) | TARGET (`armorMitigation`, `armorCurve`) |
-| 2 | Absorb | Heavy (plate) | share = 750 permille x P / (P + 0.62 x L) | TARGET |
+| 1 | Dodge | Medium (leather) | chance = 650 permille x P / (P + 0.96 x L) | `armorCurve` is RULED by the designer 2026-11-21 (D-3): ×2.4, so 0.96 and 1.488. It was 0.4 and 0.62 |
+| 2 | Absorb | Heavy (plate) | share = 750 permille x P / (P + 1.488 x L) | RULED by the designer 2026-11-21 (D-3) |
 | 3 | Resistance | any, from gear and linings | 1 minus the summed resistance, capped at 40% an element and 10% physical | TARGET |
 | 4 | Ward | Light (cloth) | 1.5 flat points for each armor point | TARGET |
 | 5 | Tempering's armor rungs, Steady from gear and food | any | last | TARGET |
 | | The cap | | never more than 60% off one blow in all (`mitigationCap`) | RULED 10-18 |
 
 P is the hero's armor points. L is the attacking monster's own Level (2.1). Mixed pieces blend by slot share, with no mixing penalty and no movement penalty for plate (RULED 10-18). Plate also raises max health by up to 28% and cloth raises max mana by up to 35% (RULED 10-14). Every piece is gated by the hero's Level and never by a skill (RULED 10-24).
+
+**The armor curve is ×2.4.** RULED by the designer 2026-11-21 (D-3), `review/08-designer-d3.md` section 1. It is the only setting played where an armor step is worth what the 2026-10-25 ruling asks past Level 45. The switch rule: if the confirm run shows ×1.6 holds the same steps, the curve is ×1.6. The mid kit takes 18 to 32% more damage at ×2.4 than at ×1, and its pace does not move (Local, 4 seeds of 8 hours), so engine batch CB-2 sizes the tier dial with the curve in. Light armor's ward is flat points, so it does not fade with Level. A heavy piece pays for its armor with lighter blows, never with to-hit. Tiers 1 to 7 keep their built armor, and the curve writes armor from Level 110. That last part is open for Tyler's veto as D3-1.
 
 **Armor keeps pace by construction.** Armor points come from the gear curve (`03-items-and-crafting.md`). COMPUTED on the proposed curve: a hero in plate of its Level sits at the 60% cap from Level 110 to Level 5,000, and a full Deadly pull deals about 13% of a tank's max health a second at every Level. So the need for a healer is constant by design, and the cap, not the gear, is the real armor number.
 
@@ -238,6 +240,8 @@ A resistance lining cuts the damage and the element's rule by the same percent, 
 **Where monsters first cast them.** Necrotic on the Ox Road (Levels 112 to 128), with its home in the Unmarked Catacombs. Storm at the Old Guard (138 to 155), with its home in region 5. Heroes get their spells by skill, so a hero casts both long before a monster casts them back (PROVISIONAL, GR-16, from the itemization plan B2. The grounds belong to `02-world.md`).
 
 **Why monsters cast at all.** Monster area spells exist so the whole party takes damage and the hunt feels engaging (RULED 11-08). Some are whole-group and unavoidable, with a shown windup. The answers are a shell, a heal, resistance on gear and linings, and breaking the cast (2.9). A boss also keeps a dodgeable heavy hit: the tank soaks it and casters step off (RULED 11-08).
+
+**Party-wide damage is the `group` rows, and no tier row exists.** RULED by the designer 2026-11-21 (D-10), `review/06-designer-rulings-w1.md` section 6. A group spell's top hit already follows the hunt's tier, so every group spell lands 2.5 times as hard on Dangerous and Deadly as on Normal. A tier row on group damage would count the blow dial twice. Every open ground from Wickstead up carries a group caster among its regular monsters. Hask's Ford and the Muster Barrows had none, and FB-8 adds one to each: River Chill on the Fordsunk and Grave Chill on the Cairn Wight, both frost. The Mill Cellar and Meadowbrook Thicket keep none, because a first ground teaches the plain fight. The order of levers, if a ground's group share reads under 5% of a mid four's damage on its Deadly floor: first that ground's own caster, then one knob on every group row, and a tier row only if Deadly floors still read outside 50 to 100 deaths on more than a third of grounds after the blow dial has moved once.
 
 ### 2.6 Healing and sustain
 
@@ -500,10 +504,13 @@ The four lineup cells stay on the balance matrix as readings and judge nothing (
 - **The tiers.** Dangerous is a pull of five and Deadly a pull of eight, and both take blows 2.5 times Normal (MEASURED, R2 and R4, 4 seeds of 8 hours, 128 hero-hours a cell). At the numbers the book opened on, neither tier did anything to a party (MEASURED, R0).
 - **The response is a cliff.** A four is either safe or it wipes, and the step between is a few percent of the dial. So no table can hold a flat death count at every Level. All cells together read 41 deaths in 1,000 hours on Deadly and 4 on Dangerous. That is one of four items chapter 12 puts to Tyler (its section 7, item 2), and he has not answered.
 - **Each ground is a ladder.** A four arrives and hunts Dangerous. Some way up the band Deadly stops killing it, and by the band's top Deadly is safe.
+- **The death counts describe arrival.** RULED (Tyler, 2026-11-21, the second sitting, S-12 a). The ruled counts, 10 to 30 deaths in 1,000 hours on Dangerous and 50 to 100 on Deadly, describe a four that has just arrived in a band. Dangerous on arrival, Deadly once the four grows past the edge, then the next ground. The dial's size stays PROVISIONAL until CB-2's one death sample.
+- **When one of an account's own four falls, the rest hunt on.** RULED (Tyler, 2026-11-21, the second sitting, S-14 a). "All come home" stays one plan line.
+- **The five special rules of GR-25 are approved.** RULED (Tyler, 2026-11-21, the second sitting, S-15 a). Gentle first grounds, the boss blow cap and the three training bases stay as written. The roll rule and the tier flag are folded by FB-2, with no change in play.
 - **The four together beats the same four split up** at 28 of 29 checkpoints from Level 5 to 400, by 1.4 to 2.6 times (MEASURED, R4).
 - **The front hero takes 92 to 100% of the damage on nine of 14 grounds** (MEASURED, R0). A party is close to one health bar, which is why a tier is a cliff.
 - **The shield and the hammer hold alike at the armor cap.** At Level 110 on Deadly a shield front and a hammer front read 0.73 and 0.72 (MEASURED, R2). The shield's job is real only where armor is not capped.
-- **OPEN design item: group damage as a tier row.** A tier scales the blow and the pull, and group damage is 0 to 8% of what a four takes on nine grounds. Chapter 12 section 4.1 argues that a tier row could carry a share of each pull's damage as a party-wide pulse, in the direction of the 2026-11-08 ruling. It is a new mechanic. It is not designed, not proposed as a row and not decided. Owner: the game designer.
+- **Group damage as a tier row: closed, no tier row.** RULED by the designer 2026-11-21 (D-10). Party-wide damage stays in the data's `group` rows, which already scale with the tier's blow dial. A tier row is a named fallback with a measured trigger (section 2.6 above, and `review/06-designer-rulings-w1.md` section 6.3).
 
 **Why roles can still matter, by formula.** Nothing forces a shield or a healer into a four. What a seat brings is still real: a pull of eight wants a holder, because an unheld pack spreads its blows across cloth. The tier's blow and aim make that spread lethal. Shooters reach the back row, so someone must kill them or guard against them. Whole-group spells need a shell, a heal or a broken cast. Each is a stat or a row. None is special-case code.
 
@@ -577,7 +584,7 @@ The four lineup cells stay on the balance matrix as readings and judge nothing (
 
 **Encounter types.** Two. An ordinary ground, and a ground built for a party: health x2.5 and blow x0.75 (`partyGroundHp`, `partyGroundBlow`), with XP per kill an output of the kill reward (PROVISIONAL, GR-5, Tyler said yes on the page).
 
-**A hall boss** is the boss role times one hall number. The number acts on the boss's health, and so on the 10 minute clock, never on his blows. It is sized so a mid-geared four in band wins 80 to 90% of the time on the food its card asks for, and the weakest named party loses to the clock. Deaths in a hall stay inside the death band of the tier chosen (RULED, GR-3, Tyler 2026-11-21, the sitting0, waits on the hall check at three Levels and one boss stood. HYPOTHESIS until the hall grader plays it at Levels 25, 52 and 75). No boss is tuned by hand.
+**A hall boss** is the boss role times one hall number. The number acts on the boss's health, and so on the 10 minute clock, never on his blows. It is sized so a mid-geared four in band wins 80 to 90% of the time on the food its card asks for, and the weakest named party loses to the clock. Deaths in a hall stay inside the death band of the tier chosen (PROVISIONAL, GR-30, waits on the hall check at three Levels and one boss stood. HYPOTHESIS until the hall grader plays it at Levels 25, 52 and 75). No boss is tuned by hand.
 
 **Boss phases.** Two lines on a boss's health. Adds arrive at the first, and he takes only a share of every blow while one stands. Under the second he enrages: his blow and aim rise and one named spell casts faster (RULED 11-05, C-BOSS-PHASE). A ground's named rare gets one phase trait so it is an event and not a bigger health bar (DECIDED, GR-35, Fable 2026-11-21, `02-world.md`).
 
@@ -621,7 +628,7 @@ One file, `tools/balance-program/formulas/knobs.json`. The Balance Lab turns eac
 | `partyGroundHp`, `partyGroundBlow` | x2.5, x0.75 | What "built for a party" means |
 | `tierDanger`, `tierHp`, `tierXp`, `tierPull` | section 2.11 | The price and the pay of Dangerous and Deadly on every ground |
 | `heroHp`, `heroMana` | 150 + 10 a Level, 100 + 10 a Level | Health, mana, and every monster blow with them |
-| `armorMitigation`, `armorCurve`, `mitigationCap` | 650, 750, 1.5. 0.4, 0.62. 60% | What armor is worth |
+| `armorMitigation`, `armorCurve`, `mitigationCap` | 650, 750, 1.5. 0.96, 1.488 (×2.4, D-3). 60% | What armor is worth |
 | `regen` | 0.3% a second in a fight, 6% out | Downtime, food bought |
 | `gearSlope`, `gearBandStep`, `gearExchange` | `03-items-and-crafting.md` | Whether hero power and armor keep pace, forever |
 | `talentEvery` | 5 Levels | How often a talent point arrives. RULED 2026-11-21 for the rhythm |
@@ -666,7 +673,7 @@ In decision-book order. Each line is the decision this chapter is written on.
 | GR-18 | Quarry Blow breaks a windup | Approve. It re-opens "no stagger" (10-23) in a narrow form | PROVISIONAL. Waits on the playtest or measurement its own row names. Tyler said yes on the page 2026-11-21. It changes "No stagger" of 2026-10-23, which he let stand on the page |
 | GR-20 | A status opens one kind of damage | Not now. A paper sample of three pairs, looked at again after Deadly is sized and played | PROVISIONAL. Waits on Deadly sized, and the system built |
 | GR-24 | The starting weapon | The player picks for each hero at creation. No card is preselected. Each card carries a measured tag and the hammer a "Good first hero" mark. Heroes two to four come pre-filled as shield, staff and bow | PROVISIONAL. Waits on being built and played past minute 17 by real new players |
-| GR-25 | Special rules never put to Tyler | Approve each: gentle first grounds, the boss blow cap, three training bases, one roll rule with chance rounding, one flag for a tier a ground does not offer | OPEN (waiting on Tyler). Tyler's explicit approval. The formula brief says a deliberate special rule needs it, and these five were never put to him. |
+| GR-25 | Special rules never put to Tyler | Approve each: gentle first grounds, the boss blow cap, three training bases, one roll rule with chance rounding, one flag for a tier a ground does not offer | RULED (Tyler, 2026-11-21, the second sitting, S-15 a). All five rules are approved. The roll rule and the tier flag are folded by FB-2, with no change in play |
 | GR-11 | The beginner's floor | One floor on the blow a cast reads | DECIDED (Fable 2026-11-21) |
 | GR-12 | Spells and the hit stats | A physical strike reads weapon weakness. Spells never miss and never crit | DECIDED (Fable 2026-11-21) |
 | GR-13 | The roll | One rule. Heals and shells have no spread | DECIDED (Fable 2026-11-21) |

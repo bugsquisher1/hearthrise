@@ -166,6 +166,8 @@ Typical low health is a poor reading of danger. Every cell under 0.36 wiped, but
 
 ### 3.3 The Blessing ladder (S-5, GR-7)
 
+Superseded by `review/06-designer-rulings-w1.md` section 5, after S-12 a. The threshold is 5 hunted hours again (D-4). What follows is the pass as it was written.
+
 | Number | Was, PROVISIONAL | Now | Evidence |
 |---|---|---|---|
 | The threshold at which a new Blessing opens | A blessed death that costs over **5** hunted hours | **2** hours | COMPUTED on MEASURED Level XP rates (R0) |
@@ -198,6 +200,8 @@ Blessing prices are not in this pass. The tool reads a full set at Level 110 as 
 | Party grounds pay two thirds of a plain kill | COMPUTED | Not judged alone. The Sewer, the Warrens and the Muster Barrows read 1.3 to 1.8 on the lone clock, so two thirds may still be high | MEASURED, R0 | P2 |
 
 **The number each ground is owed.** COMPUTED from R0. It is one over the geometric mean of the lone hammer's reading at the two ends of the band. The generator of GR-5 writes it.
+
+The ground-number generator reads a ground from Level 10, and the Mill Cellar carries none (D-3, `review/08-designer-d3.md` section 2.2). Under Level 5 the kill reward follows the curve's low end at exponent 1.1.
 
 | Ground | Floor | Top | The derived number |
 |---|---|---|---|
@@ -265,7 +269,9 @@ Patch: `bp-gear-step-117.json` plays the decided step. The registry's GR-4 row s
 
 **A weapon step grows with Level.** At +17% it is 4.4% at 185, 7.3% at 400 and 9 to 11% past Level 1,000 (L, PROJECTED). Gear is a growing share of a blow as skill flattens. The step is right through Level 400 and will want a second look past it.
 
-**Armor is decoration past Level 30.** MEASURED, L. A probe made armor fade 2.4 times as fast against the attacker's Level (`bp-armor-curve-240.json`). The mid hero's damage taken did not move, by 0 to 3% from Level 30 to 400. So a full mid set holds more than 2.4 times the armor that the 60% cap can use. One band back is still at the cap. That is why an armor upgrade does nothing, and why the shield and the hammer hold alike at Level 110.
+**Armor is decoration past Level 30.** MEASURED, L. A probe made armor fade 2.4 times as fast against the attacker's Level (`bp-armor-curve-240.json`). The mid kit takes 18 to 32% more damage at ×2.4, and its pace does not move (D-3, Local). So a full mid set holds more than 2.4 times the armor that the 60% cap can use. One band back is still at the cap. That is why an armor upgrade does nothing, and why the shield and the hammer hold alike at Level 110.
+
+The armor curve and the arrival kit are ruled in `review/08-designer-d3.md`: ×2.4, with the arrival graded by survival, pace and the tier it can hold.
 
 With the probe in, an armor step reads 3.6% at Level 60 and 4.1% at Level 400, inside your ruling. But the arrival kit then takes 1.6 to 2.4 times the mid kit's damage, which is worse. So the knob is right and it cannot ship without the arrival kit being fixed with it. It stays PROVISIONAL. What settles it: one full run with the probe, the arrival kit's skill offset and the jewelry share moved together.
 

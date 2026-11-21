@@ -184,9 +184,12 @@
       "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
       "waitsOn": "the hall check at three Levels and one boss stood",
       "builtIn": {
-        "where": "waits",
-        "unplacedInThePlan": true,
-        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits on the hall check at three Levels and one boss stood. Nothing is cut."
+        "where": "later lane",
+        "class": "SIZED IN THE SIMULATOR",
+        "lanes": [
+          "FR-8"
+        ],
+        "note": "After the first build. Sized in the simulator and never left to a playtest: Mode cells at the fixed dials. The hall grader at Levels 25, 52 and 75. Lane FR-8 (14-the-rest.md section 5). Nothing is cut."
       }
     },
     {
@@ -207,9 +210,12 @@
       "area": "World",
       "status": "DECIDED",
       "builtIn": {
-        "where": "waits",
-        "unplacedInThePlan": true,
-        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+        "where": "later lane",
+        "class": "SIZED IN THE SIMULATOR",
+        "lanes": [
+          "FR-2"
+        ],
+        "note": "After the first build. Sized in the simulator and never left to a playtest: Hours to a drop from the measured kill rate, by ground and gear state. Lane FR-2 (14-the-rest.md section 5). Nothing is cut."
       }
     },
     {
@@ -260,9 +266,13 @@
       "status": "PROVISIONAL",
       "waitsOn": "the playtest or measurement its own row names",
       "builtIn": {
-        "where": "waits",
-        "unplacedInThePlan": true,
-        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits on the playtest or measurement its own row names. Nothing is cut."
+        "where": "later lane",
+        "class": "NEEDS A DESIGN FIRST",
+        "lanes": [
+          "FR-14"
+        ],
+        "designFirst": "D-13",
+        "note": "After the first build. It needs a design first: the designer rules D-13 before its lane starts. Lane FR-14 (14-the-rest.md section 5). Nothing is cut."
       }
     },
     {
@@ -281,9 +291,12 @@
       "area": "World",
       "status": "DECIDED",
       "builtIn": {
-        "where": "waits",
-        "unplacedInThePlan": true,
-        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+        "where": "later lane",
+        "class": "SIZED IN THE SIMULATOR",
+        "lanes": [
+          "FR-14"
+        ],
+        "note": "After the first build. Sized in the simulator and never left to a playtest: Pace across each new band. Lane FR-14 (14-the-rest.md section 5). Nothing is cut."
       }
     },
     {
@@ -306,9 +319,13 @@
       "status": "PROVISIONAL",
       "waitsOn": "the kill reward and the tiers, because the seat's multiple is not one number until then",
       "builtIn": {
-        "where": "waits",
-        "unplacedInThePlan": true,
-        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits on the kill reward and the tiers, because the seat's multiple is not one number until then. Nothing is cut."
+        "where": "later lane",
+        "class": "NEEDS A DESIGN FIRST",
+        "lanes": [
+          "FR-4"
+        ],
+        "designFirst": "D-12",
+        "note": "After the first build. It needs a design first: the designer rules D-12 before its lane starts. Lane FR-4 (14-the-rest.md section 5). Nothing is cut."
       }
     },
     {
@@ -331,9 +348,13 @@
       "proposal": "Made in the fold 2026-11-21, not yet seen by Tyler. He said keep on a cut list. How it stays is the integrator's proposal and nothing more.",
       "madeInTheFold": "Rewritten in the fold 2026-11-21 after his picks. Not yet seen by Tyler.",
       "builtIn": {
-        "where": "waits",
-        "unplacedInThePlan": true,
-        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+        "where": "later lane",
+        "class": "NEEDS A DESIGN FIRST",
+        "lanes": [
+          "FR-4"
+        ],
+        "designFirst": "D-12",
+        "note": "After the first build. It needs a design first: the designer rules D-12 before its lane starts. Lane FR-4 (14-the-rest.md section 5). Nothing is cut."
       }
     },
     {
@@ -352,9 +373,12 @@
       "area": "World",
       "status": "DECIDED",
       "builtIn": {
-        "where": "waits",
-        "unplacedInThePlan": true,
-        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+        "where": "later lane",
+        "class": "SIZED IN THE SIMULATOR",
+        "lanes": [
+          "FR-2"
+        ],
+        "note": "After the first build. Sized in the simulator and never left to a playtest: Hours to a drop from the measured kill rate, by ground and gear state. Lane FR-2 (14-the-rest.md section 5). Nothing is cut."
       }
     },
     {
@@ -376,8 +400,12 @@
       "waitsOn": "Deadly sized, and the system built",
       "firstBuild": "planned, waits until the first build is played",
       "builtIn": {
-        "where": "waits",
-        "note": "Not in the first build. It waits until: The first build is played (13-build-plan.md section 1.2)."
+        "where": "later lane",
+        "class": "SIZED IN THE SIMULATOR",
+        "lanes": [
+          "FR-8"
+        ],
+        "note": "After the first build. Sized in the simulator and never left to a playtest: Mode cells at the fixed dials. The hall grader at Levels 25, 52 and 75. Lane FR-8 (14-the-rest.md section 5). Nothing is cut."
       }
     },
     {
@@ -396,9 +424,12 @@
       "status": "PROVISIONAL",
       "waitsOn": "Deadly sized, and the system built",
       "builtIn": {
-        "where": "waits",
-        "unplacedInThePlan": true,
-        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits on deadly sized, and the system built. Nothing is cut."
+        "where": "later lane",
+        "class": "SIZED IN THE SIMULATOR",
+        "lanes": [
+          "FR-8"
+        ],
+        "note": "After the first build. Sized in the simulator and never left to a playtest: Mode cells at the fixed dials. The hall grader at Levels 25, 52 and 75. Lane FR-8 (14-the-rest.md section 5). Nothing is cut."
       }
     },
     {
@@ -419,10 +450,23 @@
       "status": "PROVISIONAL",
       "waitsOn": "Deadly sized, and the system built",
       "builtIn": {
-        "where": "waits",
-        "unplacedInThePlan": true,
-        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits on deadly sized, and the system built. Nothing is cut."
-      }
+        "where": "later lane",
+        "class": "SIZED IN THE SIMULATOR",
+        "lanes": [
+          "FR-6"
+        ],
+        "note": "After the first build. Sized in the simulator and never left to a playtest: Slot class power from the gear curve, perk sizes inside a weapon step, bench rates in `artisan-sim.js`, salvage yield against the Shop. Lane FR-6 (14-the-rest.md section 5). Nothing is cut."
+      },
+      "designer": [
+        {
+          "id": "D-3",
+          "file": "docs/design/overhaul/review/08-designer-d3.md",
+          "section": 1,
+          "when": "2026-11-21",
+          "what": "The armor curve is x2.4, or x1.6 if the confirm run shows it holds the same steps. The arrival kit is the mid kit one band back, in gear only. An arrival is graded by survival, pace and the tier it can hold, and S5.low is a report. Tiers 1 to 7 keep their built armor. Carter's Rest, the Ox Road and factions stay staged. A heavy piece pays for armor with lighter blows. The kill reward under Level 5 follows the curve at exponent 1.1."
+        }
+      ],
+      "designerSizes": "The first build moves no jewelry number. The matrix plays this row's stand-in only from Level 110. Its rows read 6 to 14% of a lone mid hero's pace under Level 110 and 2 to 5% past it (Local), so the derivation lowers Levels 20 to 60 and raises the rest."
     },
     {
       "id": "GR-39",
@@ -445,9 +489,12 @@
       "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
       "waitsOn": "Deadly sized, and the system built",
       "builtIn": {
-        "where": "waits",
-        "unplacedInThePlan": true,
-        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits on deadly sized, and the system built. Nothing is cut."
+        "where": "later lane",
+        "class": "SIZED IN THE SIMULATOR",
+        "lanes": [
+          "FR-6"
+        ],
+        "note": "After the first build. Sized in the simulator and never left to a playtest: Slot class power from the gear curve, perk sizes inside a weapon step, bench rates in `artisan-sim.js`, salvage yield against the Shop. Lane FR-6 (14-the-rest.md section 5). Nothing is cut."
       }
     },
     {
@@ -467,9 +514,12 @@
       "status": "PROVISIONAL",
       "waitsOn": "the kill reward and the tiers, because the seat's multiple is not one number until then",
       "builtIn": {
-        "where": "waits",
-        "unplacedInThePlan": true,
-        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits on the kill reward and the tiers, because the seat's multiple is not one number until then. Nothing is cut."
+        "where": "later lane",
+        "class": "SIZED IN THE SIMULATOR",
+        "lanes": [
+          "FR-6"
+        ],
+        "note": "After the first build. Sized in the simulator and never left to a playtest: Slot class power from the gear curve, perk sizes inside a weapon step, bench rates in `artisan-sim.js`, salvage yield against the Shop. Lane FR-6 (14-the-rest.md section 5). Nothing is cut."
       }
     },
     {
@@ -488,9 +538,12 @@
       "area": "Items and crafting",
       "status": "DECIDED",
       "builtIn": {
-        "where": "waits",
-        "unplacedInThePlan": true,
-        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+        "where": "later lane",
+        "class": "SIZED IN THE SIMULATOR",
+        "lanes": [
+          "FR-6"
+        ],
+        "note": "After the first build. Sized in the simulator and never left to a playtest: Slot class power from the gear curve, perk sizes inside a weapon step, bench rates in `artisan-sim.js`, salvage yield against the Shop. Lane FR-6 (14-the-rest.md section 5). Nothing is cut."
       }
     },
     {
@@ -510,9 +563,12 @@
       "area": "Items and crafting",
       "status": "DECIDED",
       "builtIn": {
-        "where": "waits",
-        "unplacedInThePlan": true,
-        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+        "where": "later lane",
+        "class": "SIZED IN THE SIMULATOR",
+        "lanes": [
+          "FR-2"
+        ],
+        "note": "After the first build. Sized in the simulator and never left to a playtest: Hours to a drop from the measured kill rate, by ground and gear state. Lane FR-2 (14-the-rest.md section 5). Nothing is cut."
       }
     },
     {
@@ -532,9 +588,12 @@
       "cutApproved": "Cut list 10, Tyler said yes to the cut on the page 2026-11-21.",
       "status": "DECIDED",
       "builtIn": {
-        "where": "waits",
-        "unplacedInThePlan": true,
-        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+        "where": "later lane",
+        "class": "SIZED IN THE SIMULATOR",
+        "lanes": [
+          "FR-6"
+        ],
+        "note": "After the first build. Sized in the simulator and never left to a playtest: Slot class power from the gear curve, perk sizes inside a weapon step, bench rates in `artisan-sim.js`, salvage yield against the Shop. Lane FR-6 (14-the-rest.md section 5). Nothing is cut."
       }
     },
     {
@@ -554,9 +613,13 @@
       "area": "Items and crafting",
       "status": "DECIDED",
       "builtIn": {
-        "where": "waits",
-        "unplacedInThePlan": true,
-        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+        "where": "later lane",
+        "class": "NEEDS A DESIGN FIRST",
+        "lanes": [
+          "FR-6"
+        ],
+        "designFirst": "D-23",
+        "note": "After the first build. It needs a design first: the designer rules D-23 before its lane starts. Lane FR-6 (14-the-rest.md section 5). Nothing is cut."
       }
     },
     {
@@ -575,9 +638,12 @@
       "area": "Items and crafting",
       "status": "DECIDED",
       "builtIn": {
-        "where": "waits",
-        "unplacedInThePlan": true,
-        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+        "where": "later lane",
+        "class": "SIZED IN THE SIMULATOR",
+        "lanes": [
+          "FR-6"
+        ],
+        "note": "After the first build. Sized in the simulator and never left to a playtest: Slot class power from the gear curve, perk sizes inside a weapon step, bench rates in `artisan-sim.js`, salvage yield against the Shop. Lane FR-6 (14-the-rest.md section 5). Nothing is cut."
       }
     },
     {
@@ -597,9 +663,12 @@
       "area": "Items and crafting",
       "status": "DECIDED",
       "builtIn": {
-        "where": "waits",
-        "unplacedInThePlan": true,
-        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+        "where": "later lane",
+        "class": "SIZED IN THE SIMULATOR",
+        "lanes": [
+          "FR-6"
+        ],
+        "note": "After the first build. Sized in the simulator and never left to a playtest: Slot class power from the gear curve, perk sizes inside a weapon step, bench rates in `artisan-sim.js`, salvage yield against the Shop. Lane FR-6 (14-the-rest.md section 5). Nothing is cut."
       }
     },
     {
@@ -619,9 +688,12 @@
       "cutApproved": "Cut list 11, Tyler said yes to the cut on the page 2026-11-21.",
       "status": "DECIDED",
       "builtIn": {
-        "where": "waits",
-        "unplacedInThePlan": true,
-        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+        "where": "later lane",
+        "class": "SIZED IN THE SIMULATOR",
+        "lanes": [
+          "FR-9"
+        ],
+        "note": "After the first build. Sized in the simulator and never left to a playtest: Lining power at the fixed dials, cure time and fee against simulated income. Lane FR-9 (14-the-rest.md section 5). Nothing is cut."
       }
     },
     {
@@ -667,9 +739,12 @@
       "area": "Items and crafting",
       "status": "DECIDED",
       "builtIn": {
-        "where": "waits",
-        "unplacedInThePlan": true,
-        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+        "where": "later lane",
+        "class": "SIZED IN THE SIMULATOR",
+        "lanes": [
+          "FR-8"
+        ],
+        "note": "After the first build. Sized in the simulator and never left to a playtest: Keys and opens against drop hours. Lane FR-8 (14-the-rest.md section 5). Nothing is cut."
       }
     },
     {
@@ -693,8 +768,12 @@
       "status": "PROVISIONAL",
       "waitsOn": "the store-bill fault fixed and a wage formula that exists",
       "builtIn": {
-        "where": "waits",
-        "note": "Not in the first build. It waits until: Listings are used in the playtest. JUDGMENT (13-build-plan.md section 1.2)."
+        "where": "later lane",
+        "class": "ONLY PLAYERS CAN ANSWER",
+        "lanes": [
+          "FR-7"
+        ],
+        "note": "After the first build. Only a player's choice settles it. It is built with this default from the simulator: A suggested price on every book from reference values (drop hours, kill rates and recipes). Lane FR-7 (14-the-rest.md section 5)."
       }
     },
     {
@@ -722,7 +801,17 @@
           "FB-9"
         ],
         "note": "In the first build. FB-9 lane/c-economy (13-build-plan.md section 2.6)."
-      }
+      },
+      "designer": [
+        {
+          "id": "D-5",
+          "file": "docs/design/overhaul/review/06-designer-rulings-w1.md",
+          "section": 4,
+          "when": "2026-11-21",
+          "what": "Refills, Blessings, the talent reset, rename and colors are rows of hours at the hero's Level. The first refill of a day is 2 hours of wage. Deeds are set once in account-days, and rooms and chests move by one factor. `wageShare` opens at 0.80. The Weighhouse stays the first project as a building only, and the market trades from day one."
+        }
+      ],
+      "designerSizes": "`wageShare` opens at 0.80, because the tool over-reads the one real four by about 1.25. It is re-fitted when the playtest holds 200 hunted hero-hours in a Level band."
     },
     {
       "id": "GR-52",
@@ -743,9 +832,12 @@
       "fixedBy": "review-29",
       "status": "DECIDED",
       "builtIn": {
-        "where": "waits",
-        "unplacedInThePlan": true,
-        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+        "where": "later lane",
+        "class": "SIZED IN THE SIMULATOR",
+        "lanes": [
+          "FR-3"
+        ],
+        "note": "After the first build. Sized in the simulator and never left to a playtest: Every price in hours of the calibrated wage. GR-8 and GR-54 wait on S-19 and S-20 for their form. Lane FR-3 (14-the-rest.md section 5). Nothing is cut."
       }
     },
     {
@@ -764,9 +856,12 @@
       "area": "Economy",
       "status": "DECIDED",
       "builtIn": {
-        "where": "waits",
-        "unplacedInThePlan": true,
-        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+        "where": "later lane",
+        "class": "SIZED IN THE SIMULATOR",
+        "lanes": [
+          "FR-3"
+        ],
+        "note": "After the first build. Sized in the simulator and never left to a playtest: Every price in hours of the calibrated wage. GR-8 and GR-54 wait on S-19 and S-20 for their form. Lane FR-3 (14-the-rest.md section 5). Nothing is cut."
       }
     },
     {
@@ -789,14 +884,15 @@
       "tyler": "He let the reversal stand on the page, in about a second. It changes the earlier ruling.",
       "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
       "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
-      "waitsOn": "the store-bill fault fixed and a wage formula that exists",
+      "waitsOn": "Tyler, S-20 of the third sitting: the yard follows the skill curve, or stays flat as he ruled. Then the calibrated wage",
       "firstBuild": "planned, waits until the wage can be measured. Until then the typed prices stand",
       "builtIn": {
         "where": "lane",
         "lanes": [
           "FB-10"
         ],
-        "note": "In the first build. FB-10 lane/c-town-closed (13-build-plan.md section 2.6). Part of it waits: The wage is measured against played gold."
+        "note": "In the first build. FB-10 lane/c-town-closed (13-build-plan.md section 2.6). Part of it waits: The wage is measured against played gold.",
+        "laterPart": "After the first build. Sized in the simulator and never left to a playtest: Every price in hours of the calibrated wage. GR-8 and GR-54 wait on S-19 and S-20 for their form. Lane FR-3 (14-the-rest.md section 5). Nothing is cut."
       }
     },
     {
@@ -826,7 +922,17 @@
           "FB-9"
         ],
         "note": "In the first build. FB-9 lane/c-economy (13-build-plan.md section 2.6)."
-      }
+      },
+      "designer": [
+        {
+          "id": "D-5",
+          "file": "docs/design/overhaul/review/06-designer-rulings-w1.md",
+          "section": 4,
+          "when": "2026-11-21",
+          "what": "Refills, Blessings, the talent reset, rename and colors are rows of hours at the hero's Level. The first refill of a day is 2 hours of wage. Deeds are set once in account-days, and rooms and chests move by one factor. `wageShare` opens at 0.80. The Weighhouse stays the first project as a building only, and the market trades from day one."
+        }
+      ],
+      "designerSizes": "The Weighhouse stays the town's first project as a building only. The market trades from the first loot while it goes up. \"The first project builds something else\" is read as \"opens nothing else\". Staged 1013 and 1014 stand."
     },
     {
       "id": "GR-56a",
@@ -875,9 +981,9 @@
       "area": "Economy",
       "status": "DECIDED",
       "builtIn": {
-        "where": "waits",
-        "unplacedInThePlan": true,
-        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+        "where": "nothing to build",
+        "class": "NOTHING TO BUILD",
+        "note": "Nothing to build. Built as ruled (14-the-rest.md section 3.4)."
       }
     },
     {
@@ -897,9 +1003,12 @@
       "area": "Economy",
       "status": "DECIDED",
       "builtIn": {
-        "where": "waits",
-        "unplacedInThePlan": true,
-        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+        "where": "later lane",
+        "class": "SIZED IN THE SIMULATOR",
+        "lanes": [
+          "FR-3"
+        ],
+        "note": "After the first build. Sized in the simulator and never left to a playtest: Every price in hours of the calibrated wage. GR-8 and GR-54 wait on S-19 and S-20 for their form. Lane FR-3 (14-the-rest.md section 5). Nothing is cut."
       }
     },
     {
@@ -917,14 +1026,24 @@
       ],
       "area": "Economy",
       "status": "PROVISIONAL",
-      "waitsOn": "the store-bill fault fixed and a wage formula that exists",
+      "waitsOn": "the wage formula built by FB-9, and Tyler's veto on reversal 28",
       "builtIn": {
         "where": "lane",
         "lanes": [
           "FB-9"
         ],
         "note": "In the first build. FB-9 lane/c-economy (13-build-plan.md section 2.6)."
-      }
+      },
+      "designer": [
+        {
+          "id": "D-5",
+          "file": "docs/design/overhaul/review/06-designer-rulings-w1.md",
+          "section": 4,
+          "when": "2026-11-21",
+          "what": "Refills, Blessings, the talent reset, rename and colors are rows of hours at the hero's Level. The first refill of a day is 2 hours of wage. Deeds are set once in account-days, and rooms and chests move by one factor. `wageShare` opens at 0.80. The Weighhouse stays the first project as a building only, and the market trades from day one."
+        }
+      ],
+      "designerSizes": "The first full refill of a day costs 2 hours of the hero's wage, then the six ruled steps. Refills 1 and 2 pay for themselves, 3 breaks even and 4 to 6 are gold for XP at every Level. Open for Tyler's veto as reversal 28: \"Veto R-1\" sets 1.33 hours."
     },
     {
       "id": "GR-59a",
@@ -942,9 +1061,10 @@
       "area": "Economy",
       "status": "DECIDED",
       "builtIn": {
-        "where": "waits",
-        "unplacedInThePlan": true,
-        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+        "where": "later",
+        "class": "NO NUMBER TO SIZE",
+        "lanes": [],
+        "note": "It has no number to size and is built from its design. Chapter 14 section 3.4."
       }
     },
     {
@@ -985,9 +1105,9 @@
       "area": "Economy",
       "status": "DECIDED",
       "builtIn": {
-        "where": "waits",
-        "unplacedInThePlan": true,
-        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+        "where": "nothing to build",
+        "class": "NOTHING TO BUILD",
+        "note": "Nothing to build. Superseded or withdrawn (14-the-rest.md section 3.4)."
       }
     },
     {
@@ -1014,9 +1134,14 @@
       "status": "DECIDED",
       "firstBuild": "planned, waits until the first build is played",
       "builtIn": {
-        "where": "waits",
-        "unplacedInThePlan": true,
-        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+        "where": "later lane",
+        "class": "SIZED IN THE SIMULATOR",
+        "lanes": [
+          "FR-3",
+          "FR-15"
+        ],
+        "designFirst": "D-17",
+        "note": "After the first build. Sized in the simulator and never left to a playtest: Every price in hours of the calibrated wage. GR-8 and GR-54 wait on S-19 and S-20 for their form. Lane FR-3, FR-15 (14-the-rest.md section 5). Its design half is D-17. Nothing is cut."
       }
     },
     {
@@ -1039,9 +1164,13 @@
       "proposal": "Made in the fold 2026-11-21, not yet seen by Tyler. He said keep on a cut list. How it stays is the integrator's proposal and nothing more.",
       "madeInTheFold": "Rewritten in the fold 2026-11-21 after his picks. Not yet seen by Tyler.",
       "builtIn": {
-        "where": "waits",
-        "unplacedInThePlan": true,
-        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+        "where": "later lane",
+        "class": "NEEDS A DESIGN FIRST",
+        "lanes": [
+          "FR-15"
+        ],
+        "designFirst": "D-22",
+        "note": "After the first build. It needs a design first: the designer rules D-22 before its lane starts. Lane FR-15 (14-the-rest.md section 5). Nothing is cut."
       }
     },
     {
@@ -1064,9 +1193,12 @@
       "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
       "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
       "builtIn": {
-        "where": "waits",
-        "unplacedInThePlan": true,
-        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+        "where": "later lane",
+        "class": "NO NUMBER TO SIZE",
+        "lanes": [
+          "FR-15"
+        ],
+        "note": "It has no number to size and is built from its design. Lane FR-15 (14-the-rest.md section 5)."
       }
     },
     {
@@ -1088,9 +1220,14 @@
       "status": "PROVISIONAL",
       "waitsOn": "the store-bill fault fixed and a wage formula that exists",
       "builtIn": {
-        "where": "waits",
-        "unplacedInThePlan": true,
-        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits on the store-bill fault fixed and a wage formula that exists. Nothing is cut."
+        "where": "later lane",
+        "class": "NEEDS A DESIGN FIRST",
+        "lanes": [
+          "FR-3",
+          "FR-15"
+        ],
+        "designFirst": "D-17",
+        "note": "After the first build. It needs a design first: the designer rules D-17 before its lane starts. Lane FR-3, FR-15 (14-the-rest.md section 5). Nothing is cut."
       }
     },
     {
@@ -1112,9 +1249,13 @@
       "status": "PROVISIONAL",
       "waitsOn": "the store-bill fault fixed and a wage formula that exists",
       "builtIn": {
-        "where": "waits",
-        "unplacedInThePlan": true,
-        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits on the store-bill fault fixed and a wage formula that exists. Nothing is cut."
+        "where": "later lane",
+        "class": "NEEDS A DESIGN FIRST",
+        "lanes": [
+          "FR-15"
+        ],
+        "designFirst": "D-22",
+        "note": "After the first build. It needs a design first: the designer rules D-22 before its lane starts. Lane FR-15 (14-the-rest.md section 5). Nothing is cut."
       }
     },
     {
@@ -1139,8 +1280,12 @@
       "waitsOn": "the hall check at three Levels and one boss stood",
       "firstBuild": "planned, waits until the first boss has stood twice. The first boss keeps its chest",
       "builtIn": {
-        "where": "waits",
-        "note": "Not in the first build. It waits until: The first boss has stood twice (13-build-plan.md section 1.2)."
+        "where": "later lane",
+        "class": "SIZED IN THE SIMULATOR",
+        "lanes": [
+          "FR-12"
+        ],
+        "note": "After the first build. Sized in the simulator and never left to a playtest: A layer piece's budget, the band's best unique. Lane FR-12 (14-the-rest.md section 5). Nothing is cut."
       }
     },
     {
@@ -1163,9 +1308,12 @@
       "status": "PROVISIONAL",
       "waitsOn": "one buff played in a cell",
       "builtIn": {
-        "where": "waits",
-        "unplacedInThePlan": true,
-        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits on one buff played in a cell. Nothing is cut."
+        "where": "later lane",
+        "class": "SIZED IN THE SIMULATOR",
+        "lanes": [
+          "FR-12"
+        ],
+        "note": "After the first build. Sized in the simulator and never left to a playtest: Its +10% on material rows, in hours. Lane FR-12 (14-the-rest.md section 5). Nothing is cut."
       }
     },
     {
@@ -1184,9 +1332,9 @@
       "area": "Collisions",
       "status": "DECIDED",
       "builtIn": {
-        "where": "waits",
-        "unplacedInThePlan": true,
-        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+        "where": "nothing to build",
+        "class": "NOTHING TO BUILD",
+        "note": "Nothing to build. \"Never\" rules. Each gets a guard where a catalogue can break it: no PvP intent on a ground, no daily row, no XP or drop boost in the store (14-the-rest.md section 3.4)."
       }
     },
     {
@@ -1256,7 +1404,17 @@
           "FB-9"
         ],
         "note": "In the first build. FB-9 lane/c-economy (13-build-plan.md section 2.6)."
-      }
+      },
+      "designer": [
+        {
+          "id": "D-5",
+          "file": "docs/design/overhaul/review/06-designer-rulings-w1.md",
+          "section": 4,
+          "when": "2026-11-21",
+          "what": "Refills, Blessings, the talent reset, rename and colors are rows of hours at the hero's Level. The first refill of a day is 2 hours of wage. Deeds are set once in account-days, and rooms and chests move by one factor. `wageShare` opens at 0.80. The Weighhouse stays the first project as a building only, and the market trades from day one."
+        }
+      ],
+      "designerSizes": "Deeds are rows of account-days: the Fieldworth Farmstead 1 at Level 20, the Stonecross Manor 3 at Level 60, the Ironvale Keep 6 at Level 90, the Hearthrise Castle 20 at Level 110. The Hearthside Homestead stays 400 gold. Sellable room rungs and Storage chests move by one factor, the geometric mean of the four deeds' moves."
     },
     {
       "id": "CE-6",
@@ -1276,9 +1434,12 @@
       "area": "Collisions",
       "status": "DECIDED",
       "builtIn": {
-        "where": "waits",
-        "unplacedInThePlan": true,
-        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+        "where": "later lane",
+        "class": "SIZED IN THE SIMULATOR",
+        "lanes": [
+          "FR-2"
+        ],
+        "note": "After the first build. Sized in the simulator and never left to a playtest: Hours to a drop from the measured kill rate, by ground and gear state. Lane FR-2 (14-the-rest.md section 5). Nothing is cut."
       }
     },
     {
@@ -1340,7 +1501,17 @@
           "FB-12"
         ],
         "note": "In the first build. FB-12 lane/c-social (13-build-plan.md section 2.6)."
-      }
+      },
+      "designer": [
+        {
+          "id": "D-7",
+          "file": "docs/design/overhaul/review/06-designer-rulings-w1.md",
+          "section": 1,
+          "when": "2026-11-21",
+          "what": "A 28 day cycle with two beats in the first build: the Hearthrise on weekend 1 and the world boss on weekend 3. Weekends 2 and 4 stay quiet. The fire lights at +10% Level XP and gains +3% a mark to +25% at five marks. A full fire is a quarter of the fuel the week's active accounts find. The weekly Open Halls row is retired."
+        }
+      ],
+      "designerSizes": "The fire lights at +10% on an empty fire, then +3% a mark to +25% at five marks. A full fire is a quarter of the fuel weekly active accounts find, one share a fuel item, a named fuel worth an hour of bones, at most four shares an account a day. The boss's fall adds one mark."
     },
     {
       "id": "CE-9",
@@ -1358,9 +1529,12 @@
       "area": "Collisions",
       "status": "DECIDED",
       "builtIn": {
-        "where": "waits",
-        "unplacedInThePlan": true,
-        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+        "where": "later lane",
+        "class": "SIZED IN THE SIMULATOR",
+        "lanes": [
+          "FR-3"
+        ],
+        "note": "After the first build. Sized in the simulator and never left to a playtest: Every price in hours of the calibrated wage. GR-8 and GR-54 wait on S-19 and S-20 for their form. Lane FR-3 (14-the-rest.md section 5). Nothing is cut."
       }
     },
     {
@@ -1414,9 +1588,9 @@
       "wasBeforeSitting": "Paying gives a real edge. In Tyler's words on MM-32: \"paying can put a hero way ahead, it depends on what is on the player market\". There is no ceiling that nobody passes. A player who does not pay can reach the same things with gold, as far as the market holds them.",
       "sitting": "S-8, option A. No ceiling. Only structural limits remain.",
       "builtIn": {
-        "where": "waits",
-        "unplacedInThePlan": true,
-        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+        "where": "nothing to build",
+        "class": "NOTHING TO BUILD",
+        "note": "Nothing to build. Structural. A guard that the store sells no gear and that the Even Arena reads no paid row (14-the-rest.md section 3.4)."
       }
     },
     {
@@ -1447,8 +1621,12 @@
       "waitsOn": "one buff played in a cell",
       "firstBuild": "planned, waits until Deadly is sized and one buff has been played in a cell",
       "builtIn": {
-        "where": "waits",
-        "note": "Not in the first build. It waits until: Deadly is sized and one buff is played in a cell (13-build-plan.md section 1.2)."
+        "where": "later lane",
+        "class": "SIZED IN THE SIMULATOR",
+        "lanes": [
+          "FR-12"
+        ],
+        "note": "After the first build. Sized in the simulator and never left to a playtest: Each row's effect on pace and safety, played on the buff hook. The readings held by tests. Lane FR-12 (14-the-rest.md section 5). Nothing is cut."
       }
     },
     {
@@ -1473,8 +1651,12 @@
       "waitsOn": "one buff played in a cell",
       "firstBuild": "planned, waits until Deadly is sized and one buff has been played in a cell",
       "builtIn": {
-        "where": "waits",
-        "note": "Not in the first build. It waits until: Deadly is sized and one buff is played in a cell (13-build-plan.md section 1.2)."
+        "where": "later lane",
+        "class": "SIZED IN THE SIMULATOR",
+        "lanes": [
+          "FR-12"
+        ],
+        "note": "After the first build. Sized in the simulator and never left to a playtest: Each row's effect on pace and safety, played on the buff hook. The readings held by tests. Lane FR-12 (14-the-rest.md section 5). Nothing is cut."
       }
     },
     {
@@ -1511,8 +1693,12 @@
         "runIds": "R0 is GitHub run 44920906999 (the full matrix, 4,503 cells, 2 seeds of 2 hours). R1 is run 44924971088 (670 cells with five buff rows). R2 is run 44925664434 (the death sample, 4 seeds of 8 hours). R4 is run 44928035806 (the death sample with both tiers at 2.5, and the full matrix with the three picks in). L is local probes of 2 seeds of 1 hour."
       },
       "builtIn": {
-        "where": "waits",
-        "note": "Not in the first build. It waits until: Deadly is sized and one buff is played in a cell (13-build-plan.md section 1.2)."
+        "where": "later lane",
+        "class": "SIZED IN THE SIMULATOR",
+        "lanes": [
+          "FR-12"
+        ],
+        "note": "After the first build. Sized in the simulator and never left to a playtest: Each row's effect on pace and safety, played on the buff hook. The readings held by tests. Lane FR-12 (14-the-rest.md section 5). Nothing is cut."
       }
     },
     {
@@ -1535,9 +1721,9 @@
       "statusBeforeReissue": "RULED (Tyler, 2026-11-21), not the recommendation",
       "sitting": "S-8, option A. No ceiling on gear or gold bought through other players. His note of the same day stands.",
       "builtIn": {
-        "where": "waits",
-        "unplacedInThePlan": true,
-        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+        "where": "nothing to build",
+        "class": "NOTHING TO BUILD",
+        "note": "Nothing to build. Structural. A guard that the store sells no gear and that the Even Arena reads no paid row (14-the-rest.md section 3.4)."
       }
     },
     {
@@ -1565,8 +1751,12 @@
       "waitsOn": "test Crowns run in a playtest, and the Security review. Money stays Tyler's. The clause re-derived after his two \"no\" answers was never put to him.",
       "firstBuild": "planned, waits until test Crowns have run in the playtest",
       "builtIn": {
-        "where": "waits",
-        "note": "Not in the first build. It waits until: Test Crowns have run in a playtest (13-build-plan.md section 1.2)."
+        "where": "later lane",
+        "class": "SIZED IN THE SIMULATOR",
+        "lanes": [
+          "FR-16"
+        ],
+        "note": "After the first build. Sized in the simulator and never left to a playtest: Its anchor, one account-week of simulated gold. Lane FR-16 (14-the-rest.md section 5). Nothing is cut."
       }
     },
     {
@@ -1589,8 +1779,12 @@
       "statusBeforeReissue": "RULED (Tyler, 2026-11-21), not the recommendation",
       "firstBuild": "planned, waits until test Crowns have run in the playtest",
       "builtIn": {
-        "where": "waits",
-        "note": "Not in the first build. It waits until: Test Crowns have run in a playtest (13-build-plan.md section 1.2)."
+        "where": "later lane",
+        "class": "ONLY PLAYERS CAN ANSWER",
+        "lanes": [
+          "FR-16"
+        ],
+        "note": "After the first build. Only a player's choice settles it. It is built with this default from the simulator: The book opens with no seeded price, as ruled. The cap reads one account-week of simulated gold. Lane FR-16 (14-the-rest.md section 5)."
       }
     },
     {
@@ -1612,15 +1806,16 @@
       "wasBeforeTyler": "TYLER CONFIRMS. Recommended: a Crown is a number on the account with its own append-only ledger. Crowns are sold for gold on one server-owned book in fixed lots. One trade, then bound. 1% to list and 4% of the gold, both burned. The player-facing name is \"Crown Exchange\".",
       "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
       "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
-      "waitsOn": "test Crowns run in a playtest, and the Security review. Money stays Tyler's",
+      "waitsOn": "test Crowns run in a later playtest (S-17 a), and the Security review. Money stays Tyler's",
       "firstBuild": "planned, waits until test Crowns have run in the playtest",
       "builtIn": {
-        "where": "lane",
+        "where": "later lane",
         "lanes": [
-          "FB-15"
+          "FR-16"
         ],
-        "note": "In the first build. FB-15 lane/c-test-crowns (13-build-plan.md section 2.6). Part of it waits: Test Crowns have run in a playtest."
-      }
+        "note": "Not in the first build. Test Crowns wait for a later playtest (S-17 a, RULED 2026-11-21). Lane FR-16 (14-the-rest.md section 5)."
+      },
+      "sitting2": "S-17, option a. Premium is on for every hero in the playtest, through the closed-beta switch. Test Crowns wait for a later playtest. FB-15 shrinks to Premium for the account."
     },
     {
       "id": "MM-36",
@@ -1645,12 +1840,13 @@
       "waitsOn": "test Crowns run in a playtest, and the Security review. Money stays Tyler's. The clause re-derived after his two \"no\" answers was never put to him.",
       "firstBuild": "planned, waits until test Crowns have run in the playtest",
       "builtIn": {
-        "where": "lane",
+        "where": "later lane",
         "lanes": [
-          "FB-15"
+          "FR-16"
         ],
-        "note": "In the first build. FB-15 lane/c-test-crowns (13-build-plan.md section 2.6). Part of it waits: Test Crowns have run in a playtest."
-      }
+        "note": "Not in the first build. Test Crowns wait for a later playtest (S-17 a, RULED 2026-11-21). Lane FR-16 (14-the-rest.md section 5)."
+      },
+      "sitting2": "S-17, option a. Premium is on for every hero in the playtest, through the closed-beta switch. Test Crowns wait for a later playtest. FB-15 shrinks to Premium for the account."
     },
     {
       "id": "MM-37",
@@ -1674,8 +1870,9 @@
       "waitsOn": "test Crowns run in a playtest, and the Security review. Money stays Tyler's",
       "firstBuild": "planned, waits until test Crowns have run in the playtest",
       "builtIn": {
-        "where": "waits",
-        "note": "Not in the first build. It waits until: Test Crowns have run in a playtest (13-build-plan.md section 1.2)."
+        "where": "nothing to build",
+        "class": "NOTHING TO BUILD",
+        "note": "Nothing to build. Structural. A guard that the store sells no gear and that the Even Arena reads no paid row (14-the-rest.md section 3.4)."
       }
     },
     {
@@ -1703,8 +1900,9 @@
         "lanes": [
           "FB-15"
         ],
-        "note": "In the first build. FB-15 lane/c-test-crowns (13-build-plan.md section 2.6)."
-      }
+        "note": "In the first build. FB-15 builds Premium for the account and nothing else (S-17 a). 13-build-plan.md section 2.6."
+      },
+      "sitting2": "S-17, option a. Premium is on for every hero in the playtest, through the closed-beta switch. Test Crowns wait for a later playtest. FB-15 shrinks to Premium for the account."
     },
     {
       "id": "PREM-2",
@@ -1726,15 +1924,16 @@
       "wasBeforeTyler": "TYLER CONFIRMS. Recommended design: Premium is 30 days, priced in Crowns, at a real-money cost near the genre's monthly membership. A starting number to react to is 8 to 10 dollars a month. Crown lot sizes and the Crown price of each store row are set so that MM-34's targets hold at the book's opening reference price.",
       "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
       "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
-      "waitsOn": "test Crowns run in a playtest, and the Security review. Money stays Tyler's. The clause re-derived after his two \"no\" answers was never put to him.",
+      "waitsOn": "test Crowns run in a later playtest (S-17 a), and the Security review. Money stays Tyler's. The clause re-derived after his two \"no\" answers was never put to him.",
       "firstBuild": "planned, waits until test Crowns have run in the playtest",
       "builtIn": {
-        "where": "lane",
+        "where": "later lane",
         "lanes": [
-          "FB-15"
+          "FR-16"
         ],
-        "note": "In the first build. FB-15 lane/c-test-crowns (13-build-plan.md section 2.6). Part of it waits: Test Crowns have run in a playtest."
-      }
+        "note": "Not in the first build. Test Crowns wait for a later playtest (S-17 a, RULED 2026-11-21). Lane FR-16 (14-the-rest.md section 5)."
+      },
+      "sitting2": "S-17, option a. Premium is on for every hero in the playtest, through the closed-beta switch. Test Crowns wait for a later playtest. FB-15 shrinks to Premium for the account."
     }
   ],
   "tylerAnswers": "Tyler answered his lists on 2026-11-21. Each row he touched carries a tyler field. The full record is in all.json.",

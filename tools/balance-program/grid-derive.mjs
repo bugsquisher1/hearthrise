@@ -25,11 +25,13 @@ export function statusOf(v, band) {
   if (inR(v, band.lo, band.hi)) return 'ok';
   return inR(v, band.redLo, band.redHi) ? 'off' : 'RED';
 }
-/** How far a value sits outside its target, as a share of the bound it passed (0 inside). */
+/** How far a value sits outside its target, as a share of the bound it passed (0 inside). A bound of zero (a sign: "nets under zero") has no
+    scale, so passing it reads 1: wholly out, never ranked by its gold. */
 export function distanceOf(v, band) {
   if (!finite(v)) return 0;
-  if (band.hi !== null && band.hi !== undefined && v > band.hi) return (v - band.hi) / Math.max(1e-9, Math.abs(band.hi) || 1);
-  if (band.lo !== null && band.lo !== undefined && v < band.lo) return (band.lo - v) / Math.max(1e-9, Math.abs(band.lo) || 1);
+  const past = (b, d) => (b === 0 ? 1 : d / Math.abs(b));
+  if (band.hi !== null && band.hi !== undefined && v > band.hi) return past(band.hi, v - band.hi);
+  if (band.lo !== null && band.lo !== undefined && v < band.lo) return past(band.lo, band.lo - v);
   return 0;
 }
 /* X26: a death rate is judged on 4 seeds x 8 h or more (32 hero-hours a seat); under it the number prints as `thin` */
@@ -151,7 +153,7 @@ export function derive(D, grid, K = null) {
     const hh = pl.heroes * pl.huntHoursADay;
     cost = { player: 'ownfour', heroes: pl.heroes, huntH: pl.huntHoursADay, dbSADay: Math.round(a.dbS), dbSAHeroHour: Math.round((a.dbS / hh) * 100) / 100, rowsAHeroHour: Math.round((a.rows / hh) * 10) / 10 };
   }
-  return { X, get, levels, hardest, holds, SEATS, PACE, DOORS, dayAt, deathXp, watch, crossover, gearRows, cost, seatCell };
+  return { X, get, levels, hardest, holds, SEATS, PACE, DOORS, dayAt, deathXp, xpAt, watch, crossover, gearRows, cost, seatCell };
 }
 
 /* E2: the median hunted hours until every MID weapon and armor piece that drops on the advised ground has dropped (each piece's rate = the
@@ -353,8 +355,10 @@ export function gapNumbers(judged) {
   out.push([11, 'Dangerous as its own cell: MID low point ' + range('S3.mid') + '; MID deaths a 1,000 h ' + range('S6.dangerous.mid')]);
   out.push([12, 'the pace seat ' + T.PACE + ' reaches Level 200 on day ' + fmtDay(T.dayAt(T.PACE, 200)) + ' and 400 on day ' + fmtDay(T.dayAt(T.PACE, 400)) + '; the lone MID hero on day ' + fmtDay(T.dayAt('mid:1:normal', 200)) + ' and ' + fmtDay(T.dayAt('mid:1:normal', 400))]);
   out.push([13, 'the pace seat leaves open content on day ' + fmtDay(T.dayAt(T.PACE, 110)) + ' and staged content on day ' + fmtDay(T.dayAt(T.PACE, 185))]);
-  const dc = (L) => { const c = T.get(L, 'mid', 4, 'normal') || T.get(L, 'mid', 1, 'normal'); return c ? (T.deathXp(L) / c.rates.levelXpPerH).toFixed(1) + ' h' : '-'; };
-  out.push([14, 'one death costs (6%, unblessed, at the MID four\'s Normal rate) ' + [30, 100, 200, 300, 400].map((L) => 'L' + L + ' ' + dc(L)).join(', ')]);
+  /* the seat's Level XP an hour at L, from its hours table (between checkpoints, the same log-linear rate the pace uses) */
+  const seat = T.SEATS['mid:4:normal'] || T.SEATS['mid:1:normal'];
+  const dc = (L) => (seat ? (T.deathXp(L) / ((T.xpAt(L + 1) - T.xpAt(L)) / seat.per[L])).toFixed(1) + ' h' : '-');
+  out.push([14, 'one death costs (6%, unblessed, at the MID four\'s Normal rate) ' + [30, 100, 200, 300, 400].map((L) => 'L' + L + ' ' + dc(Math.min(399, L))).join(', ')]);
   out.push([15, 'Deadly low points: MID ' + range('S4.mid') + ', BiS ' + range('S4.bis')]);
   out.push([22, T.cost ? 'the Own four at 12 h: ' + T.cost.dbSADay + ' DB seconds a day, ' + T.cost.dbSAHeroHour + ' a hero-hour, ' + T.cost.rowsAHeroHour + ' journal rows a hero-hour' : 'no cost read']);
   return out;
@@ -383,7 +387,7 @@ export async function selftest({ ROOT, loadGridData, loadKits, readGrid, quick }
   plant('gold: the store eats 95% of a MID Deadly party\'s coin', 'G-2.deadly', (c) => c.gear === 'mid' && c.party !== 2 && c.tier === 'deadly' && inBandCell(D, c), (c) => { c.rates.storeShare = 0.95; }, label);
   plant('gear: BiS twice MID alone', 'P4', (c) => c.gear === 'bis' && c.party === 1 && c.tier === 'normal', (c) => { c.rates.levelXpPerH *= 2; }, label);
   plant('pace: one Level of the pace seat takes days (its checkpoint at a fiftieth of the Level XP)', 'P12.to300', null, null, null);
-  plant('gear: LOW to MID costs more than the band earns (lone MID net at 1 gold an hour)', 'E3', (c) => c.gear === 'mid' && c.party === 1 && c.tier === 'normal' && c.L >= 15, (c) => { c.rates.netPerH = 1; c.rates.netADay = 12; }, (c) => 'Level ' + c.L);
+  plant('gear: LOW to MID costs more than the band earns (lone MID net at 1 gold an hour)', 'E3', (c) => c.gear === 'mid' && c.party === 1 && c.tier === 'normal' && c.L >= 15, (c) => { c.rates.netPerH = 1; c.rates.netADay = 12; }, (c) => 'Level ' + c.L + ' (band ' + K.bandOf(c.L) + ')');
   let fails = 0;
   console.log('GRID --selftest on the cached ' + grid0.run + ' grid (' + Object.keys(grid0.cells).length + ' cells): each plant must turn its own band red');
   for (const p of P) {
@@ -402,7 +406,7 @@ export async function selftest({ ROOT, loadGridData, loadKits, readGrid, quick }
     }
     const j = judgeGrid(D, g, { K });
     const got = [...redAt(j, p.band)].filter((a) => !redAt(clean, p.band).has(a));
-    const ok = got.some((a) => a.startsWith(atKey.split(' (')[0]));
+    const ok = got.includes(atKey);
     if (!ok) fails++;
     console.log('  ' + (ok ? 'CAUGHT ' : 'MISSED ') + p.name + ': ' + p.band + ' newly red at ' + (got.join(', ') || 'nothing'));
   }

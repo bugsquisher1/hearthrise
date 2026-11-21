@@ -23,7 +23,8 @@
 //
 // THE CACHE AND ITS REFRESH. grid.json is a committed snapshot stamped with the commit and a hash of every input the engine and the kits
 // read (src/core, src/data, the hr-accrue settle, tools/balance-sim, this folder's kit and projector). `--report` and the balance guard
-// say STALE when the tree's hash differs: the nightly re-runs it (refresh: every night, and in any lane that moves a number it guards).
+// say STALE when the tree's hash differs. REFRESH: re-run and commit it in the lane that moves a number a band reads, and whenever the guard
+// prints STALE (a full run is about an hour of worker time; CI cannot commit it back, so no workflow refreshes it on its own yet).
 //
 // RUNTIME (50-standards 5.3 asks the build to measure it): see the `runtime` block grid.json carries (cells, worker-seconds, wall clock,
 // workers) and this lane's report.
@@ -294,7 +295,7 @@ async function play(run) {
   if (process.stderr.isTTY) process.stderr.write('\n');
   const prev = only && existsSync(run.file) ? JSON.parse(readFileSync(run.file, 'utf8')) : null;
   const out = { schema: 'hearthrise.balance-program.grid/1', run: run.id, commit: commitOf(), at: new Date().toISOString().slice(0, 16) + 'Z', inputHash: inputHash(),
-    sample: { seeds: run.seeds, hours: run.hours }, refresh: 'nightly, and in any lane that moves a number a band reads (the guard says STALE when inputHash differs)',
+    sample: { seeds: run.seeds, hours: run.hours }, refresh: 'by hand: re-run and commit in the lane that moves a number a band reads, and whenever the balance guard prints STALE (inputHash differs)',
     clock: existsSync(join(HERE, 'stamina-day.json')) ? JSON.parse(readFileSync(join(HERE, 'stamina-day.json'), 'utf8')) : null,
     runtime: { cells: cells.length, jobs: jobs.length, workers, wallS: Math.round((Date.now() - t0) / 1000), workerS: Math.round(workerMs / 1000), errors: errors.length },
     cells: prev ? { ...prev.cells } : {} };
@@ -346,7 +347,11 @@ async function main() {
   const K = await loadKits(ROOT);
   const judged = DER.judgeGrid(D, grid, { currentHash: inputHash(), K });
   DER.printReport(grid, judged);
-  if (arg('json')) writeFileSync(resolve(arg('json')), JSON.stringify(judged, null, 1));
+  if (arg('json')) {
+    const T = judged.T;
+    const days = Object.fromEntries(Object.keys(T.SEATS).map((k) => [k, Object.fromEntries(T.DOORS.map(([L]) => [L, T.dayAt(k, L)]))]));
+    writeFileSync(resolve(arg('json')), JSON.stringify({ grid: judged.grid, stale: judged.stale, bands: DER.bandSummary(judged), rows: judged.rows, daysToDoors: days, deathWatch: T.watch, gear: T.gearRows, cost: T.cost }, null, 1));
+  }
   return 0;
 }
 

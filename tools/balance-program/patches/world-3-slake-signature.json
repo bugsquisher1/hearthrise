@@ -1,0 +1,16 @@
+{
+  "schema": "hearthrise.balance-patch/1",
+  "name": "World 3: one ground's signature at double dose, the Slake's Cold Bilge 1.8x to 3.6x (53 section 4.2)",
+  "why": "Tests whether a group spell at a dose that matters moves a ground's food bill and low point for a hero alone and for a four, and whether anything off the Slake moves.",
+  "edits": [
+    {
+      "file": "src/data/grounds/the_slake/pack.js",
+      "from": "cdMs: 12000, hitPm: 1800, element: 'frost'",
+      "to": "cdMs: 12000, hitPm: 3600, element: 'frost'"
+    }
+  ],
+  "targets": [
+    "survival",
+    "gold"
+  ]
+}

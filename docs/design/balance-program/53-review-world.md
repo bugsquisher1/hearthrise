@@ -1,6 +1,6 @@
 # Balance program 53: design review of the world (monsters, hunting grounds, bosses)
 
-Game designer, 2026-11-21. PHASE A: reading and analysis only. No game code, data or migration is changed. Briefs of record: `45-design-brief.md` (main) and `40-formula-brief.md` (every change is placed at its layer). Phase B measures the top proposals with the matrix diff.
+Game designer, 2026-11-21. PHASE A was reading and analysis. PHASE B (section 0) measured the top proposals on the real engine with the balance matrix and changed three verdicts. No game code, data or migration is changed. Briefs of record: `45-design-brief.md` (main) and `40-formula-brief.md` (every change is placed at its layer).
 
 **Labels.** EVIDENCE = read from the data on this set, from a cached run, or from real play, with its source. HYPOTHESIS = my design reasoning, not measured. Sources used:
 
@@ -12,6 +12,117 @@ Game designer, 2026-11-21. PHASE A: reading and analysis only. No game code, dat
 
 ---
 
+## 0. Phase B: what was measured, and what changed
+
+**The instrument.** `node tools/balance-program/balance-matrix.mjs --diff <patch> --blocks grounds --seeds 1 --hours 1 --workers 2`. That is the ground axis: every ground at both ends of its band, every party size and every tier, 422 cells, the same dice before and after. The "before" half is today's tree, so it also replaces phase A's cached grid. Every "x contract" below is the matrix's own `xContract`.
+
+**The calibration caveats, printed on every run.** The matrix's four kills 1,386 an hour on Krell's Deadly against Andy's real 1,251 (+11%). Its tank takes 96% of the damage against 69% real, so the back row is safer than in real play. Its store bill is 1.9 times the real one, so every party gold number is a lower bound on what a real party keeps and every lone harder-tier loss is overstated by up to that much. Cells at Level 185 and above are provisional. 51-baseline.md had not landed when this was written.
+
+**No run flagged a band.** All four diffs read IMPROVED 0, REGRESSED 0, UNINTENDED 0. That is because the ground axis carries no band rows in `standards.mjs` (the report's band list is empty), not because nothing moved. So I read the cells, and "unintended" below means a cell outside the grounds or tiers the patch aimed at. There were none in any run.
+
+### 0.1 The four measurements
+
+| # | Patch | Layer (44 ids) | What it changes | Cells moved | Outside its target |
+|---|---|---|---|---|---|
+| 1 | `patches/world-1-one-fit.json` | formula, C-MON-STATS, X-PARTY-FIT | the party fit set to the plain fit (health 2.5 to 1, blow 0.75 to 1, XP a point 0.8 to 1, the three inner patches and two coin dials neutral) | 90 of 422, on the Sewer, the Warrens and the Muster Barrows | none |
+| 2 | `patches/world-2-dangerous-as-built.json` | coefficient, C-PULL (knob `tierPull`, Dangerous only) | Dangerous brings Normal's pack | 110 of 422, Dangerous cells on 11 grounds | none |
+| 2b | `patches/world-2b-dangerous-five.json` | the same | Dangerous brings five on every ground | 110 of 422, the same cells | none |
+| 3 | `patches/world-3-slake-signature.json` | content row (one spell row in the Slake's pack) | Cold Bilge from 1.8 to 3.6 times the Bargeman's blow | 24 of 422, all on the Slake | none |
+
+### 0.2 Patch 1: the party fit removed. My phase A cause was wrong.
+
+Before and after, x contract, MID kit:
+
+| Cell | Lone, Normal | Four, Normal | Four, Deadly | Lone kills an hour |
+|---|---|---|---|---|
+| The Warrens at 32 | 2.03 to 2.10 | 2.15 to 1.28 | 3.49 to 3.24 | 197 to 401 |
+| The Warrens at 50 | 1.36 to 1.36 | 1.31 to 0.74 | 2.42 to 1.90 | 231 to 458 |
+| The Muster Barrows at 55 | 2.00 to 2.06 | 2.15 to 1.31 | 2.97 to 3.02 | 226 to 469 |
+| The Muster Barrows at 75 | 1.78 to 1.73 | 1.63 to 0.93 | 2.79 to 2.60 | 299 to 584 |
+| The Sewer at 5 | 4.14 to 4.10 | 4.02 to 2.92 | 4.30 to 3.44 | 177 to 342 |
+| The Sewer at 25 | 1.08 to 0.88 | 0.74 to 0.41 | 0.87 to 0.49 | 360 to 577 |
+
+- **REFUTED: "XP a pull grows with health."** A lone hero's kills double and its XP an hour does not move. The fit is not why a lone hero is overpaid on these grounds.
+- **What the fit does:** it feeds a four on Normal. Without it a four on Normal falls to 0.74 to 1.31, the same as on every other ground (0.62 to 1.03 from Hask's Ford to the Catacombs, where a four kills a flat 570 to 700 an hour whatever its Level: it is short of monsters, not of damage). With it, a four on Normal reads 1.31 to 2.15.
+- **REGRESSED by the patch:** with the tier lift back on, a lone hero on the Muster Barrows' Deadly at 55 dies (low point 24% to 0) and loses 105,000 gold an hour. A lone hero's store bill on Normal at the Muster Barrows' floor goes from 10,300 to 34,700.
+- **IMPROVED by the patch:** a four's net gold on the party grounds' harder tiers (the Muster Barrows' Deadly at 75: +4,200 to +16,500), because coin follows kills.
+- **Verdict changed.** S2 goes from REMOVE to REDESIGN: keep the fit as one encounter type with three numbers and delete its three inner patches. That is 44's call 5, and I now agree with it. The overpay is a kill reward problem (44 step R12, the kill-rate term). COMPUTED, since XP a kill is linear in the fit: an XP fit about a third lower on the Warrens and the Muster Barrows puts a lone hero at 1.36 and 1.21 at the Muster Barrows' two ends, a four on Normal at 1.46 and 1.11, and a four on Deadly at 2.02 and 1.90. Lone and four read almost the same there today (2.00 and 2.15), so one number fixes both. That is the measured reason to keep the fit: without it they come apart (2.06 and 1.31) and no single reward fits both.
+
+### 0.3 Patches 2 and 2b: what Dangerous should bring
+
+A lone hammer on Dangerous, today (the full box or six), with the pack as built, and on five. x contract, net gold an hour, typical low point:
+
+| Cell | Normal, for scale | Today | As built (patch 2) | Five (patch 2b) |
+|---|---|---|---|---|
+| The Glade at 16 | 1.94, +9,300, 78% | 2.58, -13,000, 25%, deaths | 1.72, +5,400, 60% | 2.39, -4,900, 36% |
+| Hask's Ford at 45 | 1.58, +13,900, 89% | 3.28, -41,600, 32% | 1.61, +13,300, 83% | 2.65, +2,100, 43% |
+| The Pyre Field at 70 | 1.56, +26,100, 80% | 2.50, -37,800, 29%, deaths | 1.61, +24,500, 73% | 2.31, -7,900, 39% |
+| Krell's Hold at 85 | 1.66, +27,800, 83% | 2.64, -55,700, 27%, deaths | 1.72, +25,600, 75% | 2.33, -13,000, 38% |
+| Krell's Hold at 110 | 1.33, +31,800, 90% | 2.22, -3,300, 40% | 1.38, +28,100, 86% | 1.88, +18,000, 45% |
+| The Ox Road at 112 | 1.64, +30,200, 82% | 2.34, -67,800, 24%, deaths | 1.68, +26,900, 73% | 2.13, -37,600, 35%, 1 death in 1,000 h |
+| The Catacombs at 165 | 1.46, +33,000, 80% | 2.24, -74,000, 10%, deaths | 1.51, +30,500, 71% | 2.20, -39,300, 29%, 1 death in 1,000 h |
+
+A four on Dangerous, x contract: Krell's Hold at 85 reads 2.52 today, 1.04 as built, 2.39 on five. The Ox Road at 112 reads 2.64, 1.07, 2.49. Hask's Ford at 45 reads 3.19, 0.95, 2.12. No deaths in any of them.
+
+- **Phase A's proposal (the pack as built) fails.** It is Normal plus 4% XP for a lone hero and it drops a four under 1.1. It is not a tier.
+- **Five works.** For a lone hero it is 35 to 65% more XP than Normal for most or all of the hour's gold, a low point of 35 to 49%, and no deaths in band from the Glade to Krell. With the store bill read at its real size (the 1.9 caveat) the lone loss is about half what the table shows. A four keeps 2.1 to 2.5.
+- **REGRESSED on five:** a four on Dangerous at Hask's Ford's floor earns 2.12 where a lone hero on the same tier earns 2.65. That is the 11-16 line ("every Dangerous party stands at or over its heroes alone") failing on one ground. On Krell's Hold and the Ox Road the four is at or over the lone hero.
+- **Verdict changed in size, not direction.** Dangerous is the lone hero's hard tier at a pull of five, not the pack as built. The six "both tiers bring six" overrides become "Deadly brings six."
+
+### 0.4 Patch 3: a signature at double dose
+
+The Slake with Cold Bilge doubled:
+
+| Cell | Store bill an hour | Net gold an hour | Low point, worst tenth | Deaths in 1,000 h |
+|---|---|---|---|---|
+| Lone, Normal, 50 | 0 to 0 | +14,000 to +14,000 | 77% to 73% | 0 |
+| Four, Normal, 50 | 4,800 to 4,800 | +2,000 to +2,000 | 94% to 94% | 0 |
+| Pair (tank and mage), Dangerous, 50 | 31,700 to 46,500 | +900 to -11,600 | 33% to 19% | 0 to 2 |
+| Pair (bow and healer), Deadly, 50 | 24,800 to 33,600 | +2,700 to -4,900 | 44% to 11% | 0 to 7.5 |
+| Four, Deadly, 50 | 15,700 to 17,900 | +6,400 to +4,600 | 68% to 33% | 0 to 0.25 |
+| Four, Deadly, 65 | 13,200 to 13,900 | +10,200 to +10,400 | 77% to 48% | 0 |
+
+- **On Normal a signature's dose does nothing.** A pull of four is dead before the Bargeman casts. So "turn the dose up" is wrong for Normal. A signature has to be a matter of how often (the spell's cooldown, the caster's weight in the pack), or it has to live on the harder tiers.
+- **On the harder tiers it bites, and it bites small parties first.** A pair's bill rises 35 to 47% and its hour turns from a small profit to a loss. A four's bill rises 5 to 14% and its worst moments fall from 68% health to 33%. That is the right shape: a party that answers the frost (a lining) keeps its hour, and the matrix shows the unanswered cost is real.
+- **Nothing off the Slake moved.** A signature is a content row that stays on its ground.
+- **Verdict stands, with a rule added:** a ground's signature is carried by its harder tiers at full dose, and on Normal it is taught by frequency. Whether a player then changes what they bring is still a playtest (section 7).
+
+### 0.5 What the matrix could not measure
+
+| Proposal | Why | Layer | Stays |
+|---|---|---|---|
+| Risen grounds (4.1) | the harness has no cell for a ground played above its band | formula: C-SCALED and C-MON-STATS at any Level. Its XP share is an output of R12 (E-X11). R22 is "endless modes read any Level" | HYPOTHESIS on the share. The anchor is `22-endgame.md`: a scaled Warrens reads 1.08 to 1.17 of the at-Level ground for a lone hero today |
+| One boss system (4.6) | a hall is not on the ground axis. The engine-reds lane's hall grader is the reading (below) | formula: a hall boss is the `boss` role with one hall coefficient, at R21 when hand rows read the formula. Content rows for the prize | the merge is design. The win rate is measured by lane/c-engine-reds |
+| Re-banding (4.8) | a monster's Level is on its row, so a band move is 5 rows a ground plus a re-fit | content rows, then R12 | HYPOTHESIS |
+| The named rare as an event (4.4) | needs `phases` read through the row door | formula: R3 (X-ROW-DOOR-BYPASS) | HYPOTHESIS |
+| Regions 4 to 7 (4.7) | not built | content | a Director's judgment |
+
+### 0.6 Krell's hall after the spell rule (input from lane/c-engine-reds)
+
+After the spell rule every one of 36 tested parties wins Krell's hall 38 to 40 times in 40. Before the to-hit change one lineup won 2 in 40. The hall's stated fit is 80 to 100% wins. The card's food advice now reads Salted Lobster (180 gold) where it read Swordfish (432), and the new HA-FLOOR rule requires that some named party loses on the next cheaper food.
+
+My verdict. A win rate of 95 to 100% for every lineup is inside the letter of the fit and outside its purpose. If all 36 parties win, the party you bring does not matter, and a hall is the one fight in the game that should ask for preparation. I would not touch Krell's rows to fix it. Krell is a hand-typed row (18,000 health, attack 247), one of the 118 that 44 lists under X-HAND-ROWS. The fix is at the formula layer: a hall boss is the formula's `boss` role at his Level times one hall coefficient, the same for every hall, sized so an in-band MID four on the card's food wins 80 to 90% and the weakest named lineup or the next cheaper food loses. HA-FLOOR is the right guard for that and I would keep it. Until R21 lands, leave the hall as it is: an easy hall with a weak prize is the smaller problem, and the prize is the one to fix first (4.6). The lobster line is right. It matches what Andy's real four ate.
+
+### 0.7 Against 44, 46 and 47
+
+| Source | What it says | Where I stand |
+|---|---|---|
+| 44 call 5, X-PARTY-FIT | keep "built for a party" as an encounter type with three numbers, delete the three inner patches, judge again after R12 | **Agree.** Patch 1 decided it against my phase A position |
+| 44 R12, X-TIER-PER-GROUND | one tier table, per-ground tier dials deleted, the pull a ground's rooms can hold stays as content | **Agree.** Patch 2b turns six "Dangerous and Deadly bring six" rows into one field, Deadly's pull |
+| 44 R9, E-X02 | the eleven 0.7 gold fits fold into the coin line | **Agree.** Same finding as my 2.9 |
+| 44 R21, X-HAND-ROWS | 118 hand rows read the formula | **Agree.** 103 of them are in no hunt and should be deleted, not converted |
+| 44 X-CALLED-ROOM | "a called fight is practice and a keyed hall is the reward": keep both | **Disagree.** One real use. Four reviews (46, 54, 59 and this one) and 47's C15 ask to merge. Recommend the merge |
+| 46 change 4 | past a ground's band the tier ladder keeps going, from the one stat formula, free, replacing scaled hunts by the hour | **The same idea as Risen grounds, reached independently.** I take the Director's simpler door: free on every ground, not only past the frontier. My phase A version kept the hourly fee under the frontier. Zero real uses says the fee is the problem |
+| 46 change 3 | a Hall Key is a banked boss fight and Call out folds into it | **The same conclusion, reached independently** |
+| 47 C9 | keep six grounds as the planning number and open a region as four grounds and its hall, then two | **Agree.** It keeps the 11-18 ruling and gets my point (ship the distinct four first). I withdraw "four for good" until the Morrow Hills are played |
+| 47 C15 | merge Call out, with one rule kept: a mid-region boss's pieces stay repeatable ("one key, one roll") | **Agree**, rider included |
+| 47 C21 | plain Dawnsteel drops in the Hold. Krell's daily roll keeps the uniques, the Trophy and the tier 7 gem. Krell's five sidegrade weapons replace the Dawnsteel rows | **Agree.** It is my call 5 with the plan's two riders |
+| 47 M10 | a risen or scaled ground drops its own rows at its own rarity, and its hourly drop past tier 7 is stock and chips | **Agree.** It is the rule 4.1 needed |
+| 57 (social), phase B | "a party buys reach, not rate". The cause of the party table's trouble is the tier, not the table | **Agree, and patch 2b is the tier half.** Dangerous on five gives the lone hero reach of its own, so Deadly is what a party buys |
+| 56 (progression) | past about Level 145 a blessed MID four loses more XP to deaths on Deadly than Deadly adds | **No conflict.** It makes a survivable middle tier more valuable, which is patch 2b |
+
+---
+
 ## 1. One screen for Tyler
 
 **Verdict.** The world is well built and under-designed. The engine is good. One stat formula makes every monster, and a new ground is mostly data. That part I would build the same way again. What I would not build the same way is what the grounds are for. Today the game has one hunting ground with fifteen skins. From Hask's Ford on, every ground is the same five roles at the same weights, the same pull of four, the same 60 second respawn and the same three tier dials. The XP of every ground is then fitted by hand to the same line. So the answer to "where should I hunt" is a lookup, not a decision. Real players found the lookup. They spent 32% of all hours on one ground and ran Deadly on 79 of 99 recorded party hunts.
@@ -19,20 +130,20 @@ Game designer, 2026-11-21. PHASE A: reading and analysis only. No game code, dat
 **The five changes that matter most.**
 
 1. **Old grounds rise to your Level, for free, once you pass the last open region.** We already built this as scaled hunts. Make it the standing answer to "what do I hunt past the frontier" and the thing that turns fifteen grounds into fifteen choices. Today a four runs out of open grounds on day 27 and you ruled 120.
-2. **One stat formula for every ground. The party-ground formula goes.** Three grounds get 2.5 times the health on their monsters, and those three are the best XP in the game for everyone, alone or in a party. The Muster Barrows at its top Level pays a lone hero more than the Pyre Field does at its floor. A ground should be a party ground because of what stands in it, not because of a second formula.
+2. **Party grounds keep their formula, and their XP comes down by about a third.** In phase A I asked to remove the party-ground formula. I measured that and I was wrong about the cause. With it removed a lone hero earns exactly the same on the Warrens and the Muster Barrows, because kills double and XP a kill halves. What the formula really does is feed a party on Normal. It is the only place a four reaches its pace without a harder tier. So it stays, as "a ground where a party can hunt on Normal", and the overpay is fixed where the formula audit already put it, in the kill reward.
 3. **Bosses pay what grounds never drop, and there is one boss system.** Krell's daily prize is a 2.86% roll at a weapon the Ox Road drops from an ox about every 45 minutes. Andy held 19 Hall Keys and fought no Hall. Call out is a third way to fight the same two bosses and has been used once.
 4. **Every ground asks one question, at a dose you can feel, and says it on the card.** The engine already has shooters, menders, group spells, armor and elements. Shooters are the only one that changed a real hunt. Give each ground one signature and turn it up until it changes what you bring.
-5. **Dangerous is the lone hero's hard tier. Deadly is the party's.** Today they are the same full box with two sets of percents, and no real player has ever been recorded on Dangerous.
+5. **Dangerous brings five monsters. Deadly keeps the full box.** Measured. Today both bring the full box, and a lone hero in the right band loses 40,000 to 70,000 gold an hour on either and dies at the floor. On five, a lone hero at Krell's Hold earns 40% more XP than Normal, spends most of the hour's gold, sits near 40% health and does not die. That is "struggle or pay" for one hero. A four on five still earns about what it does today.
 
 **What is actively harming the game.**
 
-- The party-ground formula. It makes the route on the Hunts page wrong. The solver's best route is 1.5 to 1.9 times faster than the route the screen recommends, and it never visits Wickstead, the Slake or the Pyre Field.
+- The kill reward on the three party grounds. A lone hero reads 2.0 times the pace contract at the Muster Barrows' floor and 1.78 at its top, against 1.56 at the Pyre Field's floor. The route on the Hunts page is 1.5 to 1.9 times slower than the best route because of it.
 - Krell's prize. The climax of the second region pays the next region's everyday drop.
-- The model four. The grid's four kills 558 monsters an hour on Krell's Hold. Andy's real four killed 1,251. No ground can be judged for a party until those agree.
+- The harder tiers for a hero alone. Dangerous and Deadly are the same full box, so a lone hero has Normal and nothing else. Phase A said the tiers carried no risk. That was the old grid. On the matrix a lone hero on Deadly at the floor of the Slake dies about once a minute in the harness, which sends it straight back in.
 
 **What I would add.** Nothing that needs a new engine. Risen grounds (change 1), a signature per ground (change 4), and boss mechanics on the one named rare each ground already has, so that rare is an event in the log and not a bigger health bar.
 
-**What I would remove.** 103 monster rows no hunt uses, three hunts with no ground, the party-ground formula, Call out as its own system, and about 35 of the 51 per-ground hand dials.
+**What I would remove.** 103 monster rows no hunt uses, three hunts with no ground, the three patches inside the party-ground formula, Call out as its own system, and about 35 of the 51 per-ground hand dials.
 
 ---
 
@@ -217,7 +328,7 @@ Every placed monster was read. They fall into groups, so the table is by group. 
 | # | System | Verdict | Section |
 |---|---|---|---|
 | S1 | The stat formula and six roles | KEEP | 2.2 |
-| S2 | The party-ground fit | REMOVE (merge into S1) | 4.3 |
+| S2 | The party-ground fit | REDESIGN (was REMOVE: phase B, section 0.2). Keep the type, delete its three inner patches | 4.3 |
 | S3 | Monster spells: group, ring, blast, cone, line | KEEP | 2.4 |
 | S4 | Shooters | KEEP | 2.4 |
 | S5 | Mends | KEEP | 2.4 |
@@ -245,8 +356,8 @@ Every placed monster was read. They fall into groups, so the table is by group. 
 | Verdict | Grounds and rooms | Monster groups | Systems | Total |
 |---|---|---|---|---|
 | KEEP | 9 | 13 | 10 | 32 |
-| REDESIGN | 7 | 1 | 5 | 13 |
-| REMOVE | 1 | 2 | 3 | 6 |
+| REDESIGN | 7 | 1 | 6 | 14 |
+| REMOVE | 1 | 2 | 2 | 5 |
 | MERGE | 1 | 0 | 1 | 2 |
 | ADD | 2 | 0 | 3 | 5 |
 | DEFER | 0 | 0 | 1 | 1 |
@@ -258,6 +369,8 @@ Every placed monster was read. They fall into groups, so the table is by group. 
 ## 4. The proposals, with the eight criteria
 
 ### 4.1 Risen grounds: an outgrown ground rises to your Level. REDESIGN of scaled hunts. CRITICAL.
+
+**Phase B.** Not measurable on the matrix (section 0.5). The Game Director reached the same idea independently (46 change 4), and I take his door: free on every ground, with the ground's tier ladder simply continuing past its band. Rule 1 below is withdrawn. 47's M10 supplies the drop rule. Layer: formula (C-SCALED, C-MON-STATS), shares derived at R12, any Level at R22.
 
 **The problem.** EVIDENCE (`50-standards.md` 2.7): a four at 12 hours a day leaves today's open grounds on day 27 and everything staged on day 60. Tyler ruled 120 days at Early Access (call 7). A four gains about 69 Levels a month past 110 and a region is 55. Regions 4 to 7 as sketched are 24 more grounds. The team cannot author Levels as fast as players gain them, and no chase past the last region exists (R4). This is the one place where "unlimited Levels" is not yet true: the Levels are unlimited and the world is not.
 
@@ -281,6 +394,8 @@ Every placed monster was read. They fall into groups, so the table is by group. 
 | Recommendation | REDESIGN scaled hunts into this. Decide now, build with the scaled-hunt switch (22-9) |
 
 ### 4.2 Every ground has one signature. ADD (on mechanics that exist). HIGH.
+
+**Phase B.** Measured on the Slake (section 0.4). Dose alone does nothing on Normal and bites on the harder tiers, small parties first. So a signature rides the harder tiers at full dose and is taught on Normal by frequency. Layer: content rows, plus one shared dose coefficient.
 
 **The problem.** EVIDENCE (DATA): from Hask's Ford on, a ground is swarm, heavy, glass, a regular or caster, and an elite, at weights near 10, 5, 4, 4, 1, in six pockets, pull 4, respawn 60 s. EVIDENCE (REAL, Krell section 4): the player "chose once and never touched again." Preparation is the same everywhere, so preparation is not a decision.
 
@@ -311,6 +426,8 @@ The dose rule: a signature is sized so a hero or party that does not answer it p
 Only real players can say whether anyone changes a setup for a ground. The playtest: two grounds in one band with opposite signatures and equal XP. Read the share of hunts that enter with a ground-specific setup.
 
 ### 4.3 One stat formula. A party ground is a composition. REMOVE the party fit. CRITICAL.
+
+**Phase B: WITHDRAWN as written.** Measured (section 0.2). Removing the fit does not move a lone hero's XP, and it is the only thing that feeds a four on Normal. The fit stays as an encounter type (44 call 5). The fix is the kill reward at R12, about a third off the XP fit of the Warrens and the Muster Barrows. The text below is phase A's and is kept for the record.
 
 **The proposal.** Delete `fit.party` as a second set of stat multipliers. A ground is for a party because of what stands in it: bigger packs as built (the Sewer's pockets are already 4, 3, 2, 4, 3, 3), a boss with phases in the last room, and its signature. Its monsters are formula rows like any other. The four's ruled pace (2.0 to 2.5 on Deadly, ruling 21-4) then comes from the tier's full box on any ground.
 
@@ -344,6 +461,8 @@ Only real players can say whether anyone changes a setup for a ground. The playt
 
 ### 4.5 Dangerous is the lone hero's tier. Deadly is the party's. REDESIGN. HIGH.
 
+**Phase B.** Measured twice (section 0.3). The pack as built is Normal plus 4% and fails. A pull of five works: 35 to 65% more XP than Normal for a lone hero, most of the hour's gold, no deaths in band, and a four keeps 2.1 to 2.5. Layer: coefficient, C-PULL (`tierPull`, Dangerous only), with R12's one tier table.
+
 **The proposal.** Normal: the ground as built. Dangerous: the ground as built, hitting harder (no bigger pull), with the ground's signature at full dose. Deadly: the full box, hitting hardest. Each tier then has an owner and its own question. Dangerous asks "is my hero strong enough." Deadly asks "is my party built right." The percents are ruling 21-3's to size.
 
 This reverses the 11-16 change that raised Dangerous to pull 8. That change was made so a four on Dangerous would not earn under its heroes alone. I think that goal is wrong for Dangerous: a four has Deadly. Dangerous serving fours is why it serves nobody (0 of 99 recorded hunts).
@@ -362,6 +481,8 @@ This reverses the 11-16 change that raised Dangerous to pull 8. That change was 
 Only players can say whether a lone hero wants a hard tier at all, or simply moves up a ground. The playtest: after 21-3, the share of lone hunts on each tier and deaths a 100 hours by tier.
 
 ### 4.6 One boss system, and prizes a ground never drops. REDESIGN halls, MERGE Call out. HIGH.
+
+**Phase B.** Krell's hall now reads 38 to 40 wins in 40 for all 36 tested parties (section 0.6): no change to his rows, a hall coefficient on the formula's boss role at R21. 46 change 3 and 47 C15 reach the same merge. 47 C21 takes the prize change with two riders, which I accept: Krell's gem stays on the daily roll and his five sidegrade weapons replace the Dawnsteel rows.
 
 **The evidence.**
 
@@ -484,12 +605,12 @@ Two ideas I considered and do not recommend:
 
 | # | Change | Class | Complexity | Risk | Expected benefit | Depends on |
 |---|---|---|---|---|---|---|
-| 1 | The model four kills like the real four (558 against 1,251 kills an hour on Krell) | Critical (measurement) | M | low | every party verdict in the program rests on it | 51-baseline, the combat review |
+| 1 | DONE in phase B: the matrix's four now kills 1,386 an hour against the real 1,251 (+11%). What is left is the back row: the harness tank takes 96% of the damage against 69% real | Critical (measurement) | S | low | shooters and group spells cannot be sized until the back row is hit as in real play | V4 in 44 |
 | 2 | Risen grounds (4.1) | Critical | M | medium: loot supply, new regions losing pull | the runway (27 days against 120), the long chase, ground choice | scaled-hunt switch 22-9, the items area for loot at band |
-| 3 | One stat formula, no party fit (4.3) | Critical | M | medium: a visible change to the most-played ground | the route on the screen is the best route. 4 grounds return to play | 1 |
+| 3 | The kill reward on the three party grounds, about a third lower (was: remove the party fit. Measured, section 0.2) | Critical | S as a number, M inside R12 | medium: a visible change to the most-played ground | the route on the screen is the best route. 4 grounds return to play | R12 |
 | 4 | One boss system and real prizes (4.6) | High | M | low to medium | bosses matter. A repeated press goes. 5 hand rows go | ruling 31-4, the items area for uniques |
 | 5 | A signature a ground (4.2) | High | L to M a ground | medium: fun is unproven | preparation becomes a decision | 21-3, the lining build |
-| 6 | Dangerous for one, Deadly for four (4.5) | High | S | low | a dead tier gets an owner | 21-3, Tyler on the 11-16 line |
+| 6 | Dangerous brings five, Deadly the full box (4.5, measured in 0.3) | High | S | low | a lone hero gets a hard tier it can hold | 21-3, Tyler on the 11-16 line |
 | 7 | Re-band Wickstead, the Slake, the first Morrow pair (4.8) | Medium | S | low | two thin bands get a second ground with no new art | 3 |
 | 8 | The named rare is an event (4.4) | Medium | S | low | a reason to read the log. Bar rules matter outside boss rooms | none |
 | 9 | Gold fit into the coin formula, HP overrides out (2.9) | Remove or simplify | S | low | about 35 dials go | 3, the formula audit |
@@ -514,29 +635,31 @@ Two ideas I considered and do not recommend:
 
 Each call is one recommendation and its reason, then the strongest alternative in one line.
 
-1. **Past the last open region, do old grounds rise to your Level for free?** Recommended: yes. It is the only way to hold 120 days of content ahead of a four, and it is what makes fifteen grounds fifteen choices. Under the frontier, scaled hunts stay paid by the hour as you ruled. Alternative: keep scaled hunts paid everywhere and plan a new region every 24 days.
+1. **Does every ground keep going past its band, for free?** Recommended: yes. A ground's tier ladder continues above its band from the one stat formula, it pays under the at-Level ground, and it replaces scaled hunts by the hour. The Game Director reached the same change on his own. It is the only way to hold 120 days of content ahead of a four, and it is what makes fifteen grounds fifteen choices. Alternative: keep scaled hunts paid by the hour, which have never been used, and plan a new region every 24 days.
 
 2. **Whose Level does a Risen ground take?** Recommended: the lowest hero's in the party, so a veteran can hunt with a friend and nobody dies to a ground 60 Levels over them. This changes your 11-07 "the party leader's Level." Alternative: the leader's, and the lower hero is warned.
 
-3. **Does the party-ground formula go?** Recommended: yes. One formula for every monster. A ground is for a party because of its packs, its boss and its signature. It lands only after the simulator's four matches Andy's. Alternative: keep it and cut those three grounds' XP by hand again until they sit in band.
+3. **Do party grounds keep their own formula?** Recommended: yes, as one kind of ground with three numbers, and their XP a kill comes down by about a third. I asked to remove it and the measurement said no: it is what lets a party hunt on Normal, and it is not why a hero alone is overpaid there. Alternative: remove it, and accept that a four on Normal earns 0.7 to 1.3 on every ground.
 
 4. **Does Call out fold into keyed halls?** Recommended: yes. Every boss gets a hall and a key. The slider becomes "fight with N keys." The stamina fee and the called copies go. Alternative: keep both and give Captain Hask a call, as the endgame dive planned.
 
 5. **What does a hall's daily prize hold?** Recommended: only what no ground drops. The boss's uniques (5 to 6, each with a real property), the region's gem, a Trophy and a first-win piece. Standard tier gear leaves the daily roll. Alternative: keep Dawnsteel on Krell's roll and make the Morrow Hills' Dawnsteel Rare so Krell's is not 550 times slower.
 
-6. **Is Dangerous for a hero alone?** Recommended: yes. Dangerous is the ground as built, hitting harder. Deadly is the full box. A four on Dangerous may then earn under its heroes alone, because Deadly is its tier. This changes your 11-16 line. Alternative: cut Dangerous and keep two tiers.
+6. **Does Dangerous bring five monsters?** Recommended: yes, on every ground, with Deadly keeping the full box. Measured: a lone hero in band holds it near 40% health with no deaths, for 35 to 65% more XP and most of the hour's gold. A four keeps 2.1 to 2.5. On Hask's Ford a four on Dangerous then earns under a lone hero on Dangerous, which bends your 11-16 line on that ground. Alternative: leave both tiers on the full box, where a hero alone has only Normal.
 
-7. **The Normal party check.** The grid fails Carter's Rest and the Ox Road because a four on Normal reads 0.83 where the standards ask 1.15 to 1.25. Recommended: drop that check. You ruled on 11-11 that Normal is the pack as built for every group, and on 11-16 that "normal isn't meant for parties anyway." A four on Normal is short of monsters by design. Alternative: bigger packs on Normal for parties, which reverses 11-11.
+7. **The Normal party check.** Recommended: judge it on the three party grounds only. Measured: a four on Normal earns 0.62 to 1.03 on every other ground because it runs out of monsters, and 1.31 to 2.15 on the party grounds. That is what a party ground is for, and it agrees with your 11-11 and 11-16 rulings. Alternative: bigger packs on Normal for parties everywhere, which reverses 11-11.
 
 8. **Re-band Wickstead and the Slake?** Recommended: yes. Wickstead to about 20 to 32, the Slake to about 58 to 72. Both are data. Both fill a band that has one ground today. Alternative: leave them and draw two new maps.
 
 9. **A faction pair pays alike.** Recommended: Carter's Rest and the Ox Road share one band and one XP line, and differ by faction, weapon weakness, signature and drops. Every later pair follows. Alternative: let pairs differ in pay and accept that one side's ground is skipped.
 
-10. **Regions 4 to 7.** Recommended: four grounds, one hall and one new rule a region, with Risen grounds carrying the hours. Alternative: six grounds and two bosses a region, as sketched.
+10. **Regions 4 to 7.** Recommended: keep six grounds as the planning number and open each region as four grounds and its hall first, then the last two. Each region names one new rule before its grounds. This is the itemization-fit lane's answer and it keeps your 11-18 ruling. Alternative: four grounds a region for good, which I asked for in phase A and now hold until the Morrow Hills are played.
 
 11. **The 103 unused monsters and three ground-less hunts.** Recommended: remove the rows. The art stays in the library. Alternative: keep them as an idea pool.
 
-**Where I think you are wrong.** Two rulings in this area. "Every Dangerous party stands at or over its heroes alone" (11-16) is what made Dangerous a second Deadly, and I would let it go (call 6). And the party ground as a kind (10-21, "the Sewer is a party hunt") is right as a design and wrong as a formula: the moment a ground got its own stat multipliers, it stopped being comparable to its neighbors and every fix since has been a hand dial (call 3).
+12. **Krell's hall is won 38 to 40 times in 40 by every tested party.** Recommended: leave his rows alone now. When hand-typed monsters move onto the formula, a hall boss becomes the boss role times one hall number, sized so a party in band on the card's food wins 80 to 90% and the weakest named party loses. Fix the prize first. Alternative: raise Krell's health and blow by hand today, which is the per-boss patch the formula brief asks us to stop making.
+
+**Where I think you are wrong.** Two rulings in this area. "Every Dangerous party stands at or over its heroes alone" (11-16) is what made Dangerous a second Deadly, and I would let it go (call 6). On the party ground I was the one who was wrong. I called its formula the cause of the overpay, measured it, and it is not (section 0.2).
 
 ---
 
@@ -592,13 +715,13 @@ Not checked in phase A, said plainly: I did not play the build (the brief forbid
 
 | Claim | How it is tested |
 |---|---|
-| The party fit overpays because XP a pull grows with health while the walk and the respawn do not | matrix diff: `fit.party` health 2.5 to 1.0 and XP 0.8 to 1.0 on the three grounds, lone and four, floor and top |
+| REFUTED in phase B (section 0.2): the party fit overpays because XP a pull grows with health while the walk and the respawn do not | matrix diff: `fit.party` health 2.5 to 1.0 and XP 0.8 to 1.0 on the three grounds, lone and four, floor and top |
 | On one formula the best path visits every ground in band order | solver re-run on that diff |
 | The grid's four is spawn-capped or mis-built, and the real four is the truth | 51-baseline. Replay Andy's party (kit, runes, Level 77 to 80, v0.2.142 rules) and match 1,251 kills |
 | Monster spells are under a fifth of damage taken on most grounds, so most are flavor | print spell share of damage by ground from the grader |
 | A signature sized at 1.5 to 2 times the unanswered food bill changes what players bring | playtest (section 7) |
 | Risen grounds at 0.85 to 0.9 x contract hold the frontier player without emptying a new region | matrix diff for the number. A playtest for the feel |
-| Dangerous with the pull as built is the tier lone heroes pick | after 21-3, tier shares from real play |
+| MEASURED in phase B (section 0.3): the pull as built is too weak, five works. Whether lone heroes pick it is still | after 21-3, tier shares from real play |
 | A hall on Krell's model at Levels 20, 50 and 75 is fun for a party that small and that new | playtest. The Rat King's called room is the nearest reading and it has 1 use |
 | Four grounds and one new rule make a better region than six grounds | not testable before the Morrow Hills are live. It is a Director's judgment |
 

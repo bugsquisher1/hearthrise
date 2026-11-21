@@ -394,9 +394,16 @@
       "fixedBy": "review-1, review-3, review-4",
       "fixNote": "The row called the timed drop row drop chance, wrote protection as a share off a blow, and left room for a store Level XP boost.",
       "status": "PROVISIONAL",
-      "waitsOn": "one buff played in a cell. The standing Level XP row waits on the clan XP size",
+      "waitsOn": "The playtest death rate, and the rating row of CORE-4 being built",
       "firstBuild": "planned, waits until Deadly is sized and one buff has been played in a cell",
-      "sitting": "S-4, option A. A clan room pays a standing Level XP bonus, which reverses 25-2. Its size is owed by the design lane."
+      "sitting": "S-4, option A. A clan room pays a standing Level XP bonus, which reverses 25-2. Its size is owed by the design lane.",
+      "measured": {
+        "label": "MEASURED",
+        "what": "The built damage cut does nothing for a capped hero: median 0.0% in 24 cells. The rating row of CORE-4 is owed before any protection buff is sold or earned. Level XP +5% reads +4.9% from Level 60.",
+        "runs": "R1 and R2",
+        "source": "docs/design/overhaul/12-balance-pass.md",
+        "runIds": "R0 is GitHub run 44920906999 (the full matrix, 4,503 cells, 2 seeds of 2 hours). R1 is run 44924971088 (670 cells with five buff rows). R2 is run 44925664434 (the death sample, 4 seeds of 8 hours). R4 is run 44928035806 (the death sample with both tiers at 2.5, and the full matrix with the three picks in). L is local probes of 2 seeds of 1 hour."
+      }
     },
     {
       "id": "MM-26",
@@ -412,9 +419,16 @@
       "fixedBy": "review-2, review-4",
       "fixNote": "The ceiling was written as 1.65 here, 1.58 in MM-31 and 1.60 in the book. MM-31 left out the +5% standing damage row.",
       "status": "PROVISIONAL",
-      "waitsOn": "one buff played in a cell. The ceiling also waits on the clan XP size",
+      "waitsOn": "Tyler, 12 section 7 item 4, and the playtest death rate",
       "firstBuild": "planned, waits until Deadly is sized and one buff has been played in a cell",
-      "sitting": "S-4, option A, as a knock-on. The pace ceiling rises with a clan Level XP room, to about 1.73 at +5%."
+      "sitting": "S-4, option A, as a knock-on. The pace ceiling rises with a clan Level XP room, to about 1.73 at +5%.",
+      "measured": {
+        "label": "MEASURED",
+        "what": "Every cap full reads 1.29 to 1.48 times a plain four, median 1.33, where the book computed 1.65 to 1.74. The edge is a step to the next tier, worth 20 to 29%. Check G's last clause fails by design on a cliff (12 section 3.8) and is for Tyler (12 section 7 item 4). It is not dropped.",
+        "runs": "R1 and R2",
+        "source": "docs/design/overhaul/12-balance-pass.md",
+        "runIds": "R0 is GitHub run 44920906999 (the full matrix, 4,503 cells, 2 seeds of 2 hours). R1 is run 44924971088 (670 cells with five buff rows). R2 is run 44925664434 (the death sample, 4 seeds of 8 hours). R4 is run 44928035806 (the death sample with both tiers at 2.5, and the full matrix with the three picks in). L is local probes of 2 seeds of 1 hour."
+      }
     },
     {
       "id": "MM-13",

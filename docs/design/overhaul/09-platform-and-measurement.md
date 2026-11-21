@@ -67,7 +67,7 @@ The inventory behind these counts is `tools/balance-program/formulas/formulas-ar
 
 #### 2.1.3 The combat framework
 
-Nine mechanics. Their sizes belong to the Combat chapter. Their shape is fixed here.
+Nine mechanics. Their sizes belong to chapter 01 (combat). Their shape is fixed here.
 
 | # | Mechanic | The rule | Formula ids | Status |
 |---|---|---|---|---|
@@ -87,10 +87,10 @@ Nine mechanics. Their sizes belong to the Combat chapter. Their shape is fixed h
 
 | Mechanic | The rule | Formula ids | Status |
 |---|---|---|---|
-| The gear curve | A game formula in `src/data`, linear in the Level a piece is worn at, because monster health and hero health are both linear in Level and gear on any other curve drifts against them. A band is a fixed percent step of power, never a fixed count of Levels. The reference hero that every monster's aim and evasion are written against reads the curve. A unique spends a budget from the curve at published exchange rates, so its armor is arithmetic | `C-GEAR-WEAPON`, `C-GEAR-ARMOR`, `C-REF-HERO`, `P35` | RECOMMENDED (GR-4). The band's size is a tier's worth, about +24% of the line, with bands at Levels 110, 136, 169, 210, 260, 322 and 400. It is owned by the Items chapter |
+| The gear curve | A game formula in `src/data`, linear in the Level a piece is worn at, because monster health and hero health are both linear in Level and gear on any other curve drifts against them. A band is a fixed percent step of power, never a fixed count of Levels. The reference hero that every monster's aim and evasion are written against reads the curve. A unique spends a budget from the curve at published exchange rates, so its armor is arithmetic | `C-GEAR-WEAPON`, `C-GEAR-ARMOR`, `C-REF-HERO`, `P35` | RECOMMENDED (GR-4). The band's size is a tier's worth, about +24% of the line, with bands at Levels 110, 136, 169, 210, 260, 322 and 400. It is owned by chapter 03 (items) |
 | The Level law | Hours to each Level is content Tyler owns: the ruled points, joined by a straight line on a log scale and carried past the last point at the last slope. The pace contract is the one law for what an hour pays at Level L. The XP a Level costs is derived: hours times what an hour pays, times the pace seat's multiple | `P01`, `P02` | RULED 2026-11-21 for the table (Level 400 at 4,580 hunted hours, day 382) and the pace seat (a mid-geared four on the hardest tier it holds). RECOMMENDED (GR-6) for the derivation from Level 50 |
 | The kill reward | XP a health point is `contract(L) / reference kill-health an hour(L)`, one reference line for the whole game. A ground carries at most one derived number, for how its layout (walking, pack size, respawn) moves kill-health an hour against the reference. The generator writes it from the matrix with a stated tolerance of 5%. Nobody types it | `E01`, `E14` | RECOMMENDED (GR-5, step R12) |
-| One XP chain | Kill XP x tier x mode x party x event. Each factor is one table for the whole game. The lone hero's share is the first cell of the party table. The Tower and the Catacombs take the same table. A hero far under its party's top Level follows one visible line: at two thirds of the top Level or more it keeps its full share, and below that its share is its Level over that line | `P20`, `P21`, `P22`, `P25`, `P27` | RECOMMENDED (GR-85 for the fold, GR-36 for the Tower and Catacombs, MM-19 for the two thirds line). The party table's cells belong to the Social chapter. No band sets one party size against another (RULED 2026-11-21, GR-67) |
+| One XP chain | Kill XP x tier x mode x party x event. Each factor is one table for the whole game. The lone hero's share is the first cell of the party table. The Tower and the Catacombs take the same table. A hero far under its party's top Level follows one visible line: at two thirds of the top Level or more it keeps its full share, and below that its share is its Level over that line | `P20`, `P21`, `P22`, `P25`, `P27` | RECOMMENDED (GR-85 for the fold, GR-36 for the Tower and Catacombs, MM-19 for the two thirds line). The party table's cells belong to chapter 06 (the MMO layer). No band sets one party size against another (RULED 2026-11-21, GR-67) |
 | Skills | The combat skill curve is one formula. Skill gains its late worth through rune tiers past skill 60, one every 15 skill levels, on the gear curve. The hit stays skill plus gear and never skill times gear | `P03`, `P05`, `P06`, `P07`, `P08` | RECOMMENDED (GR-23) |
 | Death | 6% of all Level XP and 6% of each combat skill's progress, flat, with no cap. One function, in whole numbers, the same in both runtimes | `P28` | RULED 2026-11-21 (50-4) |
 
@@ -261,8 +261,8 @@ Every system in every chapter is held to these lines. A system that needs more c
 | 5 | **One heartbeat.** Friends, the market and boards ride one version in the heartbeat. A board is refreshed when it is read and stale, never on a timer for nobody | RULED 2026-11-20 (28 section 3, polls 0) |
 | 6 | **Town work paid in closed form.** See below | RECOMMENDED (GR-1). Training alone is RULED 2026-11-20 (28-11) |
 | 7 | **How an away hunt is saved.** See below | OPEN. PENDING 48 |
-| 8 | **Fewer presses.** One Start, one plan and one return card for the four heroes, a task that takes itself, and a starting loot plan. About 20 presses a day in place of 100 | RECOMMENDED (GR-80, GR-78). Owned by the Features chapter. It is cost work as well as design work |
-| 9 | **One Global chat.** Lines are batched on the existing connection, with a slow mode when crowded | RULED 2026-11-21 (31-1) and 2026-11-20 (28-6) |
+| 8 | **Fewer presses.** One Start, one plan and one return card for the four heroes, a task that takes itself, and a starting loot plan. About 20 presses a day in place of 100 | RECOMMENDED (GR-80, GR-78). Owned by chapter 08 (player experience). It is cost work as well as design work |
+| 9 | **One Global chat.** Lines are batched on the existing connection, with a slow mode when crowded | RULED 2026-11-21 (31-1) and 2026-11-20 (28-6). A client holds a small fixed number of live topics, so every social tab (Global, clan, whispers, party) rides one multiplexed topic and a new tab never needs a new connection. That part is OPEN and PENDING 48 |
 | 10 | **One world, built in rooms.** One database until about 25,000 accounts. Every shared thing is built in rooms (town instances of 60, boards a world) so a second world is a new database and never a redesign | RULED 2026-11-20 (28-5). The 25,000 is ESTIMATED for a lighter day than the ruled one and is PENDING 48 |
 | 11 | **One account a player is declared, and enforced by the economy.** Day caps, contributor gates, account-bound Luck and keys, and game master action on report. The four-heroes-a-network cap stays and is not treated as the guard | RULED 2026-11-20 (28-8) |
 | 12 | **Backups.** No point-in-time recovery through the wiped betas. Decided again at Early Access, when a lost day is lost Crowns that people paid for: either point-in-time recovery or a restore drill run for real each month | RULED 2026-11-19 and 2026-11-20 (28-4) |
@@ -393,7 +393,7 @@ Levels past 185 are PROJECTED on placeholder grounds and a projected gear line, 
 | `progression-3-rested-off` | No rested bank | An identity in 207 cells | RECOMMENDED (GR-63) |
 | `combat-1`, `combat-4`, `combat-5` | Axes read the sword's weak side, and a physical strike reads weapon weakness | Small, at most 3.5% on one way | RECOMMENDED (GR-12, GR-14) |
 | `world-2b-dangerous-five` | Dangerous brings five | Holds at the dial it was played on. Not yet played at the harder dial ruled on 2026-11-20 | RECOMMENDED shape only (GR-27) |
-| `world-3-slake-signature` | A ground signature at double dose | Bites small parties first on the harder tiers | A sample for the World chapter |
+| `world-3-slake-signature` | A ground signature at double dose | Bites small parties first on the harder tiers | A sample for chapter 02 (world) |
 | `economy-2` | Every supply at full effect | An upper bound: a four on Deadly up to 12% faster and 30% safer | The reason tiers are sized before the idle market opens (GR-50) |
 | `combat-2`, `economy-3`, `social-1`, `social-2` | A heavier crossbow line, gold in cut 15%, the party size row | Withdrawn or deferred | Not in the design |
 | `progression-1-level-law` | A trial power-law curve | Withdrawn. To be re-cut on the ruled table when the kill reward lands | GR-6 |
@@ -569,7 +569,7 @@ Not yet true of the Lab, and the dashboard lane's work: rule 1 needs every recom
 | Database-seconds an account-day, read from production | Band C2 | Over 70 |
 | Five players asked "is buying Crowns worth it, and is it fair?" | Most say worth it, most say fair | "Not worth it" or "pay to win" from most |
 
-Testing the Crowns loop in a free, wiped playtest means every account receives the same weekly allowance of test Crowns by one server switch. That is a grant, so it needs Tyler's yes. OPEN (Tyler, inside MM-28 to MM-36).
+Testing the Crowns loop in a free, wiped playtest means every account receives the same weekly allowance of test Crowns by one server switch. That is a grant, so it needs Tyler's explicit yes. OPEN (MM-43). This chapter makes no recommendation on a grant.
 
 **Table C. Questions only players can settle.** RECOMMENDED as the reading list. Each has its measure set in advance.
 
@@ -624,9 +624,9 @@ Testing the Crowns loop in a free, wiped playtest means every account receives t
 | 7 | **Clan gifts, the castle and room buffs** | Gifts are one-way. A member holds a room's buff by giving that week's share and never by roster size. A contributor gate that alternate accounts cannot pass with token gifts. A leader cannot empty a finished castle of its members. Work is counted by the server from hunted minutes, never sent by the client | RECOMMENDED (MM-8, MM-9, MM-10) |
 | 8 | **Every repeating price and sink** | The wage curve is computed by the server. Refills, Blessings, the yard fee, scaled hours, Tempering, Hallmarks, linings and curing slots are each a server function with a server price | RECOMMENDED (GR-51, GR-8) |
 | 9 | **The save design** | Nothing a purchase, a gate or another player can read comes from unsaved state. A save replays the same seeds. A player cannot buy a Blessing or swap a bar only when the seeds show a death is coming | RULED design condition (28-1). The seed horizon fix is staged |
-| 10 | **Mint paths** | No item or gold can be created by salvage, good batch, commissions, a cancelled cure or a mount. A no-mint guard exists before salvage and commissions do | RECOMMENDED (GR-46 for salvage, GR-44 for commissions). Owned by the Items chapter |
+| 10 | **Mint paths** | No item or gold can be created by salvage, good batch, commissions, a cancelled cure or a mount. A no-mint guard exists before salvage and commissions do | RECOMMENDED (GR-46 for salvage, GR-44 for commissions). Owned by chapter 03 (items) |
 | 11 | **Chest opens and keys** | A hero that never climbed cannot open keys passed through Storage | RULED direction 2026-11-20 (22-5) |
-| 12 | **Chat** | A new-account rate and report from the menu, before chat meets gold sellers | OPEN. Owned by the Social chapter |
+| 12 | **Chat** | A new-account rate and report from the menu, before chat meets gold sellers | OPEN. Owned by chapter 06 (the MMO layer) |
 | 13 | **Game master tools** | The walled account cannot trade, list or rank. Its log is immutable | RULED 2026-11-05 |
 | 14 | **Account deletion** | A deleted hero leaves account-owned rows with the account. A held name, a clan it leads and a market escrow are each resolved | Staged. RULED to apply before Early Access (28) |
 | 15 | **The play cap** | Four heroes an account and four a hashed network. One account a player is declared and enforced by the economy clamps above, so every surface in this table is reviewed assuming a player can run a second account | RULED 2026-11-20 (28-8) |
@@ -641,17 +641,17 @@ Hired and on-call heroes are not in the game (RECOMMENDED, MM-18), so no hero-le
 
 | This chapter | Reads from | Feeds |
 |---|---|---|
-| The combat framework (2.1.3) | The Combat chapter for every size: spell shares, the tier dials, the pull number, weapon weakness | The Combat chapter with the knob set and the proof each change must pass |
-| The gear curve and the knobs it creates | The Items chapter for the band's size, exchange rates, uniques, jewelry's share and the itemization plan | The Items chapter with the reference hero, and the World chapter with a line that new regions are drawn on |
-| The Level law and the kill reward | The Progression chapter for the table of hours, the death rules and the Blessing ladder | The Progression chapter and the World chapter with one tier table and one derived number a ground |
-| The wage curve, the coin line and sinks | The Economy chapter for every price in hours, the sink shares and the early sinks that take the place of the slot ladder | The Economy chapter with a wage the server can compute, and the Home chapter with the curve its rungs are priced on |
+| The combat framework (2.1.3) | Chapter 01 (combat) for every size: spell shares, the tier dials, the pull number, weapon weakness | Chapter 01 (combat) with the knob set and the proof each change must pass |
+| The gear curve and the knobs it creates | Chapter 03 (items) for the band's size, exchange rates, uniques, jewelry's share and the itemization plan | Chapter 03 (items) with the reference hero, and chapter 02 (world) with a line that new regions are drawn on |
+| The Level law and the kill reward | Chapter 05 (progression) for the table of hours, the death rules and the Blessing ladder | Chapter 05 (progression) and chapter 02 (world) with one tier table and one derived number a ground |
+| The wage curve, the coin line and sinks | Chapter 04 (economy and Crowns) for every price in hours, the sink shares and the early sinks that take the place of the slot ladder | Chapter 04 (economy and Crowns) with a wage the server can compute, and chapter 07 (home and town) with the curve its rungs are priced on |
 | The server allowance (2.3.3) | Every chapter. Each system states its statements, rows, polls and engine time | Every chapter. A system over the allowance comes back here first |
-| Closed-form town work | The Home chapter for the yard, gathering, benches and curing. The Features chapter for the job queue | The Home chapter with one yield rule and the three-statement job |
-| The MMO cost envelope (2.3.5) | The Social and MMO layer chapter for bosses, clans, events and arenas | That chapter with under 3 database-seconds an account-day and the three rules of 2.3.5 |
+| Closed-form town work | Chapter 07 (home and town) for the yard, gathering, benches and curing. Chapter 08 (player experience) for the job queue | Chapter 07 (home and town) with one yield rule and the three-statement job |
+| The MMO cost envelope (2.3.5) | Chapter 06 (the MMO layer) for bosses, clans, events and arenas | That chapter with under 3 database-seconds an account-day and the three rules of 2.3.5 |
 | The matrix and the bands | Every chapter's targets, as bands in `standards.mjs` | Every chapter's section 6, which names the bands and checks that judge it |
 | The Balance Lab | Every chapter's recommended proposals, as patch files | Tyler, as the proposed game against its targets |
-| The Security scope (2.7) | The Economy chapter for the market. The Social and MMO layer chapter for Crowns, arenas, bosses and clans | The build plan, as a hard gate before Early Access |
-| The Features chapter | The hunt report reads counters the settle already writes. The Path's population gate keeps empty rooms from polling | The risk reading needs lowest health in the hunt tally, which calibration also needs (2.4.4) |
+| The Security scope (2.7) | Chapter 04 (economy and Crowns) for the market. Chapter 06 (the MMO layer) for Crowns, arenas, bosses and clans | The build plan, as a hard gate before Early Access |
+| Chapter 08 (player experience) | The hunt report reads counters the settle already writes. The Path's population gate keeps empty rooms from polling | The risk reading needs lowest health in the hunt tally, which calibration also needs (2.4.4) |
 
 ---
 
@@ -683,6 +683,7 @@ In decision-book order. Each line is the call and the recommendation this chapte
 | MM-24, MM-25, MM-30 | Buffs as rows with caps | One modifier table. A bought boost and an earned buff fill the same cap |
 | MM-31 to MM-36 | The paid ceiling and the eight clamps | Approve, all inside the Security review, with check A6 green before the book opens |
 | MM-41 | One engine check for both arenas | Measure heroes on both sides of a fight before either arena is planned |
+| MM-43 | Test Crowns in the playtest | No recommendation. It is a grant and needs Tyler's explicit yes |
 
 ---
 
@@ -698,10 +699,10 @@ In decision-book order. Each line is the call and the recommendation this chapte
 | 6 | **A second calibration party.** Every party band rests on one real four | Real play. The playtest supplies it |
 | 7 | **Readers for 19 bands.** Events, server-wide gold, schedules, money and chest pieces are not cells | The matrix lane, each with its own model |
 | 8 | **Bands for the MMO layer.** The standards hold no band for the buff caps, the power budget, the paid ceiling, arena win rates or the Crowns price. Checks A3 to A6 and table B name targets, and none is a band in `standards.mjs` yet | The matrix lane with the MMO layer study, after MM-25, MM-26 and MM-31 are ruled |
-| 9 | **A band for the early economy of four heroes.** No band reads what an account of four earns and spends in its first week | The Economy chapter, then a band here |
+| 9 | **A band for the early economy of four heroes.** No band reads what an account of four earns and spends in its first week | Chapter 04 (economy and Crowns), then a band here |
 | 10 | **The Lab's proposal set.** Not every recommended proposal exists as a patch file, and the model steps cannot be toggled until they are staged | The dashboard lane |
 | 11 | **The hunt tally's three fields.** Lowest health, tier and gear tier worn. Survival cannot be calibrated without the first | Systems, in the build plan |
-| 12 | **Test Crowns in the playtest.** An equal weekly grant to every account is still a grant | Tyler |
+| 12 | **Test Crowns in the playtest (MM-43).** An equal weekly grant to every account is still a grant. Without it the Crowns rows of table B cannot be read before launch | Tyler |
 | 13 | **Whether a watched four of four people on four accounts changes the save design.** Study 49 says a party is an account's own heroes, so the case may not exist | Study 48, after MM-18 is ruled |
 | 14 | **Content authoring pace against the runway, timed.** Every ground, band, boss and recipe family ends its lane with its working hours (RULED 28-12). No lane has yet said who draws regions or how fast | The art and asset directors, then Tyler |
 | 15 | **The build plan's unit.** The plan of record is written in lanes and waves for a beta. It is re-issued once the calls are ruled, in the order of section 2.2 | The Coordinator, after the rulings |

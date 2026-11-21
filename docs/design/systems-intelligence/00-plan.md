@@ -1,23 +1,25 @@
-# Systems intelligence: the plan
+# Systems intelligence: the plan (second issue)
 
 Tyler's brief of 2026-11-21, "Project-Wide Systems Intelligence and Game Design Architecture", asks for nine deliverables before any code or gameplay change. This page is those nine. Nothing here changes the game. Nothing here is built yet.
 
-The code was read on `set/v0.2.144` at `10aaf639e`. The set was merged again at `770b9c124`, which added eight chapters of the design book and changed no tool or game file. Every finding below is marked one of two ways.
+**This is the second issue.** The first was reviewed cold in `01-review.md` (APPROVE WITH CHANGES, 19 changes, 6 blocking). All 19 are applied here. The last section lists what changed and the one place I do not accept the review's finding.
 
-- **CONFIRMED** means I opened the file or ran the tool on this branch and saw it. The file and line follow.
+The code was read on `set/v0.2.144` at `10aaf639e` and again after merging the set at `2918fa07d` and later. Every finding is marked one of two ways.
+
+- **CONFIRMED** means I opened the file or ran a command on this branch and saw it. The file and line follow.
 - **HYPOTHESIS** means I believe it and say what would prove it.
 
 Today's code is studied here only to learn what is true now. It is never used as a yardstick for the game we are designing.
 
 ## The short version
 
-**Why audits keep missing things.** There is no machine-made list of what the game contains at the level where the numbers live. Every audit so far started from what an agent chose to read. The one coverage check we have works at the level of files, runs only on Tyler's PC, and counts a file as covered when a pattern matches its name. The formula registers were typed by agents who read the code once. They name 59 of the 424 exported functions in `src/core` and 2 of the 192 in the server engine. Nothing notices when the code under a register row changes. Rulings live outside the repo with no ids, so no tool can tell whether code follows them. The simulator's heroes are written in the tools, and the labels on its numbers are typed by hand.
+**Why audits keep missing things.** There is no machine-made list of what the game contains at the level where the numbers live. Every audit so far started from what an agent chose to read. The one coverage check we have works at the level of files and counts a file as covered when a pattern matches its name. The formula registers were typed by agents who read the code once, and nothing notices when the code under a row changes. Rulings have no ids, so no tool can tell whether code follows them. The labels on numbers are typed by whoever wrote the number.
 
-**What I propose.** One small tool, `tools/registry.mjs`, and one small folder of hand-written intent, `registry/`. The tool reads the code, the data and the replayed database and lists every symbol, constant, table and server function. The hand-written part says what each one means and which ruling it serves. Each hand-written fact is bound to the code it describes by a fingerprint, so a change to the code marks the fact stale and names everything downstream. The existing balance-program tools stay where they are and plug in.
+**What I propose.** A census that reads the code and lists every function, typed number, table and server rule. Hand-written facts that are pinned to what the code actually outputs, so a change in behavior marks the fact stale and a cosmetic edit does not. A dependency map derived from the code. Labels and quote lines that the tool makes, so a number cannot be mislabelled or misquoted. Everything plugs into the balance-program tools that already exist.
 
-**The first three steps** are cheap and independent: put the rulings in the repo with ids, build the symbol census in report mode, and close the simulator faults that are still open. Section 9 has the full order.
+**The first thing to approve is small.** One read-only script that stores nothing. It lists every top-level function in the rule code, says whether it holds a typed number and whether any register names it, and prints three numbers per folder. Its output sizes every later step. I ask for a yes on that slice first, and on the rest of the shape after its output is seen.
 
-**What I need from you.** A yes or no on the shape in section 3, and on the four agent rules in section 7.
+**One question for Tyler before the rulings step.** The Coordinator will put it to him. It is in section 3.4.
 
 ---
 
@@ -25,91 +27,93 @@ Today's code is studied here only to learn what is true now. It is never used as
 
 ### 1.1 The root causes
 
-Eleven causes. The first four do most of the damage.
+The review confirmed all eleven.
 
 | # | Root cause | Evidence | Status |
 |---|---|---|---|
 | RC1 | **No list of the game exists at the level where numbers live.** The inventory lists files, tables and function names. It does not list the functions inside a file or the numbers inside a function | `tools/balance-program/collect.mjs` lines 61 to 73 make one anchor a file. Only `src/data` files carry their export names, and only as search text | CONFIRMED |
-| RC2 | **The formula registers cover a small share of the code and nothing measures the share.** They name 59 of 424 exported functions in `src/core`, 36 of 253 in `src/data`, 2 of 192 in `supabase/functions/hr-accrue`, and 59 server function names out of 799 | Counted on this branch by matching every export name against the five register files. 18 core files are never cited at all, among them `hunt/conditions.js` (753 lines, the conditional automation), `hunt/movement.js`, `hunt-spawn.js`, `skill-sim.js`, `artisan-sim.js` and `farm.js`. 29 of 41 engine files are never cited, among them `tick.js`, `accrual.js`, `eat.js`, `vendor-sell.js` and `unlock-buy.js` | CONFIRMED as a count. A register can describe a rule without naming its function, so the true share is somewhat higher. That gap is itself the finding: nobody can say what the share is |
-| RC3 | **A covered file is not a read file.** A system claims its anchors with a search pattern. A new file or server function that matches an old pattern is claimed without anyone looking at it | `tools/balance-program/systems.mjs` line 48: the `hunts` row is one pattern about 1,500 characters long. `fn:hr_hearth_(?!chest)` on line 66 claims every hearth function that will ever be written | CONFIRMED |
-| RC4 | **The registers are typed, and they are checked against themselves.** `combat-register.mjs --check` compares the JSON file to the rows typed in the same tool. It never opens the game. Two of the three registers have no tool at all | `combat-register.mjs` header: "A row is evidence a person read (file:line at set/v0.2.144 e6ea19170), so a line number can go stale". No file under `tools`, `tests` or `.github` writes `formulas-progression.json` or `formulas-economy.json` | CONFIRMED |
-| RC5 | **The one completeness check cannot gate anything.** It needs Tyler's memory folder and the local lane list, so it is barred from CI. It is red on the set right now | `inventory.mjs` header: "A LOCAL run, on the PC that holds Tyler's memory folder and the lane refs: never a CI step". Run here: `RED inventory: 2 orphan(s)`. 885 of its 3,940 anchors come from outside the repo | CONFIRMED |
-| RC6 | **Design intent has no ids and no home in the repo.** Rulings are dated prose in Claude's memory. "Newest wins" is worked out again by every reader. No code line can point at a ruling and no tool can test one | `collect.mjs` line 39 reads `~/.claude/projects/.../memory`. The rulings file is 516 lines with superseded text mixed in. Two more partial copies exist in the repo: `30-decisions.json` (113 rows) and the `ruled` list of `62-decision-book.json` (49 rows) | CONFIRMED |
-| RC7 | **Nothing links a change to what it invalidates.** A changed function does not mark a register row, a band, a simulator cell or a design statement as needing another look | `tools/lib/guard-deps.mjs` maps changed files to guards only. No tool maps a symbol to formulas or cells | CONFIRMED by search |
-| RC8 | **The simulator's heroes are written in the tools, and a cell can be described three ways.** The hero's bar, skills and later gear are authored under `tools/`, which is a second copy of "how a hero is set up". The runner has a browser twin whose own header still describes the older hero | Three describers: `progression-grid.mjs` `buildCell` (the grid, the matrix and the solver since the baseline lane's fix), `measure.mjs` `refCell` (the release guard) and `tools/balance-sim/plans.mjs` (the older simulator). Two runners: `tools/balance-sim/cell.mjs` and `tools/balance-lab/lab-core.mjs`, held together by `parity.mjs`. `lab-core.mjs` lines 4 to 5: "every combat skill at the hero's Level". Hero setup: `played.mjs` (bars), `skill-lines.mjs` (skills), `grid-kit.mjs` lines 70 to 71 importing `tools/balance-sim/staged/weapon-line.js` and `armor-line.js` | CONFIRMED |
-| RC9 | **Labels are typed by the writer.** MEASURED, COMPUTED and HYPOTHESIS are words an agent puts beside a number. No tool derives the label from how the number was made | `61-review-audit.md` line 39 (C2): a death claim built from an assumed count was labelled MEASURED. Line 57 (H10) is the same fault | CONFIRMED in the audit. The fix in section 6 makes the label a computed field |
-| RC10 | **Reports do not say what they read.** A report carries no list of sources read in full, no registry version and no list of what was left out. So scope cannot be checked before the report is used | The itemization plan is a source of record. Counted on this branch: it is cited 0 times in five of the eight phase-B reviews and once in the other three | CONFIRMED |
-| RC11 | **Design documents pile up in layers.** Documents 00 to 62 each correct the ones before. Nothing marks the older sentence dead, so stale numbers stay quotable | `30-plan.md` line 29 still says "Krell at about month 4". `27-retention.md` line 134 says "month 4 to 6". Both were ruled stale on 11-21 | CONFIRMED |
+| RC2 | **The formula registers cover a small share of the code and nothing measures the share.** By name match, they name 59 of 424 exported functions in `src/core`, 36 of 253 in `src/data`, 2 of 192 in `supabase/functions/hr-accrue` and 59 server function names out of 799 | Counted here and recounted by the review. 29 of 41 engine files are never cited, among them `tick.js`, `accrual.js`, `eat.js`, `vendor-sell.js` and `unlock-buy.js`. 18 to 20 core files are never cited, depending on the match rule, among them `hunt/conditions.js` (753 lines, the conditional automation), `hunt/movement.js`, `hunt-spawn.js`, `skill-sim.js`, `artisan-sim.js` and `farm.js` | CONFIRMED as a count. A register can describe a rule without naming its function, so the true share is somewhat higher. Nobody can say what it is, and that is the finding |
+| RC3 | **A covered file is not a read file.** A system claims its anchors with a search pattern. A new file or server function that matches an old pattern is claimed without anyone looking at it | `systems.mjs` line 48: the `hunts` row is one pattern 1,313 characters long. Line 66: `fn:hr_hearth_(?!chest)` claims every hearth function that will ever be written | CONFIRMED |
+| RC4 | **The registers are typed, and they are checked against themselves.** `combat-register.mjs --check` compares the JSON file to the rows typed in the same tool. It never opens the game. Two of the three registers have no tool at all | `combat-register.mjs` header: "a line number can go stale". No file under `tools`, `tests` or `.github` writes `formulas-progression.json` or `formulas-economy.json` | CONFIRMED |
+| RC5 | **The one completeness check cannot gate anything.** It reads three inputs that are not part of a commit: the rulings and other memory files, and the list of unmerged lanes. So it is barred from CI. It is red on the set right now, and both reds are lanes | `inventory.mjs` lines 12 to 13. Run here: `RED inventory: 2 orphan(s)`. Of about 3,940 anchors, 886 come from memory and 816 are lane names. Its `--selftest` does run in CI, on planted data | CONFIRMED |
+| RC6 | **Design intent has no ids.** Rulings are dated prose in Claude's memory. "Newest wins" is worked out again by every reader. No code line can point at a ruling and no tool can test one | `collect.mjs` line 39 reads the memory folder. Two partial copies exist in the repo: `30-decisions.json` (113 rows) and the `ruled` list of `62-decision-book.json` (49 rows) | CONFIRMED |
+| RC7 | **Nothing links a change to what it invalidates.** A changed function does not mark a register row, a band, a simulator cell or a design statement as needing another look | `tools/lib/guard-deps.mjs` maps changed files to guards only | CONFIRMED by search |
+| RC8 | **The simulator's heroes are written in the tools, and a cell can be described three ways.** The hero's bar, skills and later gear are authored under `tools/`, a second copy of "how a hero is set up" | Three describers: `progression-grid.mjs` `buildCell`, `measure.mjs` `refCell` and `tools/balance-sim/plans.mjs`. Two runners: `tools/balance-sim/cell.mjs` and `tools/balance-lab/lab-core.mjs`, held together by `parity.mjs`. Hero setup: `tools/balance-sim/played.mjs` (bars), `tools/balance-sim/skill-lines.mjs` (skills), `tools/balance-program/grid-kit.mjs` lines 70 to 71 importing the staged weapon and armor lines | CONFIRMED |
+| RC9 | **Labels are typed by the writer.** No tool derives a label from how the number was made | `61-review-audit.md` line 39 (C2) and line 57 (H10) | CONFIRMED in the audit |
+| RC10 | **Reports do not say what they read.** Scope cannot be checked before a report is used | The itemization plan is a source of record. It is cited 0 times in five of the eight phase-B reviews and once in the other three | CONFIRMED |
+| RC11 | **Design documents pile up in layers.** Nothing marks an older sentence dead | `30-plan.md` line 29 and `27-retention.md` line 134 still carry a time frame that was ruled stale on 11-21. `44` section 6.1 and `51` section 3 disagree on which simulator faults are open | CONFIRMED |
 
 ### 1.2 The Coordinator's leads, checked
 
 | Lead | Verdict | Where |
 |---|---|---|
-| 1. Truth is split across many places, some outside the repo | CONFIRMED for the memory file, the two decision files, the 20 balance-program documents, `standards.mjs` and the hand-written `systems.mjs`. NOT CONFIRMED for the Rulings page database and the Build Plan tracker database, which I cannot reach from the repo | RC6. `systems.mjs` line 2 says "hand-authored". It has also drifted: the `hero-slots` row is still named "(300k, 750k, 1.5M)" and the `premium` row says "per character" |
-| 2. Registers were written by hand and can drift | CONFIRMED, and it is worse than the lead says. The two tools that "regenerate" only re-print their own typed rows. The knob file is the exception: its numbers are checked against the tree | RC4. `architecture-register.mjs` line 317 reads each knob's source line. `44-formula-architecture.md` section 9: "The cross-category edge list was written by hand" |
-| 3. Agents read only part of what they needed | CONFIRMED for the itemization plan (counts in RC10) and for rulings left out of calls (`61` H6 to H13). NOT CONFIRMED from the repo: that the Game Director was blind to 22-4, and that one audit never read brief 45 | RC10 |
-| 4. Stale frames and withdrawn numbers spread | CONFIRMED | `61-review-audit.md` lines 38, 39, 48, 50 and 53 to 60. RC11 for the month-four rows that are still in the tree |
-| 5. The simulator did not measure the game | CONFIRMED as recorded, and partly out of date. `51-baseline.md` section 3 says the skill line, the two builders and the seat shares are fixed with a proven check each. The instant retry after a death and the store bill are still open. I did not re-run the harness. Two documents on the same set disagree here: `44` section 6.1 lists all four as open and `51` lists three as fixed. That is RC11 again. CONFIRMED by me from the code: the subset cache is 223 cells at 1 seed for 1 hour, and `balance-matrix.json` (the full run) does not exist on the set | `51-baseline.md` lines 136 to 142. `balance-matrix-subset.json` fields `seeds: 1`, `hours: 1`. `matrix-plan.mjs` line 68 |
-| 6. Code contradicted rulings and only an audit caught it | CONFIRMED on four of five. The party cut: `src/core/hunt/xp-share.js` line 78 calls `underFloorSharePm`. Tower heat: `src/core/hunt/tower.js` lines 141 to 157. The typed numbers: `src/core/combat.js` line 391 (the lead says 384, which is the to-hit line), while `src/shell/wiki-model.js` line 126 reads the named constants. The gear line: only in `tools/balance-sim/staged`. The rested bank: `src/core/member.js` lines 220 and 230 pass `restedQuantum: 0` on the paths I read. I did not trace the accrual side, so "accrues" is NOT CONFIRMED by me | As listed |
-| 7. Integration ran through one synthesis agent | CONFIRMED that a cold audit was needed and found 5 critical and 14 high faults. NOT CONFIRMED from the repo: the count of re-issues | `61-review-audit.md` |
-| 8. Comparisons to the existing game kept creeping in | NOT CONFIRMED from the repo. It is a claim about briefs and chat | none |
-| 9. The tooling has side effects | CONFIRMED | `guard-deps.mjs` lines 56 to 62 match on a file's stem. `44` section 9 records the rename that worked around it and the line-ending fix |
-| 10. Too many parallel lanes for one integrator | CONFIRMED in volume: 68 distinct lanes are named in merges on the set since 11-20. NOT CONFIRMED: 18 at one moment | `git log` on the set |
-| 11. Assets to build on | CONFIRMED present, all of them | section 3.6 |
+| 1. Truth is split across many places | CONFIRMED for the memory file, the two decision files, the balance-program documents, `standards.mjs` and the hand-written `systems.mjs`. NOT CONFIRMED for the two outside databases | `systems.mjs` line 2 says "hand-authored". It has drifted: line 267 still names the old slot prices and line 283 says Premium is per character |
+| 2. Registers were written by hand | CONFIRMED. The two tools that "regenerate" re-print their own typed rows. The knob file is the exception: its numbers are checked against the tree | `architecture-register.mjs` lines 313 to 320 read each knob's source line. The cross-category edges are typed rows at its line 130. `44-formula-architecture.md` line 886 says so itself |
+| 3. Agents read only part of what they needed | CONFIRMED for the itemization plan and for rulings left out of calls (`61` H6 to H13). The rest NOT CONFIRMED from the repo | RC10 |
+| 4. Stale frames and withdrawn numbers spread | CONFIRMED | `61-review-audit.md` lines 38 to 60. RC11 |
+| 5. The simulator did not measure the game | CONFIRMED as recorded, and partly out of date. `51` and book chapter 09 record three of the four named faults as fixed. I ran no cell. CONFIRMED from the code: the subset cache is 223 cells at 1 seed for 1 hour, and the full matrix cache does not exist | `51-baseline.md` lines 136 to 142. `matrix-plan.mjs` line 68 |
+| 6. Code contradicted rulings | CONFIRMED on four of five: `xp-share.js` line 78, `tower.js` lines 141 to 157, `combat.js` line 391 against `wiki-model.js` line 126, and the gear line that exists only under `tools/balance-sim/staged`. For the rested bank I saw `member.js` lines 220 and 230 pass a zero. I did not trace the accrual side | As listed |
+| 7. One synthesis agent | CONFIRMED that the cold audit found 5 critical and 14 high faults. The count of re-issues NOT CONFIRMED | `61-review-audit.md` |
+| 8. Comparisons to the existing game crept in | NOT CONFIRMED from the repo | none |
+| 9. Tooling side effects | CONFIRMED | `guard-deps.mjs` lines 56 to 62 |
+| 10. Too many parallel lanes | CONFIRMED in volume: about 70 lanes named in merges on the set since 11-20. "18 at once" NOT CONFIRMED | `git log` |
+| 11. Assets to build on | CONFIRMED present | section 3.7 |
 
 ### 1.3 What the leads missed
 
-RC1, RC2, RC3, RC5, RC7 and RC9 are not in the Coordinator's list. Three more:
+RC1, RC2, RC3, RC5, RC7 and RC9, and these:
 
-- **The scenarios have one bar per role.** `played.mjs` fixes each role's spells and rules. The brief asks for "different spell and conditional-rule configurations". That axis does not exist. CONFIRMED by reading the file header.
-- **Whole systems never enter a fight in the simulator.** The cell builders never mention imbuements, Bestiary charms, companions, Premium, potions or stamina, and Blessings appear once. CONFIRMED as word counts in `cell.mjs`, `progression-grid.mjs`, `grid-kit.mjs` and `matrix-metrics.mjs`. Whether each one matters to a fight is a HYPOTHESIS until section 6's coverage run answers it.
-- **The checklist item that matters most to an idle game is the least examined.** `src/core/hunt/conditions.js` is the largest file in the engine and no register cites it. CONFIRMED.
+- **The scenarios have one bar per role.** `tools/balance-sim/played.mjs` fixes each role's spells and rules. CONFIRMED.
+- **Whole systems never enter a fight in the simulator.** The cell builders never mention imbuements, Bestiary charms, companions, Premium, potions or stamina. This is a word count in four files and the review could not re-verify it. HYPOTHESIS until the coverage step answers it.
+- **The largest file in the engine has no register row.** `src/core/hunt/conditions.js`. CONFIRMED.
+- **One number lives in two files.** The tier damage scale is typed in `src/core/combat.js` (`monsterDamageScaleByTier`) and again in `src/data/balance-sheet.js` line 340 (`DAMAGE_SCALE_BY_TIER`). CONFIRMED, and both are read: `combat.js` line 475 and `balance-sheet.js` line 365. Nothing holds the two tables equal that I found.
 
-### 1.4 What exists against the brief's Part 1 checklist
+### 1.4 The Part 1 checklist against the code
 
-This is the state of each checklist entry as the code shows it. Statuses are from `systems.mjs` where a row exists, checked against the tree where I name a file.
+The last column says how I know. **Opened** means I read part of the file in this work. **Listed** means the file exists and the status is copied from `systems.mjs`, which section 1.2 shows has drifted. Formulas, inputs, outputs, dependencies and tests for each system are what the census and the binding step produce. They are not on this page.
 
-| Checklist entry | State | Authoritative source |
-|---|---|---|
-| Levels, XP needs, XP rewards | Implemented | `src/core/xp.js`, `src/core/hunt/xp-share.js`, `src/data/hunt-xp.js` |
-| Melee, Ranged, Magic, Defense | Implemented | `src/data/skills.js`, `src/core/skill-sim.js` |
-| Prayer | Does not exist under that name. Its nearest relative is Inner Flame, a regeneration skill fed by bones, implemented | `src/data/hearth.js` |
-| HP and mana growth | Implemented | `src/core/vitals.js` |
-| Equipment requirements | Implemented | `src/data/gear-tiers.js`, `src/data/item-authority.js` |
-| Physical and magical damage, spells, healing, shielding | Implemented | `src/core/combat.js`, `src/core/hunt/damage.js`, `src/core/hunt/abilities.js`, `src/data/abilities.js` |
-| Fist combat | Built, switched off | `src/data/fists.js` |
-| Armor and element resistance | Implemented | `src/core/mitigation.js`, `src/core/elements.js` |
-| Critical hits | Implemented | `src/core/combat.js` lines 488 to 494 |
-| Life and mana leech | Partly. Leech exists as an ability and status effect. Leech on worn gear is designed (linings), not built | `src/core/hunt/abilities.js`, `src/core/hunt/heal-cut.js` |
-| Regeneration | Implemented | `src/core/vitals.js` |
-| Attack frequency and cooldowns | Implemented. One 2.0 s basic interval for everything | `src/core/combat.js` `tickMs` |
-| Targeting and aggro | Implemented | `src/core/hunt/targeting.js`, `src/core/hunt/roles.js` |
-| Conditional combat automation | Implemented, never registered | `src/core/hunt/conditions.js`, `src/core/action-rules.js` |
-| Area damage | Implemented | `src/core/hunt/shapes.js`, `src/core/hunt/monster-spells.js` |
-| Grounds, monster mixes, spawning | Implemented to Level 110. Levels 110 to 185 staged. 185 to 400 an idea | `src/data/hunt-grounds.js`, `src/data/grounds/*/pack.js`, `src/core/hunt-spawn.js` |
-| Solo and party behavior | Implemented | `src/core/party-split.js`, `src/data/party-class-xp.js` |
-| Loot and rare drops | Implemented | `src/core/drops.js`, `src/core/hunt-rewards.js` |
-| Stamina and offline accrual | Implemented | `supabase/functions/hr-accrue/accrual.js`, `src/core/away.js` |
-| Death, Blessings, penalties | Implemented | `src/data/blessings.js` |
-| Weapon and armor progression | Implemented to tier 7. Nothing past Level 88 | `src/data/gear-tiers.js` |
-| Imbuement slots and imbuements | Drop rows exist. The file's own header says "IMBUING IS NOT BUILT". Replaced in design by linings | `src/data/imbuements.js` |
-| Consumables | Implemented | `src/data/supplies.js`, `src/core/hunt/consumables.js` |
-| Smithing | Implemented | `src/data/recipes.js`, `src/core/artisan.js` |
-| Woodcrafting | Does not exist under that name. Woodcutting is a gathering skill. Crafting makes planks, bows and wands | `src/data/gathering.js`, `src/data/recipes.js` |
-| NPC buying and selling | Implemented | `src/data/shops.js`, `supabase/functions/hr-accrue/vendor-sell.js` |
-| Marketplace | Implemented (the Weighhouse) | 13 migrations name it |
-| Currency creation and destruction | Implemented and journalled | `player_ledger` |
-| Housing and gold sinks | Implemented | `src/data/homestead-tiers.js` |
-| Party rewards | Implemented | `src/core/hunt/xp-share.js` |
-| Premium | Implemented | `src/data/premium.js` |
-| Training | Implemented | `src/data/training.js`, `src/core/hunt/training.js` |
-| Bestiary | Implemented | `src/data/bestiary.js` |
-| Collections | An old collection log is on the server with no caller | `systems.mjs` row `old-server-leftovers` |
-| Others the checklist does not name | The Tower, the Catacombs, the Hearth Chest, bosses and halls, Call out, scaled hunts, Tempering, jewelry, trophies, patterns, farming, clans and castles (built, switched off), factions (built, switched off), companions (built, switched off), Town Works, live events | `systems.mjs`, 115 rows |
+| Checklist entry | State | Source | How known |
+|---|---|---|---|
+| Levels, XP needs, XP rewards | Implemented | `src/core/xp.js`, `src/core/hunt/xp-share.js`, `src/data/hunt-xp.js` | Opened (`xp-share.js`) |
+| Melee, Ranged, Magic, Defense | Implemented | `src/data/skills.js`, `src/core/skill-sim.js` | Listed |
+| Prayer | No such system. The nearest is Inner Flame, a regeneration skill fed by bones | `src/data/hearth.js` | Listed |
+| HP and mana growth | Implemented | `src/core/vitals.js` | Listed |
+| Character attributes | No attribute stats were found. A blow reads a skill level and worn gear bonuses | `src/core/combat.js` lines 380 to 391 | Opened. Other files were not searched for attributes |
+| Equipment requirements, equipment classes | Implemented | `src/data/gear-tiers.js`, `src/data/armour-weights.js`, `src/data/item-authority.js` | Listed |
+| Physical damage, melee, ranged | Implemented | `src/core/combat.js`, `src/core/hunt/damage.js` | Opened |
+| Magical damage, spells, healing, shielding | Implemented. A cast lands a share of its caster's own largest blow | `src/core/hunt/abilities.js` lines 376 to 392, `src/data/abilities.js` | Opened |
+| Fist combat | Built, switched off | `src/data/fists.js` | Listed |
+| Armor and element resistance | Implemented | `src/core/mitigation.js`, `src/core/elements.js` | Opened (function lists) |
+| Critical hits | Implemented | `src/core/combat.js` lines 488 to 494 | Opened |
+| Life and mana leech | Partly. Leech exists on abilities. Leech on worn gear is designed, not built | `src/core/hunt/abilities.js`, `src/core/hunt/heal-cut.js` | Opened by search |
+| Regeneration | Implemented | `src/core/vitals.js` | Listed |
+| Attack frequency and cooldowns | Implemented. One 2.0 s basic interval | `src/core/combat.js` `tickMs` | Opened |
+| Targeting and aggro | Implemented | `src/core/hunt/targeting.js`, `src/core/hunt/roles.js` | Listed |
+| Conditional automation | Implemented, never registered | `src/core/hunt/conditions.js`, `src/core/action-rules.js` | Opened (size and citations only) |
+| Area damage | Implemented | `src/core/hunt/shapes.js`, `src/core/hunt/monster-spells.js` | Listed |
+| Monster damage and defense | Implemented. One stat formula plus hand rows and a tier scale | `src/data/balance-sheet.js` lines 117 and 359, `src/data/monsters.js` | Opened |
+| Grounds, monster mixes, spawning | Implemented to Level 110. Further regions staged or an idea | `src/data/hunt-grounds.js`, `src/data/grounds/*/pack.js`, `src/core/hunt-spawn.js` | Listed |
+| Combat encounter simulation | Implemented. One engine | `src/core/combat-sim.js`, `src/core/hunt/pull-cycle.js`, `src/core/hunt/world-step.js` | Listed |
+| Solo and party behavior, party composition | Implemented | `src/core/party-split.js`, `src/data/party-class-xp.js`, `src/data/hunt-roles.js` | Opened (`xp-share.js` reads the class table) |
+| XP an hour, gold an hour, hunting efficiency, survivability | Not rules. They are outcomes. The pace target is a formula. The outcomes are read by the matrix | `src/data/balance-sheet.js` line 92, `tools/balance-program/matrix-metrics.mjs` | Opened |
+| Supply usage | Implemented | `src/core/hunt/consumables.js`, `src/data/supply-basics.js` | Listed |
+| Loot, rare drops, item drop sources | Implemented | `src/core/drops.js`, `src/core/hunt-rewards.js`, `tools/balance-program/sources.mjs` | Opened (function lists) |
+| Stamina and offline accrual | Implemented | `supabase/functions/hr-accrue/accrual.js` | Listed |
+| Death, Blessings, penalties | Implemented | `src/data/blessings.js` | Listed |
+| Weapon and armor progression | Implemented to tier 7 | `src/data/gear-tiers.js` | Listed |
+| Imbuements | Drop rows only. The file says imbuing is not built | `src/data/imbuements.js` line 25 | Opened |
+| Consumables | Implemented | `src/data/supplies.js` | Listed |
+| Smithing | Implemented | `src/data/recipes.js`, `src/core/artisan.js` | Listed |
+| Woodcrafting | No such system. Woodcutting gathers. Crafting makes planks, bows and wands | `src/data/gathering.js`, `src/data/recipes.js` | Listed |
+| NPC buying and selling | Implemented | `src/data/shops.js`, `hr-accrue/vendor-sell.js` | Listed |
+| Marketplace | Implemented | 13 migrations name it | Searched |
+| Currency creation and destruction | Implemented and journalled | the ledger table | Listed |
+| Housing and gold sinks | Implemented | `src/data/homestead-tiers.js` | Listed |
+| Premium, training, Bestiary | Implemented | `src/data/premium.js`, `src/data/training.js`, `src/data/bestiary.js` | Listed |
+| Collections | An old collection log on the server with no caller | `systems.mjs` | Listed |
+| Others the checklist does not name | The Tower, the Catacombs, the Hearth Chest, bosses, Call out, scaled hunts, Tempering, jewelry, trophies, patterns, farming, clans and castles, factions, companions, Town Works, live events | `systems.mjs`, 115 rows | Listed |
 
-This table is what one architect read in one sitting. It is exactly the kind of list this plan replaces with a generated one.
-
-**Benefit of this assessment:** it names causes that a tool can remove. **Complexity:** none, it is done. **Risk:** RC2's count is a proxy, as said.
+**Benefit:** names causes a tool can remove. **Complexity:** none, it is done. **Risk:** most statuses are Listed, not Opened. This table is the kind of list the plan replaces with a generated one.
 
 ---
 
@@ -117,292 +121,356 @@ This table is what one architect read in one sitting. It is exactly the kind of 
 
 ### 2.1 The rule
 
-Coverage is a number a tool prints, never a sentence an agent writes. Every surface where a game rule or a game number can live is listed by reading the repo. Every listed thing must be claimed. An unclaimed thing fails the check.
+Coverage is a number a tool prints, never a sentence an agent writes.
 
-### 2.2 The surfaces, and how each is listed
+### 2.2 The surfaces
+
+The repo already has TypeScript and esbuild as development dependencies. TypeScript's parser reads plain JavaScript, so the census uses it and adds nothing.
+
+I ran a scratch count with that parser to size the work. It stored nothing and is not the tool. A "typed number" here is any number in a function body other than 0, 1, 2, 100 and 1000. The rule for what counts is a choice, and the first slice settles it. All counts in this table are CONFIRMED by a command on this branch.
+
+| Surface | Top-level functions | Not exported | Hold a typed number | Of those, named in a register |
+|---|---|---|---|---|
+| `src/core` | 681 | 234 | 45 | 8 |
+| `src/data` | 519 | 221 | 51 | 13 |
+| `supabase/functions/hr-accrue` | 254 | 62 | 53 | 3 |
+| `supabase/functions/bug-report-bridge` | 12 | 7 | 2 | 0 |
+| `src/session` | 638 | 346 | 107 | report only |
+| `src/shell` | 1,811 | 878 | 134 | report only |
+| `src/hunt-view` | 111 | 45 | 14 | report only |
+
+The census lists **every top-level function, exported or not**. The Tower heat rule is `heatOpts` at `tower.js` line 144, which is not exported, and a census of exports would never see it. The review counted 143 private functions in core with a simpler match and 37 with a number under a wider rule. The two counts differ because of what each calls a function and a typed number. Both say the same thing: private functions hold rules.
+
+The other surfaces:
 
 | Surface | How it is listed | Count today |
 |---|---|---|
-| Rule code | Every exported function and constant in `src/core` and `supabase/functions/hr-accrue` | 424 and 192 functions, 129 and 163 constants |
-| Content and tuning data | Every exported constant and function in `src/data`, with its row count where it is a table | 735 constants, 253 functions |
-| Typed numbers | Every number written inside a rule function that is not 0, 1, an index or a unit like 1000 | not yet counted |
-| Server rules | Every function, table, client call, scheduled job and switch in the replayed database | 799 functions, 286 tables, 148 client calls, 28 jobs |
+| Content and tuning data | Every exported table in `src/data`, with its row count and, per field, how many rows set it (section 2.4) | 735 exported constants |
+| Server rules | From the replayed database: functions, tables, client calls, triggers, views, row policies, scheduled jobs with their schedules, switches | 799 functions, 286 tables, 148 client calls, 28 jobs. Triggers, views and policies not yet counted |
 | Server verbs | Every intent the engine accepts | 18 |
-| Generated catalogues | Every `tools/gen-*.mjs` and the data file and table it joins | 37 generators |
-| Tests | Every guard and the symbols it loads | 416 test files |
+| Client to server | Every server function name that appears as text in `src/session` and the engine | the review counted 188 names in `src/session` |
+| Generated catalogues | Every `tools/gen-*.mjs` and the data file and table it joins | 37 |
 
-The first, second and fourth rows reuse what `collect.mjs` already does. It lists files and database objects today. The change is to go one level down, from the file to the symbol.
+The three client folders are listed in **report mode only**, with their typed-number counts. The game's rules belong on the server and in `src/core`. A rule or number in the client is either display math or a leak, and the report is how a leak is seen. `wiki-model.js` showing a formula the engine does not run is the known example.
 
-### 2.3 What "claimed" means
+### 2.3 What "claimed" means, and what it costs
 
-Each symbol gets exactly one of four kinds.
+A function is one of four kinds: **formula** (computes a game number), **content**, **plumbing** or **presentation**.
 
-- **formula**: it computes a game number. It must be bound to a formula row (section 3).
-- **content**: it is a table of game things. It appears in the content registry with its row count.
-- **plumbing**: it moves data and holds no game number.
-- **presentation**: text, art, layout.
+The tool decides the default. Only a function that holds a typed number defaults to formula and needs a person. By the scratch count that is about 150 functions in the rule code (45 + 51 + 53 + 2), of which 24 are already named. A function that only reads a named constant is linked to that constant by the map in section 5 and needs no hand decision. So the hand work is on the order of 130 decisions, not a thousand. That number is from a scratch count with one rule for "typed number". The first slice prints the real one per folder, and the claim step is sized and approved from that print.
 
-The tool decides the default. A function whose body holds a number, or reads a numeric constant, defaults to "formula" and stays red until a formula row claims it or a person marks it plumbing with a reason. This is the step that turns "we read the files we thought of" into "every function with a number in it is accounted for".
+### 2.4 Special cases that are data rows
 
-### 2.4 The checks that fail
+A census of functions cannot see an exception that is a row. A per-ground multiplier and a hand-typed monster are data. `src/data/balance-sheet.js` line 309 is a table of XP multipliers by ground, line 319 one of gold multipliers by ground, line 322 a table named `FORMULA_EXCEPTIONS` and line 487 one of tier overrides by ground. CONFIRMED.
 
-1. A symbol with no kind.
-2. A formula symbol with no formula row.
+So the content registry prints, for each table, each field and how many rows set it. A field set on a minority of rows is listed as an **override**. An override needs an exception row or a one-line reason. This is generated and needs no upkeep.
+
+### 2.5 The checks that fail
+
+1. A top-level function in the rule code that holds a typed number and has no kind.
+2. A formula function with no formula row.
 3. A server function that holds arithmetic and belongs to no formula row.
-4. A typed number in rule code that no row names. This starts as a count that may only go down, the same way `css-literal-ratchet` works today, because the first count will be large.
-5. A formula row whose symbol no longer exists.
+4. The count of typed numbers in rule code. It may only go down, the way `css-literal-ratchet` works.
+5. A formula row whose function no longer exists.
+6. An override field with no exception row or reason.
 
-### 2.5 The evidence of coverage
+The inventory check is **split**. The code kinds (files, tables, functions, verbs, jobs) gate in CI, because they are a function of the commit. The lane and memory kinds stay a local report on the PC that has them. Moving the rulings into the repo removes one of the three outside inputs. It does not by itself make the old check run in CI.
 
-Every registry print and every agent report carries three numbers per area: symbols found, symbols claimed, and symbols whose description is still current. "Complete" is not a word any report may use. It prints the three numbers.
+### 2.6 The evidence of coverage
 
-**Benefit:** ends the class of miss where a whole system or rule was never opened. **Complexity:** low to medium. Listing exports is a short pattern match that `collect.mjs` already has. Finding typed numbers inside function bodies needs function boundaries. The repo has no JavaScript parser installed. Two options: a small development-only parser dependency, or the function ranges Node's built-in coverage already reports. I recommend the parser. It is a build-time tool only and never ships. **Risk:** the first run will show hundreds of unclaimed symbols. That is the true state, and it is the work list. It starts in report mode and turns red area by area as each area reaches zero.
+Every print and every report carries three numbers per folder: functions found, functions claimed, and facts whose pin is current. "Complete" is not a word a report may use.
+
+**Benefit:** ends the class of miss where a rule was never opened. **Complexity:** low for the function census, since the parser is installed and the scratch version is under 40 lines. Medium for the server side and the field census. **Risk:** the rule for "typed number" is a judgement. Too wide and it is noise. Too narrow and it misses `+ 2`. It starts as a report so the rule can be tuned before anything turns red.
 
 ---
 
 ## 3. The proposed systems registry
 
-### 3.1 Shape in one picture
+### 3.1 Shape
+
+No new top-level folder. Everything sits beside the files the plan already treats as registry parts.
 
 ```
-registry/                     hand-written, small, version-controlled
-  rulings.jsonl               every ruling, one per line, with an id
-  intent.mjs                  design statements that can be tested, each with its check
-tools/registry.mjs            the one tool: build, check, impact, brief, accept
-tools/balance-program/        stays where it is and plugs in
-  systems.mjs                 the system inventory (exists)
-  formulas/*                  the formula and exception rows (exist, to be bound to symbols)
-  standards.mjs               the balance targets (exists)
-  matrix-plan.mjs             the scenarios (exists)
+tools/balance-program/
+  systems.mjs            the system inventory (exists)
+  standards.mjs          the balance targets (exists)
+  formulas/*             the formula and exception rows (exist)
+  matrix-plan.mjs        the scenarios (exists)
+  rulings.jsonl          NEW, hand-written. Only if Tyler says yes (3.4)
+  pins.jsonl             NEW, generated and committed. One line per pinned fact, sorted by id
+  registry.mjs           NEW, the tool. Built in slices
 ```
 
-Nothing generated is committed. The generated half is a pure function of the commit, so it is version-controlled by construction and can never be out of date or cause a merge conflict. Anyone, and any agent, gets it by running `node tools/registry.mjs build`. CI runs `check`. The one exception is simulator results, which are costly, and those are cached with a fingerprint of their inputs as `progression-grid.mjs` already does.
+**What is committed and what is not.** The census, the dependency map, the content registry and the lifecycle are never committed. They are a function of the commit and anyone gets them by running the tool. Two generated things are committed, because each is evidence a change has to answer for: the pins (3.3) and the simulator caches, which carry a fingerprint of their inputs as `progression-grid.mjs` already does. The first issue said "nothing generated is committed" and then stored fingerprints. That was a contradiction and this replaces it.
 
 ### 3.2 The nine parts the brief asks for
 
 | Brief part | Where it lives | Generated or hand-written |
 |---|---|---|
-| 1. System inventory | `systems.mjs`, 115 rows today | Hand-written rows. Status is checked by the tool: a row marked live must have a door a player can reach, which `inventory.mjs` already tests |
-| 2. Formula registry | `formulas/*` rows | The meaning, the class and the ruling are hand-written. The location, the constants and their values, the callers and three sample inputs and outputs are generated by calling the real function |
-| 3. Dependency graph | built by the tool | Generated (section 5) |
-| 4. Content registry | built by the tool from `src/data` | Generated. `sources.mjs` and its atlas already do this for items and their sources. The same pattern covers spells, monsters, grounds, consumables and recipes |
-| 5. Gameplay lifecycle | built by the tool | Generated. One hunt is played with Node's coverage on, and the tool prints the ordered list of rule functions that ran, from the start intent to the reward write |
-| 6. Design decisions | `registry/rulings.jsonl` and `registry/intent.mjs` | Hand-written. Their status against the code is generated |
-| 7. Balance targets | `standards.mjs`, 108 bands | Hand-written. Each band names the formulas it judges, and that link is checked |
-| 8. Known exceptions | the exception rows in `formulas/*`, 129 today | Hand-written class and reason. An exception of class 3 must name a ruling id or it prints as "no approval on record" |
-| 9. Uncertainties | built by the tool | Generated: every unclaimed symbol, every stale fact, every statement with no check, every scenario factor not exercised |
+| 1. System inventory | `systems.mjs`, 115 rows | Hand-written. A row marked live must have a door a player can reach, which `inventory.mjs` already tests |
+| 2. Formula registry | `formulas/*` rows | Meaning, class and ruling are hand-written. Location, constants and their values, callers and sample outputs are generated by calling the real function |
+| 3. Dependency graph | the tool | Generated (section 5) |
+| 4. Content registry | the tool, from `src/data` | Generated, with the field census of 2.4. `sources.mjs` already does this for items |
+| 5. Gameplay lifecycle | the tool | Generated as three joined lists (3.5) |
+| 6. Design decisions | `rulings.jsonl`, the design book, and ordinary tests for contradictions (3.4) | Hand-written. Reference checks are generated |
+| 7. Balance targets | `standards.mjs`, 108 bands | Hand-written. Each band names the formulas it judges |
+| 8. Known exceptions | exception rows in `formulas/*`, plus the generated override list | Class and reason are hand-written. A class 3 exception with no ruling id prints as "no approval on record" |
+| 9. Uncertainties | the tool | Generated: unclaimed functions, stale pins, overrides with no reason, statements with no check, factors no scenario exercised |
 
-### 3.3 How every fact links to its source
+### 3.3 How a fact stays true
 
-A hand-written fact names a symbol, not a line. For example `src/core/combat.js#playerCombatRolls`. The tool stores a fingerprint of that function's text beside the fact.
+**A fact is pinned to what the function outputs, not to its text.** The probes under `formulas/` already call real functions for sample values. For each formula row the tool calls the function on a few fixed inputs and stores the outputs in `pins.jsonl`.
 
-- When the function's text changes, the fact prints as **STALE** until someone re-reads it and re-pins it. The lane that changed the function does that, in the same commit, because it is the one that knows what changed.
-- A constant's value is never typed into a fact. The tool reads it from the code every time, the way `knobs.json` is checked today. So a number in the registry cannot disagree with the game.
-- A fact whose symbol is gone fails the check.
+- If an edit leaves every sample output the same, the fact stays current. Nobody does anything. A reworded comment or a tidy-up costs nothing.
+- If an output moves, the lane's check prints the before and after. The lane writes one line saying why, in the same commit. The re-pin carries evidence: the old and new values are in the diff.
+- A change in a function that this one calls moves the outputs too, so it is caught. A text fingerprint would miss it.
+- A function that cannot be sampled, because it needs a whole hunt in memory, falls back to a fingerprint of its code with comments and spacing removed. The tool prints how many facts are on the fallback. That number is unknown until the binding step starts. HYPOTHESIS: most formula functions in `src/core` are pure, because the folder's rule is no clock, no random source and no page.
+- A constant's value is never typed into a fact. The tool reads it live.
 
-This is the whole upkeep cost: when you change a rule function, you re-read one sentence about it.
+**Who writes.** The lane that changed the function writes the re-pin and its reason. The registry keeper reviews re-pins and writes new formula rows. The first issue said both "the lane re-pins" and "the keeper is the only writer". The first is the rule.
+
+**Conflicts.** `pins.jsonl` is one line per fact, sorted by id, so two lanes touch the same line only when they change the same rule. When they do, the file is regenerated by its tool, never merged by hand, as the rules already say for JSON baselines.
+
+**The honest cost.** A lane that changes what a rule outputs writes one line. A lane that adds a function with a typed number gives it a kind. Nothing else is hand upkeep. How often that happens is sized from the first slice's print.
 
 ### 3.4 Design intent beside implementation
 
-**The rulings get a home in the repo.** `registry/rulings.jsonl`, one ruling per line:
+**The repo is public.** So the question is what may be written into it.
+
+Design intent is already public in this repo: the rules file with its dated rulings, and design briefs kept verbatim under `docs/design/`. What is not public today is everything else the memory rulings file holds beside game rules. Those lines never enter the repo.
+
+The rulings step therefore imports **only lines that state a game rule**. The import drops every line that names a person other than Tyler, that concerns real money or spending, that carries any account detail, or that holds a link. Dropped lines are printed on the local screen for the Coordinator to see and are never committed. `said` keeps Tyler's words only where they are about the game.
+
+**The one question, before the step runs:** "Your game rulings will be readable by anyone on GitHub. Yes or no." If the answer is no, the file lives outside the repo, the rulings stay a local input, and no CI benefit is claimed for them.
+
+If yes, the file is `tools/balance-program/rulings.jsonl`, one ruling per line:
 
 ```
 { "id": "R-2026-11-08-03", "date": "2026-11-08", "said": "XP share rule applies regardless",
   "reading": "Every seat gets the same party share whatever its Level",
-  "replaces": [], "systems": ["parties", "level"], "checks": ["no-level-keyed-party-cut"] }
+  "replaces": [], "systems": ["parties", "level"] }
 ```
 
-- It is append-only. A new ruling that replaces an old one names it in `replaces`. "Current" is computed, so nobody works out "newest wins" by hand again and a superseded ruling cannot be quoted by accident.
-- Tyler's words are kept verbatim in `said`. The Coordinator's reading is a separate field, so the two are never blurred.
-- The memory file, the Rulings page and the decision book become views of this file. The Coordinator writes a new ruling here first, as a docs-only commit, which the rules already allow.
-- The first import takes the memory file and both decision files, and prints every line it could not place so nothing is dropped silently.
+- Append-only. A ruling that replaces another names it. "Current" is computed, so a superseded ruling cannot be quoted by accident.
+- `said` and `reading` are separate fields. A reading is the Coordinator's and is marked as such wherever it prints, with `said` first. A reading an adversary disputes is flagged on the row. One wrong reading would otherwise reach every lane with the registry's authority.
 
-**The design book connects by ids.** The book under `docs/design/overhaul/` is design intent. The registry is implementation truth. They meet in `registry/intent.mjs`:
+**The design book connects through the ids it already has.** The nine chapters hold 958 lines that name a formula id, a knob or a call id (the review's count). The tool reads every chapter and fails on a name that does not exist: a formula id no register has, a knob that is gone, a call id the decision book does not hold. This is generated and asks nothing of the book's lanes. Whether every id in the book resolves today has not been tested.
 
-- **References are checked with no new tags.** The book already names formula ids (`C-HERO-POWER`), knob names (`tierDanger`), call ids (`GR-88`), band ids and ruling dates. The tool reads every chapter and fails on a name that does not exist: a formula id no register has, a knob that is gone, a call id the decision book does not hold, a RULED date with no ruling of that date in `rulings.jsonl`. This is fully generated.
-- **Rule statements that can be tested get one short tag.** For example `[B01-12]`, next to the RULED, RECOMMENDED or OPEN mark the book already uses. Only statements that describe a rule the code can follow or break need one.
-- `intent.mjs` has one row per tag: the systems it touches, the ruling or call id behind it, and where possible a **check**. A check is a small test against the registry, such as "this symbol has no caller", "this constant equals this value" or "this data table has no row with a price".
-- The tool then gives every statement one of four states.
+**Contradictions are ordinary tests.** The first issue proposed a tag on every testable statement and a hand-kept row per tag. That is dropped as too heavy. A check is written only when an audit finds the code contradicting a ruling. It is a normal test under `tests/`, which the repo already knows how to run, prove and gate. The first three are the known ones: the hit formula's typed numbers, the Level-keyed party cut and the Tower heat. Each starts red in report mode and turns green when the build plan fixes it. Fixing them is a gameplay change and is not part of this plan.
 
-| State | Meaning |
+The count of rule statements with no check is still printed. Documentation never overrides the code. Where they disagree the print shows both.
+
+### 3.5 The lifecycle
+
+The brief asks for a hunt "from character preparation to final rewards". Coverage of the simulator cannot give that alone, because the harness plays the settle with no database and Node's coverage records which functions ran, not their order. So the lifecycle is three joined lists, and the print says which part is static and which ran:
+
+1. **The start path**, read from the server map: gear, bar and stock checks, the start intent, its stamina and gold checks.
+2. **The fight**, from coverage: the set of rule functions that ran, grouped by the phase of the hunt the harness was in.
+3. **The write path**, read from the server map: the reward write to the tables and the ledger.
+
+### 3.6 What an agent reads
+
+`brief <system>` prints one pack: the system's formulas with live constants and sample outputs, its dependents, the current rulings that touch it (`said` first), the bands that judge it, the scenarios that exercise it and its uncertainties. **The pack carries the text the agent must have, inline, sized to fit.** A pack too large to inline means the scope is too wide for one agent and is split. The pack never includes balance-program documents 00 to 62. Those are sources to be re-derived, not read as truth.
+
+### 3.7 Built on, not beside
+
+| Existing piece | Its role |
 |---|---|
-| BUILT | the check passes on this commit |
-| NOT BUILT | the check fails and a build-plan step is named for it |
-| CONTRADICTED | the code does the opposite and no step is named |
-| UNCHECKED | the statement has no check. It is prose only |
+| `collect.mjs`, `inventory.mjs`, `systems.mjs` | The system inventory and its claim check. Split as in 2.5 |
+| `formulas/*.json`, the two register tools | The formula and exception rows. Ids are kept. The typed `impl` strings become function bindings. The category files hold 131 formulas and 154 exceptions, and that is the size of the binding work |
+| `formulas/knobs.json` | Already bound to source lines and checked. The model for every constant |
+| `formulas/*-probe.mjs` | Already call real functions. They become the source of sample outputs |
+| `sources.mjs`, `paths.mjs`, the atlas | The content registry for items |
+| `standards.mjs`, `tests/balance-guard.mjs` | The targets and their guard |
+| `balance-matrix.mjs`, `progression-grid.mjs` | The simulator |
+| `tests/layering.mjs` | Its import reader is reused |
+| `tests/schema-replay.mjs`, `schema-drift`, `live-hash-drift` | The replayed database is how server rules are listed |
+| `tools/lib/guard-deps.mjs` | Stays the guard picker |
 
-- A book id with no intent row fails the check. An intent row whose book id is gone fails the check. So the book and the registry cannot drift apart without a red.
-- The list of NOT BUILT statements is the build plan's to-do list, generated. The list of CONTRADICTED statements is what tonight needed an audit to find. The count of UNCHECKED statements is always printed, never hidden.
-
-Documentation never overrides the code. Where they disagree the registry shows both, side by side, with the state above.
-
-The book's own labels TARGET, COMPUTED and MEASURED fit this too. A TARGET is a band or a knob value the matrix must prove. A COMPUTED or MEASURED number in the book should carry the cell or symbol it came from, so the tool can re-check it when the code moves. Section 6.4 makes MEASURED a label the tool assigns.
-
-Eight chapters landed on the set while this plan was being written (01 to 07 and 09). I read the label legend of chapter 01 and section 2.4 of chapter 09, not the chapters in full. The tag convention is a request to the book's lanes, and it costs them one tag per testable rule statement.
-
-### 3.5 What an agent actually reads
-
-`node tools/registry.mjs brief <system>` prints one pack for a system: its formulas with live constants, its callers and dependents, the current rulings that touch it, the book statements and their states, the bands that judge it, the scenarios that exercise it, and its uncertainties. It also prints the list of source files the agent must read in full. Every agent gets this pack, from the same commit, instead of a hand-written brief that lists what the Coordinator remembered.
-
-### 3.6 Built on, not beside
-
-| Existing piece | Its role in the registry |
-|---|---|
-| `collect.mjs`, `inventory.mjs`, `systems.mjs` | The system inventory and its claim check. Extended one level down to symbols. The memory read is replaced by the rulings file, which lets the check run in CI |
-| `formulas/*.json`, `combat-register.mjs`, `architecture-register.mjs` | The formula and exception rows. Ids are kept. The typed `impl` strings become symbol bindings |
-| `formulas/knobs.json` | Already bound to source lines and checked. It is the model for every constant |
-| `formulas/*-probe.mjs` | Already call real functions for sample values. They become the generator of each formula's samples |
-| `sources.mjs`, `paths.mjs`, the atlas | The content registry for items. The pattern is widened |
-| `standards.mjs`, `tests/balance-guard.mjs` | The balance targets and their guard |
-| `balance-matrix.mjs`, `progression-grid.mjs` | The simulator (section 6) |
-| `tests/layering.mjs` | Its import reader is reused for the dependency graph |
-| `tests/schema-replay.mjs`, `schema-drift`, `live-hash-drift` | The replayed database is how server rules are listed. Live drift stays the Coordinator's check |
-| `tools/lib/guard-deps.mjs` | Stays the guard picker. The registry's `impact` answers the different question of which facts and cells a change touches |
-
-**Benefit:** one model every agent and audit reads, which is always current because half of it is generated on demand and the other half goes stale loudly. **Complexity:** medium. One tool of about the size of `inventory.mjs` plus its generators, and a one-time binding of the 107 formulas and 129 exceptions. **Risks:** first, fingerprints will flag cosmetic edits such as a reworded comment. The fingerprint is taken on the code with comments and spacing removed, which removes most of that. Second, `registry/` holds Tyler's words on money and design. The site build must not publish it. The repo already holds his briefs under `docs/`, so the same rule applies, and I have not checked what the site build leaves out. Third, the temptation to write checks for everything. Checks are written only for statements that are rules. The rest stay UNCHECKED and counted.
+**Benefit:** one model every agent reads, current because most of it is generated and the rest is pinned to behavior. **Complexity:** high if built whole. The tool has a parser pass, an SQL reader, a sampler, a coverage reader, a label rule and a report reader. That is why it is built in slices and why the book tags and the hand-kept intent file were cut. **Risks:** sample inputs that miss the branch a change touched, so a pin stays green wrongly. The inputs are chosen per formula and an adversary can add one. And the public repo, which 3.4 answers.
 
 ---
 
 ## 4. Formula architecture assessment
 
-This builds on `44-formula-architecture.md` and its registers. Where I verified a claim in the code I say so. Where I only read it in 44, I say that.
+### 4.1 The eight frameworks the brief names
 
-### 4.1 What is sound
+"Seen here" means I opened the code. "From 44" means I read it in `44-formula-architecture.md` and did not check.
 
-One engine runs every fight, seen or unseen. Imports point one way and a guard holds it (`tests/layering.mjs`). Content is authored once in `src/data` and the server tables are generated from it by 37 generators with drift guards. No hunting ground has its own combat code. These are from 44's summary and the layout of the tree, and I saw nothing against them.
+| Framework | One shared rule or several | Where | Basis |
+|---|---|---|---|
+| Physical damage | One. Every basic blow goes through one roll and one door for damage taken | `combat.js` `playerCombatRolls` line 391, `hunt/damage.js` `roll`, `blow`, `hurt`, `landHit` | Seen here |
+| Magical damage | One. A cast lands a share of its caster's own largest blow, set per spell row. A spell does not read accuracy | `hunt/abilities.js` lines 376 to 392, `combat.js` line 387 | Seen here. That spells take no crit and no weapon bonus is from 44 |
+| Healing | One, with one named exception. A heal or a shell is a share of the caster's blow. Mend is a share of max HP | `hunt/abilities.js` line 382, `hunt/heal-cut.js` | Seen here in comments and function names. The amount function in `src/data/abilities.js` was not read |
+| Armor and resistance | One module each | `mitigation.js` `mitigate`, `elements.js` `elementPermille` | Seen here as function lists only. Bodies not read |
+| Weapons | Expressed as data rows. Whether any weapon has its own code path | `src/data/gear-tiers.js` | Not verified. From 44 |
+| Spells | Expressed as data rows with a share, a cost and effects | `src/data/abilities.js` | Seen here in part |
+| Monster difficulty | Several. One stat formula, plus hand-typed rows, plus a tier damage scale typed in two files | `balance-sheet.js` lines 117, 340 and 359, `combat.js` `monsterDamageScaleByTier` | Seen here. The share of hand-typed monsters is from 44 |
+| Ground rewards | Several. One reward generator, plus per-ground XP and gold multipliers, an exceptions table and tier overrides | `hunt-rewards.js` `rewardSwing`, `balance-sheet.js` lines 309, 319, 322 and 487 | Seen here |
 
-### 4.2 Inconsistencies
+### 4.2 Inconsistencies confirmed in code
 
-| # | Inconsistency | Status |
+| # | Inconsistency | Where |
 |---|---|---|
-| F1 | The hit formula uses numbers typed in place. The named constants with the same values are read only by the in-game wiki, so the wiki can show a formula the engine does not run | CONFIRMED. `combat.js` line 391 against `wiki-model.js` line 126 |
-| F2 | A monster's damage scale depends on its tier through a hand table of four values | CONFIRMED. `combat.js` `monsterDamageScaleByTier`, values 4.0, 4.0, 3.0, 2.2 |
-| F3 | A Level-keyed party share cut is in the split after it was ruled out | CONFIRMED. `xp-share.js` line 78 |
-| F4 | The Tower multiplies blows per floor after that was dropped by ruling | CONFIRMED. `tower.js` lines 141 to 157 |
-| F5 | Gear has no rule past tier 7. The only gear curve is in a simulator folder | CONFIRMED that the lines live in `tools/balance-sim/staged` and are imported by `grid-kit.mjs`. The effect on pace is 44's measurement, not mine |
-| F6 | Kill reward has no term for how fast a ground's monsters die, so each ground carries a hand multiplier | From 44, item 2. Not re-verified |
-| F7 | A tier's difficulty dial is applied three times | From 44, item 3. Not re-verified |
-| F8 | Spells cannot miss, cannot crit and take no weapon bonus, and no ruling says so | Partly CONFIRMED. A comment at `combat.js` line 387 states "a spell never misses". The rest is from 44, item 9 |
-| F9 | 118 of 190 monsters are typed by hand and the rest come from one formula | From 44, item 7. Not re-verified |
-| F10 | Gold income is a formula and every sink is a list that ends | From 44, item 4. Not re-verified |
-| F11 | The conditional automation has no formula rows at all, so its thresholds and priorities are outside every audit so far | CONFIRMED (RC2) |
-| F12 | The server has rules written twice, once in JavaScript and once in SQL, for example maximum health. Some have a test that holds them together (`tests/core-curves.mjs`, `tests/vitals-armed-parity.mjs`). No list says which twins exist, so no one can say all are guarded | The examples are CONFIRMED. "Some twin has no guard" is a HYPOTHESIS. The census in section 2 proves or kills it |
+| F1 | The hit formula uses numbers typed in place. The named constants with the same values are read only by the in-game wiki | `combat.js` line 391, `wiki-model.js` line 126 |
+| F2 | A monster's damage scale depends on its tier through a hand table, and the table is typed twice | `combat.js`, `balance-sheet.js` line 340 |
+| F3 | A Level-keyed party share cut is in the split after it was ruled out | `xp-share.js` line 78 |
+| F4 | The Tower multiplies blows per floor after that was dropped by ruling | `tower.js` lines 141 to 157, in a function that is not exported |
+| F5 | Gear has no rule past tier 7. The only gear curve is in a simulator folder | `tools/balance-sim/staged`, imported by `grid-kit.mjs` lines 70 to 71 |
+| F6 | Each ground carries hand multipliers for XP and gold | `balance-sheet.js` lines 309 and 319 |
+| F11 | The conditional automation has no formula rows | RC2 |
 
-### 4.3 Opportunities
+### 4.3 Hypotheses, taken from 44 and not verified here
 
-44 proposes one framework per category: a gear curve, a kill reward that follows the pace line, one tier table and one wage curve for prices, removing 56 of 57 accidental exceptions in 28 steps. I did not re-derive that model and I do not restate it. Three points about how it should proceed:
+- A tier's difficulty dial is applied three times.
+- Spells cannot crit and take no weapon bonus, and no ruling says so.
+- 118 of 190 monsters are typed by hand.
+- Gold income is a formula and every sink is a list that ends.
+- Kill reward has no term for how fast a ground's monsters die, which is why F6 exists.
+- Some rule written once in JavaScript and once in SQL has no test holding the two together. `tests/core-curves.mjs` and `tests/vitals-armed-parity.mjs` hold some. No list says which twins exist.
 
-1. **Bind before you change.** Each of 44's steps should start only after the formulas it touches are bound to symbols and their dependents are generated. Otherwise the clean-up is planned on a hand-drawn map.
-2. **F1, F3 and F4 are the cheapest proof of the system.** Each is a ruling the code does not follow. Written as three checks in `intent.mjs`, they show as CONTRADICTED on day one and turn BUILT when fixed. They are not fixed under this plan. Fixing them is a gameplay change that waits for approval.
-3. **Classify the unregistered code before judging the architecture.** 44's verdict of "one formula system with a pile of exceptions" rests on the share of the code that was read. Until the census is done, the true count of special cases is unknown. HYPOTHESIS: the conditional automation and the server tick hold more of them.
+### 4.4 Opportunities
 
-**Benefit:** the clean-up 44 planned gets a verified base and a way to prove each step. **Complexity:** none added here. **Risk:** delay to the clean-up. I judge it small, because the binding step is the same reading the clean-up needs anyway.
+44 proposes one framework per category and 28 ordered steps, and book chapter 09 carries that forward. I did not re-derive the model. Three points on how it should proceed:
+
+1. **Bind before you change.** Each clean-up step starts after the formulas it touches are pinned and their dependents are generated.
+2. **F1, F3 and F4 are the cheapest proof of the system.** Three tests, red in report mode on day one.
+3. **Judge the architecture after the census.** 44's verdict rests on the share of code that was read. HYPOTHESIS: the conditional automation and the server tick hold more special cases than 44 counted.
+
+**Benefit:** the clean-up gets a verified base. **Complexity:** none added. **Risk:** section 4.1 is thin where it says "not verified" or "function lists only". It is an honest map of what was read, not a finished assessment. The binding step finishes it.
 
 ---
 
 ## 5. Dependency mapping strategy
 
-The map is derived from the code in five layers. No edge is drawn by hand.
+Six layers, derived from the code.
 
 | Layer | How it is derived | Catches |
 |---|---|---|
-| 1. Imports | Read every import, by name. `tests/layering.mjs` already reads them by folder | Which rule reads which data table or helper |
-| 2. Constants | For each constant, every function that reads it. `knobs.json` already locates 33 of them | What moves when a number moves |
-| 3. Server | From the replayed database, each function's text is searched for other function and table names. Names all share the `hr_` prefix and are unique, so a text match is reliable. Reads and writes are told apart by the SQL verb | Which server rule writes which table, and which client call reaches it |
-| 4. Twins | A formula row with one home in JavaScript and one in SQL is a twin. The tool fails a twin that names no parity test. Generated catalogues are twins by construction, joined by their generator | Rules written twice |
-| 5. Runtime | Play scenarios with Node's built-in coverage on. It records which functions ran, with no change to game code | Edges that static reading cannot see, and factors a scenario never exercised |
+| 1. Imports | Every import, by name, with the installed parser | Which rule reads which table or helper |
+| 2. Constants | First by name. Then by field, with alias tracking, because the knobs are fields of one object read through a local name (`combat.js` reads `b.monsterDamageScaleByTier`, the wiki reads `B.strengthLevelScale`) | What moves when a number moves. Without the field step, every reader looks dependent on all thirty fields |
+| 3. Server | From the replayed database. Function names are matched as names. Table names are matched only after an SQL keyword that takes a table (`from`, `join`, `into`, `update`, `delete from`), because many table names carry no prefix and would match column names and comments. The unmatched remainder is printed | Which server rule reads or writes which table |
+| 4. Twins | A formula row with one home in JavaScript and one in SQL. The tool fails a twin with no parity test | Rules written twice |
+| 5. Runtime | Node's coverage while scenarios play | Functions that ran, and factors a scenario never exercised |
+| 6. Client to server | Server function names found as text in `src/session` and the engine | Which screen or intent reaches a server rule |
+
+### What the map cannot derive
+
+`impact` prints this list with every answer, so it never reads as complete.
+
+- Dependencies through data values: an item id in a drop row that is also a recipe input, a ground id in an unlock row. `sources.mjs` covers items only.
+- Dependencies through stored state: one function writes a column and another reads it a day later.
+- Dynamic SQL and trigger chains.
+- Dependencies through the player: more gold changes what a player buys. Only the matrix shows those, and only for what its heroes do.
+- Function overloads and whether every server function name is unique. Not checked.
 
 ### How the map is verified
 
-- **Static against runtime.** A function that ran in a scenario but has no path in the static map is a hole in the map. It is printed.
-- **Map against measurement.** The matrix already sweeps each knob (`--sweep`). If the map says a band depends on a knob and the sweep shows the band never moves, or a band moves that the map says is unrelated, the tool lists it. That is how indirect effects are found without anyone guessing them.
-- **Against the hand-drawn map.** 44's 198 edges are compared once with the derived ones. The differences are listed in both directions. After that the hand list is retired.
+- **Static against runtime.** A function that ran but has no path in the static map is a hole. It is printed.
+- **Map against measurement.** The matrix sweeps each knob. A band the map says depends on a knob that never moves in the sweep, or a band that moves with no path in the map, is listed.
+- **Against the hand-drawn map.** 44's 198 typed edges are compared once with the derived ones, then retired.
 
-### The question it answers
+`impact <function or file>` prints the formulas that read it, their systems, the bands that judge them, the cells that exercised them, the rulings attached, the twins, and the list above.
 
-`node tools/registry.mjs impact <symbol or file>` prints: the formulas that read it, the systems they belong to, the bands that judge them, the scenario cells that exercised them, the rulings and book statements attached, and the twins. This is the "consequences before recommending" the brief asks for, as one command.
-
-**Benefit:** indirect effects stop depending on an agent's memory. **Complexity:** layers 1 to 4 are low to medium. Layer 5 is low if coverage works through the simulator's worker processes. That is a HYPOTHESIS. Node passes the coverage setting to child processes, so I expect it to. **Risk:** the name-level graph is coarser than a call graph. It can show a dependency that is not real, such as an import that is never used. It errs toward more to check, never less, which is the safe side.
+**Benefit:** indirect effects stop depending on an agent's memory. **Complexity:** layers 1, 3 and 6 are low to medium and come first. Field-level constants are medium. Layer 5 is medium: the matrix plays many cells in each forked worker, and the environment setting writes coverage once per process, so coverage for one cell needs the inspector started and read inside `tools/balance-sim/worker.mjs` around each job. **Risk:** a name-level map shows dependencies that are not real. It errs toward more to check.
 
 ---
 
 ## 6. Simulation architecture
 
-### 6.1 One rules engine
+### 6.1 Who owns what
 
-The design of the instrument is chapter 09 of the book, section 2.4: the parts, the gate, the runs and the fault list. This plan does not restate or change it. It adds four things the chapter does not have: computed labels, measured factor coverage, rerunning only what a change made stale, and one way to describe a cell.
+The design of the instrument is book chapter 09 section 2.4: the parts, the gate, the runs and the fault list with its order. Closing the simulator's open faults is that chapter's work and its owners' work. It is **not a step of this plan**. It is a dependency of the design review in section 8, because nothing about deaths, gold or total damage taken is quotable until the death rule, the store bill and the damage total are closed.
 
-The rule stays what it is: every number comes from the real settle and the real engine, and no tool computes a combat value. `buildCell` already feeds the grid, the matrix and the solver. The release guard's `refCell` and the older `plans.mjs` should describe their cells through it too, so one cell means one thing in every tool. The Balance Lab's browser runner stays a twin held by its parity proof.
+This plan adds four things to the instrument: labels the tool makes, quote lines, measured factor coverage, and a record of what each cell loaded.
 
-The hero's setup moves toward the game. Bars, skill lines and later gear are authored under `tools/` today. Where the game has its own default, such as the role rules in `src/data/rule-subjects.js`, the simulator reads that. Where a setup is a proposal, such as the staged gear line, it is a named patch that prints on every result. A result never hides that it ran on gear the game does not have.
+The rule stays: every number comes from the real settle and the real engine, and no tool computes a combat value. One caution the review raised and I agree with: the harness rebuilds health between settles with its own constant regeneration rate (`cell.mjs` lines 10 to 12), and the staged gear lines are a second gear rule. Both are disclosed on results. Chapter 09's item for lowest health in the hunt tally closes the first at the source.
 
-### 6.2 Faults to close first
+Faults this plan found that chapter 09 does not list:
 
-Chapter 09 section 2.4.4 and `51-baseline.md` section 3 hold the full list and its order. The skill line (V1), the two builders (V2) and the seat shares (V4) are recorded there as fixed, each with a check that was proven to bite. I did not re-run them. What is still open, and what this plan adds:
-
-| # | Fault | Source |
+| # | Fault | Status |
 |---|---|---|
-| V3 | A dead hero hunts on, so deaths on a failing cell count retries | Open in `51` and chapter 09. `cell.mjs` header says a death starts a new hunt on a new seed |
-| F5 | The store bill reads 1.7 to 2.2 times real | Open in `51` and chapter 09 |
-| The damage total | A four's total damage taken reads about a third low | Open in chapter 09. Needs real play |
-| S1 | Health between settles is rebuilt by the harness with a constant regeneration rate, so low-health events are an estimate | CONFIRMED by me. `cell.mjs` header. Chapter 09 item 4 (lowest health in the hunt tally) would close it at the source |
-| S2 | The subset cache is 1 seed for 1 hour. The full matrix has never been run | CONFIRMED by me |
-| S3 | No axis for spell and rule choices. Every role plays one fixed bar | CONFIRMED by me. `played.mjs` |
-| S4 | No scenario records which rule functions it exercised, so "what was modeled" is a hand-written caveat | CONFIRMED by search |
-| S5 | The Balance Lab runner's header describes a hero with every skill at its Level | CONFIRMED as text. Whether the code still does that is a HYPOTHESIS. The parity proof would show it |
+| S2 | The subset cache is 1 seed for 1 hour. The full matrix has never been run | CONFIRMED |
+| S3 | Every role plays one fixed bar. No axis for spell and rule choices | CONFIRMED |
+| S4 | No scenario records which rule functions it exercised | CONFIRMED by search |
+| S5 | The Balance Lab runner's header describes a hero with every skill at its Level | CONFIRMED as text. Whether the code still does that is a HYPOTHESIS |
+| S6 | The release guard and the older simulator describe cells their own way | CONFIRMED (RC8) |
 
-Until V3, F5 and the damage total are closed, nothing about deaths, gold or total damage taken is quotable as measured. Each needs its own proof when it is closed, and that proof is a calibration cell against real play.
+### 6.2 The brief's Part 5 lists against the matrix
+
+Most of this is good news the first issue did not report. "Present" means the id is in the `METRICS` list of `matrix-metrics.mjs` or an axis of `matrix-plan.mjs`. I read the lists, not the code behind each metric.
+
+| Metric the brief asks for | State | Where |
+|---|---|---|
+| DPS | present | `dps`, `dpsHero` |
+| Actual damage received | present. A four's total reads low per chapter 09 | `takenPerH` |
+| Effective healing | present as healing an hour. Overheal is not separated, so "effective" is an estimate | `healPerH` |
+| XP an hour | present | `levelXpPerH` |
+| Gold an hour | present, an estimate while the store bill fault is open | `netPerH` |
+| Supply consumption | present | `suppliesPerH`, `storePerH` |
+| Kill rates | present | `killsPerH`, `ttkS` |
+| Death frequency | present, an estimate while the death rule fault is open | `deathsPer1000h` |
+| Dangerous HP events | present, rebuilt by the harness between settles | `lowHpTypical`, `lowHpP10`, `hpUnder30`, `hpUnder10` |
+| Equipment upgrade efficiency | present as gear-step cells by slot class. No single metric | `matrix-plan.mjs` step blocks |
+| Solo against party efficiency | cells present. No band, by the ruling of 11-21 | lone and four cells |
+| Long-term progression pace | present, computed | `hoursPerLevel`, `xContract` |
+
+| Axis the brief asks for | State |
+|---|---|
+| Low, mid and high Level characters | present: 31 checkpoints to 400, plus 1,000, 2,000 and 5,000 |
+| Future milestones | present, labelled as projected past Level 185 |
+| All combat styles | present: every key of the styles table |
+| Solo hunting, four-character parties | present |
+| Multiple equipment configurations | present: low, mid, best in slot, and steps by slot |
+| Multiple monster archetypes | present as a summary axis (role, shape, class). Not verified beyond the name |
+| Grounds of different difficulty | present: every ground at both ends of its band, three tiers |
+| Spell and rule configurations | **absent** |
+| Short and long hunts | present in the plan: 1 hour, 2 hours and chapter 09's death run of 8 hours. Only the 1 hour subset has been run |
 
 ### 6.3 What each scenario models
 
-The brief's Part 4 list, as the harness stands. This is from reading the builders, and section 5's coverage run replaces it with a measured table per scenario.
+From reading the builders. The coverage step replaces it with a measured table.
 
 | Factor | State | Note |
 |---|---|---|
 | Level | modeled | |
-| Skills | approximated | career lines, then the skill the curve allows (fixed per `51`). No training hours |
-| Weapon and equipment | modeled to tier 7, then a proposal | staged lines past that |
-| Imbuements | missing | not built in the game either |
+| Skills | approximated | career lines, then the skill the curve allows. No training hours |
+| Weapon and equipment | modeled to tier 7, then a proposal | staged lines |
+| Imbuements | missing | not built in the game |
 | Spells and rule priorities | approximated | one fixed bar per role |
-| Mana and health regeneration | modeled by the engine | the harness's health trace between settles is approximate |
-| Consumables | approximated | bill too high (F5) |
-| Cooldowns | modeled | |
-| Enemy stats and resistances | modeled | |
-| Spawns and encounters | modeled | |
-| Target selection | modeled | seat shares calibrated on one real four (per `51`) |
-| Damage dealt and taken, kill rate, XP | measured | |
+| Regeneration | modeled by the engine | the harness's health trace is approximate |
+| Consumables, gold profit | approximated | store bill fault |
+| Cooldowns, enemy stats, spawns, targets | modeled | seat shares calibrated on one real four, per `51` |
+| Damage, kill rate, XP | read on the real engine | |
 | Loot and rare drops | not verified by me | |
-| Gold profit | approximated | F5 |
-| Stamina | missing | |
-| Death risk | approximated | V3. A change to the death cost does not show |
-| Party interactions | modeled for a four | no band sets one party size against another, by the ruling of 11-21 |
-| Long-term progression | computed | arithmetic on measured rates, never played end to end |
-| Blessings, Bestiary charms, companions, Premium, food buffs, House perks, live events | missing or unverified | word counts only |
+| Stamina | missing | no stamina metric |
+| Death risk | approximated | death rule fault |
+| Party interactions | modeled for a four | |
+| Long-term progression | computed | never played end to end |
+| Blessings, charms, companions, Premium, food buffs, House perks, events | missing or unverified | word counts only |
 
-### 6.4 The matrix and its gate
+### 6.4 Labels, quotes and the gate
 
-The matrix is `matrix-plan.mjs`: Levels, gear states, ways to fight, party, tier and ground. It gains one axis from the brief, bar configuration. Long hunts are already the death run of chapter 09 (4 seeds of 8 hours). It gains nothing else until the open faults are closed.
-
-**Seeds.** A before-and-after diff plays the same cells on the same dice, as `--diff` already does. A risk measure such as deaths or low-health events needs at least 4 seeds and reports the spread, not one number.
-
-**The label is computed.** Every result carries a label the tool assigns from how the number was made. No agent types it. MEASURED and COMPUTED are the words the book and `standards.mjs` already use. SIMULATED and ASSUMED are new.
+**Four labels, and the tool assigns them.** The book's MEASURED keeps the meaning the book gives it. The stricter state gets its own word, so no chapter has to be relabelled.
 
 | Label | Assigned when |
 |---|---|
-| MEASURED | real engine, the cell's class has a calibration cell within tolerance of real play, enough seeds for the metric |
-| SIMULATED | real engine, but the class is not calibrated or the seeds are too few |
-| COMPUTED | arithmetic on measured numbers or data rows. The inputs are listed |
+| CALIBRATED | read on the real engine, and the cell's class has a calibration cell within tolerance of real play, with enough seeds for the metric |
+| MEASURED | read on the real engine. This is the book's meaning |
+| COMPUTED | arithmetic on other numbers or on data rows. The inputs are listed |
 | ASSUMED | any input was typed by a person |
 
-A number with an ASSUMED input can never print as MEASURED. That closes the fault behind `61` C2 by construction.
+A number with an assumed input can never print above ASSUMED. Today almost nothing can be CALIBRATED, because real play exists for one kind of party. The label says so.
 
-**The gate.** A result is usable in a report only with its cell id, the fingerprint of the code it ran on, its seeds and hours, its label and its factor table. `registry.mjs accept` (section 7) refuses a number that lacks them.
+**The quote line.** `quote <cell> <metric>` prints one line: the number, its label, seeds, hours and commit. A number in a report or a status is a pasted quote line. A number worked out by hand from two cells lists the quote lines it came from and is always COMPUTED.
 
-**Before and after.** `--diff` already flags IMPROVED, REGRESSED and UNINTENDED against the bands. It stays the way a change is judged, and its default view is the proposal against the bands.
+**Seeds.** A diff plays the same cells on the same dice before and after. A risk measure needs at least 4 seeds and reports the spread.
 
-**What to rerun.** Each cached cell records which functions it exercised. When a symbol changes, only the cells that exercised it are stale. The full matrix runs nightly on GitHub, split across jobs as `balance-sweeps.yml` already does for sweeps, and only stale cells are replayed.
+**Before and after.** `--diff` already flags IMPROVED, REGRESSED and UNINTENDED against the bands. Chapter 09 makes it the gate for a balance change.
 
-**Benefit:** numbers that mean what their label says, and a full-game diff that is affordable every night. **Complexity:** medium to high. The open faults are the hard part, and one of them needs real play. **Risk:** calibration needs real play, and no real lone, pair or three hours exist on the current rules (44 section 6.1). Those classes stay SIMULATED until someone plays them. The label says so, which is the point.
+**What to rerun.** Each cell records the rule functions it exercised and the content ids it loaded (ground, monsters, items, spells). A change to a leaf rule stales the cells that ran it. A change to a content row stales the cells that loaded that id. A change to a core combat function that every cell runs stales everything, and no saving is claimed there. No CI cost claim is made until this is measured.
+
+**Benefit:** numbers that mean what their label says and cannot be misquoted. **Complexity:** low for labels and quotes, which need cell metadata only. Medium for per-cell coverage. **Risk:** calibration needs real play that does not exist for most party kinds.
 
 ---
 
@@ -410,134 +478,168 @@ A number with an ASSUMED input can never print as MEASURED. That closes the faul
 
 ### 7.1 The roles
 
-The brief lists six kinds of agent. Two of them, discovery and dependency tracing, become a tool. That leaves four roles, and all of them read the same brief pack from the same commit.
+Discovery and dependency tracing become a tool. Four roles are left.
 
 | Role | Who | What it does |
 |---|---|---|
-| Registry keeper | systems engineer | Keeps the tool green. Closes unclaimed symbols and stale facts. The only writer of formula rows |
-| Measurer | one balance lane | Runs the matrix, owns calibration, answers "what does this change do". The only source of numbers |
-| Designer | game designer | Proposes additions, removals and redesigns from brief packs and the measurer's results |
-| Adversary | a cold reviewer | Reads a finished report with the registry beside it and tries to break it. Never the author, never shown the author's reasoning |
+| Registry keeper | systems engineer | Keeps the tool green. Writes new formula rows. Reviews the re-pins lanes write |
+| Measurer | one balance lane | Runs the matrix and owns calibration. The only source of numbers |
+| Designer | game designer | Proposes additions, removals and redesigns from brief packs and quote lines |
+| Adversary | a cold reviewer | Reads a finished report with the registry beside it and tries to break it. Never the author |
 
-Integration is the Coordinator, and it becomes a join instead of a rewrite. Findings arrive as rows with ids, so combining them is sorting and deduping by id, not one agent re-telling eleven documents.
+Integration is the Coordinator, and it is a join by id, not a re-telling.
 
-### 7.2 How a report is checked before it is accepted
+**The lane cap is the existing rule: three to four agents at once, in total.** An adversary counts as one of them. So a round is at most three finding lanes and one adversary. The first issue's "one adversary per two" would have meant six, and the existing rule wins.
 
-Every report ends with a short structured header. `node tools/registry.mjs accept <report>` checks it. The Coordinator does not pass a report to Tyler until it is accepted.
+### 7.2 How a report is accepted
 
-| The header states | The tool checks |
+A report ends with four fields. `accept <report>` checks them.
+
+| The report states | The tool checks |
 |---|---|
-| The commit the registry was read at | It is the current tip, or the tool lists every ruling and symbol that changed since and touches the report's systems |
-| The systems in scope | It lists every system that depends on them and is not in scope. Those must appear under "not analyzed" |
-| Sources read in full | It compares against the brief pack's required list and names the missing ones |
-| Every number, with its cell id or symbol | The cell exists, the value matches, and the label is the cell's own. A number with no reference prints as UNSOURCED |
-| Every ruling relied on, by id | It is current. The tool lists newer rulings on the same systems that the report did not cite |
-| For each recommendation, what it would change | It prints the dependents from the map. Each must show a matrix diff or be listed as not verified |
+| The commit its brief pack was made at | Current, or the tool lists every ruling and function changed since that touches the report's systems |
+| The systems in scope | It lists every system that depends on them and is not in scope. Those go under "not analyzed" |
+| Its numbers, as pasted quote lines | Each line matches the cache exactly. A number with no quote line is UNSOURCED. A citation of balance-program documents 00 to 62 is flagged as a source to re-derive |
+| For each recommendation, what it would change, and the rulings it rests on by id | It prints the dependents from the map. Each must show a diff or be listed as not verified. It lists newer rulings on the same systems that the report did not cite |
 
-This is how critical dependencies are verified: the tool names them from the map, and the report must show evidence for each or say it has none.
+There is no "sources read in full" field. A typed list checked against another typed list proves nothing. The brief pack carries the text inline instead (3.6).
 
-### 7.3 How the final review names what was not analyzed
+### 7.3 What this stops and what it does not
 
-The "not analyzed" section is generated first and edited second. It is the union of: systems out of scope that depend on in-scope ones, required sources not read, factors the cited scenarios did not exercise, numbers labelled below MEASURED, and statements with no check. An agent may add to the list. It may not remove from it without a reason on the line.
+Judged against the failures of 11-20 and 11-21.
 
-### 7.4 Lessons from tonight, as four rules
+| Failure | Stopped | How, and the limit |
+|---|---|---|
+| Partial reads | Mostly | The pack is the reading and it is inline. An agent can still skim it. The adversary is the check on that |
+| Stale numbers | For new reports | Numbers are quote lines tied to a commit. The older layered documents stay in the tree and are flagged when cited, not fixed |
+| Mislabelled evidence | Yes | The label is the cell's own. A hand-derived number is always COMPUTED |
+| Circular agreement | Partly | Findings join by id, and two findings that share a source show the same id. A wrong reading of a ruling can still spread, which is why `said` prints first and a disputed reading is flagged |
+| Numbers reaching Tyler unchecked | By discipline only | The Coordinator's messages are chat, not files a tool gates. The rule is that a number in a status is a quote line. No tool enforces it |
 
-1. **At most four finding lanes at once, and one adversary per two.** Tonight's volume outran checking. The existing rule is already three to four lanes. This plan keeps it and ties it to review capacity.
-2. **No number reaches Tyler before it is accepted.** A number in a status line carries its label, or it is not sent. The Coordinator's own summaries go through `accept` too.
-3. **No synthesis by re-telling.** If eleven sources must be combined, they are combined by id in a table. A sentence that merges two findings names both ids.
-4. **A new ruling or brief re-pins running lanes.** It lands in `rulings.jsonl`. Every running report that reads an older commit is flagged with the new rulings that touch its systems, so a brief that lands mid-lane cannot be missed.
+### 7.4 "Not analyzed" is generated first
 
-**Benefit:** scope, sources and labels are checked by a tool before a person relies on them. **Complexity:** low for the tool, since it is lookups against the registry. The cost is discipline in the report header. **Risks:** an agent can still write a false header, for example claiming a file was read. The adversary samples those. And the header must stay short, or it becomes the bureaucracy the brief warns against. It is six fields.
+The union of: dependent systems out of scope, factors the cited scenarios did not exercise, numbers below CALIBRATED, the map's known blind spots from section 5, and rule statements with no check. An agent may add lines. It may not remove one without a reason on the line.
 
-The agent definitions under `.claude/agents/` are the Coordinator's to change. This plan does not touch them.
+### 7.5 Four rules
+
+1. **At most four agents at once, one of them an adversary.**
+2. **A number in a status to Tyler is a quote line.** This is discipline, not a gate.
+3. **No synthesis by re-telling.** Sources are combined by id in a table.
+4. **A new ruling re-pins running lanes.** Reports made at an older commit are flagged with the new rulings that touch their systems.
+
+**Benefit:** scope and numbers are checked by a tool before a person relies on them. **Complexity:** low. **Risk:** the adversary is still the only check on reading and reasoning. The agent definitions are the Coordinator's to change. This plan does not touch them.
 
 ---
 
 ## 8. Design review framework
 
-Every addition, removal, merge or redesign is judged on one card with Tyler's eight criteria. Five of the eight are filled by a tool, so the designer's time goes to the three that need judgement.
+Every addition, removal, merge or redesign is judged on one card with Tyler's eight criteria.
 
 | Criterion | Filled by | Evidence |
 |---|---|---|
-| 1. Player experience and strategic depth | designer, and a playtest when fun is the question | a blind play session, read from the screen only. A tool cannot answer this and the card says so |
-| 2. Interaction with existing mechanics | `impact` | the generated list of dependents |
-| 3. Mathematical and balance consequences | the matrix | a `--diff` over the cells the change touches, with labels |
-| 4. Economy implications | the sources and sinks model (`sources.mjs`, `gold-model.mjs`) | gold in and out, before and after |
-| 5. Long-term progression impact | the grid's pace tables | hours to each checkpoint, labelled COMPUTED |
-| 6. Development and upkeep cost | the registry's own diff | how many formulas, exceptions and constants the change adds or removes. A change that adds a special case shows it as a number |
-| 7. Unintended consequences | the UNINTENDED flags of `--diff`, and the adversary | bands that moved and were not the target |
-| 8. Evidence | the labels | counts of MEASURED, SIMULATED, COMPUTED and ASSUMED behind the recommendation |
+| 1. Player experience and strategic depth | designer, and a playtest when fun is the question | a blind play session. A tool cannot answer this and the card says so |
+| 2. Interaction with existing mechanics | `impact` | the dependents, with the map's blind spots printed |
+| 3. Mathematical and balance consequences | the matrix | a `--diff` as quote lines |
+| 4. Economy implications | the sources and sinks tools (`sources.mjs`, `gold-model.mjs`) | gold in and out. I read those tools by header only, so whether they can fill this is a HYPOTHESIS |
+| 5. Long-term progression impact | the grid's pace tables | hours to each checkpoint, COMPUTED |
+| 6. Development and upkeep cost | the registry's own diff | formulas, exceptions, overrides and constants added or removed |
+| 7. Unintended consequences | the UNINTENDED flags, and the adversary | bands that moved and were not the target |
+| 8. Evidence | the labels | how many numbers behind the call are CALIBRATED, MEASURED, COMPUTED and ASSUMED |
 
-Rules for the card:
+Rules: one recommendation with its reason. Removal is judged on the same card, and a thing planned for later is not a removal candidate, by the ruling of 11-21. A criterion with no evidence says "no evidence". The proposal is judged against the bands and the rulings. Nothing on a card is built until Tyler says yes.
 
-- **One recommendation, with the reason.** No menus.
-- **Removal is judged on the same card.** The map shows who reads the thing. A thing nobody reads and no plan uses is a removal candidate. A thing planned for later is not, by the ruling of 11-21.
-- **A criterion with no evidence says "no evidence".** It is never filled with reasoning dressed as a finding.
-- **The proposal is judged against the bands and the rulings.** Not against the game as it stands.
-- **Nothing on a card is built until Tyler says yes.**
+The whole-game review of the brief's Part 6 runs through these cards. It starts when the systems under review have no unclaimed formula function, and when chapter 09's open faults are closed for the metrics the card uses.
 
-The whole-game review the brief's Part 6 asks for (spells, weapons, equipment, consumables, crafting, monsters, grounds, features, party roles, long-term goals) runs through these cards. It starts only after sections 2, 5 and 6 can print their coverage numbers, because the brief itself says "once the systems registry and dependency model have been sufficiently verified". "Sufficiently" is defined here as: no unclaimed formula symbol in the systems under review, and the calibration faults closed for the metrics the card relies on.
-
-**Benefit:** design calls arrive with their consequences already traced, and disagreement with past decisions rests on evidence. **Complexity:** low once sections 3, 5 and 6 exist. The card is a print, not a system. **Risk:** criterion 1 has the weakest evidence in an idle game with few players. The card shows that plainly instead of hiding it.
+**Benefit:** design calls arrive with their consequences traced. **Complexity:** low once the earlier steps exist. **Risk:** criterion 1 has the weakest evidence in a game with few players. The card shows that.
 
 ---
 
 ## 9. Prioritized roadmap
 
-Small steps. Each can be approved alone. None changes the game.
+The order is the review's. Sizes are my estimates and are ASSUMED until step A prints its counts. S is under a day for one lane. M is one to three days. L is more, and is split before it starts.
 
-| Step | What | Benefit | Complexity | Risk |
+| Step | What | Size | Benefit | Risk |
 |---|---|---|---|---|
-| 1 | **Rulings into the repo.** Import the memory file and both decision files into `registry/rulings.jsonl` with ids and `replaces` links. Print what could not be placed | Ends "which ruling is current" and unblocks the inventory check for CI. Helps the book lanes at once | Low | A reading is copied wrong. Tyler's words are imported verbatim so any reading can be checked against them |
-| 2 | **The symbol census, report mode.** `tools/registry.mjs build` lists every symbol in `src/core`, `src/data`, the engine and the replayed database, with the kind it guesses | The first true count of what is unclaimed. Proves or kills RC2 properly | Low to medium | The first number is large and looks alarming. It is the real state |
-| 3 | **Close the open simulator faults in the order chapter 09 gives: the death rule, the store bill, the damage total. One way to describe a cell.** Coordinated with the lanes already on it | Numbers become quotable for survival and gold | Medium to high | Calibration needs real play that does not exist for some party sizes |
-| 4 | **Bind the existing 107 formulas and 129 exceptions to symbols.** Fingerprints, live constant values, samples from the probes | Register rows can no longer drift silently. Stale facts name themselves | Medium | One-time reading cost. It is the same reading the clean-up needs |
-| 5 | **Claim the unregistered rule code.** Conditions, movement, spawning, the tick, eating, selling, unlock buying. Area by area until each reads zero unclaimed | Closes the largest known blind spots | Medium | Finds more special cases than 44 counted. That is a result, not a failure |
-| 6 | **The derived dependency map and `impact`.** Layers 1 to 4, then compare with 44's hand edges | Consequences of a change in one command | Medium | False edges from unused imports. Safe side |
-| 7 | **Coverage on scenarios.** Layer 5. The factor table per scenario becomes measured, and cells record what they exercised | "What was modeled" stops being a guess. Enables rerunning only stale cells | Low if the HYPOTHESIS about worker coverage holds | It may need a small change to how workers are started |
-| 8 | **Intent checks.** `intent.mjs` rows for the rulings the code contradicts today, then for the book's rule statements as chapters land | The mismatch list is generated. The build plan's to-do list is generated | Low per check | Writing checks for things that are not rules. Kept to rule statements |
-| 9 | **Computed labels and `accept`.** The label field on every cell, the report header, the accept command, the generated "not analyzed" | No unlabelled or mislabelled number reaches Tyler | Low | Header creep. Six fields, no more |
-| 10 | **CI.** Census and binding checks in `smoke.yml` as fast steps. The database part in the existing replay job. The full matrix nightly, stale cells only | The registry cannot rot. A change that leaves a fact stale fails its own lane | Low to medium | CI minutes. The fast checks are seconds. The nightly is sized by what changed |
-| 11 | **The first whole-game design review** through section 8's cards | The Part 6 review, on verified ground | Depends on scope | Starting before steps 4 to 7 would repeat tonight |
+| **A** | **The first slice.** One read-only script. No new folder, no hand-written file, nothing stored. It lists every top-level function in `src/core`, `src/data` and the engine, says whether it holds a typed number and whether a register names it, and prints three numbers per folder plus the unnamed list. The client folders print a typed-number count only | S | Proves or kills the sizing of everything after it. Cannot rot | The rule for "typed number" needs tuning. That is what the slice is for |
+| A2 | The slice's count enters CI as a number that may only go down. The inventory check is split so its code kinds gate in CI | S | New rule code cannot land unlisted from this point on | A lane adds a number for a good reason and must raise the count with a why. That is the intended friction |
+| B | Labels and the quote line on matrix cells | S | The direct answer to mislabelled and misquoted numbers. Needs cell metadata only | The calibration classes must be written down once |
+| C | Rulings into the repo, game rules only. **After Tyler answers the question in 3.4** | S to M | Ends "which ruling is current" | A reading copied wrong. `said` is kept verbatim beside it |
+| D | Bind the 131 formulas and 154 exceptions to functions, pinned on sample outputs | M to L, split by register | Rows cannot drift silently | How many functions cannot be sampled is unknown |
+| E | The dependency map. Layers 1, 3 and 6 first, then field-level constants. Compare with 44's edges | M | Consequences of a change in one command | False edges. Blind spots are printed |
+| F | Claim the unregistered rule code, one folder at a time, sized from step A. Includes the field census for overrides | M per folder | Closes the largest blind spots: the automation, the tick, eating, selling, unlock buying | Finds more special cases than 44 counted. That is a result |
+| G | Per-cell coverage and loaded content ids | M | "What was modeled" is measured. Stale cells are known | Needs a change inside the simulator's worker |
+| H | The book reference check, and the three contradiction tests under `tests/` | S | A dead id in the book is a red. Known contradictions are visible until fixed | None of note |
+| I | `accept`, `brief` and `impact` as commands over the above | M | Reports are checked before use | Header creep. Four fields |
+| J | The first whole-game design review through the cards | by scope | The Part 6 review on verified ground | Starting before D to G, or before chapter 09's faults close, would repeat 11-20 |
 
-**Order.** Steps 1 and 2 first and together. Step 3 runs alongside, in different files. Then 4, 5 and 6. Then 7, 8 and 9. Step 10 turns each check red as its area reaches zero. Step 11 last.
+**Not on this roadmap:** closing the simulator's faults. Chapter 09 section 2.4.4 owns it and orders it. Step J depends on it.
 
-**What it replaces.** After step 10, these stop being hand-kept: the memory rulings file as the source, the typed `impl` lines, the hand edge list in 44, the hand factor caveats in the review documents, and typed evidence labels.
+**What I ask Tyler to approve now:** step A alone. The rest of the shape after its output is seen.
 
 ---
 
 ## How it stays current
 
-The brief's Part 8, answered item by item. Nothing here is hand upkeep except re-reading a sentence about a function you just changed.
-
-| When this changes | This happens by itself |
+| When this changes | This happens |
 |---|---|
-| A rule function | Its facts print STALE. The lane's own check is red until they are re-read. `impact` names the formulas, bands, cells and statements downstream |
-| A constant | Nothing to update. The registry reads the value live. The cells that exercised it are marked stale |
-| A content table | The content registry is regenerated on the next build. Row counts and sources update |
-| A new function or table | The census shows it unclaimed. The check is red until it has a kind |
-| A server function | The replay lists it. The same rules apply. Live drift stays under `live-hash-drift` |
-| A ruling | One line appended to `rulings.jsonl`. Statements resting on a replaced ruling are flagged. Reports pinned to an older commit are flagged |
-| A book statement | Its id must have an intent row, or the check is red |
-| A document that quotes an old number | Not solved by this plan for old prose. From now on, reports reference cell ids, so a number in a new report can be re-checked by the tool. The old layered documents stay sources only, as the 11-21 ruling already says |
-| The record of approved changes | The git history of `rulings.jsonl` and of the formula rows. No separate log |
+| A rule function, with no change in what it outputs | Nothing. The pin is still true |
+| A rule function, with a change in output | The lane's check prints before and after. The lane writes one line why. `impact` names what is downstream |
+| A constant | Nothing to update. The value is read live. Cells that ran its readers are stale |
+| A content row | The content registry regenerates. Cells that loaded that id are stale. A new minority field shows as an override |
+| A new function with a typed number | The ratchet count rises and the lane's check is red until it has a kind |
+| A server function | The replay lists it. Live drift stays under `live-hash-drift` |
+| A ruling | One line appended. Reports made at an older commit are flagged |
+| A formula id, knob or call id named in the book | The reference check is red if it no longer exists |
+| An old document that quotes an old number | Not fixed by this plan. It is flagged when a new report cites it |
+| The record of approved changes | The git history of the rulings file, the formula rows and the pins |
 
-Where it runs: the edit hook for one file in under a second, the lane's own tests, `smoke.yml` on every push, and the nightly for the matrix.
+Where it runs: the lane's own tests, `smoke.yml` on every push for the fast checks, the existing replay job for the server side, and the nightly for the matrix.
+
+---
+
+## What changed from the first issue
+
+| Review change | What was done |
+|---|---|
+| 1. Privacy | The repo is public. The rulings step imports game rules only, drops and locally prints the rest, and waits for one yes or no from Tyler. Sections 3.4 and step C |
+| 2. Split the inventory check | Code kinds gate in CI. Lane and memory kinds stay local. RC5 and 2.5 reworded |
+| 3. Every top-level function | The census is no longer exports only. Counts in 2.2 |
+| 4. Feasibility | The installed TypeScript parser is used. Coverage gives a set, not an order. Per-cell coverage is rated medium and needs worker changes. Table names are matched after SQL keywords |
+| 5. Upkeep | Sized from a scratch count: about 150 functions hold a typed number. Pins are on sample outputs. Lanes re-pin, the keeper reviews. The three contradictions are resolved in 3.1 and 3.3 |
+| 6. Labels | MEASURED keeps the book's meaning. The stricter state is CALIBRATED |
+| 7. Data-row special cases | The field census and override list, 2.4 |
+| 8. Missing surfaces | Client folders in report mode, the second edge function, triggers, views, policies, job schedules, and a client-to-server layer |
+| 9. What the map cannot derive | Listed in section 5 and printed by `impact` |
+| 10. Lifecycle | Three joined lists, 3.5 |
+| 11. Eight frameworks | Table 4.1. The unverified items moved under a HYPOTHESIS heading |
+| 12. Checklist | Ten rows added and a "how known" column, 1.4 |
+| 13. Part 5 metrics and axes | Tables in 6.2 |
+| 14. Rerun only stale cells | Limited to leaf rules and content rows. Cells record content ids. The CI cost claim is withdrawn |
+| 15. Book link | Reference check only. Tags and the intent file are dropped. Contradictions are ordinary tests |
+| 16. `accept` | Four fields. Inline packs replace the "read in full" field. Quote lines. `said` before `reading`. Old documents flagged. Rule 2 is named as discipline |
+| 17. Roadmap | Reordered. The simulator faults are handed to chapter 09. Every step sized |
+| 18. First slice | Step A |
+| 19. Corrections | Tool size rated high. 131 and 154. 1,313 characters. Folder names. Chapter 08. The lane cap. No new top-level folder |
+
+**One finding I do not accept.** The review marks as false my quote from `44` that its cross-category edge list was written by hand. The sentence is in that file at line 886, in section 9. The review's added pointer to `architecture-register.mjs` line 130 is right and is now cited beside it.
+
+**One count the review and I differ on.** Private functions in core: 143 by the review's match, 234 by the parser, which also counts functions assigned to a constant. Functions holding a number: 37 against 14, because my rule ignores 0, 1, 2, 100 and 1000. Step A fixes one rule and one count.
 
 ---
 
 ## Not analyzed
 
-- **The design book.** Eight chapters landed during this work. I read the label legend of chapter 01 and section 2.4 of chapter 09 only. Chapters 00 and 08 were not on the set. Section 3.4 is a proposal the book lanes have not seen.
-- **The simulator faults.** I read them in 44, 51 and chapter 09 and read the harness source. I ran no cell.
-- **44's unified model.** Not re-derived. Section 4 marks which of its findings I checked in code.
-- **The server engine in depth.** I counted its exports and listed its files. I did not read `tick.js`, `accrual.js` or `intents.js` line by line.
-- **The database.** I used the inventory's counts from the replay. I did not read function bodies, apart from locating two examples.
-- **The client** (`src/session`, `src/shell`). Only one line of the wiki was read. Rules that leaked into the client would be found by step 2, not by me.
-- **The economy tools** (`gold-model.mjs`, `sources.mjs`, `paths.mjs`, the atlas). Read by header only.
-- **Production.** No live data was read.
-- **The Rulings page and the tracker databases.** Outside the repo.
-- **The full rulings file.** I read its first 106 lines in full and the headings of the rest.
-- **Whether the site build publishes `registry/` or `docs/`.** Not checked. It must be, before step 1.
-- **Cost in CI minutes and tokens.** Estimated as low, medium or high only. No measurement.
-- **The count of unclaimed typed numbers.** Unknown until step 2 runs.
+- **The design book.** I read the label legend of chapter 01 and section 2.4 of chapter 09. Chapters 02 to 08 were not read. Chapter 00 is not on the set. Whether every id in the book resolves to a register row was not tested.
+- **The simulator.** No cell was run, by me or by the review. Every statement about its faults and their fixes was read, not measured.
+- **Function bodies in several frameworks.** Mitigation, elements, drops and the spell amount function were read as lists of function names or comments. Section 4.1 says where.
+- **44's unified model.** Not re-derived.
+- **The server engine.** Counted and listed. `tick.js`, `accrual.js` and `intents.js` were not read.
+- **The database.** Inventory counts only. No function body was read. Triggers, views and policies were not counted. Function overloads and name uniqueness were not checked.
+- **The client.** Counted by the scratch census. One line of the wiki was read.
+- **The economy tools.** Read by header only. Whether they can fill criterion 4 is not judged.
+- **How many formula functions can be sampled.** Unknown until the binding step.
+- **The rulings file.** I read its first 106 lines and the headings of the rest. No line-by-line list of what must be withheld was made. The import prints that list locally when it runs.
+- **Git history.** Not searched for sensitive lines already published.
+- **Production, and the two outside databases.** Not read.
+- **Cost in CI minutes and tokens.** Not measured. Step sizes are estimates.
+- **The scratch census.** It counts top-level functions and typed numbers under one rule. It does not see functions nested in other functions as separate entries, numbers in data tables, or server SQL.

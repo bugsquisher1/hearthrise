@@ -1,0 +1,14 @@
+{
+ "schema": "hearthrise.balance-patch/1",
+ "name": "Balance pass probe: armor fades 2.4 times as fast against the attacker's Level (absorb k 0.62 to 1.49, dodge k 0.4 to 0.96)",
+ "why": "A full MID set sits at the 60% cap from about Level 45, one band back as well, so an armor step is worth nothing. This probe puts a MID plate set near 50% so a step can be read",
+ "targets": [
+  "survival",
+  "gear",
+  "E1",
+  "S5"
+ ],
+ "knobs": {
+  "armorCurve": 2.4
+ }
+}

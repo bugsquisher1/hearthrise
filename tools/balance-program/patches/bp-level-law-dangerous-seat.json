@@ -1,0 +1,23 @@
+{
+ "schema": "hearthrise.balance-patch/1",
+ "name": "Balance pass: the Level law timed on the MID four on Dangerous (seat multiple 1.266, was 1.492)",
+ "why": "R13 times the XP a Level costs on the MID four on Deadly with no death (1.492 times the pace contract). The sitting ruled Deadly a tier you watch or gamble on and Dangerous the idle tier (S-6), so the four that is left alone hunts Dangerous. Its multiple is 1.266 (the median of 28 checkpoints from Level 30 to 400, range 0.94 to 1.98, MEASURED on run 44920906999, 2 seeds of 2 hours). On 1.492 that four reaches Level 400 on day 472. On 1.266 it reaches it on day 400, and a four that farms Deadly with no death is there on day 326. Layer: coefficient, the one number of the Level law. Applies on top of R13",
+ "kind": "derivation",
+ "targets": [
+  "pace",
+  "P1",
+  "P12"
+ ],
+ "measuredOn": {
+  "run": 44920906999,
+  "seat": "the MID four (hammer, bow, mage, healer) on Dangerous, pull 5",
+  "seatMultiple": 1.266
+ },
+ "edits": [
+  {
+   "file": "src/core/xp.js",
+   "from": "m: 1.492, from: 10 };",
+   "to": "m: 1.266, from: 10 };"
+  }
+ ]
+}

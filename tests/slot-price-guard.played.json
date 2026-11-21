@@ -1,7 +1,7 @@
 {
- "measured": "2026-11-20",
+ "measured": "2026-11-21",
  "by": "node tools/balance-sim/life.mjs --party hammer --policy rec --to 34 --max 110",
- "digest": "cc673f4289ceb74a76c1c955a132ce8540b7a852058c16caea6ea439971cf816",
+ "digest": "9ab50eab24824821f519d1c7aa50825bfe98bef504233c119f7b73600a98a9c4",
  "floor": 32,
  "hours": 63.25,
  "banks": {

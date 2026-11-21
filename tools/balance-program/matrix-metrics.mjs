@@ -125,7 +125,7 @@ export function deriveMatrix(cells) {
   const ratio = (a, b) => (finite(a) && finite(b) && b !== 0 ? r(a / b, 3) : null);
   /* SOLO AGAINST PARTY: a four's head against the lone hammer, and against the same four ways each alone where they were played */
   const soloVsParty = [];
-  for (const c of ok.filter((x) => x.party === 4 && !x.step)) {
+  for (const c of ok.filter((x) => x.party === 4 && !x.step && x.block !== 'lineups')) {
     const lone = get(c.L, c.gear, 1, 'h', c.tier);
     const alone = c.styles.map((s) => get(c.L, c.gear, 1, s === 'hammer' ? 'h' : s, c.tier)).filter(Boolean);
     const same = alone.length === c.styles.length ? sum(alone.map((x) => x.m.levelXpPerH)) / alone.length : null;
@@ -168,7 +168,16 @@ export function deriveMatrix(cells) {
     t.takenPerKill = t.killsPerH > 0 ? r(t.takenPerH / t.killsPerH, 1) : null; t.dealtPerKill = r(dealtPerKill, 1);
     for (const k of ['killsPerH', 'takenPerH', 'dealtPerH']) t[k] = r(t[k] / t.cells, 1);
   }
-  return { soloVsParty, upgrades, parity, archetypes };
+  /* THE LINEUPS (matrix-plan.mjs LINEUPS, 52-review-combat 10.4): each four on Deadly against the mixed four of the same block, Level and seeds */
+  const lineups = [];
+  const lu = ok.filter((c) => c.block === 'lineups');
+  for (const c of lu) {
+    const ref = lu.find((x) => x.L === c.L && x.tier === c.tier && x.styles.join() === 'tank,healer,bow,mage');
+    lineups.push({ L: c.L, tier: c.tier, styles: c.styles, xpVsMixed: ref ? ratio(c.m.levelXpPerH, ref.m.levelXpPerH) : null, killsVsMixed: ref ? ratio(c.m.killsPerH, ref.m.killsPerH) : null,
+      levelXpPerH: c.m.levelXpPerH, killsPerH: c.m.killsPerH, lowHpTypical: c.m.lowHpTypical, lowHpP10: c.m.lowHpP10, deathsPer1000h: c.m.deathsPer1000h, hpUnder30: c.m.hpUnder30,
+      storePerH: c.m.storePerH, takenShare: Object.fromEntries(c.m.seatsM.map((s, i) => [i + ':' + s.style, s.takenShare])), seeds: c.m.sample ? c.m.sample.seeds : null });
+  }
+  return { soloVsParty, upgrades, parity, archetypes, lineups };
 }
 
 /* ── THE JUDGE: standards.mjs's bands, per way ─────────────────────────────────────────────────────────────────────────────────── */
@@ -180,7 +189,7 @@ const asGrid = (cells) => ({ run: 'matrix', cells: Object.fromEntries(cells.map(
  * Answers [{ way, band, group, label, at, value, status, dist, ... }].
  */
 export function judgeMatrix(D, K, cells) {
-  const frame = cells.filter((c) => c.m && c.block !== 'grounds');
+  const frame = cells.filter((c) => c.m && c.block !== 'grounds' && c.block !== 'lineups');
   const parties = frame.filter((c) => c.party > 1);
   const rows = [];
   const lone = (way) => frame.filter((c) => c.party === 1 && c.styles[0] === way && (way === 'hammer' || !c.step));
@@ -193,8 +202,24 @@ export function judgeMatrix(D, K, cells) {
       rows.push({ way, ...row });
     }
   }
+  /* THE GROUND AXIS (the Coordinator 2026-11-21: a ground or tier patch must get flags): each ground's own cells (both band ends, every party,
+     every tier, MID) on a frame of their own, so two grounds at one Level never stand in for each other; only the bands a cell reads are
+     kept (pace P2, P6, P7, P9, P10; survival S1 to S7; gold G-1 to G-6, the store share G-2 among them), never a pace seat or a gear table
+     built across Levels a ground does not span. way: 'G:<ground>' */
+  const byGround = new Map();
+  for (const c of cells) if (c.m && c.block === 'grounds') (byGround.get(c.ground) || byGround.set(c.ground, []).get(c.ground)).push(c);
+  for (const [g, cs] of byGround) {
+    const j = judgeGrid(D, asGrid(cs), { K });
+    for (const row of j.rows) {
+      if (row.status === 'n/a' && row.value === null) continue;
+      if (!CELL_AT.test(row.at)) continue;
+      rows.push({ way: 'G:' + g, ...row });
+    }
+  }
   return rows;
 }
+/* a band row read at one cell ('60 mid x4 deadly'), not at a pace seat or a gear band */
+const CELL_AT = /^\d+ (low|mid|bis) x\d \w+$/;
 
 /* ── THE DIFF ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────── */
 const RANK = { ok: 0, off: 1, RED: 2 };
@@ -235,7 +260,7 @@ export function diffMatrices(before, after, patch, o = {}) {
       metrics[id] = [x, y, finite(x) && finite(y) && x !== 0 ? r((y - x) / Math.abs(x), 4) : null];
     }
     const seats = c.m.seatsM.map((s, i) => ({ style: s.style, takenShare: [s.takenShare, d.m.seatsM[i] && d.m.seatsM[i].takenShare], takenPerH: [s.takenPerH, d.m.seatsM[i] && d.m.seatsM[i].takenPerH] }));
-    cells.push({ key: c.key, block: c.block, way: wayOf(c), L: c.L, gear: c.gear, party: c.party, tier: c.tier, step: c.step || null, metrics, seats });
+    cells.push({ key: c.key, block: c.block, way: c.block === 'grounds' ? 'G:' + c.ground : wayOf(c), ground: c.ground, L: c.L, gear: c.gear, party: c.party, tier: c.tier, step: c.step || null, metrics, seats });
   }
   const counts = { IMPROVED: 0, REGRESSED: 0, UNINTENDED: 0 };
   for (const b of bands) counts[b.flag]++;
@@ -244,7 +269,7 @@ export function diffMatrices(before, after, patch, o = {}) {
 
 /** The median change of each metric by an axis (style group, Level band, party, gear, tier), over the diffed cells. */
 export function axisSummary(cells, axis) {
-  const keyOf = { style: (c) => (c.party === 1 ? styleGroupOf(c.way) + ' ' + c.way : 'four ' + c.way.replace('party:', '')), level: (c) => levelBand(c.L), party: (c) => (c.party === 1 ? 'lone' : 'party of ' + c.party),
+  const keyOf = { style: (c) => (c.block === 'grounds' ? 'ground ' + c.ground : c.party === 1 ? styleGroupOf(c.way) + ' ' + c.way : 'party ' + c.way.replace('party:', '')), level: (c) => levelBand(c.L), party: (c) => (c.party === 1 ? 'lone' : 'party of ' + c.party),
     gear: (c) => c.gear, tier: (c) => c.tier }[axis];
   const out = {};
   for (const c of cells.filter((x) => !x.step)) {

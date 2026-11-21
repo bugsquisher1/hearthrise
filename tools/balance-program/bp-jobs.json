@@ -1,0 +1,98 @@
+[
+ {
+  "name": "X1-deaths-0",
+  "args": "--subset --base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-X1 --shard 0/12"
+ },
+ {
+  "name": "X1-deaths-1",
+  "args": "--subset --base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-X1 --shard 1/12"
+ },
+ {
+  "name": "X1-deaths-2",
+  "args": "--subset --base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-X1 --shard 2/12"
+ },
+ {
+  "name": "X1-deaths-3",
+  "args": "--subset --base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-X1 --shard 3/12"
+ },
+ {
+  "name": "X1-deaths-4",
+  "args": "--subset --base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-X1 --shard 4/12"
+ },
+ {
+  "name": "X1-deaths-5",
+  "args": "--subset --base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-X1 --shard 5/12"
+ },
+ {
+  "name": "X1-deaths-6",
+  "args": "--subset --base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-X1 --shard 6/12"
+ },
+ {
+  "name": "X1-deaths-7",
+  "args": "--subset --base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-X1 --shard 7/12"
+ },
+ {
+  "name": "X1-deaths-8",
+  "args": "--subset --base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-X1 --shard 8/12"
+ },
+ {
+  "name": "X1-deaths-9",
+  "args": "--subset --base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-X1 --shard 9/12"
+ },
+ {
+  "name": "X1-deaths-10",
+  "args": "--subset --base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-X1 --shard 10/12"
+ },
+ {
+  "name": "X1-deaths-11",
+  "args": "--subset --base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-X1 --shard 11/12"
+ },
+ {
+  "name": "X2-deaths-0",
+  "args": "--subset --base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-X2 --shard 0/12"
+ },
+ {
+  "name": "X2-deaths-1",
+  "args": "--subset --base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-X2 --shard 1/12"
+ },
+ {
+  "name": "X2-deaths-2",
+  "args": "--subset --base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-X2 --shard 2/12"
+ },
+ {
+  "name": "X2-deaths-3",
+  "args": "--subset --base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-X2 --shard 3/12"
+ },
+ {
+  "name": "X2-deaths-4",
+  "args": "--subset --base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-X2 --shard 4/12"
+ },
+ {
+  "name": "X2-deaths-5",
+  "args": "--subset --base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-X2 --shard 5/12"
+ },
+ {
+  "name": "X2-deaths-6",
+  "args": "--subset --base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-X2 --shard 6/12"
+ },
+ {
+  "name": "X2-deaths-7",
+  "args": "--subset --base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-X2 --shard 7/12"
+ },
+ {
+  "name": "X2-deaths-8",
+  "args": "--subset --base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-X2 --shard 8/12"
+ },
+ {
+  "name": "X2-deaths-9",
+  "args": "--subset --base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-X2 --shard 9/12"
+ },
+ {
+  "name": "X2-deaths-10",
+  "args": "--subset --base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-X2 --shard 10/12"
+ },
+ {
+  "name": "X2-deaths-11",
+  "args": "--subset --base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-X2 --shard 11/12"
+ }
+]

@@ -1,21 +1,11 @@
 # ============================================================================
-# balance-matrix-full — THE FULL BALANCE MATRIX, ONCE, SHARDED.
+# balance-matrix-full on a MEASUREMENT BRANCH of the balance pass
+# (docs/design/overhaul/12-balance-pass.md). Not the set's workflow: this copy
+# lives only on balance-full/d-balance-pass-* branches and is never merged.
 #
-# tools/balance-program/balance-matrix.mjs on RUNS.full (every way, party,
-# gear state and tier at every checkpoint and the high Levels, the steps, the
-# lineups, the buff, binds and talent blocks and the ground axis: about 4,500
-# cells, 2 seeds x 2 hours each) on the proposed game (every recommended
-# proposal of tools/balance-program/proposals.json on a scratch copy), with
-# the measuring tool's step 1 in (the real death rule, the time booked as
-# hunted, real shopping, the four seated as the real four). Too heavy for a
-# PC: 16 jobs each play every 16th cell and upload their shard. A
-# MEASUREMENT, never a gate, and never on a lane, set, release or main push.
-#
-# Run it:   git push origin HEAD:refs/heads/balance-full/<lane>
-#           (only a branch under balance-full/ starts it)
-# Join:     gh run download <id> --dir <dir> --pattern 'matrix-shard-*'
-#           node tools/balance-program/balance-matrix.mjs --base proposed --join <dir>
-#           (writes tools/balance-program/balance-matrix-full-proposed.json and prints the report)
+# Each job of tools/balance-program/bp-jobs.json plays one share of one
+# measurement on the real engine and uploads its cells. A MEASUREMENT, never a
+# gate.
 # ============================================================================
 name: balance-matrix-full
 
@@ -31,15 +21,29 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  shard:
+  plan:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 5
+    outputs:
+      jobs: ${{ steps.jobs.outputs.jobs }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - id: jobs
+        run: echo "jobs=$(node -e "process.stdout.write(JSON.stringify(require('./tools/balance-program/bp-jobs.json')))")" >> "$GITHUB_OUTPUT"
+
+  play:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
     strategy:
       fail-fast: false
       matrix:
-        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+        job: ${{ fromJSON(needs.plan.outputs.jobs) }}
     env:
-      SHARD: ${{ matrix.shard }}
+      JOB_NAME: ${{ matrix.job.name }}
+      JOB_ARGS: ${{ matrix.job.args }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -47,12 +51,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - name: Play shard ${{ matrix.shard }} of 16 of the full matrix on the proposed game
-        run: node tools/balance-program/balance-matrix.mjs --base proposed --shard "$SHARD/16" --workers 4 --out "shard-$SHARD.json"
-      - name: Upload the shard
+      - name: Play ${{ matrix.job.name }}
+        run: node tools/balance-program/balance-matrix.mjs $JOB_ARGS --workers 4 --out "out-$JOB_NAME.json"
+      - name: Upload
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
         with:
-          name: matrix-shard-${{ matrix.shard }}
-          path: shard-*.json
+          name: bp-${{ matrix.job.name }}
+          path: out-*.json
           retention-days: 30

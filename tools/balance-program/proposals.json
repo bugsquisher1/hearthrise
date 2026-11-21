@@ -527,6 +527,38 @@
    "after": [],
    "before": [],
    "note": "Every jewel perk at five times: the ceiling, not a proposal"
+  },
+  {
+   "id": "BP-X1",
+   "doc": [
+    "12-balance-pass"
+   ],
+   "title": "Death sample X1",
+   "modelled": true,
+   "recommended": false,
+   "label": "HYPOTHESIS",
+   "layer": "coefficient",
+   "patch": "patches/bp-tier-X1.json",
+   "shipsWith": [],
+   "after": [],
+   "before": [],
+   "note": "A measurement point of the balance pass. Never recommended from here"
+  },
+  {
+   "id": "BP-X2",
+   "doc": [
+    "12-balance-pass"
+   ],
+   "title": "Death sample X2",
+   "modelled": true,
+   "recommended": false,
+   "label": "HYPOTHESIS",
+   "layer": "coefficient",
+   "patch": "patches/bp-tier-X2.json",
+   "shipsWith": [],
+   "after": [],
+   "before": [],
+   "note": "A measurement point of the balance pass. Never recommended from here"
   }
  ],
  "notModelled": [

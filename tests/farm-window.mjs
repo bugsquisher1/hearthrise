@@ -3,7 +3,8 @@
 // tests/farm-window.mjs — THE FARM WINDOW'S RULES, IN A REAL CHROMIUM (lane b-farm-window).
 //
 //   node tests/farm-window.mjs            the rules
-//   node tests/farm-window.mjs --mutate   every planted defect must turn a rule RED
+//   node tests/farm-window.mjs --mutate   every planted defect must turn a NAMED rule RED (stopping at the first); a throw, a plant
+//                                         that does not parse or a line with no FW id is HARNESS, never a catch (tests/_mutant-verdict.mjs)
 //
 // mutant-anchors: src/shell/windows/farm.js src/shell/windows/farm-tend.js src/session/farm-sections.js src/session/farm-intents.js src/shell/goto.js src/shell/shell.js src/styles/windows.css
 //
@@ -58,6 +59,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { ROOT, serve, SDK_STUB } from './_client-harness.mjs';
 import { pinFonts } from './_test-fonts.mjs';
+import { judgePlanted, report, exitOf, cleanControl, stopAtFirstRed, FIRST_RED } from './_mutant-verdict.mjs';
 
 const BASE_ENV = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/alpha-envelope.json'), 'utf8'));
 const clone = (o) => JSON.parse(JSON.stringify(o));
@@ -156,8 +158,9 @@ async function signInAndPlay(page, base) {
   return wait(page, () => document.querySelector('.hs-launchers'));
 }
 
-async function checks(overrides) {
+async function checks(overrides, { stopAtFirst = false } = {}) {
   const fails = [];
+  if (stopAtFirst) stopAtFirstRed(fails);   // a mutant needs ONE red rule (tests/_mutant-verdict.mjs)
   const { server, port } = await serve(overrides);
   const browser = await leaseBrowser(chromium);
   const W = '[data-hs-win="farm"] ';
@@ -444,7 +447,7 @@ async function checks(overrides) {
       }
       await ctx.close();
     }
-  } finally {
+  } catch (e) { if (e !== FIRST_RED) throw e; } finally {
     await browser.close();
     server.close();
   }
@@ -504,9 +507,12 @@ async function main() {
       : 'farm-window: opens on J; the server\'s plots; plant from own seeds; harvest-and-replant only when the server says ready; water; refusals in plain words; fails safe; one field for every hero (who planted each plot, an extra plot harvested once); a regrowing crop says it grows back and can be harvested and cleared; the picker comes on screen, lists the plantable crops first, stays on the next empty plot and plants them all in order');
     process.exit(fails.length ? 1 : 0);
   }
-  const clean = await checks(null);
-  if (clean.length) { console.log('  ✗ clean control RED: ' + clean.join('; ')); process.exit(1); }
-  let bad = 0;
+  const clean = await cleanControl(() => checks(null));
+  console.log(clean.line);
+  if (clean.code) process.exit(clean.code);
+  /* A mutant is caught only by a NAMED rule (FW-n); a plant that does not parse, a step that throws, or a line with no rule id is
+     HARNESS, never a catch (tests/_mutant-verdict.mjs; lane/c-hollow-proofs-browser 2026-11-20: this loop scored ANY fail line). */
+  const counts = { caught: 0, harness: 0, escaped: 0 };
   for (const [name, file, from, to, more] of MUTANTS) {
     const plant = {};
     let missing = '';
@@ -515,13 +521,12 @@ async function main() {
       if (!text.includes(a)) { missing = f; break; }
       plant[f] = text.replace(a, b);
     }
-    if (missing) { console.log('  ✗ ' + name + ' — anchor not found in ' + missing); bad++; continue; }
-    const fails = await checks(plant);
-    if (fails.length) console.log('  ✓ ' + name + ' — caught (' + fails[0].split(' ')[0] + ')');
-    else { console.log('  ✗ ' + name + ' — NOT caught'); bad++; }
+    if (missing) { console.log('  ✗ ' + name + ' — HARNESS: anchor not found in ' + missing); counts.harness++; continue; }
+    console.log(report(name, await judgePlanted(plant, () => checks(plant, { stopAtFirst: true })), counts));
   }
-  console.log(bad ? 'farm-window --mutate: ' + bad + ' escaped' : 'farm-window --mutate: ' + MUTANTS.length + '/' + MUTANTS.length + ' mutants caught');
-  process.exit(bad ? 1 : 0);
+  console.log(exitOf(counts) ? 'farm-window --mutate: ' + counts.escaped + ' escaped, ' + counts.harness + ' HARNESS (not catches)'
+    : 'farm-window --mutate: ' + MUTANTS.length + '/' + MUTANTS.length + ' mutants caught, each by a named rule');
+  process.exit(exitOf(counts));
 }
 
 main();

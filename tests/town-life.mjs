@@ -52,6 +52,7 @@ import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isMain } from './_is-main.mjs';
+import { harnessFail, verdict, report, exitOf } from './_mutant-verdict.mjs';
 import { decodePNG } from '../tools/world-art/png.mjs';
 import { createBook } from '../src/world/core/book.js';
 import { compileMap } from '../src/world/core/map-compile.js';
@@ -649,12 +650,14 @@ function selftest() {
     'the smoke bumps through the flash': { composeFrame: (m, b, st, ...r) => composeFrame(m, b, st.ambientPlay ? Object.assign({}, st, { ambientPlay: { hearth_chest: st.ambientPlay.hearth_chest } }) : st, ...r) },
     'a frame past the flash\'s end': { composeFrame: (m, b, st, ...r) => composeFrame(m, b, st.ambientPlay ? Object.assign({}, st, { ambientPlay: Object.fromEntries(Object.entries(st.ambientPlay).map(([k, v]) => [k, Object.assign({}, v, { age: Math.min(v.age, CHEST_FLASH.ms - 1) })])) }) : st, ...r) },
   };
-  let missed = 0;
+  /* caught only by a NAMED arm (TL-...); a planted model that throws is HARNESS, never a catch (tests/_mutant-verdict.mjs) */
+  const counts = { caught: 0, harness: 0, escaped: 0 };
   for (const [name, m] of Object.entries(mutants)) {
-    const found = problems(Object.assign({}, base, m));
-    if (found.length) console.log('  caught  ' + name + ' [' + found[0].split(' ')[0] + ']'); else { console.error('  MISSED  ' + name); missed++; }
+    let v;
+    try { v = verdict(problems(Object.assign({}, base, m))); } catch (e) { v = { kind: 'harness', why: harnessFail('the planted model', e) }; }
+    console.log(report(name, v, counts));
   }
-  if (missed) { console.error('town-life --selftest: ' + missed + ' planted defect(s) missed'); return 1; }
+  if (exitOf(counts)) { console.error('town-life --selftest: ' + counts.escaped + ' planted defect(s) missed, ' + counts.harness + ' HARNESS'); return 1; }
   console.log('town-life --selftest: all ' + Object.keys(mutants).length + ' planted defects caught; the clean control is silent');
   return 0;
 }

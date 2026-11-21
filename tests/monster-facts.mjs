@@ -3,7 +3,8 @@
 // tests/monster-facts.mjs — A MONSTER'S PAGE SAYS WHAT ITS DATA ROW SAYS, IN A REAL CHROMIUM (lane/b-monster-facts).
 //
 //   node tests/monster-facts.mjs            the rules
-//   node tests/monster-facts.mjs --mutate   every planted defect must turn a rule RED
+//   node tests/monster-facts.mjs --mutate   every planted defect must turn a NAMED rule RED (stopping at the first); a throw, a plant
+//                                           that does not parse or a line with no MF id is HARNESS, never a catch (tests/_mutant-verdict.mjs)
 //   node tests/monster-facts.mjs --shots <dir>   also write the desktop and phone screenshots
 //
 // mutant-anchors: src/shell/monster-facts.js src/shell/windows/monster.js src/shell/windows/hunt-detail.js src/data/text/monster.js src/styles/windows.css
@@ -43,6 +44,7 @@ import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { ROOT, serve, SDK_STUB } from './_client-harness.mjs';
 import { pinFonts } from './_test-fonts.mjs';
+import { judgePlanted, report, exitOf, cleanControl, stopAtFirstRed, FIRST_RED } from './_mutant-verdict.mjs';
 
 const src = (p) => import(pathToFileURL(join(ROOT, p)).href);
 const { MONSTERS } = await src('src/data/monsters.js');
@@ -189,13 +191,15 @@ async function headlessChecks(overrides) {
     }
     await ctx.close();
   } finally {
+    await browser.close();
     server.close();
   }
   return fails;
 }
 
-async function checks(overrides, shots) {
+async function checks(overrides, shots, { stopAtFirst = false } = {}) {
   const fails = [];
+  if (stopAtFirst) stopAtFirstRed(fails);   // a mutant needs ONE red rule (tests/_mutant-verdict.mjs)
   // ── MF-7 (no browser): every monster a player can meet has a page, and every word its row asks for exists ──
   if (!overrides) {
     const { monsterFactsOf } = await src('src/shell/monster-facts.js');
@@ -331,10 +335,12 @@ async function checks(overrides, shots) {
       if (errors.length) fails.push('MF-6 console errors: ' + errors.slice(0, 3).join(' | '));
       await ctx.close();
     }
-  } finally {
+  } catch (e) { if (e !== FIRST_RED) throw e; } finally {
+    await browser.close();   // the lease's own contexts: a run that stops at its first red leaves its page open
     server.close();
   }
-  fails.push(...await headlessChecks(overrides));
+  if (stopAtFirst && fails.length) return fails;
+  Array.prototype.push.apply(fails, await headlessChecks(overrides));   // the array's own push: one red is the verdict either way
   return fails;
 }
 
@@ -373,18 +379,21 @@ async function main() {
       : 'monster-facts: a creature opens its page beside Hunts; every number equals its data row; the name is a button; uses link to their windows; the drop bonus reads true and agrees with the Hunts page; a boss built for a group warns and never gates; a sheet on the phone with a way back; every met monster has a page');
     process.exit(fails.length ? 1 : 0);
   }
-  const clean = await checks(null);
-  if (clean.length) { console.log('  ✗ clean control RED: ' + clean.join('; ')); process.exit(1); }
-  let bad = 0;
+  const clean = await cleanControl(() => checks(null));
+  console.log(clean.line);
+  if (clean.code) process.exit(clean.code);
+  /* A mutant is caught only by a NAMED rule (MF-n); a plant that does not parse, a step that throws, or a line with no rule id is
+     HARNESS, never a catch (tests/_mutant-verdict.mjs; lane/c-hollow-proofs-browser 2026-11-20: this loop scored ANY fail line). */
+  const counts = { caught: 0, harness: 0, escaped: 0 };
   for (const [name, file, from, to] of MUTANTS) {
     const text = (await readFile(join(ROOT, file), 'utf8')).replace(/\r\n/g, '\n');
-    if (text.split(from).length !== 2) { console.log('  ✗ ' + name + ' — anchor not found once in ' + file); bad++; continue; }
-    const fails = await checks({ [file]: text.replace(from, () => to) });
-    if (fails.length) console.log('  ✓ ' + name + ' — caught (' + fails[0].split(' ')[0] + ')');
-    else { console.log('  ✗ ' + name + ' — NOT caught'); bad++; }
+    if (text.split(from).length !== 2) { console.log('  ✗ ' + name + ' — HARNESS: anchor not found once in ' + file); counts.harness++; continue; }
+    const plant = { [file]: text.replace(from, () => to) };
+    console.log(report(name, await judgePlanted(plant, () => checks(plant, null, { stopAtFirst: true })), counts));
   }
-  console.log(bad ? 'monster-facts --mutate: ' + bad + ' escaped' : 'monster-facts --mutate: ' + MUTANTS.length + '/' + MUTANTS.length + ' mutants caught');
-  process.exit(bad ? 1 : 0);
+  console.log(exitOf(counts) ? 'monster-facts --mutate: ' + counts.escaped + ' escaped, ' + counts.harness + ' HARNESS (not catches)'
+    : 'monster-facts --mutate: ' + MUTANTS.length + '/' + MUTANTS.length + ' mutants caught, each by a named rule');
+  process.exit(exitOf(counts));
 }
 
 main();

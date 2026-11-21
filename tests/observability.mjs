@@ -3,7 +3,8 @@
 // tests/observability.mjs — ERRORS AND REPLAYS ARE WIRED, MASKED, AND OFF WHERE THEY MUST BE.
 //
 //   node tests/observability.mjs           the checks
-//   node tests/observability.mjs --mutate  every planted defect must turn a check RED
+//   node tests/observability.mjs --mutate  every planted defect must turn a NAMED check RED; a throw, a plant that does not parse or
+//                                          a line with no OB id is HARNESS, never a catch (tests/_mutant-verdict.mjs)
 //
 // mutant-anchors: src/net/observability.js src/net/diagnostics.js src/net/observability-config.js src/net/boot-timing.js src/app/boot.js src/shell/windows/chat.js src/shell/widgets/hunt-topbar.js src/shell/launcher.js src/session/replay-pref.js src/session/player-switch.js play.html
 //
@@ -83,6 +84,7 @@ import { scopedMutants } from '../tools/lib/mutant-scope.mjs';
 import { pinFonts } from './_test-fonts.mjs';
 import { withServerLevel } from './_server-level.mjs';
 import { sourceQuery } from '../tools/lib/version-stamp.mjs';
+import { harnessFail, judgePlanted, report, exitOf, cleanControl } from './_mutant-verdict.mjs';
 
 const BUILD_SRC = await readFile(join(ROOT, 'src/build-info.js'), 'utf8');
 const VERSION = /version:\s*'([^']+)'/.exec(BUILD_SRC)[1];
@@ -502,7 +504,9 @@ async function browserChecks(overrides) {
       await close();
     }
   } catch (e) {
-    fails.push('OB-0 the browser checks stopped: ' + String(e && e.message).split('\n')[0]);  } finally {
+    /* a step that threw is HARNESS, never a check (it was "OB-0 the browser checks stopped", a named catch-all: tests/_mutant-verdict.mjs) */
+    fails.push(harnessFail('the browser checks', e));
+  } finally {
     for (const s of opened) s.stop();
     await browser.close();
     server.close();
@@ -919,26 +923,30 @@ async function main() {
   /* A gated push proves only the mutants its diff touches (tools/lib/mutant-scope.mjs); the nightly proves them all. */
   const MINE = scopedMutants('tests/observability.mjs', MUTANTS);
   if (!MINE.length) process.exit(0);
-  let bad = 0;
-  const clean = await checks(null);
-  if (clean.length) { console.log('  ✗ clean control RED: ' + clean.join('; ')); process.exit(1); }
-  console.log('  ✓ clean control green');
+  const clean = await cleanControl(() => checks(null));
+  console.log(clean.line);
+  if (clean.code) process.exit(clean.code);
+  /* A mutant is caught only by a NAMED check (OB-n); a plant that does not parse, a run that throws, or a line with no check id is
+     HARNESS, never a catch (tests/_mutant-verdict.mjs; lane/c-hollow-proofs-browser 2026-11-20: a throw read "OB-0 the browser checks
+     stopped", a named catch-all, and this loop scored ANY other fail line as the catch). Stricter here: a FORWARD that failed while
+     its page was live (`HARNESS route.fetch` / `route.fulfill`) means the page saw a broken site, so no check beside it is the product's:
+     the run is HARNESS. A step that threw is HARNESS too, but a check named before it still stands (the verdict's own rule). */
+  const counts = { caught: 0, harness: 0, escaped: 0 };
+  const FORWARD = /^HARNESS route\./;
+  const harnessFirst = (fails) => (fails.some((f) => FORWARD.test(String(f))) ? fails.filter((f) => FORWARD.test(String(f))) : fails);
   /* --only=<pattern>: just the mutants whose name matches the regular expression (a way to re-prove a few after an edit; the sweep runs them all) */
   const onlyArg = (process.argv.find((a) => a.startsWith('--only=')) || '').slice(7);
   const only = onlyArg ? new RegExp(onlyArg, 'i') : null;
   for (const [name, file, from, to] of MINE) {
     if (only && !only.test(name)) continue;
     const text = await readFile(join(ROOT, file), 'utf8');
-    if (!text.includes(from)) { console.log('  ✗ ' + name + ' — anchor not found in ' + file); bad++; continue; }
-    const fails = await checks({ [file]: text.replace(from, to) });
-    /* A harness failure is not the mutant's catch: it says nothing about the planted defect. */
-    const harness = fails.filter((f) => f.startsWith('HARNESS'));
-    if (harness.length) { console.log('  ✗ ' + name + ' — harness: ' + harness[0]); bad++; }
-    else if (fails.length) console.log('  ✓ ' + name + ' — caught (' + fails[0].split(' ')[0] + ')');
-    else { console.log('  ✗ ' + name + ' — NOT caught'); bad++; }
+    if (!text.includes(from)) { console.log('  ✗ ' + name + ' — HARNESS: anchor not found in ' + file); counts.harness++; continue; }
+    const plant = { [file]: text.replace(from, to) };
+    console.log(report(name, await judgePlanted(plant, async () => harnessFirst(await checks(plant))), counts));
   }
   const ran = only ? MINE.filter(([name]) => only.test(name)).length : MINE.length;
-  console.log(bad ? 'observability --mutate: ' + bad + ' escaped' : 'observability --mutate: ' + ran + '/' + ran + ' mutants caught');
-  process.exit(bad ? 1 : 0);
+  console.log(exitOf(counts) ? 'observability --mutate: ' + counts.escaped + ' escaped, ' + counts.harness + ' HARNESS (not catches)'
+    : 'observability --mutate: ' + ran + '/' + ran + ' mutants caught, each by a named check');
+  process.exit(exitOf(counts));
 }
 main();

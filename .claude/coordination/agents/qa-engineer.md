@@ -470,5 +470,8 @@ Baseline green: 175/175. No active task. QA also verifies other agents' work bef
 ### 2026-10-31 · lane/a-party-soak
 A skip fires faster than the clock: read hr_apply's per-minute `apply` budget before believing a forfeit (the skip now resets it). The soak's own bookkeeping must read `supply_own` meta.items and a kill's meta.delta.i. A bot's token lives an hour. `tools/qa/party-soak.mjs` is the re-runnable half; the bag-full forfeit took 33 simulated hours to appear, so run it with `--hours 12` after any loot or catalogue change.
 
+### 2026-11-20 · lane/c-hollow-proofs-browser
+A page runner's crash has more disguises than a node runner's: a plant that does not parse reads "the town did not mount" under a real rule id, and a step a mutant covers throws a 30 s timeout. Parse every plant before the page (`judgePlanted`), make a press a mutant can take away its rule's own red (a short timeout, the Playwright reason in the line), and read a rehearsal of the FULL list: the gate scopes a push's shards to nothing, so a red can hide on `next` for days. A scan that matches one spelling is a scan of one file: widen it, then freeze what it finds.
+
 ### 2026-11-20 · lane/c-hollow-proofs
 A proof is only as honest as its verdict: read WHY each mutant was caught, never the count. The planted-copy shape ("a copy missing one import throws, the throw is filed as the answer, `!!why` reads it as a catch") bit three times in three weeks; the shared judge (`tests/_mutant-verdict.mjs` caseVerdict/caughtBy) plus its tree-wide scan is the class kill. A mutant that cannot LOAD (a data file that refuses at import) is no proof either: plant the reader half with it so the behaviour runs, then show the rule line.

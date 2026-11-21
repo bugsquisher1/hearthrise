@@ -3,7 +3,9 @@
 // tests/character-sheet-core.mjs — THE CHARACTER SHEET'S ENGINE HALF, PURE.
 //
 //   node tests/character-sheet-core.mjs           the rules
-//   node tests/character-sheet-core.mjs --mutate  every planted defect must turn a rule RED
+//   node tests/character-sheet-core.mjs --mutate  every planted defect must turn a NAMED rule RED; a throw, a copy that cannot load,
+//                                                 a `fixture:` line or a line with no CS id is HARNESS, never a catch
+//                                                 (tests/_mutant-verdict.mjs)
 //
 // mutant-anchors: src/core/progression.js supabase/functions/hr-accrue/character-sheet.js supabase/migrations/2026-10-25-character-sheet.sql supabase/migrations/2026-10-27-core-bodies.sql
 //
@@ -29,6 +31,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { pathToFileURL } from 'node:url';
 import { ROOT } from './_client-harness.mjs';
+import { judge, report, exitOf, cleanControl } from './_mutant-verdict.mjs';
 
 const SHEET = 'supabase/functions/hr-accrue/character-sheet.js';
 const MIG = 'supabase/migrations/2026-10-25-character-sheet.sql';
@@ -149,24 +152,27 @@ async function main() {
     console.log(fails.length ? 'character-sheet-core: ' + fails.length + ' rule(s) RED' : 'character-sheet-core: one XP formula; the sheet reads only what its fingerprint covers; every put carries the engine version');
     process.exit(fails.length ? 1 : 0);
   }
-  const clean = await rules(ROOT);
-  if (clean.length) { console.log('  ✗ clean control RED: ' + clean.join('; ')); process.exit(1); }
-  let bad = 0;
+  const clean = await cleanControl(() => rules(ROOT));
+  console.log(clean.line);
+  if (clean.code) process.exit(clean.code);
+  /* A mutant is caught only by a NAMED rule (CS-n) that measured; a copy that cannot load, a run that throws, a `fixture:` line (the rule
+     never measured) or a line with no rule id is HARNESS, never a catch (tests/_mutant-verdict.mjs; lane/c-hollow-proofs-browser
+     2026-11-20: this loop scored ANY fail line as the catch). */
+  const counts = { caught: 0, harness: 0, escaped: 0 };
   for (const [name, file, from, to] of MUTANTS) {
     const dir = mkdtempSync(join(tmpdir(), 'cs-core-'));
     try {
       for (const d of ['src/core', 'src/data', 'supabase/functions', 'supabase/migrations']) cpSync(join(ROOT, d), join(dir, d), { recursive: true });
       cpSync(join(ROOT, 'src/build-info.js'), join(dir, 'src/build-info.js'));
       const text = readFileSync(join(dir, file), 'utf8').replace(/\r\n/g, '\n');
-      if (!text.includes(from)) { console.log('  ✗ ' + name + ' — anchor not found in ' + file); bad++; continue; }
+      if (!text.includes(from)) { console.log('  ✗ ' + name + ' — HARNESS: anchor not found in ' + file); counts.harness++; continue; }
       writeFileSync(join(dir, file), text.replace(from, to));
-      const fails = await rules(dir);
-      if (fails.length) console.log('  ✓ ' + name + ' — caught (' + fails[0].split(' ')[0] + ')');
-      else { console.log('  ✗ ' + name + ' — NOT caught'); bad++; }
+      console.log(report(name, await judge(() => rules(dir)), counts));
     } finally { rmSync(dir, { recursive: true, force: true }); }
   }
-  console.log(bad ? 'character-sheet-core --mutate: ' + bad + ' escaped' : 'character-sheet-core --mutate: ' + MUTANTS.length + '/' + MUTANTS.length + ' mutants caught');
-  process.exit(bad ? 1 : 0);
+  console.log(exitOf(counts) ? 'character-sheet-core --mutate: ' + counts.escaped + ' escaped, ' + counts.harness + ' HARNESS (not catches)'
+    : 'character-sheet-core --mutate: ' + MUTANTS.length + '/' + MUTANTS.length + ' mutants caught, each by a named rule');
+  process.exit(exitOf(counts));
 }
 
 main();

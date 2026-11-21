@@ -4,7 +4,8 @@
 //
 //   node tests/town-walk.mjs                the rules (pure node, then a real Chromium)
 //   node tests/town-walk.mjs --pure         the pure rules only (no browser)
-//   node tests/town-walk.mjs --mutate       every planted defect must turn a rule RED
+//   node tests/town-walk.mjs --mutate       every planted defect must turn a NAMED rule RED; a throw, a copy that cannot load, a plant
+//                                           that does not parse or a line with no TW id is HARNESS, never a catch (tests/_mutant-verdict.mjs)
 //   node tests/town-walk.mjs --shots <dir>  also write the visual-gate screenshot (1440x900)
 //
 // TW-31 a town at rest reads every idlePollMs; anyone moving, or the hero's own step, brings back pollMs at once.
@@ -99,6 +100,7 @@ import { pathToFileURL } from 'node:url';
 import { ROOT, serve, SDK_STUB, UID } from './_client-harness.mjs';
 import { roleForWeapon as ROLE_FOR_WEAPON } from '../src/data/hunt-roles.js';
 import { pinFonts } from './_test-fonts.mjs';
+import { judge, judgePlanted, verdict, report, exitOf, cleanControl } from './_mutant-verdict.mjs';
 /* the stations as the server catalogue reads them (the seed's rows, or the real town's STATIONS) */
 import { townStations, OUT_FILE as CATALOGUE } from '../tools/gen-town-stations.mjs';
 import { TOWN_NAME } from '../src/data/world/town/plan.js';
@@ -508,7 +510,7 @@ async function pureRules(M) {
   }
   // TW-11 (Tyler 2026-10-20 "can't see my other character in town"): a fresh boot / reload with two
   // playing characters: the viewed one sees the other WITHOUT the other ever being viewed; a hunter is not drawn.
-  {
+  tw11: {
     const w11 = fakeWorld(M);
     w11.names.set(TYLER, 'Tyler');
     const asksForBody = (c) => c.args && c.args.p_slot === 1 && (c.name === 'hr_town_here' || (c.name === 'hr_town_move' && c.args.p_map !== null));
@@ -529,6 +531,9 @@ async function pureRules(M) {
       return { a, seen, slots: t0.walkers().filter((w) => w.id === TYLER).map((w) => w.slot) };
     };
     let b = await boot();
+    /* the boot OPENS the other character (account-session.js openOthers): one the server still drew from an old body, never opened,
+       keeps no body of its own and is never re-stood after its hunt (rehearsal 44866483507: `character(1)` was null and the run threw) */
+    if (!b.a.character(1)) { fail('TW-11 boot did not open the account\'s other character (slot 1): it stands only while its old body lasts'); b.a.close(0); await settle(); break tw11; }
     if (b.slots.join() !== '1') fail('TW-11 fresh boot: the viewed character sees own slots ' + JSON.stringify(b.slots) + ' (want [1]) before the other is viewed');
     b.a.close(0); b.a.close(1); await settle();
     b = await boot();   // reload
@@ -1110,35 +1115,38 @@ async function main() {
       : 'town-walk: two accounts see each other; every body on its server stand; the publish is capped; blocks hidden; leaving leaves; whole answers replace, deltas only change' + (onlyPure ? '' : '; the peer walks in town with the one menu, the hero walks to its new stand') + (shots ? ' (shots in ' + shots + ')' : ''));
     process.exit(fails.length ? 1 : 0);
   }
-  const clean = [...await pureRules(await loadRoot()), ...(onlyPure ? [] : [...await pageRules(null, null), ...await switchRules(null)])];
-  if (clean.length) { console.log('  ✗ clean control RED: ' + clean.join('; ')); process.exit(1); }
-  console.log('  ✓ clean control green');
-  let bad = 0;
+  const clean = await cleanControl(async () => [...await pureRules(await loadRoot()), ...(onlyPure ? [] : [...await pageRules(null, null), ...await switchRules(null)])]);
+  console.log(clean.line);
+  if (clean.code) process.exit(clean.code);
+  /* A mutant is caught only by a NAMED rule (TW-n); a copy that cannot load, a plant that does not parse, a run that throws, or a line
+     with no rule id is HARNESS, never a catch (tests/_mutant-verdict.mjs; lane/c-hollow-proofs-browser 2026-11-20: the pure loop filed a
+     throw as `threw:` and both loops scored ANY fail line as the catch). */
+  const counts = { caught: 0, harness: 0, escaped: 0 };
   const onlyAt = process.argv.indexOf('--only');   // a name fragment: prove just those pure mutants (a local re-check)
   const pure = PURE_MUTANTS.filter((m) => onlyAt < 0 || m[0].includes(process.argv[onlyAt + 1]));
   for (const [name, file, from, to] of pure) {
     const tmp = copySrc();
     try {
       const text = readFileSync(join(tmp, file), 'utf8');
-      if (!text.includes(from)) { console.log('  ✗ ' + name + ' — anchor not found in ' + file); bad++; continue; }
+      if (!text.includes(from)) { console.log('  ✗ ' + name + ' — HARNESS: anchor not found in ' + file); counts.harness++; continue; }
       writeFileSync(join(tmp, file), text.replace(from, to));
-      let fails;
-      try { fails = await pureRules(await load(tmp)); } catch (e) { fails = ['threw: ' + e.message]; }
-      if (fails.length) console.log('  ✓ ' + name + ' — caught (' + fails[0].split(' ')[0] + ')');
-      else { console.log('  ✗ ' + name + ' — NOT caught'); bad++; }
+      console.log(report(name, await judge(async () => pureRules(await load(tmp))), counts));
     } finally { rmSync(tmp, { recursive: true, force: true }); }
   }
   for (const [name, file, from, to] of onlyPure ? [] : PAGE_MUTANTS) {
     const text = await readFile(join(ROOT, file), 'utf8');
-    if (!text.includes(from)) { console.log('  ✗ ' + name + ' — anchor not found in ' + file); bad++; continue; }
+    if (!text.includes(from)) { console.log('  ✗ ' + name + ' — HARNESS: anchor not found in ' + file); counts.harness++; continue; }
     const over = { [file]: text.replace(from, to) };
-    const fails = [...await pageRules(over, null), ...await switchRules(over)];
-    if (fails.length) console.log('  ✓ ' + name + ' — caught (' + fails[0].split(' ')[0] + ')');
-    else { console.log('  ✗ ' + name + ' — NOT caught'); bad++; }
+    /* one named red is the verdict: the switch block runs only when the walk's did not name one */
+    console.log(report(name, await judgePlanted(over, async () => {
+      const walk = await pageRules(over, null);
+      return verdict(walk).kind === 'caught' ? walk : [...walk, ...await switchRules(over)];
+    }), counts));
   }
   const n = pure.length + (onlyPure ? 0 : PAGE_MUTANTS.length);
-  console.log(bad ? 'town-walk --mutate: ' + bad + ' escaped' : 'town-walk --mutate: ' + n + '/' + n + ' mutants caught');
-  process.exit(bad ? 1 : 0);
+  console.log(exitOf(counts) ? 'town-walk --mutate: ' + counts.escaped + ' escaped, ' + counts.harness + ' HARNESS (not catches)'
+    : 'town-walk --mutate: ' + n + '/' + n + ' mutants caught, each by a named rule');
+  process.exit(exitOf(counts));
 }
 
 main();

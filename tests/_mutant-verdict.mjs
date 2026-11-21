@@ -21,11 +21,19 @@
 //            exits 2, and a clean control that throws is HARNESS too.
 //   ESCAPED  no fail line at all: the mutant was NOT caught (exit 1).
 //
+// EVERY PAGE RUNNER NOW (2026-11-20, lane/c-hollow-proofs-browser: the 21 left OWED). A planted .js that does not parse is HARNESS before
+// its page runs (judgePlanted); `<ID> threw` and `<ID> fixture:` lines never measured, so they are HARNESS too; a run needs ONE red
+// (stopAtFirstRed); a press a mutant can take away is its rule's red, with Playwright's reason (guardLines), never a 30 s throw.
+//
 // THE SAME RULE FOR NODE CASE RUNNERS (2026-11-20, lane/c-hollow-proofs: hunt-tiers' 25 mutants and 110 more in hunt-core were "caught"
 // by `threw Cannot find module` or a load-time refusal): caseVerdict / caughtBy judge a case's answer, and a throw, a HARNESS line or a
 // `fixture:` line is never a catch. The plain run scans every runner in tests/ and tools/ for a score that takes any answer as a catch.
 // ════════════════════════════════════════════════════════════════════════
 import { isMain } from './_is-main.mjs';
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 export const HARNESS = 'HARNESS';
 const firstLine = (e) => String(e && e.message !== undefined ? e.message : e).split('\n')[0];
@@ -78,12 +86,19 @@ export function ruleOf(line) {
   return m && !/-x$/.test(m[1]) ? m[1] : null;
 }
 
+/* A NAMED LINE THAT NEVER MEASURED (lane/c-hollow-proofs-browser 2026-11-20, the page twin of NOT_A_RULE): a rule id followed (after an
+   optional [tag]) by `threw` (a throw filed under the rule that threw) or `fixture:` (its setup never reached the rule). */
+const UNMEASURED = /^[A-Z][A-Z0-9]*-[A-Za-z0-9-]+:?\s+(?:\[[^\]]*\]\s+)?(?:threw\b|fixture:)/;
+
 /** { kind: 'caught', rule } | { kind: 'harness', why } | { kind: 'escaped' } for one run's fail lines. */
 export function verdict(fails) {
   const lines = Array.isArray(fails) ? fails : [];
-  const named = lines.find((f) => !String(f).startsWith(HARNESS) && ruleOf(f));
-  if (named) return { kind: 'caught', rule: ruleOf(named) };
-  if (lines.length) return { kind: 'harness', why: String(lines.find((f) => String(f).startsWith(HARNESS)) || 'a fail line with no rule id: ' + lines[0]).slice(0, 300) };
+  const named = lines.find((f) => !String(f).startsWith(HARNESS) && !UNMEASURED.test(String(f)) && ruleOf(f));
+  if (named) return { kind: 'caught', rule: ruleOf(named), line: String(named) };
+  if (lines.length) {
+    const why = lines.find((f) => String(f).startsWith(HARNESS)) || lines.find((f) => UNMEASURED.test(String(f)));
+    return { kind: 'harness', why: String(why ? (String(why).startsWith(HARNESS) ? why : 'a rule that never measured: ' + why) : 'a fail line with no rule id: ' + lines[0]).slice(0, 300) };
+  }
   return { kind: 'escaped' };
 }
 
@@ -92,9 +107,49 @@ export async function judge(run) {
   try { return verdict(await run()); } catch (e) { return { kind: 'harness', why: harnessFail('the run', e) }; }
 }
 
+/* A PLANT THAT DOES NOT PARSE IS A CRASH, NOT A BEHAVIOUR (lane/c-hollow-proofs-browser 2026-11-20). A page runner serves the planted
+   module to a real page; one that does not parse kills the whole module graph, and the first rule to look reads "the town did not
+   mount": a named line, so the crash scored as a catch (hunt-tiers' `Cannot find module`, in a browser). A planted .js/.mjs is
+   parsed first (node --check, as a module); one that does not parse is HARNESS and its rule never runs. */
+export function plantBroken(file, text) {
+  if (!/\.m?js$/.test(String(file))) return null;
+  const dir = mkdtempSync(join(tmpdir(), 'hr-plant-'));
+  try {
+    const p = join(dir, 'plant.mjs');
+    writeFileSync(p, String(text));
+    const r = spawnSync(process.execPath, ['--check', p], { encoding: 'utf8' });
+    if (!r.status) return null;
+    const msg = String(r.stderr || '').split('\n').find((l) => /Error/.test(l)) || 'exit ' + r.status;
+    return `${HARNESS} the planted ${file} does not parse: ${msg.trim()}`.slice(0, 300);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+}
+
+/* ONE RED IS A VERDICT (hunt-screen's and tally-window's stopAtFirst, shared): a mutant needs one named rule red, so its run ends at the
+   first line pushed instead of running every page block after it. A push of nothing (a block's empty list spread in) is not a red.
+   The run's own catch lets FIRST_RED through: `} catch (e) { if (e !== FIRST_RED) throw e; }`. The clean control and the plain run
+   read every rule. */
+export const FIRST_RED = Symbol('first red');
+export function stopAtFirstRed(fails) {
+  fails.push = function (...a) { Array.prototype.push.apply(this, a); if (a.length) throw FIRST_RED; return this.length; };
+  return fails;
+}
+
+/** judge() for a plant ({ file: planted text }, one file or several): a plant that does not parse is HARNESS before the run. */
+export async function judgePlanted(plant, run) {
+  for (const [file, text] of Object.entries(plant || {})) {
+    const broken = plantBroken(file, text);
+    if (broken) return { kind: 'harness', why: broken };
+  }
+  return judge(run);
+}
+
+/* A catch by a rule's "zero console errors" clause is named, so it counts, but it is the page throwing, not the rule measuring the
+   planted behaviour: the line says so, for the reader (the log parsers read the first word in the brackets). */
+const BY_A_THROW = /^[A-Z][A-Z0-9]*-[A-Za-z0-9-]+(?: \[[^\]]*\])? console errors\b/;   // "FW-1 console errors:", "CW-4 [922x423] console errors:"
+
 /** The line a runner prints for one mutant, and the counters it bumps. */
 export function report(name, v, counts) {
-  if (v.kind === 'caught') { counts.caught++; return '  ✓ ' + name + ' — caught (' + v.rule + ')'; }
+  if (v.kind === 'caught') { counts.caught++; return '  ✓ ' + name + ' — caught (' + v.rule + (BY_A_THROW.test(v.line || '') ? ' by a console error' : '') + ')'; }
   if (v.kind === 'harness') { counts.harness++; return '  ✗ ' + name + ' — HARNESS, not a catch: ' + v.why; }
   counts.escaped++;
   return '  ✗ ' + name + ' — NOT caught';
@@ -178,6 +233,11 @@ async function selftest(v = { judge, verdict, cleanControl, harnessFail }) {
     ['a named rule that went red', await v.judge(miniChecks({ ruleFails: true })), 'caught'],
     ['a named rule red beside a later throw', v.verdict(['AW-9 the Use button sent nothing', harnessFail('a page step', new Error('x'))]), 'caught'],
     ['the old catch-all id AW-x', v.verdict(['AW-x a step failed: element is not enabled']), 'harness'],
+    ['a throw filed under the rule that threw', v.verdict(['NV-1: threw w.check is not a function']), 'harness'],
+    ['a tagged throw filed under its rule', v.verdict(['CW-3 [phone] threw: page.click: Timeout 1500ms exceeded.']), 'harness'],
+    ['a rule whose fixture never reached it', v.verdict(['CS-M1 fixture: the mixed set {} does not use every line']), 'harness'],
+    ['a rule that measured, beside one that never did', v.verdict(['CS-M1 fixture: x', 'CS-M1 the sheet shows dodge 0%']), 'caught'],
+    ['a rule whose message says threw later on', v.verdict(['WN-1 a town notice reads Mira threw Cinnabar']), 'caught'],
     ['nothing red', await v.judge(miniChecks()), 'escaped'],
   ];
   const fails = [];
@@ -204,6 +264,12 @@ async function selftest(v = { judge, verdict, cleanControl, harnessFail }) {
   ]) {
     const line = hf('a page step', log(lines));
     if (!line.endsWith(want)) fails.push(`${label}: "${line}", want it to end ${want}`);
+  }
+  /* the report names a catch by a rule's console-errors clause, and only that */
+  for (const [line, want] of [['FW-1 console errors: pageerror: x is not defined', true], ['CW-4 [922x423] console errors: x', true],
+    ['RP-2 the console errors are not attached: []', false], ['AW-9 the Use button sent nothing', false]]) {
+    const said = /by a console error\)$/.test(report('m', { kind: 'caught', rule: ruleOf(line), line }, { caught: 0 }));
+    if (said !== want) fails.push(`report of "${line}": ${said ? 'says' : 'does not say'} "by a console error"`);
   }
   const cc = await v.cleanControl(miniChecks({ throwBefore: true }));
   if (cc.code !== 2) fails.push(`a clean control that throws: code ${cc.code}, want 2 (HARNESS)`);
@@ -261,21 +327,46 @@ const OLD_SHAPES = [
   [/'[A-Z]+-[x?] [^']*(step failed|step threw)/, 'files a throw under a catch-all rule id'],
   [/fails\.push\(id \+ ': threw '/, 'files a throw under the rule that threw'],
 ];
+/* A list's length printed as "caught", unless the list was FILTERED to the mutant's own rule or finding first (outfit-masks'
+   `findings(...).filter((f) => f.startsWith(rule + ' '))`, world-assets' `.filter((f) => f.includes(want))`): that is a judge by name. */
+const ANY_LINE = {
+  test(src) {
+    for (const m of String(src).matchAll(/if \((?:\w+\.)?(\w+)\.length(?: > 0)?\) console\.(?:log|error)\(\s*[`'"][^\n]*caught/g)) {
+      if (!new RegExp('\\b' + m[1] + '\\s*=\\s*[^;\\n]*\\.filter\\(').test(src)) return true;
+    }
+    return false;
+  },
+};
 const EVERY_RUNNER = [
   [/\.ok\(\s*!!\s*\w+\s*,\s*'mutant /, 'scores a mutant on a truthy answer (a throw filed as the answer reads as a catch): judge it with caughtBy / caseVerdict'],
   [/if \(fails\.length\) console\.log\('  ✓ ' \+ \w+ \+ ' — caught/, 'counts any fail line as a catch (a HARNESS line reads as one): judge it with verdict / judge'],
   [/if \(why\) console\.log\('  CAUGHT/, 'counts any answer as a catch (a throw filed as the answer reads as one): judge it with caughtBy'],
+  /* WIDENED (lane/c-hollow-proofs-browser 2026-11-20): the same scores in the other spellings the tree uses. Any list's length printed
+     as "caught" (`if (p.length) console.log(\`  ✓ ${id} — caught`), a throw filed into the list it scores (`catch (e) { p = ['threw`),
+     and a catch-all that files a throw under a NAMED rule id (`catch (e) { fails.push('OB-0 the checks stopped: ' + String(e`). */
+  [ANY_LINE, 'counts any line in its list as a catch: judge it with verdict / judge (a named rule) or caseVerdict'],
+  [/catch \((\w+)\) \{\s*\w+ = \[['`]threw/, 'files a throw into the list it scores, so a crash reads as a catch: judge it with judge / caseVerdict'],
+  [/catch \((\w+)\) \{\s*(?:\/\*[^*]*\*\/\s*)?(?:if \(\1 !== \w+\) )?(?:Array\.prototype\.push\.call\()?(?:fails|problems|out)(?:\.push\(|, )['`][A-Z][A-Z0-9]*-[A-Za-z0-9]+ [^'`]*['`] \+ String\(\(?\1\b/,
+    'files a throw under a named rule id (a named catch-all), so a crash reads as that rule\'s catch: push harnessFail(where, e)'],
 ];
-/* OWED (frozen 2026-11-20; it only shrinks): page runners still on the fail-count line, each a browser --mutate the hollow-proofs lane
-   could not re-prove in its hour. A file leaves by moving onto judge/report/exitOf (tests/tally-window.mjs's 2026-11-20 diff) and a run
-   of its --mutate; a file on this list no longer on the shape is red until it is struck from it. */
-export const OWED = Object.freeze([
-  'tests/character-sheet-core.mjs', 'tests/chat-social.mjs', 'tests/death-popup.mjs', 'tests/device-px.mjs', 'tests/faction-window.mjs',
-  'tests/farm-window.mjs', 'tests/honor-window.mjs', 'tests/house-window.mjs', 'tests/hunt-clips.mjs', 'tests/hunt-scene.mjs',
-  'tests/hunt-view-core.mjs', 'tests/instant-press.mjs', 'tests/monster-facts.mjs', 'tests/new-version-banner.mjs', 'tests/observability.mjs',
-  'tests/phone-touch.mjs', 'tests/report-problem.mjs', 'tests/say-why.mjs', 'tests/services-window.mjs', 'tests/town-walk.mjs', 'tests/wiki-window.mjs',
+/* OWED (frozen 2026-11-20; it only shrinks): runners still on an old shape, each a --mutate not yet re-proved. A file leaves by moving
+   onto judge/report/exitOf (or caseVerdict/caughtBy) and a run of its --mutate; a file on this list no longer on the shape is red until
+   it is struck from it. The 21 page runners the hollow-proofs lane left here were re-proved by lane/c-hollow-proofs-browser (2026-11-20). */
+export const OWED = Object.freeze([]);
+/* FOUND (frozen 2026-11-20; it only shrinks): what the WIDENED shapes above found the day they were written, node and DB runners outside
+   the 21 page runners, each scoring a mutant on its list's length or filing a throw into the list it scores. Each leaves as OWED's did:
+   onto judge/report/exitOf or caseVerdict, and a run of its proof (tools/vitals.mjs, tools/economy-watch.local.mjs, tests/town-life.mjs,
+   tests/town-yard-farm.mjs, tests/button-system.mjs and tests/hunt-core/drop-tables.mjs left that day). */
+export const OWED_FOUND = Object.freeze([
+  'tests/catalogue-regrow-limit.mjs', 'tests/chat-stream-safe.mjs', 'tests/farm-harvest-clear.mjs', 'tests/farm-tend.mjs',
+  'tests/frame-self-echo.mjs', 'tests/hearth-moods.mjs', 'tests/hero-colors.mjs', 'tests/house-pelts.mjs',
+  'tests/hunt-live.mjs', 'tests/hunt-scene-live.mjs', 'tests/inner-flame.mjs', 'tests/party-hunt-start-gate.mjs',
+  'tests/plot-tier-price-replay.mjs', 'tests/realtime-cost.mjs', 'tests/scaled-hunts.mjs', 'tests/settle-drop-bounds.mjs', 'tests/setup-slots.mjs',
+  'tests/skills-from-storage.mjs', 'tests/tally-tasks.mjs', 'tests/temper-uniques.mjs', 'tests/titles.mjs', 'tests/town-crier.mjs',
+  'tests/town-shows.mjs', 'tests/town-works.mjs', 'tests/world-tick-armed-cap.mjs', 'tests/world-tick-gather-widen.mjs', 'tests/world-tick-presence-horizon.mjs',
+  'tests/world-tick-presence-signal.mjs', 'tests/world-tick-scale.mjs',
 ]);
-export function plainProblems(files, owed = OWED) {
+export function plainProblems(files, owed = [...OWED, ...OWED_FOUND]) {
   const out = [];
   for (const [rel, src] of files) {
     if (/from '\.\/_mutant-verdict\.mjs'/.test(src)) for (const [re, what] of OLD_SHAPES) if (re.test(src)) out.push(`${rel} ${what}`);
@@ -308,11 +399,22 @@ if (isMain(import.meta.url) && !process.argv.includes('--selftest')) {
     plainProblems([['tests/hunt-core/z.mjs', "    try { why = cases[mu.case](await load(p.root)); } catch (e) { why = 'threw ' + e.message; }\n    R.ok(!!why, 'mutant \"' + mu.name + '\" was NOT caught by ' + mu.case);"]]),
     plainProblems([['tests/w.mjs', "        if (why) console.log('  CAUGHT  ' + mu.name);"]]),
     plainProblems([['tests/v.mjs', "    console.log(report(name, await judge(run), counts));"]], ['tests/v.mjs']),
+    /* the widened spellings, each as the tree wrote it on 2026-11-20 (titles, chat-stream-safe, vitals, observability's OB-0) */
+    plainProblems([['tests/t.mjs', "      try { p = await runArm(db, X, id, null); } catch (e) {\n      p = ['threw: ' + String(e && e.message || e).slice(0, 200)];\n    }"]]),
+    plainProblems([['tests/u.mjs', "  if (fails.length) console.log(`  ✓ ${name} — caught (${fails[0].slice(0, 110)})`);"]]),
+    plainProblems([['tools/s.mjs', "    try { red = checks(x); } catch (e) { red = [`threw: ${e.message}`]; }"]]),
+    plainProblems([['tests/r.mjs', "  } catch (e) {\n    fails.push('OB-0 the browser checks stopped: ' + String(e && e.message).split('\\n')[0]);  } finally {"]]),
+    plainProblems([['tests/q.mjs', "  } catch (e) {\n    fails.push('IP-1 the page broke: ' + String((e && e.message) || e).split('\\n')[0]);\n  }"]]),
   ];
+  /* ...and the shapes that are not the old way stay green: a named-rule judge, a harnessFail catch, a rule line that mentions a throw */
+  const fine = plainProblems([['tests/p.mjs', "  } catch (e) {\n    if (e !== FIRST_RED) Array.prototype.push.call(fails, harnessFail('a page step', e));\n  }\n"
+    + "    console.log(report(name, await judgePlanted(plant, () => checks(plant)), counts));\n    if (!tn) fail('WN-1 a town notice reads Mira threw Cinnabar');\n"
+    + "    const hit = findings(plant(t)).filter((f) => f.startsWith(rule + ' '));\n    if (hit.length) console.log(`  ✓ ${name}: caught by [${rule}]`);"]]);
+  for (const f of fine) console.log('  ✗ a shape that is not the old way read as one: ' + f);
   const blind = planted.findIndex((p) => !p.length);
   if (blind >= 0) console.log('  ✗ planted old shape #' + (blind + 1) + ' was not seen');
-  const red = bad.length || blind >= 0;
-  console.log(red ? `_mutant-verdict: ${bad.length} runner(s) on an old shape` : `_mutant-verdict: ${users} runner(s) judge here; no mutant runner in tests/ or tools/ scores a throw as a catch (${OWED.length} page runners OWED, frozen)`);
+  const red = bad.length || blind >= 0 || fine.length;
+  console.log(red ? `_mutant-verdict: ${bad.length} runner(s) on an old shape` : `_mutant-verdict: ${users} runner(s) judge here; no mutant runner in tests/ or tools/ outside the frozen lists scores a throw or any line as a catch (OWED ${OWED.length}, FOUND ${OWED_FOUND.length})`);
   process.exit(red ? 1 : 0);
 }
 
@@ -332,6 +434,34 @@ if (isMain(import.meta.url) && process.argv.includes('--selftest')) {
   /* a HARNESS that names no step (runs 42678595702, 42735492394) must fail it */
   const nameless = await selftest({ judge, verdict, cleanControl, harnessFail: (where, e) => `${HARNESS} ${where} threw: ${firstLine(e)}` });
   console.log(nameless.length ? '  caught  planted: a HARNESS that names no step' : '  MISSED  planted: a HARNESS that names no step');
+  /* a rule id over a throw or a fixture line (`NV-1: threw`, `CS-M1 fixture:`) read as a catch must fail it */
+  const anyNamed = (fails) => { const lines = Array.isArray(fails) ? fails : []; const n = lines.find((f) => !String(f).startsWith(HARNESS) && ruleOf(f));
+    return n ? { kind: 'caught', rule: ruleOf(n) } : lines.length ? { kind: 'harness', why: 'x' } : { kind: 'escaped' }; };
+  const unmeasured = await selftest({ judge: async (run) => { try { return anyNamed(await run()); } catch (e) { return { kind: 'harness' }; } }, verdict: anyNamed, cleanControl, harnessFail });
+  console.log(unmeasured.length ? '  caught  planted: a named throw or fixture line is a catch — ' + unmeasured[0] : '  MISSED  planted: a named throw or fixture line is a catch');
+  /* a plant that does not parse is HARNESS before its page runs; a parsing module, CSS and a top-level await are not */
+  const plants = async (pb) => {
+    const out = [];
+    const ran = [];
+    const run = (fails) => async () => { ran.push(1); return fails; };
+    for (const [label, file, text, want] of [
+      ['a module that lost a brace', 'src/shell/x.js', "export function f() {\n  if (a) {\n    return 1;\n}\n", 'harness'],
+      ['a module with a stray token', 'src/core/y.mjs', 'export const a = (;', 'harness'],
+      ['a module that parses', 'src/shell/x.js', "import { b } from './b.js';\nexport const a = await b();\n", 'caught'],
+      ['a stylesheet (never parsed here)', 'src/styles/app.css', '.a { color: ', 'caught'],
+    ]) {
+      const before = ran.length;
+      const broken = pb(file, text);
+      const v = broken ? { kind: 'harness', why: broken } : await judge(run(['AW-9 the Use button sent nothing']));
+      if (v.kind !== want) out.push(`plantBroken, ${label}: ${v.kind}, want ${want}`);
+      if (want === 'harness' && ran.length !== before) out.push(`plantBroken, ${label}: the page ran`);
+    }
+    return out;
+  };
+  const plantFails = await plants(plantBroken);
+  for (const f of plantFails) console.log('  FAILED ' + f);
+  const plantBlind = await plants(() => null);
+  console.log(plantBlind.length ? '  caught  planted: a plant that does not parse runs its page — ' + plantBlind[0] : '  MISSED  planted: a plant that does not parse runs its page');
   console.log(always.length ? '  caught  planted: every run skips its clean control' : '  MISSED  planted: every run skips its clean control');
   console.log(never.length ? '  caught  planted: no gated shard leans on the plain run' : '  MISSED  planted: no gated shard leans on the plain run');
   console.log(old.length ? `  caught  planted: the old "any fail line is a catch" rule — ${old[0]}` : '  MISSED  planted: the old "any fail line is a catch" rule passed');
@@ -352,7 +482,8 @@ if (isMain(import.meta.url) && process.argv.includes('--selftest')) {
     console.log(f.length ? `  caught  planted: ${label} — ${f[0]}` : `  MISSED  planted: ${label}`);
     if (!f.length) caseMissed++;
   }
-  const bad = real.length + cases.length + caseMissed + (old.length ? 0 : 1) + (always.length ? 0 : 1) + (never.length ? 0 : 1) + (nameless.length ? 0 : 1);
+  const bad = real.length + cases.length + caseMissed + (old.length ? 0 : 1) + (always.length ? 0 : 1) + (never.length ? 0 : 1) + (nameless.length ? 0 : 1) + (unmeasured.length ? 0 : 1)
+    + plantFails.length + (plantBlind.length ? 0 : 1);
   console.log(bad ? `_mutant-verdict --selftest: ${bad} FAILED` : '_mutant-verdict --selftest: a throw before the rule, a thrown run, an unnamed fail and AW-x are HARNESS, each naming the guard line that threw; a named rule is a catch; the old any-fail rule is caught; a case runner\'s throwing mutant (a copy that cannot load, a case that throws) and its fixture line read NOT caught, and the old `!!why` score is caught');
   process.exit(bad ? 1 : 0);
 }

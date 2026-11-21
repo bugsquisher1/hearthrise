@@ -14,6 +14,9 @@
 //   node tools/balance-program/start-cards.mjs --selftest     the band rule on planted lives (no play)
 //
 // Exit: 0 ran · 1 a selftest proof failed · 2 harness.
+// mutant-anchors: none — the selftest reads planted lives in memory; no tracked file is patched
+// ci-step: economy-selftests | Check C1 reads the weapon cards' band on planted lives (Good alone, Slow alone, a death, a loss)
+// ci-run: node tools/mutant-gate.mjs node tools/balance-program/start-cards.mjs --selftest
 // ════════════════════════════════════════════════════════════════════════
 import { writeFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';

@@ -1758,6 +1758,11 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tools/mutant-gate.mjs node tools/balance-program/sources.mjs --selftest
+      # tools/balance-program/start-cards.mjs
+      - name: Check C1 reads the weapon cards' band on planted lives (Good alone, Slow alone, a death, a loss)
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tools/balance-program/start-cards.mjs --selftest
       # ── END SELF-REGISTERED GUARDS ──
 
   # db-replay-15: the last steps of db-replay-7, from "Party flow" on, split out 2026-11-18 (lane/ci-speed). db-replay-7 took up to 44.5 min

@@ -327,8 +327,15 @@ async function pure(base) {
     S.role = 'healer'; S.discipline = 'restoration';
     cs = characterOf(env);
     const wrong = whyOf(M, cs, 0) || {};
-    /* slot 0's move is cast by every melee weapon (action-facts.js weaponsFor, d190f3abc: its first discipline alone said Shield) */
-    if (wrong.text !== 'Requires Melee weapon' || !wrong.strike || !wrong.glyph) fails.push('HS-20 the wrong-weapon slot reads ' + JSON.stringify(wrong));
+    /* slot 0's Power Strike names EVERY discipline that casts it (action-facts.js weaponsFor, d190f3abc: its first discipline alone
+       said Shield). Since the spell rule it is shield, sword and club, not dual axes, so the words list them; Turning Cut, every melee
+       weapon but the shield, reads as the label */
+    if (wrong.text !== 'Requires Shield, sword, club, hammer or bare hands' || !wrong.strike || !wrong.glyph) fails.push('HS-20 the wrong-weapon slot reads ' + JSON.stringify(wrong));
+    const strike0 = env.hunt_settings.slots[0];
+    env.hunt_settings.slots[0] = Object.assign({}, strike0, { action: { type: 'ability', id: 'turning_cut' } });
+    const cut = whyOf(M, characterOf(env), 0) || {};
+    if (cut.text !== 'Requires Melee weapon (no shield)' || !cut.strike || !cut.glyph) fails.push('HS-20 the Turning Cut slot reads ' + JSON.stringify(cut));
+    env.hunt_settings.slots[0] = strike0;
     sweep(cs, 'the healer bar');
     /* A SLOT THIS PARTY CAN'T FIRE: wanting more hurt heroes than the party holds never holds. Not struck: it says so, and the
        slot shows what it wants where an item shows its count, ahead of the mana it is also short of. */

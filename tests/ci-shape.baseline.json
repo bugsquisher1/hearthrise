@@ -218,6 +218,7 @@
     "node tools/mutant-gate.mjs node tests/renown-kill-faucet.mjs --selftest": "economy-selftests",
     "node tests/balance-guard.mjs": "economy-selftests",
     "node tools/mutant-gate.mjs node tests/balance-guard.mjs --selftest": "economy-selftests",
+    "node tools/mutant-gate.mjs node tools/balance-program/balance-matrix.mjs --selftest": "economy-selftests",
     "node tools/mutant-gate.mjs node tools/balance-program/formulas/architecture-register.mjs --selftest": "economy-selftests",
     "node tools/mutant-gate.mjs node tools/balance-program/formulas/combat-register.mjs --selftest": "economy-selftests",
     "node tools/mutant-gate.mjs node tools/balance-program/paths.mjs --selftest": "economy-selftests",

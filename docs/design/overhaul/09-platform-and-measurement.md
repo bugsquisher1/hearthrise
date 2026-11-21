@@ -371,6 +371,8 @@ Whatever the cadence, three properties are fixed design and not open. RULED (CLA
 
 The 10,000 account budget of 24 seconds is met by an account that does not watch and missed by about a third by one that does, on the edge. The engine server closes it. The share of that bill that is not the database is OPEN after 48.
 
+**Talents.** PROVISIONAL (TAL-1, `10-level-choices.md`). ESTIMATED, not measured: no statement is added to a settle, because the allocation rides a read the settle already makes. Points earned are written inside a write that already happens, once every five Levels for a hero. Storage is one small row a hero, and the intents are a few a week for an account. UNKNOWN until the backend lane confirms the Tempering seam can carry it. The census should count `src/core/talents.js` when it exists.
+
 #### 2.3.5 The cost envelope for world bosses, clans, events and arenas
 
 Rule 0 of the MMO layer is that every shared feature works while both players are asleep (PROVISIONAL, MM-1, waits on a playtest that shows whether players ask for what was removed, Tyler said yes on the page). That rule is also the cost rule: no part needs two people at the screen in the same minute, so no part needs a live connection between players.
@@ -475,6 +477,14 @@ Levels past 185 are PROJECTED on placeholder grounds and a projected gear line, 
 | `progression-1-level-law` | A trial power-law curve | Withdrawn. To be re-cut on the ruled table when the kill reward lands | GR-6 |
 | `progression-2-fourth-blessing` | The death share halved | Moved no band, which is how band S11 came to exist | GR-7 |
 | `world-1-one-fit` | The party-ground formula removed | Refuted the cause it tested | GR-5 |
+
+**What Talents add to the matrix.** PROVISIONAL (TAL-1, `10-level-choices.md`). From `10-level-choices.md` section 8, for the simulator lane to add beside its fixes to the death rule, the store bill and the seats.
+
+- Six knobs in `knobs.json`: `talentEvery`, `talentHalf`, `talentPower`, `talentUnlockSize`, `talentResetHours` and `talentFreeResetLevel`.
+- One data file of tracks, and one suggested build for each harness way. The suggested build is on in every cell of every run.
+- A build block: the suggested build, A all Force, B the built holder, C empty and D all safety, on the lone ways and the standard four in mid gear at Levels 25, 60, 110, 185 and 400. It is a small block beside the lineup block and not a new axis.
+- Four bands in `standards.mjs`, all PROVISIONAL. TL1: the fastest build over the suggested build is at most 1.05 in Level XP an hour, red over 1.08. TL2: the empty build reads 0.90 to 0.97 of the suggested one. TL3: build D on Deadly in mid gear never reads under 30 deaths in 1,000 hours. TL4: at least two builds within 3% of the best for each way.
+- One row in `proposals.json`: Talents, playable for four stat lines, not modelled for Linger and the unlocks.
 
 #### 2.4.3 The 108 bands, and which can be judged
 

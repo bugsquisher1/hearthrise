@@ -64,7 +64,7 @@ Tyler's later notes on MM-32 and MM-34 are rulings too and are in section 5. On 
 
 ## 3. Where every call stands
 
-157 rows were decided and 155 calls remain, because GR-24 and MM-7 were each decided twice and merged. Today: 51 DECIDED (6 of them with Tyler's yes on the page), 91 PROVISIONAL, 5 OPEN, 2 RULED, 4 PROPOSAL, 1 superseded and 1 withdrawn.
+157 rows were decided and 155 calls remained, because GR-24 and MM-7 were each decided twice and merged. Chapter 10 added TAL-1, so there are 156. Today: 51 DECIDED (6 of them with Tyler's yes on the page), 92 PROVISIONAL, 5 OPEN, 2 RULED, 4 PROPOSAL, 1 superseded and 1 withdrawn.
 
 | Area | Calls | Decided | Provisional | Open | Ruled | Proposal | Superseded or withdrawn |
 |---|---|---|---|---|---|---|---|
@@ -75,7 +75,7 @@ Tyler's later notes on MM-32 and MM-34 are rulings too and are in section 5. On 
 | World | 10 | 3 | 6 | 0 | 0 | 1 | 0 |
 | Items and crafting | 12 | 9 | 3 | 0 | 0 | 0 | 0 |
 | Economy | 13 | 7 | 5 | 1 | 0 | 0 | 0 |
-| Progression | 6 | 1 | 2 | 0 | 0 | 1 | 2 |
+| Progression | 7 | 1 | 3 | 0 | 0 | 1 | 2 |
 | Social | 4 | 2 | 1 | 1 | 0 | 0 | 0 |
 | Home | 5 | 2 | 2 | 0 | 0 | 1 | 0 |
 | The player's day | 7 | 3 | 4 | 0 | 0 | 0 | 0 |
@@ -97,7 +97,7 @@ Every row, with its status, what it waits on, its reason and its evidence, is in
 9. The cheap social layer: presence, Global chat, clan roster, chat and browser, the calendar with the Hearthrise weekend.
 10. One world boss as a sample of one. It is an ordinary four in an ordinary room plus one shared number.
 
-Plus level choices, in `docs/design/overhaul/10-level-choices.md`. Nothing outside the first build is cut.
+Plus Talents, the build choice every five Levels, in `docs/design/overhaul/10-level-choices.md` (TAL-1, PROVISIONAL): five tracks and the rank 3 unlocks. Nothing outside the first build is cut.
 
 | Waits | Until |
 |---|---|
@@ -111,6 +111,7 @@ Plus level choices, in `docs/design/overhaul/10-level-choices.md`. Nothing outsi
 | The sixteen Necrotic and Storm spells, fists, status pairs | The eight weapon ways are distinct and Deadly is sized |
 | The Catacombs mode beyond one wing, the Hall of Firsts, the Honors catalogue | The first build is played |
 | Sinks as a share of band gold, and the yard rate change | The wage can be measured. Until then the typed prices are no worse |
+| Talent unlock ranks 8 and up, tracks six to eight, and the arena build | The sample of five tracks is played |
 
 ## 5. Tyler's picks on the page
 

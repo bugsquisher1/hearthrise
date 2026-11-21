@@ -14,7 +14,7 @@ Part of "Hearthrise: the game we are building", the combined design of record. L
 - **PROVISIONAL**: every number from Level 185 up. The simulator's heroes and grounds past 185 are projections.
 - **Chapter arithmetic**: worked in this chapter from numbers on the page, not run through a tool.
 
-The pace seat is the clock everything is timed on: a four in mid gear, with no buffs, on the hardest tier it holds, hunting 12 hours a day (RULED 2026-11-21, 50-1 and the 12 hour ruling). Every account has four heroes from day 1 (RULED 2026-11-21), so every account sits in this seat.
+The pace seat is the clock everything is timed on: a four in mid gear on suggested talent builds (`10-level-choices.md`), with no buffs, on the hardest tier it holds, hunting 12 hours a day (RULED 2026-11-21, 50-1 and the 12 hour ruling). Every account has four heroes from day 1 (RULED 2026-11-21), so every account sits in this seat.
 
 ---
 
@@ -45,7 +45,7 @@ The pace seat is the clock everything is timed on: a four in mid gear, with no b
 | No blow reads a Level. A fight is stats against stats | RULED 2026-11-04, 2026-11-18 |
 | Gear names a Level to wear it (P35). Tiers 1 to 7 are worn at Levels 1, 15, 30, 45, 60, 75 and 88 | RULED (gear tiers) |
 | Level 200 is a big deal | RULED 2026-10-14. Section 2.11 is how the game says so |
-| No prestige, no rebirth, no stat points a Level, no fourteenth skill | DECIDED GR-64, Fable 2026-11-21. An uncapped Level already is the prestige loop, and stat points would put Level into the blow |
+| No prestige, no rebirth and no fourteenth skill. A hero earns a talent point every five Levels. Points are stored as rows, and no blow reads a Level | DECIDED GR-64, Fable 2026-11-21, for the three refusals. Talents are RULED 2026-11-21 for the rhythm and PROVISIONAL (TAL-1, `10-level-choices.md`) for the design |
 
 Level's worth shrinks by itself as it grows: +10 health is 0.47% at Level 200 and 0.24% at Level 400. It needs no diminishing rule beyond the Level law below.
 
@@ -115,6 +115,8 @@ Level's worth shrinks by itself as it grows: +10 health is 0.47% at Level 200 an
 The collision. The Level table is the clock of a mid-geared four (RULED 50-1). With every buff cap full a four gains at most about 65% more Levels an hour than that plain four. MM-26 and MM-31 quote that one ceiling, and nobody holds it outside a Hearthrise weekend. Paying alone is worth about 22%. So the same Level arrives on different days.
 
 Chapter arithmetic, every hour of the plain seat divided by the multiple. The last column overstates what anyone can hold, because the Level XP part is one weekend in four:
+
+The plain four carries suggested talent builds. The three faster clocks below each gain a factor of at most 1.012 from the fastest build over the suggested one (COMPUTED in `10-level-choices.md`, PROVISIONAL (TAL-1, `10-level-choices.md`)), which moves no day in the table by more than a few.
 
 | Door | Plain mid four (the law) | Paying alone, 1.22 | The fastest seat held all the time, 1.36 (best gear, both damage caps, the weekend averaged) | Every cap full, 1.65, on a Hearthrise weekend only |
 |---|---|---|---|---|
@@ -233,7 +235,7 @@ Thirteen skills, and the count is right. Four combat skills are uncapped. Nine t
 | Melee, Ranged | What a hero is. Skills do not move with the weapon, so a style is an investment without a vocation | Damage dealt x 1.5 (P06) | RULED 2026-10-14 (classless). Uncapped |
 | Magic | The caster's skill, and the rune tiers a hero can cast | Mana spent x 1.5 x the ability's multiple (P08) | Cast tiers at skill 1, 15, 30, 45, 60 (RULED 2026-10-23), then 75, 90 and every 15 on (PROVISIONAL GR-23). Each level adds 0.5% max mana for every hero (DECIDED GR-22, Fable 2026-11-21) |
 | Defense | Who the front row is | Blows aimed at an armored hero, doubled when a shield turns one (P07) | RULED (kept). The to-hit ratio gives it its value (`01-core-and-combat.md`). Three bases for three jobs is kept: OPEN (GR-25, waiting on Tyler for his explicit approval), 44 special rule P-X41 |
-| Inner Flame | The hero's regen, and the home of its build | Bones and fuels burned at the Hearth by a loot rule set once, with no hero time spent | Uncapped on the combat curve. Bones by loot rule RULED 21-9. Kindlings SUPERSEDED GR-61, by Tyler's 2026-11-21 ruling on level choices, see `10-level-choices.md`, reversal of the skill tree hold of 2026-11-05, let stand on the page. Section 2.9 |
+| Inner Flame | The hero's regen. It is no longer the home of a hero's build, which is Talents (`10-level-choices.md`). Its flat stretch past level 100 is OPEN again with no owner | Bones and fuels burned at the Hearth by a loot rule set once, with no hero time spent | Uncapped on the combat curve. Bones by loot rule RULED 21-9. Kindlings SUPERSEDED GR-61, by Tyler's 2026-11-21 ruling on level choices, see `10-level-choices.md`, reversal of the skill tree hold of 2026-11-05, let stand on the page. Section 2.9 |
 | Woodcutting, Mining, Fishing | What a resting hero does. Three chains: logs to planks, ore to bars, fish to food | Node work in rested hours | 1 to 99 (RULED, kept as three). |
 | Farming | The timed chain: crops to drinks and meals | Plots | 1 to 99. A crop opens at its Farming level and nothing else (PROPOSAL GR-74, made in the fold 2026-11-21, not yet seen by Tyler) |
 | Cooking | Food and drink for every hunt | Bench | 1 to 99: shrimp and herring, trout and bread at 15, lobster and soup at 30, swordfish and stews at 45, shark and pies at 60, Frostfin and Ember Tart at 75, Moonfish and Moonbloom Elixir at 88 (itemization plan §8, source of record) |
@@ -254,7 +256,7 @@ Thirteen skills, and the count is right. Four combat skills are uncapped. Nine t
 
 ### 2.9 Inner Flame and Kindlings
 
-**Superseded for the build choice.** On 2026-11-21 Tyler lifted his 11-05 hold. A build choice every five Levels is designed now and built with the first build. That ruling supersedes GR-61, which put Kindlings on paper only and tied the choice to Inner Flame. The design is `10-level-choices.md`, which a design lane is writing. The Kindling rows below are kept as the record of GR-61 and are not the plan. Inner Flame itself, as a skill, is unchanged by this.
+**Superseded for the build choice.** On 2026-11-21 Tyler lifted his 11-05 hold. A build choice every five Levels is designed now and built with the first build. That ruling supersedes GR-61, which put Kindlings on paper only and tied the choice to Inner Flame. The design is chapter 10, `10-level-choices.md`, called Talents. The Kindling rows below are kept as the record of GR-61 and are not the plan. Inner Flame itself, as a skill, is unchanged by this.
 
 | Rule | Status |
 |---|---|
@@ -264,7 +266,7 @@ Thirteen skills, and the count is right. Four combat skills are uncapped. Nine t
 | The whole track spends the 2% of the Add budget that was set aside for worn in. It touches no drop and no Magic Find and copies no jewelry perk. Every Kindling is a row on a channel the engine already has. It never multiplies | SUPERSEDED GR-61, by Tyler's 2026-11-21 ruling on level choices, see `10-level-choices.md`, reversal, let stand on the page (the three fences of the itemization fit, C10) |
 | The pick is made at the Hearth, saved with the setup and copyable to another hero. It is free to change under Flame 30. Past that a re-light burns Cinders | SUPERSEDED GR-61, by Tyler's 2026-11-21 ruling on level choices, see `10-level-choices.md`, reversal, let stand on the page. The re-light price is OPEN until the sample is played |
 | It is built after the to-hit ratio and the spell rule are live, so it is balanced once | SUPERSEDED GR-61, by Tyler's 2026-11-21 ruling on level choices, see `10-level-choices.md`, reversal, let stand on the page |
-| Town Works, the Hearthrise event and flame powders become one Great Hearth the server feeds. Inner Flame stays a hero's skill and pays in Kindlings | PROVISIONAL GR-82, Tyler said yes on the page, reversal of 2026-10-25, let stand on the page (`08-player-experience.md` owns it) |
+| Town Works, the Hearthrise event and flame powders become one Great Hearth the server feeds. Inner Flame stays a hero's skill, with its regen and its fuels | PROVISIONAL GR-82, Tyler said yes on the page, reversal of 2026-10-25, let stand on the page (`08-player-experience.md` owns it) |
 
 Why this skill. The game is named for the Hearth. Every input already drops in every hunt, the skill is uncapped so there is always a next Kindling, and the choice is pure preparation: made in town, remembered, copied. Rungs come every few days early and every few weeks late.
 
@@ -451,7 +453,7 @@ In decision-book order.
 | GR-61 | A permanent build choice | Lift the hold for a spec and a paper sample of five Kindling rungs only | SUPERSEDED by Tyler's 2026-11-21 ruling on level choices. See `10-level-choices.md`. It changes The skill tree hold of 2026-11-05, which he let stand on the page |
 | GR-62 | Honors | One page, one rule, no power. A server line at Levels 100, 200, 300 and 400 | PROVISIONAL. Waits on the playtest or measurement its own row names |
 | GR-63 | The rested bank and the old kill ladders | The rested bank pays +50% Level XP on as many hunted hours as a hero missed, up to 24. The two old kill ladders are tracks on the one kill count | PROPOSAL. Made in the fold 2026-11-21, not yet seen by Tyler |
-| GR-64 | No new skill, prestige or stat points | None of the three | DECIDED (Fable 2026-11-21) |
+| GR-64 | No new skill and no prestige | No prestige, no rebirth and no fourteenth skill. A hero earns a talent point every five Levels, stored as rows, and no blow reads a Level (`10-level-choices.md`) | DECIDED (Fable 2026-11-21), amended by Tyler's 2026-11-21 ruling on level choices |
 | GR-65 | Inner Flame and death | WITHDRAWN. A death takes Inner Flame progress like every combat skill, as ruled on 2026-10-25 | WITHDRAWN |
 | GR-66 | The risk reading | Free for every player | PROVISIONAL. Waits on the playtest or measurement its own row names. Tyler said yes on the page 2026-11-21 |
 | GR-73 | The Hall of Firsts | The Trophy room becomes the Hall of Firsts, with no mount rungs sold and a mounting fee for each piece hung. It builds ruling 26-6 | DECIDED (Fable 2026-11-21). Cut list 12, Tyler said yes to the cut on the page 2026-11-21. |
@@ -546,7 +548,7 @@ Numbered rows keep their numbers from the game review's list.
 | Rune tiers respaced to 1, 20, 40, 60, 80 (56 call 5) | It moves a 2026-10-23 ruling. The Sealing Rune fills the gap (47 C12) |
 | Crafting's salts removed at once (56) | Until linings ship they are all Crafting makes at 45, 60 and 75 (47 C13) |
 | Kindlings capped at one weapon-tier step (56 phase A) | The itemization fit's three fences are tighter: the 2% set aside for worn in |
-| Marks every five Levels into six tracks (46 change 5) | It puts a build choice on Level, which the game keeps out of the blow. Kindlings reuse a skill that exists |
+| "No build choice on Level", which had refused marks every five Levels (46 change 5) in favor of Kindlings | RULED 2026-11-21: a build choice every five Levels is designed now and built with the first build. It is Talents, `10-level-choices.md`. No blow reads a Level, because points are stored rows |
 | The Tower and the Catacombs merged into one mode (46 change 3) | Written without ruling 22-4. Judged after the descent is played |
 | A gear band step that compounds (56 hypothesis, 50's "every 20 Levels") | Answered by the gear curve: linear in Level, bands by size (44, GR-4) |
 | The party size ladder and every solo, pair and three band (P6, P7's pair and three rows, 50-8, the "REGRESSED for solo viable" finding of 56) | RULED 2026-11-21: no solo or group targets. Lone numbers are printed and judge nothing |

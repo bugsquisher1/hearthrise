@@ -281,7 +281,8 @@ One table says what opens every system. Each row has an opener, the line that an
 | Level 32 | Coppercap Warrens | "Ground opened" | Content row |
 | Levels 45 to 85 | Hask's Ford, the Slake, the Muster Barrows, the Pyre Field, Krell's Hold | "Ground opened", with the Chronicle's teaser | Content rows |
 | Set by chapter 03 | Tempering, Hallmarks, linings, jewelry tiers, salvage and Luck, the find list | One card each at its opener | OPEN. Chapter 03 sets each opener |
-| Set by chapter 05 | Kindlings every ten Inner Flame levels. Honors lines at Level 100, 200, 300 and 400 | The Level card | PROVISIONAL there (GR-61, GR-62, reversal of the skill tree hold of 2026-11-05, let stand on the page, with GR-61 SUPERSEDED, by Tyler's 2026-11-21 ruling on level choices, see `10-level-choices.md`) |
+| Level 10 | Talents. The panel opens with two points. One line on the return card, for the account and never four. Setups carry the talent plan and the unlock switches. Order at Level 10: Talents on the first return after Level 10, then the Burning Tower after the first spend, then the Hearth Chest | One coach card, then a second after the first spend | PROVISIONAL (TAL-1, `10-level-choices.md`). The rhythm is RULED 2026-11-21. The order is chapter 10's and is PROVISIONAL. The first hour is unchanged |
+| Set by chapter 05 | Honors lines at Level 100, 200, 300 and 400 | The Level card | PROVISIONAL there (GR-62) |
 | Set by chapter 02 | Old grounds at your Level. Each region. The Catacombs | "Region opened" | PROVISIONAL there (GR-9, GR-33, GR-36) |
 | The start | Chat and the presence strip | No card. They are on screen | DECIDED in chapter 06 (Fable 2026-11-21) |
 | The first day | Clans: the roster and its chat tab | One line on the first return card | DECIDED in chapter 06 (Fable 2026-11-21) |

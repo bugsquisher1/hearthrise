@@ -1,0 +1,23 @@
+{
+ "schema": "hearthrise.balance-patch/1",
+ "name": "One tier table: no per-ground tier dials, no floor-16 pull rule (60 G-5, 44 section 5.2, R12)",
+ "why": "Every ground takes TIER_DIALS. A ground keeps its pull capacity (how many its rooms hold: geography), loses its own dials, and the bigger pulls are no longer held back under floor 16",
+ "kind": "derivation",
+ "targets": [
+  "pace",
+  "P9",
+  "survival"
+ ],
+ "edits": [
+  {
+   "file": "src/data/balance-sheet.js",
+   "from": "export const TIER_PULL_OVERRIDES = Object.freeze(foldRows(",
+   "to": "export const TIER_PULL_OVERRIDES = ((o) => Object.freeze(Object.fromEntries(Object.entries(o).map(([g, r]) => { const { dials, ...rest } = r; void dials; return [g, Object.freeze(rest)]; }))))(foldRows("
+  },
+  {
+   "file": "src/data/balance-sheet.js",
+   "from": "export const TIER_PULL_FROM_FLOOR = 16;",
+   "to": "export const TIER_PULL_FROM_FLOOR = 0;"
+  }
+ ]
+}

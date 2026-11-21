@@ -4,7 +4,7 @@
 //
 //   node tools/balance-program/sweeps-fetch.local.mjs [--run <id>] [--branch <branch>] [--dir <folder>]
 //
-// .github/workflows/balance-sweeps.yml runs one job a knob and uploads `sweep-<knob>`. This downloads every artifact of the run (`--run`, else
+// .github/workflows/balance-sweeps.yml runs one job a knob and one a proposal toggle on the proposed game, and uploads `sweep-<job>`. This downloads every artifact of the run (`--run`, else
 // the newest balance-sweeps run on `--branch`, else on the current branch) with the GitHub CLI (`gh run download`), joins them with
 // balance-matrix.mjs assembleSweeps (the same tree, the same cells, a knob once) and writes tools/balance-program/balance-sweeps.json, the
 // precomputed table Balance Lab v3 reads. `--dir`: join sweep-*.json files already on disk instead. Prints the knobs it holds, the live knobs
@@ -15,7 +15,8 @@ import { mkdtempSync, readdirSync, readFileSync, writeFileSync, statSync, rmSync
 import { join, resolve, dirname, relative } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
-import { assembleSweeps, matrixHash, SWEEP_FILE, SUBSET_FILE, readCache, compactCells } from './balance-matrix.mjs';
+import { assembleSweeps, SWEEP_FILE, SUBSET_FILE, readCache, compactCells, baseOf, baseHash, cacheFileOf } from './balance-matrix.mjs';
+import { RUNS } from './matrix-plan.mjs';
 import { readKnobs } from './matrix-scratch.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -60,13 +61,17 @@ try {
   const missing = live.filter((id) => !doc.knobs[id]);
   console.log('sweeps-fetch: ' + Object.keys(doc.knobs).length + ' knob(s), ' + Object.values(doc.knobs).reduce((a, k) => a + Object.keys(k.steps).length, 0) + ' steps -> ' + relative(ROOT, SWEEP_FILE));
   if (missing.length) console.log('  not swept: ' + missing.join(', '));
-  /* STALE only when this tree's subset plays other numbers than the sweeps' baseline (the cache must be fresh to tell) */
-  if (doc.hash !== matrixHash()) {
-    const cache = readCache(SUBSET_FILE);
-    const fresh = cache && cache.hash === matrixHash();
+  const toggles = Object.keys(doc.variants || {});
+  console.log('  on ' + ((doc.base && doc.base.name) || 'today') + ': ' + toggles.length + ' proposal toggle(s)' + (toggles.length ? ' (' + toggles.join(', ') + ')' : ''));
+  /* STALE only when this tree's subset, on the same base, plays other numbers than the sweeps' baseline (the cache must be fresh to tell) */
+  const base = doc.base && doc.base.name === 'proposed' ? await baseOf('proposed') : null;
+  const hashNow = baseHash(base);
+  if (doc.hash !== hashNow) {
+    const cache = readCache(base ? cacheFileOf(RUNS.subset, base) : SUBSET_FILE);
+    const fresh = cache && cache.hash === hashNow;
     const same = fresh && JSON.stringify(compactCells(cache.cells)) === JSON.stringify(doc.baseline);
-    console.log('  measured on tree ' + doc.hash + ', this tree is ' + matrixHash() + ': ' + (same ? 'this tree\'s subset plays the same numbers cell for cell, the sweeps hold'
-      : fresh ? 'STALE, this tree\'s subset plays other numbers (push the tree to balance-sweeps/<branch> to re-sweep)' : 'not judged: run balance-matrix.mjs --subset to refresh the cache, then fetch again'));
+    console.log('  measured on ' + doc.hash + ', this tree and base is ' + hashNow + ': ' + (same ? 'this tree\'s subset plays the same numbers cell for cell, the sweeps hold'
+      : fresh ? 'STALE, this tree\'s subset plays other numbers (push the tree to balance-sweeps/<branch> to re-sweep)' : 'not judged: run balance-matrix.mjs --subset' + (base ? ' --base proposed' : '') + ' to refresh the cache, then fetch again'));
   }
 } finally {
   if (scratch) rmSync(scratch, { recursive: true, force: true });

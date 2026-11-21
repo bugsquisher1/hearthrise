@@ -4,6 +4,14 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+## 2026-11-21 · systems-engineer (lane/c-balance-matrix, phase 3) · the proposed game is a base
+
+| # | Found | Affected | Action |
+|---|---|---|---|
+| 1 | Every balance tool can stand on THE PROPOSED GAME: `balance-matrix.mjs --base proposed` plants every recommended proposal of `tools/balance-program/proposals.json` on a scratch copy (cache `balance-matrix-proposed.json`); `--sweep --base proposed --variants <id>` measures one proposal's effect on it | balance lanes, the lab | Judge a new patch on the proposed game, not on today: `--diff <patch> --base proposed` |
+| 2 | A knob on a proposal base is found on the line the proposals left (patchEdits plants edits first); a knob a proposal rewrote away is refused as `KnobGone` | knobs.json, sweeps | A proposal that removes a knob's line says so in its note; the lab marks that slider not on the proposed game |
+| 3 | A proposal registered without the cells it reaches reads "nothing moved": GR-5b, GR-27 and world-2 move only the early grounds or the Dangerous row | proposals.mjs --selftest | The selftest's mini plan carries Levels 10 and 30, every tier and BiS; a new proposal that reaches other cells adds them there |
+
 ## 2026-11-21 · systems-engineer (lane/c-balance-matrix, phase 2) · sweeps on GitHub, Balance Lab v3
 
 | # | Found | Affected | Action |

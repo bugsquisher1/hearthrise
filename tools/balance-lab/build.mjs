@@ -62,17 +62,20 @@ function resolveSpec(fromId, spec) {
   if (!VIRTUAL[id] && !existsSync(abs)) throw new Error('balance-lab build: ' + fromId + ' imports a missing file ' + id);
   return id;
 }
-const sourceOf = (id) => (VIRTUAL[id] ? VIRTUAL[id]() : readFileSync(join(ROOT, id), 'utf8'));
+/* `srcRoot`: where the GAME's trees (src/, supabase/) are read from: the repo, or a scratch copy with proposals planted (Balance Lab v3 bundles
+   the proposed game); the lab's own tools always come from the repo */
+const GAME_TREES = /^(src|supabase)\//;
+const sourceOf = (id, srcRoot = ROOT) => (VIRTUAL[id] ? VIRTUAL[id]() : readFileSync(join(GAME_TREES.test(id) ? srcRoot : ROOT, id), 'utf8'));
 
 /** Walk the static graph from `entries`; answers [{ id, code }] in first-visit order and the source hash. `o.instrument(id, src)`: a source
-    rewrite applied before the transpile (the v3 bundle's knob numbers). */
+    rewrite applied before the transpile (the v3 bundle's knob numbers); `o.root`: the game trees' root (sourceOf). */
 export function collect(entries, o = {}) {
   const mods = new Map();
   const hash = createHash('sha256');
   const visit = (id) => {
     if (mods.has(id)) return;
     mods.set(id, null);
-    const src = o.instrument ? o.instrument(id, sourceOf(id)) : sourceOf(id);
+    const src = o.instrument ? o.instrument(id, sourceOf(id, o.root)) : sourceOf(id, o.root);
     hash.update(id + '\0' + src + '\0');
     const specs = ts.preProcessFile(src, true, true).importedFiles.map((f) => f.fileName);
     const map = new Map(specs.map((s) => [s, resolveSpec(id, s)]));

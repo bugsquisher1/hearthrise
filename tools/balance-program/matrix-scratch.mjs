@@ -15,7 +15,7 @@
 // A PATCH (schema hearthrise.balance-patch/1): { name, why, kind, knobs: { id: multiplier }, edits: [{ file, from, to }], targets: [band id,
 // band id prefix, band group ('pace', 'survival', 'gold', 'gear', ...) or 'metric:<name>'] }. `knobs` scale the numbers knobs.json names;
 // `edits` replace one exact text in one planted file (exactly one occurrence, or the plant throws). `targets` is what the patch means to
-// move: the diff calls any other band it moves UNINTENDED. `kind` (44 section 6.2): 'identity' (no number may move), 'coefficient' (no
+// move: the diff calls any other band it moves UNTARGETED. `kind` (44 section 6.2): 'identity' (no number may move), 'coefficient' (no
 // band outside the targets may move) or 'derivation' (no targeted band may end worse than it started); balance-matrix.mjs --diff exits 1
 // when the patch's own kind fails.
 //
@@ -54,11 +54,11 @@ export function readKnobs(root = ROOT) {
   return { knobs, planned: doc.planned || [], notKnobs: doc.notKnobs || [], byId, from: doc.from || null };
 }
 
-/** The sites of one knob in the tree at `root`. */
-export function locateKnob(root, knob) {
+/** The sites of one knob in the tree at `root` (`read(file)`: the file's text, when it is not the one on disk: a patch's edits applied). */
+export function locateKnob(root, knob, read = null) {
   const out = [];
   for (const s of knob.sites) {
-    const lines = readFileSync(join(root, s.file), 'utf8').split('\n');
+    const lines = (read ? read(s.file) : readFileSync(join(root, s.file), 'utf8')).split('\n');
     const count = s.count === undefined ? 1 : s.count;
     const hits = [];
     lines.forEach((text, i) => { if (text.includes(s.line)) hits.push(i); });
@@ -107,14 +107,27 @@ export function checkPatch(patch, list = readKnobs()) {
 /**
  * The line edits a patch makes on the tree at `root`: { edits: [[file, from, to]], applied: [{ knob, multiplier, file, line, from, to }] }.
  * Every knob's picks are gathered by line first, so knobs that share a line write ONE edit from the untouched line (each pick scaled by the
- * product of the knobs on it), and the plant's exactly-once anchor holds.
+ * product of the knobs on it), and the plant's exactly-once anchor holds. The patch's own edits come FIRST and the knobs are found on the
+ * text they leave (phase 3: a knob turned on the proposed game moves the proposed game's line, never today's line under it); a knob whose
+ * line an edit rewrote away is refused by name (`KnobGone`).
  */
+export class KnobGone extends Error {}
 export function patchEdits(root, patch, list = readKnobs(root)) {
   checkPatch(patch, list);
+  const texts = new Map();
+  const read = (f) => (texts.has(f) ? texts.get(f) : readFileSync(join(root, f), 'utf8'));
+  for (const x of patch.edits || []) {
+    const s = read(x.file), n = s.split(x.from).length - 1;
+    if (n !== 1) throw new Error('patch: ' + x.file + ' has ' + n + ' copies of the anchor ' + JSON.stringify(x.from.slice(0, 60)) + (x.proposal ? ' (proposal ' + x.proposal + ')' : ''));
+    texts.set(x.file, s.replace(x.from, () => x.to));
+  }
   const byLine = new Map();
   for (const [id, m] of Object.entries(patch.knobs || {})) {
     if (m === 1) continue;
-    for (const site of locateKnob(root, list.byId.get(id))) {
+    let sites;
+    try { sites = locateKnob(root, list.byId.get(id), read); }
+    catch (e) { if ((patch.edits || []).length) throw new KnobGone('knob ' + id + ' is not on this game: ' + e.message); throw e; }
+    for (const site of sites) {
       const key = site.file + ':' + site.line;
       const e = byLine.get(key) || byLine.set(key, { file: site.file, line: site.line, text: site.text, picks: new Map() }).get(key);
       for (const p of site.picks) {
@@ -125,6 +138,7 @@ export function patchEdits(root, patch, list = readKnobs(root)) {
     }
   }
   const edits = [], applied = [];
+  for (const x of patch.edits || []) { edits.push([x.file, x.from, x.to]); applied.push({ edit: true, file: x.file, from: [x.from.slice(0, 80)], to: [x.to.slice(0, 80)] }); }
   for (const e of byLine.values()) {
     let text = e.text;
     const to = new Map();
@@ -141,7 +155,6 @@ export function patchEdits(root, patch, list = readKnobs(root)) {
         ...(knobs.length > 1 ? { sharedWith: knobs.filter((k) => k !== id) } : {}) });
     }
   }
-  for (const x of patch.edits || []) { edits.push([x.file, x.from, x.to]); applied.push({ edit: true, file: x.file, from: [x.from.slice(0, 80)], to: [x.to.slice(0, 80)] }); }
   return { edits, applied };
 }
 

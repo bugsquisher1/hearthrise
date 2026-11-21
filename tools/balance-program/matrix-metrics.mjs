@@ -7,8 +7,9 @@
 //   deriveMatrix(cells)                 across cells: solo against party, the value of each gear step per slot class, every way against the
 //                                       best way, the archetypes
 //   judgeMatrix(D, K, cells)            standards.mjs's bands on the cells (grid-derive.mjs judgeGrid, the grid's own judge, per way)
-//   diffMatrices(before, after, patch)  every band row and every cell's metric, before and after; a moved band row is IMPROVED or REGRESSED when
-//                                       the patch targets it, UNINTENDED when it does not
+//   diffMatrices(before, after, patch)  every band row and every cell's metric, before and after; a moved band row the patch targets is
+//                                       INTO (into band: toward or into its range) or OUT (out of band), one it does not target UNTARGETED
+//                                       (moved a band it did not target). Phase 3 judges them on the proposed game (Tyler 2026-11-21)
 //
 // Every number is read off the engine's answer (tools/balance-sim/cell.mjs runCell); nothing here computes a fight.
 // ════════════════════════════════════════════════════════════════════════
@@ -108,10 +109,14 @@ export function cellMetrics(D, meta, seeds, arch = {}) {
     hpUnder30: seats.length ? Math.max(...seats.map((s) => s.hpUnder30 || 0)) : null, hpUnder10: seats.length ? Math.max(...seats.map((s) => s.hpUnder10 || 0)) : null,
     hoursPerLevel: rates.netLevelXpPerH > 0 ? r(toNext / rates.netLevelXpPerH, 3) : null,
     seatsM: seats, byArch, buysPerPartyH,
+    /* the Level XP one unblessed death takes at this Level (standards.mjs DEATH_COST: 6% of all Level XP, on this tree's curve) */
+    deathXp: r(STD.DEATH_COST.share * D.XP.charXpForLevel(meta.L)),
   };
 }
 
 /* ── ACROSS CELLS ──────────────────────────────────────────────────────────────────────────────────────────────────────────────── */
+/* Blessings 4 to 7 open at these Levels (60 G-7: where a fully blessed death passes about five of the pace seat's hours, MEASURED there) */
+export const BLESSING_LADDER = Object.freeze([100, 185, 275, 400]);
 export const LEVEL_BANDS = Object.freeze([['early', 1, 45], ['mid', 46, 110], ['late', 111, 400], ['high', 401, Infinity]]);
 export const levelBand = (L) => LEVEL_BANDS.find(([, a, b]) => L >= a && L <= b)[0];
 export const wayOf = (c) => (c.party === 1 ? c.styles[0] : 'party:' + c.comp);
@@ -177,7 +182,23 @@ export function deriveMatrix(cells) {
       levelXpPerH: c.m.levelXpPerH, killsPerH: c.m.killsPerH, lowHpTypical: c.m.lowHpTypical, lowHpP10: c.m.lowHpP10, deathsPer1000h: c.m.deathsPer1000h, hpUnder30: c.m.hpUnder30,
       storePerH: c.m.storePerH, takenShare: Object.fromEntries(c.m.seatsM.map((s, i) => [i + ':' + s.style, s.takenShare])), seeds: c.m.sample ? c.m.sample.seeds : null });
   }
-  return { soloVsParty, upgrades, parity, archetypes, lineups };
+  /* XP AFTER DEATHS AT THE RULED COUNT (60 G-7: "add a matrix band that reads XP after deaths"; COMPUTED, because the harness sample is too
+     thin for a death rate): a harder-tier cell's Level XP an hour less the ruled deaths a 1,000 hours (standards.mjs S6, the tier and gear's
+     row) x one death's XP x the share a fully blessed death still takes. Three Blessings (DEATH_COST.blessedShare); with Blessings 4 to
+     7 (proposal GR-7) each one open at BLESSING_LADDER halves what is left. Read against the same party on Normal: at or over 1 the harder
+     tier still pays for its risk */
+  const afterDeaths = [];
+  for (const c of ok.filter((x) => x.tier !== 'normal' && !x.step && x.block !== 'lineups' && Number.isFinite(x.m.deathXp))) {
+    const n = get(c.L, c.gear, c.party, c.comp, 'normal');
+    const band = STD.bandById('S6.' + c.tier + '.' + c.gear), ruled = band ? (band.hi ?? band.lo) : null;
+    if (!n || !Number.isFinite(ruled)) continue;
+    const opened = BLESSING_LADDER.filter((L) => c.L >= L).length;
+    const lost = (share) => (ruled / 1000) * c.m.deathXp * share;
+    const three = c.m.levelXpPerH - lost(STD.DEATH_COST.blessedShare), ladder = c.m.levelXpPerH - lost(STD.DEATH_COST.blessedShare * 0.5 ** opened);
+    afterDeaths.push({ key: c.key, L: c.L, gear: c.gear, party: c.party, tier: c.tier, ruledDeaths: ruled, blessingsOpen: 3 + opened, normalXpPerH: n.m.levelXpPerH,
+      vsNormalThree: ratio(three, n.m.levelXpPerH), vsNormalLadder: ratio(ladder, n.m.levelXpPerH) });
+  }
+  return { soloVsParty, upgrades, parity, archetypes, lineups, afterDeaths };
 }
 
 /* ── THE JUDGE: standards.mjs's bands, per way ─────────────────────────────────────────────────────────────────────────────────── */
@@ -223,6 +244,8 @@ const CELL_AT = /^\d+ (low|mid|bis) x\d \w+$/;
 
 /* ── THE DIFF ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────── */
 const RANK = { ok: 0, off: 1, RED: 2 };
+/* the flags in words (Tyler 2026-11-21: the proposed game against the targets, not against today) */
+export const FLAG_WORDS = Object.freeze({ INTO: 'into band', OUT: 'out of band', UNTARGETED: 'moved a band it did not target' });
 /** Does the patch target this band? A target is a band id, an id prefix ('S1' takes 'S1.mid'), a band group, or 'all'. */
 export function targets(patch, band) {
   const t = (patch && patch.targets) || [];
@@ -245,8 +268,8 @@ export function diffMatrices(before, after, patch, o = {}) {
     const moved = a.status !== b.status || Math.abs((a.dist || 0) - (b.dist || 0)) > tol;
     if (!moved) continue;
     const better = RANK[a.status] < RANK[b.status] || (RANK[a.status] === RANK[b.status] && (a.dist || 0) < (b.dist || 0));
-    const flag = targets(patch, b.band) ? (better ? 'IMPROVED' : 'REGRESSED') : 'UNINTENDED';
-    bands.push({ way: b.way, band: b.band, group: b.group, at: b.at, before: b.value, after: a.value, statusBefore: b.status, statusAfter: a.status, flag, direction: better ? 'toward' : 'away' });
+    const flag = targets(patch, b.band) ? (better ? 'INTO' : 'OUT') : 'UNTARGETED';
+    bands.push({ way: b.way, band: b.band, group: b.group, at: b.at, before: b.value, after: a.value, statusBefore: b.status, statusAfter: a.status, flag, direction: better ? 'toward' : 'away', distBefore: b.dist ?? null, distAfter: a.dist ?? null });
   }
   const AC = new Map(after.cells.map((c) => [c.key, c]));
   const cells = [];
@@ -262,7 +285,7 @@ export function diffMatrices(before, after, patch, o = {}) {
     const seats = c.m.seatsM.map((s, i) => ({ style: s.style, takenShare: [s.takenShare, d.m.seatsM[i] && d.m.seatsM[i].takenShare], takenPerH: [s.takenPerH, d.m.seatsM[i] && d.m.seatsM[i].takenPerH] }));
     cells.push({ key: c.key, block: c.block, way: c.block === 'grounds' ? 'G:' + c.ground : wayOf(c), ground: c.ground, L: c.L, gear: c.gear, party: c.party, tier: c.tier, step: c.step || null, metrics, seats });
   }
-  const counts = { IMPROVED: 0, REGRESSED: 0, UNINTENDED: 0 };
+  const counts = { INTO: 0, OUT: 0, UNTARGETED: 0 };
   for (const b of bands) counts[b.flag]++;
   return { bands, cells, counts };
 }

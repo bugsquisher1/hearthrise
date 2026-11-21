@@ -199,3 +199,228 @@ S-18 c puts the first build on 7 accounts. Each piece is checked against that.
 - **`decisions/`.** MM-11 and CE-8 gain the sizes. MM-42's row notes that its slot is weekend 2.
 
 ---
+
+## 2. D-6, before FB-13
+
+### 2.1 Who he is
+
+**Mossback.** A huge old brook bear from Mosslight Glade. Moss grows thick on his back from years of lying in the glade's springs, and the copper water makes it glow a little after dark. Every few weeks he smells the honey in the hive under the mill and follows the Meadowbrook down to the Mill Pond. The whole town turns out to drive him back. Nobody has ever killed him. Rook's poachers have wanted his hide for years, and when he starts to tire they come out of the trees to take him themselves.
+
+**Why this boss, and the name.** JUDGMENT, every link checked against the data.
+
+| Link | Where it already is |
+|---|---|
+| The hive under the mill | The Chronicle's "Rats Under the Mill" (`src/data/text/chronicle.js`). The Hive Wasp and its comb in the Mill Cellar (`hearth.js` NAMED_FUELS `queens_comb`) |
+| The brook from the glade past town | The Chronicle's Thicket and Glade pages. The Meadowbrook starts in the glade |
+| Bears in the glade, and the poachers who came for them | The Glade page: "Poachers moved in for the bears". The Brook Bear (`monsters.js` `brook_bear`, Level 24, the Glade) and the Glade Poacher (`glade_poacher`, Level 19) |
+| The glowing moss | The Glade page: copper water makes the moss glow blue green |
+| The mill | Havora's mill stands at tile 89, 28 with the cellar hatch beside it (`src/data/world/town/sites.js`) |
+
+The name is a plain description, the way Grayjaw is (`grayjaws_ruff`, the Thicket's den mother). It names two real things, moss and a back, and leans on no mood word (2026-10-25). Nothing in `src/` or the book uses it yet (searched).
+
+A beast and not a villain, on purpose. The villains are shared and end their regions (RULED 2026-11-14). The world boss returns every four weeks, so it must be something the town drives off, not something it kills. A Level 13 hero meets him the week it reaches the Thicket's top, and he points it toward the Glade.
+
+**The Chronicle page.** Sample first, as ruled for lore (2026-11-11). FB-13 adds it to `src/data/text/chronicle.js` and Tyler reads it before a second boss page is written.
+
+| Row | Words |
+|---|---|
+| `title_mossback` | "Mossback" |
+| `teaser_mossback` | "Something big comes down the brook for the honey." |
+| `opens_mossback` | "Opens when you fight Mossback" |
+| `page_mossback` | "Every few weeks a bear comes down the Meadowbrook from Mosslight Glade, and he's bigger than anything else that lives up there. He's old enough that moss grows on his back, and the copper water up in the glade makes it glow a little after dark. That's how he got the name Mossback.\n\nHe comes for the honey. The wasps under the mill have kept a hive down there longer than anybody can remember, and he can smell it from the glade. He wades across the mill pond, tears up whatever is in his way and starts digging at the mill wall.\n\nThe miller won't go near him, so the whole town goes out instead. Nobody has ever killed him. Hunters keep at him until he gives up and goes back up the brook, and then everybody waits for him to come back.\n\nRook's poachers have wanted his hide for years. You can still see their old arrows broken off in the moss on his back. When he starts to slow down they come out of the trees to finish him off themselves, and they don't care who else is standing there." |
+
+### 2.2 The monster, on the one formula
+
+| Field | Value | Why |
+|---|---|---|
+| `id`, `name` | `mossback`, "Mossback" | |
+| Class, family | `mammal`, Mammal | A bear |
+| Role | The formula's boss role (`C-MON-STATS`, chapter 02 section 2.5): health 5, blow 1.1, the blow held to a third of the health of a hero at the room's Level | One formula. The blow cap is GR-25 rule 2, approved (S-15 a) |
+| Level | The room's Level: the party's Level by the scaled-hunt rule (the leader's, MM-19 and chapter 02 section 2.6) | MM-5 |
+| Health of one bar | The boss role at that Level times the hall number every hall shares (GR-30). The hall number acts on health only | MM-5, GR-30 |
+| Elements | Weak to fire, resists frost: `{ ember: -15, frost: 25 }`, the Brook Bear's row | His wet coat, the same rule as the bear he is |
+| Weapons | An explicit override: no weakness and no resistance, so the mammal class's bow weakness and magic resistance do not apply | JUDGMENT. The shared bar is the one fight where every way to fight must count the same. With the class default, a party of bows would break bars about 20% faster every boss weekend for as long as he is the only boss |
+| Spells | `mossback_swipe`, then `mossback_slam` (below) | A boss lists his marked hit first, then his pulse (`monster-spells.js`) |
+| Phases, on every bar | `{ addsPm: 500, enragePm: 250, enrageAtkPm: 1400, guardPm: 800, hasten: { spell: 'mossback_slam', cdPm: 500 } }` | The ruled boss phases (2026-11-05), in the fields `boss-phases.js` reads today. Chief Coppercap's room carries the same guard (`chief_coppercap_called`) |
+| Adds | Two `mossback_poacher` at half of each bar: a called copy of `glade_poacher` at the room's Level, the regular role, no spell, paying nothing, `add: true` | The precedent is `drain_rat_called` and `goblin_digger_called`. They ask the guard's questions: Challenge, an area slot, Target on Lowest HP |
+| Drops | None. The chest pays | MM-6 |
+| He never dies | When a bar empties it refills and the phases run again (MM-5). FB-13 builds the refill in `src/core/hunt/boss-room.js` | |
+
+**The two spell rows**, in `src/data/monster-spells.js`. Both copy rows that are already played.
+
+| Row | n | shape | Size | range | windupMs | cdMs | hitPm | element | Copied from |
+|---|---|---|---|---|---|---|---|---|---|
+| `mossback_swipe` | "Swipe" | `cone` | `len` 2 | 1 | 1600 | 12000 | 2000 | null | `tail_lash`, the Rat King's marked hit |
+| `mossback_slam` | "Slam" | `group` | | 6 | 2000 | 20000 | 400 | null | `squeal`, the Rat King's pulse, 0.4 times a boss's hit for a party built for his room |
+
+Under a quarter of each bar the Slam comes twice as often, every 10 seconds. The tank holds the Swipe, the casters step off it, and the Slam reaches everyone, which is what the healer and a heal rule are for.
+
+### 2.3 The room
+
+| Rule | Value | Label |
+|---|---|---|
+| Who may enter | A party whose heroes are each Level 13 or more | DECIDED GR-79 (Path row 15) |
+| The tier | The one tier table. The first send defaults to Normal | MM-7 |
+| **What a tier pays in the room** | Points and Level XP are multiplied by `bossTierPm`: the mid four's median Level XP an hour on that tier over Normal on the open grounds, read on the replayed matrix and written by FB-3's generator beside the tier-risk file | JUDGMENT. It refines MM-5, which multiplied by the tier table's `tierXp` alone (Dangerous 1.10, Deadly 1.25). On a ground most of a harder tier's pay comes from the bigger pull, and the room has no pull. At 1.10 nobody would send on Dangerous into blows 2.5 times as hard, which is MM-7's own overturn. With this row a tier in the room pays what it pays on a ground, so the choice is the same choice. Until FB-3 reads it, `tierXp` |
+| Level XP | A broken bar pays the Level law's XP for one Normal party-hour at the room's Level, over `barsPerNormalHour`, times `bossTierPm` | MM-6: about what the same stamina earns on a hunt of that tier. The two-thirds rule applies (MM-19) |
+| Coin and drops | None | MM-6 |
+| Supplies | As a hunt: the store charges what is used, inside the hunt budget (GR-57) | |
+| Death | A normal death: 6% with no cap, cut by Blessings and the ladder. It ends that hero's fight and the rest fight on (S-14 a) | MM-7, with its RULED pieces |
+| Carry on | Never sends a hero into the room | MM-7 |
+| On-call guests | Not in the room in the first build | Chapter 11 section 1.4 |
+| The kit | Saved for the boss and offered again the next time he stands (GR-48) | |
+
+### 2.4 Points, the chest, the trophy and the fall
+
+**Points.** `points = bars broken x bossTierPm`, counted in the settle for the account and summed over its heroes' parties. Never by rank. The marks are written in Normal party-hours and turned into points by `barsPerNormalHour`, the bars a mid four breaks in a Normal hour on FB-3's boss room cells at Levels 25, 52 and 75. MM-5 asks those three to sit within 10% of each other, so one number serves every Level. If they do not, the fault is in the boss formula and is fixed there, as MM-5 says.
+
+**The chest.** One chest an account a boss weekend. Each mark pays once, the moment the settle crosses it, with no press.
+
+| Mark | Normal party-hours | Share of a four's 36 stamina hours in the window | What it pays |
+|---|---|---|---|
+| 1 | 2 | 6% | **+5% damage dealt for 7 days** for every hero on the account. The first time an account ever reaches it, **Mossback's Claw** |
+| 2 | 6 | 17% | **One Mossback Cloak**, for one hero (below) |
+| 3 | 12 | 33% | **The buff runs 14 days** from mark 1 instead of 7 |
+
+**Why these sizes.** COMPUTED: a 72 hour window at 12 hunted hours a day holds 36 party-hours of stamina. Chapter 06 sets the healthy share of weekend stamina on the boss at 10 to 35%, with "near all of it" as the bad sign (section 6). MM-6's marks of 2, 8 and 20 put the last at 56%, which is a duty. These put it at 33%. On a harder tier `bossTierPm` brings every mark sooner. JUDGMENT, checked by playtest E.
+
+**Why both a buff and gear.** The ruling of 2026-11-21 is buffs and gear, and the audit asked D-6 to choose (A-7). Each mark pays what fits its effort. Showing up for an evening pays a buff every hero feels. A real share of the weekend pays a piece you keep. The buff is one row on the modifier table (`playerAttack`, timed), inside the timed damage cap of +10% (MM-25), earned only. It is also the "one buff played in a cell" the review asks for.
+
+**The Mossback Cloak.** One line of four cuts, one a way to fight (MM-6, CE-1 rule 5).
+
+| Cut | The hero it goes to | Its one attribute | Read from |
+|---|---|---|---|
+| Defense | A tank | +1 Defense | `special-attributes.js` `defense`, the cape's own attribute |
+| Melee | A melee hero | + Melee, 2 at tiers 1 to 4 and 3 at 5 to 7 | `special-attributes.js` `skill` |
+| Ranged | A ranger | + Ranged, the same sizes | The same |
+| Magic | A mage or a healer | Focus: 2% of max mana back on each kill at tiers 1 to 3, 3% from tier 4 | `jewelry.js` `JEWEL_PERKS.focus`, in `PERKS_PLAYED`. + Magic is not used, because it measured as nothing (`special-attributes.js` `unproven`) |
+
+| Rule | Value |
+|---|---|
+| The base | The cape ladder's rung the hero can wear now: the highest rung in `slot-ladders.js` whose `reqLv` is at or under the hero's Level. Its numbers and its `reqLv` |
+| The attribute's size | The rung's tier in `special-attributes.js`. Tier 1 reads tier 2's size, because that table starts at 2 |
+| Past the last rung | The Dawnlit Mantle's rung (Level 88), until the gear curve writes cape rows for later bands (FB-8) |
+| Who gets it | The account's standing rule "Cloak goes to". The default is Auto: the hero whose worn cape is furthest under its own Mossback Cloak, the front hero first on a tie (`ROLE_ORDER`, `hunt-roles.js`). The player may pin a hero once |
+| The cut | The hero's way to fight when the chest pays: tank, melee, ranger, mage or healer, by `ROLE_ORDER` |
+| Where it goes | Storage, never a bag, so a full bag never loses it. "Wear upgrades" puts it on at the next Start when it is strictly better (D-2) |
+| Rows | Four line rows, written once. The item rows, one for each rung and cut, are generated with `--check` and carry no hand-typed number. Book value follows the gear exchange rates for its attribute (R11) |
+| Trade | Like any gear (MM-27, and no bound gear, RULED 2026-10-23) |
+| Rarity | Unique |
+| Reforge | Up a band, keeping its attribute (31-4) |
+
+**Known tension.** Crafted cloaks have no perk hook yet (`jewelry.js`: a cloak ships plain until Slip and Stride land). So for now the Mossback Cloak is the best cape at its rung for its way to fight, and a player who skips the boss buys it on the market. CE-1 rule 3 wants the layer to be a second road to a best piece. It becomes that the day cloak perks land. JUDGMENT: accepted for the first build, because the cape is the one slot every way to fight wears and the attribute is small.
+
+**Mossback's Claw.** The account trophy (MM-6). Given once to each account, bound to the account and never on the market, because it says the account was there. It is a collector's piece until the Hall of Firsts hangs boss trophies (GR-73). FB-13 adds it to the catalogue-coherence allowlist beside the Rat King's Crown and Coppercap's Cauldron with that promise, and its Shop bid is zero so "Sell all junk" never takes it.
+
+**The fall.** When the pool is empty:
+
+- A System line and the town banner say so.
+- The plaque on the boss window records the first blow (the account whose party broke the first bar), the last blow (the account whose points emptied the pool) and the top clan by points, hidden while no clan exists.
+- **The Great Hearth's fire gains one mark** (D-7, section 1.3). This is what makes the shared bar matter in the first build, because MM-6's fall bonus waits until the boss has stood twice (13 section 1.2). Everyone who hunts on the next Hearthrise gains from it, at no cost to anyone.
+- The room stays open to the end of the window, and marks still pay (MM-4).
+
+If he is not driven off by Monday 12:00 UTC, he goes back up the brook. No fire mark. The server re-sizes the pool for next time (MM-4).
+
+### 2.5 The pool on a small server
+
+| Row | Value | Label |
+|---|---|---|
+| `bossPoolPerAccount` | Half of mark 2: 3 Normal party-hours of points for each weekly active account | JUDGMENT. Then a rule a player can say out loud holds: he is driven off when about half the active accounts reach their second mark |
+| `bossPoolFloor` | Mark 3: 12 Normal party-hours | JUDGMENT. One account that goes all the way drives him off alone |
+| The pool | The larger of the two, read when he stands, from `hr_weekly_actives_count` | MM-4 |
+| Re-sizing | After each stand, aimed at hour 48 and moved at most a quarter | MM-4 |
+
+COMPUTED. With 7 weekly active accounts the pool is 21 Normal party-hours, so four accounts at mark 2 drive him off. With one account it is 12. With 30 it is 90, about 15 accounts at mark 2.
+
+### 2.6 Art, for the asset director
+
+| Piece | Spec | Where it goes |
+|---|---|---|
+| **Portrait** | The hearthfire painted direction. A three-quarter bust of a huge old brown bear, his coat wet and dark, a thick mat of moss over his shoulders and back with a faint blue-green glow, the stubs of three or four old arrows broken off in the moss, a torn ear, gray around the muzzle. Mouth closed. No honey and no snarl. He is old and tired of being shot at | `assets/icons-bundle/hearthfire/monsters/mossback.png`. Add `mossback` to `SHIPPED` in `src/data/monster-art.js` |
+| **32 px head** | The same face, front view, in the world palette | `assets/icons-bundle/pixel/heads/mossback.png`, on the `HEAD_ART` list |
+| **World sprite** | PixelLab style-1, eight facings. About one and a half times the Brook Bear's body, so no beast class holds him. The art director adds one row to `CLASSES` in `src/data/world/art-budget.js`, proposed `beast_huge`: frame 128 by 96, anchor 64, 90, body 64 to 76 measured by width, a unit with an ellipse shadow. The moss uses the Glade's mosslight ramp | Through `tools/world-art` and `tests/world-assets.mjs` |
+| **Clips** | Idle. Walk. Swipe: one forepaw sweeps the two tiles in front of him. Slam: he rears on his hind legs and comes down on both forepaws. Roar: when a bar breaks and when he crosses his enrage line. Hurt. **No death clip**, because he never dies in the room | |
+| **The adds** | The Glade Poacher's sprite, through `HUNT_ART_ALIAS` (`mossback_poacher` to `glade_poacher`) | No new art |
+| **The room, "The Mill Pond"** | About 24 by 16 tiles in the Greenhaven kit, no new tileset. The Meadowbrook comes in at the north over a low weir into the pond, which fills the north-west third. The mill's back wall and wheel run along the south-east, with torn grain sacks and a broken comb frame by the wall. A split-rail fence on the east with pine and bramble behind it, where the poachers come out. Reeds and mud round the pond. Mossback starts at the water's edge, north of center. The party starts in the south-west on the mill path | `src/data/world/maps/mill_pond.js`, region `greenhaven` |
+| **Two item icons** | The Mossback Cloak, one icon for all four cuts. Mossback's Claw | `assets/icons-bundle/`, wired in `src/data/item-art.js` |
+
+Integer scales only, one palette, one perspective (`docs/ART_DIRECTION.md`).
+
+### 2.7 The words
+
+| Where | Words |
+|---|---|
+| Window title | "Mossback" |
+| Place | "The Mill Pond" |
+| Status while he stands | "Here until {end}" |
+| Status while he is away | "Next: {start}" |
+| The shared bar | "Mossback: {pct}% left" |
+| The account's points | "Your points: {points}" |
+| Mark 1 | "+5% damage, 7 days" |
+| Mark 2 | "Mossback Cloak" |
+| Mark 3 | "+5% damage, 14 days" |
+| The standing rule | "Cloak goes to: {name}", with the control "Change" |
+| The card's one lore line | "He comes down the brook for the honey under the mill. The whole town turns out to drive him back." |
+| The calendar plate | "Mossback comes to the Mill Pond {start}" |
+| System line, start | "Mossback is at the Mill Pond until {end}" |
+| System line, the fall | "Havora drove Mossback off. The Great Hearth's fire grew one mark." |
+| System line, the window ends with no fall | "Mossback went back up the brook. Next: {next}" |
+| Return card, mark 1 | "Mossback: +5% damage for 7 days" |
+| Return card, mark 2 | "Mossback: {name} got a Mossback Cloak ({cut})" |
+| Return card, mark 3 | "Mossback: your damage buff lasts 14 days" |
+| Return card, the trophy | "Mossback's Claw added to your trophies" |
+| The hero sheet's buff | "Mossback: +5% damage ({left})" |
+| The Path, row 15 | "Level 13. Mossback" |
+| The plaque | "First blow: {account}", "Last blow: {account}", "Top clan: {clan}" |
+| Mossback Cloak, item line | "Made from the fur and moss Mossback leaves on the fence posts at the Mill Pond. It still glows a little after dark." |
+| Mossback's Claw, item line | "One of Mossback's claws. It snapped off on somebody's shield." |
+| The four cuts | "Defense", "Melee", "Ranged", "Magic" |
+| Spells in the combat log | "Swipe", "Slam" |
+
+### 2.8 Walk-through against real data: a Level 13 four's first Mossback weekend
+
+| # | Step | Holds before it | Checked in | Doable |
+|---|---|---|---|---|
+| 1 | Four heroes at Level 13 or more | Day one's 12 hunted hours. Level 10 by 6 hunted hours (RULED 2026-11-20) | D-1's walk-through, `hunts.js` bands | Yes |
+| 2 | Friday 12:00 UTC: the `mossback` row opens the window | The calendar (D-7) | `live-events.js` rows | A new type |
+| 3 | The window shows him, the bar and the marks | | FB-13's window | New |
+| 4 | Enter on Normal | Stamina, supplies | The one tier table (`hunt-tiers.js`). The hunt budget (GR-57) | Yes. The room is new |
+| 5 | The room is built at the leader's Level 13 | | The boss role on `C-MON-STATS`. The hall number (GR-30) | New, FB-13 |
+| 6 | He swipes the tank and slams the party | | `cone` and `group` are in `SPELL_SHAPES`. The rows copy `tail_lash` and `squeal` | Yes. Two new rows of played shapes |
+| 7 | At half his bar two poachers come out of the trees | | `glade_poacher` (`monsters.js`, Level 19, human). Called adds as `drain_rat_called`. `boss-phases.js` reads `addsPm` and `guardPm` | Yes. The copy at the room's Level is new |
+| 8 | The bar empties and refills | | `boss-room.js` | New, FB-13 |
+| 9 | Two Normal party-hours: +5% damage for 7 days, and Mossback's Claw | Points | The modifier table (step R20, FB-11, wave 3) | New. **FB-13 needs FB-11's table** |
+| 10 | Six: a Mossback Cloak for the tank, the Defense cut | The tank wears a Woolen Cloak | `slot-ladders.js`: `woolen_cloak` `reqLv` 12 is the highest rung at Level 13. `special-attributes.js` `defense` is +1, read at tier 2 | Yes |
+| 11 | The next Start wears it | The cloak in Storage | D-2's "Wear upgrades". The ladder rung plus one attribute is strictly better than the plain rung | Yes, once D-2 is built |
+| 12 | Twelve: the buff runs 14 days | | | New |
+| 13 | A hero dies | Blessings | `blessings.js` `freeUntilLevel` 30, so they are free at 13 | Yes |
+| 14 | By Saturday night four accounts have passed mark 2 and the pool empties | 7 weekly active accounts | The pool is 21 Normal party-hours (section 2.5) | New |
+| 15 | The fire gains a mark | | D-7 | New |
+
+**Where it breaks on real data.** One place, step 10. The rung's name: `woolen_cloak` is named "Woollen Cloak" in `slot-ladders.js`, British spelling, against the ruling of 2026-10-28. It is not Mossback's, but FB-13 shows it beside his cloak. Raised for the integrator.
+
+### 2.9 Evidence and the exploit read
+
+| Claim | Label |
+|---|---|
+| Every name and Level above | Read from `src/data` on this branch |
+| The sizes of the Swipe and the Slam | Copied from played rows. Their effect in this room is UNKNOWN until FB-3 plays the room at Levels 25, 52 and 75 |
+| Marks at 2, 6 and 12 | JUDGMENT, COMPUTED against chapter 06's 10 to 35% |
+| `bossTierPm` | JUDGMENT. Its number is FB-3's |
+| The pool rows | JUDGMENT, COMPUTED for 1, 7 and 30 accounts |
+| Without the override a party of bows breaks bars about 20% faster | COMPUTED from the weakness bonus, 1.20 damage and 1.15 accuracy (chapter 02 section 2.5) |
+
+**Exploit read.** Points are counted only in the settle, and the chest is granted by the server against them (13 FB-13). One cloak an account a weekend is 13 a year at most (CE-1). A second account must spend 6 party-hours of its own stamina for its cloak, as it would for any drop. The buff touches damage, never coin. The fire mark is one server event a stand. The room pays no coin and charges supplies, so it is a small sink.
+
+### 2.10 For the integrator
+
+- **06 section 2.3.** The boss is Mossback at the Mill Pond. The marks are 2, 6 and 12 Normal party-hours, paying the buff, the cloak and the buff's second week. The fall adds a fire mark. The fall bonus waits, as the plan says. MM-5's points rule gains `bossTierPm`. The pool rows of section 2.5.
+- **06 section 5, items 1 and 8.** One sample boss is written. The pool and chest numbers are set here.
+- **03 section 2.16.** The first line is the Mossback Cloak in four cuts, on the cape ladder's rungs. Note the tension with rule 3 until cloak perks land.
+- **02 section 2.5.** Mossback is no unplaced row. The pool (GR-34) has no bear boss whose name passes the naming rule (`ancient_bear` is named "Ancient Bear").
+- **13 FB-13.** It depends on FB-11 (the modifier table) for the buff. It adds two spell rows, the boss row, the add row, the cape generator, the trophy and its allowlist line, the Chronicle page, the window's words, the plaque and the fire mark. The asset director's list is section 2.6.
+- **13 section 3.6, Security.** The chest grants items and a buff by points. The fall writes the fire.
+- **`slot-ladders.js` `woolen_cloak`.** "Woollen Cloak" reads "Woolen Cloak" (2026-10-28). For whichever lane next holds the file.
+- **`decisions/`.** MM-2 to MM-7 gain "one sample: Mossback". MM-6's thresholds become 2, 6 and 12.
+
+---

@@ -25,10 +25,10 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-11-20",
- "replay_ms": 31499,
+ "replay_ms": 5157,
  "counts": {
   "tracked_names": 990,
-  "entries": 841
+  "entries": 828
  },
  "functions": [
   {
@@ -1481,6 +1481,7 @@
    ],
    "touched_by": [
     "1004-tick-pack-heroes.sql",
+    "1032-approved-cuts.sql",
     "2026-08-11-grant-hygiene.sql",
     "2026-08-16-client-write-grant-sweep-5.sql",
     "2026-08-16-client-write-grant-sweep.sql",
@@ -1516,11 +1517,12 @@
     "source": "measured-live"
    },
    "replay": {
-    "md5": "97b9d4ebbe1af77b29b8b1c384ea541f",
-    "norm_len": 53463,
+    "md5": "5783599fd024b037a4cfbe1ba340e07c",
+    "norm_len": 50875,
     "source": "computed-from-replay"
    },
-   "agree": true
+   "agree": false,
+   "why": "STAGED for the v0.2.144 release by 1032-approved-cuts.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21. The release apply re-measures with --live --write."
   },
   {
    "sig": "hr_backfill_lifetime_facts(p_user uuid)",
@@ -2932,52 +2934,6 @@
    "agree": true
   },
   {
-   "sig": "hr_buy_gem_unlock(p_unlock_id text, p_slot integer, p_idem uuid)",
-   "name": "hr_buy_gem_unlock",
-   "tracked_by": [
-    "restate"
-   ],
-   "touched_by": [
-    "2026-09-14-gem-unlock-buy.sql"
-   ],
-   "live": {
-    "md5": "44cee0b2532b42a1695e58dd704918b5",
-    "norm_len": 494,
-    "measured": "2026-11-20",
-    "source": "measured-live"
-   },
-   "replay": {
-    "md5": "44cee0b2532b42a1695e58dd704918b5",
-    "norm_len": 494,
-    "source": "computed-from-replay"
-   },
-   "agree": true
-  },
-  {
-   "sig": "hr_buy_gem_unlock__ungated(p_unlock_id text, p_slot integer, p_idem uuid)",
-   "name": "hr_buy_gem_unlock__ungated",
-   "tracked_by": [
-    "pin",
-    "restate"
-   ],
-   "touched_by": [
-    "2026-09-14-gem-unlock-buy.sql",
-    "2026-10-19-account-wallet.sql"
-   ],
-   "live": {
-    "md5": "da760f3bbaa87bf4b3f82631607f3969",
-    "norm_len": 9753,
-    "measured": "2026-11-20",
-    "source": "measured-live"
-   },
-   "replay": {
-    "md5": "da760f3bbaa87bf4b3f82631607f3969",
-    "norm_len": 9753,
-    "source": "computed-from-replay"
-   },
-   "agree": true
-  },
-  {
    "sig": "hr_buy_hero_slot(p_slot_id integer, p_slot integer, p_idem uuid)",
    "name": "hr_buy_hero_slot",
    "tracked_by": [
@@ -4099,50 +4055,6 @@
    "agree": true
   },
   {
-   "sig": "hr_claim_discord_gift(p_slot integer, p_code text)",
-   "name": "hr_claim_discord_gift",
-   "tracked_by": [
-    "restate"
-   ],
-   "touched_by": [
-    "2026-10-18-discord-gift.sql"
-   ],
-   "live": {
-    "md5": "6456a32b80f792624e88de2d0a851f66",
-    "norm_len": 401,
-    "measured": "2026-11-20",
-    "source": "measured-live"
-   },
-   "replay": {
-    "md5": "6456a32b80f792624e88de2d0a851f66",
-    "norm_len": 401,
-    "source": "computed-from-replay"
-   },
-   "agree": true
-  },
-  {
-   "sig": "hr_claim_discord_gift__ungated(p_slot integer, p_code text)",
-   "name": "hr_claim_discord_gift__ungated",
-   "tracked_by": [
-    "restate"
-   ],
-   "touched_by": [
-    "2026-10-18-discord-gift.sql"
-   ],
-   "live": {
-    "md5": "120f06caa21221383193b390f523f709",
-    "norm_len": 4229,
-    "measured": "2026-11-20",
-    "source": "measured-live"
-   },
-   "replay": {
-    "md5": "120f06caa21221383193b390f523f709",
-    "norm_len": 4229,
-    "source": "computed-from-replay"
-   },
-   "agree": true
-  },
-  {
    "sig": "hr_clan_browser(p_limit integer)",
    "name": "hr_clan_browser",
    "tracked_by": [
@@ -4975,50 +4887,6 @@
    "agree": true
   },
   {
-   "sig": "hr_discord_code_current()",
-   "name": "hr_discord_code_current",
-   "tracked_by": [
-    "restate"
-   ],
-   "touched_by": [
-    "2026-10-18-discord-gift.sql"
-   ],
-   "live": {
-    "md5": "728d0dad66fc006e8f010e472af21c89",
-    "norm_len": 685,
-    "measured": "2026-11-20",
-    "source": "measured-live"
-   },
-   "replay": {
-    "md5": "728d0dad66fc006e8f010e472af21c89",
-    "norm_len": 685,
-    "source": "computed-from-replay"
-   },
-   "agree": true
-  },
-  {
-   "sig": "hr_discord_code_for(p_week text)",
-   "name": "hr_discord_code_for",
-   "tracked_by": [
-    "restate"
-   ],
-   "touched_by": [
-    "2026-10-18-discord-gift.sql"
-   ],
-   "live": {
-    "md5": "45f564c02b6ebee4fa1c6657f88dd148",
-    "norm_len": 1171,
-    "measured": "2026-11-20",
-    "source": "measured-live"
-   },
-   "replay": {
-    "md5": "45f564c02b6ebee4fa1c6657f88dd148",
-    "norm_len": 1171,
-    "source": "computed-from-replay"
-   },
-   "agree": true
-  },
-  {
    "sig": "hr_display_name_available(p_name text)",
    "name": "hr_display_name_available",
    "tracked_by": [
@@ -5080,98 +4948,6 @@
    "replay": {
     "md5": "77dfcfcdd8362613e258c31d78208343",
     "norm_len": 261,
-    "source": "computed-from-replay"
-   },
-   "agree": true
-  },
-  {
-   "sig": "hr_dungeon_cooldown_divisor(p_mode text)",
-   "name": "hr_dungeon_cooldown_divisor",
-   "tracked_by": [
-    "restate"
-   ],
-   "touched_by": [
-    "2026-09-12-dungeon-cooldown.sql"
-   ],
-   "live": {
-    "md5": "310a69fdc04eb80b1e2b80413f5e7584",
-    "norm_len": 223,
-    "measured": "2026-11-20",
-    "source": "measured-live"
-   },
-   "replay": {
-    "md5": "310a69fdc04eb80b1e2b80413f5e7584",
-    "norm_len": 223,
-    "source": "computed-from-replay"
-   },
-   "agree": true
-  },
-  {
-   "sig": "hr_dungeon_cooldown_modes()",
-   "name": "hr_dungeon_cooldown_modes",
-   "tracked_by": [
-    "restate"
-   ],
-   "touched_by": [
-    "2026-09-12-dungeon-cooldown.sql"
-   ],
-   "live": {
-    "md5": "0c438a1cc3075892cb9788628f276a4c",
-    "norm_len": 204,
-    "measured": "2026-11-20",
-    "source": "measured-live"
-   },
-   "replay": {
-    "md5": "0c438a1cc3075892cb9788628f276a4c",
-    "norm_len": 204,
-    "source": "computed-from-replay"
-   },
-   "agree": true
-  },
-  {
-   "sig": "hr_dungeon_cooldowns(p_user uuid, p_slot integer)",
-   "name": "hr_dungeon_cooldowns",
-   "tracked_by": [
-    "restate"
-   ],
-   "touched_by": [
-    "2026-09-12-dungeon-cooldown.sql",
-    "2027-02-10-settle-plan-cache.generated.sql"
-   ],
-   "live": {
-    "md5": "a9ccdbbbfbc6c6feb8a0b9fed83dd514",
-    "norm_len": 1731,
-    "measured": "2026-11-20",
-    "source": "measured-live"
-   },
-   "replay": {
-    "md5": "a9ccdbbbfbc6c6feb8a0b9fed83dd514",
-    "norm_len": 1731,
-    "source": "computed-from-replay"
-   },
-   "agree": true
-  },
-  {
-   "sig": "hr_dungeon_settle(p_user uuid, p_slot integer, p_version bigint, p_intent_id uuid, p_dungeon_id text, p_mode text, p_quality numeric)",
-   "name": "hr_dungeon_settle",
-   "tracked_by": [
-    "pin",
-    "restate"
-   ],
-   "touched_by": [
-    "2026-09-10-dungeon-settle.sql",
-    "2026-09-12-dungeon-cooldown.sql",
-    "2026-09-28-settle-before-mutate.sql"
-   ],
-   "live": {
-    "md5": "9d133e3bcea570172f17ea4ce1e98136",
-    "norm_len": 16826,
-    "measured": "2026-11-20",
-    "source": "measured-live"
-   },
-   "replay": {
-    "md5": "9d133e3bcea570172f17ea4ce1e98136",
-    "norm_len": 16826,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -6155,29 +5931,6 @@
    "replay": {
     "md5": "608beb0eed523d7767f95fd9ad2758e6",
     "norm_len": 3166,
-    "source": "computed-from-replay"
-   },
-   "agree": true
-  },
-  {
-   "sig": "hr_gem_unlocks_of(p_user uuid, p_slot integer)",
-   "name": "hr_gem_unlocks_of",
-   "tracked_by": [
-    "restate"
-   ],
-   "touched_by": [
-    "2026-09-14-gem-unlock-buy.sql",
-    "2027-02-10-settle-plan-cache.generated.sql"
-   ],
-   "live": {
-    "md5": "cbaa4f37f1b63ddec783c075244e5d4b",
-    "norm_len": 987,
-    "measured": "2026-11-20",
-    "source": "measured-live"
-   },
-   "replay": {
-    "md5": "cbaa4f37f1b63ddec783c075244e5d4b",
-    "norm_len": 987,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -9675,6 +9428,7 @@
     "restate"
    ],
    "touched_by": [
+    "1029-spell-rule-rune-spells.generated.sql",
     "2027-02-21-rune-spells.generated.sql",
     "2027-03-08-rune-ladder-rune-spells.generated.sql",
     "2027-03-24-undertow-rune-spells.generated.sql",
@@ -9688,11 +9442,12 @@
     "source": "measured-live"
    },
    "replay": {
-    "md5": "3774cb759c1e5db34011d86f6949471c",
-    "norm_len": 4692,
+    "md5": "9cff766450b5db9fe055ce6e07947f48",
+    "norm_len": 4996,
     "source": "computed-from-replay"
    },
-   "agree": true
+   "agree": false,
+   "why": "STAGED for the v0.2.144 release by 1029-spell-rule-rune-spells.generated.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21. The release apply re-measures with --live --write."
   },
   {
    "sig": "hr_hunt_rune_state(p_user uuid, p_slot integer, p_session uuid, p_ability text, p_own jsonb)",
@@ -12509,28 +12264,6 @@
    "agree": true
   },
   {
-   "sig": "hr_muster_window(p_at timestamp with time zone)",
-   "name": "hr_muster_window",
-   "tracked_by": [
-    "restate"
-   ],
-   "touched_by": [
-    "2026-08-08-muster.sql"
-   ],
-   "live": {
-    "md5": "c5cbc384faf2f257012ea784c75b5019",
-    "norm_len": 623,
-    "measured": "2026-11-20",
-    "source": "measured-live"
-   },
-   "replay": {
-    "md5": "c5cbc384faf2f257012ea784c75b5019",
-    "norm_len": 623,
-    "source": "computed-from-replay"
-   },
-   "agree": true
-  },
-  {
    "sig": "hr_name_blocked(p_text text)",
    "name": "hr_name_blocked",
    "tracked_by": [
@@ -14358,30 +14091,6 @@
    "agree": true
   },
   {
-   "sig": "hr_quartermaster_buy(p_user uuid, p_slot integer, p_version bigint, p_intent_id uuid, p_offer_id text)",
-   "name": "hr_quartermaster_buy",
-   "tracked_by": [
-    "pin",
-    "restate"
-   ],
-   "touched_by": [
-    "2026-09-11-quartermaster-buy.sql",
-    "2026-09-28-settle-before-mutate.sql"
-   ],
-   "live": {
-    "md5": "fce9340cc733e6a9b7547eb49dd7f9c1",
-    "norm_len": 9531,
-    "measured": "2026-11-20",
-    "source": "measured-live"
-   },
-   "replay": {
-    "md5": "fce9340cc733e6a9b7547eb49dd7f9c1",
-    "norm_len": 9531,
-    "source": "computed-from-replay"
-   },
-   "agree": true
-  },
-  {
    "sig": "hr_rate_gate(p_user uuid, p_slot integer, p_bucket text)",
    "name": "hr_rate_gate",
    "tracked_by": [
@@ -15253,9 +14962,12 @@
    "sig": "hr_server_now()",
    "name": "hr_server_now",
    "tracked_by": [
+    "chain",
+    "pin",
     "restate"
    ],
    "touched_by": [
+    "1032-approved-cuts.sql",
     "2026-08-08-muster.sql",
     "2026-08-11-authenticated-surface-lockdown.sql"
    ],
@@ -15266,11 +14978,12 @@
     "source": "measured-live"
    },
    "replay": {
-    "md5": "2e7470d87e1b1a551e83b6915c704c35",
-    "norm_len": 498,
+    "md5": "e3b0c2562438e2ebd4bbb005da0b23cc",
+    "norm_len": 429,
     "source": "computed-from-replay"
    },
-   "agree": true
+   "agree": false,
+   "why": "STAGED for the v0.2.144 release by 1032-approved-cuts.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21. The release apply re-measures with --live --write."
   },
   {
    "sig": "hr_session_mode_of(p_hunt text)",
@@ -16344,6 +16057,7 @@
     "restate"
    ],
    "touched_by": [
+    "1032-approved-cuts.sql",
     "2026-08-11-apply-engine.sql",
     "2026-08-15-auto-eat.sql",
     "2026-08-15-tool-carry.sql",
@@ -16403,11 +16117,12 @@
     "source": "measured-live"
    },
    "replay": {
-    "md5": "e06577815a6965b771bf399854fb6868",
-    "norm_len": 28130,
+    "md5": "13f74aeeb97489019276a1860e8af6fc",
+    "norm_len": 26020,
     "source": "computed-from-replay"
    },
-   "agree": true
+   "agree": false,
+   "why": "STAGED for the v0.2.144 release by 1032-approved-cuts.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21. The release apply re-measures with --live --write."
   },
   {
    "sig": "hr_state_sections_of(p_user uuid, p_slot integer)",

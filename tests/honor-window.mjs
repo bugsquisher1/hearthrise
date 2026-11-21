@@ -3,7 +3,8 @@
 // tests/honor-window.mjs — THE ROLL OF HONOR ON SCREEN, IN A REAL CHROMIUM (lane/b-leaderboards).
 //
 //   node tests/honor-window.mjs            the rules
-//   node tests/honor-window.mjs --mutate   every planted defect must turn a rule RED
+//   node tests/honor-window.mjs --mutate   every planted defect must turn a NAMED rule RED (stopping at the first); a throw, a plant
+//                                          that does not parse or a line with no HP id is HARNESS, never a catch (tests/_mutant-verdict.mjs)
 //   node tests/honor-window.mjs --shots <dir>   also write the desktop and phone screenshots
 //
 // mutant-anchors: src/shell/windows/honor.js src/session/honor-roll.js src/data/honor-roll.js
@@ -35,6 +36,7 @@ import { pathToFileURL } from 'node:url';
 import { ROOT, serve, SDK_STUB } from './_client-harness.mjs';
 import { pinFonts } from './_test-fonts.mjs';
 import { groupOf } from './_bar.mjs';
+import { judgePlanted, report, exitOf, cleanControl, stopAtFirstRed, FIRST_RED } from './_mutant-verdict.mjs';
 
 const BASE_ENV = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/alpha-envelope.json'), 'utf8'));
 const clone = (o) => JSON.parse(JSON.stringify(o));
@@ -97,7 +99,7 @@ const readRoll = (page) => page.evaluate(() => {
     next: w.querySelector('.hr-you-next').textContent };
 });
 
-async function checks(overrides, shots) {
+async function checks(overrides, shots, { stopAtFirst = false } = {}) {
   const fails = [];
   // ── HP-7 (no browser): the boards offered ──
   const dataSrc = overrides ? overrides['src/data/honor-roll.js'] : undefined;
@@ -109,6 +111,8 @@ async function checks(overrides, shots) {
   const stray = ids.filter((id) => !sourced.has(id));
   if (stray.length) fails.push('HP-7 the window offers boards no hero can be ranked on: ' + stray.join(', '));
   if (ids.length !== sourced.size || new Set(ids).size !== ids.length) fails.push('HP-7 the boards are not the ' + sourced.size + ' sourced ones, once each: ' + ids.join(', '));
+  /* a mutant needs ONE red rule (tests/_mutant-verdict.mjs): HP-7's is a verdict without a browser */
+  if (stopAtFirst) { if (fails.length) return fails; stopAtFirstRed(fails); }
 
   const { server, port } = await serve(overrides);
   const browser = await leaseBrowser(chromium);
@@ -151,7 +155,8 @@ async function checks(overrides, shots) {
       else {
         const got = r.lines.map((l) => [l.place, l.name, l.value, l.xp].join(' ')).join(' | ');
         const want = '1st Wennet Level 12 90,210 XP | 2nd Osric Level 9 40,000 XP | 2nd Maela Level 9 40,000 XP | 4th Tyler Level 6 9,001 XP';
-        if (got !== want) fails.push('HP-1/HP-6 the roll reads "' + got + '", the server said "' + want + '"');
+        /* one rule id a line (tests/_mutant-verdict.mjs ruleOf): a fifth row is the unshaped one drawn (HP-6), else the places (HP-1) */
+        if (got !== want) fails.push((r.lines.length > 4 ? 'HP-6' : 'HP-1') + ' the roll reads "' + got + '", the server said "' + want + '"');
         const tags = r.lines.map((l) => l.name + ':' + (l.tag || '-') + (l.viewed ? '*' : '')).join(' ');
         if (tags !== 'Wennet:Same account Osric:- Maela:- Tyler:You*') fails.push('HP-1 the marks read ' + tags);
         if (r.title !== 'Level' || r.count !== '4 heroes on this board' || r.fresh !== 'Updated 3 minutes ago') fails.push('HP-1 the heading reads ' + JSON.stringify([r.title, r.count, r.fresh]));
@@ -224,7 +229,8 @@ async function checks(overrides, shots) {
       if (shots) await page.screenshot({ path: join(shots, 'honor-phone-922x423.png') });
       await ctx.close();
     }
-  } finally {
+  } catch (e) { if (e !== FIRST_RED) throw e; } finally {
+    await browser.close();   // the lease's own contexts: a run that stops at its first red leaves its page open
     server.close();
   }
   return fails;
@@ -260,18 +266,21 @@ async function main() {
       : 'honor-window: opens on Z; the server\'s rows, places and marks; one read naming a board only; the hero found off the top; empty boards honest; refusals in words, not hammered; only sourced boards; a sheet on the phone');
     process.exit(fails.length ? 1 : 0);
   }
-  const clean = await checks(null);
-  if (clean.length) { console.log('  ✗ clean control RED: ' + clean.join('; ')); process.exit(1); }
-  let bad = 0;
+  const clean = await cleanControl(() => checks(null));
+  console.log(clean.line);
+  if (clean.code) process.exit(clean.code);
+  /* A mutant is caught only by a NAMED rule (HP-n); a plant that does not parse, a step that throws, or a line with no rule id is
+     HARNESS, never a catch (tests/_mutant-verdict.mjs; lane/c-hollow-proofs-browser 2026-11-20: this loop scored ANY fail line). */
+  const counts = { caught: 0, harness: 0, escaped: 0 };
   for (const [name, file, from, to] of MUTANTS) {
     const text = (await readFile(join(ROOT, file), 'utf8')).replace(/\r\n/g, '\n');
-    if (text.split(from).length !== 2) { console.log('  ✗ ' + name + ' — anchor not found once in ' + file); bad++; continue; }
-    const fails = await checks({ [file]: text.replace(from, () => to) });
-    if (fails.length) console.log('  ✓ ' + name + ' — caught (' + fails[0].split(' ')[0] + ')');
-    else { console.log('  ✗ ' + name + ' — NOT caught'); bad++; }
+    if (text.split(from).length !== 2) { console.log('  ✗ ' + name + ' — HARNESS: anchor not found once in ' + file); counts.harness++; continue; }
+    const plant = { [file]: text.replace(from, () => to) };
+    console.log(report(name, await judgePlanted(plant, () => checks(plant, null, { stopAtFirst: true })), counts));
   }
-  console.log(bad ? 'honor-window --mutate: ' + bad + ' escaped' : 'honor-window --mutate: ' + MUTANTS.length + '/' + MUTANTS.length + ' mutants caught');
-  process.exit(bad ? 1 : 0);
+  console.log(exitOf(counts) ? 'honor-window --mutate: ' + counts.escaped + ' escaped, ' + counts.harness + ' HARNESS (not catches)'
+    : 'honor-window --mutate: ' + MUTANTS.length + '/' + MUTANTS.length + ' mutants caught, each by a named rule');
+  process.exit(exitOf(counts));
 }
 
 main();

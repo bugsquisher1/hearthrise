@@ -589,8 +589,11 @@ async function nodeRules(M) {
     // 130 s SINCE THE FORMULA (lane/b-ground-formula-fix, the Cellar's rows by src/data/balance-sheet.js): at 94-106 s the units
     // stood 9-10 tiles off (the ease alone 2,525 ms against the 2,350 budget). Scanned every 2-6 s from 64 to 138 s: 124-136 s
     // is one plateau (ease 3.6 tiles, settled 2,235 ms, a window 3.6 tiles off, 3 units forgotten); 110 and 116 s pass alone.
+    // 88 s SINCE THE SPELL RULE (set/v0.2.144, staging run 44870672285): the fights run longer, and from 108 to 160 s the join forgot
+    // nothing. Scanned 64-160 s: the join forgets a unit at 64-106 s, settled under the 2,350 budget at 76 (2,284), 88 (2,001), 94-100
+    // (2,345) and 106 (2,235); 88 s has the widest margin (a window 4 tiles off, 1 unit forgotten).
     const delay = M.CFG.SESSION_CONFIG.liveDelayMs, ask = M.CFG.SESSION_CONFIG.liveAskMs, ease = M.CFG.SESSION_CONFIG.liveEaseMs, LAT = 850;
-    for (const [tag, back, quiet] of [['first ask a commit', 130000, 15000], ['first ask a start point', 53000, 0]]) {
+    for (const [tag, back, quiet] of [['first ask a commit', 88000, 15000], ['first ask a start point', 53000, 0]]) {
       const mis = [LIVE_H.memberOf(LM, 'a', 0, 'tank', 6), LIVE_H.memberOf(LM, 'b', 1, 'melee_dps', 6)];
       const SW = [LIVE_H.T0 + 30000, LIVE_H.T0 + back];
       const r = { first: null, snapOff: null, liveAt: null, easeEndAt: null, easeTiles: 0, step: 0, speed: 0, speedPlay: 0, unnamed: 0, windowOff: 0, forgot: 0, deadSeen: 0, stood: 0, stoodIds: new Set() };
@@ -1275,7 +1278,10 @@ async function nodeRules(M) {
     // scene walked them all every frame (2 h: the frame's work 25 times the first minute's). A corpse that has lain its
     // time is forgotten by the scene and the timeline (scene.js S8, timeline.js T11): past the first minute every unit
     // held is drawn, bar the few whose first step is still to come.
-    const mis = ['tank', 'melee_dps'].map((r, i) => {
+    // TWO STRIKERS SINCE THE SPELL RULE (set/v0.2.144, staging run 44870672285): the tank and striker duo's fights run longer and
+    // it killed 187 in 10 min, under the CONTROL's 200 (Level 13 and 14 read 192 and 188, density 9 and 10 read 187: its kills are
+    // its fight length, not its spawns). Two melee strikers kill 248, a long hunt again; the rule reads the view, not the party.
+    const mis = ['melee_dps', 'melee_dps'].map((r, i) => {
       const mi = LIVE_H.memberOf(LM, 'ab'[i], i, r, 12);
       mi.huntId = 'meadowbrook_thicket'; mi.hero = Object.assign({}, mi.hero, { density: 8 });
       return mi;

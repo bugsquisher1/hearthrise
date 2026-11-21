@@ -18,6 +18,7 @@ import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isMain } from './_is-main.mjs';
+import { harnessFail, verdict, report, exitOf } from './_mutant-verdict.mjs';
 import { STATIONS, FARM_PLOTS } from '../src/data/world/stations.js';
 import { CROPS } from '../src/data/gathering.js';
 import { WEST } from '../src/data/world/town/plan.js';
@@ -90,12 +91,14 @@ function selftest() {
     'the forge goes still': { sets: Object.assign({}, base.sets, { cottage: { sprites: Object.assign({}, base.sets.cottage.sprites, { forge: { anims: { idle: { fps: 0, loop: false, dirs: { s: [[0, 0]] } } } } }) } }) },
     'no sand in the ground': { ground: GROUND_ROWS.map((r) => r.replace(/S/g, '=')) },
   };
-  let missed = 0;
+  /* caught only by a NAMED arm (YF-...); a planted model that throws is HARNESS, never a catch (tests/_mutant-verdict.mjs) */
+  const counts = { caught: 0, harness: 0, escaped: 0 };
   for (const [name, m] of Object.entries(mutants)) {
-    const found = problems(Object.assign({}, base, m));
-    if (found.length) console.log('  caught  ' + name + ' [' + found[0].split(' ')[0] + ']'); else { console.error('  MISSED  ' + name); missed++; }
+    let v;
+    try { v = verdict(problems(Object.assign({}, base, m))); } catch (e) { v = { kind: 'harness', why: harnessFail('the planted model', e) }; }
+    console.log(report(name, v, counts));
   }
-  if (missed) { console.error('town-yard-farm --selftest: ' + missed + ' planted defect(s) missed'); return 1; }
+  if (exitOf(counts)) { console.error('town-yard-farm --selftest: ' + counts.escaped + ' planted defect(s) missed, ' + counts.harness + ' HARNESS'); return 1; }
   console.log('town-yard-farm --selftest: all ' + Object.keys(mutants).length + ' planted defects caught; the clean control is silent');
   return 0;
 }

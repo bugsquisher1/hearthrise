@@ -17,6 +17,11 @@
 //            first win (his own prize held out: at Krell it is the only tier 7, and the card is read before it), at the Level the line names,
 //            or the hall's floor when it names none. "A third hero" is every way to fight (gear.mjs STYLES), so the line is true whoever comes;
 //            "two more" is every pair of them.
+//   HA-FLOOR the card's food (`storeFloor`) is the floor (lane/c-engine-reds, 2026-11-21): on the next cheaper store food (supply-basics.js
+//            heal rows by price) at least one party the card names wins under RATE. A food every party also wins on one step down is a card
+//            that bills every hero for food nobody needs and a door that tells a hero holding enough food that it "heals too little": with
+//            the spell rule every party won 38 to 40 of 40 on Salted Lobster while the card still asked for Swordfish (432 gold a bite, not
+//            180), and HA-WIN could not tell the two cards apart (its Lobster mutant ESCAPED, staging run 44870672285).
 //
 // THE CARD'S GRAMMAR (label lines, Tyler 2026-11-14 "Recommended: 4+ players"; one form a line):
 //   Everyone: Eat under P%                            every food slot under P% HP
@@ -157,8 +162,8 @@ async function guard(root, o = {}) {
       const ends = { felled: 0, death: 0, time: 0, other: 0 };
       for (let s = 0; s < SEEDS; s++) {
         ends[fightOnce(X, hall, plan, c.party, c.L, s)] += 1;
-        /* a mutant run stops at the first cell that can no longer reach the rate */
-        if (o.failFast && SEEDS - (s + 1) + ends.felled < RATE * SEEDS) break;
+        /* a mutant run stops a cell once it can no longer reach the rate, or has reached it */
+        if (o.failFast && (SEEDS - (s + 1) + ends.felled < RATE * SEEDS || ends.felled >= RATE * SEEDS)) break;
       }
       const tries = ends.felled + ends.death + ends.time + ends.other;
       const words = c.party.join(' + ') + ' at Level ' + c.L + ': ' + ends.felled + ' of ' + tries + ' won (' + ends.death + ' died, ' + ends.time + ' out of time)';
@@ -166,8 +171,36 @@ async function guard(root, o = {}) {
       if (ends.felled < RATE * SEEDS) bad.push('HA-WIN ' + hall.id + '\'s card says "' + c.line + '" and ' + words + ', under ' + Math.round(RATE * 100) + '%');
       if (o.failFast && bad.length) return bad;
     }
+    if (!bad.some((b) => b.startsWith('HA-WIN ' + hall.id + '\''))) bad.push(...floorFails(X, hall, plan, o));
+    if (o.failFast && bad.length) return bad;
   }
   return bad;
+}
+
+/** HA-FLOOR: one store food cheaper than the card's, some party the card names loses (under RATE). Each cell stops once it has lost (the
+    floor holds: done) or has won; red when every party wins on the cheaper food. */
+function floorFails(X, hall, plan, o = {}) {
+  if (!hall.storeFloor) return [];
+  const foods = X.SB.BASIC_SUPPLIES.filter((b) => b.kind === 'heal' && Number.isFinite(b.price)).sort((a, b) => a.price - b.price);
+  const at = foods.findIndex((b) => b.id === hall.storeFloor);
+  if (at <= 0) return [];
+  const cheaper = foods[at - 1], down = { ...hall, storeFloor: cheaper.id };
+  let worst = null;
+  for (const c of plan.parties) {
+    let felled = 0, s = 0;
+    for (; s < SEEDS; s++) {
+      if (fightOnce(X, down, plan, c.party, c.L, s) === 'felled') felled += 1;
+      if (SEEDS - (s + 1) + felled < RATE * SEEDS) {
+        if (o.table) console.log('  ' + hall.id + ' | HA-FLOOR on ' + cheaper.n + ' | ' + c.party.join(' + ') + ' at Level ' + c.L + ' loses: ' + felled + ' of ' + (s + 1) + ' won');
+        return [];
+      }
+      if (felled >= RATE * SEEDS) break;
+    }
+    if (!worst || felled / (s + 1) < worst.share) worst = { share: felled / (s + 1), words: c.party.join(' + ') + ' ' + felled + ' of ' + (s + 1) };
+  }
+  const name = (id) => (foods.find((b) => b.id === id) || { n: id }).n;
+  return ['HA-FLOOR ' + hall.id + '\'s card asks for ' + name(hall.storeFloor) + ', and every party it names also wins on ' + cheaper.n + ' (the weakest '
+    + (worst ? worst.words : '-') + '): the card bills every hero for food nobody needs'];
 }
 
 /* ── THE PROOF ──────────────────────────────────────────────────────────────── */
@@ -182,12 +215,14 @@ const MUTANTS = [
   { name: 'two heroes from Level 106 (the F22 card)', edits: [[PACK, LINES, "'Two heroes: Level 106 or higher', 'Party: a tank, a healer and two more'] },"]], want: /HA-WIN krells_hold's card says "Two heroes: Level 106 or higher" and tank \+ healer at Level 106/ },
   /* the line the first fix shipped: measured in Krell's own tier 7, which nobody wears before his first win */
   { name: 'two heroes from Level 88', edits: [[PACK, LINES, "'Two heroes: Level 88 or higher', 'Party: a tank, a healer and two more'] },"]], want: /HA-WIN krells_hold's card says "Two heroes: Level 88 or higher" and tank \+ healer at Level 88/ },
-  /* the first fix's food: the tank dead under his enrage */
-  { name: 'the card\'s food is Salted Lobster', edits: [[PACK, "storeFloor: 'salted_swordfish',", "storeFloor: 'salted_lobster',"]], want: /HA-WIN krells_hold's card says "Party: a tank, a healer and two more"/ },
-  /* the whole card lane/c-krell-uniques found (2026-11-15): red twice */
-  { name: 'the first fix\'s card (Salted Lobster, two heroes from 88)', edits: [[PACK, "storeFloor: 'salted_swordfish',", "storeFloor: 'salted_lobster',"], [PACK, LINES, "'Two heroes: Level 88 or higher', 'Party: a tank, a healer and two more'] },"]], want: /HA-WIN/ },
+  /* THE FOOD IS THE FLOOR (HA-FLOOR, lane/c-engine-reds): the card before the spell rule, Swordfish, where every party wins on Lobster. This
+     was the "Salted Lobster" mutant that ESCAPED HA-WIN (staging run 44870672285); its twin "the first fix's card (Salted Lobster, two heroes
+     from 88)" is retired with it: on the Lobster card it is the "two heroes from Level 88" mutant above. */
+  { name: 'the card\'s food is Salted Swordfish (one step dearer than every party needs)', edits: [[PACK, "storeFloor: 'salted_lobster',", "storeFloor: 'salted_swordfish',"]], want: /HA-FLOOR krells_hold's card asks for Salted Swordfish, and every party it names also wins on Salted Lobster/ },
+  /* one step under the floor: deaths under his enrage */
+  { name: 'the card\'s food is Salted Trout', edits: [[PACK, "storeFloor: 'salted_lobster',", "storeFloor: 'salted_trout',"]], want: /HA-WIN krells_hold's card says "Party: a tank, a healer and two more"/ },
   { name: 'everyone eats at 40%', edits: [[PACK, "bars: ['Everyone: Eat under 75%',", "bars: ['Everyone: Eat under 40%',"]], want: /HA-WIN/ },
-  { name: 'the card\'s food is the start bar\'s Salted Shrimp', edits: [[PACK, "storeFloor: 'salted_swordfish',", "storeFloor: 'salted_shrimp',"]], want: /HA-WIN/ },
+  { name: 'the card\'s food is the start bar\'s Salted Shrimp', edits: [[PACK, "storeFloor: 'salted_lobster',", "storeFloor: 'salted_shrimp',"]], want: /HA-WIN/ },
   { name: 'Krell at 30,000 HP', edits: [[PACK, 'hp: 18000, atk: 247,', 'hp: 30000, atk: 247,']], want: /HA-WIN/ },
   { name: 'a healer line naming no spell', edits: [[PACK, "'Healer: Greater Mend under 85%'", "'Healer: Great Mend under 85%'"]], want: /HA-READ .*no spell named Great Mend/ },
 ];
@@ -217,7 +252,7 @@ async function main() {
   const t0 = Date.now();
   const bad = await guard(REPO, { table: process.argv.includes('--table') });
   for (const p of bad) console.log('FAIL  ' + p);
-  console.log(bad.length ? 'boss-hall-advice: ' + bad.length + ' FAILED' : 'boss-hall-advice: green (every line on the card read, every party it names wins ' + Math.round(RATE * 100) + '%+ of ' + SEEDS + ' in the gear before his first win, ' + Math.round((Date.now() - t0) / 1000) + ' s)');
+  console.log(bad.length ? 'boss-hall-advice: ' + bad.length + ' FAILED' : 'boss-hall-advice: green (every line on the card read, every party it names wins ' + Math.round(RATE * 100) + '%+ of ' + SEEDS + ' in the gear before his first win, and its food is the floor: a party loses one step cheaper, ' + Math.round((Date.now() - t0) / 1000) + ' s)');
   process.exit(bad.length ? 1 : 0);
 }
 

@@ -10,6 +10,8 @@ What this review does not repeat. The old dive (23) answered thirteen questions 
 
 **Corrected 2026-11-21 (Tyler: "unless you're counting massive changes, krell will not take 4 months").** The first cut of this review said a normal player reaches Krell in about month four. That number came from the retired 3.3 hours a day frame. On the ruled 12 hour frame (`50-standards.md` 2.7) a lone MID hero reaches Krell's Hold at Level 88 on day 39, a four on Deadly on day 18, and the ceiling on day 8. Open content ends at Level 110 on day 60, day 27 and day 11. The measured grid is faster again: a MID four reaches Level 100 in 257 hunted hours against the ruled 600. Every time horizon below is now on that frame. One call changed because of it: call 3 is withdrawn. Calls 1, 5 and 6 were re-read on the same frame and stand, each with a new caution written into it.
 
+**Phase B, 2026-11-21.** Section 10 holds what was measured on the real engine and where this review agrees with the formula architecture (44), the Game Director (46) and the itemization fit (47). Sections 1, 6 and 7 are updated from it. Sections 2 to 5 are the phase A text: where section 10.7 says a call or a row changed, section 10 wins.
+
 ## 1. One screen for Tyler
 
 **The verdict.** The pieces are well made and they do not yet add up to "deep gear and rare drops". Between Level 30 and Level 110 the item game is a ladder that equips itself. Everything that would make gear interesting is either a Level 30 sample that never grows or is parked past Level 110. If we were starting today I would build the same seven tiers and the same benches. I would not build the same order. I would build what a hero keeps before what a hero outgrows: jewelry run to the top of the game as the layer a build is made of, Krell's uniques ready the day the ladder ends, and one system that sells percent for gold and not four. On the 12 hour clock the ladder is over fast. A four reaches Krell's Hold on day 18 and the end of open content on day 27, and a lone hero on day 39 and day 60 (`50-standards.md` 2.7). So the weak spot is not the wait before Krell. It is that the item game meant to last thousands of hours has two pieces in it when a player arrives.
@@ -18,11 +20,11 @@ What this review does not repeat. The old dive (23) answered thirteen questions 
 
 | # | Change | Why |
 |---|---|---|
-| 1 | **Jewelry and cloaks run to tier 7 now, as the build layer.** Two rings, earrings, necklace and cloak are six of fourteen slots. Nothing with a source exists for them past Level 30 | The solver's best kit wears the same five accessories from Level 30 to Level 185. Real players made 89 pieces, set 4 and paid no Hallmark fee, ever |
-| 2 | **Perks are sized for the hunt they are built for, not 1% everywhere.** A perk is worth 5 to 8% in its case and close to nothing outside it. Then which jewelry you wear is a choice you make for a ground | Twenty two perks at about 1% each are twenty two names for the same number. No player can feel 1% |
+| 1 | **Jewelry and cloaks run to tier 7 as the build layer, and their plain numbers come off the gear curve.** The ladder is perks, the Hallmark step and carrying a piece up. Plain numbers are a fixed 6% share of the kit, never typed a tier | The best kit wears the same five accessories from Level 30 to 185. MEASURED: today's plain accessories are worth 15% at Level 30 and 0.5% at Level 400, and a point a tier to tier 7 would be +5 to +13% at Level 110, twice the ruled budget |
+| 2 | **Perks with a narrow case are sized for that case. The always-on perks stay small.** A boss perk or a first blow perk starts at about four times today's size. Keen, Follow-through and Surge keep their built sizes | MEASURED: every perk at five times is +9 to +11% Level XP for a lone hero, and a four takes 20 to 29% less damage through Surge on heals. Five times is the ceiling. Today the best kit is only 8 to 10% faster than the ordinary one, under the 15% you ruled, and that gap is the room |
 | 3 | **Krell's five weapons built first, with the unique list cut to kinds that change a decision.** No ground by ground property pieces before Krell | A four is at Krell's Hold on day 18 and out of open content on day 27. Two uniques are live. A property piece on an early ground would be worn for one to seven days, so that work belongs where players stay |
 | 4 | **Every ground's Very Rare is a signature stone a smith sets in jewelry.** It carries one perk that cannot be rolled. The piece reforges up, so the find lasts | The Very Rare band is ruled at 60 to 90 hours a hero through Krell and no ground has one. The guarantee jobs that would set it are already written and switched off |
-| 5 | **Standard Dawnsteel comes off Krell's daily lottery.** The 14 plain tier 7 pieces drop in Krell's Hold as Rares like every other tier. His daily roll keeps the uniques, his Trophy and his gem | A lone hero waits 33.5 days for his own weapon in a band that lasts 17.5. When the Ox Road opens the same sword drops there about 700 times faster |
+| 5 | **Standard Dawnsteel comes off Krell's daily lottery.** The 14 plain tier 7 pieces drop in Krell's Hold as Rares like every other tier. His daily roll keeps the uniques, his Trophy and his gem | A lone hero waits 33.5 days for his own weapon in a band that lasts 17.5 to 21. MEASURED: without it he hunts the Hold about 9% slower. When the Ox Road opens the same sword drops there about 700 times faster |
 
 **What is actively harming the game.**
 
@@ -32,9 +34,9 @@ What this review does not repeat. The old dive (23) answered thirteen questions 
 - Hall Keys drop every two hours and the prize is once a day. The four on Krell's Hold found 19 keys and fought no Hall.
 - Four systems ask gold for one or two percent (Tempering, the Hallmark fee, linings, worn in). Two of them were already merged or ruled. Players have bought almost none of it.
 
-**What I would add.** Signature stones (change 4). A find list for each ground that pays Luck the first time an account finds each named piece, which gives the 99% of drops nobody wears one moment of worth. A saved kit for each ground, so a hero changes rings, linings and a unique when the party moves without anyone doing it by hand.
+**What I would add.** Signature stones (change 4). A find list for each ground that ticks the first time an account finds each named piece and shows on the Honors page. It pays no Luck, because you ruled Luck has two feeds and no more. A saved kit for each ground, so a hero changes rings, linings and a unique when the party moves without anyone doing it by hand.
 
-**What I would take out.** The second recipe for every Tempering salt at the workbench. The five tier 1 ladder weapons nothing gives out. The Lucky ring until uniques trade. Pure number properties from the unique list (plus 10% fire guard is a lining, not a unique).
+**What I would take out.** The second recipe for every Tempering salt at the workbench, in the patch that ships linings. The five tier 1 ladder weapons nothing gives out. The Lucky ring until uniques trade. Past tier 7, a plain number as a unique's one property (plus 10% fire guard is a lining, not a unique).
 
 ---
 
@@ -223,7 +225,7 @@ One row a thing. KEEP, REMOVE, MERGE, REDESIGN, ADD or DEFER. "Ruled" names a de
 | 5 | Belts as dropped Rares | MERGE | Into the crafted accessory layer at the workbench |
 | 6 | Five undeclared tier 1 ladder rungs | REMOVE | The practice kit replaced them |
 | 7 | Special attribute gear, tiers 2 to 7 | KEEP | The sample of five is the template. No rollout a ground before Krell (corrected, section 2.1) |
-| 8 | Unique property list | REDESIGN | Seven kinds that change a decision. Guards and plus skill leave it |
+| 8 | Unique property list | REDESIGN | Phase B (47 C7): the full list at tier 7 and below as ruled 11-14. Past tier 7 the one property is one of seven decision kinds |
 | 9 | Krell's five weapons | ADD | The measured sample for every later unique |
 | 10 | Uniques past tier 7, 15 to 20 a region | KEEP | Ruled A-3, 31-4. Built after the sample is played |
 | 11 | Wave 3 uniques and the boss forge pieces | REMOVE | Ruled 23-7. Keep the name Demoncaller on its new row |
@@ -240,10 +242,10 @@ One row a thing. KEEP, REMOVE, MERGE, REDESIGN, ADD or DEFER. "Ruled" names a de
 | 22 | Rare band's row count | REDESIGN | At most six a ground |
 | 23 | Rare reveal | KEEP | Ruled 27-6 |
 | 24 | Lucky finds, Hearthfinds | KEEP | Ruled |
-| 25 | Patterns | DEFER | If built, the account learns it |
+| 25 | Patterns | ADD | Phase B (47 C6): with the Morrow Hills, taught to the account. Without them the six crafted slots freeze again at Level 110 |
 | 26 | Jewelry grades and the bench roll | KEEP | The mechanism is right |
-| 27 | Jewelry tiers 4 to 7, six pieces a tier | ADD | Change 1. Ruled in principle 11-18 |
-| 28 | Perk sizes | REDESIGN | By the case each is built for |
+| 27 | Jewelry tiers 4 to 7, six pieces a tier | ADD | Change 1. Plain numbers from the gear curve as a 6% share (measured, section 10.3). Gem chips ship with the tier 4 sample |
+| 28 | Perk sizes | REDESIGN | Phase B: narrow-case perks at three to four times, never over five. Always-on perks at built size (measured, section 10.2) |
 | 29 | Perk pool growing to 22 | KEEP | Ruled 11-18. Each new perk names its case |
 | 30 | Necklace, cloak and belt perk hooks (Deflect, Second Wind, Thrift, Slip, Stride) | ADD | Three slots ship plain today |
 | 31 | Hallmark step and fees | KEEP | Ruled prices |
@@ -260,18 +262,18 @@ One row a thing. KEEP, REMOVE, MERGE, REDESIGN, ADD or DEFER. "Ruled" names a de
 | 42 | Twelve feasts | MERGE | Ruled 23-6, four party meals |
 | 43 | Smithing | KEEP | The jeweler and toolmaker |
 | 44 | Crafting bench | REDESIGN | The outfitter: cloaks, belts, linings, ammunition |
-| 45 | Three workbench salt recipes | REMOVE | A duplicate road |
+| 45 | Three workbench salt recipes | REMOVE | A duplicate road. Phase B (47 C13): they leave in the lane that ships linings |
 | 46 | Runecrafting | KEEP | |
-| 47 | Rune tiers at Runecrafting 75 and 90 | ADD | With the combat review's spell tiers |
+| 47 | Runecrafting from 61 to 99 | ADD | Phase B (47 C12): a Sealing Rune at 75 and 88 for the tier 6 and 7 Hallmarks now. Rune tiers later with roadmap step R22 |
 | 48 | Tools, whetstones | KEEP | |
 | 49 | Good batch | ADD | Ruled, unbuilt, cheapest thing here |
-| 50 | Maker's mark, commissions | DEFER | Ruled for later. Needs a market with trades |
+| 50 | Maker's mark, bulk commissions | DEFER | Ruled for later. Phase B (47 C17): single jobs (one Hallmark or one reforge on a piece the owner keeps) ship with jewelry tiers 5 to 7 |
 | 51 | Cook Panther Meat, Void Banquet | DEFER | Hidden until an input has a source |
 | 52 | Burnt food's chance in code | REDESIGN | A data row (brief 40) |
-| 53 | A find list a ground that pays Luck | ADD | Section 4 |
+| 53 | A find list a ground | ADD | Section 4. Phase B (47 C19): it pays a line on the Honors page and no Luck |
 | 54 | A saved kit a ground | ADD | Section 4. The first principle for every situational item |
 
-**Counts.** 54 rows. KEEP 24. ADD 10. REDESIGN 8. DEFER 5. MERGE 4. REMOVE 3. (Rows 6, 11 and 45 are the removals. Row 11 is already ruled. Row 7 moved from ADD to KEEP in the 2026-11-21 correction.)
+**Counts.** 54 rows. After phase B: KEEP 24. ADD 11. REDESIGN 8. DEFER 4. MERGE 4. REMOVE 3. (Rows 6, 11 and 45 are the removals. Row 7 moved from ADD to KEEP in the 2026-11-21 correction. Row 25 moved from DEFER to ADD in phase B.)
 
 ### The eight criteria, for the significant ones
 
@@ -511,27 +513,27 @@ Each trace is a hypothesis to be measured in phase B with `progression-grid --di
 
 | Priority | Recommendation | Complexity | Risk | Expected benefit | Depends on | Claim |
 |---|---|---|---|---|---|---|
-| **Critical** | Accessory slots have content past Level 30: jewelry tier 4 as the sample (ring, earrings, necklace, cloak, belt), the missing perk hooks, reforge at the difference | M: data, five engine hooks, catalogue regen | Medium: pushes B1 further over in every band until fees and gem pace are fitted | Six of fourteen slots come alive. Smithing and the workbench get a product | The saved kit. The combat review's to-hit change for any plus skill | EVIDENCE for the hole (`paths.json` targets, `atlas.json` noSource). HYPOTHESIS for the fix |
+| **Critical** | Accessory slots have content past Level 30: jewelry tier 4 as the sample (ring, earrings, necklace, cloak, belt) with gem chips, the missing perk hooks, reforge at the difference. Plain numbers from the gear curve as a 6% share | M: data, five engine hooks, catalogue regen. The share needs roadmap step R10 | Medium: a point a tier would be twice the budget (MEASURED +5 to +13% at Level 110, 106 unintended band rows) | Six of fourteen slots come alive. Smithing and the workbench get a product | R10 and R11 (Tyler's yes on 44 calls 1 and 19). The saved kit | EVIDENCE for the hole. MEASURED for the size (`patches/items-2.json`, section 10.3) |
 | **Critical** | Krell's five weapons built and measured, and the unique property list cut to kinds that change a decision | M: one new hook (spell change), five rows | Medium: a spell change stacking on a way's main ability | The endgame of the live game exists. Every later unique has a measured template | The spell review's re-sizing (ruled 31-9) | EVIDENCE: two uniques live, kit builder never picks them |
-| **High** | Perks sized by their case | S in code, M in measurement | Medium: "always" perks | Jewelry becomes preparation, not a 1% tax | Jewelry tier 4. The saved kit | HYPOTHESIS. Fun needs a playtest |
-| **High** | Plain Dawnsteel onto Krell's Hold's loot bands | S: data and regen | Low | B1 at 88 to 110 off 6.98. One loot rule for seven tiers | The Deadly re-size (ruled) | EVIDENCE (`atlas.json` hall cost, A6) |
-| **Low** | The three designed sample pieces that are not live (Widow's Fang, Mudlark's Mitts, Demoncaller). WAS High as "one property Rare a ground before Krell": withdrawn in the 2026-11-21 correction | S: three rows on existing hooks | Low | A taste of a property piece, worn one to seven days. Small | Krell's five as the sample | EVIDENCE for the wear time (`paths.json` band lengths, `50-standards.md` 2.7) |
+| **High** | Narrow-case perks sized by their case, always-on perks at built size | S in code, M in measurement | Medium: Surge on heals is a survival lever (MEASURED: a four takes 20 to 29% less damage at five times) | Jewelry becomes preparation. Fills the gap between the best kit and the ordinary one (8 to 10% today, 15% ruled) | Jewelry tier 4. The saved kit. Roadmap step R20 for the "when" column | MEASURED as an upper bound (`patches/items-1.json`, section 10.2). Each perk in and out of its own case is not measured. Fun needs a playtest |
+| **High** | Plain Dawnsteel onto Krell's Hold's loot bands | S: data and regen | Low | A lone hero stops playing the band about 9% under the kit the Level curve is timed on. One loot rule for seven tiers | The Deadly re-size (ruled). Krell's five replace the rows (47 C21) | MEASURED for the cost of the wait (section 10.4). EVIDENCE (`atlas.json` hall cost, A6). The drop timing is COMPUTED |
+| **Medium** | The three designed sample pieces that are not live (Widow's Fang, Mudlark's Mitts, Demoncaller). Was High as "one a ground", withdrawn on 11-21, then Low. Medium in phase B because 46 and 47 C1 both ask for them | S: three rows on existing hooks | Low | A taste of a property piece, worn one to seven days | Krell's five as the sample | EVIDENCE for the wear time. Convergence of 46 and 47 |
 | **High** | Signature stones on three grounds as the Very Rare sample | S to M: three rows each, the switch, one or two hooks | Low | The super rare moment exists before Krell and lasts | Jewelry reforge for every tier | HYPOTHESIS |
 | **High** | A saved kit for each ground | M: server and client | Low | Unblocks every situational item without a chore | Systems lane | HYPOTHESIS |
 | **Medium** | Rare rows capped at six a ground | S: data and a guard | Low | The reveal means something again | Belts to the bench frees rows | EVIDENCE for the rate (1,568 reveals). HYPOTHESIS for 40 minutes |
 | **Medium** | The Crafting bench as the outfitter. Belts to the bench. Gloves hourly | S for the moves | Low | The fourth bench has an identity | Linings for the full effect | EVIDENCE: 86% sawing, 0 workbench salt hours |
 | **Medium** | Trophies on Hask, the Provost and Krell | S: three rows | Low | The Trophy room has something to mount | None | EVIDENCE: two rows, none past 50 |
-| **Medium** | A find list for each ground that pays Luck | M | Low | One moment for the 99% | The Luck build (ruled 30-4 step 1) | HYPOTHESIS. Playtest |
-| **Medium** | Rune tiers at Runecrafting 75 and 90 | S once spells are sized | Low | Fills a 39 level gap | Combat review | EVIDENCE for the gap |
+| **Medium** | A find list for each ground, on the Honors page, paying no Luck | M | Low | One moment for the 99% | The retention review owns it | HYPOTHESIS. Playtest |
+| **Medium** | The Sealing Rune at Runecrafting 75 and 88, then rune tiers with roadmap step R22 | S | Low | Fills a 39 level gap and ties the fourth trade to jewelry | Jewelry tiers 6 and 7 | EVIDENCE for the gap. 47 C12 |
 | **Low** | Good batch (ruled, unbuilt) | S | Low | Every level worth something | None | RULED |
 | **Low** | Each recipe row says what a job saves against the store | S: client text from data | Low | Seven fish and four arrow rows explain themselves | None | EVIDENCE (23) |
 | **Low** | Burnt food's chance as a data row. The generator skips ladder rungs the start kit holds | S | Low | Two fewer exceptions for the formula audit | Formula lanes | EVIDENCE (`atlas.json` noCost, noSource undeclared) |
-| **Remove or simplify** | Three workbench salt recipes | S | Low | One road to salts | None | EVIDENCE: 0 uses |
-| **Remove or simplify** | Element guards, physical guard and plus skill leave the unique property list | S: design rule and three sample rows re-cut | Low: Krell's Tollgate and the Banded Legguards are live and carry guards. They keep them as the two named exceptions or are re-cut. Tyler's call 4 | Uniques, linings and chest weapons each own one job | Linings design | HYPOTHESIS |
+| **Remove or simplify** | Three workbench salt recipes, in the lane that ships linings | S | Low | One road to salts | L32 | EVIDENCE: 0 uses |
+| **Remove or simplify** | Past tier 7 a unique's one property is one of seven decision kinds. A guard or plus skill may be part of its stat mix, never the property. At tier 7 and below the full list stays as ruled | S: a design rule | Low: nothing live changes | Uniques, linings and chest weapons each own one job | Roadmap step R11 | HYPOTHESIS. 47 C7 |
 | **Remove or simplify** | Five undeclared tier 1 rungs. The ruled cut list (23-7) | S | Low | A2 and A1 fall | Plan lane L36 | EVIDENCE |
 | **Defer** | Catacomb armor's 48 pieces beyond one wing and one key | | | | Chest reforging (ruled 22-3) | |
 | **Defer** | The Lucky ring | | | | Uniques that trade (ruled 30-4) | |
-| **Defer** | Patterns, the maker's mark, commissions | | | | A market with real trades | |
+| **Defer** | The maker's mark and bulk commissions. (Patterns and single commissions moved out of Defer in phase B) | | | | A market with real trades | |
 | **Defer** | Cook Panther Meat, Void Banquet | | | | An input with a source | |
 
 **Where only real players can tell.**
@@ -550,21 +552,21 @@ Each trace is a hypothesis to be measured in phase B with `progression-grid --di
 
 Each call is one recommendation and its reason, then the strongest alternative in one line.
 
-1. **Jewelry and cloaks are built to tier 7 before the beta's long chase, starting with tier 4.** Recommend YES. Six slots have nothing past Level 30 and it is the only crafted power in the game. Re-read on the 12 hour frame: tiers 4 to 6 each last 5.5 to 7.25 days for a lone hero and about half that for a four, so the case rests on tier 7 and after, where a hero lives from day 18 to 39 on, and on reforging at the fee difference so nothing bought on the way is lost. Tier 4 is the played sample. Whether tiers 5 and 6 stay separate steps is decided from that sample, not now. Alternative: leave it a sample until the Morrow Hills, and accept that the best kit is the same five accessories from Level 30 to the end of the game.
+1. **Jewelry and cloaks are built to tier 7, starting with tier 4, and their plain numbers come from the gear curve as a 6% share.** Recommend YES. Six slots have nothing past Level 30. MEASURED: a point a tier up to tier 7 would add 5 to 13% Level XP at Level 110, twice your 6% budget, and today's flat rows are 15% at Level 30 and 0.5% at Level 400. So the ladder is what a player chooses (perks, the Hallmark step, carrying a piece up) and the plain numbers are one line that holds 6% at every Level. That needs your yes on the gear curve (44 calls 1 and 19). Gem chips ship with the tier 4 sample and patterns carry the slots past tier 7. Alternative: type each tier's numbers by hand, and re-fit them every time the Level curve moves.
 
-2. **Perks are sized by the hunt they are built for.** Recommend YES: 5 to 8% in the case, close to nothing outside it, with the ruled 4% budget read on a hero whose perks do not match the ground. It turns your ruling to grow the pool into 22 choices and not 22 names for 1%. Re-read on the 12 hour frame: before Krell a hero changes ground every one to seven days, so matching a kit to a ground pays most from Krell on, where a party stays for weeks. It stands, and phase B measures it at Level 88 and past first. Alternative: keep every perk at about 1% everywhere, which is safe and which no player will notice.
+2. **Perks with a narrow case are sized for that case, and Keen, Follow-through and Surge stay at their built sizes.** Recommend YES. MEASURED: every perk at five times today's size is +9 to +11% Level XP for a lone hero and 20 to 29% less damage for a four, most of that through Surge on heals. So five times is the ceiling, a narrow perk starts at about four times, and a hero whose every seat matches the ground gains at most one weapon step. This reads your 4% budget on a hero whose perks do not match the ground, which is yours to allow. Alternative: keep every perk at about 1% everywhere, and the best kit stays 8 to 10% over the ordinary one where you ruled 15%.
 
 3. **WITHDRAWN. No property piece on every ground before Krell.** The first cut recommended it and told you your timing was wrong. It rested on Krell being about four months away, which was the old 3.3 hours a day frame. On the 12 hour frame he is 18 to 39 days away and each band before him lasts under a week, so an early property piece is worn for days. Your order stands: generous to Krell, rare and strong after. What I still recommend from this call is its other half, which is in the Critical list: Krell's five built and measured first, because a four is out of open content on day 27 with two uniques in the game. Alternative, if you want an early taste anyway: ship the three sample pieces that are already designed on existing hooks, and nothing more.
 
-4. **The unique property list is seven kinds that change a decision.** Recommend YES: bane, crit, a spell change, an element edge, a second socket, thorns, the bow's sweet spot. Element guards belong to linings and plus skill belongs to chest weapons. Krell's Tollgate and the Banded Legguards are live with guards on them and stay as they are. Alternative: keep guards and plus skill on the list, which makes it cheap to write 20 uniques a region and makes most of them a small tier step.
+4. **Past tier 7, a unique's one property is one of seven kinds that change a decision. At tier 7 and below the full list stays as you ruled on 11-14.** Recommend YES. The seven are bane, crit, a spell change, an element edge, a second socket, thorns and the bow's sweet spot. A guard or plus skill can be part of a unique's stat mix and never its property. Nothing live changes and no ruling re-opens. Alternative: any attribute may be a unique's property, which makes a region cheap to write and most of its uniques a small tier step.
 
 5. **Each ground's Very Rare through Krell is a signature stone a smith sets in jewelry.** Recommend YES. The band is ruled and empty, the bench job is built, and a perk on a ring that reforges up is the one rare find a hero does not outgrow in a week. Alternative: Very Rares through Krell are named weapons and armor, which are outgrown inside the band they drop in.
 
-6. **Plain Dawnsteel drops in Krell's Hold like every other tier, and the Hall's daily roll keeps only what is won.** Recommend YES. A lone hero waits 33.5 days for his weapon in a band of 17.5 to 21 days (`paths.json`, and day 39 to 60 in `50-standards.md` 2.7). A four waits 7.8 days a named piece in a band of 9, and it needs one for each hero. The Ox Road will drop the same sword 700 times faster. This call was already on the 12 hour frame and stands. Alternative: keep tier 7 on the Hall as the wall before the Morrow Hills, and accept that most heroes leave the band without it.
+6. **Plain Dawnsteel drops in Krell's Hold like every other tier, and the Hall's daily roll keeps only what is won.** Recommend YES. A lone hero waits 33.5 days for his weapon in a band of 17.5 to 21 days, and MEASURED he hunts the Hold about 9% slower until he has it. A four waits 7.8 days a piece in a band of 9. The Ox Road will drop the same sword 700 times faster. Krell's gem stays on the roll and his five weapons take the plain rows' place. The world review reached the same call on its own. Alternative: keep tier 7 on the Hall as the wall before the Morrow Hills, and accept that most lone heroes leave the band without it.
 
 7. **A ground has at most six Rare rows.** Recommend YES. You ruled the big reveal stays on every Rare. At 8 to 15 rows a ground a four sees one every 7 minutes, so the only way to keep both your ruling and the moment is fewer rows. Alternative: leave the rows and the reveal, and it stays a notification.
 
-8. **The Crafting bench is the outfitter, and its three salt recipes go.** Recommend YES: cloaks, belts, linings and ammunition. Smithing is the one road to salts. Alternative: leave salts on both benches so Crafting has something to make at 45, 60 and 75 until belts and linings exist.
+8. **The Crafting bench is the outfitter, and its three salt recipes go in the patch that ships linings.** Recommend YES: cloaks, belts, linings and ammunition. Smithing is then the one road to salts. They stay until linings exist, because until then they are all the workbench makes at 45, 60 and 75. Alternative: keep salts on both benches for good.
 
 ---
 
@@ -581,6 +583,7 @@ Each call is one recommendation and its reason, then the strongest alternative i
 | **Platform and formula lanes** | Every perk pair is its own item row because items are stacks by id. Tiers 4 to 7 with a pool of 22 is about 400 jewelry rows plus their Hallmark, reforge and ceiling rows. A perk as an attribute of a held piece would be the formula brief's answer and is a schema change: flagged, not proposed here. Two loot rules exist (`rollDropTable` and `rollPrize`). After call 6 the second one carries only won prizes. Burnt food's chance is in code. `VENDOR_GEAR_RATES` is seven hand numbers (ruled 23-10) |
 | **Standards lane** | The DOMINANT threshold fires on jewelry (12.7 times) and Smithing (2.81 times) against the Shop, which is a designed ten times fallback. Exempt a route marked as a fallback. T4 counts pieces, not power: by count the bench is 80 to 100% of the step. A5 misses 19 kits only because keys exist for tiers 2, 4, 6 and 7. The lone 88 to 110 run prints 122 days and its listed fills end at day 19: the cache does not say what the last piece is |
 | **Systems lane** | A saved kit a hero a ground: a kit row, an equip at hunt start, and the loot plan reading it |
+| **Baseline and progression review** | MEASURED in phase B, one seed, lone hammer: plain accessories over none are +9.9% Level XP at Level 10, +15.2% at 30, +9.2% at 60, +5.8% at 110, +2.5% at 185 and +0.5% at 400. The ruled budget is 6% (23-5). They are over it early and under it late. And BiS over MID for a lone hero reads 1.08 to 1.10 against the ruled 1.10 to 1.20 (P4). Both need the nightly full matrix before anyone acts |
 | **Game Director lane** | From scratch answer for this area: same ladder, same benches, different order. Build what a hero keeps before what a hero outgrows: accessories as the build layer to the top, Krell's uniques ready the day the ladder ends (day 18 for a four), one system that sells percent. An early call for property pieces on every ground was withdrawn on the 12 hour frame |
 
 ---
@@ -613,3 +616,197 @@ Each call is one recommendation and its reason, then the strongest alternative i
 | CORRECTED | "Krell is about month four" was the retired 3.3 hours a day frame. On the ruled frame he is day 39 lone, day 18 for a four, day 8 at the ceiling, and open content ends on day 60, 27 and 11. The grid has a MID four at Level 100 in 257 hunted hours against the ruled 600 | `50-standards.md` 2.7. The grid figure is the Coordinator's, not re-read by this lane |
 | COMPUTED | About 6 signature stones for a lone hero and about 11 for a four's account before Level 88, at one every 75 hunted hours a hero | 468 and 216 hunted hours from 2.7's days at 12 hours |
 | NOT DONE | Nothing was played in this phase. No grid or matrix run. `51-baseline.md` had not landed on the set. Whether a saved hunt preset already holds worn gear was not checked. The lone 88 to 110 solver run's last piece is not in the cache. The Rare row count a ground was taken from 23 and the Krell hunt (15 on the Warrens, 8 on Krell's Hold), not recounted from the packs |
+
+---
+
+## 10. Phase B: measured on the real engine (2026-11-21)
+
+Merged `set/v0.2.144` at 8ebc26952. Read: `44-formula-architecture.md` sections 5, 7 and 8, `46-from-scratch.md`, `47-itemization-fit.md` (every row that touches this area), and the item parts of 53, 55, 56 and 58. `51-baseline.md` had not landed. Three things were measured with `tools/balance-program/balance-matrix.mjs`, two workers, on a PC at 100% CPU from other lanes. Sections 1, 6 and 7 above were updated from what this section found.
+
+**The calibration, as the tool prints it.** The harness four kills 11% faster than the real one. Its tank takes 96% of the damage against 69% in real play. Its store bill is 1.9 times the real one. Skills run in a straight line past Level 185. So every Level 185 cell is PROVISIONAL, and party gold and store cells are upper bounds. Every cell below is one seed for one hour on the same dice before and after. One sample is not a verdict: each number here is a size to plan with, and the nightly's full matrix is what rules.
+
+### 10.1 What was measured
+
+| # | Proposal | Patch or run | Cells | Flags | Result in one line |
+|---|---|---|---|---|---|
+| 1 | Perks sized by their case (call 2, 47 C8) | `tools/balance-program/patches/items-1.json`: every played perk at five times its built size, on `--subset --only 30,60,110` | 69 | IMPROVED 0, REGRESSED 0, **UNINTENDED 19**. Gate FAIL as a coefficient patch | A lone BiS hammer gains +9 to +11% Level XP. A BiS four takes 20 to 29% less damage. Five times is the ceiling, and only for perks with a narrow case |
+| 2 | Jewelry and cloaks to tier 7 (call 1) | `tools/balance-program/patches/items-2.json`: the four crafted accessories at a point a tier up to tier 7, on `--subset --only 110,185` | 46 | IMPROVED 2, REGRESSED 1, **UNINTENDED 106**. Gate FAIL | Every MID hero at Level 110 gains +5 to +13% Level XP from four plain pieces. That is more than a weapon tier. Plain accessory numbers must not climb a point a tier |
+| 3 | Plain Dawnsteel off the daily roll (call 6) | No patch can show it: the matrix builds a kit by rule and does not know where a piece came from. Measured what the wait costs instead: the step cells at Levels 75, 88 and 100 (`--only 75,88,100 --blocks steps --seeds 1 --hours 1`) | 36 | none (a plain run) | A lone hammer with the tier below's weapon earns about 9% less Level XP at 88 and at 100 |
+| 4 | Accessories as a share of the kit (found while reading the cache) | The cached subset (`balance-matrix-subset.json`, f746b5f85), the `mid-step:jewelry` and `bis-step:jewelry` cells | 18 | none (cached) | Today's plain accessories are worth 15% at Level 30 and 0.5% at Level 400. The ruled budget is 6% |
+
+Proposals the matrix cannot see, which stay HYPOTHESIS: signature stones, six Rare rows a ground, the saved kit, the workbench as the outfitter, Krell's five (the spell change hook does not exist yet). Each has its playtest in section 6.
+
+### 10.2 Measure 1: perks at five times their size
+
+A lone hammer and the four, BiS against the same BiS with the patch. Only BiS wears perks, so every other cell read +0.0% and is the control.
+
+| Cell | Level XP an hour | Damage taken an hour | Net gold an hour |
+|---|---|---|---|
+| 30 lone hammer, Normal | +9.3% | -6.0% | +4.9% |
+| 60 lone hammer, Normal | +8.9% | -2.3% | +7.9% |
+| 110 lone hammer, Normal | +10.8% | -4.6% | +3.6% |
+| 30 four, Normal | +0.0% | **-29.4%** | +27.7% |
+| 30 four, Deadly | +3.1% | **-25.8%** | +28.8% |
+| 60 four, Normal | +4.5% | **-21.4%** | (store bill -11.6%) |
+| 60 four, Deadly | **+14.4%** | **-20.8%** | (store bill -10.4%) |
+| 110 four, Normal | +1.5% | +0.1% | (store bill -14.9%) |
+| 110 four, Deadly | +2.8% | -19.7% | (store bill -9.8%) |
+
+**The 19 UNINTENDED rows, traced.** All are on BiS cells, as they must be.
+
+| Band | What it reads | Moved | Why |
+|---|---|---|---|
+| P4 (BiS over MID, lone, ruled 1.10 to 1.20) | 30: 1.097 to 1.199. 60: 1.075 to 1.171. 110: 1.083 to 1.201 | **Toward** the ruled band at 30 and 60, just over it at 110 | Today BiS is only 8 to 10% faster than MID for a lone hero, under the 15% Tyler ruled (50-3). Bigger perks close that gap. This is the room case sized perks have: about 5 to 7 points of XP |
+| P5 (BiS over LOW, at most 1.50) | 1.53 to 1.67, and 1.71 to 1.95 for a four at 60 | Away, to RED | It was already over. The LOW kit is the weak side, not the perks |
+| P8 (BiS four on Deadly against the contract, at most 2.75) | 60: 3.58 to 4.09 | Away, RED before and after | The party cap is already broken there (ruled 30-2 names it). Any BiS power makes it worse until Deadly is re-sized (31-9) |
+| P9.deadly, S4.bis | Deadly over Normal, and a BiS four's low health on Deadly | Away a little | A four that takes a fifth less damage finds Deadly easier |
+| **S5.bis** (BiS damage taken over MID, ruled 0.80 to 0.90) | four at 30: 0.92 to 0.65. Four at 60: 0.73 to 0.58. Four at 110 Deadly: 0.72 to 0.58 | **Away, to RED** in five cells | The damage side of the patch is not Keen. It is the healer's Surge (half of its heals landing half again as hard at five times) and Focus feeding the casts. A perk that scales heals is a survival lever, and at five times it is worth more than an armor tier |
+
+**What it settles.**
+
+- EVIDENCE: perk size scales about in a straight line. Built size reads +1.9 to +3.6% for a hammer's three perks (the cached `bis-step:jewelry` cells). Five times reads +9 to +11% more.
+- So a hero whose every seat matched the ground at five times would gain about one weapon step and a half. That is over the guard 47 C8 proposes (one weapon step, 9% XP, for a fully matched hero). **Five times is the ceiling for any one perk, and three to four times is where a narrow perk should start**, which is 47's "start at 5% in the case".
+- Keen, Follow-through and Surge fire in every hunt. Sized like a narrow perk they are simply +10% for everybody. They stay at their built sizes.
+- Surge must never be sized up while it reaches heals. That one cell (a four taking 29% less damage) is the strongest number in this run.
+- I agree with 47 C8 in full and change call 2 to match it.
+
+### 10.3 Measure 2: the four crafted accessories at tier 7 numbers
+
+Rings 3 to 7 for every style, studs and necklace 2 to 7, the cloak at the unsourced Dawnlit Mantle's numbers. Read at Level 110 and at 185 (PROVISIONAL).
+
+| MID cell, Normal | Level XP an hour at 110 | Damage taken at 110 | Level XP an hour at 185 (PROVISIONAL) |
+|---|---|---|---|
+| Sword | +13.3% | -7.4% | +8.7% |
+| Tank | +13.2% | -9.6% | +10.8% |
+| Axes | +12.5% | -6.4% | +7.6% |
+| Hammer | +9.2% | -10.9% | +7.3% |
+| Crossbow | +9.2% | -25.2% | +12.2% |
+| Bow | +7.9% | -18.1% | +14.6% |
+| Healer | +6.8% | -11.3% | +10.9% |
+| Mage | +5.1% | -6.8% | +10.1% |
+| Four, Normal | +0.5% | -16.4% | +3.2% |
+| Four, Deadly | +5.2% | -22.7% | +8.3% |
+
+**The flags.** IMPROVED 2 (E1.armor and E4 at Level 110, both still off or RED). REGRESSED 1 (E3, the gold from LOW to MID as a share of the band, 0.094 to 0.100, ok to off). UNINTENDED 106, by band: G-9 19, S1.mid 17, P2 16, G-2.normal 10, S5.bis 6, P1 4, P6.4 4, P9.deadly 4, S5.low 4, G-1 4, and 18 more across eleven bands.
+
+| Band group | Moved | Why |
+|---|---|---|
+| P2 and P1 (pace against the contract and the Level table) | P2 at 110: 1.33 to 1.45, RED before and after | MID is the kit the Level curve is timed on (ruled 50-1). Make MID 9% faster and every pace band reads 9% further over |
+| S1.mid, S5.low, S5.bis (survival) | MID takes 6 to 25% less damage | The accessories carry accuracy and damage, so fights end sooner and fewer blows land |
+| P6.4 (a four against a lone hero) | Away, RED before and after | The lone hero gains 9% and the four on Normal gains 0.5%, because a four on Normal is short of monsters, not of damage |
+| G-2, G-9, G-1 (gold) | Store bill down 2 to 15% of coin, sinks a smaller share of income | Faster kills and less food. These are upper bounds: the harness store bill is 1.9 times the real one |
+| P10 at 110 lone Deadly | -36.8 (ok) to 1.87 (RED) | One cell where the hero stopped dying on Deadly, so its XP after deaths jumped. One seed. Not a finding by itself |
+
+**What it settles.** This changes the shape of call 1, not the call.
+
+- EVIDENCE: four plain accessories at a point a tier are worth +5 to +13% at Level 110. Tyler ruled plain accessories at 6% (23-5). So the ladder I sketched in phase A (the old unsourced rows' numbers, about a point a tier) is twice the budget.
+- EVIDENCE from the cache (measure 4): today's rows do not hold 6% either. Lone hammer, plain accessories over none: +9.9% at Level 10, **+15.2% at 30**, +9.2% at 60, +5.8% at 110, +2.5% at 185, +0.5% at 400. A flat number is over budget early and worth nothing late, because the blow it adds to grows with Level.
+- So plain accessory numbers cannot be typed a tier. **They belong on the gear curve as a share**: accessories are one slot class worth 6% of the kit's power at every Level, at the exchange rates of R11. That is 44's step R10 and R11 with one more slot class, and it is the formula-layer answer to both ends of the cache reading.
+- The tier 4 to 7 ladder is then mostly what a player chooses: perks, the Hallmark step, and carrying a piece up. Its plain numbers move very little through tier 7 (today's tier 3 rows already read 5.8% at Level 110, which is on budget).
+- The pieces being over budget at Levels 30 and 60 is a second finding and is not mine alone to fix. It goes to the Level curve re-fit and the baseline (section 8). It is one seed.
+
+### 10.4 Measure 3: what the wait for Dawnsteel costs
+
+The filtered run plays the step cells and no plain MID cell, so this reads one step cell against another: MID with the tier below's weapon, against MID with the tier below's armor (which wears the right weapon, and armor moved XP by under 1% in every cached cell).
+
+| Lone hammer, Normal | With the tier below's weapon | With its own tier's weapon | The weapon is worth |
+|---|---|---|---|
+| Level 75, the Pyre Field | 495,268 | 547,119 | +10.5% |
+| Level 88, Krell's Hold | 658,260 | 720,123 | **+9.4%** |
+| Level 100, Krell's Hold | 660,432 | 721,520 | **+9.2%** |
+| A four at 88, Normal | 376,413 | 378,017 | +0.4% (a four on Normal is short of monsters) |
+
+- EVIDENCE: a lone hero who has not won his Dawnsteel weapon hunts Krell's Hold about 9% slower. The daily roll gives him one named piece every 33.5 days in a band of 17.5 to 21 (phase A, `atlas.json`). So the median lone hero plays the whole band 9% under the MID kit the Level curve is timed on.
+- COMPUTED: as a Rare row at the band's 10 to 20 hunted hours a hero, the same weapon arrives in one to two days at 12 hours.
+- The move itself is a content row and the matrix cannot time a drop. The solver can, and that re-run belongs to the lane that stages the rows.
+- Call 6 stands. The world review reached it on its own (53 change 3 and call 5: "a hall's daily prize holds only things no ground drops"). 47 C21 takes it with two riders I accept: Krell's gem stays on the roll, and Krell's five are what replace the plain rows.
+
+### 10.5 Every top proposal at its layer
+
+Formula and exception ids are 44's. Step ids are its roadmap. Lanes are `30-plan.md` section D as 47 section 5 re-sequenced them.
+
+| Proposal | Layer | Formula or exception | Roadmap step, lane | Measured |
+|---|---|---|---|---|
+| Plain accessory numbers as a 6% share of the kit | **Formula** | The gear curve. `P-X31` (hand-typed gear cells), `X-LINE-IN-TOOLS` | R10, then R11 for the exchange rate. Tyler's yes on 44 calls 1 and 19 | Yes: measures 2 and 4 |
+| Jewelry tiers 4 to 7: pieces, gems, reforge | **Content rows** | `jewelry.js` `JEWEL_TIERS`, `JEWEL_PIECES`. `P-X37` for the gem jobs | L37 (tier 4 sample, with chips: 47 M1), then the second jewelry lane (the Fine order: 47 M2) | Its plain numbers, yes. Its pace of gems and fees, no |
+| Hallmark fee and Tempering price | **Coefficient** | `E40`, `C-TEMPER`, `E-X25` (ladders that end) | R16, with 47's rider: sized on the hero who pays the difference (23-2) | No. A gold band question for the economy review |
+| Perks sized by case | **Coefficient**, and one new field on the **formula** | `C-JEWEL-PERKS` (P18), `P-X36`. The case is a "when" column on the one modifier table (`X-STACKING-RULES`) | R20 for the table. The sizes are rows in `JEWEL_PERKS` | Yes: measure 1, as an upper bound |
+| The unique property list by tier | **Content rule** | `special-attributes.js`. A spell change is a new modifier row, not item code | R11 (a unique spends a budget), R20. Lane L52 for Krell's five | No. The hook does not exist |
+| Plain Dawnsteel on the Hold's loot bands | **Content rows** | `E48` (the prize roll) keeps only won pieces. The rows join the bands of `loot-bands.js` | R18 (drops authored in hours). Lane L52 | The cost of the wait, yes: measure 3 |
+| Six Rare rows a ground | **Content rule**, one limit in data | `SLOT_LIMITS` in `loot-bands.js` | R18 | No. A reveal rate is computed, its feel is a playtest |
+| Signature stones | **Content rows** on an existing mechanic | `P-X37` (boss gems fix one thing about a roll): 44 rules it "keep and document" | L37's switch, R18 for the Very Rare band's hours | No |
+| The workbench as the outfitter | **Content rows** | recipes only | L32 (linings), where the salt recipes leave (47 C13) | No |
+| Gloves hourly | **Content rows** | band of an existing row | R18 | No |
+| The saved kit | **No balance layer.** A server and client feature | none | Systems lane | No. HYPOTHESIS about use |
+| Burnt food's chance, the tier 1 rungs the start kit holds | **Data**, was code | an atlas `noCost` row. The generator in `gear-tiers.js` | R1 (clean-up) | No |
+
+### 10.6 Where 44, 46 and 47 already decided something here
+
+| Their decision | Mine | Agree |
+|---|---|---|
+| **44 calls 1 and 19, step R10**: a gear curve, linear in Level, a band by its size | Measures 2 and 4 are a second, independent reason for it: flat accessory rows are 15% at Level 30 and 0.5% at 400 | **Yes** |
+| **47 C20**: a band is a tier's worth, about +24% of the line (Levels 110, 136, 169, 210, 260, 322, 400), not 44's +6.5% | EVIDENCE from measure 3: the Emberforged to Dawnsteel hammer is +31% strength (52 to 68) and reads +9.4% Level XP. So a +6.5% step of the line would read about +2%, which no player would call an upgrade. **I side with 47 against 44** on the size | **Yes, 47's side** |
+| **47 C24** against **44 call 11**: plus skill stays a flat mark on chest gear, the power is the next band's numbers | Phase A said the same: plus skill is the chest weapon's mark | **Yes, 47's side** |
+| **47 C1**: no re-open. Ship the three designed special pieces and fill the early Very Rare with signature stones | It adopts call 5 and the Low row left after call 3 was withdrawn. With 46 also asking, the three pieces move from Low to Medium | **Yes** |
+| **47 C2**: keep Tempering at the difference, re-price through R16 on the hero who pays the difference | Phase A kept 23-2 and missed that it halves the over-ask. 47 is right | **Yes** |
+| **47 C3** and the economy review's withdrawal: salvage is a choice beside Sell, the Shop keeps its ruled price | Phase A kept it as ruled | **Yes** |
+| **47 C6**: patterns ship with the Morrow Hills, or the six crafted slots freeze again at Level 110 | Phase A deferred patterns until a market exists. That would have rebuilt my own top finding 80 Levels later. **I was wrong.** A pattern needs a region, not a market, and it teaches the account | **Yes. Row 25 changed** |
+| **47 C7**: the full attribute list at tier 7 and below as ruled 11-14, the seven decision kinds for a unique's one property past tier 7 | Better than my call 4, which would have re-opened a ruling for no gain | **Yes. Call 4 changed** |
+| **47 C8**: case sizing for narrow perks only, always-on perks at built size, a fully matched hero at most 9% | Measure 1 is the evidence for every clause | **Yes. Call 2 changed** |
+| **47 C12**: a Sealing Rune at Runecrafting 75 and 88 for tier 6 and 7 Hallmarks now, rune tiers later with R22. Against 56's respacing | It fills the gap with no spell math and ties the fourth trade to jewelry. Better than my bare "rune tiers at 75 and 90" | **Yes. Row 47 changed. 47's side against 56** |
+| **47 C13**: the workbench salt recipes leave when linings ship, not before | Right. Until then they are all Crafting makes at 45, 60 and 75 | **Yes. Call 8's timing changed** |
+| **47 C14, C21, C22**: gloves hourly, Dawnsteel off the roll, six Rare rows | All three take the phase A call | **Yes** |
+| **47 C17**: single commissions (one Hallmark or one reforge on a piece the owner keeps) ship with tiers 5 to 7 | Phase A deferred all commissions. Without single jobs the only road to a tier 7 ring is your own Smithing 99, which breaks 50-15 | **Yes. Row 50 split** |
+| **47 C19**: Luck keeps two feeds. The find list pays a line on the Honors page, not Luck | Tyler ruled "anything else: none" on 11-20. My find list paid Luck. **Withdrawn as a Luck feed** | **Yes. Row 53 changed** |
+| **47 M1, M2, M9**: chips with the tier 4 sample, the Fine order, one market book a piece with perks as filters | All three answer risks phase A named and did not solve | **Yes** |
+| **47 C16** and my row 19: the Catacombs keep their mode, one wing and one key first | Same | **Yes** |
+| **47 C11**: curing is ruled twice, sequence it last | No view of my own. Its slots are for linings | Yes |
+
+**Where the Game Director (46) and this review agree without having read each other.** 46 was written blind. It reaches three of this review's conclusions:
+
+1. Gear is coin today and the cure is named pieces with a property (46 change 2). Same evidence, same sample of five.
+2. Cut the Rare rows that are only a stronger stat stick, "so a reveal is hours apart again" (46 change 2). That is call 7.
+3. One way to improve a piece (46 section 2, system 5). That is "one system that sells percent".
+
+Two reviews arriving at the same three from different starts is evidence for them. **Where we differ:** 46 wants the property pieces from the Sewer on. I asked for the same in phase A and withdrew it on the 12 hour frame. 47 C1 settles it without moving a ruling, and I take 47's side: three designed pieces now, stones for the early Very Rare, and the weight on Krell's five.
+
+**Conflicts with other reviews, one side each.**
+
+| Against | The conflict | I recommend |
+|---|---|---|
+| 44 (call 19's +6.5% band) | How big a gear band is | 47's +24%, on measure 3 |
+| 44 (call 11) | Plus skill as a percent of the blow | Keep it flat (47 C24, ruled 22-2) |
+| 56 (call 5) | Respace the five rune tiers to 1, 20, 40, 60, 80 | No. It moves a ruled number. The Sealing Rune and R22 fill the same gap |
+| 55 (phase A) | Salvage by default | Withdrawn by 55 itself. Agreed |
+| 58 | Do not build curing | Ruled twice. Build it last (47 C11) |
+| 46 | Fold chest reforging into Tempering | No. It carries a won piece up a key tier, it is not a percent (47 C18, ruled 22-3) |
+
+### 10.7 What changed since phase A
+
+| Call or row | Phase A (as corrected) | Phase B | Why |
+|---|---|---|---|
+| **Call 1**, jewelry to tier 7 | Build to tier 7, tier 4 as the sample | **Stands, re-shaped.** The ladder is perks, the Hallmark step and carrying a piece up. Plain numbers ride the gear curve as a 6% share and are not typed a tier. Chips ship with the sample. Patterns carry it past tier 7 | Measure 2: a point a tier is +5 to +13% at Level 110, twice the ruled budget. Measure 4: flat rows are 15% at 30 and 0.5% at 400. 47 C6, M1 |
+| **Call 2**, perks by case | 5 to 8% in the case for every perk | **Narrowed.** Narrow-case perks start at about three to four times their built size, never over five. Keen, Follow-through and Surge keep their built sizes. A fully matched hero gains at most one weapon step | Measure 1: five times is +9 to +11% lone and 20 to 29% less damage for a four through Surge on heals |
+| **Call 3** | Withdrawn | **Still withdrawn.** The three designed pieces move from Low to Medium | 46 and 47 C1 both ask for them and they move no ruling |
+| **Call 4**, the property list | Seven kinds, guards and plus skill leave the list | **Changed to 47 C7.** The full list at tier 7 and below as ruled. Seven decision kinds for a unique's one property past tier 7 | It gets the same result without re-opening the 11-14 ruling |
+| **Call 5**, signature stones | Recommend | **Stands.** Adopted by 47 C1 | |
+| **Call 6**, Dawnsteel | Recommend | **Stands, with a measured cost**: about 9% Level XP for a lone hammer through the whole band | Measure 3. 53 reached it independently |
+| **Call 7**, six Rare rows | Recommend | **Stands.** 46 reached it independently. 47 C22 takes it | |
+| **Call 8**, the outfitter | Remove the three salt recipes now | **Timing changed**: they leave in the lane that ships linings | 47 C13 |
+| Row 25, patterns | DEFER until a market | **ADD with the Morrow Hills**, taught to the account | 47 C6 |
+| Row 47, rune tiers at 75 and 90 | ADD | **ADD in two steps**: the Sealing Rune now, rune tiers with R22 | 47 C12 |
+| Row 50, commissions | DEFER all | **Split**: single jobs with jewelry tiers 5 to 7, bulk orders later | 47 C17 |
+| Row 53, the find list | ADD, pays Luck | **ADD, pays no Luck.** A line on the Honors page | 47 C19, ruled 11-20 |
+| New | | **Plain accessories are over the ruled 6% at Levels 30 and 60** (15.2% and 9.2%, one seed) | Measure 4. To the baseline and the Level curve re-fit |
+| New | | **BiS is only 8 to 10% faster than MID for a lone hero**, under the ruled 15% | Measure 1's P4 row. Case sized perks are what should fill it |
+
+**Counts after phase B.** 54 rows. KEEP 24. ADD 11. REDESIGN 8. DEFER 4. MERGE 4. REMOVE 3. (Row 25 moved from DEFER to ADD.)
+
+### 10.8 What phase B did not do
+
+- No patch for stones, the Rare cap, the saved kit, the outfitter or Krell's five. The first four are content or features the engine cannot score. The fifth needs a hook that does not exist.
+- The Dawnsteel move was not run through the solver. Its drop timing is computed from the band's hours.
+- Measure 3 has no plain MID cell. It reads one step cell against another.
+- Every cell is one seed for one hour. The four's damage cells sit on a harness whose tank takes 96% of the damage.
+- `51-baseline.md` had not landed, so no red row of the baseline was re-read.
+- Perks were scaled all together. No single perk was measured in and out of its own case, because the matrix has no cell that isolates a case. That is the first thing the perk lane should build.

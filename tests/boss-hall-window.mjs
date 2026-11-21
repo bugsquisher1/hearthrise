@@ -176,7 +176,7 @@ async function checks(overrides) {
            once, and at Level 5): Krell's real hall on his ground, the hero's bar on one store food at Level 85 and at 5 */
         const holdFood = (food, level) => {
           barNow = { preset: 0, presets: [], slots: [{ action: { type: 'consume', id: food }, conditions: [], join: 'and', usable: true }],
-            store: [['salted_shrimp', 72, 14], ['salted_trout', 120, 40], ['salted_swordfish', 288, 432]].map(([id, heals, price]) => ({ id, kind: 'heal', heals, price })) };
+            store: [['salted_shrimp', 72, 14], ['salted_trout', 120, 40], ['salted_lobster', 216, 180], ['salted_swordfish', 288, 432]].map(([id, heals, price]) => ({ id, kind: 'heal', heals, price })) };
           levelNow = { xp: 1, level, into: 0, need: 1 };
           const pf = pane(1, { hunt: 'krells_hold' }, realHall); const q = pf.det.querySelector('.hw-hall-food');
           barNow = null; levelNow = null;
@@ -261,7 +261,7 @@ async function checks(overrides) {
     /* BH-1 once per slot, in the hall's band: Salted Shrimp at 85 is the ground's line (Pick Salted Trout), not a second pick here; Salted Trout
        at 85 is the hall's own; at Level 5 nothing (under the hall's band) */
     const kf = r.krellTable.food;
-    if (kf.shrimp85 !== null || kf.trout85 !== 'Slot 1: Salted Trout heals too little here. Pick Salted Swordfish' || kf.trout5 !== null)
+    if (kf.shrimp85 !== null || kf.trout85 !== 'Slot 1: Salted Trout heals too little here. Pick Salted Lobster' || kf.trout5 !== null)
       fails.push('BH-1 Krell\'s hall food line reads ' + JSON.stringify(kf));
     const kp = r.krellTable.page;
     if (kp.ahead.tableHead !== 'Loot table: 16 pieces, one roll a day' || kp.ahead.table.join('|') !== r.krellTable.first.join('|')) fails.push('BH-7 Krell\'s page, the first win ahead, lists ' + JSON.stringify([kp.ahead.tableHead, kp.ahead.table]));

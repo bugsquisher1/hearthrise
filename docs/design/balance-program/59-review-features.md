@@ -1,6 +1,6 @@
 # Balance program 59: features, retention and cost against value
 
-Design review of `lane/d-review-features` (game-designer, 2026-11-21), cut from `set/v0.2.144`. **Phase A: reading and analysis only.** No game code, data or migration was changed. Nothing was played and no grid was run in this phase, by the brief's rule. The briefs of record are `45-design-brief.md` and `40-formula-brief.md`.
+Design review of `lane/d-review-features` (game-designer, 2026-11-21), cut from `set/v0.2.144`. **Phase A was reading and analysis. Phase B (section 0) measured what can be measured and corrected four verdicts.** No game code, data or migration was changed in either phase. Nothing was played and no matrix diff was run. The briefs of record are `45-design-brief.md` and `40-formula-brief.md`.
 
 **What this review owns.** The 14 retention systems and the 8 platform systems of `00-inventory.md`, three systems no domain owns (`companions`, `skill-tree`, `pvp-ctf`), one system the inventory has no row for (the end card), and the features layer that sits on top of other domains: conditional rules, setups, loot plans, the away and return loop, Tamsin's tally, titles, the small gold sinks, the Premium daily claim. For every other system this file gives only its cost set against its value (section 2.2). Its balance belongs to its own review.
 
@@ -10,27 +10,137 @@ Design review of `lane/d-review-features` (game-designer, 2026-11-21), cut from 
 
 ---
 
+## 0. Phase B: what was measured, and what changed
+
+Phase B, 2026-11-21, after merging `set/v0.2.144` (003f6f019: the formula audits 41 to 44, the Game Director's `46-from-scratch.md`, `47-itemization-fit.md`, the other seven reviews, the real-engine matrix). Sections 1 to 9 below are phase A with its verdicts corrected where this section says so.
+
+**No matrix diff was run, and here is why.** `node tools/pc-load.local.mjs` read CPU 100%, and the Coordinator's rule was no diff over 80%. It would also have measured nothing: none of this review's proposals moves a knob of `tools/balance-program/formulas/knobs.json`, and the one that moves a number a fight can feel (the second hero) needs pair cells, which the cached subset does not hold (153 lone cells and 54 fours). So this review has no patch file. Two things were measured without play, by a new read-only tool, `tools/balance-program/review-features.mjs`.
+
+### 0.1 Every top proposal: layer, measure, flags
+
+| # | Proposal | Layer, with 44's ids | Measured in phase B | Flags | Still a hypothesis, and what would settle it |
+|---|---|---|---|---|---|
+| 1 | Town work paid in closed form | **formula.** One yield rule for training, gathering and benches. It sits beside P05 (the skill grant), replaces P-X28 (the yard's flat rate, which 44 section 8.1 already recommends removing) and rides the roadmap's "one skill grant" step and R5's yard fee. Journal half: 43 E18 | `review-features.mjs cost`, below | none (no band of `standards.mjs` is played by it). Against band C2 it reads IMPROVED and still red | That a job is 3 statements. Settled by a town-hour fixture in `tests/per-player-cost.mjs` (RULED 28-10 asks for it) |
+| 2 | The second hero on the first evening | **content row.** E39 (`src/data/shops.js:59-75`), and the guard G20 that reads it | not measurable: no pair cells in the cache and no diff tonight | none | Whether a pair keeps a new player. Two beta invite waves (section 6) |
+| 3 | The hunt report | **no formula.** A screen over counters the engine already computes. The matrix's `lowHpP10` is the same reading (brief 40 section 6) | `review-features.mjs risk`, below | none | Whether players change tier on it. Share of hunted hours by tier before and after |
+| 4 | The Path and the population gate | **content row**, no formula id. By the brief's rule that makes it a hypothesis about content | not a matrix question | none | Blind first hour, locked lines shown against absent |
+| 5 | The tally takes itself (was: one kill ladder) | **content row** and a server rule in the tally's own tables. No formula id | not a matrix question. 56 notes the harness heroes hold no kill counts | none | Tally pays a hero-day (0.4 of 3 today) |
+| 6 | Setup slots free | **content row** (`gold-sinks.js`), the R16 family of standing sinks | not needed: 0 purchases ever | none | none |
+| 7 | Next ground when outgrown, the starting loot plan, the Week | **content rows** (`hunt-after.js`, the L21 kind rules, the L26 snapshot) | not matrix questions | none | Section 6's playtests |
+
+### 0.2 Measure 1: the account-day against the ruled 60 database-seconds
+
+`node tools/balance-program/review-features.mjs cost`. COMPUTED: arithmetic on `model.mjs` COST.real (production means of 2026-11-20, taken at 3.3 hunted hours a day) stretched to the ruled day of four heroes, 12 hunted and 12 rested hours each. Not measured at 12 hours. Each step adds one planned change.
+
+| Step | Hunt settles | Tab reads | Town work | Presses | Town tab | Total | Times the budget | Journal rows a day |
+|---|---|---|---|---|---|---|---|---|
+| 0 Today | 382 | 209 | 34 | 11 | 9.4 | **645** | 10.7 | 12,546 |
+| 1 The server-cost lane (L01) | 382 | 96 | 34 | 11 | 9.4 | 532 | 8.9 | 12,546 |
+| 2 Commit at the flush (L12, ruled) | 121 | 96 | 34 | 11 | 9.4 | 270 | 4.5 | 5,217 |
+| 3 Delta envelopes (L24) | 121 | 24 | 34 | 7.1 | 9.4 | 195 | 3.3 | 5,217 |
+| 4 Town alone sends nothing (L25, ruled) | 121 | 24 | 34 | 7.1 | 0 | 186 | 3.1 | 5,217 |
+| 5 The hourly journal (L13, ruled) | 121 | 24 | 34 | 7.1 | 0 | 186 | 3.1 | 192 |
+| 6 Carry on and the plans: 20 presses a day | 121 | 24 | 34 | 1.4 | 0 | 180 | 3.0 | 192 |
+| 7 **Town work in closed form** | 121 | 24 | 0.5 | 1.4 | 0 | **147** | 2.4 | 160 |
+
+What it says.
+
+1. **Phase A overstated this proposal and I am correcting it.** I wrote that the budget "cannot be met otherwise". True, and incomplete. Closed-form town work takes 34 seconds off and the account still reads 147, which is 2.4 times the budget. It is necessary. It is not sufficient.
+2. **It is necessary because of what is left without it.** With every planned fix and the town still settled 37 times an hour, town work and tab reads leave the hunt settle under 1 second of the 60. With closed form they leave it 34 seconds.
+3. **The remaining gap is the away hunt's own commit, and that is the platform review's call.** 34 seconds over 48 hunted hero-hours is about 10 commits a hero-hour at today's 70 ms, against 36 today. That is a flush about every 6 minutes instead of every 90 seconds, or a commit of about 20 ms at today's cadence. A death, a Level, a Leave, a rare drop and every money intent already force a commit at once under L12's written failure case, so a slower idle flush should change nothing a player can see. HYPOTHESIS, handed to the platform re-dive.
+4. **Supply rows.** 43 E18: 114 of the 216 journal rows a hunted hero-hour are one row a supply kind a settle. Summed on the hunt's session they are 2 rows an hour. The hourly journal (step 5) already contains that fix. I agree with 43 and have nothing to add.
+5. **Presses are a real line.** 100 presses a day is 11 seconds, a sixth of the whole budget. Carry on, the loot plan by kind and a tally that takes itself are cost work as well as design work.
+
+Assumed, and printed by the tool beside each step: 100 presses and 2 hours of a town tab a day today, 20 presses after Carry on, two jobs a hero a day, three statements a job, delta envelopes cutting a read four times (28's own assumption).
+
+### 0.3 Measure 2: does the low-health reading warn before a death?
+
+`node tools/balance-program/review-features.mjs risk`, over the cached matrix subset (`balance-matrix-subset.json`, commit f746b5f85, the real engine, 207 cells, 1 seed x 1 hour a cell). `lowHpP10` is the health share the worst tenth of fights fell to.
+
+| The cell's lowHpP10 | Cells | With a death | Under Level 185: cells | With a death |
+|---|---|---|---|---|
+| under 10% | 6 | 6 | 1 | 1 |
+| 10 to 25% | 2 | 1 | 2 | 1 |
+| 25 to 50% | 9 | 2 | 1 | 0 |
+| 50% and over | 190 | 0 | 88 | 0 |
+
+Every one of the 9 cells with a death read under 50%, and none of the 190 cells at 50% or over held one. Eight cells read under 50% with no death in their hour, and those are the near misses a player would want to hear about. One of them is a lone hammer on Deadly at Level 30, at 17%. So the number the hunt report would print does separate safe hunts from risky ones in the engine. EVIDENCE that the reading carries signal. PROVISIONAL on size: one seed and one hour a cell, where standard X26 asks 4 seeds x 8 hours for a death rate, and 115 of the cells sit at Level 185 or over, where the harness skill line is still wrong (44 step V1).
+
+### 0.4 Where others decided something in this area
+
+| Source | What it decided | Do I agree |
+|---|---|---|
+| 44 P-X26, 56 patch 3 | The rested bank fills and pays nothing. Switching it off moved no band in 207 cells (flags 0, 0, 0). REMOVE | **Yes.** A system that pays zero on every path has no cost-against-value case at all. It also takes `accrue-rested` out of the engine. It is not the stamina bar, which the screen also calls rest. Keep the words apart |
+| 44 R1 | Delete the unread relic multiplier, the boss-of-the-day bonus and the charm ladder | **Yes.** These are the old kill ladders phase A wanted gone |
+| 44 section 8.1, P-X28 | Training's one fixed rate should go, and pay a share of the skill level's cost | **Yes**, and it should land in the same change as closed form, since both rewrite how a training hour is paid |
+| 44 section 4, server cost | No model change may add a statement a kill or a settle | **Yes.** The hunt report must fit that: counters in the row the settle already writes |
+| 44 section 8.2 call 17 | Hold the refill price until the harness store bill is right | **Yes** |
+| 47 C19 | Luck keeps two feeds. A kill ladder is fine only if all six of the plan's stage payments survive | **Yes, and phase A broke it.** I had stage 1 pay Tamsin's piece in place of its 50 Luck. Corrected in 0.5 |
+| 47 C23 | I misread the 11-18 ruling. Tyler turned down wanted and unwanted lists on weekly orders, not weekly orders | **Yes, my error.** Section 4.8 and decision 9 are corrected. Weekly orders stay BUILD-LATER (47 M3), judged against the ground weekend and the Week card |
+| 47, on the loot plan | The starting loot plan should exist | Agreed by both |
+| 46 section 3c | Companions stay hidden, as ruled | **Yes.** I withdraw my REMOVE. See 0.5 |
+| 46 change 3 | One Great Hearth out of Inner Flame, Town Works, the Hearthrise event and flame powders | **Yes for the three in my area** (Town Works, the event, powders). Three small rooms around one landmark become one. Inner Flame is the combat review's |
+| 46 section 3d | A job queue: fish, then cook, then hunt | **Yes.** It is one more row in the table that holds "when the hunt ends" and a job's "then", under the same rule that a plan never loops |
+| 46 section 3b | Let the player pick a starting weapon | **Yes.** The default is the way Tyler ruled slow alone on purpose |
+
+**Convergence, reached independently, which I count as evidence.**
+
+- **The second hero early.** The Game Director's change 1 ("second hero in the first evening", about 10,000 gold) and my decision 5 ("Level 10, a price a Level 10 hero holds") are the same change found from two sides: 46 from play and the shape of the game, mine from the quit point and the lone stretch. The economy review, a third voice, says slots must not rise again and calls Level 1 to 33 "the weakest stretch we have". I adopt 46's number, about 10,000 gold, so there is one recommendation and not two.
+- **A risk reading for the player.** The world review asks for each hero's lowest health in the tally. The progression review's row 3 puts deaths per 100 hours on the hunt card. The plan's lane L16 already records lowest health. Mine is the same counter shown to the player. Four sources, one counter.
+- **Setup slots free.** The economy review (its row 29) removes the price for the same reason in nearly the same words.
+- **Hold dark systems shut until a stranger stays.** The last line of 46's change 3 is the population gate stated as a rule.
+
+**Conflicts, with one side recommended.**
+
+| Conflict | The other side | My side | Recommend |
+|---|---|---|---|
+| The tally | 55 (row 9) and 56 (row 41) KEEP it as its own system: the one repeatable kill job, used by all four real people, and its purpose (a gear piece you are missing) is not the Bestiary's | Phase A merged it into one kill ladder | **Their side.** Verdict changed in 0.5 |
+| Titles | 56 builds one Honors page out of five lists, titles among them | Phase A made a title a stage of the ladder | **56's side.** One Honors page is the same merge with a better home |
+| The first slot | 57 keeps the slot ladder as the real party system and leans on on-call heroes for the early party. Ruling 11-09 priced slots so that friends are the fast way to a four | 46 and I open the second hero on the first evening | **46's side**, and the two fit together: slots three and four still make friends and on-call heroes the fast way to a four. On-call needs other people, at a population the game does not have yet |
+| Paid setup slots | 46 says keep the small sinks and stop adding | 55 and I remove the price | **Remove the price.** Two reviews, 0 purchases, and it is one row |
+
+### 0.5 Verdicts changed since phase A
+
+| Row | Phase A | Phase B | Why |
+|---|---|---|---|
+| 7 Bestiary, tally, titles, trophy ladder | MERGE into one kill ladder | **Tally: KEEP, and it takes itself** (the task for the ground you enter is taken on entry, per hero, no press). **Bestiary: KEEP as ruled**, all six Luck payments. **Titles: MERGE into 56's Honors page. Old ladders: REMOVE** (44 R1) | Two reviews keep the tally with reasons I accept. 47 C19 holds the Luck payments. My own evidence was the take press (3,251 wolves untaken), and taking itself fixes that at a fraction of the cost and risk |
+| 15 Companions | REMOVE the old build | **DEFER, stay hidden as ruled** | Against a 10-22 ruling, against 46, and the 11-21 ruling keeps what is planned for later. The saving was replay weight only. 44's P-X27 (a companion's XP bonus added after the cap) is a note for whoever redesigns them |
+| 30 Town work in closed form | "the budget cannot be met otherwise" | **Necessary, not sufficient.** Still Critical | Measure 1 |
+| 31 The hunt report | HYPOTHESIS that the reading is useful | **EVIDENCE that it carries signal**, provisional on sample | Measure 2 |
+| C2 The second hero | Level 10, price unstated, "two people and a confound" | **First evening, about 10,000 gold** (46's number). Confidence raised by convergence. Still needs the beta cohort | 0.4 |
+| 4.8 and decision 9 | "Tyler cut weekly order lists" | Corrected: he cut daily goals (10-22) and turned down wanted and unwanted lists. Weekly orders are BUILD-LATER | 47 C23 |
+| New rows | none | **Rested bank: REMOVE** (44 P-X26, 56 patch 3). **Job queue: ADD** (46) | 0.4 |
+
+**Counts after phase B (46 rows).** KEEP 21. REMOVE 5 (Open Halls, the old leftovers, the gift code, the setup slot price, the rested bank). MERGE 2 (titles into the Honors page, the three setup nouns). REDESIGN 8 (adds the tally's take press). ADD 7 (adds the job queue). DEFER 5 (adds companions). The old kill ladders are 44 R1's and are not counted twice.
+
+**On time.** Phase A's "about 60 hours alone" is hunted hours: 5 days at 12 hours a day. The ruled slot ladder puts the fourth hero at about 4 weeks at 12 hours (50-standards section 0). Where phase A said "the 15-week target" it quoted a 3.3 hour reading and is corrected below. These come from 50-standards, not the grid.
+
+**On the itemization plan.** I read it through `47-itemization-fit.md` (C19, C23, M3 and its loot plan row), not in full. Three places touch this area: Luck's two feeds (I now comply), weekly orders (I had misread, corrected), and the starting loot plan (47 endorses it, with Salvage as a line beside Sell under L34).
+
+---
+
 ## 1. One screen for Tyler
 
 **Verdict on the area.** The loop is good and the shelf around it is too wide. Hunt, come back, prepare, hunt again works, and the away card is the best screen in the game. Around that loop sit about forty features. Four real people have played 1,334 hours and only about fifteen systems were used by more than one of them. The answer to your question "are some features introducing far more maintenance and balance complexity than gameplay value" is yes, and section 2.2 names each one. The answer to "would we build it the same way" for this area is no. We would build one loop, one second reward clock, one place that says what comes next, and we would show a new player only the rooms that have something in them.
 
 **The five changes that matter most.**
 
-1. **One kill ladder instead of four.** Tamsin's tally, the Bestiary, title unlocks and the trophy ladder all count the same kills of the same creature and pay four different things on four different screens. Make them one ladder with Tamsin as its face. The first stage pays her gear piece. Later stages pay Luck. One stage opens the title. Nobody takes a task by hand again.
+1. **Tamsin's tally takes itself, and the kill counts stop competing.** Phase A asked for one kill ladder. Phase B narrows it, because two other reviews keep the tally for good reasons. The task for the ground you enter is taken when you enter, with no press. The Bestiary pays Luck as you ruled. Titles move to one Honors page. The two old hidden ladders are deleted.
 2. **The Path. One table that says when every system opens.** Today that knowledge is scattered across the coach, the Town menu, What next and the Book. One table drives all four. A new hero sees three Town lines instead of ten. Every Level from 1 to 30 names the next thing that opens. Crowd features such as the Crier and the market stay shut until the server has enough people for them.
 3. **A hunt report that says how close you came to dying and what each bar rule did.** You ruled that death costs 6% with no cap. A player who is not watching needs to know the risk before the death, not after. This also gives conditional rules their missing feedback, which is the heart of an idle game with preparation.
-4. **Town work is paid without the combat engine, and every press counts as server cost.** Your budget is 60 database-seconds an account a day. Four heroes working their 12 rested hours cost about 34 of those 60 before one hunt is settled. You already ruled this fix for training. It has to cover gathering and benches too.
-5. **The second hero opens at Level 10.** This is where I think you are wrong. You ruled the first slot stays at 400,000 gold. That keeps a new player alone for about 60 hours. Those are the hours with the most deaths, the slowest Levels and both of our lost players. The game you describe, with roles and parties, starts at the second hero.
+4. **Town work is paid without the combat engine, and every press counts as server cost.** Your budget is 60 database-seconds an account a day. Four heroes working their 12 rested hours cost about 34 of those 60. You already ruled this fix for training. It has to cover gathering and benches too. Computed in phase B: with every planned fix the account reads 180, and this takes it to 147. It is needed and it is not enough. The rest is how often an away hunt is saved, which is the platform review's call.
+5. **The second hero opens on the first evening, for about 10,000 gold.** This is where I think you are wrong, and the Game Director reached the same change without reading this review. You ruled the first slot stays at 400,000 gold. That keeps a new player alone for about 60 hunted hours, which is five days at 12 hours a day. Those are the hours with the most deaths, the slowest Levels and both of our lost players. The game you describe, with roles and parties, starts at the second hero.
 
 **What is actively harming the game.**
 
-- Four kill ladders that do not know about each other. A real player killed 3,251 wolves that Tamsin would have paid for, because the task was never taken.
+- A task board that must be pressed on every new ground, beside two hidden kill ladders no screen shows. In the blind play 3,251 wolves were killed that Tamsin would have paid for, because the task was never taken.
 - Ten Town menu lines and 53 coach cards for a Level 1 hero. One of those cards told a hero to buy a house in minute two.
 - Fourteen built systems no player can reach. They hold 37 tables and 71 server functions. Every replay, every envelope and the one big Security review carry them.
 - A price on saving a setup. The first principle says a decision is made once and remembered. Charging for the memory taxes the best habit a player can have. Nobody has ever paid it.
-- One hero for the first 60 hours, as above.
+- One hero for the first 60 hunted hours, as above.
+- A rested bank that fills on the server and pays nothing on any path. Switching it off moved no number in 207 measured cells.
 
-**What I would add.** The hunt report. The Path. One weekly card that compares your week with your last week, which works on a server of ten. A starting loot plan so nobody meets 24 dropdowns. One new line for "when the hunt ends": go to the next ground when this one is outgrown. That is all. I would add no daily quests, no login calendar and no battle pass. You cut daily goals on 10-22 and weekly order lists on 11-18, and you were right both times. The visit is the daily.
+**What I would add.** The hunt report. The Path. One weekly card that compares your week with your last week, which works on a server of ten. A starting loot plan so nobody meets 24 dropdowns. One new line for "when the hunt ends": go to the next ground when this one is outgrown. That is all. I would add no daily quests, no login calendar and no battle pass. You cut daily goals on 10-22 and you were right. The visit is the daily.
 
 ---
 
@@ -151,7 +261,7 @@ Significant rows carry the eight criteria of brief 45. Short rows carry the verd
 | 4 | The end card | KEEP | Name it as a system. At most three decisions shown |
 | 5 | Analyzer and personal bests | KEEP | Gains the hunt report (row 31) |
 | 6 | Leaderboards, six weekly boards | KEEP as ruled | 27-4 |
-| 7 | Bestiary + Tamsin's tally + title unlocks + trophy ladder | **MERGE** | Criteria below |
+| 7 | Bestiary, Tamsin's tally, title unlocks, the old ladders | **Changed in phase B (0.5).** Tally KEEP and it takes itself. Bestiary KEEP as ruled. Titles MERGE into the Honors page. Old ladders REMOVE | The criteria below are phase A's, kept for the record |
 | 8 | Live events calendar | KEEP as ruled | 27-5. Generated a year ahead, never hand-run |
 | 9 | Open Halls event | REMOVE | Only waived a fee that is itself being removed (L06) |
 | 10 | Rare reveal on every Rare | KEEP as ruled | 27-6 |
@@ -159,7 +269,7 @@ Significant rows carry the eight criteria of brief 45. Short rows carry the verd
 | 12 | Game modes | DEFER | Ruled after launch |
 | 13 | Old server leftovers (bounties, workers, collection log, renown, traits) | REMOVE | Ruled. Revoke `hr_trait_buy` first |
 | 14 | Discord gift code | REMOVE | Ruled. Pays a dead currency |
-| 15 | Companions, the built perk system | **REMOVE** | Criteria below. Against the 10-22 ruling, said plainly. The idea of pets stays for later |
+| 15 | Companions | **DEFER (changed in phase B).** Stay hidden as ruled | Phase A recommended removing the old build. Withdrawn: 46 and the 11-21 ruling |
 | 16 | Skill tree | DEFER | On hold as ruled (11-05). Hand the customization gap to combat and progression |
 | 17 | Idle PvP capture the flag | DEFER | Needs a crowd at one instant |
 | 18 | The coach, 53 cards | **REDESIGN** | Criteria below (the Path) |
@@ -190,9 +300,9 @@ Significant rows carry the eight criteria of brief 45. Short rows carry the verd
 | 43 | Moderation and GM tools | KEEP | Report from the chat menu before chat meets a crowd |
 | 44 | Content tooling | KEEP | Time every ground (RULED 28-12) |
 
-**Counts.** KEEP 20 (5 of them "as ruled"). REMOVE 5. MERGE 2 (covering 7 systems). REDESIGN 7 (3 of them as ruled). ADD 6. DEFER 4. Total 44 rows. Rows 18, 19 and 32 are one build.
+**Counts in phase A (phase B's are in 0.5).** KEEP 20 (5 of them "as ruled"). REMOVE 5. MERGE 2 (covering 7 systems). REDESIGN 7 (3 of them as ruled). ADD 6. DEFER 4. Total 44 rows. Rows 18, 19 and 32 are one build.
 
-### Row 7. One kill ladder (MERGE)
+### Row 7. One kill ladder (phase A's MERGE, withdrawn in phase B for the narrower change in 0.5)
 
 | Criterion | Answer |
 |---|---|
@@ -207,7 +317,7 @@ Significant rows carry the eight criteria of brief 45. Short rows carry the verd
 
 Open detail for phase B: the tally is per hero and the Bestiary counts per account (RULED 11-20). HYPOTHESIS: counts per account, and the stage 1 gear piece is paid once to each hero of the account the first time that hero visits Tamsin after the stage is reached.
 
-### Row 15. Companions (REMOVE)
+### Row 15. Companions (phase A's REMOVE, withdrawn in phase B)
 
 Player value: none today, nobody can reach it. Depth: a perk pick, which jewelry perks already give. Uniqueness: duplicates jewelry and Tempering. Interaction: one more multiplier in every cell of the grid. Balance: a seventh lever against brief 40's "fewer, better-understood mechanics". Complexity: 1 table, 2 functions, 22 unlock rows, 5 files, and a stale catalogue reseed in the chain. Long-term: a collection could matter, and cosmetic pets can do that with no stat. Recommendation: REMOVE the old build, keep the idea of pets on the roadmap as looks. This goes against the 10-22 "keep hidden for a later redesign" ruling, because a redesign will not reuse perk rows the formula brief argues against.
 
@@ -291,7 +401,7 @@ The away card adds, under its totals: the closest call, what ran out, and the be
 
 ### 4.8 What I looked at and do not recommend
 
-- **Daily quests, a login calendar, a season pass.** Every idle game has them. Tyler cut daily goals (10-22) and weekly order lists (11-18). They are chores, they repeat a decision by hand every day, and on four heroes they are four chores. The visit, the stamina bar and the weekly turn are enough beats.
+- **Daily quests, a login calendar, a season pass.** Every idle game has them. Tyler cut daily goals (10-22). Weekly orders are a different thing and stay on the plan for later (47 C23 and M3, correcting phase A). They are chores, they repeat a decision by hand every day, and on four heroes they are four chores. The visit, the stamina bar and the weekly turn are enough beats.
 - **A standing loop that restarts hunts when stamina is full.** Ruled out by 27-1 and I agree: it makes the free game zero visits a day and Premium's bar worth nothing.
 - **More condition tests for the bar.** Fourteen tests and three stop rules already exceed what any real player has used (18 setups, 2 people). Feedback first.
 - **Achievements as a separate system.** The kill ladder, titles on it and the Week cover it without a new counter.
@@ -302,7 +412,7 @@ The away card adds, under its totals: the closest call, what ran out, and the be
 
 Each is a hypothesis for phase B to measure with the matrix diff where the engine can say.
 
-**Trace 1. One kill ladder.** Combat: none. Progression: a second reward clock under Levels 5 to 30. The first stage lands 20 to 60 minutes into the Thicket (27, estimate). The dry-spell standard X12 should read shorter. Economy: tally gold (2% of gold in) either moves to stage rewards or leaves. The repeatable "keep this task" faucet ends, which removes a small daily cap from the model. Titles become a stage unlock, so their gold price stays a sink. Gear: Tamsin's piece still arrives in the first hour, now without a press. A hero is never sent back for a piece it missed. Crafting: once pieces are given she pays the ground's material today, and that would end. Check it is not a needed source (catalogue coherence). Parties: the tally counts for every hero in the instance and the ladder counts per account. An own four fills a stage four times as fast, which 27 already sized. Server: fewer tables and no new statement. UNINTENDED to watch: players parking on a weak creature for stages. Respawn caps it (27).
+**Trace 1. One kill ladder (phase A. Phase B keeps only the take press, the Honors page and the deletes, so the gold, gear and crafting effects below do not happen).** Combat: none. Progression: a second reward clock under Levels 5 to 30. The first stage lands 20 to 60 minutes into the Thicket (27, estimate). The dry-spell standard X12 should read shorter. Economy: tally gold (2% of gold in) either moves to stage rewards or leaves. The repeatable "keep this task" faucet ends, which removes a small daily cap from the model. Titles become a stage unlock, so their gold price stays a sink. Gear: Tamsin's piece still arrives in the first hour, now without a press. A hero is never sent back for a piece it missed. Crafting: once pieces are given she pays the ground's material today, and that would end. Check it is not a needed source (catalogue coherence). Parties: the tally counts for every hero in the instance and the ladder counts per account. An own four fills a stage four times as fast, which 27 already sized. Server: fewer tables and no new statement. UNINTENDED to watch: players parking on a weak creature for stages. Respawn caps it (27).
 
 **Trace 2. The Path and the population gate.** Combat, gear, economy: no numbers move. Progression: every Level under 30 names a next thing. Teaching: fewer cards. Risk: hiding the Tower, the Chest and the market until their Level hides the game's depth from a player deciding whether to stay. HYPOTHESIS: a locked line with its Level ("Burning Tower, Level 10") keeps the promise without the clutter. Only a blind playtest can tell which reads better. Economy: gating the market by population delays the player economy on a small server. That matches RULED 24-7, where the market opens through the Town Works goal. Parties: the finder card opens when there is someone to find. Server: polls for shut rooms stop. This is where the town-alone and market-read fixes get their rule.
 
@@ -320,7 +430,7 @@ Each is a hypothesis for phase B to measure with the matrix diff where the engin
 
 So the settle fixes alone cannot reach 60. Three lines outside the hunt add up to 54 of the 60. Closed-form town work takes 34 to about 1 (a statement at start, at the count's end and at stop). Carry on, the starting loot plan and the merged ladder cut presses, which is the first principle and the bill agreeing with each other. The town-alone ruling removes the fourth line. Combat: none. Economy: yields must be identical in the mean, and the rolls must be seeded at start so a player cannot stop and restart to re-roll. Crafting: Good batch (ruled) becomes a seeded roll in the same formula. Progression: skill XP at the stop or the count, not every tick, so a skill Level arrives in steps on the screen. The client may show the predicted bar since nothing spends it (CLAUDE.md section 6). Risk: both-paths tests for every town activity.
 
-**Trace 5. The second hero at Level 10.** Combat: a pair is 1.2 to 1.5 times a lone hero (RULED 50-8), so Levels 10 to 32 run faster. The Level 10 to 15 XP that L05 "takes back" may need to move again. Progression: the player meets a second weapon style and the party window 50 hours sooner. Economy: two heroes earn about twice the gold, so slots three and four arrive sooner unless their prices carry the "own four in about 15 weeks" target (RULED 31-5). The guard G20 that reads the first slot would be rewritten. Gear: two heroes need two kits, and that doubles early gear demand and the meaning of drops (0.9% of dropped gear is ever worn, REAL). Parties: the Sewer opens to an own pair at Level 10. Server: one more away hero is 2.5 s a hunted hour before the fixes. UNINTENDED: 400,000 is today the first real gold goal ("the month has a name", 27). Moving it leaves gold with nothing named between 220 and the third slot unless the deeds and Tempering carry it.
+**Trace 5. The second hero on the first evening.** Combat: a pair is 1.2 to 1.5 times a lone hero (RULED 50-8), so Levels 10 to 32 run faster. The Level 10 to 15 XP that L05 "takes back" may need to move again. Progression: the player meets a second weapon style and the party window 50 hours sooner. Economy: two heroes earn about twice the gold, so slots three and four arrive sooner unless their prices carry the ruled timing of the full four (RULED 31-5, read at 3.3 hours as about 15 weeks and at 12 hours as about 4). The guard G20 that reads the first slot would be rewritten. Gear: two heroes need two kits, and that doubles early gear demand and the meaning of drops (0.9% of dropped gear is ever worn, REAL). Parties: the Sewer opens to an own pair at Level 10. Server: one more away hero is 2.5 s a hunted hour before the fixes. UNINTENDED: 400,000 is today the first real gold goal ("the month has a name", 27). Moving it leaves gold with nothing named between 220 and the third slot unless the deeds and Tempering carry it.
 
 **Trace 6. Next ground when outgrown.** Progression: removes idle hours for new heroes, most under Level 16. Combat: more unattended first hours on a new ground, where lone deaths are highest. Normal only. Economy and gear: none. Tally or ladder: a hero that moves on by itself must not lose a task, one more reason for trace 1.
 
@@ -330,18 +440,18 @@ So the settle fixes alone cannot reach 60. Three lines outside the hunt add up t
 
 | Class | # | Change | Complexity | Risk | Expected benefit | Depends on | Basis |
 |---|---|---|---|---|---|---|---|
-| Critical | C1 | Town work (gathering, benches, training) in closed form, and presses and open tabs counted in the server budget | L, engine and server | Medium. Both-paths tests, seeded rolls | Without it 60 seconds cannot be met at 12 rested hours | L13, L19's training form | EVIDENCE: computed from COST. Not measured at 12 h |
-| Critical | C2 | The second hero opens at Level 10 | S, a row and a guard | High. Reverses a ruling made three times this week | The largest lever on the Level 7 to 32 stretch where both light players stopped | Economy review, slot prices 3 and 4 | HYPOTHESIS. EVIDENCE is two people and a confound. Needs a beta cohort |
-| High | H1 | One kill ladder: tally, Bestiary, titles and trophies merged | M. Changes L20 before it is built | Medium. Tally is liked and used by all four players | A second reward clock with a face. Removes most of 9 tables | L20 | EVIDENCE for the overlap. HYPOTHESIS that one ladder feels better. Playtest |
+| Critical | C1 | Town work (gathering, benches, training) in closed form, and presses and open tabs counted in the server budget | L, engine and server | Medium. Both-paths tests, seeded rolls | 180 to 147 database-seconds an account-day. Necessary and not sufficient (0.2) | L13, L19's training form, 44 P-X28 | EVIDENCE: `review-features.mjs cost`, computed. Not measured at 12 h |
+| Critical | C2 | The second hero on the first evening, about 10,000 gold (E39) | S, a row and guard G20 | High. Reverses a ruling made three times this week | The largest lever on the Level 7 to 32 stretch where both light players stopped | Slot prices 3 and 4 carry the four's timing | HYPOTHESIS, with convergence: 46 change 1 independently, 55 against any further raise. Needs a beta cohort |
+| High | H1 | The tally takes itself on the ground a hero enters. Titles to the Honors page. Old ladders deleted (44 R1) | S to M | Low | No kills wasted for want of a press. Fewer presses a return | L20, 56's Honors page | EVIDENCE: 3,251 wolves untaken (PLAYED), 0.4 pays a hero-day of 3. Narrowed in phase B |
 | High | H2 | The Path and the population gate | M | Low to medium. Hiding may hide depth | First-hour clarity, a named next thing at every Level, dead rooms stay shut | none | EVIDENCE: PLAYED dead moments, loose constants. HYPOTHESIS on the hiding. Blind play |
-| High | H3 | The hunt report: risk and rules, risk free to all | M | Low | Makes tier and bar choices real under uncapped death | counters in the session tally | EVIDENCE that nothing shows it. HYPOTHESIS on behaviour |
+| High | H3 | The hunt report: risk and rules, risk free to all | M | Low | Makes tier and bar choices real under uncapped death | L16 already records lowest health | EVIDENCE that the reading separates death cells from safe ones (0.3, small sample). HYPOTHESIS on behaviour |
 | Medium | M1 | A starting loot plan | S | Low | Nobody meets 24 dropdowns. Fewer presses | L21 | EVIDENCE: REAL sold-by-hand share |
 | Medium | M2 | Next ground when outgrown | S | Medium. Early lone deaths | No idle nights for new heroes | L08's door | EVIDENCE: PLAYED. HYPOTHESIS on the size |
 | Medium | M3 | The Week card | S | Low | A weekly beat that works on a server of ten | L26's snapshot | HYPOTHESIS. Return rate on the first visit after the turn would tell |
 | Low | L1 | The night in three lines on the away card | S | Low | The away card prompts preparation | H3 | HYPOTHESIS |
 | Low | L2 | The Premium claim granted without a press | S | Low | One fewer daily press with no decision | L27 | EVIDENCE: first principle |
 | Low | L3 | The end card gets its inventory row and the three-decision rule | S | Low | Stops three reviews overloading one card | none | EVIDENCE: 27 inventory note |
-| Remove or simplify | X1 | The old companion build removed, pets kept as a later idea | S to M, chain retire | Low | Less replay, less Security surface | Tyler, it reverses 10-22 | EVIDENCE: INVENTORY, no lane in the plan |
+| Remove or simplify | X1 | The rested bank removed (was: the old companion build, withdrawn) | S | Low | One dead system out of the XP path and the engine | 44 P-X26, the roadmap's skill-grant step | EVIDENCE: 56 patch 3, flags 0, 0, 0 |
 | Remove or simplify | X2 | Setup slots free | S, a row | Low | Removes a tax on the first principle | none | EVIDENCE: 0 purchases |
 | Remove or simplify | X3 | Setups, action sets and presets under one noun, remembered a ground | M | Medium | One idea to learn instead of three | combat review | HYPOTHESIS |
 | Remove or simplify | X4 | The old leftovers, the gift code, Open Halls | built into L06, L10, L36 | Low | Ruled | none | RULED |
@@ -364,15 +474,16 @@ So the settle fixes alone cannot reach 60. Three lines outside the hunt add up t
 
 ## 7. Tyler decides
 
-1. **One kill ladder.** *Recommend: merge Tamsin's tally, the Bestiary, title unlocks and the trophy ladder into one ladder per creature, with Tamsin as its keeper, before L20 is built.* Four systems count the same kills, and the one everyone used is the one that needs a press per ground. Strongest alternative: keep the tally as it is and make it take itself on the ground you enter.
+1. **The tally takes itself.** *Recommend: the task for the ground a hero enters is taken on entry with no press, the Bestiary ships as ruled with all six Luck payments, and titles go on one Honors page.* The one side feature everyone used is the one that needs a press per ground. Strongest alternative: phase A's full merge into one kill ladder, which two other reviews argue against.
 2. **The Path.** *Recommend: one table says what opens every system (a Level, a first event or enough active accounts), and the Town menu, the coach, What next and the Book all read it.* It is the cheapest way to make a wide game feel deliberate, and each new system then costs a row. Strongest alternative: keep the coach deck and only hide Town menu lines by Level (R14 as planned).
 3. **The risk reading is free.** *Recommend: every player sees how close a hunt came to a death. The per-rule report can sit in the Premium analyzer if you want it there.* With an uncapped 6% death, selling the warning would read as selling safety. Strongest alternative: both blocks in the Premium analyzer, with the free card showing only "close calls: 3".
 4. **Town work without the combat engine.** *Recommend: gathering and benches are paid in closed form like the training ruling, and the 60-second budget is stated with lines for presses and open tabs.* Your two rulings, 12 rested hours and 15 cents, do not fit together otherwise. Strongest alternative: budget the town at 4 rested hours and accept that a player who fills all 12 costs more than the cap.
-5. **The second hero at Level 10.** *Recommend: the second slot opens at Level 10 for a price a Level 10 hero holds. Slots three and four keep climbing and carry the 15-week target.* Nearly everyone ends up a four, the Level table is now timed on a four, and the stretch you keep players alone in is the one with the most deaths and both of our lost players. Strongest alternative: keep 400,000 and let on-call heroes (25-1) be the early party, which needs other people online.
+5. **The second hero on the first evening.** *Recommend: the second slot costs about 10,000 gold, what one hero banks by Level 8 to 10. Slots three and four keep your prices and carry the ruled timing of the full four.* The Game Director recommends the same change independently, and the economy review says slots must not rise again. Nearly everyone ends up a four, the Level table is now timed on a four, and the stretch you keep players alone in is the one with the most deaths and both of our lost players. Strongest alternative: keep 400,000 and let on-call heroes (25-1) be the early party, which needs other people online.
 6. **Setup slots are free.** *Recommend: remove the two prices.* Nobody has paid them and they charge for remembering a decision. Strongest alternative: keep them as a small sink.
-7. **The old companion build is removed.** *Recommend: retire the built pet perk rows and functions now. Pets stay on the roadmap as looks or a collection with no stat.* You ruled on 10-22 to keep them hidden for a later redesign. A redesign will not reuse perks that would be a seventh power lever, and until then they ride every replay and the Security review. Strongest alternative: keep the rows dark as ruled.
+7. **The rested bank is removed.** *Recommend: delete it.* It fills on the server and pays nothing on any path, and switching it off moved no number in 207 measured cells (56 patch 3, 44 P-X26). Strongest alternative: make it pay, which adds an XP lever the pace law would then have to carry. Phase A's call here, removing the old companion build, is withdrawn: companions stay hidden as you ruled.
 8. **Next ground when outgrown.** *Recommend: allow it as a one-step "when the hunt ends" choice, Normal only.* It keeps the intent of "no hunt starts by itself" because the player chose it and stamina still ends the day. Strongest alternative: the away card says "outgrown 5 hours ago" and offers the next ground in one press.
-9. **No dailies.** *Recommend: rule that Hearthrise has no daily quests, login calendar or season pass, so nobody proposes them again.* The visit, the stamina bar, the weekly turn and the monthly project are the beats. Strongest alternative: one daily task from Tamsin, which the merge above removes.
+9. **No dailies.** *Recommend: rule that Hearthrise has no daily quests, login calendar or season pass, so nobody proposes them again.* The visit, the stamina bar, the weekly turn and the monthly project are the beats. Weekly orders are not covered by this and stay on the plan for later. Strongest alternative: leave it unruled and judge each proposal as it comes.
+10. **How often an away hunt is saved.** *Recommend: ask the platform review to size an idle flush of about 6 minutes, with every death, Level, Leave, rare drop and money intent still saved at once.* After every planned fix and closed-form town work the account still reads 147 against 60, and the away commit is all that is left. Strongest alternative: keep the 90 second flush and make each commit about 20 ms.
 
 ---
 
@@ -409,4 +520,6 @@ So the settle fixes alone cannot reach 60. Three lines outside the hunt add up t
 
 **Hypotheses.** That one ladder feels better than a task board. That hiding systems until their Level reads as promise and not as emptiness. That a second hero at Level 10 keeps players (two people, and "one hero" is confounded with "new"). That a risk reading changes tier choice, and by how much. That closed-form town work reaches about 1 second an account-day. That the session tally row can hold the report's counters with no new statement. That the Week card moves return rate. The per-hero and per-account detail of the ladder's first reward.
 
-**Not done in phase A.** Nothing was played. No grid, matrix or browser run. `51-baseline.md` had not landed on the set when this was written, so no row cites it. The other seven reviews were not read, so the "owner" column in section 2.2 is this review's reading of the old dive domains. Phase B: place each change against the formula audit (41 to 44), run the matrix diff for traces 1, 4 and 5, and replace the computed budget table with a measured one.
+**Not done.** Nothing was played in either phase. No matrix diff was run: the PC read 100% CPU and no proposal here moves a knob (section 0). `51-baseline.md` had not landed when phase B was written, so no row cites it. Of the other documents, 46 was read in its summary, section 3 and changes 1, 3, 4 and 5. 44 was read in sections 5.4 and 7 and searched in sections 2 and 8. 47 and 52 to 58 were read by search for this area's topics, not in full. The itemization plan was read through 47. The budget table in 0.2 is computed from production means taken at 3.3 hours a day and is not a measurement at 12.
+
+**Added in phase B.** `tools/balance-program/review-features.mjs` (`cost`, `risk`). Reads only, writes nothing, plays nothing.

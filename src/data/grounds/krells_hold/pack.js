@@ -263,8 +263,13 @@ export default definePack({
        here. Out of time, 40 tries a row at 85: a third tank 0%, a sword alone 0%, axes 22%, a hammer 52% (a bow 88, a crossbow, mage or
        healer 98-100); two heroes 0% at 106, 110, 115 and 120. A tank, a healer and any two of the eight kinds win 80 to 100% at 85 (the
        weakest a third tank and a fourth 82%, two hammers 80%), the four his 18,000 HP was fitted on (boss-call-table.mjs: tank, healer,
-       hammer, mage). */
-    storeFloor: 'salted_swordfish',
+       hammer, mage).
+       THE FLOOR IS LOBSTER SINCE THE SPELL RULE (lane/c-engine-reds, 2026-11-21; tests/boss-hall-advice.mjs HA-FLOOR: the card's food is the
+       cheapest store food every party it names wins on). Two formulas moved the fight, not this room: on the to-hit ratio alone (src/data/to-hit.js)
+       a third and fourth tank won 2 of 40 at 85, out of time; with the spell rule (every cast a share of the caster's blow) every one of the 36
+       parties wins 40 of 40 on Swordfish and 38 to 40 of 40 on Salted Lobster, and on Salted Trout 23 to 31 of 40 in 19 of them (deaths). So
+       the card asks for Lobster, at 180 gold a bite against Swordfish's 432. */
+    storeFloor: 'salted_lobster',
     words: { boss: 'Lord Krell', Boss: 'Lord Krell',
       bars: ['Everyone: Eat under 75%', 'Healer: Circle of Renewal when 2 are under 80%', 'Healer: Greater Mend under 85%', 'Party: a tank, a healer and two more'] },
     hunt: { name: 'Krell\'s Hall', theme: 'Krell sits by the long fire at the back of his hall, holding the list of every soldier his men killed.',

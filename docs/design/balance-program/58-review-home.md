@@ -15,7 +15,7 @@ What already landed on this set and is not re-argued: the deed prices (400 / 25,
 | # | Change | Why |
 |---|---|---|
 | 1 | **The Trophy room becomes the Hall of Firsts.** Room on the wall comes from the deed, not from 5 mount rungs. Each piece you hang costs a mounting fee. The Castle's reward is the Great Hall | Rare drops and firsts are the long chase, and Home is the only place they can live. Two to six mounts is far too few for a collection game. A fee per piece is a gold sink that grows with every boss and every rare we ever add |
-| 2 | **Take the Cellar off sale now, and do not build curing until we have measured that heroes are short of rested hours** | The Cellar sells longer food effects for 787,200 gold and the plan cuts those effects. Curing adds a timer, a slot ladder, a fee and a screen to do what one bench press already does. Real heroes are idle 59% of their lives |
+| 2 | **Take the Cellar off sale now. Curing is built last, as a standing order** (phase B: the "do not build" call is withdrawn) | The Cellar sells longer food effects for 787,200 gold and the plan cuts those effects. Curing adds a timer, a slot ladder, a fee and a screen to do what one bench press already does. Real heroes are idle 59% of their lives |
 | 3 | **Remove the soil tiers from the farm.** A crop opens at its Farming level and nothing else | A crop has four gates today: the deed, the Garden, the soil tier and the Farming level. The soil tier's own comment says it is "never the gate". It is the gate that left farming at zero for ten days |
 | 4 | **Bring the room rung swap forward (kept materials instead of speed), and be honest about who it is for** | 16 speed rungs worth 5.25M gold are on sale today and never pay back. Kept materials pays back in about 120 bench hours on the best recipes and never on planks and bars. That is fine for a rich player's sink if the row says so |
 | 5 | **Three home looks, not five maps. Visiting opens at the Homestead, not the Castle** | Ground art is the critical path. Two new maps (a manor and a castle) give every big deed a look. A wall nobody can visit until they spend 2.5M is a wall nobody sees |
@@ -29,7 +29,9 @@ What already landed on this set and is not re-argued: the deed prices (400 / 25,
 
 **What I would add.** One thing now: the Hall of Firsts above. One thing later, with the next region: seeds that drop from monsters and grow that region's best drink, so the hunt feeds the field and farmers have something to trade. Nothing else. Home needs fewer and better parts, not more of them.
 
-**Where I think you are wrong.** Three places. Curing as ruled on 11-18 is a sink with a chore attached, and the sink can be had without the chore. Visiting behind the Castle hides the best reason to buy a deed. And the plan's "a home map for each deed" spends four maps of art where two would do the job.
+**Phase B update.** Measured and re-read against the other reviews in section 10. Three things changed: I withdraw the curing call (you ruled it twice, it is built last), the dummy should halve the yard fee, and the yard's rate should follow the skill curve. The current calls are in section 10.8.
+
+**Where I think you are wrong.** Two places still. Visiting behind the Castle hides the best reason to buy a deed. And the plan's "a home map for each deed" spends four maps of art where two would do the job.
 
 ## 2. Systems review
 
@@ -171,15 +173,15 @@ One row a thing. The 8 criteria for the significant ones are in §3.2.
 | 49 | Seeds that drop from monsters | ADD | With the next region. Sample of 2 first |
 | 50 | Curing slots | DEFER | Behind a measurement. My lean is not to build it |
 | 51 | The training yard | KEEP | With L19's fee |
-| 52 | One flat rate, 30,000 an hour | KEEP | RULED 11-14. It caps itself |
-| 53 | The House dummy | KEEP | |
+| 52 | One flat rate, 30,000 an hour | REDESIGN (phase B, was KEEP) | The rate follows the skill curve, at most half of hunting. Tyler's call, 44 call 15 |
+| 53 | The House dummy | REDESIGN (phase B, was KEEP) | It halves the yard fee. 55 call 4 |
 | 54 | "Train at home" in "When the hunt ends" | ADD | One row in `AFTER_CHOICES`. The dummy has no row today |
 | 55 | Training items for gold | KEEP | |
 | 56 | Training paid by the combat engine | REDESIGN | Closed form (L19, ruled) |
 | 57 | The 12 hour session limit | KEEP | It equals one rest |
 | 58 | The Hall's mounting fee | ADD | A coefficient on the piece's reference value |
 
-Counts: KEEP 36, REDESIGN 10, REMOVE 5, MERGE 1, ADD 4, DEFER 2. Total 58.
+Counts in phase A: KEEP 36, REDESIGN 10, REMOVE 5, MERGE 1, ADD 4, DEFER 2. Total 58. After phase B rows 52 and 53 move to REDESIGN (section 10.7): KEEP 34, REDESIGN 12.
 
 ### 3.2 The 8 criteria for the significant ones
 
@@ -404,7 +406,7 @@ Each is a HYPOTHESIS until phase B measures it. "Measure" names the read.
 | Does anyone buy a rung that says "worth it on costly recipes" | Rung 2 buys among rung 1 owners, by the recipes they run |
 | Does a look sell a deed | Manor and Castle purchases in the two weeks after the maps |
 
-## 7. Tyler decides
+## 7. Tyler decides (phase A. Section 10.8 replaces this list)
 
 Each is one recommendation, its reason, and the strongest alternative in one line.
 
@@ -449,3 +451,178 @@ Not a call, because it is yours and ruled: training items for Crowns and Premium
 | HYPOTHESIS | Players will mount rares instead of selling them. A look sells a deed. Visiting raises deed purchases. Dropped seeds make the field part of trade. Rested hours are not scarce in real play once Carry on exists | §6 "only real players can tell" |
 | HYPOTHESIS | Every row of the traces in §5 | To be measured in phase B with `progression-grid --diff` and the town model |
 | NOT DONE in phase A | No play, no grid, no browser. `51-baseline.md` had not landed and was not read. The Hall's fee and wall sizes are unpriced until `atlas.json` is read for mountable rows | |
+
+## 10. Phase B: layers, the other reviews, and what the matrix can see
+
+Phase B of `lane/d-review-home` (2026-11-21). Merged `set/v0.2.144` at f5a42fdc5. Read: 44 (sections 5, 7, 8), 46, 47 (rows 5d, C11, C19), the home lines of 52 to 57 and 59, `docs/design/itemization-plan.md` section 5 (House curing) and its section 13 answers. Time is on the 12 hour frame: where a number is in "days" it is a calendar day of a hero that hunts 12 hours and rests 12, read from `paths.json` (T7, `townGold`) or 50-standards section 2.7.
+
+### 10.1 Where 44, 46 and 47 already decided, and whether I agree
+
+| Who | What they decided in Home | Do I agree | What it changes here |
+|---|---|---|---|
+| 47, C11 | Do not ask about curing a third time. Build L33 last, outside the beta gate, sized on the T7 reading. Take the Cellar's food rungs off sale now | **Yes. I withdraw the call.** Tyler ruled it on 11-18 and again with prices in 26-7 | Call 1 of section 7 is now only "the Cellar off sale today". Row 50 stays DEFER, meaning "last in the lining work", not "maybe never" |
+| 47, C19 | The find list pays a line on Honors and a mount in the Hall of Firsts | Yes | The Hall has a second review behind it |
+| 44, `P-X26` and the progression review's patch `progression-3-rested-off.json` | The rested bank fills and pays nothing. Removing it moved no number in 207 cells | Yes. It is my row 28 measured | EVIDENCE now, not a reading of the code. Removal is free |
+| 44, `P-X30`, roadmap R5 | The yard fee in the code (50 + 6 a level) is not the ruled fee (100 a level). Build it | Yes | Row 51. No call |
+| 44, call 15, `P-X28` | The yard's one flat rate makes it worthless near skill 100. Let the rate follow a share of the skill level's cost. Tyler's call, it changes the 11-14 ruling | **Yes, and it changes my verdict.** Section 10.7 | Row 52 moves from KEEP to REDESIGN |
+| 44, judged mechanic "sinks as a share of band gold" | Tempering, Hallmarks and linings ride the gear curve. "The House stays typed content. Its rooms are things, not a curve. It is still judged by the same band" (`E43`) | Yes | Deeds, rungs and chests stay content rows. The one new Home price that is NOT a thing is the Hall's mounting fee, and that belongs on the wage curve (R15) |
+| 55, change 4 and call 4 | The House dummy halves the yard fee and does not end it. At the ruled fee a 150,000 dummy pays back in 2.8 days and deletes the one sink that never ends | **Yes. I change sides.** Phase A kept the dummy as "no fee" | Row 53 moves from KEEP to REDESIGN. Section 10.7 |
+| 54, for the home review | Curing slots are for linings. Belts and cloak perks give the Workshop's speed a worn product | Yes | Speed lives on tools, food and worn pieces (the one Speed pool of 26-2). Rooms sell kept materials. The two do not overlap |
+| 56, section 4.2 | Honors is the content of the Hall of Firsts | Yes | The Hall reads Honors rows. It needs no second record of firsts |
+| 59, change 1 | One kill ladder with Tamsin as its face. Its top stage hangs a mount in the rebuilt Trophy room | Yes | A third source of mounts: drops, firsts, and a creature's top stage |
+| 57, for the home review | The House and the clan castle want the same goods and the same fantasy. They could share art stages | Yes for art. The clan castle is not mine | The manor and castle maps should be drawn so a clan hall can reuse the tiles |
+
+### 10.2 Where the Game Director (46) and I reached the same place independently
+
+Neither lane read the other in phase A. Agreement is evidence.
+
+| 46 says | 58 phase A said |
+|---|---|
+| "House rooms: eight ladders of plus 10% speed ... Simplify. A room should open something and not sell speed" (line 123) | Speed is not something a home can honestly sell. Rungs 2 to 5 become kept materials or are held |
+| "Farming. Keep, fix the pressing" (line 127) | KEEP. Tend landed. Watering leaves the bed row |
+| "Worn in, chest reforging, linings, curing: six ways to add a few percent ... Build linings and fold the rest" (lines 143, 251) | Curing is the weakest planned system in Home |
+| "The House property ladder and Storage chests. Keep" (line 102) | KEEP |
+| "Training: four forms of one thing. Simplify to the yard and the dummy as play" (line 124) | The yard and the dummy stay. Items are Tyler's money call |
+| Seam 9, dead ends: the Trophy room, meals | The Trophy room is rebuilt as the Hall. Potato and wheat feed meals nobody makes |
+| The home and the Hearth are one of the seven things the game is (line 77) | Home belongs |
+
+One difference. 46 lists "the Cellar cures" as what that room should open, and in the same file folds curing away. 47 settled it: curing is ruled, built last. I follow 47.
+
+### 10.3 Where I conflict with another review
+
+| Conflict | Side A | Side B | I recommend |
+|---|---|---|---|
+| The House dummy | 58 phase A: keep it as ruled on 11-08, no hourly fee | 55: it halves the fee | **55.** The fee is the only sink that grows forever. A 2.8 day payback is not "wildly expensive" |
+| The yard's rate | 58 phase A and 56 row 22: keep the flat 30,000 | 44 call 15: the rate follows a share of the skill level's cost | **44**, with one condition from Tyler's own 11-14 words: the yard never passes about half of what hunting pays the same skill at the same level |
+| Curing | 58 phase A and 46: do not build | 47, 54, 56: ruled, build it, last | **47** |
+| War Crown | The itemization plan keeps War Crown out of the gem cuts "because the House uses it" (plan line 296). Its only House use is Trophy room rungs 4 and 5, which the Hall removes | | The War Crown becomes a mountable piece. Items review to confirm it needs no other use |
+
+### 10.4 Every top proposal at its layer
+
+Formula ids and roadmap steps are 44's. "None" in the formula column means the proposal adds or removes content and touches no shared formula, so its success is a HYPOTHESIS about content and only players can settle it.
+
+| # | Proposal | Layer | 44 formula | Roadmap step | Matrix can see it |
+|---|---|---|---|---|---|
+| 1 | Hall of Firsts: wall room by deed, a mountable flag, firsts read from Honors | Content rows | none (`E43` typed House content) | L51 | No. HYPOTHESIS |
+| 1b | The mounting fee | Coefficient on the wage curve: hours of the piece's band wage | `E43` today, R15's wage curve when it lands | R15 | No. Computed when R15's curve exists |
+| 2 | Cellar off sale | Content row (`HELD_HOME_ROOMS`) | none | L06 follow-up | Yes as an identity. Patch `home-1` |
+| 3 | Soil tiers removed | Removes an exception: a second gate table over the crop's level. 44's register does not list it. I file it as a class 4 row (accidental complexity) for the register | proposed `X-PLOT-TIER` | R1 | No. A played first hour |
+| 4 | Room rungs sell kept materials | Content rows (`ROOM_PERKS`) over one existing formula (`craftSave`), plus the one stacking rule | R20's one modifier table: the Speed pool and the Yield pool are two rows of it | L38, R20 | Yes as an identity. Patch `home-1` |
+| 5 | Three home looks. Visiting from the Homestead | Content rows (`HOUSE_TEMPLATES`), art | none | L45 | No. HYPOTHESIS |
+| 6 | Rested bank removed | Removes a dead formula | `P30`, `P-X26` | R1 | Yes. Measured by the progression review: 207 cells, nothing moved |
+| 7 | "Train at home" after a hunt | Content row (`AFTER_CHOICES`) | none | L19 | No |
+| 8 | The yard: ruled fee, a rate that follows the skill curve, the dummy at half fee | Coefficients on the skill curve `P03` and the wage curve | `E42`, `P-X28`, `P-X30` | R5 (fee), R15 (rate and price in hours) | Partly. The worth of +10 skills is measured below. The fee is computed by 55 |
+| 9 | Seeds that drop | Content rows (a seed, a crop, a drink, a drop row) | `C-CAST-POWER` reads the drink | with the Morrow Hills | Its ceiling, yes. Patch `home-2` |
+| 10 | Bench fee, deeds, chests, Garden beds | Unchanged. `E33` is a formula, `E43` is typed content | `E33`, `E43` | none | No |
+
+### 10.5 Measured
+
+The matrix plays hunts. It has no home axis: no cell holds a room, a bed, a bench or a rested hour. So it can answer two things about Home. Does a Home change reach a hunt when it should not (an identity run). And what are home-made supplies worth to a hunt (the one place Home is meant to reach it). Both runs: `balance-matrix.mjs --diff <patch> --subset --workers 2`, 207 cells, 1 seed x 1 h, the same dice before and after. The calibration caveats printed on each run apply: the harness four kills 11% more than the real one, its tank takes 96% of the damage against 69%, and its store bill is 1.87 times the real one. So party gold and store numbers below are upper bounds, and cells from Level 185 are PROVISIONAL.
+
+**M1. Patch `home-1` (identity): rungs 2 to 5 of the four bench rooms give kept materials in place of speed, and the Cellar's food rungs pay nothing.**
+
+| | |
+|---|---|
+| Patch | `tools/balance-program/patches/home-1.json`, 25 row edits in `src/data/perks.js` |
+| Layer | Content rows over `craftSave`. Proposals 2 and 4 of section 10.4 |
+| Before and after | 207 cells identical on every metric. Calibration row for row identical |
+| Flags | IMPROVED 0, REGRESSED 0, UNINTENDED 0 |
+| Gate | PASS, "the diff is empty" (44 section 6.2, kind identity) |
+| What it proves | No room perk reaches a hunt in the harness. The swap and the Cellar hold are free for combat, pace, survival and hunt gold. "A home never grants a hunt anything" holds for these keys |
+| What it does not prove | Anything about the town. The harness heroes own no rooms, so this run cannot see a bench. The payback numbers of section 2.3 stay COMPUTED |
+
+**M2. Patch `home-2` (a measurement, not a proposal): every store supply works like its home-made partner.**
+
+`storeSupplyShare` (formula `C-CAST-POWER`, `BASIC_EFFECT_SHARE` 0.75 to 1.0). The harness buys from the store. Raising the store's share to 1 plays every cell as if the hero were fully supplied from home: the farm's drinks, the Kitchen's food, the Library's runes, fletched arrows. It is the value of Home to a hunt today, and the ceiling for any better home drink.
+
+| Median change | Level XP an hour | Damage taken | Net gold an hour | Store bill | Kills |
+|---|---|---|---|---|---|
+| Lone, all ways | +3.6% | -1.8% | +3.5% | -0.1% | +3.4% |
+| A four | +5.8% | -15.7% | +22.6% (upper bound) | -9.3% | +5.9% |
+| Normal | +3.9% | -4.6% | +5.5% | -2.8% | +3.9% |
+| Deadly | +9.6% | -13.9% | +14.9% | -8.9% | +9.3% |
+| Mage, lone | +7.8% | -4.7% | +16.9% | -3.6% | +7.7% |
+| Healer, lone | +4.9% | -17.1% | +18.2% | -4.8% | +4.9% |
+| Bow, lone | +6.2% | -2.6% | +15.3% | -2.1% | +6.2% |
+| Hammer, lone | 0 | 0 | 0 | 0 | 0 |
+| Early, mid, late, high Levels | +3.3, +3.6, +4.1, +4.7% | | | | |
+
+| | |
+|---|---|
+| Flags | IMPROVED 98, REGRESSED 223, UNINTENDED 0 (every band was targeted, because this run measures and proposes nothing) |
+| REGRESSED, traced | Almost all are pace bands that were already fast and got faster (P1, P2, P6.4, P9.deadly: a four on Deadly was 1.5 to 3.6 of the lone hero and moved up 3 to 13%), and survival bands that were already too safe (S1, S4, S5). A stronger supply makes a fast, safe cell faster and safer |
+| IMPROVED, traced | Gold bands: G-2 on most lone cells, G-9 and G-1 at Level 60, G-3 on LOW fours |
+| What it says | A hero fully supplied from home levels 3.6% faster alone and 5.8% faster in a four, 9.6% on Deadly, and a four takes a sixth less damage. That is about the size of one gear step. Home already gives the hunt real power, through supplies, and it is ruled (the store's 0.75) |
+| What it changes | Dropped seeds (proposal 9) must not raise the 1 / 0.75 edge. A seed drink sits on the existing drink ladder at the next Level's size. A drink above the ladder would stack on a +6 to +10% party edge |
+| The hammer reads zero | The harness hammer's bar holds no supply with an effect. Its food is bought by hit points. So Home's worth to a lone hammer is gold only, and the matrix cannot see it |
+| Not proved | What it costs to be fully home-supplied. `paths.json` T7 says the best path uses 2.1 to 4.4 of 12 rested hours in a party, so the hours exist. Whether a real four makes all of its supplies is REAL at a third (`10-real-players.md`) |
+
+**M3. The yard, +10 main skill and Defense, re-measured on today's to-hit** (`measure.mjs what --at <point> --seat <seat> --patch '{"skillBump":10}'`, 2 seeds x 1 h, paired dice. The matrix patch format cannot move a hero's skill line, which lives in tools, so this is the program's older harness).
+
+| Cell | Level XP | Damage taken | 26-home.md before to-hit |
+|---|---|---|---|
+| Glade 30, lone | x1.049 | x0.848 | x1.042, x0.640 |
+| Glade 30, four on Deadly | x1.039 | x0.757 | x1.069, x0.416 |
+| Slake 60, lone | x1.038 | x0.861 | x1.035, x0.761 |
+| Slake 60, four on Deadly | x1.073 | x0.694 | x1.076, x0.592 |
+| Hold 105, lone | x1.030 | x0.918 | x1.022, x0.998 |
+| Hold 105, four on Deadly | x1.018 | x0.877 | x1.033, x0.945 |
+
+| | |
+|---|---|
+| IMPROVED | The worst case is gone: +10 Defense cut a Glade four's damage by 58% and now cuts it by 24%. RULED 11-18 called 30 to 59% "definitely NOT" intended |
+| Still outside the plan | 30-plan.md line 90 expects "14% less taken at Level 10 falling to 3% at 105". Measured: 15% at 30, 14% at 60 and 8% at 105 alone, and 24%, 31% and 12% in a four. The Slake four at 31% is still at the edge of what Tyler ruled out. For the combat review |
+| UNINTENDED | In the Glade four the store bill rose from 6,054 to 11,691 gold an hour with +10 skills, and net gold went from +4,902 to -401. HYPOTHESIS: ten more skill levels open the next rune tier, and the harness buys the dearer rune. If so, training a mage's Magic at the yard raises its rune bill. For the economy and combat reviews |
+| What it says for Home | +10 skills is worth +2 to +7% Level XP. At the ruled fee, +10 at skill 30 is about 80,000 gold (`26-home.md` section 8), so the yard buys XP at about the price of Tempering's cheap end. The fee is right. The value is real at 30 to 60 and thin at 105 |
+
+**Measured by others, used here.**
+
+| What | Who | Result |
+|---|---|---|
+| The rested bank removed | 56, `progression-3-rested-off.json` | 207 cells, no number moved. Removal is free |
+| The yard fee as a share of gold | 55 section 10.4 | A lone hero that trains all 12 rested hours pays 36 to 39% of its gold in, inside G-9. With the dummy at half fee it pays back in days, not hours |
+| Rested hours the best path wants | `paths.json` bands T7 | A party hero 2.1 to 4.4 of 12. A lone hero 6.9 for best in slot and 12 for MID. Rested hours are NOT scarce for a party and ARE at the limit for a lone MID hero |
+| What a rested hour earns | `paths.json` `townGold` | 1,654 gold at Level 10, 2,904 at 30, 4,900 at 60, 8,431 from 88 on. That is 19 to 37% of a hunted hour (band T2 is 15 to 35%) |
+
+### 10.6 The fixtures that would measure Home
+
+The matrix cannot judge a room, a bed or a deed. These five fixtures would. None needs a new formula. Each is named so the baseline lane can build it.
+
+| Fixture | What it plays or computes | What it would settle |
+|---|---|---|
+| **H1. A supplies axis on the matrix cell**: `supplies: store / home / mixed` | The same cell with home-made supplies, charged at the rested hours they cost times `townGold` | M2 without the "at store prices" caveat. The true net gold of a home-supplied four. Standard T3 |
+| **H2. The rested day**, closed form, an extension of `home.mjs`: `home.mjs payback --frame 12` | 12 rested hours a hero split by the solver's T7 plan across bench, node, farm and yard, with each room rung switched on and off | Payback of every rung in DAYS on the 12 hour frame, by recipe. Whether kept materials pays for the recipes a path really runs |
+| **H3. The field against the bar** | Beds x crop x two visits a day, against drinks a hero-hour by way read from the matrix cells | The share of each way's drink bill a field covers at each Level. The right number of beds. Whether Garden rungs 4 and 5 are worth their price |
+| **H4. A yard step on the matrix**: a `step:yard+10` cell beside the gear steps | The same cell with the main skill and Defense 10 over the line | M3 inside the matrix, with bands and flags. Guard lines G11 and G12 |
+| **H5. The first hour with 500 gold** | A played new account: turnips, the Homestead at 400, with and without the soil tier | Proposal 3. Only a played run can tell |
+
+The Hall of Firsts, the looks and visiting have no fixture. They are telemetry and playtest questions, listed in section 6.
+
+### 10.7 Verdicts that changed since phase A, and why
+
+| Row | Phase A | Phase B | Why |
+|---|---|---|---|
+| 50 Curing | DEFER, with a call "do not build it" | DEFER, the call withdrawn | 47 C11: ruled twice. And T7 answered my own test both ways: a party hero has 8 spare rested hours, so a slot is not capacity for the players who can afford one. When L33 is built it must be a standing order ("keep these linings up"), or it is a chore |
+| 52 The flat yard rate | KEEP | REDESIGN (Tyler's call, 44 call 15) | 44 measured 51 to 243 yard hours a skill level from 75 to 100. I had called that "it caps itself". On a game with no skill cap it means the yard and the dummy stop mattering for most of the game |
+| 53 The House dummy | KEEP as "no fee" | REDESIGN: half the fee | 55 computed a 2.8 day payback at the ruled fee. A thing that pays for itself in three days is not a sink |
+| 28 The rested bank | REMOVE, read from code | REMOVE, measured | 207 cells, nothing moved |
+| 12, 15, 17, 19 Bench rungs | REDESIGN, computed | REDESIGN, and free for the hunt | M1: identity |
+| 49 Dropped seeds | ADD | ADD, with a limit | M2: home supplies are already worth +6 to +10% to a party. The seed drink stays on the ladder |
+| 23 The Hall of Firsts | REDESIGN | REDESIGN, three reviews behind it | 47 C19, 56 and 59 each feed it |
+
+Counts after phase B: KEEP 34, REDESIGN 12, REMOVE 5, MERGE 1, ADD 4, DEFER 2.
+
+### 10.8 Tyler decides, after phase B
+
+This list replaces section 7. One recommendation each.
+
+1. **The Cellar.** Recommend: off sale today. Curing is built as you ruled, last in the lining work, as a standing order. Reason: its five rungs sell an effect the plan cuts. Alternative: leave it on sale until L33.
+2. **The Trophy room.** Recommend: the Hall of Firsts. Wall room from the Keep and the Castle, no mount rungs, a mounting fee priced in hours of the piece's band wage. Reason: three other reviews feed it and a fee a piece never runs out. Alternative: L51 as planned, five mount rungs for 695,000.
+3. **The House dummy.** Recommend: it halves the yard fee, forever. Reason: at the ruled fee "no fee" pays back in 2.8 days and ends the one sink that grows. This changes your 11-08 words. Alternative: keep "no fee" and price a skill in the tens of millions.
+4. **The yard's rate.** Recommend: the rate follows a share of the skill level's cost and never passes half of what hunting pays that skill. Reason: at one flat rate a level takes 51 to 243 yard hours from skill 75. This changes your 11-14 ruling. Alternative: keep the flat 30,000 and accept that the yard is a tool for new heroes only.
+5. **Soil tiers.** Recommend: remove them. Reason: one gate a crop, and it is the gate that zeroed farming. Alternative: keep them as a 130,500 gold sink.
+6. **Home looks and visiting.** Recommend: three looks, two new maps, and visiting from the Homestead once the Hall exists. Reason: ground art comes first, and a wall behind 2.5M is seen by nobody. Alternative: a map for each deed and visiting at the Castle, as L45 and 26-11 say.
+7. **The 16 speed rungs.** Recommend: swap them for kept materials ahead of the lining work, or hold them now. Reason: on sale today, never pay back, and M1 shows the swap costs the hunt nothing. Alternative: wait for L38's wave.
+8. **Dropped seeds.** Recommend: a sample of two with the Morrow Hills, each drink on the existing ladder. Reason: nothing a hunt drops reaches the field. Alternative: Shop seeds only.
+
+Handed on, not calls: +10 Defense still cuts a Slake four's damage by 31% (combat). A trained mage's rune bill may double (economy, combat). The War Crown loses its House use (items).

@@ -86,14 +86,6 @@ export const ROOM_PERKS = Object.freeze({
   ],
 });
 
-/* Rung payload that is NOT a bonus key: the Library's Rested XP quantum and
-   bank size (bonus-rebase.md §5.3 — Rested converted from a percentage to a
-   flat quantum). Carried here so nothing has to extract the same table twice
-   for the sake of two fields. `null` = that rung pays none. */
-export const ROOM_RUNG_EXTRAS = Object.freeze({
-
-});
-
 /* Every bonus key any rung can pay, sorted. Exported so a consumer can assert
    it knows what each one MEANS rather than silently forwarding a new one. */
 export const ROOM_PERK_KEYS = Object.freeze(["buffDuration","cookSpeed","craftSave","craftSpeed","farmPlots","noBurn","flameSpeed","runeSpeed","smithSpeed","trophyMounts"]);

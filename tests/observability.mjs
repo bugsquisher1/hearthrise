@@ -6,7 +6,7 @@
 //   node tests/observability.mjs --mutate  every planted defect must turn a NAMED check RED; a throw, a plant that does not parse or
 //                                          a line with no OB id is HARNESS, never a catch (tests/_mutant-verdict.mjs)
 //
-// mutant-anchors: src/net/observability.js src/net/diagnostics.js src/net/observability-config.js src/net/boot-timing.js src/app/boot.js src/shell/windows/chat.js src/shell/widgets/hunt-topbar.js src/shell/launcher.js src/session/replay-pref.js src/session/player-switch.js play.html
+// mutant-anchors: src/net/observability.js src/net/diagnostics.js src/net/observability-config.js src/net/boot-timing.js src/app/boot.js src/shell/windows/chat.js src/shell/widgets/hunt-topbar.js src/shell/launcher-coach.js src/session/replay-pref.js src/session/player-switch.js play.html
 //
 // play.html in a real Chromium with the REAL vendored Sentry and PostHog SDKs,
 // supabase-js and the REST paths stubbed (tests/_client-harness.mjs). The page is
@@ -903,7 +903,7 @@ const MUTANTS = [
   ['first_gear_equipped is never sent', 'src/net/observability.js', "else if (e.verb === 'equip') once(", 'else if (false) once('],
   ['a refused ask counts as a step', 'src/net/observability.js', "const r = kind === 'end' && e.result && e.result.ok ? e.result : null;", "const r = kind === 'end' && e.result ? e.result : null;"],
   ['signup_done is never sent', 'src/app/boot.js', "if (roster.length && !rosterSlots.length) trackOnce('signup_done', {}, 'account');", ''],
-  ['the coach\'s cards are never reported', 'src/shell/launcher.js', 'if (!had || had.card.id !== c.id) noteCard(cs, had ? had.card : null, c);', ''],
+  ['the coach\'s cards are never reported', 'src/shell/launcher-coach.js', 'if (!had || had.card.id !== c.id) noteCard(cs, had ? had.card : null, c);', ''],
   /* OB-16: the player's switch; each is caught by the node arm, so no browser run is spent on it */
   ['the recorder ignores the player\'s switch', 'src/net/observability.js', ' && replayWanted(Array.from(watched.keys())) === true;', ';'],
   ['an unread hero reads as yes, so a screen is recorded before the choice is known', 'src/net/observability.js', 'replayWanted(Array.from(watched.keys())) === true;', 'replayWanted(Array.from(watched.keys())) !== false;'],

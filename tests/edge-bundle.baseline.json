@@ -145,19 +145,19 @@
         "why": "+1106 B ceiling, all src/core/hunt pull-cycle.js (heroAtPack: a pack waits for a party passing through) and targeting.js (a fought pack's monster whose target walked out turns on the party) = lane/a-no-fight-strong-four's no-fight stall fix; its comments trimmed 1073 B first"
       },
       {
-        "bytes": 3176365,
+        "bytes": 3166835,
         "on": "2026-11-21",
-        "why": "lane/c-pace (FB-8 stage 1, 44 R10/R11): the gear curve src/data/gear-curve.js (8.8 KB, the formula of record with its rates and their measured provenance) reaches the edge through items.js -> gear-tiers.js, which now reads every weapon row through it (+1.7 KB WEAPON_LINES); no served number moves"
+        "why": "+952 B ceiling: +180 B src/core/hunt/tally.js (lane/a-kill-credit-null: a kill with no dealer credits no hero, the settle no longer throws) and +772 B already on set/v0.2.144 from lane/c-first-hour's data (src/data/the-path.js, start-kit.js, how-to-play.js, text/*), measured with tally.js at base"
       },
       {
-        "bytes": 3178142,
+        "bytes": 3150368,
         "on": "2026-11-21",
-        "why": "lane/c-pace armor half (D-3): core-model.js's armor curve x2.4 and its ruling note (+1.2 KB) and gear-tiers.js ARMOUR_CURVE_LINES, every armor row read through the gear curve (+0.6 KB); the engine reads both"
+        "why": "cut locked in (16467 bytes)"
       },
       {
-        "bytes": 3178820,
+        "bytes": 3163305,
         "on": "2026-11-21",
-        "why": "lane/c-pace armor half: Krell's hall card asks for Salted Shark on the x2.4 armor curve (D-3), the pack's measured note why (+0.7 KB); the edge reads the ground pack"
+        "why": "lane/c-pace (FB-8 stage 1, 44 R10/R11 and D-3) merged over set/v0.2.144: src/data/gear-curve.js the gear curve and its exchange rates (8.8 KB, the formula of record), gear-tiers.js WEAPON_LINES and ARMOUR_CURVE_LINES (every gear row read through the curve), core-model.js's armor curve x2.4 note and Krell's hall Shark note (+12.9 KB in all); no row the edge serves moved but the armor k and the hall card"
       }
     ]
   }

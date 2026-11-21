@@ -53,7 +53,7 @@ import { isMain } from '../../tests/_is-main.mjs';
 import * as STD from './standards.mjs';
 import { loadGridData, inputHash, compsOf, cellKey, buildCell } from './progression-grid.mjs';
 import { loadKits } from './grid-kit.mjs';
-import { RUNS, planMatrix, archetypeTable, WAYS, HIGH_LEVELS } from './matrix-plan.mjs';
+import { RUNS, planMatrix, archetypeTable, WAYS, HIGH_LEVELS, ch14Slots as MP_ch14Slots } from './matrix-plan.mjs';
 import { METRICS, cellMetrics, slimSeed, deriveMatrix, judgeMatrix, diffMatrices, axisSummary, levelBand, wayOf, styleGroupOf, FLAG_WORDS, checkGRows, toolReds, TOOL_RED_ENDS } from './matrix-metrics.mjs';
 import { plantScratch, knobTable, checkPatch, patchEdits, scaled, readKnobs, locateKnob, PATCH_SCHEMA, KnobGone } from './matrix-scratch.mjs';
 import { calibrationJobs, calibrationTable, printCalibration } from './matrix-calibration.mjs';
@@ -197,11 +197,25 @@ export function readCache(file) { return existsSync(file) ? JSON.parse(readFileS
 /* ── PRINTING ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────── */
 const fmt = (v, d = 0) => (!finite(v) ? '-' : Math.abs(v) >= 1e6 ? (v / 1e6).toFixed(2) + 'M' : Math.abs(v) >= 1e4 ? (v / 1e3).toFixed(1) + 'k' : d ? v.toFixed(d) : String(Math.round(v)));
 const pct = (v) => (!finite(v) ? '-' : (v >= 0 ? '+' : '') + (v * 100).toFixed(1) + '%');
+/* THE FULL-GAME BLOCK AGAINST THE DEATH SAMPLE: every band row whose status moved between the two (same way, band and cell), by band, and the
+   death pools by tier on the grounds (the four, 14 grounds, both ends). A moved band is chapter 14 content to re-size at its own rows */
+export function compareBlocks(rowsA, rowsB, cellsA, cellsB) {
+  const key = (r) => r.way + '|' + r.band + '|' + r.at, A = new Map(rowsA.map((r) => [key(r), r])), moved = {};
+  for (const r of rowsB) { const a = A.get(key(r)); if (a && a.status !== r.status && [a.status, r.status].some((x) => ['ok', 'off', 'RED'].includes(x))) (moved[r.band] || (moved[r.band] = [])).push(a.status + '->' + r.status); }
+  const pool = (cells, tier) => { const cs = cells.filter((c) => c.m && c.block === 'grounds' && c.party === 4 && c.tier === tier); const d = cs.reduce((x, c) => x + (c.m.deaths || 0), 0), h = cs.reduce((x, c) => x + (c.m.sample ? c.m.sample.heroHours : 0), 0); return h ? Math.round((10000 * d) / h) / 10 : null; };
+  return { moved, pools: Object.fromEntries(['dangerous', 'deadly'].map((t) => [t, [pool(cellsA, t), pool(cellsB, t)]])) };
+}
+function printBlocks(rowsA, rowsB, cellsA, cellsB, out = console.log) {
+  const c = compareBlocks(rowsA, rowsB, cellsA, cellsB);
+  out('\nTHE FULL-GAME BLOCK AGAINST THE DEATH SAMPLE (14-the-rest.md section 1): deaths in 1,000 hours on the 14 grounds, the four, death sample -> full-game block: ' + Object.entries(c.pools).map(([t, [a, b]]) => t + ' ' + a + ' -> ' + b).join(', '));
+  const bands = Object.entries(c.moved).sort((x, y) => y[1].length - x[1].length);
+  out('  band rows whose status moved: ' + (bands.length ? bands.map(([b, xs]) => b + ' ' + xs.length + ' (' + Object.entries(xs.reduce((m, x) => (m[x] = (m[x] || 0) + 1, m), {})).map(([k, n]) => k + ' ' + n).join(', ') + ')').join('; ') : 'none'));
+}
 /* THE TOOL RED (audit A-0): the cells that ended on a TOOL_RED_ENDS reason, printed under a run's header and on stderr at the end; 1 when any */
 export function printToolReds(cells, out = console.log, label = '') {
   const t = toolReds(cells);
   if (!t.length) return 0;
-  out('TOOL RED' + (label ? ' (' + label + ')' : '') + ': ' + t.length + ' cell(s) ended ' + TOOL_RED_ENDS.join(' or ') + ', so they measured an engine stall, not the balance');
+  out('TOOL RED' + (label ? ' (' + label + ')' : '') + ': ' + t.length + ' cell(s) measured an engine stall or fault, not the balance (an end of ' + TOOL_RED_ENDS.join(' or ') + ', or an engine error that names one)');
   for (const x of t.slice(0, 12)) out('  TOOL RED ' + x.key + ': ' + x.why);
   if (t.length > 12) out('  ... ' + (t.length - 12) + ' more');
   return 1;
@@ -229,6 +243,13 @@ export function printRun(res, rows, out = console.log) {
   out('\nSOLO AGAINST PARTY (a four\'s head over the lone hammer; and over the same four ways alone) with each seat\'s share of the damage taken');
   for (const s of D.soloVsParty) out('  ' + (s.L + ' ' + s.gear + ' ' + s.tier).padEnd(22) + ' XP ' + fmt(s.xpHeadVsHammer, 2) + ' (same alone ' + fmt(s.xpHeadVsSameAlone, 2) + '), net ' + fmt(s.netHeadVsHammer, 2) + ', DPS ' + fmt(s.dpsHeadVsHammer, 2) + ', deaths ' + fmt(s.deathsFour, 1) + ' vs ' + fmt(s.deathsLone, 1) + ' | taken: ' + Object.entries(s.takenShare).map(([k, v]) => k + ' ' + pct(v).replace('+', '')).join(', '));
   printLineups(D.lineups, null, out);
+  /* CHECK C3 (matrix-plan.mjs C3_BLOCK, a standing cell of the death sample): the default company holds the Sewer at Level 5 with no death */
+  const c3 = ok.filter((c) => c.block === 'c3');
+  if (c3.length) {
+    const club = c3.find((c) => c.comp === 'c3-club');
+    out('\nCHECK C3 (08 section 6, the default company on the Sewer at Level 5, Normal, the start kit): ' + (club ? (club.m.deaths > 0 ? 'FAILS, ' + club.m.deaths + ' death(s)' : 'passes, no death') : 'not played') + '; beside it, never gated:');
+    for (const c of c3) out('  ' + (c.comp + ' ' + c.styles.join(',')).padEnd(40) + ' deaths/1000h ' + fmt(c.m.deathsPer1000h, 1) + '  Level XP a head ' + fmt(c.m.levelXpPerH) + '  net gold ' + fmt(c.m.netPerH) + '  low HP ' + fmt(c.m.lowHpTypical, 2) + '  hunted ' + pct(c.m.huntedShare).replace('+', ''));
+  }
   /* THE DEATH RULE (cell.mjs header): the share of the time offered that was hunted, and XP after deaths over that time, where it is under 1 */
   const short = ok.filter((c) => !c.variant && Number.isFinite(c.m.huntedShare) && c.m.huntedShare < 0.999 && c.block !== 'grounds');
   out('\nTHE DEATH RULE (a death ends that hero\'s hunt; the rest hunt on): ' + short.length + ' of ' + ok.filter((c) => !c.variant).length + ' cells lost hunting time'
@@ -329,9 +350,12 @@ const optsOf = () => ({ only: arg('only') ? arg('only').split(',').map(Number) :
 
 /** Play a run on a base (the tree, or a proposal set planted on a scratch copy). */
 export async function playOnBase(D, K, run, base, o) {
-  if (!base) return playRun(D, K, run, ROOT, o);
-  const s = await plantScratch(base.patch);
-  try { return { ...(await playRun(D, K, run, s.root, { ...o, plan: base.patch.plan })), applied: s.applied }; } finally { s.done(); }
+  /* a run that names a `patch` (matrix-plan.mjs RUNS['deaths-full']: chapter 14's full-game block) plays it on top of its base */
+  const extra = run.patch ? JSON.parse(readFileSync(join(HERE, run.patch), 'utf8')) : null;
+  const patch = extra ? combinePatches(base ? base.patch : null, extra) : base ? base.patch : null;
+  if (!patch) return playRun(D, K, run, ROOT, o);
+  const s = await plantScratch(patch);
+  try { return { ...(await playRun(D, K, run, s.root, { ...o, plan: patch.plan })), applied: s.applied }; } finally { s.done(); }
 }
 export const baseHash = (base) => (base ? createHash('sha256').update(matrixHash() + JSON.stringify(base.patch) + [...new Set(base.patch.edits.map((e) => e.file))].map((f) => existsSync(join(ROOT, f)) ? readFileSync(join(ROOT, f), 'utf8') : '').join('\0')).digest('hex').slice(0, 16) : matrixHash());
 export const cacheFileOf = (run, base) => (run.id === 'subset' ? (base ? join(HERE, 'balance-matrix-' + base.name + '.json') : SUBSET_FILE) : run.id === 'full' ? (base ? join(HERE, 'balance-matrix-full-' + base.name + '.json') : MATRIX_FILE)
@@ -601,6 +625,8 @@ async function main() {
     const D0 = await loadGridData(ROOT), K0 = await loadKits(ROOT), V = o.base ? await baseView(D0, o.base) : D0;
     const rows = judgeMatrix(V, K0, joined.cells);
     printRun({ ...joined, run: joined.run }, rows);
+    /* chapter 14's full-game block beside the plain death sample it extends (the dial pick reads both: 14-the-rest.md section 1) */
+    if (jrun.patch && RUNS.deaths && jrun.id !== 'deaths') { const c = readCache(cacheFileOf(RUNS.deaths, o.base)); if (c) printBlocks(judgeMatrix(V, K0, c.cells), rows, c.cells, joined.cells); else console.log('\n(no death sample cache on this base to read the full-game block against: join the deaths shards first)'); }
     if (arg('json')) writeFileSync(resolve(arg('json')), JSON.stringify({ run: joined.run, runtime: joined.runtime, derived: deriveMatrix(joined.cells), bands: rows, calibration: joined.calibration }, null, 1));
     console.log('\njoined ' + docs.length + ' shards, ' + joined.cells.length + ' cells -> ' + relative(ROOT, file));
     return sayToolReds(joined.cells);
@@ -735,10 +761,10 @@ async function selftest() {
     const t0r = toolReds(base.cells);
     check('the tree plays no tool red (' + t0r.length + ' of ' + base.cells.length + ' cells ended ' + TOOL_RED_ENDS.join(' or ') + ') and every cell keeps each seed\'s ends',
       t0r.length === 0 && base.cells.every((c) => Array.isArray(c.m.falls) && c.m.falls.length === c.seeds), JSON.stringify(t0r).slice(0, 200));
-    const planted = [{ key: 'a', m: { ended: { died: 2, outgrown: 1 } } }, { key: 'b', m: { ended: { no_fight: 1, died: 1 } } }, { key: 'c', error: 'x' }];
+    const planted = [{ key: 'a', m: { ended: { died: 2, outgrown: 1 } } }, { key: 'b', m: { ended: { no_fight: 1, died: 1 } } }, { key: 'c', error: 'x' }, { key: 'd', error: 'Error: tally: kill at 1 credits unit null, who is not a hero of this hunt' }];
     const tr = toolReds(planted), lines = [];
-    check('a planted cell that ended no_fight is a tool red and the run exits 1; a death, an outgrown end or an error is not one (' + tr.map((x) => x.key).join() + ')',
-      tr.length === 1 && tr[0].key === 'b' && printToolReds(planted, (s) => lines.push(s)) === 1 && lines.length >= 2 && printToolReds([planted[0], planted[2]], () => {}) === 0);
+    check('a planted cell that ended no_fight, or an error naming a kill credited to no hero, is a tool red and the run exits 1; a death, an outgrown end or another error is not one (' + tr.map((x) => x.key).join() + ')',
+      tr.length === 2 && tr[0].key === 'b' && tr[1].key === 'd' && printToolReds(planted, (s) => lines.push(s)) === 1 && lines.length >= 2 && printToolReds([planted[0], planted[2]], () => {}) === 0);
     const NOFIGHT = { id: 'selftest-nofight', levels: [], seeds: 1, hours: 0.25, blocks: [{ id: 'a', levels: [30], comps: [lone('hammer')], gears: ['mid'], tiers: ['normal'] }] };
     const stall = { edits: [{ file: 'src/core/hunt/damage.js', from: "  if (target.side === 'mon') inst.world.fightAt = sc.atMs;", to: "  if (false) inst.world.fightAt = sc.atMs; /* MUTANT: the no-fight clock never moves */" }] };
     let mut = null, why = '';
@@ -747,6 +773,16 @@ async function selftest() {
     check('MUTANT the engine stalls (the no-fight clock never moves on a blow): its cell ends no_fight at the span, kept in its falls, and the matrix reads a tool red ('
       + (mr.map((x) => x.why).join('; ') || why || 'no tool red') + ')', mr.length === 1 && printToolReds(mut.cells, () => {}) === 1 && !!fall && fall[0] && fall[0][2] === 'no_fight' && fall[0][1] < 0.25,
       JSON.stringify(fall));
+  }
+  /* 3b. chapter 14's full-game block: the run names its patch and puts the sample's spells on the bars; the block reads against the death sample */
+  {
+    const fr = RUNS['deaths-full'], P = JSON.parse(readFileSync(join(HERE, fr.patch), 'utf8'));
+    const g = (tier, deaths) => ({ m: { deaths, sample: { heroHours: 1000 } }, block: 'grounds', party: 4, tier });
+    const cb = compareBlocks([{ way: 'hammer', band: 'S6.deadly.mid', at: 'a', status: 'ok' }, { way: 'hammer', band: 'S4.mid', at: 'b', status: 'report' }],
+      [{ way: 'hammer', band: 'S6.deadly.mid', at: 'a', status: 'RED' }, { way: 'hammer', band: 'S4.mid', at: 'b', status: 'report' }], [g('deadly', 40)], [g('deadly', 60)]);
+    check('the full-game block plays its patch (' + P.edits.length + ' edits) with the sample\'s spells on the bars, and reads against the death sample (' + JSON.stringify(cb) + ')',
+      fr.ch14 && P.edits.length >= 3 && cb.moved['S6.deadly.mid'] && cb.moved['S6.deadly.mid'][0] === 'ok->RED' && !cb.moved['S4.mid'] && cb.pools.deadly[0] === 40 && cb.pools.deadly[1] === 60
+      && MP_ch14Slots(['hammer', 'bow', 'mage', 'healer'], [{}, {}, { magic: 45 }, {}]).mage.slots.length === 2 && !MP_ch14Slots(['hammer', 'bow', 'mage', 'healer'], [{}, {}, { magic: 20 }, {}]).mage);
   }
   const rowsB = judgeMatrix(D, K, base.cells);
   const same = await play({ knobs: { playerAttack: 1 } });

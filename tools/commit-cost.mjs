@@ -185,7 +185,6 @@ export async function prepare({ door = 'fire', hunt = 'coppercap_warrens', level
   for (let s = 0; s < 4; s++) {
     const hero = async () => { await fresh(); await asMe(); return one('select public.hr_create_hero($1, $2, $3::jsonb, $4::uuid)', [s, 'Costhero ' + 'ABCD'[s], '{"head":0,"body":0,"legs":0,"feet":0}', idem()]); };
     let r = await hero();
-    if (!r || r.ok !== true) { await rpc('select public.hr_buy_hero_slot($1, 0, $2::uuid)', [s, idem()]); r = await hero(); }
     if (!r || r.ok !== true) throw new Error('hero ' + s + ': ' + JSON.stringify(r));
   }
   for (const s of [1, 2, 3]) await rpc('select public.hr_hunt_party_invite_own(0, $1, $2::uuid)', [s, idem()]);

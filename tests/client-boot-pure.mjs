@@ -26,9 +26,8 @@
 // as a JavaScript runtime (legalHtml, readLegal) moved here whole. The answers come from a real AccountSession over a stub server
 // that answers hr_load the way client-boot's stubServer does, so the roster rows are the ones the characters screen reads.
 //
-//   B-11 BUY A HERO SLOT: the line over the roster says how the other slots come; the offer reads the account's purse at the
-//        newest wallet version (never a lagging hero's), the server's price, what is short, off while short or buying ("Buying…"),
-//        paid by the lowest hero; the first press asks at the server's price; none beside an empty slot or at the cap
+//   B-11 FOUR HERO SLOTS (Tyler 2026-11-21; 1036-four-starter-slots.sql): the line over the roster says how many play at once and
+//        how many heroes are still to make, from the server's limit and roster; no slot is for sale, so the account holds no offer
 //   B-7  ADMISSION: the door's answer is the server's word, in, closed, or unanswered: a failed read is never a no
 //   B-17 THE AWAY STAMP OUTLIVES THE PAGE: a put asked to outlive it goes on a keepalive fetch (one under the browser's 64 KB cap)
 //   B-20 THE LEGAL PAGES: the reader draws only what its rules allow (every character escaped, https and mailto links, the
@@ -73,19 +72,6 @@ function accountOf(M, o) {
   return new M.A.AccountSession({ auth: { userId: () => UID, token: () => 'jwt', signOut: async () => {} }, server, tab: null, channel: null });
 }
 
-/* What the offer block shows, read off its HTML the way the page's text reads (entities decoded). */
-const decode = (s) => String(s).replace(/&nbsp;/g, ' ').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, '\'').replace(/&amp;/g, '&');
-function offerView(html) {
-  const tag = (re) => { const m = re.exec(html); return m ? m : null; };
-  const buy = tag(/<button([^>]*)data-app="buy-slot"([^>]*)>([^<]*)<\/button>/);
-  const attrs = buy ? buy[1] + buy[2] : '';
-  const text = (cls) => { const m = new RegExp('<p class="' + cls + '"[^>]*>([^<]*)</p>').exec(html); return m ? decode(m[1]) : ''; };
-  const yes = tag(/<button[^>]*data-app="buy-slot-yes"[^>]*>([^<]*)<\/button>/);
-  return { html: html.length > 0, buy: buy ? { text: decode(buy[3]).trim(), off: /\sdisabled(\s|$)/.test(attrs), pay: (/data-pay="(\d+)"/.exec(attrs) || [])[1] || null } : null,
-    purse: text('slot-offer-purse'), short: text('slot-offer-short'), q: text('slot-offer-ask'), yes: yes ? decode(yes[1]) : '',
-    no: /data-app="buy-slot-no"/.test(html), picker: /<select/.test(html) };
-}
-
 /* mutant-rules-start */
 /** Every rule, in the page's order. Fail lines carry the page rule's id. */
 async function pure(base) {
@@ -115,39 +101,19 @@ async function pure(base) {
     if (kept.join() !== 'true,false,false') fails.push('B-17 the stamp was not sent on a fetch that outlives the page: ' + JSON.stringify(kept) + ' (want a keepalive put, a plain one, and one over 64 KB plain)');
   }
 
-  { // B-11 buy a hero slot with the account's gold, at the server's price; none at the cap
-    const o = { heroes: { 0: 'Tester', 1: 'Fennick' }, slots: [0, 1], purse: 14100, goldV: 7, lag: { 1: { gold: 90000, v: 3 } }, ladder: { 2: 15000, 3: 40000 } };
+  { // B-11 four hero slots from the start: the line says the play limit and the heroes still to make; nothing is for sale
+    const o = { heroes: { 0: 'Tester', 1: 'Fennick' }, slots: [0, 1, 2, 3], purse: 14100, goldV: 7, ladder: {} };
     let acct = accountOf(M, o);
     let rows = await acct.roster();
-    /* "Up to 4" beside two slots says how the other two come; the price is the offer block's own, so the line names none. */
-    const lead = M.SO.playLineOf(acct.statedLimit(), acct.limit(), rows.length, acct.slotOffer, rows);
-    if (!/Hero slots: 2 \(up to 4 play at once\)\. More cost gold/.test(lead)) fails.push('B-11 the line over the roster reads ' + JSON.stringify(lead));
-    /* 14,100 at wallet version 7 is the purse; Fennick's older answer (90,000 at version 3) is not. */
-    const b0 = offerView(M.SO.slotOfferHtml(acct.slotOffer, rows, { pending: false, asking: false }));
-    if (!b0.buy || b0.buy.text !== 'Buy a hero slot for 15,000 gold' || !b0.buy.off || b0.buy.pay !== '0' || b0.picker
-      || b0.purse !== 'Gold: 14,100 gp' || !/^Need 900 more gold/.test(b0.short)) fails.push('B-11 the offer short of gold reads ' + JSON.stringify(b0) + ' (expected Gold: 14,100, 900 short, off, no payer to pick)');
-    else {
-      Object.assign(o, { purse: 80000, goldV: 8, lag: null });
-      acct = accountOf(M, o);
-      rows = await acct.roster();
-      const b1 = offerView(M.SO.slotOfferHtml(acct.slotOffer, rows, { pending: false, asking: false }));
-      if (!b1.buy || b1.buy.off || b1.buy.pay !== '0' || b1.short || b1.purse !== 'Gold: 80,000 gp') fails.push('B-11 the offer with gold reads ' + JSON.stringify(b1));
-      /* B-11c BUY ASKS FIRST: the asking block names the slot and the server's price, with Buy for N and Cancel, and no Buy */
-      const a1 = offerView(M.SO.slotOfferHtml(acct.slotOffer, rows, { pending: false, asking: true }));
-      if (a1.q !== 'Buy the Third hero slot for 15,000 gold?' || a1.yes !== 'Buy for 15,000 gold' || !a1.no || a1.buy) fails.push('B-11c the first press on Buy reads ' + JSON.stringify(a1));
-      const b2 = offerView(M.SO.slotOfferHtml(acct.slotOffer, rows, { pending: true, asking: false }));
-      if (!b2.buy || !b2.buy.off || b2.buy.text !== 'Buying…') fails.push('B-11 while the purchase is out the button reads ' + JSON.stringify(b2.buy));
-      /* The new slot stands empty, so no other is on sale until a hero is in it; the third hero brings the fourth slot's price. */
-      o.slots = [0, 1, 2];
-      acct = accountOf(M, o);
-      rows = await acct.roster();
-      const b3 = M.SO.slotOfferHtml(acct.slotOffer, rows, { pending: false, asking: false });
-      if (rows.length !== 3 || b3) fails.push('B-11 after the purchase the roster reads ' + JSON.stringify(offerView(b3)) + ' beside the new empty slot');
-      Object.assign(o, { slots: [0, 1, 2, 3], heroes: { 0: 'Tester', 1: 'Fennick', 2: 'Wren', 3: 'Moss' } });
-      acct = accountOf(M, o);
-      rows = await acct.roster();
-      if (rows.length !== 4 || M.SO.slotOfferHtml(acct.slotOffer, rows, { pending: false, asking: false })) fails.push('B-11 at four slots the roster still offers a slot, or does not list four');
-    }
+    const lead = M.SO.playLineOf(acct.statedLimit(), acct.limit(), rows);
+    if (rows.length !== 4 || lead !== 'Heroes at once: up to 4. 2 more heroes to make') fails.push('B-11 the line over two heroes of four reads ' + JSON.stringify(lead) + ' over ' + rows.length + ' slots');
+    if ('slotOffer' in acct || typeof acct.buySlot === 'function') fails.push('B-11 the account still holds a slot offer or a purchase');
+    Object.assign(o, { heroes: { 0: 'Tester', 1: 'Fennick', 2: 'Wren', 3: 'Moss' } });
+    acct = accountOf(M, o);
+    rows = await acct.roster();
+    const full = M.SO.playLineOf(acct.statedLimit(), acct.limit(), rows);
+    if (full !== 'Heroes at once: up to 4') fails.push('B-11 the line over four heroes reads ' + JSON.stringify(full));
+    if (M.SO.playLineOf(null, 4, rows) !== '') fails.push('B-11 the line speaks before the server has stated its limit');
   }
 
   { // B-7 Check again is the server's word: in, closed, or unanswered (a failed read is not a no)
@@ -166,13 +132,11 @@ async function pure(base) {
   return fails;
 }
 
-/* The eight mutants of tests/client-boot.mjs planted in modules a page only hosts, moved here verbatim (lane/c-rules-in-node
-   2026-11-20). Each one's page rule is the rule that catches it here. */
+/* The mutants of tests/client-boot.mjs planted in modules a page only hosts, moved here (lane/c-rules-in-node 2026-11-20); the four
+   on the hero-slot offer left with the offer (FB-5, 2026-11-21), two on the line that replaced it took their place. */
 const MUTANTS = [
-  ['no hero slot is offered', 'src/app/slot-offer.js', "  if (!offer || !purse || actor === null || anEmptySlot(roster)) return '';", "  return '';"],
-  ['the oldest hero answer is the purse', 'src/app/slot-offer.js', '    if (!best || v > best.v) best = { gold: r.gold, v };', '    if (!best || v < best.v) best = { gold: r.gold, v };'],
-  ['the buy button stays lit while buying', 'src/app/slot-offer.js', "(o.pending || short > 0 ? ' disabled' : '')", "(short > 0 ? ' disabled' : '')"],
-  ['a hero short of gold can press buy', 'src/app/slot-offer.js', "(o.pending || short > 0 ? ' disabled' : '')", "(o.pending ? ' disabled' : '')"],
+  ['the line forgets the heroes still to make (B-11)', 'src/app/slot-offer.js', "  return empty ? t('slots.play_to_make', { most, count: empty }) : t('slots.play_up_to', { most });", "  return t('slots.play_up_to', { most });"],
+  ['the line counts a made hero as one to make (B-11)', 'src/app/slot-offer.js', '.filter((r) => r && !r.exists).length', '.length'],
   /* the closed notice's Check again: a failed read is not a no (B-7) */
   ['a failed read reads as a no (B-7)', 'src/session/account-session.js', "return ans.closed ? 'closed' : ans.ok ? 'in' : 'unanswered';", "return ans.ok ? 'in' : 'closed';"],
   /* the away stamp outlives the page (B-17) */

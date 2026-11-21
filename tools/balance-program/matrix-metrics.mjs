@@ -131,10 +131,13 @@ export function cellMetrics(D, meta, seeds, arch = {}) {
    sent it home. Every one the balance pass read was an engine stall (FB-1, 02364f03a: a pack respawned round a passing party, a fought pack's
    monster left with no target after a death). A cell that ends this way reads safe and slow, so the run is red, not the band */
 export const TOOL_RED_ENDS = Object.freeze(['no_fight']);
+/* An engine FAULT a cell's error names (the Coordinator 2026-11-21: read as a tool red until its bug lane lands): [pattern, why] */
+export const TOOL_RED_ERRORS = Object.freeze([[/credits unit null/, 'the engine credited a kill to no hero (src/core/hunt/tally.js heroOf): an engine fault routed to a bug lane']]);
 /** The cells that measured nothing: [{ key, ends: { reason: count }, why }] (cells without numbers are errors, counted apart). */
 export function toolReds(cells) {
   const out = [];
   for (const c of cells) {
+    if (c.error) { const e = TOOL_RED_ERRORS.find(([re]) => re.test(c.error)); if (e) out.push({ key: c.key, ends: {}, why: e[1] }); continue; }
     if (!c.m || !c.m.ended) continue;
     const ends = Object.fromEntries(TOOL_RED_ENDS.filter((k) => c.m.ended[k] > 0).map((k) => [k, c.m.ended[k]]));
     if (Object.keys(ends).length) out.push({ key: c.key, ends, why: Object.entries(ends).map(([k, n]) => n + ' hunt(s) ended ' + k).join(', ') + ' (an engine stall reads as a safe, slow cell)' });

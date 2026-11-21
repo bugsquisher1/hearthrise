@@ -17,7 +17,7 @@
 //                one short heading and one or two sentences each, searchable.
 //
 // No number is restated that the game holds elsewhere except the ruled ones
-// (8 h free stamina, 4 heroes at once, 1 starting slot); copy only. The armor
+// (8 h free stamina, 4 heroes at once, all 4 slots free from the start); copy only. The armor
 // weights' words and numbers are read from src/data/armour-weights.js, the
 // death's share from src/data/hunt-sessions.js DEATH_XP_LOSS.
 // PURE ESM. Data only.
@@ -25,7 +25,7 @@
 
 import { ITEMS } from './items.js';
 import { HUNT_ROLES, roleForWeapon, roleKeyOf } from './hunt-roles.js';
-import { STARTER_SETS } from './start-kit.js';
+import { STARTER_SETS, START_CURRENCY } from './start-kit.js';
 import { WEIGHT_ORDER, weightSentence } from './armour-weights.js';
 import { DEATH_XP_LOSS } from './hunt-sessions.js';
 
@@ -34,7 +34,30 @@ const style = (id, role, weapons, name, does, uses) => Object.freeze({ id, role,
 /* The lead line above the rows: the rule itself. The sword and shield are WORN, not in the bag (start-kit.js
    START_EQUIPMENT). Every sentence ends: the line under it is the account's hero slots, the SERVER'S line (hero-create.js; QA audit
    2026-11-18 N8: "Switch any time in town Hero slots: 1, buy 3 more, all 4 play at once" ran on, and its numbers were typed here). */
-export const HOW_YOU_FIGHT_LEAD = 'No classes, nothing to pick. Every weapon below is yours, the one in hand sets the style. Switch any time in town.';
+export const HOW_YOU_FIGHT_LEAD = 'No classes. Every weapon is yours. The one in hand sets how this hero fights. Switch any time in town.';
+
+/* ── THE WEAPON PICK AT CREATION (GR-24; designer ruling D-1, review/05-designer-rulings.md sections 1.2 and 1.5) ──
+   One card for each STARTER_SETS row (a new way to fight is one more row there and here). `does` and `uses` say what the way
+   does and what it spends. `mark`: the Club is the "Good first hero". `tag`: the honest line from the start-kit cell of check C1;
+   a STUB until FB-3's C1 reads on the fixed engine: Sword and shield and Staff carry it (the tank's slow lone pace is RULED
+   2026-11-19), the other four none. `cost`: the D-1 cost line. The wand's {gold} is C1's net gold to Level 5, rounded to 25,
+   100 until C1 reads (PLAYED once: 251 gold spent on runes and drinks against 146 earned), and {purse} the account kit's gold. */
+const SLOW_ALONE = 'Best in a party. Slow alone.';
+const RUNE_STORE = 'Uses runes. The store sells them for 1 gold each as you cast.';
+export const WAND_FIRST_HUNT_GOLD = 100;
+const pick = (set, name, does, uses, more = {}) => Object.freeze({ set, name, does, uses, tag: more.tag || null, mark: more.mark || null, cost: more.cost || null });
+export const STARTER_PICKS = Object.freeze([
+  pick('tank', 'Sword and shield', 'Holds monsters off the party', 'Uses food', { tag: SLOW_ALONE }),
+  pick('dual_axes', 'Hatchets', 'Hits hardest, up close', 'Uses food', { cost: RUNE_STORE }),
+  pick('club', 'Club', 'Hits hardest, up close', 'Uses food', { mark: 'Good first hero' }),
+  pick('ranger', 'Bow and crossbow', 'Shoots from range', 'Free Bronze Arrows, uses food'),
+  pick('mage', 'Wand and spellbook', 'Casts spells', 'Uses mana and drinks', {
+    cost: 'Casting costs gold. Each Fireball uses 1 rune and some mana. The store sells both as you go. Your first hunt will cost about '
+      + WAND_FIRST_HUNT_GOLD + ' gold more than it earns. You start with ' + START_CURRENCY.gold + '.' }),
+  pick('healer', 'Staff', 'Heals the party', 'Uses mana and drinks', { tag: SLOW_ALONE, cost: RUNE_STORE }),
+]);
+/* Heroes two to four come pre-filled (chapter 08 section 2.1): a shield, a healer and a bow, so the party holds one healer. */
+export const COMPANY_PICKS = Object.freeze(['tank', 'healer', 'ranger']);
 
 export const HOW_YOU_FIGHT = Object.freeze([
   style('hold', 'tank', ['practice_sword', 'practice_shield'], 'Sword and shield',
@@ -70,7 +93,7 @@ export const HELP_NOTES = Object.freeze([
   note('loot', 'Selling and keeping loot',
     'Loot lands in the bag as it drops\nMaterials: used by recipes, the House or Tempering\nJunk: Shop → Sell all junk\nSell spare gear: outgrown armor and weapons, never worn or Rare\nPlans: set Sell or Deposit once in an item\'s menu\nDispatch loot: every plan in one press, in town'),
   note('gold', 'Gold',
-    'Store supplies: gold as they are used\nShop: gloves, belts, jewelry and tools\nServices: stamina and Blessings\nCharacters: another hero slot'),
+    'Store supplies: gold as they are used\nShop: gloves, belts, jewelry and tools\nServices: stamina and Blessings'),
   note('armour', 'Armor and Defense',
     'Defense: rises only in armor, from blows taken\nMonster drops: helmets, bodies, legs and boots\nGloves and belts: the Shop\n'
     + WEIGHT_ORDER.map(weightSentence).join('\n') + '\nWeights mix freely, any piece at its Level'),
@@ -81,7 +104,7 @@ export const HELP_NOTES = Object.freeze([
   note('town', 'Work in town',
     'Between hunts: chop, mine, fish, cook, smith, craft and bind runes\nGathering and crafting (G): press a skill, then a job\nGathering: keeps going offline\nCrafting: uses the bag\nStarting a hunt stops the job\nAfter the hunt: back to the job, wait or train'),
   note('heroes', 'Several heroes',
-    'Hero slots: 1 to start, gold buys up to 3 more\nAll 4 heroes play at once\nOwn heroes join the party at once'),
+    'All 4 hero slots are yours from the start\nAll 4 heroes play at once\nOwn heroes join the party at once'),
   note('death', 'Death',
     'The hunt ends, the hero returns to town\nCost: ' + Math.round(DEATH_XP_LOSS * 100) + '% of Level XP, can take a Level\nBlessings: Shop → Services, free below Level 30'),
 ]);
@@ -109,6 +132,12 @@ export function validate() {
   for (const role of Object.keys(HUNT_ROLES)) if (!roles.has(role)) out.push('role ' + role + ' has no how-you-fight row');
   /* Every starter weapon the kit hands out is explained by some row. */
   for (const ids of Object.values(STARTER_SETS)) for (const id of ids) if (!named.has(id)) out.push('starter weapon ' + id + ' is in no how-you-fight row');
+  /* the pick: one card for each starter set and no other, every pre-filled pick a card, and one healer among them */
+  const picks = STARTER_PICKS.map((r) => r.set);
+  if (picks.slice().sort().join() !== Object.keys(STARTER_SETS).sort().join()) out.push('the weapon pick cards are not the STARTER_SETS rows: ' + picks.join(', '));
+  for (const r of STARTER_PICKS) if (!r.name || !r.does || !r.uses) out.push('pick ' + r.set + ': a card needs a name, what it does and what it uses');
+  if (COMPANY_PICKS.some((id) => !picks.includes(id))) out.push('a pre-filled pick is no card: ' + COMPANY_PICKS.join(', '));
+  if (COMPANY_PICKS.filter((id) => id === 'healer').length !== 1) out.push('the pre-filled company does not hold exactly one healer');
   const ids = new Set();
   for (const n of HELP_NOTES) {
     if (ids.has(n.id)) out.push('help note ' + n.id + ': duplicate');

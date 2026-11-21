@@ -121,8 +121,8 @@ export const SKIP = {
      the hunt settle (./hunt-settle.js: the world tick and the hunt verbs) and by
      nothing else, so the accrue/collect pricing of the same pointer answers
      this and pays nothing. SAFE, not refusing: there is nothing owed HERE —
-     the session owns the window, and refusing would block the aux settle
-     (the rested bank) that rides the accrue verb. */
+     the session owns the window, and the accrue verb goes on to settle the
+     hunt itself (index.ts, respond). */
   HUNT_OPEN: 'hunt_open',
   /* A COMBAT POINTER WITH NO HUNT SESSION (closed rebuild, lane C2). A fight is
      a session; nothing else prices one. SAFE, not refusing: no window is owed

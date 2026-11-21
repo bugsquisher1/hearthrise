@@ -58,6 +58,8 @@ Three armor weights are the one standing choice the plain ladder holds: heavy ad
 
 **The formula.** The power budget of a piece is linear in the Level it is worn at: `budget(L) = Dawnsteel x L / 110`. The seven plain tiers are samples of that line at Levels 1, 15, 30, 45, 60, 75 and 88. The line lives in `src/data` as a game formula and every item reads it (roadmap step R10, knobs `gearSlope` and `gearBandStep`). The line past 110 with no tier 8 is [RULED 11-16]. The line as a game formula with a tier-wide band is [PROVISIONAL GR-4, waits on one band played on the curve, Tyler said yes on the page, reversal of two bands a region of 2026-11-18 and the Luck step of 2026-11-20, let stand on the page].
 
+Tiers 1 to 7 keep their built armor, and the curve writes armor from Level 110. A ladder tier is worth about 9 to 18% less damage, on purpose (D-3, on the veto list as D3-1). RULED by the designer 2026-11-21 (D-3), `review/08-designer-d3.md` section 1.3.
+
 **Why linear.** Monster health is linear in Level (`monsterHp`) and so is hero health (`heroHp`). Gear on any other shape drifts against both. MEASURED on the real engine with stand-in gear (study 42): on a gear line that is linear in Level, hunting pace holds from Level 200 to 5,000 with no other change.
 
 **A band is a tier wide.** Past tier 7 an upgrade is a fixed step of the line, never a fixed count of Levels. The step is one knob, `gearBandStep`. It opens at the largest step that still puts a band edge inside every region, which is about 1.17. [PROVISIONAL GR-4, Tyler said yes on the page, reversal, let stand on the page]
@@ -66,7 +68,7 @@ Three armor weights are the one standing choice the plain ladder holds: heavy ad
 |---|---|---|---|---|---|---|---|---|---|
 | Region it opens in | Morrow Hills | Morrow Hills | Morrow Hills | Catacombs | Region 4 | Region 5 | Region 5 | Region 6 | Region 7 |
 
-COMPUTED from ln(400/110) over ln(1.17): eight bands to Level 400, about one and a half a region. Past 400 the same step continues for as long as Levels do. MEASURED as evidence for the size (study 54, one seed): a +31% weapon step reads +9.4% Level XP an hour for a lone hero, so a +17% band should read about +5%, which is the ruled size of a weapon step, and a +6.5% band would read about +2%. A step of 1.24 (bands at 110, 136, 169, 210, 260, 322 and 400) stays a hypothesis for the one-band play. It leaves the Level 330 to 385 region with no band edge, so it can ship only if region edges move with it. Either step is a HYPOTHESIS until one band is played on the curve. MEASURED since, in `12-balance-pass.md` (local runs L, 2 seeds of 1 hour, and R0): at +17% a weapon step is worth 4.4% at Level 185 and 7.3% at Level 400, against the target of 5 to 8%, so +17% holds for weapons and stays PROVISIONAL. An armor step on the curve is worth nothing past Level 30, because a full mid set holds more armor than the 60% cap can use. The armor curve probe and the arrival kit are one open item and cannot ship apart. Best gear reads about 7% faster than mid gear, not the ruled 15%. Its waits: the playtest death rate, and one full run with the armor probe, the arrival kit and the jewelry share moved together.
+COMPUTED from ln(400/110) over ln(1.17): eight bands to Level 400, about one and a half a region. Past 400 the same step continues for as long as Levels do. MEASURED as evidence for the size (study 54, one seed): a +31% weapon step reads +9.4% Level XP an hour for a lone hero, so a +17% band should read about +5%, which is the ruled size of a weapon step, and a +6.5% band would read about +2%. A step of 1.24 (bands at 110, 136, 169, 210, 260, 322 and 400) stays a hypothesis for the one-band play. It leaves the Level 330 to 385 region with no band edge, so it can ship only if region edges move with it. Either step is a HYPOTHESIS until one band is played on the curve. MEASURED since, in `12-balance-pass.md` (local runs L, 2 seeds of 1 hour, and R0): at +17% a weapon step is worth 4.4% at Level 185 and 7.3% at Level 400, against the target of 5 to 8%, so +17% holds for weapons and stays PROVISIONAL. An armor step on the curve is worth nothing past Level 30, because a full mid set holds more armor than the 60% cap can use. The armor curve is ×2.4 (D-3). A band step of armor reads 3.6% at Level 60 and 4.1% at Level 400. Best gear reads about 7% faster than mid gear, not the ruled 15%. Its waits: the playtest death rate, and one full run with the armor probe, the arrival kit and the jewelry share moved together.
 
 **What reads the one band table.** Uniques, chest keys ("one key tier a band"), Tempering ladders ("one ladder a band"), reforging ("up a band"), the sink prices of 2.9 and the reward lines of chapter 06. The table sits in `src/data` beside the curve. [PROVISIONAL GR-4, Tyler said yes on the page, reversal, let stand on the page]
 
@@ -74,7 +76,9 @@ COMPUTED from ln(400/110) over ln(1.17): eight bands to Level 400, about one and
 
 **Exchange rates.** A unique is not sized by hand. It spends its band's budget at published rates between stats (`gearExchange`, step R11), so its armor or damage is arithmetic. A guard or a skill bonus inside a unique's stat mix is bought at the same rates. [PROVISIONAL GR-4, Tyler said yes on the page, reversal, let stand on the page]
 
-**Slot classes.** Each slot class holds a fixed share of a kit's power at every Level. The six crafted pieces together are one class worth 6% of the kit. Their plain numbers are derived from the curve and never typed for a tier. [RULED GR-3, Tyler 2026-11-21, the sitting8, waits on Deadly sized, and the system built] MEASURED as evidence (study 54): flat typed accessory rows read 15% at Level 30 and 0.5% at Level 400, and one stat point a tier to tier 7 reads +5 to +13% at Level 110, which is twice the budget.
+**Slot classes.** Each slot class holds a fixed share of a kit's power at every Level. The six crafted pieces together are one class worth 6% of the kit. Their plain numbers are derived from the curve and never typed for a tier. [PROVISIONAL GR-38, waits on Deadly sized, and the system built] MEASURED as evidence (study 54): flat typed accessory rows read 15% at Level 30 and 0.5% at Level 400, and one stat point a tier to tier 7 reads +5 to +13% at Level 110, which is twice the budget.
+
+The matrix plays GR-38's stand-in only from Level 110, at the scale of D-3 ruling 6. The first build moves no jewelry number. Its rows read 6 to 14% of a lone mid hero's pace under Level 110 and 2 to 5% past it (D-3, Local), so GR-38's derivation lowers Levels 20 to 60 and raises the rest.
 
 ### 2.3 Dropped gear, tiers 1 to 7
 
@@ -217,12 +221,12 @@ That is six Rare rows. Region tables are an authoring shape only: a pack compile
 | Hallmark skill level | The next tier's skill level: 30, 45, 60, 75, 88, 99 | [RULED 11-18] |
 | Gems | One gem a tier. It works in any slot and forces no perk | [RULED 11-18] |
 | Each perk counts once a hero | The larger worn | [RULED] |
-| Plain stats | Help all three styles, and come from the curve as a 6% share | [RULED GR-3, Tyler 2026-11-21, the sitting8] |
+| Plain stats | Help all three styles, and come from the curve as a 6% share | [PROVISIONAL GR-38] |
 | Re-rolls for gold | Never | [RULED] |
 | Trade | Everything | [RULED] |
 | The Shop sells plain jewelry | At ten times a crafter's cost, as a fallback that never undercuts a crafter | [RULED] |
 
-**The ladder.** Jewelry and cloaks are built to tier 7, tier 4 first as the played sample, then tiers 5 to 7 [RULED GR-3, Tyler 2026-11-21, the sitting8]. Hallmark fees for tiers 4 to 7 are [RULED 11-18]. Under GR-8 every fee is a share of the band's gold and these numbers are the anchor points.
+**The ladder.** Jewelry and cloaks are built to tier 7, tier 4 first as the played sample, then tiers 5 to 7 [PROVISIONAL GR-38]. Hallmark fees for tiers 4 to 7 are [RULED 11-18]. Under GR-8 every fee is a share of the band's gold and these numbers are the anchor points.
 
 | Tier, Level | Metal | Gem and its carrier | Hallmark fee, each | Reforge to this tier, each | Shop ceiling, Fine / Hallmarked |
 |---|---|---|---|---|---|
@@ -263,7 +267,7 @@ Cloak and belt materials are common drops: pelts, Bear Pelt, Silk Thread and coa
 
 Cloaks carry no element perks. Elements belong to linings. A fully Hallmarked hero plays 12 of 23.
 
-**Perk sizes.** [RULED GR-3, Tyler 2026-11-21, the sitting9, Tyler said yes on the page, reversal of 23-5, let stand on the page]
+**Perk sizes.** [PROVISIONAL GR-39, Tyler said yes on the page, reversal of 23-5, let stand on the page]
 
 | Rule | Value | Label |
 |---|---|---|
@@ -296,7 +300,7 @@ MEASURED as evidence (study 54, one seed): every perk at five times reads +9 to 
 | 4 | One cost line: "6 Steel Bars (you have 9), 1 Seam Jasper (you have 1), 75,000 gp. Requires Smithing 45. Worn from Level 30." A missing part is named |
 | 5 | Press Reforge. The old piece is used up and the new one is worn if it was worn and your Level allows |
 
-**The Fine order.** One standing order at the bench: "Make until Fine with one of these perks, salvage the rest, stop after this many bars." Salvaging a plain crafted piece returns half its metal and no XP. Chasing a first perk is one decision, never sixty presses, and it cannot be farmed for XP. [RULED GR-3, Tyler 2026-11-21, the sitting8]
+**The Fine order.** One standing order at the bench: "Make until Fine with one of these perks, salvage the rest, stop after this many bars." Salvaging a plain crafted piece returns half its metal and no XP. Chasing a first perk is one decision, never sixty presses, and it cannot be farmed for XP. [PROVISIONAL GR-38]
 
 **Lucky.** The seventh ring perk. See 2.11.
 
@@ -465,7 +469,7 @@ Statuses: Storm and Bone runes at Runecrafting 25 and 40 [RULED 11-21]. Five run
 | Tools | Smithing | The gear every gatherer crafts | [RULED] |
 | Whetstones | Smithing | The one supply only a crafter makes | [RULED] |
 | Tempering salts | Smithing. The workbench copy leaves in the release that ships linings | One a tier | [DECIDED GR-43, Fable 2026-11-21] |
-| Jewelry, gem jobs, Hallmarks, jewel reforging | Smithing | 2.6 | [RULED GR-3, Tyler 2026-11-21, the sitting8] |
+| Jewelry, gem jobs, Hallmarks, jewel reforging | Smithing | 2.6 | [PROVISIONAL GR-38] |
 | Cloaks, belts | Crafting | 2.6. Belts use buckles from the forge | [DECIDED GR-43, Fable 2026-11-21] |
 | Arrows and bolts | Crafting | Every tier. The row says what a job saves against the store | [DECIDED GR-43, Fable 2026-11-21] |
 | Linings | Crafting | 2.8 | [RULED 11-18] |
@@ -588,8 +592,8 @@ MEASURED as evidence for keeping it a choice (study 60): 15% less gold coming in
 
 | Chest line | Gives | Keys | Status |
 |---|---|---|---|
-| The Tower | Weapons, one a family a key tier | Bronze, Silver, Gold, Platinum at landings 10, 40, 70, 100. Then one key tier a band | [RULED]. The Tower stays weekly [RULED GR-3, Tyler 2026-11-21, the sitting7] |
-| Catacombs, Bone Wing | Leans helmets | The same tiers | [RULED 11-16]. One wing and one key built first [RULED GR-3, Tyler 2026-11-21, the sitting6] |
+| The Tower | Weapons, one a family a key tier | Bronze, Silver, Gold, Platinum at landings 10, 40, 70, 100. Then one key tier a band | [RULED]. The Tower stays weekly [PROVISIONAL GR-37] |
+| Catacombs, Bone Wing | Leans helmets | The same tiers | [RULED 11-16]. One wing and one key built first [PROVISIONAL GR-36] |
 | Catacombs, Flooded Wing | Leans boots | The same | [RULED 11-16] |
 | Catacombs, glove wing | Gloves 70%, helmets and boots 15% each. Twelve rows | The same family, the same 6 opens | [RULED 11-18 for a glove path]. PROPOSED rows |
 
@@ -629,6 +633,8 @@ Nothing planned is cut. Each is built later and stays hidden until it works. [RU
 ### 2.16 Gear from the shared world (chapter 06)
 
 Chapter 06 pays in buffs and gear [RULED 11-21]. This chapter owns how that gear fits the curve. The ten rules below are the design. [PROVISIONAL CE-1]
+
+**The first line is the Mossback Cloak.** RULED by the designer 2026-11-21 (D-6), `review/06-designer-rulings-w1.md` section 2.4. One cloak in four cuts, one for each way to fight, on the cape ladder's rungs. It is the best cape at its rung for its way until crafted cloaks roll perks, whose hooks are unbuilt. That is a small tension with rule 3 below and is accepted for the first build. The name is new and not in the game's data yet.
 
 **The collision.** Study 49 gives each world boss and the Open arena a named, tradeable gear line at the best-in-slot budget of the earner's band, plus an upgrade material used by the band's sinks. This chapter says every piece is a spend of the gear curve (GR-4), a prize holds only what no ground drops (GR-29), and a region brings 15 to 20 new uniques (31-4). Read loosely, the layer would add a second pile of best-in-slot pieces to every band and make ground uniques the lesser chase.
 
@@ -688,7 +694,7 @@ In decision-book order.
 | GR-26 | Chest weapons keep flat plus skill | Approve | DECIDED (Fable 2026-11-21) |
 | GR-33 | A region is six grounds, opened four then two | Approve. The coverage rules assume it | PROVISIONAL. Waits on the kill reward and the tiers, because the seat's multiple is not one number until then |
 | GR-36, GR-37 | Catacombs stay a mode, one wing first. The Tower stays weekly | Approve | PROVISIONAL. Waits on Deadly sized, and the system built |
-| GR-38 | Jewelry and cloaks to tier 7, plain numbers a 6% share | Approve, tier 4 and chips first | PROVISIONAL. Waits on Deadly sized, and the system built |
+| GR-38 | Jewelry and cloaks to tier 7, plain numbers a 6% share | Approve, tier 4 and chips first | PROVISIONAL. Waits on Deadly sized, and the system built. The matrix plays its stand-in only from Level 110, and the first build moves no jewelry number (D-3). Lane FR-6 of chapter 14 |
 | GR-39 | Narrow perks sized for their case | Approve: about 5% in the case, never over five times, a matched hero at most 9% | PROVISIONAL. Waits on Deadly sized, and the system built. Tyler said yes on the page 2026-11-21. It changes 23-5 of 2026-11-20, which he let stand on the page |
 | GR-44 | Patterns teach the account. Single commissions with tiers 5 to 7 | Approve, behind the no-mint guard and Security | DECIDED (Fable 2026-11-21) |
 | GR-41 | Seven decision kinds past tier 7 | Approve | DECIDED (Fable 2026-11-21) |
@@ -712,10 +718,10 @@ In decision-book order.
 |---|---|---|
 | 1 | The exchange rates themselves (`gearExchange`) and the slot-class shares other than the 6% for accessories | Roadmap step R11, on the matrix |
 | 2 | Whether +17% reads as one upgrade when played on the curve, with +24% as the second cell | One band played. It is the first thing the R10 derivation prints |
-| 3 | What it costs to reforge a unique up a band: materials, gold, whether a duplicate or a key is needed | The game designer, inside GR-4 and GR-8, before the build plan |
-| 4 | The Tempering ladder for tier 7 and for each band, as shares | GR-8, then a matrix run on gold bands |
+| 3 | What it costs to reforge a unique up a band: materials, gold, whether a duplicate or a key is needed | The game designer, as D-23 of chapter 14, before lane FR-6 |
+| 4 | The Tempering ladder for tier 7 and for each band, as shares | Tyler answers S-19 on the form first. Then D-23 and lane FR-6 |
 | 5 | What the first week's gold buys, and early prices sized on four heroes | Closed. CE-4 gives the order and CE-5 the sizes, as a HYPOTHESIS |
-| 6 | The three signature stones: names, perks and carriers. The tier 4 and tier 6 gem names | The designer, with names checked against the data. Sample of three first |
+| 6 | The three signature stones: names, perks and carriers. The tier 4 and tier 6 gem names | The designer, as D-23 of chapter 14, with names checked against the data. Sample of three first |
 | 7 | 18 of the 23 perks have no engine hook and no measured size. No cell measures one perk in and out of its own case | The first job of the perk lane |
 | 8 | Leech lining sizes, and spell leech with lining leech together | One measurement |
 | 9 | The Morrow Hills grid re-cut from 46 uniques to 15 to 20 with carried pieces. The staged placement (hammer and sword at Carter's Rest, axes and crossbow on the Ox Road, fists and wand on the Night Shift, bow and staff at Wyvern Roost and on the Roost Mother, three each on the Old Guard and the Bellows, none on Father Gault) is the starting point | The region lane, after R10 and R11 |

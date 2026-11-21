@@ -15,6 +15,15 @@
 export const COACH_TEXT = Object.freeze({
   /* every card's two presses (Tyler 2026-11-11: no tip is mandatory): Got it closes this one, Don't show tips hides them all */
   got_it: 'Got it',
+  /* the card's own presses, and what a screen reader hears for them (src/shell/launcher-coach.js coachHtml) */
+  close: 'Close',
+  close_card: 'Close {title}',
+  minimize: 'Minimize',
+  minimize_card: 'Minimize {title}',
+  show: '{title}: show',
+  show_new: '{title}, something new: show',
+  more: 'More',
+  less: 'Less',
   no_tips: 'Don\'t show tips',
   /* Tamsin's rats, the first ten minutes (designer 2026-11-10) */
   tamsins_rats_title: 'Tamsin\'s rats',
@@ -38,7 +47,7 @@ export const COACH_TEXT = Object.freeze({
   first_dangerous_title: 'Try Dangerous',
   first_dangerous: 'Hunts → {ground} → Dangerous → Enter',
   first_dangerous_in: 'Press {ground}, then Dangerous, then Enter',
-  keep_hunting: 'Safe to close the game: your hero keeps hunting to Level {level}',
+  keep_hunting: 'It is safe to close the game. Your hero keeps hunting to Level {level}',
   brook: 'Hunt here to Level {level} for {next}',
   /* Tamsin's wolves */
   tamsins_task: 'Open Tamsin\'s tally → Take {count} {label}',
@@ -83,7 +92,7 @@ export const COACH_TEXT = Object.freeze({
   /* ...once stamina has run out (plan L08): the job is set for the count still short, and the hero waits in town when it is done. */
   home_job: '{verb} {n} {item} while stamina refills',
   home_buy: 'House → Buy the {deed}',
-  purse_goal: 'Buy a hero slot or a House deed',
+  purse_goal: 'Buy a House deed',
   /* WHAT NEXT: one goal a line (hunt-tutorial.js nextGoal) */
   goal_armor: 'Shop → Buy gloves or a belt to train Defense',
   goal_free_hero: 'Create your free {nth} hero in Characters',

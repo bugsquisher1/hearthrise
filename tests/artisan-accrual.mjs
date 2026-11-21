@@ -341,7 +341,7 @@ function clientArtisanSpan(opts) {
     // addXp — through core's grantXp with the client's xpGrantCtx
     if (res.xpAmount) {
       grantXp(G, res.xpSkill, res.xpAmount,
-        { bonus, xpB: eqStats.xpB || 0, restedQuantum: 0, authored: false });
+        { bonus, xpB: eqStats.xpB || 0, authored: false });
     }
     for (const k of Object.keys(res.stats)) G.stats[k] = (G.stats[k] || 0) + res.stats[k];
     return true;

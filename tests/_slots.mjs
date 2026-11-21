@@ -5,7 +5,9 @@
 // Until that file every account owned slot 1 as a starter, so many fixtures made a second hero there
 // unpaid. A fixture that needs more heroes now OWNS the slot the way a buyer does: the account-row flag
 // `character_slot:<n>` hr_buy_hero_slot writes (hr_hero_slots_of clause 2). The purchase itself (price,
-// ladder, journal) is graded where it lives: tests/hero-slot-buy.mjs and tests/hero-slots-one.mjs.
+// ladder, journal) was graded by tests/hero-slots-one.mjs until all four slots were made free from the start (Tyler 2026-11-21,
+// 1036-four-starter-slots.sql): at the chain end every slot is a starter and this flag is a no-op; it still owns the slot for a
+// fixture that replays to a scope before 1036. The free slots are graded by tests/hero-slot-buy.mjs.
 //
 // asOldLadder(): an APPLIED file whose own self-check makes a second hero unpaid (it was written against
 // the one-free-slot ladder) can only be re-applied over the chain that ladder stood in. A second-apply arm

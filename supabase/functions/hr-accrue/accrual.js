@@ -20,7 +20,6 @@
 //   accrue-gather.js     a gathering pointer's window     (KIND_ACCRUERS.gather)
 //   accrue-artisan.js    a bench pointer's window         (KIND_ACCRUERS.artisan)
 //   accrue-hunt.js       one settle of one hunt instance  (hunt-settle.js)
-//   accrue-rested.js     the rested bank on its own watermark (index.ts)
 // The text guards read the door and its pieces as ONE engine
 // (tests/_accrual-engine.mjs): a piece is read the day an engine file imports it.
 //
@@ -76,7 +75,6 @@ export {
   settledWatermarkMs, normaliseToolCarry,
 } from './accrual-window.js';
 export { HUNT_MAX_WINDOW_MS, encodeWorld, accrueHunt, huntProposal } from './accrue-hunt.js';
-export { accrueRested } from './accrue-rested.js';
 
 /**
  * Does an engine delta MOVE ANY VALUE? (b531)

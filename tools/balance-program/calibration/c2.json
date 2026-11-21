@@ -1,0 +1,142 @@
+{
+ "check": "C-2",
+ "source": "14-the-rest.md section 2",
+ "base": "today (the rules that ran)",
+ "four": "hammer,bow,mage,healer",
+ "seeds": 2,
+ "hours": 2,
+ "rows": [
+  {
+   "ground": "mosslight_glade",
+   "tier": "deadly",
+   "levels": [
+    32,
+    46
+   ],
+   "heroHours": 144,
+   "L": 39,
+   "real": {
+    "kills": 2048,
+    "xp": 228766,
+    "coin": 8233,
+    "deathsPer100h": 0
+   },
+   "sim": {
+    "kills": 2546,
+    "xp": 202093,
+    "coin": 7677,
+    "deathsPer100h": 0
+   },
+   "ratio": {
+    "kills": 1.243,
+    "xp": 0.883,
+    "coin": 0.932
+   },
+   "pass": {
+    "kills": false,
+    "xp": false,
+    "coin": true
+   },
+   "gear": "mid"
+  },
+  {
+   "ground": "the_slake",
+   "tier": "deadly",
+   "levels": [
+    58,
+    63
+   ],
+   "heroHours": 14.7,
+   "L": 61,
+   "real": {
+    "kills": 2226,
+    "xp": 870066,
+    "coin": 19374,
+    "deathsPer100h": 0
+   },
+   "sim": {
+    "kills": 1822,
+    "xp": 624063,
+    "coin": 12263,
+    "deathsPer100h": 0
+   },
+   "ratio": {
+    "kills": 0.819,
+    "xp": 0.717,
+    "coin": 0.633
+   },
+   "pass": {
+    "kills": false,
+    "xp": false,
+    "coin": false
+   },
+   "gear": "low"
+  },
+  {
+   "ground": "pyre_field",
+   "tier": "deadly",
+   "levels": [
+    60,
+    72
+   ],
+   "heroHours": 99.9,
+   "L": 66,
+   "real": {
+    "kills": 1373,
+    "xp": 871741,
+    "coin": 14289,
+    "deathsPer100h": 0
+   },
+   "sim": {
+    "kills": 1567,
+    "xp": 819138,
+    "coin": 15047,
+    "deathsPer100h": 0
+   },
+   "ratio": {
+    "kills": 1.141,
+    "xp": 0.94,
+    "coin": 1.053
+   },
+   "pass": {
+    "kills": false,
+    "xp": true,
+    "coin": true
+   },
+   "gear": "mid"
+  },
+  {
+   "ground": "krells_hold",
+   "tier": "deadly",
+   "levels": [
+    69,
+    83
+   ],
+   "heroHours": 137.9,
+   "L": 76,
+   "real": {
+    "kills": 1232,
+    "xp": 1129593,
+    "coin": 14247,
+    "deathsPer100h": 0
+   },
+   "sim": {
+    "kills": 1464,
+    "xp": 1171024,
+    "coin": 17564,
+    "deathsPer100h": 0
+   },
+   "ratio": {
+    "kills": 1.188,
+    "xp": 1.037,
+    "coin": 1.233
+   },
+   "pass": {
+    "kills": false,
+    "xp": true,
+    "coin": false
+   },
+   "gear": "mid"
+  }
+ ]
+}

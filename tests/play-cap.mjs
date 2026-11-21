@@ -122,13 +122,13 @@ const ARMS = {
     const owned = await one(db, 'select public.hr_hero_slots_of($1)', [E]);
     const ans = await as(db, E, IP_X, 'select public.hr_load(0)', []);
     if (!ans || ans.error !== 'no_character') p.push('an empty account loaded as ' + JSON.stringify(ans).slice(0, 160));
-    if (JSON.stringify(ans && ans.hero_slots) !== JSON.stringify(owned) || JSON.stringify(owned) !== '[0]') p.push(`the empty answer names slots ${JSON.stringify(ans && ans.hero_slots)}, the server owns ${JSON.stringify(owned)} (one to start, Tyler 2026-11-09)`);
+    if (JSON.stringify(ans && ans.hero_slots) !== JSON.stringify(owned) || JSON.stringify(owned) !== '[0,1,2,3]') p.push(`the empty answer names slots ${JSON.stringify(ans && ans.hero_slots)}, the server owns ${JSON.stringify(owned)} (all four from the start, Tyler 2026-11-21)`);
     if (!ans || !ans.account || ans.account.max_concurrent !== cap || cap !== SESSION_CONFIG.maxConcurrentCharacters) p.push(`the empty answer names the limit ${JSON.stringify(ans && ans.account)}, the cap is ${cap}`);
     const server = { rpc: async (name, args) => ({ ok: true, status: 200, closed: false,
       body: name === 'hr_load' ? await as(db, E, IP_X, 'select public.hr_load($1)', [args.p_slot]) : { ok: false, error: 'not_in_this_test' } }) };
     const acc = new AccountSession({ auth: { userId: () => E, token: () => 'jwt' }, server, tab: null, timers: {} });
     const rows = await acc.roster();
-    if (JSON.stringify(rows.map((r) => [r.slot, r.exists, r.unnamed])) !== '[[0,false,false]]') p.push('the roster of an empty account read ' + JSON.stringify(rows));
+    if (JSON.stringify(rows.map((r) => [r.slot, r.exists, r.unnamed])) !== '[[0,false,false],[1,false,false],[2,false,false],[3,false,false]]') p.push('the roster of an empty account read ' + JSON.stringify(rows));
     if (acc.limit() !== cap) p.push(`the roster of an empty account plays ${acc.limit()} at once, the server says ${cap}`);
     return p;
   },

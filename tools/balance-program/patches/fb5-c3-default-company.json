@@ -1,0 +1,11 @@
+{
+  "lane": "lane/c-first-hour (FB-5), backend-architect, 2026-11-21",
+  "cell": "C3, a standing cell (13-build-plan.md FB-5 'Matrix'; chapter 08 section 2.1 'If check C3 ever fails')",
+  "request_for_FB3": "Add C3 to the standing matrix: the DEFAULT COMPANY a new account makes in the first hour, its first hero plus the pre-filled three, on the Millrace Sewer at its floor (Level 5) on Normal, the arrival kit, 4 seeds of 8 hours. Print beside it the same four with no healer (the Staff swapped for a Club). C3 passes with no death; the no-healer four is printed, never gated.",
+  "reads_from_data": {
+    "pre_filled_three": "src/data/how-to-play.js COMPANY_PICKS (tank, healer, ranger), one per STARTER_SETS row of src/data/start-kit.js",
+    "first_hero": "the Club (STARTER_PICKS 'Good first hero' mark); the PLAYED first hour picked the wand, so a second line with the wand first is worth printing",
+    "kit": "src/data/start-kit.js ACCOUNT_KIT + HERO_KIT + the practice set worn by the pick (1037-first-hour-kit-lines.generated.sql)"
+  },
+  "if_it_fails": "Chapter 08: the four's first hunt together is Meadowbrook Thicket and the Sewer card moves to the Level where C3 passes; the fix is at the formula or data layer, never the tutorial's own monsters."
+}

@@ -11,7 +11,7 @@
 //   node tests/alpha-windows-return.mjs --shard-plan   no browser: smoke.yml's shards cover every mutant once, each in budget
 //   node tests/alpha-windows-return.mjs --shots <dir>  also write the visual-gate screenshots (1440x900 and 922x423)
 //
-// mutant-anchors: src/shell/windows/inventory/bury.js src/shell/windows/inventory/grid.js src/shell/windows/shop.js src/shell/windows/hunts.js src/shell/launcher.js src/styles/windows.css src/shell/shell.js src/shell/shell-hud.js src/shell/alerts.js src/shell/windows/hunt-summary.js src/data/shell-windows.js src/data/hunt-tutorial.js src/shell/windows/inventory/index.js src/styles/summary.css
+// mutant-anchors: src/shell/windows/inventory/bury.js src/shell/windows/inventory/grid.js src/shell/windows/shop.js src/shell/windows/hunts.js src/shell/launcher.js src/shell/launcher-coach.js src/styles/windows.css src/shell/shell.js src/shell/shell-hud.js src/shell/alerts.js src/shell/windows/hunt-summary.js src/data/shell-windows.js src/data/hunt-tutorial.js src/shell/windows/inventory/index.js src/styles/summary.css
 // mutant-writes-tree: no — page mutants are served overrides (tests/_alpha-windows.mjs pageRun)
 //
 // One of the alpha windows' guards, split from tests/alpha-windows.mjs (2026-11-19, arch audit item 7): tests/_alpha-windows.mjs
@@ -547,7 +547,7 @@ async function checks(overrides, shots, opts) {
         if (!/^Bag worth /.test(bagWords || '')) fails.push('AW-67 the All characters card reads ' + JSON.stringify(bagWords));
         /* AW-71 THE SAME CARD KEEPS ITS BOX AND ITS WORDS FOLLOW THE SERVER (door panel 2026-11-04: "You have 19 left" over a bar reading 6, for the whole hunt). */
         const coachNow = await page.evaluate(async () => {
-          const { placeCoach } = await import(location.origin + '/src/shell/launcher.js');
+          const { placeCoach } = await import(location.origin + '/src/shell/launcher-coach.js');
           const box = document.createElement('div');
           const card = (n) => '<p class="hs-pointer" data-coach="first_eat"><b>Your hero just ate</b> <span class="hs-coach-text">You have ' + n + ' left.</span></p>';
           placeCoach(box, card(19));
@@ -590,7 +590,7 @@ const MUTANTS = [
   ['AW-74 a seed the land cannot grow yet is sold with no word', 'src/shell/windows/shop.js', "  const tier = requiredPlotLevel(crop) > (field ? field.plotLevel : 1) ? requiredPlotLevel(crop) : 0;\n", '  const tier = 0;\n'],
   ['AW-72 a ring lands under the answer line', 'src/shell/widgets/bits.js', 'if (r.bottom > floor) { p.scrollTop += r.bottom - floor + 8; return true; }', 'if (r.bottom > b.bottom) { p.scrollTop += r.bottom - b.bottom + 8; return true; }'],
   ['AW-66 the summary\'s presses lie on a phone\'s numbers', 'src/styles/summary.css', '  .hsum-card.is-on { display: flex; flex-direction: column; }\n', ''],
-  ['AW-71 the same card keeps its first number', 'src/shell/launcher.js', '  else if (key) sameCardWords(have, html);\n', ''],
+  ['AW-71 the same card keeps its first number', 'src/shell/launcher-coach.js', '  else if (key) sameCardWords(have, html);\n', ''],
   ['AW-67 the stack on the fire is refused in words', 'src/shell/windows/inventory/grid.js', "(buryingOf(st.cs) === buryRecipeOf(cur) ? '' : buryBlock(st.cs, buryRecipeOf(cur)))", 'buryBlock(st.cs, buryRecipeOf(cur))'],
   ['AW-67 the card reads as a purse', 'src/data/text/heroes.js', "  bag_worth: 'Bag worth {gold}',", "  bag_worth: 'Bag {gold}',"],
   ['AW-67 the press in hand stays under the answer', 'src/shell/windows/inventory/index.js', '  if (over > 0) col.scrollTop += over + 4;\n', ''],
@@ -610,7 +610,7 @@ const MUTANTS = [
   ['a new player gets no pointer to Hunts', 'src/shell/launcher.js', "+ (ctx.hud && ctx.hud.isShown('hunt-topbar') ? '' : pointerFor(ctx)) + '</nav>'", "+ '</nav>'"],
   ['coach: the card leaves when its window opens (AW-17b, playtest 2026-10-24)', 'src/shell/shell.js', "placeCoach(slot, win && slot.parentElement.getAttribute('data-hs-win') === win ? coachHtml(cs, card, true) : '');", "placeCoach(slot, '');"],
   ['coach: nothing inside a window is ringed (AW-17b)', 'src/shell/shell.js', '    ringCoach(ctx, card, ringRoots);\n', ''],
-  ['coach: the ring is on a control nobody can see (AW-17b)', 'src/shell/launcher.js', "const shown = (el) => el.getClientRects().length > 0 && !el.closest('[hidden]');", 'const shown = () => true;'],
+  ['coach: the ring is on a control nobody can see (AW-17b)', 'src/shell/launcher-coach.js', "const shown = (el) => el.getClientRects().length > 0 && !el.closest('[hidden]');", 'const shown = () => true;'],
   /* lane/b-tutorial-rings (AW-31): the clean return, the card's next step, the sale in view, Services in the Shop */
   ['coach: the analyzer and the party panel stay in town after the hunt (AW-31)', 'src/shell/shell-hud.js', '    if (!h || !h.ended) return true;\n', '    return true;\n'],
   ['coach: the hunt\'s "has ended" toast shows over its summary (AW-31)', 'src/shell/alerts.js', '    if (c.quiet) return false;\n', ''],

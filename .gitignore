@@ -134,6 +134,7 @@ tools/balance-program/*.jsonl
 tools/balance-program/balance-sweeps.json
 tools/balance-program/balance-matrix.json
 tools/balance-program/balance-matrix-full-*.json
+tools/balance-program/balance-matrix-deaths*.json
 
 # the coverage bot's reports (tools/qa/coverage/run.mjs): written per run, never committed
 tools/qa/coverage/out/

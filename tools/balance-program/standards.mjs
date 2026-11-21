@@ -404,6 +404,13 @@ export const GAPS = deep([
 
 /* THE DEATH PENALTY (RULED 2026-11-21, call 4): 6% of all Level XP, flat, no cap in hours. A printed table, never a band.
    hoursUnblessed is COMPUTED on this commit at the contract rate (the grid re-derives); fully blessed is a quarter. */
+/* CHECK C1, THE WEAPON CARDS' TAGS (08-player-experience.md section 6, TARGET; 13-build-plan.md D-1): each starting way, one hero, the start kit
+   and the start bar, the Mill Cellar on Normal, reaches Level 5 in 15 to 20 hunted minutes with no death and net gold at or over zero. A way
+   inside reads "Good alone"; a way outside carries "Slow alone" on its card or is fixed at the formula layer (the designer's call, D-1). Each
+   card's ways are its STARTER_SETS row (src/data/start-kit.js); tools/balance-program/start-cards.mjs plays them */
+export const START_CARDS = deep({ status: 'TARGET', source: '08 section 6, C1', minutes: [15, 20], deaths: 0, netGold: 0, toLevel: 5, ground: 'mill_cellar',
+  cards: [['tank', 'Sword and shield', ['tank']], ['dual_axes', 'Hatchets', ['axes']], ['club', 'Club', ['hammer']], ['ranger', 'Bow and crossbow', ['bow', 'crossbow']],
+    ['mage', 'Wand and spellbook', ['mage']], ['healer', 'Staff', ['healer']]] });
 /* THE BLESSING LADDER (the sitting S-5, RULED 2026-11-21, option B): three Blessings, then a new one past the third whenever a blessed death would cost
    over about five hunted hours; MEASURED there at Levels 100, 185, 275 and 400 (60 G-7), each halving what a blessed death still takes */
 export const BLESSING_LADDER = Object.freeze([100, 185, 275, 400]);

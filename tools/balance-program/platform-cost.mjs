@@ -85,7 +85,7 @@ async function fire(db, H) {
   return (await H.q(db, `select convert_from(body, 'UTF8') as b from net.http_request_queue order by id`)).map((r) => JSON.parse(r.b));
 }
 async function backdate(db, fx, secs) {
-  const t = `date_trunc('second', now() - make_interval(secs => ${Number(secs)}))`;
+  const t = `date_trunc('second', now() - make_interval(secs => ${typeof secs === 'number' ? Number(secs) : secs}))`;
   if (fx.sids.length) {
     await db.query(`update public.hunt_sessions set entered_at = ${t} - interval '1 minute', hunt_from = ${t}, settled_to = ${t},
                       next_swing_at = ${t} where id = any ($1::uuid[])`, [fx.sids]);
@@ -250,11 +250,11 @@ async function aged() {
 }
 
 /* ── WINDOW: the same 20 simulated minutes committed at four cadences ──────────────────────────────────────────────────── */
-async function windowRun(ctx, name, stepMs, spanMs) {
-  const { db, M, H, P } = ctx;
-  const fx = await P.FIXTURES[name].build(db, M);
-  await backdate(db, fx, Math.ceil(spanMs / 1000) + 30);
-  const from = Number(await H.one(db, 'select floor(extract(epoch from settled_to) * 1000)::bigint from public.hunt_instances i join public.hunt_sessions h on h.instance_id = i.id where h.id = $1', [fx.sids[0]]));
+/* ONE fixture, built once, every cadence run from the same savepoint (TICK-1's compareRuns): the same instance, secret, seeds
+   and clock. Built once per cadence instead, the pinned uuid sequence (it does not roll back) gives each run another instance
+   secret, and so other seeds: that is not a cadence difference. */
+async function windowRun(ctx, fx, from, stepMs, spanMs) {
+  const { db, M, H } = ctx;
   const stat = { ms: {}, n: {} };
   const exec = timedExec(H.makeExec(db), stat);
   const led0 = Number(await H.one(db, 'select count(*) from public.player_ledger where session_id = any ($1::uuid[])', [fx.sids]));
@@ -270,13 +270,13 @@ async function windowRun(ctx, name, stepMs, spanMs) {
     const c0 = performance.now();
     const res = await M.HS.commitHuntSettle(exec, { ...p.commit, project: null });
     if (t > from + stepMs) { commitMs += performance.now() - c0; commits += 1; }
-    if (!res || res.ok !== true) throw new Error(`${name} at ${stepMs / 1000} s: commit refused ${JSON.stringify(res).slice(0, 300)}`);
+    if (!res || res.ok !== true) throw new Error(`at ${stepMs / 1000} s: commit refused ${JSON.stringify(res).slice(0, 300)}`);
     if (p.out.ended) break;
   }
   const led = Number(await H.one(db, 'select count(*) from public.player_ledger where session_id = any ($1::uuid[])', [fx.sids])) - led0;
   const snaps = [];
   for (let i = 0; i < fx.heroes.length; i++) snaps.push(await H.snapshot(db, fx.sids[i], fx.heroes[i][0]));
-  return { commits, commitMs, readMs, led, heroes: fx.heroes.length, canon: H.canon(snaps.map((x) => ({ ...x, ledger: null }))), ledgerSums: H.canon(snaps.map((x) => x.ledger)) };
+  return { commits, commitMs, readMs, led, heroes: fx.heroes.length, canon: H.canon(snaps.map((x) => ({ ...x, ledger: null }))), ledgerSums: H.canon(snaps.map((x) => x.ledger)), first: H.firstDiff };
 }
 async function windows() {
   const ctx = await boot();
@@ -287,13 +287,28 @@ async function windows() {
   for (const name of ['lone_L10_meadowbrook_thicket', 'party4_L20_millrace_sewer', 'supply4_L50_hasks_ford_deadly', 'krell4_L80_deadly_closed']) {
     if (only && !name.includes(only)) continue;
     let ref = null;
-    for (const step of [100000, 300000, 600000, 1200000]) {
-      const w = await inFixture(ctx.db, () => windowRun(ctx, name, step, SPAN));
+    const si = argv.indexOf('--steps');
+    const steps = si >= 0 ? argv[si + 1].split(',').map((x) => Number(x) * 1000) : [100000, 300000, 600000, 1200000];
+    const runs = await inFixture(ctx.db, async () => {
+      const fx = await ctx.P.FIXTURES[name].build(ctx.db, ctx.M);
+      await backdate(ctx.db, fx, Math.ceil(SPAN / 1000) + 30);
+      const from = Number(await ctx.H.one(ctx.db, 'select floor(extract(epoch from i.settled_to) * 1000)::bigint from public.hunt_instances i join public.hunt_sessions h on h.instance_id = i.id where h.id = $1', [fx.sids[0]]));
+      const out = [];
+      for (const step of steps) {
+        await ctx.db.query('savepoint cadence');
+        out.push(await windowRun(ctx, fx, from, step, SPAN));
+        await ctx.db.query('rollback to savepoint cadence');
+      }
+      return out;
+    });
+    for (let i = 0; i < steps.length; i++) {
+      const step = steps[i]; const w = runs[i];
       if (!ref) ref = w;
       const hh = (SPAN / 3600000) * w.heroes;
       const msA = w.commits ? w.commitMs / w.commits : NaN;
       console.log([name, step / 1000 + ' s', w.commits + 1, r1(msA), Math.round((msA * (3600000 / step))) / w.heroes | 0, r1(w.led / hh),
         w.canon === ref.canon ? 'IDENTICAL' : 'DIFFERS', w.ledgerSums === ref.ledgerSums ? 'IDENTICAL' : 'DIFFERS'].join(' | '));
+      if (argv.includes('--why') && w.canon !== ref.canon) console.log('   first difference: ' + String(w.first(ref.canon, w.canon)).slice(0, 600));
     }
   }
 }

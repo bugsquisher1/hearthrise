@@ -62,7 +62,7 @@ A region is about 55 Levels, six grounds and two bosses. The last boss lives in 
 | Greenhaven | 1 to 50 | Mill Cellar, Meadowbrook Thicket, the Sewer, Wickstead, Mosslight Glade, Coppercap Warrens | Tiers 1 to 3 | Fire, frost, poison | Built |
 | The Barrow March | 45 to 110 | Hask's Ford, the Slake, the Muster Barrows, the Pyre Field, Krell's Hold, then Krell's Hall | Tiers 4 to 6, tier 7 from the Hold and the Hall | Fire, frost | Built |
 | The Morrow Hills | 110 to 165 | Carter's Rest, the Ox Road, the Night Shift (designed), Wyvern Roost, the Old Guard (designed), the Bellows (designed). Bosses: the Roost Mother (designed) and Father Gault (designed) | Finishes tier 7, then the first bands of named uniques | Fire, frost, poison. Necrotic arrives on the Ox Road. Storm arrives on the Old Guard | Three grounds built and hidden, three designed |
-| The Unmarked Catacombs | 165 to 185 | One ground under Havora, rooms and corridors. The descent (2.9) is a second door at any Level | The next band | Necrotic's home, with poison and frost | Ground built and hidden. Its loot rows are not written |
+| The Unmarked Catacombs | 165 to 189 (the band runs to 189 so staged content lasts 120 days, GR-6a) | One ground under Havora, rooms and corridors. The descent (2.9) is a second door at any Level | The next band | Necrotic's home, with poison and frost | Ground built and hidden. Its loot rows are not written |
 | Region 4 | 185 to 240 | Six, two bosses | The next bands | At least two, set with the region | Structure only |
 | Region 5 | 240 to 295 | Six, two bosses | The next bands | Storm's home | Structure only |
 | Region 6 | 295 to 350 | Six, two bosses | The next bands | At least two | Structure only |
@@ -72,7 +72,7 @@ Statuses for that table:
 
 - The region list, the Levels and the elements are **RULED 2026-11-18** (plan section 2 and Appendix B2). Greenhaven's and the March's grounds are **RULED** as built. The Sewer opens at Level 5 (**RULED 2026-11-18**).
 - The Catacombs ground stays as a hunting ground beside the descent. **RULED 2026-11-16.**
-- "The next bands" is deliberate. How wide a gear band is belongs to chapter 03 (**DECIDED GR-4, Fable 2026-11-21, reversal of two bands a region of 2026-11-18 and the Luck step of 2026-11-20, Tyler may veto**: a band is one fixed step of the gear curve, with bands at Levels 110, 136, 169, 210, 260, 322 and 400). The world only promises that every region carries at least one band.
+- "The next bands" is deliberate. How wide a gear band is belongs to chapter 03 (**DECIDED GR-4, Fable 2026-11-21, reversal of two bands a region of 2026-11-18 and the Luck step of 2026-11-20, Tyler may veto**: a band is one fixed step of the gear curve, opening at about +17%, with bands at Levels 110, 129, 151, 176, 206, 241, 282, 330 and 386, so every region holds at least one band edge). The world only promises that every region carries at least one band.
 - Regions 4 to 7 have a shape and no content. Tyler ruled that they be sketched now (**RULED 2026-11-20, A-10**). No sketch of record exists. **OPEN**, see section 5.
 
 **The rules every region follows.**
@@ -107,14 +107,14 @@ What the world owes that clock:
 
 | # | Promise | Number | Status |
 |---|---|---|---|
-| RW1 | Grounds open at Early Access | At least 120 days for the pace seat. On the table that is everything through the Catacombs ground, Level 185, which is day 116 to 131 | RULED 2026-11-21 (standards call 7). The Level it lands on is COMPUTED |
+| RW1 | Grounds open at Early Access | At least 120 days for the pace seat. On the law that is everything through the Catacombs ground. Its band runs to Level 189, where the plain four stands at 1,440 hours, which is day 120. No new ground is drawn for it (GR-6a). At Level 185 it would read day 116 | RULED 2026-11-21 (standards call 7). The Level it lands on is COMPUTED |
 | RW2 | A region is open before the first fours reach its door | 30 days ahead | RULED 2026-11-21 (call 7) |
 | RW3 | Authoring pace | A new region at least every 53 days through region 5, then 66 and 79. A best-geared four is about 15% faster, so plan on 45 | COMPUTED from RW2 and the table. **OPEN**: no lane says who draws a region or how fast (section 5) |
-| RW4 | Region 4 must be open | About day 86 to 100 after the Early Access wipe | COMPUTED |
+| RW4 | Region 4 must be open | About day 55 after the Early Access wipe. That is 30 days before the fastest seat a player can hold all the time (about 1.36 times the plain pace) ends staged content near day 85 | COMPUTED. DECIDED (GR-6a, Fable 2026-11-21) |
 | RW5 | Past the last open region there is always something to chase that needs no new ground | An old ground at your Level (2.6), the Tower's floors (2.8), the Catacombs (2.9), the Bestiary, Luck and Very Rares (chapter 05), world bosses and events (chapter 06) | DECIDED GR-9, Fable 2026-11-21 for the first. The others are RULED systems |
 | RW6 | Level 400 is not an end | Every formula in this chapter is checked at Levels 1,000, 2,000 and 5,000 on the matrix | RULED 2026-11-21 (formula brief section 7). The check is chapter 09's |
 
-One conflict sits under this table and this chapter does not hide it. Tyler ruled that Krell is day 18 for a four (2026-11-21). The same day he ruled that the Level table is the four's own clock. On that clock Level 88 computes to day 31 to 39. Day 18 came from a four running at 2.2 times a table timed on a lone hero. Both rulings cannot hold at once. If day 18 is the truth, a four passes Level 185 on day 60, and 120 days of ground at Early Access means regions 4 and 5 must be finished too. **OPEN.** It is decided inside GR-6 in chapter 05, and RW1, RW3 and RW4 move with it.
+One conflict sits under this table and this chapter does not hide it. Tyler ruled that Krell is day 18 for a four (2026-11-21). The same day he ruled that the Level table is the four's own clock. On that clock Level 88 computes to day 31 to 39. Day 18 came from a four running at 2.2 times a table timed on a lone hero. Both rulings cannot hold at once. If day 18 is the truth, a four passes Level 185 on day 60, and 120 days of ground at Early Access means regions 4 and 5 must be finished too. **DECIDED (GR-6b, Fable 2026-11-21, reversal of "day 18 for a four" of 2026-11-21, Tyler may veto):** Krell's Hold is day 31 for the plain mid-geared four, and a four with best gear and buffs is there between day 18 and day 24. Every chapter quotes that one day, and RW1, RW3 and RW4 are read on it.
 
 ### 2.3 What a hunting ground is
 
@@ -156,7 +156,7 @@ What a ground does **not** declare: an XP multiplier, a gold multiplier, its own
 
 **The ground card.** Each card shows the band, the tier, what the ground asks in one label, the best weapon against its monsters, its wall element, its drops as a percent for each kill, and its named rare. The words come from the ground row. The layout is the art director's. **DECIDED GR-31, Fable 2026-11-21.** Chapter 08 owns the screen.
 
-**Remembered once.** The tier, the bar setup and a saved kit (rings, linings, one unique) are stored for each ground and applied when the party moves there. **RULED** for the tier (2026-11-05) and **DECIDED GR-48, Fable 2026-11-21** for the kit. A ground you have set up once never asks again.
+**Remembered once.** The tier and one Setup are stored for each ground and applied when the party moves there. A Setup holds the weapon, the worn set, the linings, the unique, the bar and the target mode, and it can be copied to another hero or ground. **RULED** for the tier (2026-11-05) and **DECIDED GR-48 and GR-84, Fable 2026-11-21** for the Setup. A ground you have set up once never asks again.
 
 ### 2.4 Every ground asks one question
 
@@ -198,7 +198,7 @@ A signature is a fact about a ground's composition: which roles, which spell, at
 | Wyvern Roost | 125 to 142 | Ranged heroes. Swords are resisted | Glass and fast | Wyvern Fledglings and the Ledge Wyvern | Fire | Brood Wyvern | The Roost Mother (designed) |
 | The Old Guard (designed) | 138 to 155 | | **OPEN** | | Frost, and Storm as a second spell | | |
 | The Bellows (designed) | 145 to 165 | | **OPEN** | | Fire | | Father Gault (designed), in his hall |
-| Unmarked Catacombs | 165 to 185 | Rooms and corridors | **OPEN.** Necrotic's home | Night Carter, Keeper Dunn | Necrotic, poison, frost | Keeper Dunn | |
+| Unmarked Catacombs | 165 to 189 | Rooms and corridors | **OPEN.** Necrotic's home | Night Carter, Keeper Dunn | Necrotic, poison, frost | Keeper Dunn | |
 
 Statuses for that table:
 
@@ -264,7 +264,7 @@ The boss blow bound is **DECIDED GR-25, Fable 2026-11-21**. It says a boss must 
 - A status that opens a monster to one kind of damage is a sample of three pairs only. **DECIDED GR-20, Fable 2026-11-21** in chapter 01, and a HYPOTHESIS.
 - A blow that breaks a monster's spell windup belongs to the hammer's Earth rune strike. **DECIDED GR-18, Fable 2026-11-21, reversal of "no stagger" of 2026-10-23, Tyler may veto** in chapter 01.
 
-**Rows that leave.** 103 monster rows stand in no hunt, three hunts have no ground (Bramble Edge, Goblin Warren, Ridge Camp), and four boss copies exist only for a second boss door. None is on any roadmap, so the no-cut ruling does not protect them. They are removed, and their art stays in the library. Two conditions: about 80 items wait on monsters from that roster and are checked first, and the list goes to Tyler as part of the one cut list. **DECIDED GR-34, Fable 2026-11-21.**
+**Rows that leave.** 103 monster rows stand in no hunt, three hunts have no ground (Bramble Edge, Goblin Warren, Ridge Camp), and four boss copies exist only for a second boss door. None is on any roadmap, so the no-cut ruling does not protect them. They are removed, and their art stays in the library. Two conditions: about 80 items wait on monsters from that roster and are checked first, and the list goes to Tyler as part of the one cut list. **DECIDED GR-34, Fable 2026-11-21. CUT (Tyler approves), cut list 1.** Nothing is deleted before he has seen the list.
 
 ### 2.6 An old ground at your own Level
 
@@ -284,7 +284,7 @@ Levels never end and maps do. This is the system that makes the two fit.
 
 Three things this system is for. It is the standing answer past the last open region (RW5). It is how a lining part from an old ground stays reachable. And it is the only way the Bestiary's long stages can be finished: COMPUTED on the Landlord of Carter's Rest at about 20 kills an hour, stage 1 of 2,500 kills is 125 hunted hours and stage 4 of 20,000 is 1,000, while a hero is in that band for about 135.
 
-**OPEN: whose Level.** The ruling says the leader's. The world review asked for the lowest hero's, so a veteran and a newer friend can share a ground and nobody dies to it. An account's own four are near one Level, so this matters only for mixed accounts. It is decided with MM-19 in chapter 06, which sets the one visible rule for mixed Levels in a fight.
+**Whose Level: the leader's, as ruled. DECIDED (MM-19, Fable 2026-11-21).** The ruling says the leader's. The world review asked for the lowest hero's, so a veteran and a newer friend can share a ground and nobody dies to it. An account's own four are near one Level, so this matters only for mixed accounts. It is decided with MM-19 in chapter 06, which sets the one visible rule for mixed Levels in a fight.
 
 ### 2.7 Bosses and halls
 
@@ -298,13 +298,13 @@ Three things this system is for. It is the standing answer past the last open re
 | Hall Keys trade | | RULED |
 | One key is one prize roll | The key is the only clock. No second daily limit sits on top of it | DECIDED GR-28, Fable 2026-11-21, reversal, Tyler may veto. Replaces one roll a hero a day (RULED 2026-11-14), which stands until this is ruled |
 | A key's pace | TARGET: about one key a hero a hunted day | DECIDED GR-28, Fable 2026-11-21, reversal, Tyler may veto. The number is chapter 03's drop band |
-| Fight with N keys | One press on the hall's door. The fights run one after another like a hunt, with the bar and party remembered | DECIDED GR-28, Fable 2026-11-21, reversal, Tyler may veto |
+| Fight with N keys | One press on the hall's door. The fights run one after another like a hunt, with the bar and party remembered, and they stop at the first death, as every hunt does | DECIDED GR-28, Fable 2026-11-21, reversal, Tyler may veto |
 | A hero's first roll on a hall always lands a piece | | RULED 2026-11-14 |
 | A mid-region boss's pieces stay repeatable | Under one key, one roll, a hero can spend every key it finds. This keeps the Morrow weapon grid whole, where the Roost Mother's pieces are a family's first unique | DECIDED GR-28, Fable 2026-11-21, reversal, Tyler may veto |
-| Which bosses have halls | The Rat King, Chief Coppercap, Captain Hask and Lord Krell, then the Roost Mother and Father Gault, then two in every later region. Old Grayjaw and Rook stay route bosses | DECIDED GR-28, Fable 2026-11-21, reversal, Tyler may veto. **OPEN** whether the two early route bosses ever get one |
+| Which bosses have halls | The Rat King, Chief Coppercap, Captain Hask and Lord Krell, then the Roost Mother and Father Gault, then two in every later region. Old Grayjaw and Rook stay route bosses | DECIDED GR-28, Fable 2026-11-21, reversal, Tyler may veto. Old Grayjaw and Rook stay route bosses for good, so no hall exists under Level 20 |
 | A hall is built for a four | The card says the party it asks for. An account has four heroes from its first day, so every account can field one | RULED 2026-11-17 for Krell, 2026-11-21 for the four heroes |
 
-**What a hall boss is.** The formula's boss role at his Level, times one hall number that is the same for every hall. No boss is tuned by hand. **DECIDED GR-30, Fable 2026-11-21.**
+**What a hall boss is.** The formula's boss role at his Level, times one hall number that is the same for every hall. The hall number acts on the boss's health, and so on the 10 minute clock, never on his blows. A hall lost on Normal by a mid-geared four in band is lost to the clock, and deaths in a hall stay inside the death band of the tier chosen. No boss is tuned by hand. The Rat King is one monster row, used on the Sewer route and in his hall. **DECIDED GR-30 and GR-28, Fable 2026-11-21.** HYPOTHESIS until the hall grader plays it at Levels 25, 52 and 75.
 
 - TARGET: a four in band, in mid gear, on the food the card names, wins 80 to 90% of fights. The weakest named lineup loses, and so does the same party on the next cheaper food. A guard holds that floor (HA-FLOOR).
 - Evidence for sizing it: on the proposed spell rule every one of 36 tested parties won Krell's hall 38 to 40 times in 40. That is inside the letter of the fit and outside its purpose. If every party wins, the party you bring does not matter.
@@ -327,7 +327,7 @@ Three things this system is for. It is the standing answer past the last open re
 | The key | The Gatekeeper drops the Hall Key | RULED 2026-11-11 |
 | The party | A tank, a healer and two more. A three losing is fine | RULED 2026-11-17 |
 | When | Weeks, not months | RULED 2026-11-21. The day is the open conflict in 2.2 |
-| Tier 7 | The 14 plain Dawnsteel pieces drop in the Hold as Rares | DECIDED GR-29, Fable 2026-11-21. Evidence: MEASURED, a hero without his tier 7 weapon hunts the Hold about 9% slower |
+| Tier 7 | Tier 7 drops like every tier. Dawnsteel armor is the Hold's hourly drop. Dawnsteel weapons, the shield and the spellbook are Scarce rows in the Hold. None of them is a Rare row, so the Hold's six Rare rows stay free for its named pieces | DECIDED GR-29 and CE-6, Fable 2026-11-21. Evidence: MEASURED, a hero without his tier 7 weapon hunts the Hold about 9% slower |
 | The Hall's roll | Krell's two ruled uniques (heavy legs with physical resistance, a tank shield), five sidegrade weapons that take the plain rows' place, his gem, his Trophy | Uniques RULED 2026-11-14 and 2026-11-18. The rest DECIDED GR-29, Fable 2026-11-21. Items are chapter 03's |
 | Drops stay generous through Krell and turn really rare after | | RULED 2026-11-20 |
 | His rows | Left alone until hand rows move onto the formula, then he is the boss role times the hall number | DECIDED GR-30, Fable 2026-11-21 |
@@ -403,7 +403,7 @@ In decision-book order.
 | GR-27 | What the harder tiers bring | One pull number for each tier, the same on every ground. Five on Dangerous is the leading candidate, set by the harder tiers lane | DECIDED (Fable 2026-11-21) |
 | GR-5 | What a kill pays | The kill reward follows the pace line with one kill-rate reference. One tier table. Party grounds stay an encounter type with three numbers | DECIDED (Fable 2026-11-21) |
 | GR-28 | One boss door | Every boss that pays a prize is a keyed hall. One key is one prize roll. "Fight with N keys" is one press and stops at the first death | DECIDED (reversal, Tyler may veto). Changes 2026-11-14 and 22-8 (Fable 2026-11-21) |
-| GR-29 | A hall's prize | Only what no ground drops. Plain Dawnsteel drops in the Hold as Rares | DECIDED (Fable 2026-11-21) |
+| GR-29 | A hall's prize | Only what no ground drops. Plain Dawnsteel drops in the Hold: armor hourly, and weapons, shield and spellbook as Scarce rows (CE-6) | DECIDED (Fable 2026-11-21) |
 | GR-9 | An old ground at your own Level | Open it as ruled, by the hour, with one drop rule. Read frontier use, then rule free against paid | DECIDED (Fable 2026-11-21) |
 | MM-2 | The world boss form (chapter 06) | One shared pool, fought in each account's own boss room | DECIDED (Fable 2026-11-21) |
 | GR-25 | Special monster rules with no ruling on record | Keep the gentle ramp and the boss blow bound. A tier a ground does not offer is one flag | DECIDED (Fable 2026-11-21) |
@@ -418,6 +418,8 @@ In decision-book order.
 | GR-86 | Every monster on the formula (chapter 09) | No hand-typed monster stats | DECIDED (Fable 2026-11-21) |
 
 ---
+
+**Cuts in this chapter.** CUT (Tyler approves), cut list 1: 103 monster rows no hunt uses, three hunts with no ground and four boss copies (GR-34), after the item check. Cut list 15: the per-ground tier dials (GR-5) and the "no bigger pulls under floor 16" rule (GR-27).
 
 ## 5. Still missing
 

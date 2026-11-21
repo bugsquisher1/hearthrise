@@ -159,7 +159,7 @@ Knobs marked RULED are measured with freely and never shipped at a new value wit
 
 The order is a design decision. Each step is proven before the next one leans on it. The instrument comes first, because a wrong ruler makes every later number wrong. Then the steps that move no number, because they turn typed numbers into knobs at no balance risk. Then the gear curve before the kill reward, because the reward's reference line is measured on heroes whose power keeps pace. Then the Level law, which reads the reward. Prices come last, because the wage reads the coin line and the kill rate.
 
-No build lane starts until every decision is ruled and a build plan exists (RULED 2026-11-21). This section is the ordering that plan will follow. Measurement and tool work that changes no game number is recommended to go ahead before the plan, because the calls depend on it. That is an OPEN decision of Tyler's (decision book, "still waiting").
+No build lane starts until every decision is ruled and a build plan exists (RULED 2026-11-21). This section is the ordering that plan will follow. Measurement and tool work that changes no game number is recommended to go ahead before the plan, because the calls depend on it. That is RULED 2026-11-21: studies, calibration and audits may run before the build plan.
 
 Server changes in any step are staged, never applied by a lane, and the client half follows the apply (CLAUDE.md section 3.3, lane C).
 
@@ -458,7 +458,7 @@ Of the 108, 89 have a reader and 19 do not. The grid reads 85, and the atlas and
 | Fault | What it does | What closes it | Status |
 |---|---|---|---|
 | V3 and F4 | A dead harness hero stands up at once and hunts on, so a death count on a failing cell is a retry count | The harness follows the game's own rule: a death ends that hero's hunt until the next visit, and a failing cell reports time to the first death and hours lost | DECIDED (GR-85, Fable 2026-11-21, step V3). It follows a ruling and needs no new one |
-| F5 | The party's store bill reads 1.7 to 2.2 times real, because the simulated kit buys the rune tier its Magic allows and real players buy lower | A kit rule: mid gear casts one rune tier under what its Magic allows, a healer's heals use the cheapest water rune, best in slot casts the tier its Magic allows. Then one play of the grid | OPEN. Decided with the heal price and supply calls (GR-52, GR-51, GR-50), because the kit should buy what those formulas make the sensible buy |
+| F5 | The party's store bill reads 1.7 to 2.2 times real, because the simulated kit buys the rune tier its Magic allows and real players buy lower | A kit rule: mid gear casts one rune tier under what its Magic allows, a healer's heals use the cheapest water rune, best in slot casts the tier its Magic allows. Then one play of the grid | DECIDED (GR-52, Fable 2026-11-21): the kit rule in this row is the rule. Then the grid is played once |
 | F6 | The kit builder never wears the unique lines at Levels 110 to 185 | The unique lines in `grid-kit.mjs` | Tools work |
 | F7 | The Deadly death band judges a lone hero against the party's count | The S6 rows name the four as the seat they judge, which the no-targets ruling already implies | DECIDED (GR-88, Fable 2026-11-21) |
 | F8 | One party band compares a party and a lone hero on different grounds | Closed by the ruling: the band is dropped (GR-67) | RULED 2026-11-21 |
@@ -572,7 +572,7 @@ Not yet true of the Lab, and the dashboard lane's work: rule 1 needs every recom
 | Database-seconds an account-day, read from production | Band C2 | Over 70 |
 | Five players asked "is buying Crowns worth it, and is it fair?" | Most say worth it, most say fair | "Not worth it" or "pay to win" from most |
 
-Testing the Crowns loop in a free, wiped playtest means every account receives the same weekly allowance of test Crowns by one server switch. That is a grant, so it needs Tyler's explicit yes. OPEN (MM-43). This chapter makes no recommendation on a grant.
+Testing the Crowns loop in a free, wiped playtest means every account receives the same weekly allowance of test Crowns by one server switch. That is a grant, so it needs Tyler's explicit yes. TYLER CONFIRMS (MM-43, a grant). Recommended yes, for the wiped Discord playtest only: the same amount for every account, one server switch that is off by default and removed before Early Access, and every grant journalled.
 
 **Table C. Questions only players can settle.** DECIDED as the reading list (no call id, Fable 2026-11-21). Each has its measure set in advance.
 
@@ -758,7 +758,7 @@ In decision-book order. Each line is the call and the decision this chapter take
 | 60 database-seconds presented as a ruled number (`60-game-review.md` first issue) | The cold audit (61, M3): Tyler ruled $0.15. The 60 is COMPUTED from assumed list prices and is a best case |
 | A 6 minute flush as part of the cost call (`60` first issue, G-1) | The cold audit split it. Closed form is recommended now. The flush is a HYPOTHESIS with a second option and waits on study 48 |
 | Global chat in rooms of 250 (`28-platform.md` section 5 and 28-6) | Tyler ruled one Global chat with batched lines and a slow mode (2026-11-20, 2026-11-21) |
-| A gear band of about +6.5%, about 7 Levels apart at Level 110 (`44` section 5.2) | The review and the itemization fit (60 GR-4, 47) size a band at a tier's worth, about +24%. The later synthesis and the itemization fit win. The architecture is the same: a percent step on a linear curve |
+| A gear band of about +6.5%, about 7 Levels apart at Level 110 (`44` section 5.2) | The review and the itemization fit (60 GR-4, 47) size a band at a tier's worth, about +24%. The adversarial check then opened the knob at about +17%, the largest step that keeps a band edge in every region. The later synthesis and the itemization fit win. The architecture is the same: a percent step on a linear curve |
 | The Level law as one fitted power law (`42`, and matrix patch `progression-1`) | Withdrawn. The ruled table of hours is the law (44, 56, GR-6) |
 | The hidden Level cut removed with nothing in its place (`44` step R8) | MEASURED: with no rule a carried hero earns about 6 times its pace. The visible two thirds line replaces it in the same step (MM-19) |
 | Party size bands P6.2 to P7.4, lone-against-four judgments, and matrix patches `social-1` and `social-2` | No solo or group balance targets, RULED 2026-11-21 |

@@ -58,13 +58,13 @@ Three armor weights are the one standing choice the plain ladder holds: heavy ad
 
 **Why linear.** Monster health is linear in Level (`monsterHp`) and so is hero health (`heroHp`). Gear on any other shape drifts against both. MEASURED on the real engine with stand-in gear (study 42): on a gear line that is linear in Level, hunting pace holds from Level 200 to 5,000 with no other change.
 
-**A band is a tier wide.** Past tier 7 an upgrade is a fixed step of the line, never a fixed count of Levels. The step is one tier's worth, `gearBandStep` = 1.24. [DECIDED GR-4, Fable 2026-11-21, reversal, Tyler may veto]
+**A band is a tier wide.** Past tier 7 an upgrade is a fixed step of the line, never a fixed count of Levels. The step is one knob, `gearBandStep`. It opens at the largest step that still puts a band edge inside every region, which is about 1.17. [DECIDED GR-4, Fable 2026-11-21, reversal, Tyler may veto]
 
-| Band, worn from Level | 110 | 136 | 169 | 210 | 260 | 322 | 400 |
-|---|---|---|---|---|---|---|---|
-| Region it opens in | Morrow Hills | Morrow Hills | Catacombs | Region 4 | Region 5 | Region 6 | Region 7 |
+| Band, worn from Level | 110 | 129 | 151 | 176 | 206 | 241 | 282 | 330 | 386 |
+|---|---|---|---|---|---|---|---|---|---|
+| Region it opens in | Morrow Hills | Morrow Hills | Morrow Hills | Catacombs | Region 4 | Region 5 | Region 5 | Region 6 | Region 7 |
 
-COMPUTED from ln(400/110) over ln(1.24). Past 400 the same step continues for as long as Levels do. MEASURED as evidence for the size (study 54, one seed): a +31% weapon step reads +9.4% Level XP an hour for a lone hero, so a +24% band is one upgrade a player can feel and a +6.5% band would read about +2%. The step is a HYPOTHESIS until one band is played on the curve.
+COMPUTED from ln(400/110) over ln(1.17): eight bands to Level 400, about one and a half a region. Past 400 the same step continues for as long as Levels do. MEASURED as evidence for the size (study 54, one seed): a +31% weapon step reads +9.4% Level XP an hour for a lone hero, so a +17% band should read about +5%, which is the ruled size of a weapon step, and a +6.5% band would read about +2%. A step of 1.24 (bands at 110, 136, 169, 210, 260, 322 and 400) stays a hypothesis for the one-band play. It leaves the Level 330 to 385 region with no band edge, so it can ship only if region edges move with it. Either step is a HYPOTHESIS until one band is played on the curve.
 
 **What reads the one band table.** Uniques, chest keys ("one key tier a band"), Tempering ladders ("one ladder a band"), reforging ("up a band"), the sink prices of 2.9 and the reward lines of chapter 06. The table sits in `src/data` beside the curve. [DECIDED GR-4, Fable 2026-11-21, reversal, Tyler may veto]
 
@@ -85,7 +85,7 @@ COMPUTED from ln(400/110) over ln(1.24). Past 400 the same step continues for as
 | Belt | Crafted at the workbench (2.6). Not dropped | | [DECIDED GR-43, Fable 2026-11-21] |
 
 - **Generous through Krell.** Every slot's piece of the current tier has dropped inside the first 15% of the band's hours (TARGET, band E2). [RULED 11-20 for the direction]
-- **Tier 7 drops like every tier.** The 14 plain Dawnsteel pieces drop in Krell's Hold as Rares on the loot bands. Krell's daily roll holds only what is won (2.5). [DECIDED GR-29, Fable 2026-11-21] MEASURED as evidence (study 54): a lone hero without his tier's weapon hunts about 9% slower through the whole band.
+- **Tier 7 drops like every tier.** Dawnsteel armor is the hourly drop of Krell's Hold. Dawnsteel weapons, the shield and the spellbook are Scarce rows in the Hold. None of the 14 plain pieces is a Rare row, so the Hold's six Rare rows stay free for its named pieces. Krell's prize roll holds only what is won (2.5). [DECIDED GR-29 and CE-6, Fable 2026-11-21] MEASURED as evidence (study 54): a lone hero without his tier's weapon hunts about 9% slower through the whole band.
 - **One sale rule.** A tier's hourly gear sells to the Shop for a fixed share of that tier's coin, a quarter [RULED 23-10], computed by one sale formula that also works past tier 7 (`saleStep`, step R17) [DECIDED GR-87, Fable 2026-11-21].
 - **Drops are written in hours.** A row says "every 10 to 20 hours" and the chance a kill is derived (`bandHours`, step R18). [DECIDED GR-87, Fable 2026-11-21]
 - **The start kit replaces the first rung.** The curve's generator skips a tier 1 rung the start kit already holds. [DECIDED GR-85, Fable 2026-11-21]
@@ -419,7 +419,7 @@ COMPUTED as evidence for the rider (study 47, from the item plan's own estimates
 
 Two heroes at Level 60 with the same gold end up different. The hammer who wants kills fills Blows, carries all six pieces and keeps a leech lining. The tank who wants to live fills Armor, carries three pieces, buys one fresh tier 4 perk and keeps a guard and a leech lining. The purse is shared by the account, so the player also decides which of four heroes gets the gold. Every one of these can be bought later.
 
-**Early sinks.** With all four heroes free from day 1, gold needs something to buy in the first week. Linings and the first Tempering ladder are the first repeating sinks, sized on an account of four. [DECIDED GR-8, Fable 2026-11-21, reversal, Tyler may veto]. The numbers are [OPEN]: see section 5.
+**Early sinks.** With all four heroes free from day 1, gold needs something to buy in the first week. Linings and the first Tempering ladder are the first repeating sinks, sized on an account of four. [DECIDED GR-8, Fable 2026-11-21, reversal, Tyler may veto]. The order is [DECIDED CE-4, Fable 2026-11-21] and the sizes are [DECIDED CE-5, Fable 2026-11-21, reversal of the gold numbers of 26-3 and 26-1, Tyler may veto], a HYPOTHESIS, in chapter 04.
 
 **Gold in, gold out, and trade.**
 
@@ -608,7 +608,7 @@ Rules. Chest gear stays rare. It is never bound. A chest weapon is the next tier
 
 ### 2.14 The saved kit and the find list
 
-- **A saved kit for each ground.** A hero's worn set, linings and unique can be saved against a ground. Starting a hunt there wears it. It lands before case-sized perks or linings ship, because each of them asks a hero to change gear when the party moves, four heroes at a time. [DECIDED GR-48, Fable 2026-11-21]
+- **One Setup for each ground.** It holds the weapon, the worn set, the linings, the unique, the bar and the target mode. It is saved once, starting a hunt there wears it, and it can be copied to another hero or ground. The saved kit and the bar setup are the same thing, so the weak-side weapon is never a chore (GR-84). It lands before case-sized perks or linings ship, because each of them asks a hero to change gear when the party moves, four heroes at a time. [DECIDED GR-48, Fable 2026-11-21]
 - **A find list for each ground.** The ground's page lists its named pieces. The first time an account finds each one it is ticked with no press. It shows on the Honors page and pays no Luck. [DECIDED GR-48, Fable 2026-11-21]
 
 ### 2.15 Systems kept for later
@@ -626,11 +626,11 @@ Nothing planned is cut. Each is built later and stays hidden until it works. [RU
 
 ### 2.16 Gear from the shared world (chapter 06)
 
-Chapter 06 pays in buffs and gear [RULED 11-21]. This chapter owns how that gear fits the curve. The rewards themselves are being revised (MM-6 world boss pay, MM-14 arena rewards), so everything here is [OPEN], with one recommendation.
+Chapter 06 pays in buffs and gear [RULED 11-21]. This chapter owns how that gear fits the curve. The ten rules below are the design. [DECIDED CE-1, Fable 2026-11-21]
 
 **The collision.** Study 49 gives each world boss and the Open arena a named, tradeable gear line at the best-in-slot budget of the earner's band, plus an upgrade material used by the band's sinks. This chapter says every piece is a spend of the gear curve (GR-4), a prize holds only what no ground drops (GR-29), and a region brings 15 to 20 new uniques (31-4). Read loosely, the layer would add a second pile of best-in-slot pieces to every band and make ground uniques the lesser chase.
 
-**The recommendation: layer gear is unique gear, under every rule of 2.5, on rows that carry no band.** [OPEN. MM-6 and MM-14 decide it, with GR-4 and GR-29]
+**The decision: layer gear is unique gear, under every rule of 2.5, on rows that carry no band.** [DECIDED CE-1, Fable 2026-11-21, with MM-6 and MM-14]
 
 | # | Rule | Why |
 |---|---|---|
@@ -638,16 +638,16 @@ Chapter 06 pays in buffs and gear [RULED 11-21]. This chapter owns how that gear
 | 2 | **A layer line is written once and has no band.** A line row holds a slot, a stat mix as shares and a property. Its numbers are derived from the curve at the band of the hero who earned it. It reforges up a band like any unique | It adds zero rows a band and zero rows a region. The curve does the work |
 | 3 | **Layer pieces sit outside a region's count and outside its coverage.** A region's 15 to 20 new uniques and its coverage rules are met with no layer piece. A player who never fights a world boss or an arena misses no slot and no weapon family | The plan's counts stand. The layer is a second road to a best piece, never the only road to a filled slot |
 | 4 | **One property, one source.** GR-29 widened to every prize: a layer line carries a property instance no ground, hall or chest carries in that band. For example, if Krell's sword is bane on the Undead, no boss line is | The prize holds only what nothing else gives, so no source makes another a trap |
-| 5 | **Small lines.** A world boss line is five pieces, each wearable by more than one style. The Open arena line is five pieces and its properties are the ones a fight between parties rewards (thorns, a spell change on a shield or heal). TARGET: at most four boss lines in rotation, so 25 line rows in the game | A list a player can learn. PROPOSED counts |
-| 6 | **Rarity on the Very Rare clock.** TARGET: an account that fights every boss weekend earns a piece of a line about as often as a four finds a ground's Very Rare, one in about a week of play, and its own style's piece in about a month. An arena line pays one piece a season at the tier reached | A layer piece is as rare as the rarest ground piece, never rarer by an order and never common |
+| 5 | **Small lines.** A line is at most five pieces. A world boss line is four, one a style (MM-6). The Open arena line is five pieces and its properties are the ones a fight between parties rewards (thorns, a spell change on a shield or heal). TARGET: at most four boss lines in rotation and one arena line, so at most 21 line rows in the game | A list a player can learn. PROPOSED counts |
+| 6 | **Rarity on the Very Rare clock.** TARGET: an account that fights every boss weekend earns a piece of a line about as often as a four finds a ground's Very Rare, one in about a week of play, and its own style's piece in about a month. An arena line pays one piece a season at the tier reached. An account earns at most one line piece a boss weekend. The fall bonus re-rolls which piece it is and never adds a second (MM-6) | A layer piece is as rare as the rarest ground piece, never rarer by an order and never common |
 | 7 | **The layer's upgrade material feeds only the layer's own pieces.** It stands in for a duplicate when tempering a boss or arena piece past tier 7 and when reforging one up a band. It is never a required input for plain Tempering, Hallmarks or linings | Linings are ruled as one part and gold. A player who skips the layer must never be locked out of a ruled sink |
 | 8 | **It trades, and it pays no rivets.** A layer piece is not found by a hunt's settle, so it is outside the rivet allowance | No bound gear. The Luck safeguard holds |
-| 9 | **Luck never moves a layer reward, and a layer buff never moves a Rare row.** The timed drop buff of study 49 (+10%) applies to Common, Uncommon and Scarce rows and to chips, never to Rare, Very Rare or Trophy rows | Magic Find is ruled at two feeds and 104 a hero. A drop buff on Rares would be a third feed |
+| 9 | **Luck never moves a layer reward, and a layer buff never moves a Rare row.** The timed buff is material find (+10%, CE-2). It adds to rows tagged as materials: monster parts, lining parts, hides, ore, gem chips and gems below Rare. It never touches a Rare, Very Rare or Trophy row, a gear row of any rarity, a key or a seed. A ground weekend's featured row is a separate event row (MM-42) | Magic Find is ruled at two feeds and 104 a hero. A drop buff on Rares would be a third feed |
 | 10 | **The ceiling is the ruled one.** A hero in a full set of layer gear is a best-geared hero: about 15% faster and 15% less damage than mid gear, and no more | The gear state bands hold with or without the layer |
 
-**The strongest alternative.** Layer lines one band above the earner, as true best in slot. It makes the layer the only late chase, breaks "skips nothing", and gives bought gold a piece play cannot match. Not recommended.
+**The strongest alternative.** Layer lines one band above the earner, as true best in slot. It makes the layer the only late chase, breaks "skips nothing", and gives bought gold a piece play cannot match. Not taken.
 
-**What chapter 06 must take from this.** Its power budget counts layer gear as "best in slot for the band", which this recommendation keeps true. Its Crowns engine needs the pieces to trade, which they do. Its drop buff needs rule 9.
+**What chapter 06 must take from this.** Its power budget counts layer gear as "best in slot for the band", which this decision keeps true. Its Crowns engine needs the pieces to trade, which they do. Its drop buff needs rule 9.
 
 ---
 
@@ -702,12 +702,14 @@ In decision-book order.
 
 ---
 
+**Cuts in this chapter.** CUT (Tyler approves), cut list 10: the Crafting bench's three salt recipes (GR-43). Salts stay on the other bench, and the recipes leave in the lane that ships linings.
+
 ## 5. Still missing
 
 | # | Missing | Who or what decides it |
 |---|---|---|
 | 1 | The exchange rates themselves (`gearExchange`) and the slot-class shares other than the 6% for accessories | Roadmap step R11, on the matrix |
-| 2 | Whether +24% reads as one upgrade when played on the curve | One band played. It is the first thing the R10 derivation prints |
+| 2 | Whether +17% reads as one upgrade when played on the curve, with +24% as the second cell | One band played. It is the first thing the R10 derivation prints |
 | 3 | What it costs to reforge a unique up a band: materials, gold, whether a duplicate or a key is needed | Nobody has designed it. The designer, inside GR-4 and GR-8 |
 | 4 | The Tempering ladder for tier 7 and for each band, as shares | GR-8, then a matrix run on gold bands |
 | 5 | What the first week's gold buys, and early prices sized on four heroes | Decision book "waiting". The designer, then Tyler |
@@ -755,7 +757,7 @@ In decision-book order.
 
 | Question | How |
 |---|---|
-| Does a +24% band feel like an upgrade | One band played on the curve |
+| Does a +17% band feel like an upgrade | One band played on the curve |
 | Do players match jewelry to a ground | Three narrow perks measured in and out of their case at Level 88, then played with the saved kit |
 | Do the stones land as the first rare find | Three grounds, read from reveals, sets and trades |
 | Are Krell's five real choices | Each worn on the ground it wins and one it loses, against the Gold Tower weapon |

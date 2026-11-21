@@ -332,11 +332,11 @@ Chat is open by default so a new player sees that other people exist (RULED 2026
 
 | Not in the game | Why | Status |
 |---|---|---|
-| Hired, lent or on-call heroes | Every account has four, so nobody needs a seat filled. At 12 hunted hours a day nobody has a spare hero-hour to lend. Under the two-thirds rule one pair in six would match among four real players with top Levels 79, 46, 9 and 8 (COMPUTED). It would be a trade surface and a market in carried leveling | DECIDED (MM-18, Fable 2026-11-21, reversal of 25-1 and the on-call board of 25-3, Tyler may veto, which would replace 25-1 and the on-call board of 25-3). It comes back to Tyler if playtest friends ask to lend heroes without being prompted |
+| Hired, lent or on-call heroes | Every account has four, so nobody needs a seat filled. At 12 hunted hours a day nobody has a spare hero-hour to lend. Under the two-thirds rule one pair in six would match among four real players with top Levels 79, 46, 9 and 8 (COMPUTED). It would be a trade surface and a market in carried leveling | DECIDED (MM-18, Fable 2026-11-21, reversal of 25-1 and the on-call board of 25-3, Tyler may veto). CUT (Tyler approves), cut list 2. It is the one large cut of a planned thing. It comes back to Tyler if playtest friends ask to lend heroes without being prompted |
 | Shared combat grounds, 8-person areas | A contested spawn with both owners asleep is a tax and not a meeting. A busy server would need channels, which is instancing again. One party, one instance is the engine | DECIDED (MM-20, Fable 2026-11-21) |
 | A raid of many heroes in one fight | It needs people at the screen and a second engine. The world boss is the server's shared fight. A clan's own shared hunt, planned as two parties of four in one hall (25-11), takes the same form when it is built: each party in its own room on one clan pool | DECIDED (MM-1, MM-2, MM-48, Fable 2026-11-21, reversal of the second half of 25-11, Tyler may veto) |
 | PvP on the hunting grounds | The idle hunt is never interrupted by another player | DECIDED (MM-17, Fable 2026-11-21) |
-| A live party finder, a fifth seat | Rule 0. The cap of four is RULED (25-11) | DECIDED (GR-69, Fable 2026-11-21, reversal, Tyler may veto) |
+| A live party finder, a fifth seat | Rule 0. The cap of four is RULED (25-11) | DECIDED (GR-69, Fable 2026-11-21, reversal, Tyler may veto). CUT (Tyler approves), cut lists 3 and 4, with the Local chat tab |
 | Dailies, a login calendar, a season pass | Section 2.5 | DECIDED (MM-11, Fable 2026-11-21) |
 | Gear, materials, gold, Levels or rating sold by the store | Chapter 04 | TYLER CONFIRMS (MM-29) |
 
@@ -411,6 +411,8 @@ In decision-book order. "First" marks a decide-first call.
 
 ---
 
+**Cuts in this chapter.** CUT (Tyler approves). Cut list 2: on-call, hired and lent heroes and the on-call board (MM-18). Cut list 3: the live party finder (GR-69). Cut list 4: the Local chat tab and "maybe a fifth seat later" (GR-69). Cut list 5: the castle's labor, votes, upkeep, treasury balance, Clan Standing and five buildings of ten levels (MM-9). Cut list 6: the clan library and any Level XP room (MM-9, MM-25). Lists 2 and 3 cut things that were planned, so they are also on the reversal list.
+
 ## 5. Still missing
 
 | # | What is missing | Who answers |
@@ -483,7 +485,7 @@ The reads on bought boosts, the Crowns book and the test allowance (MM-43) are i
 |---|---|
 | Honors-only and goods-only rewards: boss pay with nothing above the band's goods, clans with no hero power, a clan board for honors, arena titles and banners only (study 49, first issue) | Tyler 2026-11-21: "none of that is fun". Rewards are buffs and gear |
 | One normalized arena (study 49, first issue) | Tyler 2026-11-21: two arenas |
-| "Clans give no XP" (25-2) as a blanket rule | The 2026-11-21 reward ruling is newer. The library's +5% Level XP is DECIDED at MM-9, Fable 2026-11-21, reversal, Tyler may veto. The bound rations of 25-2 stand |
+| "Clans give no XP" (25-2) as a blanket rule | The 2026-11-21 reward ruling is newer. 25-2 is kept all the same: MM-9 and MM-25 cut the library, so no clan room gives Level XP. The bound rations of 25-2 stand |
 | The castle at built prices with one work order a week for each slot, five buildings of ten levels, labor, votes, upkeep, a treasury balance and Clan Standing (25-4 and the social review's inventory) | MM-9 replaces them with one project on the town project engine. 25-4 is a ruling, so this needs Tyler's yes. Castle goods prices (31-3) stay |
 | The castle hidden until a clan has ten accounts (25-3) | A price by member makes a castle of three work. Needs Tyler's yes at MM-9 |
 | On-call heroes at 2 to 4 hours a day, standing parties, the on-call board, friends as an on-call roster (25-1, 25-3, the social review's first change) | Four heroes from day 1 at 12 hunted hours leave no seat to fill and no hour to lend. 25-1 is a ruling, so MM-18 needs Tyler's yes |

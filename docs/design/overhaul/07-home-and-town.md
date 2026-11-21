@@ -64,7 +64,7 @@ Six deeds. Each is bought with gold and goods that hunts and benches make, which
 | The five prices | RULED 11-20 (26-3) |
 | Two beds a tier | RULED (as built into 26-3's ladder) |
 | Which rooms each deed opens | RULED 11-20 (26-1, 26-7, 26-9) for the rooms, DECIDED GR-73, Fable 2026-11-21 for the Hall and the Great Hall |
-| The Castle asks for Gatekeeper's Chain, which drops in Krell's Hold. A four reaches Krell on day 18 (RULED 11-21), so the Castle is a goal for the weeks after Krell | COMPUTED from the data rows |
+| The Castle asks for Gatekeeper's Chain, which drops in Krell's Hold. A plain four reaches Krell on day 31 (GR-6b), so the Castle is a goal for the weeks after Krell | COMPUTED from the data rows |
 | Whether these prices are still the right size for an account that has four heroes earning from day 1 | OPEN. Nobody has re-read them (section 5, item 2) |
 
 Formula: `E43` (typed ladders, `src/data/homestead-tiers.js`). No knob. Sinks are judged by the gold bands of chapter 04 (band G-9, standing sinks as a share of band gold).
@@ -84,8 +84,8 @@ Six rooms. A room has five rungs. Each rung puts one real piece of furniture in 
 
 | Statement | Status |
 |---|---|
-| Rung 1 of a bench room is the bench with no fee. Rungs 2 to 5 give a chance to keep the job's materials. No room sells speed | RULED 11-20 (26-1) |
-| The rung prices stay as typed | RULED 11-20 (26-1). Re-read for an account of four is OPEN (section 5, item 2) |
+| Rung 1 of a bench room is the bench with no fee. Rungs 2 to 5 give a chance to keep the job's materials. No room sells speed | RULED 11-20 (26-1). The sixteen speed rungs are CUT (Tyler approves), cut list 13 |
+| The rung prices stay as typed | RULED 11-20 (26-1). The re-read for an account of four is DECIDED (CE-5, Fable 2026-11-21, reversal of the gold numbers of 26-3 and 26-1, Tyler may veto). Its sizes are a HYPOTHESIS |
 | The swap is built ahead of the lining work, so no rung is ever on sale that sells something a player cannot feel | DECIDED GR-76, Fable 2026-11-21 |
 | The House row says who a rung is for: "Keeps 8% of materials. Worth it on costly recipes." | DECIDED GR-76, Fable 2026-11-21 |
 | The Shrine has no rungs. Its spot on the home map is kept | RULED 11-20 (26-8). What stands there is OPEN (section 5, item 9) |
@@ -172,7 +172,7 @@ Wall-clock crops on the account's shared land. It is the one town system that ne
 | Turnip | 1 | 4 h | Turnip Juice | The first drink |
 | Carrot | 10 | 6 h | Carrot Juice | |
 | Wheat | 20 | 8 h | Bread and ration recipes. House rungs ask for them | |
-| Potato | 30 | 10 h | No hunt consumer | OPEN. It gets a hunt consumer or merges into Wheat's recipes (chapter 03) |
+| Potato | 30 | 10 h | No hunt consumer | DECIDED (GR-74, Fable 2026-11-21): it gets a hunt consumer in Wheat's ration recipes. If it finds none it is CUT (Tyler approves), cut list 9 |
 | Tomato | 40 | 8 h, regrows | Tomato Juice | The first regrowing drink crop |
 | Pumpkin | 50 | 14 h | Pumpkin Cider | |
 | Goldenroot | 62 | 16 h | Goldenroot Tea | |
@@ -183,7 +183,7 @@ Wall-clock crops on the account's shared land. It is the one town system that ne
 
 | Rule | Value |
 |---|---|
-| Size | A sample of two, with the Morrow Hills grounds. Moonbloom is the first: its seed leaves the Shop and becomes a drop |
+| Size | A sample of one, with the Morrow Hills grounds. The Moonbloom seed leaves the Shop and becomes a tradable Rare row on one Morrow Hills ground. The seed in the Shop is CUT (Tyler approves), cut list 16. A second seed is written only after the first has been read in play |
 | The seed | A tradable Rare row on one ground of the region. It counts inside the limit of six Rare rows for each ground (GR-42, chapter 03) and never pushes out a gear row |
 | The drink | Sits on the existing drink ladder at the next step's size. It is never above the ladder |
 | Why the limit | Evidence, patch `home-2` on the uncalibrated harness, direction only: a four whose supplies are all home-made levels about 6% faster than one buying from the store, about 10% on Deadly, and takes about a sixth less damage. Home supplies are already worth about one gear step. A drink above the ladder would stack on that |
@@ -286,7 +286,7 @@ COMPUTED here from the ruled fee, as a TARGET range, not played. Band edges reus
 | Loot plan | Each item has a destination set once: keep in bag, deposit in Storage, sell. It runs when loot is dispatched in town | RULED 10-25 |
 | Refill | The one-tap refill takes the account's own stock from Storage before it buys from the store | RULED 11-20 (plan L07). Formula `E18` |
 | Mounts | A mounted piece is not in Storage and the Hall is not extra Storage | DECIDED GR-73, Fable 2026-11-21 |
-| More bag and Storage for Crowns | OPEN. The re-issued study 49 lists it as a Crowns convenience with no power. Chapter 04 and chapter 06 own it. It must not make chests 5 to 8 pointless |
+| More bag and Storage for Crowns | TYLER CONFIRMS (MM-29), recommended no. Bag and Storage room stay gold sinks and are never sold for Crowns, so chests 5 to 8 keep their point |
 
 ### 2.10 The town's heroes at work
 
@@ -371,11 +371,11 @@ The huge hearth in the center of Havora (RULED 10-25, art approved). DECIDED GR-
 | Rule 0 | Everything here works while both players are asleep (DECIDED MM-1, Fable 2026-11-21). A fire that needs nobody at a set hour, and a project that fills from gifts made on any visit |
 | The engine | The staged-gift engine of the Works survives the merge. A clan project can be rows on it later (chapter 06) |
 
-**Where it meets the calendar.** OPEN. Study 49 (MM-11, DECIDED, Fable 2026-11-21) writes the event calendar a year ahead with a world bonus weekend of +25% Level XP once in four weekends. The ruled Hearthrise fills from fuel and has no date. The two are the same reward and need one rule. This chapter's recommendation: the world bonus weekend is the Hearthrise. The calendar sets when it lights. The server's fire sets how large it burns, up to the +25% ceiling, and the fire's size is a fixed amount of fuel for each weekly active account so a server of 10 and a server of 10,000 fill it in the same weeks. Then feeding the fire matters, the calendar still runs itself, and nobody has to be anywhere. It is a HYPOTHESIS and it is decided with GR-82 and MM-11 together (chapter 06).
+**Where it meets the calendar.** DECIDED (CE-8 and GR-82, Fable 2026-11-21, reversal of 2026-10-25, Tyler may veto). Study 49 (MM-11) writes the event calendar a year ahead with a world bonus weekend of +25% Level XP once in four weekends. The ruled Hearthrise fills from fuel and has no date. The two are the same reward and need one rule. The decision: the world bonus weekend is the Hearthrise. The calendar sets when it lights. The server's fire sets how large it burns, up to the +25% ceiling, and the fire's size is a fixed amount of fuel for each weekly active account so a server of 10 and a server of 10,000 fill it in the same weeks. Then feeding the fire matters, the calendar still runs itself, and nobody has to be anywhere. It is a HYPOTHESIS and it is decided with GR-82 and MM-11 together (chapter 06).
 
 **The first project.** RULED 11-20 (24-7): the first project is the Weighhouse and its goal opens the market. DECIDED GR-55, Fable 2026-11-21, reversal of 24-7, Tyler may veto (chapter 04): the market is open on day one and the first project builds something else. What it builds is OPEN (section 5, item 8).
 
-**Not part of the merge.** The Town Crier and a Round for the Tavern stay as built and stay shut behind the population gate of the Path (DECIDED GR-79, Fable 2026-11-21, chapter 08). If GR-69 is ruled, the criers' lines move from Local chat to the town itself or to Global.
+**Not part of the merge.** The Town Crier and a Round for the Tavern stay as built and stay shut behind the population gate of the Path (DECIDED GR-79, Fable 2026-11-21, chapter 08). There is no Local chat tab (GR-69), so the criers speak in the town itself and in the System tab.
 
 ---
 
@@ -423,6 +423,8 @@ In decision-book order.
 | MM-11 | The event calendar | The world bonus weekend is the Hearthrise (this chapter's addition, decided in chapter 06) | DECIDED (Fable 2026-11-21) |
 
 ---
+
+**Cuts in this chapter.** CUT (Tyler approves). Cut list 8: the farm's soil tiers and the water button on a bed (GR-74), a built sink of 130,500 gold. Cut list 9: Potato, if it finds no hunt consumer (GR-74). Cut list 11: the Cellar's five food rungs, off sale (GR-47). Cut list 12: the Trophy room's five mount rungs (GR-73, already ruled off sale in 26-6). Cut list 13: the sixteen House speed rungs (GR-76, already ruled in 26-1). Cut list 16: the Moonbloom seed in the Shop (GR-77). None is planned for later.
 
 ## 5. Still missing
 
@@ -513,7 +515,7 @@ In decision-book order.
 | Curing made general (any bench job in a slot), home buffs for the hunt, furniture placement, farm animals, weather, seasons, a second home, hired workers | Considered in 58 | Each fails the purpose test or a ruling. Not to be proposed again without new evidence |
 | Every payback or price written in weeks at 3.3 hunted hours, and every "own four" reading that assumed heroes arrive over weeks | 26 | RULED 11-21: 12 hunted hours a day, four heroes from day 1 |
 | Deed, rung and chest prices weighed against hero slot prices | 26, 24 | RULED 11-21: no slot prices |
-| "Party member" as someone who may visit, and any town rule that leans on on-call heroes | 26-11, 57 | Study 49 (MM-18, recommended, not ruled): a party is an account's own four |
+| "Party member" as someone who may visit, and any town rule that leans on on-call heroes | 26-11, 57 | MM-18, DECIDED as a reversal that Tyler may veto: a party is an account's own four |
 | The claim that the budget "cannot be met otherwise" as the whole case for closed form | 59 phase A | 59 phase B: necessary and not sufficient |
 
 ---

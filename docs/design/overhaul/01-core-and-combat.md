@@ -75,12 +75,12 @@ Modifiers multiply in permille. The amount is rounded once, at the end, and the 
 | Plus skill | sum | none | RULED 11-14. Flat levels, kept as ruled (DECIDED, GR-26, Fable 2026-11-21) |
 | A hero's own heal over time | the largest | none | DECIDED (GR-86, Fable 2026-11-21) |
 | Weapon weakness x bane x weapon element | product | 1.90 in all. Bane at most 1.40. Weapon element at most 1.15 | TARGET |
-| "Takes more" on a monster (Hunter's Mark, plus the strongest marking status) | sum | one total cap | The cap's number is OPEN. It is set with the status pairs (GR-20) |
+| "Takes more" on a monster (Hunter's Mark, plus the strongest marking status) | sum | one total cap | The cap is +30% in all, DECIDED (CORE-3, Fable 2026-11-21). Element weakness and weapon weakness are separate keys outside it |
 | Permanent perks and food buffs to damage | sum | 20% | TARGET |
 | All mitigation on one blow | the chain of 2.4 | 60% | RULED 10-18 |
 | A worn shield against a marked monster spell | a stat on the shield row | 30% at the opening row | RULED 11-08 in direction. DECIDED as a stat, so a later shield can carry more or less (GR-86, Fable 2026-11-21) |
 | Buffs to damage dealt from the MMO layer (clan rooms, boss buffs, event buffs, arena season buffs, bought boosts) | sum on the knob, with a standing cap and a timed cap | +5% standing, +10% timed | DECIDED (MM-24, MM-25, Fable 2026-11-21). TARGET |
-| Buffs to damage taken from the MMO layer | the same | 5% less standing, 5% less timed | DECIDED (MM-24, MM-25, Fable 2026-11-21). TARGET. Where it sits against the 60% cap is OPEN (section 5) |
+| Protection buffs from the MMO layer | rows on the Defense rating, so monsters land less often | sized so a mid-geared four takes about 5% less damage an hour standing and about 5% less timed | DECIDED (CORE-4, MM-25, Fable 2026-11-21). TARGET. Anything that takes a share off a blow stops at the 60% cap, so these buffs are not written there. The to-hit formula needs its own floor before they are final |
 
 **A tier's dial is applied once.** DECIDED (GR-85, Fable 2026-11-21, roadmap step R7). A harder tier's damage dial moves the monster's blow and its aim. That is what "harder" means: it hits harder and lands more often (RULED 11-04, "they are just simply harder"). Armor and Defense training read the monster's own Level and never a Level inflated by the tier. This is a correctness rule, not a tuning choice.
 
@@ -113,7 +113,7 @@ The intentional special rules in combat, each with its status.
 | What a basic attack costs | A wand or staff swing costs 1 mana, a bow shot one arrow, a melee swing nothing | RULED 10-15 and 10-23 |
 | The training dummy | Its blow cannot kill and it cannot die | RULED 11-08 |
 | Three training bases | Melee and Ranged train on damage dealt, Magic on mana spent, Defense on blows taken | RULED 10-18 and 11-05 in parts. On record as one rule: DECIDED (GR-25, Fable 2026-11-21) |
-| Storm burns mana, Necrotic cuts healing | What makes the two elements different (2.5) | RULED 11-18 in kind. Numbers OPEN |
+| Storm burns mana, Necrotic cuts healing | What makes the two elements different (2.5) | RULED 11-18 in kind. The game designer sizes the numbers on the matrix with the first seven spells (GR-16) |
 
 ### 2.2 Hitting
 
@@ -215,7 +215,7 @@ P is the hero's armor points. L is the attacking monster's own Level (2.1). Mixe
 
 | Element | On a hero that is hit | A hero's spells of that element | Status |
 |---|---|---|---|
-| Storm | The hit also burns mana equal to half the health it took | Fast. They pay mana back or jump to a second monster | RULED 11-18 in kind. The numbers are OPEN and are set when the first seven spells are sized (GR-16) |
+| Storm | The hit also burns mana equal to half the health it took | Fast. They pay mana back or jump to a second monster | RULED 11-18 in kind. The game designer sizes the numbers on the matrix with the first seven spells and reports them as decided (GR-16) |
 | Necrotic | For 6 seconds, everything that heals the hero heals 30% less. It does not stack | They drain health back, or leave a monster Withered so it heals half as much | The same |
 
 A resistance lining cuts the damage and the element's rule by the same percent, capped at 40% like every element. A hero at the cap still loses 18% of healing to a Necrotic hit.
@@ -265,7 +265,7 @@ One generic status engine runs four statuses, each with one job (C-STATUS).
 | Bleed | Ticks each second for each stack, up to 5 stacks, for 6 seconds. A tick is a share of the caster's Power, 3.3% of the blow at rune tier I, times the rune tier step | Rend (axes) | RULED 32-3 for the 6 seconds. The share is DECIDED to rise (GR-14, Fable 2026-11-21) |
 | Chill | Slows the target's swings and spell windups by 30% to 50% by rune tier, for 4 seconds. The strongest wins, it does not stack | Frost Slam (tank), Hoarfrost (wand) | TARGET |
 | Sickness | The target takes 10% more for 6 seconds | Green Sickness (staff) | TARGET |
-| Withered | The target heals 50% less (a monster) or 30% less (a hero) for 6 seconds | Blight, Toll, Pall Arrow, and monster Necrotic | DECIDED (GR-16, Fable 2026-11-21). Numbers OPEN with the element |
+| Withered | The target heals 50% less (a monster) or 30% less (a hero) for 6 seconds | Blight, Toll, Pall Arrow, and monster Necrotic | DECIDED (GR-16, Fable 2026-11-21). The numbers are sized with the element, by the game designer |
 
 **Hunter's Mark** is not a status a monster can shrug off. One monster takes 20% more for 8 seconds of every 12. In the modifier table it sits on the same "takes more" key as the marking statuses.
 
@@ -507,7 +507,7 @@ MEASURED on the engine with the spell rule built, at the opening dial values, on
 
 | | Normal | Dangerous | Deadly | Knob | Label |
 |---|---|---|---|---|---|
-| Pull, monsters in a fight | the ground's own packs | one number, the same on every ground. Five is the leading candidate | one number, the same on every ground. Eight | `tierPull` | The shape is DECIDED (GR-27, Fable 2026-11-21). The numbers are OPEN, set by the harder tiers sample |
+| Pull, monsters in a fight | the ground's own packs | one number, the same on every ground. Five is the leading candidate | one number, the same on every ground. Eight | `tierPull` | The shape is DECIDED (GR-27, Fable 2026-11-21). The numbers open at five and eight as hypotheses (CORE-1) and the harder tiers sample confirms them |
 | Blow and aim | x1.00 | x1.17 to open, sized up | x1.33 to open, sized up | `tierDanger` | TARGET. RULED 21-3 that it rises |
 | Monster health | x1.00 | x1.10 | x1.15 | `tierHp` | TARGET |
 | Level XP per kill | x1.00 | x1.10 | x1.25 | `tierXp` | TARGET |
@@ -520,7 +520,7 @@ MEASURED on the engine with the spell rule built, at the opening dial values, on
 | Tier | Built for | Evidence |
 |---|---|---|
 | Normal | Any hero in band. Near zero risk (RULED 10-25) | |
-| Dangerous | A lone hero's hard tier, and a party's step up | MEASURED at the opening dial, one seed and one hour: a lone hero in band holds a pull of five at 35 to 49% health with no deaths from the Glade to Krell's Hold, for 35 to 65% more XP than Normal, and it costs most of the hour's gold. Not yet played at the raised dial |
+| Dangerous | A party's step up. It is sized on the mid-geared four in band and read against S3. A lone hero's reading prints and judges nothing (CORE-1) | MEASURED at the opening dial, one seed and one hour: a lone hero in band holds a pull of five at 35 to 49% health with no deaths from the Glade to Krell's Hold, for 35 to 65% more XP than Normal, and it costs most of the hour's gold. Not yet played at the raised dial |
 | Deadly | A four with roles (2.10) | |
 
 **The bands a tier is sized to.** These are what "sized" means. MID rows are RULED (10-25 and 11-21, call 50-5). LOW and BiS rows are DECIDED (GR-88, Fable 2026-11-21, from the standards, section 2.2).
@@ -567,7 +567,7 @@ MEASURED on the engine with the spell rule built, at the opening dial values, on
 
 **Encounter types.** Two. An ordinary ground, and a ground built for a party: health x2.5 and blow x0.75 (`partyGroundHp`, `partyGroundBlow`), with XP per kill an output of the kill reward (DECIDED, GR-5, Fable 2026-11-21).
 
-**A hall boss** is the boss role times one hall number, sized so a party in band wins 80 to 90% of the time on the food its card asks for, and the weakest named party loses (DECIDED, GR-30, Fable 2026-11-21). No boss is tuned by hand.
+**A hall boss** is the boss role times one hall number. The number acts on the boss's health, and so on the 10 minute clock, never on his blows. It is sized so a mid-geared four in band wins 80 to 90% of the time on the food its card asks for, and the weakest named party loses to the clock. Deaths in a hall stay inside the death band of the tier chosen (DECIDED, GR-30, Fable 2026-11-21. HYPOTHESIS until the hall grader plays it at Levels 25, 52 and 75). No boss is tuned by hand.
 
 **Boss phases.** Two lines on a boss's health. Adds arrive at the first, and he takes only a share of every blow while one stands. Under the second he enrages: his blow and aim rise and one named spell casts faster (RULED 11-05, C-BOSS-PHASE). A ground's named rare gets one phase trait so it is an event and not a bigger health bar (DECIDED, GR-35, Fable 2026-11-21, `02-world.md`).
 
@@ -662,10 +662,12 @@ In decision-book order. Each line is the decision this chapter is written on.
 | GR-30 | Hall bosses | The boss role times one hall number that acts on health and the 10 minute clock, never on blows. A mid-geared four wins 80 to 90%. HYPOTHESIS until the hall grader plays it | DECIDED (Fable 2026-11-21) |
 | GR-86 | The later engine steps | One amount pipeline rounded once with a trace, one modifier table, every monster on the formula | DECIDED (Fable 2026-11-21) |
 | MM-19 | Mixed Levels in one fight | One visible two thirds line for every party | DECIDED (reversal, Tyler may veto). Changes the party XP rulings of 2026-11-08 (Fable 2026-11-21) |
-| MM-24, MM-25 | How MMO layer buffs are sized | Every buff is a row of the one modifier table, summed on its knob under a standing cap and a timed cap. Damage dealt +5% and +10%. Damage taken 5% and 5% less | DECIDED (Fable 2026-11-21) |
+| MM-24, MM-25 | How MMO layer buffs are sized | Every buff is a row of the one modifier table, summed on its knob under a standing cap and a timed cap. Damage dealt +5% and +10%. Protection as Defense rating rows worth about 5% and 5% less damage an hour | DECIDED (Fable 2026-11-21) |
 | MM-41 | One engine check | Heroes on both sides of a fight is measured once, for both arenas, before either is planned | DECIDED (Fable 2026-11-21) |
 
 ---
+
+**Cuts in this chapter.** CUT (Tyler approves), cut list 15: the unused "resists a weapon" column (GR-14), the per-ground tier dials (GR-5) and the "no bigger pulls under floor 16" rule (GR-27). None is planned for later. They are formula clean-up.
 
 ## 5. Still missing
 

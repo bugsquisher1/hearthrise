@@ -16,7 +16,7 @@ Part of "Hearthrise: the game we are building", the combined design of record. W
 
 **Minute 5.** You made one hero and picked how it fights. You are in the Mill Cellar and your hero is winning fights by itself. You opened one slot on its bar, read a rule written as a sentence and changed one number in it. You have not been asked to make a second hero yet, and nothing on the screen is locked in a way that confuses you. You know the next thing: Level 5.
 
-**Hour 1.** You run four heroes. The first one outgrew the Cellar at about minute 17, and that moment handed you the other three. They leveled in the Cellar while the first hunted wolves, and then all four went into the Sewer together with a shield in front and a healer behind. You pressed Start once for all of them. You saw a hunt report that told you how close the party came to dying and what each rule on a bar did. Before you closed the game you saw the plan your heroes will follow when their stamina runs out: fish, cook, mine and chop. You close the game knowing they keep hunting.
+**Hour 1.** You run four heroes. The first one outgrew the Cellar at about minute 17, and that moment handed you the other three. Each of them leveled in its own Cellar hunt while the first hunted wolves, and then all four went into the Sewer together with a shield in front and a healer behind. You pressed Start once for all of them. You saw a hunt report that told you how close the party came to dying and what each rule on a bar did. Before you closed the game you saw the plan your heroes will follow when their stamina runs out: fish, cook, mine and chop. You close the game knowing they keep hunting.
 
 **Hour 20 (day 2).** You visit twice a day for two to four minutes. Each visit opens on one card for the whole account. It tells the night in three lines, lists at most three things that need a decision and offers one press that sends all four back to what they were doing. You built the Hearthside Homestead from what two heroes gathered on the first night. You have tried Dangerous once because the report said the last hunt was Safe, and the report after it said Close. Every Level so far has named the next thing that opens.
 
@@ -28,7 +28,7 @@ Part of "Hearthrise: the game we are building", the combined design of record. W
 
 ### 2.1 The first hour with four heroes
 
-**The shape, in one paragraph.** The account owns four hero slots from its first second (RULED 2026-11-21). The first hour introduces them in two beats, not all at once. Beat one is one hero, alone, for about 17 minutes, because one hero is the only way to teach the bar and the loop without a wall of four names and four bars. Beat two is the company: three more heroes created in one short flow, sent through the Cellar together while the first hero hunts next door, and then one party of four in the Sewer by about minute 36. Nothing blocks a player who already knows the game from creating all four at second zero. The Path only decides when the coach offers it.
+**The shape, in one paragraph.** The account owns four hero slots from its first second (RULED 2026-11-21). The first hour introduces them in two beats, not all at once. Beat one is one hero, alone, for about 17 minutes, because one hero is the only way to teach the bar and the loop without a wall of four names and four bars. Beat two is the company: three more heroes created in one short flow, each sent through the Cellar in its own lone hunt on one Start while the first hero hunts next door, and then one party of four in the Sewer by about minute 36. Nothing blocks a player who already knows the game from creating all four at second zero. The Path only decides when the coach offers it.
 
 **Why this order.** Three alternatives were weighed.
 
@@ -36,7 +36,7 @@ Part of "Hearthrise: the game we are building", the combined design of record. W
 |---|---|---|
 | Create all four before the first hunt | One Level track and no catch-up | Four name screens before a single kill. Every teaching card is about one hero while three others act. It gives up "hunting two minutes after sign-in", which is the best thing the opening has (PLAYED, 46 and 27, on the one-hero opening this design keeps) |
 | Add one hero at a time across the hour | Gentle | Four different Levels in one party, and the Sewer's monsters are Level 10 to 25. The weakest hero dies or a catch-up rule is needed, and a catch-up rule is special-case math |
-| **One hero to Level 5, then three at once (this design)** | Two beats, each with a reason on screen | The three recruits repeat the Cellar. They do it by themselves in one party while the player does something new, so no decision is repeated |
+| **One hero to Level 5, then three at once (this design)** | Two beats, each with a reason on screen | The three recruits repeat the Cellar. They do it by themselves, each in its own lone hunt begun by one Start, while the player does something new, so no decision is repeated. MEASURED by the adversarial check: three together in the Cellar earn 0.53 times what one earns alone, because the Cellar is spawn-limited, so the recruits do not share one hunt |
 
 #### The starting weapon pick (GR-24)
 
@@ -46,8 +46,8 @@ Part of "Hearthrise: the game we are building", the combined design of record. W
 | The pick sets what is in hand and nothing else | Every hero still owns the whole practice kit and can switch in town at any time. No hero is locked to a way | RULED 2026-10-14 (classless), 2026-10-20 (the practice kit) |
 | Each card says what the way does, what it uses, and one honest tag | "Good alone" or "Best in a party". Sword and shield and Staff carry "Best in a party. Slow alone." | DECIDED (GR-24, Fable 2026-11-21). The tank's slow lone pace is RULED 2026-11-19 |
 | The tag is measured, never believed | Each way's tag comes from its start-kit cell on the balance matrix (section 6) | DECIDED (GR-24, GR-88, Fable 2026-11-21) |
-| The first hero has no preselected card | "Enter town" lights when a card is picked. It is the first choice a player ever makes and the screen does not make it for them | DECIDED (GR-24, Fable 2026-11-21) |
-| Heroes two to four are offered what the company lacks | The card that fills the first missing role is marked "Your company needs this", in the order shield, healer, then a damage way not yet present. The player may ignore it | DECIDED (GR-24, GR-79, Fable 2026-11-21) |
+| The first hero has no preselected card | "Enter town" lights when a card is picked. It is the first choice a player ever makes and the screen does not make it for them. The Club card (the hammer way) carries a "Good first hero" mark | DECIDED (GR-24, Fable 2026-11-21) |
+| Heroes two to four come pre-filled | Sword and shield, Staff, and Bow and crossbow. One press accepts all three and any pick can be changed. The pre-filled company always holds one healer, and the screen says so before a player changes it | DECIDED (GR-24, GR-79, Fable 2026-11-21). MEASURED by the adversarial check: this company held the Sewer with 0 deaths in 64 hero-hours. A four with no healer and no shield died once in 16 party-hours |
 | Look | Sixteen colors on four regions, free. Heroes two to four offer "same colors as [first hero]" as one press | RULED 2026-10-15 (four regions), 2026-10-19 (a name and colors step). The copy press is DECIDED (GR-80, Fable 2026-11-21) |
 
 #### The starting kit for an account of four
@@ -55,7 +55,8 @@ Part of "Hearthrise: the game we are building", the combined design of record. W
 | Row | Value | Status |
 |---|---|---|
 | Each hero, at creation | 20 Cooked Shrimp, 50 Bronze Arrows, 10 Coarse Whetstones, and a practice set for every way to fight with the picked one in hand | RULED (the practice kit, 2026-10-20). Quantities are the kit rows |
-| The account, once, with the first hero | 500 gold, 8 Turnip Seeds, 10 Raw Shrimp, 2 farm plots | DECIDED (GR-8, Fable 2026-11-21, reversal of the typed prices kept on 2026-11-18, Tyler may veto). The purse, the farm and Storage belong to the account, so a per-hero grant would pay four times and would let a deleted and remade hero mint gold. Chapter 04 owns the number |
+| The account, once, with the first hero | 500 gold, 8 Turnip Seeds, 10 Raw Shrimp, 2 farm plots | DECIDED (CE-10, Fable 2026-11-21). The purse, the farm and Storage belong to the account, so a grant for each hero would pay four times. Chapter 04 owns the number |
+| A hero remade in a used slot | The hero kit above is granted once for each of the account's four slots. A hero deleted and made again gets the practice weapons only, which have no sale value | DECIDED (CE-10, Fable 2026-11-21). HYPOTHESIS. It closes a mint: the kit's food sells. Security reads it with the rest |
 | The starting bar | Slot 1 eats the hero's own Cooked Shrimp under 60% health. Slot 2 buys Salted Shrimp from the store at 14 gold once the hero's own food is gone. Slot 3 drinks Thin Turnip Juice at 10 gold under 30% mana. A bar left empty plays the role's own moves in order | RULED 2026-10-21 (the starter bar) |
 | No rune in the kit | A rune spell casts on the store's Plain rune at 1 gold a cast, bought by its slot | RULED 2026-10-23, 2026-11-05 |
 | The starting loot plan | Sell gear worse than what is worn. Keep what a bench the hero can use takes. Never sell a Rare or better. The player edits it and never builds it | DECIDED (GR-80, Fable 2026-11-21, with the loot plan by kind in chapter 03) |
@@ -77,10 +78,10 @@ Minutes are TARGETS for a new player who follows the coach. The first 17 minutes
 | 0:10 | Reads the first end card | The first hunt report: lowest health and what did it, and what the changed rule did. Under it at most three presses: Wear the helm, Keep my company blessed, Carry on. Loot was sold by the starting plan and the card says what was sold | The report. Equip. Blessings as one standing choice. Carry on | DECIDED (GR-66, GR-78, GR-80, Fable 2026-11-21, with GR-66 for Tyler to confirm) |
 | 0:11 to 0:17 | Carries on in the Cellar | Level 5 lands and the Cellar ends itself: "Ground outgrown" | Grounds are outgrown. The game tells me when | Content row (the Cellar ends at Level 5) |
 | 0:17 | Reads the end card | "[Name] has outgrown the Mill Cellar. You have three more places in your company, and the Sewer under the mill wants a full party." Main press: Raise your company. Second press: Go on alone to Meadowbrook Thicket | I run four heroes. Alone stays allowed | DECIDED (GR-79, Fable 2026-11-21). Lone play allowed is RULED 2026-11-21 |
-| 0:17 to 0:20 | Creates three heroes in one flow | Each screen is a name, a way to fight with "Your company needs this" marked, and the look copy press | Roles come from weapons. A party wants a shield and a healer | DECIDED (GR-24, GR-79, Fable 2026-11-21) |
-| 0:20 | Reads the first company plan and presses Start once | Four rows, filled in. The three recruits: Mill Cellar, together. The first hero: Meadowbrook Thicket, Normal. One Start | One plan and one Start for the account | DECIDED (GR-80, Fable 2026-11-21) |
+| 0:17 to 0:20 | Creates three heroes in one flow | The three come pre-filled as Sword and shield, Staff, and Bow and crossbow. One press accepts them, or each screen is a name, a way to fight and the look copy press. The screen says the company holds one healer | Roles come from weapons. A party wants a shield and a healer | DECIDED (GR-24, GR-79, Fable 2026-11-21) |
+| 0:20 | Reads the first company plan and presses Start once | Four rows, filled in. The three recruits: Mill Cellar, each in its own hunt. The first hero: Meadowbrook Thicket, Normal. One Start begins all four hunts | One plan and one Start for the account | DECIDED (GR-79, GR-80, Fable 2026-11-21). HYPOTHESIS: the three lone hunts on one Start were not played |
 | 0:20 to 0:36 | Watches the first hero in the Thicket. Presses a portrait on the hero strip to look at the recruits | Tamsin's Gray Wolves taken on entry. The strip shows each recruit's Level rising. Two optional lessons, each fired by the player's own act: press a portrait to watch that hero, and "Copy this rule to every hero" on the rule changed at minute 3 | Heroes run in parallel and I watch one. A decision made once can be copied | DECIDED (GR-79, GR-80, Fable 2026-11-21) |
-| 0:36 | The recruits reach Level 5 and the Cellar ends for them | "Your company is ready for the Sewer." Main press: Gather and go. The first hero leaves the Thicket and the party forms with no invites | The first party | DECIDED (GR-80, Fable 2026-11-21) |
+| 0:36 | The recruits reach Level 5 and the Cellar ends for each of them | "Your company is ready for the Sewer." Main press: Gather and go. The first hero leaves the Thicket and the party forms with no invites | The first party | DECIDED (GR-80, Fable 2026-11-21) |
 | 0:37 | Reads the Sewer's prep page and presses Enter | Seats, with the shield in front and the healer behind. The note that the Rat King's room is built for a party. Normal | Where heroes stand. A boss has a room | DECIDED (GR-79, Fable 2026-11-21). The party note is RULED 2026-11-08 |
 | 0:38 to 0:55 | Watches the four fight | Two event lines, each shown once: the first time Challenge pulls a monster off another hero, and the first time a heal lands on an ally. Gear drops and "Equip upgrades for all four" is one press | Roles in action. Gear moves between my heroes | DECIDED (GR-79, GR-80, Fable 2026-11-21) |
 | 0:50 | Reads the rest plan | "When stamina runs out your heroes go to work. Here is their plan." Two fish and cook, one mines 20 Copper Ore, one chops 30 Normal Logs. "This builds your first home." One press plants both farm beds with Turnip Seeds | Heroes work while they rest. Each hero takes a different trade. The first town goal | DECIDED (GR-80, GR-79, Fable 2026-11-21) |
@@ -116,18 +117,18 @@ Each step is checked against what the player holds from the steps before it and 
 | 6 | Keep my company blessed | Free Blessings | Level 4 | `blessings.js` freeUntilLevel 30 | Yes |
 | 7 | Level 5, the Cellar ends | An end Level on the ground | Level 5 at about minute 17 (PLAYED) | `hunt-grounds.js` mill_cellar endsAtLevel 5 | Yes |
 | 8 | Create three more heroes | Three free slots | One hero | RULED 2026-11-21: four from the start. Up to four heroes play at once (RULED 2026-10-17) | Yes |
-| 9 | Recruits enter the Cellar as a party of three | A ground that takes a party at Level 1 | Three Level 1 heroes, each with 20 Cooked Shrimp | mill_cellar groupFit "both". `party.js` maxSize 4 | Yes. Its pace is check C2 in section 6 |
+| 9 | Each recruit enters the Cellar alone, and one Start begins the three hunts | A ground that takes a lone hero at Level 1, and one Start for several hunts | Three Level 1 heroes, each with 20 Cooked Shrimp and 8 hours of stamina | mill_cellar groupFit "both", so a lone hero is allowed. Up to four heroes play at once (RULED 2026-10-17). One Start for the account is GR-80, not built | Yes for the hunts. The one Start is designed, not built. MEASURED by the adversarial check: a lone new hero earns 8,095 to 8,998 Level XP an hour in the Cellar, the first hero's pace, so minute 36 stands. Three together earned 0.53 times that (check C2, failed) |
 | 10 | First hero enters Meadowbrook Thicket | Level 5 | Level 5 | Thicket band 5 to 15. thicket_gray_wolves: 200 Gray Wolves, 480 gold. Gray Wolf Level 8, Gray Wolf Pup Level 5 | Yes. PLAYED alone on Normal: never under 75% health |
 | 11 | Copy a rule to every hero | A copy action | The rule from step 4 | Not built. Part of GR-80 | Designed, not built |
 | 12 | The four enter the Sewer | Every hero at the floor | Four heroes at Level 5 to 6 | Sewer band 5 to 25 (RULED 2026-11-18), groupFit "both", four start seats | Yes |
-| 13 | The four walk the Sewer on Normal | To survive the route, the Rat King's room included | Practice weapons, a helm each, 20 Cooked Shrimp each, a purse of about 1,300 to 1,600 gold (COMPUTED from the PLAYED 730 at minute 18 plus the recruits' Cellar coin) | Drain Rat 10, Sump Slime 10, Sewer Kobold 13, Culvert Bat 15, Cistern Spider 20, Rat King 25. His room carries forParty 2 | **Not proven for a start-kit four.** MEASURED 2026-11-18: a day-one four at Levels 5 to 7 earned about 1.6 times what it made alone in the Thicket, with no deaths. The kit of that four is not on record. This is check C3 and it gates the sequence |
+| 13 | The four walk the Sewer on Normal | To survive the route, the Rat King's room included | Practice weapons, a helm each, 20 Cooked Shrimp each, a purse of about 1,300 to 1,600 gold (COMPUTED from the PLAYED 730 at minute 18 plus the recruits' Cellar coin) | Drain Rat 10, Sump Slime 10, Sewer Kobold 13, Culvert Bat 15, Cistern Spider 20, Rat King 25. His room carries forParty 2 | Yes. MEASURED (check C3): a start-kit four of shield, staff, bow and wand at Level 5 on Normal had 0 deaths in 128 hero-hours, with Level XP a head 1.75 times the same four split in the Thicket. The default company (Club, Sword and shield, Staff, Bow and crossbow) had 0 deaths in 64 hero-hours and 1.71 times. The harness reads a healer's damage taken low, so the margin is wide and not exact |
 | 14 | The rest plan: fish, cook, mine, chop | Level 1 nodes and a Level 1 recipe | 10 Raw Shrimp on the account | `gathering.js`: Shrimp Spot, Copper Rock and Normal Tree all need level 1. `recipes.js`: Cook Shrimp needs level 1. `hunt-after.js`: a gathering job takes a count, and 20 and 100 are offered | Yes, once a hero's plan can hold two steps (the job queue, GR-80) |
 | 15 | Plant both beds | Seeds and beds | 8 Turnip Seeds, 2 beds | `gathering.js`: Turnip needs Farming 1 and takes 4 hours. `start-kit.js`: 2 farm plots | Yes. Ready before the first return. Chapter 07 walks the rest of the farm loop |
 | 16 | Build the Hearthside Homestead on the first return | 400 gold, 20 Copper Ore, 30 Normal Logs | Purse over 400. Ore and logs from step 14 | `shops.js` property.homestead cost row | Yes |
 
-Steps 11 and 14 need features this chapter designs, and step 15 needs one press that plants every empty bed. Step 13 needs a measurement. Every other step is doable from the kit and the data as they stand.
+Steps 9, 11 and 14 need features this chapter designs, and step 15 needs one press that plants every empty bed. Step 13 is measured and holds. Every other step is doable from the kit and the data as they stand.
 
-**If check C3 fails.** The fix is made at the formula or data layer: the Sewer's floor, or the gentle first grounds rule that GR-25 puts on record. The tutorial never gets its own monsters or its own math (RULED 2026-11-21, formula layer).
+**If check C3 ever fails.** C3 is a standing cell on the balance matrix, run on the default company with the four that has no healer printed beside it, so a later change cannot break the first hour quietly. If it fails, the four's first hunt together is Meadowbrook Thicket and the Sewer card moves to the Level where C3 passes. The fix is made at the formula or data layer: the Sewer's floor, or the gentle first grounds rule that GR-25 puts on record. The tutorial never gets its own monsters or its own math (RULED 2026-11-21, formula layer).
 
 ### 2.2 The company as one thing (GR-80)
 
@@ -137,7 +138,7 @@ A party is the account's own four heroes, so nothing here waits on another playe
 |---|---|---|
 | **One plan** | Each hero has a plan: where it hunts (ground, tier, setup, bag lines), with whom, what it does when the hunt ends (its rest plan), and its standing choices (blessed, loot plan, spending budget). The company plan is the four plans on one card | DECIDED (GR-80, Fable 2026-11-21) |
 | | Any line can be set once and applied to all four. A new hero copies the plan of the hero it stands beside | DECIDED (GR-80, Fable 2026-11-21) |
-| | A ground remembers the setup, tier and seats last used there, so nothing is picked twice | DECIDED (GR-84, GR-48, Fable 2026-11-21) |
+| | A ground remembers the Setup, tier and seats last used there, so nothing is picked twice. One Setup for each ground holds the weapon, the worn set, the linings, the bar and the target mode. It is saved once and can be copied to another hero or ground | DECIDED (GR-84, GR-48, Fable 2026-11-21) |
 | **One Start** | Carry on is one press for the account. Every hero does again what it did last time: same ground, tier, setup, party, bag lines, Blessings, Tamsin's task and loot by plan | RULED 2026-11-20 (27-1) |
 | | No hunt ever starts by itself. A hunt starts on a press made in a server-authorized session | RULED 2026-11-20 (27-1), 2026-10-18 |
 | | Own heroes form a party with no invite and no accept. The plan names the leader, and the leader's hunt settings are the party's | DECIDED (GR-80, Fable 2026-11-21). The leader rule is RULED 2026-10-20 |
@@ -373,12 +374,12 @@ The eight criteria in short form: player value, depth, uniqueness, what it plugs
 | The Week card | Medium | Low. A mirror | Yes | The weekly snapshot | None. It must never pay | Low | Yes | ADD | DECIDED (GR-84, Fable 2026-11-21) |
 | The event calendar | Medium | Low | Yes | The MMO layer | Capped at +25% | Low. Rows, never run by hand | Yes | KEEP as a four-weekend rotation | DECIDED (MM-11, Fable 2026-11-21) |
 | The Rare reveal | High | None | Yes | Loot, the return card | None | Low | Yes | KEEP on every Rare | RULED 27-6 |
-| Setups, action sets and hunt presets | High. The identity feature | High | Three nouns for one idea | The bar, grounds | None | Medium | Yes | MERGE into one noun, "Setup", remembered for each ground | DECIDED (GR-84, Fable 2026-11-21) |
-| Paid setup slots 4 and 5 | None | None | No | Nothing | Not a sink | Negative | No | REMOVE the price | DECIDED (GR-56a, Fable 2026-11-21, reversal, Tyler may veto, chapter 04) |
+| Setups, action sets and hunt presets | High. The identity feature | High | Three nouns for one idea | The bar, grounds | None | Medium | Yes | MERGE into one noun, "Setup", remembered for each ground. It holds the weapon, worn set, linings, bar and target mode, so the saved kit of GR-48 is the same thing | DECIDED (GR-84, GR-48, Fable 2026-11-21) |
+| Paid setup slots 4 and 5 | None | None | No | Nothing | Not a sink | Negative | No | REMOVE the price | CUT (Tyler approves), cut list 14. DECIDED (GR-56a, Fable 2026-11-21, reversal, Tyler may veto, chapter 04) |
 | A starting loot plan and a starting rest plan | High in hour 1 | None. They remove presses | Yes | The loot plan, the job queue | None | Low | No | ADD | DECIDED (GR-80, Fable 2026-11-21) |
 | Next ground when outgrown | High for 20 hours | Low | Yes | The after-hunt plan | None. Normal only | Low | No | ADD | DECIDED (GR-81, Fable 2026-11-21) |
 | The Premium daily claim as a press | None | None | No | Premium | None | Low | No | REDESIGN. Granted with no press | DECIDED (GR-84, Fable 2026-11-21) |
-| The rested bank | None. It pays nothing on any path | None | No | Nothing | MEASURED: switching it off moved no band in 207 cells of the proposed matrix | Negative | No | REMOVE | DECIDED (GR-63, Fable 2026-11-21, chapter 05) |
+| The rested bank | None. It pays nothing on any path | None | No | Nothing | MEASURED: switching it off moved no band in 207 cells of the proposed matrix | Negative | No | REMOVE | CUT (Tyler approves), cut list 7. DECIDED (GR-63, Fable 2026-11-21, chapter 05) |
 | Old server leftovers, the gift code, Open Halls | None | None | No | Nothing | None | Negative | No | REMOVE | RULED (27-7, the cut list) |
 | The Town Crier, Rounds, flame powders | Medium in a crowd | Low | Yes | Gold sinks | Small | Built | Yes | KEEP, shut by the population gate | DECIDED (GR-79, Fable 2026-11-21) |
 | One Great Hearth | Medium | Low | Merges three rooms | Town Works, the event, powders | Small | Medium | Yes | MERGE | DECIDED (GR-82, Fable 2026-11-21, reversal, Tyler may veto). HYPOTHESIS |
@@ -437,13 +438,15 @@ In decision-book order.
 
 ---
 
+**Cuts in this chapter.** CUT (Tyler approves). Cut list 7: the rested bank (GR-63). Cut list 14: the priced setup slots (GR-56a). Cut lists 2 and 3: lent and on-call heroes and the live party finder, which chapter 06 owns.
+
 ## 5. Still missing
 
 | # | Missing | Who decides | Note |
 |---|---|---|---|
-| 1 | Proof that a start-kit four holds the Sewer on Normal at Level 5, the Rat King's room included | The balance matrix (check C3) | The first hour stands on it |
-| 2 | Proof that three heroes in the Cellar reach Level 5 no slower than one | The balance matrix (check C2) | It follows from the ruling that together beats split. The Cellar's spawn rate may limit it |
-| 3 | A measured tag for each starting way | The balance matrix (check C1) | Six start-kit cells |
+| 1 | Closed. A start-kit four holds the Sewer on Normal at Level 5, the Rat King's room included | MEASURED, check C3, and re-run by the adversarial check on the default company | It is a standing matrix cell now |
+| 2 | Closed. Three heroes together in the Cellar do not keep pace with one | MEASURED, check C2, failed at 0.53 times | The recruits run three lone hunts on one Start (section 2.1) |
+| 3 | A measured tag for each starting way | The balance matrix (check C1). Owner: the core decider | Six start-kit cells. Still owed |
 | 4 | What the first week's gold buys, and early prices for an account of four | Chapter 04, then Tyler (GR-8) | The decision book lists both as missing |
 | 5 | Premium's daily item: one an account or one a hero. And Premium's price | Tyler, with chapter 04 | A money call |
 | 6 | The Path's rows for Levels 17 to 19, 21 to 24 and 26 to 29 | Chapter 03 | The content rows on this branch name nothing there except skill unlocks at 20 and 25. Gear tier rows should fill them, or the guard in section 6 fails |
@@ -465,8 +468,8 @@ In decision-book order.
 | Check | Cell | Passes when | Label |
 |---|---|---|---|
 | C1 | Each of the six ways, one hero, start kit, Mill Cellar, Normal | Level 5 in 15 to 20 minutes, no death, net gold at or over zero. A way outside the band carries "Slow alone" on its card or is fixed at the formula layer | TARGET |
-| C2 | Three start-kit heroes together, Mill Cellar | Level 5 in no more hunted minutes than one hero alone | TARGET, from RULED 2026-11-21 (together beats split) |
-| C3 | Four start-kit heroes at Level 5 with a shield and a healer, the Sewer, Normal, the whole route | No death in 4 seeds of 8 hours. XP a head at or over the same four split. Net gold at or over zero | TARGET |
+| C2 | Three start-kit heroes together, Mill Cellar | Level 5 in no more hunted minutes than one hero alone | FAILED when the adversarial check ran it: 4,589 Level XP a head an hour against 8,095 to 8,998 alone. The Cellar is spawn-limited and three heroes kill only 18% more rats than one. The design no longer leans on it |
+| C3 | The default company (Club, Sword and shield, Staff, Bow and crossbow) at Level 5, the Sewer, Normal, the whole route. The four with no healer is printed beside it | No death in 4 seeds of 8 hours. XP a head at or over the same four split. Net gold at or over zero | PASSED, MEASURED: 0 deaths, XP a head 1.71 to 1.75 times, net gold a head 1.18 times. A standing cell |
 | C4 | The first day | Level 10 by 6 hunted hours. No Level under 10 over 2 hours | RULED (27-2, standard P11) |
 | C5 | The stamina day on the server | A free hero hunts 8 hours and then 4 on two starts 12 hours apart, a Premium hero 12 on one, and both read 12.0 hunted hours a day | RULED frame (50 section 5.2, step 0) |
 | C6 | The report on both paths | The same hunt replayed watched and with the browser closed prints the same report | RULED (both paths) |
@@ -505,7 +508,7 @@ Playtests 1 and 9 fit the first invite wave. There is no comparison group for pl
 | The second hero on the first evening for about 10,000 gold. The slot ladder, its guard and "the first hero slot" as the week 1 goal | 46 change 1, 59 decision 5, 27, 50 standard X11 | RULED 2026-11-21: all four heroes from the start, no slot prices |
 | A first hour, a coach and a fix to Levels 7 to 10 sized on one hero | 27 question 1, 59 section 2.3, 60 section 4.7 | Re-designed on an account of four (section 2.1). The fix 27-2 itself stands |
 | One hero's return as the unit: one card and 8 to 10 presses a hero | 27 question 3 | One card and one press for the account (GR-80) |
-| Lent seats and on-call heroes as the early party | 46 change 1 part 3, 57 | A party is the account's own four. Hire is MM-18 in chapter 06 and is being revised |
+| Lent seats and on-call heroes as the early party | 46 change 1 part 3, 57 | A party is the account's own four. No hero is hired, lent or put on call (MM-18, chapter 06). CUT (Tyler approves), cut list 2 |
 | "Krell at month 4 to 6" and every week counted at 3.3 hours a day | 27 question 2, 30 | RULED 2026-11-21: 12 hunted hours a day, Krell on day 18 for a four |
 | One kill ladder that merges the tally, the Bestiary, titles and trophies | 59 phase A, row 7 | Withdrawn in 59 phase B and by 47 C19. The tally takes itself, the Bestiary keeps its six Luck payments, titles go to Honors |
 | Removing the built companions | 59 phase A, row 15 | RULED 2026-10-22 and 2026-11-21: hidden, built later |

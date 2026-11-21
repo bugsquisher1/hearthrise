@@ -78,14 +78,14 @@ Level's worth shrinks by itself as it grows: +10 health is 0.47% at Level 200 an
 
 **Four things the law carries with it.**
 
-1. **It runs 106 hours ahead of the ruled table at every ruled Level.** The four does Levels 1 to 50 in 62 hours against the 168 a lone new hero is ruled on. That is 18% early at Level 100, 6% at 200 and 2% at 400. The pace band P1 judges Level 100 with those 106 hours allowed. DECIDED GR-6, Fable 2026-11-21, reversal, Tyler may veto.
-2. **The step at Level 50 is smoothed.** A Level would jump from 1.9 to 6.2 hours, 3.3 times the one before, and the ruled smooth rule allows 2. The law ramps in over about eight Levels, 50 to 58. DECIDED GR-6, Fable 2026-11-21, reversal, Tyler may veto. The ramp's shape is OPEN, decided inside GR-6.
-3. **A Level never gets cheaper.** Joining the ruled points on a log scale makes a Level cheaper at Level 100 (11.0 hours, then 8.9) and again at Level 300 (15.9, then 13.9, chapter arithmetic). The law is cut so the hours a Level costs never fall and never more than double, and it still passes through every ruled point. DECIDED GR-6, Fable 2026-11-21, reversal, Tyler may veto. The Level 300 dip was not in any source and is new here.
+1. **It runs 106 hours ahead of the ruled table at every ruled Level.** The four does Levels 1 to 50 in 62 hours against the 168 a lone new hero is ruled on. That is 18% early at Level 100, 6% at 200 and 2% at 400. The pace band P1 judges Level 100 with those 106 hours allowed. So Level 100 lands at 494 hours against the ruled 600, and Level 400 lands on day 373 against the ruled day 382. The 18% at Level 100 is past the standards' own 15% red line. Both are changes to ruled numbers and are on Tyler's reversal list. DECIDED GR-6, Fable 2026-11-21, reversal, Tyler may veto.
+2. **The step at Level 50 is smoothed.** A Level would jump from 1.9 to 6.2 hours, 3.3 times the one before, and the ruled smooth rule allows 2. The law ramps in over about eight Levels, 50 to 58. DECIDED GR-6, Fable 2026-11-21, reversal, Tyler may veto. The ramp is the first piece of the same line as the rest of the law (GR-6d).
+3. **A Level never gets cheaper.** Joining the ruled points on a log scale makes a Level cheaper at Level 100 (11.0 hours, then 8.9) and again at Level 300 (15.9, then 13.9, chapter arithmetic). The law is cut so the hours a Level costs never fall and never more than double, and it still passes through every ruled point. The cut has one rule, so it is one line and not one of many: the non-falling line through every ruled total that has the smallest largest step between two Levels. A generator writes it from the table and nobody types a point (DECIDED GR-6d, Fable 2026-11-21). The hours-a-Level column of the table above still shows the log join at Levels 100, 300 and 400, and the generator replaces it. DECIDED GR-6, Fable 2026-11-21, reversal, Tyler may veto. The Level 300 dip was not in any source and is new here.
 4. **The Level-a-day band follows the ruled table.** The table itself needs 10.8 hours a Level from 100 to 200 and 14.4 from 200 to 300. The band P12 reads at most 15 hours a Level to Level 300 and 24 to Level 400. DECIDED (no call id, Fable 2026-11-21, the baseline's amendment, PROPOSED band).
 
 **Order of work.** The law cannot be fitted until the kill reward (R12, GR-5) and the harder tiers (GR-3, GR-27) are settled, because the seat's multiple is not one number until then. Evidence about the proposed design: on measured rates the seat reads 2.83 times the contract at Level 50, 2.05 at 100 and about 1.45 from 185 on. The law lands in the same release as prices as a share of band gold (R16, GR-8), because a band that lasts about twice as long earns about twice the gold against any typed price. DECIDED GR-6, Fable 2026-11-21, reversal, Tyler may veto.
 
-**Krell's day.** RULED 2026-11-21: "Krell will not take 4 months", and the record carries day 18 for a four. On the recommended law the plain pace seat reaches Krell's Hold on day 31 (COMPUTED). Day 18 was computed for a four running at 2.2 times the contract on a table timed for a lone hero, before the table was ruled to be the four's own clock. Both cannot be exact: Level 88 on day 18 and Level 100 at 600 hours would put 12 Levels across 32 days. This chapter reads the ruling by its words, weeks and not months. Day 31 is four and a half weeks for a plain four, and a fully buffed four is there about day 18 (section 2.4). OPEN inside GR-6: Tyler confirms day 31 for the plain seat, or keeps day 18 exact. The strongest way to keep day 18 exact is to start the law at Level 88, not 50. Chapter arithmetic for that start: Level 100 on day 27 (46% early against the ruled 600 hours), Level 200 on day 117, staged content ends about day 101, Level 400 on day 358. It costs 15 days of runway, so it is not the recommendation.
+**Krell's day.** RULED 2026-11-21: "Krell will not take 4 months", and the record carries day 18 for a four. On the law the plain pace seat reaches Krell's Hold on day 31 (COMPUTED). Day 18 was computed for a four running at 2.2 times the contract on a table timed for a lone hero, before the table was ruled to be the four's own clock. Both cannot be exact: Level 88 on day 18 and Level 100 at 600 hours would put 12 Levels across 32 days. This chapter reads the ruling by its words, weeks and not months. Day 31 is four and a half weeks for a plain four, and a four with best gear and buffs is there between day 18 and day 24 (section 2.4). DECIDED (GR-6b, Fable 2026-11-21, reversal of "day 18 for a four" of 2026-11-21, Tyler may veto): day 31 for the plain seat, and every chapter quotes that one day. If Tyler vetoes, the strongest way to keep day 18 exact is to start the law at Level 88, not 50. Chapter arithmetic for that start: Level 100 on day 27 (46% early against the ruled 600 hours), Level 200 on day 117, staged content ends about day 101, Level 400 on day 358. It costs 15 days of runway, so it was not taken.
 
 **Past Level 400.** The table runs on to Level 1,000 and the slope carries on from there. The Level curve itself holds to Level 5,000 (MEASURED on the engine, 42: each Level 34 to 54 hours). What keeps a hero able to hunt at those Levels is the gear curve, which `03-items-and-crafting.md` owns (GR-4).
 
@@ -108,29 +108,29 @@ Level's worth shrinks by itself as it grows: +10 health is 0.47% at Level 200 an
 
 ### 2.4 Whose clock the table is: the plain four or the buffed four
 
-**OPEN. Decided by GR-6 together with MM-26 and MM-31. One recommendation follows.**
+**DECIDED (GR-6a, Fable 2026-11-21, with MM-26).**
 
-The collision. The Level table is the clock of a mid-geared four (RULED 50-1). The MMO layer lets a fully buffed, boss-geared four gain at most about 72% more Levels an hour than that plain four (MM-26), and a fully Crowns-boosted four at most 60% (MM-31). So the same Level arrives on different days.
+The collision. The Level table is the clock of a mid-geared four (RULED 50-1). With every buff cap full a four gains at most about 65% more Levels an hour than that plain four. MM-26 and MM-31 quote that one ceiling, and nobody holds it outside a Hearthrise weekend. Paying alone is worth about 22%. So the same Level arrives on different days.
 
-Chapter arithmetic, every hour of the plain seat divided by the multiple. It overstates the buffed seats, because two thirds of the pace gain is timed and lapses:
+Chapter arithmetic, every hour of the plain seat divided by the multiple. The last column overstates what anyone can hold, because the Level XP part is one weekend in four:
 
-| Door | Plain mid four (the law) | Best in slot plus standing buffs, 1.27 | Crowns ceiling, 1.60 (MM-31) | Every cap full every hour, 1.72 (MM-26) |
+| Door | Plain mid four (the law) | Paying alone, 1.22 | The fastest seat held all the time, 1.36 (best gear, both damage caps, the weekend averaged) | Every cap full, 1.65, on a Hearthrise weekend only |
 |---|---|---|---|---|
-| Krell's Hold (88) | day 31 | day 24 | day 19 | day 18 |
-| End of open content (110) | day 49 | day 38 | day 30 | day 28 |
-| End of staged content (185) | day 116 | day 91 | day 72 | day 67 |
-| Level 400 | day 373 | day 294 | day 233 | day 217 |
+| Krell's Hold (88) | day 31 | day 25 | day 23 | day 19 |
+| End of open content (110) | day 49 | day 40 | day 36 | day 30 |
+| End of staged content | day 116 at Level 185, day 120 at Level 189 | day 95 | day 85 | day 70 |
+| Level 400 | day 373 | day 306 | day 274 | day 226 |
 
 **DECIDED (GR-6a, Fable 2026-11-21): the table is the clock of the plain four. Buffs are rows on top of the law and the law never reads them.** Three reasons.
 
 1. **The ruling's own words.** The seat is "a mid-geared party of four". Every account sits in it from day 1 without spending or joining anything. A clock should be the seat everyone has.
-2. **Buffs must be an edge.** Crowns and the MMO layer must give real advantages (RULED 2026-11-21). If the table were timed on the buffed four, a plain four would run 42% behind the ruled hours and buffs would be a tax to get back to normal. Timed on the plain four, every buff is felt as time gained.
+2. **Buffs must be an edge.** Crowns and the MMO layer must give real advantages (RULED 2026-11-21). If the table were timed on the buffed four, a plain four would run 39% behind the ruled hours and buffs would be a tax to get back to normal. Timed on the plain four, every buff is felt as time gained.
 3. **The formula layer.** The XP chain is kill XP x tier x mode x party x event. Buffs are the last factor. A law that reads its own modifiers has to be re-fitted every time a buff row is added, which is the circle the Level law exists to end.
 
 **What that costs, and where it is paid.** The runway has two ruled bands and they read two different seats:
 
-- **R2, 120 days of grounds at Early Access, is read on the plain four**, as the standards wrote it ("for the four MID player"). On the law that is day 116, four days short. One more staged ground closes it.
-- **R1, a region open 30 days before the first fours arrive, is read on the fastest seat**, because the first fours to arrive are the buffed ones. On the numbers above the first region past staged content has to be open by about day 37 to 42 after launch, not day 86. That is a content schedule the art and asset directors must size, and it is the real price of MM-26.
+- **R2, 120 days of grounds at Early Access, is read on the plain four**, as the standards wrote it ("for the four MID player"). On the law that is day 116 at Level 185, four days short. No new ground is drawn. The top staged ground's band runs to Level 189, where the plain four stands at 1,440 hours, which is day 120.
+- **R1, a region open 30 days before the first fours arrive, is read on the fastest seat**, because the first fours to arrive are the buffed ones. On the numbers above the first region past staged content has to be open by about day 55 after launch, not day 86. That is a content schedule the art and asset directors must size, and it is the real price of MM-26.
 
 If that schedule cannot be met, the fix belongs in the buff caps (MM-25) and never in the Level law: lower the timed Level XP cap, or shorten how many hours a week it can be full. `05-progression.md` asks the MMO layer for one number it does not yet state: the time-averaged pace gain of a player who fills every timed cap as often as the calendar and the store allow. R1 is sized on that number.
 
@@ -197,14 +197,14 @@ The first checkpoint where the blessed four earns less a head than the same hero
 
 ### 2.7 A death in a world boss room
 
-**OPEN. Decided by MM-7 together with GR-7. One recommendation follows.**
+**DECIDED (MM-7, Fable 2026-11-21, with GR-7).**
 
 The collision. A world boss stands for about 72 hours and is fought while the player is away (MM-2, MM-3). MM-7 says a death in the boss room costs the normal death. That is 6% with no cap, in a room a hero is sent to for points and gear, where Level XP is only about what a Normal hunt pays.
 
 **DECIDED (MM-7, Fable 2026-11-21): a death in the boss room costs the normal death, and it is built with GR-7, never before it.** One rule set for every fight outside the Tower and the Catacombs. Four conditions make it fit:
 
 1. **One death a send, by the rule that already stands.** A death ends the hunt and sends the hero to town, and no hunt starts by itself (RULED 2026-11-09, 27-1). A boss send spends stamina like a hunt, so a send is one stamina bar and not 72 hours. The worst an away weekend can do is one death for each hero for each time the player chose to send it. Carry on never sends a hero into a boss room.
-2. **The boss room takes the one tier table and the one death band.** The room is scaled to its party, so Normal is safe by formula: at most 1 death in 1,000 hours for a mid party in band (S2). Dangerous and Deadly carry the ruled counts of S6. No boss gets a death rule or a damage patch of its own (RULED 2026-11-21, formula layer).
+2. **The boss room takes the one tier table and the one death band.** The room is scaled to its party, and the hall number acts on the boss's health and the clock, never on his blows. So deaths in the room stay inside the death band of the tier chosen: at most 1 death in 1,000 hours for a mid party in band on Normal (S2). This is a HYPOTHESIS until the hall grader plays it. The first send defaults to Normal. Dangerous and Deadly carry the ruled counts of S6. No boss gets a death rule or a damage patch of its own (RULED 2026-11-21, formula layer).
 3. **Blessings and the ladder apply, and "keep me blessed" covers boss sends.** With the ladder a blessed boss death costs the same three to five hours at every Level. Without the ladder a Level 300 hero risks 26 hours for a chest roll and the harder boss tiers empty out from about Level 100, the same collision as section 2.6.
 4. **The risk reading shows on the boss card.** Deaths per 100 hours for the tier, and what one death costs this hero blessed and unblessed, before the send (GR-66).
 
@@ -230,7 +230,7 @@ Thirteen skills, and the count is right. Four combat skills are uncapped. Nine t
 |---|---|---|---|
 | Melee, Ranged | What a hero is. Skills do not move with the weapon, so a style is an investment without a vocation | Damage dealt x 1.5 (P06) | RULED 2026-10-14 (classless). Uncapped |
 | Magic | The caster's skill, and the rune tiers a hero can cast | Mana spent x 1.5 x the ability's multiple (P08) | Cast tiers at skill 1, 15, 30, 45, 60 (RULED 2026-10-23), then 75, 90 and every 15 on (DECIDED GR-23, Fable 2026-11-21). Each level adds 0.5% max mana for every hero (DECIDED GR-22, Fable 2026-11-21) |
-| Defense | Who the front row is | Blows aimed at an armored hero, doubled when a shield turns one (P07) | RULED (kept). The to-hit ratio gives it its value (`01-core-and-combat.md`). Three bases for three jobs needs Tyler's yes on record: OPEN, 44 special rule P-X41, recommended keep |
+| Defense | Who the front row is | Blows aimed at an armored hero, doubled when a shield turns one (P07) | RULED (kept). The to-hit ratio gives it its value (`01-core-and-combat.md`). Three bases for three jobs is kept: DECIDED (GR-25, Fable 2026-11-21), 44 special rule P-X41 |
 | Inner Flame | The hero's regen, and the home of its build | Bones and fuels burned at the Hearth by a loot rule set once, with no hero time spent | Uncapped on the combat curve. Bones by loot rule RULED 21-9. Kindlings DECIDED GR-61, Fable 2026-11-21, reversal of the skill tree hold of 2026-11-05, Tyler may veto. Section 2.9 |
 | Woodcutting, Mining, Fishing | What a resting hero does. Three chains: logs to planks, ore to bars, fish to food | Node work in rested hours | 1 to 99 (RULED, kept as three). |
 | Farming | The timed chain: crops to drinks and meals | Plots | 1 to 99. A crop opens at its Farming level and nothing else (DECIDED GR-74, Fable 2026-11-21) |
@@ -275,7 +275,7 @@ A sample shape only, not rows: a rung might offer "regen counts double under 30%
 | The yard's rate follows a share of the skill level's cost and never passes half of what hunting pays that skill. The fee follows the rate | P09. Step R19 | DECIDED GR-54, Fable 2026-11-21, reversal of 2026-11-14, 21-7 and A-5, Tyler may veto (re-opens 2026-11-14, A-5 and 21-7, which keep a flat 30,000 skill XP an hour). Evidence about the flat rate: a skill level takes 51 to 243 yard hours from skill 75 (COMPUTED) |
 | The House dummy ends the yard fee. Its unlocks are rungs by skill band, each priced at 25 to 50 hours of the yard fee at that band | Wage curve | RULED 2026-11-08 and 26-5 for "ends the fee" and the payback. The rungs by band are DECIDED GR-53, Fable 2026-11-21 |
 | A dummy's blow cannot kill and it cannot die | P-X29 | RULED 2026-11-08 |
-| Training items come in 1, 6, 12, 24 and 48 hour sizes and double the training rate while their hours last. Premium gives one 1 hour item a day, and with one Premium for each account the claim needs no press | P09 | RULED 2026-10-17, 24-4 (2026-11-20), 2026-11-21 (one Premium an account). The claim with no press is DECIDED GR-84, Fable 2026-11-21. What one Premium gives across four heroes is OPEN, Tyler's money call |
+| Training items come in 1, 6, 12, 24 and 48 hour sizes and double the training rate while their hours last. Premium gives one 1 hour item a day, and with one Premium for each account the claim needs no press | P09 | RULED 2026-10-17, 24-4 (2026-11-20), 2026-11-21 (one Premium an account). The claim with no press is DECIDED GR-84, Fable 2026-11-21. What one Premium gives across four heroes is TYLER CONFIRMS (PREM-1), with one recommendation in chapter 04 |
 | Training items stay off the Crowns store until the yard fee and the to-hit ratio are live | | RULED 2026-11-20 (26-10) |
 | The "trains every rested hour" reading is printed and judges nothing | | RULED 31-7 |
 | Defense training is sized by the to-hit ratio so yard hours cannot buy a large cut in damage taken | `01-core-and-combat.md` | RULED 2026-11-18 (direction: "definitely NOT" intended) |
@@ -355,12 +355,12 @@ On the Level law a band lasts about twice as long in hours, so the 10,000 kill s
 | Stretch | Levels | State | Day the plain pace seat reaches its end |
 |---|---|---|---|
 | Open at Early Access | 1 to 110, through Krell's Hold | Built | day 49 |
-| Staged | 110 to 185: the Morrow Hills and the Unmarked Catacombs | Built or designed, hidden until each works | day 116 |
+| Staged | 110 to 189: the Morrow Hills and the Unmarked Catacombs, whose band runs to 189 | Built or designed, hidden until each works | day 120 |
 | Sketched | 185 to 400: regions of about 55 Levels and six grounds each | Sketched now (RULED A-10) | day 373, PROVISIONAL |
 
 | Rule | Status |
 |---|---|
-| 120 days of grounds at Early Access for the four in mid gear (band R2) | RULED 50-7. On the law it reads day 116. One more staged ground closes it. OPEN: which ground, for `02-world.md` |
+| 120 days of grounds at Early Access for the four in mid gear (band R2) | RULED 50-7. On the law Level 185 reads day 116. DECIDED (GR-6a, Fable 2026-11-21): no new ground. The Catacombs ground's band runs to Level 189, which is day 120 |
 | Each region is open 30 days before the first fours arrive (band R1) | RULED 50-7. Read on the fastest seat: DECIDED (GR-6a, Fable 2026-11-21), section 2.4 |
 | Regions are about 55 Levels and six grounds, to Level 400 | RULED 2026-11-18 (§13 answer 8). Opened as four grounds and a hall, then two: DECIDED GR-33, Fable 2026-11-21 |
 | Drops are generous through Krell and really rare and strong after | RULED 2026-11-20 |
@@ -387,7 +387,7 @@ Every progression number in the game is read at three gear states, Level 1 to 40
 | Low under mid | 0.80 to 0.90 of mid's pace on Normal, and 1.15 to 1.35 of its damage taken | TARGET (PROPOSED). Bands P3, S5 |
 | Best in slot over low | At most 1.50 on Normal | TARGET (PROPOSED). Band P5 |
 | Deaths in 1,000 hours on Deadly | Low over 200, mid 50 to 100, best in slot 10 to 30 | Mid RULED 50-5. Low and best in slot PROPOSED. Band S6 |
-| A major upgrade | +5 to 8% hunting performance for a weapon, 3 to 5% less damage for armor | RULED 2026-10-25. How often is the gear curve's call: DECIDED GR-4, Fable 2026-11-21, reversal, Tyler may veto, bands at Levels 110, 136, 169, 210, 260, 322 and 400 |
+| A major upgrade | +5 to 8% hunting performance for a weapon, 3 to 5% less damage for armor | RULED 2026-10-25. How often is the gear curve's call: DECIDED GR-4, Fable 2026-11-21, reversal, Tyler may veto, bands at Levels 110, 129, 151, 176, 206, 241, 282, 330 and 386 |
 | Time to a full best in slot set | About one band's length through Krell, one to two regions after | RULED 50-14 |
 | Gold from mid to best in slot | A bit more than a band earns. A hero chooses what matters | RULED 2026-11-18, 50-6. Priced as a share of band gold: DECIDED GR-8, Fable 2026-11-21, reversal of the typed prices kept on 2026-11-18, Tyler may veto |
 | Paying | Puts a player 0 bands ahead, and inside a band at most best in slot over mid | TYLER CONFIRMS MM-32 |
@@ -457,6 +457,10 @@ In decision-book order.
 | MM-26, MM-31 | The power budget and the pace ceiling | Owned by `06-mmo-layer.md`. Rule them with GR-6. The table stays the plain four's clock and R1 is read on the fastest seat | DECIDED. TYLER CONFIRMS (Fable 2026-11-21) |
 
 ---
+
+**Cuts in this chapter.** CUT (Tyler approves), cut list 7: the rested bank and the two old kill ladders (GR-63). Cut list 10: the Crafting bench's three salt recipes (GR-43). None is planned for later.
+
+**Withdrawn.** GR-65 asked that a death take no Inner Flame progress. The adversarial check refused it, because Tyler was asked directly on 2026-10-25 and kept the loss. A death takes Inner Flame progress like every combat skill.
 
 ## 5. Still missing
 

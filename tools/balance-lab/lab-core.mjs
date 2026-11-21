@@ -186,6 +186,8 @@ function playHunt(huntId, levels, roles, o) {
   const ground = o.ground || HUNT_GROUNDS[huntId], grid = gridOfMap(ground.map);
   const members = roles.map((r, i) => heroOf(huntId, r, i, levels[i], roles, o));
   if (Number.isInteger(o.density)) for (const m of members) m.hero = Object.assign({}, m.hero, { density: o.density });
+  /* o.temper: every hero's rungs, the map hr_perks_of's `temper` carries (play-ground.mjs, the same line) */
+  if (o.temper) for (const m of members) m.perks = { temper: o.temper };
   let world = null, next = T0, played = 0;
   const WIN = o.windowMs;
   for (let t = T0; t < T0 + o.spanMs; t += WIN) {
@@ -232,12 +234,16 @@ function heroTotals(key, style, level, kit) {
  * { heroes: [...], party: {...}, seeds: [...] } (plain JSON). hooks: { onProgress(fractionOfThisCall), shouldStop() }.
  */
 export function playCell(cell, seeds, hooks = {}) {
+  /* cell.resolved: the seats tools/balance-sim/cell.mjs would field (its resolveOnly answer: the balance matrix's own cells, Balance Lab v3),
+     played as given: each seat's worn set, bar, bag, options and start, the pull, the rungs, the leave rule and the settle's cut */
+  const R = cell.resolved || null;
+  if (R) cell = { ...cell, ground: R.ground, party: R.styles, windowMs: cell.windowMs || R.windowMs, segmentH: cell.segmentH || R.segmentH };
   const ground = HUNT_GROUNDS[cell.ground];
   if (!ground) throw new Error('balance-lab: no ground ' + cell.ground);
   const party = cell.party;
-  const roles = party.map((s) => { if (!STYLES[s]) throw new Error('balance-lab: unknown style ' + s); return STYLES[s].role; });
-  const levels = cellLevels(cell);
-  const kits = cellKits(cell, levels);
+  const roles = R ? [...R.roles] : party.map((s) => { if (!STYLES[s]) throw new Error('balance-lab: unknown style ' + s); return STYLES[s].role; });
+  const levels = R ? [...R.levels] : cellLevels(cell);
+  const kits = R ? R.equipment.map((k) => ({ ...k })) : cellKits(cell, levels);
   const keys = roles.map((r, i) => memberKey(r, i));
   const band = bandOf(cell.ground);
   const list = Array.isArray(seeds) ? seeds : Array.from({ length: cell.seeds || 1 }, (_, i) => i);
@@ -426,7 +432,10 @@ export function playCell(cell, seeds, hooks = {}) {
         ground: cell.groundPatch ? { ...ground, ...cell.groundPatch } : null,
         shouldStop: hooks.shouldStop,
         onProgress: hooks.onProgress ? (ms) => hooks.onProgress(Math.min(1, (doneMs + ms) / totalMs)) : null,
+        temper: cell.temper || null,
       };
+      if (R) Object.assign(o, { bar: R.bar ? (role, i) => clone(R.bar[i]) : null, bag: (role, i) => clone(R.bag[i]), start: R.start ? (role, i) => (R.start[i] ? clone(R.start[i]) : null) : null,
+        options: R.options ? (role, i) => clone(R.options[i]) : null, leaveTogether: R.leaveTogether, density: R.density, temper: R.temper || null });
       const res = playHunt(cell.ground, levels, roles, o);
       for (const h of H) close(h, live[h.key]);
       const played = Math.max(res.playedMs, 60000);

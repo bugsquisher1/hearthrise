@@ -1,0 +1,18 @@
+{
+  "schema": "hearthrise.balance-patch/1",
+  "name": "World 1: one stat formula, the party-ground fit set to the plain fit (53 section 4.3)",
+  "why": "Tests whether the Sewer, the Warrens and the Muster Barrows fall into line with their neighbours when their monsters are plain formula rows: health 2.5 to 1, blow 0.75 to 1, XP a point 0.8 to 1, and the three inner patches and two coin dials neutral. Their typed XP fits (0.9, 0.76, 0.81) are left, so the after numbers are read with and without them.",
+  "kind": "derivation",
+  "edits": [
+    {
+      "file": "src/data/balance-sheet.js",
+      "from": "    party: Object.freeze({ hp: 2.5, blow: 0.75, xp: 0.8, tierLift: false, bossBlow: true, hit: 0, hitFull: -0.3, gp: 1.17, gpFull: 0.53, blowShape: 1.6 }),",
+      "to": "    party: Object.freeze({ hp: 1, blow: 1, xp: 1, tierLift: true, bossBlow: true, hit: 0, hitFull: 0, gp: 1, gpFull: 1, blowShape: 1 }),"
+    }
+  ],
+  "targets": [
+    "pace",
+    "survival",
+    "gold"
+  ]
+}

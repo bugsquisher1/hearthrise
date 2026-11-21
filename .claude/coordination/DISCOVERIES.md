@@ -4,6 +4,14 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+## 2026-11-21 · systems-engineer (lane/c-balance-matrix, phase 2) · sweeps on GitHub, Balance Lab v3
+
+| # | Found | Affected | Action |
+|---|---|---|---|
+| 1 | `gh workflow run <file> --ref <lane>` answers HTTP 404 for a workflow_dispatch file that is not on the default branch: a lane cannot dispatch its own new workflow | every new manual workflow | balance-sweeps.yml also starts on a push to `balance-sweeps/**` (`git push origin HEAD:refs/heads/balance-sweeps/<lane>`); once main holds it, dispatch works as written |
+| 2 | A sweep job is about 9.5 min a knob on a 4-core runner (4 steps x 136 s) and the matrix hash read on Linux equals Windows', so the committed subset cache serves every job. The run's jobs queue behind the account's other runs (9 of 33 done after 25 min) | balance-sweeps.yml | Dispatch at a quiet hour; 33 knobs take about an hour of wall time |
+| 3 | A knob changes a cell's PLAN as well as its play: under a formula knob a PROJECTED cell's placeholder rows move, and under a tier knob every harder tier's pull. The matrix plans on the copy's data (`dataView`); the browser re-derives both (lab-v3.mjs). Before that fix LIVE moved 0 of 10 projected cells for monster damage | balance-matrix.mjs, tools/balance-lab/v3 | Fixed here; parity.mjs v3knobs holds it (both paths' mutants caught) |
+
 ## 2026-11-21 · systems-engineer (lane/c-balance-matrix) · the balance matrix's first reads (subset, 1 seed x 1 h, real engine)
 
 | # | Found | Affected | Action |

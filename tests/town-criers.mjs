@@ -39,7 +39,7 @@ const SEC = 1000, MIN = 60 * SEC;
 
 const MODULES = {
   shell: 'src/shell/town-criers.js', data: 'src/data/town-criers.js', facts: 'src/session/crier-facts.js', store: 'src/social/chat-store.js',
-  stations: 'src/data/world/stations.js', windows: 'src/data/shell-windows.js', text: 'src/render/player-text.js', launcher: 'src/shell/launcher-coach.js',
+  stations: 'src/data/world/stations.js', windows: 'src/data/shell-windows.js', text: 'src/render/player-text.js', launcher: 'src/shell/launcher-coach.js', accountCoach: 'src/session/account-coach.js',
   settings: 'src/data/settings.js', model: 'src/shell/settings-model.js', tips: 'src/data/tips.js', residue: 'src/session/residue.js',
   temper: 'src/data/temper.js', items: 'src/data/items.js',
 };
@@ -266,8 +266,11 @@ async function pureRules(M) {
   // TC-7
   {
     const L = M.launcher;
-    const coach = { read: ['styles', 'tamsins_rats'] };
-    const ctxOf = (cs, peers) => ({ character: cs, account: { characters: () => peers || [cs] }, wm: { openIds: () => [], rows: () => [], isOpen: () => false }, now: () => 1000 });
+    /* the two cards read are the ACCOUNT's (src/session/account-coach.js, 1039): every hero of it, and every reload, holds the same coach */
+    const coach = {};
+    const taught = new M.accountCoach.AccountCoach(null, { read: ['styles', 'tamsins_rats'] });
+    const ctxOf = (cs, peers) => { if (!cs.accountCoach) cs.accountCoach = taught; for (const x of peers || []) if (!x.accountCoach) x.accountCoach = taught;
+      return { character: cs, account: { characters: () => peers || [cs] }, wm: { openIds: () => [], rows: () => [], isOpen: () => false }, now: () => 1000 }; };
     const cs = hero(M, { residue: { coach } });
     const card = L.heldCard(ctxOf(cs));
     if (!card || card.gotIt) { fail('TC-7 the fresh hero past the two Got it cards holds no card a server fact finishes: ' + JSON.stringify(card && card.id)); }

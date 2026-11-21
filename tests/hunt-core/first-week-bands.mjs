@@ -286,8 +286,11 @@ cases['weapon-rungs'] = (R) => {
    is easy again, a pull still pays once held, and a watched hunt (10 s settles) and a closed browser (10 min) walk the same swings. */
 cases['glade-harder'] = (R) => {
   const play = (s, level, o) => R.runCell({ id: 'gh:' + s + ':' + level + ':' + JSON.stringify(o || {}), ground: 'mosslight_glade', party: [s], level, hours: 1, seeds: 1, ...(o || {}) }).heroes[0];
+  /* the floor's typical low point is read on four seeds: it sits at the Normal band's edge (the tank 60.8% on four seeds before the to-hit
+     ratio, 60.2% on it, 2026-11-20; 61.5% and 59.2% on one seed, the same 67% of the Glade's blows landing on it either way), so one seed's
+     dice decided the line, not the rule */
   for (const s of ['tank', 'hammer']) {
-    const h = play(s, 16);
+    const h = play(s, 16, { seeds: 4 });
     if (!(h.encMinHpPct.p50 < 92)) return s + ' at the floor: typical ' + h.encMinHpPct.p50 + '% (it read 94% before the harder Glade, 88-89% after): the hero should feel it';
     if (!(h.encMinHpPct.p50 >= 60)) return s + ' at the floor: typical ' + h.encMinHpPct.p50 + '%, under Normal';
   }
@@ -330,8 +333,10 @@ const mutants = [
     edits: [['src/data/items.js', "weaponType:'hammer',atkB:7,strB:16},", "weaponType:'hammer',atkB:7,strB:10},"]] },
   { name: 'the Steel Warhammer is cut to 9/18: over the Iron it pays under +5%', case: 'weapon-rungs',
     edits: [['src/data/gear-tiers.js', 'str: [7, 16, 23, 28, 39, 52, 68],', 'str: [7, 16, 18, 28, 39, 52, 68],']] },
-  { name: 'the Iron Hatchets are back at 7/7: their upgrade pays under +5%', case: 'weapon-rungs',
-    edits: [['src/data/gear-tiers.js', 'atk: [4, 9, 14, 19, 25, 33, 42], str: [4, 11, 16, 21, 22, 29, 38],', 'atk: [4, 7, 14, 19, 25, 33, 42], str: [4, 7, 16, 21, 22, 29, 38],']] },
+  /* (was the 7/7 hatchets: on the to-hit ratio, 2026-11-20, a weapon's accuracy no longer sits on a ceiling, so 7/7 over 4/4 pays its +5%; a rung
+     that is the tier below's numbers is the defect the case exists for) */
+  { name: 'the Iron Hatchets are the Bronze ones again (4/4): their upgrade pays under +5%', case: 'weapon-rungs',
+    edits: [['src/data/gear-tiers.js', 'atk: [4, 9, 14, 19, 25, 33, 42], str: [4, 11, 16, 21, 22, 29, 38],', 'atk: [4, 4, 14, 19, 25, 33, 42], str: [4, 4, 16, 21, 22, 29, 38],']] },
   /* x0.75, not x0.85: at a one-class four's -60 to -70 a x0.85 cell moves the reading about 4.5 points, inside the line's 5 */
   { name: 'a four of one weapon is paid x0.75, and the Thicket window still says what its old cell measured', case: 'vs-alone',
     edits: [['src/data/party-class-xp.js', 'row([880, 1500], [990, 1600, 1700], [970, 1580, 1670, 1700])', 'row([880, 1500], [990, 1600, 1700], [730, 1580, 1670, 1700])']] },
@@ -349,7 +354,8 @@ const mutants = [
     edits: [['src/data/hunt-grounds.js', 'const n = Math.min(MAX_HEROES, Math.max(1, Math.floor(Number(partySize) || 1)));\n  const max = Array.isArray(ground && ground.densityMax) ? ground.densityMax[n - 1] : DENSITY_FULL_BOX;', 'const n = Math.min(MAX_HEROES, Math.max(1, Math.floor(Number(partySize) || 1)));\n  const max = 1;']] },
   { name: 'a cape reads nothing on the hook, so it does nothing in a fight', case: 'cape-cut', edits: [['src/core/mitigation.js', 'nat(eq && eq.steadyPm) + ', '']] },
   { name: 'a food reads nothing on the hook, so it does nothing in a fight', case: 'cape-cut', edits: [['src/core/mitigation.js', " + Math.round((Number(bonus && bonus('steady')) || 0) * 1000);", ";"]] },
-  { name: 'a cape guards again: damage taken falls by half', case: 'cape-cut', edits: [['src/data/slot-ladders.js', 'reqLv: 22, steadyPm: 70,', 'reqLv: 22, defB: 4,']] },
+  /* (guard 20, a shield's: on the to-hit ratio a 4-point guard is about the cloak's own 7%, so only a cape that guards like a shield shows in the damage) */
+  { name: 'a cape guards like a shield again: damage taken falls by a quarter', case: 'cape-cut', edits: [['src/data/slot-ladders.js', 'reqLv: 22, steadyPm: 70,', 'reqLv: 22, defB: 20,']] },
   { name: 'the unready hero is safe: a hero in no armor takes 60% less from every blow', case: 'risk-ladder', expect: 'fifteen Levels under',
     edits: [['src/core/mitigation.js', 'if (!dodgePm && !absorbPm && !ward) return NO_MITIGATION;', 'if (!dodgePm && !absorbPm && !ward) return Object.freeze({ dodgePm: 0, absorbPm: 600, ward: 0, keepPm: 0 });']] },
   { name: 'the unready hero is nearly safe: a hero in no armor takes 35% less, still dying now and then (25% until the 11-19 step: the monsters hit a tenth harder, and at 25% the practice set still died twice an hour)', case: 'risk-ladder', expect: 'fifteen Levels under',
@@ -373,8 +379,9 @@ const mutants = [
      conditions and forest-cave all stay green, since their heroes wear the ladder kit's armour; only a fresh party in the
      practice sets dips (the tank: 3 in 2 h). level-curve C1 asks for a re-measure, not a fix. RE-AIMED on the formula's bat (atk 6 at
      to-hit 0.63, lane/b-ground-formula-2): at 12 the duo's tank dips once (the bar allows one), at 14 three times in 2 h, as the old 12 did. */
-  { name: 'the Sewer\'s Culvert Bats bite more than twice as hard (atk 6 -> 14): a fresh party\'s tank keeps dipping under 25%', case: 'party-millrace_sewer',
-    edits: [['src/data/monsters.js', 'hp: 59, atk: 7, aim: 20, evasion: 15, def: 1, xp: 145, gp: [8, 23], formula: true, speed: 4400', 'hp: 59, atk: 14, aim: 20, evasion: 15, def: 1, xp: 145, gp: [8, 23], formula: true, speed: 4400']] },
+  /* (the aim doubles with the blow: on the to-hit ratio an attack alone no longer lands surer) */
+  { name: 'the Sewer\'s Culvert Bats bite more than twice as hard (atk 7 -> 14, aim 20 -> 40): a fresh party\'s tank keeps dipping under 25%', case: 'party-millrace_sewer',
+    edits: [['src/data/monsters.js', 'hp: 59, atk: 7, aim: 20, evasion: 15, def: 1, xp: 145, gp: [8, 23], formula: true, speed: 4400', 'hp: 59, atk: 14, aim: 40, evasion: 15, def: 1, xp: 145, gp: [8, 23], formula: true, speed: 4400']] },
 ];
 
 const R = makeReport('hunt-core/first-week-bands');

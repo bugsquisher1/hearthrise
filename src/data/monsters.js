@@ -809,7 +809,7 @@ export const MONSTERS = {
     spells: ['lash_sweep'],
     drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'iron_ore', ch: .6, band: 'common' }, { id: 'coal', ch: .6, band: 'common' }, { id: 'foremans_lash', ch: .08, band: 'uncommon' },
       { id: 'steel_platebody', ch: .044, band: 'scarce' }, { id: 'boarhide_body', ch: .044, band: 'scarce' }, { id: 'scholar_body', ch: .044, band: 'scarce' },
-      { id: 'coppercap_shield', ch: .044, band: 'scarce' }, { id: 'steel_hatchets', ch: .0109, band: 'rare' }] },
+      { id: 'coppercap_shield', ch: .044, band: 'scarce' }, { id: 'steel_hatchets', ch: .0114, band: 'rare' }] },
   chief_coppercap: { name: 'Chief Coppercap', icon: '👑', tier: 3, level: 52, cls: 'humanoid', family: 'Humanoid', formation: true, boss: true,
     /* one override (element): the polished cauldron he wears for a crown sheds frost. */
     elements: { frost: 25, poison: -15 },
@@ -818,10 +818,12 @@ export const MONSTERS = {
     drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'gold_ore', ch: .5, band: 'common' }, { id: 'goblin_totem', ch: .3, band: 'common' }, { id: 'coppercaps_tallow', ch: .15, band: 'uncommon' },
       { id: 'steel_platebody', ch: .044, band: 'scarce' }, { id: 'boarhide_body', ch: .044, band: 'scarce' }, { id: 'scholar_body', ch: .044, band: 'scarce' },
       { id: 'coppercap_shield', ch: .044, band: 'scarce' }, { id: 'war_crown', ch: .0141, band: 'rare' },
-      { id: 'willow_wand', ch: .011, band: 'rare' }, { id: 'willow_spellbook', ch: .011, band: 'rare' }, { id: 'willow_staff', ch: .011, band: 'rare' },
+      { id: 'willow_wand', ch: .0114, band: 'rare' }, { id: 'willow_spellbook', ch: .0114, band: 'rare' }, { id: 'willow_staff', ch: .0114, band: 'rare' },
       /* the Cauldron .00122 to .0014 (lane/d-mage-110): with cloth's smaller damage it came every 161 h a hero, past the trophy band's 150 (drop-tables.mjs trophy-pace) */
       /* .0014 to .00143 (lane/d-harder-monsters, 2026-11-19): the Chief's tenth more HP slowed the floor four's kills, so the Cauldron came every 150.4 h a hero */
-      { id: 'verdigris_cake', ch: .011, band: 'rare' }, { id: 'coppercaps_cauldron', ch: .00143, band: 'trophy' }] },
+      /* .00143 to .00153, his Rares .011 to .0114 and the Foreman's Steel Hatchets .0109 to .0114 (lane/c-tohit-ratio, 2026-11-20): on the to-hit ratio the
+         Warrens' reference group kills them a little slower (drop-tables.mjs read the Cauldron every 155.4 h a hero, the Rares 20.2-20.4 h, past 150 and 20) */
+      { id: 'verdigris_cake', ch: .0114, band: 'rare' }, { id: 'coppercaps_cauldron', ch: .00153, band: 'trophy' }] },
 
   /* ══ THE CALLED BOSSES (src/data/boss-calls.js): a stronger copy, in one room a party pays to enter. A CALLED BOSS PAYS ONLY HIS DROPS, ON A WIN (Tyler 2026-11-14): xp 0, gp [0, 0], his ground table plus one call-only piece; his adds pay nothing (tests/boss-call.mjs). Stats are the only dials, through the normal paths: measured on tools/balance-sim/boss-call-table.mjs. His to-hit was a low `baseAcc` that took it off the old 85% ceiling so Defense and a shield counted; since the to-hit ratio (src/data/to-hit.js, L15) they always count, and each called row's aim and evasion land the chances its `baseAcc` landed on the reference hero of its Level (ported 2026-11-20). Art: monster-art.js HUNT_ART_ALIAS. ══ */
   rat_king_called: { name: 'Rat King', icon: '👑', tier: 1, level: 25, cls: 'vermin', family: 'Vermin', formation: true, called: true, boss: true,
@@ -839,12 +841,12 @@ export const MONSTERS = {
     elements: { frost: 25, poison: -15 },
     spells: ['slag_toss', 'slag_rain_called'],   // his own pulse (monster-spells.js slag_rain_called); the field Chief keeps slag_rain
     hp: 6000, atk: 110, aim: 14, evasion: 9, def: 28, xp: 0, gp: [0, 0], speed: 2800,
-    /* A WIN PAYS HIS OWN TABLE (Tyler 2026-11-14): Chief Coppercap's ground rows at the ground's rates (the Cauldron at the field Chief's .0014), then his call-only piece. */
+    /* A WIN PAYS HIS OWN TABLE (Tyler 2026-11-14): Chief Coppercap's ground rows at the ground's rates (the Cauldron at the field Chief's .00153), then his call-only piece. */
     drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'gold_ore', ch: .5, band: 'common' }, { id: 'goblin_totem', ch: .3, band: 'common' }, { id: 'coppercaps_tallow', ch: .15, band: 'uncommon' },
       { id: 'steel_platebody', ch: .044, band: 'scarce' }, { id: 'boarhide_body', ch: .044, band: 'scarce' }, { id: 'scholar_body', ch: .044, band: 'scarce' },
       { id: 'coppercap_shield', ch: .044, band: 'scarce' }, { id: 'war_crown', ch: .0141, band: 'rare' },
-      { id: 'willow_wand', ch: .011, band: 'rare' }, { id: 'willow_spellbook', ch: .011, band: 'rare' }, { id: 'willow_staff', ch: .011, band: 'rare' },
-      { id: 'verdigris_cake', ch: .011, band: 'rare' }, { id: 'coppercaps_cauldron', ch: .00143, band: 'trophy' }, // the field Chief's rate (gen-hunt-sessions: a called boss drops his rows at their rates)
+      { id: 'willow_wand', ch: .0114, band: 'rare' }, { id: 'willow_spellbook', ch: .0114, band: 'rare' }, { id: 'willow_staff', ch: .0114, band: 'rare' },
+      { id: 'verdigris_cake', ch: .0114, band: 'rare' }, { id: 'coppercaps_cauldron', ch: .00153, band: 'trophy' }, // the field Chief's rate (gen-hunt-sessions: a called boss drops his rows at their rates)
       { id: 'cauldron_lid', ch: .008, band: 'rare' }],
     phases: { addsPm: 500, enragePm: 250, enrageAtkPm: 1400, guardPm: 800 } },
   /* His adds, the Warrens' own diggers: called too, no boss, as the King's. His crew, under him: lower Level, softer, surer blows. While one stands he takes 80% of a blow

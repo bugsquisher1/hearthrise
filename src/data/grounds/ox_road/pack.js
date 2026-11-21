@@ -75,7 +75,8 @@ export default definePack({
       /* the swarm: the men who drove the ore wagons. They died with the road shut and they still walk beside their teams. Undead, no
          override. The wagons' axes, and now and then a bow. */
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'grave_dust', ch: 0.3, band: 'common' }, { id: 'wagon_pin', ch: 0.08, band: 'uncommon' },
-        { id: 'dawn_hatchets', ch: 0.02, band: 'scarce' }, { id: 'duskwood_bow', ch: 0.00104, band: 'rare' }],
+        /* 0.02 to 0.0163 (lane/c-tohit-ratio, 2026-11-20): on the to-hit ratio the ground's reference group kills Teamsters faster, a Hatchets every 0.65 h a hero, under the Scarce band's 0.75 */
+        { id: 'dawn_hatchets', ch: 0.0163, band: 'scarce' }, { id: 'duskwood_bow', ch: 0.00104, band: 'rare' }],
       hp: 163, atk: 109, aim: 129, evasion: 36, def: 5, xp: 1411, gp: [24, 72], formula: true },
     coal_runner: {
       name: 'Coal Runner', icon: '🔥', tier: 6, level: 116, cls: 'human', family: 'Human', speed: 3000,
@@ -99,7 +100,8 @@ export default definePack({
          back up a bit healthier (Goad, a mend, `spells`). Kill him first, or kill the ox first. Human, no override. The staff off his wagon. */
       spells: ['goad'],
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'dawnstone_ore', ch: 0.2, band: 'common' }, { id: 'drovers_goad', ch: 0.08, band: 'uncommon' },
-        { id: 'duskwood_staff', ch: 0.045, band: 'scarce' }],
+        /* 0.045 to 0.0416 (lane/c-tohit-ratio, 2026-11-20): a Staff every 0.74 h a hero on the to-hit ratio, under the Scarce band's 0.75 */
+        { id: 'duskwood_staff', ch: 0.0416, band: 'scarce' }],
       hp: 218, atk: 136, aim: 151, evasion: 41, def: 10, xp: 1940, gp: [32, 96], formula: true },
     wagonmaster: {
       name: 'Wagonmaster', icon: '📜', tier: 6, level: 125, cls: 'undead', family: 'Undead', speed: 2800,

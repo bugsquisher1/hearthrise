@@ -135,8 +135,11 @@ const cases = {
     /* The same hero, the same Level, the same pull: the tier's stats are the only change. */
     const cell = cellOn(T);
     const row = T.tierRowOf(GLADE, 'deadly');
-    const flat = R.runCell({ ...cell(GLADE, ['tank'], 31, null), density: T.pullOfTier(row, 1) });
-    const dead = R.runCell(cell(GLADE, ['tank'], 31, 'deadly'));
+    /* Level 44, the last a lone hero is sent to the Glade (balance-sheet.js GROUND_GP_FIT's note): a kill's XP is read on a hero that lives the
+       hour. At 31 on the to-hit ratio (2026-11-20) the lone tank under the full box dies six times an hour and the reading falls to 1.198 (1.253
+       at 44 with no death); the tier's dials are this case's subject, the danger is the tier sizing's (plan L16). */
+    const flat = R.runCell({ ...cell(GLADE, ['tank'], 44, null), density: T.pullOfTier(row, 1) });
+    const dead = R.runCell(cell(GLADE, ['tank'], 44, 'deadly'));
     const f = flat.heroes[0], d = dead.heroes[0];
     if (!(flat.party.killsPerH > 100 && dead.party.killsPerH > 100)) return 'the fixture killed ' + flat.party.killsPerH + ' and ' + dead.party.killsPerH + ' an hour';
     if (!(d.storePerH > f.storePerH * 1.3)) return 'a Deadly store bill of ' + d.storePerH + ' against ' + f.storePerH + ': it hits no harder';

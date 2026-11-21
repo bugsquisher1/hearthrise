@@ -579,8 +579,10 @@ const mutants = [
     edits: [['src/data/grounds/muster_barrows/pack.js', 'def: 2, xp: 989,', 'def: 2, xp: 450,'], ['src/data/grounds/muster_barrows/pack.js', 'def: 2, xp: 1189,', 'def: 2, xp: 540,'],
       ['src/data/grounds/muster_barrows/pack.js', 'def: 21, xp: 2768,', 'def: 21, xp: 1258,'], ['src/data/grounds/muster_barrows/pack.js', 'def: 24, xp: 10751,', 'def: 24, xp: 4887,']] },
   /* and a solo-built pack's is a lone tank's: Krell's Hold's commons a fifth leaner, under the Pyre Field at 85 */
-  { name: "Krell's Hold's Farmhands and Grave Guards pay a fifth less XP (a lone tank levels faster on the Pyre at 85)", case: 'harder-pays-more',
-    edits: [['src/data/grounds/krells_hold/pack.js', 'def: 3, xp: 1045,', 'def: 3, xp: 950,'], ['src/data/grounds/krells_hold/pack.js', 'def: 22, xp: 1889,', 'def: 22, xp: 1718,']] },
+  /* (two fifths, not the tenth the old line's margin needed: on the to-hit ratio, 2026-11-20, a lone tank at 85 out-levels the Pyre on the Hold by
+     about a fifth, 597k against 501k an hour, so a tenth off two rows no longer brings it under) */
+  { name: "Krell's Hold's Farmhands and Grave Guards pay two fifths less XP (a lone tank levels faster on the Pyre at 85)", case: 'harder-pays-more',
+    edits: [['src/data/grounds/krells_hold/pack.js', 'def: 3, xp: 1045,', 'def: 3, xp: 627,'], ['src/data/grounds/krells_hold/pack.js', 'def: 22, xp: 1889,', 'def: 22, xp: 1133,']] },
   { name: 'a whelp pays like a Chief (a kill stops climbing with the monster)', case: 'harder-pays-more',
     edits: [['src/data/monsters.js', 'hp: 11, atk: 4, aim: 17, evasion: 8, def: 0, xp: 18, gp: [1, 4]', 'hp: 11, atk: 4, aim: 17, evasion: 8, def: 0, xp: 18, gp: [3000, 4167]']] },
   { name: 'the Shop sells a helmet the Thicket wolves drop', case: 'shop-outfits-defense',

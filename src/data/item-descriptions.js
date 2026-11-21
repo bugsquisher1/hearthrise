@@ -11,7 +11,6 @@ import { foldRows } from './grounds/shape.js';
 import { WAVE3_DESC } from './wave3-uniques.js';
 import { SLOT_DESC } from './slot-ladders.js';
 import { LIB2_DESC } from './library2-items.js';
-import { BOSS_FORGE_DESC } from './boss-forge.js';
 import { CHAMPION_DESC } from './champions.js';
 import { DRINK_DESC } from './drinks.js';
 import { IMBUE_DESC } from './imbuements.js';
@@ -62,7 +61,6 @@ export const ITEM_DESC = {
   ...WAVE3_DESC, // b247: the 14 Wave-3 unique item flavour lines
   ...SLOT_DESC,  // b343: the ammo / earrings / cape / jewelry ladders
   ...LIB2_DESC,  // b356: the approved review-book catalogue (Library 2)
-  ...BOSS_FORGE_DESC, // W0: the three boss-forged body pieces
   ...CHAMPION_DESC,   // W0: the five field champions' relics
   ...DRINK_DESC,      // lane S2: the six mana drinks
   ...IMBUE_DESC,      // lane c-loot-loop: the imbuement slot's items
@@ -299,7 +297,6 @@ export const ITEM_DESC = {
   'goldenroot_roast': 'Roasted goldenroot, shiny with fat. Eat it and all your gathering goes faster',
   'goldenroot_seed': 'Goldenroot seed that grows a crop worth a lot more than the usual stuff',
   'grave_dust': 'Gray dust from a grave that got dug up. Burn it in the Great Hearth so whoever it came from can rest',
-  'hearth_token': 'The premium bond, tradable for gold or spent on dungeon entry',
   'heartgarnet': 'A blood-dark garnet cracked out of a deep geode, still warm from the stone',
   'heartgarnet_maul': 'A verdite maul with a garnet set in the head, heavy enough to fold plate',
   'hell_ember': 'A coal pulled out of a demon that never cools down, no matter what you do',

@@ -9,7 +9,7 @@
 // quantity and an OMITTED key is a real zero. That is only safe for an item the
 // accrual ENGINE actually settles. Several LIVE actions still write G.inventory
 // with NO server model (Step-1 audit): cooked-food outputs, crop harvest,
-// companion/pet procs, dungeon rewards. Under an absolute replace the envelope
+// companion/pet procs. Under an absolute replace the envelope
 // omits those (the server never heard of them) and they would be DELETED —
 // the one irreversible mistake this whole program exists to avoid.
 //
@@ -26,13 +26,13 @@
 //              MINUS cooking) — with the EXCLUDED set removed (see precedence).
 //   EXCLUDED (serverOwnedItem === false): what a LIVE, un-modeled path writes —
 //              cooking outputs (ARTISAN_RECIPES.cooking) ∪ crop products
-//              (CROPS[*].prod) ∪ dungeon rewards (BOSSES[*].signature ∪ the
-//              window.DUNGEONS loot tables).
+//              (CROPS[*].prod). (Dungeon rewards left with the old dungeons, cut
+//              whole 2026-11-20, plan L10.)
 //
 // ── EXCLUDED WINS ON OVERLAP, AND THAT IS THE SAFE DIRECTION ─────────────────
 // Several ids are granted by BOTH a modeled and an un-modeled path — `wheat` is
-// a crop AND a rat drop; `magic_essence` is a monster drop AND dungeon loot. If
-// such an id were owned, a legitimately CROP-HARVESTED or DUNGEON-DROPPED copy
+// a crop AND a rat drop. If
+// such an id were owned, a legitimately CROP-HARVESTED copy
 // the server has not modelled would be deleted by the absolute replace. So on
 // overlap the id is EXCLUDED: the never-delete direction. The cost is that the
 // id stays client-forgeable until its un-modeled path is modelled — a residual
@@ -43,15 +43,13 @@
 // (src/core/companion-perk.js), so no companion path mints inventory and there
 // is no proc residual for the absolute replace to drop.
 //
-// PURE ESM. No DOM required to import. `window.DUNGEONS` is read lazily and only
-// when present, so this loads and answers in Node and before the legacy IIFE.
+// PURE ESM. No DOM required to import, so this loads and answers in Node.
 // ============================================================================
 
 import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js';
 import { ARTISAN_RECIPES } from './recipes.js';
 import { recipeOutcomes } from './jewelry.js';
 import { MONSTERS } from './monsters.js';
-import { BOSSES } from './bosses.js';
 import { ITEMS } from './items.js';
 /* THE GRANT UNIVERSE, WIDENED (security C3). `unclassifiedGrantIds()` used to
    walk only the four ENGINE grant sources, so an id a shop is the ONLY source of
@@ -352,41 +350,13 @@ export function payableArtisanOutputIds() {
   return s;
 }
 
-/** Boss signature ids — the static, ESM-clean half of dungeon rewards. */
-export function bossRewardIds() {
-  const s = new Set();
-  for (const k of Object.keys(BOSSES || {})) {
-    const sig = BOSSES[k] && BOSSES[k].signature;
-    if (Array.isArray(sig)) for (const id of sig) if (id) s.add(id);
-  }
-  return s;
-}
-
-/** Every dungeon-reward id: boss signatures ∪ the loot tables in `dungeons`
- *  (none given: only the boss signatures contribute). */
-export function dungeonRewardIds(dungeons) {
-  const s = bossRewardIds();
-  const D = dungeons || null;
-  if (D && typeof D === 'object') {
-    for (const k of Object.keys(D)) {
-      const loot = D[k] && D[k].loot;
-      if (Array.isArray(loot)) for (const l of loot) if (l && l.id) s.add(l.id);
-    }
-  }
-  return s;
-}
-
 /**
- * Build the ownable/excluded partition. Pure over its inputs; the only ambient
- * read is the optional `window.DUNGEONS` inside dungeonRewardIds.
+ * Build the ownable/excluded partition. Pure over the data modules.
  */
-export function buildItemAuthority(opts) {
-  opts = opts || {};
-
+export function buildItemAuthority() {
   const excluded = new Set();
   addAll(excluded, cookingOutputIds());
   addAll(excluded, cropProductIds());
-  addAll(excluded, dungeonRewardIds(opts.dungeons));
   /* THE BURN IS A COOKING OUTPUT (security C2 classification). `burnt_food` is
      what src/core/artisan.js produces when a cook fails, so it is minted by the
      attended client tick exactly as a dish is, and belongs to the same EXCLUDED
@@ -444,19 +414,16 @@ export function buildItemAuthority(opts) {
 let _cache = null;
 
 /**
- * The cached partition, built on first use. The old client's runtime dungeon
- * table (a `DUNGEONS` window global) is gone with that client, so only the
- * boss signatures contribute dungeon rewards; a caller holding loot tables
- * passes them to rebuildItemAuthority.
+ * The cached partition, built on first use.
  */
 export function itemAuthority() {
-  if (!_cache) _cache = buildItemAuthority({ dungeons: null });
+  if (!_cache) _cache = buildItemAuthority();
   return _cache;
 }
 
-/** Rebuild (tests, or with explicit dungeon loot tables). */
-export function rebuildItemAuthority(opts) {
-  _cache = buildItemAuthority({ dungeons: (opts && opts.dungeons) || null });
+/** Rebuild (tests). */
+export function rebuildItemAuthority() {
+  _cache = buildItemAuthority();
   return _cache;
 }
 
@@ -496,15 +463,12 @@ export function classifyItem(id) {
  * the partition, so a non-empty return is a real drift signal (a grant source
  * wired into the universe but not into the partition). Pure.
  */
-export function unclassifiedGrantIds(opts) {
-  opts = opts || {};
+export function unclassifiedGrantIds() {
   const a = itemAuthority();
-  const dungeons = opts.dungeons || null;   // itemAuthority()'s own default
   const universe = new Set();
   addAll(universe, combatDropIds());
   addAll(universe, gatherProductIds());
   addAll(universe, cropProductIds());
-  addAll(universe, dungeonRewardIds(dungeons));
   for (const skill of Object.keys(ARTISAN_RECIPES || {})) addAll(universe, artisanOutputIds(skill));
   /* …and every NON-ENGINE grant source (security C3): shop stock and the seeds
      themselves. A new row in either table now has to be ruled, not discovered
@@ -608,7 +572,7 @@ if (typeof window !== 'undefined') {
     COOKING_SKILL, ARTISAN_SETTLEMENT, COOKING_SETTLEMENT_ARM_ENABLED,
     gatherProductIds, cropProductIds, combatDropIds, artisanOutputIds, seedIds,
     shopGrantIds,
-    cookingOutputIds, payableArtisanOutputIds, bossRewardIds, dungeonRewardIds,
+    cookingOutputIds, payableArtisanOutputIds,
     serverConsumedIds, serverConsumedItem,
     buildItemAuthority, itemAuthority, rebuildItemAuthority,
     serverOwnedItem, classifyItem, unclassifiedGrantIds, unclassifiedArtisanLanes,

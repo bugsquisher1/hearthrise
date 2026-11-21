@@ -168,7 +168,7 @@ export const SHIPPED = Object.freeze({
     'field_ration',
     'goblin_ear',
     'goblin_totem', 'gold_amulet', 'gold_bar', 'gold_ore', 'gold_ring',
-    'grave_dust', 'hearth_token', 'hell_ember', 'hollow_sigil',
+    'grave_dust', 'hell_ember', 'hollow_sigil',
     'hollow_sigil_ring', 'houndskin_cloak', 'hunter_necklace', 'iron_bar', 'iron_fitting',
     'iron_ore', 'iron_whetstone', 'keystone',
     'lexarch_seal', 'lich_soul',

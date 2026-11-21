@@ -194,6 +194,12 @@ async function stub(page, s, fonts) {
     if (name === 'hr_load') return json(s.next());
     if (name === 'hr-accrue') return json(Object.assign({ accrued: true }, s.next()));
     if (name === 'hr_put_client_state') { s.residue = Object.assign({}, s.residue, body.p_patch || {}); return json({ ok: true }); }
+    /* THE ACCOUNT'S COACH (1039-account-coach.sql): a case's cards read (its seeded residue coach.read) are the account's now; marks join them as a union */
+    if (name === 'hr_account_coach') {
+      if (!s.coach) { const c = s.residue && s.residue.coach; s.coach = { read: c && Array.isArray(c.read) ? c.read.slice() : [], taught: [], v: 1 }; }
+      for (const k of ['read', 'taught']) for (const id of (body['p_' + k] || [])) if (!s.coach[k].includes(id)) { s.coach[k].push(id); s.coach.v++; }
+      return json(Object.assign({ ok: true }, s.coach));
+    }
     /* PH-9: a stamina refill, held while s.holdRefill (s.releaseRefill answers it); s.onRefill is the server. */
     if (name === 'hr_stamina_refill' && s.onRefill) { if (s.holdRefill) await new Promise((ok) => { s.releaseRefill = ok; }); return json(s.onRefill(body)); }
     /* PH-14: her board; PH-16: a leave whose answer does not come (a tunnel). */

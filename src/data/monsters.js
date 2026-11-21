@@ -209,7 +209,7 @@ export const MONSTERS = {
   stag: { name: 'Stag', icon: '🦌', tier: 2, cls: 'mammal', family: 'Mammal',
     hp: 26, atk: 9, aim: 26, evasion: 12, def: 1, xp: 32, gp: [5, 14],
     drops: [{ id: 'wolf_pelt', ch: .5 }, { id: 'bones', ch: 1 }, { id: 'raw_wolf_meat', ch: .55 },
-      { id: 'studded_boots', ch: .004, salvage: true }] },
+      { id: 'studded_boots', ch: .0038, salvage: true }] }, // .004 -> .0038 (lane/c-tohit-ratio, 2026-11-20): the to-hit ratio kills the stag faster, 0.49 h a pair (field-salvage's floor 0.5)
   /* FOLD-32: `jackal` merged INTO `wolf` via MONSTER_ALIAS. Two Tier-2 Mammal
      pack canines; the canine ladder is already five rungs and does not need two
      animals on rung two. */
@@ -229,7 +229,7 @@ export const MONSTERS = {
     /* the scavenger: it drops another monster's loot, which is how the world
        starts to feel connected. */
     drops: [{ id: 'goblin_ear', ch: .4 }, { id: 'wolf_pelt', ch: .35 }, { id: 'bat_wing', ch: .2 }, { id: 'iron_ore', ch: .1 },
-      { id: 'willow_longbow', ch: .0005, lucky: true }] },
+      { id: 'willow_longbow', ch: .00045, lucky: true }] }, // .0005 -> .00045 (lane/c-tohit-ratio, 2026-11-20): the to-hit ratio kills the gnoll faster, 3.9 h a bow (lucky-finds' floor 4)
   dark_wizard: { name: 'Dark Wizard', icon: '🧙', tier: 2, cls: 'human', family: 'Human',
     dropBonus: 1.15,
     hp: 28, atk: 12, aim: 30, evasion: 12, def: 1, xp: 55, gp: [10, 25],

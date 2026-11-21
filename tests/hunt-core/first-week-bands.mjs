@@ -303,7 +303,10 @@ cases['glade-harder'] = (R) => {
   const viewed = play('tank', 16), closed = play('tank', 16, { windowMs: 600000 });
   for (const k of ['levelXpPerH', 'takenPerH', 'storePerH', 'coinPerH']) if (viewed[k] !== closed[k]) return k + ': viewed ' + viewed[k] + ', browser closed ' + closed[k];
   const top = play('tank', 31);
-  if (!(top.encMinHpPct.p50 > 90)) return 'the top of the band reads ' + top.encMinHpPct.p50 + '%: outgrowing a ground should show';
+  /* OUTGROWING SHOWS: the top of the band reads Easy, the sheet's own line (balance-sheet.js BALANCE_SHEET.normal, ruled 10-25: Normal 60-80%,
+     over 80 reads Easy). It read "over 90", the old line's measure (92.5% at 31); on the to-hit ratio (2026-11-20) Defense over a monster's own
+     counts a little less, so the top reads 87.9% (87.7% on four seeds) against the floor's 60%: CONFLICTS 2026-11-20 asks the designer to confirm */
+  if (!(top.encMinHpPct.p50 > 80)) return 'the top of the band reads ' + top.encMinHpPct.p50 + '%: outgrowing a ground should show (Easy: over 80)';
   const built = play('mage', 31), held = play('mage', 31, { density: 8 });
   if (!(held.levelXpPerH > built.levelXpPerH)) return 'a pull held at the top pays ' + held.levelXpPerH + ' XP/h against ' + built.levelXpPerH;
   return null;
@@ -380,6 +383,9 @@ const mutants = [
      conditions and forest-cave all stay green, since their heroes wear the ladder kit's armour; only a fresh party in the
      practice sets dips (the tank: 3 in 2 h). level-curve C1 asks for a re-measure, not a fix. RE-AIMED on the formula's bat (atk 6 at
      to-hit 0.63, lane/b-ground-formula-2): at 12 the duo's tank dips once (the bar allows one), at 14 three times in 2 h, as the old 12 did. */
+  /* outgrowing shows nothing: a hero's Defense turns no blow aside (src/data/to-hit.js: its rating is the base alone), so the top of the Glade reads like its floor */
+  { name: 'Defense turns no blow aside: the top of the band reads like its floor', case: 'glade-harder',
+    edits: [['src/core/combat.js', 'return heldToHit(toHitRatio(monsterAim(monster), TO_HIT.base + (Number(playerDefense) || 0)));', 'return heldToHit(toHitRatio(monsterAim(monster), TO_HIT.base));']] },
   /* (the aim doubles with the blow: on the to-hit ratio an attack alone no longer lands surer) */
   { name: 'the Sewer\'s Culvert Bats bite more than twice as hard (atk 7 -> 14, aim 20 -> 40): a fresh party\'s tank keeps dipping under 25%', case: 'party-millrace_sewer',
     edits: [['src/data/monsters.js', 'hp: 59, atk: 7, aim: 20, evasion: 15, def: 1, xp: 145, gp: [8, 23], formula: true, speed: 4400', 'hp: 59, atk: 14, aim: 40, evasion: 15, def: 1, xp: 145, gp: [8, 23], formula: true, speed: 4400']] },

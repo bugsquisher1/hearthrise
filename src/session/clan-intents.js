@@ -104,7 +104,7 @@ export const join = change('clan_join', (server, id) => server.rpc('clan_join', 
 /** Leave the clan (a leader passes it on; the last one out disbands it). */
 export const leave = change('clan_leave', (server) => server.rpc('clan_leave', {}));
 /** Invite a character by name (a leader or an officer). */
-export const invite = change('clan_invite', (server, target) => server.rpc('hr_clan_invite', { p_target: String(target || '').trim().slice(0, 40) }));
+export const invite = change('clan_invite_by_name', (server, target) => server.rpc('hr_clan_invite', { p_target: String(target || '').trim().slice(0, 40) }));
 /** Remove a member (a leader, or an officer for a member); no ban. */
 export const kick = change('clan_kick', (server, id) => server.rpc('clan_kick', { p_user_id: id, p_ban_hours: 0 }));
 /** Withdraw an invite. */

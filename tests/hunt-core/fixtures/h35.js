@@ -10,6 +10,7 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { ROOT, loadCore, plant, makeReport } from './h1.js';
 import { sourceQuery } from '../../../tools/lib/version-stamp.mjs';
+import { caughtBy, missWhy } from '../../_mutant-verdict.mjs';
 
 const V = sourceQuery(ROOT);
 
@@ -40,7 +41,7 @@ export async function suite35(name, cases, mutants) {
     try {
       let why = null;
       try { why = await cases[mu.case](await loadAll(p.root)); } catch (e) { why = 'threw ' + e.message; }
-      R.ok(!!why, 'mutant "' + mu.name + '" was NOT caught by ' + mu.case);
+      R.ok(caughtBy(why), 'mutant "' + mu.name + '" was NOT caught by ' + mu.case + missWhy(why));
     } finally { p.done(); }
   }
   if (!R.fails.length) console.log('  ' + Object.keys(cases).length + ' cases, ' + (mutants || []).length + ' mutants caught');

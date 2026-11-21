@@ -45,6 +45,7 @@ import { pathToFileURL } from 'node:url';
 import { readFileSync } from 'node:fs';
 import { makeReport, ROOT, plant } from './fixtures/h1.js';
 import { sourceQuery } from '../../tools/lib/version-stamp.mjs';
+import { caughtBy, missWhy } from '../_mutant-verdict.mjs';
 
 const V = sourceQuery(ROOT);
 const { loadCellRunner } = await import(pathToFileURL(join(ROOT, 'tools/balance-sim/cell.mjs')).href);
@@ -410,7 +411,7 @@ for (const mu of PICKED) {
     let why = null;
     const home = PLAY;
     try { PLAY = await loadPlay(p.root); LINES = await linesAt(p.root); why = cases[mu.case](await loadCellRunner(p.root)); } catch (e) { why = 'threw ' + e.message; } finally { PLAY = home; LINES = await linesAt(ROOT); }
-    R.ok(!!why, 'mutant "' + mu.name + '" was NOT caught by ' + mu.case);
+    R.ok(caughtBy(why), 'mutant "' + mu.name + '" was NOT caught by ' + mu.case + missWhy(why));
     if (why && mu.expect) R.ok(why.startsWith(mu.expect), 'mutant "' + mu.name + '" was caught by the wrong line: ' + why.slice(0, 160));
     if (why && process.argv.includes('--verbose')) console.log('  caught: ' + mu.name + ' -> ' + why);
   } finally { p.done(); }

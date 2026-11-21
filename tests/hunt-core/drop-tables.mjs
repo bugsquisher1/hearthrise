@@ -53,6 +53,7 @@ import { pathToFileURL } from 'node:url';
 import { readFileSync, existsSync } from 'node:fs';
 import { makeReport, ROOT, plant } from './fixtures/h1.js';
 import { sourceQuery } from '../../tools/lib/version-stamp.mjs';
+import { caughtBy, missWhy } from '../_mutant-verdict.mjs';
 
 const V = sourceQuery(ROOT);
 const imp = (root, p) => import(pathToFileURL(join(root, p)).href + V);
@@ -859,14 +860,14 @@ if (process.argv.includes('--no-mutate')) { R.finish(); process.exit(R.fails.len
 for (const mu of dataMutants) {
   let why = null;
   try { why = cases[mu.case](mutated(M, mu.edit)); } catch (e) { why = 'threw ' + e.message; }
-  R.ok(!!why, 'mutant "' + mu.name + '" was NOT caught by ' + mu.case);
+  R.ok(caughtBy(why), 'mutant "' + mu.name + '" was NOT caught by ' + mu.case + missWhy(why));
 }
 for (const mu of engineMutants) {
   const p = plant(mu.edits);
   try {
     let why = null;
     try { why = cases[mu.case](await load(p.root)); } catch (e) { why = 'threw ' + e.message; }
-    R.ok(!!why, 'mutant "' + mu.name + '" was NOT caught by ' + mu.case);
+    R.ok(caughtBy(why), 'mutant "' + mu.name + '" was NOT caught by ' + mu.case + missWhy(why));
   } finally { p.done(); }
 }
 const groundOf = (rule) => /meadowbrook_thicket|millrace_sewer|mosslight_glade|coppercap_warrens|mill_cellar|wickstead/.exec(rule)[0];

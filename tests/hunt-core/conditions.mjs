@@ -46,6 +46,7 @@ import { loadCore, makeReport, ROOT, hero, mon, world, instOf, subStep, T0 } fro
 import { supplySession } from './fixtures/h4.js';
 import { loadPlay } from './fixtures/play-ground.mjs';
 import { sourceQuery } from '../../tools/lib/version-stamp.mjs';
+import { caughtBy, missWhy } from '../_mutant-verdict.mjs';
 
 const V = sourceQuery(ROOT);
 const MIGRATION = 'supabase/migrations/2026-10-25-action-conditions.sql';
@@ -1292,7 +1293,7 @@ if (!process.argv.includes('--no-mutate')) {
       const PM = await load(p.root);
       CUR = PM;
       try { why = cases[mu.case](PM); } catch (e) { why = 'threw ' + e.message; }
-      R.ok(!!why, 'mutant "' + mu.name + '" was NOT caught by ' + mu.case);
+      R.ok(caughtBy(why), 'mutant "' + mu.name + '" was NOT caught by ' + mu.case + missWhy(why));
     } finally { p.done(); }
   }
 }

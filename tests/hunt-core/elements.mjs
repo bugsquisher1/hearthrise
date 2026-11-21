@@ -15,6 +15,7 @@ import { pathToFileURL } from 'node:url';
 import { loadCore, plant, makeReport, ROOT } from './fixtures/h1.js';
 import { oneHero, rngOf, loadData, supplySession } from './fixtures/h4.js';
 import { sourceQuery } from '../../tools/lib/version-stamp.mjs';
+import { caughtBy, missWhy } from '../_mutant-verdict.mjs';
 
 async function load(root) {
   const M = await loadCore(root);
@@ -191,7 +192,7 @@ for (const mu of mutants) {
     let why = null;
     try { why = cases[mu.case](await load(p.root)); } catch (e) { why = 'threw ' + e.message; }
     if (process.env.H2_WHY) console.log('  mutant "' + mu.name + '" -> ' + why);
-    R.ok(!!why, 'mutant "' + mu.name + '" was NOT caught by ' + mu.case);
+    R.ok(caughtBy(why), 'mutant "' + mu.name + '" was NOT caught by ' + mu.case + missWhy(why));
   } finally { p.done(); }
 }
 /* BOTH PATHS (CLAUDE.md §4): the browser CLOSED, the hunt settled the way the world tick does (accrual.js accrueHunt,
@@ -223,7 +224,7 @@ function settledFireballOnSlimes(P) {
   try {
     let w = null;
     try { w = settledFireballOnSlimes(await loadPlay(p.root)); } catch (e) { w = 'threw ' + e.message; }
-    R.ok(!!w, 'mutant "the slime is immune to ember again, settled" was NOT caught by settled-fireball-burns-sump-slime');
+    R.ok(caughtBy(w), 'mutant "the slime is immune to ember again, settled" was NOT caught by settled-fireball-burns-sump-slime' + missWhy(w));
   } finally { p.done(); }
 }
 if (!R.fails.length) console.log('  ' + (Object.keys(cases).length + 1) + ' cases, ' + (mutants.length + 1) + ' mutants caught');

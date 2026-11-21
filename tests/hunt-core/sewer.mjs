@@ -37,6 +37,7 @@ import { tmpdir } from 'node:os';
 import { pathToFileURL } from 'node:url';
 import { loadCore, makeReport, ROOT } from './fixtures/h1.js';
 import { sourceQuery } from '../../tools/lib/version-stamp.mjs';
+import { caughtBy, missWhy } from '../_mutant-verdict.mjs';
 
 const V = sourceQuery(ROOT);
 const SEWER = ['drain_rat', 'sump_slime', 'culvert_bat', 'cistern_spider', 'kobold_tosher', 'rat_king'];
@@ -2515,7 +2516,7 @@ for (const mu of mutants) {
     /* A planted copy that cannot even load is a broken mutant, not a caught one. */
     const PM = await load(p.root);
     try { why = await cases[mu.case](PM); } catch (e) { why = 'threw ' + e.message; }
-    R.ok(!!why, 'mutant "' + mu.name + '" was NOT caught by ' + mu.case);
+    R.ok(caughtBy(why), 'mutant "' + mu.name + '" was NOT caught by ' + mu.case + missWhy(why));
   } finally { p.done(); }
 }
 if (!R.fails.length) console.log('  ' + Object.keys(cases).filter((c) => !ONLY || ONLY.has(c)).length + ' cases, ' + caught + ' mutants caught');

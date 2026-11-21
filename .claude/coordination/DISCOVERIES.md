@@ -4,6 +4,14 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+## 2026-11-20 · qa-engineer (lane/c-hollow-proofs) · mutation proofs that passed because the harness threw
+
+| # | Found | Affected | Action |
+|---|---|---|---|
+| 1 | P2 tests · `tests/hunt-core/hunt-tiers.mjs`: all 25 mutants "caught" by `threw Cannot find module ... _is-main.mjs` (its plant copied tools/balance-sim without it). Re-proved: 26/26 by a named case; 2 could never load (balance-sheet's own throw) and now plant the reader half | hunt-tiers proof | Fixed here |
+| 2 | P2 tests · the third time this class bit (h2.js `src/render` 11-18, to-hit-ratio 11-20, hunt-tiers): `R.ok(!!why, ...)` after `why = 'threw ' + e.message` in h1/h2/h35/h4 `suite()` and 18 hunt-core runners; tally-window and https-upgrade scored ANY fail line's first word; jewelry-rolls `if (why)` | every hunt-core proof, tally-window, https-upgrade, jewelry-rolls | Fixed here: `tests/_mutant-verdict.mjs` caseVerdict / caughtBy (a throw or `fixture:` line is HARNESS); its plain run now scans every runner in tests/ and tools/ |
+| 3 | P3 tests · 21 page runners still count any fail line as a catch (the fail-count line), each a browser `--mutate` | `_mutant-verdict.mjs` OWED list | A hardening lane moves each onto judge/report/exitOf and runs its proof; the list only shrinks |
+
 ## 2026-11-19 · game-designer (lane/d-balance-audit-2) · the complete balance look (board "2026-11-19 Complete balance look")
 
 | # | Found | Affected | Action |

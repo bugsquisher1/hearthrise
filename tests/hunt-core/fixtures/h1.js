@@ -11,6 +11,7 @@ import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { sourceQuery } from '../../../tools/lib/version-stamp.mjs';
+import { caughtBy, missWhy } from '../../_mutant-verdict.mjs';
 
 export const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const V = sourceQuery(ROOT);
@@ -217,7 +218,7 @@ export async function suite(name, cases, mutants) {
     try {
       let why = null;
       try { why = cases[mu.case](await loadCore(p.root)); } catch (e) { why = 'threw ' + e.message; }
-      R.ok(!!why, 'mutant "' + mu.name + '" was NOT caught by ' + mu.case);
+      R.ok(caughtBy(why), 'mutant "' + mu.name + '" was NOT caught by ' + mu.case + missWhy(why));
     } finally { p.done(); }
   }
   if (!R.fails.length) console.log('  ' + Object.keys(cases).length + ' cases, ' + (mutants || []).length + ' mutants caught');

@@ -29,6 +29,7 @@ import { pathToFileURL } from 'node:url';
 import { readFileSync, writeFileSync, readdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { makeReport, ROOT, plant } from './fixtures/h1.js';
+import { caughtBy, missWhy } from '../_mutant-verdict.mjs';
 
 const { loadPlay, PLAY_TREES } = await import(pathToFileURL(join(ROOT, 'tests/hunt-core/fixtures/play-ground.mjs')).href);
 const BASELINE = join(ROOT, 'tests/hunt-core/engine-parity.baseline.json');
@@ -276,7 +277,7 @@ for (const mu of PICK) {
   try {
     let caught = null;
     try { if (mu.before) mu.before(); caught = against(await loadPlay(p.root), PIN, mu.only); } catch (e) { caught = 'threw ' + e.message; }
-    R.ok(!!caught, 'mutant "' + mu.name + '" was NOT caught');
+    R.ok(caughtBy(caught), 'mutant "' + mu.name + '" was NOT caught' + missWhy(caught));
     if (caught && process.argv.includes('--verbose')) console.log('  caught: ' + mu.name + ' -> ' + caught);
   } finally { p.done(); }
 }

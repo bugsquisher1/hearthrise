@@ -109,7 +109,7 @@ export function judge({ runs, atlas, rules, systemIds, predict, bandOrder, sampl
       ev.verdict = 'UNMEASURED'; ev.ruleTripped = 'no priced row (' + reach.state + '): judged on its PROJECTED numbers once it has rows';
       ev.change = 'none until it has rows to price';
     } else if (!reach.kit && !mine.length && !usedSystems.has(system)) {
-      ev.verdict = 'UNMEASURED'; ev.ruleTripped = 'its products are not kit pieces (' + reach.sample + '): the supplies goal (T3) and the gold goal judge it';
+      ev.verdict = 'UNMEASURED'; ev.ruleTripped = 'no kit on any path wants what it makes (' + reach.sample + '): the supplies goal (T3), the gold goal or the kit rules judge it';
       ev.change = 'none by the kit paths';
     } else if (a.length || (mb !== null && mb > D.b.over) || bestStreak >= D.c.checkpointsInARow || d.length) {
       ev.verdict = 'DOMINANT';

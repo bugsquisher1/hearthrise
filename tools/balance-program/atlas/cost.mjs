@@ -15,6 +15,7 @@
 import { rateOf, gridScale } from './rates.mjs';
 import { luckAt } from './sources-hunt.mjs';
 import { rolledChance } from './sources-town.mjs';
+import { SUPPLY } from '../standards.mjs';
 
 const Q = Object.freeze({ p10: -Math.log(0.9), p50: Math.log(2), p90: Math.log(10) });
 const INF = Infinity;
@@ -49,7 +50,7 @@ export function sustainableStoke(luck) {
   return Math.max(1, ...luck.stokes.map((s) => 1 + (s.pm / 1000 - 1) / s.keys));
 }
 
-export function makePricer({ D, sources, rates, grid }) {
+export function makePricer({ D, sources, rates, grid, supply = SUPPLY }) {
   const byItem = new Map();
   for (const s of sources) { if (!byItem.has(s.item)) byItem.set(s.item, []); byItem.get(s.item).push(s); }
   const stokeMult = sustainableStoke(D.CHEST_LUCK);
@@ -66,7 +67,11 @@ export function makePricer({ D, sources, rates, grid }) {
     const gear = ctx.gear || 'mid';
     const k = ground + '|' + level + '|' + ctx.party + '|' + ctx.tier + '|' + gear;
     if (rateMemo.has(k)) return rateMemo.get(k);
-    const r = rateOf(rates, { ground, level, party: ctx.party, tier: ctx.tier });
+    const r0 = rateOf(rates, { ground, level, party: ctx.party, tier: ctx.tier });
+    /* THE SUPPLY FRAME (50-standards 1.3, standards.mjs SUPPLY, the grid's own ownShareAt): from Level 30 a quarter of the supplies are
+       home-made, so the store bill a hero pays is three quarters of what the cell bought. The cell buys every use at the store. */
+    const own = supply && level >= supply.ownFromLevel ? supply.ownShare : 0;
+    const r = r0 && own ? { ...r0, netPerHeroH: r0.incomePerHeroH - r0.storePerHeroH * (1 - own) } : r0;
     let out = r;
     if (r && gear !== 'mid' && grid) {
       const s = gridScale(grid, { level, party: ctx.party, tier: ctx.tier, gear });

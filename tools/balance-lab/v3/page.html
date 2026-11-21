@@ -127,7 +127,7 @@ details > summary { cursor: pointer; color: var(--ink-2); font-size: 12px; min-h
   /* ── stamps ── */
   const eng = DATA.stamp.engine || {};
   $('stamps').textContent = 'Engine v' + eng.version + ' (sources ' + eng.hash + ', ' + eng.knobPicks + ' knob numbers live), built ' + DATA.stamp.built + ' on ' + DATA.stamp.commit
-    + '. Sweeps: ' + (PRE ? PRE.at + ' on ' + (PRE.commits || []).join(',') + (PRE.githubRun ? ', GitHub run ' + PRE.githubRun : '') + ', ' + Object.keys(PRE.knobs).length + ' of ' + KN.length + ' knobs, ' + PRE.seeds + ' seed x ' + PRE.hours + ' h a cell' + (PRE.stale ? '. STALE: measured on another tree than this build' : '') : 'none in this build');
+    + '. Sweeps: ' + (PRE ? PRE.at + ' on ' + (PRE.commits || []).join(',') + (PRE.githubRun ? ', GitHub run ' + PRE.githubRun : '') + ', ' + Object.keys(PRE.knobs).length + ' of ' + KN.length + ' knobs, ' + PRE.seeds + ' seed x ' + PRE.hours + ' h a cell' + (PRE.stale ? '. STALE: measured on another tree, and this tree\'s subset plays different numbers' : PRE.sameTree ? '' : '. Measured on an earlier tree, whose subset plays the same numbers cell for cell today') : 'none in this build');
 
   /* ── THE KNOBS ── */
   function stepsOf(k) { return PRE && PRE.knobs[k] ? Object.keys(PRE.knobs[k].steps).map(Number).sort((a, b) => a - b) : []; }

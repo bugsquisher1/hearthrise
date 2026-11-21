@@ -195,7 +195,12 @@ export async function pageData(root = ROOT) {
         knobs[id].steps[m] = { d, seats, bandCounts: counts, bandRows: rows, bandTotal: st.bands.length, calibration: st.calibration, applied: st.applied };
       }
     }
-    pre = { run: sw.run, at: sw.at, commits: sw.commits || [sw.commit], hash: sw.hash, stale: sw.hash !== BM.matrixHash(root), githubRun: sw.githubRun || null, seeds: sw.seeds, hours: sw.hours,
+    /* STALE only when the tree moved AND its baseline moved: a sweep measured on an earlier tree whose subset plays cell for cell the same
+       numbers today (balance-matrix-subset.json, fresh on this tree) still reads true; the page says which */
+    const hashNow = BM.matrixHash(root), cache = BM.readCache(BM.SUBSET_FILE);
+    const cacheFresh = cache && cache.hash === hashNow;
+    const sameBaseline = sw.hash === hashNow || (cacheFresh && JSON.stringify(BM.compactCells(cache.cells)) === JSON.stringify(sw.baseline));
+    pre = { run: sw.run, at: sw.at, commits: sw.commits || [sw.commit], hash: sw.hash, stale: !sameBaseline, sameTree: sw.hash === hashNow, githubRun: sw.githubRun || null, seeds: sw.seeds, hours: sw.hours,
       bandFields: sw.bandFields, cells: sw.cells, baseline: sw.baseline, baselineBands: sw.baselineBands || [], calibration: sw.calibration, knobs };
   }
   const bandGroups = Object.fromEntries(STD.BANDS.filter((b) => b.group).map((b) => [b.id, b.group]));

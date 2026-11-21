@@ -284,7 +284,7 @@ export function gateOf(patch, d) {
 export const SWEEP_SCHEMA = 'hearthrise.balance-sweeps/1';
 /* a cell's METRICS in order, then each seat's share of the damage; five significant digits (the table is a reading, not a ledger) */
 const sig = (v) => (typeof v === 'number' && Number.isFinite(v) ? Number(v.toPrecision(5)) : v ?? null);
-const compactCells = (cells) => Object.fromEntries(cells.filter((c) => c.m).map((c) => [c.key, [...METRICS.map(([id]) => sig(c.m[id])), c.m.seatsM.map((x) => sig(x.takenShare))]]));
+export const compactCells = (cells) => Object.fromEntries(cells.filter((c) => c.m).map((c) => [c.key, [...METRICS.map(([id]) => sig(c.m[id])), c.m.seatsM.map((x) => sig(x.takenShare))]]));
 export const BAND_FIELDS = Object.freeze(['way', 'band', 'group', 'at', 'before', 'after', 'statusBefore', 'statusAfter', 'direction']);
 async function sweep(run, o, ids0, out = null) {
   const D = await loadGridData(ROOT), K = await loadKits(ROOT);

@@ -547,7 +547,7 @@ The world patches read 0, 0, 0 because the ground axis carries no band rows yet,
 
 ### 5.3 The three chains that reach furthest
 
-**The pace chain.** Kill reward, then the Level law, then everything timed in days. Putting the pace right moves Krell from day 16 to day 27, halves every typed sink, doubles the cost of a death, pushes the lone hero's Level 200 from day 136 to day 245, and turns a 14 week shelf of sinks into about 28 weeks. It is the largest single change in the program and five other proposals hang on it.
+**The pace chain.** Kill reward, then the Level law, then everything timed in days. Putting the pace right moves Krell from day 16 to day 27, halves every typed sink, doubles the cost of a death and pushes the lone hero's Level 200 from day 136 to day 245. It is the largest single change in the program and the death ladder, the sink re-price and the runway all hang on it.
 
 **The tier chain.** Deadly's dials decide whether roles exist, whether the party table can be simplified, whether a lone hero has a hard tier, what a signature costs, what the store bill is, and therefore what the wage curve and every price in hours read. Nothing about party gold or party survival should be priced until it lands.
 
@@ -641,3 +641,217 @@ No simulation result should be offered as an answer to any of these. The first i
 Playtests 1, 2 and 9 fit the Discord playtest as it opens. 3, 10 and 11 need more accounts than the beta has on day one.
 
 ---
+
+## 8. Tyler decides
+
+Every call from the eight reviews, 44, 46 and 47, deduped into one list. The eleven sources raised about 150 calls between them. Merged, they are 88. Each has one recommendation, its reason, the strongest alternative, and whether it re-opens a ruling or is new. Ids are stable and will not be renumbered. A call that is withdrawn later keeps its id.
+
+"Ruling" reads as follows. **RE-OPEN** with a date means the recommendation changes something you ruled. **Builds** means it carries out a ruling. **Keeps** means a review asked to re-open and I recommend you do not. **New** means nothing on record covers it.
+
+### 8.1 The ten that matter most
+
+| Id | The call | Recommendation, and why | Strongest alternative | Ruling | From |
+|---|---|---|---|---|---|
+| G-1 | **How the server reaches 60 database-seconds.** PENDING 48 | Town work (training, gathering, benches) is paid in closed form, and the platform review sizes an away flush near 6 minutes with every death, Level, Leave, rare drop and money intent still saved at once. COMPUTED: every planned fix reaches 180 and closed form 147, against 60. Your two rulings (12 rested hours of work, $0.15) do not fit otherwise | Budget the town at 4 rested hours a hero and accept a higher price an account | New. Extends 28-11 (closed form for training). Bears on 11-21 (call 10) | 59, 50, 43 |
+| G-2 | **The price of the second hero** | About 10,000 gold, what one hero banks by Level 8 to 10. Slots three and four keep 1.5M and 4M. Run it as two beta invite waves and let day 7 return decide. Nobody with one or two heroes passed Level 9, and the Level law makes the lone road longer still. Do not raise any slot again | Keep 400,000 and let on-call heroes give a new player the early party | **RE-OPEN** 11-09, 11-20, 11-21 | 46, 59, 55 |
+| G-3 | **What Deadly must ask for** | The harder tiers lane sizes Deadly so an in-band four with a shield tank and a healer holds it, and the same four with a hammer in front or with no healer does not. The party XP class table stays until that is measured. MEASURED: both of those fours are faster today and neither dies, and four mages hold Deadly | Leave Deadly, accept that the best four is a hammer and three mages, and pay party XP by size alone | New. Follows your 11-19 direction. Keeps 10-31 | 52, 57, 46 |
+| G-4 | **A gear curve as a game formula** | Approve it: linear in the Level a piece is worn at, in `src/data`, with every unique a spend of the curve at published rates. Size a band at a tier's worth, about +24% of the line (bands at 110, 136, 169, 210, 260, 322, 400), not +6.5%. Re-key the two Luck numbers from a band count to Level with the same end points. Nothing past Level 300 holds without it | 44's +6.5% bands: twenty from Level 110 to 400, each about a quarter of an upgrade | **RE-OPEN** 11-18 (two bands a region) and the reading of 10-25 ("every 15 to 25 Levels"). Keeps 11-14 and 11-16 | 44, 47, 42 |
+| G-5 | **What a kill pays** | The kill reward follows the pace line with one kill-rate reference (step R12). One tier table for every ground. The per-ground tier dials and the "no bigger pulls under floor 16" rule go in the same step. Party grounds keep their encounter type with three numbers and their XP a kill comes down about a third. This ends 15 hand XP fits and the circle between the Level table and the grounds | Keep the hand fits and re-tune each ground as it reads wrong | Builds 11-07 (one tier table). New for the rest | 44, 53, 43 |
+| G-6 | **The Level table** | Your table of hours is the law and the XP a Level costs is derived from it. Level 400 stays at 4,580 hours. It lands at the wipe, in one release with G-7 and G-8, after G-5 and G-3. Amend the proposed "a Level a day" band, because your own table needs 14.4 hours a Level from 200 to 300. Know the cost: a lone hero's Level 200 moves from day 136 to day 245 | A fitted power law, which lands Level 400 near 5,090 hours | Builds 11-21 (calls 1 and 2) | 44, 56 |
+| G-7 | **Death past Level 100** | Keep 6% flat with no cap. Open a new Blessing whenever a fully blessed death would cost over about five of the pace seat's hours (measured: Levels 100, 185, 275, 400). Each halves what is left and is priced by the hours it saves. Add a matrix band that reads XP after deaths. Without this the Level law switches Deadly off at Level 100 | The capped death the Game Director would take | Softens 11-21 (50-4) without reversing it. Protects 11-16 | 56, 44, 46 |
+| G-8 | **Sinks that follow the gear** | Tempering, Hallmarks and linings each cost a share of the band's gold at your ruled 1.2 to 1.4, sized on a hero who pays only the difference at every tier. "Tempering pays the difference" (23-2) stays. COMPUTED: without the re-price a careful hero pays 0.5 to 0.9 of a band at tiers 4 to 6 | Typed ladders that end at tier 7 | **RE-OPEN** 11-18 ("Tempering stays as built") | 44, 47, 55 |
+| G-9 | **Ground past its band** | Every ground's tier ladder keeps going above its band, from the one stat formula, free, paying under the at-Level ground. It replaces scaled hunts by the hour. It takes the lowest hero's Level in the party. It drops its own rows at its own rarity | Keep scaled hunts by the hour at the party leader's Level | **RE-OPEN** 11-07 (the hourly fee, and "the party leader's Level") | 46, 53, 47 |
+| G-10 | **Playing together while away** | On-call heroes, standing parties and shared supply cost ship in the beta as their own lane, friends only. Clans wait for 50 accounts a day. In the same step the hidden Level cut on party XP is replaced by one visible rule: a hero under two thirds of the party's top Level keeps a share equal to its Level over that line | All of the social lane in the beta as ruled, and the cut simply deleted | Builds 10-25 and 25-3, and re-orders 25-3. Amends 11-08 (the cut was ruled out, and I ask for a gentler visible one in its place) | 57, 46, 44 |
+
+### 8.2 Combat
+
+| Id | The call | Recommendation, and why | Strongest alternative | Ruling | From |
+|---|---|---|---|---|---|
+| G-11 | The beginner's floor on spells | One floor on the blow a cast reads, in place of 17 per-row floors. Same effect, one number. Three lanes reached it separately | The per-row floors as built | Builds 11-21 (32-8) | 41, 44, 52 |
+| G-12 | Whether spells miss, crit and read weakness | A physical strike reads weapon weakness. Spells never miss and never crit. MEASURED small: at most 3.5% on one way | A spell is a blow and reads all three, which re-sizes every spell row | New. Built, never decided | 44, 52 |
+| G-13 | Three shapes of roll | One roll rule with the spread as a number a kind. Heals keep a spread of zero so a player can plan on them | Leave three shapes | New | 44 |
+| G-14 | Weapon weakness | Axes count as "edged" with swords, fists as "blunt" with hammers, the unused resists column goes, and Rend's share rises until the axes sit at 0.95 to 1.00 of the hammer. MEASURED: the repair alone leaves the axes last | Give axes their own side and move three monster classes to it | New | 52 |
+| G-15 | Turning Cut and Rend | Turning Cut unlocks at Level 1 for the axes and the hammer and at 10 for the sword. Rend sits on the default Melee set | Melee 5 for every weapon | Keeps 11-19 | 41, 52 |
+| G-16 | Necrotic and Storm | Seven spells first, one a weapon, after Deadly is fixed. Sixteen stays the end state. The other nine are redesigned after the seven are played, so no two weapons share a mechanic | Build all sixteen from the plan as written, or defer them whole as 46 asks | Keeps 11-18 and 32-6 | 52, 47, 46 |
+| G-17 | Fists | Two rows. The Hands on mana with no element. The Palm on mana in the element you chose, with a rune as the stronger cast. Re-run the gold test first | Six rows on one shared clock, or defer the fists as 46 asks | Keeps 11-18 | 52, 47 |
+| G-18 | Quarry Blow | It breaks a monster's spell windup. On a boss it adds a share to the windup. It never stops a swing. A second melee hero costs a four 8 to 13% today because it brings only damage | Leave it as a copy of Flame Strike | **RE-OPEN** 10-23 ("no stagger"), in a narrow form | 52 |
+| G-19 | "Shooters first" | One new target mode, the bow's default. 28% of a real four's damage landed on the healer from shooters | No new mode | New | 52 |
+| G-20 | A status opens one kind of damage | A sample of three pairs under one total cap, after G-3. HYPOTHESIS, and the risk is stacking | Do not add it | New | 52 |
+| G-21 | The crossbow | Its identity is its list and its shield: single target, no Mark, no area shots, Leech Bolt. Its numbers stay. MEASURED: a new stat line moved it 3 to 6% | A list that copies the bow's | Builds 32-6 | 52 |
+| G-22 | Magic on a weapon hero | Magic adds 0.5% max mana a level for every hero. MEASURED: gate PASS, store bills down 2 to 4%, nothing else moves | Stop paying Magic XP to weapon heroes | New | 52 |
+| G-23 | Skill at high Level, and endless ladders | Keep the hit as skill plus gear. Do not make it skill times gear. Give skill its late worth through rune tiers past 60, one every 15 skill levels, with the gear curve. The Tower reads any floor from one row | A multiplying formula | Extends 10-23 (five rune tiers). Builds 11-20 | 44 |
+| G-24 | The starting weapon | The player picks it at creation. The default today is the way you ruled slow alone on purpose, and its next spells only work in a party | Keep sword and shield for everyone | New | 46, 52, 59 |
+| G-25 | Special rules with no ruling on record | Approve as 44 section 8.1 recommends: the gentle ramp under floor 16 (keep), the boss blow held to a third of the floor hero's health (keep), three training bases for three skills (keep), the three roll shapes and chance rounding (fold, G-13), a tier a mode does not offer as one content flag (fold) | Rule each one separately | New. Nine rules were never put to you | 44 |
+| G-26 | Plus skill on chest weapons | Keep the flat +1 to +4 as ruled. The major upgrade is the next tier's numbers, which will come from the gear curve. Grow the number with the key tier later if a player cannot feel it | A percent of the blow, as 44 asks | Keeps 11-14, 11-18, 22-2 | 47, 44 |
+
+### 8.3 World
+
+| Id | The call | Recommendation, and why | Strongest alternative | Ruling | From |
+|---|---|---|---|---|---|
+| G-27 | What Dangerous brings | Five monsters on every ground. Deadly keeps the full box. MEASURED: a lone hero in band holds it near 40% health with no deaths for 35 to 65% more XP and most of the hour's gold. A four keeps 2.1 to 2.5 | Both tiers on the full box, which leaves a lone hero with Normal and nothing else | **RE-OPEN** 11-16 ("every Dangerous party stands at or over its heroes alone"). It fails on Hask's Ford | 53 |
+| G-28 | One boss door | Call out folds into keyed halls. Every boss gets a hall and a key. The slider becomes "fight with N keys". One key is one prize roll, and a mid-region boss's pieces stay repeatable | Keep both and give Captain Hask a call | **RE-OPEN** 11-14 and 22-8 | 53, 46, 54, 59, 47 |
+| G-29 | What a hall's prize holds | Only what no ground drops: the boss's uniques, the region's gem, a Trophy, a first-win piece. The 14 plain Dawnsteel pieces drop in Krell's Hold as Rares. Krell's five weapons replace them on the roll | Keep Dawnsteel on the roll and make the Morrow Hills' Dawnsteel Rare | Keeps 11-14. The roll's contents were the designer's | 53, 54, 47 |
+| G-30 | Krell's hall is won 38 to 40 times in 40 by every party | Leave his rows alone. When hand rows move to the formula, a hall boss is the boss role times one hall number, sized so a party in band wins 80 to 90% and the weakest named party loses | Raise Krell by hand today, which is the per-boss patch the formula brief forbids | New | 53 |
+| G-31 | A signature a ground | Each ground asks one question (shooters, a group spell, armor, an element, menders), says it on the card, carries it at full dose on the harder tiers and teaches it by frequency on Normal. HYPOTHESIS that players change what they bring | Leave the grounds as fifteen skins of one hunt | New | 53 |
+| G-32 | Thin bands and uneven pairs | Wickstead moves to about Level 20 to 32 and the Slake to about 58 to 72. A faction pair of grounds shares one band and one XP line | Leave them and draw two new maps | New | 53 |
+| G-33 | The shape of a region | Six grounds stays the planning number. Each region opens as four grounds and its hall, then the last two. Each region names one new rule before its grounds | Four grounds a region for good | Keeps 11-18 | 53, 47 |
+| G-34 | Dead rows | Remove 103 monster rows no hunt uses, three hunts with no ground and the four called boss copies. The art stays in the library | Keep them as an idea pool | New. Cousin of 22-10 | 53, 44 |
+| G-35 | The named rare of a ground | Each gets one phase trait, so it is an event in the log and not a bigger health bar | Leave them as elites | New | 53 |
+| G-36 | The Catacombs | Keep their own mode. Build one wing and one key as the played sample before the other 36 pieces. The Tower and the Catacombs take the one party table | A wing of the Tower, as 46 asks | Keeps 11-16 and 22-4. New for the party table | 47, 56, 44, 46 |
+| G-37 | The Tower's beat | It stays weekly. Build the ruled fixes and stop. An idle endgame should score preparation, not hours at the screen | Lift the six opens a week | Keeps 11-21 (call 6) | 56 |
+
+### 8.4 Items and crafting
+
+| Id | The call | Recommendation, and why | Strongest alternative | Ruling | From |
+|---|---|---|---|---|---|
+| G-38 | Jewelry and cloaks past Level 30 | Build to tier 7, starting with tier 4 and gem chips. Plain numbers are a 6% share of the gear curve, never typed a tier. MEASURED: a point a tier would be twice the budget, and today's flat rows are 15% at Level 30 and 0.5% at 400 | Leave six slots at Level 30 | Builds the jewelry ruling. New for the share | 54, 47 |
+| G-39 | Perk sizes | A perk with a narrow case starts at 5% in its case. Always-on perks (Keen, Follow-through, Surge) keep their built sizes. A hero whose twelve seats all match the ground gains at most one weapon step. MEASURED: five times is the ceiling | Hold every perk at about 1% | **RE-OPEN** the reading of 23-5 (4% as a total) | 54, 47 |
+| G-40 | Build pieces before Krell | Ship the three designed samples (Widow's Fang, Mudlark's Mitts, Demoncaller) and fill the ruled Very Rare band with signature stones a smith sets in jewelry, on three grounds first. No property piece on every ground. A band before Krell lasts one to seven days | Named property pieces on every ground from the Sewer, as 46 asks | Keeps 11-20. Builds 11-14 and 30-3 | 47, 54, 46 |
+| G-41 | What a unique's property may be | Past tier 7 it is one of seven kinds that change a decision: bane, crit, a spell change, an element edge, a second socket, thorns, the bow's sweet spot. At tier 7 and below the full list stays | The full twelve kinds at every tier | Keeps 11-14 | 54, 47 |
+| G-42 | Rare rows a ground | At most six. You ruled the reveal stays on every Rare, and a four sees one every 7 minutes on the Warrens | Leave the rows, and the reveal stays a notification | Keeps 27-6 | 54, 46 |
+| G-43 | The Crafting bench | It is the outfitter: cloaks, belts, linings, ammunition. Belts move to it. Gloves drop hourly through tier 7. Its three salt recipes leave in the lane that ships linings | Salts on both benches for good, gloves as Rares | Keeps 11-18 (the glove wing). New for the rest | 54, 56, 47 |
+| G-44 | Six crafted slots past tier 7 | Patterns ship with the Morrow Hills and a pattern teaches the account, not one hero. Single commissions (one Hallmark or one reforge on a piece the owner keeps) ship with jewelry tiers 5 to 7. Bulk orders wait for the market | Defer patterns until a market exists, which freezes six slots for 290 Levels | Changes the designer's 11-18 per-hero call. Builds 50-15 | 47, 54 |
+| G-45 | Runecrafting 61 to 99 | A Sealing Rune at 75 and 88, used by the tier 6 and tier 7 Hallmarks. Rune tiers later with G-23 | Respace the five rune tiers | Keeps 10-23 | 47, 54, 56 |
+| G-46 | Salvage and the Shop | Salvage is a line on the loot plan beside Sell, with both numbers shown and a starting plan. The Shop keeps its ruled price. Read what players pick before asking again. MEASURED: 15% less gold in made 40 gold bands worse | Salvage by default and a token Shop price | Keeps 11-20, 23-10, 31-6 | 47, 55, 46 |
+| G-47 | Curing and the Cellar | Curing is built as ruled, last in the lining work, as a standing order ("keep these linings up"). The Cellar's five food rungs come off sale now, because the effect they sell is being cut | Do not build curing | Keeps 11-18 and 26-7 | 47, 58 |
+| G-48 | Luck's feeds, the find list, the saved kit | Luck keeps two feeds and one budget. A find list a ground goes on the Honors page and pays no Luck. A saved kit a ground changes rings, linings and a unique when the party moves | A find list that pays Luck | Keeps 11-20. New for the kit | 47, 54 |
+| G-49 | Chest reforging | It stays its own verb. It carries a won piece up a key tier and is not a percent on a piece. Tempering is already the one place that sells percent for gold | Fold it into Tempering, as 46 asks | Keeps 22-3 | 47 |
+
+### 8.5 Economy
+
+| Id | The call | Recommendation, and why | Strongest alternative | Ruling | From |
+|---|---|---|---|---|---|
+| G-50 | The market | Make it idle: standing buy orders, the Sell loot rule sells to the best order, the one-tap refill buys player stock under the store's price. The order book and rare pieces first, supplies second, and only after the tiers are sized on full-effect supplies. Before Crowns | Leave listings only and accept a self-sufficient game with a Crown exchange | New | 55, 46 |
+| G-51 | Prices | Every repeating price is hours of one wage curve the server computes. The four coin dials fold into one coin line with the same gold. Hero slots and the House stay typed | The ruled band index past Krell only, with Levels 1 to 110 hand-priced | Extends 24-11. Builds 11-16 ("cut income instead") | 44, 55 |
+| G-52 | The store's healing | One gold-a-hit-point line with its top near 0.60, and heal size as a share of reference health. After the store-bill fault closes. MEASURED: a lone hero's Deadly bill falls 49% and no other number moves | Leave the table, and a lone hero on Deadly pays 1.8 to 3.7 times its coin | New | 44, 55 |
+| G-53 | The House dummy | It halves the yard fee, forever. At "no fee" it pays back in 2.8 days and ends the one sink that grows | Keep "no fee" and price a skill in the tens of millions | **RE-OPEN** 11-08 ("you don't have to pay per hour") | 55, 58 |
+| G-54 | The yard's rate | It follows a share of the skill level's cost, never passes half of what hunting pays that skill, and the fee follows the rate. At one flat rate a skill level takes 51 to 243 yard hours from skill 75 | Keep the flat rate and decide when a hero passes Level 300, as 56 asks | **RE-OPEN** 11-14 | 44, 58, 55, 56 |
+| G-55 | When the market opens | Day one. Town Works' first project builds something else. A locked market teaches that there is no market | The ruled goal sized to the server | **RE-OPEN** 24-7 | 55 |
+| G-56 | Fees nobody feels | Remove the bench tax. Setup slots 4 and 5 are free. Nobody has paid for a slot and it charges for a remembered decision | Keep both as built | **RE-OPEN** 11-05 (setup slots). New for the tax | 55, 59 |
+| G-57 | Spending while you sleep | A hunt budget replaces the gold floor: "spend at most N at the store", remembered for each ground and tier. The floor defaults to 300 and Deadly can burn 121,000 an hour | Raise the floor's maximum and default | New | 55 |
+| G-58 | The refill price | Hold it until the store-bill fault closes. The finding that a refill costs more than its hours earn may be half its size | Re-price now on the harness number | New | 44 |
+| G-59 | The gauge, and one laundering route | Print gold made, destroyed and held every day from the journal. Remove the 1,000 gold a unit floor on the stackable ceiling, for Security | Steer without a gauge | New | 55 |
+| G-60 | Crowns | After the market has something scarce to price. Right design, wrong time | Open Crowns with listings only | Keeps the Crown rulings. Timing is new | 55 |
+
+### 8.6 Progression
+
+| Id | The call | Recommendation, and why | Strongest alternative | Ruling | From |
+|---|---|---|---|---|---|
+| G-61 | A permanent build choice | Lift the hold for a spec and a paper sample of five rungs only. One system, not three: every ten Inner Flame levels a hero lights one of three Kindlings. It spends the 2% that was set aside for worn in, touches no drop and no Magic Find, and copies no perk. Built after the combat laws | Keep the hold and let gear carry the long game. Or 46's mark every five Levels | **RE-OPEN** 11-05, for a spec only | 56, 47, 46, 52 |
+| G-62 | Honors | Titles, Trophy display, mounts, firsts and round Levels become one page with one rule and no power. Level 100, 200, 300 and 400 each give a title and a line to the whole server | Five small lists as built | New. Builds "Level 200 is a big deal" | 56 |
+| G-63 | Dead ladders | Delete the rested bank and the two old kill ladders. MEASURED: switching the bank off moved no number in 207 cells | Make the bank pay, which adds an XP lever the pace law must carry | Builds 27-3 and the ruled cuts | 56, 58, 59, 44 |
+| G-64 | No new skill, prestige or stat points | None of the three. An uncapped Level already is the prestige loop, and stat points put Level into the blow | None offered | New | 56 |
+| G-65 | Inner Flame and death | Take Inner Flame off the list of skills a death takes progress from. It is trained at the Hearth, not in a fight | Leave it on the list | Amends 11-09 | 44, 56 |
+| G-66 | The risk reading | Every player sees, free, how close a hunt came to a death and the deaths per 100 hours of that ground and tier. The per-rule bar report may sit in the Premium analyzer. Selling the warning would read as selling safety | Both blocks in the Premium analyzer | New | 59, 56, 53 |
+| G-67 | Two party bands that cannot both be met | P7 (a four at 1.8 to 2.5 of the contract on the hardest tier it holds) is the one that counts. Fix the harder tiers first (G-3, G-5, G-27) so a lone hero holds Dangerous and not Deadly, and only then set the party size row as a rising step of about 5% a hero. MEASURED: a lone hero on Deadly already reads 1.9 to 2.8 of the contract, so any four that meets P6 breaks P7 | Drop P6 and judge parties only against the contract | Reads 10-25 against 11-16 and 11-21 | 57 |
+
+### 8.7 Social
+
+| Id | The call | Recommendation, and why | Strongest alternative | Ruling | From |
+|---|---|---|---|---|---|
+| G-68 | The clan castle | Retire the old castle code. Rebuild it later as projects on the Town Works engine: one project at a time, stages, gifts, a plaque. No building levels, labour, upkeep or votes. Rations stay | Finish the castle as designed | Re-shapes the clan plan. Keeps rations | 57, 46 |
+| G-69 | Three things nobody used | Remove the Local chat tab, remove the live party finder (its job moves to the on-call board), and strike "maybe 5 later" from the rulings | Keep them dark until the game is big | Builds 25-11. New for the rest | 57 |
+| G-70 | The town | It draws heroes at work whether or not their owner is online. Waits for the platform sizing | Draw only live players | New | 57 |
+| G-71 | Factions | Keep skills that matter. A side is chosen per hero, and one press joins them all | Story and outfits only, as 46 asks | Keeps 31-8. Amends 25-10 | 57, 46 |
+| G-72 | A friend link at sign-up | Yes, with no reward. Your players arrive as friends and the game does nothing with that | Rely on Discord | New | 57 |
+
+### 8.8 Home
+
+| Id | The call | Recommendation, and why | Strongest alternative | Ruling | From |
+|---|---|---|---|---|---|
+| G-73 | The Trophy room | It becomes the Hall of Firsts. Wall room comes from the Keep and the Castle, not from mount rungs. Each piece hung costs a mounting fee priced in hours of its band's wage | Five mount rungs for 695,000 as planned | Re-shapes L51 | 58, 56 |
+| G-74 | The farm's gates | Remove the soil tiers, so a crop opens at its Farming level and nothing else. Watering folds into Tend | Keep soil tiers as a 130,500 gold sink | New | 58, 46 |
+| G-75 | Home looks and visiting | Three looks (cottage, manor, castle), two new maps. Visiting opens at the Homestead once the Hall exists | A map for each deed and visiting at the Castle | **RE-OPEN** 26-11 | 58 |
+| G-76 | Sixteen speed rungs | Swap them for kept materials now, ahead of the lining work, or hold them off sale. They cost 5.25M and never pay back. MEASURED: the swap is an identity for the hunt | Wait for the planned wave | Pulls 26-2 forward | 58, 46 |
+| G-77 | Seeds from monsters | A sample of two with the Morrow Hills, each growing a drink on the existing ladder | Shop seeds only | New | 58 |
+
+### 8.9 Features
+
+| Id | The call | Recommendation, and why | Strongest alternative | Ruling | From |
+|---|---|---|---|---|---|
+| G-78 | Tamsin's tally | The task for the ground a hero enters is taken on entry with no press. 3,251 wolves were killed that she would have paid for | Merge the tally, the Bestiary and titles into one kill ladder | New | 59 |
+| G-79 | The Path and the population gate | One table says what opens every system: a Level, a first event or enough active accounts. The Town menu, the coach, What next and the Book all read it. Every dark system stays shut until a stranger stays twenty hours | Keep the coach deck and only hide Town lines by Level | New | 59, 46 |
+| G-80 | The company as one thing | One Start, one after-hunt plan and one return card for an account's heroes. A job queue (fish, then cook, then hunt). 99 of 249 hunts ended because the player's own other hero left | Hero by hero as today | New | 46, 59 |
+| G-81 | Next ground when outgrown | Allow it as a one-step "when the hunt ends" choice, Normal only. The player chose it and stamina still ends the day | The away card says "outgrown 5 hours ago" and offers the next ground in one press | Reads "no hunt starts by itself" | 59 |
+| G-82 | One Great Hearth | Town Works, the Hearthrise event and flame powders become one Hearth the whole server feeds. Inner Flame stays a hero's skill and pays in Kindlings. HYPOTHESIS that one is more fun than its parts | Keep the parts as built | Re-shapes 24-7 and 24-10 | 46, 59, 56 |
+| G-83 | No dailies | Rule that Hearthrise has no daily quests, login calendar or season pass. The visit, the stamina bar, the weekly turn and the monthly project are the beats. Weekly orders are not covered and stay on the plan | Judge each proposal as it comes | Extends 10-22 | 59 |
+| G-84 | Small presses | The Premium daily claim is granted on the first visit with no press. Setups, action sets and presets become one noun, remembered a ground. A Week card compares your week with your last | Leave them | New | 59 |
+
+### 8.10 Architecture
+
+| Id | The call | Recommendation, and why | Strongest alternative | Ruling | From |
+|---|---|---|---|---|---|
+| G-85 | The 0.2.144 formula steps | Go: V1 to V5, R1 to R5, R7, the floor half of R6 and the fold of R8. Each moves no number, fixes a bug or builds a ruling. R7 (a tier's dial applied once) is a correctness fix: nobody meant a Level 8 monster to count as Level 21 | Hold all formula work until after the beta | Builds 11-20 (the Tower heat) and 24-8 (the yard fee) | 44 |
+| G-86 | The later engine steps | One amount pipeline rounded once with a trace a blow (R19), one modifier table (R20), every monster on the formula (R21). R19 is the engine's inner loop and rides a combat batch | Leave the nine floors in a row | New | 44 |
+| G-87 | Drops and sales | Drops are authored in hours with the chance derived (R18). One sale formula that works at tier 8 (R17) | About 300 typed chances | New | 44, 43 |
+| G-88 | The gate | A matrix diff is the release gate for every balance change. It gains a band for XP after deaths, band rows on the ground axis, pair cells and the four lineups Deadly must turn red. The registers are guarded in CI | Review by eye | New | 44, 52, 53, 56 |
+
+### 8.11 Call counts
+
+| Group | Calls | Ids | Re-open a ruling |
+|---|---|---|---|
+| The ten that matter most | 10 | G-1 to G-10 | 5 (G-2, G-4, G-8, G-9, and G-10 in part) |
+| Combat | 16 | G-11 to G-26 | 1 (G-18) |
+| World | 11 | G-27 to G-37 | 2 (G-27, G-28) |
+| Items and crafting | 12 | G-38 to G-49 | 1 (G-39) |
+| Economy | 11 | G-50 to G-60 | 4 (G-53, G-54, G-55, G-56) |
+| Progression | 7 | G-61 to G-67 | 1 (G-61) |
+| Social | 5 | G-68 to G-72 | 0 |
+| Home | 5 | G-73 to G-77 | 1 (G-75) |
+| Features | 7 | G-78 to G-84 | 0 |
+| Architecture | 4 | G-85 to G-88 | 0 |
+| **All** | **88** | | **15** |
+
+**Re-opens that a review or audit asked for and I do not recommend.** Salvage by default (G-46). Seven spells in place of sixteen (G-16). Dropping curing (G-47). The Catacombs as a Tower wing (G-36). Plus skill as a percent of the blow (G-26). Party XP by size only (G-3). Removing the party-ground formula (G-5). Folding chest reforging into Tempering (G-49). Factions with no power (G-71). A death cap (G-7). Respacing the rune tiers (G-45).
+
+---
+
+## 9. Evidence and hypotheses
+
+### 9.1 What is measured
+
+Played on the real engine tonight, through the matrix's diff or a lane's own run on the matrix's exports.
+
+| Finding | Sample | Lane |
+|---|---|---|
+| Lineups on Deadly: the hammer front, no healer, three and four mages | 1 to 2 seeds, 1 hour a cell, Levels 30, 60, 110 | 52, 57 |
+| The weakness repair, the crossbow's stat line, Magic's mana, strikes reading weakness | 207 cells, same dice | 52 |
+| The party-ground formula removed. Dangerous on Normal's pack and on five. A signature at double dose | 422 cells on the ground axis, 1 seed, 1 hour | 53 |
+| Perks at five times. Accessories at tier 7 numbers. The wait for Dawnsteel | the matrix subset | 54 |
+| The heal line. Full-effect supplies. Gold in at 0.85 | 207 cells | 55 |
+| The Level law. The death share halved. The rested bank off. XP after deaths by tier | 207 cells, and the 31 checkpoint grid | 56 |
+| Same-style fours. The size row both ways. A low hero behind a high party | 1 to 2 seeds | 57 |
+| The bench rung swap as an identity. Home supplies worth +6 to +10% to a party | the matrix subset | 58 |
+| The low-health reading against deaths | 207 cells, 9 with a death | 59 |
+| Pace holds from Level 200 to 5,000 on a gear curve. Skill at 261 extra levels is 56% less damage taken | the real engine, stand-in gear | 42 |
+
+### 9.2 What is computed, not played
+
+The server-cost path (645, 180, 147 against 60), from production means at 3.3 hours stretched to 12. The death cost table. The runway days. The Tempering table under 23-2. The yard fee against gold in. The dummy's payback. The band positions on the gear curve. Every number past Level 185, where gear and grounds are stand-ins.
+
+### 9.3 What rests on real players, and how thin it is
+
+Four people played 1,334 hours. Two were heavy and are friends of yours. Two were light and left at Levels 7 to 9, in opposite ways, and one of them had two heroes. Every sentence in this document that says "nobody" or "zero uses" is true of four people. The quit point, the unused market, the sold gear and the unused social systems are real counts and thin samples. No lone, pair or three hours exist on the current rules at all.
+
+### 9.4 What is a hypothesis
+
+Everything about fun. Named in full in section 7.3. The largest are: that a pair holds a stranger, that players keep and trade a named piece, that on-call heroes are used, that an old ground at your Level feels like content, that Kindlings are a build, that a signature changes what a player brings, and that standing orders fill. Three content proposals are hypotheses with nothing to measure yet because the rows are paper: the seven spells, the fists and the cast breaker.
+
+### 9.5 Calibration caveats
+
+1. The matrix's four kills 1,386 an hour on Krell's Deadly against the real 1,251. A four's pace reads about 11% fast.
+2. The harness tank takes 96% of the damage against 69% real, and the healer 0.5% against 28.5%. The back row is safer than in real play. No shooter, signature or party survival number is trustworthy.
+3. The harness party's store bill is 1.9 times real. Every party gold number is a lower bound on what a real party keeps, and every lone harder-tier loss is overstated.
+4. Past Level 185 the harness plays heroes with skills the game cannot give. Those cells are too kind.
+5. A dead harness hero stands up at once, so a death count on a failing cell is a retry count.
+6. Most measurements are one seed and one hour a cell. Deaths are rare events and are under-sampled. Read every number as direction and size. The most important thin number is whether a lone hero really holds Dangerous.
+7. The matrix cannot see a death's cost, town hours, loot routing, a pair, a three, or any system that is not built.
+8. `51-baseline.md` and `48-platform-cost.md` had not landed. Sections 4.5 and 7.2 and call G-1 are PENDING.
+
+### 9.6 What this lane did and did not do
+
+Read: briefs 45 and 40 in full. 46 in full. 44 sections 1 and 5 to 9. 47 sections 1, 3, 4, the order and 6. 50 sections 0, 2, 10.4 and 11. For each of 52 to 59: the summary, the rationalization table, the missing opportunities, the priority list, the calls and the phase B section. The rulings of record for the superseded list, the open conflicts and the slot rulings.
+
+Not read in full: 41, 42 and 43 (taken through 44, which is their dedupe), the interaction-trace and eight-criteria sections of the reviews, and `itemization-plan.md` (taken through 47). No number here was re-measured. Every one is a lane's own, with that lane's label. I played no hunt for this document, because the Game Director's blind hour (46 section 0) and the eight phase B runs are the play it rests on. The counts in section 1.8 are each review's own and were not re-counted row by row.
+
+No game code, data, migration, guard or test was changed.

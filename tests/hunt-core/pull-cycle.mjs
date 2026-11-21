@@ -87,6 +87,61 @@ const cases = {
     M.hunt['pull-cycle'].respawnPacks(inst, sc2(M, 1, 8900));
     return w.packs[1].alive ? 'a pack came back before its respawn time' : null;
   },
+  /* NOTHING STRANDS THE PULL CYCLE (lane/a-no-fight-strong-four: the balance matrix's strong four ended "No hits landed", no death, every seed).
+     Both cases play the world through world-step's stepSwing, the swing the server's settle runs for every hunt, viewed or not.
+     (1) A pack due back while the party walks over its tiles waits for it to walk on. The Muster Barrows on Deadly, a full box of eight: the
+     Long Barrows came back round the leader walking home from Hask, ringed him (a wall at his back), and only the route's pocket is ever
+     pulled, so he stood until the no-fight end. The route's OWN pocket never waits (no wait may hold the party up): round its leader it
+     is pulled where it stands. */
+  'pack-waits-for-a-party-passing-through': (M) => {
+    const g = M.grounds.HUNT_GROUNDS.muster_barrows;
+    const { grid } = M.hg.huntGroundOf(g.hunt);
+    const p = 3; const pull = g.pockets[p].pull;
+    const play = (routeIdx) => {
+      const w = M.hs.newHuntWorld(g, grid, [Object.assign({ role: 'tank' }, strong)], { density: 8 });
+      const k = w.units[0];
+      w.units = w.units.filter((u) => u.side !== 'mon' || u.pocket !== p);
+      Object.assign(w.packs[p], { alive: false, respawnAtMs: 0 });
+      /* the leader on the ring's north tile, the route on `routeIdx` */
+      Object.assign(k, { x: pull[0], y: pull[1] - 1, fx: pull[0], fy: pull[1] - 1 });
+      w.routeIdx = routeIdx;
+      const evs = [];
+      for (let s = 0; s < 40 && !evs.some((e) => e.type === 'pull'); s++) {
+        evs.push(...M.worldstep.stepSwing(w, { ground: g, grid, swingMs: 2000, atMs: s * 2000, rng: M.rng.createRng(M.rng.hashSeed('pass', s)) }).events);
+      }
+      return evs;
+    };
+    const through = play(0);
+    const first = through.find((e) => e.type === 'pull');
+    if (!first) return 'the Long Barrows came back round a leader passing through and he never pulled again in 80 s';
+    if (first.pocket !== 0) return 'the leader passing through pulled pocket ' + first.pocket + ', not the route\'s pocket 0';
+    if (!through.some((e) => e.type === 'respawn' && e.pocket === p && e.atMs < first.atMs)) return 'the Long Barrows never came back once the leader had walked on';
+    const own = play(p);
+    const back = own.find((e) => e.type === 'respawn' && e.pocket === p);
+    if (!back || back.atMs !== 0) return 'the route\'s own pocket waited for its leader to step off (it must come back on time: ' + JSON.stringify(back) + ')';
+    const pulled = own.find((e) => e.type === 'pull');
+    return pulled && pulled.pocket === p ? null : 'ringed by the route\'s own pocket the leader never pulled it (' + JSON.stringify(pulled) + ')';
+  },
+  /* (2) A straggler whose target walked out still falls. A member whose hunt ends leaves at its boundary (hunt-spawn.js leaveHero, the settle's
+     call) and every monster on it loses its target; a death stops the swing first, so the fight's turn onto the party never ran. Idle, no
+     hero could pick it and the pocket never cleared: on Wyvern Roost the Ledge Wyverns shooting the hero who fell stood untouched, and
+     the other three stood until the no-fight end. Here a rat on the ranger (a shooter's aim or a peel puts one there) when it walks out. */
+  'a-straggler-whose-target-walked-out-still-falls': (M) => {
+    const inst = partyWorld(M, [Object.assign({ role: 'tank' }, strong), { role: 'ranger', maxHit: 0 }]);
+    const w = inst.world;
+    if (!firstPull(M, inst)) return 'no pull in 40 s';
+    const r = w.units.find((u) => u.side === 'hero' && u.role === 'ranger');
+    const straggler = w.units.find((u) => u.side === 'mon' && u.pocket === 0 && u.alive);
+    if (!r || !straggler) return 'fixture: no ranger or no monster standing at the pull';
+    straggler.target = r.id;
+    M.hs.leaveHero(w, r.id);
+    if (straggler.target !== null) return 'fixture: leaveHero no longer drops a target on the hero who left';
+    for (let s = 0; s < 30; s++) {
+      M.worldstep.stepSwing(w, { ground: inst.ground, grid: inst.grid, swingMs: 2000, atMs: 100000 + s * 2000, rng: M.rng.createRng(M.rng.hashSeed('out', s)) });
+      if (!straggler.alive) return null;
+    }
+    return 'a monster whose target walked out stood idle for 60 s (target ' + straggler.target + ', pack ' + JSON.stringify(w.packs[0]) + ')';
+  },
   /* EVERY PACK DOWN, THE LEADER WALKS ON (report #69, v0.2.63: two L45s at Wickstead stood ~7 s on the cleared
      bottom-right pocket, then walked 10 s to a pack already back; a lone knight in the Cellar stood 18 s a lap). With
      every pack down and the route on pocket 1, the leader leaves the pocket it cleared and waits inside pocket 1's area,
@@ -314,6 +369,12 @@ const mutants = [
   { name: 'the waiting leader walks onto the spawn', case: 'all-down-walks-on',
     edits: [[P, '  if (cheb(k, at) <= reach && inArea(inst, p, k.x, k.y)) { if (k.goal) clearGoal(k); return; }\n', '']] },
   { name: 'a pack respawns mid-fight', case: 'pack-not-respawn-mid-fight', edits: [[P, '    if (w.phase === PHASE.FIGHT && pocketNow(inst) === p) continue;\n', '']] },
+  { name: 'a pack comes back round a party passing through (the Muster Barrows four)', case: 'pack-waits-for-a-party-passing-through',
+    edits: [[P, '    if (pocketNow(inst) !== p && heroAtPack(inst, p)) continue;\n', '']] },
+  { name: 'the route\'s own pocket waits for its leader too', case: 'pack-waits-for-a-party-passing-through',
+    edits: [[P, '    if (pocketNow(inst) !== p && heroAtPack(inst, p)) continue;\n', '    if (heroAtPack(inst, p)) continue;\n']] },
+  { name: 'a monster whose target walked out stays idle (Wyvern Roost)', case: 'a-straggler-whose-target-walked-out-still-falls',
+    edits: [['src/core/hunt/targeting.js', "    if (Number.isInteger(m.target) || !(inst.world.packs[m.pocket] && inst.world.packs[m.pocket].aggro)) continue;\n", '    continue;\n']] },
   { name: 'a spawn ignores who stands there', case: 'spawn-free-tile',
     edits: [[P, '  const taken = (x, y) => inst.occ.mon.has(tileKey(inst.grid, x, y)) || inst.occ.hero.has(tileKey(inst.grid, x, y)) || !inArea(inst, p, x, y);', '  const taken = (x, y) => !inArea(inst, p, x, y);']] },
   { name: 'regroup ignores the stragglers', case: 'regroup-waits-for-all',

@@ -1713,6 +1713,11 @@ jobs:
         run: |
           node tests/balance-guard.mjs
           node tools/mutant-gate.mjs node tests/balance-guard.mjs --selftest
+      # tools/balance-program/arrival-kit.mjs
+      - name: The arrival-kit run scales only jewelry numbers, moves only the arrival offset, and reads LOW over MID by stretch
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tools/balance-program/arrival-kit.mjs --selftest
       # tools/balance-program/balance-matrix.mjs
       - name: The balance matrix's diff sees a planted attack and monster patch, an empty patch plays as the tree, and its flags bite
         if: ${{ !cancelled() }}
@@ -1758,6 +1763,11 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tools/mutant-gate.mjs node tools/balance-program/sources.mjs --selftest
+      # tools/balance-program/start-cards.mjs
+      - name: Check C1 reads the weapon cards' band on planted lives (Good alone, Slow alone, a death, a loss)
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tools/balance-program/start-cards.mjs --selftest
       # ── END SELF-REGISTERED GUARDS ──
 
   # db-replay-15: the last steps of db-replay-7, from "Party flow" on, split out 2026-11-18 (lane/ci-speed). db-replay-7 took up to 44.5 min

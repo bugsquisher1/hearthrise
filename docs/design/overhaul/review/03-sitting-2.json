@@ -71,22 +71,22 @@
     {
       "id": "S-11",
       "title": "Which four is the Level table's clock",
-      "question": "You ruled the Level table as the clock of a four on the hardest tier it holds. At the sitting you ruled that Deadly is a tier you watch or gamble on, and that idle players mostly use Dangerous (S-6). The law is now fitted at your ruled points, so whichever four is the clock lands on your table: Level 100 at 600 hunted hours and Level 400 on day 382. MEASURED on run 44931089433: the four on Dangerous reads 1.263 times the pace contract and a four on Deadly that never dies reads 1.579. Which four is the clock?",
+      "question": "You ruled the Level table as the clock of a four on the hardest tier it holds. At the sitting you ruled that Deadly is a tier you watch or gamble on, and that idle players mostly use Dangerous (S-6). The law is now fitted at your ruled points, so whichever four is the clock lands on your table: Level 100 at 600 hunted hours and Level 400 on day 382. MEASURED on run 44948522187: the four on Dangerous reads 1.261 times the pace contract and a four on Deadly that never dies reads 1.741. Which four is the clock?",
       "options": [
         {
           "key": "a",
           "label": "The Dangerous four",
-          "text": "The table is timed on a mid-geared four on Dangerous, the tier an idle four keeps. That four lands on your table. COMPUTED on the ratio of the two readings, 1.579 over 1.263, which is 1.25: a four that farms Deadly safely is about 25% ahead, reaching Level 100 at about 480 hours and Level 400 on about day 305, so the next region must be ready sooner. Chapter 12 found that a single Level can sit some points off that ratio. Cost: the fastest safe four outruns the content plan."
+          "text": "The table is timed on a mid-geared four on Dangerous, the tier an idle four keeps. That four lands on your table. COMPUTED on the ratio of the two readings, 1.741 over 1.261, which is 1.38: a four that farms Deadly safely is about 38% ahead, reaching Level 100 at about 435 hours and Level 400 on about day 277, so the next region must be ready sooner. Chapter 12 found that a single Level can sit some points off that ratio. Cost: the fastest safe four outruns the content plan."
         },
         {
           "key": "b",
           "label": "The Deadly four",
-          "text": "The table is timed on a mid-geared four on Deadly that never dies. That four lands on your table. COMPUTED on the same ratio: the four on Dangerous, which most idle players will be, needs about 25% longer for every Level, reaching Level 100 at about 750 hours and Level 400 on about day 477. A watched four that dies on Deadly is behind the table too. Cost: almost nobody is on the clock, and the content runway is planned for a pace few players hold."
+          "text": "The table is timed on a mid-geared four on Deadly that never dies. That four lands on your table. COMPUTED on the same ratio: the four on Dangerous, which most idle players will be, needs about 38% longer for every Level, reaching Level 100 at about 828 hours and Level 400 on about day 527. A watched four that dies on Deadly is behind the table too. Cost: almost nobody is on the clock, and the content runway is planned for a pace few players hold."
         },
         {
           "key": "c",
           "label": "Dangerous now, look again",
-          "text": "Build a, then read the seat again from the playtest's real XP an hour for the fours players run, before Early Access. MEASURED on run 44920906999: the tool's four reads 1.26 times the kills of the one real four on the proposed game, so the real seat may differ. Cost: the same as a for now, and if the seat moves later every live hero's Level moves with it, told in the changelog as you ruled on 2026-11-09. JUDGMENT."
+          "text": "Build a, then read the seat again from the playtest's real XP an hour for the fours players run, before Early Access. MEASURED on run 44948522187: the tool's four reads 1.26 times the kills of the one real four on the proposed game, so the real seat may differ. Cost: the same as a for now, and if the seat moves later every live hero's Level moves with it, told in the changelog as you ruled on 2026-11-09. JUDGMENT."
         }
       ],
       "heldUntil": "Until the matrix lane replays the full matrix, the death sample at 2.5 and the lineup cells on the engine fixed at 02364f03a (audit A-0). The readings in the options were taken before that fix and are re-issued with the new run id before this is answered."
@@ -99,12 +99,12 @@
         {
           "key": "a",
           "label": "The count on arrival",
-          "text": "The ruled counts describe a four that has just arrived in a band. Each ground becomes a ladder: Dangerous on arrival, Deadly once the four grows past the edge, then the next ground. MEASURED on runs 44925664434 and 44928035806, 4 seeds of 8 hours on 14 grounds: all Deadly cells together read 41 deaths in 1,000 hours and all Dangerous cells 4. Cost: for the upper part of each band Deadly is safe XP for a mid four, worth 20 to 29% over Dangerous (MEASURED, run 44920906999), and Dangerous rarely kills a mid four inside its band from about Level 10."
+          "text": "The ruled counts describe a four that has just arrived in a band. Each ground becomes a ladder: Dangerous on arrival, Deadly once the four grows past the edge, then the next ground. MEASURED on run 44948522187, 4 seeds of 8 hours on 14 grounds: all Deadly cells together read 44 deaths in 1,000 hours and all Dangerous cells 5. Cost: for the upper part of each band Deadly is safe XP for a mid four, worth 20 to 29% over Dangerous (MEASURED, run 44948522187), and Dangerous rarely kills a mid four inside its band from about Level 10."
         },
         {
           "key": "b",
           "label": "Dangerous hits harder",
-          "text": "Raise Dangerous's blows over Deadly's until its deaths read 10 to 30. MEASURED on run 44925664434: at 3.0 times Normal the pool read 29, seven band floors went over the red line, and on two grounds Dangerous killed more than Deadly (the Coppercap Warrens, 657 deaths in 1,000 hours against 138). Cost: the tiers turn upside down on grounds with shooters, because a back hero dies to the size of one blow and not to the pull."
+          "text": "Raise Dangerous's blows over Deadly's until its deaths read 10 to 30. MEASURED on run 44925664434, before the engine fix: at 3.0 times Normal the pool read 29, seven band floors went over the red line, and on two grounds Dangerous killed more than Deadly (the Coppercap Warrens, 657 deaths in 1,000 hours against 138). On the fixed engine Deadly reads 90 there (run 44948522187). The 3.0 point was not played again. Cost: the tiers turn upside down on grounds with shooters, because a back hero dies to the size of one blow and not to the pull."
         },
         {
           "key": "c",
@@ -117,22 +117,22 @@
     {
       "id": "S-14",
       "title": "When one of your own four falls",
-      "question": "On 2026-11-21 you set the default for an account's own heroes: when one falls, the rest hunt on. The balance pass measured that when the front hero fell, the other three died in the same hunt every time. Which default?",
+      "question": "On 2026-11-21 you set the default for an account's own heroes: when one falls, the rest hunt on. The balance pass measured that when the front hero fell, the other three died in the same hunt 121 times in 129 (run 44948522187). Which default?",
       "options": [
         {
           "key": "a",
           "label": "The rest hunt on",
-          "text": "Your ruling stands. MEASURED on runs 44925664434 and 44928035806: a front death became four deaths in every sampled wipe, so a wipe costs four death penalties, each 6% of that hero's Level XP before Blessings. The hunting time lost is the same either way. A player can still choose all come home as one plan line."
+          "text": "Your ruling stands. MEASURED on run 44948522187: a front death became four deaths in 121 of 129 sampled hunts, so a wipe costs four death penalties, each 6% of that hero's Level XP before Blessings. The hunting time lost is the same either way. A player can still choose all come home as one plan line."
         },
         {
           "key": "b",
           "label": "All come home",
-          "text": "For an account's own four the default is that all come home when one falls. MEASURED on the same runs: a front death cost one death in every sampled wipe. COMPUTED: the XP cost of Deadly falls by about three quarters. It reverses your 2026-11-21 amendment. A player can still choose the rest hunt on."
+          "text": "For an account's own four the default is that all come home when one falls. MEASURED on the same run: a front death cost one death in every sampled wipe. COMPUTED: the XP cost of Deadly falls by about three quarters. It reverses your 2026-11-21 amendment. A player can still choose the rest hunt on."
         },
         {
           "key": "c",
           "label": "Home when the front falls",
-          "text": "The default reads the seat. If the hero in front falls, all come home. If a back hero falls, the rest hunt on. MEASURED on the same runs: the one other kind of death in the sample was the bow on Wyvern Roost, killed alone by shooters. Cost: a rule keyed on a seat, one more line to explain, and a special rule that the formula brief asks you to approve. JUDGMENT."
+          "text": "The default reads the seat. If the hero in front falls, all come home. If a back hero falls, the rest hunt on. MEASURED on run 44948522187, on the fixed engine: a back hero was killed alone 5 times (the bow on Wyvern Roost 3 times, the mage there once, a bow on Wickstead once), and 11 other wipes started with a back hero. Cost: a rule keyed on a seat, one more line to explain, and a special rule that the formula brief asks you to approve. JUDGMENT."
         }
       ],
       "heldUntil": "Until the matrix lane replays the full matrix, the death sample at 2.5 and the lineup cells on the engine fixed at 02364f03a (audit A-0). The readings in the options were taken before that fix and are re-issued with the new run id before this is answered."

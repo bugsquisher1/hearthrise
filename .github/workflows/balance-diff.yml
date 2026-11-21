@@ -13,7 +13,10 @@
 # Run it:   gh workflow run balance-diff.yml --ref <branch> \
 #             -f patch=tools/balance-program/patches/bp-tiers-2500.json \
 #             -f base=proposed -f seeds=4 -f hours=8 -f levels=60,110,185 -f blocks=four,tier
-#           (GitHub dispatches only a workflow the default branch holds)
+#           the death sample itself: -f run=deaths (matrix-plan.mjs RUNS.deaths, its own 4 seeds x 8 h)
+#           (GitHub dispatches only a workflow the default branch holds: until main holds
+#           this file, the death sample plays on a balance-full/** push, balance-matrix-full.yml)
+#           A cell that ended no_fight is a TOOL RED (audit A-0): the run fails, the artifact uploads.
 # Read:     gh run download <id> --dir <dir>  (balance-diff.json, balance-diff.txt)
 # ============================================================================
 name: balance-diff
@@ -21,6 +24,10 @@ name: balance-diff
 on:
   workflow_dispatch:
     inputs:
+      run:
+        description: 'subset (the representative subset) or deaths (the death sample: seeds and hours below then default to its own 4 x 8)'
+        required: true
+        default: 'subset'
       patch:
         description: 'a patch file in the repo (tools/balance-program/patches/...), or none to play the base alone'
         required: true
@@ -58,6 +65,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 300
     env:
+      RUN: ${{ github.event.inputs.run }}
       PATCH: ${{ github.event.inputs.patch }}
       BASE: ${{ github.event.inputs.base }}
       SEEDS: ${{ github.event.inputs.seeds }}
@@ -73,6 +81,7 @@ jobs:
           node-version: '20'
       - name: Check the inputs
         run: |
+          case "$RUN" in subset|deaths) ;; *) echo "run is subset or deaths, not $RUN"; exit 2 ;; esac
           case "$BASE" in proposed|today) ;; *) echo "base is proposed or today, not $BASE"; exit 2 ;; esac
           [[ "$SEEDS" =~ ^[1-9][0-9]?$ ]] || { echo "seeds is 1 to 99"; exit 2; }
           [[ "$HOURS" =~ ^[0-9]+(\.[0-9]+)?$ ]] || { echo "hours is a number"; exit 2; }
@@ -80,8 +89,10 @@ jobs:
           [[ -z "$BLOCKS" || "$BLOCKS" =~ ^[a-z]+(,[a-z]+)*$ ]] || { echo "blocks is a comma-separated list of block ids"; exit 2; }
           [[ "$PATCH" == "none" || ( "$PATCH" =~ ^tools/balance-program/patches/[A-Za-z0-9._-]+\.json$ && -f "$PATCH" ) ]] || { echo "patch is none or a file under tools/balance-program/patches/"; exit 2; }
       - name: Play
+        shell: bash
         run: |
-          set -- --subset --base "$BASE" --seeds "$SEEDS" --hours "$HOURS" --workers 4 --json balance-diff.json
+          set -- --run "$RUN" --base "$BASE" --workers 4 --json balance-diff.json
+          if [ "$RUN" = subset ] || [ "$SEEDS" != 2 ] || [ "$HOURS" != 1 ]; then set -- "$@" --seeds "$SEEDS" --hours "$HOURS"; fi
           [ -n "$LEVELS" ] && set -- "$@" --only "$LEVELS"
           [ -n "$BLOCKS" ] && set -- "$@" --blocks "$BLOCKS"
           if [ "$PATCH" = "none" ]; then

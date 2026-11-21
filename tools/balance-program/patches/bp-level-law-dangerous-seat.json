@@ -1,63 +1,41 @@
 {
  "schema": "hearthrise.balance-patch/1",
- "name": "Balance pass: the Level law timed on the MID four on Dangerous (seat multiple 1.263, the default 1.579)",
- "why": "R13 times the XP a Level costs on the MID four on the hardest tier it holds with no death (1.579). The sitting ruled Deadly a tier you watch or gamble on and Dangerous the idle tier (S-6), so the four that is left alone hunts Dangerous. Its multiple, FITTED at the ruled points 25, 50, 100, 200, 300 on its XP after deaths, is 1.263 (MEASURED on the proposed game without R13, 2 seeds of 1 hour; 12-balance-pass.md 3.5, item 1 of section 7 waits on Tyler). Layer: coefficient. Written by proposals.mjs --derive",
+ "name": "The Level law timed on the MID four on Dangerous (seat multiple 1.327, R13's default 1.741)",
+ "why": "S-11 (RULED 2026-11-21, c): the Level table is the clock of the MID four on Dangerous after its deaths, read again before Early Access from real XP and the calibrated simulator. The multiple is fitted on the sample P1 grades: the full matrix (44948522187), the pace seat's hours to Levels 100, 200, 300, 400 against the ruled 600, 1680, 3120, 4580 hours, least squares on the logs. Layer: coefficient. Written by proposals.mjs --fit-seat",
  "kind": "coefficient",
  "targets": [
   "P1",
   "P12"
  ],
  "measuredOn": {
-  "proposals": [
-   "GR-4",
-   "GR-5",
-   "GR-5b",
-   "GR-7",
-   "GR-14",
-   "GR-22",
-   "GR-27",
-   "GR-38",
-   "GR-52",
-   "GR-63",
-   "GR-76",
-   "R7",
-   "TAL",
-   "S-4",
-   "S-10"
-  ],
-  "seat": "mid four, Dangerous, after deaths",
-  "points": [
+  "run": "44948522187",
+  "cells": "the full matrix, the MID four on Dangerous at every checkpoint to 400",
+  "seat": "mid:4:dangerous",
+  "from": 1.261,
+  "readings": [
    [
-    10,
-    1.788
+    100,
+    0.901
    ],
    [
-    30,
-    0.936
+    200,
+    0.99
    ],
    [
-    60,
-    1.861
-   ],
-   [
-    110,
-    1.075
-   ],
-   [
-    185,
-    1.13
+    300,
+    1.02
    ],
    [
     400,
-    1.231
+    1.099
    ]
   ]
  },
  "edits": [
   {
    "file": "src/core/xp.js",
-   "from": "m: 1.579, from: 10 };",
-   "to": "m: 1.263, from: 10 };"
+   "from": "m: 1.741, from: 10 };",
+   "to": "m: 1.327, from: 10 };"
   }
  ]
 }

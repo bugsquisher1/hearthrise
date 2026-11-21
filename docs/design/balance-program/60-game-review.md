@@ -4,11 +4,13 @@ Lane `lane/d-game-review` (game designer, 2026-11-21), on `set/v0.2.144`. The br
 
 What it rests on: the formula architecture (44) and its three audits (41 to 43), the Game Director's blind read (46), the itemization fit (47), the standards and the 11-21 rulings (50), the eight design reviews with their phase B measurements (52 to 59), and the rulings of record.
 
-**Two inputs had not landed when this was written, and their sections say PENDING.** `48-platform-cost.md` (the server-cost path to 60 database-seconds) and `51-baseline.md` (the calibrated baseline). Section 4.5, section 7.2 and call GR-1 are written from what is on the set and will be re-issued when they land.
+**One input has not landed, and its sections say PENDING.** `48-platform-cost.md` (the server-cost path to 60 database-seconds) is still running. Section 4.5 and call GR-1 are written from what is on the set and will be re-issued when it lands. `51-baseline.md` (is the measuring instrument true) has landed and section 7.2 is written from it.
 
 **Four heroes from the start. RULED 2026-11-21.** "I'm making an executive decision to just allow all 4 characters from the start. 1 premium per account, and heavy work on clan and world bosses and events moving forward with all this planning." That settles call GR-2 and replaces the slot rulings of 11-09, 11-20 and 11-21. Four things follow and are carried through this document. The slot gold sink is gone, about 5.5M of a 5.9M ladder, so the sink calls have to cover it (GR-8). The first hour has to teach up to four heroes. The balance frame is an account's own four from day 1. Premium is one for each account (plan lane L27). A build lane is implementing it.
 
 **The MMO layer study has landed: `49-mmo-layer.md`.** It recommends the Standing World, built on one rule: every shared feature works while both players are asleep. It asks you 23 calls, which carry the ids MM-1 to MM-23 in its section 6.2 order and are listed in section 8.13. The calls this document had on hold are resolved from it: GR-10a is superseded by MM-18, GR-10b by MM-19, GR-10c by MM-8 to MM-10, GR-68 by MM-9 and GR-83 by MM-11. GR-80 and GR-69 now carry a recommendation. `62-decision-book.json` is the short form of everything, for ruling.
+
+**The MMO layer's rewards are being revised. RULED 2026-11-21.** On study 49's reward model you said: "none of that is fun. People like buffs and gear that's what drives them to buy crowns and sell them for gold. Also, 2 versions of PvP arena, normalized and gear." So the MMO layer pays in buffs and gear, Crowns for gold runs through it, and there are two arenas, one on normalized stats and one on your own gear. Study 49 is being revised to match. Until it lands, this document recommends nothing on world boss pay (MM-6), what a clan gives (MM-8), or arena fairness and rewards (MM-13, MM-14). The calls that stand unchanged are rule 0 (MM-1), the forms that work while players are away (MM-2, MM-3, MM-12), events with no dailies (MM-11) and the two thirds line (MM-19).
 
 **Decisions first, then a build plan. RULED 2026-11-21.** "The MMORPG portion will be PvP arenas as well. We don't need build lanes yet. Let's get all of the decisions completed and then work on a build plan." So the MMO layer is clans, world bosses, events and PvP arenas, and study 49 covers all four. And every "Order" column, lane id and release name in this document describes order only. Nothing builds until the build plan exists. Section 8.12 maps the 34 older calls still shown as open on the Rulings page, so you never rule twice. Section 10 lists every decision still missing before a build plan can be written.
 
@@ -75,7 +77,7 @@ Three things agreement does not prove. It proves the problems, not the fixes. Th
 | # | The disagreement | Side A | Side B | Recommendation |
 |---|---|---|---|---|
 | 1 | The first hero slot | 46, 59: about 10,000 gold | RULED three times (11-09, 11-20, 11-21): 400,000. 57: keep it and let on-call heroes give the early party | **RULED 2026-11-21: all four heroes from the start, no slot prices** (GR-2). You went further than any review asked |
-| 2 | Party XP by size only | 46, 57 in phase A | 52, and 57 after it measured | **ON HOLD, PENDING 49.** What is known: on the uncalibrated harness, four mages are the best four on a size-only table (GR-3) |
+| 2 | Party XP by size only | 46, 57 in phase A | 52, and 57 after it measured | **Settled by your ruling on GR-67: no solo or group balance targets.** The one party XP rule left to rule is the Level line of MM-19 |
 | 3 | Named build pieces from the Sewer on | 46 | RULED 11-20 "generous to Krell, rare after". 54 withdrew its own early-piece call on the 12 hour clock | **No re-open. Ship the three designed samples and the signature stones** (GR-40). A band before Krell lasts one to seven days |
 | 4 | Salvage by default and a token Shop price | 46, 55 in phase A | 47 (C3), and 55 after it measured | **Salvage ships as a choice, as ruled** (GR-46). MEASURED: 15% less gold in made 40 gold bands worse and none better |
 | 5 | What the market is for | 46: rare pieces and Crowns only | 55: an idle market that also routes supplies | **Both, in order.** The order book and rare pieces first, supplies through the one-tap refill second (GR-50) |
@@ -88,7 +90,7 @@ Three things agreement does not prove. It proves the problems, not the fixes. Th
 | 12 | The size of a gear band | 44: a fixed +6.5% step | 47 (C20): a tier's worth, about +24% | **A tier's worth** (GR-4). +6.5% is twenty bands from Level 110 to 400, each about a quarter of an upgrade. HYPOTHESIS until one band is played |
 | 13 | Plus skill on chest weapons | 44: make it a percent of the blow | 47 (C24): 22-2 already made both rulings hold | **Keep the flat number as ruled** (GR-26) |
 | 14 | The yard's flat rate | 44, 58: follow the skill level's cost | RULED 11-14. 56: decide past Level 300 | **Follow the curve, capped at half of hunting, with the fee following the rate** (GR-54). On a game with no skill cap a flat rate retires the yard for most of the game |
-| 15 | The hidden Level cut on party XP | 44: remove it now, as RULED 11-08 | 57: replace it in the same step | **ON HOLD, PENDING 49.** What is known, MEASURED: with no rule a Level 5 hero behind a Level 37 party earns 6 times its own pace (GR-10b) |
+| 15 | The hidden Level cut on party XP | 44: remove it now, as RULED 11-08 | 57: replace it in the same step | **One visible two thirds line** (MM-19, which supersedes GR-10b) |
 | 16 | Called boss rooms | 44: keep both doors, documented | Four reviews and 47 | **Merge** (GR-28) |
 | 17 | Curing | 46, 58 in phase A: do not build | RULED twice (11-18, 26-7) | **Build it last, as a standing order.** Do not ask a third time (GR-47) |
 | 18 | One Great Hearth | 46: merge Inner Flame, Town Works, the event and powders | 57: only if the staged-gift engine survives | **Merge the three town parts into one Hearth. Inner Flame stays a skill and pays in Kindlings** (GR-82). HYPOTHESIS |
@@ -119,9 +121,9 @@ One verdict for each system, deduped across 46 and the eight reviews, after phas
 | Weapon weakness | REDESIGN | No monster can be weak to axes or fists. Two content rows | 52 |
 | Spells: amounts, floor, weakness | REDESIGN | One floor number. A physical strike reads weapon weakness. Spells never miss or crit | 44, 52 |
 | Stances, target modes, statuses, elements | KEEP | Add one target mode, "shooters first" | 52 |
-| The party XP class table | ON HOLD, PENDING 49 | What is known: without it four mages are the best four on the uncalibrated harness | 52, 57 |
+| The party XP class table | REDESIGN | RULED 11-21: no solo or group balance targets, and party buffs make hunting together the obvious choice. The table is re-cut to that, after Deadly asks for roles | 52, 57, Tyler |
 | The solo +15% | MERGE | The first cell of the one party table. No number moves | 44, 57 |
-| The hidden Level cut on party XP | ON HOLD, PENDING 49 | You ruled it out on 11-08 and it is live. What replaces it depends on who can share a party | 57 |
+| The hidden Level cut on party XP | REDESIGN | One visible two thirds line for every party (MM-19) | 49, 57 |
 | The Tower's own party table | MERGE | The Tower and the Catacombs take the one table | 44 |
 | Combat skills: Melee, Ranged, Defense | KEEP | | 52, 56 |
 | Magic on a weapon hero | REDESIGN | Adds a little max mana for every hero. MEASURED, gate PASS | 52 |
@@ -216,9 +218,10 @@ One verdict for each system, deduped across 46 and the eight reviews, after phas
 | System | Verdict | One line | From |
 |---|---|---|---|
 | The own four | KEEP | RULED 2026-11-21. It is the party from day 1 and the frame every balance number is read on | Tyler, 57 |
-| On-call heroes, standing parties, shared supply cost | ON HOLD, PENDING 49 | Ruled 25-1 and unbuilt. With four heroes from the start, hire and on-call are part of the MMO layer study | 57, 46 |
+| On-call heroes, standing parties | REMOVE from the plan, if you rule MM-18 | Study 49: no hero is hired, lent or put on call. A party is an account's own heroes. This would replace ruling 25-1 | 49 |
+| Clans, world bosses, events, the arena, the presence strip | ADD | The Standing World of study 49. Every shared feature works while both players are asleep (MM-1 to MM-23) | 49 |
 | Live invites | MERGE | Into standing parties | 57 |
-| The live party finder, the fifth seat | ON HOLD, PENDING 49 | 0 uses among four players. Whether world bosses and events need a finder is the study's question | 57 |
+| The live party finder, the fifth seat | REMOVE | Rule 0 of study 49: nothing in the game needs two people at the screen in the same minute | 57, 49 |
 | Global chat, whispers, moderation, the rare drop broadcast | KEEP | | 57 |
 | The Local chat tab | REMOVE | Frees a connection for the clan tab | 57 |
 | Friends | REDESIGN | The on-call roster, with a friend link at sign-up | 57 |
@@ -389,7 +392,7 @@ Only the absences that more than one source found or that a measurement supports
 |---|---|---|---|---|
 | 1 | **A formula for gear past tier 7** | Levels are uncapped. Monster and hero health grow forever and weapons stop at Level 88 | MEASURED on the engine with stand-in grounds: a hero in today's gear earns 0.91 of the pace at Level 400 and 0.47 at 1,000. With a curve the pace holds from Level 200 to 5,000 | 44 |
 | 2 | **A first hour that teaches four heroes, and the company as one thing** | RULED 2026-11-21: every account has all four heroes from the start. The screen today teaches one hero on Normal. One Start, one plan and one return card are ON HOLD, PENDING 49 | EVIDENCE: 76% of hunt hours are one person's own four. 99 of 249 hunts ended because the player's own other hero left. Both from two heavy players | 46, Tyler |
-| 3 | **A reason for two real people to meet: clans, world bosses, events, heroes for hire.** ON HOLD, PENDING 49 | A multiplayer game where no hour has ever held two players, and where every account now fills its own party | EVIDENCE: 0 hours with another person in 1,334, from four people. On-call heroes are RULED and unbuilt | 57, 46, Tyler |
+| 3 | **A reason for two real people to meet** | A multiplayer game where every account fills its own party needs a shared world that works while everyone is away | Study 49 designs it: world bosses with one shared pool, clans as a shared work, a calendar of events, an arena of saved fours. Each is a HYPOTHESIS until its playtests | 49, 57, 46, Tyler |
 | 4 | **Ground that never runs out** | Uncapped Levels need an uncapped world, and the Tower already proves the formula can make one | COMPUTED: open ground ends on day 27 for a four. You ruled 120. The ruled form of this, scaled hunts, has never been open to a player | 46, 53 |
 | 5 | **A permanent build choice** (Kindlings) | Two heroes with the same weapon and gear are the same hero, and you asked on 11-18 that they not be | COMPUTED from the spell data: nothing on a bar changes after hunted hour 254 | 56, 46, 52, 47 |
 | 6 | **Blessings past the third** | A death is paid in hours on a game played mostly away, and the cost grows without limit | COMPUTED: at the death count you ruled for Deadly, Deadly pays less than Normal after deaths from Level 145 to 185 | 56 |
@@ -578,7 +581,7 @@ The world patches read 0, 0, 0 because the ground axis carries no band rows yet,
 | 4 | **The tier dial applied once (R7) with one step of the dial** | Harder tiers get a little easier on armor and Defense trains slower there. The dial may need one step up to hold the ruled lowest-health bands | 44 |
 | 5 | **Deadly as a fight (L16) before any change to the party XP table, the size row, or status pairs. The table itself waits on study 49** | MEASURED on the uncalibrated harness: until Deadly asks for a tank and a healer, every table change crowns the mage four. Hire and on-call decide whose heroes can share a party | 52, 57 |
 | 6 | **One pull number for each harder tier, measured together with L16's dial** | Six per-ground overrides become one field. Five monsters on Dangerous was read at today's dial, before the harder hit you ruled in 21-3. On Hask's Ford a four on Dangerous at five earned under a lone hero on Dangerous, which bears on the 11-16 line | 53, 61 |
-| 7 | **Whatever replaces the hidden Level cut ships in the same step that removes it. ON HOLD, PENDING 49** | MEASURED: with no rule a Level 5 behind a Level 37 party earns 6 times its pace | 57, 44 |
+| 7 | **The visible two thirds line (MM-19) ships in the same step that removes the hidden Level cut** | MEASURED: with no rule a Level 5 behind a Level 37 party earns 6 times its pace. COMPUTED in study 49: with the line it earns about 1.2 times | 57, 44, 49 |
 | 8 | **Four heroes from the start with a re-read of early income, the sinks, and the first hour** | An account now earns and works with four heroes from day 1. Early coin and town labor are about four times one hero's, the slot sink is gone, and the coach teaches one hero. The ruled fix to Levels 7 to 10 (27-2) was sized on a lone new hero and needs re-reading on a four | Tyler, 46, 59 |
 | 9 | **The idle market only after the tiers are sized on full-effect supplies** | MEASURED: full-effect supplies make a four on Deadly up to 12% faster and 30% safer. If Deadly is sized on store supplies and then the market opens, Deadly gets easier for everyone who trades | 55 |
 | 10 | **Tempering pays the difference (23-2) with R16 sized on a hero who pays the difference at every tier** | COMPUTED: otherwise a careful hero pays 0.5 to 0.9 of a band's gold at tiers 4 to 6 where you ruled 1.0 to 1.4 | 47 |
@@ -667,27 +670,30 @@ The matrix plays a patch on a scratch copy of the real engine and the real data 
 
 The representative run is Levels 10, 30, 60, 110, 185, 400, 1,000, 2,000 and 5,000, every weapon way, three gear states, lone and four, Normal and the hardest tier. Levels past 185 are projected and say so.
 
-### 7.2 What calibration must fix first. PENDING `51-baseline.md`
+### 7.2 Is the measuring instrument true
 
-A before-and-after diff is worth what the harness is worth. This is written from 44 section 6.1 and the caveats each review printed. The baseline lane's own page will replace it.
+From `51-baseline.md`, which asks only that question and carries no finding about balance. **The answer is: not yet, and it says exactly where.** Every band stays in report mode.
 
-| # | Fault | What it distorts | Done when |
-|---|---|---|---|
-| V1 | The simulator straight-lines skills past the measured career | A Level 400 hero plays with skill 198 where the curve allows about 132. Every cell from 185 up is too kind by about 24% damage taken | Skill at 400 and 1,000 is within 5% of the curve's own answer |
-| V2 | Two cell builders disagree. The grid's four killed 558 an hour at Krell's Deadly where the real four killed 1,251 | Every pace, drop-hours and gold number for a four. The matrix's own builder now reads 1,386, which is 11% high | One builder. The Krell cell within 10% of 1,251 |
-| V3 | Two tools give two death counts for the same cell, and a dead harness hero stands up at once | Every death band. A death count on a failing cell is a retry count | One death rule, the game's. The same cell and seeds give the same deaths in both files |
-| V4 | Harness seats take about 1% of the damage. The real healer takes 28% | Every party survival band and the supply bill. Shooters, signatures and "shooters first" cannot be measured at all | The tank's share within 10 points of 69% |
+| | What |
+|---|---|
+| **Fixed** | V1: heroes past Level 100 now carry the skills the game's own curve allows. V2: one writer of the rates, so the solver and the grid agree. V4: seated as the real four sits, the harness splits damage 67 to 31 between front and healer, against 69 to 75 and 25 to 28 in real play. Faults F1 to F3. A new band, S11, reads XP after deaths, so a change to the death rule can no longer pass silently. There are now 108 bands |
+| **Open** | V3 and F4: a dead harness hero stands up at once and hunts on. F5: the party's store bill reads 1.7 to 2.2 times real, because the simulated kit buys the Level's own rune tier. F6 to F13, written down for the lanes that own the files. The harness four's damage total reads about a third low. 19 of the 108 bands have no reader |
 
-Four more holes the reviews found in the instrument tonight:
+**The calibration verdict.**
 
-| Hole | Found by | The fix |
+| Seat | Verdict | What it means for a ruling |
 |---|---|---|
-| The party store bill reads 1.9 times real, because the harness buys the Level's own rune tier and real players do not (F5) | 44, 55 | The kit rule reads what real players buy. Until then no party gold number drives a price |
-| No band reads XP after deaths, so a change to the death rule passes silently | 56 | One band: a tier that a kit holds must pay more after deaths than the tier below |
-| The ground axis carries no band rows, so every world patch read 0, 0, 0 | 53 | Band rows for each ground: the ladder rule, the party-ground check, the lone hard tier |
-| No pair or three cells, and one lineup for the four | 52, 57, 59 | Pair cells. The four lineups Deadly has to turn from green to red: hammer front, no healer, three mages, four mages |
+| The four | Pace is at the edge of tolerance, about 10% slow. Gold fails on the kit's rune rule. Damage taken fails on the total | A four's pace can carry a decision. A four's gold and survival are direction only |
+| The lone hero and the pair | Cannot be calibrated. No real lone hero or pair has played the rules being measured | With no solo or group balance targets (RULED 11-21) this matters much less. No decision should rest on a lone or pair number |
 
-**What can be judged today, honestly.** A four's pace: yes, within about 5 to 11%. Identity patches: yes. A lone hero's store bill: direction. Party survival, party gold, a pair, a three, anything past Level 185: report only.
+**Two instrument calls.** Each is a measuring question, not a game design question, and neither needs a new ruling from you.
+
+| Call | Recommendation |
+|---|---|
+| **What a death does to a simulated hunt (V3, F4)** | The harness follows the game's own death rule, which is already ruled: a death ends that hero's hunt and sends it to town. A failing cell then reports the time to the first death. This follows a ruling. It is not a new one |
+| **Which rune tier the simulated kit buys (F5)** | Do not rule it alone. It is decided with the heal price and supply calls (GR-52, GR-51 and the store's supply share inside GR-50), because the kit should buy what those formulas make the sensible buy |
+
+**What the instrument still needs, in order** (51 section 8): the death rule above, the kit's rune rule, the damage total, readers for the 19 bands that have none, then a second real party to calibrate against. The matrix's three kinds of proof in 7.1 hold as written. Until the open faults close, an identity proof and a four's pace are the only results that can carry a decision without a caveat.
 
 ### 7.3 What only real players can settle
 
@@ -742,9 +748,9 @@ These are the calls behind the top 10 that carry the most weight. Section 6.1 na
 | GR-5 | Critical | **What a kill pays** | The kill reward follows the pace line with one kill-rate reference (step R12). One tier table for every ground. The per-ground tier dials and the "no bigger pulls under floor 16" rule go in the same step. Party grounds keep their encounter type with three numbers, and their XP per kill is an output of the kill reward. 53 computes it lands about a third lower. MEASURED: the party-ground formula is not the cause of the overpay. The missing kill-rate term as the cause is 44's analysis, not yet proven by a derivation run | Keep the hand fits and re-tune each ground as it reads wrong | Builds 11-07 (one tier table). New for the rest | 44, 53, 43 |
 | GR-6 | Critical | **The Level table** | From Level 50, your table of hours is the law and the XP a Level costs is derived from it. Levels 1 to 50 stay as they are, because 27-2 holds them on a lone new hero. COMPUTED: the pace seat reaches Level 100, 200 and 400 in 494, 1,574 and 4,474 hours, 106 hours ahead of your table at each. Krell is day 31 and staged content ends on day 116, four days short of 120. A lone MID hero reaches Level 100 on day 81 and Level 200 on day 211. Judge the Level 100 point with those 106 hours allowed. Smooth the 3.3 times step at Level 50 and the kink at Level 100. It ships with GR-8, after GR-5 and GR-3. Amend the proposed "a Level per day" band, because your own table needs 14.4 hours per Level from 200 to 300 | The law from Level 1, exact at every ruled point, which takes a lone new hero 9 hours to Level 10 against the ruled 6 | Builds 11-21 (calls 1 and 2). Keeps 27-2 | 44, 56 |
 | GR-7 | Critical | **Death once Deadly bites** | Keep 6% flat with no cap. After the third Blessing, a new one opens whenever a fully blessed death would cost the pace seat over five hours. Each halves what is left and is priced by the hours it saves. COMPUTED on the recommended Level law: rungs at Levels 97, 140 and 257. Add a matrix band that reads XP after deaths. This settles a conflict between two targets you ruled, the Deadly death band and 6% uncapped: at the band's high end Deadly stops paying at Level 100. At the real count of 2.2 it never does, so the ladder is not needed until the harder tiers lane makes Deadly bite. It ships in that release, sized on the long death sample. Know what it is: for a player who pays, it holds a blessed death tighter than the 12 hour cap you turned down on 11-21 | The capped death the Game Director would take | **RE-OPEN** 50-4 (11-21) in effect, and 11-10 (three Blessings). Bears on 11-16 | 56, 44, 46 |
-| GR-8 | High | **Sinks that follow the gear, and the hole the slots left** | Tempering, Hallmarks and linings each cost a share of the band's gold at your ruled 1.2 to 1.4, sized on a hero who pays only the difference at every tier. "Tempering pays the difference" (23-2) stays. COMPUTED: without the re-price a careful hero pays 0.5 to 0.9 of a band at tiers 4 to 6. **New since 11-21:** the slot ladder was about 5.5M of sink in the first weeks and it is gone. Size the share on an account of four heroes from day 1, and bring linings and the yard fee forward as the first repeating sinks, so the early game still asks a player to choose. Study 49 hands the slot gold to these calls with the clan castle as its first candidate (MM-22). I take it: the castle is a sink that grows with the clan | Typed ladders that end at tier 7, and nothing in place of the slots | **RE-OPEN** 11-18 ("Tempering stays as built") | 44, 47, 55, Tyler |
+| GR-8 | High | **Sinks that follow the gear, and the hole the slots left** | Tempering, Hallmarks and linings each cost a share of the band's gold at your ruled 1.2 to 1.4, sized on a hero who pays only the difference at every tier. "Tempering pays the difference" (23-2) stays. COMPUTED: without the re-price a careful hero pays 0.5 to 0.9 of a band at tiers 4 to 6. **New since 11-21:** the slot ladder was about 5.5M of sink in the first weeks and it is gone. Size the share on an account of four heroes from day 1, and bring linings and the yard fee forward as the first repeating sinks, so the early game still asks a player to choose. Study 49 hands the slot gold to these calls with the clan castle as its first candidate (MM-22). The castle's shape is being revised with study 49, so the first new home for gold is not named yet | Typed ladders that end at tier 7, and nothing in place of the slots | **RE-OPEN** 11-18 ("Tempering stays as built") | 44, 47, 55, Tyler |
 | GR-9 | High | **An old ground at your Level** | Switch scaled hunts on as you ruled (22-9), with one drop rule: a ground played above its band drops its own rows at its own rarity, and its lining parts still drop. Read whether players at the frontier hunt an old ground at their Level. Rule free depth against the hourly fee on that reading. The ruled system has never been open to a player, so its zero uses say nothing. Free depth on every ground stays my leading design, and the fee can go to zero later with one data row. This is the audit's recommendation and I take it | Replace scaled hunts now with free depth on every ground at the lowest hero's Level, as 46 and 53 ask | Builds 22-9 (11-20) and 11-07. Bears on 11-18 (lining parts from old grounds). 44 keeps scaled hunts with derived shares | 46, 53, 47, 61 |
-| GR-10a | High | **Playing together while away** | **SUPERSEDED BY MM-18. Rule it there.** Study 49 recommends that no hero is hired, lent or put on call, and that a party is an account's own heroes. Every account has four, so nobody needs a seat filled and nobody has a hero to lend. Players meet through the world boss, the clan, the calendar and the arena instead. I agree with it | None here | MM-18 would replace 25-1 (11-20) | 49, 57, 46 |
+| GR-10a | High | **Playing together while away** | **SUPERSEDED BY MM-18. Rule it there, once the revised study lands.** Study 49 as first issued recommends that no hero is hired, lent or put on call, and that a party is an account's own heroes. Every account has four, so nobody needs a seat filled and nobody has a hero to lend. Players meet through the world boss, the clan, the calendar and the arena instead. I agree with it | None here | MM-18 would replace 25-1 (11-20) | 49, 57, 46 |
 | GR-10b | High | **The Level cut on party XP** | **SUPERSEDED BY MM-19. Rule it there.** Study 49 recommends one visible rule for every party: a hero at two thirds of the party's top Level or more keeps its full share, and below that its share is its Level over that line. COMPUTED there: a carried hero then earns a little more than alone and never several times more. It is the same rule this document proposed | None here | MM-19 would replace the hidden cut and RE-OPEN 11-08 | 49, 57, 44 |
 | GR-10c | High | **When clans ship** | **SUPERSEDED BY MM-8, MM-9 and MM-10. Rule it there.** Study 49 puts the clan roster, chat and tag second in its order, right after the calendar, so every later shared feature has a team to credit. The castle and the clan board come later | None here | MM-9 would replace 25-4 (11-20) | 49, 57 |
 
@@ -836,7 +842,7 @@ These are the calls behind the top 10 that carry the most weight. Section 6.1 na
 
 | Id | Priority | The call | Recommendation, and why | Strongest alternative | Ruling | From |
 |---|---|---|---|---|---|---|
-| GR-68 | Defer | The clan castle | **SUPERSEDED BY MM-9. Rule it there.** Study 49 recommends the castle as one project at a time on the town project engine, sized by member count, with one-way gifts and rations. A clan gives no hero power (MM-8) | None here | MM-9 would replace 25-4 (11-20) | 49, 57, 46, 61 |
+| GR-68 | Defer | The clan castle | **SUPERSEDED BY MM-9. Rule it there.** Study 49 recommends the castle as one project at a time on the town project engine, sized by member count, with one-way gifts and rations. What a clan gives is being revised after your reward ruling (MM-8) | None here | MM-9 would replace 25-4 (11-20) | 49, 57, 46, 61 |
 | GR-69 | Remove or simplify | Three things nobody used | Remove the Local chat tab, remove the live party finder under rule 0 of study 49 (MM-1: nothing in the game needs two people at the screen in the same minute), and strike "maybe 5 later" from the rulings | Keep them dark until the game is big | **RE-OPEN** 11-11 (criers call out "in local chat"): their lines move to the town itself or to Global. Builds 25-11 | 57 |
 | GR-70 | Medium | The town | It draws heroes at work whether or not their owner is online. Waits for the platform sizing | Draw only live players | New | 57 |
 | GR-71 | Low | Factions | Keep skills that matter. A side is chosen per hero, and one press joins them all | Story and outfits only, as 46 asks | **RE-OPEN** 25-10 (one press joins the whole account). Keeps 31-8 | 57, 46 |
@@ -944,7 +950,7 @@ The Rulings page still shows 34 calls from the plan audit (31), the spell audit 
 
 ### 8.13 The MMO layer calls, MM-1 to MM-23
 
-From `49-mmo-layer.md` section 6.2, in its order. The ids are stable. "Split" is how the decision book files each one. The recommendation in every row is study 49's, and I agree with each unless the row says otherwise.
+From `49-mmo-layer.md` section 6.2, in its order. The ids are stable. **This table is study 49 as first issued. You have since overruled its reward model, and 17 of the 23 calls are being revised.** Only MM-1, MM-2, MM-3, MM-11, MM-12 and MM-19 stand as written. Read every other row as a record of what was proposed, not as a recommendation. In particular MM-6, MM-8, MM-13 and MM-14 carry no recommendation until the revised study lands. "Split" is how the decision book files the six that stand.
 
 | Id | The call | Recommendation | Ruling it would replace | Split |
 |---|---|---|---|---|
@@ -972,7 +978,7 @@ From `49-mmo-layer.md` section 6.2, in its order. The ids are stable. "Split" is
 | MM-22 | Where the gold for hero slots goes | To the economy calls, with the castle as first candidate | None | Needs your eye. It joins GR-8 |
 | MM-23 | The order of study 49 section 6.1 | Approve as the order for planning | None | Safe to accept. Order only |
 
-**Where study 49 and this document meet.** The world review turned a world boss down as "a schedule, the opposite of idle". Study 49's boss stands for 72 hours with no set hour, which answers that objection. MM-19 is the same Level rule the social review measured. MM-9 is the castle design the social review proposed. GR-70 (the town shows heroes at work) and MM-20 (the presence strip) are two views of the same idea and should be designed as one. One caution of mine on MM-7: a boss fought over 72 hours while you are away, at a death cost of 6% with no cap, is exactly the case the Blessing ladder of GR-7 is for, so rule MM-7 with GR-7 in view.
+**Where study 49 and this document meet.** The world review turned a world boss down as "a schedule, the opposite of idle". Study 49's boss stands for 72 hours with no set hour, which answers that objection. MM-19 is the same Level rule the social review measured. MM-9 is the castle design the social review proposed. GR-70 (the town shows heroes at work) and MM-20 (the presence strip) are two views of the same idea and should be designed as one. MM-8's "no hero power", MM-13's single normalized arena and MM-14's cosmetic rewards are the parts your ruling overturned. One caution of mine on MM-7: a boss fought over 72 hours while you are away, at a death cost of 6% with no cap, is exactly the case the Blessing ladder of GR-7 is for, so rule MM-7 with GR-7 in view.
 
 ---
 
@@ -1016,7 +1022,7 @@ Everything about fun. Named in full in section 7.3. The largest is what gives th
 5. A dead harness hero stands up at once, so a death count on a failing cell is a retry count.
 6. Most measurements are one seed and one hour per cell. Deaths are rare events and are under-sampled. Read every number as direction and size. The most important thin number is whether a lone hero really holds Dangerous.
 7. The matrix cannot see a death's cost, town hours, loot routing, a pair, a three, or any system that is not built.
-8. `51-baseline.md` and `48-platform-cost.md` had not landed. Sections 4.5 and 7.2 and call GR-1 are PENDING.
+8. `48-platform-cost.md` has not landed. Section 4.5 and call GR-1 are PENDING. `51-baseline.md` has landed: the numbers in caveats 1 to 5 are the phase B lanes' own readings, taken before its fixes. After the fixes the harness seats split damage as real ones do and skills past Level 100 follow the curve. The store bill and the instant stand-up are still open.
 9. Every number on the Level law is COMPUTED on the cached grid from measured XP rates. A curve moves no fight, so none is a measurement of the curve. Cells from Level 185 up are PROVISIONAL. Phase B played a trial power law that was withdrawn, and its matrix flags stand as directions only.
 
 ### 9.6 What this lane did and did not do
@@ -1077,7 +1083,7 @@ You ruled that every decision comes before any build lane. This is the full list
 |---|---|
 | `48-platform-cost.md` | How the away hunt is saved: a flush near 6 minutes, or a faster commit at today's pace (GR-1). Whether 60 database-seconds holds on shared cores. The lines of the bill that are not the database, re-read at 12 hours. What a town that draws heroes at work costs (GR-70). What clans, world bosses, events and arenas may cost, since nothing may grow with players times players |
 | `49-mmo-layer.md` (landed) | 23 calls, MM-1 to MM-23 (section 8.13). One measurement before the arena is final: whether the engine can run heroes on both sides of a fight |
-| `51-baseline.md` | Which bands may be judged on the harness today and which may not. The fixes to the four harness faults and the store bill. The pace seat's real multiple, which the Level law (GR-6) needs as one number |
+| `51-baseline.md` (landed) | Two instrument calls, neither a game design ruling: the harness follows the game's own death rule, and the simulated kit's rune tier is decided with the heal price and supply calls (section 7.2) |
 
 ### 10.3 What your 11-21 decisions opened
 

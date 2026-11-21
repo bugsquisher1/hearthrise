@@ -1,5 +1,13 @@
 # Art Director — running log
 
+## 2026-11-21 - FB-5's first hour, read when it landed (lane/r-art-first-hour, from set/v0.2.144 7842bc626)
+
+Read only; findings in `docs/design/overhaul/review/09-art-first-hour.md` (3 BLOCKER, 7 FIX, 9 NOTE). Lessons worth keeping:
+- **A new form row outside the old wrapper loses the look.** The party step's inputs sat outside `.auth-field`, so they drew as white browser boxes in Arial 13 px. Grep the selector that styles a control before reusing its class.
+- **A new primary id must reach every place that special-cases the old one.** The end card's onward foot keyed on `primary === 'ground'`, and FB-5's `'party'` brought back the greyed Hunt again that audit L2 had removed.
+- **A dock rule can contradict a newer ruling.** hud-room.js slides Chat aside for the hunt's card (11-15 F1), and D-1 says the game never moves Chat. Measure both before trusting a ruling's "as today".
+- **The local-world driver ages with the screens.** Its `createHero` predates the weapon pick, so drive the page yourself until it is fixed.
+
 ## 2026-11-18 - Configure action: the list gets the height (lane/b-ui-configure, from v0.2.137, UI audit #7)
 
 Tyler: the Configure action UX must be immaculate. Three named problems, today's structure and tabs kept:

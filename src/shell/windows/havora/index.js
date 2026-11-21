@@ -75,8 +75,6 @@ export function renderHavora(ctx) {
     + '<div class="hv-top"><div class="hw-tabs" role="tablist">' + TABS.map((t, i) => '<button type="button" role="tab" class="hw-tab" data-hs-act="tab" data-tab="' + esc(t.id) + '" aria-selected="' + (i === 0) + '">' + esc(t.label) + '</button>').join('') + '</div>'
     + '<span class="hv-gold"></span></div>'
     + '<section class="hw-pane hv-pane" data-pane="hearth">'
-    /* THE HEARTHRISE'S FIRE (D-7): its marks, when it lights and how big, the server's (../../hearth-fire.js) */
-    + fireHtml()
     + '<p class="hv-lead">Lights the Great Hearth for ' + whole(SINK_RULES.powder.seconds) + ' s, thrower shown to all</p>'
     + '<div class="hv-powders" role="radiogroup" aria-label="Which powder">' + offers.map((id) => '<button type="button" role="radio" class="hv-powder is-' + esc(id) + '" data-hs-act="pick" data-show="' + esc(id) + '" aria-checked="false"><i class="hv-swatch" aria-hidden="true"></i>' + esc(SHOW_FLAMES[id].label) + '</button>').join('') + '</div>'
     /* why the buy is off stands over it: under it, a phone sheet's foot lay on the line */
@@ -84,6 +82,8 @@ export function renderHavora(ctx) {
     + '<button type="button" class="hh-tool is-primary hv-buy" data-hs-act="powder"></button>'
     /* THE BURNING TOWER is the Hearth's chimney (Tyler 2026-11-14): a second door to its window, only while the server sends its section */
     + towerDoorHtml()
+    /* THE HEARTHRISE'S FIRE (D-7): its marks, when it lights and how big, the server's (../../hearth-fire.js) */
+    + fireHtml()
     + '</section>'
     + '<section class="hw-pane hv-pane" data-pane="round">'
     + '<p class="hv-lead">Fireworks over Hearth Square for ' + whole(SINK_RULES.round.seconds) + ' s, payer shown to all</p>'

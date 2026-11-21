@@ -1545,7 +1545,7 @@
 .hw-hd-near-list { margin: 2px 0 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 2px 10px; }
 .hw-hd-near-row { font-size: var(--t-micro); color: var(--ink-3); }
 .hw-hd-near-row.is-known { color: var(--ink); }
-.hv-fire { margin: 0 0 12px; padding: 0 2px 10px; border-bottom: 1px solid var(--steel-sep); }
+.hv-fire { margin: 12px 0 0; padding: 10px 2px 0; border-top: 1px solid var(--steel-sep); }
 .hv-fire-head { display: flex; align-items: center; gap: 8px; margin: 0 0 4px; font-family: var(--f-label); color: var(--ink); }
 .hv-fire-pips { display: flex; gap: 3px; }
 .hv-fire-pip { width: 10px; height: 10px; border: 1px solid var(--gold); background: var(--bg-0); }

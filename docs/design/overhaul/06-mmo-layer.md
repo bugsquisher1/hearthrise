@@ -301,8 +301,8 @@ DECIDED (MM-19, Fable 2026-11-21, reversal of the party XP rulings of 2026-11-08
 |---|---|---|
 | Global | One room for the whole server. Lines are sent in small batches on the connection the game already has, with a slow mode when crowded | RULED 2026-11-21 (31-1) |
 | Clan | One room for the clan | RULED 2026-11-20 (25-3) |
-| Party | Inside a party | DECIDED (GR-69, Fable 2026-11-21, reversal, Tyler may veto keeps it) |
-| Whispers | One to one | DECIDED (GR-69, Fable 2026-11-21, reversal, Tyler may veto keeps it) |
+| Party | Inside a party | DECIDED (GR-69 keeps it, Fable 2026-11-21) |
+| Whispers | One to one | DECIDED (GR-69 keeps it, Fable 2026-11-21) |
 | System | The world's news: rare drops (3 a hero a day), boss stages and falls, clan castle stages, town project stages, server firsts, the weekend's event | DECIDED (MM-11, Fable 2026-11-21 for the event line) |
 | Combat | The hunt's log, from server events, filterable | RULED 2026-10-16 |
 | Local | Not in the game. Hunts are instanced, so "here" is a party, which has its tab. Town crier lines speak in Global and in the town itself | DECIDED (GR-69, Fable 2026-11-21, reversal, Tyler may veto, re-opens 2026-11-11) |

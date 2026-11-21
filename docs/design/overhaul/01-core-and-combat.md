@@ -139,7 +139,7 @@ The intentional special rules in combat, each with its status.
 
 ### 2.3 Damage
 
-**A hero's Power.** DECIDED (GR-23, GR-85, Fable 2026-11-21 step R2). The largest hit is skill plus gear, added.
+**A hero's Power.** DECIDED (GR-23, GR-85, Fable 2026-11-21, step R2). The largest hit is skill plus gear, added.
 
 `Power = skillPower x (weapon skill + worn plus skill) + gearPower x weapon damage + basePower`
 

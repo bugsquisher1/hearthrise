@@ -106,7 +106,8 @@
 //   PH-27 EVERY CARD'S WORDS FIT: each tutorial card's words (three times over since the one-line cards) whole without a scroll, in the town's card, beside a sheet and under the
 //         hunt bar, up to the length each room holds (under the hunt bar the cards a hunt can show, each title on one line, its presses on a row under the words); a longer
 //         card's corner shows the gold tip until its words end; at 1440x900 no title of three words or more ends on one word
-//   PH-28 HOW YOU FIGHT: the lead and all five ways (at twice their English) whole with no scroll; a refusal keeps Enter town on screen; on a screen too short, "More below" until its end
+//   PH-28 HOW THIS HERO FIGHTS (GR-24, the six pick cards since FB-5): the lead and the first way (at twice their English) whole with no scroll,
+//        "More below" while a way is under the fold and gone at its end, every way reachable; a refusal keeps Enter town on screen
 //   PH-29 THE PARTY PANEL: alone, folded to its name and plus, and a press opens it for good; in a party, open; a desktop from 1280 px starts open with its dash (narrower: HS-28)
 //   PH-30 THE BAR'S PRESSES: the slots' page at least 36 px wide, the setup's name 36 px tall and clear of its neighbour
 //   PH-31 AFTER CREATE ACCOUNT: only the answer and the way back, no word left from the form
@@ -953,25 +954,29 @@ async function heroDoor(page, tag, fails) {
   await wait(page, () => document.querySelector('[data-app="create"]'));
   await page.click('[data-app="create"]');
   if (!(await wait(page, () => document.querySelector('.hero-confirm'), null, 5000))) { fails.push('PH-22 [' + tag + '] CONTROL: no hero creation'); return; }
+  /* an account with a hero opens the party step (hero-create.js renderCompany): One at a time is the step this door reads */
+  if (await page.$('.hero-alone')) { await page.click('.hero-alone'); await wait(page, () => document.querySelector('.hero-body'), null, 5000); }
   await page.waitForTimeout(150);
   const on = await page.evaluate(RECT + `;[document.querySelector('.hero-confirm'), document.querySelector('.hero-back')].every((e) => window.__onScreen(window.__r(e)))`);
   if (!on) fails.push('PH-22 [' + tag + '] Enter town or its way back runs off the screen');
   /* The step's box takes no height from its words, so its own height is what shows them. */
   const tall = await page.evaluate(() => Math.round(document.querySelector('.hero-body').getBoundingClientRect().height));
   if (tall < 150) fails.push('PH-22 [' + tag + '] How you fight is ' + tall + ' px tall');
-  /* PH-28: the lead and all five ways with no scroll on a phone's screen; too short for them (browser bars, a keyboard), the cue says so until the end. */
-  const how = () => page.evaluate(() => { const s = document.querySelector('.hero-body'), h = s.querySelector('.hero-how'), box = (e) => e.getBoundingClientRect(), last = box(h.querySelector('.hero-how-list li:last-child')), lead = box(s.querySelector('.hero-how-lead')), b = box(s), name = box(s.querySelector('.hero-name')), cue = h.querySelector('.hero-how-more'), c = box(cue);
-    return { ways: h.querySelectorAll('.hero-how-list li').length, over: Math.round(last.bottom - b.bottom), leadOver: Math.round(lead.bottom - b.bottom), leadOnName: lead.top < name.bottom - 0.5, leadOnWays: lead.right > box(h).left + 0.5, field: Math.round(name.width), end: s.scrollHeight - s.clientHeight, cue: !!cue.getClientRects().length && c.bottom <= b.bottom + 1 && c.top >= b.top - 1 }; });
+  /* PH-28: the lead and the first way whole with no scroll on a phone's screen; the six cards with their tags and cost lines run on, and the cue says so
+     until the end (D-1's cost line and tags made the list longer than a phone: each way is reached by scrolling the step, never hidden). */
+  const how = () => page.evaluate(() => { const s = document.querySelector('.hero-body'), h = s.querySelector('.hero-how'), box = (e) => e.getBoundingClientRect(), first = box(h.querySelector('.hero-way')), last = box(h.querySelector('.hero-way:last-of-type')), lead = box(s.querySelector('.hero-how-lead')), b = box(s), name = box(s.querySelector('.hero-name')), cue = h.querySelector('.hero-how-more'), c = box(cue);
+    return { ways: h.querySelectorAll('.hero-way').length, over: Math.round(first.bottom - b.bottom), below: Math.round(last.bottom - b.bottom), leadOver: Math.round(lead.bottom - b.bottom), leadOnName: lead.top < name.bottom - 0.5, leadOnWays: lead.right > box(h).left + 0.5, field: Math.round(name.width), end: s.scrollHeight - s.clientHeight, cue: !!cue.getClientRects().length && c.bottom <= b.bottom + 1 && c.top >= b.top - 1 }; });
   for (const vp of [SMALL_PHONES[0], SMALL_PHONES[1]]) {
     await page.setViewportSize(vp);
     await page.waitForTimeout(150);
     const f = await how();
-    if (f.ways !== 5) fails.push('PH-28 [' + tagOf(vp) + '] CONTROL: ' + f.ways + ' ways to fight');
-    if (f.over > 0) fails.push('PH-28 [' + tagOf(vp) + '] How you fight is cut: its last way ends ' + f.over + ' px below the step');
+    if (f.ways !== 6) fails.push('PH-28 [' + tagOf(vp) + '] CONTROL: ' + f.ways + ' ways to fight');
+    if (f.over > 0) fails.push('PH-28 [' + tagOf(vp) + '] How this hero fights is cut: its first way ends ' + f.over + ' px below the step');
+    if (f.below > 1 && !f.cue) fails.push('PH-28 [' + tagOf(vp) + '] a way is ' + f.below + ' px below the step with no sign of it');
     if (f.leadOver > 0) fails.push('PH-28 [' + tagOf(vp) + '] the lead is cut: it ends ' + f.leadOver + ' px below the step');
     if (f.leadOnName || f.leadOnWays) fails.push('PH-28 [' + tagOf(vp) + '] the lead lies on ' + (f.leadOnName ? 'the name' : 'the five ways'));
     if (f.field < 110) fails.push('PH-28 [' + tagOf(vp) + '] the name\'s field is ' + f.field + ' px wide');
-    if (f.cue) fails.push('PH-28 [' + tagOf(vp) + '] the step says More below with nothing below');
+    if (f.cue && f.below <= 1) fails.push('PH-28 [' + tagOf(vp) + '] the step says More below with nothing below');
     const on = await page.evaluate(() => { const r = (q) => document.querySelector(q).getBoundingClientRect(); return [r('.hero-confirm'), r('.hero-back'), r('.auth-card')].every((b) => b.top >= -0.5 && b.bottom <= innerHeight + 0.5); });
     if (!on) fails.push('PH-28 [' + tagOf(vp) + '] the card runs off the screen');
   }
@@ -2257,7 +2262,7 @@ const MUTANTS = [
   ['PH-7 the ring\'s XP grows past the disc', 'src/styles/hunt.css', '  .hb-xp { font-size-adjust: var(--f-ui-aspect); }\n', '  .hb-xp { font-size-adjust: .7; }\n'],
   ['PH-26 a wide font pans the tabs', 'src/styles/hunt.css', '  .ha-analyzer .ha-tabs .ha-tab { font-size-adjust: var(--f-ui-aspect); }\n', ''],
   ['PH-27 a wide font cuts a card', 'src/styles/shell.css', '  .hs-pointer:not(.is-min) > .hs-coach-text { font-size-adjust: var(--f-ui-aspect); }\n', ''],
-  ['PH-28 a wide font cuts How you fight', 'src/styles/app.css', '  .hero-how-lead, .hero-how-list { font-size-adjust: var(--f-ui-aspect); }\n', ''],
+  ['PH-28 a wide font cuts How you fight', 'src/styles/app.css', '  .hero-how-lead, .hero-way { font-size-adjust: var(--f-ui-aspect); }\n', ''],
   ['PH-27 the tip never goes', 'src/styles/shell.css', "  .hs-pointer:not(.is-min) > .hs-coach-text::after { content: ''; display: block; height: 1lh; margin: -1lh -14px 0 0; background: var(--bg-2); }\n", ''],
   ['PH-28 the lead stays in the column', 'src/styles/app.css', '  .hero-how-lead { position: absolute; left: 0; top: 42px; width: 200px; margin: 0; line-height: 1.3; }\n', ''],
   ['PH-28 the longer lead runs past the step', 'src/styles/app.css', '  .hero-how-lead { position: absolute; left: 0; top: 42px; width: 200px;', '  .hero-how-lead { position: absolute; left: 0; top: 66px; width: 150px;'],

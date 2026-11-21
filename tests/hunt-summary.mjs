@@ -955,13 +955,12 @@ async function runTests(M) {
     eq([shelf({ chests }), shelf({ chests: { ...chests, next: { ...chests.next, canBuild: false } }, bag: [{ id: 'normal_log', qty: 40 }] })], [null, null], 'short of logs, or the property tier not reached: nothing');
     /* THE CHEAPEST THE PURSE COVERS, across every shelf: a Tempering rung (the first shelf) loses to a cheaper deed */
     const rung = { piece: 'Steel Sword', below: false, ladder: { track: 'blows', tier: 2, rung: 0, max: 5, offer: 'temper.x', gold: 3000, items: [] }, needs: [], nowPm: 0, nextPm: 10 };
-    const all = { temper: { blows: rung, armor: null }, home: deedHome(false), bagGrow: grow, slot: { slotId: 1, cost: 400000 }, dummy: { hasHome: true, nextPrice: 100000, busy: null } };
+    const all = { temper: { blows: rung, armor: null }, home: deedHome(false), bagGrow: grow, dummy: { hasHome: true, nextPrice: 100000, busy: null } };
     eq(shelf(all).kind, 'deed', 'the cheapest of all, the deed at 400');
     eq(shelf({ ...all, home: deedHome(true) }).kind, 'bag', 'the deed owned: the bag at 1,000');
     eq(shelf({ ...all, home: deedHome(true), bagGrow: null }).kind, 'temper', 'then Tempering at 3,000');
     /* NONE COVERED: the nearest, and what it still needs (the purse's shortfall at the server's price) */
-    const slot = shelf({ slot: { slotId: 1, cost: 400000 } });
-    eq([...see(slot), slot.short], ['slot', 'Next buy: Hero slot 2 (400,000 gp)', 'Another hero for your account · Need 395,000 gp more', { kind: 'characters' }, 395000], 'a hero slot, the nearest');
+    eq(shelf({ slot: { slotId: 1, cost: 400000 } }), null, 'no hero slot is ever a next buy: all four are the account\'s from the start');
     eq(shelf({ ...all, purse: 300 }).words, 'Opens Kitchen and Garden · Need 100 gp more', 'short of all of them: the nearest');
     /* A TOOL, only for a skill this hero trains, and only a better tier than the bag's */
     const tools = { offers: [{ offer: 'shop.bronze_pickaxe', item: 'bronze_pickaxe', kind: 'tool', price: 120 }, { offer: 'shop.bronze_axe', item: 'bronze_axe', kind: 'tool', price: 120 }], bids: new Map() };
@@ -978,10 +977,10 @@ async function runTests(M) {
     /* POWER FIRST: a Shop piece Equip upgrades would put on stays ahead of the whole shelf (the designer's order) */
     const bare = { ...tank }; delete bare.belt;
     eq(shelf({ ...all, equipment: bare, shop: { offers: [{ offer: 'shop.bronze_belt', item: 'bronze_belt', kind: 'gear', price: 200 }], bids: new Map() } }).kind, 'gear', 'gear first');
-    const said = [shelf(all), bagRow, slot, pick, shelf({ refill })].flatMap((b) => [b.title, b.words]).filter((w) => /\.$/.test(w) || /;|—/.test(w));
+    const said = [shelf(all), bagRow, pick, shelf({ refill })].flatMap((b) => [b.title, b.words]).filter((w) => /\.$/.test(w) || /;|—/.test(w));
     eq(said, [], 'every line a label, no full stop, semicolon or dash');
 
-    /* FROM A SESSION: the hero slot is the account section's offer, a refill only after a hunt out of stamina */
+    /* FROM A SESSION: a refill only after a hunt out of stamina, and never a hero slot */
     const at = (reason) => {
       const e = endedEnv(30);
       /* the server's hunt section (hr_hunt_view) for a session it holds ended, as T6 builds it */
@@ -996,7 +995,7 @@ async function runTests(M) {
     const csOf = async (reason) => { const c = sessionOn([], () => at(reason)); ok(await c.load(), 'the envelope applied'); return c; };
     eq((await csOf('stamina')) && NB.nextBuyOf(await csOf('stamina'), null).kind, 'refill', 'out of stamina: the refill');
     const left = NB.nextBuyOf(await csOf('left'), null);
-    eq(left && [left.kind, left.title], ['slot', 'Next buy: Hero slot 2 (400,000 gp)'], 'any other end: no refill, the account\'s next slot');
+    eq(!left || (left.kind !== 'slot' && left.kind !== 'refill'), true, 'any other end: no refill and no hero slot');
   });
 
   return fails;
@@ -1113,11 +1112,10 @@ const MUTANTS = [
   /* T9 the whole shelf: across shelves the cheapest the purse covers, never the shelf order; the deed's gates; a tool only for a trained skill and
      a better tier; the hero slot from the account section; a refill only after a hunt out of stamina */
   { test: 'T9', file: NEXT, from: "  fronts.sort((a, b) => (a.row.gold - b.row.gold) || (a.rank - b.rank));\n", to: '' },
-  { test: 'T9', file: NEXT, from: "const SHELF = Object.freeze([temperRows, roomRows, deedRows, chestRows, bagRows, dummyRows, slotRows, toolRows, refillRows]);", to: "const SHELF = Object.freeze([temperRows, roomRows, chestRows, bagRows, dummyRows, slotRows, toolRows, refillRows]);" },
+  { test: 'T9', file: NEXT, from: "const SHELF = Object.freeze([temperRows, roomRows, deedRows, chestRows, bagRows, dummyRows, toolRows, refillRows]);", to: "const SHELF = Object.freeze([temperRows, roomRows, chestRows, bagRows, dummyRows, toolRows, refillRows]);" },
   { test: 'T9', file: NEXT, from: "if (!c || !c.canBuild || !holds(c.items, o.bag, o.bank)) return [];", to: 'if (!c) return [];' },
   { test: 'T9', file: NEXT, from: "if (!sk || !(sk.xp > 0)) return false;", to: 'if (!it) return false;' },
   { test: 'T9', file: NEXT, from: "return (it.toolTier || 0) > ((best && best.toolTier) || 0);", to: 'return true;' },
-  { test: 'T9', file: NEXT, from: "slot: slotOfferOf(cs && typeof cs.read === 'function' ? cs.read('account') : null),", to: 'slot: null,' },
   { test: 'T9', file: NEXT, from: "refill: h && h.ended && h.endReason === 'stamina' ? staminaRefillOf(cs) : null });", to: 'refill: staminaRefillOf(cs) });' },
   { test: 'T9', file: NEXT, from: "words: opens.length ? t('summary.buy_deed_words', { rooms: listWords(opens) }) : '',", to: "words: ''," },
   { test: 'T9', file: 'src/shell/goto.js', from: "  if (place.kind === 'storage') return { win: 'storage', tab: null, find: null };\n", to: '' },

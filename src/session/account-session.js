@@ -334,6 +334,7 @@ export class AccountSession {
         unnamed: !!(ans.ok && ans.body && ans.body.error === 'needs_name') }, heroOf(ans.ok ? ans.body : null));
     });
     this._roster = rows;
+    this.coach.load();   // what the coach has taught this account, read once a login (account-coach.js)
     this._emit('roster');   // the strip's not-open heroes are read from it (notOpen)
     return rows;
   }
@@ -386,7 +387,6 @@ export class AccountSession {
     cs.accountCoach = this.coach;
     /* ...and the roster the server last read, so a hero's end card knows the heroes still to make (back-in-town.js partyToMake). */
     cs.accountRoster = () => this._roster;
-    this.coach.load();
     this._chars.set(slot, cs);
     cs.subscribe((s, why) => { if (why === 'closed-game') this._noteClosed({ closed: true }); });
     /* THE BURNING TOWER'S BOARD (2027-04-30-tower-board.sql) is every hero's: a climb that ends moves the others' rank and rivals, which

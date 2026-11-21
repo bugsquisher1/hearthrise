@@ -259,12 +259,12 @@ const cases = {
   },
   'a-heal-is-raised-too': (M) => {
     const heal = (pm, seed) => {
-      const h = H(M, 1, 12, 3, 'healer', { hp: 1000, maxHp: 1e6, mana: 1e6, maxMana: 1e6 });
+      const h = H(M, 1, 12, 3, 'healer', { hp: 100, maxHp: 1000, mana: 1e6, maxMana: 1e6 });
       if (pm) h.blowsPm = pm;
       const inst = fight(M, [h]);
       inst.heroes = { 1: { hs: M.AR.newHuntSession({ id: 'tp', huntFromMs: 0, bag: {}, purse: 0, goldFloor: 0, basics: {} }), slots: [], actionSet: 'hunt', range: 7, ammo: null, items: M.ITEMS } };
       const sc = sc2(M, seed);
-      M.abilities.fire(inst, h, { row: Object.assign({}, M.abilityData.ABILITIES.mend, { heal: [200, 200] }), target: h, lines: [], pm: 1000 }, sc);
+      M.abilities.fire(inst, h, { row: Object.assign({}, M.abilityData.ABILITIES.mend, { healHpPm: 200 }), target: h, lines: [], pm: 1000 }, sc);
       return (sc.events.find((e) => e.type === 'heal') || { amount: 0 }).amount;
     };
     const base = heal(0, 1);

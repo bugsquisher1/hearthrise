@@ -324,11 +324,12 @@ const cases = {
     const R = M.roleData, AD = M.abilityData;
     if (R.disciplineOf('club') === R.disciplineOf('dual_axe') || R.disciplineOf('hammer') !== 'club') return 'the club plays the ' + R.disciplineOf('club') + ' list, the axes ' + R.disciplineOf('dual_axe');
     const club = AD.disciplineAbilities('club'), axes = AD.disciplineAbilities('dual_axe');
-    if (club.includes('rend') || !axes.includes('rend') || !club.includes('cleave')) return 'the club holds ' + club + ', the axes ' + axes;
+    /* (Cleave merged into Turning Cut, Tyler 32-2: the club's own row is its Earth rune strike, Quarry Blow, 32-5) */
+    if (club.includes('rend') || !axes.includes('rend') || !club.includes('quarry_blow') || axes.includes('quarry_blow')) return 'the club holds ' + club + ', the axes ' + axes;
     for (const [k, row] of Object.entries(R.ROLE_KEYS)) if (!AD.DISCIPLINES[row.discipline]) return k + ' names discipline ' + row.discipline + ', no abilities.js row';
-    const h = M.hs.heroSetup({ weaponType: 'hammer', options: {}, bar: ['rend', 'cleave'], partyRoles: [] });
+    const h = M.hs.heroSetup({ weaponType: 'hammer', options: {}, bar: ['rend', 'quarry_blow'], partyRoles: [] });
     const acts = h.slots.filter((s) => s.slot.action.type === 'ability').map((s) => s.slot.action.id);
-    return JSON.stringify(acts) === '["cleave"]' ? null : 'a club hero\'s stored Rend + Cleave bar runs ' + JSON.stringify(acts);
+    return JSON.stringify(acts) === '["quarry_blow"]' ? null : 'a club hero\'s stored Rend + Quarry Blow bar runs ' + JSON.stringify(acts);
   },
 };
 

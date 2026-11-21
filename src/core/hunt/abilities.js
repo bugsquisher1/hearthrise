@@ -380,7 +380,7 @@ function effect(inst, u, row, t, sc, v) {
   const el = row.element || null;
   const pm = v && Number.isInteger(v.pm) && v.pm >= 0 ? v.pm : 1000;
   /* What a heal or a shell lands (abilities.js castAmount: a share of the caster's blow, Mend's of its max HP, at the cast's pm). */
-  const amount = () => castAmount(row, u.maxHit, u.maxHp, pm) || {};
+  const amount = () => /** @type {{ hit?: number[], heal?: number, shield?: number }} */ (castAmount(row, u.maxHit, u.maxHp, pm) || {});
   /** @type {{ id: string, mult?: number, weakPm?: number }} */
   const hitTag = pm === 1000 ? { id: row.id } : { id: row.id, mult: pm };
   /* A row that lands only part of a weakness's bonus (`weakPm`, the fist line's strikes) carries its share to hurt(). */

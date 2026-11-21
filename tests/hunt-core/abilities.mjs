@@ -50,17 +50,20 @@ const cases = {
     const plant = (r) => M.AD.validate({ ...M.AD.ABILITIES, [r.id]: { ...base, ...r } }).filter((m) => m.startsWith(r.id + ':'));
     for (const [r, want] of [
       [{ id: 'zz_hollow_party', target: 'party', radius: 8 }, 'neither heal nor shield'],
-      [{ id: 'zz_both_party', target: 'party', radius: 8, heal: [5, 9], shield: 30 }, 'never both'],
-      [{ id: 'zz_blind_party', target: 'party', shield: 30 }, 'radius'],
-      [{ id: 'zz_empty_ring', target: 'ring', maxHits: 8 }, 'no dmg, no hitPm and no status'],
+      [{ id: 'zz_both_party', target: 'party', radius: 8, healPm: 500, shieldPm: 1000 }, 'one number'],
+      [{ id: 'zz_blind_party', target: 'party', shieldPm: 1000 }, 'radius'],
+      [{ id: 'zz_empty_ring', target: 'ring', maxHits: 8 }, 'no hitPm and no status'],
       [{ id: 'zz_frost_ring', target: 'ring', maxHits: 8, status: 'chill', element: 'frost' }, 'lands no blow'],
-      [{ id: 'zz_status_hit', target: 'enemy', status: 'chill' }, 'no dmg and no hitPm'],
-      [{ id: 'zz_both_rules', target: 'enemy', dmg: [2, 4], alone: true, party: true }, 'alone or party only'],
+      [{ id: 'zz_status_hit', target: 'enemy', status: 'chill' }, 'a damaging target with no hitPm'],
+      [{ id: 'zz_both_rules', target: 'enemy', hitPm: 500, alone: true, party: true }, 'alone or party only'],
+      /* THE SPELL RULE: a fixed number is refused, and a floor sits only beside a share */
+      [{ id: 'zz_fixed_hit', target: 'enemy', dmg: [7, 13] }, 'retired by the spell rule'],
+      [{ id: 'zz_lone_floor', target: 'enemy', hitPm: 500, base: 9 }, 'base is a hit'],
       [{ id: 'zz_party_false', target: 'ring', maxHits: 8, status: 'chill', party: false }, 'party is true']]) {
       const got = plant(r);
       if (!got.some((m) => m.includes(want))) return r.id + ' was not refused for "' + want + '": ' + JSON.stringify(got);
     }
-    for (const r of [{ id: 'zz_slam', target: 'ring', maxHits: 8, status: 'chill', party: true }, { id: 'zz_shell', target: 'party', radius: 8, shield: 30, party: true }]) {
+    for (const r of [{ id: 'zz_slam', target: 'ring', maxHits: 8, status: 'chill', party: true }, { id: 'zz_shell', target: 'party', radius: 8, shieldPm: 1000, base: 30, party: true }]) {
       if (plant(r).length) return 'a sound ' + r.id + ' was refused: ' + plant(r);
     }
     /* a row's own starting rule (`trigger`) is a slot the server's check (mirrored) takes, in the registry's words */
@@ -72,21 +75,21 @@ const cases = {
   },
   /* AB-10: the first usable ability in bar order fires, one per lane. */
   'first-usable-in-order': (M) => {
-    const a = melee(M, ['power_strike', 'cleave']);
+    const a = melee(M, ['power_strike', 'turning_cut']);
     M.abilities.castAbilities(a.inst, a.sc);
-    const b = melee(M, ['cleave', 'power_strike']);
+    const b = melee(M, ['turning_cut', 'power_strike']);
     M.abilities.castAbilities(b.inst, b.sc);
-    return JSON.stringify([casts(a.sc), casts(b.sc)]) === '[["power_strike"],["cleave"]]' ? null : 'fired ' + JSON.stringify([casts(a.sc), casts(b.sc)]);
+    return JSON.stringify([casts(a.sc), casts(b.sc)]) === '[["power_strike"],["turning_cut"]]' ? null : 'fired ' + JSON.stringify([casts(a.sc), casts(b.sc)]);
   },
   /* AB-01 / AB-02 / AB-07: a fired ability locks its lane and its own cooldown. */
   'lane-blocks-second-cast': (M) => {
-    const { inst, sc } = melee(M, ['power_strike', 'cleave']);
+    const { inst, sc } = melee(M, ['power_strike', 'turning_cut']);
     const lane = M.AD.ABILITY_LANES.offense;
     steps(inst, sc, cast(M), lane / 100, 0);
     if (JSON.stringify(casts(sc)) !== '["power_strike"]') return 'inside one ' + lane + ' ms lane: ' + JSON.stringify(casts(sc));
     sc.atMs = lane;
     M.abilities.castAbilities(inst, sc);
-    return JSON.stringify(casts(sc)) === '["power_strike","cleave"]' ? null : 'at ' + lane + ' ms the lane did not reopen: ' + JSON.stringify(casts(sc));
+    return JSON.stringify(casts(sc)) === '["power_strike","turning_cut"]' ? null : 'at ' + lane + ' ms the lane did not reopen: ' + JSON.stringify(casts(sc));
   },
   /* Tyler 2026-11-05: "if a mage and healer are using the same mana ... they are gaining the same exp ratios". A caster's own spells and both basics pay one rate. */
   'a-mage-and-a-healer-train-alike': (M) => {
@@ -240,7 +243,7 @@ const cases = {
     if (!shut.x.sc.events.some((e) => e.type === 'rule_wait' && e.why === 'level')) return 'the locked version was not said (rule_wait level)';
     const basic = at(need - 1, true);
     if (!basic.cast || basic.cast.version !== 1 || basic.cast.source !== 'store' || basic.cast.supply !== 'plain_fire_rune'
-      || basic.cast.power !== Math.floor((M.AD.outputPm(M.AD.ABILITIES.flame_strike, 1, need - 1) * Math.round(M.SB.BASIC_EFFECT_SHARE * 1000)) / 1000)
+      || basic.cast.power !== Math.floor((M.AD.versionOf(M.AD.ABILITIES.flame_strike, 1).outPm * Math.round(M.SB.BASIC_EFFECT_SHARE * 1000)) / 1000)
       || basic.hs.bag.etched_fire_rune.left !== 2) {
       return 'a locked rune with the store named did not cast the store rune at basic power: ' + JSON.stringify(basic.cast);
     }
@@ -275,7 +278,7 @@ const cases = {
       const row = M.SB.BASIC_INDEX[id];
       if (!row || row.price !== M.SB.STORE_RUNE_PRICE[t.tier - 1]) return id + ' is not on the shelf at the ladder\'s price: ' + JSON.stringify(row);
       const open = at(t.level, id);
-      const power = Math.floor((M.AD.outputPm(fs, t.tier, t.level) * share) / 1000);
+      const power = Math.floor((M.AD.versionOf(fs, t.tier).outPm * share) / 1000);
       if (!open.cast || open.cast.version !== t.tier || open.cast.source !== 'store' || open.cast.supply !== id || open.cast.power !== power) return 'Melee ' + t.level + ' naming ' + id + ' did not cast version ' + t.tier + ' at the store\'s share: ' + JSON.stringify(open.cast);
       if (open.hs.purse !== 1000 - row.price || JSON.stringify(open.hs.tally.bought) !== JSON.stringify({ [id]: 1 })) return id + ' charged ' + (1000 - open.hs.purse) + ' g and bought ' + JSON.stringify(open.hs.tally.bought) + ', its price is ' + row.price;
       if (open.x.w.units.find((u) => u.side === 'hero').mana !== 500 - M.AD.versionOf(fs, t.tier).mana) return id + ' did not cost its version\'s mana';
@@ -326,7 +329,8 @@ const cases = {
     const cond = [{ metric: 'enemies_in_aoe', op: 'gte', value: 2 }];
     const slot = { action: { type: 'ability', id: 'fireball', store: id }, conditions: cond, join: 'and' };
     const hs = supplySession(M, { purse: 1000, runes: true });
-    const x = oneHero(M, { mana: 500, maxMana: 500, role: 'mage' }, { hs, bar: [slot], range: 7, skills: { magic: M.XP.skillXpForLevel('magic', lv) } },
+    /* (a wand whose largest blow is 40: a cast is a share of it, THE SPELL RULE) */
+    const x = oneHero(M, { mana: 500, maxMana: 500, role: 'mage', maxHit: 40 }, { hs, bar: [slot], range: 7, skills: { magic: M.XP.skillXpForLevel('magic', lv) } },
       [{ x: 15, y: 3, hp: 900, maxHp: 900 }, { x: 15, y: 4, hp: 900, maxHp: 900 }]);
     x.sc.rng = rngOf(M, 4);
     M.abilities.castAbilities(x.inst, x.sc);
@@ -336,16 +340,20 @@ const cases = {
     /* the client: the server's store rows, bag and skills, as the bar holds them */
     const store = M.SB.BASIC_SUPPLIES.map((b) => ({ id: b.id, kind: b.kind, partner: b.partner, amount: b.heals || b.mana || 0, price: b.price }));
     const ctx = { bag: [], store, skills: { magic: { xp: M.XP.skillXpForLevel('magic', lv), level: lv } }, set: { supplySource: 'mine', onEmpty: 'switch' } };
-    const lo = Math.floor((fb.dmg[0] * cast.power) / 1000), hi = Math.floor((fb.dmg[1] * cast.power) / 1000);
+    /* THE SPELL RULE, typed: the engine's hit rolls max(ceil(top / 2), base lo)..max(top, base hi) of a blow of 40, at the cast's power; the
+       bar says the share in % of Max Hit at that power, and the floor at that power */
+    const top = Math.floor((40 * fb.hitPm) / 1000), lo = Math.floor((Math.max(Math.ceil(top / 2), fb.base[0]) * cast.power) / 1000), hi = Math.floor((Math.max(top, fb.base[1]) * cast.power) / 1000);
+    const hiPct = Math.round((fb.hitPm * cast.power) / 10000), loPct = Math.round(hiPct / 2);
     if (row.n !== 'Scored Fire Rune') return 'the store\'s tier-2 Fire rune is named ' + JSON.stringify(row.n) + ', not by its tier ("Scored Fire Rune")';
-    const want = ['Cost: ' + cast.mana + ' mana, 1 Scored Fire Rune (' + row.price + ' g)', 'Deals ' + lo + '–' + hi + ' ember damage to each monster hit.',
+    const want = ['Cost: ' + cast.mana + ' mana, 1 Scored Fire Rune (' + row.price + ' g)', 'Each monster hit: ' + loPct + '% to ' + hiPct + '% of Max Hit as ember',
+      'Never less than ' + Math.floor((fb.base[0] * cast.power) / 1000) + '–' + Math.floor((fb.base[1] * cast.power) / 1000) + ' a hit',
       (fb.cdMs / 1000) + ' s cooldown', 'When it would hit at least 2 monsters.'];
     const said = M.shell.facts.hoverLines(slot, ctx, null, null).map((l) => l.text);
     if (JSON.stringify(said) !== JSON.stringify(want)) return 'the hover reads ' + JSON.stringify(said) + ', the engine cast ' + JSON.stringify(want);
     if (hits.length !== 2 || hits.some((n) => n < lo || n > hi)) return 'the engine landed ' + JSON.stringify(hits) + ' where the bar says ' + lo + '–' + hi;
     /* Configure action's facts carry the same lines (the hover is their subset), and the cast's mana is what a short hero waits for */
     const f = M.shell.facts.factsOf(slot.action, ctx);
-    if (f.cost !== want[0] || f.effect[0] !== want[1] || f.cooldown !== want[2]) return 'Configure action reads other facts: ' + JSON.stringify(f);
+    if (f.cost !== want[0] || f.effect[0] !== want[1] || f.effect[1] !== want[2] || f.cooldown !== want[3]) return 'Configure action reads other facts: ' + JSON.stringify(f);
     const short = M.shell.facts.reasonOf({ action: slot.action, conditions: cond }, { discipline: 'destruction', store, supplySource: 'mine', onEmpty: 'switch' }, [], { mana: cast.mana - 1 }, null, ctx.skills, null);
     return short && short.code === 'mana' && short.text === 'Needs ' + cast.mana + ' mana, have ' + (cast.mana - 1) ? null : 'a hero 1 mana short of the cast reads ' + JSON.stringify(short);
   },
@@ -645,7 +653,7 @@ const cases = {
     const L = M.AD.ABILITY_LANES;
     if (L.offense !== 2000 || L.support !== 2000 || L.heal !== 1000 || Object.keys(L).length !== 3) return 'the lanes are ' + JSON.stringify(L);
     for (const r of Object.values(M.AD.ABILITIES)) {
-      const want = r.target === 'taunt' || r.target === 'mark' || Number.isInteger(r.shield) || (M.AD.AREA_TARGETS.includes(r.target) && !M.AD.landsBlow(r)) ? 'support' : r.heal ? 'heal' : 'offense';
+      const want = r.target === 'taunt' || r.target === 'mark' || M.AD.shells(r) || (M.AD.AREA_TARGETS.includes(r.target) && !M.AD.landsBlow(r)) ? 'support' : M.AD.heals(r) ? 'heal' : 'offense';
       if (r.lane !== want) return r.id + ' rides ' + r.lane + ', want ' + want;
     }
     const hs = supplySession(M, { bag: { iron_arrows: { loaded: 50 } } });
@@ -672,7 +680,7 @@ const cases = {
     const full = run(100, ['mend', 'arcane_barrier']);
     if (casts(full.sc).length) return 'a full-health hero cast ' + JSON.stringify(casts(full.sc)) + ' between pulls';
     const shell = run(70, ['arcane_barrier']);
-    if (JSON.stringify(casts(shell.sc)) !== '["arcane_barrier"]' || shell.h.shield !== M.AD.ABILITIES.arcane_barrier.shield) return 'a hurt hero between pulls raised no shell: ' + JSON.stringify(casts(shell.sc));
+    if (JSON.stringify(casts(shell.sc)) !== '["arcane_barrier"]' || shell.h.shield !== M.AD.ABILITIES.arcane_barrier.base) return 'a hurt hero between pulls raised no shell: ' + JSON.stringify(casts(shell.sc));
     const idle = run(100, ['power_strike'], 0);
     return idle.sc.events.some((e) => e.type === 'rule_wait') ? 'between pulls a strike slot reported a wait: ' + JSON.stringify(idle.sc.events) : null;
   },
@@ -681,13 +689,14 @@ const cases = {
      event carries the NET mana (Magic XP is paid on it) and the refund. A stronger version over a full shell refunds it
      at its own price, never more than the cast costs. */
   'barrier-recast-refunds': (M) => {
+    /* (the fixture hero carries no blow, so its shell is the row's beginner's floor, abilities.js base: THE SPELL RULE's first hours) */
     const row = M.AD.ABILITIES.arcane_barrier;
     if (row.target !== 'self') return 'Arcane Barrier is no longer self-only';
     const hs = supplySession(M, { bag: { chalked_earth_rune: { loaded: 5 } } });
     const x = oneHero(M, { hp: 50, maxHp: 100, mana: 100, maxMana: 0 }, { hs, bar: ['arcane_barrier'], range: 7 }, [{ x: 15, y: 3, hp: 5000, maxHp: 5000 }]);
     x.sc.rng = rngOf(M, 13);
     M.abilities.castAbilities(x.inst, x.sc);
-    if (x.h.shield !== row.shield || x.h.mana !== 100 - row.mana) return 'the first Barrier left shield ' + x.h.shield + ', mana ' + x.h.mana;
+    if (x.h.shield !== row.base || x.h.mana !== 100 - row.mana) return 'the first Barrier left shield ' + x.h.shield + ', mana ' + x.h.mana;
     x.sc.atMs = row.cdMs;
     M.abilities.castAbilities(x.inst, x.sc);
     if (casts(x.sc).length !== 1) return 'a full shell was recast';
@@ -695,10 +704,10 @@ const cases = {
     x.sc.atMs = row.cdMs + 100;
     M.abilities.castAbilities(x.inst, x.sc);
     const ev = x.sc.events.filter((e) => e.type === 'cast')[1];
-    const refund = Math.floor((10 * row.mana) / row.shield);
+    const refund = Math.floor((10 * row.mana) / row.base);
     if (!ev || ev.refund !== refund || ev.mana !== row.mana - refund) return 'a recast over a 10-point shell: ' + JSON.stringify(ev) + ', want refund ' + refund;
-    if (x.h.shield !== row.shield || x.h.mana !== 100 - row.mana - (row.mana - refund)) return 'after the recast: shield ' + x.h.shield + ', mana ' + x.h.mana;
-    const R = M.abilities.shieldRefund, two = Math.floor((row.shield * 1880) / 1000);
+    if (x.h.shield !== row.base || x.h.mana !== 100 - row.mana - (row.mana - refund)) return 'after the recast: shield ' + x.h.shield + ', mana ' + x.h.mana;
+    const R = M.abilities.shieldRefund, two = Math.floor((row.base * 1880) / 1000);
     const mine = (shield) => ({ id: 1, shieldBy: 1, shield });
     if (R(mine(40), row, 36, 1880) !== Math.floor((40 * 36) / two)) return 'a stronger version over a full shell refunds ' + R(mine(40), row, 36, 1880);
     if (R({ id: 1, shieldBy: 2, shield: 40 }, row, 36, 1880) !== 0 || R({ id: 1, shield: 40 }, row, 36, 1880) !== 0) return 'a shell another hero cast refunds as mana (the tank\'s Shelter, a Healer\'s Ward)';
@@ -712,7 +721,7 @@ const cases = {
      Barrier recast over that shell refunds nothing (the tank's rune never turns into the Mage's mana); over its own shell it still does. */
   'party-shield-shells-the-party': (M) => {
     const row = M.AD.ABILITIES.shelter;
-    if (!row || row.target !== 'party' || !(row.shield > 0) || row.heal || row.party !== true || row.radius !== 8) return 'Shelter is no party-only party shield of radius 8: ' + JSON.stringify(row);
+    if (!row || row.target !== 'party' || !M.AD.shells(row) || M.AD.heals(row) || row.party !== true || row.radius !== 8) return 'Shelter is no party-only party shield of radius 8: ' + JSON.stringify(row);
     const run = (kShield, aShield) => {
       const k = hero(M, 1, 12, 3, { role: 'tank', hp: 60, maxHp: 100, mana: 100, maxMana: 100, shield: kShield, shieldBy: kShield ? 1 : null });
       const a = hero(M, 2, 12, 5, { hp: 50, maxHp: 100, shield: aShield, shieldBy: aShield ? 2 : null });
@@ -728,8 +737,8 @@ const cases = {
     const x = run(0, 0);
     const shells = x.ev.filter((e) => e.type === 'shield').map((e) => [e.u, e.t, e.amount]);
     if (JSON.stringify(casts({ events: x.ev })) !== '["shelter"]') return 'Shelter did not cast once for a wounded party: ' + JSON.stringify(casts({ events: x.ev }));
-    if (JSON.stringify(shells) !== JSON.stringify([[1, 1, row.shield], [1, 2, row.shield]])) return 'the shell events were ' + JSON.stringify(shells) + ', want the tank and the ally in reach at ' + row.shield;
-    if (x.k.shield !== row.shield || x.a.shield !== row.shield || x.k.shieldBy !== 1 || x.a.shieldBy !== 1) return 'the shells stand ' + JSON.stringify([x.k.shield, x.k.shieldBy, x.a.shield, x.a.shieldBy]);
+    if (JSON.stringify(shells) !== JSON.stringify([[1, 1, row.base], [1, 2, row.base]])) return 'the shell events were ' + JSON.stringify(shells) + ', want the tank and the ally in reach at ' + row.base;
+    if (x.k.shield !== row.base || x.a.shield !== row.base || x.k.shieldBy !== 1 || x.a.shieldBy !== 1) return 'the shells stand ' + JSON.stringify([x.k.shield, x.k.shieldBy, x.a.shield, x.a.shieldBy]);
     if (x.b.shield !== 500 || x.b.shieldBy !== 3) return 'a bigger shell was lowered or renamed: ' + JSON.stringify([x.b.shield, x.b.shieldBy]);
     if (x.far.shield) return 'a hero 10 tiles off was shelled';
     if (run(10, 10).ev.some((e) => e.type === 'cast')) return 'Shelter cast with every wounded hero in reach already shelled';
@@ -739,14 +748,14 @@ const cases = {
     const barrier = M.AD.ABILITIES.arcane_barrier;
     const recast = (by) => {
       const hs = supplySession(M, { bag: { chalked_earth_rune: { loaded: 3 } } });
-      const m = oneHero(M, { hp: 50, maxHp: 100, mana: 100, maxMana: 0, shield: row.shield, shieldBy: by }, { hs, bar: ['arcane_barrier'], range: 7 }, [{ x: 15, y: 3, hp: 5000, maxHp: 5000 }]);
+      const m = oneHero(M, { hp: 50, maxHp: 100, mana: 100, maxMana: 0, shield: row.base, shieldBy: by }, { hs, bar: ['arcane_barrier'], range: 7 }, [{ x: 15, y: 3, hp: 5000, maxHp: 5000 }]);
       m.sc.rng = rngOf(M, 22);
       M.abilities.castAbilities(m.inst, m.sc);
       return m.sc.events.find((e) => e.type === 'cast') || null;
     };
     const over = recast(7), own = recast(1);
     if (!over || over.refund !== undefined || over.mana !== barrier.mana) return 'a Barrier over the tank\'s shell refunded: ' + JSON.stringify(over);
-    return own && own.refund === Math.floor((row.shield * barrier.mana) / barrier.shield) ? null : 'a Barrier over its own shell refunds ' + JSON.stringify(own);
+    return own && own.refund === Math.floor((row.base * barrier.mana) / barrier.shield) ? null : 'a Barrier over its own shell refunds ' + JSON.stringify(own);
   },
   /* PIECE 2, A SHAPE THAT LANDS ONLY ITS STATUS (Frost Slam): every monster beside the tank is Chilled, none struck (no dmg event, no
      kill, no HP lost), a monster further off untouched. PIECE 3, CHILL BY RUNE TIER: the version is the rune tier, so a Scored Ice
@@ -815,7 +824,8 @@ const cases = {
     const slam = factsOf({ type: 'ability', id: 'frost_slam' }), shell = factsOf({ type: 'ability', id: 'shelter' });
     const say = (f) => [f.type, f.alone, ...f.effect, f.unlock].join(' | ');
     if (say(slam) !== 'Chills monsters next to you | Party only | Causes chill for 4 s, 30% slower attacks and casts | Unlocks at Melee 12.') return 'Frost Slam reads ' + say(slam);
-    if (say(shell) !== 'Shields every hero near you | Party only | Blocks the next 30 damage. | Unlocks at Melee 20.') return 'Shelter reads ' + say(shell);
+    /* (THE SPELL RULE: its shell is a share of the tank's blow, version I with no rune read, never under its beginner's floor) */
+    if (say(shell) !== 'Shields every hero near you | Party only | Blocks damage up to 289% of Max Hit | Never less than 30 | Unlocks at Melee 20.') return 'Shelter reads ' + say(shell);
     const deep = factsOf({ type: 'ability', id: 'frost_slam', store: 'plain_graven_ice_rune' }, { bag: [], skills: { melee: { level: 60 } }, store: M.SB.BASIC_SUPPLIES.filter((b) => b.id === 'plain_graven_ice_rune') });
     if (!deep.effect.includes('Causes chill for 4 s, 50% slower attacks and casts')) return 'a Graven slam reads ' + JSON.stringify(deep.effect);
     const sl = { action: { type: 'ability', id: 'frost_slam' }, conditions: [], join: 'and' };
@@ -848,7 +858,7 @@ const cases = {
   /* Persisted: cooldowns, lanes and fractional mana survive a settle cut. */
   'clocks-survive-a-cut': (M) => {
     const run = (cut) => {
-      const x = melee(M, ['power_strike', 'cleave'], { mana: 30, maxMana: 77 });
+      const x = melee(M, ['power_strike', 'turning_cut'], { mana: 30, maxMana: 77 });
       let w = x.w;
       for (let t = 0; t < 14000; t += 100) {
         if (cut && t % 900 === 0) { w = M.worldstate.decode(JSON.parse(JSON.stringify(M.worldstate.encode(w)))); x.inst.world = w; }
@@ -878,8 +888,9 @@ const cases = {
     const rows = [
       ['raking_shot', 'Hits every monster on a 4-tile line', ['On the line: 40% to 80% of Max Hit'], 'Unlocks at Ranged 10.'],
       ['turning_cut', 'Hits up to 8 adjacent monsters', ['Each monster reached: 30% to 60% of Max Hit'], 'Unlocks at Melee 10.'],
-      ['hoarfrost', 'Hits monsters around the target', ['Deals 5–9 frost damage to each monster hit.', 'Causes chill for 4 s, 30% slower attacks and casts'], 'Unlocks at Magic 14.'],
-      ['spring_tide', 'Hero and nearby allies', ['Heals 120–180.'], 'Unlocks at Magic 20.'],
+      /* THE SPELL RULE: a share of the hero's blow, in % of Max Hit, and the row's beginner's floor (abilities.js base) */
+      ['hoarfrost', 'Hits monsters around the target', ['Each monster hit: 27% to 53% of Max Hit as frost', 'Never less than 5–9 a hit', 'Causes chill for 4 s, 30% slower attacks and casts'], 'Unlocks at Magic 14.'],
+      ['spring_tide', 'Hero and nearby allies', ['Heals 951% of Max Hit', 'Never less than 150'], 'Unlocks at Magic 20.'],
     ];
     for (const [id, type, effect, unlock] of rows) if (!has(f(id), type, effect, unlock)) return id + ' reads ' + JSON.stringify(f(id));
     if (f('power_strike').unlock !== null) return 'a row with no unlock reads one: ' + f('power_strike').unlock;
@@ -943,7 +954,8 @@ const cases = {
     const { factsOf, reasonOf } = M.shell.facts;
     const req = (id) => factsOf({ type: 'ability', id }).requires;
     if (!req('turning_cut').includes('Melee weapon (no shield)') || /sword/i.test(req('turning_cut'))) return 'Turning Cut reads ' + JSON.stringify(req('turning_cut'));
-    if (!/Melee weapon\.$/.test(req('power_strike'))) return 'Power Strike, every melee weapon\'s, reads ' + JSON.stringify(req('power_strike'));
+    /* (Power Strike is every melee weapon's but the two axes', Tyler 32-3: the card names the weapons that cast it) */
+    if (/axe/i.test(req('power_strike')) || !/sword/i.test(req('power_strike')) || !/hammer/i.test(req('power_strike'))) return 'Power Strike, every melee weapon\'s but the axes\', reads ' + JSON.stringify(req('power_strike'));
     if (!/shield/i.test(req('flame_strike')) || !/sword/i.test(req('flame_strike'))) return 'Flame Strike, a shield\'s and a sword\'s, reads ' + JSON.stringify(req('flame_strike'));
     const struck = reasonOf({ action: { type: 'ability', id: 'turning_cut' }, conditions: [], join: 'and', usable: false }, { discipline: 'shield', role: 'tank', slots: [], store: [], supplySource: 'store', onEmpty: 'switch' }, [], null, null, null, null);
     return struck && struck.code === 'weapon' && struck.text.includes('Melee weapon (no shield)') ? null : 'a sword and shield\'s Turning Cut slot reads ' + JSON.stringify(struck);
@@ -1020,12 +1032,12 @@ const cases = {
 };
 
 /* THE TEST AREA ROWS (hero-area-shapes): planted beside Circle of Renewal in a copy of the tree under test, never shipped. */
-const AREA_ROWS = [['src/data/abilities.js', "    versions: [[50, 1000], [60, 1740], [72, 2520], [86, 3310], [104, 4100]], lvPm: LV_PM }),\n",
-  "    versions: [[50, 1000], [60, 1740], [72, 2520], [86, 3310], [104, 4100]], lvPm: LV_PM }),\n"
+const AREA_ROWS = [['src/data/abilities.js', "    healPm: 1600, base: 25, whenBelowPct: 80, minHurt: 2, radius: 8, magicXpMult: 1600, versions: [50, 60, 72, 86, 104] }),\n",
+  "    healPm: 1600, base: 25, whenBelowPct: 80, minHurt: 2, radius: 8, magicXpMult: 1600, versions: [50, 60, 72, 86, 104] }),\n"
   + "  ab({ id: 'zz_line', n: 'Test Line', disciplines: ['ranged'], lane: 'offense', cdMs: 8000, mana: 10, unlock: 10, target: 'line', len: 4, hitPm: 800 }),\n"
   + "  ab({ id: 'zz_ring', n: 'Test Ring', disciplines: ['sword'], lane: 'offense', cdMs: 8000, mana: 8, target: 'ring', maxHits: 2, hitPm: 600,\n"
   + "    trigger: [{ metric: 'enemies_in_aoe', op: 'gte', value: 2 }, { metric: 'in_fight', op: 'eq', value: true }] }),\n"
-  + "  ab({ id: 'zz_tide', n: 'Test Tide', disciplines: ['restoration'], lane: 'heal', cdMs: 60000, mana: 160, target: 'party', heal: [120, 180], radius: 8,\n"
+  + "  ab({ id: 'zz_tide', n: 'Test Tide', disciplines: ['restoration'], lane: 'heal', cdMs: 60000, mana: 160, target: 'party', healPm: 1000, base: 150, radius: 8,\n"
   + "    trigger: [{ metric: 'allies_below', op: 'gte', value: 2, subject: 'under_60' }, { metric: 'in_fight', op: 'eq', value: true }] }),\n"]];
 /** A copy of `root`'s src/core + src/data with `edits` applied, loaded as the suite loads a tree: { M, done() }. */
 async function withRows(root, edits) {

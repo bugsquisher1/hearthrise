@@ -43,13 +43,15 @@ const versionText = (root) => {
 /* THE SPELL RULE'S NUMBERS (lane/c-spell-rule, Tyler 2026-11-21, 21-5 and 32-4): a heal's `healPm` (or Mend's `healHpPm`) and a shell's
    `shieldPm` are read by abilities.js castAmount (the data copy under test), which the engine calls for every heal and shell (and every
    self-shield's recast check: src/core/hunt/abilities.js effect, landsShield). Its reader is that function, and the engine must call it. */
-const AMOUNTED = Object.freeze({ ability: ['healPm', 'shieldPm', 'healHpPm', 'base'] });
+const AMOUNTED = Object.freeze({ ability: ['hitPm', 'healPm', 'shieldPm', 'healHpPm', 'base'] });
 const amountText = (root) => {
   const src = readFileSync(join(root, 'src/data/abilities.js'), 'utf8');
   /* hitRange (the beginner's floor of a hit) and castAmount (every number a cast lands) stand one after the other */
-  const at = src.indexOf('export function hitRange('), ca = src.indexOf('export function castAmount(');
-  const fns = ['export const heals = ', 'export const shells = '].map((k) => { const i = src.indexOf(k); return i < 0 ? '' : src.slice(i, src.indexOf('\n', i)); });
-  return at < 0 || ca < 0 ? '' : strip(src.slice(at, src.indexOf('\n}\n', at) + 2) + '\n' + src.slice(ca, src.indexOf('\n}\n', ca) + 2) + '\n' + fns.join('\n'));
+  /* (and blowShare, the share a hit rolls from, which hitRange calls: it reads hitPm) */
+  const at = src.indexOf('export function hitRange('), ca = src.indexOf('export function castAmount('), bs = src.indexOf('export function blowShare(');
+  const fns = ['export const landsBlow = ', 'export const heals = ', 'export const shells = '].map((k) => { const i = src.indexOf(k); return i < 0 ? '' : src.slice(i, src.indexOf('\n', i)); });
+  const body = (i) => src.slice(i, src.indexOf('\n}\n', i) + 2);
+  return at < 0 || ca < 0 || bs < 0 ? '' : strip(body(at) + '\n' + body(ca) + '\n' + body(bs) + '\n' + fns.join('\n'));
 };
 /* THE DISCIPLINE LISTS (roadmap p15, lane b-spell-roles): a row's `disciplines` is read by abilities.js disciplineAbilities
    (the data copy under test), which the engine calls for every hero's bar (src/core/hunt-spawn.js heroSetup). */

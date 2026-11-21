@@ -2126,7 +2126,7 @@ function rules(M) {
     // closed: both spells cast, every Frost Slam chills with no blow, Shelter shells both heroes. Viewed: every commit matches the prediction.
     // ALONE (party only): the same tank, viewed by itself, casts neither on the server's commits, and every commit matches.
     const slam = M.ENGINE_ABILITIES.frost_slam, shell = M.ENGINE_ABILITIES.shelter;
-    ok('LV-TANK', slam && shell && slam.party === true && shell.party === true && slam.target === 'ring' && !slam.dmg && shell.target === 'party' && shell.shield > 0,
+    ok('LV-TANK', slam && shell && slam.party === true && shell.party === true && slam.target === 'ring' && !slam.hitPm && shell.target === 'party' && shell.shieldPm > 0,
       'the tank rune spells are no longer a party-only chill ring and party shell: ' + JSON.stringify([slam, shell]));
     const bar = [{ action: { type: 'ability', id: 'frost_slam', store: 'plain_ice_rune' }, conditions: slam.trigger || [{ metric: 'enemies_in_aoe', op: 'gte', value: 2 }], join: 'and' },
       { action: { type: 'ability', id: 'shelter', store: 'plain_earth_rune' }, conditions: [], join: 'and' }];

@@ -40,7 +40,7 @@ function messyBar() {
   b[0] = slot('consume', 'wheat_bread', HP);          // food, ruled
   b[1] = slot('attack_with_item', 'barbed_arrows');   // ammo, plain
   b[3] = slot('ability', 'power_strike');             // move, plain
-  b[4] = slot('ability', 'cleave', [{ metric: 'enemies_in_aoe', op: 'gte', value: 2 }]);   // move, ruled
+  b[4] = slot('ability', 'turning_cut', [{ metric: 'enemies_in_aoe', op: 'gte', value: 2 }]);   // move, ruled
   b[5] = slot('consume', 'goldenroot_tea');           // drink, plain
   b[6] = slot('ability', 'fireball', [], { enabled: false });   // move, off, plain
   b[8] = slot('attack_with_item', 'loaded', BOSS);    // ammo, ruled

@@ -88,12 +88,15 @@ export function outputWords(k) {
   return shells(r) ? words(t('bar.out_shield_blow', { pct: sharePct(r.shieldPm, k.pm) })) : '';
 }
 
+/* The floor's two lines by where they are read: Configure action's, and the rune choice's few words. */
+const FLOOR_WORDS = Object.freeze({ effect: Object.freeze(['bar.effect_floor_hit', 'bar.effect_floor']), out: Object.freeze(['bar.out_floor_hit', 'bar.out_floor']) });
 /** THE BEGINNER'S FLOOR in words (src/data/abilities.js `base`: a cast never lands under it), at the cast's `pm` as the engine lands it
     (castAmount, hitRange), or '' for a row with none. `kind` 'effect' is Configure action's line, 'out' the rune choice's few words. */
 export function floorWords(r, pm, kind) {
   const at = (n) => (pm === 1000 || !Number.isInteger(pm) ? n : Math.floor((n * pm) / 1000));
-  if (Array.isArray(r.base)) return t('bar.' + kind + '_floor_hit', { lo: at(r.base[0]), hi: at(r.base[1]) });
-  return Number.isInteger(r.base) ? t('bar.' + kind + '_floor', { points: at(r.base) }) : '';
+  const [hit, whole] = FLOOR_WORDS[kind] || FLOOR_WORDS.effect;
+  if (Array.isArray(r.base)) return t(hit, { lo: at(r.base[0]), hi: at(r.base[1]) });
+  return Number.isInteger(r.base) ? t(whole, { points: at(r.base) }) : '';
 }
 
 /** A row's share `share` (permille of the hero's Max Hit or max HP) at the cast's `pm` permille, as a whole percent (THE SPELL

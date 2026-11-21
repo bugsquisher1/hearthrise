@@ -5463,9 +5463,11 @@ const DB_MUTANTS = [
   /* RUNE-LADDER-IDEM bites: a body the five files write, moved on the chain as of them, is moved back by the second apply. */
   { arm: 'RUNE-LADDER-IDEM', name: '[rune ladder] a second apply rewrites a store rune\'s spell table', fn: 'public.hr_hunt_rune_spells()', asOf: true,
     find: '"rend":{"skill":"melee"', replace: '"rend":{"skill":"magic"' },
+  /* the anchor is the CASE arm's head, which the whole chain's body (the harness's pre-check) and the body as of the file both hold:
+     1011-own-heroes-apart.sql moved what follows it */
   { arm: 'PARTY-LEAVE-IDEM', name: '[leave together] §0 takes a spliced body another file moved', fn: SS, asOf: true,
-    find: "      when 'party_member_died' then coalesce((select ps.party_leave_together",
-    replace: "      when 'party_member_died' then /* moved */ coalesce((select ps.party_leave_together" },
+    find: "      when 'party_member_died' then ",
+    replace: "      when 'party_member_died' then /* moved */ " },
   { arm: 'PARTY-LEAVE', name: '[leave together] a cascaded hero is closed where its window began (its stretch unsettled)', fn: SS,
     find: '    perform public.hr_hunt_close(p_session, v_end, v_end_at, true);',
     replace: "    perform public.hr_hunt_close(p_session, v_end, case when v_end like 'party_member_%' then v_s.settled_to else v_end_at end, true);" },

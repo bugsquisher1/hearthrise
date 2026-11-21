@@ -1,6 +1,6 @@
 # Chapter 11: On-call heroes, the clan XP room and the town day
 
-Part of "Hearthrise: the game we are building". Lane `lane/d-on-call-clan-xp` (game designer, 2026-11-21), cut from `set/v0.2.144` at 0ba61f38a. Docs only. No game code, data or migration was changed. No other chapter was edited. Section 9 lists what the integrator has to change elsewhere.
+Part of "Hearthrise: the game we are building". Lane `lane/d-on-call-clan-xp` (game designer, 2026-11-21), cut from `set/v0.2.144` at 0ba61f38a, with the fold of the sitting merged in. Docs only. No game code, data or migration was changed. No other chapter was edited. Section 9 lists what the integrator has to change elsewhere.
 
 **How to read the labels.**
 
@@ -24,6 +24,8 @@ The spec. A hero's owner switches it on call once, with limits. Its window opens
 **2. The clan XP room (S-4 a, inside the full castle of S-7 b).** The castle's fifth building is the Library. Each of its ten levels pays +0.5% Level XP as a standing buff, +5% at the top (PROVISIONAL). It is one row on the modifier table and fills a new standing cap on Level XP. COMPUTED: the ceiling on a Hearthrise weekend moves from about 1.67 to about 1.74. The pace a player can hold all the time moves from about 1.36 to about 1.44. The Level table stays the clock of the plain four, which is now also the four in no clan. The first region past staged content must be open by about day 50 and not day 55.
 
 **3. The town day.** One rule: **a resting hero does one job at a time, counted jobs first and one standing job last, and on call is a switch that may interrupt it.** Bounded things run first (the job queue, the week's castle labor). One unbounded thing fills what is left (train, gather, labor or fuel). So nothing with an endless appetite can starve the rest, and no hero stands idle.
+
+**A fourth, small one: Setups and their priced slots (S-3 a).** The book kept "one Setup for each ground" and the sitting kept five slots a hero, three of them free. Section 10 fits the two: a Setup is a named kit, and a ground points to one. Pointing is free and has no limit. The prices do not change and no sink is added.
 
 **What stays unknown until played.**
 
@@ -461,7 +463,9 @@ The framework audit found no town work, no buff and no mixed-account party in an
 
 ## 9. For the integrator
 
-I edited no other chapter and no decision file.
+I edited no other chapter and no decision file. I checked this list by search against the book with the fold of the sitting merged in.
+
+**Already done by the fold. Only the pointer changes.** The sitting's answers are on the ruled list. MM-18 reads kept and points here. The Library is named as the fifth building with its size owed. The party rule of chapter 06 already lets a hero from another account join. Wherever the book says this chapter is "being written", it now points to it. In the rows below, read "add" as "fill in" where the fold left a placeholder.
 
 | Where | Change |
 |---|---|
@@ -476,5 +480,43 @@ I edited no other chapter and no decision file.
 | `07-home-and-town.md`, 2.11 and section 5 | Town work's list gains castle labor. Still-missing item 7 (a party hero's spare rested hours) points here and at band TD1. The superseded row that leans on MM-18 is updated |
 | `04-economy-and-crowns.md` | On call moves no gold to the owner and is not a Crowns surface. The caller pays a guest's supplies. Labor covers the weekly share before gold does |
 | `09-platform-and-measurement.md` | The knobs of section 4, the bands of section 5, one cost row for a mixed party marked ESTIMATED, and the cross-account write on the Security list |
+| `00-the-game.md`, 6.2 | Row 8 is closed by section 10 here. Row 9 is closed by this chapter. Consistency row 18 reads "a Setup is one saved thing, and a ground points to one" |
+| `03-items-and-crafting.md`, 2.14 and GR-48 | "How one Setup for each ground fits five slots is OPEN" is replaced by section 10: each ground remembers one Setup, by pointing to one of the hero's slots. GR-48's text changes from "one Setup for each ground" to "one remembered Setup for each ground" |
+| `01-core-and-combat.md`, section 5 item 17, and `05-progression.md`, GR-48 row | The same wording |
+| `08-player-experience.md`, 2.2 | The plan row gains: a ground with no pointer uses the hero's first Setup. An edit made at a ground asks Save or Save as new. Copy to another hero fills one of that hero's slots |
+| `04-economy-and-crowns.md` | No number changes. 55,000 gold a hero and 220,000 for four stand. One sentence: slots four and five sell a fourth and fifth kit, never the memory of a ground |
 | `10-level-choices.md` | No change. A guest fights with its own talents. The ceiling it quotes, about 1.67, is the reading before the Library |
 | A question for the Coordinator | The reading of "full stamina" in 1.2 |
+
+---
+
+## 10. Setups and the five slots
+
+A small addition. It closes row 8 of section 6.2 in `00-the-game.md`.
+
+**What is ruled.** RULED 2026-11-21 (S-3 a), as first ruled on 2026-11-05: a hero has three free Setup slots, then two more at 15,000 and 40,000 gold. Five for a hero. The cost was on the page: a hero that hunts more than three grounds meets the price, and a player then pays to stop repeating a decision by hand.
+
+**The conflict.** The book says "one Setup for each ground". A hero hunts dozens of grounds in its life and owns five slots at most. Read as one saved copy for each ground, the two cannot both hold.
+
+**The fit.** PROVISIONAL.
+
+| Thing | What it is | Costs |
+|---|---|---|
+| A **Setup** | A named kit of the hero: the weapon, the worn set, the linings, the bar, the target mode and the talent unlock switches. It lives in one of the hero's slots | Three free. The fourth 15,000 gold. The fifth 40,000 gold |
+| What a **ground remembers** | Which Setup was last used there, with the tier and the seats. It is a pointer to a slot, not a copy | Nothing, for any number of grounds |
+
+- "One Setup for each ground" now means: each ground remembers one. Many grounds can point to the same Setup.
+- A ground the hero has never hunted uses its first Setup. So a hero with one kit never opens the Setup screen again.
+- An edit made while standing at a ground changes the Setup that ground points to. If other grounds point to it too, the save asks once: Save, which changes it everywhere it is used, or Save as new, which takes a free slot. With no free slot, Save as new shows the price of the next one.
+- Deleting a Setup sends the grounds that pointed to it back to the first Setup.
+- Copy to another hero fills one of that hero's slots, under that hero's own count.
+
+**Why this answers the cost that was on the page.** Remembering which kit a ground uses is free for ever, so nobody pays to stop repeating a decision. What the fourth and fifth slots sell is a fourth and a fifth kit. That is breadth of build, which is what the owner said on 2026-11-18 a sink should make a hero choose.
+
+**How many kits a hero needs.** JUDGMENT. One for most of its life. A second for a second weapon on the weak side or for hunting alone. A third for a set of linings that answers a different element. The fourth and fifth are for a player who tunes by ground. A hero that wants a different kit for six elements cannot have it, and that limit is the ruling. UNKNOWN how many players reach for slot four, because nothing has measured how many kits a hero uses.
+
+**The gold.** COMPUTED, unchanged: 55,000 gold a hero and 220,000 for four heroes, once. No price moves and no sink is added.
+
+**Where else it shows.** A guest on call (section 1.4) fights with the Setup its owner's hero has pointed at that ground, or its first Setup. An arena build of chapter 10 is not a Setup and takes no slot.
+
+**The server.** A slot count for each hero, raised only by the purchase RPC that the ruled price already needs. A pointer for each hero and ground, written by the party start that already remembers tier and seats. The purchase is a gold surface and is journalled like every other. Nothing new for the Security review beyond the purchase itself.

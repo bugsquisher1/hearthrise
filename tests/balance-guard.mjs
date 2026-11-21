@@ -539,6 +539,14 @@ function calibrate(J) {
   J.rows['krell-real'] = { ...r, levelXpPerH: K.levelXpAHeroHour, killsPerH: K.killsAClockHour, incomePerH: K.netGoldAHeroHour, storePerH: 0 };
   return J;
 }
+/* UNCALIBRATE: K1 reads the harness at half the real four's Level XP and kills (the gate shuts), wherever it reads today. The K1 gate's negative
+   control runs on it: with the real seats and the hunt restated on today's engine K1's Level XP sits at the gate's own edge (0.90), and a
+   control that needed the measured K1 to be outside the gate went NOISY the day the harness came into band (51-baseline.md F16). */
+function uncalibrate(J) {
+  const K = realKrellNow(), r = J.rows['krell-real'];
+  J.rows['krell-real'] = { ...r, levelXpPerH: K.levelXpAHeroHour * 0.5, killsPerH: K.killsAClockHour * 0.5 };
+  return J;
+}
 function inBandNightly(J) {
   J.nightly = true;
   for (const p of GC.DEADLY_POINTS) {
@@ -562,8 +570,8 @@ async function selftest(workers) {
   const clean0 = judge(I);
   if (exitOf(clean0, false) !== 0) { console.log('HARNESS: the clean tree is red in plain mode (' + [...redSet(clean0)].join(', ') + '): fix that before proving the plants'); return 2; }
   /* the clean judge each pre-step plants on */
-  const CLEAN = { none: clean0, cal: judge(calibrate(clone(I))), nightly: judge(inBandNightly(clone(I))) };
-  const PRE = { none: (J) => J, cal: calibrate, nightly: inBandNightly };
+  const CLEAN = { none: clean0, cal: judge(calibrate(clone(I))), nightly: judge(inBandNightly(clone(I))), uncal: judge(uncalibrate(clone(I))) };
+  const PRE = { none: (J) => J, cal: calibrate, nightly: inBandNightly, uncal: uncalibrate };
   /* the scan plants: a module's copy with one more row */
   const plantScan = async (file, edit) => SCAN.scanLevers(ROOT, async (f) => { const m = await SCAN.loadData(ROOT)(f); return f === file ? edit(m) : m; });
   const withItem = (row) => (m) => ({ ...m, ITEMS: { ...m.ITEMS, planted_meal: row } });
@@ -605,8 +613,8 @@ async function selftest(workers) {
   plant('NEGATIVE CONTROL: the Glade\'s lone hammer +1% Level XP', () => ({ at: 'none' }), (J) => { J.rows['ref:glade:lone'].levelXpPerH *= 1.01; }, { control: true });
   plant('NEGATIVE CONTROL: a meal that only heals (no buff)', () => ({ at: 'none' }), async (J) => { J.scan = await plantScan('items.js', withItem({ n: 'Planted Bread', heals: 10 })); }, { control: true });
   plant('NEGATIVE CONTROL: a new bow row that replaces Precision Shot (shares its cooldown)', () => ({ at: 'none' }), (J) => { J.data.bar.rows.push({ id: 'planted_shot', lane: 'offense', cdMs: 4000, disciplines: ['ranged'], replaces: 'precision_shot' }); }, { control: true });
-  plant('NEGATIVE CONTROL (the K1 gate): the four x1.6 while K1 reads the harness as measured stays uncalibrated', () => ({ at: 'none' }), (J) => { for (const p of GC.FOUR_POINTS) J.rows['ref:' + p.id + ':four'].levelXpPerH *= 1.6; },
-    { control: true, check: (got) => calibration(I).xp || got.find((l) => l.id === 'G3').status === 'uncalibrated' });
+  plant('NEGATIVE CONTROL (the K1 gate): the four x1.6 while K1 reads the harness at half the real four stays uncalibrated', () => ({ at: 'none' }), (J) => { for (const p of GC.FOUR_POINTS) J.rows['ref:' + p.id + ':four'].levelXpPerH *= 1.6; },
+    { control: true, pre: 'uncal', check: (got) => got.find((l) => l.id === 'G3').status === 'uncalibrated' });
 
   let fails = 0, n = 0;
   console.log('BALANCE GUARD --selftest: ' + P.length + ' plants on one clean measure (' + I.cells + ' cells, ' + (I.wallMs / 1000).toFixed(0) + ' s); each must turn its OWN row red and no other'

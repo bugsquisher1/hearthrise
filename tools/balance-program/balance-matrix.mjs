@@ -311,7 +311,8 @@ export async function baseOf(spec, without) {
   if (!spec || spec === 'today') return null;
   const P = await import('./proposals.mjs');
   const reg = P.loadProposals(ROOT);
-  const ids = (spec === 'proposed' ? reg.recommended : spec.split(',')).filter((id) => !(without || []).includes(id));
+  /* `without` turns each off as a toggle does, with whatever requires it (proposals.json `requires`: GR-6 takes GR-6-seat along) */
+  const ids = (without || []).reduce((set, id) => P.toggled(reg, set, id), spec === 'proposed' ? reg.recommended : spec.split(','));
   return { name: spec === 'proposed' ? 'proposed' + ((without || []).length ? '-without-' + without.join('+') : '') : 'set-' + ids.join('+'), ids, patch: P.composePatch(ROOT, ids, { reg }) };
 }
 /** Two patches as one (the base, then the change): edits in order, knobs multiplied, plan steps merged, targets of the change. */

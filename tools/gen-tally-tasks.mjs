@@ -56,7 +56,10 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
    2027-05-12-catacomb-gold-platinum-items-catalogue), so hr_tally_tiers gains their twelve rows in this forward file, the same full rewrite
    of the same tables, for the same reason. No function body moves; no task, piece, material or gold moves. ORDER: after this lane's items
    catalogue. */
-export const OUT_FILE = '2027-05-12-catacomb-gold-platinum-tally.generated.sql';
+/* THE APPROVED CUTS (lane/c-approved-cuts, 2026-11-20; build plan L10): the three boss-forged body pieces leave hr_items
+   (1010-approved-cuts-items-catalogue), so the tier book loses their rows in this forward file, the same full rewrite of the same
+   tables. No task, piece, material or gold moves. ORDER: after 1010. */
+export const OUT_FILE = '1012-approved-cuts-tally.generated.sql';
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_FILE);
 
 /**

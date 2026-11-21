@@ -365,7 +365,9 @@ export const WORLD_FIELDS_READ = Object.freeze({
    is x1.1 (src/data/balance-sheet.js STAT_FORMULA), so its XP and coin a kill rise with it and the most one kill can pay rises too. No ground, spawn, limit,
    end reason, vendor value or world shape moves. ORDER: after every 2027-05-28 file. */
 /* 1001-xp-a-kill-hunt-sessions-catalogue (lane/d-142-rulings, 2026-11-19): STAT_FORMULA's XP a kill x0.88, so every formula row's kill bound falls; 2027-06-05 is carried whole. */
-export const OUT_NAME = '1001-xp-a-kill-hunt-sessions-catalogue.generated.sql';
+/* 1011-approved-cuts-hunt-sessions-catalogue (lane/c-approved-cuts, 2026-11-20; build plan L10): 1001 is carried whole; hr_hunt_vendor_value loses the Shop's bids on the
+   Hearth Token and the three boss-forged body pieces, which 1010-approved-cuts-items-catalogue takes out of hr_items. ORDER: after 1010. */
+export const OUT_NAME = '1011-approved-cuts-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);

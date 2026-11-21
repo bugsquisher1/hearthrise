@@ -320,6 +320,9 @@ const RETIRED_UNLOCKS = Object.freeze([
   'character_slot:4',
   /* The three cookbook scrolls are cut with their recipes (designer 2026-11-18: patterns teach worn recipes, per hero). */
   'recipe:field_cookbook', 'recipe:marrow_cookbook', 'recipe:soul_recipe',
+  /* The six house themes were priced in gems (hr_gem_unlocks); the gem rows and the gem RPC were cut 2026-11-20 (Tyler, economy
+     dive 24-5, build plan L10, 1009-approved-cuts.sql), so their ownership rows go too. */
+  'theme:default', 'theme:desert', 'theme:fairy', 'theme:forest', 'theme:volcanic', 'theme:winter',
 ]);
 for (const id of RETIRED_UNLOCKS) {
   if (rows.some((r) => r.unlock_id === id)) die(`retired unlock ${id} is still derived — take it off RETIRED_UNLOCKS or remove its source`);

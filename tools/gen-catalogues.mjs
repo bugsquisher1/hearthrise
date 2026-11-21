@@ -186,7 +186,13 @@ const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'))
 /* MONSTERS A LITTLE HARDER (lane/d-harder-monsters, 2026-11-19; Tyler: "raise HP and damage done by all monsters in the game slightly"): 2027-05-22-cookbook-cut-items-catalogue
    (STAGED, applied first) is the file before this one and this one carries it whole. Only hr_activities moves: each combat activity's max_hp is its monster's
    row, x1.1 on the formula's HP line (src/data/balance-sheet.js STAT_FORMULA). ORDER: after every 2027-05-22 file. */
-const OUT = join(ROOT, 'supabase', 'migrations', '2027-06-05-harder-monsters-items-catalogue.generated.sql');
+/* THE APPROVED CUTS (lane/c-approved-cuts, backend-architect 2026-11-20; Tyler's rulings 22-10, 24-5, 27-7, build plan L10):
+   2027-06-05-harder-monsters-items-catalogue (APPLIED) is the file before this one and this one carries it whole. hr_items loses the
+   Hearth Token (the bond) and the three boss-forged body pieces (src/data/boss-forge.js, cut with the old dungeons); hr_item_slots
+   loses the three pieces' body rows; hr_start_kit is upserted without hearth_tokens (1009-approved-cuts.sql drops that column) and
+   the grant-source check no longer reads the dropped hr_dungeon_loot / hr_qm_offers. ORDER: after 1009-approved-cuts.sql (the
+   column and the two tables are gone first); before this lane's hunt-sessions file (the vendor bids read these rows). */
+const OUT = join(ROOT, 'supabase', 'migrations', '1010-approved-cuts-items-catalogue.generated.sql');
 /* THE SECOND GENERATED FILE (2026-09-13). hr_item_buffs is emitted as its own
    migration rather than into OUT above, and that is a deliberate operational
    call: OUT is the FOURTH file in tests/schema-apply-order.json and is already

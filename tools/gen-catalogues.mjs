@@ -191,7 +191,7 @@ const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'))
    Hearth Token (the bond) and the three boss-forged body pieces (src/data/boss-forge.js, cut with the old dungeons); hr_item_slots
    loses the three pieces' body rows; hr_start_kit is upserted without hearth_tokens (1016-approved-cuts.sql drops that column) and
    the grant-source check no longer reads the dropped hr_dungeon_loot / hr_qm_offers. ORDER: after 1016-approved-cuts.sql (the
-   column and the two tables are gone first); before this lane's hunt-sessions file (the vendor bids read these rows). */
+   column and the two tables are gone first) and after 1012-approved-rows-hunt-sessions-catalogue (the Shop's bids on the four leave there). */
 const OUT = join(ROOT, 'supabase', 'migrations', '1017-approved-cuts-items-catalogue.generated.sql');
 /* THE SECOND GENERATED FILE (2026-09-13). hr_item_buffs is emitted as its own
    migration rather than into OUT above, and that is a deliberate operational

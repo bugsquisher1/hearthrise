@@ -1,6 +1,6 @@
 // ============================================================================
 // src/core/luck.js — THE LUCK FORMULAS THE ENGINE READS (docs/design/itemization-plan.md §15, Luck v3.1). The numbers are src/data/luck.js.
-// The BAR (rank n at rankStep x (1^2 + ... + n^2), the far stop, a stage paid once) is the server's alone: 1036-luck.sql hr_luck_rank /
+// The BAR (rank n at rankStep x (1^2 + ... + n^2), the far stop, a stage paid once) is the server's alone: 1040-luck.sql hr_luck_rank /
 // hr_luck_to_rank over the generated copies of the same rows (tools/gen-luck.mjs); tests/luck.mjs holds them to the data. What the
 // engine needs is the number the server sent and what it does to a row.
 //

@@ -7,7 +7,7 @@
 // the new price before the next press). On ok the character is RE-READ: the new piece shows only from the server's envelope.
 //   hallmarkPiece(account, cs, from, to, price)  hr_hallmark
 //   reforgePiece(account, cs, from, to, price)   hr_jewel_reforge
-//   luckyRing(account, cs, from, price)          hr_lucky_ring (1036-luck.sql): a plain ring + its tier's Lucky Rivets + the fee -> Fine, Lucky
+//   luckyRing(account, cs, from, price)          hr_lucky_ring (1040-luck.sql): a plain ring + its tier's Lucky Rivets + the fee -> Fine, Lucky
 // ════════════════════════════════════════════════════════════════════════
 import { askVia } from './intent-ledger.js';
 import { refusalOf } from './refusal.js';
@@ -43,7 +43,7 @@ export function reforgePiece(account, cs, from, to, price) {
   return step('jewel_reforge', account, cs, from, to, price, (args) => account.server.rpc('hr_jewel_reforge', args));
 }
 
-/** THE LUCKY JOB (src/data/luck.js; 1036-luck.sql hr_lucky_ring): make one plain ring `from` the Fine Lucky ring at the fee the server quoted (the
+/** THE LUCKY JOB (src/data/luck.js; 1040-luck.sql hr_lucky_ring): make one plain ring `from` the Fine Lucky ring at the fee the server quoted (the
     `luck` section's offer). It names no rivet count and no result: the server reads both from its catalogue under its locks. */
 export function luckyRing(account, cs, from, price) {
   if (!account || !account.server || !cs) return Promise.resolve({ ok: false, error: 'bad_intent' });

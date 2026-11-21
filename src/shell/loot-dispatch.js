@@ -31,7 +31,7 @@ import { luckOf } from '../session/luck-sections.js';
 import { LUCK_ITEM } from '../data/luck.js';
 
 /** The plans, then the pickup filter: [rule, words, group]. The rule is the server's word (player_item_rules.loot_rule). Salvage and Use
-    are Luck's (1036-luck.sql), offered only where planShown says. */
+    are Luck's (1040-luck.sql), offered only where planShown says. */
 export const LOOT_CHOICES = Object.freeze([
   Object.freeze(['keep', t('controls.keep'), 'plan']),
   Object.freeze(['deposit', t('controls.deposit'), 'plan']),

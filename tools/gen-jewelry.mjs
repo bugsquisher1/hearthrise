@@ -33,7 +33,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
    and the jewel reforge's table is new: the same full delete + insert of each table. */
 /* LUCK (lane/d-luck-build, 2026-11-20): 2027-05-09-jewelry-sample-catalogue is APPLIED history; the Lucky Fine rows' Hallmark offers and the eight
    Lucky rows' market ceilings land in this forward file, the same full delete + insert. */
-export const OUT_FILE = '1034-luck-jewelry-catalogue.generated.sql';
+export const OUT_FILE = '1038-luck-jewelry-catalogue.generated.sql';
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_FILE);
 const ID = /^[a-z0-9_]{1,48}$/;
 
@@ -114,7 +114,7 @@ export function build(offers = HALLMARK_OFFERS, limit = HALLMARK_DAY_LIMIT, ceil
 -- Lucky rows' market ceilings are new (the Lucky ring trades like all jewelry: Tyler 2026-11-20). Nothing else moves.
 -- A row moves no value: each verb re-quotes from it under the hero's lock and answers quote_changed if the gold moved.
 -- RLS on, no policy, no client grant. No begin/commit. ON THE EA SECURITY LIST (a money surface).
--- APPLY ORDER: after 1032-luck-items-catalogue.generated.sql (hr_items holds the rows).
+-- APPLY ORDER: after 1036-luck-items-catalogue.generated.sql (hr_items holds the rows).
 -- REVERSIBLE: drop the tables with the verbs and the view's join that read them.
 -- ════════════════════════════════════════════════════════════════════════
 create table if not exists public.hr_hallmark_offers (

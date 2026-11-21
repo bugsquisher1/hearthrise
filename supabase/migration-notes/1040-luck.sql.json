@@ -1,0 +1,3 @@
+{
+  "note": "STAGED, NOT APPLIED (lane/d-luck-build, systems-engineer, 2026-11-20; Tyler 2026-11-20 'Yes, designer's numbers' to plan §15 v3.1): account_luck, account_found, account_kills; the luck switch (off); Magic Find for the settle (hr_hunt_member_state, the member's engine inputs: one key; hr_hunt_instance_read is left to 1005); kills and found folded ONCE A HUNT at its end (hr_luck_fold, from the session's own combat rows and loot tally: no Luck write while a hunt runs, per-player-cost Luck-on arm); Salvage and Use plans and Dispatch's arms; the Lucky job (hr_lucky_ring); the luck section; Bestiary stage Luck. Dark until the switch moves. ORDER: 1040, after 1036-1039. EDGE: hr-accrue reads magic_find; deploy after this applies."
+}

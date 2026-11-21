@@ -8708,7 +8708,7 @@
     "restate"
    ],
    "touched_by": [
-    "1036-luck.sql",
+    "1040-luck.sql",
     "2027-02-02-settle-cost.sql",
     "2027-03-13-gm-tools.sql"
    ],
@@ -11729,7 +11729,7 @@
     "restate"
    ],
    "touched_by": [
-    "1036-luck.sql",
+    "1040-luck.sql",
     "2027-01-23-loot-dispatch.sql"
    ],
    "live": {
@@ -11776,7 +11776,7 @@
     "restate"
    ],
    "touched_by": [
-    "1036-luck.sql",
+    "1040-luck.sql",
     "2027-01-23-loot-dispatch.sql"
    ],
    "live": {
@@ -11802,7 +11802,7 @@
     "restate"
    ],
    "touched_by": [
-    "1036-luck.sql",
+    "1040-luck.sql",
     "2026-10-25-bag-rules.sql",
     "2027-01-23-loot-dispatch.sql"
    ],
@@ -11828,7 +11828,7 @@
     "restate"
    ],
    "touched_by": [
-    "1036-luck.sql"
+    "1040-luck.sql"
    ],
    "live": null,
    "replay": {
@@ -11847,7 +11847,7 @@
     "restate"
    ],
    "touched_by": [
-    "1036-luck.sql"
+    "1040-luck.sql"
    ],
    "live": null,
    "replay": {
@@ -11866,7 +11866,7 @@
     "restate"
    ],
    "touched_by": [
-    "1036-luck.sql"
+    "1040-luck.sql"
    ],
    "live": null,
    "replay": {
@@ -11885,7 +11885,7 @@
     "restate"
    ],
    "touched_by": [
-    "1036-luck.sql"
+    "1040-luck.sql"
    ],
    "live": null,
    "replay": {
@@ -11904,7 +11904,7 @@
     "restate"
    ],
    "touched_by": [
-    "1036-luck.sql"
+    "1040-luck.sql"
    ],
    "live": null,
    "replay": {
@@ -11923,7 +11923,7 @@
     "restate"
    ],
    "touched_by": [
-    "1036-luck.sql"
+    "1040-luck.sql"
    ],
    "live": null,
    "replay": {
@@ -11942,7 +11942,7 @@
     "restate"
    ],
    "touched_by": [
-    "1036-luck.sql"
+    "1040-luck.sql"
    ],
    "live": null,
    "replay": {
@@ -11961,7 +11961,7 @@
     "restate"
    ],
    "touched_by": [
-    "1036-luck.sql"
+    "1040-luck.sql"
    ],
    "live": null,
    "replay": {
@@ -11980,7 +11980,7 @@
     "restate"
    ],
    "touched_by": [
-    "1036-luck.sql"
+    "1040-luck.sql"
    ],
    "live": null,
    "replay": {
@@ -16812,7 +16812,7 @@
     "restate"
    ],
    "touched_by": [
-    "1036-luck.sql",
+    "1040-luck.sql",
     "2026-12-23-tally-tasks.sql"
    ],
    "live": {

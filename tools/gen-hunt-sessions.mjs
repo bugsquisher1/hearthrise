@@ -375,9 +375,9 @@ export const WORLD_FIELDS_READ = Object.freeze({
    the last; ONE forward file per generator): hr_hunt_vendor_value loses the Shop's bids on the Hearth Token and the three boss-forged body
    pieces, which the approved-cuts items catalogue takes out of hr_items AFTER this file. A forward file after that catalogue could not be
    re-applied before it (tests/schema-drift.mjs's second apply of the staged tail: its bids would name items hr_items no longer holds). */
-/* 1033-luck-hunt-sessions-catalogue (lane/d-luck-build, 2026-11-20): the eight Lucky ring rows' vendor values; Tomato Soup leaves the supplies (its
+/* 1037-luck-hunt-sessions-catalogue (lane/d-luck-build, 2026-11-20): the eight Lucky ring rows' vendor values; Tomato Soup leaves the supplies (its
    drop buff cut); 1028 (STAGED, with the approved cuts' bids folded in) is carried whole. */
-export const OUT_NAME = '1033-luck-hunt-sessions-catalogue.generated.sql';
+export const OUT_NAME = '1037-luck-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);

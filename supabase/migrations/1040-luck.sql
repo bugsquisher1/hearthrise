@@ -1,9 +1,9 @@
 -- ════════════════════════════════════════════════════════════════════════
--- supabase/migrations/1036-luck.sql — LUCK AND MAGIC FIND, SERVER SIDE, DARK BEHIND ONE SWITCH (lane/d-luck-build, systems-engineer,
+-- supabase/migrations/1040-luck.sql — LUCK AND MAGIC FIND, SERVER SIDE, DARK BEHIND ONE SWITCH (lane/d-luck-build, systems-engineer,
 --   2026-11-20; Tyler 2026-11-20 "Yes, designer's numbers" to docs/design/itemization-plan.md §15, Luck v3.1).
 --
--- STATUS: supabase/migration-notes/1036-luck.sql.json (STAGED until the Coordinator applies it).
--- ORDER: after 1032-luck-items-catalogue (hr_items: lucky_rivet, the Lucky rows), 1033-luck-hunt-sessions-catalogue (their vendor values), 1034-luck-jewelry-catalogue and 1035-luck-catalogue
+-- STATUS: supabase/migration-notes/1040-luck.sql.json (STAGED until the Coordinator applies it).
+-- ORDER: after 1036-luck-items-catalogue (hr_items: lucky_rivet, the Lucky rows), 1037-luck-hunt-sessions-catalogue (their vendor values), 1038-luck-jewelry-catalogue and 1039-luck-catalogue
 --   (hr_luck_rules, hr_luck_salvage, hr_luck_stages, hr_luck_ring_pct, hr_lucky_offers). Applied as ONE transaction by the apply tool;
 --   never begin/commit here. Ends with its §4 self-check. EDGE: hr-accrue reads `magic_find` (hunt-settle.js memberInput); a bundle
 --   without it rolls at 0, today's game, so the deploy may follow this apply.
@@ -61,10 +61,10 @@ begin
   if to_regclass('public.hr_luck_rules') is null or not exists (select 1 from public.hr_luck_rules where id)
      or to_regclass('public.hr_luck_salvage') is null or to_regclass('public.hr_luck_stages') is null
      or to_regclass('public.hr_luck_ring_pct') is null or to_regclass('public.hr_lucky_offers') is null then
-    raise exception 'PRECONDITION: apply 1035-luck-catalogue.generated.sql first'; end if;
+    raise exception 'PRECONDITION: apply 1039-luck-catalogue.generated.sql first'; end if;
   if not exists (select 1 from public.hr_items i join public.hr_luck_rules lr on lr.item_id = i.item_id where not i.tradeable)
      or exists (select 1 from public.hr_hunt_vendor_value v join public.hr_luck_rules lr on lr.item_id = v.item_id where v.unit > 0) then
-    raise exception 'PRECONDITION: the luck item is not a bound, unpriced catalogue item (apply 1032-luck-items-catalogue.generated.sql first)'; end if;
+    raise exception 'PRECONDITION: the luck item is not a bound, unpriced catalogue item (apply 1036-luck-items-catalogue.generated.sql first)'; end if;
   if to_regclass('public.hr_feature_switches') is null or to_regclass('public.hr_state_sections') is null
      or to_regclass('public.hr_hunt_roster') is null or to_regclass('public.player_equipment') is null then
     raise exception 'PRECONDITION: the feature switches, the section registry, the roster and the equipment table first'; end if;
@@ -82,7 +82,7 @@ begin
   ) p(sig, pre, src) loop
     select md5(replace(prosrc, chr(13), '')) into v_md5 from pg_proc where oid = to_regprocedure(r.sig);
     if v_md5 is null then raise exception 'PIN: % is missing', r.sig; end if;
-    if v_md5 is distinct from r.pre and position('LUCK (1036-luck.sql)' in (select prosrc from pg_proc where oid = to_regprocedure(r.sig))) = 0 then
+    if v_md5 is distinct from r.pre and position('LUCK (1040-luck.sql)' in (select prosrc from pg_proc where oid = to_regprocedure(r.sig))) = 0 then
       raise exception 'PIN: % is neither %''s image (%) nor this file''s - md5 %: another file moved it; re-pin', r.sig, r.src, left(r.pre, 8), v_md5; end if;
   end loop;
 end $mig$;
@@ -91,7 +91,7 @@ end $mig$;
 -- One raise-only rule for all three: each named column may only rise (a key never moves: the primary keys are the rows' identity).
 create or replace function public.hr_luck_raise_only()
 returns trigger language plpgsql set search_path = public, pg_catalog as $fn$
--- LUCK (1036-luck.sql): Luck, found, salvaged and kills only go up; a hero deleted, a plan changed or a bug never lowers them.
+-- LUCK (1040-luck.sql): Luck, found, salvaged and kills only go up; a hero deleted, a plan changed or a bug never lowers them.
 declare c text; o jsonb := to_jsonb(old); n jsonb := to_jsonb(new);
 begin
   foreach c in array tg_argv loop
@@ -111,7 +111,7 @@ create table if not exists public.account_luck (
   constraint account_luck_sum check (luck = from_kills + from_salvage)
 );
 comment on table public.account_luck is
-  '1036-luck.sql: the ACCOUNT''s Luck bar (itemization plan §15): Lucky Rivets used + Bestiary stage Luck. Raise-only (hr_luck_raise_only). Written only by Dispatch''s use arm and the settle''s kill hook (hr_luck_credit).';
+  '1040-luck.sql: the ACCOUNT''s Luck bar (itemization plan §15): Lucky Rivets used + Bestiary stage Luck. Raise-only (hr_luck_raise_only). Written only by Dispatch''s use arm and the settle''s kill hook (hr_luck_credit).';
 create table if not exists public.account_found (
   user_id    uuid        not null references auth.users (id) on delete cascade,
   item_id    text        not null check (item_id ~ '^[a-z0-9_]{1,64}$'),
@@ -122,7 +122,7 @@ create table if not exists public.account_found (
   constraint account_found_allowance check (salvaged <= found)
 );
 comment on table public.account_found is
-  '1036-luck.sql: the salvage allowance: pieces of each item the account''s OWN hunts paid (found, the settle''s loot hook only) and the pieces Dispatch salvaged for rivets. Raise-only.';
+  '1040-luck.sql: the salvage allowance: pieces of each item the account''s OWN hunts paid (found, the settle''s loot hook only) and the pieces Dispatch salvaged for rivets. Raise-only.';
 create table if not exists public.account_kills (
   user_id    uuid        not null references auth.users (id) on delete cascade,
   monster_id text        not null check (monster_id ~ '^[a-z0-9_]{1,48}$'),
@@ -131,7 +131,7 @@ create table if not exists public.account_kills (
   primary key (user_id, monster_id)
 );
 comment on table public.account_kills is
-  '1036-luck.sql: the account''s Bestiary counts (Tyler 2026-11-20: per account), one a kill whoever of its heroes was there. The settle''s kill hook only. Raise-only.';
+  '1040-luck.sql: the account''s Bestiary counts (Tyler 2026-11-20: per account), one a kill whoever of its heroes was there. The settle''s kill hook only. Raise-only.';
 drop trigger if exists account_luck_raise_only on public.account_luck;
 create trigger account_luck_raise_only before update on public.account_luck
   for each row execute function public.hr_luck_raise_only('luck', 'from_kills', 'from_salvage');
@@ -155,7 +155,7 @@ end $mig$;
 
 -- ── §2 THE SWITCH (off; the Coordinator moves it with a one-line migration: 2027-03-21-feature-switches.sql "HOW A SWITCH MOVES") ─────
 insert into public.hr_feature_switches (switch_id, scope, note)
-  select r.switch_id, 'off', '1036-luck.sql: Luck and Magic Find (itemization plan §15): Magic Find in the settle, Salvage and Use plans, the Lucky job, the luck section, the account''s counts'
+  select r.switch_id, 'off', '1040-luck.sql: Luck and Magic Find (itemization plan §15): Magic Find in the settle, Salvage and Use plans, the Lucky job, the luck section, the account''s counts'
     from public.hr_luck_rules r where r.id
   on conflict (switch_id) do nothing;
 
@@ -163,14 +163,14 @@ insert into public.hr_feature_switches (switch_id, scope, note)
 -- plpgsql, not sql: the settle and the section read these, and a sql function is re-planned on every call (tests/settle-budget.mjs SB-3).
 create or replace function public.hr_luck_on(p_user uuid)
 returns boolean language plpgsql stable security definer set search_path = public, pg_catalog as $fn$
--- LUCK (1036-luck.sql): the one door every Luck read and verb asks.
+-- LUCK (1040-luck.sql): the one door every Luck read and verb asks.
 begin
   return p_user is not null and coalesce(public.hr_feature_on((select r.switch_id from public.hr_luck_rules r where r.id), p_user), false);
 end $fn$;
 
 create or replace function public.hr_luck_to_rank(p_n int)
 returns bigint language plpgsql stable security definer set search_path = public, pg_catalog as $fn$
--- LUCK (1036-luck.sql): the Luck that holds percent n = rank_step x (1^2 + ... + n^2) (src/core/luck.js luckToRank).
+-- LUCK (1040-luck.sql): the Luck that holds percent n = rank_step x (1^2 + ... + n^2) (src/core/luck.js luckToRank).
 declare r public.hr_luck_rules%rowtype; k bigint;
 begin
   select * into r from public.hr_luck_rules where id;
@@ -180,7 +180,7 @@ end $fn$;
 
 create or replace function public.hr_luck_rank(p_luck bigint)
 returns int language plpgsql stable security definer set search_path = public, pg_catalog as $fn$
--- LUCK (1036-luck.sql): the whole percent held at p_luck, 0..rank_max (src/core/luck.js rankOf).
+-- LUCK (1040-luck.sql): the whole percent held at p_luck, 0..rank_max (src/core/luck.js rankOf).
 declare r public.hr_luck_rules%rowtype; l bigint := greatest(coalesce(p_luck, 0), 0); n int;
 begin
   select * into r from public.hr_luck_rules where id;
@@ -192,7 +192,7 @@ end $fn$;
 
 create or replace function public.hr_magic_find_of(p_user uuid, p_slot int)
 returns int language plpgsql stable security definer set search_path = public, pg_catalog as $fn$
--- LUCK (1036-luck.sql): a hero's Magic Find, whole percent: the account's rank + the largest Lucky percent it wears (counted once). 0 while off.
+-- LUCK (1040-luck.sql): a hero's Magic Find, whole percent: the account's rank + the largest Lucky percent it wears (counted once). 0 while off.
 declare v_ring int;
 begin
   if not public.hr_luck_on(p_user) then return 0; end if;
@@ -205,7 +205,7 @@ end $fn$;
 -- THE ONE WRITER of the bar: raise it by kills and/or salvage Luck; answers { before, after }. The caller journals.
 create or replace function public.hr_luck_credit(p_user uuid, p_kills bigint, p_salvage bigint)
 returns jsonb language plpgsql security definer set search_path = public, pg_catalog as $fn$
--- LUCK (1036-luck.sql)
+-- LUCK (1040-luck.sql)
 declare v_before bigint; v_after bigint;
 begin
   if p_user is null or coalesce(p_kills, 0) < 0 or coalesce(p_salvage, 0) < 0 then raise exception 'hr_luck_credit: bad credit' using errcode = 'HRL02'; end if;
@@ -239,7 +239,7 @@ CREATE OR REPLACE FUNCTION public.hr_hunt_member_state(p_user uuid, p_slot integ
  STABLE SECURITY DEFINER
  SET search_path TO 'public', 'pg_catalog'
 AS $function$
--- LUCK (1036-luck.sql): + `magic_find` below.
+-- LUCK (1040-luck.sql): + `magic_find` below.
 -- 2027-02-02-settle-cost.sql: one hunt member's ENGINE INPUTS, in hr_state_of's shape and by its expressions (each
 -- key below is the hr_state_of key of the same name, copied, not re-derived): what hunt-settle.js memberInput reads
 -- through envelope.js engineInputsFromEnvelope, and nothing else. A key added to that reader is added HERE, and
@@ -257,7 +257,7 @@ begin
     'version', v_st.version,
     -- GM-TOOLS (2027-03-13-gm-tools.sql): the engine rolls no Hearthfind for a walled hero (envelope.js).
     'gm', public.hr_gm_section(p_user, v_st.slot),
-    -- LUCK (1036-luck.sql): this hero's Magic Find, read once for the settle (hunt-settle.js memberInput; the party rolls on its
+    -- LUCK (1040-luck.sql): this hero's Magic Find, read once for the settle (hunt-settle.js memberInput; the party rolls on its
     -- highest, src/data/luck.js): the account's rank plus the largest Lucky ring it wears, 0 while the `luck` switch is off for it.
     'magic_find', public.hr_magic_find_of(p_user, v_st.slot),
     'buffs', coalesce((
@@ -311,7 +311,7 @@ end $function$;
 -- A stage crossed pays hr_luck_stages' lump onto the bar, journalled. Answers the Luck paid.
 create or replace function public.hr_luck_fold(p_user uuid, p_slot int, p_session uuid)
 returns bigint language plpgsql security definer set search_path = public, pg_catalog as $fn$
--- LUCK (1036-luck.sql)
+-- LUCK (1040-luck.sql)
 declare
   v_inst uuid; v_r record; v_after bigint; v_luck bigint; v_c jsonb; v_total bigint := 0; v_kills jsonb; v_found jsonb;
 begin
@@ -378,7 +378,7 @@ returns integer language plpgsql security definer set search_path = public, pg_c
 declare v_hunt text; v_kills numeric; v_sum numeric := 0; v_k text; v_v jsonb; v_r record; v_add int; v_done int := 0;
 begin
   -- TALLY (2026-12-23-tally-tasks.sql)
-  -- LUCK (1036-luck.sql): a hunt this settle ENDED folds into the account once (hr_luck_fold: its kills and found pieces from its own
+  -- LUCK (1040-luck.sql): a hunt this settle ENDED folds into the account once (hr_luck_fold: its kills and found pieces from its own
   -- journal and loot tally), whatever this window's meta says; nothing of Luck is written while a hunt runs.
   if exists (select 1 from public.hunt_sessions h where h.id = p_session and h.user_id = p_user and h.slot = p_slot and h.ended_at is not null) then
     perform public.hr_luck_fold(p_user, p_slot, p_session);
@@ -420,7 +420,7 @@ alter table public.player_item_rules drop constraint if exists player_item_rules
 alter table public.player_item_rules add constraint player_item_rules_loot_rule_ck
   check (loot_rule in ('keep', 'deposit', 'sell', 'ignore', 'salvage', 'use'));
 comment on column public.player_item_rules.loot_rule is
-  '2027-01-23-loot-dispatch.sql + 1036-luck.sql: the item''s loot plan, run by hr_loot_dispatch in town (keep = the default, no row; '
+  '2027-01-23-loot-dispatch.sql + 1040-luck.sql: the item''s loot plan, run by hr_loot_dispatch in town (keep = the default, no row; '
   'deposit = to the account''s Storage; sell = at the vendor''s bid; salvage = for Lucky Rivets, within the account''s found allowance; '
   'use = the Lucky Rivet onto the account''s Luck bar), or the pickup filter (ignore = the settle leaves it behind). Nothing moves at pickup except ignore.';
 
@@ -437,7 +437,7 @@ returns text language sql stable set search_path = public, pg_catalog as $$
     -- sell only what the vendor prices (the catalogue vendor_sell and the pickup sale priced with).
     when p_plan = 'sell' and not exists (select 1 from public.hr_hunt_vendor_value v where v.item_id = p_item and v.unit > 0)
       then 'item_not_sellable'
-    -- LUCK (1036-luck.sql): salvage only what the salvage catalogue names (worn gear a drop row names, never a Very Rare piece, never the
+    -- LUCK (1040-luck.sql): salvage only what the salvage catalogue names (worn gear a drop row names, never a Very Rare piece, never the
     -- rivet); use only the Lucky Rivet.
     when p_plan = 'salvage' and not exists (select 1 from public.hr_luck_salvage s where s.item_id = p_item) then 'not_salvageable'
     when p_plan = 'use' and not exists (select 1 from public.hr_luck_rules r where r.id and r.item_id = p_item) then 'not_usable'
@@ -451,7 +451,7 @@ returns jsonb language plpgsql security definer set search_path = public, pg_cat
 -- Restated by 2027-01-23-loot-dispatch.sql: the item's loot plan (keep | deposit | sell, run by
 -- hr_loot_dispatch in town) or the pickup filter (ignore). The plan's refusals by item are
 -- hr_loot_plan_refusal's (start_kit, item_not_sellable), the one answer Dispatch asks too.
--- LUCK (1036-luck.sql): + salvage and use (hr_loot_plan_refusal: not_salvageable, not_usable), each refused luck_off while the switch is off.
+-- LUCK (1040-luck.sql): + salvage and use (hr_loot_plan_refusal: not_salvageable, not_usable), each refused luck_off while the switch is off.
 declare
   v_uid uuid := auth.uid(); v_r jsonb; v_verb text; v_why text; v_row public.player_item_rules%rowtype;
 begin
@@ -487,7 +487,7 @@ revoke execute on function public.hr_loot_rule_set(int, text, text, uuid) from a
 grant  execute on function public.hr_loot_rule_set(int, text, text, uuid) to authenticated;
 update public.hr_client_rpc_baseline
    set note = 'added 2026-10-25 (lane S2); 2027-01-23-loot-dispatch.sql: the item''s loot plan keep / deposit / sell (run by '
-              'hr_loot_dispatch in town) or the pickup filter ignore; start-kit items take no sell plan; 1036-luck.sql: + salvage '
+              'hr_loot_dispatch in town) or the pickup filter ignore; start-kit items take no sell plan; 1040-luck.sql: + salvage '
               '(a salvage-catalogue piece) and use (the Lucky Rivet), behind the luck switch; moves no value'
  where grantee = 'authenticated' and proname = 'hr_loot_rule_set';
 
@@ -498,7 +498,7 @@ returns jsonb language plpgsql security definer set search_path = public, pg_cat
 -- town. Every planned stack whole: deposit -> the account's Storage while it has room (a kind
 -- already there always fits; new kinds in item order), sell -> the vendor's bid through ONE
 -- hr_apply. Locked stacks and start-kit items are never moved. The client names nothing.
--- LUCK (1036-luck.sql), while the `luck` switch is on for the account: salvage -> each planned stack, at most the account's allowance
+-- LUCK (1040-luck.sql), while the `luck` switch is on for the account: salvage -> each planned stack, at most the account's allowance
 -- (found - salvaged) of it, for hr_luck_salvage's rivets through ONE hr_apply (the rest stays in the bag: no_rivets); then use -> the
 -- Lucky Rivet's whole bag stack onto the account's bar through ONE hr_apply. Off, both plans' stacks stay where they are (luck_off).
 declare
@@ -738,7 +738,7 @@ grant  execute on function public.hr_loot_dispatch(int, uuid) to authenticated;
 -- LOCK ORDER: the hero (hr_hunt_lock), hr:sink:<uid>, the depot and the bag/Storage rows (hr_materials_take), the purse last (hr_apply).
 create or replace function public.hr_lucky_ring(p_slot int, p_from text, p_price bigint, p_idem uuid)
 returns jsonb language plpgsql security definer set search_path = public, pg_catalog as $fn$
--- LUCK (1036-luck.sql)
+-- LUCK (1040-luck.sql)
 declare
   c_verb constant text := 'lucky_ring';
   v_uid uuid := auth.uid(); v_r jsonb; v_verb text; v_ver bigint; v_o public.hr_lucky_offers%rowtype; v_lr public.hr_luck_rules%rowtype;
@@ -802,7 +802,7 @@ end $fn$;
 -- Every number is the server's; every envelope replaces it.
 create or replace function public.hr_luck_section(p_user uuid, p_slot int)
 returns jsonb language plpgsql stable security definer set search_path = public, pg_catalog as $fn$
--- LUCK (1036-luck.sql)
+-- LUCK (1040-luck.sql)
 declare v_lr public.hr_luck_rules%rowtype; v_l public.account_luck%rowtype; v_rank int; v_mf int; v_sal jsonb; v_off jsonb; v_today int;
 begin
   if p_user is null or not public.hr_luck_on(p_user) then return null; end if;
@@ -843,7 +843,7 @@ do $mig$ begin
   end if;
 end $mig$;
 insert into public.hr_state_sections (key, fn, note) values
-  ('luck', 'hr_luck_section', '1036-luck.sql: the account''s Luck bar and Magic Find, the rivets held, each bag stack''s salvage line and the Lucky job''s offers, while the `luck` switch is on for the account')
+  ('luck', 'hr_luck_section', '1040-luck.sql: the account''s Luck bar and Magic Find, the rivets held, each bag stack''s salvage line and the Lucky job''s offers, while the `luck` switch is on for the account')
   on conflict (key) do update set fn = excluded.fn, note = excluded.note;
 
 revoke execute on function public.hr_lucky_ring(int, text, bigint, uuid) from public, anon, service_role;
@@ -851,7 +851,7 @@ grant  execute on function public.hr_lucky_ring(int, text, bigint, uuid) to auth
 delete from public.hr_client_rpc_baseline where grantee = 'authenticated' and proname = 'hr_lucky_ring';
 insert into public.hr_client_rpc_baseline (proname, identity_args, grantee, note) values
   ('hr_lucky_ring', 'p_slot integer, p_from text, p_price bigint, p_idem uuid', 'authenticated',
-   'added 1036-luck.sql (lane/d-luck-build): MONEY (a gold sink) and Luck - a plain ring + its tier''s Lucky Rivets + its tier''s Hallmark fee make the Fine Lucky ring, at the hero''s server level in the ring''s bench, behind the luck switch, a day limit an account; refuses quote_changed; one key charges once');
+   'added 1040-luck.sql (lane/d-luck-build): MONEY (a gold sink) and Luck - a plain ring + its tier''s Lucky Rivets + its tier''s Hallmark fee make the Fine Lucky ring, at the hero''s server level in the ring''s bench, behind the luck switch, a day limit an account; refuses quote_changed; one key charges once');
 do $mig$
 begin
   if to_regclass('public.hr_gm_wall_allow') is not null then

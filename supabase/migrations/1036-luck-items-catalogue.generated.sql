@@ -6,9 +6,9 @@
 --   `node tools/gen-catalogues.mjs --check`, which is a preflight in
 --   tests/run-sql-tests.mjs. Edit src/data/*.js and regenerate.
 --
---   catalogue digest: d8cccc7ecb2043b62419454ba99f029b8c5a76adf5d2932a41676f824d17e407
---   rows: 721 items (28 untradeable) ·
---         439 item-slot pairs · 14 equip slots ·
+--   catalogue digest: a218af5c90ef85744c4601562e6015318ff30bdb1a9fd7fb01ccd5d0b34253d1
+--   rows: 717 items (28 untradeable) ·
+--         436 item-slot pairs · 14 equip slots ·
 --         13 skills · 9 crops · 369 activities ·
 --         0 runes
 --
@@ -138,7 +138,6 @@ create table if not exists public.hr_start_kit (
   only_row      boolean primary key default true check (only_row),
   gold          bigint not null check (gold >= 0),
   gems          bigint not null check (gems >= 0),
-  hearth_tokens bigint not null check (hearth_tokens = 0),  -- IAP-only, never minted
   hp            int    not null check (hp >= 0),
   bank_cap      int    not null check (bank_cap between 1 and 100000),
   farm_plots    int    not null check (farm_plots between 0 and 64)
@@ -426,7 +425,6 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('duskwood_wand','Duskwood Wand',true,'weapon',32400,'level',88,null,false,null,false),
   ('dyers_boots','Dyer''s Boots',true,'armor',20160,'level',88,null,false,'medium',false),
   ('elderscale_heart','Elderscale Heart',true,null,9000,null,null,null,false,null,false),
-  ('elderscale_platebody','Elderscale Platebody',true,'armor',118800,'level',95,null,false,'heavy',false),
   ('ember_axe','Emberforged Axe',true,'tool',1400,null,null,null,false,null,false),
   ('ember_bar','Emberforged Bar',true,null,500,null,null,null,false,null,false),
   ('ember_belt','Emberforged Belt',true,'armor',10400,'level',75,null,false,'heavy',false),
@@ -508,7 +506,6 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('heartgarnet','Heartgarnet',true,null,30,null,null,null,false,null,false),
   ('heartgarnet_maul','Heartgarnet Maul',true,'weapon',990,'level',42,null,false,null,false),
   ('hearth_masons_maul','Hearth-Mason''s Maul',true,'weapon',39600,'level',88,null,false,null,true),
-  ('hearth_token','Hearth Token',true,null,25000,null,null,null,false,null,false),
   ('hell_ember','Hell Ember',true,null,600,null,null,null,false,null,false),
   ('herring','Raw Herring',true,null,14,null,null,48,true,null,false),
   ('hive_wasp_stinger','Hive Wasp Stinger',true,null,8,null,null,null,false,null,false),
@@ -660,7 +657,6 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('raw_wolf_meat','Raw Wolf Meat',true,null,5,null,null,null,false,null,false),
   ('razor_claw','Razor Claw',true,null,360,null,null,null,false,null,false),
   ('regent_helm','Hollow Regent Helm',true,'armor',108000,'level',88,null,false,'heavy',false),
-  ('riftmaw_carapace','Riftmaw Carapace',true,'armor',83160,'level',90,null,false,'medium',false),
   ('riftmaw_husk','Riftmaw Husk',true,null,4200,null,null,null,false,null,false),
   ('river_chowder','River Chowder',true,null,380,null,null,360,true,null,false),
   ('road_carnelian','Road Carnelian',true,null,200,null,null,null,false,null,false),
@@ -853,7 +849,6 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('void_chitin','Void Chitin',true,null,800,null,null,null,false,null,false),
   ('void_core','Void Core',true,null,2200,null,null,null,false,null,false),
   ('void_essence','Void Essence',false,null,3000,null,null,null,false,null,false),
-  ('voidheart_robe','Voidheart Robe',true,'armor',83160,'level',90,null,false,'light',false),
   ('voidmaw_scepter','Voidmaw Scepter',true,'weapon',65000,'level',80,null,false,null,false),
   ('voidwoven_sigil','Voidwoven Sigil',true,'trophy',5000,null,null,null,false,null,false),
   ('war_crown','War Crown',true,null,2500,null,null,null,false,null,false),
@@ -1075,7 +1070,6 @@ insert into public.hr_item_slots (item_id, equip_slot) values
   ('duskwood_staff','weapon'),
   ('duskwood_wand','weapon'),
   ('dyers_boots','boots'),
-  ('elderscale_platebody','body'),
   ('ember_belt','belt'),
   ('ember_boots','boots'),
   ('ember_gauntlets','gloves'),
@@ -1207,7 +1201,6 @@ insert into public.hr_item_slots (item_id, equip_slot) values
   ('rat_stick','weapon'),
   ('ratters_hood','helmet'),
   ('regent_helm','helmet'),
-  ('riftmaw_carapace','body'),
   ('ruby_signet','ring1'),
   ('ruby_signet','ring2'),
   ('rubyfire_studs','earrings'),
@@ -1318,7 +1311,6 @@ insert into public.hr_item_slots (item_id, equip_slot) values
   ('verdite_platelegs','pants'),
   ('vigil_bow','weapon'),
   ('void_censer','weapon'),
-  ('voidheart_robe','body'),
   ('voidmaw_scepter','weapon'),
   ('warband_bulwark','cape'),
   ('warden_girdle','belt'),
@@ -1780,11 +1772,11 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, 
 -- upsert rather than a delete+insert: hr_create_character() reads it, and a
 -- momentary gap where the row does not exist would be a window in which a new
 -- character could be created with no kit at all.
-insert into public.hr_start_kit (only_row, gold, gems, hearth_tokens, hp, bank_cap, farm_plots)
-  values (true, 500, 0, 0,
+insert into public.hr_start_kit (only_row, gold, gems, hp, bank_cap, farm_plots)
+  values (true, 500, 0,
           150, 100, 2)
   on conflict (only_row) do update set
-    gold = excluded.gold, gems = excluded.gems, hearth_tokens = excluded.hearth_tokens,
+    gold = excluded.gold, gems = excluded.gems,
     hp = excluded.hp, bank_cap = excluded.bank_cap,
     farm_plots = excluded.farm_plots;
 
@@ -2323,7 +2315,7 @@ insert into public.hr_feast_foods (item_id, heals) values
   ('wheat_bread',216);
 
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
-  values (true, 'd8cccc7ecb2043b62419454ba99f029b8c5a76adf5d2932a41676f824d17e407', now())
+  values (true, 'a218af5c90ef85744c4601562e6015318ff30bdb1a9fd7fb01ccd5d0b34253d1', now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;
 
 -- ── RLS + grants. Catalogues are world-readable (the client renders from the
@@ -2351,11 +2343,11 @@ do $$
 declare v_bad int; v_n int;
 begin
   select count(*) into v_n from public.hr_items;
-  if v_n <> 721 then raise exception 'hr_items has % rows, generator emitted 721', v_n; end if;
+  if v_n <> 717 then raise exception 'hr_items has % rows, generator emitted 717', v_n; end if;
   -- THE NAMES (2026-11-11): every landed display name is the source's, byte for byte (ids unchanged, the count above).
   -- A rename that reaches the client but not hr_items, or an old name a re-apply leaves behind, fails here.
-  if (select md5(string_agg(item_id || '=' || name, chr(10) order by item_id collate "C")) from public.hr_items) <> 'beee84f613b4ed28bf1bfb500ca055f6' then
-    raise exception 'hr_items names differ from src/data (expected digest beee84f613b4ed28bf1bfb500ca055f6)';
+  if (select md5(string_agg(item_id || '=' || name, chr(10) order by item_id collate "C")) from public.hr_items) <> 'c88e40ae3a6530d6c15219355e7c3553' then
+    raise exception 'hr_items names differ from src/data (expected digest c88e40ae3a6530d6c15219355e7c3553)';
   end if;
   -- SMALL CALLS (2026-11-11): the two rows this file exists for, each pinned to the source row's value (never hand-typed).
   if (select req_lv from public.hr_activities where kind = 'artisan' and activity_id = 'cook_wolf_meat') is distinct from 1 then
@@ -2449,8 +2441,8 @@ begin
      and not exists (select 1 from public.hr_item_slots s where s.item_id = i.item_id and s.equip_slot <> 'ammo');
   if v_bad > 0 then raise exception '% non-equipment row(s) name the hero''s Level (a supply keeps its skill)', v_bad; end if;
   select count(*) into v_n from public.hr_items where req_skill = 'level';
-  if v_n <> 364 then
-    raise exception 'hr_items holds % Level-gated rows, the generator emitted 364', v_n;
+  if v_n <> 361 then
+    raise exception 'hr_items holds % Level-gated rows, the generator emitted 361', v_n;
   end if;
 
   -- No client write policy may exist on a catalogue table.
@@ -2512,10 +2504,10 @@ begin
     raise exception 'hr_skill_curve is not the 476-row rising curve src/core/xp.js walks';
   end if;
 
-  -- The Hearth Token bond is IAP-only (the Final Directive). A CHECK already
-  -- pins it; this asserts the CHECK is the one that shipped.
-  if (select hearth_tokens from public.hr_start_kit) <> 0 then
-    raise exception 'hr_start_kit grants Hearth Tokens — the bond is IAP-only and must never be minted';
+  -- The Hearth Token bond was cut whole (2026-11-20, plan L10): the kit carries no column for it.
+  if exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'hr_start_kit'
+              and column_name = 'hearth_tokens') then
+    raise exception 'hr_start_kit carries hearth_tokens again - the bond was cut (plan L10)';
   end if;
 
   -- RUNES. Count asserted like every other catalogue, so a re-apply that
@@ -2526,10 +2518,10 @@ begin
   if v_n <> 0 then raise exception 'hr_runes has % rows, generator emitted 0', v_n; end if;
 
   -- NO GRANT SOURCE NAMES A DELETED ITEM (Security R2, 2026-10-15). A hunt
-  -- kill bound's drop, a dungeon loot row or a Quartermaster offer naming an id
-  -- hr_items no longer holds fails with unknown_item; it is refused here
-  -- instead. (The quest rewards and the login cycle were cut with the
-  -- old-client rewards, 2026-10-22.) hr_hunt_vendor_value is NOT read here: the
+  -- kill bound's drop naming an id hr_items no longer holds fails with
+  -- unknown_item; it is refused here instead. (The quest rewards and the login
+  -- cycle were cut with the old-client rewards, 2026-10-22; the dungeon loot and
+  -- the Quartermaster with the old dungeons and the scrip, 2026-11-20, plan L10.) hr_hunt_vendor_value is NOT read here: the
   -- hunt-sessions catalogue refills it AFTER this file (it needs this file's new
   -- items first) and its own §4 asserts every vendor value names an hr_items row,
   -- so an item this file deletes (the Fox Companion, 2026-10-22) leaves the
@@ -2537,10 +2529,6 @@ begin
   -- and asserts the same of its own rows in its own §4 (tools/gen-unlock-offers.mjs).
   select count(*) into v_bad from (
     select k as id from public.hr_hunt_kill_bounds b, jsonb_object_keys(coalesce(b.drops, '{}'::jsonb)) k
-    union all
-    select item_id from public.hr_dungeon_loot
-    union all
-    select item_id from public.hr_qm_offers
   ) src where not exists (select 1 from public.hr_items i where i.item_id = src.id);
   if v_bad > 0 then raise exception '% grant-source row(s) name an item missing from hr_items', v_bad; end if;
 
@@ -2563,7 +2551,7 @@ begin
    where c.regrow_limit is distinct from v.lim;
   if v_bad > 0 then raise exception '% crop(s) land a regrow_limit the generator did not emit', v_bad; end if;
 
-  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest d8cccc7ecb2043b62419454ba99f029b8c5a76adf5d2932a41676f824d17e407',
+  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest a218af5c90ef85744c4601562e6015318ff30bdb1a9fd7fb01ccd5d0b34253d1',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities),
     (select count(*) from public.hr_runes);
 end $$;

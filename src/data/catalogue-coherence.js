@@ -292,7 +292,7 @@ export function reachableSources(opts = {}) {
   for (let grew = true; grew;) {
     grew = false;
     for (const k of Object.keys(CROPS)) if (m.has(CROPS[k].seed)) grew = put(CROPS[k].prod, 'harvested') || grew;
-    /* LUCK (src/data/luck.js; 1036-luck.sql, behind the luck switch like every switched door here): a reached drop of worn gear salvages for
+    /* LUCK (src/data/luck.js; 1040-luck.sql, behind the luck switch like every switched door here): a reached drop of worn gear salvages for
        the Lucky Rivet; the Lucky job makes a held plain ring Lucky with them; the Hallmark step adds a second perk to a reached Fine piece. */
     if (!m.has(LUCK_ITEM) && [...m.entries()].some(([id, how]) => how.startsWith('drops from ') && SALVAGE_RIVETS.types.includes((ITEMS[id] || {}).type))) grew = put(LUCK_ITEM, 'salvaged at Dispatch') || grew;
     for (const o of LUCKY_OFFERS) if (m.has(o.from) && m.has(o.rivet)) grew = put(o.to, 'the Lucky job') || grew;
@@ -375,7 +375,7 @@ export function itemSources() {
   /* A super-rare outfit's bundle (src/data/chests.js CHEST_OUTFITS): a key's outfit roll at the Hearth Chest (hr_chest_open). */
   for (const o of CHEST_OUTFITS) push(m, o.item, 'the Hearth Chest');
   for (const id of Object.keys(CODED_SOURCES)) push(m, id, CODED_SOURCES[id].label);
-  /* LUCK (src/data/luck.js; 1036-luck.sql hr_loot_dispatch, hr_lucky_ring): Dispatch salvages dropped worn gear for the Lucky Rivet; the Lucky
+  /* LUCK (src/data/luck.js; 1040-luck.sql hr_loot_dispatch, hr_lucky_ring): Dispatch salvages dropped worn gear for the Lucky Rivet; the Lucky
      job makes a plain ring Lucky; the Hallmark step makes every Hallmarked row from its Fine one. */
   if ([...combatDropIds()].some((id) => SALVAGE_RIVETS.types.includes((ITEMS[id] || {}).type))) push(m, LUCK_ITEM, 'salvaged at Dispatch');
   for (const o of LUCKY_OFFERS) push(m, o.to, 'the Lucky job');
@@ -400,7 +400,7 @@ export function itemUses() {
   for (const o of HALLMARK_OFFERS) { push(m, o.from, 'Hallmarked at the jeweler'); push(m, o.gem, 'pays for a Hallmark'); }
   /* the jewel reforge (hr_jewel_reforge): a Hallmarked piece, the next tier's bars and gem make that tier's Hallmarked row */
   for (const o of REFORGE_OFFERS) { push(m, o.from, 'reforged at the jeweler'); push(m, o.gem, 'pays for a reforge'); push(m, o.metal, 'pays for a reforge'); }
-  /* LUCK: the Lucky job spends a plain ring and the rivets; Dispatch's Use puts the rivet on the account's Luck bar (1036-luck.sql) */
+  /* LUCK: the Lucky job spends a plain ring and the rivets; Dispatch's Use puts the rivet on the account's Luck bar (1040-luck.sql) */
   for (const o of LUCKY_OFFERS) { push(m, o.from, 'made Lucky at the jeweler'); push(m, o.rivet, 'pays for the Lucky job'); }
   push(m, LUCK_ITEM, 'used on the account Luck bar');
   addSet(m, seedIds(), 'planted');

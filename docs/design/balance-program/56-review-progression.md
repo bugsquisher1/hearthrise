@@ -1,8 +1,145 @@
 # Balance program 56: design review, progression, skills and endgame
 
-Review of `lane/d-review-progression` (game-designer, 2026-11-21), cut from `set/v0.2.144`. PHASE A: reading and analysis only. No game code, data or migration was changed, and no grid, matrix or browser run was made. Briefs of record: `45-design-brief.md` (main) and `40-formula-brief.md` (every change below names its LAYER: formula, coefficient, curve or content row).
+Review of `lane/d-review-progression` (game-designer, 2026-11-21), cut from `set/v0.2.144`. PHASE A was reading and analysis only. No game code, data or migration was changed in either phase. Briefs of record: `45-design-brief.md` (main) and `40-formula-brief.md` (every change below names its LAYER: formula, coefficient, curve or content row).
 
 Labels. EVIDENCE names its source: REAL (`10-real-players.md`), MEASURED (an older dive's engine run, cited by file), READ FROM DATA (a file in `src/`), RULED (rulings-of-record, with the date), COMPUTED (arithmetic in this file on the game's own rows, not played). HYPOTHESIS is a design claim phase B or a playtest must test. Nothing here was measured by this lane.
+
+**PHASE B (2026-11-21, section 0 below).** Merged `set/v0.2.144` at 358417cb0 and read 44 (sections 5, 7, 8), 46 and 47. Three patches were played through `balance-matrix.mjs --diff --subset --workers 2`, and two derived tables were read off the cached full grid with `tools/balance-program/review-progression.mjs` (new, this lane, no play). Sections 1 and 7 are updated to the measured result. Sections 2 to 6 are phase A as written, and section 0 says where the numbers changed them. `51-baseline.md` had not landed when this was finished, so every cell from Level 185 up is PROVISIONAL (skills still run in a straight line there).
+
+---
+
+## 0. Phase B: layers, measurements, what changed
+
+### 0.1 Every top proposal at its layer
+
+| # | Proposal | Layer | 44's ids | Patch or tool | Measured? |
+|---|---|---|---|---|---|
+| 1 | The Level law | **curve**, derived from a content table (the ruled hours) and one coefficient (the pace seat's multiple) | formula P01, exceptions P-X01 to P-X03, roadmap **R13** (after R12) | `patches/progression-1-level-law.json`, `review-progression.mjs law` | yes, matrix and grid |
+| 2 | Blessings 4 to 7 | **content rows** on the Blessing ladder. No formula moves: P28 stays 6% | P28, P-X18, P-X20, call 14 of 44 section 8.2, roadmap R15 for the price | `patches/progression-2-fourth-blessing.json`, `review-progression.mjs deaths` and `cost` | grid yes. The matrix cannot see it (0.3) |
+| 3 | Deaths per 100 hours and XP after deaths on the hunt card | none. A display of a server-held rate | reads S6 and P28 | none | HYPOTHESIS. Playtest in section 6 |
+| 4 | Remove the rested bank | **formula** (delete P30 and its argument on P05) | P30, P-X26, roadmap R5 | `patches/progression-3-rested-off.json` | yes, an identity patch |
+| 5 | Remove the two old kill ladders | **formula** (two multipliers leave the kill path) | with Luck v3.1, lane L20 | none: the harness heroes hold no kill counts, so the matrix cannot reach them | HYPOTHESIS that nothing moves. The check is a fixture with 20,000 kills |
+| 6 | Honors | **content rows**, derived on read | none | none | HYPOTHESIS about use. Playtest in section 6 |
+| 7 | Kindlings on Inner Flame | **content rows** on existing channels, inside one budget | 47 conflict C10. The 2% Add budget of 23-5 | none until a sample of five exists | HYPOTHESIS |
+| 8 | Rune tiers respaced | content rows | 44 call 9, 47 C12, roadmap R22 | none | **Withdrawn** (0.5) |
+| 9 | Crafting's late product | content rows | 47 row 4a, C13, lane L32 | none | HYPOTHESIS about the chain |
+
+### 0.2 Patch 1: the Level law. Flags: IMPROVED 4, REGRESSED 1, UNINTENDED 7
+
+The patch leaves Levels 1 to 50 alone, ramps 50 to 100, and carries `H = 0.643 x L^1.485` at 2.0 times the contract from Level 100. No fight moves (every DPS, damage, kill, gold and death cell reads +0.0%). Hours for a Level rise 60 to 123% from Level 60.
+
+**The matrix (MEASURED, subset, 207 cells, same dice).**
+
+| Flag | Band | Where | Before | After | Trace |
+|---|---|---|---|---|---|
+| IMPROVED | P1, hours to the ruled Level over the ruled hours | Level 100, the pace seat | 0.417 RED | 0.651 RED | Still fast: Levels 1 to 50 are untouched and the four does them in 62 hours against 168 |
+| IMPROVED | P1 | Level 200 | 0.490 RED | 0.876 off | |
+| IMPROVED | P1 | Level 300 | 0.464 RED | 0.950 ok | |
+| IMPROVED | P1 | Level 400 | 0.497 RED | 1.002 ok | |
+| REGRESSED | P12.to300, hours for a Level, at most 12 | Level 185 | 5.9 ok | 12.4 off | **The band is wrong, not the law.** P12 is PROPOSED ("a Level a day"). The RULED table itself needs 14.4 hours a Level from 200 to 300. P12.to300 should end at about Level 150 or read 15 |
+| UNINTENDED, toward | R2, days of open content | the pace seat reaches Level 110 | day 25 RED | day 39 RED | Wanted, and the band group name did not match my target. Open content alone cannot reach 120 days on any curve. Staged content does (below) |
+| UNINTENDED, away | G-10, standing prices of a band over the band's net gold (ruled 1.2 to 1.4) | Levels 60, 110, 185 | 0.39, 0.66, 0.38 RED | 0.19, 0.40, 0.18 RED | A band now lasts about twice as long, so it earns twice the gold against the same typed prices. This is trace 1's economy row, now measured |
+| UNINTENDED, away | E4, MID to BiS gold over the band's net gold (ruled 1.0 to 1.4) | Levels 60, 110, 185 | the same three numbers | the same | The same cause |
+
+The six UNINTENDED gold rows are one finding: **the Level law cannot ship before prices are a share of band gold (44's R16).** 47 says the same from the item plan's side (its R13 row). The roadmap order R12, R13, then R16 leaves a release where every sink is half price. R16 should land with R13.
+
+**The full grid (MEASURED rates, derived hours; `review-progression.mjs law`).** The subset has six checkpoints and the grid has 31, so this is the finer read, and the two disagree past Level 200.
+
+| Level | The pace seat's XP an hour over the contract | Hours today | Hours on the law | Ruled | Lone MID on Normal: day today | day on the law |
+|---|---|---|---|---|---|---|
+| 50 | 2.83 | 62 | 62 | 168 | 12 | 12 |
+| 100 | 2.05 | 257 | 416 | 600 | 42 | 68 |
+| 110 | 1.85 | 315 | 509 | | 51 | 82 |
+| 185 | 1.43 | 953 | 1,715 | | 122 | 215 |
+| 200 | 1.57 | 1,068 | 1,960 | 1,680 | 136 | 245 |
+| 300 | 1.49 | 1,817 | 3,754 | 3,120 | 225 | 456 |
+| 400 | 1.45 | 2,948 | 5,962 | 4,580 | 352 | 704 |
+
+Doors for the pace seat, day at 12 hours, today and on the law: Krell's Hold 16 and 27. End of open content 26 and 42. End of staged content 79 and 143. Level 200 on day 89 and 163.
+
+What this changes:
+
+1. **The pace seat has no single multiple today.** It earns 2.8 times the contract at Level 50, 2.05 at 100 and about 1.45 from 185 on. Phase A assumed one number (2.3). A law fitted at 2.0 is therefore 31% fast at Level 100 and 30% slow at 400 on the grid. The matrix subset reads Level 400 as exact, so the two reads of Level 400 differ by 30%, and both are PROVISIONAL there.
+2. **So the law cannot be fitted now, by anyone.** The multiple becomes one number only after the kill reward is derived (44's R12) and Deadly's dials land (L16). Until then any curve is a fit to grounds that are about to move, which is the habit this proposal exists to end. This confirms the order in 44's roadmap.
+3. **I withdraw my power law and take 44's form** (its call 13): the ruled table of hours is the law, joined on a log scale, and the curve is derived from it and the contract. It is exact at every ruled point, where mine ran 11% and 22% fast at Levels 750 and 1,000. Same idea, better statement.
+4. **The runway.** Staged content lasts to day 143 on the law, against the ruled 120. Open content lasts to day 42. So the curve plus opening what is built meets the target, as phase A said.
+5. **A lone hero pays for it.** Level 100 moves from day 42 to day 68 and Level 200 from day 136 to day 245. REGRESSED for "solo viable", and it is the direct result of the 11-21 ruling that the table is the four's clock. Section 7, call 1.
+
+### 0.3 Patch 2 and the death tables. Matrix flags: 0, 0, 0
+
+**The matrix cannot see a death's cost.** Halving the death share (`deathLoss` x0.5) moved no cell and no band. Two reasons: the subset's two-hour cells record almost no deaths (the grid's own Deadly cells read 0 deaths a 1,000 hours in all but three), and no band reads XP after deaths (S8 and S9 are a printed table by ruling 50-4). So today a change to the death rule, in either direction, passes the matrix silently. For the baseline lane: one band, "the hardest tier a kit holds pays more a head after deaths than the same heroes alone on Normal", read at the ruled counts.
+
+**The derived table (MEASURED XP an hour from the cached grid, the RULED death counts of S6, `review-progression.mjs deaths`).** XP an hour a head after deaths, in thousands. "Alone" is the same four heroes each hunting alone on Normal. Low and high are the two ends of the ruled count (MID Deadly 50 and 100, MID Dangerous 10 and 30, BiS Deadly 10 and 30).
+
+| Level, gear | Alone on Normal | Deadly gross | Deadly, 3 Blessings, today's curve (low..high) | Deadly, 3 Blessings, on the law | Deadly, the ladder, on the law |
+|---|---|---|---|---|---|
+| 100 MID | 576 | 1,004 | 871..739 | 776..548 | 890..776 |
+| 145 MID | 686 | 1,321 | 943..565 | 673..24 | 997..673 |
+| 200 MID | 1,272 | 2,059 | 1,220..380 | 472..under zero | 1,663..1,266 |
+| 300 MID | 2,147 | 3,237 | 1,030..under zero | under zero | 2,627..2,016 |
+| 400 MID | 3,114 | 4,534 | under zero | under zero | 3,858..3,182 |
+| 200 BiS | 1,327 | 2,154 | 1,987..1,651 | 1,837..1,202 | 2,075..1,916 |
+| 400 BiS | 3,259 | 4,764 | 3,707..1,594 | 2,600..under zero | 4,628..4,358 |
+
+The first checkpoint where the four earns less a head than the same heroes alone on Normal ("none" means never, to Level 400):
+
+| Curve | Kit and tier | 3 Blessings, low count | 3 Blessings, high count | The ladder, low | The ladder, high |
+|---|---|---|---|---|---|
+| Today | MID Deadly | 185 | 145 | none | none |
+| Today | MID Dangerous | 400 | 225 | none | none |
+| Today | BiS Deadly | none | 300 | none | none |
+| The law | MID Deadly | 145 | **100** | none | 145, then level with it (below) |
+| The law | MID Dangerous | 300 | 165 | none | none |
+| The law | BiS Deadly | 325 | 185 | none | none |
+
+What this changes:
+
+1. **Phase A's finding is confirmed for Deadly and was too strong for Dangerous.** On today's curve a blessed MID four leaves Deadly at Level 145 to 185. Dangerous at the low end of its count holds to Level 400. So the game does not collapse to hunting alone at Level 200. It collapses tier by tier: Deadly first, then Dangerous at 225 to 400.
+2. **The Level law makes the death rule worse, and the two must ship together.** The law raises total XP 1.7 to 2.2 times, so every death costs that much more. On the law with three Blessings, MID Deadly is under alone-on-Normal at Level 100 at the top of its count, and BiS Deadly at 185. That is inside content that is built today.
+3. **The ladder works, re-timed.** Phase A placed the rungs at Levels 160, 255, 410 and 650 from arithmetic. On the measured rates they belong at **100, 185, 275 and 400**. With them a fully blessed death costs the pace seat at most 6.0 hours at every checkpoint but one (Level 165 reads 11.2, a weak cell). Every tier stays over alone-on-Normal at the low end of its count. MID Deadly at the TOP of its count (100 deaths a 1,000 hours) sits level with alone-on-Normal from Level 145: 2% under at 145, under 1% at 200, 6% under at 300, 2% over at 400. That is the right place for it. A mid-geared party at the top of the Deadly count should be at break-even, and one at the bottom should be well ahead (+31% at Level 200).
+4. **The rule should be stated by hours, not by Level.** "A new Blessing opens when a fully blessed death would cost over about five of the pace seat's hours." The Levels are then rows the generator writes from the curve, and they move with it.
+
+One death, in the pace seat's hunted hours (`review-progression.mjs cost`): today unblessed 10.6 at Level 100, 36 at 200, 60 at 300, 102 at 400. On the law 18, 68, 133 and 208. On the law with the ladder 2.3, 4.3, 4.1 and 3.3.
+
+### 0.4 Patch 3: the rested bank off. Flags: 0, 0, 0. The identity holds
+
+Capping the rested quantum at zero moved no number in 207 cells and no band. The patch is `kind: identity` and the diff exited 0. Removing the bank is free. This agrees with 44 (P-X26, CONFIRMED, roadmap R5).
+
+### 0.5 What changed since phase A
+
+| Phase A | Now | Why |
+|---|---|---|
+| Top 1: a fitted power law, fitted "after L16" | **The ruled table of hours is the law (44's form). It lands at R13, after R12, and with R16** | The pace seat's multiple is 2.8 to 1.45 today. The gold bands halve without R16 |
+| Top 2: Blessings at Levels 160, 255, 410, 650 | **At 100, 185, 275, 400, stated as a rule in hours. It ships with the Level law, not after** | Measured rates. The law brings the break to Level 100 |
+| "Past Level 200 four heroes alone on Normal is best" | **Deadly by 145 to 185, Dangerous by 225 to 400 (today's curve)** | The derived table |
+| Call 5: rune tiers at 1, 20, 40, 60, 80 | **Withdrawn.** I agree with 47 C12: the Sealing Rune at Runecrafting 75 and 88 now, rune tiers at 75 and 90 with R22 | Respacing moves a number ruled on 10-23, and the plan already had a product for the gap that I had not read |
+| Crafting: take the three salts out | **Take them out in the linings lane (L32), not before** | 47 C13: until linings ship they are all Crafting makes at 45, 60 and 75 |
+| Kindlings capped at one weapon-tier step | **Capped at the 2% that 23-5 gave to worn in. No Kindling touches drops or Magic Find or copies a jewelry perk** | 47 C10's three fences. I accept all three. Kindlings also take over the job worn in was designed for (47 M12): two heroes with the same sword end up different |
+| HYPOTHESIS: gear bands compound and outrun HP past 400 | **Answered by 44.** The code's projector is linear. The standard's words compound. Rule the step by its size (44 call 19) | 44 section 5.2 |
+| Honors | Unchanged. It gains the items review's find list (47 C19) and is the content of the Hall of Firsts (58) | |
+| Rested bank: REMOVE | Unchanged, now MEASURED | Patch 3 |
+
+Verdict counts after phase B: KEEP 31 (the rune ladder returns to KEEP as ruled), REDESIGN 3, MERGE 4, REMOVE 4, ADD 3, DEFER 2.
+
+### 0.6 Where the other documents decided something here
+
+| Source | What it says | My position |
+|---|---|---|
+| 44 call 13, R13 | The ruled hours are the law, the curve is derived, Level 400 stays 4,580 | **Agree.** Adopted in place of my power law |
+| 44 call 14 | Keep 6% flat. Price the Blessing set at a share of the hours it saves | **Agree, and it is not enough alone.** A fair price does not stop Deadly paying less than Normal. The price rule and the ladder are two halves: the ladder holds the hours a death costs, the price rule charges for them |
+| 44 P-X18 | Take Inner Flame off the list of skills a death takes progress from | **Agree.** It is trained at the Hearth |
+| 44 call 15 | Let the yard's rate follow the skill level's cost | **Disagree for now.** The flat rate is ruled (11-14), and it only fails near Level 1,000. Decide it when a hero is past Level 300 |
+| 44 call 10 | Skill keeps its worth through what it unlocks, not by multiplying gear | **Agree.** It is why rune tiers past 60 matter more than I gave them credit for |
+| 44 call 19 | Rule a gear step by its size | **Agree.** It answers my compounding hypothesis |
+| 47 C10 | Lift the tree hold for a Kindlings spec only, three fences | **Agree** |
+| 47 C12, C13 | Sealing Rune, not a respacing. Salts leave with linings | **Agree.** Both of mine withdrawn |
+| 47 C19 | Luck keeps two feeds. No luck track in a build system | **Agree** |
+| 46 change 5 | A mark every five Levels into six tracks | **Same hole, found independently. That is evidence the hole is real.** I recommend Kindlings over marks: marks put a build choice on Level, which the game has kept out of the blow twice, and add a system where Kindlings reuse one |
+| 46 change 3, seam 9 | Inner Flame is a dead end and should fold into one Great Hearth | **Same conclusion about the skill, found independently.** The two fixes fit: one Hearth, and what a hero gets from it is its Kindlings |
+| 46 section 7, item 9 | Take the capped death rule | **Same problem, different fix.** The Director and I both say 6% with three cheap Blessings is a fee and not a risk. The ladder keeps the ruling's words and gets the cap's effect, paid in gold |
+| 46 change 3 | The Tower and the Catacomb descent become one mode | **Disagree, as 47 does.** 46 was written without ruling 22-4 (fight on what you carried down). Judge the merge after the descent has been played with it |
+| 46 change 4 | Ground that deepens past its band | For the world review. It is a better answer to the day-42 end of open content than new Levels of curve, and it fits the soft wall of section 2.1 |
+| 57 (social) | Party XP for size alone | Not mine. Either way the party table decides the pace seat's multiple, so R13 waits for it too |
 
 ---
 
@@ -14,11 +151,11 @@ If we were designing this area from scratch today, we would keep the skills, the
 
 **The five changes that matter most.**
 
-1. **One Level law, written once, and the grounds are fitted to it.** Past Level 100 a Level costs a little more than the one before, for ever, on one formula. It is timed on the mid-geared four as you ruled. Today the four reaches Level 100 in 257 hours against your 600, and the table has been re-fitted nine times in four weeks because it chases the grounds. This one change also moves the end of built content from day 60 to about day 131.
-2. **Blessings 4 to 7.** Keep 6% flat with no cap. Add a new Blessing each time a hero's lifetime hours double, at about Levels 160, 255, 410 and 650. Each one halves what a death still takes and each costs more gold. A fully blessed death then costs about five hunted hours at every Level. Without this, a blessed mid four on Deadly loses about four fifths of what it earns to deaths at Level 145, and past about Level 200 the best way to level is four heroes hunting alone on Normal.
+1. **Your table of hours becomes the Level law, and the grounds are fitted to it.** The table you ruled (600 hours to Level 100, 1,680 to 200, 4,580 to 400) is the law. The XP a Level costs is worked out from it and never typed. Today the four reaches Level 100 in 257 hours against your 600, and the table has been re-fitted nine times in four weeks because it chases the grounds. Measured: a law of this shape moves the end of built content from day 79 to day 143. It has to land together with prices as a share of a band's gold, or every sink halves. It cannot be fitted until the kill reward and Deadly are settled, because today the four earns 2.8 times the contract at Level 50 and 1.45 times at Level 200.
+2. **Blessings 4 to 7.** Keep 6% flat with no cap. Add a new Blessing whenever a fully blessed death would cost more than about five hunted hours. Measured, that is Levels 100, 185, 275 and 400. Each one halves what a death still takes and each costs more gold. Without this, measured on today's game, a blessed mid four on Deadly earns less than the same four heroes hunting alone on Normal from Level 145 to 185, and Dangerous follows from Level 225. The Level law makes it worse, because a death costs a share of a bigger total. On the law Deadly breaks at Level 100. So these two changes ship together.
 3. **Inner Flame becomes the hero's build.** Today it is a regen number that 9 of 12 real heroes parked at 17 to 24. Bones, Tower Cinders and the rare named fuels already feed it. Every ten Flame levels the hero lights one of three Kindlings, a small permanent choice. This is the skill tree you put on hold, built out of a skill we already have and paid for with drops we already have. Build it after the combat laws land.
 4. **One page of Honors.** Titles, boss Trophies, the Hearthfinds, Trophy room mounts, Tower and boss firsts and round Levels become one list with one rule. Level 100, 200, 300 and 400 each give a title and a line to the whole server. You ruled that Level 200 is a big deal. Today nothing in the game marks it.
-5. **Repair two skill ladders and remove three dead ones.** Runecrafting has nothing to make from level 61 to 99. Crafting is 86% sawing planks. Rested XP is wired to pay zero on every path. Two old kill ladders still sit in the code beside the new Bestiary.
+5. **Remove three dead ladders and give Crafting a product.** Rested XP pays zero on every path, and switching it off moved no number in 207 measured cells. Two old kill ladders still sit in the code beside the new Bestiary. Crafting is 86% sawing planks and gets the linings step. I have withdrawn my change to the rune tiers. The item plan already had a better answer for Runecrafting 61 to 99.
 
 **Actively harming the game today.**
 
@@ -29,7 +166,9 @@ If we were designing this area from scratch today, we would keep the skills, the
 
 **What I would add.** Blessings 4 to 7, the Honors page and Kindlings. Nothing else. I looked at a new skill, a prestige or rebirth loop, and Level-up stat points. None of them fits. The game does not need more systems in this area. It needs the ones it has to lead somewhere.
 
-**Where I think you are wrong.** You ruled 6% flat with no cap and a flat Deadly death count on the same day. I am not asking you to reverse either. I am saying the arithmetic of the two together breaks your 11-16 ruling that a four on Deadly is the best way to level, and Blessings 4 to 7 is the way to keep all three.
+**Where I think you are wrong.** You ruled 6% flat with no cap and a flat Deadly death count on the same day. I am not asking you to reverse either. Measured, the two together break your 11-16 ruling that a four on Deadly is the best way to level, from Level 145. Blessings 4 to 7 is the way to keep all three. The Game Director reached the same problem on his own and would take the cap instead.
+
+**One thing the measuring found that nobody asked.** The balance matrix cannot see what a death costs. I halved the death rule and not one band moved. Until a band reads XP after deaths, a change to the death rule passes every check silently.
 
 ---
 
@@ -448,17 +587,17 @@ Rune tiers respaced: store rune spend rises between Runecrafting 45 and 80, the 
 
 Each is one recommendation with its reason, and the strongest alternative in one line.
 
-1. **The Level table becomes one law, and the law never chases a ground.** Recommend: from Level 100 a Level's hours follow `0.643 x L^1.485` on the mid-geared four, fitted after Deadly's new dials. Grounds are tuned to the table and never the other way. It holds your ruled hours inside 3% to Level 500 and makes every Level cost a little more than the last. It runs 11% fast at Level 750 and 22% fast at 1,000. *Alternative: keep brackets and re-fit them once more to the four's clock, and accept a re-fit with every ground patch.*
+1. **Your table of hours is the Level law, and the law never chases a ground.** Recommend: approve 44's roadmap step R13 as written (the ruled hours joined on a log scale, the XP a Level costs derived from them, the contract and the pace seat's multiple), with two conditions from the measurement. It lands in the same release as prices as a share of band gold (R16), because alone it halves every sink against a band's gold. And you accept what it does to a hero alone: Level 100 on day 68, not day 42, and Level 200 on day 245. That is your 11-21 ruling that the table is the four's clock, now with its price shown. *Alternative: time the table on the lone hero again, and accept that fours finish built content on day 79.*
 
-2. **Blessings 4 to 7.** Recommend: keep 6% flat with no cap, and add one Blessing each time a hero's lifetime hours double (about Levels 160, 255, 410, 650). Each halves what is left and each costs more. A fully blessed death stays near five hunted hours for ever, and an unblessed one keeps the full bite. Reason: without it, your death rule and your Deadly death count together make Deadly a loss for a blessed mid four from about Level 145, and make four heroes hunting alone on Normal the best way to level past about 200. *Alternative: judge Deadly by XP lost instead of by a death count (the option you declined on 11-21), so the tier gets safer as Levels rise.*
+2. **Blessings 4 to 7, in the same release as the Level law.** Recommend: keep 6% flat with no cap, and open a new Blessing whenever a fully blessed death would cost over about five hunted hours (measured: Levels 100, 185, 275, 400). Each halves what is left. Each is priced by 44's rule, a share of the hours it saves. An unblessed death keeps the full bite. Reason, measured: with three Blessings a mid four on Deadly earns less than the same heroes alone on Normal from Level 145 to 185 today, and from Level 100 on the new Level law. With the ladder a party at the bottom of the Deadly count is 31% ahead at Level 200 and a party at the top is at break-even. *Alternative: the cap you declined on 11-21, which the Game Director also recommends.*
 
-3. **Inner Flame is the skill tree.** Recommend: lift the 11-05 hold in this form only. No wheel, no new system. Every ten Inner Flame levels a hero lights one of three Kindlings, all inside the cap of one weapon-tier step, built after the combat laws and after a played sample of five rungs. Reason: the game has no lasting build choice, and this skill already has every source and no purpose. *Alternative: keep Inner Flame as regen with the ruled loot rule, and leave the game without a permanent build layer until after Early Access.*
+3. **Inner Flame is the skill tree.** Recommend: lift the 11-05 hold for a spec and a paper sample of five rungs only, as 47 (C10) also recommends. No wheel, no new system. Every ten Inner Flame levels a hero lights one of three Kindlings. The whole track spends the 2% that was set aside for worn in, touches no drop and no Magic Find, and copies no jewelry perk. Built after the to-hit and spell lanes. Three reviews found this hole independently. Reason: the game has no lasting build choice, and this skill already has every source and no purpose. *Alternative: keep Inner Flame as regen with the ruled loot rule, and leave the game without a permanent build layer until after Early Access.*
 
 4. **One page of Honors.** Recommend: titles, Trophy display, Trophy room mounts, boss and Tower firsts and round Levels become one list with one rule, no power, prizes that other players see. Level 200 and above get a line to the whole server. Reason: five systems with two to five rows each have had almost no real use, and nothing marks the Level you called a big deal. *Alternative: leave them apart and only add the Level milestones as four titles.*
 
-5. **Rune tiers at 1, 20, 40, 60 and 80.** Recommend: yes. Reason: Runecrafting has nothing to make from 61 to 99. It does not change who can cast what, because the store sells every tier. *Alternative: keep 1 to 60 and add two new rune tiers at 75 and 90, which is ten new spell versions to balance.*
+5. **Runecrafting 61 to 99.** Withdrawn as a call. I recommended respacing the five rune tiers. 47 (C12) is right that it moves a number you ruled on 10-23 and that the item plan already fills the gap: a Sealing Rune at Runecrafting 75 and 88 now, and rune tiers at 75 and 90 later. I agree with that recommendation.
 
-6. **Crafting keeps its place and gets a product.** Recommend: do not merge Crafting away. Give it the cut-and-stitch step of linings, and have the items review check the three temper salts it shares with Smithing. Reason: each fighting style should have a bench, and Crafting is the bow's. *Alternative: merge Crafting into Smithing as one "Workshop" skill of twelve.*
+6. **Crafting keeps its place and gets a product.** Recommend: do not merge Crafting away. Give it the cut-and-stitch step of linings, and take out the three temper salts it shares with Smithing in that same lane (L32), not before. Reason: each fighting style should have a bench, and Crafting is the bow's. *Alternative: merge Crafting into Smithing as one "Workshop" skill of twelve.*
 
 7. **The Tower stays a weekly beat.** Recommend: build the ruled fixes and stop there. Reason: an idle game's endgame should score your preparation, not your hours at the screen. *Alternative: lift the six opens a week so more climbs pay, which you kept on 11-21.*
 

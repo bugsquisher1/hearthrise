@@ -73,6 +73,26 @@ const cases = {
     }
     return null;
   },
+  /* A KILL WITH NO DEALER (lane/a-kill-credit-null; balance matrix run 44957840040, cell 1|bis|1:axes|normal). Hero 1's bleed is on a rat
+     when its hunt ends and its unit leaves the world (a lone hero's end at a window's first boundary still steps the world once; a party
+     member who died or left while the rest hunt on). The bleed ticks the rat dead and damage.js lands it with no dealer (u null). The
+     settle tallies every window's events against its members' units (hr-accrue accrue-hunt.js analyzerOf, the one settle every hunt
+     runs, viewed or not), and it threw, so that window could never settle. Played on the engine's own status tick, tallied as the settle
+     does: nothing throws, no hero is credited the kill, and a kill credited to a unit that is not a hero is still refused. */
+  'a-kill-with-no-dealer': async (M) => {
+    const { unit, worldOf, ctx35, steps } = await import('./fixtures/h35.js');
+    const rat = unit(M, 8, 'mon', { hp: 1, maxHp: 10 });
+    rat.statuses = [{ s: 'bleed', src: 1, left: 6000, next: 100, scale: 1000 }];
+    const w = worldOf(M, [unit(M, 2, 'hero'), rat]);
+    const sc = ctx35(M, 1);
+    steps({ world: w, ground: null, grid: null, occ: null }, sc, 0, 3, M.status.tickStatuses);
+    const kill = sc.events.find((e) => e.type === 'kill');
+    if (!kill || kill.u !== null || kill.t !== 8) return 'CONTROL: the departed hero\'s bleed did not land a kill with no dealer: ' + JSON.stringify(kill);
+    let t;
+    try { t = M.tally.tallyEvents(sc.events, { heroes: [2], kinds: M.tally.rosterOf(w).kinds }); } catch (e) { return 'the settle\'s tally refused the window: ' + e.message; }
+    if (t.party.kills !== 0 || (t.heroes[2] && t.heroes[2].kills !== 0)) return 'a kill with no dealer was credited: ' + JSON.stringify(t.party);
+    try { M.tally.tallyEvents([ev('kill', 1, { u: 7, t: 8 })], ROSTER); return 'a kill credited to unit 7, no hero, was accepted'; } catch { return null; }
+  },
   /* The accumulator: windows folded one by one equal the whole session at once. */
   'windows-fold-to-the-session': (M) => {
     const whole = M.tally.tallyEvents(WINDOW, ROSTER).party;
@@ -106,6 +126,10 @@ const mutants = [
     edits: [['src/core/hunt/tally.js', "      case 'heal': {", "      case 'status_tick': { const h = heroOf(1, ev); h.dealt.total += ev.amount; break; }\n      case 'heal': {"]] },
   { name: 'folding overwrites instead of adding', case: 'windows-fold-to-the-session',
     edits: [['src/core/hunt/tally.js', 'else a[k] = (a[k] || 0) + v;', 'else a[k] = v;']] },
+  { name: 'a kill with no dealer is refused (the settle throws)', case: 'a-kill-with-no-dealer',
+    edits: [['src/core/hunt/tally.js', '        if (ev.u === null) break;\n', '']] },
+  { name: 'a kill with no dealer and a stranger\'s pass alike', case: 'a-kill-with-no-dealer',
+    edits: [['src/core/hunt/tally.js', '        if (ev.u === null) break;\n', '        if (!ids.has(ev.u)) break;\n']] },
   { name: 'a stranger is credited', case: 'refuses-what-it-cannot-place',
     edits: [['src/core/hunt/tally.js', "    if (!ids.has(id)) throw new Error(", "    if (false) throw new Error("]] },
 ];

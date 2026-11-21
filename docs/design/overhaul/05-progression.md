@@ -454,7 +454,7 @@ In decision-book order.
 | GR-88 | The matrix as the gate | Owned by `09-platform-and-measurement.md`. It must carry band S11, XP after deaths | DECIDED (Fable 2026-11-21) |
 | MM-7 | A death in the boss room | The normal death, as one row on the mode table. One death a send, the first send on Normal, Blessings apply and the card shows the risk. Deaths stay inside the tier's death band. Built with GR-7 | DECIDED (Fable 2026-11-21) |
 | MM-25 | The buff caps | Damage +5% standing and +10% timed. Protection as Defense rating rows worth about 5% and 5% less damage an hour. Level XP +25% timed only, from the Hearthrise weekend. Material find +10% timed, earned only. Town work +10%. No coin buff | DECIDED (Fable 2026-11-21) |
-| MM-26, MM-31 | The power budget and the pace ceiling | Owned by `06-mmo-layer.md`. Rule them with GR-6. The table stays the plain four's clock and R1 is read on the fastest seat | DECIDED. TYLER CONFIRMS (Fable 2026-11-21) |
+| MM-26, MM-31 | The power budget and the pace ceiling | Owned by `06-mmo-layer.md` and chapter 04. One ceiling as a reading held by a test: 1.65 with every cap full, about 1.22 from paying alone. The table stays the plain four's clock and R1 is read on the fastest seat, about 1.36 | MM-26 is DECIDED (Fable 2026-11-21). MM-31 is TYLER CONFIRMS |
 
 ---
 
@@ -466,23 +466,23 @@ In decision-book order.
 
 | # | What nobody has decided | What decides it |
 |---|---|---|
-| 1 | **Krell's day against the table.** Day 18 and Level 100 at 600 hours cannot both be exact for the same seat | Tyler, inside GR-6. Section 2.2 |
-| 2 | **The time-averaged pace of a buffed four.** MM-26 gives the ceiling with every cap full. Nobody has said how many hours a week the timed caps can be full, so the day the first fours reach a region is a range of day 67 to 91 | `06-mmo-layer.md`, then `02-world.md`'s region schedule |
-| 3 | **Whether a bought timed boost may fill the Level XP cap.** MM-28 to MM-30 sell timed boosts for Crowns and put them in the same caps as earned buffs. A bought Level XP boost collides with the 2026-11-04 avoid list (no paid XP boost through the Crowns link) and the 2026-11-18 line that power is never sold directly for Crowns. The 2026-11-21 ruling says Crowns must give real advantages. Tyler has not said which wins for Level XP | Tyler. A money call, at MM-28 and MM-29 |
+| 1 | **Krell's day against the table.** Day 18 and Level 100 at 600 hours cannot both be exact for the same seat | Closed as a reversal Tyler may veto. GR-6b: day 31 for the plain four |
+| 2 | **The time-averaged pace of a buffed four.** MM-26 gives the ceiling with every cap full. Nobody has said how many hours a week the timed caps can be full, so the day the first fours reach a region is a range of day 67 to 91 | Closed. MM-26 and GR-6a: a player who earns every buff and buys nothing averages about 1.3 times the plain pace over a month, and the fastest seat held all the time is about 1.36 |
+| 3 | **Whether a bought timed boost may fill the Level XP cap.** MM-28 to MM-30 sell timed boosts for Crowns and put them in the same caps as earned buffs. A bought Level XP boost collides with the 2026-11-04 avoid list (no paid XP boost through the Crowns link) and the 2026-11-18 line that power is never sold directly for Crowns. The 2026-11-21 ruling says Crowns must give real advantages. Tyler has not said which wins for Level XP | TYLER CONFIRMS (MM-29-XP), recommended no. No Level XP boost is sold, for Crowns or for gold |
 | 4 | **The seat's multiple.** One number, not known until the kill reward and the harder tiers are measured | A derivation run on the matrix after GR-5 and GR-27 |
-| 5 | **The law's ramp at Level 50 and its fit through the ruled points** so a Level never gets cheaper | The game designer, inside GR-6, at the build plan |
-| 6 | **The five hour threshold of the Blessing ladder.** It is a proposal. Three or eight hours would move every rung | Tyler with GR-7, then the long death sample |
+| 5 | **The law's ramp at Level 50 and its fit through the ruled points** so a Level never gets cheaper | Closed. GR-6d: the convex cut with the smallest largest step |
+| 6 | **The five hour threshold of the Blessing ladder.** It is a proposal. Three or eight hours would move every rung | GR-7 is DECIDED as a reversal Tyler may veto. The five hours is one knob, sized on the long death sample |
 | 7 | **Blessing prices for rungs 4 to 6**, and whether the set is always worth buying | The wage curve (GR-51) and band S10 |
-| 8 | **What a death takes from a hero in a boss room on Normal for a new account.** Blessings are near free at low Level by the price rule, but nobody has walked a Level 20 four through its first boss weekend | A walk-through in `06-mmo-layer.md` |
+| 8 | **What a death takes from a hero in a boss room on Normal for a new account.** Blessings are near free at low Level by the price rule, but nobody has walked a Level 20 four through its first boss weekend | The MMO decider, before MM-7 is final. A walk-through in `06-mmo-layer.md` |
 | 9 | **The Kindling rows.** No rung exists. The re-light price, the number of rungs before the track thins out, and what fills the 2% are all unwritten | The paper sample of five, after GR-61 |
 | 10 | **The Honors catalogue.** The sample of five is named and nothing else | The sample, then batches of 20 or fewer |
 | 11 | **The Catacombs' own numbers.** Mode share, door Levels and the third wing's twelve rows are copies or proposals | The sample wing (GR-36) |
 | 12 | **Tower landings past Platinum.** "One key tier a band" is ruled. Which band edges it follows waits on the gear curve's bands (GR-4) | `03-items-and-crafting.md` |
-| 13 | **The one staged ground that closes the four days** between day 116 and the ruled 120 | `02-world.md` |
+| 13 | **The one staged ground that closes the four days** between day 116 and the ruled 120 | Closed. GR-6a: no new ground. The Catacombs ground's band runs to Level 189, which is day 120 |
 | 14 | **Who draws regions, and how fast.** The plain seat gains about 34 Levels a month past Level 110 and a buffed seat up to about 58 | The art and asset directors, then Tyler |
-| 15 | **What one Premium gives across four heroes**: the 12 hour stamina bar, the daily training item, the analyzer | Tyler. A money call |
-| 16 | **How the first hour teaches thirteen skills to an account with four heroes** without four heroes training the same skill | The Path (GR-79), with a walk-through against the real starting kit |
-| 17 | **The Defense, Melee and Magic training bases on record** (three bases for three jobs) | Tyler's yes, 44 special rule P-X41 |
+| 15 | **What one Premium gives across four heroes**: the 12 hour stamina bar, the daily training item, the analyzer | TYLER CONFIRMS (PREM-1), with one recommendation in chapter 04 |
+| 16 | **How the first hour teaches thirteen skills to an account with four heroes** without four heroes training the same skill | The game designer, inside GR-79, with a walk-through against the real starting kit |
+| 17 | **The Defense, Melee and Magic training bases on record** (three bases for three jobs) | Closed. GR-25: keep the three bases |
 | 18 | **Whether a morning death card is a quit moment.** No simulation can answer it | Playtest 8, section 6 |
 
 ---

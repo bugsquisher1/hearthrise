@@ -431,20 +431,20 @@ In decision-book order.
 | # | What is missing | Who decides |
 |---|---|---|
 | 1 | **Study 48.** Whether four heroes working 12 rested hours fit $0.15 an account. How an away hunt is saved. What a town that draws heroes at work costs | The platform study, then Tyler |
-| 2 | **Early prices for an account of four.** The first deeds, the first room rungs, the first chests and the bag rungs were sized on one hero. With four heroes earning from day 1 they may be errands. Nobody has re-read them | The game designer, inside GR-8 |
-| 3 | **The first hour with four heroes.** What an account of four holds at minute 1 (seeds, gold), who plants, and when the Homestead is offered. It needs a walked-through sequence | The game designer, inside GR-79 (chapter 08) |
+| 2 | **Early prices for an account of four.** The first deeds, the first room rungs, the first chests and the bag rungs were sized on one hero. With four heroes earning from day 1 they may be errands. Nobody has re-read them | Closed. CE-5, a reversal Tyler may veto, with sizes as a HYPOTHESIS |
+| 3 | **The first hour with four heroes.** What an account of four holds at minute 1 (seeds, gold), who plants, and when the Homestead is offered. It needs a walked-through sequence | Closed. Chapter 08 section 2.1 walks it, and CE-10 grants the account kit once |
 | 4 | **The Hall's numbers.** The count of mountable rows, the size of the wall and the Great Hall, the fee's hours, and whether a visitor sees every mount | The game designer, after the mountable flag exists |
 | 5 | **The yard's formula in numbers.** The share of a skill level's cost an hour pays, the hunting reference it is capped by, how the fee follows the rate, and a knob for each in `knobs.json`. The dummy's band edges past skill 71 | The game designer, inside GR-54 and GR-53 |
-| 6 | **The second dropped seed,** its ground, its drink and the drink ladder's step size | The game designer, with the Morrow Hills |
+| 6 | **The second dropped seed,** its ground, its drink and the drink ladder's step size | The game designer, with the Morrow Hills. It is written only after the first dropped seed has been read in play (GR-77) |
 | 7 | **A party hero's spare rested hours.** The solver reads 2.1 to 4.4 of 12 wanted, under the 6 to 12 band. Either the yard and market gathering fill them, or the band is wrong. It also sets what a curing slot is worth | The game designer, when the solver has a supplies goal |
 | 8 | **The first town project** if the market opens on day one | The game designer, after GR-55 |
 | 9 | **Crops and costs with no consumer.** Potato. Room rungs that ask for Wheat Bread and Field Rations if meals are cut. The War Crown. The Moonbloom Elixir, whose Shop price is far above the shop-as-a-floor rule. What stands on the Shrine's spot. How burn relief counts in the Yield pool | Chapter 03 and chapter 04 |
 | 10 | **Names and pictures.** Chests 5 to 8. The Camp's name against its scene. Prices for the Cellar's rungs 2 and 4 | The game designer and the art director |
-| 11 | **The Hearthrise's size and seam with the calendar** (section 2.12) and how much fuel fills the fire | Tyler, with GR-82 and MM-11 |
-| 12 | **Who may visit** once a party is an account's own four | Tyler, with MM-18 and GR-75 |
-| 13 | **Clan town work +10% and Crowns storage.** Both come from the re-issued study 49 (MM-9, MM-25 and its Crowns table). Where the clan buff enters the Speed pool, and whether Crowns storage sits beside chests 5 to 8 or replaces them | Tyler, in chapter 06 and chapter 04 |
-| 14 | **Premium's daily training item across four heroes:** one for the account or one for each hero | Tyler. It is a money call |
-| 15 | **The 10-22 real-time ruling under closed form** (section 2.11) | Tyler, with GR-1 |
+| 11 | **The Hearthrise's size and seam with the calendar** (section 2.12) and how much fuel fills the fire | The seam is closed as a reversal Tyler may veto (CE-8, GR-82): the calendar says when it lights and the fire says how big, from +10% to +25%. Still owed: how much fuel fills the fire, by the game designer |
+| 12 | **Who may visit** once a party is an account's own four | The game designer, inside GR-75. A party is an account's own four (MM-18), so "party member" leaves the visit rule |
+| 13 | **Clan town work +10% and Crowns storage.** Both come from the re-issued study 49 (MM-9, MM-25 and its Crowns table). Where the clan buff enters the Speed pool, and whether Crowns storage sits beside chests 5 to 8 or replaces them | Closed. Clan town work is the Workshop row inside the Speed pool (MM-9). Bag and Storage room are never sold for Crowns (MM-29, TYLER CONFIRMS) |
+| 14 | **Premium's daily training item across four heroes:** one for the account or one for each hero | TYLER CONFIRMS (PREM-1), recommended one for each hero |
+| 15 | **The 10-22 real-time ruling under closed form** (section 2.11) | Closed as a reversal Tyler may veto (CE-7): town work moves on screen in real time and the server writes three times a job |
 | 16 | **A home axis for the matrix.** No cell holds a room, a bed, a bench or a rested hour, so no band in this chapter can gate a change yet (section 6) | The baseline lane |
 | 17 | **Security scope.** The mount and unmount verbs, curing, visiting reads and the Hearth's gifts are money or shared surfaces and go into the one review before Early Access | The security engineer |
 

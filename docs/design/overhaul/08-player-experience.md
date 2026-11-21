@@ -273,7 +273,7 @@ One table says what opens every system. Each row has an opener, the line that an
 | First stamina end | The return card. The Hearthside Homestead, if the materials are in Storage | The return card | DECIDED (GR-79, Fable 2026-11-21) |
 | Level 8, with a helm and body armor worn | Wickstead. The first Dangerous offer, with the risk reading beside it | The Hunts page | DECIDED (GR-79, Fable 2026-11-21). Risk as a warned choice is RULED 2026-11-04 |
 | First Rat King kill | The Rat King's Hall, as the first boss door and key | The loot line | DECIDED (GR-79, GR-28, Fable 2026-11-21, reversal of 2026-11-14 and 22-8, Tyler may veto) |
-| Level 10 | The Burning Tower and the Hearth Chest. The Weighhouse | One card each | The Tower's Level is RULED 2026-11-18. The Weighhouse on day one is OPEN (GR-55, chapter 04) |
+| Level 10 | The Burning Tower and the Hearth Chest. The Weighhouse | One card each | The Tower's Level is RULED 2026-11-18. The market is open on day one: DECIDED (GR-55, Fable 2026-11-21, reversal of 24-7, Tyler may veto, chapter 04). The Weighhouse card moves to the first return |
 | Level 16 | Mosslight Glade. The Honors page | "Ground opened" | DECIDED (GR-79, GR-62, Fable 2026-11-21) |
 | Level 30 | Blessings cost gold. "Keep my company blessed" shows its price | The end card, two Levels ahead | RULED 2026-10-18 (free under 30) |
 | Level 32 | Coppercap Warrens | "Ground opened" | Content row |
@@ -283,7 +283,7 @@ One table says what opens every system. Each row has an opener, the line that an
 | Set by chapter 02 | Old grounds at your Level. Each region. The Catacombs | "Region opened" | DECIDED there (GR-9, GR-33, GR-36, Fable 2026-11-21) |
 | The start | Chat and the presence strip | No card. They are on screen | DECIDED in chapter 06 (Fable 2026-11-21) |
 | The first day | Clans: the roster and its chat tab | One line on the first return card | DECIDED in chapter 06 (Fable 2026-11-21) |
-| Not set | The world boss, both arenas, the clan board, the event calendar's first banner | The System tab and a town banner | OPEN. Chapter 06 names no Level door yet (its section 5, item 9). The designer sets them with GR-79 once the MM calls on size and pay are ruled |
+| Level 13, 20 and 30 | The world boss opens at Level 13 for each hero sent. The Even Arena at Level 20. The Open Arena at Level 30. The clan board when the account is in a clan. The calendar banner after the first stamina end | The System tab and a town banner | DECIDED (GR-79, Fable 2026-11-21) |
 | 50 active accounts a day | The Town Crier, Rounds for the Tavern, flame powders, rank numbers on the boards | A town line | DECIDED (GR-79, Fable 2026-11-21). TARGET count |
 
 ### 2.6 Teaching and the coach
@@ -318,7 +318,7 @@ The coach teaches the loop and then gets out of the way. It is two things: a sho
 | **The Week card** | Shown on the first return after the turn | This week against your last week for the account: Levels, hours hunted, best find, Bestiary stages, Tower floor, rank moves and what just reset. It pays nothing, ever | DECIDED (GR-84, Fable 2026-11-21) |
 | **The weekend** | A four-weekend rotation written a year ahead as rows | A world bonus weekend, a world boss, one ground's weekend, the arena season end with clan honors. Never over +25%, one at a time | DECIDED (MM-11, MM-3, Fable 2026-11-21). The +25% cap is RULED 27-5 |
 | **The month** | One turn of the rotation | Each of the four weekends once. The Great Hearth's shared project | The Hearth merge is DECIDED (GR-82, Fable 2026-11-21, reversal of 2026-10-25, Tyler may veto), a HYPOTHESIS |
-| **The long chase** | Past any one month | Krell's Hold on day 18 for a four. Level 400 on day 382. The Luck bar at +16% by 500 hours and +39% by 5,000. Honors lines at Level 100, 200, 300 and 400. Late Bestiary stages. Rare finds past Krell | Krell, Level 400 and the Luck bar are RULED 2026-11-21. Honors is DECIDED (GR-62, Fable 2026-11-21) |
+| **The long chase** | Past any one month | Krell's Hold on day 31 for a plain four, and day 18 to 24 with best gear and buffs. Level 400 on day 373. The Luck bar at +16% by 500 hours and +39% by 5,000. Honors lines at Level 100, 200, 300 and 400. Late Bestiary stages. Rare finds past Krell | The Luck bar is RULED 2026-11-21. Krell's day and Level 400's day are DECIDED (GR-6b and GR-6, Fable 2026-11-21, reversals of "day 18 for a four" and "Level 400 is day 382", Tyler may veto). Honors is DECIDED (GR-62, Fable 2026-11-21) |
 
 **What a company can see ahead of it.** Every row names one goal the player can read on screen (standard X11). Days are at 12 hunted hours.
 
@@ -327,7 +327,7 @@ The coach teaches the loop and then gets out of the way. It is two things: a sho
 | Minute 5 | Level 5 and the end of the Cellar | RULED row |
 | Hour 1 | The Sewer as a four. The Homestead from the first night's work | DECIDED (GR-79, Fable 2026-11-21) |
 | Day 1 | Level 10 by 6 hunted hours, with no Level under 10 over 2 hours. The Tower, the Chest, Wickstead and the first Dangerous run | RULED (27-2, standard P11) |
-| Week 1 | The Rat King's Hall. Mosslight Glade and the Honors page. The first sinks sized for an account of four | The sinks are OPEN (GR-8, chapter 04). The Levels reached are set by the Level law (GR-6, chapter 05) |
+| Week 1 | The Rat King's Hall. Mosslight Glade and the Honors page. The first sinks sized for an account of four | The order of the sinks is DECIDED (CE-4, Fable 2026-11-21, chapter 04) and their sizes are a HYPOTHESIS (CE-5). The Levels reached are set by the Level law (GR-6, chapter 05) |
 | Day 18 | Krell's Hold | RULED 2026-11-21 |
 | Month 6 and after | A region open 30 days before the first fours arrive. Old grounds at your Level | RULED 2026-11-21 (runway). GR-9 is DECIDED, Fable 2026-11-21 in chapter 02 |
 
@@ -447,13 +447,13 @@ In decision-book order.
 | 1 | Closed. A start-kit four holds the Sewer on Normal at Level 5, the Rat King's room included | MEASURED, check C3, and re-run by the adversarial check on the default company | It is a standing matrix cell now |
 | 2 | Closed. Three heroes together in the Cellar do not keep pace with one | MEASURED, check C2, failed at 0.53 times | The recruits run three lone hunts on one Start (section 2.1) |
 | 3 | A measured tag for each starting way | The balance matrix (check C1). Owner: the core decider | Six start-kit cells. Still owed |
-| 4 | What the first week's gold buys, and early prices for an account of four | Chapter 04, then Tyler (GR-8) | The decision book lists both as missing |
-| 5 | Premium's daily item: one an account or one a hero. And Premium's price | Tyler, with chapter 04 | A money call |
+| 4 | What the first week's gold buys, and early prices for an account of four | Closed. CE-4 gives the order and CE-5 the sizes, as a HYPOTHESIS | The decision book lists both as missing |
+| 5 | Premium's daily item: one an account or one a hero. And Premium's price | TYLER CONFIRMS (PREM-1 and PREM-2), each with one recommendation in chapter 04 | A money call |
 | 6 | The Path's rows for Levels 17 to 19, 21 to 24 and 26 to 29 | Chapter 03 | The content rows on this branch name nothing there except skill unlocks at 20 and 25. Gear tier rows should fill them, or the guard in section 6 fails |
-| 7 | The Level doors for the world boss, both arenas and the clan board | The designer, with GR-79, after the MM calls on size and pay | Chapter 06 asks this chapter for them. They cannot be set before the boss pool and arena tiers have numbers |
-| 7b | How the thirteen skills are spread across four heroes past the first night | The designer, with chapter 05 (its item 16) | The starting rest plan gives each hero a different trade on night one. Nothing yet says who should train what after that, or whether the game should say it at all |
-| 8 | The player-facing word for the account's four | The art director, then Tyler | "Heroes" and "Party" are recommended. "Company" is design vocabulary |
-| 9 | Whether kit items can be turned into gold by deleting and remaking a hero | The systems engineer and Security | The kit's food sells for a little. Account deletion is staged, and hero deletion has no design here |
+| 7 | The Level doors for the world boss, both arenas and the clan board | Closed. GR-79: Level 13, 20 and 30, and the clan board when the account is in a clan | Chapter 06 asks this chapter for them. They cannot be set before the boss pool and arena tiers have numbers |
+| 7b | How the thirteen skills are spread across four heroes past the first night | The game designer, inside GR-79, with chapter 05 (its item 16) | The starting rest plan gives each hero a different trade on night one. Nothing yet says who should train what after that, or whether the game should say it at all |
+| 8 | The player-facing word for the account's four | Closed. "Heroes" for the account screen and "Party" inside a hunt, by the genre-words rule | "Heroes" and "Party" are recommended. "Company" is design vocabulary |
+| 9 | Whether kit items can be turned into gold by deleting and remaking a hero | Closed. CE-10: the hero kit is granted once for each of the four slots and a remade hero gets practice weapons only. Security reads it with the rest | The kit's food sells for a little. Account deletion is staged, and hero deletion has no design here |
 | 10 | Whether the report's counters fit the session row with no added statement | The systems engineer | HYPOTHESIS until confirmed |
 | 11 | How an away hunt is saved, which sets how fresh a return card can be | Chapter 09 (study 48) | |
 | 12 | A blind play of the whole first hour | A fresh reader, after it is built | The sequence from minute 17 has never been played |
@@ -509,7 +509,7 @@ Playtests 1 and 9 fit the first invite wave. There is no comparison group for pl
 | A first hour, a coach and a fix to Levels 7 to 10 sized on one hero | 27 question 1, 59 section 2.3, 60 section 4.7 | Re-designed on an account of four (section 2.1). The fix 27-2 itself stands |
 | One hero's return as the unit: one card and 8 to 10 presses a hero | 27 question 3 | One card and one press for the account (GR-80) |
 | Lent seats and on-call heroes as the early party | 46 change 1 part 3, 57 | A party is the account's own four. No hero is hired, lent or put on call (MM-18, chapter 06). CUT (Tyler approves), cut list 2 |
-| "Krell at month 4 to 6" and every week counted at 3.3 hours a day | 27 question 2, 30 | RULED 2026-11-21: 12 hunted hours a day, Krell on day 18 for a four |
+| "Krell at month 4 to 6" and every week counted at 3.3 hours a day | 27 question 2, 30 | RULED 2026-11-21: 12 hunted hours a day, and Krell in weeks, not months. Day 31 for a plain four (GR-6b) |
 | One kill ladder that merges the tally, the Bestiary, titles and trophies | 59 phase A, row 7 | Withdrawn in 59 phase B and by 47 C19. The tally takes itself, the Bestiary keeps its six Luck payments, titles go to Honors |
 | Removing the built companions | 59 phase A, row 15 | RULED 2026-10-22 and 2026-11-21: hidden, built later |
 | The reveal on Trophy and Very Rare only | 27 change 5 | RULED 27-6: the reveal stays on every Rare |

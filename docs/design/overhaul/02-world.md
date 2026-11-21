@@ -425,16 +425,16 @@ In decision-book order.
 
 | # | What nobody has decided or designed | Who decides |
 |---|---|---|
-| 1 | **Krell on day 18 against the four's own table.** Two rulings of 2026-11-21 give day 18 and day 31 to 39. The runway in 2.2 moves by a factor of two with the answer | Tyler, inside GR-6 (chapter 05) |
-| 2 | **Regions 4 to 7 have no sketch of record.** A-10 ruled sketch them now. The only draft is a working name and five sample pieces for region 4 in a document the plan replaced. Each needs its place, its one new rule, its faction pairs, its two bosses and its elements | The game designer, then Tyler |
+| 1 | **Krell on day 18 against the four's own table.** Two rulings of 2026-11-21 give day 18 and day 31 to 39. The runway in 2.2 moves by a factor of two with the answer | Closed as a reversal Tyler may veto. GR-6b: day 31 for the plain four |
+| 2 | **Regions 4 to 7 have no sketch of record.** A-10 ruled sketch them now. The only draft is a working name and five sample pieces for region 4 in a document the plan replaced. Each needs its place, its one new rule, its faction pairs, its two bosses and its elements | The game designer |
 | 3 | **How fast a region can be drawn.** The table asks for a new region every 45 to 53 days. No lane says who draws them, at what cost, or what happens when art falls behind | The art and asset directors, then Tyler |
 | 4 | **The Morrow Hills between Levels 142 and 165.** The Old Guard and the Bellows are a name and a weapon grid. The Night Shift is the same. The Catacombs ground cannot open until they exist | The game designer |
 | 5 | **Signatures for six grounds** (Wickstead, the Muster Barrows, the Night Shift, the Old Guard, the Bellows, the Catacombs ground), and the shared dose coefficient's value | The game designer, after the two-ground sample is played |
-| 6 | **The hall number and the early halls.** Nobody has sized a hall at Levels 25, 52 and 75, or said what key and prize the Rat King, Chief Coppercap and Captain Hask carry | The game designer, with chapter 03 |
-| 7 | **Whose Level an old ground takes**, the leader's (ruled) or the lowest hero's | Tyler, with MM-19 |
-| 8 | **What an old ground at your Level costs in gold at the frontier**, and whether that sink is needed once the price can go to zero | Chapter 04 |
+| 6 | **The hall number and the early halls.** Nobody has sized a hall at Levels 25, 52 and 75, or said what key and prize the Rat King, Chief Coppercap and Captain Hask carry | The game designer, with chapter 03, for the keys and prizes. The hall number acts on health and the clock (GR-30), and the hall grader plays it at Levels 25, 52 and 75 |
+| 7 | **Whose Level an old ground takes**, the leader's (ruled) or the lowest hero's | Closed. MM-19: the leader's, as ruled |
+| 8 | **What an old ground at your Level costs in gold at the frontier**, and whether that sink is needed once the price can go to zero | Closed. GR-9: the fee is one data row that can go to zero, and frontier use is read for two weeks |
 | 9 | **The Tower's board once the top follows Level.** A week view or a season | The game designer |
-| 10 | **The Bestiary.** Its deep dive is queued behind the balance work (2026-11-11), and its stage bonus is undecided. This chapter only sizes how long its stages take | Tyler, chapter 05 |
+| 10 | **The Bestiary.** Its deep dive is queued behind the balance work (2026-11-11), and its stage bonus is undecided. This chapter only sizes how long its stages take | The game designer. The stage bonus is a design call. The deep dive stays queued behind the balance work |
 | 11 | **The faction benefit for hunting the opposite side's ground.** Ruled to exist and to matter (31-8), not sized | The game designer, chapter 05 |
 | 12 | **Loot rows for Wyvern Roost and the Catacombs ground** | Chapter 03 |
 | 13 | **The measuring gaps in section 6**: no matrix cell for a ground above its band, no hall on the ground axis, no band rows on the ground axis | Chapter 09 |

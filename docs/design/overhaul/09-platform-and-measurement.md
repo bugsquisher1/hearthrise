@@ -676,15 +676,15 @@ In decision-book order. Each line is the call and the decision this chapter take
 | GR-23 | Endless ladders | Rune tiers past skill 60 every 15 skill levels, and the Tower reads any floor from one row | DECIDED (Fable 2026-11-21) |
 | GR-25 | Nine special rules with no ruling on record | Approve as the formula audit recommends, each by name | DECIDED (Fable 2026-11-21) |
 | GR-36 | The Tower and Catacombs party table | They take the one party table | DECIDED (Fable 2026-11-21) |
-| GR-51, GR-52 | The wage curve and the store's healing | Prices in hours of a wage the server computes. One gold-a-hit-point line, after fault F5 closes | DECIDED (Fable 2026-11-21) |
+| GR-51, GR-52 | The wage curve and the store's healing | Prices in hours of a wage the server computes. One gold-a-hit-point line, after fault F5 closes. F5's kit rule is decided in GR-52: one rune tier under what Magic allows for mid gear, and the cheapest water rune for a healer | DECIDED (Fable 2026-11-21) |
 | GR-63 | Dead ladders | Delete the rested bank and the two old kill ladders | DECIDED (Fable 2026-11-21) |
 | GR-70 | The town draws heroes at work | Yes, once study 48 sizes it | DECIDED (Fable 2026-11-21) |
 | GR-86 | The later engine steps | One amount pipeline with a trace, one modifier table, every monster on the formula | DECIDED (Fable 2026-11-21) |
 | GR-87 | Drops and sales | Drops authored in hours. One sale formula | DECIDED (Fable 2026-11-21) |
 | MM-19 | Mixed Levels in one fight | The visible two thirds line, in the same step as the XP chain | DECIDED (reversal, Tyler may veto). Changes the party XP rulings of 2026-11-08 (Fable 2026-11-21) |
 | MM-23 | The order for planning | Approve, with the instrument first | DECIDED (Fable 2026-11-21) |
-| MM-24, MM-25, MM-30 | Buffs as rows with caps | One modifier table. A bought boost and an earned buff fill the same cap | DECIDED. TYLER CONFIRMS (Fable 2026-11-21) |
-| MM-31 to MM-36 | The paid ceiling and the eight clamps | Approve, all inside the Security review, with check A6 green before the book opens | TYLER CONFIRMS |
+| MM-24, MM-25, MM-30 | Buffs as rows with caps | One modifier table. Protection is written on the Defense rating and the timed drop row is material find. A bought boost and an earned buff fill the same cap | MM-24 and MM-25 are DECIDED (Fable 2026-11-21). MM-30 is TYLER CONFIRMS |
+| MM-31 to MM-36 | The paid ceiling and the eight clamps | One ceiling as a reading held by a test (1.65 with every cap full, about 1.22 from paying alone), and the eight clamps, all inside the Security review, with check A6 green before the book opens | TYLER CONFIRMS, each with one recommendation in `00-the-game.md` |
 | MM-41 | One engine check for both arenas | Measure heroes on both sides of a fight before either arena is planned | DECIDED (Fable 2026-11-21) |
 | MM-43 | Test Crowns in the playtest | No recommendation. It is a grant and needs Tyler's explicit yes | TYLER CONFIRMS (grant) |
 
@@ -696,17 +696,17 @@ In decision-book order. Each line is the call and the decision this chapter take
 |---|---|---|
 | 1 | **Study 48 itself.** How an away hunt is saved. Whether 60 database-seconds holds on shared cores. The bill's lines that are not the database, re-read for the 12 hour day. What a town that draws working heroes costs. A measured envelope for bosses, clans, events and arenas | The reliability engineer, then Tyler. Until it lands, section 2.3 cannot say the game fits $0.15 |
 | 2 | **The 10,000 account budget.** 24 database-seconds an account-day is past every design sized so far, and two thirds of that bill is not the database | Study 48 |
-| 3 | **Whether measurement and tool work may go ahead before the build plan.** The gear band, the kill reward and the harder tiers' pull each need a measurement, and all of them need the instrument made true | Tyler. Recommended yes, because it changes no game number |
+| 3 | **Whether measurement and tool work may go ahead before the build plan.** The gear band, the kill reward and the harder tiers' pull each need a measurement, and all of them need the instrument made true | Closed. RULED 2026-11-21: studies, calibration and audits may run |
 | 4 | **The Security review's size and owner for the MMO layer.** Section 2.7 is a proposed scope, not a sized review | The Security engineer |
-| 5 | **The kit's rune rule (F5).** Nobody has ruled which rune tier a mid-geared hero is assumed to buy | The game designer, inside GR-52, GR-51 and GR-50 |
+| 5 | **The kit's rune rule (F5).** Nobody has ruled which rune tier a mid-geared hero is assumed to buy | Closed. GR-52: mid gear casts one rune tier under what its Magic allows, a healer's heals use the cheapest water rune, and best gear casts the tier its Magic allows |
 | 6 | **A second calibration party.** Every party band rests on one real four | Real play. The playtest supplies it |
 | 7 | **Readers for 19 bands.** Events, server-wide gold, schedules, money and chest pieces are not cells | The matrix lane, each with its own model |
 | 8 | **Bands for the MMO layer.** The standards hold no band for the buff caps, the power budget, the paid ceiling, arena win rates or the Crowns price. Checks A3 to A6 and table B name targets, and none is a band in `standards.mjs` yet | The matrix lane with the MMO layer study, after MM-25, MM-26 and MM-31 are ruled |
 | 9 | **A band for the early economy of four heroes.** No band reads what an account of four earns and spends in its first week | Chapter 04 (economy and Crowns), then a band here |
 | 10 | **The Lab's proposal set.** Not every recommended proposal exists as a patch file, and the model steps cannot be toggled until they are staged | The dashboard lane |
 | 11 | **The hunt tally's three fields.** Lowest health, tier and gear tier worn. Survival cannot be calibrated without the first | Systems, in the build plan |
-| 12 | **Test Crowns in the playtest (MM-43).** An equal weekly grant to every account is still a grant. Without it the Crowns rows of table B cannot be read before launch | Tyler |
-| 13 | **Whether a watched four of four people on four accounts changes the save design.** Study 49 says a party is an account's own heroes, so the case may not exist | Study 48, after MM-18 is ruled |
+| 12 | **Test Crowns in the playtest (MM-43).** An equal weekly grant to every account is still a grant. Without it the Crowns rows of table B cannot be read before launch | TYLER CONFIRMS (MM-43, a grant), recommended yes for the wiped Discord playtest only |
+| 13 | **Whether a watched four of four people on four accounts changes the save design.** Study 49 says a party is an account's own heroes, so the case may not exist | Study 48. MM-18 is decided, so a party is an account's own heroes and the case does not exist unless Tyler vetoes that reversal |
 | 14 | **Content authoring pace against the runway, timed.** Every ground, band, boss and recipe family ends its lane with its working hours (RULED 28-12). No lane has yet said who draws regions or how fast | The art and asset directors, then Tyler |
 | 15 | **The build plan's unit.** The plan of record is written in lanes and waves for a beta. It is re-issued once the calls are ruled, in the order of section 2.2 | The Coordinator, after the rulings |
 

@@ -321,7 +321,7 @@ Chat is open by default so a new player sees that other people exist (RULED 2026
 | Piece | Rule | Status |
 |---|---|---|
 | The sides | The First Flame and the Last Ember. Neither is evil. Havora is neutral. Villains are shared NPCs | RULED 2026-11-14 |
-| When | A hero may join after its first Krell kill, which a four reaches around day 18 (RULED 2026-11-21) | RULED 2026-11-14 |
+| When | A hero may join after its first Krell kill, which a plain four reaches around day 31 (GR-6b) | RULED 2026-11-14 |
 | Who chooses | Each hero chooses its own side, and one press can join every eligible hero on the account to the same side. An account may put heroes on both sides | DECIDED (GR-71, Fable 2026-11-21, re-opens 25-10) |
 | Grounds | Both sides hunt everywhere and see each other. Each side gains standing on the grounds of its opposite. Every region past Krell holds equal grounds for each side | RULED 2026-11-14 |
 | Standing and looks | Standing earns outfit pieces. A hero can swap sides and keeps earned sets | RULED 2026-11-14 |
@@ -417,18 +417,18 @@ In decision-book order. "First" marks a decide-first call.
 
 | # | What is missing | Who answers |
 |---|---|---|
-| 1 | **The boss roster.** How many bosses, their names, where they stand in the world and the story, their phase traits, and each line's four pieces and property. One sample boss comes first | The game designer, then Tyler |
-| 2 | **How boss and arena gear lines fit the item plan and the gear curve.** A new tradeable line at the best in slot budget for every band changes what a hall prize (GR-29) and a ground's rare are worth | The game designer, with GR-4, in chapter 03 |
-| 3 | **A bought drop chance boost against the Luck ruling.** Tyler bound Luck items on 2026-11-20 so that gold and Crowns could not buy Magic Find. A drop chance boost in the store (MM-29) is close to that. My recommendation: the drop chance row stays as an earned and event buff, and chapter 04 leaves it out of the store unless Tyler says otherwise | Tyler, at MM-25 and MM-29 |
-| 4 | **How the power budget moves the Level law and the content runway.** The Level table is the clock of a plain mid-geared four. A four at 1.72 pace walks 120 days of grounds in about 70 (COMPUTED, 120 over 1.72) | The game designer, with GR-6 and MM-26 |
+| 1 | **The boss roster.** How many bosses, their names, where they stand in the world and the story, their phase traits, and each line's four pieces and property. One sample boss comes first | The game designer. One sample boss first |
+| 2 | **How boss and arena gear lines fit the item plan and the gear curve.** A new tradeable line at the best in slot budget for every band changes what a hall prize (GR-29) and a ground's rare are worth | Closed. CE-1, the ten rules of `03-items-and-crafting.md` section 2.16 |
+| 3 | **A bought drop chance boost against the Luck ruling.** Tyler bound Luck items on 2026-11-20 so that gold and Crowns could not buy Magic Find. A drop chance boost in the store (MM-29) is close to that. My recommendation: the drop chance row stays as an earned and event buff, and chapter 04 leaves it out of the store unless Tyler says otherwise | Closed. CE-2 and CE-3: the row is material find, earned only, and no drop or material boost is sold |
+| 4 | **How the power budget moves the Level law and the content runway.** The Level table is the clock of a plain mid-geared four. A four at 1.72 pace walks 120 days of grounds in about 70 (COMPUTED, 120 over 1.72) | Closed. GR-6a and MM-26: the table is the plain four's clock, and the next region's door is near day 55 for the fastest seat |
 | 5 | **What the layer may cost.** Every server number here is ESTIMATED. The budget and the cost of a town that draws working heroes come from the platform study | Chapter 09 |
 | 6 | **The engine check** (MM-41). Until it runs, both arenas are a design and not a plan | The systems engineer |
 | 7 | **Arena balance between styles.** The four styles are balanced against monsters. The reference kit, the reference Level, and whether faction skills are read in the Even Arena are not written | The game designer, after the engine check |
 | 8 | **The numbers nobody has set.** `bossPoolPerAccount`, `bossPoolFloor`, the chest thresholds, room levels and their steps, `castleStagePerMember`, `clanWeeklyShare`, the clan roster cap (the design is checked at 60), the ration cap, the board's "top members" count and its buff size, rating tiers, the minimum fights for a tier, the house teams | The game designer, on the balance matrix |
-| 9 | **When each piece opens on the Path.** Chat and presence at minute 5 and clans from the first day are the design. The Level door for the boss, the arenas and the clan board is not set | Chapter 08, with GR-79 |
+| 9 | **When each piece opens on the Path.** Chat and presence at minute 5 and clans from the first day are the design. The Level door for the boss, the arenas and the clan board is not set | Closed. GR-79: the world boss at Level 13 for each hero sent, the Even Arena at Level 20, the Open Arena at Level 30, the clan board when the account is in a clan |
 | 10 | **The Security review's scope for the layer.** The boss chest, clan gifts, the standing gift, rations, arena results and both gear lines are shared or reward surfaces | The security engineer |
 | 11 | **Side against side.** The weekly faction tally and any side event have no design that passes rule 0 yet | The game designer |
-| 12 | **Live ops when nobody is watching.** The calendar runs itself, but nothing says who notices a boss that never falls or a pool sized wrong. The pool needs a rule that settles it at the window's end either way | The game designer, with the reliability engineer |
+| 12 | **Live ops when nobody is watching.** The calendar runs itself, but nothing says who notices a boss that never falls or a pool sized wrong. The pool needs a rule that settles it at the window's end either way | The pool rule is closed (MM-4): the boss leaves when the window ends and the server re-sizes the pool after each boss. Still owed: who notices a boss that never falls. The game designer, with the reliability engineer |
 | 13 | **Knobs missing from `knobs.json`:** drop chance, town work speed, and every new knob named in this chapter | The balance tools lane |
 
 ---

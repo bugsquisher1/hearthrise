@@ -698,7 +698,7 @@ In decision-book order.
 | GR-48 | Luck keeps two feeds. A find list and a saved kit | Two feeds for Luck, a find list on the Honors page, and one Setup for each ground that holds weapon, worn set, linings, bar and target mode | DECIDED (Fable 2026-11-21) |
 | GR-49 | Chest reforging stays its own action | Approve | DECIDED (Fable 2026-11-21) |
 | GR-87 | Drops in hours, one sale formula | Approve | DECIDED (Fable 2026-11-21) |
-| MM-6, MM-14 | World boss pay and arena rewards | No recommendation from the revised study yet. This chapter's ten rules in 2.16 are its one recommendation for the gear half | DECIDED (Fable 2026-11-21) |
+| MM-6, MM-14 | World boss pay and arena rewards | The ten rules of 2.16 (CE-1). At most one line piece a boss weekend and one an arena season. The fall bonus re-rolls the piece. The Even Arena pays material find. HYPOTHESIS for the fall bonus | DECIDED (Fable 2026-11-21) |
 
 ---
 
@@ -710,9 +710,9 @@ In decision-book order.
 |---|---|---|
 | 1 | The exchange rates themselves (`gearExchange`) and the slot-class shares other than the 6% for accessories | Roadmap step R11, on the matrix |
 | 2 | Whether +17% reads as one upgrade when played on the curve, with +24% as the second cell | One band played. It is the first thing the R10 derivation prints |
-| 3 | What it costs to reforge a unique up a band: materials, gold, whether a duplicate or a key is needed | Nobody has designed it. The designer, inside GR-4 and GR-8 |
+| 3 | What it costs to reforge a unique up a band: materials, gold, whether a duplicate or a key is needed | The game designer, inside GR-4 and GR-8, before the build plan |
 | 4 | The Tempering ladder for tier 7 and for each band, as shares | GR-8, then a matrix run on gold bands |
-| 5 | What the first week's gold buys, and early prices sized on four heroes | Decision book "waiting". The designer, then Tyler |
+| 5 | What the first week's gold buys, and early prices sized on four heroes | Closed. CE-4 gives the order and CE-5 the sizes, as a HYPOTHESIS |
 | 6 | The three signature stones: names, perks and carriers. The tier 4 and tier 6 gem names | The designer, with names checked against the data. Sample of three first |
 | 7 | 18 of the 23 perks have no engine hook and no measured size. No cell measures one perk in and out of its own case | The first job of the perk lane |
 | 8 | Leech lining sizes, and spell leech with lining leech together | One measurement |
@@ -722,10 +722,10 @@ In decision-book order.
 | 12 | The uniques for the Catacombs ground at Levels 165 to 185 | The region lane |
 | 13 | How a perk is stored on a held piece, so one market book can filter by it | A schema call for the systems engineer |
 | 14 | The saved kit's server shape and cost | The systems engineer |
-| 15 | Layer gear: boss count, line sizes, pace and the material's recipe uses | The revised study 49, then Tyler (MM-6, MM-14) |
-| 16 | What one Premium gives. It must never sell Luck | Tyler. A money call |
-| 17 | Rolls, tradeable gems and tradeable patterns in the Steam and legal review | Before Early Access |
-| 18 | Whether the three armor weights are a live choice for each style | A matrix run of heavy, medium and light on three styles |
+| 15 | Layer gear: boss count, line sizes, pace and the material's recipe uses | Closed. CE-1: at most four boss lines and one arena line, at most five pieces a line, one piece a boss weekend and one an arena season, and the material feeds only layer pieces |
+| 16 | What one Premium gives. It must never sell Luck | TYLER CONFIRMS (PREM-1), with one recommendation in chapter 04. It never sells Luck |
+| 17 | Rolls, tradeable gems and tradeable patterns in the Steam and legal review | The security engineer, in the one review before Early Access |
+| 18 | Whether the three armor weights are a live choice for each style | The matrix lane, one run of heavy, medium and light on three styles |
 | 19 | Regions 4 to 7: elements, key rows, named content | The region sketches |
 
 ---

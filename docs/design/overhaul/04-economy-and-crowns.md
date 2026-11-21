@@ -119,13 +119,13 @@ That table is the answer to "early prices sized for an account of four". DECIDED
 | Price | Rule | Number | Status |
 |---|---|---|---|
 | Stamina refill | Six a day. Each costs more than the last: x1, 1.5, 2, 2.5, 3, 3.5. Gold only, never Crowns | The steps are RULED. The base hours of the first refill are OPEN | Steps RULED 2026-11-20 (24-1). Base on the wage curve DECIDED, GR-51, Fable 2026-11-21. The number waits for the store bill to be measured right, GR-58 |
-| Blessings | A set is priced as a share of the hunted hours it saves, in the buyer's own gold. A death costs 6% of Level XP flat with no cap, and the three Blessings cut that by 25, 50 and 75% | The share is a knob. OPEN until GR-7 is ruled | Death cost RULED 2026-11-21. The price rule DECIDED, GR-51, Fable 2026-11-21 (44 call 14). The ladder past the third Blessing is GR-7, chapter 05 |
+| Blessings | A set is priced as a share of the hunted hours it saves, in the buyer's own gold. A death costs 6% of Level XP flat with no cap, and the three Blessings cut that by 25, 50 and 75% | The share is a knob, sized with GR-7: each rung past the third is priced under a fifth of the hours it saves | Death cost RULED 2026-11-21. The price rule DECIDED, GR-51, Fable 2026-11-21 (44 call 14). The ladder past the third Blessing is GR-7, chapter 05 |
 | The yard fee | 100 gold for each level of the skill trained, each hour | 100 x skill level | RULED 2026-11-20 (24-8) |
 | The yard's rate | The XP an hour follows a share of the skill level's cost and never passes half of what hunting pays that skill. The fee follows the rate, so a point of XP never gets cheaper | TARGET: at most half of hunting | DECIDED, GR-54, Fable 2026-11-21, reversal of 2026-11-14, 21-7 and A-5, Tyler may veto. It re-opens 11-14 and two rulings of 11-20 |
 | The House dummy | It ends the yard fee for one skill. It is sold in rungs by skill band, and each rung costs 25 to 50 hours of the yard fee at that band | 25 to 50 hours. TARGET | "No fee" RULED 2026-11-08. Payback RULED 2026-11-20 (26-5). The rungs DECIDED, GR-53, Fable 2026-11-21 |
 | Training items | Double the yard's rate for their hours. Sold for gold and tradeable, or for Crowns and bound | | RULED 2026-11-14 |
 | Bench tax | 15% of the output's Shop bid on each job, until the House room for that bench is bought | 15% | RULED 2026-11-01. Onto the wage curve DECIDED, GR-56b, Fable 2026-11-21 |
-| A scaled hunt hour | An hourly fee to hunt an old ground at your own Level, on the wage curve | OPEN. Free or a fee is ruled after players have used it | DECIDED, GR-9, Fable 2026-11-21 (chapter 02) |
+| A scaled hunt hour | An hourly fee to hunt an old ground at your own Level, on the wage curve | The fee is one data row and can go to zero. Frontier use is read for two weeks. Buying hours is a standing rule ("keep N hours banked for this ground"), never a purchase repeated by hand | DECIDED, GR-9, Fable 2026-11-21 (chapter 02) |
 | Setup slots | Free. A saved setup is a remembered decision and is never sold | 0 | DECIDED, GR-56a, Fable 2026-11-21, reversal of 2026-11-05 and the sinks list of 2026-11-04, Tyler may veto. It re-opens 11-05 |
 | Rename, hero colors | Hours on the wage curve | Small buys, under 1 account-day. TARGET | DECIDED, GR-51, Fable 2026-11-21 |
 | The Town Crier, a Round, flame powders, titles | Being seen in town. Price rows that climb with each use in a day | | RULED 2026-11-04. Their merge into one Great Hearth is GR-82, chapter 07 |
@@ -248,7 +248,7 @@ Formula step R14, knob `healPrice`. DECIDED, GR-52, Fable 2026-11-21. It lands a
 
 **The hole the hero slots left.** RULED 2026-11-21: all four heroes are free. A slot ladder would have taken about 5.5M gold from an account in its first weeks (COMPUTED from the retired ladder, used here only to size the hole). That gold needs homes that ask for a choice, or the first weeks have nothing to buy.
 
-DECIDED, GR-8 and MM-22, Fable 2026-11-21, reversal, Tyler may veto, in the order the gold should meet them:
+DECIDED, GR-8, CE-4 and MM-22, Fable 2026-11-21, reversal, Tyler may veto, in the order the gold should meet them. A first-week account cannot reach rows 5 and 6, so its gold follows the order of section 2.10. The castle is the long home for the slot gold once an account is in a clan, and boss and arena materials are a small home:
 
 | # | Home for the gold | When a new account meets it | Why it fits |
 |---|---|---|---|
@@ -259,14 +259,14 @@ DECIDED, GR-8 and MM-22, Fable 2026-11-21, reversal, Tyler may veto, in the orde
 | 5 | The clan castle | When clans open (chapter 06) | Shared work, standing buffs under one cap. Sized below |
 | 6 | Boss and arena upgrade materials, bought from players | When the first world boss stands | The gold moves to the player who earned the material, and 5% burns on the way |
 
-The yard fee ships before linings (RULED 2026-11-20, 24-12). The numbers for the first week are OPEN. See section 5.
+The yard fee ships before linings (RULED 2026-11-20, 24-12). The first week's order is DECIDED (CE-4, Fable 2026-11-21) in section 2.10. Its sizes are DECIDED (CE-5, Fable 2026-11-21, reversal of the gold numbers of 26-3 and 26-1, Tyler may veto) and are a HYPOTHESIS.
 
 **The two clan prices chapter 06 hands to this chapter.** DECIDED, MM-9 and MM-22, Fable 2026-11-21, reversal of 25-4, the castle gate of 25-3 and 31-3, Tyler may veto, with GR-8 and GR-51. Both are new rows on formulas this chapter already owns, so neither is a special case.
 
 | Knob | Rule | Size. TARGET | Why |
 |---|---|---|---|
 | `clanWeeklyShare` | What a member gives each week to hold the room buffs. Hours of the wage curve at the account's highest hero Level (R15) | 4 to 8 account-hours a week, which is 1 to 2% of an account-week of gold | A standing buff of +5% must cost something a player notices and never something a new member cannot pay |
-| `castleStagePerMember` | What one stage of the castle costs for each member. A share of band gold at the members' average band (R16) | Sized so a stage takes 2 to 4 weeks at the weekly share plus free gifts, for a clan of 3 and a clan of 60 | The stage scales with the roster, so no clan size is the cheap one |
+| `castleStagePerMember` | What one stage of the castle costs for each member. A share of band gold at the members' average band (R16) | Sized so a stage takes 1 to 1.3 weeks at the weekly share and never under a week, for a clan of 3 and a clan of 60. Twenty stages are then 20 to 26 weeks. The price is for each member, with a floor of five members | The stage scales with the roster, so no clan size is the cheap one |
 
 Both numbers are TARGET with no measurement behind them, and they wait on the wage formula and on MM-9.
 
@@ -392,7 +392,7 @@ No gold is created by money and no gear is created by the store.
 | What | TARGET cost |
 |---|---|
 | Premium for a month | About 3 account-days of gold, a tenth of the month |
-| The full set of timed boosts kept up for a week, with no earned buffs at all | About 1.5 account-days. Each buff earned in play is that much saved |
+| The two store boosts kept up for a week, with no earned buffs at all | Priced in gold directly, on the wage curve. About 1.5 account-days, a HYPOTHESIS. Each buff earned in play is that much saved |
 | Best gear for a band from mid gear, bought and upgraded | 100 to 140% of the band's net gold for a hero (band E4) |
 | A comfort unlock | Half an account-day to 2 account-days, once |
 
@@ -452,11 +452,11 @@ Boost rows in the store scale by the buyer's band, so the cost in hours of play 
 
 **Who buys it.** Mostly players with idle gold, through the Crowns book. That trade, a saver's gold for a payer's Crowns, is the one the whole money model rests on. So Premium does not need to be strong. It needs to cost a saver nothing it misses, which is why it is one for each account and about three account-days of gold a month.
 
-**The price.** OPEN. It is Tyler's money call.
+**The price.** TYLER CONFIRMS (PREM-2). Recommended: 30 days, priced in Crowns, at 8 to 10 dollars a month as a number to react to. Lot sizes are set so the path for players who do not pay (MM-34) holds at the opening reference price.
 
 ### 2.10 The early economy for an account of four heroes
 
-This section is new design. No source covered it. DECIDED, GR-8, Fable 2026-11-21, reversal, Tyler may veto, and its first-week numbers are OPEN (section 5).
+This section is new design. No source covered it. The order is DECIDED (CE-4, Fable 2026-11-21). The sizes are DECIDED (CE-5, Fable 2026-11-21, reversal, Tyler may veto) and are a HYPOTHESIS. The test of the week: a played account of four must end week 1 having wanted more than it could buy.
 
 **What changes with four heroes from day 1.**
 
@@ -474,10 +474,11 @@ This section is new design. No source covered it. DECIDED, GR-8, Fable 2026-11-2
 | Minute 5 | Store supplies, charged as used | Repeating | Normal under 15% of coin |
 | Hour 1 | Bag rungs for four heroes. The first Storage chest | Room | Each a small buy, under 1 account-day |
 | Hour 1 | The yard, in rested hours | Repeating | `100 x skill level` an hour for each hero. Near zero at first |
+| Hour 1 | The Hearthside Homestead | Errand | 400 gold and the goods the first rest plan gathers |
 | Day 1 | The market. A first standing order, a first loot rule | Trade | The 5% only |
 | Days 1 to 3 | The first Tempering rungs and the first Hallmark, from about Level 15 | Standing | The band's set is 1.2 to 1.4 of the band's gold, across four heroes |
-| Days 2 to 5 | The first House deed and the first bench room | Long goal | The first deed is a band goal, 3 to 10 account-days |
-| Week 1 | Blessings, once a hero hunts a tier that can kill it | Repeating | A share of the hours a death costs |
+| Days 2 to 4 | The Farmstead as the first band goal, and the first bench room | Long goal | The Farmstead is about 1 account-day. After it the Manor is about 3, the Keep about 6 and the Castle about 20. HYPOTHESIS (CE-5) |
+| Week 1 on | Blessings, from Level 30, once a hero hunts a tier that can kill it | Repeating | A share of the hours a death costs. Free under Level 30 |
 | Weeks 1 to 2 | Linings and the first curing slot | Repeating | A share of band gold a week |
 | Week 2 on | Premium through the Crowns book | Monthly | About 3 account-days |
 | Week 2 on | The House dummy's first rung | Long goal | 25 to 50 hours of the yard fee it ends |
@@ -515,7 +516,7 @@ This section is new design. No source covered it. DECIDED, GR-8, Fable 2026-11-2
 
 **Newcomers on an old server.** Inflation hurts a newcomer only if veterans need nothing a newcomer makes. The design gives veterans reasons to buy from low bands: linings need one monster part from the ground that drops it, old grounds can be hunted at your own Level and still drop their parts (GR-9), and salts and staples are wanted at every tier. A rich server then pays its newcomers.
 
-**The self-raising sink, built later.** One scarce, visible, shared thing whose price is a bid of burned gold, such as castle tenure for a month. A bid is the only price that rises by itself as a server gets richer. It needs hundreds of players. It stays in the plan, hidden until the population exists (RULED 2026-11-21: nothing planned is cut). OPEN until the castle is ruled (MM-9).
+**The self-raising sink, built later.** One scarce, visible, shared thing whose price is a bid of burned gold, such as castle tenure for a month. A bid is the only price that rises by itself as a server gets richer. It needs hundreds of players. It stays in the plan, hidden until the population exists (RULED 2026-11-21: nothing planned is cut). It waits for the castle, which is DECIDED as a reversal that Tyler may veto (MM-9).
 
 **At 10 players and at 10,000.** At 10 there is no market depth, so the Shop is floor and ceiling, and standing orders are the only trade that works between two players who are never on together. At 10,000 there are several hundred thin books carried by the suggested price, the daily caps bind real traders, and the Crowns book's 5% becomes the largest trade sink. HYPOTHESIS at both sizes until the gauge reads a live server.
 
@@ -572,7 +573,7 @@ In decision-book order. Each line is the decision.
 | MM-31 | The pace ceiling | Keep ruling 50-11. Record the same reading as MM-26: 1.65 with every cap full, about 1.22 from paying alone | TYLER CONFIRMS |
 | MM-32 | The gear ceiling | 0 bands ahead. Inside a band, at most best gear over mid gear | TYLER CONFIRMS |
 | MM-33 | The gold ceiling | At most about double a week, with the cap re-derived weekly from the Crown's price | TYLER CONFIRMS |
-| MM-34 | The path for players who do not pay | Everything sold for Crowns can be had with gold. Premium about 3 account-days a month. A week of boosts about 1.5 | TYLER CONFIRMS |
+| MM-34 | The path for players who do not pay | Everything sold for Crowns can be had with gold through the book. Premium about 3 account-days a month. Boosts are priced in gold directly | TYLER CONFIRMS |
 | MM-35 | How Crowns trade | A number on the account, on a server-owned book. One trade, then bound. 5% burned | TYLER CONFIRMS |
 | MM-36 | The clamps | Eight, all in the Security review before Early Access | TYLER CONFIRMS |
 | MM-37 | Where paying gives no edge | The even arena, events, and access to every Level, ground, drop and tier | TYLER CONFIRMS |
@@ -612,29 +613,31 @@ In decision-book order. Each line is the decision.
 
 ---
 
+**Cuts in this chapter.** CUT (Tyler approves). Cut list 14: the priced setup slots (GR-56a), which is also reversal 13. Cut list 8: the farm's soil tiers and water button (GR-74), which removes a built sink of 130,500 gold. Chapter 07 owns the farm.
+
 ## 5. Still missing
 
 Decisions or designs nobody has made yet in this area.
 
 | # | What is missing | Who answers | Note |
 |---|---|---|---|
-| 1 | **The first week's numbers.** Section 2.10 gives the order and the size bands. No hour value is set for any early price | The game designer, then Tyler | Decision book, "what the first week's gold is spent on". Needs the wage formula (R15) to exist first |
-| 2 | **Early prices re-read for four heroes.** The first deed, bag rungs, Blessings under Level 30 and the first Tempering rungs, each as hours on the two-row rule of section 2.3 | The game designer | Decision book, "early prices sized for an account of four" |
-| 3 | **The Premium price, and the daily item across four heroes** | Tyler. A money call | Decision book |
-| 4 | **The real-money price of a Crown, lot sizes, and the Crown price of each store row** | Tyler. A money call | Not in any source |
-| 5 | **The boost catalog.** The rows, their sizes inside each timed cap, and how a 1 day and a 7 day boost combine with an earned buff that is already filling the cap | The game designer, with chapter 06 | Study 49 names the knobs and the caps, not the rows |
-| 6 | **A price line for store runes and ammunition.** A party's store bill is runes and arrows, and no formula step owns their price. R14 covers healing only | The game designer, inside GR-52, GR-51 and GR-50, with the instrument's rune rule (fault F5) | Decision book, "which rune tier the simulated kit buys" |
+| 1 | **The first week's numbers.** Section 2.10 gives the order and the size bands. No hour value is set for any early price | Closed for the order (CE-4) and the size bands (CE-5, a HYPOTHESIS). Still owed: the gold numbers, typed once the wage formula (R15) exists | Decision book, "what the first week's gold is spent on". Needs the wage formula (R15) to exist first |
+| 2 | **Early prices re-read for four heroes.** The first deed, bag rungs, Blessings under Level 30 and the first Tempering rungs, each as hours on the two-row rule of section 2.3 | Closed. CE-5 | Decision book, "early prices sized for an account of four" |
+| 3 | **The Premium price, and the daily item across four heroes** | TYLER CONFIRMS (PREM-1 and PREM-2), each with one recommendation | Decision book |
+| 4 | **The real-money price of a Crown, lot sizes, and the Crown price of each store row** | TYLER CONFIRMS (PREM-2). A money call | Not in any source |
+| 5 | **The boost catalog.** The rows, their sizes inside each timed cap, and how a 1 day and a 7 day boost combine with an earned buff that is already filling the cap | TYLER CONFIRMS (MM-29, MM-30): two boosts sold for gold, damage +6% and protection of about 3%, in 1 day and 7 day sizes, one bought boost on a knob at a time. Still owed: their gold prices on the wage curve, by the game designer | Study 49 names the knobs and the caps, not the rows |
+| 6 | **A price line for store runes and ammunition.** A party's store bill is runes and arrows, and no formula step owns their price. R14 covers healing only | Closed. GR-52: one price line each for store runes and ammunition, read on the wage curve, and the kit rule for fault F5 | Decision book, "which rune tier the simulated kit buys" |
 | 7 | **The base hours of a stamina refill** | GR-58, after fault F5 closes | |
-| 8 | **The Blessing share, and the ladder past the third Blessing** | GR-7, chapter 05 | |
+| 8 | **The Blessing share, and the ladder past the third Blessing** | GR-7 is DECIDED as a reversal Tyler may veto. The share is sized on the long death sample |
 | 9 | **The wage for a four of mixed Levels.** Section 2.3 reads each hero's own Level for hero prices and the highest for account prices. The group share inside the wage for a mixed four follows the two thirds line (MM-19) and is not written | The game designer, after MM-19 | |
-| 10 | **The castle's cost.** Section 2.6 gives TARGET sizes for the weekly share and a stage. Neither has a measurement, and the rooms and stages wait on MM-9 | Study 49 revised, then Tyler (MM-9) | |
-| 11 | **Whether the Level law is the clock of a plain four or a buffed one.** A payer at the ceiling levels 60% faster, and a fully buffed four 72% faster, so content computed to last 120 days on the table ends sooner for them | The game designer, with GR-6, MM-26 and MM-31 | Decision book |
+| 10 | **The castle's cost.** Section 2.6 gives TARGET sizes for the weekly share and a stage. Neither has a measurement, and the rooms and stages wait on MM-9 | MM-9 is DECIDED as a reversal Tyler may veto. Still owed: the sizes of `castleStagePerMember` and `clanWeeklyShare`, by the game designer |
+| 11 | **Whether the Level law is the clock of a plain four or a buffed one.** A payer at the ceiling levels 60% faster, and a fully buffed four 72% faster, so content computed to last 120 days on the table ends sooner for them | Closed. GR-6a: the plain four. One ceiling of 1.65 with every cap full, and about 1.22 from paying alone | Decision book |
 | 12 | **Security questions on the Crowns book.** Whether gold paid for Crowns counts against the market's daily caps (it should). What a refund does to Premium time already used. The number of hold days. Steam's wallet rules for a currency players trade | The security engineer, then Tyler | Study 24 Q8 |
 | 13 | **The daily caps against dear items.** A piece priced over the daily spend cap can never be bought. Either the caps rise with the buyer's Level or no ceiling may pass the cap | The security engineer | Study 24 Q9 |
 | 14 | **The server gold model.** Gold created, destroyed and held a day by server age and population, as a tool. Bands G-11 and X14 have no reader without it | The balance tools lane | Study 50 X14 |
-| 15 | **The player-facing name of the Crowns book** | The game designer | A genre-standard label, by the 11-14 rule |
+| 15 | **The player-facing name of the Crowns book** | Closed. MM-35: "Crown Exchange" | A genre-standard label, by the 11-14 rule |
 | 16 | **Server cost of the market, the gauge and per-use spending for four heroes** | Study 48 | PENDING |
-| 17 | **A ceiling on gold find.** The stat adds with no cap in its formula. It is safe only while sources are few | The game designer, with chapter 03 | Study 43, a HYPOTHESIS |
+| 17 | **A ceiling on gold find.** The stat adds with no cap in its formula. It is safe only while sources are few | The game designer, with the perk lane | Study 43, a HYPOTHESIS |
 | 18 | **The dates for the beta and Early Access**, which set when the Security review of every surface here must be done | Tyler, after the build plan | Decision book |
 
 ---

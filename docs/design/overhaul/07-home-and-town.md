@@ -13,7 +13,7 @@ Chapter 07 of "Hearthrise: the game we are building". It covers the House, home 
 
 Numbers are **TARGET** (what the design aims at) or **COMPUTED** (arithmetic on data rows or the solver, not played). A measured number appears only as evidence about a design in this chapter, and says what measured it. The measuring harness is not calibrated yet (chapter 09), so every measured number here is direction only unless it is an identity proof.
 
-`48-platform-cost.md` is not on the set. Everything that waits on it is marked **PENDING 48**.
+`48-platform-cost.md`, the server cost study, has landed. Where this chapter quotes it, the number keeps the study's label: REAL, MEASURED or ESTIMATED. What it left open says **OPEN after 48**.
 
 ---
 
@@ -300,7 +300,7 @@ Havora is a real town. Every activity has its place: the Shop counter, Storage, 
 | Who is seated first | Friends and clan members, then others. Bodies drawn in one view are capped | DECIDED GR-70, Fable 2026-11-21. The cap's number is OPEN |
 | Privacy | Quiet presence hides a hero from the town | DECIDED GR-70, Fable 2026-11-21 (study 57 keeps it) |
 | What it gives | Outfits, titles and faction looks get an audience at every hour (chapter 04, chapter 05) | GR-70 |
-| Cost | **PENDING 48.** It is the one proposal in this chapter with a real server cost. HYPOTHESIS: it costs less a body than live presence | GR-70 |
+| Cost | **OPEN after 48.** Study 48 priced town presence as one heartbeat and did not price bodies drawn for accounts that are away. Owner: the reliability engineer. Until it is sized the fallback of GR-70 stands: the town draws your own heroes and your friends and clan mates. It is the one proposal in this chapter with a real server cost. HYPOTHESIS: it costs less a body than live presence | GR-70 |
 
 ### 2.11 Town work, paid in closed form
 
@@ -318,18 +318,20 @@ Havora is a real town. Every activity has its place: the Shop counter, Storage, 
 | Skill levels | Skill XP is credited at the count or the stop, so a level can arrive in a step |
 | A job | One press sets a count and a "then" (RULED, plan L08). A hero has a job queue: fish, then cook, then hunt (DECIDED GR-80, Fable 2026-11-21, chapter 08) |
 
-**A ruling this re-reads.** RULED 10-22 says town work updates the bag and skill XP in real time like a hunt, never only when it is done. Under closed form the screen still moves in real time, and the server's copy moves at the three writes. Any press that needs the items (a deposit, a sale, a craft that uses them) settles the job first, so the browser never shows what the server would refuse. This is the recommended reading and Tyler should rule it with GR-1.
+**A ruling this re-reads.** RULED 10-22 says town work updates the bag and skill XP in real time like a hunt, never only when it is done. Under closed form the screen still moves in real time, and the server's copy moves at the start, at each paid hour and at a stop. Any press that needs the items (a deposit, a sale, a craft that uses them) settles the job first, so the browser never shows what the server would refuse. This reading is DECIDED (CE-7, Fable 2026-11-21, reversal of 2026-10-22, Tyler may veto). The server writes at the start, at each paid hour and at a stop.
 
-**Why it is needed.** COMPUTED from production means stretched to four heroes at 12 and 12, not measured at 12 hours, and built on list prices the standards mark as assumed:
+**Why it is needed.** From study 48, the server cost study. The budget of 60 is COMPUTED from the ruled $0.15 on list prices the standards mark as assumed.
 
-| Line of an account-day | Database-seconds |
-|---|---|
-| The budget, computed from the ruled $0.15 an account a month | 60 |
-| 48 rested hero-hours settled by tick | 34 |
-| The same hours in closed form | about 1 |
-| The whole account after every planned fix and closed-form town work | 147 |
+| Line of an account-day | Database-seconds | Label |
+|---|---|---|
+| The budget at 1,000 accounts, and at 10,000 | 60, and 24 | COMPUTED from the ruled $0.15 |
+| One town hero-hour settled on the tick: 46 settles of 90 ms, each reading the whole hero | 4.15 | REAL |
+| What closed form is worth to the account-day | 109 | ESTIMATED |
+| 48 rested hero-hours in closed form | about 0.5 | ASSUMED, CITED from study 59 |
+| The whole target account, browser closed | about 11 | ESTIMATED |
+| The whole target account, a tab open 3.5 hours | about 31 | ESTIMATED |
 
-So closed form is necessary and not sufficient. What is left is how an away hunt is saved, which is chapter 09's and **PENDING 48**. Whether four heroes working all 12 rested hours fit the budget at all is also **PENDING 48**.
+No design meets 60 without closed form. With it, and with the away hunt saved every 10 minutes (chapter 09, section 2.3.4), four heroes working all 12 rested hours fit the budget at 1,000 accounts. At 10,000 accounts an account that keeps a tab open misses 24 by about a third unless the engine runs on a server of our own, which is a later spend for Tyler. Closed form is a money and XP path, so before it ships it must pay what the tick settles pay on a replayed day, and it goes through the Security review at Early Access.
 
 **What a rested hour is worth.** Bands from the standards, section 10.2.
 
@@ -404,7 +406,7 @@ In decision-book order.
 
 | Id | The call | The decision | Status |
 |---|---|---|---|
-| GR-1 | How town work is paid | Closed form for training, gathering and benches now. The save of an away hunt waits for study 48 | DECIDED (Fable 2026-11-21) |
+| GR-1 | How town work is paid | Closed form for training, gathering and benches, paid at the start, at each paid hour and at stop. The away hunt is saved every 10 minutes or at 1.2 seconds of engine time | DECIDED (Fable 2026-11-21, on study 48) |
 | GR-8 | Sinks that follow the gear, and the hole the slots left | Tempering, Hallmarks and linings cost a share of a band's gold, 1.2 to 1.4 of what the band earns. The slot gold follows the order of CE-4 first, then the castle | DECIDED (reversal, Tyler may veto). Changes the typed prices kept on 2026-11-18 (Fable 2026-11-21) |
 | GR-47 | Curing | Built last, as a standing order | DECIDED (Fable 2026-11-21) |
 | GR-51 | Prices | Every repeating price is hours of one wage curve. The House stays typed | DECIDED (Fable 2026-11-21) |
@@ -412,7 +414,7 @@ In decision-book order.
 | GR-53 | The House dummy | It ends the yard fee. Its unlocks are rungs by skill band, each 25 to 50 hours of the fee | DECIDED (Fable 2026-11-21) |
 | GR-56b | The bench fee | It stays and moves onto the wage curve | DECIDED (Fable 2026-11-21) |
 | GR-63 | The rested bank | Removed. The Library gives nothing to it (chapter 05 owns the call) | DECIDED (Fable 2026-11-21) |
-| GR-70 | The town | It draws heroes at work whether or not their owner is online. PENDING 48 | DECIDED (Fable 2026-11-21) |
+| GR-70 | The town | It draws heroes at work whether or not their owner is online, inside the cost budget. Study 48 did not size the drawn bodies, so the fallback stands until it is sized | DECIDED (Fable 2026-11-21) |
 | GR-73 | The Trophy room | The Trophy room becomes the Hall of Firsts, with no mount rungs sold and a mounting fee for each piece hung. It builds ruling 26-6 | DECIDED (Fable 2026-11-21) |
 | GR-75 | Home looks and visiting | Three looks. Visiting from the Homestead once the Hall exists | DECIDED (reversal, Tyler may veto). Changes 26-3 and 26-11 (Fable 2026-11-21) |
 | GR-74 | The farm's gates | A crop opens at its Farming level and nothing else. Watering folds into Tend | DECIDED (Fable 2026-11-21) |
@@ -430,7 +432,7 @@ In decision-book order.
 
 | # | What is missing | Who decides |
 |---|---|---|
-| 1 | **Study 48.** Whether four heroes working 12 rested hours fit $0.15 an account. How an away hunt is saved. What a town that draws heroes at work costs | The platform study, then Tyler |
+| 1 | **What a town that draws heroes at work costs.** Study 48 closed the other two parts: four heroes working 12 rested hours fit at 1,000 accounts with closed form (ESTIMATED, about 11 to 31 database-seconds an account-day against 60), and an away hunt is saved every 10 minutes | The reliability engineer |
 | 2 | **Early prices for an account of four.** The first deeds, the first room rungs, the first chests and the bag rungs were sized on one hero. With four heroes earning from day 1 they may be errands. Nobody has re-read them | Closed. CE-5, a reversal Tyler may veto, with sizes as a HYPOTHESIS |
 | 3 | **The first hour with four heroes.** What an account of four holds at minute 1 (seeds, gold), who plants, and when the Homestead is offered. It needs a walked-through sequence | Closed. Chapter 08 section 2.1 walks it, and CE-10 grants the account kit once |
 | 4 | **The Hall's numbers.** The count of mountable rows, the size of the wall and the Great Hall, the fee's hours, and whether a visitor sees every mount | The game designer, after the mountable flag exists |
@@ -444,7 +446,7 @@ In decision-book order.
 | 12 | **Who may visit** once a party is an account's own four | The game designer, inside GR-75. A party is an account's own four (MM-18), so "party member" leaves the visit rule |
 | 13 | **Clan town work +10% and Crowns storage.** Both come from the re-issued study 49 (MM-9, MM-25 and its Crowns table). Where the clan buff enters the Speed pool, and whether Crowns storage sits beside chests 5 to 8 or replaces them | Closed. Clan town work is the Workshop row inside the Speed pool (MM-9). Bag and Storage room are never sold for Crowns (MM-29, TYLER CONFIRMS) |
 | 14 | **Premium's daily training item across four heroes:** one for the account or one for each hero | TYLER CONFIRMS (PREM-1), recommended one for each hero |
-| 15 | **The 10-22 real-time ruling under closed form** (section 2.11) | Closed as a reversal Tyler may veto (CE-7): town work moves on screen in real time and the server writes three times a job |
+| 15 | **The 10-22 real-time ruling under closed form** (section 2.11) | Closed as a reversal Tyler may veto (CE-7): town work moves on screen in real time and the server writes at the start, at each paid hour and at a stop |
 | 16 | **A home axis for the matrix.** No cell holds a room, a bed, a bench or a rested hour, so no band in this chapter can gate a change yet (section 6) | The baseline lane |
 | 17 | **Security scope.** The mount and unmount verbs, curing, visiting reads and the Hearth's gifts are money or shared surfaces and go into the one review before Early Access | The security engineer |
 
@@ -475,7 +477,7 @@ In decision-book order.
 | H3. The field against the bar: beds, crop and two visits against drinks used a hero-hour | The share of each weapon way's drink bill a field covers. The right number of beds |
 | H4. A yard step on the matrix beside the gear steps | The worth of +10 skills with bands and flags |
 | H5. The first hour with the start kit, played | Whether 500 gold reaches the Homestead with no soil gate |
-| A town-hour fixture in the per-player cost check (RULED 11-20, 28-10) | That a job is three statements |
+| A town-hour fixture in the per-player cost check (RULED 11-20, 28-10) | That a job is a start, one write a paid hour and a stop, and that it pays what the tick settles pay on a replayed day |
 | Both-paths tests for every town activity | Closed form pays the same with the page open and the browser closed |
 
 **Bands this chapter is judged by.** T1, T2, T3, T6, T7, T8 and X21 (section 2.11). G-9 for the yard and the House as sinks (chapter 04). X10: a visit for four heroes takes under four minutes and repeats no decision. C2 for the server budget (chapter 09). The instrument reads T2 and T7 and cannot yet read T3. The solver marks farming, training, trophies and linings as unmeasured. That is a gap in the tool, not a clean bill.
@@ -536,4 +538,4 @@ In decision-book order.
 | `44-formula-architecture.md` | Call 15 and rows `E33`, `E34`, `E41`, `E42`, `E43`, `P-X28`, `P-X30` as they bear on home |
 | `46-from-scratch.md` | Change 3 (the Great Hearth), the House and farming rows |
 | `50-standards.md` | Bands T1 to T8 and X21, as used here |
-| `48-platform-cost.md` | Not on the set. PENDING |
+| `48-platform-cost.md` | Landed and read in full. Section 2.11 quotes it |

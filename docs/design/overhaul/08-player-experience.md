@@ -406,7 +406,7 @@ The eight criteria in short form: player value, depth, uniqueness, what it plugs
 | Chapter 03 | The loot plan by kind. The tally's piece rule. Every item opener on the Path |
 | Chapter 04 | The first week's sinks for an account of four (GR-8). The hunt's spending budget (GR-57). The refill price (GR-58). The Weighhouse's opening (GR-55). Premium's price and what Crowns buy |
 | Chapter 06 | The event calendar (MM-11), the boss window (MM-3), Premium inside the layer (MM-21), and every MMO row of the Path |
-| Chapter 09 | Town work in closed form (GR-1). How an away hunt is saved (study 48). Sections of the state read fetched on open |
+| Chapter 09 | Town work in closed form and the away hunt's 10 minute save (GR-1, on study 48). Sections of the state read fetched on open |
 
 | This chapter feeds | What |
 |---|---|
@@ -455,7 +455,7 @@ In decision-book order.
 | 8 | The player-facing word for the account's four | Closed. "Heroes" for the account screen and "Party" inside a hunt, by the genre-words rule | "Heroes" and "Party" are recommended. "Company" is design vocabulary |
 | 9 | Whether kit items can be turned into gold by deleting and remaking a hero | Closed. CE-10: the hero kit is granted once for each of the four slots and a remade hero gets practice weapons only. Security reads it with the rest | The kit's food sells for a little. Account deletion is staged, and hero deletion has no design here |
 | 10 | Whether the report's counters fit the session row with no added statement | The systems engineer | HYPOTHESIS until confirmed |
-| 11 | How an away hunt is saved, which sets how fresh a return card can be | Chapter 09 (study 48) | |
+| 11 | Closed. An away hunt is saved every 10 minutes, or at 1.2 seconds of engine time for a heavy party, which is every 4 to 5 minutes | DECIDED (GR-1, Fable 2026-11-21, on study 48). MEASURED: the result is identical at every cadence | The return card is never stale. Opening the game settles the window to now on the first hello, so the card shows the saved state and then the present. A hunt that ended while away is filed back in town up to 10 minutes after its true end, and the next planned hunt starts from that true end |
 | 12 | A blind play of the whole first hour | A fresh reader, after it is built | The sequence from minute 17 has never been played |
 | 13 | What a player who refuses heroes two to four is shown, and for how long | The designer, after playtest 1 | Recommended: one quiet line on the return card, once a visit |
 

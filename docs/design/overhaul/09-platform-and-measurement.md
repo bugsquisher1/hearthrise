@@ -17,7 +17,7 @@ This chapter covers four things that every other chapter stands on:
 - **TYLER CONFIRMS** is a money call or a grant, with the one recommendation.
 - **CUT (Tyler approves)** is a removal that waits for his yes.
 - **OPEN** has no recommendation yet. The line says what decides it.
-- **PENDING 48** marks an answer that waits on the server cost study, `48-platform-cost.md`. It had not landed on `origin/set/v0.2.144` when this chapter was written (checked 2026-11-21). A draft sits on `lane/d-platform-cost`, unfinished and unreviewed, and nothing here is taken from it.
+- **Study 48** is the server cost study, `docs/design/balance-program/48-platform-cost.md`. It has landed, and section 2.3 carries its results. Its number labels are kept: **REAL** is a read of production used only as the cost of one mechanism, **MEASURED** is the replayed chain with the engine, **ESTIMATED** is arithmetic on both, and **ASSUMED** and **CITED** are named as such. A line that 48 left open says **OPEN after 48** and names its owner.
 
 **Number labels.** TARGET is a number the design aims at. COMPUTED is arithmetic on the game's own numbers. MEASURED is the real engine played by the simulator. ESTIMATED is a sized guess with its method. EVIDENCE names real play. A measured number appears in this chapter only as evidence about a proposed design or about whether the simulator is true.
 
@@ -215,6 +215,7 @@ Server changes in any step are staged, never applied by a lane, and the client h
 | 6 | R14 after fault F5 closes | The heal price sets every harder tier's net gold, and the simulator's store bill is the number it would be judged on |
 | 7 | R20 before any MMO buff, clan room or bought boost | They are rows in the one modifier table and their caps are applied there |
 | 8 | Closed-form town work with the yard's rate and fee (section 2.3.4) | Closed form rewrites how a training hour is paid, so all three move in one change |
+| 9 | The edge fixes in study 48's order (section 2.3.4): read once, no off-screen poll, the narrow town read, the flush and the hourly journal before 250 accounts, plan fixes, closed-form town work, the tab's confirm and heartbeat only, the 10 minute save, changed sections and one heartbeat, then the engine server decision before 10,000 accounts | The flush and the 10 minute save both rewrite the settle path, so the save waits until the flush has baked a nightly |
 
 ### 2.3 Server cost
 
@@ -223,11 +224,11 @@ Server changes in any step are staged, never applied by a lane, and the client h
 | Band | Target | Status |
 |---|---|---|
 | C4 | An account costs at most $0.15 a month at 1,000 active accounts (about $150 a month), and no more for each account at 10,000 | RULED 2026-11-21 |
-| C2 | Database time an account-day: at most 60 seconds at 1,000 accounts and 24 at 10,000 | COMPUTED from C4 and published list prices that are ASSUMED. It is a best case, because the plan it lands on has shared cores. Whether 60 holds is PENDING 48 |
+| C2 | Database time an account-day: at most 60 seconds at 1,000 accounts and 24 at 10,000 | COMPUTED from C4 and published list prices that are ASSUMED. It is a best case, because the plan it lands on has shared cores. Study 48 took the band as given and did not loosen it. Whether 60 holds on shared cores is OPEN after 48, for the load test A8 |
 | C1 | Database time a hunted hero-hour: at most 1.25 seconds at 1,000 accounts and 0.5 at 10,000 | COMPUTED from C2 |
 | C3 | Journal rows: at most one a hero an hour an activity | RULED 2026-11-20 (28-2) |
-| C4b | The lines of the bill that are not the database (plan, journal disk, edge calls, Realtime, egress): at most $80 a month at 1,000 accounts and $1,015 at 10,000 | ASSUMED from list prices. To be re-read for the 12 hour day. PENDING 48. If these grow, C2 shrinks |
-| C5 | 1,000 accounts of four heroes at 12 hours fit one database under 70% CPU at the busy hour. 10,000 fit a plan that exists, with room | DECIDED (GR-1, Fable 2026-11-21). PENDING 48 |
+| C4b | The lines of the bill that are not the database (plan, journal disk, edge calls, Realtime, egress): at most $80 a month at 1,000 accounts and $1,015 at 10,000 | ASSUMED from list prices. To be re-read for the 12 hour day. OPEN after 48, which priced the database and not these lines. Owner: the reliability engineer. If these grow, C2 shrinks |
+| C5 | 1,000 accounts of four heroes at 12 hours fit one database under 70% CPU at the busy hour. 10,000 fit a plan that exists, with room | DECIDED (GR-1, Fable 2026-11-21). ESTIMATED by study 48 to fit at 1,000 accounts. At 10,000 an account with a tab open misses on the edge and fits on an engine server (section 2.3.4). The load test A8 is still owed |
 | C6 | A new system adds no statement on the settle path, no poll, and nothing that grows with players times players | RULED 2026-11-20 (the allowance of 28 section 3) |
 
 Compute upgrades are Tyler's call for each spend. The server stays on its small plan until a busy hour reads 50%. RULED 2026-11-20 (28-3).
@@ -260,57 +261,127 @@ Every system in every chapter is held to these lines. A system that needs more c
 | 1 | **A watched hunt costs what an away hunt costs.** The edge holds the engine and the last saved state and answers the viewer from them every 16 seconds, so the fight on screen never freezes and Leave is never slower. The database saves on the flush, and at once on anything that matters: a death, a Level, a Leave, the hunt's end, a rare drop, and every money intent. Nothing a purchase, a gate or another player can read ever comes from unsaved state, and a save replays the same seeds | RULED 2026-11-20 (28-1) and 2026-11-10 (no frozen fight) |
 | 2 | **The hourly journal.** One `player_ledger` row a hero an hour an activity (hunting, supplies bought, supplies used, gathering, a bench), closed at the hunt's end. Every audit and day cap that reads the journal keeps its sums | RULED 2026-11-20 (28-2) |
 | 3 | **Delta envelopes.** A poll that changed nothing returns a version. A settle returns only the sections it moved. The envelope stays the truth, replaced and never merged upward (CLAUDE.md section 6) | DECIDED (GR-1, Fable 2026-11-21) |
-| 4 | **Town presence by push.** A town instance pushes its moves on its own topic. A player alone in an instance is sent nothing. The account's own working heroes are drawn at their stations so the town is never empty | RULED 2026-11-20 (28-7). Drawing other accounts' heroes at work while their owner is away is DECIDED (GR-70, Fable 2026-11-21) and its cost is PENDING 48 |
+| 4 | **Town presence by push.** A town instance pushes its moves on its own topic. A player alone in an instance is sent nothing. The account's own working heroes are drawn at their stations so the town is never empty | RULED 2026-11-20 (28-7). Drawing other accounts' heroes at work while their owner is away is DECIDED (GR-70, Fable 2026-11-21). Study 48 priced town presence as one heartbeat (worth 9 database-seconds a day to an account with a tab open, ESTIMATED) and did not price the drawn bodies. OPEN after 48, for the reliability engineer |
 | 5 | **One heartbeat.** Friends, the market and boards ride one version in the heartbeat. A board is refreshed when it is read and stale, never on a timer for nobody | RULED 2026-11-20 (28 section 3, polls 0) |
 | 6 | **Town work paid in closed form.** See below | DECIDED (GR-1, Fable 2026-11-21). Training alone is RULED 2026-11-20 (28-11) |
-| 7 | **How an away hunt is saved.** See below | OPEN. PENDING 48 |
+| 7 | **How an away hunt is saved.** Every 10 minutes, or at 1.2 seconds of engine time, whichever is less. See below | DECIDED (GR-1, Fable 2026-11-21, on study 48). The result is MEASURED identical at every cadence |
+| 7a | **The settle reads the party once.** One read of the party a save | DECIDED (GR-1, Fable 2026-11-21, on study 48). It ships first |
+| 7b | **An open tab sends only its confirm and its heartbeat** | DECIDED (GR-1, Fable 2026-11-21, on study 48). One controlled read names the rest of the traffic first |
+| 7c | **An account's four heroes are saved together.** One party is one save, and the tick packs an account's lone hunts into one save | DECIDED (GR-1, Fable 2026-11-21, on study 48) |
+| 7d | **Where the engine runs.** On the edge for the beta and for 1,000 accounts. An always-on engine server is decided before 10,000 accounts | The edge is DECIDED (GR-1). The engine server is a spend: TYLER CONFIRMS, later, money list row 17 |
 | 8 | **Fewer presses.** One Start, one plan and one return card for the four heroes, a task that takes itself, and a starting loot plan. About 20 presses a day in place of 100 | DECIDED (GR-80, GR-78, Fable 2026-11-21). Owned by chapter 08. It is cost work as well as design work |
-| 9 | **One Global chat.** Lines are batched on the existing connection, with a slow mode when crowded | RULED 2026-11-21 (31-1) and 2026-11-20 (28-6). A client holds a small fixed number of live topics, so every social tab (Global, clan, whispers, party) rides one multiplexed topic and a new tab never needs a new connection. That part is OPEN and PENDING 48 |
-| 10 | **One world, built in rooms.** One database until about 25,000 accounts. Every shared thing is built in rooms (town instances of 60, boards a world) so a second world is a new database and never a redesign | RULED 2026-11-20 (28-5). The 25,000 is ESTIMATED for a lighter day than the ruled one and is PENDING 48 |
+| 9 | **One Global chat.** Lines are batched on the existing connection, with a slow mode when crowded | RULED 2026-11-21 (31-1) and 2026-11-20 (28-6). A client holds a small fixed number of live topics, so every social tab (Global, clan, whispers, party) rides one multiplexed topic and a new tab never needs a new connection. That part is OPEN after 48, which did not size it. Owner: the reliability engineer |
+| 10 | **One world, built in rooms.** One database until about 25,000 accounts. Every shared thing is built in rooms (town instances of 60, boards a world) so a second world is a new database and never a redesign | RULED 2026-11-20 (28-5). The 25,000 is ESTIMATED for a lighter day than the ruled one. Study 48 did not re-read it. OPEN after 48, for the reliability engineer |
 | 11 | **One account a player is declared, and enforced by the economy.** Day caps, contributor gates, account-bound Luck and keys, and game master action on report. The four-heroes-a-network cap stays and is not treated as the guard | RULED 2026-11-20 (28-8) |
 | 12 | **Backups.** No point-in-time recovery through the wiped betas. Decided again at Early Access, when a lost day is lost Crowns that people paid for: either point-in-time recovery or a restore drill run for real each month | RULED 2026-11-19 and 2026-11-20 (28-4) |
 
-**Town work in closed form.** A job in town (a training session, a gathering trip, a bench run) is three statements: one at the start, one when its count ends and one at stop. The server computes what the hours paid from the rows and the clock. No combat engine runs and no settle fires for a hero in town.
+**Town work in closed form.** DECIDED (GR-1, Fable 2026-11-21, on study 48's evidence). A job in town (a training session, a gathering trip, a bench run) is paid at its start, at each paid hour and at stop. The server computes what the hours paid from the rows and the clock. No combat engine runs and no settle fires for a hero in town. Study 48 named this as the first of its calls, and it is a design call, so the game designer decided it. It bends one ruling, the 2026-10-22 wording that town work updates on the server in real time, and that is reversal 16 on Tyler's list (CE-7): the screen still moves in real time, and any press that needs the items settles the job first.
 
 - One yield rule covers training, gathering and benches. It sits beside the skill grant (`P05`) and the training pay formula (`P09`), which pays a share of the skill level's cost and never one flat rate. DECIDED (GR-1 and GR-54, Fable 2026-11-21, reversal of 2026-11-14, 21-7 and A-5, Tyler may veto).
 - Yields are identical in the mean to an hour settled step by step. Every roll is seeded at the start, so stopping early or late cannot pick a better outcome. DECIDED (GR-1, Fable 2026-11-21).
 - The journal holds one row a hero an hour a job (band C3).
-- COMPUTED for the proposed design: 48 town hero-hours cost about 0.5 database-seconds an account-day in closed form. The same hours settled by the engine would cost about 34 of the 60. So closed form is needed on every path to the budget. It does not reach the budget alone.
-- Not yet proven: that a job is three statements. A town-hour fixture in `tests/per-player-cost.mjs` settles it (RULED 28-10 asks for the fixture).
+- What it is worth, from study 48. Closed form is worth 109 database-seconds an account-day (ESTIMATED from REAL mechanism costs: a town settle on the tick reads the whole hero again, 46 times a town hero-hour at 90 ms). Town work in closed form costs about 0.5 database-seconds an account-day (ASSUMED, CITED from study 59). No design meets 60 without this choice.
+- What it must prove before it ships. It is a money and XP path. Closed form must pay what the tick settles pay on a replayed day, and it goes through the Security review at Early Access.
+- Until it ships, a narrow town read (the hero's engine inputs and not the whole hero) saves 40% of a town settle (ESTIMATED).
+- Not yet proven: the statement count of a job. A town-hour fixture in `tests/per-player-cost.mjs` that plays two closed-form jobs a hero a day settles it (RULED 28-10 asks for the fixture, and study 48 asks for the same one).
 
-**How an away hunt is saved. OPEN, PENDING 48.** This is the one line of the account-day that the ruled and recommended designs leave over budget, and it is a system question, not a tuning.
+**Does the target game fit $0.15 an account a month?** Study 48 answers it, on the band of 60 database-seconds an account-day at 1,000 accounts and 24 at 10,000.
 
-| Line of the proposed account-day, four heroes at 12 and 12 hours | Database-seconds | Label |
+- **At 1,000 accounts: yes.** The target account costs about 11 database-seconds a day with the browser closed and about 31 with a tab open three and a half hours. Both are under 60.
+- **At 10,000 accounts: yes for an account that does not watch, and no for one that does, unless the engine runs on a server of our own.** The closed day is 10 against 24. The tab day is about 30 against 24, over by about a third. On an always-on engine server the same day is about 9.
+- **What the answer does not cover.** The 60 is itself COMPUTED from list prices that are ASSUMED. Study 48 priced database time. It did not re-read the lines of the bill that are not the database (band C4b), it did not run 1,000 accounts under load (check A8), and it sized the MMO layer only for a world boss. Those stay OPEN after 48.
+
+The target account-day: four heroes as one party, 12 hunted hours and 12 hours of town work a hero, 20 presses a day. All rows are ESTIMATED by study 48, bottom-up from REAL and MEASURED mechanism costs (`node tools/balance-program/platform-cost.mjs design`).
+
+| Day shape | The decided design, engine on the edge | The same design on an always-on engine server | Band C2 |
+|---|---|---|---|
+| Browser closed all day, 1,000 accounts | **10.9**, meets | 4.4, meets | 60 |
+| A tab open 3.5 hours (a hunt watched 1.5 hours, 2 hours in town), 1,000 accounts | **31.2**, meets | 10.0, meets | 60 |
+| A hunt watched 4.7 hours, the upper bound, 1,000 accounts | **74.5**, over by 1.2 times | 21.9, meets | 60 |
+| Browser closed all day, 10,000 accounts | **10.0**, meets | 3.5, meets | 24 |
+| A tab open 3.5 hours, 10,000 accounts | **30.3**, over by 1.3 times | 9.1, meets | 24 |
+
+The 3.5 hour tab is the reference shape and the 4.7 hour one is the upper bound. Tab hours do not grow with hunted hours in an idle game (CITED in study 48 from its sources 28 and 10).
+
+The 3.5 hour tab day at 1,000 accounts, by line (ESTIMATED): closed hunting 6.9, watched hunting 21.3, town work 0.5, presses 1.4, the cron share 1.0.
+
+**What each choice is worth.** "Worth" is what the target account-day costs more if that one choice is not taken and every other is. The two numbers are the browser-closed day and the 3.5 hour tab day at 1,000 accounts. ESTIMATED by study 48 unless a row says otherwise.
+
+| Choice | Worth, database-seconds a day | Risk | Status |
+|---|---|---|---|
+| Town work paid in closed form | 109 and 109 | Medium. A money and XP path | DECIDED (GR-1). Reversal 16 for the 2026-10-22 wording (CE-7) |
+| A closed hunt saved every 10 minutes, or at 1.2 seconds of engine time | 36 and 32 | Medium. No result changes (MEASURED) | DECIDED (GR-1) |
+| An open tab sends only the confirm and the heartbeat | 0 and 50 | Unknown until 33.5 seconds of a watched four-hour are named. UNATTRIBUTED in study 48 | DECIDED (GR-1). One controlled read first |
+| The settle reads the party once | 6.5 and 49 | None | DECIDED (GR-1). Ships first |
+| Confirm in the edge, save at the flush | 0 and 26 | High. Nothing a purchase, a gate or another player reads may come from unsaved state | RULED 2026-11-20 (28-1) |
+| Off-screen heroes are fed by their frames, with no poll | 0 and 29 | Its own lane's | Design 1 and 5 above |
+| A read sends changed sections only | 0.7 and 19 | Medium. A section not sent is unchanged, never merged | DECIDED (GR-1), design 3 above. ASSUMED at a quarter of a whole read |
+| One heartbeat, nothing when alone | 0 and 9 | Low | RULED 2026-11-20 (28-7, 28 section 3) |
+| 20 presses a day | 5.7 and 5.7 | None | DECIDED (GR-80, GR-78) |
+| The settle's plans read once each | 1.7 and 8.8 | Low | DECIDED (GR-1) |
+| The hourly journal | 0.7 and 1.1. Its real worth is disk: one journal row a hero an hour | Medium. Every day cap and audit sum reads the same on a replayed day | RULED 2026-11-20 (28-2) |
+| An account's four heroes saved together | 6.7 and none | None | DECIDED (GR-1) |
+| The engine on an always-on server | It saves 6.5 and 21.2, and makes a shared fight cheap | A long-lived process and a second deploy surface | TYLER CONFIRMS, later. A spend |
+
+**How an away hunt is saved.** DECIDED (GR-1, Fable 2026-11-21, on study 48). A closed hunt is saved when its window holds 10 minutes, or 1.2 seconds of measured engine time, whichever is less. A heavy party then saves every 4 to 5 minutes.
+
+- MEASURED: the engine gives exactly the same result whether a hunt is saved every 100 seconds or every 20 minutes. End state and journal sums were identical on four fixtures, from a lone Level 10 hero to the Krell Deadly four (`node tools/balance-program/platform-cost.mjs window`).
+- MEASURED: a save costs about the same whatever window it carries (1.09 times at 600 seconds against 100, the Krell four), so database time and journal rows both fall with the number of saves.
+- The limit is the edge. A save simulates its window inside one request with 2 seconds of CPU, and ten minutes of a heavy four is past that. That is why the rule has an engine-time half.
+- Any balance change that adds monsters to a pull raises engine time, shortens a heavy party's window and so raises its cost. Each engine batch states its engine time a simulated second at Krell.
+- What the player can meet. A hunt that ends unwatched is simulated to its true end and filed back in town up to 10 minutes later, so the next planned hunt starts from that true end and the hero never idles for the gap. A player who opens the game mid-window sees the saved state, and the first hello settles the window to now. A window across midnight UTC files up to 10 minutes of day-capped value under the day it lands in. A failed long save leaves the hunt owed and is never restored or evicted on uncertainty.
+- It bends no ruling. Nothing a player earns changes, and the three properties below hold.
+
+**Four heroes from the first evening.** ESTIMATED by study 48 (`platform-cost.mjs ladder`), database-seconds an account-day.
+
+| Account | Browser closed | The 3.5 hour tab |
 |---|---|---|
-| Hunt saves, 48 hunted hero-hours away in a four, saved at the flush | 121 | COMPUTED |
-| Tab reads, with delta envelopes | 24 | COMPUTED, on the assumption that deltas cut a read four times |
-| Town work in closed form | 0.5 | COMPUTED |
-| Presses, 20 a day | 1.4 | COMPUTED |
-| A tab standing alone in town | 0 | RULED design |
-| The MMO layer (section 2.3.5) | under 3 | ESTIMATED |
-| **The proposed account-day** | **about 150** | COMPUTED. 2.5 times the budget |
-| The budget at 1,000 accounts, and at 10,000 | 60, and 24 | COMPUTED from the ruled $0.15 |
+| 1 hero | 5.2 | 15.5 |
+| 2 lone heroes | 9.3 | 19.7 |
+| 3 lone heroes | 13.5 | 23.9 |
+| 4 lone heroes | 17.6 | 28.1 |
+| 4 heroes as one party | 10.9 | 31.2 |
 
-How far to trust the table: it is arithmetic on production means read at 3.3 hunted hours a day and stretched to the ruled 12 and 12. It has never been measured at 12 hours.
+With the browser closed the cost is for each hero. The tab is for each account, so the fourth hero adds far less than the first. A party of its own four is the cheapest idle shape, and packing an account's lone hunts into one save closes most of the gap. Every account pays the four-hero row from its first evening. One Premium an account changes no line.
 
-To fit 60, the hunt's saves must come down from 121 to about 31. Two designs reach that, and study 48 chooses and sizes one:
+**The order of the edge fixes.** Study 48 gives this order, and it is an input to the build plan as given (section 2.2).
 
-- **A slower idle flush.** About 9 to 10 saves a hero-hour, which is a flush near every 6 minutes. Deaths, Levels, Leave, rare drops and money intents still save at once, so nothing a player can see should change. HYPOTHESIS.
-- **A cheaper save at the same pace.** A save of about 20 ms. HYPOTHESIS.
+1. Read once. Proof: the settle parity arms, and the statements a save stay at 4.
+2. No off-screen poll, tick packing and the 5 minute prune.
+3. A narrow town read, the interim for town work until closed form ships.
+4. Confirm in the edge and save at the flush, and the hourly journal, before the beta passes 250 accounts.
+5. Plan fixes beside them.
+6. Town work in closed form.
+7. The tab's confirm and heartbeat only, once the controlled read names the 33.5 seconds.
+8. The 10 minute save for closed hunts, after the flush has baked a nightly, because both rewrite the settle path.
+9. Changed sections only, and one heartbeat.
+10. The engine server decision before 10,000 accounts, with the MMO layer's broadcast design.
 
-Whichever is chosen, three properties are fixed design and not open. RULED (CLAUDE.md sections 1 and 6).
+**The engine server.** TYLER CONFIRMS, later. It is a spend, so it is not decided here, and nothing is bought now. It is the only way an account that watches fits 24 at 10,000 accounts, and it is what makes a shared fight cheap. On it the account-day is 4.4 closed and 10.0 with the tab at 1,000 accounts, and 3.5 and 9.1 at 10,000 (ESTIMATED). Its risk: a crash loses nothing, because the engine is deterministic from the last save, but the server must never answer from state older than the database's.
+
+**What study 48 asks to be measured next.** The save's cost after read-once ships (expected: a read of about 35 ms and an apply of about 100 ms for a closed four). The tab's 33.5 seconds, by one controlled read. A town-hour fixture and a 20-hero boss fixture. An alarm on the settle read's mean, red over 40 ms.
+
+Whatever the cadence, three properties are fixed design and not open. RULED (CLAUDE.md sections 1 and 6).
 
 1. The server is the only author. A save replays the same seeds, so a crash between flushes re-plays the same fight and can never roll a better one.
 2. Anything another player, a gate or a purchase can read is saved before it is read.
 3. A hunt keeps running with the browser closed, and it ends for the same reasons whether watched or not.
 
-The 10,000 account budget of 24 seconds is past both options as sized, and two thirds of that bill is not the database. It is OPEN and PENDING 48.
+The 10,000 account budget of 24 seconds is met by an account that does not watch and missed by about a third by one that does, on the edge. The engine server closes it. The share of that bill that is not the database is OPEN after 48.
 
 #### 2.3.5 The cost envelope for world bosses, clans, events and arenas
 
 Rule 0 of the MMO layer is that every shared feature works while both players are asleep (DECIDED, MM-1, Fable 2026-11-21). That rule is also the cost rule: no part needs two people at the screen in the same minute, so no part needs a live connection between players.
 
-The whole layer is held to **under 3 database-seconds an account-day**. ESTIMATED in study 49. PENDING 48 for the measured answer. Every part obeys band C6.
+The whole layer is held to **under 3 database-seconds an account-day**. ESTIMATED in study 49. Study 48 sized one part of it, a shared fight, and nothing else in the layer, so clans, events, arenas and presence are OPEN after 48. Every part obeys band C6.
+
+**What study 48 adds for a shared fight.** ESTIMATED, with no fixture. The world boss of this book is fought in each account's own room against one shared pool (MM-2), so no viewer ever reads another account's fight and a boss send costs what a hunt costs. Study 48 priced the other shape, one fight of many heroes, and its rules bind any later design that puts more than a party in one fight:
+
+1. A shared fight is never read by each viewer. Read that way, the cost grows with the square of the crowd: a 100-hero fight of 10 minutes costs each account 64 database-seconds, more than its whole day. Sent as one broadcast a save on the fight's own topic, the same fight costs each account 2.7 on the edge and 0.2 on an engine server.
+2. Rooms. Nothing scales players times players. A boss of 1,000 is ten rooms of 100 with one shared health bar summed once a save.
+3. On the edge the window shrinks as the fight grows, and a 100-member save holds 100 heroes' locks for about 3.5 seconds, so a press of those accounts waits behind it.
+4. A boss is its own door, never a big party.
+5. Before any shared fight is built: a 20-hero, 20-account fixture, watched, and the engine's time a simulated second measured at 20 and 100 heroes.
 
 | Part | How it stays inside the allowance | Envelope | Status |
 |---|---|---|---|
@@ -437,7 +508,7 @@ Six of the 21 pace bands set one party size against another (P6.2, P6.3, P6.4, P
 | Low against mid gear from Level 110 to 185 | Judged, and wrong. The kit builder does not wear the unique lines there (fault F6) | No |
 | Everything past Level 185 | PROJECTED | Shape only |
 | Very Rare hours (D1, D2) | A stand-in until the Very Rare exists | No |
-| Server cost (C1, C2, C3) | A model on production means. Reads about 110 seconds a day high on C1 and C2 and low on C3 (fault F9) | Direction only. PENDING 48 |
+| Server cost (C1, C2, C3) | A model on production means. Reads about 110 seconds a day high on C1 and C2 and low on C3 (fault F9) | Direction only. Study 48 replaces the model with an account-day built bottom-up (section 2.3.4). The bands are re-read on it |
 | 19 bands with no reader | Among them E5, P13, G-11, R1, R3, C4, C4b, C5, T3 and B7: chest pieces, events, server-wide gold, schedules and money are not cells | No. Each needs its own reader or model |
 
 Of the 108, 89 have a reader and 19 do not. The grid reads 85, and the atlas and the solver read 23.
@@ -462,7 +533,7 @@ Of the 108, 89 have a reader and 19 do not. The grid reads 85, and the atlas and
 | F6 | The kit builder never wears the unique lines at Levels 110 to 185 | The unique lines in `grid-kit.mjs` | Tools work |
 | F7 | The Deadly death band judges a lone hero against the party's count | The S6 rows name the four as the seat they judge, which the no-targets ruling already implies | DECIDED (GR-88, Fable 2026-11-21) |
 | F8 | One party band compares a party and a lone hero on different grounds | Closed by the ruling: the band is dropped (GR-67) | RULED 2026-11-21 |
-| F9 | The cost bands are a model on means read before the cost work was measured | A fresh read after study 48 | PENDING 48 |
+| F9 | The cost bands are a model on means read before the cost work was measured | A fresh read on study 48's account-day | Study 48 has landed. The re-read is the matrix lane's |
 | F10 | A re-run of a cell through the tool replays the same seeds | A fresh-seed option | Tools work |
 | F11 | The grid's four is the standard's four with a shield tank, and players field a hammer in front. The front seat reads 9% faster with the hammer | The real four as a second named party | Tools work |
 | F12 | The solver's chance runs barely vary, so band B8 is not judged on real spread | Chance that varies in `paths/` | Tools work |
@@ -547,8 +618,8 @@ Not yet true of the Lab, and the dashboard lane's work: rule 1 needs every recom
 | A4 | What must a boss chest pay? | The grid: chest value and XP for each stamina hour beside a Normal hunt at Levels 20, 60 and 110 | Neither a loss nor the best XP in the game | MM-6 |
 | A5 | Does the two thirds line hold? | The grid, eight carried cells with the rule on | A carried seat earns a little more than alone, never several times more | MM-19 |
 | A6 | Does the power budget hold? | The grid: a mid-geared four with no buffs against a best-in-slot four with every cap full, at Levels 20, 60 and 110 | Kill speed within 1.25 to 1.40. Level pace within 1.6 to 1.8. No cell where the buffed four holds a tier the plain four cannot enter | MM-25, MM-26. The Crowns book does not open until this is green |
-| A7 | Is a town job three statements, and what do an away four, a Deadly four and a Tower climb cost? | Fixtures in `tests/per-player-cost.mjs`, read at the 12 and 12 hour day | Band C2 | GR-1. PENDING 48 |
-| A8 | Does 1,000 accounts of four fit? | A synthetic load test of the proposed save design | Band C5 | GR-1. PENDING 48. Scale is proven with synthetic load, never with staged cohorts (CLAUDE.md section 3.3b) |
+| A7 | Is a town job a start, one write a paid hour and a stop, and what do an away four, a Deadly four and a Tower climb cost? | Fixtures in `tests/per-player-cost.mjs`, read at the 12 and 12 hour day | Band C2 | GR-1. Study 48 ESTIMATED the away four and MEASURED the cadence. The town-hour fixture, the Tower climb and a 20-hero boss fixture are still owed |
+| A8 | Does 1,000 accounts of four fit? | A synthetic load test of the proposed save design | Band C5 | GR-1. Still owed after study 48, which built the account-day and ran no load. Scale is proven with synthetic load, never with staged cohorts (CLAUDE.md section 3.3b) |
 | A9 | One real lone hour and one real pair hour, with the kit written down | The daily play gate on the QA account | Calibration cells exist | How far any lone reading can be trusted |
 
 **Table B. The Discord playtest.** 20 to 30 strangers, 14 days, two weekends. Clans from day 1, a world boss on both weekends, the arena in week two if check A2 passes. DECIDED (MM-23, Fable 2026-11-21).
@@ -666,7 +737,7 @@ In decision-book order. Each line is the call and the decision this chapter take
 |---|---|---|---|
 | GR-85 | The formula steps that move no number, and a tier's dial applied once | Go: V1 to V5, R1 to R5, R7, the floor half of R6 and the fold of R8 | DECIDED (Fable 2026-11-21) |
 | GR-88 | The balance matrix as the gate | Yes, with band S11, ground-axis band rows, the four Deadly lineups, and guarded registers | DECIDED (Fable 2026-11-21) |
-| GR-1 | How the server reaches its budget | Rule closed-form town work for training, gathering and benches. Hold the away hunt's save until study 48 lands | DECIDED (Fable 2026-11-21) |
+| GR-1 | How the server reaches its budget | Town work paid in closed form. A closed hunt saved every 10 minutes or at 1.2 seconds of engine time. The settle reads the party once. The edge fixes in study 48's order. The engine server is a later spend for Tyler | DECIDED (Fable 2026-11-21, on study 48) |
 | MM-1 | Rule 0: every shared feature works while both players are asleep | Yes. It is the cost rule of the MMO layer as well as its design rule | DECIDED (Fable 2026-11-21) |
 | GR-4 | The gear curve | Linear in Level. Past tier 7 a band is a fixed step that opens at about +17% (110, 129, 151, 176, 206, 241, 282, 330, 386). Uniques are a spend of their band. The two Luck numbers are keyed by Level | DECIDED (reversal, Tyler may veto). Changes two bands a region of 2026-11-18 and the Luck step of 2026-11-20 (Fable 2026-11-21) |
 | GR-5 | What a kill pays | The pace line with one kill-rate reference and one tier table | DECIDED (Fable 2026-11-21) |
@@ -678,7 +749,7 @@ In decision-book order. Each line is the call and the decision this chapter take
 | GR-36 | The Tower and Catacombs party table | They take the one party table | DECIDED (Fable 2026-11-21) |
 | GR-51, GR-52 | The wage curve and the store's healing | Prices in hours of a wage the server computes. One gold-a-hit-point line, after fault F5 closes. F5's kit rule is decided in GR-52: one rune tier under what Magic allows for mid gear, and the cheapest water rune for a healer | DECIDED (Fable 2026-11-21) |
 | GR-63 | Dead ladders | Delete the rested bank and the two old kill ladders | DECIDED (Fable 2026-11-21) |
-| GR-70 | The town draws heroes at work | Yes, once study 48 sizes it | DECIDED (Fable 2026-11-21) |
+| GR-70 | The town draws heroes at work | Yes, inside the cost budget. Study 48 did not size the drawn bodies, so the fallback of GR-70 stands until it is sized | DECIDED (Fable 2026-11-21) |
 | GR-86 | The later engine steps | One amount pipeline with a trace, one modifier table, every monster on the formula | DECIDED (Fable 2026-11-21) |
 | GR-87 | Drops and sales | Drops authored in hours. One sale formula | DECIDED (Fable 2026-11-21) |
 | MM-19 | Mixed Levels in one fight | The visible two thirds line, in the same step as the XP chain | DECIDED (reversal, Tyler may veto). Changes the party XP rulings of 2026-11-08 (Fable 2026-11-21) |
@@ -694,8 +765,8 @@ In decision-book order. Each line is the call and the decision this chapter take
 
 | # | What is missing | Who decides, and what decides it |
 |---|---|---|
-| 1 | **Study 48 itself.** How an away hunt is saved. Whether 60 database-seconds holds on shared cores. The bill's lines that are not the database, re-read for the 12 hour day. What a town that draws working heroes costs. A measured envelope for bosses, clans, events and arenas | The reliability engineer, then Tyler. Until it lands, section 2.3 cannot say the game fits $0.15 |
-| 2 | **The 10,000 account budget.** 24 database-seconds an account-day is past every design sized so far, and two thirds of that bill is not the database | Study 48 |
+| 1 | **What study 48 left open.** How an away hunt is saved is closed. Whether 60 database-seconds holds on shared cores. The bill's lines that are not the database, re-read for the 12 hour day. What a town that draws working heroes costs. A measured envelope for bosses, clans, events and arenas | Study 48 has landed and closed the first part: the away hunt's save, and whether the account-day fits (yes at 1,000, and at 10,000 only without a watched tab or with an engine server). Still open, for the reliability engineer: whether 60 holds on shared cores (check A8), the bill's lines that are not the database, what a town that draws working heroes costs, and a measured envelope for clans, events and arenas |
+| 2 | **The 10,000 account budget.** 24 database-seconds an account-day. ESTIMATED by study 48: an account that does not watch meets it at 10.0, and one with a tab open 3.5 hours misses at 30.3 on the edge and meets at 9.1 on an engine server | The engine server is a spend. TYLER CONFIRMS, later, money list row 17. The share of the bill that is not the database stays with the reliability engineer |
 | 3 | **Whether measurement and tool work may go ahead before the build plan.** The gear band, the kill reward and the harder tiers' pull each need a measurement, and all of them need the instrument made true | Closed. RULED 2026-11-21: studies, calibration and audits may run |
 | 4 | **The Security review's size and owner for the MMO layer.** Section 2.7 is a proposed scope, not a sized review | The Security engineer |
 | 5 | **The kit's rune rule (F5).** Nobody has ruled which rune tier a mid-geared hero is assumed to buy | Closed. GR-52: mid gear casts one rune tier under what its Magic allows, a healer's heals use the cheapest water rune, and best gear casts the tier its Magic allows |
@@ -706,7 +777,7 @@ In decision-book order. Each line is the call and the decision this chapter take
 | 10 | **The Lab's proposal set.** Not every recommended proposal exists as a patch file, and the model steps cannot be toggled until they are staged | The dashboard lane |
 | 11 | **The hunt tally's three fields.** Lowest health, tier and gear tier worn. Survival cannot be calibrated without the first | Systems, in the build plan |
 | 12 | **Test Crowns in the playtest (MM-43).** An equal weekly grant to every account is still a grant. Without it the Crowns rows of table B cannot be read before launch | TYLER CONFIRMS (MM-43, a grant), recommended yes for the wiped Discord playtest only |
-| 13 | **Whether a watched four of four people on four accounts changes the save design.** Study 49 says a party is an account's own heroes, so the case may not exist | Study 48. MM-18 is decided, so a party is an account's own heroes and the case does not exist unless Tyler vetoes that reversal |
+| 13 | **Whether a watched four of four people on four accounts changes the save design.** Study 49 says a party is an account's own heroes, so the case may not exist | Partly answered by study 48. A member open in a client costs one frame of 18 ms a save (REAL), so a four watched from four accounts adds three frames a save and does not change the save design. No fixture has played it. MM-18 is decided, so the case exists only if Tyler vetoes that reversal. Owner: the reliability engineer |
 | 14 | **Content authoring pace against the runway, timed.** Every ground, band, boss and recipe family ends its lane with its working hours (RULED 28-12). No lane has yet said who draws regions or how fast | The art and asset directors, then Tyler |
 | 15 | **The build plan's unit.** The plan of record is written in lanes and waves for a beta. It is re-issued once the calls are ruled, in the order of section 2.2 | The Coordinator, after the rulings |
 
@@ -756,7 +827,7 @@ In decision-book order. Each line is the call and the decision this chapter take
 | "Four changes take an account to about 60 database-seconds" (`28-platform.md`) | COMPUTED at the ruled day by `59-review-features.md`: the same changes and closed-form town work leave about 147. The newer computed result on the ruled frame wins |
 | "The budget cannot be met without closed form", read as closed form being enough (`59` phase A) | 59's own phase B corrected it: necessary and not sufficient |
 | 60 database-seconds presented as a ruled number (`60-game-review.md` first issue) | The cold audit (61, M3): Tyler ruled $0.15. The 60 is COMPUTED from assumed list prices and is a best case |
-| A 6 minute flush as part of the cost call (`60` first issue, G-1) | The cold audit split it. Closed form is recommended now. The flush is a HYPOTHESIS with a second option and waits on study 48 |
+| A 6 minute flush as part of the cost call (`60` first issue, G-1) | The cold audit split it. Closed form is recommended now. Study 48 then sized the away hunt's save at 10 minutes or 1.2 seconds of engine time, with the result MEASURED identical |
 | Global chat in rooms of 250 (`28-platform.md` section 5 and 28-6) | Tyler ruled one Global chat with batched lines and a slow mode (2026-11-20, 2026-11-21) |
 | A gear band of about +6.5%, about 7 Levels apart at Level 110 (`44` section 5.2) | The review and the itemization fit (60 GR-4, 47) size a band at a tier's worth, about +24%. The adversarial check then opened the knob at about +17%, the largest step that keeps a band edge in every region. The later synthesis and the itemization fit win. The architecture is the same: a percent step on a linear curve |
 | The Level law as one fitted power law (`42`, and matrix patch `progression-1`) | Withdrawn. The ruled table of hours is the law (44, 56, GR-6) |
@@ -782,7 +853,7 @@ In decision-book order. Each line is the call and the decision this chapter take
 | `41`, `42`, `43` (the three category audits) | Taken through 44, which is their dedupe |
 | `28-platform.md` | The budget lines of section 3, the dark systems of section 5, the growing tables of section 6, the exploit surface of section 7 and the rulings of section 11. Its cost tables are superseded (section 7 above) |
 | `59-review-features.md` | Section 0.2 (the account-day against the budget) and trace 4 (town work in closed form and the price of a press) |
-| `48-platform-cost.md` | Nothing yet. PENDING. When it lands it replaces the OPEN and PENDING lines of section 2.3 |
+| `48-platform-cost.md` | Read in full. Section 2.3 carries its answer, its account-day, what each choice is worth, the away hunt's save, the four-hero ladder, the order of the edge fixes, the engine server as a later spend, and its rules for a shared fight |
 | `50-standards.md` | Section 2.8 (server cost bands), section 5 (the harness spec), and the frame of sections 1 and 11 as it bears on measurement |
 | `51-baseline.md` | All of it, as 2.4.3, 2.4.4 and 2.5 |
 | `60-game-review.md` | Sections 4.5 (server cost), 5 (systems interaction, as it bears on order), 7 (the validation plan), 8.10 (architecture calls) and the platform lines of 10 |

@@ -925,7 +925,7 @@
     {
       "id": "CE-7",
       "call": "Chapter 07 flag: closed-form town work against the 2026-10-22 ruling \"town work updates in real time\"",
-      "decision": "Take the re-reading. The bar, the count and the bag line move on screen in real time as a prediction. The server writes at the start, when the count runs out and at a stop. Any press that needs the items or the skill level settles the job first, so nothing can spend a predicted number. Every gate reads the server's value.",
+      "decision": "Take the re-reading. The bar, the count and the bag line move on screen in real time as a prediction. The server writes at the start, at each paid hour and at a stop. Any press that needs the items or the skill level settles the job first, so nothing can spend a predicted number. Every gate reads the server's value.",
       "outcome": "recommended",
       "reason": "What you asked for on 10-22 was that the player sees work happen and is not left waiting for a lump at the end. That still holds on the screen. What changes is how often the server writes, which a player cannot see and which is the difference between fitting your $0.15 budget and missing it.",
       "evidence": "COMPUTED from production means stretched to four heroes: 48 rested hero-hours cost about 34 database-seconds a day by tick and about 1 in closed form, against a budget of 60 (chapter 07 section 2.11). Not measured at 12 hours.",
@@ -937,7 +937,9 @@
         "CLAUDE.md section 6 (the browser never disagrees with the server)",
         "Both-paths tests for every town activity"
       ],
-      "area": "Collisions"
+      "area": "Collisions",
+      "wasBeforeStudy48": "Take the re-reading. The bar, the count and the bag line move on screen in real time as a prediction. The server writes at the start, when the count runs out and at a stop. Any press that needs the items or the skill level settles the job first, so nothing can spend a predicted number. Every gate reads the server's value.",
+      "revisedBy": "study-48"
     },
     {
       "id": "CE-8",

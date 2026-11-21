@@ -126,6 +126,13 @@
         "call": "Test Crowns in the playtest. THIS IS A GRANT",
         "recommendation": "Yes, for the wiped Discord playtest only. The same amount for every account, one server switch that is off by default and removed before Early Access, every grant journalled. It needs your explicit yes.",
         "grant": true
+      },
+      {
+        "n": 17,
+        "id": "48-engine-server",
+        "later": true,
+        "call": "An always-on engine server, before 10,000 accounts. LATER. A spend, not decided",
+        "recommendation": "Nothing to buy now. The edge fits the beta and 1,000 accounts. Decide it before 10,000 accounts. ESTIMATED by study 48: at 10,000 accounts an account with a tab open 3.5 hours costs 30.3 database-seconds a day on the edge against a budget of 24, and 9.1 on an engine server. With the browser closed it is 10.0 against 3.5. It is the only way an account that watches fits 24, and it makes a shared fight cheap. Its cost in money is not in the study."
       }
     ],
     "reversals": [
@@ -237,9 +244,9 @@
       {
         "n": 16,
         "id": "CE-7",
-        "change": "Town work moves on screen in real time and the server writes three times a job.",
+        "change": "Town work moves on screen in real time and the server writes at the start, at each paid hour and at a stop.",
         "ruling": "2026-10-22",
-        "reason": "It looks the same to the player and is what fits the server budget."
+        "reason": "It looks the same to the player, and study 48 shows no design meets the server budget without it (worth 109 database-seconds an account-day, ESTIMATED)."
       },
       {
         "n": 17,
@@ -434,7 +441,23 @@
       "Bulk commissions (GR-44)",
       "Side against side (GR-71)"
     ],
-    "plan": "Step A of the systems plan in docs/design/systems-intelligence/00-plan.md."
+    "plan": "Step A of the systems plan in docs/design/systems-intelligence/00-plan.md.",
+    "buildPlanInputs": {
+      "from": "docs/design/balance-program/48-platform-cost.md section 6",
+      "what": "The order of the edge fixes, as study 48 gives it",
+      "order": [
+        "Read once: the settle reads the party once. Proof: the settle parity arms, and the statements a save stay at 4",
+        "No off-screen poll, tick packing and the 5 minute prune",
+        "A narrow town read, the interim for town work until closed form ships",
+        "Confirm in the edge and save at the flush, and the hourly journal, before the beta passes 250 accounts",
+        "Plan fixes beside them",
+        "Town work in closed form",
+        "The tab sends its confirm and heartbeat only, once one controlled read names 33.5 seconds of a watched four-hour",
+        "The 10 minute save for closed hunts, after the flush has baked a nightly",
+        "Changed sections only, and one heartbeat",
+        "The engine server decision before 10,000 accounts, with the broadcast design for a shared fight"
+      ]
+    }
   },
   "missingNamedByTheReview": [
     {
@@ -508,7 +531,7 @@
       "owner": "The matrix lane, with the game designer"
     }
   ],
-  "missingInFull": "docs/design/overhaul/00-the-game.md section 7 and the missing list of docs/design/balance-program/62-decision-book.json",
+  "missingInFull": "docs/design/overhaul/00-the-game.md section 8 and the missing list of docs/design/balance-program/62-decision-book.json",
   "rows": [
     {
       "id": "C3",
@@ -665,7 +688,7 @@
       "file": "content-economy",
       "group": "Collisions",
       "call": "Chapter 07 flag: closed-form town work against the 2026-10-22 ruling \"town work updates in real time\"",
-      "decision": "Take the re-reading. The bar, the count and the bag line move on screen in real time as a prediction. The server writes at the start, when the count runs out and at a stop. Any press that needs the items or the skill level settles the job first, so nothing can spend a predicted number. Every gate reads the server's value.",
+      "decision": "Take the re-reading. The bar, the count and the bag line move on screen in real time as a prediction. The server writes at the start, at each paid hour and at a stop. Any press that needs the items or the skill level settles the job first, so nothing can spend a predicted number. Every gate reads the server's value.",
       "outcome": "recommended",
       "reason": "What you asked for on 10-22 was that the player sees work happen and is not left waiting for a lump at the end. That still holds on the screen. What changes is how often the server writes, which a player cannot see and which is the difference between fitting your $0.15 budget and missing it.",
       "evidence": "COMPUTED from production means stretched to four heroes: 48 rested hero-hours cost about 34 database-seconds a day by tick and about 1 in closed form, against a budget of 60 (chapter 07 section 2.11). Not measured at 12 hours.",
@@ -682,7 +705,9 @@
         "n": 16,
         "ruling": "2026-10-22"
       },
-      "decidedBy": "Fable 2026-11-21"
+      "decidedBy": "Fable 2026-11-21",
+      "wasBeforeStudy48": "Take the re-reading. The bar, the count and the bag line move on screen in real time as a prediction. The server writes at the start, when the count runs out and at a stop. Any press that needs the items or the skill level settles the job first, so nothing can spend a predicted number. Every gate reads the server's value.",
+      "revisedBy": "study-48"
     },
     {
       "id": "CE-8",
@@ -822,15 +847,17 @@
       "file": "core",
       "group": "Foundation",
       "call": "How the server reaches its budget.",
-      "decision": "Rule closed-form town work now for training, gathering and benches, with every roll seeded at the start. The away hunt's save design waits for study 48 and a measurement at 12 hours.",
+      "decision": "Town work is paid in closed form for training, gathering and benches: at the start, at each paid hour and at stop, with every roll seeded at the start. A closed hunt is saved when its window holds 10 minutes or 1.2 seconds of measured engine time, whichever is less. The settle reads the party once, an open tab sends only its confirm and its heartbeat, and an account's four heroes are saved together. The edge fixes are built in study 48's order. The engine runs on the edge for the beta and for 1,000 accounts. An always-on engine server is a spend and is Tyler's later call, before 10,000 accounts.",
       "outcome": "recommended",
       "reason": "Closed form is needed on every path and changes nothing a player can see, because the yield is the same as an hour settled step by step. The flush is a guess nobody has measured, so it should not be ruled on a guess.",
-      "evidence": "COMPUTED from assumed prices, best case (59, 61). The flush is a HYPOTHESIS. A synthetic load test of 1,000 accounts of four heroes (check A8) overturns it.",
-      "replaces": "None. Builds 28-11 and extends it.",
+      "evidence": "Study 48, read in full. ESTIMATED from REAL and MEASURED mechanism costs: the target account-day is 10.9 database-seconds with the browser closed and 31.2 with a tab open 3.5 hours, against 60 at 1,000 accounts. At 10,000 accounts (24) the closed day meets at 10.0 and the tab day misses at 30.3 on the edge and meets at 9.1 on an engine server. Closed form is worth 109 a day and no design meets 60 without it. MEASURED: end state and journal sums are identical whether a hunt is saved every 100 seconds or every 20 minutes, on four fixtures. Not measured: a load of 1,000 accounts (check A8), the bill's lines that are not the database, and 33.5 seconds of a watched four-hour that are UNATTRIBUTED.",
+      "replaces": "Builds 28-11 and extends it. The closed-form wording against 2026-10-22 is reversal 16 (CE-7). The 10 minute save bends no ruling.",
       "money": false,
-      "depends": "The platform decider owns it from here. Any compute upgrade is Tyler's per-spend call and is not decided here.",
+      "depends": "CE-7 (how town work reads on screen). GR-54 (the yard's rate ships in the same change). Closed form needs a replayed-day equality with tick settles and the Security review at Early Access. The engine server is Tyler's per-spend call and is not decided here.",
       "status": "DECIDED",
-      "decidedBy": "Fable 2026-11-21"
+      "decidedBy": "Fable 2026-11-21",
+      "wasBeforeStudy48": "Rule closed-form town work now for training, gathering and benches, with every roll seeded at the start. The away hunt's save design waits for study 48 and a measurement at 12 hours.",
+      "revisedBy": "study-48"
     },
     {
       "id": "GR-3",

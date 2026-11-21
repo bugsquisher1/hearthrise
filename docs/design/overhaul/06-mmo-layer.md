@@ -8,7 +8,7 @@ Part of "Hearthrise: the game we are building". This chapter is the whole design
 
 ---
 
-**The status words, re-issued 2026-11-21.** Tyler adopted the critical review (`review/00-critical-review.md`), and the book now uses three honest words. They replace the list above. **DECIDED** means evidence and rulings support it. Where Tyler also said yes on the page, the tag says so. **PROVISIONAL** means a reasonable plan that has not been tested, and the first tag in a chapter names what it waits on. **OPEN** means it waits on Tyler. **RULED** is kept only for what Tyler ruled knowing what it was: his typed words, his own executive decisions, and a pick where he wrote a note. A quick pick on the page is a real yes and reads "Tyler said yes on the page", never RULED. **PROPOSAL** marks a design made in the fold of 2026-11-21 that Tyler has not seen. CUT and KEPT record his picks on the cut list. The record is `decisions/all.json` and `00-the-game.md`.
+**The status words, re-issued 2026-11-21.** Tyler adopted the critical review (`review/00-critical-review.md`), and the book now uses three honest words. They replace the list above. **DECIDED** means evidence and rulings support it. Where Tyler also said yes on the page, the tag says so. **PROVISIONAL** means a reasonable plan that has not been tested, and the first tag in a chapter names what it waits on. **OPEN** means it waits on Tyler. **RULED** is kept only for what Tyler ruled knowing what it was: his typed words, his own executive decisions, and a pick where he wrote a note, and his answers at the sitting of 2026-11-21, where he saw every option's cost. A quick pick on the page is a real yes and reads "Tyler said yes on the page", never RULED. **PROPOSAL** marks a design made in the fold of 2026-11-21 that Tyler has not seen. CUT and KEPT record his picks on the cut list. The record is `decisions/all.json` and `00-the-game.md`.
 
 ## 1. The experience
 
@@ -51,12 +51,12 @@ It is the test every system below passed, and the test any later social feature 
 |---|---|---|---|---|
 | Damage dealt | `playerAttack` | +5% | +10% | +15% |
 | Protection | Defense rating rows, each sized on the matrix so a mid-geared four takes this much less damage an hour (CORE-4) | about 5% less | about 5% less | about 10% less |
-| Level XP | `xpPerKill` | none | +25% | +25% |
+| Level XP | `xpPerKill` | a clan room, size PROVISIONAL (S-4) | +25% | +25% and the clan room |
 | Material find | the material term of the drop formula. No knob in `knobs.json` yet | none | +10% | +10% |
 | Coin from kills | `coinPerKill` | none | none | none, ever |
 | Town work speed | no knob in `knobs.json` yet | +10% | none | +10% |
 
-- **The +25% timed Level XP cap is the ruled event ceiling.** RULED 2026-11-20 (27-5): never above +25% and never two at once. Only the Hearthrise weekend fills it, from +10% to +25% by the size of the fire (CE-8). No clan room gives Level XP and no Level XP boost is sold (MM-29-XP).
+- **The +25% timed Level XP cap is the ruled event ceiling.** RULED 2026-11-20 (27-5): never above +25% and never two at once. Only the Hearthrise weekend fills it, from +10% to +25% by the size of the fire (CE-8). No Level XP boost is sold (MM-29-XP). A clan room pays a standing Level XP bonus (RULED, Tyler 2026-11-21, the sitting, S-4), which reverses 25-2. Its size is PROVISIONAL and owed by the design lane in `11-on-call-and-clan-xp.md`, which is being written.
 - **Protection is written on the Defense rating.** Anything that takes a share off a blow stops at the 60% mitigation cap, and plate of its Level sits at that cap from Level 110 on. So a defensive buff makes monsters land less often, which a capped tank still feels. One check is owed before these rows are final: the to-hit formula needs its own floor, so rating rows cannot stack into a second way past the cap. PROVISIONAL (CORE-4).
 - **No coin buff, ever.** Gold enters the world from kills and leaves through sinks. A buff that mints gold for the buffed raises prices for everyone else and would let money mint gold. PROVISIONAL (MM-25).
 - **Material find is not Luck.** Luck has two feeds and no more (RULED 2026-11-20). The row adds 10% to rows tagged as materials: monster parts, lining parts, hides, ore, gem chips and gems below Rare. It never touches a Rare, Very Rare or Trophy row, a gear row of any rarity, a key or a seed. It is earned only and never sold, and the rivet allowance is computed without it. PROVISIONAL (CE-2).
@@ -73,7 +73,7 @@ It is the test every system below passed, and the test any later social feature 
 | Paying alone: best gear sooner and a +6% damage boost | 1.22 | 1.22 | COMPUTED, 1.15 x 1.06 |
 | The fastest talent build over the suggested one, on top of every cap | 1.34 | about 1.67 | COMPUTED, 1.65 x 1.012. PROVISIONAL (TAL-1, `10-level-choices.md`) |
 
-There is one ceiling. It is a reading held by a test and never a new limit, and chapter 04 quotes the same numbers (MM-31). With Talents in, the reference is a plain four on suggested builds and the ceiling reads about 1.67, because the fastest build is at most 1.2% faster than the suggested one. With every cap full a four reads 1.65 times a plain mid-geared four in Levels an hour and 1.32 in kills an hour, with about 10% less damage taken an hour and 10% more materials. Nobody holds 1.65 outside a Hearthrise weekend. Paying alone reads about 1.22. A player who earns every buff and buys nothing averages about 1.3 times the plain pace over a month. The kill speed is less than two gear bands (COMPUTED, 1.17 squared is 1.37). Most of the gain is timed and lapses when the player stops earning or buying it. Nothing in it lets a hero wear a higher band, enter a ground sooner or skip a Level.
+There is one ceiling. It is a reading held by a test and never a new limit, and chapter 04 quotes the same numbers (MM-31). With Talents in, the reference is a plain four on suggested builds and the ceiling reads about 1.67, because the fastest build is at most 1.2% faster than the suggested one. A clan Level XP room raises it again, to about 1.73 at +5%. That number is PROVISIONAL and waits on the clan XP size. With every cap full a four reads 1.65 times a plain mid-geared four in Levels an hour and 1.32 in kills an hour, with about 10% less damage taken an hour and 10% more materials. Nobody holds 1.65 outside a Hearthrise weekend. Paying alone reads about 1.22. A player who earns every buff and buys nothing averages about 1.3 times the plain pace over a month. The kill speed is less than two gear bands (COMPUTED, 1.17 squared is 1.37). Most of the gain is timed and lapses when the player stops earning or buying it. Nothing in it lets a hero wear a higher band, enter a ground sooner or skip a Level.
 
 **What the player sees.** One line on the hero sheet: "Buffs: damage +11% of 15, Level XP +25% of 25." A player always knows what is filled and what is left to chase. PROVISIONAL (MM-24).
 
@@ -146,7 +146,7 @@ Why a pool and not one big fight: the one combat engine runs a party of up to fo
 | The tag | Beside a name on plaques, the System tab, the presence strip and the ladders | PROVISIONAL (MM-8) |
 | Nothing comes back out | Gifts are one-way. Rations cannot be sold or traded | RULED 2026-11-20 (25-5) |
 
-**The castle.** PROPOSAL (MM-9, made in the fold 2026-11-21, not yet seen by Tyler, reversal of 25-4, the castle gate of 25-3 and 31-3, let stand on the page): the castle is priced for each member with a floor of five, one project at a time, open at any size. Tyler also KEPT the castle's labor, votes, upkeep, treasury, Clan Standing and five buildings of ten levels (cut list 5). How they fit the price for each member is PROPOSAL (MM-9, made in the fold 2026-11-21, not yet seen by Tyler) and is written below.
+**The castle.** RULED in direction (MM-9, Tyler 2026-11-21, the sitting, with every size PROVISIONAL, reversal of 25-4, the castle gate of 25-3 and 31-3, let stand on the page): the castle is priced for each member with a floor of five, one project at a time, open at any size. Tyler also KEPT the castle's labor, votes, upkeep, treasury, Clan Standing and five buildings of ten levels (cut list 5). How they fit the price for each member is RULED in direction (MM-9, Tyler 2026-11-21, the sitting, with every size PROVISIONAL) and is written below.
 
 - One project at a time, on the same engine as the server's town project (chapter 07). One engine to build and one to secure.
 - Members give gold and castle goods. Ruling 31-3 kept the built prices of castle goods, and the price for each member changes that. It is part of the reversal above.
@@ -169,7 +169,7 @@ Why a pool and not one big fight: the one combat engine runs a party of up to fo
 | Workshop | Town work speed | +10% |
 | Kitchen | The clan's weekly ration cap | raised |
 
-Each building has ten levels and reaches its cap at level ten. The fifth building is held. Whether it is a library, a Level XP room or something else is OPEN (waiting on Tyler, T-fix-4): he did not approve cutting the library, and ruling 25-2 says clans give no Level XP. The table above is written with no Level XP room and no standing Level XP cap.
+Each building has ten levels and reaches its cap at level ten. The fifth building is the library. RULED (Tyler 2026-11-21, the sitting, S-4): it pays a standing Level XP bonus, which reverses ruling 25-2. Its size is PROVISIONAL and is owed by the design lane in `11-on-call-and-clan-xp.md`, which is being written.
 
 
 A building's level sets the size of its buff, up to the standing cap. A clan that has finished the four buff buildings has filled every standing cap, and what remains of the castle is looks, the plaque and the weekly goal.
@@ -294,7 +294,7 @@ A building's level sets the size of its buff, up to the standing cap. A clan tha
 
 `share kept = hero Level / (2/3 x top Level in the party), capped at 1`
 
-PROVISIONAL (MM-19, waits on a matrix cell with mixed Levels, Tyler said yes on the page, reversal of the party XP rulings of 2026-11-08, let stand on the page, which answers GR-10b and re-opens the 2026-11-08 ruling). Formula home: the party XP step (`partyXp`), with one new knob, `levelShareLine`, at two thirds.
+PROVISIONAL (MM-19, waits on a matrix cell with mixed Levels, Tyler said yes on the page, reversal of the party XP rulings of 2026-11-08, let stand on the page, which answers GR-10b and re-opens the 2026-11-08 ruling). On-call heroes are kept (MM-18, ruled at the sitting), so a hero from another account can join a party again and this line has real cases. Formula home: the party XP step (`partyXp`), with one new knob, `levelShareLine`, at two thirds.
 
 - **It is visible.** The party window shows it before the hunt starts: "Brenna is under the line and keeps 61% of her share." Nothing is hidden and nothing depends on the ground.
 - **Carried is a little better than alone and never several times better.** COMPUTED from measured cells of the proposed rule: a Level 5 behind a Level 37 party earns about 1.2 times its own pace and a Level 10 about 1.6 times. With no rule the same seats would earn 6.1 and 4.1 times. The survival side of those cells is provisional until the engine sends real damage to the back row.
@@ -302,7 +302,7 @@ PROVISIONAL (MM-19, waits on a matrix cell with mixed Levels, Tyler said yes on 
 - **It is not a party-size target.** There are no solo or group balance targets (RULED 2026-11-21).
 - **Where it is not read.** Boss points, because the room is scaled. Both arenas, because they pay no XP.
 
-**Parties across accounts.** A party is an account's own heroes, up to four, and never more than four (RULED 2026-11-20, 25-11). Two accounts may still form a party by hand through an invite. When a party holds two or more accounts it is offered a shared supply bill, agreed once and remembered (RULED 2026-11-20, 25-8). There is no live party finder (OPEN, GR-69, waiting on Tyler, T-fix-2).
+**Parties across accounts.** A party is up to four heroes and never more than four (RULED 2026-11-20, 25-11). Most parties are an account's own heroes. A hero from another account can join again: by an invite by hand, and as an on-call hero (RULED, MM-18, Tyler 2026-11-21, the sitting). Two accounts may still form a party by hand through an invite. When a party holds two or more accounts it is offered a shared supply bill, agreed once and remembered (RULED 2026-11-20, 25-8). There is no live party finder (RULED, GR-69, Tyler 2026-11-21, the sitting: removed).
 
 ### 2.9 Chat, friends and factions
 
@@ -312,11 +312,11 @@ PROVISIONAL (MM-19, waits on a matrix cell with mixed Levels, Tyler said yes on 
 |---|---|---|
 | Global | One room for the whole server. Lines are sent in small batches on the connection the game already has, with a slow mode when crowded | RULED 2026-11-21 (31-1) |
 | Clan | One room for the clan | RULED 2026-11-20 (25-3) |
-| Party | Inside a party | OPEN (GR-69, waiting on Tyler, T-fix-2 keeps it, Fable 2026-11-21) |
-| Whispers | One to one | OPEN (GR-69, waiting on Tyler, T-fix-2 keeps it, Fable 2026-11-21) |
+| Party | Inside a party | RULED (GR-69, Tyler 2026-11-21, the sitting: removed keeps it, Fable 2026-11-21) |
+| Whispers | One to one | RULED (GR-69, Tyler 2026-11-21, the sitting: removed keeps it, Fable 2026-11-21) |
 | System | The world's news: rare drops (3 a hero a day), boss stages and falls, clan castle stages, town project stages, server firsts, the weekend's event | PROVISIONAL (MM-11 for the event line) |
 | Combat | The hunt's log, from server events, filterable | RULED 2026-10-16 |
-| Local | Not in the game. Hunts are instanced, so "here" is a party, which has its tab. Town crier lines speak in Global and in the town itself | OPEN (GR-69, waiting on Tyler, T-fix-2, re-opens 2026-11-11) |
+| Local | Not in the game. Hunts are instanced, so "here" is a party, which has its tab. Town crier lines speak in Global and in the town itself | RULED (GR-69, Tyler 2026-11-21, the sitting: removed, re-opens 2026-11-11) |
 
 Chat is open by default so a new player sees that other people exist (RULED 2026-10-22). Blocks, mutes, the word filter and name moderation are required. The paid Town Crier line stays as a small gold sink (RULED 2026-11-04).
 
@@ -343,11 +343,11 @@ Chat is open by default so a new player sees that other people exist (RULED 2026
 
 | Not in the game | Why | Status |
 |---|---|---|
-| Hired, lent or on-call heroes | Every account has four, so nobody needs a seat filled. At 12 hunted hours a day nobody has a spare hero-hour to lend. Under the two-thirds rule one pair in six would match among four real players with top Levels 79, 46, 9 and 8 (COMPUTED). It would be a trade surface and a market in carried leveling | OPEN (MM-18, waiting on Tyler, T-fix-1). His pick on cut 2 and reversal 18 point opposite ways, so both are held. This book is written without them. It was to come back to Tyler if playtest friends ask to lend heroes without being prompted |
+| On-call heroes. Kept, so this row leaves the list | Tyler's words at the sitting: "on call is fine but should be full stamina, the on call hero trades their crafting/training time for a small cut of exp, no loss on death. HOWEVER they can only go on call once every 24 hours and it will only last for 12 hours. Then back to a chosen activity". The full spec is `11-on-call-and-clan-xp.md`, which a design lane is writing. This chapter does not design it | RULED (MM-18, Tyler 2026-11-21, the sitting, S-1). It reverses the removal this book was written on |
 | Shared combat grounds, 8-person areas | A contested spawn with both owners asleep is a tax and not a meeting. A busy server would need channels, which is instancing again. One party, one instance is the engine | PROVISIONAL (MM-20) |
 | A raid of many heroes in one fight | It needs people at the screen and a second engine. The world boss is the server's shared fight. A clan's own shared hunt, planned as two parties of four in one hall (25-11), takes the same form when it is built: each party in its own room on one clan pool | PROVISIONAL (MM-1, MM-2, MM-48, Tyler said yes on the page, reversal of the second half of 25-11, let stand on the page) |
 | PvP on the hunting grounds | The idle hunt is never interrupted by another player | DECIDED (MM-17, Fable 2026-11-21) |
-| A live party finder, a fifth seat | Rule 0. The cap of four is RULED (25-11) | OPEN (GR-69, waiting on Tyler, T-fix-2), with the Local chat tab. His picks on cuts 3 and 4 point the other way from reversal 21, so all are held |
+| A live party finder, a Local chat tab, a fifth seat | Rule 0. The cap of four is RULED (25-11). Global, Clan, Party and whispers stay, and criers speak in Global and in town | RULED (GR-69, Tyler 2026-11-21, the sitting, S-2) |
 | Dailies, a login calendar, a season pass | Section 2.5 | PROVISIONAL (MM-11) |
 | Gear, materials, gold, Levels or rating sold by the store | Chapter 04 | PROVISIONAL (MM-29, Tyler said yes on the page) |
 
@@ -373,7 +373,7 @@ Tyler adopted the critical review on 2026-11-21, and its step 4 narrows the firs
 | MM-6 | A world boss pays a chest by your own points: its own named gear line at your band, its own upgrade material,  | Planned, waits until the first boss has stood twice. The first boss keeps its chest | PROVISIONAL |
 | MM-7 | Collision (c): a death in a world boss room. | In the first build: one sample boss | PROVISIONAL |
 | MM-8 | A clan is a shared work, a team and a room that pays members in buffs, held by giving that week's share. | In the first build: the roster, the clan chat tab and the browser only | PROVISIONAL |
-| MM-9 | The castle is one project at a time on the town project engine. Each room carries one standing buff up to the  | Planned, waits until clans exist and people are in them | PROPOSAL |
+| MM-9 | The castle is one project at a time on the town project engine. Each room carries one standing buff up to the  | Planned, waits until clans exist and people are in them | RULED in direction at the sitting. Sizes PROVISIONAL |
 | MM-10 | A weekly clan board. The top clans carry a small timed buff the next week. | Planned, waits until clans exist and people are in them | PROVISIONAL |
 | MM-11 | Events are a four-weekend rotation written a year ahead, with no dailies, login calendar or season pass. | In the first build: the calendar | PROVISIONAL |
 | MM-12 | Arena opponents are saved setups and house teams, never live players. | Planned, waits until the one-day engine test shows heroes can fight heroes | PROVISIONAL |
@@ -387,7 +387,7 @@ Tyler adopted the critical review on 2026-11-21, and its step 4 narrows the firs
 | MM-25 | The buff caps: damage +5% standing and +10% timed, damage taken 5% and 5% less, Level XP +5% and +25%, drop ch | Planned, waits until Deadly is sized and one buff has been played in a cell | PROVISIONAL |
 | MM-26 | The power budget: a fully buffed, boss-geared four gains at most about 32% kill speed and about 72% Level pace | Planned, waits until Deadly is sized and one buff has been played in a cell | PROVISIONAL |
 | MM-27 | Boss and arena gear trades like all gear. | Planned, waits until the first boss has stood twice. The first boss keeps its chest | DECIDED |
-| MM-28 | The paid advantage | Planned, waits until test Crowns have run in the playtest | PROVISIONAL |
+| MM-28 | The paid advantage | Planned, waits until test Crowns have run in the playtest | RULED at the sitting |
 | MM-29 | What the store sells for Crowns | Planned, waits until Deadly is sized and one buff has been played in a cell | PROVISIONAL |
 | MM-30 | Bought boosts and earned buffs | Planned, waits until Deadly is sized and one buff has been played in a cell | PROVISIONAL |
 | MM-31 | The pace ceiling | Planned, waits until Deadly is sized and one buff has been played in a cell | PROVISIONAL |
@@ -408,7 +408,7 @@ Tyler adopted the critical review on 2026-11-21, and its step 4 narrows the firs
 | MM-47 | Friends. | In the first build: friends | DECIDED |
 | MM-48 | The clan's own shared hunt. | Planned, waits until clans exist and people are in them | PROVISIONAL |
 
-MM-18 and GR-69 are OPEN and wait on Tyler. The rows above with no cell or code behind them are PROVISIONAL however they read in section 2: the review counted one measurement in the 49 rows of this layer.
+MM-18 (on-call heroes, kept) and GR-69 (the finder and Local chat, removed) were ruled at the sitting, and the full castle is ruled as the direction. The rows above with no cell or code behind them are PROVISIONAL however they read in section 2: the review counted one measurement in the 49 rows of this layer.
 
 ## 3. How it connects
 
@@ -449,7 +449,7 @@ In decision-book order. "First" marks a decide-first call.
 | MM-6 | Boss pay | A chest by your own points at three marks. At most one line piece a boss weekend. The fall bonus is the 7 day buff and a re-roll of the piece, paid at the window's end. HYPOTHESIS | PROVISIONAL. Waits on the hall check at three Levels and one boss stood |
 | MM-7 | Death in the boss room | The normal death, as one row on the mode table. One death a send, the first send on Normal, Blessings apply and the card shows the risk. Deaths stay inside the tier's death band. Built with GR-7 | PROVISIONAL. Waits on a real death rate, and Tyler's answer on the hunting hours a death costs an idle party |
 | MM-8 | What a clan is | A shared work, a team and a room that pays buffs to members who gave the week's share. The weekly goal pays +5% material find for 7 days | PROVISIONAL. Waits on clans existing with people in them |
-| MM-9 | The castle | One project at a time, priced for each member with a floor of five, open at any size. Five buildings of ten levels, with labor, a treasury that pays upkeep first, one standing vote an account and Clan Standing. The fifth building waits on T-fix-4 | PROPOSAL. Made in the fold 2026-11-21, not yet seen by Tyler. It changes 25-4 and the castle gate of 25-3 (2026-11-20), and 31-3 (2026-11-21), which he let stand on the page |
+| MM-9 | The castle | The full castle: five buildings of ten levels, labor, upkeep, votes, a treasury, about a year. Priced for each member with a floor of five. The fifth building is the library and pays a standing Level XP bonus | RULED (Tyler, 2026-11-21, the sitting) in direction. Every size is PROVISIONAL |
 | MM-10 | The clan board | A weekly board of three lines. A clan that reaches a score mark earns a Defense rating buff worth up to about 5% less damage an hour for 7 days | PROVISIONAL. Waits on clans existing with people in them |
 | MM-11 | Events | The four-weekend rotation. No dailies, login calendar or season pass | PROVISIONAL. Waits on the playtest or measurement its own row names |
 | MM-12 | Arena opponents | Saved setups and house teams, never live | PROVISIONAL. Waits on the engine test of heroes against heroes |
@@ -457,7 +457,7 @@ In decision-book order. "First" marks a decide-first call.
 | MM-15, MM-40 | Tickets | Each arena its own, 5 a day banking to 20 | PROVISIONAL. Waits on the engine test of heroes against heroes |
 | MM-16 | Arena matching | Three offered. Being attacked costs nothing. Defense is the last attack party | PROVISIONAL. Waits on the engine test of heroes against heroes |
 | MM-17 | PvP on the grounds | Never | DECIDED (Fable 2026-11-21) |
-| MM-18 | Hired and on-call heroes | Not in the game. Replaces 25-1 | OPEN (waiting on Tyler, T-fix-1) |
+| MM-18 | On-call heroes | Kept, with Tyler's design from the sitting. The spec is `11-on-call-and-clan-xp.md`, being written | RULED (Tyler, 2026-11-21, the sitting) |
 | MM-19 | Mixed Levels | The visible two-thirds rule, one rule for every party | PROVISIONAL. Waits on a matrix cell with mixed Levels. Tyler said yes on the page 2026-11-21. It changes The party XP rulings of 2026-11-08, which he let stand on the page |
 | MM-20 with GR-70 | Presence | One system in three places: the town, the ground strip, the boss page. Seen, never fought beside | PROVISIONAL. Waits on the playtest or measurement its own row names |
 | MM-21 | Premium and the layer | Everything is open to all. Premium banks arena tickets to 30. It does not make timed buffs last longer | DECIDED. Tyler said yes on the page 2026-11-21 |
@@ -468,7 +468,7 @@ In decision-book order. "First" marks a decide-first call.
 | MM-39 | Even Arena matching | One ladder, three offered near the rating | PROVISIONAL. Waits on the engine test of heroes against heroes |
 | MM-41 | The engine check | Measure heroes on both sides once, before either arena is planned | DECIDED (Fable 2026-11-21) |
 | MM-42 | Events pay buffs and gear | The in-between ground weekend features that ground's named pieces on its own event row, outside the buff caps, never sold and never stacked | PROVISIONAL. Waits on one buff played in a cell. Tyler said yes on the page 2026-11-21. It changes The second half of 27-5, 2026-11-20, which he let stand on the page |
-| GR-69 | Local chat, the live party finder, the fifth seat | Remove all three | OPEN (waiting on Tyler, T-fix-2) |
+| GR-69 | Local chat, the live party finder, the fifth seat | Remove all three. Global, Clan, Party and whispers stay | RULED (Tyler, 2026-11-21, the sitting) |
 | GR-71 | Faction side | Chosen for the whole account, as ruled in 25-10. One press joins every hero that has killed Krell | DECIDED (Fable 2026-11-21) |
 | GR-72 | A friend link at sign-up | Yes, with no reward | DECIDED (Fable 2026-11-21) |
 | MM-44 (new) | A standing clan gift | Set once, taken weekly, reported on the return card | PROVISIONAL. Waits on clans existing with people in them |
@@ -479,7 +479,7 @@ In decision-book order. "First" marks a decide-first call.
 
 ---
 
-**Cuts in this chapter, after Tyler's answers.** KEPT (Tyler's pick on the page 2026-11-21), cut list 5: the castle's labor, votes, upkeep, treasury, Clan Standing and five buildings of ten levels stay, fitted to the price for each member (MM-9, section 2.4). OPEN (waiting on Tyler): T-fix-1, on-call, hired and lent heroes and the on-call board (cut 2 against reversal 18, MM-18). T-fix-2, the live party finder and the Local chat tab (cuts 3 and 4 against reversal 21, GR-69). T-fix-4, the clan library and a Level XP room (cut 6 against ruling 25-2). Sections 2.4, 2.8, 2.9 and 2.10 show the design the book was written on until he answers.
+**Cuts in this chapter, after the sitting.** KEPT, RULED in direction at the sitting (S-7), cut list 5: the full castle. KEPT, RULED at the sitting (S-1), cut list 2: on-call heroes, with his design. KEPT, RULED at the sitting (S-4), cut list 6: the clan library, which pays a standing Level XP bonus. CUT, RULED at the sitting (S-2), cut lists 3 and 4: the live party finder and the Local chat tab.
 
 ## 5. Still missing
 
@@ -553,10 +553,10 @@ The reads on bought boosts, the Crowns book and the test allowance (MM-43) are i
 |---|---|
 | Honors-only and goods-only rewards: boss pay with nothing above the band's goods, clans with no hero power, a clan board for honors, arena titles and banners only (study 49, first issue) | Tyler 2026-11-21: "none of that is fun". Rewards are buffs and gear |
 | One normalized arena (study 49, first issue) | Tyler 2026-11-21: two arenas |
-| "Clans give no XP" (25-2) as a blanket rule | The 2026-11-21 reward ruling is newer. 25-2 is kept all the same: MM-9 and MM-25 cut the library, so no clan room gives Level XP. The bound rations of 25-2 stand |
+| "Clans give no XP" (25-2) as a blanket rule | The 2026-11-21 reward ruling is newer. At the sitting Tyler reversed 25-2 for one room: the library pays a standing Level XP bonus. The bound rations of 25-2 stand |
 | The castle at built prices with one work order a week for each slot, five buildings of ten levels, labor, votes, upkeep, a treasury balance and Clan Standing (25-4 and the social review's inventory) | Tyler let the price for each member stand (MM-9) and kept the buildings, labor, votes, upkeep, treasury and Clan Standing, which section 2.4 fits to that price |
 | The castle hidden until a clan has ten accounts (25-3) | A price by member makes a castle of three work. Needs Tyler's yes at MM-9 |
-| On-call heroes at 2 to 4 hours a day, standing parties, the on-call board, friends as an on-call roster (25-1, 25-3, the social review's first change) | Four heroes from day 1 at 12 hunted hours leave no seat to fill and no hour to lend. OPEN, waiting on Tyler (T-fix-1) |
+| On-call heroes at 2 to 4 hours a day, standing parties, the on-call board, friends as an on-call roster (25-1, 25-3, the social review's first change) | Four heroes from day 1 at 12 hunted hours leave no seat to fill and no hour to lend. That reasoning was overruled: on-call heroes are kept (RULED, MM-18, the sitting) |
 | The playtest "is finding your hero came back from a friend's hunt fun?" (game review 7.3, item 3) | It tests on-call heroes. It returns only if MM-18 is refused |
 | The hidden, ground-keyed Level cut on party XP, and removing it with nothing in its place | The two-thirds rule replaces both in one step (MM-19). A phase B measurement beat the phase A guess of "21 times" |
 | Party size bands for pairs, threes and fours, and the size ladder work of the social review | Tyler 2026-11-21: no solo or group targets |

@@ -1,6 +1,6 @@
 # Balance program 42: the formula audit, character progression
 
-Lane `lane/d-formulas-progression`, on `set/v0.2.144` at e6ea19170, 2026-11-21. The brief is Tyler's, `40-formula-brief.md`. Nothing in the game was changed. The machine-readable register is `tools/balance-program/formulas/progression.json`. The numbers come from two read-only probes in the same folder: `progression-probe.mjs` (the curves, Level 1 to 5,000) and `progression-engine-probe.mjs` (the real engine at Levels 200 to 5,000, results in `progression-engine-probe.json`).
+Lane `lane/d-formulas-progression`, on `set/v0.2.144` at e6ea19170, 2026-11-21. The brief is Tyler's, `40-formula-brief.md`. Nothing in the game was changed. The machine-readable register is `tools/balance-program/formulas/formulas-progression.json`. The numbers come from two read-only probes in the same folder: `progression-probe.mjs` (the curves, Level 1 to 5,000) and `progression-engine-probe.mjs` (the real engine at Levels 200 to 5,000, results in `progression-engine-probe.json`).
 
 Labels: CONFIRMED means I read the code path and, where it matters, measured it. HYPOTHESIS says what would confirm it. MEASURED means the real engine played it. COMPUTED means the game's own functions were called.
 
@@ -37,7 +37,7 @@ Labels: CONFIRMED means I read the code path and, where it matters, measured it.
 
 ## 1. Formula inventory
 
-Every formula below is deterministic unless a named roll is listed. File and line are on this commit. Full parameters are in `progression.json`.
+Every formula below is deterministic unless a named roll is listed. File and line are on this commit. Full parameters are in `formulas-progression.json`.
 
 ### 1.1 Experience
 

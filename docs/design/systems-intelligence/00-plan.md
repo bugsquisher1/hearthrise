@@ -578,6 +578,45 @@ The order is the review's. Sizes are my estimates and are ASSUMED until step A p
 
 ---
 
+## Step A reading: the first census
+
+Tyler approved step A alone on 2026-11-21. It is built as `tools/balance-program/census.mjs`. It is read-only and stores nothing: no registry file, no baseline, no cache. Its `--selftest` plants an uncited function and a typed number in memory and proves each shows up, and it runs in CI.
+
+Every number in the two tables below is **MEASURED**: counted by `node tools/balance-program/census.mjs` on commit `d7c672a23` of `lane/d-systems-intelligence`, whose rule code is that of `set/v0.2.144` at `a1c7b7ab6`. Here MEASURED means counted by the tool on the tree. No hunt was played.
+
+**The three numbers for each folder.**
+
+| Folder | Functions found | Hold a typed number | Of those, named in a register |
+|---|---|---|---|
+| `src/core` | 681 | 45 | 8 |
+| `src/data` | 519 | 51 | 13 |
+| `supabase/functions/hr-accrue` | 254 | 53 | 3 |
+| All rule code | 1,454 | 149 | 24 |
+
+Behind them: 234, 221 and 62 of those functions are not exported. The registers name 120, 123 and 6 functions at all. The functions hold 75, 107 and 177 typed numbers.
+
+**The client, typed numbers only.**
+
+| Folder | Functions found | Hold a typed number | Typed numbers |
+|---|---|---|---|
+| `src/session` | 638 | 107 | 164 |
+| `src/shell` | 1,811 | 134 | 260 |
+| `src/hunt-view` | 111 | 14 | 30 |
+
+**The gap.** 125 functions hold a typed number and no register names them. The files that hold the most such numbers are `hr-accrue/intents.js` (19), `hr-accrue/hunt-settle.js` (17), `hr-accrue/tick-gather.js` (17), `src/data/library2-items.js` (15) and `hr-accrue/set-activity.js` (15). `--list` prints all 125 with file, line and numbers.
+
+**What the reading says.** These three points are my reading of the list, not counts by the tool. The sort into kinds was a scratch pass over the tool's output and is COMPUTED.
+
+1. **About half of the 125 are not game numbers.** By kind: about 26 engine functions hold only web status codes, about 15 data functions are validators holding bounds, about 11 hold hash or id constants, about 8 hold only unit conversions such as milliseconds in an hour, and 2 hold only a rounding epsilon. That leaves about 63 to read: 22 in core, 20 in data and 21 in the engine. Many of the engine's 21 are string lengths and token sizes.
+2. **The rule for a typed number needs one more exclusion list before it can be a ratchet.** Status codes, hash constants and unit conversions should not count. Validators need their own kind. This is the tuning step A was for. It is a small change and it waits for step A2's approval.
+3. **Most tuning numbers are not inside functions at all.** Core holds only 75 typed numbers in 45 functions. The game's dials live in named constants and data tables, which a function census does not see. So the hand work on functions is small, around 60 decisions and not the 130 the plan estimated. The larger unknown moves to the constants and the fields of the data tables, which is the field census of section 2.4. Step F should be sized on that, and the field census should come before the function claims.
+
+Real rule numbers the list did surface, as examples to read: the companion XP curve (`companion-perk.js` line 71, 50 and 1.18), tool bonuses (`tools.js` lines 38 and 43, 0.02), the action interval (`pacing.js` line 110 and two twins in `skill-sim.js` and `artisan-sim.js`, all 3000), tank positions (`hunt/roles.js` line 210) and a status tick (`hunt/status.js` line 73, 500). None of them is named in a register.
+
+**Limits of this reading.** A name can match a register by accident, so the unnamed list is a floor. Functions nested in others count into their parent. Class and object methods are not listed. Server SQL is not read. The Tower heat function is listed (`tower.js` `heatOpts`, line 144, private, and a register does name it) but holds no typed number of its own, because its numbers come from a data row. That is point 3 again.
+
+---
+
 ## How it stays current
 
 | When this changes | This happens |

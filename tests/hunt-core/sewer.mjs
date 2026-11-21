@@ -902,7 +902,7 @@ const cases = {
     /* NO DEAD BUTTON (designer 2026-11-05, lane/d-caster-first-fights). A style's DEFAULT bar is what a hero sees
        until its first Save (after that the bar is the player's): the kit's sword and shield, or a weapon taken up from
        the bag in minute one. Per style: nothing is struck, ever. A weapon hero whose style has a rune spell is offered it
-       ("A spell costs runes"); the hammer has none to offer; a caster's spells are already on its bar. A player who then
+       ("A spell costs runes"), the hammer its Quarry Blow since the spell rule (Tyler 32-5: a rune choice from Level 1); a caster's spells are already on its bar. A player who then
        sets rune spells to Carried runes only, with none, has each explained by "Spells need runes" (that slot, its family's
        store rune at the server's price), one after another, and then the chain goes on to "Eat on time". (Before the
        card: Hunts' Before you go names each one and its fix, alpha-windows AW-27.) */
@@ -910,9 +910,9 @@ const cases = {
       axes: ['practice_hatchets'], bow: ['practice_bow'], crossbow: ['practice_crossbow'], mage: ['practice_wand', 'practice_spellbook'], healer: ['practice_staff'],
       'mage, Carried runes only': ['practice_wand', 'practice_spellbook', ['frost_lance', 'arcane_barrier']], 'healer, Carried runes only': ['practice_staff', null, ['circle_of_renewal', 'green_sickness']],
       'axes, Carried runes only': ['practice_hatchets', null, ['rend']] };
-    /* (the bow and the crossbow carry Flame Volley on their default set since the balance audit's fix 7, lane/d-audit-fixes-sim 2026-11-19: like a
+    /* (the axes carry Rend on theirs since the spell rule, lane/c-spell-rule 2026-11-21, Tyler 32-3; the bow and the crossbow carry Flame Volley on their default set since the balance audit's fix 7, lane/d-audit-fixes-sim 2026-11-19: like a
        caster's, their spell is already on the bar, so nothing is offered) */
-    const want = { tank: '-/first_spell', sword: '-/first_spell', hammer: '-/-', axes: '-/first_spell', bow: '-/-', crossbow: '-/-',
+    const want = { tank: '-/first_spell', sword: '-/first_spell', hammer: '-/first_spell', axes: '-/-', bow: '-/-', crossbow: '-/-',
       mage: '-/-', healer: '-/-', 'mage, Carried runes only': 'frost_lance+arcane_barrier/-', 'healer, Carried runes only': 'circle_of_renewal+green_sickness/-', 'axes, Carried runes only': 'rend/-' };
     const seen = [];
     for (const [set, [weapon, shield, carriedRunes]] of Object.entries(sets)) {

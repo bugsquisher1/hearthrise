@@ -22,8 +22,9 @@
 //   waits and the next one is tried; it never ends the hunt by itself.
 // Firing spends the mana, the rune and the shots, sets the cooldown and the
 // lane (AB-07), and applies the effect (AB-08): taunt, mark, hit (with a status
-// per hit, H3), area (or a shape that lands only its status), cleave, shield, ally
-// heal, party heal, party shield. A shell records who cast it (`shieldBy`), so a
+// per hit, H3), area (or a shape that lands only its status), shield, ally
+// heal, party heal, party shield. Every number a cast lands is a share of its caster's
+// own blow (THE SPELL RULE, src/data/abilities.js castAmount), Mend's of its max HP. A shell records who cast it (`shieldBy`), so a
 // recast refunds only the caster's own (shieldRefund).
 // A heal is capped at the missing HP (AB-09).
 //
@@ -37,15 +38,15 @@
 // INJECTED: `inst.heroes[unitId]` = { hs, slots (conditions.js heroSlots rows)
 // or bar (ability ids, the shorthand), actionSet, range (tiles; 1 = Melee),
 // ammo (the loaded ammo item id), items? (the server's item catalogue), skills? (skill
-// XP: a status's scalesWith level; a peer in the browser has none, so its bleed reads
-// level 1 and the next commit reconciles it) }. A hero with no
+// XP: the unlock and rune-version gates; a peer in the browser has none and is not gated:
+// the next commit reconciles it) }. A hero with no
 // entry fires nothing. Draws: the swing's stream `sc.rng`, heroes in id order,
 // one `int` per hit roll (spec §1.1 #3).
 //
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { ABILITIES, ABILITY_LANES, ABILITY_RULES, ACTION_SET_SKIPS, abilitySkill, versionOf, outputPm, AREA_TARGETS, areaSpec, blowShare, landsBlow, partyOnly } from '../../data/abilities.js';
+import { ABILITIES, ABILITY_LANES, ABILITY_RULES, ACTION_SET_SKIPS, abilitySkill, versionOf, AREA_TARGETS, areaSpec, hitRange, landsBlow, heals, shells, castAmount, partyOnly } from '../../data/abilities.js';
 import { resolveLine, storeLine, takeLine, canAfford, shopShotFor, basicOf } from '../action-rules.js';
 import { runeTierOf, versionLevel } from '../../data/runes.js';
 import { BASIC_EFFECT_SHARE } from '../../data/supply-basics.js';
@@ -107,7 +108,7 @@ function targetFor(inst, hero, h, row, sc, cx) {
       const t = near.slice().sort((a, b) => (int(b.hp) - int(a.hp)) || (a.id - b.id))[0];
       return t && !(t.markUntil > sc.atMs) ? t : null;
     }
-    case 'enemy': case 'cleave': return near[0] || null;
+    case 'enemy': return near[0] || null;
     case 'area': {
       if (cx && cx.aim && cx.aim.alive) return cx.aim;
       const b = bestAim(inst, hero, h.range, areaSpec(row).n, cx && cx.slot);
@@ -125,7 +126,7 @@ function targetFor(inst, hero, h, row, sc, cx) {
     case 'self': return pct(hero) < 100 ? hero : null;
     case 'ally': {
       /* An ally heal takes a wounded ally; an ally SHIELD (Protective Ward) a wounded one holding no shield. */
-      const ok = (a) => !!a && a.alive && a.side === 'hero' && pct(a) < 100 && (row.heal || !(int(a.shield) > 0))
+      const ok = (a) => !!a && a.alive && a.side === 'hero' && pct(a) < 100 && (heals(row) || !(int(a.shield) > 0))
         && (a === hero || inReach(inst, hero, h.range, a));
       if (cx && cx.ally) return ok(cx.ally) ? cx.ally : null;
       return living(inst, 'hero').filter(ok).sort((a, b) => (pct(a) - pct(b)) || (a.id - b.id))[0] || null;
@@ -133,7 +134,7 @@ function targetFor(inst, hero, h, row, sc, cx) {
     /* A party HEAL fires while any hero is hurt (it heals those in its radius). A party SHIELD (Shelter) needs a living, wounded hero
        within its radius, the caster too, holding no shell: a party already shelled waits, so no shell is cast for nothing. */
     case 'party': {
-      if (!row.shield) return living(inst, 'hero').some((a) => pct(a) < 100) ? hero : null;
+      if (!shells(row)) return living(inst, 'hero').some((a) => pct(a) < 100) ? hero : null;
       const r2 = row.radius * row.radius;
       return living(inst, 'hero').some((a) => pct(a) < 100 && !(int(a.shield) > 0) && (a === hero || dist2(a, hero) <= r2)) ? hero : null;
     }
@@ -144,17 +145,11 @@ function targetFor(inst, hero, h, row, sc, cx) {
 /* THE STORE'S SHARE (supply-basics.js BASIC_EFFECT_SHARE, r07): a store rune is the basic version. */
 const BASIC_PM = Math.round(BASIC_EFFECT_SHARE * 1000);
 
-/* The hero's level in the skill `row`'s numbers grow with (abilitySkill: Magic, or the weapon's own skill); 1 for
+/* The hero's level in the skill `row`'s unlock and rune versions read (abilitySkill: Magic, or the weapon's own skill); 1 for
    a hero whose entry carries no skills (a bare fixture, a peer the browser draws: the server's commit is the truth). */
 const skillLevel = (h, row) => (h && h.skills ? levelOf(h.skills, abilitySkill(row)) : 1);
-/* THE WORN +SKILL to `skill` (combat.js SKILL_PLUS_FIELDS: a tower weapon's; member.js skillPlus), 0 with none. */
-const plusOf = (h, skill) => {
-  const n = h && h.skillPlus && Object.prototype.hasOwnProperty.call(h.skillPlus, skill) ? h.skillPlus[skill] : 0;
-  return Number.isInteger(n) && n > 0 ? n : 0;
-};
-/* THE LEVEL A SPELL'S OR HEAL'S NUMBERS GROW WITH: the base level and the worn +skill ("it functions like it does in tibia", Tyler
-   2026-11-14). The gates (an ability's unlock, a rune's version) read the base level alone (skillLevel). */
-const powerLevel = (h, row) => skillLevel(h, row) + plusOf(h, abilitySkill(row));
+/* (A spell's numbers grow with its caster's blow, which carries the skill and the worn +skill: "it functions like it does in tibia",
+   Tyler 2026-11-14. The gates, an ability's unlock and a rune's version, read the base level alone: skillLevel.) */
 
 /* THE RUNE A SPELL SPENDS AND THE VERSION IT CASTS (Tyler 2026-10-23, src/data/runes.js; RUNE SUPPLY PER SLOT,
    Tyler 2026-11-08). A spell spends a rune of its FAMILY, and only one its slot TICKED (`action.own`,
@@ -276,8 +271,8 @@ export function aloneIn(world, hero) {
   return !!world && Array.isArray(world.units) && !world.units.some((o) => o !== hero && o.side === 'hero' && o.alive === true);
 }
 
-/* The shield a self-shield lands at `pm` permille of its row's (effect's `scaled`). */
-const landsShield = (row, pm) => (pm === 1000 ? row.shield : Math.floor((row.shield * pm) / 1000));
+/* The shell `row` lands from caster `u` at `pm` permille (abilities.js castAmount: a share of its own blow), 0 for a row that lays none. */
+const landsShield = (u, row, pm) => { const a = castAmount(row, u && u.maxHit, u && u.maxHp, pm); return a && a.shield ? a.shield : 0; };
 
 /**
  * ARCANE BARRIER'S REFUND (Tyler 2026-10-23, from Andy's reports: it stays self-only, and recasting it while its
@@ -290,7 +285,7 @@ const landsShield = (row, pm) => (pm === 1000 ? row.shield : Math.floor((row.shi
 export function shieldRefund(u, row, mana, pm) {
   if (!u || u.shieldBy !== u.id) return 0;
   const standing = int(u && u.shield);
-  const lands = row && row.target === 'self' && Number.isInteger(row.shield) ? landsShield(row, pm) : 0;
+  const lands = row && row.target === 'self' && shells(row) ? landsShield(u, row, pm) : 0;
   if (!(standing > 0) || !(lands > 0) || !(mana > 0)) return 0;
   return Math.min(mana, Math.floor((standing * mana) / lands));
 }
@@ -341,15 +336,14 @@ export function firstUsable(inst, hero, sc, only) {
        ends `runes_out` at the hero's next boundary (action-rules.js END_ORDER; a flag of the span, as goldOut), naming the spell. */
     if (s.why === 'runes_out' && typeof h.hs.runesOut !== 'string') h.hs.runesOut = row.id;
     if (s.why) return { why: s.short ? 'gold_short' : s.why === 'level' ? 'level' : 'no_stock' };
-    /* THE VERSION'S PRICE AND OUTPUT (abilities.js versionOf, outputPm): its mana (never more with level), and
-       its permille of the row's numbers at the hero's level in the row's skill, at the rune's share (a store
-       rune: the basic version). */
+    /* THE VERSION'S PRICE AND OUTPUT (abilities.js versionOf): its mana (never more with level), and its step, permille of the
+       row's share of the caster's blow, at the rune's share (a store rune: the basic version). */
     const v = versionOf(row, s.version);
     if (int(hero.mana) < v.mana) return { why: 'mana' };
-    const pm = Math.floor((outputPm(row, s.version, powerLevel(h, row)) * s.pm) / 1000);
+    const pm = Math.floor((v.outPm * s.pm) / 1000);
     /* A self-shield recasts only to land MORE than its standing shell (a full shell waits; a stronger version, or a
        chipped shell, recasts and refunds the rest: shieldRefund). */
-    if (row.target === 'self' && row.shield && int(hero.shield) >= landsShield(row, pm)) return { why: 'no_target' };
+    if (row.target === 'self' && shells(row) && int(hero.shield) >= landsShield(hero, row, pm)) return { why: 'no_target' };
     return { row, target: t, lines: s.lines, version: s.version, mana: v.mana, pm };
   }, sc, 'ability');
   return got ? Object.assign(got.pick, { rule: got.rule, mask: got.mask, label: got.label }) : null;
@@ -379,21 +373,23 @@ function leechBack(u, row, took, sc) {
 }
 
 /* Apply a fired ability's effect (AB-08). `v` = { version, pm, back? }: the version cast (a status's rune tier,
-   r03) and its output in permille of the row's numbers (a version raises numbers only: never area,
-   targets, duration or cooldown). At 1000 a hit lands exactly as the row's (no `mult` is passed). `back`, a row that gives
+   r03) and its output in permille of the row's share of the caster's blow (a version raises numbers only: never area,
+   targets, duration or cooldown). At 1000 a hit lands exactly its share (no `mult` is passed). `back`, a row that gives
    mana back's: { hits, kills } counted here, the mana fire() returns (every other row passes none, so its hits count nothing). */
 function effect(inst, u, row, t, sc, v) {
   const el = row.element || null;
   const pm = v && Number.isInteger(v.pm) && v.pm >= 0 ? v.pm : 1000;
-  const scaled = (n) => (pm === 1000 ? n : Math.floor((n * pm) / 1000));
+  /* What a heal or a shell lands (abilities.js castAmount: a share of the caster's blow, Mend's of its max HP, at the cast's pm). */
+  const amount = () => /** @type {{ hit?: number[], heal?: number, shield?: number }} */ (castAmount(row, u.maxHit, u.maxHp, pm) || {});
   /** @type {{ id: string, mult?: number, weakPm?: number }} */
   const hitTag = pm === 1000 ? { id: row.id } : { id: row.id, mult: pm };
   /* A row that lands only part of a weakness's bonus (`weakPm`, the fist line's strikes) carries its share to hurt(). */
   if (Number.isInteger(row.weakPm)) hitTag.weakPm = row.weakPm;
   /* A Surge (fire, surged) shows on its numbers with the crit mark. */
   const sg = !!(v && v.surge);
-  /* One hit's roll: the row's dmg [lo, hi], or a hitPm row's share of the hero's own largest blow (abilities.js blowShare). */
-  const dmg = () => roll(sc, row.hitPm ? blowShare(u.maxHit, row) : row.dmg);
+  /* One hit's roll: the row's share of the hero's own largest blow, never under its beginner's floor (abilities.js hitRange); the
+     version's pm rides the hit's tag. */
+  const dmg = () => roll(sc, hitRange(u.maxHit, row));
   /* ONE HIT OF THIS CAST on `m`: the blow (damage.js landHit), then what the row returns from it: its leech (leechBack), and for a row
      that gives mana back, the hit and the kill it counts (`v.back`). A row with neither does exactly the blow. */
   const back = v && v.back ? v.back : null;
@@ -402,13 +398,13 @@ function effect(inst, u, row, t, sc, v) {
     if (row.leechPm) leechBack(u, row, r.dmg, sc);
     if (back) { if (r.dmg > 0) back.hits++; if (r.killed) back.kills++; }
   };
-  /* The row's status on `m` after a hit (applyStatus refuses a look-alike) and its source: the unit, the caster's
-     level in the row's scalesWith skill (Tyler 10-16: bleed scales slowly with Melee) and the version's rune tier.
-     A marking status (Green Sickness) reads neither. */
+  /* The row's status on `m` after a hit (applyStatus refuses a look-alike) and its source: the unit, its own largest blow (a
+     ticking status's tick is a share of it: statuses.js blowPm, the spell rule) and the version's rune tier. A marking status (Green
+     Sickness) reads neither. */
   const afflict = (m) => {
     if (!row.status) return;
-    const srow = statusRow(row.status), h = inst.heroes && inst.heroes[u.id];
-    applyStatus(inst, m, srow, { u: u.id, skillLv: h && h.skills && srow.scalesWith ? levelOf(h.skills, srow.scalesWith) + plusOf(h, srow.scalesWith) : 0, runeTier: (v && v.version) || 1 }, sc);
+    const hit = Number.isInteger(u.maxHit) && u.maxHit > 0 ? u.maxHit : 1;
+    applyStatus(inst, m, statusRow(row.status), { u: u.id, maxHit: hit, runeTier: (v && v.version) || 1 }, sc);
   };
   switch (row.target) {
     case 'taunt': challengeFrom(inst, sc, u); break;
@@ -437,30 +433,26 @@ function effect(inst, u, row, t, sc, v) {
       }
       break;
     }
-    case 'cleave': {
-      const hits = [t, ...engaged(inst).filter((m) => m !== t && cheb(m, u) <= 1).sort((a, b) => a.id - b.id)].slice(0, row.maxHits);
-      for (const m of hits) strike(m);
-      break;
-    }
     case 'self':
-      if (row.heal) { healOne(u, u, scaled(roll(sc, row.heal)), sc, sg); break; }
-      u.shield = scaled(row.shield);
+      if (heals(row)) { healOne(u, u, amount().heal, sc, sg); break; }
+      u.shield = amount().shield;
       u.shieldBy = u.id;
       sc.emit(makeEvent('shield', sc.atMs, { u: u.id, t: u.id, amount: u.shield }));
       break;
     case 'ally':
-      if (row.heal) { healOne(u, t, scaled(roll(sc, row.heal)), sc, sg); break; }
-      t.shield = scaled(row.shield);
+      if (heals(row)) { healOne(u, t, amount().heal, sc, sg); break; }
+      t.shield = amount().shield;
       t.shieldBy = u.id;
       sc.emit(makeEvent('shield', sc.atMs, { u: u.id, t: t.id, amount: t.shield }));
       break;
-    /* A PARTY row: every living hero within its radius, the caster too, in id order. A heal draws once a hero; a shield (Shelter)
-       draws nothing and lands max(standing, its shell), with a `shield` event only where the shell rose. */
+    /* A PARTY row: every living hero within its radius, the caster too, in id order. A heal lands its whole share on each (a
+       Tempering rung's part of a point is its only draw); a shield (Shelter) draws nothing and lands max(standing, its shell),
+       with a `shield` event only where the shell rose. */
     case 'party':
       for (const a of living(inst, 'hero').slice().sort((x, y) => x.id - y.id)) {
         if (!(a === u || dist2(a, u) <= row.radius * row.radius)) continue;
-        if (row.heal) { healOne(u, a, scaled(roll(sc, row.heal)), sc, sg); continue; }
-        const n = scaled(row.shield);
+        if (heals(row)) { healOne(u, a, amount().heal, sc, sg); continue; }
+        const n = amount().shield;
         if (n <= int(a.shield)) continue;
         a.shield = n; a.shieldBy = u.id;
         sc.emit(makeEvent('shield', sc.atMs, { u: u.id, t: a.id, amount: n }));
@@ -535,7 +527,7 @@ function manaBack(u, row, count, spent) {
    SURGE_MULT_PM as hard, shown with the crit mark. One draw a cast, made only by a hero that wears the perk and only for a
    row with numbers (a taunt or a mark draws nothing), so every other cast draws what it drew before. */
 function surged(u, row, sc) {
-  return u.surgePm > 0 && !!(row.dmg || row.heal || row.shield) && sc.rng.chance(u.surgePm / 1000);
+  return u.surgePm > 0 && (landsBlow(row) || heals(row) || shells(row)) && sc.rng.chance(u.surgePm / 1000);
 }
 
 /** Mana regenerates ABILITY_RULES.manaRegenPctPerMin of max a minute, in milli-mana (AB-13), times

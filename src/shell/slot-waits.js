@@ -33,7 +33,7 @@ const MARKS = Object.freeze({ enemies_in_aoe: 'uiTarget', allies_below: 'uiPeopl
 
 /* The least an "at least" count test wants ("at or above 2" and "above 1" both want 2); null for any other test. */
 const atLeast = (c) => (c.op === 'gte' ? c.value : c.op === 'gt' ? c.value + 1 : null);
-/* The most a count can read: the party's heroes, or the monsters the slot's action can hit (conditions.js areaTopOf: a Cleave's maxHits, else its footprint's tiles). */
+/* The most a count can read: the party's heroes, or the monsters the slot's action can hit (conditions.js areaTopOf: a Turning Cut's maxHits, else its footprint's tiles). */
 function topOf(c, slot, party) {
   if (c.metric === 'allies_below') return party;
   if (c.metric === 'enemies_in_aoe') return areaTopOf(slot, null);

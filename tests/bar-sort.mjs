@@ -98,7 +98,7 @@ export async function rules(base) {
   // the whole picture, so a reader sees it: moves (ruled cleave, then power_strike, mend; off challenge, fireball), food and drink
   // (ruled wheat_bread, cooked_shrimp; plain goldenroot_tea; off turnip_juice), ammo (ruled loaded; plain barbed_arrows, iron_bolts), the unknown, then holes.
   // The off ones keep the order they had: fireball (slot 7) before challenge (slot 10), ruled or not.
-  const whole = 'cleave power_strike mend fireball! challenge! wheat_bread cooked_shrimp goldenroot_tea turnip_juice! loaded barbed_arrows iron_bolts ghost - - - - - - -';
+  const whole = 'turning_cut power_strike mend fireball! challenge! wheat_bread cooked_shrimp goldenroot_tea turnip_juice! loaded barbed_arrows iron_bolts ghost - - - - - - -';
   if (got !== whole && !fails.length) fails.push('BS-1 the whole bar reads ' + got + ' (want ' + whole + ')');
   return fails;
 }

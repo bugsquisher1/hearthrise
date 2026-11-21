@@ -168,7 +168,9 @@ const mutants = [
     edits: [['src/core/hunt/abilities.js', '  const amount = () => /** @type {{ hit?: number[], heal?: number, shield?: number }} */ (castAmount(row, u.maxHit, u.maxHp, pm) || {});', '  const amount = () => ({ heal: 10, shield: 10 });'],
       ['src/core/hunt/abilities.js', "const landsShield = (u, row, pm) => { const a = castAmount(row, u && u.maxHit, u && u.maxHp, pm); return a && a.shield ? a.shield : 0; };", 'const landsShield = () => 10;']] },
   { name: '[spell rule] castAmount stops reading healPm', case: 'every-row-field-has-a-reader',
-    edits: [['src/data/abilities.js', '  if (Number.isInteger(row.healPm)) return { heal: at(floored(of(maxHit, row.healPm))) };', '  if (row.target === \'ally\' || row.target === \'party\') return { heal: at(floored(of(maxHit, 3000))) };']] },
+    edits: [['src/data/abilities.js', '  if (Number.isInteger(row.healPm)) return { heal: at(floored(of(maxHit, row.healPm))) };', '  if (row.target === \'ally\' || row.target === \'party\') return { heal: at(floored(of(maxHit, 3000))) };'],
+      /* (and the heal predicate beside it: a row's healPm is dead only when neither reads it) */
+      ['src/data/abilities.js', 'export const heals = (row) => !!row && (Number.isInteger(row.healPm) || Number.isInteger(row.healHpPm));', 'export const heals = (row) => !!row && (row.target === \'ally\' || Number.isInteger(row.healHpPm));']] },
   { name: 'the suggested trigger stops reading the heal thresholds (a row promises a trigger no slot starts with)', case: 'every-row-field-has-a-reader',
     edits: [['src/data/abilities.js', "  if (row.target === 'self') return [{ metric: 'self_hp_pct', op: 'lt', value: row.whenBelowPct }];\n", ''],
       ['src/data/abilities.js', "  if (row.target === 'ally') return [{ metric: 'ally_hp_pct', op: 'lt', value: row.whenBelowPct, subject: 'lowest' }];\n", ''],

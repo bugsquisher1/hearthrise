@@ -387,7 +387,7 @@ const cases = {
     };
     const both = () => ({ chalked_fire_rune: { loaded: 3 }, graven_fire_rune: { loaded: 3 } });
     const top = run(60, both());
-    if (!top.cast || top.cast.supply !== 'graven_fire_rune' || top.cast.version !== 5 || top.cast.mana !== fs.versions[4].mana
+    if (!top.cast || top.cast.supply !== 'graven_fire_rune' || top.cast.version !== 5 || top.cast.mana !== fs.versions[4]
       || top.cast.power !== M.AD.versionOf(fs, 5).outPm || top.hs.bag.graven_fire_rune.left !== 2) return 'a Melee-60 tank with Chalked and Graven did not cast version V on a Graven rune: ' + JSON.stringify(top.cast);
     const low = run(59, both());
     if (!low.cast || low.cast.supply !== 'chalked_fire_rune' || low.cast.version !== 1 || low.cast.mana !== fs.mana
@@ -755,7 +755,7 @@ const cases = {
     };
     const over = recast(7), own = recast(1);
     if (!over || over.refund !== undefined || over.mana !== barrier.mana) return 'a Barrier over the tank\'s shell refunded: ' + JSON.stringify(over);
-    return own && own.refund === Math.floor((row.base * barrier.mana) / barrier.shield) ? null : 'a Barrier over its own shell refunds ' + JSON.stringify(own);
+    return own && own.refund === Math.floor((row.base * barrier.mana) / barrier.base) ? null : 'a Barrier over its own shell refunds ' + JSON.stringify(own);
   },
   /* PIECE 2, A SHAPE THAT LANDS ONLY ITS STATUS (Frost Slam): every monster beside the tank is Chilled, none struck (no dmg event, no
      kill, no HP lost), a monster further off untouched. PIECE 3, CHILL BY RUNE TIER: the version is the rune tier, so a Scored Ice

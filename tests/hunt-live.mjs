@@ -2095,10 +2095,10 @@ function rules(M) {
       ok('LV-AREA', r.verdicts.length >= 5 && off.length === 0, `${name}: viewed: ${off.length} of ${r.verdicts.length} commits did not match the prediction (first at +${off.length ? off[0].t - T0 : 0} ms)`);
     }
     // THE CLUB AND THE TANK (Tyler 2026-11-16, from Andy: "Give it to all melee that doesn't have a shield on"): a Practice Club at Melee 10,
-    // its unlock, with Turning Cut on the rule a new slot starts with (3 or more beside it), and the tank's sword and shield with the same
+    // its unlock, with Turning Cut on the rule a new slot starts with (2 or more beside it since Cleave merged into it, Tyler 2026-11-21, 32-2), and the tank's sword and shield with the same
     // slot, in the Thicket's full box (8 a pull), watched by the TANK (the club is the browser's frozen peer). Browser closed: the club casts
-    // it and every cast strikes 3 or more; the tank never casts it. Viewed: every commit matches the prediction.
-    const rule = { action: { type: 'ability', id: 'turning_cut' }, conditions: row.trigger.map((c) => ({ ...c })), join: 'and' };
+    // it and every cast strikes 2 or more; the tank never casts it. Viewed: every commit matches the prediction.
+    const rule = { action: { type: 'ability', id: 'turning_cut' }, conditions: [{ metric: 'enemies_in_aoe', op: 'gte', value: 2 }], join: 'and' };
     const box = () => {
       const a = memberOf(M, 'a', 0, 'tank', 40), b = memberOf(M, 'b', 1, 'melee_dps', row.unlock);
       b.equipment = { weapon: 'practice_club' };
@@ -2114,7 +2114,7 @@ function rules(M) {
     const struck = castBy(mis[1].unitId).map((c) => server.filter((e) => e.type === 'dmg' && e.ability === 'turning_cut' && e.u === c.u && e.atMs === c.atMs).length);
     const off = r.verdicts.filter((x) => x.v !== 'match');
     console.log(`  LV-AREA a club (Melee ${row.unlock}) beside a sword and shield: ${struck.length} Turning Cuts striking ${JSON.stringify(struck)}, the tank ${castBy(mis[0].unitId).length}; ${r.verdicts.length - off.length} of ${r.verdicts.length} commits matched`);
-    ok('LV-AREA', struck.length >= 2 && struck.every((n) => n >= 3), `a club at Melee ${row.unlock}: browser closed: ${struck.length} Turning Cuts striking ${JSON.stringify(struck)} (want some, each on 3 or more)`);
+    ok('LV-AREA', struck.length >= 2 && struck.every((n) => n >= 2), `a club at Melee ${row.unlock}: browser closed: ${struck.length} Turning Cuts striking ${JSON.stringify(struck)} (want some, each on 2 or more)`);
     ok('LV-AREA', castBy(mis[0].unitId).length === 0, `a sword and shield: browser closed: cast Turning Cut ${castBy(mis[0].unitId).length} time(s)`);
     ok('LV-AREA', r.verdicts.length >= 5 && off.length === 0, `a club beside a sword and shield: viewed: ${off.length} of ${r.verdicts.length} commits did not match the prediction (first at +${off.length ? off[0].t - T0 : 0} ms)`);
   }

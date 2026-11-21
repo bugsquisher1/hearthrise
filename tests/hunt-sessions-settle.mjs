@@ -884,8 +884,14 @@ const ENGINE_ARMS = {
      cellar's rats cost a hero in its band no supplies at all, so the cellar proves nothing.) */
   'ECON-1': async (M) => {
     const problems = [];
+    /* THE MANA IT SPENDS (lane/c-spell-rule, 2026-11-21): the harness hero is a hammer, whose default bar was Power Strike and Cleave from
+       Level 1. Cleave merged into Turning Cut (Tyler 32-2), and on its new slot's rule (2 or more beside) the fresh hammer spent half the
+       mana and never drank, so this scenario proved nothing about the drinks. Its bar here is its default one with Turning Cut on any one
+       beside it, Cleave's old rule: the same mana a fresh melee hero spent, so the coins still have drinks to pay for. */
+    const defaults = M.SPAWN.heroSetup({ weaponType: 'hammer', options: {}, bar: [], partyRoles: ['melee_dps'] }).slots.map((r) => r.slot);
+    const bar = defaults.map((s) => (s.action.type === 'ability' && s.action.id === 'turning_cut' ? { ...s, conditions: [] } : s));
     const fresh = () => [memberIn(M, 'a', { level: 8, gold: 0,
-      bag: { cooked_shrimp: { loaded: 20 } }, equipment: { weapon: 'bronze_sword' } })];
+      bag: { cooked_shrimp: { loaded: 20 } }, equipment: { weapon: 'bronze_sword' }, bar })];
     const cuts = Array.from({ length: 5 }, (_, i) => T0 + (i + 1) * 600000);
     const out = runCut(M, fresh, 3600000, cuts, groundWith(M, 'drain_rat'));
     const ms = out.outs.flatMap((o) => o.members);

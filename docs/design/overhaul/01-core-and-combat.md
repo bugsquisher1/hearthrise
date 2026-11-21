@@ -7,7 +7,10 @@ Lane `lane/d-book-combat`, written 2026-11-21 on `set/v0.2.144`. This chapter is
 | Label | Meaning |
 |---|---|
 | RULED (date or id) | Tyler decided it. It is the game |
-| RECOMMENDED (call id) | The design this chapter builds on if Tyler takes the recommendation. The call id is the row of the decision book that decides it |
+| DECIDED (call id, Fable 2026-11-21) | The game designer decided the call on 2026-11-21 and an adversarial check corrected it. It is the design. The call id is its row in `decisions/all.json` |
+| DECIDED (reversal, Tyler may veto) | Decided, and it changes one of Tyler's rulings. The first tag in the chapter names the ruling. It stands unless he vetoes it |
+| TYLER CONFIRMS | A money call or a grant. The line carries the one recommendation and waits for Tyler |
+| CUT (Tyler approves) | A removal that waits for his yes. Nothing is deleted before he has seen it |
 | OPEN | Nobody has decided it and there is no recommendation yet. The line says what decides it |
 | TARGET | A number the design aims at. For a coefficient it is the value the design opens on, and the balance matrix proves it or moves it |
 | COMPUTED | A number that falls out of a formula or a tool. Nobody types it |
@@ -37,7 +40,7 @@ Formula ids (C-HERO-POWER and so on) are the ids of the combat register, `tools/
 
 **A formula-driven game.** RULED 2026-11-21 (the formula brief, `40-formula-brief.md`). Combat is one framework for each kind of mechanic. Each framework is centralized, deterministic, data-driven, composable, scalable to any Level, auditable and globally tunable. Differences between weapons, monsters and grounds are intentional, written in data, and documented. No ground, weapon, monster or spell has its own math.
 
-**The nine mechanics.** RECOMMENDED (GR-85 for the steps that move no number, GR-86 for the engine steps, GR-4 for the gear curve). Everything in combat is one of these.
+**The nine mechanics.** DECIDED (GR-85, Fable 2026-11-21 for the steps that move no number, GR-86 for the engine steps, GR-4 for the gear curve). Everything in combat is one of these.
 
 | # | Mechanic | What it is | Formula ids |
 |---|---|---|---|
@@ -51,7 +54,7 @@ Formula ids (C-HERO-POWER and so on) are the ids of the combat register, `tools/
 | 8 | One modifier table | Every worn or cast modifier is a key, a combine rule and a cap | C-JEWEL-PERKS, C-BUFF-BONUS, C-WEAKNESS, C-VULN |
 | 9 | Sustain | Two kinds of heal, regeneration as a percent of the maximum | C-SPELL-HEAL, C-REGEN, C-MANA, C-LEECH |
 
-**The amount pipeline.** RECOMMENDED (GR-86, roadmap step R19). Every amount is `roll(Power x share) x the product of its modifiers`. The stages run in this order and no other.
+**The amount pipeline.** DECIDED (GR-86, Fable 2026-11-21, roadmap step R19). Every amount is `roll(Power x share) x the product of its modifiers`. The stages run in this order and no other.
 
 1. **Source.** The rune tier step, the store rune share, Surge or a crit, the dealer's stance.
 2. **Target vulnerability.** The element on the target, and marks and statuses that make it take more.
@@ -59,27 +62,27 @@ Formula ids (C-HERO-POWER and so on) are the ids of the combat register, `tools/
 4. **Shell.** A shell spends before health.
 5. **Health.**
 
-Modifiers multiply in permille. The amount is rounded once, at the end, and the part of a point is settled by chance. A bonus of 1% then pays at Level 5 as honestly as at Level 500 (RECOMMENDED, GR-13 and GR-86). Each blow can emit a short trace of its stages. The hunt analyzer and the in-game wiki read that trace, because every formula is public (RULED 11-08).
+Modifiers multiply in permille. The amount is rounded once, at the end, and the part of a point is settled by chance. A bonus of 1% then pays at Level 5 as honestly as at Level 500 (DECIDED, GR-13 and GR-86, Fable 2026-11-21). Each blow can emit a short trace of its stages. The hunt analyzer and the in-game wiki read that trace, because every formula is public (RULED 11-08).
 
-**The modifier table.** RECOMMENDED (GR-86, roadmap step R20). One table holds every modifier a hero can wear or cast. A new perk, lining or status is a row in it and never a new rule in code.
+**The modifier table.** DECIDED (GR-86, Fable 2026-11-21, roadmap step R20). One table holds every modifier a hero can wear or cast. A new perk, lining or status is a row in it and never a new rule in code.
 
 | Key | Combine rule | Cap | Status |
 |---|---|---|---|
-| Crit chance (leather armor, Keen, a set bonus, a buff) | sum | 60% | RECOMMENDED (GR-86). The cap and the 1.5 multiplier are TARGET |
+| Crit chance (leather armor, Keen, a set bonus, a buff) | sum | 60% | DECIDED (GR-86, Fable 2026-11-21). The cap and the 1.5 multiplier are TARGET |
 | Resistance to one element | sum | 40% | RULED 11-08 in kind. The cap is TARGET |
 | Physical resistance | sum | 10% | RULED 11-14 in kind (Krell's legs). The cap is TARGET |
-| Jewel perks (Keen, Steady, Follow-through, Surge, Focus) | the largest counts once | each perk's own size | RULED 11-04 and 11-18. Sizes belong to the items chapter |
-| Plus skill | sum | none | RULED 11-14. Flat levels, kept as ruled (RECOMMENDED, GR-26) |
-| A hero's own heal over time | the largest | none | RECOMMENDED (GR-86) |
+| Jewel perks (Keen, Steady, Follow-through, Surge, Focus) | the largest counts once | each perk's own size | RULED 11-04 and 11-18. Sizes belong to `03-items-and-crafting.md` |
+| Plus skill | sum | none | RULED 11-14. Flat levels, kept as ruled (DECIDED, GR-26, Fable 2026-11-21) |
+| A hero's own heal over time | the largest | none | DECIDED (GR-86, Fable 2026-11-21) |
 | Weapon weakness x bane x weapon element | product | 1.90 in all. Bane at most 1.40. Weapon element at most 1.15 | TARGET |
 | "Takes more" on a monster (Hunter's Mark, plus the strongest marking status) | sum | one total cap | The cap's number is OPEN. It is set with the status pairs (GR-20) |
 | Permanent perks and food buffs to damage | sum | 20% | TARGET |
 | All mitigation on one blow | the chain of 2.4 | 60% | RULED 10-18 |
-| A worn shield against a marked monster spell | a stat on the shield row | 30% at the opening row | RULED 11-08 in direction. RECOMMENDED as a stat, so a later shield can carry more or less (GR-86) |
-| Buffs to damage dealt from the MMO layer (clan rooms, boss buffs, event buffs, arena season buffs, bought boosts) | sum on the knob, with a standing cap and a timed cap | +5% standing, +10% timed | RECOMMENDED (MM-24, MM-25). TARGET |
-| Buffs to damage taken from the MMO layer | the same | 5% less standing, 5% less timed | RECOMMENDED (MM-24, MM-25). TARGET. Where it sits against the 60% cap is OPEN (section 5) |
+| A worn shield against a marked monster spell | a stat on the shield row | 30% at the opening row | RULED 11-08 in direction. DECIDED as a stat, so a later shield can carry more or less (GR-86, Fable 2026-11-21) |
+| Buffs to damage dealt from the MMO layer (clan rooms, boss buffs, event buffs, arena season buffs, bought boosts) | sum on the knob, with a standing cap and a timed cap | +5% standing, +10% timed | DECIDED (MM-24, MM-25, Fable 2026-11-21). TARGET |
+| Buffs to damage taken from the MMO layer | the same | 5% less standing, 5% less timed | DECIDED (MM-24, MM-25, Fable 2026-11-21). TARGET. Where it sits against the 60% cap is OPEN (section 5) |
 
-**A tier's dial is applied once.** RECOMMENDED (GR-85, roadmap step R7). A harder tier's damage dial moves the monster's blow and its aim. That is what "harder" means: it hits harder and lands more often (RULED 11-04, "they are just simply harder"). Armor and Defense training read the monster's own Level and never a Level inflated by the tier. This is a correctness rule, not a tuning choice.
+**A tier's dial is applied once.** DECIDED (GR-85, Fable 2026-11-21, roadmap step R7). A harder tier's damage dial moves the monster's blow and its aim. That is what "harder" means: it hits harder and lands more often (RULED 11-04, "they are just simply harder"). Armor and Defense training read the monster's own Level and never a Level inflated by the tier. This is a correctness rule, not a tuning choice.
 
 **The rule on special cases.** RULED 2026-11-21. Every rule in combat is one of four classes.
 
@@ -94,22 +97,22 @@ Three working rules follow from it.
 
 - **Every balance change names its layer**, in this order: formula, then coefficient, then curve, then content data. Special-case code is never a fix (RULED 11-21).
 - **If a ground reads too dangerous, nobody edits that ground's damage.** The cause is a formula, a coefficient, a curve or a wrong data row, and the fix goes there (RULED 11-21).
-- **The registers are guarded.** A new class 4 row, or a class 3 row with no recommendation, fails the build (RECOMMENDED, GR-88).
+- **The registers are guarded.** A new class 4 row, or a class 3 row with no recommendation, fails the build (DECIDED, GR-88, Fable 2026-11-21).
 
 The intentional special rules in combat, each with its status.
 
 | Rule | Design | Status |
 |---|---|---|
-| Gentle first grounds | A ground whose floor is Level 8 or under is gentle: monsters land 40% and their blow is 13.2% of a same-Level hero's health. From floor 16 they land 70% and hit 22%. A straight line between. It is the only Level threshold in monster stats | RECOMMENDED (GR-25) |
-| The boss blow cap | A boss's largest blow is held to a third of the health of the hero his ground is written for. The cap bounds his spells too, so no boss row needs a hand number | RECOMMENDED (GR-25) |
-| Built for a party | One encounter type with three numbers: health x2.5, blow x0.75, and XP per kill as an output of the kill reward | RECOMMENDED (GR-5) |
-| A tier a ground or mode does not offer | One content flag. The Mill Cellar offers Normal only (RULED 11-05). A scaled hunt offers no Deadly through the same flag | RECOMMENDED (GR-25) |
-| The beginner's floor | A cast never reads a blow under one stated number (2.8) | RECOMMENDED (GR-11) |
+| Gentle first grounds | A ground whose floor is Level 8 or under is gentle: monsters land 40% and their blow is 13.2% of a same-Level hero's health. From floor 16 they land 70% and hit 22%. A straight line between. It is the only Level threshold in monster stats | DECIDED (GR-25, Fable 2026-11-21) |
+| The boss blow cap | A boss's largest blow is held to a third of the health of the hero his ground is written for. The cap bounds his spells too, so no boss row needs a hand number | DECIDED (GR-25, Fable 2026-11-21) |
+| Built for a party | One encounter type with three numbers: health x2.5, blow x0.75, and XP per kill as an output of the kill reward | DECIDED (GR-5, Fable 2026-11-21) |
+| A tier a ground or mode does not offer | One content flag. The Mill Cellar offers Normal only (RULED 11-05). A scaled hunt offers no Deadly through the same flag | DECIDED (GR-25, Fable 2026-11-21) |
+| The beginner's floor | A cast never reads a blow under one stated number (2.8) | DECIDED (GR-11, Fable 2026-11-21) |
 | Mend heals a share of max health | The second of the two heal kinds | RULED 32-4 (11-21) |
 | Party-only rows | A row may fire only alone, only in a party, or only for a tank in a party | RULED 11-09 and 11-19 |
 | What a basic attack costs | A wand or staff swing costs 1 mana, a bow shot one arrow, a melee swing nothing | RULED 10-15 and 10-23 |
 | The training dummy | Its blow cannot kill and it cannot die | RULED 11-08 |
-| Three training bases | Melee and Ranged train on damage dealt, Magic on mana spent, Defense on blows taken | RULED 10-18 and 11-05 in parts. On record as one rule: RECOMMENDED (GR-25) |
+| Three training bases | Melee and Ranged train on damage dealt, Magic on mana spent, Defense on blows taken | RULED 10-18 and 11-05 in parts. On record as one rule: DECIDED (GR-25, Fable 2026-11-21) |
 | Storm burns mana, Necrotic cuts healing | What makes the two elements different (2.5) | RULED 11-18 in kind. Numbers OPEN |
 
 ### 2.2 Hitting
@@ -125,18 +128,18 @@ The intentional special rules in combat, each with its status.
 |---|---|---|
 | A hero with normal skills lands on a same-Level monster | 85% (`heroAccuracy`) | TARGET |
 | A same-Level monster lands on a hero with normal skills | 70% on a full ground (`monsterAccuracy`) | RULED 21-2 (11-20) |
-| The same on a gentle ground | 40% | RECOMMENDED (GR-25) |
+| The same on a gentle ground | 40% | DECIDED (GR-25, Fable 2026-11-21) |
 | `toHitBase` | 20 | TARGET |
 | The rails | never under 5%, never over 97% | TARGET |
 | A weak-side weapon | x1.15 to the chance | TARGET |
 
-**The reference hero.** A monster's aim and evasion are written against a reference hero: the skills, Defense and worn accuracy a hero of that Level really has (C-REF-HERO). The reference hero reads the gear curve (RECOMMENDED, GR-4). COMPUTED on the proposed curve: if it did not, a hero's chance to land would drift from 85% to 90% at Level 400 and 95% at Level 2,000.
+**The reference hero.** A monster's aim and evasion are written against a reference hero: the skills, Defense and worn accuracy a hero of that Level really has (C-REF-HERO). The reference hero reads the gear curve (DECIDED, GR-4, Fable 2026-11-21, reversal of two bands a region of 2026-11-18 and the Luck step of 2026-11-20, Tyler may veto). COMPUTED on the proposed curve: if it did not, a hero's chance to land would drift from 85% to 90% at Level 400 and 95% at Level 2,000.
 
 **Steady.** A share of a hero's misses turns into hits. It is one row of the modifier table with one meaning.
 
 ### 2.3 Damage
 
-**A hero's Power.** RECOMMENDED (GR-23, GR-85 step R2). The largest hit is skill plus gear, added.
+**A hero's Power.** DECIDED (GR-23, GR-85, Fable 2026-11-21 step R2). The largest hit is skill plus gear, added.
 
 `Power = skillPower x (weapon skill + worn plus skill) + gearPower x weapon damage + basePower`
 
@@ -146,11 +149,11 @@ The intentional special rules in combat, each with its status.
 | `gearPower` | 0.6 a point of weapon damage | TARGET |
 | `basePower` | 2 | TARGET |
 
-The engine reads the three as named constants, so the wiki's terms are the engine's terms. The hit stays skill plus gear and never becomes skill times gear (RECOMMENDED, GR-23). COMPUTED on the proposed gear curve: skill is 40% of a hit at Level 110, 23% at 400 and 14% at 1,000. Skill keeps its late worth through what it unlocks: rune tiers that continue past skill 60 (2.8) and the to-hit ratio.
+The engine reads the three as named constants, so the wiki's terms are the engine's terms. The hit stays skill plus gear and never becomes skill times gear (DECIDED, GR-23, Fable 2026-11-21). COMPUTED on the proposed gear curve: skill is 40% of a hit at Level 110, 23% at 400 and 14% at 1,000. Skill keeps its late worth through what it unlocks: rune tiers that continue past skill 60 (2.8) and the to-hit ratio.
 
 **A basic blow.** A miss is 0. A hit is a whole number from 1 to Power with equal odds, so a swing averages half its Power (C-BASIC-BLOW). Every basic attack takes 2,000 ms for heroes and monsters, and nothing in the game changes attack speed (RULED 10-15, `attackInterval`).
 
-**One roll rule.** RECOMMENDED (GR-13). An amount's spread is one number for each kind of amount.
+**One roll rule.** DECIDED (GR-13, Fable 2026-11-21). An amount's spread is one number for each kind of amount.
 
 | Kind | Spread | Why |
 |---|---|---|
@@ -158,20 +161,20 @@ The engine reads the three as named constants, so the wiki's terms are the engin
 | A spell hit | half to full (`spellRollLow` 500 permille) | A paid cast should never whiff |
 | A heal or a shell | none | A heal answers a wound. A player can plan on one number |
 
-**Crits.** A crit is a basic blow at x1.5 (`critMult`). Crit chance is the sum of its sources, capped at 60%, so a full crit build is worth at most +30% on basic blows (C-CRIT). Spells never crit (RECOMMENDED, GR-12). Crit is gear's identity and is owned by the items chapter.
+**Crits.** A crit is a basic blow at x1.5 (`critMult`). Crit chance is the sum of its sources, capped at 60%, so a full crit build is worth at most +30% on basic blows (C-CRIT). Spells never crit (DECIDED, GR-12, Fable 2026-11-21). Crit is gear's identity and is owned by `03-items-and-crafting.md`.
 
 **Weapon weakness.** Each monster class is weak to one side. A weak-side weapon deals +20% (`weaknessDamage`) and lands x1.15 as often (C-WEAKNESS).
 
 | Side | Weapons | Status |
 |---|---|---|
-| Edged | sword, axes | RECOMMENDED (GR-14) |
-| Blunt | hammer, fists | RECOMMENDED (GR-14) |
+| Edged | sword, axes | DECIDED (GR-14, Fable 2026-11-21) |
+| Blunt | hammer, fists | DECIDED (GR-14, Fable 2026-11-21) |
 | Ranged | bow, crossbow | TARGET |
 | Magic | wand, staff | TARGET |
 
-Every weapon family can meet a weak monster. The unused "resists a weapon" column is removed, because nothing reads it and a third sign would add tracking without a decision (RECOMMENDED, GR-14). MEASURED: putting the axes on the edged side lifts the lone axes 1.5 to 4.8% from Level 10 to 60 and moves no other way.
+Every weapon family can meet a weak monster. The unused "resists a weapon" column is removed, because nothing reads it and a third sign would add tracking without a decision (DECIDED, GR-14, Fable 2026-11-21). MEASURED: putting the axes on the edged side lifts the lone axes 1.5 to 4.8% from Level 10 to 60 and moves no other way.
 
-**A cast reads the weakness of its own damage kind.** RECOMMENDED (GR-12, roadmap step R6). A physical strike (Power Strike, Turning Cut, Precision Shot) reads weapon weakness. An elemental spell reads the monster's element profile. Spells never miss. MEASURED: letting physical strikes read weakness moves any way by at most 3.5%.
+**A cast reads the weakness of its own damage kind.** DECIDED (GR-12, Fable 2026-11-21, roadmap step R6). A physical strike (Power Strike, Turning Cut, Precision Shot) reads weapon weakness. An elemental spell reads the monster's element profile. Spells never miss. MEASURED: letting physical strikes read weakness moves any way by at most 3.5%.
 
 **Stances.** Offensive deals and takes +10%. Defensive deals 10% less and takes 15% less (C-STANCE). A stance is set once for each hero and remembered. It becomes a real dial once the harder tiers bite.
 
@@ -192,7 +195,7 @@ Every weapon family can meet a weak monster. The unused "resists a weapon" colum
 
 P is the hero's armor points. L is the attacking monster's own Level (2.1). Mixed pieces blend by slot share, with no mixing penalty and no movement penalty for plate (RULED 10-18). Plate also raises max health by up to 28% and cloth raises max mana by up to 35% (RULED 10-14). Every piece is gated by the hero's Level and never by a skill (RULED 10-24).
 
-**Armor keeps pace by construction.** Armor points come from the gear curve (the items chapter). COMPUTED on the proposed curve: a hero in plate of its Level sits at the 60% cap from Level 110 to Level 5,000, and a full Deadly pull deals about 13% of a tank's max health a second at every Level. So the need for a healer is constant by design, and the cap, not the gear, is the real armor number.
+**Armor keeps pace by construction.** Armor points come from the gear curve (`03-items-and-crafting.md`). COMPUTED on the proposed curve: a hero in plate of its Level sits at the 60% cap from Level 110 to Level 5,000, and a full Deadly pull deals about 13% of a tank's max health a second at every Level. So the need for a healer is constant by design, and the cap, not the gear, is the real armor number.
 
 **A shield.** The shield makes the tank (RULED 10-23). It adds guard to the defender's rating, it carries the brace stat against marked monster spells, and its blocks train Defense extra (RULED 10-18). A crossbow may carry one, which makes a Ranger with guard and not a tank (RULED 10-23).
 
@@ -223,18 +226,18 @@ A resistance lining cuts the damage and the element's rule by the same percent, 
 |---|---|---|---|
 | People (humans and humanoids) | takes 15% more | normal | RULED 32-7 (11-21): only people are weak to Necrotic |
 | Living beasts | normal | normal | RULED 32-7 |
-| Undead | takes 25% less | normal | RECOMMENDED (GR-16), from the itemization plan B1 |
-| Constructs | normal | takes 15% more | RECOMMENDED (GR-16) |
-| Elementals | normal | takes 25% less | RECOMMENDED (GR-16) |
+| Undead | takes 25% less | normal | DECIDED (GR-16, Fable 2026-11-21), from the itemization plan B1 |
+| Constructs | normal | takes 15% more | DECIDED (GR-16, Fable 2026-11-21) |
+| Elementals | normal | takes 25% less | DECIDED (GR-16, Fable 2026-11-21) |
 | Slimes | takes 50% less | takes 50% less | RULED 11-06 |
 
-**Where monsters first cast them.** Necrotic on the Ox Road (Levels 112 to 128), with its home in the Unmarked Catacombs. Storm at the Old Guard (138 to 155), with its home in region 5. Heroes get their spells by skill, so a hero casts both long before a monster casts them back (RECOMMENDED, GR-16, from the itemization plan B2. The grounds belong to the world chapter).
+**Where monsters first cast them.** Necrotic on the Ox Road (Levels 112 to 128), with its home in the Unmarked Catacombs. Storm at the Old Guard (138 to 155), with its home in region 5. Heroes get their spells by skill, so a hero casts both long before a monster casts them back (DECIDED, GR-16, Fable 2026-11-21, from the itemization plan B2. The grounds belong to `02-world.md`).
 
 **Why monsters cast at all.** Monster area spells exist so the whole party takes damage and the hunt feels engaging (RULED 11-08). Some are whole-group and unavoidable, with a shown windup. The answers are a shell, a heal, resistance on gear and linings, and breaking the cast (2.9). A boss also keeps a dodgeable heavy hit: the tank soaks it and casters step off (RULED 11-08).
 
 ### 2.6 Healing and sustain
 
-**Two heal kinds, both in data.** RECOMMENDED (GR-86).
+**Two heal kinds, both in data.** DECIDED (GR-86, Fable 2026-11-21).
 
 | Kind | Formula | Used by | Why |
 |---|---|---|---|
@@ -245,11 +248,11 @@ Heals land whole, less any heal cut, and never past missing health (C-SPELL-HEAL
 
 **Regeneration.** Health regenerates 0.3% of max a second in a fight and 6% a second out of one (`regen`). Mana regenerates 25% of max a minute (`manaRegen`). Both are multiplied by the Inner Flame rate, `1 + P / (P + 50)`, a slowing curve, so food and drink stay necessary (RULED 10-14). All of these are a percent of the maximum and hold at every Level.
 
-**Vitals.** Health is 150 + 10 a Level (`heroHp`). Mana is 100 + 10 a Level (`heroMana`). Magic adds 0.5% max mana for each level, for every hero (RECOMMENDED, GR-22). MEASURED: it cuts casters' store bills 2 to 4%, moves no pace, and passed the matrix gate with no unintended band. It gives the Magic skill a job on a weapon hero.
+**Vitals.** Health is 150 + 10 a Level (`heroHp`). Mana is 100 + 10 a Level (`heroMana`). Magic adds 0.5% max mana for each level, for every hero (DECIDED, GR-22, Fable 2026-11-21). MEASURED: it cuts casters' store bills 2 to 4%, moves no pace, and passed the matrix gate with no unintended band. It gives the Magic skill a job on a weapon hero.
 
-**Leech and mana back.** A leech returns a share of the health a hit took. A mana return gives mana for each hit or kill, never more than the cast spent (C-LEECH). Spell leech and lining leech are sized together under one row of the modifier table before either ships (RECOMMENDED, GR-16, from the itemization plan B5).
+**Leech and mana back.** A leech returns a share of the health a hit took. A mana return gives mana for each hit or kill, never more than the cast spent (C-LEECH). Spell leech and lining leech are sized together under one row of the modifier table before either ships (DECIDED, GR-16, Fable 2026-11-21, from the itemization plan B5).
 
-**Food and drink.** A heal item's size and price belong to the economy chapter (GR-52). Combat's requirement on it: a food's size is a share of the reference health of its tier, on the same curve as gear, so eating never becomes forty bites a fight at high Level.
+**Food and drink.** A heal item's size and price belong to `04-economy-and-crowns.md` (GR-52). Combat's requirement on it: a food's size is a share of the reference health of its tier, on the same curve as gear, so eating never becomes forty bites a fight at high Level.
 
 **Does healing keep up.** COMPUTED on the proposed gear curve: Greater Mend on its top rune tier heals 20% of the target's max health at Level 110, 16% at 400 and 14% at 5,000. A staff's Power grows with the weapon and a hero's health grows a little faster. The slide is slow and the tool for it exists (a heal can move to the max health kind). See section 5.
 
@@ -259,14 +262,14 @@ One generic status engine runs four statuses, each with one job (C-STATUS).
 
 | Status | What it does | Who applies it | Label |
 |---|---|---|---|
-| Bleed | Ticks each second for each stack, up to 5 stacks, for 6 seconds. A tick is a share of the caster's Power, 3.3% of the blow at rune tier I, times the rune tier step | Rend (axes) | RULED 32-3 for the 6 seconds. The share is RECOMMENDED to rise (GR-14) |
+| Bleed | Ticks each second for each stack, up to 5 stacks, for 6 seconds. A tick is a share of the caster's Power, 3.3% of the blow at rune tier I, times the rune tier step | Rend (axes) | RULED 32-3 for the 6 seconds. The share is DECIDED to rise (GR-14, Fable 2026-11-21) |
 | Chill | Slows the target's swings and spell windups by 30% to 50% by rune tier, for 4 seconds. The strongest wins, it does not stack | Frost Slam (tank), Hoarfrost (wand) | TARGET |
 | Sickness | The target takes 10% more for 6 seconds | Green Sickness (staff) | TARGET |
-| Withered | The target heals 50% less (a monster) or 30% less (a hero) for 6 seconds | Blight, Toll, Pall Arrow, and monster Necrotic | RECOMMENDED (GR-16). Numbers OPEN with the element |
+| Withered | The target heals 50% less (a monster) or 30% less (a hero) for 6 seconds | Blight, Toll, Pall Arrow, and monster Necrotic | DECIDED (GR-16, Fable 2026-11-21). Numbers OPEN with the element |
 
 **Hunter's Mark** is not a status a monster can shrug off. One monster takes 20% more for 8 seconds of every 12. In the modifier table it sits on the same "takes more" key as the marking statuses.
 
-**A status opens one kind of damage.** RECOMMENDED (GR-20), a HYPOTHESIS, built as a sample of three after Deadly is sized. A status row may name one damage kind and a share. The risk is stacking, so all "takes more" sources share one total cap.
+**A status opens one kind of damage.** DECIDED (GR-20, Fable 2026-11-21), a HYPOTHESIS, built as a sample of three after Deadly is sized. A status row may name one damage kind and a share. The risk is stacking, so all "takes more" sources share one total cap.
 
 | Status | Opens the monster to | Who gains |
 |---|---|---|
@@ -282,7 +285,7 @@ The point is that an account's four becomes a puzzle with several good answers, 
 
 `amount = roll(Power x the row's share) x the rune tier step x the store rune share x the pipeline of 2.1`
 
-**The rune tier ladder.** A spell's version is the tier of the rune it spends, if the caster's skill allows that tier. It is one idea, not two (RECOMMENDED, GR-23).
+**The rune tier ladder.** A spell's version is the tier of the rune it spends, if the caster's skill allows that tier. It is one idea, not two (DECIDED, GR-23, Fable 2026-11-21).
 
 | Tier | Rune | Skill | Step (`runeStep`) | Mana |
 |---|---|---|---|---|
@@ -293,13 +296,13 @@ The point is that an account's four becomes a puzzle with several good answers, 
 | V | Graven | 60 | x1.4 | x1.2 again |
 | VI and on | names in section 5 | one more every 15 skill levels | +0.1 each | the same step |
 
-Tiers I to V at those skill levels are RULED 10-23. The +10% step is RECOMMENDED (GR-23). MEASURED: a deeper step cut Level 10 casts further. Tiers past 60 are RECOMMENDED (GR-23) and arrive with the gear curve. A rune a hero made lands in full. A store rune lands 75% (`storeSupplyShare`). The player picks the rune on each slot, and the game never picks a supply for them (RULED 10-21).
+Tiers I to V at those skill levels are RULED 10-23. The +10% step is DECIDED (GR-23, Fable 2026-11-21). MEASURED: a deeper step cut Level 10 casts further. Tiers past 60 are DECIDED (GR-23, Fable 2026-11-21) and arrive with the gear curve. A rune a hero made lands in full. A store rune lands 75% (`storeSupplyShare`). The player picks the rune on each slot, and the game never picks a supply for them (RULED 10-21).
 
-**The beginner's floor.** RECOMMENDED (GR-11). A cast never reads a blow under one stated number, `powerFloor`. A Level 1 hero's blow is 3 or 4, and a share of that would gut the first hours. The effect is ruled: heals and first strikes are not cut in half in the first hours (RULED 32-8). The floor is one number for the whole game. Past about Level 15 every cast is its share alone. Its value is COMPUTED from one requirement: a new hero with the starting kit reaches Level 10 in the ruled 6 hours. MEASURED: without a floor that hero took 7.2 hours and first-ground kills were 21 to 36% slower.
+**The beginner's floor.** DECIDED (GR-11, Fable 2026-11-21). A cast never reads a blow under one stated number, `powerFloor`. A Level 1 hero's blow is 3 or 4, and a share of that would gut the first hours. The effect is ruled: heals and first strikes are not cut in half in the first hours (RULED 32-8). The floor is one number for the whole game. Past about Level 15 every cast is its share alone. Its value is COMPUTED from one requirement: a new hero with the starting kit reaches Level 10 in the ruled 6 hours. MEASURED: without a floor that hero took 7.2 hours and first-ground kills were 21 to 36% slower.
 
 **Every cast is sized at Level 10 and at Level 60.** RULED 32-8 (11-21). A share fitted at one Level alone is wrong at the other.
 
-**Spells never miss and never crit.** RECOMMENDED (GR-12). A paid rune should not burn for nothing, and "a spell always lands" is a plain rule a player likes. The cost is known and accepted: accuracy and crit gear are worth less the more a hero casts.
+**Spells never miss and never crit.** DECIDED (GR-12, Fable 2026-11-21). A paid rune should not burn for nothing, and "a spell always lands" is a plain rule a player likes. The cost is known and accepted: accuracy and crit gear are worth less the more a hero casts.
 
 **New spells replace a slot, they do not add.** RULED 21-6 (11-20). Abilities sit on three lanes: offense (2 seconds), support (2 seconds) and heal (1 second). The first usable slot in a lane fires. A family's offense rows fill at most 0.85 of the offense lane. A new offense spell names the row it stands in for and shares its clock. So a new spell is a choice of element or shape, worth at most 5% for one and 10% for both, and it never makes everyone faster.
 
@@ -318,11 +321,11 @@ Tiers I to V at those skill levels are RULED 10-23. The +10% step is RECOMMENDED
 | 40 | 27 to 29 | the Necrotic spells, and Bone runes at Runecrafting 40 (RULED 32-1) |
 | 45 | 34 to 35 | rune tier IV |
 | 60 | 59 to 60 | rune tier V |
-| 75, 90, 105 and on | from about Level 90 | rune tiers VI and on (RECOMMENDED, GR-23). COMPUTED from the reference hero: skill 82 at Level 110 and 129 at Level 400, so about four more tiers arrive between Level 90 and Level 400 |
+| 75, 90, 105 and on | from about Level 90 | rune tiers VI and on (DECIDED, GR-23, Fable 2026-11-21). COMPUTED from the reference hero: skill 82 at Level 110 and 129 at Level 400, so about four more tiers arrive between Level 90 and Level 400 |
 
 ### 2.9 Every weapon way and its spells
 
-Role comes from the worn weapon and off-hand, never from an outfit (RULED 10-16). Every hero can train Melee, Ranged, Magic and Defense and switch freely (RULED 10-14). There are no vocations. Roles are Melee, Ranger, Mage and Healer, and Tank is a function of a Melee hero with a shield (RULED 10-16). There is no ninth weapon and no attack speed by weapon. That is a decision not to build, RECOMMENDED by the game review (its section 2.2) with no call id of its own. Section 7 has the reasons.
+Role comes from the worn weapon and off-hand, never from an outfit (RULED 10-16). Every hero can train Melee, Ranged, Magic and Defense and switch freely (RULED 10-14). There are no vocations. Roles are Melee, Ranger, Mage and Healer, and Tank is a function of a Melee hero with a shield (RULED 10-16). There is no ninth weapon and no attack speed by weapon. That is a decision not to build, DECIDED (no call id, Fable 2026-11-21) on the advice of the game review (its section 2.2). Section 7 has the reasons.
 
 Shares below are of the caster's Power at rune tier I. They are COMPUTED fits at Levels 10 and 60 and the matrix may move them. Mana is tier I to tier V.
 
@@ -341,8 +344,8 @@ Shares below are of the caster's Power at rune tier I. They are COMPUTED fits at
 | Flame Strike | One target, Fire | 140% | 8 s, 10 to 21 mana, Fire rune | 1 | RULED. Off the tank's default bar (11-19) |
 | Frost Slam | Chills every monster beside the tank | Chill 30 to 50% | 6 s, 6 to 12 mana, Ice rune | Melee 12 | RULED 11-19. Party only |
 | Shelter | A shell on the whole party when a monster is casting | 289% | 30 s, 25 to 52 mana, Earth rune | Melee 20 | RULED 11-19. Party only |
-| Brand | One target, Storm. A kill gives mana back. Stands in for a strike | sized with the first seven | 8 s, 10 to 21 mana, Storm rune | Melee 25 | RECOMMENDED (GR-16). Party only on the tank |
-| Reave | One target, Necrotic. 30% of the damage comes back as health | second batch | 10 s, 12 to 25 mana, Bone rune | Melee 40 | RECOMMENDED (GR-16), redesign first |
+| Brand | One target, Storm. A kill gives mana back. Stands in for a strike | sized with the first seven | 8 s, 10 to 21 mana, Storm rune | Melee 25 | DECIDED (GR-16, Fable 2026-11-21). Party only on the tank |
+| Reave | One target, Necrotic. 30% of the damage comes back as health | second batch | 10 s, 12 to 25 mana, Bone rune | Melee 40 | DECIDED (GR-16, Fable 2026-11-21), redesign first |
 
 **Sword alone.** The tank with its shield off. One hero goes from tank to damage and back by ground with no retraining. Its card says so. It holds Power Strike, Flame Strike, Brand, Reave and Turning Cut. It speeds up once Turning Cut opens at Melee 10 (RULED 11-19).
 
@@ -351,21 +354,21 @@ Shares below are of the caster's Power at rune tier I. They are COMPUTED fits at
 | Row | What it does | Share | Clock, cost | Unlock | Status |
 |---|---|---|---|---|---|
 | Power Strike | One target | 70% | 6 s, 6 mana | 1 | RULED 21-5 |
-| Turning Cut | Every monster around the hero, up to 8. Fires at 2 or more | 60% each | 8 s, 8 mana | 1 | RULED 32-2 (Cleave merged in). Unlock at 1: RECOMMENDED (GR-15) |
-| Quarry Blow | One heavy hit on an Earth rune, the hammer's own strike. If the target is winding up a spell, the windup ends and that monster's spell clock restarts. On a boss it adds a share to the windup. It never stops a swing | 140% | 8 s, 10 to 21 mana, Earth rune | 1 | The strike is RULED 32-5. The cast break is RECOMMENDED (GR-18) and re-opens 10-23 ("no stagger") in a narrow form |
-| Anvil Ring | Every monster beside the hero, Storm. Stands in for Turning Cut | first seven | 10 s, 12 mana, Storm rune | Melee 25 | RECOMMENDED (GR-16) |
-| Toll | One heavy hit that leaves the target Withered. Stands in for Power Strike | second batch | 10 s, 12 mana, Bone rune | Melee 40 | RECOMMENDED (GR-16), redesign first |
+| Turning Cut | Every monster around the hero, up to 8. Fires at 2 or more | 60% each | 8 s, 8 mana | 1 | RULED 32-2 (Cleave merged in). Unlock at 1: DECIDED (GR-15, Fable 2026-11-21) |
+| Quarry Blow | One heavy hit on an Earth rune, the hammer's own strike. If the target is winding up a spell, the windup ends and that monster's spell clock restarts. On a boss it adds a share to the windup. It never stops a swing | 140% | 8 s, 10 to 21 mana, Earth rune | 1 | The strike is RULED 32-5. The cast break is DECIDED (GR-18, Fable 2026-11-21, reversal of "no stagger" of 2026-10-23, Tyler may veto) and re-opens 10-23 ("no stagger") in a narrow form |
+| Anvil Ring | Every monster beside the hero, Storm. Stands in for Turning Cut | first seven | 10 s, 12 mana, Storm rune | Melee 25 | DECIDED (GR-16, Fable 2026-11-21) |
+| Toll | One heavy hit that leaves the target Withered. Stands in for Power Strike | second batch | 10 s, 12 mana, Bone rune | Melee 40 | DECIDED (GR-16, Fable 2026-11-21), redesign first |
 
 **Hatchets (dual axes).** The bleed weapon. Its job in a four is the long-lived target. It does not hold Power Strike (RULED 32-3).
 
 | Row | What it does | Share | Clock, cost | Unlock | Status |
 |---|---|---|---|---|---|
-| Rend | Two hits and a Bleed that stacks to five | 39% a hit, plus the bleed | 6 s, 8 to 17 mana, Rupture rune | 1 | RULED 32-3 (6 s). Its share and its bleed rise until the lone axes sit at 0.95 to 1.00 of the hammer from Level 30 to 110: RECOMMENDED (GR-14) |
-| Turning Cut | As the hammer's | 60% each | 8 s, 8 mana | 1 | RECOMMENDED (GR-15) |
-| Fester | One target, Necrotic. Half again as hard if it is bleeding | first seven | 8 s, 10 mana, Bone rune | Melee 40 | RECOMMENDED (GR-16). The best design of the sixteen, because it builds on what the weapon does |
-| Crossarc | Storm, standing in for Turning Cut | second batch | 8 s, 10 mana, Storm rune | Melee 25 | RECOMMENDED (GR-16), redesign first |
+| Rend | Two hits and a Bleed that stacks to five | 39% a hit, plus the bleed | 6 s, 8 to 17 mana, Rupture rune | 1 | RULED 32-3 (6 s). Its share and its bleed rise until the lone axes sit at 0.95 to 1.00 of the hammer from Level 30 to 110: DECIDED (GR-14, Fable 2026-11-21) |
+| Turning Cut | As the hammer's | 60% each | 8 s, 8 mana | 1 | DECIDED (GR-15, Fable 2026-11-21) |
+| Fester | One target, Necrotic. Half again as hard if it is bleeding | first seven | 8 s, 10 mana, Bone rune | Melee 40 | DECIDED (GR-16, Fable 2026-11-21). The best design of the sixteen, because it builds on what the weapon does |
+| Crossarc | Storm, standing in for Turning Cut | second batch | 8 s, 10 mana, Storm rune | Melee 25 | DECIDED (GR-16, Fable 2026-11-21), redesign first |
 
-Rend sits on the default axes bar on the cheapest store Rupture rune, with the hero's own runes used first (RECOMMENDED, GR-15). An unedited axes bar then has a strike at one target.
+Rend sits on the default axes bar on the cheapest store Rupture rune, with the hero's own runes used first (DECIDED, GR-15, Fable 2026-11-21). An unedited axes bar then has a strike at one target.
 
 **Bow.** The party Ranger. Two hands, and quivers as late off-hands (RULED 11-18, answer 12). Its job in a four is the back row's guard: its default target mode is "shooters first" (2.10).
 
@@ -375,16 +378,16 @@ Rend sits on the default axes bar on the cheapest store Rupture rune, with the h
 | Precision Shot | One target | 75% | 6 s, 6 mana, 1 arrow | 1 | RULED 21-5 |
 | Flame Volley | An area, Fire | 86% each | 10 s, 15 to 31 mana, Fire rune, 3 arrows | 1 | TARGET |
 | Raking Shot | A line of 4 tiles, no element | 80% each | 8 s, 10 mana, 2 arrows | Ranged 10 | TARGET |
-| Fork Shot | Hits the target and jumps to one more for 60%, Storm. Stands in for Precision Shot | first seven | 8 s, 12 mana, Storm rune, 1 arrow | Ranged 25 | RECOMMENDED (GR-16) |
-| Pall Arrow | Necrotic over 6 seconds, and Withered | second batch | 10 s, 12 mana, Bone rune | Ranged 40 | RECOMMENDED (GR-16), redesign first |
+| Fork Shot | Hits the target and jumps to one more for 60%, Storm. Stands in for Precision Shot | first seven | 8 s, 12 mana, Storm rune, 1 arrow | Ranged 25 | DECIDED (GR-16, Fable 2026-11-21) |
+| Pall Arrow | Necrotic over 6 seconds, and Withered | second batch | 10 s, 12 mana, Bone rune | Ranged 40 | DECIDED (GR-16, Fable 2026-11-21), redesign first |
 
-**Crossbow.** The self-reliant Ranger. One hand, so it may wear a shield. It has its own spell list (RULED 32-6). Its identity is that list and the shield: single target, no Mark, no area shots (RECOMMENDED, GR-21). Its weapon numbers stay beside the bow's. MEASURED: a third more damage for a quarter less accuracy moved it only 3 to 6%, so a stat line does not make a weapon.
+**Crossbow.** The self-reliant Ranger. One hand, so it may wear a shield. It has its own spell list (RULED 32-6). Its identity is that list and the shield: single target, no Mark, no area shots (DECIDED, GR-21, Fable 2026-11-21). Its weapon numbers stay beside the bow's. MEASURED: a third more damage for a quarter less accuracy moved it only 3 to 6%, so a stat line does not make a weapon.
 
 | Row | What it does | Status |
 |---|---|---|
-| Precision Shot | One target, 75%, 1 bolt | RECOMMENDED (GR-21) |
-| Leech Bolt | One target, Necrotic. 30% of the damage comes back as health | RECOMMENDED (GR-16), first seven |
-| Live Bolt | One heavy shot, Storm | RECOMMENDED (GR-16), second batch, redesign first. It cannot refund on a crit, because spells never crit |
+| Precision Shot | One target, 75%, 1 bolt | DECIDED (GR-21, Fable 2026-11-21) |
+| Leech Bolt | One target, Necrotic. 30% of the damage comes back as health | DECIDED (GR-16, Fable 2026-11-21), first seven |
+| Live Bolt | One heavy shot, Storm | DECIDED (GR-16, Fable 2026-11-21), second batch, redesign first. It cannot refund on a crit, because spells never crit |
 | The rest of its list | OPEN. Single-target rows only. Section 5 |
 
 **Wand, the Mage.** One hand plus a spellbook. Two elements and the best area damage. Its price is gold. Its job in a four is area damage and stopping monsters that mend.
@@ -395,8 +398,8 @@ Rend sits on the default axes bar on the cheapest store Rupture rune, with the h
 | Fireball | An area, Fire | 73% each | 8 s, 25 to 52 mana, Fire rune | 1 | TARGET |
 | Hoarfrost | An area, Ice, and Chill | 53% each | 10 s, 22 to 46 mana, Ice rune | Magic 14 | TARGET |
 | Arcane Barrier | A shell on the Mage alone | 229% | 20 s, 30 to 62 mana, Earth rune | 1 | RULED 10-23: self only |
-| Blight | An area, Necrotic. Everything hit is Withered. It names the row it stands in for | first seven | 10 s, 25 to 52 mana, Bone rune | Magic 40 | RECOMMENDED (GR-16) |
-| Updraft | An area, Storm, with mana back for each monster hit. It names the row it stands in for | second batch | 10 s, 22 to 46 mana, Storm rune | Magic 25 | RECOMMENDED (GR-16), redesign first |
+| Blight | An area, Necrotic. Everything hit is Withered. It names the row it stands in for | first seven | 10 s, 25 to 52 mana, Bone rune | Magic 40 | DECIDED (GR-16, Fable 2026-11-21) |
+| Updraft | An area, Storm, with mana back for each monster hit. It names the row it stands in for | second batch | 10 s, 22 to 46 mana, Storm rune | Magic 25 | DECIDED (GR-16, Fable 2026-11-21), redesign first |
 
 **Staff, the Healer.** Two hands. Every heal, a shell, and a mark for party damage. There is no healer area damage. The big party heal is long, expensive and rule-driven (RULED 11-08). The lane is full: no more heals or shells are added.
 
@@ -408,24 +411,24 @@ Rend sits on the default axes bar on the cheapest store Rupture rune, with the h
 | Protective Ward | A shell on one ally | 191% | 12 s, 25 to 52 mana, Earth rune | 1 | TARGET |
 | Green Sickness | A weak area, Poison. Everything hit takes 10% more | 40% each | 10 s, 20 to 41 mana, Poison rune | 1 | TARGET |
 | Undertow | The lone Healer's strike. Fires only alone | 89% | 20 s, 15 to 31 mana, Water rune | 1 | RULED 11-09 |
-| Static Ward | A shell on an ally. Whatever hits it takes Storm damage. Stands in for Protective Ward | first seven | 12 s, 25 mana, Storm rune | Magic 25 | RECOMMENDED (GR-16) |
-| Tithe | Drains one monster and heals the weakest ally | second batch | 10 s, 20 mana, Bone rune | Magic 40 | RECOMMENDED (GR-16), redesign first |
+| Static Ward | A shell on an ally. Whatever hits it takes Storm damage. Stands in for Protective Ward | first seven | 12 s, 25 mana, Storm rune | Magic 25 | DECIDED (GR-16, Fable 2026-11-21) |
+| Tithe | Drains one monster and heals the weakest ally | second batch | 10 s, 20 mana, Bone rune | Magic 40 | DECIDED (GR-16, Fable 2026-11-21), redesign first |
 
 **Fists.** RULED 11-18, the identity: "Hearthrise's self-sufficient all-rounder", with steady single-target damage, elemental flexibility and enough sustain to hunt alone in comfort. In a four they fill a gap while tanks, healers and dedicated damage stay stronger in their roles. Good at everything, great at nothing. They ship after the spell rule (RULED 21-10).
 
 | Dial | Design | Status |
 |---|---|---|
 | The promise | Within 15% of the best lone XP. Best net gold of any lone melee from Level 40 | RULED 11-18 (answer 7) |
-| Damage | One target only. No area. Counts as Melee, on the blunt side | RULED 11-18. Blunt: RECOMMENDED (GR-14) |
-| The Hands | One row. A strike on mana, with no element and no rune | RECOMMENDED (GR-17) |
-| The Palm | One row. A strike on mana in the element the player chose. Feeding it a rune of any family is the stronger cast and sets its element. That covers Storm and Bone with no extra rows, and makes the fists a consumer of every rune family | RECOMMENDED (GR-17) |
+| Damage | One target only. No area. Counts as Melee, on the blunt side | RULED 11-18. Blunt: DECIDED (GR-14, Fable 2026-11-21) |
+| The Hands | One row. A strike on mana, with no element and no rune | DECIDED (GR-17, Fable 2026-11-21) |
+| The Palm | One row. A strike on mana in the element the player chose. Feeding it a rune of any family is the stronger cast and sets its element. That covers Storm and Bone with no extra rows, and makes the fists a consumer of every rune family | DECIDED (GR-17, Fable 2026-11-21) |
 | Sustain | Its own heal, about 0.8% of max health a second while hurt | OPEN. The plan's gold test is re-run on the spell rule first, because Mend at 11% of max health may be enough |
 | Armor | Any weight | TARGET (the itemization plan section 7) |
 | Source | Drops, as the eighth weapon family | RULED 11-18 |
 
 MEASURED on a stand-in, before the spell rule: with every strike on a rune the store bill was 2 to 10 times the hammer's and the stand-in lost gold from Level 42. That is why the strikes cost mana and a rune is optional.
 
-**Necrotic and Storm: sixteen spells.** RULED 11-18 and 32-6: every weapon family has a spell for both, and the crossbow has its own list. RECOMMENDED order (GR-16): seven first, one for each weapon, after Deadly is sized. Then the rest, redesigned after the seven are played, under one rule: no two weapons share a mechanic.
+**Necrotic and Storm: sixteen spells.** RULED 11-18 and 32-6: every weapon family has a spell for both, and the crossbow has its own list. DECIDED order (GR-16, Fable 2026-11-21): seven first, one for each weapon, after Deadly is sized. Then the rest, redesigned after the seven are played, under one rule: no two weapons share a mechanic.
 
 | Family | First seven | Second batch, redesigned first |
 |---|---|---|
@@ -444,12 +447,12 @@ That is seven, seven and the fists' two: sixteen. Each of the first seven is siz
 
 | Family | Who spends it | Opens at Runecrafting |
 |---|---|---|
-| Fire | Flame Strike, Flame Volley, Fireball, the Palm | the items chapter |
-| Ice | Frost Slam, Frost Lance, Hoarfrost, the Palm | the items chapter |
-| Earth | Shelter, Arcane Barrier, Protective Ward, Quarry Blow | the items chapter |
-| Water | Greater Mend, Circle of Renewal, Spring Tide, Undertow | the items chapter |
-| Poison | Green Sickness, the Palm | the items chapter |
-| Rupture | Rend | the items chapter |
+| Fire | Flame Strike, Flame Volley, Fireball, the Palm | `03-items-and-crafting.md` |
+| Ice | Frost Slam, Frost Lance, Hoarfrost, the Palm | `03-items-and-crafting.md` |
+| Earth | Shelter, Arcane Barrier, Protective Ward, Quarry Blow | `03-items-and-crafting.md` |
+| Water | Greater Mend, Circle of Renewal, Spring Tide, Undertow | `03-items-and-crafting.md` |
+| Poison | Green Sickness, the Palm | `03-items-and-crafting.md` |
+| Rupture | Rend | `03-items-and-crafting.md` |
 | Storm | the Storm spells, the Palm | 25 (RULED 32-1) |
 | Bone | the Necrotic spells, the Palm | 40 (RULED 32-1) |
 
@@ -465,9 +468,9 @@ That is seven, seven and the fists' two: sixteen. Each of the first seven is siz
 - A monster that shoots aims at the hero farthest back.
 - A pack lives in its room plus a margin. If the hero holding it leaves, the pack resets and heals. A boss never resets.
 
-**Target modes.** Nearest, Lowest HP, Highest HP %, Strongest, Follow the leader, and one new mode: **Shooters first** (RECOMMENDED, GR-19). It takes first the monster that is attacking from range, then the leader's target. It is the bow's default, and Hunter's Mark follows it. MEASURED on a real four: 28% of the damage taken landed on the healer, nearly all from monsters shooting the back row.
+**Target modes.** Nearest, Lowest HP, Highest HP %, Strongest, Follow the leader, and one new mode: **Shooters first** (DECIDED, GR-19, Fable 2026-11-21). It takes first the monster that is attacking from range, then the leader's target. It is the bow's default, and Hunter's Mark follows it. MEASURED on a real four: 28% of the damage taken landed on the healer, nearly all from monsters shooting the back row.
 
-**One job for each seat.** RECOMMENDED (GR-3, GR-18, GR-19, GR-16). Each weapon brings one thing to a four that no other weapon brings, and each job is a rule on a bar, set in town.
+**One job for each seat.** DECIDED (GR-3, GR-18, GR-19, GR-16, Fable 2026-11-21, reversal, Tyler may veto). Each weapon brings one thing to a four that no other weapon brings, and each job is a rule on a bar, set in town.
 
 | Seat | Its job in a four | The rule on the bar |
 |---|---|---|
@@ -480,7 +483,7 @@ That is seven, seven and the fists' two: sixteen. Each of the first seven is siz
 | Crossbow | A Ranger that looks after itself | Leech Bolt, a shield |
 | Fists | Fill a gap | The Palm in the element the ground is weak to |
 
-**What Deadly asks of a four.** RECOMMENDED (GR-3), building RULED 21-3 (11-20: the harder tiers hit harder, sized on a party with a healer and monsters that shoot the back row) and RULED 31-9 (spells are sized first, then Deadly).
+**What Deadly asks of a four.** DECIDED (GR-3, Fable 2026-11-21), building RULED 21-3 (11-20: the harder tiers hit harder, sized on a party with a healer and monsters that shoot the back row) and RULED 31-9 (spells are sized first, then Deadly).
 
 Deadly is sized so that all three of these are true for a MID-geared four in band.
 
@@ -488,29 +491,29 @@ Deadly is sized so that all three of these are true for a MID-geared four in ban
 2. **The same four with a hammer in front in place of the shield does not hold it.**
 3. **The same four with no healer does not hold it.**
 
-Statements 2 and 3 are the lineup test. They are what make preparing a party a real decision. Four lineup cells join the balance matrix and must turn from holding to failing as the dials are sized (RECOMMENDED, GR-88): hammer, healer, bow, mage. Hammer and three mages. Three mages and a healer. Four mages.
+Statements 2 and 3 are the lineup test. They are what make preparing a party a real decision. Four lineup cells join the balance matrix and must turn from holding to failing as the dials are sized (DECIDED, GR-88, Fable 2026-11-21): hammer, healer, bow, mage. Hammer and three mages. Three mages and a healer. Four mages.
 
 MEASURED on the engine with the spell rule built, at the opening dial values, one seed and one hour for each cell, direction only: every one of those lineups held Deadly with no deaths at Levels 60 and 110, and a hammer with three mages was the fastest four at Level 60. So the opening dials are too low and the harder tiers work must raise them. The sizing uses only the tier table of 2.11 and the monsters' own stats. It never uses a rule keyed on party make-up.
 
 **Why roles then matter, by formula.** A pull of eight needs a holder, because an unheld pack spreads its blows across cloth. The tier's blow and aim make that spread lethal. Shooters reach the back row, so someone must kill them or guard against them. Whole-group spells need a shell, a heal or a broken cast. Each is a stat or a row. None is special-case code.
 
-**The party's pay.** The party buff is the party cell of the XP chain: `kill XP x tier x mode x party x event`, each factor one table for the whole game (RECOMMENDED, GR-85, roadmap step R8). The lone hero's +15% (RULED 11-11) is the first cell of that one table. The table pays more for a mix of classes than for one class (RULED 10-31, kept by GR-3). Its cells are re-cut after Deadly is sized, with no target for a lone hero against a party (RULED 11-21). A hero far below the party's top Level follows one visible line: at two thirds of the top Level or more it keeps its full share (RECOMMENDED, MM-19). The table itself belongs to the progression chapter.
+**The party's pay.** The party buff is the party cell of the XP chain: `kill XP x tier x mode x party x event`, each factor one table for the whole game (DECIDED, GR-85, Fable 2026-11-21, roadmap step R8). The lone hero's +15% (RULED 11-11) is the first cell of that one table. The table pays more for a mix of classes than for one class (RULED 10-31, kept by GR-3). Its cells are re-cut after Deadly is sized, with no target for a lone hero against a party (RULED 11-21). A hero far below the party's top Level follows one visible line: at two thirds of the top Level or more it keeps its full share (DECIDED, MM-19, Fable 2026-11-21, reversal of the party XP rulings of 2026-11-08, Tyler may veto). The table itself belongs to `05-progression.md`.
 
 ### 2.11 The harder tiers
 
 **One choice for each ground.** RULED 11-05 and 11-07. Normal, Dangerous or Deadly. A tier is a bigger pull, a percent of difficulty and a percent of XP. Coin per kill and drops per kill never change with the tier, because a tier costs no gold to enter. The leader chooses and members read it. Any hero may enter any ground on any tier. Pushing past your weight is a warned choice with one confirm press, and it pays more XP for more risk and a bigger supply bill (RULED 11-04 and 11-06).
 
-**One tier table, the same on every ground.** RECOMMENDED (GR-5 and GR-27, roadmap steps R7 and R12). No ground carries its own dials. A ground differs by what it fields, never by its percents.
+**One tier table, the same on every ground.** DECIDED (GR-5 and GR-27, Fable 2026-11-21, roadmap steps R7 and R12). No ground carries its own dials. A ground differs by what it fields, never by its percents.
 
 | | Normal | Dangerous | Deadly | Knob | Label |
 |---|---|---|---|---|---|
-| Pull, monsters in a fight | the ground's own packs | one number, the same on every ground. Five is the leading candidate | one number, the same on every ground. Eight | `tierPull` | The shape is RECOMMENDED (GR-27). The numbers are OPEN, set by the harder tiers sample |
+| Pull, monsters in a fight | the ground's own packs | one number, the same on every ground. Five is the leading candidate | one number, the same on every ground. Eight | `tierPull` | The shape is DECIDED (GR-27, Fable 2026-11-21). The numbers are OPEN, set by the harder tiers sample |
 | Blow and aim | x1.00 | x1.17 to open, sized up | x1.33 to open, sized up | `tierDanger` | TARGET. RULED 21-3 that it rises |
 | Monster health | x1.00 | x1.10 | x1.15 | `tierHp` | TARGET |
 | Level XP per kill | x1.00 | x1.10 | x1.25 | `tierXp` | TARGET |
 | Coin and drops per kill | the same | the same | the same | none | RULED 11-07 |
 
-**One pull number for each tier.** RECOMMENDED (GR-27). The one thing a ground adds is a map fact: how many monsters its rooms can physically hold. A room that holds six fields six on Deadly. That number comes from the map and nobody sets it to tune XP. The rule that withheld bigger pulls from the first grounds goes in the same step as the kill reward (RECOMMENDED, GR-5), because harder tiers keep the bigger pulls (RULED 11-07).
+**One pull number for each tier.** DECIDED (GR-27, Fable 2026-11-21). The one thing a ground adds is a map fact: how many monsters its rooms can physically hold. A room that holds six fields six on Deadly. That number comes from the map and nobody sets it to tune XP. The rule that withheld bigger pulls from the first grounds goes in the same step as the kill reward (DECIDED, GR-5, Fable 2026-11-21), because harder tiers keep the bigger pulls (RULED 11-07).
 
 **Who each tier is for.**
 
@@ -520,7 +523,7 @@ MEASURED on the engine with the spell rule built, at the opening dial values, on
 | Dangerous | A lone hero's hard tier, and a party's step up | MEASURED at the opening dial, one seed and one hour: a lone hero in band holds a pull of five at 35 to 49% health with no deaths from the Glade to Krell's Hold, for 35 to 65% more XP than Normal, and it costs most of the hour's gold. Not yet played at the raised dial |
 | Deadly | A four with roles (2.10) | |
 
-**The bands a tier is sized to.** These are what "sized" means. MID rows are RULED (10-25 and 11-21, call 50-5). LOW and BiS rows are RECOMMENDED (GR-88, from the standards, section 2.2).
+**The bands a tier is sized to.** These are what "sized" means. MID rows are RULED (10-25 and 11-21, call 50-5). LOW and BiS rows are DECIDED (GR-88, Fable 2026-11-21, from the standards, section 2.2).
 
 | Band | LOW gear | MID gear | BiS gear |
 |---|---|---|---|
@@ -532,15 +535,15 @@ MEASURED on the engine with the spell rule built, at the opening dial values, on
 | S6. Deaths in 1,000 hunted hours, the same count at every Level | Dangerous 60 to 150. Deadly over 200 | Dangerous 10 to 30. Deadly 50 to 100 | Dangerous 2 to 10. Deadly 10 to 30 |
 | S7. A 12 hour unattended hunt on Normal finishes | 9 in 10 | 99 in 100 | always |
 
-**Holding a tier.** RECOMMENDED (GR-88). A kit holds a tier when its deaths are at or under the top of its S6 row, its lowest health is inside S3 or S4, and its net gold is over zero. The standard: MID holds Dangerous in band from Level 16 and Deadly as a four. BiS holds Deadly. LOW holds Normal and nothing else.
+**Holding a tier.** DECIDED (GR-88, Fable 2026-11-21). A kit holds a tier when its deaths are at or under the top of its S6 row, its lowest health is inside S3 or S4, and its net gold is over zero. The standard: MID holds Dangerous in band from Level 16 and Deadly as a four. BiS holds Deadly. LOW holds Normal and nothing else.
 
 **Outside your weight.** A party ten Levels under the band dies every few hours on Deadly (RULED 21-3). It should be struggling or paying (RULED 11-19, as direction). The cost comes from the monsters' own stats and never from a Level penalty (RULED 11-04).
 
-**A death.** A death ends that hero's hunt and sends it to town. It costs 6% of the hero's total Level XP and 6% of each combat skill's progress, flat, with no cap (RULED 11-09 and 11-21). Blessings cut that. The cost and the Blessing ladder belong to the progression chapter.
+**A death.** A death ends that hero's hunt and sends it to town. It costs 6% of the hero's total Level XP and 6% of each combat skill's progress, flat, with no cap (RULED 11-09 and 11-21). Blessings cut that. The cost and the Blessing ladder belong to `05-progression.md`.
 
 ### 2.12 Monster stats on the one formula
 
-**Every monster is written by one formula** from its Level, its role and its encounter type (RECOMMENDED, GR-86, roadmap steps R4 and R21). No monster is typed by hand. A named exception is a row with a reason and Tyler's yes. A monster row stores its own blow, so no art set and no patch sits between the formula and the number.
+**Every monster is written by one formula** from its Level, its role and its encounter type (DECIDED, GR-86, Fable 2026-11-21, roadmap steps R4 and R21). No monster is typed by hand. A named exception is a row with a reason and Tyler's yes. A monster row stores its own blow, so no art set and no patch sits between the formula and the number.
 
 | Stat | Formula | Knob | Label |
 |---|---|---|---|
@@ -549,7 +552,7 @@ MEASURED on the engine with the spell rule built, at the opening dial values, on
 | Aim | solved from the reference hero so the monster lands 70% (40% gentle), plus its role | `monsterAccuracy` | RULED 21-2 for the 70% |
 | Evasion | solved from the reference hero so the hero lands 85%, times its role | `heroAccuracy` | TARGET |
 | Defense | 0.08 x Level x role | `monsterDefense` | TARGET |
-| Level XP and coin per kill | priced per health point by the kill reward and the coin line | `killRateRef`, `coinLine` | The progression and economy chapters |
+| Level XP and coin per kill | priced per health point by the kill reward and the coin line | `killRateRef`, `coinLine` | `05-progression.md` and `04-economy-and-crowns.md` |
 
 **Roles.** Six, each a row of multipliers. A ground's roster names a role for each monster (TARGET).
 
@@ -562,11 +565,11 @@ MEASURED on the engine with the spell rule built, at the opening dial values, on
 | Elite | the bruiser, the rare carrier | x1.6 | 0 | x1.0 | x4.0 | x1.5 | x1.15 |
 | Boss | a long fight | x5 | 0 | x1.1, held to a third of the floor hero's health | x4.0 | x1.5 | x1.2 |
 
-**Encounter types.** Two. An ordinary ground, and a ground built for a party: health x2.5 and blow x0.75 (`partyGroundHp`, `partyGroundBlow`), with XP per kill an output of the kill reward (RECOMMENDED, GR-5).
+**Encounter types.** Two. An ordinary ground, and a ground built for a party: health x2.5 and blow x0.75 (`partyGroundHp`, `partyGroundBlow`), with XP per kill an output of the kill reward (DECIDED, GR-5, Fable 2026-11-21).
 
-**A hall boss** is the boss role times one hall number, sized so a party in band wins 80 to 90% of the time on the food its card asks for, and the weakest named party loses (RECOMMENDED, GR-30). No boss is tuned by hand.
+**A hall boss** is the boss role times one hall number, sized so a party in band wins 80 to 90% of the time on the food its card asks for, and the weakest named party loses (DECIDED, GR-30, Fable 2026-11-21). No boss is tuned by hand.
 
-**Boss phases.** Two lines on a boss's health. Adds arrive at the first, and he takes only a share of every blow while one stands. Under the second he enrages: his blow and aim rise and one named spell casts faster (RULED 11-05, C-BOSS-PHASE). A ground's named rare gets one phase trait so it is an event and not a bigger health bar (RECOMMENDED, GR-35, the world chapter).
+**Boss phases.** Two lines on a boss's health. Adds arrive at the first, and he takes only a share of every blow while one stands. Under the second he enrages: his blow and aim rise and one named spell casts faster (RULED 11-05, C-BOSS-PHASE). A ground's named rare gets one phase trait so it is an event and not a bigger health bar (DECIDED, GR-35, Fable 2026-11-21, `02-world.md`).
 
 **Monster spells.** A monster's spell rolls from half to all of its largest blow times the spell's share, then meets the hero's armor as any blow (C-MON-SPELL). A marked spell shows a windup. The first cast waits a random share of its cooldown, so a pack does not cast as one.
 
@@ -582,7 +585,7 @@ MEASURED on the engine with the spell rule built, at the opening dial values, on
 | 1,000 | 431 | 14% | 8.9 | at the cap | 12.9 |
 | 5,000 | 1,987 | 7% | 9.3 | at the cap | 12.8 |
 
-So combat holds its shape to any Level as long as gear rides the curve. That is why the gear curve (GR-4, the items chapter) is the most important formula combat depends on.
+So combat holds its shape to any Level as long as gear rides the curve. That is why the gear curve (GR-4, `03-items-and-crafting.md`) is the most important formula combat depends on.
 
 ### 2.13 The global knobs
 
@@ -610,7 +613,7 @@ One file, `tools/balance-program/formulas/knobs.json`. The Balance Lab turns eac
 | `heroHp`, `heroMana` | 150 + 10 a Level, 100 + 10 a Level | Health, mana, and every monster blow with them |
 | `armorMitigation`, `armorCurve`, `mitigationCap` | 650, 750, 1.5. 0.4, 0.62. 60% | What armor is worth |
 | `regen` | 0.3% a second in a fight, 6% out | Downtime, food bought |
-| `gearSlope`, `gearBandStep`, `gearExchange` | the items chapter | Whether hero power and armor keep pace, forever |
+| `gearSlope`, `gearBandStep`, `gearExchange` | `03-items-and-crafting.md` | Whether hero power and armor keep pace, forever |
 
 ---
 
@@ -628,39 +631,39 @@ One file, `tools/balance-program/formulas/knobs.json`. The Balance Lab turns eac
 
 ---
 
-## 4. Open calls in this chapter
+## 4. The calls in this chapter, as decided
 
-In decision-book order. Each line is the recommendation this chapter is written on.
+In decision-book order. Each line is the decision this chapter is written on.
 
-| Id | The call | Recommendation |
-|---|---|---|
-| GR-85 | The formula steps that move no number | Approve. Named constants for Power, each duplicate becomes one, a monster row stores its blow, a tier's dial applied once, one XP chain |
-| GR-88 | The gate | The balance matrix diff gates every balance change. It gains the four Deadly lineup cells and a band for XP after deaths. The registers are guarded |
-| GR-3 | What Deadly must ask for | A four with a shield tank and a healer holds it. The same four with a hammer in front, or with no healer, does not |
-| GR-27 | What the harder tiers bring | One pull number for each tier and no per-ground dial. The harder tiers sample sets the numbers. Five on Dangerous leads |
-| GR-4 | The gear curve (items chapter) | Approve. Combat's scaling to any Level depends on it |
-| GR-5 | The kill reward and one tier table (progression chapter) | Approve. It removes the per-ground tier dials and the pull rule on first grounds |
-| GR-18 | Quarry Blow breaks a windup | Approve. It re-opens "no stagger" (10-23) in a narrow form |
-| GR-20 | A status opens one kind of damage | Approve as a sample of three, under one total cap, after Deadly is sized |
-| GR-24 | The starting weapon | The player picks it at creation, for each of the four heroes |
-| GR-25 | Special rules never put to Tyler | Approve each: gentle first grounds, the boss blow cap, three training bases, one roll rule with chance rounding, one flag for a tier a ground does not offer |
-| GR-11 | The beginner's floor | One floor on the blow a cast reads |
-| GR-12 | Spells and the hit stats | A physical strike reads weapon weakness. Spells never miss and never crit |
-| GR-13 | The roll | One rule. Heals and shells have no spread |
-| GR-14 | Weapon weakness | Axes are edged, fists are blunt, the unused resists column goes, and Rend rises until the axes sit with the melee ways |
-| GR-15 | Turning Cut and Rend | Turning Cut at Level 1 for axes and hammer, Melee 10 for the sword. Rend on the default axes bar |
-| GR-16 | Necrotic and Storm | Seven first, one for each weapon, after Deadly. Sixteen in the end. No two weapons share a mechanic |
-| GR-17 | Fists | Two rows, the Hands and the Palm. Re-run the gold test first |
-| GR-19 | Shooters first | One new target mode, the bow's default |
-| GR-21 | The crossbow | Its identity is its own list and its shield. Its numbers stay |
-| GR-22 | Magic on every hero | +0.5% max mana for each Magic level |
-| GR-23 | Skill at high Level | A hit stays skill plus gear. Rune tiers continue past 60, one every 15 skill levels |
-| GR-26 | Plus skill on chest weapons | Keep the flat +1 to +4 as ruled |
-| GR-30 | Hall bosses | The boss role times one hall number, sized to an 80 to 90% win rate in band |
-| GR-86 | The later engine steps | One amount pipeline rounded once with a trace, one modifier table, every monster on the formula |
-| MM-19 | Mixed Levels in one fight | One visible two thirds line for every party |
-| MM-24, MM-25 | How MMO layer buffs are sized | Every buff is a row of the one modifier table, summed on its knob under a standing cap and a timed cap. Damage dealt +5% and +10%. Damage taken 5% and 5% less |
-| MM-41 | One engine check | Heroes on both sides of a fight is measured once, for both arenas, before either is planned |
+| Id | The call | The decision | Status |
+|---|---|---|---|
+| GR-85 | The formula steps that move no number | Approve. Named constants for Power, each duplicate becomes one, a monster row stores its blow, a tier's dial applied once, one XP chain | DECIDED (Fable 2026-11-21) |
+| GR-88 | The gate | The balance matrix diff gates every balance change. It gains the four Deadly lineup cells and a band for XP after deaths. The registers are guarded | DECIDED (Fable 2026-11-21) |
+| GR-3 | What Deadly must ask for | A four with a shield tank and a healer holds it. The same four with a hammer in front, or with no healer, does not | DECIDED (Fable 2026-11-21) |
+| GR-27 | What the harder tiers bring | One pull number for each tier and no per-ground dial. The harder tiers sample sets the numbers. Five on Dangerous leads | DECIDED (Fable 2026-11-21) |
+| GR-4 | The gear curve (items chapter) | Linear in Level. Past tier 7 a band is a fixed step that opens at about +17% (110, 129, 151, 176, 206, 241, 282, 330, 386). Uniques are a spend of their band. The two Luck numbers are keyed by Level | DECIDED (reversal, Tyler may veto). Changes two bands a region of 2026-11-18 and the Luck step of 2026-11-20 (Fable 2026-11-21) |
+| GR-5 | The kill reward and one tier table (progression chapter) | Approve. It removes the per-ground tier dials and the pull rule on first grounds | DECIDED (Fable 2026-11-21) |
+| GR-18 | Quarry Blow breaks a windup | Approve. It re-opens "no stagger" (10-23) in a narrow form | DECIDED (reversal, Tyler may veto). Changes "no stagger" of 2026-10-23 (Fable 2026-11-21) |
+| GR-20 | A status opens one kind of damage | Approve as a sample of three, under one total cap, after Deadly is sized | DECIDED (Fable 2026-11-21) |
+| GR-24 | The starting weapon | The player picks for each hero at creation. No card is preselected. Each card carries a measured tag and the hammer a "Good first hero" mark. Heroes two to four come pre-filled as shield, staff and bow | DECIDED (Fable 2026-11-21) |
+| GR-25 | Special rules never put to Tyler | Approve each: gentle first grounds, the boss blow cap, three training bases, one roll rule with chance rounding, one flag for a tier a ground does not offer | DECIDED (Fable 2026-11-21) |
+| GR-11 | The beginner's floor | One floor on the blow a cast reads | DECIDED (Fable 2026-11-21) |
+| GR-12 | Spells and the hit stats | A physical strike reads weapon weakness. Spells never miss and never crit | DECIDED (Fable 2026-11-21) |
+| GR-13 | The roll | One rule. Heals and shells have no spread | DECIDED (Fable 2026-11-21) |
+| GR-14 | Weapon weakness | Axes are edged, fists are blunt, the unused resists column goes, and Rend rises until the axes sit with the melee ways | DECIDED (Fable 2026-11-21) |
+| GR-15 | Turning Cut and Rend | Turning Cut at Level 1 for axes and hammer, Melee 10 for the sword. Rend on the default axes bar | DECIDED (Fable 2026-11-21) |
+| GR-16 | Necrotic and Storm | Seven spells first, one for each weapon, after Deadly. Sixteen in the end. The game designer sizes the mana burn share and the healing cut on the matrix | DECIDED (Fable 2026-11-21) |
+| GR-17 | Fists | Two rows, the Hands and the Palm. Re-run the gold test first | DECIDED (Fable 2026-11-21) |
+| GR-19 | Shooters first | One new target mode, the bow's default | DECIDED (Fable 2026-11-21) |
+| GR-21 | The crossbow | Its identity is its own list and its shield. Its numbers stay | DECIDED (Fable 2026-11-21) |
+| GR-22 | Magic on every hero | +0.5% max mana for each Magic level | DECIDED (Fable 2026-11-21) |
+| GR-23 | Skill at high Level | A hit stays skill plus gear. Rune tiers continue past 60, one every 15 skill levels | DECIDED (Fable 2026-11-21) |
+| GR-26 | Plus skill on chest weapons | Keep the flat +1 to +4 as ruled | DECIDED (Fable 2026-11-21) |
+| GR-30 | Hall bosses | The boss role times one hall number that acts on health and the 10 minute clock, never on blows. A mid-geared four wins 80 to 90%. HYPOTHESIS until the hall grader plays it | DECIDED (Fable 2026-11-21) |
+| GR-86 | The later engine steps | One amount pipeline rounded once with a trace, one modifier table, every monster on the formula | DECIDED (Fable 2026-11-21) |
+| MM-19 | Mixed Levels in one fight | One visible two thirds line for every party | DECIDED (reversal, Tyler may veto). Changes the party XP rulings of 2026-11-08 (Fable 2026-11-21) |
+| MM-24, MM-25 | How MMO layer buffs are sized | Every buff is a row of the one modifier table, summed on its knob under a standing cap and a timed cap. Damage dealt +5% and +10%. Damage taken 5% and 5% less | DECIDED (Fable 2026-11-21) |
+| MM-41 | One engine check | Heroes on both sides of a fight is measured once, for both arenas, before either is planned | DECIDED (Fable 2026-11-21) |
 
 ---
 
@@ -671,23 +674,23 @@ Decisions or designs nobody has made yet in this area.
 | # | What is missing | What decides it |
 |---|---|---|
 | 1 | **The tier numbers.** The raised `tierDanger` for Dangerous and Deadly, and the two pull numbers | The harder tiers sample (4 seeds by 8 hours) at the raised dial, read against S3, S4, S6 and the lineup test. It needs the instrument faults closed first (section 6) |
-| 2 | **The party buffs, named.** The ruling says the same party buffs make hunting together obvious. The only party buff on the table is the party cell of the XP chain, and its cells are not re-cut yet | The progression and MMO layer chapters, after Deadly is sized |
+| 2 | **The party buffs, named.** The ruling says the same party buffs make hunting together obvious. The only party buff on the table is the party cell of the XP chain, and its cells are not re-cut yet | `05-progression.md` and `06-mmo-layer.md`, after Deadly is sized |
 | 3 | **The total cap on "takes more".** One number for Hunter's Mark, Sickness and the status pairs together | The three-pair sample of GR-20 |
 | 4 | **The Necrotic and Storm numbers.** The mana burn share, the healing cut and its seconds, on heroes and on monsters | Sized with the first seven spells (GR-16). They need Tyler's yes before the elements switch on |
 | 5 | **The shares of the dark rows.** Brand, Reave, Updraft, Blight and the fist strikes were converted to shares and never sized. The seven second-batch spells are not designed | The first seven played, then a redesign under "no two weapons share a mechanic" |
 | 6 | **The crossbow's full list.** Only three of its rows are named | The game designer, with GR-21 |
 | 7 | **The fist's own heal.** Whether Mend at 11% of max health is enough, or the 0.8% a second heal is needed | The plan's gold test re-run on the spell rule (GR-17) |
-| 8 | **Whether weapon accuracy stays a stat line.** By formula it is worth about an eighth of weapon damage. MEASURED in play it is worth more than that, and still small | The matrix's gear-step cells, with the items chapter |
+| 8 | **Whether weapon accuracy stays a stat line.** By formula it is worth about an eighth of weapon damage. MEASURED in play it is worth more than that, and still small | The matrix's gear-step cells, with `03-items-and-crafting.md` |
 | 9 | **A guard for heals at high Level.** Staff heals slide from 20% to 14% of max health between Level 110 and 5,000 on the curve | A band that reads a heal in monster blows at Levels 185 and 400. If it fails, Greater Mend moves to the max health kind |
-| 10 | **Names for rune tiers VI and on, and who makes them** | The items chapter, with GR-23 and GR-45 |
-| 11 | **Something for the bar past the last rune tier.** A permanent build choice so two tanks differ | GR-61 (Kindlings), the progression chapter. Combat's fence: a pick changes a row inside the bar budget and never adds one |
+| 10 | **Names for rune tiers VI and on, and who makes them** | `03-items-and-crafting.md`, with GR-23 and GR-45 |
+| 11 | **Something for the bar past the last rune tier.** A permanent build choice so two tanks differ | GR-61 (Kindlings), `05-progression.md`. Combat's fence: a pick changes a row inside the bar budget and never adds one |
 | 12 | **Which weapons the four starting heroes hold, and their default bars** | The first hour's walked-through sequence (GR-24, GR-79) |
 | 13 | **The value of `powerFloor`** | Roadmap step R6's own run on Levels 1 to 15 against the 6 hour rule |
 | 14 | **The fist promise beside "no solo or group targets".** The promise is a lone-hero comparison between weapon ways. This chapter keeps it as ruled and reads it as an identity test for the weapon, not a party-size target | Tyler, only if he reads it differently |
-| 15 | **Whether the engine can run heroes on both sides of a fight** | One measurement by the systems engineer, for the arenas (the MMO layer chapter) |
+| 15 | **Whether the engine can run heroes on both sides of a fight** | One measurement by the systems engineer, for the arenas (`06-mmo-layer.md`) |
 | 16 | **MMO layer buffs against the tier sizing.** A fully buffed, boss-geared four is about 32% faster and takes 10% less (MM-26, TARGET). Deadly is sized on a plain MID four. Nobody has said whether a buffed four is meant to hold Deadly comfortably, and whether a damage taken buff counts inside the 60% mitigation cap or after it | The harder tiers sample gains a buffed column once MM-24 to MM-26 are ruled. This chapter recommends the buff counts inside the cap, so the cap stays the real armor number |
-| 17 | **The weak-side weapon without a chore.** Weapon weakness asks a hero to hold a second weapon for some grounds. If the swap is made by hand before every hunt it is a repeated decision, which the first principle forbids | The saved kit for each ground (GR-48, the items and features chapters) must carry the weapon, the bar and the target mode together |
-| 18 | **Death against the Deadly band.** 6% with no cap and 50 to 100 deaths in 1,000 hours do not fit together past about Level 100 once Deadly bites | GR-7, the progression chapter |
+| 17 | **The weak-side weapon without a chore.** Weapon weakness asks a hero to hold a second weapon for some grounds. If the swap is made by hand before every hunt it is a repeated decision, which the first principle forbids | The saved kit for each ground (GR-48, `03-items-and-crafting.md` and `08-player-experience.md`) must carry the weapon, the bar and the target mode together |
+| 18 | **Death against the Deadly band.** 6% with no cap and 50 to 100 deaths in 1,000 hours do not fit together past about Level 100 once Deadly bites | GR-7, `05-progression.md` |
 
 ---
 
@@ -769,7 +772,7 @@ What this chapter dropped from its sources, and why.
 | The hit as skill times gear | 41 call 4, as an option | No new multiplying formula. Skill plus gear, with rune tiers and to-hit carrying skill's late worth (GR-23) |
 | Plus skill as a percent of the blow | 44 call 11 | The flat +1 to +4 stays as ruled (GR-26, 47 C24) |
 | A spell is a blow and reads miss, crit and weakness | 41 call 2, as an option | Weakness by damage kind only (GR-12) |
-| "Do not build curing" | 58 phase A, 47 C11's side A | Ruled twice. It is built last, in the items chapter (GR-47). It is not a combat system |
+| "Do not build curing" | 58 phase A, 47 C11's side A | Ruled twice. It is built last, in `03-items-and-crafting.md` (GR-47). It is not a combat system |
 | A Level-keyed share cut for a low hero, hidden | the built rule | One visible two thirds line (MM-19) |
 | A ninth weapon, attack speed by weapon, crit as a weapon identity, a second support class, more heals | ideas weighed in 52 | The eight ways are made distinct first. Speed would be a second damage law for no decision an idle player makes |
 | Every number offered as a before and after comparison | all sources | RULED 11-21: nothing is compared with the game that came before. Measured numbers here are evidence about the proposed design or about the instrument |

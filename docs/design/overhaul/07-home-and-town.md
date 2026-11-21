@@ -5,7 +5,10 @@ Chapter 07 of "Hearthrise: the game we are building". It covers the House, home 
 **How to read the labels.** Every design statement carries one of three.
 
 - **RULED** with a date or a call id. Tyler decided it.
-- **RECOMMENDED** with the open call that decides it (GR-x or MM-x). The chapter is written as if the recommendation is taken.
+- **DECIDED** with the call id and "Fable 2026-11-21". The game designer decided the call and an adversarial check corrected it. Its row is in `decisions/all.json`.
+- **DECIDED (reversal, Tyler may veto)** changes one of Tyler's rulings. The first tag in the chapter names the ruling. It stands unless he vetoes it.
+- **TYLER CONFIRMS** is a money call or a grant, with the one recommendation.
+- **CUT (Tyler approves)** is a removal that waits for his yes.
 - **OPEN**. Nobody has recommended an answer yet. The line says what decides it.
 
 Numbers are **TARGET** (what the design aims at) or **COMPUTED** (arithmetic on data rows or the solver, not played). A measured number appears only as evidence about a design in this chapter, and says what measured it. The measuring harness is not calibrated yet (chapter 09), so every measured number here is direction only unless it is an identity proof.
@@ -39,8 +42,8 @@ Numbers are **TARGET** (what the design aims at) or **COMPUTED** (arithmetic on 
 | Two visits a day is the free game. A visit is a few minutes for four heroes | RULED 11-21 (50-12) |
 | A job is one press that sets a count and a "then". No job needs a second visit inside its own run. No decision is repeated by hand | RULED (the first principle, 10-18). Band T8 |
 | No hunt starts by itself. One "Carry on" press sends every hero back to what it did last | RULED 11-20 (27-1) |
-| The home gives a hunt nothing except through supplies it made and skills it trained. No home buff, no rested XP | RECOMMENDED GR-76 and GR-63. Evidence: patch `home-1` is an identity on 207 cells (section 6) |
-| House prices are typed content rows (formula `E43`). They are things, not a curve. Repeating prices (the yard fee, the bench fee, the mounting fee) are hours of the wage curve | RECOMMENDED GR-51 |
+| The home gives a hunt nothing except through supplies it made and skills it trained. No home buff, no rested XP | DECIDED GR-76 and GR-63, Fable 2026-11-21. Evidence: patch `home-1` is an identity on 207 cells (section 6) |
+| House prices are typed content rows (formula `E43`). They are things, not a curve. Repeating prices (the yard fee, the bench fee, the mounting fee) are hours of the wage curve | DECIDED GR-51, Fable 2026-11-21 |
 | Gathering and crafting skills stop at 99. A death takes nothing from them | RULED 10-25 |
 
 ### 2.2 The property ladder
@@ -60,7 +63,7 @@ Six deeds. Each is bought with gold and goods that hunts and benches make, which
 |---|---|
 | The five prices | RULED 11-20 (26-3) |
 | Two beds a tier | RULED (as built into 26-3's ladder) |
-| Which rooms each deed opens | RULED 11-20 (26-1, 26-7, 26-9) for the rooms, RECOMMENDED GR-73 for the Hall and the Great Hall |
+| Which rooms each deed opens | RULED 11-20 (26-1, 26-7, 26-9) for the rooms, DECIDED GR-73, Fable 2026-11-21 for the Hall and the Great Hall |
 | The Castle asks for Gatekeeper's Chain, which drops in Krell's Hold. A four reaches Krell on day 18 (RULED 11-21), so the Castle is a goal for the weeks after Krell | COMPUTED from the data rows |
 | Whether these prices are still the right size for an account that has four heroes earning from day 1 | OPEN. Nobody has re-read them (section 5, item 2) |
 
@@ -83,11 +86,11 @@ Six rooms. A room has five rungs. Each rung puts one real piece of furniture in 
 |---|---|
 | Rung 1 of a bench room is the bench with no fee. Rungs 2 to 5 give a chance to keep the job's materials. No room sells speed | RULED 11-20 (26-1) |
 | The rung prices stay as typed | RULED 11-20 (26-1). Re-read for an account of four is OPEN (section 5, item 2) |
-| The swap is built ahead of the lining work, so no rung is ever on sale that sells something a player cannot feel | RECOMMENDED GR-76 |
-| The House row says who a rung is for: "Keeps 8% of materials. Worth it on costly recipes." | RECOMMENDED GR-76 |
+| The swap is built ahead of the lining work, so no rung is ever on sale that sells something a player cannot feel | DECIDED GR-76, Fable 2026-11-21 |
+| The House row says who a rung is for: "Keeps 8% of materials. Worth it on costly recipes." | DECIDED GR-76, Fable 2026-11-21 |
 | The Shrine has no rungs. Its spot on the home map is kept | RULED 11-20 (26-8). What stands there is OPEN (section 5, item 9) |
 | The Cellar sells no food effect. It is the curing room | RULED 11-20 (26-7) |
-| There is no Trophy room with mount rungs. The Hall of Firsts takes its place and its wall comes from the deed | RECOMMENDED GR-73 (section 2.4) |
+| There is no Trophy room with mount rungs. The Hall of Firsts takes its place and its wall comes from the deed | DECIDED GR-73, Fable 2026-11-21 (section 2.4) |
 
 **Who a kept-materials rung is for.** Kept materials is a percent of a job's inputs, so it is worth nothing on cheap jobs and a great deal on costly ones, and it grows with recipe value at every later tier. COMPUTED from the recipe rows, not played: rungs 2 to 5 of a bench room pay back in about 120 bench hours for a hero running the room's best recipes, and in thousands of bench hours for a hero smelting plain bars. That is the right shape for a sink priced above a band's gold on purpose (RULED 11-18), as long as the row says so.
 
@@ -103,9 +106,9 @@ How the Kitchen's burn relief (13 to 25% less food burnt) counts inside the 15% 
 
 Speed and Yield multiply, so the best bench is 1.67 x 1.15 = 1.92 times a bare one (COMPUTED). The wiki says it once.
 
-Formula and knobs: the perk key is `craftSave` in `ROOM_PERKS`, read at all four benches. Under roadmap step R20 the Speed pool and the Yield pool are two rows of the one modifier table (RECOMMENDED GR-86). No knob in `knobs.json` moves a room, and none should: rooms are content rows.
+Formula and knobs: the perk key is `craftSave` in `ROOM_PERKS`, read at all four benches. Under roadmap step R20 the Speed pool and the Yield pool are two rows of the one modifier table (DECIDED GR-86, Fable 2026-11-21). No knob in `knobs.json` moves a room, and none should: rooms are content rows.
 
-**The bench fee.** A public bench takes 15% of what a job's output sells for at the Shop, and nothing on the cheapest goods. A home bench takes nothing. RULED 11-01. Formula `E33`. RECOMMENDED GR-56b: the fee stays and is restated in hours of the wage curve (knob `wageShare`, formula `E56`, roadmap step R15). It is the reason the first rung of every bench room is worth buying, so it must not be removed.
+**The bench fee.** A public bench takes 15% of what a job's output sells for at the Shop, and nothing on the cheapest goods. A home bench takes nothing. RULED 11-01. Formula `E33`. DECIDED GR-56b, Fable 2026-11-21: the fee stays and is restated in hours of the wage curve (knob `wageShare`, formula `E56`, roadmap step R15). It is the reason the first rung of every bench room is worth buying, so it must not be removed.
 
 ### 2.4 The Hall of Firsts
 
@@ -113,18 +116,18 @@ The place where rare finds and firsts live. It is the "Show" job, and it is the 
 
 | Rule | Value | Status |
 |---|---|---|
-| What it replaces | The Trophy room and its five mount rungs. Mounts hold real Trophy drops and boss, Tower and Catacomb firsts | RULED 11-20 (26-6) for what a mount holds. RECOMMENDED GR-73 for the rest of this table |
-| Where the room comes from | The deed. The Keep gives a wall. The Castle gives the Great Hall. No mount rungs are sold | RECOMMENDED GR-73 |
-| What can hang | Only rows flagged mountable, one of each. Three feeds: drops (boss Trophies, uniques, Tower weapons, Catacomb pieces), firsts read from the Honors page (a first boss kill, each 99, Level 100, 200, 300 and 400, a Tower floor), and the top stage of a creature on the kill ladder | RECOMMENDED GR-73, with GR-62 (Honors) and GR-78 (the kill ladder) in chapter 05 and chapter 08 |
-| What cannot hang | Crafted pieces. Anything not flagged. A mount is never a second Storage | RECOMMENDED GR-73 |
-| Hanging a piece | It leaves the bag and pays a mounting fee. Taking it down returns the piece and not the fee. A mount never copies an item | RECOMMENDED GR-73 |
-| The mounting fee | Hours of the wage of the piece's own band, so it follows the gear curve and never runs out as content grows. Formula `E56`, knob `wageShare` | RECOMMENDED GR-73, on GR-51 |
+| What it replaces | The Trophy room and its five mount rungs. Mounts hold real Trophy drops and boss, Tower and Catacomb firsts | RULED 11-20 (26-6) for what a mount holds. DECIDED GR-73, Fable 2026-11-21 for the rest of this table |
+| Where the room comes from | The deed. The Keep gives a wall. The Castle gives the Great Hall. No mount rungs are sold | DECIDED GR-73, Fable 2026-11-21 |
+| What can hang | Only rows flagged mountable, one of each. Three feeds: drops (boss Trophies, uniques, Tower weapons, Catacomb pieces), firsts read from the Honors page (a first boss kill, each 99, Level 100, 200, 300 and 400, a Tower floor), and the top stage of a creature on the kill ladder | DECIDED GR-73, Fable 2026-11-21, with GR-62 (Honors) and GR-78 (the kill ladder) in chapter 05 and chapter 08 |
+| What cannot hang | Crafted pieces. Anything not flagged. A mount is never a second Storage | DECIDED GR-73, Fable 2026-11-21 |
+| Hanging a piece | It leaves the bag and pays a mounting fee. Taking it down returns the piece and not the fee. A mount never copies an item | DECIDED GR-73, Fable 2026-11-21 |
+| The mounting fee | Hours of the wage of the piece's own band, so it follows the gear curve and never runs out as content grows. Formula `E56`, knob `wageShare` | DECIDED GR-73, Fable 2026-11-21, on GR-51 |
 | How big the fee is | TARGET: the Great Hall, filled, costs about as much as the Castle | OPEN. Sized when the mountable rows are counted (section 5, item 4) |
 | How many places | The wall and the Great Hall are sized from the count of mountable rows | OPEN, same count |
-| Power | None. No combat formula reads the Hall | RECOMMENDED GR-73 |
-| The War Crown | It becomes a mountable piece. It has no other House use | RECOMMENDED GR-73. Chapter 03 confirms it needs no other use |
+| Power | None. No combat formula reads the Hall | DECIDED GR-73, Fable 2026-11-21 |
+| The War Crown | It becomes a mountable piece. It has no other House use | DECIDED GR-73, Fable 2026-11-21. Chapter 03 confirms it needs no other use |
 
-**Order of building.** The Honors page first, because the Hall reads its rows. Then the Hall. Then visiting, because a wall nobody can visit is seen by nobody. RECOMMENDED GR-73 and GR-75.
+**Order of building.** The Honors page first, because the Hall reads its rows. Then the Hall. Then visiting, because a wall nobody can visit is seen by nobody. DECIDED GR-73 and GR-75, Fable 2026-11-21, reversal of 26-3 and 26-11, Tyler may veto.
 
 **Content the Hall needs before it opens.** A Trophy row each on Captain Hask, the Provost and Lord Krell (chapter 03). A mountable flag on Trophy rows, uniques, Tower weapons and Catacomb pieces. A first-kill record for each boss (chapter 05, Honors).
 
@@ -132,13 +135,13 @@ The place where rare finds and firsts live. It is the "Show" job, and it is the 
 
 | Rule | Value | Status |
 |---|---|---|
-| Looks | Three: a cottage for the Camp, Homestead and Farmstead, a manor for the Manor and the Keep, a castle for the Castle. Two new maps | RECOMMENDED GR-75. RULED 11-20 (26-3) says a map for each deed, which GR-75 re-opens |
-| Why three | Ground art is the critical path for the world (chapter 02). Two maps give both big deeds a face and leave two map slots for grounds | RECOMMENDED GR-75 |
-| Reuse | The manor and castle tiles are drawn so a clan hall can reuse them | RECOMMENDED GR-75. Chapter 06 owns the clan hall |
+| Looks | Three: a cottage for the Camp, Homestead and Farmstead, a manor for the Manor and the Keep, a castle for the Castle. Two new maps | DECIDED GR-75, Fable 2026-11-21, reversal, Tyler may veto. RULED 11-20 (26-3) says a map for each deed, which GR-75 re-opens |
+| Why three | Ground art is the critical path for the world (chapter 02). Two maps give both big deeds a face and leave two map slots for grounds | DECIDED GR-75, Fable 2026-11-21, reversal, Tyler may veto |
+| Reuse | The manor and castle tiles are drawn so a clan hall can reuse them | DECIDED GR-75, Fable 2026-11-21, reversal, Tyler may veto. Chapter 06 owns the clan hall |
 | The Camp | Its name and its picture agree. Either the scene is a camp or the deed is not called one | OPEN. An art and naming choice (section 5, item 10) |
 | Visiting | A look-only visit to another account's home. One read of that account's home section, no polling, and a visited home accepts no intent | RULED 11-20 (26-11) |
-| Who may visit | Friends and clan members | RECOMMENDED GR-75. 26-11 says "a friend or party member". If MM-18 is ruled as recommended, a party is an account's own four, so "party member" has no meaning here |
-| When it opens | For the owner, from the Homestead, once the Hall exists | RECOMMENDED GR-75. RULED 11-20 (26-11) opens it at the Castle, which GR-75 re-opens |
+| Who may visit | Friends and clan members | DECIDED GR-75, Fable 2026-11-21, reversal, Tyler may veto. 26-11 says "a friend or party member". If MM-18 is ruled as recommended, a party is an account's own four, so "party member" has no meaning here |
+| When it opens | For the owner, from the Homestead, once the Hall exists | DECIDED GR-75, Fable 2026-11-21, reversal, Tyler may veto. RULED 11-20 (26-11) opens it at the Castle, which GR-75 re-opens |
 
 Formula: none. Content rows in `HOUSE_TEMPLATES`. Nothing here is measurable in the matrix. It is a playtest question (section 6).
 
@@ -152,12 +155,12 @@ Wall-clock crops on the account's shared land. It is the one town system that ne
 |---|---|---|
 | Whose land | The account's. Any hero may plant, tend or harvest. The acting hero uses its own seeds and gets the Farming XP and the crop. Gold comes from the account purse | RULED 10-23 |
 | Beds | 2 for each deed tier (2 to 12) plus 1 for each Garden rung (up to 5). At most 17 | RULED (26-3 ladder, 26-1 Garden kept) |
-| What opens a crop | Its Farming level and nothing else. No soil tier, no second gate | RECOMMENDED GR-74 |
-| Where seeds come from | The Shop for the standard crops. Monsters for the rare ones | RULED for the Shop. RECOMMENDED GR-77 for drops |
+| What opens a crop | Its Farming level and nothing else. No soil tier, no second gate | DECIDED GR-74, Fable 2026-11-21 |
+| Where seeds come from | The Shop for the standard crops. Monsters for the rare ones | RULED for the Shop. DECIDED GR-77, Fable 2026-11-21 for drops |
 | Tend the field | One press. It shows the seed bill first, then harvests and replants every ready bed and waters every bed that can take it | RULED 11-20 (26-4) |
-| Watering | Doubles growth for 2 hours, at most 8 times a planting. It lives inside Tend. There is no water button on a bed | RECOMMENDED GR-74 |
+| Watering | Doubles growth for 2 hours, at most 8 times a planting. It lives inside Tend. There is no water button on a bed | DECIDED GR-74, Fable 2026-11-21 |
 | Regrowing crops | Tomato and Emberfruit regrow four times from one seed | RULED 10-26 |
-| What the screen says | Every seed row and every Tend result says what the harvest is worth to the hunt: "41 Tomato Juice. About 3 hunted hours of your mage's mana." | RECOMMENDED GR-74 |
+| What the screen says | Every seed row and every Tend result says what the harvest is worth to the hunt: "41 Tomato Juice. About 3 hunted hours of your mage's mana." | DECIDED GR-74, Fable 2026-11-21 |
 | Paid how | The field is already closed form: a bed is a planted-at time and a crop row. It costs the server nothing between visits | RULED (as designed). Fits GR-1 |
 
 **What the farm is for.** Mana. One crop cooks into one drink at the Kitchen, and a home-made drink restores a third more than its store partner, because store supplies work at 0.75 of a crafted one (RULED, knob `storeSupplyShare`, formula `C-CAST-POWER`). COMPUTED from the crop and drink rows: a full field of 17 beds of Emberfruit cut twice a day makes about 7,000 gold of store drinks a day, which is about the size of a four's daily drink bill (EVIDENCE: real fours spent about 7,500 a day on store drinks). So a full field can carry most of an account's mana.
@@ -174,9 +177,9 @@ Wall-clock crops on the account's shared land. It is the one town system that ne
 | Pumpkin | 50 | 14 h | Pumpkin Cider | |
 | Goldenroot | 62 | 16 h | Goldenroot Tea | |
 | Emberfruit | 75 | 18 h, regrows | Emberfruit Cordial | The top Shop-seed drink |
-| Moonbloom | 88 | 22 h | The top drink, from a dropped seed | RECOMMENDED GR-77 |
+| Moonbloom | 88 | 22 h | The top drink, from a dropped seed | DECIDED GR-77, Fable 2026-11-21 |
 
-**Seeds that drop from monsters.** RECOMMENDED GR-77.
+**Seeds that drop from monsters.** DECIDED GR-77, Fable 2026-11-21.
 
 | Rule | Value |
 |---|---|
@@ -205,7 +208,7 @@ What an account of four holds at step 1 (one start kit or four) is part of the m
 
 ### 2.7 Curing
 
-RULED twice: 11-18 ("We can do this, just make it a gold sink") and 11-20 (26-7). It is built last in the lining work and outside the beta gate. RECOMMENDED GR-47.
+RULED twice: 11-18 ("We can do this, just make it a gold sink") and 11-20 (26-7). It is built last in the lining work and outside the beta gate. DECIDED GR-47, Fable 2026-11-21.
 
 | Rule | Value | Status |
 |---|---|---|
@@ -216,13 +219,13 @@ RULED twice: 11-18 ("We can do this, just make it a gold sink") and 11-20 (26-7)
 | Fee | A quarter of the lining's own gold cost, on top of its part and gold | RULED 11-20 (26-7) |
 | Skill and XP | The recipe's skill level is required. A cure gives no XP. The Crafting hero who wants XP still benches | RULED 11-18 |
 | Stacking | Capacity class. No Speed, no Yield, no Good batch | RULED 11-20 (26-2) |
-| Cancel | The part comes back. The fee does not | RECOMMENDED GR-47 |
-| How it is run | A standing order: "Keep these linings up." The player sets it once for a hero's kit. The Cellar takes parts from Storage, cures, and puts linings in Storage. "Top up linings" in town fits them in one press. It is never a weekly chore | RECOMMENDED GR-47 |
-| Sizing | Slot count, slot prices and cure times are checked against how many rested hours the best path wants a day once linings are live | RECOMMENDED GR-47 |
+| Cancel | The part comes back. The fee does not | DECIDED GR-47, Fable 2026-11-21 |
+| How it is run | A standing order: "Keep these linings up." The player sets it once for a hero's kit. The Cellar takes parts from Storage, cures, and puts linings in Storage. "Top up linings" in town fits them in one press. It is never a weekly chore | DECIDED GR-47, Fable 2026-11-21 |
+| Sizing | Slot count, slot prices and cure times are checked against how many rested hours the best path wants a day once linings are live | DECIDED GR-47, Fable 2026-11-21 |
 
 **Honest about what a slot sells.** The solver reads that a party hero's best path uses 2.1 to 4.4 of its 12 rested hours, and a lone mid-geared hero uses all 12 (COMPUTED, `paths.json` band T7). So for a party account a slot is not capacity it is short of. It sells presses: no hero walks to a bench and is sent back. The House row must say that, and the pay line holds: a slot makes nothing a hero at the bench cannot make.
 
-**Where its gold goes.** The lining's own cost is a share of its band's gold (RECOMMENDED GR-8, knob `sinkShare`, formula `E38`, step R16), and the fee is a quarter of that, so the curing fee follows the gear curve with no number of its own. The lining itself is chapter 03's: one monster part and gold, 12 hunted hours, stacking to 48 (RULED 11-18).
+**Where its gold goes.** The lining's own cost is a share of its band's gold (DECIDED GR-8, Fable 2026-11-21, reversal of the typed prices kept on 2026-11-18, Tyler may veto, knob `sinkShare`, formula `E38`, step R16), and the fee is a quarter of that, so the curing fee follows the gear curve with no number of its own. The lining itself is chapter 03's: one monster part and gold, 12 hunted hours, stacking to 48 (RULED 11-18).
 
 ### 2.8 Training: the yard and the dummy
 
@@ -235,8 +238,8 @@ Rested hours and gold become combat skill. The yard is where a hero catches up a
 | Where | The Training Ground in Havora, on the game's own art grid | RULED 11-08 |
 | Who | A hero of Level 10 or more. A session lasts at most 12 hours, which is one rest | RULED (as designed, 11-14) |
 | Fee | 100 gold for each level of the trained skill, each hour. 3,000 at skill 30, 6,000 at 60, 11,000 at 110. Formula `E42` | RULED 11-20 (24-8, 26-5) |
-| Fee on the wage curve | The fee is restated as hours of wage and follows the rate, so a point of skill XP never gets cheaper as the rate rises | RECOMMENDED GR-51 and GR-54 |
-| Rate | It follows a share of the cost of the skill level being trained (skill curve `P03`), and never passes half of what hunting pays that skill at that level | RECOMMENDED GR-54. It re-opens 11-14, A-5 and 21-7, which keep one flat rate |
+| Fee on the wage curve | The fee is restated as hours of wage and follows the rate, so a point of skill XP never gets cheaper as the rate rises | DECIDED GR-51 and GR-54, Fable 2026-11-21, reversal of 2026-11-14, 21-7 and A-5, Tyler may veto |
+| Rate | It follows a share of the cost of the skill level being trained (skill curve `P03`), and never passes half of what hunting pays that skill at that level | DECIDED GR-54, Fable 2026-11-21, reversal, Tyler may veto. It re-opens 11-14, A-5 and 21-7, which keep one flat rate |
 | Why the rate follows the curve | Evidence about the flat rate, COMPUTED from the skill curve: one skill level takes 51 to 243 yard hours from skill 75 to 100. Skills have no cap, so a flat rate means the yard and the dummy stop mattering for most of the game | 44 call 15 |
 | The share's value | OPEN. No number is set and `knobs.json` holds no yard knob. It needs one (section 5, item 5) |
 | What the screen says | Before the player pays, the yard says what the hours will buy: levels gained and gold spent | RULED 11-20 (21-7) |
@@ -251,10 +254,10 @@ Rested hours and gold become combat skill. The yard is where a hero catches up a
 |---|---|---|
 | What it is | One dummy for the account, at home, with one seat. It needs the Homestead | RULED 11-08 |
 | What it buys | No hourly fee for the skills it has unlocked. It trains at the yard's rate, never faster | RULED 11-08, kept by GR-53 |
-| Unlocks | Rungs for each combat skill (Melee, Ranged, Magic, Defense) by skill band. A rung ends the fee for that skill inside that band | RECOMMENDED GR-53 |
-| Price of a rung | 25 to 50 hours of the yard fee at that band, on the wage curve | RULED 11-20 (26-5) for the payback. RECOMMENDED GR-53 for pricing by band |
+| Unlocks | Rungs for each combat skill (Melee, Ranged, Magic, Defense) by skill band. A rung ends the fee for that skill inside that band | DECIDED GR-53, Fable 2026-11-21 |
+| Price of a rung | 25 to 50 hours of the yard fee at that band, on the wage curve | RULED 11-20 (26-5) for the payback. DECIDED GR-53, Fable 2026-11-21 for pricing by band |
 | Why by band | The fee grows with skill. A price that does not grow is paid back in days and ends the one sink that never ends. Priced by band, both rulings hold and the sink keeps growing | GR-53 |
-| Train at home after a hunt | "Train at home" is a row in "When the hunt ends", so a dummy owner sets it once | RECOMMENDED. No call needed. It follows the first principle and 11-15 |
+| Train at home after a hunt | "Train at home" is a row in "When the hunt ends", so a dummy owner sets it once | DECIDED (no call id, Fable 2026-11-21). It follows the first principle and 11-15 |
 
 COMPUTED here from the ruled fee, as a TARGET range, not played. Band edges reuse the training item bands and are OPEN past skill 71.
 
@@ -268,7 +271,7 @@ COMPUTED here from the ruled fee, as a TARGET range, not played. Band edges reus
 
 **Training items.** A training weapon for each combat skill, in 12 hour and 24 hour sizes and four skill bands, tradable while sealed, bought for gold. It lifts the yard's rate to about three quarters of hunting. RULED 11-14. The Crowns copies stay off the Crowns store until the yard fee and the to-hit change are live (RULED 11-20, 26-10). Premium keeps its daily one hour item (RULED 11-20, 24-4). Prices and the Crowns side are chapter 04's.
 
-**The yard as a sink.** RECOMMENDED GR-8: with no slot prices, the yard fee is brought forward as one of the first repeating sinks, sized on an account of four. COMPUTED from the ruled fee and cached lone cells: a lone hero that trains all 12 rested hours pays 36 to 39% of its gold to the yard, which is inside the standing-sink band. A hero in a four earns less a head, so a four trains some hours and works the rest. That choice is what the fee is for.
+**The yard as a sink.** DECIDED GR-8, Fable 2026-11-21, reversal, Tyler may veto: with no slot prices, the yard fee is brought forward as one of the first repeating sinks, sized on an account of four. COMPUTED from the ruled fee and cached lone cells: a lone hero that trains all 12 rested hours pays 36 to 39% of its gold to the yard, which is inside the standing-sink band. A hero in a four earns less a head, so a four trains some hours and works the rest. That choice is what the fee is for.
 
 ### 2.9 Storage
 
@@ -278,11 +281,11 @@ COMPUTED here from the ruled fee, as a TARGET range, not played. Band edges reus
 | Size | 100 stacks free. Four chests add 20, 30, 50 and 100 (Millrace Crate, Thicketwood Chest, Ironbanded Strongbox, Stonecross Vault) at 1,500 / 6,000 / 25,000 / 90,000 gold, behind the Camp, Homestead, Farmstead and Manor. Then 300 | RULED (as built, kept by 26-9) |
 | Chests 5 to 8 | +100 stacks each at 250,000 / 500,000 / 1,000,000 / 2,000,000, two behind the Keep and two behind the Castle. Storage ends at 700 | RULED 11-20 (26-9) |
 | Names for chests 5 to 8 | OPEN (section 5, item 10) |
-| The word | Players read "Storage" and "chest". The word "depot" is not used in the game | RECOMMENDED (plan audit row 17, no call needed) |
+| The word | Players read "Storage" and "chest". The word "depot" is not used in the game | DECIDED (no call id, Fable 2026-11-21, plan audit row 17) |
 | Bag | Each hero's own. Ten rungs of +20 stacks, price `round(3000 x 1.32^k)`. Formula `E34` | RULED 11-20 (26-9) |
 | Loot plan | Each item has a destination set once: keep in bag, deposit in Storage, sell. It runs when loot is dispatched in town | RULED 10-25 |
 | Refill | The one-tap refill takes the account's own stock from Storage before it buys from the store | RULED 11-20 (plan L07). Formula `E18` |
-| Mounts | A mounted piece is not in Storage and the Hall is not extra Storage | RECOMMENDED GR-73 |
+| Mounts | A mounted piece is not in Storage and the Hall is not extra Storage | DECIDED GR-73, Fable 2026-11-21 |
 | More bag and Storage for Crowns | OPEN. The re-issued study 49 lists it as a Crowns convenience with no power. Chapter 04 and chapter 06 own it. It must not make chests 5 to 8 pointless |
 
 ### 2.10 The town's heroes at work
@@ -291,11 +294,11 @@ Havora is a real town. Every activity has its place: the Shop counter, Storage, 
 
 | Rule | Value | Status |
 |---|---|---|
-| Who is drawn | Heroes at work, whether or not their owner is online. A hero stands at the pier because it really is fishing | RECOMMENDED GR-70 |
+| Who is drawn | Heroes at work, whether or not their owner is online. A hero stands at the pier because it really is fishing | DECIDED GR-70, Fable 2026-11-21 |
 | Why | In an idle game most heroes are working with nobody at the keyboard. The online count already includes them (RULED 11-18). A town that draws only live browsers is empty at 10 accounts, and the town is the game's screenshot | GR-70 |
-| How it is stored | One row for each working hero, changed only when its job changes. A standing body needs no position stream | RECOMMENDED GR-70 |
-| Who is seated first | Friends and clan members, then others. Bodies drawn in one view are capped | RECOMMENDED GR-70. The cap's number is OPEN |
-| Privacy | Quiet presence hides a hero from the town | RECOMMENDED GR-70 (study 57 keeps it) |
+| How it is stored | One row for each working hero, changed only when its job changes. A standing body needs no position stream | DECIDED GR-70, Fable 2026-11-21 |
+| Who is seated first | Friends and clan members, then others. Bodies drawn in one view are capped | DECIDED GR-70, Fable 2026-11-21. The cap's number is OPEN |
+| Privacy | Quiet presence hides a hero from the town | DECIDED GR-70, Fable 2026-11-21 (study 57 keeps it) |
 | What it gives | Outfits, titles and faction looks get an audience at every hour (chapter 04, chapter 05) | GR-70 |
 | Cost | **PENDING 48.** It is the one proposal in this chapter with a real server cost. HYPOTHESIS: it costs less a body than live presence | GR-70 |
 
@@ -303,7 +306,7 @@ Havora is a real town. Every activity has its place: the Shop counter, Storage, 
 
 "Town work" is everything a resting hero does: gathering at a node, a bench job, training, fuelling the Hearth. A hero rests 12 hours a day and an account has four, so an account-day holds 48 rested hero-hours.
 
-**The rule.** RECOMMENDED GR-1, third on the decide-first list. RULED already for training (28-11).
+**The rule.** DECIDED GR-1, Fable 2026-11-21, third on the decide-first list. RULED already for training (28-11).
 
 | Rule | Value |
 |---|---|
@@ -313,7 +316,7 @@ Havora is a real town. Every activity has its place: the Shop counter, Storage, 
 | Same result | The mean yield is identical to a job settled tick by tick. Both-paths tests prove it for every town activity, with the page open and with the browser closed |
 | What the player sees | The bar, the count and the bag line move on screen as a prediction. Nothing can spend a predicted number, and the next server answer replaces it (CLAUDE.md section 6) |
 | Skill levels | Skill XP is credited at the count or the stop, so a level can arrive in a step |
-| A job | One press sets a count and a "then" (RULED, plan L08). A hero has a job queue: fish, then cook, then hunt (RECOMMENDED GR-80, chapter 08) |
+| A job | One press sets a count and a "then" (RULED, plan L08). A hero has a job queue: fish, then cook, then hunt (DECIDED GR-80, Fable 2026-11-21, chapter 08) |
 
 **A ruling this re-reads.** RULED 10-22 says town work updates the bag and skill XP in real time like a hunt, never only when it is done. Under closed form the screen still moves in real time, and the server's copy moves at the three writes. Any press that needs the items (a deposit, a sale, a craft that uses them) settles the job first, so the browser never shows what the server would refuse. This is the recommended reading and Tyler should rule it with GR-1.
 
@@ -343,7 +346,7 @@ Crafting is a quarter to a half of the step from mid gear to best gear, and a pl
 
 ### 2.12 The Great Hearth
 
-The huge hearth in the center of Havora (RULED 10-25, art approved). RECOMMENDED GR-82: the three town systems that stand around it become one place with one window. It is a HYPOTHESIS that one is more fun than its parts, and it re-opens 24-10.
+The huge hearth in the center of Havora (RULED 10-25, art approved). DECIDED GR-82, Fable 2026-11-21, reversal of 2026-10-25, Tyler may veto: the three town systems that stand around it become one place with one window. It is a HYPOTHESIS that one is more fun than its parts, and it re-opens 24-10.
 
 **What is ruled about its parts.**
 
@@ -355,7 +358,7 @@ The huge hearth in the center of Havora (RULED 10-25, art approved). RECOMMENDED
 | Town Works | A server-wide project paid by gold gifts that changes the town, with a plaque of the biggest givers (RULED 11-04). A new project every month with a goal sized to the server, and the Gold Given board is its plaque (RULED 11-20, 24-10). Goal `max(250,000, 20,000 x weekly active accounts)`, formula `E41`. A gift is 100 gold at least and 25,000 a day an account at most. A project is looks only and no formula reads its total (RULED 11-04) |
 | Powders | Gold buys a pinch that colors the flame for 30 seconds: Cinnabar, Quicklime, Borax. The price climbs with each use in a day. The named fuels' colors are never for sale (RULED 11-04) |
 
-**The merged design.** RECOMMENDED GR-82.
+**The merged design.** DECIDED GR-82, Fable 2026-11-21, reversal, Tyler may veto.
 
 | Rule | Value |
 |---|---|
@@ -365,14 +368,14 @@ The huge hearth in the center of Havora (RULED 10-25, art approved). RECOMMENDED
 | The Colors | Powders and named fuels in one list. A powder is bought, a named fuel is found |
 | The split that never blurs | Fuel moves the Fire and only the Fire. Gold moves the Works and the Colors and never the Fire. So no gold ever buys XP for the server |
 | What a hero gets | Its Inner Flame, which pays in Kindlings if GR-61 is ruled (chapter 05). Kindlings are lit at the Hearth window |
-| Rule 0 | Everything here works while both players are asleep (RECOMMENDED MM-1). A fire that needs nobody at a set hour, and a project that fills from gifts made on any visit |
+| Rule 0 | Everything here works while both players are asleep (DECIDED MM-1, Fable 2026-11-21). A fire that needs nobody at a set hour, and a project that fills from gifts made on any visit |
 | The engine | The staged-gift engine of the Works survives the merge. A clan project can be rows on it later (chapter 06) |
 
-**Where it meets the calendar.** OPEN. Study 49 (MM-11, RECOMMENDED) writes the event calendar a year ahead with a world bonus weekend of +25% Level XP once in four weekends. The ruled Hearthrise fills from fuel and has no date. The two are the same reward and need one rule. This chapter's recommendation: the world bonus weekend is the Hearthrise. The calendar sets when it lights. The server's fire sets how large it burns, up to the +25% ceiling, and the fire's size is a fixed amount of fuel for each weekly active account so a server of 10 and a server of 10,000 fill it in the same weeks. Then feeding the fire matters, the calendar still runs itself, and nobody has to be anywhere. It is a HYPOTHESIS and it is decided with GR-82 and MM-11 together (chapter 06).
+**Where it meets the calendar.** OPEN. Study 49 (MM-11, DECIDED, Fable 2026-11-21) writes the event calendar a year ahead with a world bonus weekend of +25% Level XP once in four weekends. The ruled Hearthrise fills from fuel and has no date. The two are the same reward and need one rule. This chapter's recommendation: the world bonus weekend is the Hearthrise. The calendar sets when it lights. The server's fire sets how large it burns, up to the +25% ceiling, and the fire's size is a fixed amount of fuel for each weekly active account so a server of 10 and a server of 10,000 fill it in the same weeks. Then feeding the fire matters, the calendar still runs itself, and nobody has to be anywhere. It is a HYPOTHESIS and it is decided with GR-82 and MM-11 together (chapter 06).
 
-**The first project.** RULED 11-20 (24-7): the first project is the Weighhouse and its goal opens the market. RECOMMENDED GR-55 (chapter 04): the market is open on day one and the first project builds something else. What it builds is OPEN (section 5, item 8).
+**The first project.** RULED 11-20 (24-7): the first project is the Weighhouse and its goal opens the market. DECIDED GR-55, Fable 2026-11-21, reversal of 24-7, Tyler may veto (chapter 04): the market is open on day one and the first project builds something else. What it builds is OPEN (section 5, item 8).
 
-**Not part of the merge.** The Town Crier and a Round for the Tavern stay as built and stay shut behind the population gate of the Path (RECOMMENDED GR-79, chapter 08). If GR-69 is ruled, the criers' lines move from Local chat to the town itself or to Global.
+**Not part of the merge.** The Town Crier and a Round for the Tavern stay as built and stay shut behind the population gate of the Path (DECIDED GR-79, Fable 2026-11-21, chapter 08). If GR-69 is ruled, the criers' lines move from Local chat to the town itself or to Global.
 
 ---
 
@@ -395,29 +398,29 @@ The huge hearth in the center of Havora (RULED 10-25, art approved). RECOMMENDED
 
 ---
 
-## 4. Open calls in this chapter
+## 4. The calls in this chapter, as decided
 
 In decision-book order.
 
-| Id | The call | Recommendation |
-|---|---|---|
-| GR-1 | How town work is paid | Closed form for training, gathering and benches now. The save of an away hunt waits for study 48 |
-| GR-8 | Sinks that follow the gear, and the hole the slots left | Linings and the yard fee are brought forward as the first repeating sinks, sized on an account of four |
-| GR-47 | Curing | Built last, as a standing order |
-| GR-51 | Prices | Every repeating price is hours of one wage curve. The House stays typed |
-| GR-54 | The yard's rate | It follows the skill curve and never passes half of hunting. The fee follows the rate |
-| GR-53 | The House dummy | It ends the yard fee. Its unlocks are rungs by skill band, each 25 to 50 hours of the fee |
-| GR-56b | The bench fee | It stays and moves onto the wage curve |
-| GR-63 | The rested bank | Removed. The Library gives nothing to it (chapter 05 owns the call) |
-| GR-70 | The town | It draws heroes at work whether or not their owner is online. PENDING 48 |
-| GR-73 | The Trophy room | The Hall of Firsts, with a fee for each piece hung |
-| GR-75 | Home looks and visiting | Three looks. Visiting from the Homestead once the Hall exists |
-| GR-74 | The farm's gates | A crop opens at its Farming level and nothing else. Watering folds into Tend |
-| GR-76 | House rooms | They sell kept materials, not speed, and the swap is built ahead of the lining work |
-| GR-77 | Seeds from monsters | A sample of two with the Morrow Hills, each drink on the existing ladder |
-| GR-80 | The company as one thing | A job queue for each hero (chapter 08 owns the call) |
-| GR-82 | One Great Hearth | Town Works, the Hearthrise and powders become one Hearth. HYPOTHESIS |
-| MM-11 | The event calendar | The world bonus weekend is the Hearthrise (this chapter's addition, decided in chapter 06) |
+| Id | The call | The decision | Status |
+|---|---|---|---|
+| GR-1 | How town work is paid | Closed form for training, gathering and benches now. The save of an away hunt waits for study 48 | DECIDED (Fable 2026-11-21) |
+| GR-8 | Sinks that follow the gear, and the hole the slots left | Tempering, Hallmarks and linings cost a share of a band's gold, 1.2 to 1.4 of what the band earns. The slot gold follows the order of CE-4 first, then the castle | DECIDED (reversal, Tyler may veto). Changes the typed prices kept on 2026-11-18 (Fable 2026-11-21) |
+| GR-47 | Curing | Built last, as a standing order | DECIDED (Fable 2026-11-21) |
+| GR-51 | Prices | Every repeating price is hours of one wage curve. The House stays typed | DECIDED (Fable 2026-11-21) |
+| GR-54 | The yard's rate | It follows the skill curve and never passes half of hunting. The fee follows the rate | DECIDED (reversal, Tyler may veto). Changes 2026-11-14, 21-7 and A-5 (Fable 2026-11-21) |
+| GR-53 | The House dummy | It ends the yard fee. Its unlocks are rungs by skill band, each 25 to 50 hours of the fee | DECIDED (Fable 2026-11-21) |
+| GR-56b | The bench fee | It stays and moves onto the wage curve | DECIDED (Fable 2026-11-21) |
+| GR-63 | The rested bank | Removed. The Library gives nothing to it (chapter 05 owns the call) | DECIDED (Fable 2026-11-21) |
+| GR-70 | The town | It draws heroes at work whether or not their owner is online. PENDING 48 | DECIDED (Fable 2026-11-21) |
+| GR-73 | The Trophy room | The Trophy room becomes the Hall of Firsts, with no mount rungs sold and a mounting fee for each piece hung. It builds ruling 26-6 | DECIDED (Fable 2026-11-21) |
+| GR-75 | Home looks and visiting | Three looks. Visiting from the Homestead once the Hall exists | DECIDED (reversal, Tyler may veto). Changes 26-3 and 26-11 (Fable 2026-11-21) |
+| GR-74 | The farm's gates | A crop opens at its Farming level and nothing else. Watering folds into Tend | DECIDED (Fable 2026-11-21) |
+| GR-76 | House rooms | They sell kept materials, not speed, and the swap is built ahead of the lining work | DECIDED (Fable 2026-11-21) |
+| GR-77 | Seeds from monsters | A sample of two with the Morrow Hills, each drink on the existing ladder | DECIDED (Fable 2026-11-21) |
+| GR-80 | The company as one thing | A job queue for each hero (chapter 08 owns the call) | DECIDED (Fable 2026-11-21) |
+| GR-82 | One Great Hearth | Town Works, the Hearthrise and powders become one Hearth. HYPOTHESIS | DECIDED (reversal, Tyler may veto). Changes 2026-10-25 (Fable 2026-11-21) |
+| MM-11 | The event calendar | The world bonus weekend is the Hearthrise (this chapter's addition, decided in chapter 06) | DECIDED (Fable 2026-11-21) |
 
 ---
 

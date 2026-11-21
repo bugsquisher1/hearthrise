@@ -473,3 +473,139 @@ Each call has a recommendation and an alternative. Until a call is ruled the rec
 12. **Is two visits a day the free game?** A free hero reaches 12 hours with two visits about 12 hours apart. Premium does it in one. Refills are only for hunting more than 12. Recommended: yes, that is the design, and we say it on the stamina bar. Alternative: the free bar should take three visits, so Premium is worth more.
 
 13. **Do heroes work in town when they are not hunting?** A hero rests 12 hours a day. Recommended: yes, assume every resting hero is at a bench, a node or the yard for all 12 hours, and size the town for that. We also print what a player gets if they only do 4. Alternative: size the town on the 2 to 6 hours real players did, and accept that a player who fills every hour gets far more than planned.
+
+---
+
+## 10. Every source, every path
+
+Added 2026-11-21 after Tyler's next line, verbatim: "is the audit taking into account crafting, all the possible drops in the game, gathering, best possible paths forward in the game, how quickly people can get full BiS hunting 12 hrs a day? We need to be taking EVERYTHING into consideration. and buffing things that suck, nerfing things too strong, or redoing entire systems, that includes ANYTHING NEW OR EXISTING."
+
+The honest answer for sections 1 to 9: no. The grid measures a hero in a kit. It does not ask where the kit came from, what the town made, or which route a player would really take. This section adds that. Nothing in it has been measured. Every band is PROPOSED unless marked.
+
+### 10.1 Sources: the atlas
+
+Every item in the game, and every ruled or planned item, has every way to get it on one map. The data already knows most of it (`src/data/catalogue-coherence.js` `itemSources`, `itemUses`, `reachableSources`). What it does not know is what each way costs in time.
+
+| Kind of source | Read from | The cost the atlas prints |
+|---|---|---|
+| Monster drops, by ground and tier | `monsters.js`, `hunt-grounds.js`, `loot-bands.js`, the ground packs | hunted hours a piece = 1 / (kills an hour from the grid cell x the row's chance), at every checkpoint, gear state, party size and tier |
+| Bosses and halls | `bosses.js`, `boss-halls.js`, `boss-calls.js` | hours a kill, the daily loot limit, the key |
+| Tower and Catacomb chests | `chests.js`, `tower.js`, `tower-weapons.js`, `catacomb-armor.js` | keys an hour, opens a week, the odds with warmth and stokes, at the 10th, 50th and 90th percentile |
+| The Bestiary and Luck | `bestiary.js`, the Luck rows | hours a stage, and what the bar adds to every Rare row |
+| The Shop | `shops.js` | gold, then hours of the buyer's own net gold |
+| The market | none real yet (three sales ever) | a floor (the Shop's buy price) and a ceiling (the maker's time), said as such |
+| Crafting recipes | `recipes.js` `ARTISAN_RECIPES`, `jewelry.js`, `slot-ladders.js` | bench time, the skill level, the bench fee, and every input walked back to where it is gathered or dropped |
+| Gathering and farming | `gathering.js` (trees, rocks, fish, crops) | rested hours a unit, by skill level and tool |
+| Tempering, Hallmarks, reforges, linings, curing | `temper.js`, `jewelry.js`, `imbuements.js` | gold, materials, and the hours to make the materials |
+| Events, tasks, tallies, gifts | `live-events.js`, `tally-tasks.js` | what a 12 h day earns |
+| Ruled or planned, not built | the staged files, the rulings, the region sketches | the same columns, marked PROJECTED |
+
+| # | Band | Target | Red | Label, reason |
+|---|---|---|---|---|
+| A1 | Items with no source a player can reach | 0 | any | RULED: CLAUDE.md 3.5 "every item has a source and a use". The data allows 55 today (`UNREACHABLE_CEILING`) |
+| A2 | Sources nothing uses: a drop, a recipe or a node whose output is not worn, eaten, spent, built with or sold on purpose | 0 | any | RULED, the same line. Vendor trash counts as used only when it is on the named list |
+| A3 | Every source has a time cost at every checkpoint where it is reachable | all | any blank | an unmeasured source cannot be judged |
+| A4 | Every gear slot, at every checkpoint, at MID | at least one source inside the band's own grounds | none | RULED 10-23: gear at each zone threshold for every build |
+| A5 | Every BiS kit takes at least one dropped piece, one crafted piece and one piece won from a chest or a boss | all three | any missing from Level 30 | RULED direction 11-18: "hunters and crafters need each other" |
+| A6 | Ways to the same piece | when a piece has two or more ways, the slowest is within 3 times the fastest | over 5 | past that the slow way is a trap, not a choice |
+| A7 | Skills with no product on any best path in a 15-Level stretch of the skill | 0 | any | RULED: every skill has a consumer. This reads it by level, not once |
+
+### 10.2 Gathering and crafting on the 12 hour day
+
+The town side of the day is call 13: all 12 rested hours are worked, and every number is also printed at 4. The atlas reads, for every gathering and bench skill at levels 1, 15, 30, 45, 60, 75, 88 and 99: units an hour, bench minutes a job, inputs a job, skill XP an hour, the fee.
+
+Tyler's line for crafting is that it must matter and must not be the only way. As bands:
+
+| # | Band | Target | Red | Label, reason |
+|---|---|---|---|---|
+| T1 | A town skill from 1 to 99 | 60 to 120 days of one hero's 12 rested hours | under 30, over 180 | PROPOSED. It should outlast a region and finish inside a year |
+| T2 | What a rested hour is worth in gold beside a hunted hour, same hero, same Level | 15 to 35% | under 10%, over 60% | PROPOSED. Under 10% the town is a chore. Over 60% hunting stops being the income |
+| T3 | Supplies a hero's own 12 rested hours can cover of its own 12 hunted hours, MID, in band | 25 to 50% | under 10%. Over 80% on Deadly | PROPOSED. REAL: a third was home-made. The store must stay a sink on Deadly |
+| T4 | The share of the power gap between MID and BiS that passes through a bench (jewelry, perks, salts, linings, cloaks) | 25 to 45% | under 15%, over 60% | PROPOSED, call 15. This is "it must matter" |
+| T5 | A player who never touches a bench | reaches every Level and MID at every checkpoint with no penalty. Reaches full BiS inside 1.5 times the best path, by buying what others made | cannot reach MID, or over 2 times | PROPOSED. This is "not the only way". RULED 11-18: nothing gates a Level or a core tier |
+| T6 | A player who only crafts and gathers, one hero | earns 40 to 70% of the gold a day of a MID hunter at the same day of play | over 100% | PROPOSED. A real way to play, never the best income |
+| T7 | Rested hours the best path wants a day against the 12 there are | 6 to 12 | over 12 | COMPUTED rule. If the town wants more hours than exist, a system is oversized (gaps 5, 19, 20) |
+| T8 | A bench job | one press starts a count and a "then". No job needs a second visit inside its own run | any repeat by hand | RULED: the first principle, and plan lane L08 |
+
+### 10.3 The best path
+
+A solver plays the whole game on paper, using every source together, and finds the fastest route for a 12 hour player. It runs for a lone hero and for two, three and four, free and Premium, and with bought gold as a guard.
+
+Goals it solves, each to every checkpoint: the fastest Level. LOW to MID. Full BiS. The most gold a day. Each town skill to 99.
+
+| # | Band | Target | Red | Label, reason |
+|---|---|---|---|---|
+| B1 | Days to full BiS in a band, through Krell, lone MID pace | 0.7 to 1.0 of the band's own length | under 0.4, over 1.5 | PROPOSED, call 14. You finish a band's best kit about when you leave it. Under 0.4 there is nothing left to chase |
+| B2 | Days to full BiS in a region, past Krell | 1.0 to 2.0 of the region's length, and the kit carries forward | under 0.7, over 3.0 | PROPOSED, call 14. RULED 11-20: rare after Krell |
+| B3 | The path the screen recommends against the solver's best, to every checkpoint | within 15% | over 30% | PROPOSED. Clarity first: nobody should need a guide to be near the best path |
+| B4 | Every open ground | is on a best path for some goal, some party size, some stretch of Levels | on none | RULED: DESIGN_STANDARDS 5, "No ground is best on every axis" needs every ground best on one |
+| B5 | No ground | is on the fastest-Level path for more than its own band plus 10 Levels | over 20 | PROPOSED. A ground people never leave means the next one is under-paid |
+| B6 | Free against Premium, same goal | the same hunted hours. Premium may only win on visits | any difference in hours | RULED: Premium sells comfort |
+| B7 | Bought gold against earned gold, to full BiS | at most twice as fast | over 3 times | PROPOSED, call 11 |
+| B8 | Luck on the path | the 90th percentile route to full BiS is at most 2 times the median | over 3 | PROPOSED, beside X23 |
+| B9 | Party paths | the best path for two, three and four is never slower a head than the lone path from Level 10 | slower | RULED 11-16: a party stands at or over its heroes alone |
+
+### 10.4 Buff, nerf or redo: the judging rule
+
+Every system, source, ground, weapon way, recipe, spell and item gets one verdict from the solver and the grid. New things and old things are judged the same way. Things that are ruled but not built are judged on their PROJECTED numbers before anyone builds them.
+
+| Verdict | It means | The thresholds (PROPOSED, call 16) | What happens |
+|---|---|---|---|
+| **DOMINANT** | The solver keeps picking it by a wide margin, or it makes another system pointless | Any one of: (a) it is the best route for over half of all gear slots at a checkpoint. (b) It is over 1.5 times faster than the next route to the same goal. (c) It is on over 60% of best paths across party sizes at three checkpoints in a row. (d) It gives another system's reward for under half of what that system asks | **NERF.** Or buff the others, when the others are under their own bands and this one is inside its band |
+| **NEGLECTED** | No best path uses it, and none comes close | It is on no best path and on no path within 25% of the best, at any checkpoint, gear state or party size. And it is not marked as a sink, a cosmetic, a social system or a teaching step | **BUFF** until it is within 15% of the best on at least one goal. Or **CUT** |
+| **FAILS ITS PURPOSE** | It cannot say what it is for, or it cannot hold its own band | Any one of: (a) it fails checklist line K1. (b) A band it owns is red at three or more checkpoints. (c) It has needed more than two re-tunes inside this program to stay in band | **REDO** the system. This is Tyler's "consider adjusting the systems" |
+| **HEALTHY** | On a best path or within 25% of one somewhere, and not dominant | | keep |
+
+Marked exempt from NEGLECTED, by name in the atlas: gold sinks, cosmetics, social systems, tutorials. An exempt system is still judged on its own band (a sink on G-8 and G-9).
+
+**How a re-dive reports a verdict.** One row a system, and a row with a blank is not accepted:
+
+| Field | What goes in it |
+|---|---|
+| System | its id from `systems.mjs` |
+| Verdict | one of the four |
+| Rule tripped | the letter above, or the band id |
+| Solver evidence | the goal, checkpoint, gear state and party. This route's time, the next route's time, the margin. Its share of slots or of paths |
+| Grid evidence | the cells, with their sample |
+| The change | the smallest one that moves the verdict, as a data row where it can be |
+| Predicted result | the solver re-run with the change staged: the new share and margin |
+| Rulings touched | any ruling the change strains, by date. A cut of anything Tyler ruled goes back to him. Klappa's Klub is never cut (RULED 11-18) and lucky finds stay (RULED 11-20) |
+
+### 10.5 The harness: two more tools
+
+**`tools/balance-program/sources.mjs`, the atlas.**
+
+| | |
+|---|---|
+| Reads | `catalogue-coherence.js` (`itemSources`, `itemUses`, `reachableSources`, `recipeInputs`), `monsters.js`, the ground packs, `loot-bands.js`, `chests.js`, `tower.js`, `bosses.js`, `boss-halls.js`, `bestiary.js`, `shops.js`, `recipes.js`, `gathering.js`, `temper.js`, `jewelry.js`, `imbuements.js`, `live-events.js`, `tally-tasks.js`, the staged files, and `grid.json` for kills an hour |
+| Writes | `tools/balance-program/atlas.json`. For every item: each source with its kind, where, the Level it opens, the cost in hunted hours, rested hours and gold at every checkpoint, gear state, party and tier where it is reachable, any weekly or daily limit, and the 10th, 50th and 90th percentile for chance. Each use. Then the lists: no source, no use, no cost, one way only |
+| Budget | 30 seconds after the grid exists. It plays nothing |
+| Guard | bands A1 to A7 and T1, T7 read straight from `atlas.json`. Mutants: a new item row with no source, a recipe whose output nothing uses, a drop moved to a ground nobody can enter |
+
+**`tools/balance-program/paths.mjs`, the solver.**
+
+| | |
+|---|---|
+| Reads | `grid.json`, `atlas.json`, `LEVEL_CURVE`, the slot ladder, the stamina and refill rows, the price rows |
+| The state it walks | Level, what is worn in each slot, gold, combat skills, town skill levels, heroes owned, keys and weekly opens left, the day |
+| The moves | each 12 h day: a ground, a tier and a party for the hunted hours. Jobs for the rested hours. Then buy, craft, temper, open, equip |
+| How it searches | a beam search by day (by the hour for the first two days). Expected values first. Then 200 seeded runs for anything with chance, to print percentiles |
+| Writes | `tools/balance-program/paths.json`. For every goal, party and payer: the route day by day, the days it took, where each slot came from, the routes within 25% of the best, and the share tables that 10.4 reads |
+| Budget | nightly, 30 minutes on the worker pool. The release guard reads the last nightly file and re-solves only the goals whose inputs changed, inside 1 minute |
+| Guard | bands T2 to T6, B1 to B9, and the verdict list. A band here starts in report like every other. Mutants: a recipe made ten times faster must read DOMINANT. A ground's XP halved must fall off every best path and read NEGLECTED. A slot price doubled must move the day the slot arrives |
+| What it cannot know | market prices and other players. It prints both the floor and the ceiling and says which it used |
+
+A solver is only as good as its moves. The first check on it is a blind play: a person plays 12 hours a day's worth of choices to Level 30 from the screen alone, and the solver's route must not be more than 15% ahead of theirs (band B3). If it is, either the game hides its best path or the solver is using something a player cannot.
+
+**Added to the sequence of section 7:** the atlas is built in step 1 beside the grid. The solver is built in step 1 and calibrated in step 2. Step 3's baseline page gains the verdict list: every system, with DOMINANT, NEGLECTED and FAILS ITS PURPOSE at the top. Step 4's re-dives own those rows.
+
+### 10.6 Tyler rules on, continued
+
+14. **How long should a full set of the best gear take?** Recommended: up to Krell, you finish a band's best gear about when you are ready to leave it. After Krell it takes one to two times as long as the region itself, and the gear carries forward. Alternative: the best gear always takes two to three times as long as the band, so very few players ever wear a full set.
+
+15. **How much should crafting matter?** Recommended: a quarter to a half of what separates mid gear from the best gear comes off a bench. A player who never crafts can still buy it from someone who does. Alternative: crafting stays small, under a tenth, and drops do nearly everything.
+
+16. **When is something too strong or too weak?** Recommended: too strong means it is the best choice for over half the gear slots, or it is one and a half times faster than the next best way. Too weak means it never comes within a quarter of the best way anywhere. Alternative: looser lines, twice as fast and within half, which flags fewer things.
+
+17. **May the audit put anything on the cut list?** You said anything new or existing. Recommended: yes. Every system, item and ruled plan gets a verdict, and you see one list of proposed cuts and redos before any are built. Klappa's Klub and lucky finds stay off it, as you ruled. Alternative: things added in the last month get one more round before they can be cut.
+

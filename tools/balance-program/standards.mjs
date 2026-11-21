@@ -14,6 +14,7 @@
 //   OTHER_STANDARDS the 28 dimensions the program never measured (X1..X28)
 //   CHECKLIST      the 15 lines every system card answers on the frame (K1..K15)
 //   GRID           the harness's cell fields, derived tables, runs and budgets
+//   VERDICT_RULES  buff, nerf or redo: the thresholds the solver judges every system by (50-standards 10.4)
 //   GUARD_MAP      the old guard lines (30-plan section E) and the band each becomes
 //   GAPS           the 34 unmeasured places of the old plan, with the decisions, lanes and guard lines resting on each
 //   TYLER_CALLS    the calls only Tyler can make, and which bands wait on each
@@ -213,6 +214,32 @@ export const BANDS = deep([
   b('C3', 'cost', 'journal rows a hero an hour an activity', {}, null, 1, null, 2, 'RULED', 28, '28-2'),
   b('C4.1k', 'cost', 'dollars an account-month at 1,000 accounts', {}, null, 0.50, null, 0.50, 'PROPOSED', 28, 'call 10', { call: 10 }),
   b('C4.10k', 'cost', 'dollars an account-month at 10,000 accounts', {}, null, 0.30, null, 0.30, 'PROPOSED', 28, 'call 10', { call: 10 }),
+  // ── the atlas (50-standards 10.1): read from tools/balance-program/atlas.json ──
+  b('A1', 'atlas', 'items with no reachable source', {}, null, 0, null, 0, 'RULED', 23, 'CLAUDE.md 3.5; the data allows 55 today (UNREACHABLE_CEILING)'),
+  b('A2', 'atlas', 'sources nothing uses', {}, null, 0, null, 0, 'RULED', 23, 'CLAUDE.md 3.5'),
+  b('A3', 'atlas', 'reachable sources with no time cost', {}, null, 0, null, 0, 'PROPOSED', 23, 'an unmeasured source cannot be judged'),
+  b('A4', 'atlas', 'MID sources inside the band\'s own grounds, a slot', { gear: 'mid' }, 1, null, 1, null, 'RULED', 23, '2026-10-23 gear at each zone threshold'),
+  b('A5', 'atlas', 'kinds of piece in a BiS kit (dropped, crafted, won)', { gear: 'bis', fromLevel: 30 }, 3, null, 3, null, 'PROPOSED', 23, '2026-11-18 hunters and crafters need each other'),
+  b('A6', 'atlas', 'slowest way / fastest way to one piece', {}, null, 3, null, 5, 'PROPOSED', 23, 'past that the slow way is a trap'),
+  b('A7', 'atlas', 'skills with no product on a best path in a 15-level stretch', {}, null, 0, null, 0, 'RULED', 26, 'every skill has a consumer, read by level'),
+  // ── the town on the 12 h day (10.2) ──
+  b('T1', 'town', 'rested days from 1 to 99, a town skill', {}, 60, 120, 30, 180, 'PROPOSED', 26, 'outlasts a region, finishes inside a year'),
+  b('T2', 'town', 'gold of a rested hour / a hunted hour', { gear: 'mid' }, 0.15, 0.35, 0.10, 0.60, 'PROPOSED', 26, 'the town matters and hunting stays the income'),
+  b('T3', 'town', 'own supplies made in 12 rested hours / supplies used in 12 hunted', { gear: 'mid', inBand: true }, 0.25, 0.50, 0.10, 0.80, 'PROPOSED', 26, 'REAL: a third was home-made'),
+  b('T4', 'town', 'share of the MID to BiS power gap that passes through a bench', {}, 0.25, 0.45, 0.15, 0.60, 'PROPOSED', 23, 'call 15: it must matter', { call: 15 }),
+  b('T5', 'town', 'days to full BiS with no bench / the best path', {}, null, 1.5, null, 2.0, 'PROPOSED', 24, 'call 15: not the only way', { call: 15 }),
+  b('T6', 'town', 'gold a day, a crafter only / a MID hunter', {}, 0.40, 0.70, 0.20, 1.00, 'PROPOSED', 26, 'a real way to play, never the best income'),
+  b('T7', 'town', 'rested hours a day the best path wants', {}, 6, 12, null, 12, 'PROPOSED', 26, 'more than 12 means a town system is oversized'),
+  // ── the best path (10.3): read from tools/balance-program/paths.json ──
+  b('B1', 'path', 'days to full BiS / the band\'s length', { levels: [1, 110], party: 1 }, 0.7, 1.0, 0.4, 1.5, 'PROPOSED', 23, 'call 14', { call: 14 }),
+  b('B2', 'path', 'days to full BiS / the region\'s length', { levels: [110, 400] }, 1.0, 2.0, 0.7, 3.0, 'PROPOSED', 23, 'call 14; rare after Krell', { call: 14 }),
+  b('B3', 'path', 'days on the screen\'s advice / the solver\'s best', {}, null, 1.15, null, 1.30, 'PROPOSED', 27, 'nobody should need a guide'),
+  b('B4', 'path', 'open grounds on no best path', {}, null, 0, null, 0, 'RULED', 22, 'DESIGN_STANDARDS 5'),
+  b('B5', 'path', 'Levels a ground stays on the fastest-Level path past its band', {}, null, 10, null, 20, 'PROPOSED', 22, 'the next ground is under-paid'),
+  b('B6', 'path', 'hunted hours to a goal, Premium / free', {}, 1.0, 1.0, 1.0, 1.0, 'RULED', 24, 'Premium sells comfort'),
+  b('B7', 'path', 'days to full BiS, earned gold / bought gold', {}, null, 2.0, null, 3.0, 'PROPOSED', 24, 'call 11', { call: 11 }),
+  b('B8', 'path', 'days to full BiS, 90th percentile / median', {}, null, 2.0, null, 3.0, 'PROPOSED', 23, 'beside X23'),
+  b('B9', 'path', 'party path a head / the lone path', { fromLevel: 10 }, null, 1.0, null, 1.0, 'RULED', 25, '2026-11-16'),
   b('C5', 'cost', 'busy-hour CPU share at 1,000 accounts of four at 12 h, one database', {}, null, 0.70, null, 0.70, 'PROPOSED', 28, ''),
 ]);
 export const bandById = (id) => BANDS.find((x) => x.id === id) || null;
@@ -256,6 +283,24 @@ export const CHECKLIST = deep([
 ].map(([id, line]) => ({ id, line })));
 export const VERDICTS = F(['keep', 'fix', 'merge', 'cut', 'unmeasured']);
 
+/* BUFF, NERF OR REDO (50-standards 10.4): the solver's verdict on every system, source, ground, way, recipe, spell and item, new or existing.
+   Any one test of a verdict trips it. Thresholds are PROPOSED (call 16). */
+export const VERDICT_RULES = deep({
+  label: 'PROPOSED', call: 16,
+  dominant: { action: 'nerf (or buff the others when they are under their own bands)', tests: {
+    a: { on: 'share of gear slots it is the best route for, at a checkpoint', over: 0.50 },
+    b: { on: 'the next route\'s time / its time, same goal', over: 1.5 },
+    c: { on: 'share of best paths across party sizes', over: 0.60, checkpointsInARow: 3 },
+    d: { on: 'its cost for another system\'s reward / that system\'s own cost', under: 0.50 } } },
+  neglected: { action: 'buff to within 15% of the best on one goal, or cut', nearBest: 0.25, buffTo: 0.15,
+    exempt: ['gold sink', 'cosmetic', 'social', 'teaching'], test: 'on no best path and no path within nearBest of the best, at any checkpoint, gear state or party size' },
+  failsPurpose: { action: 'redo the system', tests: { a: 'fails checklist line K1', b: { on: 'checkpoints where a band it owns is red', atLeast: 3 }, c: { on: 're-tunes inside the program to stay in band', over: 2 } } },
+  healthy: { action: 'keep', test: 'on a best path or within nearBest of one somewhere, and not dominant' },
+  reportFields: ['system', 'verdict', 'ruleTripped', 'solverEvidence', 'gridEvidence', 'change', 'predictedResult', 'rulingsTouched'],
+  neverCut: ['klappas_club', 'lucky finds'],
+});
+export const SOURCE_KINDS = F(['drop', 'boss', 'chest', 'bestiary-luck', 'shop', 'market', 'recipe', 'gather', 'farm', 'temper', 'hallmark', 'lining', 'event', 'task', 'planned']);
+
 export const GRID = deep({
   out: 'tools/balance-program/grid.json',
   axes: { checkpoints: 31, gear: 3, party: 4, tier: 3, fullCells: 1116 },
@@ -270,6 +315,13 @@ export const GRID = deep({
     { id: 'nightly-grid', seeds: 2, hours: 2, cells: 1116, budgetMin: 60, when: 'nightly' },
     { id: 'nightly-deaths', seeds: 4, hours: 8, cells: 'a rotating third of the harder-tier cells', budgetMin: 60, when: 'nightly' },
   ],
+  tools: {
+    'sources.mjs': { out: 'tools/balance-program/atlas.json', budgetSec: 30, plays: false, bands: ['A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7', 'T1', 'T7'],
+      reads: ['src/data/catalogue-coherence.js', 'monsters.js', 'grounds/*', 'loot-bands.js', 'chests.js', 'tower.js', 'bosses.js', 'boss-halls.js', 'bestiary.js', 'shops.js', 'recipes.js', 'gathering.js', 'temper.js', 'jewelry.js', 'imbuements.js', 'live-events.js', 'tally-tasks.js', 'tools/balance-sim/staged/*', 'grid.json'] },
+    'paths.mjs': { out: 'tools/balance-program/paths.json', budgetMin: 30, releaseBudgetMin: 1, search: 'beam by day (by the hour for two days), expected values, then 200 seeded runs for chance',
+      goals: ['fastest Level', 'LOW to MID', 'full BiS', 'most gold a day', 'a town skill to 99'], for: { party: [1, 2, 3, 4], payer: ['free', 'premium', 'bought-gold'] },
+      bands: ['T2', 'T3', 'T4', 'T5', 'T6', 'B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'B8', 'B9'], reads: ['grid.json', 'atlas.json'] },
+  },
   budgetsAre: 'ASSUMED from 28\'s 5 to 9 s a point; the harness build measures and re-cuts them',
   /* A kit holds a tier when all three are true on the nightly sample (50-standards 2.3). */
   holds: ['deathTax inside S6 for the tier', 'lowHpTypical inside S3 or S4', 'netGold over zero'],
@@ -327,9 +379,13 @@ export const TYLER_CALLS = deep([
   { n: 8, ask: 'how much faster two and three heroes are', recommended: 'two 1.2 to 1.5, three 1.5 to 2.0', alternative: 'both near a lone hero, the jump at four', bands: ['P7.2', 'P7.3'] },
   { n: 9, ask: 'Luck on the 12 h clock', recommended: 'keep the hours: day 42 and month 14', alternative: 'stretch the far end to about three years', bands: [] },
   { n: 10, ask: 'what a player may cost', recommended: '$0.50 an account-month at 1,000, $0.30 at 10,000', alternative: 'another number, or size to the hardware', bands: ['C4.1k', 'C4.10k'] },
-  { n: 11, ask: 'how much sooner bought gold gets you there', recommended: 'at most twice as fast to BiS', alternative: 'no limit on sooner, only on what', bands: [] },
+  { n: 11, ask: 'how much sooner bought gold gets you there', recommended: 'at most twice as fast to BiS', alternative: 'no limit on sooner, only on what', bands: ['B7'] },
   { n: 12, ask: 'two visits a day is the free game', recommended: 'yes, and the stamina bar says so', alternative: 'three visits free, so Premium is worth more', bands: [] },
-  { n: 13, ask: 'do heroes work in town when they are not hunting', recommended: 'yes: size the town for all 12 rested hours, print it at 4 too', alternative: 'size the town on the real 2 to 6 hours', bands: [] },
+  { n: 13, ask: 'do heroes work in town when they are not hunting', recommended: 'yes: size the town for all 12 rested hours, print it at 4 too', alternative: 'size the town on the real 2 to 6 hours', bands: ['T1', 'T7'] },
+  { n: 14, ask: 'how long a full set of the best gear takes', recommended: 'about a band\'s length to Krell, one to two region lengths after', alternative: 'always two to three band lengths', bands: ['B1', 'B2'] },
+  { n: 15, ask: 'how much crafting matters', recommended: 'a quarter to a half of the MID to BiS gap, and a non-crafter can buy it', alternative: 'under a tenth', bands: ['T4', 'T5'] },
+  { n: 16, ask: 'when something is too strong or too weak', recommended: 'over half the slots or 1.5 times faster; never within a quarter of the best', alternative: 'twice as fast and within half', bands: [] },
+  { n: 17, ask: 'may the audit put anything on the cut list', recommended: 'yes, one list to Tyler before any are built', alternative: 'things added in the last month get one more round', bands: [] },
 ]);
 
 /** Every problem with the tables, as strings. Empty = well formed. */

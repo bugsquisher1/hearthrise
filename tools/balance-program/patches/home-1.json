@@ -1,0 +1,134 @@
+{
+ "schema": "hearthrise.balance-patch/1",
+ "name": "Home 1: room rungs sell kept materials, not speed (26-1, L38), and the Cellar's food rungs pay nothing (58-review-home.md rows 12 to 21)",
+ "why": "Rungs 2 to 5 of the four bench rooms give 2, 4, 6, 8% kept materials in place of 2% speed each, and the Cellar's buffDuration is zero. craftSave stands in for each bench's own key until L38 names them. An identity patch: a home never grants a hunt anything, so no cell and no band may move. If one does, a room perk reaches the hunt.",
+ "kind": "identity",
+ "edits": [
+  {
+   "file": "src/data/perks.js",
+   "from": "{\"smithSpeed\":0.02},",
+   "to": "{\"craftSave\":0},"
+  },
+  {
+   "file": "src/data/perks.js",
+   "from": "{\"smithSpeed\":0.04},",
+   "to": "{\"craftSave\":0.02},"
+  },
+  {
+   "file": "src/data/perks.js",
+   "from": "{\"smithSpeed\":0.06},",
+   "to": "{\"craftSave\":0.04},"
+  },
+  {
+   "file": "src/data/perks.js",
+   "from": "{\"smithSpeed\":0.08},",
+   "to": "{\"craftSave\":0.06},"
+  },
+  {
+   "file": "src/data/perks.js",
+   "from": "{\"smithSpeed\":0.1},",
+   "to": "{\"craftSave\":0.08},"
+  },
+  {
+   "file": "src/data/perks.js",
+   "from": "{\"runeSpeed\":0.02},",
+   "to": "{\"craftSave\":0},"
+  },
+  {
+   "file": "src/data/perks.js",
+   "from": "{\"runeSpeed\":0.04},",
+   "to": "{\"craftSave\":0.02},"
+  },
+  {
+   "file": "src/data/perks.js",
+   "from": "{\"runeSpeed\":0.06},",
+   "to": "{\"craftSave\":0.04},"
+  },
+  {
+   "file": "src/data/perks.js",
+   "from": "{\"runeSpeed\":0.08},",
+   "to": "{\"craftSave\":0.06},"
+  },
+  {
+   "file": "src/data/perks.js",
+   "from": "{\"runeSpeed\":0.1},",
+   "to": "{\"craftSave\":0.08},"
+  },
+  {
+   "file": "src/data/perks.js",
+   "from": "{\"cookSpeed\":0.02,\"noBurn\":0.13},",
+   "to": "{\"noBurn\":0.13,\"craftSave\":0},"
+  },
+  {
+   "file": "src/data/perks.js",
+   "from": "{\"cookSpeed\":0.04,\"noBurn\":0.19},",
+   "to": "{\"noBurn\":0.19,\"craftSave\":0.02},"
+  },
+  {
+   "file": "src/data/perks.js",
+   "from": "{\"cookSpeed\":0.06,\"noBurn\":0.25},",
+   "to": "{\"noBurn\":0.25,\"craftSave\":0.04},"
+  },
+  {
+   "file": "src/data/perks.js",
+   "from": "{\"cookSpeed\":0.08,\"noBurn\":0.25},",
+   "to": "{\"noBurn\":0.25,\"craftSave\":0.06},"
+  },
+  {
+   "file": "src/data/perks.js",
+   "from": "{\"cookSpeed\":0.1,\"noBurn\":0.25},",
+   "to": "{\"noBurn\":0.25,\"craftSave\":0.08},"
+  },
+  {
+   "file": "src/data/perks.js",
+   "from": "{\"craftSpeed\":0.02,\"craftSave\":0.01},",
+   "to": "{\"craftSave\":0},"
+  },
+  {
+   "file": "src/data/perks.js",
+   "from": "{\"craftSpeed\":0.04,\"craftSave\":0.02},",
+   "to": "{\"craftSave\":0.02},"
+  },
+  {
+   "file": "src/data/perks.js",
+   "from": "{\"craftSpeed\":0.06,\"craftSave\":0.04},",
+   "to": "{\"craftSave\":0.04},"
+  },
+  {
+   "file": "src/data/perks.js",
+   "from": "{\"craftSpeed\":0.08,\"craftSave\":0.06},",
+   "to": "{\"craftSave\":0.06},"
+  },
+  {
+   "file": "src/data/perks.js",
+   "from": "{\"craftSpeed\":0.1,\"craftSave\":0.08},",
+   "to": "{\"craftSave\":0.08},"
+  },
+  {
+   "file": "src/data/perks.js",
+   "from": "{\"buffDuration\":0.2},",
+   "to": "{\"buffDuration\":0},/*0.2*/"
+  },
+  {
+   "file": "src/data/perks.js",
+   "from": "{\"buffDuration\":0.4},",
+   "to": "{\"buffDuration\":0},/*0.4*/"
+  },
+  {
+   "file": "src/data/perks.js",
+   "from": "{\"buffDuration\":0.6},",
+   "to": "{\"buffDuration\":0},/*0.6*/"
+  },
+  {
+   "file": "src/data/perks.js",
+   "from": "{\"buffDuration\":0.8},",
+   "to": "{\"buffDuration\":0},/*0.8*/"
+  },
+  {
+   "file": "src/data/perks.js",
+   "from": "{\"buffDuration\":1},",
+   "to": "{\"buffDuration\":0},/*1*/"
+  }
+ ],
+ "targets": []
+}

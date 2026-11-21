@@ -125,7 +125,7 @@ const cases = {
     const most = Math.max(1, Math.floor((top * pm) / 1000) - red), least = Math.max(1, Math.floor((lo * pm) / 1000) - red);
     const out = hits.filter((e) => e.amount > most || e.amount < least);
     if (out.length) return 'Fireball hits outside the resisted ' + least + '..' + most + ': ' + out.map((e) => e.amount).join(',');
-    const full = Math.max(1, fb.dmg[1] - red);
+    const full = Math.max(1, top - red);
     return Math.max(...hits.map((e) => e.amount)) < full ? null : 'a Fireball hit reached the unresisted ' + full;
   },
   /* A resisted blow in the one hurt(): 100 ember into the Rat King is his share less his defence. */

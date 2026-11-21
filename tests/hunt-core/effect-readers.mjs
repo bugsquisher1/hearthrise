@@ -165,7 +165,7 @@ const mutants = [
   { name: 'bleed stops reading its share of the blow', case: 'every-row-field-has-a-reader',
     edits: [['src/core/hunt/status.js', '  return Math.max(row.tierPermille[tier - 1], Math.floor((hit * row.blowPm * row.tierPermille[tier - 1]) / 1000));', '  return Math.max(row.tierPermille[tier - 1], Math.floor((hit * 33 * row.tierPermille[tier - 1]) / 1000));']] },
   { name: '[spell rule] the engine stops asking castAmount (a heal row promises a share the engine never lands)', case: 'every-row-field-has-a-reader',
-    edits: [['src/core/hunt/abilities.js', '  const amount = () => castAmount(row, u.maxHit, u.maxHp, pm) || {};', '  const amount = () => ({ heal: 10, shield: 10 });'],
+    edits: [['src/core/hunt/abilities.js', '  const amount = () => /** @type {{ hit?: number[], heal?: number, shield?: number }} */ (castAmount(row, u.maxHit, u.maxHp, pm) || {});', '  const amount = () => ({ heal: 10, shield: 10 });'],
       ['src/core/hunt/abilities.js', "const landsShield = (u, row, pm) => { const a = castAmount(row, u && u.maxHit, u && u.maxHp, pm); return a && a.shield ? a.shield : 0; };", 'const landsShield = () => 10;']] },
   { name: '[spell rule] castAmount stops reading healPm', case: 'every-row-field-has-a-reader',
     edits: [['src/data/abilities.js', '  if (Number.isInteger(row.healPm)) return { heal: at(floored(of(maxHit, row.healPm))) };', '  if (row.target === \'ally\' || row.target === \'party\') return { heal: at(floored(of(maxHit, 3000))) };']] },

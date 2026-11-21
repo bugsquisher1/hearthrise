@@ -1132,7 +1132,7 @@ const mutants = [
   { name: 'a hit ignores its power', case: 'spell-casts-the-spent-runes-version',
     edits: [['src/core/hunt/abilities.js', '  const hitTag = pm === 1000 ? { id: row.id } : { id: row.id, mult: pm };', '  const hitTag = { id: row.id };']] },
   { name: 'a heal and a shield ignore their version', case: 'version-output-scales-numbers',
-    edits: [['src/core/hunt/abilities.js', '  const amount = () => castAmount(row, u.maxHit, u.maxHp, pm) || {};', '  const amount = () => castAmount(row, u.maxHit, u.maxHp, 1000) || {};']] },
+    edits: [['src/core/hunt/abilities.js', '  const amount = () => /** @type {{ hit?: number[], heal?: number, shield?: number }} */ (castAmount(row, u.maxHit, u.maxHp, pm) || {});', '  const amount = () => /** @type {{ hit?: number[], heal?: number, shield?: number }} */ (castAmount(row, u.maxHit, u.maxHp, 1000) || {});']] },
   { name: 'a sized version is read as the row', case: 'version-output-scales-numbers',
     edits: [['src/data/abilities.js', '  return Number.isInteger(mana) ? { mana, outPm: versionStep(n) } : { mana: row ? row.mana : 0, outPm: 1000 };', '  return { mana: row ? row.mana : 0, outPm: 1000 };']] },
   { name: 'the store is shut while another ammo line has uses (the starter-kit lock)', case: 'store-rune-beside-the-starter-kit',

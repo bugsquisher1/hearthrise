@@ -1511,3 +1511,46 @@
 .hv-tower { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 10px 2px 0; font-size: var(--t-small); color: var(--ink); }
 .hv-tower[hidden] { display: none; }
 .hv-tower .hh-tool { min-height: 32px; padding: 0 10px; }
+
+/* ── The Clan (src/shell/windows/clan.js), the friend link and quiet presence (friends.js), the presence strip (presence-strip.js) and
+      the Hearthrise's fire (hearth-fire.js): lane/c-social FB-12. A clan's list reads like a register, a member's line like a roster. ── */
+.hcl-msg { min-height: 1em; margin: 0 0 6px; font-size: var(--t-micro); color: var(--ink-2); }
+.hcl-none, .hcl-mine, .hcl-admin, .hcl-inv-head, .hcl-out-head, .hcl-empty, .hcl-alone { display: none; }
+.hcl-none.is-on, .hcl-mine.is-on, .hcl-admin.is-on, .hcl-inv-head.is-on, .hcl-out-head.is-on, .hcl-empty.is-on, .hcl-alone.is-on { display: block; }
+.hcl-explain { margin: 0 2px 10px; font-size: var(--t-small); color: var(--ink-2); line-height: 1.4; }
+.hcl-line, .hcl-found { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 8px; }
+.hcl-line input, .hcl-found input[type="text"] { flex: 1; min-width: 0; min-height: 30px; padding: 0 8px; color: var(--ink); font-family: var(--f-ui); font-size: var(--t-small); }
+.hcl-found .hcl-ftag { flex: 0 0 76px; text-transform: uppercase; }
+.hcl-check { display: flex; align-items: center; gap: 6px; font-size: var(--t-small); color: var(--ink-2); }
+.hcl-found .hh-tool.is-main { flex-basis: 100%; min-height: 36px; }
+.hcl-list { margin: 0 0 8px; padding: 0; list-style: none; }
+.hcl-row { display: grid; grid-template-columns: 10px 1fr auto; align-items: center; column-gap: 8px; padding: 5px 2px; border-bottom: 1px solid var(--line-soft); }
+.hcl-list.is-clans .hcl-row, .hcl-list.is-invites .hcl-row, .hcl-list.is-invited .hcl-row { grid-template-columns: 1fr auto; }
+.hcl-row .hf-dot { grid-row: 1 / 3; }
+.hcl-row.is-online .hf-dot { background: var(--green); }
+.hcl-who-name { color: var(--ink); font-weight: 700; }
+.hcl-sub { grid-column: 1 / -2; font-size: var(--t-micro); color: var(--ink-3); }
+.hcl-list.is-roster .hcl-sub { grid-column: 2; }
+.hcl-acts { grid-column: -2; grid-row: 1 / 3; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px; }
+.hcl-title { margin: 0 2px 2px; font-family: var(--f-label); color: var(--ink); }
+.hcl-tag { color: var(--gold); }
+.hcl-count { margin: 0 2px 10px; font-size: var(--t-micro); color: var(--ink-2); }
+.hcl-leave { margin-top: 10px; }
+.hcl-leave.is-warn { color: var(--red); }
+.hf-explain { margin: 2px 2px 6px; font-size: var(--t-micro); color: var(--ink-3); line-height: 1.35; }
+.hf-link { flex: 1; min-width: 0; min-height: 30px; padding: 0 8px; color: var(--ink-2); font-family: var(--f-ui); font-size: var(--t-micro); }
+.hf-quiet { display: flex; align-items: center; gap: 6px; margin-top: 8px; font-size: var(--t-small); color: var(--ink); }
+.hw-hd-near { margin: 4px 0 0; }
+.hw-hd-near-head { margin: 0; font-size: var(--t-micro); color: var(--ink-2); }
+.hw-hd-near-list { margin: 2px 0 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 2px 10px; }
+.hw-hd-near-row { font-size: var(--t-micro); color: var(--ink-3); }
+.hw-hd-near-row.is-known { color: var(--ink); }
+.hv-fire { margin: 0 0 12px; padding: 0 2px 10px; border-bottom: 1px solid var(--steel-sep); }
+.hv-fire-head { display: flex; align-items: center; gap: 8px; margin: 0 0 4px; font-family: var(--f-label); color: var(--ink); }
+.hv-fire-pips { display: flex; gap: 3px; }
+.hv-fire-pip { width: 10px; height: 10px; border: 1px solid var(--gold); background: var(--bg-0); }
+.hv-fire-pip.is-lit { background: var(--gold-2); }
+.hv-fire-marks { margin-left: auto; font-size: var(--t-small); color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
+.hv-fire-lights, .hv-fire-next { margin: 0 0 2px; font-size: var(--t-small); color: var(--ink); }
+.hv-fire.is-full .hv-fire-next { color: var(--green); font-weight: 700; }
+.hv-fire-explain { margin: 4px 0 0; font-size: var(--t-micro); color: var(--ink-3); line-height: 1.35; }

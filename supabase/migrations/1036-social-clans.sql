@@ -10,10 +10,8 @@
 -- EDGE: none. ON THE EA SECURITY LIST: gold (the founding price), names (a clan's name and tag), who hears a clan's lines.
 --
 -- ── WHAT ─────────────────────────────────────────────────────────────────────
--- THE RULES, server copies of the data (tests/clans.mjs and tests/chat-social.mjs RB-2 hold them equal to src/data):
---   hr_clan_rules        one row: found_gold (25-6: 100,000), name and tag lengths, browser_max, invite_days    (src/data/clans.js CLAN_RULES)
---   hr_chat_global_rule  one row: every_s, settle_s, max_lines                                                (chat-channels.js GLOBAL_BATCH)
---   hr_chat_slow_mode    a row a step: lines_per_min, gap_s                                                   (chat-channels.js SLOW_MODE)
+-- THE RULES are 1036-social-catalogue.generated.sql's (tools/gen-social-catalogue.mjs from src/data, --check): hr_clan_rules (25-6: the
+--   founding price), hr_chat_global_rule (31-1: the batch), hr_chat_slow_mode (31-1: the slow mode). This file reads them.
 -- clans.tag (NEW): 2 to 4 letters or digits, stored in capitals, unique; set at founding.
 -- THE CLAN VERBS (client-executable, each on hr_client_rpc_baseline; hr_access_check first, rate-gated):
 --   hr_clan_found(p_slot, p_name, p_tag, p_policy, p_price, p_idem)  MONEY. Found a clan at the server's price from the account's purse,
@@ -79,6 +77,8 @@
 do $mig$
 declare v_r record; v_def text;
 begin
+  if to_regclass('public.hr_clan_rules') is null or to_regclass('public.hr_chat_slow_mode') is null or to_regclass('public.hr_chat_global_rule') is null then
+    raise exception 'PRECONDITION: apply 1036-social-catalogue.generated.sql first (the rules this file reads)'; end if;
   if to_regclass('public.clans') is null or to_regclass('public.clan_members') is null or to_regclass('public.clan_invites') is null
      or to_regclass('public.clan_bans') is null or to_regclass('public.clan_ledger') is null or to_regclass('public.hr_castle_tiers') is null then
     raise exception 'PRECONDITION: the 2026-08 clan chain is missing'; end if;
@@ -104,52 +104,15 @@ begin
     raise exception 'PIN: hr_realtime_policies() is neither 2026-12-26''s image (facea092) nor this file''s'; end if;
 end $mig$;
 
--- ── §1 THE RULES AND THE TAG ─────────────────────────────────────────────────
-create table if not exists public.hr_clan_rules (
-  id          boolean primary key default true check (id),
-  found_gold  bigint  not null check (found_gold between 1 and 1000000000),
-  name_min    int     not null check (name_min between 1 and 24),
-  name_max    int     not null check (name_max between 1 and 24),
-  tag_min     int     not null check (tag_min between 1 and 8),
-  tag_max     int     not null check (tag_max between 1 and 8),
-  browser_max int     not null check (browser_max between 1 and 200),
-  invite_days int     not null check (invite_days between 1 and 90),
-  check (name_min <= name_max and tag_min <= tag_max)
-);
-create table if not exists public.hr_chat_global_rule (
-  id        boolean primary key default true check (id),
-  every_s   int not null check (every_s between 1 and 59),
-  settle_s  int not null check (settle_s between 0 and 30),
-  max_lines int not null check (max_lines between 1 and 500)
-);
-create table if not exists public.hr_chat_slow_mode (
-  lines_per_min int primary key check (lines_per_min between 1 and 100000),
-  gap_s         int not null check (gap_s between 1 and 3600)
-);
+-- ── §1 THE CURSOR AND THE TAG ────────────────────────────────────────────────
 create table if not exists public.hr_chat_flush (
   channel    text        primary key check (channel = 'global'),
   flushed_to timestamptz not null,
   flushed_at timestamptz
 );
-comment on table public.hr_clan_rules is '1036-social-clans.sql: the clan rules (src/data/clans.js CLAN_RULES; tests/clans.mjs holds them equal). Server-only.';
-comment on table public.hr_chat_global_rule is '1036-social-clans.sql: how Global is sent (src/data/chat-channels.js GLOBAL_BATCH; 31-1). Server-only.';
-comment on table public.hr_chat_slow_mode is '1036-social-clans.sql: Global''s slow mode, by the room''s lines in the last minute (src/data/chat-channels.js SLOW_MODE; 31-1). Server-only.';
 comment on table public.hr_chat_flush is '1036-social-clans.sql: Global''s batch cursor: lines up to flushed_to have been sent. Written only by hr_chat_global_flush.';
-alter table public.hr_clan_rules enable row level security;
-alter table public.hr_chat_global_rule enable row level security;
-alter table public.hr_chat_slow_mode enable row level security;
 alter table public.hr_chat_flush enable row level security;
-revoke all on public.hr_clan_rules from public, anon, authenticated, service_role;
-revoke all on public.hr_chat_global_rule from public, anon, authenticated, service_role;
-revoke all on public.hr_chat_slow_mode from public, anon, authenticated, service_role;
 revoke all on public.hr_chat_flush from public, anon, authenticated, service_role;
-delete from public.hr_clan_rules;
-insert into public.hr_clan_rules (id, found_gold, name_min, name_max, tag_min, tag_max, browser_max, invite_days)
-  values (true, 100000, 3, 24, 2, 4, 50, 7);
-delete from public.hr_chat_global_rule;
-insert into public.hr_chat_global_rule (id, every_s, settle_s, max_lines) values (true, 5, 2, 100);
-delete from public.hr_chat_slow_mode;
-insert into public.hr_chat_slow_mode (lines_per_min, gap_s) values (12, 10), (30, 30), (60, 60);
 insert into public.hr_chat_flush (channel, flushed_to) values ('global', now()) on conflict (channel) do nothing;
 
 alter table public.clans add column if not exists tag text;

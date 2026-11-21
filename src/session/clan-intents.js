@@ -41,10 +41,11 @@ export function memberOf(m) {
     doing: doing && typeof doing.kind === 'string' ? { kind: doing.kind, hunt: str(doing.hunt) } : null, joinedMs: int(o.joined_ms) };
 }
 
-async function ask(account, verb, rpc, args) {
+/* One ask: `call(server)` names the RPC (so tests/client-intent-surface.mjs reads every name this file sends). */
+async function ask(account, verb, call) {
   if (!usable(account)) return { ok: false, error: 'bad_intent' };
   return askVia(account, verb, async () => {
-    const ans = await account.server.rpc(rpc, args);
+    const ans = await call(account.server);
     const b = ans && obj(ans.body);
     if (!(ans && ans.ok && b && b.ok === true)) {
       return { ok: false, error: (b && typeof b.error === 'string' && b.error) || (ans && ans.error) || 'refused', verb: 'clan',
@@ -65,7 +66,7 @@ function chatAgain(account) {
  * `price` is the server's founding price (shown only while the account is in no clan).
  */
 export async function readRoster(account) {
-  const r = await ask(account, 'clan_read', 'hr_clan_roster', {});
+  const r = await ask(account, 'clan_read', (server) => server.rpc('hr_clan_roster', {}));
   if (!r.ok) return r;
   const b = r.body;
   const list = (v) => (Array.isArray(v) ? v : []);
@@ -78,7 +79,7 @@ export async function readRoster(account) {
 /** Clans by name or tag (empty query: every clan, members first): { ok, clans: [card], mine } or a refusal. */
 export async function browse(account, query) {
   const q = typeof query === 'string' ? query.trim().slice(0, 24) : '';
-  const r = await ask(account, 'clan_browse', 'hr_clan_browser', { p_query: q || null, p_limit: 50 });
+  const r = await ask(account, 'clan_browse', (server) => server.rpc('hr_clan_browser', { p_query: q || null, p_limit: 50 }));
   if (!r.ok) return r;
   return { ok: true, clans: (Array.isArray(r.body.clans) ? r.body.clans : []).map(cardOf).filter(Boolean), mine: str(r.body.mine) };
 }
@@ -86,29 +87,29 @@ export async function browse(account, query) {
 /** Found a clan at the price the server quoted. The character is re-read so the purse changes only from the envelope. */
 export async function found(account, cs, name, tag, policy, price) {
   if (!cs || !Number.isInteger(cs.slot) || !Number.isSafeInteger(price)) return { ok: false, error: 'bad_intent' };
-  const r = await ask(account, 'clan_found', 'hr_clan_found', { p_slot: cs.slot, p_name: String(name || ''), p_tag: String(tag || ''),
-    p_policy: CLAN_POLICIES.includes(policy) ? policy : 'open', p_price: price, p_idem: globalThis.crypto.randomUUID() });
+  const r = await ask(account, 'clan_found', (server) => server.rpc('hr_clan_found', { p_slot: cs.slot, p_name: String(name || ''), p_tag: String(tag || ''),
+    p_policy: CLAN_POLICIES.includes(policy) ? policy : 'open', p_price: price, p_idem: globalThis.crypto.randomUUID() }));
   if (typeof cs.load === 'function') await cs.load();
   if (r.ok) chatAgain(account);
   return r.ok ? { ok: true, clan: cardOf(r.body.clan) } : r;
 }
 
-const change = (verb, rpc, argsOf) => async (account, ...a) => {
-  const r = await ask(account, verb, rpc, argsOf(...a));
+const change = (verb, callOf) => async (account, ...a) => {
+  const r = await ask(account, verb, (server) => callOf(server, ...a));
   if (r.ok) chatAgain(account);
   return r.ok ? { ok: true } : r;
 };
 /** Join a clan (open, or one that invited this account). */
-export const join = change('clan_join', 'clan_join', (id) => ({ p_clan_id: id }));
+export const join = change('clan_join', (server, id) => server.rpc('clan_join', { p_clan_id: id }));
 /** Leave the clan (a leader passes it on; the last one out disbands it). */
-export const leave = change('clan_leave', 'clan_leave', () => ({}));
+export const leave = change('clan_leave', (server) => server.rpc('clan_leave', {}));
 /** Invite a character by name (a leader or an officer). */
-export const invite = change('clan_invite', 'hr_clan_invite', (target) => ({ p_target: String(target || '').trim().slice(0, 40) }));
+export const invite = change('clan_invite', (server, target) => server.rpc('hr_clan_invite', { p_target: String(target || '').trim().slice(0, 40) }));
 /** Remove a member (a leader, or an officer for a member); no ban. */
-export const kick = change('clan_kick', 'clan_kick', (id) => ({ p_user_id: id, p_ban_hours: 0 }));
+export const kick = change('clan_kick', (server, id) => server.rpc('clan_kick', { p_user_id: id, p_ban_hours: 0 }));
 /** Withdraw an invite. */
-export const revoke = change('clan_invite_revoke', 'clan_invite_revoke', (id) => ({ p_user_id: id }));
+export const revoke = change('clan_invite_revoke', (server, id) => server.rpc('clan_invite_revoke', { p_user_id: id }));
 /** Set a member's rank, or hand the clan on (the leader). */
-export const rank = change('clan_rank', 'hr_clan_rank', (id, r) => ({ p_target: id, p_rank: r }));
+export const rank = change('clan_rank', (server, id, r) => server.rpc('hr_clan_rank', { p_target: id, p_rank: r }));
 /** Open or invite only. */
-export const setPolicy = change('clan_policy', 'clan_join_policy_set', (p) => ({ p_policy: p }));
+export const setPolicy = change('clan_policy', (server, p) => server.rpc('clan_join_policy_set', { p_policy: p }));

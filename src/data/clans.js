@@ -7,8 +7,7 @@
 // wait until clans exist and people are in them (13 section 1.2): their server calls stay on the server, HIDDEN from every client, never
 // dropped, because chapter 14 builds the castle on them (Part C X-04).
 //
-// The server holds its own copy of these rules, seeded by supabase/migrations/1036-social-clans.sql (hr_clan_rules); tests/clans.mjs
-// holds the two equal on the replayed chain. Every number a player can act on (the price, a clan's members, its cap) is read from the
+// The server holds its own copy of these rules, written by tools/gen-social-catalogue.mjs (hr_clan_rules; --check holds the two equal). Every number a player can act on (the price, a clan's members, its cap) is read from the
 // server's answer, never from here: this file is the source the server row is checked against.
 //
 // PURE ESM. Data only.
@@ -33,22 +32,3 @@ export const CLAN_RANKS = Object.freeze(['leader', 'officer', 'member']);
 
 /* HOW ONE JOINS: open (anyone joins from the browser) or invite (only an invited account). */
 export const CLAN_POLICIES = Object.freeze(['open', 'invite']);
-
-/* THE CASTLE'S SERVER CALLS, HIDDEN AND KEPT (Part C X-04, T-12): no client may run them in the first build, and no migration drops them.
-   1036-social-clans.sql §4 asserts both on every replay; the four clan guards (tests/clan-*.mjs) read this list. */
-export const CLAN_HIDDEN_CALLS = Object.freeze([
-  'clan_contribute', 'clan_contribute__ungated', 'clan_create', 'clan_deposit', 'clan_deposit__ungated',
-  'clan_feast_call', 'clan_feast_call__ungated', 'clan_feast_deposit', 'clan_feast_deposit__ungated',
-  'clan_invite', 'clan_invites_list', 'clan_rested_grant', 'clan_rested_grant__ungated', 'clan_seat_read', 'clan_seat_read__ungated',
-  'clan_upkeep_settle', 'clan_vice_set', 'clan_vice_set__ungated',
-  'clan_vote_cast', 'clan_vote_cast__ungated', 'clan_vote_close', 'clan_vote_close__ungated',
-  'clan_vote_open', 'clan_vote_open__ungated', 'clan_vote_read', 'clan_vote_read__ungated',
-  'clan_work_labour', 'clan_work_labour__ungated', 'clan_work_post', 'clan_work_post__ungated',
-  'clan_work_supply', 'clan_work_supply__ungated',
-]);
-
-/* THE CALLS A PLAYER USES (the first build): each is client-executable and on hr_client_rpc_baseline. */
-export const CLAN_OPEN_CALLS = Object.freeze([
-  'hr_clan_found', 'hr_clan_browser', 'hr_clan_roster', 'hr_clan_invite', 'hr_clan_rank',
-  'clan_join', 'clan_leave', 'clan_kick', 'clan_invite_revoke', 'clan_join_policy_set',
-]);

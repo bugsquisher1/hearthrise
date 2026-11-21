@@ -29,7 +29,6 @@ export const CLAN_TEXT = Object.freeze({
   found_tag: 'Tag',
   found_tag_hint: '2 to 4 letters',
   found_open: 'Anyone can join',
-  found_invite: 'Invite only',
   found_go: 'Found for {gold} gold',
   found_done: '{name} is founded. You lead it.',
   /* ── IN A CLAN ── */

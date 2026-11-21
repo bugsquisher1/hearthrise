@@ -7661,6 +7661,16 @@ jobs:
           node tests/live-events.mjs
           node tools/mutant-gate.mjs node tests/live-events.mjs --mutate
 
+      # THE SOCIAL LAYER (1036 to 1039, lane/c-social FB-12): the clan, chat, friend link and presence rules the server reads are GENERATED
+      # from src/data/clans.js and chat-channels.js (tools/gen-social-catalogue.mjs); the clans, the clan chat with the castle hidden, the
+      # friend link from both sides and the strip are tests/social-layer.mjs, on the replayed chain.
+      - name: Social layer — the generated rules, clans, the friend link from both sides, the presence strip
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/gen-social-catalogue.mjs --check
+          node tools/mutant-gate.mjs node tools/gen-social-catalogue.mjs --selftest
+          node tests/social-layer.mjs
+
       # THE ARMED FEATURES, PLAYED BY A STRANGER (2027-05-14-arm-switches.sql, lane/c-arm-switches): on the live calendar a stranger buys a
       # scaled hour and hunts the Cellar at its Level, earns the Bonus XP weekend's +25% and calls the Rat King for no gold in Open Halls;
       # a second apply moves nothing. Every other guard boots the quiet calendar (tests/schema-replay.mjs quietCalendar), so no guard reads

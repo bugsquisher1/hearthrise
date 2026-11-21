@@ -22,6 +22,7 @@ import { whole, gold } from '../../../render/format.js';
 import { escapeHtml as esc } from '../../../utils/dom.js';
 import { runIntent, refusalText } from '../../intent-words.js';
 import { WORKS_TAB, worksHtml, patchWorks, actWorks } from './works.js';
+import { fireHtml, patchFire } from '../../hearth-fire.js';
 
 const ASK_MS = 15000;
 const RETRY_MS = 5000;
@@ -74,6 +75,8 @@ export function renderHavora(ctx) {
     + '<div class="hv-top"><div class="hw-tabs" role="tablist">' + TABS.map((t, i) => '<button type="button" role="tab" class="hw-tab" data-hs-act="tab" data-tab="' + esc(t.id) + '" aria-selected="' + (i === 0) + '">' + esc(t.label) + '</button>').join('') + '</div>'
     + '<span class="hv-gold"></span></div>'
     + '<section class="hw-pane hv-pane" data-pane="hearth">'
+    /* THE HEARTHRISE'S FIRE (D-7): its marks, when it lights and how big, the server's (../../hearth-fire.js) */
+    + fireHtml()
     + '<p class="hv-lead">Lights the Great Hearth for ' + whole(SINK_RULES.powder.seconds) + ' s, thrower shown to all</p>'
     + '<div class="hv-powders" role="radiogroup" aria-label="Which powder">' + offers.map((id) => '<button type="button" role="radio" class="hv-powder is-' + esc(id) + '" data-hs-act="pick" data-show="' + esc(id) + '" aria-checked="false"><i class="hv-swatch" aria-hidden="true"></i>' + esc(SHOW_FLAMES[id].label) + '</button>').join('') + '</div>'
     /* why the buy is off stands over it: under it, a phone sheet's foot lay on the line */
@@ -103,6 +106,7 @@ renderHavora.patch = function patchHavora(body, ctx) {
   for (const b of root.querySelectorAll('.hw-tab')) attr(b, 'aria-selected', String(b.getAttribute('data-tab') === sc.tab));
   for (const p of root.querySelectorAll('.hv-pane')) cls(p, 'is-on', p.getAttribute('data-pane') === sc.tab);
   prop(root.querySelector('.hv-tower'), 'hidden', !towerOf(cs));
+  patchFire(root, cs);
   const purse = goldOf(cs);
   text(root.querySelector('.hv-gold'), purse === null ? '' : 'Gold: ' + gold(purse));
   const s = sc.sinks;

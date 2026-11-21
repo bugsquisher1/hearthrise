@@ -11,7 +11,7 @@
 -- ── THE CONTRACT ─────────────────────────────────────────────────────────────
 -- friend_link_codes (NEW)    one row an account: its code (server-made, 10 hex characters; the shape accepts [a-z0-9]). RLS on, no client grant.
 -- friend_link_redeemed (NEW) one row an account that arrived by a link: whose, and when. Once an account, ever. RLS on, no client grant.
--- hr_friend_link_rule (NEW)  one row: new_hours (src/data/chat-channels.js FRIEND_LINK.newAccountHours; tests/social-layer.mjs holds it).
+-- hr_friend_link_rule        one row: new_hours, 1036-social-catalogue.generated.sql's (src/data/chat-channels.js FRIEND_LINK).
 -- hr_friend_link() -> { ok, code }                CLIENT. The caller's code, made on first ask. 20 a minute.
 -- hr_friend_link_redeem(p_code text) -> { ok, person, state }   CLIENT. The caller, an account made within new_hours, becomes friends with
 --   the code's owner: one friend_links row (lo, hi), any pending ask between them gone. No gold, item, XP or anything else moves (no reward).
@@ -39,7 +39,7 @@ do $mig$
 begin
   if to_regclass('public.friend_links') is null or to_regclass('public.friend_requests') is null
      or to_regprocedure('public.hr_social_person(uuid)') is null or to_regprocedure('public.hr_social_blocked(uuid,uuid)') is null
-     or to_regprocedure('public.hr_admitted(uuid)') is null or to_regclass('public.profiles') is null then
+     or to_regprocedure('public.hr_admitted(uuid)') is null or to_regclass('public.profiles') is null or to_regclass('public.hr_friend_link_rule') is null then
     raise exception 'PRECONDITION: apply 2026-10-25-social.sql and 2027-01-17-social-pass.sql first'; end if;
 end $mig$;
 
@@ -55,21 +55,12 @@ create table if not exists public.friend_link_redeemed (
   at        timestamptz not null default now(),
   check (user_id <> from_user)
 );
-create table if not exists public.hr_friend_link_rule (
-  id        boolean primary key default true check (id),
-  new_hours int     not null check (new_hours between 1 and 720)
-);
 comment on table public.friend_link_codes is '1038-friend-link.sql: one account''s friend link code (GR-72), made by the server on first ask. No client grant.';
 comment on table public.friend_link_redeemed is '1038-friend-link.sql: an account that arrived by a friend''s link, once ever. No client grant.';
-comment on table public.hr_friend_link_rule is '1038-friend-link.sql: how new an account must be to use a friend link (src/data/chat-channels.js FRIEND_LINK). Server-only.';
 alter table public.friend_link_codes enable row level security;
 alter table public.friend_link_redeemed enable row level security;
-alter table public.hr_friend_link_rule enable row level security;
 revoke all on public.friend_link_codes from public, anon, authenticated, service_role;
 revoke all on public.friend_link_redeemed from public, anon, authenticated, service_role;
-revoke all on public.hr_friend_link_rule from public, anon, authenticated, service_role;
-delete from public.hr_friend_link_rule;
-insert into public.hr_friend_link_rule (id, new_hours) values (true, 24);
 
 -- ── §2 THE VERBS ─────────────────────────────────────────────────────────────
 create or replace function public.hr_friend_link()
@@ -155,7 +146,7 @@ begin
     if not has_function_privilege('authenticated', v_sig::regprocedure, 'execute') or has_function_privilege('anon', v_sig::regprocedure, 'execute') then
       raise exception 'friend-link §3(a): % is not authenticated''s alone', v_sig; end if;
   end loop;
-  foreach v_sig in array array['friend_link_codes', 'friend_link_redeemed', 'hr_friend_link_rule'] loop
+  foreach v_sig in array array['friend_link_codes', 'friend_link_redeemed'] loop
     foreach v_role in array array['anon', 'authenticated'] loop
       if has_table_privilege(v_role, ('public.' || v_sig)::regclass, 'select,insert,update,delete') then raise exception 'friend-link §3(a): % reaches %', v_role, v_sig; end if;
     end loop;

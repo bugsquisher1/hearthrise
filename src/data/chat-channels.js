@@ -71,8 +71,7 @@ export const WORLD_NOTICES = Object.freeze({
 });
 
 /* ONE GLOBAL FOR THE WHOLE SERVER, IN SMALL BATCHES WITH A SLOW MODE WHEN CROWDED (Tyler 2026-11-20, 28-6, and 2026-11-21, 31-1).
-   supabase/migrations/1036-social-clans.sql seeds the server's rows from these (hr_chat_global_rule, hr_chat_slow_mode) and
-   tests/chat-social.mjs RB-2 holds them equal.
+   tools/gen-social-catalogue.mjs writes the server's rows from these (hr_chat_global_rule, hr_chat_slow_mode; --check holds them equal).
    GLOBAL_BATCH  the server sends Global's new lines to everyone listening once every `everyS` seconds, as one message, never one a line:
                  a line is sent once it is `settleS` old (so a send still committing is not skipped), at most `maxLines` a batch. The
                  sender sees its own line at once, from its send's answer. JUDGMENT: a few seconds is chat, and one message a batch is the
@@ -86,6 +85,9 @@ export const SLOW_MODE = Object.freeze([
   Object.freeze({ linesPerMin: 30, gapS: 30 }),
   Object.freeze({ linesPerMin: 60, gapS: 60 }),
 ]);
+
+/* THE FRIEND LINK AT SIGN-UP (GR-72; 1038-friend-link.sql): an account this many hours old or newer may arrive by a friend's link, once. */
+export const FRIEND_LINK = Object.freeze({ newAccountHours: 24 });
 
 /* THE WORDS A SLOW MODE REFUSAL READS (the server's `wait_s`). */
 export const SLOW_MODE_WORDS = Object.freeze({

@@ -18,14 +18,14 @@
 import { rows, text, cls, prop, element } from '../render/paint.js';
 import { whole, gold } from '../render/format.js';
 import { t, hasText } from '../render/player-text.js';
-import { itemName } from './widgets/bits.js';
+import { itemNameFor } from './widgets/bits.js';
 import { refusalWords, runIntent } from './intent-words.js';
 import { huntName, partyMembershipOf } from '../session/party-sections.js';
 import { huntOf } from '../session/hunt-sections.js';
 import { carryOnPlan, carryOn } from '../session/carry-on-intents.js';
 import { TIER_NAME, DEFAULT_TIER } from '../data/hunt-tiers.js';
 
-const itemsWords = (lines) => lines.map((l) => whole(l.qty) + ' ' + itemName(l.item)).join(', ');
+const itemsWords = (lines) => lines.map((l) => whole(l.qty) + ' ' + itemNameFor(l.item, l.qty)).join(', ');   // one Bone, two Bones (TK-8c)
 /* a refusal's line inside a sentence: "stays in town: no stamina left" */
 const lower = (s) => (s && /^[A-Z][a-z]/.test(s) ? s[0].toLowerCase() + s.slice(1) : s);
 

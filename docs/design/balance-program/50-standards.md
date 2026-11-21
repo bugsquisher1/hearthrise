@@ -240,12 +240,22 @@ The day a 12 h player reaches each door (COMPUTED from 2.1. The four runs at 2.2
 
 ### 2.8 Server cost
 
+**How C2 comes out of $0.15** (COMPUTED from `28-platform.md`, whose prices are ASSUMED list prices). 28's rule is accounts = cores x 0.7 x 86,400 / 2 / database-seconds an account-day, so one core carries 30,240 database-seconds a day.
+
+| Accounts | Budget a month | Other lines of the bill | Left for the database | The plan that fits | Cores | Database-seconds an account-day |
+|---|---|---|---|---|---|---|
+| 1,000 | $150 | about $80 (plan $15, journal $5 after its fix, edge calls $20, Realtime $15, egress $25) | $70 | Medium, $60 | 2, shared | 2 x 30,240 / 1,000 = **60** |
+| 10,000 | $1,500 | about $1,015 (plan $15, journal $50, edge calls $240, Realtime $260, egress $450) | $485 | 2XL, $410 | 8 | 8 x 30,240 / 10,000 = **24** |
+
+This is a sign of difficulty scaling. The four fixes in the plan take an account from about 600 to about 190. The ruled price needs 60, and 24 at 10,000. That is three to eight times past everything planned, and two thirds of the 10,000-account bill is not the database at all. Medium's cores are shared, so 60 is the best case. The platform re-dive owns the answer, and it will be a system change (how often a hunt is settled and saved), not a tuning.
+
 | # | Band | Target | Red | Label, reason |
 |---|---|---|---|---|
-| C1 | Database time a hunted hero-hour | at most 4 seconds | over 5 | PROPOSED from 28's "after four changes" row (about 3.6, COMPUTED) |
-| C2 | Database time an account-day, four heroes at 12 h | at most 190 seconds | over 220 | COMPUTED: today's engine reads about 600 on the same account, by interpolating 28's table. Not measured |
+| C1 | Database time a hunted hero-hour | at most 1.25 seconds at 1,000 accounts, 0.5 at 10,000 | over 1.5, over 0.6 | COMPUTED from C2 (48 hunted hero-hours an account-day). 28's "after four changes" row reads about 3.6 |
+| C2 | Database time an account-day, four heroes at 12 h | **at most 60 seconds at 1,000 accounts. At most 24 at 10,000** | over 70, over 30 | COMPUTED from the ruled $0.15 and 28's price list, below. Today's engine reads about 600 and the four planned fixes reach about 190, by interpolation. Not measured |
 | C3 | Journal rows | at most 1 a hero an hour an activity | over 2 | RULED 28-2 |
-| C4 | Money an account-month | at most $0.50 at 1,000 accounts, $0.30 at 10,000 | over | RULED 11-21 (call 10) |
+| C4 | Money an account-month | **at most $0.15 at 1,000 accounts (about $150 a month), and no higher at 10,000** | over | RULED 11-21, re-ruled the same day: "500 a month on the server is going to be too expensive for me if the game isn't making money" |
+| C4b | The lines of the bill that are not the database (plan, journal disk, edge calls, Realtime, egress) | at most $80 a month at 1,000 accounts, $1,015 at 10,000 | over | ASSUMED from 28's list prices, which were read for 3.3 h accounts. They must be re-read at 12 h, and if they grow, C2 shrinks |
 | C5 | Capacity | 1,000 accounts of four heroes at 12 h on one database under 70% CPU at the busy hour. 10,000 on a plan that exists, with room | does not fit | PROPOSED. 28 sized this at 3.3 h, where 10,000 already "do not fit at any price" before its fixes |
 | C6 | A new system | no new statement on the settle path, no poll, nothing that grows with players times players | any | the model's allowance, kept |
 
@@ -625,7 +635,7 @@ A solver is only as good as its moves. The first check on it is a blind play: a 
 | 7 | Recommended: 120 days of grounds at Early Access, 30 days ahead | R1, R2 |
 | 8 | Recommended: two heroes 1.2 to 1.5, three 1.5 to 2.0 | P7 |
 | 9 | Recommended: Luck keeps its hours | D3 |
-| 10 | Recommended: $0.50 an account-month at 1,000, $0.30 at 10,000 | C4 |
+| 10 | Re-ruled the same day: at most **$0.15** an account-month at 1,000 accounts (about $150 a month) and no higher at 10,000 | C4. C2 is now 60 database-seconds an account-day at 1,000 and 24 at 10,000. C1 follows |
 | 11 | **Alternative: no limit on how much sooner, only on what** | B7 is a what-only rule. X4 |
 | 12 | Recommended: two visits a day is the free game | 1.1 |
 | 13 | Recommended: heroes work all 12 rested hours | 1.1, section 10.2 |

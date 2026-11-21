@@ -459,6 +459,8 @@
     "node tools/mutant-gate.mjs node tests/anon-rate-gate.mjs --selftest": "economy-selftests-2",
     "node tests/edge-bundle.mjs": "economy-selftests-2",
     "node tools/mutant-gate.mjs node tests/edge-bundle.mjs --selftest": "economy-selftests-2",
+    "node tests/edge-payload-scope.mjs": "economy-selftests-2",
+    "node tools/mutant-gate.mjs node tests/edge-payload-scope.mjs --selftest": "economy-selftests-2",
     "node tools/mutant-gate.mjs node tests/delta-transport.mjs --selftest": "economy-selftests-2",
     "node tools/mutant-gate.mjs node tests/skill-row-upsert.mjs --mutate": "economy-selftests-2",
     "node tools/mutant-gate.mjs node tools/economy-watch.local.mjs --selftest": "economy-selftests-2",

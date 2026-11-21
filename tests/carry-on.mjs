@@ -260,8 +260,13 @@ async function idemArm(db, M) {
     const key = idem();
     v = await press(db, A, p.gold, null, key);
     const n = Number(await one(db, 'select count(*)::text from public.hunt_sessions where user_id = $1', [A]));
+    /* rule 11: the press carries every hero it sent as it left them (`envelopes` by slot); the receipt a same key answers has none */
+    const went = (v && Array.isArray(v.heroes) ? v.heroes : []).filter((h) => h.state === 'went').map((h) => String(h.slot));
+    const envs = v && v.envelopes && typeof v.envelopes === 'object' ? v.envelopes : {};
+    if (!went.length || !went.every((s) => envs[s] && envs[s].state && Number.isInteger(envs[s].version))) bad.push('CO-IDEM the press carried no envelope of a hero it sent: ' + JSON.stringify(Object.keys(envs)) + ' for ' + JSON.stringify(went));
+    const receipt = v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).filter(([k]) => k !== 'envelopes')) : v;
     const v2 = await press(db, A, p.gold, null, key);
-    if (JSON.stringify(v2) !== JSON.stringify(v) || Number(await one(db, 'select count(*)::text from public.hunt_sessions where user_id = $1', [A])) !== n) bad.push('CO-IDEM the same key twice started more: ' + JSON.stringify(v2).slice(0, 200));
+    if (JSON.stringify(v2) !== JSON.stringify(receipt) || Number(await one(db, 'select count(*)::text from public.hunt_sessions where user_id = $1', [A])) !== n) bad.push('CO-IDEM the same key twice started more: ' + JSON.stringify(v2).slice(0, 200));
     const v3 = await press(db, A, p.gold);
     if (!v3 || v3.error !== 'nothing_to_carry_on' || Number(await one(db, 'select count(*)::text from public.hunt_sessions where user_id = $1', [A])) !== n) bad.push('CO-IDEM a second press answered ' + JSON.stringify(v3).slice(0, 200));
     /* ...and says why: each hero is out hunting (busy), never "refused" */

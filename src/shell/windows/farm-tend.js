@@ -2,7 +2,7 @@
 // src/shell/windows/farm-tend.js — THE FARM'S "TEND THE FIELD": THE SERVER'S BILL, THEN ONE PRESS.
 //
 // Build plan L09 (26-home.md §6, ruled): a visit was two presses a plot, one at a time. This section, under the field,
-// shows the SERVER's bill (src/session/farm-tend.js farmTendOf, the `farm_tend` section of 1009-tend-the-field.sql) before
+// shows the SERVER's bill (src/session/farm-tend.js farmTendOf, the `farm_tend` section of 1017-tend-the-field.sql) before
 // anything is pressed: the ready plots it harvests, the plots it plants again and the seeds that takes (from the bag and
 // Storage, and any it buys, with the gold), the plots it waters, and each plot that stays empty and why. "Plant with" picks
 // one crop for every plot it plants (the server's compact bill for that crop); left alone, each plot gets its own crop

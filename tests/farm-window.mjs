@@ -46,7 +46,7 @@
 //         for 10 gp." with that sentence a link; pressed on a phone sheet (922×423), the Shop opens on
 //         Buy in its place with the seed's row in view and ringed; on the desktop Enter on the focused
 //         link does the same, and never opens Chat
-//   FW-11 TEND THE FIELD (build plan L09; 1009-tend-the-field.sql): the server's `farm_tend` bill is drawn as plain lines
+//   FW-11 TEND THE FIELD (build plan L09; 1017-tend-the-field.sql): the server's `farm_tend` bill is drawn as plain lines
 //         (harvest, plant again, the seed it buys with its gold, water, the empty plot and why) and the press reads its
 //         gold; ONE hr_farm_tend carries exactly that bill's crop and gold, every control off until the server answers,
 //         and the line words the answer; "Plant with: Turnip" shows the server's bill for that crop and the press sends
@@ -109,7 +109,7 @@ const SEEDLESS = {
     { offer: 'supply.turnip_seed', item: 'turnip_seed', kind: 'seed', price: 5 }, { offer: 'supply.carrot_seed', item: 'carrot_seed', kind: 'seed', price: 10 }]) }),
 };
 const CLEAR = { ok: true, plot: 1, crop: 'tomato', produce: 'tomato', qty: 3, xp: 4410, regrew: false, withered: false, extra: false, cleared: true, regrows_left: null };
-/* FW-11 TEND THE FIELD (1009-tend-the-field.sql): room for 3, plot 0 ready, plot 1 growing, plot 2 empty, no seed in the bag; the
+/* FW-11 TEND THE FIELD (1017-tend-the-field.sql): room for 3, plot 0 ready, plot 1 growing, plot 2 empty, no seed in the bag; the
    server's bill buys one seed for 5 gp, and its compact bill for Turnip in every plot it plants buys two for 10 gp. */
 const TEND = {
   farm_land: { cap: 3, plot_level: 1, upgrade: null,

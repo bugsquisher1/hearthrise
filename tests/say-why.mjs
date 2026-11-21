@@ -384,7 +384,7 @@ export const REASONS = Object.freeze({
     { cond: '!verb', words: 'verb', where: 'the plot says what it needs' },
     { cond: 'st.farming < up.farming || !afford', words: "t('farm.tier_next", where: 'the tier line names the price and Farming level (OPEN: does not say which is short)' },
   ],
-  /* Tend the field (1009-tend-the-field.sql): off only when the server's bill has nothing to do, and the bill's first line says so */
+  /* Tend the field (1017-tend-the-field.sql): off only when the server's bill has nothing to do, and the bill's first line says so */
   'src/shell/windows/farm-tend.js': [
     { cond: '!b.work', words: "if (!b.work) out.push(t('farm.tend_nothing'));", where: 'Tend the field: the bill above it reads "Nothing to tend right now", and every plot it leaves empty says why' },
   ],

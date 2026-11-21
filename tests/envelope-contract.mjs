@@ -357,7 +357,7 @@ function contract(R, cs, body, tl) {
   const fl = R.FS.farmLandOf(cs, 0);
   need('farm_land', !!fl && fl.cap >= 2 && fl.plotLevel >= 1 && fl.plots instanceof Map && (fl.plotLevel >= 5 || (!!fl.upgrade && fl.upgrade.gold > 0 && fl.upgrade.farming > 0)),
     'farmLandOf yields ' + JSON.stringify(fl && { cap: fl.cap, plotLevel: fl.plotLevel, upgrade: fl.upgrade, plots: fl.plots.size }) + ' from ' + JSON.stringify(body.farm_land));
-  /* Tend the field (1009-tend-the-field.sql): the server's bill for that field (a fresh field: nothing ready, two empty plots, no gold) */
+  /* Tend the field (1017-tend-the-field.sql): the server's bill for that field (a fresh field: nothing ready, two empty plots, no gold) */
   const ft = R.FT.farmTendOf(cs);
   need('farm_tend', !!ft && Array.isArray(ft.harvest) && Array.isArray(ft.water) && ft.gold === 0 && ft.choices instanceof Map
     && ft.empty.length === (fl ? fl.cap - fl.plots.size : -1) && ft.empty.every((e) => e.why === 'unplanted'),

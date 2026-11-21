@@ -1,13 +1,13 @@
 -- ════════════════════════════════════════════════════════════════════════
--- supabase/migrations/1009-tend-the-field.sql — "TEND THE FIELD": ONE PRESS HARVESTS EVERY READY PLOT, PLANTS IT
+-- supabase/migrations/1017-tend-the-field.sql — "TEND THE FIELD": ONE PRESS HARVESTS EVERY READY PLOT, PLANTS IT
 --   AGAIN AND WATERS THE FIELD, AFTER THE SERVER'S SEED BILL IS ON SCREEN
 --   (lane/c-tend-the-field, backend-architect, 2026-11-20; build plan row L09, docs/design/balance-program/30-plan.md §D,
 --   call 26-4 RULED yes: 26-home.md §6, "a visit is 2 presses a bed one at a time, 34 presses at 17 beds").
 --
--- STATUS: supabase/migration-notes/1009-tend-the-field.sql.json (STAGED until the Coordinator applies it).
--- ORDER: the sequence in this file's name (CLAUDE.md rule 12): it runs after every file on its base (set/v0.2.143,
---   up to 1008). lane/c-levels-7-9 staged its own 1009: the later lane to land renumbers (--renumber); neither writes
---   an object the other does. EDGE: none (no engine file moves).
+-- STATUS: supabase/migration-notes/1017-tend-the-field.sql.json (STAGED until the Coordinator applies it).
+-- ORDER: the sequence in this file's name (CLAUDE.md rule 12): it runs after every file on its base (set/v0.2.144,
+--   up to 1016; renumbered from 1009 past lane/c-approved-rows' 1009-1015 and lane/c-levels-7-9's 1016, none of which
+--   writes an object this file does). EDGE: none (no engine file moves).
 -- Applied as ONE transaction by the apply tool; never begin/commit here. Ends with its §4 self-check.
 --
 -- ── WHY ──────────────────────────────────────────────────────────────────────
@@ -131,7 +131,7 @@ create or replace function public.hr_farm_tend_plan(p_user uuid, p_slot integer,
  security definer
  set search_path = public, pg_catalog
 as $fn$
--- hr_farm_tend_plan (1009-tend-the-field.sql): what "Tend the field" does on p_user's field for hero p_slot NOW, by the
+-- hr_farm_tend_plan (1017-tend-the-field.sql): what "Tend the field" does on p_user's field for hero p_slot NOW, by the
 -- server clock, read only. Every rule is the farm verbs' own: readiness and watering are hr_farm_harvest's and
 -- hr_farm_water's tests, a regrow is the harvest's rule, the gates are hr_farm_plant's, the seed comes from the bag, then
 -- Storage, then the Shop's lowest `seed` row while the account purse covers it. See the file header for the answer.
@@ -277,7 +277,7 @@ create or replace function public.hr_farm_tend_view(p_user uuid, p_slot integer)
  security definer
  set search_path = public, pg_catalog
 as $fn$
--- hr_farm_tend_view (1009-tend-the-field.sql): the `farm_tend` section. The plan with no crop chosen, and one compact
+-- hr_farm_tend_view (1017-tend-the-field.sql): the `farm_tend` section. The plan with no crop chosen, and one compact
 -- bill per crop this hero can plant now, priced only when the default plants a plot or leaves one empty.
 declare
   v jsonb;
@@ -315,7 +315,7 @@ begin
 end $fn$;
 
 insert into public.hr_state_sections (key, fn, note) values
-  ('farm_tend', 'hr_farm_tend_view', '1009-tend-the-field.sql: the Tend the field bill by the server clock: the ready plots it harvests, the plots it plants again (each its own crop) and waters, the seeds it takes from the bag and Storage and buys with their gold, the plots that stay empty and why, and one compact bill per crop the hero can plant now')
+  ('farm_tend', 'hr_farm_tend_view', '1017-tend-the-field.sql: the Tend the field bill by the server clock: the ready plots it harvests, the plots it plants again (each its own crop) and waters, the seeds it takes from the bag and Storage and buys with their gold, the plots that stay empty and why, and one compact bill per crop the hero can plant now')
   on conflict (key) do update set fn = excluded.fn, note = excluded.note;
 
 -- ── §3 THE VERB ─────────────────────────────────────────────────────────────
@@ -325,7 +325,7 @@ create or replace function public.hr_farm_tend(p_slot integer, p_crop text, p_go
  security definer
  set search_path = public, pg_catalog
 as $fn$
--- hr_farm_tend (1009-tend-the-field.sql): "Tend the field", one press. The plan under every lock, its gold matched with the
+-- hr_farm_tend (1017-tend-the-field.sql): "Tend the field", one press. The plan under every lock, its gold matched with the
 -- bill the player saw, then the farm verbs, UNCHANGED, plot by plot: harvest, the seeds, plant, water. See the file header.
 declare
   c_verb constant text := 'farm_tend';
@@ -491,7 +491,7 @@ grant  execute on function public.hr_farm_tend(integer, text, bigint, uuid) to a
 delete from public.hr_client_rpc_baseline where grantee = 'authenticated' and proname = 'hr_farm_tend';
 insert into public.hr_client_rpc_baseline (proname, identity_args, grantee, note) values
   ('hr_farm_tend', 'p_slot integer, p_crop text, p_gold bigint, p_idem uuid', 'authenticated',
-   'added 1009-tend-the-field.sql (lane/c-tend-the-field): Tend the field, one press: every ready plot harvested, planted again (its own crop or the chosen one) and the field watered, through hr_farm_harvest / hr_farm_plant / hr_farm_water unchanged; seeds from the bag, Storage, then bought at the Shop''s price; p_gold is only compared with the server''s bill (quote_changed); names a slot, a crop id, the bill and a key, never a plot; pre-EA Security list');
+   'added 1017-tend-the-field.sql (lane/c-tend-the-field): Tend the field, one press: every ready plot harvested, planted again (its own crop or the chosen one) and the field watered, through hr_farm_harvest / hr_farm_plant / hr_farm_water unchanged; seeds from the bag, Storage, then bought at the Shop''s price; p_gold is only compared with the server''s bill (quote_changed); names a slot, a crop id, the bill and a key, never a plot; pre-EA Security list');
 
 -- ── §4 SELF-CHECK (CLAUDE.md §4), EXECUTED, every probe rolled back ──────────
 -- (a) THE BILL: the envelope's farm_tend reads the field exactly (a ready plot, a growing one, an extra one).
@@ -512,7 +512,7 @@ begin
     foreach v_who in array array[v_u, v_v] loop
       perform set_config('request.jwt.claim.sub', v_who::text, true);
       insert into auth.users (id) values (v_who) on conflict (id) do nothing;
-      insert into public.hr_access_allowlist (user_id, note) values (v_who, '1009-tend-the-field §4 probe') on conflict (user_id) do nothing;
+      insert into public.hr_access_allowlist (user_id, note) values (v_who, '1017-tend-the-field §4 probe') on conflict (user_id) do nothing;
       v := public.hr_create_character(0);
       if coalesce(v ->> 'ok', '') <> 'true' then raise exception 'tend §4: hr_create_character(0) refused: %', v; end if;
     end loop;
@@ -641,7 +641,7 @@ begin
        or (select count(*) from public.account_farm_plots where user_id = v_v) <> public.hr_farm_plot_cap(v_v) then
       raise exception 'tend §4(h): another account''s chosen-crop tend answered % (want its own empty field planted, inside its cap)', v2; end if;
 
-    raise exception using errcode = 'HR9A9', message = '1009-tend-the-field §4 complete - rolling back';
+    raise exception using errcode = 'HR9A9', message = '1017-tend-the-field §4 complete - rolling back';
   exception when sqlstate 'HR9A9' then
     null;
   end;
@@ -672,5 +672,5 @@ begin
                    and identity_args = 'p_slot integer, p_crop text, p_gold bigint, p_idem uuid') then
     raise exception 'tend §4(i): hr_farm_tend is not on hr_client_rpc_baseline'; end if;
   perform public.hr_assert_grant_hygiene(true);
-  raise notice '1009-tend-the-field: one press harvests, plants again and waters exactly at the bill''s gold; a replay is the receipt; a forged seed, price or slot is refused; another account''s field is untouched; all green';
+  raise notice '1017-tend-the-field: one press harvests, plants again and waters exactly at the bill''s gold; a replay is the receipt; a forged seed, price or slot is refused; another account''s field is untouched; all green';
 end $chk$;

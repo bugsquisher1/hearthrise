@@ -1,7 +1,7 @@
 // ════════════════════════════════════════════════════════════════════════
 // src/session/farm-tend.js — "TEND THE FIELD": THE SERVER'S BILL, READ SAFELY, AND THE ONE PRESS.
 //
-// supabase/migrations/1009-tend-the-field.sql. One press harvests every ready plot, plants it again (its own crop, or the
+// supabase/migrations/1017-tend-the-field.sql. One press harvests every ready plot, plants it again (its own crop, or the
 // crop the player chose for every plot it plants) and waters the field, all decided and done by the SERVER:
 //   farmTendOf(cs)    the `farm_tend` section (hr_farm_tend_view), or null (no section yet: the press stays off):
 //                     { harvest:[i], plant:[{i,crop}], water:[i], empty:[{i,crop,why,need,seed,price}],

@@ -81,7 +81,7 @@ export const FARM_TEXT = Object.freeze({
   makes_drink: 'Makes {drink}, a mana drink ({mana} mana)',
   makes_food: 'Cooked into {foods}',
 
-  /* Tend the field (supabase/migrations/1009-tend-the-field.sql): the server's bill, then one press. */
+  /* Tend the field (supabase/migrations/1017-tend-the-field.sql): the server's bill, then one press. */
   tend_head: 'Tend the field',
   tend_pick: 'Plant with',
   tend_pick_own: 'The same crop as before',

@@ -7,9 +7,9 @@
 //   node tests/farm-tend.mjs --mutate    every mutation must be CAUGHT
 //   node tests/farm-tend.mjs --mutate=<id>
 //
-// mutant-anchors: supabase/migrations/1009-tend-the-field.sql
+// mutant-anchors: supabase/migrations/1017-tend-the-field.sql
 //
-// Ships with: supabase/migrations/1009-tend-the-field.sql (its §4 self-check is the server's own proof) and the client half,
+// Ships with: supabase/migrations/1017-tend-the-field.sql (its §4 self-check is the server's own proof) and the client half,
 // src/session/farm-tend.js + src/shell/windows/farm-tend.js. On the fully replayed PGlite chain, a signed-in player's own
 // CharacterSession (src/session/character-session.js) reads the envelope through hr_load and presses through the client's
 // own tendField; every rpc it sends runs as that player (`set role authenticated`, the JWT subject set).
@@ -34,7 +34,7 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { bootReplay, inventory, ROOT } from './schema-replay.mjs';
 
-const MIG = '1009-tend-the-field.sql';
+const MIG = '1017-tend-the-field.sql';
 const idem = () => crypto.randomUUID();
 const imp = (rel) => import(pathToFileURL(join(ROOT, rel)).href);
 

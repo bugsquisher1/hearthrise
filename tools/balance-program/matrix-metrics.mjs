@@ -125,7 +125,7 @@ export function deriveMatrix(cells) {
   const ratio = (a, b) => (finite(a) && finite(b) && b !== 0 ? r(a / b, 3) : null);
   /* SOLO AGAINST PARTY: a four's head against the lone hammer, and against the same four ways each alone where they were played */
   const soloVsParty = [];
-  for (const c of ok.filter((x) => x.party === 4 && !x.step)) {
+  for (const c of ok.filter((x) => x.party === 4 && !x.step && x.block !== 'lineups')) {
     const lone = get(c.L, c.gear, 1, 'h', c.tier);
     const alone = c.styles.map((s) => get(c.L, c.gear, 1, s === 'hammer' ? 'h' : s, c.tier)).filter(Boolean);
     const same = alone.length === c.styles.length ? sum(alone.map((x) => x.m.levelXpPerH)) / alone.length : null;
@@ -168,7 +168,16 @@ export function deriveMatrix(cells) {
     t.takenPerKill = t.killsPerH > 0 ? r(t.takenPerH / t.killsPerH, 1) : null; t.dealtPerKill = r(dealtPerKill, 1);
     for (const k of ['killsPerH', 'takenPerH', 'dealtPerH']) t[k] = r(t[k] / t.cells, 1);
   }
-  return { soloVsParty, upgrades, parity, archetypes };
+  /* THE LINEUPS (matrix-plan.mjs LINEUPS, 52-review-combat 10.4): each four on Deadly against the mixed four of the same block, Level and seeds */
+  const lineups = [];
+  const lu = ok.filter((c) => c.block === 'lineups');
+  for (const c of lu) {
+    const ref = lu.find((x) => x.L === c.L && x.tier === c.tier && x.styles.join() === 'tank,healer,bow,mage');
+    lineups.push({ L: c.L, tier: c.tier, styles: c.styles, xpVsMixed: ref ? ratio(c.m.levelXpPerH, ref.m.levelXpPerH) : null, killsVsMixed: ref ? ratio(c.m.killsPerH, ref.m.killsPerH) : null,
+      levelXpPerH: c.m.levelXpPerH, killsPerH: c.m.killsPerH, lowHpTypical: c.m.lowHpTypical, lowHpP10: c.m.lowHpP10, deathsPer1000h: c.m.deathsPer1000h, hpUnder30: c.m.hpUnder30,
+      storePerH: c.m.storePerH, takenShare: Object.fromEntries(c.m.seatsM.map((s, i) => [i + ':' + s.style, s.takenShare])), seeds: c.m.sample ? c.m.sample.seeds : null });
+  }
+  return { soloVsParty, upgrades, parity, archetypes, lineups };
 }
 
 /* ── THE JUDGE: standards.mjs's bands, per way ─────────────────────────────────────────────────────────────────────────────────── */
@@ -180,7 +189,7 @@ const asGrid = (cells) => ({ run: 'matrix', cells: Object.fromEntries(cells.map(
  * Answers [{ way, band, group, label, at, value, status, dist, ... }].
  */
 export function judgeMatrix(D, K, cells) {
-  const frame = cells.filter((c) => c.m && c.block !== 'grounds');
+  const frame = cells.filter((c) => c.m && c.block !== 'grounds' && c.block !== 'lineups');
   const parties = frame.filter((c) => c.party > 1);
   const rows = [];
   const lone = (way) => frame.filter((c) => c.party === 1 && c.styles[0] === way && (way === 'hammer' || !c.step));

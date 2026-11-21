@@ -121,7 +121,7 @@ export async function playRun(D, K, run, root, o = {}) {
   for (const j of jobs) if (results[j.id]) (byKey[j.key] || (byKey[j.key] = [])).push(results[j.id]);
   const cells = plan.cells.map((c) => {
     const seeds = (byKey[c.key] || []).map(slimSeed);
-    const want = o.seeds || run.seeds;
+    const want = c.seeds || o.seeds || run.seeds;
     if (seeds.length < want) return { ...c, error: (errors.find((e) => e.id.startsWith(c.key + '#')) || {}).error || 'a seed is missing' };
     return { ...c, m: cellMetrics(V, c, seeds, arch) };
   });
@@ -173,6 +173,7 @@ export function printRun(res, rows, out = console.log) {
   if (sk.length) out('\nSKILLS PLAYED, the lone hammer (main skill / Defense): ' + sk.map((c) => c.L + ': ' + c.skills[0].join(' / ')).join(', '));
   out('\nSOLO AGAINST PARTY (a four\'s head over the lone hammer; and over the same four ways alone) with each seat\'s share of the damage taken');
   for (const s of D.soloVsParty) out('  ' + (s.L + ' ' + s.gear + ' ' + s.tier).padEnd(22) + ' XP ' + fmt(s.xpHeadVsHammer, 2) + ' (same alone ' + fmt(s.xpHeadVsSameAlone, 2) + '), net ' + fmt(s.netHeadVsHammer, 2) + ', DPS ' + fmt(s.dpsHeadVsHammer, 2) + ', deaths ' + fmt(s.deathsFour, 1) + ' vs ' + fmt(s.deathsLone, 1) + ' | taken: ' + Object.entries(s.takenShare).map(([k, v]) => k + ' ' + pct(v).replace('+', '')).join(', '));
+  printLineups(D.lineups, null, out);
   out('\nGEAR STEPS BY SLOT CLASS (the full set over it with one class a state back): Level XP | DPS | less damage taken');
   for (const u of D.upgrades) out('  ' + (u.L + ' ' + u.way + ' ' + u.from + '->' + u.to + ' ' + u.cls).padEnd(34) + [pct(u.xp), pct(u.dps), pct(u.lessTaken)].map((s) => s.padStart(9)).join(' '));
   out('\nARCHETYPES (matrix-plan.mjs rule; mean over cells): kills/h | taken/h | dealt/h | s to kill | taken a kill');
@@ -184,6 +185,18 @@ export function printRun(res, rows, out = console.log) {
     for (const [w, b] of Object.entries(by)) out('  ' + w.padEnd(10) + String(b.RED).padStart(5) + String(b.off).padStart(6) + String(b.ok).padStart(6));
   }
   if (res.calibration) { out(''); printCalibration(res.calibration, out); }
+}
+
+/* THE LINEUPS (matrix-plan.mjs LINEUPS): each four on Deadly against the mixed four, its low point and deaths; with `before`, before -> after */
+function printLineups(rows, before, out) {
+  if (!rows || !rows.length) return;
+  out('\nLINEUPS on Deadly, MID (52-review-combat 10.4; L16 judges these): XP vs the mixed four | kills vs mixed | low HP | worst tenth | deaths/1000h | store/h' + (before ? '   (before -> after)' : ''));
+  const B = before ? new Map(before.map((x) => [x.L + '|' + x.styles.join(), x])) : null;
+  const two = (b, a, f, d) => (B ? fmt(b && b[f], d) + '->' + fmt(a[f], d) : fmt(a[f], d));
+  for (const x of rows) {
+    const b = B && B.get(x.L + '|' + x.styles.join());
+    out('  ' + (x.L + ' ' + x.styles.join(',')).padEnd(34) + [two(b, x, 'xpVsMixed', 2), two(b, x, 'killsVsMixed', 2), two(b, x, 'lowHpTypical', 2), two(b, x, 'lowHpP10', 2), two(b, x, 'deathsPer1000h', 0), two(b, x, 'storePerH', 0)].map((s) => s.padStart(B ? 13 : 8)).join(' '));
+  }
 }
 
 export function printDiff(d, meta, out = console.log) {
@@ -205,10 +218,11 @@ export function printDiff(d, meta, out = console.log) {
   out('\nCELLS (the change of each metric; flags: the band rows moved at that cell): ' + show.join(' | '));
   const atOf = (c) => c.L + ' ' + c.gear + ' x' + c.party + ' ' + c.tier;
   for (const c of [...d.cells].sort((a, b) => a.L - b.L || a.party - b.party || String(a.way).localeCompare(String(b.way)))) {
-    const fl = d.bands.filter((b) => b.at === atOf(c) && !c.step && (c.party > 1 ? b.way === 'hammer' : b.way === c.way));
+    const fl = d.bands.filter((b) => b.at === atOf(c) && !c.step && c.block !== 'lineups' && (c.party > 1 ? b.way === 'hammer' : b.way === c.way));
     const tag = fl.length ? '  ' + ['IMPROVED', 'REGRESSED', 'UNINTENDED'].map((k) => [k, fl.filter((b) => b.flag === k).map((b) => b.band)]).filter(([, bs]) => bs.length).map(([k, bs]) => k + ' ' + bs.join(',')).join('; ') : '';
     out('  ' + (c.L + ' ' + c.way + ' ' + c.gear + ' ' + c.tier + (c.step ? ' ' + c.step : '')).padEnd(40) + show.map((id) => (c.metrics[id] ? pct(c.metrics[id][2]) : '-').padStart(8)).join(' ') + tag);
   }
+  if (meta.lineups) printLineups(meta.lineups.after, meta.lineups.before, out);
   out('\nSEATS (each seat\'s share of the party\'s damage taken, before -> after)');
   for (const c of d.cells.filter((x) => x.party > 1 && !x.step)) out('  ' + (c.L + ' ' + c.gear + ' ' + c.tier + ' ' + c.way).padEnd(28) + c.seats.map((s) => s.style + ' ' + fmt(s.takenShare[0], 3) + '->' + fmt(s.takenShare[1], 3)).join('  '));
 }
@@ -395,7 +409,7 @@ async function main() {
     const patch = JSON.parse(readFileSync(resolve(arg('diff')), 'utf8'));
     const t0 = Date.now();
     const r = await diff(patch, run, o);
-    printDiff(r.d, { patch, run: run.id, cells: r.after.cells.length, applied: r.applied, regen: r.regen });
+    printDiff(r.d, { patch, run: run.id, cells: r.after.cells.length, applied: r.applied, regen: r.regen, lineups: { before: deriveMatrix(r.before.cells).lineups, after: deriveMatrix(r.after.cells).lineups } });
     if (r.after.calibration) { console.log(''); printCalibration(r.after.calibration, console.log, r.before.calibration); }
     console.log('\nRUNTIME: before ' + (r.before.cached ? 'from the cache' : r.before.runtime.wallS + ' s') + ', after ' + r.after.runtime.wallS + ' s (' + r.after.runtime.workerS + ' worker-s, ' + r.after.runtime.workers + ' workers), diff total ' + Math.round((Date.now() - t0) / 1000) + ' s');
     const gate = gateOf(patch, r.d);

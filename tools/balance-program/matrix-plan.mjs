@@ -98,7 +98,9 @@ export function planMatrix(D, K, run, o = {}) {
   const add = (meta, b) => {
     if (seen.has(meta.key)) return;
     seen.add(meta.key);
-    cells.push({ ...meta, stretch: STD.stretchOf(meta.L).state, kits: b.plans.map((p) => ({ style: p.style, kit: p.kit, temper: p.temper })) });
+    /* `skills`: each seat's main skill and Defense as played (the career line, skill-lines.mjs, and the gear state's offset) */
+    cells.push({ ...meta, stretch: STD.stretchOf(meta.L).state, kits: b.plans.map((p) => ({ style: p.style, kit: p.kit, temper: p.temper })),
+      skills: meta.styles.map((st, i) => { const sk = (b.cell.skillsBySeat || [])[i] || {}; return [sk[MAIN[st] || 'melee'] || null, sk.defense || null]; }) });
     for (let s = 0; s < seeds; s++) jobs.push({ id: meta.key + '#' + s, key: meta.key, whatIf: b.whatIf, cell: { ...b.cell, id: 'MATRIX:' + meta.key, hours, seeds: 1, seedBase: s } });
   };
   for (const block of run.blocks) {

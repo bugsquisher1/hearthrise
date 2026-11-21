@@ -35,6 +35,8 @@
 //
 // Exit: 0 ran · 1 a selftest proof failed · 2 harness.
 // mutant-anchors: none — the selftest plants on scratch copies and in-memory rows; no tracked file is patched
+// ci-step: economy-selftests | The balance matrix's diff sees a planted attack and monster patch, an empty patch plays as the tree, and its flags bite
+// ci-run: node tools/mutant-gate.mjs node tools/balance-program/balance-matrix.mjs --selftest
 // ════════════════════════════════════════════════════════════════════════
 import { fork, execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
@@ -111,7 +113,7 @@ export async function playRun(D, K, run, root, o = {}) {
   const plan = planMatrix(V, K, run, { only: o.only, blocks: o.blocks, seeds: o.seeds, hours: o.hours, quick: o.quick });
   const cal = o.calibrate === false ? { jobs: [], cols: [], samples: [] } : await calibrationJobs(V, K, ROOT, { seeds: o.seeds || run.seeds, hours: o.hours || run.hours });
   const jobs = [...plan.jobs, ...cal.jobs];
-  if (o.say) o.say((o.label || run.id) + ': ' + plan.cells.length + ' cells + calibration, ' + jobs.length + ' seed jobs, ' + (o.workers || workersOf()) + ' workers, on ' + (resolve(root) === ROOT ? 'the tree' : 'a scratch copy'));
+  if (o.say) o.say((o.label || run.id) + ': ' + plan.cells.length + ' cells' + (cal.jobs.length ? ' + calibration' : '') + ', ' + jobs.length + ' seed jobs, ' + (o.workers || workersOf()) + ' workers, on ' + (resolve(root) === ROOT ? 'the tree' : 'a scratch copy'));
   const { results, errors, workerMs, wallMs } = await playJobs(jobs, root, o.workers || workersOf(), o.quiet ? () => {} : progress(o.label || run.id));
   if (process.stderr.isTTY && !o.quiet) process.stderr.write('\n');
   const arch = archetypeTable(V.BS, V.MONSTERS);
@@ -165,6 +167,10 @@ export function printRun(res, rows, out = console.log) {
       for (const w of ways) { const c = lone.find((x) => x.L === L && x.styles[0] === w); if (c) out('    ' + (g + ' ' + w).padEnd(30) + [fmt(c.m.dps, 1), fmt(c.m.levelXpPerH), fmt(c.m.netPerH), fmt(c.m.killsPerH), fmt(c.m.deathsPer1000h, 1), fmt(c.m.lowHpTypical, 2), fmt(c.m.hpUnder30, 3), fmt(c.m.hoursPerLevel, 2)].map((s) => s.padStart(9)).join(' ')); }
     }
   }
+  /* the skills the cells play: tools/balance-sim/skill-lines.mjs's career line (past its last measured Level it runs straight on: the
+     baseline lane is moving that onto the skill curve), so a reader sees what a high Level's hero was given */
+  const sk = lone.filter((c) => c.skills && c.styles[0] === 'hammer');
+  if (sk.length) out('\nSKILLS PLAYED, the lone hammer (main skill / Defense): ' + sk.map((c) => c.L + ': ' + c.skills[0].join(' / ')).join(', '));
   out('\nSOLO AGAINST PARTY (a four\'s head over the lone hammer; and over the same four ways alone) with each seat\'s share of the damage taken');
   for (const s of D.soloVsParty) out('  ' + (s.L + ' ' + s.gear + ' ' + s.tier).padEnd(22) + ' XP ' + fmt(s.xpHeadVsHammer, 2) + ' (same alone ' + fmt(s.xpHeadVsSameAlone, 2) + '), net ' + fmt(s.netHeadVsHammer, 2) + ', DPS ' + fmt(s.dpsHeadVsHammer, 2) + ', deaths ' + fmt(s.deathsFour, 1) + ' vs ' + fmt(s.deathsLone, 1) + ' | taken: ' + Object.entries(s.takenShare).map(([k, v]) => k + ' ' + pct(v).replace('+', '')).join(', '));
   out('\nGEAR STEPS BY SLOT CLASS (the full set over it with one class a state back): Level XP | DPS | less damage taken');
@@ -192,8 +198,16 @@ export function printDiff(d, meta, out = console.log) {
   const show = ['dps', 'takenPerH', 'healPerH', 'levelXpPerH', 'netPerH', 'storePerH', 'killsPerH', 'deathsPer1000h', 'lowHpTypical', 'hpUnder30', 'hoursPerLevel'];
   for (const axis of ['style', 'level', 'party', 'gear', 'tier']) {
     const s = axisSummary(d.cells, axis);
-    out('\nBY ' + axis.toUpperCase() + ' (median change; [min, max] where they differ): ' + show.join(' | '));
+    out('\nBY ' + axis.toUpperCase() + ' (the median change over its cells; --json holds each cell and the min and max): ' + show.join(' | '));
     for (const [k, g] of Object.entries(s)) out('  ' + k.padEnd(22) + show.map((id) => (g[id] ? pct(g[id].median) : '-').padStart(8)).join(' '));
+  }
+  /* EVERY CELL, every metric's change, and the band rows flagged at it (the before and after numbers themselves: --json) */
+  out('\nCELLS (the change of each metric; flags: the band rows moved at that cell): ' + show.join(' | '));
+  const atOf = (c) => c.L + ' ' + c.gear + ' x' + c.party + ' ' + c.tier;
+  for (const c of [...d.cells].sort((a, b) => a.L - b.L || a.party - b.party || String(a.way).localeCompare(String(b.way)))) {
+    const fl = d.bands.filter((b) => b.at === atOf(c) && !c.step && (c.party > 1 ? b.way === 'hammer' : b.way === c.way));
+    const tag = fl.length ? '  ' + ['IMPROVED', 'REGRESSED', 'UNINTENDED'].map((k) => [k, fl.filter((b) => b.flag === k).map((b) => b.band)]).filter(([, bs]) => bs.length).map(([k, bs]) => k + ' ' + bs.join(',')).join('; ') : '';
+    out('  ' + (c.L + ' ' + c.way + ' ' + c.gear + ' ' + c.tier + (c.step ? ' ' + c.step : '')).padEnd(40) + show.map((id) => (c.metrics[id] ? pct(c.metrics[id][2]) : '-').padStart(8)).join(' ') + tag);
   }
   out('\nSEATS (each seat\'s share of the party\'s damage taken, before -> after)');
   for (const c of d.cells.filter((x) => x.party > 1 && !x.step)) out('  ' + (c.L + ' ' + c.gear + ' ' + c.tier + ' ' + c.way).padEnd(28) + c.seats.map((s) => s.style + ' ' + fmt(s.takenShare[0], 3) + '->' + fmt(s.takenShare[1], 3)).join('  '));
@@ -279,12 +293,13 @@ export async function runGroundRates(o = {}) {
   const res = await playRun(D, K, run, ROOT, { workers: o.workers || workersOf(), calibrate: false, label: 'ground rates', say: o.log || ((s) => console.error(s)), quiet: !!o.quiet });
   const rows = res.cells.filter((c) => c.m).map((c) => rateRow(c, res.seeds, res.hours));
   rows.sort((a, b) => (a.ground + a.level + a.size + a.tier + a.comp).localeCompare(b.ground + b.level + b.size + b.tier + b.comp));
-  const prev = existsSync(RATES_FILE) && o.only ? JSON.parse(readFileSync(RATES_FILE, 'utf8')).rows.filter((r) => !o.only.includes(r.ground)) : [];
+  const file = o.out || RATES_FILE;
+  const prev = existsSync(file) && o.only ? JSON.parse(readFileSync(file, 'utf8')).rows.filter((r) => !o.only.includes(r.ground)) : [];
   const table = { schema: 'hearthrise.balance-program.ground-rates/1', source: 'tools/balance-program/balance-matrix.mjs (the grounds block: progression-grid.mjs buildCell, the grid\'s kits, pulls and skills)',
     commit: commitOf(), hash: matrixHash(), quick: !!o.quick, seeds: res.seeds, hours: res.hours, kit: 'MID (grid-kit.mjs, played profile, career-line skills, the tier row\'s pull)',
     playedMs: res.runtime.wallS * 1000, cells: res.cells.length, failed: res.cells.filter((c) => c.error).length, rows: [...prev, ...rows] };
-  writeFileSync(RATES_FILE, JSON.stringify(table, null, 0).replace(/\},\{/g, '},\n{') + '\n');
-  return { table, res: { failed: table.failed, done: rows.length }, jsonl: null };
+  writeFileSync(file, JSON.stringify(table, null, 0).replace(/\},\{/g, '},\n{') + '\n');
+  return { table, file, res: { failed: table.failed, done: rows.length }, jsonl: null };
 }
 
 async function main() {
@@ -295,7 +310,11 @@ async function main() {
   }
   const run = has('subset') ? RUNS.subset : RUNS.full;
   const o = optsOf();
-  if (has('rates')) { const r = await runGroundRates({ quick: has('quick'), workers: o.workers, seeds: o.seeds, hours: o.hours }); console.log('ground rates: ' + r.table.rows.length + ' rows (' + r.table.failed + ' failed) -> ' + relative(ROOT, RATES_FILE)); return 0; }
+  if (has('rates')) {
+    const r = await runGroundRates({ quick: has('quick'), workers: o.workers, seeds: o.seeds, hours: o.hours, only: arg('grounds') ? arg('grounds').split(',') : null, out: arg('out') ? resolve(arg('out')) : null });
+    console.log('ground rates: ' + r.table.rows.length + ' rows (' + r.table.failed + ' failed) in ' + Math.round(r.table.playedMs / 1000) + ' s -> ' + r.file);
+    return 0;
+  }
   if (has('sweep')) { const doc = await sweep(RUNS.subset, o); console.log('sweep: ' + Object.keys(doc.knobs).length + ' knobs -> ' + relative(ROOT, SWEEP_FILE) + ' (' + doc.sweepS + ' s)'); return 0; }
   const D = await loadGridData(ROOT), K = await loadKits(ROOT);
   if (arg('diff')) {

@@ -95,7 +95,15 @@ const SEED = '-4611686018427387904';
    kills as pinned (198 / 488 / 139 / 113): every timeline and tally moves from settle 1, the world from settle 3 (sewer-2's world holds). Cause:
    src/data/balance-sheet.js STAT_FORMULA XP a point x0.88, so every formula row's xp (src/data/monsters.js, gen-ground-stats --write) pays 12%
    less a kill, and the XP the timeline and tally carry moves from the first kill. The Level curve under these heroes holds (Levels 10-110 are the
-   set's brackets; only Levels 1-9 re-split and past 110 re-fit). No file under src/core or supabase/functions moves. */
+   set's brackets; only Levels 1-9 re-split and past 110 re-fit). No file under src/core or supabase/functions moves.
+   RE-PINNED 2026-11-20 (lane/c-tohit-ratio, balance program L15; Tyler ruled 21-1 and 21-2: to-hit as a ratio of two ratings), THE ENGINE AND THE
+   ROWS, A RULE CHANGE MEANT TO MOVE THEM: all four scenarios move from settle 1 (kills 198 -> 187, 488 -> 479, 139 -> 134, 113 -> 113). Cause:
+   src/core/combat.js rolls every blow on src/data/to-hit.js's ratio (a hero's 20 + skill + accuracy against the monster's evasion, a monster's aim
+   against 20 + Defense + guard), and every monster row carries the two ratings in place of baseAcc, its def without STAT_FORMULA.def.past (so a
+   blow loses fewer points to it); the Warrens' drop rows re-fitted to the slower Chief move warrens-4's tally too. Other landed blows, other rolls.
+   RE-PINNED 2026-11-21 (set/v0.2.144 merged into lane/c-tohit-ratio), SEWER-2'S TALLY ONLY (kills 113 as pinned; the other three hold): the set's Level
+   curve (lane/c-levels-7-9: Levels 7-20 re-cut, src/data/core-model.js LEVEL_CURVE) moves where its heroes' Levels fall. Proof: the merged tree with this
+   lane's pre-merge core-model.js laid back holds every pin (exit 0). */
 const SCENARIOS = Object.freeze({
   'warrens-4': { hunt: 'coppercap_warrens', L: 40, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },
   'glade-4': { hunt: 'mosslight_glade', L: 24, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },

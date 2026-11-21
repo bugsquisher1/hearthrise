@@ -275,7 +275,7 @@ async function fightToEnd(db, M, door, uids, inst, anchorMs) {
 const JOBS = [
   { name: 'the kill', want: ['boss_felled'], level: 60, uids: [0, 1], paid: true },
   { name: 'a death', want: ['died', 'party_member_died'], or: ['died'], level: 1, uids: [2, 3], gear: [{}, {}], rows: { [BOSS]: { hp: 100000 } } },
-  { name: 'the limit', want: ['boss_time'], level: 60, uids: [4, 5], rows: { [BOSS]: { hp: 100000000, atk: 1, baseAcc: 0 }, [NAMED]: { hp: 10000000, atk: 1, baseAcc: 0 }, [ADD]: { hp: 10000000, atk: 1, baseAcc: 0 } } },
+  { name: 'the limit', want: ['boss_time'], level: 60, uids: [4, 5], rows: { [BOSS]: { hp: 100000000, atk: 1, aim: 1 }, [NAMED]: { hp: 10000000, atk: 1, aim: 1 }, [ADD]: { hp: 10000000, atk: 1, aim: 1 } } },
   { name: 'a lone kill', want: ['boss_felled'], level: 60, uids: [6], lone: true, paid: true },
 ];
 

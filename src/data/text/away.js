@@ -117,4 +117,29 @@ export const AWAY_TEXT = Object.freeze({
   done_level: '{name} waited in town: the yard requires Level {level}',
   done_party: '{name} waited in town: training is solo',
   done_no_train: '{name} couldn\'t train {skill} and waited in town',
+
+  /* CARRY ON (Tyler RULED 27-1, 2026-11-20; src/shell/carry-on.js, 1024-carry-on.sql): the return card's one press for the whole account, and
+     what it will do for each hero, every fact the server's plan. {name} the hero, {ground} its ground, {tier} the tier's name, {items}
+     "40 Cooked Swordfish, 20 Mana Potion", {gold} a gold figure. One hero a line, short sentences, no semicolons. */
+  carry_press: 'Carry on',
+  carry_head: 'One press sends every hero back to its last hunt.',
+  carry_go: '{name}: {ground}, {tier}.',
+  carry_party: 'With its party.',
+  carry_storage: 'From Storage: {items}.',
+  carry_short: 'Short of last time: {items}. The store tops it up in the hunt.',
+  carry_bless: 'Bless again: {gold}.',
+  carry_loot: 'Runs its loot plan first.',
+  carry_job_gather: 'Stops gathering.',
+  carry_job_artisan: 'Stops its bench work.',
+  carry_job_training: 'Stops training.',
+  carry_no: '{name} stays in town: {why}.',
+  carry_leader: '{name} waits for {leader} to start the party\'s hunt.',
+  carry_parked: '{name} stays where you left it.',
+  carry_went: { one: '{count} hero went back out.', other: '{count} heroes went back out.' },
+  carry_went_none: 'No hero went back out.',
+  /* The end card's press for a party of the player's own heroes (21-combat change 9): {count} the party's own heroes. */
+  again_both: 'Hunt again, both',
+  again_all_three: 'Hunt again, all three',
+  again_all_four: 'Hunt again, all four',
+  again_bless: 'Bless again first: {gold}. Press again to go.',
 });

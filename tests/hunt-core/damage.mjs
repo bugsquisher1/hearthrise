@@ -409,8 +409,8 @@ const cases = {
 };
 
 /* NO HERO LEVEL IN A MONSTER'S BLOW: one foreman, one hero's stats in all three armor weights, one ground, one dice stream, swung for a minute at each hero Level. */
-/* def 40: the foreman's to-hit off both its caps (formula row, baseAcc 0.86: 0.85 at def 20 and under, 0.52 at 40, 0.05 from 80), so a
-   level term on the to-hit roll moves the blows this reads (lane/b-tier-dials: at def 20 that mutant escaped once the formula wrote the row). */
+/* def 40: the foreman's to-hit well inside the rails (the ratio, src/data/to-hit.js: his aim against 20 + 40), so a level term on the
+   to-hit roll moves the blows this reads (lane/b-tier-dials: under the old line, at def 20, that mutant escaped on the 85% cap). */
 const blowsAtLevel = (M, heroLv, tier, bare) => {
   const k = H(M, 1, 12, 3, 'tank', { hp: 1000000, maxHp: 1000000, target: 2, def: 40 });
   k.heroLv = heroLv;

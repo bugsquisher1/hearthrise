@@ -117,15 +117,14 @@ function formulaWords(f) {
   const T = f.terms, I = f.example.inputs, r = f.example.result;
   switch (f.id) {
     case 'hit': return { name: t('wiki.hit_name'),
-      words: t('wiki.hit_words', { base: pc(T.base), per: pc(T.per), weak: extra(T.weak), min: pc(T.min), max: pc(T.max),
-        list: factors(Object.values(T.defMul).map(extra), (pct) => t('wiki.hit_more', { pct })) }),
-      example: t('wiki.hit_example', { level: I.level, monster: I.monster, def: I.def, result: pc(r) }) };
+      words: t('wiki.hit_words', { base: T.base, weak: extra(T.weak), min: pc(T.min), max: pc(T.max) }),
+      example: t('wiki.hit_example', { level: I.level, monster: I.monster, evasion: whole(I.evasion), result: pc(r) }) };
     case 'max': return { name: t('wiki.max_name'),
       words: t('wiki.max_words', { lvl: T.lvl, str: T.str, flat: T.flat, cut: T.cut, weak: extra(T.weak) }),
       example: t('wiki.max_example', { level: I.level, monster: I.monster, result: r }) };
     case 'mon_hit': return { name: t('wiki.mon_hit_name'),
-      words: t('wiki.mon_hit_words', { base: pc(T.base), per: pc(T.per), min: pc(T.min), max: pc(T.max) }),
-      example: t('wiki.mon_hit_example', { monster: I.monster, start: pc(I.baseAcc === null ? T.base : I.baseAcc), atk: I.atk, def: I.defense, result: pc(r) }) };
+      words: t('wiki.mon_hit_words', { base: T.base, min: pc(T.min), max: pc(T.max) }),
+      example: t('wiki.mon_hit_example', { monster: I.monster, aim: whole(I.aim), def: I.defense, result: pc(r) }) };
     case 'mon_max': return { name: t('wiki.mon_max_name'),
       words: t('wiki.mon_max_words', { scale: T.scale, list: factors(Object.values(T.byTier), String) }),
       example: t('wiki.mon_max_example', { monster: I.monster, atk: I.atk, result: whole(r) }) };

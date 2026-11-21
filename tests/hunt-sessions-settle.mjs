@@ -3917,7 +3917,8 @@ const DB_ARMS = {
       const r = await one(db, 'select public.hr_party_leave_together_set(0, false, $1::uuid)', [idem()]);
       if (!r || r.ok !== true || r.leave_together !== false) throw new Error('the untick answered ' + JSON.stringify(r));
     } });
-    const boxes = async () => (await q(db, 'select party_leave_together b from public.player_state where user_id = any($1::uuid[]) and slot = 0 order by array_position($1::uuid[], user_id)', [UIDS])).map((r) => r.b).join();
+    /* each hero's box as the server reads it (1025-own-heroes-apart.sql hr_party_leave_together_of): four accounts, so unsaid reads on */
+    const boxes = async () => (await q(db, 'select public.hr_party_leave_together_of(ps.user_id, 0, $2::uuid) b from public.player_state ps where ps.user_id = any($1::uuid[]) and ps.slot = 0 order by array_position($1::uuid[], ps.user_id)', [UIDS, h.party])).map((r) => r.b).join();
     /* (g) on by default, (f) only the stranger's own box moved; each hero's party section reads its own */
     if (await boxes() !== 'true,true,true,false') return [`the boxes read ${await boxes()}, not the default on with seat 3's own untick`];
     const shown = [];
@@ -5436,15 +5437,16 @@ const DB_MUTANTS = [
     find: "  c_xp_skills constant text[] := array(select k.skill_id from public.hr_skills k where k.cat = 'combat' order by k.skill_id);",
     replace: "  c_xp_skills constant text[] := array(select k.skill_id from public.hr_skills k where k.cat = 'combat' and k.skill_id <> 'inner_flame' order by k.skill_id);" },
   /* LEAVE TOGETHER (2026-12-18-party-leave-together.sql): each server rule goes red on its own defect. */
+  /* the box's one reading since 1025-own-heroes-apart.sql: hr_party_leave_together_of (said, else on only beside another account's hero) */
   { arm: 'PARTY-LEAVE', name: '[leave together] a cascade end is proven for an unticked hero', fn: SS,
-    find: "      when 'party_member_left' then coalesce((select ps.party_leave_together from public.player_state ps\n                                               where ps.user_id = p_user and ps.slot = p_slot), false)",
-    replace: "      when 'party_member_left' then true or coalesce((select ps.party_leave_together from public.player_state ps\n                                               where ps.user_id = p_user and ps.slot = p_slot), false)" },
+    find: "      when 'party_member_left' then public.hr_party_leave_together_of(p_user, p_slot, v_s.instance_id)",
+    replace: "      when 'party_member_left' then true or public.hr_party_leave_together_of(p_user, p_slot, v_s.instance_id)" },
   { arm: 'PARTY-LEAVE-KICK', name: '[leave together] the engine read never flags the kick', fn: 'public.hr_hunt_instance_read(uuid,integer)',
     find: "'kicked', exists (select 1 from public.hunt_parties p where p.id = v_i.id)", replace: "'kicked', false and exists (select 1 from public.hunt_parties p where p.id = v_i.id)" },
   { arm: 'PARTY-LEAVE', name: '[leave together] the engine read carries no box', fn: 'public.hr_hunt_instance_read(uuid,integer)',
-    find: "'leave_together', (select ps.party_leave_together from public.player_state ps where ps.user_id = h.user_id and ps.slot = h.slot),", replace: '' },
+    find: "'leave_together', public.hr_party_leave_together_of(h.user_id, h.slot, v_i.id),", replace: '' },
   { arm: 'PARTY-LEAVE', name: '[leave together] the party section shows a box that is not the hero\'s', fn: 'public.hr_hunt_party_view(uuid,integer)',
-    find: "    'leave_together', (select ps.party_leave_together from public.player_state ps where ps.user_id = p_user and ps.slot = p_slot));",
+    find: "    'leave_together', public.hr_party_leave_together_of(p_user, p_slot, v_pid));",
     replace: "    'leave_together', true);" },
   { arm: 'PARTY-ROLE-WORN', name: '[party truth] the party section shows a fixed weapon over the world that pays the worn one', fn: 'public.hr_hunt_party_view(uuid,integer)',
     find: 'public.hr_hunt_weapon_of(m.user_id, m.slot) as weapon, h.id as sid,', replace: "'shield'::text as weapon, h.id as sid," },
@@ -5461,9 +5463,11 @@ const DB_MUTANTS = [
   /* RUNE-LADDER-IDEM bites: a body the five files write, moved on the chain as of them, is moved back by the second apply. */
   { arm: 'RUNE-LADDER-IDEM', name: '[rune ladder] a second apply rewrites a store rune\'s spell table', fn: 'public.hr_hunt_rune_spells()', asOf: true,
     find: '"rend":{"skill":"melee"', replace: '"rend":{"skill":"magic"' },
+  /* the anchor is the CASE arm's head, which the whole chain's body (the harness's pre-check) and the body as of the file both hold:
+     1025-own-heroes-apart.sql moved what follows it */
   { arm: 'PARTY-LEAVE-IDEM', name: '[leave together] §0 takes a spliced body another file moved', fn: SS, asOf: true,
-    find: "      when 'party_member_died' then coalesce((select ps.party_leave_together",
-    replace: "      when 'party_member_died' then /* moved */ coalesce((select ps.party_leave_together" },
+    find: "      when 'party_member_died' then ",
+    replace: "      when 'party_member_died' then /* moved */ " },
   { arm: 'PARTY-LEAVE', name: '[leave together] a cascaded hero is closed where its window began (its stretch unsettled)', fn: SS,
     find: '    perform public.hr_hunt_close(p_session, v_end, v_end_at, true);',
     replace: "    perform public.hr_hunt_close(p_session, v_end, case when v_end like 'party_member_%' then v_s.settled_to else v_end_at end, true);" },

@@ -47,7 +47,12 @@ function applyWhatIf(w) {
     }
     for (const inst of new Set(ENG[table] || [])) {   // one instance once: with a bare source the two are the same rows
       /* one row, not a table of rows: the combat constants, and the spells' switch ({ spellSwitch: { live: false } }: a cell with no monster casting) */
-      if (table === 'combat' || table === 'spellSwitch' || table === 'stagger') { for (const [k, val] of Object.entries(rows)) set(inst, k, val); continue; }
+      if (table === 'combat' || table === 'spellSwitch' || table === 'stagger') {
+        /* a combat constant the engine no longer has (the to-hit lines retired 2026-11-20: monsterBaseAccuracy and kin) would play as nothing, silently */
+        if (table === 'combat') { const gone = Object.keys(rows).filter((k) => !Object.prototype.hasOwnProperty.call(inst, k)); if (gone.length) throw new Error('whatIf combat: the engine has no ' + gone.join(', ')); }
+        for (const [k, val] of Object.entries(rows)) set(inst, k, val);
+        continue;
+      }
       for (const [id, fields] of Object.entries(rows)) {
         const ids = id === '*' ? Object.keys(inst) : [id];
         for (const x of ids) if (inst[x]) for (const [k, val] of Object.entries(fields)) set(inst[x], k, val);

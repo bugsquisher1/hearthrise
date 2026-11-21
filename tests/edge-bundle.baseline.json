@@ -108,6 +108,11 @@
         "bytes": 3135898,
         "on": "2026-11-21",
         "why": "src/data/core-model.js: Levels 7-9 re-cut for the new player and Levels 10-20 taking the XP back (three more LEVEL_CURVE brackets) plus LEVEL_PACE.newPlayer, the row Tyler's 27-2 pace is held on (lane/c-levels-7-9)"
+      },
+      {
+        "bytes": 3150187,
+        "on": "2026-11-21",
+        "why": "the to-hit ratio (balance program L15): src/data/to-hit.js, the rule and the generated reference hero (6.0 KB), and every monster row's aim and evasion in place of baseAcc (monsters.js and nine ground packs), with the comments that say why"
       }
     ]
   }

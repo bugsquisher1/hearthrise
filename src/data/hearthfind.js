@@ -88,6 +88,9 @@
 //   the Level-90 pool (1,040) and monster damage reads the per-tier scale (combat.js
 //   monsterDamageScaleByTier, tier 6 = 2.2): 0 deaths in the hour, 110 / 138 / 98. Hours
 //   stay as ruled (2026-10-27-hearthfind-catalogue.generated.sql carries the new odds).
+//   RE-MEASURED 2026-11-20 (lane/c-tohit-ratio, balance program L15; was 110 / 138 / 98): to-hit is a ratio of two ratings
+//   (src/data/to-hit.js) and each of these hand rows carries an aim and an evasion that land its old chances on the reference
+//   hero of its Level, so this hero (not that one) lands and is landed on differently: 116 / 139 / 93. Hours stay as ruled.
 //
 //   pinned and re-measured on every run by tests/hearthfind-boss-rate.mjs, so a
 //   combat-balance change that moves the kill rate turns the guard red instead
@@ -183,9 +186,9 @@ export const HEARTHFIND_PLINTH = 'hearth_plinth';
  */
 export const HEARTHFIND_TABLE = Object.freeze([
   // ── Combat: BOSSES ONLY (ruling §2 — the `goblin` row is cut).
-  Object.freeze({ kind: 'monster', id: 'elk_king',    item: 'emberheart', hours: 250, killsPerHour: 110 }),
-  Object.freeze({ kind: 'monster', id: 'grim_reaper', item: 'emberheart', hours: 220, killsPerHour: 138 }),
-  Object.freeze({ kind: 'monster', id: 'dragon',      item: 'emberheart', hours: 180, killsPerHour: 98 }),
+  Object.freeze({ kind: 'monster', id: 'elk_king',    item: 'emberheart', hours: 250, killsPerHour: 116 }),
+  Object.freeze({ kind: 'monster', id: 'grim_reaper', item: 'emberheart', hours: 220, killsPerHour: 139 }),
+  Object.freeze({ kind: 'monster', id: 'dragon',      item: 'emberheart', hours: 180, killsPerHour: 93 }),
 
   // ── Woodcutting. Door / gate / cap.
   Object.freeze({ kind: 'node', id: 'normal_tree',   item: 'worldroot_seed', hours: 350 }),

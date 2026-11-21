@@ -1555,8 +1555,11 @@ export const MUTATIONS = [
   ['M9  "make N" never caps the run (lane c-work-fixes)', [
     [BENCH, '    maxActions: runCap(inp.actionBudget, left0),', '    maxActions: runCap(inp.actionBudget, null),'],
   ], 'a Forge Bronze Pickaxe x1 spends every bar in the bag'],
+  /* job-counts (29e4e5122) folded the countdown into the line that also states a job's end (stopped && jobEnds): the mutant takes
+     only the countdown arm, so a running job's count never moves while a finished one still says so */
   ['M10 "make N" never counts down (lane c-work-fixes)', [
-    [BENCH, '  if (!stopped && left1 !== null && left1 < left0) delta.active_left = left1;', '  /* MUTATED */'],
+    [BENCH, '  if (left1 !== null && ((stopped && inp.jobEnds === true) || (!stopped && left1 < left0))) delta.active_left = left1;',
+      '  if (left1 !== null && ((stopped && inp.jobEnds === true) || false)) delta.active_left = left1;'],
   ], 'a run cut across settles makes N in every window'],
   ['M2  journal.kind names the activity instead of the ledger kind', [
     [BENCH, "      kind: 'craft',", "      kind: 'artisan',"],

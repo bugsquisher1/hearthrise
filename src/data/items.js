@@ -6,7 +6,6 @@ import { SLOT_ITEMS } from './slot-ladders.js';
 import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js';
 import { LIB2_ITEMS } from './library2-items.js';
 import { STONECRAFT_ITEMS } from './stonecraft.js';
-import { BOSS_FORGE_ITEMS } from './boss-forge.js';
 import { CHAMPION_ITEMS } from './champions.js';
 import { DRINK_ITEMS } from './drinks.js';
 import { IMBUE_ITEMS } from './imbuements.js';
@@ -49,9 +48,8 @@ export const ITEMS={
      7-tier whetstone ladder (smithed since Stonemason was cut, 2026-10-14).
      New ids only. See src/data/stonecraft.js for every ruling behind them. */
   ...STONECRAFT_ITEMS,
-  /* W0 (2026-10-10): the three boss-forged body pieces (src/data/boss-forge.js)
-     and the five field champions' relics (src/data/champions.js). New ids only. */
-  ...BOSS_FORGE_ITEMS,
+  /* W0 (2026-10-10): the five field champions' relics (src/data/champions.js). New ids only. The three
+     boss-forged body pieces were cut with the old dungeons whole (Tyler 2026-11-20, plan L10). */
   ...CHAMPION_ITEMS,
   /* The six mana drinks (src/data/drinks.js), live with the hunt's mana engine (lane S2, 2026-10-18). */
   ...DRINK_ITEMS,
@@ -615,15 +613,9 @@ export const ITEMS={
     n:'Void Essence', icon:'🌌', v:3000, bop:true,
     rarity:'epic', tag:'crafting-mat',
   },
-  /* b206 (SYS-10): the Hearth Token is the premium BOND — bought with real
-     money via platform IAP only (never mintable client-side), TRADABLE on
-     the player market for gold (the sanctioned gold↔premium bridge), also
-     spendable as dungeon entry currency, or redeemed 1 → 150 gems. It was
-     bop:true (untradeable) — that blocked the entire bond economy. */
-  hearth_token: {
-    n:'Hearth Token', icon:'🪙', v:25000, premium:true,
-    rarity:'currency', tag:'currency',
-  },
+  /* The Hearth Token (the old premium bond: tradeable, worth 25,000, bid on by the Shop) was cut 2026-11-20
+     (Tyler, economy dive 24-5, plan L10): a premium item the Shop buys for gold is the house printing gold for
+     money. Crowns come later as a number on the account, never an item. */
 
   /* ══════════════════════════════════════════════════════════════════
      b222 — CASTLE STORES (clan-overhaul.md v2 §4.3)
@@ -749,8 +741,7 @@ export const ITEMS={
      gear trades like every other piece, ground drops, named pieces, boss-forge and
      dungeon gear alike. It supersedes the 2026-08-09 rule that made signature gear
      bind-on-pickup. Only the non-gear Hearthfind trophies stay bound (bop + v:0,
-     their no-tradeable-value guard, below). No signature item ever touches
-     hearth_token (mint-leak guard).
+     their no-tradeable-value guard, below).
 
      Weapon reqLv is set explicitly to the dungeon's combat-level gate (no `tier`,
      so gearWieldReq reads reqLv directly). Stats slot each weapon between the

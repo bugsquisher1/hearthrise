@@ -30,10 +30,7 @@
 //                element profile, which is not an override. `elements` = percent
 //                LESS taken per element, negative = more, never immune (2026-11-06).
 //   dropBonus    see the `neutral` note below.
-//   aim/evasion  its two to-hit ratings (src/data/to-hit.js): its blow's rating against a hero's Defense, and its rating against a
-//                hero's blow. EVERY row carries both. A formula row's are written against the reference hero of its Level
-//                (balance-sheet.js formulaStats); a hand row's land the chances its old `baseAcc` landed on that hero (ported
-//                2026-11-20, L15). tests/balance-sheet.mjs holds both.
+//   aim/evasion  its to-hit ratings against a hero's Defense and blow (src/data/to-hit.js), on EVERY row (formula rows: balance-sheet.js formulaStats).
 //   tier/hp/atk/def/xp/gp
 //                must land inside `TIER_BANDS` in monster-classes.js, which
 //                is the MEASURED curve of the 31 originals. New content bends
@@ -819,10 +816,7 @@ export const MONSTERS = {
       { id: 'steel_platebody', ch: .044, band: 'scarce' }, { id: 'boarhide_body', ch: .044, band: 'scarce' }, { id: 'scholar_body', ch: .044, band: 'scarce' },
       { id: 'coppercap_shield', ch: .044, band: 'scarce' }, { id: 'war_crown', ch: .0141, band: 'rare' },
       { id: 'willow_wand', ch: .0114, band: 'rare' }, { id: 'willow_spellbook', ch: .0114, band: 'rare' }, { id: 'willow_staff', ch: .0114, band: 'rare' },
-      /* the Cauldron .00122 to .0014 (lane/d-mage-110): with cloth's smaller damage it came every 161 h a hero, past the trophy band's 150 (drop-tables.mjs trophy-pace) */
-      /* .0014 to .00143 (lane/d-harder-monsters, 2026-11-19): the Chief's tenth more HP slowed the floor four's kills, so the Cauldron came every 150.4 h a hero */
-      /* .00143 to .00153, his Rares .011 to .0114 and the Foreman's Steel Hatchets .0109 to .0114 (lane/c-tohit-ratio, 2026-11-20): on the to-hit ratio the
-         Warrens' reference group kills them a little slower (drop-tables.mjs read the Cauldron every 155.4 h a hero, the Rares 20.2-20.4 h, past 150 and 20) */
+      /* the Cauldron .00153 and his Rares .0114 keep him at the trophy band's 150 h and the rare band's 20 h a hero (drop-tables.mjs), re-fitted on the to-hit ratio (git log has each step) */
       { id: 'verdigris_cake', ch: .0114, band: 'rare' }, { id: 'coppercaps_cauldron', ch: .00153, band: 'trophy' }] },
 
   /* ══ THE CALLED BOSSES (src/data/boss-calls.js): a stronger copy, in one room a party pays to enter. A CALLED BOSS PAYS ONLY HIS DROPS, ON A WIN (Tyler 2026-11-14): xp 0, gp [0, 0], his ground table plus one call-only piece; his adds pay nothing (tests/boss-call.mjs). Stats are the only dials, through the normal paths: measured on tools/balance-sim/boss-call-table.mjs. His to-hit was a low `baseAcc` that took it off the old 85% ceiling so Defense and a shield counted; since the to-hit ratio (src/data/to-hit.js, L15) they always count, and each called row's aim and evasion land the chances its `baseAcc` landed on the reference hero of its Level (ported 2026-11-20). Art: monster-art.js HUNT_ART_ALIAS. ══ */

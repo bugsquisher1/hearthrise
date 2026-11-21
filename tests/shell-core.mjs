@@ -32,6 +32,7 @@ import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { Worker } from 'node:worker_threads';
+import { spawnSync } from 'node:child_process';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const WM_FILE = 'src/shell/window-manager.js';
@@ -1920,16 +1921,31 @@ async function selftest() {
         if (!src.includes(q.from)) throw new Error('selftest: anchor for ' + m.test + ' not found in ' + q.file);
         writeFileSync(p, src.replace(q.from, q.to));
       }
-      const fails = await runTests(await load(base));
-      if (!fails.some((f) => f.startsWith(m.test + ' '))) { console.error('  MISSED: ' + m.test + ' stayed green with its defect planted (' + m.file + ')'); process.exit(1); }
+      const fails = failsIn(base);
+      if (!fails.some((f) => f.startsWith(m.test + ' '))) { console.error('  MISSED: ' + m.test + ' stayed green with its defect planted (' + m.file + ')' + (fails[0] && fails[0].startsWith('HARNESS') ? ': ' + fails[0] : '')); process.exit(1); }
       caught++;
       console.log('  caught  ' + m.test + '  (' + m.file + ')');
+      rmSync(base, { recursive: true, force: true });   // a scored copy of src is not kept on disk either
     }
   } finally { rmSync(tmp, { recursive: true, force: true }); }
   console.log('shell-core selftest: ' + caught + '/' + MUTANTS.length + ' planted defects caught');
 }
 
-if (process.argv.includes('--selftest')) {
+/* ONE PROCESS A MUTANT (main run 44835810099). Each mutant imports a whole copy of src (ES modules never unload), and every copy
+   kept its listeners on the shared globals: 130 copies in one process reached V8's 2 GB heap on GitHub, under a spray of "a listener
+   failed RangeError: Maximum call stack size exceeded". A child process scores one copy and exits, so the heap is one copy's. */
+function failsIn(base) {
+  const r = spawnSync(process.execPath, [fileURLToPath(import.meta.url), '--fails-of', base], { encoding: 'utf8', maxBuffer: 1e8 });
+  const last = String(r.stdout || '').trim().split('\n').pop();
+  try { if (r.status === 0) return JSON.parse(last); } catch { /* fall through */ }
+  return ['HARNESS the mutant\'s process exited ' + r.status + ': ' + String(r.stderr || r.stdout || '').trim().split('\n').slice(-3).join(' | ').slice(0, 300)];
+}
+
+if (process.argv.includes('--fails-of')) {
+  const fails = await runTests(await load(process.argv[process.argv.indexOf('--fails-of') + 1]));
+  console.log(JSON.stringify(fails));
+  process.exit(0);
+} else if (process.argv.includes('--selftest')) {
   const clean = await runTests(await load(ROOT));
   if (clean.length) { console.error('shell-core selftest: the CLEAN arm is red\n  ' + clean.join('\n  ')); process.exit(1); }
   await selftest();

@@ -514,10 +514,11 @@ export async function hashIntegrityGuard() {
   /* And the reference itself must still be the reference. */
   try {
     const { hashSeed } = await import(pathToFileURL(join(CORE_DIR, 'rng.js')).href);
-    const { fnv1a } = await import(pathToFileURL(join(CORE_DIR, 'botd.js')).href);
-    for (const k of ['hr-boss-2026-8-12', 'hr-weekly-boss-2954', 'a', '', 'zzzzzzzzzzzzzzzzzzzz']) {
-      if (fnv1a(k) !== hashSeed(k)) {
-        problems.push(`botd.fnv1a("${k}") = ${fnv1a(k)} but rng.hashSeed = ${hashSeed(k)} — the copies have diverged`);
+    /* The published FNV-1a 32-bit test vectors (the Boss of the Day's copy, src/core/botd.js, left with the old dungeons
+       2026-11-20; the reference is now held to the standard itself rather than to a second copy). */
+    for (const [k, want] of [['', 0x811c9dc5], ['a', 0xe40c292c], ['foobar', 0xbf9cf968]]) {
+      if ((hashSeed(k) >>> 0) !== want) {
+        problems.push(`rng.hashSeed("${k}") = ${hashSeed(k)} but FNV-1a is ${want} — the reference has diverged from the standard`);
       }
     }
     /* The measurable property, stated directly: a correct FNV-1a is not

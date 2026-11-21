@@ -14,6 +14,7 @@
 //            designed  a written spec, no build
 //            ruled     Tyler said yes (or said hold), no spec
 //            idea      backlog
+//            cut       removed by a ruling (code, tables and functions gone); the row stays so its rulings and docs stay claimed
 //   code     claims CODE anchors: tested against `<kind>:<id>` (lower case), e.g. `table:clan_tavern`
 //   docs     claims DOC and WORK anchors (rulings, headings, memory lines, lanes, staged files): tested
 //            against the anchor's text (lower case). Also tested against the first audit to say whether
@@ -26,7 +27,7 @@
 // counted and listed, never hidden, and no code anchor may fall to them except by an explicit code claim.
 // ════════════════════════════════════════════════════════════════════════
 
-export const STATUSES = Object.freeze(['live', 'dark', 'staged', 'designed', 'ruled', 'idea']);
+export const STATUSES = Object.freeze(['live', 'dark', 'staged', 'designed', 'ruled', 'idea', 'cut']);
 
 export const DOMAINS = Object.freeze([
   { id: 'combat', name: 'Combat and progression', brief: 'hunts, the engine, Level and skills, the bar, spells, elements, fists, monsters, tiers, grounds, death, stamina' },
@@ -49,7 +50,7 @@ export const SYSTEMS = Object.freeze([
     'stamina, supplies, gold (store fallback), hunt hours', 'Level XP, skill XP, gold, items, bestiary kills',
     'The core loop. Every other combat system feeds through its settle.'),
   S('combat-engine', 'The combat engine (damage, to-hit, mitigation, movement, targeting, leash, pulls)', 'combat', 'live',
-    /^(core:src\/core\/(combat-sim|combat|mitigation|rng|buffs|action-rules|bane)\.js|core:src\/core\/hunt\/(damage|grid|leash|movement|pull-cycle|targeting|status|marks|shapes|heal-cut|abilities|consumables)\.js|data:src\/data\/(statuses|shape-kinds|combat-text|hunt-grounds)\.js|data:src\/data\/grounds\/shape\.js|table:(hr_hunt_world_shape|hunt_world_shape_move|hr_hunt_stances|hr_hunt_target_modes|hr_hunt_travel|hunt_density|hr_hunt_kill_bounds|hr_hunt_ground_spawns|hr_hunt_spawns)$|fn:(hr_hunt_world_shape_moved|hr_hunt_target_kind_set|hr_hunt_target_kind_view|hr_hunt_density_freeze|hr_max_hp|hr_max_mana|hr_regen_permille|hr_vitals_of|hr_monster_level)$|rpc:hr_hunt_target_kind_set|session:src\/session\/target-intents\.js)/,
+    /^(core:src\/core\/(combat-sim|combat|mitigation|rng|buffs|action-rules|bane)\.js|core:src\/core\/hunt\/(damage|grid|leash|movement|pull-cycle|targeting|status|marks|shapes|heal-cut|abilities|consumables)\.js|data:src\/data\/(statuses|shape-kinds|combat-text|hunt-grounds|to-hit)\.js|data:src\/data\/grounds\/shape\.js|table:(hr_hunt_world_shape|hunt_world_shape_move|hr_hunt_stances|hr_hunt_target_modes|hr_hunt_travel|hunt_density|hr_hunt_kill_bounds|hr_hunt_ground_spawns|hr_hunt_spawns)$|fn:(hr_hunt_world_shape_moved|hr_hunt_target_kind_set|hr_hunt_target_kind_view|hr_hunt_density_freeze|hr_max_hp|hr_max_mana|hr_regen_permille|hr_vitals_of|hr_monster_level)$|rpc:hr_hunt_target_kind_set|session:src\/session\/target-intents\.js)/,
     /to-hit|to hit\b|hit chance|max hit|mitigat|\bleash|kiting|\bkite|challenge\b|aggro|basic attack|attack interval|no level in combat|formula|combat engine|combat-sim|tank (holds|soaks|must)|pull (cycle|freeze|density)|pass through each other|footprint|hero speed|combat (bugs|audit)|area (spells|moves)|bite\b|one difficulty|monsters a little harder|harder monsters|defense(-| )train|defense rework|def\.past/,
     'two stat blocks (hero, monster), the bar, positions', 'kills an hour, damage taken, deaths',
     'Audit change 1 (to-hit as a ratio) lands here. One engine for viewed and away hunts.'),
@@ -91,7 +92,7 @@ export const SYSTEMS = Object.freeze([
     /^data:src\/data\/fists\.js/, /\bfists?\b|fist line|knuckles|practice wraps/,
     'drops', 'a comfortable lone way', 'Behind FIST_LINE.live=false. Phase 1 fails its gold promise under Level 40.'),
   S('monsters', 'The monster roster, classes, spawn mixes and the one stat formula', 'combat', 'live',
-    /^(data:src\/data\/(monsters|monster-classes|balance-sheet|bosses)\.js|data:src\/data\/text\/monster\.js|data:src\/data\/world\/monster-names\.js|window:src\/shell\/windows\/monster\.js|table:hr_activities$|fn:hr_activity_(label|left)$)/,
+    /^(data:src\/data\/(monsters|monster-classes|balance-sheet|champions)\.js|data:src\/data\/text\/monster\.js|data:src\/data\/world\/monster-names\.js|window:src\/shell\/windows\/monster\.js|table:hr_activities$|fn:hr_activity_(label|left)$)/,
     /monster (stat|roster|ladder|taxonomy|class|hp|famil)|\bmonsters?\b (collide|get|are)|spawn mix|stat formula|stat_formula|one formula|ground formula|ground-formula|balance sheet|balance-sheet|uneven|roster|mix monster famil|rare carrier|creature|undead spec|sample of five/,
     'a ground\'s floor Level', 'HP, attack, defense, XP and gold a kill', '3.4 hand dials a ground on top of the formula (audit risk 4).'),
   S('monster-spells', 'Monster spells, shooters, mends and boss phases', 'combat', 'live',
@@ -157,10 +158,10 @@ export const SYSTEMS = Object.freeze([
     /^(data:src\/data\/scaled-hunts\.js|session:src\/session\/scaled-hunts\.js|window:src\/shell\/windows\/scale-pane\.js|table:(hr_scaled_|player_scaled_hours)|(fn|rpc):hr_scaled_|fn:hr_hunt_scaled_at_door|switch:scaled_hunts)/,
     /scaled? (hunts?|early)|scaled-hunts|scaled-loot|scale ladder|per hour slider/,
     'gold by the hour', 'XP x0.8, the ground\'s own drops, old grounds kept alive', 'Stops at Level 50 today; linings and the long chase need it at any Level.'),
-  S('old-dungeons', 'Old dungeons, raids and the world boss (six rows, cooldowns, scrip)', 'endgame', 'dark',
-    /^(data:src\/data\/(boss-forge|champions)\.js|core:src\/core\/botd\.js|table:(hr_dungeons|hr_dungeon_loot)$|fn:(hr_dungeon_|hr_muster_window)|dungeon:)/,
+  S('old-dungeons', 'Old dungeons, raids and the world boss (six rows, cooldowns, scrip)', 'endgame', 'cut',
+    /^(data:src\/data\/(boss-forge|bosses)\.js|core:src\/core\/botd\.js|table:(hr_dungeons|hr_dungeon_loot)$|fn:(hr_dungeon_|hr_muster_window|hr_quartermaster_buy)|table:hr_qm_offers$)/,
     /dungeons?\b|raid[_ ]strike|\braids?\b|world[_ ]boss|world_event|world events|boss[- ]forge|champion|muster raid|raid chest/,
-    'keys, cooldowns (old design)', 'scrip, forge pieces (old design)', 'Old-client residue: six hr_dungeons rows, four functions, two data modules, no caller. Cut or rebuild on purpose.'),
+    'keys, cooldowns (old design)', 'scrip, forge pieces (old design)', 'CUT 2026-11-20 (Tyler 22-10, plan L10, lane/c-approved-cuts): the six rows, the dungeon and Quartermaster functions, the scrip, the muster window, bosses.js, boss-forge.js and botd.js. The field champions (champions.js) are roster rows: monsters claims them.'),
 
   // ── ITEMS AND CRAFTING ───────────────────────────────────────────────────
   S('items-catalogue', 'The item catalogue (every item has a source and a use)', 'items', 'live',
@@ -232,7 +233,7 @@ export const SYSTEMS = Object.freeze([
     /^(skill:runecrafting|recipe:runecrafting\/)/, /runecraft|rune block|graven|sealing rune/,
     'blanks, town hours', 'runes cheaper than the store\'s', 'Nothing between Graven (60) and the Sealing Rune (75) (audit).'),
   S('artisan-engine', 'The bench engine and the 99 skill curve (queues, counts, live town work)', 'items', 'live',
-    /^(data:src\/data\/recipes\.js|data:src\/data\/text\/work\.js|core:src\/core\/(artisan|artisan-sim)\.js|session:src\/session\/bench-sections\.js|window:src\/shell\/windows\/work\.js|fn:hr_(bench_(inputs|makes|run_view)|skill_inputs_view|resume_has_inputs|resume_plan|town_work_kind)$|section:(bench_run|skill_inputs)$|activity:artisan|edge:.*(accrue-artisan|tick-artisan)\.js)/,
+    /^(data:src\/data\/recipes\.js|data:src\/data\/text\/work\.js|core:src\/core\/(artisan|artisan-sim)\.js|session:src\/session\/bench-sections\.js|window:src\/shell\/windows\/work\.js|fn:hr_(bench_(inputs|makes|run_view)|skill_inputs_view|resume_has_inputs|resume_plan|town_work_kind)$|section:(bench_run|skill_inputs)$|fn:hr_(job_next_start|job_next_sweep|work_job_note)$|cron:hr-job-next|activity:artisan|edge:.*(accrue-artisan|tick-artisan)\.js)/,
     /\bbench(es)?\b(?! tax)|capped (at )?99|town work|artisan|recipes?\b|bench hours|skills from storage|cook all/,
     'materials, town hours', 'skill XP to 99, made goods', '538 bench hours recorded (audit).'),
 
@@ -272,7 +273,7 @@ export const SYSTEMS = Object.freeze([
     /tamsin|\btally\b|kill[- ]task/,
     'kills on a named ground', 'gold, gear pieces', '1% of income (audit).'),
   S('town-works', 'Town Works (the whole server builds one project by donation)', 'economy', 'live',
-    /^(data:src\/data\/town-works\.js|window:src\/shell\/windows\/havora\/works\.js|table:(hr_town_works|town_works_)|(fn|rpc):hr_town_works_)/,
+    /^(data:src\/data\/town-works\.js|window:src\/shell\/windows\/havora\/works\.js|table:(hr_town_works|town_works_)|(fn|rpc):hr_town_works_|fn:hr_weekly_actives_count$)/,
     /town works|donation/,
     'gold from everyone', 'a server-wide stage, a plaque, a lead on the board', 'One project (the Weighhouse). Recipe unlocks were dropped on purpose.'),
   S('stamina-refill', 'Stamina refills for gold (up to 4 h, escalating, six a day)', 'economy', 'live',
@@ -286,7 +287,7 @@ export const SYSTEMS = Object.freeze([
   S('crowns', 'Crowns (bought with money, sold to players for gold) and the old gem rows', 'economy', 'ruled',
     /^(table:(account_gem_grants|hr_gem_unlocks)$|(fn|rpc):hr_(buy_gem_unlock|gem_unlocks_of)|unlock:(theme:|entitlement:))/,
     /crowns?\b|hearth token|pay[- ]to[- ]win|paid xp|\bgems?\b(?! chip)|exchange cap/,
-    'real money', 'gold from other players, cosmetics', 'Not built. The old client\'s gems (ten hr_gem_unlocks rows, a client RPC, gem prices on hero slots) are still in the database.'),
+    'real money', 'gold from other players, cosmetics', 'Not built. The old client\'s gem rows, the gem RPC, the gem prices on hero slots, the theme rows and the bond (hearth_token) were cut 2026-11-20 (Tyler 24-5, plan L10); the gem balance column stays for the Crowns build (L49).'),
   S('outfits', 'Outfits, dyes and the hero\'s look', 'economy', 'live',
     /^(data:src\/data\/(outfits|hunt-outfits)\.js|session:src\/session\/(outfit-intents|hero-look)\.js|window:src\/shell\/windows\/character\/(outfit|outfit-looks)\.js|table:(hr_outfit|player_outfits|player_cosmetics|hr_outfits)|(fn|rpc):hr_outfit_|fn:hr_base_(colors_problem|regions)|section:outfit)/,
     /outfits?\b|recolou?r|cosmetic|addons?\b/,
@@ -366,7 +367,7 @@ export const SYSTEMS = Object.freeze([
     /storage|depot|\bbank\b|store-all|strongbox|vault/,
     'gold', 'stacks shared by every hero: the only item path between your heroes', '30 bank rungs at x1.32 a rung, four chests gated by property tier.'),
   S('farming', 'Farming (account-shared land, nine crops, plot tiers, water)', 'home', 'live',
-    /^(data:src\/data\/text\/farm\.js|core:src\/core\/farm\.js|session:src\/session\/(farm-intents|farm-sections)\.js|window:src\/shell\/windows\/farm\.js|table:(account_farm|hr_crop|hr_crops|hr_plot_tier|hr_farm_)|(fn|rpc):hr_farm_|section:farm_land|skill:farming|unlock:(farm_plot_tier|offers:farm_plot_tier|offers:plot))/,
+    /^(data:src\/data\/text\/farm\.js|core:src\/core\/farm\.js|session:src\/session\/(farm-intents|farm-sections|farm-tend)\.js|window:src\/shell\/windows\/(farm|farm-tend)\.js|table:(account_farm|hr_crop|hr_crops|hr_plot_tier|hr_farm_)|(fn|rpc):hr_farm_|section:farm_land|skill:farming|unlock:(farm_plot_tier|offers:farm_plot_tier|offers:plot))/,
     /farm|crops?\b|seeds?\b|plots?\b|harvest/,
     'seeds, gold for plot tiers, visits', 'crops for cooking, Farming XP', 'THE AUDIT DID NOT JUDGE FARMING. Sat at zero for ten days once (CLAUDE.md 3.4).'),
   S('curing', 'House curing slots (linings and salts cure while heroes hunt)', 'home', 'ruled',
@@ -391,7 +392,7 @@ export const SYSTEMS = Object.freeze([
     /^(data:src\/data\/chronicle\.js|data:src\/data\/text\/chronicle\.js)/, /\blore\b|chronicle|story|villain/,
     'writing', 'a reason the places connect', ''),
   S('away-return', 'Away and return: the away card, the after-the-hunt plan, bench resume', 'retention', 'live',
-    /^(data:src\/data\/hunt-after\.js|data:src\/data\/text\/away\.js|session:src\/session\/(hunt-after-intents|hunt-after-sections)\.js|window:src\/shell\/windows\/(away|hunt-after-pane)\.js|table:hr_hunt_after_|(fn|rpc):hr_hunt_after_|fn:hr_last_activity_note|cron:hr-hunt-after)/,
+    /^(data:src\/data\/hunt-after\.js|data:src\/data\/text\/away\.js|session:src\/session\/(hunt-after-intents|hunt-after-sections)\.js|window:src\/shell\/windows\/(away|hunt-after-pane)\.js|table:hr_hunt_after_|(fn|rpc):hr_hunt_after_|fn:hr_last_activity_note|cron:hr-hunt-after|session:src\/session\/carry-on-intents\.js|(fn|rpc):hr_carry_on(_plan|_plan_of|_scope_ok)?$)/,
     /\baway\b|return(ing)?\b|offline|hunt[- ]after|after the hunt|resumes? the last|back in town/,
     'a closed browser', 'progress waiting, and one press to carry on', 'The semi-idle promise.'),
   S('analyzer', 'The hunt analyzer and personal bests', 'retention', 'live',
@@ -422,9 +423,9 @@ export const SYSTEMS = Object.freeze([
     /bount(y|ies)|collection log|renown|workers?.*(hire|idle)|auto[- ]eat trait/,
     'nothing a player can reach', 'nothing today; renown still feeds the allXP bonus channel in src/core/progression.js',
     'Found by the orphan sweep, in no doc. Each needs one ruling in its dive: revive on purpose, or drop the tables. The tally replaced bounties.'),
-  S('discord-gift', 'The Discord gift code', 'retention', 'live',
+  S('discord-gift', 'The Discord gift code', 'retention', 'cut',
     /^(table:hr_discord_gift_claims$|(fn|rpc):hr_(claim_discord_gift|discord_code))/, /discord gift|gift code/,
-    'a code from Discord', 'a one-time grant', 'A faucet outside the hunt: count it.'),
+    'a code from Discord', 'a one-time grant', 'CUT 2026-11-20 as built (27-7, moved into plan L10): the RPC, its two code oracles, the claims table and tools/discord-gift-code.mjs. A Discord reward, if wanted, is a title or a color.'),
 
   // ── PLATFORM, COST AND SCALE ─────────────────────────────────────────────
   S('settle-engine', 'The settle engine and the world tick (hr-accrue, shards, leases, the 10 s cadence)', 'platform', 'live',
@@ -491,6 +492,7 @@ export const EXTRA_CLAIMS = Object.freeze([
   ['section', 'entry_gates', 'hunts'],
   ['section', 'factions', 'factions'],
   ['section', 'hallmark', 'jewelry'],
+  ['section', 'farm_tend', 'farming'],
   ['section', 'hunt_after', 'away-return'],
   ['section', 'hunt_target_kind', 'combat-engine'],
   ['section', 'live_events', 'live-events'],
@@ -561,6 +563,7 @@ export const EXTRA_CLAIMS = Object.freeze([
   ['lane', 'lane/a-compare-lines', 'x-craft'],
   ['lane', 'lane/a-cut-numbers-line', 'x-craft'],
   ['lane', 'lane/a-honest-lines', 'x-process'],
+  ['lane', 'lane/c-hollow-proofs-browser', 'x-process'],
   ['lane', 'lane/a-gen-2026-11-08b', 'x-craft'],
   ['lane', 'lane/a-gen-2026-11-09', 'x-craft'],
   ['lane', 'lane/a-zero-features', 'gold-sinks'],

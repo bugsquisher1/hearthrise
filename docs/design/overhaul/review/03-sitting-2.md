@@ -64,7 +64,7 @@ On 2026-10-23 you ruled that every character is Premium during the closed beta, 
 
 | Question | Source |
 |---|---|
-| S-11, S-12, S-14 | `../12-balance-pass.md` section 7, items 1 to 3. Item 4 needs no answer and is a note in the build plan |
+| S-11, S-12, S-14 | `../12-balance-pass.md` section 7, items 1 to 3, open items 12-7-1 to 12-7-3 in `../00-the-game.md` section 5.5. Item 4 (12-7-4) needs no answer and is a note in the build plan |
 | S-13 | `../12-balance-pass.md` section 4.1, point 3, and the ruling of 2026-11-08 |
 | S-15 | GR-25, the one item still open in `../00-the-game.md` section 5.5 |
 | S-16 | Reversal row 27 in `../00-the-game.md` section 5.3, and `../11-on-call-and-clan-xp.md` section 3.6 |

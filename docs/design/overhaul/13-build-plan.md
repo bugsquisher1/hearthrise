@@ -1,6 +1,6 @@
 # 13. The build plan: the first build
 
-Written 2026-11-21 on `lane/d-build-plan`, on `set/v0.2.144` at 735feda87. This is step 4 of the critical review (`review/00-critical-review.md`, section 8): narrow the first build. Docs only. No game code, data, migration or tool was changed. Chapters 00 to 11 and `decisions/` were not edited.
+Written 2026-11-21 on `lane/d-build-plan`, cut from `set/v0.2.144` at 735feda87 and merged up to bd5b6bde4. This is step 4 of the critical review (`review/00-critical-review.md`, section 8): narrow the first build. Docs only. No game code, data, migration or tool was changed. Chapters 00 to 11 and `decisions/` were not edited.
 
 Labels. MEASURED is a run on the real engine, with its run id. COMPUTED is arithmetic on named inputs. JUDGMENT is a design or planning opinion. UNKNOWN means nobody knows. Nothing here is measured against the game that runs today. Lane sizes and migration counts are JUDGMENT.
 
@@ -39,7 +39,9 @@ Run ids used. R0 is GitHub run 44920906999, R1 is 44924971088, R2 is 44925664434
 | S-16 | A standing job as the usual end of a rest plan (reversal row 27) |
 | S-17 | Premium and test Crowns in the first playtest |
 
-**A note, no answer needed.** Chapter 12's fourth item: the paid edge is smaller in pace than the book said, 1.29 to 1.48 with every cap full and about 1.06 to 1.08 from paying alone (MEASURED, R1 and R2). What a payer gets is the next tier some Levels sooner. "Pay to level 22% faster" is not a true line. If test Crowns run (S-17), the playtest watches what payers actually buy.
+S-11, S-12 and S-14 are open items 12-7-1 to 12-7-3 of `00-the-game.md` section 5.5, and S-15 is GR-25.
+
+**A note, no answer needed.** Chapter 12's fourth item (open item 12-7-4): the paid edge is smaller in pace than the book said, 1.29 to 1.48 with every cap full and about 1.06 to 1.08 from paying alone (MEASURED, R1 and R2). What a payer gets is the next tier some Levels sooner. "Pay to level 22% faster" is not a true line. If test Crowns run (S-17), the playtest watches what payers actually buy.
 
 ## Read log
 

@@ -8,9 +8,11 @@ What this review does not repeat. The old dive (23) answered thirteen questions 
 
 ---
 
+**Corrected 2026-11-21 (Tyler: "unless you're counting massive changes, krell will not take 4 months").** The first cut of this review said a normal player reaches Krell in about month four. That number came from the retired 3.3 hours a day frame. On the ruled 12 hour frame (`50-standards.md` 2.7) a lone MID hero reaches Krell's Hold at Level 88 on day 39, a four on Deadly on day 18, and the ceiling on day 8. Open content ends at Level 110 on day 60, day 27 and day 11. The measured grid is faster again: a MID four reaches Level 100 in 257 hunted hours against the ruled 600. Every time horizon below is now on that frame. One call changed because of it: call 3 is withdrawn. Calls 1, 5 and 6 were re-read on the same frame and stand, each with a new caution written into it.
+
 ## 1. One screen for Tyler
 
-**The verdict.** The pieces are well made and they do not yet add up to "deep gear and rare drops". Between Level 30 and Level 110 the item game is a ladder that equips itself. Everything that would make gear interesting is either a Level 30 sample that never grows or is parked past Level 110. If we were starting today I would build the same seven tiers and the same benches. I would not build the same order. I would put named pieces with a real property on every ground from the start, I would run jewelry to the top of the game as the layer a build is made of, and I would have one system that sells percent for gold and not four.
+**The verdict.** The pieces are well made and they do not yet add up to "deep gear and rare drops". Between Level 30 and Level 110 the item game is a ladder that equips itself. Everything that would make gear interesting is either a Level 30 sample that never grows or is parked past Level 110. If we were starting today I would build the same seven tiers and the same benches. I would not build the same order. I would build what a hero keeps before what a hero outgrows: jewelry run to the top of the game as the layer a build is made of, Krell's uniques ready the day the ladder ends, and one system that sells percent for gold and not four. On the 12 hour clock the ladder is over fast. A four reaches Krell's Hold on day 18 and the end of open content on day 27, and a lone hero on day 39 and day 60 (`50-standards.md` 2.7). So the weak spot is not the wait before Krell. It is that the item game meant to last thousands of hours has two pieces in it when a player arrives.
 
 **The five changes that matter most.**
 
@@ -18,13 +20,13 @@ What this review does not repeat. The old dive (23) answered thirteen questions 
 |---|---|---|
 | 1 | **Jewelry and cloaks run to tier 7 now, as the build layer.** Two rings, earrings, necklace and cloak are six of fourteen slots. Nothing with a source exists for them past Level 30 | The solver's best kit wears the same five accessories from Level 30 to Level 185. Real players made 89 pieces, set 4 and paid no Hallmark fee, ever |
 | 2 | **Perks are sized for the hunt they are built for, not 1% everywhere.** A perk is worth 5 to 8% in its case and close to nothing outside it. Then which jewelry you wear is a choice you make for a ground | Twenty two perks at about 1% each are twenty two names for the same number. No player can feel 1% |
-| 3 | **A property piece on every ground before Krell, and Krell's five weapons built first.** One named Rare a ground that changes how a hunt plays. The sample exists and two of its five are live | A normal player reaches Krell in about month four. That is too long to wait for the first item worth talking about |
+| 3 | **Krell's five weapons built first, with the unique list cut to kinds that change a decision.** No ground by ground property pieces before Krell | A four is at Krell's Hold on day 18 and out of open content on day 27. Two uniques are live. A property piece on an early ground would be worn for one to seven days, so that work belongs where players stay |
 | 4 | **Every ground's Very Rare is a signature stone a smith sets in jewelry.** It carries one perk that cannot be rolled. The piece reforges up, so the find lasts | The Very Rare band is ruled at 60 to 90 hours a hero through Krell and no ground has one. The guarantee jobs that would set it are already written and switched off |
 | 5 | **Standard Dawnsteel comes off Krell's daily lottery.** The 14 plain tier 7 pieces drop in Krell's Hold as Rares like every other tier. His daily roll keeps the uniques, his Trophy and his gem | A lone hero waits 33.5 days for his own weapon in a band that lasts 17.5. When the Ox Road opens the same sword drops there about 700 times faster |
 
 **What is actively harming the game.**
 
-- Six of fourteen slots stop at Level 30. A player in month two has nothing to want in them.
+- Six of fourteen slots stop at Level 30. A lone hero passes Level 30 on about day 4 (`paths.json` B1 band lengths) and has nothing to want in them from then on, at any Level.
 - Tier 7 is a once a day roll on one boss. Four of its armor slots (legs, boots, gloves, belt) have no open source at all at Levels 88 to 110.
 - The Rare reveal fires for a party of four about every 7 minutes on the Warrens. You ruled the reveal stays on every Rare. So the fix is fewer Rare rows a ground, not a quieter reveal.
 - Hall Keys drop every two hours and the prize is once a day. The four on Krell's Hold found 19 keys and fought no Hall.
@@ -73,9 +75,9 @@ What this review does not repeat. The old dive (23) answered thirteen questions 
 **Named Rares and special attribute gear, tiers 2 to 7** (`special-attributes.js`: a standard piece of its tier plus one attribute, sample of five, two shipped on Krell).
 
 - What it is for. A drop that is not the ladder. The sample has Widow's Fang (the Sewer, a sword that crits 6% more), Mudlark's Mitts (the Slake, Ranged counts 2 higher), Demoncaller (the Pyre Field, 10% harder on the Undead), Krell's Tollgate and the Banded Legguards.
-- It is the right system and it is three rows from being real. It is also the only thing in the area that can make a player say "I am farming the Slake for the Mitts" before Level 110.
+- It is the right system and it is three rows from being real. CORRECTED: the first cut asked for one of these on every ground before Krell, on the premise that Krell was four months away. He is 18 to 39 days away. The bands before him last 0.67 to 7.25 days for a lone hero and under half that for a four, and a Rare row lands every 10 to 20 hunted hours a hero. So an early property piece is found once or twice and worn for one to seven days before the next tier's ladder piece beats it. That is about eight rows, their icons and their measures for a few days of wear each. It is not worth it, and Tyler's order (generous to Krell, rare and strong after) is right on the 12 hour frame.
 - Its weakness is the attribute list. Four of six kinds are plain numbers (element guard 10%, physical guard 2 to 3%, +1 Defense, +2 or +3 of a skill). A number is a small tier step, not a property. Bane and crit are closer. The plan's own better kinds are unbuilt: a spell change, an element edge, a second lining socket, thorns, a bow's sweet spot (`itemization-plan.md` section 3).
-- Verdict. ADD: finish the sample, then one property piece a ground. REDESIGN the list (section 2.2, uniques).
+- Verdict. KEEP the sample of five as the template. No rollout a ground before Krell. The work goes to Krell's five and to the list of kinds (section 2.2, uniques). The three designed sample pieces that are not live (Widow's Fang, Mudlark's Mitts, Demoncaller) use hooks that already exist and may ship as a Low item if a pack is being touched anyway.
 
 **Tempering** (`temper.js`: two tracks, five rungs, one ladder a tier, gold and salts). RULED 23-2: moving up a tier costs only the difference. RULED 23-4: past tier 7 a rung takes a duplicate unique and "worn in" is not built. With both, Tempering is the one place gold buys percent and the one sink for spare uniques. Verdict: KEEP as ruled. It is the whale's edge by your 11-18 ruling and it should be the only plain "pay gold, get percent" system in the game.
 
@@ -105,7 +107,7 @@ What this review does not repeat. The old dive (23) answered thirteen questions 
 
 - It is the best designed chase in the area: transparent odds, a pity that builds, a real choice to stoke or save, and 28 weapons with a line of lore each.
 - EVIDENCE: at 12 hours a day the Bronze weapon lands on day 8 to 10 in a band that lasts 2.66 days, and the Silver on day 14 in a band of 5.5 (`paths.json` fills). You ruled the weekly limits stay and fast players skip early chest pieces (50-6). RULED 22-3 builds chest reforging first, which is what makes a Bronze piece worth opening.
-- The won layer covers tiers 2, 4, 6 and 7 only. Bands 30 to 45 and 60 to 75 have no won piece at all (EVIDENCE: `atlas.json` A5 lists 19 kits missing one). That is by design of four keys and I would not add keys to fix it. The named property Rares fill those bands.
+- The won layer covers tiers 2, 4, 6 and 7 only. Bands 30 to 45 and 60 to 75 have no won piece at all (EVIDENCE: `atlas.json` A5 lists 19 kits missing one). That is by design of four keys and I would not add keys to fix it. Those two bands last 3.5 and 6.25 days, so I would leave them without one.
 - Verdict. KEEP. Chest reforging before any new key or wing.
 
 **Catacomb armor** (staged: two wings, four keys each, helmets and boots in three weights, 48 named pieces). It doubles the chest's item count for two slots before the first chest has been played by more than one person (EVIDENCE: 49 opens, one player). Verdict: DEFER behind chest reforging and a played sample of one wing and one key (CLAUDE.md section 10). It is planned, so it is not cut.
@@ -220,7 +222,7 @@ One row a thing. KEEP, REMOVE, MERGE, REDESIGN, ADD or DEFER. "Ruled" names a de
 | 4 | Gloves as Rares | REDESIGN | Hourly, like the other four armor slots |
 | 5 | Belts as dropped Rares | MERGE | Into the crafted accessory layer at the workbench |
 | 6 | Five undeclared tier 1 ladder rungs | REMOVE | The practice kit replaced them |
-| 7 | Special attribute gear, tiers 2 to 7 | ADD | Finish the sample of five, then one a ground |
+| 7 | Special attribute gear, tiers 2 to 7 | KEEP | The sample of five is the template. No rollout a ground before Krell (corrected, section 2.1) |
 | 8 | Unique property list | REDESIGN | Seven kinds that change a decision. Guards and plus skill leave it |
 | 9 | Krell's five weapons | ADD | The measured sample for every later unique |
 | 10 | Uniques past tier 7, 15 to 20 a region | KEEP | Ruled A-3, 31-4. Built after the sample is played |
@@ -269,7 +271,7 @@ One row a thing. KEEP, REMOVE, MERGE, REDESIGN, ADD or DEFER. "Ruled" names a de
 | 53 | A find list a ground that pays Luck | ADD | Section 4 |
 | 54 | A saved kit a ground | ADD | Section 4. The first principle for every situational item |
 
-**Counts.** 54 rows. KEEP 23. ADD 11. REDESIGN 8. DEFER 5. MERGE 4. REMOVE 3. (Rows 6, 11 and 45 are the removals. Row 11 is already ruled.)
+**Counts.** 54 rows. KEEP 24. ADD 10. REDESIGN 8. DEFER 5. MERGE 4. REMOVE 3. (Rows 6, 11 and 45 are the removals. Row 11 is already ruled. Row 7 moved from ADD to KEEP in the 2026-11-21 correction.)
 
 ### The eight criteria, for the significant ones
 
@@ -299,18 +301,18 @@ One row a thing. KEEP, REMOVE, MERGE, REDESIGN, ADD or DEFER. "Ruled" names a de
 | Long term value | High. It scales with the number of distinct grounds, which grows for ever |
 | Recommendation | REDESIGN |
 
-**C. Property Rares before Krell, and Krell's five (rows 7, 8, 9).**
+**C. Krell's five and the unique property list (rows 8, 9).** The first cut also asked for a property Rare on every ground before Krell. That half is withdrawn (section 2.1).
 
 | Criterion | Answer |
 |---|---|
-| Player value | The first drop a player is glad to see after the Bronze set |
-| Strategic depth | Which ground for which piece. Ladder piece or property piece in this slot |
-| Uniqueness | The ladder has no named piece with a rule of its own between Level 15 and Level 88 |
-| System interaction | Gives the Rare band a headline row, gives the market something scarce under tier 7, feeds Tempering's duplicate sink later |
-| Balance impact | The rule exists (SA2: the tier's standard piece plus one attribute, each kind capped in data). New kinds need one engine hook each, shared by every later unique |
-| Complexity cost | Medium. Three rows to finish the sample. Then about 8 rows for the open grounds. One hook (spell change) is the first to build |
-| Long term value | High. It is the same system as the uniques past tier 7, taught 90 Levels early |
-| Recommendation | ADD, and REDESIGN the list |
+| Player value | Something to chase on the day the ladder ends, which is day 18 for a four and day 39 for a lone hero |
+| Strategic depth | Which piece for which ground. A bane, a sweet spot or a spell change each wins somewhere and gives something up |
+| Uniqueness | The first gear in the game that is not a step on the ladder |
+| System interaction | The Hall's daily roll gets prizes worth the key. Tempering's duplicate sink (ruled 23-4) gets its first duplicates. The market gets its first scarce gear |
+| Balance impact | The rule exists (SA2: the tier's standard piece plus one attribute, each kind capped in data). A new kind is one engine hook, shared by every later unique |
+| Complexity cost | Medium. Five rows. One new hook (spell change) is the first to build |
+| Long term value | High. Every unique past tier 7 is cut from this sample, and a unique reforges up a band (ruled 31-4) |
+| Recommendation | ADD Krell's five. REDESIGN the list |
 
 **D. Signature stones as each ground's Very Rare (rows 21, 33).** See section 4.
 
@@ -373,7 +375,7 @@ One row a thing. KEEP, REMOVE, MERGE, REDESIGN, ADD or DEFER. "Ruled" names a de
 
 | Criterion | Answer |
 |---|---|
-| Player value | The first really rare drop, weeks before Krell, and it stays useful |
+| Player value | The first really rare drop, before Krell, and the one early find that is still worn after him |
 | Strategic depth | Which piece to set it in. Use it or sell it. Which ground to farm for which perk |
 | Uniqueness | The only perk source that is found and not rolled |
 | System interaction | Luck's Magic Find finally multiplies something a player wants. The market gets a scarce good that is consumed. Smiths get a job only they can do |
@@ -444,27 +446,27 @@ Each trace is a hypothesis to be measured in phase B with `progression-grid --di
 | Combat | A matched hero is up to about +10% XP on that ground. A mismatched hero stays inside the ruled 4% | A perk whose case is nearly every hunt (Keen on a basic attacker, Follow-through on any pull over two). It must be sized as an "always" perk. The 2.5 and 2.75 party caps of 30-2 are already broken on Hask's Ford and Krell's Hold |
 | Progression | Band E6 (something worn changes every 24 hunted hours) is met by accessories between weapon tiers | Days to full best in slot rise in every band. B1 is already red in five of seven |
 | Economy | Hallmark fees of 150k to 600k become a real sink. A second set of jewelry for a second ground doubles it | A four needs 24 pieces a tier. At tier 7 that is 14.4M in fees. The fee difference on reforge (ruled) is what keeps it sane |
-| Crafting | Smithing has a product at 45, 60, 75 and 88. The workbench the same for cloaks and belts | Gem supply. One gem carrier a ground at about 11 hours a gem, 6 gems a hero a band |
+| Crafting | Smithing has a product at 45, 60, 75 and 88. The workbench the same for cloaks and belts | Gem supply on the 12 hour frame. Six gems a hero a band at about 11 hours a gem is 66 hunted hours, and the bands from 45 to 88 last 66 to 87 for a lone hero. Chips and the gem pace have to be fitted to that, or a tier is finished the day it is outgrown |
 | Gear | Plain accessory tiers are a Replace lever at 6% (ruled 23-5). They replace, never sum | Tier 4 to 7 plain stats must come from the old unsourced rows' shape or be re-cut. The old rows pay melee only |
 | Parties | A healer's and a tank's cases differ from a Mage's. Party kits diverge | One perk that is best for all four seats |
 
-### 5.2 Property Rares before Krell and Krell's five
+### 5.2 Krell's five and the cut property list
 
 | On | Expected | Watch |
 |---|---|---|
-| Combat | A bane weapon is +10% on one monster class and a little behind elsewhere. A spell change moves one ability | A spell change stacked with Surge and Tempering on the one ability a way already leans on |
-| Progression | A reason to stay on or return to a ground past its band | Band B5: no ground on the fastest path for more than its band plus 10 Levels. Muster Barrows already runs 35 past |
-| Economy | The first scarce tradeable under tier 7 | With nothing that wears out, price falls as the server ages. Duplicates need the Tempering sink earlier than tier 7, or salvage for rivets |
+| Combat | A bane weapon is +10% on one monster class and a little behind elsewhere. A spell change moves one ability | A spell change stacked with Surge and Tempering on the one ability a way already leans on. Krell's Hold already reads over the party cap of 30-2 |
+| Progression | A reason to stay on Krell's Hold through its band (day 39 to 60 lone, day 18 to 27 for a four) and a kit that is still worn in the Morrow Hills | Five uniques at 3% a day each is one a hero every 6.7 days. A four passes the band in 9 days. The slices must be sized on that |
+| Economy | The first scarce tradeable gear | With nothing that wears out, price falls as the server ages. The duplicate sink of 23-4 has to be open when they are |
 | Crafting | None directly. A second socket property raises lining demand | |
-| Gear | A slot now has two candidates: the ladder piece of this tier or the property piece of the last | The property piece must lose to the next tier's ladder piece on plain numbers, or the ladder stalls |
-| Parties | Bane by class makes ground choice matter to the party's kit | The party rare roll: a property piece for one style lands on another hero. Trade inside the account already covers it |
+| Gear | A weapon slot has three candidates at Level 88: Dawnsteel, the Gold or Platinum Tower weapon, Krell's piece | The sidegrade rule (ruled 11-18): each must be best somewhere |
+| Parties | Bane by class makes ground choice matter to the party's kit | The party rare roll: a piece for one style lands on another hero. Trade inside the account already covers it |
 
 ### 5.3 Signature stones
 
 | On | Expected | Watch |
 |---|---|---|
 | Combat | One more perk kind in the pool, in the same budget | A stone perk that is simply better than every rolled perk. Each should be a sidegrade with a narrow case |
-| Progression | A 60 to 90 hour goal a ground through Krell | An own four finds one every 1.3 to 1.9 days a ground (band D1). That may be too common for "really rare". The ruling sizes it on one hero through Krell on purpose |
+| Progression | A 60 to 90 hour goal a ground through Krell. COMPUTED on the 12 hour frame: a lone hero hunts about 468 hours before Level 88 and a four about 216 hours each, so a lone hero finds about 6 stones before Krell and a four's account about 11 | A lone hero spends 8 to 87 hunted hours in a band, so most heroes leave a ground before its stone drops. That is right for a rare, and it only works because the stone is kept. An own four finds one every 1.3 to 1.9 days a ground (band D1), which may be too common for "really rare". The ruling sizes it on one hero through Krell on purpose |
 | Economy | A consumed rare. The first item with both a sink and lasting worth | Stones as the Crowns buyer's first purchase. Allowed by 50-11 (what, not how soon) since each also drops |
 | Crafting | A job only a smith can do, on the hunter's best find | The smith's level gate: the job uses the gem job's level, so a Level 15 smith can set any stone |
 | Gear | The first carried forward rare | Reforge must keep the stone's perk at each tier's size table |
@@ -513,7 +515,7 @@ Each trace is a hypothesis to be measured in phase B with `progression-grid --di
 | **Critical** | Krell's five weapons built and measured, and the unique property list cut to kinds that change a decision | M: one new hook (spell change), five rows | Medium: a spell change stacking on a way's main ability | The endgame of the live game exists. Every later unique has a measured template | The spell review's re-sizing (ruled 31-9) | EVIDENCE: two uniques live, kit builder never picks them |
 | **High** | Perks sized by their case | S in code, M in measurement | Medium: "always" perks | Jewelry becomes preparation, not a 1% tax | Jewelry tier 4. The saved kit | HYPOTHESIS. Fun needs a playtest |
 | **High** | Plain Dawnsteel onto Krell's Hold's loot bands | S: data and regen | Low | B1 at 88 to 110 off 6.98. One loot rule for seven tiers | The Deadly re-size (ruled) | EVIDENCE (`atlas.json` hall cost, A6) |
-| **High** | One property Rare a ground from the Sewer to the Pyre Field | M: about 8 rows, icons, measures | Medium | A drop worth wanting before month four | Krell's five as the sample | HYPOTHESIS |
+| **Low** | The three designed sample pieces that are not live (Widow's Fang, Mudlark's Mitts, Demoncaller). WAS High as "one property Rare a ground before Krell": withdrawn in the 2026-11-21 correction | S: three rows on existing hooks | Low | A taste of a property piece, worn one to seven days. Small | Krell's five as the sample | EVIDENCE for the wear time (`paths.json` band lengths, `50-standards.md` 2.7) |
 | **High** | Signature stones on three grounds as the Very Rare sample | S to M: three rows each, the switch, one or two hooks | Low | The super rare moment exists before Krell and lasts | Jewelry reforge for every tier | HYPOTHESIS |
 | **High** | A saved kit for each ground | M: server and client | Low | Unblocks every situational item without a chore | Systems lane | HYPOTHESIS |
 | **Medium** | Rare rows capped at six a ground | S: data and a guard | Low | The reveal means something again | Belts to the bench frees rows | EVIDENCE for the rate (1,568 reveals). HYPOTHESIS for 40 minutes |
@@ -540,7 +542,7 @@ Each trace is a hypothesis to be measured in phase B with `progression-grid --di
 | Is one Rare reveal every 40 minutes a moment | The same four hero account on the Warrens for three hours before and after the cap. Count how many reveals they look at |
 | Does a signature stone feel like a find | Seed nothing. Watch the first real drop: does the player set it, sell it, or sit on it |
 | Do players find and use the saved kit | Share of hunts started with a kit saved for that ground, two weeks after it ships |
-| Do property Rares pull players back to an old ground | Hero-hours on a ground by heroes past its band, before and after |
+| Do Krell's five change where a party hunts | Share of hero-hours by ground for heroes holding one, against heroes of the same Level without |
 
 ---
 
@@ -548,17 +550,17 @@ Each trace is a hypothesis to be measured in phase B with `progression-grid --di
 
 Each call is one recommendation and its reason, then the strongest alternative in one line.
 
-1. **Jewelry and cloaks are built to tier 7 before the beta's long chase, starting with tier 4.** Recommend YES. Six slots have nothing past Level 30 and it is the only crafted power in the game. Alternative: leave it a sample until the Morrow Hills, and accept that the best kit is the same five accessories for 80 Levels.
+1. **Jewelry and cloaks are built to tier 7 before the beta's long chase, starting with tier 4.** Recommend YES. Six slots have nothing past Level 30 and it is the only crafted power in the game. Re-read on the 12 hour frame: tiers 4 to 6 each last 5.5 to 7.25 days for a lone hero and about half that for a four, so the case rests on tier 7 and after, where a hero lives from day 18 to 39 on, and on reforging at the fee difference so nothing bought on the way is lost. Tier 4 is the played sample. Whether tiers 5 and 6 stay separate steps is decided from that sample, not now. Alternative: leave it a sample until the Morrow Hills, and accept that the best kit is the same five accessories from Level 30 to the end of the game.
 
-2. **Perks are sized by the hunt they are built for.** Recommend YES: 5 to 8% in the case, close to nothing outside it, with the ruled 4% budget read on a hero whose perks do not match the ground. It turns your ruling to grow the pool into 22 choices and not 22 names for 1%. Alternative: keep every perk at about 1% everywhere, which is safe and which no player will notice.
+2. **Perks are sized by the hunt they are built for.** Recommend YES: 5 to 8% in the case, close to nothing outside it, with the ruled 4% budget read on a hero whose perks do not match the ground. It turns your ruling to grow the pool into 22 choices and not 22 names for 1%. Re-read on the 12 hour frame: before Krell a hero changes ground every one to seven days, so matching a kit to a ground pays most from Krell on, where a party stays for weeks. It stands, and phase B measures it at Level 88 and past first. Alternative: keep every perk at about 1% everywhere, which is safe and which no player will notice.
 
-3. **A property piece on every ground before Krell.** Recommend YES. This is where I think you are wrong on timing. "Generous to Krell, then really rare and strong" puts the first item worth chasing at about month four for a normal player. Keep the drops generous and keep the really rare pieces past Krell. But teach the chase early with one named Rare a ground that has a rule of its own and loses to the next tier. Alternative: hold every property piece for past Krell, and the item game before it stays a ladder.
+3. **WITHDRAWN. No property piece on every ground before Krell.** The first cut recommended it and told you your timing was wrong. It rested on Krell being about four months away, which was the old 3.3 hours a day frame. On the 12 hour frame he is 18 to 39 days away and each band before him lasts under a week, so an early property piece is worn for days. Your order stands: generous to Krell, rare and strong after. What I still recommend from this call is its other half, which is in the Critical list: Krell's five built and measured first, because a four is out of open content on day 27 with two uniques in the game. Alternative, if you want an early taste anyway: ship the three sample pieces that are already designed on existing hooks, and nothing more.
 
 4. **The unique property list is seven kinds that change a decision.** Recommend YES: bane, crit, a spell change, an element edge, a second socket, thorns, the bow's sweet spot. Element guards belong to linings and plus skill belongs to chest weapons. Krell's Tollgate and the Banded Legguards are live with guards on them and stay as they are. Alternative: keep guards and plus skill on the list, which makes it cheap to write 20 uniques a region and makes most of them a small tier step.
 
 5. **Each ground's Very Rare through Krell is a signature stone a smith sets in jewelry.** Recommend YES. The band is ruled and empty, the bench job is built, and a perk on a ring that reforges up is the one rare find a hero does not outgrow in a week. Alternative: Very Rares through Krell are named weapons and armor, which are outgrown inside the band they drop in.
 
-6. **Plain Dawnsteel drops in Krell's Hold like every other tier, and the Hall's daily roll keeps only what is won.** Recommend YES. A lone hero waits 33.5 days for his weapon in a band of 17.5, and the Ox Road will drop the same sword 700 times faster. Alternative: keep tier 7 on the Hall as the wall before the Morrow Hills, and accept that most heroes leave the band without it.
+6. **Plain Dawnsteel drops in Krell's Hold like every other tier, and the Hall's daily roll keeps only what is won.** Recommend YES. A lone hero waits 33.5 days for his weapon in a band of 17.5 to 21 days (`paths.json`, and day 39 to 60 in `50-standards.md` 2.7). A four waits 7.8 days a named piece in a band of 9, and it needs one for each hero. The Ox Road will drop the same sword 700 times faster. This call was already on the 12 hour frame and stands. Alternative: keep tier 7 on the Hall as the wall before the Morrow Hills, and accept that most heroes leave the band without it.
 
 7. **A ground has at most six Rare rows.** Recommend YES. You ruled the big reveal stays on every Rare. At 8 to 15 rows a ground a four sees one every 7 minutes, so the only way to keep both your ruling and the moment is fewer rows. Alternative: leave the rows and the reveal, and it stays a notification.
 
@@ -575,11 +577,11 @@ Each call is one recommendation and its reason, then the strongest alternative i
 | **Economy review** | Jewelry to tier 7 is up to 3.6M in Hallmark fees a hero at tier 7 (six pieces at 600k) and the reforge difference is what a careful hero pays. A second kit for a second ground doubles gem and fee demand. Tier 7 Rares on the Hold need the one sale rule of 23-10 |
 | **Retention review** | The find list for each ground, paying Luck with no press. The five playtests in section 6. The Rare reveal's rate after the cap |
 | **Home review** | Curing slots are for linings. Belts and cloak perks give the Workshop room's speed a worn product |
-| **Social review** | Signature stones and property Rares are the first scarce tradeables under tier 7. The market's ceilings table has a row for every perk pair today |
+| **Social review** | Signature stones and Krell's uniques are the first scarce tradeables. The market's ceilings table has a row for every perk pair today |
 | **Platform and formula lanes** | Every perk pair is its own item row because items are stacks by id. Tiers 4 to 7 with a pool of 22 is about 400 jewelry rows plus their Hallmark, reforge and ceiling rows. A perk as an attribute of a held piece would be the formula brief's answer and is a schema change: flagged, not proposed here. Two loot rules exist (`rollDropTable` and `rollPrize`). After call 6 the second one carries only won prizes. Burnt food's chance is in code. `VENDOR_GEAR_RATES` is seven hand numbers (ruled 23-10) |
 | **Standards lane** | The DOMINANT threshold fires on jewelry (12.7 times) and Smithing (2.81 times) against the Shop, which is a designed ten times fallback. Exempt a route marked as a fallback. T4 counts pieces, not power: by count the bench is 80 to 100% of the step. A5 misses 19 kits only because keys exist for tiers 2, 4, 6 and 7. The lone 88 to 110 run prints 122 days and its listed fills end at day 19: the cache does not say what the last piece is |
 | **Systems lane** | A saved kit a hero a ground: a kit row, an equip at hunt start, and the loot plan reading it |
-| **Game Director lane** | From scratch answer for this area: same ladder, same benches, different order. Named property pieces from the first grounds, accessories as the build layer to the top, one system that sells percent |
+| **Game Director lane** | From scratch answer for this area: same ladder, same benches, different order. Build what a hero keeps before what a hero outgrows: accessories as the build layer to the top, Krell's uniques ready the day the ladder ends (day 18 for a four), one system that sells percent. An early call for property pieces on every ground was withdrawn on the 12 hour frame |
 
 ---
 
@@ -608,5 +610,6 @@ Each call is one recommendation and its reason, then the strongest alternative i
 | HYPOTHESIS | Six Rare rows a ground gives a four a reveal about every 40 minutes | Phase B: computed from the grid's kills an hour. Whether it feels right is a playtest |
 | HYPOTHESIS | Plain Dawnsteel on the loot bands brings B1 at 88 to 110 near the target | Phase B: solver re-run with the rows staged |
 | HYPOTHESIS | Signature stones hold value on an aging server because they are used up when set | Cannot be measured. No market trades exist |
-| HYPOTHESIS | A property Rare a ground pulls play back to old grounds without breaking B5 | Phase B for B5. A playtest for the pull |
+| CORRECTED | "Krell is about month four" was the retired 3.3 hours a day frame. On the ruled frame he is day 39 lone, day 18 for a four, day 8 at the ceiling, and open content ends on day 60, 27 and 11. The grid has a MID four at Level 100 in 257 hunted hours against the ruled 600 | `50-standards.md` 2.7. The grid figure is the Coordinator's, not re-read by this lane |
+| COMPUTED | About 6 signature stones for a lone hero and about 11 for a four's account before Level 88, at one every 75 hunted hours a hero | 468 and 216 hunted hours from 2.7's days at 12 hours |
 | NOT DONE | Nothing was played in this phase. No grid or matrix run. `51-baseline.md` had not landed on the set. Whether a saved hunt preset already holds worn gear was not checked. The lone 88 to 110 solver run's last piece is not in the cache. The Rare row count a ground was taken from 23 and the Krell hunt (15 on the Warrens, 8 on Krell's Hold), not recounted from the packs |

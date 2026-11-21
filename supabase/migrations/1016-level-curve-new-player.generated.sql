@@ -24,7 +24,7 @@
 -- fall: §2 holds every hero's Level as the rows this file replaces made it and refuses the whole file
 -- if one would read LOWER (no Level is lost); a hero in a lowered gap reads its higher Level at once,
 -- and a notice counts them.
--- ORDER: after 1000-level-curve-early.generated.sql (APPLIED). The hr-accrue deploy carrying the same
+-- ORDER: 1016 in its name, after 1015 (no table or function shared with 1009-1015). The hr-accrue deploy carrying the same
 -- LEVEL_CURVE goes first, then this file at once: between the two a Level 8-20 hero's death is priced
 -- on two curves and may be refused once as death_xp_over, then settles on the next tick.
 -- No begin/commit (CLAUDE.md §2).

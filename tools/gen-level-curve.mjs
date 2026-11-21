@@ -62,10 +62,10 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
    new rows; 2027-03-23 stays history. */
 /* 1000-level-curve-early (lane/d-142-rulings, 2026-11-19): Levels 2-8 re-split for level-curve C6, the total to Level 9 held (no live Level moves),
    and the brackets past the ceiling re-fit to the re-pinned contract; core-model.js LEVEL_CURVE says why. Same table, 13 rows; 2027-04-07 stays history. */
-/* 1009-level-curve-new-player (lane/c-levels-7-9, 2026-11-20; Tyler ruled balance call 27-2): Levels 7-9 re-cut for the new player as played
+/* 1016-level-curve-new-player (renumbered from 1009 past the set's 1009-1015; lane/c-levels-7-9, 2026-11-20; Tyler ruled balance call 27-2): Levels 7-9 re-cut for the new player as played
    (life.mjs policy new), Levels 10-20 take the XP back, the total to Level 21 held. Thresholds 8-20 only fall, so the hold is NO LEVEL LOST
    (the 11-19 route's name): a hero in a lowered gap reads its higher Level, one who would read a lower Level refuses the file. 1000 stays history. */
-export const OUT_NAME = '1009-level-curve-new-player.generated.sql';
+export const OUT_NAME = '1016-level-curve-new-player.generated.sql';
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 
 /* The Levels the self-check pins: every bracket's edge, Tyler's target Levels and a deep one. */
@@ -111,7 +111,7 @@ export function buildSql(XP) {
 -- fall: §2 holds every hero's Level as the rows this file replaces made it and refuses the whole file
 -- if one would read LOWER (no Level is lost); a hero in a lowered gap reads its higher Level at once,
 -- and a notice counts them.
--- ORDER: after 1000-level-curve-early.generated.sql (APPLIED). The hr-accrue deploy carrying the same
+-- ORDER: 1016 in its name, after 1015 (no table or function shared with 1009-1015). The hr-accrue deploy carrying the same
 -- LEVEL_CURVE goes first, then this file at once: between the two a Level 8-20 hero's death is priced
 -- on two curves and may be refused once as death_xp_over, then settles on the next tick.
 -- No begin/commit (CLAUDE.md §2).

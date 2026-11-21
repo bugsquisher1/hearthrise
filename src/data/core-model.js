@@ -64,7 +64,7 @@
    now takes about 1.95x the hours of the last (1.6-1.9x across the Cellar's end). Same total to Level 9: no live hero's Level moves. Were 159 /
    318 / 635 / 1,269 / 6,269 / 12,870 / 26,255 / 67,115. Forward file 1000-level-curve-early.
    LEVELS 7-9 RE-CUT 2026-11-20 (lane/c-levels-7-9, Tyler's 27-2): Levels 8 and 9 took a new player 3.5 and 4.2 h
-   (Level 10 at 10.6 h). Steps 7-9 were 25,072 / 68,087 / 83,477; Levels 10-20 take the XP back, so Level 21 on costs what it did. Forward file 1009-level-curve-new-player. */
+   (Level 10 at 10.6 h). Steps 7-9 were 25,072 / 68,087 / 83,477; Levels 10-20 take the XP back, so Level 21 on costs what it did. Forward file 1016-level-curve-new-player. */
 export const LEVEL_CURVE = Object.freeze({
   first: 210,
   brackets: Object.freeze([

@@ -105,7 +105,8 @@ export const LINE_BANDS = Object.freeze([
    Deadly four died 17.3 times in 16 hero-hours without them, 9.3 with the plate back, every death the tank's (the Crag Wyvern's marked Fire
    Breath), so the grid swapped the legs cells: the Roost drops legs plate, the Roost Mother legs leather (Roost Mother's Hide).
    RE-CUT ON THE TO-HIT RATIO (2398754cb made to-hit a ratio; lane/a-ci-reds-pre-wave): the same pieces read 100.07 to 100.60% of the line, because
-   a Melee point now costs about a tenth of the pace it did, so armor over the line is no longer paid for. Re-sized by the same rule, the most
+   a Melee point no longer pays for the armor over the line (measured on the ratio: the Breastplate at atkB -8 holds only 104, at -1 or -2 it
+   holds 100; the Leg Plates' strB -3 holds 99). Re-sized by the same rule, the most
    armor under the line on every late ground, each style number kept: the Breastplate 105 to 100, the Leg Plates 86 to 81, the Visor 70 to 55,
    the Watchman's Helm 84 to 67, the Limewashed Plate 130 to 128 (one point more reads 100.01 to 100.07%). The Breastplate and the Visor now sit
    AT the line's armor with their Melee cost: a heavy piece's trade has to be re-priced (strB buys armor, atkB barely does), the unique

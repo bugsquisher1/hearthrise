@@ -116,7 +116,16 @@ The collision. The Level table is the clock of a mid-geared four (RULED 50-1). W
 
 Chapter arithmetic, every hour of the plain seat divided by the multiple. The last column overstates what anyone can hold, because the Level XP part is one weekend in four:
 
-The plain four carries suggested talent builds. The three faster clocks below each gain a factor of at most 1.012 from the fastest build over the suggested one (COMPUTED in `10-level-choices.md`, PROVISIONAL (TAL-1, `10-level-choices.md`)), which moves no day in the table by more than a few. At the sitting Tyler ruled that a clan room pays a standing Level XP bonus (S-4). Every clan member then levels faster than the Level table all the time. The clock, the content runway and the days below are PROVISIONAL and wait on the clan XP size, which the design lane owes. At +5% the top reading is about 1.73.
+The plain four carries suggested talent builds. The three faster clocks below each gain a factor of at most 1.012 from the fastest build over the suggested one (COMPUTED in `10-level-choices.md`, PROVISIONAL (TAL-1, `10-level-choices.md`)), which moves no day in the table by more than a few. At the sitting Tyler ruled that a clan room pays a standing Level XP bonus (S-4). Every clan member then levels faster than the Level table all the time. The clan room is the Library: +0.5% Level XP a level, +5% at level ten (PROVISIONAL (CH11-2, `11-on-call-and-clan-xp.md`)). The Level table stays the clock of the plain four, which is now also the four in no clan. COMPUTED there, in days at 12 hours a day:
+
+| Door | The plain four, in no clan | A plain four with a full Library | The fastest held seat before | The fastest held seat now, about 1.44 |
+|---|---|---|---|---|
+| Krell's Hold (88) | 31 | 30 | 23 | 22 |
+| End of open content (110) | 49 | 47 | 36 | 34 |
+| End of staged content (185) | 116 | 110 | 85 | 80 |
+| Level 400 | 373 | 355 | 274 | 259 |
+
+The early rows overstate the Library, because a new account cannot reach a castle in its first weeks and a Library takes at least 10 weeks to fill.
 
 | Door | Plain mid four (the law) | Paying alone, 1.22 | The fastest seat held all the time, 1.36 (best gear, both damage caps, the weekend averaged) | Every cap full, 1.65, on a Hearthrise weekend only |
 |---|---|---|---|---|
@@ -134,7 +143,7 @@ The plain four carries suggested talent builds. The three faster clocks below ea
 **What that costs, and where it is paid.** The runway has two ruled bands and they read two different seats:
 
 - **R2, 120 days of grounds at Early Access, is read on the plain four**, as the standards wrote it ("for the four MID player"). On the law that is day 116 at Level 185, four days short. No new ground is drawn. The top staged ground's band runs to Level 189, where the plain four stands at 1,440 hours, which is day 120.
-- **R1, a region open 30 days before the first fours arrive, is read on the fastest seat**, because the first fours to arrive are the buffed ones. On the numbers above the first region past staged content has to be open by about day 55 after launch, not day 86. That is a content schedule the art and asset directors must size, and it is the real price of MM-26.
+- **R1, a region open 30 days before the first fours arrive, is read on the fastest seat**, because the first fours to arrive are the buffed ones. On the numbers above the first region past staged content has to be open by about day 50 after launch, not day 86. It was about day 55 before the Library (R1, read on the fastest held seat, which now ends staged content on about day 80). That is a content schedule the art and asset directors must size, and it is the real price of MM-26.
 
 If that schedule cannot be met, the fix belongs in the buff caps (MM-25) and never in the Level law: lower the timed Level XP cap, or shorten how many hours a week it can be full. `05-progression.md` asks the MMO layer for one number it does not yet state: the time-averaged pace gain of a player who fills every timed cap as often as the calendar and the store allow. R1 is sized on that number.
 
@@ -167,6 +176,8 @@ If that schedule cannot be met, the fix belongs in the buff caps (MM-25) and nev
 **Where the rungs fall** (COMPUTED from the five hour rule on the law): Blessing 4 at Level 97, Blessing 5 at Level 140, Blessing 6 at Level 257 (PROVISIONAL), and none more before Level 400. The Levels are outputs of the rule. If the law moves, the rungs move with it and nobody types them.
 
 **Why a ladder and not a cap.** The unblessed death keeps every hour of its bite, which is the fear Tyler ruled for. The ladder is paid in gold, so it is "struggle or pay" (2026-11-19) and a sink that grows with Level. Know what it is: for a player who pays, it holds a blessed death tighter than the 12 hour cap Tyler turned down on 2026-11-21.
+
+**On call.** A death on call costs nothing and uses no Blessing. The death still ends that hero's hunt. RULED for "no loss on death" (Tyler 2026-11-21, the sitting, S-1). The rest is PROVISIONAL (CH11-1, `11-on-call-and-clan-xp.md`), section 1.7.
 
 ### 2.6 Death against the Deadly death band
 
@@ -447,7 +458,7 @@ In decision-book order.
 | GR-37 | The Tower's beat | Weekly. Build the ruled fixes and stop | PROVISIONAL. Waits on Deadly sized, and the system built |
 | GR-43 | The Crafting bench | The outfitter: cloaks, belts, linings, ammunition | DECIDED (Fable 2026-11-21). Cut list 10, Tyler said yes to the cut on the page 2026-11-21. |
 | GR-45 | Runecrafting 61 to 99 | A Sealing Rune at 75 and 88 | DECIDED (Fable 2026-11-21) |
-| GR-48 | Luck's feeds and the find list | Two feeds for Luck, a find list on the Honors page, and one Setup for each ground that holds weapon, worn set, linings, bar and target mode | DECIDED (Fable 2026-11-21) |
+| GR-48 | Luck's feeds and the find list | Two feeds for Luck, a find list on the Honors page, and one remembered Setup for each ground, which holds weapon, worn set, linings, bar and target mode | DECIDED (Fable 2026-11-21) |
 | GR-53 | The House dummy | It ends the yard fee. Unlock rungs by skill band at 25 to 50 hours of the fee | DECIDED (Fable 2026-11-21) |
 | GR-54 | The yard's rate | It follows the skill curve and never passes half of hunting. Re-opens three rulings | PROVISIONAL. Waits on the store-bill fault fixed and a wage formula that exists. Tyler said yes on the page 2026-11-21. It changes 2026-11-14, and 21-7 and A-5 of 2026-11-20, which he let stand on the page |
 | GR-61 | A permanent build choice | Lift the hold for a spec and a paper sample of five Kindling rungs only | SUPERSEDED by Tyler's 2026-11-21 ruling on level choices. See `10-level-choices.md`. It changes The skill tree hold of 2026-11-05, which he let stand on the page |

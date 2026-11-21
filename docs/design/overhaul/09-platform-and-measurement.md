@@ -373,6 +373,8 @@ The 10,000 account budget of 24 seconds is met by an account that does not watch
 
 **Talents.** PROVISIONAL (TAL-1, `10-level-choices.md`). ESTIMATED, not measured: no statement is added to a settle, because the allocation rides a read the settle already makes. Points earned are written inside a write that already happens, once every five Levels for a hero. Storage is one small row a hero, and the intents are a few a week for an account. UNKNOWN until the backend lane confirms the Tempering seam can carry it. The census should count `src/core/talents.js` when it exists.
 
+**A mixed party.** PROVISIONAL (CH11-1, `11-on-call-and-clan-xp.md`). ESTIMATED, not measured: a guest is one of the four seats in one hunt, so a party of heroes from two accounts is still one hunt and one save, and the save adds no statement. UNKNOWN whether reading a second account's perks and Setup is the same single read. If it is a second read, a save costs about 35 ms more, about a quarter more for that hunt. The reliability engineer measures it.
+
 #### 2.3.5 The cost envelope for world bosses, clans, events and arenas
 
 Rule 0 of the MMO layer is that every shared feature works while both players are asleep (PROVISIONAL, MM-1, waits on a playtest that shows whether players ask for what was removed, Tyler said yes on the page). That rule is also the cost rule: no part needs two people at the screen in the same minute, so no part needs a live connection between players.
@@ -485,6 +487,12 @@ Levels past 185 are PROJECTED on placeholder grounds and a projected gear line, 
 - A build block: the suggested build, A all Force, B the built holder, C empty and D all safety, on the lone ways and the standard four in mid gear at Levels 25, 60, 110, 185 and 400. It is a small block beside the lineup block and not a new axis.
 - Four bands in `standards.mjs`, all PROVISIONAL. TL1: the fastest build over the suggested build is at most 1.05 in Level XP an hour, red over 1.08. TL2: the empty build reads 0.90 to 0.97 of the suggested one. TL3: build D on Deadly in mid gear never reads under 30 deaths in 1,000 hours. TL4: at least two builds within 3% of the best for each way.
 - One row in `proposals.json`: Talents, playable for four stat lines, not modelled for Linger and the unlocks.
+
+**What chapter 11 adds to the matrix.** PROVISIONAL, from `11-on-call-and-clan-xp.md` sections 4 and 5.
+
+- Knobs: `onCallXpShare` (0.10, PROVISIONAL), `onCallWindowHours` (12, RULED 2026-11-21), `onCallEveryHours` (24, RULED 2026-11-21), `onCallSeatsPerParty` (1, PROVISIONAL), and the standing cap on Level XP (+5%, a cell of the cap table and not a new knob).
+- Bands, all PROVISIONAL. OC1: a caller's own hero earns 0.97 to 1.03 of its XP an hour with a guest in the fourth seat against an own hero there. OC2: a hero's Level pace with every window used is at most 1.10 of its pace with none. OC3: a four on Deadly with a guest in front earns under 1.00 of the same four with its own hero in front, deaths priced in. CX1: the fastest held seat with a full Library is at most 1.45 of the plain four. TD1: a mid-geared party hero's queue and week's labor fill 3 to 9 of 12 rested hours.
+- The Library needs nothing played, because Level XP is linear in the XP knob. The guest seat needs the mixed-Level cells MM-19 already waits on. The town day needs band T7's model to gain labor, the standing job and called hours.
 
 #### 2.4.3 The 108 bands, and which can be judged
 
@@ -717,7 +725,7 @@ Testing the Crowns loop in a free, wiped playtest means every account receives t
 | 14 | **Account deletion** | A deleted hero leaves account-owned rows with the account. A held name, a clan it leads and a market escrow are each resolved | Staged. RULED to apply before Early Access (28) |
 | 15 | **The play cap** | Four heroes an account and four a hashed network. One account a player is declared and enforced by the economy clamps above, so every surface in this table is reviewed assuming a player can run a second account | RULED 2026-11-20 (28-8) |
 
-On-call heroes are kept (RULED, MM-18, Tyler 2026-11-21, the sitting), so one account's hero earning inside another account's hunt is a server-owned surface the one Security review must cover. Its spec is `11-on-call-and-clan-xp.md`, being written. PvP on the hunting grounds is never built (DECIDED, MM-17, Fable 2026-11-21), so no surface exists there.
+On-call heroes are kept (RULED, MM-18, Tyler 2026-11-21, the sitting), so one account's hero earning inside another account's hunt is a server-owned surface the one Security review must cover. Its spec is `11-on-call-and-clan-xp.md`. The cross-account write is on this list: a guest's hero is written with the other seats in one save, and one ledger row is added when the seat ends. PvP on the hunting grounds is never built (DECIDED, MM-17, Fable 2026-11-21), so no surface exists there.
 
 **Order inside the review.** DECIDED (no call id, Fable 2026-11-21, and the security engineer may reorder it): surfaces 1 to 3 are reviewed as one bundle, because the ceiling is only as strong as its weakest clamp. Surface 4 comes before them, because the Crowns book reuses the market's caps. No Crowns surface is armed for anyone until its Security GO and until check A6 is green.
 

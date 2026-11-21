@@ -610,7 +610,7 @@ Rules. Chest gear stays rare. It is never bound. A chest weapon is the next tier
 
 ### 2.14 The saved kit and the find list
 
-- **Setups, and what a ground remembers.** A hero has three free Setup slots, then two more at 15,000 and 40,000 gold (RULED, GR-56a, Tyler 2026-11-21, the sitting). A ground remembers which Setup was last used there. How "one Setup for each ground" fits five slots is OPEN for the game designer. A Setup holds the weapon, the worn set, the linings, the unique, the bar and the target mode. It is saved once, starting a hunt there wears it, and it can be copied to another hero or ground. The saved kit and the bar setup are the same thing, so the weak-side weapon is never a chore (GR-84). It lands before case-sized perks or linings ship, because each of them asks a hero to change gear when the party moves, four heroes at a time. [DECIDED GR-48, Fable 2026-11-21]
+- **Setups, and what a ground remembers.** A hero has three free Setup slots, then two more at 15,000 and 40,000 gold (RULED, GR-56a, Tyler 2026-11-21, the sitting). Each ground remembers one Setup, by pointing to one of the hero's slots. Pointing is free and has no limit, and many grounds can point to the same Setup (PROVISIONAL (CH11-3, `11-on-call-and-clan-xp.md`), section 10). A Setup holds the weapon, the worn set, the linings, the unique, the bar and the target mode. It is saved once, starting a hunt there wears it, and it can be copied to another hero or ground. The saved kit and the bar setup are the same thing, so the weak-side weapon is never a chore (GR-84). It lands before case-sized perks or linings ship, because each of them asks a hero to change gear when the party moves, four heroes at a time. [DECIDED GR-48, Fable 2026-11-21]
 - **A find list for each ground.** The ground's page lists its named pieces. The first time an account finds each one it is ticked with no press. It shows on the Honors page and pays no Luck. [DECIDED GR-48, Fable 2026-11-21]
 
 ### 2.15 Systems kept for later
@@ -697,7 +697,7 @@ In decision-book order.
 | GR-45 | A Sealing Rune at Runecrafting 75 and 88 | Approve | DECIDED (Fable 2026-11-21) |
 | GR-46 | Salvage is a choice beside Sell | Approve, behind the no-mint guard | DECIDED (Fable 2026-11-21) |
 | GR-47 | Curing built last, as a standing order | Approve | DECIDED (Fable 2026-11-21). Cut list 11, Tyler said yes to the cut on the page 2026-11-21. |
-| GR-48 | Luck keeps two feeds. A find list and a saved kit | Two feeds for Luck, a find list on the Honors page, and one Setup for each ground that holds weapon, worn set, linings, bar and target mode | DECIDED (Fable 2026-11-21) |
+| GR-48 | Luck keeps two feeds. A find list and a saved kit | Two feeds for Luck, a find list on the Honors page, and one remembered Setup for each ground, which holds weapon, worn set, linings, bar and target mode | DECIDED (Fable 2026-11-21) |
 | GR-49 | Chest reforging stays its own action | Approve | DECIDED (Fable 2026-11-21) |
 | GR-87 | Drops in hours, one sale formula | Approve | DECIDED (Fable 2026-11-21) |
 | MM-6, MM-14 | World boss pay and arena rewards | The ten rules of 2.16 (CE-1). At most one line piece a boss weekend and one an arena season. The fall bonus re-rolls the piece. The Even Arena pays material find. HYPOTHESIS for the fall bonus | MM-6: PROVISIONAL. Waits on the hall check at three Levels and one boss stood. MM-14: PROVISIONAL. Waits on the engine test of heroes against heroes |

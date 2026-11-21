@@ -1,0 +1,54 @@
+{
+ "_readme": [
+  "The measured inputs of 48-platform-cost.md's ladder (lane/d-platform-cost, 2026-11-21). Aggregates only: no account, hero or session.",
+  "Seconds are PRODUCTION database-seconds. REAL = production read (tools/balance-program/platform-cost.local.mjs, 2026-11-21 07:00-08:00 UTC,",
+  "pg_stat_statements since 2026-10-31 13:42, 20.74 days, 40,015 s). MEASURED = this lane's replay runs (platform-cost.mjs profile/window/aged).",
+  "ESTIMATED = arithmetic on both, with the method in `why`. node tools/balance-program/platform-cost.mjs ladder prints the tables."
+ ],
+ "read_at": "2026-11-21",
+ "bands": { "C2.1k": 60, "C2.10k": 24 },
+ "today": {
+  "awayCommitsAnHour": 36,
+  "watchedCommitsAnHour": 201,
+  "closedCommitS": { "four": 0.055, "lone": 0.020 },
+  "watched": {
+   "pollsAnHour": 201,
+   "pollMs": { "settleRead": 20, "seed": 2.2, "helloReads": 33.6, "earlyAskState": 28.8 },
+   "commitMs": { "core": 30, "projection": 48, "frames": 126 },
+   "offscreenLoadSAnHour": 19.6,
+   "residualSAnHour": 35.4
+  },
+  "townHeroHourS": 4.15,
+  "townTabHourS": 4.7,
+  "pressS": 0.107,
+  "fixedSADay": 1010,
+  "why": {
+   "awayCommitsAnHour": "REAL commits: 36.0 a hero-hour away at every party size, 14 days",
+   "watchedCommitsAnHour": "REAL commits: 200.8 a four-hour watched (181 lone, 198 three)",
+   "closedCommitS": "ESTIMATED. A commit with no client open builds no frame and no projection (hr_frame_wanted, character_presence 75 s). Four: the 2027-03-31 note's arithmetic (192 ms = 4 projections of 42 + a core of about 24) and this lane's REAL minute buckets (a four's away commit with its tab open +206 to +242 ms = core + read + 4 frames) put read + core at 40 to 80 ms; 55 central. Lone: the replay's lone/four ratio (65/177 PGlite ms) x 55",
+   "watched.pollMs": "REAL means: the settle read 19.1-24.4 ms, hr_seed+perks 2.17, the hello's six reads 21 ms a call x 1.6 calls a poll, hr_state_of 48 ms on 0.6 early asks a poll",
+   "watched.commitMs": "core ESTIMATED (above, without the read); projection REAL hr_state_of 48 ms; frames 3 members x 42 ms (2027-03-31 note, REAL then)",
+   "watched.offscreenLoadSAnHour": "REAL hr_load 109-111 ms x 3 off-screen heroes x 60 an hour (28): gone with lane/c-server-cost (L01)",
+   "watched.residualSAnHour": "REAL minus the model: a watched four-hour is +107 to +119 s over an empty minute (capacity sample, 305 minutes); the settle path, the off-screen load and the polls explain 77.6. UNATTRIBUTED",
+   "townHeroHourS": "REAL: 46 town settles a town hero-hour (75,395 settles / 1,626 h) x (hr_tick_settle 2.45 calls x 18.6 ms + the visit's whole-character hr_state_of 0.84 x 48 ms + perks and seed 4 ms) = 90 ms a settle",
+   "townTabHourS": "REAL x MEASURED (28): a tab standing in town alone, 660 calls an hour",
+   "pressS": "REAL: hr_apply 59.6 ms + the state its answer carries 48 ms",
+   "fixedSADay": "REAL (28): cron that runs whoever plays"
+  }
+ },
+ "rungs": {
+  "L13": { "commitFactor": 0.9, "why": "MEASURED share: journal inserts and the day-budget reads, 5 to 10% of a commit on the replay (aged 0 to 4,500 rows today: +4 ms)" },
+  "C10": { "commitsAnHour": 6, "commitFactor": 1.25, "why": "MEASURED: the same 20 minutes committed every 100 s and every 600 s end IDENTICAL; a 600 s commit costs 1.0 to 1.3 times a 100 s one (Krell four 48.6 -> 62.2 PGlite ms)" },
+  "P1": { "commitFactor": 0.75, "why": "ESTIMATED: the settle read's per-row calls (512 hr_hunt_setup_live, 991 hr_hunt_limit, 15,710 hr_skill_curve rows for a four) are 60% of the replay's read; production's read is 20 of 55 ms" },
+  "TCF": { "townDayS": 0.5, "why": "59: 3 statements a job, 2 jobs a hero a day, 20 ms each" },
+  "L07": { "presses": 20, "why": "59: 20 presses a day after Carry on and the plans" },
+  "L24": { "stateFactor": 0.25, "why": "28's ASSUMED x4 on every whole-character read" }
+ },
+ "days": {
+  "1,000 accounts, browser closed all day": { "accounts": 1000, "heroes": 4, "huntH": 12, "townH": 12, "watchedH": 0, "townTabH": 0, "presses": 100 },
+  "1,000 accounts, the real-shaped tab (1.5 h watched, 2 h in town)": { "accounts": 1000, "heroes": 4, "huntH": 12, "townH": 12, "watchedH": 1.5, "townTabH": 2, "presses": 100 },
+  "1,000 accounts, the stress tab (39% of 12 h watched)": { "accounts": 1000, "heroes": 4, "huntH": 12, "townH": 12, "watchedH": 4.7, "townTabH": 2, "presses": 100 },
+  "10,000 accounts, browser closed all day": { "accounts": 10000, "heroes": 4, "huntH": 12, "townH": 12, "watchedH": 0, "townTabH": 0, "presses": 100 },
+  "10,000 accounts, the real-shaped tab (1.5 h watched, 2 h in town)": { "accounts": 10000, "heroes": 4, "huntH": 12, "townH": 12, "watchedH": 1.5, "townTabH": 2, "presses": 100 }
+ }
+}

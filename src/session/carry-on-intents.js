@@ -105,7 +105,9 @@ export function carryOn(account, cs, gold, slots, jobs) {
     const touched = plan.heroes.filter((h) => h.state === 'went' || h.state === 'no').map((h) => (typeof account.character === 'function' ? account.character(h.slot) : null))
       .filter((o) => o && o.status !== 'closed' && typeof o.load === 'function');
     if (!touched.includes(cs) && cs.status !== 'closed' && typeof cs.load === 'function') touched.push(cs);
-    await Promise.all(touched.map((o) => o.load()));
+    /* the answer carries each touched hero as the press left them (1024 `envelopes` by slot, rule 11): taken like a load, read only when absent */
+    const envs = isObj(b.envelopes) ? b.envelopes : {};
+    await Promise.all(touched.map((o) => o.load(isObj(envs[o.slot]) ? envs[o.slot] : null)));
     return { ok: true, plan };
   });
 }

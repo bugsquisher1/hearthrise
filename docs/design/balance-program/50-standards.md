@@ -4,6 +4,8 @@ The yardstick for the whole game plan (Tyler, 2026-11-21). Every system, every d
 
 Written by the standards auditor on `lane/d-standards`. No game code, data or migration was changed. It supersedes the measurement frame of `01-model.md` sections 3 to 5, the town hours in `model.mjs`, and the scope of `lane/d-twelve-hours` wherever they differ. That lane is merged (89d13ec0a): `HUNT_HOURS_A_DAY` is 12 in `model.mjs`, the gold model and the guard are re-based, and G20 reads the fourth hero at 3.9 weeks. It fixed the hours. It did not add gear states, checkpoints, parties of two and three, or town time.
 
+**Ruled 2026-11-21.** Tyler ruled all 17 calls. Section 11 lists each. The bands below are already changed to match, and a band he ruled says "RULED 11-21".
+
 **Labels.** RULED (Tyler, with the date). PROPOSED (the auditor's band, waiting for Tyler or for evidence). CITED (a genre benchmark or another file's measurement). COMPUTED (arithmetic here on the game's own data rows, not played). REAL (production, from `10-real-players.md`). Nothing in this file was measured by playing. A PROPOSED band is a target to test, never a finding.
 
 **CITED genre numbers** come from the auditor's memory of public sources. Each one is marked "verify" and a research pass must check it before Tyler rules on a band that leans on it.
@@ -36,7 +38,7 @@ Three things the old frame got wrong, found while writing this one:
 | How a free hero gets there | two visits about 12 hours apart: 8 hours, then 4 | COMPUTED from the stamina rule |
 | How a Premium hero gets there | one visit a day | COMPUTED |
 | Rested hours a hero a day | 12. This is all the town time there is (benches, nodes, farm, yard, curing) | COMPUTED |
-| **Town hours a hero a day** | **12: a resting hero is always working.** Every town system is sized for a hero that fills all 12 rested hours, and is also printed at the real 4 so we see what a player who skips town gets | PROPOSED, call 13. The 12 h ruling covers hunting. `model.mjs` still holds the real 2 to 6. The reason is the same as the ruling: it is an idle game, a job costs one press, so assume the hours are used |
+| **Town hours a hero a day** | **12: a resting hero is always working.** Every town system is sized for a hero that fills all 12 rested hours, and is also printed at the real 4 so we see what a player who skips town gets | RULED 11-21 (call 13). The 12 h ruling covers hunting. `model.mjs` still holds the real 2 to 6. The reason is the same as the ruling: it is an idle game, a job costs one press, so assume the hours are used |
 | The Ceiling player | 24 hunted hours a hero a day: six refills of 4 hours, every day | RULED rows (`stamina-refill.js`). Hours past 12 cost 2 refill hours each, because the hero stops resting |
 | A week, a month | 84 and 360 hunted hours a hero | COMPUTED |
 | Real-player data | calibrates rates an hour. Never hours a day | RULED 11-21 |
@@ -124,13 +126,13 @@ Hours each Level takes and the day it arrives, at 1.00 x contract (COMPUTED from
 
 | # | Band | Target | Red | Label, reason |
 |---|---|---|---|---|
-| P1 | The pace seat reaches the ruled Levels on the ruled days | within 10% of the table | over 15% | RULED 10-25. **Which seat is the pace seat is call 1.** Until ruled: the lone MID hero on Normal |
+| P1 | The pace seat reaches the ruled Levels on the ruled days | within 10% of the table | over 15% | RULED 10-25, and RULED 11-21 (call 1): **the pace seat is the MID four on the hardest tier it holds.** A lone hero is slower by the party advantage. Level XP past about Level 50 is re-fit to that. Level 400 is 4,580 hunted hours, day 382 (RULED 11-21, call 2) |
 | P2 | Lone MID on Normal | 0.95 to 1.10 x contract | under 0.85, over 1.25 | RULED tolerance. Guard G1 today |
 | P3 | Lone LOW on Normal | 0.80 to 0.90 x MID | under 0.70, over 0.95 | PROPOSED. One weapon step (5 to 8%, RULED) plus accessories and two rungs. Under 0.70 the arrival feels like a wall. Over 0.95 gear does not matter |
-| P4 | Lone BiS on Normal | 1.10 to 1.20 x MID | over 1.25 | PROPOSED, call 3. The plan's own stack reads +10% (the four's cap, 30-2) to +26% (lone at 118) |
+| P4 | Lone BiS on Normal | 1.10 to 1.20 x MID | over 1.25 | RULED 11-21 (call 3): about 15% faster kills. The plan's own stack reads +10% to +26% today |
 | P5 | BiS over LOW, same seat | at most 1.50 | over 1.60 | PROPOSED. Past this the content cannot be written for both |
 | P6 | Party a head over lone, same tier, MID | two 1.05 to 1.15, three 1.10 to 1.20, four 1.15 to 1.25 | four under 1.0 from Level 10 on a party ground | RULED 10-25 section 5 |
-| P7 | Party a head on the hardest tier it holds, MID | two 1.2 to 1.5, three 1.5 to 2.0, four 1.8 to 2.5 x contract | four over 2.6, two over 1.7 | Four RULED (11-16, 21-4). Two and three PROPOSED: the plan assumed 1.2 and 2.0 and never played them (call 8) |
+| P7 | Party a head on the hardest tier it holds, MID | two 1.2 to 1.5, three 1.5 to 2.0, four 1.8 to 2.5 x contract | four over 2.6, two over 1.7 | Four RULED (11-16, 21-4). Two and three RULED 11-21 (call 8). Never played yet |
 | P8 | The four on Deadly in BiS | at most 2.75 x contract | over 2.9 | RULED 30-2 |
 | P9 | A harder tier, for a kit that holds it, over Normal | Dangerous 1.10 to 1.25, Deadly 1.30 to 1.60 in XP an hour | Deadly under Dangerous | PROPOSED from the tier rows (XP a kill 1.10 and 1.25, a pull of 8) |
 | P10 | A harder tier for a kit that does not hold it | XP an hour after deaths is **under** the tier below | over it | RULED direction 11-08: "Either they are strong enough to do the harder content or they aren't" |
@@ -145,9 +147,9 @@ Hours each Level takes and the day it arrives, at 1.00 x contract (COMPUTED from
 | S1 | Normal, in band: typical lowest health | 45 to 70% | 60 to 80% | 75 to 95% | MID RULED 10-25 section 3. LOW and BiS PROPOSED one band either side |
 | S2 | Normal, in band: deaths in 1,000 hunted hours | at most 5 | at most 1 | at most 0.1 | MID RULED. A 12 h day is 83 days to 1,000 hours, so "1" means a lone MID hero dies on Normal about once a quarter |
 | S3 | Dangerous, in band: lowest health | under 35%, it dies | 35 to 60% | 55 to 75% | MID RULED (the "Hard" row) |
-| S4 | Deadly, in band: lowest health | dies | 25 to 40% | 35 to 50% | RULED both ways and they disagree: 10-25 "Extreme" says 15 to 40%, guard G5 says 35 to 50%. PROPOSED: G5 is the BiS row and the MID row sits between |
-| S5 | Damage taken an hour | 1.15 to 1.35 x MID | 1.00 | 0.80 to 0.90 x MID | PROPOSED. An armor step is 3 to 5% (RULED 10-25 section 9). Measured today: a tier behind is 13 to 26% early, 5 to 10% late |
-| S6 | **The death tax**: Level XP lost to deaths over Level XP earned, on that tier | Deadly over 30% | Normal under 1%, Dangerous 2 to 6%, Deadly 6 to 12% | half of MID's | PROPOSED, call 5. It replaces "deaths in 1,000 hours" on the harder tiers, because the cost of one death grows with Level and a fixed death rate cannot hold at every Level |
+| S4 | Deadly, in band: lowest health | dies | 15 to 40% | 35 to 50% | MID follows the death count Tyler kept (S6): the 10-25 "Extreme" row, 15 to 40%. G5's 35 to 50% is the BiS row |
+| S5 | Damage taken an hour | 1.15 to 1.35 x MID | 1.00 | 0.80 to 0.90 x MID | BiS RULED 11-21 (call 3): about 15% less. LOW PROPOSED. Measured today: a tier behind is 13 to 26% early, 5 to 10% late |
+| S6 | **Deaths in 1,000 hunted hours on the harder tiers, the same count at every Level** | Dangerous 60 to 150. Deadly over 200 | Dangerous 10 to 30. Deadly 50 to 100 | Dangerous 2 to 10. Deadly 10 to 30 | RULED 11-21 (call 5): a flat death count, not XP lost. The MID rows are the 10-25 "Hard" and "Extreme" rows. LOW and BiS are the auditor's numbers, PROPOSED. At 12 h a day, 50 to 100 is one death a hero every 10 to 20 hunted hours |
 | S7 | A 12 hour unattended hunt on Normal finishes | 9 in 10 | 99 in 100 | always | RULED 10-25 for the properly equipped. LOW PROPOSED |
 
 **What one death costs** (COMPUTED: 6% of total Level XP over the contract rate, and with all three Blessings):
@@ -163,13 +165,12 @@ Hours each Level takes and the day it arrives, at 1.00 x contract (COMPUTED from
 
 | # | Band | Target | Label |
 |---|---|---|---|
-| S8 | One death, fully blessed | never more than one day of hunting (12 h) | PROPOSED, call 4. It breaks at about Level 175 today |
-| S9 | One death, unblessed | never more than four days (48 h) | PROPOSED, call 4. It breaks at about Level 175 today |
+| S8, S9 | One death | **6% of all Level XP, flat, with no cap in hours** | RULED 11-21 (call 4). The table above is the price, at every Level. The grid prints it and judges nothing |
 | S10 | The Blessing set | costs under a fifth of the hours it saves, priced in the buyer's own net gold | PROPOSED. 21-8's "two lone hours" was sized against a death worth 7 to 27 hours |
 
 ### 2.3 "Holds a tier"
 
-A kit holds a tier when all three are true over the nightly sample: its death tax is inside S6's MID row, its lowest health is inside S3 or S4, and its net gold is over zero. The frame reports the hardest tier each cell holds. The standard: **MID holds Dangerous in band from Level 16 and Deadly as a four. BiS holds Deadly at every party size it is offered. LOW holds Normal and nothing else** (PROPOSED).
+A kit holds a tier when all three are true over the nightly sample: its deaths in 1,000 hours are at or under the top of S6's MID row, its lowest health is inside S3 or S4, and its net gold is over zero. The frame reports the hardest tier each cell holds. The standard: **MID holds Dangerous in band from Level 16 and Deadly as a four. BiS holds Deadly at every party size it is offered. LOW holds Normal and nothing else** (PROPOSED).
 
 ### 2.4 Gold
 
@@ -198,7 +199,7 @@ No band names a gold number that has not been measured on this frame. They are s
 | E2 | LOW to MID, time | every slot's current-tier piece has dropped inside the first 15% of the band's hours through Krell, 35% after | over 25%, over 50% | PROPOSED from RULED 11-20 "generous to Krell, rare after" |
 | E3 | LOW to MID, gold | under 10% of the band's net gold | over 20% | PROPOSED. MID is what the game hands you |
 | E4 | MID to BiS, gold | 100 to 140% of the band's net gold for a lone MID hero. A hero that spends everything reaches 70 to 80% of the pool | under 80% | RULED direction 11-18. Same as G-10, read on gear |
-| E5 | MID to BiS, time | every source's median wait is under half the band's length through Krell. Past Krell under the whole band, and the piece carries forward | over the band's length | PROPOSED, call 6. **It fails today.** Bands under Level 88 last 3 to 11 days and a chest piece takes weeks of six opens |
+| E5 | MID to BiS, time, **for sources with no weekly limit** | the median wait is under half the band's length through Krell. Past Krell under the whole band | over the band's length | RULED 11-21 (call 6): **the weekly limits stay.** Six opens a hero a week is not judged by this band. Under Level 88 a band lasts 3 to 11 days, so fast players skip early chest pieces, and that is accepted. The grid prints how many days each chest piece is worn and judges nothing |
 | E6 | Something you wear changes | at least once in 24 hunted hours to Level 110, once in 60 after. Any slot, rung, perk or lining tier counts | over 36, over 90 | PROPOSED. CITED: loot games aim for an equip change a session early (verify) |
 | E7 | The Add pool (accessories, perks, Tempering, worn in, trained skills) | at most one weapon step of XP and one armor step of damage, at every checkpoint | over +10% | the model's cap, G10 |
 | E8 | No gold-for-power offer cheaper than Tempering's cheapest rung | at least 1 lone hour of gold a 1% | under | G12 |
@@ -209,7 +210,7 @@ No band names a gold number that has not been measured on this frame. They are s
 |---|---|---|---|
 | D1 | A Very Rare, through Krell | 60 to 90 h a hero | one every 5 to 7.5 days a hero. An own four finds one every 1.3 to 1.9 days |
 | D2 | A Very Rare, past Krell | 60 to 90 h of an own four | one every 5 to 7.5 days an account |
-| D3 | The Luck bar | +16% at 500 h, +39% at 5,000 h | day 42 and day 417. "5,000 hours" was read as years. It is 14 months (call 9) |
+| D3 | The Luck bar | +16% at 500 h, +39% at 5,000 h | day 42 and day 417. The hours stay (RULED 11-21, call 9) |
 | D4 | Magic Find, all sources | at most 104 a hero | RULED |
 
 ### 2.7 Content runway
@@ -230,8 +231,8 @@ The day a 12 h player reaches each door (COMPUTED from 2.1. The four runs at 2.2
 
 | # | Band | Target | Red | Label |
 |---|---|---|---|---|
-| R1 | A region is open before the four MID 12 h player reaches its door | 30 days ahead at a launch, 14 days after | behind | PROPOSED, call 7 |
-| R2 | Open content at the Early Access launch | at least 120 days for the four MID player | under 90 | PROPOSED. Today it is 27 days open and 60 with everything staged |
+| R1 | A region is open before the four MID 12 h player reaches its door | 30 days ahead at a launch, 14 days after | behind | RULED 11-21 (call 7) |
+| R2 | Open content at the Early Access launch | at least 120 days for the four MID player | under 90 | RULED 11-21 (call 7). Today it is 27 days open and 60 with everything staged |
 | R3 | Levels the team authors a month over Levels the frontier player gains a month | at least 1.0 | under 0.8 for two months | PROPOSED. The four gains about 69 Levels a month past Level 110, the lone hero 31. A region is 55 |
 | R4 | Past the last region | a chase that does not need a new ground: the Tower's floors, the Catacombs, the Bestiary, Luck, Very Rares | none exists | PROPOSED. CITED: Tibia and Melvor Idle both lean on uncapped or post-cap goals between content drops (verify) |
 
@@ -239,12 +240,22 @@ The day a 12 h player reaches each door (COMPUTED from 2.1. The four runs at 2.2
 
 ### 2.8 Server cost
 
+**How C2 comes out of $0.15** (COMPUTED from `28-platform.md`, whose prices are ASSUMED list prices). 28's rule is accounts = cores x 0.7 x 86,400 / 2 / database-seconds an account-day, so one core carries 30,240 database-seconds a day.
+
+| Accounts | Budget a month | Other lines of the bill | Left for the database | The plan that fits | Cores | Database-seconds an account-day |
+|---|---|---|---|---|---|---|
+| 1,000 | $150 | about $80 (plan $15, journal $5 after its fix, edge calls $20, Realtime $15, egress $25) | $70 | Medium, $60 | 2, shared | 2 x 30,240 / 1,000 = **60** |
+| 10,000 | $1,500 | about $1,015 (plan $15, journal $50, edge calls $240, Realtime $260, egress $450) | $485 | 2XL, $410 | 8 | 8 x 30,240 / 10,000 = **24** |
+
+This is a sign of difficulty scaling. The four fixes in the plan take an account from about 600 to about 190. The ruled price needs 60, and 24 at 10,000. That is three to eight times past everything planned, and two thirds of the 10,000-account bill is not the database at all. Medium's cores are shared, so 60 is the best case. The platform re-dive owns the answer, and it will be a system change (how often a hunt is settled and saved), not a tuning.
+
 | # | Band | Target | Red | Label, reason |
 |---|---|---|---|---|
-| C1 | Database time a hunted hero-hour | at most 4 seconds | over 5 | PROPOSED from 28's "after four changes" row (about 3.6, COMPUTED) |
-| C2 | Database time an account-day, four heroes at 12 h | at most 190 seconds | over 220 | COMPUTED: today's engine reads about 600 on the same account, by interpolating 28's table. Not measured |
+| C1 | Database time a hunted hero-hour | at most 1.25 seconds at 1,000 accounts, 0.5 at 10,000 | over 1.5, over 0.6 | COMPUTED from C2 (48 hunted hero-hours an account-day). 28's "after four changes" row reads about 3.6 |
+| C2 | Database time an account-day, four heroes at 12 h | **at most 60 seconds at 1,000 accounts. At most 24 at 10,000** | over 70, over 30 | COMPUTED from the ruled $0.15 and 28's price list, below. Today's engine reads about 600 and the four planned fixes reach about 190, by interpolation. Not measured |
 | C3 | Journal rows | at most 1 a hero an hour an activity | over 2 | RULED 28-2 |
-| C4 | Money an account-month | at most $0.50 at 1,000 accounts, $0.30 at 10,000 | over | PROPOSED, call 10. Money is Tyler's |
+| C4 | Money an account-month | **at most $0.15 at 1,000 accounts (about $150 a month), and no higher at 10,000** | over | RULED 11-21, re-ruled the same day: "500 a month on the server is going to be too expensive for me if the game isn't making money" |
+| C4b | The lines of the bill that are not the database (plan, journal disk, edge calls, Realtime, egress) | at most $80 a month at 1,000 accounts, $1,015 at 10,000 | over | ASSUMED from 28's list prices, which were read for 3.3 h accounts. They must be re-read at 12 h, and if they grow, C2 shrinks |
 | C5 | Capacity | 1,000 accounts of four heroes at 12 h on one database under 70% CPU at the busy hour. 10,000 on a plan that exists, with room | does not fit | PROPOSED. 28 sized this at 3.3 h, where 10,000 already "do not fit at any price" before its fixes |
 | C6 | A new system | no new statement on the settle path, no poll, nothing that grows with players times players | any | the model's allowance, kept |
 
@@ -259,7 +270,7 @@ Each is a dimension the audit must be prompted with. Verdict, band, what the har
 | X1 | **Account shape**: 1, 2, 3, 4 heroes, and the day each slot arrives | KEEP | Slots at 400k, 1.5M, 4M (RULED). The day each arrives at 12 h is printed, not assumed. The "own four in about 15 weeks" of 31-5 was at 3.3 h and reads about 4 weeks now (call 2 confirms the target) | `gold-model.mjs --slots` on the 12 h clock, from a played life, at LOW, MID and BiS income | 24 |
 | X2 | **Account age**: day 1, day 30, day 180 | KEEP | At each age the account has something to buy inside 10 days of gold (G-8) and something to chase inside 7 days. No age has "nothing to want" (REAL: 2.09M held, 17% spent) | the account life: Level, gold held, standing prices left, open chases, at each age | 27 |
 | X3 | **Server age and the newcomer on an old server** | KEEP | A day-1 account on a day-180 server reaches MID as fast as on a new one, or faster. Its first party is findable inside one visit. Old gear on the market costs under 3 days of its gold | a newcomer life with the market's floor prices and empty low grounds | 25, 24 |
-| X4 | **Who pays**: free, Premium, Crowns seller | KEEP | Free reaches every Level, drop, ground and tier (RULED 11-18). Premium changes visits a day and comfort, never hours. A Crowns seller reaches BiS sooner, by at most half the time, and reaches nothing a free player cannot (call 11) | days to MID and to BiS for each payer at 5 checkpoints | 24 |
+| X4 | **Who pays**: free, Premium, Crowns seller | KEEP | Free reaches every Level, drop, ground and tier (RULED 11-18). Premium changes visits a day and comfort, never hours. A Crowns seller reaches nothing a free player cannot. How much sooner has no limit (RULED 11-21, call 11) | days to MID and to BiS for each payer at 5 checkpoints | 24 |
 | X5 | **Who you hunt with**: alone, own party, friends, strangers | KEEP | Own four and four friends read within 10% a head. A mixed party never beats an own party by more than the shared-supply saving. An on-call hero never out-earns the same hero hunting for its owner | the same cell with one, two and four accounts in it | 25 |
 | X6 | **The stamina day**: free bar, Premium bar, refills | KEEP | 12 h free in two visits, 12 h Premium in one, 24 h with six refills (COMPUTED). The first refill of a day costs under the net gold of the 4 hours it buys at every checkpoint. A day of six is gold-neutral at Level 80 (G22) | hours a day and net gold a day for 0 to 6 refills | 24 |
 | X7 | **Viewed against browser closed** | KEEP as a check, no band | Identical by rule (CLAUDE.md section 6). The grid runs the one engine, so the check is that no cell differs when replayed with a watcher | the both-paths replay on 5 cells a night | 28 |
@@ -277,7 +288,7 @@ Each is a dimension the audit must be prompted with. Verdict, band, what the har
 | X19 | **Way-to-fight parity** | ADD | At MID, alone, every way is within 1.5 of the median way (G2), and the slow ones are the ruled ones (sword and shield, sword alone early). In a four every role is wanted: a four without it is at least 10% slower or 20% less safe | every way at every checkpoint at MID. The four with one seat swapped | 21 |
 | X20 | **Setup quality** | ADD | The default bar a new hero gets reads at least 0.85 of the played bar at every checkpoint to Level 30. A player should not need a guide to be at MID | default rules against the played bar, MID kit | 21, 27 |
 | X21 | **Town work at 12 rested hours** (call 13) | ADD | A gathering or bench skill reaches 99 in 60 to 120 days of one hero's 12 rested hours. A third of a hero's supplies can be home-made inside its own rested hours. Every town hour has a consumer | hours to 99 a skill and stock made a rested day, from the recipe rows | 26 |
-| X22 | **Weekly gates against a 12 hour pace** | ADD | No weekly cap is the only way to a power source inside a band that lasts under two weeks (E5). Weekly resets land at the same instant for all boards | band lengths in weeks beside every weekly cap | 22 |
+| X22 | **Weekly gates against a 12 hour pace** | KEEP as a report, no band (RULED 11-21, call 6: the weekly limits stay) | The days each weekly-capped piece is worn before it is outgrown, printed. Weekly resets land at the same instant for all boards | band lengths in weeks beside every weekly cap | 22 |
 | X23 | **Luck, by percentile** | ADD | Every chance-based goal is printed at the 10th, 50th and 90th percentile in days. The 90th is never over three times the median for anything that carries power | the percentile table from the drop rows and chest odds | 23 |
 | X24 | **Ranks at equal hours** | ADD | When everyone hunts 12 h, a board ranks setup, party and tier, which is good. A board that refills can buy must say so or have a no-refill twin | the rank gap between a 12 h and a 24 h account on each board | 27 |
 | X25 | **Many heroes, one owner** | KEEP from 10-25 | One player's four never earns more than 4.4 times one hero's gold or items a day ("monitor one player running four characters for disproportionate economic advantage"). The 4 heroes a hashed IP cap holds | account gold and items a day at 1 to 4 heroes | 24, 28 |
@@ -438,8 +449,8 @@ Every place the plan, the dives and the audits did not measure on this frame, an
 Tyler asked for these to be called out. Four places where a band can only be met by changing a system, not a number:
 
 1. **The Level table and the four** (gap 12, R3). A lone-seat table plus a 2.2 x four means content is eaten at twice the planned speed. Tuning cannot fix it. Either the table moves to the four or the four's advantage shrinks.
-2. **Death at 6% of total Level XP** (gap 14). It grows without end. No Blessing price or death rate holds from Level 30 to Level 400 under one flat share.
-3. **Weekly caps in a 12 hour game** (gap 17). A cap a week was a pacing tool for a 3 hour player. At 12 h it is the only clock in the game that does not run on hunted hours.
+2. **Death at 6% of total Level XP** (gap 14). RULED 11-21: it stays flat with no cap, and Deadly keeps a flat death count. So this is now a thing to measure, not to change: see section 11.
+3. **Weekly caps in a 12 hour game** (gap 17). RULED 11-21: the limits stay, and fast players skip early chest pieces.
 4. **Rested hours are now scarce** (gaps 5, 19, 20). 12 hours shared by the yard, six benches, the farm, three gathering skills and curing. Every town system was sized as if a hero had 20.
 
 ---
@@ -521,7 +532,7 @@ Tyler's line for crafting is that it must matter and must not be the only way. A
 | T1 | A town skill from 1 to 99 | 60 to 120 days of one hero's 12 rested hours | under 30, over 180 | PROPOSED. It should outlast a region and finish inside a year |
 | T2 | What a rested hour is worth in gold beside a hunted hour, same hero, same Level | 15 to 35% | under 10%, over 60% | PROPOSED. Under 10% the town is a chore. Over 60% hunting stops being the income |
 | T3 | Supplies a hero's own 12 rested hours can cover of its own 12 hunted hours, MID, in band | 25 to 50% | under 10%. Over 80% on Deadly | PROPOSED. REAL: a third was home-made. The store must stay a sink on Deadly |
-| T4 | The share of the power gap between MID and BiS that passes through a bench (jewelry, perks, salts, linings, cloaks) | 25 to 45% | under 15%, over 60% | PROPOSED, call 15. This is "it must matter" |
+| T4 | The share of the power gap between MID and BiS that passes through a bench (jewelry, perks, salts, linings, cloaks) | 25 to 45% | under 15%, over 60% | RULED 11-21 (call 15). This is "it must matter" |
 | T5 | A player who never touches a bench | reaches every Level and MID at every checkpoint with no penalty. Reaches full BiS inside 1.5 times the best path, by buying what others made | cannot reach MID, or over 2 times | PROPOSED. This is "not the only way". RULED 11-18: nothing gates a Level or a core tier |
 | T6 | A player who only crafts and gathers, one hero | earns 40 to 70% of the gold a day of a MID hunter at the same day of play | over 100% | PROPOSED. A real way to play, never the best income |
 | T7 | Rested hours the best path wants a day against the 12 there are | 6 to 12 | over 12 | COMPUTED rule. If the town wants more hours than exist, a system is oversized (gaps 5, 19, 20) |
@@ -535,13 +546,13 @@ Goals it solves, each to every checkpoint: the fastest Level. LOW to MID. Full B
 
 | # | Band | Target | Red | Label, reason |
 |---|---|---|---|---|
-| B1 | Days to full BiS in a band, through Krell, lone MID pace | 0.7 to 1.0 of the band's own length | under 0.4, over 1.5 | PROPOSED, call 14. You finish a band's best kit about when you leave it. Under 0.4 there is nothing left to chase |
-| B2 | Days to full BiS in a region, past Krell | 1.0 to 2.0 of the region's length, and the kit carries forward | under 0.7, over 3.0 | PROPOSED, call 14. RULED 11-20: rare after Krell |
+| B1 | Days to full BiS in a band, through Krell, lone MID pace | 0.7 to 1.0 of the band's own length | under 0.4, over 1.5 | RULED 11-21 (call 14). You finish a band's best kit about when you leave it. Pieces behind a weekly limit are left out of "full" under Level 88 (call 6) |
+| B2 | Days to full BiS in a region, past Krell | 1.0 to 2.0 of the region's length, and the kit carries forward | under 0.7, over 3.0 | RULED 11-21 (call 14) |
 | B3 | The path the screen recommends against the solver's best, to every checkpoint | within 15% | over 30% | PROPOSED. Clarity first: nobody should need a guide to be near the best path |
 | B4 | Every open ground | is on a best path for some goal, some party size, some stretch of Levels | on none | RULED: DESIGN_STANDARDS 5, "No ground is best on every axis" needs every ground best on one |
 | B5 | No ground | is on the fastest-Level path for more than its own band plus 10 Levels | over 20 | PROPOSED. A ground people never leave means the next one is under-paid |
 | B6 | Free against Premium, same goal | the same hunted hours. Premium may only win on visits | any difference in hours | RULED: Premium sells comfort |
-| B7 | Bought gold against earned gold, to full BiS | at most twice as fast | over 3 times | PROPOSED, call 11 |
+| B7 | Things only bought gold can reach | none: every piece, rung and tier on a bought-gold path is also on an earned-gold path | any | RULED 11-21 (call 11): no limit on how much sooner, only on what |
 | B8 | Luck on the path | the 90th percentile route to full BiS is at most 2 times the median | over 3 | PROPOSED, beside X23 |
 | B9 | Party paths | the best path for two, three and four is never slower a head than the lone path from Level 10 | slower | RULED 11-16: a party stands at or over its heroes alone |
 
@@ -549,7 +560,7 @@ Goals it solves, each to every checkpoint: the fastest Level. LOW to MID. Full B
 
 Every system, source, ground, weapon way, recipe, spell and item gets one verdict from the solver and the grid. New things and old things are judged the same way. Things that are ruled but not built are judged on their PROJECTED numbers before anyone builds them.
 
-| Verdict | It means | The thresholds (PROPOSED, call 16) | What happens |
+| Verdict | It means | The thresholds (RULED 11-21, call 16) | What happens |
 |---|---|---|---|
 | **DOMINANT** | The solver keeps picking it by a wide margin, or it makes another system pointless | Any one of: (a) it is the best route for over half of all gear slots at a checkpoint. (b) It is over 1.5 times faster than the next route to the same goal. (c) It is on over 60% of best paths across party sizes at three checkpoints in a row. (d) It gives another system's reward for under half of what that system asks | **NERF.** Or buff the others, when the others are under their own bands and this one is inside its band |
 | **NEGLECTED** | No best path uses it, and none comes close | It is on no best path and on no path within 25% of the best, at any checkpoint, gear state or party size. And it is not marked as a sink, a cosmetic, a social system or a teaching step | **BUFF** until it is within 15% of the best on at least one goal. Or **CUT** |
@@ -609,3 +620,28 @@ A solver is only as good as its moves. The first check on it is a blind play: a 
 
 17. **May the audit put anything on the cut list?** You said anything new or existing. Recommended: yes. Every system, item and ruled plan gets a verdict, and you see one list of proposed cuts and redos before any are built. Klappa's Klub and lucky finds stay off it, as you ruled. Alternative: things added in the last month get one more round before they can be cut.
 
+---
+
+## 11. Tyler's rulings on the 17 calls (2026-11-21)
+
+| Call | Ruled | What changed above |
+|---|---|---|
+| 1 | Recommended: the Level table is the clock of a MID four on the hardest tier it holds | P1's seat. The curve past about Level 50 is re-fit by the plan, not here |
+| 2 | Recommended: Level 400 at 4,580 hunted hours, day 382 | P1 |
+| 3 | Recommended: BiS is about 15% faster and takes about 15% less damage than MID | P4, S5 |
+| 4 | **Alternative: 6% flat, no cap** | S8 and S9 are a printed table, not bands |
+| 5 | **Alternative: a flat death count at every Level** | S6 is deaths in 1,000 hours by tier and gear state. "Holds a tier" (2.3) reads it |
+| 6 | **Alternative: keep the weekly limits** | E5 judges only sources with no weekly limit. X22 is a report. B1 leaves weekly pieces out under Level 88 |
+| 7 | Recommended: 120 days of grounds at Early Access, 30 days ahead | R1, R2 |
+| 8 | Recommended: two heroes 1.2 to 1.5, three 1.5 to 2.0 | P7 |
+| 9 | Recommended: Luck keeps its hours | D3 |
+| 10 | Re-ruled the same day: at most **$0.15** an account-month at 1,000 accounts (about $150 a month) and no higher at 10,000 | C4. C2 is now 60 database-seconds an account-day at 1,000 and 24 at 10,000. C1 follows |
+| 11 | **Alternative: no limit on how much sooner, only on what** | B7 is a what-only rule. X4 |
+| 12 | Recommended: two visits a day is the free game | 1.1 |
+| 13 | Recommended: heroes work all 12 rested hours | 1.1, section 10.2 |
+| 14 | Recommended: full BiS in about a band to Krell, one to two regions after | B1, B2 |
+| 15 | Recommended: crafting is a quarter to a half of the MID to BiS gap | T4, T5 |
+| 16 | Recommended: the DOMINANT and NEGLECTED thresholds | 10.4 |
+| 17 | Recommended: anything may go on the cut list, one list to Tyler first | 10.4 |
+
+**One thing calls 4 and 5 do together, for the grid to measure** (COMPUTED, not played). A MID hero on Deadly at 50 to 100 deaths in 1,000 hours dies about every 13 hunted hours. Deadly is worth about 0.3 to 0.6 of an hour of Normal's XP for each hour hunted (P9). A death costs 5 hours fully blessed at Level 100, 14 at Level 200 and 37 at Level 400. So from about Level 105 a fully blessed MID party loses more XP to deaths on Deadly than Deadly adds, and without Blessings that starts near Level 55. That may be exactly the game Tyler wants: Deadly past Level 100 is for BiS parties, and MID steps down to Dangerous. The grid prints XP an hour after deaths for every tier and gear state at every checkpoint, so the plan can say where each kit should stand. No band judges it.

@@ -17,7 +17,7 @@
   "the change was intended. Never edit a hash by hand to make a build green —",
   "a red hash is the check working."
  ],
- "generated": "2026-11-20",
+ "generated": "2026-11-21",
  "project": "nezapsylztqbbwuwembx",
  "postgres": {
   "production": "17.x",
@@ -25,10 +25,10 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-11-20",
- "replay_ms": 3448,
+ "replay_ms": 31499,
  "counts": {
-  "tracked_names": 974,
-  "entries": 825
+  "tracked_names": 990,
+  "entries": 841
  },
  "functions": [
   {
@@ -1354,6 +1354,7 @@
     "restate"
    ],
    "touched_by": [
+    "1026-job-counts.sql",
     "2027-04-24-bench-resume.sql"
    ],
    "live": {
@@ -1363,11 +1364,12 @@
     "source": "measured-live"
    },
    "replay": {
-    "md5": "2a2cd606265e492691103c5a6f7b9b92",
-    "norm_len": 926,
+    "md5": "f8242022d3cb677f3ba5c48f51cb2d76",
+    "norm_len": 1063,
     "source": "computed-from-replay"
    },
-   "agree": true
+   "agree": false,
+   "why": "REVIEW 2026-11-21: live and replay disagree and nobody has said why. Strip comments from both bodies and diff them; write what actually differs here. The guard is RED until this sentence is real."
   },
   {
    "sig": "hr_admitted(p_user uuid)",
@@ -1403,6 +1405,7 @@
     "restate"
    ],
    "touched_by": [
+    "1026-job-counts.sql",
     "2026-08-11-apply-engine.sql",
     "2026-08-15-gem-daily-budget.sql",
     "2026-08-15-intent-key-hygiene.sql",
@@ -1461,11 +1464,12 @@
     "source": "measured-live"
    },
    "replay": {
-    "md5": "e6603d6219e093ca11bd7ccc77e0ceac",
-    "norm_len": 137468,
+    "md5": "b8c3e5c2c125ffa42de3d6311f14d4aa",
+    "norm_len": 139906,
     "source": "computed-from-replay"
    },
-   "agree": true
+   "agree": false,
+   "why": "REVIEW 2026-11-21: live and replay disagree and nobody has said why. Strip comments from both bodies and diff them; write what actually differs here. The guard is RED until this sentence is real."
   },
   {
    "sig": "hr_assert_grant_hygiene(p_strict boolean)",
@@ -1818,9 +1822,11 @@
    "sig": "hr_bench_run_view(p_user uuid, p_slot integer)",
    "name": "hr_bench_run_view",
    "tracked_by": [
+    "chain",
     "restate"
    ],
    "touched_by": [
+    "1026-job-counts.sql",
     "2026-12-01-bench-count.sql",
     "2027-02-10-settle-plan-cache.generated.sql"
    ],
@@ -1831,11 +1837,12 @@
     "source": "measured-live"
    },
    "replay": {
-    "md5": "f55ed40275aff0177c9d231c9ec36d07",
-    "norm_len": 658,
+    "md5": "062a376f13dae9898ae8a6586c5a8021",
+    "norm_len": 1017,
     "source": "computed-from-replay"
    },
-   "agree": true
+   "agree": false,
+   "why": "REVIEW 2026-11-21: live and replay disagree and nobody has said why. Strip comments from both bodies and diff them; write what actually differs here. The guard is RED until this sentence is real."
   },
   {
    "sig": "hr_bench_tax_due_mg(p_user uuid, p_slot integer, p_recipe text)",
@@ -3041,6 +3048,78 @@
     "source": "computed-from-replay"
    },
    "agree": true
+  },
+  {
+   "sig": "hr_carry_on(p_slots integer[], p_gold bigint, p_idem uuid)",
+   "name": "hr_carry_on",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "1024-carry-on.sql"
+   ],
+   "live": null,
+   "replay": {
+    "md5": "0bf767b548c5b7ae999be9af12e216a8",
+    "norm_len": 6878,
+    "source": "computed-from-replay"
+   },
+   "agree": false,
+   "why": "REVIEW 2026-11-21: live and replay disagree and nobody has said why. Strip comments from both bodies and diff them; write what actually differs here. The guard is RED until this sentence is real."
+  },
+  {
+   "sig": "hr_carry_on_plan(p_slots integer[])",
+   "name": "hr_carry_on_plan",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "1024-carry-on.sql"
+   ],
+   "live": null,
+   "replay": {
+    "md5": "7e391be3a0b7e635badfdc4153eadbc2",
+    "norm_len": 694,
+    "source": "computed-from-replay"
+   },
+   "agree": false,
+   "why": "REVIEW 2026-11-21: live and replay disagree and nobody has said why. Strip comments from both bodies and diff them; write what actually differs here. The guard is RED until this sentence is real."
+  },
+  {
+   "sig": "hr_carry_on_plan_of(p_uid uuid, p_slots integer[])",
+   "name": "hr_carry_on_plan_of",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "1024-carry-on.sql"
+   ],
+   "live": null,
+   "replay": {
+    "md5": "360fda1a84d34e38d5ff6dae34fa1f91",
+    "norm_len": 8300,
+    "source": "computed-from-replay"
+   },
+   "agree": false,
+   "why": "REVIEW 2026-11-21: live and replay disagree and nobody has said why. Strip comments from both bodies and diff them; write what actually differs here. The guard is RED until this sentence is real."
+  },
+  {
+   "sig": "hr_carry_on_scope_ok(p_slots integer[])",
+   "name": "hr_carry_on_scope_ok",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "1024-carry-on.sql"
+   ],
+   "live": null,
+   "replay": {
+    "md5": "35e6abdd5c6cf3c0c1bab0a1981d92ad",
+    "norm_len": 405,
+    "source": "computed-from-replay"
+   },
+   "agree": false,
+   "why": "REVIEW 2026-11-21: live and replay disagree and nobody has said why. Strip comments from both bodies and diff them; write what actually differs here. The guard is RED until this sentence is real."
   },
   {
    "sig": "hr_catacomb_section(p_user uuid, p_slot integer)",
@@ -5412,6 +5491,7 @@
    "sig": "hr_farm_growth_hours(p_planted timestamp with time zone, p_waterings timestamp with time zone[], p_now timestamp with time zone)",
    "name": "hr_farm_growth_hours",
    "tracked_by": [
+    "pin",
     "restate"
    ],
    "touched_by": [
@@ -5664,6 +5744,63 @@
     "source": "computed-from-replay"
    },
    "agree": true
+  },
+  {
+   "sig": "hr_farm_tend(p_slot integer, p_crop text, p_gold bigint, p_idem uuid)",
+   "name": "hr_farm_tend",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "1017-tend-the-field.sql"
+   ],
+   "live": null,
+   "replay": {
+    "md5": "564c16a9b669564442088cecb17fd0cc",
+    "norm_len": 9463,
+    "source": "computed-from-replay"
+   },
+   "agree": false,
+   "why": "REVIEW 2026-11-21: live and replay disagree and nobody has said why. Strip comments from both bodies and diff them; write what actually differs here. The guard is RED until this sentence is real."
+  },
+  {
+   "sig": "hr_farm_tend_plan(p_user uuid, p_slot integer, p_crop text, p_purse bigint)",
+   "name": "hr_farm_tend_plan",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "1017-tend-the-field.sql"
+   ],
+   "live": null,
+   "replay": {
+    "md5": "ea25137dc4b8aca7d80a96ca23e78f6c",
+    "norm_len": 7330,
+    "source": "computed-from-replay"
+   },
+   "agree": false,
+   "why": "REVIEW 2026-11-21: live and replay disagree and nobody has said why. Strip comments from both bodies and diff them; write what actually differs here. The guard is RED until this sentence is real."
+  },
+  {
+   "sig": "hr_farm_tend_view(p_user uuid, p_slot integer)",
+   "name": "hr_farm_tend_view",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "1017-tend-the-field.sql"
+   ],
+   "live": null,
+   "replay": {
+    "md5": "cc6b2b238fc8811e74126908b3e3bb2d",
+    "norm_len": 2405,
+    "source": "computed-from-replay"
+   },
+   "agree": false,
+   "why": "REVIEW 2026-11-21: live and replay disagree and nobody has said why. Strip comments from both bodies and diff them; write what actually differs here. The guard is RED until this sentence is real."
   },
   {
    "sig": "hr_farm_upgrade_plot(p_slot integer, p_idem uuid, p_expect_level integer)",
@@ -8263,6 +8400,7 @@
    ],
    "touched_by": [
     "1005-lever-horizon.sql",
+    "1025-own-heroes-apart.sql",
     "2026-10-23-hunt-world-state.sql",
     "2026-11-01-party-leader-density.sql",
     "2026-11-16-hunt-density-bounds.sql",
@@ -8285,11 +8423,12 @@
     "source": "measured-live"
    },
    "replay": {
-    "md5": "44a6291aac95a22009ee2f62629134fc",
-    "norm_len": 7315,
+    "md5": "93f77e6a069eaa8cbe7688355a76d310",
+    "norm_len": 7265,
     "source": "computed-from-replay"
    },
-   "agree": true
+   "agree": false,
+   "why": "REVIEW 2026-11-21: live and replay disagree and nobody has said why. Strip comments from both bodies and diff them; write what actually differs here. The guard is RED until this sentence is real."
   },
   {
    "sig": "hr_hunt_instance_solo()",
@@ -9068,6 +9207,7 @@
     "restate"
    ],
    "touched_by": [
+    "1025-own-heroes-apart.sql",
     "2026-10-23-hunt-party.sql",
     "2026-10-25-settle-hooks.sql",
     "2026-10-27-core-bodies.sql",
@@ -9090,11 +9230,12 @@
     "source": "measured-live"
    },
    "replay": {
-    "md5": "35792d7e813316ff125305e690db4d1a",
-    "norm_len": 9950,
+    "md5": "1508241b4ca891ee0923586d13da79d3",
+    "norm_len": 9899,
     "source": "computed-from-replay"
    },
-   "agree": true
+   "agree": false,
+   "why": "REVIEW 2026-11-21: live and replay disagree and nobody has said why. Strip comments from both bodies and diff them; write what actually differs here. The guard is RED until this sentence is real."
   },
   {
    "sig": "hr_hunt_party_warn(p_slot integer, p_hunt text, p_idem uuid)",
@@ -9835,6 +9976,7 @@
    ],
    "touched_by": [
     "1005-lever-horizon.sql",
+    "1025-own-heroes-apart.sql",
     "2026-10-21-hunt-sessions.sql",
     "2026-10-22-hunt-sessions-settle.sql",
     "2026-10-23-hunt-supply-ledger.sql",
@@ -9860,11 +10002,12 @@
     "source": "measured-live"
    },
    "replay": {
-    "md5": "9299dfed9bf9cffd5298af0d7a793ce4",
-    "norm_len": 23961,
+    "md5": "c867e1b25a3f3fadb319cd90dd58a95d",
+    "norm_len": 23845,
     "source": "computed-from-replay"
    },
-   "agree": true
+   "agree": false,
+   "why": "REVIEW 2026-11-21: live and replay disagree and nobody has said why. Strip comments from both bodies and diff them; write what actually differs here. The guard is RED until this sentence is real."
   },
   {
    "sig": "hr_hunt_setup_hold()",
@@ -10630,6 +10773,42 @@
    "agree": true
   },
   {
+   "sig": "hr_job_next_start(p_user uuid, p_slot integer)",
+   "name": "hr_job_next_start",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "1026-job-counts.sql"
+   ],
+   "live": null,
+   "replay": {
+    "md5": "128bde0ae9c3560d63b841433c0578e4",
+    "norm_len": 3097,
+    "source": "computed-from-replay"
+   },
+   "agree": false,
+   "why": "REVIEW 2026-11-21: live and replay disagree and nobody has said why. Strip comments from both bodies and diff them; write what actually differs here. The guard is RED until this sentence is real."
+  },
+  {
+   "sig": "hr_job_next_sweep(p_limit integer)",
+   "name": "hr_job_next_sweep",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "1026-job-counts.sql"
+   ],
+   "live": null,
+   "replay": {
+    "md5": "7ffdaa0ac2aaa1e9704eccd25794137d",
+    "norm_len": 772,
+    "source": "computed-from-replay"
+   },
+   "agree": false,
+   "why": "REVIEW 2026-11-21: live and replay disagree and nobody has said why. Strip comments from both bodies and diff them; write what actually differs here. The guard is RED until this sentence is real."
+  },
+  {
    "sig": "hr_jsonb_add(p_a jsonb, p_b jsonb)",
    "name": "hr_jsonb_add",
    "tracked_by": [
@@ -11186,6 +11365,7 @@
    "sig": "hr_level_from_xp(p_xp bigint)",
    "name": "hr_level_from_xp",
    "tracked_by": [
+    "pin",
     "restate"
    ],
    "touched_by": [
@@ -12997,6 +13177,25 @@
    "agree": true
   },
   {
+   "sig": "hr_party_leave_together_of(p_user uuid, p_slot integer, p_party uuid)",
+   "name": "hr_party_leave_together_of",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "1025-own-heroes-apart.sql"
+   ],
+   "live": null,
+   "replay": {
+    "md5": "dde1100d95b913b68ba74a9a2def3708",
+    "norm_len": 661,
+    "source": "computed-from-replay"
+   },
+   "agree": false,
+   "why": "REVIEW 2026-11-21: live and replay disagree and nobody has said why. Strip comments from both bodies and diff them; write what actually differs here. The guard is RED until this sentence is real."
+  },
+  {
    "sig": "hr_party_leave_together_set(p_slot integer, p_on boolean, p_idem uuid)",
    "name": "hr_party_leave_together_set",
    "tracked_by": [
@@ -14675,6 +14874,7 @@
     "restate"
    ],
    "touched_by": [
+    "1026-job-counts.sql",
     "2027-04-24-bench-resume.sql"
    ],
    "live": {
@@ -14684,11 +14884,12 @@
     "source": "measured-live"
    },
    "replay": {
-    "md5": "e27fe1d354dc1f46f30b61e086f04d85",
-    "norm_len": 910,
+    "md5": "d855b65a94afcfb38096200c722234f9",
+    "norm_len": 1260,
     "source": "computed-from-replay"
    },
-   "agree": true
+   "agree": false,
+   "why": "REVIEW 2026-11-21: live and replay disagree and nobody has said why. Strip comments from both bodies and diff them; write what actually differs here. The guard is RED until this sentence is real."
   },
   {
    "sig": "hr_return_anchor_presence()",
@@ -17619,10 +17820,12 @@
    "sig": "hr_town_extras(p_map text)",
    "name": "hr_town_extras",
    "tracked_by": [
+    "chain",
     "pin",
     "restate"
    ],
    "touched_by": [
+    "1014-works-goal-sized.sql",
     "2027-02-27-gold-sinks-seams.sql",
     "2027-03-04-town-works.sql"
    ],
@@ -17633,11 +17836,12 @@
     "source": "measured-live"
    },
    "replay": {
-    "md5": "e905ad4c9f34410214d0077aff52ea7c",
-    "norm_len": 467,
+    "md5": "0d5db7b76cff5d464f4c77d0044b2269",
+    "norm_len": 600,
     "source": "computed-from-replay"
    },
-   "agree": true
+   "agree": false,
+   "why": "REVIEW 2026-11-21: live and replay disagree and nobody has said why. Strip comments from both bodies and diff them; write what actually differs here. The guard is RED until this sentence is real."
   },
   {
    "sig": "hr_town_go(p_slot integer, p_station text)",
@@ -17965,6 +18169,7 @@
    "sig": "hr_town_notice(p_from text, p_body text)",
    "name": "hr_town_notice",
    "tracked_by": [
+    "pin",
     "restate"
    ],
    "touched_by": [
@@ -18437,6 +18642,7 @@
    "sig": "hr_town_works_fault(p_min bigint, p_per_day bigint, p_left bigint, p_given bigint, p_amount bigint)",
    "name": "hr_town_works_fault",
    "tracked_by": [
+    "pin",
     "restate"
    ],
    "touched_by": [
@@ -18459,9 +18665,11 @@
    "sig": "hr_town_works_give(p_slot integer, p_project text, p_amount bigint, p_idem uuid)",
    "name": "hr_town_works_give",
    "tracked_by": [
+    "pin",
     "restate"
    ],
    "touched_by": [
+    "1014-works-goal-sized.sql",
     "2027-03-04-town-works.sql"
    ],
    "live": {
@@ -18471,11 +18679,12 @@
     "source": "measured-live"
    },
    "replay": {
-    "md5": "7a2945e24dc54d6dcd232746291e97c5",
-    "norm_len": 5890,
+    "md5": "2ec3bb5cc9dae5af5c9e0c1dae5eb26c",
+    "norm_len": 6253,
     "source": "computed-from-replay"
    },
-   "agree": true
+   "agree": false,
+   "why": "REVIEW 2026-11-21: live and replay disagree and nobody has said why. Strip comments from both bodies and diff them; write what actually differs here. The guard is RED until this sentence is real."
   },
   {
    "sig": "hr_town_works_given_today(p_user uuid)",
@@ -18498,6 +18707,25 @@
     "source": "computed-from-replay"
    },
    "agree": true
+  },
+  {
+   "sig": "hr_town_works_goal(p_project text)",
+   "name": "hr_town_works_goal",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "1014-works-goal-sized.sql"
+   ],
+   "live": null,
+   "replay": {
+    "md5": "0659a7f30173044f0d6248f99910798a",
+    "norm_len": 706,
+    "source": "computed-from-replay"
+   },
+   "agree": false,
+   "why": "REVIEW 2026-11-21: live and replay disagree and nobody has said why. Strip comments from both bodies and diff them; write what actually differs here. The guard is RED until this sentence is real."
   },
   {
    "sig": "hr_town_works_lead(p_user uuid, p_by bigint[])",
@@ -18544,9 +18772,48 @@
    "agree": true
   },
   {
+   "sig": "hr_town_works_size()",
+   "name": "hr_town_works_size",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "1014-works-goal-sized.sql"
+   ],
+   "live": null,
+   "replay": {
+    "md5": "42f0947d7457593520892efc61ecd342",
+    "norm_len": 855,
+    "source": "computed-from-replay"
+   },
+   "agree": false,
+   "why": "REVIEW 2026-11-21: live and replay disagree and nobody has said why. Strip comments from both bodies and diff them; write what actually differs here. The guard is RED until this sentence is real."
+  },
+  {
+   "sig": "hr_town_works_size_to(p_actives integer)",
+   "name": "hr_town_works_size_to",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "1014-works-goal-sized.sql"
+   ],
+   "live": null,
+   "replay": {
+    "md5": "d99424762ee8758f017875e9e78c5648",
+    "norm_len": 1396,
+    "source": "computed-from-replay"
+   },
+   "agree": false,
+   "why": "REVIEW 2026-11-21: live and replay disagree and nobody has said why. Strip comments from both bodies and diff them; write what actually differs here. The guard is RED until this sentence is real."
+  },
+  {
    "sig": "hr_town_works_stage(p_at bigint[], p_total bigint)",
    "name": "hr_town_works_stage",
    "tracked_by": [
+    "pin",
     "restate"
    ],
    "touched_by": [
@@ -18566,12 +18833,33 @@
    "agree": true
   },
   {
-   "sig": "hr_town_works_view(p_slot integer)",
-   "name": "hr_town_works_view",
+   "sig": "hr_town_works_stages(p_at bigint[], p_goal bigint)",
+   "name": "hr_town_works_stages",
    "tracked_by": [
+    "pin",
     "restate"
    ],
    "touched_by": [
+    "1014-works-goal-sized.sql"
+   ],
+   "live": null,
+   "replay": {
+    "md5": "f0037e423e4c7bc4d51cad48e104682d",
+    "norm_len": 537,
+    "source": "computed-from-replay"
+   },
+   "agree": false,
+   "why": "REVIEW 2026-11-21: live and replay disagree and nobody has said why. Strip comments from both bodies and diff them; write what actually differs here. The guard is RED until this sentence is real."
+  },
+  {
+   "sig": "hr_town_works_view(p_slot integer)",
+   "name": "hr_town_works_view",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "1014-works-goal-sized.sql",
     "2027-03-04-town-works.sql"
    ],
    "live": {
@@ -18581,11 +18869,12 @@
     "source": "measured-live"
    },
    "replay": {
-    "md5": "dd647a1e46d8b3f7cfd1b636ca5465e0",
-    "norm_len": 3152,
+    "md5": "37f7106d86287f8f8c8a1777d967b0b3",
+    "norm_len": 3519,
     "source": "computed-from-replay"
    },
-   "agree": true
+   "agree": false,
+   "why": "REVIEW 2026-11-21: live and replay disagree and nobody has said why. Strip comments from both bodies and diff them; write what actually differs here. The guard is RED until this sentence is real."
   },
   {
    "sig": "hr_town_zone()",
@@ -19307,6 +19596,25 @@
    "agree": true
   },
   {
+   "sig": "hr_weekly_actives_count(p_users uuid[])",
+   "name": "hr_weekly_actives_count",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "1014-works-goal-sized.sql"
+   ],
+   "live": null,
+   "replay": {
+    "md5": "0947b460501b06317c587ea711cbd81e",
+    "norm_len": 628,
+    "source": "computed-from-replay"
+   },
+   "agree": false,
+   "why": "REVIEW 2026-11-21: live and replay disagree and nobody has said why. Strip comments from both bodies and diff them; write what actually differs here. The guard is RED until this sentence is real."
+  },
+  {
    "sig": "hr_whisper_broadcast()",
    "name": "hr_whisper_broadcast",
    "tracked_by": [
@@ -19447,6 +19755,24 @@
     "source": "computed-from-replay"
    },
    "agree": true
+  },
+  {
+   "sig": "hr_work_job_note()",
+   "name": "hr_work_job_note",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "1026-job-counts.sql"
+   ],
+   "live": null,
+   "replay": {
+    "md5": "312ccb535396adfd29bf15e9a8386027",
+    "norm_len": 1635,
+    "source": "computed-from-replay"
+   },
+   "agree": false,
+   "why": "REVIEW 2026-11-21: live and replay disagree and nobody has said why. Strip comments from both bodies and diff them; write what actually differs here. The guard is RED until this sentence is real."
   },
   {
    "sig": "hr_world_finds_of(p_limit integer)",

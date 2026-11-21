@@ -11,10 +11,12 @@
 // carried as a known under-pay (tick-gather.js sessionFromRoster's note).
 // tick.js (1b) now makes the same read, with the same 42883-only degrade.
 //
-// THE ARM. An Inner Flame-61 character fuelling the Great Hearth (fuel_bones,
-// the artisan channel the tick drives) with the Shrine at rung 4 (flameSpeed
-// +8%: room:shrine, a rung hr_unlock_buy SELLS, stored as the server-owned
-// `player_progress` unlock row hr_perks_of reads). It was a Woodcutting night
+// THE ARM. A Smithing-61 character smelting copper (smelt_copper, the artisan
+// channel the tick drives) with the Forge at rung 4 (smithSpeed +8%:
+// room:forge, a rung hr_unlock_buy SELLS, stored as the server-owned
+// `player_progress` unlock row hr_perks_of reads). It was the Shrine's
+// flameSpeed over fuel_bones until 1011-approved-rows-unlock-offers held the
+// Shrine (its room not built yet), so nothing could buy it. It was a Woodcutting night
 // with the Library's allXP, then two Tool Sheds' gatherSpeed: a home stopped
 // granting XP (Master Design Reference §9, 2026-10-14) and the plot buildings
 // were cut as unreachable (lane/c-dead-plot-deed, 2026-11-07), so no perk a
@@ -41,8 +43,8 @@ import { ITEMS } from '../src/data/items.js';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const MUTATE = process.argv.includes('--mutate');
 const U = '00000000-0000-4000-8000-00000000f930';
-const RECIPE = 'fuel_bones';
-const SKILL = 'inner_flame';
+const RECIPE = 'smelt_copper';
+const SKILL = 'smithing';
 const WINDOW_MS = 90000;
 
 /* ── THE MUTATION ── the tick stops handing the engine its perks, in a COPY of
@@ -98,21 +100,21 @@ await db.exec(`insert into public.player_state (user_id, slot, hp, version,
                  'artisan', '${RECIPE}', now() - interval '2 hours')`);
 await db.exec(`insert into public.player_skills (user_id, slot, skill_id, xp)
                values ('${U}', 0, '${SKILL}', 302288)`);
-/* Bones for the whole window and more: a run that ran dry would end the window early and measure the stop. */
-await db.exec(`insert into public.player_inventory (user_id, slot, item_id, qty) values ('${U}', 0, 'bones', 1000)`);
-/* The Shrine at rung 4 (flameSpeed +8%, a KEPT and SOLD perk; rung 5 is held until its materials have a source). */
+/* Copper ore for the whole window and more: a run that ran dry would end the window early and measure the stop. */
+await db.exec(`insert into public.player_inventory (user_id, slot, item_id, qty) values ('${U}', 0, 'copper_ore', 1000)`);
+/* The Forge at rung 4 (smithSpeed +8%, a KEPT and SOLD perk: the Shrine this arm stood on is held since 1011-approved-rows-unlock-offers, its room not built yet). */
 await db.exec(`insert into public.player_progress (user_id, slot, kind, key, period_key, value)
-               values ('${U}', 0, 'unlock', 'room:shrine', '', 4)`);
+               values ('${U}', 0, 'unlock', 'room:forge', '', 4)`);
 await db.exec(`insert into public.hr_tick_ownership (user_id, slot, channel, owned, lease_holder, lease_until)
                values ('${U}', 0, 'artisan', true, '${holder}', now() + interval '1 hour')`);
 
 // P0 — the fixture carries a perk the server itself reports, and a player can buy it.
 const perkEnv = (await one('select public.hr_perks_of($1::uuid, 0) as p', [U])).p;
 const sold = (await one(`select count(*)::int as n from public.hr_unlock_offers
-                          where unlock_id = 'room:shrine' and value = 4 and refusal is null`)).n;
-judge('P0', perkEnv && perkEnv.ok === true && Number((perkEnv.rooms || {}).shrine) === 4 && sold === 1,
-  `hr_perks_of reports the Shrine at rung ${perkEnv && perkEnv.rooms && perkEnv.rooms.shrine} (flameSpeed), a rung hr_unlock_offers sells`,
-  `hr_perks_of did not report the planted Shrine, or no offer sells rung 4 (${sold}): ${JSON.stringify(perkEnv)} — fix the fixture, not the assertion`);
+                          where unlock_id = 'room:forge' and value = 4 and refusal is null`)).n;
+judge('P0', perkEnv && perkEnv.ok === true && Number((perkEnv.rooms || {}).forge) === 4 && sold === 1,
+  `hr_perks_of reports the Forge at rung ${perkEnv && perkEnv.rooms && perkEnv.rooms.forge} (smithSpeed), a rung hr_unlock_offers sells`,
+  `hr_perks_of did not report the planted Forge, or no offer sells rung 4 (${sold}): ${JSON.stringify(perkEnv)} — fix the fixture, not the assertion`);
 
 // The envelope and the label, read BEFORE the fire (shadow moves neither).
 const [row] = (await db.query(

@@ -914,11 +914,12 @@ async function run(mutate) {
       'U9: player_state did not survive the hostile bodies');
     /* AND THE REAL-BUT-UNSELLABLE ONES ARE NAMED. `theme.winter` was the probe
        until the house themes left (2026-10-14), then `worker.1` until the worker
-       hires were cut (2026-11-07); `character_slot.2` is a real offer that this
-       verb cannot sell (a hero slot is its own verb), so telling a player it does
+       hires were cut (2026-11-07), then `character_slot.2` until all four hero slots
+       were made free (2026-11-21); `room.shrine.1` is a real offer that this
+       verb cannot sell (a room held whole until it is rebuilt), so telling a player it does
        not exist would send them to the wrong bug report. */
     await clearGate();
-    const named = await doBuy({ intentId: uuid(), offer: 'character_slot.2' });
+    const named = await doBuy({ intentId: uuid(), offer: 'room.shrine.1' });
     ok(named.body.error === 'offer_unsupported' && named.body.reason,
       `U9: a real offer this build cannot sell answered ${JSON.stringify(named.body)} — it must `
       + 'be refused BY NAME with the reason attached');

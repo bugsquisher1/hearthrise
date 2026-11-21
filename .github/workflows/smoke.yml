@@ -1955,6 +1955,14 @@ jobs:
           node tests/top-bar.mjs
           node tools/mutant-gate.mjs node tests/top-bar.mjs --mutate
 
+      # THE FIRST OBJECTIVE IS NEVER UNDER CHAT (designer D-1 section 1.3, FB-5): at 1280x720 and 1920x1080 with Chat open at its home,
+      # the coach's card and the control it rings stand clear of Chat, the ring is a screen control, and so in the window it opens.
+      - name: First objective clear of Chat (play.html)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/first-objective.mjs
+          node tools/mutant-gate.mjs node tests/first-objective.mjs --mutate
+
       - name: Upload failure artifacts
         if: failure()
         uses: actions/upload-artifact@v4
@@ -3541,29 +3549,31 @@ jobs:
           node tests/hero-colors.mjs
           node tools/mutant-gate.mjs node tests/hero-colors.mjs --selftest
 
-      # FOUR HEROES AN ACCOUNT (Tyler 2026-11-07, lane/c-four-slots): slot 4 is never offered, sold or made;
-      # the characters screen offers the fourth at three heroes and nothing at four; an old slot-4 hero is kept.
+      # THE FIRST HOUR (FB-5, lane/c-first-hour, 2026-11-21): the kit once an account and once a slot, the weapon picked at creation,
+      # every live account and hero marked paid (L-02) and taught once (L-03); the Path names a next thing at every Level to 30.
+      - name: First hour - start kits, the pick, the account coach
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/start-kits.mjs
+          node tools/mutant-gate.mjs node tests/start-kits.mjs --mutate
+      - name: First hour - the Path
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/the-path.mjs
+          node tools/mutant-gate.mjs node tests/the-path.mjs --mutate
+      - name: First hour - the tutorial taught once for four heroes
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/tutorial-once.mjs
+          node tools/mutant-gate.mjs node tests/tutorial-once.mjs --mutate
+
+      # FOUR HEROES AN ACCOUNT (Tyler 2026-11-07, lane/c-four-slots): slot 4 is never offered, sold or made; an old slot-4 hero is kept.
+      # (All four free from the start since 2026-11-21: tests/hero-slot-buy.mjs.)
       - name: Hero slots - four heroes an account
         if: ${{ !cancelled() }}
         run: |
           node tests/four-hero-slots.mjs
           node tools/mutant-gate.mjs node tests/four-hero-slots.mjs --mutate
-
-      # ONE HERO SLOT TO START (Tyler 2026-11-09, lane/c-death-and-slots): 300,000 / 750,000 / 1,500,000 in order at
-      # exactly their prices; the characters screen says so; live heroes and held slots untouched by the apply.
-      - name: Hero slots - one to start, the second about a week away
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/hero-slots-one.mjs
-          node tools/mutant-gate.mjs node tests/hero-slots-one.mjs --mutate
-
-      # THE FIRST HERO SLOT STAYS WITHIN ONE LONE HERO'S BANK (Tyler 2026-11-20, call 24-9: slots cost more, 400,000 / 1,500,000 / 4,000,000):
-      # the second hero costs at most what a PLAYED lone hero (tools/balance-sim/life.mjs) has banked on reaching the Coppercap Warrens' floor; the ladder climbs. Balance gate G9.
-      - name: Hero slots - the first within a lone hero's bank
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/slot-price-guard.mjs
-          node tools/mutant-gate.mjs node tests/slot-price-guard.mjs --selftest
 
       # A MERGE MUST NOT DROP AN IMPORT (2026-11-11, the v0.2.122 chain: bigPullParts, patchParts, t, three times). Every
       # name a src/** module uses is declared or imported, every import resolves and the target exports it; zero findings.
@@ -7694,9 +7704,9 @@ jobs:
           node tools/mutant-gate.mjs node tests/tank-runes-server.mjs --mutate
 
       # PROOF ARMS (2026-11-13, lane/a-audit-guards): money and credit, plain runs in run-smoke.mjs (plot-tier-price-replay: spawned plain by plot-tier-parity's REPLAY arm). Measured locally: 136 s.
-      - name: Hero slot buy — mutation proof (23 defects in the purchase)
+      - name: Hero slots — mutation proof (four free slots, the purchase gone, a live account kept whole)
         if: ${{ !cancelled() }}
-        run: node tools/mutant-gate.mjs node tests/hero-slot-buy.mjs --selftest
+        run: node tools/mutant-gate.mjs node tests/hero-slot-buy.mjs --mutate
 
       # Measured locally: 92 s.
       - name: Plot tier price replay — mutation proof

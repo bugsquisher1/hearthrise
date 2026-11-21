@@ -10,8 +10,7 @@
 //                         with the old rune ladder, 2026-10-23)
 //   equip              8  src/legacy.js (5 rows moved to the outfitter, 2026-10-22)
 //   property           5  src/features/homestead.js
-//   character_slot     3  src/multi-character.js (an account starts with slot 0 only and buys 1-3, Tyler 2026-11-09;
-//                         slot 4, the fifth hero, is no longer sold: four heroes an account, Tyler 2026-11-07)
+//   (no character_slot row: all four hero slots are every account's from the start, Tyler 2026-11-21; HERO_SLOTS below)
 //   companion          4  src/data/companions.js
 //   (the four `plot` buildings and the six `worker` hires were cut 2026-11-07, lane/c-dead-plot-deed: the engine
 //    refused every one and nothing read what they granted; tests/catalogue-coherence.mjs C14 keeps them out)
@@ -49,30 +48,15 @@ function supplyOffer(s) {
     grant: [{ kind: "item", id: s.item, amount: 1 }], repeatable: true };
 }
 
+/* THE HERO SLOTS (Tyler 2026-11-21, executive decision: "just allow all 4 characters from the start"): every account owns four
+   from its first second, and nothing is for sale. The server's catalogue is public.hr_hero_slots (1036-four-starter-slots.sql:
+   slots 1-3 starter rows at no cost, slot 0 never in it), bound to this row by tests/hero-slot-buy.mjs. The Path reads it as the
+   flag of the party's first beat (src/data/the-path.js). */
+export const HERO_SLOTS = Object.freeze({ count: 4, free: true });
+
 /** Every offer whose price is data. shop_buy sells only what a Shop tab lists (supply-basics.js SHOP_SOLD_KINDS; the rest
     is refused not_listed, catalogue.js offerRefusal): the legacy equip.* and seed.* rows are a vendor price list only. */
 export const SHOP_OFFERS = [
-  /* THE HERO-SLOT LADDER: one slot to start (Tyler 2026-11-09); "slots should cost even more" (Tyler 2026-11-20, call 24-9, 24-economy.md Q9).
-     The first stays within one lone hero's bank by the party grounds (tests/slot-price-guard.mjs); the later two climb freely. The server
-     charges public.hr_hero_slots (1015-hero-slots-dearer.sql), bound here by tests/hero-slot-buy.mjs. */
-  {
-    id: "character_slot.1", table: "character_slot",
-    name: "Character slot 2",
-    cost: [{ kind: "currency", id: "gold", amount: 400000 }],
-    grant: [{ kind: "unlock", id: "character_slot:1", amount: 1 }],
-  },
-  {
-    id: "character_slot.2", table: "character_slot",
-    name: "Character slot 3",
-    cost: [{ kind: "currency", id: "gold", amount: 1500000 }],
-    grant: [{ kind: "unlock", id: "character_slot:2", amount: 1 }],
-  },
-  {
-    id: "character_slot.3", table: "character_slot",
-    name: "Character slot 4",
-    cost: [{ kind: "currency", id: "gold", amount: 4000000 }],
-    grant: [{ kind: "unlock", id: "character_slot:3", amount: 1 }],
-  },
   {
     id: "companion.honeybee", table: "companion",
     name: "Honeybee",

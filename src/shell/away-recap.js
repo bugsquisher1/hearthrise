@@ -26,7 +26,7 @@
 //
 // THE RETURN (panel 2026-11-01, played): the line says what to do next: the stamina left, or how long ago a hunt ended and
 // the stamina rested since. And markBack records the hunt the player came back to (residue `coach.back`), so the coach's
-// "just now" cards stand aside and no card opens over it (hunt-tutorial.js fresh_hunt, launcher.js restsNow).
+// "just now" cards stand aside and no card opens over it (hunt-tutorial.js fresh_hunt, launcher-coach.js restsNow).
 //
 // THE CARD NEVER OUTLIVES ITS LAST WORDS (friends' panel 2026-11-01: "Still hunting" in town, hours after the hunt ended). What
 // happened while away is history and stays as it came up. What the hunt is doing now is read from each new envelope (awayLineNow,

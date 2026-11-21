@@ -58,7 +58,7 @@ import { DEFAULT_SORT, stationSortOf, withStationSort, orderStation, sortMenuHtm
 import { t } from '../../render/player-text.js';
 import { heroGroundOf } from '../widgets/first-target.js';
 import { GATHER_COUNTS, GATHER_COUNT_DEFAULT, JOB_NEXTS, JOB_NEXT_DEFAULT } from '../../data/hunt-after.js';
-import { heldStep } from '../launcher.js';
+import { heldStep } from '../launcher-coach.js';
 
 /* How many rows above the level a skill shows: the next things to aim at. */
 const AHEAD = 2;

@@ -318,6 +318,8 @@ const RETIRED_UNLOCKS = Object.freeze([
   'worker',
   /* The fifth hero slot is no longer sold: four heroes an account (Tyler 2026-11-07, 2027-03-22-four-slots.sql). */
   'character_slot:4',
+  /* ...and the other three: all four slots are every account's from the start, nothing sells them (Tyler 2026-11-21, 1036-four-starter-slots.sql). */
+  'character_slot:1', 'character_slot:2', 'character_slot:3',
   /* The three cookbook scrolls are cut with their recipes (designer 2026-11-18: patterns teach worn recipes, per hero). */
   'recipe:field_cookbook', 'recipe:marrow_cookbook', 'recipe:soul_recipe',
   /* The six house themes were priced in gems (hr_gem_unlocks); the gem rows and the gem RPC were cut 2026-11-20 (Tyler, economy

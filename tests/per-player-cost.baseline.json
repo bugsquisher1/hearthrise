@@ -14,23 +14,23 @@
   "row_writes_a_settle": 0.2,
   "settle_cpu_ms_a_hero_hour": 1
  },
- "calibration_ms": 187,
+ "calibration_ms": 203,
  "fixtures": {
   "lone_L10_meadowbrook_thicket": {
    "statements_a_settle": 4,
    "statements_a_hero_hour": 144,
    "round_trips_a_hero_hour": 576,
-   "ledger_rows_a_hero_hour": 48,
-   "row_writes_a_settle": 28,
-   "settle_cpu_ms_a_hero_hour": 4300
+   "ledger_rows_a_hero_hour": 57,
+   "row_writes_a_settle": 30,
+   "settle_cpu_ms_a_hero_hour": 5524
   },
   "party4_L20_millrace_sewer": {
    "statements_a_settle": 4,
    "statements_a_hero_hour": 36,
    "round_trips_a_hero_hour": 144,
-   "ledger_rows_a_hero_hour": 44.3,
-   "row_writes_a_settle": 103,
-   "settle_cpu_ms_a_hero_hour": 2417
+   "ledger_rows_a_hero_hour": 47.3,
+   "row_writes_a_settle": 98,
+   "settle_cpu_ms_a_hero_hour": 2314
   },
   "town_hour_bench": {
    "statements_a_settle": 8,
@@ -38,39 +38,39 @@
    "round_trips_a_hero_hour": 1285.7,
    "ledger_rows_a_hero_hour": 40.2,
    "row_writes_a_settle": 12,
-   "settle_cpu_ms_a_hero_hour": 2517
+   "settle_cpu_ms_a_hero_hour": 3196
   },
   "krell4_L80_deadly_watched": {
    "statements_a_settle": 9,
    "statements_a_hero_hour": 768.8,
    "round_trips_a_hero_hour": 2953.1,
-   "ledger_rows_a_hero_hour": 532,
-   "row_writes_a_settle": 89,
-   "settle_cpu_ms_a_hero_hour": 16427
+   "ledger_rows_a_hero_hour": 510.9,
+   "row_writes_a_settle": 92,
+   "settle_cpu_ms_a_hero_hour": 20749
   },
   "krell4_L80_deadly_closed": {
    "statements_a_settle": 4,
    "statements_a_hero_hour": 36,
    "round_trips_a_hero_hour": 144,
-   "ledger_rows_a_hero_hour": 89.3,
-   "row_writes_a_settle": 127,
-   "settle_cpu_ms_a_hero_hour": 1932
+   "ledger_rows_a_hero_hour": 81.8,
+   "row_writes_a_settle": 129,
+   "settle_cpu_ms_a_hero_hour": 2698
   },
   "tower4_L80_climb": {
    "statements_a_settle": 4,
-   "statements_a_hero_hour": 38.5,
-   "round_trips_a_hero_hour": 153.8,
-   "ledger_rows_a_hero_hour": 133.7,
-   "row_writes_a_settle": 101,
-   "settle_cpu_ms_a_hero_hour": 2534
+   "statements_a_hero_hour": 36.4,
+   "round_trips_a_hero_hour": 145.5,
+   "ledger_rows_a_hero_hour": 115.2,
+   "row_writes_a_settle": 102,
+   "settle_cpu_ms_a_hero_hour": 2868
   },
   "supply4_L50_hasks_ford_deadly": {
    "statements_a_settle": 4,
    "statements_a_hero_hour": 36,
    "round_trips_a_hero_hour": 144,
    "ledger_rows_a_hero_hour": 84.8,
-   "row_writes_a_settle": 119,
-   "settle_cpu_ms_a_hero_hour": 1739
+   "row_writes_a_settle": 118,
+   "settle_cpu_ms_a_hero_hour": 2608
   }
  },
  "history": [
@@ -249,6 +249,69 @@
      "ledger_rows_a_hero_hour": 84.8,
      "row_writes_a_settle": 119,
      "settle_cpu_ms_a_hero_hour": 1739
+    }
+   }
+  },
+  {
+   "at": "2026-11-21",
+   "why": "calibration re-cut (lane/c-engine-reds, next run 44863151394): the old unit's integer loop is halved by V8's optimizing tier mid-run, so one machine read 141 ms and 90 ms in one CI job and the baseline's own tree read red on it locally (3,733 > 3,244 at x0.84); the new unit is SQL + JSON, median of seven. No count rose; settle CPU measured interleaved on one PC: set 3,145-3,682 vs the baseline's tree 3,426-3,770 ms a hero-hour",
+   "calibration_ms": 203,
+   "fixtures": {
+    "lone_L10_meadowbrook_thicket": {
+     "statements_a_settle": 4,
+     "statements_a_hero_hour": 144,
+     "round_trips_a_hero_hour": 576,
+     "ledger_rows_a_hero_hour": 57,
+     "row_writes_a_settle": 30,
+     "settle_cpu_ms_a_hero_hour": 5524
+    },
+    "party4_L20_millrace_sewer": {
+     "statements_a_settle": 4,
+     "statements_a_hero_hour": 36,
+     "round_trips_a_hero_hour": 144,
+     "ledger_rows_a_hero_hour": 47.3,
+     "row_writes_a_settle": 98,
+     "settle_cpu_ms_a_hero_hour": 2314
+    },
+    "town_hour_bench": {
+     "statements_a_settle": 8,
+     "statements_a_hero_hour": 321.4,
+     "round_trips_a_hero_hour": 1285.7,
+     "ledger_rows_a_hero_hour": 40.2,
+     "row_writes_a_settle": 12,
+     "settle_cpu_ms_a_hero_hour": 3196
+    },
+    "krell4_L80_deadly_watched": {
+     "statements_a_settle": 9,
+     "statements_a_hero_hour": 768.8,
+     "round_trips_a_hero_hour": 2953.1,
+     "ledger_rows_a_hero_hour": 510.9,
+     "row_writes_a_settle": 92,
+     "settle_cpu_ms_a_hero_hour": 20749
+    },
+    "krell4_L80_deadly_closed": {
+     "statements_a_settle": 4,
+     "statements_a_hero_hour": 36,
+     "round_trips_a_hero_hour": 144,
+     "ledger_rows_a_hero_hour": 81.8,
+     "row_writes_a_settle": 129,
+     "settle_cpu_ms_a_hero_hour": 2698
+    },
+    "tower4_L80_climb": {
+     "statements_a_settle": 4,
+     "statements_a_hero_hour": 36.4,
+     "round_trips_a_hero_hour": 145.5,
+     "ledger_rows_a_hero_hour": 115.2,
+     "row_writes_a_settle": 102,
+     "settle_cpu_ms_a_hero_hour": 2868
+    },
+    "supply4_L50_hasks_ford_deadly": {
+     "statements_a_settle": 4,
+     "statements_a_hero_hour": 36,
+     "round_trips_a_hero_hour": 144,
+     "ledger_rows_a_hero_hour": 84.8,
+     "row_writes_a_settle": 118,
+     "settle_cpu_ms_a_hero_hour": 2608
     }
    }
   }

@@ -63,9 +63,8 @@
    LEVELS 1-9 RE-SPLIT 2026-11-19 (lane/d-142-rulings): with a kill paying 12% less the early steps read 2.01-2.40x the one before (C6), so each
    now takes about 1.95x the hours of the last (1.6-1.9x across the Cellar's end). Same total to Level 9: no live hero's Level moves. Were 159 /
    318 / 635 / 1,269 / 6,269 / 12,870 / 26,255 / 67,115. Forward file 1000-level-curve-early.
-   LEVELS 7-9 RE-CUT 2026-11-20 (lane/c-levels-7-9, Tyler's 27-2): a new player took 3.5 and 4.2 h for Levels 8 and 9 (Level 10 at
-   10.6 h), where both light players quit. Steps 7-9 were 25,072 / 68,087 / 83,477; Levels 10-20 take the XP back (the Glade's 16-20
-   most), so Level 21 on costs what it did. Forward file 1009-level-curve-new-player. */
+   LEVELS 7-9 RE-CUT 2026-11-20 (lane/c-levels-7-9, Tyler's 27-2): Levels 8 and 9 took a new player 3.5 and 4.2 h
+   (Level 10 at 10.6 h). Steps 7-9 were 25,072 / 68,087 / 83,477; Levels 10-20 take the XP back, so Level 21 on costs what it did. Forward file 1009-level-curve-new-player. */
 export const LEVEL_CURVE = Object.freeze({
   first: 210,
   brackets: Object.freeze([
@@ -107,7 +106,7 @@ export const LEVEL_CURVE = Object.freeze({
               measures them and the contract only covers what lies beyond.
    newPlayer  Tyler 2026-11-20 (27-2): `level` is held on the hero a new player is (life.mjs `party`
               on `policy`, no event) inside `hours`, each step L -> L+1 in a `steps` band in `h`
-              hours (`aim` the ruling's; tests/start-kit-pace.mjs); C2/C3 judge the careers on the rest. */
+              hours (tests/start-kit-pace.mjs); C2/C3 judge the careers on the rest. */
 export const LEVEL_PACE = Object.freeze({
   targets: Object.freeze([[10, 6], [25, 36], [50, 168], [100, 600], [200, 1680], [300, 3120], [500, 6720], [750, 13440], [1000, 23520]]
     .map((t) => Object.freeze(t))),

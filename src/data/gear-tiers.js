@@ -256,15 +256,26 @@ const ARMOUR_LINES = [
     fields: (def, i) => ({ magicAtkB: Math.round(def * 0.6), magicStrB: Math.round(def * 0.1) + 1, atkB: -Math.round(def * 0.25), rangeAtkB: -Math.round(def * 0.2) }) },
 ];
 
+/* ── THE ARMOR LINES: each weight and slot as one row of the gear curve (src/data/gear-curve.js), keyed as GEAR_LADDERS keys it
+   ('plate:helmet'). Its samples are the armor its plain piece carries at each tier's Level, so tiers 1 to 7 keep their built armor
+   and the curve writes armor from Level 110 only (the designer's D-3 ruling 5: a ladder tier is worth 9 to 18% less damage on purpose,
+   on the veto list as D3-1). The line past Dawnsteel scales the armor alone; a weight's off-style penalties are its identity. */
+export const ARMOUR_CURVE_LINES = Object.freeze(Object.fromEntries(ARMOUR_LINES.flatMap((line) => ARMOUR_SLOTS.map((slotDef) => {
+  const key = line.key + ':' + slotDef.slot;
+  return [key, Object.freeze({ key, levels: Object.freeze(MATERIAL_TIERS.map((m) => m.level)),
+    fields: Object.freeze({ defB: Object.freeze(slotDef.def.map((d) => Math.max(1, Math.round(d * line.defMul)))) }) })];
+}))));
+
 // ── Generate the gear items ──────────────────────────────────────────
 export const GEAR_ITEMS = (() => {
   const out = {};
 
-  // Armour — every archetype × every slot × every tier (the combat triangle).
+  // Armour — every archetype × every slot × every tier (the combat triangle), its armor the gear curve's sample at the tier's Level.
   ARMOUR_LINES.forEach((line) => {
     ARMOUR_SLOTS.forEach((slotDef) => {
+      const curve = ARMOUR_CURVE_LINES[line.key + ':' + slotDef.slot];
       MATERIAL_TIERS.forEach((mat, i) => {
-        const def = Math.max(1, Math.round(slotDef.def[i] * line.defMul));
+        const def = curveAt(curve, mat.level).defB;
         const item = {
           n: line.name(mat, slotDef, line, i),
           icon: line.icon,

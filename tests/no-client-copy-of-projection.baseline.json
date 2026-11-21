@@ -17,14 +17,12 @@
       "companions",
       "death_log",
       "depot",
-      "dungeon_cooldowns",
       "enchant",
       "entry_gates",
       "equipment",
       "factions",
       "farm_land",
       "features",
-      "gem_unlocks",
       "gm",
       "hallmark",
       "hero_slots",
@@ -90,12 +88,10 @@
       "combat_xp_accrued_to",
       "deaths_lifetime",
       "deaths_today",
-      "dungeon_scrip",
       "fight",
       "gems",
       "gold",
       "gold_v",
-      "hearth_tokens",
       "hearthfind_last",
       "hearthfind_plinth",
       "hearthfind_ready",
@@ -113,5 +109,5 @@
       "tool_carry"
     ]
   },
-  "generatedAt": "2026-11-18"
+  "generatedAt": "2026-11-21"
 }

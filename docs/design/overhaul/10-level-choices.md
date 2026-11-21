@@ -5,7 +5,7 @@ Part of "Hearthrise: the game we are building". Lane `lane/d-level-choices` (gam
 **How to read the labels.**
 
 - **RULED** (date): the owner decided it. About this system the owner ruled one thing, and section 0 states it. Other RULED tags cite older rulings by date.
-- **PROPOSED**: this chapter's design. It is the designer's call and it is not validated.
+- **PROPOSED**: this chapter's design. It is the designer's call and it is not validated. In the status words of the re-issued book it is PROVISIONAL, and what it waits on is in section 12.
 - **PROVISIONAL**: a number. Every number in this chapter is provisional until the balance matrix plays it, including the ones with arithmetic behind them.
 - Evidence: **MEASURED** (a run on the real engine or a count from a file), **COMPUTED** (arithmetic on named inputs), **JUDGMENT** (a design opinion), **UNKNOWN**.
 
@@ -74,7 +74,7 @@ Every existing thing this chapter names was searched in `src/data` or the tools 
 
 1. A Level past 45 gives nothing a player chooses. COMPUTED in study 60 from the spell data: nothing on any bar changes after hunted hour 254.
 2. Two heroes of one weapon at one Level are the same hero. The owner asked on 2026-11-18 that each character not be exactly the same.
-3. With no lineup test and party XP by size alone (RULED 2026-11-21, GR-3), the book has no answer to what makes preparing a party a decision. Section 6 says how far this system answers it. It is a partial answer.
+3. With no lineup test and party XP by size alone (GR-3, the owner's pick on the page of 2026-11-21), the book has no answer to what makes preparing a party a decision. Section 6 says how far this system answers it. It is a partial answer.
 
 **The decision it adds.** Where the next point goes, every five Levels, for the whole life of a hero. Spread for the stat or dig for the unlock. And once for each hero: what kind of holder, shooter, caster or healer this one is.
 
@@ -272,7 +272,7 @@ COMPUTED, suggested builds by Level (points in Force, Footing, Grit, Reserve):
 | Against | How Talents meet it |
 |---|---|
 | **The gear curve and the +17% band** (GR-4) | Separate. Gear is the weapon damage term of Power. Force is a modifier after Power. A full Force track is worth about one band step and can never be worth two, because the curve has a ceiling |
-| **Best gear over mid, about 15%** (RULED 2026-11-21) | Unchanged. Both gear states carry the same suggested build, so bands P4 and S5 read gear and nothing else |
+| **Best gear over mid, about 15%** (standard 50-3) | Unchanged. Both gear states carry the same suggested build, so bands P4 and S5 read gear and nothing else |
 | **Tempering** | The Blows track and Force are both permanent damage. If both sit on the 20% key, Force (up to 10%), a full Blows track (about 5%) and food share one cap, and the cap starts to bite late. That is a brake I want. I did not verify in code what else sums on that key. The formula lane confirms it |
 | **Jewelry perks** (GR-39) | Separate keys by the fence of 3.6. A matched perk set stays capped at 9%. Unlocks are sized like a narrow perk and are counted in band TL1 below, so the two together cannot make a second weapon |
 | **The buff caps** (MM-24 to MM-26) | Damage buffs are their own key, +15% at most, and multiply with Force. Protection buffs are Defense rating rows, the same key as Footing. So the floor the to-hit formula is owed (CORE-4) is now owed for two reasons. It must land before Footing is final |
@@ -542,23 +542,27 @@ No step needs an item, a monster or a screen that does not exist or is not named
 
 ## 13. For the integrator
 
-I edited no other chapter and no decision file. These are the changes they need.
+I edited no other chapter and no decision file. I checked this list against the book as re-issued on `set/v0.2.144` at 660f265a8, which I merged into this lane.
+
+**Already done by the re-issue. Nothing to change.** The index and the first build in `00-the-game.md` name level choices and this file. GR-61 reads SUPERSEDED in the decision files and in chapters 05 and 08. Still-missing item 11 of chapter 01 points here.
+
+**Still needed.**
 
 | Where | Change |
 |---|---|
-| `00-the-game.md` | Add chapter 10 to the index. Add the ruling of 2026-11-21 (Level choices in the first build, the hold of 2026-11-05 lifted) to the ruled list. Add Talents to the first build, beside the review's ten items |
-| `decisions/all.json` and its files | GR-61 becomes superseded by the ruling of 2026-11-21. GR-64 is amended as below. Add one row for Talents with the status PROVISIONAL and this chapter as its source. Do not mark any number in it decided |
-| `05-progression.md`, 2.1 | The row "no stat points a Level" (GR-64) is reworded: a hero earns a talent point every five Levels, stored as rows, and no blow reads a Level. No prestige, no rebirth and no fourteenth skill stand |
-| `05-progression.md`, 2.9 and section 3 | The three Kindling rows are superseded. Inner Flame keeps regen and its fuels. Its flat stretch past level 100 is OPEN again with no owner. GR-82's line "Inner Flame stays a skill and pays in Kindlings" loses its second half |
-| `05-progression.md`, 2.2 and 2.4 | The pace seat is "a mid-geared four on suggested builds". The four clocks of 2.4 gain a factor of at most 1.012 on the three faster seats |
+| `00-the-game.md`, section 1 | "which a design lane is writing" becomes a pointer to this chapter. The first build gains its scope from section 11 here: five tracks and the rank 3 unlocks. Unlock ranks 8 and up, tracks six to eight and the arena build go in the "what waits" table, until the sample is played |
+| `decisions/all.json` and its files | Add one row for Talents with the status PROVISIONAL, this chapter as its source and section 12 as what it waits on. No number in it is decided. GR-64 is amended as below |
+| `05-progression.md`, 2.1 and section 4 | The row "no stat points a Level" (GR-64) is reworded: a hero earns a talent point every five Levels, stored as rows, and no blow reads a Level. No prestige, no rebirth and no fourteenth skill stand |
+| `05-progression.md`, 2.8 and 2.9 | The pointer "which a design lane is writing" is updated. The Inner Flame row still calls the skill "the home of its build", which it no longer is. Inner Flame keeps regen and its fuels. Its flat stretch past level 100 is OPEN again with no owner. GR-82's line "Inner Flame stays a skill and pays in Kindlings" loses its second half |
+| `05-progression.md`, section 7 | The superseded row "Marks every five Levels into six tracks" now states the opposite of the ruling. It is removed or turned around |
+| `05-progression.md`, 2.2 and 2.4 | The pace seat is "a mid-geared four on suggested builds". The three faster clocks of 2.4 gain a factor of at most 1.012 |
 | `01-core-and-combat.md`, 2.1 | The modifier table gains no key. Add talent rows as sources on five existing keys: permanent damage, the Defense rating, `heroHp`, `heroMana` and the status tick. The to-hit floor owed by CORE-4 now also bounds Footing |
-| `01-core-and-combat.md`, 2.13 and section 5 | Add the six knobs of 5.4. Still-missing item 11 points here, not at GR-61. Add the fences of 3.6 beside the combat fence |
+| `01-core-and-combat.md`, 2.13 | Add the six knobs of 5.4. Add the fences of 3.6 beside the combat fence |
 | `03-items-and-crafting.md` | E7, the Add pool, does not read Talents. The 2% set aside for worn in and then for Kindlings is unspent. The purpose worn in had (two heroes with the same sword end up different, M12 of study 47) is owned by Talents. Check Tempering's Blows track against the 20% permanent damage cap with Force beside it |
 | `04-economy-and-crowns.md` | One new gold sink: the talent reset, in hours of wage, with no gold number until R15 exists. It is not a Crowns surface. Premium gives nothing here. The store sells no points and no resets |
 | `06-mmo-layer.md`, 2.2 and 2.6 | The power budget's reference row reads "a plain four in mid gear on suggested builds", and the ceiling reads about 1.67. MM-13 gains what each arena reads of Talents (section 7). The Even Arena's reference kit gains a points count |
-| `08-player-experience.md` | One Path row: Talents at Level 10, and its order against the Tower and the Hearth Chest. One line on the return card. Setups carry the plan and the unlock switches. The first hour is unchanged |
+| `08-player-experience.md` | The Path row that still lists Kindlings becomes Talents at Level 10, with its order against the Tower and the Hearth Chest. One line on the return card. Setups carry the plan and the unlock switches. The first hour is unchanged |
 | `09-platform-and-measurement.md` | The knobs, bands TL1 to TL4, the build block of 8.3, one `proposals.json` row, and one cost row marked ESTIMATED. The census should count `src/core/talents.js` when it exists |
-| The review's "what should wait" table | The row that lists Kindlings is replaced. Talents are in the first build by ruling. Unlock ranks 8 and up, tracks six to eight and the arena build wait |
 | A conflict to carry, not to solve here | Setups already have an OPEN question on priced slots (T-fix-3). This chapter adds no second build slot for a hero, priced or free, so it takes no side |
 
 ---

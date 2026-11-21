@@ -746,7 +746,7 @@
     {
       "id": "MM-29-XP",
       "call": "May a bought timed boost fill the Level XP cap? (the 11-04 avoid list against Crowns giving real advantages)",
-      "decision": "TYLER CONFIRMS. Recommended: no. No Level XP boost is sold, for Crowns or for gold. The timed Level XP cap of +25% is filled only by the Hearthrise weekend.",
+      "decision": "No. No Level XP boost is sold, for Crowns or for gold. The timed Level XP cap of +25% is filled only by the Hearthrise weekend.",
       "outcome": "third",
       "reason": "Level is the score everybody is ranked on, and I put paid XP boosts on the avoid list myself. A kill speed boost is still a real edge you can feel, and it does not sell the scoreboard.",
       "evidence": "COMPUTED: best gear 1.15 times a timed damage boost 1.10 is 1.27, against 1.58 with a bought XP boost (chapter 04). It also moves the date the next region must open from about day 37 to 42 to about day 53 (GR-6a).",
@@ -758,7 +758,8 @@
       "fixedBy": "review-1",
       "fixNote": "Core said no and content-economy said yes at about +15%. Tyler's words on 2026-11-04, 2026-11-18 and 2026-11-21 all run Crowns to gold to an edge, and Level is the ranked score.",
       "status": "RULED (Tyler, 2026-11-21)",
-      "tyler": "Confirmed as recommended."
+      "tyler": "Confirmed as recommended.",
+      "wasBeforeTyler": "TYLER CONFIRMS. Recommended: no. No Level XP boost is sold, for Crowns or for gold. The timed Level XP cap of +25% is filled only by the Hearthrise weekend."
     }
   ],
   "tylerAnswers": "Tyler answered his lists on 2026-11-21. Each row he touched carries a tyler field. The full record is in all.json."

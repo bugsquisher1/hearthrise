@@ -567,7 +567,7 @@
     {
       "id": "MM-21",
       "call": "Every boss, clan, event and arena is open to all. Premium makes timed buffs last a quarter longer and banks arena tickets to 30.",
-      "decision": "MONEY, TYLER CONFIRMS. Decided part: everything in the layer is open to every account. Recommended to you for Premium: arena tickets bank to 30. Not recommended: timed buffs lasting a quarter longer.",
+      "decision": "Everything in the layer is open to every account. For Premium: arena tickets bank to 30. Timed buffs do not last longer for Premium.",
       "outcome": "third",
       "reason": "Banking more tickets fits what Premium already is, which is fewer visits. Longer buffs is power on a subscription, it makes a 7 day buff last 8.75 days so the weekly beat stops lining up, and it makes the buff line on the hero sheet harder to read.",
       "evidence": "Design reasoning only. No evidence on what Premium buyers value in the layer. Your call.",
@@ -575,7 +575,8 @@
       "money": true,
       "depends": "Economy decider owns Premium's full list and price (chapter 04 section 2.9). MM-15.",
       "status": "RULED (Tyler, 2026-11-21)",
-      "tyler": "Confirmed as recommended."
+      "tyler": "Confirmed as recommended.",
+      "wasBeforeTyler": "MONEY, TYLER CONFIRMS. Decided part: everything in the layer is open to every account. Recommended to you for Premium: arena tickets bank to 30. Not recommended: timed buffs lasting a quarter longer."
     },
     {
       "id": "MM-22",
@@ -615,7 +616,7 @@
     {
       "id": "MM-43",
       "call": "For the playtest only, every account gets the same weekly allowance of test Crowns through one server switch.",
-      "decision": "THIS IS A GRANT. TYLER CONFIRMS. I do not decide it. Recommended: yes, for the wiped Discord playtest only, the same amount for every account, one server switch that is off by default and removed before Early Access, every grant journalled.",
+      "decision": "Yes, for the wiped Discord playtest only, the same amount for every account, one server switch that is off by default and removed before Early Access, every grant journalled.",
       "outcome": "recommended",
       "reason": "Without it the whole Crowns for gold loop cannot be tried before real money exists. It is equal for everyone and it is wiped. It is still granting currency, which is your line and not mine.",
       "evidence": "No evidence either way. The Crowns rows of the playtest table cannot be read without it (chapter 09 item 12).",
@@ -623,7 +624,8 @@
       "money": true,
       "depends": "Economy decider sizes the amount (I suggest about what one 7 day boost costs each week). Security review of the switch.",
       "status": "RULED (Tyler, 2026-11-21), an explicit yes",
-      "tyler": "Yes. Test Crowns for the wiped Discord playtest only, the same amount for every account, one server switch that is off by default and removed before Early Access, every grant journalled."
+      "tyler": "Yes. Test Crowns for the wiped Discord playtest only, the same amount for every account, one server switch that is off by default and removed before Early Access, every grant journalled.",
+      "wasBeforeTyler": "THIS IS A GRANT. TYLER CONFIRMS. I do not decide it. Recommended: yes, for the wiped Discord playtest only, the same amount for every account, one server switch that is off by default and removed before Early Access, every grant journalled."
     },
     {
       "id": "MM-44",

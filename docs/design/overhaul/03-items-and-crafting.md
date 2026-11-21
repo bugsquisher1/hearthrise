@@ -725,7 +725,7 @@ In decision-book order.
 | 13 | How a perk is stored on a held piece, so one market book can filter by it | A schema call for the systems engineer |
 | 14 | The saved kit's server shape and cost | The systems engineer |
 | 15 | Layer gear: boss count, line sizes, pace and the material's recipe uses | Closed. CE-1: at most four boss lines and one arena line, at most five pieces a line, one piece a boss weekend and one an arena season, and the material feeds only layer pieces |
-| 16 | What one Premium gives. It must never sell Luck | RULED (PREM-1, Tyler 2026-11-21), with one recommendation in chapter 04. It never sells Luck |
+| 16 | What one Premium gives. It must never sell Luck | Closed. RULED (PREM-1, Tyler 2026-11-21). It never sells Luck |
 | 17 | Rolls, tradeable gems and tradeable patterns in the Steam and legal review | The security engineer, in the one review before Early Access |
 | 18 | Whether the three armor weights are a live choice for each style | The matrix lane, one run of heavy, medium and light on three styles |
 | 19 | Regions 4 to 7: elements, key rows, named content | The region sketches |

@@ -110,7 +110,7 @@ Speed and Yield multiply, so the best bench is 1.67 x 1.15 = 1.92 times a bare o
 
 Formula and knobs: the perk key is `craftSave` in `ROOM_PERKS`, read at all four benches. Under roadmap step R20 the Speed pool and the Yield pool are two rows of the one modifier table (DECIDED GR-86, Fable 2026-11-21). No knob in `knobs.json` moves a room, and none should: rooms are content rows.
 
-**The bench fee.** A public bench takes 15% of what a job's output sells for at the Shop, and nothing on the cheapest goods. A home bench takes nothing. RULED 11-01. Formula `E33`. DECIDED GR-56b, Fable 2026-11-21: the fee stays and is restated in hours of the wage curve (knob `wageShare`, formula `E56`, roadmap step R15). It is the reason the first rung of every bench room is worth buying, so it must not be removed.
+**The bench fee.** A public bench takes 15% of what a job's output sells for at the Shop, and nothing on the cheapest goods. A home bench takes nothing. RULED 11-01. Formula `E33`. DECIDED GR-56b, Fable 2026-11-21: the fee stays exactly as ruled and gets no wage row, because the Shop bid already comes from the one sale formula. The screen may show it in hours. It is the reason the first rung of every bench room is worth buying, so it must not be removed.
 
 ### 2.4 The Hall of Firsts
 
@@ -289,7 +289,7 @@ COMPUTED here from the ruled fee, as a TARGET range, not played. Band edges reus
 | Loot plan | Each item has a destination set once: keep in bag, deposit in Storage, sell. It runs when loot is dispatched in town | RULED 10-25 |
 | Refill | The one-tap refill takes the account's own stock from Storage before it buys from the store | RULED 11-20 (plan L07). Formula `E18` |
 | Mounts | A mounted piece is not in Storage and the Hall is not extra Storage | DECIDED GR-73, Fable 2026-11-21 |
-| More bag and Storage for Crowns | RULED (MM-29, Tyler 2026-11-21), recommended no. Bag and Storage room stay gold sinks and are never sold for Crowns, so chests 5 to 8 keep their point |
+| More bag and Storage for Crowns | RULED (MM-29, Tyler 2026-11-21). Bag and Storage room stay gold sinks and are never sold for Crowns, so chests 5 to 8 keep their point |
 
 ### 2.10 The town's heroes at work
 
@@ -415,7 +415,7 @@ In decision-book order.
 | GR-51 | Prices | Every repeating price is hours of one wage curve. The House stays typed | DECIDED (Fable 2026-11-21) |
 | GR-54 | The yard's rate | It follows the skill curve and never passes half of hunting. The fee follows the rate | RULED (Tyler, 2026-11-21). It replaces 2026-11-14, and 21-7 and A-5 of 2026-11-20 |
 | GR-53 | The House dummy | It ends the yard fee. Its unlocks are rungs by skill band, each 25 to 50 hours of the fee | DECIDED (Fable 2026-11-21) |
-| GR-56b | The bench fee | It stays and moves onto the wage curve | DECIDED (Fable 2026-11-21) |
+| GR-56b | The bench fee | It stays exactly as ruled, with no wage row. The screen may show it in hours | DECIDED (Fable 2026-11-21) |
 | GR-63 | The rested bank | Kept. It pays Level XP on hunted hours a hero missed. The home gives nothing to it (chapter 05 owns the call) | KEPT (Tyler 2026-11-21). How it stays is DECIDED (Fable 2026-11-21) |
 | GR-70 | The town | It draws heroes at work whether or not their owner is online, inside the cost budget. Study 48 did not size the drawn bodies, so the fallback stands until it is sized | DECIDED (Fable 2026-11-21) |
 | GR-73 | The Trophy room | The Trophy room becomes the Hall of Firsts, with no mount rungs sold and a mounting fee for each piece hung. It builds ruling 26-6 | DECIDED (Fable 2026-11-21). Cut list 12, approved by Tyler 2026-11-21. |
@@ -446,9 +446,9 @@ In decision-book order.
 | 9 | **Crops and costs with no consumer.** Potato. Room rungs that ask for Wheat Bread and Field Rations if meals are cut. The War Crown. The Moonbloom Elixir, whose Shop price is far above the shop-as-a-floor rule. What stands on the Shrine's spot. How burn relief counts in the Yield pool | Chapter 03 and chapter 04 |
 | 10 | **Names and pictures.** Chests 5 to 8. The Camp's name against its scene. Prices for the Cellar's rungs 2 and 4 | The game designer and the art director |
 | 11 | **The Hearthrise's size and seam with the calendar** (section 2.12) and how much fuel fills the fire | The seam is closed. RULED (CE-8 and GR-82, Tyler 2026-11-21): the calendar says when it lights and the fire says how big, from +10% to +25%. Still owed: how much fuel fills the fire, by the game designer |
-| 12 | **Who may visit** once a party is an account's own four | The game designer, inside GR-75. A party is an account's own four (MM-18), so "party member" leaves the visit rule |
-| 13 | **Clan town work +10% and Crowns storage.** Both come from the re-issued study 49 (MM-9, MM-25 and its Crowns table). Where the clan buff enters the Speed pool, and whether Crowns storage sits beside chests 5 to 8 or replaces them | Closed. Clan town work is the Workshop row inside the Speed pool (MM-9). Bag and Storage room are never sold for Crowns (MM-29, RULED, Tyler 2026-11-21) |
-| 14 | **Premium's daily training item across four heroes:** one for the account or one for each hero | RULED (PREM-1, Tyler 2026-11-21), recommended one for each hero |
+| 12 | **Who may visit** once a party is an account's own four | The game designer, inside GR-75. Whether "party member" stays in the visit rule waits on T-fix-1 |
+| 13 | **Clan town work +10% and Crowns storage.** Both come from the re-issued study 49 (MM-9, MM-25 and its Crowns table). Where the clan buff enters the Speed pool, and whether Crowns storage sits beside chests 5 to 8 or replaces them | Closed. Clan town work is the Workshop row inside the Speed pool (MM-9). Bag and Storage room are never sold for Crowns (MM-29, ruled) |
+| 14 | **Premium's daily training item across four heroes:** one for the account or one for each hero | Closed. RULED (PREM-1, Tyler 2026-11-21): one for each hero |
 | 15 | **The 10-22 real-time ruling under closed form** (section 2.11) | Closed. RULED (CE-7, Tyler 2026-11-21): town work moves on screen in real time and the server writes at the start, at each paid hour and at a stop |
 | 16 | **A home axis for the matrix.** No cell holds a room, a bed, a bench or a rested hour, so no band in this chapter can gate a change yet (section 6) | The baseline lane |
 | 17 | **Security scope.** The mount and unmount verbs, curing, visiting reads and the Hearth's gifts are money or shared surfaces and go into the one review before Early Access | The security engineer |

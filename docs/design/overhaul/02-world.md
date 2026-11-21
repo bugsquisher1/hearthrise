@@ -397,7 +397,7 @@ The HYPOTHESIS to test: a pack is a preset, so the packing decision may be made 
 | 05 Progression | The Level table and its start (GR-6), the cost of a death and Blessings (GR-7), the Bestiary, Luck, Honors (GR-62) | The door days in 2.2, kill XP as a derived number, Tower and hall firsts as honors |
 | 06 The MMO layer | Rule 0 (MM-1), world boss rules (MM-2 to MM-7), mixed Levels in one fight (MM-19), the presence strip on grounds (MM-20), events that feature a ground | The boss room, the formula at any Level, phases as data, the hall and key system events build on |
 | 07 Home and town | Gathering nodes on grounds, crafted food and drink for the Catacombs pack, Havora as the door to the Tower and Catacombs | A consumer for home-made supplies that gold cannot shortcut |
-| 08 Player experience | The Path that says when each ground and mode opens (GR-79), the ground card, the return card, Tamsin's task taken on entry (GR-78), moving to the next ground when outgrown (GR-81) | The words on every card, the log lines worth reading, what the first hour's four heroes hunt |
+| 08 Player experience | The Path that says when each ground and mode opens (GR-79), the ground card, the return card, Tamsin's task taken on entry (GR-78), the return card's one press to the next ground when outgrown (GR-81) | The words on every card, the log lines worth reading, what the first hour's four heroes hunt |
 | 09 Platform and measurement | The matrix as the gate (GR-88), formula steps R3, R12, R21 and R22, server cost for a hall queue and a boss pool | Band rows on the ground axis, the hall grader, cells for a ground played above its band |
 
 ---

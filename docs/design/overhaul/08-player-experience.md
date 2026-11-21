@@ -151,7 +151,7 @@ A party is the account's own four heroes, so nothing here waits on another playe
 | | A gathering step may say "the best I can": the highest node of that line the hero's skill opens. It is a choice, because a player may want copper | DECIDED (GR-80, Fable 2026-11-21) |
 | | The rest plan runs when a hunt ends for any reason, with the browser open or closed | DECIDED (GR-80, Fable 2026-11-21). Both paths is RULED (CLAUDE.md section 4) |
 | | The starting rest plan gives a new company: two heroes fish 100 at the Shrimp Spot and then Cook Shrimp, one mines 20 Copper Ore, one chops 30 Normal Logs | DECIDED (GR-80, Fable 2026-11-21) |
-| **Next ground when outgrown** | A one-step "when the hunt ends" choice. If the hunt ended because the ground was outgrown, the party goes once to the recommended ground on Normal, and only if every seat is at or over its floor. Stamina still ends the day | DECIDED (GR-81, Fable 2026-11-21). It re-opens 27-1 and needs Tyler's yes |
+| **Next ground when outgrown** | Refused. No hunt ever starts by itself (27-1 is kept whole). When a ground is outgrown the hero goes to its rest plan and works in town. The return card puts "outgrown, go to the next ground" first under Needs you, as one press for the whole party | DECIDED (GR-81, Fable 2026-11-21) |
 | **Tamsin's task takes itself** | The task for a ground is taken when a hero enters it. Its pay is collected on the end card or by Carry on | DECIDED (GR-78, Fable 2026-11-21) |
 | **Refills** | "Keep me topped up to N" is one line of the plan, run by Carry on. Its price and limits are chapter 04's | DECIDED (GR-80, GR-58, Fable 2026-11-21) |
 
@@ -342,7 +342,7 @@ There is one Premium for each account and it covers every hero (RULED 2026-11-20
 | The 12 hour stamina bar | Every hero. The 12 hour day takes one visit in place of two | RULED 2026-10-17 (the bar), 2026-11-21 (the account) |
 | The full hunt analyzer | Every hero and the party view | RULED 2026-10-17 |
 | The daily training item (the 1 hour tier) | Granted into Storage on the first visit of the day with no press. The streak never resets | Kept: RULED 2026-11-20 (24-4). No press is DECIDED (GR-84, Fable 2026-11-21) |
-| How many items a day | One for each hero, so four a day | RULED (PREM-1, Tyler 2026-11-21), recommended yes in chapter 04. It is four hours of training a day for one price, so the yard's rate (GR-54) sizes it |
+| How many items a day | One for each hero, so four a day | RULED (PREM-1, Tyler 2026-11-21), chapter 04. It is four hours of training a day for one price, so the yard's rate (GR-54) sizes it |
 | Premium outfits | Every hero | RULED 2026-10-17 |
 | In the MMO layer | Timed buffs last a quarter longer. Arena tickets bank to 30 | RULED (MM-21, Tyler 2026-11-21, chapter 06) |
 
@@ -377,9 +377,9 @@ The eight criteria in short form: player value, depth, uniqueness, what it plugs
 | The event calendar | Medium | Low | Yes | The MMO layer | Capped at +25% | Low. Rows, never run by hand | Yes | KEEP as a four-weekend rotation | DECIDED (MM-11, Fable 2026-11-21) |
 | The Rare reveal | High | None | Yes | Loot, the return card | None | Low | Yes | KEEP on every Rare | RULED 27-6 |
 | Setups, action sets and hunt presets | High. The identity feature | High | Three nouns for one idea | The bar, grounds | None | Medium | Yes | MERGE into one noun, "Setup", remembered for each ground. It holds the weapon, worn set, linings, bar and target mode, so the saved kit of GR-48 is the same thing | DECIDED (GR-84, GR-48, Fable 2026-11-21) |
-| Paid setup slots 4 and 5 | None | None | No | Nothing | Not a sink | Negative | No | REMOVE the price | OPEN (GR-56a, waiting on Tyler, T-fix-3, chapter 04). He did not approve cut 14, which points the other way from reversal 13 |
+| Paid setup slots 4 and 5 | None | None | No | Nothing | Not a sink | Negative | No | REMOVE the price | OPEN (GR-56a, waiting on Tyler, T-fix-3, chapter 04). His pick on cut 14 points the other way from reversal 13, so both are held |
 | A starting loot plan and a starting rest plan | High in hour 1 | None. They remove presses | Yes | The loot plan, the job queue | None | Low | No | ADD | DECIDED (GR-80, Fable 2026-11-21) |
-| Next ground when outgrown | High for 20 hours | Low | Yes | The after-hunt plan | None. Normal only | Low | No | ADD | DECIDED (GR-81, Fable 2026-11-21) |
+| Next ground when outgrown, started by itself | High for 20 hours | Low | Yes | The after-hunt plan | None | Low | No | REFUSE. One press on the return card does it for the whole party | DECIDED (GR-81, Fable 2026-11-21) |
 | The Premium daily claim as a press | None | None | No | Premium | None | Low | No | REDESIGN. Granted with no press | DECIDED (GR-84, Fable 2026-11-21) |
 | The rested bank | Medium. It pays back a missed day | Low | A missed day is half made up | The XP chain, away and return | None | Low: one number a hero | Yes | KEEP. It pays +50% Level XP on as many hunted hours as a hero missed, up to 24 | KEPT (Tyler 2026-11-21, cut list 7). How it stays is DECIDED (GR-63, Fable 2026-11-21, chapter 05) |
 | Old server leftovers, the gift code, Open Halls | None | None | No | Nothing | None | Negative | No | REMOVE | RULED (27-7, the cut list) |
@@ -433,7 +433,7 @@ In decision-book order.
 | GR-78 | Tamsin's task | Taken when a hero enters the ground, with no press | DECIDED (Fable 2026-11-21) |
 | GR-84 | Small presses | The Premium claim needs no press. One noun, Setup, holds weapon, worn set, linings, bar and target mode for each ground. A Week card that pays nothing | DECIDED (Fable 2026-11-21) |
 | GR-80 | The company as one thing | One Start, one plan, one return card and a job queue of up to three steps | DECIDED (Fable 2026-11-21) |
-| GR-81 | Next ground when outgrown | Allow it as a one-step choice, Normal only. It re-opens 27-1 | DECIDED (Fable 2026-11-21) |
+| GR-81 | Next ground when outgrown | No. 27-1 is kept whole. The return card offers the next ground as one press for the party | DECIDED (Fable 2026-11-21) |
 | GR-82 | One Great Hearth | Merge Town Works, the Hearthrise event and flame powders. A HYPOTHESIS | RULED (Tyler, 2026-11-21). It replaces 2026-10-25 |
 | MM-11 | Events and no dailies | A four-weekend rotation written a year ahead. No daily quests, login calendar or season pass, as a standing rule | DECIDED (Fable 2026-11-21) |
 | MM-21 | Premium inside the MMO layer | Everything is open to all. Premium makes timed buffs last a quarter longer and banks arena tickets to 30 (chapters 04 and 06) | RULED (Tyler, 2026-11-21) |
@@ -450,7 +450,7 @@ In decision-book order.
 | 2 | Closed. Three heroes together in the Cellar do not keep pace with one | MEASURED, check C2, failed at 0.53 times | The recruits run three lone hunts on one Start (section 2.1) |
 | 3 | A measured tag for each starting way | The balance matrix (check C1). Owner: the core decider | Six start-kit cells. Still owed |
 | 4 | What the first week's gold buys, and early prices for an account of four | Closed. CE-4 gives the order and CE-5 the sizes, as a HYPOTHESIS | The decision book lists both as missing |
-| 5 | Premium's daily item: one an account or one a hero. And Premium's price | RULED (PREM-1 and PREM-2, Tyler 2026-11-21), each with one recommendation in chapter 04 | A money call |
+| 5 | Premium's daily item: one an account or one a hero. And Premium's price | Closed. RULED (PREM-1 and PREM-2, Tyler 2026-11-21): one item for each hero, and 8 to 10 dollars a month as a number to react to | A money call |
 | 6 | The Path's rows for Levels 17 to 19, 21 to 24 and 26 to 29 | Chapter 03 | The content rows on this branch name nothing there except skill unlocks at 20 and 25. Gear tier rows should fill them, or the guard in section 6 fails |
 | 7 | The Level doors for the world boss, both arenas and the clan board | Closed. GR-79: Level 13, 20 and 30, and the clan board when the account is in a clan | Chapter 06 asks this chapter for them. They cannot be set before the boss pool and arena tiers have numbers |
 | 7b | How the thirteen skills are spread across four heroes past the first night | The game designer, inside GR-79, with chapter 05 (its item 16) | The starting rest plan gives each hero a different trade on night one. Nothing yet says who should train what after that, or whether the game should say it at all |

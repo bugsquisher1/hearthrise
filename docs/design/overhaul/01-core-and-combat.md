@@ -271,7 +271,7 @@ One generic status engine runs four statuses, each with one job (C-STATUS).
 
 **Hunter's Mark** is not a status a monster can shrug off. One monster takes 20% more for 8 seconds of every 12. In the modifier table it sits on the same "takes more" key as the marking statuses.
 
-**A status opens one kind of damage.** DECIDED (GR-20, Fable 2026-11-21), a HYPOTHESIS, built as a sample of three after Deadly is sized. A status row may name one damage kind and a share. The risk is stacking, so all "takes more" sources share one total cap.
+**A status opens one kind of damage.** DECIDED (GR-20, Fable 2026-11-21): it is not added now. It stays a paper sample of three pairs, looked at again only after Deadly is sized and played. What follows is that paper design, a HYPOTHESIS. A status row may name one damage kind and a share. The risk is stacking, so all "takes more" sources share one total cap.
 
 | Status | Opens the monster to | Who gains |
 |---|---|---|
@@ -642,7 +642,7 @@ In decision-book order. Each line is the decision this chapter is written on.
 | GR-4 | The gear curve (items chapter) | Linear in Level. Past tier 7 a band is a fixed step that opens at about +17% (110, 129, 151, 176, 206, 241, 282, 330, 386). Uniques are a spend of their band. The two Luck numbers are keyed by Level | RULED (Tyler, 2026-11-21). It replaces The item plan section 2 (two bands a region, 2026-11-18), a major upgrade every 15 to 25 Levels (2026-10-25), the Luck step of 2026-11-20 |
 | GR-5 | The kill reward and one tier table (progression chapter) | Approve. It removes the per-ground tier dials and the pull rule on first grounds | RULED (Tyler, 2026-11-21). Cut list 15, approved by Tyler 2026-11-21. |
 | GR-18 | Quarry Blow breaks a windup | Approve. It re-opens "no stagger" (10-23) in a narrow form | RULED (Tyler, 2026-11-21). It replaces "No stagger" of 2026-10-23 |
-| GR-20 | A status opens one kind of damage | Approve as a sample of three, under one total cap, after Deadly is sized | DECIDED (Fable 2026-11-21) |
+| GR-20 | A status opens one kind of damage | Not now. A paper sample of three pairs, looked at again after Deadly is sized and played | DECIDED (Fable 2026-11-21) |
 | GR-24 | The starting weapon | The player picks for each hero at creation. No card is preselected. Each card carries a measured tag and the hammer a "Good first hero" mark. Heroes two to four come pre-filled as shield, staff and bow | DECIDED (Fable 2026-11-21) |
 | GR-25 | Special rules never put to Tyler | Approve each: gentle first grounds, the boss blow cap, three training bases, one roll rule with chance rounding, one flag for a tier a ground does not offer | DECIDED (Fable 2026-11-21) |
 | GR-11 | The beginner's floor | One floor on the blow a cast reads | DECIDED (Fable 2026-11-21) |

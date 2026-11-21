@@ -639,7 +639,7 @@ Not yet true of the Lab, and the dashboard lane's work: rule 1 needs every recom
 | Accounts holding at least one earned buff in a week | Over two thirds | Under a third |
 | Timed cap filled by earned buffs against bought boosts | Both above a quarter | All bought, or none bought |
 | Accounts that sell test Crowns for gold, and that buy them with gold | Each over a fifth of active accounts | No buyers |
-| The gold price of a Crown against the reference price | Inside half to twice | Pinned at an edge of the band |
+| The gold price of a Crown against the players' own 7 day median | Inside half to twice | Pinned at an edge of the band |
 | Level pace of the top tenth of accounts against the median at the same hours | Under 1.6 | Over 1.7, which means the ceiling leaks |
 | Share of hunted hours by tier, and deaths in 1,000 hours on Deadly | Read against bands S6 and the hunt report | Players avoid Deadly entirely |
 | Database-seconds an account-day, read from production | Band C2 | Over 70 |
@@ -778,8 +778,8 @@ In decision-book order. Each line is the call and the decision this chapter take
 | 9 | **A band for the early economy of four heroes.** No band reads what an account of four earns and spends in its first week | Chapter 04 (economy and Crowns), then a band here |
 | 10 | **The Lab's proposal set.** Not every recommended proposal exists as a patch file, and the model steps cannot be toggled until they are staged | The dashboard lane |
 | 11 | **The hunt tally's three fields.** Lowest health, tier and gear tier worn. Survival cannot be calibrated without the first | Systems, in the build plan |
-| 12 | **Test Crowns in the playtest (MM-43).** An equal weekly grant to every account is still a grant. Without it the Crowns rows of table B cannot be read before launch | RULED (MM-43, Tyler 2026-11-21, a grant), recommended yes for the wiped Discord playtest only |
-| 13 | **Whether a watched four of four people on four accounts changes the save design.** Study 49 says a party is an account's own heroes, so the case may not exist | Partly answered by study 48. A member open in a client costs one frame of 18 ms a save (REAL), so a four watched from four accounts adds three frames a save and does not change the save design. No fixture has played it. MM-18 is decided, so the case exists only if Tyler vetoes that reversal. Owner: the reliability engineer |
+| 12 | **Test Crowns in the playtest (MM-43).** An equal weekly grant to every account is still a grant. Without it the Crowns rows of table B cannot be read before launch | Closed. RULED (MM-43, Tyler 2026-11-21, an explicit yes), for the wiped Discord playtest only |
+| 13 | **Whether a watched four of four people on four accounts changes the save design.** Study 49 says a party is an account's own heroes, so the case may not exist | Partly answered by study 48. A member open in a client costs one frame of 18 ms a save (REAL), so a four watched from four accounts adds three frames a save and does not change the save design. No fixture has played it. MM-18 is OPEN (T-fix-1), so the case exists only if hired heroes stay. Owner: the reliability engineer |
 | 14 | **Content authoring pace against the runway, timed.** Every ground, band, boss and recipe family ends its lane with its working hours (RULED 28-12). No lane has yet said who draws regions or how fast | The art and asset directors, then Tyler |
 | 15 | **The build plan's unit.** The plan of record is written in lanes and waves for a beta. It is re-issued once the calls are ruled, in the order of section 2.2 | The Coordinator, after the rulings |
 

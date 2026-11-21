@@ -1025,7 +1025,7 @@
     {
       "id": "MM-28",
       "call": "The paid advantage",
-      "decision": "TYLER CONFIRMS. Recommended: paying gives a real edge under a ceiling written in numbers. A payer reaches the ceiling sooner and stays there. A player who does not pay reaches the same ceiling with gold. Nobody passes it.",
+      "decision": "Paying gives a real edge under a ceiling written in numbers. A payer reaches the ceiling sooner and stays there. A player who does not pay reaches the same ceiling with gold. Nobody passes it.",
       "outcome": "recommended",
       "reason": "It is your 2026-11-21 ruling written as a rule. One ceiling for everyone is what keeps the edge real and not broken.",
       "evidence": "EVIDENCE: study 49 section 3.1 read ten games with a traded bought currency. Players accept time, membership, capped boosts and looks, and revolt when the store mints power.",
@@ -1037,12 +1037,13 @@
       "area": "Money calls",
       "status": "RULED (Tyler, 2026-11-21)",
       "tyler": "Confirmed as recommended.",
-      "rederived": "DECIDED (Fable 2026-11-21, after MM-32). \"One ceiling written in numbers\" now means the pace reading of MM-31 and nothing about gear. The check that the advantage is real and not broken is section 2.8 of chapter 04: market supply, the buff caps behind MM-31, the eight clamps of MM-36 and the places where paying gives no edge (MM-37)."
+      "rederived": "DECIDED (Fable 2026-11-21, after MM-32). \"One ceiling written in numbers\" now means the pace reading of MM-31 and nothing about gear. The check that the advantage is real and not broken is section 2.8 of chapter 04: market supply, the buff caps behind MM-31, the eight clamps of MM-36 and the places where paying gives no edge (MM-37).",
+      "wasBeforeTyler": "TYLER CONFIRMS. Recommended: paying gives a real edge under a ceiling written in numbers. A payer reaches the ceiling sooner and stays there. A player who does not pay reaches the same ceiling with gold. Nobody passes it."
     },
     {
       "id": "MM-29",
       "call": "What the store sells for Crowns",
-      "decision": "TYLER CONFIRMS. Recommended: Crowns buy Premium, looks and comfort (more market listings). Two timed boosts are sold for gold at the store, in 1 day and 7 day sizes, priced on the wage curve and burned: damage +6%, and a protection boost written on the Defense rating and sized so a mid-geared four takes about 3% less damage an hour. No Level XP boost is sold. Never a drop or material boost, a saved Setup, bag or Storage room, gear, materials, gold, Levels, skill levels, chests, rating, Luck, stamina or any roll. Bound training items join the Crowns store only after the yard fee and to-hit changes are live (ruled 26-10). Sold for gold, the boosts reverse no ruling. If Tyler prefers them sold for Crowns at the same sizes, that reverses the 2026-11-18 line that power is never sold directly for Crowns and it joins the reversal list as row 24.",
+      "decision": "Crowns buy Premium, looks and comfort (more market listings). Two timed boosts are sold for gold at the store, in 1 day and 7 day sizes, priced on the wage curve and burned: damage +6%, and a protection boost written on the Defense rating and sized so a mid-geared four takes about 3% less damage an hour. No Level XP boost is sold. Never a drop or material boost, a saved Setup, bag or Storage room, gear, materials, gold, Levels, skill levels, chests, rating, Luck, stamina or any roll. Bound training items join the Crowns store only after the yard fee and to-hit changes are live (ruled 26-10). Sold for gold, the boosts reverse no ruling. Tyler confirmed the boosts sold for gold.",
       "outcome": "third",
       "reason": "A traded currency needs something to spend it on every week or its buyers run out, and Premium once a month is not enough. A boost that is also earned in play and sits under the same cap is the mildest direct sale there is. Sizing the bought row under the cap keeps bosses, clans and events worth playing for a payer, because play is the only way to fill the rest.",
       "evidence": "COMPUTED: pay alone then reads 1.15 x 1.06 x 1.15, about 40% more Levels an hour over a plain mid-geared four, and 58% with earned buffs on top. HYPOTHESIS that a weekly boost is bought. The alternative is boosts for gold only, which leaves Premium as the one repeating use of a Crown.",
@@ -1060,12 +1061,13 @@
       "hypothesis": "HYPOTHESIS. This is the review's own design and nobody has played it.",
       "fixNote": "Both deciders sold boosts for Crowns, and this file also sold a Level XP boost. The review sells two boosts for gold so no ruling is reversed and the economy gains a weekly burned sink. A payer still feels them because bought gold keeps them running.",
       "status": "RULED (Tyler, 2026-11-21)",
-      "tyler": "Confirmed as recommended."
+      "tyler": "Confirmed as recommended.",
+      "wasBeforeTyler": "TYLER CONFIRMS. Recommended: Crowns buy Premium, looks and comfort (more market listings). Two timed boosts are sold for gold at the store, in 1 day and 7 day sizes, priced on the wage curve and burned: damage +6%, and a protection boost written on the Defense rating and sized so a mid-geared four takes about 3% less damage an hour. No Level XP boost is sold. Never a drop or material boost, a saved Setup, bag or Storage room, gear, materials, gold, Levels, skill levels, chests, rating, Luck, stamina or any roll. Bound training items join the Crowns store only after the yard fee and to-hit changes are live (ruled 26-10). Sold for gold, the boosts reverse no ruling. If Tyler prefers them sold for Crowns at the same sizes, that reverses the 2026-11-18 line that power is never sold directly for Crowns and it joins the reversal list as row 24."
     },
     {
       "id": "MM-30",
       "call": "Bought boosts and earned buffs",
-      "decision": "TYLER CONFIRMS. Recommended: they are the same rows in the one modifier table and fill the same timed caps. One bought boost on a knob at a time.",
+      "decision": "They are the same rows in the one modifier table and fill the same timed caps. One bought boost on a knob at a time.",
       "outcome": "recommended",
       "reason": "One table and one cap is what makes the ceiling hold without a special rule for money. Earning a buff saves Crowns and buying one never stacks above the cap.",
       "evidence": "COMPUTED from MM-24 and MM-25. Read at the settle with a hero's other modifiers, so it adds no server statement (ESTIMATED, study 49).",
@@ -1077,12 +1079,13 @@
       ],
       "area": "Money calls",
       "status": "RULED (Tyler, 2026-11-21)",
-      "tyler": "Confirmed as recommended."
+      "tyler": "Confirmed as recommended.",
+      "wasBeforeTyler": "TYLER CONFIRMS. Recommended: they are the same rows in the one modifier table and fill the same timed caps. One bought boost on a knob at a time."
     },
     {
       "id": "MM-31",
       "call": "The pace ceiling",
-      "decision": "TYLER CONFIRMS. Recommended: keep ruling 50-11 (no limit on how much sooner) as it stands and record one reading held by a test, never a new limit. With every cap full a four reads 1.65 times a plain mid-geared four in Levels an hour and 1.32 in kills an hour. Paying alone reads about 1.22. These are the same numbers as MM-26.",
+      "decision": "Keep ruling 50-11 (no limit on how much sooner) as it stands and record one reading held by a test, never a new limit. With every cap full a four reads 1.65 times a plain mid-geared four in Levels an hour and 1.32 in kills an hour. Paying alone reads about 1.22. These are the same numbers as MM-26.",
       "outcome": "third",
       "reason": "You said the limit is on what can be bought, not how fast. The store list and the caps are that limit, and the 58% is just their sum. Writing it as a reading means no ruling of yours is reversed and a test still catches anyone who adds a row that breaks it.",
       "evidence": "COMPUTED: 1.15 best gear x 1.10 timed damage x 1.25 timed Level XP = 1.58. On the pace line a band that takes a plain four 10 days takes this four a little over 6.",
@@ -1098,7 +1101,8 @@
       "fixNote": "The row said 58%. It multiplied 1.15 gear by 1.10 timed damage by 1.25 XP and left out the +5% standing damage of MM-25. With it the product is 1.65.",
       "status": "RULED (Tyler, 2026-11-21)",
       "tyler": "Confirmed as recommended.",
-      "rederived": "DECIDED (Fable 2026-11-21, after MM-32). The 1.65 reading does not move, because it is the caps and the ruled best-gear state. The paying-alone reading stays about 1.22 against a plain mid-geared four in the same band, and it now says what it is: the pace of a four in the best gear state with the +6% boost. It is reached only when the market holds the pieces, and it is not a limit on gear. If a set bought on the market ever reads over the ruled 15% above mid gear, the fix is at the formula layer (the best-gear definition or the gear curve), never a cap on buying."
+      "rederived": "DECIDED (Fable 2026-11-21, after MM-32). The 1.65 reading does not move, because it is the caps and the ruled best-gear state. The paying-alone reading stays about 1.22 against a plain mid-geared four in the same band, and it now says what it is: the pace of a four in the best gear state with the +6% boost. It is reached only when the market holds the pieces, and it is not a limit on gear. If a set bought on the market ever reads over the ruled 15% above mid gear, the fix is at the formula layer (the best-gear definition or the gear curve), never a cap on buying.",
+      "wasBeforeTyler": "TYLER CONFIRMS. Recommended: keep ruling 50-11 (no limit on how much sooner) as it stands and record one reading held by a test, never a new limit. With every cap full a four reads 1.65 times a plain mid-geared four in Levels an hour and 1.32 in kills an hour. Paying alone reads about 1.22. These are the same numbers as MM-26."
     },
     {
       "id": "MM-32",
@@ -1121,7 +1125,7 @@
     {
       "id": "MM-33",
       "call": "The gold ceiling",
-      "decision": "TYLER CONFIRMS. Recommended: the weekly cap on Crowns an account sells is worth about one account-week of hunting gold at the seller's highest hero Level, so paying at most about doubles a week's gold. The server re-derives the cap in Crowns each week from the 7 day median Crown price.",
+      "decision": "The weekly cap on Crowns an account sells is worth about one account-week of hunting gold at the seller's highest hero Level, so paying at most about doubles a week's gold. The server re-derives the cap in Crowns each week from the 7 day median Crown price.",
       "outcome": "recommended",
       "reason": "Every band's sinks cost 1.2 to 1.4 times what the band earns. A payer at double income affords all of them and a free player affords most of them. That is an edge you can feel that buys nothing a free player cannot have. The weekly re-derive keeps \"double\" true on day 10 and day 600.",
       "evidence": "COMPUTED from the sink share target. HYPOTHESIS for the size. It sizes clamp 1 of 24-5, which you already ruled must exist. It is the one true limit on \"how much sooner\", so it touches 50-11 and is yours.",
@@ -1136,7 +1140,8 @@
       "area": "Money calls",
       "status": "RULED (Tyler, 2026-11-21)",
       "tyler": "Confirmed as recommended.",
-      "rederived": "DECIDED (Fable 2026-11-21, after MM-32 and MM-34). The cap wording changes and the cap stays. It is a weekly count of Crowns an account may sell and buy on the book, as ruling 24-5 requires. It opens as a fixed count of Crowns from a data row. Once the book has seven days of sales the server re-derives the count each week from the players' own 7 day median price, aimed at about one account-week of hunting gold. It reads the price players made and never sets one. It is a clamp against laundering and floods. It is not a ceiling on how far ahead bought gear can put a hero."
+      "rederived": "DECIDED (Fable 2026-11-21, after MM-32 and MM-34). The cap wording changes and the cap stays. It is a weekly count of Crowns an account may sell and buy on the book, as ruling 24-5 requires. It opens as a fixed count of Crowns from a data row. Once the book has seven days of sales the server re-derives the count each week from the players' own 7 day median price, aimed at about one account-week of hunting gold. It reads the price players made and never sets one. It is a clamp against laundering and floods. It is not a ceiling on how far ahead bought gear can put a hero.",
+      "wasBeforeTyler": "TYLER CONFIRMS. Recommended: the weekly cap on Crowns an account sells is worth about one account-week of hunting gold at the seller's highest hero Level, so paying at most about doubles a week's gold. The server re-derives the cap in Crowns each week from the 7 day median Crown price."
     },
     {
       "id": "MM-34",
@@ -1159,7 +1164,7 @@
     {
       "id": "MM-35",
       "call": "How Crowns trade",
-      "decision": "TYLER CONFIRMS. Recommended: a Crown is a number on the account with its own append-only ledger. Crowns are sold for gold on one server-owned book in fixed lots. One trade, then bound. 1% to list and 4% of the gold, both burned. The player-facing name is \"Crown Exchange\".",
+      "decision": "A Crown is a number on the account with its own append-only ledger. Crowns are sold for gold on one server-owned book in fixed lots. One trade, then bound. 1% to list and 4% of the gold, both burned. The player-facing name is \"Crown Exchange\".",
       "outcome": "recommended",
       "reason": "One trade then bound means no speculation and no wash loop. The burn makes every Crown sold a gold sink too.",
       "evidence": "EVIDENCE: builds 24-5 of 2026-11-20 and the ten-game reading of study 49.",
@@ -1171,12 +1176,13 @@
       ],
       "area": "Money calls",
       "status": "RULED (Tyler, 2026-11-21)",
-      "tyler": "Confirmed as recommended."
+      "tyler": "Confirmed as recommended.",
+      "wasBeforeTyler": "TYLER CONFIRMS. Recommended: a Crown is a number on the account with its own append-only ledger. Crowns are sold for gold on one server-owned book in fixed lots. One trade, then bound. 1% to list and 4% of the gold, both burned. The player-facing name is \"Crown Exchange\"."
     },
     {
       "id": "MM-36",
       "call": "The clamps",
-      "decision": "TYLER CONFIRMS. Recommended: the eight clamps of chapter 04 section 2.8, all inside the Security review before Early Access. One addition: gold paid for Crowns counts against the market's daily spend cap.",
+      "decision": "The eight clamps of chapter 04 section 2.8, all inside the Security review before Early Access. One addition: gold paid for Crowns counts against the market's daily spend cap.",
       "outcome": "recommended",
       "reason": "A real-money link to gold must not be able to reach another player's economy unchecked.",
       "evidence": "EVIDENCE: five clamps are ruled in outline (24-5). Three are added by study 49. The hold days and Steam's wallet rules are open Security questions.",
@@ -1189,12 +1195,13 @@
       "area": "Money calls",
       "status": "RULED (Tyler, 2026-11-21)",
       "tyler": "Confirmed as recommended.",
-      "rederived": "DECIDED (Fable 2026-11-21, after MM-34). Clamp 2, the price band, reads the players' own 7 day median. Before a median exists it has no seeded target price: the band is a wide floor and ceiling from a data row whose only job is to stop one Crown being used as a gold transfer."
+      "rederived": "DECIDED (Fable 2026-11-21, after MM-34). Clamp 2, the price band, reads the players' own 7 day median. Before a median exists it has no seeded target price: the band is a wide floor and ceiling from a data row whose only job is to stop one Crown being used as a gold transfer.",
+      "wasBeforeTyler": "TYLER CONFIRMS. Recommended: the eight clamps of chapter 04 section 2.8, all inside the Security review before Early Access. One addition: gold paid for Crowns counts against the market's daily spend cap."
     },
     {
       "id": "MM-37",
       "call": "Where paying gives no edge",
-      "decision": "TYLER CONFIRMS. Recommended: no edge in the even arena, in events, or in access to any Level, ground, drop or tier.",
+      "decision": "No edge in the even arena, in events, or in access to any Level, ground, drop or tier.",
       "outcome": "recommended",
       "reason": "It names the places money never reaches, which is what lets a free player trust the rest.",
       "evidence": "COMPUTED from the store list (MM-29) and the event rule of CE-8.",
@@ -1206,12 +1213,13 @@
       ],
       "area": "Money calls",
       "status": "RULED (Tyler, 2026-11-21)",
-      "tyler": "Confirmed as recommended."
+      "tyler": "Confirmed as recommended.",
+      "wasBeforeTyler": "TYLER CONFIRMS. Recommended: no edge in the even arena, in events, or in access to any Level, ground, drop or tier."
     },
     {
       "id": "PREM-1",
       "call": "What one Premium gives across four heroes",
-      "decision": "TYLER CONFIRMS. Recommended contents: the ruled list (12 hour stamina bar on every hero, the full hunt analyzer, Premium looks and one free color change a day, 100 market listings for 14 days), plus one daily 1 hour training item for each hero with the skill pick remembered, the daily claim with no press, and arena tickets banking to 30. Not recommended: \"timed buffs last a quarter longer\" (MM-21). The risk reading stays free for everyone.",
+      "decision": "The ruled list (12 hour stamina bar on every hero, the full hunt analyzer, Premium looks and one free color change a day, 100 market listings for 14 days), plus one daily 1 hour training item for each hero with the skill pick remembered, the daily claim with no press, and arena tickets banking to 30. Not recommended: \"timed buffs last a quarter longer\" (MM-21). The risk reading stays free for everyone.",
       "outcome": "recommended",
       "reason": "Premium is ruled to never add power, and a buff that lasts longer is more power for the same fight. Everything else on the list is comfort, information or looks, which is what a saver with idle gold will happily buy through the book.",
       "evidence": "COMPUTED: the 12 hour bar gives a one-visit player the 12 hunted hours a two-visit player gets free. Four training items a day are about 4% more skill XP a hero under the yard cap of GR-54.",
@@ -1224,12 +1232,13 @@
       ],
       "area": "Money calls",
       "status": "RULED (Tyler, 2026-11-21)",
-      "tyler": "Confirmed as recommended."
+      "tyler": "Confirmed as recommended.",
+      "wasBeforeTyler": "TYLER CONFIRMS. Recommended contents: the ruled list (12 hour stamina bar on every hero, the full hunt analyzer, Premium looks and one free color change a day, 100 market listings for 14 days), plus one daily 1 hour training item for each hero with the skill pick remembered, the daily claim with no press, and arena tickets banking to 30. Not recommended: \"timed buffs last a quarter longer\" (MM-21). The risk reading stays free for everyone."
     },
     {
       "id": "PREM-2",
       "call": "The price of Premium and of a Crown",
-      "decision": "TYLER CONFIRMS. Recommended design: Premium is 30 days, priced in Crowns, at a real-money cost near the genre's monthly membership. A starting number to react to is 8 to 10 dollars a month. Crown lot sizes and the Crown price of each store row are set so that MM-34's targets hold at the book's opening reference price.",
+      "decision": "Premium is 30 days, priced in Crowns, at a real-money cost near the genre's monthly membership. A starting number to react to is 8 to 10 dollars a month. Crown lot sizes and the Crown price of each store row are set so that MM-34's targets hold at the book's opening reference price.",
       "outcome": "recommended",
       "reason": "Premium does not need to be strong. It needs to be cheap enough in gold that a saver buys it without thinking, because that trade is the one the whole money model rests on.",
       "evidence": "HYPOTHESIS. No price has been tested. It is your money call in full.",
@@ -1242,7 +1251,8 @@
       "area": "Money calls",
       "status": "RULED (Tyler, 2026-11-21)",
       "tyler": "Confirmed as recommended.",
-      "rederived": "DECIDED (Fable 2026-11-21, after MM-34). The lot-size clause no longer leans on a gold target. A lot is a fixed count of Crowns. Thirty days of Premium costs a whole number of the smallest lot, so a gold buyer never holds a stranded remainder. The book opens with no seeded gold price and the first asks set it."
+      "rederived": "DECIDED (Fable 2026-11-21, after MM-34). The lot-size clause no longer leans on a gold target. A lot is a fixed count of Crowns. Thirty days of Premium costs a whole number of the smallest lot, so a gold buyer never holds a stranded remainder. The book opens with no seeded gold price and the first asks set it.",
+      "wasBeforeTyler": "TYLER CONFIRMS. Recommended design: Premium is 30 days, priced in Crowns, at a real-money cost near the genre's monthly membership. A starting number to react to is 8 to 10 dollars a month. Crown lot sizes and the Crown price of each store row are set so that MM-34's targets hold at the book's opening reference price."
     }
   ],
   "tylerAnswers": "Tyler answered his lists on 2026-11-21. Each row he touched carries a tyler field. The full record is in all.json."

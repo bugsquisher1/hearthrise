@@ -229,7 +229,7 @@ A building's level sets the size of its buff, up to the standing cap. A clan tha
 |---|---|---|
 | What decides a fight | The four chosen and the bars written | Those, and real gear, upgrades, standing buffs and bought boosts |
 | Stats | Every hero fights at one reference Level with reference skills and a reference kit of its own weapon type and armor weight. The kit is a set of rows tuned for the arena alone, so arena balance never touches a hunt | Heroes as they stand: Level, skills, gear, Tempering, Hallmarks, clan rooms and bought boosts under the caps. It never reads a timed buff that an arena paid, so last season's winners do not start the next one stronger |
-| What paying does | Nothing. No gear, buff or boost is read (MM-37, chapter 04) | It shows, inside the ceilings of chapter 04 |
+| What paying does | Nothing. No gear, buff or boost is read (MM-37, chapter 04) | It shows. There is no gear ceiling (MM-32, ruled), and matching is by gear band |
 | Matching | One ladder for everyone. Three opponents offered near the player's rating. DECIDED (MM-39, Fable 2026-11-21) | By gear band first, then rating. Three offered from the band. A thin band borrows from the next band and from that band's house teams. DECIDED (MM-38, Fable 2026-11-21) |
 | At 10 accounts | Everyone can fight everyone | Thin. Mostly house teams of the band until it fills |
 | Season rewards, by rating tier | Up to +5% material find for the next season, inside the timed cap. A title and a banner | A piece of the arena's own gear line at the hero's band, with its own property, sized like a boss piece, at most one a season for an account (CE-1). The line's upgrade material. Up to +5% damage dealt for the next season, which no arena reads. A title |
@@ -330,7 +330,7 @@ Chat is open by default so a new player sees that other people exist (RULED 2026
 |---|---|---|
 | The sides | The First Flame and the Last Ember. Neither is evil. Havora is neutral. Villains are shared NPCs | RULED 2026-11-14 |
 | When | A hero may join after its first Krell kill, which a plain four reaches around day 31 (GR-6b) | RULED 2026-11-14 |
-| Who chooses | Each hero chooses its own side, and one press can join every eligible hero on the account to the same side. An account may put heroes on both sides | DECIDED (GR-71, Fable 2026-11-21, re-opens 25-10) |
+| Who chooses | The account picks one side, as ruled (25-10). One press joins every hero that has killed Krell, and all four carry that side's skill. An account can swap sides and keeps earned sets | DECIDED (GR-71, Fable 2026-11-21): 25-10 is kept as it stands |
 | Grounds | Both sides hunt everywhere and see each other. Each side gains standing on the grounds of its opposite. Every region past Krell holds equal grounds for each side | RULED 2026-11-14 |
 | Standing and looks | Standing earns outfit pieces. A hero can swap sides and keeps earned sets | RULED 2026-11-14 |
 | Faction skills | Bulwark for the First Flame, Reap for the Last Ember. Sized to matter (RULED 2026-11-21, 31-8). Each is a bar ability, not a buff row, so it sits outside the caps of section 2.2 and is sized in chapter 01 | RULED |
@@ -340,11 +340,11 @@ Chat is open by default so a new player sees that other people exist (RULED 2026
 
 | Not in the game | Why | Status |
 |---|---|---|
-| Hired, lent or on-call heroes | Every account has four, so nobody needs a seat filled. At 12 hunted hours a day nobody has a spare hero-hour to lend. Under the two-thirds rule one pair in six would match among four real players with top Levels 79, 46, 9 and 8 (COMPUTED). It would be a trade surface and a market in carried leveling | OPEN (MM-18, waiting on Tyler, T-fix-1). He did not approve cut 2 and he let reversal 18 stand, and the two point opposite ways. This book is written without them. It was to come back to Tyler if playtest friends ask to lend heroes without being prompted |
+| Hired, lent or on-call heroes | Every account has four, so nobody needs a seat filled. At 12 hunted hours a day nobody has a spare hero-hour to lend. Under the two-thirds rule one pair in six would match among four real players with top Levels 79, 46, 9 and 8 (COMPUTED). It would be a trade surface and a market in carried leveling | OPEN (MM-18, waiting on Tyler, T-fix-1). His pick on cut 2 and reversal 18 point opposite ways, so both are held. This book is written without them. It was to come back to Tyler if playtest friends ask to lend heroes without being prompted |
 | Shared combat grounds, 8-person areas | A contested spawn with both owners asleep is a tax and not a meeting. A busy server would need channels, which is instancing again. One party, one instance is the engine | DECIDED (MM-20, Fable 2026-11-21) |
 | A raid of many heroes in one fight | It needs people at the screen and a second engine. The world boss is the server's shared fight. A clan's own shared hunt, planned as two parties of four in one hall (25-11), takes the same form when it is built: each party in its own room on one clan pool | DECIDED (MM-1, MM-2, MM-48, Fable 2026-11-21, reversal of the second half of 25-11, approved, with MM-1 and MM-48 RULED by Tyler) |
 | PvP on the hunting grounds | The idle hunt is never interrupted by another player | DECIDED (MM-17, Fable 2026-11-21) |
-| A live party finder, a fifth seat | Rule 0. The cap of four is RULED (25-11) | OPEN (GR-69, waiting on Tyler, T-fix-2), with the Local chat tab. He did not approve cuts 3 and 4, which point the other way from reversal 21 |
+| A live party finder, a fifth seat | Rule 0. The cap of four is RULED (25-11) | OPEN (GR-69, waiting on Tyler, T-fix-2), with the Local chat tab. His picks on cuts 3 and 4 point the other way from reversal 21, so all are held |
 | Dailies, a login calendar, a season pass | Section 2.5 | DECIDED (MM-11, Fable 2026-11-21) |
 | Gear, materials, gold, Levels or rating sold by the store | Chapter 04 | RULED (MM-29, Tyler 2026-11-21) |
 
@@ -409,7 +409,7 @@ In decision-book order. "First" marks a decide-first call.
 | MM-41 | The engine check | Measure heroes on both sides once, before either arena is planned | DECIDED (Fable 2026-11-21) |
 | MM-42 | Events pay buffs and gear | The in-between ground weekend features that ground's named pieces on its own event row, outside the buff caps, never sold and never stacked | RULED (Tyler, 2026-11-21). It replaces The second half of 27-5, 2026-11-20 |
 | GR-69 | Local chat, the live party finder, the fifth seat | Remove all three | OPEN (waiting on Tyler, T-fix-2) |
-| GR-71 | Faction side | Chosen for each hero, with one press to join them all | DECIDED (Fable 2026-11-21) |
+| GR-71 | Faction side | Chosen for the whole account, as ruled in 25-10. One press joins every hero that has killed Krell | DECIDED (Fable 2026-11-21) |
 | GR-72 | A friend link at sign-up | Yes, with no reward | DECIDED (Fable 2026-11-21) |
 | MM-44 (new) | A standing clan gift | Set once, taken weekly, reported on the return card | DECIDED (Fable 2026-11-21) |
 | MM-45 (new) | Spending banked tickets | One press with a remembered pick rule | DECIDED (Fable 2026-11-21) |
@@ -494,9 +494,9 @@ The reads on bought boosts, the Crowns book and the test allowance (MM-43) are i
 | Honors-only and goods-only rewards: boss pay with nothing above the band's goods, clans with no hero power, a clan board for honors, arena titles and banners only (study 49, first issue) | Tyler 2026-11-21: "none of that is fun". Rewards are buffs and gear |
 | One normalized arena (study 49, first issue) | Tyler 2026-11-21: two arenas |
 | "Clans give no XP" (25-2) as a blanket rule | The 2026-11-21 reward ruling is newer. 25-2 is kept all the same: MM-9 and MM-25 cut the library, so no clan room gives Level XP. The bound rations of 25-2 stand |
-| The castle at built prices with one work order a week for each slot, five buildings of ten levels, labor, votes, upkeep, a treasury balance and Clan Standing (25-4 and the social review's inventory) | MM-9 replaces them with one project on the town project engine. 25-4 is a ruling, so this needs Tyler's yes. Castle goods prices (31-3) stay |
+| The castle at built prices with one work order a week for each slot, five buildings of ten levels, labor, votes, upkeep, a treasury balance and Clan Standing (25-4 and the social review's inventory) | Tyler let the price for each member stand (MM-9) and kept the buildings, labor, votes, upkeep, treasury and Clan Standing, which section 2.4 fits to that price |
 | The castle hidden until a clan has ten accounts (25-3) | A price by member makes a castle of three work. Needs Tyler's yes at MM-9 |
-| On-call heroes at 2 to 4 hours a day, standing parties, the on-call board, friends as an on-call roster (25-1, 25-3, the social review's first change) | Four heroes from day 1 at 12 hunted hours leave no seat to fill and no hour to lend. 25-1 is a ruling, so MM-18 needs Tyler's yes |
+| On-call heroes at 2 to 4 hours a day, standing parties, the on-call board, friends as an on-call roster (25-1, 25-3, the social review's first change) | Four heroes from day 1 at 12 hunted hours leave no seat to fill and no hour to lend. OPEN, waiting on Tyler (T-fix-1) |
 | The playtest "is finding your hero came back from a friend's hunt fun?" (game review 7.3, item 3) | It tests on-call heroes. It returns only if MM-18 is refused |
 | The hidden, ground-keyed Level cut on party XP, and removing it with nothing in its place | The two-thirds rule replaces both in one step (MM-19). A phase B measurement beat the phase A guess of "21 times" |
 | Party size bands for pairs, threes and fours, and the size ladder work of the social review | Tyler 2026-11-21: no solo or group targets |
@@ -504,7 +504,7 @@ The reads on bought boosts, the Crowns book and the test allowance (MM-43) are i
 | The world review's "a world boss is a schedule, the opposite of idle" | A 72-hour window with no set hour answers it |
 | "The two-thirds rule is not needed in the boss room" (study 49, 5.6) | Boss points ignore Level, but the room also pays Level XP, and one rule for every party is simpler than an exception |
 | The modifier table cited as steps R10 and R11 (study 49, sources) | R10 and R11 are the gear curve and exchange rates. The modifier table is R20 |
-| Account-wide faction choice (25-10) | GR-71 recommends a side for each hero. 25-10 is a ruling, so it needs Tyler's yes |
+| A faction side chosen for each hero | GR-71 refuses it and keeps 25-10: the account picks one side |
 | Faction skills capped at 2% (25-9), and cutting them (31-8 as first recommended) | Tyler 2026-11-21: make the skills matter |
 | The clan hunt as eight heroes in one hall (25-11, second half) | One engine, one party of four. It takes the shared-pool form (MM-48). It is kept for later, not cut |
 | The Local chat tab, the live party finder, the fifth seat | Rule 0 and GR-69 |

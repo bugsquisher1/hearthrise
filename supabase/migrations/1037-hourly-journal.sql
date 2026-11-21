@@ -349,7 +349,7 @@ begin
            coalesce(s.gold, 0) < 0 as gneg, coalesce(s.qty, 0) < 0 as qneg, coalesce(s.xp, 0) < 0 as xneg,
            count(*)::int as n, sum(s.gold)::bigint as gold, sum(s.gold_in)::bigint as gold_in, sum(s.xp_in)::bigint as xp_in,
            sum(s.qty_in)::bigint as qty_in, sum(s.gems_in)::bigint as gems_in, sum(s.qty)::bigint as qty, sum(s.xp)::bigint as xp,
-           (array_agg(s.purse order by s.id desc))[1] as purse,
+           (array_agg(s.purse order by s.id desc) filter (where s.purse is not null))[1] as purse,
            public.hr_ledger_meta_fold(s.model, s.meta order by s.id) as meta
       from src s
      group by 1, 2, 3, 4, 5, 6, 7, 8, 9, 10
@@ -394,6 +394,7 @@ declare
   c public.hr_ledger_config%rowtype; st public.hr_ledger_hours_state%rowtype;
   v_now timestamptz := coalesce(p_now, now()); v_cut timestamptz; v_lo timestamptz; v_r record; v_one jsonb;
   v_in bigint := 0; v_out bigint := 0; v_left bigint := 0; v_hours int := 0; v_lim int := greatest(1, least(coalesce(p_limit, 50000), 500000));
+  v_err int := 0; v_why text;
 begin
   select * into c from public.hr_ledger_config limit 1;
   if p_only is null and (p_from is not null or p_now is not null) then
@@ -426,9 +427,16 @@ begin
   while st.hour + interval '1 hour' <= v_cut and v_in < v_lim loop
     for v_r in select l.user_id, l.slot from public.player_ledger l
                 where l.at >= greatest(st.hour, st.from_at) and l.at < st.hour + interval '1 hour' and l.folded is null
+                  and public.hr_ledger_fold_model(l.kind, l.intent) is not null
                   and (st.after_user is null or (l.user_id, l.slot) > (st.after_user, st.after_slot))
                 group by 1, 2 order by 1, 2 loop
-      v_one := public.hr_ledger_hours_one(v_r.user_id, v_r.slot, st.hour, st.hour + interval '1 hour', st.from_at, v_cut);
+      -- ONE HERO-HOUR THAT CANNOT FOLD KEEPS ITS DETAIL (never evict on uncertainty) and the run goes on: counted, its error kept.
+      begin
+        v_one := public.hr_ledger_hours_one(v_r.user_id, v_r.slot, st.hour, st.hour + interval '1 hour', st.from_at, v_cut);
+      exception when others then
+        v_err := v_err + 1; v_why := coalesce(v_why, left(sqlerrm, 300));
+        v_one := '{"rows_in": 0, "rows_out": 0, "left": 0}'::jsonb;
+      end;
       v_in := v_in + (v_one ->> 'rows_in')::bigint; v_out := v_out + (v_one ->> 'rows_out')::bigint; v_left := v_left + (v_one ->> 'left')::bigint;
       st.after_user := v_r.user_id; st.after_slot := v_r.slot;
       exit when v_in >= v_lim;
@@ -442,10 +450,11 @@ begin
      set hour = st.hour, after_user = st.after_user, after_slot = st.after_slot,
          rows_in = rows_in + v_in, rows_out = rows_out + v_out, left_rows = left_rows + v_left,
          last = jsonb_build_object('at', now(), 'rows_in', v_in, 'rows_out', v_out, 'left', v_left, 'hours_done', v_hours,
-                                   'hour', st.hour),
+                                   'hour', st.hour, 'errors', v_err, 'error', v_why),
          updated_at = now()
    where id;
-  return jsonb_build_object('rows_in', v_in, 'rows_out', v_out, 'left', v_left, 'hours_done', v_hours, 'hour', st.hour);
+  return jsonb_build_object('rows_in', v_in, 'rows_out', v_out, 'left', v_left, 'hours_done', v_hours, 'hour', st.hour,
+                            'errors', v_err, 'error', v_why);
 end $fn$;
 
 do $mig$

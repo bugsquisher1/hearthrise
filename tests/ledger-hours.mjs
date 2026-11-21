@@ -174,6 +174,10 @@ async function cronArms(db) {
     const hr = (h, m = 0) => `date_trunc('hour', now()) - interval '${h} hours' + interval '${m} minutes'`;
     const row = (at, xp) => db.query(`insert into public.player_ledger (user_id, slot, kind, intent, gold, gold_in, xp_in, qty_in, meta, at)
       values ($1, 0, 'combat', 'accrue', 0, 0, $2, 0, '{"ms": 1000}', ${at})`, [u, xp]);
+    /* coin in the 6-hour (purse and gold kind stamped), then a save with none (neither): two activities, the coin's keeps its purse */
+    await db.query('insert into public.account_wallet (user_id, gold) values ($1, 900) on conflict (user_id) do update set gold = 900', [u]);
+    await db.query(`insert into public.player_ledger (user_id, slot, kind, intent, gold, gold_in, xp_in, qty_in, gold_kind, meta, at)
+      values ($1, 0, 'combat', 'accrue', 5, 5, 0, 0, 'hunt_loot', '{"ms": 1000}', ${hr(6, 1)})`, [u]);
     await row(hr(8, 10), 1);  await row(hr(7, 20), 2);  await row(hr(7, 40), 4);  await row(hr(6, 5), 8);  await row(hr(2, 5), 16);
     /* a row of a folding shape whose meta carries a key the model does not list: it keeps its detail */
     await db.query(`insert into public.player_ledger (user_id, slot, kind, intent, gold, gold_in, xp_in, qty_in, meta, at)
@@ -190,10 +194,11 @@ async function cronArms(db) {
     try { r = await one(db, 'select public.hr_ledger_hours_fold(50000)'); await db.query('release savepoint run'); }
     catch (e) { await db.query('rollback to savepoint run'); red.push(`BOUNDARY: the cron's fold raised: ${String(e.message || e).split('\n')[0].slice(0, 200)}`); }
     const left = (await q(db, 'select xp_in::int as x from public.player_ledger where user_id = $1 and folded is null order by 1', [u])).map((x) => x.x);
-    const hours = (await q(db, 'select xp_in::int as x, folded from public.player_ledger where user_id = $1 and folded is not null order by 1', [u]));
+    const hours = (await q(db, 'select xp_in::int as x, folded, purse::int as purse from public.player_ledger where user_id = $1 and folded is not null order by 1', [u]));
     if (JSON.stringify(left) !== '[1,2,16,32]') red.push(`BOUNDARY: the rows that kept their detail are xp ${JSON.stringify(left)}, want [1,2,16,32] (before the release; inside detail_minutes; an unknown key)`);
     if (r && !(Number(r.left) >= 1)) red.push(`BOUNDARY: the cron's fold did not count the row it could not fold (${JSON.stringify(r)})`);
-    if (JSON.stringify(hours) !== '[{"x":4,"folded":1},{"x":8,"folded":1}]') red.push(`BOUNDARY: the hour rows are ${JSON.stringify(hours)}`);
+    if (r && Number(r.errors) !== 0) red.push(`BOUNDARY: the cron's fold failed ${r.errors} hero-hour(s): ${r.error}`);
+    if (JSON.stringify(hours) !== '[{"x":0,"folded":1,"purse":900},{"x":4,"folded":1,"purse":null},{"x":8,"folded":1,"purse":null}]') red.push(`BOUNDARY: the hour rows are ${JSON.stringify(hours)} (want the 6-hour's coin row with its purse, the 7-hour's row, the 6-hour's coinless row)`);
     const st = (await q(db, `select hour <= now() - interval '180 minutes' and hour + interval '1 hour' > now() - interval '180 minutes' as at_cut from public.hr_ledger_hours_state`))[0];
     if (!st.at_cut) red.push(`BOUNDARY: the cursor did not stop at the first hour it may not fold (${JSON.stringify(r)})`);
     const refused = async (label, sql, flag = false) => {

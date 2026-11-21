@@ -305,7 +305,9 @@ async function checks(overrides, shots, firstRed = false) {
       if (!size.touch && size.docked !== false) for (const id of await barReach(page)) {
         const q = id.startsWith('group:') ? '.hs-launchers [data-hs-group="' + id.slice(6) + '"]' : '.hs-launchers > .hs-launch[data-hs-open="' + id + '"]';
         await page.hover(q);
-        await page.waitForTimeout(160);
+        /* the chip fades in (shell.css, opacity over 120 ms): read it once the fade has ended, up to 1.5 s, never at a fixed 160 ms
+           (staging run 44870672285 read 0.9986 on three icons there, z 11 over the card's 5: a fade still running, not a chip under it) */
+        await page.waitForFunction((s) => getComputedStyle(document.querySelector(s), '::before').opacity === '1', q, { timeout: 1500 }).catch(() => {});
         const chip = await page.evaluate((s) => { const b = document.querySelector(s), c = getComputedStyle(b, '::before'), p = document.querySelector('.hs-launchers > .hs-pointer');
           return { tip: b.getAttribute('data-tip'), opacity: c.opacity, z: c.zIndex, card: p ? getComputedStyle(p).zIndex : null }; }, q);
         if (!chip.tip || chip.opacity !== '1' || !(chip.card === null || Number(chip.z) > Number(chip.card))) fails.push('TB-8 [' + tag(size) + '] ' + id + '\'s name chip hides under the coach card: ' + JSON.stringify(chip));

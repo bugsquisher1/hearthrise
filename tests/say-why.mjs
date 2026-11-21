@@ -382,9 +382,7 @@ export const REASONS = Object.freeze({
   'src/shell/hud.js': [
     { cond: 'row.removable', words: 'hs-hudset-show', where: 'a fixed widget\'s box (cannot be hidden by design; the row is labelled)' },
   ],
-  'src/app/slot-offer.js': [
-    { cond: 'short > 0', words: "t('slots.short', { gold: whole(short) })", where: 'the offer block' },
-  ],
+  /* src/app/slot-offer.js left the list with the slot offer (all four hero slots free, 1036-four-starter-slots.sql): it has no button now */
   /* Other lanes own these files right now (lane/a-v0246-followups); listed as they stand, see the report. */
   'src/shell/windows/farm.js': [
     { cond: '!r.why', words: 'r.why', where: 'the crop row\'s own why' },

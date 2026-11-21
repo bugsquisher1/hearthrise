@@ -283,6 +283,20 @@ export function judgeGrid(D, grid, o = {}) {
       }
       continue;
     }
+    if (/^S11\./.test(id)) {
+      const key = id === 'S11.blessed' ? 'afterRuledBlessed' : 'afterRuledUnblessed';
+      for (const L of levels) {
+        if (w.levels && (L < w.levels[0] || L > w.levels[1])) continue;
+        const h = T.hardest(L, 'mid', 4), lone = get(L, 'mid', 1, 'normal');
+        if (h.party !== 4 || h.tier === 'normal' || !lone) continue;
+        const row = T.watch.find((x) => x.L === L && x.party === 4 && x.gear === 'mid');
+        const t = row && row[h.tier];
+        if (!t || !finite(t[key])) continue;
+        add(band, 'Level ' + L + ' (the MID four, hardest tier held)', ratio(t[key], lone.rates.netLevelXpPerH) ?? (t[key] <= 0 ? t[key] / lone.rates.netLevelXpPerH : null),
+          { shown: fmt(t[key]) + ' on ' + h.tier + ' at ' + t.ruledCount + ' deaths in 1,000 h / ' + fmt(lone.rates.netLevelXpPerH) + ' alone' });
+      }
+      continue;
+    }
     if (id === 'G-1') {
       let prev = null;
       for (const c of cellsWhere(w).sort((a, b) => a.L - b.L)) { if (prev) add(band, at(c), ratio(c.rates.netPerH, prev.rates.netPerH)); prev = c; }
@@ -428,6 +442,7 @@ export async function selftest({ ROOT, loadGridData, loadKits, readGrid, quick }
   plant('gold: the store eats 95% of a MID Deadly party\'s coin', 'G-2.deadly', (c) => c.gear === 'mid' && c.party !== 2 && c.tier === 'deadly' && inBandCell(D, c), (c) => { c.rates.storeShare = 0.95; }, label);
   plant('gear: BiS twice MID alone', 'P4', (c) => c.gear === 'bis' && c.party === 1 && c.tier === 'normal', (c) => { c.rates.levelXpPerH *= 2; }, label);
   plant('gear: BiS three times LOW alone on Normal', 'P5', (c) => c.gear === 'bis' && c.party === 1 && c.tier === 'normal' && c.L >= 15, (c) => { c.rates.levelXpPerH *= 3; }, label);
+  plant('death: the lone hero on Normal at five times its Level XP (a party at the ruled death count is then slower than its heroes alone)', 'S11.blessed', (c) => c.gear === 'mid' && c.party === 1 && c.tier === 'normal' && c.L >= 35 && c.L <= 110, (c) => { c.rates.netLevelXpPerH *= 5; c.rates.levelXpPerH *= 5; }, (c) => 'Level ' + c.L + ' (the MID four, hardest tier held)');
   plant('pace: one Level of the pace seat takes days (its checkpoint at a fiftieth of the Level XP)', 'P12.to300', null, null, null);
   plant('gear: LOW to MID costs more than the band earns (lone MID net at 1 gold an hour)', 'E3', (c) => c.gear === 'mid' && c.party === 1 && c.tier === 'normal' && c.L >= 15, (c) => { c.rates.netPerH = 1; c.rates.netADay = 12; }, (c) => 'Level ' + c.L + ' (band ' + K.bandOf(c.L) + ')');
   let fails = 0;

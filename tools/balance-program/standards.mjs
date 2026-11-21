@@ -143,7 +143,9 @@ export const BANDS = deep([
   b('P11.early', 'pace', 'hours for a Level', { seat: 'new-player', levels: [1, 9] }, null, 2, null, 2.5, 'RULED', 27, '27-2; old G6'),
   b('P11.ten', 'pace', 'hours to Level 10', { seat: 'new-player' }, 5, 7, null, 7, 'RULED', 27, '27-2; old G6'),
   b('P11.smooth', 'pace', 'hours for a Level / the Level before', { levels: [1, 400] }, null, 2, null, 2, 'RULED', 21, 'LEVEL_PACE.smooth'),
-  b('P12.to300', 'pace', 'hours for a Level', { seat: 'pace-seat', levels: [10, 300] }, null, 12, null, 13, 'PROPOSED', 27, 'a Level a day at 12 h'),
+  /* read at 15, not 12 (the progression review, 2026-11-21): the RULED table itself needs 10.8 hours a Level from 100 to 200 and 14.4 from 200 to 300
+     ((3,120 - 1,680) / 100), so "a Level in every 12 hours to 300" contradicted the ruling it sits under */
+  b('P12.to300', 'pace', 'hours for a Level', { seat: 'pace-seat', levels: [10, 300] }, null, 15, null, 16.5, 'PROPOSED', 27, 'a Level in a day and a quarter at most: the ruled table needs 14.4 h a Level from 200 to 300'),
   b('P12.to400', 'pace', 'hours for a Level', { seat: 'pace-seat', levels: [300, 400] }, null, 24, null, 24, 'PROPOSED', 27, 'a Level every two days at most'),
   b('P13', 'pace', 'event Level XP / all Level XP', { player: 'hunts the whole weekend' }, null, 0.05, null, 0.05, 'RULED', 27, '27-5'),
 
@@ -170,6 +172,12 @@ export const BANDS = deep([
   b('S6.deadly.bis', 'survival', 'deathsPer1000h', { gear: 'bis', tier: 'deadly', inBand: true }, 10, 30, null, 45, 'PROPOSED', 21, '', { call: 5, sample: 'nightly-deaths' }),
   b('S7.mid', 'survival', 'share of 12 h Normal hunts that finish', { gear: 'mid', tier: 'normal', inBand: true }, 0.99, null, 0.97, null, 'RULED', 21, '2026-10-25 section 3', { sample: 'nightly-deaths' }),
   b('S7.low', 'survival', 'share of 12 h Normal hunts that finish', { gear: 'low', tier: 'normal', inBand: true }, 0.90, null, 0.80, null, 'PROPOSED', 21, '', { sample: 'nightly-deaths' }),
+  /* THE DEATH RULES' OWN BAND (the progression review, 2026-11-21: a patch that halved the death loss moved 0 bands, because a 2 hour cell records almost
+     no death and no band read XP after deaths). Derived, never counted: the hardest tier the MID four holds, its Level XP a head after deaths AT THE TOP OF
+     THE RULED COUNT (S6's MID row: Dangerous 30, Deadly 100 in 1,000 hours) at the ruled cost (DEATH_COST), over the lone MID hero's on Normal. Under 1 a
+     party that dies as often as the ruling says is slower than its heroes alone (RULED 11-16: a party stands at or over its heroes alone). */
+  b('S11.blessed', 'death', 'xp a head after deaths at the ruled count, the hardest tier the four holds / the lone hero on Normal, every Blessing', { gear: 'mid', party: 4, levels: [5, 400] }, 1.0, null, 1.0, null, 'PROPOSED', 21, 'the death rules move this band and no other'),
+  b('S11.unblessed', 'death', 'the same with no Blessing', { gear: 'mid', party: 4, levels: [5, 400] }, 1.0, null, 1.0, null, 'PROPOSED', 21, 'a party that buys no Blessing'),
   b('S10', 'death', 'Blessing set price in hours of net gold / hours it saves', { levels: [30, 400] }, null, 0.20, null, 0.35, 'PROPOSED', 24, '21-8 was sized against a death worth 7 to 27 hours'),
 
   // ── gold ── no band names a gold number not yet measured on this frame

@@ -7,8 +7,8 @@
 //
 // ROW SHAPE: a status either TICKS (a damage over time), MARKS its unit (it takes more
 // damage while the status lasts) or SLOWS it (its swings and its spell windups take longer).
-//   { id, name, tick, everyMs, durationMs, maxStacks, scalesWith,
-//     skillPermillePerLevel, tierPermille, damageType }        a ticking status
+//   { id, name, tick, everyMs, durationMs, maxStacks, blowPm,
+//     tierPermille, damageType }                                a ticking status
 //   { id, name, durationMs, maxStacks, takenPm }                  a marking status
 //   { id, name, durationMs, maxStacks, slowPm, tierPermille? }    a slowing status
 //   { id, name, durationMs, maxStacks, healCutPm, guard? }        a heal-cutting status
@@ -36,22 +36,24 @@
 //                            it lasts (damage.js landHit, beside Hunter's Mark); fixed:
 //                            never scaled by skill or rune tier (Bible §17), never
 //                            stacked past its maxStacks
-//     tick                   [min, max] base damage of one tick, inclusive
+//     tick                   [min, max] the base roll of one tick, inclusive ([1, 1]: a fixed tick, no draw)
 //     everyMs                one tick every this long (a whole number of sub-steps)
 //     durationMs             a stack lasts this long; reapplying refreshes EVERY stack
 //     maxStacks              stacks one unit may carry at once (any sources)
-//     scalesWith             the discipline whose level the SOURCE brings (the
-//                            caller resolves it; the engine reads source.skillLv)
-//     skillPermillePerLevel  +permille of the tick per level of that discipline
+//     blowPm                 permille of the SOURCE's own largest blow (its unit's maxHit, the
+//                            caller passes it: source.maxHit) one tick of the base roll lands
+//                            (THE SPELL RULE, lane/c-spell-rule: a tick grows with the weapon
+//                            and the skill as the cast that landed it does)
 //     tierPermille           multiplier by rune tier, permille, index 0 = tier 1;
 //                            a source with no rune is tier 1
 //     damageType             the element each tick is dealt as
 //   A stack's scale is FIXED when it lands (spec §3.3 #6):
-//     scale = (1000 + skillLv x skillPermillePerLevel) x tierPermille[tier-1] / 1000
+//     scale = max(tierPermille[tier-1], floor(maxHit x blowPm x tierPermille[tier-1] / 1000))
+//             (the tier's share alone under it: the beginner's floor, abilities.js base)
 //     tick  = round(roll(tick) x scale / 1000)
 //
-// Numbers: stacks 5 and 6 s are DECIDED (week plan item 6); tick 1-3, the
-// 0.004 skill factor and the 1.00/1.10/1.20 tiers are ASSUMED (spec §5 #9).
+// Numbers: stacks 5 and 6 s are DECIDED (week plan item 6); the tick's share and the
+// +10% tiers are the spell rule's (the bleed row below).
 // Bleed is generic (Tyler 10-16): heroes and monsters both carry it, and it is
 // physical damage (Tyler 10-16).
 //
@@ -62,13 +64,18 @@ import { HUNT_TUNING } from './hunt-tuning.js';
 import { PHYSICAL, isElement } from './elements.js';
 import { NECROTIC_STORM } from './necrotic-storm.js';
 
-/* The five rune tiers (src/data/runes.js): Rend's bleed lands +10% a tier above Chalked (ASSUMED, the designer
-   re-tunes in the balance phase), so a Graven Rupture Rune's bleed ticks 1.4x a Chalked one's. */
+/* The five rune tiers (src/data/runes.js): Rend's bleed lands +10% a tier above Chalked, the step every rune spell takes
+   (runes.js RUNE_TIERS stepPm), so a Graven Rupture Rune's bleed ticks 1.4x a Chalked one's.
+   UNDER THE SPELL RULE (Tyler 2026-11-21, call 21-5; plan lane L17: "Rend ... with its bleed converted") a tick rolls its 1-3 times
+   the larger of its rune tier's share and 3.3% of the axes' own largest blow (blowPm), fixed as the stack lands: its Level 60 worth
+   before the rule (5 stacks held, 15% of a same-Level monster a second), where the old +0.4% a Melee level fell to 10% at Level 110
+   (tools/balance-sim/staged/spell-audit.mjs section 4); under about a blow of 30 the tier alone holds it, the first hours' bleed
+   (abilities.js `base`, the beginner's floor, Tyler 32-8). */
 export const STATUSES = Object.freeze({
   bleed: Object.freeze({
     id: 'bleed', name: 'Bleed',
     tick: Object.freeze([1, 3]), everyMs: 1000, durationMs: 6000, maxStacks: 5,
-    scalesWith: 'melee', skillPermillePerLevel: 4,
+    blowPm: 33,
     tierPermille: Object.freeze([1000, 1100, 1200, 1300, 1400]),
     damageType: 'physical',
   }),
@@ -104,7 +111,6 @@ export function slowScaleAt(row, tier) {
 }
 
 const ID = /^[a-z0-9_]{1,32}$/;
-const DISCIPLINES = Object.freeze(['melee', 'ranged', 'magic']);
 
 /** Every problem with one status row, as strings. Empty = valid. */
 export function validateStatus(row) {
@@ -124,7 +130,7 @@ export function validateStatus(row) {
     for (const k of ['durationMs', 'maxStacks']) posInt(k);
     if (Number.isInteger(row.durationMs) && row.durationMs % HUNT_TUNING.stepMs !== 0) out.push(at + 'durationMs ' + row.durationMs + ' is not a whole number of ' + HUNT_TUNING.stepMs + ' ms sub-steps');
     if (row.guard !== undefined && !isElement(row.guard)) out.push(at + 'guard must be an element id, got ' + row.guard);
-    for (const k of ['tick', 'everyMs', 'scalesWith', 'skillPermillePerLevel', 'tierPermille', 'damageType', 'takenPm', 'slowPm']) if (row[k] !== undefined) out.push(at + 'a heal-cutting status has no ' + k);
+    for (const k of ['tick', 'everyMs', 'blowPm', 'tierPermille', 'damageType', 'takenPm', 'slowPm']) if (row[k] !== undefined) out.push(at + 'a heal-cutting status has no ' + k);
     return out;
   }
   if (row.takenPm !== undefined || row.slowPm !== undefined) {
@@ -137,7 +143,7 @@ export function validateStatus(row) {
     if (Number.isInteger(row.durationMs) && row.durationMs % HUNT_TUNING.stepMs !== 0) out.push(at + 'durationMs ' + row.durationMs + ' is not a whole number of ' + HUNT_TUNING.stepMs + ' ms sub-steps');
     /* A slowing status may grow with the rune tier of the cast that lands it (tierPermille); a marking one is fixed (Bible §17). */
     const own = kind === 'slowPm' ? ['tierPermille'] : [];
-    for (const k of ['tick', 'everyMs', 'scalesWith', 'skillPermillePerLevel', 'tierPermille', 'damageType']) if (row[k] !== undefined && !own.includes(k)) out.push(at + 'a ' + (kind === 'takenPm' ? 'marking' : 'slowing') + ' status has no ' + k);
+    for (const k of ['tick', 'everyMs', 'blowPm', 'tierPermille', 'damageType']) if (row[k] !== undefined && !own.includes(k)) out.push(at + 'a ' + (kind === 'takenPm' ? 'marking' : 'slowing') + ' status has no ' + k);
     if (kind === 'slowPm' && row.tierPermille !== undefined) {
       const tp = row.tierPermille;
       if (!Array.isArray(tp) || !tp.length || !tp.every((n) => Number.isInteger(n) && n >= 1000)) out.push(at + 'tierPermille must be a non-empty list of integers >= 1000');
@@ -153,8 +159,9 @@ export function validateStatus(row) {
   for (const k of ['everyMs', 'durationMs']) {
     if (Number.isInteger(row[k]) && row[k] % HUNT_TUNING.stepMs !== 0) out.push(at + k + ' ' + row[k] + ' is not a whole number of ' + HUNT_TUNING.stepMs + ' ms sub-steps');
   }
-  if (!DISCIPLINES.includes(row.scalesWith)) out.push(at + 'scalesWith must be one of ' + DISCIPLINES.join('/'));
-  if (!Number.isInteger(row.skillPermillePerLevel) || row.skillPermillePerLevel < 0) out.push(at + 'skillPermillePerLevel must be an integer >= 0');
+  /* THE SPELL RULE (lane/c-spell-rule): a tick is a share of its source's own blow, never a number that grows with a skill level. */
+  if (!Number.isInteger(row.blowPm) || row.blowPm < 1 || row.blowPm > 1000) out.push(at + 'blowPm must be an integer 1..1000 (permille of the source\'s largest blow a tick)');
+  for (const k of ['scalesWith', 'skillPermillePerLevel']) if (row[k] !== undefined) out.push(at + k + ' is retired by the spell rule: a tick is a share of its source\'s blow (blowPm)');
   if (!Array.isArray(row.tierPermille) || !row.tierPermille.length || !row.tierPermille.every((n) => Number.isInteger(n) && n >= 1000)) {
     out.push(at + 'tierPermille must be a non-empty list of integers >= 1000');
   } else {

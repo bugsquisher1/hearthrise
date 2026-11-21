@@ -136,7 +136,7 @@ const cases = {
 const mutants = [
   { name: 'the settle never puts Follow-through on the unit', case: 'perks-show', edits: [['src/core/combat-sim.js', '  if (snap.followPm) u.followPm = snap.followPm; else if (u.followPm) delete u.followPm;\n', '']] },
   { name: 'Keen never reaches the crit chance', case: 'perks-show', edits: [['src/core/combat.js', 'const keen = eq.jewel && eq.jewel.keen ? eq.jewel.keen / 1000 : 0;', 'const keen = 0;']] },
-  { name: 'Surge never lands', case: 'perks-show', edits: [['src/core/hunt/abilities.js', 'return u.surgePm > 0 && !!(row.dmg || row.heal || row.shield) && sc.rng.chance(u.surgePm / 1000);', 'return false;']] },
+  { name: 'Surge never lands', case: 'perks-show', edits: [['src/core/hunt/abilities.js', 'return u.surgePm > 0 && (landsBlow(row) || heals(row) || shells(row)) && sc.rng.chance(u.surgePm / 1000);', 'return false;']] },
   { name: 'a perk counts once per piece, so two rings stack', case: 'once-per-hero', edits: [['src/core/combat.js', "if (pm > 0 && !(out[k] >= pm)) { out[k] = pm; any = true; }", "if (pm > 0) { out[k] = (out[k] || 0) + pm; any = true; }"]] },
   { name: 'Follow-through draws from the wall clock, so two cuts disagree', case: 'both-paths', edits: [['src/core/hunt/damage.js', 'if (next && sc.rng.chance(u.followPm / 1000))', 'if (next && Math.random() < u.followPm / 1000)']] },
   { name: 'Steady never reaches the accuracy', case: 'earrings-show', edits: [['src/core/combat.js', '  if (steady) accuracy += (1 - accuracy) * steady;', '']] },

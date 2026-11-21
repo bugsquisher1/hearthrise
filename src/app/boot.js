@@ -240,7 +240,7 @@ function startApp(win) {
     alerts = G.createAlertCenter(account);
     /* Every press answers at once (src/shell/press-ack.js); ?debug=live adds the corner (live-overlay.js). */
     watchers = [mountPressAck(doc, account.intents), mountConnectionLine(doc), mountOffWhy(doc), mountLauncherNames(doc), G.mountMarketWatch(win, account, alerts), mountSocialWatch(account, alerts),
-      G.mountTownCriers(win, account)];   // the town criers' tips in Local chat (display only, never sent)
+      G.mountTownCriers(win, account)];   // the town criers' tips in Global chat (display only, never sent)
     if (liveOverlayWanted(win.location.search)) watchers.push(mountLiveOverlay(win, account));
     account.social.chat.followAlerts(alerts);   // the alerts are also the chat's System lines
     /* arrived by a friend's link: one ask once signed in (GR-72); loaded only when the address carries a code */

@@ -21,7 +21,7 @@
 //                paid). A bench the player's own Stop ended no longer ago than this still counts as the job the hero
 //                set off from. Longer ago, it was stopped on purpose and is not picked up.
 //
-// JOB_THENS      what a gathering job or a bench run does when the server has counted it out (below).
+// JOB_NEXTS      what a gathering job or a bench run does when the server has counted it out (below).
 //
 // The words are src/data/text/away.js (t('away.<key>')). PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
@@ -47,14 +47,14 @@ export const AFTER_INDEX = Object.freeze(Object.fromEntries(AFTER_CHOICES.map((c
      hunt   the hero goes back to its latest hunt (the same ground, tier, setup and bag lines, through the same door as a
             manual restart), ONCE: a job resumed after a hunt ends waiting, so a plan never loops (ruling C8, 27-1)
    A gathering job ALWAYS takes a count (6,001 ore for a 20-ore errand, retention dive 2026-11-20); a bench may run on "All"
-   (until its inputs run out), which takes no THEN. JOB_THENS rows are the server's CHECK on player_state.active_then. */
-export const JOB_THEN_RUNS = Object.freeze(['nothing', 'hunt']);
-export const JOB_THENS = Object.freeze([
+   (until its inputs run out), which takes no THEN. JOB_NEXTS rows are the server's CHECK on player_state.active_next. */
+export const JOB_NEXT_RUNS = Object.freeze(['nothing', 'hunt']);
+export const JOB_NEXTS = Object.freeze([
   Object.freeze({ id: 'wait', runs: 'nothing' }),
   Object.freeze({ id: 'hunt', runs: 'hunt' }),
 ]);
-export const JOB_THEN_DEFAULT = 'wait';
-export const JOB_THEN_INDEX = Object.freeze(Object.fromEntries(JOB_THENS.map((c) => [c.id, c])));
+export const JOB_NEXT_DEFAULT = 'wait';
+export const JOB_NEXT_INDEX = Object.freeze(Object.fromEntries(JOB_NEXTS.map((c) => [c.id, c])));
 /** The largest count a job takes: player_state.active_left's CHECK (2026-12-01-bench-count.sql). */
 export const JOB_COUNT_MAX = 100000;
 /** The counts a gathering row offers (the Work window), before its own "X". */
@@ -63,14 +63,14 @@ export const GATHER_COUNTS = Object.freeze([20, 100, 1000]);
 export const GATHER_COUNT_DEFAULT = 100;
 
 /** Every problem with the job THEN rows, as strings. Empty = valid. */
-export function validateJobThens(rows = JOB_THENS, def = JOB_THEN_DEFAULT) {
+export function validateJobNexts(rows = JOB_NEXTS, def = JOB_NEXT_DEFAULT) {
   const out = [];
   const ids = new Set();
   for (const c of rows) {
     if (!c || typeof c.id !== 'string' || !/^[a-z_]{1,16}$/.test(c.id)) { out.push('a then has no plain id'); continue; }
     if (ids.has(c.id)) out.push(c.id + ': listed twice');
     ids.add(c.id);
-    if (!JOB_THEN_RUNS.includes(c.runs)) out.push(c.id + ': runs ' + c.runs + ', which is no entry of JOB_THEN_RUNS');
+    if (!JOB_NEXT_RUNS.includes(c.runs)) out.push(c.id + ': runs ' + c.runs + ', which is no entry of JOB_NEXT_RUNS');
   }
   if (!ids.has(def)) out.push('the default ' + def + ' is no then');
   else if (rows.find((c) => c.id === def).runs !== 'nothing') out.push('the default then must wait');

@@ -57,6 +57,8 @@ import { hallmarkPaneHtml, patchHallmarkPane, actHallmarkPane } from './hallmark
 import { DEFAULT_SORT, stationSortOf, withStationSort, orderStation, sortMenuHtml, patchSortMenu } from '../station-sort.js';
 import { t } from '../../render/player-text.js';
 import { heroGroundOf } from '../widgets/first-target.js';
+import { GATHER_COUNTS, GATHER_COUNT_DEFAULT, JOB_NEXTS, JOB_NEXT_DEFAULT } from '../../data/hunt-after.js';
+import { heldStep } from '../launcher.js';
 
 /* How many rows above the level a skill shows: the next things to aim at. */
 const AHEAD = 2;
@@ -64,8 +66,20 @@ const SCRATCH = new WeakMap();
 const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { skill: null, pending: false, msg: '', n: {} }; SCRATCH.set(cs, s); } return s; };
 /* The display state this hero keeps on the server (the residue allowlist, src/session/residue.js). */
 const residueOf = (cs) => (cs && cs.record && cs.record.residue) || {};
-/* The amount a bench row will make on its next Start (1, 5 or 'all'): the player's pick, else the row's default. */
-const countOf = (sc, w) => (Object.prototype.hasOwnProperty.call(sc.n, w.id) ? sc.n[w.id] : defaultCount(w));
+/* The amount a row will do on its next Start (a bench: 1, 5, 'all' or X; a gathering node: its counts or X, 1009-job-counts.sql): the
+   player's pick, else the count the coach's card sets for this row (`sc.coach`, hunt-tutorial.js SAY.home), else the row's default. */
+const countOf = (sc, w) => (Object.prototype.hasOwnProperty.call(sc.n, w.id) ? sc.n[w.id]
+  : sc.coach && sc.coach.work === w.id ? sc.coach.count : w.kind === 'gather' ? GATHER_COUNT_DEFAULT : defaultCount(w));
+/* The counts a row offers before its X. */
+const countsFor = (w) => (w.kind === 'artisan' ? BENCH_COUNTS : GATHER_COUNTS);
+/* What the hero does when a counted job is done (the window's one pick, display state until Start sends it): wait | hunt. */
+const nextOf = (sc) => (JOB_NEXTS.some((c) => c.id === sc.next) ? sc.next : JOB_NEXT_DEFAULT);
+/* The count the coach's held card sets for a row it rings ({ work, count }), or null. */
+function coachCountOf(ctx) {
+  const c = ctx && ctx.character ? heldStep(ctx) : null;
+  const g = c && c.ring;
+  return g && typeof g.work === 'string' && Number.isInteger(g.count) && g.count > 0 ? { work: g.work, count: g.count } : null;
+}
 
 /* skill -> its work rows in catalogue order ({ kind, id, skill, row }), built once. */
 const BY_SKILL = new Map();
@@ -173,14 +187,15 @@ function rowHtml(g, w) {
     + '<small class="hw-work-is"></small>'
     + '<span class="hw-work-ins"><span class="hw-work-what">' + inputsHtml(g, w) + '</span><small class="hw-work-stat"></small></span>'
     + '<small class="hw-work-odds"></small><small class="hw-work-fee"></small><small class="hw-work-why"></small>'
-    /* "Make N" (a bench row only), under the row's words: how many the next Start makes; the server stops the bench there. */
-    + (w.kind === 'artisan' ? '<span class="hh-segs hw-work-n" role="group" aria-label="How many to make">'
-      + BENCH_COUNTS.map((n) => '<button type="button" class="hh-seg" data-hs-act="work-n" data-id="' + esc(w.id) + '" data-n="' + n + '">'
-        + (n === 'all' ? 'All' : n) + '</button>').join('')
+    /* "Make N", under the row's words: how many the next Start does; the server stops the job there (a gathering node too since
+       1009-job-counts.sql: every job has an end). */
+    + ('<span class="hh-segs hw-work-n" role="group" aria-label="' + esc(t('work.count_label')) + '">'
+      + countsFor(w).map((n) => '<button type="button" class="hh-seg" data-hs-act="work-n" data-id="' + esc(w.id) + '" data-n="' + n + '">'
+        + (n === 'all' ? 'All' : whole(n)) + '</button>').join('')
       + '<button type="button" class="hh-seg hw-work-xb" data-hs-act="work-x" data-id="' + esc(w.id) + '" data-n="x">X</button>'
       + '<span class="hw-work-x" hidden><input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="7" autocomplete="off" enterkeyhint="done"'
       + ' class="hw-work-xf" data-hs-act="work-x-field" data-id="' + esc(w.id) + '" aria-label="How many, 1 to ' + BENCH_MAX + '">'
-      + '<button type="button" class="hh-seg" data-hs-act="work-x-set" data-id="' + esc(w.id) + '">Set</button></span></span>' : '')
+      + '<button type="button" class="hh-seg" data-hs-act="work-x-set" data-id="' + esc(w.id) + '">Set</button></span></span>')
     + '</span><button type="button" class="hh-tool hw-work-go" data-hs-act="work-go" data-kind="' + w.kind + '" data-id="' + esc(w.id) + '"></button></li>';
 }
 
@@ -205,7 +220,7 @@ function patchRow(li, w, cs, sc, on, hunting, lv, worn) {
   const running = !!on && on.id === w.id;
   const why = running ? '' : workBlock(cs, w, hunting);
   /* The status line: running, why not, or what the server's bag holds / covers. */
-  const pick = gather ? 'all' : countOf(sc, w);
+  const pick = countOf(sc, w);
   /* The bench's count reads what it draws on: the server's bag + Storage (heldOf), the server's own order. */
   const runs = gather ? 0 : affordable(cs, w, runsOf(w.row, heldOf(cs)));
   const odds = li.querySelector('.hw-work-odds'), oddsSaid = gather ? '' : oddsWords(cs, w);
@@ -219,14 +234,14 @@ function patchRow(li, w, cs, sc, on, hunting, lv, worn) {
   const have = gather ? gatherBagWords(cs, w, running)
     : pick === 'all' ? t('work.row_makes', { n: whole(runs * yieldOf(w)) })
       : t('work.row_makes_of', { n: whole(Math.min(pick, runs) * yieldOf(w)), max: whole(runs * yieldOf(w)) });
-  /* Running: the server's count left on this run ("3 left"), or nothing when it runs until the bag is out. */
-  const left = running && !gather ? leftOf(cs) : null;
+  /* Running: the server's count left on this job ("3 left"), or nothing when it runs until the bag is out. */
+  const left = running ? leftOf(cs) : null;
   /* Short of an input: where to get it, each place a link to its window (src/shell/goto.js) */
   const short = why ? shortInputLine(cs, w, hunting) : null;
   patchParts(li.querySelector('.hw-work-why'), short ? [short.head].concat(short.places.length ? [' '] : [], placesParts(short.places))
     : [why || (running ? 'Working on it now' + (left !== null ? ', ' + whole(left) + ' left' : '') + '. ' : '') + have]);
   /* "X": a typed count shows on its button; the field is open only on the row that asked for it. */
-  const custom = typeof pick === 'number' && !BENCH_COUNTS.includes(pick);
+  const custom = typeof pick === 'number' && !countsFor(w).includes(pick);
   const xb = li.querySelector('.hw-work-xb');
   if (xb) text(xb, custom ? whole(pick) : 'X');
   const xs = li.querySelector('.hw-work-x');
@@ -253,7 +268,11 @@ export function renderWork() {
     + '<div class="hw-trade-ledger"><p class="hs-note hw-work-hint">Press a skill to gather or make.</p>' + renderTradeSkills() + '</div>'
     + '<section class="hw-work"><div class="hw-work-head">'
     + '<b class="hw-work-title"></b>' + skillBarHtml('Skill') + '<small class="hw-skill-xp"></small><b class="hw-skill-lv"></b></div>'
-    + '<p class="hs-note hw-work-use"></p><p class="hs-note hw-work-tool"></p>' + hallmarkPaneHtml() + sortMenuHtml() + '<ul class="hw-ledger hw-work-rows"></ul><div class="hw-work-ladder"></div></section>'
+    + '<p class="hs-note hw-work-use"></p><p class="hs-note hw-work-tool"></p>'
+    /* WHAT THE HERO DOES WHEN A COUNTED JOB IS DONE (1009-job-counts.sql): one pick for the window, sent with the next Start. */
+    + '<p class="hs-note hw-work-next">' + esc(t('work.then_label')) + ' <span class="hh-segs" role="group" aria-label="' + esc(t('work.then_label')) + '">'
+    + JOB_NEXTS.map((c) => '<button type="button" class="hh-seg" data-hs-act="work-next" data-next="' + esc(c.id) + '">' + esc(t('work.then_' + c.id)) + '</button>').join('')
+    + '</span></p>' + hallmarkPaneHtml() + sortMenuHtml() + '<ul class="hw-ledger hw-work-rows"></ul><div class="hw-work-ladder"></div></section>'
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div>';
 }
 
@@ -264,6 +283,12 @@ renderWork.patch = function patchWork(body, ctx) {
   const want = ctx.wm && typeof ctx.wm.takeTab === 'function' ? ctx.wm.takeTab('skills-trade') : null;
   if (want && hasWork(want) && want !== sc.skill) { sc.skill = want; sc.msg = ''; }
   const root = body.querySelector('.hw-trade');
+  /* the coach card's count for a row it rings (hunt-tutorial.js SAY.home), and the window's pick of what comes after a job */
+  sc.coach = coachCountOf(ctx);
+  for (const s of root.querySelectorAll('.hw-work-next .hh-seg')) {
+    attr(s, 'aria-pressed', String(s.getAttribute('data-next') === nextOf(sc)));
+    prop(s, 'disabled', sc.pending);
+  }
   const on = workOf(cs);
   const h = huntOf(cs);
   const hunting = !!(h && !h.ended);
@@ -309,7 +334,7 @@ renderWork.patch = function patchWork(body, ctx) {
     if (bar) patchSkillProgress(head, bar, aheadXp(tickOf(cs), skill));
     const guide = SKILL_GUIDE[skill];
     const how = SKILLS_DEF[skill].cat === 'gather'
-      ? 'Runs offline until stopped or a hunt starts'
+      ? t('work.use_gather')
       : 'Uses materials from bag' + (drawsOnStorage(cs) ? ' and Storage' : '') + ' until they run out';
     text(view.querySelector('.hw-work-use'), [guide ? guide.use : '', how, feeHeadWords(cs, skill)].filter(Boolean).join('\n'));
     const tool = view.querySelector('.hw-work-tool'), toolSaid = toolLine(cs, skill);
@@ -404,7 +429,12 @@ renderWork.act = function actWork(ctx, body, action, ev, el) {
     const id = el.getAttribute('data-id');
     const raw = el.getAttribute('data-n');
     const n = raw === 'all' ? 'all' : Number(raw);
-    if (id && BENCH_COUNTS.includes(n)) { sc.n[id] = n; repaint(); }
+    if (id && (BENCH_COUNTS.includes(n) || GATHER_COUNTS.includes(n))) { sc.n[id] = n; repaint(); }
+    return true;
+  }
+  if (action === 'work-next') {
+    const v = el.getAttribute('data-next');
+    if (JOB_NEXTS.some((c) => c.id === v)) { sc.next = v; repaint(); }
     return true;
   }
   if (action === 'work-x') {
@@ -422,8 +452,8 @@ renderWork.act = function actWork(ctx, body, action, ev, el) {
     const h = huntOf(cs);
     const why = workBlock(cs, w, !!(h && !h.ended));
     if (why) { sc.msg = why; repaint(); return true; }
-    const n = w.kind === 'artisan' ? countOf(sc, w) : 'all';
-    startWork(cs, w, send, repaint, undefined, n === 'all' ? null : n);
+    const n = countOf(sc, w);
+    startWork(cs, w, send, repaint, undefined, n === 'all' ? null : n, nextOf(sc));
     return true;
   }
   return false;

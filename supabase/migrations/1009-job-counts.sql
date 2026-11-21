@@ -6,8 +6,8 @@
 -- ORDER: the sequence in this file's name (CLAUDE.md rule 12): it runs after every file on its base.
 -- Applied as ONE transaction by the apply tool; never begin/commit here. Ends with its §4 self-check.
 -- EDGE: hr-accrue moves with it (accrue-gather.js counts a gathering job down and ends it; accrue-artisan.js and
---   accrue-gather.js state what an ended job left; set-activity.js + request.js take `then` and require a gathering count;
---   tick-shadow.js carries the count between polls). Either half alone is safe: an old edge sends no `then` and no gathering
+--   accrue-gather.js state what an ended job left; set-activity.js + request.js take `next` (the THEN) and require a gathering count;
+--   tick-shadow.js carries the count between polls). Either half alone is safe: an old edge sends no `next` and no gathering
 --   count (jobs run as today); a new edge on the old database is refused `bad_activity` on a gathering start (no job starts,
 --   nothing is lost) until this file lands, so the apply precedes the deploy.
 -- RESTATEMENT-DEBT-ACK: hr_apply (the economy's single write path, 158k chars, 14 splices deep since
@@ -37,24 +37,24 @@
 -- ── THE CONTRACT ────────────────────────────────────────────────────────────────────────────────────────────────────────
 -- player_state.active_left   (2026-12-01-bench-count.sql) the job's count LEFT; now a gathering job's too.
 -- player_state.active_count  NEW int 1..100000: the job's whole count as set (the card's "N of M"); NULL with no count.
--- player_state.active_then   NEW text, wait | hunt (CHECK = JOB_THENS ids): the job's THEN; NULL = wait.
--- player_state.errand_count, errand_then  NEW: the count and THEN a Hearth errand keeps for the job it interrupted.
--- player_state.job_end       NEW jsonb: the last counted job the ENGINE ended: { kind, id, count, done, left, then,
---   end: count | stopped, at, then_state?: pending | waited | started, why?, hunt?, session?, then_at? }. Never a value: what
---   the card says. Written only by hr_apply (the end) and hr_job_then_start (the THEN's outcome).
--- hr_apply   FOUR splices (JOB-COUNTS): `then` joins the activity statement's allowlist; `count` rides a gathering or a bench
---   statement, `then` (wait | hunt) only beside a count; `active_left` counts a stored gathering job or bench run down (1 ..
+-- player_state.active_next   NEW text, wait | hunt (CHECK = JOB_THENS ids): the job's THEN; NULL = wait.
+-- player_state.errand_count, errand_next  NEW: the count and THEN a Hearth errand keeps for the job it interrupted.
+-- player_state.job_end       NEW jsonb: the last counted job the ENGINE ended: { kind, id, count, done, left, next,
+--   end: count | stopped, at, next_state?: pending | waited | started, why?, hunt?, session?, next_at? }. Never a value: what
+--   the card says. Written only by hr_apply (the end) and hr_job_next_start (the THEN's outcome).
+-- hr_apply   FOUR splices (JOB-COUNTS): `next` (the THEN; never `then`, which makes a JS object a thenable) joins the activity statement's allowlist; `count` rides a gathering or a bench
+--   statement, `next` (wait | hunt) only beside a count; `active_left` counts a stored gathering job or bench run down (1 ..
 --   stored-1, as before), or, BESIDE an `activity: idle` on an accrual, says what the ending job left (0 .. stored): 0 is the
 --   count reached. That end writes job_end (not for a Hearth errand: hr_hearth_errand) and, for a THEN of hunt, marks it
---   pending. Every activity statement writes active_count and active_then (NULL without).
+--   pending. Every activity statement writes active_count and active_next (NULL without).
 -- hr_work_job_note()  NEW BEFORE UPDATE trigger on player_state, named to fire AFTER hr_town_errand (name order): an errand keeps
 --   and gives back the job's count and THEN; a pointer with no counted job carries neither; a count set without its whole
 --   (a resume, a give-back) is its own whole.
 -- hr_activity_left, hr_resume_plan  RESTATED (2027-04-24-bench-resume.sql's images + a gathering arm): a gathering job's count
 --   left is its own; it resumes after a hunt only with one ("no_count" otherwise: the 6,001-ore path).
--- hr_bench_run_view   RESTATED (the plan-cache image + three keys): the `bench_run` section is { left, count, then, ended }.
+-- hr_bench_run_view   RESTATED (the plan-cache image + three keys): the `bench_run` section is { left, count, next, ended }.
 --   The engine reads `left` as activeLeft (envelope.js), as before. The key keeps the bench's name from before gathering counted.
--- hr_job_then_start(user, slot) -> jsonb, hr_job_then_sweep(limit) -> int   NEW, owner-only. The cron job hr-job-then runs the
+-- hr_job_next_start(user, slot) -> jsonb, hr_job_next_sweep(limit) -> int   NEW, owner-only. The cron job hr-job-next runs the
 --   sweep every minute. Journal: ONE player_ledger row a THEN (kind hunt, intent job_then, no gold), plus hr_hunt_enter_for's own
 --   rows when the hunt starts (its bag lines).
 -- ERROR TAXONOMY: none new. bad_activity (a count off a job or out of range, a THEN without a count or not a JOB_THENS id) and
@@ -87,10 +87,10 @@
 -- ── COST AT 100x PLAYERS ────────────────────────────────────────────────────────────────────────────────────────────────
 -- Rows: one job_then ledger row a counted-out job with a THEN of hunt (a few a hero a day), none per window; the job's end rides
 -- the window's existing row. Columns: 5 small ones on player_state (~40 B a hero). The sweep: one indexed read a minute
--- (player_state_job_then_pending, a partial index of pending rows only).
+-- (player_state_job_next_pending, a partial index of pending rows only).
 --
--- REVERSIBILITY: unschedule hr-job-then; drop the trigger hr_work_job_note and the functions hr_work_job_note,
---   hr_job_then_start, hr_job_then_sweep; re-apply hr_activity_left / hr_resume_plan from 2027-04-24-bench-resume.sql and
+-- REVERSIBILITY: unschedule hr-job-next; drop the trigger hr_work_job_note and the functions hr_work_job_note,
+--   hr_job_next_start, hr_job_next_sweep; re-apply hr_activity_left / hr_resume_plan from 2027-04-24-bench-resume.sql and
 --   hr_bench_run_view from 2027-02-10-settle-plan-cache.generated.sql; re-apply hr_apply's four pre-images (the a_old texts of
 --   §2) by the same splice reversed; drop the five columns. Player state written meanwhile: active_left on gathering jobs
 --   (harmless to the old engine, which ignores it for a node).
@@ -98,9 +98,9 @@
 
 -- ── §1 THE COLUMNS ─────────────────────────────────────────────────────────────────────────────────────────────────────
 alter table public.player_state add column if not exists active_count int;
-alter table public.player_state add column if not exists active_then text;
+alter table public.player_state add column if not exists active_next text;
 alter table public.player_state add column if not exists errand_count int;
-alter table public.player_state add column if not exists errand_then text;
+alter table public.player_state add column if not exists errand_next text;
 alter table public.player_state add column if not exists job_end jsonb;
 do $mig$
 begin
@@ -113,23 +113,23 @@ begin
       check (errand_count is null or errand_count between 1 and 100000);
   end if;
   -- src/data/hunt-after.js JOB_THENS ids (tests/job-counts.mjs J-DATA asserts the two lists are one)
-  if not exists (select 1 from pg_constraint where conname = 'player_state_active_then_ck') then
-    alter table public.player_state add constraint player_state_active_then_ck
-      check (active_then is null or active_then in ('wait', 'hunt'));
+  if not exists (select 1 from pg_constraint where conname = 'player_state_active_next_ck') then
+    alter table public.player_state add constraint player_state_active_next_ck
+      check (active_next is null or active_next in ('wait', 'hunt'));
   end if;
-  if not exists (select 1 from pg_constraint where conname = 'player_state_errand_then_ck') then
-    alter table public.player_state add constraint player_state_errand_then_ck
-      check (errand_then is null or errand_then in ('wait', 'hunt'));
+  if not exists (select 1 from pg_constraint where conname = 'player_state_errand_next_ck') then
+    alter table public.player_state add constraint player_state_errand_next_ck
+      check (errand_next is null or errand_next in ('wait', 'hunt'));
   end if;
 end $mig$;
 comment on column public.player_state.active_count is
   '1009-job-counts.sql: the job''s whole count as set (active_left is what is left of it); NULL with no count.';
-comment on column public.player_state.active_then is
+comment on column public.player_state.active_next is
   '1009-job-counts.sql: what the hero does when the server counts the job out (src/data/hunt-after.js JOB_THENS); NULL = wait.';
 comment on column public.player_state.job_end is
-  '1009-job-counts.sql: the last counted job the engine ended, and what came of its then. Display only; written by hr_apply and hr_job_then_start.';
-create index if not exists player_state_job_then_pending on public.player_state (user_id, slot)
-  where (job_end->>'then_state') = 'pending';
+  '1009-job-counts.sql: the last counted job the engine ended, and what came of its then. Display only; written by hr_apply and hr_job_next_start.';
+create index if not exists player_state_job_next_pending on public.player_state (user_id, slot)
+  where (job_end->>'next_state') = 'pending';
 
 -- ── §2 hr_apply: FOUR ANCHORED SPLICES (RESTATEMENT-DEBT-ACK in the header) ─────────────────────────────────────────────
 do $mig$
@@ -179,11 +179,11 @@ $a$];
 $a$  -- BENCH-COUNT (2026-12-01-bench-count.sql): the run's count this apply writes.
   v_bench_left int;
   -- JOB-COUNTS (1009-job-counts.sql): the statement's whole count and THEN, and the end of a job the engine counted out.
-  v_job_count int; v_job_then text; v_job_end jsonb; v_job_left int;
+  v_job_count int; v_job_next text; v_job_end jsonb; v_job_left int;
 $a$,
-$a$                  where ak <> all (array['kind','id','restart','count','then'])) then$a$,
+$a$                  where ak <> all (array['kind','id','restart','count','next'])) then$a$,
 $a$    -- ── JOB-COUNTS (1009-job-counts.sql; "make N" 2026-12-01-bench-count.sql) ─────────────────
-    -- `count` rides a gathering job or a bench run's statement (a whole number 1..100000), `then` (wait | hunt) only beside
+    -- `count` rides a gathering job or a bench run's statement (a whole number 1..100000), `next` (wait | hunt) only beside
     -- a count; a statement without them clears the job's count and THEN. `active_left` is the engine's countdown, only on
     -- an accrual (accrued_to), of a stored gathering job or bench run that has a count: alone, a whole number at least 1
     -- and below the stored one (it can only shorten a job); BESIDE an `activity: idle` (the engine ending the job), what
@@ -198,11 +198,11 @@ $a$    -- ── JOB-COUNTS (1009-job-counts.sql; "make N" 2026-12-01-bench-coun
       v_bench_left := (v_act->>'count')::int;
       v_job_count := v_bench_left;
     end if;
-    if p_delta ? 'activity' and v_act ? 'then' then
-      if not (v_act ? 'count') or jsonb_typeof(v_act->'then') <> 'string' or coalesce(v_act->>'then', '') not in ('wait', 'hunt') then
-        perform public.hr_reject('bad_activity', jsonb_build_object('why', 'then is wait or hunt, beside a count'));
+    if p_delta ? 'activity' and v_act ? 'next' then
+      if not (v_act ? 'count') or jsonb_typeof(v_act->'next') <> 'string' or coalesce(v_act->>'next', '') not in ('wait', 'hunt') then
+        perform public.hr_reject('bad_activity', jsonb_build_object('why', 'next is wait or hunt, beside a count'));
       end if;
-      v_job_then := v_act->>'then';
+      v_job_next := v_act->>'next';
     end if;
     if p_delta ? 'active_left' then
       if not (p_delta ? 'accrued_to')
@@ -224,11 +224,11 @@ $a$    -- ── JOB-COUNTS (1009-job-counts.sql; "make N" 2026-12-01-bench-coun
           v_job_end := jsonb_build_object('kind', v_st.active_kind, 'id', v_st.active_id,
                          'count', greatest(coalesce(v_st.active_count, v_st.active_left), v_st.active_left), 'left', v_job_left,
                          'done', greatest(coalesce(v_st.active_count, v_st.active_left), v_st.active_left) - v_job_left,
-                         'then', coalesce(v_st.active_then, 'wait'),
+                         'next', coalesce(v_st.active_next, 'wait'),
                          'end', case when v_job_left = 0 then 'count' else 'stopped' end, 'at', now())
             || case when v_job_left > 0 then '{}'::jsonb
-                    when v_st.active_then = 'hunt' then jsonb_build_object('then_state', 'pending')
-                    else jsonb_build_object('then_state', 'waited') end;
+                    when v_st.active_next = 'hunt' then jsonb_build_object('next_state', 'pending')
+                    else jsonb_build_object('next_state', 'waited') end;
         end if;
       else
         v_bench_left := (p_delta->>'active_left')::int;
@@ -240,7 +240,7 @@ $a$           active_left  = case when p_delta ? 'activity' or p_delta ? 'active
            -- JOB-COUNTS: every activity statement sets the job's whole count and THEN (NULL without); a job the engine ended
            -- leaves its end (hr_work_job_note keeps the three consistent with the pointer).
            active_count = case when p_delta ? 'activity' then v_job_count else active_count end,
-           active_then  = case when p_delta ? 'activity' then v_job_then else active_then end,
+           active_next  = case when p_delta ? 'activity' then v_job_next else active_next end,
            job_end      = coalesce(v_job_end, job_end),
 $a$];
   for v_i in 1 .. array_length(a_old, 1) loop
@@ -262,29 +262,29 @@ begin
   --     hr_town_errand's). Any other end of the errand drops them.
   if new.errand_kind is not null and old.errand_kind is null then
     new.errand_count := old.active_count;
-    new.errand_then := old.active_then;
+    new.errand_next := old.active_next;
   elsif old.errand_kind is not null and new.errand_kind is null then
     if new.active_kind = old.errand_kind and new.active_id is not distinct from old.errand_id
        and new.active_left is not distinct from old.errand_left
        and (old.active_kind is distinct from new.active_kind or old.active_id is distinct from new.active_id) then
       new.active_count := old.errand_count;
-      new.active_then := old.errand_then;
+      new.active_next := old.errand_next;
     end if;
     new.errand_count := null;
-    new.errand_then := null;
+    new.errand_next := null;
   end if;
   -- (2) A POINTER THAT IS NOT A COUNTED JOB CARRIES NEITHER (a hunt, training, idle, a bench on "All"). A count written without
   --     its whole (a hunt's resume, a give-back) is its own whole, and such a job ends waiting.
   if coalesce(new.active_kind, '') not in ('gather', 'artisan') or new.active_left is null then
     new.active_count := null;
-    new.active_then := null;
+    new.active_next := null;
   elsif new.active_count is null or new.active_count < new.active_left then
     new.active_count := new.active_left;
   end if;
   return new;
 end $fn$;
 drop trigger if exists hr_work_job_note on public.player_state;
-create trigger hr_work_job_note before update of active_kind, active_id, active_left, active_count, active_then
+create trigger hr_work_job_note before update of active_kind, active_id, active_left, active_count, active_next
   on public.player_state for each row execute function public.hr_work_job_note();
 
 -- ── §4 THE BY-KIND RULES GAIN A GATHERING ARM (2027-04-24-bench-resume.sql's images) ────────────────────────────────────
@@ -329,17 +329,17 @@ begin
   return (select hr_q.v from (
 
   -- JOB-COUNTS (1009-job-counts.sql): the hero's job as the server holds it. `left`: its count left (a gathering job's swings
-  -- or a bench run's actions; the engine reads it as activeLeft, envelope.js); `count`: the whole; `then`: wait | hunt (null:
+  -- or a bench run's actions; the engine reads it as activeLeft, envelope.js); `count`: the whole; `next`: wait | hunt (null:
   -- wait); `ended`: the last counted job the engine ended and what came of its THEN (player_state.job_end). The key keeps the
   -- bench's name from before gathering took a count.
-  select jsonb_build_object('left', ps.active_left, 'count', ps.active_count, 'then', ps.active_then, 'ended', ps.job_end)
+  select jsonb_build_object('left', ps.active_left, 'count', ps.active_count, 'next', ps.active_next, 'ended', ps.job_end)
     from public.player_state ps where ps.user_id = p_user and ps.slot = p_slot
   ) as hr_q(v) limit 1);
 end
 $fn$;
 
 -- ── §6 THE THEN OF HUNT: STARTED ONCE, BY THE MINUTE SWEEP ──────────────────────────────────────────────────────────────
-create or replace function public.hr_job_then_start(p_user uuid, p_slot integer)
+create or replace function public.hr_job_next_start(p_user uuid, p_slot integer)
 returns jsonb language plpgsql security definer set search_path = public, pg_catalog as $fn$
 declare
   v_st public.player_state%rowtype; v_end jsonb; v_s public.hunt_sessions%rowtype; v_bag jsonb; v_r jsonb;
@@ -350,7 +350,7 @@ begin
   -- THE HERO'S LOCK FIRST (hr_apply's key and its row), then the end is re-read under it: a THEN runs at most once.
   perform public.hr_hunt_lock(p_user, p_slot);
   select * into v_st from public.player_state where user_id = p_user and slot = p_slot;
-  if not found or (v_st.job_end->>'then_state') is distinct from 'pending' then return null; end if;
+  if not found or (v_st.job_end->>'next_state') is distinct from 'pending' then return null; end if;
   v_end := v_st.job_end;
   if v_why is null then
     -- THE HERO MUST STILL BE WHERE THE JOB LEFT IT: idle in town, no hunt since. A player who did something else chose.
@@ -376,7 +376,7 @@ begin
         -- THE ONE DOOR a manual restart takes: stamina, level, the gold floor, supplies and the play cap are its checks.
         v_r := public.hr_hunt_enter_for(p_user, p_slot, v_s.hunt_id, v_bag, v_s.preset, v_s.hours_limit);
         if coalesce(v_r->>'ok', 'false') = 'true' then
-          v_done := jsonb_build_object('then_state', 'started', 'hunt', v_s.hunt_id, 'session', v_r->'session_id', 'then_at', now());
+          v_done := jsonb_build_object('next_state', 'started', 'hunt', v_s.hunt_id, 'session', v_r->'session_id', 'next_at', now());
         else
           v_why := coalesce(v_r->>'error', 'refused');
         end if;
@@ -384,29 +384,29 @@ begin
     end if;
   end if;
   if v_done is null then
-    v_done := jsonb_build_object('then_state', 'waited', 'why', v_why, 'then_at', now());
+    v_done := jsonb_build_object('next_state', 'waited', 'why', v_why, 'next_at', now());
   end if;
   update public.player_state set job_end = job_end || v_done, version = version + 1, updated_at = now()
    where user_id = p_user and slot = p_slot;
   -- THE THEN'S OUTCOME, journalled once (no value: a hunt's bag lines are hr_hunt_enter_for's own rows).
   insert into public.player_ledger (user_id, slot, kind, intent, meta)
-    values (p_user, p_slot, 'hunt', 'job_then',
+    values (p_user, p_slot, 'hunt', 'job_next',
             jsonb_build_object('kind', v_end->'kind', 'id', v_end->'id', 'count', v_end->'count', 'at', v_end->'at') || v_done);
   return v_done;
 end $fn$;
 
-create or replace function public.hr_job_then_sweep(p_limit integer default 50)
+create or replace function public.hr_job_next_sweep(p_limit integer default 50)
 returns integer language plpgsql security definer set search_path = public, pg_catalog as $fn$
 declare r record; v_n int := 0;
 begin
   for r in select ps.user_id, ps.slot from public.player_state ps
-            where (ps.job_end->>'then_state') = 'pending'
+            where (ps.job_end->>'next_state') = 'pending'
             order by ps.job_end->>'at' limit greatest(1, least(coalesce(p_limit, 50), 500)) loop
     begin
-      if public.hr_job_then_start(r.user_id, r.slot) is not null then v_n := v_n + 1; end if;
+      if public.hr_job_next_start(r.user_id, r.slot) is not null then v_n := v_n + 1; end if;
     exception when others then
       -- one hero's start never stops the others': the THEN stays pending and the next minute tries again (late after 10)
-      raise warning 'hr_job_then_sweep: % for %:%', sqlerrm, r.user_id, r.slot;
+      raise warning 'hr_job_next_sweep: % for %:%', sqlerrm, r.user_id, r.slot;
     end;
   end loop;
   return v_n;
@@ -415,8 +415,8 @@ end $fn$;
 do $mig$
 begin
   if to_regprocedure('cron.schedule(text,text,text)') is null or to_regprocedure('public.hr_cron_ensure(text,text,text)') is null then
-    raise notice 'job-counts §6: pg_cron absent here; hr-job-then is not scheduled'; return; end if;
-  perform public.hr_cron_ensure('hr-job-then', '* * * * *', 'select public.hr_job_then_sweep(50)');
+    raise notice 'job-counts §6: pg_cron absent here; hr-job-next is not scheduled'; return; end if;
+  perform public.hr_cron_ensure('hr-job-next', '* * * * *', 'select public.hr_job_next_sweep(50)');
 end $mig$;
 
 -- ── §7 GRANTS: nothing here is client-callable ────────────────────────────────────────────────────────────────────────
@@ -425,7 +425,7 @@ declare v_sig text; v_role text;
 begin
   foreach v_sig in array array['public.hr_work_job_note()', 'public.hr_activity_left(uuid,integer,text,text,integer)',
                                'public.hr_resume_plan(uuid,integer,text,text,integer)', 'public.hr_bench_run_view(uuid,integer)',
-                               'public.hr_job_then_start(uuid,integer)', 'public.hr_job_then_sweep(integer)'] loop
+                               'public.hr_job_next_start(uuid,integer)', 'public.hr_job_next_sweep(integer)'] loop
     execute format('revoke all on function %s from public, anon, authenticated, service_role', v_sig);
     foreach v_role in array array['hr_engine', 'hr_tick'] loop
       if exists (select 1 from pg_roles where rolname = v_role) then execute format('revoke all on function %s from %I', v_sig, v_role); end if;
@@ -446,15 +446,15 @@ declare
   v jsonb; v_d jsonb; v_ver bigint; v_node text; v_st public.player_state%rowtype; v_i int := 0; v_rows int;
   v_fuel text;
 begin
-  if (select count(*) from pg_constraint where conname in ('player_state_active_count_range', 'player_state_active_then_ck',
-        'player_state_errand_count_range', 'player_state_errand_then_ck')) <> 4 then
+  if (select count(*) from pg_constraint where conname in ('player_state_active_count_range', 'player_state_active_next_ck',
+        'player_state_errand_count_range', 'player_state_errand_next_ck')) <> 4 then
     raise exception 'job-counts §8(0): a CHECK is missing'; end if;
   if strpos(pg_get_functiondef('public.hr_apply(uuid,integer,bigint,uuid,jsonb)'::regprocedure), 'JOB-COUNTS') = 0 then
     raise exception 'job-counts §8(0): hr_apply carries no JOB-COUNTS splice'; end if;
   if not exists (select 1 from pg_trigger where tgname = 'hr_work_job_note' and tgrelid = 'public.player_state'::regclass)
      or 'hr_work_job_note' <= 'hr_town_errand' then
     raise exception 'job-counts §8(0): the trigger is missing or would fire before hr_town_errand'; end if;
-  if exists (select 1 from unnest(array['public.hr_job_then_start(uuid,integer)', 'public.hr_job_then_sweep(integer)',
+  if exists (select 1 from unnest(array['public.hr_job_next_start(uuid,integer)', 'public.hr_job_next_sweep(integer)',
                'public.hr_work_job_note()']) s(sig)
              cross join unnest(array['anon', 'authenticated', 'public']) g(role)
              where has_function_privilege(case when g.role = 'public' then 'anon' else g.role end, s.sig::regprocedure, 'execute')) then
@@ -475,12 +475,12 @@ begin
     -- (a) a gathering job of 5, then hunt: stored, and the envelope says it.
     select version into v_ver from public.player_state where user_id = c_u and slot = 0;
     v := public.hr_apply(c_u, 0, v_ver, (k || '1009a101')::uuid,
-      jsonb_build_object('activity', jsonb_build_object('kind', 'gather', 'id', v_node, 'restart', true, 'count', 5, 'then', 'hunt'),
+      jsonb_build_object('activity', jsonb_build_object('kind', 'gather', 'id', v_node, 'restart', true, 'count', 5, 'next', 'hunt'),
                          'journal', jsonb_build_object('kind', 'admin', 'intent', 'set_activity:gather:' || v_node)));
     if coalesce(v->>'ok', '') <> 'true' then raise exception 'job-counts §8(a): a gathering job of 5 was refused: %', v; end if;
     select * into v_st from public.player_state where user_id = c_u and slot = 0;
-    if v_st.active_left is distinct from 5 or v_st.active_count is distinct from 5 or v_st.active_then is distinct from 'hunt' then
-      raise exception 'job-counts §8(a): stored left %, count %, then %', v_st.active_left, v_st.active_count, v_st.active_then; end if;
+    if v_st.active_left is distinct from 5 or v_st.active_count is distinct from 5 or v_st.active_next is distinct from 'hunt' then
+      raise exception 'job-counts §8(a): stored left %, count %, then %', v_st.active_left, v_st.active_count, v_st.active_next; end if;
     v := public.hr_state_of(c_u, 0)->'bench_run';
     if (v->>'left')::int is distinct from 5 or (v->>'count')::int is distinct from 5 or v->>'then' is distinct from 'hunt' then
       raise exception 'job-counts §8(a): the envelope says %', v; end if;
@@ -491,20 +491,20 @@ begin
         jsonb_build_object('activity', jsonb_build_object('kind', 'gather', 'id', v_node, 'restart', true, 'count', 2.5)),
         jsonb_build_object('activity', jsonb_build_object('kind', 'gather', 'id', v_node, 'restart', true, 'count', 100001)),
         jsonb_build_object('activity', jsonb_build_object('kind', 'gather', 'id', v_node, 'restart', true, 'count', '3')),
-        jsonb_build_object('activity', jsonb_build_object('kind', 'gather', 'id', v_node, 'restart', true, 'then', 'hunt')),
-        jsonb_build_object('activity', jsonb_build_object('kind', 'gather', 'id', v_node, 'restart', true, 'count', 3, 'then', 'nap')),
-        jsonb_build_object('activity', jsonb_build_object('kind', 'gather', 'id', v_node, 'restart', true, 'count', 3, 'then', 1)),
+        jsonb_build_object('activity', jsonb_build_object('kind', 'gather', 'id', v_node, 'restart', true, 'next', 'hunt')),
+        jsonb_build_object('activity', jsonb_build_object('kind', 'gather', 'id', v_node, 'restart', true, 'count', 3, 'next', 'nap')),
+        jsonb_build_object('activity', jsonb_build_object('kind', 'gather', 'id', v_node, 'restart', true, 'count', 3, 'next', 1)),
         jsonb_build_object('activity', jsonb_build_object('kind', 'idle', 'id', null, 'count', 3)),
-        jsonb_build_object('activity', jsonb_build_object('kind', 'idle', 'id', null, 'then', 'hunt')))) as t(x) loop
+        jsonb_build_object('activity', jsonb_build_object('kind', 'idle', 'id', null, 'next', 'hunt')))) as t(x) loop
       select version into v_ver from public.player_state where user_id = c_u and slot = 0;
       v := public.hr_apply(c_u, 0, v_ver, gen_random_uuid(), v_d);
       if v->>'error' is distinct from 'bad_activity' then
         raise exception 'job-counts §8(b): a forged statement answered % (want bad_activity): %', v, v_d; end if;
     end loop;
     select * into v_st from public.player_state where user_id = c_u and slot = 0;
-    if v_st.active_left is distinct from 5 or v_st.active_count is distinct from 5 or v_st.active_then is distinct from 'hunt'
+    if v_st.active_left is distinct from 5 or v_st.active_count is distinct from 5 or v_st.active_next is distinct from 'hunt'
        or v_st.active_kind <> 'gather' then
-      raise exception 'job-counts §8(b): a refused statement moved the job: % % % %', v_st.active_kind, v_st.active_left, v_st.active_count, v_st.active_then; end if;
+      raise exception 'job-counts §8(b): a refused statement moved the job: % % % %', v_st.active_kind, v_st.active_left, v_st.active_count, v_st.active_next; end if;
 
     -- (c) THE COUNTDOWN 5 -> 3 on an accrual; its replay moves nothing; never up, never level, never to 0 without the end,
     --     never beside a statement that is not the end, never past the stored count at the end.
@@ -542,11 +542,11 @@ begin
     v := public.hr_apply(c_u, 0, v_ver, (k || '1009a104')::uuid, v_d);
     if coalesce(v->>'ok', '') <> 'true' then raise exception 'job-counts §8(d): the count reached was refused: %', v; end if;
     select * into v_st from public.player_state where user_id = c_u and slot = 0;
-    if v_st.active_kind <> 'idle' or v_st.active_left is not null or v_st.active_count is not null or v_st.active_then is not null
+    if v_st.active_kind <> 'idle' or v_st.active_left is not null or v_st.active_count is not null or v_st.active_next is not null
        or v_st.job_end->>'end' is distinct from 'count' or (v_st.job_end->>'done')::int is distinct from 5
-       or (v_st.job_end->>'count')::int is distinct from 5 or v_st.job_end->>'then_state' is distinct from 'pending'
+       or (v_st.job_end->>'count')::int is distinct from 5 or v_st.job_end->>'next_state' is distinct from 'pending'
        or v_st.job_end->>'kind' is distinct from 'gather' or v_st.job_end->>'id' is distinct from v_node then
-      raise exception 'job-counts §8(d): after the count: % % % % end %', v_st.active_kind, v_st.active_left, v_st.active_count, v_st.active_then, v_st.job_end; end if;
+      raise exception 'job-counts §8(d): after the count: % % % % end %', v_st.active_kind, v_st.active_left, v_st.active_count, v_st.active_next, v_st.job_end; end if;
     v_ver := v_st.version;
     perform public.hr_apply(c_u, 0, v_ver, (k || '1009a104')::uuid, v_d);
     if (select version from public.player_state where user_id = c_u and slot = 0) <> v_ver then
@@ -554,26 +554,26 @@ begin
 
     -- (e) THE THEN OF HUNT with no hunt to go back to: the sweep answers it once (waited, no_hunt), journals once, and a
     --     second sweep finds nothing.
-    v_i := public.hr_job_then_sweep(500);
+    v_i := public.hr_job_next_sweep(500);
     select * into v_st from public.player_state where user_id = c_u and slot = 0;
-    select count(*) into v_rows from public.player_ledger where user_id = c_u and slot = 0 and intent = 'job_then';
-    if v_st.job_end->>'then_state' is distinct from 'waited' or v_st.job_end->>'why' is distinct from 'no_hunt' or v_rows <> 1
+    select count(*) into v_rows from public.player_ledger where user_id = c_u and slot = 0 and intent = 'job_next';
+    if v_st.job_end->>'next_state' is distinct from 'waited' or v_st.job_end->>'why' is distinct from 'no_hunt' or v_rows <> 1
        or v_st.active_kind <> 'idle' then
       raise exception 'job-counts §8(e): the THEN came to % (% rows, pointer %)', v_st.job_end, v_rows, v_st.active_kind; end if;
-    perform public.hr_job_then_sweep(500);
-    if (select count(*) from public.player_ledger where user_id = c_u and slot = 0 and intent = 'job_then') <> 1 then
+    perform public.hr_job_next_sweep(500);
+    if (select count(*) from public.player_ledger where user_id = c_u and slot = 0 and intent = 'job_next') <> 1 then
       raise exception 'job-counts §8(e): a second sweep journalled again'; end if;
 
     -- (f) A STOP BEFORE THE COUNT (the bag or the level ended it, 2 of 5 left) is not the count reached: no THEN.
     select version into v_ver from public.player_state where user_id = c_u and slot = 0;
     perform public.hr_apply(c_u, 0, v_ver, (k || '1009a106')::uuid,
-      jsonb_build_object('activity', jsonb_build_object('kind', 'gather', 'id', v_node, 'restart', true, 'count', 5, 'then', 'hunt')));
+      jsonb_build_object('activity', jsonb_build_object('kind', 'gather', 'id', v_node, 'restart', true, 'count', 5, 'next', 'hunt')));
     select version into v_ver from public.player_state where user_id = c_u and slot = 0;
     v := public.hr_apply(c_u, 0, v_ver, (k || '1009a107')::uuid,
       jsonb_build_object('accrued_to', now(), 'active_left', 2, 'activity', jsonb_build_object('kind', 'idle', 'id', null)));
     select * into v_st from public.player_state where user_id = c_u and slot = 0;
     if coalesce(v->>'ok', '') <> 'true' or v_st.job_end->>'end' is distinct from 'stopped' or (v_st.job_end->>'done')::int is distinct from 3
-       or v_st.job_end ? 'then_state' then
+       or v_st.job_end ? 'next_state' then
       raise exception 'job-counts §8(f): a stop before the count came to % (%)', v_st.job_end, v; end if;
 
     -- (g) A HEARTH ERRAND keeps the job's whole count and THEN and gives them back with the job; its own end says nothing.
@@ -581,25 +581,25 @@ begin
       on conflict (user_id, slot, item_id) do update set qty = 5;
     select version into v_ver from public.player_state where user_id = c_u and slot = 0;
     perform public.hr_apply(c_u, 0, v_ver, (k || '1009a108')::uuid,
-      jsonb_build_object('activity', jsonb_build_object('kind', 'gather', 'id', v_node, 'restart', true, 'count', 9, 'then', 'hunt')));
+      jsonb_build_object('activity', jsonb_build_object('kind', 'gather', 'id', v_node, 'restart', true, 'count', 9, 'next', 'hunt')));
     select version into v_ver from public.player_state where user_id = c_u and slot = 0;
     v := public.hr_apply(c_u, 0, v_ver, (k || '1009a109')::uuid,
       jsonb_build_object('activity', jsonb_build_object('kind', 'artisan', 'id', v_fuel, 'restart', true, 'count', 1)));
     select * into v_st from public.player_state where user_id = c_u and slot = 0;
     if coalesce(v->>'ok', '') <> 'true' or v_st.errand_kind is distinct from 'gather' or v_st.errand_count is distinct from 9
-       or v_st.errand_then is distinct from 'hunt' or v_st.active_count is distinct from 1 or v_st.active_then is not null then
+       or v_st.errand_next is distinct from 'hunt' or v_st.active_count is distinct from 1 or v_st.active_next is not null then
       raise exception 'job-counts §8(g): the errand kept % % % (pointer % count % then %; %)', v_st.errand_kind, v_st.errand_count,
-        v_st.errand_then, v_st.active_id, v_st.active_count, v_st.active_then, v; end if;
+        v_st.errand_next, v_st.active_id, v_st.active_count, v_st.active_next, v; end if;
     select version into v_ver from public.player_state where user_id = c_u and slot = 0;
     v := public.hr_apply(c_u, 0, v_ver, (k || '1009a10a')::uuid,
       jsonb_build_object('accrued_to', now(), 'active_left', 0, 'activity', jsonb_build_object('kind', 'idle', 'id', null),
                          'journal', jsonb_build_object('kind', 'craft', 'intent', 'accrue')));
     select * into v_st from public.player_state where user_id = c_u and slot = 0;
     if coalesce(v->>'ok', '') <> 'true' or v_st.active_kind <> 'gather' or v_st.active_left is distinct from 9
-       or v_st.active_count is distinct from 9 or v_st.active_then is distinct from 'hunt' or v_st.errand_kind is not null
+       or v_st.active_count is distinct from 9 or v_st.active_next is distinct from 'hunt' or v_st.errand_kind is not null
        or v_st.errand_count is not null or v_st.job_end->>'end' is distinct from 'stopped' then
       raise exception 'job-counts §8(g): the give-back came to % % left % count % then % (end %; %)', v_st.active_kind, v_st.active_id,
-        v_st.active_left, v_st.active_count, v_st.active_then, v_st.job_end, v; end if;
+        v_st.active_left, v_st.active_count, v_st.active_next, v_st.job_end, v; end if;
 
     -- (h) THE BY-KIND RULES: a gathering job's count left is its own and it resumes only with one.
     if public.hr_activity_left(c_u, 0, 'gather', v_node, 7) is distinct from 7 or public.hr_activity_left(c_u, 0, 'gather', v_node, null) is not null
@@ -612,8 +612,8 @@ begin
     perform public.hr_apply(c_u, 0, v_ver, (k || '1009a10b')::uuid,
       jsonb_build_object('activity', jsonb_build_object('kind', 'idle', 'id', null)));
     select * into v_st from public.player_state where user_id = c_u and slot = 0;
-    if v_st.active_left is not null or v_st.active_count is not null or v_st.active_then is not null then
-      raise exception 'job-counts §8(i): idle kept % % %', v_st.active_left, v_st.active_count, v_st.active_then; end if;
+    if v_st.active_left is not null or v_st.active_count is not null or v_st.active_next is not null then
+      raise exception 'job-counts §8(i): idle kept % % %', v_st.active_left, v_st.active_count, v_st.active_next; end if;
     raise exception using errcode = 'HR109', message = 'job-counts §8 complete - rolling back';
   exception when sqlstate 'HR109' then
     null;

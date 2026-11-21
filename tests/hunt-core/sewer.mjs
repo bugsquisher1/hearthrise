@@ -2429,7 +2429,7 @@ const mutants = [
     edits: [['src/data/hunt-tutorial.js', "  /* ── F. Day one: each waits for the chain, then starts on its own fact ── */\n", ''],
       ['src/data/hunt-tutorial.js', "  /* ── B. The first hunt, the bar while it fights ────────────────────── */\n",
         "  step('home', 'Build your home', 'x', 'house', { kind: 'home_owned' }, { reactive: true, dayOne: true, when: [IN_TOWN, { kind: 'level_at', at: DAY_ONE_LEVEL }, { kind: 'home_unowned' }] }),\n"],
-      ['src/data/hunt-tutorial.js', "  step('home', 'Build your home',\n    'Gather logs and ore for your first house',\n    'house', { kind: 'home_owned' }, { reactive: true, dayOne: true, when: [IN_TOWN, { kind: 'level_at', at: DAY_ONE_LEVEL }, { kind: 'home_unowned' }] }),\n", '']] },
+      ['src/data/hunt-tutorial.js', "  step('home', 'Build your home',\n    'Gather logs and ore for your first house',\n    'house', { kind: 'home_owned' }, { reactive: true, dayOne: true, when: [IN_TOWN, { kind: 'level_at', at: DAY_ONE_LEVEL }, { kind: 'stamina_ended' }, { kind: 'home_unowned' }] }),\n", '']] },
   { name: 'Tamsin\'s payment card shows while the hero hunts another ground', case: 'tutorial-town-chain',
     edits: [['src/data/hunt-tutorial.js', "{ kind: 'been', hunt: WOLVES.hunt, past: true }] }, { when: [{ kind: 'not_elsewhere', hunt: WOLVES.hunt }] }),", "{ kind: 'been', hunt: WOLVES.hunt, past: true }] }),"]] },
   { name: 'the first-return cards come back after the Thicket', case: 'tutorial-town-chain',

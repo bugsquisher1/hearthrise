@@ -9,9 +9,9 @@
 // mutant-anchors: supabase/functions/hr-accrue/accrue-gather.js, supabase/functions/hr-accrue/tick-shadow.js, supabase/functions/hr-accrue/set-activity.js
 //
 // Every hero is made with hr_create_hero and set to work through the REAL set_activity intent (runSetActivity), as hr_engine.
-//   J-DATA     src/data/hunt-after.js JOB_THENS is valid and its ids are exactly the server's CHECK on active_then.
+//   J-DATA     src/data/hunt-after.js JOB_NEXTS is valid and its ids are exactly the server's CHECK on active_next.
 //   J-REFUSE   the intent refuses a gathering job with no count, a forged count, a forged THEN and a THEN with no count, by
-//              name and before any write; a good one is stored and the envelope's bench_run says { left, count, then }.
+//              name and before any write; a good one is stored and the envelope's bench_run says { left, count, next }.
 //   J-OPEN     WINDOW OPEN: a gathering job of 20, THEN wait, settled by the viewed hero's accrue-semantics settle
 //              (collectCurrentWindow with the pointer surviving: index.ts's computeAccrual literal, A14) every 20 s of
 //              server time: the job swings EXACTLY 20 times across the cut windows, ends itself, and its end says
@@ -83,7 +83,7 @@ async function huntBehind(db, uid) {
 }
 
 const stateOf = async (db, uid) => (await db.query(
-  `select ps.active_kind, ps.active_id, ps.active_left, ps.active_count, ps.active_then, ps.job_end, ps.accrued_to, ps.version,
+  `select ps.active_kind, ps.active_id, ps.active_left, ps.active_count, ps.active_next, ps.job_end, ps.accrued_to, ps.version,
           ps.last_activity_left,
           coalesce((select qty from public.player_inventory i where i.user_id = ps.user_id and i.slot = 0 and i.item_id = 'normal_log'), 0)::int as logs
      from public.player_state ps where ps.user_id = $1 and ps.slot = 0`, [uid])).rows[0];
@@ -133,12 +133,12 @@ async function arms(db, edge) {
   };
 
   /* ── J-DATA ── */
-  const ck = await one(db, "select pg_get_constraintdef(oid) from pg_constraint where conname = 'player_state_active_then_ck'");
+  const ck = await one(db, "select pg_get_constraintdef(oid) from pg_constraint where conname = 'player_state_active_next_ck'");
   const sqlIds = [...String(ck || '').matchAll(/'([a-z_]+)'::text/g)].map((m) => m[1]).sort();
-  const dataIds = edge.data.JOB_THENS.map((c) => c.id).sort();
-  arm('J-DATA', edge.data.validateJobThens().length === 0 && js(sqlIds) === js(dataIds),
-    `JOB_THENS is valid and its ids (${dataIds.join(', ')}) are the server's CHECK`,
-    `JOB_THENS problems ${js(edge.data.validateJobThens())}, data ${js(dataIds)} vs CHECK ${js(sqlIds)} (${ck})`);
+  const dataIds = edge.data.JOB_NEXTS.map((c) => c.id).sort();
+  arm('J-DATA', edge.data.validateJobNexts().length === 0 && js(sqlIds) === js(dataIds),
+    `JOB_NEXTS is valid and its ids (${dataIds.join(', ')}) are the server's CHECK`,
+    `JOB_NEXTS problems ${js(edge.data.validateJobNexts())}, data ${js(dataIds)} vs CHECK ${js(sqlIds)} (${ck})`);
 
   /* ── J-REFUSE ── */
   const r = await makeHero(db);
@@ -146,8 +146,8 @@ async function arms(db, edge) {
   const bad = [
     { kind: 'gather', id: NODE },
     { kind: 'gather', id: NODE, count: null },
-    { kind: 'gather', id: NODE, count: 20, then: 'nap' },
-    { kind: 'gather', id: NODE, count: 20, then: null },
+    { kind: 'gather', id: NODE, count: 20, next: 'nap' },
+    { kind: 'gather', id: NODE, count: 20, next: null },
     { kind: 'idle', id: null, count: 20 },
   ];
   const answers = [];
@@ -156,19 +156,19 @@ async function arms(db, edge) {
     answers.push([res.status, res.body && res.body.error]);
   }
   const r1 = await stateOf(db, r);
-  const good = await startJob(db, edge, r, { kind: 'gather', id: NODE, count: 20, then: 'wait' });
+  const good = await startJob(db, edge, r, { kind: 'gather', id: NODE, count: 20, next: 'wait' });
   const r2 = await stateOf(db, r);
   const env = await one(db, 'select public.hr_state_of($1::uuid, 0)', [r]);
   const br = env && env.bench_run;
   arm('J-REFUSE', answers.every(([st, e]) => st === 400 && e === 'bad_activity') && r1.version === r0.version
-      && good.status === 200 && r2.active_kind === 'gather' && r2.active_left === 20 && r2.active_count === 20 && r2.active_then === 'wait'
-      && br && br.left === 20 && br.count === 20 && br.then === 'wait',
+      && good.status === 200 && r2.active_kind === 'gather' && r2.active_left === 20 && r2.active_count === 20 && r2.active_next === 'wait'
+      && br && br.left === 20 && br.count === 20 && br.next === 'wait',
     'no count, a forged count, a forged THEN and a count on idle are refused bad_activity before any write; "20, then wait" is stored and projected',
     `answers ${js(answers)}, version ${r0.version} -> ${r1.version}, good ${good.status} ${js(good.body && good.body.error)}, row ${js(r2)}, bench_run ${js(br)}`);
 
   /* ── J-OPEN: window open, the viewed hero's settle every 20 s ── */
   const o = await makeHero(db);
-  const os = await startJob(db, edge, o, { kind: 'gather', id: NODE, count: 20, then: 'wait' });
+  const os = await startJob(db, edge, o, { kind: 'gather', id: NODE, count: 20, next: 'wait' });
   if (os.status !== 200) throw Object.assign(new Error('J-OPEN start refused: ' + js(os.body)), { harness: true });
   let settles = 0;
   for (let i = 0; i < 12; i++) {
@@ -185,7 +185,7 @@ async function arms(db, edge) {
   const ob = await stateOf(db, o);
   const oe = oa.job_end || {};
   arm('J-OPEN', oa.active_kind === 'idle' && swings(orows) === 20 && orows.length >= 2 && oa.logs >= 20
-      && oe.end === 'count' && oe.done === 20 && oe.count === 20 && oe.then === 'wait' && oe.then_state === 'waited'
+      && oe.end === 'count' && oe.done === 20 && oe.count === 20 && oe.next === 'wait' && oe.next_state === 'waited'
       && orows[orows.length - 1].stopped === 'count' && orows[orows.length - 1].left === 0
       && ob.version === oa.version && ob.logs === oa.logs,
     `window open: 20 swings exactly over ${orows.length} settles (${settles} asked), the job ended itself, "20 of 20, waited"; nothing paid after`,
@@ -194,7 +194,7 @@ async function arms(db, edge) {
   /* ── J-CLOSED: browser closed, the world tick ── */
   const c = await makeHero(db);
   const hunt = await huntBehind(db, c);
-  const cs = await startJob(db, edge, c, { kind: 'gather', id: NODE, count: 20, then: 'hunt' });
+  const cs = await startJob(db, edge, c, { kind: 'gather', id: NODE, count: 20, next: 'hunt' });
   if (cs.status !== 200) throw Object.assign(new Error('J-CLOSED start refused: ' + js(cs.body)), { harness: true });
   await db.query('update public.player_state set last_seen_at = null where user_id = $1 and slot = 0', [c]);
   await db.query('select public.hr_tick_enrol(200)');
@@ -209,20 +209,20 @@ async function arms(db, edge) {
   const crows = await gatherRows(db, c);
   const ce = ca.job_end || {};
   const closedEnd = ca.active_kind === 'idle' && swings(crows) === 20 && crows.every((m) => m.src === 'tick')
-    && ce.end === 'count' && ce.done === 20 && ce.then === 'hunt' && ce.then_state === 'pending';
-  const n1 = await one(db, 'select public.hr_job_then_sweep(500)');
+    && ce.end === 'count' && ce.done === 20 && ce.next === 'hunt' && ce.next_state === 'pending';
+  const n1 = await one(db, 'select public.hr_job_next_sweep(500)');
   const cb = await stateOf(db, c);
-  const thenRows = await one(db, "select count(*)::int from public.player_ledger where user_id = $1 and slot = 0 and intent = 'job_then'", [c]);
+  const thenRows = await one(db, "select count(*)::int from public.player_ledger where user_id = $1 and slot = 0 and intent = 'job_next'", [c]);
   const open = await one(db, 'select hunt_id from public.hunt_sessions where user_id = $1 and slot = 0 and ended_at is null', [c]);
   const cbe = cb.job_end || {};
-  arm('J-CLOSED', closedEnd && n1 >= 1 && cb.active_kind === 'combat' && open === hunt && cbe.then_state === 'started' && cbe.hunt === hunt
+  arm('J-CLOSED', closedEnd && n1 >= 1 && cb.active_kind === 'combat' && open === hunt && cbe.next_state === 'started' && cbe.hunt === hunt
       && thenRows === 1 && cb.last_activity_left === null,
     `browser closed: the tick swung exactly 20 in ${crows.length} row(s), ended the job, and the sweep sent the hero back to ${hunt}, once, with no job to loop back to`,
     `browser closed: fire ${js(f1).slice(0, 200)}, ${swings(crows)} swings, end ${js(ce)}, after sweep ${js({ n1, kind: cb.active_kind, open, end: cbe, thenRows, lastLeft: cb.last_activity_left })}`);
 
   /* ── J-ONCE ── */
   const ledger0 = await one(db, 'select count(*)::int from public.player_ledger where user_id = $1', [c]);
-  await one(db, 'select public.hr_job_then_sweep(500)');
+  await one(db, 'select public.hr_job_next_sweep(500)');
   const ledger1 = await one(db, 'select count(*)::int from public.player_ledger where user_id = $1', [c]);
   const ov = (await stateOf(db, o)).version;
   await fire(db, edge, [o]);

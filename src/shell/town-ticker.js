@@ -136,7 +136,9 @@ export function predictTown(o) {
   let sum;
   if (gather) {
     one[w.id] = { skill: w.skill, node: w.row };
-    sum = simulateSkillSpan(scratch, Object.assign(ctx, { nodes: one }));
+    /* a gathering job's count left caps it as the engine does (1009-job-counts.sql) */
+    const jobLeft = count(o.left) || null;
+    sum = simulateSkillSpan(scratch, Object.assign(ctx, { nodes: one, maxActions: jobLeft }));
   } else {
     one[w.id] = { skill: w.skill, recipe: w.row };
     sum = simulateArtisanSpan(scratch, Object.assign(ctx, { recipes: one, maxActions: count(o.left) || null, tax: o.tax || null }));

@@ -677,6 +677,8 @@
     "node tools/mutant-gate.mjs node tests/w0f-fun-content.mjs --selftest": "client-guards",
     "node tests/button-system.mjs": "client-guards",
     "node tools/mutant-gate.mjs node tests/button-system.mjs --selftest": "client-guards",
+    "node tests/hunt-screen-pure.mjs": "client-guards",
+    "node tools/mutant-gate.mjs node tests/hunt-screen-pure.mjs --mutate": "client-guards",
     "node tools/mutant-gate.mjs --nightly-gate": "client-guards",
     "node tools/gen-bench-tax.mjs --check": "client-guards-3",
     "node tools/mutant-gate.mjs node tools/gen-bench-tax.mjs --selftest": "client-guards-3",

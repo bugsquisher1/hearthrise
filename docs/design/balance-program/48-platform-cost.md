@@ -24,6 +24,10 @@ Labels: **REAL** is production, read-only (`node tools/balance-program/platform-
 
 **What would take it further.** Only one thing reaches 24 at 10,000 for an account that watches. The watched hunt's confirm must stop reading the database, which needs the engine to keep a viewed hunt in memory between confirms. That means a small always-on engine server outside Supabase's edge. It is a spend, so it is your call, and the beta does not need it. The other way is to confirm every 32 seconds instead of 16, which you ruled out on 11-10.
 
+**Four heroes from the first evening.** Every account now pays the full 48 hero-hours from day one, and the ladder is already sized on that. With the browser closed an account's cost is per hero, so four heroes cost four times one. With a tab open the fourth hero adds much less than the first. After the ladder a one-hero account is about 5 to 16 seconds a day and a four-hero one 11 to 31 (section 10).
+
+**A world boss.** Today's hunt door cannot run one. Every viewer re-reads the whole fight every 16 seconds, so the cost grows with the square of the crowd, and one 100-hero fight would cost each account more than its whole day. Sent as one broadcast to everyone instead, the same fight costs each account about 3 seconds, and well under 1 with an always-on engine server. Section 11 has the table for the clan and boss study.
+
 **What you decide.** Nothing to buy now. Two calls once the ladder is built: whether the 10,000-account target must also hold for players who keep a hunt on screen (then the engine server is needed), and whether town work in closed form is approved (59 row 30).
 
 ---
@@ -241,3 +245,53 @@ No rung changes a number a player earns, and no rung moves the 16 s confirm (RUL
 
 - `tools/balance-program/platform-cost.local.mjs` reads production, SELECT only in a read-only transaction, aggregates only: statements, indexes, whole-table scans, commits by size and door, rows before a commit, minute buckets, frames, the tick's dials.
 - `tools/balance-program/platform-cost.mjs` is the replay instrument (`profile`, `aged`, `window`, `--read-materialized`) and the ladder (`ladder`, `--selftest`). The ladder's inputs and their sources are `tools/balance-program/platform-cost.json`.
+
+---
+
+## 10. Four heroes from the first evening (Tyler, 2026-11-21)
+
+Every account has all four heroes from the start, with one Premium an account. So the account-day of sections 4 and 6 (four heroes, 12 hunted hours each, 48 hero-hours) is every account's day from its first evening, not only a veteran's. The ladder above is already sized on it. What the ruling changes is the count of accounts that pay it: every account, from day one.
+
+How an account's cost moves with its heroes (`node tools/balance-program/platform-cost.mjs ladder`, the heroes table). Each hero hunts 12 hours and works in town 12 hours. Lone heroes are each their own hunt. "After" is the whole ladder, RES included.
+
+| Account | Closed day: today | a hero | after | a hero | Real-shaped tab: today | a hero | after | a hero |
+|---|---|---|---|---|---|---|---|---|
+| 1 hero | 102 | 102 | 5.2 | 5.2 | 228 | 228 | 15.5 | 15.5 |
+| 2 lone heroes | 204 | 102 | 9.3 | 4.7 | 340 | 170 | 19.7 | 9.8 |
+| 3 lone heroes | 305 | 102 | 13.5 | 4.5 | 452 | 151 | 23.9 | 8.0 |
+| 4 lone heroes | 406 | 102 | 17.6 | 4.4 | 564 | 141 | 28.1 | 7.0 |
+| 4 heroes as one party | 334 | 84 | 10.9 | 2.7 | 578 | 144 | 31.2 | 7.8 |
+
+What it says.
+
+1. **With the browser closed, cost is per hero.** Four heroes cost four times one, today and after the ladder. The open tab is per account, so with a tab the fourth hero adds far less than the first (x2.5 today, x1.8 after).
+2. **A party of its own four is the cheapest shape for an idle account** (one commit carries all four: 10.9 against 17.6 after the ladder). The tick packing an account's lone instances into one commit (section 4's note) closes most of that gap.
+3. **Every row meets 60 at 1,000 after the ladder.** At 10,000 (24) the closed day meets in every shape, and the real-shaped tab meets for one to three lone heroes and misses for four (28.1 lone, 31.2 party). That is section 6's answer, now true of every account from day one.
+4. **New heroes are not cheaper.** A first-evening hero's read and commit are small (the replay's Level 10 fixtures), but the cadence and the town work are the same, and those are the cost. Sized on production's real heroes, so it is the upper side.
+5. **Premium an account** changes no line: stamina does not bind the hunted hours here (CITED 28), and the 12 hours are the ruling's.
+
+---
+
+## 11. A world boss: the first cost envelope for the MMO layer
+
+No fixture exists, so this is ESTIMATED, built from the replay's per-member cost of a settle (read fixed: the apply 11.4 PGlite ms a member and 12.4 fixed, the read 6.8 a member and 5.3 fixed), production's factor against the replay (1.49: a closed four costs 135 production ms after R0 against 90.9 PGlite), a frame for every member open in a client (18 ms), and engine time linear in heroes (1.55 ms a hero a simulated second, the four-hero p95 of `hunt-settle.js`). One 10-minute fight, one hero an account, every member's tab open (a boss is watched). `platform-cost.json` `boss` holds the inputs, `ladder` prints the table.
+
+| Heroes in the fight | Design | Commit every | Commits | ms a commit | Database-s the fight | An account, the fight | Share of a day's C2, 1,000 / 10,000 |
+|---|---|---|---|---|---|---|---|
+| 20 | today's door: the edge engine, every viewer reads the whole instance every 16 s | 39 s | 16 | 724 | 264 | 13.2 | 22% / 55% |
+| 20 | one broadcast a commit, no viewer reads, the edge engine | 39 s | 16 | 724 | 11 | 0.6 | 1% / 2% |
+| 20 | one broadcast a commit, a stateful engine host | 100 s | 6 | 724 | 4.3 | 0.2 | 0% / 1% |
+| 40 | today's door | 19 s | 31 | 1,430 | 1,036 | 25.9 | 43% / 108% |
+| 40 | broadcast, the edge engine | 19 s | 31 | 1,430 | 44 | 1.1 | 2% / 5% |
+| 40 | broadcast, a stateful host | 100 s | 6 | 1,430 | 8.6 | 0.2 | 0% / 1% |
+| 100 | today's door | 8 s | 78 | 3,547 | 6,402 | **64** | **107% / 267%** |
+| 100 | broadcast, the edge engine | 8 s | 78 | 3,547 | 275 | 2.7 | 5% / 11% |
+| 100 | broadcast, a stateful host | 100 s | 6 | 3,547 | 21 | 0.2 | 0% / 1% |
+
+What the MMO-layer study should take from it.
+
+1. **Today's hunt door cannot run a world boss.** Every viewer reads the whole instance every 16 s, and the read grows with the members, so the cost grows with the square of the fight. One 100-hero fight costs each account more than its whole day's budget at 1,000 accounts and nearly three days' at 10,000. And the door refuses it outright: `hr_hunt_apply_instance` takes at most `party_max` members (4).
+2. **The edge's 2 s limit shrinks the window as the fight grows** (100 heroes: 8 s of fight a commit), so the commits grow with the fight too. Each 100-member commit also holds all 100 heroes' locks for about 3.5 s, so any press of any of those accounts waits behind it.
+3. **The shape that fits:** the fight's state goes out as ONE broadcast a commit on the boss's own topic, a viewer reads nothing, and a member's own value (its XP, its loot) lands in its own envelope at the commit. On the edge engine that is 0.6 to 2.7 database-seconds an account a fight. With a stateful engine host it is 0.2 at any size. Both fit C2 at both sizes for a daily boss.
+4. **Rooms, as 28 section 3 rules.** Players x players is never allowed. A boss of 100 is 100 members, not 100 x 100 reads. A world boss of 1,000 is ten rooms of 100 with a shared health bar summed once a commit.
+5. **Before any boss is built:** a boss fixture in `tests/per-player-cost.mjs` (20 heroes from 20 accounts, watched), and the engine's ms a simulated second at 20 and 100 heroes, measured, not assumed linear.

@@ -355,7 +355,7 @@ function rungsOf(R) {
     { id: 'T1', roadmap: 'new (28 card, town)', layer: 'edge + server read', name: 'the town tick reads the hero\'s engine inputs, not the whole hero',
       apply: (m) => { m.townHeroHourS *= R.T1.townFactor; return m; } },
     { id: 'L12', roadmap: 'L12 (28-1)', layer: 'edge + server', name: 'confirm in the edge, commit at the flush: a watched instance commits every 100 s',
-      apply: (m) => { m.watchedCommitsAnHour = R.L12.commitsAnHour; return m; } },
+      apply: (m) => { m.watchedCommitsAnHour = R.L12.commitsAnHour; m.watched.loneCommitsAnHour = R.L12.commitsAnHour; return m; } },
     { id: 'L24', roadmap: 'L24 (28 change 4)', layer: 'server + client', name: 'delta envelopes: the projection, the frames, the hello and a press carry what moved',
       apply: (m) => { const f = R.L24.stateFactor; const p = m.watched.pollMs; const c = m.watched.commitMs;
         p.helloReads *= f; p.earlyAskState *= f; c.projection *= f; c.frames *= f; m.pressS = (m.pressS - 0.048) + 0.048 * f; return m; } },
@@ -398,12 +398,68 @@ function ladder() {
       console.log([s.id, s.roadmap, s.layer, s.name, r1(s.hunt), r1(s.watched), r1(s.town), r1(s.townTab), r1(s.presses), r1(s.fixed), r1(s.total), verdict(s.total, band)].join(' | '));
     }
   }
-  /* the account of four LONE heroes (no party), browser closed: its hunt line before and after the rungs that touch it */
-  const after = climb(t, J.days[Object.keys(J.days)[0]], rungsOf(J.rungs));
-  void after;
-  let m = structuredClone(t);
-  for (const r of rungsOf(J.rungs)) m = r.apply(m, {});
-  console.log(`\nFour LONE heroes, browser closed, the hunt line: today ${r1(48 * 36 * closedCommitS(t, 'lone'))} s, after the ladder ${r1(48 * m.awayCommitsAnHour * closedCommitS(m, 'lone'))} s (a party of four: ${r1(12 * 36 * closedCommitS(t, 'four'))} and ${r1(12 * m.awayCommitsAnHour * closedCommitS(m, 'four'))}).`);
+  heroesTable(J);
+  bossTable(J);
+}
+
+/* ── HEROES AN ACCOUNT (Tyler 2026-11-21: every account has all four heroes from the start) ─────────────────────────── */
+/** One account-day with `n` LONE heroes (each its own instance) on `day`'s hours: one of them on screen for day.watchedH, the others
+    hunting closed but framed while the tab is open (open in a client), presses a share of four heroes' 100. */
+function loneAccountDay(m, day, n) {
+  const away = m.awayCommitsAnHour;
+  const c1 = closedCommitS(m, 'lone');
+  const frame = m.watched.commitMs.frames / 3 / 1000;            // one member's frame (the four's three frames)
+  const w = m.watched;
+  const read = m.closedCommitMs.lone.read;
+  const loneHour = (w.lonePollsAnHour * (w.readsAPoll * read + sum(w.pollMs)) + w.loneCommitsAnHour * (m.closedCommitMs.lone.core + w.commitMs.projection)) / 1000
+    + w.offscreenLoadSAnHour * (n - 1) / 3 + w.residualSAnHour;
+  const hunt = (n * day.huntH - day.watchedH) * away * c1;
+  const watched = day.watchedH * (loneHour + (n - 1) * away * frame);
+  const town = m.townDayS != null ? m.townDayS * n / 4 : n * day.townH * m.townHeroHourS;
+  const townTab = day.townTabH * m.townTabHourS;
+  const presses = day.presses * (n / 4) * m.pressS;
+  const fixed = m.fixedSADay / day.accounts;
+  return { hunt, watched, town, townTab, presses, fixed, total: hunt + watched + town + townTab + presses + fixed };
+}
+function afterLadder(J) { let m = structuredClone(J.today); const d = { presses: 100 }; for (const r of rungsOf(J.rungs)) m = r.apply(m, d); return { m, presses: d.presses }; }
+function heroesTable(J) {
+  const { m: after, presses } = afterLadder(J);
+  const rows = [['1 hero', 1, false], ['2 lone heroes', 2, false], ['3 lone heroes', 3, false], ['4 lone heroes', 4, false], ['4 heroes as one party', 4, true]];
+  for (const label of [Object.keys(J.days)[0], Object.keys(J.days)[1]]) {
+    const day = J.days[label];
+    console.log(`\n## HEROES AN ACCOUNT, ${label}, 12 h hunted and 12 h of town work a hero from the first day`);
+    console.log('account | today | a hero, today | after the ladder | a hero, after | against C2 at 1,000 (60), after');
+    for (const [name, n, party] of rows) {
+      const a = party ? accountDay(J.today, day) : loneAccountDay(J.today, day, n);
+      const b = party ? accountDay(after, { ...day, presses }) : loneAccountDay(after, { ...day, presses }, n);
+      console.log([name, r1(a.total), r1(a.total / n), r1(b.total), r1(b.total / n), verdict(b.total, J.bands['C2.1k'])].join(' | '));
+    }
+  }
+}
+
+/* ── A WORLD BOSS: one shared fight, many accounts' heroes (the MMO layer's first envelope; no fixture exists) ─────────── */
+/** One fight of `n` heroes, one hero an account, in seconds: its commits (the window the edge's engine time allows, or the host's),
+    their frames, and the viewers' reads of the whole instance (today's door: every viewer polls the instance every 16 s). */
+function bossFight(B, n, design) {
+  const S = B.minutes * 60;
+  const engineWindowS = design === 'host' ? B.hostWindowS : Math.min(B.hostWindowS, B.edgeBudgetMs / (B.engineMsAHeroSimS * n));
+  const commits = S / engineWindowS;
+  const commitMs = B.prodFactor * (B.pglite.fixedMs + B.pglite.perMemberMs * n) + B.viewShare * n * B.frameMs;
+  const readMs = B.prodFactor * (B.pglite.readFixedMs + B.pglite.readPerMemberMs * n);
+  const viewerReads = design === 'polls' ? B.viewShare * n * (S / B.pollS) * B.readsAPoll * readMs : 0;
+  const total = (commits * commitMs + viewerReads) / 1000;
+  return { windowS: engineWindowS, commits, commitMs, total, perAccount: total / n };
+}
+function bossTable(J) {
+  const B = J.boss;
+  console.log(`\n## A WORLD BOSS: one ${B.minutes}-minute fight, one hero an account, every member's tab open. ESTIMATED from the replay's per-member cost x production's factor ${B.prodFactor}`);
+  console.log('heroes in the fight | design | window s | commits | ms a commit | database-s the fight | a hero (account), the fight | share of C2 a day, 1,000 / 10,000');
+  for (const n of B.sizes) {
+    for (const [design, label] of [['polls', 'today: the edge engine, every viewer reads the instance every 16 s'], ['broadcast', 'one broadcast a commit, no viewer reads, the edge engine'], ['host', 'one broadcast a commit, a stateful engine host']]) {
+      const f = bossFight(B, n, design);
+      console.log([n, label, r1(f.windowS), r1(f.commits), Math.round(f.commitMs), r1(f.total), r1(f.perAccount), Math.round(100 * f.perAccount / J.bands['C2.1k']) + '% / ' + Math.round(100 * f.perAccount / J.bands['C2.10k']) + '%'].join(' | '));
+    }
+  }
 }
 
 function selftest() {

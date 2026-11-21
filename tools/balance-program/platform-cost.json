@@ -27,7 +27,9 @@
    "offscreenLoadSAnHour": 19.6,
    "residualSAnHour": 33.5,
    "readsAPoll": 1.6,
-   "calibrationReadMs": 19.1
+   "calibrationReadMs": 19.1,
+   "lonePollsAnHour": 181,
+   "loneCommitsAnHour": 181
   },
   "townHeroHourS": 4.15,
   "townTabHourS": 4.7,
@@ -46,7 +48,8 @@
    "closedCommitMs": "REAL four: pg_stat_statements delta over 607 s (07:34-07:44 UTC) while one four hunted, 6 settles: the read 187.2 ms and the apply 112.2 ms a call; no hero was open in a client for 9 of the 10 minutes, so about 100 ms with no frame and no projection (95 to 112). The read is 183.4 over its 1,299 calls. Lone: the replay's lone/four ratios (read 35.9/103.5, apply 28.9/58.9 PGlite ms) x the four",
    "offscreen": "REAL hr_load 109-111 ms x 3 off-screen heroes x 60 an hour (28): gone with lane/c-server-cost (L01)",
    "watched.readsAPoll": "the landed poll and 0.6 early asks each run the settle read (the replay: hr_hunt_instance_read 4.8 calls a watched settle = 1.6 x 3)",
-   "watched.calibrationReadMs": "REAL: the watched minutes of the capacity sample (11-20 17:00 to 11-21 04:00 UTC) ran on the old 19.1 ms read: the new 183 ms statement has 1,299 calls in all, too few for that many watched polls"
+   "watched.calibrationReadMs": "REAL: the watched minutes of the capacity sample (11-20 17:00 to 11-21 04:00 UTC) ran on the old 19.1 ms read: the new 183 ms statement has 1,299 calls in all, too few for that many watched polls",
+   "watched.lonePollsAnHour": "REAL commits: a lone watched hunt commits 181.2 times an hour (14 days)"
   },
   "closedCommitMs": {
    "four": {
@@ -144,6 +147,38 @@
    "watchedH": 1.5,
    "townTabH": 2,
    "presses": 100
+  }
+ },
+ "boss": {
+  "minutes": 10,
+  "sizes": [
+   4,
+   20,
+   40,
+   100
+  ],
+  "prodFactor": 1.49,
+  "viewShare": 1,
+  "frameMs": 18.3,
+  "readsAPoll": 1.6,
+  "pollS": 16,
+  "hostWindowS": 100,
+  "edgeBudgetMs": 1200,
+  "engineMsAHeroSimS": 1.55,
+  "pglite": {
+   "fixedMs": 12.4,
+   "perMemberMs": 11.4,
+   "readFixedMs": 5.3,
+   "readPerMemberMs": 6.8
+  },
+  "why": {
+   "pglite": "MEASURED, read fixed: the apply 23.8 ms lone and 57.9 for four (11.4 a member, 12.4 fixed), the read 12.1 and 32.4 (6.8 a member, 5.3 fixed)",
+   "prodFactor": "REAL / MEASURED: a closed four after R0 is 35 + 100 = 135 production ms against 90.9 PGlite",
+   "frameMs": "a member frame, 55 ms for three (watched.commitMs.frames)",
+   "engineMsAHeroSimS": "CITED hunt-settle.js: 6.2 ms a simulated second at the four-hero p95, a quarter a hero; ASSUMED linear in heroes",
+   "edgeBudgetMs": "the engine time a slice may use under the edge's 2 s (C10's rule)",
+   "hostWindowS": "the 100 s flush with no edge limit",
+   "sizes": "a party (4) beside a boss of 20, 40 and 100 heroes"
   }
  }
 }

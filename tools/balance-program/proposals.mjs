@@ -154,7 +154,7 @@ export async function referenceKillHealth(root, cells, V) {
 async function derive(o) {
   const BM = await import('./balance-matrix.mjs');
   const MP = await import('./matrix-plan.mjs');
-  const { loadGridData } = await import('./progression-grid.mjs');
+  const { loadGridData, compsOf } = await import('./progression-grid.mjs');
   const { loadKits } = await import('./grid-kit.mjs');
   const SC = await import('./matrix-scratch.mjs');
   const D = await loadGridData(ROOT), K = await loadKits(ROOT);
@@ -182,7 +182,7 @@ async function derive(o) {
   console.log('R12: reference kill-health ' + c + ' x L^' + d + ' (' + ref.pts.length + ' points)');
   /* R13: the pace seat (a MID four on the hardest tier it holds: the subset's four block, hardest) on the proposed game without R13 */
   const base13 = reg.recommended.filter((id) => id !== 'GR-6');
-  const run13 = { id: 'derive-r13', levels: MP.RUNS.subset.levels.filter((L) => L >= 30 && L <= 1000), seeds: 1, hours: 1, blocks: [{ id: 'four', comps: [[['tank', 'healer', 'bow', 'mage'], 'thbm']], gears: ['mid'], tiers: ['hardest'] }] };
+  const run13 = { id: 'derive-r13', levels: MP.RUNS.subset.levels.filter((L) => L >= 30 && L <= 1000), seeds: 1, hours: 1, blocks: [{ id: 'four', comps: compsOf(4), gears: ['mid'], tiers: ['hardest'] }] };
   const r13 = await playOn(base13, run13, 'R13 pace seat');
   const xs = r13.cells.filter((x) => x.m && Number.isFinite(x.m.xContract)).map((x) => x.m.xContract).sort((a, b) => a - b);
   const seat = Number(xs[Math.floor((xs.length - 1) / 2)].toFixed(3));

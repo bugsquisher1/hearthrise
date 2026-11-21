@@ -113,15 +113,44 @@ export async function loadGridData(root = ROOT) {
 }
 
 /* ── THE PLAN: every cell a run plays ──────────────────────────────────────────────────────────────────────────────────────────── */
-const COMPS = Object.freeze({ 1: [['hammer', 'h']], 2: [['tank,mage', 'tm'], ['bow,healer', 'bh']], 3: [['tank,healer,mage', 'thm']], 4: [['tank,healer,bow,mage', 'thbm']] });
+const COMPS = Object.freeze({ 1: [['hammer', 'h']], 2: [['tank,mage', 'tm'], ['bow,healer', 'bh']], 3: [['tank,healer,mage', 'thm']], 4: [['hammer,bow,mage,healer', 'hbmh']] });
 /** The seats of a party size (standards.mjs PARTIES; a Ranger is the bow): [[styles], comp id]. */
 export function compsOf(size) {
   return COMPS[size].map(([s, id]) => [s.split(','), id]);
 }
 export const cellKey = (L, gear, party, comp, tier, step = null) => [L, gear, party + ':' + comp, tier].join('|') + (step ? '|' + step : '');
 
-/** One cell's engine job (without the seed): ground, seats, kits, skills, rungs, tier, pull, the projected what-if. */
-export function buildCell(D, K, { L, gear, styles, tier, ground, step = null }) {
+/* THE BUILD TRACKS (tools/balance-program/build-tracks.json, the hook for 10-level-choices.md): a track's picks up to Level L, as the buff rows
+   cell.mjs keeps up all hunt. A pick that names an effect no buff type carries is refused by name (the design needs an engine lever first). */
+export const BUILD_TRACKS_FILE = 'tools/balance-program/build-tracks.json';
+export function readTracks(root = ROOT) {
+  const f = join(root, BUILD_TRACKS_FILE);
+  if (!existsSync(f)) return { tracks: [], byId: new Map() };
+  const doc = JSON.parse(readFileSync(f, 'utf8'));
+  if (doc.schema !== 'hearthrise.build-tracks/1') throw new Error('grid: ' + BUILD_TRACKS_FILE + ' is ' + doc.schema);
+  return { ...doc, byId: new Map((doc.tracks || []).map((t) => [t.id, t])) };
+}
+export const TRACK_EFFECTS = Object.freeze(['damage', 'defense', 'damage_crit', 'drop_rate', 'gold_find', 'combat_xp', 'all_xp']);
+export function trackBuffs(track, L) {
+  const sumBy = {};
+  for (const p of track.picks || []) {
+    if (!(p.at <= L)) continue;
+    for (const [k, v] of Object.entries(p.effects || {})) {
+      if (!TRACK_EFFECTS.includes(k)) throw new Error('grid: track ' + track.id + ' pick at ' + p.at + ' names ' + k + ', which no engine lever on a hero pays yet (' + TRACK_EFFECTS.join(', ') + ')');
+      sumBy[k] = (sumBy[k] || 0) + v;
+    }
+  }
+  return Object.entries(sumBy).filter(([, v]) => v > 0).map(([type, magnitude]) => ({ type, magnitude }));
+}
+
+/**
+ * One cell's engine job (without the seed): ground, seats, kits, skills, rungs, tier, pull, the projected what-if.
+ * THE MEASURING RULES (the critical review's step 1, 2026-11-21): the real death rule (a death ends that hero's hunt, the rest hunt on unless
+ * `endTogether`), three Blessings held (the real four held three), and real shopping (11-krell section 4: a caster casts one rune tier under
+ * what its Magic allows, a Healer heals on the cheapest water rune; BiS casts what its Magic allows). Options: `buffs` (timed buff rows kept
+ * up all hunt), `track` (a build-tracks.json track), `staminaH`, `purse` and `goldFloor` (a bar and a purse that bind).
+ */
+export function buildCell(D, K, { L, gear, styles, tier, ground, step = null, buffs = null, track = null, endTogether = false, staminaH = null, purse = null, goldFloor = null, blessings = 3 }) {
   const size = styles.length, line = size > 1 ? 'party' : 'alone';
   const skills = styles.map((style) => {
     const lv = { ...D.skillsAt(D.lines, line, style, L) }, d = K.skillDeltaOf(gear, L), m = MAIN[style] || 'melee';
@@ -143,7 +172,10 @@ export function buildCell(D, K, { L, gear, styles, tier, ground, step = null }) 
     tierRow = tier === 'normal' ? null : w.tiers[ground][tier];
   } else if (tier !== 'normal') tierRow = D.TI.tierRowOf(ground, tier);
   const pull = tierRow ? D.TI.pullOfTier(tierRow, size) : null;
+  const rows = [...(buffs || []), ...(track ? trackBuffs(track, L) : [])];
   const cell = { ground, party: [...styles], level: L, profile: 'played', supply: 'store', skillsBySeat: skills, gearBySeat: plans.map((p) => p.gear),
+    deathRule: 'real', blessings, shopping: gear === 'bis' ? 'allowed' : 'real', ...(endTogether ? { endTogether: true } : {}),
+    ...(rows.length ? { buffs: rows } : {}), ...(Number.isFinite(staminaH) ? { staminaH } : {}), ...(Number.isFinite(purse) ? { purse } : {}), ...(Number.isInteger(goldFloor) ? { goldFloor } : {}),
     ...(Object.keys(temper).length ? { temper } : {}), ...(tier !== 'normal' ? { options: { tier } } : {}), ...(pull ? { density: pull } : {}) };
   return { cell, whatIf, plans };
 }
@@ -232,6 +264,10 @@ export function cellRates(D, meta, seeds) {
   const partyHours = seeds.reduce((s, r) => s + r.party.hours, 0) || 1e-9;
   const sum = (f) => seeds.reduce((s, r) => s + r.heroes.reduce((a, h) => a + f(h), 0), 0);
   const gross = sum((h) => h.raw.levelXp), lost = sum((h) => h.raw.xpLostLevel), income = sum((h) => h.raw.income), store = sum((h) => h.raw.store);
+  /* THE DEATH RULE'S READS (tools/balance-sim/cell.mjs header): the hours the seeds offered each hero (a cell played before the rule offered
+     what it hunted), the Level XP deaths took after the Blessings' cut, and the gold the Blessings cost again after each death */
+  const wallHours = sum((h) => (Number.isFinite(h.raw.wallHours) ? h.raw.wallHours : h.hours)) || 1e-9;
+  const lostBlessed = sum((h) => (Number.isFinite(h.raw.xpLostLevelBlessed) ? h.raw.xpLostLevelBlessed : h.raw.xpLostLevel)), blessingGold = sum((h) => h.raw.blessingGold || 0);
   const own = ownShareAt(L);
   const main = sum((h) => h.raw.skillXp[MAIN[h.style] || 'melee'] || 0);
   const kills = seeds.reduce((s, r) => s + r.party.killsPerH * r.party.hours, 0);
@@ -263,13 +299,15 @@ export function cellRates(D, meta, seeds) {
   for (const r of seeds) for (const h of r.heroes) for (const [k, n] of Object.entries(h.ended || {})) ended[k] = (ended[k] || 0) + n;
   const r0 = (x, d = 0) => (Number.isFinite(x) ? Math.round(x * 10 ** d) / 10 ** d : null);
   return {
-    levelXpPerH: r0(gross / heroHours), netLevelXpPerH: r0((gross - lost) / heroHours), xContract: r0(gross / heroHours / contract, 3), contractXpPerH: r0(contract),
+    /* netLevelXpPerH: Level XP after deaths (the Blessings' cut) an hour of the time the seeds offered, so the hours a dead hero sat home count */
+    levelXpPerH: r0(gross / heroHours), netLevelXpPerH: r0((gross - lostBlessed) / wallHours), huntedShare: r0(heroHours / wallHours, 4), lostHoursPerHeroH: r0(1 - heroHours / wallHours, 4),
+    xContract: r0(gross / heroHours / contract, 3), contractXpPerH: r0(contract),
     mainSkillXpPerH: r0(main / heroHours), coinPerH: r0(sum((h) => h.raw.coin) / heroHours), incomePerH: r0(income / heroHours), storePerH: r0(store / heroHours),
-    ownShare: own, netPerH: r0((income - store * (1 - own)) / heroHours), netADay: r0(((income - store * (1 - own)) / heroHours) * STD.CLOCK.huntHoursADay),
+    ownShare: own, netPerH: r0((income - store * (1 - own) - blessingGold) / heroHours), netADay: r0(((income - store * (1 - own) - blessingGold) / heroHours) * STD.CLOCK.huntHoursADay), blessingGoldPerH: r0(blessingGold / heroHours),
     storeShare: income > 0 ? r0((store * (1 - own)) / income, 3) : null, storeByKindPerH: Object.fromEntries(Object.entries(supplies).map(([k, n]) => [k, r0(n / heroHours, 1)])),
     takenPerH: r0(sum((h) => h.takenPerH * h.hours) / heroHours), healedPerH: r0(sum((h) => h.healInPerH * h.hours) / heroHours),
     lowHpTypical: lows.length ? r0(Math.max(0, Math.min(...lows)) / 100, 3) : null, lowHpP10: lows10.length ? r0(Math.max(0, Math.min(...lows10)) / 100, 3) : null,
-    deaths: sum((h) => h.deaths), deathsPer1000h: r0((1000 * sum((h) => h.deaths)) / heroHours, 1), deathTax: gross > 0 ? r0(lost / gross, 4) : null,
+    deaths: sum((h) => h.deaths), deathsPer1000h: r0((1000 * sum((h) => h.deaths)) / heroHours, 1), deathTax: gross > 0 ? r0(lostBlessed / gross, 4) : null, deathTaxUnblessed: gross > 0 ? r0(lost / gross, 4) : null,
     killsPerH: r0(kills / partyHours), revealsPerPartyH: r0(reveals / partyHours, 4), revealEveryHeroH: reveals > 0 ? r0((size * partyHours) / reveals, 1) : null,
     revealEveryPartyH: reveals > 0 ? r0(partyHours / reveals, 1) : null, rarestRevealEveryHeroH: Number.isFinite(rarest) ? r0((size * partyHours) / rarest, 1) : null, rarestRevealEveryPartyH: Number.isFinite(rarest) ? r0(partyHours / rarest, 1) : null, killsByPerH: Object.fromEntries(Object.entries(killsBy).map(([m, n]) => [m, r0(n / partyHours, 1)])),
     ended, seats, sample: { seeds: seeds.length, heroHours: r0(heroHours, 1), partyHours: r0(partyHours, 1), spread: mean > 0 && perSeed.length > 1 ? r0((Math.max(...perSeed) - Math.min(...perSeed)) / mean, 3) : null },
@@ -283,8 +321,8 @@ export function cellRates(D, meta, seeds) {
 const HASHED = ['src/core', 'src/data', 'supabase/functions/hr-accrue', 'src/shell/hunt-list.js', 'tests/hunt-core/fixtures/play-ground.mjs', 'tools/lib/version-stamp.mjs', 'tools/gen-ground-stats.mjs',
   'tools/balance-sim/cell.mjs', 'tools/balance-sim/gear.mjs', 'tools/balance-sim/worker.mjs', 'tools/balance-sim/played.mjs', 'tools/balance-sim/skill-lines.mjs', 'tools/balance-sim/skill-lines.json',
   'tools/balance-sim/styles.mjs', 'tools/balance-sim/stats.mjs', 'tools/balance-sim/weapon-power.mjs', 'tools/balance-sim/armor-power.mjs', 'tools/balance-sim/career.mjs', 'tools/balance-sim/staged',
-  'tools/balance-program/grid-kit.mjs', 'tools/balance-program/grid-project.mjs'];
-const cellCode = () => [buildCell, planCells, cellRates, compsOf, cellKey, ownShareAt, slimResult, slimPlan].map((f) => f.toString()).join('\n')
+  'tools/balance-program/grid-kit.mjs', 'tools/balance-program/grid-project.mjs', 'tools/balance-program/build-tracks.json'];
+const cellCode = () => [buildCell, trackBuffs, planCells, cellRates, compsOf, cellKey, ownShareAt, slimResult, slimPlan].map((f) => f.toString()).join('\n')
   /* of standards.mjs only what shapes a cell (the gear rules, the stretches, the parties, the supply share, the checkpoints), never a band: a
      ruling that moves a target leaves the cells as they were. A run's file path is the machine's, so it is left out. */
   + JSON.stringify([COMPS, MAIN, ...[RUNS.full, RUNS.quick].map(({ file, ...r }) => (void file, r)), STD.SUPPLY, STD.GEAR_STATES, STD.STRETCHES, STD.PARTIES, STD.POWER_SOURCES, STD.CHECKPOINTS, STD.GUARD_CHECKPOINTS, STD.TIERS]);

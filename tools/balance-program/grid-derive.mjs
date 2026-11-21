@@ -210,7 +210,7 @@ export function judgeGrid(D, grid, o = {}) {
   const at = (c) => c.L + ' ' + c.gear + ' x' + c.party + ' ' + c.tier;
   const ratio = (a, b) => (a && b && b > 0 ? a / b : null);
   const sampleOk = (c) => deathOf(c).planned === true || deathOf(c).seatHours >= DEATH_SAMPLE_HERO_H;
-  for (const band of STD.BANDS) {
+  for (const band of STD.STANDING) {
     const w = band.where || {}, id = band.id;
     if (NOT_GRID[id]) { rows.push({ band: id, group: band.group, label: band.label, at: '-', value: null, status: 'n/a', dist: 0, why: NOT_GRID[id] }); continue; }
     if (['atlas', 'town', 'path'].includes(band.group)) { rows.push({ band: id, group: band.group, label: band.label, at: '-', value: null, status: 'n/a', dist: 0, why: 'read from ' + (band.group === 'path' ? 'paths.json' : 'atlas.json') + ' (lane/c-sources-paths)' }); continue; }
@@ -338,7 +338,7 @@ export function judgeGrid(D, grid, o = {}) {
 export function bandSummary(judged) {
   const out = [];
   const RANK = { ok: 0, thin: 0, bound: 0, proxy: 0, 'n/a': 0, off: 1, RED: 2 };
-  for (const band of STD.BANDS) {
+  for (const band of STD.STANDING) {
     const rs = judged.rows.filter((r) => r.band === band.id);
     const judgedRows = rs.filter((r) => ['ok', 'off', 'RED'].includes(r.status));
     const worst = judgedRows.reduce((m, r) => (!m || r.dist > m.dist ? r : m), null);
@@ -406,7 +406,7 @@ export function gapNumbers(judged) {
   out.push([7, 'BiS built by rule and played: BiS / MID Level XP alone ' + range('P4') + '; damage taken BiS / MID ' + range('S5.bis')]);
   out.push([8, 'MID has a rule (grid-kit.mjs): x contract alone on Normal ' + range('P2')]);
   out.push([9, T.levels.length + ' checkpoints from ' + T.levels[0] + ' to ' + T.levels[T.levels.length - 1] + ' (gear gates, staged and PROJECTED stretches)']);
-  out.push([10, 'the pair ' + range('P7.2') + ' and the three ' + range('P7.3') + ' x contract on the hardest tier held']);
+  out.push([10, 'the pair and the three against a lone hero: dropped as targets, nothing reads them (GR-67, RULED 2026-11-21)']);
   out.push([11, 'Dangerous as its own cell: MID low point ' + range('S3.mid') + '; MID deaths a 1,000 h ' + range('S6.dangerous.mid')]);
   out.push([12, 'the pace seat ' + T.PACE + ' reaches Level 200 on day ' + fmtDay(T.dayAt(T.PACE, 200)) + ' and 400 on day ' + fmtDay(T.dayAt(T.PACE, 400)) + '; the lone MID hero on day ' + fmtDay(T.dayAt('mid:1:normal', 200)) + ' and ' + fmtDay(T.dayAt('mid:1:normal', 400))]);
   out.push([13, 'the pace seat leaves open content on day ' + fmtDay(T.dayAt(T.PACE, 110)) + ' and staged content on day ' + fmtDay(T.dayAt(T.PACE, 185))]);

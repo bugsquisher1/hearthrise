@@ -16,7 +16,7 @@
 import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { buildCell } from './progression-grid.mjs';
+import { buildCell, compsOf } from './progression-grid.mjs';
 
 const r = (x, d = 0) => (Number.isFinite(x) ? Math.round(x * 10 ** d) / 10 ** d : null);
 
@@ -37,7 +37,8 @@ export async function calibrationJobs(D, K, root, o = {}) {
   const jobs = [], cols = [];
   const add = (col, styles, b) => { cols.push({ col, styles }); for (let s = 0; s < seeds; s++) jobs.push({ id: 'CAL:' + col + '#' + s, key: 'CAL:' + col, whatIf: b.whatIf, cell: { ...b.cell, id: 'CAL:' + col, hours, seeds: 1, seedBase: s } }); };
   const R = KRELL_2026_11_20;
-  add('harness', ['tank', 'healer', 'bow', 'mage'], buildCell(D, K, { L: 85, gear: 'mid', styles: ['tank', 'healer', 'bow', 'mage'], tier: R.tier, ground: R.ground }));
+  const four = compsOf(4)[0][0];
+  add('harness', four, buildCell(D, K, { L: 85, gear: 'mid', styles: four, tier: R.tier, ground: R.ground }));
   add('realWays', ['hammer', 'bow', 'mage', 'healer'], buildCell(D, K, { L: R.level, gear: 'mid', styles: ['hammer', 'bow', 'mage', 'healer'], tier: R.tier, ground: R.ground }));
   /* the recorded heroes: the fixture's held Krell Deadly samples */
   const fxFile = join(root, 'tests', 'fixtures', 'balance-calibration.json');

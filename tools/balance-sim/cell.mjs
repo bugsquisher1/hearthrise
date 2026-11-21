@@ -3,9 +3,21 @@
 // A cell is a ground, a party of styles at a Level, a density, a gear rule, a bar and a supply policy. It is played
 // through the settle the world tick runs (tests/hunt-core/fixtures/play-ground.mjs `run` -> hr-accrue accrual.js
 // accrueHunt -> src/core/combat-sim.js), in short settle windows (any cut walks the same swings: TICK-1), for
-// `hours` of hunting per seed. A death ends the hunt as it does live; the next segment is a NEW hunt on a new seed,
-// so the cell's hours are real hunting hours and its deaths are deaths per hunting hour. Nothing here computes a
-// combat number: every value is read off the events, members and deltas the engine answers.
+// `hours` of hunting per seed. Nothing here computes a combat number: every value is read off the events, members and
+// deltas the engine answers.
+//
+// THE DEATH RULE (`cell.deathRule`, the critical review's step 1, 2026-11-21):
+//   'real'     the game's rule (CLAUDE.md section 6, rulings 2026-11-09): a death ENDS that hero's hunt and costs the death
+//              price; the hero is settled no more (dropEnded) and stays home for the rest of the seed. A party's other heroes
+//              hunt on unless the cell sets `endTogether: true` (ruling 27-1 as amended 2026-11-21: for an account's own
+//              heroes "end together" is OFF unless set). One hunt a seed, so the time a dead hero did not hunt is LOST time:
+//              each hero carries `wallHours` (the hours the seed offered) beside `hours` (the hours it hunted). Stamina
+//              (`staminaH`) and the purse (`purse`) bind the same way: a hunt they end is over.
+//   'reenter'  (the default, kept for the legacy tables and guards that read it): a death ends the hunt and the next segment is
+//              a NEW hunt on a new seed at the cell's Level, so a hero that dies stands up again; its deaths are deaths a hunted hour.
+// Either way the party's hours book only the time hunted (a hunt that ended in its first seconds books those seconds).
+// `blessings` (0 to 3, src/data/blessings.js): each death's Level XP loss is cut by the held tiers' share and the tiers are
+// bought again (a death uses them up): `xpLostLevelBlessed` and `blessingGold` beside the raw loss.
 //
 // HP between settles: the engine emits every blow and every heal (food, spells), but not regeneration. Inside a
 // window the tracked HP is the window-start HP (the settle's own `delta.hp`) minus blows plus heals plus a constant
@@ -20,7 +32,7 @@ import { pathToFileURL } from 'node:url';
 import { join } from 'node:path';
 import { loadGear, STYLES } from './gear.mjs';
 import { rateCI, quantile, round, gini, underInto } from './stats.mjs';
-import { playedBar, runeTierAt, RUNE_TIERS, PLAYED_OPTIONS, PLAYED_RUNES } from './played.mjs';
+import { playedBar, runeTierAt, shoppingTier, RUNE_TIERS, PLAYED_OPTIONS, PLAYED_RUNES } from './played.mjs';
 import { loadLines, skillsAt } from './skill-lines.mjs';
 import { sourceQuery } from '../lib/version-stamp.mjs';
 
@@ -58,7 +70,29 @@ export async function loadCellRunner(root) {
   const { START_BAR } = await import(u('src/data/start-kit.js'));
   const { BAG_GUIDE_BY_HUNT } = await import(u('src/data/supplies.js'));
   const SB = await import(u('src/data/supply-basics.js'));
+  const BL = await import(u('src/data/blessings.js'));
+  const BUFF = await import(u('src/core/buffs.js') + v);
   const COMBAT = ['melee', 'ranged', 'magic', 'defense'];
+  /* cell.buffs [{ type, magnitude, hours?, until? }]: the server's timed buff rows (player_state.buffs; src/core/buffs.js BUFFS_DEF names the
+     types). A row with its own `until` is passed as written. Otherwise the buff is KEPT UP for `hours` (default: the whole hunt), as a player
+     eats again when one runs out: one row an hour, each stamped `from` its hour's start (the server caps a row at BUFF_MAX_UNTIL_MS and pays a
+     row only from its `from`). Fresh rows for every hero: the engine drains them. */
+  /* the hunt session fields a cell names: a stamina bar (`staminaH`, hours at the start) and the gold floor the store may not spend under
+     (`goldFloor`: the game's default is 300, the harness's 0; a store use the purse cannot pay over it ends the hunt gold_out) */
+  const sessionOf = (cell) => {
+    const o = {};
+    if (Number.isFinite(cell.staminaH)) Object.assign(o, { staminaMs: Math.round(cell.staminaH * 3600000), staminaMaxMs: Math.max(Math.round(cell.staminaH * 3600000), 12 * 3600000) });
+    if (Number.isInteger(cell.goldFloor)) o.goldFloor = cell.goldFloor;
+    return Object.keys(o).length ? o : null;
+  };
+  const buffRows = (rows, spanH) => rows.flatMap((b) => {
+    if (!BUFF.BUFFS_DEF[b.type]) throw new Error('balance-sim: no buff type ' + b.type + ' (src/core/buffs.js BUFFS_DEF)');
+    if (!(Number.isFinite(b.magnitude) && b.magnitude > 0)) throw new Error('balance-sim: buff ' + b.type + ' needs a magnitude');
+    if (b.until !== undefined) return [{ type: b.type, magnitude: b.magnitude, until: b.until, ...(b.from !== undefined ? { from: b.from } : {}) }];
+    const endMs = Math.round((Number.isFinite(b.hours) ? Math.min(b.hours, spanH) : spanH) * 3600000), out = [];
+    for (let at = 0; at < endMs; at += BUFF.BUFF_MAX_UNTIL_MS) out.push({ type: b.type, magnitude: b.magnitude, from: T0 + at, until: T0 + Math.min(endMs, at + BUFF.BUFF_MAX_UNTIL_MS) });
+    return out;
+  });
   /* the skill lines a played cell reads (skill-lines.mjs): the tree's own snapshot, else this file's (a planted copy carries none) */
   const SKILL_LINES = loadLines(join(root, 'tools', 'balance-sim', 'skill-lines.json')) || loadLines();
   const ITEMS = play.ITEMS, MONSTERS = play.MONSTERS, vendor = (id) => play.vendorPriceOf(ITEMS, id), basics = play.basics;
@@ -161,9 +195,12 @@ export async function loadCellRunner(root) {
       if (t && at === undefined) throw new Error('balance-sim: runeTierByRole names no rune tier ' + t);
       return at === undefined ? skillLv(i, 'magic') : Math.min(skillLv(i, 'magic'), at);
     };
+    /* cell.shopping 'real' | 'allowed' (played.mjs shoppingTier): the store rune tier each spell family casts on, as real players buy; a
+       runeTierByRole tier names the role's dearest rune and the rule shops under it. Absent, the tier the Magic allows (as before). */
+    const tierOfFor = (role, i) => (cell.shopping ? (family) => shoppingTier(role, family, runeMagic(role, i), cell.shopping) : undefined);
     const playedBarFor = (role, i) => {
       const g = guideOf(cell.ground), own = (cell.supply || 'store') === 'own';
-      const bar = playedBar(role, { magic: runeMagic(role, i), food: own && g ? g.melee.heal.id : null, storeFood: g ? storeOf('heal', g.melee.heal.id) : 'salted_shrimp',
+      const bar = playedBar(role, { magic: runeMagic(role, i), tierOf: tierOfFor(role, i), food: own && g ? g.melee.heal.id : null, storeFood: g ? storeOf('heal', g.melee.heal.id) : 'salted_shrimp',
         storeDrink: g ? storeOf('mana', g.magic.mana.id) : 'thin_turnip_juice', arrows: role === 'ranger' && spends(kits[i].ammo) ? kits[i].ammo : null });
       const add = cell.addSlots && cell.addSlots[role];
       if (!add) return bar;
@@ -191,8 +228,8 @@ export async function loadCellRunner(root) {
     const H = keys.map((k, i) => ({ key: k, style: party[i], level: levels[i], kit: kits[i],
       mit: MIT.mitigationFor(kits[i], ITEMS, levels[i]),
       vit: VIT.vitalsOf({ levelXp: XP.charXpForLevel(levels[i]), skills: {}, equipment: kits[i], items: ITEMS }),
-      hours: 0, levelXp: 0, skillXp: {}, coin: 0, loot: { common: 0, uncommon: 0, scarce: 0, rare: 0, trophy: 0, other: 0 }, lootN: 0,
-      rareItems: [], gear: {}, store: 0, buys: {}, uses: {}, deaths: 0, killers: {}, xpLostLevel: 0, deathLevelXpLost: [],
+      hours: 0, wallHours: 0, levelXp: 0, skillXp: {}, coin: 0, loot: { common: 0, uncommon: 0, scarce: 0, rare: 0, trophy: 0, other: 0 }, lootN: 0,
+      rareItems: [], gear: {}, store: 0, buys: {}, uses: {}, deaths: 0, killers: {}, xpLostLevel: 0, xpLostLevelBlessed: 0, blessingGold: 0, deathLevelXpLost: [],
       xpLostSkill: {}, dealt: 0, dealtBy: {}, taken: 0, takenBy: {}, spellsIn: {}, healIn: { food: 0, self: 0, ally: 0 }, healOut: 0, shieldIn: 0,
       blowsLanded: 0, blowsMissed: 0, dodged: 0, eats: { own: 0, store: 0 }, drinks: { own: 0, store: 0 }, casts: {}, castGold: 0, castMana: {}, castBack: {},
       manaShots: 0, enc: [], towerEnc: [], close: 0, dips: 0, ttdClose: [], ended: {},
@@ -200,10 +237,19 @@ export async function loadCellRunner(root) {
       regen: 0, under: { p30: 0, p10: 0 }, dealtTo: {} }));
     const P = { kills: 0, killsBy: {}, ttk: [], ttkBy: {}, hours: 0, segments: 0, rareRolls: 0, rareWins: {}, pulls: 0, ...(run ? { tower: { from: run.floor, top: null, cleared: [] } } : {}) };
     const byKey = Object.fromEntries(H.map((h) => [h.key, h]));
+    /* THE DEATH RULE (header): 'real' plays one hunt a seed over the whole of `hours`, a hero whose hunt ended settled no more */
+    const real = cell.deathRule === 'real';
+    if (cell.deathRule !== undefined && !['real', 'reenter'].includes(cell.deathRule)) throw new Error('balance-sim: no death rule ' + cell.deathRule);
+    /* Blessings held at each hunt's start (bought again after a death uses them up): the cut on a death's Level XP loss, and their price */
+    const blessings = Number.isInteger(cell.blessings) ? cell.blessings : 0;
+    if (blessings < 0 || blessings > BL.BLESSING_CUT_PERMILLE.length) throw new Error('balance-sim: blessings is 0 to ' + BL.BLESSING_CUT_PERMILLE.length);
+    const blessedShare = 1 - (blessings ? BL.BLESSING_CUT_PERMILLE[blessings - 1] : 0) / 1000;
+    const blessingsPrice = (L) => { let g = 0; for (let t = 1; t <= blessings; t++) g += BL.blessingPrice(t, L) || 0; return g; };
     for (let seed = 0; seed < cell.seeds; seed++) {
       let left = cell.hours * 3600000, seg = 0;
-      while (left > 60000) {
-        const span = Math.min(left, (cell.segmentH || 2) * 3600000);
+      for (const h of H) h.wallHours += cell.hours;
+      while (real ? seg === 0 : left > 60000) {
+        const span = real ? left : Math.min(left, (cell.segmentH || 2) * 3600000);
         /* the live tracking of one hunt (one segment) */
         const live = {};
         for (const h of H) live[h.key] = { unit: null, cur: null, max: null, enc: null, recent: [], at: T0, rate: 0 };
@@ -364,6 +410,8 @@ export async function loadCellRunner(root) {
               h.deaths++; h.killers[dl.monster] = (h.killers[dl.monster] || 0) + 1;
               const lost = (dl.xpLost && dl.xpLost.level) || 0;
               h.xpLostLevel += lost; h.deathLevelXpLost.push(lost);
+              /* the held Blessings cut this death's loss and are used up; the hero buys them again for its next hunt */
+              h.xpLostLevelBlessed += lost * blessedShare; h.blessingGold += blessingsPrice(h.level);
               for (const [k, n] of Object.entries(dl.xpLost || {})) if (k !== 'level') h.xpLostSkill[k] = (h.xpLostSkill[k] || 0) + n;
             }
             if (hu.ended) h.ended[hu.ended.reason] = (h.ended[hu.ended.reason] || 0) + 1;
@@ -386,9 +434,15 @@ export async function loadCellRunner(root) {
           bar: seats ? (role, i) => (seats[i].bar ? JSON.parse(JSON.stringify(seats[i].bar)) : asPlayed ? playedBarFor(role, i) : barFor(cell.ground, cell.bar || {})) : cell.startBar ? () => JSON.parse(JSON.stringify(START_BAR)) : cell.bar || cell.slotsByRole
             ? (role) => barFor(cell.ground, cell.bar || {}).concat(JSON.parse(JSON.stringify((cell.slotsByRole && cell.slotsByRole[role]) || []))) : asPlayed ? playedBarFor : undefined,
           bag: seats ? (role, i) => (seats[i].bag ? JSON.parse(JSON.stringify(seats[i].bag)) : asPlayed ? playedBagFor(role, i) : bagFor(cell.ground, cell.supply || 'store', kits[i], null)) : asPlayed ? playedBagFor : (role, i) => bagFor(cell.ground, cell.supply || 'store', kits[i], cell.bagByRole && cell.bagByRole[role]),
-          buffs: cell.buffs ? () => cell.buffs : undefined,
+          buffs: cell.buffs ? () => buffRows(cell.buffs, span / 3600000) : undefined,
           start: cell.skillsBySeat || cell.startBySeat ? startFor : undefined,
-          leaveTogether: party.length > 1 && cell.leaveTogether !== false,
+          /* the box "Leave if anyone leaves the hunt or dies": 'real' follows 27-1 as amended (own heroes: OFF unless the cell sets
+             `endTogether`); the legacy rule kept the old default (ON for a party unless `leaveTogether: false`) */
+          leaveTogether: real ? party.length > 1 && cell.endTogether === true : party.length > 1 && cell.leaveTogether !== false,
+          ...(real ? { dropEnded: true } : {}),
+          /* a stamina bar that binds (`staminaH`: the hours it holds at the start) and a purse that binds (`purse`: gold at the start) */
+          ...(sessionOf(cell) ? { session: () => sessionOf(cell) } : {}),
+          ...(Number.isFinite(cell.purse) ? { gold: Math.max(0, Math.round(cell.purse)) } : {}),
           options: seats ? (role, i) => ({ ...(seats[i].options || (asPlayed ? PLAYED_OPTIONS[role] : {})), ...(cell.options && !Array.isArray(cell.options) ? cell.options : {}) })
             : asPlayed ? (role, i) => ({ ...PLAYED_OPTIONS[role], ...(Array.isArray(cell.options) ? cell.options[i] : cell.options || {}) })
               : cell.options ? (role, i) => (Array.isArray(cell.options) ? cell.options[i] : cell.options) : undefined,
@@ -405,9 +459,10 @@ export async function loadCellRunner(root) {
         if (cell.resolveOnly) return resolvedOf(cell, party, roles, levels, kits, opts);
         const res = play.run(cell.ground, levels.length > 1 ? levels : levels[0], roles, opts);
         for (const h of H) close(h, live[h.key]);
-        const played = Math.max(res.playedMs, 60000);
-        P.hours += played / 3600000; P.segments++;
-        left -= played; seg++;
+        /* book the time hunted, never more (F-framework-audit section 5: a hunt that ended in its first seconds booked a full minute);
+           the legacy loop still steps its budget by at least a minute so a hero that dies at once cannot loop forever */
+        P.hours += res.playedMs / 3600000; P.segments++;
+        left -= real ? left : Math.max(res.playedMs, 60000); seg++;
         if (run) break;
       }
     }
@@ -424,7 +479,10 @@ export async function loadCellRunner(root) {
     for (const k of kits) for (const id of Object.values(k)) if (id && gear.staged && gear.staged.has(id) && ITEMS[id]) staged[id] = clone(ITEMS[id]);
     return { ground: cell.ground, styles: [...party], roles: [...roles], levels: [...levels], equipment: kits.map((k) => ({ ...k })), bar: seat(opts.bar), bag: seat(opts.bag),
       options: seat(opts.options), start: seat(opts.start), density: Number.isInteger(opts.density) ? opts.density : null, temper: clone(opts.temper) || null,
-      leaveTogether: !!opts.leaveTogether, windowMs: opts.windowMs, segmentH: cell.segmentH || 2, staged };
+      leaveTogether: !!opts.leaveTogether, windowMs: opts.windowMs, segmentH: cell.segmentH || 2, staged,
+      /* the death rule, Blessings, the timed buffs (server rows), the purse and the stamina bar (cell.mjs header) */
+      deathRule: cell.deathRule || 'reenter', dropEnded: opts.dropEnded === true, blessings: Number.isInteger(cell.blessings) ? cell.blessings : 0,
+      buffs: opts.buffs ? opts.buffs() : null, gold: Number.isInteger(opts.gold) ? opts.gold : null, session: opts.session ? opts.session() : null };
   }
 
   /* THE CELL'S METRICS (the ruling's §11 list), per hero and per party, compact enough to keep thousands of cells. */
@@ -453,6 +511,11 @@ export async function loadCellRunner(root) {
         rareItems: h.rareItems.length, rareEveryH: h.rareItems.length ? round(h.hours / h.rareItems.length, 1) : null,
         deaths: h.deaths, deathsPer1000h: deaths, killers: h.killers,
         levelXpLostPerDeath: round(lostMean, 0), deathCostHours: lostMean !== null && xph > 0 ? round(lostMean / xph, 2) : null,
+        /* THE DEATH RULE'S READS: the hours the seeds offered, the share of them hunted, the hours lost after a hunt ended early, deaths a
+           hunted hero-hour, and Level XP after deaths (the Blessings' cut applied) a hero-hour of the time offered */
+        wallHours: round(h.wallHours, 2), huntedShare: h.wallHours > 0 ? round(h.hours / h.wallHours, 4) : null, lostHours: round(Math.max(0, h.wallHours - h.hours), 3),
+        deathsPerHeroH: h.hours > 0 ? round(h.deaths / h.hours, 4) : null,
+        xpAfterDeathsPerWallH: h.wallHours > 0 ? round((h.levelXp - h.xpLostLevelBlessed) / h.wallHours, 0) : null, blessingGoldPerH: per(h.blessingGold),
         dealtPerH: per(h.dealt), dps: round(h.dealt / (hr * 3600), 2), dealtBy: h.dealtBy,
         takenPerH: per(h.taken), takenBy: Object.fromEntries(Object.entries(h.takenBy).sort((a, b) => b[1] - a[1]).slice(0, 6)),
         /* the monsters' spells that struck this hero: { spell id: { hits, dmg } } over the cell (dodged ones are not hits) */
@@ -472,7 +535,7 @@ export async function loadCellRunner(root) {
         band: bandOfCell(minMed, deaths.rate), ended: h.ended,
         /* the raw totals a career run carries into its next chunk (gains, and what deaths took back) */
         raw: { levelXp: h.levelXp, skillXp: h.skillXp, xpLostLevel: h.xpLostLevel, xpLostSkill: h.xpLostSkill, coin: h.coin,
-          income, store: h.store, rares },
+          income, store: h.store, rares, wallHours: h.wallHours, xpLostLevelBlessed: h.xpLostLevelBlessed, blessingGold: h.blessingGold },
         /* a run's encounters, each its floor and its low HP % (0: the hero fell there) */
         ...(P.tower ? { towerEnc: h.towerEnc } : {}),
         /* THE BALANCE MATRIX'S READS (tools/balance-program/balance-matrix.mjs; 40-formula-brief section 6): the HP regained with no event

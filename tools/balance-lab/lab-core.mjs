@@ -33,6 +33,8 @@ import { GEAR_LADDERS } from '../../src/data/gear-tiers.js';
 import { SHIELD_ITEMS } from '../../src/data/shields.js';
 import { reachableSources } from '../../src/data/catalogue-coherence.js';
 import { BUILD } from '../../src/build-info.js';
+import { BLESSING_CUT_PERMILLE, blessingPrice } from '../../src/data/blessings.js';
+import { BUFF_MAX_UNTIL_MS } from '../../src/core/buffs.js';
 import { STYLES } from '../balance-sim/styles.mjs';
 import { rateCI, quantile, round, gini, underInto } from '../balance-sim/stats.mjs';
 
@@ -175,8 +177,8 @@ function heroOf(huntId, role, i, L, roles, o) {
     key: memberKey(role, i), user: role + i, slot: 0, seat: i, unitId: null, sessionId: 's-' + role + i, version: 1, huntId,
     huntSession: { id: 's-' + role + i, instanceId: IID, huntFromMs: T0, nextSwingAtMs: T0, swingIndex: 0,
       bag: o.bag(role, i, L), staminaMs: 12 * 3600000, staminaMaxMs: 12 * 3600000, basics: SESSION_BASICS, goldFloor: 0,
-      supplySource: 'mine', onEmpty: 'switch', cover: {} },
-    skills, levelXp: Number.isInteger(st.levelXp) ? st.levelXp : charXpForLevel(L), xpFrac: null, hp: 1e9, gold: 50000, equipment,
+      supplySource: 'mine', onEmpty: 'switch', cover: {}, ...(o.session ? o.session : {}) },
+    skills, levelXp: Number.isInteger(st.levelXp) ? st.levelXp : charXpForLevel(L), xpFrac: null, hp: 1e9, gold: Number.isInteger(o.gold) ? o.gold : 50000, equipment,
     inventory: {}, deathsTodayBefore: 0, deathsLifetimeBefore: 0, hearthfindReady: false, perks: null,
     hero: heroSetup({ weaponType: wornRoleKey(equipment, ITEMS), options: { ...(role === 'healer' ? { role: 'healer' } : {}), ...(o.options ? o.options(role, i, L) : {}) },
       bar: o.bar ? o.bar(role, i, L) : refBar(huntId), partyRoles: roles, leaveTogether: o.leaveTogether === true }),
@@ -188,12 +190,14 @@ function playHunt(huntId, levels, roles, o) {
   if (Number.isInteger(o.density)) for (const m of members) m.hero = Object.assign({}, m.hero, { density: o.density });
   /* o.temper: every hero's rungs, the map hr_perks_of's `temper` carries (play-ground.mjs, the same line) */
   if (o.temper) for (const m of members) m.perks = { temper: o.temper };
+  /* o.buffs: the server's timed buff rows, fresh for every hero (the engine drains them) */
+  if (o.buffs) for (const m of members) m.buffs = clone(o.buffs);
   let world = null, next = T0, played = 0;
   const WIN = o.windowMs;
   for (let t = T0; t < T0 + o.spanMs; t += WIN) {
     if (o.shouldStop && o.shouldStop()) throw new Error('balance-lab: cancelled');
     const out = accrueHunt({ instance: { id: IID, nextSwingAtMs: next, world }, window: { fromMs: t, toMs: Math.min(T0 + o.spanMs, t + WIN) },
-      secret: o.secret, ground, grid, items: ITEMS, monsters: MONSTERS, members });
+      secret: o.secret, ground, grid, items: ITEMS, monsters: MONSTERS, members: o.dropEnded ? members.filter((m) => !m.ended) : members });
     if (!out.accrued) continue;
     o.onWindow(out, members);
     world = out.world; next = out.settledTo; played = next - T0;
@@ -222,7 +226,7 @@ function cellKits(cell, levels) {
 }
 const LOOT0 = () => ({ common: 0, uncommon: 0, scarce: 0, rare: 0, trophy: 0, other: 0 });
 function heroTotals(key, style, level, kit) {
-  return { key, style, level, kit, hours: 0, levelXp: 0, skillXp: {}, coin: 0, loot: LOOT0(), lootN: 0, rareItems: [], gear: {}, store: 0, buys: {}, uses: {},
+  return { key, style, level, kit, hours: 0, wallHours: 0, xpLostLevelBlessed: 0, blessingGold: 0, levelXp: 0, skillXp: {}, coin: 0, loot: LOOT0(), lootN: 0, rareItems: [], gear: {}, store: 0, buys: {}, uses: {},
     deaths: 0, killers: {}, xpLostLevel: 0, deathLevelXpLost: [], xpLostSkill: {}, dealt: 0, dealtBy: {}, taken: 0, takenBy: {}, spellsIn: {},
     healIn: { food: 0, self: 0, ally: 0 }, healOut: 0, shieldIn: 0, blowsLanded: 0, blowsMissed: 0, dodged: 0, eats: { own: 0, store: 0 },
     drinks: { own: 0, store: 0 }, casts: {}, castGold: 0, castMana: {}, castBack: {}, manaShots: 0, enc: [], close: 0, dips: 0, ttdClose: [], ended: {},
@@ -256,12 +260,19 @@ export function playCell(cell, seeds, hooks = {}) {
   const H = keys.map((k, i) => heroTotals(k, party[i], levels[i], kits[i]));
   const P = { kills: 0, killsBy: {}, ttk: [], ttkBy: {}, hours: 0, segments: 0, rareRolls: 0, rareWins: {}, pulls: 0 };
   const byKey = Object.fromEntries(H.map((h) => [h.key, h]));
+  /* THE DEATH RULE, Blessings, buffs, stamina and purse (cell.mjs header): from the resolved seats, else the cell */
+  const S = R || cell;
+  const real = S.deathRule === 'real';
+  const blessings = Number.isInteger(S.blessings) ? S.blessings : 0;
+  const blessedShare = 1 - (blessings ? BLESSING_CUT_PERMILLE[blessings - 1] : 0) / 1000;
+  const blessingsPrice = (L) => { let g = 0; for (let t = 1; t <= blessings; t++) g += blessingPrice(t, L) || 0; return g; };
   const totalMs = list.length * cell.hours * 3600000;
   let doneMs = 0;
   for (const seed of list) {
     let left = cell.hours * 3600000, seg = 0;
-    while (left > 60000) {
-      const span = Math.min(left, (cell.segmentH || 2) * 3600000);
+    for (const h of H) h.wallHours += cell.hours;
+    while (real ? seg === 0 : left > 60000) {
+      const span = real ? left : Math.min(left, (cell.segmentH || 2) * 3600000);
       const live = {};
       for (const h of H) live[h.key] = { unit: null, cur: null, max: null, enc: null, recent: [], at: T0, rate: 0 };
       let winFrom = T0;
@@ -410,6 +421,7 @@ export function playCell(cell, seeds, hooks = {}) {
             h.deaths++; h.killers[dl.monster] = (h.killers[dl.monster] || 0) + 1;
             const lost = (dl.xpLost && dl.xpLost.level) || 0;
             h.xpLostLevel += lost; h.deathLevelXpLost.push(lost);
+            h.xpLostLevelBlessed += lost * blessedShare; h.blessingGold += blessingsPrice(h.level);
             for (const [k, n] of Object.entries(dl.xpLost || {})) if (k !== 'level') h.xpLostSkill[k] = (h.xpLostSkill[k] || 0) + n;
           }
           if (hu.ended) h.ended[hu.ended.reason] = (h.ended[hu.ended.reason] || 0) + 1;
@@ -426,7 +438,9 @@ export function playCell(cell, seeds, hooks = {}) {
           ? (role) => barFor(cell.ground, cell.bar || {}).concat(clone((cell.slotsByRole && cell.slotsByRole[role]) || [])) : null,
         bag: (role, i) => bagFor(cell.ground, cell.supply || 'store', kits[i], cell.bagByRole && cell.bagByRole[role]),
         start: cell.skillsBySeat || cell.startBySeat ? startFor : null,
-        leaveTogether: party.length > 1 && cell.leaveTogether !== false,
+        leaveTogether: real ? party.length > 1 && cell.endTogether === true : party.length > 1 && cell.leaveTogether !== false, dropEnded: real,
+        buffs: S.buffs ? S.buffs.map((b) => ({ type: b.type, magnitude: b.magnitude, until: b.until ?? T0 + BUFF_MAX_UNTIL_MS })) : null, gold: Number.isInteger(S.gold) ? S.gold : Number.isFinite(cell.purse) ? Math.max(0, Math.round(cell.purse)) : null,
+        session: S.session || (Number.isFinite(cell.staminaH) || Number.isInteger(cell.goldFloor) ? { ...(Number.isFinite(cell.staminaH) ? { staminaMs: Math.round(cell.staminaH * 3600000), staminaMaxMs: Math.max(Math.round(cell.staminaH * 3600000), 12 * 3600000) } : {}), ...(Number.isInteger(cell.goldFloor) ? { goldFloor: cell.goldFloor } : {}) } : null),
         options: cell.options ? (role, i) => (Array.isArray(cell.options) ? cell.options[i] : cell.options) : null,
         density: Number.isInteger(cell.density) ? cell.density : null,
         ground: cell.groundPatch ? { ...ground, ...cell.groundPatch } : null,
@@ -435,13 +449,14 @@ export function playCell(cell, seeds, hooks = {}) {
         temper: cell.temper || null,
       };
       if (R) Object.assign(o, { bar: R.bar ? (role, i) => clone(R.bar[i]) : null, bag: (role, i) => clone(R.bag[i]), start: R.start ? (role, i) => (R.start[i] ? clone(R.start[i]) : null) : null,
-        options: R.options ? (role, i) => clone(R.options[i]) : null, leaveTogether: R.leaveTogether, density: R.density, temper: R.temper || null });
+        options: R.options ? (role, i) => clone(R.options[i]) : null, leaveTogether: R.leaveTogether, density: R.density, temper: R.temper || null, dropEnded: real });
       const res = playHunt(cell.ground, levels, roles, o);
       for (const h of H) close(h, live[h.key]);
-      const played = Math.max(res.playedMs, 60000);
-      P.hours += played / 3600000; P.segments++;
-      left -= played; seg++;
-      doneMs += played;
+      /* book the time hunted, never more (cell.mjs, the same line) */
+      P.hours += res.playedMs / 3600000; P.segments++;
+      const used = real ? left : Math.max(res.playedMs, 60000);
+      left -= used; seg++;
+      doneMs += used;
     }
     doneMs = Math.max(doneMs, (list.indexOf(seed) + 1) * cell.hours * 3600000);
   }
@@ -460,7 +475,7 @@ export function mergeTotals(parts) {
     for (const [kd, [ms, n]] of Object.entries(Q.ttkBy || {})) { const s = P.ttkBy[kd] || (P.ttkBy[kd] = [0, 0]); s[0] += ms; s[1] += n; }
     first.heroes.forEach((h, i) => {
       const g = t.heroes[i];
-      for (const k of ['hours', 'levelXp', 'coin', 'lootN', 'store', 'deaths', 'xpLostLevel', 'dealt', 'taken', 'healOut', 'shieldIn', 'blowsLanded', 'blowsMissed', 'dodged', 'castGold', 'manaShots', 'close', 'dips', 'regen']) h[k] += g[k];
+      for (const k of ['hours', 'wallHours', 'xpLostLevelBlessed', 'blessingGold', 'levelXp', 'coin', 'lootN', 'store', 'deaths', 'xpLostLevel', 'dealt', 'taken', 'healOut', 'shieldIn', 'blowsLanded', 'blowsMissed', 'dodged', 'castGold', 'manaShots', 'close', 'dips', 'regen']) h[k] += g[k];
       for (const k of ['skillXp', 'loot', 'gear', 'buys', 'uses', 'killers', 'xpLostSkill', 'dealtBy', 'takenBy', 'healIn', 'eats', 'drinks', 'casts', 'castMana', 'castBack', 'ended', 'under', 'dealtTo']) addInto(h[k], g[k]);
       for (const k of ['rareItems', 'deathLevelXpLost', 'enc', 'ttdClose']) h[k].push(...g[k]);
       for (const [id, s] of Object.entries(g.spellsIn || {})) { const t = h.spellsIn[id] || (h.spellsIn[id] = { hits: 0, dmg: 0 }); t.hits += s.hits; t.dmg += s.dmg; }
@@ -515,6 +530,9 @@ export function summarise(cell, totals) {
       rareItems: h.rareItems.length, rareEveryH: h.rareItems.length ? round(h.hours / h.rareItems.length, 1) : null,
       deaths: h.deaths, deathsPer1000h: deaths, killers: h.killers,
       levelXpLostPerDeath: round(lostMean, 0), deathCostHours: lostMean !== null && xph > 0 ? round(lostMean / xph, 2) : null,
+      wallHours: round(h.wallHours, 2), huntedShare: h.wallHours > 0 ? round(h.hours / h.wallHours, 4) : null, lostHours: round(Math.max(0, h.wallHours - h.hours), 3),
+      deathsPerHeroH: h.hours > 0 ? round(h.deaths / h.hours, 4) : null,
+      xpAfterDeathsPerWallH: h.wallHours > 0 ? round((h.levelXp - h.xpLostLevelBlessed) / h.wallHours, 0) : null, blessingGoldPerH: per(h.blessingGold),
       dealtPerH: per(h.dealt), dps: round(h.dealt / (hr * 3600), 2), dealtBy: h.dealtBy,
       takenPerH: per(h.taken), takenBy: Object.fromEntries(Object.entries(h.takenBy).sort((a, b) => b[1] - a[1]).slice(0, 6)),
       /* the monsters' spells that struck this hero: { spell id: { hits, dmg } } over the cell (cell.mjs since 2026-11-08) */
@@ -533,7 +551,7 @@ export function summarise(cell, totals) {
       ttdAtCloseS: quantile(h.ttdClose.filter(Number.isFinite), 0.5),
       band: bandOfCell(minMed, deaths.rate), ended: h.ended,
       raw: { levelXp: h.levelXp, skillXp: h.skillXp, xpLostLevel: h.xpLostLevel, xpLostSkill: h.xpLostSkill, coin: h.coin,
-        income, store: h.store, rares },
+        income, store: h.store, rares, wallHours: h.wallHours, xpLostLevelBlessed: h.xpLostLevelBlessed, blessingGold: h.blessingGold },
       /* cell.mjs, the same fields: regeneration, the share of hunted time under 30% and 10% of max HP, damage dealt by target kind */
       regenPerH: per(h.regen), hpUnder: Object.fromEntries(Object.entries(h.under).map(([k, ms]) => [k, round(ms / (hr * 3600000), 4)])),
       dealtToPerH: Object.fromEntries(Object.entries(h.dealtTo).map(([k, n]) => [k, per(n)])),

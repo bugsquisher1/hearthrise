@@ -1,0 +1,6 @@
+{
+ "schema": "hearthrise.build-tracks/1",
+ "from": "docs/design/overhaul/10-level-choices.md (being written: a build choice every five Levels, part of the first build)",
+ "rule": "THE HOOK FOR BUILD COEFFICIENTS ON A HARNESS HERO. A track is one way of making the five-Level picks: `picks` [{ at: Level, label, effects: { buff type: magnitude in percent } }]. A cell at Level L wears every pick with `at` <= L, summed by effect, and holds it all hunt (tools/balance-sim/cell.mjs buffRows keeps it up). Until the engine has a build layer, a pick can only name an effect the engine already pays on a hero: the timed-buff types of src/core/buffs.js BUFFS_DEF (damage, defense, damage_crit, drop_rate, gold_find, combat_xp, all_xp). A pick that names anything else is refused by name (progression-grid.mjs trackBuffs), so a design that needs a new engine lever says so instead of being played wrong. `styles` limits a track to those ways (empty: every way). The matrix plays every track listed here in its `tracks` block (matrix-plan.mjs), beside the same cell without it.",
+ "tracks": []
+}

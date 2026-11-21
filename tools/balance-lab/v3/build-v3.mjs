@@ -177,6 +177,10 @@ export async function pageData(root = ROOT, game) {
   let pre = null;
   if (sw && sw.base && sw.base.name === 'proposed') {
     const nM = METRICS.length;
+    /* a sweep's rows follow ITS metric list: read into today's order by id (a metric the sweep did not hold reads null), the seat shares last */
+    const idx = METRICS.map(([id]) => (sw.metrics || []).findIndex((m) => m.id === id)), nSw = (sw.metrics || []).length;
+    const inOrder = (row) => [...idx.map((i) => (i >= 0 ? row[i] : null)), row[nSw]];
+    const baseline = Object.fromEntries(Object.entries(sw.baseline).map(([k, row]) => [k, inOrder(row)]));
     const F = Object.fromEntries((sw.bandFields || []).map((f, i) => [f, i]));
     /* a moved band row for the page: [way, band, group, at, before, after, status before, status after, toward, dist before, dist after] */
     const slim = (b) => [b[F.way], b[F.band], b[F.group], b[F.at], sig4(b[F.before]), sig4(b[F.after]), b[F.statusBefore], b[F.statusAfter], b[F.direction] === 'toward' ? 1 : 0, sig4(b[F.distBefore]), sig4(b[F.distAfter])];
@@ -185,8 +189,8 @@ export async function pageData(root = ROOT, game) {
       knobs[id] = { label: k.label, group: k.group, steps: {}, gone: k.gone || null };
       for (const [m, st] of Object.entries(k.steps)) {
         const d = {}, seats = {};
-        for (const [key, row] of Object.entries(st.cells)) {
-          const b = sw.baseline[key];
+        for (const [key, row0] of Object.entries(st.cells)) {
+          const b = baseline[key], row = inOrder(row0);
           if (!b) continue;
           const dk = row.slice(0, nM).map((v, i) => (ABS_METRICS.includes(METRICS[i][0]) ? sig4(v) : permille(b[i], v)));
           /* a cell the step did not move is left out (the page reads it as unchanged) */
@@ -213,7 +217,7 @@ export async function pageData(root = ROOT, game) {
     const hashNow = BM.baseHash(game.base), cache = BM.readCache(BM.cacheFileOf(MP.RUNS.subset, game.base));
     const sameBaseline = sw.hash === hashNow || (cache && cache.hash === hashNow && JSON.stringify(BM.compactCells(cache.cells)) === JSON.stringify(sw.baseline));
     pre = { run: sw.run, at: sw.at, commits: sw.commits || [sw.commit], hash: sw.hash, stale: !sameBaseline, sameTree: sw.hash === hashNow, githubRun: sw.githubRun || null, seeds: sw.seeds, hours: sw.hours,
-      base: sw.base, cells: sw.cells, baseline: sw.baseline, baselineBands: sw.baselineBands || [], baselineDerived: sw.baselineDerived || [], calibration: sw.calibration, calibrationOn: sw.calibrationOn || null, knobs, variants };
+      base: sw.base, cells: sw.cells, baseline, baselineBands: sw.baselineBands || [], baselineDerived: sw.baselineDerived || [], calibration: sw.calibration, calibrationOn: sw.calibrationOn || null, knobs, variants };
   }
   const bandGroups = Object.fromEntries(STD.BANDS.filter((b) => b.group).map((b) => [b.id, b.group]));
   const retired = [...P.retiredOn(reg)];
@@ -229,7 +233,7 @@ export async function pageData(root = ROOT, game) {
       sharesLineWith: k.sharesLineWith || [], sites: (() => { try { return locateKnob(game.root, k).map((s) => s.file + ':' + s.line); } catch { return []; } })() })),
     planned: list.planned.map((p) => ({ id: p.id, label: p.label, group: p.group, arrivesWith: p.arrivesWith, what: p.what })),
     metrics: METRICS.map(([id, label, scope]) => ({ id, label, scope, abs: ABS_METRICS.includes(id) })), styleGroups: STYLE_GROUPS, bandGroups,
-    live: { levels: MP.RUNS.live.levels, hours: MP.RUNS.live.hours, cells: live },
+    live: { levels: MP.RUNS.live.levels, hours: MP.RUNS.live.hours, cells: live }, four: PG.compsOf(4)[0][0],
     real: CAL.KRELL_2026_11_20, precomputed: pre,
   };
 }

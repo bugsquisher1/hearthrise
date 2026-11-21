@@ -174,6 +174,12 @@ export function printRun(res, rows, out = console.log) {
   out('\nSOLO AGAINST PARTY (a four\'s head over the lone hammer; and over the same four ways alone) with each seat\'s share of the damage taken');
   for (const s of D.soloVsParty) out('  ' + (s.L + ' ' + s.gear + ' ' + s.tier).padEnd(22) + ' XP ' + fmt(s.xpHeadVsHammer, 2) + ' (same alone ' + fmt(s.xpHeadVsSameAlone, 2) + '), net ' + fmt(s.netHeadVsHammer, 2) + ', DPS ' + fmt(s.dpsHeadVsHammer, 2) + ', deaths ' + fmt(s.deathsFour, 1) + ' vs ' + fmt(s.deathsLone, 1) + ' | taken: ' + Object.entries(s.takenShare).map(([k, v]) => k + ' ' + pct(v).replace('+', '')).join(', '));
   printLineups(D.lineups, null, out);
+  /* THE DEATH RULE (cell.mjs header): the share of the time offered that was hunted, and XP after deaths over that time, where it is under 1 */
+  const short = ok.filter((c) => !c.variant && Number.isFinite(c.m.huntedShare) && c.m.huntedShare < 0.999 && c.block !== 'grounds');
+  out('\nTHE DEATH RULE (a death ends that hero\'s hunt; the rest hunt on): ' + short.length + ' of ' + ok.filter((c) => !c.variant).length + ' cells lost hunting time'
+    + (short.length ? '; the worst: ' + [...short].sort((a, b) => a.m.huntedShare - b.m.huntedShare).slice(0, 8).map((c) => c.key + ' hunted ' + pct(c.m.huntedShare).replace('+', '') + ', XP after deaths ' + fmt(c.m.netLevelXpPerH)).join('; ') : ''));
+  out('\nVARIANTS against the plain cell (matrix-plan.mjs: one timed buff, a bar and a purse that bind, build tracks): DPS | kills | Level XP | XP after deaths | net gold | hunted');
+  for (const v of D.variants) out('  ' + (v.L + ' ' + v.gear + ' x' + v.party + ' ' + v.tier + ' ' + v.variant).padEnd(40) + [fmt(v.dps, 3), fmt(v.killsPerH, 3), fmt(v.levelXpPerH, 3), fmt(v.netLevelXpPerH, 3), fmt(v.netPerH, 3), fmt(v.huntedShare[1], 3)].map((s) => s.padStart(8)).join(' '));
   out('\nGEAR STEPS BY SLOT CLASS (the full set over it with one class a state back): Level XP | DPS | less damage taken');
   for (const u of D.upgrades) out('  ' + (u.L + ' ' + u.way + ' ' + u.from + '->' + u.to + ' ' + u.cls).padEnd(34) + [pct(u.xp), pct(u.dps), pct(u.lessTaken)].map((s) => s.padStart(9)).join(' '));
   out('\nARCHETYPES (matrix-plan.mjs rule; mean over cells): kills/h | taken/h | dealt/h | s to kill | taken a kill');

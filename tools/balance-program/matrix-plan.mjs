@@ -20,7 +20,7 @@
 // ════════════════════════════════════════════════════════════════════════
 import * as STD from './standards.mjs';
 import { STYLES } from '../balance-sim/styles.mjs';
-import { compsOf, cellKey, buildCell, MAIN } from './progression-grid.mjs';
+import { compsOf, cellKey, buildCell, MAIN, readTracks } from './progression-grid.mjs';
 import { huntGrounds, bandEnds, partyComps } from './atlas/rates.mjs';
 import { lineKit } from './grid-project.mjs';
 
@@ -42,8 +42,8 @@ const lone = (way) => [[way], way === 'hammer' ? 'h' : way];
    (every one held Deadly with no deaths; four mages killed as fast as the mixed four). Never in the band frame (the judge reads the mixed four);
    matrix-metrics.mjs deriveMatrix reads each against the mixed four. */
 export const LINEUPS = Object.freeze([
-  ['tank', 'healer', 'bow', 'mage'],          // the mixed four (the reference, at the lineups' own seeds)
-  ['hammer', 'healer', 'bow', 'mage'],        // a hammer in front instead of the shield tank
+  ['hammer', 'bow', 'mage', 'healer'],        // the standard four, as the real Krell four sat (the reference, at the lineups' own seeds)
+  ['tank', 'healer', 'bow', 'mage'],          // the shield tank in front (the standard four until 2026-11-21)
   ['hammer', 'mage', 'mage', 'mage'],         // a hammer and three mages, no healer
   ['tank', 'healer', 'mage', 'mage'],         // a second mage in the bow seat
   ['tank', 'healer', 'hammer', 'mage'],       // a second melee in the bow seat
@@ -54,6 +54,20 @@ export const LINEUPS = Object.freeze([
 export const lineupComp = (styles) => 'lu-' + styles.join('-');
 const LINEUP_BLOCK = Object.freeze({ id: 'lineups', levels: Object.freeze([60, 110]), comps: LINEUPS.map((s) => [s, lineupComp(s)]), gears: ['mid'], tiers: ['deadly'], seeds: 2 });
 
+/* THE MECHANICS A CELL NEVER HELD (F-framework-audit sections 3 and 8, the critical review's step 1, 2026-11-21). Each is a VARIANT of a plain cell:
+   its tag rides in the key (cellKey's last part), it stays out of the band frame, and matrix-metrics.mjs deriveMatrix reads it against the plain
+   cell of the same Level, gear, party and tier (played in the same run: `ways`, `four`, `parties`).
+   buff    one timed buff, +10% damage kept up all hunt (cell.mjs buffRows), on three grounds (Levels 30, 60, 110), lone and the four, Normal and
+           the hardest tier: whether a damage buff's gain is a product of its size or a step (the audit's group D)
+   binds   a stamina bar that runs out half way, and a hero who starts broke under the game's gold floor (300): what each costs a hunt
+   tracks  every build track of tools/balance-program/build-tracks.json (the hook for 10-level-choices.md, a pick every five Levels): none
+           yet, so no cell; a track that lands plays here as data */
+export const BUFF_BLOCK = Object.freeze({ id: 'buff', levels: Object.freeze([30, 60, 110]), comps: [lone('hammer'), ...compsOf(4)], gears: ['mid'], tiers: ['normal', 'hardest'],
+  variants: Object.freeze([Object.freeze({ tag: 'buff:damage10', buffs: Object.freeze([Object.freeze({ type: 'damage', magnitude: 10 })]) })]) });
+export const BINDS_BLOCK = Object.freeze({ id: 'binds', levels: Object.freeze([60, 110]), comps: [lone('hammer'), lone('mage')], gears: ['mid'], tiers: ['normal'],
+  variants: Object.freeze([Object.freeze({ tag: 'stamina:half', staminaShare: 0.5 }), Object.freeze({ tag: 'purse:0', purse: 0, goldFloor: 300 })]) });
+export const TRACKS_BLOCK = Object.freeze({ id: 'tracks', tracks: true, comps: [lone('hammer'), ...compsOf(4)], gears: ['mid'], tiers: ['normal'] });
+
 /* THE RUNS. `blocks` name what each plays; a block's levels default to the run's, its seeds too (`seeds` on a block plays it on more). */
 export const RUNS = Object.freeze({
   /* the nightly matrix: every axis at every checkpoint and the high Levels, the grid's sample */
@@ -62,17 +76,20 @@ export const RUNS = Object.freeze({
     { id: 'parties', comps: [2, 3, 4].flatMap((n) => compsOf(n)), gears: STD.GEAR_STATE_IDS, tiers: 'all' },
     { id: 'steps', comps: [lone('hammer'), ...compsOf(4)], steps: true, tiers: ['normal'] },
     LINEUP_BLOCK,
+    BUFF_BLOCK, BINDS_BLOCK, TRACKS_BLOCK,
     { id: 'grounds', grounds: true },
   ]) }),
   /* the representative subset (a --diff in a few minutes): every way, every gear state, lone and four, Normal, Dangerous and the hardest tier, every
-     slot class's step, early to Level 5,000. One seed an hour: a diff plays the same dice before and after, so a change reads as a pair. */
-  subset: Object.freeze({ id: 'subset', levels: Object.freeze([10, 30, 60, 110, 185, 400, ...HIGH_LEVELS]), seeds: 1, hours: 1, blocks: Object.freeze([
+     slot class's step, early to Level 5,000. TWO seeds an hour (the critical review's step 1: one seed for one hour is no longer the subset);
+     a diff plays the same dice before and after, so a change reads as a pair. */
+  subset: Object.freeze({ id: 'subset', levels: Object.freeze([10, 30, 60, 110, 185, 400, ...HIGH_LEVELS]), seeds: 2, hours: 1, blocks: Object.freeze([
     { id: 'ways', comps: WAYS.map(lone), gears: ['mid'], tiers: ['normal'] },
     { id: 'gear', comps: [lone('hammer')], gears: ['low', 'bis'], tiers: ['normal'] },
     { id: 'tier', comps: [lone('hammer')], gears: ['mid'], tiers: ['dangerous', 'hardest'] },
     { id: 'four', comps: compsOf(4), gears: STD.GEAR_STATE_IDS, tiers: ['normal', 'dangerous', 'hardest'] },
     { id: 'steps', comps: [lone('hammer')], steps: true, tiers: ['normal'] },
     LINEUP_BLOCK,
+    BUFF_BLOCK, BINDS_BLOCK, TRACKS_BLOCK,
   ]) }),
   /* Balance Lab v3's LIVE cells (a slider move re-plays them in the browser, on the bundled engine): every way alone and the four on every tier,
      MID, early, at the end of open content and PROJECTED, a quarter hour on one seed. tools/balance-lab/build.mjs --v3
@@ -82,6 +99,12 @@ export const RUNS = Object.freeze({
     { id: 'four', comps: compsOf(4), gears: ['mid'], tiers: ['normal', 'dangerous', 'hardest'] },
   ]) }),
 });
+
+/** A variant block's cells for one party: [{ tag, opts }] (buildCell options), its variants, or one a build track that suits these ways. */
+function variantsOf(block, styles, hours) {
+  if (block.tracks) return readTracks().tracks.filter((t) => !(t.styles || []).length || styles.every((s) => t.styles.includes(s))).map((t) => ({ tag: 'track:' + t.id, opts: { track: t } }));
+  return block.variants.map(({ tag, staminaShare, ...opts }) => ({ tag, opts: { ...opts, ...(Number.isFinite(staminaShare) ? { staminaH: staminaShare * hours } : {}) } }));
+}
 
 /** A tier list resolved on a ground: 'all', ['normal', 'hardest'] ... -> the ids it offers. */
 function tiersFor(D, ground, want) {
@@ -187,7 +210,14 @@ export function planMatrix(D, K, run, o = {}) {
             }
             continue;
           }
-          for (const gear of block.gears) add({ key: cellKey(L, gear, size, comp, tier), block: block.id, L, gear, party: size, comp, tier, ground, styles, ...(block.seeds ? { seeds: block.seeds } : {}) }, buildCell(D, K, { L, gear, styles, tier, ground }));
+          for (const gear of block.gears) {
+            const meta = { block: block.id, L, gear, party: size, comp, tier, ground, styles, ...(block.seeds ? { seeds: block.seeds } : {}) };
+            if (block.variants || block.tracks) {
+              for (const v of variantsOf(block, styles, hours)) add({ ...meta, key: cellKey(L, gear, size, comp, tier, v.tag), step: v.tag, variant: v.tag }, buildCell(D, K, { L, gear, styles, tier, ground, ...v.opts }));
+              continue;
+            }
+            add({ ...meta, key: cellKey(L, gear, size, comp, tier) }, buildCell(D, K, { L, gear, styles, tier, ground }));
+          }
         }
       }
     }

@@ -14,10 +14,13 @@
 // Every number is read off the engine's answer (tools/balance-sim/cell.mjs runCell); nothing here computes a fight.
 // ════════════════════════════════════════════════════════════════════════
 import * as STD from './standards.mjs';
-import { cellRates } from './progression-grid.mjs';
+import { cellRates, compsOf } from './progression-grid.mjs';
 import { judgeGrid, statusOf } from './grid-derive.mjs';
 import { ARCHETYPE_AXES } from './matrix-plan.mjs';
 import { STYLE_GROUPS } from './knob-rules.mjs';
+
+/* the standard four's seats (progression-grid.mjs compsOf, standards.mjs PARTIES): the lineups read every four against it */
+const STANDARD_FOUR = compsOf(4)[0][0].join();
 
 const finite = (x) => typeof x === 'number' && Number.isFinite(x);
 const r = (x, d = 0) => (finite(x) ? Math.round(x * 10 ** d) / 10 ** d : null);
@@ -30,12 +33,15 @@ export const METRICS = Object.freeze([
   ['takenPerH', 'Damage taken an hour', 'hero-hour'],
   ['healPerH', 'Healing an hour (food, spells, regeneration)', 'hero-hour'],
   ['levelXpPerH', 'Level XP an hour', 'hero-hour'],
+  /* the death rule (cell.mjs header): Level XP after deaths and the Blessings' cut, over the time the seeds offered, so a dead hero's hours count */
+  ['netLevelXpPerH', 'Level XP after deaths an hour (a dead hero sitting home counts)', 'hero-hour offered'],
   ['netPerH', 'Gold profit or loss an hour (after the store)', 'hero-hour'],
   ['storePerH', 'Supply gold an hour', 'hero-hour'],
   ['suppliesPerH', 'Supplies used an hour (units)', 'hero-hour'],
   ['killsPerH', 'Kill rate (the party)', 'party-hour'],
   ['ttkS', 'Seconds to kill', 'kill'],
   ['deathsPer1000h', 'Deaths a 1,000 hours', 'hero-hour'],
+  ['huntedShare', 'Share of the time offered that was hunted (a death or a bar that ran out ends a hunt)', 'share'],
   ['lowHpTypical', 'Typical low HP (a fight\'s lowest, median)', 'share'],
   ['lowHpP10', 'Low HP, the worst tenth of fights', 'share'],
   ['hpUnder30', 'Time under 30% HP (worst seat)', 'share of hunted time'],
@@ -140,7 +146,7 @@ export function deriveMatrix(cells) {
   }
   /* GEAR STEPS BY SLOT CLASS: the full upper state against it with one class a state back (what that class's upgrade is worth) */
   const upgrades = [];
-  for (const c of ok.filter((x) => x.step)) {
+  for (const c of ok.filter((x) => x.step && !x.variant)) {
     const full = get(c.L, c.gear, c.party, c.comp, c.tier);
     if (!full) continue;
     upgrades.push({ L: c.L, way: wayOf(c), from: c.stepFrom, to: c.gear, cls: c.stepClass, tier: c.tier,
@@ -163,7 +169,7 @@ export function deriveMatrix(cells) {
   }
   /* ARCHETYPES over every cell: kills, damage taken and dealt, seconds to kill, by role / shape / class (summed rates, and mean time to kill) */
   const archetypes = {};
-  for (const c of ok) for (const [axis, kinds] of Object.entries(c.m.byArch || {})) for (const [kind, g] of Object.entries(kinds)) {
+  for (const c of ok.filter((x) => !x.variant)) for (const [axis, kinds] of Object.entries(c.m.byArch || {})) for (const [kind, g] of Object.entries(kinds)) {
     const a = archetypes[axis] || (archetypes[axis] = {}), t = a[kind] || (a[kind] = { cells: 0, killsPerH: 0, takenPerH: 0, dealtPerH: 0, ttkS: [] });
     t.cells++; t.killsPerH += g.killsPerH || 0; t.takenPerH += g.takenPerH || 0; t.dealtPerH += g.dealtPerH || 0; if (finite(g.ttkS)) t.ttkS.push(g.ttkS);
   }
@@ -177,7 +183,7 @@ export function deriveMatrix(cells) {
   const lineups = [];
   const lu = ok.filter((c) => c.block === 'lineups');
   for (const c of lu) {
-    const ref = lu.find((x) => x.L === c.L && x.tier === c.tier && x.styles.join() === 'tank,healer,bow,mage');
+    const ref = lu.find((x) => x.L === c.L && x.tier === c.tier && x.styles.join() === STANDARD_FOUR);
     lineups.push({ L: c.L, tier: c.tier, styles: c.styles, xpVsMixed: ref ? ratio(c.m.levelXpPerH, ref.m.levelXpPerH) : null, killsVsMixed: ref ? ratio(c.m.killsPerH, ref.m.killsPerH) : null,
       levelXpPerH: c.m.levelXpPerH, killsPerH: c.m.killsPerH, lowHpTypical: c.m.lowHpTypical, lowHpP10: c.m.lowHpP10, deathsPer1000h: c.m.deathsPer1000h, hpUnder30: c.m.hpUnder30,
       storePerH: c.m.storePerH, takenShare: Object.fromEntries(c.m.seatsM.map((s, i) => [i + ':' + s.style, s.takenShare])), seeds: c.m.sample ? c.m.sample.seeds : null });
@@ -198,7 +204,16 @@ export function deriveMatrix(cells) {
     afterDeaths.push({ key: c.key, L: c.L, gear: c.gear, party: c.party, tier: c.tier, ruledDeaths: ruled, blessingsOpen: 3 + opened, normalXpPerH: n.m.levelXpPerH,
       vsNormalThree: ratio(three, n.m.levelXpPerH), vsNormalLadder: ratio(ladder, n.m.levelXpPerH) });
   }
-  return { soloVsParty, upgrades, parity, archetypes, lineups, afterDeaths };
+  /* THE VARIANTS (matrix-plan.mjs BUFF_BLOCK, BINDS_BLOCK, TRACKS_BLOCK): each against the plain cell of the same Level, gear, party and tier */
+  const variants = [];
+  for (const c of ok.filter((x) => x.variant)) {
+    const n = get(c.L, c.gear, c.party, c.comp, c.tier);
+    if (!n) continue;
+    variants.push({ key: c.key, variant: c.variant, L: c.L, gear: c.gear, party: c.party, tier: c.tier, ground: c.ground,
+      dps: ratio(c.m.dps, n.m.dps), killsPerH: ratio(c.m.killsPerH, n.m.killsPerH), levelXpPerH: ratio(c.m.levelXpPerH, n.m.levelXpPerH), netLevelXpPerH: ratio(c.m.netLevelXpPerH, n.m.netLevelXpPerH),
+      netPerH: ratio(c.m.netPerH, n.m.netPerH), takenPerH: ratio(c.m.takenPerH, n.m.takenPerH), huntedShare: [n.m.huntedShare, c.m.huntedShare], deathsPer1000h: [n.m.deathsPer1000h, c.m.deathsPer1000h] });
+  }
+  return { soloVsParty, upgrades, parity, archetypes, lineups, afterDeaths, variants };
 }
 
 /* ── THE JUDGE: standards.mjs's bands, per way ─────────────────────────────────────────────────────────────────────────────────── */
@@ -210,7 +225,7 @@ const asGrid = (cells) => ({ run: 'matrix', cells: Object.fromEntries(cells.map(
  * Answers [{ way, band, group, label, at, value, status, dist, ... }].
  */
 export function judgeMatrix(D, K, cells) {
-  const frame = cells.filter((c) => c.m && c.block !== 'grounds' && c.block !== 'lineups');
+  const frame = cells.filter((c) => c.m && c.block !== 'grounds' && c.block !== 'lineups' && !c.variant);
   const parties = frame.filter((c) => c.party > 1);
   const rows = [];
   const lone = (way) => frame.filter((c) => c.party === 1 && c.styles[0] === way && (way === 'hammer' || !c.step));

@@ -27,7 +27,8 @@ const COMBAT = ['melee', 'ranged', 'magic', 'defense'];
     windowMs (the settle's cut, default ten minutes: any cut walks the same swings, TICK-1; a short one lets onWindow read HP often),
     start ((role, seat, L) -> { levelXp?, skills? }: a hero's own Level XP and skill XP instead of "every combat skill at L",
     tools/balance-sim's career runs), leaveTogether (true: every hero's "Leave if anyone leaves the hunt or dies" box ticked,
-    the server's default), dropEnded (true: a hero whose hunt ended is settled no more, as on the server), ground (a ground row played instead of the hunt's own: a what-if copy with other numbers), buffs (the server's buff rows),
+    the server's default), dropEnded (true: a hero whose hunt ended is settled no more, as on the server), gold (the purse each hero starts
+    with, default 50,000: a smaller one binds, the store buys stop at the floor), ground (a ground row played instead of the hunt's own: a what-if copy with other numbers), buffs (the server's buff rows),
     xpFrac (true: every hero carries the remainder map window to window as the server does, player_skills.xp_frac; absent: the
     pre-carry per-grant floor, max(1, floor) a grant, which over-pays small grants: a training hour of 100 ms slices reads 36,000) }.
     The answer's `members` is each hero's state at the end (levelXp, skills, gold, hp, ended). */
@@ -113,7 +114,7 @@ export async function loadPlay(root) {
     const line = role === 'ranger' ? ['leather', 'studded', 'boarhide', 'snakeskin'] : ['apprentice', 'adept', 'scholar', 'warlock'];
     return { ...base, helmet: line[t] + '_helmet', body: line[t] + '_body', pants: line[t] + '_pants', boots: line[t] + '_boots' };
   };
-  const hero = (huntId, role, i, L, roles, fullSet, worn, bar, bag, session, options, start, leaveTogether) => {
+  const hero = (huntId, role, i, L, roles, fullSet, worn, bar, bag, session, options, start, leaveTogether, gold) => {
     /* A hero at Level L with every combat skill at L (the designer's fit: skill ~ Level through L25), unless
        opts.start gives its own Level XP and skill XP (a career run carries them from one run to the next). */
     const st = (start && start(role, i, L)) || {};
@@ -125,7 +126,7 @@ export async function loadPlay(root) {
       huntSession: { id: 's-' + role + i, instanceId: IID, huntFromMs: T0, nextSwingAtMs: T0, swingIndex: 0,
         bag: typeof bag === 'function' ? bag(role, i, L) : role === 'ranger' ? { bronze_arrows: { loaded: 1 } } : {},
         staminaMs: 12 * 3600000, staminaMaxMs: 12 * 3600000, basics, goldFloor: 0, supplySource: 'mine', onEmpty: 'switch', cover: {}, ...(typeof session === 'function' ? session(role, i, L) : session || {}) },
-      skills, levelXp: Number.isInteger(st.levelXp) ? st.levelXp : XP.charXpForLevel(L), xpFrac: null, hp: 1e9, gold: 50000, equipment,
+      skills, levelXp: Number.isInteger(st.levelXp) ? st.levelXp : XP.charXpForLevel(L), xpFrac: null, hp: 1e9, gold: Number.isInteger(gold) ? gold : 50000, equipment,
       inventory: {}, deathsTodayBefore: 0, deathsLifetimeBefore: 0, hearthfindReady: false, perks: null,
       hero: SPAWN.heroSetup({ weaponType: wornRoleKey(equipment, ITEMS), options: { ...(role === 'healer' ? { role: 'healer' } : {}), ...(options ? options(role, i, L) : {}) },
         bar: typeof bar === 'function' ? bar(role, i, L) : refBar(huntId), partyRoles: roles, leaveTogether: leaveTogether === true }),
@@ -136,7 +137,7 @@ export async function loadPlay(root) {
     const ground = opts.ground || G.HUNT_GROUNDS[huntId], grid = gridOfMap(ground.map);
     /* L: one Level for every hero, or one per hero in seat order (a mixed party: [9, 19]) */
     const members = roles.map((r, i) => hero(huntId, r, i, Array.isArray(L) ? L[i] : L, roles, opts.fullSet === true, opts.equipment || null, opts.bar || null, opts.bag || null, opts.session || null, typeof opts.options === 'function' ? opts.options : null,
-      typeof opts.start === 'function' ? opts.start : null, opts.leaveTogether === true));
+      typeof opts.start === 'function' ? opts.start : null, opts.leaveTogether === true, opts.gold));
     /* opts.prizeLeft: a keyed hall's daily prize as the server's read says it (hr_hunt_instance_read `prize_left`): true for every hero, or
        (role, seat) -> whether that hero has today's still to take. Absent: nobody has (the engine rolls only on an explicit true). */
     if (opts.prizeLeft !== undefined) members.forEach((m, i) => { m.prizeLeft = typeof opts.prizeLeft === 'function' ? opts.prizeLeft(roles[i], i) === true : opts.prizeLeft === true; });

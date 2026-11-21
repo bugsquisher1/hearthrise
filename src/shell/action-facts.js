@@ -19,7 +19,7 @@
 // Display only: every number is a catalogue row or the server's projection.
 // ════════════════════════════════════════════════════════════════════════
 import { ATTACK_KINDS } from '../data/condition-metrics.js';
-import { ABILITIES, ABILITY_RULES, DISCIPLINE_IDS, DISCIPLINE_SKILL, abilitySkill, areaSpec, landsBlow, partyOnly } from '../data/abilities.js';
+import { ABILITIES, ABILITY_RULES, DISCIPLINE_IDS, DISCIPLINE_SKILL, abilitySkill, areaSpec, landsBlow, shells, partyOnly } from '../data/abilities.js';
 import { aimsAtMonsters, runeSupplyOf } from '../core/hunt/conditions.js';
 import { CONSUMABLES, CONSUMABLE_RULES } from '../data/consumables.js';
 import { STATUSES, slowAt, slowScaleAt } from '../data/statuses.js';
@@ -31,7 +31,7 @@ import { itemName, itemNameFor, abilityName, runeWords, skillName } from './widg
 import { ownCount } from './rune-supply.js';
 import { shortOf } from './item-lore.js';
 import { storeOf, storeChoices, conditionWords } from './bar-draft.js';
-import { castOf, costLine, landed } from './cast-facts.js';
+import { castOf, costLine, sharePct } from './cast-facts.js';
 import { listWords, whole } from '../render/format.js';
 import { t } from '../render/player-text.js';
 
@@ -180,15 +180,15 @@ export function aloneNote(action, party, role) {
 /* The line for each spell target (bar.target_<target>); a line and a ring say their own size (targetLine). */
 const TARGET_LINE = Object.freeze({
   taunt: 'bar.target_taunt', mark: 'bar.target_mark', enemy: 'bar.target_enemy', area: 'bar.target_area',
-  cleave: 'bar.target_cleave', self: 'bar.target_self', ally: 'bar.target_ally', party: 'bar.target_party',
+  self: 'bar.target_self', ally: 'bar.target_ally', party: 'bar.target_party',
 });
 
 /* WHAT A SPELL STRIKES, one sentence from its row (the area abilities, lane/b-area-client): a line says how long it is, a
    ring how far it reaches and how many it can hit, by the engine's own shape (src/data/abilities.js areaSpec). An ally shield
    is a ward, not a heal. Null for a target with no line. */
 function targetLine(r) {
-  if (r.target === 'ally' && r.shield) return t('bar.target_ward');
-  if (r.target === 'party' && r.shield) return t('bar.target_party_shield');
+  if (r.target === 'ally' && shells(r)) return t('bar.target_ward');
+  if (r.target === 'party' && shells(r)) return t('bar.target_party_shield');
   const spec = areaSpec(r);
   /* a ring round the hero that lands only its status (Frost Slam): what the status does, by its own row (bar.target_status_ring_<status>) */
   if (spec && spec.shape === 'ring' && spec.r === 1 && !landsBlow(r) && r.status) return t('bar.target_status_ring_' + r.status);
@@ -201,15 +201,16 @@ function targetLine(r) {
 }
 
 /* Who takes a share of the hero's own blow (a `hitPm` row), by what the row strikes: the targets with their own sentence
-   (bar.effect_blow_<target>); any other reads the plain one (bar.effect_blow). */
+   (bar.effect_blow_<target>, a one-target row that hits more than once its _hits one); any other reads the plain one (bar.effect_blow). */
 const BLOW_TARGETS = Object.freeze(['line', 'ring', 'enemy']);
 
-/** A `hitPm` row's damage in words: each hit rolls from half its share to its share of the hero's biggest normal hit
-    (src/data/abilities.js blowShare, the rule a monster's spell hits by), so it grows with the weapon and the skill. */
-function blowShareLine(r) {
-  const hi = r.hitPm / 10, lo = Math.round((hi * ABILITY_RULES.hitLowPm) / 1000);
-  const shape = BLOW_TARGETS.includes(r.target) ? '_' + r.target : '';
-  return t('bar.effect_blow' + shape + (r.element ? '_el' : ''), Object.assign({ lo, hi }, r.element ? { element: r.element } : null));
+/** A cast's damage in words (THE SPELL RULE: every hit is a share of the hero's biggest normal hit, src/data/abilities.js blowShare,
+    the rule a monster's spell hits by): each hit rolls from half its share to its share, at the cast's `pm` (its rune version's step
+    and the store's share, cast-facts.js castOf), so it grows with the weapon, the skill and the rune. */
+function blowShareLine(r, pm) {
+  const hi = sharePct(r.hitPm, pm), lo = Math.round((hi * ABILITY_RULES.hitLowPm) / 1000);
+  const shape = BLOW_TARGETS.includes(r.target) ? '_' + r.target + (r.target === 'enemy' && r.hits > 1 ? '_hits' : '') : '';
+  return t('bar.effect_blow' + shape + (r.element ? '_el' : ''), Object.assign({ lo, hi }, r.hits > 1 ? { hits: r.hits } : null, r.element ? { element: r.element } : null));
 }
 
 /** What a status does to the monster it lands on, from its row, at the rune `tier` the cast spends (a slow grows with it: statuses.js
@@ -224,18 +225,6 @@ function statusLine(st, tier) {
 /** "Unlocks at Ranged 10." for a row that waits for a level in its own skill (`unlock`), else null. */
 function unlockLine(r) {
   return r && r.unlock ? t('bar.unlock', { skill: skillName(abilitySkill(r)), level: r.unlock }) : null;
-}
-
-/* "Deals 4–9 fire damage to each monster hit." by the spell's shape: area, a cap on monsters, repeated hits, or one;
-   its numbers at the cast's `pm` (cast-facts.js castOf), landed as the engine lands them. */
-function damageLine(r, pm) {
-  const shape = r.target === 'area' ? '_area' : r.maxHits ? '_max' : r.hits ? '_hits' : '';
-  /** @type {Record<string, number|string>} */
-  const v = { lo: landed(r.dmg[0], pm), hi: landed(r.dmg[1], pm) };
-  if (r.element) v.element = r.element;
-  if (shape === '_max') v.max = r.maxHits;
-  if (shape === '_hits') v.hits = r.hits;
-  return t('bar.effect_dmg' + shape + (r.element ? '_el' : ''), v);
 }
 
 /**
@@ -255,10 +244,10 @@ export function factsOf(a, ctx) {
     const r = k.row;
     const numbers = [];
     if (r.target === 'mark') numbers.push(t('bar.effect_mark', { pct: r.bonusPct, secs: secs(r.durMs) }));
-    if (r.dmg) numbers.push(damageLine(r, k.pm));
-    if (Number.isInteger(r.hitPm)) numbers.push(blowShareLine(r));
-    if (r.heal) numbers.push(t('bar.effect_heal', { lo: landed(r.heal[0], k.pm), hi: landed(r.heal[1], k.pm) }));
-    if (r.shield) numbers.push(t('bar.effect_shield', { points: landed(r.shield, k.pm) }));
+    if (landsBlow(r)) numbers.push(blowShareLine(r, k.pm));
+    if (Number.isInteger(r.healPm)) numbers.push(t('bar.effect_heal_blow', { pct: sharePct(r.healPm, k.pm) }));
+    if (Number.isInteger(r.healHpPm)) numbers.push(t('bar.effect_heal_hp', { pct: sharePct(r.healHpPm, k.pm) }));
+    if (shells(r)) numbers.push(t('bar.effect_shield_blow', { pct: sharePct(r.shieldPm, k.pm) }));
     const effect = numbers.concat(r.status && STATUSES[r.status] ? [statusLine(STATUSES[r.status], k.version)] : []);
     /* (the universal self-heal needs no particular weapon) */
     return { type: targetLine(r), cost: costLine(a, ctx), cooldown: t('bar.cooldown', { secs: secs(r.cdMs) }), numbers, effect, unlock: unlockLine(r),

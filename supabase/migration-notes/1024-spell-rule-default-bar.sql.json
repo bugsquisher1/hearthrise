@@ -1,0 +1,3 @@
+{
+  "note": "STAGED, NOT APPLIED (lane/c-spell-rule, systems-engineer, 2026-11-21). The default melee set loses Cleave (merged into Turning Cut, Tyler 32-2) and gains Rend (the axes lose Power Strike, Tyler 32-3); hr_hunt_role_rules full replace, 18 -> 18 rows. ORDER: 1024 in its name, before 1025 (the catalogue that drops Cleave) and 1026 (the rune spells). EDGE: none (the live engine casts Rend from a stored slot today)."
+}

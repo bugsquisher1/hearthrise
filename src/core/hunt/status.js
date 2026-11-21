@@ -15,7 +15,8 @@
 //   applyStatus  a dead unit takes nothing. Reapplying REFRESHES every stack
 //                of that status on the unit, then adds one if under maxStacks
 //                (ST-01). The scale is fixed now (spec §3.3 #6):
-//                (1000 + skillLv x skillPermillePerLevel) x tierPermille[tier-1] / 1000
+//                max(1000, floor(maxHit x blowPm x tierPermille[tier-1] / 1000)): a tick is a share
+//                of its source's own largest blow (the spell rule; statuses.js blowPm)
 //                (a slowing status: tierPermille[tier-1] alone, or 1000; a heal-cutting one on
 //                a hero: the share of its guard element the hero takes, else 1000; a refresh of a
 //                status that does not tick lifts the refreshed stack to a stronger scale)
@@ -49,7 +50,7 @@ export function statusRow(id) {
   return row;
 }
 
-/** The permille scale a stack of `row` lands with, from its source's level and rune tier. Refuses, never clamps.
+/** The permille scale a stack of `row` lands with, from its source's largest blow (`maxHit`) and rune tier. Refuses, never clamps.
     A MARKING status (takenPm) is never scaled: 1000. A SLOWING one (slowPm) is scaled by its rune tier alone when its row
     carries `tierPermille` (statuses.js slowAt reads the stack's slow off it), else 1000. A HEAL-CUTTING one (healCutPm, Withered)
     on a HERO `unit` is the share of a blow of its `guard` element the hero takes (its resistance, elements.js heroElementPermille:
@@ -57,14 +58,15 @@ export function statusRow(id) {
 export function stackScale(row, source, unit) {
   if (row.healCutPm) return unit && unit.side === 'hero' && row.guard ? heroElementPermille(unit.resistPm, row.guard) : 1000;
   if (!row.tick && !row.tierPermille) return 1000;
-  const lv = source && source.skillLv !== undefined && source.skillLv !== null ? source.skillLv : 0;
+  /* (a source with no blow, a stack a fixture lands: 1, so its tick is the floor of one point) */
+  const hit = source && source.maxHit !== undefined && source.maxHit !== null ? source.maxHit : 1;
   const tier = source && source.runeTier !== undefined && source.runeTier !== null ? source.runeTier : 1;
-  if (!Number.isInteger(lv) || lv < 0) throw new Error('status: source skillLv must be an integer >= 0, got ' + lv);
+  if (!Number.isInteger(hit) || hit < 1) throw new Error('status: source maxHit must be an integer >= 1, got ' + hit);
   if (!Number.isInteger(tier) || tier < 1 || tier > row.tierPermille.length) {
     throw new Error('status: rune tier ' + tier + ' is outside 1..' + row.tierPermille.length + ' for ' + row.id);
   }
   if (!row.tick) return row.tierPermille[tier - 1];
-  return Math.floor(((1000 + lv * row.skillPermillePerLevel) * row.tierPermille[tier - 1]) / 1000);
+  return Math.max(1000, Math.floor((hit * row.blowPm * row.tierPermille[tier - 1]) / 1000));
 }
 
 /** One tick's damage from a base roll and a stack's permille scale. */
@@ -74,7 +76,7 @@ const stacksOf = (unit) => (Array.isArray(unit.statuses) ? unit.statuses : []);
 const countOf = (unit, id) => stacksOf(unit).filter((st) => st.s === id).length;
 
 /**
- * Put `row`'s status on `unit` from `source` ({ u: unit id or null, skillLv,
+ * Put `row`'s status on `unit` from `source` ({ u: unit id or null, maxHit,
  * runeTier }). Answers the unit's stack count of that status, or null when
  * nothing landed (a dead or absent unit).
  */

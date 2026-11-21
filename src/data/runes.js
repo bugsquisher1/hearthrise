@@ -36,13 +36,19 @@ export const RUNE_FAMILIES = Object.freeze({
   ...(NECROTIC_STORM.live ? { bone: Object.freeze({ label: 'Bone' }) } : {}),
 });
 
-/* The five tiers, each craftable and castable from `level` (Runecrafting to make, the spell's skill to cast). */
+/* The five tiers, each craftable and castable from `level` (Runecrafting to make, the spell's skill to cast).
+   stepPm: what a cast of the tier's VERSION lands, permille of the spell's share of its caster's blow (THE SPELL RULE, Tyler
+   2026-11-21, calls 21-5 and 32-8, plan lane L17: every cast is a share of the caster's own blow; the versions stay as the step
+   a rune tier buys). One ladder for every rune spell: +10% a tier, the step Rend's bleed already took (statuses.js bleed
+   tierPermille). Fitted at Level 10 and Level 60 (tools/balance-sim/staged/spell-audit.mjs section 3): every cast lands today's
+   Level 60 worth at version V, and a deeper step would cut the first hours' casts further (a hero casts version II at Level 10,
+   x1.10 of x1.40; at the B5 proposal's x1.15 of x1.60 a heal at Level 10 lost 45% of today's, here 41%). */
 export const RUNE_TIERS = Object.freeze([
-  Object.freeze({ tier: 1, name: 'Chalked', level: 1 }),
-  Object.freeze({ tier: 2, name: 'Scored', level: 15 }),
-  Object.freeze({ tier: 3, name: 'Etched', level: 30 }),
-  Object.freeze({ tier: 4, name: 'Carved', level: 45 }),
-  Object.freeze({ tier: 5, name: 'Graven', level: 60 }),
+  Object.freeze({ tier: 1, name: 'Chalked', level: 1, stepPm: 1000 }),
+  Object.freeze({ tier: 2, name: 'Scored', level: 15, stepPm: 1100 }),
+  Object.freeze({ tier: 3, name: 'Etched', level: 30, stepPm: 1200 }),
+  Object.freeze({ tier: 4, name: 'Carved', level: 45, stepPm: 1300 }),
+  Object.freeze({ tier: 5, name: 'Graven', level: 60, stepPm: 1400 }),
 ]);
 
 /* WHEN A SPELL SLOT'S RUNES RUN OUT (Tyler 2026-11-08, RUNE SUPPLY PER SLOT): a spell's slot spends only the carried runes
@@ -84,14 +90,22 @@ export function versionLevel(tier) {
   return row ? row.level : Infinity;
 }
 
+/** What version `tier` of a spell lands, permille of the spell's share (RUNE_TIERS stepPm); 1000 for a tier that is no tier. */
+export function versionStep(tier) {
+  const row = RUNE_TIERS[tier - 1];
+  return row ? row.stepPm : 1000;
+}
+
 /** Every problem with the vocabulary and the rune rows of `items`, as strings. Empty = valid. */
 export function validate(items) {
   const out = [];
   RUNE_TIERS.forEach((t, i) => {
     if (t.tier !== i + 1) out.push('tier ' + t.name + ' is not number ' + (i + 1));
     if (!Number.isInteger(t.level) || t.level < 1 || (i && t.level <= RUNE_TIERS[i - 1].level)) out.push('tier ' + t.name + ': its level must rise');
+    if (!Number.isInteger(t.stepPm) || (i && t.stepPm <= RUNE_TIERS[i - 1].stepPm)) out.push('tier ' + t.name + ': its step must rise');
   });
   if (RUNE_TIERS[0].level !== 1) out.push('version I must cast at level 1');
+  if (RUNE_TIERS[0].stepPm !== 1000) out.push('version I lands the spell\'s own share (stepPm 1000)');
   for (const [id, it] of Object.entries(items || {})) {
     if (!it || (it.family === undefined && it.runeTier === undefined)) continue;
     if (!isRune(it)) out.push(id + ': unknown rune family ' + it.family);

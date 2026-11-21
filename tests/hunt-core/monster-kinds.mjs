@@ -371,7 +371,9 @@ const cases = {
       /* (the kind first is not a persisted field, so makeUnit keeps none: the settle writes it, as here) */
       if (o.tkind) d.tkind = o.tkind;
       const r = E(M, 2, 0, 14, 3, 9, { kind: 'rat' });
-      const s = E(M, 3, 0, 17, 1, o.idle ? null : 9, { kind: 'slime' });
+      /* an idle slime is another pocket's, standing (not the fought pack's: since lane/a-no-fight-strong-four a monster of the pack in the fight
+         that holds no target is turned onto the party, targeting.js chooseTargets, so it would be in the fight) */
+      const s = E(M, 3, o.idle ? 1 : 0, 17, 1, o.idle ? null : 9, { kind: 'slime' });
       const inst = fight(M, [d, r, s, H(M, 9, 17, 6, 'tank', { chase: false })], { leader: 9 });
       M.movement.occupancy(inst);
       M.targeting.chooseTargets(inst, sc(M, 12));

@@ -62,8 +62,12 @@ const LINEUP_BLOCK = Object.freeze({ id: 'lineups', levels: Object.freeze([60, 1
    binds   a stamina bar that runs out half way, and a hero who starts broke under the game's gold floor (300): what each costs a hunt
    tracks  every build track of tools/balance-program/build-tracks.json (the hook for 10-level-choices.md, a pick every five Levels): none
            yet, so no cell; a track that lands plays here as data */
-export const BUFF_BLOCK = Object.freeze({ id: 'buff', levels: Object.freeze([30, 60, 110]), comps: [lone('hammer'), ...compsOf(4)], gears: ['mid'], tiers: ['normal', 'hardest'],
-  variants: Object.freeze([Object.freeze({ tag: 'buff:damage10', buffs: Object.freeze([Object.freeze({ type: 'damage', magnitude: 10 })]) })]) });
+export const BUFF_BLOCK = Object.freeze({ id: 'buff', levels: Object.freeze([30, 60, 110, 185]), comps: [lone('hammer'), ...compsOf(4)], gears: ['mid', 'bis'], tiers: ['normal', 'dangerous', 'hardest'],
+  variants: Object.freeze([Object.freeze({ tag: 'buff:damage10', buffs: Object.freeze([Object.freeze({ type: 'damage', magnitude: 10 })]) }),
+    Object.freeze({ tag: 'buff:damage15', buffs: Object.freeze([Object.freeze({ type: 'damage', magnitude: 15 })]) }),
+    Object.freeze({ tag: 'buff:defense10', buffs: Object.freeze([Object.freeze({ type: 'defense', magnitude: 10 })]) }),
+    Object.freeze({ tag: 'buff:levelxp5', buffs: Object.freeze([Object.freeze({ type: 'level_xp', magnitude: 5 })]) }),
+    Object.freeze({ tag: 'buff:caps', buffs: Object.freeze([Object.freeze({ type: 'damage', magnitude: 15 }), Object.freeze({ type: 'defense', magnitude: 10 }), Object.freeze({ type: 'level_xp', magnitude: 30 })]) })]) });
 export const BINDS_BLOCK = Object.freeze({ id: 'binds', levels: Object.freeze([60, 110]), comps: [lone('hammer'), lone('mage')], gears: ['mid'], tiers: ['normal'],
   variants: Object.freeze([Object.freeze({ tag: 'stamina:half', staminaShare: 0.5 }), Object.freeze({ tag: 'purse:0', purse: 0, goldFloor: 300 })]) });
 /* THE LEAVE RULE (the sitting S-6, RULED 2026-11-21: Deadly's death band and its lost hours stand; run both party defaults): the standard four on

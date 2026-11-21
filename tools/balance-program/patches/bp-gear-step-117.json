@@ -1,0 +1,17 @@
+{
+ "schema": "hearthrise.balance-patch/1",
+ "name": "Balance pass: the gear band step at +17% (GR-4 as decided; the registry plays +24%)",
+ "why": "GR-4 decides a band opens at about +17%, and the proposed game in the registry still plays +24%. This plays the decided step so the weapon and armor step sizes can be read against E1",
+ "kind": "derivation",
+ "targets": [
+  "pace",
+  "gear",
+  "E1"
+ ],
+ "plan": {
+  "gearCurve": {
+   "from": 110,
+   "step": 1.17
+  }
+ }
+}

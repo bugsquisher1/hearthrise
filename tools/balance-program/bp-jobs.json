@@ -1,0 +1,178 @@
+[
+ {
+  "name": "T1-grounds-0",
+  "args": "--base proposed --blocks grounds --shard 0/4"
+ },
+ {
+  "name": "T1-grounds-1",
+  "args": "--base proposed --blocks grounds --shard 1/4"
+ },
+ {
+  "name": "T1-grounds-2",
+  "args": "--base proposed --blocks grounds --shard 2/4"
+ },
+ {
+  "name": "T1-grounds-3",
+  "args": "--base proposed --blocks grounds --shard 3/4"
+ },
+ {
+  "name": "T1-subset-0",
+  "args": "--subset --base proposed --shard 0/1"
+ },
+ {
+  "name": "T2-grounds-0",
+  "args": "--base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-T2 --blocks grounds --shard 0/4"
+ },
+ {
+  "name": "T2-grounds-1",
+  "args": "--base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-T2 --blocks grounds --shard 1/4"
+ },
+ {
+  "name": "T2-grounds-2",
+  "args": "--base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-T2 --blocks grounds --shard 2/4"
+ },
+ {
+  "name": "T2-grounds-3",
+  "args": "--base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-T2 --blocks grounds --shard 3/4"
+ },
+ {
+  "name": "T2-subset-0",
+  "args": "--subset --base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-T2 --shard 0/1"
+ },
+ {
+  "name": "T3-grounds-0",
+  "args": "--base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-T3 --blocks grounds --shard 0/4"
+ },
+ {
+  "name": "T3-grounds-1",
+  "args": "--base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-T3 --blocks grounds --shard 1/4"
+ },
+ {
+  "name": "T3-grounds-2",
+  "args": "--base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-T3 --blocks grounds --shard 2/4"
+ },
+ {
+  "name": "T3-grounds-3",
+  "args": "--base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-T3 --blocks grounds --shard 3/4"
+ },
+ {
+  "name": "T3-subset-0",
+  "args": "--subset --base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-T3 --shard 0/1"
+ },
+ {
+  "name": "T4-grounds-0",
+  "args": "--base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-T4 --blocks grounds --shard 0/4"
+ },
+ {
+  "name": "T4-grounds-1",
+  "args": "--base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-T4 --blocks grounds --shard 1/4"
+ },
+ {
+  "name": "T4-grounds-2",
+  "args": "--base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-T4 --blocks grounds --shard 2/4"
+ },
+ {
+  "name": "T4-grounds-3",
+  "args": "--base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-T4 --blocks grounds --shard 3/4"
+ },
+ {
+  "name": "T4-subset-0",
+  "args": "--subset --base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-T4 --shard 0/1"
+ },
+ {
+  "name": "T5-grounds-0",
+  "args": "--base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-T5 --blocks grounds --shard 0/4"
+ },
+ {
+  "name": "T5-grounds-1",
+  "args": "--base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-T5 --blocks grounds --shard 1/4"
+ },
+ {
+  "name": "T5-grounds-2",
+  "args": "--base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-T5 --blocks grounds --shard 2/4"
+ },
+ {
+  "name": "T5-grounds-3",
+  "args": "--base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-T5 --blocks grounds --shard 3/4"
+ },
+ {
+  "name": "T5-subset-0",
+  "args": "--subset --base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-T5 --shard 0/1"
+ },
+ {
+  "name": "T6-grounds-0",
+  "args": "--base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-T6 --blocks grounds --shard 0/4"
+ },
+ {
+  "name": "T6-grounds-1",
+  "args": "--base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-T6 --blocks grounds --shard 1/4"
+ },
+ {
+  "name": "T6-grounds-2",
+  "args": "--base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-T6 --blocks grounds --shard 2/4"
+ },
+ {
+  "name": "T6-grounds-3",
+  "args": "--base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-T6 --blocks grounds --shard 3/4"
+ },
+ {
+  "name": "T6-subset-0",
+  "args": "--subset --base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-T6 --shard 0/1"
+ },
+ {
+  "name": "T7-grounds-0",
+  "args": "--base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-T7 --blocks grounds --shard 0/4"
+ },
+ {
+  "name": "T7-grounds-1",
+  "args": "--base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-T7 --blocks grounds --shard 1/4"
+ },
+ {
+  "name": "T7-grounds-2",
+  "args": "--base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-T7 --blocks grounds --shard 2/4"
+ },
+ {
+  "name": "T7-grounds-3",
+  "args": "--base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-T7 --blocks grounds --shard 3/4"
+ },
+ {
+  "name": "T7-subset-0",
+  "args": "--subset --base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-T7 --shard 0/1"
+ },
+ {
+  "name": "T8-grounds-0",
+  "args": "--base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-T8 --blocks grounds --shard 0/4"
+ },
+ {
+  "name": "T8-grounds-1",
+  "args": "--base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-T8 --blocks grounds --shard 1/4"
+ },
+ {
+  "name": "T8-grounds-2",
+  "args": "--base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-T8 --blocks grounds --shard 2/4"
+ },
+ {
+  "name": "T8-grounds-3",
+  "args": "--base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-T8 --blocks grounds --shard 3/4"
+ },
+ {
+  "name": "T8-subset-0",
+  "args": "--subset --base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-T8 --shard 0/1"
+ },
+ {
+  "name": "G17-subset-0",
+  "args": "--subset --base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-G17 --shard 0/1"
+ },
+ {
+  "name": "AC-subset-0",
+  "args": "--subset --base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-AC --shard 0/1"
+ },
+ {
+  "name": "AC-grounds-0",
+  "args": "--base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-AC --blocks grounds --shard 0/2"
+ },
+ {
+  "name": "AC-grounds-1",
+  "args": "--base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-AC --blocks grounds --shard 1/2"
+ }
+]

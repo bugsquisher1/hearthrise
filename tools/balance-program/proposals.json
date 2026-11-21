@@ -527,6 +527,150 @@
    "after": [],
    "before": [],
    "note": "Every jewel perk at five times: the ceiling, not a proposal"
+  },
+  {
+   "id": "BP-T2",
+   "doc": [
+    "12-balance-pass"
+   ],
+   "title": "Tier sweep T2",
+   "modelled": true,
+   "recommended": false,
+   "label": "HYPOTHESIS",
+   "layer": "coefficient",
+   "patch": "patches/bp-tier-T2.json",
+   "shipsWith": [],
+   "after": [],
+   "before": [],
+   "note": "A measurement point of the balance pass (docs/design/overhaul/12-balance-pass.md). Never recommended from here"
+  },
+  {
+   "id": "BP-T3",
+   "doc": [
+    "12-balance-pass"
+   ],
+   "title": "Tier sweep T3",
+   "modelled": true,
+   "recommended": false,
+   "label": "HYPOTHESIS",
+   "layer": "coefficient",
+   "patch": "patches/bp-tier-T3.json",
+   "shipsWith": [],
+   "after": [],
+   "before": [],
+   "note": "A measurement point of the balance pass (docs/design/overhaul/12-balance-pass.md). Never recommended from here"
+  },
+  {
+   "id": "BP-T4",
+   "doc": [
+    "12-balance-pass"
+   ],
+   "title": "Tier sweep T4",
+   "modelled": true,
+   "recommended": false,
+   "label": "HYPOTHESIS",
+   "layer": "coefficient",
+   "patch": "patches/bp-tier-T4.json",
+   "shipsWith": [],
+   "after": [],
+   "before": [],
+   "note": "A measurement point of the balance pass (docs/design/overhaul/12-balance-pass.md). Never recommended from here"
+  },
+  {
+   "id": "BP-T5",
+   "doc": [
+    "12-balance-pass"
+   ],
+   "title": "Tier sweep T5",
+   "modelled": true,
+   "recommended": false,
+   "label": "HYPOTHESIS",
+   "layer": "coefficient",
+   "patch": "patches/bp-tier-T5.json",
+   "shipsWith": [],
+   "after": [],
+   "before": [],
+   "note": "A measurement point of the balance pass (docs/design/overhaul/12-balance-pass.md). Never recommended from here"
+  },
+  {
+   "id": "BP-T6",
+   "doc": [
+    "12-balance-pass"
+   ],
+   "title": "Tier sweep T6",
+   "modelled": true,
+   "recommended": false,
+   "label": "HYPOTHESIS",
+   "layer": "coefficient",
+   "patch": "patches/bp-tier-T6.json",
+   "shipsWith": [],
+   "after": [],
+   "before": [],
+   "note": "A measurement point of the balance pass (docs/design/overhaul/12-balance-pass.md). Never recommended from here"
+  },
+  {
+   "id": "BP-T7",
+   "doc": [
+    "12-balance-pass"
+   ],
+   "title": "Tier sweep T7",
+   "modelled": true,
+   "recommended": false,
+   "label": "HYPOTHESIS",
+   "layer": "coefficient",
+   "patch": "patches/bp-tier-T7.json",
+   "shipsWith": [],
+   "after": [],
+   "before": [],
+   "note": "A measurement point of the balance pass (docs/design/overhaul/12-balance-pass.md). Never recommended from here"
+  },
+  {
+   "id": "BP-T8",
+   "doc": [
+    "12-balance-pass"
+   ],
+   "title": "Tier sweep T8",
+   "modelled": true,
+   "recommended": false,
+   "label": "HYPOTHESIS",
+   "layer": "coefficient",
+   "patch": "patches/bp-tier-T8.json",
+   "shipsWith": [],
+   "after": [],
+   "before": [],
+   "note": "A measurement point of the balance pass (docs/design/overhaul/12-balance-pass.md). Never recommended from here"
+  },
+  {
+   "id": "BP-G17",
+   "doc": [
+    "12-balance-pass"
+   ],
+   "title": "The gear band step at +17%",
+   "modelled": true,
+   "recommended": false,
+   "label": "HYPOTHESIS",
+   "layer": "coefficient",
+   "patch": "patches/bp-gear-step-117.json",
+   "shipsWith": [],
+   "after": [],
+   "before": [],
+   "note": "A measurement point of the balance pass (docs/design/overhaul/12-balance-pass.md). Never recommended from here"
+  },
+  {
+   "id": "BP-AC",
+   "doc": [
+    "12-balance-pass"
+   ],
+   "title": "Armor fades faster (probe)",
+   "modelled": true,
+   "recommended": false,
+   "label": "HYPOTHESIS",
+   "layer": "coefficient",
+   "patch": "patches/bp-armor-curve-240.json",
+   "shipsWith": [],
+   "after": [],
+   "before": [],
+   "note": "A measurement point of the balance pass (docs/design/overhaul/12-balance-pass.md). Never recommended from here"
   }
  ],
  "notModelled": [

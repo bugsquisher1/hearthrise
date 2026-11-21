@@ -6,8 +6,11 @@
 //   node tests/carry-on.mjs              the guard (the replayed chain, the real engine, the real client modules)
 //   node tests/carry-on.mjs --arm=closed one arm
 //   node tests/carry-on.mjs --mutate     every planted defect must turn its arm red (--mutant=<part of a name>)
+//   node tests/carry-on.mjs --world [--shots DIR]   MANUAL, a real Chromium on tools/qa/local-world.mjs (not a CI arm): two heroes hunt,
+//                                        the tab closes, the tick ends both hunts, the player signs back in and presses Play; the
+//                                        return card shows Carry on with the server's plan, ONE press sends both back, Storage first
 //
-// mutant-anchors: supabase/migrations/1010-carry-on.sql src/shell/carry-on.js src/session/carry-on-intents.js
+// mutant-anchors: supabase/migrations/1010-carry-on.sql supabase/migrations/1011-own-heroes-apart.sql src/shell/carry-on.js src/session/carry-on-intents.js
 //
 //   CO-CLOSED  BOTH PATHS, THE BROWSER CLOSED: four heroes of one account on four different last plans (the Cellar alone; the Thicket on a
 //              harder tier with an hours limit; a party of the account's own two on the Cellar) hunt with nobody watching; the world tick's
@@ -26,6 +29,8 @@
 //              through hr_blessing_buy (journalled, the purse less exactly that) and the hero goes blessed
 //   CO-LOOT    the hero's loot plan runs first (a sell rule: the stack sold, the purse up) and the hero still goes
 //   CO-WORDS   the plan in the player's words: a line a hero, Storage and the store said, a refusal named, no semicolon or dash
+//   CO-APART   (1011-own-heroes-apart.sql) the account's own two in a party, browser closed: the leader runs out of stamina and the member,
+//              its box unsaid, hunts on (its panel reads off); ticked, it goes home with its leader (party_member_left)
 //   CO-APPLY   a second apply of 1010-carry-on.sql moves no body and no baseline row
 //
 // Exit: 0 green · 1 red · 2 harness.
@@ -532,7 +537,63 @@ async function withSrc([file, find, replace], fn) {
   try { return await fn(); } finally { writeFileSync(path, was); }
 }
 
+/* ── --world: the return card in a real Chromium (tools/qa/local-world.mjs); manual, never a CI arm ── */
+async function worldRun(shots) {
+  const { openWorld } = await import(pathToFileURL(join(ROOT, 'tools/qa/local-world.mjs')).href);
+  const world = await openWorld({ tickMs: false });
+  const q = async (sql, p) => (await world.db.query(sql, p)).rows;
+  const bad = [];
+  try {
+    const p = await world.play({ account: 'carry', viewport: { width: 1440, height: 900 }, shots });
+    await p.createHero('Wren');
+    const uid = (await q('select id from auth.users where email = $1', [p.email]))[0].id;
+    /* a second hero, as a buyer of the slot holds it (a fixture: the slot price is not this test's subject) */
+    await ownHeroSlots((sql, a) => world.db.query(sql, a), uid, 1);
+    const asU = async (sql) => { await q(`select set_config('request.jwt.claim.sub', $1, false)`, [uid]); try { return (await q(sql))[0]; } finally { await q(`select set_config('request.jwt.claim.sub', '', false)`); } };
+    await asU('select public.hr_create_character(1) r');
+    await asU(`select public.hr_character_name_set(1, 'Bryn', gen_random_uuid()) r`);
+    await q(`update public.player_state set active_kind = 'idle', active_id = null where user_id = $1 and slot = 1`, [uid]);
+    await p.enterHunt(CELLAR);
+    const e1 = await asU(`select public.hr_hunt_enter(1, '${CELLAR}', '[{"item":"${FOOD}","qty":20}]'::jsonb, 0, null, gen_random_uuid()) r`);
+    if (!e1 || !e1.r || e1.r.ok !== true) return ['CO-WORLD HARNESS: the second hero could not enter: ' + JSON.stringify(e1)];
+    /* two minutes of stamina each from the hunt's own start; Storage holds food */
+    await q(`update public.player_state ps set stamina_ms = 120000, stamina_at = h.hunt_from from public.hunt_sessions h
+              where ps.user_id = $1 and h.user_id = ps.user_id and h.slot = ps.slot and h.ended_at is null`, [uid]);
+    await q(`insert into public.account_bank (user_id, item_id, qty, updated_at) values ($1, $2, 60, now()) on conflict (user_id, item_id) do update set qty = 60`, [uid, FOOD]);
+    await p.page.waitForTimeout(6000);   // the page stamps the hunt it shows (away-recap.js) before the tab goes
+    await p.close();
+    await world.wait(30, { away: true });
+    const ends = await q('select end_reason from public.hunt_sessions where user_id = $1 order by slot', [uid]);
+    if (ends.length !== 2 || ends.some((x) => x.end_reason !== 'stamina')) bad.push('CO-WORLD HARNESS: the tick ended ' + JSON.stringify(ends));
+    await q('update public.player_inventory set qty = 4 where user_id = $1 and item_id = $2', [uid, FOOD]);
+    const p2 = await world.play({ account: 'carry', viewport: { width: 1440, height: 900 }, shots });
+    if (await p2.page.$('[data-app="play"][data-slot="0"]')) await p2.page.click('[data-app="play"][data-slot="0"]');
+    const live = await p2.page.waitForSelector('[data-hs-win="away"] .haway-carry:not([hidden]) [data-hs-act="away-carry"]:not([disabled])', { timeout: 90000 }).then(() => true, () => false);
+    const shot = await p2.shot('return-card');
+    const text = await p2.page.evaluate(() => document.querySelector('.haway-carry')?.innerText.replace(/\s+/g, ' ') || '');
+    console.log('  return card: ' + text + (shot ? '  (' + shot + ')' : ''));
+    if (!live || !/Wren: Mill Cellar, Normal\. From Storage: 16 Cooked Shrimp\./.test(text) || !/Bryn: Mill Cellar, Normal\. From Storage: 16 Cooked Shrimp\./.test(text)) bad.push('CO-WORLD the card reads ' + JSON.stringify(text));
+    else {
+      await p2.page.click('[data-hs-win="away"] [data-hs-act="away-carry"]');
+      await p2.page.waitForFunction(() => !document.querySelector('[data-hs-win="away"]'), null, { timeout: 60000 }).catch(() => {});
+      await p2.shot('after-press');
+      const open = await q('select slot, hunt_id from public.hunt_sessions where user_id = $1 and ended_at is null order by slot', [uid]);
+      const bank = await q('select qty from public.account_bank where user_id = $1 and item_id = $2', [uid, FOOD]);
+      if (open.length !== 2 || open.some((o) => o.hunt_id !== CELLAR) || Number((bank[0] || {}).qty) !== 28) bad.push('CO-WORLD after the press: open ' + JSON.stringify(open) + ', Storage ' + JSON.stringify(bank));
+    }
+    if (p2.errors.length || p2.offsite.length) bad.push('CO-WORLD the page logged ' + JSON.stringify(p2.errors.slice(0, 3)) + ' offsite ' + JSON.stringify(p2.offsite.slice(0, 3)));
+  } finally { await world.close(); }
+  return bad;
+}
+
 async function main() {
+  if (process.argv.includes('--world')) {
+    const i = process.argv.indexOf('--shots');
+    const bad = await worldRun(i > 0 ? process.argv[i + 1] : null).catch((e) => ['CO-WORLD THREW ' + String(e && e.stack || e).split('\n').slice(0, 3).join(' | ')]);
+    for (const b of bad) console.log('FAIL  ' + b);
+    console.log(bad.length ? `carry-on --world: ${bad.length} FAILED` : 'carry-on --world: green (the return card, one press, both heroes back, Storage first)');
+    process.exit(bad.length ? 1 : 0);
+  }
   const M = await H.loadEdge(ROOT);
   const mutate = process.argv.includes('--mutate') || process.argv.includes('--selftest');
   const only = (process.argv.find((a) => a.startsWith('--arm=')) || '').slice(6);

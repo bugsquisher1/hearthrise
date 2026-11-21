@@ -151,11 +151,13 @@ export async function pushEnvelope(page, s) {
 
 /* Close every open window (Esc closes the top one; with none open it would open Settings), then open one by its key. */
 export async function openWin(page, key, id) {
-  for (let i = 0; i < 4 && await page.evaluate(() => document.querySelectorAll('[data-hs-win]:not(.is-leaving)').length > 0); i++) {
+  for (let i = 0; i < 4 && await page.evaluate(() => document.querySelectorAll('[data-hs-win]:not(.is-leaving):not([data-hs-win="chat"])').length > 0); i++) {
     await page.evaluate(() => { const a = document.activeElement; if (a && a.blur) a.blur(); });
     await page.keyboard.press('Escape');
     await page.waitForTimeout(160);
   }
+  /* Chat stands open from the start (Esc passes it by): a caret left in its field would take the key */
+  await page.evaluate(() => { const a = document.activeElement; if (a && a.blur) a.blur(); });
   await page.keyboard.press(key);
   return wait(page, (w) => document.querySelector('[data-hs-win="' + w + '"] [data-hs-built]'), id, 3000);
 }

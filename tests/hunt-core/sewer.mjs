@@ -2139,7 +2139,7 @@ const mutants = [
   { name: 'any open window hides the coach again, Chat too', case: 'coach-beside-chat',
     edits: [['src/shell/launcher.js', '  return open.some((id) => !beside.has(id));', '  return true;']] },
   { name: 'Chat is not marked as a window the card stays up beside', case: 'coach-beside-chat',
-    edits: [['src/data/shell-windows.js', "object: 'plain', besideCoach: true }),", "object: 'plain' }),"]] },
+    edits: [['src/data/shell-windows.js', "object: 'plain', besideCoach: true,", "object: 'plain',"]] },
   { name: 'the card is drawn over every open window', case: 'coach-beside-chat',
     edits: [['src/shell/launcher.js', "  if (!cs || coachCovered(ctx.wm)) return '';", "  if (!cs) return '';"]] },
   { name: 'the what-next line never sees Defense (no armour hint)', case: 'tutorial-launcher-card',

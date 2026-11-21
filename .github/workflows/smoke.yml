@@ -7670,6 +7670,7 @@ jobs:
           node tools/gen-social-catalogue.mjs --check
           node tools/mutant-gate.mjs node tools/gen-social-catalogue.mjs --selftest
           node tests/social-layer.mjs
+          node tools/mutant-gate.mjs node tests/social-layer.mjs --mutate
 
       # THE ARMED FEATURES, PLAYED BY A STRANGER (2027-05-14-arm-switches.sql, lane/c-arm-switches): on the live calendar a stranger buys a
       # scaled hour and hunts the Cellar at its Level, earns the Bonus XP weekend's +25% and calls the Rat King for no gold in Open Halls;

@@ -1,0 +1,13 @@
+{
+  "schema": "hearthrise.balance-patch/1",
+  "name": "combat-5: combat-1 and combat-4 together (the axes on the edged side, and physical strikes read weapon weakness)",
+  "why": "The order question between 52-review-combat H1 and 44 R6: does repairing the table first keep the melee ways together once strikes read weakness. It targets pace.",
+  "kind": "coefficient",
+  "edits": [
+    { "file": "src/core/combat.js", "from": "const matched = !!(weak && eq && eq.weaponType === weak);", "to": "const matched = !!(weak && eq && (eq.weaponType === weak || (eq.weaponType === 'axe' && weak === 'sword')));" },
+    { "file": "src/core/hunt/abilities.js", "from": "import { landHit } from './damage.js';", "to": "import { landHit, rowOf } from './damage.js';" },
+    { "file": "src/core/hunt/abilities.js", "from": "const dmg = () => roll(sc, hitRange(u.maxHit, row));", "to": "const dmg = (m) => { const hh = inst.heroes && inst.heroes[u.id]; const vs = !el && m && m.side === 'mon' && hh && typeof hh.rollsVs === 'function' ? hh.rollsVs(rowOf(inst, m.kind), m.kind) : null; const wk = vs && vs.weak && vs.weak.matched ? 1.2 : 1; return roll(sc, hitRange(Math.max(1, Math.floor((Number(u.maxHit) || 1) * wk)), row)); };" },
+    { "file": "src/core/hunt/abilities.js", "from": "const r = landHit(inst, sc, u, m, dmg(), el, hitTag, sg);", "to": "const r = landHit(inst, sc, u, m, dmg(m), el, hitTag, sg);" }
+  ],
+  "targets": ["pace"]
+}

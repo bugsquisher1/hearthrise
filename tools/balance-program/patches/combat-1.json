@@ -1,0 +1,10 @@
+{
+  "schema": "hearthrise.balance-patch/1",
+  "name": "combat-1: hatchets read the sword's weak side (edged)",
+  "why": "52-review-combat H1. WEAPON_AXES is sword, hammer, ranged, magic and a hatchet's weaponType is axe, so no monster can be weak to the axes. This reads an axe as the sword's side. The real change is a content row (a family to side map); the edit here is the smallest text that plays the same in the engine. It targets pace: only the axes way should move.",
+  "kind": "coefficient",
+  "edits": [
+    { "file": "src/core/combat.js", "from": "const matched = !!(weak && eq && eq.weaponType === weak);", "to": "const matched = !!(weak && eq && (eq.weaponType === weak || (eq.weaponType === 'axe' && weak === 'sword')));" }
+  ],
+  "targets": ["pace"]
+}

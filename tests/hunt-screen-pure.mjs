@@ -57,7 +57,6 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { mock } from 'node:test';
 import { withServerLevel } from './_server-level.mjs';
 import { ROOT, runPureGuard } from './_pure-guard.mjs';
 
@@ -73,8 +72,28 @@ function inTown(env) {
   env.state = Object.assign({}, env.state, { active_kind: null, active_id: null });
   return env;
 }
-/** Every settled promise callback and immediate so far (the mocked clock never moves setImmediate). */
+/** Every settled promise callback and immediate so far (the held clock never moves setImmediate). */
 const settle = async (n = 5) => { for (let i = 0; i < n; i++) await new Promise((ok) => setImmediate(ok)); };
+/**
+ * A HELD CLOCK for one rule (HS-19's unanswered drop): until restore(), setTimeout only books its callback and runFor(ms) fires every
+ * booked one due within ms, in order; clearTimeout cancels a booked one. The bar's wait (10 s) is then judged in no real time. setImmediate
+ * is never held (settle() runs on it).
+ */
+function heldClock() {
+  const realSet = globalThis.setTimeout, realClear = globalThis.clearTimeout;
+  const booked = [];
+  let now = 0;
+  globalThis.setTimeout = (fn, ms = 0, ...args) => { const h = { at: now + Math.max(0, Number(ms) || 0), fn, args, on: true }; booked.push(h); return h; };
+  globalThis.clearTimeout = (h) => { if (h && typeof h === 'object' && 'on' in h) h.on = false; else realClear(h); };
+  return {
+    runFor(ms) {
+      const end = now + ms;
+      for (let h; (h = booked.filter((x) => x.on && x.at <= end).sort((a, b) => a.at - b.at)[0]);) { h.on = false; now = h.at; h.fn(...h.args); }
+      now = end;
+    },
+    restore() { globalThis.setTimeout = realSet; globalThis.clearTimeout = realClear; },
+  };
+}
 
 /** The modules the rules read, from `base` (the repository, or a temp copy of src with a mutant planted). */
 async function modulesOf(base) {
@@ -257,22 +276,22 @@ async function pure(base) {
     srv.set(async () => ({ ok: false, error: 'rate_limited' }));
     const refused = line(await M.BD.sendPlan(srv.cs, (b) => M.BD.swapPlan(b, 0, 2), () => {}));
     if (!/^Too many changes/.test(refused)) fails.push('HS-19 a refused drop left the line on ' + JSON.stringify(refused));
-    /* No answer at all: the line comes back after the bar's wait (data/hunt-hud.js BAR_ANSWER_MS), on a mocked clock, and the next drop is taken. */
+    /* No answer at all: the line comes back after the bar's wait (data/hunt-hud.js BAR_ANSWER_MS), on a held clock, and the next drop is taken. */
     srv.set(() => new Promise(() => {}));
-    mock.timers.enable({ apis: ['setTimeout'] });
+    const clock = heldClock();
     try {
       let out = null;
       const n0 = srv.sent.length;
       M.BD.sendPlan(srv.cs, (b) => M.BD.swapPlan(b, 0, 2), () => {}).then((r) => { out = r; });
       await settle();
-      mock.timers.tick(M.BAR_MS + 500);
+      clock.runFor(M.BAR_MS + 500);
       await settle();
       if (!out || line(out) !== M.IW.refusalWords('timeout') || !/^No answer from the server/.test(line(out))) fails.push('HS-19 a drop the server never answered left the line on ' + JSON.stringify(out ? line(out) : 'Moving it…'));
       srv.set(async () => ({ ok: true }));
       await M.BD.sendPlan(srv.cs, (b) => M.BD.swapPlan(b, 0, 2), () => {}).then(() => {}, () => {});
       await settle();
       if (srv.sent.length !== n0 + 2) fails.push('HS-19 after a timeout the next drop sent nothing (still pending)');
-    } finally { mock.timers.reset(); }
+    } finally { clock.restore(); }
   }
 
   { // HS-20 every struck slot says why: the server's reason first (action-facts.js reasonOf through slot-waits.js slotWhy)

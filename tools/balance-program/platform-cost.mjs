@@ -321,16 +321,18 @@ async function windows() {
 /* One account-day of FOUR HEROES HUNTING AS A PARTY (77% of production's hunted hours are fours, REAL): `watchedH` hours with the hunt
    on screen (the instance at the watched cadence, the tab's reads, its frames), the rest of the 12 hunted hours with the browser
    closed, 12 hours of town work a hero, `townTabH` hours of a tab standing in town, `presses` presses, and its share of the cron. */
-const ms = (o) => Object.values(o).reduce((a, b) => a + b, 0);
-/** A watched four-hour, in seconds: the polls, the commits at their cadence, the off-screen load and the unattributed rest. */
+const sum = (o) => Object.values(o).reduce((a, b) => a + b, 0);
+/** A closed commit of `shape` ('four' or 'lone'), seconds: its read and its apply's core (no frame, no projection). */
+export const closedCommitS = (m, shape) => (m.closedCommitMs[shape].read + m.closedCommitMs[shape].core * (m.closedCoreFactor || 1)) / 1000;
+/** A watched four-hour, seconds: the polls, the commits at their cadence, the off-screen load and the unattributed rest. */
 export function watchedHourS(m) {
   const w = m.watched;
-  return (w.pollsAnHour * ms(w.pollMs) + m.watchedCommitsAnHour * ms(w.commitMs)) / 1000 + w.offscreenLoadSAnHour + w.residualSAnHour;
+  const commit = m.closedCommitMs.four.core + sum(w.commitMs);
+  return (w.pollsAnHour * (m.closedCommitMs.four.read + sum(w.pollMs)) + m.watchedCommitsAnHour * commit) / 1000 + w.offscreenLoadSAnHour + w.residualSAnHour;
 }
 /** One account-day in database-seconds, by line. */
 export function accountDay(m, day) {
-  const closedInstanceH = day.huntH - day.watchedH;           // the four's instance-hours with nobody looking
-  const hunt = closedInstanceH * m.awayCommitsAnHour * m.closedCommitS.four;
+  const hunt = (day.huntH - day.watchedH) * m.awayCommitsAnHour * closedCommitS(m, 'four');
   const watched = day.watchedH * watchedHourS(m);
   const town = m.townDayS != null ? m.townDayS : day.heroes * day.townH * m.townHeroHourS;
   const townTab = day.townTabH * m.townTabHourS;
@@ -340,36 +342,38 @@ export function accountDay(m, day) {
 }
 /** Each rung changes the inputs; the ladder is cumulative, in this order. `R` = platform-cost.json's rung inputs. */
 export function rungsOf(R) {
-  const closed = (m, f) => { m.closedCommitS = { four: m.closedCommitS.four * f, lone: m.closedCommitS.lone * f }; };
+  const each = (m, part, f) => { for (const s of ['four', 'lone']) m.closedCommitMs[s][part] *= f; };
   return [
-    { id: 'L01', layer: 'edge + server (staged)', name: 'the server-cost lane: no off-screen poll, one read a settle, packing, prune',
+    { id: 'R0', roadmap: 'new (a fix of L01\'s shipped read)', layer: 'edge SQL, one word', name: 'the settle read runs the hero read once: `r as materialized`',
+      apply: (m) => { each(m, 'read', R.R0.readFactor); return m; } },
+    { id: 'L01', roadmap: 'L01 (28 change 1)', layer: 'edge + server, staged', name: 'no off-screen poll, tick packing, the 5-minute prune',
       apply: (m) => { m.watched.offscreenLoadSAnHour = 0; return m; } },
-    { id: 'TCF', layer: 'formula + server', name: 'town work paid in closed form (start, paid hours, stop)',
-      apply: (m) => { m.townDayS = R.TCF.townDayS; return m; } },
-    { id: 'L12', layer: 'edge + server', name: 'confirm in the edge, commit at the flush: a watched instance commits like a closed one',
-      apply: (m) => { m.watchedCommitsAnHour = m.awayCommitsAnHour; return m; } },
-    { id: 'L24', layer: 'server + client', name: 'delta envelopes: every whole-character read (projection, frames, the hello, a press) carries what moved',
+    { id: 'T1', roadmap: 'new (28 card, town)', layer: 'edge + server read', name: 'the town tick reads the hero\'s engine inputs, not the whole hero',
+      apply: (m) => { m.townHeroHourS *= R.T1.townFactor; return m; } },
+    { id: 'L12', roadmap: 'L12 (28-1)', layer: 'edge + server', name: 'confirm in the edge, commit at the flush: a watched instance commits every 100 s',
+      apply: (m) => { m.watchedCommitsAnHour = R.L12.commitsAnHour; return m; } },
+    { id: 'L24', roadmap: 'L24 (28 change 4)', layer: 'server + client', name: 'delta envelopes: the projection, the frames, the hello and a press carry what moved',
       apply: (m) => { const f = R.L24.stateFactor; const p = m.watched.pollMs; const c = m.watched.commitMs;
         p.helloReads *= f; p.earlyAskState *= f; c.projection *= f; c.frames *= f; m.pressS = (m.pressS - 0.048) + 0.048 * f; return m; } },
-    { id: 'L25', layer: 'server + client', name: 'one heartbeat: town alone sends nothing',
+    { id: 'L25', roadmap: 'L25 (28-7)', layer: 'server + client', name: 'one heartbeat: a town tab alone sends nothing',
       apply: (m) => { m.townTabHourS = 0; return m; } },
-    { id: 'L07', layer: 'content + client (built)', name: 'Carry on and the plans: 20 presses a day',
+    { id: 'L07', roadmap: 'L07, L21', layer: 'content + client', name: 'Carry on and the plans: 20 presses a day',
       apply: (m, day) => { day.presses = R.L07.presses; return m; } },
-    { id: 'L13', layer: 'server', name: 'the hourly journal: one row a hero an hour an activity',
-      apply: (m) => { closed(m, R.L13.commitFactor); m.watched.commitMs.core *= R.L13.commitFactor; return m; } },
-    { id: 'P1', layer: 'server (plan)', name: 'plan fixes on the settle path: no function a row in the read, the skill curve by its XP, catalogue lookups once',
-      apply: (m) => { closed(m, R.P1.commitFactor); m.watched.pollMs.settleRead *= R.P1.commitFactor; m.watched.commitMs.core *= R.P1.commitFactor; return m; } },
-    { id: 'C10', layer: 'edge + dial', name: 'a closed hunt commits every 10 minutes (fold_windows 6, the edge slice sized by engine time)',
-      apply: (m) => { closed(m, R.C10.commitFactor); m.awayCommitsAnHour = R.C10.commitsAnHour; return m; } },
-    { id: 'RES', layer: 'to be found', name: 'the open tab\'s unattributed 35 s a watched hour, found and cut (CONDITION, not a built change)',
-      apply: (m) => { m.watched.residualSAnHour = 0; return m; } },
+    { id: 'L13', roadmap: 'L13 (28-2, 43 E18)', layer: 'server', name: 'the hourly journal: one row a hero an hour an activity',
+      apply: (m) => { each(m, 'core', R.L13.coreFactor); return m; } },
+    { id: 'P1', roadmap: 'new (this file, section 2)', layer: 'server plans', name: 'the read calls no function a row, the skill curve is read by its XP, a limit is read once',
+      apply: (m) => { each(m, 'read', R.P1.readFactor); each(m, 'core', R.P1.coreFactor); return m; } },
+    { id: 'TCF', roadmap: '59 row 30 (formula, P05, P-X28)', layer: 'formula + server', name: 'town work paid in closed form: start, each paid hour, stop',
+      apply: (m) => { m.townDayS = R.TCF.townDayS; return m; } },
+    { id: 'C10', roadmap: 'new (this file, section 3)', layer: 'dial + edge', name: 'a closed hunt commits every 10 minutes: fold_windows 6, the edge slice sized by engine time',
+      apply: (m) => { m.closedCoreFactor = R.C10.commitFactor; m.awayCommitsAnHour = R.C10.commitsAnHour; return m; } },
   ];
 }
 /** The ladder on one day: today, then each rung on top of the last. */
 export function climb(today, day, rungs) {
   let m = structuredClone(today); const d = { ...day };
-  const out = [{ id: 'today', name: 'today', layer: '', ...accountDay(m, d) }];
-  for (const r of rungs) { m = r.apply(structuredClone(m), d); out.push({ id: r.id, name: r.name, layer: r.layer, ...accountDay(m, d) }); }
+  const out = [{ id: 'today', name: 'today', layer: '', roadmap: '', ...accountDay(m, d) }];
+  for (const r of rungs) { m = r.apply(structuredClone(m), d); out.push({ id: r.id, name: r.name, layer: r.layer, roadmap: r.roadmap, ...accountDay(m, d) }); }
   return out;
 }
 /** The verdict against the ruled band: at or under it meets. */
@@ -378,47 +382,51 @@ function loadInputs() { return JSON.parse(readFileSync(join(HERE, 'platform-cost
 
 function ladder() {
   const J = loadInputs();
-  console.log(`A watched four-hour today: ${r1(watchedHourS(J.today))} s (REAL +107 to +119). A closed four-hour: ${r1(J.today.awayCommitsAnHour * J.today.closedCommitS.four)} s. A town hero-hour: ${J.today.townHeroHourS} s.`);
+  const t = J.today;
+  console.log(`Today: a closed four commit ${r1(closedCommitS(t, 'four') * 1000)} ms (${r1(t.awayCommitsAnHour * closedCommitS(t, 'four'))} s a four-hour), a lone one ${r1(closedCommitS(t, 'lone') * 1000)} ms, a watched four-hour ${r1(watchedHourS(t))} s (REAL +107 to +119), a town hero-hour ${t.townHeroHourS} s.`);
   for (const [label, day] of Object.entries(J.days)) {
     const band = day.accounts >= 10000 ? J.bands['C2.10k'] : J.bands['C2.1k'];
     console.log(`\n## ${label}: band C2 ${band}`);
-    console.log('rung | layer | change | closed hunt | watched | town work | town tab | presses | cron share | TOTAL | against C2');
-    for (const s of climb(J.today, day, rungsOf(J.rungs))) {
-      console.log([s.id, s.layer, s.name, r1(s.hunt), r1(s.watched), r1(s.town), r1(s.townTab), r1(s.presses), r1(s.fixed), r1(s.total), verdict(s.total, band)].join(' | '));
+    console.log('rung | roadmap | layer | change | closed hunt | watched | town work | town tab | presses | cron share | TOTAL | against C2');
+    for (const s of climb(t, day, rungsOf(J.rungs))) {
+      console.log([s.id, s.roadmap, s.layer, s.name, r1(s.hunt), r1(s.watched), r1(s.town), r1(s.townTab), r1(s.presses), r1(s.fixed), r1(s.total), verdict(s.total, band)].join(' | '));
     }
   }
-  /* the account of four LONE heroes (no party): its closed hours, today and after C10 */
-  const t = J.today;
-  const lone = (c, n) => 4 * 12 * n * c;
-  console.log(`\nFour lone heroes, browser closed, hunt line only: today ${r1(lone(t.closedCommitS.lone, 36))} s, after L13 + P1 + C10 ${r1(lone(t.closedCommitS.lone * J.rungs.L13.commitFactor * J.rungs.P1.commitFactor * J.rungs.C10.commitFactor, J.rungs.C10.commitsAnHour))} s (the party of four: ${r1(12 * 36 * t.closedCommitS.four)} and ${r1(12 * J.rungs.C10.commitsAnHour * t.closedCommitS.four * J.rungs.L13.commitFactor * J.rungs.P1.commitFactor * J.rungs.C10.commitFactor)}).`);
+  /* the account of four LONE heroes (no party), browser closed: its hunt line before and after the rungs that touch it */
+  const after = climb(t, J.days[Object.keys(J.days)[0]], rungsOf(J.rungs));
+  void after;
+  let m = structuredClone(t);
+  for (const r of rungsOf(J.rungs)) m = r.apply(m, {});
+  console.log(`\nFour LONE heroes, browser closed, the hunt line: today ${r1(48 * 36 * closedCommitS(t, 'lone'))} s, after the ladder ${r1(48 * m.awayCommitsAnHour * closedCommitS(m, 'lone'))} s (a party of four: ${r1(12 * 36 * closedCommitS(t, 'four'))} and ${r1(12 * m.awayCommitsAnHour * closedCommitS(m, 'four'))}).`);
 }
 
 function selftest() {
   const fails = [];
   const arm = (label, ok, detail = '') => { console.log(`  ${ok ? 'ok    ' : 'FAILED'}  ${label}${detail ? '  ' + detail : ''}`); if (!ok) fails.push(label); };
-  const m = { awayCommitsAnHour: 36, watchedCommitsAnHour: 200, closedCommitS: { four: 0.05, lone: 0.02 },
-    watched: { pollsAnHour: 200, pollMs: { a: 10 }, commitMs: { b: 100 }, offscreenLoadSAnHour: 5, residualSAnHour: 3 },
+  const m = { awayCommitsAnHour: 36, watchedCommitsAnHour: 200, closedCommitMs: { four: { read: 20, core: 30 }, lone: { read: 10, core: 10 } },
+    watched: { pollsAnHour: 200, pollMs: { a: 10 }, commitMs: { b: 70 }, offscreenLoadSAnHour: 5, residualSAnHour: 3 },
     townHeroHourS: 1, townTabHourS: 2, pressS: 0.1, fixedSADay: 1000 };
   const day = { accounts: 1000, heroes: 4, huntH: 12, townH: 12, watchedH: 2, townTabH: 1, presses: 50 };
-  /* by hand: watched hour = 200 x 10 ms + 200 x 100 ms + 5 + 3 = 2 + 20 + 8 = 30 s; closed 10 h x 36 x 0.05 = 18; watched 2 x 30 = 60;
-     town 48; town tab 2; presses 5; cron 1 */
-  arm('ARITHMETIC: a watched hour is its polls, its commits and its loads', Math.abs(watchedHourS(m) - 30) < 1e-9, `${watchedHourS(m)}`);
+  /* by hand: closed commit 50 ms; watched hour = 200 x (20 + 10) ms + 200 x (30 + 70) ms + 5 + 3 = 6 + 20 + 8 = 34 s;
+     closed 10 h x 36 x 0.05 = 18; watched 2 x 34 = 68; town 48; town tab 2; presses 5; cron 1 */
+  arm('ARITHMETIC: a watched hour is its polls, its commits and its loads', Math.abs(watchedHourS(m) - 34) < 1e-9, `${watchedHourS(m)}`);
   const a = accountDay(m, day);
-  arm('ARITHMETIC: the account-day is the sum of its hand-computed lines', Math.abs(a.total - (18 + 60 + 48 + 2 + 5 + 1)) < 1e-9, `${a.total}`);
+  arm('ARITHMETIC: the account-day is the sum of its hand-computed lines', Math.abs(a.total - (18 + 68 + 48 + 2 + 5 + 1)) < 1e-9, `${a.total}`);
   arm('VERDICT: at the band meets, a hair over is over', verdict(60, 60) === 'MEETS' && verdict(60.01, 60).startsWith('OVER'));
   const J = loadInputs();
   for (const [label, d] of Object.entries(J.days)) {
     const steps = climb(J.today, d, rungsOf(J.rungs));
     arm(`LADDER (${label}): no rung raises the day`, steps.every((s, i) => i === 0 || s.total <= steps[i - 1].total + 1e-9), steps.map((s) => s.id + ' ' + r1(s.total)).join(', '));
   }
-  /* the monotone check bites: a rung that raises the cost is caught */
-  const planted = rungsOf(J.rungs).map((r) => (r.id === 'L13' ? { ...r, apply: (mm) => { mm.closedCommitS.four *= 3; return mm; } } : r));
-  const d0 = J.days['1,000 accounts, browser closed all day'];
-  const bad = climb(J.today, d0, planted);
+  /* the no-rise check bites: a rung that raises the cost is caught */
+  const planted = rungsOf(J.rungs).map((r) => (r.id === 'L13' ? { ...r, apply: (mm) => { mm.closedCommitMs.four.core *= 3; return mm; } } : r));
+  const bad = climb(J.today, J.days[Object.keys(J.days)[0]], planted);
   arm('MUTANT: a rung that triples the closed commit is caught by the no-rise check', !bad.every((s, i) => i === 0 || s.total <= bad[i - 1].total + 1e-9));
-  /* the inputs reproduce the REAL watched hour within its measured range (107 to 119 s) */
+  /* the inputs reproduce the REAL watched hour within its measured range */
   const w = watchedHourS(J.today);
   arm('CALIBRATION: the model\'s watched four-hour sits in the REAL range (107 to 119 s)', w >= 107 && w <= 119, `${r1(w)}`);
+  const ap = J.today.closedCommitMs.four.core + sum(J.today.watched.commitMs);
+  arm('CALIBRATION: a watched commit\'s apply sits within 10% of production\'s hr_hunt_apply_instance mean (203 ms)', Math.abs(ap - 203) <= 20.3, `${r1(ap)}`);
   arm('KEY: a statement is named by the public function it calls', keyOf('select public.hr_hunt_apply_instance($1::uuid)') === 'hr_hunt_apply_instance' && keyOf('begin') === 'begin');
   console.log(fails.length ? `platform-cost --selftest: ${fails.length} FAILED` : 'platform-cost --selftest: green');
   return fails.length ? 1 : 0;

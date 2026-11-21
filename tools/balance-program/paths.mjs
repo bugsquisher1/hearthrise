@@ -242,6 +242,15 @@ async function selftest() {
   const t0 = Date.now();
   const fails = [];
   const check = (name, ok, detail) => { console.log((ok ? 'ok   ' : 'FAIL ') + name + (detail ? ': ' + detail : '')); if (!ok) fails.push(name); };
+  /* the two readers of the grid lane's files (not merged here yet): its kit PLAN and its packed cell cache */
+  const { fromGridPlan } = await import('./atlas/kits.mjs');
+  const { gridScale } = await import('./atlas/rates.mjs');
+  const plan = fromGridPlan({ kit: { weapon: 'w', ammo: 'x', ring1: 'r' }, temper: { 'temper:blows:3': 2 }, projectedAdds: [{ id: 'linings' }] });
+  check('the grid kit plan reads as slots and rungs', JSON.stringify(plan.slots) === '{"weapon":"w","ring1":"r"}' && plan.upgrades.join() === 'temper:blows:3:1,temper:blows:3:2');
+  const cf = ['key', 'L', 'gear', 'party', 'comp', 'tier', 'ground', 'styles', 'stretch', 'label', 'step', 'error', 'deaths'], rf = ['levelXpPerH', 'netPerH', 'killsPerH', 'killsByPerH'];
+  const g = { cellFields: cf, rateFields: rf, cells: [[[0, 30, 'mid', 1, 'h', 'normal', 'g', [], 'OPEN', 'M', null, null, 0], [100, 50, 10, {}]], [[0, 30, 'bis', 1, 'h', 'normal', 'g', [], 'OPEN', 'M', null, null, 0], [150, 80, 15, {}]]] };
+  const sg = gridScale(g, { level: 30, party: 1, tier: 'normal', gear: 'bis' });
+  check('the packed grid cache scales BiS against MID', sg.kills === 1.5 && sg.xp === 1.5 && sg.net === 1.6, JSON.stringify(sg));
   const band = 'b30-45', sc = { id: 'st', goal: 'bis', party: 1, comp: ['hammer'], payer: 'free', townH: 12, bands: [band] };
   /* control */
   const c0 = await setup({ quick: true, beam: 1, maxDays: 120 });

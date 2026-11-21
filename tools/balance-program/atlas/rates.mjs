@@ -131,10 +131,31 @@ export function rateOf(table, q) {
  * LOW or BiS against MID from the grid: { kills, xp, net } ratios at the checkpoint nearest `level`, same party size and tier. 1s when the grid
  * is absent, or has no such pair (the label then says MID only). The grid's cell fields: 50-standards 5.1 (killsAnHour, levelXp, netGold).
  */
+/**
+ * The grid's cells as plain rows { checkpoint, gear, party, tier, ground, killsAnHour, levelXp, netGold, killsByPerH }, from either a plain
+ * { cells: [{...}] } or the grid lane's packed cache (cells: [[cellFields values], [rateFields values]], tools/balance-program/grid.mjs).
+ */
+export function gridCells(grid) {
+  if (!grid || !Array.isArray(grid.cells)) return [];
+  if (!grid.cellFields || !grid.rateFields) return grid.cells;
+  if (grid._plain) return grid._plain;
+  const out = [];
+  for (const pair of grid.cells) {
+    if (!Array.isArray(pair) || !Array.isArray(pair[0])) continue;
+    const k = Object.fromEntries(grid.cellFields.map((n, i) => [n, pair[0][i]]));
+    const v = Array.isArray(pair[1]) ? Object.fromEntries(grid.rateFields.map((n, i) => [n, pair[1][i]])) : {};
+    if (k.error) continue;
+    out.push({ checkpoint: k.L, gear: k.gear, party: k.party, tier: k.tier, ground: k.ground, killsAnHour: v.killsPerH, levelXp: v.levelXpPerH, netGold: v.netPerH, killsByPerH: v.killsByPerH || {} });
+  }
+  Object.defineProperty(grid, '_plain', { value: out, enumerable: false });
+  return out;
+}
+
 export function gridScale(grid, q) {
   const one = { kills: 1, xp: 1, net: 1, from: null };
-  if (!grid || !Array.isArray(grid.cells) || q.gear === 'mid') return one;
-  const at = (gear) => grid.cells.filter((c) => c.gear === gear && Number(c.party) === q.party && (c.tier || 'normal') === q.tier);
+  const cells = gridCells(grid);
+  if (!cells.length || q.gear === 'mid') return one;
+  const at = (gear) => cells.filter((c) => c.gear === gear && Number(c.party) === q.party && (c.tier || 'normal') === q.tier);
   const mids = at('mid'), others = at(q.gear);
   if (!mids.length || !others.length) return one;
   const lvOf = (c) => Number(c.checkpoint ?? c.level);

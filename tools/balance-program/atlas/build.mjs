@@ -125,7 +125,8 @@ export function buildAtlas({ D, rates, grid, kits, checkpoints, styles }) {
   const a6 = [];
   for (const id of Object.keys(items)) {
     if (!realItem(id)) continue;
-    for (const c of cps) {
+    /* at the Level the piece is worn from (a ring made at Level 1 is no way to a ring nobody can wear) */
+    for (const c of cps.filter((x) => x >= (Number(items[id].reqLv) || 1))) {
       const b = P.best(id, ref(c));
       const priced = b.all.filter((x) => !NOT_A_WAY(SRC.get(x.sid) || {}) && x.days > 0);
       if (priced.length < 2) continue;

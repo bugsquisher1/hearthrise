@@ -3,8 +3,9 @@
 //
 //   loadKits(root) -> { kitFor(level, state, style) -> { slots: { slot: item }, upgrades: [id...], notes: [text] }, staged, stagedGrounds(level) }
 //
-// The pieces come from tools/balance-sim/gear.mjs kitOf (the grader's own dresser). When the sibling lane's grid.mjs lands and exports
-// `kitFor`, that one is read instead (one kit builder, never two). The rules layered here are the standards' own words:
+// The pieces come from tools/balance-sim/gear.mjs kitOf (the grader's own dresser). When the sibling lane's kit builder lands
+// (tools/balance-program/grid-kit.mjs loadKits -> kitFor(level, state, style) -> a PLAN { kit, temper }), that one is read instead (one kit
+// builder, never two) through fromGridPlan below. The rules layered here are the standards' own words:
 //   LOW   under Level 15 the start kit; then the ladder one tier under in every slot (tierOffset -1, only 'all'). No jewelry, no rungs
 //   MID   the ladder's tier, past tier 7 what a ground or boss drops (uniques), plain jewelry and cloak (accessories), Tempering rung 2 of 5 on
 //         both tracks of the worn tier
@@ -21,13 +22,23 @@ const SLOTS = Object.freeze(['weapon', 'shield', 'helmet', 'body', 'pants', 'boo
 export const GEAR_SLOTS = SLOTS;
 const PROJECTED_NOTES = Object.freeze(['linings (every socket, to the 40% cap)', 'perks on 12 seats', 'worn in', 'Necrotic and Storm', 'faction skills']);
 
+/** The grid lane's kit PLAN ({ kit: { slot: id }, temper: { 'temper:<track>:<tier>': rung } | null, projectedAdds }) in this file's shape. Pure. */
+export function fromGridPlan(plan) {
+  const slots = {};
+  for (const s of SLOTS) if (plan && plan.kit && plan.kit[s]) slots[s] = plan.kit[s];
+  const upgrades = [];
+  for (const [k, rung] of Object.entries((plan && plan.temper) || {})) for (let r = 1; r <= rung; r++) upgrades.push(k + ':' + r);
+  return { slots, upgrades, notes: ((plan && plan.projectedAdds) || []).map((a) => a.id + ' (ruled, not built)') };
+}
+
 export async function loadKits(root, D) {
   const G = await loadGear(root);
   G.registerStaged();
   let external = null;
-  const gridFile = join(root, 'tools', 'balance-program', 'grid.mjs');
+  const gridFile = join(root, 'tools', 'balance-program', 'grid-kit.mjs');
   if (existsSync(gridFile)) {
-    try { const m = await import(pathToFileURL(gridFile).href); if (typeof m.kitFor === 'function') external = m.kitFor; } catch { external = null; }
+    const m = await import(pathToFileURL(gridFile).href);
+    if (typeof m.loadKits === 'function') { const K = await m.loadKits(root); external = (level, state, style) => fromGridPlan(K.kitFor(level, state, style)); }
   }
   const stagedGrounds = (level) => Object.keys(D.HUNT_GROUNDS).filter((g) => !D.OPEN_GROUNDS[g] && D.HUNT_INDEX[g] && D.HUNT_INDEX[g].band[0] <= level);
   /* the jeweler's Hallmarked row a plain piece becomes (its base's first Hallmark offer), or the piece itself when none exists */

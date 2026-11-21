@@ -243,13 +243,20 @@
       "cutApproved": "Cut list 15, Tyler said yes to the cut on the page 2026-11-21.",
       "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
       "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
-      "waitsOn": "the death fault fixed in the measuring tool, then the death sample of 4 seeds by 8 hours",
-      "madeInTheFold": "Rewritten in the fold 2026-11-21 after his picks. Not yet seen by Tyler."
+      "waitsOn": "The playtest death rate",
+      "madeInTheFold": "Rewritten in the fold 2026-11-21 after his picks. Not yet seen by Tyler.",
+      "measured": {
+        "label": "MEASURED",
+        "what": "Dangerous brings five and Deadly eight, and both take blows 2.5 times Normal. Dangerous pays 2.1 to 3.0 times Normal for a four and Deadly 20 to 29% over Dangerous.",
+        "runs": "R0, R2 and R4",
+        "source": "docs/design/overhaul/12-balance-pass.md",
+        "runIds": "R0 is GitHub run 44920906999 (the full matrix, 4,503 cells, 2 seeds of 2 hours). R1 is run 44924971088 (670 cells with five buff rows). R2 is run 44925664434 (the death sample, 4 seeds of 8 hours). R4 is run 44928035806 (the death sample with both tiers at 2.5, and the full matrix with the three picks in). L is local probes of 2 seeds of 1 hour."
+      }
     },
     {
       "id": "CORE-1",
       "call": "The raised tier dials and the two pull numbers (chapter 01, still missing 1).",
-      "decision": "Opening numbers, as hypotheses the sample must confirm. Both tiers are sized on the mid-geared four in band. Dangerous is read against S3 (typical lowest health 35 to 60%) and Deadly against S4 (15 to 40%). A lone hero's reading prints and judges nothing. Dangerous: pull 5, blows and aim 1.17 times Normal, health 1.10, Level XP 1.10. Deadly: pull 8, blows and aim 2.25 times Normal, health 1.15, Level XP 1.25. They are sized only after R7 lands, on 4 seeds of 8 hours with the game's own death rule, against bands S3, S4 and S6. There is no lineup test (GR-3, his pick on the page).",
+      "decision": "Opening numbers, as hypotheses the sample must confirm. Both tiers are sized on the mid-geared four in band. Dangerous is read against S3 (typical lowest health 35 to 60%) and Deadly against S4 (15 to 40%). A lone hero's reading prints and judges nothing. Dangerous: pull 5, blows and aim 2.5 times Normal, health 1.10, Level XP 1.10. Deadly: pull 8, blows and aim 2.5 times Normal, health 1.15, Level XP 1.25. They are sized only after R7 lands, on 4 seeds of 8 hours with the game's own death rule, against bands S3, S4 and S6. There is no lineup test (GR-3, his pick on the page).",
       "outcome": "third",
       "reason": "Dangerous is the lone hero's hard tier and already sits where it should. Deadly at 1.33 is not deadly at all, and it needs to roughly double before a prepared four even notices it.",
       "evidence": "MEASURED on the harness, direction only. Dangerous: a lone hero in band holds five at 35 to 49% health with no deaths at 1.17, which is inside band S3. Deadly, mixed four at Level 60: typical lowest health 0.78 at 1.33, 0.65 at 2.0, 0.39 at 2.66 and 0.19 at 3.33, with deaths starting between 2.0 and 2.66. Band S4 asks 15 to 40%. At Level 110 the same four is still at 0.59 at 2.66 and needs about 3.3 to reach the band. One dial does not bite the same at both Levels until R7 lands, which is why no final number is ruled today. HYPOTHESIS until the sample runs. It is overturned if the mixed four dies more than 100 times in 1,000 hours or the lineup cells still hold.",
@@ -263,9 +270,17 @@
       "wasBeforeTyler": "Opening numbers, as hypotheses the sample must confirm. Both tiers are sized on the mid-geared four in band. Dangerous is read against S3 (typical lowest health 35 to 60%) and Deadly against S4 (15 to 40%). A lone hero's reading prints and judges nothing. Dangerous: pull 5, blows and aim 1.17 times Normal, health 1.10, Level XP 1.10. Deadly: pull 8, blows and aim 2.25 times Normal, health 1.15, Level XP 1.25. They are sized only after R7 lands, on 4 seeds of 8 hours with the game's own death rule, against bands S3, S4, S6 and the lineup test.",
       "status": "PROVISIONAL",
       "statusBeforeReissue": "DECIDED",
-      "waitsOn": "the death fault fixed in the measuring tool, then the death sample of 4 seeds by 8 hours",
+      "waitsOn": "The playtest death rate",
       "madeInTheFold": "Rewritten in the fold 2026-11-21 after his picks. Not yet seen by Tyler.",
-      "sitting": "S-6, option A. Deadly is a tier you watch or gamble on, and idle players mostly use Dangerous. The lost hunting time is accepted: 18 to 31% on the 8 hour bar and 25 to 42% on the 12 hour bar, before the 6%."
+      "sitting": "S-6, option A. Deadly is a tier you watch or gamble on, and idle players mostly use Dangerous. The lost hunting time is accepted: 18 to 31% on the 8 hour bar and 25 to 42% on the 12 hour bar, before the 6%.",
+      "measured": {
+        "label": "MEASURED",
+        "what": "Dangerous blows moved from 1.17 to 2.5 and Deadly blows from 2.25 to 2.5. One blow number for both. The pulls of 5 and 8, the health and the pay are unchanged. The response is a cliff: a four is safe or it wipes. All cells together read 41 deaths in 1,000 hours on Deadly and 4 on Dangerous.",
+        "runs": "R2 and R4",
+        "source": "docs/design/overhaul/12-balance-pass.md",
+        "runIds": "R0 is GitHub run 44920906999 (the full matrix, 4,503 cells, 2 seeds of 2 hours). R1 is run 44924971088 (670 cells with five buff rows). R2 is run 44925664434 (the death sample, 4 seeds of 8 hours). R4 is run 44928035806 (the death sample with both tiers at 2.5, and the full matrix with the three picks in). L is local probes of 2 seeds of 1 hour."
+      },
+      "wasBeforeBalancePass": "Opening numbers, as hypotheses the sample must confirm. Both tiers are sized on the mid-geared four in band. Dangerous is read against S3 (typical lowest health 35 to 60%) and Deadly against S4 (15 to 40%). A lone hero's reading prints and judges nothing. Dangerous: pull 5, blows and aim 1.17 times Normal, health 1.10, Level XP 1.10. Deadly: pull 8, blows and aim 2.25 times Normal, health 1.15, Level XP 1.25. They are sized only after R7 lands, on 4 seeds of 8 hours with the game's own death rule, against bands S3, S4 and S6. There is no lineup test (GR-3, his pick on the page)."
     },
     {
       "id": "CORE-2",
@@ -352,7 +367,14 @@
       "tyler": "He let the reversal stand on the page, in about a second. It changes the earlier ruling. He picked the recommendation on the page that morning.",
       "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
       "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
-      "waitsOn": "one band played on the curve"
+      "waitsOn": "The playtest death rate, and one full run with the armor probe and the arrival kit moved together",
+      "measured": {
+        "label": "MEASURED",
+        "what": "+17% holds for weapons: a weapon step is worth 4.4% at Level 185 and 7.3% at Level 400. An armor step is worth nothing past Level 30. Best gear is about 7% faster than mid gear, not 15%. The armor curve probe and the arrival kit are one open item.",
+        "runs": "R0 and L",
+        "source": "docs/design/overhaul/12-balance-pass.md",
+        "runIds": "R0 is GitHub run 44920906999 (the full matrix, 4,503 cells, 2 seeds of 2 hours). R1 is run 44924971088 (670 cells with five buff rows). R2 is run 44925664434 (the death sample, 4 seeds of 8 hours). R4 is run 44928035806 (the death sample with both tiers at 2.5, and the full matrix with the three picks in). L is local probes of 2 seeds of 1 hour."
+      }
     },
     {
       "id": "GR-5",
@@ -370,7 +392,14 @@
       "cutApproved": "Cut list 15, Tyler said yes to the cut on the page 2026-11-21.",
       "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
       "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
-      "waitsOn": "the death fault fixed in the measuring tool, then the death sample of 4 seeds by 8 hours"
+      "waitsOn": "The playtest death rate",
+      "measured": {
+        "label": "MEASURED",
+        "what": "From Level 45 up a lone hammer on Normal reads 0.85 to 1.23 of the pace contract at every checkpoint to Level 400.",
+        "runs": "R0",
+        "source": "docs/design/overhaul/12-balance-pass.md",
+        "runIds": "R0 is GitHub run 44920906999 (the full matrix, 4,503 cells, 2 seeds of 2 hours). R1 is run 44924971088 (670 cells with five buff rows). R2 is run 44925664434 (the death sample, 4 seeds of 8 hours). R4 is run 44928035806 (the death sample with both tiers at 2.5, and the full matrix with the three picks in). L is local probes of 2 seeds of 1 hour."
+      }
     },
     {
       "id": "GR-6",
@@ -390,8 +419,15 @@
       "tyler": "He let the reversal stand on the page, in about a second. It changes the earlier ruling. He picked the recommendation on the page that morning.",
       "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
       "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
-      "waitsOn": "the kill reward and the tiers, because the seat's multiple is not one number until then. The runway and the clock also wait on the clan XP size",
-      "sitting": "S-4, option A, as a knock-on. Every clan member levels faster than the Level table, so the content runway and the clock move."
+      "waitsOn": "Tyler, 12 section 7 item 1, and the playtest death rate",
+      "sitting": "S-4, option A, as a knock-on. Every clan member levels faster than the Level table, so the content runway and the clock move.",
+      "measured": {
+        "label": "MEASURED",
+        "what": "The seat's multiple is 1.266 on the four on Dangerous, the median of 28 checkpoints, where the book had 1.492 on the four on Deadly with no death. On 1.266: Level 100 at 516 hours, Krell on day 33, Level 400 on day 400. The ruled table stays the target. Both clocks are shown in chapter 05.",
+        "runs": "R0 and R4",
+        "source": "docs/design/overhaul/12-balance-pass.md",
+        "runIds": "R0 is GitHub run 44920906999 (the full matrix, 4,503 cells, 2 seeds of 2 hours). R1 is run 44924971088 (670 cells with five buff rows). R2 is run 44925664434 (the death sample, 4 seeds of 8 hours). R4 is run 44928035806 (the death sample with both tiers at 2.5, and the full matrix with the three picks in). L is local probes of 2 seeds of 1 hour."
+      }
     },
     {
       "id": "GR-6a",
@@ -411,8 +447,15 @@
       "tyler": "He let the reversal stand on the page, in about a second. It changes the earlier ruling.",
       "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
       "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
-      "waitsOn": "the kill reward and the tiers, because the seat's multiple is not one number until then. The runway and the clock also wait on the clan XP size",
-      "sitting": "S-4, option A, as a knock-on. Every clan member levels faster than the Level table, so the content runway and the clock move."
+      "waitsOn": "Tyler, 12 section 7 item 1, and the playtest death rate",
+      "sitting": "S-4, option A, as a knock-on. Every clan member levels faster than the Level table, so the content runway and the clock move.",
+      "measured": {
+        "label": "MEASURED",
+        "what": "Staged content ends on day 117 on the Dangerous seat. A four that farms Deadly safely would run 18% ahead of the table.",
+        "runs": "R0",
+        "source": "docs/design/overhaul/12-balance-pass.md",
+        "runIds": "R0 is GitHub run 44920906999 (the full matrix, 4,503 cells, 2 seeds of 2 hours). R1 is run 44924971088 (670 cells with five buff rows). R2 is run 44925664434 (the death sample, 4 seeds of 8 hours). R4 is run 44928035806 (the death sample with both tiers at 2.5, and the full matrix with the three picks in). L is local probes of 2 seeds of 1 hour."
+      }
     },
     {
       "id": "GR-6b",
@@ -429,7 +472,14 @@
       "tyler": "He let the reversal stand on the page, in about a second. It changes the earlier ruling.",
       "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
       "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
-      "waitsOn": "the kill reward and the tiers, because the seat's multiple is not one number until then"
+      "waitsOn": "Tyler, 12 section 7 item 1, and the playtest death rate",
+      "measured": {
+        "label": "MEASURED",
+        "what": "Krell's Hold is day 33 on the Dangerous seat, day 24 for a four that farms Deadly safely.",
+        "runs": "R0",
+        "source": "docs/design/overhaul/12-balance-pass.md",
+        "runIds": "R0 is GitHub run 44920906999 (the full matrix, 4,503 cells, 2 seeds of 2 hours). R1 is run 44924971088 (670 cells with five buff rows). R2 is run 44925664434 (the death sample, 4 seeds of 8 hours). R4 is run 44928035806 (the death sample with both tiers at 2.5, and the full matrix with the three picks in). L is local probes of 2 seeds of 1 hour."
+      }
     },
     {
       "id": "GR-6d",
@@ -450,7 +500,7 @@
     {
       "id": "GR-7",
       "call": "Death once Deadly bites.",
-      "decision": "Keep 6% flat with no cap. Past the third Blessing, a new Blessing opens whenever a fully blessed death would cost the pace seat more than five hunted hours. Each new one halves what is left and is priced under a fifth of the hours it saves, in gold. The five hours is one knob. The rungs are outputs of the rule (Levels 97, 140 and 257 on today's numbers). \"Keep me blessed\" covers the new rungs. It ships in the release where Deadly is made to bite, sized on the long death sample.",
+      "decision": "Keep 6% flat with no cap. Past the third Blessing, a new Blessing opens whenever a fully blessed death would cost the pace seat more than 2 hunted hours (PROVISIONAL, it was five). Each new one halves what is left and is priced under a fifth of the hours it saves, in gold. The threshold is one knob. The rungs are outputs of the rule (Levels 97, 140 and 257 on today's numbers). \"Keep me blessed\" covers the new rungs. It ships in the release where Deadly is made to bite, sized on the long death sample.",
       "outcome": "recommended",
       "reason": "An unblessed death keeps all of its fear, which is what I asked for. But I also want Deadly to be worth it for a prepared party at Level 300, and a flat 6% with a flat death count makes that impossible unless Blessings grow with the hero. Paying gold to stay safe is struggle or pay.",
       "evidence": "COMPUTED on measured XP rates and an assumed death count (chapter 05, 2.5 and 2.6). On three Blessings a mid four on Deadly earns less than the same heroes alone on Normal from Level 100 to 145. With the ladder it pays to Level 400, except at the very top of the death band from Level 225. HYPOTHESIS for the five hours. The long death sample and playtest 8 (is a morning death card a quit moment) overturn it.",
@@ -463,7 +513,15 @@
       "statusBeforeReissue": "OPEN (waiting on Tyler, T-fix-5)",
       "firstBuild": "planned, waits until a real death rate exists",
       "sitting": "S-5, option B. The Blessing ladder is ruled.",
-      "waitsOn": "The five hours stays PROVISIONAL until a real death rate exists."
+      "waitsOn": "The playtest death rate",
+      "measured": {
+        "label": "MEASURED",
+        "what": "The ladder's threshold moves from 5 hunted hours to 2, COMPUTED on MEASURED Level XP rates. New Blessings open near Levels 74, 98, 161, 248 and 387. At 5 hours a watched four on Deadly earns less than on Dangerous through most of the ruled death band. A four on the edge of Deadly loses 16 to 34% of an 8 hour bar when left alone.",
+        "runs": "R0, R2 and R4",
+        "source": "docs/design/overhaul/12-balance-pass.md",
+        "runIds": "R0 is GitHub run 44920906999 (the full matrix, 4,503 cells, 2 seeds of 2 hours). R1 is run 44924971088 (670 cells with five buff rows). R2 is run 44925664434 (the death sample, 4 seeds of 8 hours). R4 is run 44928035806 (the death sample with both tiers at 2.5, and the full matrix with the three picks in). L is local probes of 2 seeds of 1 hour."
+      },
+      "wasBeforeBalancePass": "Keep 6% flat with no cap. Past the third Blessing, a new Blessing opens whenever a fully blessed death would cost the pace seat more than five hunted hours. Each new one halves what is left and is priced under a fifth of the hours it saves, in gold. The five hours is one knob. The rungs are outputs of the rule (Levels 97, 140 and 257 on today's numbers). \"Keep me blessed\" covers the new rungs. It ships in the release where Deadly is made to bite, sized on the long death sample."
     },
     {
       "id": "MM-7",
@@ -880,12 +938,19 @@
       "money": false,
       "depends": "The measuring tool's three fixes, the modifier table's \"when\" column (R20), the to-hit floor owed by CORE-4, the wage formula (R15) for the reset price, and MM-41 for the arenas.",
       "status": "PROVISIONAL",
-      "waitsOn": "Section 12 of docs/design/overhaul/10-level-choices.md: the sample of five tracks played in the playtest, the matrix with four stat lines after the tool's fixes, the unlock sizes, the reset price, and the arena engine check",
+      "waitsOn": "One unlock played in a cell, and the playtest death rate",
       "source": "docs/design/overhaul/10-level-choices.md",
       "ruling": "Tyler, 2026-11-21: a build choice every five Levels is designed now and built with the first build. That is the only thing ruled about it.",
       "firstBuild": "in the first build: five tracks and the rank 3 unlocks. Unlock ranks 8 and up, tracks six to eight and the arena build wait until the sample is played",
       "decidedBy": "The level choices design lane, 2026-11-21",
-      "idNote": "The id TAL-1 was given by the integrator. Chapter 10 names no call id."
+      "idNote": "The id TAL-1 was given by the integrator. Chapter 10 names no call id.",
+      "measured": {
+        "label": "MEASURED",
+        "what": "TL1 holds, 0.99 to 1.022. TL2 misses under Level 185. TL4 holds and says the builds are alike. On the edge of a tier a build decides who lives. The unlocks are still unmodelled.",
+        "runs": "R0 and R2",
+        "source": "docs/design/overhaul/12-balance-pass.md",
+        "runIds": "R0 is GitHub run 44920906999 (the full matrix, 4,503 cells, 2 seeds of 2 hours). R1 is run 44924971088 (670 cells with five buff rows). R2 is run 44925664434 (the death sample, 4 seeds of 8 hours). R4 is run 44928035806 (the death sample with both tiers at 2.5, and the full matrix with the three picks in). L is local probes of 2 seeds of 1 hour."
+      }
     }
   ],
   "tylerAnswers": "Tyler answered his lists on 2026-11-21. Each row he touched carries a tyler field. The full record is in all.json.",

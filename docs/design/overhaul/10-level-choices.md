@@ -399,6 +399,8 @@ One row for `proposals.json`: Talents, playable for four stat lines, not modelle
 
 ---
 
+**Measured since, in chapter 12.** From `12-balance-pass.md` section 3.10 (R0, 145 cells, and R2). TL1 holds: the fastest build reads 0.99 to 1.022 of the suggested one. TL2 misses under Level 185: the empty build reads 1.00 at Level 25 and 0.96 at Level 400, against a band of 0.90 to 0.97. TL4 holds and says the builds are alike. On the edge of a tier a build decides who lives: at Level 185 on Deadly the suggested build had no death and the empty build 12, in 128 hero-hours each. The unlocks are still unmodelled. Every size stays PROVISIONAL.
+
 ## 9. The server shape
 
 A build spec for a backend lane. Nothing here is built. It follows CLAUDE.md sections 1 and 6: the client sends intents and draws the state the server returns.
@@ -539,6 +541,8 @@ No step needs an item, a monster or a screen that does not exist or is not named
 - I did not check the sample against the sixteen planned Necrotic and Storm spells or the fists, which are not live.
 
 ---
+
+**After the balance pass.** `12-balance-pass.md` measured four stat lines and no unlock. The stat lines sit inside the power budget and cannot be felt away from a tier's edge. What settles the rest is unchanged: one unlock played in a cell.
 
 ## 13. For the integrator
 

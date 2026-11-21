@@ -560,9 +560,10 @@ details > summary { cursor: pointer; color: var(--ink-2); font-size: 12px; min-h
     const v = (key, id, after) => (after ? afterVal(st, key, id) : baseVal(key, id));
     h += '<div class="scroll"><table><tr><th>Four</th><th>XP vs mixed</th><th>Kills vs mixed</th><th>Low HP</th><th>Worst tenth</th><th>Deaths/1000h</th><th>Store/h</th></tr>';
     for (const c of lu.sort((a, b) => a.L - b.L)) {
-      const ref = lu.find((x) => x.L === c.L && x.styles.join() === DATA.four.join());
+      /* the standard four of the same Level (a sweep played on another four has none: the ratios read '-', never a crash) */
+      const ref = lu.find((x) => x.L === c.L && x.styles.join() === DATA.four.join()) || null;
       const two = (f, d) => { const b = f(false), a = st ? f(true) : null; return num(b, d) + (st ? ' <span class="' + cls(fin(a) && fin(b) && b ? a / b - 1 : null) + '">' + num(a, d) + '</span>' : ''); };
-      h += '<tr><td>' + c.L + ' ' + esc(c.styles.join(', ')) + '</td><td>' + two((a) => v(c.key, 'levelXpPerH', a) / v(ref.key, 'levelXpPerH', a), 2) + '</td><td>' + two((a) => v(c.key, 'killsPerH', a) / v(ref.key, 'killsPerH', a), 2) + '</td>'
+      h += '<tr><td>' + c.L + ' ' + esc(c.styles.join(', ')) + '</td><td>' + two((a) => (ref ? v(c.key, 'levelXpPerH', a) / v(ref.key, 'levelXpPerH', a) : null), 2) + '</td><td>' + two((a) => (ref ? v(c.key, 'killsPerH', a) / v(ref.key, 'killsPerH', a) : null), 2) + '</td>'
         + '<td>' + two((a) => v(c.key, 'lowHpTypical', a), 2) + '</td><td>' + two((a) => v(c.key, 'lowHpP10', a), 2) + '</td><td>' + two((a) => v(c.key, 'deathsPer1000h', a), 0) + '</td><td>' + two((a) => v(c.key, 'storePerH', a)) + '</td></tr>';
     }
     h += '</table></div>' + (st ? '<div class="note">Second number: with ' + esc(KBY[ps.k].label) + ' x' + ps.s + '.</div>' : '');
@@ -593,7 +594,10 @@ details > summary { cursor: pointer; color: var(--ink-2); font-size: 12px; min-h
     $('active-note').textContent = moved.length
       ? 'Moved: ' + moved.map((k) => k.label + ' x' + state.knobs[k.id].toFixed(3)).join(', ') + '. ' + (ps ? 'PRECOMPUTED shows ' + KBY[ps.k].label + ' alone at its nearest swept step, x' + ps.s + '. ' : 'The active slider has no precomputed sweep on the proposed game. ') + 'LIVE plays every moved slider together.'
       : 'Every slider at 1.00x: the proposed game.';
-    renderTargets(); renderEffects(); renderCalibration(); renderFlags(); renderDeaths(); renderStyles(); renderMetrics(); renderLineups(); renderSeats();
+    /* one panel's fault stays in that panel (said in it and on the console), never blanks the rest of the page */
+    const safe = (fn, id) => { try { fn(); } catch (e) { $(id).innerHTML ='<div class="warn">This panel failed to draw: ' + esc(e.message) + '</div>'; console.error(e); } };
+    safe(renderTargets, 'targets'); safe(renderEffects, 'effects'); safe(renderCalibration, 'calibration'); safe(renderFlags, 'flags'); safe(renderDeaths, 'deaths');
+    safe(renderStyles, 'styles'); safe(renderMetrics, 'metrics'); safe(renderLineups, 'lineups'); safe(renderSeats, 'seats');
   }
 
   renderProposals();

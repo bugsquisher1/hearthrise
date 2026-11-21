@@ -267,6 +267,8 @@ A stage of the castle is 1 to 1.3 weeks (chapter 06, HYPOTHESIS). So a clan that
 
 **Is it the room every clan builds first.** JUDGMENT: no. The War room's +5% damage is kills, and kills are Level XP, coin and drops together. The Library is Level XP alone. A clan that wants its members richer builds the War room. A clan that wants the next ground builds the Library. That is a vote worth having. UNKNOWN until clans vote.
 
+**Measured since, in chapter 12.** From `12-balance-pass.md` section 3.9 (R1, 24 cells). The step holds: +4.9% Level XP in every cell from Level 60. The Library is the one buff that pays a four its full size, because it does not pass through the kill rate. So it is the strongest room in the castle for a four's Level pace, which is the opposite of the judgment above. The War room's +5% damage is worth about 1% of pace to a four.
+
 ### 2.3 The modifier table
 
 The Level XP row of chapter 06 gains a standing cap. Rows on one knob sum, and then the caps apply. That is the table's own rule.
@@ -290,6 +292,8 @@ COMPUTED. Inputs: best gear 1.15, both damage caps 1.15, the fastest talent buil
 The sitting quoted 1.73. That multiplied 1.65 by 1.05. The table sums rows on one knob, which gives 1.72 before Talents. The difference is under 1% and the table's rule is the one to print.
 
 Like every number on this table, these are products of targets. No cell has ever held a buff.
+
+**Measured since, in chapter 12.** From `12-balance-pass.md` section 3.8 (R1 and R2). For a four, every cap full with the Library reads 1.29 to 1.48 times a plain four, against the 1.72 to 1.74 computed above. The computed readings multiply damage into pace, and a four's kills are set by how fast monsters come.
 
 ### 2.5 The Level law and the runway
 

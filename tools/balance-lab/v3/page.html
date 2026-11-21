@@ -479,14 +479,15 @@ details > summary { cursor: pointer; color: var(--ink-2); font-size: 12px; min-h
   /* ── DEATH PAST LEVEL 100 (GR-7): XP after the ruled deaths on a harder tier, against Normal for the same party ── */
   function renderDeaths() {
     const ladder = state.on.has('GR-7');
-    let h = '<h2>XP after deaths on the harder tiers <span class="tag pre">PRECOMPUTED</span> <span class="tag lab">COMPUTED</span></h2><div class="note">A harder tier\'s Level XP an hour, less the ruled deaths a 1,000 hours (standards.mjs S6) at 6% of Level XP each, the share a fully blessed death still takes, against the same party on Normal. Target: at or over 1 (the harder tier still pays). '
+    let h = '<h2>XP after deaths on the harder tiers <span class="tag pre">PRECOMPUTED</span> <span class="tag lab">COMPUTED</span></h2><div class="note">A harder tier\'s Level XP an hour, less the ruled deaths a 1,000 hours (standards.mjs S6) at 6% of Level XP each and the share a fully blessed death still takes, over the same party on Normal, judged on P9 (what a harder tier pays over Normal). '
       + (ladder ? 'GR-7 is on: Blessings 4 to 7 open at Levels 100, 185, 275 and 400, each halving what a blessed death takes.' : 'GR-7 is off: three Blessings.') + '</div>';
     const rows = PRE ? PRE.baselineDerived : [];
     if (!rows.length) { $('deaths').innerHTML = h + '<div class="empty">No harder-tier cells in this build.</div>'; return; }
-    h += '<div class="scroll"><table><tr><th>Cell</th><th>Ruled deaths / 1,000 h</th><th>Blessings</th><th>After deaths / Normal</th><th>Against the target</th></tr>';
+    h += '<div class="scroll"><table><tr><th>Cell</th><th>Ruled deaths / 1,000 h</th><th>Blessings</th><th>After deaths / Normal</th><th>P9 target</th><th>Against the target</th></tr>';
     for (const r of [...rows].sort((a, b) => a.L - b.L || a.party - b.party)) {
-      const v = ladder ? r.vsNormalLadder : r.vsNormalThree;
-      h += '<tr><td>' + r.L + ' ' + esc(r.gear) + ' x' + r.party + ' ' + esc(r.tier) + '</td><td>' + num(r.ruledDeaths, 0) + '</td><td>' + (ladder ? r.blessingsOpen : 3) + '</td><td>' + num(v, 3) + '</td><td>' + (!fin(v) ? '-' : v >= 1 ? '<span class="s-ok">in band</span>' : '<span class="s-RED">under by ' + Math.round((1 - v) * 100) + '%</span>') + '</td></tr>';
+      const v = ladder ? r.vsNormalLadder : r.vsNormalThree, b = BAND['P9.' + r.tier];
+      const st = !fin(v) || !b ? '-' : side(b, v) === 'in' ? '<span class="s-ok">in band</span>' : '<span class="s-RED">' + side(b, v) + ' by ' + Math.round(Math.abs(v - (side(b, v) === 'under' ? b.lo : b.hi)) / Math.abs(side(b, v) === 'under' ? b.lo : b.hi) * 100) + '%</span>';
+      h += '<tr><td>' + r.L + ' ' + esc(r.gear) + ' x' + r.party + ' ' + esc(r.tier) + '</td><td>' + num(r.ruledDeaths, 0) + '</td><td>' + (ladder ? r.blessingsOpen : 3) + '</td><td>' + num(v, 3) + '</td><td>' + (b ? num(b.lo, 2) + ' to ' + (fin(b.hi) ? num(b.hi, 2) : '') : '-') + '</td><td>' + st + '</td></tr>';
     }
     h += '</table></div>';
     $('deaths').innerHTML = h;

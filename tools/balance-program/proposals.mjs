@@ -13,7 +13,15 @@
 //                                  fitted c x L^d) and the Level law (R13: the pace seat's multiple of the contract on the proposed game
 //                                  without R13). Each written with what it was measured on
 //
+//   node tools/balance-program/proposals.mjs --selftest [--quick]   the registry is whole, every toggle plants, an alternative stacked on
+//                                  what it replaces is refused; without --quick, each proposal's toggle is played on a mini plan against the
+//                                  proposed game and must move a metric its targets are judged on (an identity: none), and the check bites
+//
 // Every patch is a scratch-copy derivation (matrix-scratch.mjs plantScratch): nothing here edits the tree.
+// Exit: 0 green · 1 a check failed.
+// mutant-anchors: none — the selftest plants on scratch copies; no tracked file is patched
+// ci-step: economy-selftests | The proposal registry is whole, every toggle plants, and an alternative stacked on what it replaces is refused
+// ci-run: node tools/mutant-gate.mjs node tools/balance-program/proposals.mjs --selftest --quick
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';

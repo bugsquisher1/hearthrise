@@ -6,7 +6,7 @@
   "pace",
   "P2"
  ],
- "why": "XP a health point = contractXpPerH(L) / (1838.19 x L^0.852523), the reference kill-health an hour of a lone MID hammer on Normal (each kill's HP x its role's XP share x the lone bonus), MEASURED on the proposed game without R12 and R13 at Levels 10, 30, 60, 110, 185, 400, 1000, 2000, 5000 and fitted. The 15 per-ground XP fits, the floor fit and the 0.4 exponent go; party grounds pay two thirds of a plain kill (was 0.8). COMPUTED",
+ "why": "XP a health point = contractXpPerH(L) / (1918.8 x L^0.838132), the reference kill-health an hour of a lone MID hammer on Normal (each kill's HP x its role's XP share x the lone bonus), MEASURED on the proposed game without R12 and R13 at Levels 10, 30, 60, 110, 185, 400, 1000, 2000, 5000 and fitted. The 15 per-ground XP fits, the floor fit and the 0.4 exponent go; party grounds pay two thirds of a plain kill (was 0.8). COMPUTED",
  "measuredOn": {
   "proposals": [
    "GR-4",
@@ -36,27 +36,27 @@
    ],
    [
     110,
-    97325
+    97015
    ],
    [
     185,
-    133560
+    131683
    ],
    [
     400,
-    282009
+    264663
    ],
    [
     1000,
-    681044
+    594949
    ],
    [
     2000,
-    1242353
+    1156067
    ],
    [
     5000,
-    2845170
+    2768933
    ]
   ]
  },
@@ -64,7 +64,7 @@
   {
    "file": "src/data/balance-sheet.js",
    "from": "  const xp = Math.max(1, Math.round(Math.max(F.xp.min || 0, F.xp.a * L ** F.xp.b) * hp * R.xp * fit.xp * gx * xFloor));",
-   "to": "  const xp = (void gx, void xFloor, Math.max(1, Math.round((contractXpPerH(L) / (1838.19 * Math.max(1, L) ** 0.852523)) * hp * R.xp * fit.xp)));"
+   "to": "  const xp = (void gx, void xFloor, Math.max(1, Math.round((contractXpPerH(L) / (1918.8 * Math.max(1, L) ** 0.838132)) * hp * R.xp * fit.xp)));"
   },
   {
    "file": "src/data/balance-sheet.js",

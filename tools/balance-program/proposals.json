@@ -39,9 +39,11 @@
     "P7.3",
     "P7.4",
     "P8",
-    "B9"
+    "B9",
+    "S11.blessed",
+    "S11.unblessed"
    ],
-   "note": "Gone from the dashboard: every solo-against-group, pair, trio and four-multiple target (a head against a lone hero, a party's multiple of the lone contract, the party path against the lone path). The matrix still plays parties and the tool still reads them; nothing is judged on party size."
+   "note": "Gone from the dashboard: every solo-against-group, pair, trio and four-multiple target (a head against a lone hero, a party's multiple of the lone contract, the party path against the lone path, and S11, the four after deaths against the lone hero). The matrix still plays parties and the tool still reads them; nothing is judged on party size. Death on the harder tiers is read against the same party on Normal (P9) in the deaths panel."
   }
  ],
  "proposals": [

@@ -13,7 +13,8 @@
 //   ladder                the rule that keeps people moving: a ground's top tier doesn't beat the next ground's Normal on XP at the Level that fits it, for a LONE hero, and Normal against Normal for a four (designer Q1 2026-11-12)
 //                         and lone area heroes; a mixed four's seam is reported, not judged (Tyler 2026-11-11: no cap on party Deadly XP; designer 2026-11-12).
 //
-// --only a,b plays just those cases and their mutants. About three minutes on one core, mutants included.
+// --only a,b plays just those cases and their mutants. About six minutes on a loaded PC, mutants included (2026-11-20, lane/c-hollow-proofs:
+// every mutant now plays its case on the planted engine and prints the rule line that caught it; until then all of them threw at load).
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { readFileSync } from 'node:fs';
@@ -21,6 +22,7 @@ import { makeReport, ROOT, plant } from './fixtures/h1.js';
 import { packIds } from '../../tools/pack/files.mjs';
 import { foldedPacks } from '../../tools/pack/whole.mjs';
 import { sourceQuery } from '../../tools/lib/version-stamp.mjs';
+import { caseVerdict, caseMiss } from '../_mutant-verdict.mjs';
 
 const V = sourceQuery(ROOT);
 const { loadCellRunner } = await import(pathToFileURL(join(ROOT, 'tools/balance-sim/cell.mjs')).href);
@@ -141,7 +143,7 @@ const cases = {
     const flat = R.runCell({ ...cell(GLADE, ['tank'], 44, null), density: T.pullOfTier(row, 1) });
     const dead = R.runCell(cell(GLADE, ['tank'], 44, 'deadly'));
     const f = flat.heroes[0], d = dead.heroes[0];
-    if (!(flat.party.killsPerH > 100 && dead.party.killsPerH > 100)) return 'the fixture killed ' + flat.party.killsPerH + ' and ' + dead.party.killsPerH + ' an hour';
+    if (!(flat.party.killsPerH > 100 && dead.party.killsPerH > 100)) return 'fixture: killed ' + flat.party.killsPerH + ' and ' + dead.party.killsPerH + ' an hour';
     if (!(d.storePerH > f.storePerH * 1.3)) return 'a Deadly store bill of ' + d.storePerH + ' against ' + f.storePerH + ': it hits no harder';
     if (!(d.takenPerH > f.takenPerH * 1.3)) return 'a Deadly hero takes ' + d.takenPerH + ' an hour against ' + f.takenPerH;
     const perKill = (r, n) => n / r.party.killsPerH;
@@ -162,7 +164,7 @@ const cases = {
     rows.deadly = { ...was, pull: [...was.pull], dmgPm: 1000, hpPm: 1000 };
     try {
       const flat = play(null), dial = play('deadly');
-      if (!(flat.totals.kills > 20)) return 'the fixture killed ' + flat.totals.kills + ' in 10 minutes';
+      if (!(flat.totals.kills > 20)) return 'fixture: killed ' + flat.totals.kills + ' in 10 minutes';
       if (dial.totals.kills !== flat.totals.kills) return 'an XP dial moved the fight: ' + dial.totals.kills + ' kills against ' + flat.totals.kills;
       if (dial.totals.coin !== flat.totals.coin) return 'an XP dial moved the coin: ' + dial.totals.coin + ' against ' + flat.totals.coin + ' (Tyler: never gold)';
       const items = (r) => JSON.stringify(Object.keys(r.items).sort().map((k) => [k, r.items[k]]));
@@ -183,7 +185,8 @@ const cases = {
       /* (1) THE FIRST WORLD: every monster at the dial's health, the same for every party size (Tyler 2026-11-08), carrying no yield of its own. */
       let first = null;
       P.run(GLADE, 31, ['tank'], { spanMs: 10000, windowMs: 10000, density: pull, options: () => ({ tier: 'deadly' }), onWindow: (out) => { if (!first) first = out.world; } });
-      const w = first ? WS.decode(JSON.parse(first)) : null;
+      if (!first) return 'fixture: the settle handed over no first world';
+      const w = WS.decode(JSON.parse(first));
       const mons = w ? w.units.filter((u) => u.side === 'mon') : [];
       if (mons.length < pull) return 'the first world holds ' + mons.length + ' monsters for a pull of ' + pull;
       for (const u of mons) {
@@ -199,7 +202,7 @@ const cases = {
       const flat = R.runCell({ ...cell(GLADE, ['tank'], 31, null, 2), seeds: 4, density: pull });
       const dial = R.runCell({ ...cell(GLADE, ['tank'], 31, 'deadly', 2), seeds: 4 });
       const f = flat.heroes[0], d = dial.heroes[0];
-      if (!(flat.party.killsPerH > 100 && dial.party.killsPerH > 50)) return 'the fixture killed ' + flat.party.killsPerH + ' and ' + dial.party.killsPerH + ' an hour';
+      if (!(flat.party.killsPerH > 100 && dial.party.killsPerH > 50)) return 'fixture: killed ' + flat.party.killsPerH + ' and ' + dial.party.killsPerH + ' an hour';
       const perKill = (r, n) => n / r.party.killsPerH;
       const took = perKill(dial, d.dealtPerH) / perKill(flat, f.dealtPerH);
       if (!(took > (HP / 1000) * 0.9 && took < (HP / 1000) * 1.1)) return 'a dialled kill takes ' + took.toFixed(3) + ' times the damage, the dial says ' + HP / 1000;
@@ -253,6 +256,13 @@ const SH = 'src/data/balance-sheet.js';
 const SHEET_DEADLY = 'deadly: Object.freeze({ pull: 8, lift: 1, dmgPm: 1330, hpPm: 1150, xpPm: 1250 }),';
 const THICKET_DIALS = "dials: Object.freeze({ dangerous: Object.freeze({ hpPm: 1000, xpPm: 1050 }), deadly: Object.freeze({ hpPm: 1000, xpPm: 1080 }) }),";
 const PC = 'src/core/hunt/pull-cycle.js';
+/* THE SHEET'S READER TAKES A PULL BY PARTY SIZE AGAIN (planted beside a per-size pull): tierRowFor throws on an array at load, so a
+   mutant that only typed one never loaded; it read as caught by that throw and `rows` never ran (lane/c-hollow-proofs). */
+const SHEET_BY_SIZE = [
+  [SH, "  if (own !== undefined && !Number.isInteger(own)) throw new Error('balance-sheet: ' + opts.ground + ' ' + tierId + ' pull is ONE number for every group, got ' + JSON.stringify(own));\n", ''],
+  [SH, "  if (!Number.isInteger(pull) || pull < 0) throw new Error('balance-sheet: ' + tierId + ' pull is ONE number for every group, got ' + JSON.stringify(pull));\n", ''],
+  [SH, 'return { pull: Array(TIER_SIZES).fill(pull),', 'return { pull: Array.isArray(pull) ? [...pull] : Array(TIER_SIZES).fill(pull),'],
+];
 const mutants = [
   { name: 'the sheet and the catalogue part: Deadly has more HP in the data only', case: 'catalogue', edits: [[SH, SHEET_DEADLY, SHEET_DEADLY.replace('hpPm: 1150', 'hpPm: 1200')]] },
   { name: 'a ground\'s row typed in hunt-tiers.js, not the sheet\'s', case: 'rows', edits: [[D, 'dmgPm: r.dmgPm, hpPm: r.hpPm, xpPm: r.xpPm };', "dmgPm: g === 'mosslight_glade' ? 1600 : r.dmgPm, hpPm: r.hpPm, xpPm: r.xpPm };"]] },
@@ -260,8 +270,8 @@ const mutants = [
   { name: 'the Cellar offers a harder tier', case: 'rows', edits: [[SH, 'mill_cellar: Object.freeze({ normalOnly: true,', 'mill_cellar: Object.freeze({ normalOnly: false,']] },
   /* ONE DIFFICULTY FOR EVERY GROUP (Tyler 2026-11-08): a lone hero's own pull again, in the engine's rows, and in the sheet */
   { name: 'a lone hero pulls fewer than a four on the Glade\'s Dangerous', case: 'rows', edits: [[D, 'out[g][id] = { id, pull: [...r.pull],', "out[g][id] = { id, pull: [g === 'mosslight_glade' && id === 'dangerous' ? 3 : r.pull[0], ...r.pull.slice(1)],"]] },
-  { name: 'the sheet pulls Dangerous by party size again', case: 'rows', edits: [[SH, 'dangerous: Object.freeze({ pull: 8,', 'dangerous: Object.freeze({ pull: Object.freeze([3, 5, 5, 6]),']] },
-  { name: 'a ground gives a party its own pull again', case: 'rows', edits: [[SH, "  mill_cellar: Object.freeze({ normalOnly: true,", "  wickstead: Object.freeze({ deadly: Object.freeze([0, 8, 8, 8]), why: 'a lone hero keeps the ground as it stands' }),\n  mill_cellar: Object.freeze({ normalOnly: true,"]] },
+  { name: 'the sheet pulls Dangerous by party size again', case: 'rows', edits: [[SH, 'dangerous: Object.freeze({ pull: 8,', 'dangerous: Object.freeze({ pull: Object.freeze([3, 5, 5, 6]),'], ...SHEET_BY_SIZE] },
+  { name: 'a ground gives a party its own pull again', case: 'rows', edits: [[SH, "  mill_cellar: Object.freeze({ normalOnly: true,", "  wickstead: Object.freeze({ deadly: Object.freeze([0, 8, 8, 8]), why: 'a lone hero keeps the ground as it stands' }),\n  mill_cellar: Object.freeze({ normalOnly: true,"], ...SHEET_BY_SIZE] },
   { name: 'the Glade\'s Dangerous under its room as built (a smaller fight than Normal)', case: 'rows', edits: [[D, 'out[g][id] = { id, pull: [...r.pull],', "out[g][id] = { id, pull: g === 'mosslight_glade' && id === 'dangerous' ? [2, 2, 2, 2] : [...r.pull],"]] },
   { name: 'Deadly pays more than slightly more XP', case: 'rows', edits: [[SH, SHEET_DEADLY, SHEET_DEADLY.replace('xpPm: 1250', 'xpPm: 1300')]] },
   { name: 'a ground\'s dial names no dial', case: 'rows', edits: [[SH, THICKET_DIALS, THICKET_DIALS.replace('xpPm: 1080', 'xpPM: 1080')]] },
@@ -305,18 +315,18 @@ for (const [cn, fn] of Object.entries(cases).filter(([k]) => !ONLY || ONLY.inclu
 const PICKED = mutants.filter((m) => !ONLY || ONLY.includes(m.case));
 for (const mu of PICKED) {
   if (!cases[mu.case]) { REPORT.ok(false, 'mutant "' + mu.name + '" names no case ' + mu.case); continue; }
-  const p = plant(mu.edits, [...PLAY_TREES, 'tests/hunt-core/fixtures', 'tools/balance-sim']);
+  /* THE ENGINE IS PLANTED, THE SIMULATOR IS THIS TREE'S (lane/c-hollow-proofs 2026-11-20; to-hit-ratio's and first-week-bands' way): cell.mjs
+     and play-ground.mjs read every engine and data module from the root they are handed. A planted copy of tools/balance-sim needed
+     tests/_is-main.mjs, which no plant copied, so all 25 mutants here were "caught" by `threw Cannot find module` and no rule ever ran. */
+  const p = plant(mu.edits, [...PLAY_TREES, 'tests/hunt-core/fixtures']);
   try {
-    let why = null;
-    try {
-      const { loadCellRunner: planted } = await import(pathToFileURL(join(p.root, 'tools/balance-sim/cell.mjs')).href);
-      const { loadPlay: plantedPlay } = await import(pathToFileURL(join(p.root, 'tests/hunt-core/fixtures/play-ground.mjs')).href);
-      why = await cases[mu.case]({ R: await planted(p.root), T: await import(pathToFileURL(join(p.root, 'src/data/hunt-tiers.js')).href + V),
-        P: await plantedPlay(p.root), WS: await import(pathToFileURL(join(p.root, 'src/core/hunt/world-state.js')).href + V),
-        S: await import(pathToFileURL(join(p.root, 'src/data/balance-sheet.js')).href + V), G: await import(pathToFileURL(join(p.root, 'src/data/hunt-grounds.js')).href + V) });
-    } catch (e) { why = 'threw ' + e.message; }
-    REPORT.ok(!!why, 'mutant "' + mu.name + '" was NOT caught by ' + mu.case);
-    if (why && process.argv.includes('--verbose')) console.log('  caught: ' + mu.name + ' -> ' + why);
+    const at = (f) => import(pathToFileURL(join(p.root, f)).href + V);
+    const v = await caseVerdict(async () => cases[mu.case]({ R: await loadCellRunner(p.root), T: await at('src/data/hunt-tiers.js'), P: await loadPlay(p.root),
+      WS: await at('src/core/hunt/world-state.js'), S: await at('src/data/balance-sheet.js'), G: await at('src/data/hunt-grounds.js') }), mu.case);
+    /* a throw or a fixture line is the harness failing, never the rule catching the defect (tests/_mutant-verdict.mjs caseVerdict) */
+    const miss = caseMiss(mu.name, mu.case, v);
+    REPORT.ok(!miss, miss);
+    if (!miss) console.log('  caught: ' + mu.name + ' -> ' + mu.case + ': ' + v.why.slice(0, 160));
   } finally { p.done(); }
 }
 if (!REPORT.fails.length) console.log('  ' + (ONLY ? ONLY.length : Object.keys(cases).length) + ' cases, ' + PICKED.length + ' mutants caught');

@@ -22,6 +22,7 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { makeReport, ROOT, plant } from './fixtures/h1.js';
 import { sourceQuery } from '../../tools/lib/version-stamp.mjs';
+import { caughtBy, missWhy } from '../_mutant-verdict.mjs';
 
 const V = sourceQuery(ROOT);
 const { loadCellRunner } = await import(pathToFileURL(join(ROOT, 'tools/balance-sim/cell.mjs')).href);
@@ -109,7 +110,7 @@ for (const mu of PICKED) {
   try {
     let why = null;
     try { why = await cases[mu.case](await loadCellRunner(p.root), p.root); } catch (e) { why = 'threw ' + e.message; }
-    R.ok(!!why, 'mutant "' + mu.name + '" was NOT caught by ' + mu.case);
+    R.ok(caughtBy(why), 'mutant "' + mu.name + '" was NOT caught by ' + mu.case + missWhy(why));
     if (why && process.argv.includes('--verbose')) console.log('  caught: ' + mu.name + ' -> ' + why);
   } finally { p.done(); }
 }

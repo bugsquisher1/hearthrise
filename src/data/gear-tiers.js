@@ -86,7 +86,7 @@ export const WEAPON_FAMILIES = [
      rung above it is too (designer 2026-10-22, the style ladder): no shield beside a crusher. */
   {
     key: 'warhammer', label: 'Warhammer', weaponType: 'hammer', skill: 'smithing', mat: 'bar', twoHanded: true,
-    /* tiers 2 and 3 pay the ruling's +5-8% (balance 10-25 §8; first-week-bands weapon-rungs): the box-sweepers kill with Cleave, so a rung reaches them through its basic blows alone */
+    /* tiers 2 and 3 pay the ruling's +5-8% (balance 10-25 §8; first-week-bands weapon-rungs): the box-sweepers kill with Turning Cut (Cleave until the spell rule), so a rung reaches them through its basic blows alone */
     atk: [3, 7, 9, 14, 19, 25, 32], str: [7, 16, 23, 28, 39, 52, 68],
     vmul: 110, lvOff: 8, bars: 3, planks: 2,
     names: ['Stone Maul', 'Iron Warhammer', 'Steel Warhammer', 'Mithril Warhammer', 'Rune Warhammer', 'Emberforged Warhammer', 'Dawnsteel Warhammer'],

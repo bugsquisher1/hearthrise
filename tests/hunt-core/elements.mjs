@@ -15,6 +15,7 @@ import { pathToFileURL } from 'node:url';
 import { loadCore, plant, makeReport, ROOT } from './fixtures/h1.js';
 import { oneHero, rngOf, loadData, supplySession } from './fixtures/h4.js';
 import { sourceQuery } from '../../tools/lib/version-stamp.mjs';
+import { caughtBy, missWhy } from '../_mutant-verdict.mjs';
 
 async function load(root) {
   const M = await loadCore(root);
@@ -82,7 +83,8 @@ const cases = {
   'fire-aoe-hurts-sump-slime': (M) => {
     const fb = M.AD.ABILITIES.fireball, slime = M.MONSTERS.sump_slime, rat = M.MONSTERS.drain_rat;
     if (fb.target !== 'area' || fb.element !== 'ember') return 'fixture: Fireball is ' + fb.target + ' ' + fb.element;
-    if (slime.elements.ember !== 50 || 'ember' in rat.elements) return 'fixture: slime ember ' + slime.elements.ember + ', rat ' + JSON.stringify(rat.elements);
+    /* the slime's half is this case's RULE (the hurt() line below judges it), not its fixture: a fixture line is no catch (lane/c-hollow-proofs) */
+    if ('ember' in rat.elements) return 'fixture: the Drain Rat has an ember modifier ' + JSON.stringify(rat.elements);
     if (M.C.defenceReduction(slime) || M.C.defenceReduction(rat)) return 'fixture: a defence would blur the halving';
     const x = oneHero(M, {}, {}, [{ kind: 'sump_slime', x: 13, y: 3, hp: 50000, maxHp: 50000 }, { kind: 'drain_rat', x: 13, y: 4, hp: 50000, maxHp: 50000 }]);
     const [s, r] = x.w.units.filter((u) => u.side === 'mon');
@@ -197,7 +199,7 @@ for (const mu of mutants) {
     let why = null;
     try { why = cases[mu.case](await load(p.root)); } catch (e) { why = 'threw ' + e.message; }
     if (process.env.H2_WHY) console.log('  mutant "' + mu.name + '" -> ' + why);
-    R.ok(!!why, 'mutant "' + mu.name + '" was NOT caught by ' + mu.case);
+    R.ok(caughtBy(why), 'mutant "' + mu.name + '" was NOT caught by ' + mu.case + missWhy(why));
   } finally { p.done(); }
 }
 /* BOTH PATHS (CLAUDE.md §4): the browser CLOSED, the hunt settled the way the world tick does (accrual.js accrueHunt,
@@ -229,7 +231,7 @@ function settledFireballOnSlimes(P) {
   try {
     let w = null;
     try { w = settledFireballOnSlimes(await loadPlay(p.root)); } catch (e) { w = 'threw ' + e.message; }
-    R.ok(!!w, 'mutant "the slime is immune to ember again, settled" was NOT caught by settled-fireball-burns-sump-slime');
+    R.ok(caughtBy(w), 'mutant "the slime is immune to ember again, settled" was NOT caught by settled-fireball-burns-sump-slime' + missWhy(w));
   } finally { p.done(); }
 }
 if (!R.fails.length) console.log('  ' + (Object.keys(cases).length + 1) + ' cases, ' + (mutants.length + 1) + ' mutants caught');

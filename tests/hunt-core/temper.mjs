@@ -36,7 +36,9 @@ const cases = {
   },
   'no-rung-draws-nothing': (M) => {
     const { temperedAmount: move, blowsPmOf, armorPmOf, temperRung } = M.temper;
-    const broke = { chance: () => { throw new Error('drew'); } };
+    /* a draw is counted and named, never thrown: a throw out of the case reads HARNESS, not this rule (lane/c-hollow-proofs) */
+    let drew = 0;
+    const broke = { chance: () => { drew++; return false; } };
     for (const pm of [0, undefined, null]) if (move(37, pm, broke) !== 37) return 'no rung moved a blow, pm ' + pm;
     if (move(0, 50, broke) !== 0) return 'a blow of nothing was moved';
     for (const t of [null, undefined, {}, { 'temper:blows:2': 0, 'temper:armor:2': 0 }, { 'temper:blows:2': -3 }, { 'temper:blows:2': 'x' }]) {
@@ -45,7 +47,7 @@ const cases = {
     /* mitigate at no rung never touches the rng it may be handed: the chain's answer is the old one */
     const plate = M.mitigation.mitigationOf({ heavy: 29, medium: 0, light: 0 }, 20);
     if (M.mitigation.mitigate(100, 1000, plate, 0, broke) !== M.mitigation.mitigate(100, 1000, plate)) return 'a rung-0 blow at a hero changed';
-    return null;
+    return drew ? 'no rung still drew from the rng (' + drew + ' draws)' : null;
   },
   /* A forged rung can name a ladder, never a number (the perks' rule, perks.js normalisePerkState). */
   'a-rung-is-clamped': (M) => {
@@ -161,8 +163,9 @@ const cases = {
     /* a monster's blow at a hero is not raised by the hero's own Blows rung, and a monster has no rung. */
     const hero = H(M, 1, 12, 3, 'tank', { hp: 1e6, maxHp: 1e6 }), mon = E(M, 2, 0, 13, 3, 1, { kind: def });
     hero.blowsPm = 50;
-    const broke = { chance: () => { throw new Error('drew'); } };
-    if (M.damage.hurt(inst, hero, 50, mon, null, null, broke).dmg !== 50) return 'a monster\'s blow at a hero with Blows moved';
+    let drew = 0;
+    const broke = { chance: () => { drew++; return false; } };
+    if (M.damage.hurt(inst, hero, 50, mon, null, null, broke).dmg !== 50 || drew) return 'a monster\'s blow at a hero with Blows moved or drew (' + drew + ' draws)';
     return null;
   },
   /* THE ARMOR HOOK: what reaches the hero, after the chain, in every weight; this is why it isn't armor points. */

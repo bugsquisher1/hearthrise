@@ -388,8 +388,11 @@ const mutants = [
     edits: [['src/data/shields.js', "export const isShield = (item) => !!item && item.slot === 'shield' && item.offhand === 'shield';", "export const isShield = (item) => !!item && item.slot === 'shield';"]] },
   { name: 'the worn set ignores the shield slot', case: 'the-shield-makes-the-tank',
     edits: [['src/data/hunt-roles.js', 'items && e.shield ? items[e.shield] : null', 'null']] },
+  /* the reader half planted with it (lane/c-hollow-proofs 2026-11-20): chests.js tells a bow from a crossbow by twoHanded and refuses at
+     load a tower bow with no bow rung, so alone this mutant never loaded and was "caught" by that throw, the case unrun */
   { name: 'a bow is one-handed again', case: 'the-shield-makes-the-tank',
-    edits: [['src/data/gear-tiers.js', "    key: 'bow', label: 'Bow', weaponType: 'ranged', skill: 'crafting', mat: 'plank', twoHanded: true,", "    key: 'bow', label: 'Bow', weaponType: 'ranged', skill: 'crafting', mat: 'plank',"]] },
+    edits: [['src/data/gear-tiers.js', "    key: 'bow', label: 'Bow', weaponType: 'ranged', skill: 'crafting', mat: 'plank', twoHanded: true,", "    key: 'bow', label: 'Bow', weaponType: 'ranged', skill: 'crafting', mat: 'plank',"],
+      ['src/data/chests.js', "    case 'ranged': return item.twoHanded === true ? 'bow' : 'crossbow';", "    case 'ranged': return /crossbow/i.test(item.n || '') ? 'crossbow' : 'bow';"]] },
   { name: 'the club shares the axes\' list (audit c03)', case: 'the-club-is-its-own-discipline',
     edits: [['src/data/hunt-roles.js', "  club: key(['melee_dps'], 'club'),\n  hammer: key(['melee_dps'], 'club'),", "  club: key(['melee_dps'], 'dual_axe'),\n  hammer: key(['melee_dps'], 'dual_axe'),"]] },
   { name: 'the club bleeds', case: 'the-club-is-its-own-discipline',

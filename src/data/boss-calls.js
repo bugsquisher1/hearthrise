@@ -203,7 +203,7 @@ export const BOSS_CALL_WORDS = Object.freeze({
     /* What answers each part of the fight, as a tip. */
     answer: Object.freeze({
       first: 'Tip: Bring a healer, eat earlier or upgrade gear',
-      adds: 'Tip: Cleave, Fireball or Target on Lowest HP clears adds',
+      adds: 'Tip: Turning Cut, Fireball or Target on Lowest HP clears adds',
       /* The add wave of a boss whose adds shield him (isGuarded): the one answer the table says decides it (warnGuard above, re-measured 2026-11-14). */
       guarded: 'Tip: Kill his adds first, heal whoever they attack',
       enrage: 'Tip: Eat earlier and heal sooner below 25% HP',

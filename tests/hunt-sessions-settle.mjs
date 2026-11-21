@@ -5092,7 +5092,7 @@ const MUTANTS = [
     from: ' && Number.isInteger(u.target) && aimsAtMonsters(slot)) {', to: ' && Number.isInteger(u.target)) {' },
   { arm: 'SPELL-CONTENT', name: '[spell-content] Mend casts at full health', file: 'src/core/hunt/abilities.js',
     from: "    case 'self': return pct(hero) < 100 ? hero : null;",
-    to: "    case 'self': return row.heal || pct(hero) < 100 ? hero : null;" },
+    to: "    case 'self': return heals(row) || pct(hero) < 100 ? hero : null;" },
   { arm: 'SPELL-CONTENT', name: '[spell-content] a heal aimed at yourself finds nobody', file: 'src/core/hunt/conditions.js',
     from: "  if (subject === 'self') return cx.u.alive ? cx.u : null;\n", to: '' },
   { arm: 'SPELL-CONTENT', name: '[spell-content] Protective Ward shields nothing', file: 'src/core/hunt/abilities.js',

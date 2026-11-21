@@ -1151,8 +1151,11 @@ const mutants = [
   { name: '[spell-content] Mend casts at full health', case: 'mend-heals-only-the-hurt',
     edits: [['src/core/hunt/abilities.js', "    case 'self': return pct(hero) < 100 ? hero : null;",
       "    case 'self': return row.heal || pct(hero) < 100 ? hero : null;"]] },
+  /* the shield it plants is Mend's own roll (lane/c-hollow-proofs 2026-11-20): dropping the heal line alone sent Mend down the shield path
+     with no `shield` on its row, makeEvent refused the empty amount and the throw read as the catch, the case unrun */
   { name: '[spell-content] Mend shields instead of healing', case: 'mend-heals-only-the-hurt',
-    edits: [['src/core/hunt/abilities.js', '      if (row.heal) { healOne(u, u, scaled(roll(sc, row.heal)), sc, sg); break; }\n', '']] },
+    edits: [['src/core/hunt/abilities.js', '      if (row.heal) { healOne(u, u, scaled(roll(sc, row.heal)), sc, sg); break; }\n',
+      "      if (row.heal) { u.shield = scaled(roll(sc, row.heal)); u.shieldBy = u.id; sc.emit(makeEvent('shield', sc.atMs, { u: u.id, t: u.id, amount: u.shield })); break; }\n"]] },
   { name: '[spell-content] Mend is kept off a physical bar', case: 'mend-heals-only-the-hurt',
     edits: [['src/data/abilities.js', 'disciplines: DISCIPLINE_IDS, universal: true,', "disciplines: ['destruction', 'restoration'], universal: true,"]] },
   { name: '[spell-content] the sickness mark adds nothing', case: 'sickness-marks-what-it-hits',

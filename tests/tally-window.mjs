@@ -3,7 +3,8 @@
 // tests/tally-window.mjs — TAMSIN'S TALLY ON SCREEN, IN A REAL CHROMIUM (lane c-tally-tasks).
 //
 //   node tests/tally-window.mjs            the rules
-//   node tests/tally-window.mjs --mutate   every planted defect must turn a rule RED
+//   node tests/tally-window.mjs --mutate   every planted defect must turn a NAMED rule RED (stopping at the first); a run that throws or a
+//                                          line with no TW id is HARNESS, never a catch (tests/_mutant-verdict.mjs, lane/c-hollow-proofs)
 //   node tests/tally-window.mjs --mutate --shard=K/N   every Nth mutant from the Kth (smoke.yml's in-page-20, -47, -48)
 //   node tests/tally-window.mjs --shots <dir>   also write TW-11's screenshots (moved, folded; desktop and phone)
 //
@@ -70,6 +71,7 @@ import { readFile, mkdir } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { ROOT, serve, SDK_STUB } from './_client-harness.mjs';
 import { scopedMutants } from '../tools/lib/mutant-scope.mjs';
+import { judge, report, exitOf, cleanControl } from './_mutant-verdict.mjs';
 import { COACH_TEXT } from '../src/data/text/coach.js';
 import { pinFonts } from './_test-fonts.mjs';
 
@@ -263,8 +265,12 @@ const STATE = () => { const w = document.querySelector('[data-hs-win="tally"]');
 /* TW-18 NO WORDS OR SEPARATORS DRAWN BY CSS (lane a-first-board-copy, 2026-11-13): the stylesheet scan is pure and runs in Node
    (tests/tally-window-pure.mjs TW-18); the page side here reads the dots as drawn (DANGLING_DOTS). */
 
-async function checks(overrides, shots) {
+/* A mutant needs ONE red rule (hunt-screen's stopAtFirst): its run stops at the first, so a planted defect costs one page block, not
+   every rule after it (each mutant ran ALL rules, 52-121 s). The clean control and the plain run read every rule. */
+const STOP = Symbol('first red');
+async function checks(overrides, shots, { stopAtFirst = false } = {}) {
   const fails = [];
+  if (stopAtFirst) fails.push = function (...a) { Array.prototype.push.apply(this, a); throw STOP; };
   const { server, port } = await serve(overrides);
   const browser = await leaseBrowser(chromium);
   const W = '[data-hs-win="tally"] ';
@@ -892,7 +898,7 @@ async function checks(overrides, shots) {
       }
       await ctx.close();
     }
-  } finally {
+  } catch (e) { if (e !== STOP) throw e; } finally {
     await browser.close();
     server.close();
   }
@@ -987,18 +993,20 @@ async function main() {
   const list = sm ? picked.filter((_, i) => i % +sm[2] === +sm[1] - 1) : picked;
   if (sm) console.log('  shard ' + sm[1] + '/' + sm[2] + ': ' + list.length + ' of ' + picked.length + ' mutants');
   if (!list.length) process.exit(0);
-  const clean = await checks(null);
-  if (clean.length) { console.log('  ✗ clean control RED: ' + clean.join('; ')); process.exit(1); }
-  let bad = 0;
+  const clean = await cleanControl(() => checks(null));
+  console.log(clean.line);
+  if (clean.code) process.exit(clean.code);
+  /* A mutant is caught only by a NAMED rule (TW-n); a run that throws, or a fail line with no rule id, is HARNESS, never a catch
+     (tests/_mutant-verdict.mjs; lane/c-hollow-proofs 2026-11-20: this loop scored the first word of ANY fail line as the catch). */
+  const counts = { caught: 0, harness: 0, escaped: 0 };
   for (const [name, file, from, to] of list) {
     const text = (await readFile(join(ROOT, file), 'utf8')).replace(/\r\n/g, '\n');
-    if (!text.includes(from)) { console.log('  ✗ ' + name + ' — anchor not found in ' + file); bad++; continue; }
-    const fails = await checks({ [file]: text.replace(from, () => to) });
-    if (fails.length) console.log('  ✓ ' + name + ' — caught (' + fails[0].split(' ')[0] + ')');
-    else { console.log('  ✗ ' + name + ' — NOT caught'); bad++; }
+    if (!text.includes(from)) { console.log('  ✗ ' + name + ' — HARNESS: anchor not found in ' + file); counts.harness++; continue; }
+    console.log(report(name, await judge(() => checks({ [file]: text.replace(from, () => to) }, null, { stopAtFirst: true })), counts));
   }
-  console.log(bad ? 'tally-window --mutate: ' + bad + ' escaped' : 'tally-window --mutate: ' + list.length + '/' + list.length + ' mutants caught');
-  process.exit(bad ? 1 : 0);
+  console.log(exitOf(counts) ? 'tally-window --mutate: ' + counts.escaped + ' escaped, ' + counts.harness + ' HARNESS (not catches)'
+    : 'tally-window --mutate: ' + list.length + '/' + list.length + ' mutants caught, each by a named rule');
+  process.exit(exitOf(counts));
 }
 
 main();

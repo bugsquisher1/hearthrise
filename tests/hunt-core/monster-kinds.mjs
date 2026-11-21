@@ -30,6 +30,7 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { loadCore, plant, makeReport, ROOT, hero, mon, world, groundRow, gridOf, spanFixture, runSpan, member, T0 } from './fixtures/h1.js';
 import { sourceQuery } from '../../tools/lib/version-stamp.mjs';
+import { caughtBy, missWhy } from '../_mutant-verdict.mjs';
 
 const V = (root) => sourceQuery(root);
 async function load(root) {
@@ -513,7 +514,7 @@ for (const mu of process.argv.includes('--no-mutate') ? [] : mutants) {
     let why = null;
     try { why = cases[mu.case](await load(p.root)); } catch (e) { why = 'threw ' + e.message; }
     if (process.env.H2_WHY) console.log('  mutant "' + mu.name + '" -> ' + why);
-    R.ok(!!why, 'mutant "' + mu.name + '" was NOT caught by ' + mu.case);
+    R.ok(caughtBy(why), 'mutant "' + mu.name + '" was NOT caught by ' + mu.case + missWhy(why));
   } finally { p.done(); }
 }
 const ran = (n) => !only || only.has(n);

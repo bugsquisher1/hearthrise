@@ -42,6 +42,7 @@ import { pathToFileURL } from 'node:url';
 import { readFileSync } from 'node:fs';
 import { ROOT, plant } from './hunt-core/fixtures/h1.js';
 import { isMain } from './_is-main.mjs';
+import { caughtBy, missWhy } from './_mutant-verdict.mjs';
 import { sourceQuery } from '../tools/lib/version-stamp.mjs';
 
 const V = sourceQuery(ROOT);
@@ -500,8 +501,9 @@ if (isMain(import.meta.url)) {
         try { M = await load(p.root); } catch (e) { console.error('jewelry-rolls --mutate: HARNESS ' + mu.name + ': ' + e.message); process.exit(2); }
         let why;
         try { why = await claims[mu.claim](M); } catch (e) { why = 'threw ' + e.message; }
-        if (why) console.log('  CAUGHT  ' + mu.name + ' -> ' + mu.claim + ': ' + why);
-        else { console.error('  MISSED  ' + mu.name + ' (' + mu.claim + ')'); missed++; }
+        /* a claim that threw never judged the mutant (tests/_mutant-verdict.mjs): HARNESS, not a catch */
+        if (caughtBy(why)) console.log('  CAUGHT  ' + mu.name + ' -> ' + mu.claim + ': ' + why);
+        else { console.error('  MISSED  ' + mu.name + ' (' + mu.claim + ')' + missWhy(why)); missed++; }
       } finally { p.done(); }
     }
     if (missed) { console.error(`jewelry-rolls --mutate: ${missed} of ${MUTANTS.length} missed`); process.exit(1); }

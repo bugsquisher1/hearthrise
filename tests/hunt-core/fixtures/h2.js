@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { hero, mon, world, groundRow, gridOf, loadCore, plant, makeReport, ROOT } from './h1.js';
 import { sourceQuery } from '../../../tools/lib/version-stamp.mjs';
+import { caughtBy, missWhy } from '../../_mutant-verdict.mjs';
 
 export { groundRow, gridOf, subStep, mon, world } from './h1.js';
 
@@ -53,7 +54,7 @@ export async function suite(name, cases, mutants) {
       try { why = cases[mu.case](await loadCore2(p.root)); } catch (e) { why = 'threw ' + e.message; }
       /* H2_WHY=1 prints what each mutant tripped, so a mutant caught only by a syntax error shows. */
       if (process.env.H2_WHY) console.log('  mutant "' + mu.name + '" -> ' + why);
-      R.ok(!!why, 'mutant "' + mu.name + '" was NOT caught by ' + mu.case);
+      R.ok(caughtBy(why), 'mutant "' + mu.name + '" was NOT caught by ' + mu.case + missWhy(why));
     } finally { p.done(); }
   }
   const ran = (n) => !only || only.has(n);

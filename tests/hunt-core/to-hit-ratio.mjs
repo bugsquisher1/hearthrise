@@ -17,6 +17,7 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { loadCore, plant, makeReport, ROOT } from './fixtures/h1.js';
 import { H, E, inst2, sc2, world, groundRow } from './fixtures/h2.js';
+import { caughtBy, missWhy } from '../_mutant-verdict.mjs';
 
 const { loadCellRunner } = await import(pathToFileURL(join(ROOT, 'tools/balance-sim/cell.mjs')).href);
 const { PLAY_TREES } = await import(pathToFileURL(join(ROOT, 'tests/hunt-core/fixtures/play-ground.mjs')).href);
@@ -108,8 +109,8 @@ for (const mu of PICKED) {
     try {
       why = await cases[mu.case]({ M: await loadCore(p.root), R: await loadCellRunner(p.root) });
     } catch (e) { why = 'threw ' + e.message; }
-    /* a throw is the harness failing, never the case catching the defect */
-    REPORT.ok(!!why && !why.startsWith('threw '), 'mutant "' + mu.name + '" was NOT caught by ' + mu.case + (why ? ' (' + why.slice(0, 200) + ')' : ''));
+    /* a throw, or a fixture line (the rule never measured), is the harness failing, never the case catching the defect (tests/_mutant-verdict.mjs) */
+    REPORT.ok(caughtBy(why), 'mutant "' + mu.name + '" was NOT caught by ' + mu.case + missWhy(why));
     if (why && process.argv.includes('--verbose')) console.log('  caught: ' + mu.name + ' -> ' + why);
   } finally { p.done(); }
 }

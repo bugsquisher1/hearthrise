@@ -41,7 +41,7 @@ export function readWay(lives, band = START_CARDS) {
   if (net !== null && net < band.netGold) why.push('net gold under zero');
   const slow = reached.length < lives.length || (min !== null && min > band.minutes[1]);
   return { minutes: min === null ? null : Math.round(min * 10) / 10, minutesRange: reached.length ? [Math.min(...reached.map((l) => l.minutes)), Math.max(...reached.map((l) => l.minutes))].map((x) => Math.round(x * 10) / 10) : null,
-    deaths, net: net === null ? null : Math.round(net), inBand: !why.length, reads: !why.length ? 'Good alone' : slow ? 'Slow alone' : 'outside the band: ' + why.join(', '), why };
+    deaths, net: net === null ? null : Math.round(net), coinNet: lives.every((l) => Number.isFinite(l.coinNet)) ? Math.round(median(lives.map((l) => l.coinNet))) : null, inBand: !why.length, reads: !why.length ? 'Good alone' : slow ? 'Slow alone' : 'outside the band: ' + why.join(', '), why };
 }
 
 /** Every card's ways played on `root` (a tree or a scratch copy): [{ card, label, way, lives, ...readWay }]. */
@@ -53,7 +53,7 @@ export async function playCards({ root = ROOT, seeds = 4 } = {}) {
     for (let s = 0; s < seeds; s++) {
       const life = await playLife({ party: [way], policy: 'new', to: START_CARDS.toLevel, maxHours: 3, root, seedBase: 7000 + 100 * s });
       const at = life.miles['0:' + START_CARDS.toLevel], bank = at ? at.bank : life.bank[0];
-      lives.push({ minutes: at ? Math.round(at.h * 600) / 10 : null, deaths: bank.deaths, net: Math.round(bank.coin + bank.loot - bank.store), ground: at ? at.ground : null });
+      lives.push({ minutes: at ? Math.round(at.h * 600) / 10 : null, deaths: bank.deaths, net: Math.round(bank.coin + bank.loot - bank.store), coinNet: Math.round(bank.coin - bank.store), ground: at ? at.ground : null });
     }
     out.push({ card, label, way, lives, ...readWay(lives) });
   }
@@ -91,9 +91,9 @@ async function main() {
   try { rows = await playCards({ root, seeds }); } finally { done(); }
   console.log('CHECK C1, THE WEAPON CARDS (' + START_CARDS.source + ', ' + START_CARDS.status + '): one hero, start kit and start bar, the Mill Cellar on Normal, Level 1 to '
     + START_CARDS.toLevel + ', ' + seeds + ' lives a way, on ' + name + '. Band: Level ' + START_CARDS.toLevel + ' in ' + START_CARDS.minutes.join(' to ') + ' hunted minutes, no death, net gold at or over zero');
-  console.log('  card                 way        minutes (median, range)   deaths  net gold  reads');
+  console.log('  card                 way        minutes (median, range)   deaths  net gold  coin less store (loot unsold)  reads');
   for (const x of rows) console.log('  ' + x.label.padEnd(21) + x.way.padEnd(11) + ((x.minutes === null ? 'never' : String(x.minutes)) + (x.minutesRange ? ' (' + x.minutesRange.join(' to ') + ')' : '')).padEnd(26)
-    + String(x.deaths).padStart(6) + String(x.net === null ? '-' : x.net).padStart(10) + '  ' + x.reads);
+    + String(x.deaths).padStart(6) + String(x.net === null ? '-' : x.net).padStart(10) + String(x.coinNet === null ? '-' : x.coinNet).padStart(31) + '  ' + x.reads);
   if (arg('json')) writeFileSync(resolve(arg('json')), JSON.stringify({ check: 'C1', base: name, seeds, band: START_CARDS, rows }, null, 1) + '\n');
   return 0;
 }

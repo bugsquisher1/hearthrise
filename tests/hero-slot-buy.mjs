@@ -96,6 +96,12 @@ async function boot(patches) {
   return { db, before };
 }
 
+/** The plain guard for tests/run-smoke.mjs: its problems, [] when green. */
+export async function heroSlotBuyGuard() {
+  const { db, before } = await boot(null);
+  try { return await rules(db, before); } finally { await closeReplays(); }
+}
+
 const MUTANTS = [
   /* a starter that keeps its price: every account still owns it (so no other file refuses), and only the binding sees the price */
   ['a free slot keeps its old price (HS-BIND)', [NO_SELF_CHECK, ['     set starter = true, cost_gold = 0', '     set starter = true']], 'HS-BIND'],

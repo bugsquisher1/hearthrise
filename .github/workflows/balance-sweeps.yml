@@ -9,13 +9,20 @@
 # minutes a knob on four cores, so the knobs fan out as a job matrix and each
 # uploads its own sweep. A MEASUREMENT, never a gate, and never on a push.
 #
-# Dispatch: gh workflow run balance-sweeps.yml --ref <branch> [-f knobs=a,b]
+# Run it:   gh workflow run balance-sweeps.yml --ref <branch> [-f knobs=a,b]
+#           (GitHub dispatches only a workflow the default branch holds; until
+#           this file is on main, push the commit to a sweep branch instead:
+#           git push origin HEAD:refs/heads/balance-sweeps/<lane>. Only a
+#           branch under balance-sweeps/ starts it: no lane, set, release or
+#           main push ever does.)
 # Join:     node tools/balance-program/sweeps-fetch.local.mjs [--run <id>]
 #           (downloads the artifacts, writes tools/balance-program/balance-sweeps.json)
 # ============================================================================
 name: balance-sweeps
 
 on:
+  push:
+    branches: ['balance-sweeps/**']
   workflow_dispatch:
     inputs:
       knobs:

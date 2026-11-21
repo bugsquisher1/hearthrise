@@ -37,11 +37,15 @@ function sweepFiles(dir) {
 let dir = arg('dir') ? resolve(arg('dir')) : null, scratch = null, runId = arg('run');
 if (!dir) {
   if (!runId) {
-    const branch = arg('branch') || execFileSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).trim();
-    const runs = JSON.parse(gh('run', 'list', '--workflow', 'balance-sweeps.yml', '--branch', branch, '--limit', '1', '--json', 'databaseId,status,conclusion,headSha,createdAt'));
-    if (!runs.length) { console.error('sweeps-fetch: no balance-sweeps run on ' + branch + ' (gh workflow run balance-sweeps.yml --ref ' + branch + ')'); process.exit(2); }
+    /* the run on the branch, or on its sweep branch (balance-sweeps/<branch>: a push there starts the workflow until main holds it) */
+    const here = execFileSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).trim();
+    const branches = arg('branch') ? [arg('branch')] : [here, 'balance-sweeps/' + here];
+    const runs = branches.flatMap((b) => JSON.parse(gh('run', 'list', '--workflow', 'balance-sweeps.yml', '--branch', b, '--limit', '1', '--json', 'databaseId,status,conclusion,headSha,createdAt,headBranch')))
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    if (!runs.length) { console.error('sweeps-fetch: no balance-sweeps run on ' + branches.join(' or ') + ' (git push origin HEAD:refs/heads/balance-sweeps/' + here + ')'); process.exit(2); }
     runId = String(runs[0].databaseId);
-    console.log('sweeps-fetch: run ' + runId + ' on ' + branch + ' (' + runs[0].status + (runs[0].conclusion ? ', ' + runs[0].conclusion : '') + ', ' + runs[0].headSha.slice(0, 9) + ', ' + runs[0].createdAt + ')');
+    console.log('sweeps-fetch: run ' + runId + ' on ' + runs[0].headBranch + ' (' + runs[0].status + (runs[0].conclusion ? ', ' + runs[0].conclusion : '') + ', ' + runs[0].headSha.slice(0, 9) + ', ' + runs[0].createdAt + ')');
+    if (runs[0].status !== 'completed') console.log('  the run is still going: its finished knobs are joined, the rest print as not swept');
   }
   dir = scratch = mkdtempSync(join(tmpdir(), 'hr-sweeps-'));
   gh('run', 'download', runId, '--dir', dir, '--pattern', 'sweep-*');

@@ -106,12 +106,14 @@ Plus Talents, the build choice every five Levels, in `docs/design/overhaul/10-le
 | Boss gear lines past the first, boss materials, the fall bonus | The first boss has stood twice |
 | Bought boosts and the buff caps as final numbers | Deadly is sized, and one buff has been played in a cell |
 | The Crowns book as a priced design | Test Crowns have run in the playtest |
-| The Blessing ladder's five hours, as a final number | A real death rate exists |
+| The Blessing ladder's threshold as a final number: 2 hours, sized in chapter 12, PROVISIONAL | A real death rate exists. The ladder itself is in the first build |
 | The sixteen Necrotic and Storm spells, fists, status pairs | The eight weapon ways are distinct and Deadly is sized |
 | The Catacombs mode beyond one wing, the Hall of Firsts, the Honors catalogue | The first build is played |
 | Sinks as a share of band gold, and the yard rate change | The wage can be measured. Until then the typed prices are no worse |
 | Talent unlock ranks 8 and up, tracks six to eight, and the arena build | The sample of five tracks is played |
-| On-call heroes, the Library and the town day rule | What section 8 of chapter 11 names for each. All three are designed there and all three are PROVISIONAL |
+| The Library and the week's castle labor (chapter 11) | Clans exist and people are in them. Both are designed and PROVISIONAL |
+| Luck: the bar, the rivets and the Lucky ring (numbers ruled 2026-11-20) | The plan owner gives it a lane. Its lane is parked and the build plan does not name it (audit A-8) |
+| The unbuilt phases of the itemization plan, which is a source of record (ruled 2026-11-21) | The plan owner gives each phase a lane. The build plan does not name them (audit A-8) |
 
 ## 5. Tyler's picks on the page
 
@@ -178,7 +180,7 @@ MM-43: Tyler said yes on the page. Test Crowns for the wiped Discord playtest on
 | 24 | GR-3 | Party XP is paid by size alone for the first build. The classes rule may come back as one row of the table after Deadly is sized and played. | The 2026-10-31 rule that party XP is better only with different classes | Size alone needs no telling, and the look later keeps the door open. | RULED at the sitting (S-10 c) |
 | 25 | MM-9 | The full castle: five buildings of ten levels, labor, upkeep, votes, a treasury, about a year. | His two picks of 2026-11-21 against each other, and 25-4 | A long shared goal and a larger gold sink. | RULED as the direction at the sitting (S-7 b). Sizes stay PROVISIONAL |
 | 26 | MM-25 | A clan room pays a standing Level XP bonus. | 25-2 of 2026-11-20: clans give no Level XP | He kept the library, and at the sitting he chose the option that pays Level XP. | RULED at the sitting (S-4 a). The size is PROVISIONAL: +5% at Library level ten, in chapter 11 |
-| 27 | CH11-3 | A rest plan's usual ending is a standing job with no count, in place of "wait in town". | The 2026-11-20 ruling that a rest plan ends in "wait in town" or "hunt again, once" and never loops | Chapter 11 reads it as inside the ruling, because it does not loop and starts no hunt, and asks that it be listed as a change. | Not put to Tyler. PROVISIONAL |
+| 27 | CH11-3 | A rest plan's usual ending is a standing job with no count, in place of "wait in town". | The 2026-11-20 ruling that a rest plan ends in "wait in town" or "hunt again, once" and never loops | Chapter 11 reads it as inside the ruling, because it does not loop and starts no hunt, and asks that it be listed as a change. | The designer rules it (S-16 is withdrawn from the sitting) and lists it here for veto. PROVISIONAL |
 
 ### 5.4 Cuts
 
@@ -207,11 +209,13 @@ Kept hidden for later, and never on the cut list: Capture the flag (MM-46). The 
 
 | Item | What | Why it is held | What the book reads until he answers |
 |---|---|---|---|
-| GR-25 | Five built special rules that were never put to him: gentle first grounds, the boss blow cap, three training bases, the roll rule and the tier flag (GR-25) | The formula brief says a deliberate special rule needs his explicit approval. | The book is written with all five kept. |
-| 12-7-1 | Which four times the Level law: the four on Dangerous (1.266) or the four on Deadly (GR-6, GR-6a, GR-6b) | He ruled the table as the clock of a four on the hardest tier it holds, and at the sitting he ruled Deadly a tier you watch or gamble on. | Both clocks are shown in chapter 05. The ruled table stays the target. Source: docs/design/overhaul/12-balance-pass.md, section 7. |
-| 12-7-2 | Neither harder tier can hold his death count at every Level (CORE-1, GR-27) | He ruled 10 to 30 deaths in 1,000 hours on Dangerous and 50 to 100 on Deadly. The engine gives a cliff: all cells together read 4 and 41. | Both tiers at blows 2.5, PROVISIONAL. Source: docs/design/overhaul/12-balance-pass.md, section 7. |
-| 12-7-3 | The leave rule for an account's own four (GR-80) | His default is that the rest hunt on when one falls. Measured, the four died together in every sampled wipe. | The ruled default stands, with the measured finding beside it. Source: docs/design/overhaul/12-balance-pass.md, section 7. |
-| 12-7-4 | The paid edge is smaller in pace than the book told him, and it is a step (MM-26, MM-31) | He said yes on the page to 1.65 and about 1.22. Measured: 1.29 to 1.48 and about 1.06 to 1.08. Check G's last clause fails by design on a cliff. | His yes stands as written, with the measured readings beside it. Check G keeps its clause, marked. Source: docs/design/overhaul/12-balance-pass.md, section 7. |
+| S-15 | Five built special rules that were never put to him: gentle first grounds, the boss blow cap, three training bases, the roll rule and the tier flag (GR-25) | The formula brief says a deliberate special rule needs his explicit approval. | The book is written with all five kept. Answer now. Source: docs/design/overhaul/review/03-sitting-2.md. |
+| S-17 | Premium and test Crowns in the first playtest (MM-43, PREM-1, PREM-2) | Whether the first build carries them. A handful of accounts may not be able to answer the question test Crowns ask, and the amount granted is his to name. | Answer now. Source: docs/design/overhaul/review/03-sitting-2.md. |
+| S-18 | Who plays the first build () | The build plan lists nine things the playtest must measure and never says how many accounts play. COMPUTED from the plan's own tests: the Talents test alone asks for about 30 accounts. | New at the audit before wave 1. Answer now. Source: docs/design/overhaul/review/04-sitting-additions.json. |
+| S-11 | Which four is the Level table's clock: the four on Dangerous (1.263) or a four on Deadly that never dies (1.579), on run 44931089433 (GR-6, GR-6a, GR-6b) | He ruled the table as the clock of a four on the hardest tier it holds, and at the sitting he ruled Deadly a tier you watch or gamble on. The other four reaches Level 400 on about day 305 or day 477. | HELD until the replay on the fixed engine. The law is fitted at the ruled points, and chapter 05 shows both. It was item 12-7-1. |
+| S-12 | What the ruled death count means, when neither harder tier can hold it at every Level (CORE-1, GR-27) | He ruled 10 to 30 deaths in 1,000 hours on Dangerous and 50 to 100 on Deadly. The engine gives a cliff. | HELD until the replay on the fixed engine, because a stalled cell reads no death. It was item 12-7-2. |
+| S-14 | When one of an account's own four falls (GR-80) | His default is that the rest hunt on. The measured finding that the four died together was read on the path the engine fix changed. | HELD until the replay on the fixed engine. The ruled default stands. It was item 12-7-3. |
+| 12-7-4 | The paid edge is smaller in pace than the book told him, and it is a step (MM-26, MM-31) | He said yes on the page to 1.65 and about 1.22. Measured: 1.29 to 1.48 and about 1.06 to 1.08. Check G's last clause fails by design on a cliff. | His yes stands as written, with the measured readings beside it. It is not a question of the second sitting. Source: docs/design/overhaul/12-balance-pass.md section 7. |
 
 ### 5.6 The sitting
 
@@ -368,7 +372,10 @@ The order of the edge fixes, as study 48 gives it, is an input to the build plan
 
 ## 9. Then
 
-1. Fix the measuring tool first. Until then no tier, death, Blessing, buff or gold number is called decided.
-2. Play the first hour with four heroes.
-3. Build only the narrowed first build, plus level choices. Run the two cheap tests that size what waits.
-4. Then the build plan.
+1. Done: the measuring tool is fixed.
+2. Done: the first hour with four heroes was played.
+3. Done: the balance pass is in (docs/design/overhaul/12-balance-pass.md).
+4. Done: the build plan is written (docs/design/overhaul/13-build-plan.md).
+5. Done: the audit before wave 1 is in, with the verdict go with changes (docs/design/overhaul/review/04-pre-wave-audit.md).
+6. Next: the pre-wave fixes, and the replay of the matrix, the death sample and the lineup cells on the fixed engine.
+7. Next: Tyler answers S-15, S-17 and S-18. S-11, S-12 and S-14 follow the replay.

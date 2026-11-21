@@ -182,7 +182,12 @@
       "tyler": "He let the reversal stand on the page, in about a second. It changes the earlier ruling.",
       "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
       "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
-      "waitsOn": "the hall check at three Levels and one boss stood"
+      "waitsOn": "the hall check at three Levels and one boss stood",
+      "builtIn": {
+        "where": "waits",
+        "unplacedInThePlan": true,
+        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits on the hall check at three Levels and one boss stood. Nothing is cut."
+      }
     },
     {
       "id": "GR-29",
@@ -200,7 +205,12 @@
         "GR-73 (three Trophy rows on Hask, the Provost and Krell)"
       ],
       "area": "World",
-      "status": "DECIDED"
+      "status": "DECIDED",
+      "builtIn": {
+        "where": "waits",
+        "unplacedInThePlan": true,
+        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+      }
     },
     {
       "id": "GR-30",
@@ -222,7 +232,14 @@
       "hypothesis": "HYPOTHESIS until the hall grader plays it at Levels 25, 52 and 75.",
       "fixNote": "A hall lost one time in five or ten, with a death ending the hall at 6% of all Level XP, would have been the most expensive button in the game.",
       "status": "PROVISIONAL",
-      "waitsOn": "the hall check at three Levels and one boss stood"
+      "waitsOn": "the hall check at three Levels and one boss stood",
+      "builtIn": {
+        "where": "lane",
+        "lanes": [
+          "FB-3"
+        ],
+        "note": "In the first build. FB-3 lane/b-matrix-next (13-build-plan.md section 2.6)."
+      }
     },
     {
       "id": "GR-31",
@@ -241,7 +258,12 @@
       ],
       "area": "World",
       "status": "PROVISIONAL",
-      "waitsOn": "the playtest or measurement its own row names"
+      "waitsOn": "the playtest or measurement its own row names",
+      "builtIn": {
+        "where": "waits",
+        "unplacedInThePlan": true,
+        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits on the playtest or measurement its own row names. Nothing is cut."
+      }
     },
     {
       "id": "GR-32",
@@ -257,7 +279,12 @@
         "GR-71 (faction side per hero, social decider)"
       ],
       "area": "World",
-      "status": "DECIDED"
+      "status": "DECIDED",
+      "builtIn": {
+        "where": "waits",
+        "unplacedInThePlan": true,
+        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+      }
     },
     {
       "id": "GR-33",
@@ -277,7 +304,12 @@
       "fixedBy": "review-section-4-row-11",
       "fixNote": "The row quoted Krell on day 18 while GR-6b says day 31. The decision text is unchanged, so there is no was.",
       "status": "PROVISIONAL",
-      "waitsOn": "the kill reward and the tiers, because the seat's multiple is not one number until then"
+      "waitsOn": "the kill reward and the tiers, because the seat's multiple is not one number until then",
+      "builtIn": {
+        "where": "waits",
+        "unplacedInThePlan": true,
+        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits on the kill reward and the tiers, because the seat's multiple is not one number until then. Nothing is cut."
+      }
     },
     {
       "id": "GR-34",
@@ -297,7 +329,12 @@
       "status": "PROPOSAL",
       "statusBeforeReissue": "DECIDED",
       "proposal": "Made in the fold 2026-11-21, not yet seen by Tyler. He said keep on a cut list. How it stays is the integrator's proposal and nothing more.",
-      "madeInTheFold": "Rewritten in the fold 2026-11-21 after his picks. Not yet seen by Tyler."
+      "madeInTheFold": "Rewritten in the fold 2026-11-21 after his picks. Not yet seen by Tyler.",
+      "builtIn": {
+        "where": "waits",
+        "unplacedInThePlan": true,
+        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+      }
     },
     {
       "id": "GR-35",
@@ -313,7 +350,12 @@
         "GR-86"
       ],
       "area": "World",
-      "status": "DECIDED"
+      "status": "DECIDED",
+      "builtIn": {
+        "where": "waits",
+        "unplacedInThePlan": true,
+        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+      }
     },
     {
       "id": "GR-36",
@@ -332,7 +374,11 @@
       "area": "World",
       "status": "PROVISIONAL",
       "waitsOn": "Deadly sized, and the system built",
-      "firstBuild": "planned, waits until the first build is played"
+      "firstBuild": "planned, waits until the first build is played",
+      "builtIn": {
+        "where": "waits",
+        "note": "Not in the first build. It waits until: The first build is played (13-build-plan.md section 1.2)."
+      }
     },
     {
       "id": "GR-37",
@@ -348,7 +394,12 @@
       ],
       "area": "World",
       "status": "PROVISIONAL",
-      "waitsOn": "Deadly sized, and the system built"
+      "waitsOn": "Deadly sized, and the system built",
+      "builtIn": {
+        "where": "waits",
+        "unplacedInThePlan": true,
+        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits on deadly sized, and the system built. Nothing is cut."
+      }
     },
     {
       "id": "GR-38",
@@ -366,7 +417,12 @@
       ],
       "area": "Items and crafting",
       "status": "PROVISIONAL",
-      "waitsOn": "Deadly sized, and the system built"
+      "waitsOn": "Deadly sized, and the system built",
+      "builtIn": {
+        "where": "waits",
+        "unplacedInThePlan": true,
+        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits on deadly sized, and the system built. Nothing is cut."
+      }
     },
     {
       "id": "GR-39",
@@ -387,7 +443,12 @@
       "tyler": "He let the reversal stand on the page, in about a second. It changes the earlier ruling.",
       "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
       "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
-      "waitsOn": "Deadly sized, and the system built"
+      "waitsOn": "Deadly sized, and the system built",
+      "builtIn": {
+        "where": "waits",
+        "unplacedInThePlan": true,
+        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits on deadly sized, and the system built. Nothing is cut."
+      }
     },
     {
       "id": "GR-40",
@@ -404,7 +465,12 @@
       ],
       "area": "Items and crafting",
       "status": "PROVISIONAL",
-      "waitsOn": "the kill reward and the tiers, because the seat's multiple is not one number until then"
+      "waitsOn": "the kill reward and the tiers, because the seat's multiple is not one number until then",
+      "builtIn": {
+        "where": "waits",
+        "unplacedInThePlan": true,
+        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits on the kill reward and the tiers, because the seat's multiple is not one number until then. Nothing is cut."
+      }
     },
     {
       "id": "GR-41",
@@ -420,7 +486,12 @@
         "GR-4 (exchange rates)"
       ],
       "area": "Items and crafting",
-      "status": "DECIDED"
+      "status": "DECIDED",
+      "builtIn": {
+        "where": "waits",
+        "unplacedInThePlan": true,
+        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+      }
     },
     {
       "id": "GR-42",
@@ -437,7 +508,12 @@
         "GR-29"
       ],
       "area": "Items and crafting",
-      "status": "DECIDED"
+      "status": "DECIDED",
+      "builtIn": {
+        "where": "waits",
+        "unplacedInThePlan": true,
+        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+      }
     },
     {
       "id": "GR-43",
@@ -454,7 +530,12 @@
       ],
       "area": "Items and crafting",
       "cutApproved": "Cut list 10, Tyler said yes to the cut on the page 2026-11-21.",
-      "status": "DECIDED"
+      "status": "DECIDED",
+      "builtIn": {
+        "where": "waits",
+        "unplacedInThePlan": true,
+        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+      }
     },
     {
       "id": "GR-44",
@@ -471,7 +552,12 @@
         "GR-50"
       ],
       "area": "Items and crafting",
-      "status": "DECIDED"
+      "status": "DECIDED",
+      "builtIn": {
+        "where": "waits",
+        "unplacedInThePlan": true,
+        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+      }
     },
     {
       "id": "GR-45",
@@ -487,7 +573,12 @@
         "GR-8 (sink share, core decider)"
       ],
       "area": "Items and crafting",
-      "status": "DECIDED"
+      "status": "DECIDED",
+      "builtIn": {
+        "where": "waits",
+        "unplacedInThePlan": true,
+        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+      }
     },
     {
       "id": "GR-46",
@@ -504,7 +595,12 @@
         "GR-87"
       ],
       "area": "Items and crafting",
-      "status": "DECIDED"
+      "status": "DECIDED",
+      "builtIn": {
+        "where": "waits",
+        "unplacedInThePlan": true,
+        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+      }
     },
     {
       "id": "GR-47",
@@ -521,7 +617,12 @@
       ],
       "area": "Items and crafting",
       "cutApproved": "Cut list 11, Tyler said yes to the cut on the page 2026-11-21.",
-      "status": "DECIDED"
+      "status": "DECIDED",
+      "builtIn": {
+        "where": "waits",
+        "unplacedInThePlan": true,
+        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+      }
     },
     {
       "id": "GR-48",
@@ -541,7 +642,14 @@
       "was": "Luck keeps two feeds and one budget. Each ground has a find list on the Honors page that ticks with no press and pays no Luck. A hero's worn set, linings and unique can be saved against a ground and starting a hunt there wears it. The saved kit is built before case perks, linings or signatures.",
       "fixedBy": "review-28",
       "fixNote": "This row saved the worn set and GR-84 saved the bar. Two saved things for one decision makes the weak-side weapon a chore.",
-      "status": "DECIDED"
+      "status": "DECIDED",
+      "builtIn": {
+        "where": "lane",
+        "lanes": [
+          "FB-6"
+        ],
+        "note": "In the first build. FB-6 lane/c-company (13-build-plan.md section 2.6)."
+      }
     },
     {
       "id": "GR-49",
@@ -557,7 +665,12 @@
         "GR-37"
       ],
       "area": "Items and crafting",
-      "status": "DECIDED"
+      "status": "DECIDED",
+      "builtIn": {
+        "where": "waits",
+        "unplacedInThePlan": true,
+        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+      }
     },
     {
       "id": "GR-50",
@@ -578,7 +691,11 @@
       ],
       "area": "Economy",
       "status": "PROVISIONAL",
-      "waitsOn": "the store-bill fault fixed and a wage formula that exists"
+      "waitsOn": "the store-bill fault fixed and a wage formula that exists",
+      "builtIn": {
+        "where": "waits",
+        "note": "Not in the first build. It waits until: Listings are used in the playtest. JUDGMENT (13-build-plan.md section 1.2)."
+      }
     },
     {
       "id": "GR-51",
@@ -598,7 +715,14 @@
       ],
       "area": "Economy",
       "status": "PROVISIONAL",
-      "waitsOn": "the store-bill fault fixed and a wage formula that exists"
+      "waitsOn": "the store-bill fault fixed and a wage formula that exists",
+      "builtIn": {
+        "where": "lane",
+        "lanes": [
+          "FB-9"
+        ],
+        "note": "In the first build. FB-9 lane/c-economy (13-build-plan.md section 2.6)."
+      }
     },
     {
       "id": "GR-52",
@@ -617,7 +741,12 @@
       "area": "Economy",
       "was": "Store healing is priced on one gold-a-hit-point line with its top near 0.60, and a heal's size is a share of reference health. It lands after the store-bill fault in the simulator closes. Store runes and ammunition get the same treatment in the same step: one price line each, read on the wage curve.",
       "fixedBy": "review-29",
-      "status": "DECIDED"
+      "status": "DECIDED",
+      "builtIn": {
+        "where": "waits",
+        "unplacedInThePlan": true,
+        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+      }
     },
     {
       "id": "GR-53",
@@ -633,7 +762,12 @@
         "GR-51"
       ],
       "area": "Economy",
-      "status": "DECIDED"
+      "status": "DECIDED",
+      "builtIn": {
+        "where": "waits",
+        "unplacedInThePlan": true,
+        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+      }
     },
     {
       "id": "GR-54",
@@ -656,7 +790,14 @@
       "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
       "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
       "waitsOn": "the store-bill fault fixed and a wage formula that exists",
-      "firstBuild": "planned, waits until the wage can be measured. Until then the typed prices stand"
+      "firstBuild": "planned, waits until the wage can be measured. Until then the typed prices stand",
+      "builtIn": {
+        "where": "lane",
+        "lanes": [
+          "FB-10"
+        ],
+        "note": "In the first build. FB-10 lane/c-town-closed (13-build-plan.md section 2.6). Part of it waits: The wage is measured against played gold."
+      }
     },
     {
       "id": "GR-55",
@@ -678,7 +819,14 @@
       "tyler": "He let the reversal stand on the page, in about a second. It changes the earlier ruling.",
       "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
       "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
-      "waitsOn": "the store-bill fault fixed and a wage formula that exists"
+      "waitsOn": "the store-bill fault fixed and a wage formula that exists",
+      "builtIn": {
+        "where": "lane",
+        "lanes": [
+          "FB-9"
+        ],
+        "note": "In the first build. FB-9 lane/c-economy (13-build-plan.md section 2.6)."
+      }
     },
     {
       "id": "GR-56a",
@@ -702,7 +850,14 @@
       "tyler": "Held. Cut 14 was not approved, and reversal 13 (GR-56a, setup slots are free) asks for the same removal. Not decided. The decision text is what the book reads until he answers.",
       "statusBeforeReissue": "OPEN (waiting on Tyler, T-fix-3)",
       "wasBeforeSitting": "Setup slots are free. A saved setup is a remembered decision and is never sold, for gold or for Crowns.",
-      "sitting": "S-3, option A. Priced. The free-slots reversal is refused."
+      "sitting": "S-3, option A. Priced. The free-slots reversal is refused.",
+      "builtIn": {
+        "where": "lane",
+        "lanes": [
+          "FB-6"
+        ],
+        "note": "In the first build. FB-6 lane/c-company (13-build-plan.md section 2.6)."
+      }
     },
     {
       "id": "GR-56b",
@@ -718,7 +873,12 @@
         "GR-87 (core decider)"
       ],
       "area": "Economy",
-      "status": "DECIDED"
+      "status": "DECIDED",
+      "builtIn": {
+        "where": "waits",
+        "unplacedInThePlan": true,
+        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+      }
     },
     {
       "id": "GR-57",
@@ -735,7 +895,12 @@
         "Systems engineer (both-paths tests, viewed and browser closed)"
       ],
       "area": "Economy",
-      "status": "DECIDED"
+      "status": "DECIDED",
+      "builtIn": {
+        "where": "waits",
+        "unplacedInThePlan": true,
+        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+      }
     },
     {
       "id": "GR-58",
@@ -752,7 +917,14 @@
       ],
       "area": "Economy",
       "status": "PROVISIONAL",
-      "waitsOn": "the store-bill fault fixed and a wage formula that exists"
+      "waitsOn": "the store-bill fault fixed and a wage formula that exists",
+      "builtIn": {
+        "where": "lane",
+        "lanes": [
+          "FB-9"
+        ],
+        "note": "In the first build. FB-9 lane/c-economy (13-build-plan.md section 2.6)."
+      }
     },
     {
       "id": "GR-59a",
@@ -768,7 +940,12 @@
         "CE-2 (the material buff gets its own source line)"
       ],
       "area": "Economy",
-      "status": "DECIDED"
+      "status": "DECIDED",
+      "builtIn": {
+        "where": "waits",
+        "unplacedInThePlan": true,
+        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+      }
     },
     {
       "id": "GR-59b",
@@ -784,7 +961,14 @@
         "MM-36"
       ],
       "area": "Economy",
-      "status": "DECIDED"
+      "status": "DECIDED",
+      "builtIn": {
+        "where": "lane",
+        "lanes": [
+          "FB-9"
+        ],
+        "note": "In the first build. FB-9 lane/c-economy (13-build-plan.md section 2.6)."
+      }
     },
     {
       "id": "GR-60",
@@ -799,7 +983,12 @@
         "MM-28 to MM-37"
       ],
       "area": "Economy",
-      "status": "DECIDED"
+      "status": "DECIDED",
+      "builtIn": {
+        "where": "waits",
+        "unplacedInThePlan": true,
+        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+      }
     },
     {
       "id": "GR-73",
@@ -823,7 +1012,12 @@
       "fixNote": "It was listed as a reversal and is not one.",
       "cutApproved": "Cut list 12, Tyler said yes to the cut on the page 2026-11-21.",
       "status": "DECIDED",
-      "firstBuild": "planned, waits until the first build is played"
+      "firstBuild": "planned, waits until the first build is played",
+      "builtIn": {
+        "where": "waits",
+        "unplacedInThePlan": true,
+        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+      }
     },
     {
       "id": "GR-74",
@@ -843,7 +1037,12 @@
       "status": "PROPOSAL",
       "statusBeforeReissue": "DECIDED",
       "proposal": "Made in the fold 2026-11-21, not yet seen by Tyler. He said keep on a cut list. How it stays is the integrator's proposal and nothing more.",
-      "madeInTheFold": "Rewritten in the fold 2026-11-21 after his picks. Not yet seen by Tyler."
+      "madeInTheFold": "Rewritten in the fold 2026-11-21 after his picks. Not yet seen by Tyler.",
+      "builtIn": {
+        "where": "waits",
+        "unplacedInThePlan": true,
+        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+      }
     },
     {
       "id": "GR-75",
@@ -863,7 +1062,12 @@
       "status": "DECIDED",
       "tyler": "He let the reversal stand on the page, in about a second. It changes the earlier ruling.",
       "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
-      "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling."
+      "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
+      "builtIn": {
+        "where": "waits",
+        "unplacedInThePlan": true,
+        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+      }
     },
     {
       "id": "GR-76",
@@ -882,7 +1086,12 @@
       "area": "Home",
       "cutApproved": "Cut list 13, Tyler said yes to the cut on the page 2026-11-21.",
       "status": "PROVISIONAL",
-      "waitsOn": "the store-bill fault fixed and a wage formula that exists"
+      "waitsOn": "the store-bill fault fixed and a wage formula that exists",
+      "builtIn": {
+        "where": "waits",
+        "unplacedInThePlan": true,
+        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits on the store-bill fault fixed and a wage formula that exists. Nothing is cut."
+      }
     },
     {
       "id": "GR-77",
@@ -901,7 +1110,12 @@
       "area": "Home",
       "cutApproved": "Cut list 16, Tyler said yes to the cut on the page 2026-11-21.",
       "status": "PROVISIONAL",
-      "waitsOn": "the store-bill fault fixed and a wage formula that exists"
+      "waitsOn": "the store-bill fault fixed and a wage formula that exists",
+      "builtIn": {
+        "where": "waits",
+        "unplacedInThePlan": true,
+        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits on the store-bill fault fixed and a wage formula that exists. Nothing is cut."
+      }
     },
     {
       "id": "CE-1",
@@ -923,7 +1137,11 @@
       "area": "Collisions",
       "status": "PROVISIONAL",
       "waitsOn": "the hall check at three Levels and one boss stood",
-      "firstBuild": "planned, waits until the first boss has stood twice. The first boss keeps its chest"
+      "firstBuild": "planned, waits until the first boss has stood twice. The first boss keeps its chest",
+      "builtIn": {
+        "where": "waits",
+        "note": "Not in the first build. It waits until: The first boss has stood twice (13-build-plan.md section 1.2)."
+      }
     },
     {
       "id": "CE-2",
@@ -943,7 +1161,12 @@
       "was": "The timed drop row is a material buff. It adds 10% to rows tagged as materials: monster parts, lining parts, hides, ore, gem chips and gems below Rare. It never touches a Rare, Very Rare or Trophy row, never a gear row of any rarity, never a key and never a seed. The rivet allowance is computed with no buff. The gauge prints its gold as its own source line.",
       "fixedBy": "review-3",
       "status": "PROVISIONAL",
-      "waitsOn": "one buff played in a cell"
+      "waitsOn": "one buff played in a cell",
+      "builtIn": {
+        "where": "waits",
+        "unplacedInThePlan": true,
+        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits on one buff played in a cell. Nothing is cut."
+      }
     },
     {
       "id": "CE-3",
@@ -959,7 +1182,12 @@
         "CE-2"
       ],
       "area": "Collisions",
-      "status": "DECIDED"
+      "status": "DECIDED",
+      "builtIn": {
+        "where": "waits",
+        "unplacedInThePlan": true,
+        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+      }
     },
     {
       "id": "CE-4",
@@ -980,7 +1208,14 @@
       ],
       "area": "Collisions",
       "status": "PROVISIONAL",
-      "waitsOn": "the store-bill fault fixed and a wage formula that exists"
+      "waitsOn": "the store-bill fault fixed and a wage formula that exists",
+      "builtIn": {
+        "where": "lane",
+        "lanes": [
+          "FB-9"
+        ],
+        "note": "In the first build. FB-9 lane/c-economy (13-build-plan.md section 2.6)."
+      }
     },
     {
       "id": "CE-5",
@@ -1014,6 +1249,13 @@
         "runs": "R0",
         "source": "docs/design/overhaul/12-balance-pass.md",
         "runIds": "R0 is GitHub run 44920906999 (the full matrix, 4,503 cells, 2 seeds of 2 hours). R1 is run 44924971088 (670 cells with five buff rows). R2 is run 44925664434 (the death sample, 4 seeds of 8 hours). R4 is run 44928035806 (the death sample with both tiers at 2.5, and the full matrix with the three picks in). L is local probes of 2 seeds of 1 hour."
+      },
+      "builtIn": {
+        "where": "lane",
+        "lanes": [
+          "FB-9"
+        ],
+        "note": "In the first build. FB-9 lane/c-economy (13-build-plan.md section 2.6)."
       }
     },
     {
@@ -1032,7 +1274,12 @@
         "The integrator (chapter 02 and chapter 03 both say \"as Rares\" and should be corrected)"
       ],
       "area": "Collisions",
-      "status": "DECIDED"
+      "status": "DECIDED",
+      "builtIn": {
+        "where": "waits",
+        "unplacedInThePlan": true,
+        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+      }
     },
     {
       "id": "CE-7",
@@ -1056,7 +1303,14 @@
       "tyler": "He let the reversal stand on the page, in about a second. It changes the earlier ruling.",
       "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
       "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
-      "waitsOn": "a town-hour fixture and a load test"
+      "waitsOn": "a town-hour fixture and a load test",
+      "builtIn": {
+        "where": "lane",
+        "lanes": [
+          "FB-10"
+        ],
+        "note": "In the first build. FB-10 lane/c-town-closed (13-build-plan.md section 2.6)."
+      }
     },
     {
       "id": "CE-8",
@@ -1079,7 +1333,14 @@
       "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
       "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
       "waitsOn": "the playtest or measurement its own row names",
-      "firstBuild": "in the first build: the Hearthrise weekend"
+      "firstBuild": "in the first build: the Hearthrise weekend",
+      "builtIn": {
+        "where": "lane",
+        "lanes": [
+          "FB-12"
+        ],
+        "note": "In the first build. FB-12 lane/c-social (13-build-plan.md section 2.6)."
+      }
     },
     {
       "id": "CE-9",
@@ -1095,7 +1356,12 @@
         "GR-85 (burn chance as a data row, core decider)"
       ],
       "area": "Collisions",
-      "status": "DECIDED"
+      "status": "DECIDED",
+      "builtIn": {
+        "where": "waits",
+        "unplacedInThePlan": true,
+        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+      }
     },
     {
       "id": "CE-10",
@@ -1117,7 +1383,14 @@
       "hypothesis": "HYPOTHESIS. This is the review's own design and nobody has played it.",
       "fixNote": "The hero kit was granted again each time a hero was deleted and remade, and the kit's food sells. That minted gold.",
       "status": "PROVISIONAL",
-      "waitsOn": "being built and played past minute 17 by real new players"
+      "waitsOn": "being built and played past minute 17 by real new players",
+      "builtIn": {
+        "where": "lane",
+        "lanes": [
+          "FB-5"
+        ],
+        "note": "In the first build. FB-5 lane/c-first-hour (13-build-plan.md section 2.6)."
+      }
     },
     {
       "id": "MM-28",
@@ -1139,7 +1412,12 @@
       "firstBuild": "planned, waits until test Crowns have run in the playtest",
       "wasBeforeReissue": "Paying gives a real edge under a ceiling written in numbers. A payer reaches the ceiling sooner and stays there. A player who does not pay reaches the same ceiling with gold. Nobody passes it.",
       "wasBeforeSitting": "Paying gives a real edge. In Tyler's words on MM-32: \"paying can put a hero way ahead, it depends on what is on the player market\". There is no ceiling that nobody passes. A player who does not pay can reach the same things with gold, as far as the market holds them.",
-      "sitting": "S-8, option A. No ceiling. Only structural limits remain."
+      "sitting": "S-8, option A. No ceiling. Only structural limits remain.",
+      "builtIn": {
+        "where": "waits",
+        "unplacedInThePlan": true,
+        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+      }
     },
     {
       "id": "MM-29",
@@ -1167,7 +1445,11 @@
       "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
       "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
       "waitsOn": "one buff played in a cell",
-      "firstBuild": "planned, waits until Deadly is sized and one buff has been played in a cell"
+      "firstBuild": "planned, waits until Deadly is sized and one buff has been played in a cell",
+      "builtIn": {
+        "where": "waits",
+        "note": "Not in the first build. It waits until: Deadly is sized and one buff is played in a cell (13-build-plan.md section 1.2)."
+      }
     },
     {
       "id": "MM-30",
@@ -1189,7 +1471,11 @@
       "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
       "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
       "waitsOn": "one buff played in a cell",
-      "firstBuild": "planned, waits until Deadly is sized and one buff has been played in a cell"
+      "firstBuild": "planned, waits until Deadly is sized and one buff has been played in a cell",
+      "builtIn": {
+        "where": "waits",
+        "note": "Not in the first build. It waits until: Deadly is sized and one buff is played in a cell (13-build-plan.md section 1.2)."
+      }
     },
     {
       "id": "MM-31",
@@ -1223,6 +1509,10 @@
         "runs": "R1 and R2",
         "source": "docs/design/overhaul/12-balance-pass.md",
         "runIds": "R0 is GitHub run 44920906999 (the full matrix, 4,503 cells, 2 seeds of 2 hours). R1 is run 44924971088 (670 cells with five buff rows). R2 is run 44925664434 (the death sample, 4 seeds of 8 hours). R4 is run 44928035806 (the death sample with both tiers at 2.5, and the full matrix with the three picks in). L is local probes of 2 seeds of 1 hour."
+      },
+      "builtIn": {
+        "where": "waits",
+        "note": "Not in the first build. It waits until: Deadly is sized and one buff is played in a cell (13-build-plan.md section 1.2)."
       }
     },
     {
@@ -1243,7 +1533,12 @@
       "status": "RULED (Tyler, 2026-11-21, the sitting)",
       "tyler": "The recommendation was 0 bands ahead and at most best gear over mid gear. Tyler did not take it.",
       "statusBeforeReissue": "RULED (Tyler, 2026-11-21), not the recommendation",
-      "sitting": "S-8, option A. No ceiling on gear or gold bought through other players. His note of the same day stands."
+      "sitting": "S-8, option A. No ceiling on gear or gold bought through other players. His note of the same day stands.",
+      "builtIn": {
+        "where": "waits",
+        "unplacedInThePlan": true,
+        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+      }
     },
     {
       "id": "MM-33",
@@ -1268,7 +1563,11 @@
       "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
       "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
       "waitsOn": "test Crowns run in a playtest, and the Security review. Money stays Tyler's. The clause re-derived after his two \"no\" answers was never put to him.",
-      "firstBuild": "planned, waits until test Crowns have run in the playtest"
+      "firstBuild": "planned, waits until test Crowns have run in the playtest",
+      "builtIn": {
+        "where": "waits",
+        "note": "Not in the first build. It waits until: Test Crowns have run in a playtest (13-build-plan.md section 1.2)."
+      }
     },
     {
       "id": "MM-34",
@@ -1288,7 +1587,11 @@
       "status": "RULED (Tyler, 2026-11-21, his own note)",
       "tyler": "The recommendation set targets at a reference price (Premium at about 3 account-days of gold). Tyler did not take it.",
       "statusBeforeReissue": "RULED (Tyler, 2026-11-21), not the recommendation",
-      "firstBuild": "planned, waits until test Crowns have run in the playtest"
+      "firstBuild": "planned, waits until test Crowns have run in the playtest",
+      "builtIn": {
+        "where": "waits",
+        "note": "Not in the first build. It waits until: Test Crowns have run in a playtest (13-build-plan.md section 1.2)."
+      }
     },
     {
       "id": "MM-35",
@@ -1310,7 +1613,14 @@
       "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
       "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
       "waitsOn": "test Crowns run in a playtest, and the Security review. Money stays Tyler's",
-      "firstBuild": "planned, waits until test Crowns have run in the playtest"
+      "firstBuild": "planned, waits until test Crowns have run in the playtest",
+      "builtIn": {
+        "where": "lane",
+        "lanes": [
+          "FB-15"
+        ],
+        "note": "In the first build. FB-15 lane/c-test-crowns (13-build-plan.md section 2.6). Part of it waits: Test Crowns have run in a playtest."
+      }
     },
     {
       "id": "MM-36",
@@ -1333,7 +1643,14 @@
       "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
       "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
       "waitsOn": "test Crowns run in a playtest, and the Security review. Money stays Tyler's. The clause re-derived after his two \"no\" answers was never put to him.",
-      "firstBuild": "planned, waits until test Crowns have run in the playtest"
+      "firstBuild": "planned, waits until test Crowns have run in the playtest",
+      "builtIn": {
+        "where": "lane",
+        "lanes": [
+          "FB-15"
+        ],
+        "note": "In the first build. FB-15 lane/c-test-crowns (13-build-plan.md section 2.6). Part of it waits: Test Crowns have run in a playtest."
+      }
     },
     {
       "id": "MM-37",
@@ -1355,7 +1672,11 @@
       "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
       "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
       "waitsOn": "test Crowns run in a playtest, and the Security review. Money stays Tyler's",
-      "firstBuild": "planned, waits until test Crowns have run in the playtest"
+      "firstBuild": "planned, waits until test Crowns have run in the playtest",
+      "builtIn": {
+        "where": "waits",
+        "note": "Not in the first build. It waits until: Test Crowns have run in a playtest (13-build-plan.md section 1.2)."
+      }
     },
     {
       "id": "PREM-1",
@@ -1376,7 +1697,14 @@
       "tyler": "He said yes on the page.",
       "wasBeforeTyler": "TYLER CONFIRMS. Recommended contents: the ruled list (12 hour stamina bar on every hero, the full hunt analyzer, Premium looks and one free color change a day, 100 market listings for 14 days), plus one daily 1 hour training item for each hero with the skill pick remembered, the daily claim with no press, and arena tickets banking to 30. Not recommended: \"timed buffs last a quarter longer\" (MM-21). The risk reading stays free for everyone.",
       "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
-      "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling."
+      "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
+      "builtIn": {
+        "where": "lane",
+        "lanes": [
+          "FB-15"
+        ],
+        "note": "In the first build. FB-15 lane/c-test-crowns (13-build-plan.md section 2.6)."
+      }
     },
     {
       "id": "PREM-2",
@@ -1399,7 +1727,14 @@
       "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
       "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
       "waitsOn": "test Crowns run in a playtest, and the Security review. Money stays Tyler's. The clause re-derived after his two \"no\" answers was never put to him.",
-      "firstBuild": "planned, waits until test Crowns have run in the playtest"
+      "firstBuild": "planned, waits until test Crowns have run in the playtest",
+      "builtIn": {
+        "where": "lane",
+        "lanes": [
+          "FB-15"
+        ],
+        "note": "In the first build. FB-15 lane/c-test-crowns (13-build-plan.md section 2.6). Part of it waits: Test Crowns have run in a playtest."
+      }
     }
   ],
   "tylerAnswers": "Tyler answered his lists on 2026-11-21. Each row he touched carries a tyler field. The full record is in all.json.",

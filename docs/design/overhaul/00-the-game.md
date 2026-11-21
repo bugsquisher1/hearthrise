@@ -23,6 +23,8 @@ Tyler adopted the critical review on 2026-11-21 (`review/00-critical-review.md`)
 
 **Plus Talents.** On 2026-11-21 Tyler lifted his 11-05 hold. A build choice every five Levels is designed now and built with the first build. It supersedes GR-61, which kept Kindlings on paper. The design is chapter 10, `10-level-choices.md`, and its decision row is TAL-1, PROVISIONAL. The first build holds five tracks and the rank 3 unlocks.
 
+**Plus on-call heroes.** Ruled at the sitting (S-1), with a hire stamina pool of their own. They are lane FB-14 of the build plan and the first lane to ship dark if the date slips. The design is chapter 11, PROVISIONAL.
+
 **What waits, and until when.**
 
 | Waits | Until |
@@ -32,12 +34,14 @@ Tyler adopted the critical review on 2026-11-21 (`review/00-critical-review.md`)
 | Boss gear lines past the first, boss materials, the fall bonus | The first boss has stood twice |
 | Bought boosts and the buff caps as final numbers | Deadly is sized, and one buff has been played in a cell |
 | The Crowns book as a priced design | Test Crowns have run in the playtest |
-| The Blessing ladder's five hours, as a final number | A real death rate exists |
+| The Blessing ladder's threshold as a final number: 2 hours, sized in chapter 12, PROVISIONAL | A real death rate exists. The ladder itself is in the first build |
 | The sixteen Necrotic and Storm spells, fists, status pairs | The eight weapon ways are distinct and Deadly is sized |
 | The Catacombs mode beyond one wing, the Hall of Firsts, the Honors catalogue | The first build is played |
 | Sinks as a share of band gold, and the yard rate change | The wage can be measured. Until then the typed prices are no worse |
 | Talent unlock ranks 8 and up, tracks six to eight, and the arena build | The sample of five tracks is played |
-| On-call heroes, the Library and the town day rule | What section 8 of chapter 11 names for each. All three are designed there and all three are PROVISIONAL |
+| The Library and the week's castle labor (chapter 11) | Clans exist and people are in them. Both are designed and PROVISIONAL |
+| Luck: the bar, the rivets and the Lucky ring (numbers ruled 2026-11-20) | The plan owner gives it a lane. Its lane is parked and the build plan does not name it (audit A-8) |
+| The unbuilt phases of the itemization plan, which is a source of record (ruled 2026-11-21) | The plan owner gives each phase a lane. The build plan does not name them (audit A-8) |
 
 Every row of the MMO layer outside the first build is marked "planned, waits" with what it waits on, in `06-mmo-layer.md` section 2.11 and in the `firstBuild` field of `decisions/all.json`.
 
@@ -379,6 +383,8 @@ One line each, newest first inside each group. A line is a ruling of Tyler's unl
 | `10-level-choices.md` | Talents: a build choice every five Levels. The rule, a sample of five tracks, the power budget, what the matrix needs, the server shape and the new-player path. All PROVISIONAL |
 | `11-on-call-and-clan-xp.md` | On-call heroes as a guest seat, the Library as the clan XP room, the town day rule for a resting hero, and how a ground remembers a Setup. All PROVISIONAL, on rulings of the sitting |
 | `12-balance-pass.md` | The balance pass on the fixed simulator: what the full matrix and the death samples say about the first build's numbers, what moved, and four items for Tyler. Numbers that moved stay PROVISIONAL with MEASURED evidence |
+| `13-build-plan.md` | The build plan for the first build: scope, fifteen lanes in five waves, gates, the release and what the playtest must measure |
+| `review/` | The critical review, the framework audit, the two sittings, the four-hero hour and the audit before wave 1 |
 | `decisions/all.json` | Every call, one row each, with its status, its reason and its evidence. `decisions/all.md` is its mirror and `decisions/review.md` is the adversarial check |
 
 ## 5. Tyler's rulings at the sitting, his picks on the page, and what still needs him
@@ -392,7 +398,7 @@ On 2026-11-21, between 15:59 and 16:03 UTC, Tyler answered the ten questions of 
 | S-1 | His own words | On-call heroes are kept. "on call is fine but should be full stamina, the on call hero trades their crafting/training time for a small cut of exp, no loss on death. HOWEVER they can only go on call once every 24 hours and it will only last for 12 hours. Then back to a chosen activity". It reverses MM-18. A hero from another account can join a party again. The design is chapter 11, `11-on-call-and-clan-xp.md`, and it is PROVISIONAL. On "full stamina" he then said: "I just mean the person hiring them can see how much stamina the hired hand has and the person hiring can use all of it, hired stamina and regular stamina should be two different sets of stamina I think". So an on-call hero has a hire stamina pool separate from its own, the hirer sees it and may spend all of it, and hunting on call never spends the hero's own stamina. RULED |
 | S-2 | B | No Local chat tab and no live party finder. Global, Clan, Party and whispers stay. Criers speak in Global and in town (GR-69) |
 | S-3 | A | Setup slots stay priced as ruled on 2026-11-05: three free, then 15,000 and 40,000 gold (GR-56a) |
-| S-4 | A | A clan room pays a standing Level XP bonus. It reverses 25-2. Its size is PROVISIONAL in chapter 11: the Library, +0.5% a level and +5% at level ten. With it full the pace reads about 1.74 on a Hearthrise weekend and about 1.44 held all the time, and the next region must be open by about day 50. The Level table stays the clock of the plain four, which is now also the four in no clan |
+| S-4 | A | A clan room pays a standing Level XP bonus. It reverses 25-2. Its size is PROVISIONAL in chapter 11: the Library, +0.5% a level and +5% at level ten. Computed there, with it full the pace reads about 1.74 on a Hearthrise weekend and about 1.44 held all the time, and the next region must be open by about day 50. MEASURED since in chapter 12: for a four, every cap full reads 1.29 to 1.48. The Level table stays the clock of the plain four, which is now also the four in no clan |
 | S-5 | B | The Blessing ladder (GR-7). The five hours stays PROVISIONAL until a real death rate exists |
 | S-6 | A | Deadly is a tier you watch or gamble on, and idle players mostly use Dangerous. The lost hunting time is accepted: 18 to 31% on the 8 hour bar and 25 to 42% on the 12 hour bar, before the 6%. MEASURED since in `12-balance-pass.md`: 16 to 34% of an 8 hour bar. "Deadly is the best way to level only for a four that is watched" is true only with the Blessing ladder at 2 hours, which is PROVISIONAL |
 | S-7 | B | The full castle is the direction: five buildings of ten levels, labor, upkeep, votes, a treasury, about a year (MM-9). Its sizes stay PROVISIONAL |
@@ -471,7 +477,7 @@ The 23 listed reversals were let stand on the page in 25 seconds. The sitting th
 | 24 | GR-3 | Party XP is paid by size alone for the first build. The classes rule may come back as one row of the table after Deadly is sized and played. | The 2026-10-31 rule that party XP is better only with different classes | Size alone needs no telling, and the look later keeps the door open. | RULED at the sitting (S-10 c) |
 | 25 | MM-9 | The full castle: five buildings of ten levels, labor, upkeep, votes, a treasury, about a year. | His two picks of 2026-11-21 against each other, and 25-4 | A long shared goal and a larger gold sink. | RULED as the direction at the sitting (S-7 b). Sizes stay PROVISIONAL |
 | 26 | MM-25 | A clan room pays a standing Level XP bonus. | 25-2 of 2026-11-20: clans give no Level XP | He kept the library, and at the sitting he chose the option that pays Level XP. | RULED at the sitting (S-4 a). The size is PROVISIONAL: +5% at Library level ten, in chapter 11 |
-| 27 | CH11-3 | A rest plan's usual ending is a standing job with no count, in place of "wait in town". | The 2026-11-20 ruling that a rest plan ends in "wait in town" or "hunt again, once" and never loops | Chapter 11 reads it as inside the ruling, because it does not loop and starts no hunt, and asks that it be listed as a change. | Not put to Tyler. PROVISIONAL |
+| 27 | CH11-3 | A rest plan's usual ending is a standing job with no count, in place of "wait in town". | The 2026-11-20 ruling that a rest plan ends in "wait in town" or "hunt again, once" and never loops | Chapter 11 reads it as inside the ruling, because it does not loop and starts no hunt, and asks that it be listed as a change. | The designer rules it (S-16 is withdrawn from the sitting) and lists it here for veto. PROVISIONAL |
 
 Not on this list. GR-65 was withdrawn, because the ruling of 2026-10-25 keeps the Inner Flame loss. GR-73 builds ruling 26-6 and reverses nothing. GR-61 is superseded by Tyler's ruling on level choices.
 
@@ -500,17 +506,26 @@ Not on this list. GR-65 was withdrawn, because the ruling of 2026-10-25 keeps th
 
 Kept hidden for later, and never on the cut list: Capture the flag (MM-46). The clan's shared hunt (MM-48). The status pairs of GR-20 (paper only). Kindlings (GR-61, paper only). The other 36 Catacombs pieces (GR-36). The second dropped seed (GR-77). Bulk commissions (GR-44). Side against side (GR-71).
 
-### 5.5 Still open for Tyler: five items
+### 5.5 Still open for Tyler
 
-GR-25, and four items from the balance pass (`12-balance-pass.md` section 7). Each of the four bends or leans on something he ruled. He has not answered them, and the book writes none of them as decided.
+The second sitting is `review/03-sitting-2.md`, with S-18 added by the audit before wave 1 (`review/04-pre-wave-audit.md`).
+
+- **To answer now: S-15, S-17 and S-18.**
+- **Held until the replay: S-11, S-12 and S-14.** The first lane of the build fixed two engine stalls at 02364f03a. The balance pass measured on the engine that had them, so these three wait until the matrix, the death sample and the lineup cells are played again on the fixed engine.
+- **Not his: S-13 and S-16.** Party-wide damage as part of a tier, and a standing job at the end of a rest plan, are design calls. The designer rules both and reports them. S-16 is listed as reversal row 27 for his veto.
+- The paid edge (the last row below) is not a question of the sitting. His yes on the page stands, with the measured readings beside it.
+
+The book writes none of these as decided.
 
 | Item | What | Why it is held | What the book reads until he answers |
 |---|---|---|---|
-| GR-25 | Five built special rules that were never put to him: gentle first grounds, the boss blow cap, three training bases, the roll rule and the tier flag (GR-25) | The formula brief says a deliberate special rule needs his explicit approval. | The book is written with all five kept. |
-| 12-7-1 | Which four times the Level law: the four on Dangerous (1.266) or the four on Deadly (GR-6, GR-6a, GR-6b) | He ruled the table as the clock of a four on the hardest tier it holds, and at the sitting he ruled Deadly a tier you watch or gamble on. | Both clocks are shown in chapter 05. The ruled table stays the target. Source: docs/design/overhaul/12-balance-pass.md, section 7. |
-| 12-7-2 | Neither harder tier can hold his death count at every Level (CORE-1, GR-27) | He ruled 10 to 30 deaths in 1,000 hours on Dangerous and 50 to 100 on Deadly. The engine gives a cliff: all cells together read 4 and 41. | Both tiers at blows 2.5, PROVISIONAL. Source: docs/design/overhaul/12-balance-pass.md, section 7. |
-| 12-7-3 | The leave rule for an account's own four (GR-80) | His default is that the rest hunt on when one falls. Measured, the four died together in every sampled wipe. | The ruled default stands, with the measured finding beside it. Source: docs/design/overhaul/12-balance-pass.md, section 7. |
-| 12-7-4 | The paid edge is smaller in pace than the book told him, and it is a step (MM-26, MM-31) | He said yes on the page to 1.65 and about 1.22. Measured: 1.29 to 1.48 and about 1.06 to 1.08. Check G's last clause fails by design on a cliff. | His yes stands as written, with the measured readings beside it. Check G keeps its clause, marked. Source: docs/design/overhaul/12-balance-pass.md, section 7. |
+| S-15 | Five built special rules that were never put to him: gentle first grounds, the boss blow cap, three training bases, the roll rule and the tier flag (GR-25) | The formula brief says a deliberate special rule needs his explicit approval. | The book is written with all five kept. Answer now. Source: docs/design/overhaul/review/03-sitting-2.md. |
+| S-17 | Premium and test Crowns in the first playtest (MM-43, PREM-1, PREM-2) | Whether the first build carries them. A handful of accounts may not be able to answer the question test Crowns ask, and the amount granted is his to name. | Answer now. Source: docs/design/overhaul/review/03-sitting-2.md. |
+| S-18 | Who plays the first build () | The build plan lists nine things the playtest must measure and never says how many accounts play. COMPUTED from the plan's own tests: the Talents test alone asks for about 30 accounts. | New at the audit before wave 1. Answer now. Source: docs/design/overhaul/review/04-sitting-additions.json. |
+| S-11 | Which four is the Level table's clock: the four on Dangerous (1.263) or a four on Deadly that never dies (1.579), on run 44931089433 (GR-6, GR-6a, GR-6b) | He ruled the table as the clock of a four on the hardest tier it holds, and at the sitting he ruled Deadly a tier you watch or gamble on. The other four reaches Level 400 on about day 305 or day 477. | HELD until the replay on the fixed engine. The law is fitted at the ruled points, and chapter 05 shows both. It was item 12-7-1. |
+| S-12 | What the ruled death count means, when neither harder tier can hold it at every Level (CORE-1, GR-27) | He ruled 10 to 30 deaths in 1,000 hours on Dangerous and 50 to 100 on Deadly. The engine gives a cliff. | HELD until the replay on the fixed engine, because a stalled cell reads no death. It was item 12-7-2. |
+| S-14 | When one of an account's own four falls (GR-80) | His default is that the rest hunt on. The measured finding that the four died together was read on the path the engine fix changed. | HELD until the replay on the fixed engine. The ruled default stands. It was item 12-7-3. |
+| 12-7-4 | The paid edge is smaller in pace than the book told him, and it is a step (MM-26, MM-31) | He said yes on the page to 1.65 and about 1.22. Measured: 1.29 to 1.48 and about 1.06 to 1.08. Check G's last clause fails by design on a cliff. | His yes stands as written, with the measured readings beside it. It is not a question of the second sitting. Source: docs/design/overhaul/12-balance-pass.md section 7. |
 
 ### 5.6 The plan
 
@@ -518,7 +533,7 @@ Step A of the systems plan, in `docs/design/systems-intelligence/00-plan.md`, wa
 
 ### 5.7 What comes next
 
-Not a build plan yet. Fix the measuring tool, play the first hour with four heroes, and build only the narrowed first build of section 1.1. Chapter 11 designs on-call heroes, the Library and the town day, all PROVISIONAL.
+The measuring tool is fixed, the first hour was played, the balance pass is in (`12-balance-pass.md`), the build plan is written (`13-build-plan.md`) and the audit before wave 1 is in, with the verdict go with changes. Next: the pre-wave fixes, and Tyler's S-15, S-17 and S-18. S-11, S-12 and S-14 follow the replay.
 
 ## 6. Consistency check
 
@@ -573,6 +588,9 @@ The chapters were written by different lanes before the decisions existed, and t
 | 43 | Four designs made in the fold read as decided or ruled | 02, 05, 06, 07, 08 | PROPOSAL, made in the fold 2026-11-21, not yet seen by Tyler |
 | 45 | Five items held two of Tyler's picks against each other, and two more conflicts and one unlisted reversal were never on the page | 04, 05, 06, 07, 08, 09 and the decisions | The sitting of 2026-11-21 ruled all of them, S-1 to S-10 |
 | 46 | The book was written on "a party is an account's own four" and on free Setups, and said Deadly is the best way for a four to level | 03, 04, 05, 06, 07, 08, 09 | On-call heroes are kept, Setups are priced past three, and Deadly is the best way only for a four that is watched |
+| 49 | Chapters 00, 05 and 12 and the decision file printed the older run for the Level law's seat (1.266 and 1.492, days 326, 400 and 472), while the second sitting read the newer one | 00, 05, 12, the decisions | Run 44931089433 everywhere: 1.263 and 1.579, with days 305, 382 and 477. Chapter 12 keeps its text as the record, with two lines under its title |
+| 50 | Chapter 09 said the Level curve lands at the wipe, which the build plan does not assume | 09 | It lands with the first build, on characters as they stand |
+| 51 | The decision file's counts read 138 decided against 51 by status, and its first-build list still had on-call heroes waiting and the ladder at five hours | The decisions | Recounted. On-call heroes are in the first build, and the ladder reads 2 hours |
 | 47 | The tier numbers the book opened on (Dangerous blows 1.17, Deadly 2.25) did nothing to a party, and the pace ceiling multiplied damage into pace | 01, 04, 05, 06 and the decisions | Chapter 12 measured them: both tiers at blows 2.5, and every cap full reads 1.29 to 1.48. All PROVISIONAL, with the ruled and page numbers kept beside them |
 | 48 | The book read on call as spending no stamina | 04, 06, 08, 09 | Two pools: hire stamina is spent on call and the hero's own never is. Nothing sells hire stamina |
 | 44 | GR-61 kept Kindlings on paper while Tyler lifted the hold and asked for a build choice every five Levels | 01, 05 | GR-61 is superseded, and the book points to `10-level-choices.md` |
@@ -589,10 +607,11 @@ The chapters were written by different lanes before the decisions existed, and t
 | 6 | The hall guard in `02-world.md` still asks the weakest named lineup to lose a hall. Tyler's pick on GR-3 drops the lineup test for Deadly and does not name halls | Nobody has said whether the hall floor goes with it | The game designer |
 | 7 | The sizes of the full castle (fifty stages, upkeep, labor) and of soil tiers are new and unplayed | The castle is ruled in direction only | The game designer, on the matrix and in the playtest |
 | 8 | Closed. The book kept "one Setup for each ground" while Setup slots are five a hero | Chapter 11 section 10: a Setup is a named kit in a slot, and each ground remembers one by pointing to a slot. Pointing is free. PROVISIONAL | Closed by chapter 11 |
-| 9 | Closed. On-call heroes and the clan Level XP room were ruled and not designed | Chapter 11 designs both, PROVISIONAL. The ceiling reads about 1.74 on a weekend and about 1.44 held, and the next region's door is about day 50 | Closed by chapter 11 |
+| 9 | Closed. On-call heroes and the clan Level XP room were ruled and not designed | Chapter 11 designs both, PROVISIONAL. The ceiling was computed at about 1.74 on a weekend and about 1.44 held, and chapter 12 measured 1.29 to 1.48 for a four. The next region's door is about day 50 | Closed by chapter 11 |
 | 11 | Group damage as a tier row. A tier scales the blow and the pull, and the front hero takes 92 to 100% of the damage on nine of 14 grounds | It is a new mechanic that chapter 12 section 4.1 argues for. It is an OPEN design item, not a proposal and not decided | The game designer |
 | 12 | Armor on the gear curve is worth nothing past Level 30, and the arrival kit takes 2.2 to 2.8 times the mid kit's damage under Level 45 | The armor curve probe fixes the first and worsens the second, so they are one open item | The game designer, with the matrix lane |
-| 13 | The Level law is shown on two clocks, 1.492 and 1.266 | Which four times the law is for Tyler (12 section 7, item 1) | Tyler |
+| 13 | The Level law has two candidate clocks, 1.263 (the four on Dangerous) and 1.579 (a four on Deadly that never dies), on run 44931089433. The law is fitted at the ruled points, so whichever is the clock lands on the table | Which four is the clock is S-11, held until the replay on the fixed engine | Tyler, after the replay |
+| 14 | 67 of the 159 decision rows are named in no lane and on no waits row of the build plan, and Luck and the unbuilt itemization phases were not named either | The audit before wave 1 found it (A-8). Every row now says where it is built or what it waits on, and the two rulings are on the waits list. Nothing is cut | The plan owner, in `13-build-plan.md` |
 | 10 | Chapter 11 makes a standing job the usual ending of a rest plan, in place of "wait in town" | It reads that as inside the 2026-11-20 ruling and asks that it be listed as a change. It was not put to Tyler | The Coordinator, row 27 of the reversal list |
 
 What this check did not do. It followed the status tags, the call ids and searches for each fix. It did not re-read every paragraph of all nine chapters, so a stale sentence with no tag and no number may remain.

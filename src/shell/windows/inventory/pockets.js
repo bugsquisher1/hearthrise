@@ -13,7 +13,7 @@ import { text, cls } from '../../../render/paint.js';
 import { whole, short } from '../../../render/format.js';
 import { escapeHtml as esc } from '../../../utils/dom.js';
 import { glyphSvg } from '../../launcher.js';
-import { MOBILE_QUERY } from '../../../world/core/camera.js';
+import { MOBILE_QUERY } from '../../../render/mobile-query.js';
 import { itemIconHtml, itemName } from '../../widgets/bits.js';
 
 /** A corner count in four characters: 1.4k, 12k, 1.2kk, rounded DOWN (a stack never reads more than it holds; format.js short rounds). Pure. */

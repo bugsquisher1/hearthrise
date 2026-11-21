@@ -38,13 +38,11 @@
 // blit's offset, so the world scrolls in one-device-pixel steps and never
 // shimmers.
 //
-// FRAME RATE: 30 fps under the canonical mobile query, 60 elsewhere.
+// FRAME RATE: 30 fps under the canonical mobile query (src/render/mobile-query.js), 60 elsewhere.
 // PURE: no DOM, no window, no G.
 // ════════════════════════════════════════════════════════════════════════
 
 import { GRIDS } from '../../data/world/art-budget.js';
-
-export const MOBILE_QUERY = '(max-width: 540px), (max-height: 540px) and (max-width: 1024px)';
 
 /** CSS px per art pixel on every screen class but the widest (the base grid's row in GRIDS). */
 export const DENSITY = GRIDS.base.density;

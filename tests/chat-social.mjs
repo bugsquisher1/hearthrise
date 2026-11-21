@@ -126,6 +126,7 @@ import { ROOT, UID, serve, SDK_STUB } from './_client-harness.mjs';
 import { pinFonts } from './_test-fonts.mjs';
 import { answered } from './_press.mjs';
 import { judge, judgePlanted, report, exitOf, cleanControl, stopAtFirstRed, FIRST_RED, guardLines } from './_mutant-verdict.mjs';
+import { SESSION_CONFIG } from '../src/session/config.js';
 
 const FIXTURE = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/hunt-envelope.json'), 'utf8'));
 const { HUNT_INDEX } = await import(pathToFileURL(join(ROOT, 'src/data/hunts.js')).href);
@@ -654,6 +655,16 @@ async function startOpen(browser, base) {
       bag: !!document.querySelector('[data-hs-win="inventory"]:not(.is-leaving)') };
   });
   const picks = (s) => s.calls.filter((c) => c.name === 'hr_put_client_state' && c.body.p_patch && c.body.p_patch.chatOpen).map((c) => c.body.p_patch.chatOpen.on);
+  /* A pick's put leaves one debounce after the pick (CharacterSession.setResidue, SESSION_CONFIG.residueDebounceMs: one put per burst)
+     and lands when the stub has answered it. A fixed sleep of exactly the debounce raced the page's own timer and lost on a busy runner
+     (next run 44930255616: "opening Chat again put the picks [false]", the true still in flight). So: wait for the n-th pick, up to the
+     debounce and 3 s more, then judge the list as it stands: a pick that never comes still reads short, and a stray one reads long here
+     or at the next check. */
+  const picksBy = async (page, s, n) => {
+    const end = Date.now() + SESSION_CONFIG.residueDebounceMs + 3000;
+    while (picks(s).length < n && Date.now() < end) await page.waitForTimeout(50);
+    return picks(s);
+  };
   for (const vp of [{ width: 1440, height: 900 }, { width: 844, height: 390 }]) {
     const tag = vp.width + 'x' + vp.height, phone = vp.height <= 540;
     const ctx = await browser.newContext({ viewport: vp });
@@ -707,16 +718,16 @@ async function startOpen(browser, base) {
       await page.keyboard.press('Escape');
       await page.click('[data-hs-win="chat"] [data-hs-close="chat"]');
       if (!await wait(page, () => !document.querySelector('[data-hs-win="chat"]'), null, 3000)) fails.push('CW-12 [' + tag + '] its X did not close Chat');
-      await page.waitForTimeout(1500);
-      if (JSON.stringify(picks(s)) !== '[false]') fails.push('CW-12 [' + tag + '] closing Chat put the picks ' + JSON.stringify(picks(s)) + ', not ONE off');
+      const shut = await picksBy(page, s, 1);
+      if (JSON.stringify(shut) !== '[false]') fails.push('CW-12 [' + tag + '] closing Chat put the picks ' + JSON.stringify(shut) + ', not ONE off');
       await page.reload({ waitUntil: 'load' });
       await enter(page);
       if ((await look(page)).open) fails.push('CW-12 [' + tag + '] after the player closed it a reload opened Chat again');
       await page.mouse.click(vp.width / 2, 120);
       await page.keyboard.press('Enter');
       if (!await wait(page, () => document.querySelector('[data-hs-win="chat"]:not(.is-leaving) .hc-field') === document.activeElement, null, 3000)) fails.push('CW-12 [' + tag + '] Enter did not open Chat with the caret');
-      await page.waitForTimeout(1500);
-      if (JSON.stringify(picks(s)) !== '[false,true]') fails.push('CW-12 [' + tag + '] opening Chat again put the picks ' + JSON.stringify(picks(s)));
+      const again = await picksBy(page, s, 2);
+      if (JSON.stringify(again) !== '[false,true]') fails.push('CW-12 [' + tag + '] opening Chat again put the picks ' + JSON.stringify(again));
       await page.reload({ waitUntil: 'load' });
       await enter(page);
       if (!(await look(page)).open) fails.push('CW-12 [' + tag + '] opened again by the player, a reload did not bring Chat back');

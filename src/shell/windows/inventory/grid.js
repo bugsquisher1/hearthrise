@@ -31,7 +31,7 @@ import { itemIconHtml, itemName } from '../../widgets/bits.js';
 import { primaryOf, confirmWords, huntLoot, eatBlock } from './state.js';
 import { LOOT_CHOICES, planBlock, dispatchBlock } from '../../loot-dispatch.js';
 import { pocketHtml, patchCount } from './pockets.js';
-import { MOBILE_QUERY } from '../../../world/core/camera.js';
+import { MOBILE_QUERY } from '../../../render/mobile-query.js';
 import { elsewhereHtml, patchElsewhere } from './elsewhere.js';
 import { ringTabHtml, ringPaneHtml, patchRing } from './key-ring.js';
 import { buryParts, buryBlock, buryRecipeOf, buryingOf, namedBlock } from './bury.js';

@@ -39,7 +39,7 @@
 //
 // Mounted by src/app/world-pane.js over one character's World.
 // ════════════════════════════════════════════════════════════════════════
-import { MOBILE_QUERY } from '../world/core/camera.js';
+import { MOBILE_QUERY } from '../render/mobile-query.js';
 import { SHELL_WINDOWS } from '../data/shell-windows.js';
 import { markup } from '../render/paint.js';
 import { createWindowManager, DOCK_EDGE, HOME_BOTTOM, RESIZE_MIN } from './window-manager.js';

@@ -103,20 +103,27 @@ export const LINE_BANDS = Object.freeze([
    keeps its trade under the line on every late ground (AL3, measured), so the Breastplate is 105 at 122 (108 at 125) and the Visor 70 at 138
    (64 at 125; 71 read 1.0005 of the line at the Catacombs). The Leg Plates went to the Roost Mother and came back (row 2): the Roost's healerless
    Deadly four died 17.3 times in 16 hero-hours without them, 9.3 with the plate back, every death the tank's (the Crag Wyvern's marked Fire
-   Breath), so the grid swapped the legs cells: the Roost drops legs plate, the Roost Mother legs leather (Roost Mother's Hide). ── */
+   Breath), so the grid swapped the legs cells: the Roost drops legs plate, the Roost Mother legs leather (Roost Mother's Hide).
+   RE-CUT ON THE TO-HIT RATIO (2398754cb made to-hit a ratio; lane/a-ci-reds-pre-wave): the same pieces read 100.07 to 100.60% of the line, because
+   a Melee point no longer pays for the armor over the line (measured on the ratio: the Breastplate at atkB -8 holds only 104, at -1 or -2 it
+   holds 100; the Leg Plates' strB -3 holds 99). Re-sized by the same rule, the most
+   armor under the line on every late ground, each style number kept: the Breastplate 105 to 100, the Leg Plates 86 to 81, the Visor 70 to 55,
+   the Watchman's Helm 84 to 67, the Limewashed Plate 130 to 128 (one point more reads 100.01 to 100.07%). The Breastplate and the Visor now sit
+   AT the line's armor with their Melee cost: a heavy piece's trade has to be re-priced (strB buys armor, atkB barely does), the unique
+   re-cut's job, not a sizing rule's. The Roost's healerTiers deaths were measured with the Leg Plates at 86, before the ratio. ── */
 export const LINE_SAMPLE = Object.freeze({
   /* ── THE NIGHT SHIFT, 122 (not built: planned) ── */
   wagon_guards_breastplate: Object.freeze({
-    row: Object.freeze({ n: 'Wagon Guard\'s Breastplate', icon: '🛡️', v: 119780, type: 'armor', slot: 'body', defB: 105, armourClass: 'plate', atkB: -1, rangeAtkB: -23, magicAtkB: -45,
+    row: Object.freeze({ n: 'Wagon Guard\'s Breastplate', icon: '🛡️', v: 119780, type: 'armor', slot: 'body', defB: 100, armourClass: 'plate', atkB: -1, rangeAtkB: -23, magicAtkB: -45,
       tier: 7, rarity: 'unique', reqSkill: 'level', reqLv: 122 }),
     base: 'dawn_platebody', attr: null,
-    spend: 'heavy: more armor than the line, and a stiff shoulder takes a point off your Melee',
+    spend: 'heavy: the line\'s armor, 10 over Dawnsteel, and a stiff shoulder takes a point off your Melee',
     source: Object.freeze({ place: 'night_shift', planned: true, how: 'rare' }), use: 'worn',
-    text: 'It carries 105 armor, more than any other breastplate at Level 122, and your Melee lands a little less often in it. The wagon guards who rode out of Morrow wore these thick, and Gault put the dead ones to work in the mine, armor and all.',
+    text: 'It carries 100 armor, more than any other breastplate at Level 122, and your Melee lands a little less often in it. The wagon guards who rode out of Morrow wore these thick, and Gault put the dead ones to work in the mine, armor and all.',
   }),
   /* ── WYVERN ROOST, 125: the ground's own fire answer (row 2 swapped the legs back from the Roost Mother) ── */
   burnt_crag_leg_plates: Object.freeze({
-    row: Object.freeze({ n: 'Burnt Crag Leg Plates', icon: '🛡️', v: 90000, type: 'armor', slot: 'pants', defB: 86, armourClass: 'plate', strB: -2, rangeAtkB: -16, magicAtkB: -32,
+    row: Object.freeze({ n: 'Burnt Crag Leg Plates', icon: '🛡️', v: 90000, type: 'armor', slot: 'pants', defB: 81, armourClass: 'plate', strB: -2, rangeAtkB: -16, magicAtkB: -32,
       resistPm: Object.freeze({ ember: 100 }), tier: 7, rarity: 'unique', reqSkill: 'level', reqLv: 125 }),
     base: 'dawn_platelegs', attr: Object.freeze(['resist_element', 'ember']),
     spend: 'fireproof and heavy: the Crag Wyvern\'s fire, more armor, and they cost you some of your swing',
@@ -125,24 +132,24 @@ export const LINE_SAMPLE = Object.freeze({
   }),
   /* ── THE OLD GUARD, 138 (not built: planned) ── */
   outriders_visor: Object.freeze({
-    row: Object.freeze({ n: 'Outrider\'s Visor', icon: '🛡️', v: 54195, type: 'armor', slot: 'helmet', defB: 70, armourClass: 'plate', atkB: -2, rangeAtkB: -11, magicAtkB: -22,
+    row: Object.freeze({ n: 'Outrider\'s Visor', icon: '🛡️', v: 54195, type: 'armor', slot: 'helmet', defB: 55, armourClass: 'plate', atkB: -2, rangeAtkB: -11, magicAtkB: -22,
       tier: 7, rarity: 'unique', reqSkill: 'level', reqLv: 138 }),
     base: 'dawn_helm', attr: null,
     spend: 'closed: the most armor a helm has here, and a narrow slit costs your Melee 2',
     source: Object.freeze({ place: 'old_guard', planned: true, how: 'rare' }), use: 'worn',
-    text: 'It carries 70 armor and costs your Melee 2. The outriders rode ahead of the wagons with these shut against the wind on the stair, and the stone guards there still have the ones that never came back down.',
+    text: 'It carries 55 armor and costs your Melee 2. The outriders rode ahead of the wagons with these shut against the wind on the stair, and the stone guards there still have the ones that never came back down.',
   }),
   /* ── THE UNMARKED CATACOMBS, 165 ── */
   watchmans_helm: Object.freeze({
-    row: Object.freeze({ n: 'Watchman\'s Helm', icon: '🛡️', v: 64800, type: 'armor', slot: 'helmet', defB: 84, armourClass: 'plate', atkB: -1, rangeAtkB: -11, magicAtkB: -22,
+    row: Object.freeze({ n: 'Watchman\'s Helm', icon: '🛡️', v: 64800, type: 'armor', slot: 'helmet', defB: 67, armourClass: 'plate', atkB: -1, rangeAtkB: -11, magicAtkB: -22,
       tier: 7, rarity: 'unique', reqSkill: 'level', reqLv: 165 }),
     base: 'dawn_helm', attr: null,
-    spend: 'heavy: a full face, 18 more armor than the line, and the narrow slit costs your Melee a point',
+    spend: 'heavy: a full face, 1 more armor than the line, and the narrow slit costs your Melee a point',
     source: Object.freeze({ monster: 'shrouded_pauper', ground: 'unmarked_catacombs', how: 'rare', ch: 0.0007 }), use: 'worn',
-    text: 'It carries 84 armor, the most of any helm, and your Melee lands a little less often in it. The Havora Watch wore them shut on the night rounds, and some of the paupers were old Watch.',
+    text: 'It carries 67 armor, the most of any helm, and your Melee lands a little less often in it. The Havora Watch wore them shut on the night rounds, and some of the paupers were old Watch.',
   }),
   limewashed_plate: Object.freeze({
-    row: Object.freeze({ n: 'Limewashed Plate', icon: '🛡️', v: 162000, type: 'armor', slot: 'body', defB: 130, armourClass: 'plate', rangeAtkB: -23, magicAtkB: -45,
+    row: Object.freeze({ n: 'Limewashed Plate', icon: '🛡️', v: 162000, type: 'armor', slot: 'body', defB: 128, armourClass: 'plate', rangeAtkB: -23, magicAtkB: -45,
       resistPm: Object.freeze({ poison: 100 }), tier: 7, rarity: 'unique', reqSkill: 'level', reqLv: 165 }),
     base: 'dawn_platebody', attr: Object.freeze(['resist_element', 'poison']),
     spend: 'the lime\'s answer: under the line\'s armor, and the Night Carters\' Lime Sack does less',

@@ -1332,11 +1332,12 @@ function benchCountGuard() {
   const out = recipe.output;
   const per = Math.max(1, Number(recipe.outputQty) || 1);
   const big = supplyFor(recipe, 500);
-  /* (a) make 5 from a bag for 500, a 12 h window: 5 actions, the pointer ends, no countdown key. */
+  /* (a) make 5 from a bag for 500, a 12 h window: 5 actions, the pointer ends, and the end says it left 0 (1009-job-counts.sql:
+     the count reached, which is what lets hr_apply run the job's THEN). */
   const five = call({ activeId: recipe.id, inventory: big, activeLeft: 5 });
   ok(five.accrued && five.summary.ticks === 5 && five.delta.items && five.delta.items[out] === 5 * per,
     `T9: make 5 paid ${five.summary && five.summary.ticks} actions / ${JSON.stringify(five.delta && five.delta.items)}`);
-  ok(five.delta && five.delta.activity && five.delta.activity.kind === 'idle' && !('active_left' in five.delta),
+  ok(five.delta && five.delta.activity && five.delta.activity.kind === 'idle' && five.delta.active_left === 0,
     `T9: the run that reached its count did not end: ${JSON.stringify(five.delta && five.delta.activity)} / left ${five.delta && five.delta.active_left}`);
   ok(five.delta && five.delta.journal.meta.stopped === 'count' && five.delta.journal.meta.n === 5 && five.delta.journal.meta.left === 0,
     `T9: the journal does not say the count stopped it: ${JSON.stringify(five.delta && five.delta.journal.meta)}`);
@@ -1353,7 +1354,7 @@ function benchCountGuard() {
   /* (c) make 40 with a bag for 4: as many as possible (4), stopped on the supplies, pointer idle. */
   const short = call({ activeId: recipe.id, inventory: supplyFor(recipe, 4), activeLeft: 40 });
   ok(short.accrued && short.summary.ticks === 4 && short.delta.activity && short.delta.activity.kind === 'idle'
-    && short.summary.stoppedBy === 'supplies',
+    && short.summary.stoppedBy === 'supplies' && short.delta.active_left === 36,
     `T9: make 40 from a bag for 4 paid ${short.summary && short.summary.ticks} (${short.summary && short.summary.stoppedBy})`);
   /* (d) no count: the bag bounds it (500), and no active_left key is ever proposed. */
   const free = call({ activeId: recipe.id, inventory: supplyFor(recipe, 7) });

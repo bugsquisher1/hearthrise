@@ -90,7 +90,7 @@ import * as CORE_BODIES_REMOVALS from './chain-removals/2026-10-27-core-bodies.m
 import * as ACCOUNT_DEPOT_REMOVALS from './chain-removals/2026-11-27-account-depot.mjs';
 import * as ACCOUNT_GOLD_REMOVALS from './chain-removals/2026-12-15-account-gold.mjs';
 import * as DEAD_SURFACES_REMOVALS from './chain-removals/2027-01-18-dead-surfaces-cut.mjs';
-import * as APPROVED_CUTS_REMOVALS from './chain-removals/1009-approved-cuts.mjs';
+import * as APPROVED_CUTS_REMOVALS from './chain-removals/1016-approved-cuts.mjs';
 import { loadApplyOrder } from '../tools/lib/apply-order.mjs';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
@@ -678,7 +678,7 @@ const ALSO_LINTED = [
   '2027-01-18-dead-surfaces-cut.sql',
   /* THE APPROVED CUTS (lane/c-approved-cuts, 2026-11-20; build plan L10): the newest link of HR_STATE_OF_CHAIN and link 25 of
      HR_GRANT_HYGIENE_CHAIN; its revokes (hr_state_of, hr_server_now, the detector) are linted here. */
-  '1009-approved-cuts.sql',
+  '1016-approved-cuts.sql',
 ];
 
 // ── THE hr_apply DERIVATION CHAIN ────────────────────────────────────────
@@ -818,8 +818,8 @@ const HR_STATE_OF_CHAIN = [
   // tests/chain-removals/2027-01-18-dead-surfaces-cut.mjs.
   '2027-01-18-dead-surfaces-cut.sql',
   // THE APPROVED CUTS (2026-11-20, build plan L10): dead-surfaces' body (= live, md5 e0a71bfe) minus dungeon_cooldowns,
-  // state.dungeon_scrip, state.hearth_tokens and gem_unlocks; removals FROZEN in tests/chain-removals/1009-approved-cuts.mjs.
-  '1009-approved-cuts.sql',
+  // state.dungeon_scrip, state.hearth_tokens and gem_unlocks; removals FROZEN in tests/chain-removals/1016-approved-cuts.mjs.
+  '1016-approved-cuts.sql',
 ];
 
 // ── THE hr_rate_gate DERIVATION CHAIN ────────────────────────────────────
@@ -1060,8 +1060,8 @@ const HR_GRANT_HYGIENE_CHAIN = [
   '1004-tick-pack-heroes.sql',
   // link 25 (lane/c-approved-cuts) — the old dungeons and the scrip leave: ONE block of c_engine_allow (hr_quartermaster_buy and
   // hr_dungeon_settle with their claim comments; the file drops both functions) is REPLACED by a two-line note. Its declared
-  // removals are FROZEN in tests/chain-removals/1009-approved-cuts.mjs. Its base is link 24's TARGET. It is the new last toucher.
-  '1009-approved-cuts.sql',
+  // removals are FROZEN in tests/chain-removals/1016-approved-cuts.mjs. Its base is link 24's TARGET. It is the new last toucher.
+  '1016-approved-cuts.sql',
 ];
 
 const HR_RATE_GATE_CHAIN = [
@@ -2099,10 +2099,10 @@ say(`── ${SPEC.fn} derivation chain (each body derived from the last, nothin
     '2026-09-23-world-tick-shadow-state-chain.sql': [
       "    'hr_tick_settle(text,uuid,integer,text,bigint,timestamp with time zone,timestamp with time zone,uuid,jsonb)',",
     ],
-    /* hr_assert_grant_hygiene: link 25 (1009-approved-cuts.sql) drops hr_quartermaster_buy and hr_dungeon_settle with the old
+    /* hr_assert_grant_hygiene: link 25 (1016-approved-cuts.sql) drops hr_quartermaster_buy and hr_dungeon_settle with the old
        dungeons and the scrip, and REPLACES their c_engine_allow block (entries and claim comments) by a two-line note, the
        precedent above (a door that does not exist leaves the list with it). Frozen in its own module. */
-    '1009-approved-cuts.sql': APPROVED_CUTS_REMOVALS.HR_ASSERT_GRANT_HYGIENE,
+    '1016-approved-cuts.sql': APPROVED_CUTS_REMOVALS.HR_ASSERT_GRANT_HYGIENE,
     /* hr_perks_of: 2026-08-20-renown.sql restates artisan-progress-model's body
        to wire the renown channel. It is a faithful SUPERSET — the whole artisan
        gate (v_recipes + its select + the 'recipes' source line + unlockedRecipes)
@@ -2343,7 +2343,7 @@ say(`── ${SPEC.fn} derivation chain (each body derived from the last, nothin
       '2026-11-27-account-depot.sql': ACCOUNT_DEPOT_REMOVALS.HR_STATE_OF,
       '2026-12-15-account-gold.sql': ACCOUNT_GOLD_REMOVALS.HR_STATE_OF,
       '2027-01-18-dead-surfaces-cut.sql': DEAD_SURFACES_REMOVALS.HR_STATE_OF,
-      '1009-approved-cuts.sql': APPROVED_CUTS_REMOVALS.HR_STATE_OF,
+      '1016-approved-cuts.sql': APPROVED_CUTS_REMOVALS.HR_STATE_OF,
       /* auto-eat inserts the three auto_eat_* keys after `accrued_to` — so the
          `accrued_to)` terminator gains a comma (a real line change), and the
          "server clock" and "BOUNDED (RL4)" comment blocks were reflowed/moved as

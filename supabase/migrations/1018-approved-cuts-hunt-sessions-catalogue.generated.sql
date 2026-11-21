@@ -8,15 +8,20 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: 7b5f2c46d0a0126ff507e0d350a7d3d80834138563db66d09b002eed65b28084
+--   digest: 4ef83d6279563b380411417315b754aa876795be9c3bec8865e13ded275d0133
 --   79 supplies, 168 hunts (named + training), 47 limits, 18 end reasons,
 --   665 vendor values, 49 store supplies paid per use, 5 target modes,
 --   4 lanes, 23 abilities, 10 action-set options, 25 hunt grounds
 --
--- NEW IN THIS FILE (lane/d-142-rulings, game-designer, 2026-11-19; the pace held by XP a kill): balance-sheet.js STAT_FORMULA xp a and min
+-- NEW IN THIS FILE (lane/c-approved-rows, backend-architect, 2026-11-20; Tyler 2026-11-20, balance call 22-8: Call out costs stamina only, no
+--   gold). It carries 1001-xp-a-kill-hunt-sessions-catalogue (APPLIED 2026-11-20) whole. hr_boss_calls.fight_fee is 0 on both calls (was 50 and 100)
+--   and hr_boss_calls_fight_ck admits 0 (a call is never a roll bought with gold; the generator refuses a fee in the data). Every reader (hr_boss_call_quote, hr_boss_call, the settle's
+--   next fight) already prices a fight as fight_fee x the live dial's permille, so a fight charges 0 gold and the gold_out end never fires. No other
+--   row, bound, limit, end reason or world shape moves. ORDER: the sequence in its name. EDGE: none (no engine or edge file reads the fee).
+-- CARRIED FROM 1001-xp-a-kill-hunt-sessions-catalogue (lane/d-142-rulings, game-designer, 2026-11-19; the pace held by XP a kill): balance-sheet.js STAT_FORMULA xp a and min
 --   x0.88, so every formula row pays 12% less Level XP and its kill bound falls with it. No coin, HP or blow moves. Deploy the hr-accrue carrying
 --   the new rows BEFORE this applies.
--- NEW IN THIS FILE (lane/d-harder-monsters, systems-engineer, 2026-11-19; Tyler 2026-11-19: "raise HP and damage done by all monsters in the game
+-- CARRIED (lane/d-harder-monsters, systems-engineer, 2026-11-19; Tyler 2026-11-19: "raise HP and damage done by all monsters in the game
 -- slightly"). It carries 2027-05-28-cellar-outgrown-hunt-sessions-catalogue (STAGED on set/v0.2.142, applied first) whole. hr_hunt_kill_bounds moves: every
 -- formula monster's HP is x1.1 (src/data/balance-sheet.js STAT_FORMULA) and its XP a point x0.96, so its coin and XP bound a kill rise with it (the Mill
 -- Cellar's Slime XP falls 35 -> 33, its fit 1.22). hr_boss_calls' called Chief carries the field Chief's Cauldron at its new rate. No ground, spawn,
@@ -590,7 +595,7 @@ alter table public.hr_boss_calls drop column if exists fee, drop column if exist
 -- NATURAL WINS BEFORE THE CALL (lane/c-entry-gates; Tyler 2026-11-18): the boss the call copies (his kills on his ground are the count) and how many it needs.
 alter table public.hr_boss_calls add column if not exists boss_id text, add column if not exists wins int;
 comment on table public.hr_boss_calls is
-  'tools/gen-hunt-sessions.mjs from src/data/boss-calls.js: the called rooms, one fight''s price (stamina and gold) and the most fights one series may queue (Call out). Names no player; character wipe c_no_player.';
+  'tools/gen-hunt-sessions.mjs from src/data/boss-calls.js: the called rooms, one fight''s price (stamina; its gold is 0, Tyler 2026-11-20) and the most fights one series may queue (Call out). Names no player; character wipe c_no_player.';
 -- COMBAT TRAINING (training.js): the rules, one row, each training ground's place, skill and fee, and the training items. Read by hr_training_start,
 -- the settle's hourly charge (hr_training_hour), its window check and the items' spend (hr_training_window), the items' verbs and the section
 -- (2027-04-16-combat-training.sql, 2027-04-23-training-gear.sql).
@@ -2244,14 +2249,16 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('yew_staff', 103),
   ('yew_wand', 93);
 delete from public.hr_boss_calls;
+-- the price's CHECK is restated below; it goes first, so a row the new one allows (a fight at 0 gold, Tyler 2026-11-20) is never judged by the old
+alter table public.hr_boss_calls drop constraint if exists hr_boss_calls_fight_ck;
 insert into public.hr_boss_calls (call_id, hunt_id, from_hunt, monster_id, limit_ms, fight_fee, fight_stamina_ms, max_fights, drops, boss_level, boss_id, wins) values
-  ('chief_coppercap', 'coppercap_warrens_called', 'coppercap_warrens', 'chief_coppercap_called', 600000, 100, 150000, 100, '[{"item":"big_bones","ppm":1000000,"band":"common"},{"item":"gold_ore","ppm":500000,"band":"common"},{"item":"goblin_totem","ppm":300000,"band":"common"},{"item":"coppercaps_tallow","ppm":150000,"band":"uncommon"},{"item":"steel_platebody","ppm":44000,"band":"scarce"},{"item":"boarhide_body","ppm":44000,"band":"scarce"},{"item":"scholar_body","ppm":44000,"band":"scarce"},{"item":"coppercap_shield","ppm":44000,"band":"scarce"},{"item":"war_crown","ppm":14100,"band":"rare"},{"item":"willow_wand","ppm":11000,"band":"rare"},{"item":"willow_spellbook","ppm":11000,"band":"rare"},{"item":"willow_staff","ppm":11000,"band":"rare"},{"item":"verdigris_cake","ppm":11000,"band":"rare"},{"item":"coppercaps_cauldron","ppm":1430,"band":"trophy"},{"item":"cauldron_lid","ppm":8000,"band":"rare"}]'::jsonb, 52, 'chief_coppercap', 10),
-  ('rat_king', 'millrace_sewer_called', 'millrace_sewer', 'rat_king_called', 600000, 50, 120000, 100, '[{"item":"rat_tail","ppm":1000000,"band":"common"},{"item":"bones","ppm":1000000,"band":"common"},{"item":"knotted_tails","ppm":150000,"band":"uncommon"},{"item":"crown_shard","ppm":14000,"band":"rare"},{"item":"kingsgrate","ppm":16000,"band":"rare"},{"item":"rat_kings_knot","ppm":14000,"band":"rare"},{"item":"rat_kings_crown","ppm":1410,"band":"trophy"},{"item":"kingstooth","ppm":10000,"band":"rare"}]'::jsonb, 25, 'rat_king', 10);
+  ('chief_coppercap', 'coppercap_warrens_called', 'coppercap_warrens', 'chief_coppercap_called', 600000, 0, 150000, 100, '[{"item":"big_bones","ppm":1000000,"band":"common"},{"item":"gold_ore","ppm":500000,"band":"common"},{"item":"goblin_totem","ppm":300000,"band":"common"},{"item":"coppercaps_tallow","ppm":150000,"band":"uncommon"},{"item":"steel_platebody","ppm":44000,"band":"scarce"},{"item":"boarhide_body","ppm":44000,"band":"scarce"},{"item":"scholar_body","ppm":44000,"band":"scarce"},{"item":"coppercap_shield","ppm":44000,"band":"scarce"},{"item":"war_crown","ppm":14100,"band":"rare"},{"item":"willow_wand","ppm":11000,"band":"rare"},{"item":"willow_spellbook","ppm":11000,"band":"rare"},{"item":"willow_staff","ppm":11000,"band":"rare"},{"item":"verdigris_cake","ppm":11000,"band":"rare"},{"item":"coppercaps_cauldron","ppm":1430,"band":"trophy"},{"item":"cauldron_lid","ppm":8000,"band":"rare"}]'::jsonb, 52, 'chief_coppercap', 10),
+  ('rat_king', 'millrace_sewer_called', 'millrace_sewer', 'rat_king_called', 600000, 0, 120000, 100, '[{"item":"rat_tail","ppm":1000000,"band":"common"},{"item":"bones","ppm":1000000,"band":"common"},{"item":"knotted_tails","ppm":150000,"band":"uncommon"},{"item":"crown_shard","ppm":14000,"band":"rare"},{"item":"kingsgrate","ppm":16000,"band":"rare"},{"item":"rat_kings_knot","ppm":14000,"band":"rare"},{"item":"rat_kings_crown","ppm":1410,"band":"trophy"},{"item":"kingstooth","ppm":10000,"band":"rare"}]'::jsonb, 25, 'rat_king', 10);
 alter table public.hr_boss_calls alter column fight_fee set not null, alter column fight_stamina_ms set not null, alter column max_fights set not null, alter column drops set not null,
   alter column boss_level set not null, alter column boss_id set not null, alter column wins set not null;
 alter table public.hr_boss_calls drop constraint if exists hr_boss_calls_fight_ck;
 alter table public.hr_boss_calls add constraint hr_boss_calls_fight_ck
-  check (fight_fee between 1 and 1000000000 and fight_stamina_ms between 1000 and 3600000 and max_fights between 1 and 1000
+  check (fight_fee between 0 and 1000000000 and fight_stamina_ms between 1000 and 3600000 and max_fights between 1 and 1000
          and jsonb_typeof(drops) = 'array' and jsonb_array_length(drops) between 1 and 32 and boss_level between 1 and 999);
 -- NATURAL WINS BEFORE THE CALL: a whole count, on a ground boss's own id (never a called row's: those wins are the call's, not the ground's).
 alter table public.hr_boss_calls drop constraint if exists hr_boss_calls_wins_ck;
@@ -2412,6 +2419,9 @@ begin
                  or not exists (select 1 from public.hr_hunt_ground_spawns s where s.hunt_id = c.from_hunt and s.monster_id = c.boss_id)
                  or exists (select 1 from public.hr_hunt_ground_spawns s where s.monster_id = c.boss_id and s.hunt_id = c.hunt_id)) then
     raise exception 'a call''s natural wins are not the data''s, or are counted on a boss its press''s ground does not field'; end if;
+  -- CALL OUT COSTS STAMINA ONLY (Tyler 2026-11-20, balance call 22-8): no call charges gold a fight (the data refuses a fee: gen-hunt-sessions.mjs).
+  if exists (select 1 from public.hr_boss_calls c where c.fight_fee <> 0) then
+    raise exception 'a call charges gold a fight (Tyler 2026-11-20: Call out costs stamina only)'; end if;
   -- COMBAT TRAINING, THE MONEY LINE: every training ground stands in hr_hunts and hr_hunt_travel with one seat and the dummy alone; the dummy's bound
   -- pays no coin and no drop; no other ground fields it and no roster names it.
   if exists (select 1 from public.hr_training_grounds t

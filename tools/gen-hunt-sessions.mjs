@@ -367,9 +367,9 @@ export const WORLD_FIELDS_READ = Object.freeze({
 /* 1001-xp-a-kill-hunt-sessions-catalogue (lane/d-142-rulings, 2026-11-19): STAT_FORMULA's XP a kill x0.88, so every formula row's kill bound falls; 2027-06-05 is carried whole. */
 /* 1012-approved-rows-hunt-sessions-catalogue (lane/c-approved-rows, 2026-11-20; Tyler, balance call 22-8): Call out costs stamina only, so hr_boss_calls.fight_fee is 0
    and its CHECK admits a fight at 0 gold; 1001 (APPLIED) is carried whole. */
-/* 1011-approved-cuts-hunt-sessions-catalogue (lane/c-approved-cuts, 2026-11-20; build plan L10): 1012-approved-rows (STAGED, applied first) is carried whole; hr_hunt_vendor_value loses the Shop's bids on the
-   Hearth Token and the three boss-forged body pieces, which 1010-approved-cuts-items-catalogue takes out of hr_items. ORDER: after 1010. */
-export const OUT_NAME = '1011-approved-cuts-hunt-sessions-catalogue.generated.sql';
+/* 1018-approved-cuts-hunt-sessions-catalogue (lane/c-approved-cuts, 2026-11-20; build plan L10): 1012-approved-rows (STAGED, applied first) is carried whole; hr_hunt_vendor_value loses the Shop's bids on the
+   Hearth Token and the three boss-forged body pieces, which 1017-approved-cuts-items-catalogue takes out of hr_items. ORDER: after 1017. */
+export const OUT_NAME = '1018-approved-cuts-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);

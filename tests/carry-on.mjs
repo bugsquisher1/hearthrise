@@ -202,6 +202,27 @@ async function refuseArm(db, M) {
     const inv1 = await q(db, 'select slot, qty from public.player_inventory where user_id = $1 and item_id = $2 and slot in (0, 3) order by slot', [A, FOOD]);
     if (JSON.stringify(inv1) !== JSON.stringify(inv0.filter((r) => r.slot === 0 || r.slot === 3))) bad.push('CO-REFUSE a hero that stayed had its bag touched: ' + JSON.stringify(inv1));
     if (await bankOf(db, A) !== bank0) bad.push('CO-REFUSE Storage moved with no Storage line planned');
+    /* A REFUSAL AT THE DOOR ITSELF (the plan cannot see it: the play cap, lowered to 2 here): the two after the cap are named, their
+       steps rolled back (the Storage they would have taken stays), the first two still go */
+    await db.query("select public.hr_hunt_close(h.id, 'stamina', now(), true) from public.hunt_sessions h where h.user_id = $1 and h.ended_at is null", [A]);
+    await ageEnded(db, A);
+    await levelTo(db, M, A, 0, 1);
+    await db.query('update public.player_state set stamina_ms = 3600000, stamina_at = now() where user_id = $1', [A]);
+    await db.query('update public.player_inventory set qty = 5 where user_id = $1 and item_id = $2', [A, FOOD]);
+    await db.query('insert into public.account_bank (user_id, item_id, qty, updated_at) values ($1, $2, 60, now()) on conflict (user_id, item_id) do update set qty = 60', [A, FOOD]);
+    await db.query("update public.hr_hunt_limits set value = 2 where key = 'max_concurrent'");
+    const p2 = await plan(db, A);
+    const v2 = await press(db, A, p2.gold);
+    const open2 = (await openOf(db, A)).map((o) => o.slot);
+    const took = (v2 && v2.heroes || []).filter((h) => h.state === 'went').reduce((n, h) => n + (h.storage || []).reduce((a, l) => a + l.qty, 0), 0);
+    const named = (v2 && v2.heroes || []).filter((h) => h.state === 'no').map((h) => [h.slot, h.why]);
+    if (p2.go !== 4 || !v2 || v2.went !== 2 || open2.length !== 2 || JSON.stringify(named.map((x) => x[1])) !== '["too_many_playing","too_many_playing"]'
+        || await bankOf(db, A) !== 60 - took) {
+      bad.push('CO-REFUSE at the door: planned ' + (p2 && p2.go) + ', went ' + (v2 && v2.went) + ', open ' + JSON.stringify(open2) + ', named ' + JSON.stringify(named) + ', Storage ' + (await bankOf(db, A)) + ' (want ' + (60 - took) + ')');
+    }
+    await db.query("update public.hr_hunt_limits set value = 4 where key = 'max_concurrent'");
+    await db.query("select public.hr_hunt_close(h.id, 'stamina', now(), true) from public.hunt_sessions h where h.user_id = $1 and h.ended_at is null", [A]);
+    await ageEnded(db, A);
     /* another account's party, not hunting: its leader starts it, never this press */
     await heroes(db, M, B, 1);
     await db.query('update public.player_state set level_xp = 0 where user_id = $1 and slot = 0', [A]);
@@ -232,6 +253,8 @@ async function idemArm(db, M) {
     if (JSON.stringify(v2) !== JSON.stringify(v) || Number(await one(db, 'select count(*)::text from public.hunt_sessions where user_id = $1', [A])) !== n) bad.push('CO-IDEM the same key twice started more: ' + JSON.stringify(v2).slice(0, 200));
     const v3 = await press(db, A, p.gold);
     if (!v3 || v3.error !== 'nothing_to_carry_on' || Number(await one(db, 'select count(*)::text from public.hunt_sessions where user_id = $1', [A])) !== n) bad.push('CO-IDEM a second press answered ' + JSON.stringify(v3).slice(0, 200));
+    /* ...and says why: each hero is out hunting (busy), never "refused" */
+    else if (!v3.plan || v3.plan.heroes.length !== 4 || v3.plan.heroes.some((h) => h.state !== 'busy' || h.why !== 'hunting')) bad.push('CO-IDEM a second press reads the heroes as ' + JSON.stringify(v3.plan && v3.plan.heroes.map((h) => [h.slot, h.state, h.why])));
     return bad;
   });
 }
@@ -421,7 +444,7 @@ const MUTANTS = [
     find: '      v_hunt := coalesce(v_p.hunt_id, v_s.hunt_id);', replace: "      v_hunt := 'meadowbrook_thicket';" },
   { name: 'the hours limit is dropped', arm: 'closed', want: /^CO-CLOSED slot 1 lost/, fn: FN.plan,
     find: '    v_hours := v_s.hours_limit;', replace: '    v_hours := null;' },
-  { name: 'a refused hero stops the press for all', arm: 'refuse', want: /^CO-REFUSE the press/, fn: FN.press,
+  { name: 'a refused hero stops the press for all', arm: 'refuse', want: /^(CO-REFUSE at the door|THREW)/, fn: FN.press,
     find: "    exception when sqlstate 'HRC70' then", replace: "    exception when sqlstate 'HRC79' then" },
   { name: 'the door\'s predicate is not asked', arm: 'refuse', want: /^CO-REFUSE the plan/, fn: FN.plan,
     find: "      v_r := public.hr_hunt_enter_check(p_uid, v_st.slot, v_hunt, '[]'::jsonb, v_preset, v_hours);", replace: '      v_r := null;' },

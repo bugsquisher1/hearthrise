@@ -243,6 +243,13 @@ export function printRun(res, rows, out = console.log) {
   out('\nSOLO AGAINST PARTY (a four\'s head over the lone hammer; and over the same four ways alone) with each seat\'s share of the damage taken');
   for (const s of D.soloVsParty) out('  ' + (s.L + ' ' + s.gear + ' ' + s.tier).padEnd(22) + ' XP ' + fmt(s.xpHeadVsHammer, 2) + ' (same alone ' + fmt(s.xpHeadVsSameAlone, 2) + '), net ' + fmt(s.netHeadVsHammer, 2) + ', DPS ' + fmt(s.dpsHeadVsHammer, 2) + ', deaths ' + fmt(s.deathsFour, 1) + ' vs ' + fmt(s.deathsLone, 1) + ' | taken: ' + Object.entries(s.takenShare).map(([k, v]) => k + ' ' + pct(v).replace('+', '')).join(', '));
   printLineups(D.lineups, null, out);
+  /* CHECK C3 (matrix-plan.mjs C3_BLOCK, a standing cell of the death sample): the default company holds the Sewer at Level 5 with no death */
+  const c3 = ok.filter((c) => c.block === 'c3');
+  if (c3.length) {
+    const club = c3.find((c) => c.comp === 'c3-club');
+    out('\nCHECK C3 (08 section 6, the default company on the Sewer at Level 5, Normal, the start kit): ' + (club ? (club.m.deaths > 0 ? 'FAILS, ' + club.m.deaths + ' death(s)' : 'passes, no death') : 'not played') + '; beside it, never gated:');
+    for (const c of c3) out('  ' + (c.comp + ' ' + c.styles.join(',')).padEnd(40) + ' deaths/1000h ' + fmt(c.m.deathsPer1000h, 1) + '  Level XP a head ' + fmt(c.m.levelXpPerH) + '  net gold ' + fmt(c.m.netPerH) + '  low HP ' + fmt(c.m.lowHpTypical, 2) + '  hunted ' + pct(c.m.huntedShare).replace('+', ''));
+  }
   /* THE DEATH RULE (cell.mjs header): the share of the time offered that was hunted, and XP after deaths over that time, where it is under 1 */
   const short = ok.filter((c) => !c.variant && Number.isFinite(c.m.huntedShare) && c.m.huntedShare < 0.999 && c.block !== 'grounds');
   out('\nTHE DEATH RULE (a death ends that hero\'s hunt; the rest hunt on): ' + short.length + ' of ' + ok.filter((c) => !c.variant).length + ' cells lost hunting time'
@@ -754,10 +761,10 @@ async function selftest() {
     const t0r = toolReds(base.cells);
     check('the tree plays no tool red (' + t0r.length + ' of ' + base.cells.length + ' cells ended ' + TOOL_RED_ENDS.join(' or ') + ') and every cell keeps each seed\'s ends',
       t0r.length === 0 && base.cells.every((c) => Array.isArray(c.m.falls) && c.m.falls.length === c.seeds), JSON.stringify(t0r).slice(0, 200));
-    const planted = [{ key: 'a', m: { ended: { died: 2, outgrown: 1 } } }, { key: 'b', m: { ended: { no_fight: 1, died: 1 } } }, { key: 'c', error: 'x' }];
+    const planted = [{ key: 'a', m: { ended: { died: 2, outgrown: 1 } } }, { key: 'b', m: { ended: { no_fight: 1, died: 1 } } }, { key: 'c', error: 'x' }, { key: 'd', error: 'Error: tally: kill at 1 credits unit null, who is not a hero of this hunt' }];
     const tr = toolReds(planted), lines = [];
-    check('a planted cell that ended no_fight is a tool red and the run exits 1; a death, an outgrown end or an error is not one (' + tr.map((x) => x.key).join() + ')',
-      tr.length === 1 && tr[0].key === 'b' && printToolReds(planted, (s) => lines.push(s)) === 1 && lines.length >= 2 && printToolReds([planted[0], planted[2]], () => {}) === 0);
+    check('a planted cell that ended no_fight, or an error naming a kill credited to no hero, is a tool red and the run exits 1; a death, an outgrown end or another error is not one (' + tr.map((x) => x.key).join() + ')',
+      tr.length === 2 && tr[0].key === 'b' && tr[1].key === 'd' && printToolReds(planted, (s) => lines.push(s)) === 1 && lines.length >= 2 && printToolReds([planted[0], planted[2]], () => {}) === 0);
     const NOFIGHT = { id: 'selftest-nofight', levels: [], seeds: 1, hours: 0.25, blocks: [{ id: 'a', levels: [30], comps: [lone('hammer')], gears: ['mid'], tiers: ['normal'] }] };
     const stall = { edits: [{ file: 'src/core/hunt/damage.js', from: "  if (target.side === 'mon') inst.world.fightAt = sc.atMs;", to: "  if (false) inst.world.fightAt = sc.atMs; /* MUTANT: the no-fight clock never moves */" }] };
     let mut = null, why = '';

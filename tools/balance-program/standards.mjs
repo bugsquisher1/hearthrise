@@ -286,7 +286,9 @@ export const STANDING = Object.freeze(BANDS.filter((b) => !b.dropped));
 
 const x = (id, name, verdict, band, computes, owner) => ({ id, name, verdict, band, computes, owner });
 export const OTHER_STANDARDS = deep([
-  x('X1', 'account shape', 'keep', 'the day each hero slot arrives at 12 h is printed from a played life', 'gold-model --slots at LOW, MID, BiS income', [24]),
+  /* RETIRED 2026-11-21 (patches/fb5-free-hero-slots.json, FB-5): all four hero slots are free from the start (Tyler), so no slot has a price or an
+     arrival day; the gates that read it (G9 the first slot in a lone hero's bank, G20 weeks to the fourth hero) go with it */
+  x('X1', 'account shape', 'retired', 'no slot has a price: all four are free from the start (Tyler 2026-11-21)', 'nothing (gold-model --slots prints the free ladder)', [24]),
   x('X2', 'account age', 'keep', 'at day 1, 30 and 180: a buy inside 10 days of gold and a chase inside 7 days', 'the account life by age', [27]),
   x('X3', 'server age and the newcomer', 'keep', 'a day-1 account on a day-180 server reaches MID at least as fast; old gear under 3 days of its gold', 'a newcomer life at market floor prices', [25, 24]),
   x('X4', 'who pays', 'keep', 'free reaches everything; Premium changes visits, never hours; a Crowns seller reaches BiS at most twice as fast', 'days to MID and BiS by payer', [24]),
@@ -368,8 +370,8 @@ export const GRID = deep({
   holds: ['deathsPer1000h at or under the top of S6\'s MID row for the tier', 'lowHpTypical inside S3 or S4'],
 });
 
-export const GUARD_MAP = deep({ G1: 'P2', G3: 'P7.4', G4: 'P8', G5: 'S4.bis', G6: 'P11.ten', G7: 'G-1', G8: 'G-4', G9: 'X1', G10: 'E7', G12: 'E8', G13: 'D4',
-  G15: 'G-10', G16: 'C2.1k', G18: 'X6' /* re-based to 12 h by lane/d-twelve-hours; now also reads the two-visit day */, G19: 'P7.2', G20: 'X1', G22: 'X6' });
+export const GUARD_MAP = deep({ G1: 'P2', G3: 'P7.4', G4: 'P8', G5: 'S4.bis', G6: 'P11.ten', G7: 'G-1', G8: 'G-4', G10: 'E7', G12: 'E8', G13: 'D4',
+  G15: 'G-10', G16: 'C2.1k', G18: 'X6' /* re-based to 12 h by lane/d-twelve-hours; now also reads the two-visit day */, G19: 'P7.2', G22: 'X6' /* G9 and G20 retired with X1 (fb5-free-hero-slots.json) */ });
 
 const g = (n, gap, decisions, lanes, guard) => ({ n, gap, decisions, lanes, guard });
 export const GAPS = deep([
@@ -411,6 +413,11 @@ export const GAPS = deep([
 
 /* THE DEATH PENALTY (RULED 2026-11-21, call 4): 6% of all Level XP, flat, no cap in hours. A printed table, never a band.
    hoursUnblessed is COMPUTED on this commit at the contract rate (the grid re-derives); fully blessed is a quarter. */
+/* THE FRONT SEAT'S DEFENSE (calibration C-1, calibration/c1.json, 14-the-rest.md section 2): the real front heroes of fours (a hammer, an axes, the
+   tank) carry 24 to 44 more Defense than the matrix's party line for their way at Levels 45 to 84, because the party career that line was cut from
+   put the tank in front and the other ways behind. The seat in front of a party now trains Defense on the front's own line, the tank's party line
+   (44, 48, 67 at Levels 45, 55, 84 against the real 41, 56, 61); the back seats keep their own (real back heroes read 2 to 10 over theirs) */
+export const SEAT_DEFENSE = deep({ front: { line: 'party', style: 'tank' }, source: 'C-1, 2026-11-21' });
 /* CHECK C1, THE WEAPON CARDS' TAGS (08-player-experience.md section 6, TARGET; 13-build-plan.md D-1): each starting way, one hero, the start kit
    and the start bar, the Mill Cellar on Normal, reaches Level 5 in 15 to 20 hunted minutes with no death and net gold at or over zero. A way
    inside reads "Good alone"; a way outside carries "Slow alone" on its card or is fixed at the formula layer (the designer's call, D-1). Each

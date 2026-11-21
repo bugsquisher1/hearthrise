@@ -157,8 +157,12 @@ export function trackBuffs(track, L) {
  */
 export function buildCell(D, K, { L, gear, styles, tier, ground, step = null, buffs = null, track = null, endTogether = false, staminaH = null, purse = null, goldFloor = null, blessings = 3, build = 'S' }) {
   const size = styles.length, line = size > 1 ? 'party' : 'alone';
-  const skills = styles.map((style) => {
+  const skills = styles.map((style, i) => {
     const lv = { ...D.skillsAt(D.lines, line, style, L) }, d = K.skillDeltaOf(gear, L), m = MAIN[style] || 'melee';
+    /* THE FRONT SEAT'S DEFENSE (standards.mjs SEAT_DEFENSE, calibration C-1): the hero in front of a party takes the blows and trains Defense as
+       the party career's front did, whatever its way; the back seats keep their own line */
+    const F = STD.SEAT_DEFENSE && STD.SEAT_DEFENSE.front;
+    if (F && size > 1 && i === 0) lv.defense = Math.max(lv.defense || 1, D.skillsAt(D.lines, F.line, F.style, L).defense || 1);
     for (const k of [m, 'defense']) lv[k] = Math.max(1, (lv[k] || 1) + d);
     return lv;
   });
@@ -335,7 +339,7 @@ const HASHED = ['src/core', 'src/data', 'supabase/functions/hr-accrue', 'src/she
 const cellCode = () => [buildCell, trackBuffs, talentsOf, blessedShareAt, planCells, cellRates, compsOf, cellKey, ownShareAt, slimResult, slimPlan].map((f) => f.toString()).join('\n')
   /* of standards.mjs only what shapes a cell (the gear rules, the stretches, the parties, the supply share, the checkpoints), never a band: a
      ruling that moves a target leaves the cells as they were. A run's file path is the machine's, so it is left out. */
-  + JSON.stringify([COMPS, MAIN, ...[RUNS.full, RUNS.quick].map(({ file, ...r }) => (void file, r)), STD.SUPPLY, STD.GEAR_STATES, STD.STRETCHES, STD.PARTIES, STD.POWER_SOURCES, STD.CHECKPOINTS, STD.GUARD_CHECKPOINTS, STD.TIERS]);
+  + JSON.stringify([COMPS, MAIN, ...[RUNS.full, RUNS.quick].map(({ file, ...r }) => (void file, r)), STD.SUPPLY, STD.GEAR_STATES, STD.SEAT_DEFENSE, STD.STRETCHES, STD.PARTIES, STD.POWER_SOURCES, STD.CHECKPOINTS, STD.GUARD_CHECKPOINTS, STD.TIERS]);
 export function inputHash(root = ROOT) {
   const h = createHash('sha256');
   let files;

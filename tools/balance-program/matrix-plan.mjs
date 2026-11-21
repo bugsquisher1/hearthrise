@@ -82,6 +82,14 @@ export const TALENT_BLOCK = Object.freeze({ id: 'talents', talents: true, levels
   Object.freeze({ styles: ['hammer', 'mage', 'mage', 'mage'], comp: lineupComp(['hammer', 'mage', 'mage', 'mage']), tier: 'hardest', builds: ['S', 'B'] }),
 ]) });
 
+/* CHECK C3, A STANDING CELL (patches/fb5-c3-default-company.json, FB-5; 08-player-experience.md sections 2.1 and 6): the default company a new account
+   makes in the first hour, the Club first (the "Good first hero") and the pre-filled three (src/data/how-to-play.js COMPANY_PICKS: tank, healer,
+   ranger), on the Millrace Sewer at its floor, Level 5, Normal, in the start kit (the arrival kit under Level 15), 4 seeds x 8 hours. C3 passes with
+   no death. Printed beside it, never gated: the same four with no healer (the Staff swapped for a Club) and the four with the wand first (the
+   played first hour picked the wand). If it fails, the four's first hunt together is Meadowbrook Thicket (chapter 08) */
+export const C3_BLOCK = Object.freeze({ id: 'c3', levels: Object.freeze([5]), comps: Object.freeze([[['hammer', 'tank', 'healer', 'bow'], 'c3-club'], [['hammer', 'tank', 'hammer', 'bow'], 'c3-no-healer'], [['mage', 'tank', 'healer', 'bow'], 'c3-wand']]),
+  gears: ['low'], tiers: ['normal'] });
+
 /* THE DEATH SAMPLE (12-balance-pass.md section 1, R2 and R4; replayed by FB-3 on the fixed engine, audit A-0): what the harder tiers do to a
    four, read where a death count can be read, 4 seeds of 8 hours (X26: 32 hours a seat). The mid four's every gear state on Dangerous and the
    hardest tier; the lineups on Deadly; the buffed fours; the four's Talents builds; both party defaults (the leave block); and the 14 grounds
@@ -93,6 +101,7 @@ const DEATHS = Object.freeze({ id: 'deaths', levels: Object.freeze([10, 30, 60, 
   { ...TALENT_BLOCK, minSize: 4, levels: [60, 110, 185] },
   LEAVE_BLOCK,
   { id: 'grounds', grounds: true, sizes: [4], firstComp: true, tiers: ['dangerous', 'hardest'] },
+  C3_BLOCK,
 ]) });
 
 /* CHAPTER 14'S FULL-GAME BLOCK (14-the-rest.md section 1, FB-3 in CB-2's single pass): what the tool can already play of chapter 14, as one more

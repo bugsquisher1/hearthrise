@@ -26,7 +26,7 @@ export const LEDGERS = Object.freeze([
   { id: 'skill_xp', unit: 'skill XP an hour a hero, by skill; combat skills against the career line (tools/balance-sim/skill-lines.json), bench skills against hours to 99', home: 'measure.mjs ref' },
   { id: 'gold', unit: 'gold an hour a hero (in, store bill, net); a price in REF HOURS = price / REF net gold an hour at the buyer\'s Level', home: 'measure.mjs price' },
   { id: 'items', unit: 'pieces an hour by gear tier and loot band; hours a named row (1 / rate); stock made an hour at a bench', home: 'cell rows rareEveryH, loot' },
-  { id: 'hunt_hours', unit: 'hero-hours hunted a day (stamina-bound)', home: 'REFERENCE_PLAYERS.huntHoursADay' },
+  { id: 'hunt_hours', unit: 'hero-hours hunted a day: 12 a hero for every reference player (RULED, Tyler 2026-11-21); the hours real people hunted are REFERENCE_PLAYERS.realHuntHoursADay, a record only', home: 'REFERENCE_PLAYERS.huntHoursADay' },
   { id: 'town_hours', unit: 'hero-hours a day at a node or a bench (REAL: 1.57 for every hunted hour; a hero rests its stamina while it works)', home: 'REFERENCE_PLAYERS.townHoursADay' },
   { id: 'attention', unit: 'attended minutes a day, the human\'s own time (REAL: a visit is 2 to 5 minutes, 2 to 6 visits a day)', home: 'REFERENCE_PLAYERS.attendedMinADay' },
   { id: 'stamina', unit: 'hours of bar; 1:1 drain hunting, 1:1 refill resting', home: 'src/data (stamina rows), rulings' },
@@ -138,21 +138,31 @@ export const REF_SEATS = Object.freeze([
 /* WHO pays. Re-based 2026-11-20 on docs/design/balance-program/10-real-players.md (4 people, 16 heroes, 1,334 hunted hours;
    thin past Level 46). REAL rows are what people did; ASSUMED rows are players nobody has been yet, kept because the game must
    hold against them. weight is the share of design attention, not a population share: the own four is 91% of real hunt hours.
-   huntHoursADay and townHoursADay are a hero's. spends = the share of earned gold the account puts into sinks. */
+   huntHoursADay and townHoursADay are a hero's. spends = the share of earned gold the account puts into sinks.
+
+   RE-BASED 2026-11-21 (Tyler, verbatim: "you should always be assuming that every person is going to hunt 12 hours a day since it's an
+   idle game."). huntHoursADay is 12 for every player but the Ceiling (24, the guard row). Real-player data calibrates RATES (XP, gold,
+   drops, deaths an hour), never hours: what each real player hunted stays as realHuntHoursADay, read by nothing that counts days or weeks.
+   WHY 12 NEEDS NO REFILL: stamina drains 1:1 hunting and rests 1:1 in town, so a hero that hunts every hour its bar allows hunts exactly
+   half the day, 12 h, whatever its cap. The cap sets the visits: the free 8 h bar needs two starts a day 12 h apart (8 h, rest 4, 4 h,
+   rest 8), Premium's 12 h bar one. Each refill adds 2 h a day (4 h hunted, 4 h of rest lost), so six make the Ceiling's 24.
+   refillsADay is therefore 0 at 12 h. A free hero started ONCE a day hunts 8 h and buys one refill for 12 (FREE_ONE_VISIT). */
+export const HUNT_HOURS_A_DAY = 12;
+export const FREE_ONE_VISIT = Object.freeze({ huntHoursADay: 8, refillsFor12: 1 });
 export const REFERENCE_PLAYERS = Object.freeze([
-  { id: 'new', name: 'New', heroes: 1, seat: 'lone', premium: false, huntHoursADay: 2, townHoursADay: 2, attendedMinADay: 10, refillsADay: 0, stock: 'store', spends: 0.1, weight: 'high', label: 'REAL, thin (2 people, 18 h)',
+  { id: 'new', name: 'New', heroes: 1, seat: 'lone', premium: false, huntHoursADay: HUNT_HOURS_A_DAY, realHuntHoursADay: 2, townHoursADay: 2, attendedMinADay: 10, refillsADay: 0, stock: 'store', spends: 0.1, weight: 'high', label: 'REAL, thin (2 people, 18 h)',
     note: 'one or two heroes alone on Normal, Levels 1 to 15. Dies 8.9 times in 100 hours. Both real ones stopped at Level 7 to 9: one never met the town, one never came back from it' },
-  { id: 'ownfour', name: 'Own four', heroes: 4, seat: 'four', premium: false, huntHoursADay: 3.3, townHoursADay: 5, attendedMinADay: 10, refillsADay: 0, stock: 'third own', spends: 0.17, weight: 'highest', label: 'REAL (2 people, 813 h)',
-    note: 'THE real player: one person, four of their own heroes as a Deadly party from about Level 10, two visits a day of under four minutes, away eleven hours. Saves: holds 2.09M with nothing it wants' },
-  { id: 'heavy', name: 'Heavy four', heroes: 4, seat: 'four', premium: false, huntHoursADay: 8.4, townHoursADay: 6, attendedMinADay: 35, refillsADay: 1.4, stock: 'third own', spends: 0.97, weight: 'high', label: 'REAL, thin (1 person, 503 h)',
-    note: 'the own four checked six times a day, with refills. Level 75 in 100 to 119 hunted hours a hero. Spends everything: Tempering, rooms, refills' },
-  { id: 'premium', name: 'Premium own four', heroes: 4, seat: 'four', premium: true, huntHoursADay: 3.3, townHoursADay: 5, attendedMinADay: 10, refillsADay: 0, stock: 'third own', spends: 0.17, weight: 'medium', label: 'ASSUMED',
-    note: 'the Own four with Premium on every hero. It hunts 3.3 hours a day against an 8 hour bar, so the 12 hour bar gives it nothing: what does Premium give it?' },
-  { id: 'ceiling', name: 'Ceiling', heroes: 4, seat: 'four', premium: true, huntHoursADay: 24, townHoursADay: 0, attendedMinADay: 120, refillsADay: 6, stock: 'own', spends: 1, weight: 'guard', label: 'ASSUMED',
+  { id: 'ownfour', name: 'Own four', heroes: 4, seat: 'four', premium: false, huntHoursADay: HUNT_HOURS_A_DAY, realHuntHoursADay: 3.3, townHoursADay: 5, attendedMinADay: 10, refillsADay: 0, stock: 'third own', spends: 0.17, weight: 'highest', label: 'REAL (2 people, 813 h)',
+    note: 'THE real player: one person, four of their own heroes as a Deadly party from about Level 10, two visits a day of under four minutes, away eleven hours (really 3.3 hunted hours a hero a day; counted at 12, the ruling). Saves: holds 2.09M with nothing it wants' },
+  { id: 'heavy', name: 'Heavy four', heroes: 4, seat: 'four', premium: false, huntHoursADay: HUNT_HOURS_A_DAY, realHuntHoursADay: 8.4, realRefillsADay: 1.4, townHoursADay: 6, attendedMinADay: 35, refillsADay: 0, stock: 'third own', spends: 0.97, weight: 'high', label: 'REAL, thin (1 person, 503 h)',
+    note: 'the own four checked six times a day (really 8.4 hunted hours a hero a day on 1.4 refills; counted at 12 with none). Level 75 in 100 to 119 hunted hours a hero. Spends everything: Tempering, rooms, refills' },
+  { id: 'premium', name: 'Premium own four', heroes: 4, seat: 'four', premium: true, huntHoursADay: HUNT_HOURS_A_DAY, realHuntHoursADay: null, townHoursADay: 5, attendedMinADay: 10, refillsADay: 0, stock: 'third own', spends: 0.17, weight: 'medium', label: 'ASSUMED',
+    note: 'the Own four with Premium on every hero. Both hunt 12 hours a day: the free four by starting its hunts twice a day, this one once. Premium\'s 12 hour bar buys the second visit back, not more hours' },
+  { id: 'ceiling', name: 'Ceiling', heroes: 4, seat: 'four', premium: true, huntHoursADay: 24, realHuntHoursADay: null, townHoursADay: 0, attendedMinADay: 120, refillsADay: 6, stock: 'own', spends: 1, weight: 'guard', label: 'ASSUMED',
     note: 'nobody yet: four heroes hunting every hour the rules allow. The pace and inflation ceiling a server of 1,000 will contain' },
-  { id: 'whale', name: 'Buyer', heroes: 4, seat: 'four', premium: true, huntHoursADay: 8.4, townHoursADay: 0, attendedMinADay: 35, refillsADay: 6, stock: 'market', spends: 1, weight: 'guard', label: 'ASSUMED',
-    note: 'the Heavy four who sells Crowns for gold: gold is no limit, so every gold sink is bought the day it opens' },
-  { id: 'friends', name: 'Four friends', heroes: 1, seat: 'four', premium: false, huntHoursADay: 3.3, townHoursADay: 3, attendedMinADay: 30, refillsADay: 0, stock: 'third own', spends: 0.5, weight: 'promise', label: 'ASSUMED (0 real hours with another person)',
+  { id: 'whale', name: 'Buyer', heroes: 4, seat: 'four', premium: true, huntHoursADay: HUNT_HOURS_A_DAY, realHuntHoursADay: null, townHoursADay: 0, attendedMinADay: 35, refillsADay: 0, stock: 'market', spends: 1, weight: 'guard', label: 'ASSUMED',
+    note: 'the Heavy four who sells Crowns for gold: gold is no limit, so every gold sink is bought the day it opens. At 12 hours like everyone; with all six refills it is the Ceiling' },
+  { id: 'friends', name: 'Four friends', heroes: 1, seat: 'four', premium: false, huntHoursADay: HUNT_HOURS_A_DAY, realHuntHoursADay: null, townHoursADay: 3, attendedMinADay: 30, refillsADay: 0, stock: 'third own', spends: 0.5, weight: 'promise', label: 'ASSUMED (0 real hours with another person)',
     note: 'four ACCOUNTS, one hero each, hunting together: the party the game is sold on, and so far never played' },
 ]);
 

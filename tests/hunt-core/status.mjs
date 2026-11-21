@@ -154,7 +154,7 @@ const mutants = [
   { name: 'the tick at expiry is lost', case: 'bleed-6s',
     edits: [['src/core/hunt/status.js', 'if (st.next > 0 || st.left < 0) continue;', 'if (st.next > 0 || st.left <= 0) continue;']] },
   { name: 'the rune tier does not scale', case: 'scales-with-melee-and-tier',
-    edits: [['src/core/hunt/status.js', ' * row.tierPermille[tier - 1]) / 1000);', ' * 1000) / 1000);']] },
+    edits: [['src/core/hunt/status.js', ' * row.tierPermille[tier - 1]) / 1000));', ' * 1000) / 1000));']] },
   { name: '[tank runes] a slowing tier list is never checked', case: 'statuses-valid',
     edits: [['src/data/statuses.js', "    if (kind === 'slowPm' && row.tierPermille !== undefined) {", "    if (false) {"]] },
   { name: '[tank runes] a marking status takes a tier list', case: 'statuses-valid',

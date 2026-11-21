@@ -82,7 +82,7 @@ const cases = {
     }
     /* THE LONG PARTY HEAL beside the steady one: a row on the heal lane whose own rule waits for the fight and for two hurt allies */
     /* (a party row that HEALS: a party shield, the tank's Shelter, is no heal and keeps its own rule, a monster's cast warning) */
-    const heals = Object.values(M.AD.ABILITIES).filter((r) => r.target === PARTY_HEAL && r.heal);
+    const heals = Object.values(M.AD.ABILITIES).filter((r) => r.target === PARTY_HEAL && M.AD.heals(r));
     const save = heals.find((r) => Array.isArray(r.trigger));
     if (!save) return 'no party heal carries its own rule (Tyler 2026-11-08: "make sure the conditions are available that make sense")';
     const on = (metric) => save.trigger.find((c) => c.metric === metric);
@@ -119,11 +119,12 @@ const mutants = [
   { name: 'Spring Tide waits for two allies under 60% again (the rule that never fired)', case: 'hero-area-rows',
     edits: [[AB, "trigger: [{ metric: 'party_hp_pct', op: 'lt', value: 85 },", "trigger: [{ metric: 'allies_below', op: 'gte', value: 2, subject: 'under_60' },"]] },
   { name: 'Spring Tide spends the last of the mana (no mana floor)', case: 'hero-area-rows',
-    edits: [[AB, ", { metric: 'self_mana_pct', op: 'gte', value: 50 }],\n    versions: [[120,", "],\n    versions: [[120,"]] },
+    edits: [[AB, ", { metric: 'self_mana_pct', op: 'gte', value: 50 }],\n    versions: [120,", "],\n    versions: [120,"]] },
   { name: 'Spring Tide is as cheap as Circle of Renewal', case: 'hero-area-rows',
-    edits: [[AB, "lane: 'heal', cdMs: 60000, mana: 120,", "lane: 'heal', cdMs: 60000, mana: 50,"], [AB, 'versions: [[120, 1000], [144, 1740]', 'versions: [[50, 1000], [144, 1740]']] },
-  { name: "Turning Cut's rule names a metric the server does not know", case: 'hero-area-rows',
-    edits: [[AB, "    trigger: [{ metric: 'enemies_in_aoe', op: 'gte', value: 3 }] }),", "    trigger: [{ metric: 'enemies_around', op: 'gte', value: 3 }] }),"]] },
+    edits: [[AB, "lane: 'heal', cdMs: 60000, mana: 120,", "lane: 'heal', cdMs: 60000, mana: 50,"], [AB, 'versions: [120, 144,', 'versions: [50, 144,']] },
+  /* (Turning Cut's own rule of 3 went with the spell rule's merge, Tyler 32-2: a party shield's rule is the row's own one now) */
+  { name: "Shelter's rule names a metric the server does not know", case: 'hero-area-rows',
+    edits: [[AB, "    trigger: [{ metric: 'enemy_casting', op: 'gte', value: 1, subject: 'any' }],", "    trigger: [{ metric: 'enemy_casts', op: 'gte', value: 1, subject: 'any' }],"]] },
 ];
 
 const R = makeReport('hunt-core/spell-rows');

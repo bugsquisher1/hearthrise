@@ -71,6 +71,9 @@ export const BAR_TEXT = Object.freeze({
   effect_heal_blow: 'Heals {pct}% of Max Hit',
   effect_heal_hp: 'Heals {pct}% of your max HP',
   effect_shield_blow: 'Blocks damage up to {pct}% of Max Hit',
+  /* the beginner's floor (abilities.js base): what a cast lands while that share of your blow is smaller */
+  effect_floor_hit: 'Never less than {lo}–{hi} a hit',
+  effect_floor: 'Never less than {points}',
   /* what a status does to the monster it lands on, from its row (statuses.js durationMs, slowPm, takenPm) */
   effect_status: 'Causes {status}.',
   effect_status_for: 'Causes {status} for {secs} s.',
@@ -131,6 +134,8 @@ export const BAR_TEXT = Object.freeze({
   out_heal_blow: 'heals {pct}% of Max Hit',
   out_heal_hp: 'heals {pct}% of max HP',
   out_shield_blow: 'shields {pct}% of Max Hit',
+  out_floor_hit: 'at least {lo}–{hi}',
+  out_floor: 'at least {points}',
 
   /* A slot's setup, and what another slot does to it. */
   setup_any: 'Any of: {conditions}.',

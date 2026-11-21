@@ -380,57 +380,55 @@ const cases = {
     const both = () => ({ chalked_fire_rune: { loaded: 3 }, graven_fire_rune: { loaded: 3 } });
     const top = run(60, both());
     if (!top.cast || top.cast.supply !== 'graven_fire_rune' || top.cast.version !== 5 || top.cast.mana !== fs.versions[4].mana
-      || top.cast.power !== M.AD.outputPm(fs, 5, 60) || top.hs.bag.graven_fire_rune.left !== 2) return 'a Melee-60 tank with Chalked and Graven did not cast version V on a Graven rune: ' + JSON.stringify(top.cast);
+      || top.cast.power !== M.AD.versionOf(fs, 5).outPm || top.hs.bag.graven_fire_rune.left !== 2) return 'a Melee-60 tank with Chalked and Graven did not cast version V on a Graven rune: ' + JSON.stringify(top.cast);
     const low = run(59, both());
     if (!low.cast || low.cast.supply !== 'chalked_fire_rune' || low.cast.version !== 1 || low.cast.mana !== fs.mana
-      || low.cast.power !== M.AD.outputPm(fs, 1, 59) || low.hs.bag.graven_fire_rune.left !== 3) return 'a Melee-59 tank did not fall to its Chalked rune (version I): ' + JSON.stringify(low.cast);
+      || low.cast.power !== M.AD.versionOf(fs, 1).outPm || low.hs.bag.graven_fire_rune.left !== 3) return 'a Melee-59 tank did not fall to its Chalked rune (version I): ' + JSON.stringify(low.cast);
     const other = Object.keys(M.ITEMS).find((id) => M.runes.isRune(M.ITEMS[id]) && M.ITEMS[id].family !== 'fire');
     const wrong = run(60, { [other]: { loaded: 3 } });
     return wrong.cast ? 'Flame Strike spent ' + other + ', a rune of another family' : null;
   },
-  /* OUTPUT GROWS WITH LEVEL, MANA NEVER DOES (Tyler 2026-10-23, d-scaling): version I of Flame Strike costs its
-     row's mana at Melee 1 and at Melee 60, and lands its row's numbers plus lvPm a level (1000 -> 3360 permille);
-     every version at its unlock level lands at least the one below it there. */
-  'output-grows-with-level-not-mana': (M) => {
+  /* OUTPUT GROWS WITH THE CASTER'S BLOW, MANA NEVER DOES (THE SPELL RULE, Tyler 2026-11-21, 21-5: every cast is a share of its caster's
+     own blow, so its skill and its weapon grow it through its max hit and nothing else; the d-scaling lvPm of 2026-10-23 is retired):
+     version I of Flame Strike costs its row's mana at Melee 1 and at Melee 60, casts at the step 1000 at both, and the same cast from a
+     hero whose blow is four times bigger lands about four times as hard; every version lands at least the one below it. */
+  'output-grows-with-the-blow-not-mana': (M) => {
     const fs = M.AD.ABILITIES.flame_strike;
-    if (M.AD.outputPm(fs, 1, 1) !== 1000 || M.AD.outputPm(fs, 1, 60) !== 1000 + fs.lvPm * 59 || !(fs.lvPm > 0)) return 'version I lands ' + M.AD.outputPm(fs, 1, 60) + ' permille at 60';
-    for (let n = 2; n <= 5; n++) {
-      const lv = M.runes.versionLevel(n);
-      if (M.AD.outputPm(fs, n, lv) < M.AD.outputPm(fs, n - 1, lv)) return 'version ' + n + ' lands under version ' + (n - 1) + ' at level ' + lv;
-    }
-    const at = (lv) => {
+    for (let n = 2; n <= 5; n++) if (M.AD.versionOf(fs, n).outPm <= M.AD.versionOf(fs, n - 1).outPm) return 'version ' + n + ' lands no more than version ' + (n - 1);
+    const at = (lv, maxHit) => {
       const hs = supplySession(M, { bag: { chalked_fire_rune: { loaded: 1 } } });
-      const x = melee(M, ['flame_strike'], { mana: 100, maxMana: 100 }, { hs, skills: { melee: M.XP.skillXpForLevel('melee', lv) } });
+      const x = melee(M, ['flame_strike'], { mana: 100, maxMana: 100, maxHit }, { hs, skills: { melee: M.XP.skillXpForLevel('melee', lv) } });
+      x.sc.rng = rngOf(M, 3);
       M.abilities.castAbilities(x.inst, x.sc);
       return { cast: x.sc.events.find((e) => e.type === 'cast') || {}, dmg: (x.sc.events.find((e) => e.type === 'dmg') || {}).amount || 0 };
     };
-    const lo = at(1), hi = at(60);
+    const lo = at(1, 10), hi = at(60, 10), big = at(60, 40);
     if (lo.cast.mana !== fs.mana || hi.cast.mana !== fs.mana) return 'version I cost ' + lo.cast.mana + ' mana at 1 and ' + hi.cast.mana + ' at 60 (want ' + fs.mana + ' both)';
-    if (lo.cast.power !== 1000 || hi.cast.power !== M.AD.outputPm(fs, 1, 60)) return 'the casts landed ' + lo.cast.power + ' / ' + hi.cast.power + ' permille';
-    /* the same roll lands about power/1000 as hard (the stances' floors take a point at most) */
-    return lo.dmg > 0 && hi.dmg > lo.dmg && hi.dmg * 1000 >= lo.dmg * (hi.cast.power - 100) ? null
-      : 'the same roll hit for ' + lo.dmg + ' at Melee 1 and ' + hi.dmg + ' at Melee 60 (power ' + hi.cast.power + ')';
+    if (lo.cast.power !== 1000 || hi.cast.power !== 1000) return 'version I landed ' + lo.cast.power + ' / ' + hi.cast.power + ' permille at Melee 1 / 60 (the level grows the blow, never the step)';
+    if (lo.dmg !== hi.dmg) return 'one blow and one roll hit for ' + lo.dmg + ' at Melee 1 and ' + hi.dmg + ' at Melee 60: the level grew the cast beside the blow';
+    /* the same roll from a blow four times bigger lands about four times as hard (its top floors, its roll is one draw) */
+    return big.dmg >= 3 * hi.dmg && big.dmg <= 5 * hi.dmg ? null : 'a blow four times bigger hit for ' + big.dmg + ' against ' + hi.dmg;
   },
-  /* A VERSION RAISES NUMBERS ONLY (src/data/abilities.js versions, outPm): a cast at 1500 permille heals and
-     shields half again its row's numbers, a row with no `versions` casts every version at its own. */
+  /* A VERSION RAISES NUMBERS ONLY (src/data/abilities.js versions, the rune tier's step): a cast at 1500 permille heals and shields
+     half again its row's share, a row with no `versions` casts every version at its own. */
   'version-output-scales-numbers': (M) => {
     const plain = M.AD.versionOf({ mana: 10 }, 4);
     if (plain.mana !== 10 || plain.outPm !== 1000) return 'a row with no versions cast version IV at ' + JSON.stringify(plain);
-    const sized = M.AD.versionOf({ mana: 10, versions: [{ mana: 10, outPm: 1000 }, { mana: 12, outPm: 1400 }] }, 2);
-    if (sized.mana !== 12 || sized.outPm !== 1400) return 'version II of a sized row read ' + JSON.stringify(sized);
+    const sized = M.AD.versionOf({ mana: 10, versions: [10, 12] }, 2);
+    if (sized.mana !== 12 || sized.outPm !== M.runes.versionStep(2) || !(sized.outPm > 1000)) return 'version II of a sized row read ' + JSON.stringify(sized);
     const mend = M.AD.ABILITIES.greater_mend;
     const healAt = (pm) => {
-      const x = oneHero(M, { hp: 1, maxHp: 1000 }, { bar: [], range: 7 });
+      const x = oneHero(M, { hp: 1, maxHp: 1000, maxHit: 30 }, { bar: [], range: 7 });
       x.sc.rng = rngOf(M, 9);
       M.abilities.fire(x.inst, x.h, { row: mend, target: x.h, lines: [], pm }, x.sc);
       return (x.sc.events.find((e) => e.type === 'heal') || {}).amount;
     };
     const base = healAt(1000), more = healAt(1500);
     if (!(base > 0) || more !== Math.floor((base * 1500) / 1000)) return 'a 1500-permille Greater Mend healed ' + more + ' where the row healed ' + base;
-    const bar = M.AD.ABILITIES.arcane_barrier;
-    const y = oneHero(M, { hp: 50 }, { bar: [], range: 7 });
+    const bar = M.AD.ABILITIES.arcane_barrier, whole = Math.floor((30 * bar.shieldPm) / 1000);
+    const y = oneHero(M, { hp: 50, maxHit: 30 }, { bar: [], range: 7 });
     M.abilities.fire(y.inst, y.h, { row: bar, target: y.h, lines: [], pm: 1500 }, y.sc);
-    return y.h.shield === Math.floor((bar.shield * 1500) / 1000) ? null : 'a 1500-permille Arcane Barrier shielded ' + y.h.shield + ' of a ' + bar.shield + ' row';
+    return y.h.shield === Math.floor((whole * 1500) / 1000) ? null : 'a 1500-permille Arcane Barrier shielded ' + y.h.shield + ' of a ' + whole + ' share';
   },
   /* AB-11: an action set skips abilities (Mana train: runes; Boss: area). */
   /* Hunter's Mark keeps its row's promise: the marked monster takes bonusPct more from every blow for durMs. */
@@ -464,7 +462,8 @@ const cases = {
     if (full.cast) return 'Mend cast at full health: ' + JSON.stringify(full.cast);
     const hurt = run(40);
     if (!hurt.cast || hurt.cast.mana !== mend.mana || hurt.cast.magicXpMult !== mend.magicXpMult || hurt.cast.supply) return 'a hurt hero did not cast Mend at its mana and no rune: ' + JSON.stringify(hurt.cast);
-    if (!hurt.heal || hurt.heal.u !== 1 || hurt.heal.t !== 1 || !(hurt.heal.amount >= mend.heal[0] && hurt.heal.amount <= mend.heal[1]) || hurt.x.h.hp !== 40 + hurt.heal.amount) return 'Mend did not heal its caster: ' + JSON.stringify(hurt.heal);
+    /* 11% of its own max HP (Tyler 2026-11-21, 32-4): 11 of 100 */
+    if (!hurt.heal || hurt.heal.u !== 1 || hurt.heal.t !== 1 || hurt.heal.amount !== Math.floor((100 * mend.healHpPm) / 1000) || hurt.x.h.hp !== 40 + hurt.heal.amount) return 'Mend did not heal its caster 11% of its max HP: ' + JSON.stringify(hurt.heal);
     if (hurt.x.h.shield) return 'Mend left a shield (' + hurt.x.h.shield + ') instead of healing';
     return mend.lane === 'heal' && mend.universal === true ? null : 'Mend is not a universal heal-lane row';
   },
@@ -489,17 +488,17 @@ const cases = {
     if (sick(a)) return 'the mark outlived its ' + row.durationMs + ' ms';
     return hit(a) === clean ? null : 'a monster whose mark wore off still took more';
   },
-  /* Bleed scales with the caster's level in its status row's scalesWith skill (Tyler 10-16), fixed as it lands. */
-  'bleed-scales-with-caster-skill': (M) => {
+  /* Bleed grows with the caster's own blow (THE SPELL RULE: statuses.js blowPm, Tyler 2026-11-21), fixed as it lands: a stack from a
+     max hit of 60 ticks 60 x blowPm / 1000 at Chalked, never a number that grows with a skill level beside the blow. */
+  'bleed-scales-with-the-casters-blow': (M) => {
     const rend = M.AD.ABILITIES.rend, bleed = M.status.statusRow(rend.status);
-    const lv = 40;
-    const x = oneHero(M, {}, { skills: { [bleed.scalesWith]: M.XP.skillXpForLevel(bleed.scalesWith, lv) } }, [{ x: 13, y: 3, hp: 5000, maxHp: 5000 }]);
+    const x = oneHero(M, { maxHit: 60 }, {}, [{ x: 13, y: 3, hp: 5000, maxHp: 5000 }]);
     x.sc.rng = rngOf(M, 5);
     const t = x.w.units.find((u) => u.side === 'mon');
     M.abilities.fire(x.inst, x.h, { row: rend, target: t, lines: [] }, x.sc);
-    const want = M.status.stackScale(bleed, { skillLv: lv, runeTier: 1 });
+    const want = Math.max(1000, Math.floor((60 * bleed.blowPm * bleed.tierPermille[0]) / 1000));
     const got = (t.statuses || []).map((st) => st.scale);
-    return got.length && want > 1000 && got.every((s) => s === want) ? null : 'a level-' + lv + ' caster\'s bleed landed at ' + JSON.stringify(got) + ', want ' + want;
+    return got.length && want > 1000 && got.every((v) => v === want) ? null : 'a max-hit-60 caster\'s bleed landed at ' + JSON.stringify(got) + ', want ' + want;
   },
   'action-set-skips': (M) => {
     const hs = () => supplySession(M, { bag: { chalked_fire_rune: { loaded: 5 }, chalked_earth_rune: { loaded: 5 } } });
@@ -1045,7 +1044,7 @@ async function withRows(root, edits) {
 
 const mutants = [
   { name: 'a healer spell trains Magic at another rate', case: 'a-mage-and-a-healer-train-alike',
-    edits: [['src/data/abilities.js', 'heal: [40, 60], whenBelowPct: 70, magicXpMult: 1600,', 'heal: [40, 60], whenBelowPct: 70, magicXpMult: 1200,']] },
+    edits: [['src/data/abilities.js', 'healPm: 3170, base: 50, whenBelowPct: 70, magicXpMult: 1600,', 'healPm: 3170, base: 50, whenBelowPct: 70, magicXpMult: 1200,']] },
   { name: "a healer's basic trains Magic at another rate", case: 'a-mage-and-a-healer-train-alike',
     edits: [['src/data/hunt-roles.js', "peel: 180,\n    basic: Object.freeze({ mana: 1, magicXpMult: 1600 }) }),", "peel: 180,\n    basic: Object.freeze({ mana: 1, magicXpMult: 1200 }) }),"]] },
   { name: 'the Mark rides the offense lane (audit c16)', case: 'support-lane',
@@ -1061,17 +1060,17 @@ const mutants = [
   { name: 'a recast refunds the whole cast whatever was used', case: 'barrier-recast-refunds',
     edits: [['src/core/hunt/abilities.js', '  return Math.min(mana, Math.floor((standing * mana) / lands));', '  return mana;']] },
   { name: 'a full shell is recast', case: 'barrier-recast-refunds',
-    edits: [['src/core/hunt/abilities.js', "    if (row.target === 'self' && row.shield && int(hero.shield) >= landsShield(row, pm)) return { why: 'no_target' };\n", '']] },
+    edits: [['src/core/hunt/abilities.js', "    if (row.target === 'self' && shells(row) && int(hero.shield) >= landsShield(hero, row, pm)) return { why: 'no_target' };\n", '']] },
   { name: 'Magic XP is paid on refunded mana', case: 'barrier-recast-refunds',
     edits: [['src/core/hunt/abilities.js', "{ u: u.id, ability: row.id, t: pick.target.id, mana, magicXpMult:", "{ u: u.id, ability: row.id, t: pick.target.id, mana: paid, magicXpMult:"]] },
   { name: '[bar] the hover casts version I whatever store rune the slot names', case: 'the-bar-states-the-cast-the-engine-makes', also: ['src'],
     edits: [['src/shell/cast-facts.js', '    else if (tier) { version = tier; share = STORE_PM;', '    else if (tier) { version = 1; share = STORE_PM;']] },
   { name: '[bar] the hover lands a store rune at full power', case: 'the-bar-states-the-cast-the-engine-makes', also: ['src'],
     edits: [['src/shell/cast-facts.js', '    else if (tier) { version = tier; share = STORE_PM;', '    else if (tier) { version = tier; share = 1000;']] },
-  { name: '[bar] the hover reads its numbers at level 1', case: 'the-bar-states-the-cast-the-engine-makes', also: ['src'],
-    edits: [['src/shell/cast-facts.js', 'pm: Math.floor((outputPm(row, version, lv) * share) / 1000)', 'pm: Math.floor((outputPm(row, version, 1) * share) / 1000)']] },
-  { name: '[bar] the damage line reads the catalogue row (Tyler 2026-11-08)', case: 'the-bar-states-the-cast-the-engine-makes', also: ['src'],
-    edits: [['src/shell/action-facts.js', '    if (r.dmg) numbers.push(damageLine(r, k.pm));', '    if (r.dmg) numbers.push(damageLine(r, 1000));']] },
+  { name: '[bar] the hover reads version I\'s step whatever rune the slot names', case: 'the-bar-states-the-cast-the-engine-makes', also: ['src'],
+    edits: [['src/shell/cast-facts.js', 'pm: Math.floor((versionOf(row, version).outPm * share) / 1000)', 'pm: Math.floor((versionOf(row, 1).outPm * share) / 1000)']] },
+  { name: '[bar] the damage line reads the row\'s share, not the cast (Tyler 2026-11-08)', case: 'the-bar-states-the-cast-the-engine-makes', also: ['src'],
+    edits: [['src/shell/action-facts.js', '    if (landsBlow(r)) numbers.push(blowShareLine(r, k.pm));', '    if (landsBlow(r)) numbers.push(blowShareLine(r, 1000));']] },
   { name: '[bar] a short hero waits for version I\'s mana', case: 'the-bar-states-the-cast-the-engine-makes', also: ['src'],
     edits: [['src/shell/action-facts.js', '    const need = /** @type {{ mana: number }} */ (castOf(a, { bag, store: set && set.store, skills, set })).mana;', '    const need = r.mana;']] },
   { name: '[bar] the hover keeps the explanatory type line', case: 'the-bar-states-the-cast-the-engine-makes', also: ['src'],
@@ -1096,10 +1095,10 @@ const mutants = [
     edits: [['src/core/hunt/conditions.js', '(id) => isRune(ITEMS[id]) && ITEMS[id].family === family && runeTierOf(ITEMS[id]))', '(id) => isRune(ITEMS[id]) && runeTierOf(ITEMS[id]))']] },
   { name: '[spell-content] a version costs version I\'s mana', case: 'family-spends-the-best-unlocked-tier',
     edits: [['src/core/hunt/abilities.js', '    const v = versionOf(row, s.version);', '    const v = versionOf(row, 1);']] },
-  { name: '[spell-content] output ignores the level', case: 'output-grows-with-level-not-mana',
-    edits: [['src/data/abilities.js', '  return versionOf(row, n).outPm + (row && Number.isInteger(row.lvPm) ? row.lvPm * (lv - 1) : 0);', '  return versionOf(row, n).outPm;']] },
-  { name: '[spell-content] a cast lands at level 1 whatever its hero', case: 'output-grows-with-level-not-mana',
-    edits: [['src/core/hunt/abilities.js', 'const pm = Math.floor((outputPm(row, s.version, powerLevel(h, row)) * s.pm) / 1000);', 'const pm = Math.floor((outputPm(row, s.version, 1) * s.pm) / 1000);']] },
+  { name: '[spell rule] a cast reads a fixed blow, not its hero\'s', case: 'output-grows-with-the-blow-not-mana',
+    edits: [['src/core/hunt/abilities.js', '  const dmg = () => roll(sc, hitRange(u.maxHit, row));', '  const dmg = () => roll(sc, hitRange(10, row));']] },
+  { name: '[spell rule] a cast grows with its skill level too (the retired lvPm, twice over the blow)', case: 'output-grows-with-the-blow-not-mana',
+    edits: [['src/core/hunt/abilities.js', '    const pm = Math.floor((v.outPm * s.pm) / 1000);', '    const pm = Math.floor((v.outPm * s.pm * (1000 + 10 * (skillLevel(h, row) - 1))) / 1000000);']] },
   { name: 'a store rune fires at full power (r07)', case: 'spell-casts-the-spent-runes-version',
     edits: [['src/core/hunt/abilities.js', '  return { line: s, version, pm: BASIC_PM };', '  return { line: s, version, pm: 1000 };']] },
   { name: '[rune ladder] a deeper store rune casts version I', case: 'store-rune-is-the-one-the-slot-names',
@@ -1121,9 +1120,9 @@ const mutants = [
   { name: 'a hit ignores its power', case: 'spell-casts-the-spent-runes-version',
     edits: [['src/core/hunt/abilities.js', '  const hitTag = pm === 1000 ? { id: row.id } : { id: row.id, mult: pm };', '  const hitTag = { id: row.id };']] },
   { name: 'a heal and a shield ignore their version', case: 'version-output-scales-numbers',
-    edits: [['src/core/hunt/abilities.js', '  const scaled = (n) => (pm === 1000 ? n : Math.floor((n * pm) / 1000));', '  const scaled = (n) => n;']] },
+    edits: [['src/core/hunt/abilities.js', '  const amount = () => castAmount(row, u.maxHit, u.maxHp, pm) || {};', '  const amount = () => castAmount(row, u.maxHit, u.maxHp, 1000) || {};']] },
   { name: 'a sized version is read as the row', case: 'version-output-scales-numbers',
-    edits: [['src/data/abilities.js', '  return v ? { mana: v.mana, outPm: v.outPm } : { mana: row ? row.mana : 0, outPm: 1000 };', '  return { mana: row ? row.mana : 0, outPm: 1000 };']] },
+    edits: [['src/data/abilities.js', '  return Number.isInteger(mana) ? { mana, outPm: versionStep(n) } : { mana: row ? row.mana : 0, outPm: 1000 };', '  return { mana: row ? row.mana : 0, outPm: 1000 };']] },
   { name: 'the store is shut while another ammo line has uses (the starter-kit lock)', case: 'store-rune-beside-the-starter-kit',
     edits: [['src/core/action-rules.js', "  return !!hs && (hs.supplySource === 'store' || hs.onEmpty === 'switch');",
       "  return !!hs && (hs.supplySource === 'store' || (hs.onEmpty === 'switch' && !Object.keys(hs.bag || {}).some((id) => kindOf(id) === 'ammo' && leftOf(hs, id) > 0)));"]] },
@@ -1150,9 +1149,9 @@ const mutants = [
     edits: [['src/core/hunt/conditions.js', "  if (a.onEmpty !== undefined && a.onEmpty !== sup.onEmpty) return { error: 'bad_on_empty' };\n", '']] },
   { name: '[spell-content] Mend casts at full health', case: 'mend-heals-only-the-hurt',
     edits: [['src/core/hunt/abilities.js', "    case 'self': return pct(hero) < 100 ? hero : null;",
-      "    case 'self': return row.heal || pct(hero) < 100 ? hero : null;"]] },
+      "    case 'self': return heals(row) || pct(hero) < 100 ? hero : null;"]] },
   { name: '[spell-content] Mend shields instead of healing', case: 'mend-heals-only-the-hurt',
-    edits: [['src/core/hunt/abilities.js', '      if (row.heal) { healOne(u, u, scaled(roll(sc, row.heal)), sc, sg); break; }\n', '']] },
+    edits: [['src/core/hunt/abilities.js', '      if (heals(row)) { healOne(u, u, amount().heal, sc, sg); break; }\n', '']] },
   { name: '[spell-content] Mend is kept off a physical bar', case: 'mend-heals-only-the-hurt',
     edits: [['src/data/abilities.js', 'disciplines: DISCIPLINE_IDS, universal: true,', "disciplines: ['destruction', 'restoration'], universal: true,"]] },
   { name: '[spell-content] the sickness mark adds nothing', case: 'sickness-marks-what-it-hits',
@@ -1165,8 +1164,8 @@ const mutants = [
     edits: [['src/core/hunt/damage.js', '    markPm ? Object.assign({}, ability, { mult: Math.floor((base * (1000 + markPm)) / 1000) }) : ability, sc.rng);', '    ability, sc.rng);']] },
   { name: 'the mark never wears off', case: 'mark-adds-damage',
     edits: [['src/core/hunt/damage.js', ' && target.markUntil > sc.atMs ?', ' ?']] },
-  { name: 'bleed lands at level 0 whatever the caster', case: 'bleed-scales-with-caster-skill',
-    edits: [['src/core/hunt/abilities.js', 'skillLv: h && h.skills && srow.scalesWith ? levelOf(h.skills, srow.scalesWith) + plusOf(h, srow.scalesWith) : 0,', 'skillLv: 0,']] },
+  { name: 'bleed lands from a blow of 1 whatever the caster', case: 'bleed-scales-with-the-casters-blow',
+    edits: [['src/core/hunt/abilities.js', '    const hit = Number.isInteger(u.maxHit) && u.maxHit > 0 ? u.maxHit : 1;', '    const hit = 1;']] },
   { name: 'a rune names a family that is not one of the seven', case: 'rows-validate',
     edits: [['src/data/stonecraft.js', 'ammoPerShot: 1, family, runeTier: t.tier });', "ammoPerShot: 1, family: family === 'rupture' ? 'blood' : family, runeTier: t.tier });"]] },
   { name: 'a rune casts a sixth tier', case: 'rows-validate',
@@ -1220,9 +1219,9 @@ const mutants = [
   { name: '[area-client] a ring reads the line\'s words', case: 'configure-words', also: ['src'],
     edits: [['src/shell/action-facts.js', "(r.maxHits ? '_max' : '')", "''"]] },
   { name: '[area-client] a hitPm row says nothing of its damage', case: 'configure-words', also: ['src'],
-    edits: [['src/shell/action-facts.js', '    if (Number.isInteger(r.hitPm)) numbers.push(blowShareLine(r));\n', '']] },
+    edits: [['src/shell/action-facts.js', '    if (landsBlow(r)) numbers.push(blowShareLine(r, k.pm));\n', '']] },
   { name: '[area-client] the share reads its top only', case: 'configure-words', also: ['src'],
-    edits: [['src/shell/action-facts.js', 'const hi = r.hitPm / 10, lo = Math.round((hi * ABILITY_RULES.hitLowPm) / 1000);', 'const hi = r.hitPm / 10, lo = hi;']] },
+    edits: [['src/shell/action-facts.js', 'const hi = sharePct(r.hitPm, pm), lo = Math.round((hi * ABILITY_RULES.hitLowPm) / 1000);', 'const hi = sharePct(r.hitPm, pm), lo = hi;']] },
   { name: '[area-client] no unlock wording', case: 'configure-words', also: ['src'],
     edits: [['src/shell/action-facts.js', 'effect, unlock: unlockLine(r),', 'effect, unlock: null,']] },
   { name: '[area-client] a slot under its unlock reads ready', case: 'configure-words', also: ['src'],
@@ -1243,13 +1242,13 @@ const mutants = [
     edits: [['src/shell/action-facts.js', '  const ds = r.disciplines;\n', '  const ds = r.disciplines.slice(0, 1);\n']] },
   /* THE TANK RUNE SPELLS (board 2026-11-19 section 6) */
   { name: '[tank runes] a party row with no heal passes validate', case: 'rows-validate',
-    edits: [['src/data/abilities.js', "if (r.target === 'party' && !r.heal && !(Number.isInteger(r.shield) && r.shield > 0)) bad(", "if (false) bad("]] },
+    edits: [['src/data/abilities.js', "if (r.target === 'party' && !heals(r) && !shells(r)) bad(", "if (false) bad("]] },
   { name: '[tank runes] a shape with nothing to land passes validate', case: 'rows-validate',
     edits: [['src/data/abilities.js', "&& !(AREA_TARGETS.includes(r.target) && r.status)) {", "&& false) {"]] },
   { name: '[tank runes] alone and party only together pass validate', case: 'rows-validate',
     edits: [['src/data/abilities.js', "if (r.party !== undefined && r.alone === true) bad(", "if (false) bad("]] },
   { name: '[tank runes] a party shield heals instead', case: 'party-shield-shells-the-party',
-    edits: [['src/core/hunt/abilities.js', "        if (row.heal) { healOne(u, a, scaled(roll(sc, row.heal)), sc, sg); continue; }\n", "        if (row.heal || true) { healOne(u, a, scaled(roll(sc, row.heal || [1, 1])), sc, sg); continue; }\n"]] },
+    edits: [['src/core/hunt/abilities.js', "        if (heals(row)) { healOne(u, a, amount().heal, sc, sg); continue; }\n", "        if (true) { healOne(u, a, amount().heal || 1, sc, sg); continue; }\n"]] },
   { name: '[tank runes] a party shield lowers a bigger shell', case: 'party-shield-shells-the-party',
     edits: [['src/core/hunt/abilities.js', "        if (n <= int(a.shield)) continue;\n", '']] },
   { name: '[tank runes] a party shield reaches the whole map', case: 'party-shield-shells-the-party',
@@ -1281,7 +1280,7 @@ const mutants = [
   { name: '[tank runes] the chill line reads version I whatever the rune', case: 'tank-rune-words', also: ['src'],
     edits: [['src/shell/action-facts.js', "[statusLine(STATUSES[r.status], k.version)]", "[statusLine(STATUSES[r.status], 1)]"]] },
   { name: '[tank runes] a party shield reads as a party heal', case: 'tank-rune-words', also: ['src'],
-    edits: [['src/shell/action-facts.js', "  if (r.target === 'party' && r.shield) return t('bar.target_party_shield');\n", '']] },
+    edits: [['src/shell/action-facts.js', "  if (r.target === 'party' && shells(r)) return t('bar.target_party_shield');\n", '']] },
   { name: 'the lanes are not persisted', case: 'clocks-survive-a-cut',
     edits: [['src/core/hunt/abilities.js', "['regenPm', 'int'], ['lanes', 'json'], ['cds', 'json'],", "['regenPm', 'int'], ['cds', 'json'],"]] },
 ];

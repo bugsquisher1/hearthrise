@@ -15,8 +15,8 @@
 //   applyStatus  a dead unit takes nothing. Reapplying REFRESHES every stack
 //                of that status on the unit, then adds one if under maxStacks
 //                (ST-01). The scale is fixed now (spec §3.3 #6):
-//                max(1000, floor(maxHit x blowPm x tierPermille[tier-1] / 1000)): a tick is a share
-//                of its source's own largest blow (the spell rule; statuses.js blowPm)
+//                max(tierPermille[tier-1], floor(maxHit x blowPm x tierPermille[tier-1] / 1000)): a tick is a
+//                share of its source's own largest blow, never under its rune tier's (the spell rule; statuses.js blowPm)
 //                (a slowing status: tierPermille[tier-1] alone, or 1000; a heal-cutting one on
 //                a hero: the share of its guard element the hero takes, else 1000; a refresh of a
 //                status that does not tick lifts the refreshed stack to a stronger scale)
@@ -66,7 +66,7 @@ export function stackScale(row, source, unit) {
     throw new Error('status: rune tier ' + tier + ' is outside 1..' + row.tierPermille.length + ' for ' + row.id);
   }
   if (!row.tick) return row.tierPermille[tier - 1];
-  return Math.max(1000, Math.floor((hit * row.blowPm * row.tierPermille[tier - 1]) / 1000));
+  return Math.max(row.tierPermille[tier - 1], Math.floor((hit * row.blowPm * row.tierPermille[tier - 1]) / 1000));
 }
 
 /** One tick's damage from a base roll and a stack's permille scale. */

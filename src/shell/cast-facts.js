@@ -81,10 +81,19 @@ export function castOf(a, ctx) {
 export function outputWords(k) {
   const r = k && k.row;
   if (!r) return '';
-  if (landsBlow(r)) { const hi = sharePct(r.hitPm, k.pm); return t('bar.out_blow', { lo: Math.round((hi * ABILITY_RULES.hitLowPm) / 1000), hi }); }
-  if (Number.isInteger(r.healPm)) return t('bar.out_heal_blow', { pct: sharePct(r.healPm, k.pm) });
+  const words = (share) => (share ? [share, floorWords(r, k.pm, 'out')].filter(Boolean).join(', ') : '');
+  if (landsBlow(r)) { const hi = sharePct(r.hitPm, k.pm); return words(t('bar.out_blow', { lo: Math.round((hi * ABILITY_RULES.hitLowPm) / 1000), hi })); }
+  if (Number.isInteger(r.healPm)) return words(t('bar.out_heal_blow', { pct: sharePct(r.healPm, k.pm) }));
   if (Number.isInteger(r.healHpPm)) return t('bar.out_heal_hp', { pct: sharePct(r.healHpPm, k.pm) });
-  return shells(r) ? t('bar.out_shield_blow', { pct: sharePct(r.shieldPm, k.pm) }) : '';
+  return shells(r) ? words(t('bar.out_shield_blow', { pct: sharePct(r.shieldPm, k.pm) })) : '';
+}
+
+/** THE BEGINNER'S FLOOR in words (src/data/abilities.js `base`: a cast never lands under it), at the cast's `pm` as the engine lands it
+    (castAmount, hitRange), or '' for a row with none. `kind` 'effect' is Configure action's line, 'out' the rune choice's few words. */
+export function floorWords(r, pm, kind) {
+  const at = (n) => (pm === 1000 || !Number.isInteger(pm) ? n : Math.floor((n * pm) / 1000));
+  if (Array.isArray(r.base)) return t('bar.' + kind + '_floor_hit', { lo: at(r.base[0]), hi: at(r.base[1]) });
+  return Number.isInteger(r.base) ? t('bar.' + kind + '_floor', { points: at(r.base) }) : '';
 }
 
 /** A row's share `share` (permille of the hero's Max Hit or max HP) at the cast's `pm` permille, as a whole percent (THE SPELL

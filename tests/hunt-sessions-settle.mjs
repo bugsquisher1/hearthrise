@@ -5089,7 +5089,7 @@ const MUTANTS = [
   { arm: 'SPELL-CONTENT', name: '[spell-content] a heal aimed at yourself finds nobody', file: 'src/core/hunt/conditions.js',
     from: "  if (subject === 'self') return cx.u.alive ? cx.u : null;\n", to: '' },
   { arm: 'SPELL-CONTENT', name: '[spell-content] Protective Ward shields nothing', file: 'src/core/hunt/abilities.js',
-    from: '      t.shield = scaled(row.shield);\n', to: '      t.shield = 0;\n' },
+    from: '      t.shield = amount().shield;\n', to: '      t.shield = 0;\n' },
   { arm: 'SPELL-CONTENT', name: '[spell-content] Green Sickness marks nothing', file: 'src/core/hunt/abilities.js',
     from: '    if (!row.status) return;', to: "    if (!row.status || row.target === 'area') return;" },
   { arm: 'BUFF', name: 'the hunt never re-measures the buff queue (a buff never pays)', file: 'src/core/combat-sim.js',

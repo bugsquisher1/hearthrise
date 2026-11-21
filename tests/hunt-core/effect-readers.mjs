@@ -27,11 +27,11 @@ const suggestText = (root) => {
   const at = src.indexOf('export function suggestedTrigger(');
   return at < 0 ? '' : strip(src.slice(at, src.indexOf('\n}\n', at) + 2));
 };
-/* THE VERSION LADDER AND THE SKILL (Tyler 2026-10-23; lane b-spell-content): a rune spell's `versions` and `lvPm`, and a
-   universal row's `universal` and `skill`, are read by abilities.js versionOf / outputPm / abilitySkill (the data copy
-   under test), which the engine calls for every cast (src/core/hunt/abilities.js firstUsable, skillLevel). Their reader
-   is those functions, and the engine must call each. */
-const VERSIONED = Object.freeze({ ability: ['versions', 'lvPm', 'universal', 'skill'] });
+/* THE VERSION LADDER AND THE SKILL (Tyler 2026-10-23; lane b-spell-content): a rune spell's `versions`, and a universal row's
+   `universal` and `skill`, are read by abilities.js versionOf / abilitySkill (the data copy under test), which the engine calls
+   for every cast (src/core/hunt/abilities.js firstUsable, skillLevel). Their reader is those functions, and the engine must call
+   each. (`lvPm` is retired by the spell rule, lane/c-spell-rule 2026-11-21: abilities.js validate refuses it.) */
+const VERSIONED = Object.freeze({ ability: ['versions', 'universal', 'skill'] });
 const versionText = (root) => {
   const src = readFileSync(join(root, 'src/data/abilities.js'), 'utf8');
   const at = src.indexOf('export function versionOf('), end = src.indexOf('/** Every problem with the table', at);
@@ -39,6 +39,17 @@ const versionText = (root) => {
   /* a row's OWN skill (lane/d-fists-phase1): ownHitSkill reads `universal` and `skill` for the skill a strike's hits train (hunt-rewards.js) */
   const own = src.indexOf('export const ownHitSkill = ');
   return at < 0 || end < 0 || sk < 0 || own < 0 ? '' : strip(src.slice(at, end) + '\n' + src.slice(sk, src.indexOf('\n', sk)) + '\n' + src.slice(own, src.indexOf('\n', own)));
+};
+/* THE SPELL RULE'S NUMBERS (lane/c-spell-rule, Tyler 2026-11-21, 21-5 and 32-4): a heal's `healPm` (or Mend's `healHpPm`) and a shell's
+   `shieldPm` are read by abilities.js castAmount (the data copy under test), which the engine calls for every heal and shell (and every
+   self-shield's recast check: src/core/hunt/abilities.js effect, landsShield). Its reader is that function, and the engine must call it. */
+const AMOUNTED = Object.freeze({ ability: ['healPm', 'shieldPm', 'healHpPm', 'base'] });
+const amountText = (root) => {
+  const src = readFileSync(join(root, 'src/data/abilities.js'), 'utf8');
+  /* hitRange (the beginner's floor of a hit) and castAmount (every number a cast lands) stand one after the other */
+  const at = src.indexOf('export function hitRange('), ca = src.indexOf('export function castAmount(');
+  const fns = ['export const heals = ', 'export const shells = '].map((k) => { const i = src.indexOf(k); return i < 0 ? '' : src.slice(i, src.indexOf('\n', i)); });
+  return at < 0 || ca < 0 ? '' : strip(src.slice(at, src.indexOf('\n}\n', at) + 2) + '\n' + src.slice(ca, src.indexOf('\n}\n', ca) + 2) + '\n' + fns.join('\n'));
 };
 /* THE DISCIPLINE LISTS (roadmap p15, lane b-spell-roles): a row's `disciplines` is read by abilities.js disciplineAbilities
    (the data copy under test), which the engine calls for every hero's bar (src/core/hunt-spawn.js heroSetup). */
@@ -104,9 +115,11 @@ const cases = {
     const client = textOf(ROOT, CLIENT_DIRS, null);
     const suggest = suggestText(M.root);
     const versioned = versionText(M.root);
-    const calls = /\bversionOf\(/.test(engine) && /\boutputPm\(/.test(engine) && /\babilitySkill\(/.test(engine) && /\bownHitSkill\(/.test(engine);
+    const calls = /\bversionOf\(/.test(engine) && /\babilitySkill\(/.test(engine) && /\bownHitSkill\(/.test(engine);
+    const amounted = amountText(M.root), amounts = /\bcastAmount\(/.test(engine) && /\bhitRange\(/.test(engine);
     const listed = listText(M.root), lists = /\bdisciplineAbilities\(/.test(engine);
-    const shaped = shapeText(M.root), shapes = /\bareaSpec\(/.test(engine) && /\bblowShare\(/.test(engine);
+    /* (the engine rolls every hit through hitRange, which calls blowShare: the share's reader) */
+    const shaped = shapeText(M.root), shapes = /\bareaSpec\(/.test(engine) && /\bhitRange\(/.test(engine);
     const partied = partyText(M.root), parties = /\bpartyOnly\(/.test(engine);
     const dead = [];
     const check = (kind, keys, display, suggested) => {
@@ -116,7 +129,8 @@ const cases = {
           : (VERSIONED[kind] || []).includes(k) ? reads(versioned, k) && calls
             : (LISTED[kind] || []).includes(k) ? reads(listed, k) && lists
               : (SHAPED[kind] || []).includes(k) ? reads(shaped, k) && shapes
-                : (PARTIED[kind] || []).includes(k) ? reads(partied, k) && parties : reads(engine, k);
+                : (PARTIED[kind] || []).includes(k) ? reads(partied, k) && parties
+                  : (AMOUNTED[kind] || []).includes(k) ? reads(amounted, k) && amounts : reads(engine, k);
         if (!ok) dead.push(kind + '.' + k);
       }
     };
@@ -145,25 +159,28 @@ const mutants = [
     edits: [['src/data/abilities.js', "target: 'mark',\n    bonusPct: 20, durMs: 8000 }),", "target: 'mark',\n    bonusPct: 20, durMs: 8000, slowPct: 30 }),"]] },
   { name: 'the mark bonus is never applied', case: 'every-row-field-has-a-reader',
     edits: [['src/core/hunt/abilities.js', 't.markPm = row.bonusPct * 10;', 't.markPm = 200;']] },
-  /* member.js engineSkillsOf also reads scalesWith (which skill levels a frozen peer row keeps, switch-catchup 10-25),
-     so the field is dead only when BOTH readers drop it. */
-  { name: 'bleed stops scaling with its skill', case: 'every-row-field-has-a-reader',
-    edits: [['src/core/hunt/abilities.js', 'skillLv: h && h.skills && srow.scalesWith ? levelOf(h.skills, srow.scalesWith) + plusOf(h, srow.scalesWith) : 0,', "skillLv: h && h.skills ? levelOf(h.skills, 'melee') : 0,"],
-      ['src/core/member.js', "    if (st && typeof st.scalesWith === 'string') out.add(st.scalesWith);\n", "    if (st) out.add('melee');\n"]] },
+  /* the bleed's share of the caster's blow (statuses.js blowPm, the spell rule) is read by status.js stackScale alone */
+  { name: 'bleed stops reading its share of the blow', case: 'every-row-field-has-a-reader',
+    edits: [['src/core/hunt/status.js', '  return Math.max(row.tierPermille[tier - 1], Math.floor((hit * row.blowPm * row.tierPermille[tier - 1]) / 1000));', '  return Math.max(row.tierPermille[tier - 1], Math.floor((hit * 33 * row.tierPermille[tier - 1]) / 1000));']] },
+  { name: '[spell rule] the engine stops asking castAmount (a heal row promises a share the engine never lands)', case: 'every-row-field-has-a-reader',
+    edits: [['src/core/hunt/abilities.js', '  const amount = () => castAmount(row, u.maxHit, u.maxHp, pm) || {};', '  const amount = () => ({ heal: 10, shield: 10 });'],
+      ['src/core/hunt/abilities.js', "const landsShield = (u, row, pm) => { const a = castAmount(row, u && u.maxHit, u && u.maxHp, pm); return a && a.shield ? a.shield : 0; };", 'const landsShield = () => 10;']] },
+  { name: '[spell rule] castAmount stops reading healPm', case: 'every-row-field-has-a-reader',
+    edits: [['src/data/abilities.js', '  if (Number.isInteger(row.healPm)) return { heal: at(floored(of(maxHit, row.healPm))) };', '  if (row.target === \'ally\' || row.target === \'party\') return { heal: at(floored(of(maxHit, 3000))) };']] },
   { name: 'the suggested trigger stops reading the heal thresholds (a row promises a trigger no slot starts with)', case: 'every-row-field-has-a-reader',
     edits: [['src/data/abilities.js', "  if (row.target === 'self') return [{ metric: 'self_hp_pct', op: 'lt', value: row.whenBelowPct }];\n", ''],
       ['src/data/abilities.js', "  if (row.target === 'ally') return [{ metric: 'ally_hp_pct', op: 'lt', value: row.whenBelowPct, subject: 'lowest' }];\n", ''],
       ['src/data/abilities.js', "  if (row.target === 'party') return [{ metric: 'allies_below', op: 'gte', value: row.minHurt, subject: 'under_' + row.whenBelowPct }];\n", '']] },
   { name: 'the area minimum is read by nothing', case: 'every-row-field-has-a-reader',
     edits: [['src/data/abilities.js', "  if (AREA_TARGETS.includes(row.target)) return [{ metric: 'enemies_in_aoe', op: 'gte', value: ABILITY_RULES.areaMin }];\n", '']] },
-  { name: '[spell-content] the engine stops reading the level scaling (outputPm)', case: 'every-row-field-has-a-reader',
-    edits: [['src/core/hunt/abilities.js', 'const pm = Math.floor((outputPm(row, s.version, powerLevel(h, row)) * s.pm) / 1000);', 'const pm = Math.floor((v.outPm * s.pm) / 1000);']] },
+  { name: '[spell rule] the engine stops reading the version (versionOf)', case: 'every-row-field-has-a-reader',
+    edits: [['src/core/hunt/abilities.js', '    const v = versionOf(row, s.version);', '    const v = { mana: row.mana, outPm: 1000 };']] },
   { name: '[area-engine] the 3x3 side is read by nothing', case: 'every-row-field-has-a-reader',
     edits: [['src/data/abilities.js', "  if (row.target === 'area') return { shape: 'square', n: ABILITY_RULES.areaSide };", "  if (row.target === 'area') return { shape: 'square', n: 3 };"]] },
   { name: '[area-engine] the engine stops sharing a hitPm blow (blowShare)', case: 'every-row-field-has-a-reader',
-    edits: [['src/core/hunt/abilities.js', '  const dmg = () => roll(sc, row.hitPm ? blowShare(u.maxHit, row) : row.dmg);', '  const dmg = () => roll(sc, row.dmg);']] },
-  { name: '[spell-content] versionOf stops reading lvPm', case: 'every-row-field-has-a-reader',
-    edits: [['src/data/abilities.js', '  return versionOf(row, n).outPm + (row && Number.isInteger(row.lvPm) ? row.lvPm * (lv - 1) : 0);', '  return versionOf(row, n).outPm;']] },
+    edits: [['src/core/hunt/abilities.js', '  const dmg = () => roll(sc, hitRange(u.maxHit, row));', '  const dmg = () => roll(sc, [1, 2]);']] },
+  { name: '[spell rule] versionOf stops reading the versions', case: 'every-row-field-has-a-reader',
+    edits: [['src/data/abilities.js', '  const mana = row && Array.isArray(row.versions) ? row.versions[n - 1] : undefined;', '  const mana = undefined;']] },
   { name: '[party rule] the engine stops asking partyOnly (a row promises Party only and the engine casts it alone)', case: 'every-row-field-has-a-reader',
     edits: [['src/core/hunt/abilities.js', '    && (!solo || !partyOnly(ABILITIES[r.slot.action.id], hero.role))\n', '']] },
   { name: '[party rule] partyOnly stops reading the row', case: 'every-row-field-has-a-reader',

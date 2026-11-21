@@ -31,7 +31,7 @@ import { itemName, itemNameFor, abilityName, runeWords, skillName } from './widg
 import { ownCount } from './rune-supply.js';
 import { shortOf } from './item-lore.js';
 import { storeOf, storeChoices, conditionWords } from './bar-draft.js';
-import { castOf, costLine, sharePct } from './cast-facts.js';
+import { castOf, costLine, sharePct, floorWords } from './cast-facts.js';
 import { listWords, whole } from '../render/format.js';
 import { t } from '../render/player-text.js';
 
@@ -248,6 +248,7 @@ export function factsOf(a, ctx) {
     if (Number.isInteger(r.healPm)) numbers.push(t('bar.effect_heal_blow', { pct: sharePct(r.healPm, k.pm) }));
     if (Number.isInteger(r.healHpPm)) numbers.push(t('bar.effect_heal_hp', { pct: sharePct(r.healHpPm, k.pm) }));
     if (shells(r)) numbers.push(t('bar.effect_shield_blow', { pct: sharePct(r.shieldPm, k.pm) }));
+    if (r.base !== undefined) numbers.push(floorWords(r, k.pm, 'effect'));
     const effect = numbers.concat(r.status && STATUSES[r.status] ? [statusLine(STATUSES[r.status], k.version)] : []);
     /* (the universal self-heal needs no particular weapon) */
     return { type: targetLine(r), cost: costLine(a, ctx), cooldown: t('bar.cooldown', { secs: secs(r.cdMs) }), numbers, effect, unlock: unlockLine(r),

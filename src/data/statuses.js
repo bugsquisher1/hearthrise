@@ -48,7 +48,8 @@
 //                            a source with no rune is tier 1
 //     damageType             the element each tick is dealt as
 //   A stack's scale is FIXED when it lands (spec §3.3 #6):
-//     scale = max(1000, floor(maxHit x blowPm x tierPermille[tier-1] / 1000))
+//     scale = max(tierPermille[tier-1], floor(maxHit x blowPm x tierPermille[tier-1] / 1000))
+//             (the tier's share alone under it: the beginner's floor, abilities.js base)
 //     tick  = round(roll(tick) x scale / 1000)
 //
 // Numbers: stacks 5 and 6 s are DECIDED (week plan item 6); the tick's share and the
@@ -65,15 +66,16 @@ import { NECROTIC_STORM } from './necrotic-storm.js';
 
 /* The five rune tiers (src/data/runes.js): Rend's bleed lands +10% a tier above Chalked, the step every rune spell takes
    (runes.js RUNE_TIERS stepPm), so a Graven Rupture Rune's bleed ticks 1.4x a Chalked one's.
-   UNDER THE SPELL RULE (Tyler 2026-11-21, call 21-5; plan lane L17: "Rend ... with its bleed converted") a tick is 6.6% of the
-   axes' own largest blow (blowPm), fixed as the stack lands: its Level 60 worth before the rule (5 stacks held, 15% of a same-Level
-   monster a second), where the old 1-3 a tick, +0.4% a Melee level, was 51% at Level 10 and 10% at Level 110
-   (tools/balance-sim/staged/spell-audit.mjs section 4). */
+   UNDER THE SPELL RULE (Tyler 2026-11-21, call 21-5; plan lane L17: "Rend ... with its bleed converted") a tick rolls its 1-3 times
+   the larger of its rune tier's share and 3.3% of the axes' own largest blow (blowPm), fixed as the stack lands: its Level 60 worth
+   before the rule (5 stacks held, 15% of a same-Level monster a second), where the old +0.4% a Melee level fell to 10% at Level 110
+   (tools/balance-sim/staged/spell-audit.mjs section 4); under about a blow of 30 the tier alone holds it, the first hours' bleed
+   (abilities.js `base`, the beginner's floor, Tyler 32-8). */
 export const STATUSES = Object.freeze({
   bleed: Object.freeze({
     id: 'bleed', name: 'Bleed',
-    tick: Object.freeze([1, 1]), everyMs: 1000, durationMs: 6000, maxStacks: 5,
-    blowPm: 66,
+    tick: Object.freeze([1, 3]), everyMs: 1000, durationMs: 6000, maxStacks: 5,
+    blowPm: 33,
     tierPermille: Object.freeze([1000, 1100, 1200, 1300, 1400]),
     damageType: 'physical',
   }),

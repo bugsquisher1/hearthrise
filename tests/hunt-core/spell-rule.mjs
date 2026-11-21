@@ -2,16 +2,19 @@
 // Tyler 2026-11-21: 21-5 every cast a share of the caster's blow, 21-6 the bar budget, 32-2 Cleave merges into Turning Cut, 32-3 the axes
 // lose Power Strike, 32-4 Mend heals 11% of max HP, 32-5 the hammer's Earth rune strike, 32-8 sized at Level 10 and Level 60). Run by
 // run-all.mjs. The rule is TYPED here, never asked of the engine, so the engine can't agree with itself:
-//   top = floor(maxHit x share / 1000); a hit rolls ceil(top / 2)..top, loses the monster's defence, then x step / 1000;
-//   a heal or a shell is floor(top x step / 1000); Mend is floor(floor(maxHp x 110 / 1000) x 1); step = 1000 + 100 a rune tier above I.
+//   top = floor(maxHit x share / 1000); a hit rolls max(ceil(top / 2), base lo)..max(top, base hi), loses the monster's defence, then
+//   x step / 1000; a heal or a shell is floor(max(top, base) x step / 1000); Mend is floor(maxHp x 110 / 1000); step = 1000 + 100 a rune
+//   tier above I. `base` is the row's beginner's floor (the first hours, Tyler 32-8): its old version-I numbers.
 //
 //   hits-share-the-blow       every live row that lands a blow (but the bow's, which needs shots: rows-are-shares holds them to the rule's
 //                             form), fired through the real castAbilities on its own graven rune from a hero of max hit 20 and 80 at a
 //                             neutral, defence-0 dummy: every hit inside the typed band, and the bigger blow lands about four times the cast
 //   heals-and-shells          Greater Mend, Circle of Renewal and Protective Ward from a Healer of max hit 20 and 80, and Mend from heroes of
 //                             max hit 5 and 80 at 1000 max HP: each lands the typed number (Mend the same 110 at either blow)
-//   bleed-shares-the-blow     Rend's bleed stack, landed by the engine at each rune tier from axes of max hit 30 and 90, ticks
-//                             round(maxHit x 66 x tier / 1e6) (statuses.js bleed blowPm), never the old 1-3 a tick
+//   bleed-shares-the-blow     Rend's bleed stack, landed by the engine at each rune tier from axes of max hit 30 and 90, ticks its 1-3
+//                             times max(tier, maxHit x 33 x tier / 1000) permille (statuses.js bleed blowPm), never a Melee level's
+//   the-first-hours-hold      32-8: a Level 1 hero's blow is 4, and its first strike and its heal land their beginner's floor, never
+//                             a share of 4 (Power Strike 7-13, Greater Mend 50 x its step)
 //   rows-are-shares           the data: no row carries a fixed number (dmg, heal, shield, lvPm), every damage row a hitPm, the steps
 //                             1000..1400, Cleave gone, Power Strike off the axes, Quarry Blow the club's Earth rune strike, Mend 110 of max HP
 //   power-strike-beats-a-swing  the plan's test: on the career kit at Levels 10, 60 and 110 (tools/balance-sim gear and skill lines, the
@@ -77,7 +80,8 @@ const cases = {
         if (!got.casts.length || !got.dmg.length) return row.id + ' at max hit ' + maxHit + ': no cast landed (' + JSON.stringify(got.casts.slice(0, 1)) + ')';
         const step = row.rune ? STEP[4] : 1000;
         if (got.casts.some((c) => (row.rune ? c.version !== 5 || c.power !== step : false))) return row.id + ': cast ' + JSON.stringify(got.casts[0]) + ', want version V at ' + step;
-        const top = topOf(maxHit, row.hitPm), lo = Math.floor((Math.ceil(top / 2) * step) / 1000), hi = Math.floor((top * step) / 1000);
+        const t = topOf(maxHit, row.hitPm), b = row.base || [1, 1];
+        const lo = Math.floor((Math.max(Math.ceil(t / 2), b[0]) * step) / 1000), hi = Math.floor((Math.max(t, b[1]) * step) / 1000);
         const out = got.dmg.filter((n) => n < Math.max(1, lo) || n > hi);
         if (out.length) return row.id + ' at max hit ' + maxHit + ': hits ' + JSON.stringify(out.slice(0, 5)) + ' outside the rule\'s ' + lo + '..' + hi;
         avg.push(got.dmg.reduce((a, n) => a + n, 0) / got.dmg.length);
@@ -90,7 +94,7 @@ const cases = {
   'heals-and-shells': (M) => {
     for (const [id, field, maxHit] of [['greater_mend', 'healPm', 20], ['greater_mend', 'healPm', 80], ['circle_of_renewal', 'healPm', 80], ['protective_ward', 'shieldPm', 20], ['protective_ward', 'shieldPm', 80], ['arcane_barrier', 'shieldPm', 80]]) {
       const got = play(M, id, maxHit, { ally: id !== 'arcane_barrier' });
-      const want = Math.floor((topOf(maxHit, got.row[field]) * STEP[4]) / 1000);
+      const want = Math.floor((Math.max(topOf(maxHit, got.row[field]), got.row.base || 0) * STEP[4]) / 1000);
       const seen = field === 'healPm' ? got.heal : got.shield;
       if (!seen.length) return id + ' at max hit ' + maxHit + ': landed nothing (' + JSON.stringify(got.casts.slice(0, 1)) + ')';
       if (seen.some((n) => n !== want && !(field === 'healPm' && n < want))) return id + ' at max hit ' + maxHit + ': landed ' + JSON.stringify(seen.slice(0, 4)) + ', the rule ' + want;
@@ -108,10 +112,19 @@ const cases = {
     for (const maxHit of [30, 90]) for (const tier of [1, 3, 5]) {
       const got = play(M, 'rend', maxHit, { tier, steps: 30 });
       const ticks = got.sc.events.filter((e) => e.type === 'status_tick' && e.status === 'bleed').map((e) => e.amount);
-      const want = Math.max(1, Math.floor((Math.max(1000, Math.floor((maxHit * 66 * STEP[tier - 1]) / 1000)) + 500) / 1000));
-      if (s.blowPm !== 66) return 'the bleed\'s blowPm is ' + s.blowPm + ', the rule 66';
-      if (!ticks.length || ticks.some((n) => n !== want)) return 'a tier-' + tier + ' bleed from max hit ' + maxHit + ' ticked ' + JSON.stringify(ticks.slice(0, 6)) + ', the rule ' + want;
+      const scale = Math.max(STEP[tier - 1], Math.floor((maxHit * 33 * STEP[tier - 1]) / 1000));
+      const tick = (roll) => Math.floor((roll * scale + 500) / 1000), lo = Math.max(1, tick(1)), hi = tick(3);
+      if (s.blowPm !== 33 || JSON.stringify(s.tick) !== '[1,3]') return 'the bleed rolls ' + JSON.stringify(s.tick) + ' at blowPm ' + s.blowPm + ', the rule 1-3 at 33';
+      if (ticks.length < 6 || ticks.some((n) => n < lo || n > hi)) return 'a tier-' + tier + ' bleed from max hit ' + maxHit + ' ticked ' + JSON.stringify(ticks.slice(0, 6)) + ', the rule ' + lo + '..' + hi;
     }
+    return null;
+  },
+  'the-first-hours-hold': (M) => {
+    const ps = play(M, 'power_strike', 4, { steps: 600 });
+    if (ps.dmg.length < 5 || ps.dmg.some((n) => n < 7 || n > 13)) return 'Power Strike from a blow of 4 hit ' + JSON.stringify(ps.dmg.slice(0, 8)) + ', its floor 7-13';
+    const gm = play(M, 'greater_mend', 4, { ally: true });
+    const want = Math.floor((50 * STEP[4]) / 1000);
+    if (!gm.heal.length || !gm.heal.includes(want) || gm.heal.some((n) => n > want)) return 'Greater Mend from a blow of 4 healed ' + JSON.stringify(gm.heal.slice(0, 6)) + ', its floor ' + want;
     return null;
   },
   'rows-are-shares': (M) => {
@@ -169,31 +182,35 @@ const cases = {
     if (!(viewed.party.killsPerH > 30)) return 'the fixture killed ' + viewed.party.killsPerH + ' an hour';
     if (viewed.party.killsPerH !== closed.party.killsPerH) return 'kills: viewed ' + viewed.party.killsPerH + ', browser closed ' + closed.party.killsPerH;
     for (const k of ['levelXpPerH', 'takenPerH', 'deaths', 'storePerH']) if (v[k] !== c[k]) return k + ': viewed ' + v[k] + ', browser closed ' + c[k];
-    const rend = (h) => (h.casts && h.casts.rend) || 0;
-    if (!(rend(v) > 100)) return 'the axes cast Rend ' + rend(v) + ' times an hour on their default bar (' + JSON.stringify(v.casts) + ')';
+    const rend = (h) => (h.castsPerH && h.castsPerH.rend) || 0;
+    if (!(rend(v) > 100)) return 'the axes cast Rend ' + rend(v) + ' times an hour on their default bar (' + JSON.stringify(v.castsPerH) + ')';
     if (rend(v) !== rend(c)) return 'Rend casts: viewed ' + rend(v) + ', browser closed ' + rend(c);
     return null;
   },
 };
 
-const AB = 'src/core/hunt/abilities.js', AD = 'src/data/abilities.js';
+const AB = 'src/core/hunt/abilities.js';
+const AD = 'src/data/abilities.js';
 const mutants = [
   { name: 'the version step is never read (every rune casts its share at 1000)', case: 'hits-share-the-blow',
     edits: [[AB, '    const pm = Math.floor((v.outPm * s.pm) / 1000);', '    const pm = s.pm;']] },
   { name: 'a hit reads a fixed blow of 20, not the caster\'s', case: 'hits-share-the-blow',
-    edits: [[AB, '  const dmg = () => roll(sc, blowShare(u.maxHit, row));', '  const dmg = () => roll(sc, blowShare(20, row));']] },
+    edits: [[AB, '  const dmg = () => roll(sc, hitRange(u.maxHit, row));', '  const dmg = () => roll(sc, hitRange(20, row));']] },
   { name: 'a heal reads the caster\'s max HP in place of its blow', case: 'heals-and-shells',
-    edits: [[AD, '  if (Number.isInteger(row.healPm)) return { heal: at(of(maxHit, row.healPm)) };', '  if (Number.isInteger(row.healPm)) return { heal: at(of(maxHp, row.healPm)) };']] },
+    edits: [[AD, '  if (Number.isInteger(row.healPm)) return { heal: at(floored(of(maxHit, row.healPm))) };', '  if (Number.isInteger(row.healPm)) return { heal: at(floored(of(maxHp, row.healPm))) };']] },
   { name: 'Mend is a share of the blow (the 32-4 exception lost)', case: 'heals-and-shells',
     edits: [[AD, '  if (Number.isInteger(row.healHpPm)) return { heal: at(of(maxHp, row.healHpPm)) };', '  if (Number.isInteger(row.healHpPm)) return { heal: at(of(maxHit, row.healHpPm * 10)) };']] },
   { name: 'the bleed stack is landed with no blow (its tick back to a fixed point)', case: 'bleed-shares-the-blow',
     edits: [[AB, '    applyStatus(inst, m, statusRow(row.status), { u: u.id, maxHit: hit, runeTier: (v && v.version) || 1 }, sc);', '    applyStatus(inst, m, statusRow(row.status), { u: u.id, runeTier: (v && v.version) || 1 }, sc);']] },
   { name: 'the bleed ignores its rune tier', case: 'bleed-shares-the-blow',
-    edits: [['src/core/hunt/status.js', '  return Math.max(1000, Math.floor((hit * row.blowPm * row.tierPermille[tier - 1]) / 1000));', '  return Math.max(1000, hit * row.blowPm);']] },
+    edits: [['src/core/hunt/status.js', '  return Math.max(row.tierPermille[tier - 1], Math.floor((hit * row.blowPm * row.tierPermille[tier - 1]) / 1000));', '  return Math.max(1000, hit * row.blowPm);']] },
   { name: 'Power Strike at half its share (half a swing again, as before the rule)', case: 'power-strike-beats-a-swing',
-    edits: [[AD, "    target: 'enemy', hitPm: 700 }),", "    target: 'enemy', hitPm: 350 }),"]] },
+    edits: [[AD, "    target: 'enemy', hitPm: 700, base: [7, 13] }),", "    target: 'enemy', hitPm: 350, base: [7, 13] }),"]] },
   { name: 'the axes keep Power Strike (32-3 undone: the axes over the bar budget)', case: 'bar-budget',
     edits: [[AD, "disciplines: ['shield', 'sword', 'club', ...(FIST_LINE.live", "disciplines: ['shield', 'sword', 'dual_axe', 'club', ...(FIST_LINE.live"]] },
+  { name: 'the beginner\'s floor is dropped (a Level 1 strike a share of a blow of 4)', case: 'the-first-hours-hold',
+    edits: [[AD, "  return Array.isArray(row.base) ? [Math.max(lo, row.base[0]), Math.max(top, row.base[1])] : [lo, top];", '  return [lo, top];'],
+      [AD, "  const floored = (n) => (Number.isInteger(row.base) ? Math.max(n, row.base) : n);", '  const floored = (n) => n;']] },
   { name: 'the deepest rune steps x1.6 (the B5 proposal, which cut the first hours\' casts)', case: 'rows-are-shares',
     edits: [['src/data/runes.js', "name: 'Graven', level: 60, stepPm: 1400 }", "name: 'Graven', level: 60, stepPm: 1600 }"]] },
   { name: 'a unit\'s bleed stacks are not kept between settles (a watched hunt bleeds on a different beat)', case: 'both-paths',

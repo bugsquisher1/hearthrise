@@ -30,6 +30,9 @@ async function load(root) {
   return M;
 }
 
+/* The caster's largest blow the Fireball cases cast from (THE SPELL RULE: a cast is a share of it). */
+const BLOW = 40;
+
 const cases = {
   /* Every element-bearing table names only elements.js ids; the list has one copy. */
   'one-vocabulary': (M) => {
@@ -87,7 +90,7 @@ const cases = {
     if (!(onSlime > 0) || Math.abs(onSlime * 2 - onRat) > 1) return '1000 ember dealt ' + onSlime + ' to the Sump Slime and ' + onRat + ' to the Drain Rat (want half)';
     const hits = [];
     for (let seed = 1; seed <= 12; seed++) {
-      const y = oneHero(M, {}, { bar: ['fireball'], range: 7, hs: supplySession(M, { bag: { chalked_fire_rune: { loaded: 1 } } }) },
+      const y = oneHero(M, { maxHit: BLOW }, { bar: ['fireball'], range: 7, hs: supplySession(M, { bag: { chalked_fire_rune: { loaded: 1 } } }) },
         [{ kind: 'sump_slime', x: 14, y: 3, hp: 5000, maxHp: 5000 }, { kind: 'sump_slime', x: 15, y: 3, hp: 5000, maxHp: 5000 }]);
       y.sc.rng = rngOf(M, seed);
       M.abilities.castAbilities(y.inst, y.sc);
@@ -95,7 +98,9 @@ const cases = {
       hits.push(...y.sc.events.filter((e) => e.type === 'dmg' && e.ability === 'fireball'));
     }
     if (hits.length < 12) return 'Fireball landed ' + hits.length + ' hits on Sump Slimes in 12 casts';
-    const least = Math.max(1, Math.floor(fb.dmg[0] / 2)), most = Math.floor(fb.dmg[1] / 2);
+    /* THE SPELL RULE (lane/c-spell-rule): a hit rolls ceil(top / 2)..top of the caster's blow, top = floor(blow x hitPm / 1000), typed here */
+    const top = Math.floor((BLOW * fb.hitPm) / 1000), lo = Math.ceil(top / 2);
+    const least = Math.max(1, Math.floor(lo / 2)), most = Math.floor(top / 2);
     const out = hits.filter((e) => e.amount < least || e.amount > most);
     return out.length ? 'Fireball on a Sump Slime outside ' + least + '..' + most + ': ' + out.map((e) => e.amount).join(',') : null;
   },
@@ -108,7 +113,7 @@ const cases = {
     const red = M.C.defenceReduction(rk);
     const hits = [];
     for (let seed = 1; seed <= 12; seed++) {
-      const y = oneHero(M, {}, { bar: ['fireball'], range: 7, hs: supplySession(M, { bag: { chalked_fire_rune: { loaded: 1 } } }) },
+      const y = oneHero(M, { maxHit: BLOW }, { bar: ['fireball'], range: 7, hs: supplySession(M, { bag: { chalked_fire_rune: { loaded: 1 } } }) },
         [{ kind: 'rat_king', x: 14, y: 3, hp: 5000, maxHp: 5000 }, { kind: 'rat_king', x: 15, y: 3, hp: 5000, maxHp: 5000 }]);
       y.sc.rng = rngOf(M, seed);
       M.abilities.castAbilities(y.inst, y.sc);
@@ -116,7 +121,8 @@ const cases = {
     }
     if (hits.length < 12) return 'Fireball landed ' + hits.length + ' hits in 12 casts';
     if (hits.some((e) => e.element !== 'ember')) return 'a Fireball hit is not ember: ' + JSON.stringify(hits.find((e) => e.element !== 'ember'));
-    const most = Math.max(1, Math.floor((fb.dmg[1] * pm) / 1000) - red), least = Math.max(1, Math.floor((fb.dmg[0] * pm) / 1000) - red);
+    const top = Math.floor((BLOW * fb.hitPm) / 1000), lo = Math.ceil(top / 2);
+    const most = Math.max(1, Math.floor((top * pm) / 1000) - red), least = Math.max(1, Math.floor((lo * pm) / 1000) - red);
     const out = hits.filter((e) => e.amount > most || e.amount < least);
     if (out.length) return 'Fireball hits outside the resisted ' + least + '..' + most + ': ' + out.map((e) => e.amount).join(',');
     const full = Math.max(1, fb.dmg[1] - red);
@@ -139,7 +145,7 @@ const cases = {
 
 const mutants = [
   { name: 'Fireball named fire again (the bug)', case: 'one-vocabulary',
-    edits: [['src/data/abilities.js', "target: 'area', dmg: [7, 12], element: 'ember',", "target: 'area', dmg: [7, 12], element: 'fire',"]] },
+    edits: [['src/data/abilities.js', "target: 'area', hitPm: 730, base: [7, 12], element: 'ember',", "target: 'area', hitPm: 730, base: [7, 12], element: 'fire',"]] },
   { name: 'a cast drops its element', case: 'fireball-resisted-by-rat-king',
     edits: [['src/core/hunt/abilities.js', '  const el = row.element || null;', '  const el = null;']] },
   { name: 'the monster audit stops checking profiles', case: 'unknown-element-refused',

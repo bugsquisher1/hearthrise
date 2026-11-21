@@ -46,7 +46,7 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { ABILITIES, ABILITY_LANES, ABILITY_RULES, ACTION_SET_SKIPS, abilitySkill, versionOf, AREA_TARGETS, areaSpec, blowShare, landsBlow, heals, shells, castAmount, partyOnly } from '../../data/abilities.js';
+import { ABILITIES, ABILITY_LANES, ABILITY_RULES, ACTION_SET_SKIPS, abilitySkill, versionOf, AREA_TARGETS, areaSpec, hitRange, landsBlow, heals, shells, castAmount, partyOnly } from '../../data/abilities.js';
 import { resolveLine, storeLine, takeLine, canAfford, shopShotFor, basicOf } from '../action-rules.js';
 import { runeTierOf, versionLevel } from '../../data/runes.js';
 import { BASIC_EFFECT_SHARE } from '../../data/supply-basics.js';
@@ -387,8 +387,9 @@ function effect(inst, u, row, t, sc, v) {
   if (Number.isInteger(row.weakPm)) hitTag.weakPm = row.weakPm;
   /* A Surge (fire, surged) shows on its numbers with the crit mark. */
   const sg = !!(v && v.surge);
-  /* One hit's roll: the row's share of the hero's own largest blow (abilities.js blowShare); the version's pm rides the hit's tag. */
-  const dmg = () => roll(sc, blowShare(u.maxHit, row));
+  /* One hit's roll: the row's share of the hero's own largest blow, never under its beginner's floor (abilities.js hitRange); the
+     version's pm rides the hit's tag. */
+  const dmg = () => roll(sc, hitRange(u.maxHit, row));
   /* ONE HIT OF THIS CAST on `m`: the blow (damage.js landHit), then what the row returns from it: its leech (leechBack), and for a row
      that gives mana back, the hit and the kill it counts (`v.back`). A row with neither does exactly the blow. */
   const back = v && v.back ? v.back : null;

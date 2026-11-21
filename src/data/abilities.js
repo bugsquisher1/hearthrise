@@ -29,6 +29,12 @@
 //     times the version's step (versions, runes.js RUNE_TIERS stepPm) and the store's share when a store rune pays. Each share was
 //     fitted so the cast lands today's Level 60 worth (tools/balance-sim/staged/spell-audit.mjs), the rows with no versions on
 //     21-combat B5's openings (Power Strike and Precision Shot 1.2 average swings), Turning Cut and Raking Shot on their built shares.
+//   base: THE FIRST HOURS, the beginner's floor (Tyler 2026-11-21, call 32-8: "the Level 10 one-shot goes, heals and first strikes are
+//     not cut in half", the first ten Levels not slower): the row's old version-I numbers, a hit's [lo, hi] or a heal's or shell's
+//     whole number, under which its share never lands. A Level 1 hero's blow is 3 or 4, so a share alone cut every first-hour cast in
+//     half or more (MEASURED, lane/c-spell-rule: the start-kit tank reached Level 10 at 7.2 h against the ruled 6, every first ground's
+//     kills 21-36% slower). The floor never grows and the version's step multiplies it as it does the share, so past about Level 15
+//     (a blow of 19 for Power Strike) every cast is its share alone and nothing decays (castAmount, hitRange).
 //   target: taunt | mark | enemy | area | line | ring | self | ally | party
 //     area   the 3x3 round its best aim; line: `len` tiles from the hero through its best aim;
 //     ring   every monster within `r` (default 1) of the hero, up to `maxHits` (AREA_TARGETS, areaSpec:
@@ -168,16 +174,16 @@ export const ABILITIES = Object.freeze([
      bigger shell already standing: 0.85 of a same-Level monster's largest blow at Level 60 on a Graven rune, as before the spell rule.
      A new slot starts on a monster's cast warning (`trigger`): it shells the party before a group spell lands. Every 30 s. */
   ab({ id: 'shelter', n: 'Shelter', disciplines: ['shield'], party: true, lane: 'support', cdMs: 30000, mana: 25, rune: 'chalked_earth_rune', unlock: 20,
-    target: 'party', shieldPm: 2890, radius: 8, magicXpMult: 250,
+    target: 'party', shieldPm: 2890, base: 30, radius: 8, magicXpMult: 250,
     trigger: [{ metric: 'enemy_casting', op: 'gte', value: 1, subject: 'any' }], versions: [25, 30, 36, 43, 52] }),
   /* The blade's own strikes: a sword swings them with a shield (the tank) or alone (Melee damage, Tyler 2026-10-23). */
   ab({ id: 'flame_strike', n: 'Flame Strike', disciplines: ['shield', 'sword'], lane: 'offense', cdMs: 8000, mana: 10, rune: 'chalked_fire_rune',
-    target: 'enemy', hitPm: 1400, element: 'ember', magicXpMult: 250, versions: [10, 12, 14, 17, 21] }),
+    target: 'enemy', hitPm: 1400, base: [8, 14], element: 'ember', magicXpMult: 250, versions: [10, 12, 14, 17, 21] }),
   /* POWER STRIKE, the free strike every melee hero starts with (the fist line plays it too while its sample is live: src/data/fists.js),
      1.2 of the hero's own average landed swings at every Level (21-combat B5's opening: it was half a swing by Level 60). NOT the two
      axes' (Tyler 2026-11-21, call 32-3: Rend stays at 6 s and the axes lose Power Strike, so their offense fits the bar budget). */
   ab({ id: 'power_strike', n: 'Power Strike', disciplines: ['shield', 'sword', 'club', ...(FIST_LINE.live ? [FIST_LINE.family] : [])], lane: 'offense', cdMs: 6000, mana: 6,
-    target: 'enemy', hitPm: 700 }),
+    target: 'enemy', hitPm: 700, base: [7, 13] }),
   /* TURNING CUT (the area-spells design, lane/b-area-data; Tyler 2026-11-08: "our heros some more aoe spells"): every melee
      weapon WITHOUT a shield (Tyler 2026-11-16, from Andy: "Give it to all melee that doesn't have a shield on": a sword alone, two
      axes, a club or hammer, bare hands), every monster beside the hero, each for 60% of the hero's own largest blow (hitPm), so it
@@ -189,22 +195,22 @@ export const ABILITIES = Object.freeze([
   /* REND, the two axes' strike (Tyler 2026-11-21, call 32-3: it stays at 6 s): two hits and a bleed a hit, on the RUPTURE family
      (Tyler 2026-10-23); its bleed ticks a share of the axes' own blow at the rune's tier (statuses.js bleed blowPm, tierPermille). */
   ab({ id: 'rend', n: 'Rend', disciplines: ['dual_axe'], lane: 'offense', cdMs: 6000, mana: 8, rune: 'chalked_rupture_rune', target: 'enemy',
-    hitPm: 390, hits: 2, status: 'bleed', versions: [8, 10, 12, 14, 17] }),
+    hitPm: 390, base: [2, 4], hits: 2, status: 'bleed', versions: [8, 10, 12, 14, 17] }),
   /* QUARRY BLOW, the hammer's rune strike (Tyler 2026-11-21, call 32-5: "a hammer-only strike that spends an Earth rune, so it has a rune
      choice from Level 1", as the sword has Flame Strike and the axes Rend). One target, the hammer's own blow at the blade's rune strike's
      share, no element (Earth is the stone the hammer drives, never an element a monster resists). Inside the hammer's bar budget: Power
      Strike 6 s, Turning Cut 8 s and this 8 s fill 0.83 of the offense lane, the sword's own fill. Off the default bar, as every weapon's
      rune strike is: the player's pick, offered by the new-spell prompt. */
   ab({ id: 'quarry_blow', n: 'Quarry Blow', disciplines: ['club'], lane: 'offense', cdMs: 8000, mana: 10, rune: 'chalked_earth_rune',
-    target: 'enemy', hitPm: 1400, magicXpMult: 250, versions: [10, 12, 14, 17, 21] }),
+    target: 'enemy', hitPm: 1400, base: [8, 14], magicXpMult: 250, versions: [10, 12, 14, 17, 21] }),
   /* bow / crossbow — Ranger */
   ab({ id: 'hunters_mark', n: "Hunter's Mark", disciplines: ['ranged'], lane: 'support', cdMs: 12000, mana: 8, target: 'mark',
     bonusPct: 20, durMs: 8000 }),
   ab({ id: 'flame_volley', n: 'Flame Volley', disciplines: ['ranged'], lane: 'offense', cdMs: 10000, mana: 15, rune: 'chalked_fire_rune', ammo: 3,
-    target: 'area', hitPm: 860, element: 'ember', magicXpMult: 250, versions: [15, 18, 22, 26, 31] }),
+    target: 'area', hitPm: 860, base: [5, 9], element: 'ember', magicXpMult: 250, versions: [15, 18, 22, 26, 31] }),
   /* the Ranger's free shot, 1.2 of the bow's own average landed shots (21-combat B5's opening, as Power Strike) */
   ab({ id: 'precision_shot', n: 'Precision Shot', disciplines: ['ranged'], lane: 'offense', cdMs: 6000, mana: 6, ammo: 1,
-    target: 'enemy', hitPm: 750 }),
+    target: 'enemy', hitPm: 750, base: [7, 12] }),
   /* RAKING SHOT (the area-spells design): an arrow line with no element, 4 tiles from the hero through its aim, each monster on
      it hit for 80% of the hero's own largest blow (hitPm). Two shots of the bar's ammo a cast. The Ranger's area that a slime's
      element resistance never touches (Andy 11-06: every Ranger area was fire). PROVISIONAL, unmeasured. */
@@ -213,26 +219,26 @@ export const ABILITIES = Object.freeze([
   /* Fireball is a FIRE rune spell (Tyler 2026-10-23, the approved spell map: "gold per cast covers heroes without
      runes"): a hero with no Fire Rune casts it on the store's, which the Mage's default slot names (rule-subjects.js). */
   ab({ id: 'fireball', n: 'Fireball', disciplines: ['destruction'], lane: 'offense', cdMs: 8000, mana: 25, rune: 'chalked_fire_rune',
-    target: 'area', hitPm: 730, element: 'ember', magicXpMult: 1600, versions: [25, 30, 36, 43, 52] }),
+    target: 'area', hitPm: 730, base: [7, 12], element: 'ember', magicXpMult: 1600, versions: [25, 30, 36, 43, 52] }),
   /* (it no longer kills a Level 10 monster in one cast: 126% of one before the spell rule, about two thirds now) */
   ab({ id: 'frost_lance', n: 'Frost Lance', disciplines: ['destruction'], lane: 'offense', cdMs: 6000, mana: 20, rune: 'chalked_ice_rune',
-    target: 'enemy', hitPm: 1140, element: 'frost', magicXpMult: 1600, versions: [20, 24, 29, 35, 41] }),
+    target: 'enemy', hitPm: 1140, base: [12, 18], element: 'frost', magicXpMult: 1600, versions: [20, 24, 29, 35, 41] }),
   /* HOARFROST (the area-spells design): an ICE rune spell on Fireball's 3x3, and every monster it hits is Chilled (statuses.js:
      its swings and spell windups run 30% slower for 4 s), so frost slows a pack and its casts where fire burns hardest.
      PROVISIONAL, unmeasured. */
   ab({ id: 'hoarfrost', n: 'Hoarfrost', disciplines: ['destruction'], lane: 'offense', cdMs: 10000, mana: 22, rune: 'chalked_ice_rune', unlock: 14,
-    target: 'area', hitPm: 530, element: 'frost', status: 'chill', magicXpMult: 1600, versions: [22, 26, 32, 38, 46] }),
+    target: 'area', hitPm: 530, base: [5, 9], element: 'frost', status: 'chill', magicXpMult: 1600, versions: [22, 26, 32, 38, 46] }),
   /* An EARTH rune spell (a shell of stone, the approved spell map). Self-only (Tyler 2026-10-23, Andy's report);
      recast while its shell still stands, the unused part comes back as mana (abilities.js barrierRefund). */
   ab({ id: 'arcane_barrier', n: 'Arcane Barrier', disciplines: ['destruction'], lane: 'support', cdMs: 20000, mana: 30, rune: 'chalked_earth_rune', target: 'self',
-    shieldPm: 2290, whenBelowPct: 85, magicXpMult: 1600, versions: [30, 36, 43, 52, 62] }),
+    shieldPm: 2290, base: 40, whenBelowPct: 85, magicXpMult: 1600, versions: [30, 36, 43, 52, 62] }),
   /* staff — Healer (restoration). Its heals are WATER rune spells (spring water closes wounds, the approved map);
      Greater Mend's mana ladder is the designer's own example (25/30/36/43/52, d3-manacost). A heal is a share of the staff's own blow
      (the spell rule), sized to today's Level 60: Greater Mend 1.42 of a same-Level monster's largest blow on a Graven rune. */
   ab({ id: 'greater_mend', n: 'Greater Mend', disciplines: ['restoration'], lane: 'heal', cdMs: 2000, mana: 25, rune: 'chalked_water_rune', target: 'ally',
-    healPm: 3170, whenBelowPct: 70, magicXpMult: 1600, versions: [25, 30, 36, 43, 52] }),
+    healPm: 3170, base: 50, whenBelowPct: 70, magicXpMult: 1600, versions: [25, 30, 36, 43, 52] }),
   ab({ id: 'circle_of_renewal', n: 'Circle of Renewal', disciplines: ['restoration'], lane: 'heal', cdMs: 12000, mana: 50, rune: 'chalked_water_rune', target: 'party',
-    healPm: 1600, whenBelowPct: 80, minHurt: 2, radius: 8, magicXpMult: 1600, versions: [50, 60, 72, 86, 104] }),
+    healPm: 1600, base: 25, whenBelowPct: 80, minHurt: 2, radius: 8, magicXpMult: 1600, versions: [50, 60, 72, 86, 104] }),
   /* SPRING TIDE (Tyler 2026-11-08: "instead of a healer area spell lets just do a party heal with a long cooldown", "and
      expensive, and make sure the conditions are available that make sense"): the once-a-minute save beside Circle of
      Renewal's steady top-up, a WATER rune spell on every hero within 8 tiles.
@@ -244,26 +250,26 @@ export const ABILITIES = Object.freeze([
      within 15% of none, and the Warrens four 578 g an hour a head better off. 120 mana (was 160): 44% of a fresh healer's pool at Magic 20, still 2.4 times Circle of Renewal's
      cost on five times its cooldown. Each number is measured in the lane's board section. */
   ab({ id: 'spring_tide', n: 'Spring Tide', disciplines: ['restoration'], lane: 'heal', cdMs: 60000, mana: 120, rune: 'chalked_water_rune', unlock: 20,
-    target: 'party', healPm: 9510, radius: 8, magicXpMult: 1600,
+    target: 'party', healPm: 9510, base: 150, radius: 8, magicXpMult: 1600,
     trigger: [{ metric: 'party_hp_pct', op: 'lt', value: 85 }, { metric: 'in_fight', op: 'eq', value: true }, { metric: 'self_mana_pct', op: 'gte', value: 50 }],
     versions: [120, 144, 173, 207, 249] }),
   /* GREEN SICKNESS (was Nature's Wrath; Tyler 2026-10-23: a POISON rune spell, its element poison): Restoration's
      lower-power area spell, and every monster it hits takes more from every blow for a while (statuses.js sickness,
      Bible §17: a fixed, non-stacking vulnerability that no rune tier raises). */
   ab({ id: 'green_sickness', n: 'Green Sickness', disciplines: ['restoration'], lane: 'offense', cdMs: 10000, mana: 20, rune: 'chalked_poison_rune',
-    target: 'area', hitPm: 400, element: 'poison', status: 'sickness', magicXpMult: 1600, versions: [20, 24, 29, 35, 41] }),
+    target: 'area', hitPm: 400, base: [3, 6], element: 'poison', status: 'sickness', magicXpMult: 1600, versions: [20, 24, 29, 35, 41] }),
   /* PROTECTIVE WARD (Bible §17: Restoration's friend shield; roadmap p22; the name is the Bible's, the designer's to
      keep): an EARTH rune spell that shields the ally its conditions name (else the lowest wounded one in reach)
      while that ally holds no shield. Its shell is a share of the staff's blow sized to today's Level 60 (0.85 of a monster's
      largest blow on a Graven rune), on the support lane with every shield (roadmap p12). */
   ab({ id: 'protective_ward', n: 'Protective Ward', disciplines: ['restoration'], lane: 'support', cdMs: 12000, mana: 25, rune: 'chalked_earth_rune',
-    target: 'ally', shieldPm: 1910, whenBelowPct: 80, magicXpMult: 1600, versions: [25, 30, 36, 43, 52] }),
+    target: 'ally', shieldPm: 1910, base: 30, whenBelowPct: 80, magicXpMult: 1600, versions: [25, 30, 36, 43, 52] }),
   /* UNDERTOW (Tyler 2026-11-09: "Give the healer a little more damage by giving it a new spell that can only be used when
      not in a party"): the Healer's own strike, a WATER rune spell (the spring that closes wounds drags a foe under), on one
      target, cast only while the Healer hunts alone (`alone`). A lone Healer killed slowest of every way to fight (0.46-0.48
      of the pace of record at the Thicket's and Wickstead's floors); a party never sees it fire. About a Mend's mana. */
   ab({ id: 'undertow', n: 'Undertow', disciplines: ['restoration'], lane: 'offense', cdMs: 20000, mana: 15, rune: 'chalked_water_rune', alone: true,
-    target: 'enemy', hitPm: 890, magicXpMult: 1600, versions: [15, 18, 22, 26, 31] }),
+    target: 'enemy', hitPm: 890, base: [8, 13], magicXpMult: 1600, versions: [15, 18, 22, 26, 31] }),
   /* THE FIST LINE'S TWO STRIKES (itemization plan §7, phase 1; src/data/fists.js: HIDDEN, in this table only while the sample is
      live). One target each, no area. Each comes in fire, ice and poison (FIST_ELEMENTS): the element is the player's choice, the
      row its bar slots, and it lands half a weakness's bonus (weakPm 500). Both name MAGIC as their own skill (`skill`): their
@@ -279,9 +285,9 @@ export const ABILITIES = Object.freeze([
      element, the Palm standing in for them) and their sizes are lane L43's (32-spell-audit.md C1, C5 row 1). */
   ...(FIST_LINE.live ? FIST_ELEMENTS.flatMap(([family, element, word]) => [
     ab({ id: family + '_hands', n: word + ' Hands', disciplines: [FIST_LINE.family], skill: 'magic', lane: 'offense', cdMs: 6000, mana: 8,
-      target: 'enemy', hitPm: 510, element, weakPm: 500, magicXpMult: 1600 }),
+      target: 'enemy', hitPm: 510, base: [8, 14], element, weakPm: 500, magicXpMult: 1600 }),
     ab({ id: family + '_palm', n: word + ' Palm', disciplines: [FIST_LINE.family], skill: 'magic', lane: 'offense', cdMs: 8000, mana: 12,
-      rune: 'chalked_' + family + '_rune', target: 'enemy', hitPm: 1360, element, weakPm: 500, magicXpMult: 1600, versions: [12, 14, 17, 21, 25] }),
+      rune: 'chalked_' + family + '_rune', target: 'enemy', hitPm: 1360, base: [10, 18], element, weakPm: 500, magicXpMult: 1600, versions: [12, 14, 17, 21, 25] }),
   ]) : []),
   /* NECROTIC AND STORM, THE SAMPLE (itemization plan Appendix B3 and §11 phase 6b; Tyler 2026-11-18: "i want each weapon type to have a
      spell for both"): the sword's pair and the wand's pair, in this table only while their switch is on (src/data/necrotic-storm.js).
@@ -312,13 +318,13 @@ export const ABILITIES = Object.freeze([
      L44's (32-spell-audit.md C1, E). */
   ...(NECROTIC_STORM.live ? [
     ab({ id: 'brand', n: 'Brand', disciplines: ['shield', 'sword'], party: ['tank'], replaces: ['flame_strike', 'power_strike'], lane: 'offense', cdMs: 8000, mana: 10,
-      rune: 'chalked_storm_rune', unlock: 25, target: 'enemy', hitPm: 1270, element: 'storm', manaPerKill: 4, magicXpMult: 250, versions: [10, 12, 14, 17, 21] }),
+      rune: 'chalked_storm_rune', unlock: 25, target: 'enemy', hitPm: 1270, base: [7, 13], element: 'storm', manaPerKill: 4, magicXpMult: 250, versions: [10, 12, 14, 17, 21] }),
     ab({ id: 'reave', n: 'Reave', disciplines: ['shield', 'sword'], party: ['tank'], replaces: ['flame_strike', 'power_strike'], lane: 'offense', cdMs: 10000, mana: 12,
-      rune: 'chalked_bone_rune', unlock: 40, target: 'enemy', hitPm: 890, element: 'necrotic', leechPm: 300, magicXpMult: 250, versions: [12, 14, 17, 21, 25] }),
+      rune: 'chalked_bone_rune', unlock: 40, target: 'enemy', hitPm: 890, base: [5, 9], element: 'necrotic', leechPm: 300, magicXpMult: 250, versions: [12, 14, 17, 21, 25] }),
     ab({ id: 'updraft', n: 'Updraft', disciplines: ['destruction'], lane: 'offense', cdMs: 10000, mana: 22, rune: 'chalked_storm_rune', unlock: 25,
-      target: 'area', hitPm: 530, element: 'storm', manaPerHit: 3, magicXpMult: 1600, versions: [22, 26, 32, 38, 46] }),
+      target: 'area', hitPm: 530, base: [5, 9], element: 'storm', manaPerHit: 3, magicXpMult: 1600, versions: [22, 26, 32, 38, 46] }),
     ab({ id: 'blight', n: 'Blight', disciplines: ['destruction'], lane: 'offense', cdMs: 10000, mana: 25, rune: 'chalked_bone_rune', unlock: 40,
-      target: 'area', hitPm: 420, element: 'necrotic', status: 'withered', magicXpMult: 1600, versions: [25, 30, 36, 43, 52] }),
+      target: 'area', hitPm: 420, base: [4, 7], element: 'necrotic', status: 'withered', magicXpMult: 1600, versions: [25, 30, 36, 43, 52] }),
   ] : []),
   /* MEND, THE UNIVERSAL SELF-HEAL (Bible §4.1 / §17 CONFIRMED; roadmap p21): every loadout heals itself with mana on
      the heal lane, outside its three discipline abilities. It needs missing HP (a hero at full health never casts it,
@@ -345,20 +351,28 @@ export const heals = (row) => !!row && (Number.isInteger(row.healPm) || Number.i
 /** Does `row` lay a SHELL (a share of the caster's blow)? */
 export const shells = (row) => !!row && Number.isInteger(row.shieldPm);
 
+/** WHAT ONE HIT OF `row` ROLLS FROM A CASTER whose largest blow is `maxHit` (a wiki formula): its share of the blow (blowShare), each
+    end raised to the row's beginner's floor (`base` [lo, hi], THE FIRST HOURS, the header): [max(low, base lo), max(top, base hi)]. */
+export function hitRange(maxHit, row) {
+  const [lo, top] = blowShare(maxHit, row);
+  return Array.isArray(row.base) ? [Math.max(lo, row.base[0]), Math.max(top, row.base[1])] : [lo, top];
+}
+
 /** WHAT ONE CAST OF `row` LANDS FOR A CASTER whose largest blow is `maxHit` and whose max HP is `maxHp`, at `pm` permille (the
     version's step, the store's share, a Surge: the cast's power), as the engine lands it (a wiki formula, the spell rule):
-      a hit     [low, top] of blowShare(maxHit, row), then the monster's defence, then x pm / 1000 (src/core/hunt/damage.js hurt)
-      a heal    floor(floor(maxHit x healPm / 1000) x pm / 1000), Mend's floor(floor(maxHp x healHpPm / 1000) x pm / 1000)
-      a shell   floor(floor(maxHit x shieldPm / 1000) x pm / 1000)
+      a hit     [low, top] of hitRange(maxHit, row), then the monster's defence, then x pm / 1000 (src/core/hunt/damage.js hurt)
+      a heal    floor(max(floor(maxHit x healPm / 1000), base) x pm / 1000), Mend's floor(floor(maxHp x healHpPm / 1000) x pm / 1000)
+      a shell   floor(max(floor(maxHit x shieldPm / 1000), base) x pm / 1000)
     each at least 1. Answers { hit: [low, top] } | { heal: n } | { shield: n } | null for a row that lands no number. */
 export function castAmount(row, maxHit, maxHp, pm) {
   if (!row) return null;
   const at = (n) => Math.max(1, pm === 1000 || !Number.isInteger(pm) ? n : Math.floor((n * pm) / 1000));
   const of = (base, share) => Math.max(1, Math.floor((Math.max(1, Math.floor(Number(base) || 1)) * share) / 1000));
-  if (landsBlow(row)) return { hit: blowShare(maxHit, row) };
-  if (Number.isInteger(row.healPm)) return { heal: at(of(maxHit, row.healPm)) };
+  const floored = (n) => (Number.isInteger(row.base) ? Math.max(n, row.base) : n);
+  if (landsBlow(row)) return { hit: hitRange(maxHit, row) };
+  if (Number.isInteger(row.healPm)) return { heal: at(floored(of(maxHit, row.healPm))) };
   if (Number.isInteger(row.healHpPm)) return { heal: at(of(maxHp, row.healHpPm)) };
-  if (shells(row)) return { shield: at(of(maxHit, row.shieldPm)) };
+  if (shells(row)) return { shield: at(floored(of(maxHit, row.shieldPm))) };
   return null;
 }
 
@@ -453,6 +467,12 @@ export function validate(rows = ABILITIES) {
     if (r.hitPm !== undefined && (!DAMAGING.includes(r.target) || !Number.isInteger(r.hitPm) || r.hitPm < 100 || r.hitPm > 4000)) bad('hitPm is a damaging row\'s whole share of the blow, 100..4000');
     for (const k of ['healPm', 'shieldPm']) if (r[k] !== undefined && !(Number.isInteger(r[k]) && r[k] >= 100 && r[k] <= 20000)) bad(k + ' is a whole share of the blow, 100..20000');
     if (r.healHpPm !== undefined && !(Number.isInteger(r.healHpPm) && r.healHpPm >= 1 && r.healHpPm <= 1000 && r.target === 'self')) bad('healHpPm is a self-heal\'s whole share of its own max HP, 1..1000');
+    /* THE BEGINNER'S FLOOR (`base`, the header's first hours): a hit's [lo, hi] beside its hitPm, a heal's or a shell's whole number
+       beside its share of the blow; never beside Mend's share of max HP (Tyler 32-4: 11% at every Level) and never alone. */
+    if (r.base !== undefined) {
+      const pair = Array.isArray(r.base) && r.base.length === 2 && r.base.every(Number.isInteger) && r.base[0] > 0 && r.base[0] <= r.base[1];
+      if (landsBlow(r) ? !pair : !((Number.isInteger(r.healPm) || shells(r)) && Number.isInteger(r.base) && r.base > 0)) bad('base is a hit\'s [lo, hi] or a heal\'s or shell\'s whole number beside its share of the blow');
+    }
     /* The shape an area row strikes, in the one geometry's bounds (shapes.js: a line at most 4 long, a ring at most 2 out). */
     const spec = areaSpec(r);
     if (spec && shapeProblem(spec)) bad(shapeProblem(spec));

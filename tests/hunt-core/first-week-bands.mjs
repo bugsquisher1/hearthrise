@@ -295,7 +295,8 @@ cases['glade-harder'] = (R) => {
     if (!(h.encMinHpPct.p50 >= 60)) return s + ' at the floor: typical ' + h.encMinHpPct.p50 + '%, under Normal';
   }
   for (const s of ['tank', 'hammer', 'bow', 'mage', 'healer']) {
-    const h = play(s, 16);
+    /* the two melee ways on the four seeds above (their low point sits at the band's edge) */
+    const h = play(s, 16, s === 'tank' || s === 'hammer' ? { seeds: 4 } : undefined);
     const why = judge({ heroes: [h] }, 16, 'glade floor');
     if (why) return why;
   }

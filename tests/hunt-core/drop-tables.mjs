@@ -767,7 +767,8 @@ const playMutants = [
   { name: 'a boss Trophy every 44 h', rule: 'trophy-pace: meadowbrook_thicket', edit: (ms) => { ms.grayjaw.boss = true; ms.grayjaw.drops.push({ id: 'war_crown', ch: 0.001, band: 'trophy' }); } },
   { name: 'the Rat King\'s Crown at 0.2% (a full Bestiary under 100 h)', rule: 'trophy-pace: millrace_sewer', edit: (ms) => { rowOf(ms, 'rat_king', 'rat_kings_crown').ch = 0.002; } },
   /* the Trophy pace on the Chief's meaned kills (TROPHY_SEEDS) still bites both ways */
-  { name: 'the Chief\'s Cauldron at 0.17% (a full Bestiary under 100 h)', rule: 'trophy-pace: coppercap_warrens', edit: (ms) => { rowOf(ms, 'chief_coppercap', 'coppercaps_cauldron').ch = 0.0017; } },
+  /* (0.19%, was 0.17%: on the to-hit ratio, 2026-11-20, the Chief dies a little slower, so 0.17% read 130.7 h, inside the band's 125 h floor with its boost) */
+  { name: 'the Chief\'s Cauldron at 0.19% (a full Bestiary under 125 h)', rule: 'trophy-pace: coppercap_warrens', edit: (ms) => { rowOf(ms, 'chief_coppercap', 'coppercaps_cauldron').ch = 0.0019; } },
   { name: 'the Chief\'s Cauldron at 0.10% (the party waits over 150 h)', rule: 'trophy-pace: coppercap_warrens', edit: (ms) => { rowOf(ms, 'chief_coppercap', 'coppercaps_cauldron').ch = 0.001; } },
   { name: 'the den mother\'s fang a War Crown at 2% (value, not gear)', rule: 'total-value: meadowbrook_thicket', edit: (ms) => { Object.assign(rowOf(ms, 'grayjaw', 'alpha_fang'), { id: 'war_crown', ch: 0.02 }); } },
   { name: 'a fresh hero\'s heavy boots gone', rule: 'gear-pace: a fresh hero at the meadowbrook_thicket', fresh: true, edit: (ms) => { ms.gray_whelp.drops = ms.gray_whelp.drops.filter((d) => d.id !== 'bronze_boots'); } },

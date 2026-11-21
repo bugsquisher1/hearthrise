@@ -10,7 +10,7 @@
 //   both-paths               BOTH PATHS (CLAUDE.md §4): a lone hammer on a full ground for an hour of the settle the world tick runs
 //                            (tools/balance-sim cell.mjs -> hr-accrue -> combat-sim.js), watched (10 s settles) and with the browser closed
 //                            (10 min settles): the same kills, Level XP, damage taken, deaths and landed share, to the unit; and its
-//                            monsters land 55-80% of their blows on it (the ratio's 70% on a same-Level hero, its Defense the Level's).
+//                            monsters land 55-75% of their blows on it (the career hammer: the ratio's 70% on a regular, less on the rest).
 //
 // mutant-anchors: src/core/combat.js src/data/to-hit.js src/data/hunt-tiers.js src/core/hunt/boss-phases.js src/core/hunt/damage.js
 import { join } from 'node:path';
@@ -60,13 +60,15 @@ const cases = {
     return null;
   },
   'both-paths': ({ R }) => {
-    const cell = { ground: 'hasks_ford', party: ['hammer'], level: 50, hours: 1, seeds: 1 };
+    /* the played hero (cell.mjs profile 'played': the career skill line, the reference hero's own) */
+    const cell = { ground: 'hasks_ford', party: ['hammer'], level: 50, hours: 1, seeds: 1, profile: 'played' };
     const viewed = R.runCell({ ...cell, id: 'th:viewed', windowMs: 10000 }), closed = R.runCell({ ...cell, id: 'th:closed', windowMs: 600000 });
     const v = viewed.heroes[0], c = closed.heroes[0];
     if (!(viewed.party.killsPerH > 50)) return 'the fixture killed ' + viewed.party.killsPerH + ' an hour';
     if (viewed.party.killsPerH !== closed.party.killsPerH) return 'kills: viewed ' + viewed.party.killsPerH + ', browser closed ' + closed.party.killsPerH;
     for (const k of ['levelXpPerH', 'takenPerH', 'deaths', 'landedPct', 'storePerH']) if (v[k] !== c[k]) return k + ': viewed ' + v[k] + ', browser closed ' + c[k];
-    if (!(v.landedPct >= 55 && v.landedPct <= 80)) return 'the Ford\'s monsters land ' + v.landedPct + '% of their blows on a same-Level hammer (the ratio: about 70%)';
+    /* 70% on a regular, less on its heavies and elites (MEASURED 63.4%; 81.5% on the old line's 85% rail) */
+    if (!(v.landedPct >= 55 && v.landedPct <= 75)) return 'the Ford\'s monsters land ' + v.landedPct + '% of their blows on the career hammer at 50 (the ratio: about 63%)';
     return null;
   },
 };

@@ -67,10 +67,10 @@ for (const [key, m] of Object.entries(meta)) {
   const heroH = seeds.reduce((s, r) => s + r.heroes.reduce((a, h) => a + h.hours, 0), 0) || 1e-9;
   const sum = (f) => seeds.reduce((s, r) => s + r.heroes.reduce((a, h) => a + f(h), 0), 0);
   const xpH = sum((h) => h.raw.levelXp) / heroH, deaths = sum((h) => h.deaths || 0);
-  const ttk = seeds.reduce((s, r) => s + (r.party.ttkS || 0), 0) / seeds.length, kills = seeds.reduce((s, r) => s + r.party.killsPerH, 0) / seeds.length;
+  const kills =seeds.reduce((s, r) => s + r.party.killsPerH, 0) / seeds.length;
   const lows = seeds.flatMap((r) => r.heroes.map((h) => h.encMinHpPct)).filter((x) => x && typeof x === 'object');
   rows.push({ L: m.L, party: m.size, tier: m.tier, 'skills/gear': m.variant, mainSkill: m.skills.join(','), levelXpPerHeroH: Math.round(xpH), contract: Math.round(contract(m.L)), xContract: Math.round((xpH / contract(m.L)) * 100) / 100,
-    killsPerH: Math.round(kills), ttkS: Math.round(ttk * 10) / 10, deathsPerHeroH: Math.round((deaths / heroH) * 100) / 100, takenPerH: Math.round(sum((h) => h.takenPerH * h.hours) / heroH), maxHp: seeds[0].heroes.map((h) => h.maxHp).join(','),
+    killsPerH: Math.round(kills), deathsPerHeroH: Math.round((deaths / heroH) * 100) / 100, takenPerH: Math.round(sum((h) => h.takenPerH * h.hours) / heroH), maxHp: seeds[0].heroes.map((h) => h.maxHp).join(','),
     hoursALevel: Math.round((step(m.L) / Math.max(1, xpH)) * 10) / 10 });
 }
 console.table(rows);

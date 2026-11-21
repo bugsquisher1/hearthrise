@@ -5,7 +5,9 @@
 // gathering ... We need to be taking EVERYTHING into consideration").
 //
 //   node tools/balance-program/sources.mjs                 build tools/balance-program/atlas.json from the data rows and the cached
-//                                                          ground rates (ground-rates.json; grid.json too once the grid lane lands).
+//                                                          ground rates (ground-rates.json, MID), moved to LOW and BiS by the progression
+//                                                          grid (progression-grid.json, else progression-grid-quick.json, through
+//                                                          progression-grid.mjs readGrid; the kits are grid-kit.mjs loadKits kitFor).
 //                                                          Prints the counts, the lists (no source, no use, no cost, one way only,
 //                                                          recipes that cannot be made) and bands A1 to A6 and T1. Plays nothing.
 //   node tools/balance-program/sources.mjs --quick         the same on the release guard's 12 checkpoints, no kits (A4, A5 skipped)
@@ -25,7 +27,7 @@
 // ci-step: economy-selftests | Source atlas - an item with no source, a source nothing uses, a drop nobody can reach are each listed
 // ci-run: node tools/mutant-gate.mjs node tools/balance-program/sources.mjs --selftest
 // ════════════════════════════════════════════════════════════════════════
-import { writeFileSync, readFileSync, existsSync } from 'node:fs';
+import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { isMain } from '../../tests/_is-main.mjs';
@@ -35,10 +37,17 @@ import { buildAtlas } from './atlas/build.mjs';
 import { loadKits } from './atlas/kits.mjs';
 import { CHECKPOINTS, GUARD_CHECKPOINTS, PARTIES } from './standards.mjs';
 import { styleOf } from './atlas/rates.mjs';
+import { readGrid } from './progression-grid.mjs';
 
 export const ATLAS_FILE = join(ROOT, 'tools', 'balance-program', 'atlas.json');
 export const RATES_FILE = join(ROOT, 'tools', 'balance-program', 'ground-rates.json');
-const GRID_FILE = join(ROOT, 'tools', 'balance-program', 'grid.json');
+
+/** The progression grid the atlas and the solver read (its full cache, else the release's quick one), labelled, or null. */
+export function gridOf() {
+  const full = readGrid(false), g = full || readGrid(true);
+  if (g) Object.defineProperty(g, '_label', { value: (full ? 'progression-grid.json' : 'progression-grid-quick.json') + ' ' + (g.commit || '?') + ', ' + Object.keys(g.cells || {}).length + ' cells', enumerable: false });
+  return g;
+}
 const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i > 0 && process.argv[i + 1] && !process.argv[i + 1].startsWith('--') ? process.argv[i + 1] : d; };
 const has = (k) => process.argv.includes('--' + k);
 const commitOf = () => { try { return execFileSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).trim(); } catch { return 'unknown'; } };
@@ -49,7 +58,7 @@ export const STYLES_PLAYED = Object.freeze([...new Set(PARTIES.flatMap((p) => p.
 export async function atlasOf(opts = {}) {
   const D = opts.D || await loadData();
   const rates = opts.rates !== undefined ? opts.rates : loadRates(RATES_FILE);
-  const grid = opts.grid !== undefined ? opts.grid : existsSync(GRID_FILE) ? JSON.parse(readFileSync(GRID_FILE, 'utf8')) : null;
+  const grid = opts.grid !== undefined ? opts.grid : gridOf();
   const kits = opts.kits === false ? null : await loadKits(ROOT, D);
   const checkpoints = opts.checkpoints || (opts.quick ? GUARD_CHECKPOINTS : CHECKPOINTS);
   const atlas = buildAtlas({ D, rates, grid, kits, checkpoints, styles: STYLES_PLAYED });
@@ -73,7 +82,7 @@ function printSummary(a, meta) {
   console.log(['A3 OPEN sources with no time cost', B.A3.measured + ' of ' + B.A3.of, ''].join(' | '));
   console.log(['A4 MID slots with no source in band', B.A4.measured, B.A4.note].join(' | '));
   console.log(['A5 BiS kits missing a kind', B.A5.measured, B.A5.note].join(' | '));
-  console.log(['A6 slowest / fastest way', B.A6.over3 + ' over 3, ' + B.A6.over5 + ' over 5, of ' + B.A6.of, 'target at most 3, red over 5'].join(' | '));
+  console.log(['A6 slowest / fastest way', B.A6.over3 + ' over 3, ' + B.A6.over5 + ' over 5, of ' + B.A6.of + (B.A6.bis ? '; in BiS ' + B.A6.bis.over3 + ' over 3, ' + B.A6.bis.over5 + ' over 5, of ' + B.A6.bis.of : ''), 'target at most 3, red over 5'].join(' | '));
   console.log(['T1 rested days to 99 at 12 h', Object.entries(B.T1).map(([k, v]) => k + ' ' + v).join(', '), 'target 60 to 120, red under 30 or over 180'].join(' | '));
   console.log('lists: noSource ' + L.noSource.length + ', noUse ' + L.noUse.length + ', noCost ' + L.noCost.length + ', oneWay ' + L.oneWay.length + ', unmakeable recipes ' + L.unmakeable.length + ', a4 ' + L.a4.length + ', a5 ' + L.a5.length);
   const byDecl = L.noSource.reduce((m, x) => { const k = x.declared || 'UNDECLARED'; m[k] = (m[k] || 0) + 1; return m; }, {});
@@ -151,7 +160,7 @@ async function main() {
   const quick = has('quick');
   const { atlas, rates, grid } = await atlasOf({ quick, kits: quick ? false : undefined });
   const meta = { commit: commitOf(), checkpoints: quick ? GUARD_CHECKPOINTS : CHECKPOINTS, rates: rates ? rates.commit + (rates.quick ? ' quick' : '') + ', ' + rates.rows.length + ' cells' : 'NONE',
-    grid: grid ? 'grid.json' : 'not yet (LOW and BiS rates wait on it)', ms: Date.now() - t0 };
+    grid: grid ? grid._label + ' (LOW and BiS: MID x its own ratio)' : 'NONE: LOW and BiS print as MID until progression-grid.mjs has run', ms: Date.now() - t0 };
   if (arg('item')) return printItem(atlas, arg('item'));
   if (arg('list')) { const l = atlas.lists[arg('list')]; if (!l) { console.error('lists: ' + Object.keys(atlas.lists).join(' ')); process.exit(2); } for (const x of l) console.log(JSON.stringify(x)); return; }
   if (!quick) writeAtlas(atlas, meta);

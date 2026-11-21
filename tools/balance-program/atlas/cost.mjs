@@ -5,7 +5,7 @@
 //     P.route(src, ctx)       { hunted, rested, gold, days, p10, p50, p90, limitDays, blank } for ONE unit of src.item
 //     P.best(item, ctx, opts) the cheapest reachable route (by days) and the runner-up
 //     P.netPerDay(ctx)        the buyer's own net gold a 12 h day (the account: party x hero), the best ground in band at that Level
-//   ctx = { level, party, tier, gear, townH, luckHours, skill (town skill level; default the job's own req), stateOk (OPEN | STAGED) }
+//   ctx = { level, party, tier, gear (low | mid | bis), townH, luckHours, skill (town skill level; default the job's own req), stateOk (OPEN | STAGED) }
 //
 // THE ONE UNIT: days at the 12 hour day. A route's resources run side by side in a day (the hunted 12 hours, the party's rested hours, the
 // purse), so a route's days are the MAX of hunted / 12, rested / (party x townH), gold / net gold a day, and its weekly or daily limit.
@@ -58,14 +58,23 @@ export function makePricer({ D, sources, rates, grid }) {
   const bestMemo = new Map();
   const ctxKey = (c) => [c.level, c.party, c.tier, c.gear, c.townH, c.luckHours || 0, c.skill ?? '', c.stateOk || '', c.market ? 1 : 0, c.scaleKey || ''].join('|');
 
-  /* a ground's rate for the context, LOW/BiS scaled by the grid where it exists; null when unmeasured */
+  /* A GROUND'S RATE for the context: the MEASURED MID cell (ground-rates.json), and for LOW or BiS that cell moved by the progression grid's
+     own LOW / BiS against MID at the nearest checkpoint (kills and XP by ratio, net gold by the hero-hour difference: rates.mjs gridScale).
+     null when unmeasured. Memoised: the solver asks the same question every day. */
+  const rateMemo = new Map();
   const rate = (ground, ctx, level = ctx.level) => {
+    const gear = ctx.gear || 'mid';
+    const k = ground + '|' + level + '|' + ctx.party + '|' + ctx.tier + '|' + gear;
+    if (rateMemo.has(k)) return rateMemo.get(k);
     const r = rateOf(rates, { ground, level, party: ctx.party, tier: ctx.tier });
-    if (!r) return null;
-    if (ctx.gear === 'mid' || !grid) return r;
-    const s = gridScale(grid, { level, party: ctx.party, tier: ctx.tier, gear: ctx.gear });
-    return { ...r, killsPerH: r.killsPerH * s.kills, xpPerHeroH: r.xpPerHeroH * s.xp, netPerHeroH: r.netPerHeroH * s.net,
-      killsByPerH: Object.fromEntries(Object.entries(r.killsByPerH).map(([k, v]) => [k, v * s.kills])) };
+    let out = r;
+    if (r && gear !== 'mid' && grid) {
+      const s = gridScale(grid, { level, party: ctx.party, tier: ctx.tier, gear });
+      out = { ...r, killsPerH: r.killsPerH * s.kills, xpPerHeroH: r.xpPerHeroH * s.xp, netPerHeroH: r.netPerHeroH + s.netDelta, gearFrom: s.from,
+        killsByPerH: Object.fromEntries(Object.entries(r.killsByPerH).map(([m, v]) => [m, v * s.kills])) };
+    }
+    rateMemo.set(k, out);
+    return out;
   };
   /* the grounds a hero of `level` hunts in band */
   const inBand = (level) => Object.keys(D.HUNT_GROUNDS).filter((g) => D.HUNT_INDEX[g] && D.HUNT_INDEX[g].band[0] <= level && level <= D.HUNT_INDEX[g].band[1]);

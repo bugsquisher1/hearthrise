@@ -127,41 +127,50 @@ export function rateOf(table, q) {
   return byLevel.get(lv[lv.length - 1]);
 }
 
+
 /**
- * LOW or BiS against MID from the grid: { kills, xp, net } ratios at the checkpoint nearest `level`, same party size and tier. 1s when the grid
- * is absent, or has no such pair (the label then says MID only). The grid's cell fields: 50-standards 5.1 (killsAnHour, levelXp, netGold).
- */
-/**
- * The grid's cells as plain rows { checkpoint, gear, party, tier, ground, killsAnHour, levelXp, netGold, killsByPerH }, from either a plain
- * { cells: [{...}] } or the grid lane's packed cache (cells: [[cellFields values], [rateFields values]], tools/balance-program/grid.mjs).
+ * The progression grid's cells as plain rows { checkpoint, gear, party, comp, tier, ground, killsAnHour, levelXp, netGold, killsByPerH }. Takes
+ * the shape tools/balance-program/progression-grid.mjs readGrid answers (cells: { key: { L, gear, party, comp, tier, ground, step, error, rates } }),
+ * its packed cache on disk (cells: [[CELL_FIELDS values], [RATE_FIELDS values]]), or plain rows. E1's step cells (one slot group moved) and
+ * errored cells are left out: they are not a gear state.
  */
 export function gridCells(grid) {
-  if (!grid || !Array.isArray(grid.cells)) return [];
-  if (!grid.cellFields || !grid.rateFields) return grid.cells;
+  if (!grid || !grid.cells) return [];
   if (grid._plain) return grid._plain;
   const out = [];
-  for (const pair of grid.cells) {
-    if (!Array.isArray(pair) || !Array.isArray(pair[0])) continue;
-    const k = Object.fromEntries(grid.cellFields.map((n, i) => [n, pair[0][i]]));
-    const v = Array.isArray(pair[1]) ? Object.fromEntries(grid.rateFields.map((n, i) => [n, pair[1][i]])) : {};
-    if (k.error) continue;
-    out.push({ checkpoint: k.L, gear: k.gear, party: k.party, tier: k.tier, ground: k.ground, killsAnHour: v.killsPerH, levelXp: v.levelXpPerH, netGold: v.netPerH, killsByPerH: v.killsByPerH || {} });
-  }
+  const push = (k, v) => {
+    if (k.error || k.step) return;
+    out.push({ checkpoint: Number(k.L ?? k.checkpoint ?? k.level), gear: k.gear, party: Number(k.party), comp: k.comp || null, tier: k.tier || 'normal', ground: k.ground,
+      killsAnHour: v.killsPerH ?? v.killsAnHour, levelXp: v.levelXpPerH ?? v.levelXp, netGold: v.netPerH ?? v.netGold, killsByPerH: v.killsByPerH || {} });
+  };
+  if (!Array.isArray(grid.cells)) for (const c of Object.values(grid.cells)) push(c, c.rates || {});
+  else if (grid.cellFields && grid.rateFields) {
+    for (const pair of grid.cells) {
+      if (!Array.isArray(pair) || !Array.isArray(pair[0])) continue;
+      push(Object.fromEntries(grid.cellFields.map((n, i) => [n, pair[0][i]])), Array.isArray(pair[1]) ? Object.fromEntries(grid.rateFields.map((n, i) => [n, pair[1][i]])) : {});
+    }
+  } else for (const c of grid.cells) push(c, c);
   Object.defineProperty(grid, '_plain', { value: out, enumerable: false });
+  /* the index gridScale reads: gear|party|tier -> its cells */
+  const idx = new Map();
+  for (const c of out) { const k = c.gear + '|' + c.party + '|' + c.tier; if (!idx.has(k)) idx.set(k, []); idx.get(k).push(c); }
+  Object.defineProperty(grid, '_idx', { value: idx, enumerable: false });
   return out;
 }
 
+/**
+ * LOW or BiS against MID from the grid, at the checkpoint nearest the Level (same party size, tier and seating): kills and XP as RATIOS, net gold
+ * as gold a hero-hour ADDED (`netDelta`; a net near zero makes a ratio meaningless: a four's MID +1,764 and BiS +233 is not "0.13 times").
+ * Ones and a zero when the grid is absent or has no such pair; `from` is the checkpoint read.
+ */
 export function gridScale(grid, q) {
-  const one = { kills: 1, xp: 1, net: 1, from: null };
-  const cells = gridCells(grid);
-  if (!cells.length || q.gear === 'mid') return one;
-  const at = (gear) => cells.filter((c) => c.gear === gear && Number(c.party) === q.party && (c.tier || 'normal') === q.tier);
-  const mids = at('mid'), others = at(q.gear);
-  if (!mids.length || !others.length) return one;
-  const lvOf = (c) => Number(c.checkpoint ?? c.level);
-  const near = (list) => list.slice().sort((a, b) => Math.abs(lvOf(a) - q.level) - Math.abs(lvOf(b) - q.level))[0];
-  const o = near(others), m = mids.find((c) => lvOf(c) === lvOf(o));
+  const one = { kills: 1, xp: 1, netDelta: 0, from: null };
+  if (!grid || q.gear === 'mid' || !gridCells(grid).length) return one;
+  const others = grid._idx.get(q.gear + '|' + q.party + '|' + q.tier) || [], mids = grid._idx.get('mid|' + q.party + '|' + q.tier) || [];
+  if (!others.length || !mids.length) return one;
+  const o = others.reduce((b, c) => (Math.abs(c.checkpoint - q.level) < Math.abs(b.checkpoint - q.level) ? c : b), others[0]);
+  const m = mids.find((c) => c.checkpoint === o.checkpoint && c.comp === o.comp) || mids.find((c) => c.checkpoint === o.checkpoint);
   if (!m) return one;
-  const r = (k) => (Number(m[k]) > 0 ? Number(o[k]) / Number(m[k]) : 1);
-  return { kills: r('killsAnHour'), xp: r('levelXp'), net: Number(m.netGold) ? Number(o.netGold) / Number(m.netGold) : 1, from: lvOf(o) };
+  const r = (k) => (Number(m[k]) > 0 && Number(o[k]) > 0 ? Number(o[k]) / Number(m[k]) : 1);
+  return { kills: r('killsAnHour'), xp: r('levelXp'), netDelta: (Number(o.netGold) || 0) - (Number(m.netGold) || 0), from: o.checkpoint };
 }

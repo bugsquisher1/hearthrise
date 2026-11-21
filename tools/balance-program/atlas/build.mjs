@@ -9,6 +9,9 @@
 //              p10, p50, p90]] } | null, blank: { '<party>|<tier>': reason } } }   (a Level-free source prices one row at its opening checkpoint;
 //              past a ground's band its top's rate holds: `heldPast`)
 //   net:     { '<party>|<tier>': [[cp, net gold a 12 h day]] }   the buyer's own net gold a day, for "gold in days"
+//   gear:    { '<low|bis>|<party>|<tier>': [[cp, kills x, XP x, net gold a hero-hour +, grid checkpoint read]] }   the progression grid's LOW
+//            and BiS against MID (rates.mjs gridScale). Every cost above is MID; a drop's hunted hours in LOW or BiS are its MID hours over
+//            the kills ratio, its gold the MID gold plus the net difference x its hours (the full tables would triple the file)
 //   modifiers, town (T1 and the town table of 10.2), lists, bands
 // }
 // The reference seat of every list is a lone MID hero on Normal with 12 rested hours (A3, A6), and the four on its hardest tier beside it.
@@ -17,6 +20,7 @@ import { townModel, TOWN_LEVELS, GATHER } from './town.mjs';
 import { huntSources } from './sources-hunt.mjs';
 import { townSources } from './sources-town.mjs';
 import { makePricer } from './cost.mjs';
+import { gridScale } from './rates.mjs';
 
 const r3 = (x) => (x === null || x === undefined ? null : !Number.isFinite(x) ? null : Math.abs(x) >= 100 ? Math.round(x) : Math.round(x * 1000) / 1000);
 const PARTY_SIZES = Object.freeze([1, 2, 3, 4]);
@@ -84,6 +88,12 @@ export function buildAtlas({ D, rates, grid, kits, checkpoints, styles }) {
   for (const party of PARTY_SIZES) for (const tier of ['normal', 'dangerous', 'deadly']) {
     net[party + '|' + tier] = cps.map((c) => [c, r3(P.netPerDay(ctxOf(c, party, tier)))]).filter((x) => x[1] !== null && Number.isFinite(x[1]));
   }
+  /* ── LOW and BiS against MID (the progression grid) ── */
+  const gear = {};
+  if (grid) for (const g of ['low', 'bis']) for (const party of PARTY_SIZES) for (const tier of ['normal', 'dangerous', 'deadly']) {
+    const rows = cps.map((c) => { const s = gridScale(grid, { level: c, party, tier, gear: g }); return s.from === null ? null : [c, r3(s.kills), r3(s.xp), Math.round(s.netDelta), s.from]; }).filter(Boolean);
+    if (rows.length) gear[g + '|' + party + '|' + tier] = rows;
+  }
 
   /* ── items ── */
   /* the catalogue's uses (catalogue-coherence itemUses), plus two it does not list: a staged gear row is worn, a hall's key opens its hall */
@@ -121,20 +131,24 @@ export function buildAtlas({ D, rates, grid, kits, checkpoints, styles }) {
   const unmakeable = sources.filter((s) => s.kind === 'recipe' && out[s.sid].cost === null && s.state === 'OPEN')
     .map((s) => ({ sid: s.sid, item: s.item, why: (out[s.sid].blank && Object.values(out[s.sid].blank)[0]) || 'unpriced' }));
   const sourcesUnused = sources.filter((s) => !NOT_A_WAY(s) && items[s.item] && !(items[s.item].uses || []).length).map((s) => s.sid);
-  /* A6: each piece with two or more priced ways, slowest over fastest at the first checkpoint both are priced (the reference seat) */
-  const a6 = [];
-  for (const id of Object.keys(items)) {
-    if (!realItem(id)) continue;
-    /* at the Level the piece is worn from (a ring made at Level 1 is no way to a ring nobody can wear) */
-    for (const c of cps.filter((x) => x >= (Number(items[id].reqLv) || 1))) {
-      const b = P.best(id, ref(c));
-      const priced = b.all.filter((x) => !NOT_A_WAY(SRC.get(x.sid) || {}) && x.days > 0);
-      if (priced.length < 2) continue;
-      a6.push({ id, cp: c, ratio: r3(priced[priced.length - 1].days / priced[0].days), fastest: priced[0].sid, slowest: priced[priced.length - 1].sid });
-      break;
+  /* A6: each piece with two or more priced ways, slowest over fastest at the first checkpoint both are priced (the reference seat; `a6bis`
+     the same seat in BiS, where the grid's kill ratio speeds every drop and nothing else) */
+  const a6Of = (gearState) => {
+    const list = [];
+    for (const id of Object.keys(items)) {
+      if (!realItem(id)) continue;
+      /* at the Level the piece is worn from (a ring made at Level 1 is no way to a ring nobody can wear) */
+      for (const c of cps.filter((x) => x >= (Number(items[id].reqLv) || 1))) {
+        const b = P.best(id, { ...ref(c), gear: gearState });
+        const priced = b.all.filter((x) => !NOT_A_WAY(SRC.get(x.sid) || {}) && x.days > 0);
+        if (priced.length < 2) continue;
+        list.push({ id, cp: c, ratio: r3(priced[priced.length - 1].days / priced[0].days), fastest: priced[0].sid, slowest: priced[priced.length - 1].sid });
+        break;
+      }
     }
-  }
-  a6.sort((a, b) => b.ratio - a.ratio);
+    return list.sort((a, b) => b.ratio - a.ratio);
+  };
+  const a6 = a6Of('mid'), a6bis = grid ? a6Of('bis') : [];
 
   /* ── A4, A5: the kits ── */
   const a4 = [], a5 = [];
@@ -188,14 +202,15 @@ export function buildAtlas({ D, rates, grid, kits, checkpoints, styles }) {
     A3: { measured: blanks.filter((b) => b.state === 'OPEN').length, of: reachable.length },
     A4: { measured: kits ? a4.length : null, note: 'MID slots (checkpoint x style x slot, Levels 1 to 185) with no source inside the band\'s own grounds or the town' },
     A5: { measured: kits ? a5.length : null, note: 'BiS kits from Level 30 missing a dropped, a crafted or a won piece (by each piece\'s cheapest route)' },
-    A6: { over3: a6.filter((x) => x.ratio > 3).length, over5: a6.filter((x) => x.ratio > 5).length, of: a6.length },
+    A6: { over3: a6.filter((x) => x.ratio > 3).length, over5: a6.filter((x) => x.ratio > 5).length, of: a6.length,
+      bis: grid ? { over3: a6bis.filter((x) => x.ratio > 3).length, over5: a6bis.filter((x) => x.ratio > 5).length, of: a6bis.length } : null },
     A7: { measured: null, note: 'read by paths.mjs (a skill\'s products on the best paths by level)' },
     T1: Object.fromEntries(Object.entries(town).map(([k, v]) => [k, v.chainDaysTo99.at12 ?? v.daysTo99.at12])),
     T1at4: Object.fromEntries(Object.entries(town).map(([k, v]) => [k, v.chainDaysTo99.at4 ?? v.daysTo99.at4])),
     T1benchOnly: Object.fromEntries(Object.entries(town).map(([k, v]) => [k, v.daysTo99.at12])),
     T7: { measured: null, note: 'read by paths.mjs (rested hours the best path wants a day)' },
   };
-  return { items, sources: out, net, modifiers: hunt.modifiers, town, lists: { noSource, noUse, sourcesUnused, noCost: blanks, oneWay, unmakeable, a4, a5, a6 }, bands,
+  return { items, sources: out, net, gear, modifiers: hunt.modifiers, town, lists: { noSource, noUse, sourcesUnused, noCost: blanks, oneWay, unmakeable, a4, a5, a6, a6bis }, bands,
     counts: { items: Object.keys(items).length, realItems: Object.keys(items).filter(realItem).length, sources: sources.length, open: reachable.length,
       byKind: countBy(sources, (s) => s.kind), byState: countBy(sources, (s) => s.state) }, _pricer: P, _sources: sources };
 }

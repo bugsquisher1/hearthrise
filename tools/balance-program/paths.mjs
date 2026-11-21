@@ -15,8 +15,10 @@
 //                                                     times worse; the report must read the first DOMINANT and the second NEGLECTED, and
 //                                                     an item with no source must be on the atlas's no-source list
 //
-// What it reads: the atlas (sources.mjs, built in memory from the same rows atlas.json holds), the ground rates (ground-rates.json, and
-// grid.json once the grid lane lands), LEVEL_CURVE, the kits (atlas/kits.mjs), the price rows. What it cannot know: market prices and
+// What it reads: the atlas (sources.mjs, built in memory from the same rows atlas.json holds), the ground rates (ground-rates.json, MID)
+// moved to LOW and BiS by the progression grid (progression-grid.json through progression-grid.mjs readGrid; a hero chasing a kit plays LOW
+// to MID to BiS as it owns more of it: paths/solve.mjs wearOf), LEVEL_CURVE, the kits (grid-kit.mjs loadKits kitFor, through
+// atlas/kits.mjs), the price rows. What it cannot know: market prices and
 // other players: the market is the maker's own time (its ceiling) for a free buyer and free for bought gold, and it says so.
 // NOT YET DONE (50-standards 10.5's first check): the blind play to Level 30 that B3 is calibrated on; the hour-by-hour first two days
 // are by the hour, the rest by the day. Every number is COMPUTED on MEASURED rates; none is played by a person.
@@ -209,7 +211,8 @@ async function main() {
   }
   const ms = Date.now() - t0;
   let commit = 'unknown'; try { commit = execFileSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).trim(); } catch { /* not a repo */ }
-  const doc = { schema: 'hearthrise.balance-program.paths/1', commit, quick, ms, rates: ctx.atlas ? 'ground-rates.json' : null, label: 'COMPUTED on MEASURED ground rates (MID kit); LOW and BiS rates wait on grid.json',
+  const doc = { schema: 'hearthrise.balance-program.paths/1', commit, quick, ms, rates: ctx.atlas ? 'ground-rates.json' : null, grid: ctx.grid ? ctx.grid._label : null,
+    label: ctx.grid ? 'COMPUTED on MEASURED ground rates (MID), LOW and BiS by ' + ctx.grid._label : 'COMPUTED on MEASURED ground rates (MID only: no progression grid cache)',
     runs: runs.map((r) => ({ ...r, bands: r.bands ? r.bands.map(({ rates, ...b }) => b) : undefined })), bands, townGold: tg, regions: regionDays(runs), verdicts: verdict ? verdict.rows : null, notJudged: verdict ? verdict.notJudged : null, shares: verdict ? verdict.shares : null };
   if (!quick) writeFileSync(PATHS_FILE, JSON.stringify(doc) + '\n');
   printReport(doc, has('report'));
@@ -245,15 +248,21 @@ async function selftest() {
   const t0 = Date.now();
   const fails = [];
   const check = (name, ok, detail) => { console.log((ok ? 'ok   ' : 'FAIL ') + name + (detail ? ': ' + detail : '')); if (!ok) fails.push(name); };
-  /* the two readers of the grid lane's files (not merged here yet): its kit PLAN and its packed cell cache */
+  /* the readers of the grid lane's files: its kit PLAN (grid-kit.mjs kitFor) and its cell cache, as progression-grid.mjs readGrid answers it
+     and as it is packed on disk (a step cell, E1's one-slot move, is never a gear state) */
   const { fromGridPlan } = await import('./atlas/kits.mjs');
   const { gridScale } = await import('./atlas/rates.mjs');
   const plan = fromGridPlan({ kit: { weapon: 'w', ammo: 'x', ring1: 'r' }, temper: { 'temper:blows:3': 2 }, projectedAdds: [{ id: 'linings' }] });
   check('the grid kit plan reads as slots and rungs', JSON.stringify(plan.slots) === '{"weapon":"w","ring1":"r"}' && plan.upgrades.join() === 'temper:blows:3:1,temper:blows:3:2');
+  const cell = (L, gear, k, xp, net, step = null) => ({ key: [L, gear, step].join('|'), L, gear, party: 1, comp: 'h', tier: 'normal', ground: 'g', step, rates: { killsPerH: k, levelXpPerH: xp, netPerH: net, killsByPerH: {} } });
+  const plain = { cells: Object.fromEntries([cell(30, 'mid', 10, 100, 50), cell(30, 'bis', 99, 990, 990, 'weapon'), cell(30, 'bis', 15, 150, 80), cell(60, 'low', 5, 50, -20), cell(60, 'mid', 10, 100, 40)].map((c) => [c.key, c])) };
+  const sb = gridScale(plain, { level: 33, party: 1, tier: 'normal', gear: 'bis' }), sl = gridScale(plain, { level: 58, party: 1, tier: 'normal', gear: 'low' });
+  check('the readGrid cache scales BiS and LOW against MID (ratio for kills and XP, a difference for gold; the step cell left out)',
+    sb.kills === 1.5 && sb.xp === 1.5 && sb.netDelta === 30 && sb.from === 30 && sl.kills === 0.5 && sl.netDelta === -60, JSON.stringify([sb, sl]));
   const cf = ['key', 'L', 'gear', 'party', 'comp', 'tier', 'ground', 'styles', 'stretch', 'label', 'step', 'error', 'deaths'], rf = ['levelXpPerH', 'netPerH', 'killsPerH', 'killsByPerH'];
   const g = { cellFields: cf, rateFields: rf, cells: [[[0, 30, 'mid', 1, 'h', 'normal', 'g', [], 'OPEN', 'M', null, null, 0], [100, 50, 10, {}]], [[0, 30, 'bis', 1, 'h', 'normal', 'g', [], 'OPEN', 'M', null, null, 0], [150, 80, 15, {}]]] };
   const sg = gridScale(g, { level: 30, party: 1, tier: 'normal', gear: 'bis' });
-  check('the packed grid cache scales BiS against MID', sg.kills === 1.5 && sg.xp === 1.5 && sg.net === 1.6, JSON.stringify(sg));
+  check('the packed cache on disk reads the same', sg.kills === 1.5 && sg.xp === 1.5 && sg.netDelta === 30, JSON.stringify(sg));
   const band = 'b30-45', sc = { id: 'st', goal: 'bis', party: 1, comp: ['hammer'], payer: 'free', townH: 12, bands: [band] };
   /* control */
   const c0 = await setup({ quick: true, beam: 1, maxDays: 120 });

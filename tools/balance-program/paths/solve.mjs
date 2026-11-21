@@ -30,24 +30,48 @@ export function makeSolver({ D, P, kits, opts = {} }) {
   const levelAt = (xp) => { let lv = 1; while (lv < 400 && D.charXpForLevel(lv + 1) <= xp) lv++; return lv; };
   const luckBucket = (h) => (!luckOn ? 0 : [0, 100, 250, 500, 1000, 2000, 5000].filter((b) => b <= h).pop());
 
+  /* WHAT THE HERO WEARS WHILE IT CHASES A KIT (the progression grid's LOW, MID and BiS rates, atlas/cost.mjs rate): it walks into a band in
+     the arrival kit (LOW) and its hunting moves with the share of the band's targets it owns. A MID goal: LOW to MID. A BiS goal: LOW to MID
+     over the first half, MID to BiS over the second (a half-built best kit plays as MID: this file's reading, the grid has no in-between
+     cell). Quarter steps, so the memo holds. A Level path wears MID (the pace seat, 50-standards P1). */
+  const MID_WEAR = Object.freeze({ a: 'mid', b: 'mid', t: 0 });
+  function wearOf(st, goal) {
+    if (!st || !st.targets || !st.targets.size) return MID_WEAR;
+    let have = 0;
+    for (const [item, n] of st.targets) if ((st.owned.get(item) || 0) >= n - 1e-6) have++;
+    const f = have / st.targets.size, q = (x) => Math.round(Math.max(0, Math.min(1, x)) * 4) / 4;
+    if (goal === 'mid') return { a: 'low', b: 'mid', t: q(f) };
+    return f < 0.5 ? { a: 'low', b: 'mid', t: q(2 * f) } : { a: 'mid', b: 'bis', t: q(2 * f - 1) };
+  }
+  const wearKey = (w) => w.a + w.b + w.t;
+  /* the one gear state a route is priced in (the cheapest route at the state nearer the blend) */
+  const gearNow = (st) => { const w = st && st.goal ? wearOf(st, st.goal) : MID_WEAR; return w.t >= 0.5 ? w.b : w.a; };
+  const lerpRate = (ra, rb, t) => (t <= 0 || ra === rb ? ra : { ...ra, killsPerH: ra.killsPerH + (rb.killsPerH - ra.killsPerH) * t, xpPerHeroH: ra.xpPerHeroH + (rb.xpPerHeroH - ra.xpPerHeroH) * t,
+    netPerHeroH: ra.netPerHeroH + (rb.netPerHeroH - ra.netPerHeroH) * t,
+    killsByPerH: Object.fromEntries(Object.keys(ra.killsByPerH).map((m) => [m, ra.killsByPerH[m] + ((rb.killsByPerH[m] || 0) - ra.killsByPerH[m]) * t])) });
+
   /* the hunting options at a Level: every ground a party may stand on (its band's floor at or under the Level), every tier it holds */
-  function options(level, sc) {
-    const out = options0(level, sc);
+  function options(level, sc, wear = MID_WEAR) {
+    const out = options0(level, sc, wear);
     if (out.length || sc.party === 1) return out;
     /* a party under its sizes' first Level (the Sewer opens at 5): each hero hunts alone, the account earns n heroes' gold */
-    return options0(level, { ...sc, party: 1 }).map((o) => ({ ...o, netH: o.netH * sc.party, alone: true }));
+    return options0(level, { ...sc, party: 1 }, wear).map((o) => ({ ...o, netH: o.netH * sc.party, alone: true }));
   }
-  function options0(level, sc) {
+  function options0(level, sc, wear) {
     const out = [];
     for (const g of Object.keys(D.HUNT_GROUNDS)) {
       const h = D.HUNT_INDEX[g];
       if (!h || h.band[0] > level) continue;
       if (!D.OPEN_GROUNDS[g] && (opts.openOnly || level < 110)) continue;
       for (const tier of sc.tiers || ['normal', ...D.tiersOf(g).filter((t) => t !== 'normal')]) {
-        const r = P.rate(g, { level, party: sc.party, tier, gear: 'mid' }, Math.min(level, h.band[1]));
+        const at = Math.min(level, h.band[1]);
+        const mid = P.rate(g, { level, party: sc.party, tier, gear: 'mid' }, at);
         /* a tier it does not hold (a death in the sample), or a ground it has outgrown (no kills: the Cellar sends a hero home at 5) */
-        if (!r || r.deaths > 0 || !(r.killsPerH > 0) || !(r.xpPerHeroH > 0)) continue;
-        out.push({ ground: g, tier, r, xpH: r.xpPerHeroH * (1 + eventShare), netH: r.netPerHeroH * sc.party });
+        if (!mid || mid.deaths > 0 || !(mid.killsPerH > 0) || !(mid.xpPerHeroH > 0)) continue;
+        const ra = wear.a === 'mid' ? mid : P.rate(g, { level, party: sc.party, tier, gear: wear.a }, at);
+        const rb = wear.b === wear.a ? ra : P.rate(g, { level, party: sc.party, tier, gear: wear.b }, at);
+        const r = lerpRate(ra, rb, wear.t);
+        out.push({ ground: g, tier, r, wk: wearKey(wear), xpH: r.xpPerHeroH * (1 + eventShare), netH: r.netPerHeroH * sc.party });
       }
     }
     return out;
@@ -55,7 +79,7 @@ export function makeSolver({ D, P, kits, opts = {} }) {
   /* a route is chosen at the checkpoint at or under the Level (the atlas's own grid of Levels): a route never opens early, and the memo holds */
   const cps = opts.checkpoints || [1, 3, 5, 7, 10, 15, 20, 25, 30, 35, 40, 45, 50, 60, 75, 88, 100, 110, 125, 145, 165, 185, 200];
   const cpAt = (L) => cps.filter((c) => c <= L).pop() || 1;
-  const ctxOf = (st, sc) => ({ level: cpAt(st.level), party: sc.party, tier: 'normal', gear: 'mid', townH: sc.townH, luckHours: luckBucket(st.hunted),
+  const ctxOf = (st, sc) => ({ level: cpAt(st.level), party: sc.party, tier: 'normal', gear: gearNow(st), townH: sc.townH, luckHours: luckBucket(st.hunted),
     market: sc.payer === 'bought' || sc.market === true, scale: sc.scale || null, scaleKey: sc.scale ? JSON.stringify(sc.scale) : '' });
 
   /* ── THE FASTEST LEVEL: the best XP an hour every step (myopic is optimal: XP adds, and a rate reads only the Level) ── */
@@ -152,7 +176,7 @@ export function makeSolver({ D, P, kits, opts = {} }) {
   }
   const rateMemo = new Map();
   function dropRate(opt, item, st, sc) {
-    const k = opt.ground + opt.tier + (opt.alone ? 'a' : '') + item + st.level + luckBucket(st.hunted);
+    const k = opt.ground + opt.tier + (opt.alone ? 'a' : '') + (opt.wk || '') + item + st.level + luckBucket(st.hunted);
     if (rateMemo.has(k)) return rateMemo.get(k);
     let per = 0;
     for (const s of P.byItem.get(item) || []) {
@@ -168,7 +192,7 @@ export function makeSolver({ D, P, kits, opts = {} }) {
     return per;
   }
   const luckOf = (h) => opts.luckAt ? opts.luckAt(h) : 0;
-  function bestHuntRate(st, sc, item) { return Math.max(0, ...options(st.level, sc).map((o) => dropRate(o, item, st, sc))); }
+  function bestHuntRate(st, sc, item) { return Math.max(0, ...options(st.level, sc, wearOf(st, st.goal)).map((o) => dropRate(o, item, st, sc))); }
   /* rested hours to take a town skill from its level now to `req` on its best XP row */
   function skillHours(st, skill, req) {
     const lv = st.town[skill] || 1;
@@ -303,7 +327,7 @@ export function makeSolver({ D, P, kits, opts = {} }) {
       if (band.from >= topLevel) break;
       const targets = targetsFor(band, goal, sc);
       let beam = [{ day: 0, xp: D.charXpForLevel(band.from), level: band.from, gold: carryGold, hunted: opts.huntedAt ? opts.huntedAt(band.from) : band.from * 10,
-        owned: new Map(), town: { ...carryTown }, targets, bandTo: band.to, groundLog: [], rates: recordRates ? [] : null, restUsed: 0, score: 0 }];
+        owned: new Map(), town: { ...carryTown }, targets, bandTo: band.to, goal, groundLog: [], rates: recordRates ? [] : null, restUsed: 0, score: 0 }];
       let done = null, fills = null, guard = 0;
       const maxDays = opts.maxDays || 400;
       while (guard++ < maxDays * 2) {
@@ -313,7 +337,7 @@ export function makeSolver({ D, P, kits, opts = {} }) {
           const acc = bom(st, sc, st.targets);
           if (!fills) fills = acc.fills;
           /* a hunt that loses gold is open only to a purse that can pay its day (a hunt ends when the gold for its supplies runs out) */
-          const opts2 = options(st.level, sc).filter((o) => o.netH >= 0 || sc.payer === 'bought' || st.gold + o.netH * 12 >= 0);
+          const opts2 = options(st.level, sc, wearOf(st, st.goal)).filter((o) => o.netH >= 0 || sc.payer === 'bought' || st.gold + o.netH * 12 >= 0);
           const scored = opts2.map((o) => ({ o, s: daysLeft(st, sc, acc, o) - o.xpH * 1e-9 })).sort((a, b) => a.s - b.s).slice(0, Math.max(1, beamW));
           for (const { o } of scored) {
             const st2 = playDay(st, sc, acc, o, st.day < 2 ? 1 / 12 : 1);

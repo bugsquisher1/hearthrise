@@ -1,0 +1,1805 @@
+{
+ "category": "combat",
+ "doc": "docs/design/balance-program/41-formulas-combat.md",
+ "brief": "docs/design/balance-program/40-formula-brief.md",
+ "readAt": "set/v0.2.144 e6ea19170",
+ "classes": {
+  "1": "foundational mechanic",
+  "2": "content parameter, belongs in data",
+  "3": "intentional special mechanic, needs Tyler's explicit approval",
+  "4": "accidental complexity, eliminate"
+ },
+ "status": {
+  "C": "confirmed: the code path was read, measured where the row says so",
+  "H": "hypothesis: the row says what would confirm it"
+ },
+ "counts": {
+  "formulas": 42,
+  "exceptions": 67,
+  "byClass": {
+   "1": 8,
+   "2": 10,
+   "3": 17,
+   "4": 32
+  },
+  "confirmed": 58,
+  "hypothesis": 9
+ },
+ "formulas": [
+  {
+   "id": "C-HERO-POWER",
+   "computes": "A hero's largest blow (maxHit): floor(0.35 x (weapon skill + worn +skill) + 0.6 x summed damage bonus + 2), then x the weakness factor, then x (1 + damage buff). Never under 1",
+   "impl": [
+    "src/core/combat.js:358-426 playerCombatRolls",
+    "src/core/member.js:136 heroSnapshot (the unit's maxHit)"
+   ],
+   "params": "literals 0.35 / 0.6 / 2 at combat.js:391. COMBAT_BALANCE.strengthLevelScale / strengthBonusScale / playerBaseMaxHit (combat.js:38-40) hold the same numbers but the engine never reads them",
+   "deps": [
+    "P-SKILL-LEVEL (progression)",
+    "C-GEAR-WEAPON",
+    "C-WEAKNESS",
+    "C-BUFF-BONUS"
+   ],
+   "consumers": [
+    "C-BASIC-BLOW",
+    "C-SPELL-HIT",
+    "C-SPELL-HEAL",
+    "C-SPELL-SHELL",
+    "C-STATUS-TICK",
+    "character sheet (hr-accrue/character-sheet.js:114)",
+    "wiki (src/shell/wiki-model.js:117-126)",
+    "upgrade plan (src/shell/upgrade-plan.js:161)"
+   ],
+   "random": "deterministic"
+  },
+  {
+   "id": "C-HERO-TOHIT",
+   "computes": "A hero's chance to land a basic blow: ratio(20 + skill + worn accuracy, the monster's evasion) x 1.15 on a weak-weapon match, held to 5%..97%. Steady then turns a share of the misses into hits",
+   "impl": [
+    "src/core/combat.js:384-389",
+    "src/data/to-hit.js:134-140 toHitRatio, heldToHit"
+   ],
+   "params": "TO_HIT { base 20, min 0.05, max 0.97 } (to-hit.js:117). WEAKNESS_BONUS.accuracy 1.15 (combat.js:31)",
+   "deps": [
+    "P-SKILL-LEVEL (progression)",
+    "C-GEAR-WEAPON",
+    "C-MON-STATS",
+    "C-WEAKNESS",
+    "C-JEWEL-PERKS"
+   ],
+   "consumers": [
+    "C-BASIC-BLOW",
+    "character sheet",
+    "wiki"
+   ],
+   "random": "one chance draw a swing (rollAttack)"
+  },
+  {
+   "id": "C-BASIC-BLOW",
+   "computes": "One basic blow: miss is 0, a hit is a whole number 1..maxHit with equal odds (mean (maxHit + 1) / 2)",
+   "impl": [
+    "src/core/combat.js:482-485 rollAttack",
+    "src/core/hunt/damage.js:215-223 roll",
+    "src/core/hunt/damage.js:305-316 blow"
+   ],
+   "params": "none of its own",
+   "deps": [
+    "C-HERO-POWER",
+    "C-HERO-TOHIT",
+    "C-CRIT",
+    "C-HURT"
+   ],
+   "consumers": [
+    "C-HURT",
+    "E-KILL-RATE (economy)",
+    "P-WEAPON-XP (progression)"
+   ],
+   "random": "the hunt seed stream: chance, then int"
+  },
+  {
+   "id": "C-CRIT",
+   "computes": "Critical basic blows: chance = clamp(gear critB + crit buff + set bonus + Keen, 0, 0.60). A crit is max(damage + 1, floor(damage x 1.5)). The set bonus is 1% a tier for 5+ armor pieces of one tier and line",
+   "impl": [
+    "src/core/combat.js:428-432",
+    "src/core/combat.js:488-494 rollCrit, applyCrit",
+    "src/core/combat.js:252-270 armorSetBonus"
+   ],
+   "params": "COMBAT_BALANCE.critMult 1.5, critCap 0.60 (combat.js:64-65). Leather critB 0.004 x tier a piece (gear-tiers.js:215)",
+   "deps": [
+    "C-GEAR-ARMOR",
+    "C-JEWEL-PERKS",
+    "C-BUFF-BONUS"
+   ],
+   "consumers": [
+    "C-BASIC-BLOW"
+   ],
+   "random": "one chance draw on a landed hero blow with a chance above 0"
+  },
+  {
+   "id": "C-WEAKNESS",
+   "computes": "The damage factor against one monster: weapon weakness 1.20 x bane (at most 1.40) x weapon element (at most 1.15), the product held to 1.90. A weapon match also gives x1.15 accuracy",
+   "impl": [
+    "src/core/combat.js:301-345 weaknessInfo",
+    "src/core/bane.js:155 baneMultFor",
+    "src/core/elements.js:120-123 elementMultFor"
+   ],
+   "params": "WEAKNESS_BONUS (combat.js:31), MAX_BANE_MULT 1.40 (core-model.js:256), MAX_ELEMENT_MULT 1.15 and MAX_TOTAL_DAMAGE_MULT 1.90 (elements.js:56-60), MAX_COMBINED_DAMAGE_MULT 1.68 (bane.js:62, unused)",
+   "deps": [
+    "C-MON-STATS (the row's weaponWeak, class, elements)"
+   ],
+   "consumers": [
+    "C-HERO-POWER",
+    "C-HERO-TOHIT",
+    "C-BASIC-BLOW"
+   ],
+   "random": "deterministic"
+  },
+  {
+   "id": "C-HURT",
+   "computes": "Every amount that lands on a unit, in this order. On a monster: x element (a weakness at the tag's weakPm share) then minus the defence cut, x the cast's power (version, store, surge, mark), x the boss guard, x the dealer's stance, x the target's stance, at least 1, x Tempering. On a hero: x power, x stances, then the armor chain. Then the spell shell, then HP",
+   "impl": [
+    "src/core/hunt/damage.js:117-145 hurt",
+    "src/core/hunt/damage.js:153-192 landHit"
+   ],
+   "params": "no numbers of its own. Nine floors in a row",
+   "deps": [
+    "C-ELEMENT-MON",
+    "C-MON-DEF",
+    "C-CAST-POWER",
+    "C-VULN",
+    "C-BOSS-PHASE",
+    "C-STANCE",
+    "C-ARMOR-CHAIN",
+    "C-TEMPER",
+    "C-SPELL-SHELL"
+   ],
+   "consumers": [
+    "every kill and every death",
+    "E-SUPPLY-USE (economy)",
+    "P-DEFENSE-XP, P-WEAPON-XP (progression)",
+    "the analyzer tally"
+   ],
+   "random": "none itself (Tempering's part of a point: one draw)"
+  },
+  {
+   "id": "C-MON-DEF",
+   "computes": "A monster's defence: floor(def x 0.03) whole points off every blow and every tick it takes",
+   "impl": [
+    "src/core/combat.js:462-464 defenceReduction"
+   ],
+   "params": "COMBAT_BALANCE.monsterDefenseDamageReduction 0.03. def = 0.08 x Level x role (balance-sheet.js STAT_FORMULA.def, MONSTER_ROLES)",
+   "deps": [
+    "C-MON-STATS"
+   ],
+   "consumers": [
+    "C-HURT",
+    "C-HERO-POWER (the sheet's copy)"
+   ],
+   "random": "deterministic"
+  },
+  {
+   "id": "C-ELEMENT-MON",
+   "computes": "What an element is worth on a monster: 1000 - 10 x its profile's percent, the percent held to ELEMENT_PCT. A row with weakPm lands only that share of a weakness",
+   "impl": [
+    "src/core/elements.js:71-76 elementPermille",
+    "src/core/hunt/damage.js:111 weakShare",
+    "src/core/hunt/targeting.js:53 elementOn"
+   ],
+   "params": "ELEMENT_PCT bounds (src/data/elements.js). weak +15, resist 25, former immunity 50 (ruling 2026-11-06)",
+   "deps": [
+    "C-MON-STATS"
+   ],
+   "consumers": [
+    "C-HURT",
+    "C-WEAKNESS"
+   ],
+   "random": "deterministic"
+  },
+  {
+   "id": "C-VULN",
+   "computes": "A target that takes more: Hunter's Mark (unit fields markPm until markUntil) plus the strongest marking status (takenPm), added and folded into the cast's power",
+   "impl": [
+    "src/core/hunt/damage.js:69-76 takenPmOf",
+    "src/core/hunt/damage.js:166-170",
+    "src/core/hunt/abilities.js:411-414"
+   ],
+   "params": "the mark row's bonusPct and durMs (abilities.js). Sickness takenPm 100 for 6 s (statuses.js)",
+   "deps": [
+    "C-STATUS"
+   ],
+   "consumers": [
+    "C-HURT"
+   ],
+   "random": "deterministic"
+  },
+  {
+   "id": "C-STANCE",
+   "computes": "Stance: Offensive deals and takes x1.10, Defensive deals x0.90 and takes x0.85",
+   "impl": [
+    "src/data/rule-subjects.js:38-42 HUNT_STANCES",
+    "src/core/hunt/damage.js:130-131"
+   ],
+   "params": "HUNT_STANCES",
+   "deps": [],
+   "consumers": [
+    "C-HURT"
+   ],
+   "random": "deterministic"
+  },
+  {
+   "id": "C-TEMPER",
+   "computes": "Tempering: Blows raises what lands on a monster and every heal by rungs x the ladder's permille. Armor (with worn steadyPm and a food's steady) lowers what reaches the hero, last, never past the cap. The part of a point is a chance",
+   "impl": [
+    "src/core/temper.js:38-57",
+    "src/core/hunt/damage.js:137",
+    "src/core/mitigation.js:83"
+   ],
+   "params": "src/data/temper.js ladders (1% a rung tiers 2-6, 0.4% Dawnsteel, 0.5% unique bands)",
+   "deps": [
+    "E-TEMPER-COST (economy)"
+   ],
+   "consumers": [
+    "C-HURT",
+    "C-SPELL-HEAL",
+    "C-ARMOR-CHAIN"
+   ],
+   "random": "one draw a blow, only for a hero holding a rung"
+  },
+  {
+   "id": "C-SPELL-HIT",
+   "computes": "A damaging cast: each hit rolls a whole number from max(ceil(top / 2), base lo) to max(top, base hi), top = floor(maxHit x hitPm / 1000). Then C-HURT. It never misses and never crits",
+   "impl": [
+    "src/data/abilities.js:356-360 hitRange",
+    "src/data/abilities.js:422-425 blowShare",
+    "src/core/hunt/abilities.js:392-400"
+   ],
+   "params": "each row's hitPm and base (abilities.js:159-336). ABILITY_RULES.hitLowPm 500",
+   "deps": [
+    "C-HERO-POWER",
+    "C-CAST-POWER",
+    "C-HURT"
+   ],
+   "consumers": [
+    "E-KILL-RATE (economy)",
+    "cast-facts.js (the bar's words)"
+   ],
+   "random": "one int a hit"
+  },
+  {
+   "id": "C-SPELL-HEAL",
+   "computes": "A heal: floor(max(floor(maxHit x healPm / 1000), base) x power / 1000), whole (no roll), x Tempering, less the heal cut, capped at missing HP. Mend alone: floor(maxHp x 110 / 1000) x power",
+   "impl": [
+    "src/data/abilities.js:367-376 castAmount",
+    "src/core/hunt/abilities.js:353-361 healOne"
+   ],
+   "params": "each row's healPm and base. Mend healHpPm 110 (abilities.js:335)",
+   "deps": [
+    "C-HERO-POWER",
+    "P-VITALS (progression)",
+    "C-CAST-POWER",
+    "C-TEMPER",
+    "C-HEAL-CUT"
+   ],
+   "consumers": [
+    "survival, E-SUPPLY-USE (economy: a heal replaces food)"
+   ],
+   "random": "deterministic"
+  },
+  {
+   "id": "C-SPELL-SHELL",
+   "computes": "A shell: floor(max(floor(maxHit x shieldPm / 1000), base) x power / 1000), a pool that a blow spends before HP. A recast of a self shell refunds the unused part as mana. A party shell never lowers a bigger one",
+   "impl": [
+    "src/data/abilities.js:367-376",
+    "src/core/hunt/abilities.js:285-291 shieldRefund",
+    "src/core/hunt/damage.js:138-139"
+   ],
+   "params": "each row's shieldPm and base",
+   "deps": [
+    "C-HERO-POWER",
+    "C-CAST-POWER"
+   ],
+   "consumers": [
+    "C-HURT"
+   ],
+   "random": "deterministic"
+  },
+  {
+   "id": "C-CAST-POWER",
+   "computes": "A cast's power in permille: the rune tier's step (1000 / 1100 / 1200 / 1300 / 1400 at skill 1 / 15 / 30 / 45 / 60) x the store's share for a store rune x Surge when it surges",
+   "impl": [
+    "src/data/runes.js versionStep, versionLevel",
+    "src/data/abilities.js:429-432 versionOf",
+    "src/core/hunt/abilities.js:343",
+    "src/core/hunt/abilities.js:490"
+   ],
+   "params": "RUNE_TIERS stepPm and level. BASIC_EFFECT_SHARE (supply-basics.js). SURGE_MULT_PM (jewelry.js)",
+   "deps": [
+    "P-SKILL-LEVEL (progression: the version gate)",
+    "E-RUNE-SUPPLY (economy)",
+    "C-JEWEL-PERKS"
+   ],
+   "consumers": [
+    "C-SPELL-HIT",
+    "C-SPELL-HEAL",
+    "C-SPELL-SHELL",
+    "C-STATUS"
+   ],
+   "random": "Surge: one draw a cast for a wearer"
+  },
+  {
+   "id": "C-STATUS",
+   "computes": "Statuses, one generic engine: a ticking one (Bleed: scale = max(tier share, floor(maxHit x 33 x tier share / 1000)), tick = round(roll 1..3 x scale / 1000) a stack a second, 5 stacks, 6 s), a marking one (takenPm), a slowing one (Chill: clock x (1000 + slowPm) / 1000, 30% to 50% by rune tier), a heal-cutting one (Withered)",
+   "impl": [
+    "src/core/hunt/status.js:58-124",
+    "src/data/statuses.js",
+    "src/core/hunt/damage.js:95-100 slowed"
+   ],
+   "params": "STATUSES rows. Bleed tierPermille [1000..1400], Chill tierPermille [1000..1667]",
+   "deps": [
+    "C-HERO-POWER",
+    "C-CAST-POWER"
+   ],
+   "consumers": [
+    "C-HURT",
+    "C-VULN",
+    "C-HEAL-CUT",
+    "C-CLOCKS"
+   ],
+   "random": "one int a tick for a ranged tick"
+  },
+  {
+   "id": "C-HEAL-CUT",
+   "computes": "Every heal a Withered unit takes: n - floor(n x cut / 1000). A hero 30% (less by its necrotic resistance), a monster 50%",
+   "impl": [
+    "src/core/hunt/heal-cut.js:26-43"
+   ],
+   "params": "STATUSES.withered healCutPm (dark behind NECROTIC_STORM.live)",
+   "deps": [
+    "C-STATUS",
+    "C-RESIST-HERO"
+   ],
+   "consumers": [
+    "C-SPELL-HEAL",
+    "C-LEECH",
+    "C-REGEN (the wraps' own heal)",
+    "food (economy)"
+   ],
+   "random": "deterministic"
+  },
+  {
+   "id": "C-LEECH",
+   "computes": "Life leech: floor(HP a hit took x leechPm / 1000) back to the caster (Reave 300). Mana back: min(mana spent, hits x manaPerHit + kills x manaPerKill). Focus: a kill returns focusPm of max mana",
+   "impl": [
+    "src/core/hunt/abilities.js:367-373 leechBack",
+    "src/core/hunt/abilities.js:519-524 manaBack",
+    "src/core/hunt/damage.js:196-201 focusBack"
+   ],
+   "params": "row fields leechPm, manaPerHit, manaPerKill (abilities.js:321-327). jewel focus",
+   "deps": [
+    "C-HURT",
+    "C-HEAL-CUT"
+   ],
+   "consumers": [
+    "survival",
+    "E-SUPPLY-USE (economy: drink)"
+   ],
+   "random": "deterministic"
+  },
+  {
+   "id": "C-CLOCKS",
+   "computes": "Attack speed: every basic attack is 2,000 ms for heroes and monsters with no speed modifier. A cast locks its lane (offense 2 s, support 2 s, heal 1 s) and its own cooldown. Chill stretches a swing and a windup",
+   "impl": [
+    "src/core/combat.js:63 tickMs",
+    "src/data/abilities.js:111 ABILITY_LANES",
+    "src/core/hunt/damage.js:208 restart",
+    "src/core/hunt/abilities.js:482-483"
+   ],
+   "params": "tickMs 2000 (ruled 2026-10-15). Lanes. Each row's cdMs",
+   "deps": [
+    "C-STATUS"
+   ],
+   "consumers": [
+    "C-BASIC-BLOW",
+    "every cast",
+    "C-MON-SPELL"
+   ],
+   "random": "deterministic"
+  },
+  {
+   "id": "C-MANA",
+   "computes": "Mana: regenerates 25% of max a minute x the Inner Flame rate. A caster's basic costs 1 mana. A cast costs its version's mana, never more with level",
+   "impl": [
+    "src/core/hunt/abilities.js:535-542 regenMana",
+    "src/data/hunt-roles.js:46-49",
+    "src/data/abilities.js versions"
+   ],
+   "params": "ABILITY_RULES.manaRegenPctPerMin 25",
+   "deps": [
+    "P-VITALS (progression)",
+    "P-INNER-FLAME (progression)"
+   ],
+   "consumers": [
+    "every cast",
+    "E-SUPPLY-USE (economy: drink)",
+    "P-MAGIC-XP (progression: paid per mana)"
+   ],
+   "random": "deterministic"
+  },
+  {
+   "id": "C-REGEN",
+   "computes": "HP regeneration: 0.3% of max a second in a fight and 6% out of one, x the Inner Flame rate 1 + P / (P + 50). The fist wraps add selfHealPm a second",
+   "impl": [
+    "src/core/hunt/pull-cycle.js:305-322",
+    "src/core/vitals.js:72-75 regenPermille"
+   ],
+   "params": "VITALS.inFightRegenPermillePerS 3 (core-model.js). HUNT_TUNING.oocRegenPermillePerS 60. FLAME_REGEN { maxPermille 1000, k 50 }",
+   "deps": [
+    "P-VITALS",
+    "P-INNER-FLAME (progression)",
+    "C-HEAL-CUT"
+   ],
+   "consumers": [
+    "survival",
+    "E-KILL-RATE (economy: the rest between pulls)"
+   ],
+   "random": "deterministic"
+  },
+  {
+   "id": "C-MON-BLOW",
+   "computes": "A monster's largest blow: floor(atk x the art tier's scale), scale 5.4 for tiers 1-2, 4.0 for 3-4, 3.0 for 5, 2.2 for 6. It rolls 1..that like a hero's",
+   "impl": [
+    "src/core/combat.js:473-477 monsterMaxHit",
+    "src/core/hunt/damage.js:247-255"
+   ],
+   "params": "COMBAT_BALANCE.monsterAttackDamageScale 5.4 and monsterDamageScaleByTier (combat.js:45-56), restated as balance-sheet.js:340 DAMAGE_SCALE_BY_TIER",
+   "deps": [
+    "C-MON-STATS",
+    "C-TIER"
+   ],
+   "consumers": [
+    "C-HURT",
+    "C-MON-SPELL",
+    "pull-cycle.js:72 biggestBlowOn (the warning)"
+   ],
+   "random": "chance, then int"
+  },
+  {
+   "id": "C-MON-TOHIT",
+   "computes": "A monster's chance to land: ratio(aim, 20 + Defense + worn +Defense + guard), held to 5%..97%. Guard is the defB of gear outside the armor weights (a shield, a cape)",
+   "impl": [
+    "src/core/combat.js:443-449",
+    "src/core/combat.js:468-470 monsterAccuracy",
+    "src/core/combat.js:181 guardB"
+   ],
+   "params": "TO_HIT",
+   "deps": [
+    "C-MON-STATS",
+    "C-TIER",
+    "P-SKILL-LEVEL (progression: Defense)",
+    "C-GEAR-ARMOR"
+   ],
+   "consumers": [
+    "C-HURT",
+    "P-DEFENSE-XP (progression)"
+   ],
+   "random": "one chance draw"
+  },
+  {
+   "id": "C-ARMOR-CHAIN",
+   "computes": "What armor does to a landed blow, in fixed order: dodge (medium) = floor(650 x P / (P + 0.4 x L)), absorb (heavy) = floor(750 x P / (P + 0.62 x L)), the resistance, ward (light) = floor(P x 1.5) flat, Tempering, and never more than 60% in all. L is the ATTACKER's Level, with the tier's dial on it",
+   "impl": [
+    "src/core/mitigation.js:44-87",
+    "src/core/hunt/damage.js:107-108 armourVs",
+    "src/core/hunt/damage.js:158-162 the dodge roll"
+   ],
+   "params": "ARMOUR_MITIGATION (core-model.js:168-173). ARMOUR_WEIGHT",
+   "deps": [
+    "C-GEAR-ARMOR",
+    "C-MON-STATS (its Level)",
+    "C-TIER (levelAtTier)",
+    "C-RESIST-HERO",
+    "C-TEMPER"
+   ],
+   "consumers": [
+    "C-HURT",
+    "character sheet (hr-accrue/character-sheet.js:93)"
+   ],
+   "random": "dodge: one chance draw for a medium wearer"
+  },
+  {
+   "id": "C-RESIST-HERO",
+   "computes": "A hero's resistance: taken = 1000 - min(cap, summed worn resistPm), cap 40% an element and 10% physical. Storm also burns mana for half the HP it took. Necrotic lands Withered",
+   "impl": [
+    "src/core/elements.js:87-111",
+    "src/core/combat.js:219-229 resistOf",
+    "src/core/hunt/damage.js:178-184"
+   ],
+   "params": "HERO_RESIST_PM and ELEMENT_ON_HERO (src/data/elements.js)",
+   "deps": [
+    "C-GEAR-ARMOR"
+   ],
+   "consumers": [
+    "C-ARMOR-CHAIN",
+    "C-HEAL-CUT"
+   ],
+   "random": "deterministic"
+  },
+  {
+   "id": "C-MON-STATS",
+   "computes": "A monster row from its Level, role, ground floor and fit: HP = (4.95 + 1.76 x L) x role x fit, blow = a share (13.2% to 22%) of a same-Level hero's base HP, aim and evasion from the reference hero (lands 70%, is landed on 85%), def = 0.08 x L x role",
+   "impl": [
+    "src/data/balance-sheet.js:351-386 formulaStats",
+    "src/data/balance-sheet.js:128-195 STAT_FORMULA",
+    "src/data/balance-sheet.js:205-219 MONSTER_ROLES",
+    "tools/gen-ground-stats.mjs (writes the rows)"
+   ],
+   "params": "STAT_FORMULA { ramp 8..16, hit 0.40..0.70, heroHit 0.85, blow 0.132..0.22, gentleCap 0.11, hp, def, fit.party }. MONSTER_ROLES",
+   "deps": [
+    "C-REF-HERO",
+    "P-VITALS (progression: refHp)"
+   ],
+   "consumers": [
+    "C-MON-BLOW",
+    "C-MON-TOHIT",
+    "C-MON-DEF",
+    "C-HERO-TOHIT",
+    "C-RUN-ROOM",
+    "C-SCALED",
+    "P-KILL-XP (progression: xp is on the same row)",
+    "E-KILL-COIN (economy: gp is on the same row)"
+   ],
+   "random": "deterministic"
+  },
+  {
+   "id": "C-REF-HERO",
+   "computes": "The reference hero a monster is written against: a measured career (the lone hammer) [Level, skill, Defense, worn accuracy] every 5 Levels to 100, sparser to 1,000, straight past it. aimFor and evasionFor invert the ratio",
+   "impl": [
+    "src/data/to-hit.js:120-168",
+    "tools/gen-ref-hero.mjs (generates the table)"
+   ],
+   "params": "REF_HERO (generated). Worn accuracy stops at 32 from Level 90",
+   "deps": [
+    "P-SKILL-CURVE (progression)",
+    "C-GEAR-WEAPON"
+   ],
+   "consumers": [
+    "C-MON-STATS",
+    "C-TIER (raisedHit)"
+   ],
+   "random": "deterministic"
+  },
+  {
+   "id": "C-TIER",
+   "computes": "Normal, Dangerous, Deadly: a pull size and three dials. dmgPm multiplies atk, aim AND the monster's Level as armor reads it. hpPm its HP. xpPm its kill XP. On a gentle ground the tier first takes back the ground's kindness, so its dmgPm is solved per floor",
+   "impl": [
+    "src/data/balance-sheet.js:426-485 TIER_DIALS, tierRowFor",
+    "src/data/hunt-tiers.js:122-131 levelAtTier, atTier",
+    "src/data/balance-sheet.js:437-461 the per-ground overrides"
+   ],
+   "params": "TIER_DIALS { dangerous: pull 8, lift 0.8, 1170 / 1100 / 1100. deadly: pull 8, lift 1, 1330 / 1150 / 1250 }. TIER_PULL_FROM_FLOOR 16. Four grounds carry their own dials",
+   "deps": [
+    "C-MON-STATS"
+   ],
+   "consumers": [
+    "C-MON-BLOW",
+    "C-MON-TOHIT",
+    "C-ARMOR-CHAIN",
+    "E-KILL-RATE (economy: the pull)",
+    "P-KILL-XP, P-DEFENSE-XP (progression)"
+   ],
+   "random": "deterministic"
+  },
+  {
+   "id": "C-MON-SPELL",
+   "computes": "A monster's spell: it rolls from half to all of floor(its largest blow x hitPm / 1000), then the hero's armor as any blow. A worn shield takes 30% off a marked spell. A mend puts the same roll back on a packmate. The first cast waits a random share of the cooldown",
+   "impl": [
+    "src/data/monster-spells.js:57-102",
+    "src/core/hunt/monster-spells.js:130-200"
+   ],
+   "params": "each spell row. SPELL_ROLL.lowPm 500. SHIELD_BRACE.markedPm 300. FAIR_WARNING. SPELL_STAGGER.spanPm 1000",
+   "deps": [
+    "C-MON-BLOW",
+    "C-ARMOR-CHAIN",
+    "C-RESIST-HERO",
+    "C-HEAL-CUT"
+   ],
+   "consumers": [
+    "C-HURT",
+    "P-DEFENSE-XP (progression)"
+   ],
+   "random": "int a hit. The stagger draw"
+  },
+  {
+   "id": "C-BOSS-PHASE",
+   "computes": "A boss's two lines on his HP: adds arrive at addsPm and he takes only guardPm of every blow while one stands. Under enragePm his atk and aim are x enrageAtkPm, and one named spell's cooldown is x cdPm",
+   "impl": [
+    "src/core/hunt/boss-phases.js:38-89"
+   ],
+   "params": "each boss row's phases (monsters.js:830,845. grounds/krells_hold/pack.js:350,360. grounds/muster_barrows/pack.js:178)",
+   "deps": [
+    "C-MON-STATS"
+   ],
+   "consumers": [
+    "C-HURT",
+    "C-MON-BLOW",
+    "C-MON-TOHIT",
+    "C-MON-SPELL"
+   ],
+   "random": "deterministic"
+  },
+  {
+   "id": "C-BOSS-ROOM",
+   "computes": "A boss room: one fight, a time limit, his kill ends it, nothing resets. A called room pays nothing. A keyed hall pays as a ground. A boss is the formula's boss role: HP x5, blow x1.1 held to 33% of the FLOOR hero's HP",
+   "impl": [
+    "src/core/hunt/boss-room.js:21-32",
+    "src/data/boss-calls.js",
+    "src/data/boss-halls.js",
+    "src/data/balance-sheet.js:218 the boss role"
+   ],
+   "params": "BOSS_CALL_RULES.limitMs 10 min. BOSS_HALL_RULES. MONSTER_ROLES.boss.floorCap 0.33",
+   "deps": [
+    "C-MON-STATS",
+    "C-BOSS-PHASE"
+   ],
+   "consumers": [
+    "E-BOSS-PAY (economy)"
+   ],
+   "random": "deterministic"
+  },
+  {
+   "id": "C-RUN-ROOM",
+   "computes": "A Burning Tower floor or a Catacomb room F: 5 monsters, each the stat formula at Level F on a floor-F ground, a Keeper (boss role) every 10th. Past floor 100 every blow is x1.012 a floor, compounding. Floor 300 is the last row",
+   "impl": [
+    "src/core/hunt/tower.js",
+    "src/data/tower.js:49-60",
+    "src/data/tower.js:114-124"
+   ],
+   "params": "TOWER_RULES / CATACOMB_RULES { roomSize 5, landingEvery 10, floorTop 300, heat { from 100, perFloorPm 12 }, limits 3 and 10 min }",
+   "deps": [
+    "C-MON-STATS"
+   ],
+   "consumers": [
+    "P-RUN-XP (progression: TOWER_PARTY_XP)",
+    "E-RUN-KEYS (economy)"
+   ],
+   "random": "deterministic (rooms are picked by number, no dice)"
+  },
+  {
+   "id": "C-SCALED",
+   "computes": "A scaled hunt: the same formula with the ground's floor moved to the leader's Level and every monster up by the same gap. Normal and Dangerous only",
+   "impl": [
+    "src/data/scaled-hunts.js:159-190"
+   ],
+   "params": "SCALED_HUNTS { xpPm 730, partyPm 700, coinPm, tiers }. SCALE_EXCEPTIONS (the Thicket at half danger)",
+   "deps": [
+    "C-MON-STATS",
+    "C-TIER"
+   ],
+   "consumers": [
+    "P-KILL-XP (progression)",
+    "E-SCALED-FEE (economy)"
+   ],
+   "random": "deterministic"
+  },
+  {
+   "id": "C-TARGET",
+   "computes": "Aggro is rules, not threat numbers: a pack turns on the pull's leader. Challenge takes every monster within 6 tiles that is not on a tank and holds it 8 s. A Healer's basic draws a free monster 18% of the time. A shooter aims at the hero farthest back. A tank under 90% of the strongest tank's HP never takes a turn",
+   "impl": [
+    "src/core/hunt/targeting.js:164-260",
+    "src/data/hunt-roles.js:43-49 peel",
+    "src/data/hunt-roles.js:145 CHALLENGE",
+    "src/core/hunt/shooters.js"
+   ],
+   "params": "CHALLENGE { radius 6, holdMs 8000, holderMinHpPm 900 }. Healer peel 180",
+   "deps": [
+    "P-VITALS (maxHp for the hold floor)"
+   ],
+   "consumers": [
+    "who takes C-HURT",
+    "P-DEFENSE-XP (progression: only blows taken train it)"
+   ],
+   "random": "the peel draw"
+  },
+  {
+   "id": "C-AREA",
+   "computes": "Area and extra targets: a shape (the 3x3, a line of len, a ring of r) hits every engaged monster it covers for the FULL roll each, up to maxHits. Follow-through repeats a basic blow on one neighbour. An area arrow hits its footprint",
+   "impl": [
+    "src/core/hunt/abilities.js:424-435",
+    "src/core/hunt/shapes.js",
+    "src/core/hunt/damage.js:229-234",
+    "src/core/hunt/damage.js:280-288"
+   ],
+   "params": "ABILITY_RULES.areaSide 3. Row fields len, r, maxHits (Turning Cut 8)",
+   "deps": [
+    "C-SPELL-HIT",
+    "C-TIER (the pull is how many stand there)"
+   ],
+   "consumers": [
+    "E-KILL-RATE (economy)",
+    "P-KILL-XP (progression)"
+   ],
+   "random": "int a target"
+  },
+  {
+   "id": "C-LEASH",
+   "computes": "A pack lives in its room plus a margin (1 tile unless the ground says more). If the aggro holder leaves, the pack resets and heals. A called or keyed boss never resets",
+   "impl": [
+    "src/core/hunt/leash.js",
+    "src/data/hunt-tuning.js:36"
+   ],
+   "params": "HUNT_TUNING.leashMarginDefault 1. A ground's leashMargin",
+   "deps": [],
+   "consumers": [
+    "C-TARGET",
+    "C-BOSS-PHASE"
+   ],
+   "random": "deterministic"
+  },
+  {
+   "id": "C-PULL",
+   "computes": "How many stand in a fight: the ground's packs on Normal, the tier's pull on a harder tier (8, the Glade's Dangerous 6, none under floor 16). A monster's HP is its row's x hpPm for every party size",
+   "impl": [
+    "src/core/hunt/pull-cycle.js:99-100",
+    "src/data/hunt-tiers.js:114 pullOfTier"
+   ],
+   "params": "TIER_DIALS pulls. Ground pockets",
+   "deps": [
+    "C-TIER"
+   ],
+   "consumers": [
+    "C-AREA",
+    "E-KILL-RATE (economy)"
+   ],
+   "random": "deterministic"
+  },
+  {
+   "id": "C-GEAR-ARMOR",
+   "computes": "Armor points: tiers 1-7 are a hand table per slot (plate) x 1.00 plate, 0.55 leather, 0.30 cloth, with each line's trades derived from the points. Past tier 7 the staged line is Dawnsteel x max(1, Level / 110), and each unique is hand-sized under it",
+   "impl": [
+    "src/data/gear-tiers.js:64-69 the slot table",
+    "src/data/gear-tiers.js:204-234 ARMOUR_LINES",
+    "tools/balance-sim/staged/armor-line.js:64-70 lineArmor"
+   ],
+   "params": "the slot table. defMul. LINE_ANCHOR_LEVEL 110, LINE_TRADE 0.05",
+   "deps": [
+    "P-GEAR-LEVELS (progression: worn by Level)"
+   ],
+   "consumers": [
+    "C-ARMOR-CHAIN",
+    "C-MON-TOHIT (guard)",
+    "P-VITALS (heavy HP, light mana)",
+    "C-CRIT"
+   ],
+   "random": "deterministic"
+  },
+  {
+   "id": "C-GEAR-WEAPON",
+   "computes": "Weapon accuracy and damage: tiers 1-7 are hand tables per family. Past tier 7 the staged line is Dawnsteel x max(1, Level / 110)",
+   "impl": [
+    "src/data/gear-tiers.js:77-150 WEAPON_FAMILIES",
+    "tools/balance-sim/staged/weapon-line.js:72-81 lineWeapon"
+   ],
+   "params": "the family tables. WEAPON_LINE_ANCHOR 110",
+   "deps": [
+    "P-GEAR-LEVELS (progression)"
+   ],
+   "consumers": [
+    "C-HERO-POWER",
+    "C-HERO-TOHIT"
+   ],
+   "random": "deterministic"
+  },
+  {
+   "id": "C-JEWEL-PERKS",
+   "computes": "Worn modifiers and how each stacks: jewel perks (Keen, Steady, Follow, Surge, Focus) count the largest once. Resistance sums, then caps. +skill sums. The own heal takes the largest. critB sums",
+   "impl": [
+    "src/core/combat.js:96-109",
+    "src/core/combat.js:207-248",
+    "src/data/jewelry.js"
+   ],
+   "params": "each item row",
+   "deps": [
+    "E-JEWEL-COST (economy)"
+   ],
+   "consumers": [
+    "C-HERO-TOHIT",
+    "C-CRIT",
+    "C-AREA",
+    "C-CAST-POWER",
+    "C-LEECH",
+    "C-HERO-POWER"
+   ],
+   "random": "deterministic"
+  },
+  {
+   "id": "C-BUFF-BONUS",
+   "computes": "The injected bonus reader: a food buff or a perk adds to damage, crit and steady (a damage cut). Permanent perks are held to 20%",
+   "impl": [
+    "src/core/combat.js:425-428",
+    "src/core/buffs.js:63-75",
+    "src/core/perks.js:87 PERMANENT_CAP",
+    "src/core/mitigation.js:30"
+   ],
+   "params": "BUFFS_DEF. PERMANENT_CAP 0.20",
+   "deps": [
+    "E-FOOD (economy)"
+   ],
+   "consumers": [
+    "C-HERO-POWER",
+    "C-CRIT",
+    "C-TEMPER"
+   ],
+   "random": "deterministic"
+  },
+  {
+   "id": "C-TRAINING",
+   "computes": "The training yard's dummy: its blow never takes a hero under a floor, and it never falls",
+   "impl": [
+    "src/core/hunt/training.js dummyBlow, dummyStands",
+    "src/core/hunt/damage.js:141-143"
+   ],
+   "params": "the dummy rows",
+   "deps": [],
+   "consumers": [
+    "P-SKILL-XP (progression)",
+    "E-YARD-FEE (economy)"
+   ],
+   "random": "deterministic"
+  }
+ ],
+ "exceptions": [
+  {
+   "id": "X-POWER-LITERALS",
+   "where": "src/core/combat.js:391 against combat.js:38-40 and src/shell/wiki-model.js:126",
+   "what": "The engine computes a hero's largest blow from the literals 0.35, 0.6 and 2. The named constants with the same values are read only by the wiki. Change one and the wiki prints a formula the game does not run",
+   "why": "history starts 2026-11-03 (d4dc6908c). The constants predate the rebuild",
+   "class": 4,
+   "status": "C",
+   "fix": "formula layer: the expression reads COMBAT_BALANCE. One guard that the wiki terms equal the engine's"
+  },
+  {
+   "id": "X-SHEET-ORDER",
+   "where": "src/core/combat.js:422-423 against src/core/hunt/damage.js:126,309-314",
+   "what": "Two orders for one blow. The sheet, the wiki and the upgrade plan read floor((maxHit - cut) x weakness). The engine rolls 1..floor(maxHit x weakness), then subtracts the cut from the roll",
+   "why": "the b495 truncation fix kept the subtraction in the roll helper after the hunt engine moved it into hurt()",
+   "class": 4,
+   "status": "C",
+   "fix": "formula layer: playerCombatRolls stops subtracting defence. Every reader takes the cut from C-MON-DEF"
+  },
+  {
+   "id": "X-REFHP-OFF-BY-ONE",
+   "where": "src/data/balance-sheet.js:131 against src/core/vitals.js:61 and SQL hr_max_hp (supabase/migrations/2027-02-10-settle-plan-cache.generated.sql:996)",
+   "what": "The monster formula sizes blows on a hero of 150 + 10 x L HP. A hero has 150 + 10 x (L - 1). Every blow share is 10 HP a hero does not have (6% at Level 1, 0.5% at 200). The same formula is also written a third time in SQL, on generated constants",
+   "why": "two files written weeks apart",
+   "class": 4,
+   "status": "C",
+   "fix": "formula layer: STAT_FORMULA.refHp calls vitals.maxHpFor(L, 0). The SQL twin stays (server authority) and gets a parity test against the JS at 20 Levels"
+  },
+  {
+   "id": "X-ROLL-TWINS",
+   "where": "src/data/abilities.js:422-425 blowShare against src/data/monster-spells.js:99-102 spellHit",
+   "what": "One function written twice with two constants (hitLowPm 500, SPELL_ROLL.lowPm 500)",
+   "why": "2026-11-08 833de2595 added the monsters' copy. 2026-11-20 aef332af9 gave heroes the same rule",
+   "class": 4,
+   "status": "C",
+   "fix": "formula layer: one shareRoll(power, pm) in src/core, one constant"
+  },
+  {
+   "id": "X-TIER-LADDER-TWINS",
+   "where": "src/data/runes.js stepPm against src/data/statuses.js bleed.tierPermille and chill.tierPermille",
+   "what": "The rune step ladder 1000..1400 is typed again on Bleed. Chill carries a different ladder, 1000..1667, for the same five tiers",
+   "why": "the bleed predates the spell rule. Chill is 2026-11-19, the tank runes",
+   "class": 4,
+   "status": "C",
+   "fix": "coefficient layer: a ticking status reads versionStep. Chill's own ladder becomes a named row with a why, or takes the common one"
+  },
+  {
+   "id": "X-SCALE-TWINS",
+   "where": "src/core/combat.js:56 against src/data/balance-sheet.js:340",
+   "what": "The art tier damage scale is restated in the sheet. A test pins the two equal",
+   "why": "the sheet must divide by what the engine multiplies by",
+   "class": 4,
+   "status": "C",
+   "fix": "gone with X-ART-TIER-SCALE"
+  },
+  {
+   "id": "X-MARK-TWO-WAYS",
+   "where": "src/core/hunt/damage.js:166 against src/core/hunt/abilities.js:411-414",
+   "what": "Two mechanisms for \"this target takes more\": Hunter's Mark writes unit fields (markPm, markUntil). Green Sickness is a status row (takenPm). They are added",
+   "why": "the mark is 10-19. Statuses learned takenPm later",
+   "class": 4,
+   "status": "C",
+   "fix": "formula layer: the mark becomes a marking status row. Two world fields go"
+  },
+  {
+   "id": "X-ROW-DOOR-BYPASS",
+   "where": "src/core/hunt/targeting.js:53, src/core/hunt/boss-phases.js:39,48,55",
+   "what": "Elements, the enrage line, the guard and the adds read MONSTERS[kind] directly. Every other stat goes through rowOf(inst, kind), the door a scaled hunt, a Tower room and the simulator's what-if use. So a what-if can move a blow but not a resistance or a phase",
+   "why": "2026-11-05 f451acdb8 (phases) and the element reader predate the instance table",
+   "class": 4,
+   "status": "C",
+   "fix": "formula layer: both read rowOf. IMPACT IS A HYPOTHESIS: no live table moves these fields today"
+  },
+  {
+   "id": "X-STEADY-TWO-MEANINGS",
+   "where": "src/core/combat.js:388 (jewel steady: misses that land) against src/core/mitigation.js:30 (steadyPm and a food's steady: a damage cut)",
+   "what": "One word, two mechanics, and the food buff is labelled \"Damage cut\" under the id defense",
+   "why": "jewelry 11-05, the cape and the food later",
+   "class": 4,
+   "status": "C",
+   "fix": "data layer: rename one. No number moves"
+  },
+  {
+   "id": "X-STALE-HP-NOTE",
+   "where": "src/data/balance-sheet.js:145 against src/core/hunt/pull-cycle.js:99",
+   "what": "The sheet still says the engine scales monster HP 55-100% by party size. Since 2026-11-08 it does not",
+   "why": "ONE DIFFICULTY ruling 2026-11-08",
+   "class": 4,
+   "status": "C",
+   "fix": "delete the sentence"
+  },
+  {
+   "id": "X-ART-TIER-SCALE",
+   "where": "src/core/combat.js:45-56,473-477",
+   "what": "A monster's damage is atk x a scale picked by its ART tier: 5.4, 4.0, 3.0 or 2.2. For the 72 formula rows it does nothing but rounding: the formula divides the blow by the same number. It still decides the damage of the 118 hand rows",
+   "why": "CORE_NUMBERS 2026-10-19 addendum: one flat 5.4 two-shot a Level 90 hero, so tiers 4-6 were flattened. Tier 3 moved to 4.0 on 10-21",
+   "class": 4,
+   "status": "C",
+   "fix": "formula layer: the row stores the blow (a whole number of HP). The scale and its twin go. Hand rows are converted once, digit for digit"
+  },
+  {
+   "id": "X-HAND-ROWS",
+   "where": "src/data/monsters.js",
+   "what": "118 of 190 monster rows are on no formula roster: their hp, atk, aim, evasion and def are typed by hand (the old roster, the Hearthfind and called bosses, Krell's hall, the dummy). 70 of the 72 roster rows equal the formula exactly",
+   "why": "the formula is 2026-11-06. Older rows were ported to keep their to-hit, never re-derived",
+   "class": 2,
+   "status": "C",
+   "fix": "data layer: each row gets a role and reads the formula, or is listed as a named exception with its reason. WHICH OF THE 118 ARE FIELDED TODAY IS A HYPOTHESIS (tools/balance-program/formulas/roster-drift.mjs counts them)"
+  },
+  {
+   "id": "X-NAMED-RAT-KING",
+   "where": "src/data/balance-sheet.js:336 FORMULA_EXCEPTIONS.rat_king",
+   "what": "His attack is held at 6 where the formula says 8, so his Tail Lash stays under 35% of the floor hero's HP",
+   "why": "Tyler 2026-11-18 \"open at 5\" plus the designer's 35% boss rule",
+   "class": 3,
+   "status": "C",
+   "fix": "better at the formula layer: the boss cap should bound his SPELL, not his attack. Then the row is the formula's"
+  },
+  {
+   "id": "X-NAMED-HASK-LOOKOUT",
+   "where": "src/data/balance-sheet.js:337 FORMULA_EXCEPTIONS.hasks_lookout",
+   "what": "His blow is the Farmhands' share, not his role's, \"while engine piece 2 is unbuilt he swings in melee\". Shooters are built now and he is one (range 5, tier-read.mjs)",
+   "why": "2026-11-13 lane/b-barrow-packs",
+   "class": 4,
+   "status": "H",
+   "fix": "the stated reason is gone. Whether a lone hero at the floor is safe on the role's blow is the hypothesis: one grid cell answers it"
+  },
+  {
+   "id": "X-DANGER-RAMP",
+   "where": "src/data/balance-sheet.js:137,343-348 STAT_FORMULA.ramp",
+   "what": "A ground whose floor is 8 or under is gentle: monsters land 40% and hit 13.2% of a hero's HP. From floor 16 they land 70% and hit 22%. A straight line between",
+   "why": "2026-11-07: fresh heroes in practice sets hunt the first grounds",
+   "class": 3,
+   "status": "C",
+   "fix": "keep, as the ONE early-game curve. It is a Level threshold that changes combat math, so it needs Tyler's explicit yes"
+  },
+  {
+   "id": "X-GENTLE-CAP",
+   "where": "src/data/balance-sheet.js:158 blow.gentleCap 0.11",
+   "what": "On top of the ramp, no blow on a gentle ground may pass 11% of the FLOOR hero's HP",
+   "why": "2026-11-07 5c5de4170: fresh Thicket heroes dipped under 25% HP",
+   "class": 4,
+   "status": "H",
+   "fix": "coefficient layer: fold into the ramp's low end. A hypothesis until the grid shows the ramp alone holds the fresh hero"
+  },
+  {
+   "id": "X-GENTLE-HP",
+   "where": "src/data/balance-sheet.js:213,215 MONSTER_ROLES gentleHp",
+   "what": "Heavy and elite monsters have less HP on a gentle ground (1.0 and 1.2 where the role says 1.2 and 1.6)",
+   "why": "2026-11-07: extra HP there \"only inflated the kill's XP and coin\"",
+   "class": 4,
+   "status": "H",
+   "fix": "this is an XP and coin fix written into combat stats. Overlap: progression and economy lanes"
+  },
+  {
+   "id": "X-PARTY-FIT",
+   "where": "src/data/balance-sheet.js:193-195 STAT_FORMULA.fit.party",
+   "what": "A party ground's monsters are a different formula: HP x2.5, blow x0.75, XP x0.8",
+   "why": "2026-11-06: built for four heroes' damage on one tank",
+   "class": 2,
+   "status": "C",
+   "fix": "keep as an ENCOUNTER TYPE in data (it is one row for every party ground, not a per-ground number)"
+  },
+  {
+   "id": "X-PARTY-FIT-PATCHES",
+   "where": "src/data/balance-sheet.js:195 hitFull -0.3, blowShape 1.6, tierLift false",
+   "what": "Three patches inside the party fit: to-hit 30 points lower on a full party ground, the same swing worth as fewer bigger blows on a gentle one, and harder tiers that lift nothing",
+   "why": "2026-11-07 (blowShape: \"tier-2 cloth felt at the Sewer\"). 2026-11-13 (hitFull: a lone hero at the Warrens \"lived on its potions\"). tierLift: a gentle party ground's Deadly killed its four 195 times",
+   "class": 4,
+   "status": "C",
+   "fix": "each one compensates another formula (ward's flat cut, the lone hero on a party ground, the tier lift). Fix those and delete the three"
+  },
+  {
+   "id": "X-TIER-PER-GROUND",
+   "where": "src/data/balance-sheet.js:437-459 BASE_TIER_OVERRIDES",
+   "what": "Four grounds carry their own tier dials: the Glade (Dangerous pulls 6, HP 1400 and 1450), the Warrens (HP 1150 and 1250), the Thicket (no HP, XP 1050 and 1080), the Sewer (HP 1150 and 1250, XP 1220)",
+   "why": "2026-11-16/17 lane/d-flat-party-xp: fours killed too fast for the XP. The ladder rule (a ground's top tier must not beat the next ground's Normal)",
+   "class": 4,
+   "status": "C",
+   "fix": "the exact case the brief names. The cause is kill-rate and XP: fix at P-KILL-XP and the pull, then every ground takes TIER_DIALS whole. Overlap: progression lane"
+  },
+  {
+   "id": "X-TIER-PULL-FLOOR",
+   "where": "src/data/balance-sheet.js:413 TIER_PULL_FROM_FLOOR 16",
+   "what": "Under ground floor 16 a harder tier brings no more monsters",
+   "why": "2026-11-08: a lone area hero out-earned the next ground",
+   "class": 3,
+   "status": "C",
+   "fix": "conflicts with Tyler 2026-11-07 \"Dangerous and Deadly keep the bigger pulls\". For Tyler"
+  },
+  {
+   "id": "X-CELLAR-NORMAL-ONLY",
+   "where": "src/data/balance-sheet.js:450",
+   "what": "The Mill Cellar offers only Normal",
+   "why": "Coordinator 2026-11-05, in Tyler's tier ruling",
+   "class": 3,
+   "status": "C",
+   "fix": "keep. A content flag"
+  },
+  {
+   "id": "X-TIER-TRIPLE",
+   "where": "src/data/hunt-tiers.js:122,130 and src/core/hunt/damage.js:108",
+   "what": "A tier's dmgPm is applied three times: to the blow, to the aim, and to the monster's Level as armor reads it (and as Defense XP is paid). On the Thicket and Wickstead the solved dmgPm is 2115 and 2685, so on Wickstead's Deadly a Level 8 monster is read by armor as Level 21, and each blow aimed at a hero pays 2.7 times the Defense XP (hunt-rewards.js:62). From Hask's Ford up it costs plate 2 to 5 points of absorb (tools/balance-program/formulas/tier-read.mjs)",
+   "why": "2026-11-04 f1d68555e: one dial for everything",
+   "class": 4,
+   "status": "C",
+   "fix": "formula layer: the dial moves the blow and the aim. Armor and Defense XP read the row's own Level. Overlap: progression lane (P-DEFENSE-XP)"
+  },
+  {
+   "id": "X-TOWER-HEAT",
+   "where": "src/data/tower.js:57 and src/core/hunt/tower.js heatOpts",
+   "what": "Past floor 100 every blow is x1.012 a floor, compounding: x10.9 by floor 300. The number moved 10 to 12 to hold a guard",
+   "why": "2026-11-19 b7c73732c. Tyler 2026-11-20 already DROPPED the heat patch (one Levels-per-floor row instead). Plan L18 owes it",
+   "class": 4,
+   "status": "C",
+   "fix": "already ruled. Listed so it is not forgotten"
+  },
+  {
+   "id": "X-TOWER-TOP",
+   "where": "src/data/tower.js:54 floorTop 300",
+   "what": "A floor above 300 plays floor 300's monsters",
+   "why": "the server's per-floor bound needs a last row",
+   "class": 3,
+   "status": "C",
+   "fix": "a cap on an endless mode. Needs Tyler's yes or a formula that reads any floor"
+  },
+  {
+   "id": "X-SCALED-THICKET",
+   "where": "src/data/scaled-hunts.js:41-44 SCALE_EXCEPTIONS",
+   "what": "A scaled Thicket reaches only half danger",
+   "why": "2026-11-07: \"its wolves run down a lone archer\"",
+   "class": 4,
+   "status": "C",
+   "fix": "a per-ground combat number. The cause is the bow against a melee pack, which the real Thicket hides by being gentle"
+  },
+  {
+   "id": "X-SCALED-NO-DEADLY",
+   "where": "src/data/scaled-hunts.js:144",
+   "what": "Deadly is not offered on a scaled hunt",
+   "why": "designer 2026-11-07",
+   "class": 3,
+   "status": "C",
+   "fix": "a content rule. For Tyler with the scaled-hunt card"
+  },
+  {
+   "id": "X-SPELL-HOLDS",
+   "where": "src/data/balance-sheet.js:121-123 (named there: Hot Coal, Bone Slide, Snuff the Candles)",
+   "what": "Three monster spells had their multiples lowered so the +10% monster step would not pass 35% of a floor hero",
+   "why": "2026-11-19 lane/d-harder-monsters",
+   "class": 4,
+   "status": "H",
+   "fix": "the rows were not read. If true, the 35% rule belongs in the spell formula as a bound, not in three rows"
+  },
+  {
+   "id": "X-SPELL-FLOOR",
+   "where": "src/data/abilities.js:356-376 (hitRange, castAmount `floored`) and src/core/hunt/status.js:69",
+   "what": "The beginner's floor: every cast lands max(its share of the blow, its old version-I number). Past about Level 15 the share is always larger. At Level 1 a Greater Mend lands its floor of 50 on a hero with 150 HP",
+   "why": "Tyler 2026-11-21 call 32-8 (\"heals and first strikes are not cut in half\"). Built by lane/c-spell-rule as its Call 1, still waiting for the designer's yes",
+   "class": 3,
+   "status": "C",
+   "fix": "see Conflicts 1. The clean alternative is a floor on POWER (one number: a hero's blow is never read under N), not a second number on every row"
+  },
+  {
+   "id": "X-MEND-MAXHP",
+   "where": "src/data/abilities.js:335 healHpPm 110",
+   "what": "Mend heals a share of max HP, not of the blow",
+   "why": "Tyler 2026-11-21 call 32-4",
+   "class": 3,
+   "status": "C",
+   "fix": "approved. Documented as the second of two heal kinds"
+  },
+  {
+   "id": "X-THREE-ROLLS",
+   "where": "src/core/combat.js:484, src/data/abilities.js:422, src/data/abilities.js:373",
+   "what": "Three shapes for \"an amount\": a swing rolls 1..max (mean 50%), a spell hit rolls 50%..100% (mean 75%), a heal or shell does not roll",
+   "why": "the swing is the old engine's. The spell roll is the monsters'. Whole heals are lane/c-spell-rule's Call 5",
+   "class": 3,
+   "status": "C",
+   "fix": "see Conflicts 6. One roll rule with a per-kind spread in data would do all three"
+  },
+  {
+   "id": "X-SPELLS-SKIP-WEAKNESS",
+   "where": "src/core/hunt/damage.js:305-316 (blow) against src/core/hunt/abilities.js:392-400 (strike)",
+   "what": "Weapon weakness (+20% damage, +15% accuracy, on 189 of 190 monsters) and bane apply to basic blows only. A spell is a share of the NEUTRAL blow. A spell also never misses and never crits, so accuracy, evasion, Keen and critB do nothing for it",
+   "why": "spells were fixed numbers until 2026-11-21. The spell rule made them shares of the blow without deciding which blow",
+   "class": 4,
+   "status": "C",
+   "fix": "see Conflicts 2. THAT IT IS UNINTENDED IS A HYPOTHESIS"
+  },
+  {
+   "id": "X-VERSION-LADDER",
+   "where": "src/data/runes.js RUNE_TIERS",
+   "what": "Five versions, +10% each, the last at skill 60. Nothing after it, on a game with endless Levels. The plan (B5) said x1.6",
+   "why": "Tyler 2026-10-23 (five tiers at 1/15/30/45/60). lane/c-spell-rule Call 4 chose 1.4",
+   "class": 2,
+   "status": "C",
+   "fix": "see Conflicts 5"
+  },
+  {
+   "id": "X-TURNING-CUT-10",
+   "where": "src/data/abilities.js:194 unlock 10, maxHits 8",
+   "what": "The merged area strike unlocks at Melee 10 for every weapon, so the axes and the hammer have no area move for Levels 1-9 (lone hammer -24% at the Thicket)",
+   "why": "Tyler 2026-11-19 (the sword speeds up later). lane/c-spell-rule Call 3",
+   "class": 2,
+   "status": "C",
+   "fix": "see Conflicts 7. A per-weapon unlock is a data field, not code"
+  },
+  {
+   "id": "X-REND-DEFAULT",
+   "where": "src/data/rule-subjects.js ROLE_RULES melee_dps",
+   "what": "Rend sits on the default two-axe bar and spends a 1 g rune a cast",
+   "why": "lane/c-spell-rule Call 2",
+   "class": 2,
+   "status": "C",
+   "fix": "content. Overlap: economy lane (E-RUNE-SUPPLY: a default bar that spends gold)"
+  },
+  {
+   "id": "X-DARK-ROWS",
+   "where": "src/data/abilities.js:275-327 (Brand, Reave, Updraft, Blight, the fist strikes)",
+   "what": "Converted to shares at their old Level 60 worth, never sized",
+   "why": "lane/c-spell-rule Call 6. Lanes L43, L44",
+   "class": 2,
+   "status": "H",
+   "fix": "content, owed by those lanes. Not measured here"
+  },
+  {
+   "id": "X-PARTY-ONLY-ROWS",
+   "where": "src/data/abilities.js `alone`, `party`, partyOnly; src/core/hunt/abilities.js:315-319",
+   "what": "A row may fire only alone, only in a party, or party-only for a tank",
+   "why": "Tyler 2026-11-09 and 2026-11-19",
+   "class": 3,
+   "status": "C",
+   "fix": "approved. One shared gate, read from data"
+  },
+  {
+   "id": "X-REPLACES",
+   "where": "src/core/hunt/abilities.js:250-253 clockOf",
+   "what": "A row that stands in for another shares its cooldown",
+   "why": "the whole-game audit's change 3",
+   "class": 1,
+   "status": "C",
+   "fix": "keep"
+  },
+  {
+   "id": "X-ACTION-SET-SKIPS",
+   "where": "src/data/abilities.js:144-148",
+   "what": "Presets that skip rune or area rows (mana_train, boss)",
+   "why": "spec §3.7, ASSUMED",
+   "class": 2,
+   "status": "C",
+   "fix": "keep as data"
+  },
+  {
+   "id": "X-BRACE",
+   "where": "src/data/monster-spells.js:62 SHIELD_BRACE, src/core/hunt/monster-spells.js:150",
+   "what": "A worn shield takes 30% off a marked monster spell, by item type",
+   "why": "Tyler 2026-11-08 \"the tank absorbing the boss hits\"",
+   "class": 3,
+   "status": "C",
+   "fix": "approved in direction. Cleaner as a stat on the shield row (bracePm) than a rule keyed on the slot"
+  },
+  {
+   "id": "X-ELEMENT-RULES",
+   "where": "src/data/elements.js ELEMENT_ON_HERO, src/core/hunt/damage.js:178-184",
+   "what": "Storm burns mana for half the HP taken. Necrotic lands Withered",
+   "why": "Tyler 2026-11-18 approved the two elements. The numbers are PROPOSED, dark behind a switch",
+   "class": 3,
+   "status": "C",
+   "fix": "needs Tyler's yes on the two rules before the switch goes on"
+  },
+  {
+   "id": "X-DEFB-TWO-JOBS",
+   "where": "src/core/combat.js:181 and src/core/mitigation.js:33-41",
+   "what": "One item field, defB, feeds two formulas by item class: on armor it is armor points, on a shield or cape it is guard in the to-hit roll",
+   "why": "ruling K7, 2026-10-18",
+   "class": 2,
+   "status": "C",
+   "fix": "data layer: two fields (armor, guard). No number moves"
+  },
+  {
+   "id": "X-SET-CRIT",
+   "where": "src/core/combat.js:252-270 armorSetBonus",
+   "what": "Five pieces of one tier and line give crit, 1% a tier, for plate and cloth as much as leather. Its default line is \"plate\"",
+   "why": "\"Wave 5c / b283\", the old client",
+   "class": 4,
+   "status": "H",
+   "fix": "looks like a leftover. If wanted it is a data row (set bonuses), not a function"
+  },
+  {
+   "id": "X-STACKING-RULES",
+   "where": "src/core/combat.js:96-109,207-248",
+   "what": "Five stacking rules for worn modifiers: largest-once (perks), largest (own heal), sum (+skill, critB), sum-then-cap (resistance), and the weakness product with two ceilings",
+   "why": "each added by its own lane",
+   "class": 4,
+   "status": "C",
+   "fix": "formula layer: one modifier table { key, combine: sum | max, cap } that equipmentStats folds"
+  },
+  {
+   "id": "X-DORMANT-FACTORS",
+   "where": "src/core/combat.js:306-324, src/core/bane.js:62, src/core/charms.js (charmDamageMultFor)",
+   "what": "Three factors sit in the damage expression with nothing feeding them: bane (0 items carry one), the weapon element (eq.element is always null), the charm damage ladder (no caller). A second ceiling, 1.68, is exported and unused",
+   "why": "the closed rebuild cut their sources and kept the seams",
+   "class": 4,
+   "status": "C",
+   "fix": "not a cut list: imbuements are on the roadmap, so the element seam is BUILD-LATER (Tyler 2026-11-21). The unused 1.68 and the charm ladder can go"
+  },
+  {
+   "id": "X-TEMPER-ROUNDING",
+   "where": "src/core/temper.js:13-15",
+   "what": "Tempering rounds by chance (the part of a point is a draw). Every other step floors",
+   "why": "2026-11-04: +1% on a blow of 20 paid nothing",
+   "class": 3,
+   "status": "C",
+   "fix": "the right idea in one place only. See X-FLOOR-CHAIN"
+  },
+  {
+   "id": "X-FLOOR-CHAIN",
+   "where": "src/core/hunt/damage.js:123-137",
+   "what": "Up to nine floors in a row on one blow. On small numbers each one is a hidden cut: a 10-point hit through three 1.1 / 0.9 steps is not what the product says",
+   "why": "steps were added one at a time",
+   "class": 4,
+   "status": "H",
+   "fix": "formula layer: multiply the permilles, floor once. THE SIZE IS A HYPOTHESIS (largest in the first 15 Levels)"
+  },
+  {
+   "id": "X-ARMOR-LINE-FIT",
+   "where": "tools/balance-sim/staged/armor-line.js LINE_SAMPLE, tests/armor-line.mjs AL3",
+   "what": "Each unique's armor was sized to \"the most that keeps its measure under the line\", four digits from 1.0000. Any engine change moves the measure",
+   "why": "2026-11-16/18 lane/d-armor-line-v2",
+   "class": 4,
+   "status": "C",
+   "fix": "see section 6.1"
+  },
+  {
+   "id": "X-LINE-IN-TOOLS",
+   "where": "tools/balance-sim/staged/armor-line.js:64-70, weapon-line.js:72-81",
+   "what": "The only formula for gear past tier 7 lives in a simulator folder, with the Dawnsteel numbers typed again beside it",
+   "why": "a hidden sample may not be imported by src/",
+   "class": 4,
+   "status": "C",
+   "fix": "the formula (not the sample) moves to src/data as the gear curve"
+  },
+  {
+   "id": "X-ONE-INTERVAL",
+   "where": "src/core/combat.js:63",
+   "what": "One 2.0 s basic attack for everyone, no speed stat",
+   "why": "Tyler 2026-10-15",
+   "class": 1,
+   "status": "C",
+   "fix": "keep. \"Attack speed\" on Tyler's list is this plus cooldowns and Chill"
+  },
+  {
+   "id": "X-TOHIT-RAILS",
+   "where": "src/data/to-hit.js:117",
+   "what": "Every chance is held to 5%..97%",
+   "why": "Tyler 2026-11-20, 21-1",
+   "class": 1,
+   "status": "C",
+   "fix": "keep. On the projected gear line a hero reaches 95% near Level 2,000 (section 7)"
+  },
+  {
+   "id": "X-MIN-ONE",
+   "where": "src/core/hunt/damage.js:135, mitigation.js:86, combat.js:422,493",
+   "what": "Every landed blow deals at least 1",
+   "why": "engine contract",
+   "class": 1,
+   "status": "C",
+   "fix": "keep"
+  },
+  {
+   "id": "X-MITIGATION-CAP",
+   "where": "src/data/core-model.js:172 capPm 600",
+   "what": "Armor never takes more than 60% of a blow",
+   "why": "Tyler 2026-10-18 (K7)",
+   "class": 1,
+   "status": "C",
+   "fix": "keep"
+  },
+  {
+   "id": "X-CRIT-CAP",
+   "where": "src/core/combat.js:64-65",
+   "what": "Crit chance at most 60%, a crit x1.5",
+   "why": "pre-rebuild",
+   "class": 1,
+   "status": "C",
+   "fix": "keep"
+  },
+  {
+   "id": "X-RESIST-CAPS",
+   "where": "src/data/elements.js HERO_RESIST_PM, ELEMENT_PCT",
+   "what": "A hero resists at most 40% of an element and 10% physical. A monster profile is bounded both ways",
+   "why": "Tyler 2026-11-06 (no immunities), 2026-11-08, 2026-11-14",
+   "class": 1,
+   "status": "C",
+   "fix": "keep"
+  },
+  {
+   "id": "X-ATTACKER-LEVEL",
+   "where": "src/core/mitigation.js:12",
+   "what": "Armor is measured against the attacker's Level",
+   "why": "Tyler 2026-11-04 \"just simply harder\"",
+   "class": 1,
+   "status": "C",
+   "fix": "keep. It is why armor must grow with Level (section 7)"
+  },
+  {
+   "id": "X-BOSS-FLOOR-CAP",
+   "where": "src/data/balance-sheet.js:218 floorCap 0.33",
+   "what": "A boss's blow is held to a third of the FLOOR hero's HP, however deep he lives",
+   "why": "designer 2026-10-21, after a Sewer death",
+   "class": 3,
+   "status": "C",
+   "fix": "a designer rule, never ruled by Tyler. Needs his yes"
+  },
+  {
+   "id": "X-BOSS-PHASE-ROWS",
+   "where": "monsters.js:830,845; grounds/krells_hold/pack.js:350,360; grounds/muster_barrows/pack.js:178",
+   "what": "Each boss carries his own line numbers (enrage x1.15 to x1.8, guard 80%)",
+   "why": "Tyler 2026-11-05 \"phases\"",
+   "class": 2,
+   "status": "C",
+   "fix": "a model case: one mechanic, numbers in data"
+  },
+  {
+   "id": "X-CALLED-ROOM",
+   "where": "src/core/hunt/boss-room.js:23-26",
+   "what": "A called boss room pays nothing. A keyed hall pays",
+   "why": "Tyler 2026-11-04/05",
+   "class": 3,
+   "status": "C",
+   "fix": "approved. Overlap: economy lane"
+  },
+  {
+   "id": "X-DUMMY",
+   "where": "src/core/hunt/training.js",
+   "what": "A dummy's blow cannot kill and it cannot die",
+   "why": "Tyler 2026-11-08",
+   "class": 3,
+   "status": "C",
+   "fix": "approved"
+  },
+  {
+   "id": "X-CASTER-BASIC",
+   "where": "src/data/hunt-roles.js:46-49, src/core/hunt/damage.js:342-356",
+   "what": "A basic attack costs by weapon: a wand or staff 1 mana, a bow one arrow, a melee weapon nothing",
+   "why": "Tyler 2026-10-15, 2026-10-23",
+   "class": 3,
+   "status": "C",
+   "fix": "approved. Overlap: economy lane (E-SUPPLY-USE)"
+  },
+  {
+   "id": "X-ROLE-TARGET-NUMBERS",
+   "where": "src/data/hunt-roles.js:48,145",
+   "what": "Healer peel 18%, Challenge radius 6, hold 8 s, the 90% weak-tank floor",
+   "why": "ASSUMED in the spec, 10-22 for the floor",
+   "class": 2,
+   "status": "C",
+   "fix": "data. Never measured"
+  },
+  {
+   "id": "X-LEVEL-BY-TIER",
+   "where": "src/data/core-model.js:200 MONSTER_LEVEL_BY_TIER",
+   "what": "A monster with no Level gets one from its art tier",
+   "why": "CORE_NUMBERS Q5",
+   "class": 4,
+   "status": "H",
+   "fix": "if every fielded row has a Level this is dead. Not checked"
+  },
+  {
+   "id": "X-MUTABLE-ROWS",
+   "where": "src/data/monster-spells.js:68 SPELL_STAGGER, MONSTERS rows, GROUND_TIERS",
+   "what": "Data the engine reads is left unfrozen so the simulator can edit it in place and put it back",
+   "why": "tools/balance-sim what-ifs",
+   "class": 4,
+   "status": "C",
+   "fix": "architecture: what-ifs go through the instance's row door (rowOf) and an options object, never by mutating shared data"
+  },
+  {
+   "id": "X-POWER-TOOLS",
+   "where": "tools/balance-sim/armor-power.mjs, weapon-power.mjs",
+   "what": "Two guards (armor-line, weapon-line) judge gear by a closed-form \"pace and safety\" read built from the engine's roll helpers, not by a played hunt",
+   "why": "speed: a played hunt per piece per ground is slow",
+   "class": 4,
+   "status": "H",
+   "fix": "the brief asks for the real engine. Bodies not fully read, so the size of the gap is unknown"
+  },
+  {
+   "id": "X-OTHER-LEVEL-SHARE",
+   "where": "src/core/hunt/xp-share.js:78, src/data/hunt-tuning.js:56",
+   "what": "The under-floor Level share cut is still live. Tyler 2026-11-08: \"XP share rule applies regardless\"",
+   "why": "risk ladder 2026-11-03",
+   "class": 4,
+   "status": "C",
+   "fix": "PROGRESSION LANE. A Level threshold in party XP that a ruling removed"
+  },
+  {
+   "id": "X-OTHER-GROUND-FITS",
+   "where": "src/data/balance-sheet.js:306,317 GROUND_XP_FIT, GROUND_GP_FIT, xp.floorFit, gp.line",
+   "what": "Per-ground XP and coin multipliers on the monster formula",
+   "why": "2026-11-07 to 11-19",
+   "class": 4,
+   "status": "C",
+   "fix": "PROGRESSION and ECONOMY LANES. They sit in the same function as the combat stats, so a combat change moves them"
+  }
+ ],
+ "edges": [
+  {
+   "from": "P-SKILL-LEVEL",
+   "to": "C-HERO-POWER"
+  },
+  {
+   "from": "C-GEAR-WEAPON",
+   "to": "C-HERO-POWER"
+  },
+  {
+   "from": "C-WEAKNESS",
+   "to": "C-HERO-POWER"
+  },
+  {
+   "from": "C-BUFF-BONUS",
+   "to": "C-HERO-POWER"
+  },
+  {
+   "from": "C-HERO-POWER",
+   "to": "C-BASIC-BLOW"
+  },
+  {
+   "from": "C-HERO-TOHIT",
+   "to": "C-BASIC-BLOW"
+  },
+  {
+   "from": "C-CRIT",
+   "to": "C-BASIC-BLOW"
+  },
+  {
+   "from": "C-BASIC-BLOW",
+   "to": "C-HURT"
+  },
+  {
+   "from": "C-HERO-POWER",
+   "to": "C-SPELL-HIT"
+  },
+  {
+   "from": "C-HERO-POWER",
+   "to": "C-SPELL-HEAL"
+  },
+  {
+   "from": "C-HERO-POWER",
+   "to": "C-SPELL-SHELL"
+  },
+  {
+   "from": "C-HERO-POWER",
+   "to": "C-STATUS"
+  },
+  {
+   "from": "C-CAST-POWER",
+   "to": "C-SPELL-HIT"
+  },
+  {
+   "from": "C-CAST-POWER",
+   "to": "C-SPELL-HEAL"
+  },
+  {
+   "from": "C-CAST-POWER",
+   "to": "C-SPELL-SHELL"
+  },
+  {
+   "from": "C-CAST-POWER",
+   "to": "C-STATUS"
+  },
+  {
+   "from": "C-SPELL-HIT",
+   "to": "C-HURT"
+  },
+  {
+   "from": "C-STATUS",
+   "to": "C-HURT"
+  },
+  {
+   "from": "C-STATUS",
+   "to": "C-VULN"
+  },
+  {
+   "from": "C-STATUS",
+   "to": "C-HEAL-CUT"
+  },
+  {
+   "from": "C-STATUS",
+   "to": "C-CLOCKS"
+  },
+  {
+   "from": "C-VULN",
+   "to": "C-HURT"
+  },
+  {
+   "from": "C-ELEMENT-MON",
+   "to": "C-HURT"
+  },
+  {
+   "from": "C-MON-DEF",
+   "to": "C-HURT"
+  },
+  {
+   "from": "C-STANCE",
+   "to": "C-HURT"
+  },
+  {
+   "from": "C-TEMPER",
+   "to": "C-HURT"
+  },
+  {
+   "from": "C-BOSS-PHASE",
+   "to": "C-HURT"
+  },
+  {
+   "from": "C-SPELL-SHELL",
+   "to": "C-HURT"
+  },
+  {
+   "from": "C-ARMOR-CHAIN",
+   "to": "C-HURT"
+  },
+  {
+   "from": "C-RESIST-HERO",
+   "to": "C-ARMOR-CHAIN"
+  },
+  {
+   "from": "C-TEMPER",
+   "to": "C-ARMOR-CHAIN"
+  },
+  {
+   "from": "C-GEAR-ARMOR",
+   "to": "C-ARMOR-CHAIN"
+  },
+  {
+   "from": "C-HEAL-CUT",
+   "to": "C-SPELL-HEAL"
+  },
+  {
+   "from": "C-HEAL-CUT",
+   "to": "C-LEECH"
+  },
+  {
+   "from": "C-HURT",
+   "to": "C-LEECH"
+  },
+  {
+   "from": "C-TEMPER",
+   "to": "C-SPELL-HEAL"
+  },
+  {
+   "from": "C-REF-HERO",
+   "to": "C-MON-STATS"
+  },
+  {
+   "from": "C-MON-STATS",
+   "to": "C-MON-BLOW"
+  },
+  {
+   "from": "C-MON-STATS",
+   "to": "C-MON-TOHIT"
+  },
+  {
+   "from": "C-MON-STATS",
+   "to": "C-MON-DEF"
+  },
+  {
+   "from": "C-MON-STATS",
+   "to": "C-HERO-TOHIT"
+  },
+  {
+   "from": "C-MON-STATS",
+   "to": "C-ELEMENT-MON"
+  },
+  {
+   "from": "C-MON-STATS",
+   "to": "C-WEAKNESS"
+  },
+  {
+   "from": "C-TIER",
+   "to": "C-MON-BLOW"
+  },
+  {
+   "from": "C-TIER",
+   "to": "C-MON-TOHIT"
+  },
+  {
+   "from": "C-TIER",
+   "to": "C-ARMOR-CHAIN"
+  },
+  {
+   "from": "C-TIER",
+   "to": "C-PULL"
+  },
+  {
+   "from": "C-MON-STATS",
+   "to": "C-TIER"
+  },
+  {
+   "from": "C-MON-BLOW",
+   "to": "C-MON-SPELL"
+  },
+  {
+   "from": "C-MON-BLOW",
+   "to": "C-HURT"
+  },
+  {
+   "from": "C-MON-TOHIT",
+   "to": "C-HURT"
+  },
+  {
+   "from": "C-MON-SPELL",
+   "to": "C-HURT"
+  },
+  {
+   "from": "C-BOSS-PHASE",
+   "to": "C-MON-BLOW"
+  },
+  {
+   "from": "C-BOSS-PHASE",
+   "to": "C-MON-SPELL"
+  },
+  {
+   "from": "C-MON-STATS",
+   "to": "C-RUN-ROOM"
+  },
+  {
+   "from": "C-MON-STATS",
+   "to": "C-SCALED"
+  },
+  {
+   "from": "C-MON-STATS",
+   "to": "C-BOSS-ROOM"
+  },
+  {
+   "from": "C-TIER",
+   "to": "C-SCALED"
+  },
+  {
+   "from": "C-TARGET",
+   "to": "C-HURT"
+  },
+  {
+   "from": "C-LEASH",
+   "to": "C-TARGET"
+  },
+  {
+   "from": "C-PULL",
+   "to": "C-AREA"
+  },
+  {
+   "from": "C-SPELL-HIT",
+   "to": "C-AREA"
+  },
+  {
+   "from": "C-JEWEL-PERKS",
+   "to": "C-HERO-TOHIT"
+  },
+  {
+   "from": "C-JEWEL-PERKS",
+   "to": "C-CRIT"
+  },
+  {
+   "from": "C-JEWEL-PERKS",
+   "to": "C-CAST-POWER"
+  },
+  {
+   "from": "C-GEAR-ARMOR",
+   "to": "C-MON-TOHIT"
+  },
+  {
+   "from": "C-GEAR-ARMOR",
+   "to": "C-CRIT"
+  },
+  {
+   "from": "C-GEAR-WEAPON",
+   "to": "C-HERO-TOHIT"
+  },
+  {
+   "from": "C-GEAR-WEAPON",
+   "to": "C-REF-HERO"
+  }
+ ],
+ "edgesOut": [
+  {
+   "lane": "progression",
+   "edge": "P-SKILL-LEVEL -> C-HERO-POWER, C-HERO-TOHIT, C-MON-TOHIT",
+   "why": "how fast a skill level arrives decides how fast power grows. The spell rule made every cast depend on it too"
+  },
+  {
+   "lane": "progression",
+   "edge": "P-SKILL-CURVE -> C-REF-HERO -> C-MON-STATS",
+   "why": "every monster's aim and evasion are written against a measured career. A skill-curve change re-authors every monster"
+  },
+  {
+   "lane": "progression",
+   "edge": "P-VITALS (HP 150 + 10 a Level, mana, armor weight shares) -> C-MON-STATS, C-SPELL-HEAL (Mend), C-REGEN, C-TARGET",
+   "why": "monster blows are a share of hero HP. HP growth is the anchor of all incoming damage"
+  },
+  {
+   "lane": "progression",
+   "edge": "P-GEAR-LEVELS -> C-GEAR-WEAPON, C-GEAR-ARMOR",
+   "why": "gear is worn by Level. Past tier 7 there is no gear, so combat stops scaling (section 7)"
+  },
+  {
+   "lane": "progression",
+   "edge": "C-MON-STATS, C-TIER -> P-KILL-XP",
+   "why": "kill XP is priced per monster HP point on the same row. More HP is more XP a kill"
+  },
+  {
+   "lane": "progression",
+   "edge": "C-TIER (levelAtTier), C-MON-TOHIT -> P-DEFENSE-XP",
+   "why": "Defense trains by the attacker's Level, which a tier multiplies"
+  },
+  {
+   "lane": "progression",
+   "edge": "C-HURT -> P-WEAPON-XP. C-MANA -> P-MAGIC-XP",
+   "why": "weapon skills train on HP removed, Magic on mana spent"
+  },
+  {
+   "lane": "progression",
+   "edge": "C-RUN-ROOM -> P-RUN-XP (TOWER_PARTY_XP), party XP tables, the under-floor share",
+   "why": "party XP math differs by mode (X-OTHER-LEVEL-SHARE)"
+  },
+  {
+   "lane": "economy",
+   "edge": "C-MON-STATS -> E-KILL-COIN",
+   "why": "coin a kill is priced per HP point on the same row (GROUND_GP_FIT, gp.line)"
+  },
+  {
+   "lane": "economy",
+   "edge": "C-HURT, C-PULL, C-AREA, C-CLOCKS -> E-KILL-RATE",
+   "why": "kills an hour is hero damage over monster HP plus walking and resting"
+  },
+  {
+   "lane": "economy",
+   "edge": "C-MON-BLOW, C-ARMOR-CHAIN, C-SPELL-HEAL, C-REGEN, C-LEECH -> E-SUPPLY-USE",
+   "why": "food and drink bought is damage taken less free healing. A heal spell is food not bought"
+  },
+  {
+   "lane": "economy",
+   "edge": "E-RUNE-SUPPLY, BASIC_EFFECT_SHARE -> C-CAST-POWER, C-BASIC-BLOW",
+   "why": "a store rune or arrow lands 75%. The default axe bar spends a 1 g rune a cast (X-REND-DEFAULT)"
+  },
+  {
+   "lane": "economy",
+   "edge": "E-TEMPER-COST -> C-TEMPER. E-JEWEL-COST -> C-JEWEL-PERKS. E-FOOD -> C-BUFF-BONUS",
+   "why": "gold sinks buy combat percent"
+  },
+  {
+   "lane": "economy",
+   "edge": "C-BOSS-ROOM, C-SCALED, C-RUN-ROOM -> fees, keys and what they pay",
+   "why": "the modes share the monster formula and differ only in pay"
+  }
+ ]
+}

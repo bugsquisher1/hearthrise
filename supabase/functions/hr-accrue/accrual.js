@@ -42,7 +42,7 @@
 // the tick interval from src/core/combat.js's constants, the fight from
 // src/core/combat-sim.js's `simulateSpan` — the SAME function the live 2.4s
 // tick runs — the XP grant from src/core/progression.js `grantXp`, the
-// featured boss from src/core/botd.js, the away scope from src/core/away.js.
+// away scope from src/core/away.js.
 // A second copy of the maths is the failure this whole program exists to
 // prevent, so if you find yourself typing an arithmetic operator on a game
 // value in this engine, you are writing a bug.

@@ -70,8 +70,7 @@ export const CHANNEL = {
       crit roll exactly as it reaches a live one, with no special case, because
       it is simply a member of a channel that pays. */
   CRIT: 'crit',
-  /** Boss of the Day / Boss of the Week, resolved per UTC-day segment. */
-  BOTD: 'botd',
+  /* (Boss of the Day / Week left with the old dungeons, src/core/botd.js, cut 2026-11-20, plan L10.) */
   /** timed consumable buffs (BUFFS_DEF). PERSONAL, so they pay away — and
       because they pay, they drain away. Both halves or neither. */
   BUFF: 'buff',
@@ -81,7 +80,6 @@ export const CHANNEL = {
 export const AWAY_SCOPE = Object.freeze({
   permanent: true,
   crit: true,
-  botd: true,
   buff: true,
 });
 

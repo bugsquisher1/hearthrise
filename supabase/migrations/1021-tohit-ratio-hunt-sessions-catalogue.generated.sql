@@ -8,9 +8,9 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: 801c853d1d1ba8559b718df0aa5feca98726fbfdf1185564960db5375689b10a
+--   digest: dc6d47861bbe473bb7edc412aa17cb40a01a5836a7c179e2b94cd979584e4b6a
 --   79 supplies, 168 hunts (named + training), 47 limits, 18 end reasons,
---   669 vendor values, 49 store supplies paid per use, 5 target modes,
+--   665 vendor values, 49 store supplies paid per use, 5 target modes,
 --   4 lanes, 23 abilities, 10 action-set options, 25 hunt grounds
 --
 -- NEW IN THIS FILE (lane/c-tohit-ratio, systems-engineer, 2026-11-20; balance program L15, Tyler ruled 21-1 and 21-2: to-hit as a ratio of two
@@ -1798,7 +1798,6 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('duskwood_wand', 158),
   ('dyers_boots', 141),
   ('elderscale_heart', 9000),
-  ('elderscale_platebody', 59400),
   ('ember_axe', 280),
   ('ember_bar', 100),
   ('ember_belt', 109),
@@ -1879,7 +1878,6 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('heartgarnet', 6),
   ('heartgarnet_maul', 74),
   ('hearth_masons_maul', 277),
-  ('hearth_token', 25000),
   ('hell_ember', 600),
   ('herring', 2),
   ('hive_wasp_stinger', 1),
@@ -2020,7 +2018,6 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('raw_wolf_meat', 1),
   ('razor_claw', 50),
   ('regent_helm', 756),
-  ('riftmaw_carapace', 41580),
   ('riftmaw_husk', 4200),
   ('river_chowder', 380),
   ('road_carnelian', 40),
@@ -2195,7 +2192,6 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('void_chitin', 160),
   ('void_core', 2200),
   ('void_essence', 3000),
-  ('voidheart_robe', 41580),
   ('voidmaw_scepter', 32500),
   ('voidwoven_sigil', 5000),
   ('war_crown', 1750),
@@ -2319,7 +2315,7 @@ begin
      or (select count(*) from public.hr_hunt_travel) <> 168
      or (select count(*) from public.hr_hunt_limits) <> 47
      or (select count(*) from public.hr_hunt_end_reasons) <> 18
-     or (select count(*) from public.hr_hunt_vendor_value) <> 669
+     or (select count(*) from public.hr_hunt_vendor_value) <> 665
      or (select count(*) from public.hr_hunt_basic_supplies) <> 49
      or (select count(*) from public.hr_hunt_cover_items) <> 0
      or exists (select 1 from public.hr_hunt_basic_supplies where cardinality(coalesce(tiers, '{}'::int[])) > 0)

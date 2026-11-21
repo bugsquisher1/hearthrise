@@ -1,0 +1,4219 @@
+{
+ "schema": "hearthrise.formula-architecture/1",
+ "doc": "docs/design/balance-program/44-formula-architecture.md",
+ "brief": "docs/design/balance-program/40-formula-brief.md",
+ "sources": [
+  "tools/balance-program/formulas/formulas-combat.json",
+  "tools/balance-program/formulas/formulas-progression.json",
+  "tools/balance-program/formulas/formulas-economy.json"
+ ],
+ "classes": {
+  "1": "foundational mechanic",
+  "2": "content parameter, belongs in data",
+  "3": "intentional special mechanic, needs Tyler's explicit approval",
+  "4": "accidental complexity, eliminate"
+ },
+ "counts": {
+  "raw": {
+   "formulas": 131,
+   "exceptions": 154,
+   "byLane": {
+    "combat": [
+     42,
+     67
+    ],
+    "progression": [
+     37,
+     48
+    ],
+    "economy": [
+     52,
+     39
+    ]
+   }
+  },
+  "formulas": 107,
+  "formulasMerged": 24,
+  "exceptions": 129,
+  "exceptionsMerged": 28,
+  "exceptionsAdded": 3,
+  "byClass": {
+   "1": 12,
+   "2": 25,
+   "3": 35,
+   "4": 57
+  },
+  "confirmed": 115,
+  "hypothesis": 14,
+  "class3Approved": 26,
+  "class3NoApproval": 9,
+  "classDecided": 6,
+  "class4Removed": 56,
+  "class4Left": [
+   "E-X36"
+  ],
+  "edges": 198,
+  "crossEdges": 67,
+  "inCycle": 59,
+  "knobs": 33,
+  "knobsPlanned": 18
+ },
+ "formulas": [
+  {
+   "id": "C-HERO-POWER",
+   "also": [
+    "P13"
+   ],
+   "categories": [
+    "combat",
+    "progression"
+   ],
+   "owner": "combat owns the expression. Progression owns what a skill level is worth",
+   "what": "A hero's largest blow (maxHit): floor(0.35 x (weapon skill + worn +skill) + 0.6 x summed damage bonus + 2), then x the weakness factor, then x (1 + damage buff). Never under 1",
+   "where": "src/core/combat.js:358-426 playerCombatRolls",
+   "state": "live"
+  },
+  {
+   "id": "C-HERO-TOHIT",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "owner": null,
+   "what": "A hero's chance to land a basic blow: ratio(20 + skill + worn accuracy, the monster's evasion) x 1.15 on a weak-weapon match, held to 5%..97%. Steady then turns a share of the misses into hits",
+   "where": "src/core/combat.js:384-389",
+   "state": "live"
+  },
+  {
+   "id": "C-BASIC-BLOW",
+   "also": [
+    "E19"
+   ],
+   "categories": [
+    "combat",
+    "economy"
+   ],
+   "owner": "combat owns the blow, and a dry shot at x0.25 (src/core/ammo.js AMMO_DRY_MULT) is a multiplier on it that the combat inventory missed. Economy owns the bill",
+   "what": "One basic blow: miss is 0, a hit is a whole number 1..maxHit with equal odds (mean (maxHit + 1) / 2)",
+   "where": "src/core/combat.js:482-485 rollAttack",
+   "state": "live"
+  },
+  {
+   "id": "C-CRIT",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "owner": null,
+   "what": "Critical basic blows: chance = clamp(gear critB + crit buff + set bonus + Keen, 0, 0.60). A crit is max(damage + 1, floor(damage x 1.5)). The set bonus is 1% a tier for 5+ armor pieces of one tier and line",
+   "where": "src/core/combat.js:428-432",
+   "state": "live"
+  },
+  {
+   "id": "C-WEAKNESS",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "owner": null,
+   "what": "The damage factor against one monster: weapon weakness 1.20 x bane (at most 1.40) x weapon element (at most 1.15), the product held to 1.90. A weapon match also gives x1.15 accuracy",
+   "where": "src/core/combat.js:301-345 weaknessInfo",
+   "state": "live"
+  },
+  {
+   "id": "C-HURT",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "owner": null,
+   "what": "Every amount that lands on a unit, in this order. On a monster: x element (a weakness at the tag's weakPm share) then minus the defence cut, x the cast's power (version, store, surge, mark), x the boss guard, x the dealer's stance, x the target's stance, at least 1, x Tempering. On a hero: x power, x stances, then the armor chain. Then the spell shell, then HP",
+   "where": "src/core/hunt/damage.js:117-145 hurt",
+   "state": "live"
+  },
+  {
+   "id": "C-MON-DEF",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "owner": null,
+   "what": "A monster's defence: floor(def x 0.03) whole points off every blow and every tick it takes",
+   "where": "src/core/combat.js:462-464 defenceReduction",
+   "state": "live"
+  },
+  {
+   "id": "C-ELEMENT-MON",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "owner": null,
+   "what": "What an element is worth on a monster: 1000 - 10 x its profile's percent, the percent held to ELEMENT_PCT. A row with weakPm lands only that share of a weakness",
+   "where": "src/core/elements.js:71-76 elementPermille",
+   "state": "live"
+  },
+  {
+   "id": "C-VULN",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "owner": null,
+   "what": "A target that takes more: Hunter's Mark (unit fields markPm until markUntil) plus the strongest marking status (takenPm), added and folded into the cast's power",
+   "where": "src/core/hunt/damage.js:69-76 takenPmOf",
+   "state": "live"
+  },
+  {
+   "id": "C-STANCE",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "owner": null,
+   "what": "Stance: Offensive deals and takes x1.10, Defensive deals x0.90 and takes x0.85",
+   "where": "src/data/rule-subjects.js:38-42 HUNT_STANCES",
+   "state": "live"
+  },
+  {
+   "id": "C-TEMPER",
+   "also": [
+    "P17"
+   ],
+   "categories": [
+    "combat",
+    "progression"
+   ],
+   "owner": "combat lands the rung. Economy prices it (E38)",
+   "what": "Tempering: Blows raises what lands on a monster and every heal by rungs x the ladder's permille. Armor (with worn steadyPm and a food's steady) lowers what reaches the hero, last, never past the cap. The part of a point is a chance",
+   "where": "src/core/temper.js:38-57",
+   "state": "live"
+  },
+  {
+   "id": "C-SPELL-HIT",
+   "also": [
+    "P14"
+   ],
+   "categories": [
+    "combat",
+    "progression"
+   ],
+   "owner": "combat owns what a cast lands (also C-SPELL-HEAL, C-SPELL-SHELL, C-CAST-POWER). Progression owns what it trains",
+   "what": "A damaging cast: each hit rolls a whole number from max(ceil(top / 2), base lo) to max(top, base hi), top = floor(maxHit x hitPm / 1000). Then C-HURT. It never misses and never crits",
+   "where": "src/data/abilities.js:356-360 hitRange",
+   "state": "live"
+  },
+  {
+   "id": "C-SPELL-HEAL",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "owner": null,
+   "what": "A heal: floor(max(floor(maxHit x healPm / 1000), base) x power / 1000), whole (no roll), x Tempering, less the heal cut, capped at missing HP. Mend alone: floor(maxHp x 110 / 1000) x power",
+   "where": "src/data/abilities.js:367-376 castAmount",
+   "state": "live"
+  },
+  {
+   "id": "C-SPELL-SHELL",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "owner": null,
+   "what": "A shell: floor(max(floor(maxHit x shieldPm / 1000), base) x power / 1000), a pool that a blow spends before HP. A recast of a self shell refunds the unused part as mana. A party shell never lowers a bigger one",
+   "where": "src/data/abilities.js:367-376",
+   "state": "live"
+  },
+  {
+   "id": "C-CAST-POWER",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "owner": null,
+   "what": "A cast's power in permille: the rune tier's step (1000 / 1100 / 1200 / 1300 / 1400 at skill 1 / 15 / 30 / 45 / 60) x the store's share for a store rune x Surge when it surges",
+   "where": "src/data/runes.js versionStep, versionLevel",
+   "state": "live"
+  },
+  {
+   "id": "C-STATUS",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "owner": null,
+   "what": "Statuses, one generic engine: a ticking one (Bleed: scale = max(tier share, floor(maxHit x 33 x tier share / 1000)), tick = round(roll 1..3 x scale / 1000) a stack a second, 5 stacks, 6 s), a marking one (takenPm), a slowing one (Chill: clock x (1000 + slowPm) / 1000, 30% to 50% by rune tier), a heal-cutting one (Withered)",
+   "where": "src/core/hunt/status.js:58-124",
+   "state": "live"
+  },
+  {
+   "id": "C-HEAL-CUT",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "owner": null,
+   "what": "Every heal a Withered unit takes: n - floor(n x cut / 1000). A hero 30% (less by its necrotic resistance), a monster 50%",
+   "where": "src/core/hunt/heal-cut.js:26-43",
+   "state": "live"
+  },
+  {
+   "id": "C-LEECH",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "owner": null,
+   "what": "Life leech: floor(HP a hit took x leechPm / 1000) back to the caster (Reave 300). Mana back: min(mana spent, hits x manaPerHit + kills x manaPerKill). Focus: a kill returns focusPm of max mana",
+   "where": "src/core/hunt/abilities.js:367-373 leechBack",
+   "state": "live"
+  },
+  {
+   "id": "C-CLOCKS",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "owner": null,
+   "what": "Attack speed: every basic attack is 2,000 ms for heroes and monsters with no speed modifier. A cast locks its lane (offense 2 s, support 2 s, heal 1 s) and its own cooldown. Chill stretches a swing and a windup",
+   "where": "src/core/combat.js:63 tickMs",
+   "state": "live"
+  },
+  {
+   "id": "C-MANA",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "owner": null,
+   "what": "Mana: regenerates 25% of max a minute x the Inner Flame rate. A caster's basic costs 1 mana. A cast costs its version's mana, never more with level",
+   "where": "src/core/hunt/abilities.js:535-542 regenMana",
+   "state": "live"
+  },
+  {
+   "id": "C-REGEN",
+   "also": [
+    "P12"
+   ],
+   "categories": [
+    "combat",
+    "progression"
+   ],
+   "owner": "combat owns regeneration. Progression owns the Inner Flame level it reads",
+   "what": "HP regeneration: 0.3% of max a second in a fight and 6% out of one, x the Inner Flame rate 1 + P / (P + 50). The fist wraps add selfHealPm a second",
+   "where": "src/core/hunt/pull-cycle.js:305-322",
+   "state": "live"
+  },
+  {
+   "id": "C-MON-BLOW",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "owner": null,
+   "what": "A monster's largest blow: floor(atk x the art tier's scale), scale 5.4 for tiers 1-2, 4.0 for 3-4, 3.0 for 5, 2.2 for 6. It rolls 1..that like a hero's",
+   "where": "src/core/combat.js:473-477 monsterMaxHit",
+   "state": "live"
+  },
+  {
+   "id": "C-MON-TOHIT",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "owner": null,
+   "what": "A monster's chance to land: ratio(aim, 20 + Defense + worn +Defense + guard), held to 5%..97%. Guard is the defB of gear outside the armor weights (a shield, a cape)",
+   "where": "src/core/combat.js:443-449",
+   "state": "live"
+  },
+  {
+   "id": "C-ARMOR-CHAIN",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "owner": null,
+   "what": "What armor does to a landed blow, in fixed order: dodge (medium) = floor(650 x P / (P + 0.4 x L)), absorb (heavy) = floor(750 x P / (P + 0.62 x L)), the resistance, ward (light) = floor(P x 1.5) flat, Tempering, and never more than 60% in all. L is the ATTACKER's Level, with the tier's dial on it",
+   "where": "src/core/mitigation.js:44-87",
+   "state": "live"
+  },
+  {
+   "id": "C-RESIST-HERO",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "owner": null,
+   "what": "A hero's resistance: taken = 1000 - min(cap, summed worn resistPm), cap 40% an element and 10% physical. Storm also burns mana for half the HP it took. Necrotic lands Withered",
+   "where": "src/core/elements.js:87-111",
+   "state": "live"
+  },
+  {
+   "id": "C-MON-STATS",
+   "also": [
+    "E02"
+   ],
+   "categories": [
+    "combat",
+    "economy"
+   ],
+   "owner": "combat owns the HP line. XP and coin are priced per HP point on the same row, so a change to it is an XP and coin change the same day",
+   "what": "A monster row from its Level, role, ground floor and fit: HP = (4.95 + 1.76 x L) x role x fit, blow = a share (13.2% to 22%) of a same-Level hero's base HP, aim and evasion from the reference hero (lands 70%, is landed on 85%), def = 0.08 x L x role",
+   "where": "src/data/balance-sheet.js:351-386 formulaStats",
+   "state": "live"
+  },
+  {
+   "id": "C-REF-HERO",
+   "also": [
+    "P36"
+   ],
+   "categories": [
+    "combat",
+    "progression"
+   ],
+   "owner": "progression computes the career. Combat reads it. Past Level 1,000 its straight line overstates skill (375 at 5,000 against about 248): quote the played numbers of 42 section 7.2",
+   "what": "The reference hero a monster is written against: a measured career (the lone hammer) [Level, skill, Defense, worn accuracy] every 5 Levels to 100, sparser to 1,000, straight past it. aimFor and evasionFor invert the ratio",
+   "where": "src/data/to-hit.js:120-168",
+   "state": "live"
+  },
+  {
+   "id": "C-TIER",
+   "also": [
+    "P24",
+    "E04"
+   ],
+   "categories": [
+    "combat",
+    "progression",
+    "economy"
+   ],
+   "owner": "one table, three readers: combat the damage and Level half, progression the XP dial, economy the pull as kill rate",
+   "what": "Normal, Dangerous, Deadly: a pull size and three dials. dmgPm multiplies atk, aim AND the monster's Level as armor reads it. hpPm its HP. xpPm its kill XP. On a gentle ground the tier first takes back the ground's kindness, so its dmgPm is solved per floor",
+   "where": "src/data/balance-sheet.js:426-485 TIER_DIALS, tierRowFor",
+   "state": "live"
+  },
+  {
+   "id": "C-MON-SPELL",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "owner": null,
+   "what": "A monster's spell: it rolls from half to all of floor(its largest blow x hitPm / 1000), then the hero's armor as any blow. A worn shield takes 30% off a marked spell. A mend puts the same roll back on a packmate. The first cast waits a random share of the cooldown",
+   "where": "src/data/monster-spells.js:57-102",
+   "state": "live"
+  },
+  {
+   "id": "C-BOSS-PHASE",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "owner": null,
+   "what": "A boss's two lines on his HP: adds arrive at addsPm and he takes only guardPm of every blow while one stands. Under enragePm his atk and aim are x enrageAtkPm, and one named spell's cooldown is x cdPm",
+   "where": "src/core/hunt/boss-phases.js:38-89",
+   "state": "live"
+  },
+  {
+   "id": "C-BOSS-ROOM",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "owner": null,
+   "what": "A boss room: one fight, a time limit, his kill ends it, nothing resets. A called room pays nothing. A keyed hall pays as a ground. A boss is the formula's boss role: HP x5, blow x1.1 held to 33% of the FLOOR hero's HP",
+   "where": "src/core/hunt/boss-room.js:21-32",
+   "state": "live"
+  },
+  {
+   "id": "C-RUN-ROOM",
+   "also": [
+    "P33"
+   ],
+   "categories": [
+    "combat",
+    "progression"
+   ],
+   "owner": "combat owns a floor's monsters. Progression owns what a floor pays",
+   "what": "A Burning Tower floor or a Catacomb room F: 5 monsters, each the stat formula at Level F on a floor-F ground, a Keeper (boss role) every 10th. Past floor 100 every blow is x1.012 a floor, compounding. Floor 300 is the last row",
+   "where": "src/core/hunt/tower.js",
+   "state": "live"
+  },
+  {
+   "id": "C-SCALED",
+   "also": [
+    "P26",
+    "E07"
+   ],
+   "categories": [
+    "combat",
+    "progression",
+    "economy"
+   ],
+   "owner": "combat owns the stats, progression the XP share, economy the hourly price",
+   "what": "A scaled hunt: the same formula with the ground's floor moved to the leader's Level and every monster up by the same gap. Normal and Dangerous only",
+   "where": "src/data/scaled-hunts.js:159-190",
+   "state": "live"
+  },
+  {
+   "id": "C-TARGET",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "owner": null,
+   "what": "Aggro is rules, not threat numbers: a pack turns on the pull's leader. Challenge takes every monster within 6 tiles that is not on a tank and holds it 8 s. A Healer's basic draws a free monster 18% of the time. A shooter aims at the hero farthest back. A tank under 90% of the strongest tank's HP never takes a turn",
+   "where": "src/core/hunt/targeting.js:164-260",
+   "state": "live"
+  },
+  {
+   "id": "C-AREA",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "owner": null,
+   "what": "Area and extra targets: a shape (the 3x3, a line of len, a ring of r) hits every engaged monster it covers for the FULL roll each, up to maxHits. Follow-through repeats a basic blow on one neighbour. An area arrow hits its footprint",
+   "where": "src/core/hunt/abilities.js:424-435",
+   "state": "live"
+  },
+  {
+   "id": "C-LEASH",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "owner": null,
+   "what": "A pack lives in its room plus a margin (1 tile unless the ground says more). If the aggro holder leaves, the pack resets and heals. A called or keyed boss never resets",
+   "where": "src/core/hunt/leash.js",
+   "state": "live"
+  },
+  {
+   "id": "C-PULL",
+   "also": [
+    "E13"
+   ],
+   "categories": [
+    "combat",
+    "economy"
+   ],
+   "owner": "combat owns how many stand. Economy reads it as kill rate",
+   "what": "How many stand in a fight: the ground's packs on Normal, the tier's pull on a harder tier (8, the Glade's Dangerous 6, none under floor 16). A monster's HP is its row's x hpPm for every party size",
+   "where": "src/core/hunt/pull-cycle.js:99-100",
+   "state": "live"
+  },
+  {
+   "id": "C-GEAR-ARMOR",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "owner": null,
+   "what": "Armor points: tiers 1-7 are a hand table per slot (plate) x 1.00 plate, 0.55 leather, 0.30 cloth, with each line's trades derived from the points. Past tier 7 the staged line is Dawnsteel x max(1, Level / 110), and each unique is hand-sized under it",
+   "where": "src/data/gear-tiers.js:64-69 the slot table",
+   "state": "live"
+  },
+  {
+   "id": "C-GEAR-WEAPON",
+   "also": [
+    "P16"
+   ],
+   "categories": [
+    "combat",
+    "progression"
+   ],
+   "owner": "combat owns what a piece carries (also C-GEAR-ARMOR). Progression owns the Level it is worn at (P35)",
+   "what": "Weapon accuracy and damage: tiers 1-7 are hand tables per family. Past tier 7 the staged line is Dawnsteel x max(1, Level / 110)",
+   "where": "src/data/gear-tiers.js:77-150 WEAPON_FAMILIES",
+   "state": "live"
+  },
+  {
+   "id": "C-JEWEL-PERKS",
+   "also": [
+    "P18"
+   ],
+   "categories": [
+    "combat",
+    "progression"
+   ],
+   "owner": "combat lands the perk. Economy prices the Hallmark (E40)",
+   "what": "Worn modifiers and how each stacks: jewel perks (Keen, Steady, Follow, Surge, Focus) count the largest once. Resistance sums, then caps. +skill sums. The own heal takes the largest. critB sums",
+   "where": "src/core/combat.js:96-109",
+   "state": "live"
+  },
+  {
+   "id": "C-BUFF-BONUS",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "owner": null,
+   "what": "The injected bonus reader: a food buff or a perk adds to damage, crit and steady (a damage cut). Permanent perks are held to 20%",
+   "where": "src/core/combat.js:425-428",
+   "state": "live"
+  },
+  {
+   "id": "C-TRAINING",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "owner": null,
+   "what": "The training yard's dummy: its blow never takes a hero under a floor, and it never falls",
+   "where": "src/core/hunt/training.js dummyBlow, dummyStands",
+   "state": "live"
+  },
+  {
+   "id": "P01",
+   "also": [],
+   "categories": [
+    "progression"
+   ],
+   "owner": null,
+   "what": "Level curve: total Level XP to reach a Level, and the Level a total makes",
+   "where": "src/core/xp.js:126-175",
+   "state": "live"
+  },
+  {
+   "id": "P02",
+   "also": [],
+   "categories": [
+    "progression"
+   ],
+   "owner": null,
+   "what": "Pace contract: the Level XP an hour a ground must pay at its own Level: 1385 x L^1.274",
+   "where": "src/data/balance-sheet.js:92",
+   "state": "live"
+  },
+  {
+   "id": "P03",
+   "also": [],
+   "categories": [
+    "progression"
+   ],
+   "owner": null,
+   "what": "Combat skill curve: XP from skill level s to s+1 = floor(15 x s^2 x 1.04^(s-1)), no cap",
+   "where": "src/core/xp.js:68-112",
+   "state": "live"
+  },
+  {
+   "id": "P04",
+   "also": [],
+   "categories": [
+    "progression"
+   ],
+   "owner": null,
+   "what": "Capped skill table: gathering and crafting levels 1 to 99 from a 99-row XP table",
+   "where": "src/core/xp.js:24-61",
+   "state": "live"
+  },
+  {
+   "id": "P05",
+   "also": [],
+   "categories": [
+    "progression"
+   ],
+   "owner": null,
+   "what": "Skill XP grant: credited XP = floor(carry + base x (1 + allXP + combatXP)), base = amount x 0.39 unless the skill is exempt; plus a rested quantum outside the multiplier",
+   "where": "src/core/progression.js:110-152",
+   "state": "live"
+  },
+  {
+   "id": "P06",
+   "also": [
+    "E09"
+   ],
+   "categories": [
+    "progression",
+    "economy"
+   ],
+   "owner": "progression owns the three skill XP routes (P06, P07, P08)",
+   "what": "Weapon skill XP from a blow: Melee or Ranged XP = damage dealt x 1.5",
+   "where": "src/core/hunt-rewards.js:245",
+   "state": "live"
+  },
+  {
+   "id": "P07",
+   "also": [],
+   "categories": [
+    "progression"
+   ],
+   "owner": null,
+   "what": "Defense XP from a monster's blow: 0.2 x the attacker's Level (raised by the tier's damage dial) per blow aimed at an armored hero, x2 when a shield turns it",
+   "where": "src/core/hunt-rewards.js:59-63",
+   "state": "live"
+  },
+  {
+   "id": "P08",
+   "also": [],
+   "categories": [
+    "progression"
+   ],
+   "owner": null,
+   "what": "Magic XP from a cast: floor(mana spent x 1.5 x the ability's multiplier)",
+   "where": "src/core/hunt/xp-share.js:143-148",
+   "state": "live"
+  },
+  {
+   "id": "P09",
+   "also": [],
+   "categories": [
+    "progression"
+   ],
+   "owner": null,
+   "what": "Training pay: 30,000 skill XP a settled hour for any skill at any level, 200% while a training item's hours last",
+   "where": "src/core/hunt/training.js:85-121",
+   "state": "live"
+  },
+  {
+   "id": "P11",
+   "also": [],
+   "categories": [
+    "progression"
+   ],
+   "owner": null,
+   "what": "Max HP and max mana: HP = floor((150 + 10 x (L-1)) x (1000 + 280 x heavy slots / 6) / 1000); mana the same with 100, 10 and 350 x light slots / 6",
+   "where": "src/core/vitals.js:58-69",
+   "state": "live"
+  },
+  {
+   "id": "P15",
+   "also": [],
+   "categories": [
+    "progression"
+   ],
+   "owner": null,
+   "what": "+skill on worn gear: a worn piece's meleePlus / rangedPlus / magicPlus / defensePlus adds whole skill levels wherever a fight reads the skill",
+   "where": "src/core/combat.js:89-110",
+   "state": "live"
+  },
+  {
+   "id": "P19",
+   "also": [],
+   "categories": [
+    "progression"
+   ],
+   "owner": null,
+   "what": "Special attributes and chest gear: one attribute a piece at a size by gear tier, with a cap across everything worn",
+   "where": "src/data/special-attributes.js:20-90",
+   "state": "live"
+  },
+  {
+   "id": "P20",
+   "also": [
+    "E03"
+   ],
+   "categories": [
+    "progression",
+    "economy"
+   ],
+   "owner": "progression owns the split",
+   "what": "Kill XP split: hero Level XP = floor(kill XP x mode share / living heroes x party factor / 1000 x scaled-hunt party share x the hero's own multiplier x the under-floor share)",
+   "where": "src/core/hunt/xp-share.js:66-85",
+   "state": "live"
+  },
+  {
+   "id": "P21",
+   "also": [
+    "E05"
+   ],
+   "categories": [
+    "progression",
+    "economy"
+   ],
+   "owner": "progression owns the party table",
+   "what": "Party class table: permille of a kill shared by the living heroes, by party size and classes held; a hero alone 1150",
+   "where": "src/data/party-class-xp.js:54,79,141-152",
+   "state": "live"
+  },
+  {
+   "id": "P22",
+   "also": [],
+   "categories": [
+    "progression"
+   ],
+   "owner": null,
+   "what": "Run ground party table: permille of a kill shared in the Tower and the Catacombs, by size only",
+   "where": "src/data/tower.js:60",
+   "state": "live"
+  },
+  {
+   "id": "P23",
+   "also": [
+    "E06"
+   ],
+   "categories": [
+    "progression",
+    "economy"
+   ],
+   "owner": "progression owns the under-floor share",
+   "what": "Under-floor Level share: a seat under the ground's floor AND under 66.7% of the party's top Level keeps floor(1000 x (Level / (top x 0.667))^2) permille of its share",
+   "where": "src/data/hunt-grounds.js:536-541",
+   "state": "live"
+  },
+  {
+   "id": "P25",
+   "also": [
+    "E08"
+   ],
+   "categories": [
+    "progression",
+    "economy"
+   ],
+   "owner": "progression owns the mode share",
+   "what": "Session mode share: the Tower and the Catacombs pay 37.5% of a kill's Level XP and a death there costs nothing",
+   "where": "src/data/session-modes.js:26-45",
+   "state": "live"
+  },
+  {
+   "id": "P27",
+   "also": [],
+   "categories": [
+    "progression"
+   ],
+   "owner": null,
+   "what": "XP weekend: +25% Level XP a kill for 72 hours every 14 days; live rows add, never past +50%",
+   "where": "src/data/live-events.js:26-34,90-95",
+   "state": "live"
+  },
+  {
+   "id": "P28",
+   "also": [],
+   "categories": [
+    "progression"
+   ],
+   "owner": null,
+   "what": "Death cost: Level XP lost = floor(total Level XP x 0.06 x the mode's share); each combat skill loses floor(0.06 x its progress into its level)",
+   "where": "src/core/action-rules.js:313-346",
+   "state": "live"
+  },
+  {
+   "id": "P30",
+   "also": [],
+   "categories": [
+    "progression"
+   ],
+   "owner": null,
+   "what": "Rested bank: one charge every 6 minutes to a cap of 80 (120 with the Library); a spent charge adds a flat quantum of at most 1,600 XP",
+   "where": "src/core/rested.js:20-72",
+   "state": "live"
+  },
+  {
+   "id": "P31",
+   "also": [],
+   "categories": [
+    "progression"
+   ],
+   "owner": null,
+   "what": "Perk XP channels: allXP and combatXP sum from rooms, renown, buffs and a companion; permanent sources are held to +20%; a companion's bonus = base x (1 + 0.05 x (level - 1)) and is added after the cap",
+   "where": "src/core/perks.js:87-140,217-280",
+   "state": "live"
+  },
+  {
+   "id": "P35",
+   "also": [],
+   "categories": [
+    "progression"
+   ],
+   "owner": null,
+   "what": "Gear worn by Level: every piece of equipment names a hero Level as its requirement",
+   "where": "src/data/gear-tiers.js:33",
+   "state": "live"
+  },
+  {
+   "id": "P37",
+   "also": [],
+   "categories": [
+    "progression"
+   ],
+   "owner": null,
+   "what": "Skill lines (simulator projection): the skills the balance simulator gives a hero at a Level; past the measured line a straight line on its last ten Levels",
+   "where": "tools/balance-sim/skill-lines.mjs:91-104",
+   "state": "tools only"
+  },
+  {
+   "id": "E01",
+   "also": [
+    "P32"
+   ],
+   "categories": [
+    "economy",
+    "progression"
+   ],
+   "owner": "hunting owns XP a kill. Progression reads it as an input",
+   "what": "Level XP one kill pays: max(min, a x L^b) x HP x role.xp x fit.xp x groundXpFit x floorFit",
+   "where": "src/data/balance-sheet.js:359-396 (formulaStats, the xp line)",
+   "state": "live"
+  },
+  {
+   "id": "E10",
+   "also": [],
+   "categories": [
+    "economy"
+   ],
+   "owner": null,
+   "what": "Which monsters a pull spawns: the pocket's authored rows, then its non-boss fill rows round again up to the density",
+   "where": "src/data/hunt-grounds.js:551-560 (pullRows)",
+   "state": "live"
+  },
+  {
+   "id": "E11",
+   "also": [],
+   "categories": [
+    "economy"
+   ],
+   "owner": null,
+   "what": "A cleared pack is back ground.respawnMs after it was cleared, never mid-fight",
+   "where": "src/core/hunt/pull-cycle.js:175-183 (respawnPacks)",
+   "state": "live"
+  },
+  {
+   "id": "E12",
+   "also": [],
+   "categories": [
+    "economy"
+   ],
+   "owner": null,
+   "what": "The time between pulls: travel at hero speed, regroup at least 1.5 s within 7 tiles, out-of-combat regen 6% of max HP a second",
+   "where": "src/core/hunt/pull-cycle.js:328-358 (runPhase)",
+   "state": "live"
+  },
+  {
+   "id": "E14",
+   "also": [],
+   "categories": [
+    "economy"
+   ],
+   "owner": null,
+   "what": "XP an hour, kills an hour and gold an hour. No formula computes these. The target is contractXpPerH = 1385 x L^1.274 and the engine is the only reader of the real value",
+   "where": "src/data/balance-sheet.js:92 (contractXpPerH)",
+   "state": "live (emergent)"
+  },
+  {
+   "id": "E15",
+   "also": [],
+   "categories": [
+    "economy"
+   ],
+   "owner": null,
+   "what": "A trophy find's odds: oneIn = round(actions an hour x authored hours). Nothing scales it",
+   "where": "src/core/hearthfind.js:120-123 (deriveOneIn)",
+   "state": "live"
+  },
+  {
+   "id": "E16",
+   "also": [],
+   "categories": [
+    "economy"
+   ],
+   "owner": null,
+   "what": "Hunting spends one ms of stamina a ms hunted. The bar holds 8 h free, 12 h Premium",
+   "where": "src/data/hunt-sessions.js:175 (STAMINA_MAX_MS)",
+   "state": "live"
+  },
+  {
+   "id": "E17",
+   "also": [],
+   "categories": [
+    "economy"
+   ],
+   "owner": null,
+   "what": "ceil((base + perLevel x L) x (stepDen + stepNum x (n-1)) x minutes / (stepDen x 240)). Six a day, 4 h each at most",
+   "where": "src/data/stamina-refill.js (refillPrice)",
+   "state": "live"
+  },
+  {
+   "id": "E18",
+   "also": [],
+   "categories": [
+    "economy"
+   ],
+   "owner": null,
+   "what": "What a hunt spends on supplies: own stock first, then store units at the catalogue's unit price, down to the hero's gold floor",
+   "where": "src/core/hunt/consumables.js:170 (consume)",
+   "state": "live"
+  },
+  {
+   "id": "E20",
+   "also": [],
+   "categories": [
+    "economy"
+   ],
+   "owner": null,
+   "what": "When a heal, a mana draught or a buff is used, and its cooldown",
+   "where": "src/core/hunt/consumables.js:170-195",
+   "state": "live"
+  },
+  {
+   "id": "E23",
+   "also": [],
+   "categories": [
+    "economy"
+   ],
+   "owner": null,
+   "what": "Coin a kill: mean = 0.30 x line x HP x role.gp x fitGp x groundGpFit, rolled lo..2 x mean - lo so the mean holds",
+   "where": "src/data/balance-sheet.js:359-396 (formulaStats, the gp lines)",
+   "state": "live"
+  },
+  {
+   "id": "E24",
+   "also": [],
+   "categories": [
+    "economy"
+   ],
+   "owner": null,
+   "what": "floor(share x (1 + max(0, goldFind))) on monster coin only",
+   "where": "src/core/pacing.js:119-128 (goldFindMult, applyGoldFind)",
+   "state": "live"
+  },
+  {
+   "id": "E25",
+   "also": [],
+   "categories": [
+    "economy"
+   ],
+   "owner": null,
+   "what": "A kill's coin split evenly, the remainder one coin each from a seat that moves with the kill",
+   "where": "src/core/party-split.js:48-58 (splitEven)",
+   "state": "live"
+  },
+  {
+   "id": "E26",
+   "also": [],
+   "categories": [
+    "economy"
+   ],
+   "owner": null,
+   "what": "What the shop pays: book x gear rate (by tier), x0.20 if raw, x the ground's income dial, never under its lower-tier twin where the dial put it there, never over half the cheapest shop price",
+   "where": "supabase/functions/hr-accrue/catalogue.js:340-359 (vendorPriceOf)",
+   "state": "live"
+  },
+  {
+   "id": "E27",
+   "also": [],
+   "categories": [
+    "economy"
+   ],
+   "owner": null,
+   "what": "The share of book value worn gear sells for, by tier, with one carve-out for tier-2 hourly armor",
+   "where": "src/data/loot-bands.js:89-106 (VENDOR_GEAR_RATES, gearSaleRate)",
+   "state": "live"
+  },
+  {
+   "id": "E28",
+   "also": [],
+   "categories": [
+    "economy"
+   ],
+   "owner": null,
+   "what": "A drop sells at the highest income dial of the grounds that drop it. Anything also gathered or crafted is exempt",
+   "where": "src/data/loot-sale.js:44-55 (saleFitPm)",
+   "state": "live"
+  },
+  {
+   "id": "E29",
+   "also": [],
+   "categories": [
+    "economy"
+   ],
+   "owner": null,
+   "what": "The cheapest gold price of one unit of each item across single-line shop offers",
+   "where": "src/core/shop-buyback.js:28-45",
+   "state": "live"
+  },
+  {
+   "id": "E30",
+   "also": [],
+   "categories": [
+    "economy"
+   ],
+   "owner": null,
+   "what": "A shop offer's price: an authored row. The listed gear, tools and seeds sell at 2 x book",
+   "where": "src/data/shops.js",
+   "state": "live"
+  },
+  {
+   "id": "E31",
+   "also": [],
+   "categories": [
+    "economy"
+   ],
+   "owner": null,
+   "what": "An imbuement part's book value: 2 gold a monster Level. Its tier: 1, 2 or 3 at Levels 1, 30, 80",
+   "where": "src/data/imbuements.js:50-64",
+   "state": "live (the item only sells)"
+  },
+  {
+   "id": "E32",
+   "also": [],
+   "categories": [
+    "economy"
+   ],
+   "owner": null,
+   "what": "Listing fee = max(fee_min, ceil(qty x ask x 1%)). The house takes ceil(gross x 1.5%). Floor = the shop's bid. Ceiling = max(ceiling_min, book x 100)",
+   "where": "supabase/migrations/2027-01-12-market-account.sql:302-336, 657, 1143",
+   "state": "live"
+  },
+  {
+   "id": "E33",
+   "also": [],
+   "categories": [
+    "economy"
+   ],
+   "owner": null,
+   "what": "A public bench takes 15% of what a job's output sells for, in milligold with a carry, free under half a gold",
+   "where": "src/core/bench-tax.js:20-58",
+   "state": "live"
+  },
+  {
+   "id": "E34",
+   "also": [],
+   "categories": [
+    "economy"
+   ],
+   "owner": null,
+   "what": "round(3000 x 1.32^k), ten rungs",
+   "where": "src/data/gold-ladders.js (bankRungPrice)",
+   "state": "live"
+  },
+  {
+   "id": "E36",
+   "also": [],
+   "categories": [
+    "economy"
+   ],
+   "owner": null,
+   "what": "A town sink's price: the n-th of its price row today, or base + perLevel x Level",
+   "where": "src/data/gold-sinks.js (SINK_RULES)",
+   "state": "live"
+  },
+  {
+   "id": "E37",
+   "also": [
+    "P29"
+   ],
+   "categories": [
+    "economy",
+    "progression"
+   ],
+   "owner": "economy owns the price. Progression owns what a death costs",
+   "what": "0 under Level 30, else base + perLevel x (Level - 30). Three tiers cut a death's XP loss 25, 50, 75%",
+   "where": "src/data/blessings.js (blessingPrice)",
+   "state": "live"
+  },
+  {
+   "id": "E38",
+   "also": [],
+   "categories": [
+    "economy"
+   ],
+   "owner": null,
+   "what": "Five rungs a track a gear tier, each doubling in gold, each worth 1% (0.4% on tier 7), plus crafted salts",
+   "where": "src/data/temper.js (TEMPER_TIERS, TEMPER_MATERIALS, TEMPER_TIER_RUNG_PM)",
+   "state": "live"
+  },
+  {
+   "id": "E39",
+   "also": [],
+   "categories": [
+    "economy"
+   ],
+   "owner": null,
+   "what": "400,000 / 1,500,000 / 4,000,000 gold for slots 2 to 4",
+   "where": "src/data/shops.js:59-75",
+   "state": "live"
+  },
+  {
+   "id": "E40",
+   "also": [],
+   "categories": [
+    "economy"
+   ],
+   "owner": null,
+   "what": "25,000 / 100,000 / 150,000 / 250,000 / 400,000 / 600,000 gold a piece by jewel tier 2 to 7",
+   "where": "supabase/migrations/2027-03-14-jewelry-hallmark.sql (hr_hallmark)",
+   "state": "live"
+  },
+  {
+   "id": "E41",
+   "also": [],
+   "categories": [
+    "economy"
+   ],
+   "owner": null,
+   "what": "The Weighhouse's goal: max(250,000, 20,000 x weekly active accounts). A gift is 100 at least, 25,000 a day at most",
+   "where": "src/data/town-works.js",
+   "state": "live"
+  },
+  {
+   "id": "E42",
+   "also": [
+    "P10"
+   ],
+   "categories": [
+    "economy",
+    "progression"
+   ],
+   "owner": "economy owns the fee",
+   "what": "The public yard's fee: ruled 100 gold x skill level an hour",
+   "where": "supabase/migrations/2027-04-16-combat-training.sql (hr_training_fee)",
+   "state": "staged"
+  },
+  {
+   "id": "E43",
+   "also": [],
+   "categories": [
+    "economy"
+   ],
+   "owner": null,
+   "what": "Property, room, storage chest and curing slot prices: hand-typed ladders",
+   "where": "src/data/homestead-tiers.js",
+   "state": "live"
+  },
+  {
+   "id": "E44",
+   "also": [],
+   "categories": [
+    "economy"
+   ],
+   "owner": null,
+   "what": "min(0.95, ch x monster dropBonus x (1 + dropRate buff) x featured). A row at 100% is untouched",
+   "where": "src/core/drops.js:41-48 (effectiveDropChance)",
+   "state": "live"
+  },
+  {
+   "id": "E45",
+   "also": [],
+   "categories": [
+    "economy"
+   ],
+   "owner": null,
+   "what": "One roll a row a kill. On a scaled hour, ceil(lootPm / 1000) rolls of chance x lootPm / 1000 / k",
+   "where": "src/core/drops.js:58-84 (rollDropTable, rollsOf)",
+   "state": "live"
+  },
+  {
+   "id": "E46",
+   "also": [],
+   "categories": [
+    "economy"
+   ],
+   "owner": null,
+   "what": "A row's promise in hours a piece a hero at the ground's floor. Each row's ch is typed by hand until the test's measured hours land in the band",
+   "where": "src/data/loot-bands.js:43-54 (BAND_TARGETS)",
+   "state": "live"
+  },
+  {
+   "id": "E47",
+   "also": [],
+   "categories": [
+    "economy"
+   ],
+   "owner": null,
+   "what": "Who takes a Rare or Trophy unit: highest of 1..100 among heroes who have not won since everyone last did",
+   "where": "src/core/party-split.js:74-97 (rareRoll)",
+   "state": "live"
+  },
+  {
+   "id": "E48",
+   "also": [],
+   "categories": [
+    "economy"
+   ],
+   "owner": null,
+   "what": "One roll over the boss's rows as slices of 1. A hero's first roll ever fills the empty part onto the rows marked first",
+   "where": "src/core/drops.js:87-129 (prizeChance, prizeSlices, rollPrize)",
+   "state": "live"
+  },
+  {
+   "id": "E49",
+   "also": [],
+   "categories": [
+    "economy"
+   ],
+   "owner": null,
+   "what": "min(1, weaponPm x warmth x stoke): warmth +4% a dry key up to x3, stokes x1.7 / 2.5 / 3.3 for 3 / 7 / 12 keys of Cinders",
+   "where": "src/data/chests.js:143-153 (CHEST_LUCK)",
+   "state": "live"
+  },
+  {
+   "id": "E51",
+   "also": [],
+   "categories": [
+    "economy"
+   ],
+   "owner": null,
+   "what": "Charm x trophy drop multiplier capped at 1.07, and a boss relic multiplier up to 1.25",
+   "where": "src/core/trophies.js:190-231",
+   "state": "dead on the hunt path"
+  },
+  {
+   "id": "E52",
+   "also": [],
+   "categories": [
+    "economy"
+   ],
+   "owner": null,
+   "what": "Boss of the day x1.5 drops and x1.25 XP, weekly x2.0 and x1.5",
+   "where": "src/core/botd.js:54-56",
+   "state": "dead on the hunt path"
+  },
+  {
+   "id": "E53",
+   "also": [],
+   "categories": [
+    "economy"
+   ],
+   "owner": null,
+   "what": "A bounty's kill count and reward, in SQL only",
+   "where": "supabase/migrations/2026-08-23-bounty.sql (hr_bounty_reward)",
+   "state": "unknown"
+  },
+  {
+   "id": "E54",
+   "also": [
+    "P34"
+   ],
+   "categories": [
+    "economy",
+    "progression"
+   ],
+   "owner": "economy owns the Luck bar, unbuilt",
+   "what": "Account Luck: rank n costs 100 x n^2. One Magic Find budget of 104 a hero. Past Krell, Rare rows 15% rarer at band 8 to 25% at band 18",
+   "where": "",
+   "state": "unbuilt (ruled 2026-11-20)"
+  },
+  {
+   "id": "E55",
+   "also": [],
+   "categories": [
+    "economy"
+   ],
+   "owner": null,
+   "what": "A lining: one monster part + gold, cured 4 h in a House slot, lasts 12 hunted hours, stacks to 48 h a socket. Effects: an element guard (Stitched 20%, Sealed 30%, capped 40% with gear) or a leech",
+   "where": "docs/design/itemization-plan.md section 5 (design)",
+   "state": "unbuilt (ruled 2026-11-18)"
+  },
+  {
+   "id": "E56",
+   "also": [],
+   "categories": [
+    "economy"
+   ],
+   "owner": null,
+   "what": "Gold in and gold out an account-day at 12 h: 48 hero-hours x (coin + sold loot) minus store supplies, refills, taxes and bought sinks",
+   "where": "tools/balance-program/gold-model.mjs (APPROXIMATES: six Levels to 118, typed real rows, assumed ratios)",
+   "state": "no formula in the game; approximated in tools"
+  }
+ ],
+ "exceptions": [
+  {
+   "id": "X-POWER-LITERALS",
+   "also": [
+    "P-X23"
+   ],
+   "categories": [
+    "combat",
+    "progression"
+   ],
+   "class": 4,
+   "status": "CONFIRMED",
+   "what": "The engine computes a hero's largest blow from the literals 0.35, 0.6 and 2. The named constants with the same values are read only by the wiki. Change one and the wiki prints a formula the game does not run",
+   "where": "src/core/combat.js:391 against combat.js:38-40 and src/shell/wiki-model.js:126",
+   "fix": "formula layer: the expression reads COMBAT_BALANCE. One guard that the wiki terms equal the engine's",
+   "decided": null
+  },
+  {
+   "id": "X-SHEET-ORDER",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "class": 4,
+   "status": "CONFIRMED",
+   "what": "Two orders for one blow. The sheet, the wiki and the upgrade plan read floor((maxHit - cut) x weakness). The engine rolls 1..floor(maxHit x weakness), then subtracts the cut from the roll",
+   "where": "src/core/combat.js:422-423 against src/core/hunt/damage.js:126,309-314",
+   "fix": "formula layer: playerCombatRolls stops subtracting defence. Every reader takes the cut from C-MON-DEF",
+   "decided": null
+  },
+  {
+   "id": "X-REFHP-OFF-BY-ONE",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "class": 4,
+   "status": "CONFIRMED",
+   "what": "The monster formula sizes blows on a hero of 150 + 10 x L HP. A hero has 150 + 10 x (L - 1). Every blow share is 10 HP a hero does not have (6% at Level 1, 0.5% at 200). The same formula is also written a third time in SQL, on generated constants",
+   "where": "src/data/balance-sheet.js:131 against src/core/vitals.js:61 and SQL hr_max_hp (supabase/migrations/2027-02-10-settle-plan-cache.generated.sql:996)",
+   "fix": "formula layer: STAT_FORMULA.refHp calls vitals.maxHpFor(L, 0). The SQL twin stays (server authority) and gets a parity test against the JS at 20 Levels",
+   "decided": null
+  },
+  {
+   "id": "X-ROLL-TWINS",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "class": 4,
+   "status": "CONFIRMED",
+   "what": "One function written twice with two constants (hitLowPm 500, SPELL_ROLL.lowPm 500)",
+   "where": "src/data/abilities.js:422-425 blowShare against src/data/monster-spells.js:99-102 spellHit",
+   "fix": "formula layer: one shareRoll(power, pm) in src/core, one constant",
+   "decided": null
+  },
+  {
+   "id": "X-TIER-LADDER-TWINS",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "class": 4,
+   "status": "CONFIRMED",
+   "what": "The rune step ladder 1000..1400 is typed again on Bleed. Chill carries a different ladder, 1000..1667, for the same five tiers",
+   "where": "src/data/runes.js stepPm against src/data/statuses.js bleed.tierPermille and chill.tierPermille",
+   "fix": "coefficient layer: a ticking status reads versionStep. Chill's own ladder becomes a named row with a why, or takes the common one",
+   "decided": null
+  },
+  {
+   "id": "X-MARK-TWO-WAYS",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "class": 4,
+   "status": "CONFIRMED",
+   "what": "Two mechanisms for \"this target takes more\": Hunter's Mark writes unit fields (markPm, markUntil). Green Sickness is a status row (takenPm). They are added",
+   "where": "src/core/hunt/damage.js:166 against src/core/hunt/abilities.js:411-414",
+   "fix": "formula layer: the mark becomes a marking status row. Two world fields go",
+   "decided": null
+  },
+  {
+   "id": "X-ROW-DOOR-BYPASS",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "class": 4,
+   "status": "CONFIRMED",
+   "what": "Elements, the enrage line, the guard and the adds read MONSTERS[kind] directly. Every other stat goes through rowOf(inst, kind), the door a scaled hunt, a Tower room and the simulator's what-if use. So a what-if can move a blow but not a resistance or a phase",
+   "where": "src/core/hunt/targeting.js:53, src/core/hunt/boss-phases.js:39,48,55",
+   "fix": "formula layer: both read rowOf. IMPACT IS A HYPOTHESIS: no live table moves these fields today",
+   "decided": null
+  },
+  {
+   "id": "X-STEADY-TWO-MEANINGS",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "class": 4,
+   "status": "CONFIRMED",
+   "what": "One word, two mechanics, and the food buff is labelled \"Damage cut\" under the id defense",
+   "where": "src/core/combat.js:388 (jewel steady: misses that land) against src/core/mitigation.js:30 (steadyPm and a food's steady: a damage cut)",
+   "fix": "data layer: rename one. No number moves",
+   "decided": null
+  },
+  {
+   "id": "X-STALE-HP-NOTE",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "class": 4,
+   "status": "CONFIRMED",
+   "what": "The sheet still says the engine scales monster HP 55-100% by party size. Since 2026-11-08 it does not",
+   "where": "src/data/balance-sheet.js:145 against src/core/hunt/pull-cycle.js:99",
+   "fix": "delete the sentence",
+   "decided": null
+  },
+  {
+   "id": "X-ART-TIER-SCALE",
+   "also": [
+    "X-SCALE-TWINS",
+    "P-X22"
+   ],
+   "categories": [
+    "combat",
+    "progression"
+   ],
+   "class": 4,
+   "status": "CONFIRMED",
+   "what": "A monster's damage is atk x a scale picked by its ART tier: 5.4, 4.0, 3.0 or 2.2. For the 72 formula rows it does nothing but rounding: the formula divides the blow by the same number. It still decides the damage of the 118 hand rows",
+   "where": "src/core/combat.js:45-56,473-477",
+   "fix": "formula layer: the row stores the blow (a whole number of HP). The scale and its twin go. Hand rows are converted once, digit for digit",
+   "decided": null
+  },
+  {
+   "id": "X-HAND-ROWS",
+   "also": [
+    "E-X35"
+   ],
+   "categories": [
+    "combat",
+    "economy"
+   ],
+   "class": 4,
+   "status": "CONFIRMED",
+   "what": "118 of 190 monster rows are on no formula roster: their hp, atk, aim, evasion and def are typed by hand (the old roster, the Hearthfind and called bosses, Krell's hall, the dummy). 70 of the 72 roster rows equal the formula exactly",
+   "where": "src/data/monsters.js",
+   "fix": "data layer: each row gets a role and reads the formula, or is listed as a named exception with its reason. WHICH OF THE 118 ARE FIELDED TODAY IS A HYPOTHESIS (tools/balance-program/formulas/roster-drift.mjs counts them)",
+   "decided": "combat filed it 2, economy 4 as a hypothesis. The formula exists and 118 rows bypass it for no design reason: 4. Which of them a live hunt still fields stays a hypothesis (53-review-world counts 103 that no hunt uses)"
+  },
+  {
+   "id": "X-NAMED-RAT-KING",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "class": 3,
+   "status": "CONFIRMED",
+   "what": "His attack is held at 6 where the formula says 8, so his Tail Lash stays under 35% of the floor hero's HP",
+   "where": "src/data/balance-sheet.js:336 FORMULA_EXCEPTIONS.rat_king",
+   "fix": "better at the formula layer: the boss cap should bound his SPELL, not his attack. Then the row is the formula's",
+   "decided": null
+  },
+  {
+   "id": "X-NAMED-HASK-LOOKOUT",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "class": 4,
+   "status": "HYPOTHESIS",
+   "what": "His blow is the Farmhands' share, not his role's, \"while engine piece 2 is unbuilt he swings in melee\". Shooters are built now and he is one (range 5, tier-read.mjs)",
+   "where": "src/data/balance-sheet.js:337 FORMULA_EXCEPTIONS.hasks_lookout",
+   "fix": "the stated reason is gone. Whether a lone hero at the floor is safe on the role's blow is the hypothesis: one grid cell answers it",
+   "decided": null
+  },
+  {
+   "id": "X-DANGER-RAMP",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "class": 3,
+   "status": "CONFIRMED",
+   "what": "A ground whose floor is 8 or under is gentle: monsters land 40% and hit 13.2% of a hero's HP. From floor 16 they land 70% and hit 22%. A straight line between",
+   "where": "src/data/balance-sheet.js:137,343-348 STAT_FORMULA.ramp",
+   "fix": "keep, as the ONE early-game curve. It is a Level threshold that changes combat math, so it needs Tyler's explicit yes",
+   "decided": null
+  },
+  {
+   "id": "X-GENTLE-CAP",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "class": 4,
+   "status": "HYPOTHESIS",
+   "what": "On top of the ramp, no blow on a gentle ground may pass 11% of the FLOOR hero's HP",
+   "where": "src/data/balance-sheet.js:158 blow.gentleCap 0.11",
+   "fix": "coefficient layer: fold into the ramp's low end. A hypothesis until the grid shows the ramp alone holds the fresh hero",
+   "decided": null
+  },
+  {
+   "id": "X-GENTLE-HP",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "class": 4,
+   "status": "HYPOTHESIS",
+   "what": "Heavy and elite monsters have less HP on a gentle ground (1.0 and 1.2 where the role says 1.2 and 1.6)",
+   "where": "src/data/balance-sheet.js:213,215 MONSTER_ROLES gentleHp",
+   "fix": "this is an XP and coin fix written into combat stats. Overlap: progression and economy lanes",
+   "decided": null
+  },
+  {
+   "id": "X-PARTY-FIT",
+   "also": [
+    "E-X06"
+   ],
+   "categories": [
+    "combat",
+    "economy"
+   ],
+   "class": 3,
+   "status": "CONFIRMED",
+   "what": "A party ground's monsters are a different formula: HP x2.5, blow x0.75, XP x0.8",
+   "where": "src/data/balance-sheet.js:193-195 STAT_FORMULA.fit.party",
+   "fix": "keep as an ENCOUNTER TYPE in data (it is one row for every party ground, not a per-ground number)",
+   "decided": "combat filed it 2 (an encounter type in data), economy 3. It is a second set of stat coefficients picked by what kind of ground a monster lives on, and 53-review-world asks to remove it. A rule that changes the monster formula by ground needs Tyler's yes: 3"
+  },
+  {
+   "id": "X-PARTY-FIT-PATCHES",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "class": 4,
+   "status": "CONFIRMED",
+   "what": "Three patches inside the party fit: to-hit 30 points lower on a full party ground, the same swing worth as fewer bigger blows on a gentle one, and harder tiers that lift nothing",
+   "where": "src/data/balance-sheet.js:195 hitFull -0.3, blowShape 1.6, tierLift false",
+   "fix": "each one compensates another formula (ward's flat cut, the lone hero on a party ground, the tier lift). Fix those and delete the three",
+   "decided": null
+  },
+  {
+   "id": "X-TIER-PER-GROUND",
+   "also": [
+    "P-X11",
+    "E-X08"
+   ],
+   "categories": [
+    "combat",
+    "progression",
+    "economy"
+   ],
+   "class": 4,
+   "status": "CONFIRMED",
+   "what": "Four grounds carry their own tier dials: the Glade (Dangerous pulls 6, HP 1400 and 1450), the Warrens (HP 1150 and 1250), the Thicket (no HP, XP 1050 and 1080), the Sewer (HP 1150 and 1250, XP 1220)",
+   "where": "src/data/balance-sheet.js:437-459 BASE_TIER_OVERRIDES",
+   "fix": "the exact case the brief names. The cause is kill-rate and XP: fix at P-KILL-XP and the pull, then every ground takes TIER_DIALS whole. Overlap: progression lane",
+   "decided": null
+  },
+  {
+   "id": "X-TIER-PULL-FLOOR",
+   "also": [
+    "P-X13",
+    "E-X07"
+   ],
+   "categories": [
+    "combat",
+    "progression",
+    "economy"
+   ],
+   "class": 3,
+   "status": "CONFIRMED",
+   "what": "Under ground floor 16 a harder tier brings no more monsters",
+   "where": "src/data/balance-sheet.js:413 TIER_PULL_FROM_FLOOR 16",
+   "fix": "conflicts with Tyler 2026-11-07 \"Dangerous and Deadly keep the bigger pulls\". For Tyler",
+   "decided": "combat and economy filed it 3, progression 4 as a hypothesis. It is a deliberate rule of 2026-11-08 that conflicts with a ruling of 2026-11-07, so it is Tyler's to settle: 3. That it is unneeded stays a hypothesis"
+  },
+  {
+   "id": "X-CELLAR-NORMAL-ONLY",
+   "also": [
+    "P-X12",
+    "E-X09"
+   ],
+   "categories": [
+    "combat",
+    "progression",
+    "economy"
+   ],
+   "class": 3,
+   "status": "CONFIRMED",
+   "what": "The Mill Cellar offers only Normal",
+   "where": "src/data/balance-sheet.js:450",
+   "fix": "keep. A content flag",
+   "decided": null
+  },
+  {
+   "id": "X-TIER-TRIPLE",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "class": 4,
+   "status": "CONFIRMED",
+   "what": "A tier's dmgPm is applied three times: to the blow, to the aim, and to the monster's Level as armor reads it (and as Defense XP is paid). On the Thicket and Wickstead the solved dmgPm is 2115 and 2685, so on Wickstead's Deadly a Level 8 monster is read by armor as Level 21, and each blow aimed at a hero pays 2.7 times the Defense XP (hunt-rewards.js:62). From Hask's Ford up it costs plate 2 to 5 points of absorb (tools/balance-program/formulas/tier-read.mjs)",
+   "where": "src/data/hunt-tiers.js:122,130 and src/core/hunt/damage.js:108",
+   "fix": "formula layer: the dial moves the blow and the aim. Armor and Defense XP read the row's own Level. Overlap: progression lane (P-DEFENSE-XP)",
+   "decided": null
+  },
+  {
+   "id": "X-TOWER-HEAT",
+   "also": [
+    "P-X16"
+   ],
+   "categories": [
+    "combat",
+    "progression"
+   ],
+   "class": 4,
+   "status": "CONFIRMED",
+   "what": "Past floor 100 every blow is x1.012 a floor, compounding: x10.9 by floor 300. The number moved 10 to 12 to hold a guard",
+   "where": "src/data/tower.js:57 and src/core/hunt/tower.js heatOpts",
+   "fix": "already ruled. Listed so it is not forgotten",
+   "decided": null
+  },
+  {
+   "id": "X-TOWER-TOP",
+   "also": [
+    "P-X17"
+   ],
+   "categories": [
+    "combat",
+    "progression"
+   ],
+   "class": 4,
+   "status": "CONFIRMED",
+   "what": "A floor above 300 plays floor 300's monsters",
+   "where": "src/data/tower.js:54 floorTop 300",
+   "fix": "a cap on an endless mode. Needs Tyler's yes or a formula that reads any floor",
+   "decided": "combat filed it 3, progression 4. Nobody designed \"the Tower ends at floor 300\": the server's bound is a generated table with a last row. A limit of the build, not a design choice: 4"
+  },
+  {
+   "id": "X-SCALED-THICKET",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "class": 4,
+   "status": "CONFIRMED",
+   "what": "A scaled Thicket reaches only half danger",
+   "where": "src/data/scaled-hunts.js:41-44 SCALE_EXCEPTIONS",
+   "fix": "a per-ground combat number. The cause is the bow against a melee pack, which the real Thicket hides by being gentle",
+   "decided": null
+  },
+  {
+   "id": "X-SCALED-NO-DEADLY",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "class": 3,
+   "status": "CONFIRMED",
+   "what": "Deadly is not offered on a scaled hunt",
+   "where": "src/data/scaled-hunts.js:144",
+   "fix": "a content rule. For Tyler with the scaled-hunt card",
+   "decided": null
+  },
+  {
+   "id": "X-SPELL-HOLDS",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "class": 4,
+   "status": "HYPOTHESIS",
+   "what": "Three monster spells had their multiples lowered so the +10% monster step would not pass 35% of a floor hero",
+   "where": "src/data/balance-sheet.js:121-123 (named there: Hot Coal, Bone Slide, Snuff the Candles)",
+   "fix": "the rows were not read. If true, the 35% rule belongs in the spell formula as a bound, not in three rows",
+   "decided": null
+  },
+  {
+   "id": "X-SPELL-FLOOR",
+   "also": [
+    "P-X40"
+   ],
+   "categories": [
+    "combat",
+    "progression"
+   ],
+   "class": 3,
+   "status": "CONFIRMED",
+   "what": "The beginner's floor: every cast lands max(its share of the blow, its old version-I number). Past about Level 15 the share is always larger. At Level 1 a Greater Mend lands its floor of 50 on a hero with 150 HP",
+   "where": "src/data/abilities.js:356-376 (hitRange, castAmount `floored`) and src/core/hunt/status.js:69",
+   "fix": "see Conflicts 1. The clean alternative is a floor on POWER (one number: a hero's blow is never read under N), not a second number on every row",
+   "decided": null
+  },
+  {
+   "id": "X-MEND-MAXHP",
+   "also": [
+    "P-X39"
+   ],
+   "categories": [
+    "combat",
+    "progression"
+   ],
+   "class": 3,
+   "status": "CONFIRMED",
+   "what": "Mend heals a share of max HP, not of the blow",
+   "where": "src/data/abilities.js:335 healHpPm 110",
+   "fix": "approved. Documented as the second of two heal kinds",
+   "decided": null
+  },
+  {
+   "id": "X-THREE-ROLLS",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "class": 3,
+   "status": "CONFIRMED",
+   "what": "Three shapes for \"an amount\": a swing rolls 1..max (mean 50%), a spell hit rolls 50%..100% (mean 75%), a heal or shell does not roll",
+   "where": "src/core/combat.js:484, src/data/abilities.js:422, src/data/abilities.js:373",
+   "fix": "see Conflicts 6. One roll rule with a per-kind spread in data would do all three",
+   "decided": null
+  },
+  {
+   "id": "X-SPELLS-SKIP-WEAKNESS",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "class": 4,
+   "status": "CONFIRMED",
+   "what": "Weapon weakness (+20% damage, +15% accuracy, on 189 of 190 monsters) and bane apply to basic blows only. A spell is a share of the NEUTRAL blow. A spell also never misses and never crits, so accuracy, evasion, Keen and critB do nothing for it",
+   "where": "src/core/hunt/damage.js:305-316 (blow) against src/core/hunt/abilities.js:392-400 (strike)",
+   "fix": "see Conflicts 2. THAT IT IS UNINTENDED IS A HYPOTHESIS",
+   "decided": null
+  },
+  {
+   "id": "X-VERSION-LADDER",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "class": 2,
+   "status": "CONFIRMED",
+   "what": "Five versions, +10% each, the last at skill 60. Nothing after it, on a game with endless Levels. The plan (B5) said x1.6",
+   "where": "src/data/runes.js RUNE_TIERS",
+   "fix": "see Conflicts 5",
+   "decided": null
+  },
+  {
+   "id": "X-TURNING-CUT-10",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "class": 2,
+   "status": "CONFIRMED",
+   "what": "The merged area strike unlocks at Melee 10 for every weapon, so the axes and the hammer have no area move for Levels 1-9 (lone hammer -24% at the Thicket)",
+   "where": "src/data/abilities.js:194 unlock 10, maxHits 8",
+   "fix": "see Conflicts 7. A per-weapon unlock is a data field, not code",
+   "decided": null
+  },
+  {
+   "id": "X-REND-DEFAULT",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "class": 2,
+   "status": "CONFIRMED",
+   "what": "Rend sits on the default two-axe bar and spends a 1 g rune a cast",
+   "where": "src/data/rule-subjects.js ROLE_RULES melee_dps",
+   "fix": "content. Overlap: economy lane (E-RUNE-SUPPLY: a default bar that spends gold)",
+   "decided": null
+  },
+  {
+   "id": "X-DARK-ROWS",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "class": 2,
+   "status": "HYPOTHESIS",
+   "what": "Converted to shares at their old Level 60 worth, never sized",
+   "where": "src/data/abilities.js:275-327 (Brand, Reave, Updraft, Blight, the fist strikes)",
+   "fix": "content, owed by those lanes. Not measured here",
+   "decided": null
+  },
+  {
+   "id": "X-PARTY-ONLY-ROWS",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "class": 3,
+   "status": "CONFIRMED",
+   "what": "A row may fire only alone, only in a party, or party-only for a tank",
+   "where": "src/data/abilities.js `alone`, `party`, partyOnly; src/core/hunt/abilities.js:315-319",
+   "fix": "approved. One shared gate, read from data",
+   "decided": null
+  },
+  {
+   "id": "X-REPLACES",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "class": 1,
+   "status": "CONFIRMED",
+   "what": "A row that stands in for another shares its cooldown",
+   "where": "src/core/hunt/abilities.js:250-253 clockOf",
+   "fix": "keep",
+   "decided": null
+  },
+  {
+   "id": "X-ACTION-SET-SKIPS",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "class": 2,
+   "status": "CONFIRMED",
+   "what": "Presets that skip rune or area rows (mana_train, boss)",
+   "where": "src/data/abilities.js:144-148",
+   "fix": "keep as data",
+   "decided": null
+  },
+  {
+   "id": "X-BRACE",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "class": 3,
+   "status": "CONFIRMED",
+   "what": "A worn shield takes 30% off a marked monster spell, by item type",
+   "where": "src/data/monster-spells.js:62 SHIELD_BRACE, src/core/hunt/monster-spells.js:150",
+   "fix": "approved in direction. Cleaner as a stat on the shield row (bracePm) than a rule keyed on the slot",
+   "decided": null
+  },
+  {
+   "id": "X-ELEMENT-RULES",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "class": 3,
+   "status": "CONFIRMED",
+   "what": "Storm burns mana for half the HP taken. Necrotic lands Withered",
+   "where": "src/data/elements.js ELEMENT_ON_HERO, src/core/hunt/damage.js:178-184",
+   "fix": "needs Tyler's yes on the two rules before the switch goes on",
+   "decided": null
+  },
+  {
+   "id": "X-DEFB-TWO-JOBS",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "class": 2,
+   "status": "CONFIRMED",
+   "what": "One item field, defB, feeds two formulas by item class: on armor it is armor points, on a shield or cape it is guard in the to-hit roll",
+   "where": "src/core/combat.js:181 and src/core/mitigation.js:33-41",
+   "fix": "data layer: two fields (armor, guard). No number moves",
+   "decided": null
+  },
+  {
+   "id": "X-SET-CRIT",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "class": 4,
+   "status": "HYPOTHESIS",
+   "what": "Five pieces of one tier and line give crit, 1% a tier, for plate and cloth as much as leather. Its default line is \"plate\"",
+   "where": "src/core/combat.js:252-270 armorSetBonus",
+   "fix": "looks like a leftover. If wanted it is a data row (set bonuses), not a function",
+   "decided": null
+  },
+  {
+   "id": "X-STACKING-RULES",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "class": 4,
+   "status": "CONFIRMED",
+   "what": "Five stacking rules for worn modifiers: largest-once (perks), largest (own heal), sum (+skill, critB), sum-then-cap (resistance), and the weakness product with two ceilings",
+   "where": "src/core/combat.js:96-109,207-248",
+   "fix": "formula layer: one modifier table { key, combine: sum | max, cap } that equipmentStats folds",
+   "decided": null
+  },
+  {
+   "id": "X-DORMANT-FACTORS",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "class": 4,
+   "status": "CONFIRMED",
+   "what": "Three factors sit in the damage expression with nothing feeding them: bane (0 items carry one), the weapon element (eq.element is always null), the charm damage ladder (no caller). A second ceiling, 1.68, is exported and unused",
+   "where": "src/core/combat.js:306-324, src/core/bane.js:62, src/core/charms.js (charmDamageMultFor)",
+   "fix": "not a cut list: imbuements are on the roadmap, so the element seam is BUILD-LATER (Tyler 2026-11-21). The unused 1.68 and the charm ladder can go",
+   "decided": null
+  },
+  {
+   "id": "X-TEMPER-ROUNDING",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "class": 3,
+   "status": "CONFIRMED",
+   "what": "Tempering rounds by chance (the part of a point is a draw). Every other step floors",
+   "where": "src/core/temper.js:13-15",
+   "fix": "the right idea in one place only. See X-FLOOR-CHAIN",
+   "decided": null
+  },
+  {
+   "id": "X-FLOOR-CHAIN",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "class": 4,
+   "status": "HYPOTHESIS",
+   "what": "Up to nine floors in a row on one blow. On small numbers each one is a hidden cut: a 10-point hit through three 1.1 / 0.9 steps is not what the product says",
+   "where": "src/core/hunt/damage.js:123-137",
+   "fix": "formula layer: multiply the permilles, floor once. THE SIZE IS A HYPOTHESIS (largest in the first 15 Levels)",
+   "decided": null
+  },
+  {
+   "id": "X-ARMOR-LINE-FIT",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "class": 4,
+   "status": "CONFIRMED",
+   "what": "Each unique's armor was sized to \"the most that keeps its measure under the line\", four digits from 1.0000. Any engine change moves the measure",
+   "where": "tools/balance-sim/staged/armor-line.js LINE_SAMPLE, tests/armor-line.mjs AL3",
+   "fix": "see section 6.1",
+   "decided": null
+  },
+  {
+   "id": "X-LINE-IN-TOOLS",
+   "also": [
+    "P-X32"
+   ],
+   "categories": [
+    "combat",
+    "progression"
+   ],
+   "class": 4,
+   "status": "CONFIRMED",
+   "what": "The only formula for gear past tier 7 lives in a simulator folder, with the Dawnsteel numbers typed again beside it",
+   "where": "tools/balance-sim/staged/armor-line.js:64-70, weapon-line.js:72-81",
+   "fix": "the formula (not the sample) moves to src/data as the gear curve",
+   "decided": "combat filed it 4 (the formula sits in a tools folder), progression 2 (the gear rows are absent). One cause, one fix, at the formula layer: 4"
+  },
+  {
+   "id": "X-ONE-INTERVAL",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "class": 1,
+   "status": "CONFIRMED",
+   "what": "One 2.0 s basic attack for everyone, no speed stat",
+   "where": "src/core/combat.js:63",
+   "fix": "keep. \"Attack speed\" on Tyler's list is this plus cooldowns and Chill",
+   "decided": null
+  },
+  {
+   "id": "X-TOHIT-RAILS",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "class": 1,
+   "status": "CONFIRMED",
+   "what": "Every chance is held to 5%..97%",
+   "where": "src/data/to-hit.js:117",
+   "fix": "keep. On the projected gear line a hero reaches 95% near Level 2,000 (section 7)",
+   "decided": null
+  },
+  {
+   "id": "X-MIN-ONE",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "class": 1,
+   "status": "CONFIRMED",
+   "what": "Every landed blow deals at least 1",
+   "where": "src/core/hunt/damage.js:135, mitigation.js:86, combat.js:422,493",
+   "fix": "keep",
+   "decided": null
+  },
+  {
+   "id": "X-MITIGATION-CAP",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "class": 1,
+   "status": "CONFIRMED",
+   "what": "Armor never takes more than 60% of a blow",
+   "where": "src/data/core-model.js:172 capPm 600",
+   "fix": "keep",
+   "decided": null
+  },
+  {
+   "id": "X-CRIT-CAP",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "class": 1,
+   "status": "CONFIRMED",
+   "what": "Crit chance at most 60%, a crit x1.5",
+   "where": "src/core/combat.js:64-65",
+   "fix": "keep",
+   "decided": null
+  },
+  {
+   "id": "X-RESIST-CAPS",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "class": 1,
+   "status": "CONFIRMED",
+   "what": "A hero resists at most 40% of an element and 10% physical. A monster profile is bounded both ways",
+   "where": "src/data/elements.js HERO_RESIST_PM, ELEMENT_PCT",
+   "fix": "keep",
+   "decided": null
+  },
+  {
+   "id": "X-ATTACKER-LEVEL",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "class": 1,
+   "status": "CONFIRMED",
+   "what": "Armor is measured against the attacker's Level",
+   "where": "src/core/mitigation.js:12",
+   "fix": "keep. It is why armor must grow with Level (section 7)",
+   "decided": null
+  },
+  {
+   "id": "X-BOSS-FLOOR-CAP",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "class": 3,
+   "status": "CONFIRMED",
+   "what": "A boss's blow is held to a third of the FLOOR hero's HP, however deep he lives",
+   "where": "src/data/balance-sheet.js:218 floorCap 0.33",
+   "fix": "a designer rule, never ruled by Tyler. Needs his yes",
+   "decided": null
+  },
+  {
+   "id": "X-BOSS-PHASE-ROWS",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "class": 2,
+   "status": "CONFIRMED",
+   "what": "Each boss carries his own line numbers (enrage x1.15 to x1.8, guard 80%)",
+   "where": "monsters.js:830,845; grounds/krells_hold/pack.js:350,360; grounds/muster_barrows/pack.js:178",
+   "fix": "a model case: one mechanic, numbers in data",
+   "decided": null
+  },
+  {
+   "id": "X-CALLED-ROOM",
+   "also": [
+    "E-X31"
+   ],
+   "categories": [
+    "combat",
+    "economy"
+   ],
+   "class": 3,
+   "status": "CONFIRMED",
+   "what": "A called boss room pays nothing. A keyed hall pays",
+   "where": "src/core/hunt/boss-room.js:23-26",
+   "fix": "approved. Overlap: economy lane",
+   "decided": null
+  },
+  {
+   "id": "X-DUMMY",
+   "also": [
+    "P-X29"
+   ],
+   "categories": [
+    "combat",
+    "progression"
+   ],
+   "class": 3,
+   "status": "CONFIRMED",
+   "what": "A dummy's blow cannot kill and it cannot die",
+   "where": "src/core/hunt/training.js",
+   "fix": "approved",
+   "decided": null
+  },
+  {
+   "id": "X-CASTER-BASIC",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "class": 3,
+   "status": "CONFIRMED",
+   "what": "A basic attack costs by weapon: a wand or staff 1 mana, a bow one arrow, a melee weapon nothing",
+   "where": "src/data/hunt-roles.js:46-49, src/core/hunt/damage.js:342-356",
+   "fix": "approved. Overlap: economy lane (E-SUPPLY-USE)",
+   "decided": null
+  },
+  {
+   "id": "X-ROLE-TARGET-NUMBERS",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "class": 2,
+   "status": "CONFIRMED",
+   "what": "Healer peel 18%, Challenge radius 6, hold 8 s, the 90% weak-tank floor",
+   "where": "src/data/hunt-roles.js:48,145",
+   "fix": "data. Never measured",
+   "decided": null
+  },
+  {
+   "id": "X-LEVEL-BY-TIER",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "class": 4,
+   "status": "HYPOTHESIS",
+   "what": "A monster with no Level gets one from its art tier",
+   "where": "src/data/core-model.js:200 MONSTER_LEVEL_BY_TIER",
+   "fix": "if every fielded row has a Level this is dead. Not checked",
+   "decided": null
+  },
+  {
+   "id": "X-MUTABLE-ROWS",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "class": 4,
+   "status": "CONFIRMED",
+   "what": "Data the engine reads is left unfrozen so the simulator can edit it in place and put it back",
+   "where": "src/data/monster-spells.js:68 SPELL_STAGGER, MONSTERS rows, GROUND_TIERS",
+   "fix": "architecture: what-ifs go through the instance's row door (rowOf) and an options object, never by mutating shared data",
+   "decided": null
+  },
+  {
+   "id": "X-POWER-TOOLS",
+   "also": [],
+   "categories": [
+    "combat"
+   ],
+   "class": 4,
+   "status": "HYPOTHESIS",
+   "what": "Two guards (armor-line, weapon-line) judge gear by a closed-form \"pace and safety\" read built from the engine's roll helpers, not by a played hunt",
+   "where": "tools/balance-sim/armor-power.mjs, weapon-power.mjs",
+   "fix": "the brief asks for the real engine. Bodies not fully read, so the size of the gap is unknown",
+   "decided": null
+  },
+  {
+   "id": "P-X01",
+   "also": [],
+   "categories": [
+    "progression"
+   ],
+   "class": 2,
+   "status": "CONFIRMED",
+   "what": "The Level curve is a table of 16 brackets, 12 of them under Level 21, re-fitted or re-cut 8 times between 2026-10-27 and 2026-11-20",
+   "where": "src/data/core-model.js:15-88",
+   "fix": "",
+   "decided": null
+  },
+  {
+   "id": "P-X02",
+   "also": [],
+   "categories": [
+    "progression"
+   ],
+   "class": 4,
+   "status": "CONFIRMED",
+   "what": "Brackets at 10, 15 and 16 exist only to give back XP taken from Levels 7 to 9 with the total at Level 21 held: a one-Level bracket at 15 with a rise of 74,323 beside rises of 4,630 and 300",
+   "where": "src/data/core-model.js:80-82",
+   "fix": "",
+   "decided": null
+  },
+  {
+   "id": "P-X03",
+   "also": [],
+   "categories": [
+    "progression"
+   ],
+   "class": 2,
+   "status": "CONFIRMED",
+   "what": "The brackets at 110 and 300 are fitted by hand to the contract with no ground there. Hours a Level sit flat at 11.2 to 11.8 from Level 100 to 300, then reach 20.8 at Level 400",
+   "where": "src/data/core-model.js:85-86",
+   "fix": "",
+   "decided": null
+  },
+  {
+   "id": "P-X06",
+   "also": [
+    "X-OTHER-LEVEL-SHARE",
+    "E-X10"
+   ],
+   "categories": [
+    "progression",
+    "combat",
+    "economy"
+   ],
+   "class": 4,
+   "status": "CONFIRMED",
+   "what": "A Level-keyed cut on a party seat's XP share is live. Tyler's 2026-11-08 ruling ('XP share rule applies regardless') was recorded as: this cut is CUT",
+   "where": "src/data/hunt-grounds.js:536-541; src/core/hunt/xp-share.js:78; src/data/hunt-tuning.js:53-56",
+   "fix": "PROGRESSION LANE. A Level threshold in party XP that a ruling removed",
+   "decided": null
+  },
+  {
+   "id": "P-X07",
+   "also": [],
+   "categories": [
+    "progression"
+   ],
+   "class": 3,
+   "status": "CONFIRMED",
+   "what": "A hero alone earns +15% Level XP",
+   "where": "src/data/party-class-xp.js:54",
+   "fix": "",
+   "decided": null
+  },
+  {
+   "id": "P-X08",
+   "also": [],
+   "categories": [
+    "progression"
+   ],
+   "class": 2,
+   "status": "CONFIRMED",
+   "what": "The party table's nine cells are hand-fitted, three of them re-cut for one measured case (the one-class pair for a shield and hatchets on the Pauper Vaults, the two top four cells for Deadly's HP)",
+   "where": "src/data/party-class-xp.js:72-79",
+   "fix": "",
+   "decided": null
+  },
+  {
+   "id": "P-X09",
+   "also": [
+    "E-X13"
+   ],
+   "categories": [
+    "progression",
+    "economy"
+   ],
+   "class": 3,
+   "status": "CONFIRMED",
+   "what": "The Tower and the Catacombs use a second party table by size only, with no class mix and no solo boost. Its pair and three rows are ASSUMED",
+   "where": "src/data/tower.js:60; src/core/hunt/xp-share.js:72-74",
+   "fix": "keep, documented: a session mode, not a hunting ground. Party math that differs by ground, on purpose",
+   "decided": null
+  },
+  {
+   "id": "P-X14",
+   "also": [],
+   "categories": [
+    "progression"
+   ],
+   "class": 3,
+   "status": "CONFIRMED",
+   "what": "The Tower pays 37.5% of a kill's Level XP and a death there costs nothing",
+   "where": "src/data/session-modes.js:35-36",
+   "fix": "",
+   "decided": null
+  },
+  {
+   "id": "P-X15",
+   "also": [],
+   "categories": [
+    "progression"
+   ],
+   "class": 3,
+   "status": "CONFIRMED",
+   "what": "The Catacombs' mode row is a copy of the Tower's, marked ASSUMED, and so is its door Level",
+   "where": "src/data/session-modes.js:37-45; src/data/tower.js:115-125",
+   "fix": "",
+   "decided": null
+  },
+  {
+   "id": "P-X18",
+   "also": [],
+   "categories": [
+    "progression"
+   ],
+   "class": 3,
+   "status": "CONFIRMED",
+   "what": "A death takes 6% of the TOTAL Level XP but 6% of each skill's progress INTO its level, and Inner Flame is one of those skills",
+   "where": "src/core/action-rules.js:313-325; src/data/skills.js:44",
+   "fix": "",
+   "decided": null
+  },
+  {
+   "id": "P-X19",
+   "also": [],
+   "categories": [
+    "progression"
+   ],
+   "class": 4,
+   "status": "CONFIRMED",
+   "what": "The death share is written twice with different arithmetic: a float multiply in JS, exact numeric in SQL. They agree for every total under about 3e15 XP and at every Level to 50,636, and differ by one above it (first at Level 50,637), where the SQL bound would refuse the settle",
+   "where": "src/core/action-rules.js:317; supabase/migrations/2027-04-23-session-modes.sql:153",
+   "fix": "",
+   "decided": null
+  },
+  {
+   "id": "P-X20",
+   "also": [
+    "E-X23"
+   ],
+   "categories": [
+    "progression",
+    "economy"
+   ],
+   "class": 3,
+   "status": "CONFIRMED",
+   "what": "Blessings are free under Level 30",
+   "where": "src/data/blessings.js:36",
+   "fix": "keep if Tyler confirms. A Level threshold that changes a price on purpose",
+   "decided": null
+  },
+  {
+   "id": "P-X21",
+   "also": [],
+   "categories": [
+    "progression"
+   ],
+   "class": 4,
+   "status": "CONFIRMED",
+   "what": "The Hunts page works out the death percent in the browser from the data constant and the server's cut",
+   "where": "src/shell/hunt-list.js:179",
+   "fix": "",
+   "decided": null
+  },
+  {
+   "id": "P-X24",
+   "also": [],
+   "categories": [
+    "progression"
+   ],
+   "class": 4,
+   "status": "CONFIRMED",
+   "what": "A global XP dial of 0.39 with an exempt list, and Inner Flame's recipe XP authored at 40 so that 40 x 0.39 lands 15.6",
+   "where": "src/core/pacing.js:17-22; src/data/core-model.js:230-232",
+   "fix": "",
+   "decided": null
+  },
+  {
+   "id": "P-X25",
+   "also": [],
+   "categories": [
+    "progression"
+   ],
+   "class": 4,
+   "status": "CONFIRMED",
+   "what": "The skill grant has two rounding paths: the carried remainder, and an older floor of at least 1 for a state with no remainder map",
+   "where": "src/core/progression.js:132-140",
+   "fix": "",
+   "decided": null
+  },
+  {
+   "id": "P-X26",
+   "also": [],
+   "categories": [
+    "progression"
+   ],
+   "class": 4,
+   "status": "CONFIRMED",
+   "what": "The rested bank fills on the server and pays nothing. All four grant callers pass a quantum of 0",
+   "where": "src/core/rested.js; supabase/functions/hr-accrue/accrue-rested.js; src/core/member.js:220,230; supabase/functions/hr-accrue/accrue-gather.js:135; accrue-artisan.js:184",
+   "fix": "",
+   "decided": null
+  },
+  {
+   "id": "P-X27",
+   "also": [],
+   "categories": [
+    "progression"
+   ],
+   "class": 4,
+   "status": "HYPOTHESIS",
+   "what": "A companion's XP bonus is added after the +20% permanent cap, on its own curve, restated from a client file",
+   "where": "src/core/companion-perk.js:71-76,101-121",
+   "fix": "",
+   "decided": null
+  },
+  {
+   "id": "P-X28",
+   "also": [],
+   "categories": [
+    "progression"
+   ],
+   "class": 3,
+   "status": "CONFIRMED",
+   "what": "Training pays one fixed rate for every skill and level",
+   "where": "src/data/training.js:47",
+   "fix": "",
+   "decided": null
+  },
+  {
+   "id": "P-X30",
+   "also": [],
+   "categories": [
+    "progression"
+   ],
+   "class": 2,
+   "status": "CONFIRMED",
+   "what": "The yard fee in the code (50 + 6 a level) is not the fee Tyler ruled (100 a level)",
+   "where": "src/data/training.js:53-54",
+   "fix": "",
+   "decided": null
+  },
+  {
+   "id": "P-X31",
+   "also": [],
+   "categories": [
+    "progression"
+   ],
+   "class": 2,
+   "status": "CONFIRMED",
+   "what": "Gear stats are hand-typed arrays, and single cells were tuned to pass one guard on one ground (the warhammer's tiers 2 and 3, Steel Hatchets 14/16, Mithril Hatchets 19/21)",
+   "where": "src/data/gear-tiers.js:66-150",
+   "fix": "",
+   "decided": null
+  },
+  {
+   "id": "P-X33",
+   "also": [
+    "E-X24"
+   ],
+   "categories": [
+    "progression",
+    "economy"
+   ],
+   "class": 3,
+   "status": "CONFIRMED",
+   "what": "Dawnsteel's Tempering rung is 0.4% and a unique band's 0.5%, where every other tier's is 1%",
+   "where": "src/data/temper.js:47,94",
+   "fix": "keep. Already approved",
+   "decided": null
+  },
+  {
+   "id": "P-X34",
+   "also": [],
+   "categories": [
+    "progression"
+   ],
+   "class": 4,
+   "status": "CONFIRMED",
+   "what": "Past Level 110 a Tempering ladder is keyed on the piece's Level band instead of its tier, because every piece past Dawnsteel is still tier 7",
+   "where": "src/data/temper.js:107-117",
+   "fix": "",
+   "decided": null
+  },
+  {
+   "id": "P-X35",
+   "also": [],
+   "categories": [
+    "progression"
+   ],
+   "class": 3,
+   "status": "CONFIRMED",
+   "what": "Tier 1 gear has no Tempering ladder",
+   "where": "src/data/temper.js:7",
+   "fix": "",
+   "decided": null
+  },
+  {
+   "id": "P-X36",
+   "also": [],
+   "categories": [
+    "progression"
+   ],
+   "class": 1,
+   "status": "CONFIRMED",
+   "what": "A jewelry perk counts once per hero at its largest worn size, never a sum. Surge lands a cast at x1.5",
+   "where": "src/core/combat.js:235-250; src/data/jewelry.js:63",
+   "fix": "",
+   "decided": null
+  },
+  {
+   "id": "P-X37",
+   "also": [],
+   "categories": [
+    "progression"
+   ],
+   "class": 3,
+   "status": "CONFIRMED",
+   "what": "Boss gems fix one thing about a jewelry roll (the Rat King's Crown Shard and Crown)",
+   "where": "src/data/jewelry.js:122-126",
+   "fix": "",
+   "decided": null
+  },
+  {
+   "id": "P-X38",
+   "also": [],
+   "categories": [
+    "progression"
+   ],
+   "class": 3,
+   "status": "CONFIRMED",
+   "what": "+skill on gear is a flat number of skill levels. One level is 0.35 of a point of largest blow at every Level, so its worth falls as the blow grows",
+   "where": "src/core/combat.js:89-110; src/data/chests.js; src/data/catacomb-armor.js:48-49",
+   "fix": "",
+   "decided": null
+  },
+  {
+   "id": "P-X41",
+   "also": [],
+   "categories": [
+    "progression"
+   ],
+   "class": 3,
+   "status": "CONFIRMED",
+   "what": "The three weapon skills advance on three different bases: Melee and Ranged on damage dealt, Magic on mana spent, Defense on the attacker's Level per blow aimed",
+   "where": "src/core/hunt-rewards.js:59-63,245,266",
+   "fix": "",
+   "decided": null
+  },
+  {
+   "id": "P-X42",
+   "also": [],
+   "categories": [
+    "progression"
+   ],
+   "class": 4,
+   "status": "CONFIRMED",
+   "what": "The reference hero past Level 1,000 is a straight line. It reads Melee 375 at Level 5,000, where the skill curve allows about 248",
+   "where": "src/data/to-hit.js:56-66",
+   "fix": "",
+   "decided": null
+  },
+  {
+   "id": "P-X43",
+   "also": [],
+   "categories": [
+    "progression"
+   ],
+   "class": 4,
+   "status": "CONFIRMED",
+   "what": "The simulator gives heroes past the measured line skills on a straight line: 198 at Level 400 and 438 at Level 1,000, where the curve allows about 132 and 177. The progression grid's Levels 185 to 400 are played on it",
+   "where": "tools/balance-sim/skill-lines.mjs:99-103",
+   "fix": "",
+   "decided": null
+  },
+  {
+   "id": "P-X44",
+   "also": [],
+   "categories": [
+    "progression"
+   ],
+   "class": 3,
+   "status": "CONFIRMED",
+   "what": "The XP weekend: +25%, added, never past +50%",
+   "where": "src/data/live-events.js:27-33,91-92",
+   "fix": "",
+   "decided": null
+  },
+  {
+   "id": "P-X45",
+   "also": [],
+   "categories": [
+    "progression"
+   ],
+   "class": 1,
+   "status": "CONFIRMED",
+   "what": "The curves' ceilings: Level totals are exact to Level 63,243, and the skill walk stops at skill 476",
+   "where": "src/core/xp.js:77,115-121",
+   "fix": "",
+   "decided": null
+  },
+  {
+   "id": "P-X46",
+   "also": [
+    "E-X21"
+   ],
+   "categories": [
+    "progression",
+    "economy"
+   ],
+   "class": 1,
+   "status": "CONFIRMED",
+   "what": "Server twins of the curves, vitals, fee, price and death bound",
+   "where": "SQL hr_char_level, hr_skill_level, hr_max_hp, hr_max_mana, hr_regen_permille, hr_training_fee, hr_blessing_price, hr_death_xp_mode_max",
+   "fix": "keep SQL as the authority. Either the client shows only the server's quote (the envelope already carries most), or each pair names its equality test in this register",
+   "decided": null
+  },
+  {
+   "id": "P-X47",
+   "also": [],
+   "categories": [
+    "progression"
+   ],
+   "class": 2,
+   "status": "CONFIRMED",
+   "what": "The Luck bar is ruled and lives only in a simulator file",
+   "where": "tools/balance-sim/staged/luck.js",
+   "fix": "",
+   "decided": null
+  },
+  {
+   "id": "P-X48",
+   "also": [],
+   "categories": [
+    "progression"
+   ],
+   "class": 2,
+   "status": "CONFIRMED",
+   "what": "Magic XP a mana is two stacked constants: 1.5 for every cast, times the row's own multiplier (1.6 on 30 rows, 0.25 on 16, 0 on 2). A caster's real rate is 2.4 a mana and no row uses 1.0",
+   "where": "src/data/hunt-xp.js:23; src/data/abilities.js (magicXpMult); src/data/hunt-roles.js",
+   "fix": "",
+   "decided": null
+  },
+  {
+   "id": "E-X01",
+   "also": [
+    "P-X04",
+    "X-OTHER-GROUND-FITS"
+   ],
+   "categories": [
+    "economy",
+    "progression",
+    "combat"
+   ],
+   "class": 4,
+   "status": "CONFIRMED",
+   "what": "GROUND_XP_FIT: a per-ground multiplier on XP a kill, 15 different numbers from 0.76 to 1.22",
+   "where": "src/data/balance-sheet.js:309, src/data/grounds/*/pack.js xpFit (9 packs)",
+   "fix": "E14 becomes the formula: XP a kill = contract pace / the ground's measured kills an hour, derived by the generator the way Hearthfind derives oneIn",
+   "decided": null
+  },
+  {
+   "id": "E-X02",
+   "also": [],
+   "categories": [
+    "economy"
+   ],
+   "class": 4,
+   "status": "CONFIRMED",
+   "what": "GROUND_GP_FIT: x0.7 on coin and on what loot sells for, typed on 11 grounds (every ground from the Glade up)",
+   "where": "src/data/balance-sheet.js:319, src/data/grounds/*/pack.js gpFit (9 packs)",
+   "fix": "fold it into the gold line: line.hi 1.4 x 0.7 = 0.98. One number, no per-ground row",
+   "decided": null
+  },
+  {
+   "id": "E-X03",
+   "also": [],
+   "categories": [
+    "economy"
+   ],
+   "class": 3,
+   "status": "CONFIRMED",
+   "what": "The coin line climbs x0.5 to x1.4 with the ground's floor between 1 and 16, then is flat forever",
+   "where": "src/data/balance-sheet.js:175 (STAT_FORMULA.gp.line)",
+   "fix": "keep as the early-game ramp, documented. Past floor 16 coin a HP point never moves again, which is the inflation finding",
+   "decided": null
+  },
+  {
+   "id": "E-X04",
+   "also": [
+    "P-X05"
+   ],
+   "categories": [
+    "economy",
+    "progression"
+   ],
+   "class": 4,
+   "status": "CONFIRMED",
+   "what": "xp.floorFit: XP a kill x0.67 on a ground whose floor is 8 or under, climbing to x1 at floor 32",
+   "where": "src/data/balance-sheet.js:165",
+   "fix": "falls away with X01's fix",
+   "decided": null
+  },
+  {
+   "id": "E-X05",
+   "also": [],
+   "categories": [
+    "economy"
+   ],
+   "class": 4,
+   "status": "CONFIRMED",
+   "what": "A party ground's coin dials: x1.17 gentle, x0.53 full, on top of the line. The comment says 1.17 exists so a Sewer kill pays what it paid before the line moved",
+   "where": "src/data/balance-sheet.js:194 (fit.party.gp, gpFull)",
+   "fix": "a party ground's monsters have 2.5x HP and coin is per HP, so coin a kill is already 2.5x. State one party coin share instead of two compensating dials",
+   "decided": null
+  },
+  {
+   "id": "E-X11",
+   "also": [
+    "P-X10"
+   ],
+   "categories": [
+    "economy",
+    "progression"
+   ],
+   "class": 3,
+   "status": "CONFIRMED",
+   "what": "Scaled hunts: XP x0.73, a party x0.70, coin x0.5 of the rise, fitted cell by cell so a bought hour is never the best grind",
+   "where": "src/data/scaled-hunts.js:107, 128, 137",
+   "fix": "keep the mechanic (Tyler 2026-11-07). The three numbers are compensations for X01 and should be re-derived once X01 is fixed",
+   "decided": "economy filed it 3 (the mode is approved, 2026-11-07), progression 4 (its XP share was re-dialed seven times). The mode is intentional: 3. Its numbers are outputs of the kill reward and get re-derived, not re-fitted"
+  },
+  {
+   "id": "E-X12",
+   "also": [],
+   "categories": [
+    "economy"
+   ],
+   "class": 2,
+   "status": "HYPOTHESIS",
+   "what": "SCALE_EXCEPTIONS: grounds left off the scale ladder by name",
+   "where": "src/data/scaled-hunts.js:41",
+   "fix": "confirm by reading the rows; move to a field on the ground",
+   "decided": null
+  },
+  {
+   "id": "E-X14",
+   "also": [],
+   "categories": [
+    "economy"
+   ],
+   "class": 4,
+   "status": "CONFIRMED",
+   "what": "dropBonus 1.15 on seven old-roster rows (the Slime of the Mill Cellar among them): the re-homed compensation for a retired `neutral` weapon class",
+   "where": "src/data/monsters.js:113 (slime) and six more, src/core/combat.js:327-334",
+   "fix": "delete the field and the term. A row that should drop more says so in its ch",
+   "decided": null
+  },
+  {
+   "id": "E-X15",
+   "also": [],
+   "categories": [
+    "economy"
+   ],
+   "class": 1,
+   "status": "CONFIRMED",
+   "what": "A drop chance is capped at 0.95 after multipliers, and a 100% row is never multiplied",
+   "where": "src/core/drops.js:43, 47",
+   "fix": "keep. Move 0.95 to a named data constant",
+   "decided": null
+  },
+  {
+   "id": "E-X16",
+   "also": [],
+   "categories": [
+    "economy"
+   ],
+   "class": 2,
+   "status": "CONFIRMED",
+   "what": "Two ways to know a row's band: its own `band`, else its odds against DROP_BAND_MAX (rare 5%, uncommon 15%)",
+   "where": "src/core/drops.js:14-30",
+   "fix": "every row names its band (lucky finds stay, ruled 11-20); delete the odds fallback",
+   "decided": null
+  },
+  {
+   "id": "E-X17",
+   "also": [],
+   "categories": [
+    "economy"
+   ],
+   "class": 4,
+   "status": "CONFIRMED",
+   "what": "VENDOR_GEAR_RATES: a hand-typed sale share a gear tier (0.5, 0.5, 0.14, 0.075, 0.033, 0.015, 0.007), each derived in a comment as the last x 1.3 / the book climb",
+   "where": "src/data/loot-bands.js:89",
+   "fix": "the comment's rule is the formula: sale(tier) = sale(tier 1) x 1.3^(tier-1). Compute it; there is no row for tier 8",
+   "decided": null
+  },
+  {
+   "id": "E-X18",
+   "also": [],
+   "categories": [
+    "economy"
+   ],
+   "class": 4,
+   "status": "CONFIRMED",
+   "what": "Tier-2 helmet, body, legs and boots sell at 0.3 of book, every other tier-2 piece at 0.5",
+   "where": "src/data/loot-bands.js:97-104",
+   "fix": "falls away with X17's formula",
+   "decided": null
+  },
+  {
+   "id": "E-X19",
+   "also": [],
+   "categories": [
+    "economy"
+   ],
+   "class": 4,
+   "status": "CONFIRMED",
+   "what": "The sale dial's three patches: an item sells at the HIGHEST dial of the grounds that drop it, anything also gathered or crafted is exempt, and a dialed piece is floored at its lower-tier twin's sale",
+   "where": "src/data/loot-sale.js:44-73, supabase/functions/hr-accrue/catalogue.js:349-356",
+   "fix": "all three go when X02 is folded into the formula",
+   "decided": null
+  },
+  {
+   "id": "E-X20",
+   "also": [],
+   "categories": [
+    "economy"
+   ],
+   "class": 2,
+   "status": "CONFIRMED",
+   "what": "VENDOR_RAW_RATE 0.20 and SHOP_BUYBACK_RATE 0.5 are authored in the edge function, and restated in src/data/shops.js",
+   "where": "supabase/functions/hr-accrue/catalogue.js:307, 324, src/data/shops.js DERIVED_PRICES, src/data/scaled-hunts.js:197",
+   "fix": "author them in src/data; the edge imports them",
+   "decided": null
+  },
+  {
+   "id": "E-X22",
+   "also": [],
+   "categories": [
+    "economy"
+   ],
+   "class": 2,
+   "status": "CONFIRMED",
+   "what": "The market's fee (1%), cut (1.5%), ceiling (book x 100) and gates live only as SQL column defaults in hr_market_config",
+   "where": "supabase/migrations/2027-01-12-market-account.sql:302-336, supabase/migrations/2026-08-17-market-v2.sql:542",
+   "fix": "a src/data/market.js row and a generated config, like every other catalogue",
+   "decided": null
+  },
+  {
+   "id": "E-X25",
+   "also": [],
+   "categories": [
+    "economy"
+   ],
+   "class": 2,
+   "status": "CONFIRMED",
+   "what": "TEMPER_TIERS: a hand-typed first rung a gear tier (2,000 / 7,000 / 8,000 / 12,000 / 16,000 / 40,000). The comments price each at 40 to 52% of its band's gold. There is no row past tier 7",
+   "where": "src/data/temper.js TEMPER_TIERS",
+   "fix": "price = a ruled share of the band's net gold (G-10: 1.2 to 1.4 of a band for all standing prices), computed for any tier",
+   "decided": null
+  },
+  {
+   "id": "E-X26",
+   "also": [],
+   "categories": [
+    "economy"
+   ],
+   "class": 4,
+   "status": "CONFIRMED",
+   "what": "relicMult: the Bestiary's boss relic multiplier (promised up to x1.25 in loot-bands.js) is projected in every envelope, copied onto every member by the settle, and nothing reads it",
+   "where": "src/core/member.js:348-356, supabase/functions/hr-accrue/hunt-settle.js:708-711, src/data/loot-bands.js:53 (boostMax 1.25)",
+   "fix": "delete the copy and the projection, or wire it through E44. Luck v3.1 cut the charm ladder, so delete",
+   "decided": null
+  },
+  {
+   "id": "E-X27",
+   "also": [],
+   "categories": [
+    "economy"
+   ],
+   "class": 4,
+   "status": "CONFIRMED",
+   "what": "featuredMult in the drop formula and the boss-of-the-day bonuses have no caller on the hunt path",
+   "where": "src/core/drops.js:46, src/core/botd.js:54-56",
+   "fix": "delete the argument and the constants, or list them BUILD-LATER if live events will use them",
+   "decided": null
+  },
+  {
+   "id": "E-X28",
+   "also": [],
+   "categories": [
+    "economy"
+   ],
+   "class": 4,
+   "status": "CONFIRMED",
+   "what": "The Hearthfind header says an attended session rolls more finds than an away one through a second RNG stream. No such stream exists in the code any more",
+   "where": "src/core/hearthfind.js:12-39",
+   "fix": "delete the paragraph. It describes a rule the game no longer has",
+   "decided": null
+  },
+  {
+   "id": "E-X29",
+   "also": [],
+   "categories": [
+    "economy"
+   ],
+   "class": 3,
+   "status": "CONFIRMED",
+   "what": "A hero's first roll on a hall boss always lands a piece",
+   "where": "src/core/drops.js:101-106",
+   "fix": "keep. Already approved",
+   "decided": null
+  },
+  {
+   "id": "E-X30",
+   "also": [],
+   "categories": [
+    "economy"
+   ],
+   "class": 3,
+   "status": "CONFIRMED",
+   "what": "Chest luck: warmth after dry keys and paid stokes",
+   "where": "src/data/chests.js:143-153",
+   "fix": "keep. One formula for every key family already",
+   "decided": null
+  },
+  {
+   "id": "E-X32",
+   "also": [],
+   "categories": [
+    "economy"
+   ],
+   "class": 3,
+   "status": "CONFIRMED",
+   "what": "29 imbuement parts drop with nothing to feed: they only sell, and their tier steps at monster Levels 30 and 80",
+   "where": "src/data/imbuements.js:50-110, src/data/catalogue-coherence.js VENDOR_TRASH",
+   "fix": "BUILD-LATER as linings (E55). Do not cut",
+   "decided": null
+  },
+  {
+   "id": "E-X33",
+   "also": [],
+   "categories": [
+    "economy"
+   ],
+   "class": 2,
+   "status": "CONFIRMED",
+   "what": "Every Scarce, Rare, Key and Trophy row's chance is typed by hand until a test measures its hours inside the band",
+   "where": "src/data/loot-bands.js:43-54, every banded row in src/data/monsters.js and the packs",
+   "fix": "author HOURS on the row and derive the chance from the measured kills an hour, the way Hearthfind already does",
+   "decided": null
+  },
+  {
+   "id": "E-X34",
+   "also": [],
+   "categories": [
+    "economy"
+   ],
+   "class": 2,
+   "status": "HYPOTHESIS",
+   "what": "respawnMs is typed a ground (32 s to 90 s) and is a hidden ceiling on kills an hour once a party clears faster than packs return",
+   "where": "src/data/hunt-grounds.js:192-348, src/core/hunt/pull-cycle.js:285 (report 69: two Level 45s cleared Wickstead faster than it respawned)",
+   "fix": "confirm on the grid: BiS kills an hour against pockets x pack / respawn. If it binds, gear upgrades stop paying on that ground",
+   "decided": null
+  },
+  {
+   "id": "E-X36",
+   "also": [],
+   "categories": [
+    "economy"
+   ],
+   "class": 4,
+   "status": "HYPOTHESIS",
+   "what": "speedKeyFor falls back to gatherSpeed for any skill it does not list. The comment itself calls this a live bug class",
+   "where": "src/core/pacing.js:73-77",
+   "fix": "throw on an unlisted skill. Owner: progression lane (skill pacing)",
+   "decided": null
+  },
+  {
+   "id": "E-X37",
+   "also": [],
+   "categories": [
+    "economy"
+   ],
+   "class": 4,
+   "status": "CONFIRMED",
+   "what": "The gold model approximates instead of running the engine: six Levels to 118, real-player rows typed in, sold loot assumed 0.366 of coin, income past 84 assumed harness x 0.92, store bill assumed harness x 0.26",
+   "where": "tools/balance-program/gold-model.mjs:36-60",
+   "fix": "read coinPerH, incomePerH, storePerH and netPerH from progression-grid.json at all 31 checkpoints and three gear states",
+   "decided": null
+  },
+  {
+   "id": "E-X38",
+   "also": [],
+   "categories": [
+    "economy"
+   ],
+   "class": 4,
+   "status": "CONFIRMED",
+   "what": "The drop odds a player reads are computed in the browser without the hero's drop-rate buff, so the screen can disagree with the roll",
+   "where": "src/shell/hunt-ground-facts.js:186, src/shell/monster-facts.js:108",
+   "fix": "moot once Luck v3.1 cuts the food drop buffs; then the page must show the Luck bar's effect from the envelope",
+   "decided": null
+  },
+  {
+   "id": "E-X39",
+   "also": [],
+   "categories": [
+    "economy"
+   ],
+   "class": 2,
+   "status": "CONFIRMED",
+   "what": "The Hearthfind's kills an hour is a measured constant typed on each row",
+   "where": "src/data/hearthfind.js",
+   "fix": "read it from the ground-rate table the atlas already measures, so it moves when monsters do",
+   "decided": null
+  },
+  {
+   "id": "S-X01",
+   "also": [],
+   "categories": [
+    "synthesis"
+   ],
+   "class": 4,
+   "status": "CONFIRMED",
+   "what": "weaponResist is an authored column on monster rows that no engine code reads. The bestiary prints a resistance the fight does not apply",
+   "where": "src/data/grounds/hasks_ford/pack.js:25,121 and four more packs, src/data/monsters.js",
+   "fix": "formula layer: C-WEAKNESS reads it as the mirror of weaponWeak, or the column and the bestiary line go. Raised by 52-review-combat",
+   "decided": null
+  },
+  {
+   "id": "S-X02",
+   "also": [],
+   "categories": [
+    "synthesis"
+   ],
+   "class": 2,
+   "status": "CONFIRMED",
+   "what": "The store's five heals are a hand price table: 0.19, 0.33, 0.83, 1.50 and 1.75 gold a hit point from shrimp to shark, nine times apart, while coin a kill is a formula",
+   "where": "src/data/supply-basics.js BASIC_SUPPLIES (heal rows)",
+   "fix": "coefficient layer: price = hit points x one gold-a-hit-point line. Raised by 55-review-economy",
+   "decided": null
+  },
+  {
+   "id": "S-X03",
+   "also": [],
+   "categories": [
+    "synthesis"
+   ],
+   "class": 2,
+   "status": "HYPOTHESIS",
+   "what": "Mana a version is a hand-written x1.2 ladder typed on 16 spell rows. Confirm by reading the versions of each row in src/data/abilities.js",
+   "where": "src/data/abilities.js versions",
+   "fix": "coefficient layer: one step beside RUNE_TIERS stepPm. Raised by 52-review-combat, not read here",
+   "decided": null
+  }
+ ],
+ "class3": [
+  {
+   "id": "X-NAMED-RAT-KING",
+   "recommendation": "fold",
+   "approved": "2026-11-18 (\"open at 5\")",
+   "why": "The boss cap should bound his spell, not his attack. Then his row is the formula's and the named exception goes"
+  },
+  {
+   "id": "X-DANGER-RAMP",
+   "recommendation": "keep",
+   "approved": null,
+   "why": "One early-game curve for every ground under Level 16. Gentle first grounds are right. Document it as the only Level threshold in monster stats"
+  },
+  {
+   "id": "X-PARTY-FIT",
+   "recommendation": "keep",
+   "approved": null,
+   "why": "Keep \"built for a party\" as one encounter type with three numbers (HP, blow, XP). Remove its three inner patches. 53-review-world asks to remove the whole type: the matrix decides between them"
+  },
+  {
+   "id": "X-TIER-PULL-FLOOR",
+   "recommendation": "remove",
+   "approved": null,
+   "why": "It contradicts the 2026-11-07 ruling that harder tiers keep the bigger pulls. Its cause is kill reward with no kill-rate term, which the kill reward formula fixes"
+  },
+  {
+   "id": "X-CELLAR-NORMAL-ONLY",
+   "recommendation": "keep",
+   "approved": "2026-11-05",
+   "why": "A content flag on the tutorial ground. It changes no formula"
+  },
+  {
+   "id": "X-SCALED-NO-DEADLY",
+   "recommendation": "fold",
+   "approved": null,
+   "why": "A tier a ground does not offer is the same content flag the Mill Cellar uses. One mechanic, read from the mode's row"
+  },
+  {
+   "id": "X-SPELL-FLOOR",
+   "recommendation": "fold",
+   "approved": "2026-11-21 (32-8, the effect)",
+   "why": "Keep the effect you ruled. Replace 17 per-row floors with one number: a cast never reads a hit under N"
+  },
+  {
+   "id": "X-MEND-MAXHP",
+   "recommendation": "keep",
+   "approved": "2026-11-21 (32-4)",
+   "why": "The second of two heal kinds, a share of max HP. It is the one heal that never falls behind at high Level"
+  },
+  {
+   "id": "X-THREE-ROLLS",
+   "recommendation": "fold",
+   "approved": null,
+   "why": "One roll rule with the spread as one number a kind of amount: swings, spell hits, heals. Three rows of one rule"
+  },
+  {
+   "id": "X-PARTY-ONLY-ROWS",
+   "recommendation": "keep",
+   "approved": "2026-11-09 and 2026-11-19",
+   "why": "One shared gate read from data. Tank spells are party only by your ruling"
+  },
+  {
+   "id": "X-BRACE",
+   "recommendation": "fold",
+   "approved": "2026-11-08 (direction)",
+   "why": "Make it a stat on the shield row, so a future shield can carry more or less of it. No rule keyed on a slot"
+  },
+  {
+   "id": "X-ELEMENT-RULES",
+   "recommendation": "keep",
+   "approved": "2026-11-18 (the two elements)",
+   "why": "Storm burning mana and Necrotic cutting heals are what make the two elements different. The numbers need your yes before the switch goes on"
+  },
+  {
+   "id": "X-TEMPER-ROUNDING",
+   "recommendation": "fold",
+   "approved": null,
+   "why": "Rounding by chance is the right idea. Use it once, at the end of the one amount pipeline, for every blow. Then small bonuses pay at low Level everywhere"
+  },
+  {
+   "id": "X-BOSS-FLOOR-CAP",
+   "recommendation": "keep",
+   "approved": null,
+   "why": "A boss must not one-shot the hero his ground is written for. Keep it as a bound in the monster formula and it needs your yes"
+  },
+  {
+   "id": "X-CALLED-ROOM",
+   "recommendation": "keep",
+   "approved": "2026-11-04 and 2026-11-05",
+   "why": "A called fight is practice and a keyed hall is the reward. Two rows of one room mechanic"
+  },
+  {
+   "id": "X-DUMMY",
+   "recommendation": "keep",
+   "approved": "2026-11-08",
+   "why": "The training yard needs a target that cannot kill or die"
+  },
+  {
+   "id": "X-CASTER-BASIC",
+   "recommendation": "keep",
+   "approved": "2026-10-15 and 2026-10-23",
+   "why": "A basic attack costs by weapon. It is the supply identity of each way of fighting"
+  },
+  {
+   "id": "P-X07",
+   "recommendation": "fold",
+   "approved": "2026-11-11",
+   "why": "Fold the +15% into the base of the one party table as its first cell. The number stays. One constant less"
+  },
+  {
+   "id": "P-X09",
+   "recommendation": "fold",
+   "approved": null,
+   "why": "The Tower takes the one party table. Your 2026-11-16 words were one table and not a unique formula everywhere"
+  },
+  {
+   "id": "P-X14",
+   "recommendation": "keep",
+   "approved": "2026-11-14",
+   "why": "The Tower trades XP for a free death. It is one row of the mode table"
+  },
+  {
+   "id": "P-X15",
+   "recommendation": "keep",
+   "approved": "2026-11-16 (the mode, not the numbers)",
+   "why": "Keep the Catacombs on the mode table. Its copied numbers stay marked ASSUMED until the matrix plays them"
+  },
+  {
+   "id": "P-X18",
+   "recommendation": "keep",
+   "approved": "2026-11-09 and 2026-11-21",
+   "why": "Level XP loses a share of the total and a skill a share of its progress. Take Inner Flame off the list: it is trained at the Hearth, not in a fight"
+  },
+  {
+   "id": "P-X20",
+   "recommendation": "fold",
+   "approved": "2026-10-18",
+   "why": "Free under Level 30 falls out of a price that follows the hours a Blessing saves. Early deaths cost minutes, so the price is near zero with no threshold"
+  },
+  {
+   "id": "P-X28",
+   "recommendation": "remove",
+   "approved": "2026-11-14",
+   "why": "One fixed rate makes the yard worthless near skill 100. Pay a share of the skill level's cost. This changes a ruling, so it is your call"
+  },
+  {
+   "id": "P-X33",
+   "recommendation": "fold",
+   "approved": "2026-11-15 and 2026-11-16",
+   "why": "A rung is worth less on stronger gear. Make the rung size one line by gear Level, so the next band needs no new hand number"
+  },
+  {
+   "id": "P-X35",
+   "recommendation": "keep",
+   "approved": "2026-11-04",
+   "why": "Starter gear has no Tempering. A content flag"
+  },
+  {
+   "id": "P-X37",
+   "recommendation": "keep",
+   "approved": "2026-11-14",
+   "why": "Boss gems fix one thing about a jewelry roll. A content rule on the craft, not a combat formula"
+  },
+  {
+   "id": "P-X38",
+   "recommendation": "remove",
+   "approved": "2026-11-14 against 2026-11-18",
+   "why": "A flat +4 skill is about 1.4 damage at any Level, and you asked for major upgrades. Make it a percent of the blow"
+  },
+  {
+   "id": "P-X41",
+   "recommendation": "keep",
+   "approved": null,
+   "why": "Melee trains on damage dealt, Magic on mana spent, Defense on blows taken. Three bases for three different jobs. It needs your yes on record"
+  },
+  {
+   "id": "P-X44",
+   "recommendation": "keep",
+   "approved": "2026-11-20 (27-5)",
+   "why": "Events add and never pass +50%. One line of the XP chain"
+  },
+  {
+   "id": "E-X03",
+   "recommendation": "fold",
+   "approved": "2026-11-03 (\"harder pays more on one line\")",
+   "why": "The coin line that climbs from x0.5 to x1.4 over the first grounds is one of four stacked coin dials. Fold all four into one coin line by monster Level"
+  },
+  {
+   "id": "E-X11",
+   "recommendation": "fold",
+   "approved": "2026-11-07",
+   "why": "Keep scaled hunts. Their XP and party shares become outputs of the kill reward formula, so nobody re-dials them an eighth time"
+  },
+  {
+   "id": "E-X29",
+   "recommendation": "keep",
+   "approved": "2026-11-14",
+   "why": "A hero's first hall roll always lands. A good first-time moment"
+  },
+  {
+   "id": "E-X30",
+   "recommendation": "keep",
+   "approved": "2026-11-14 to 2026-11-16",
+   "why": "Chest warmth and stokes are the pity rule. Bounded by construction"
+  },
+  {
+   "id": "E-X32",
+   "recommendation": "keep",
+   "approved": "2026-11-18 (linings, BUILD LATER)",
+   "why": "The parts wait for linings. Nothing planned is cut. When linings land, part value becomes one line by monster Level with no steps"
+  }
+ ],
+ "edges": [
+  {
+   "from": "P03",
+   "to": "C-HERO-POWER"
+  },
+  {
+   "from": "C-GEAR-WEAPON",
+   "to": "C-HERO-POWER"
+  },
+  {
+   "from": "C-WEAKNESS",
+   "to": "C-HERO-POWER"
+  },
+  {
+   "from": "C-BUFF-BONUS",
+   "to": "C-HERO-POWER"
+  },
+  {
+   "from": "C-HERO-POWER",
+   "to": "C-BASIC-BLOW"
+  },
+  {
+   "from": "C-HERO-TOHIT",
+   "to": "C-BASIC-BLOW"
+  },
+  {
+   "from": "C-CRIT",
+   "to": "C-BASIC-BLOW"
+  },
+  {
+   "from": "C-BASIC-BLOW",
+   "to": "C-HURT"
+  },
+  {
+   "from": "C-HERO-POWER",
+   "to": "C-SPELL-HIT"
+  },
+  {
+   "from": "C-HERO-POWER",
+   "to": "C-SPELL-HEAL"
+  },
+  {
+   "from": "C-HERO-POWER",
+   "to": "C-SPELL-SHELL"
+  },
+  {
+   "from": "C-HERO-POWER",
+   "to": "C-STATUS"
+  },
+  {
+   "from": "C-CAST-POWER",
+   "to": "C-SPELL-HIT"
+  },
+  {
+   "from": "C-CAST-POWER",
+   "to": "C-SPELL-HEAL"
+  },
+  {
+   "from": "C-CAST-POWER",
+   "to": "C-SPELL-SHELL"
+  },
+  {
+   "from": "C-CAST-POWER",
+   "to": "C-STATUS"
+  },
+  {
+   "from": "C-SPELL-HIT",
+   "to": "C-HURT"
+  },
+  {
+   "from": "C-STATUS",
+   "to": "C-HURT"
+  },
+  {
+   "from": "C-STATUS",
+   "to": "C-VULN"
+  },
+  {
+   "from": "C-STATUS",
+   "to": "C-HEAL-CUT"
+  },
+  {
+   "from": "C-STATUS",
+   "to": "C-CLOCKS"
+  },
+  {
+   "from": "C-VULN",
+   "to": "C-HURT"
+  },
+  {
+   "from": "C-ELEMENT-MON",
+   "to": "C-HURT"
+  },
+  {
+   "from": "C-MON-DEF",
+   "to": "C-HURT"
+  },
+  {
+   "from": "C-STANCE",
+   "to": "C-HURT"
+  },
+  {
+   "from": "C-TEMPER",
+   "to": "C-HURT"
+  },
+  {
+   "from": "C-BOSS-PHASE",
+   "to": "C-HURT"
+  },
+  {
+   "from": "C-SPELL-SHELL",
+   "to": "C-HURT"
+  },
+  {
+   "from": "C-ARMOR-CHAIN",
+   "to": "C-HURT"
+  },
+  {
+   "from": "C-RESIST-HERO",
+   "to": "C-ARMOR-CHAIN"
+  },
+  {
+   "from": "C-TEMPER",
+   "to": "C-ARMOR-CHAIN"
+  },
+  {
+   "from": "C-GEAR-ARMOR",
+   "to": "C-ARMOR-CHAIN"
+  },
+  {
+   "from": "C-HEAL-CUT",
+   "to": "C-SPELL-HEAL"
+  },
+  {
+   "from": "C-HEAL-CUT",
+   "to": "C-LEECH"
+  },
+  {
+   "from": "C-HURT",
+   "to": "C-LEECH"
+  },
+  {
+   "from": "C-TEMPER",
+   "to": "C-SPELL-HEAL"
+  },
+  {
+   "from": "C-REF-HERO",
+   "to": "C-MON-STATS"
+  },
+  {
+   "from": "C-MON-STATS",
+   "to": "C-MON-BLOW"
+  },
+  {
+   "from": "C-MON-STATS",
+   "to": "C-MON-TOHIT"
+  },
+  {
+   "from": "C-MON-STATS",
+   "to": "C-MON-DEF"
+  },
+  {
+   "from": "C-MON-STATS",
+   "to": "C-HERO-TOHIT"
+  },
+  {
+   "from": "C-MON-STATS",
+   "to": "C-ELEMENT-MON"
+  },
+  {
+   "from": "C-MON-STATS",
+   "to": "C-WEAKNESS"
+  },
+  {
+   "from": "C-TIER",
+   "to": "C-MON-BLOW"
+  },
+  {
+   "from": "C-TIER",
+   "to": "C-MON-TOHIT"
+  },
+  {
+   "from": "C-TIER",
+   "to": "C-ARMOR-CHAIN"
+  },
+  {
+   "from": "C-TIER",
+   "to": "C-PULL"
+  },
+  {
+   "from": "C-MON-STATS",
+   "to": "C-TIER"
+  },
+  {
+   "from": "C-MON-BLOW",
+   "to": "C-MON-SPELL"
+  },
+  {
+   "from": "C-MON-BLOW",
+   "to": "C-HURT"
+  },
+  {
+   "from": "C-MON-TOHIT",
+   "to": "C-HURT"
+  },
+  {
+   "from": "C-MON-SPELL",
+   "to": "C-HURT"
+  },
+  {
+   "from": "C-BOSS-PHASE",
+   "to": "C-MON-BLOW"
+  },
+  {
+   "from": "C-BOSS-PHASE",
+   "to": "C-MON-SPELL"
+  },
+  {
+   "from": "C-MON-STATS",
+   "to": "C-RUN-ROOM"
+  },
+  {
+   "from": "C-MON-STATS",
+   "to": "C-SCALED"
+  },
+  {
+   "from": "C-MON-STATS",
+   "to": "C-BOSS-ROOM"
+  },
+  {
+   "from": "C-TIER",
+   "to": "C-SCALED"
+  },
+  {
+   "from": "C-TARGET",
+   "to": "C-HURT"
+  },
+  {
+   "from": "C-LEASH",
+   "to": "C-TARGET"
+  },
+  {
+   "from": "C-PULL",
+   "to": "C-AREA"
+  },
+  {
+   "from": "C-SPELL-HIT",
+   "to": "C-AREA"
+  },
+  {
+   "from": "C-JEWEL-PERKS",
+   "to": "C-HERO-TOHIT"
+  },
+  {
+   "from": "C-JEWEL-PERKS",
+   "to": "C-CRIT"
+  },
+  {
+   "from": "C-JEWEL-PERKS",
+   "to": "C-CAST-POWER"
+  },
+  {
+   "from": "C-GEAR-ARMOR",
+   "to": "C-MON-TOHIT"
+  },
+  {
+   "from": "C-GEAR-ARMOR",
+   "to": "C-CRIT"
+  },
+  {
+   "from": "C-GEAR-WEAPON",
+   "to": "C-HERO-TOHIT"
+  },
+  {
+   "from": "C-GEAR-WEAPON",
+   "to": "C-REF-HERO"
+  },
+  {
+   "from": "P02",
+   "to": "P01"
+  },
+  {
+   "from": "P02",
+   "to": "E01"
+  },
+  {
+   "from": "E01",
+   "to": "P20"
+  },
+  {
+   "from": "P21",
+   "to": "P20"
+  },
+  {
+   "from": "P22",
+   "to": "P20"
+  },
+  {
+   "from": "P23",
+   "to": "P20"
+  },
+  {
+   "from": "C-TIER",
+   "to": "P20"
+  },
+  {
+   "from": "P25",
+   "to": "P20"
+  },
+  {
+   "from": "C-SCALED",
+   "to": "P20"
+  },
+  {
+   "from": "P27",
+   "to": "P20"
+  },
+  {
+   "from": "P20",
+   "to": "P01"
+  },
+  {
+   "from": "P01",
+   "to": "P11"
+  },
+  {
+   "from": "P01",
+   "to": "P35"
+  },
+  {
+   "from": "P35",
+   "to": "C-GEAR-WEAPON"
+  },
+  {
+   "from": "P15",
+   "to": "C-HERO-POWER"
+  },
+  {
+   "from": "C-TEMPER",
+   "to": "C-HERO-POWER"
+  },
+  {
+   "from": "C-HERO-POWER",
+   "to": "P06"
+  },
+  {
+   "from": "P06",
+   "to": "P05"
+  },
+  {
+   "from": "P07",
+   "to": "P05"
+  },
+  {
+   "from": "P08",
+   "to": "P05"
+  },
+  {
+   "from": "P31",
+   "to": "P05"
+  },
+  {
+   "from": "P30",
+   "to": "P05"
+  },
+  {
+   "from": "P05",
+   "to": "P03"
+  },
+  {
+   "from": "P09",
+   "to": "P03"
+  },
+  {
+   "from": "P03",
+   "to": "E42"
+  },
+  {
+   "from": "P03",
+   "to": "C-REGEN"
+  },
+  {
+   "from": "C-TIER",
+   "to": "P07"
+  },
+  {
+   "from": "P01",
+   "to": "P28"
+  },
+  {
+   "from": "P03",
+   "to": "P28"
+  },
+  {
+   "from": "P25",
+   "to": "P28"
+  },
+  {
+   "from": "E37",
+   "to": "P28"
+  },
+  {
+   "from": "P01",
+   "to": "E37"
+  },
+  {
+   "from": "P01",
+   "to": "P23"
+  },
+  {
+   "from": "P04",
+   "to": "C-JEWEL-PERKS"
+  },
+  {
+   "from": "C-GEAR-WEAPON",
+   "to": "C-TEMPER"
+  },
+  {
+   "from": "C-GEAR-WEAPON",
+   "to": "P19"
+  },
+  {
+   "from": "P19",
+   "to": "P15"
+  },
+  {
+   "from": "P25",
+   "to": "C-RUN-ROOM"
+  },
+  {
+   "from": "P22",
+   "to": "C-RUN-ROOM"
+  },
+  {
+   "from": "P03",
+   "to": "C-REF-HERO"
+  },
+  {
+   "from": "P02",
+   "to": "C-REF-HERO"
+  },
+  {
+   "from": "P03",
+   "to": "P37"
+  },
+  {
+   "from": "P11",
+   "to": "C-SPELL-HIT"
+  },
+  {
+   "from": "C-MON-STATS",
+   "to": "E01"
+  },
+  {
+   "from": "C-MON-STATS",
+   "to": "E23"
+  },
+  {
+   "from": "C-TIER",
+   "to": "E10"
+  },
+  {
+   "from": "C-PULL",
+   "to": "E10"
+  },
+  {
+   "from": "E10",
+   "to": "E12"
+  },
+  {
+   "from": "E11",
+   "to": "E12"
+  },
+  {
+   "from": "E12",
+   "to": "E14"
+  },
+  {
+   "from": "E01",
+   "to": "E14"
+  },
+  {
+   "from": "E14",
+   "to": "E15"
+  },
+  {
+   "from": "E14",
+   "to": "E46"
+  },
+  {
+   "from": "E16",
+   "to": "E17"
+  },
+  {
+   "from": "C-BASIC-BLOW",
+   "to": "E18"
+  },
+  {
+   "from": "E20",
+   "to": "E18"
+  },
+  {
+   "from": "E30",
+   "to": "E18"
+  },
+  {
+   "from": "E23",
+   "to": "E25"
+  },
+  {
+   "from": "E25",
+   "to": "E24"
+  },
+  {
+   "from": "E27",
+   "to": "E26"
+  },
+  {
+   "from": "E28",
+   "to": "E26"
+  },
+  {
+   "from": "E29",
+   "to": "E26"
+  },
+  {
+   "from": "E30",
+   "to": "E29"
+  },
+  {
+   "from": "E26",
+   "to": "E32"
+  },
+  {
+   "from": "E26",
+   "to": "E33"
+  },
+  {
+   "from": "E26",
+   "to": "C-SCALED"
+  },
+  {
+   "from": "E31",
+   "to": "E26"
+  },
+  {
+   "from": "E46",
+   "to": "E44"
+  },
+  {
+   "from": "E44",
+   "to": "E45"
+  },
+  {
+   "from": "C-SCALED",
+   "to": "E45"
+  },
+  {
+   "from": "E45",
+   "to": "E47"
+  },
+  {
+   "from": "E54",
+   "to": "E44"
+  },
+  {
+   "from": "E31",
+   "to": "E55"
+  },
+  {
+   "from": "E46",
+   "to": "E55"
+  },
+  {
+   "from": "E14",
+   "to": "E56"
+  },
+  {
+   "from": "E23",
+   "to": "E56"
+  },
+  {
+   "from": "E24",
+   "to": "E56"
+  },
+  {
+   "from": "E26",
+   "to": "E56"
+  },
+  {
+   "from": "E17",
+   "to": "E56"
+  },
+  {
+   "from": "E18",
+   "to": "E56"
+  },
+  {
+   "from": "E32",
+   "to": "E56"
+  },
+  {
+   "from": "E33",
+   "to": "E56"
+  },
+  {
+   "from": "E36",
+   "to": "E56"
+  },
+  {
+   "from": "E37",
+   "to": "E56"
+  },
+  {
+   "from": "E38",
+   "to": "E56"
+  },
+  {
+   "from": "E39",
+   "to": "E56"
+  },
+  {
+   "from": "E40",
+   "to": "E56"
+  },
+  {
+   "from": "E41",
+   "to": "E56"
+  },
+  {
+   "from": "E43",
+   "to": "E56"
+  },
+  {
+   "from": "P03",
+   "to": "C-HERO-TOHIT"
+  },
+  {
+   "from": "P03",
+   "to": "C-MON-TOHIT"
+  },
+  {
+   "from": "P03",
+   "to": "C-CAST-POWER"
+  },
+  {
+   "from": "P11",
+   "to": "C-MON-STATS"
+  },
+  {
+   "from": "P11",
+   "to": "C-SPELL-HEAL"
+  },
+  {
+   "from": "P11",
+   "to": "C-REGEN"
+  },
+  {
+   "from": "P11",
+   "to": "C-TARGET"
+  },
+  {
+   "from": "P11",
+   "to": "C-MANA"
+  },
+  {
+   "from": "P35",
+   "to": "C-GEAR-ARMOR"
+  },
+  {
+   "from": "C-GEAR-ARMOR",
+   "to": "P11"
+  },
+  {
+   "from": "C-MON-TOHIT",
+   "to": "P07"
+  },
+  {
+   "from": "C-TARGET",
+   "to": "P07"
+  },
+  {
+   "from": "C-HURT",
+   "to": "P06"
+  },
+  {
+   "from": "C-MANA",
+   "to": "P08"
+  },
+  {
+   "from": "C-TRAINING",
+   "to": "P09"
+  },
+  {
+   "from": "C-HURT",
+   "to": "E14"
+  },
+  {
+   "from": "C-PULL",
+   "to": "E14"
+  },
+  {
+   "from": "C-AREA",
+   "to": "E14"
+  },
+  {
+   "from": "C-CLOCKS",
+   "to": "E14"
+  },
+  {
+   "from": "C-REGEN",
+   "to": "E14"
+  },
+  {
+   "from": "C-MON-BLOW",
+   "to": "E18"
+  },
+  {
+   "from": "C-ARMOR-CHAIN",
+   "to": "E18"
+  },
+  {
+   "from": "C-SPELL-HEAL",
+   "to": "E18"
+  },
+  {
+   "from": "C-REGEN",
+   "to": "E18"
+  },
+  {
+   "from": "C-LEECH",
+   "to": "E18"
+  },
+  {
+   "from": "C-MANA",
+   "to": "E18"
+  },
+  {
+   "from": "E30",
+   "to": "C-CAST-POWER"
+  },
+  {
+   "from": "E30",
+   "to": "C-BASIC-BLOW"
+  },
+  {
+   "from": "E38",
+   "to": "C-TEMPER"
+  },
+  {
+   "from": "E40",
+   "to": "C-JEWEL-PERKS"
+  },
+  {
+   "from": "E55",
+   "to": "C-RESIST-HERO"
+  },
+  {
+   "from": "E55",
+   "to": "C-LEECH"
+  },
+  {
+   "from": "C-BOSS-ROOM",
+   "to": "E48"
+  },
+  {
+   "from": "C-RUN-ROOM",
+   "to": "E49"
+  },
+  {
+   "from": "C-GEAR-WEAPON",
+   "to": "E27"
+  },
+  {
+   "from": "C-GEAR-WEAPON",
+   "to": "E30"
+  },
+  {
+   "from": "C-GEAR-WEAPON",
+   "to": "E38"
+  },
+  {
+   "from": "C-GEAR-WEAPON",
+   "to": "E40"
+  },
+  {
+   "from": "P28",
+   "to": "E37"
+  },
+  {
+   "from": "E14",
+   "to": "P02"
+  }
+ ],
+ "hubs": [
+  {
+   "id": "C-MON-STATS",
+   "category": "combat",
+   "feeds": 12,
+   "reaches": 78,
+   "categoriesReached": 3
+  },
+  {
+   "id": "C-GEAR-WEAPON",
+   "category": "combat",
+   "feeds": 9,
+   "reaches": 78,
+   "categoriesReached": 3
+  },
+  {
+   "id": "P03",
+   "category": "progression",
+   "feeds": 9,
+   "reaches": 78,
+   "categoriesReached": 3
+  },
+  {
+   "id": "C-TIER",
+   "category": "combat",
+   "feeds": 8,
+   "reaches": 78,
+   "categoriesReached": 3
+  },
+  {
+   "id": "C-HERO-POWER",
+   "category": "combat",
+   "feeds": 6,
+   "reaches": 78,
+   "categoriesReached": 3
+  },
+  {
+   "id": "P11",
+   "category": "progression",
+   "feeds": 6,
+   "reaches": 78,
+   "categoriesReached": 3
+  },
+  {
+   "id": "P01",
+   "category": "progression",
+   "feeds": 5,
+   "reaches": 78,
+   "categoriesReached": 3
+  },
+  {
+   "id": "C-CAST-POWER",
+   "category": "combat",
+   "feeds": 4,
+   "reaches": 78,
+   "categoriesReached": 3
+  },
+  {
+   "id": "C-GEAR-ARMOR",
+   "category": "combat",
+   "feeds": 4,
+   "reaches": 78,
+   "categoriesReached": 3
+  },
+  {
+   "id": "C-STATUS",
+   "category": "combat",
+   "feeds": 4,
+   "reaches": 78,
+   "categoriesReached": 3
+  },
+  {
+   "id": "C-TEMPER",
+   "category": "combat",
+   "feeds": 4,
+   "reaches": 78,
+   "categoriesReached": 3
+  },
+  {
+   "id": "E14",
+   "category": "economy",
+   "feeds": 4,
+   "reaches": 78,
+   "categoriesReached": 3
+  }
+ ],
+ "inCycle": [
+  "C-AREA",
+  "C-ARMOR-CHAIN",
+  "C-BASIC-BLOW",
+  "C-CAST-POWER",
+  "C-CLOCKS",
+  "C-CRIT",
+  "C-ELEMENT-MON",
+  "C-GEAR-ARMOR",
+  "C-GEAR-WEAPON",
+  "C-HERO-POWER",
+  "C-HERO-TOHIT",
+  "C-HURT",
+  "C-JEWEL-PERKS",
+  "C-MANA",
+  "C-MON-BLOW",
+  "C-MON-DEF",
+  "C-MON-SPELL",
+  "C-MON-STATS",
+  "C-MON-TOHIT",
+  "C-PULL",
+  "C-REF-HERO",
+  "C-REGEN",
+  "C-RESIST-HERO",
+  "C-SCALED",
+  "C-SPELL-HIT",
+  "C-SPELL-SHELL",
+  "C-STATUS",
+  "C-TARGET",
+  "C-TEMPER",
+  "C-TIER",
+  "C-VULN",
+  "C-WEAKNESS",
+  "E01",
+  "E10",
+  "E12",
+  "E14",
+  "E26",
+  "E27",
+  "E29",
+  "E30",
+  "E37",
+  "E38",
+  "E40",
+  "E46",
+  "E55",
+  "P01",
+  "P02",
+  "P03",
+  "P05",
+  "P06",
+  "P07",
+  "P08",
+  "P11",
+  "P15",
+  "P19",
+  "P20",
+  "P23",
+  "P28",
+  "P35"
+ ]
+}

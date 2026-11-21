@@ -22,10 +22,12 @@
    },
    "commitMs": {
     "projection": 48,
-    "frames": 60
+    "frames": 55
    },
    "offscreenLoadSAnHour": 19.6,
-   "residualSAnHour": 2.8
+   "residualSAnHour": 33.5,
+   "readsAPoll": 1.6,
+   "calibrationReadMs": 19.1
   },
   "townHeroHourS": 4.15,
   "townTabHourS": 4.7,
@@ -35,23 +37,25 @@
    "awayCommitsAnHour": "REAL commits: 36.0 a hero-hour away at every party size, 14 days",
    "watchedCommitsAnHour": "REAL commits: 200.8 a four-hour watched (181 lone, 198 three)",
    "watched.pollMs": "REAL means: the settle read is closedCommitMs.four.read; hr_seed+perks 2.17; the hello six reads 21 ms x 1.6 a poll; hr_state_of 48 ms on 0.6 early asks a poll",
-   "watched.commitMs": "the closed core plus: the asker's projection (REAL hr_state_of 48 ms) and 3 frames (60 ms: what is left of production's 203 ms apply mean)",
-   "watched.residualSAnHour": "REAL minus the model: a watched four-hour is +107 to +119 s over an empty minute (capacity sample, 305 minutes); the model explains 110.2. UNATTRIBUTED",
+   "watched.commitMs": "the closed core plus the asker's projection (REAL hr_state_of 48 ms) and 3 frames (55 ms: what is left of production's 203 ms apply mean)",
+   "watched.residualSAnHour": "REAL minus the model at the old read: 113 s less 79.5 explained (polls 19.1, commits 40.8, the off-screen load 19.6). UNATTRIBUTED, 30% of a watched four-hour",
    "townHeroHourS": "REAL: 46 town settles a town hero-hour (75,395 settles / 1,626 h) x (hr_tick_settle 2.45 calls x 18.6 ms + the visit's whole-character hr_state_of 0.84 x 48 ms + perks and seed 4 ms) = 90 ms a settle",
    "townTabHourS": "REAL x MEASURED (28): a tab standing in town alone, 660 calls an hour",
    "pressS": "REAL: hr_apply 59.6 ms + the state its answer carries 48 ms",
    "fixedSADay": "REAL (28): cron that runs whoever plays",
-   "closedCommitMs": "REAL four: the settle read 183.4 ms (1,299 calls, min 164) and a closed apply of 95 ms (pg_stat_statements delta while one four hunted and no hero was open in a client: DELTA). Lone: the replay's lone/four ratios (read 35.9/103.5, apply 28.9/58.9 PGlite ms) x the four",
-   "offscreen": "REAL hr_load 109-111 ms x 3 off-screen heroes x 60 an hour (28): gone with lane/c-server-cost (L01)"
+   "closedCommitMs": "REAL four: pg_stat_statements delta over 607 s (07:34-07:44 UTC) while one four hunted, 6 settles: the read 187.2 ms and the apply 112.2 ms a call; no hero was open in a client for 9 of the 10 minutes, so about 100 ms with no frame and no projection (95 to 112). The read is 183.4 over its 1,299 calls. Lone: the replay's lone/four ratios (read 35.9/103.5, apply 28.9/58.9 PGlite ms) x the four",
+   "offscreen": "REAL hr_load 109-111 ms x 3 off-screen heroes x 60 an hour (28): gone with lane/c-server-cost (L01)",
+   "watched.readsAPoll": "the landed poll and 0.6 early asks each run the settle read (the replay: hr_hunt_instance_read 4.8 calls a watched settle = 1.6 x 3)",
+   "watched.calibrationReadMs": "REAL: the watched minutes of the capacity sample (11-20 17:00 to 11-21 04:00 UTC) ran on the old 19.1 ms read: the new 183 ms statement has 1,299 calls in all, too few for that many watched polls"
   },
   "closedCommitMs": {
    "four": {
-    "read": 183,
-    "core": 95
+    "read": 185,
+    "core": 100
    },
    "lone": {
-    "read": 66,
-    "core": 38
+    "read": 64,
+    "core": 49
    }
   }
  },

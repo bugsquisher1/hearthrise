@@ -34,7 +34,7 @@ const onlyArg = () => { const i = argv.indexOf('--only'); return i >= 0 ? argv[i
 
 /* ── THE INSTRUMENTED DOOR ───────────────────────────────────────────────────────────────────────────────────────────── */
 /** The statement a call is: the first public function it names (the edge calls functions), else its first word. */
-export function keyOf(text) {
+function keyOf(text) {
   /* the settle's read opens with the player door's rate gate (hunt-settle.js HUNT_STATE_SQL): it is the read, not the gate */
   if (/hr_hunt_instance_read/.test(String(text))) return 'settle read (hr_hunt_instance_read)';
   const m = /public\.(hr_[a-z0-9_]+)/.exec(String(text));
@@ -323,15 +323,16 @@ async function windows() {
    closed, 12 hours of town work a hero, `townTabH` hours of a tab standing in town, `presses` presses, and its share of the cron. */
 const sum = (o) => Object.values(o).reduce((a, b) => a + b, 0);
 /** A closed commit of `shape` ('four' or 'lone'), seconds: its read and its apply's core (no frame, no projection). */
-export const closedCommitS = (m, shape) => (m.closedCommitMs[shape].read + m.closedCommitMs[shape].core * (m.closedCoreFactor || 1)) / 1000;
+const closedCommitS = (m, shape) => (m.closedCommitMs[shape].read + m.closedCommitMs[shape].core * (m.closedCoreFactor || 1)) / 1000;
 /** A watched four-hour, seconds: the polls, the commits at their cadence, the off-screen load and the unattributed rest. */
-export function watchedHourS(m) {
+function watchedHourS(m) {
   const w = m.watched;
   const commit = m.closedCommitMs.four.core + sum(w.commitMs);
-  return (w.pollsAnHour * (m.closedCommitMs.four.read + sum(w.pollMs)) + m.watchedCommitsAnHour * commit) / 1000 + w.offscreenLoadSAnHour + w.residualSAnHour;
+  const read = w.readOverride != null ? w.readOverride : m.closedCommitMs.four.read;   // the settle read, run by the landed poll and each early ask
+  return (w.pollsAnHour * (w.readsAPoll * read + sum(w.pollMs)) + m.watchedCommitsAnHour * commit) / 1000 + w.offscreenLoadSAnHour + w.residualSAnHour;
 }
 /** One account-day in database-seconds, by line. */
-export function accountDay(m, day) {
+function accountDay(m, day) {
   const hunt = (day.huntH - day.watchedH) * m.awayCommitsAnHour * closedCommitS(m, 'four');
   const watched = day.watchedH * watchedHourS(m);
   const town = m.townDayS != null ? m.townDayS : day.heroes * day.townH * m.townHeroHourS;
@@ -341,7 +342,7 @@ export function accountDay(m, day) {
   return { hunt, watched, town, townTab, presses, fixed, total: hunt + watched + town + townTab + presses + fixed };
 }
 /** Each rung changes the inputs; the ladder is cumulative, in this order. `R` = platform-cost.json's rung inputs. */
-export function rungsOf(R) {
+function rungsOf(R) {
   const each = (m, part, f) => { for (const s of ['four', 'lone']) m.closedCommitMs[s][part] *= f; };
   return [
     { id: 'R0', roadmap: 'new (a fix of L01\'s shipped read)', layer: 'edge SQL, one word', name: 'the settle read runs the hero read once: `r as materialized`',
@@ -365,19 +366,21 @@ export function rungsOf(R) {
       apply: (m) => { each(m, 'read', R.P1.readFactor); each(m, 'core', R.P1.coreFactor); return m; } },
     { id: 'TCF', roadmap: '59 row 30 (formula, P05, P-X28)', layer: 'formula + server', name: 'town work paid in closed form: start, each paid hour, stop',
       apply: (m) => { m.townDayS = R.TCF.townDayS; return m; } },
+    { id: 'RES', roadmap: 'to be found (section 7)', layer: 'client + server', name: 'the open tab\'s unattributed 33.5 s a watched four-hour, found and cut (a CONDITION, not a built change)',
+      apply: (m) => { m.watched.residualSAnHour = 0; return m; } },
     { id: 'C10', roadmap: 'new (this file, section 3)', layer: 'dial + edge', name: 'a closed hunt commits every 10 minutes: fold_windows 6, the edge slice sized by engine time',
       apply: (m) => { m.closedCoreFactor = R.C10.commitFactor; m.awayCommitsAnHour = R.C10.commitsAnHour; return m; } },
   ];
 }
 /** The ladder on one day: today, then each rung on top of the last. */
-export function climb(today, day, rungs) {
+function climb(today, day, rungs) {
   let m = structuredClone(today); const d = { ...day };
   const out = [{ id: 'today', name: 'today', layer: '', roadmap: '', ...accountDay(m, d) }];
   for (const r of rungs) { m = r.apply(structuredClone(m), d); out.push({ id: r.id, name: r.name, layer: r.layer, roadmap: r.roadmap, ...accountDay(m, d) }); }
   return out;
 }
 /** The verdict against the ruled band: at or under it meets. */
-export function verdict(total, band) { return total <= band ? 'MEETS' : `OVER x${(total / band).toFixed(1)}`; }
+function verdict(total, band) { return total <= band ? 'MEETS' : `OVER x${(total / band).toFixed(1)}`; }
 function loadInputs() { return JSON.parse(readFileSync(join(HERE, 'platform-cost.json'), 'utf8')); }
 
 function ladder() {
@@ -404,7 +407,7 @@ function selftest() {
   const fails = [];
   const arm = (label, ok, detail = '') => { console.log(`  ${ok ? 'ok    ' : 'FAILED'}  ${label}${detail ? '  ' + detail : ''}`); if (!ok) fails.push(label); };
   const m = { awayCommitsAnHour: 36, watchedCommitsAnHour: 200, closedCommitMs: { four: { read: 20, core: 30 }, lone: { read: 10, core: 10 } },
-    watched: { pollsAnHour: 200, pollMs: { a: 10 }, commitMs: { b: 70 }, offscreenLoadSAnHour: 5, residualSAnHour: 3 },
+    watched: { pollsAnHour: 200, readsAPoll: 1, pollMs: { a: 10 }, commitMs: { b: 70 }, offscreenLoadSAnHour: 5, residualSAnHour: 3 },
     townHeroHourS: 1, townTabHourS: 2, pressS: 0.1, fixedSADay: 1000 };
   const day = { accounts: 1000, heroes: 4, huntH: 12, townH: 12, watchedH: 2, townTabH: 1, presses: 50 };
   /* by hand: closed commit 50 ms; watched hour = 200 x (20 + 10) ms + 200 x (30 + 70) ms + 5 + 3 = 6 + 20 + 8 = 34 s;
@@ -423,8 +426,9 @@ function selftest() {
   const bad = climb(J.today, J.days[Object.keys(J.days)[0]], planted);
   arm('MUTANT: a rung that triples the closed commit is caught by the no-rise check', !bad.every((s, i) => i === 0 || s.total <= bad[i - 1].total + 1e-9));
   /* the inputs reproduce the REAL watched hour within its measured range */
-  const w = watchedHourS(J.today);
-  arm('CALIBRATION: the model\'s watched four-hour sits in the REAL range (107 to 119 s)', w >= 107 && w <= 119, `${r1(w)}`);
+  /* the REAL watched hour (107 to 119 s) was measured while the settle read was the old 19.1 ms statement: the model at that read lands in it */
+  const w = watchedHourS({ ...J.today, watched: { ...J.today.watched, readOverride: J.today.watched.calibrationReadMs } });
+  arm('CALIBRATION: the model\'s watched four-hour at the old read sits in the REAL range (107 to 119 s)', w >= 107 && w <= 119, `${r1(w)}`);
   const ap = J.today.closedCommitMs.four.core + sum(J.today.watched.commitMs);
   arm('CALIBRATION: a watched commit\'s apply sits within 10% of production\'s hr_hunt_apply_instance mean (203 ms)', Math.abs(ap - 203) <= 20.3, `${r1(ap)}`);
   arm('KEY: a statement is named by the public function it calls', keyOf('select public.hr_hunt_apply_instance($1::uuid)') === 'hr_hunt_apply_instance' && keyOf('begin') === 'begin');

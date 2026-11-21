@@ -76,6 +76,8 @@ Modifiers multiply in permille. The amount is rounded once, at the end, and the 
 | Permanent perks and food buffs to damage | sum | 20% | TARGET |
 | All mitigation on one blow | the chain of 2.4 | 60% | RULED 10-18 |
 | A worn shield against a marked monster spell | a stat on the shield row | 30% at the opening row | RULED 11-08 in direction. RECOMMENDED as a stat, so a later shield can carry more or less (GR-86) |
+| Buffs to damage dealt from the MMO layer (clan rooms, boss buffs, event buffs, arena season buffs, bought boosts) | sum on the knob, with a standing cap and a timed cap | +5% standing, +10% timed | RECOMMENDED (MM-24, MM-25). TARGET |
+| Buffs to damage taken from the MMO layer | the same | 5% less standing, 5% less timed | RECOMMENDED (MM-24, MM-25). TARGET. Where it sits against the 60% cap is OPEN (section 5) |
 
 **A tier's dial is applied once.** RECOMMENDED (GR-85, roadmap step R7). A harder tier's damage dial moves the monster's blow and its aim. That is what "harder" means: it hits harder and lands more often (RULED 11-04, "they are just simply harder"). Armor and Defense training read the monster's own Level and never a Level inflated by the tier. This is a correctness rule, not a tuning choice.
 
@@ -621,7 +623,7 @@ One file, `tools/balance-program/formulas/knobs.json`. The Balance Lab turns eac
 | World (grounds, monsters, bosses) | Each ground's roster of roles, its room sizes, its encounter type, its monster spells and elements | The monster formula every row is written by. The one tier table. The boss role and the hall number (GR-30). The ground's "one question" (GR-31) is asked through shooters, group spells, armor, elements and menders |
 | Economy | Food and drink sizes and prices (GR-52). Rune and ammunition prices. The coin line | Supply use an hour on every tier, which is the main gold cost of pushing. What "struggle or pay" costs |
 | The first hour and features | Which weapons four new heroes start with (GR-24). Saved setups and a kit for each ground (GR-48). The hunt report and the "how close was that" reading (GR-66) | Default bars for each way. The blow trace the analyzer and the wiki show |
-| The MMO layer | The Level line for mixed parties (MM-19). What world bosses, clans and events pay in buffs and gear | One engine for a world boss room and for both arenas. Arena heroes run these same formulas. Buffs from the layer are rows of the modifier table and never new math |
+| The MMO layer | The Level line for mixed parties (MM-19). What world bosses, clans and events pay in buffs and gear, and the caps on those buffs (MM-24 to MM-26) | One engine for a world boss room and for both arenas. Arena heroes run these same formulas. Buffs from the layer are rows of the modifier table and never new math |
 | Platform and cost | The budget for a settled hunt | One engine, one settle path, deterministic dice |
 
 ---
@@ -657,6 +659,8 @@ In decision-book order. Each line is the recommendation this chapter is written 
 | GR-30 | Hall bosses | The boss role times one hall number, sized to an 80 to 90% win rate in band |
 | GR-86 | The later engine steps | One amount pipeline rounded once with a trace, one modifier table, every monster on the formula |
 | MM-19 | Mixed Levels in one fight | One visible two thirds line for every party |
+| MM-24, MM-25 | How MMO layer buffs are sized | Every buff is a row of the one modifier table, summed on its knob under a standing cap and a timed cap. Damage dealt +5% and +10%. Damage taken 5% and 5% less |
+| MM-41 | One engine check | Heroes on both sides of a fight is measured once, for both arenas, before either is planned |
 
 ---
 
@@ -681,8 +685,9 @@ Decisions or designs nobody has made yet in this area.
 | 13 | **The value of `powerFloor`** | Roadmap step R6's own run on Levels 1 to 15 against the 6 hour rule |
 | 14 | **The fist promise beside "no solo or group targets".** The promise is a lone-hero comparison between weapon ways. This chapter keeps it as ruled and reads it as an identity test for the weapon, not a party-size target | Tyler, only if he reads it differently |
 | 15 | **Whether the engine can run heroes on both sides of a fight** | One measurement by the systems engineer, for the arenas (the MMO layer chapter) |
-| 16 | **The weak-side weapon without a chore.** Weapon weakness asks a hero to hold a second weapon for some grounds. If the swap is made by hand before every hunt it is a repeated decision, which the first principle forbids | The saved kit for each ground (GR-48, the items and features chapters) must carry the weapon, the bar and the target mode together |
-| 17 | **Death against the Deadly band.** 6% with no cap and 50 to 100 deaths in 1,000 hours do not fit together past about Level 100 once Deadly bites | GR-7, the progression chapter |
+| 16 | **MMO layer buffs against the tier sizing.** A fully buffed, boss-geared four is about 32% faster and takes 10% less (MM-26, TARGET). Deadly is sized on a plain MID four. Nobody has said whether a buffed four is meant to hold Deadly comfortably, and whether a damage taken buff counts inside the 60% mitigation cap or after it | The harder tiers sample gains a buffed column once MM-24 to MM-26 are ruled. This chapter recommends the buff counts inside the cap, so the cap stays the real armor number |
+| 17 | **The weak-side weapon without a chore.** Weapon weakness asks a hero to hold a second weapon for some grounds. If the swap is made by hand before every hunt it is a repeated decision, which the first principle forbids | The saved kit for each ground (GR-48, the items and features chapters) must carry the weapon, the bar and the target mode together |
+| 18 | **Death against the Deadly band.** 6% with no cap and 50 to 100 deaths in 1,000 hours do not fit together past about Level 100 once Deadly bites | GR-7, the progression chapter |
 
 ---
 
@@ -794,4 +799,5 @@ The documents and sections this chapter replaces for combat.
 | `61-review-audit.md` | G-27 and the lineup evidence note | 2.11, 7 |
 | `21-combat.md` | calls 21-1 to 21-6 and 21-10 | 2.2, 2.8, 2.9, 2.11 |
 | `.claude/coordination/CONFLICTS.md` | "THE SPELL RULE", its six calls | 2.8, 2.9: call 1 at GR-11, calls 2 and 3 at GR-15, call 4 at GR-23, call 5 at GR-13, call 6 at section 5 row 5 |
+| `49-mmo-layer.md` (re-issued) | 5.7 (the two thirds line), 5.8 (the power budget), calls 19, 24 to 26 and 41 | 2.1, 2.10, 4, 5 |
 | Rulings of record | 10-14 to 11-21, as cited on each line | throughout |

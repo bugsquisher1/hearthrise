@@ -24,7 +24,7 @@
 //   P1 anonymity ........ M2 (no client read; no account id or name in any ledger
 //                          row, receipt or read; the counterparty only in market_sales)
 //   P2 same-account buy . M9 (any hero of the seller's account: own_listing)
-//   P3 listable ......... M5 (kit, premium, the bond, value-0, untradeable; drift vs src/data)
+//   P3 listable ......... M5 (kit, premium, value-0, untradeable; drift vs src/data; no premium:true item: the bond was cut)
 //   #9 eligibility ...... M5b (a fresh account lists and buys nothing; cancel and reads stay open), M5c (the bench route)
 //   P4 town work ........ M29 (a craft delta after the listing: insufficient_item)
 //   P5 settle-first ..... M28 (bag verbs only; a hunting hero is not stalled)
@@ -43,7 +43,7 @@
 // A mutant the migration's own §9 refuses to install counts as CAUGHT (a broken
 // market that cannot be installed is the strongest outcome); every other mutant must
 // be caught by a leg here. A mutation nothing catches is SLIPPED and exits 1.
-// mutant-anchors: supabase/migrations/2027-01-12-market-account.sql supabase/migrations/2027-02-13-market-premium-bond.sql supabase/migrations/2027-02-13-market-eligibility.sql
+// mutant-anchors: supabase/migrations/2027-01-12-market-account.sql supabase/migrations/2027-02-13-market-eligibility.sql
 // ════════════════════════════════════════════════════════════════════════
 
 import { readFile } from 'node:fs/promises';
@@ -55,7 +55,6 @@ import { ITEMS } from '../src/data/items.js';
 import { loadApplyOrder } from '../tools/lib/apply-order.mjs';
 
 const MIG = '2027-01-12-market-account.sql';
-const BOND = '2027-02-13-market-premium-bond.sql';
 const ELIGIBLE = '2027-02-13-market-eligibility.sql';
 
 /* ── THE MUTATION CATALOGUE ─────────────────────────────────────────────────
@@ -93,12 +92,6 @@ const MUTATIONS = {
       ['  if v_route_user = v_uid then\n', '  if v_route_user = v_uid and false then\n'],
       ['  if v_row.user_id <> v_route_user or v_row.user_id = v_uid then', '  if v_row.user_id <> v_route_user then'],
     ],
-  },
-  listable_takes_the_bond: {
-    file: BOND,
-    why: 'the market review\'s change 1: the listable rule forgets the premium bond, so an IAP item trades for gold with no cap',
-    pairs: [['          and not exists (select 1 from public.hr_market_premium_items b where b.item_id = i.item_id)) as listable,',
-      '          ) as listable,']],
   },
   fresh_account_lists: {
     file: ELIGIBLE,
@@ -323,9 +316,8 @@ async function run(mutate) {
   const enabledDefault = (await one('select enabled from public.hr_market_config')).enabled;
   /* A mutant's replay stops at the file it patches, so a later file's rule may not be in this database yet. */
   const hasLevelRule = (await q("select 1 from information_schema.columns where table_schema = 'public' and table_name = 'hr_market_config' and column_name = 'min_level'")).length > 0;
-  const hasBondList = (await one("select to_regclass('public.hr_market_premium_items') is not null as x")).x === true;
   const hasBenchRule = (await q("select 1 from information_schema.columns where table_schema = 'public' and table_name = 'hr_market_config' and column_name = 'min_skill_level'")).length > 0;
-  if (!mutate && !(hasLevelRule && hasBondList && hasBenchRule)) { const e = new Error('fixture: the whole chain ran and the Level rule, the bench rule or the bond list is missing'); e.harness = true; throw e; }
+  if (!mutate && !(hasLevelRule && hasBenchRule)) { const e = new Error('fixture: the whole chain ran and the Level rule or the bench rule is missing'); e.harness = true; throw e; }
   /* The fixture's heroes are fresh, and the Level rule is M5b's: everything else trades at Level 1. */
   await cfg(hasLevelRule ? 'enabled = true, min_level = 1' : 'enabled = true');
 
@@ -525,8 +517,7 @@ async function run(mutate) {
   await leg(async () => {
     await stock();
     const kit = [...Object.keys(START_INVENTORY), ...Object.values(START_EQUIPMENT)];
-    const bond = hasBondList ? Object.keys(ITEMS).filter((id) => ITEMS[id].premium === true) : [];
-    const banned = [...kit, ...bond, ...(PREMIUM_LOGIN_REWARD.item ? [PREMIUM_LOGIN_REWARD.item] : [])];
+    const banned = [...kit, ...(PREMIUM_LOGIN_REWARD.item ? [PREMIUM_LOGIN_REWARD.item] : [])];
     const zero = (await one('select item_id from public.hr_items where tradeable and value <= 0 order by item_id limit 1')).item_id;
     const untrade = (await one('select item_id from public.hr_items where not tradeable order by item_id limit 1')).item_id;
     for (const id of [...banned, zero, untrade]) {
@@ -540,11 +531,11 @@ async function run(mutate) {
     const view = await q('select item_id, listable, why from public.hr_market_items');
     const byId = new Map(view.map((r) => [r.item_id, r]));
     for (const id of banned) ok(byId.has(id) && byId.get(id).listable === false, `M5 DRIFT: src/data names ${id} in the kit/premium and the server lists it`);
-    /* THE BOND'S OWN LIST IS THE DATA'S: a new premium:true row with no row here goes red, and so does a stale row. */
-    ok(!hasBondList || bond.length > 0, 'M5: no premium item in src/data: the bond leg is vacuous');
-    const listed = hasBondList ? (await q('select item_id from public.hr_market_premium_items order by item_id')).map((r) => r.item_id) : [];
-    ok(JSON.stringify(listed) === JSON.stringify(bond.slice().sort()), `M5 DRIFT: hr_market_premium_items ${JSON.stringify(listed)} is not src/data's premium:true rows ${JSON.stringify(bond)}`);
-    for (const id of bond) ok(byId.get(id).why === 'premium', `M5: ${id} is unlistable for the wrong reason: ${byId.get(id).why}`);
+    /* NO PREMIUM ITEM. The bond (hearth_token, premium:true) and the market's list of premium items were cut 2026-11-20
+       (1009-approved-cuts.sql, plan L10): Crowns are a number on the account, never an item. An item marked premium:true again
+       would have no market rule refusing it, so it is red here until one is built with it. */
+    const premiumItems = Object.keys(ITEMS).filter((id) => ITEMS[id].premium === true);
+    ok(premiumItems.length === 0, `M5: ${premiumItems.join(', ')} is premium:true, and the market has no premium-item rule since the bond was cut`);
     const bad = await one(`select count(*)::int n from public.hr_market_items m join public.hr_items i using (item_id)
                             left join public.hr_hunt_vendor_value v using (item_id)
                            where m.listable and (not i.tradeable or i.value <= 0 or v.item_id is null)`);

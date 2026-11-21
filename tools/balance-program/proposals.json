@@ -527,6 +527,54 @@
    "after": [],
    "before": [],
    "note": "Every jewel perk at five times: the ceiling, not a proposal"
+  },
+  {
+   "id": "BP-TIERS",
+   "doc": [
+    "12-balance-pass"
+   ],
+   "title": "The harder tiers sized on the MID four",
+   "modelled": true,
+   "recommended": false,
+   "label": "HYPOTHESIS",
+   "layer": "coefficient",
+   "patch": "patches/bp-tiers-dangerous-2600-deadly-2250.json",
+   "shipsWith": [],
+   "after": [],
+   "before": [],
+   "note": "The balance pass (docs/design/overhaul/12-balance-pass.md). Not recommended from here: the integrator decides"
+  },
+  {
+   "id": "BP-LAW",
+   "doc": [
+    "12-balance-pass"
+   ],
+   "title": "The Level law timed on the four on Dangerous",
+   "modelled": true,
+   "recommended": false,
+   "label": "HYPOTHESIS",
+   "layer": "coefficient",
+   "patch": "patches/bp-level-law-dangerous-seat.json",
+   "shipsWith": [],
+   "after": [],
+   "before": [],
+   "note": "The balance pass (docs/design/overhaul/12-balance-pass.md). Not recommended from here: the integrator decides"
+  },
+  {
+   "id": "BP-G17",
+   "doc": [
+    "12-balance-pass"
+   ],
+   "title": "The gear band step at +17%",
+   "modelled": true,
+   "recommended": false,
+   "label": "HYPOTHESIS",
+   "layer": "coefficient",
+   "patch": "patches/bp-gear-step-117.json",
+   "shipsWith": [],
+   "after": [],
+   "before": [],
+   "note": "The balance pass (docs/design/overhaul/12-balance-pass.md). Not recommended from here: the integrator decides"
   }
  ],
  "notModelled": [

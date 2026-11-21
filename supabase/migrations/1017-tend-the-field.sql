@@ -18,9 +18,13 @@
 --   Farming level gates, seeds from the bag then Storage, a missing seed bought at the Shop's own price).
 --
 -- ── THE CONTRACT ────────────────────────────────────────────────────────────
--- §1 hr_farm_tend_plan(p_user uuid, p_slot int, p_crop text) -> jsonb   OWNER-ONLY, STABLE. THE ONE PLAN: what a tend
---    does on the account's field for this hero NOW (server clock), read only. Both the envelope's bill (§2) and the verb
---    (§3) call it, so the bill on screen and what the press does are one code path.
+-- §1 hr_farm_tend_plan(p_user uuid, p_slot int, p_crop text, p_purse bigint) -> jsonb   OWNER-ONLY, STABLE. THE ONE PLAN:
+--    what a tend does on the account's field for this hero NOW (server clock), read only. Both the envelope's bill (§2) and
+--    the verb (§3) call it, so the bill on screen and what the press does are one code path. p_purse is the account purse
+--    as its CALLER read it: the bill reads account_wallet once an envelope and hands it to every plan it prices (it was
+--    hr_purse_of once a plan, a LANGUAGE sql helper PostgreSQL 17 re-plans each call: 8 a watched 4-hero settle,
+--    tests/settle-budget.mjs SB-3), and the verb hands it the purse it holds locked (hr_purse_lock), so the plan prices
+--    against the very row it will debit.
 --      p_crop null  each ready plot goes back in with ITS OWN crop (the plot remembers it until the harvest clears it);
 --                   an empty plot has nothing to remember and stays empty (why 'unplanted').
 --      p_crop set   the player's chosen crop goes into every plot the tend plants: each ready plot that empties AND every
@@ -56,7 +60,9 @@
 --    (its day budget, its rate bucket) is reported in `failed` and moves nothing; if nothing at all moved the tend
 --    answers that refusal and stores no receipt.
 --      { ok:true, crop, harvested:[{i,crop,produce,qty,xp,regrew,withered,extra}], planted:[{i,crop}], watered:[i],
---        bought:[{seed,qty,gold}], gold, xp, empty:[...the plan's], failed:[{i,step,error}] }
+--        bought:[{seed,qty,gold}], gold, xp, empty:[...the plan's], failed:[{i,step,error}], envelope }
+--    `envelope` is the hero's hr_state_of after the press, so the client applies it without a second read (rule 11,
+--    tests/write-answers-state.mjs); the stored receipt a same-key retry answers carries none (the client reads then).
 --    Inner keys are md5(p_idem || ':farm_tend:<step>:<plot>'), so every inner verb is idempotent under the outer key.
 --
 -- ── CONCURRENCY AND IDEMPOTENCY ──────────────────────────────────────────────
@@ -85,7 +91,7 @@
 --
 -- ── REVERSIBILITY ───────────────────────────────────────────────────────────
 -- drop function public.hr_farm_tend(int, text, bigint, uuid), public.hr_farm_tend_view(uuid, int),
---   public.hr_farm_tend_plan(uuid, int, text); delete the hr_state_sections row 'farm_tend' and the hr_client_rpc_baseline
+--   public.hr_farm_tend_plan(uuid, int, text, bigint); delete the hr_state_sections row 'farm_tend' and the hr_client_rpc_baseline
 --   row 'hr_farm_tend'. No table or column moves; every value a tend moved is journalled by the verbs it called.
 -- ════════════════════════════════════════════════════════════════════════
 
@@ -106,7 +112,7 @@ begin
      or to_regprocedure('public.hr_settle_first_noted(text,uuid,integer)') is null
      or to_regprocedure('public.hr_farm_lock(uuid)') is null or to_regprocedure('public.hr_farm_plot_cap(uuid)') is null
      or to_regprocedure('public.hr_farm_plot_level(uuid)') is null or to_regprocedure('public.hr_purse_lock(uuid)') is null
-     or to_regprocedure('public.hr_purse_of(uuid)') is null or to_regprocedure('public.hr_level_from_xp(bigint)') is null
+     or to_regprocedure('public.hr_state_of(uuid,integer)') is null or to_regprocedure('public.hr_level_from_xp(bigint)') is null
      or to_regprocedure('public.hr_farm_growth_hours(timestamp with time zone,timestamp with time zone[],timestamp with time zone)') is null
      or to_regprocedure('public.hr_assert_grant_hygiene(boolean)') is null then
     raise exception 'PRECONDITION: a helper the tend calls is missing'; end if;
@@ -124,7 +130,7 @@ begin
 end $mig$;
 
 -- ── §1 THE ONE PLAN ─────────────────────────────────────────────────────────
-create or replace function public.hr_farm_tend_plan(p_user uuid, p_slot integer, p_crop text)
+create or replace function public.hr_farm_tend_plan(p_user uuid, p_slot integer, p_crop text, p_purse bigint)
  returns jsonb
  language plpgsql
  stable
@@ -164,7 +170,7 @@ begin
   v_plot_lv := public.hr_farm_plot_level(p_user);
   v_farm_lv := public.hr_level_from_xp(coalesce((select s.xp from public.player_skills s
                  where s.user_id = p_user and s.slot = p_slot and s.skill_id = 'farming'), 0));
-  v_left    := public.hr_purse_of(p_user);
+  v_left    := coalesce(p_purse, 0);      -- the purse as the caller read it (§1)
 
   -- THE PLAYER'S CHOSEN CROP: a catalogue crop this hero can plant now, or the plan refuses whole.
   if p_crop is not null then
@@ -286,8 +292,10 @@ declare
   v_choices jsonb := '[]'::jsonb;
   v_farm_lv int;
   v_plot_lv int;
+  -- the account purse, read ONCE an envelope (as hr_state_of reads it) and handed to every plan priced below (§1)
+  v_purse   bigint := coalesce((select w.gold from public.account_wallet w where w.user_id = p_user), 0);
 begin
-  v := public.hr_farm_tend_plan(p_user, p_slot, null);
+  v := public.hr_farm_tend_plan(p_user, p_slot, null, v_purse);
   if v is null or coalesce(v ->> 'ok', '') <> 'true' then return null; end if;
   if jsonb_array_length(v -> 'plant') + jsonb_array_length(v -> 'empty') > 0 then
     v_farm_lv := public.hr_level_from_xp(coalesce((select s.xp from public.player_skills s
@@ -297,7 +305,7 @@ begin
               where c.req_lv <= v_farm_lv and t.plot_tier <= v_plot_lv
               order by c.req_lv, c.crop_id
     loop
-      p := public.hr_farm_tend_plan(p_user, p_slot, r.crop_id);
+      p := public.hr_farm_tend_plan(p_user, p_slot, r.crop_id, v_purse);
       continue when coalesce(p ->> 'ok', '') <> 'true';
       v_choices := v_choices || jsonb_build_object('crop', r.crop_id,
         'plant', jsonb_array_length(p -> 'plant'), 'water', jsonb_array_length(p -> 'water'),
@@ -332,6 +340,7 @@ declare
   v_uid    uuid := auth.uid();
   v_cached jsonb;
   v_plan   jsonb;
+  v_purse  bigint;                      -- the account purse, as held under its lock (the plan prices against it)
   v_r      jsonb;
   v_i      int;
   r        record;
@@ -376,10 +385,10 @@ begin
     return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'no_character')); end if;
   perform public.hr_farm_lock(v_uid);
   perform pg_advisory_xact_lock(hashtextextended('hr:depot:' || v_uid::text, 0));
-  perform public.hr_purse_lock(v_uid);
+  v_purse := public.hr_purse_lock(v_uid);
 
   -- THE PLAN, under every lock; its gold must be the bill the player saw.
-  v_plan := public.hr_farm_tend_plan(v_uid, p_slot, p_crop);
+  v_plan := public.hr_farm_tend_plan(v_uid, p_slot, p_crop, v_purse);
   if coalesce(v_plan ->> 'ok', '') <> 'true' then return public.hr_note_rejection(c_verb, p_slot, v_plan); end if;
   if jsonb_array_length(v_plan -> 'harvest') + jsonb_array_length(v_plan -> 'plant') + jsonb_array_length(v_plan -> 'water') = 0 then
     return public.hr_note_rejection(c_verb, p_slot,
@@ -472,14 +481,15 @@ begin
   insert into public.player_intents (user_id, intent_id, slot, intent, result, at)
     values (v_uid, p_idem, p_slot, c_verb, v_out, now())
     on conflict (user_id, intent_id) do nothing;
-  return v_out;
+  -- THE ENVELOPE (rule 11): the hero as the press left it, so the client applies it with no second read; the receipt has none.
+  return v_out || jsonb_build_object('envelope', public.hr_state_of(v_uid, p_slot));
 end $fn$;
 
 -- ── §3b GRANTS: the plan and the view are the owner's; the verb is the client's alone ──
 do $mig$
 declare v_sig text; v_role text;
 begin
-  foreach v_sig in array array['public.hr_farm_tend_plan(uuid,integer,text)', 'public.hr_farm_tend_view(uuid,integer)'] loop
+  foreach v_sig in array array['public.hr_farm_tend_plan(uuid,integer,text,bigint)', 'public.hr_farm_tend_view(uuid,integer)'] loop
     execute format('revoke all on function %s from public, anon, authenticated, service_role', v_sig);
     foreach v_role in array array['hr_engine', 'hr_tick'] loop
       if exists (select 1 from pg_roles where rolname = v_role) then execute format('revoke all on function %s from %I', v_sig, v_role); end if;
@@ -563,10 +573,14 @@ begin
             || count(*) filter (where intent = 'farm_tend_seed') || '/' || count(*)
           from public.player_ledger where user_id = v_u) <> '2/1/2/1/0/' || (v_led + 6) then
       raise exception 'tend §4(b): the journal after one press is not 2 harvests, 1 plant, 2 waterings and 1 tend'; end if;
+    -- (b') THE ANSWER CARRIES THE HERO (rule 11): the envelope after the press, the field it shows already tended
+    if jsonb_typeof(v -> 'envelope' -> 'state') is distinct from 'object' or (v -> 'envelope' ->> 'version') is null
+       or v -> 'envelope' -> 'farm_tend' -> 'harvest' is distinct from '[]'::jsonb then
+      raise exception 'tend §4(b): the press answered no envelope of the tended field: %', v -> 'envelope' -> 'farm_tend'; end if;
 
-    -- (c) THE SAME KEY
+    -- (c) THE SAME KEY: the stored receipt, the press's answer without its envelope
     v2 := public.hr_farm_tend(0, null, 0, (k || '0001')::uuid);
-    if v2 is distinct from v then raise exception 'tend §4(c): a replay answered % (first %)', v2, v; end if;
+    if v2 is distinct from (v - 'envelope') then raise exception 'tend §4(c): a replay answered % (first %)', v2, v - 'envelope'; end if;
     if (select count(*) from public.player_ledger where user_id = v_u) <> v_led + 6 then raise exception 'tend §4(c): a replay journalled'; end if;
     if public.hr_farm_harvest(0, 0, (k || '0001')::uuid) ->> 'error' is distinct from 'intent_mismatch' then
       raise exception 'tend §4(c): the tend''s key was taken by hr_farm_harvest'; end if;
@@ -658,11 +672,11 @@ begin
      or not has_function_privilege('authenticated', 'public.hr_farm_tend(integer,text,bigint,uuid)', 'execute') then
     raise exception 'tend §4(i): hr_farm_tend is not authenticated-only'; end if;
   if exists (select 1 from pg_proc p, aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
-              where p.oid in ('public.hr_farm_tend(integer,text,bigint,uuid)'::regprocedure, 'public.hr_farm_tend_plan(uuid,integer,text)'::regprocedure,
+              where p.oid in ('public.hr_farm_tend(integer,text,bigint,uuid)'::regprocedure, 'public.hr_farm_tend_plan(uuid,integer,text,bigint)'::regprocedure,
                               'public.hr_farm_tend_view(uuid,integer)'::regprocedure)
                 and a.grantee = 0 and a.privilege_type = 'EXECUTE') then
     raise exception 'tend §4(i): PUBLIC can execute a tend function'; end if;
-  if has_function_privilege('authenticated', 'public.hr_farm_tend_plan(uuid,integer,text)', 'execute')
+  if has_function_privilege('authenticated', 'public.hr_farm_tend_plan(uuid,integer,text,bigint)', 'execute')
      or has_function_privilege('authenticated', 'public.hr_farm_tend_view(uuid,integer)', 'execute')
      or has_function_privilege('anon', 'public.hr_farm_tend_view(uuid,integer)', 'execute') then
     raise exception 'tend §4(i): the plan or the view is client-executable'; end if;

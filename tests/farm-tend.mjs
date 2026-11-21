@@ -16,8 +16,9 @@
 //   FT-1 THE BILL ON SCREEN: the session's farm_tend section is the field's (a ready plot, a growing one, an EXTRA one past
 //        the cap): harvest 0 and 7, plant 0 again with its own crop from the bag, water 0 and 1, no gold; the press the
 //        window would send (tendPress) is exactly that bill's crop and gold.
-//   FT-2 ONE PRESS: ONE hr_farm_tend is sent; the re-read field shows plot 0 planted again and both plots watered, plot 7
-//        gone; the bag holds the harvest; the next bill has nothing to do and the window's press is off.
+//   FT-2 ONE PRESS: ONE hr_farm_tend is sent and NO hr_load after it (its answer carries the envelope, rule 11); the field
+//        shows plot 0 planted again and both plots watered, plot 7 gone; the bag holds the harvest; the next bill has
+//        nothing to do and the window's press is off.
 //   FT-3 THE SAME KEY answers the same receipt and moves nothing; a NEW key right after is nothing_to_tend.
 //   FT-4 THE SEED BILL: no seed and gold for one: the bill buys one seed (5 gp) and says plot 2 stays empty for want of
 //        gold; a press at a stale price is refused quote_changed, moves nothing, and the session re-reads the server's
@@ -164,6 +165,9 @@ async function run(mutant) {
     const r = await FT.tendField(account, cs, press1 ? press1.crop : null, press1 ? press1.gold : 0);
     const tends = sent.slice(before).filter((c) => c.name === 'hr_farm_tend');
     ok(r.ok === true && tends.length === 1, 'FT-2 one press sent ' + tends.length + ' hr_farm_tend and answered ' + JSON.stringify(r));
+    /* rule 11: the answer carries the hero (1017 `envelope`), taken like a load: no hr_load after the press */
+    const reads2 = sent.slice(before).filter((c) => c.name === 'hr_load').length;
+    ok(reads2 === 0, 'FT-2 the press read the hero again ' + reads2 + ' time(s): its answer carried the envelope');
     const field = JSON.stringify((await plots(A)).map((p) => [p.i, p.crop, p.w, p.age === 0]));
     ok(field === '[[0,"turnip",1,true],[1,"turnip",1,false]]', 'FT-2 the field after one press is ' + field + ' (want plot 0 planted again and watered, plot 1 watered, plot 7 gone)');
     const land = FL.farmFieldOf(cs);
@@ -191,7 +195,9 @@ async function run(mutant) {
     const v1 = await as(A, SQL.hr_farm_tend[0], [0, null, 0, key2]);
     const n4 = await rows(A);
     const v2 = await as(A, SQL.hr_farm_tend[0], [0, null, 0, key2]);
-    ok(v1 && v1.ok === true && JSON.stringify(v2) === JSON.stringify(v1) && await rows(A) === n4,
+    /* the press carries the hero (`envelope`, rule 11); the stored receipt a same key answers is the press's answer without it */
+    const receipt = v1 && typeof v1 === 'object' ? Object.fromEntries(Object.entries(v1).filter(([k]) => k !== 'envelope')) : v1;
+    ok(v1 && v1.ok === true && v1.envelope && v1.envelope.state && JSON.stringify(v2) === JSON.stringify(receipt) && await rows(A) === n4,
       'FT-3 the same key answered ' + JSON.stringify(v2) + ' after ' + JSON.stringify(v1) + ' (journal ' + n4 + ' -> ' + (await rows(A)) + ')');
 
     // ── FT-4 ── both plots ready, no seed, gold for one seed
@@ -263,7 +269,7 @@ async function run(mutant) {
     // ── FT-8 ──
     const acl = (await q(`select has_function_privilege('anon', 'public.hr_farm_tend(integer,text,bigint,uuid)', 'execute') a,
                                  has_function_privilege('authenticated', 'public.hr_farm_tend(integer,text,bigint,uuid)', 'execute') u,
-                                 has_function_privilege('authenticated', 'public.hr_farm_tend_plan(uuid,integer,text)', 'execute') p,
+                                 has_function_privilege('authenticated', 'public.hr_farm_tend_plan(uuid,integer,text,bigint)', 'execute') p,
                                  has_function_privilege('authenticated', 'public.hr_farm_tend_view(uuid,integer)', 'execute') v,
                                  exists (select 1 from public.hr_client_rpc_baseline where proname = 'hr_farm_tend' and grantee = 'authenticated') b`))[0];
     ok(acl.a === false && acl.u === true && acl.p === false && acl.v === false && acl.b === true, 'FT-8 the ACL reads ' + JSON.stringify(acl));

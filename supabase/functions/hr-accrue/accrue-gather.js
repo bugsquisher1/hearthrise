@@ -43,6 +43,10 @@ export function accrueGather(inp, span) {
   const items = inp.items || {};
   const nodes = inp.nodes || {};
   const equipment = inp.equipment || {};
+  /* A JOB'S COUNT (1026-job-counts.sql): the swings this job may still make, from the server's own
+     player_state.active_left (envelope.js activeLeft). It caps the span, and the job ENDS on the swing that reaches
+     it (below), so N swings are paid however the settles are cut. null = no count (a job set before counts). */
+  const left0 = Number.isInteger(inp.activeLeft) && inp.activeLeft > 0 ? inp.activeLeft : null;
   /* Equipment reaches a gathering night through exactly one channel — `xpB`,
      the same term the client's xpGrantCtx() supplies. Gathering has no
      accuracy, no max hit and no swing speed, so `equipmentStats` is read for
@@ -172,6 +176,8 @@ export function accrueGather(inp, span) {
        stops BAG_FULL (skill-sim.js gatherBagFullFor), as the bench does, rather than proposing a stack
        hr_apply refuses bank_full and forfeiting every window after it. */
     bagCap: Number.isSafeInteger(inp.bagCap) && inp.bagCap > 0 ? inp.bagCap : null,
+    /* THE JOB'S COUNT LEFT, the span's action cap (skill-sim.js BUDGET). null = unbounded. */
+    maxActions: left0,
     /* `minStepMs` is NOT SET, so resolveStepMs uses the real MIN_ACTION_MS
        floor. Exactly as in the combat ctx, this object is built field by field
        and nothing is spread into it — if it were built from a request body,
@@ -225,7 +231,10 @@ export function accrueGather(inp, span) {
      above the server level, and levels do not fall), so this is the arm for a
      content re-balance that raises a requirement under a live character. */
   /* A FULL BAG stops the node the same way: it cannot pay until the player makes room. */
-  const nodeStopped = summary.stoppedBy === STOP_REASON.LEVEL || summary.stoppedBy === STOP_REASON.BAG_FULL;
+  /* THE COUNT REACHED is a stop like the other two: the job is over, the pointer clears and hr_apply does its THEN. */
+  const left1 = left0 === null ? null : Math.max(0, left0 - Math.floor(nat(summary.ticks, 0)));
+  const counted = left1 === 0;
+  const nodeStopped = summary.stoppedBy === STOP_REASON.LEVEL || summary.stoppedBy === STOP_REASON.BAG_FULL || counted;
   const nothingHappened = itemKinds === 0 && Object.keys(xpDelta).length === 0 && summary.ticks === 0;
   if (nothingHappened && !nodeStopped) {
     return { accrued: false, reason: SKIP.NOTHING, summary };
@@ -254,7 +263,9 @@ export function accrueGather(inp, span) {
      A node that ran out or hit its level gate leaves `remainder >= stepMs`,
      which refusal (c) answers with `now()` — so a stopped bench is never
      re-simulated. */
-  const settledTo = settledWatermarkMs(span, summary, summary.intervalMs,
+  /* A counted-out job is stamped now() outright, as a stopped bench is (accrue-artisan.js): the swing that reached the
+     count may leave less than a step, and the `activity: idle` below must never be re-opened. */
+  const settledTo = counted ? nowMs : settledWatermarkMs(span, summary, summary.intervalMs,
     { caller: accrualCaller(inp) });
 
   const delta = {
@@ -270,8 +281,11 @@ export function accrueGather(inp, span) {
               // `w` — the non-paying accounted time; see windowWaste. Absent
               // when zero, which is most gathering windows (no death clock).
               ...(windowWaste(summary) ? { w: windowWaste(summary) } : {}),
-              /* WHY it stopped: a full bag, and the product that had no room (the bench's keys). */
-              ...(summary.stoppedBy === STOP_REASON.BAG_FULL ? { stopped: 'bag_full', room_for: nodes[summary.nodeId].node.prod } : {}),
+              /* WHY it stopped: a full bag, and the product that had no room (the bench's keys); or its count. */
+              ...(counted ? { stopped: 'count' }
+                : summary.stoppedBy === STOP_REASON.BAG_FULL ? { stopped: 'bag_full', room_for: nodes[summary.nodeId].node.prod } : {}),
+              /* A JOB'S COUNT: what this window started from and what it left (absent on a job with no count). */
+              ...(left0 !== null ? { n: left0, left: left1 } : {}),
               // The credited window, for the reason the combat journal carries it.
               from: new Date(credit.fromMs).toISOString(),
               to: new Date(credit.toMs).toISOString() },
@@ -308,6 +322,10 @@ export function accrueGather(inp, span) {
       : finds[0];
   }
   if (nodeStopped) delta.activity = { kind: 'idle', id: null };
+  /* A JOB'S COUNT (1026-job-counts.sql): a job still short of its count proposes the lowered count; a job that ENDS
+     states what it left beside its `activity: idle` (0 = counted out, which is what lets hr_apply run the job's THEN).
+     hr_apply accepts only a count at or below the stored one, so a replayed or re-cut window cannot pay past N. */
+  if (left1 !== null && ((nodeStopped && inp.jobEnds === true) || (!nodeStopped && left1 < left0))) delta.active_left = left1;
 
   return {
     accrued: true,

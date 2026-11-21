@@ -359,6 +359,9 @@ async function checks(overrides) {
       else if (!(await page.evaluate(() => document.querySelector('[data-hs-win="farm"] .hw-seeds li[data-crop="carrot"] [data-hs-act="sow"]').disabled)))
         fails.push('FW-10 a crop with no seed can be planted');
       else {
+        /* Chat opens at its home on desktop (lane/a-chat-opens, CW-12), so "Enter opened Chat" is a Chat that was shut and is open
+           after, or the caret Chat's key takes into an open Chat (wantsCaret): what the shell's Chat key does, either way */
+        const chatWas = await page.evaluate(() => !!document.querySelector('[data-hs-win="chat"]:not(.is-leaving)'));
         if (how === 'press') await press(page, link, 'FW-10');
         else { await page.focus(link); await page.keyboard.press('Enter'); }
         const landed = await wait(page, () => {
@@ -369,10 +372,11 @@ async function checks(overrides) {
           const r = row.getBoundingClientRect(), b = box.getBoundingClientRect();
           return r.height > 0 && r.top >= b.top - 1 && r.bottom <= b.bottom + 1;
         }, null, 4000);
-        const where = await page.evaluate(() => ({ open: [...document.querySelectorAll('[data-hs-win]')].map((w) => w.getAttribute('data-hs-win')) }));
+        const where = await page.evaluate(() => ({ open: [...document.querySelectorAll('[data-hs-win]')].map((w) => w.getAttribute('data-hs-win')),
+          caret: !!(document.activeElement && document.activeElement.closest && document.activeElement.closest('[data-hs-win="chat"]')) }));
         if (!landed) fails.push('FW-10 ' + how + ' on the link at ' + viewport.width + 'x' + viewport.height + ' left the carrot seed\'s Buy row out of view or unringed; open: ' + where.open.join(','));
         if (how === 'press' && where.open.includes('farm')) fails.push('FW-10 the phone kept the Farm sheet under the Shop: ' + where.open.join(','));
-        if (how === 'enter' && where.open.includes('chat')) fails.push('FW-10 Enter on the link opened Chat');
+        if (how === 'enter' && ((!chatWas && where.open.includes('chat')) || where.caret)) fails.push('FW-10 Enter on the link was Chat\'s key (' + (where.caret ? 'the caret went to Chat' : 'Chat opened') + ')');
       }
       if (errors.length) fails.push('FW-10 console errors: ' + errors.join(' | ').slice(0, 300));
       await ctx.close();

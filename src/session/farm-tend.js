@@ -119,7 +119,8 @@ export function tendField(account, cs, crop, gold) {
       await afterRefusal(cs, ans);   // the screen was behind the server: re-read once (A20)
       return { ok: false, error: (typeof b.error === 'string' && b.error) || (ans && ans.error) || 'refused', gold: count(b.gold) };
     }
-    if (typeof cs.load === 'function') await cs.load();
+    /* the answer carries the hero as the press left it (1017 `envelope`, rule 11): taken like a load, read only when it does not land (a replayed receipt has none) */
+    if (typeof cs.load === 'function') await cs.load(isObj(b.envelope) ? b.envelope : null);
     if (typeof cs.onShared === 'function') cs.onShared('farm', cs.slot);
     return { ok: true, body: answerOf(b) };
   });

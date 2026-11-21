@@ -309,7 +309,8 @@ function walkChain(M, T, extra) {
       supplies: [{ item: 'cooked_shrimp', source: 'own', count: 6 }], read: f.read instanceof Set ? new Set([...f.read, 'first_eat', 'fight_settings']) : f.read }),
     help_page: () => read('help_page'),
     tamsin_pays: () => { L(7); set({ huntId: null, endReason: 'left', tally: tallyFact([], [RATS, WOLVES]), sellable: 0 }); },
-    save_setup: () => set({ presets: 1 }),
+    /* ...and the hero hunts on until its stamina runs out: the day-one town cards wait for that end (plan L08, retention R3) */
+    save_setup: () => set({ presets: 1, endReason: 'stamina' }),
     /* Level 7 is the day-one goals' Level (lane/b-first-hour): paid at 7, the hero meets "Make your own runes" next.
        Its press: a rune of the bar's spell family made and carried. */
     own_runes: () => {
@@ -1152,8 +1153,13 @@ const cases = {
     const L9 = (f) => ({ ...f, levelXp: M.xp.charXpForLevel(9), charLevel: 9 });
     if ((say(R(L9({ ...inThicket, huntId: null, home: homeNext, bag: { normal_log: 3 } }), 'loot_rules', 'cook_catch')) || {}).id !== 'tamsin_pays') return 'a day-one card jumped the chain';
     const after = L9({ ...town, presets: 1 });
-    const home = say(R({ ...after, home: homeNext, bag: { normal_log: 3 } }));
-    if (!home || home.id !== 'home' || home.text !== 'Gather Normal Log: 3 of 30') return 'the house card reads ' + JSON.stringify(home && home.text);
+    /* PLAN L08 (retention R3): the house card waits for the first stamina end, then sets the job: the material still short, as a
+       counted job on its node (the Work window's row rings with that count), and the hero waits in town when it is done. */
+    const early = say(R({ ...after, home: homeNext, bag: { normal_log: 3 } }));
+    if (early && early.id === 'home') return 'the house card spoke before the stamina ran out: ' + JSON.stringify(early.text);
+    const home = say(R({ ...after, endReason: 'stamina', home: homeNext, bag: { normal_log: 3 } }));
+    if (!home || home.id !== 'home' || home.text !== 'Chop 27 Normal Log while stamina refills' || home.anchor !== 'crafting'
+        || !home.ring || home.ring.skill !== 'woodcutting' || home.ring.work !== 'normal_tree' || home.ring.count !== 27) return 'the house card reads ' + JSON.stringify(home && [home.text, home.anchor, home.ring]);
     const juice = say(R({ ...after, home: { owned: true, next: null }, land: { ready: { turnip: 2 } }, bag: {} }));
     if (!juice || juice.id !== 'harvest_juice' || juice.text !== 'Farm → Harvest, then cook Turnip Juice') return 'the juice card reads ' + JSON.stringify(juice && juice.text);
     if (juice.anchor !== 'farm') return 'crops ready and the juice card points at ' + juice.anchor;
@@ -1174,12 +1180,15 @@ const cases = {
     const runeless0 = after.slots.filter((s) => !(s && s.type === 'ability' && M.abilities.ABILITIES[s.id] && M.abilities.ABILITIES[s.id].rune));
     const juiced = { ...after, home: { owned: true, next: null }, bag: { turnip_juice: 6 }, carried: { turnip_juice: 6 }, slots: [...runeless0, fs],
       stored: [...after.stored, { type: 'consume', id: 'turnip_juice', conditions: [] }, { type: 'ability', id: 'flame_strike', conditions: [] }] };
-    if ((say(R({ ...juiced, slots: runeless0 })) || {}).id === 'own_runes') return 'with no rune spell on the bar the coach asks for runes';
-    const runes = say(R(juiced));
+    if ((say(R({ ...juiced, slots: runeless0, endReason: 'stamina' })) || {}).id === 'own_runes') return 'with no rune spell on the bar the coach asks for runes';
+    /* PLAN L08: the rune card, a day-one town card, waits for the stamina end too */
+    if ((say(R(juiced)) || {}).id === 'own_runes') return 'the rune card spoke before the stamina ran out';
+    const runes = say(R({ ...juiced, endReason: 'stamina' }));
     if (!runes || runes.id !== 'own_runes' || runes.text !== 'Mine Rune Essence, then bind runes in Runecrafting') return 'the rune card reads ' + JSON.stringify(runes && runes.text);
     if (say(R({ ...juiced, carried: { ...juiced.carried, chalked_fire_rune: 45 } }))) return 'with own runes the coach still asks: ' + say(R({ ...juiced, carried: { ...juiced.carried, chalked_fire_rune: 45 } })).id;
     /* THE FIRST HOUR (lane/b-first-hour, designer 2026-10-28). The day-one goals open at Level 7, the Thicket's first half hour. */
-    const L7 = { ...town, presets: 1, levelXp: M.xp.charXpForLevel(7), charLevel: 7 };
+    /* ...once the stamina has run out (plan L08) */
+    const L7 = { ...town, presets: 1, levelXp: M.xp.charXpForLevel(7), charLevel: 7, endReason: 'stamina' };
     if ((say(R({ ...L7, home: homeNext, bag: { normal_log: 3 } })) || {}).id !== 'home') return 'at Level 7 past the chain the house card is not up: ' + (say(R({ ...L7, home: homeNext, bag: { normal_log: 3 } })) || {}).id;
     if ((say(R({ ...L7, levelXp: M.xp.charXpForLevel(6), charLevel: 6, home: homeNext, bag: { normal_log: 3 } })) || {}).id === 'home') return 'the house card came before Level 7';
     /* The Hearth: back from the Cellar with the quarter hour's fuel (forest-cave --play: 9 Bones and 3 Lamp Jelly), the
@@ -2456,11 +2465,16 @@ const mutants = [
      mutant on a field with no reader; the field itself is DISCOVERIES 2026-11-20 #4. */
   { name: 'the ate card never sees the analyzer', case: 'tutorial-reactive',
     edits: [['src/data/hunt-tutorial.js', "  ate: (p, f) => known(used(f, 'food', 'own'), (r) => r.length > 0),", '  ate: () => false,']] },
+  /* PLAN L08 (retention R3): the day-one town cards wait for the stamina end, and the house card sets the job's count */
+  { name: 'the house card speaks before the stamina runs out', case: 'tutorial-reactive',
+    edits: [['src/data/hunt-tutorial.js', "{ kind: 'level_at', at: DAY_ONE_LEVEL }, { kind: 'stamina_ended' }, { kind: 'home_unowned' }", "{ kind: 'level_at', at: DAY_ONE_LEVEL }, { kind: 'home_unowned' }"]] },
+  { name: 'the house card sends the hero gathering with no count', case: 'tutorial-reactive',
+    edits: [['src/data/hunt-tutorial.js', 'ring: { skill: node.skill, work: node.id, count: n } };', 'ring: { skill: node.skill, work: node.id } };']] },
   { name: 'a day-one card jumps the chain (placed before it)', case: 'tutorial-reactive',
     edits: [['src/data/hunt-tutorial.js', "  /* ── F. Day one: each waits for the chain, then starts on its own fact ── */\n", ''],
       ['src/data/hunt-tutorial.js', "  /* ── B. The first hunt, the bar while it fights ────────────────────── */\n",
         "  step('home', 'Build your home', 'x', 'house', { kind: 'home_owned' }, { reactive: true, dayOne: true, when: [IN_TOWN, { kind: 'level_at', at: DAY_ONE_LEVEL }, { kind: 'home_unowned' }] }),\n"],
-      ['src/data/hunt-tutorial.js', "  step('home', 'Build your home',\n    'Gather logs and ore for your first house',\n    'house', { kind: 'home_owned' }, { reactive: true, dayOne: true, when: [IN_TOWN, { kind: 'level_at', at: DAY_ONE_LEVEL }, { kind: 'home_unowned' }] }),\n", '']] },
+      ['src/data/hunt-tutorial.js', "  step('home', 'Build your home',\n    'Gather logs and ore for your first house',\n    'house', { kind: 'home_owned' }, { reactive: true, dayOne: true, when: [IN_TOWN, { kind: 'level_at', at: DAY_ONE_LEVEL }, { kind: 'stamina_ended' }, { kind: 'home_unowned' }] }),\n", '']] },
   { name: 'Tamsin\'s payment card shows while the hero hunts another ground', case: 'tutorial-town-chain',
     edits: [['src/data/hunt-tutorial.js', "{ kind: 'been', hunt: WOLVES.hunt, past: true }] }, { when: [{ kind: 'not_elsewhere', hunt: WOLVES.hunt }] }),", "{ kind: 'been', hunt: WOLVES.hunt, past: true }] }),"]] },
   { name: 'the first-return cards come back after the Thicket', case: 'tutorial-town-chain',

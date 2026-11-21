@@ -12,6 +12,9 @@
 //   node tools/preflight.local.mjs --proofs --plant   in a LANE's own worktree: the proofs that plant into the tree too (guard-anchors'
 //                                               solo); refuses a dirty tree, checks it after. (party-flow and hunt-live plant into
 //                                               copies: since 11-10 plain --proofs runs them.)
+//   node tools/preflight.local.mjs --proofs --as-release   only the proofs a release runs for this diff (smoke.yml's HR_RELEASE_PROOFS,
+//                                               mutant-gate.mjs releaseScope), and the touched ones it leaves to the nightly, named;
+//                                               a lane's default through tools/guards-for.local.mjs --run (Tyler 2026-11-21)
 //   node tools/preflight.local.mjs --selftest   the plan and the verdict, each proved by a planted mutant
 //
 // WHY (lane r-release-gate, 2026-11-04). Of the 79 causes behind the last 30 red release runs, 24 were a forgotten pin or
@@ -43,7 +46,7 @@ import { fileURLToPath } from 'node:url';
 import { parseWorkflow, flatSteps, SKIP } from '../tests/run-ci-local.mjs';
 import { isMain } from '../tests/_is-main.mjs';
 import { PROOF_FLAG, unwrapGate, guardFileOf, committedDiff } from './lib/guard-deps.mjs';
-import { selectGuards } from './mutant-gate.mjs';
+import { selectGuards, releaseScope, releaseProofsOf, RELEASE_PROOFS } from './mutant-gate.mjs';
 import { catalogue, committedTexts } from './guard-anchors.mjs';
 
 const ROOT = normalize(join(dirname(fileURLToPath(import.meta.url)), '..'));
@@ -155,6 +158,20 @@ export function proofsPlan(text, { selected = new Set(), solo = new Set(), pages
   /* (run-ci-local's skips are for a machine with no browser; with --pages only the installs stay out.) */
   const plan = buildPlan(text, { selected, solo: plant ? new Set() : solo, slow: new Map(), long: new Map(), first: new Set(), extras: [], job: { test: (name) => pages || !browser.has(name) }, skip: pages ? (name) => /^Install /.test(name) : isSkipped });
   return { run: plan.run.filter((r) => r.proof), left: plan.left.filter((l) => PROOF_FLAG.test(l.cmd)), errors: plan.errors };
+}
+
+/**
+ * The --proofs plan for `files`. With --as-release (tools/guards-for.local.mjs's lane default, Tyler 2026-11-21), only what a release
+ * proves of them under smoke.yml's own HR_RELEASE_PROOFS (tools/mutant-gate.mjs releaseScope, the one rule), and the touched proofs
+ * that leaves to the nightly sweep (`skipped`). `pick(files)` is the guard selection (selectGuards). Pure but for pick.
+ */
+export function proofsFor(text, files, pick, { asRelease = false, solo = new Set(), pages = false, plant = false } = {}) {
+  const sw = asRelease ? releaseProofsOf(text) : null;
+  const scoped = releaseScope(files, RELEASE_PROOFS[sw]);
+  const selected = pick(scoped.changed);
+  const plan = proofsPlan(text, { selected, solo, pages, plant });
+  const skipped = RELEASE_PROOFS[sw] ? proofsPlan(text, { selected: pick(files), solo, pages, plant }).run.filter((r) => !plan.run.some((x) => x.cmd === r.cmd)) : [];
+  return { sw, scoped, selected, plan, skipped };
 }
 
 /** Run one command; never throws. { status, seconds, out, killed }. */
@@ -456,6 +473,40 @@ async function selftest() {
     console.log(`  ${missed ? 'MISSED  ' : 'CAUGHT  '} --proofs mutant: ${label}`);
     if (missed) fails.push(`--proofs mutant missed: ${label}`);
   }
+  /* --as-release (lane/c-lane-tests-light, Tyler 2026-11-21): a lane proves what its release would. The switch is read from the
+     workflow's text; a code-only diff runs no proof and names what it left to the nightly; --as-release off is the old run. */
+  const SWITCHED = (v) => FIXTURE.replace('jobs:\n', `env:\n  HR_RELEASE_PROOFS: ${v}\n\njobs:\n`);
+  const fakePick = (files) => new Set(files.map((f) => ({ 'src/shell/x.js': 'tests/plain-a.mjs', 'tests/plain-b.mjs': 'tests/plain-b.mjs', 'supabase/x.sql': 'tests/census.mjs' })[f]).filter(Boolean));
+  const releaseChecks = (impl) => {
+    const cmds = (r) => r.plan.run.map((x) => x.cmd);
+    const shell = impl(SWITCHED('nightly-only'), ['src/shell/x.js'], fakePick, { asRelease: true });
+    const own = impl(SWITCHED('nightly-only'), ['tests/plain-b.mjs'], fakePick, { asRelease: true });
+    const mixed = impl(SWITCHED('nightly-only'), ['src/shell/x.js', 'tests/plain-b.mjs', 'supabase/x.sql'], fakePick, { asRelease: true });
+    const forced = impl(SWITCHED('nightly-only'), ['src/shell/x.js'], fakePick, { asRelease: false });
+    const off = impl(SWITCHED('every-touched'), ['src/shell/x.js'], fakePick, { asRelease: true });
+    const plain = impl(SWITCHED('plain-only'), ['tests/plain-b.mjs'], fakePick, { asRelease: true });
+    return [
+      [!cmds(shell).length && shell.skipped.map((r) => r.cmd).join() === 'node tests/plain-a.mjs --selftest', '--as-release: a src/shell-only diff runs no proof, and names the one it left'],
+      [cmds(own).join() === 'node tests/plain-b.mjs --mutate' && !own.skipped.length, '--as-release: a diff touching tests/plain-b.mjs runs plain-b\'s proof'],
+      [cmds(mixed).join() === 'node tests/plain-b.mjs --mutate' && mixed.skipped.map((r) => r.cmd).sort().join() === 'node tests/census.mjs --mutate,node tests/plain-a.mjs --selftest',
+        '--as-release: a mixed diff runs the guard side, skips the rest and says so'],
+      [cmds(forced).join() === 'node tests/plain-a.mjs --selftest' && !forced.skipped.length, 'without --as-release (guards-for --proofs) every touched proof runs, as before'],
+      [cmds(off).join() === 'node tests/plain-a.mjs --selftest', 'any other switch value: every touched proof, as CI does'],
+      [!cmds(plain).length && plain.skipped.length === 1, 'plain-only: no proof at all'],
+    ];
+  };
+  for (const [c, m] of releaseChecks(proofsFor)) ok(c, m);
+  for (const [label, impl] of [
+    ['--as-release is ignored', (t, f, p, o) => proofsFor(t, f, p, { ...o, asRelease: false })],
+    ['--as-release is always on', (t, f, p, o) => proofsFor(t, f, p, { ...o, asRelease: true })],
+    ['the switch is assumed, not read', (t, f, p, o) => proofsFor(SWITCHED('nightly-only'), f, p, o)],
+    ['what was skipped is not said', (t, f, p, o) => ({ ...proofsFor(t, f, p, o), skipped: [] })],
+    ['the selection reads the whole diff', (t, f, p, o) => { const r = proofsFor(t, f, p, o); return { ...r, plan: proofsPlan(t, { selected: p(f) }), skipped: r.skipped }; }],
+  ]) {
+    const missed = releaseChecks(impl).every(([c]) => c);
+    console.log(`  ${missed ? 'MISSED  ' : 'CAUGHT  '} --as-release mutant: ${label}`);
+    if (missed) fails.push(`--as-release mutant missed: ${label}`);
+  }
   console.log(fails.length ? `\n  preflight --selftest: ${fails.length} failed` : '\n  preflight --selftest: the plan is read from smoke.yml, a red and a timeout are red, every mutant caught');
   return fails.length ? 1 : 0;
 }
@@ -463,18 +514,26 @@ async function selftest() {
 // ── the CLI ────────────────────────────────────────────────────────────────
 /* One at a time, each narrowed by the same plan GitHub hands its guards (HR_MUTANT_SCOPE), each printed as it ends. */
 async function deepProofs(text, d, allProofs, read, solo, argv) {
-  const selected = new Set(selectGuards(d.files, { base: d.sha, extraGuards: allProofs, regions: d.regions, read }).keys());
+  const pick = (files) => new Set(selectGuards(files, { base: d.sha, extraGuards: allProofs, regions: d.regions, read }).keys());
   const plant = argv.includes('--plant');
-  const plan = proofsPlan(text, { selected, solo, pages: argv.includes('--pages'), plant });
-  console.log(`preflight --proofs: ${d.files.length} changed file(s) since ${d.sha.slice(0, 9)}; ${plan.run.length} proof(s) to run, ${plan.left.length} that plant into the tree stay on GitHub${plant ? ' (--plant: none)' : ''}`);
-  if (argv.includes('--list')) { for (const r of plan.run) console.log(`  run   ${r.cmd}`); for (const l of plan.left) console.log(`  left  ${l.cmd}`); return 0; }
+  const pages = argv.includes('--pages');
+  const { sw, scoped, selected, plan, skipped } = proofsFor(text, d.files, pick, { asRelease: argv.includes('--as-release'), solo, pages, plant });
+  const said = sw ? ` (--as-release, HR_RELEASE_PROOFS=${sw}: ${scoped.changed.length} on the guard side${scoped.deferred ? `, ${scoped.deferred} left to the nightly sweep` : ''})` : '';
+  console.log(`preflight --proofs: ${d.files.length} changed file(s) since ${d.sha.slice(0, 9)}${said}; ${plan.run.length} proof(s) to run, ${plan.left.length} that plant into the tree stay on GitHub${plant ? ' (--plant: none)' : ''}`);
+  const sayWhatWasSkipped = () => {
+    if (!skipped.length) return;
+    console.log(`\npreflight --proofs --as-release: ${skipped.length} proof(s) this diff touches NOT run here; a release does not run them either (HR_RELEASE_PROOFS=${sw}), the nightly sweep on main proves them:`);
+    for (const r of skipped) console.log(`  skipped  ${r.cmd}`);
+  };
+  if (argv.includes('--list')) { for (const r of plan.run) console.log(`  run   ${r.cmd}`); for (const l of plan.left) console.log(`  left  ${l.cmd}`); sayWhatWasSkipped(); return 0; }
   /* A plant interrupted mid-run stays in the tree (11-05: guard-anchors' plant in src/session/envelope.js). On a dirty tree it
      could not be told from the lane's own edits, so --plant refuses one, and names any file a proof left changed. */
   const status = () => spawnSync('git', ['status', '--porcelain'], { cwd: ROOT, encoding: 'utf8' }).stdout || '';
   if (plant && d.dirty) { console.error('preflight --proofs --plant: the tree has uncommitted changes; commit them first, so a plant left behind can be seen'); return 2; }
   const dir = mkdtempSync(join(tmpdir(), 'hr-preflight-plan-'));
   const scope = join(dir, 'plan.json');
-  writeFileSync(scope, JSON.stringify({ full: false, base: d.sha, tip: d.head, changed: d.files, selected: Object.fromEntries([...selected].map((g) => [g, 'preflight --proofs'])) }));
+  /* What GitHub hands a guard (HR_MUTANT_SCOPE): under --as-release the changed list the release reads, so a guard narrows its mutants alike */
+  writeFileSync(scope, JSON.stringify({ full: false, base: d.sha, tip: d.head, changed: scoped.changed, selected: Object.fromEntries([...selected].map((g) => [g, 'preflight --proofs'])) }));
   try {
     const t0 = Date.now();
     const results = await runAll(plan.run, { jobs: 1, runLimitS: 45 * 60, limitS: 20 * 60, env: { HR_MUTANT_SCOPE: scope }, onDone: (r) => {
@@ -486,6 +545,7 @@ async function deepProofs(text, d, allProofs, read, solo, argv) {
     console.log(`\npreflight --proofs: ${v.green} green, ${v.red.length} red, ${v.unjudged.length} not judged, ${Math.round((Date.now() - t0) / 1000)} s`);
     const left = plant ? status().trim() : '';
     if (left) { console.error(`preflight --proofs --plant: a proof left the tree changed; restore it before committing:\n${left}`); return 2; }
+    sayWhatWasSkipped();
     return v.exit;
   } finally { rmSync(dir, { recursive: true, force: true }); }
 }

@@ -110,8 +110,8 @@ S5.low's band of 1.15 to 1.35 was set by the standards auditor from the armor st
 
 | File | Row | Value | Was | Layer |
 |---|---|---|---|---|
-| `src/data/core-model.js` | ARMOUR_MITIGATION `absorb.k` | 1.488 | 0.62 | Coefficient, `armorCurve` 2.4 |
-| `src/data/core-model.js` | ARMOUR_MITIGATION `dodge.k` | 0.96 | 0.4 | Coefficient, `armorCurve` 2.4 |
+| `src/data/core-model.js` | ARMOUR_MITIGATION `absorb.k` | 1.488 (0.992 if the switch rule picks ×1.6) | 0.62 | Coefficient, `armorCurve` 2.4 |
+| `src/data/core-model.js` | ARMOUR_MITIGATION `dodge.k` | 0.96 (0.64 if the switch rule picks ×1.6) | 0.4 | Coefficient, `armorCurve` 2.4 |
 | `src/data/core-model.js` | ARMOUR_MITIGATION `ward`, `maxPm`, `capPm` | Unchanged | | |
 | `src/data/gear-tiers.js` | Armor `defB` of tiers 1 to 7 | As built. The curve's generator writes armor from Level 110 only | Resampled on the line | Content data, ruling 5 |
 | Jewelry and cloak rows (`slot-ladders.js`, `items.js`) | Plain numbers | Unchanged | | Ruling 6 |
@@ -324,3 +324,4 @@ These pieces are hidden and drop nowhere in the first build. Nothing here reache
 - **13 section 4, the arrival kit risk.** "Ruled in D-3. Confirmed by FB-3's run of section 1.5."
 - **D-1 (`review/05-designer-rulings.md`) section 1.2.** The wand row's words are replaced by section 2.5's, and the default {N} is 100.
 - **`.claude/coordination/DISCOVERIES.md` row 1.** Owner's answer: section 4.
+- **`.claude/coordination/DISCOVERIES.md`, three new rows, owner FB-3.** GR-38's stand-in (`patches/items-2.json`) is applied at every Level in the proposed base, though its note limits it to Level 110 and up, so the mid kit wore tier 7 jewelry from Level 15 in every matrix run. Chapter 12 section 3.6's "the mid hero's damage did not move" at ×2.4 reads 18 to 32% more on 4 seeds of 8 hours (CB-2's tier dial needs it). `grid-kit.mjs` says the store sells no whetstone, and the Shop sells the Coarse Whetstone.

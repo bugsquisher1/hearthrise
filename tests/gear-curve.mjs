@@ -8,8 +8,9 @@
 //        goes on past Level 10,000 (no last band).
 //   GC2  THE LINE: from the anchor a line is its last sample x (anchor + slope x (Level - anchor)) / anchor, rounded; at the anchor and
 //        from the last sample's Level up to it, it IS the last sample (Dawnsteel), so the tiers and the line join with no step.
-//   GC3  THE SAMPLES: every weapon family is a line whose samples sit at the tier Levels (MATERIAL_TIERS), every generated weapon row is
-//        the curve at its tier's Level in its style's fields, and a family's samples never fall up the ladder.
+//   GC3  THE SAMPLES: every weapon family and every armor weight and slot (the armor half: the designer's D-3, the tiers keep their built
+//        armor) is a line whose samples sit at the tier Levels (MATERIAL_TIERS), every generated row is the curve at its tier's Level in
+//        the line's fields, and a line's samples never fall up the ladder (a weapon tier always carries more).
 //   GC4  THE STANDARD PIECE PAST THE ANCHOR is the line at the band at or under the Level, so a standard upgrade is one band step.
 //   GC5  THE SPEND (R11): an empty buy is the line; a bill comes out of the paid number and is rounded DOWN (a unique never reads over its
 //        line); accuracy given up buys nothing back; the accuracy rate falls as anchor / Level; what is bought rides along; a bill with no
@@ -27,7 +28,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isMain } from './_is-main.mjs';
 import * as CURVE from '../src/data/gear-curve.js';
-import { WEAPON_FAMILIES, WEAPON_LINES, GEAR_ITEMS, MATERIAL_TIERS } from '../src/data/gear-tiers.js';
+import { WEAPON_FAMILIES, WEAPON_LINES, ARMOUR_CURVE_LINES, GEAR_LADDERS, GEAR_ITEMS, MATERIAL_TIERS } from '../src/data/gear-tiers.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SOURCE = join(ROOT, 'src', 'data', 'gear-curve.js');
@@ -38,11 +39,12 @@ const KNOB_LINES = Object.freeze(['  anchor: ', '  slope: ', '  bandStep: ', '  
 const FAR = 10000;
 
 /** The world the rules read, swappable whole by a mutant. */
-const world = () => ({ M: { ...CURVE }, lines: WEAPON_LINES, items: GEAR_ITEMS, families: WEAPON_FAMILIES, tiers: MATERIAL_TIERS, source: readFileSync(SOURCE, 'utf8') });
+const world = () => ({ M: { ...CURVE }, lines: WEAPON_LINES, armor: ARMOUR_CURVE_LINES, ladders: GEAR_LADDERS, items: GEAR_ITEMS, families: WEAPON_FAMILIES,
+  tiers: MATERIAL_TIERS, source: readFileSync(SOURCE, 'utf8') });
 
 /** Every broken rule, as strings. Empty = sound. */
 export function problems(w = world()) {
-  const out = [], { M, lines, items, families, tiers, source } = w;
+  const out = [], { M, lines, armor, ladders, items, families, tiers, source } = w;
   const C = M.GEAR_CURVE;
   /* GC1 */
   const bands = [];
@@ -60,17 +62,24 @@ export function problems(w = world()) {
     if (back !== wb) { out.push('GC1 one band back from Level ' + L + ' reads ' + back + ', it is ' + wb); break; }
   }
   if (!(M.bandAt(FAR, 0, C) > M.bandAt(FAR / 2, 0, C))) out.push('GC1 the band at Level ' + FAR + ' is no higher than at ' + FAR / 2 + ': a last band');
-  /* GC2, GC3, GC4 for every family */
-  for (const fam of families) {
-    const line = lines[fam.key];
-    if (!line) { out.push('GC3 ' + fam.key + ' has no weapon line'); continue; }
+  /* GC2, GC3, GC4 for every line: each weapon family's, and each armor weight and slot's (the armor half, D-3: the tiers keep their built
+     armor as the curve's samples, and the curve writes armor from the anchor). Each ladder of GEAR_LADDERS but the spellbook is a line. */
+  const lineOf = (key) => (key.startsWith('weapon:') ? lines[key.slice(7)] : armor[key]) || null;
+  for (const fam of families) if (!ladders.some((l) => l.key === 'weapon:' + fam.key)) out.push('GC3 weapon:' + fam.key + ' has no ladder');
+  for (const lad of ladders) {
+    if (lad.key === 'spellbook') continue;
+    const line = lineOf(lad.key), fam = { key: lad.key, ids: lad.ids }, armorLine = !lad.key.startsWith('weapon:');
+    if (!line) { out.push('GC3 ' + lad.key + ' is a ladder with no line on the curve'); continue; }
+    if (line.key !== lad.key) out.push('GC3 the line for ' + lad.key + ' calls itself ' + line.key);
     const last = line.levels.length - 1, at = (L) => M.lineAt(line, L, null, M.GEAR_EXCHANGE.weapon, C);
     if (JSON.stringify(line.levels) !== JSON.stringify(tiers.map((t) => t.level))) out.push('GC3 ' + fam.key + ': its samples sit at ' + line.levels.join(', ') + ', the tiers are worn from ' + tiers.map((t) => t.level).join(', '));
     for (const [f, s] of Object.entries(line.fields)) {
       if (s.length !== line.levels.length) out.push('GC3 ' + fam.key + '.' + f + ': ' + s.length + ' samples for ' + line.levels.length + ' tiers');
       for (let i = 1; i < s.length; i++) if (s[i] < s[i - 1]) out.push('GC3 ' + fam.key + '.' + f + ' falls from ' + s[i - 1] + ' to ' + s[i] + ' at tier ' + (i + 1));
     }
-    for (let i = 1; i <= last; i++) if (Object.values(line.fields).every((s) => s[i] <= s[i - 1])) out.push('GC3 ' + fam.key + ': tier ' + (i + 1) + ' carries nothing over tier ' + i);
+    /* a weapon tier always carries more; a light armor piece's armor may round level at the first tiers (cloth gloves carry 1 at tiers 1 and 2) */
+    if (!armorLine) for (let i = 1; i <= last; i++) if (Object.values(line.fields).every((s) => s[i] <= s[i - 1])) out.push('GC3 ' + fam.key + ': tier ' + (i + 1) + ' carries nothing over tier ' + i);
+    if (armorLine && !(line.fields.defB[last] > line.fields.defB[0])) out.push('GC3 ' + fam.key + ': its armor does not climb up the ladder');
     /* GC2 */
     for (const L of [line.levels[last], Math.round((line.levels[last] + C.anchor) / 2), C.anchor]) {
       const n = at(L);
@@ -141,6 +150,9 @@ const MUTANTS = [
   ['a generated row off its sample', 'GC3', (w) => ({ ...w, items: { ...w.items, rune_warhammer: { ...w.items.rune_warhammer, strB: 40 } } })],
   ['a sample falls up the ladder', 'GC3', (w) => ({ ...w, lines: { ...w.lines, staff: { ...w.lines.staff, fields: { ...w.lines.staff.fields, magicStrB: [5, 9, 14, 21, 29, 28, 49] } } } })],
   ['a line\'s samples off the tier Levels', 'GC3', (w) => ({ ...w, lines: { ...w.lines, bow: { ...w.lines.bow, levels: [1, 15, 30, 45, 60, 75, 90] } } })],
+  ['a generated armor row off its sample (Dawnsteel helm 45 for 44)', 'GC3', (w) => ({ ...w, items: { ...w.items, dawn_helm: { ...w.items.dawn_helm, defB: 45 } } })],
+  ['an armor ladder with no line on the curve', 'GC3', (w) => { const armor = { ...w.armor }; delete armor['leather:boots']; return { ...w, armor }; }],
+  ['an armor line re-sampled on Dawnsteel x Level / 110 (D3-1, vetoable, not ruled)', 'GC3', (w) => ({ ...w, armor: { ...w.armor, 'plate:body': { ...w.armor['plate:body'], fields: { defB: [1, 11, 25, 37, 49, 61, 90] } } } })],
   ['the standard piece past the anchor read at the Level, not the band', 'GC4', (w) => swap(w, { curveAt: (line, L, C) => CURVE.lineAt(line, L, null, CURVE.GEAR_EXCHANGE.weapon, C) })],
   ['the bill rounded to nearest (a unique a point over its line)', 'GC5', (w) => swap(w, { lineAt: (line, L, buy, X, C) => { const n = CURVE.lineAt(line, L, buy, X, C); if (buy && buy.crit && n) n[line.pay] += 1; return n; } })],
   ['accuracy given up refunded in damage', 'GC5', (w) => swap(w, { lineAt: (line, L, buy, X, C) => { const n = CURVE.lineAt(line, L, buy, X, C); if (buy && buy.accuracy < 0 && n) n[line.pay] += 2; return n; } })],
@@ -171,6 +183,6 @@ if (isMain(import.meta.url)) {
   const bad = problems();
   if (bad.length) { console.error('gear-curve: RED\n  ' + bad.join('\n  ')); process.exit(1); }
   const C = CURVE.GEAR_CURVE;
-  console.log('gear-curve: ' + WEAPON_FAMILIES.length + ' weapon lines, their tiers the curve\'s samples and the line on from Dawnsteel at Level ' + C.anchor
+  console.log('gear-curve: ' + WEAPON_FAMILIES.length + ' weapon lines and ' + Object.keys(ARMOUR_CURVE_LINES).length + ' armor lines, their tiers the curve\'s samples and the line on from Dawnsteel at Level ' + C.anchor
     + ', bands every +' + Math.round((C.bandStep - 1) * 100) + '% (' + BOOK_BANDS.slice(0, 5).join(', ') + ' ...) with no last band, a unique\'s bill rounded down, the knobs on their own lines');
 }

@@ -260,16 +260,21 @@ details > summary { cursor: pointer; color: var(--ink-2); font-size: 12px; min-h
   const preCell = new Map(PRE ? PRE.cells.map((c) => [c.key, c]) : []);
   const baseVal = (key, id) => (PRE && PRE.baseline[key] ? PRE.baseline[key][MI[id]] : null);
   /* a step holds each cell's change in permille, and for ABS metrics its value after (build-v3.mjs ABS_METRICS) */
+  /* a cell the step left out did not move (build-v3.mjs drops unmoved cells) */
   const afterVal = (st, key, id) => {
-    const b = baseVal(key, id), d = st && st.d[key] ? st.d[key][MI[id]] : null;
-    if (!st) return b;
+    const b = baseVal(key, id);
+    if (!st || !st.d[key]) return b;
+    const d = st.d[key][MI[id]];
     if (ABS.has(id)) return fin(d) ? d : null;
     return fin(b) && fin(d) ? b * (1 + d / 1000) : null;
   };
   const deltaOf = (st, key, id) => {
-    const d = st && st.d[key] ? st.d[key][MI[id]] : null;
+    if (!st) return null;
+    const b = baseVal(key, id);
+    if (!st.d[key]) return fin(b) ? 0 : null;
+    const d = st.d[key][MI[id]];
     if (!fin(d)) return null;
-    if (ABS.has(id)) { const b = baseVal(key, id); return fin(b) ? d - b : null; }
+    if (ABS.has(id)) return fin(b) ? d - b : null;
     return d / 1000;
   };
 
@@ -368,17 +373,18 @@ details > summary { cursor: pointer; color: var(--ink-2); font-size: 12px; min-h
     let h = '<h2>Bands moved: IMPROVED, REGRESSED, UNINTENDED <span class="tag pre">PRECOMPUTED</span></h2><div class="note">Judged by tools/balance-program/standards.mjs (the grid\'s own judge). Tick what the change is meant to move: a moved band you ticked reads IMPROVED (toward its range) or REGRESSED (away); any other moved band is UNINTENDED.</div>'
       + '<div class="targets">' + groups.map((g) => '<label><input type="checkbox" data-target="' + g + '"' + (state.targets.has(g) ? ' checked' : '') + '>' + esc(g) + '</label>').join('') + '</div>';
     if (!ps) { $('flags').innerHTML = h + '<div class="empty">Move a slider that has been swept.</div>'; wireTargets(); return; }
-    const F = PRE.bandFields, ix = Object.fromEntries(F.map((f, i) => [f, i]));
-    const rows = ps.st.bands.map((b) => { const g = b[ix.group] || DATA.bandGroups[b[ix.band]]; const t = state.targets.has(g); return { b, g, flag: t ? (b[ix.direction] === 'toward' ? 'IMPROVED' : 'REGRESSED') : 'UNINTENDED' }; });
-    const n = (f) => rows.filter((r) => r.flag === f).length;
-    h += '<div class="counts"><span class="f-IMPROVED">IMPROVED ' + n('IMPROVED') + '</span><span class="f-REGRESSED">REGRESSED ' + n('REGRESSED') + '</span><span class="f-UNINTENDED">UNINTENDED ' + n('UNINTENDED') + '</span><span class="flat">for ' + esc(ps.k) + ' at x' + ps.s + '</span></div>';
+    /* build-v3.mjs keeps per group [toward, away] counts and the rows, status changes first: [way, band, group, at, before, after, status before, after, toward] */
+    const n = { IMPROVED: 0, REGRESSED: 0, UNINTENDED: 0 };
+    for (const [g, [toward, away]] of Object.entries(ps.st.bandCounts || {})) { if (state.targets.has(g)) { n.IMPROVED += toward; n.REGRESSED += away; } else n.UNINTENDED += toward + away; }
+    const flagOf = (r) => (state.targets.has(r[2]) ? (r[8] ? 'IMPROVED' : 'REGRESSED') : 'UNINTENDED');
+    h += '<div class="counts"><span class="f-IMPROVED">IMPROVED ' + n.IMPROVED + '</span><span class="f-REGRESSED">REGRESSED ' + n.REGRESSED + '</span><span class="f-UNINTENDED">UNINTENDED ' + n.UNINTENDED + '</span><span class="flat">for ' + esc(ps.k) + ' at x' + ps.s + ', on one seed an hour: a small move can be the dice taking another road</span></div>';
     const order = { REGRESSED: 0, UNINTENDED: 1, IMPROVED: 2 };
+    const rows = (ps.st.bandRows || []).map((r) => ({ r, flag: flagOf(r) })).sort((a, b) => order[a.flag] - order[b.flag]);
     h += '<div class="scroll"><table><tr><th>Flag</th><th>Way</th><th>Band</th><th>At</th><th>Before</th><th>After</th></tr>';
-    for (const r of rows.sort((a, b) => order[a.flag] - order[b.flag]).slice(0, 60)) {
-      const b = r.b;
-      h += '<tr><td class="f-' + r.flag + '">' + r.flag + '</td><td>' + esc(b[ix.way]) + '</td><td>' + esc(b[ix.band]) + ' <span class="flat">' + esc(r.g || '') + '</span></td><td>' + esc(b[ix.at]) + '</td><td>' + num(b[ix.before]) + ' <span class="s-' + b[ix.statusBefore] + '">' + b[ix.statusBefore] + '</span></td><td>' + num(b[ix.after]) + ' <span class="s-' + b[ix.statusAfter] + '">' + b[ix.statusAfter] + '</span></td></tr>';
+    for (const { r, flag } of rows.slice(0, 60)) {
+      h += '<tr><td class="f-' + flag + '">' + flag + '</td><td>' + esc(r[0]) + '</td><td>' + esc(r[1]) + ' <span class="flat">' + esc(r[2] || '') + '</span></td><td>' + esc(r[3]) + '</td><td>' + num(r[4]) + ' <span class="s-' + r[6] + '">' + r[6] + '</span></td><td>' + num(r[5]) + ' <span class="s-' + r[7] + '">' + r[7] + '</span></td></tr>';
     }
-    h += '</table></div>' + (rows.length > 60 ? '<div class="note">' + (rows.length - 60) + ' more rows in tools/balance-program/balance-sweeps.json.</div>' : '');
+    h += '</table></div>' + ((ps.st.bandTotal || 0) > 60 ? '<div class="note">' + ((ps.st.bandTotal || 0) - Math.min(60, rows.length)) + ' more rows (status changes are listed first): balance-matrix.mjs --diff prints them all.</div>' : '');
     $('flags').innerHTML = h;
     wireTargets();
   }

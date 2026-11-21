@@ -135,6 +135,7 @@ const permille = (a, b) => (typeof a === 'number' && typeof b === 'number' && is
 /* the metrics that sit at zero in most cells (a death rate, time under a share of HP): a step keeps their AFTER value, not a change from zero */
 export const ABS_METRICS = Object.freeze(['deathsPer1000h', 'hpUnder30', 'hpUnder10']);
 const sig4 = (v) => (typeof v === 'number' && isFinite(v) ? Number(v.toPrecision(4)) : null);
+const BAND_ROWS = 80;
 export async function pageData(root = ROOT) {
   const imp = (p) => import(pathToFileURL(join(root, p)).href);
   const PG = await imp('tools/balance-program/progression-grid.mjs');
@@ -176,10 +177,22 @@ export async function pageData(root = ROOT) {
         for (const [key, row] of Object.entries(st.cells)) {
           const b = sw.baseline[key];
           if (!b) continue;
-          d[key] = row.slice(0, nM).map((v, i) => (ABS_METRICS.includes(METRICS[i][0]) ? sig4(v) : permille(b[i], v)));
+          const dk = row.slice(0, nM).map((v, i) => (ABS_METRICS.includes(METRICS[i][0]) ? sig4(v) : permille(b[i], v)));
+          /* a cell the step did not move is left out (the page reads it as unchanged) */
+          const still = dk.every((v, i) => (ABS_METRICS.includes(METRICS[i][0]) ? v === sig4(b[i]) : v === 0)) && JSON.stringify(row[nM]) === JSON.stringify(b[nM]);
+          if (still) continue;
+          d[key] = dk;
           seats[key] = row[nM];
         }
-        knobs[id].steps[m] = { d, seats, bands: st.bands, calibration: st.calibration, applied: st.applied };
+        /* THE BANDS IT MOVED, small enough for a phone: per band group how many rows moved toward their range and how many away (the page
+           flags them against the groups ticked as targets), and the rows themselves, status changes first, at most BAND_ROWS */
+        const F = Object.fromEntries((sw.bandFields || []).map((f, i) => [f, i]));
+        const counts = {};
+        for (const b of st.bands) { const g = b[F.group] || 'other', c = counts[g] || (counts[g] = [0, 0]); c[b[F.direction] === 'toward' ? 0 : 1]++; }
+        const rank = (b) => (b[F.statusBefore] !== b[F.statusAfter] ? 0 : 1);
+        const rows = [...st.bands].sort((a, b) => rank(a) - rank(b)).slice(0, BAND_ROWS)
+          .map((b) => [b[F.way], b[F.band], b[F.group], b[F.at], sig4(b[F.before]), sig4(b[F.after]), b[F.statusBefore], b[F.statusAfter], b[F.direction] === 'toward' ? 1 : 0]);
+        knobs[id].steps[m] = { d, seats, bandCounts: counts, bandRows: rows, bandTotal: st.bands.length, calibration: st.calibration, applied: st.applied };
       }
     }
     pre = { run: sw.run, at: sw.at, commits: sw.commits || [sw.commit], hash: sw.hash, stale: sw.hash !== BM.matrixHash(root), githubRun: sw.githubRun || null, seeds: sw.seeds, hours: sw.hours,

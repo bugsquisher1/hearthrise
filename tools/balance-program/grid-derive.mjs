@@ -198,6 +198,7 @@ function dropWait(D, cell, plan, K, bandH) {
 const NOT_GRID = {
   P13: 'events: the grid plays no event calendar', 'G-11': 'server gold: needs the server gold model (X14), not a cell', E5: 'chest and capped sources: the sources lane (atlas.json)',
   'E7': 'the Add pool: balance guard G10 plays it', E8: 'gold-for-power offers: balance guard G12', D4: 'Magic Find: balance guard G13 (Luck not built)',
+  TL1: 'the talent builds: balance-matrix.mjs judges them', TL2: 'the talent builds: balance-matrix.mjs judges them', TL3: 'the talent builds: balance-matrix.mjs judges them', TL4: 'the talent builds: balance-matrix.mjs judges them',
   R1: 'region open dates: a schedule, not a cell', R3: 'Levels authored a month: the pack log', 'C4.1k': 'money: measure.mjs cost', 'C4.10k': 'money: measure.mjs cost', 'C4b.1k': 'the other lines of the bill: 28-platform\'s price list', 'C4b.10k': 'the other lines of the bill: 28-platform\'s price list', C5: 'capacity: measure.mjs cost and the load rig',
 };
 export function judgeGrid(D, grid, o = {}) {

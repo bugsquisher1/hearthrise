@@ -46,7 +46,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createHash } from 'node:crypto';
 import { isMain } from '../../tests/_is-main.mjs';
 import * as STD from './standards.mjs';
-import { loadGridData, inputHash, compsOf, cellKey } from './progression-grid.mjs';
+import { loadGridData, inputHash, compsOf, cellKey, buildCell } from './progression-grid.mjs';
 import { loadKits } from './grid-kit.mjs';
 import { RUNS, planMatrix, archetypeTable, WAYS, HIGH_LEVELS } from './matrix-plan.mjs';
 import { METRICS, cellMetrics, slimSeed, deriveMatrix, judgeMatrix, diffMatrices, axisSummary, levelBand, wayOf, styleGroupOf, FLAG_WORDS } from './matrix-metrics.mjs';
@@ -180,6 +180,19 @@ export function printRun(res, rows, out = console.log) {
     + (short.length ? '; the worst: ' + [...short].sort((a, b) => a.m.huntedShare - b.m.huntedShare).slice(0, 8).map((c) => c.key + ' hunted ' + pct(c.m.huntedShare).replace('+', '') + ', XP after deaths ' + fmt(c.m.netLevelXpPerH)).join('; ') : ''));
   out('\nVARIANTS against the plain cell (matrix-plan.mjs: one timed buff, a bar and a purse that bind, build tracks): DPS | kills | Level XP | XP after deaths | net gold | hunted');
   for (const v of D.variants) out('  ' + (v.L + ' ' + v.gear + ' x' + v.party + ' ' + v.tier + ' ' + v.variant).padEnd(40) + [fmt(v.dps, 3), fmt(v.killsPerH, 3), fmt(v.levelXpPerH, 3), fmt(v.netLevelXpPerH, 3), fmt(v.netPerH, 3), fmt(v.huntedShare[1], 3)].map((s) => s.padStart(8)).join(' '));
+  /* TALENTS (10-level-choices.md 8.3): each contrast build over the suggested build of the same seats; Linger and the unlocks are not modelled */
+  out('\nTALENT BUILDS over the suggested build (S), MID (A all Force, B the built holder, C empty, D all safety): Level XP | XP after deaths | DPS | taken | deaths/1000h S -> build');
+  for (const t of D.talents) out('  ' + (t.L + ' ' + t.way + ' ' + t.tier + ' ' + t.build).padEnd(40) + [fmt(t.levelXpPerH, 3), fmt(t.netLevelXpPerH, 3), fmt(t.dps, 3), fmt(t.takenPerH, 3)].map((s) => s.padStart(8)).join(' ') + '   ' + fmt(t.deathsPer1000h[0], 0) + ' -> ' + fmt(t.deathsPer1000h[1], 0));
+  /* FOOTING AND THE TO-HIT FLOOR (chapter 10 rule 3: Footing shares the Defense rating with CORE-4's protection buffs, and the floor the to-hit
+     formula is owed is not written): each seat's rating before and with its Footing, the monsters' mean chance to land, and the lowest in the mix.
+     A floor at F would bite on every seat whose lowest chance is under F */
+  const feet = ok.filter((c) => c.block === 'talents' && (c.build === 'S' || c.build === 'D' || c.build === 'B') && Array.isArray(c.m.toHit));
+  out('\nFOOTING AND THE TO-HIT FLOOR (CORE-4 owes a floor; none is written): seat Defense rating plain -> with Footing | monsters\' mean chance to land plain -> with | lowest | where a floor would bite');
+  for (const c of feet) for (const [i, t] of c.m.toHit.entries()) {
+    if (!t || !(t.footingPm > 0)) continue;
+    const bites = [0.10, 0.20, 0.30].filter((f) => Number.isFinite(t.lowest) && t.lowest < f).map((f) => 'a floor at ' + f.toFixed(2));
+    out('  ' + (c.L + ' ' + c.styles[i] + ' (' + c.comp + ' ' + c.tier + ' ' + c.build + ')').padEnd(40) + String(t.def0).padStart(5) + ' -> ' + String(t.def).padEnd(5) + fmt(t.landed0, 3).padStart(7) + ' -> ' + fmt(t.landed, 3).padEnd(7) + fmt(t.lowest, 3).padStart(7) + '   ' + (bites.length ? bites.join(', ') + ' would bite' : 'no floor up to 0.30 would bite'));
+  }
   out('\nGEAR STEPS BY SLOT CLASS (the full set over it with one class a state back): Level XP | DPS | less damage taken');
   for (const u of D.upgrades) out('  ' + (u.L + ' ' + u.way + ' ' + u.from + '->' + u.to + ' ' + u.cls).padEnd(34) + [pct(u.xp), pct(u.dps), pct(u.lessTaken)].map((s) => s.padStart(9)).join(' '));
   out('\nARCHETYPES (matrix-plan.mjs rule; mean over cells): kills/h | taken/h | dealt/h | s to kill | taken a kill');
@@ -643,8 +656,13 @@ async function selftest() {
   const mon = await play({ knobs: { monsterDamage: 1.6 } });
   check('monsterDamage x1.6 re-writes the monster rows from the formula, and they check green', !!mon.regen && /green/.test(mon.regen.check), JSON.stringify(mon.regen));
   const d2 = diffMatrices({ rows: rowsB, cells: base.cells }, { rows: judgeMatrix(mon.res.V, K, mon.res.cells), cells: mon.res.cells }, { targets: ['survival'] });
-  const soft = d2.cells.filter((c) => c.metrics.takenPerH && c.metrics.takenPerH[0] > 0 && !(c.metrics.takenPerH[2] > 0.2));
-  check('monsterDamage x1.6: damage taken up over 20% in every cell that takes any', soft.length === 0, soft.map((c) => c.key + ' ' + JSON.stringify(c.metrics.takenPerH)).join('; '));
+  /* under the real death rule a cell whose hero now dies at once hunts no time, so its rate is the death's, not a damage rate: such cells must
+     have died, and every cell that still hunts takes over 20% more */
+  const MC = new Map(mon.res.cells.map((c) => [c.key, c]));
+  const huntsOn = (c) => (MC.get(c.key) && MC.get(c.key).m && MC.get(c.key).m.huntedShare >= 0.5);
+  const soft = d2.cells.filter((c) => huntsOn(c) && c.metrics.takenPerH && c.metrics.takenPerH[0] > 0 && !(c.metrics.takenPerH[2] > 0.2));
+  const stopped = d2.cells.filter((c) => !huntsOn(c) && c.metrics.takenPerH && c.metrics.takenPerH[0] > 0), stoppedDied = stopped.every((c) => MC.get(c.key).m.deaths > 0);
+  check('monsterDamage x1.6: damage taken up over 20% in every cell that still hunts, and every cell it stops died (' + stopped.length + ')', soft.length === 0 && stoppedDied, soft.map((c) => c.key + ' ' + JSON.stringify(c.metrics.takenPerH)).join('; '));
   check('monsterDamage x1.6 targeting survival: a survival band it moves is INTO or OUT, never UNTARGETED', d2.bands.filter((b) => b.group === 'survival').every((b) => b.flag !== 'UNTARGETED'));
   /* 6. the flag rules on planted rows (and their mutant: a tolerance past every move flags nothing) */
   const row = (band, at, value, status, dist) => ({ way: 'hammer', band, group: STD.bandById(band).group, at, value, status, dist });
@@ -657,7 +675,8 @@ async function selftest() {
   check('the flags bite: a tolerance past every move flags nothing but the status changes', diffMatrices(B, A, { targets: [] }, { tol: 10 }).bands.map((b) => b.band).sort().join() === 'G-2.normal,S1.mid');
   /* 7. the time under 30% HP agrees with the fights: a seat whose worst tenth of fights dips under 30% spent time there */
   const all = [...base.cells, ...mon.res.cells].filter((c) => c.m);
-  const dipped = all.filter((c) => finite(c.m.lowHpP10) && c.m.lowHpP10 < 0.3);
+  /* a cell that hunted (a hero dead in its first seconds records a dip and no time) */
+  const dipped = all.filter((c) => finite(c.m.lowHpP10) && c.m.lowHpP10 < 0.3 && c.m.huntedShare >= 0.5);
   check('every cell whose fights dip under 30% HP records time under 30% (' + dipped.length + ' such cells)', dipped.length > 0 && dipped.every((c) => c.m.hpUnder30 > 0), dipped.filter((c) => !(c.m.hpUnder30 > 0)).map((c) => c.key).join('; ') || 'no cell dipped');
   check('the seat damage shares of a four add to 1', base.cells.filter((c) => c.party === 4).every((c) => Math.abs(c.m.seatsM.reduce((a, s) => a + (s.takenShare || 0), 0) - 1) < 0.01));
   /* 8. THE GROUND AXIS IS JUDGED (the Coordinator 2026-11-21: four ground diffs read INTO 0, OUT 0, UNTARGETED 0): a ground patch,
@@ -676,6 +695,74 @@ async function selftest() {
     const gd = diffMatrices({ rows: judgeMatrix(D, K, gb.cells), cells: gb.cells }, { rows: judgeMatrix(ga.V, K, ga.cells), cells: ga.cells }, { targets: ['survival'] });
     const flagged = gd.bands.filter((b) => b.way === 'G:the_slake' && b.group === 'survival' && b.flag !== 'UNTARGETED');
     check('a ground patch (the Slake\'s Cold Bilge x5) flags the Slake\'s survival bands INTO or OUT (' + flagged.length + ')', flagged.length > 0, JSON.stringify(gd.counts));
+  }
+  /* 9. THE MEASURING TOOL (the critical review's step 1, F-framework-audit sections 3 and 5): each fix and each new mechanic, with a play that
+     fails without it */
+  {
+    const P = await import('./proposals.mjs');
+    const SH = await import('../balance-sim/played.mjs');
+    const TAL = await import('./talents.mjs');
+    const PG = await import('./progression-grid.mjs');
+    const lethal = buildCell(D, K, { L: 20, gear: 'low', styles: ['hammer'], tier: 'deadly', ground: D.groundAt(20, 1) }).cell;
+    const pairGround = D.groundAt(60, 2), pair = { ground: pairGround, party: ['bow', 'hammer'], level: [60, 5], profile: 'played', supply: 'store', deathRule: 'real', options: { tier: 'deadly' }, hours: 0.5, seeds: 1 };
+    const g60 = D.groundAt(60, 1), ham = buildCell(D, K, { L: 60, gear: 'mid', styles: ['hammer'], tier: 'normal', ground: g60 }).cell, mage = buildCell(D, K, { L: 60, gear: 'mid', styles: ['mage'], tier: 'normal', ground: g60 }).cell;
+    const jobs = [
+      ['real', { ...lethal, hours: 1 }], ['reenter', { ...lethal, deathRule: 'reenter', hours: 1 }],
+      ['apart', pair], ['together', { ...pair, endTogether: true }], ['blessed', { ...pair, blessings: 3 }],
+      ['plain', { ...ham, hours: 1.5 }], ['buffKept', { ...ham, buffs: [{ type: 'damage', magnitude: 10 }], hours: 1.5 }], ['buffHour', { ...ham, buffs: [{ type: 'damage', magnitude: 10, hours: 1 }], hours: 1.5 }],
+      ['stamina', { ...ham, staminaH: 0.1, hours: 0.25 }], ['purseFull', { ...mage, hours: 0.25 }], ['purseDry', { ...mage, purse: 0, goldFloor: 100000, hours: 0.25 }],
+    ].map(([id, cell]) => ({ id, cell: { ...cell, id: 'SELF:' + id, seeds: 1 } }));
+    const { results: X, errors } = await playJobs(jobs, ROOT, workersOf());
+    check('the tool\'s plays run (' + jobs.length + ')', !errors.length, errors.map((e) => e.id + ' ' + e.error).join('; '));
+    const h = (id, i = 0) => (X[id] ? X[id].heroes[i] : {});
+    /* 9a. the death rule: a death ends the hunt and the hero stays home (the audit's probe: 59 deaths in an hour under the old rule) */
+    check('the death rule: the audit\'s lethal cell dies once and stays home (' + h('real').deaths + ' death, hunted ' + h('real').hours + ' of ' + h('real').wallHours + ' h), where re-entry died ' + h('reenter').deaths + ' times',
+      h('real').deaths === 1 && h('real').wallHours === 1 && h('real').lostHours > 0.9 && h('reenter').deaths > 5);
+    /* 9b. the booked time: a hunt that ended in its first seconds books those seconds, never a minute (cell.mjs:408 before) */
+    check('the booked time: the party books what it hunted (' + X.reenter.party.hours + ' h for ' + h('reenter').hours + ' hunted, ' + X.reenter.party.segments + ' hunts)', Math.abs(X.reenter.party.hours - h('reenter').hours) < 0.02 && Math.abs(X.real.party.hours - h('real').hours) < 0.02);
+    /* 9c. ruling 27-1 as amended: own heroes hunt on past a death unless the cell sets endTogether */
+    check('a death in a party: the rest hunt on (bow ' + h('apart', 0).hours + ' h after the hammer\'s ' + h('apart', 1).hours + ' h) unless they end together (bow ' + h('together', 0).hours + ' h, ' + Object.keys(h('together', 0).ended || {}).join(',') + ')',
+      h('apart', 0).hours > h('apart', 1).hours + 0.05 && (h('together', 0).ended || {}).party_member_died >= 1 && h('together', 0).hours <= h('together', 1).hours + 0.01);
+    /* 9d. Blessings: three cut a death's Level XP loss by 75%, and are bought again (the gold of src/data/blessings.js) */
+    const bw = h('blessed', 0), bl = await import(pathToFileURL(join(ROOT, 'src/data/blessings.js')).href);
+    check('Blessings: three cut the loss to a quarter (' + bw.raw.xpLostLevel + ' -> ' + Math.round(bw.raw.xpLostLevelBlessed) + ') and cost ' + bw.raw.blessingGold + ' gold again',
+      bw.deaths >= 1 && Math.abs(bw.raw.xpLostLevelBlessed - 0.25 * bw.raw.xpLostLevel) < 1 && bw.raw.blessingGold === bw.deaths * [1, 2, 3].reduce((a, t) => a + bl.blessingPrice(t, 60), 0));
+    /* 9e. one timed buff in a cell, kept up all hunt (a row an hour), against an hour of it and against none */
+    check('a timed buff: +10% damage kept up deals more than an hour of it, which deals more than none (' + [X.plain, X.buffHour, X.buffKept].map((r) => r.heroes[0].dps).join(' < ') + ')',
+      h('buffKept').dps > h('buffHour').dps && h('buffHour').dps > h('plain').dps);
+    /* 9f. a stamina bar and a purse that bind */
+    check('a stamina bar that binds ends the hunt at 0.1 h (' + h('stamina').hours + ' h, ' + Object.keys(h('stamina').ended || {}).join(',') + ')', Math.abs(h('stamina').hours - 0.1) < 0.01 && (h('stamina').ended || {}).stamina === 1);
+    check('a purse that binds: under its floor the mage buys nothing and fights slower (store ' + h('purseDry').storePerH + ', DPS ' + h('purseDry').dps + ' against ' + h('purseFull').dps + ')', h('purseDry').storePerH === 0 && h('purseDry').dps < h('purseFull').dps);
+    /* 9g. the store bill: casters shop as the real four did (11-krell section 4): one tier under what Magic allows, the healer's heals on Chalked */
+    check('the shopping rule: a mage at Magic 64 casts on Carved, a healer heals on Chalked water and its sickness on Carved; a BiS hero casts on Graven; MID cells shop real',
+      SH.shoppingTier('mage', 'fire', 64, 'real') === 'carved' && SH.shoppingTier('healer', 'water', 64, 'real') === 'chalked' && SH.shoppingTier('healer', 'poison', 64, 'real') === 'carved'
+      && SH.shoppingTier('mage', 'fire', 64, 'allowed') === 'graven' && ham.shopping === 'real' && buildCell(D, K, { L: 60, gear: 'bis', styles: ['mage'], tier: 'normal', ground: g60 }).cell.shopping === 'allowed');
+    /* 9h. the seats: the matrix's four sits as the real Krell four sat, and the simulator check plays it */
+    const cal = await calibrationJobs(D, K, ROOT, { seeds: 1, hours: 0.25 });
+    check('the four sits as the real four (' + PG.compsOf(4)[0][0].join(', ') + '), and the simulator check\'s four is it', PG.compsOf(4)[0][0].join() === 'hammer,bow,mage,healer' && cal.cols.find((x) => x.col === 'harness').styles.join() === 'hammer,bow,mage,healer');
+    /* 9i. GR-67: the six dropped party-size bands are never judged or printed */
+    const gq = JSON.parse(readFileSync(join(HERE, 'progression-grid-quick.json'), 'utf8')), DER = await import('./grid-derive.mjs');
+    const jq = DER.judgeGrid(D, gq, { K }), printed = [];
+    DER.printReport(gq, jq, (s) => printed.push(s));
+    const leaked = STD.DROPPED.filter((id) => jq.rows.some((r) => r.band === id) || printed.some((l) => l.startsWith('  ' + id + ' ')));
+    check('the dropped bands (' + STD.DROPPED.join(', ') + ') are never judged or printed', STD.DROPPED.length === 6 && !leaked.length, leaked.join(', '));
+    /* 9j. Talents: the plan rule and the curve as chapter 10 prints them, and the hook bites on the scratch copy only */
+    const t110 = TAL.talentsOf('bow', 110), tk = TAL.talentsOf('tank', 110);
+    check('Talents: a damage hero at 110 holds 13 / 0 / 5 / 4 and Force pays 5.7%; a shield tank 4 / 9 / 9 / 0; the axes\' Linger points play nothing',
+      [t110.ranks.force, t110.ranks.footing, t110.ranks.grit, t110.ranks.reserve].join() === '13,0,5,4' && Math.abs(t110.pm.force - 56.5) < 0.1 && [tk.ranks.force, tk.ranks.footing, tk.ranks.grit, tk.ranks.reserve].join() === '4,9,9,0'
+      && TAL.talentsOf('axes', 110).unplayed.includes('linger') && !('linger' in TAL.talentsOf('axes', 110).pm));
+    const tal = await plantScratch(P.composePatch(ROOT, ['TAL']));
+    let hooked, inert;
+    try {
+      const two = (root, tag) => playJobs(['S', 'C'].map((b) => ({ id: tag + b, cell: { ...buildCell(D, K, { L: 110, gear: 'mid', styles: ['hammer'], tier: 'normal', ground: D.groundAt(110, 1), build: b }).cell, id: 'SELF:' + tag + b, hours: 0.5, seeds: 1 } })), root, 2);
+      hooked = (await two(tal.root, 'hook')).results; inert = (await two(ROOT, 'tree')).results;
+    } finally { tal.done(); }
+    check('Talents bite through the hook (suggested over empty: ' + (hooked.hookS.heroes[0].dps / hooked.hookC.heroes[0].dps).toFixed(3) + ') and are inert on a tree without it (' + (inert.treeS.heroes[0].dps / inert.treeC.heroes[0].dps).toFixed(3) + ')',
+      hooked.hookS.heroes[0].dps > hooked.hookC.heroes[0].dps && inert.treeS.heroes[0].dps === inert.treeC.heroes[0].dps);
+    /* 9k. the build-track hook: a track's picks up to the Level, summed; a pick on an effect no engine lever pays is refused by name */
+    let refusedTrack = false;
+    try { PG.trackBuffs({ id: 'x', picks: [{ at: 5, effects: { luck: 5 } }] }, 10); } catch { refusedTrack = true; }
+    check('the build-track hook: picks up to the Level summed, an unknown effect refused', JSON.stringify(PG.trackBuffs({ id: 'x', picks: [{ at: 5, effects: { damage: 2 } }, { at: 10, effects: { damage: 3 } }, { at: 15, effects: { damage: 9 } }] }, 12)) === JSON.stringify([{ type: 'damage', magnitude: 5 }]) && refusedTrack);
   }
   console.log('balance-matrix selftest: ' + (fails.length ? fails.length + ' FAILED' : 'green') + ' in ' + Math.round((Date.now() - t0) / 1000) + ' s');
   return fails.length ? 1 : 0;

@@ -54,6 +54,7 @@ import { isMain } from '../../tests/_is-main.mjs';
 import * as STD from './standards.mjs';
 import { loadKits } from './grid-kit.mjs';
 import { PROJECTED, projectedFloor, placeholderWhatIf, selfCheck } from './grid-project.mjs';
+import { talentsOf } from './talents.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..', '..');
@@ -150,7 +151,7 @@ export function trackBuffs(track, L) {
  * what its Magic allows, a Healer heals on the cheapest water rune; BiS casts what its Magic allows). Options: `buffs` (timed buff rows kept
  * up all hunt), `track` (a build-tracks.json track), `staminaH`, `purse` and `goldFloor` (a bar and a purse that bind).
  */
-export function buildCell(D, K, { L, gear, styles, tier, ground, step = null, buffs = null, track = null, endTogether = false, staminaH = null, purse = null, goldFloor = null, blessings = 3 }) {
+export function buildCell(D, K, { L, gear, styles, tier, ground, step = null, buffs = null, track = null, endTogether = false, staminaH = null, purse = null, goldFloor = null, blessings = 3, build = 'S' }) {
   const size = styles.length, line = size > 1 ? 'party' : 'alone';
   const skills = styles.map((style) => {
     const lv = { ...D.skillsAt(D.lines, line, style, L) }, d = K.skillDeltaOf(gear, L), m = MAIN[style] || 'melee';
@@ -173,8 +174,11 @@ export function buildCell(D, K, { L, gear, styles, tier, ground, step = null, bu
   } else if (tier !== 'normal') tierRow = D.TI.tierRowOf(ground, tier);
   const pull = tierRow ? D.TI.pullOfTier(tierRow, size) : null;
   const rows = [...(buffs || []), ...(track ? trackBuffs(track, L) : [])];
+  /* TALENTS ARE BASELINE (10-level-choices.md 5.1): every seat carries its way's suggested build (`build` 'S'), a contrast build is a variant;
+     the stat lines bite only where the tree has the seam (the Talents proposal's scratch hook) */
+  const talentsBySeat = styles.map((st) => talentsOf(st, L, build).pm);
   const cell = { ground, party: [...styles], level: L, profile: 'played', supply: 'store', skillsBySeat: skills, gearBySeat: plans.map((p) => p.gear),
-    deathRule: 'real', blessings, shopping: gear === 'bis' ? 'allowed' : 'real', ...(endTogether ? { endTogether: true } : {}),
+    talentsBySeat, build, deathRule: 'real', blessings, shopping: gear === 'bis' ? 'allowed' : 'real', ...(endTogether ? { endTogether: true } : {}),
     ...(rows.length ? { buffs: rows } : {}), ...(Number.isFinite(staminaH) ? { staminaH } : {}), ...(Number.isFinite(purse) ? { purse } : {}), ...(Number.isInteger(goldFloor) ? { goldFloor } : {}),
     ...(Object.keys(temper).length ? { temper } : {}), ...(tier !== 'normal' ? { options: { tier } } : {}), ...(pull ? { density: pull } : {}) };
   return { cell, whatIf, plans };
@@ -321,8 +325,8 @@ export function cellRates(D, meta, seeds) {
 const HASHED = ['src/core', 'src/data', 'supabase/functions/hr-accrue', 'src/shell/hunt-list.js', 'tests/hunt-core/fixtures/play-ground.mjs', 'tools/lib/version-stamp.mjs', 'tools/gen-ground-stats.mjs',
   'tools/balance-sim/cell.mjs', 'tools/balance-sim/gear.mjs', 'tools/balance-sim/worker.mjs', 'tools/balance-sim/played.mjs', 'tools/balance-sim/skill-lines.mjs', 'tools/balance-sim/skill-lines.json',
   'tools/balance-sim/styles.mjs', 'tools/balance-sim/stats.mjs', 'tools/balance-sim/weapon-power.mjs', 'tools/balance-sim/armor-power.mjs', 'tools/balance-sim/career.mjs', 'tools/balance-sim/staged',
-  'tools/balance-program/grid-kit.mjs', 'tools/balance-program/grid-project.mjs', 'tools/balance-program/build-tracks.json'];
-const cellCode = () => [buildCell, trackBuffs, planCells, cellRates, compsOf, cellKey, ownShareAt, slimResult, slimPlan].map((f) => f.toString()).join('\n')
+  'tools/balance-program/grid-kit.mjs', 'tools/balance-program/grid-project.mjs', 'tools/balance-program/build-tracks.json', 'tools/balance-program/talents.mjs'];
+const cellCode = () => [buildCell, trackBuffs, talentsOf, planCells, cellRates, compsOf, cellKey, ownShareAt, slimResult, slimPlan].map((f) => f.toString()).join('\n')
   /* of standards.mjs only what shapes a cell (the gear rules, the stretches, the parties, the supply share, the checkpoints), never a band: a
      ruling that moves a target leaves the cells as they were. A run's file path is the machine's, so it is left out. */
   + JSON.stringify([COMPS, MAIN, ...[RUNS.full, RUNS.quick].map(({ file, ...r }) => (void file, r)), STD.SUPPLY, STD.GEAR_STATES, STD.STRETCHES, STD.PARTIES, STD.POWER_SOURCES, STD.CHECKPOINTS, STD.GUARD_CHECKPOINTS, STD.TIERS]);

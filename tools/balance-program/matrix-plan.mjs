@@ -67,6 +67,16 @@ export const BUFF_BLOCK = Object.freeze({ id: 'buff', levels: Object.freeze([30,
 export const BINDS_BLOCK = Object.freeze({ id: 'binds', levels: Object.freeze([60, 110]), comps: [lone('hammer'), lone('mage')], gears: ['mid'], tiers: ['normal'],
   variants: Object.freeze([Object.freeze({ tag: 'stamina:half', staminaShare: 0.5 }), Object.freeze({ tag: 'purse:0', purse: 0, goldFloor: 300 })]) });
 export const TRACKS_BLOCK = Object.freeze({ id: 'tracks', tracks: true, comps: [lone('hammer'), ...compsOf(4)], gears: ['mid'], tiers: ['normal'] });
+/* THE TALENT BUILDS (10-level-choices.md section 8.3; tools/balance-program/talents.mjs BUILDS): every lone way alone on Normal and the standard four on
+   the hardest tier, MID, at Levels 25, 60, 110, 185 and 400, on the suggested build (S, the reference, its own cell here) and each contrast:
+   A all Force (the damage ways and the four), C empty, D all safety (the four), B the built holder (the hammer on the tank's weights, in the two
+   fours that put a hammer in front). Every cell is a variant (`build:<id>`); deriveMatrix and the TL bands read each against S. */
+const DAMAGE_WAYS = Object.freeze(['sword', 'hammer', 'axes', 'bow', 'crossbow', 'mage']);
+export const TALENT_BLOCK = Object.freeze({ id: 'talents', talents: true, levels: Object.freeze([25, 60, 110, 185, 400]), seats: Object.freeze([
+  ...WAYS.map((w) => Object.freeze({ styles: [w], comp: w === 'hammer' ? 'h' : w, tier: 'normal', builds: DAMAGE_WAYS.includes(w) ? ['S', 'A', 'C'] : ['S', 'C'] })),
+  Object.freeze({ styles: compsOf(4)[0][0], comp: compsOf(4)[0][1], tier: 'hardest', builds: ['S', 'A', 'B', 'C', 'D'] }),
+  Object.freeze({ styles: ['hammer', 'mage', 'mage', 'mage'], comp: lineupComp(['hammer', 'mage', 'mage', 'mage']), tier: 'hardest', builds: ['S', 'B'] }),
+]) });
 
 /* THE RUNS. `blocks` name what each plays; a block's levels default to the run's, its seeds too (`seeds` on a block plays it on more). */
 export const RUNS = Object.freeze({
@@ -76,7 +86,7 @@ export const RUNS = Object.freeze({
     { id: 'parties', comps: [2, 3, 4].flatMap((n) => compsOf(n)), gears: STD.GEAR_STATE_IDS, tiers: 'all' },
     { id: 'steps', comps: [lone('hammer'), ...compsOf(4)], steps: true, tiers: ['normal'] },
     LINEUP_BLOCK,
-    BUFF_BLOCK, BINDS_BLOCK, TRACKS_BLOCK,
+    BUFF_BLOCK, BINDS_BLOCK, TRACKS_BLOCK, TALENT_BLOCK,
     { id: 'grounds', grounds: true },
   ]) }),
   /* the representative subset (a --diff in a few minutes): every way, every gear state, lone and four, Normal, Dangerous and the hardest tier, every
@@ -89,7 +99,7 @@ export const RUNS = Object.freeze({
     { id: 'four', comps: compsOf(4), gears: STD.GEAR_STATE_IDS, tiers: ['normal', 'dangerous', 'hardest'] },
     { id: 'steps', comps: [lone('hammer')], steps: true, tiers: ['normal'] },
     LINEUP_BLOCK,
-    BUFF_BLOCK, BINDS_BLOCK, TRACKS_BLOCK,
+    BUFF_BLOCK, BINDS_BLOCK, TRACKS_BLOCK, TALENT_BLOCK,
   ]) }),
   /* Balance Lab v3's LIVE cells (a slider move re-plays them in the browser, on the bundled engine): every way alone and the four on every tier,
      MID, early, at the end of open content and PROJECTED, a quarter hour on one seed. tools/balance-lab/build.mjs --v3
@@ -193,6 +203,7 @@ export function planMatrix(D, K, run, o = {}) {
   for (const block of run.blocks) {
     if (o.blocks && !o.blocks.includes(block.id)) continue;
     if (block.grounds) { planGrounds(D, K, add, block); continue; }
+    if (block.talents) { planTalents(D, K, add, block, o); continue; }
     for (const L of block.levels || run.levels) {
       if (o.only && !o.only.includes(L)) continue;
       for (const [styles, comp] of block.comps) {
@@ -223,6 +234,22 @@ export function planMatrix(D, K, run, o = {}) {
     }
   }
   return { cells, jobs };
+}
+
+/* THE TALENT BUILDS (TALENT_BLOCK): each seat list at each Level on each of its builds, on the ground the game advises for its size */
+function planTalents(D, K, add, block, o) {
+  for (const L of block.levels) {
+    if (o.only && !o.only.includes(L)) continue;
+    for (const seat of block.seats) {
+      const size = seat.styles.length, ground = D.groundAt(L, size);
+      if (size > 1 && L < (STD.PARTIES.find((p) => p.size === size).fromLevel || 1)) continue;
+      for (const tier of tiersFor(D, ground, [seat.tier])) for (const build of seat.builds) {
+        const tag = 'build:' + build;
+        add({ key: cellKey(L, 'mid', size, seat.comp, tier, tag), block: block.id, L, gear: 'mid', party: size, comp: seat.comp, tier, ground, styles: seat.styles, step: tag, variant: tag, build },
+          buildCell(D, K, { L, gear: 'mid', styles: seat.styles, tier, ground, build }));
+      }
+    }
+  }
 }
 
 /* THE GROUND AXIS (atlas/rates.mjs measureJobs' cells, built by the grid's buildCell so its pulls, kits and skills are the grid's): every hunt

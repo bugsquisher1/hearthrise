@@ -107,6 +107,23 @@ const STATIC = {
       { file: 'src/data/balance-sheet.js', from: 'export const TIER_PULL_FROM_FLOOR = 16;', to: 'export const TIER_PULL_FROM_FLOOR = 0;' },
     ],
   },
+  'patches/talents-hook.json': {
+    name: 'Talents: the engine seams a cell reads its four stat lines through (10-level-choices.md section 8.2; on the scratch copy only)',
+    why: 'Chapter 10 section 8.2: a cell carries each seat\'s allocation on m.perks.talents (tools/balance-program/talents.mjs, the suggested build of its way, BASELINE) and the member turns it into rows. These four edits are that turn, planted on the scratch copy, never on the tree: Force on the permanent damage key (inside its 20% cap), Footing on the hero\'s Defense rating, Grit on max health, Reserve on max mana. Linger and every unlock have no seam and are NOT MODELLED. A cell that carries no allocation plays as before',
+    kind: 'derivation', targets: ['pace', 'survival'],
+    edits: [
+      { file: 'src/core/perks.js', from: '    propertyTier: nonNegInt(r.propertyTier),', to: "    propertyTier: nonNegInt(r.propertyTier),\n    talents: r.talents && typeof r.talents === 'object' ? r.talents : null," },
+      { file: 'src/core/perks.js', from: '  /* The property capstone. */', to: "  /* TALENTS (the matrix's scratch hook): Force on the permanent damage key, summed with the rest and capped with them */\n  if (key === 'damage' && s.talents && s.talents.force > 0) t += s.talents.force / 1000;\n\n  /* The property capstone. */" },
+      { file: 'src/core/member.js', from: 'function applyVitals(state, equipment, items) {\n  const v = vitalsOf({ levelXp: state.levelXp, skills: state.skills, equipment, items });',
+        to: 'function applyVitals(state, equipment, items, talents) {\n  const v0 = vitalsOf({ levelXp: state.levelXp, skills: state.skills, equipment, items });\n  const v = talents ? { ...v0, maxHp: Math.round(v0.maxHp * (1 + (talents.grit || 0) / 1000)), maxMana: Math.round(v0.maxMana * (1 + (talents.reserve || 0) / 1000)) } : v0;' },
+      { file: 'src/core/member.js', from: '  applyVitals(state, equipment, items);', to: '  applyVitals(state, equipment, items, mi.perks && mi.perks.talents);' },
+      { file: 'src/core/member.js', from: 'applied > 0) applyVitals(state, equipment, items);', to: 'applied > 0) applyVitals(state, equipment, items, mi.perks && mi.perks.talents);' },
+      { file: 'src/core/member.js', from: '> lv0) applyVitals(state, equipment, items);', to: '> lv0) applyVitals(state, equipment, items, mi.perks && mi.perks.talents);' },
+      { file: 'src/core/member.js', from: 'temper: mi.perks && mi.perks.temper ? mi.perks.temper : null };', to: 'temper: mi.perks && mi.perks.temper ? mi.perks.temper : null, talents: mi.perks && mi.perks.talents ? mi.perks.talents : null };' },
+      { file: 'src/core/member.js', from: "  const def = Math.floor((Number(levelsOf(state.skills).defense) || 1) + skillPlusOf(c.eq, 'defense') + (Number(c.eq.guardB) || 0));",
+        to: "  const def = Math.floor(((Number(levelsOf(state.skills).defense) || 1) + skillPlusOf(c.eq, 'defense') + (Number(c.eq.guardB) || 0)) * (1 + ((c.talents && c.talents.footing) || 0) / 1000));" },
+    ],
+  },
   'patches/R10-gear-curve.json': {
     name: 'The gear curve past tier 7 (60 G-4, 44 R10 and R11, 47 C20): a band every +24%, the line linear in the band\'s Level',
     why: 'From Level 110 a MID or BiS hero\'s weapon and armor are the line (the Dawnsteel row x the band Level / 110) at the band at or under its Level: 110, 136, 169, 210, 260, 322, 400 and on by +24%. LOW wears one band back. HYPOTHESIS: the band size until one band is played; uniques spending a budget (R11) and jewelry as a 6% share are not modelled',

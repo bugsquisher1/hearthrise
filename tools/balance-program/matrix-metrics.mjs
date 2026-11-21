@@ -15,7 +15,7 @@
 // ════════════════════════════════════════════════════════════════════════
 import * as STD from './standards.mjs';
 import { cellRates, compsOf } from './progression-grid.mjs';
-import { judgeGrid, statusOf } from './grid-derive.mjs';
+import { judgeGrid, statusOf, distanceOf } from './grid-derive.mjs';
 import { ARCHETYPE_AXES } from './matrix-plan.mjs';
 import { STYLE_GROUPS } from './knob-rules.mjs';
 
@@ -58,7 +58,7 @@ export function slimSeed(res) {
     party: { hours: p.hours, killsPerH: p.killsPerH, killsByPerH: p.killsByPerH, ttkS: p.ttkS, pullsPerH: p.pullsPerH, ttkBy: p.ttkBy || {} },
     heroes: res.heroes.map((h) => ({ style: h.style, level: h.level, hours: h.hours, raw: h.raw, takenPerH: h.takenPerH, takenBy: h.takenBy, healInPerH: h.healInPerH,
       healOutPerH: h.healOutPerH, regenPerH: h.regenPerH || 0, deaths: h.deaths, encMinHpPct: h.encMinHpPct, buysPerH: h.buysPerH, skillXpPerH: h.skillXpPerH, ended: h.ended,
-      maxHp: h.maxHp, dealtPerH: h.dealtPerH, dealtToPerH: h.dealtToPerH || {}, hpUnder: h.hpUnder || {} })),
+      maxHp: h.maxHp, dealtPerH: h.dealtPerH, dealtToPerH: h.dealtToPerH || {}, hpUnder: h.hpUnder || {}, toHit: h.toHit || null })),
   };
 }
 /* the shape progression-grid.mjs cellRates reads (its slimResult's) */
@@ -115,6 +115,8 @@ export function cellMetrics(D, meta, seeds, arch = {}) {
     hpUnder30: seats.length ? Math.max(...seats.map((s) => s.hpUnder30 || 0)) : null, hpUnder10: seats.length ? Math.max(...seats.map((s) => s.hpUnder10 || 0)) : null,
     hoursPerLevel: rates.netLevelXpPerH > 0 ? r(toNext / rates.netLevelXpPerH, 3) : null,
     seatsM: seats, byArch, buysPerPartyH,
+    /* each seat's Defense rating and the monsters' chance to land on it, before and with its Footing (cell.mjs toHit; the floor CORE-4 owes) */
+    toHit: meta.styles.map((_, i) => (seeds[0] && seeds[0].heroes[i] && seeds[0].heroes[i].toHit) || null),
     /* the Level XP one unblessed death takes at this Level (standards.mjs DEATH_COST: 6% of all Level XP, on this tree's curve) */
     deathXp: r(STD.DEATH_COST.share * D.XP.charXpForLevel(meta.L)),
   };
@@ -213,7 +215,16 @@ export function deriveMatrix(cells) {
       dps: ratio(c.m.dps, n.m.dps), killsPerH: ratio(c.m.killsPerH, n.m.killsPerH), levelXpPerH: ratio(c.m.levelXpPerH, n.m.levelXpPerH), netLevelXpPerH: ratio(c.m.netLevelXpPerH, n.m.netLevelXpPerH),
       netPerH: ratio(c.m.netPerH, n.m.netPerH), takenPerH: ratio(c.m.takenPerH, n.m.takenPerH), huntedShare: [n.m.huntedShare, c.m.huntedShare], deathsPer1000h: [n.m.deathsPer1000h, c.m.deathsPer1000h] });
   }
-  return { soloVsParty, upgrades, parity, archetypes, lineups, afterDeaths, variants };
+  /* THE TALENT BUILDS (matrix-plan.mjs TALENT_BLOCK): each build against the suggested build of the same seats, Level and tier */
+  const talents = [];
+  for (const c of ok.filter((x) => x.block === 'talents' && x.build && x.build !== 'S')) {
+    const s = get(c.L, c.gear, c.party, c.comp, c.tier, 'build:S');
+    if (!s) continue;
+    talents.push({ key: c.key, L: c.L, party: c.party, comp: c.comp, way: wayOf(c), tier: c.tier, build: c.build, levelXpPerH: ratio(c.m.levelXpPerH, s.m.levelXpPerH),
+      netLevelXpPerH: ratio(c.m.netLevelXpPerH, s.m.netLevelXpPerH), dps: ratio(c.m.dps, s.m.dps), takenPerH: ratio(c.m.takenPerH, s.m.takenPerH),
+      deathsPer1000h: [s.m.deathsPer1000h, c.m.deathsPer1000h], lowHpTypical: [s.m.lowHpTypical, c.m.lowHpTypical], sampleHeroH: c.m.sample ? c.m.sample.heroHours : null });
+  }
+  return { soloVsParty, upgrades, parity, archetypes, lineups, afterDeaths, variants, talents };
 }
 
 /* ── THE JUDGE: standards.mjs's bands, per way ─────────────────────────────────────────────────────────────────────────────────── */
@@ -251,6 +262,30 @@ export function judgeMatrix(D, K, cells) {
       if (!CELL_AT.test(row.at)) continue;
       rows.push({ way: 'G:' + g, ...row });
     }
+  }
+  rows.push(...talentRows(cells));
+  return rows;
+}
+/* THE TL BANDS (10-level-choices.md 8.4, PROPOSED, PROVISIONAL), read off the talent block (way 'talents'): TL1 the fastest build over the
+   suggested one, TL2 the empty build over it, TL3 a four on all safety's deaths on the hardest tier (thin under X26's sample), TL4 how many
+   builds sit within 3% of the best on Level XP an hour, for each seat list */
+export function talentRows(cells) {
+  const tc = cells.filter((c) => c.m && c.block === 'talents' && c.build);
+  const rows = [], at = (c) => c.L + ' mid x' + c.party + ' ' + c.tier + ' ' + (c.party === 1 ? c.styles[0] : c.comp);
+  const add = (id, c, value, extra = {}) => { const b = STD.bandById(id); if (!b) return; rows.push({ way: 'talents', band: id, group: b.group, label: b.label, at: at(c), value: Number.isFinite(value) ? r(value, 3) : value, status: extra.status || statusOf(value, b), dist: distanceOf(value, b), ...extra }); };
+  const groups = new Map();
+  for (const c of tc) { const k = [c.L, c.party, c.comp, c.tier].join('|'); (groups.get(k) || groups.set(k, []).get(k)).push(c); }
+  for (const cs of groups.values()) {
+    const s = cs.find((c) => c.build === 'S');
+    if (!s || !(s.m.levelXpPerH > 0)) continue;
+    const others = cs.filter((c) => c.build !== 'S' && c.build !== 'C');
+    if (others.length) { const best = others.reduce((m, c) => (!m || c.m.levelXpPerH > m.m.levelXpPerH ? c : m), null); add('TL1', s, best.m.levelXpPerH / s.m.levelXpPerH, { shown: 'build ' + best.build }); }
+    const empty = cs.find((c) => c.build === 'C');
+    if (empty) add('TL2', s, empty.m.levelXpPerH / s.m.levelXpPerH);
+    const safe = cs.find((c) => c.build === 'D');
+    if (safe) { const hh = safe.m.sample ? safe.m.sample.heroHours / safe.party : 0; add('TL3', safe, safe.m.deathsPer1000h, hh >= 32 ? {} : { status: 'thin', why: Math.round(hh) + ' hours a seat (X26: 4 seeds x 8 h)' }); }
+    const top = Math.max(...cs.map((c) => c.m.levelXpPerH || 0));
+    if (top > 0) add('TL4', s, cs.filter((c) => (c.m.levelXpPerH || 0) >= 0.97 * top).length, { shown: cs.filter((c) => (c.m.levelXpPerH || 0) >= 0.97 * top).map((c) => c.build).join(', ') });
   }
   return rows;
 }

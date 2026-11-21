@@ -290,6 +290,25 @@
    "note": "A tier's dial moves the blow and the aim only: armor and Defense XP read the row's own Level (X-TIER-TRIPLE), and the stat formula sizes blows on the hero's real health, 150 + 10 x (L - 1) (X-REFHP-OFF-BY-ONE). 44: the dial may need one step up to hold S3 and S4 (the tierDanger slider)"
   },
   {
+   "id": "TAL",
+   "doc": [
+    "10-level-choices.md sections 3 to 8"
+   ],
+   "title": "Talents: a point every five Levels, four stat lines played",
+   "modelled": true,
+   "recommended": true,
+   "label": "HYPOTHESIS",
+   "layer": "engine seam (scratch hook) + content rows (tools/balance-program/talents.mjs)",
+   "patch": "patches/talents-hook.json",
+   "shipsWith": [],
+   "after": [],
+   "before": [
+    "GR-5",
+    "GR-6"
+   ],
+   "note": "BASELINE, not a bonus (chapter 10, 5.1): every harness hero carries the suggested build of its way (talents.mjs SUGGESTED, the plan rule of 3.4) and the Level law and the kill reward are derived with it in. Played through four seams planted on the scratch copy: Force on the permanent damage key, Footing on the Defense rating, Grit on max health, Reserve on max mana. Linger and every unlock are NOT MODELLED (see notModelled); a way whose plan spends on Linger (the axes) plays those points as nothing. PROVISIONAL sizes: ceilings 10 / 12 / 12 / 15%, half at rank 10. The contrast builds A to D are the matrix's talents block. The to-hit floor owed by CORE-4 bounds Footing and is not written: the matrix prints where it would bite"
+  },
+  {
    "id": "world-1",
    "doc": [
     "53 4.3"
@@ -1452,6 +1471,28 @@
    "layer": "tools, architecture",
    "modelled": false,
    "reason": "tools: the matrix's scratch copy is already the only what-if door"
+  },
+  {
+   "id": "TAL-linger",
+   "doc": [
+    "10-level-choices.md 4, 8.2"
+   ],
+   "title": "Talents: Linger's stat line (bleeds, burns, chills and sicknesses tick harder)",
+   "section": "Talents",
+   "ruling": "PROVISIONAL",
+   "modelled": false,
+   "reason": "no engine seam: the status tick is an unnamed number (the census); never approximated. Its points are spent by the plan and play nothing"
+  },
+  {
+   "id": "TAL-unlocks",
+   "doc": [
+    "10-level-choices.md 3.3, 4, 8.2"
+   ],
+   "title": "Talents: every unlock (Focus fire, Surrounded, Draw fire, Deep well, Carry over, Stand in)",
+   "section": "Talents",
+   "ruling": "PROVISIONAL",
+   "modelled": false,
+   "reason": "each needs an engine hook that does not exist: the modifier table's \"when\" column, a row in the shooter rule of targeting.js, a condition on the regen row. The first matrix pass reads four stat lines and no unlock, so it sizes ceilings and cannot say whether builds differ"
   }
  ]
 }

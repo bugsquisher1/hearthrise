@@ -237,6 +237,18 @@ export async function loadCellRunner(root) {
       regen: 0, under: { p30: 0, p10: 0 }, dealtTo: {} }));
     const P = { kills: 0, killsBy: {}, ttk: [], ttkBy: {}, hours: 0, segments: 0, rareRolls: 0, rareWins: {}, pulls: 0, ...(run ? { tower: { from: run.floor, top: null, cleared: [] } } : {}) };
     const byKey = Object.fromEntries(H.map((h) => [h.key, h]));
+    /* THE TO-HIT A HERO STANDS AT (chapter 10's Footing and the floor CORE-4 owes the to-hit formula): its Defense rating as the engine builds it
+       (member.js heroSnapshot: the Defense level, worn +Defense and guard, times its Footing where the cell carries one), and the monsters' chance
+       to land on it over the ground's spawns (combat.js monsterAccuracy, the rows as written: a tier's raised aim is not in it) */
+    const spawnMix = [];
+    for (const p of ground.pockets || []) for (const sp of p.spawns || []) if (MONSTERS[sp.monster]) spawnMix.push(MONSTERS[sp.monster]);
+    H.forEach((h, i) => {
+      const eq = CORE_COMBAT.equipmentStats(kits[i], ITEMS), footing = (Array.isArray(cell.talentsBySeat) && cell.talentsBySeat[i] && cell.talentsBySeat[i].footing) || 0;
+      const def0 = Math.floor((skillLv(i, 'defense') || 1) + CORE_COMBAT.skillPlusOf(eq, 'defense') + (Number(eq.guardB) || 0)), def = Math.floor(def0 * (1 + footing / 1000));
+      const at = (d) => (spawnMix.length ? spawnMix.map((m) => CORE_COMBAT.monsterAccuracy(m, d)) : []);
+      const h0 = at(def0), h1 = at(def), mean = (xs) => (xs.length ? round(xs.reduce((a, b) => a + b, 0) / xs.length, 4) : null);
+      h.toHit = { def0, def, footingPm: footing, landed0: mean(h0), landed: mean(h1), lowest: h1.length ? round(Math.min(...h1), 4) : null };
+    });
     /* THE DEATH RULE (header): 'real' plays one hunt a seed over the whole of `hours`, a hero whose hunt ended settled no more */
     const real = cell.deathRule === 'real';
     if (cell.deathRule !== undefined && !['real', 'reenter'].includes(cell.deathRule)) throw new Error('balance-sim: no death rule ' + cell.deathRule);
@@ -452,6 +464,8 @@ export async function loadCellRunner(root) {
         if (!opts.options) delete opts.options;
         if (Number.isInteger(cell.density)) opts.density = cell.density;
         if (cell.temper) opts.temper = cell.temper;
+        /* cell.talentsBySeat [{ force, footing, grit, reserve } | null]: each seat's Talents (tools/balance-program/talents.mjs), on m.perks.talents */
+        if (Array.isArray(cell.talentsBySeat)) opts.talents = (role, i) => cell.talentsBySeat[i] || null;
         /* a what-if on the ground's own row (respawnMs, pockets ...): a copy, never the frozen table */
         if (cell.groundPatch) opts.ground = { ...ground, ...cell.groundPatch };
         if (run) Object.assign(opts, { ground: opts.ground || ground, sessionMode: ground.mode, tower: { floor: run.floor }, dropEnded: true });
@@ -481,6 +495,7 @@ export async function loadCellRunner(root) {
       options: seat(opts.options), start: seat(opts.start), density: Number.isInteger(opts.density) ? opts.density : null, temper: clone(opts.temper) || null,
       leaveTogether: !!opts.leaveTogether, windowMs: opts.windowMs, segmentH: cell.segmentH || 2, staged,
       /* the death rule, Blessings, the timed buffs (server rows), the purse and the stamina bar (cell.mjs header) */
+      talents: Array.isArray(cell.talentsBySeat) ? clone(cell.talentsBySeat) : null,
       deathRule: cell.deathRule || 'reenter', dropEnded: opts.dropEnded === true, blessings: Number.isInteger(cell.blessings) ? cell.blessings : 0,
       buffs: opts.buffs ? opts.buffs() : null, gold: Number.isInteger(opts.gold) ? opts.gold : null, session: opts.session ? opts.session() : null };
   }
@@ -500,7 +515,7 @@ export async function loadCellRunner(root) {
       const closeCalls = rateCI(h.close, h.hours, 12);
       const minMed = quantile(h.enc, 0.5);
       return {
-        key: h.key, style: h.style, level: h.level, kit: h.kit, maxHp: h.vit.maxHp, maxMana: h.vit.maxMana, mit: h.mit,
+        key: h.key, style: h.style, level: h.level, kit: h.kit, maxHp: h.vit.maxHp, maxMana: h.vit.maxMana, mit: h.mit, toHit: h.toHit || null,
         hours: round(h.hours, 2),
         levelXpPerH: round(xph, 0), skillXpPerH: Object.fromEntries(Object.entries(h.skillXp).map(([k, n]) => [k, per(n)])),
         coinPerH: per(h.coin), lootPerH: Object.fromEntries(Object.entries(h.loot).map(([k, n]) => [k, per(n)])),

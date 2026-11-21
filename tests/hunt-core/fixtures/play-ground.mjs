@@ -149,6 +149,9 @@ export async function loadPlay(root) {
     if (Number.isInteger(opts.density)) for (const m of members) m.hero = Object.assign({}, m.hero, { density: opts.density });
     /* opts.temper: every hero's rungs, the map hr_perks_of's `temper` carries (src/core/temper.js) */
     if (opts.temper) for (const m of members) m.perks = { temper: opts.temper };
+    /* opts.talents ((role, seat) -> { force, footing, grit, reserve } permille, or null): a hero's Talents beside its rungs, on m.perks.talents
+       (tools/balance-program/talents.mjs; read only where the engine has the seam: the matrix's scratch hook, patches/talents-hook.json) */
+    if (typeof opts.talents === 'function') members.forEach((m, i) => { const t = opts.talents(roles[i], i); if (t) m.perks = { ...(m.perks || {}), talents: t }; });
     /* opts.xpFrac: the server's carry (player_skills.xp_frac): an empty map at the start, each window's xp_frac written back below */
     if (opts.xpFrac === true) for (const m of members) m.xpFrac = {};
     /* common vs rare by the hunt's own drop rows: a loot-band row (src/data/loot-bands.js) is a common in the common and

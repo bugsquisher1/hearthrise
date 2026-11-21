@@ -190,6 +190,8 @@ function playHunt(huntId, levels, roles, o) {
   if (Number.isInteger(o.density)) for (const m of members) m.hero = Object.assign({}, m.hero, { density: o.density });
   /* o.temper: every hero's rungs, the map hr_perks_of's `temper` carries (play-ground.mjs, the same line) */
   if (o.temper) for (const m of members) m.perks = { temper: o.temper };
+  /* o.talents: each seat's Talents on m.perks.talents (play-ground.mjs, the same line) */
+  if (o.talents) members.forEach((m, i) => { if (o.talents[i]) m.perks = { ...(m.perks || {}), talents: clone(o.talents[i]) }; });
   /* o.buffs: the server's timed buff rows, fresh for every hero (the engine drains them) */
   if (o.buffs) for (const m of members) m.buffs = clone(o.buffs);
   let world = null, next = T0, played = 0;
@@ -446,10 +448,10 @@ export function playCell(cell, seeds, hooks = {}) {
         ground: cell.groundPatch ? { ...ground, ...cell.groundPatch } : null,
         shouldStop: hooks.shouldStop,
         onProgress: hooks.onProgress ? (ms) => hooks.onProgress(Math.min(1, (doneMs + ms) / totalMs)) : null,
-        temper: cell.temper || null,
+        temper: cell.temper || null, talents: Array.isArray(cell.talentsBySeat) ? cell.talentsBySeat : null,
       };
       if (R) Object.assign(o, { bar: R.bar ? (role, i) => clone(R.bar[i]) : null, bag: (role, i) => clone(R.bag[i]), start: R.start ? (role, i) => (R.start[i] ? clone(R.start[i]) : null) : null,
-        options: R.options ? (role, i) => clone(R.options[i]) : null, leaveTogether: R.leaveTogether, density: R.density, temper: R.temper || null, dropEnded: real });
+        options: R.options ? (role, i) => clone(R.options[i]) : null, leaveTogether: R.leaveTogether, density: R.density, temper: R.temper || null, dropEnded: real, talents: R.talents || null });
       const res = playHunt(cell.ground, levels, roles, o);
       for (const h of H) close(h, live[h.key]);
       /* book the time hunted, never more (cell.mjs, the same line) */

@@ -6,7 +6,7 @@
   "pace",
   "P2"
  ],
- "why": "XP a health point = contractXpPerH(L) / (1918.8 x L^0.838132), the reference kill-health an hour of a lone MID hammer on Normal (each kill's HP x its role's XP share x the lone bonus), MEASURED on the proposed game without R12 and R13 at Levels 10, 30, 60, 110, 185, 400, 1000, 2000, 5000 and fitted. The 15 per-ground XP fits, the floor fit and the 0.4 exponent go; party grounds pay two thirds of a plain kill (was 0.8). COMPUTED",
+ "why": "XP a health point = contractXpPerH(L) / (1885.35 x L^0.847253), the reference kill-health an hour of a lone MID hammer on Normal (each kill's HP x its role's XP share x the lone bonus), MEASURED on the proposed game without R12 and R13 at Levels 10, 30, 60, 110, 185, 400, 1000, 2000, 5000 and fitted. The 15 per-ground XP fits, the floor fit and the 0.4 exponent go; party grounds pay two thirds of a plain kill (was 0.8). COMPUTED",
  "measuredOn": {
   "proposals": [
    "GR-4",
@@ -19,7 +19,8 @@
    "GR-52",
    "GR-63",
    "GR-76",
-   "R7"
+   "R7",
+   "TAL"
   ],
   "points": [
    [
@@ -28,35 +29,35 @@
    ],
    [
     30,
-    37765
+    38423
    ],
    [
     60,
-    56501
+    57295
    ],
    [
     110,
-    97015
+    98830
    ],
    [
     185,
-    131683
+    134832
    ],
    [
     400,
-    264663
+    282009
    ],
    [
     1000,
-    594949
+    632398
    ],
    [
     2000,
-    1156067
+    1193845
    ],
    [
     5000,
-    2768933
+    2928748
    ]
   ]
  },
@@ -64,7 +65,7 @@
   {
    "file": "src/data/balance-sheet.js",
    "from": "  const xp = Math.max(1, Math.round(Math.max(F.xp.min || 0, F.xp.a * L ** F.xp.b) * hp * R.xp * fit.xp * gx * xFloor));",
-   "to": "  const xp = (void gx, void xFloor, Math.max(1, Math.round((contractXpPerH(L) / (1918.8 * Math.max(1, L) ** 0.838132)) * hp * R.xp * fit.xp)));"
+   "to": "  const xp = (void gx, void xFloor, Math.max(1, Math.round((contractXpPerH(L) / (1885.35 * Math.max(1, L) ** 0.847253)) * hp * R.xp * fit.xp)));"
   },
   {
    "file": "src/data/balance-sheet.js",

@@ -128,6 +128,11 @@ const b = (id, group, on, where, lo, hi, redLo, redHi, label, owner, why, extra 
 
 export const BANDS = deep([
   // ── pace ── `on`: the grid field or derived table the band reads. `where`: the cells it applies to.
+  /* TALENTS (10-level-choices.md 8.4): PROPOSED ids, PROVISIONAL ranges. Read off the matrix's talent block (matrix-metrics.mjs talentRows) */
+  b('TL1', 'talent', 'Level XP an hour, the fastest build / the suggested build, same seats', {}, null, 1.05, null, 1.08, 'PROPOSED', 21, 'a build is never worth a weapon step over a sensible one'),
+  b('TL2', 'talent', 'Level XP an hour, the empty build / the suggested build', {}, 0.90, 0.97, null, null, 'PROPOSED', 21, 'ignoring Talents costs something real, never a tenth of the game'),
+  b('TL3', 'talent', 'deaths a 1,000 hours on the hardest tier, every hero on Footing and Grit, MID four', { gear: 'mid', party: 4 }, 30, null, null, null, 'PROPOSED', 21, 'under 30 is the best-gear band (S6): Talents must not replace gear'),
+  b('TL4', 'talent', 'builds within 3% of the best on Level XP an hour, same seats', {}, 2, null, null, null, 'PROPOSED', 21, 'one build alone at the top is a red: the sameness test'),
   b('P1', 'pace', 'hoursToLevel / PACE_TABLE', { seat: 'pace-seat', levels: [10, 25, 50, 100, 200, 300, 400] }, 0.90, 1.10, 0.85, 1.15, 'RULED', 21, '2026-10-25 section 2; which seat is call 1', { ruled: '2026-11-21', call: 1 }),
   b('P2', 'pace', 'xContract', { gear: 'mid', party: 1, tier: 'normal' }, 0.95, 1.10, 0.85, 1.25, 'RULED', 21, 'the table\'s tolerance; old G1'),
   b('P3', 'pace', 'xp / mid', { gear: 'low', party: 1, tier: 'normal' }, 0.80, 0.90, 0.70, 0.95, 'PROPOSED', 23, 'one weapon step plus accessories and two rungs'),

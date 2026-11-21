@@ -8,8 +8,9 @@
 //
 //   (a) the item is live gear (weapon/armor/jewelry), tradeable, not a
 //       Hearthfind, not tier 8, not rarity 'unique', has art, and has NO other
-//       source a drop would shortcut: not QM stock, not dungeon loot, not a shop
-//       grant, not boss/raid loot, not any other monster's drop;
+//       source a drop would shortcut: not a shop grant, not any other
+//       monster's drop (QM stock, dungeon loot and boss signatures left with
+//       the old dungeons and the scrip, cut whole 2026-11-20, plan L10);
 //   (b) the monster is not a Hearthfind source and not a seeded fixture;
 //   (c) FAUCET CAP: ch x dropBonus x vendorPriceOf <= 5% of the gp midpoint;
 //   (d) HOURS, measured with the one engine ON A HUNT SESSION (a training
@@ -37,7 +38,6 @@ import { ITEMS } from '../src/data/items.js';
 import { effectsAreLive } from '../src/data/item-effects.js';
 import { pathFor } from '../src/data/item-art.js';
 import { SHOP_OFFERS } from '../src/data/shops.js';
-import { BOSSES } from '../src/data/bosses.js';
 import { HEARTHFIND_TABLE } from '../src/data/hearthfind.js';
 import { JEWEL_PIECES } from '../src/data/jewelry.js';
 import { effectiveDropChance } from '../src/core/drops.js';
@@ -88,14 +88,6 @@ function equipmentFor(tier) {
     gloves: `${m}_gauntlets`, boots: `${m}_boots` };
 }
 
-/* Any string equal to `id` anywhere inside `v` (dungeon loot, boss signatures,
-   raid rewards keyed by id). */
-function mentions(v, id) {
-  if (v === id) return true;
-  if (Array.isArray(v)) return v.some((x) => mentions(x, id));
-  if (v && typeof v === 'object') return Object.keys(v).some((k) => k === id || mentions(v[k], id));
-  return false;
-}
 const shopGranted = (id) => SHOP_OFFERS.some((o) => (o.grant || []).some((g) => g.kind === 'item' && g.id === id));
 
 /* One simulated hour at the monster's tier loadout, through the one engine:
@@ -168,7 +160,6 @@ function check(monsters) {
     ok(it.tier !== 8, 'a', `${tag}: item is tier 8`);
     ok(it.rarity !== 'unique', 'a', `${tag}: item is rarity 'unique' (its sink is the forge, not a drop)`);
     ok(!shopGranted(d.id), 'a', `${tag}: item is granted by a shop offer (shops.js)`);
-    ok(!mentions(BOSSES, d.id), 'a', `${tag}: item is boss loot`);
     ok(!!pathFor(d.id), 'a', `${tag}: item has no art in item-art.js`);
     for (const [oid, om] of Object.entries(monsters)) {
       (om.drops || []).forEach((od, oi) => {

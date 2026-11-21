@@ -395,8 +395,6 @@
     "node tools/mutant-gate.mjs node tests/world-tick-arm-combat.mjs --mutate": "db-replay-6",
     "node tests/party-hunt-select-lockdown.mjs": "db-replay-6",
     "node tools/mutant-gate.mjs node tests/party-hunt-select-lockdown.mjs --mutate": "db-replay-6",
-    "node tests/discord-gift.mjs": "db-replay-6",
-    "node tools/mutant-gate.mjs node tests/discord-gift.mjs --mutate": "db-replay-6",
     "node tests/closed-rebuild.mjs": "db-replay-6",
     "node tools/mutant-gate.mjs node tests/closed-rebuild.mjs --mutate": "db-replay-6",
     "node tests/playtest-open.mjs": "db-replay-6",

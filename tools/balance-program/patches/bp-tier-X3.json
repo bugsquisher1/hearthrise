@@ -1,0 +1,29 @@
+{
+ "schema": "hearthrise.balance-patch/1",
+ "name": "Balance pass death sample X3: Dangerous pull 5 blows 2.5, Deadly blows 2.5",
+ "why": "A point of the sweep that finds where the MID four meets S3 and S4 on the proposed game (R7 in, Dangerous pull 5). Layer: coefficient (TIER_DIALS, one table for every ground).",
+ "targets": [
+  "survival",
+  "S3",
+  "S4",
+  "S6",
+  "P9",
+  "P10",
+  "G-2",
+  "G-5",
+  "G-6",
+  "S11"
+ ],
+ "edits": [
+  {
+   "file": "src/data/balance-sheet.js",
+   "from": "  dangerous: Object.freeze({ pull: 5, lift: 0.8, dmgPm: 1170, hpPm: 1100, xpPm: 1100 }),",
+   "to": "  dangerous: Object.freeze({ pull: 5, lift: 0.8, dmgPm: 2500, hpPm: 1100, xpPm: 1100 }),"
+  },
+  {
+   "file": "src/data/balance-sheet.js",
+   "from": "  deadly: Object.freeze({ pull: 8, lift: 1, dmgPm: 1330, hpPm: 1150, xpPm: 1250 }),",
+   "to": "  deadly: Object.freeze({ pull: 8, lift: 1, dmgPm: 2500, hpPm: 1150, xpPm: 1250 }),"
+  }
+ ]
+}

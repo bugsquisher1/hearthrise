@@ -1,0 +1,114 @@
+[
+ {
+  "name": "X3-deaths-0",
+  "args": "--subset --base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-X3 --shard 0/12"
+ },
+ {
+  "name": "X3-deaths-1",
+  "args": "--subset --base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-X3 --shard 1/12"
+ },
+ {
+  "name": "X3-deaths-2",
+  "args": "--subset --base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-X3 --shard 2/12"
+ },
+ {
+  "name": "X3-deaths-3",
+  "args": "--subset --base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-X3 --shard 3/12"
+ },
+ {
+  "name": "X3-deaths-4",
+  "args": "--subset --base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-X3 --shard 4/12"
+ },
+ {
+  "name": "X3-deaths-5",
+  "args": "--subset --base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-X3 --shard 5/12"
+ },
+ {
+  "name": "X3-deaths-6",
+  "args": "--subset --base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-X3 --shard 6/12"
+ },
+ {
+  "name": "X3-deaths-7",
+  "args": "--subset --base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-X3 --shard 7/12"
+ },
+ {
+  "name": "X3-deaths-8",
+  "args": "--subset --base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-X3 --shard 8/12"
+ },
+ {
+  "name": "X3-deaths-9",
+  "args": "--subset --base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-X3 --shard 9/12"
+ },
+ {
+  "name": "X3-deaths-10",
+  "args": "--subset --base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-X3 --shard 10/12"
+ },
+ {
+  "name": "X3-deaths-11",
+  "args": "--subset --base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-X3 --shard 11/12"
+ },
+ {
+  "name": "PASS-full-0",
+  "args": "--base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-TIERS,BP-LAW,BP-G17 --shard 0/16"
+ },
+ {
+  "name": "PASS-full-1",
+  "args": "--base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-TIERS,BP-LAW,BP-G17 --shard 1/16"
+ },
+ {
+  "name": "PASS-full-2",
+  "args": "--base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-TIERS,BP-LAW,BP-G17 --shard 2/16"
+ },
+ {
+  "name": "PASS-full-3",
+  "args": "--base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-TIERS,BP-LAW,BP-G17 --shard 3/16"
+ },
+ {
+  "name": "PASS-full-4",
+  "args": "--base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-TIERS,BP-LAW,BP-G17 --shard 4/16"
+ },
+ {
+  "name": "PASS-full-5",
+  "args": "--base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-TIERS,BP-LAW,BP-G17 --shard 5/16"
+ },
+ {
+  "name": "PASS-full-6",
+  "args": "--base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-TIERS,BP-LAW,BP-G17 --shard 6/16"
+ },
+ {
+  "name": "PASS-full-7",
+  "args": "--base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-TIERS,BP-LAW,BP-G17 --shard 7/16"
+ },
+ {
+  "name": "PASS-full-8",
+  "args": "--base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-TIERS,BP-LAW,BP-G17 --shard 8/16"
+ },
+ {
+  "name": "PASS-full-9",
+  "args": "--base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-TIERS,BP-LAW,BP-G17 --shard 9/16"
+ },
+ {
+  "name": "PASS-full-10",
+  "args": "--base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-TIERS,BP-LAW,BP-G17 --shard 10/16"
+ },
+ {
+  "name": "PASS-full-11",
+  "args": "--base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-TIERS,BP-LAW,BP-G17 --shard 11/16"
+ },
+ {
+  "name": "PASS-full-12",
+  "args": "--base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-TIERS,BP-LAW,BP-G17 --shard 12/16"
+ },
+ {
+  "name": "PASS-full-13",
+  "args": "--base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-TIERS,BP-LAW,BP-G17 --shard 13/16"
+ },
+ {
+  "name": "PASS-full-14",
+  "args": "--base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-TIERS,BP-LAW,BP-G17 --shard 14/16"
+ },
+ {
+  "name": "PASS-full-15",
+  "args": "--base GR-4,GR-5,GR-5b,GR-6,GR-7,GR-14,GR-22,GR-27,GR-38,GR-52,GR-63,GR-76,R7,TAL,S-4,S-10,BP-TIERS,BP-LAW,BP-G17 --shard 15/16"
+ }
+]

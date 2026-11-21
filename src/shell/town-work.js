@@ -577,6 +577,7 @@ export function nowParts(cs) {
      it only where they run out first. A gathering job from before counts runs until a hunt starts. */
   const run = countedRun(cs, w);
   const how = runParts(cs, w, false, run);
-  const tail = run && !run.short ? nextLineWords(run.next) : w.kind === 'gather' ? t('work.now_gather') : t('work.now_stops_out');
+  /* (a Hearth errand of one goes back to the job it interrupted: no "then" is said for it) */
+  const tail = run && !run.short ? (isErrand(w, run.of) ? '' : nextLineWords(run.next)) : w.kind === 'gather' ? t('work.now_gather') : t('work.now_stops_out');
   return lineParts(words.charAt(0).toUpperCase() + words.slice(1), how, tail && '. ' + tail);
 }

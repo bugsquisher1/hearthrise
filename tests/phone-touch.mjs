@@ -3,7 +3,8 @@
 // tests/phone-touch.mjs — THE PHONE: SHEETS THAT FIT, PANELS THAT CLOSE, TARGETS A THUMB CAN HIT.
 //
 //   node tests/phone-touch.mjs                the rules
-//   node tests/phone-touch.mjs --mutate       every planted defect must turn a rule RED
+//   node tests/phone-touch.mjs --mutate       every planted defect must turn a NAMED rule RED; a plant that does not parse, a step
+//                                             that throws or a line with no PH id is HARNESS, never a catch (tests/_mutant-verdict.mjs)
 //   node tests/phone-touch.mjs --only PH-6    one rule's pages alone (with --shots, that rule's shots alone)
 //   node tests/phone-touch.mjs --shots <dir>  also write the visual-gate screenshots (667x375, 844x390,
 //                                             922x423, portrait 390x844 and desktop 1440x900, fonts loaded)
@@ -128,6 +129,7 @@ import { pathToFileURL } from 'node:url';
 import { ROOT, serve, SDK_STUB } from './_client-harness.mjs';
 import { RING_WORDS, RING_WORDS_WIDEST } from './_bar-probes.mjs';
 import { scopedMutants } from '../tools/lib/mutant-scope.mjs';
+import { harnessFail, judgePlanted, report, exitOf, cleanControl, stopAtFirstRed, FIRST_RED } from './_mutant-verdict.mjs';
 import { pinFonts } from './_test-fonts.mjs';
 import { withServerLevel } from './_server-level.mjs';
 import { pressBar, barWindows, rowIcon } from './_bar.mjs';
@@ -1602,8 +1604,7 @@ async function rules(overrides, shots, { stopAtFirst = false, blocks = null } = 
   /* `blocks`: a mutant runs only the pages its rule reads (BLOCKS_OF), so --mutate costs seconds a mutant, not the suite. */
   const run = (b) => !blocks || blocks.includes(b);
   const fails = [];
-  const STOP = Symbol('first red');
-  if (stopAtFirst) fails.push = function (...a) { Array.prototype.push.apply(this, a); throw STOP; };
+  if (stopAtFirst) stopAtFirstRed(fails);   // tests/_mutant-verdict.mjs
   const { server, port } = await serve(Object.assign({}, WORLD_HOOK, overrides));
   const base = 'http://127.0.0.1:' + port;
   const browser = await leaseBrowser(chromium);
@@ -2049,7 +2050,7 @@ async function rules(overrides, shots, { stopAtFirst = false, blocks = null } = 
     if (shots && !blocks) await moreShots(open, shot);
   } catch (e) {
     /* the array's own push: under stopAtFirst `fails.push` throws, and a throw here would leave rules() rejected */
-    if (e !== STOP) Array.prototype.push.call(fails, 'PH threw: ' + String(e && e.stack || e).split('\n').slice(0, 3).join(' | '));
+    if (e !== FIRST_RED) Array.prototype.push.call(fails, harnessFail('a page step', e));
   } finally {
     for (const c of opened) await c.close().catch(() => null);
     await browser.close().catch(() => null);
@@ -2300,19 +2301,22 @@ async function main() {
   const MINE = scopedMutants('tests/phone-touch.mjs', MUTANTS);
   if (!MINE.length) process.exit(0);
   const planted = oi > 0 ? MINE.filter(([name]) => name.split(' ')[0] === process.argv[oi + 1]) : MINE;
-  const clean = await rules(null, null, { blocks });
-  if (clean.length) { console.log('  ✗ clean control RED: ' + clean.join('; ')); process.exit(1); }
-  console.log('  ✓ clean control green');
-  let bad = 0;
+  const clean = await cleanControl(() => rules(null, null, { blocks }));
+  console.log(clean.line);
+  if (clean.code) process.exit(clean.code);
+  /* A mutant is caught only by a NAMED rule (PH-n); a plant that does not parse, a page step that throws, or a line with no rule id
+     ("PH [tag] console errors") is HARNESS, never a catch (tests/_mutant-verdict.mjs; lane/c-hollow-proofs-browser 2026-11-20: this
+     loop scored ANY fail line as the catch). */
+  const counts = { caught: 0, harness: 0, escaped: 0 };
   for (const [name, file, from, to, only] of planted) {
     const text = await readFile(join(ROOT, file), 'utf8');
-    if (text.split(from).length !== 2) { console.log('  ✗ ' + name + ' — anchor not found once in ' + file); bad++; continue; }
-    const fails = await rules({ [file]: text.replace(from, to) }, null, { stopAtFirst: true, blocks: only || BLOCKS_OF[name.split(' ')[0]] });
-    if (fails.length) console.log('  ✓ ' + name + ' — caught (' + fails[0].split(' ').slice(0, 2).join(' ') + ')');
-    else { console.log('  ✗ ' + name + ' — NOT caught'); bad++; }
+    if (text.split(from).length !== 2) { console.log('  ✗ ' + name + ' — HARNESS: anchor not found once in ' + file); counts.harness++; continue; }
+    const plant = { [file]: text.replace(from, to) };
+    console.log(report(name, await judgePlanted(plant, () => rules(plant, null, { stopAtFirst: true, blocks: only || BLOCKS_OF[name.split(' ')[0]] })), counts));
   }
-  console.log(bad ? 'phone-touch --mutate: ' + bad + ' escaped' : 'phone-touch --mutate: ' + planted.length + '/' + planted.length + ' mutants caught');
-  process.exit(bad ? 1 : 0);
+  console.log(exitOf(counts) ? 'phone-touch --mutate: ' + counts.escaped + ' escaped, ' + counts.harness + ' HARNESS (not catches)'
+    : 'phone-touch --mutate: ' + planted.length + '/' + planted.length + ' mutants caught, each by a named rule');
+  process.exit(exitOf(counts));
 }
 
 main();

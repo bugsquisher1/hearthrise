@@ -3,7 +3,9 @@
 // tests/wiki-window.mjs — THE WIKI IS WRITTEN BY THE GAME, AND ITS FORMULAS ARE THE ENGINE'S (work ledger item 9).
 //
 //   node tests/wiki-window.mjs                  the rules
-//   node tests/wiki-window.mjs --mutate         every planted defect must turn a rule RED
+//   node tests/wiki-window.mjs --mutate         every planted defect must turn a NAMED rule RED (stopping at the first); a throw, a
+//                                               plant that does not parse or a line with no WK id is HARNESS, never a catch
+//                                               (tests/_mutant-verdict.mjs)
 //   node tests/wiki-window.mjs --shots <dir>    also write the desktop and phone screenshots
 //
 // mutant-anchors: src/data/text/chronicle.js src/data/settings.js src/core/combat.js src/core/action-rules.js src/core/xp.js src/shell/wiki-model.js src/shell/windows/wiki.js src/shell/chronicle-model.js src/session/hunt-sections.js
@@ -45,6 +47,7 @@ import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { ROOT, UID, serve, SDK_STUB } from './_client-harness.mjs';
 import { pinFonts } from './_test-fonts.mjs';
+import { judgePlanted, report, exitOf, cleanControl, stopAtFirstRed, FIRST_RED } from './_mutant-verdict.mjs';
 
 const src = (p) => import(pathToFileURL(join(ROOT, p)).href);
 const { SKILLS_DEF } = await src('src/data/skills.js');
@@ -269,10 +272,12 @@ async function canonRules(overrides) {
   return /\b(?:He|he|his)\b/.test(grayjaw) || !/\b(?:She|she)\b/.test(grayjaw) ? ['WK-5 the Thicket page says of Grayjaw: ' + JSON.stringify(grayjaw.slice(0, 160))] : [];
 }
 
-async function checks(overrides, shots) {
+async function checks(overrides, shots, { stopAtFirst = false } = {}) {
   const fails = [...await canonRules(overrides)];
   /* a planted copy of the Chronicle's words is judged by the rule above alone: the pages below draw the shipped table */
   if (overrides && overrides[CHRONICLE_FILE]) return fails;
+  /* a mutant needs ONE red rule (tests/_mutant-verdict.mjs): the canon's is a verdict without a browser */
+  if (stopAtFirst) { if (fails.length) return fails; stopAtFirstRed(fails); }
   if (!overrides) { // WK-1
     const { skillPages, groundPages, formulaPages } = await src('src/shell/wiki-model.js');
     const skills = skillPages().map((s) => s.id), grounds = groundPages().map((g) => g.id), formulas = formulaPages();
@@ -497,7 +502,8 @@ async function checks(overrides, shots) {
       if (errors.length) fails.push('WK-6 console errors: ' + errors.slice(0, 3).join(' | '));
       await ctx.close();
     }
-  } finally {
+  } catch (e) { if (e !== FIRST_RED) throw e; } finally {
+    await browser.close();   // the lease's own contexts: a run that stops at its first red leaves its page open
     server.close();
   }
   return fails;
@@ -545,18 +551,21 @@ async function main() {
       : 'wiki-window: every skill, open ground and formula has a page; the slash opens the Book on the Chronicle, whose pages open only on the server\'s word and follow every envelope and a reload; the search finds a skill, a ground and a formula; every worked example is the engine\'s answer and equals its stated terms; the XP tables are their curves\' rows, the hero\'s Level the gold row as the server moves it; a sheet on the phone');
     process.exit(fails.length ? 1 : 0);
   }
-  const clean = await checks(null);
-  if (clean.length) { console.log('  ✗ clean control RED: ' + clean.join('; ')); process.exit(1); }
-  let bad = 0;
+  const clean = await cleanControl(() => checks(null));
+  console.log(clean.line);
+  if (clean.code) process.exit(clean.code);
+  /* A mutant is caught only by a NAMED rule (WK-n); a plant that does not parse, a step that throws, or a line with no rule id is
+     HARNESS, never a catch (tests/_mutant-verdict.mjs; lane/c-hollow-proofs-browser 2026-11-20: this loop scored ANY fail line). */
+  const counts = { caught: 0, harness: 0, escaped: 0 };
   for (const [name, file, from, to] of MUTANTS) {
     const text = (await readFile(join(ROOT, file), 'utf8')).replace(/\r\n/g, '\n');
-    if (text.split(from).length !== 2) { console.log('  ✗ ' + name + ' — anchor not found once in ' + file); bad++; continue; }
-    const fails = await checks({ [file]: text.replace(from, () => to) });
-    if (fails.length) console.log('  ✓ ' + name + ' — caught (' + fails[0].split(' ')[0] + ')');
-    else { console.log('  ✗ ' + name + ' — NOT caught'); bad++; }
+    if (text.split(from).length !== 2) { console.log('  ✗ ' + name + ' — HARNESS: anchor not found once in ' + file); counts.harness++; continue; }
+    const plant = { [file]: text.replace(from, () => to) };
+    console.log(report(name, await judgePlanted(plant, () => checks(plant, null, { stopAtFirst: true })), counts));
   }
-  console.log(bad ? 'wiki-window --mutate: ' + bad + ' escaped' : 'wiki-window --mutate: ' + MUTANTS.length + '/' + MUTANTS.length + ' mutants caught');
-  process.exit(bad ? 1 : 0);
+  console.log(exitOf(counts) ? 'wiki-window --mutate: ' + counts.escaped + ' escaped, ' + counts.harness + ' HARNESS (not catches)'
+    : 'wiki-window --mutate: ' + MUTANTS.length + '/' + MUTANTS.length + ' mutants caught, each by a named rule');
+  process.exit(exitOf(counts));
 }
 
 main();

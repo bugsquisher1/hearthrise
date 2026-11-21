@@ -4,7 +4,8 @@
 //
 //   node tests/chat-social.mjs                the rules (pure node, then a real Chromium)
 //   node tests/chat-social.mjs --pure         the pure rules only (no browser)
-//   node tests/chat-social.mjs --mutate       every planted defect must turn a rule RED
+//   node tests/chat-social.mjs --mutate       every planted defect must turn a NAMED rule RED; a throw, a plant that does not parse
+//                                             or a line with no rule id is HARNESS, never a catch (tests/_mutant-verdict.mjs)
 //   node tests/chat-social.mjs --mutate --only=FR-2   just the mutants whose name holds that text
 //   node tests/chat-social.mjs --shots <dir>  also write the visual-gate screenshots (1440x900, 922x423)
 //
@@ -124,6 +125,7 @@ import { pathToFileURL } from 'node:url';
 import { ROOT, UID, serve, SDK_STUB } from './_client-harness.mjs';
 import { pinFonts } from './_test-fonts.mjs';
 import { answered } from './_press.mjs';
+import { judge, judgePlanted, report, exitOf, cleanControl, stopAtFirstRed, FIRST_RED } from './_mutant-verdict.mjs';
 
 const FIXTURE = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/hunt-envelope.json'), 'utf8'));
 const { HUNT_INDEX } = await import(pathToFileURL(join(ROOT, 'src/data/hunts.js')).href);
@@ -772,8 +774,11 @@ async function fullParty(browser, base, shots) {
   return fails;
 }
 
-async function pageRules(overrides, shots) {
+/* A mutant needs ONE red rule: under stopAtFirst its run ends at the first (each mutant ran every page block; tests/_mutant-verdict.mjs
+   stopAtFirstRed). The clean control and the plain run read every rule. */
+async function pageRules(overrides, shots, { stopAtFirst = false } = {}) {
   const fails = [];
+  if (stopAtFirst) stopAtFirstRed(fails);
   const { server, port } = await serve(overrides);
   const base = 'http://127.0.0.1:' + port;
   const browser = await leaseBrowser(chromium);
@@ -1228,7 +1233,7 @@ async function pageRules(overrides, shots) {
     fails.push(...await fullParty(browser, base, shots));   // CW-8
     fails.push(...await startOpen(browser, base));   // CW-12
     for (const vp of [{ width: 1440, height: 900 }, { width: 844, height: 390 }]) fails.push(...await combatTab(browser, base, vp));   // CW-11
-  } finally {
+  } catch (e) { if (e !== FIRST_RED) throw e; } finally {
     await browser.close();
     server.close();
   }
@@ -1358,10 +1363,14 @@ async function main() {
       : 'chat-social: lines are the server\'s rows; one intent per send; the server\'s channels; unread; whispers; blocks; links; the one menu' + (onlyPure ? '' : '; the window in the page') + (shots ? ' (shots in ' + shots + ')' : ''));
     process.exit(fails.length ? 1 : 0);
   }
-  const clean = [...await pureRules(await load(ROOT)), ...(onlyPure ? [] : await pageRules(null, null))];
-  if (clean.length) { console.log('  ✗ clean control RED: ' + clean.join('; ')); process.exit(1); }
-  console.log('  ✓ clean control green');
-  let bad = 0;
+  const clean = await cleanControl(async () => [...await pureRules(await load(ROOT)), ...(onlyPure ? [] : await pageRules(null, null))]);
+  console.log(clean.line);
+  if (clean.code) process.exit(clean.code);
+  /* A mutant is caught only by a NAMED rule (CL-n, CW-n, FR-n, ON-n ...); a copy that cannot load, a plant that does not parse, a page
+     step that throws (a window a later step waits for never opens) or a line with no rule id is HARNESS, never a catch
+     (tests/_mutant-verdict.mjs; lane/c-hollow-proofs-browser 2026-11-20: both loops filed a throw as `threw:` and scored ANY fail
+     line as the catch). */
+  const counts = { caught: 0, harness: 0, escaped: 0 };
   /* --only=<text>: just the mutants whose name holds it (the rule tag in brackets, e.g. --only=FR-2). */
   const only = (process.argv.find((x) => x.startsWith('--only=')) || '').slice(7);
   const pick = (list) => (only ? list.filter(([name]) => name.includes(only)) : list);
@@ -1369,27 +1378,21 @@ async function main() {
     const tmp = copySrc();
     try {
       const text = readFileSync(join(tmp, file), 'utf8');
-      if (!text.includes(from)) { console.log('  ✗ ' + name + ' — anchor not found in ' + file); bad++; continue; }
+      if (!text.includes(from)) { console.log('  ✗ ' + name + ' — HARNESS: anchor not found in ' + file); counts.harness++; continue; }
       writeFileSync(join(tmp, file), text.replace(from, to));
-      let fails;
-      try { fails = await pureRules(await load(tmp)); } catch (e) { fails = ['threw: ' + e.message]; }
-      if (fails.length) console.log('  ✓ ' + name + ' — caught (' + fails[0].split(' ')[0] + ')');
-      else { console.log('  ✗ ' + name + ' — NOT caught'); bad++; }
+      console.log(report(name, await judge(async () => pureRules(await load(tmp))), counts));
     } finally { rmSync(tmp, { recursive: true, force: true }); }
   }
   for (const [name, file, from, to] of onlyPure ? [] : pick(PAGE_MUTANTS)) {
     const text = await readFile(join(ROOT, file), 'utf8');
-    if (!text.includes(from)) { console.log('  ✗ ' + name + ' — anchor not found in ' + file); bad++; continue; }
-    /* a mutant that throws the page out of its steps (a window a later step waits for never opens, a covered control never
-       takes its press: CW-8's Chat over the coach card) is caught, as on the pure side (lane/a-chat-opens 5140db0ce, lost in a merge) */
-    let fails;
-    try { fails = await pageRules({ [file]: text.replace(from, to) }, null); } catch (e) { fails = ['threw: ' + String(e && e.message).split('\n')[0]]; }
-    if (fails.length) console.log('  ✓ ' + name + ' — caught (' + fails[0].split(' ')[0] + ')');
-    else { console.log('  ✗ ' + name + ' — NOT caught'); bad++; }
+    if (!text.includes(from)) { console.log('  ✗ ' + name + ' — HARNESS: anchor not found in ' + file); counts.harness++; continue; }
+    const plant = { [file]: text.replace(from, to) };
+    console.log(report(name, await judgePlanted(plant, () => pageRules(plant, null, { stopAtFirst: true })), counts));
   }
   const n = pick(PURE_MUTANTS).length + (onlyPure ? 0 : pick(PAGE_MUTANTS).length);
-  console.log(bad ? 'chat-social --mutate: ' + bad + ' escaped' : 'chat-social --mutate: ' + n + '/' + n + ' mutants caught');
-  process.exit(bad ? 1 : 0);
+  console.log(exitOf(counts) ? 'chat-social --mutate: ' + counts.escaped + ' escaped, ' + counts.harness + ' HARNESS (not catches)'
+    : 'chat-social --mutate: ' + n + '/' + n + ' mutants caught, each by a named rule');
+  process.exit(exitOf(counts));
 }
 
 main();

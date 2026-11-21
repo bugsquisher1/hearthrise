@@ -3,7 +3,9 @@
 // tests/death-popup.mjs — THE DEATH POPUP (Tyler 2026-10-19; tracker r15), IN A REAL CHROMIUM.
 //
 //   node tests/death-popup.mjs                the rules
-//   node tests/death-popup.mjs --mutate       every planted defect must turn a rule RED (--only TEXT: just the mutants whose name holds it)
+//   node tests/death-popup.mjs --mutate       every planted defect must turn a NAMED rule RED (--only TEXT: just the mutants whose name
+//                                             holds it); a throw, a plant that does not parse or a line with no DP id is HARNESS, never
+//                                             a catch (tests/_mutant-verdict.mjs)
 //   node tests/death-popup.mjs --shots <dir>  also write the visual-gate screenshots (1440x900, 922x423)
 //
 // mutant-anchors: src/shell/death-popup.js src/shell/windows/death.js src/shell/alerts.js src/session/character-sections.js src/shell/widgets/hunt-topbar.js src/shell/shell.js src/styles/app.css src/world/world-boot.js src/hunt-view/summary-recorder.js src/styles/hunt.css
@@ -55,6 +57,7 @@ import { ROOT, UID, serve, SDK_STUB } from './_client-harness.mjs';
 import { pinFonts } from './_test-fonts.mjs';
 import { withServerLevel, levelBlock } from './_server-level.mjs';
 import { scopedMutants } from '../tools/lib/mutant-scope.mjs';
+import { harnessFail, judge, judgePlanted, report, exitOf, cleanControl, stopAtFirstRed, FIRST_RED } from './_mutant-verdict.mjs';
 
 const FIXTURE = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/party-envelope.json'), 'utf8'));
 const clone = (o) => JSON.parse(JSON.stringify(o));
@@ -218,10 +221,9 @@ const seenOf = (s) => ((s.residue[0].alerts || {}).seen || []);
 const words = (r, fails, tag, rule) => { for (const k of Object.keys(WANT)) if (r[k] !== WANT[k]) fails.push(rule + ' [' + tag + '] ' + k + ' reads ' + JSON.stringify(r[k]) + ', want ' + JSON.stringify(WANT[k])); };
 
 /* A mutant needs one red rule, and a push proves only the mutants its diff touches: 19 full runs were 17.6 min of v0.2.86 (41787071357). */
-const STOP = Symbol('first red');
 async function pageRules(overrides, shots, { stopAtFirst = false } = {}) {
   const fails = [];
-  if (stopAtFirst) fails.push = function (...a) { Array.prototype.push.apply(this, a); throw STOP; };
+  if (stopAtFirst) stopAtFirstRed(fails);   // tests/_mutant-verdict.mjs
   const { server, port } = await serve(overrides);
   const base = 'http://127.0.0.1:' + port;
   const browser = await leaseBrowser(chromium);
@@ -432,12 +434,13 @@ async function pageRules(overrides, shots, { stopAtFirst = false } = {}) {
         }
         if (errors.length) fails.push('DP [' + tag + '] console errors: ' + errors.slice(0, 3).join(' | '));
       } catch (e) {
-        if (e === STOP) throw e;
-        fails.push('DP [' + tag + '] threw: ' + String(e && e.message).split('\n')[0]);
+        if (e === FIRST_RED) throw e;
+        /* a step that threw is HARNESS, never a rule (tests/_mutant-verdict.mjs) */
+        fails.push(harnessFail('[' + tag + '] a page step', e));
       }
     }
   } catch (e) {
-    if (e !== STOP) throw e;
+    if (e !== FIRST_RED) throw e;
   } finally {
     await browser.close();
     server.close();
@@ -486,28 +489,36 @@ async function main() {
   }
   const MINE = scopedMutants('tests/death-popup.mjs', MUTANTS);
   if (!MINE.length) process.exit(0);
-  const clean = [...await pure(ROOT), ...await pageRules(null, null)];
-  if (clean.length) { console.log('  ✗ clean control RED: ' + clean.join('; ')); process.exit(1); }
-  console.log('  ✓ clean control green');
-  let bad = 0;
+  const clean = await cleanControl(async () => [...await pure(ROOT), ...await pageRules(null, null)]);
+  console.log(clean.line);
+  if (clean.code) process.exit(clean.code);
+  /* A mutant is caught only by a NAMED rule (DP-n); a plant that does not parse, a step that throws ("DP [tag] threw" was a catch), or
+     a line with no rule id ("DP [tag] console errors") is HARNESS, never a catch (tests/_mutant-verdict.mjs; lane/c-hollow-proofs-browser
+     2026-11-20: this loop scored ANY fail line as the catch). */
+  const counts = { caught: 0, harness: 0, escaped: 0 };
   const only = process.argv.includes('--only') ? process.argv[process.argv.indexOf('--only') + 1] : null;
   const chosen = MINE.filter((m) => !only || m[0].includes(only));
   for (const [name, file, from, to] of chosen) {
     const text = await readFile(join(ROOT, file), 'utf8');
-    if (text.split(from).length !== 2) { console.log('  ✗ ' + name + ' — anchor not found once in ' + file); bad++; continue; }
-    let fails = await pageRules({ [file]: text.replace(from, to) }, null, { stopAtFirst: true });
+    if (text.split(from).length !== 2) { console.log('  ✗ ' + name + ' — HARNESS: anchor not found once in ' + file); counts.harness++; continue; }
+    const plant = { [file]: text.replace(from, to) };
+    let v = await judgePlanted(plant, () => pageRules(plant, null, { stopAtFirst: true }));
     /* DP-0 runs in node on the files themselves, never on the page's served overrides: a mutant only DP-0 can see (the boss room's
-       gap, release run 44238664696) is judged on a throwaway copy of src/ outside the tree, so it is caught where its rule lives */
-    if (!fails.length) {
+       gap, release run 44238664696) is judged on a throwaway copy of src/ outside the tree, so it is caught where its rule lives.
+       A page arm that did not judge (HARNESS) stays HARNESS unless DP-0 names the catch. */
+    if (v.kind !== 'caught' && !String(v.why || '').includes('does not parse')) {
       const tmp = mkdtempSync(join(tmpdir(), 'dp-mutant-'));
-      try { cpSync(join(ROOT, 'src'), join(tmp, 'src'), { recursive: true }); writeFileSync(join(tmp, file), text.replace(from, to)); fails = await pure(tmp); }
-      finally { rmSync(tmp, { recursive: true, force: true }); }
+      try {
+        cpSync(join(ROOT, 'src'), join(tmp, 'src'), { recursive: true }); writeFileSync(join(tmp, file), plant[file]);
+        const p = await judge(() => pure(tmp));
+        if (p.kind === 'caught' || v.kind === 'escaped') v = p;
+      } finally { rmSync(tmp, { recursive: true, force: true }); }
     }
-    if (fails.length) console.log('  ✓ ' + name + ' — caught (' + fails[0].split(' ')[0] + ')');
-    else { console.log('  ✗ ' + name + ' — NOT caught'); bad++; }
+    console.log(report(name, v, counts));
   }
-  console.log(bad ? 'death-popup --mutate: ' + bad + ' escaped' : 'death-popup --mutate: ' + chosen.length + '/' + chosen.length + ' mutants caught');
-  process.exit(bad ? 1 : 0);
+  console.log(exitOf(counts) ? 'death-popup --mutate: ' + counts.escaped + ' escaped, ' + counts.harness + ' HARNESS (not catches)'
+    : 'death-popup --mutate: ' + chosen.length + '/' + chosen.length + ' mutants caught, each by a named rule');
+  process.exit(exitOf(counts));
 }
 
 main();

@@ -233,8 +233,8 @@
     "rowsChangedByAFix": 40,
     "statusTagsInTheBook": {
       "decided": 324,
-      "provisional": 755,
-      "open": 82,
+      "provisional": 764,
+      "open": 83,
       "proposal": 26,
       "saidYesOnThePage": 344,
       "noCallId": 22
@@ -562,7 +562,7 @@
       },
       {
         "id": "CE-5",
-        "waitsOn": "the store-bill fault fixed and a wage formula that exists"
+        "waitsOn": "The wage formula of GR-51"
       },
       {
         "id": "CE-7",
@@ -590,7 +590,7 @@
       },
       {
         "id": "CORE-1",
-        "waitsOn": "the death fault fixed in the measuring tool, then the death sample of 4 seeds by 8 hours"
+        "waitsOn": "The playtest death rate"
       },
       {
         "id": "CORE-2",
@@ -610,23 +610,23 @@
       },
       {
         "id": "GR-4",
-        "waitsOn": "one band played on the curve"
+        "waitsOn": "The playtest death rate, and one full run with the armor probe and the arrival kit moved together"
       },
       {
         "id": "GR-5",
-        "waitsOn": "the death fault fixed in the measuring tool, then the death sample of 4 seeds by 8 hours"
+        "waitsOn": "The playtest death rate"
       },
       {
         "id": "GR-6",
-        "waitsOn": "the kill reward and the tiers, because the seat's multiple is not one number until then. The runway and the clock also wait on the Library's size in chapter 11 (row CH11-2, +5% as it opens)"
+        "waitsOn": "Tyler, 12 section 7 item 1, and the playtest death rate"
       },
       {
         "id": "GR-6a",
-        "waitsOn": "the kill reward and the tiers, because the seat's multiple is not one number until then. The runway and the clock also wait on the Library's size in chapter 11 (row CH11-2, +5% as it opens)"
+        "waitsOn": "Tyler, 12 section 7 item 1, and the playtest death rate"
       },
       {
         "id": "GR-6b",
-        "waitsOn": "the kill reward and the tiers, because the seat's multiple is not one number until then"
+        "waitsOn": "Tyler, 12 section 7 item 1, and the playtest death rate"
       },
       {
         "id": "GR-8",
@@ -662,7 +662,7 @@
       },
       {
         "id": "GR-27",
-        "waitsOn": "the death fault fixed in the measuring tool, then the death sample of 4 seeds by 8 hours"
+        "waitsOn": "The playtest death rate"
       },
       {
         "id": "GR-28",
@@ -842,11 +842,11 @@
       },
       {
         "id": "MM-25",
-        "waitsOn": "one buff played in a cell. The standing Level XP row waits on the Library's size in chapter 11 (row CH11-2, +5% as it opens)"
+        "waitsOn": "The playtest death rate, and the rating row of CORE-4 being built"
       },
       {
         "id": "MM-26",
-        "waitsOn": "one buff played in a cell. The ceiling also waits on the Library's size in chapter 11 (row CH11-2, +5% as it opens)"
+        "waitsOn": "Tyler, 12 section 7 item 4, and the playtest death rate"
       },
       {
         "id": "MM-29",
@@ -858,7 +858,7 @@
       },
       {
         "id": "MM-31",
-        "waitsOn": "one buff played in a cell. The clause re-derived after his two \"no\" answers was never put to him."
+        "waitsOn": "Tyler, 12 section 7 item 4"
       },
       {
         "id": "MM-33",
@@ -914,7 +914,7 @@
       },
       {
         "id": "TAL-1",
-        "waitsOn": "Section 12 of docs/design/overhaul/10-level-choices.md: the sample of five tracks played in the playtest, the matrix with four stat lines after the tool's fixes, the unlock sizes, the reset price, and the arena engine check"
+        "waitsOn": "One unlock played in a cell, and the playtest death rate"
       }
     ],
     "proposals": [
@@ -1826,6 +1826,46 @@
           "GR-25"
         ],
         "bookReads": "The book is written with all five kept."
+      },
+      {
+        "id": "12-7-1",
+        "what": "Which four times the Level law: the four on Dangerous (1.266) or the four on Deadly",
+        "conflict": "He ruled the table as the clock of a four on the hardest tier it holds, and at the sitting he ruled Deadly a tier you watch or gamble on.",
+        "calls": [
+          "GR-6",
+          "GR-6a",
+          "GR-6b"
+        ],
+        "bookReads": "Both clocks are shown in chapter 05. The ruled table stays the target. Source: docs/design/overhaul/12-balance-pass.md, section 7."
+      },
+      {
+        "id": "12-7-2",
+        "what": "Neither harder tier can hold his death count at every Level",
+        "conflict": "He ruled 10 to 30 deaths in 1,000 hours on Dangerous and 50 to 100 on Deadly. The engine gives a cliff: all cells together read 4 and 41.",
+        "calls": [
+          "CORE-1",
+          "GR-27"
+        ],
+        "bookReads": "Both tiers at blows 2.5, PROVISIONAL. Source: docs/design/overhaul/12-balance-pass.md, section 7."
+      },
+      {
+        "id": "12-7-3",
+        "what": "The leave rule for an account's own four",
+        "conflict": "His default is that the rest hunt on when one falls. Measured, the four died together in every sampled wipe.",
+        "calls": [
+          "GR-80"
+        ],
+        "bookReads": "The ruled default stands, with the measured finding beside it. Source: docs/design/overhaul/12-balance-pass.md, section 7."
+      },
+      {
+        "id": "12-7-4",
+        "what": "The paid edge is smaller in pace than the book told him, and it is a step",
+        "conflict": "He said yes on the page to 1.65 and about 1.22. Measured: 1.29 to 1.48 and about 1.06 to 1.08. Check G's last clause fails by design on a cliff.",
+        "calls": [
+          "MM-26",
+          "MM-31"
+        ],
+        "bookReads": "His yes stands as written, with the measured readings beside it. Check G keeps its clause, marked. Source: docs/design/overhaul/12-balance-pass.md, section 7."
       }
     ],
     "sitting": {
@@ -1972,12 +2012,46 @@
       "The engine server decision before 10,000 accounts, with the broadcast design for a shared fight"
     ]
   },
+  "balancePass": {
+    "where": "docs/design/overhaul/12-balance-pass.md",
+    "what": "The balance pass on the fixed tool. Numbers that moved stay PROVISIONAL with MEASURED evidence.",
+    "runs": "R0 is GitHub run 44920906999 (the full matrix, 4,503 cells, 2 seeds of 2 hours). R1 is run 44924971088 (670 cells with five buff rows). R2 is run 44925664434 (the death sample, 4 seeds of 8 hours). R4 is run 44928035806 (the death sample with both tiers at 2.5, and the full matrix with the three picks in). L is local probes of 2 seeds of 1 hour.",
+    "rowsTouched": [
+      "CORE-1",
+      "GR-27",
+      "GR-4",
+      "GR-5",
+      "GR-6",
+      "GR-6a",
+      "GR-6b",
+      "GR-7",
+      "MM-25",
+      "MM-26",
+      "MM-31",
+      "TAL-1",
+      "CE-5"
+    ]
+  },
+  "openDesignItems": [
+    {
+      "what": "Group damage as a tier row: a share of each pull's damage as a party-wide pulse",
+      "from": "docs/design/overhaul/12-balance-pass.md section 4.1",
+      "status": "OPEN design item. Not designed, not a proposal row, not decided",
+      "owner": "The game designer"
+    },
+    {
+      "what": "The armor curve and the arrival kit, which cannot ship apart",
+      "from": "docs/design/overhaul/12-balance-pass.md section 3.6",
+      "status": "OPEN design item",
+      "owner": "The game designer, with the matrix lane"
+    }
+  ],
   "missing": [
     {
       "chapter": "01-core-and-combat.md",
       "item": "1",
       "what": "The tier numbers",
-      "owner": "CORE-1 opens them as hypotheses, sized on the mid-geared four: Dangerous pull 5 and blows 1.17 times Normal, Deadly pull 8 and 2.25 times"
+      "owner": "CORE-1, sized on the mid-geared four: Dangerous pull 5 and Deadly pull 8, with blows 2.5 times Normal for both (MEASURED in chapter 12, runs R2 and R4"
     },
     {
       "chapter": "01-core-and-combat.md",

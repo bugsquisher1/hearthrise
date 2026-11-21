@@ -259,7 +259,7 @@ PROVISIONAL, GR-8, CE-4 and MM-22, Tyler said yes on the page, reversal, let sta
 | 3 | Linings | The first band whose ground has an element to guard against. TARGET: the second gear band | The first repeating gold-for-power. Sized inside the ruled 48 hour cap |
 | 4 | The House dummy rungs | When the yard fee starts to bite, by skill band | It converts a repeating fee into one large purchase, priced at 25 to 50 hours of the fee it ends |
 | 5 | The clan castle | When clans open (chapter 06) | Shared work, standing buffs under one cap. Sized below |
-| 8 | On call | Never | On call moves no gold to the hero's owner and is not a Crowns surface. The caller pays a guest's supplies. Castle labor covers an account's weekly share before gold does (PROVISIONAL (CH11-1 and CH11-3, `11-on-call-and-clan-xp.md`)) |
+| 8 | On call | Never | On call moves no gold to the hero's owner and is not a Crowns surface. The caller pays a guest's supplies. Castle labor covers an account's weekly share before gold does (PROVISIONAL (CH11-1 and CH11-3, `11-on-call-and-clan-xp.md`)). Nothing sells hire stamina, and the stamina refill does not touch it |
 | 7 | The talent reset | Level 30, when a reset stops being free | PROVISIONAL (TAL-1, `10-level-choices.md`). Priced in hours of the hero's own wage (`talentResetHours`, opening at 3), with no gold number until the wage formula of R15 exists. It is not a Crowns surface. Premium gives nothing here, and the store sells no points and no resets |
 | 6 | Boss and arena upgrade materials, bought from players | When the first world boss stands | The gold moves to the player who earned the material, and 5% burns on the way |
 
@@ -380,7 +380,7 @@ So the design has no gear ceiling and no gold price target. What keeps the advan
 | The eight clamps | Gold moved by Crowns | The weekly cap, the price band, one trade then bound, the hold, the Level door and the daily caps, the boost catalog, the store with no power rows, and the journal | PROVISIONAL, MM-36 and MM-33, Tyler said yes on the page |
 | Where paying gives no edge | Fair places | The Even Arena, events, and access to any Level, ground, drop or tier | PROVISIONAL, MM-37, waits on test Crowns run in a playtest, and the Security review, Tyler said yes on the page |
 
-**The paying-alone reading, re-derived.** PROVISIONAL (MM-31, re-derived in the fold 2026-11-21, not yet seen by Tyler). No cell has ever held a buff, so the number is a product of targets. It stays about 22% against a plain mid-geared four in the same band: best gear 1.15 x the +6% damage boost 1.06. It now says what it is. It is the pace of a four in the best gear state with the boost, it is reached only when the market holds the pieces, and it is not a limit on gear. A band that takes a plain four 10 days takes that four a little over 8 (COMPUTED, 10 over 1.22), and every Level and every band is still walked. If a set bought on the market ever reads more than the ruled 15% over mid gear, the fix is at the formula layer, in the best-gear definition or the gear curve, and never a cap on buying.
+**The paying-alone reading, re-derived.** PROVISIONAL (MM-31, re-derived in the fold 2026-11-21, not yet seen by Tyler). Cells have now held a buff. MEASURED in `12-balance-pass.md` (R1 and R2): paying alone reads about 1.06 to 1.08 in Level pace, and every cap full reads 1.29 to 1.48 against the 1.65 Tyler said yes to on the page. His yes to 1.65 and about 1.22 stands as written, and the measured readings sit beside it for him (chapter 12 section 7, item 4). What a payer really gets is a step: the next tier some Levels sooner, worth 20 to 29%. It stays about 22% against a plain mid-geared four in the same band: best gear 1.15 x the +6% damage boost 1.06. It now says what it is. It is the pace of a four in the best gear state with the boost, it is reached only when the market holds the pieces, and it is not a limit on gear. A band that takes a plain four 10 days takes that four a little over 8 (COMPUTED, 10 over 1.22), and every Level and every band is still walked. If a set bought on the market ever reads more than the ruled 15% over mid gear, the fix is at the formula layer, in the best-gear definition or the gear curve, and never a cap on buying.
 
 **The weekly cap, re-worded.** PROVISIONAL, MM-33, Tyler said yes on the page, with the wording re-derived in the fold 2026-11-21 and not yet seen by Tyler. The cap stays and it is a clamp, not a ceiling on gear. It is a weekly count of Crowns an account may sell and buy on the book, as ruling 24-5 requires. It opens as a fixed count of Crowns from a data row. Once the book has seven days of sales the server re-derives the count each week: `weekly cap in Crowns = one account-week of wage at the seller's highest hero Level / the 7 day median gold price of a Crown`. It reads the price players made and never sets one. Its job is to stop laundering and floods.
 
@@ -489,6 +489,17 @@ This section is new design. No source covered it. The order is PROVISIONAL (CE-4
 **The shape this is meant to have.** A new account is never broke, because Normal costs almost nothing at the store and the yard starts near zero. A new account is never done either, because by the first gear band four heroes are asking one purse for more than it holds. The first week teaches the two habits the whole economy runs on: spend on the hero that matters most, and set a rule once.
 
 **A reading to size against, not a target.** SIMULATOR, harness cells for a mid-geared four at 12 hours with full store prices (43 section 7): about 220,000 gold in an account-day at Level 10 and about 280,000 at Level 50. The harness reads a party's store bill at 1.7 to 2.2 times real, so its net gold is direction only. COMPUTED against that reading: four heroes training every rested hour at skill 10 pay 48,000 a day, about a fifth of gold in. At skill 45 they pay 216,000, most of a day's gold. So by mid game an account trains some hours and works the rest, which is the choice the fee is meant to create.
+
+**Measured: what an account of four earns, and how far the typed deeds sit under it.** From `12-balance-pass.md` section 3.7 (MEASURED, R0, the mid four on Dangerous, net gold after the store). Gold in the tool is still an upper bound, so these are sizes and not prices. Every price stays PROVISIONAL until the wage formula of GR-51 exists.
+
+| Levels | Net gold a hero-hour | An account-day |
+|---|---|---|
+| 16 to 31 | 6,000 to 7,100 | 290,000 to 340,000 |
+| 45 to 65 | 10,700 to 13,500 | 510,000 to 650,000 |
+| 70 to 110 | 17,600 to 21,500 | 845,000 to 1,030,000 |
+| 110 to 185 | 18,000 to 22,600 | 860,000 to 1,090,000 |
+
+COMPUTED on those account-days: the typed deeds sit 7 to 12 times under the sizes of CE-5. The Farmstead at 25,000 gold is 0.08 of an account-day against about 1. The Manor at 150,000 is 0.25 against about 3. The Keep at 600,000 is 0.6 against about 6. The Castle at 2,500,000 is 2.8 against about 20. So CE-5's direction is right and its factor is about ten.
 
 ### 2.11 Inflation over a long-lived server
 
@@ -684,7 +695,7 @@ Decisions or designs nobody has made yet in this area.
 
 | Check | Read | Decides |
 |---|---|---|
-| G, the power budget | A mid-geared four with no buffs against a best-geared four with every cap full, at Levels 20, 60 and 110. TARGET: kill speed within 1.25 to 1.40, Level pace within 1.6 to 1.8, and no cell where the buffed four holds a tier the plain four cannot enter | MM-25, MM-26, MM-31 |
+| G, the power budget | A mid-geared four with no buffs against a best-geared four with every cap full, at Levels 20, 60 and 110. TARGET: kill speed within 1.25 to 1.40, Level pace within 1.6 to 1.8, and no cell where the buffed four holds a tier the plain four cannot enter (this last clause fails by design on a cliff, `12-balance-pass.md` section 3.8, and is for Tyler, 12 section 7 item 4) | MM-25, MM-26, MM-31 |
 | H, is a 60% edge felt and is it resented | The two heaviest testers, shown the ceiling table. Their own words | Direction only for MM-31 |
 | The store test | A test proves the Crowns store has no row for gear, materials, gold, Levels or rating | Clamp 7 |
 

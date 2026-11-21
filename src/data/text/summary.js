@@ -79,9 +79,6 @@ export const SUMMARY_TEXT = Object.freeze({
   buy_chest_words: { one: '+1 Storage space', other: '+{count} Storage spaces' },
   buy_bag: 'Next buy: Bag space ({price})',
   buy_bag_words: { one: '+1 bag space', other: '+{count} bag spaces' },
-  /* {n} the slot's number on the Characters screen (the server's slot id + 1) */
-  buy_slot: 'Next buy: Hero slot {n} ({price})',
-  buy_slot_words: 'Another hero for your account',
   buy_refill: 'Next buy: Stamina refill ({price})',
   buy_refill_words: '+{time} of stamina',
   /* ...and a buy the purse does not cover yet: the nearest, with what it still needs ({short}: the server's price less the server's purse) */

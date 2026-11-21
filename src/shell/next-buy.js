@@ -17,7 +17,7 @@
 //            bench's room also ends its tax, bench-tax.js BENCH_TAX_ROOMS)
 //   deed     the House's next property rung, and the rooms it opens       chest  the account Storage's next chest
 //   bag      the bag's next rung (bought in Storage)                       dummy  the account's training dummy's next skill, a house owned
-//   slot     the account's next hero slot (the Characters screen)          tool   a better Shop tool for a skill the hero trains
+//   tool     a better Shop tool for a skill the hero trains (no hero slot: all four are the account's from the start, 1036)
 //   refill   a stamina refill, only after a hunt that ran out of stamina
 // Its words are labels (Tyler 2026-11-14: "Recommended: 4+ players"), never sentences: "Next buy: Bronze-Rimmed Shield (140 gp)", "+1 Defense vs Practice Shield".
 // PURE (nextBuy) over the server's sections; nextBuyOf reads them from a CharacterSession. Every price, rung, gate and count
@@ -41,7 +41,6 @@ import { settingsOf, huntOf } from '../session/hunt-sections.js';
 import { temperRowsOf } from '../session/temper-sections.js';
 import { trainingOf } from '../session/training-sections.js';
 import { homeOf, chestsOf } from '../session/home-sections.js';
-import { slotOfferOf } from '../session/account-session.js';
 
 const pct = (pm) => String(pm / 10) + '%';
 /* A room whose rungs do something (the House window offers no purchase for one that does nothing yet). */
@@ -176,13 +175,6 @@ function dummyRows(o) {
   return [{ kind: 'dummy', gold: d.nextPrice, title: t('summary.buy_dummy', { price: gold(d.nextPrice) }), words: t('summary.buy_dummy_words'), icon: null, glyph: 'navHouse', place: { kind: 'house' } }];
 }
 
-/* The account's next hero slot (account-session.js slotOfferOf, the server's offer), bought on the Characters screen. */
-function slotRows(o) {
-  const s = o.slot;
-  return s ? [{ kind: 'slot', gold: s.cost, title: t('summary.buy_slot', { n: s.slotId + 1, price: gold(s.cost) }), words: t('summary.buy_slot_words'),
-    icon: null, glyph: 'navCharacter', place: { kind: 'characters' } }] : [];
-}
-
 /* A Shop tool a better tier than the best the bag holds for its skill (core/tools.js bestTool, the engine's own read), for a skill this hero
    has trained (a hunter is never sent to the rocks by a pickaxe), cheapest first. */
 function toolRows(o) {
@@ -207,7 +199,7 @@ function refillRows(o) {
 }
 
 /* Every shelf, in the order a tie of one price goes. */
-const SHELF = Object.freeze([temperRows, roomRows, deedRows, chestRows, bagRows, dummyRows, slotRows, toolRows, refillRows]);
+const SHELF = Object.freeze([temperRows, roomRows, deedRows, chestRows, bagRows, dummyRows, toolRows, refillRows]);
 
 /**
  * The one buy to name, or null (no purse read yet, or nothing on the shelf at all):
@@ -216,10 +208,10 @@ const SHELF = Object.freeze([temperRows, roomRows, deedRows, chestRows, bagRows,
  *   3. none covered: the nearest, the cheapest of them all, its words saying how much more it needs (the server's price less the server's purse)
  * @param {{ purse: number|null, equipment: object, skills: object|null, level: number|null, prefer?: string|null, chosen?: string|null, shop: {offers:{item:string,kind:string,price:number}[]}|null,
  *           temper: object|null, dummy: object|null, home: object|null, bag: {id:string,qty:number}[]|null, bank: {id:string,qty:number}[]|null,
- *           chests?: object|null, bagGrow?: object|null, slot?: {slotId:number, cost:number}|null, refill?: object|null }} o
+ *           chests?: object|null, bagGrow?: object|null, refill?: object|null }} o
  *        `equipment`: the worn set with the bag's own Equip upgrades already on (so a piece the bag holds is never bought);
  *        `chosen`: the weight picked at Tamsin's and `prefer`: preferredWeight's, as upgradePlan reads them; `chests`: home-sections.js chestsOf;
- *        `bagGrow`: item-sections.js bagExpandOf; `slot`: account-session.js slotOfferOf; `refill`: staminaRefillOf, given only after a hunt out of stamina
+ *        `bagGrow`: item-sections.js bagExpandOf; `refill`: staminaRefillOf, given only after a hunt out of stamina
  * @returns {{ kind: string, title: string, words: string, icon: string|null, glyph?: string, place: object, short?: number }|null}  `icon` an item's, else `glyph` (data/glyphs.js);
  *        `short`: the gold still needed, on a buy the purse does not cover yet
  */
@@ -248,6 +240,5 @@ export function nextBuyOf(cs, plan) {
   return nextBuy({ purse: goldOf(cs), equipment: Object.assign({}, eq, plan && plan.ops ? plan.ops : {}), skills: skillsOf(cs), level: lv ? lv.level : null,
     chosen: tally ? tally.weight : null, prefer: preferredWeight(tally ? tally.weight : null, eq, s ? s.role : null), shop: shopOf(cs), temper: temperRowsOf(cs), dummy: tr ? tr.dummy : null,
     home: homeOf(cs), bag: bagOf(cs), bank: bankOf(cs), chests: chestsOf(cs), bagGrow: bagExpandOf(cs),
-    slot: slotOfferOf(cs && typeof cs.read === 'function' ? cs.read('account') : null),
     refill: h && h.ended && h.endReason === 'stamina' ? staminaRefillOf(cs) : null });
 }

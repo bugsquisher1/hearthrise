@@ -267,8 +267,11 @@ const huntView = (page, tile, map = WARRENS) => page.evaluate(([tx, ty, mw, mh, 
   const party = box('party'), an = box('analyzer'), top = box('hunt-topbar'), bar = box('action-bar');
   const sz = 32 * s.z / s.dpr, p = w.screenOf(tx, ty), o = w.screenOf(0, 0), e = w.screenOf(mw - 1, mh - 1);
   const rect = (x0, y0, x1, y1) => { const a = w.screenOf(x0, y0), b = w.screenOf(x1, y1); return a && b && [a.x - sz / 2, a.y - sz / 2, b.x + sz / 2, b.y + sz / 2]; };
+  /* the Party panel is cleared on ONE axis, the cheaper (hud.js hudInsetOf): by the left strip, or by the top strip when the panel is short (a lone
+     hero's, with no coach card docked under it since Chat at home is the card's floor, art review 2026-11-21 #8). Either way it is the camera's to clear */
+  const byTop = !!party && !!s.inset && s.inset.top >= party.bottom - c.top - 2;
   return { kind: s.kind, map: s.scene, unit: s.hunt && s.hunt.hero ? s.hunt.hero.unit : null, tile: sz,
-    p: p && [p.x, p.y], open: [party ? party.right : c.left, top ? top.bottom : c.top, an ? an.left : c.right, bar ? bar.top : c.bottom],
+    p: p && [p.x, p.y], open: [party && !byTop ? party.right : c.left, Math.max(top ? top.bottom : c.top, byTop ? party.bottom : c.top), an ? an.left : c.right, bar ? bar.top : c.bottom],
     canvas: [c.left, c.top, c.right, c.bottom], inset: s.inset,   // CSS px (canvas-backend.js setInset)
     art: o && e && [o.x - sz / 2, o.y - sz / 2, e.x + sz / 2, e.y + sz / 2],
     room: fr ? rect(fr[0], fr[1], fr[0] + fr[2] - 1, fr[1] + fr[3] - 1) : o && e && [o.x - sz / 2, o.y - sz / 2, e.x + sz / 2, e.y + sz / 2] };

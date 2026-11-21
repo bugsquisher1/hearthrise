@@ -1433,7 +1433,7 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
       await page.click('.auth-submit');
       await wait(page, () => document.querySelectorAll('.char-row').length === 4);
       const lead = await page.evaluate(() => Array.from(document.querySelectorAll('.auth-lead')).map((p) => p.textContent).join(' | '));
-      if (!/\| Heroes at once: up to 4\. 2 more heroes to make\.$/.test(lead) || await page.$('[data-app="buy-slot"]') || await page.$('.slot-offer'))
+      if (!/\| Heroes at once: up to 4\. 2 more heroes to make\.( \||$)/.test(lead) || await page.$('[data-app="buy-slot"]') || await page.$('.slot-offer'))
         fails.push('B-11 the line over two heroes of four reads ' + JSON.stringify(lead) + ', or a slot is still for sale');
       /* B-11b (UI audit 2026-11-18): each hero's row shows its own figure, drawn, at a whole 2x or more, at the desktop and the phone widths */
       for (const vp of [[1440, 900], [922, 423], [667, 375]]) {

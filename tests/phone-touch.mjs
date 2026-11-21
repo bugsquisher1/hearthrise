@@ -608,6 +608,14 @@ async function coachFits(page, tag, fails, phone) {
        else it ends above the action bar with its fold in reach and its words scroll to their end under a wheel. The town's card is never capped. */
     /* lane/b-ui-wave2 (set/v0.2.139) docked the TOWN card too, under the Tally in the right column (max-height --coach-h), so the town's card is
        judged as the hunt's: on screen above the action bar, its fold in reach, its words scrolled to their end. (Was: "the town's card is never capped".) */
+    /* CHAT AT HOME IS THE CARD'S FLOOR (D-1 1.3 rule 5; art review 2026-11-21 #8): with no room above Chat the hunt card folds to its title under the hunt
+       bar (hud-room.js is-coach-tight), so it has no words to scroll: its title stays on screen, clear of Chat, and nothing moved Chat for it */
+    if (!c.text) {
+      const chat = await page.evaluate(() => { const w = document.querySelector('[data-hs-win="chat"]:not(.is-leaving)'); return w ? window.__r(w) : null; });
+      const on = !!chat && c.card.left < chat.right && chat.left < c.card.right && c.card.top < chat.bottom && chat.top < c.card.bottom;
+      if (!window_onScreen(c.card, page.viewportSize()) || on) fails.push('PH-6 [' + tag + '] the folded desktop coach is off screen or on Chat: ' + JSON.stringify({ card: c.card, chat }));
+      return;
+    }
     if (!c.hub || !window_onScreen(c.card, page.viewportSize()) || c.card.bottom > c.hub.top + 0.5) { fails.push('PH-6 [' + tag + '] the desktop coach card runs over the action bar or off the screen: ' + JSON.stringify(c.card)); return; }
     if (!c.dash) { fails.push('PH-6 [' + tag + '] the fold of the desktop coach is off screen or covered'); return; }
     /* whole where the column has the room: a desktop card's words scroll only once it has filled its room down to the action bar */

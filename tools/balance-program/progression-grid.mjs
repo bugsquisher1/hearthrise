@@ -1,20 +1,22 @@
 #!/usr/bin/env node
 // ════════════════════════════════════════════════════════════════════════
-// tools/balance-program/grid.mjs — THE PROGRESSION GRID (balance program 50-standards.md section 5, the harness; Tyler 2026-11-21).
+// tools/balance-program/progression-grid.mjs — THE PROGRESSION GRID (balance program 50-standards.md section 5, the harness; Tyler 2026-11-21).
+// 50-standards names it grid.mjs and grid.json. The stem `grid` is src/core/hunt/grid.js's and tests/hunt-core/grid.mjs's: tools/lib/guard-deps.mjs
+// maps a file to every guard naming its stem, so a refreshed grid.json re-proved about sixty hunt guards on a release. Hence the longer name.
 //
-//   node tools/balance-program/grid.mjs [--workers N]           the FULL grid: 31 checkpoints x LOW / MID / BiS x parties 1-4 x every
+//   node tools/balance-program/progression-grid.mjs [--workers N]           the FULL grid: 31 checkpoints x LOW / MID / BiS x parties 1-4 x every
 //                                                               tier the ground offers, 2 seeds x 2 h a cell (the nightly sample), on the
-//                                                               REAL engine; writes tools/balance-program/grid.json and prints the report
-//   node tools/balance-program/grid.mjs --quick                 the release subset: the 12 guard checkpoints x 3 gear states x lone and
-//                                                               four x Normal and the hardest tier, 2 seeds x 1 h; writes grid-quick.json
-//   node tools/balance-program/grid.mjs --deaths [--third 0|1|2|all]  the death sample (50-standards 5.3 nightly deaths): a rotating third of the
+//                                                               REAL engine; writes tools/balance-program/progression-grid.json and prints the report
+//   node tools/balance-program/progression-grid.mjs --quick                 the release subset: the 12 guard checkpoints x 3 gear states x lone and
+//                                                               four x Normal and the hardest tier, 2 seeds x 1 h; writes progression-grid-quick.json
+//   node tools/balance-program/progression-grid.mjs --deaths [--third 0|1|2|all]  the death sample (50-standards 5.3 nightly deaths): a rotating third of the
 //                                                               harder-tier cells at 4 seeds x 8 h (by the day of the year, or --third), merged
-//                                                               into grid.json as each cell's `deaths`: the only run that judges S2, S6, S7 and
+//                                                               into progression-grid.json as each cell's `deaths`: the only run that judges S2, S6, S7 and
 //                                                               what `holds` reads; the grid's own 2 x 2 h is too thin for a death rate (X26)
-//   node tools/balance-program/grid.mjs --report [--quick]      NO PLAY: the cached grid judged against standards.mjs, one screen a band
+//   node tools/balance-program/progression-grid.mjs --report [--quick]      NO PLAY: the cached grid judged against standards.mjs, one screen a band
 //                                                               family, then the gap list's numbers, then the bands furthest out
-//   node tools/balance-program/grid.mjs --kits <Level>          NO PLAY: what every way wears at that Level in LOW, MID and BiS, and why
-//   node tools/balance-program/grid.mjs --selftest              plants out-of-band cells (one a band family) and gear-rule and data changes;
+//   node tools/balance-program/progression-grid.mjs --kits <Level>          NO PLAY: what every way wears at that Level in LOW, MID and BiS, and why
+//   node tools/balance-program/progression-grid.mjs --selftest              plants out-of-band cells (one a band family) and gear-rule and data changes;
 //                                                               each must turn its own band red / move its kit
 //   --only 30,45   only those checkpoints (merged into the cache)  --resume   keep the cells already played in the run's .jsonl
 //   --json <file>  the judged rows
@@ -25,7 +27,7 @@
 // placeholder grounds and projected gear line of grid-project.mjs (labelled PROJECTED). Each seed is its own job, so a cell carries its
 // spread. The judging is grid-derive.mjs; the bands are standards.mjs.
 //
-// THE CACHE AND ITS REFRESH. grid.json is a committed snapshot stamped with the commit and a hash of every input the engine and the kits
+// THE CACHE AND ITS REFRESH. progression-grid.json is a committed snapshot stamped with the commit and a hash of every input the engine and the kits
 // read (src/core, src/data, the hr-accrue settle, tools/balance-sim, this folder's kit and projector). `--report` and the balance guard
 // say STALE when the tree's hash differs. REFRESH: re-run and commit it in the lane that moves a number a band reads, and whenever the guard
 // prints STALE (a full run is about an hour of worker time; CI cannot commit it back, so no workflow refreshes it on its own yet).
@@ -40,7 +42,7 @@
 // Exit: 0 ran (report mode: an out-of-band band never fails a run) · 1 a --selftest plant not caught · 2 harness.
 // mutant-anchors: none — --selftest plants on an in-memory copy of the cached grid and on a loaded kit builder; no tracked file is patched
 // ci-step: economy-selftests | The progression grid's judge turns a planted out-of-band cell red, and its kits follow their rules and the data
-// ci-run: node tools/mutant-gate.mjs node tools/balance-program/grid.mjs --selftest
+// ci-run: node tools/mutant-gate.mjs node tools/balance-program/progression-grid.mjs --selftest
 // ════════════════════════════════════════════════════════════════════════
 import { fork, execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync, appendFileSync, readdirSync, statSync } from 'node:fs';
@@ -55,8 +57,8 @@ import { PROJECTED, projectedFloor, placeholderWhatIf, selfCheck } from './grid-
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..', '..');
-export const GRID_FILE = join(HERE, 'grid.json');
-export const QUICK_FILE = join(HERE, 'grid-quick.json');
+export const GRID_FILE = join(HERE, 'progression-grid.json');
+export const QUICK_FILE = join(HERE, 'progression-grid-quick.json');
 const WORKER = join(ROOT, 'tools', 'balance-sim', 'worker.mjs');
 const u = (p) => pathToFileURL(join(ROOT, p)).href;
 const argv = process.argv.slice(2);
@@ -281,9 +283,11 @@ export function cellRates(D, meta, seeds) {
 const HASHED = ['src/core', 'src/data', 'supabase/functions/hr-accrue', 'src/shell/hunt-list.js', 'tests/hunt-core/fixtures/play-ground.mjs', 'tools/lib/version-stamp.mjs', 'tools/gen-ground-stats.mjs',
   'tools/balance-sim/cell.mjs', 'tools/balance-sim/gear.mjs', 'tools/balance-sim/worker.mjs', 'tools/balance-sim/played.mjs', 'tools/balance-sim/skill-lines.mjs', 'tools/balance-sim/skill-lines.json',
   'tools/balance-sim/styles.mjs', 'tools/balance-sim/stats.mjs', 'tools/balance-sim/weapon-power.mjs', 'tools/balance-sim/armor-power.mjs', 'tools/balance-sim/career.mjs', 'tools/balance-sim/staged',
-  'tools/balance-program/grid-kit.mjs', 'tools/balance-program/grid-project.mjs', 'tools/balance-program/standards.mjs'];
+  'tools/balance-program/grid-kit.mjs', 'tools/balance-program/grid-project.mjs'];
 const cellCode = () => [buildCell, planCells, cellRates, compsOf, cellKey, ownShareAt, slimResult, slimPlan].map((f) => f.toString()).join('\n')
-  + JSON.stringify([COMPS, MAIN, RUNS.full, RUNS.quick, STD.SUPPLY]);
+  /* of standards.mjs only what shapes a cell (the gear rules, the stretches, the parties, the supply share, the checkpoints), never a band: a
+     ruling that moves a target leaves the cells as they were. A run's file path is the machine's, so it is left out. */
+  + JSON.stringify([COMPS, MAIN, ...[RUNS.full, RUNS.quick].map(({ file, ...r }) => (void file, r)), STD.SUPPLY, STD.GEAR_STATES, STD.STRETCHES, STD.PARTIES, STD.POWER_SOURCES, STD.CHECKPOINTS, STD.GUARD_CHECKPOINTS, STD.TIERS]);
 export function inputHash(root = ROOT) {
   const h = createHash('sha256');
   let files;
@@ -296,7 +300,7 @@ export function inputHash(root = ROOT) {
     files.sort();
   }
   for (const p of files) { if (!/\.(m?js|json|ts)$/.test(p) || !existsSync(join(root, p))) continue; h.update(p + '\0'); h.update(readFileSync(join(root, p), 'utf8').replace(/\r\n/g, '\n')); h.update('\0'); }
-  h.update(cellCode());
+  h.update(cellCode().replace(/\r/g, ''));   // a Windows checkout's CRLF is not a change
   return h.digest('hex').slice(0, 16);
 }
 const commitOf = () => { try { return execFileSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).trim(); } catch { return 'unknown'; } };
@@ -314,7 +318,7 @@ async function play(run) {
   if (run.rotate) {
     const third = arg('third', String(Math.floor((Date.now() - Date.UTC(new Date().getUTCFullYear(), 0, 1)) / 86400000) % run.rotate));
     if (third !== 'all') { const keep = new Set(cells.filter((_, i) => i % run.rotate === Number(third)).map((c) => c.key)); cells = cells.filter((c) => keep.has(c.key)); jobs = jobs.filter((j) => keep.has(j.key)); }
-    if (!existsSync(run.file)) throw new Error('grid --deaths: no grid.json to merge into: run the full grid first');
+    if (!existsSync(run.file)) throw new Error('grid --deaths: no progression-grid.json to merge into: run the full grid first');
   }
   const workers = Number(arg('workers', Math.max(1, Math.min(16, availableParallelism() - 2))));
   const resumeFile = has('resume') ? run.file.replace(/\.json$/, '.jsonl') : null;
@@ -355,7 +359,7 @@ async function play(run) {
 
 /* THE CACHE'S SHAPE ON DISK: a cell is a row of CELL_FIELDS, its rates a row of RATE_FIELDS and each seat a row of SEAT_FIELDS (the names once,
    in the file's head), so the committed file stays small. The kits are not kept: they are a rule on the data, and grid-kit.mjs kitFor (or
-   grid.mjs --kits) rebuilds any of them from the same tree (inputHash says which). readGrid answers the plain shape grid-derive.mjs reads. */
+   progression-grid.mjs --kits) rebuilds any of them from the same tree (inputHash says which). readGrid answers the plain shape grid-derive.mjs reads. */
 export const CELL_FIELDS = Object.freeze(['key', 'L', 'gear', 'party', 'comp', 'tier', 'ground', 'styles', 'stretch', 'label', 'step', 'error', 'deaths']);
 export const RATE_FIELDS = Object.freeze(['levelXpPerH', 'netLevelXpPerH', 'xContract', 'contractXpPerH', 'mainSkillXpPerH', 'coinPerH', 'incomePerH', 'storePerH', 'ownShare', 'netPerH',
   'netADay', 'storeShare', 'storeByKindPerH', 'takenPerH', 'healedPerH', 'lowHpTypical', 'lowHpP10', 'deaths', 'deathsPer1000h', 'deathTax', 'killsPerH', 'revealsPerPartyH',
@@ -407,7 +411,7 @@ async function main() {
   let grid;
   if (has('report')) {
     grid = readGrid(quick);
-    if (!grid) { console.error('grid: no cached ' + (quick ? 'grid-quick.json' : 'grid.json') + ': run node tools/balance-program/grid.mjs' + (quick ? ' --quick' : '')); return 2; }
+    if (!grid) { console.error('grid: no cached ' + (quick ? 'progression-grid-quick.json' : 'progression-grid.json') + ': run node tools/balance-program/progression-grid.mjs' + (quick ? ' --quick' : '')); return 2; }
   } else {
     const r = await play(has('deaths') ? RUNS.deaths : quick ? RUNS.quick : RUNS.full);
     grid = r.grid;

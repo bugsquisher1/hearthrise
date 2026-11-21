@@ -12,7 +12,7 @@
 //   node tests/balance-guard.mjs --write --why "<what moved and why>"   re-writes tests/balance-guard.baseline.json
 //   --json <file>  every number it read; --workers N  worker processes (default: the cores, at most 4)
 //   After its lines it prints THE STANDARDS: every band of tools/balance-program/standards.mjs judged on the progression grid's cached cells
-//   (tools/balance-program/grid.json, played nightly by grid.mjs; grid-derive.mjs judges). Report mode: never an exit, nothing played here.
+//   (tools/balance-program/progression-grid.json, played nightly by progression-grid.mjs; grid-derive.mjs judges). Report mode: never an exit, nothing played here.
 //
 // mutant-anchors: none — every --selftest plant transforms the measured inputs, a loaded module's copy or an engine row inside a
 // worker (worker.mjs whatIf), never a file
@@ -632,15 +632,15 @@ async function selftest(workers) {
 }
 
 /* ── THE STANDARDS (50-standards 5.4), REPORT MODE ──────────────────────────────────────────────────────────────────────────────────
-   Every band of tools/balance-program/standards.mjs judged on the progression grid's CACHED cells (grid.json, else grid-quick.json:
-   tools/balance-program/grid.mjs plays them nightly, 1,116 cells on the real engine). Nothing is played here, and no band changes the exit
+   Every band of tools/balance-program/standards.mjs judged on the progression grid's CACHED cells (progression-grid.json, else progression-grid-quick.json:
+   tools/balance-program/progression-grid.mjs plays them nightly, 1,116 cells on the real engine). Nothing is played here, and no band changes the exit
    code: a band starts in report and turns red in the lane that lands the change it guards (5.4). A cache whose input hash differs from the
    tree's prints STALE. */
 async function standardsBlock() {
-  const GRID = await import(u('tools/balance-program/grid.mjs'));
+  const GRID = await import(u('tools/balance-program/progression-grid.mjs'));
   const DER = await import(u('tools/balance-program/grid-derive.mjs'));
   const g = GRID.readGrid(false) || GRID.readGrid(true);
-  if (!g) { console.log('STANDARDS (50-standards): no cached grid (node tools/balance-program/grid.mjs): every band unread'); return; }
+  if (!g) { console.log('STANDARDS (50-standards): no cached grid (node tools/balance-program/progression-grid.mjs): every band unread'); return; }
   const [D, K] = await Promise.all([GRID.loadGridData(ROOT), (await import(u('tools/balance-program/grid-kit.mjs'))).loadKits(ROOT)]);
   const j = DER.judgeGrid(D, g, { currentHash: GRID.inputHash(ROOT), K });
   const S = DER.bandSummary(j);

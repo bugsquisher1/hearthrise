@@ -13,7 +13,7 @@
 //          prem-1   a PREMIUM hero started once a day (its 12 h bar)
 //        No refill is bought. Each start, end, end reason and the pool the server held at each start are recorded; hunted hours are
 //        hunt_from -> ended_at of each session (the walk in rests, as the rule says). --write keeps the answer in stamina-day.json,
-//        which tools/balance-program/grid.mjs reads (its `clock` block) and prints.
+//        which tools/balance-program/progression-grid.mjs reads (its `clock` block) and prints.
 //
 // The heroes are the start kit's, set to Level 25 inside this throwaway database (tests/cellar-outgrown.mjs levelTo's move) and sent to
 // the Meadowbrook Thicket (no exit Level), so no end but the bar's can come first: the proof is about the bar, not the fight. Premium is

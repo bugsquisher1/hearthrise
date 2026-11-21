@@ -7,7 +7,7 @@
 //   judgeGrid(D, grid, o)    -> every band of standards.mjs BANDS, each cell it reads judged ok / off / RED (or thin: a sample X26 says
 //                               cannot see it; n/a: the grid does not measure it, and why)
 //   printReport(grid, j)     -> one screen a band family, the gap list's numbers, the bands furthest out of band
-//   selftest(ctx)            -> grid.mjs --selftest
+//   selftest(ctx)            -> progression-grid.mjs --selftest
 //
 // A band's status: inside [lo, hi] ok; inside [redLo, redHi] off; outside it RED (standards.mjs). Report mode: nothing here fails a run.
 // The balance guard (tests/balance-guard.mjs) prints this judge's summary of the cached grid; it plays nothing for it.
@@ -37,7 +37,7 @@ export function distanceOf(v, band) {
   return 0;
 }
 /* X26: a death rate is judged on 4 seeds x 8 h or more (32 hero-hours a seat); under it the number prints as `thin`. A cell the deaths run
-   (grid.mjs --deaths) played carries `deaths`, which every death reading prefers. */
+   (progression-grid.mjs --deaths) played carries `deaths`, which every death reading prefers. */
 const DEATH_SAMPLE_HERO_H = 32;
 /* the deaths run's sample is the run's design (4 seeds x 8 h a seat): a seat that dies often hunts fewer hours, which is its answer, not a thin sample */
 export const deathOf = (c) => (c.deaths && c.deaths.sample ? { per1000h: c.deaths.deathsPer1000h, seatHours: c.deaths.sample.heroHours / c.party, net: c.deaths.netLevelXpPerH, low: c.deaths.lowHpTypical, planned: true }
@@ -249,7 +249,7 @@ export function judgeGrid(D, grid, o = {}) {
       continue;
     }
     if (/^S1\.|^S3\.|^S4\./.test(id)) { for (const c of cellsWhere(w)) add(band, at(c), c.rates.lowHpTypical); continue; }
-    if (/^S2\.|^S6\./.test(id)) { for (const c of cellsWhere(w)) add(band, at(c), deathOf(c).per1000h, sampleOk(c) ? {} : { status: 'thin', why: Math.round(deathOf(c).seatHours) + ' hours a seat (X26: 4 seeds x 8 h; grid.mjs --deaths plays it)' }); continue; }
+    if (/^S2\.|^S6\./.test(id)) { for (const c of cellsWhere(w)) add(band, at(c), deathOf(c).per1000h, sampleOk(c) ? {} : { status: 'thin', why: Math.round(deathOf(c).seatHours) + ' hours a seat (X26: 4 seeds x 8 h; progression-grid.mjs --deaths plays it)' }); continue; }
     if (/^S5\./.test(id)) { for (const c of cellsWhere(w)) add(band, at(c), ratio(c.rates.takenPerH, (get(c.L, 'mid', c.party, c.tier) || {}).rates?.takenPerH)); continue; }
     if (/^S7\./.test(id)) { for (const c of cellsWhere(w)) add(band, at(c), Math.exp(-(deathOf(c).per1000h / 1000) * 12), sampleOk(c) ? {} : { status: 'thin', why: Math.round(deathOf(c).seatHours) + ' hours a seat' }); continue; }
     if (id === 'S10') {
@@ -386,7 +386,7 @@ const fmtDay = (d) => (finite(d) ? d.toFixed(0) : '-');
    moves nothing. Then the kit builder: a changed gear rule and a planted data row must each move the kits. */
 export async function selftest({ ROOT, loadGridData, loadKits, readGrid, quick }) {
   const grid0 = readGrid(quick) || readGrid(!quick);
-  if (!grid0) { console.log('grid --selftest: no cached grid: run node tools/balance-program/grid.mjs --quick first'); return 2; }
+  if (!grid0) { console.log('grid --selftest: no cached grid: run node tools/balance-program/progression-grid.mjs --quick first'); return 2; }
   const D = await loadGridData();
   const K = await loadKits(ROOT);
   const clone = () => JSON.parse(JSON.stringify(grid0));

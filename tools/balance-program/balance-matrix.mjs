@@ -69,7 +69,7 @@ export const MAX_WORKERS = 4;
 const workersOf = () => Math.max(1, Number(arg('workers', Math.min(MAX_WORKERS, Math.max(1, availableParallelism() - 2)))));
 
 /* ── THE DATA A TREE PLAYS WITH: the grid's data, with the modules a patch can move read from that tree ─────────────────────────── */
-async function dataView(D, root) {
+export async function dataView(D, root) {
   if (resolve(root) === ROOT) return D;
   const imp = (p) => import(pathToFileURL(join(root, p)).href);
   const [XP, BS, MON, SB, TI, BL, LB] = await Promise.all(['src/core/xp.js', 'src/data/balance-sheet.js', 'src/data/monsters.js', 'src/data/supply-basics.js', 'src/data/hunt-tiers.js', 'src/data/blessings.js', 'src/data/loot-bands.js'].map(imp));
@@ -121,7 +121,7 @@ export async function playRun(D, K, run, root, o = {}) {
   for (const j of jobs) if (results[j.id]) (byKey[j.key] || (byKey[j.key] = [])).push(results[j.id]);
   const cells = plan.cells.map((c) => {
     const seeds = (byKey[c.key] || []).map(slimSeed);
-    const want = o.seeds || run.seeds;
+    const want = c.seeds || o.seeds || run.seeds;
     if (seeds.length < want) return { ...c, error: (errors.find((e) => e.id.startsWith(c.key + '#')) || {}).error || 'a seed is missing' };
     return { ...c, m: cellMetrics(V, c, seeds, arch) };
   });
@@ -173,6 +173,7 @@ export function printRun(res, rows, out = console.log) {
   if (sk.length) out('\nSKILLS PLAYED, the lone hammer (main skill / Defense): ' + sk.map((c) => c.L + ': ' + c.skills[0].join(' / ')).join(', '));
   out('\nSOLO AGAINST PARTY (a four\'s head over the lone hammer; and over the same four ways alone) with each seat\'s share of the damage taken');
   for (const s of D.soloVsParty) out('  ' + (s.L + ' ' + s.gear + ' ' + s.tier).padEnd(22) + ' XP ' + fmt(s.xpHeadVsHammer, 2) + ' (same alone ' + fmt(s.xpHeadVsSameAlone, 2) + '), net ' + fmt(s.netHeadVsHammer, 2) + ', DPS ' + fmt(s.dpsHeadVsHammer, 2) + ', deaths ' + fmt(s.deathsFour, 1) + ' vs ' + fmt(s.deathsLone, 1) + ' | taken: ' + Object.entries(s.takenShare).map(([k, v]) => k + ' ' + pct(v).replace('+', '')).join(', '));
+  printLineups(D.lineups, null, out);
   out('\nGEAR STEPS BY SLOT CLASS (the full set over it with one class a state back): Level XP | DPS | less damage taken');
   for (const u of D.upgrades) out('  ' + (u.L + ' ' + u.way + ' ' + u.from + '->' + u.to + ' ' + u.cls).padEnd(34) + [pct(u.xp), pct(u.dps), pct(u.lessTaken)].map((s) => s.padStart(9)).join(' '));
   out('\nARCHETYPES (matrix-plan.mjs rule; mean over cells): kills/h | taken/h | dealt/h | s to kill | taken a kill');
@@ -184,6 +185,18 @@ export function printRun(res, rows, out = console.log) {
     for (const [w, b] of Object.entries(by)) out('  ' + w.padEnd(10) + String(b.RED).padStart(5) + String(b.off).padStart(6) + String(b.ok).padStart(6));
   }
   if (res.calibration) { out(''); printCalibration(res.calibration, out); }
+}
+
+/* THE LINEUPS (matrix-plan.mjs LINEUPS): each four on Deadly against the mixed four, its low point and deaths; with `before`, before -> after */
+function printLineups(rows, before, out) {
+  if (!rows || !rows.length) return;
+  out('\nLINEUPS on Deadly, MID (52-review-combat 10.4; L16 judges these): XP vs the mixed four | kills vs mixed | low HP | worst tenth | deaths/1000h | store/h' + (before ? '   (before -> after)' : ''));
+  const B = before ? new Map(before.map((x) => [x.L + '|' + x.styles.join(), x])) : null;
+  const two = (b, a, f, d) => (B ? fmt(b && b[f], d) + '->' + fmt(a[f], d) : fmt(a[f], d));
+  for (const x of rows) {
+    const b = B && B.get(x.L + '|' + x.styles.join());
+    out('  ' + (x.L + ' ' + x.styles.join(',')).padEnd(34) + [two(b, x, 'xpVsMixed', 2), two(b, x, 'killsVsMixed', 2), two(b, x, 'lowHpTypical', 2), two(b, x, 'lowHpP10', 2), two(b, x, 'deathsPer1000h', 0), two(b, x, 'storePerH', 0)].map((s) => s.padStart(B ? 13 : 8)).join(' '));
+  }
 }
 
 export function printDiff(d, meta, out = console.log) {
@@ -205,10 +218,11 @@ export function printDiff(d, meta, out = console.log) {
   out('\nCELLS (the change of each metric; flags: the band rows moved at that cell): ' + show.join(' | '));
   const atOf = (c) => c.L + ' ' + c.gear + ' x' + c.party + ' ' + c.tier;
   for (const c of [...d.cells].sort((a, b) => a.L - b.L || a.party - b.party || String(a.way).localeCompare(String(b.way)))) {
-    const fl = d.bands.filter((b) => b.at === atOf(c) && !c.step && (c.party > 1 ? b.way === 'hammer' : b.way === c.way));
+    const fl = d.bands.filter((b) => b.at === atOf(c) && !c.step && c.block !== 'lineups' && (c.block === 'grounds' ? b.way === c.way : c.party > 1 ? b.way === 'hammer' : b.way === c.way));
     const tag = fl.length ? '  ' + ['IMPROVED', 'REGRESSED', 'UNINTENDED'].map((k) => [k, fl.filter((b) => b.flag === k).map((b) => b.band)]).filter(([, bs]) => bs.length).map(([k, bs]) => k + ' ' + bs.join(',')).join('; ') : '';
     out('  ' + (c.L + ' ' + c.way + ' ' + c.gear + ' ' + c.tier + (c.step ? ' ' + c.step : '')).padEnd(40) + show.map((id) => (c.metrics[id] ? pct(c.metrics[id][2]) : '-').padStart(8)).join(' ') + tag);
   }
+  if (meta.lineups) printLineups(meta.lineups.after, meta.lineups.before, out);
   out('\nSEATS (each seat\'s share of the party\'s damage taken, before -> after)');
   for (const c of d.cells.filter((x) => x.party > 1 && !x.step)) out('  ' + (c.L + ' ' + c.gear + ' ' + c.tier + ' ' + c.way).padEnd(28) + c.seats.map((s) => s.style + ' ' + fmt(s.takenShare[0], 3) + '->' + fmt(s.takenShare[1], 3)).join('  '));
 }
@@ -264,24 +278,33 @@ export function gateOf(patch, d) {
   return worse.length ? { verdict: 'FAIL', why: worse.length + ' targeted band row(s) ended worse, e.g. ' + worse[0].band + ' at ' + worse[0].at + ' ' + worse[0].statusBefore + ' -> ' + worse[0].statusAfter } : { verdict: 'PASS', why: 'every targeted band held or improved' };
 }
 
-/* THE SWEEP: each knob at each step on the subset, every cell's section 6 metrics and the band flags, for the lab's precomputed table */
-async function sweep(run, o) {
+/* THE SWEEP: each knob at each of its steps on the subset, every cell's section 6 metrics, each seat's share of the damage, the band rows it
+   moved and the calibration row, for the lab's precomputed table. `out` null: merged into balance-sweeps.json (resumable, a step at a
+   time); a file: that file holds only these knobs (one GitHub job a knob: .github/workflows/balance-sweeps.yml, joined by assembleSweeps). */
+export const SWEEP_SCHEMA = 'hearthrise.balance-sweeps/1';
+/* a cell's METRICS in order, then each seat's share of the damage; five significant digits (the table is a reading, not a ledger) */
+const sig = (v) => (typeof v === 'number' && Number.isFinite(v) ? Number(v.toPrecision(5)) : v ?? null);
+export const compactCells = (cells) => Object.fromEntries(cells.filter((c) => c.m).map((c) => [c.key, [...METRICS.map(([id]) => sig(c.m[id])), c.m.seatsM.map((x) => sig(x.takenShare))]]));
+export const BAND_FIELDS = Object.freeze(['way', 'band', 'group', 'at', 'before', 'after', 'statusBefore', 'statusAfter', 'direction']);
+async function sweep(run, o, ids0, out = null) {
   const D = await loadGridData(ROOT), K = await loadKits(ROOT);
   const list = readKnobs(ROOT);
-  const ids = arg('knobs') ? arg('knobs').split(',') : list.knobs.map((k) => k.id);
+  const ids = ids0 || list.knobs.map((k) => k.id);
   for (const id of ids) if (!list.byId.has(id)) throw new Error('sweep: no live knob ' + id + ' in ' + KNOB_FILE);
   const t0 = Date.now();
   const before = await baseline(D, K, run, o);
   const rowsB = judgeMatrix(D, K, before.cells);
-  const compact = (cells) => Object.fromEntries(cells.filter((c) => c.m).map((c) => [c.key, [...METRICS.map(([id]) => c.m[id] ?? null), c.m.seatsM.map((x) => x.takenShare)]]));
-  const prev = readCache(SWEEP_FILE);
-  const doc = prev && prev.hash === matrixHash() && prev.run === run.id ? prev : { schema: 'hearthrise.balance-sweeps/1', run: run.id, hash: matrixHash(), commit: commitOf(), seeds: before.seeds, hours: before.hours,
-    metrics: METRICS.map(([id, label, scope]) => ({ id, label, scope })), cells: before.cells.filter((c) => c.m).map((c) => ({ key: c.key, block: c.block, L: c.L, gear: c.gear, party: c.party, comp: c.comp, tier: c.tier, ground: c.ground, styles: c.styles, step: c.step || null, stretch: c.stretch })),
-    baseline: compact(before.cells), calibration: before.calibration, knobs: {} };
+  const file = out || SWEEP_FILE;
+  const prev = readCache(file);
+  const doc = prev && prev.hash === matrixHash() && prev.run === run.id ? prev : { schema: SWEEP_SCHEMA, run: run.id, hash: matrixHash(), commit: commitOf(), seeds: before.seeds, hours: before.hours,
+    metrics: METRICS.map(([id, label, scope]) => ({ id, label, scope })), bandFields: BAND_FIELDS,
+    cells: before.cells.filter((c) => c.m).map((c) => ({ key: c.key, block: c.block, L: c.L, gear: c.gear, party: c.party, comp: c.comp, tier: c.tier, ground: c.ground, styles: c.styles, step: c.step || null, stepFrom: c.stepFrom || null, stepClass: c.stepClass || null, stretch: c.stretch })),
+    baseline: compactCells(before.cells), baselineBands: rowsB.filter((b) => b.status in { ok: 1, off: 1, RED: 1 }).map((b) => [b.way, b.band, b.group, b.at, b.value, b.status]),
+    calibration: before.calibration, knobs: {} };
   doc.at = new Date().toISOString().slice(0, 16) + 'Z';
   for (const id of ids) {
     const k = list.byId.get(id);
-    doc.knobs[id] = doc.knobs[id] || { label: k.label, group: k.group, what: k.what, steps: {} };
+    doc.knobs[id] = doc.knobs[id] || { label: k.label, group: k.group, what: k.what, ruled: k.ruled || null, steps: {} };
     for (const m of k.steps) {
       if (m === 1 || doc.knobs[id].steps[String(m)]) continue;
       const patch = { schema: PATCH_SCHEMA, name: id + ' x' + m, knobs: { [id]: m }, targets: [] };
@@ -290,16 +313,38 @@ async function sweep(run, o) {
         const after = await playRun(D, K, run, s.root, { ...o, label: id + ' x' + m });
         const rowsA = judgeMatrix(after.V, K, after.cells);
         const d = diffMatrices({ rows: rowsB, cells: before.cells }, { rows: rowsA, cells: after.cells }, patch);
-        doc.knobs[id].steps[String(m)] = { applied: s.applied.map((a) => a.file + ':' + a.line + ' ' + a.from.join(',') + '->' + a.to.join(',')), cells: compact(after.cells),
-          bands: d.bands.map((b) => [b.way, b.band, b.at, b.before, b.after, b.statusBefore, b.statusAfter, b.direction]), calibration: after.calibration ? after.calibration.rows.map((x) => [x.metric, x.harness]) : null, wallS: after.runtime.wallS };
-        writeFileSync(SWEEP_FILE, JSON.stringify(doc) + '\n');
+        doc.knobs[id].steps[String(m)] = { applied: s.applied.map((a) => a.file + ':' + a.line + ' ' + a.from.join(',') + '->' + a.to.join(',')), cells: compactCells(after.cells),
+          bands: d.bands.map((b) => BAND_FIELDS.map((f) => b[f] ?? null)), calibration: after.calibration ? after.calibration.rows.map((x) => [x.metric, x.harness]) : null,
+          wallS: after.runtime.wallS, workerS: after.runtime.workerS };
+        writeFileSync(file, JSON.stringify(doc) + '\n');
         console.error(id + ' x' + m + ': ' + after.runtime.wallS + ' s, ' + d.bands.length + ' band rows moved');
       } finally { s.done(); }
     }
   }
   doc.sweepS = Math.round((Date.now() - t0) / 1000);
-  writeFileSync(SWEEP_FILE, JSON.stringify(doc) + '\n');
+  writeFileSync(file, JSON.stringify(doc) + '\n');
   return doc;
+}
+
+/**
+ * One table from per-knob sweeps (the GitHub jobs' artifacts): every doc must be a sweep of the same run on the same tree (hash), so their
+ * baselines are the same cells on the same dice; a knob in two docs is refused. Answers the merged doc (balance-sweeps.json's shape).
+ */
+export function assembleSweeps(docs) {
+  if (!docs.length) throw new Error('assemble: no sweep docs');
+  const first = docs[0];
+  for (const d of docs) {
+    if (d.schema !== SWEEP_SCHEMA) throw new Error('assemble: ' + (d.schema || 'no schema') + ' is not ' + SWEEP_SCHEMA);
+    if (d.hash !== first.hash || d.run !== first.run) throw new Error('assemble: a sweep of ' + d.run + ' on tree ' + d.hash + ' beside one of ' + first.run + ' on ' + first.hash + ': not the same cells');
+  }
+  const knobs = {};
+  for (const d of docs) for (const [id, k] of Object.entries(d.knobs)) {
+    if (knobs[id]) throw new Error('assemble: knob ' + id + ' is in two sweeps');
+    knobs[id] = k;
+  }
+  const { knobs: _k, sweepS: _s, ...head } = first;
+  void _k; void _s;
+  return { ...head, at: new Date().toISOString().slice(0, 16) + 'Z', commits: [...new Set(docs.map((d) => d.commit))], sweepS: docs.reduce((a, d) => a + (d.sweepS || 0), 0), knobs };
 }
 
 /* THE GROUND RATES the solver reads (sources.mjs loadRates / rateOf), written from the matrix's `grounds` block: one cell a row, the table's
@@ -328,7 +373,16 @@ export async function runGroundRates(o = {}) {
 
 async function main() {
   if (has('selftest')) return selftest();
-  if (has('knobs')) {
+  /* --knob-ids [a,b]: the live knob ids as a JSON list (the sweep workflow's job matrix); a named id that is no live knob is refused */
+  if (has('knob-ids')) {
+    const list = readKnobs(ROOT), want = arg('knob-ids') ? arg('knob-ids').split(',').map((s) => s.trim()).filter(Boolean) : null;
+    const bad = (want || []).filter((id) => !/^[A-Za-z][A-Za-z0-9]*$/.test(id) || !list.byId.has(id));
+    if (bad.length) { console.error('balance-matrix: no live knob ' + bad.join(', ')); return 2; }
+    console.log(JSON.stringify(want || list.knobs.map((k) => k.id)));
+    return 0;
+  }
+  /* --knobs alone lists them; `--sweep --knobs a,b` names the knobs a sweep plays */
+  if (has('knobs') && !has('sweep')) {
     const list = readKnobs(ROOT);
     console.log('KNOBS: ' + KNOB_FILE + ' (' + (list.from || 'no source named') + '): ' + list.knobs.length + ' live, ' + list.planned.length + ' planned, ' + list.notKnobs.length + ' families that are not knobs');
     for (const k of knobTable()) console.log(k.id.padEnd(20) + k.group.padEnd(15) + k.sites.map((s) => s.at + ' [' + s.values.join(', ') + ']').join('; ') + (k.regen ? '  (rows re-written)' : '')
@@ -344,13 +398,18 @@ async function main() {
     console.log('ground rates: ' + r.table.rows.length + ' rows (' + r.table.failed + ' failed) in ' + Math.round(r.table.playedMs / 1000) + ' s -> ' + r.file);
     return 0;
   }
-  if (has('sweep')) { const doc = await sweep(RUNS.subset, o); console.log('sweep: ' + Object.keys(doc.knobs).length + ' knobs -> ' + relative(ROOT, SWEEP_FILE) + ' (' + doc.sweepS + ' s)'); return 0; }
+  if (has('sweep')) {
+    const out = arg('out') ? resolve(arg('out')) : null;
+    const doc = await sweep(RUNS.subset, o, arg('knobs') ? arg('knobs').split(',') : null, out);
+    console.log('sweep: ' + Object.keys(doc.knobs).length + ' knob(s) -> ' + (out || relative(ROOT, SWEEP_FILE)) + ' (' + doc.sweepS + ' s)');
+    return 0;
+  }
   const D = await loadGridData(ROOT), K = await loadKits(ROOT);
   if (arg('diff')) {
     const patch = JSON.parse(readFileSync(resolve(arg('diff')), 'utf8'));
     const t0 = Date.now();
     const r = await diff(patch, run, o);
-    printDiff(r.d, { patch, run: run.id, cells: r.after.cells.length, applied: r.applied, regen: r.regen });
+    printDiff(r.d, { patch, run: run.id, cells: r.after.cells.length, applied: r.applied, regen: r.regen, lineups: { before: deriveMatrix(r.before.cells).lineups, after: deriveMatrix(r.after.cells).lineups } });
     if (r.after.calibration) { console.log(''); printCalibration(r.after.calibration, console.log, r.before.calibration); }
     console.log('\nRUNTIME: before ' + (r.before.cached ? 'from the cache' : r.before.runtime.wallS + ' s') + ', after ' + r.after.runtime.wallS + ' s (' + r.after.runtime.workerS + ' worker-s, ' + r.after.runtime.workers + ' workers), diff total ' + Math.round((Date.now() - t0) / 1000) + ' s');
     const gate = gateOf(patch, r.d);
@@ -422,6 +481,12 @@ async function selftest() {
   check('the gate: identity passes an empty diff and fails a moved one; coefficient fails an UNINTENDED band; derivation fails a targeted band gone worse; no kind only reports',
     gateOf({ kind: 'identity' }, dEmpty).verdict === 'PASS' && gateOf({ kind: 'identity' }, dMoved).verdict === 'FAIL' && gateOf({ kind: 'coefficient' }, dMoved).verdict === 'FAIL'
     && gateOf({ kind: 'coefficient' }, dWorse).verdict === 'PASS' && gateOf({ kind: 'derivation' }, dWorse).verdict === 'FAIL' && gateOf({ kind: 'derivation' }, dMoved).verdict === 'PASS' && gateOf({}, dMoved).verdict === 'REPORT');
+  /* 1d. the per-knob sweeps join into one table only when they are the same cells on the same tree, a knob once */
+  const sw = (hash, id) => ({ schema: SWEEP_SCHEMA, run: 'subset', hash, commit: 'c', sweepS: 10, cells: [], baseline: {}, knobs: { [id]: { steps: { '1.1': {} } } } });
+  const refusedOf = (docs) => { try { assembleSweeps(docs); return false; } catch { return true; } };
+  const joined = assembleSweeps([sw('h1', 'a'), sw('h1', 'b')]);
+  check('sweeps join: two knobs on one tree make one table; a sweep of another tree, or a knob twice, is refused',
+    Object.keys(joined.knobs).join() === 'a,b' && joined.sweepS === 20 && refusedOf([sw('h1', 'a'), sw('h2', 'b')]) && refusedOf([sw('h1', 'a'), sw('h1', 'a')]));
   /* 2. the scratch copy: a path outside the planted trees is refused; the real tree is never written */
   let refused = false;
   try { checkPatch({ edits: [{ file: 'tools/balance-program/standards.mjs', from: 'a', to: 'b' }] }); } catch { refused = true; }
@@ -471,6 +536,23 @@ async function selftest() {
   const dipped = all.filter((c) => finite(c.m.lowHpP10) && c.m.lowHpP10 < 0.3);
   check('every cell whose fights dip under 30% HP records time under 30% (' + dipped.length + ' such cells)', dipped.length > 0 && dipped.every((c) => c.m.hpUnder30 > 0), dipped.filter((c) => !(c.m.hpUnder30 > 0)).map((c) => c.key).join('; ') || 'no cell dipped');
   check('the seat damage shares of a four add to 1', base.cells.filter((c) => c.party === 4).every((c) => Math.abs(c.m.seatsM.reduce((a, s) => a + (s.takenShare || 0), 0) - 1) < 0.01));
+  /* 8. THE GROUND AXIS IS JUDGED (the Coordinator 2026-11-21: four ground diffs read IMPROVED 0, REGRESSED 0, UNINTENDED 0): a ground patch,
+     the Slake's group spell at five times its dose (found on its row as written), flags that ground's survival bands as the patch targets them */
+  const GROUNDS = { id: 'selftest-grounds', levels: [], seeds: 1, hours: 0.25, blocks: [{ id: 'grounds', grounds: true, quick: true, only: ['the_slake'] }] };
+  const packFile = 'src/data/grounds/the_slake/pack.js';
+  const spell = readFileSync(join(ROOT, packFile), 'utf8').match(/cold_bilge:[^\n]*hitPm: (\d+)/);
+  if (!spell) check('the ground axis is judged', false, 'no Cold Bilge hitPm on ' + packFile);
+  else {
+    const gb = await playRun(D, K, GROUNDS, ROOT, o);
+    const gs = await plantScratch({ edits: [{ file: packFile, from: spell[0], to: spell[0].replace('hitPm: ' + spell[1], 'hitPm: ' + Number(spell[1]) * 5) }] });
+    let ga;
+    try { ga = await playRun(D, K, GROUNDS, gs.root, o); } finally { gs.done(); }
+    const rowsG = judgeMatrix(D, K, gb.cells).filter((r) => r.way === 'G:the_slake');
+    check('the ground axis carries band rows (' + rowsG.length + ' on the Slake\'s ' + gb.cells.length + ' cells: ' + [...new Set(rowsG.map((r) => r.group))].join(', ') + ')', rowsG.length > 0 && ['pace', 'survival', 'gold'].every((g) => rowsG.some((r) => r.group === g)));
+    const gd = diffMatrices({ rows: judgeMatrix(D, K, gb.cells), cells: gb.cells }, { rows: judgeMatrix(ga.V, K, ga.cells), cells: ga.cells }, { targets: ['survival'] });
+    const flagged = gd.bands.filter((b) => b.way === 'G:the_slake' && b.group === 'survival' && b.flag !== 'UNINTENDED');
+    check('a ground patch (the Slake\'s Cold Bilge x5) flags the Slake\'s survival bands IMPROVED or REGRESSED (' + flagged.length + ')', flagged.length > 0, JSON.stringify(gd.counts));
+  }
   console.log('balance-matrix selftest: ' + (fails.length ? fails.length + ' FAILED' : 'green') + ' in ' + Math.round((Date.now() - t0) / 1000) + ' s');
   return fails.length ? 1 : 0;
 }

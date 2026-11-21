@@ -1713,6 +1713,16 @@ jobs:
         run: |
           node tests/balance-guard.mjs
           node tools/mutant-gate.mjs node tests/balance-guard.mjs --selftest
+      # tools/balance-program/paths.mjs
+      - name: Best-path solver - a planted dominant recipe reads DOMINANT, a planted slow one NEGLECTED
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tools/balance-program/paths.mjs --selftest
+      # tools/balance-program/sources.mjs
+      - name: Source atlas - an item with no source, a source nothing uses, a drop nobody can reach are each listed
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tools/balance-program/sources.mjs --selftest
       # ── END SELF-REGISTERED GUARDS ──
 
   # db-replay-15: the last steps of db-replay-7, from "Party flow" on, split out 2026-11-18 (lane/ci-speed). db-replay-7 took up to 44.5 min

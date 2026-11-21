@@ -12,7 +12,7 @@ import { townModel } from '../atlas/town.mjs';
 import { luckAt } from '../atlas/sources-hunt.mjs';
 
 export async function setup(opts = {}) {
-  const { atlas, D, kits } = await atlasOf({ quick: !!opts.quick, D: opts.D, kits: undefined });
+  const { atlas, D, kits, rates } = await atlasOf({ quick: !!opts.quick, D: opts.D, kits: undefined });
   const P = atlas._pricer;
   const T = townModel(D);
   const level = makeSolver({ D, P, kits, opts: { beam: 1, T, luckAt } }).levelPath({ party: 1, comp: ['hammer'], payer: 'free', townH: 12 });
@@ -20,7 +20,7 @@ export async function setup(opts = {}) {
      unknown before the band, so each band starts its own: a conservative floor the solver must climb) */
   const huntedAt = (L) => (level.at[L] !== undefined ? level.at[L] * 12 : L * 10);
   const S = makeSolver({ D, P, kits, opts: { beam: opts.beam || 4, T, luckAt, huntedAt, maxDays: opts.maxDays || 400 } });
-  return { atlas, D, kits, S, P, T };
+  return { atlas, D, kits, S, P, T, rates };
 }
 
 export function playScenario(ctx, sc) {

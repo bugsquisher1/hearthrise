@@ -142,7 +142,9 @@ export function makeSolver({ D, P, kits, opts = {} }) {
     const town = acc.town.reduce((s, j) => s + j.hours + skillHours(st, j.skill, j.req), 0) / Math.max(1e-9, restH);
     const netDay = opt ? opt.netH * 12 : 0;
     const gold = sc.payer === 'bought' ? 0 : Math.max(0, acc.gold - st.gold) / Math.max(1e-9, netDay > 0 ? netDay : 1e-9);
-    let chest = 0; for (const [, c] of acc.chest) chest = Math.max(chest, c.n * c.opensEach / (c.src.chest.opensPerWeek / 7));
+    let chest = 0; const fam = {};
+    for (const [, c] of acc.chest) { const k = c.src.chest.family; fam[k] = fam[k] || { opens: 0, perWeek: c.src.chest.opensPerWeek }; fam[k].opens += c.n * c.opensEach; }
+    for (const x of Object.values(fam)) chest = Math.max(chest, x.opens / (x.perWeek / 7) / sc.party);
     let hall = 0; for (const [, h] of acc.hall) hall = Math.max(hall, h.n / Math.max(1e-9, sc.party * h.src.hall.slice));
     let call = 0; for (const [, c] of acc.call) call = Math.max(call, c.n * c.src.fight.hours / Math.max(1e-9, c.src.fight.perFight) / 12);
     /* the makespan, and a tenth of the hunting still owed so a tie moves on every need */
@@ -234,8 +236,11 @@ export function makeSolver({ D, P, kits, opts = {} }) {
       buyChain(st, sc, ctx, item, short, 0);
     }
     /* the week's opens (each hero's six a family), a piece by its mean opens; the climb a week's half hour comes off the hunt */
+    /* each key FAMILY has its own six a hero a week (chests.js KEY_FAMILIES): the Tower's opens never pay a Catacomb piece */
+    const perFamily = {};
+    for (const [, c] of acc.chest) perFamily[c.src.chest.family] = (perFamily[c.src.chest.family] || 0) + 1;
     for (const [item, c] of acc.chest) {
-      const opensToday = (c.src.chest.opensPerWeek / 7) * step * sc.party / Math.max(1, acc.chest.size);
+      const opensToday = (c.src.chest.opensPerWeek / 7) * step * sc.party / Math.max(1, perFamily[c.src.chest.family]);
       st.owned.set(item, (st.owned.get(item) || 0) + opensToday / c.opensEach / LN2);
       if (st.rates) st.rates.push([st.day, item, opensToday / c.opensEach, 'chest']);
     }
@@ -292,11 +297,12 @@ export function makeSolver({ D, P, kits, opts = {} }) {
   /* ── A GEAR GOAL, BAND BY BAND: enter the band at its floor with nothing of its kit, play days until the kit is owned ── */
   function gearPath(sc, goal, bands = GEAR_BANDS, recordRates = false) {
     const out = [];
+    let carryTown = {};   // town skills persist from band to band (gold does not: each band starts with an empty purse, a floor)
     for (const band of bands) {
       if (band.from >= topLevel) break;
       const targets = targetsFor(band, goal, sc);
       let beam = [{ day: 0, xp: D.charXpForLevel(band.from), level: band.from, gold: 0, hunted: opts.huntedAt ? opts.huntedAt(band.from) : band.from * 10,
-        owned: new Map(), town: { ...(opts.townAt ? opts.townAt(band.from) : {}) }, targets, groundLog: [], rates: recordRates ? [] : null, restUsed: 0, score: 0 }];
+        owned: new Map(), town: { ...carryTown }, targets, groundLog: [], rates: recordRates ? [] : null, restUsed: 0, score: 0 }];
       let done = null, fills = null, guard = 0;
       const maxDays = opts.maxDays || 400;
       while (guard++ < maxDays * 2) {
@@ -322,6 +328,7 @@ export function makeSolver({ D, P, kits, opts = {} }) {
         if (!beam.length || beam[0].day > maxDays) break;
       }
       const best = done || beam[0];
+      carryTown = { ...best.town };
       out.push({ band: band.id, from: band.from, to: band.to, region: band.region, pastKrell: !!band.pastKrell, goal,
         days: done ? Math.round(done.day * 100) / 100 : null, missing: done ? [] : missingOf(best).slice(0, 12),
         fills: (fills || []).map((f) => ({ ...f, day: (best.got || {})[f.item] ?? null })), restPerDay: best.day > 0 ? Math.round((best.restUsed || 0) / best.day / sc.party * 100) / 100 : 0,

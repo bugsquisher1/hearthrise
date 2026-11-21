@@ -193,14 +193,16 @@ async function main() {
   const tg = townGold(ctx);
   let verdict = null;
   if (has('report') || !quick) {
-    const predictSc = runs.find((r) => r.sc.id === 'bis-4-free-12') || runs.find((r) => r.sc.id === 'bis-1-free-12');
+    /* the predicted result re-solves the lone free path with the change staged (the cheapest scenario to re-run; the four's is the nightly's) */
+    const predictSc = runs.find((r) => r.sc.id === 'bis-1-free-12');
     const predict = has('report') ? (system, factor) => {
       const sc = { ...predictSc.sc, scale: { [system]: factor }, sample: 0, without: undefined };
       const rr = playScenario(ctx, sc);
       const v = judge({ runs: [rr], atlas: ctx.atlas, rules: VERDICT_RULES, systemIds: [] }).rows.find((x) => x.system === system);
       return { pieces: v ? v.share.pieces : 0, margin: v ? v.share.medianMargin : null, on: sc.id };
     } : null;
-    verdict = judge({ runs: runs.filter((r) => r.bands), atlas: ctx.atlas, rules: VERDICT_RULES, systemIds: SYSTEMS.map((s) => s.id), predict, bandOrder: GEAR_BANDS.map((b) => b.id) });
+    verdict = judge({ runs: runs.filter((r) => r.bands), atlas: ctx.atlas, rules: VERDICT_RULES, systemIds: SYSTEMS.map((s) => s.id), predict, bandOrder: GEAR_BANDS.map((b) => b.id),
+      sample: ctx.rates ? ctx.rates.seeds + ' seed(s) x ' + ctx.rates.hours + ' h a cell' : 'seeds x 1 h' });
   }
   const ms = Date.now() - t0;
   let commit = 'unknown'; try { commit = execFileSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).trim(); } catch { /* not a repo */ }

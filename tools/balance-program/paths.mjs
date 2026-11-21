@@ -210,7 +210,7 @@ async function main() {
   const ms = Date.now() - t0;
   let commit = 'unknown'; try { commit = execFileSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).trim(); } catch { /* not a repo */ }
   const doc = { schema: 'hearthrise.balance-program.paths/1', commit, quick, ms, rates: ctx.atlas ? 'ground-rates.json' : null, label: 'COMPUTED on MEASURED ground rates (MID kit); LOW and BiS rates wait on grid.json',
-    runs: runs.map((r) => ({ ...r, bands: r.bands ? r.bands.map(({ rates, ...b }) => b) : undefined })), bands, townGold: tg, regions: regionDays(runs), verdicts: verdict ? verdict.rows : null, shares: verdict ? verdict.shares : null };
+    runs: runs.map((r) => ({ ...r, bands: r.bands ? r.bands.map(({ rates, ...b }) => b) : undefined })), bands, townGold: tg, regions: regionDays(runs), verdicts: verdict ? verdict.rows : null, notJudged: verdict ? verdict.notJudged : null, shares: verdict ? verdict.shares : null };
   if (!quick) writeFileSync(PATHS_FILE, JSON.stringify(doc) + '\n');
   printReport(doc, has('report'));
   console.log('runtime ' + Math.round(ms / 1000) + ' s (' + list.length + ' scenarios' + (quick ? ', quick' : ', full') + ')' + (quick ? '' : ' -> ' + PATHS_FILE));
@@ -235,8 +235,8 @@ function printReport(doc, full) {
   console.log('T2/T6 ' + JSON.stringify(doc.townGold) + ' | T4 ' + JSON.stringify(B.T4) + ' | T5 ' + JSON.stringify(B.T5) + ' | T7 ' + JSON.stringify(B.T7) + ' | A7 ' + B.A7.length + ' stretches: ' + B.A7.slice(0, 12).join(', '));
   if (!doc.verdicts) return;
   const pick = (v) => doc.verdicts.filter((r) => r.verdict === v);
-  console.log('VERDICTS: ' + ['DOMINANT', 'FAILS PURPOSE', 'NEGLECTED', 'HEALTHY'].map((v) => v + ' ' + pick(v).length).join(', '));
-  for (const v of ['DOMINANT', 'NEGLECTED', 'FAILS PURPOSE']) {
+  console.log('VERDICTS: ' + ['DOMINANT', 'FAILS PURPOSE', 'NEGLECTED', 'UNMEASURED', 'HEALTHY'].map((v) => v + ' ' + pick(v).length).join(', ') + '; not judged by the solver (no source row): ' + (doc.notJudged || []).length);
+  for (const v of ['DOMINANT', 'NEGLECTED', 'FAILS PURPOSE', 'UNMEASURED']) {
     for (const r of pick(v).slice(0, full ? 99 : 10)) console.log('  ' + [r.system, r.verdict, r.ruleTripped, r.solverEvidence, r.gridEvidence || 'ground-rates.json MID cells, ' + 'seeds x 1 h', r.change, r.predictedResult, r.rulingsTouched].join(' | '));
   }
 }

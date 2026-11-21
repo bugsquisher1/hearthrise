@@ -86,7 +86,9 @@ export function makePricer({ D, sources, rates, grid }) {
   const restDays = (h, ctx) => (h > 0 ? h / (ctx.party * (ctx.townH || 12)) : 0);
 
   function finish(r, ctx, extra = {}) {
-    const days = Math.max(r.hunted / 12, restDays(r.rested, ctx), goldDays(r.gold, ctx), r.limitDays || 0);
+    /* a hunt's own gold (its supplies over its coin) is its running cost, paid as it goes: it is printed, never turned into days (a ground
+       that loses gold is a choice the purse makes, not a wall). Gold a route SPENDS (a price, a fee, a rung) waits on the purse. */
+    const days = Math.max(r.hunted / 12, restDays(r.rested, ctx), r.huntGold ? 0 : goldDays(r.gold, ctx), r.limitDays || 0);
     const out = { hunted: r.hunted, rested: r.rested, gold: r.gold, limitDays: r.limitDays || 0, days, blank: null, ...extra };
     if (r.quantiles) Object.assign(out, r.quantiles);
     else if (r.chance) { const m = days; Object.assign(out, { p10: m * Q.p10, p50: m * Q.p50, p90: m * Q.p90 }); }
@@ -123,7 +125,7 @@ export function makePricer({ D, sources, rates, grid }) {
       }
       if (!(perH > 0)) return BLANK('its monster is not killed on ' + src.hunt.ground);
       const h = src.qty / perH;
-      return finish({ hunted: h, rested: 0, gold: goldH * h, chance: true }, ctx, { rate: perH, deaths: r.deaths });
+      return finish({ hunted: h, rested: 0, gold: goldH * h, chance: true, huntGold: true }, ctx, { rate: perH, deaths: r.deaths });
     }
     if (src.fight) {
       const r = rate(src.fight.ground, ctx, ctx.level);
@@ -160,7 +162,7 @@ export function makePricer({ D, sources, rates, grid }) {
       const kph = r && r.killsByPerH[src.task.monster];
       if (!(kph > 0)) return BLANK('no rate for ' + src.task.monster + ' on ' + src.task.ground);
       const h = src.task.count / kph / src.qty;
-      return finish({ hunted: h, rested: 0, gold: -src.task.gold / src.qty, limitDays: 1 / (src.limit.n * ctx.party * src.qty) }, ctx);
+      return finish({ hunted: h, rested: 0, gold: -src.task.gold / src.qty, limitDays: 1 / (src.limit.n * ctx.party * src.qty), huntGold: true }, ctx);
     }
     if (src.node) {
       if (src.node.hoursAFind) return finish({ hunted: 0, rested: src.node.hoursAFind, gold: 0, chance: true }, ctx);

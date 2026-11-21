@@ -56,7 +56,7 @@ export function makeSolver({ D, P, kits, opts = {} }) {
   const cps = opts.checkpoints || [1, 3, 5, 7, 10, 15, 20, 25, 30, 35, 40, 45, 50, 60, 75, 88, 100, 110, 125, 145, 165, 185, 200];
   const cpAt = (L) => cps.filter((c) => c <= L).pop() || 1;
   const ctxOf = (st, sc) => ({ level: cpAt(st.level), party: sc.party, tier: 'normal', gear: 'mid', townH: sc.townH, luckHours: luckBucket(st.hunted),
-    market: sc.payer === 'bought', scale: sc.scale || null, scaleKey: sc.scale ? JSON.stringify(sc.scale) : '' });
+    market: sc.payer === 'bought' || sc.market === true, scale: sc.scale || null, scaleKey: sc.scale ? JSON.stringify(sc.scale) : '' });
 
   /* ── THE FASTEST LEVEL: the best XP an hour every step (myopic is optimal: XP adds, and a rate reads only the Level) ── */
   function levelPath(sc, pick = null) {
@@ -109,7 +109,7 @@ export function makeSolver({ D, P, kits, opts = {} }) {
       if (src.hunt || src.kind === 'planned') acc.hunt.set(item, (acc.hunt.get(item) || 0) + short);
       else if (src.fight) acc.call.set(item, { n: (acc.call.get(item) || { n: 0 }).n + short, src });
       else if (src.hall) { acc.hall.set(item, { n: short, src }); want(src.hall.key, 1, depth + 1, false); }
-      else if (src.chest) acc.chest.set(item, { n: short, src, opensEach: b.best.limitDays > 0 ? b.best.limitDays * src.chest.opensPerWeek / 7 : 1 });
+      else if (src.chest) { acc.chest.set(item, { n: short, src, opensEach: b.best.limitDays > 0 ? b.best.limitDays * src.chest.opensPerWeek / 7 : 1 }); if (src.chest.key) acc.used.add('key:' + src.chest.key); }
       else if (src.job) {
         const per = (src.job.outQty || 1) * (src.job.p || 1);
         acc.town.push({ item, sid: src.sid, skill: src.job.skill, req: src.job.req, hours: short * src.job.benchSec / 3600 / per });
@@ -191,6 +191,7 @@ export function makeSolver({ D, P, kits, opts = {} }) {
     st.usedSids = new Set([...(st0.usedSids || []), ...acc.used]);
     if (opt) {
       st.xp += opt.xpH * h; st.level = Math.min(400, levelAt(st.xp)); st.hunted += h;
+      if (st.bandTo && st.level >= st.bandTo && st.goldAtTop === undefined) st.goldAtTop = st.gold;
       st.gold += opt.netH * h;
       for (const item of acc.hunt.keys()) {
         const per = dropRate(opt, item, st0, sc);
@@ -297,12 +298,12 @@ export function makeSolver({ D, P, kits, opts = {} }) {
   /* ── A GEAR GOAL, BAND BY BAND: enter the band at its floor with nothing of its kit, play days until the kit is owned ── */
   function gearPath(sc, goal, bands = GEAR_BANDS, recordRates = false) {
     const out = [];
-    let carryTown = {};   // town skills persist from band to band (gold does not: each band starts with an empty purse, a floor)
+    let carryTown = {}, carryGold = 0;   // town skills and the purse persist from band to band, as a player's do
     for (const band of bands) {
       if (band.from >= topLevel) break;
       const targets = targetsFor(band, goal, sc);
-      let beam = [{ day: 0, xp: D.charXpForLevel(band.from), level: band.from, gold: 0, hunted: opts.huntedAt ? opts.huntedAt(band.from) : band.from * 10,
-        owned: new Map(), town: { ...carryTown }, targets, groundLog: [], rates: recordRates ? [] : null, restUsed: 0, score: 0 }];
+      let beam = [{ day: 0, xp: D.charXpForLevel(band.from), level: band.from, gold: carryGold, hunted: opts.huntedAt ? opts.huntedAt(band.from) : band.from * 10,
+        owned: new Map(), town: { ...carryTown }, targets, bandTo: band.to, groundLog: [], rates: recordRates ? [] : null, restUsed: 0, score: 0 }];
       let done = null, fills = null, guard = 0;
       const maxDays = opts.maxDays || 400;
       while (guard++ < maxDays * 2) {
@@ -328,7 +329,9 @@ export function makeSolver({ D, P, kits, opts = {} }) {
         if (!beam.length || beam[0].day > maxDays) break;
       }
       const best = done || beam[0];
-      carryTown = { ...best.town };
+      /* the purse the next band opens with: what this one held the day the hero walked past its top Level (not what a long chase after
+         leaving it piled up), else what it holds now */
+      carryTown = { ...best.town }; carryGold = Math.max(0, best.goldAtTop ?? best.gold);
       out.push({ band: band.id, from: band.from, to: band.to, region: band.region, pastKrell: !!band.pastKrell, goal,
         days: done ? Math.round(done.day * 100) / 100 : null, missing: done ? [] : missingOf(best).slice(0, 12),
         fills: (fills || []).map((f) => ({ ...f, day: (best.got || {})[f.item] ?? null })), restPerDay: best.day > 0 ? Math.round((best.restUsed || 0) / best.day / sc.party * 100) / 100 : 0,

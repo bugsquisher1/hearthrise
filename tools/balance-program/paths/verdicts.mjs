@@ -75,6 +75,14 @@ export function judge({ runs, atlas, rules, systemIds, predict, bandOrder, sampl
   const fills = runs.flatMap((run) => run.bands.flatMap((b) => b.fills.map((f) => ({ ...f, band: b.band, party: run.sc.party, payer: run.sc.payer, townH: run.sc.townH }))));
   const usedSids = new Set(runs.flatMap((run) => run.bands.flatMap((b) => b.used || [])));
   const usedSystems = new Set([...usedSids].map((sid) => atlas.sources[sid] && atlas.sources[sid].system).filter(Boolean));
+  const targets = new Set(runs.flatMap((run) => run.bands.flatMap((b) => (b.targets || []).map(([i]) => i))));
+  function kitReach(system) {
+    const mineSrc = Object.entries(atlas.sources).filter(([, x]) => x.system === system);
+    /* a row the solver can price: OPEN, or STAGED with a cost (stretch B is measured with its staged rows opened, 50-standards 1.2) */
+    const open = mineSrc.filter(([, x]) => x.state === 'OPEN' || (x.state === 'STAGED' && x.cost));
+    const kit = mineSrc.some(([sid, x]) => targets.has(x.item) || usedSids.has(sid));
+    return { open: open.length, kit, state: [...new Set(mineSrc.map(([, x]) => x.state))].join('/') || 'none', sample: [...new Set(open.map(([, x]) => x.item))].slice(0, 3).join(', ') };
+  }
   const rows = [];
   for (const system of [...all].sort()) {
     const mine = fills.filter((f) => f.system === system);
@@ -92,7 +100,18 @@ export function judge({ runs, atlas, rules, systemIds, predict, bandOrder, sampl
     for (const b of order) { const p = paths[b]; const sh = p ? (p.by[system] || 0) / Math.max(1, p.total) : 0; if (sh > D.c.over) { streak++; if (streak > bestStreak) { bestStreak = streak; streakAt = b; } } else streak = 0; }
     /* (d) it gives a piece whose home is another system for under half that system's own days */
     const d = mine.filter((f) => f.bySys && Object.entries(f.bySys).some(([s2, days]) => s2 !== system && homeOf(atlas, f.item) === s2 && f.days < D.d.under * days));
-    if (a.length || (mb !== null && mb > D.b.over) || bestStreak >= D.c.checkpointsInARow || d.length) {
+    /* what the solver can judge: a system whose open rows reach a kit piece (a target of some path, or an input a path's bill used). A system
+       whose products are supplies, keys, trophies or training is the supplies and gold goals' to judge (T3, the gold a day): UNMEASURED here */
+    const reach = kitReach(system);
+    if (EXEMPT[system]) {
+      ev.ruleTripped = 'exempt: ' + EXEMPT[system] + ' (judged on its own band)';
+    } else if (!reach.open) {
+      ev.verdict = 'UNMEASURED'; ev.ruleTripped = 'no priced row (' + reach.state + '): judged on its PROJECTED numbers once it has rows';
+      ev.change = 'none until it has rows to price';
+    } else if (!reach.kit && !mine.length && !usedSystems.has(system)) {
+      ev.verdict = 'UNMEASURED'; ev.ruleTripped = 'its products are not kit pieces (' + reach.sample + '): the supplies goal (T3) and the gold goal judge it';
+      ev.change = 'none by the kit paths';
+    } else if (a.length || (mb !== null && mb > D.b.over) || bestStreak >= D.c.checkpointsInARow || d.length) {
       ev.verdict = 'DOMINANT';
       const tripped = [];
       if (a.length) tripped.push('a (' + a[0].k + ': ' + a[0].n + ' of ' + a[0].of + ' slots, ' + Math.round(a[0].share * 100) + '%)');
@@ -117,8 +136,6 @@ export function judge({ runs, atlas, rules, systemIds, predict, bandOrder, sampl
         ev.change = s ? 'no kit piece it can make: give it one, or CUT (' + s.open + ' open sources)' : 'no source row names it: CUT or build it';
         ev.solverEvidence = s ? s.open + ' OPEN sources, none reaches a target piece' : 'no source in the atlas';
       }
-    } else if (EXEMPT[system] && !mine.length) {
-      ev.verdict = 'HEALTHY'; ev.ruleTripped = 'exempt: ' + EXEMPT[system] + ' (judged on its own band)';
     }
     /* FAILS ITS PURPOSE (a): every source it has makes a thing nothing uses, or none can be priced */
     const s = srcSystems.get(system);
@@ -140,7 +157,7 @@ export function judge({ runs, atlas, rules, systemIds, predict, bandOrder, sampl
     ev.predictedResult = p ? 'on ' + p.on + ': pieces won ' + (p.before ?? '?') + ' -> ' + p.pieces + ', median margin ' + (p.marginBefore ?? '-') + ' -> ' + (p.margin ?? '-') : 'not re-run (--report runs it)';
   }
   for (const ev of rows) delete ev.predictPlan;
-  const order = { DOMINANT: 0, 'FAILS PURPOSE': 1, NEGLECTED: 2, HEALTHY: 3 };
+  const order = { DOMINANT: 0, 'FAILS PURPOSE': 1, NEGLECTED: 2, UNMEASURED: 3, HEALTHY: 4 };
   rows.sort((x, y) => order[x.verdict] - order[y.verdict] || (y.share.pieces - x.share.pieces));
   return { rows, notJudged, shares: { slots, paths } };
 }

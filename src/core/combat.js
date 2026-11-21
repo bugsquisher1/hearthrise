@@ -23,32 +23,22 @@ import {
 } from './bane.js';
 import { elementMultFor, MAX_TOTAL_DAMAGE_MULT, resistProfile } from './elements.js';
 import { ARMOUR_WEIGHT, SKILL_PLUS_FIELDS } from '../data/core-model.js';
+import { TO_HIT, toHitRatio, heldToHit } from '../data/to-hit.js';
 /* The bestiary CHARM and TROPHY combat multipliers are gone (closed rebuild,
    demolition safety review item 9: trophies stay as claims and display; the
    ladders no longer price a fight). A monster's drops are its own row's. */
 
 export const WEAKNESS_BONUS = { damage: 1.20, accuracy: 1.15 };
 
+/* TO-HIT IS A RATIO OF TWO RATINGS (src/data/to-hit.js, the one source of its rule and constants; balance program 21-combat.md B2,
+   Tyler 2026-11-20): a hero's blow is TO_HIT.base + its weapon skill + worn accuracy against the monster's `evasion`; a monster's is its
+   `aim` against TO_HIT.base + Defense + guard. Both are held to TO_HIT.min..max. The straight lines it replaced (0.55 + 1% a point,
+   0.50 + 2% a point, each with its own clamp) went with ACC_DEF_MUL. */
 export const COMBAT_BALANCE = {
-  playerBaseAccuracy: 0.55,
-  playerAccuracyPerPoint: 0.01,
-  playerMinAccuracy: 0.15,
-  playerMaxAccuracy: 0.95,
   strengthLevelScale: 0.35,
   strengthBonusScale: 0.60,
   playerBaseMaxHit: 2,
   monsterDefenseDamageReduction: 0.03,
-  monsterBaseAccuracy: 0.50,
-  /* Game Designer ruling 2026-10-06: food is the price of fighting at
-     or above your level, never of fighting something you out-class. At 0.006
-     a Combat-25 hero 35 defence over a Slime still lost ~200 HP/h; at 0.02 the
-     same gap reaches the floor. Measured with the real simulateTick (tier
-     sweep in the defence-curve report): an own-tier hero still eats ~20-33 meals/h,
-     gold/xp per FED hour are unchanged, and away pay rises only by uptime
-     (gold per kill unchanged). Shared with hr-accrue: moves LIVE away pay. */
-  monsterAccuracyPerPoint: 0.02,
-  monsterMinAccuracy: 0.05,
-  monsterMaxAccuracy: 0.85,
   /* x12 with every food heal (CORE_NUMBERS_2026-10-19 Q3): HP is on the
      150 + 10 per Level scale, so a blow and a meal move together and uses per
      hour, and so the economy, stay where they were. */
@@ -57,7 +47,7 @@ export const COMBAT_BALANCE = {
      while monster atk grows about one a Level, so one flat 5.4 put a tier-6 blow at ~50% of an
      in-band hero's HP (a boss two-shot the Level-90 hearthfind hero). Tiers 1-3 (the EA grounds)
      keep 5.4; tiers 4-6 flatten so an in-band blow stays ~20-30% of max HP (bosses <= ~35%).
-     Damage only: accuracy still reads `atk`. A tier missing here uses monsterAttackDamageScale.
+     Damage only: a monster's to-hit is its `aim` (src/data/to-hit.js), never its `atk`. A tier missing here uses monsterAttackDamageScale.
      TIER 3 at 4.0 (designer 2026-10-21/22, armour weights K7 + CONFLICTS item 2): the same rule at the
      Warrens' floor. At 5.4 a Hobgoblin's 162 was 35% of a Level-32 hero's 460 HP, past the 30% the
      rule allows a regular; 4.0 makes it 120 (26%), level with tier 4. Measured on six seeds with real
@@ -74,10 +64,6 @@ export const COMBAT_BALANCE = {
   critMult: 1.5,
   critCap: 0.60,
 };
-
-/* Wave 5b: endgame DEF scaling for ACCURACY only, so weapon atkB still
-   matters at the top of the ladder. Tiers 1-3 unchanged. */
-export const ACC_DEF_MUL = { 4: 1.15, 5: 1.30, 6: 1.50 };
 
 export function clamp(n, min, max) { return Math.max(min, Math.min(max, n)); }
 
@@ -393,13 +379,11 @@ export function playerCombatRolls(monster, ctx) {
   const accLvl = levelOf(skills, profile.accuracySkill) + skillPlusOf(eq, profile.accuracySkill);
   const dmgLvl = levelOf(skills, profile.damageSkill) + skillPlusOf(eq, profile.damageSkill);
 
-  const defScore = monsterDefScore(monster);
-
-  let accuracy = 0.55 + (((accLvl + accBonus) - defScore) * 0.01);
-  accuracy *= weak.accuracyMult;
-  accuracy = Math.max(0.15, Math.min(0.95, accuracy));
-  /* STEADY (src/data/jewelry.js): that share of the basic blows that would miss land anyway, taken off the miss AFTER the clamp, so it
-     reads for every way to fight (a bow or a wand at the 95% ceiling still misses 5%) and is worth most where misses are many (a ground
+  /* THE RATIO (src/data/to-hit.js): the hero's rating against the monster's evasion, the weapon weakness on top, held to the rails.
+     A foe with no evasion (the snapshot's neutral foe) is the easiest there is. */
+  let accuracy = heldToHit(toHitRatio(TO_HIT.base + accLvl + accBonus, monsterEvasion(monster)) * weak.accuracyMult);
+  /* STEADY (src/data/jewelry.js): that share of the basic blows that would miss land anyway, taken off the miss AFTER the rails, so it
+     reads for every way to fight (a bow or a wand at the ceiling still misses) and is worth most where misses are many (a ground
      above the hero's own stats). Only a basic blow reads accuracy (damage.js roll); a spell never misses. No draw: the same one roll. */
   const steady = eq.jewel && eq.jewel.steady > 0 ? Math.min(1000, eq.jewel.steady) / 1000 : 0;
   if (steady) accuracy += (1 - accuracy) * steady;
@@ -468,23 +452,21 @@ export function monsterCombatRolls(monster, ctx) {
    One expression each, shared by the rolls above and the party hunt's one
    hurt() (src/core/hunt/damage.js), so the two cannot price a blow differently. */
 
-function monsterDefScore(monster) {
-  const mTier = (monster && monster.tier) || 1;
-  return ((monster && monster.def) || 0) * (ACC_DEF_MUL[mTier] || 1);
-}
+/* A monster's two to-hit ratings (src/data/to-hit.js) as its row writes them (balance-sheet.js formulaStats, or a hand row's own). A tier's
+   or an enrage's harder blow raises `aim` the way it raises `atk` (hunt-tiers.js atTier, boss-phases.js swingRow). A foe with none (the
+   snapshot's neutral foe) reads 0: the rails hold the chance. Every MONSTERS row carries both (tests/to-hit.mjs). */
+const monsterEvasion = (monster) => (monster && Number.isFinite(monster.evasion) && monster.evasion > 0 ? monster.evasion : 0);
+const monsterAim = (monster) => (monster && Number.isFinite(monster.aim) && monster.aim > 0 ? monster.aim : 0);
 
 /** Whole points of damage a monster's defence takes off every blow it is dealt. */
 export function defenceReduction(monster) {
-  return Math.floor(monsterDefScore(monster) * COMBAT_BALANCE.monsterDefenseDamageReduction);
+  return Math.floor(((monster && monster.def) || 0) * COMBAT_BALANCE.monsterDefenseDamageReduction);
 }
 
-/** A monster's chance to land a blow on a hero of `playerDefense`. */
+/** A monster's chance to land a blow on a hero of `playerDefense` (its Defense level, worn +Defense and guard): its aim against
+    TO_HIT.base + that, held to the rails. */
 export function monsterAccuracy(monster, playerDefense) {
-  const b = COMBAT_BALANCE;
-  /* A row may state its own base (monsters.js `baseAcc`, the Glade's): it hits more often without hitting harder. */
-  const base = monster && Number.isFinite(monster.baseAcc) ? monster.baseAcc : b.monsterBaseAccuracy;
-  return clamp(base + ((((monster && monster.atk) || 1) - playerDefense) * b.monsterAccuracyPerPoint),
-    b.monsterMinAccuracy, b.monsterMaxAccuracy);
+  return heldToHit(toHitRatio(monsterAim(monster), TO_HIT.base + (Number(playerDefense) || 0)));
 }
 
 /** A monster's largest blow. */

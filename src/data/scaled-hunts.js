@@ -167,7 +167,7 @@ function scaledStats(level, role, tier, g, groundId, to) {
   const own = formulaStats({ level, role, tier, floor: g.floor, fit: g.fit, ground: groundId });
   const ownMean = (own.gp[0] + own.gp[1]) / 2, mean = ownMean + Math.max(0, (f.gp[0] + f.gp[1]) / 2 - ownMean) * (SCALED_HUNTS.coinPm[g.fit] / 1000);
   const lo = Math.max(1, Math.round(mean * STAT_FORMULA.gp.lo));
-  return { level: level + gap, hp: f.hp, atk: f.atk, baseAcc: f.baseAcc, def: f.def,
+  return { level: level + gap, hp: f.hp, atk: f.atk, aim: f.aim, evasion: f.evasion, def: f.def,
     xp: Math.max(1, Math.round((f.xp * SCALED_HUNTS.xpPm) / 1000)), gp: [lo, Math.max(lo, Math.round(2 * mean - lo))], partyPm: SCALED_HUNTS.partyPm };
 }
 

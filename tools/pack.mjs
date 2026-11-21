@@ -111,7 +111,7 @@ async function propose(gid, argv) {
   const lint = lintGround(gid, D);
   if (lint.length) { console.error('pack propose: ' + lint.join('\n  ')); process.exit(1); }
   const rows = S.proposeGround(gid, { MONSTERS: D.MONSTERS, formulaStats: D.BS.formulaStats, floorOf, fitOf });
-  const fmt = (r) => r.hp + ' hp, atk ' + r.atk + ' @' + r.baseAcc + ', def ' + r.def + ', xp ' + r.xp + ', gp ' + r.gp.join('-');
+  const fmt = (r) => r.hp + ' hp, atk ' + r.atk + ', aim ' + r.aim + ', evasion ' + r.evasion + ', def ' + r.def + ', xp ' + r.xp + ', gp ' + (r.gp || []).join('-');
   console.log(gid + ' (floor ' + floorOf(gid) + ', fit ' + fitOf(gid) + ')');
   for (const r of rows) {
     console.log('  ' + r.id.padEnd(18) + ' L' + String(r.level).padEnd(3) + r.role.padEnd(8) + (r.drift.length ? ' rows    ' : ' rows =  ') + fmt(r.today));

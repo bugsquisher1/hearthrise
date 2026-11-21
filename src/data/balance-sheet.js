@@ -5,7 +5,7 @@
 // Three things every hunting ground is built and graded by:
 //   BALANCE_SHEET  what a ground must measure on the real engine (tools/balance-sim plays it).
 //                  The grader (lane/b-ground-grader) and the balance lab (lane/b-balance-lab) read it.
-//   STAT_FORMULA   a monster's hp, atk, baseAcc, def, xp and gp from its Level and its role, as
+//   STAT_FORMULA   a monster's hp, atk, aim, evasion, def, xp and gp from its Level and its role, as
 //                  per-Level curves and role multipliers (tools/gen-ground-stats.mjs writes the rows).
 //   TIER_DIALS     Normal, Dangerous and Deadly as dials on the same stats: a bigger pull, % harder
 //                  blows, % more HP, % more Level XP. Coin per kill never moves with a tier (Tyler
@@ -22,6 +22,7 @@
 // ════════════════════════════════════════════════════════════════════════
 
 import { LEVEL_PACE, VITALS } from './core-model.js';
+import { aimFor, evasionFor, raisedHit } from './to-hit.js';
 import { GROUND_PACKS } from './grounds/index.js';
 import { foldRows } from './grounds/shape.js';
 
@@ -122,10 +123,15 @@ export const STAT_FORMULA = Object.freeze({
      a straight line. 0..1. Keyed on the GROUND's floor, not the monster's Level: the Glade's Carrion Crow and
      Wickstead's Turncoat are both Level 16, and only one of them meets fresh heroes. */
   ramp: Object.freeze({ from: 8, to: 16 }),
-  /* A REGULAR's to-hit at the same-Level hero with no guard: `lo` on a gentle ground, `hi` on a full one.
-     The engine's to-hit is baseAcc + (atk - Defense - guard) x 0.02, clamped 5-85%; baseAcc is derived, so it
-     is an offset, not a chance (it can pass 1 at high Levels). */
+  /* A REGULAR's to-hit on THE REFERENCE HERO of its Level (src/data/to-hit.js REF_HERO: the lone hammer's measured career, its
+     Defense and no guard): `lo` on a gentle ground, `hi` on a full one. Written on the row as its AIM (to-hit.js aimFor), the rating
+     the engine's ratio reads (Tyler 2026-11-20, 21-1 and 21-2: stats against stats, monsters authored against the measured career
+     hero), so a same-Level regular lands 70% on the career hero at every Level from 10 to 1,000 and nothing reaches a rail. */
   hit: Object.freeze({ lo: 0.40, hi: 0.70 }),
+  /* THE REFERENCE HERO's to-hit on a REGULAR of its own Level (its weapon skill and worn accuracy, the same table): written on the row
+     as its EVASION (to-hit.js evasionFor), times its role's `evasion` (MONSTER_ROLES). 0.85 (21-combat.md B2, MEASURED there at every
+     Level 10-400). */
+  heroHit: 0.85,
   /* A REGULAR's largest blow, a share of the same-Level hero's base HP; atk = blow / the tier's damage scale.
      A monster above its hero's Level hits a bigger share of that hero (10 HP a Level), and more often (2% a Level). */
   /* gentleCap: on a gentle ground no blow passes this share of the FLOOR hero's HP (its deep monsters meet fresh heroes 8-10 Levels under them),
@@ -137,11 +143,10 @@ export const STAT_FORMULA = Object.freeze({
      at 50). Fitted on every open ground's rows (Cellar 9 at Level 2, Glade 30 at 16, Warrens 150 at 34 / 2.5) as 4.5 + 1.6 a Level;
      x1.10 since 2026-11-19 (MONSTERS A LITTLE HARDER, above). */
   hp: Object.freeze({ base: 4.95, perLevel: 1.76 }),
-  /* A REGULAR's defense: perLevel x its Level (x the role), plus `past.perLevel` a Level past `past.from` for every role. A hero's
-     to-hit is 0.55 + (skill + weapon accuracy - defense) x 0.01, held to 95%: at 0.08 a Level a Warrens goblin (def 2-17) left a
-     Level 45 hero at the cap, so a better weapon's accuracy bought nothing (first-week-bands weapon-rungs: the hatchets' tier 3
-     paid +1.9% over tier 2, the bar is +5%; with the term the Warrens read def 10-33, its hand rows' 10-28, and the rung passes). */
-  def: Object.freeze({ perLevel: 0.08, past: Object.freeze({ from: 20, perLevel: 0.5 }) }),
+  /* A REGULAR's defense: perLevel x its Level (x the role), the whole points it takes off every blow it is dealt (combat.js
+     defenceReduction, 3% a point). It no longer reads in a hero's to-hit (the row's `evasion` does): the `past` term (0.5 a Level past
+     Level 20) that held a better weapon's accuracy off the old 95% cap is retired with that cap (balance program L15). */
+  def: Object.freeze({ perLevel: 0.08 }),
   /* LEVEL XP a kill = a x L^b per HP point of the monster, never under `min` (today's grounds pay about
      1.8 x L^0.4 from the Thicket to the Warrens: the pace contract's L^1.365 rising over a hero's roughly linear
      damage; the Cellar's first kills pay about 3 a point, the floor).
@@ -193,20 +198,24 @@ export const STAT_FORMULA = Object.freeze({
 /* ROLES: a monster's shape at its Level, as multipliers on the regular (hit is points added, the rest x).
    DESIGNER, provisional. `gentleHp`: the role's HP on a gentle ground (ramp 0), climbing to `hp` on a full one. Fresh heroes
    kill a gentle ground's monsters in one or two blows, so extra HP there only inflated the kill's XP and coin (the Thicket's
-   middle paid 1.20x the pace contract at heavy 1.2 / elite 1.6, 1.05x at 1.0 / 1.2; lane/b-ground-formula-2). */
+   middle paid 1.20x the pace contract at heavy 1.2 / elite 1.6, 1.05x at 1.0 / 1.2; lane/b-ground-formula-2).
+   `evasion`: the role's to-hit defense rating against the regular's (to-hit.js evasionFor), so the reference hero lands 85% on a
+   regular, about 87% on a swarm or glass body, 80% on a heavy and 78% on an elite or boss (the ratio: 1 - 0.15 x evasion). Read
+   off the measured proposal the ruling took (tools/balance-sim/staged/tohit-ratio.mjs, 2026-11-20): its role factor was the row's
+   defense against a regular's, which with the retired def.past term read 0.90-0.93, 1.29-1.39 and 1.43-1.58 from Level 50 to 400. */
 export const MONSTER_ROLES = Object.freeze({
   /* many and weak: the common majority (rats, whelps) */
-  swarm: Object.freeze({ hp: 0.8, hit: -0.04, blow: 0.85, def: 0.5, xp: 1.0, gp: 1.0 }),
-  regular: Object.freeze({ hp: 1.0, hit: 0, blow: 1.0, def: 1.0, xp: 1.0, gp: 1.0 }),
+  swarm: Object.freeze({ hp: 0.8, hit: -0.04, blow: 0.85, def: 0.5, evasion: 0.9, xp: 1.0, gp: 1.0 }),
+  regular: Object.freeze({ hp: 1.0, hit: 0, blow: 1.0, def: 1.0, evasion: 1.0, xp: 1.0, gp: 1.0 }),
   /* fragile, quick to land: fliers, archers, deserters, casters */
-  glass: Object.freeze({ hp: 0.75, hit: 0.05, blow: 1.1, def: 0.5, xp: 1.2, gp: 1.0 }),
+  glass: Object.freeze({ hp: 0.75, hit: 0.05, blow: 1.1, def: 0.5, evasion: 0.9, xp: 1.2, gp: 1.0 }),
   /* the tank: slow, thick, a softer blow */
-  heavy: Object.freeze({ hp: 1.2, gentleHp: 1.0, hit: -0.10, blow: 0.8, def: 3.0, xp: 1.1, gp: 1.0 }),
+  heavy: Object.freeze({ hp: 1.2, gentleHp: 1.0, hit: -0.10, blow: 0.8, def: 3.0, evasion: 1.35, xp: 1.1, gp: 1.0 }),
   /* the bruiser or the rare carrier: much more HP and defense, a full blow */
-  elite: Object.freeze({ hp: 1.6, gentleHp: 1.2, hit: 0, blow: 1.0, def: 4.0, xp: 1.15, gp: 1.0 }),
+  elite: Object.freeze({ hp: 1.6, gentleHp: 1.2, hit: 0, blow: 1.0, def: 4.0, evasion: 1.5, xp: 1.15, gp: 1.0 }),
   /* a ground's boss: a long fight, and a blow held to `floorCap` of the FLOOR hero's base HP (designer 10-21: at most
      35%; Andy's Sewer death), whatever its own Level */
-  boss: Object.freeze({ hp: 5, hit: 0, blow: 1.1, def: 4.0, xp: 1.2, gp: 1.0, floorCap: 0.33 }),
+  boss: Object.freeze({ hp: 5, hit: 0, blow: 1.1, def: 4.0, evasion: 1.5, xp: 1.2, gp: 1.0, floorCap: 0.33 }),
 });
 export const ROLE_IDS = Object.freeze(Object.keys(MONSTER_ROLES));
 
@@ -319,19 +328,16 @@ export const FORMULA_EXCEPTIONS = Object.freeze({
      Since 2026-11-19 (MONSTERS A LITTLE HARDER) the Farmhands' blow is 0.187, so his is too: the rule (the Farmhands' blow) is kept and takes the step. */
   /* THE RAT KING, A DANGER EXCEPTION (lane/d-party-pace; Tyler 2026-11-18 "Yes, open at 5"): his Tail Lash lands twice his blow, and with the Sewer's floor at 5
      the formula's attack 7 lands it for 74, 39% of the floor hero's 190 HP, over the 35% a boss may take of the floor hero (tests/hunt-core/hunt-data.mjs
-     blow-share; Andy died to 108). Attack 6 lands 64 (34%); his to-hit at a same-Level hero is the formula's, restated for the lower blow.
+     blow-share; Andy died to 108). Attack 6 lands 64 (34%); his to-hit is the formula's (his aim, which no longer reads his attack).
      So he is the one monster the 2026-11-19 step (MONSTERS A LITTLE HARDER) can't reach with damage: the formula's attack is 8 since then (Tail Lash 86,
      45%), and the 35% boss rule holds him at 6. His HP takes the step. */
-  rat_king: Object.freeze({ atk: "his Tail Lash, twice his blow, held at 35% of the floor hero's HP since the Sewer opens at 5: 64 of 190 at attack 6, where the formula's 8 lands 86",
-    baseAcc: "the formula's to-hit at a same-Level hero, restated for the lower blow: 0.76 + 1 x 0.02" }),
-  hasks_lookout: Object.freeze({ atk: "a blow of the Farmhands' share of a same-Level hero (0.187 since the 11-19 step, was 0.17), not the glass role's, so a lone hero at the floor on Normal is safe (close calls, not gold)",
-    baseAcc: "the glass role's 0.75 to-hit at a same-Level hero, restated for his blow: 0.75 + (88 - 88) x 0.02" }),
+  /* (Both rows' `baseAcc` exceptions, which restated the formula's to-hit for a lower attack, went with baseAcc: a row's aim never reads its attack, L15.) */
+  rat_king: Object.freeze({ atk: "his Tail Lash, twice his blow, held at 35% of the floor hero's HP since the Sewer opens at 5: 64 of 190 at attack 6, where the formula's 8 lands 86" }),
+  hasks_lookout: Object.freeze({ atk: "a blow of the Farmhands' share of a same-Level hero (0.187 since the 11-19 step, was 0.17), not the glass role's, so a lone hero at the floor on Normal is safe (close calls, not gold)" }),
 });
 
 /* combat.js monsterDamageScaleByTier, restated: the formula divides the blow by it (a test pins the two equal). */
 export const DAMAGE_SCALE_BY_TIER = Object.freeze({ 1: 5.4, 2: 5.4, 3: 4.0, 4: 4.0, 5: 3.0, 6: 2.2 });
-/* combat.js COMBAT_BALANCE.monsterAccuracyPerPoint, restated (same test). */
-export const ACC_PER_POINT = 0.02;
 
 const clamp01 = (x) => Math.max(0, Math.min(1, x));
 /** A ground's danger at its floor: 0 (gentle) to 1 (full). */
@@ -344,11 +350,11 @@ export function dangerAt(floor, lift = 0, F = STAT_FORMULA) {
 
 /**
  * A monster's stats from the formula. spec { level, role, tier, floor, fit } (floor: its ground's band floor;
- * fit: 'both' | 'party', default both); opts { formula, roles } (the lab moves the dials). Answers
- * { hp, atk, baseAcc, def, xp, gp: [lo, hi], hitVsSameLevel, blowShare }: whole numbers where the row stores
- * them, baseAcc to two places.
+ * fit: 'both' | 'party', default both); opts { formula, roles, refHero } (the lab moves the dials; refHero: a to-hit.js REF_HERO
+ * table to author against). Answers { hp, atk, aim, evasion, def, xp, gp: [lo, hi], hitVsSameLevel, blowShare }: whole numbers
+ * where the row stores them (hitVsSameLevel: the to-hit on the reference hero of its Level).
  * @param {any} spec
- * @param {{ formula?: any, roles?: any, groundXp?: any, groundGp?: any }} [opts]
+ * @param {{ formula?: any, roles?: any, groundXp?: any, groundGp?: any, refHero?: any }} [opts]
  */
 export function formulaStats(spec, opts = {}) {
   const F = opts.formula || STAT_FORMULA;
@@ -371,11 +377,13 @@ export function formulaStats(spec, opts = {}) {
      to-hit falls as the blow grows. */
   const shape = R.floorCap ? 1 : 1 + ((fit.blowShape || 1) - 1) * (1 - dz.ramp);
   const atk = Math.max(1, Math.round((blowShare * shape * F.refHp(L)) / scale));
-  /* to-hit at the same-Level hero = baseAcc + (atk - L) x 0.02, so: */
-  const baseAcc = Math.round((hit - (atk - L) * ACC_PER_POINT) * 100) / 100;
+  /* THE TWO TO-HIT RATINGS (src/data/to-hit.js), against the reference hero of its own Level: `hit` lands on that hero, and that hero
+     lands `heroHit` x its role's evasion back. Whole numbers: a point is under half a chance point from Level 1 up. */
+  const aim = Math.max(1, Math.round(aimFor(hit, L, opts.refHero)));
+  const evasion = Math.max(1, Math.round(evasionFor(F.heroHit, L, R.evasion === undefined ? 1 : R.evasion, opts.refHero)));
   const rHp = R.gentleHp === undefined ? R.hp : R.gentleHp + (R.hp - R.gentleHp) * dz.ramp;
   const hp = Math.max(1, Math.round(((F.hp.base || 0) + F.hp.perLevel * L) * rHp * fit.hp));
-  const def = Math.max(0, Math.round(F.def.perLevel * L * R.def + (F.def.past ? F.def.past.perLevel * Math.max(0, L - F.def.past.from) : 0)));
+  const def = Math.max(0, Math.round(F.def.perLevel * L * R.def));
   const gx = (opts.groundXp || GROUND_XP_FIT)[spec.ground] || 1;
   const ff = F.xp.floorFit, xFloor = ff ? ff.lo + (1 - ff.lo) * clamp01((Number(spec.floor) - ff.from) / (ff.to - ff.from)) : 1;
   const xp = Math.max(1, Math.round(Math.max(F.xp.min || 0, F.xp.a * L ** F.xp.b) * hp * R.xp * fit.xp * gx * xFloor));
@@ -385,7 +393,7 @@ export function formulaStats(spec, opts = {}) {
   const mean = F.gp.perHp * line * hp * R.gp * fitGp * gk;
   const lo = Math.max(1, Math.round(mean * F.gp.lo));
   const gp = F.gp.keepMean ? [lo, Math.max(lo, Math.round(2 * mean - lo))] : [lo, Math.max(1, Math.round(mean * F.gp.hi))];
-  return { hp, atk, baseAcc, def, xp, gp, hitVsSameLevel: Math.round(hit * 100) / 100, blowShare: Math.round(blowShare * 1000) / 1000 };
+  return { hp, atk, aim, evasion, def, xp, gp, hitVsSameLevel: Math.round(hit * 100) / 100, blowShare: Math.round(blowShare * 1000) / 1000 };
 }
 
 /* ── THE TIER TABLE ───────────────────────────────────────────────────────
@@ -413,11 +421,11 @@ export function formulaStats(spec, opts = {}) {
    at 32 for every way (hammer 183.8k against 199.0k, wand 185.7k against 221.8k, a four 169.5k against 211.2k). */
 export const TIER_PULL_FROM_FLOOR = 16;
 /* A TIER'S DIALS:
-     dmgPm  how much harder a monster is, permille, against a FULL ground's Normal (the engine scales its atk: its
-            blow and its to-hit). A gentle ground's Normal is softer than full, and a tier means the same danger on
+     dmgPm  how much harder a monster is, permille, against a FULL ground's Normal (the engine scales its atk and its
+            aim: its blow and its to-hit). A gentle ground's Normal is softer than full, and a tier means the same danger on
             every ground, so on a gentle ground the tier first takes back `lift` of that kindness, measured in what a
-            swing is worth (to-hit x blow at a same-Level hero), then adds dmgPm: tierRowFor answers the engine's
-            permille per ground (Wickstead 1840 and 2845; the Glade the table's own).
+            swing is worth (to-hit x blow at the reference hero of its Level), then adds dmgPm: tierRowFor answers the
+            engine's permille per ground (the Glade the table's own).
      hpPm   its HP, permille (Tyler: HP is part of a tier's difficulty): a pile that stays on you longer.
      xpPm   Level XP a kill, permille: above hpPm, so a tier pays more an hour for the risk. AT MOST 1250 (Tyler 11-05:
             tiers "pay slightly more Level XP"; tests/hunt-core/hunt-tiers.mjs rows): Deadly's 1400 came down to 1250 and
@@ -478,14 +486,14 @@ const BASE_TIER_OVERRIDES = Object.freeze({
 /* A ground pack's own tier row, when its shape demands one (src/data/grounds/<id>/pack.js `tierOverride`, with its why). */
 export const TIER_PULL_OVERRIDES = Object.freeze(foldRows('tier override', BASE_TIER_OVERRIDES, GROUND_PACKS, (p) => (p.tierOverride ? { [p.id]: p.tierOverride } : {})));
 
-/* What one swing is worth at a same-Level hero: its to-hit times its blow share, a tier's atk scaling `k` applied the engine's way
-   (atk x k: the blow x k, the to-hit up 2% a point of atk added). The reference monster is a regular at the floor, tier-1 damage scale. */
+/* What one swing is worth at the reference hero of its Level: its to-hit times its blow share, a tier's scaling `k` applied the engine's
+   way (hunt-tiers.js atTier: atk x k and aim x k, so the blow x k and the to-hit the ratio's for an aim k times bigger, to-hit.js
+   raisedHit). The reference monster is a regular at the floor. */
 function swingWorth(floor, lift, k, F) {
   /* the gentle blow cap is a Normal kindness too: a tier takes it back with the rest (at full lift there is none) */
   const d = dangerAt(floor, lift, F), dl = d.ramp + (1 - d.ramp) * clamp01(lift);
   const cap = F.blow.gentleCap ? F.blow.gentleCap + (1 - F.blow.gentleCap) * dl : Infinity;
-  const atk = (Math.min(d.blow, cap) * F.refHp(floor)) / DAMAGE_SCALE_BY_TIER[1];
-  return (d.hit + atk * (k - 1) * ACC_PER_POINT) * Math.min(d.blow, cap) * k;
+  return raisedHit(d.hit, k) * Math.min(d.blow, cap) * k;
 }
 
 /**

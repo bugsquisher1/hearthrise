@@ -30,6 +30,9 @@
 // workers) and this lane's report.
 //
 // Exit: 0 ran (report mode: an out-of-band band never fails a run) · 1 a --selftest plant not caught · 2 harness.
+// mutant-anchors: none — --selftest plants on an in-memory copy of the cached grid and on a loaded kit builder; no tracked file is patched
+// ci-step: economy-selftests | The progression grid's judge turns a planted out-of-band cell red, and its kits follow their rules and the data
+// ci-run: node tools/mutant-gate.mjs node tools/balance-program/grid.mjs --selftest
 // ════════════════════════════════════════════════════════════════════════
 import { fork, execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync, appendFileSync, readdirSync, statSync } from 'node:fs';

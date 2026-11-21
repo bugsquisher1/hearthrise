@@ -606,6 +606,17 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
       /* the crest held on the wire for 2 s (a slow phone's first visit): the loading shell and the sign-in screen are up without it, and
          the picture must still wait for it. Unheld, the shell's own crest has arrived before the sign-in screen and the order proves nothing. */
       await p2.route('**/assets/brand/hearthrise-crest.png*', async (r) => { await new Promise((k) => setTimeout(k, 2000)); await r.fallback(); });
+      /* A GC BETWEEN THE PICTURE'S LOAD AND ITS DRAW (next run 44891464929, clean control: "backdrop asked, backdrop asked"): an Image the
+         page let go was collected before the stylesheet drew its url(), and the stylesheet fetched the picture again, on GC timing alone.
+         Pinned, not retried: the page's first --auth-backdrop is held, a full GC runs (CDP), then it is set, so every run meets the
+         worst order and the picture must still be asked for once (auth-backdrop.js holds it for the page's life). */
+      await p2.addInitScript(() => {
+        const set = CSSStyleDeclaration.prototype.setProperty;
+        CSSStyleDeclaration.prototype.setProperty = function (name, value, prio) {
+          if (name === '--auth-backdrop' && !window.__applyBackdrop) { const self = this; window.__applyBackdrop = () => set.call(self, name, value, prio); return; }
+          return set.call(this, name, value, prio);
+        };
+      });
       const seen = [];   // the crest's arrival and the picture's ask, in the order the page made them
       p2.on('requestfinished', (q) => { if (/hearthrise-crest\.png/.test(q.url())) seen.push('crest in'); });
       p2.on('request', (q) => { if (/hearth-square\.png/.test(q.url())) seen.push('backdrop asked'); });
@@ -617,9 +628,17 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
           fixed: b.position === 'fixed', scrim: s.content !== 'none' && s.backgroundColor !== 'rgba(0, 0, 0, 0)', state: app.dataset.backdrop || '' };
       });
       const whole = (d) => d.url && d.k[0] === d.k[1] && Number.isInteger(d.k[0]) && d.k[0] >= 1 && d.pixelated && d.fixed && d.scrim;
+      /* the worst order, every run: a full GC while the picture is loaded and not yet drawn, then the draw and two frames, so any second
+         ask is on the wire before the count is read (answers nothing) */
+      const gcThenDraw = async () => {
+        const cdp = await c2.newCDPSession(p2);
+        await cdp.send('HeapProfiler.collectGarbage'); await cdp.send('HeapProfiler.collectGarbage'); await cdp.detach();
+        await p2.evaluate(() => new Promise((k) => { window.__applyBackdrop(); requestAnimationFrame(() => requestAnimationFrame(k)); }));
+      };
       await p2.goto(base + '/play.html', { waitUntil: 'load' });
       if (!(await wait(p2, () => document.querySelector('form[data-auth="sign-in"]')))) fails.push('B-23 no sign-in screen');
-      else if (!(await wait(p2, () => document.getElementById('app').dataset.backdrop === 'shown'))) fails.push('B-23 the sign-in screen stands on a black void: no Hearth Square behind the crest and the card (src/app/auth-backdrop.js)');
+      else if (!(await wait(p2, () => typeof window.__applyBackdrop === 'function'))) fails.push('B-23 the sign-in screen stands on a black void: the Hearth picture never loaded (src/app/auth-backdrop.js)');
+      else if ((await gcThenDraw()) || !(await wait(p2, () => document.getElementById('app').dataset.backdrop === 'shown'))) fails.push('B-23 the sign-in screen stands on a black void: no Hearth Square behind the crest and the card (src/app/auth-backdrop.js)');
       else {
         const d = await drawn();
         if (!whole(d)) fails.push('B-23 the Hearth behind the sign-in is not drawn whole: ' + JSON.stringify(d) + ' (a whole number of device px an art px, pixelated, fixed, under the scrim)');
@@ -1638,6 +1657,7 @@ const MUTANTS = [
   ['a lost answer\'s retry gets a new key', 'src/app/hero-create.js', "    if (!tried || tried.name !== name) tried =", '    tried ='],
   ['no Hearth behind the sign-in (B-23)', 'src/app/boot.js', "renderAuthScreen(box, auth, mode, { signedIn: () => startAccount(false) });\n    raiseBackdrop(root, win);", "renderAuthScreen(box, auth, mode, { signedIn: () => startAccount(false) });"],
   ['the Hearth is asked for before the crest is in (B-23)', 'src/app/auth-backdrop.js', '  if (!crest || crest.complete) after();\n', '  ask();\n  if (!crest || crest.complete) after();\n'],
+  ['the Hearth picture is let go after its load (B-23, a GC between load and draw asks again)', 'src/app/auth-backdrop.js', '      held = img;\n', ''],
   ['the Hearth is drawn at a fraction of a device px (B-23)', 'src/styles/app.css', 'calc(1024 * var(--art-px)) calc(640 * var(--art-px))', '2048px 1280px'],
   ['a sign-up sent keeps its fields', 'src/styles/app.css', '.auth-card.is-sent .auth-field, .auth-card.is-sent .auth-submit { display: none; }\n', ''],
   ['the sign-in says nothing of the game', 'src/styles/app.css', '.auth:has(.auth-card[data-auth]) .auth-pitch { display: block; }\n', ''],

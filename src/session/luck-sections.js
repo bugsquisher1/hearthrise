@@ -1,5 +1,5 @@
 // ════════════════════════════════════════════════════════════════════════
-// src/session/luck-sections.js — THE `luck` SECTION, READ (supabase/migrations/1013-luck.sql hr_luck_section; src/data/luck.js).
+// src/session/luck-sections.js — THE `luck` SECTION, READ (supabase/migrations/1034-luck.sql hr_luck_section; src/data/luck.js).
 //
 // The server's own numbers and nothing else (CLAUDE.md §6): the account's Luck bar, the hero's Magic Find, the rivets held, each bag stack's
 // salvage line (its rivets and the account's allowance), the Lucky job's offers. Null while the `luck` switch is off for the account (the

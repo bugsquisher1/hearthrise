@@ -384,6 +384,8 @@ export class AccountSession {
     cs.subscribe((s) => this._noteStorage(s));
     /* ...and so is what the coach has taught (account-coach.js): read once a login, shared by every hero. */
     cs.accountCoach = this.coach;
+    /* ...and the roster the server last read, so a hero's end card knows the heroes still to make (back-in-town.js partyToMake). */
+    cs.accountRoster = () => this._roster;
     this.coach.load();
     this._chars.set(slot, cs);
     cs.subscribe((s, why) => { if (why === 'closed-game') this._noteClosed({ closed: true }); });

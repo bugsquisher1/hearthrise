@@ -774,12 +774,18 @@ async function nodeRules(M) {
     const seen = new Set(), deadAt = new Map(), zero = new Map(), prev = new Map(), fell = new Set(), killedAt = new Map();
     /* THE PAUSE, ACROSS TWO KILLS, read off the server's own kills (lane/b-ground-formula-fix: typed at 46-51 s, it fell
        between kills once the formula moved the Cellar's rows): it opens half a second before the first two kills at least
-       20 s in (the prediction live) that lie within 4 s of each other. The fixture's server is the one playLive runs. */
+       20 s in (the prediction live) that lie within 4 s of each other. The fixture's server is the one playLive runs.
+       THREE SECONDS AHEAD, AND PAST THE SECOND KILL (staging run 44876479825: the catch-up mutant ESCAPED). The live engine
+       simulates a swing at its boundary, so a kill half a second after the pause opened was already queued before it, and on
+       return it played from that queue, no catch-up needed: the spell rule's longer fights put the pair at 56.7 and 57.8 s,
+       both inside the swing simulated before 56.2. Opened 3 s before the first kill and closed a second after the second,
+       neither is simulated before the pause, so only the catch-up can play them (2.5 s and 4 s both caught the mutant). */
     const hero = () => [LIVE_H.memberOf(LM, 'a', 0, 'tank', 6)];
     const kills = (() => { const c = LIVE_H.server(LM, hero()).commit(LIVE_H.T0 + 120000); return c ? c.tl.hunt_events.filter((e) => e.type === 'kill').map((e) => e.atMs) : []; })();
     const pair = kills.findIndex((k, i) => i > 0 && kills[i - 1] >= LIVE_H.T0 + 20000 && k - kills[i - 1] <= 4000);
     const k1 = pair > 0 ? kills[pair - 1] : LIVE_H.T0 + 46500;
-    const PAUSE = [k1 - 500, k1 + 4500];
+    const k2 = pair > 0 ? kills[pair] : k1 + 1000;
+    const PAUSE = [k1 - 3000, Math.max(k1 + 1000, k2 + 1000)];
     await playLive(M, LM, book, hero(), Math.max(70000, PAUSE[1] - LIVE_H.T0 + 19000), ({ s, f, cs, T0, srv }) => {
       /* each death the screen plays (the fall, its loot and XP): a death inside the pause is PLAYED, not just laid down;
          and each death the server's commits hold, at its instant */
@@ -814,7 +820,7 @@ async function nodeRules(M) {
     }, { pause: PAUSE, hold: PAUSE });   // a background tab whose polls are held too: the same prediction catches up
     const inPause = [...killedAt].filter(([, at]) => at >= PAUSE[0] && at < PAUSE[1]).map(([u]) => u);
     const unplayed = inPause.filter((u) => !fell.has(u));
-    console.log(`  LV-12 5 s background pause at ${(PAUSE[0] - LIVE_H.T0) / 1000}-${(PAUSE[1] - LIVE_H.T0) / 1000} s across two kills: ${frames} frames, ${ghost} unit-frame(s) standing after the server had it dead, ${zeroHp} standing at 0 HP, ${inPause.length - unplayed.length}/${inPause.length} deaths inside it played, largest frame step after it ${jump.toFixed(3)} tiles`);
+    console.log(`  LV-12 ${(PAUSE[1] - PAUSE[0]) / 1000} s background pause at ${(PAUSE[0] - LIVE_H.T0) / 1000}-${(PAUSE[1] - LIVE_H.T0) / 1000} s across two kills: ${frames} frames, ${ghost} unit-frame(s) standing after the server had it dead, ${zeroHp} standing at 0 HP, ${inPause.length - unplayed.length}/${inPause.length} deaths inside it played, largest frame step after it ${jump.toFixed(3)} tiles`);
     ok('LV-12', inPause.length >= 2 && unplayed.length === 0, `${unplayed.length} of ${inPause.length} deaths inside the pause were never played (units ${unplayed.join(', ')}; the case wants 2+)`);
     { // a restart drops the queued future and the restarted prediction hands the same events back: they play once, their HP once
       const OFF = 1000000, T = 80000;

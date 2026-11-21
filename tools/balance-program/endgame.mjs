@@ -149,7 +149,7 @@ async function scaledplay() {
       for (const id of Object.keys(B.GROUND_ROSTER[gid] || {})) {
         const r = S.scaledRow(MONSTERS[id], id, gid, pt.level);
         if (r === MONSTERS[id]) { ok = false; break; }
-        rows[id] = Object.fromEntries(['level', 'hp', 'atk', 'baseAcc', 'def', 'xp', 'gp', 'drops', 'partyPm', 'lootPm'].map((k) => [k, r[k]]));
+        rows[id] = Object.fromEntries(['level', 'hp', 'atk', 'aim', 'evasion', 'def', 'xp', 'gp', 'drops', 'partyPm', 'lootPm'].map((k) => [k, r[k]]));
       }
       if (!ok || !Object.keys(rows).length) { console.log(`${gid} does not scale to Level ${pt.level}`); continue; }
       for (const [seat, party] of Object.entries(SEATS)) jobs.push({ id: [pid, gid, seat].join(','), ground: gid, party, level: pt.level, hours: 1, seeds: 2, profile: 'played', whatIf: { monsters: rows }, groundPatch: { endsAtLevel: null } });

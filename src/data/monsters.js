@@ -33,7 +33,7 @@
 //   aim/evasion  its two to-hit ratings (src/data/to-hit.js): its blow's rating against a hero's Defense, and its rating against a
 //                hero's blow. EVERY row carries both. A formula row's are written against the reference hero of its Level
 //                (balance-sheet.js formulaStats); a hand row's land the chances its old `baseAcc` landed on that hero (ported
-//                2026-11-20, L15). tests/to-hit.mjs holds both.
+//                2026-11-20, L15). tests/balance-sheet.mjs holds both.
 //   tier/hp/atk/def/xp/gp
 //                must land inside `TIER_BANDS` in monster-classes.js, which
 //                is the MEASURED curve of the 31 originals. New content bends

@@ -4,7 +4,7 @@
 //   node tools/balance-sim/boss-call-table.mjs --hall krells_hold [--level 98] [--first] [--spell hall_fire.hitPm=300,hall_fire.cdMs=20000] [--named-hp N --named-atk N --named-rage N] ...
 //                                          a KEYED HALL (src/data/boss-halls.js) on the same rows and bars. It pays, so the money line is not read.
 //                                          --first: every kit without the boss's own prize (the party reading his card for the first time)
-//   node tools/balance-sim/boss-call-table.mjs [--seeds 12] [--only rat|chief] [--json OUT] [--hp 1500 --atk 21 --acc 0.7 --lvl 25 --rage 1400 --addhp 260 --addatk 30 --addacc 0.1 --addlvl 40 --adds 5 --guard 500] [--cliff] [--ship] [--focus] [--rows REGEX] [--stats]
+//   node tools/balance-sim/boss-call-table.mjs [--seeds 12] [--only rat|chief] [--json OUT] [--hp 1500 --atk 21 --acc 40 --lvl 25 --rage 1400 --addhp 260 --addatk 30 --addacc 20 --addlvl 40 --adds 5 --guard 500] [--cliff] [--ship] [--focus] [--rows REGEX] [--stats]
 //
 //   node tools/balance-sim/boss-call-table.mjs --selftest
 //                                          the money line bites: planted payouts (skill XP, Level XP, coin, an item on a loss or off his table) each throw
@@ -15,7 +15,7 @@
 //
 // Each cell plays the called room to its end through accrueHunt (tests/hunt-core/fixtures/play-ground.mjs, the settle
 // the world tick runs), a fresh hunt secret per seed, and reads how it ended: the kill, a death or the limit. It plays
-// the room as data ships it; --hp, --atk, --acc and --lvl try another row on the same dice (scratch, nothing is written). --cliff plays only the rows that read the cliff.
+// the room as data ships it; --hp, --atk, --acc (the row's aim, src/data/to-hit.js) and --lvl try another row on the same dice (scratch, nothing is written). --cliff plays only the rows that read the cliff.
 //
 // THE TARGET (Tyler's RISK AND DEATH ruling): an optimized party can survive it; a careless one dies. "Optimized" here
 // is a real choice a player makes: bring a Healer and a tank, wear the ground's own tier, set the right food. "Careless"
@@ -421,14 +421,14 @@ for (const call of (HALL ? [hallRoom(HALL)] : Object.values(BOSS_CALLS))) {
     if (hp) inst.hp = Number(hp);
     if (atk) inst.atk = Number(atk);
     if (lvl) inst.level = Number(lvl);
-    if (acc) inst.baseAcc = Number(acc);
+    if (acc) inst.aim = Number(acc);
     if (rage) inst.phases.enrageAtkPm = Number(rage);
     if (arg('guard', null)) inst.phases.guardPm = Number(arg('guard', null));
   }
   for (const m of [addOf(call, ENGINE_MONSTERS), addOf(call, play.MONSTERS)]) {
     if (addhp) m.hp = Number(addhp);
     if (addatk) m.atk = Number(addatk);
-    if (addacc) m.baseAcc = Number(addacc);
+    if (addacc) m.aim = Number(addacc);
     if (addlvl) m.level = Number(addlvl);
   }
   const row = ENGINE_MONSTERS[call.monster];

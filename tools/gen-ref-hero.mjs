@@ -12,7 +12,7 @@
 //                   wear and can get, uniques in), held at the Level 110 set past 110 (no weapon line past tier 7 is open)
 //
 //   node tools/gen-ref-hero.mjs            write the rows into src/data/to-hit.js (between its GENERATED markers)
-//   node tools/gen-ref-hero.mjs --check    exit 1 when the committed rows are not this tree's (tests/to-hit.mjs runs it)
+//   node tools/gen-ref-hero.mjs --check    exit 1 when the committed rows are not this tree's (tests/balance-sheet.mjs runs it)
 //   node tools/gen-ref-hero.mjs --print    the rows, one a line, nothing written
 //
 // WHEN IT MOVES: the skill lines are re-measured (skill-lines.mjs --write), the pace of record moves, or the hammer's kit gains

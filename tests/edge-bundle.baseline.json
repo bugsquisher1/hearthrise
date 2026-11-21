@@ -128,6 +128,11 @@
         "bytes": 3171095,
         "on": "2026-11-21",
         "why": "lane/c-spell-rule (plan L17): the re-measured Hearthfind boss rates' and the scaled hunts' xpPm comments (+471 bytes); nothing new is reached"
+      },
+      {
+        "bytes": 3171105,
+        "on": "2026-11-21",
+        "why": "lane/c-spell-rule: the boss adds tip and a gear-tiers note name Turning Cut, not the merged Cleave (+10 bytes)"
       }
     ]
   }

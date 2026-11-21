@@ -25,10 +25,10 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-11-20",
- "replay_ms": 5157,
+ "replay_ms": 2956,
  "counts": {
-  "tracked_names": 990,
-  "entries": 828
+  "tracked_names": 994,
+  "entries": 830
  },
  "functions": [
   {
@@ -1078,6 +1078,24 @@
     "source": "computed-from-replay"
    },
    "agree": true
+  },
+  {
+   "sig": "hr_account_coach(p_read text[], p_taught text[], p_idem uuid)",
+   "name": "hr_account_coach",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "1039-account-coach.sql"
+   ],
+   "live": null,
+   "replay": {
+    "md5": "0368f362040710ff6125bb607324f3b7",
+    "norm_len": 1903,
+    "source": "computed-from-replay"
+   },
+   "agree": false,
+   "why": "STAGED for the v0.2.144 release by 1039-account-coach.sql (tutorial and coach state on the account; new function, absent on production) (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21 after lane/c-first-hour merged."
   },
   {
    "sig": "hr_account_items(p_query text)",
@@ -2934,56 +2952,6 @@
    "agree": true
   },
   {
-   "sig": "hr_buy_hero_slot(p_slot_id integer, p_slot integer, p_idem uuid)",
-   "name": "hr_buy_hero_slot",
-   "tracked_by": [
-    "restate"
-   ],
-   "touched_by": [
-    "2026-09-08-hero-slot-buy.sql"
-   ],
-   "live": {
-    "md5": "55d8412ff9c71eeab5d02a8318f17cfc",
-    "norm_len": 491,
-    "measured": "2026-11-20",
-    "source": "measured-live"
-   },
-   "replay": {
-    "md5": "55d8412ff9c71eeab5d02a8318f17cfc",
-    "norm_len": 491,
-    "source": "computed-from-replay"
-   },
-   "agree": true
-  },
-  {
-   "sig": "hr_buy_hero_slot__ungated(p_slot_id integer, p_slot integer, p_idem uuid)",
-   "name": "hr_buy_hero_slot__ungated",
-   "tracked_by": [
-    "chain",
-    "pin",
-    "restate"
-   ],
-   "touched_by": [
-    "2026-09-08-hero-slot-buy.sql",
-    "2026-10-19-account-wallet.sql",
-    "2026-10-23-demolition-hero-slots-gold.sql",
-    "2026-11-03-hero-slots-gold.sql",
-    "2026-12-15-account-gold.sql"
-   ],
-   "live": {
-    "md5": "91d27e37dceac2e3634d4481de07587b",
-    "norm_len": 7402,
-    "measured": "2026-11-20",
-    "source": "measured-live"
-   },
-   "replay": {
-    "md5": "91d27e37dceac2e3634d4481de07587b",
-    "norm_len": 7402,
-    "source": "computed-from-replay"
-   },
-   "agree": true
-  },
-  {
    "sig": "hr_canon_display_name(p_name text)",
    "name": "hr_canon_display_name",
    "tracked_by": [
@@ -4279,6 +4247,42 @@
    "agree": true
   },
   {
+   "sig": "hr_coach_ids_ok(p text[])",
+   "name": "hr_coach_ids_ok",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "1039-account-coach.sql"
+   ],
+   "live": null,
+   "replay": {
+    "md5": "f368a40fd39e7acabdc75e23caadf4e6",
+    "norm_len": 333,
+    "source": "computed-from-replay"
+   },
+   "agree": false,
+   "why": "STAGED for the v0.2.144 release by 1039-account-coach.sql (new function, absent on production) (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21 after lane/c-first-hour merged."
+  },
+  {
+   "sig": "hr_coach_union(have text[], add text[])",
+   "name": "hr_coach_union",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "1039-account-coach.sql"
+   ],
+   "live": null,
+   "replay": {
+    "md5": "08342266e477250fdf94678175f05cb9",
+    "norm_len": 574,
+    "source": "computed-from-replay"
+   },
+   "agree": false,
+   "why": "STAGED for the v0.2.144 release by 1039-account-coach.sql (new function, absent on production) (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21 after lane/c-first-hour merged."
+  },
+  {
    "sig": "hr_collection_of(p_user uuid, p_slot integer)",
    "name": "hr_collection_of",
    "tracked_by": [
@@ -4383,6 +4387,7 @@
     "restate"
    ],
    "touched_by": [
+    "1038-start-kits.sql",
     "2026-08-11-player-state.sql",
     "2026-08-14-character-bootstrap.sql",
     "2026-09-04-auto-eat-at-creation.sql",
@@ -4401,34 +4406,50 @@
     "source": "measured-live"
    },
    "replay": {
-    "md5": "22d342e630c0012d03a8c68ab7ab99aa",
-    "norm_len": 9206,
+    "md5": "3169267459f3b0f37dd3d44af376b8a1",
+    "norm_len": 526,
     "source": "computed-from-replay"
    },
-   "agree": true
+   "agree": false,
+   "why": "STAGED for the v0.2.144 release by 1038-start-kits.sql (the kit grant once an account and once a slot; body rewritten) (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21 after lane/c-first-hour merged."
   },
   {
-   "sig": "hr_create_hero(p_slot integer, p_name text, p_colors jsonb, p_idem uuid)",
+   "sig": "hr_create_character__as(p_slot integer, p_set text)",
+   "name": "hr_create_character__as",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "1038-start-kits.sql"
+   ],
+   "live": null,
+   "replay": {
+    "md5": "98a3187373a6df56bcb014c37402a851",
+    "norm_len": 7101,
+    "source": "computed-from-replay"
+   },
+   "agree": false,
+   "why": "STAGED for the v0.2.144 release by 1038-start-kits.sql (kits paid once; new function, absent on production) (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21 after lane/c-first-hour merged."
+  },
+  {
+   "sig": "hr_create_hero(p_slot integer, p_name text, p_colors jsonb, p_idem uuid, p_set text)",
    "name": "hr_create_hero",
    "tracked_by": [
     "pin",
     "restate"
    ],
    "touched_by": [
+    "1038-start-kits.sql",
     "2026-11-02-hero-creation.sql"
    ],
-   "live": {
-    "md5": "e26fcf7b3a6ff38441af573c79a0291f",
-    "norm_len": 3738,
-    "measured": "2026-11-20",
-    "source": "measured-live"
-   },
+   "live": null,
    "replay": {
-    "md5": "e26fcf7b3a6ff38441af573c79a0291f",
-    "norm_len": 3738,
+    "md5": "fb5338c47b8ed3a6439c54f21f6488b0",
+    "norm_len": 3920,
     "source": "computed-from-replay"
    },
-   "agree": true
+   "agree": false,
+   "why": "STAGED for the v0.2.144 release by 1038-start-kits.sql (the starter set pick, p_set; the 4-argument overload is dropped and replaced) (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21 after lane/c-first-hour merged."
   },
   {
    "sig": "hr_crier_has_link(p_body text)",

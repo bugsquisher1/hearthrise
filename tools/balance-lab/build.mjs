@@ -39,13 +39,16 @@ const SHEET_FILE = 'src/data/balance-sheet.js';
 /* the game's scaled hunts (src/data/scaled-hunts.js, lane/b-scaled-hunts): the Lab's scale preview reads it, never a ratio of its own */
 const SCALED_FILE = 'src/data/scaled-hunts.js';
 const optional = (file) => () => (existsSync(join(ROOT, file)) ? "export * from '../../../" + file + "';\n" : 'export {};\n');
+/* the knob list (tools/balance-program/formulas/knobs.json, the ONE list), as a module the v3 lab reads (which knobs re-write the rows) */
+const KNOBS_JSON = 'tools/balance-program/formulas/knobs.json';
 const VIRTUAL = {
   'tools/balance-lab/virtual/sheet.mjs': optional(SHEET_FILE),
   'tools/balance-lab/virtual/scaled.mjs': optional(SCALED_FILE),
+  'tools/balance-lab/virtual/knobs.mjs': () => { const k = JSON.parse(readFileSync(join(ROOT, KNOBS_JSON), 'utf8')); return 'export const KNOB_LIST = ' + JSON.stringify({ knobs: k.knobs, planned: k.planned || [] }) + ';\n'; },
 };
 /* the trees a bundled module may come from (anything else is a mistake in the graph: the client, the network, secrets) */
 const ALLOWED = [/^src\/core\//, /^src\/data\//, /^src\/build-info\.js$/, /^supabase\/functions\/hr-accrue\/[\w-]+\.js$/,
-  /^tools\/balance-lab\/[\w/-]+\.mjs$/, /^tools\/balance-sim\/(stats|styles)\.mjs$/];
+  /^tools\/balance-lab\/[\w/-]+\.mjs$/, /^tools\/balance-sim\/(stats|styles)\.mjs$/, /^tools\/balance-program\/(standards|knob-rules)\.mjs$/];
 const SHIMS = { 'node:crypto': 'tools/balance-lab/shims/node-crypto.mjs', 'node:url': 'tools/balance-lab/shims/node-stub.mjs', 'node:path': 'tools/balance-lab/shims/node-stub.mjs' };
 /* words that must never appear in a bundled module's CODE (comments are stripped first) */
 const FORBIDDEN = [/\bfetch\s*\(/, /\bXMLHttpRequest\b/, /\bWebSocket\b/, /\blocalStorage\b/, /\bdocument\./, /supabase\.co/, /\bDeno\.env\b/, /service_role/];
@@ -61,14 +64,15 @@ function resolveSpec(fromId, spec) {
 }
 const sourceOf = (id) => (VIRTUAL[id] ? VIRTUAL[id]() : readFileSync(join(ROOT, id), 'utf8'));
 
-/** Walk the static graph from `entries`; answers [{ id, code }] in first-visit order and the source hash. */
-export function collect(entries) {
+/** Walk the static graph from `entries`; answers [{ id, code }] in first-visit order and the source hash. `o.instrument(id, src)`: a source
+    rewrite applied before the transpile (the v3 bundle's knob numbers). */
+export function collect(entries, o = {}) {
   const mods = new Map();
   const hash = createHash('sha256');
   const visit = (id) => {
     if (mods.has(id)) return;
     mods.set(id, null);
-    const src = sourceOf(id);
+    const src = o.instrument ? o.instrument(id, sourceOf(id)) : sourceOf(id);
     hash.update(id + '\0' + src + '\0');
     const specs = ts.preProcessFile(src, true, true).importedFiles.map((f) => f.fileName);
     const map = new Map(specs.map((s) => [s, resolveSpec(id, s)]));

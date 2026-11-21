@@ -1,0 +1,422 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Hearthrise Balance Lab v3</title>
+<!--
+  tools/balance-lab/v3/page.html — THE TEMPLATE of Balance Lab v3 (lane/c-balance-matrix). build-v3.mjs inlines the tokens and the data and
+  writes v3/dist/index.html beside v3/dist/worker.js; publish those two files. Every colour is a token of src/styles/tokens.css.
+-->
+<style>
+/*@TOKENS@*/
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg-0); color: var(--ink); font: 14px/1.45 var(--f-ui); }
+.wrap { max-width: 1320px; margin: 0 auto; padding: max(12px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) 32px max(14px, env(safe-area-inset-left)); }
+h1 { font: 700 20px/1.2 var(--f-display); color: var(--gold); letter-spacing: .04em; margin: 4px 0 2px; }
+h2 { font: 700 13px/1.2 var(--f-ui); color: var(--gold); text-transform: uppercase; letter-spacing: .1em; margin: 0 0 8px; }
+h3 { font-size: 13px; color: var(--ink); margin: 12px 0 6px; }
+.sub { color: var(--ink-3); font-size: 12px; }
+.stamps { color: var(--ink-3); font-size: 12px; margin: 2px 0 10px; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 12px; color: var(--ink-2); margin-bottom: 12px; }
+.tag { display: inline-block; padding: 1px 6px; border-radius: var(--r-sm); font-size: 12px; font-weight: 700; letter-spacing: .04em; }
+.tag.live { background: var(--aqua-bg); color: var(--aqua-2); }
+.tag.pre { background: var(--gold-bg); color: var(--gold-2); }
+.tag.ruled { background: var(--red-bg); color: var(--red-line); }
+.tag.proj { background: var(--field-sunk); color: var(--ink-3); }
+.layout { display: grid; grid-template-columns: minmax(300px, 380px) minmax(0, 1fr); gap: 14px; align-items: start; }
+@media (max-width: 860px) { .layout { grid-template-columns: minmax(0, 1fr); } }
+.panel { background: var(--bg-1); border: 1px solid var(--line-soft); border-radius: var(--r-lg); padding: 12px; margin-bottom: 14px; }
+.knobs { position: sticky; top: 8px; max-height: calc(100vh - 16px); overflow: auto; }
+@media (max-width: 860px) { .knobs { position: static; max-height: none; } }
+.group { margin-bottom: 10px; }
+.group > .gname { color: var(--ink-3); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; margin: 8px 0 4px; }
+.knob { padding: 6px 0 8px; border-bottom: 1px solid var(--line-soft); }
+.knob.active .kname { color: var(--gold-2); }
+.krow { display: flex; align-items: baseline; gap: 8px; }
+.kname { flex: 1 1 auto; font-weight: 600; font-size: 13px; }
+.kval { font-variant-numeric: tabular-nums; color: var(--gold); font-weight: 700; min-width: 52px; text-align: right; }
+.kmeta { font-size: 12px; color: var(--ink-3); margin-top: 2px; }
+input[type=range] { width: 100%; accent-color: var(--gold); margin: 6px 0 2px; height: 28px; }
+button { font: inherit; font-size: 12px; color: var(--ink); background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--r); padding: 6px 10px; min-height: 32px; cursor: pointer; }
+button:hover { border-color: var(--gold); }
+button.small { padding: 2px 8px; min-height: 26px; }
+.bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px; }
+.status { font-size: 12px; color: var(--ink-2); }
+.scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+table { border-collapse: collapse; width: 100%; font-size: 12px; font-variant-numeric: tabular-nums; }
+th, td { padding: 4px 6px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--line-soft); }
+th { color: var(--ink-3); font-weight: 600; position: sticky; top: 0; background: var(--bg-1); }
+td:first-child, th:first-child { text-align: left; }
+tr.grp td { color: var(--gold-2); font-weight: 700; }
+tr.way td:first-child { padding-left: 16px; color: var(--ink-2); }
+.up { color: var(--green); } .down { color: var(--red); } .flat { color: var(--ink-3); }
+.f-IMPROVED { color: var(--green); font-weight: 700; } .f-REGRESSED { color: var(--red); font-weight: 700; } .f-UNINTENDED { color: var(--gold); font-weight: 700; }
+.s-ok { color: var(--green); } .s-off { color: var(--gold-2); } .s-RED { color: var(--red); }
+.counts { display: flex; gap: 14px; flex-wrap: wrap; font-size: 13px; margin: 4px 0 8px; }
+.targets { display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: 12px; color: var(--ink-2); margin: 4px 0 8px; }
+.targets label { display: inline-flex; gap: 4px; align-items: center; min-height: 28px; }
+.note { font-size: 12px; color: var(--ink-3); margin: 6px 0 0; }
+.cal td.real { color: var(--ink); font-weight: 700; }
+details > summary { cursor: pointer; color: var(--ink-2); font-size: 12px; min-height: 28px; }
+.empty { color: var(--ink-3); font-size: 12px; padding: 8px 0; }
+.planned { opacity: .55; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Hearthrise Balance Lab v3</h1>
+  <div class="sub">The global balance dashboard. Every number is the real game engine (src/core and src/data), never an approximation.</div>
+  <div class="stamps" id="stamps"></div>
+  <div class="legend">
+    <span><span class="tag live">LIVE</span> played in this browser now, on the bundled engine, every slider together</span>
+    <span><span class="tag pre">PRECOMPUTED</span> the matrix's sweep: one knob at a time at its steps, 223 cells on the subset</span>
+    <span><span class="tag proj">PROJECTED</span> Levels past 185 (placeholder grounds and gear line)</span>
+  </div>
+
+  <div class="panel cal" id="calibration"></div>
+
+  <div class="layout">
+    <div class="panel knobs" id="knobs"></div>
+    <div>
+      <div class="panel">
+        <div class="bar"><button id="reset-all">Reset every knob to 1.00x</button><span class="status" id="status"></span></div>
+        <div id="active-note" class="note"></div>
+      </div>
+      <div class="panel" id="styles"></div>
+      <div class="panel" id="metrics"></div>
+      <div class="panel" id="flags"></div>
+      <div class="panel" id="lineups"></div>
+      <div class="panel" id="seats"></div>
+    </div>
+  </div>
+</div>
+<!--@DATA@-->
+<script>
+(function () {
+  'use strict';
+  const DATA = JSON.parse(document.getElementById('lab-data').textContent);
+  const PRE = DATA.precomputed;
+  const MET = DATA.metrics, MI = Object.fromEntries(MET.map((m, i) => [m.id, i]));
+  const KN = DATA.knobs, KBY = Object.fromEntries(KN.map((k) => [k.id, k]));
+  const LIVE = DATA.live;
+  const WORKER_URL = 'worker.js';
+  const state = { knobs: Object.fromEntries(KN.map((k) => [k.id, 1])), active: null, targets: new Set(), liveBase: null, liveNow: null, runId: 0 };
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const fin = (x) => typeof x === 'number' && isFinite(x);
+  const num = (v, d) => (!fin(v) ? '-' : Math.abs(v) >= 1e6 ? (v / 1e6).toFixed(2) + 'M' : Math.abs(v) >= 1e4 ? (v / 1e3).toFixed(1) + 'k' : d !== undefined ? v.toFixed(d) : Math.abs(v) < 10 ? v.toFixed(2) : String(Math.round(v)));
+  const pct = (r) => (!fin(r) ? '-' : (r > 0 ? '+' : '') + (r * 100).toFixed(1) + '%');
+  const cls = (r) => (!fin(r) || Math.abs(r) < 0.0005 ? 'flat' : r > 0 ? 'up' : 'down');
+  const median = (xs) => { const s = xs.filter(fin).sort((a, b) => a - b); return s.length ? s[Math.floor((s.length - 1) / 2)] : null; };
+  /* a column of changes: the median over the cells that moved, and how many moved of how many (a knob that moves a few cells must show) */
+  const movedCell = (xs) => {
+    const all = xs.filter(fin), moved = all.filter((x) => Math.abs(x) >= 0.0005);
+    if (!all.length) return '<td class="flat">-</td>';
+    const m = median(moved);
+    return '<td class="' + cls(m) + '">' + (moved.length ? pct(m) : '0.0%') + ' <span class="flat">' + moved.length + '/' + all.length + '</span></td>';
+  };
+  const levelBand = (L) => (L <= 45 ? 'early' : L <= 110 ? 'mid' : L <= 400 ? 'late' : 'high');
+  const BANDS = [['early', 'Early (to 45)'], ['mid', 'Mid (46 to 110)'], ['late', 'Late (111 to 400)'], ['high', 'High (1,000+)']];
+
+  /* ── stamps ── */
+  const eng = DATA.stamp.engine || {};
+  $('stamps').textContent = 'Engine v' + eng.version + ' (sources ' + eng.hash + ', ' + eng.knobPicks + ' knob numbers live), built ' + DATA.stamp.built + ' on ' + DATA.stamp.commit
+    + '. Sweeps: ' + (PRE ? PRE.at + ' on ' + (PRE.commits || []).join(',') + (PRE.githubRun ? ', GitHub run ' + PRE.githubRun : '') + ', ' + Object.keys(PRE.knobs).length + ' of ' + KN.length + ' knobs, ' + PRE.seeds + ' seed x ' + PRE.hours + ' h a cell' + (PRE.stale ? '. STALE: measured on another tree than this build' : '') : 'none in this build');
+
+  /* ── THE KNOBS ── */
+  function stepsOf(k) { return PRE && PRE.knobs[k] ? Object.keys(PRE.knobs[k].steps).map(Number).sort((a, b) => a - b) : []; }
+  function nearestStep(k) {
+    const v = state.knobs[k], s = stepsOf(k);
+    if (Math.abs(v - 1) < 1e-9 || !s.length) return null;
+    return s.reduce((a, b) => (Math.abs(b - v) < Math.abs(a - v) ? b : a));
+  }
+  function renderKnobs() {
+    const groups = {};
+    for (const k of KN) (groups[k.group] || (groups[k.group] = [])).push(k);
+    let h = '<h2>Global coefficients</h2><div class="note">A multiplier on numbers the game reads, at file:line (tools/balance-program/formulas/knobs.json). 1.00x is today.</div>';
+    for (const [g, ks] of Object.entries(groups)) {
+      h += '<div class="group"><div class="gname">' + esc(g) + '</div>';
+      for (const k of ks) {
+        const min = Math.min(...k.steps), max = Math.max(...k.steps);
+        h += '<div class="knob' + (state.active === k.id ? ' active' : '') + '" data-k="' + k.id + '"><div class="krow"><span class="kname">' + esc(k.label) + '</span>'
+          + (k.ruled ? '<span class="tag ruled" title="Tyler ruled today\'s value on ' + esc(k.ruled) + ': measure with it, never ship a change without him">RULED</span>' : '')
+          + '<span class="kval" id="v-' + k.id + '">' + state.knobs[k.id].toFixed(3) + 'x</span><button class="small" data-reset="' + k.id + '">Reset</button></div>'
+          + '<input type="range" min="' + min + '" max="' + max + '" step="0.005" value="' + state.knobs[k.id] + '" data-slider="' + k.id + '" aria-label="' + esc(k.label) + '" list="t-' + k.id + '">'
+          + '<datalist id="t-' + k.id + '">' + k.steps.map((s) => '<option value="' + s + '"></option>').join('') + '</datalist>'
+          + '<div class="kmeta">' + esc(k.what) + '</div><div class="kmeta">' + esc(k.sites.join(', ')) + (k.regen ? '. The monster rows are re-written from it' : '')
+          + (k.sharesLineWith.length ? '. Shares a line with ' + esc(k.sharesLineWith.join(', ')) : '') + (stepsOf(k.id).length ? '' : '. Not swept yet: LIVE only') + '</div></div>';
+      }
+      h += '</div>';
+    }
+    if (DATA.planned.length) {
+      h += '<details><summary>' + DATA.planned.length + ' planned knobs (they arrive with a roadmap step)</summary>';
+      for (const p of DATA.planned) h += '<div class="knob planned"><div class="krow"><span class="kname">' + esc(p.label || p.id) + '</span><span class="kmeta">' + esc(p.arrivesWith || '') + '</span></div><div class="kmeta">' + esc(p.what || '') + '</div></div>';
+      h += '</details>';
+    }
+    $('knobs').innerHTML = h;
+    $('knobs').querySelectorAll('[data-slider]').forEach((el) => el.addEventListener('input', () => setKnob(el.getAttribute('data-slider'), Number(el.value))));
+    $('knobs').querySelectorAll('[data-reset]').forEach((el) => el.addEventListener('click', () => setKnob(el.getAttribute('data-reset'), 1, true)));
+  }
+  function setKnob(id, v, redraw) {
+    state.knobs[id] = v;
+    if (v !== 1) state.active = id;
+    else if (state.active === id) state.active = KN.map((k) => k.id).find((k) => state.knobs[k] !== 1) || null;
+    const lab = $('v-' + id); if (lab) lab.textContent = v.toFixed(3) + 'x';
+    if (redraw) renderKnobs();
+    else $('knobs').querySelectorAll('.knob').forEach((el) => el.classList.toggle('active', el.getAttribute('data-k') === state.active));
+    renderAll();
+    scheduleLive();
+  }
+  $('reset-all').addEventListener('click', () => { for (const k of KN) state.knobs[k.id] = 1; state.active = null; renderKnobs(); renderAll(); scheduleLive(); });
+
+  /* ── THE LIVE ENGINE: a fresh pool of workers per setting (the bundle reads every knob when it is created) ── */
+  let workerSource = null, inlineLab = null, mode = 'workers';
+  async function makeWorker() {
+    try { return new Worker(WORKER_URL); } catch (e) { /* the next way */ }
+    try { if (!workerSource) workerSource = await (await fetch(WORKER_URL)).text(); return new Worker(URL.createObjectURL(new Blob([workerSource], { type: 'text/javascript' }))); } catch (e) { /* the next way */ }
+    return null;
+  }
+  function loadInline() {
+    if (inlineLab) return inlineLab;
+    inlineLab = new Promise((ok, bad) => { const s = document.createElement('script'); s.src = WORKER_URL; s.onload = () => (window.HearthriseLabV3 ? ok(window.HearthriseLabV3) : bad(new Error('the engine did not load'))); s.onerror = () => bad(new Error('could not load ' + WORKER_URL)); document.head.append(s); });
+    return inlineLab;
+  }
+  let seq = 0;
+  function call(w, msg, ms) {
+    return new Promise((ok, bad) => {
+      const id = ++seq;
+      const timer = ms ? setTimeout(() => bad(new Error('the worker did not answer in ' + ms / 1000 + ' s')), ms) : null;
+      const on = (e) => { const m = e.data || {}; if (m.id !== id) return; w.removeEventListener('message', on); clearTimeout(timer); if (m.type === 'error') bad(new Error(m.message)); else ok(m); };
+      w.addEventListener('message', on);
+      w.onerror = (e) => { clearTimeout(timer); bad(new Error(e.message || 'the worker failed')); };
+      w.postMessage({ ...msg, id });
+    });
+  }
+  let pool = [];
+  async function newPool(knobs) {
+    for (const w of pool) if (w.terminate) w.terminate();
+    pool = [];
+    const n = Math.max(1, Math.min(4, (navigator.hardwareConcurrency || 4) - 1));
+    if (mode === 'workers') {
+      try {
+        for (let i = 0; i < n; i++) { const w = await makeWorker(); if (!w) throw new Error('no worker'); pool.push(w); }
+        await Promise.all(pool.map((w) => call(w, { type: 'init', knobs }, 30000)));
+        return;
+      } catch (e) { for (const w of pool) w.terminate(); pool = []; mode = 'page'; }
+    }
+    const LabV3 = await loadInline();
+    const lab = LabV3.create(knobs); lab.start(knobs);
+    pool = [{ page: true, lab }];
+  }
+  function playOn(w, cell) {
+    if (w.page) return new Promise((ok, bad) => setTimeout(() => { try { ok({ metrics: w.lab.play(cell).metrics }); } catch (e) { bad(e); } }, 0));
+    return call(w, { type: 'play', cell });
+  }
+  /* `current()`: false once a newer setting replaced this run (it stops between cells; its pool is dropped by the next) */
+  async function runLive(knobs, current) {
+    await newPool(knobs);
+    const cells = [...LIVE.cells, { ...LIVE.calibration, key: 'CAL:harness' }];
+    const out = {};
+    let i = 0, done = 0;
+    const t0 = Date.now(), where = () => pool.length + (mode === 'page' ? ' page thread' : ' workers');
+    await Promise.all(pool.map(async (w) => {
+      while (i < cells.length) {
+        if (!current()) return;
+        const c = cells[i++];
+        const r = await playOn(w, c);
+        out[c.key] = r.metrics;
+        done++;
+        if (current()) $('status').textContent = 'LIVE: playing ' + cells.length + ' cells (' + LIVE.hours + ' h each) on ' + where() + ': ' + done + ' done';
+      }
+    }));
+    if (current()) $('status').textContent = 'LIVE: ' + cells.length + ' cells played in ' + ((Date.now() - t0) / 1000).toFixed(1) + ' s on ' + where();
+    return out;
+  }
+  let liveTimer = null, baselineReady = null;
+  function scheduleLive() {
+    clearTimeout(liveTimer);
+    const runId = ++state.runId, current = () => runId === state.runId;
+    const knobs = Object.fromEntries(Object.entries(state.knobs).filter(([, v]) => v !== 1));
+    if (!Object.keys(knobs).length) { state.liveNow = state.liveBase; renderAll(); return; }
+    $('status').textContent = 'LIVE: waiting for the slider to settle';
+    liveTimer = setTimeout(async () => {
+      try {
+        await baselineReady;
+        if (!current()) return;
+        const r = await runLive(knobs, current);
+        if (current()) { state.liveNow = r; renderAll(); }
+      } catch (e) { if (current()) $('status').textContent = 'LIVE failed: ' + e.message; }
+    }, 600);
+  }
+
+  /* ── PRECOMPUTED reads ── */
+  const preStep = () => { const k = state.active, s = k && nearestStep(k); return k && s !== null && PRE ? { k, s, st: PRE.knobs[k].steps[String(s)] } : null; };
+  const preCell = new Map(PRE ? PRE.cells.map((c) => [c.key, c]) : []);
+  const baseVal = (key, id) => (PRE && PRE.baseline[key] ? PRE.baseline[key][MI[id]] : null);
+  const afterVal = (st, key, id) => { const b = baseVal(key, id), d = st && st.d[key] ? st.d[key][MI[id]] : null; return fin(b) && fin(d) ? b * (1 + d / 1000) : st ? null : b; };
+  const deltaOf = (st, key, id) => (st && st.d[key] && fin(st.d[key][MI[id]]) ? st.d[key][MI[id]] / 1000 : null);
+
+  /* ── RENDER ── */
+  function renderCalibration() {
+    const R = DATA.real, cal = PRE && PRE.calibration;
+    const ps = preStep();
+    const after = ps && ps.st.calibration ? Object.fromEntries(ps.st.calibration) : null;
+    const live = (state.liveNow || {})['CAL:harness'], liveB = (state.liveBase || {})['CAL:harness'];
+    /* the live harness four's seats are tank, healer, bow, mage (build-v3.mjs: the calibration's harness cell) */
+    const LIVEMAP = { killsPerH: (m) => m.killsPerH, levelXpPerHeadH: (m) => m.levelXpPerH, storePerHeadH: (m) => m.storePerH, 'seats.front.takenShare': (m) => m.seats[0][1],
+      'seats.healer.takenShare': (m) => m.seats[1][1], 'seats.bow.takenShare': (m) => m.seats[2][1], 'seats.mage.takenShare': (m) => m.seats[3][1] };
+    let h = '<h2>How far the harness is from real play</h2><div class="note">Krell\'s Hold on Deadly, the heavy four\'s real hunt of 2026-11-20 (' + esc(R.label) + ', ' + R.heroHours + ' hero-hours, Level ' + R.level + '), against the matrix\'s four at Level 85. ' + esc(R.cited) + '.</div>';
+    if (!cal) { $('calibration').innerHTML = h + '<div class="empty">No precomputed calibration in this build.</div>'; return; }
+    h += '<div class="scroll"><table><tr><th>Metric</th><th>Real</th><th>Harness <span class="tag pre">PRE</span></th><th>Harness / real</th>' + (ps ? '<th>' + esc(ps.k) + ' x' + ps.s + ' <span class="tag pre">PRE</span></th><th>/ real</th>' : '') + '<th>Harness <span class="tag live">LIVE</span></th><th>Now <span class="tag live">LIVE</span></th></tr>';
+    const keep = ['killsPerH', 'levelXpPerHeadH', 'coinPerHeadH', 'storePerHeadH', 'seats.front.takenShare', 'seats.healer.takenShare', 'seats.bow.takenShare', 'seats.mage.takenShare'];
+    for (const row of cal.rows.filter((x) => keep.includes(x.metric))) {
+      const a = after ? after[row.metric] : null;
+      const lf = LIVEMAP[row.metric];
+      h += '<tr><td>' + esc(row.label) + '</td><td class="real">' + num(row.real) + '</td><td>' + num(row.harness) + '</td><td>' + num(row.harnessVsReal) + '</td>'
+        + (ps ? '<td>' + num(a) + '</td><td>' + (fin(a) && row.real ? num(a / row.real) : '-') + '</td>' : '')
+        + '<td>' + (lf && liveB ? num(lf(liveB)) : '-') + '</td><td>' + (lf && live ? num(lf(live)) : '-') + '</td></tr>';
+    }
+    h += '</table></div><div class="note">LIVE plays the four for ' + LIVE.hours + ' h on one seed, so its numbers wobble more than the precomputed hour. Store gold is high in the harness because its kit buys the Level\'s own rune tier; the real player does not.</div>';
+    $('calibration').innerHTML = h;
+  }
+
+  function renderStyles() {
+    const ps = preStep();
+    let h = '<h2>By combat style: actual DPS and Level XP, alone, MID, Normal</h2><div class="scroll"><table><tr><th>Style</th><th>DPS before <span class="tag live">LIVE</span></th><th>DPS now</th><th>Change</th><th>XP/h change <span class="tag live">LIVE</span></th>'
+      + '<th>DPS change <span class="tag pre">PRE</span></th><th>XP/h change <span class="tag pre">PRE</span></th><th>Deaths/1000h change <span class="tag pre">PRE</span></th></tr>';
+    const liveRow = (ways) => {
+      const cs = LIVE.cells.filter((c) => c.party === 1 && ways.includes(c.styles[0]));
+      const sumOf = (src, id) => cs.reduce((a, c) => a + ((src && src[c.key] && src[c.key][id]) || 0), 0);
+      const b = sumOf(state.liveBase, 'dps'), a = sumOf(state.liveNow, 'dps'), bx = sumOf(state.liveBase, 'levelXpPerH'), ax = sumOf(state.liveNow, 'levelXpPerH');
+      return state.liveBase && state.liveNow && cs.length ? [b / cs.length, a / cs.length, b ? a / b - 1 : null, bx ? ax / bx - 1 : null] : [null, null, null, null];
+    };
+    const preRow = (ways, id) => (ps ? median(PRE.cells.filter((c) => c.party === 1 && c.gear === 'mid' && c.tier === 'normal' && !c.step && ways.includes(c.styles[0])).map((c) => deltaOf(ps.st, c.key, id))) : null);
+    const line = (label, ways, klass) => {
+      const [b, a, d, dx] = liveRow(ways);
+      return '<tr class="' + klass + '"><td>' + esc(label) + '</td><td>' + num(b) + '</td><td>' + num(a) + '</td><td class="' + cls(d) + '">' + pct(d) + '</td><td class="' + cls(dx) + '">' + pct(dx) + '</td>'
+        + ['dps', 'levelXpPerH', 'deathsPer1000h'].map((id) => { const x = preRow(ways, id); return '<td class="' + cls(x) + '">' + pct(x) + '</td>'; }).join('') + '</tr>';
+    };
+    for (const [g, ways] of Object.entries(DATA.styleGroups)) {
+      if (!ways.length) { h += '<tr class="grp"><td>' + esc(g) + '</td><td colspan="7" class="flat">not built: the fist line is a hidden two-row sample (src/data/fists.js FIST_LINE.live false), no engine way yet</td></tr>'; continue; }
+      h += line(g, ways, 'grp');
+      if (ways.length > 1) for (const w of ways) h += line(w, [w], 'way');
+    }
+    h += '</table></div><div class="note">LIVE: the mean over Levels ' + LIVE.levels.join(', ') + '. PRECOMPUTED: the median change over the subset\'s Levels 10 to 5,000 for ' + (ps ? esc(ps.k) + ' at x' + ps.s : 'the active knob (move a slider)') + '.</div>';
+    $('styles').innerHTML = h;
+  }
+
+  function axisCells(cells) {
+    return [['Lone', (c) => c.party === 1], ['Four', (c) => c.party === 4], ...BANDS.map(([b, label]) => [label, (c) => levelBand(c.L) === b]), ['Normal', (c) => c.tier === 'normal'], ['Hardest tier', (c) => c.tier !== 'normal']]
+      .map(([label, f]) => [label, cells.filter(f)]).filter(([, cs]) => cs.length);
+  }
+  function renderMetrics() {
+    const ps = preStep();
+    let h = '<h2>The section 6 metrics, before and after</h2>';
+    /* LIVE */
+    const liveCells = LIVE.cells;
+    const cols = axisCells(liveCells);
+    h += '<h3><span class="tag live">LIVE</span> every slider together: the median change over the live cells that moved, and how many moved</h3>';
+    if (!state.liveBase) h += '<div class="empty">Playing the baseline...</div>';
+    else {
+      h += '<div class="scroll"><table><tr><th>Metric</th>' + cols.map(([l]) => '<th>' + esc(l) + '</th>').join('') + '</tr>';
+      for (const m of MET) {
+        h += '<tr><td>' + esc(m.label) + '</td>' + cols.map(([, cs]) => movedCell(cs.map((c) => { const b = state.liveBase[c.key], a = (state.liveNow || {})[c.key]; return b && a && fin(b[m.id]) && fin(a[m.id]) && b[m.id] !== 0 ? (a[m.id] - b[m.id]) / Math.abs(b[m.id]) : (b && a && b[m.id] === a[m.id] ? 0 : null); }))).join('') + '</tr>';
+      }
+      h += '</table></div>';
+    }
+    /* PRECOMPUTED */
+    h += '<h3><span class="tag pre">PRECOMPUTED</span> the median change over the subset cells that moved, and how many moved:' + (ps ? esc(KBY[ps.k].label) + ' at x' + ps.s : 'move a slider that has been swept') + '</h3>';
+    if (!PRE) h += '<div class="empty">No sweeps in this build.</div>';
+    else if (ps) {
+      const pc = PRE.cells.filter((c) => !c.step && c.block !== 'lineups');
+      const pcols = axisCells(pc);
+      h += '<div class="scroll"><table><tr><th>Metric</th>' + pcols.map(([l]) => '<th>' + esc(l) + '</th>').join('') + '</tr>';
+      for (const m of MET) h += '<tr><td>' + esc(m.label) + '</td>' + pcols.map(([, cs]) => movedCell(cs.map((c) => deltaOf(ps.st, c.key, m.id)))).join('') + '</tr>';
+      h += '</table></div><div class="note">Moved: ' + esc((ps.st.applied || []).join('; ')) + '</div>';
+      h += '<details><summary>Every way and Level (MID, Normal, alone), before and after</summary><div class="scroll"><table><tr><th>Cell</th>' + ['dps', 'takenPerH', 'healPerH', 'levelXpPerH', 'netPerH', 'killsPerH', 'deathsPer1000h', 'lowHpTypical', 'hpUnder30', 'hoursPerLevel'].map((id) => '<th>' + esc(MET[MI[id]].label) + '</th>').join('') + '</tr>';
+      for (const c of pc.filter((x) => x.party === 1 && x.gear === 'mid' && x.tier === 'normal').sort((a, b) => a.L - b.L || a.styles[0].localeCompare(b.styles[0]))) {
+        h += '<tr><td>' + c.L + ' ' + esc(c.styles[0]) + (c.stretch === 'PROJECTED' ? ' <span class="tag proj">PROJ</span>' : '') + '</td>' + ['dps', 'takenPerH', 'healPerH', 'levelXpPerH', 'netPerH', 'killsPerH', 'deathsPer1000h', 'lowHpTypical', 'hpUnder30', 'hoursPerLevel'].map((id) => { const d = deltaOf(ps.st, c.key, id); return '<td>' + num(baseVal(c.key, id)) + ' <span class="' + cls(d) + '">' + pct(d) + '</span></td>'; }).join('') + '</tr>';
+      }
+      h += '</table></div></details>';
+    }
+    $('metrics').innerHTML = h;
+  }
+
+  function renderFlags() {
+    const ps = preStep();
+    const groups = [...new Set(Object.values(DATA.bandGroups))];
+    let h = '<h2>Bands moved: IMPROVED, REGRESSED, UNINTENDED <span class="tag pre">PRECOMPUTED</span></h2><div class="note">Judged by tools/balance-program/standards.mjs (the grid\'s own judge). Tick what the change is meant to move: a moved band you ticked reads IMPROVED (toward its range) or REGRESSED (away); any other moved band is UNINTENDED.</div>'
+      + '<div class="targets">' + groups.map((g) => '<label><input type="checkbox" data-target="' + g + '"' + (state.targets.has(g) ? ' checked' : '') + '>' + esc(g) + '</label>').join('') + '</div>';
+    if (!ps) { $('flags').innerHTML = h + '<div class="empty">Move a slider that has been swept.</div>'; wireTargets(); return; }
+    const F = PRE.bandFields, ix = Object.fromEntries(F.map((f, i) => [f, i]));
+    const rows = ps.st.bands.map((b) => { const g = b[ix.group] || DATA.bandGroups[b[ix.band]]; const t = state.targets.has(g); return { b, g, flag: t ? (b[ix.direction] === 'toward' ? 'IMPROVED' : 'REGRESSED') : 'UNINTENDED' }; });
+    const n = (f) => rows.filter((r) => r.flag === f).length;
+    h += '<div class="counts"><span class="f-IMPROVED">IMPROVED ' + n('IMPROVED') + '</span><span class="f-REGRESSED">REGRESSED ' + n('REGRESSED') + '</span><span class="f-UNINTENDED">UNINTENDED ' + n('UNINTENDED') + '</span><span class="flat">for ' + esc(ps.k) + ' at x' + ps.s + '</span></div>';
+    const order = { REGRESSED: 0, UNINTENDED: 1, IMPROVED: 2 };
+    h += '<div class="scroll"><table><tr><th>Flag</th><th>Way</th><th>Band</th><th>At</th><th>Before</th><th>After</th></tr>';
+    for (const r of rows.sort((a, b) => order[a.flag] - order[b.flag]).slice(0, 60)) {
+      const b = r.b;
+      h += '<tr><td class="f-' + r.flag + '">' + r.flag + '</td><td>' + esc(b[ix.way]) + '</td><td>' + esc(b[ix.band]) + ' <span class="flat">' + esc(r.g || '') + '</span></td><td>' + esc(b[ix.at]) + '</td><td>' + num(b[ix.before]) + ' <span class="s-' + b[ix.statusBefore] + '">' + b[ix.statusBefore] + '</span></td><td>' + num(b[ix.after]) + ' <span class="s-' + b[ix.statusAfter] + '">' + b[ix.statusAfter] + '</span></td></tr>';
+    }
+    h += '</table></div>' + (rows.length > 60 ? '<div class="note">' + (rows.length - 60) + ' more rows in tools/balance-program/balance-sweeps.json.</div>' : '');
+    $('flags').innerHTML = h;
+    wireTargets();
+  }
+  function wireTargets() { $('flags').querySelectorAll('[data-target]').forEach((el) => el.addEventListener('change', () => { const g = el.getAttribute('data-target'); if (el.checked) state.targets.add(g); else state.targets.delete(g); renderFlags(); })); }
+
+  function renderLineups() {
+    const ps = preStep();
+    let h = '<h2>Lineups on Deadly, MID <span class="tag pre">PRECOMPUTED</span></h2><div class="note">Other fours against the mixed four (tank, healer, bow, mage), 2 seeds (52-review-combat 10.4). The cells L16 has to move.</div>';
+    if (!PRE) { $('lineups').innerHTML = h + '<div class="empty">No sweeps in this build.</div>'; return; }
+    const lu = PRE.cells.filter((c) => c.block === 'lineups');
+    if (!lu.length) { $('lineups').innerHTML = h + '<div class="empty">This sweep has no lineups block.</div>'; return; }
+    const st = ps ? ps.st : null;
+    const v = (key, id, after) => (after ? afterVal(st, key, id) : baseVal(key, id));
+    h += '<div class="scroll"><table><tr><th>Four</th><th>XP vs mixed</th><th>Kills vs mixed</th><th>Low HP</th><th>Worst tenth</th><th>Deaths/1000h</th><th>Store/h</th></tr>';
+    for (const c of lu.sort((a, b) => a.L - b.L)) {
+      const ref = lu.find((x) => x.L === c.L && x.styles.join() === 'tank,healer,bow,mage');
+      const two = (f, d) => { const b = f(false), a = st ? f(true) : null; return num(b, d) + (st ? ' <span class="' + cls(fin(a) && fin(b) && b ? a / b - 1 : null) + '">' + num(a, d) + '</span>' : ''); };
+      h += '<tr><td>' + c.L + ' ' + esc(c.styles.join(', ')) + '</td><td>' + two((a) => v(c.key, 'levelXpPerH', a) / v(ref.key, 'levelXpPerH', a), 2) + '</td><td>' + two((a) => v(c.key, 'killsPerH', a) / v(ref.key, 'killsPerH', a), 2) + '</td>'
+        + '<td>' + two((a) => v(c.key, 'lowHpTypical', a), 2) + '</td><td>' + two((a) => v(c.key, 'lowHpP10', a), 2) + '</td><td>' + two((a) => v(c.key, 'deathsPer1000h', a), 0) + '</td><td>' + two((a) => v(c.key, 'storePerH', a)) + '</td></tr>';
+    }
+    h += '</table></div>' + (st ? '<div class="note">Second number: ' + esc(ps.k) + ' at x' + ps.s + '.</div>' : '');
+    $('lineups').innerHTML = h;
+  }
+
+  function renderSeats() {
+    let h = '<h2>Damage taken by seat, the four <span class="tag live">LIVE</span></h2><div class="note">The share of the party\'s damage each seat takes. Real play put 28% on the healer; the harness four puts almost all of it on its shield tank.</div>';
+    if (!state.liveBase) { $('seats').innerHTML = h + '<div class="empty">Playing the baseline...</div>'; return; }
+    h += '<div class="scroll"><table><tr><th>Cell</th><th>Seat shares before</th><th>Now</th></tr>';
+    for (const c of LIVE.cells.filter((x) => x.party === 4)) {
+      const b = state.liveBase[c.key], a = (state.liveNow || {})[c.key];
+      const sh = (m) => (m ? m.seats.map(([s, x]) => esc(s) + ' ' + (fin(x) ? (x * 100).toFixed(1) + '%' : '-')).join(', ') : '-');
+      h += '<tr><td>' + c.L + ' ' + esc(c.tier) + '</td><td>' + sh(b) + '</td><td>' + sh(a) + '</td></tr>';
+    }
+    h += '</table></div>';
+    $('seats').innerHTML = h;
+  }
+
+  function renderAll() {
+    const ps = preStep(), moved = KN.filter((k) => state.knobs[k.id] !== 1);
+    $('active-note').textContent = moved.length
+      ? 'Moved: ' + moved.map((k) => k.label + ' x' + state.knobs[k.id].toFixed(3)).join(', ') + '. ' + (ps ? 'PRECOMPUTED shows ' + KBY[ps.k].label + ' alone at its nearest swept step, x' + ps.s + '. ' : 'The active knob has no precomputed sweep. ') + 'LIVE plays every moved slider together.'
+      : 'Every knob at 1.00x: today\'s game.';
+    renderCalibration(); renderStyles(); renderMetrics(); renderFlags(); renderLineups(); renderSeats();
+  }
+
+  renderKnobs();
+  renderAll();
+  /* the live baseline: today's game, played once, before any setting (a slider moved meanwhile waits for it) */
+  baselineReady = (async () => {
+    try {
+      const r = await runLive({}, () => true);
+      state.liveBase = r;
+      if (KN.every((k) => state.knobs[k.id] === 1)) state.liveNow = r;
+      renderAll();
+    } catch (e) { $('status').textContent = 'LIVE failed: ' + e.message; }
+  })();
+})();
+</script>
+</body>
+</html>

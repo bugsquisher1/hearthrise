@@ -124,7 +124,7 @@ async function selftest() {
     const { measureJobs } = await import('./atlas/rates.mjs');
     const { pullOf } = await import('./atlas/measure.mjs');
     const jobs = measureJobs({ HUNT_GROUNDS: D0.HUNT_GROUNDS, HUNT_INDEX: D0.HUNT_INDEX, OPEN_GROUNDS: D0.OPEN_GROUNDS, PARTIES, tiersOf: D0.tiersOf, pullOf, quick: false, seeds: 1, hours: 1, only: ['krells_hold'] });
-    const hard = jobs.filter((j) => j.meta.tier !== 'normal'), bad = hard.filter((j) => j.density !== pullOf(j.ground, j.meta.tier, j.meta.size));
+    const hard = jobs.filter((j) => j.meta.tier !== 'normal'), bad = hard.filter((j) => (j.density ?? null) !== (pullOf(j.ground, j.meta.tier, j.meta.size) ?? null));
     check('a harder-tier ground-rate cell carries its tier\'s pull', hard.length > 0 && !bad.length && jobs.filter((j) => j.meta.tier === 'normal').every((j) => j.density === undefined), hard.length + ' harder cells, ' + bad.length + ' without the pull; Deadly x4 pulls ' + pullOf('krells_hold', 'deadly', 4));
     const four = (tier) => rates.rows.find((r) => r.ground === 'krells_hold' && r.size === 4 && r.tier === tier);
     const n = four('normal'), d = four('deadly');

@@ -51,9 +51,9 @@ export function bandEnds(HUNT_INDEX, g, ground = null) {
  */
 function pullFor(o, g, tier, size) {
   if (typeof o.pullOf !== 'function') throw new Error('measureJobs: a harder tier needs pullOf(ground, tier, size): its pull is the tier (hunt-tiers.js pullOfTier)');
+  /* a tier row may leave a party size's pull unset (the ground's own pull stands): then no density, as progression-grid.mjs buildCell plays it */
   const n = o.pullOf(g, tier, size);
-  if (!Number.isInteger(n) || n < 1) throw new Error('measureJobs: no pull for ' + g + ' ' + tier + ' x' + size);
-  return n;
+  return Number.isInteger(n) && n >= 1 ? n : null;
 }
 export function measureJobs(o) {
   const jobs = [];
@@ -67,7 +67,7 @@ export function measureJobs(o) {
       pc.comps.forEach((party, ci) => {
         for (const tier of useTiers) {
           jobs.push({ id: ['GR', g, level, pc.size, ci, tier].join(':'), ground: g, level, party, hours: o.hours, seeds: o.seeds, profile: 'played',
-            gear: { uniques: true, ...(o.OPEN_GROUNDS[g] ? {} : { openAlso: [g] }) }, ...(tier !== 'normal' ? { options: { tier }, density: pullFor(o, g, tier, pc.size) } : {}),
+            gear: { uniques: true, ...(o.OPEN_GROUNDS[g] ? {} : { openAlso: [g] }) }, ...(tier !== 'normal' ? { options: { tier }, ...(pullFor(o, g, tier, pc.size) ? { density: pullFor(o, g, tier, pc.size) } : {}) } : {}),
             meta: { ground: g, level, size: pc.size, comp: ci, tier } });
         }
       });

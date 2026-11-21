@@ -130,7 +130,7 @@ Hours each Level takes and the day it arrives, at 1.00 x contract (COMPUTED from
 | P2 | Lone MID on Normal | 0.95 to 1.10 x contract | under 0.85, over 1.25 | RULED tolerance. Guard G1 today |
 | P3 | Lone LOW on Normal | 0.80 to 0.90 x MID | under 0.70, over 0.95 | PROPOSED. One weapon step (5 to 8%, RULED) plus accessories and two rungs. Under 0.70 the arrival feels like a wall. Over 0.95 gear does not matter |
 | P4 | Lone BiS on Normal | 1.10 to 1.20 x MID | over 1.25 | RULED 11-21 (call 3): about 15% faster kills. The plan's own stack reads +10% to +26% today |
-| P5 | BiS over LOW, same seat | at most 1.50 | over 1.60 | PROPOSED. Past this the content cannot be written for both |
+| P5 | BiS over LOW, same seat, on Normal | at most 1.50 | over 1.60 | PROPOSED. Past this the content cannot be written for both. Read on Normal only (the baseline, 11-21): on Dangerous and Deadly LOW is ruled to fail (S3, S4, G-5), so the ratio there divides by a hero that dies at once |
 | P6 | Party a head over lone, same tier, MID | two 1.05 to 1.15, three 1.10 to 1.20, four 1.15 to 1.25 | four under 1.0 from Level 10 on a party ground | RULED 10-25 section 5 |
 | P7 | Party a head on the hardest tier it holds, MID | two 1.2 to 1.5, three 1.5 to 2.0, four 1.8 to 2.5 x contract | four over 2.6, two over 1.7 | Four RULED (11-16, 21-4). Two and three RULED 11-21 (call 8). Never played yet |
 | P8 | The four on Deadly in BiS | at most 2.75 x contract | over 2.9 | RULED 30-2 |

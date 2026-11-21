@@ -129,7 +129,7 @@ export const BANDS = deep([
   b('P2', 'pace', 'xContract', { gear: 'mid', party: 1, tier: 'normal' }, 0.95, 1.10, 0.85, 1.25, 'RULED', 21, 'the table\'s tolerance; old G1'),
   b('P3', 'pace', 'xp / mid', { gear: 'low', party: 1, tier: 'normal' }, 0.80, 0.90, 0.70, 0.95, 'PROPOSED', 23, 'one weapon step plus accessories and two rungs'),
   b('P4', 'pace', 'xp / mid', { gear: 'bis', party: 1, tier: 'normal' }, 1.10, 1.20, null, 1.25, 'RULED', 23, 'call 3', { ruled: '2026-11-21', call: 3 }),
-  b('P5', 'pace', 'xp bis / xp low', { same: 'seat' }, null, 1.50, null, 1.60, 'PROPOSED', 23, 'one set of monsters must serve both'),
+  b('P5', 'pace', 'xp bis / xp low', { same: 'seat', tier: 'normal' }, null, 1.50, null, 1.60, 'PROPOSED', 23, 'one set of monsters must serve both; Normal only: on the harder tiers LOW is ruled to fail (S3.low, S4.low, G-5)'),
   b('P6.2', 'pace', 'xp a head / lone, same tier', { gear: 'mid', party: 2 }, 1.05, 1.15, null, null, 'RULED', 25, '2026-10-25 section 5'),
   b('P6.3', 'pace', 'xp a head / lone, same tier', { gear: 'mid', party: 3 }, 1.10, 1.20, null, null, 'RULED', 25, '2026-10-25 section 5'),
   b('P6.4', 'pace', 'xp a head / lone, same tier', { gear: 'mid', party: 4, fromLevel: 10 }, 1.15, 1.25, 1.00, null, 'RULED', 25, '2026-10-25 section 5'),

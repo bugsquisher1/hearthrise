@@ -431,10 +431,12 @@ const MUTANTS = {
     ddl: `update public.hr_unlock_offers set items = items || '{"dragon_scale": 4}'::jsonb where offer_id = 'property.castle'` },
   castle_held: { arm: 'HP-3', why: 'the Castle is held again: the House stops at the Keep',
     ddl: `update public.hr_unlock_offers set refusal = 'held:its_materials_have_no_source_yet', gold = null, items = null, req_property_tier = null where offer_id = 'property.castle'` },
-  rung5_held: { arm: 'HP-3', why: 'a fifth rung is held again: the Shrine stops at four',
-    ddl: `update public.hr_unlock_offers set refusal = 'held:its_materials_have_no_source_yet', gold = null, items = null, req_property_tier = null where offer_id = 'room.shrine.5'` },
+  /* planted on the Forge: the Shrine is held whole since 1011-approved-rows-unlock-offers (its room not built yet), so a plant on its
+     rungs moved nothing the House shows (both missed on next run 44863151394) */
+  rung5_held: { arm: 'HP-3', why: 'a fifth rung is held again: the Forge stops at four',
+    ddl: `update public.hr_unlock_offers set refusal = 'held:its_materials_have_no_source_yet', gold = null, items = null, req_property_tier = null where offer_id = 'room.forge.5'` },
   rung_needs_dead_item: { arm: 'HP-3', why: 'a visible rung costs an item nobody can hold',
-    ddl: `update public.hr_unlock_offers set items = items || '{"dragon_gem": 1}'::jsonb where offer_id = 'room.shrine.3'` },
+    ddl: `update public.hr_unlock_offers set items = items || '{"dragon_gem": 1}'::jsonb where offer_id = 'room.forge.3'` },
   trophy_sells: { arm: 'HP-3', why: 'the Trophy Room sells a rung again: a wall that hangs nothing',
     ddl: `update public.hr_unlock_offers set refusal = null, gold = 2000, items = '{"wolf_pelt": 5}'::jsonb, req_property_tier = 4 where offer_id = 'room.trophy.1'` },
   owner_loses_room: { arm: 'HP-3', why: 'the hold carries no held: reason, and the owner\'s Trophy Room drops out of the House',

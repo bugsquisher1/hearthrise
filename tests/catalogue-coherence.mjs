@@ -243,10 +243,10 @@ export function protectedFails({ items = ITEMS, recipes = ARTISAN_RECIPES, cards
 
 /* Gaps the audit handed to another W0 lane. SHRINK-ONLY: see the header. */
 export const PENDING_USE = Object.freeze({
-  warboss_standard: 'w0f — boss trophies hang in the trophy room',
-  lexarch_seal:     'w0f — boss trophies hang in the trophy room',
-  voidwoven_sigil:  'w0f — boss trophies hang in the trophy room',
-  dragon_relic:     'w0f — boss trophies hang in the trophy room',
+  warboss_standard: 'the cut list (plan L36): the trophy wall left with the old dungeons, cut whole 2026-11-20 (L10)',
+  lexarch_seal:     'the cut list (plan L36): the trophy wall left with the old dungeons, cut whole 2026-11-20 (L10)',
+  voidwoven_sigil:  'the cut list (plan L36): the trophy wall left with the old dungeons, cut whole 2026-11-20 (L10)',
+  dragon_relic:     'the cut list (plan L36): the trophy wall left with the old dungeons, cut whole 2026-11-20 (L10)',
   /* The designer's 11-10 Krell's Hold (ruling 6: it trades). Its use is the door of a keyed hall, a new room kind (that design's engine
      piece 5, on the pre-EA Security list); the row leaves the day that verb spends it (the Krell lane's row, carried by lane/d-packs-retune). */
   hall_key:         'Krell\'s Hold piece 5 — the keyed hall spends it on entry (systems-engineer, backend-architect)',

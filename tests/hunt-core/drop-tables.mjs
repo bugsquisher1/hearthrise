@@ -10,7 +10,7 @@
 //                    less; a monster's Scarce armour is helmet / body / legs / boots in heavy, medium AND light, once each per
 //                    slot it carries (weapons may join), wearable in the ground's band; a Trophy only on a boss. A REVEALED
 //                    item (Rare, Trophy) is live (no dormant effect), has its pixel icon, is no Hearthfind, not tier 8, not
-//                    'unique', not sold by a listed Shop row, not boss loot, of its dropper's tier or one above, and its
+//                    'unique', not sold by a listed Shop row, of its dropper's tier or one above, and its
 //                    dropper is no Hearthfind source (the checks lucky-finds and field-salvage make for their own rows)
 //   slot-homes       each Scarce slot on a ground has ONE home a player can learn: one monster, or a named group of the
 //                    ground's slow monsters (loot-bands.js LOOT_GROUPS); a monster carries at most two armour slots and one
@@ -150,7 +150,6 @@ async function load(root) {
     LB: await imp(root, 'src/data/loot-bands.js'),
     WEIGHT: (await imp(root, 'src/data/core-model.js')).ARMOUR_WEIGHT,
     live: (await imp(root, 'src/data/item-effects.js')).effectsAreLive,
-    BOSSES: (await imp(root, 'src/data/bosses.js')).BOSSES,
     /* a boneless body's bones row (Tyler 10-25): its family's Hearth fuel */
     bodyFuels: (await imp(root, 'src/data/hearth.js')).FAMILY_FUELS,
     hfSources: new Set((await imp(root, 'src/data/hearthfind.js')).HEARTHFIND_TABLE.filter((r) => r.kind === 'monster').map((r) => r.id)),
@@ -170,8 +169,6 @@ function rosterOf(ground) {
   for (const p of ground.pockets) for (const s of (p.pack || []).concat(p.spawns)) ids.add(s.monster);
   return [...ids].sort();
 }
-const mentions = (v, id) => v === id || (Array.isArray(v) ? v.some((x) => mentions(x, id))
-  : !!v && typeof v === 'object' && Object.keys(v).some((k) => k === id || mentions(v[k], id)));
 const weightOf = (M, it) => (it && it.type === 'armor' && BUILD_SLOTS.includes(it.slot) && M.WEIGHT[it.armourClass]) || null;
 
 /* Why a revealed (Rare / Trophy) row's item may not be revealed, or null: the lucky-finds / field-salvage item rules. */
@@ -182,7 +179,6 @@ function revealWhy(M, tag, mid, m, d) {
   if (it.tier === 8 || it.rarity === 'unique') return tag + ' reveals ' + d.id + ', tier 8 or unique (its sink is the forge, not a drop)';
   if (!M.hasIcon(d.id)) return tag + ' reveals ' + d.id + ', which has no pixel icon (the reveal shows it)';
   if (M.shopSold.has(d.id)) return tag + ' reveals ' + d.id + ', which a listed Shop row sells (a drop it shortcuts)';
-  if (mentions(M.BOSSES, d.id)) return tag + ' reveals ' + d.id + ', which is boss loot';
   if (M.hfSources.has(mid)) return tag + ' is a Hearthfind source and reveals ' + d.id + ' (two chase rolls on one kill)';
   if (Number.isInteger(it.tier) && !(it.tier === m.tier || it.tier === m.tier + 1)) return tag + ' reveals ' + d.id + ' of tier ' + it.tier + ', not its tier ' + m.tier + ' or one above';
   return null;
@@ -718,7 +714,6 @@ const dataMutants = [
   { name: 'a revealed unique', case: 'loot-structure', edit: (ms, M2) => { M2.ITEMS.grayjaws_ruff = { ...M2.ITEMS.grayjaws_ruff, rarity: 'unique' }; } },
   { name: 'a revealed item with no icon', case: 'loot-structure', edit: (ms, M2) => { M2.ITEMS.no_icon_relic = { n: 'No Icon Relic', v: 100 }; rowOf(ms, 'grayjaw', 'alpha_fang').id = 'no_icon_relic'; } },
   { name: 'a revealed item the Shop sells', case: 'loot-structure', edit: (ms) => { rowOf(ms, 'grayjaw', 'alpha_fang').id = 'traveler_cape'; } },
-  { name: 'a revealed item that is boss loot', case: 'loot-structure', edit: (ms) => { rowOf(ms, 'grayjaw', 'alpha_fang').id = 'warboss_standard'; } },
   { name: 'a revealed item two tiers up', case: 'loot-structure', edit: (ms) => { rowOf(ms, 'grayjaw', 'iron_helm').id = 'mithril_helm'; } },
   { name: 'a Hearthfind source that reveals', case: 'loot-structure', edit: (ms, M2) => { M2.hfSources.add('grayjaw'); } },
   /* slot homes */

@@ -63,16 +63,12 @@ export { ITEMS, SKILLS_DEF, SHOP_OFFERS, SHOP_LISTED_OFFER_IDS, ARTISAN_RECIPES,
    still contains `needle`, so a row here cannot outlive the code it describes. */
 export const CODED_SOURCES = Object.freeze({
   burnt_food:    Object.freeze({ label: 'a burnt cook', file: 'src/data/core-model.js', needle: "BURNT_ITEM = 'burnt_food'" }),
-  /* dungeon_scrip's row left with the dungeon settle (lane C2 deleted
-     supabase/functions/hr-accrue/dungeon-settle.js; dungeons are paused).
-     hearth_token's row left with the client IAP code (the demolition); it waits
-     on AWAITING_ROSTER below. */
+  /* dungeon_scrip and hearth_token were cut whole with the old dungeons, the scrip and the bond (2026-11-20, plan L10). */
 });
 
 /* ── USES AN ENGINE HARD-CODES ──────────────────────────────────────────────
    Same contract as CODED_SOURCES. */
 export const CODED_USES = Object.freeze({
-  /* (hearth_token's redeem and IAP grant left with the IAP store, 2026-10-14.) */
 });
 
 /* ── VENDOR TRASH — the one use that is selling ──────────────────────────────
@@ -146,30 +142,28 @@ export const AWAITING_ROSTER = Object.freeze([
   'dawnbound_amulet', 'dawnforged_signet',
   'dawnlit_mantle', 'dawnsteel_rod', 'demoncaller_staff', 'dragon_gem_earrings',
   'dragon_relic', 'dragonfang_pike', 'dragonrend_greatblade',
-  'duskwood_rod', 'elderscale_heart', 'elderscale_platebody',
+  'duskwood_rod', 'elderscale_heart',
   'fangdart_recurve', 'gold_amulet',
   'gold_ring', 'heartgarnet_maul', 'hollow_sigil_ring',
   'lexarch_seal',
   'maple_rod',
   'nightstalker_pelt', 'plaguewarden_greaves', 'quiet_coat', 'regent_helm',
-  'riftmaw_carapace', 'riftmaw_husk', 'ruby_signet', 'rubyfire_studs',
+  'riftmaw_husk', 'ruby_signet', 'rubyfire_studs',
   'rune_hammer', 'rune_knife', 'rune_needle', 'runewood_rod',
   'slagheart_core', 'slagheart_platebody',
   'spellstone_ring', 'spidereye_studs', 'steel_hammer', 'steel_knife',
   'steel_needle',
   'verdite_blade', 'verdite_helm', 'verdite_platebody',
   /* tier 7's boots, gloves, legs and belts in three weights left for Carter's Rest (lane/d-morrow-grounds, UNREACHABLE.staged) */
-  'verdite_platelegs', 'void_essence', 'voidheart_robe', 'voidmaw_scepter',
+  'verdite_platelegs', 'void_essence', 'voidmaw_scepter',
   'voidwoven_sigil',
   'warboss_standard', 'warden_girdle', 'warden_seal',
   'wartusk_cleaver', 'watchknight_belt', 'watchknight_body', 'watchknight_boots',
   'watchknight_gloves', 'watchknight_helmet', 'watchknight_pants', 'whispering_codex',
   'widows_fang', 'willow_rod', 'woolen_cloak', 'wyrm_gilding', 'wyrmgilt_mantle',
   'yew_rod',
-  /* The Hearth Token (IAP bond): its redeem, IAP grant and store left with the
-     client in the same demolition; the row stays because hr_items and
-     account_wallet.hearth_tokens still carry it until the M2 migration drops it. */
-  'hearth_token',
+  /* The Hearth Token (the IAP bond) and the three boss-forged body pieces left ITEMS with the old dungeons, the
+     gem rows and the bond (2026-11-20, plan L10). */
 ]);
 
 /* ── OUT OF REACH — a source on paper that no player can use (designer 2026-10-22) ──

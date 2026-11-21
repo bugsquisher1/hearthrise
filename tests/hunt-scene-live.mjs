@@ -1126,17 +1126,20 @@ async function nodeRules(M) {
       return mi;
     });
     const srv = LIVE_H.server(LM, mis, { hunt: 'millrace_sewer' });
-    let most = 0, worlds = 0;
+    let most = 0, worlds = 0, endedAt = null;
     const unnamed = new Set();
     for (let t = LIVE_H.T0 + 10000; t <= LIVE_H.T0 + 600000; t += 10000) {
       if (!srv.commit(t)) continue;
+      /* a hunt that ended (the party fell, or ran out) stores no world: there is no pose to read after it (the CONTROL below still
+         wants a world past 64 units, so an early end is red there, never a silent short run) */
+      if (!srv.inst.world) { endedAt = t - LIVE_H.T0; break; }
       const pose = poseOf(LM, srv.inst);
       const h = M.HSX.huntOf({ read: (k) => (k === 'hunt' ? { session_id: 's-lv28', hunt_id: 'millrace_sewer', pose } : undefined) });
       worlds++;
       most = Math.max(most, pose.units.length);
       for (const p of pose.units) if (p.side === 'monster' && !((h.units.get(p.u) || {}).kind)) unnamed.add(p.u);
     }
-    console.log(`  LV-30 Sewer four at density 12, 10 min: ${worlds} commits, at most ${most} units in one pose; ${unnamed.size} monster(s) the reader left with no kind`);
+    console.log(`  LV-30 Sewer four at density 12, 10 min: ${worlds} commits${endedAt === null ? "" : " (the hunt ended at " + endedAt / 1000 + " s)"}, at most ${most} units in one pose; ${unnamed.size} monster(s) the reader left with no kind`);
     ok('LV-30', most > 64, `CONTROL: the fullest Sewer world listed ${most} units (want > 64: the case the old 64-unit reader cut)`);
     ok('LV-30', unnamed.size === 0, `${unnamed.size} monster(s) of the snapshot reached the scene with no kind (${[...unnamed].slice(0, 6).join(', ')}): drawn nowhere`);
   }

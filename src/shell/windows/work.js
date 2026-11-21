@@ -429,7 +429,7 @@ renderWork.act = function actWork(ctx, body, action, ev, el) {
     const id = el.getAttribute('data-id');
     const raw = el.getAttribute('data-n');
     const n = raw === 'all' ? 'all' : Number(raw);
-    if (id && (BENCH_COUNTS.includes(n) || GATHER_COUNTS.includes(n))) { sc.n[id] = n; repaint(); }
+    if (id && (BENCH_COUNTS.includes(n) || (n !== 'all' && GATHER_COUNTS.includes(n)))) { sc.n[id] = n; repaint(); }   // a gathering row has no All
     return true;
   }
   if (action === 'work-next') {

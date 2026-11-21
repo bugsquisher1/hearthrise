@@ -30,7 +30,6 @@
     "src/core/xp.js skillCapOf",
     "src/core/xp.js totalLevel",
     "src/data/blessings.js blessingPrice",
-    "src/data/boss-forge.js bossTrophiesHeld",
     "src/data/catalogue-coherence.js AWAITING_ROSTER",
     "src/data/catalogue-coherence.js UNREACHABLE",
     "src/data/catalogue-coherence.js UNREACHABLE_CEILING",
@@ -96,9 +95,10 @@
     "src/world/home-scene.js lintLayout"
   ],
   "orphans": [
-    "src/core/botd.js",
+    "src/core/charms.js",
     "src/core/companion-xp.js",
     "src/core/trophies.js",
+    "src/data/bestiary-charms.js",
     "src/data/bestiary.js",
     "src/data/glyphs-extra.js",
     "src/data/hero-rename.js",

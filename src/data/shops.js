@@ -20,10 +20,9 @@
 //   { kind, id, amount }
 //     kind    'currency' | 'item' | 'money'   (cost side)
 //             'currency' | 'item' | 'unlock' | 'capacity'  (grant side)
-//             — kind names WHICH SERVER TABLE a payment debits. It is not
-//               decoration: `hearth_token` is both an hr_items row and a
-//               player_state column, so {currency:'hearth_token'} would be
-//               ambiguous in the one currency that may never be minted.
+//             — kind names WHICH SERVER TABLE a payment debits: an id may be
+//               both an hr_items row and a currency column, so the kind is
+//               never inferred from the id.
 //     amount  a non-negative safe integer in the smallest unit.
 //             money is in CENTS ('$6.99' → 699).
 //
@@ -39,7 +38,6 @@
 // CURRENCIES AND WHERE THEY LIVE SERVER-SIDE
 //   gold           player_state.gold
 //   gems           account_wallet.gems            (one per ACCOUNT)
-//   hearth_tokens  account_wallet.hearth_tokens   (one per ACCOUNT; IAP-only; never PvE-minted)
 //   usd            the platform store, never hr_apply
 // ════════════════════════════════════════════════════════════════════════
 

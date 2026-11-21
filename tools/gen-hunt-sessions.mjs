@@ -371,8 +371,12 @@ export const WORLD_FIELDS_READ = Object.freeze({
    re-fitted rates (the to-hit ratio slowed his kills a little); 1012 (STAGED) is carried whole. */
 /* 1028-spell-rule-hunt-sessions-catalogue (lane/c-spell-rule, 2026-11-21; balance program L17, Tyler 32-2, 32-3, 32-5): hr_hunt_abilities loses Cleave and
    gains Quarry Blow, and Power Strike is no longer the axes'; 1021 (STAGED) is carried whole. */
+/* ...and lane/c-approved-cuts (2026-11-20, build plan L10) FOLDS INTO the newest STAGED forward file (1012, 1021 and now 1028, each carrying
+   the last; ONE forward file per generator): hr_hunt_vendor_value loses the Shop's bids on the Hearth Token and the three boss-forged body
+   pieces, which the approved-cuts items catalogue takes out of hr_items AFTER this file. A forward file after that catalogue could not be
+   re-applied before it (tests/schema-drift.mjs's second apply of the staged tail: its bids would name items hr_items no longer holds). */
 /* 1033-luck-hunt-sessions-catalogue (lane/d-luck-build, 2026-11-20): the eight Lucky ring rows' vendor values; Tomato Soup leaves the supplies (its
-   drop buff cut); 1028 (STAGED) is carried whole. */
+   drop buff cut); 1028 (STAGED, with the approved cuts' bids folded in) is carried whole. */
 export const OUT_NAME = '1033-luck-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;

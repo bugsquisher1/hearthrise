@@ -567,6 +567,8 @@ Every system, source, ground, weapon way, recipe, spell and item gets one verdic
 | **FAILS ITS PURPOSE** | It cannot say what it is for, or it cannot hold its own band | Any one of: (a) it fails checklist line K1. (b) A band it owns is red at three or more checkpoints. (c) It has needed more than two re-tunes inside this program to stay in band | **REDO** the system. This is Tyler's "consider adjusting the systems" |
 | **HEALTHY** | On a best path or within 25% of one somewhere, and not dominant | | keep |
 
+**Nothing planned for later is cut (RULED 11-21, Tyler: "we dont need to cut things if we were planning on putting them in later").** CUT is only for a thing with no place in the plan or the roadmap. A thing the roadmap means to ship, whether it is neglected today, unbuilt, half-built or has no source yet, gets the verdict **BUILD LATER**: it stays, hidden until it works, and is judged on its projected numbers. The cuts Tyler already ruled for things the plan replaces stand.
+
 Marked exempt from NEGLECTED, by name in the atlas: gold sinks, cosmetics, social systems, tutorials. An exempt system is still judged on its own band (a sink on G-8 and G-9).
 
 **How a re-dive reports a verdict.** One row a system, and a row with a blank is not accepted:

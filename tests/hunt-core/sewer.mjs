@@ -2465,10 +2465,13 @@ const mutants = [
 ];
 
 /* fixtures/h1.js `plant`, widened to the world engine and its manifests (the map cases read them):
-   a mutant that cannot load would read as caught, so every path this file imports is copied. */
+   a mutant that cannot load would read as caught, so every path this file imports is copied. It had drifted (lane/c-hollow-proofs
+   2026-11-20): with no src/hunt-view, no market migrations and no alpha envelope, 90 of its mutants "were caught" by Cannot find
+   module / ENOENT, their cases unrun; a throw is no catch now (tests/_mutant-verdict.mjs), so a missing path reads HARNESS. */
+const MARKET_SQL = ['supabase/migrations/2027-03-03-market-bench-gate.sql', 'supabase/migrations/2027-02-13-market-eligibility.sql'];
 function plant(edits) {
   const root = mkdtempSync(join(tmpdir(), 'hunt-sewer-'));
-  for (const d of ['src/core', 'src/data', 'src/world', 'src/session', 'src/shell', 'src/render', 'src/utils', 'assets/world', 'prototypes/hunt-sim-assets/manifest.json']) cpSync(join(ROOT, d), join(root, d), { recursive: true });
+  for (const d of ['src/core', 'src/data', 'src/world', 'src/session', 'src/shell', 'src/render', 'src/utils', 'src/hunt-view', 'assets/world', 'prototypes/hunt-sim-assets/manifest.json', ...MARKET_SQL, 'tests/fixtures/alpha-envelope.json']) cpSync(join(ROOT, d), join(root, d), { recursive: true });
   cpSync(join(ROOT, 'src/build-info.js'), join(root, 'src/build-info.js'));
   for (const [file, from, to] of edits) {
     const f = join(root, file);

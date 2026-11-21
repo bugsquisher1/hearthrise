@@ -620,7 +620,8 @@ const mutants = [
 function plant(edits) {
   const root = mkdtempSync(join(tmpdir(), 'hunt-forest-cave-'));
   /* src/shell, src/session, the two generators and _is-main: staged-until-art reads the Hunts window and the generators */
-  for (const d of ['src/core', 'src/data', 'src/world', 'src/shell', 'src/session', 'assets/world', 'supabase/functions/hr-accrue', 'tests/hunt-core/fixtures/play-ground.mjs',
+  /* + src/render, src/utils, src/hunt-view: the Hunts window imports them (lane/c-hollow-proofs: four staged-until-art mutants threw Cannot find module, read as caught) */
+  for (const d of ['src/core', 'src/data', 'src/world', 'src/shell', 'src/session', 'src/render', 'src/utils', 'src/hunt-view', 'assets/world', 'supabase/functions/hr-accrue', 'tests/hunt-core/fixtures/play-ground.mjs',
     'tools/gen-hunts.mjs', 'tools/gen-hunt-sessions.mjs', 'tools/pack', 'tools/lib', 'tests/_is-main.mjs']) cpSync(join(ROOT, d), join(root, d), { recursive: true });
   cpSync(join(ROOT, 'src/build-info.js'), join(root, 'src/build-info.js'));
   for (const [file, from, to] of edits) {

@@ -80,7 +80,8 @@ const cases = {
   'fire-aoe-hurts-sump-slime': (M) => {
     const fb = M.AD.ABILITIES.fireball, slime = M.MONSTERS.sump_slime, rat = M.MONSTERS.drain_rat;
     if (fb.target !== 'area' || fb.element !== 'ember') return 'fixture: Fireball is ' + fb.target + ' ' + fb.element;
-    if (slime.elements.ember !== 50 || 'ember' in rat.elements) return 'fixture: slime ember ' + slime.elements.ember + ', rat ' + JSON.stringify(rat.elements);
+    /* the slime's half is this case's RULE (the hurt() line below judges it), not its fixture: a fixture line is no catch (lane/c-hollow-proofs) */
+    if ('ember' in rat.elements) return 'fixture: the Drain Rat has an ember modifier ' + JSON.stringify(rat.elements);
     if (M.C.defenceReduction(slime) || M.C.defenceReduction(rat)) return 'fixture: a defence would blur the halving';
     const x = oneHero(M, {}, {}, [{ kind: 'sump_slime', x: 13, y: 3, hp: 50000, maxHp: 50000 }, { kind: 'drain_rat', x: 13, y: 4, hp: 50000, maxHp: 50000 }]);
     const [s, r] = x.w.units.filter((u) => u.side === 'mon');

@@ -863,7 +863,8 @@ for (const mu of dataMutants) {
   R.ok(caughtBy(why), 'mutant "' + mu.name + '" was NOT caught by ' + mu.case + missWhy(why));
 }
 for (const mu of engineMutants) {
-  const p = plant(mu.edits);
+  /* load() reads the server catalogue (supabase/functions/hr-accrue): without it every engine mutant threw Cannot find module (lane/c-hollow-proofs) */
+  const p = plant(mu.edits, PLAY_TREES);
   try {
     let why = null;
     try { why = cases[mu.case](await load(p.root)); } catch (e) { why = 'threw ' + e.message; }

@@ -276,7 +276,8 @@ for (const mu of PICK) {
   const p = plant(mu.edits, [...PLAY_TREES, 'tests/hunt-core/fixtures']);
   try {
     let caught = null;
-    try { if (mu.before) mu.before(); caught = against(await loadPlay(p.root), PIN, mu.only); } catch (e) { caught = 'threw ' + e.message; }
+    /* the planted AUDIT throws by design: its throw is the index-audited rule's line, named so; any other throw is HARNESS (lane/c-hollow-proofs) */
+    try { if (mu.before) mu.before(); caught = against(await loadPlay(p.root), PIN, mu.only); } catch (e) { caught = (/^unit-index audit: /.test(e.message) ? 'index-audited: ' : 'threw ') + e.message; }
     R.ok(caughtBy(caught), 'mutant "' + mu.name + '" was NOT caught' + missWhy(caught));
     if (caught && process.argv.includes('--verbose')) console.log('  caught: ' + mu.name + ' -> ' + caught);
   } finally { p.done(); }

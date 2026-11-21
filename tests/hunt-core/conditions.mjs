@@ -1050,6 +1050,8 @@ const cases = {
       hero: M.heroSetup({ weaponType: wt, options: Object.assign({ role }, options), bar: [], partyRoles: ['tank', 'melee_dps'], lead }) }));
     const out = M.acc.accrueHunt({ instance: { id: '00000000-0000-4000-8000-0000000000af', nextSwingAtMs: from, world: null },
       window: { fromMs: from, toMs: to }, secret: '77', ground, grid, items: M.ITEMS, monsters: M.MONSTERS, members });
+    /* no world back = every hero's hunt ended inside the window (accrue-hunt.js): said as this rule's line, never a decode throw (lane/c-hollow-proofs) */
+    if (!out.world) return 'the duo\'s hunt ended inside 30 min, no lap run (accrued ' + out.accrued + (out.reason ? ', ' + out.reason : '') + ')';
     const w = M.worldstate.decode(JSON.parse(out.world));
     if (w.runs < 3) return 'the duo ran ' + w.runs + ' lap(s) in 30 min, the test needs 3';
     const respawns = out.events.filter((e) => e.type === 'respawn');

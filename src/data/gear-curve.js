@@ -19,7 +19,7 @@
 // THE SAMPLES ARE NOT RE-CUT ONTO THE LINE. Chapter 03 calls the seven tiers samples of Dawnsteel x Level / 110 at Levels 1 to 88; read
 // literally that puts Dawnsteel at 0.8 of its own numbers at 88, where the same chapter makes it the line at 110. The seven keep the
 // numbers they were measured and tuned at, as the curve under its anchor (.claude/coordination/CONFLICTS.md, 2026-11-21: the designer's
-// call, with the literal reading's cost measurable as a patch).
+// call).
 //
 // PURE ESM. Data and arithmetic only. Imports nothing, so the client, the edge and every tool read this one copy.
 // ============================================================================
@@ -105,7 +105,7 @@ export function lineAt(line, level, buy = null, X = GEAR_EXCHANGE.weapon, C = GE
   for (const [f, samples] of Object.entries(line.fields)) nums[f] = L >= C.anchor ? Math.round(samples[last] * scale) : samples[i];
   if (!buy) return nums;
   const bill = billOf(buy, L, X, C), share = Number(buy.share);
-  if (bill > 0 && !(share > 0)) throw new Error('gear-curve: a unique on ' + line.key + ' buys something with no blow share to pay from');
+  if (bill > 0 && !(share > 0)) throw new Error('gear-curve: a unique on ' + line.key + ' buys something but names no blow share to pay with');
   const pay = nums[line.pay] * (1 - (bill > 0 ? bill / share : 0));
   if (!(pay >= 1)) throw new Error('gear-curve: a unique on ' + line.key + ' at Level ' + L + ' buys more than its line holds');
   nums[line.pay] = Math.floor(pay + 1e-9);

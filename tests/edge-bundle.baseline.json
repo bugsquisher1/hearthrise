@@ -143,6 +143,11 @@
         "bytes": 3165883,
         "on": "2026-11-21",
         "why": "+1106 B ceiling, all src/core/hunt pull-cycle.js (heroAtPack: a pack waits for a party passing through) and targeting.js (a fought pack's monster whose target walked out turns on the party) = lane/a-no-fight-strong-four's no-fight stall fix; its comments trimmed 1073 B first"
+      },
+      {
+        "bytes": 3176365,
+        "on": "2026-11-21",
+        "why": "lane/c-pace (FB-8 stage 1, 44 R10/R11): the gear curve src/data/gear-curve.js (8.8 KB, the formula of record with its rates and their measured provenance) reaches the edge through items.js -> gear-tiers.js, which now reads every weapon row through it (+1.7 KB WEAPON_LINES); no served number moves"
       }
     ]
   }

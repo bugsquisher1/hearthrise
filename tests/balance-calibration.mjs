@@ -88,6 +88,25 @@ export const DECLARED_SHIFTS = Object.freeze([
      own ratio. */
   Object.freeze({ after: '2026-11-19', grounds: null, why: 'the pace held by XP a kill: STAT_FORMULA xp a and min x0.88 (lane/d-142-rulings)',
     mult: Object.freeze({ levelXpPerH: 0.88 }) }),
+  /* TWO FORMULAS, NOT CONTENT (lane/c-engine-reds, next run 44863151394 economy-selftests; Tyler 2026-11-21: balance moves at the formula
+     layer). Every hunt in this fixture ran on v0.2.143's engine, so `after` is the last day players hunted it (production frozen until
+     v0.2.144; an export taken before that release lands moves these dates). MEASURED as the rows above: this guard's own replay (2 h x 2
+     seeds, the recorded kits, calibrate.mjs run) on the set before each change and on the change merged, sim over sim, geometric mean
+     within each ground. Nothing else on the set moved these hunts (the set between the two read identical to the digit).
+     (1) TO-HIT AS A RATIO (Tyler 21-1, 21-2; lane/c-tohit-ratio, src/data/to-hit.js toHitRatio: a blow lands 1 - d / 2a, the monster's
+     evasion and aim against the hero's ratings): the lone Warrens hero is landed on less (taken x0.76), Krell's fours land more (kills x1.09).
+     Measured 0f49995fb -> c52b56f7b. */
+  Object.freeze({ after: '2026-11-21', grounds: Object.freeze(['coppercap_warrens']), why: 'to-hit as a ratio (Tyler 21-1, 21-2): src/data/to-hit.js toHitRatio',
+    mult: Object.freeze({ killsPerH: 1, levelXpPerH: 1.011, coinPerH: 0.99, dealtPerH: 1, takenPerH: 0.764, healedPerH: 0.686, storePerH: 0.823 }) }),
+  Object.freeze({ after: '2026-11-21', grounds: Object.freeze(['krells_hold']), why: 'to-hit as a ratio (Tyler 21-1, 21-2): src/data/to-hit.js toHitRatio',
+    mult: Object.freeze({ killsPerH: 1.089, levelXpPerH: 1.089, coinPerH: 1.087, dealtPerH: 1.083, takenPerH: 0.852, healedPerH: 0.83, storePerH: 0.534 }) }),
+  /* (2) THE SPELL RULE (Tyler 21-5, 32-2..32-8; lane/c-spell-rule, plan L17): every cast a share of the caster's blow on a version step,
+     the axes' Rend for Power Strike, Turning Cut, Quarry Blow. Krell's fours kill x1.13; the lone Warrens hero x0.92. Measured
+     16a533a02 -> 45e08b217. */
+  Object.freeze({ after: '2026-11-21', grounds: Object.freeze(['coppercap_warrens']), why: 'the spell rule: every cast a share of the caster\'s blow (Tyler 21-5, 32-x)',
+    mult: Object.freeze({ killsPerH: 0.924, levelXpPerH: 0.925, coinPerH: 0.97, dealtPerH: 0.925, takenPerH: 1.014, healedPerH: 1.131, storePerH: 0.867 }) }),
+  Object.freeze({ after: '2026-11-21', grounds: Object.freeze(['krells_hold']), why: 'the spell rule: every cast a share of the caster\'s blow (Tyler 21-5, 32-x)',
+    mult: Object.freeze({ killsPerH: 1.131, levelXpPerH: 1.131, coinPerH: 1.135, dealtPerH: 1.125, takenPerH: 0.882, healedPerH: 0.908, storePerH: 0.796 }) }),
 ]);
 
 const judgedOf = (fx) => fx.samples.filter((s) => s.kit === 'held' && s.hours >= 1);

@@ -36,13 +36,31 @@ export const stepId = (to, cls) => (to === 'mid' && cls !== 'jewelry' ? 'step:' 
 export const STEP_PAIRS = Object.freeze([['low', 'mid'], ['mid', 'bis']]);
 const lone = (way) => [[way], way === 'hammer' ? 'h' : way];
 
-/* THE RUNS. `blocks` name what each plays; a block's levels default to the run's. */
+/* THE LINEUPS (docs/design/balance-program/52-review-combat.md sections 10.4 and 10.6, the Coordinator 2026-11-21): other fours on Deadly at
+   Levels 60 and 110, MID, two seeds, on the four's own ground, beside the mixed four played the same way. They are the cells L16 has to move
+   (every one held Deadly with no deaths; four mages killed as fast as the mixed four). Never in the band frame (the judge reads the mixed four);
+   matrix-metrics.mjs deriveMatrix reads each against the mixed four. */
+export const LINEUPS = Object.freeze([
+  ['tank', 'healer', 'bow', 'mage'],          // the mixed four (the reference, at the lineups' own seeds)
+  ['hammer', 'healer', 'bow', 'mage'],        // a hammer in front instead of the shield tank
+  ['hammer', 'mage', 'mage', 'mage'],         // a hammer and three mages, no healer
+  ['tank', 'healer', 'mage', 'mage'],         // a second mage in the bow seat
+  ['tank', 'healer', 'hammer', 'mage'],       // a second melee in the bow seat
+  ['tank', 'healer', 'crossbow', 'mage'],     // the crossbow in the bow seat
+  ['mage', 'mage', 'mage', 'healer'],         // nobody in front
+  ['mage', 'mage', 'mage', 'mage'],           // four mages
+].map((s) => Object.freeze(s)));
+export const lineupComp = (styles) => 'lu-' + styles.join('-');
+const LINEUP_BLOCK = Object.freeze({ id: 'lineups', levels: Object.freeze([60, 110]), comps: LINEUPS.map((s) => [s, lineupComp(s)]), gears: ['mid'], tiers: ['deadly'], seeds: 2 });
+
+/* THE RUNS. `blocks` name what each plays; a block's levels default to the run's, its seeds too (`seeds` on a block plays it on more). */
 export const RUNS = Object.freeze({
   /* the nightly matrix: every axis at every checkpoint and the high Levels, the grid's sample */
   full: Object.freeze({ id: 'full', levels: Object.freeze([...STD.CHECKPOINTS, ...HIGH_LEVELS]), seeds: 2, hours: 2, blocks: Object.freeze([
     { id: 'ways', comps: WAYS.map(lone), gears: STD.GEAR_STATE_IDS, tiers: 'all' },
     { id: 'parties', comps: [2, 3, 4].flatMap((n) => compsOf(n)), gears: STD.GEAR_STATE_IDS, tiers: 'all' },
     { id: 'steps', comps: [lone('hammer'), ...compsOf(4)], steps: true, tiers: ['normal'] },
+    LINEUP_BLOCK,
     { id: 'grounds', grounds: true },
   ]) }),
   /* the representative subset (a --diff in a few minutes): every way, every gear state, lone and four, Normal and the hardest tier, every
@@ -53,6 +71,14 @@ export const RUNS = Object.freeze({
     { id: 'tier', comps: [lone('hammer')], gears: ['mid'], tiers: ['hardest'] },
     { id: 'four', comps: compsOf(4), gears: STD.GEAR_STATE_IDS, tiers: ['normal', 'hardest'] },
     { id: 'steps', comps: [lone('hammer')], steps: true, tiers: ['normal'] },
+    LINEUP_BLOCK,
+  ]) }),
+  /* Balance Lab v3's LIVE cells (a slider move re-plays them in the browser, on the bundled engine): every way alone and the four on Normal
+     and the hardest tier, MID, early, at the end of open content and PROJECTED, a quarter hour on one seed. tools/balance-lab/build.mjs --v3
+     resolves them (cell.mjs resolveOnly) so the page plays the matrix's own seats. */
+  live: Object.freeze({ id: 'live', levels: Object.freeze([30, 110, 400]), seeds: 1, hours: 0.25, blocks: Object.freeze([
+    { id: 'ways', comps: WAYS.map(lone), gears: ['mid'], tiers: ['normal'] },
+    { id: 'four', comps: compsOf(4), gears: ['mid'], tiers: ['normal', 'hardest'] },
   ]) }),
 });
 
@@ -94,12 +120,14 @@ export function stepCell(D, K, built, { L, gear, from, styles, ground, slots }) 
  */
 export function planMatrix(D, K, run, o = {}) {
   const cells = [], jobs = [], seen = new Set();
-  const seeds = o.seeds || run.seeds, hours = o.hours || run.hours;
+  const hours = o.hours || run.hours;
   const add = (meta, b) => {
     if (seen.has(meta.key)) return;
     seen.add(meta.key);
+    /* the seeds: the caller's, else the block's, else the run's */
+    const seeds = o.seeds || meta.seeds || run.seeds;
     /* `skills`: each seat's main skill and Defense as played (the career line, skill-lines.mjs, and the gear state's offset) */
-    cells.push({ ...meta, stretch: STD.stretchOf(meta.L).state, kits: b.plans.map((p) => ({ style: p.style, kit: p.kit, temper: p.temper })),
+    cells.push({ ...meta, seeds, stretch: STD.stretchOf(meta.L).state, kits: b.plans.map((p) => ({ style: p.style, kit: p.kit, temper: p.temper })),
       skills: meta.styles.map((st, i) => { const sk = (b.cell.skillsBySeat || [])[i] || {}; return [sk[MAIN[st] || 'melee'] || null, sk.defense || null]; }) });
     for (let s = 0; s < seeds; s++) jobs.push({ id: meta.key + '#' + s, key: meta.key, whatIf: b.whatIf, cell: { ...b.cell, id: 'MATRIX:' + meta.key, hours, seeds: 1, seedBase: s } });
   };
@@ -123,7 +151,7 @@ export function planMatrix(D, K, run, o = {}) {
             }
             continue;
           }
-          for (const gear of block.gears) add({ key: cellKey(L, gear, size, comp, tier), block: block.id, L, gear, party: size, comp, tier, ground, styles }, buildCell(D, K, { L, gear, styles, tier, ground }));
+          for (const gear of block.gears) add({ key: cellKey(L, gear, size, comp, tier), block: block.id, L, gear, party: size, comp, tier, ground, styles, ...(block.seeds ? { seeds: block.seeds } : {}) }, buildCell(D, K, { L, gear, styles, tier, ground }));
         }
       }
     }

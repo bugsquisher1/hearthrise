@@ -129,6 +129,9 @@ docs/reports/css-ab/
 tools/balance-sim/out/
 # tools/balance-program/grid.mjs --resume: the seeds a run has played (JSONL); the committed cache is grid.json / grid-quick.json
 tools/balance-program/*.jsonl
+# tools/balance-program/balance-matrix.mjs --sweep: about 9 MB for the 33 knobs; the store is the balance-sweeps.yml run's artifacts
+# (node tools/balance-program/sweeps-fetch.local.mjs joins them here), and Balance Lab v3's published page carries what it reads
+tools/balance-program/balance-sweeps.json
 
 # the coverage bot's reports (tools/qa/coverage/run.mjs): written per run, never committed
 tools/qa/coverage/out/

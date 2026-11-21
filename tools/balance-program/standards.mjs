@@ -212,11 +212,18 @@ export const BANDS = deep([
   b('R3', 'runway', 'Levels authored a month / Levels the frontier gains a month', {}, 1.0, null, 0.8, null, 'PROPOSED', 28, 'the four gains about 69 a month past Level 110'),
 
   // ── server cost ──
-  b('C1', 'cost', 'database seconds a hunted hero-hour', {}, null, 4, null, 5, 'PROPOSED', 28, '28\'s after-four-changes row'),
-  b('C2', 'cost', 'database seconds an account-day, four heroes at 12 h', {}, null, 190, null, 220, 'PROPOSED', 28, 'about 600 on today\'s engine by interpolation; old G16'),
+  /* SERVER COST (RULED 2026-11-21, call 10 re-ruled: $0.15 an account-month at 1,000 accounts, no higher at 10,000). C2 is COMPUTED from it and 28-platform's ASSUMED
+     list prices: one core carries 30,240 database-seconds a day (0.7 x 86,400 / 2). 1,000: $150 less about $80 of other lines = Medium ($60, 2 shared cores) = 60.
+     10,000: $1,500 less about $1,015 = 2XL ($410, 8 cores) = 24. C1 = C2 / 48 hunted hero-hours. Today about 600; the four planned fixes about 190. */
+  b('C1.1k', 'cost', 'database seconds a hunted hero-hour, at 1,000 accounts', {}, null, 1.25, null, 1.5, 'COMPUTED', 28, 'C2.1k / 48'),
+  b('C1.10k', 'cost', 'database seconds a hunted hero-hour, at 10,000 accounts', {}, null, 0.5, null, 0.6, 'COMPUTED', 28, 'C2.10k / 48'),
+  b('C2.1k', 'cost', 'database seconds an account-day, four heroes at 12 h, at 1,000 accounts', {}, null, 60, null, 70, 'COMPUTED', 28, 'from the ruled $0.15 and 28\'s price list; old G16', { ruled: '2026-11-21', call: 10 }),
+  b('C2.10k', 'cost', 'database seconds an account-day, four heroes at 12 h, at 10,000 accounts', {}, null, 24, null, 30, 'COMPUTED', 28, 'from the ruled $0.15 and 28\'s price list', { ruled: '2026-11-21', call: 10 }),
   b('C3', 'cost', 'journal rows a hero an hour an activity', {}, null, 1, null, 2, 'RULED', 28, '28-2'),
-  b('C4.1k', 'cost', 'dollars an account-month at 1,000 accounts', {}, null, 0.50, null, 0.50, 'RULED', 28, 'call 10', { ruled: '2026-11-21', call: 10 }),
-  b('C4.10k', 'cost', 'dollars an account-month at 10,000 accounts', {}, null, 0.30, null, 0.30, 'RULED', 28, 'call 10', { ruled: '2026-11-21', call: 10 }),
+  b('C4.1k', 'cost', 'dollars an account-month at 1,000 accounts', {}, null, 0.15, null, 0.15, 'RULED', 28, 'call 10, re-ruled: about $150 a month', { ruled: '2026-11-21', call: 10 }),
+  b('C4.10k', 'cost', 'dollars an account-month at 10,000 accounts', {}, null, 0.15, null, 0.15, 'RULED', 28, 'call 10, re-ruled: no higher at 10,000', { ruled: '2026-11-21', call: 10 }),
+  b('C4b.1k', 'cost', 'dollars a month that are not the database, at 1,000 accounts', {}, null, 80, null, 90, 'PROPOSED', 28, 'ASSUMED from 28\'s list prices at 3.3 h; re-read at 12 h'),
+  b('C4b.10k', 'cost', 'dollars a month that are not the database, at 10,000 accounts', {}, null, 1015, null, 1100, 'PROPOSED', 28, 'ASSUMED from 28\'s list prices at 3.3 h; re-read at 12 h'),
   // ── the atlas (50-standards 10.1): read from tools/balance-program/atlas.json ──
   b('A1', 'atlas', 'items with no reachable source', {}, null, 0, null, 0, 'RULED', 23, 'CLAUDE.md 3.5; the data allows 55 today (UNREACHABLE_CEILING)'),
   b('A2', 'atlas', 'sources nothing uses', {}, null, 0, null, 0, 'RULED', 23, 'CLAUDE.md 3.5'),
@@ -331,7 +338,7 @@ export const GRID = deep({
 });
 
 export const GUARD_MAP = deep({ G1: 'P2', G3: 'P7.4', G4: 'P8', G5: 'S4.bis', G6: 'P11.ten', G7: 'G-1', G8: 'G-4', G9: 'X1', G10: 'E7', G12: 'E8', G13: 'D4',
-  G15: 'G-10', G16: 'C2', G18: 'X6' /* re-based to 12 h by lane/d-twelve-hours; now also reads the two-visit day */, G19: 'P7.2', G20: 'X1', G22: 'X6' });
+  G15: 'G-10', G16: 'C2.1k', G18: 'X6' /* re-based to 12 h by lane/d-twelve-hours; now also reads the two-visit day */, G19: 'P7.2', G20: 'X1', G22: 'X6' });
 
 const g = (n, gap, decisions, lanes, guard) => ({ n, gap, decisions, lanes, guard });
 export const GAPS = deep([
@@ -389,7 +396,8 @@ export const TYLER_CALLS = deep([
   { n: 7, ask: 'how far ahead content must be', recommended: '120 days at Early Access, 30 days ahead of the first fours', alternative: '60 days and a long chase with no new grounds', bands: ['R1', 'R2'] },
   { n: 8, ask: 'how much faster two and three heroes are', recommended: 'two 1.2 to 1.5, three 1.5 to 2.0', alternative: 'both near a lone hero, the jump at four', bands: ['P7.2', 'P7.3'] },
   { n: 9, ask: 'Luck on the 12 h clock', recommended: 'keep the hours: day 42 and month 14', alternative: 'stretch the far end to about three years', bands: [] },
-  { n: 10, ask: 'what a player may cost', recommended: '$0.50 an account-month at 1,000, $0.30 at 10,000', alternative: 'another number, or size to the hardware', bands: ['C4.1k', 'C4.10k'] },
+  { n: 10, ask: 'what a player may cost', recommended: '$0.50 an account-month at 1,000, $0.30 at 10,000', alternative: 'another number, or size to the hardware', bands: ['C4.1k', 'C4.10k', 'C2.1k', 'C2.10k'],
+    reRuled: '$0.15 an account-month at 1,000 accounts (about $150 a month) and no higher at 10,000' },
   { n: 11, ask: 'how much sooner bought gold gets you there', recommended: 'at most twice as fast to BiS', alternative: 'no limit on sooner, only on what', bands: ['B7'] },
   { n: 12, ask: 'two visits a day is the free game', recommended: 'yes, and the stamina bar says so', alternative: 'three visits free, so Premium is worth more', bands: [] },
   { n: 13, ask: 'do heroes work in town when they are not hunting', recommended: 'yes: size the town for all 12 rested hours, print it at 4 too', alternative: 'size the town on the real 2 to 6 hours', bands: ['T1', 'T7'] },
@@ -397,7 +405,7 @@ export const TYLER_CALLS = deep([
   { n: 15, ask: 'how much crafting matters', recommended: 'a quarter to a half of the MID to BiS gap, and a non-crafter can buy it', alternative: 'under a tenth', bands: ['T4', 'T5'] },
   { n: 16, ask: 'when something is too strong or too weak', recommended: 'over half the slots or 1.5 times faster; never within a quarter of the best', alternative: 'twice as fast and within half', bands: [] },
   { n: 17, ask: 'may the audit put anything on the cut list', recommended: 'yes, one list to Tyler before any are built', alternative: 'things added in the last month get one more round', bands: [] },
-].map((c) => ({ ...c, ruled: '2026-11-21', pick: PICKED_ALTERNATIVE.includes(c.n) ? 'alternative' : 'recommended' })));
+].map((c) => ({ ...c, ruled: '2026-11-21', pick: c.reRuled ? 're-ruled' : PICKED_ALTERNATIVE.includes(c.n) ? 'alternative' : 'recommended' })));
 
 /** Every problem with the tables, as strings. Empty = well formed. */
 export function validate() {

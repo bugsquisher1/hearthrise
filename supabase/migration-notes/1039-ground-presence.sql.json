@@ -1,0 +1,3 @@
+{
+  "note": "STAGED, NOT APPLIED (lane/c-social, backend-architect, 2026-11-21; FB-12, MM-20, GR-70). hr_ground_presence: the other parties hunting a ground (leader name, Level, clan tag, size; friends and clan mates first; quiet, blocked and not-admitted parties left off), hr_presence_quiet_set (quiet presence for every hero of the account), the section presence, and the index hunt_sessions_open_hunt. The town half of presence (heroes at work drawn while their owner is away) was already the server's. ORDER: 1039, after 1036 (clans.tag). EDGE: none."
+}

@@ -418,6 +418,18 @@ export const LINKS = [
     target: '1004-tick-pack-heroes.sql',
     patchIds: ['client_write_live_set', 'hunt_lease_free'],
   },
+  /* Link 25 (lane/c-approved-cuts, 2026-11-20) — TWO ENTRIES LEAVE, NOTHING ELSE MOVES. 1032-approved-cuts.sql drops the old
+     dungeons and the scrip whole (Tyler 2026-11-20, the endgame dive 22-10, plan L10): hr_dungeon_settle and hr_quartermaster_buy
+     are gone, so their c_engine_allow entries (and the claim comments above them) are REPLACED by a two-line note. A re-created
+     function of either signature granted to hr_engine then reads engine_execute_outside_allowlist, the precedent of link 13
+     (2026-09-23-world-tick-shadow-state-chain.sql dropped hr_tick_settle's old overload and its entry together). Its declared
+     removals in tests/run-sql-tests.mjs PART 1f-ii are exactly the replaced block. Its base is link 24's TARGET. It is the new
+     last toucher. */
+  {
+    base: '1004-tick-pack-heroes.sql',
+    target: '1032-approved-cuts.sql',
+    patchIds: ['old_dungeons_cut'],
+  },
 ];
 
 const OPEN = 'create or replace function public.hr_assert_grant_hygiene(';
@@ -451,6 +463,60 @@ export function innerBody(block) {
    already authorised for." Both justifications below re-derive that claim
    rather than asserting it — see the migration header for the long form. */
 export const PATCHES = [
+  /* ── LINK 25 — THE OLD DUNGEONS AND THE SCRIP LEAVE (a replacement of one block, two entries) ── */
+  {
+    id: 'old_dungeons_cut',
+    name: 'the Quartermaster and dungeon-settle entries of c_engine_allow (link 25)',
+    find: `    -- ── ADDED 2026-09-11 — THE QUARTERMASTER SPEND WRITER ───────────────
+    -- At the HEAD again, an INSERTION, for the same reason as links 1/2/5/6/8: it
+    -- removes nothing, so PART 1f-ii grades this link with an EMPTY
+    -- declared-removals list. Position carries no meaning — check (7) tests
+    -- membership with \`<> all (...)\`.
+    --
+    -- ⚠ NOT READ-ONLY, and the claim rests on SELF-VALIDATING, re-derived. Its
+    -- whole caller-supplied surface is: a character slot, a version, an
+    -- idempotency uuid, and an OFFER ID (a primary key in the generated,
+    -- client-unwritable hr_qm_offers). No item, no qty, no price and no scrip
+    -- amount cross. The PRICE and the ITEM come from hr_qm_offers; the scrip
+    -- balance is the character's OWN player_state row read under the SAME advisory
+    -- lock hr_apply takes; the debit is bounded by that balance
+    -- (insufficient_scrip). NO NEW TARGET: p_user is the parameter the engine
+    -- already passes to hr_apply and hr_state_of. WHY THE ENGINE NEEDS IT:
+    -- dungeon scrip is server-of-record and its SPEND (the Quartermaster) must be
+    -- one server transaction with the item grant, or the b372 half-undo returns —
+    -- and NO other RPC debits player_state.dungeon_scrip, so without this the only
+    -- writer of the spend is the client.
+    'hr_quartermaster_buy(uuid,integer,bigint,uuid,text)',
+    -- ── ADDED 2026-09-10 — THE DUNGEON SETTLE WRITER ───────────────────
+    -- At the HEAD again, an INSERTION, for the same reason as links 1/2/5/6: it
+    -- removes nothing, so PART 1f-ii grades this link with an EMPTY
+    -- declared-removals list. Position carries no meaning — check (7) tests
+    -- membership with \`<> all (...)\`.
+    --
+    -- ⚠ NOT READ-ONLY, and the claim rests on SELF-VALIDATING, re-derived. Its
+    -- whole caller-supplied surface is: a character slot, a version, an
+    -- idempotency uuid, a DUNGEON ID (a primary key in the generated,
+    -- client-unwritable hr_dungeons), a MODE (auto|manual|scavenger), and a
+    -- p_quality CLAMPED server-side to [0,1] that scales SELF-ONLY scrip and
+    -- touches NO loot. No item, no qty, no chance, no price and no timestamp
+    -- cross. Every number it writes comes from hr_dungeons / hr_dungeon_loot or
+    -- the character's OWN row read under the SAME advisory lock hr_apply takes;
+    -- loot is rolled by the server hr_seed PRNG (never a client value); the entry
+    -- KEY is debited from the caller's own player_inventory (the load-bearing
+    -- gate); the cooldown and the per-day scrip cap read now() and the
+    -- append-only ledger. NO NEW TARGET: p_user is the parameter the engine
+    -- already passes to hr_apply and hr_state_of. WHY THE ENGINE NEEDS IT:
+    -- dungeon scrip + run loot are server-of-record (dungeon-settlement.md
+    -- §1/§2) and NO other RPC writes player_state.dungeon_scrip, so without this
+    -- the only writer of the currency is the client.
+    'hr_dungeon_settle(uuid,integer,bigint,uuid,text,text,numeric)',
+`,
+    add: `    -- (hr_quartermaster_buy and hr_dungeon_settle left this list 2026-11-20 with the old dungeons and the scrip, plan L10:
+    --  the approved cuts (lane/c-approved-cuts) drop both, so either re-created and granted to hr_engine reads
+    --  engine_execute_outside_allowlist.)
+`,
+    where: 'replace',
+  },
   {
     id: 'hunt_lease_free',
     name: 'the c_engine_allow array head (link 24)',

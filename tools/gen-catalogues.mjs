@@ -186,7 +186,13 @@ const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'))
 /* MONSTERS A LITTLE HARDER (lane/d-harder-monsters, 2026-11-19; Tyler: "raise HP and damage done by all monsters in the game slightly"): 2027-05-22-cookbook-cut-items-catalogue
    (STAGED, applied first) is the file before this one and this one carries it whole. Only hr_activities moves: each combat activity's max_hp is its monster's
    row, x1.1 on the formula's HP line (src/data/balance-sheet.js STAT_FORMULA). ORDER: after every 2027-05-22 file. */
-const OUT = join(ROOT, 'supabase', 'migrations', '2027-06-05-harder-monsters-items-catalogue.generated.sql');
+/* THE APPROVED CUTS (lane/c-approved-cuts, backend-architect 2026-11-20; Tyler's rulings 22-10, 24-5, 27-7, build plan L10):
+   2027-06-05-harder-monsters-items-catalogue (APPLIED) is the file before this one and this one carries it whole. hr_items loses the
+   Hearth Token (the bond) and the three boss-forged body pieces (src/data/boss-forge.js, cut with the old dungeons); hr_item_slots
+   loses the three pieces' body rows; hr_start_kit is upserted without hearth_tokens (1032-approved-cuts.sql drops that column) and
+   the grant-source check no longer reads the dropped hr_dungeon_loot / hr_qm_offers. ORDER: after 1032-approved-cuts.sql (the
+   column and the two tables are gone first) and after 1028-spell-rule-hunt-sessions-catalogue (the Shop's bids on the four leave there, as in 1012 and 1021). */
+const OUT = join(ROOT, 'supabase', 'migrations', '1033-approved-cuts-items-catalogue.generated.sql');
 /* THE SECOND GENERATED FILE (2026-09-13). hr_item_buffs is emitted as its own
    migration rather than into OUT above, and that is a deliberate operational
    call: OUT is the FOURTH file in tests/schema-apply-order.json and is already
@@ -357,14 +363,13 @@ const startSkillXp = Object.keys(START_SKILL_XP).sort().map((id) => {
   if (Object.keys(START_SKILL_XP).some((k) => SKILLS_DEF[k] && SKILLS_DEF[k].cat === 'combat' && START_SKILL_XP[k] > 0)) {
     die('START_SKILL_XP gives a combat skill a head start: every combat skill starts at level 1');
   }
-  for (const k of ['gold', 'gems', 'hearthTokens', 'hp', 'bankCap', 'farmPlots']) {
+  for (const k of ['gold', 'gems', 'hp', 'bankCap', 'farmPlots']) {
     if (!Number.isInteger(START_CURRENCY[k]) || START_CURRENCY[k] < 0) {
       die(`START_CURRENCY.${k} must be a non-negative integer`);
     }
   }
-  // No PvE path may mint the bond (the Final Directive). A non-zero starting
-  // grant is exactly such a path, and it would be free and repeatable per slot.
-  if (START_CURRENCY.hearthTokens !== 0) die('START_CURRENCY.hearthTokens must be 0 — the Hearth Token is IAP-only');
+  // The Hearth Token bond and its hr_start_kit column were cut whole (2026-11-20, plan L10): no kit names it.
+  if ('hearthTokens' in START_CURRENCY) die('START_CURRENCY.hearthTokens is back: the Hearth Token bond was cut (plan L10)');
 }
 
 /* THE UNCAPPED SKILL CURVE (Melee, Ranged, Magic, Defense, Prayer): total XP to reach each level,
@@ -389,7 +394,6 @@ const feastFoods = Object.entries(ITEMS)
 
 const startKit = {
   gold: START_CURRENCY.gold, gems: START_CURRENCY.gems,
-  hearth_tokens: START_CURRENCY.hearthTokens,
   hp: START_CURRENCY.hp,
   bank_cap: START_CURRENCY.bankCap, farm_plots: START_CURRENCY.farmPlots,
 };
@@ -629,7 +633,6 @@ create table if not exists public.hr_start_kit (
   only_row      boolean primary key default true check (only_row),
   gold          bigint not null check (gold >= 0),
   gems          bigint not null check (gems >= 0),
-  hearth_tokens bigint not null check (hearth_tokens = 0),  -- IAP-only, never minted
   hp            int    not null check (hp >= 0),
   bank_cap      int    not null check (bank_cap between 1 and 100000),
   farm_plots    int    not null check (farm_plots between 0 and 64)
@@ -712,11 +715,11 @@ ${valuesBlock(activities, (r) => `  (${q(r.kind)},${q(r.activity_id)},${q(r.req_
 -- upsert rather than a delete+insert: hr_create_character() reads it, and a
 -- momentary gap where the row does not exist would be a window in which a new
 -- character could be created with no kit at all.
-insert into public.hr_start_kit (only_row, gold, gems, hearth_tokens, hp, bank_cap, farm_plots)
-  values (true, ${n(startKit.gold)}, ${n(startKit.gems)}, ${n(startKit.hearth_tokens)},
+insert into public.hr_start_kit (only_row, gold, gems, hp, bank_cap, farm_plots)
+  values (true, ${n(startKit.gold)}, ${n(startKit.gems)},
           ${n(startKit.hp)}, ${n(startKit.bank_cap)}, ${n(startKit.farm_plots)})
   on conflict (only_row) do update set
-    gold = excluded.gold, gems = excluded.gems, hearth_tokens = excluded.hearth_tokens,
+    gold = excluded.gold, gems = excluded.gems,
     hp = excluded.hp, bank_cap = excluded.bank_cap,
     farm_plots = excluded.farm_plots;
 
@@ -929,10 +932,10 @@ begin
     raise exception 'hr_skill_curve is not the ${skillCurve.length}-row rising curve src/core/xp.js walks';
   end if;
 
-  -- The Hearth Token bond is IAP-only (the Final Directive). A CHECK already
-  -- pins it; this asserts the CHECK is the one that shipped.
-  if (select hearth_tokens from public.hr_start_kit) <> 0 then
-    raise exception 'hr_start_kit grants Hearth Tokens — the bond is IAP-only and must never be minted';
+  -- The Hearth Token bond was cut whole (2026-11-20, plan L10): the kit carries no column for it.
+  if exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'hr_start_kit'
+              and column_name = 'hearth_tokens') then
+    raise exception 'hr_start_kit carries hearth_tokens again - the bond was cut (plan L10)';
   end if;
 
   -- RUNES. Count asserted like every other catalogue, so a re-apply that
@@ -943,10 +946,10 @@ begin
   if v_n <> ${runes.length} then raise exception 'hr_runes has % rows, generator emitted ${runes.length}', v_n; end if;
 
   -- NO GRANT SOURCE NAMES A DELETED ITEM (Security R2, 2026-10-15). A hunt
-  -- kill bound's drop, a dungeon loot row or a Quartermaster offer naming an id
-  -- hr_items no longer holds fails with unknown_item; it is refused here
-  -- instead. (The quest rewards and the login cycle were cut with the
-  -- old-client rewards, 2026-10-22.) hr_hunt_vendor_value is NOT read here: the
+  -- kill bound's drop naming an id hr_items no longer holds fails with
+  -- unknown_item; it is refused here instead. (The quest rewards and the login
+  -- cycle were cut with the old-client rewards, 2026-10-22; the dungeon loot and
+  -- the Quartermaster with the old dungeons and the scrip, 2026-11-20, plan L10.) hr_hunt_vendor_value is NOT read here: the
   -- hunt-sessions catalogue refills it AFTER this file (it needs this file's new
   -- items first) and its own §4 asserts every vendor value names an hr_items row,
   -- so an item this file deletes (the Fox Companion, 2026-10-22) leaves the
@@ -954,10 +957,6 @@ begin
   -- and asserts the same of its own rows in its own §4 (tools/gen-unlock-offers.mjs).
   select count(*) into v_bad from (
     select k as id from public.hr_hunt_kill_bounds b, jsonb_object_keys(coalesce(b.drops, '{}'::jsonb)) k
-    union all
-    select item_id from public.hr_dungeon_loot
-    union all
-    select item_id from public.hr_qm_offers
   ) src where not exists (select 1 from public.hr_items i where i.item_id = src.id);
   if v_bad > 0 then raise exception '% grant-source row(s) name an item missing from hr_items', v_bad; end if;
 

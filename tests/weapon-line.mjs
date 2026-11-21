@@ -71,11 +71,13 @@ const MAGE_BAR = 1.3;
 const LINE_LEVELS = Object.freeze([110, 112, 125, 145, 165, 185, 200]);
 const DUSKWEAVE = Object.freeze(['duskweave_helmet', 'duskweave_body', 'duskweave_pants', 'duskweave_boots', 'duskweave_gloves', 'duskweave_belt']);
 /* WL11: the Levels a bane's class share is read at, the Levels and shares more accuracy is measured at, and how far over its share a bane rate
-   (or over its worth the accuracy rate) may sit before it reads stale */
+   (or over its worth the accuracy rate) may sit before it reads stale. A bane's slack is the engine's whole-point flooring: on the measure a
+   bane reads up to 8% over its class's share (MEASURED 2026-11-21: a humanoid bane on the sword's line at Level 125, 1.076 of a share of 1),
+   so a rate re-derived for a real piece that WL3 found over its line may sit that far over and still be current. */
 const SHARE_LEVELS = Object.freeze([GEAR_CURVE.anchor, 117, 140, 165, 200, 300]);
 const ACC_LEVELS = Object.freeze([112, 117, 125, 140, 165, 200, 300]);
 const ACC_SHARES = Object.freeze([0.1, 0.2, 0.5]);
-const BANE_SLACK = 0.02, ACC_SLACK = 1.25;
+const BANE_SLACK = 0.1, ACC_SLACK = 1.25;
 const round5 = (n) => Math.max(1, Math.round(n / 5) * 5);
 
 function srcFiles(dir, out = []) {

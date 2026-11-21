@@ -4,9 +4,9 @@
   "pins.cutRows: rows a cut or dark lever carries (G14: a count over its pin is red). cost: a reference account's day (G16: 5% over is red). values: every line's numbers when written (the report prints what moved)."
  ],
  "schema": "hearthrise.balance-guard/1",
- "commit": "f5c847a95",
+ "commit": "3163b7013",
  "at": "2026-11-20",
- "why": "re-issued 30-plan E: K1 gate 0.9-1.1 XP / 0.8-1.2 gold; G24 rows keyed by the full ground id",
+ "why": "lane/c-levels-7-9 (L05): G6 reads the new player as played (LEVEL_PACE.newPlayer, life.mjs --policy new, calibrated on the retention dive within 4%) and is red from here; Levels 7-9 re-cut (24,000/35,500/40,500), the total to 16 held",
  "pins": {
   "cutRows": {
    "food-xp-buffs": 11,
@@ -116,8 +116,8 @@
    "hold-10": 48.8
   },
   "G6": {
-   "Level 10": 6.12,
-   "longest under 10": 2.2
+   "Level 10": 6.76,
+   "longest under 10": 2.06
   },
   "G7": {
    "thicket": 4500,
@@ -136,7 +136,7 @@
   },
   "G9": {
    "slot 2": 0.674,
-   "ruled 400k": 0.898
+   "ruled 400k": 0.899
   },
   "G10": {
    "glade lone xp": 1.052,
@@ -185,8 +185,8 @@
   "G15": {},
   "G16": {},
   "G17": {
-   "krell": 57.778,
-   "tower": 50.896
+   "krell": 72.333,
+   "tower": 62.814
   },
   "G18": {
    "new": 2,
@@ -209,12 +209,12 @@
    "ford three": 3.18
   },
   "G20": {
-   "shop slot 2 300.0k": 1.76,
-   "shop slot 3 750.0k": 3.282,
-   "shop four heroes 1500.0k": 7.043,
-   "ruled slot 2 400.0k": 2.203,
-   "ruled slot 3 1500.0k": 5.246,
-   "ruled four heroes 4000.0k": 15.275
+   "shop slot 2 300.0k": 1.747,
+   "shop slot 3 750.0k": 3.269,
+   "shop four heroes 1500.0k": 7.03,
+   "ruled slot 2 400.0k": 2.192,
+   "ruled slot 3 1500.0k": 5.236,
+   "ruled four heroes 4000.0k": 15.265
   },
   "G21": {},
   "G22": {
@@ -263,6 +263,11 @@
    "at": "2026-11-20",
    "commit": "f5c847a95",
    "why": "re-issued 30-plan E: K1 gate 0.9-1.1 XP / 0.8-1.2 gold; G24 rows keyed by the full ground id"
+  },
+  {
+   "at": "2026-11-20",
+   "commit": "3163b7013",
+   "why": "lane/c-levels-7-9 (L05): G6 reads the new player as played (LEVEL_PACE.newPlayer, life.mjs --policy new, calibrated on the retention dive within 4%) and is red from here; Levels 7-9 re-cut (24,000/35,500/40,500), the total to 16 held"
   }
  ]
 }

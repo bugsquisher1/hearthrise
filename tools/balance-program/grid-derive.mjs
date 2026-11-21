@@ -477,8 +477,10 @@ export async function selftest({ ROOT, loadGridData, loadKits, readGrid, quick }
   {
     const g = clone(); const c = find((x) => x.gear === 'bis' && x.party === 1 && x.tier === 'deadly'); g.cells[c.key].rates.levelXpPerH *= 50;
     const got = [...redAt(judgeGrid(D, g, { K }), 'P5')].filter((a) => !redAt(clean, 'P5').has(a));
-    const ok = !got.length; if (!ok) fails++;
-    console.log('  ' + (ok ? 'SILENT ' : 'NOISY  ') + 'P5 on a harder tier: a lone BiS Deadly cell at 50 times its Level XP' + (ok ? '' : ': P5 newly red at ' + got.join(', ')));
+    /* and no P5 row is read off Normal at all (a cell already red there would hide the plant above) */
+    const off = clean.rows.filter((r) => r.band === 'P5' && !/ normal$/.test(String(r.at)));
+    const ok = !got.length && !off.length; if (!ok) fails++;
+    console.log('  ' + (ok ? 'SILENT ' : 'NOISY  ') + 'P5 on a harder tier: a lone BiS Deadly cell at 50 times its Level XP, and no P5 row off Normal' + (ok ? '' : ': P5 newly red at ' + (got.join(', ') || 'nothing') + '; ' + off.length + ' row(s) off Normal'));
   }
   /* S2 and S7 are judged on the pool: deaths planted across Normal MID cells (no one cell's sample can see them) must turn both red */
   {

@@ -175,8 +175,10 @@ export async function loadKits(root, opts = {}) {
       reasons[slot] = id ? (state === 'bis' ? 'highest tier, then grade, then the perk pair' : 'the plain piece of the highest tier') + ' (tier ' + tierOf(id) + (ITEMS[id].jewelGrade ? ', ' + ITEMS[id].jewelGrade + ' ' + Object.keys(ITEMS[id].jewelPerks || {}).join('+') : '') + ')' : 'none gettable at this Level';
     }
     if (state === 'low') {
-      set.ammo = S.role === 'ranger' ? 'bronze_arrows' : null;
-      reasons.ammo = S.role === 'ranger' ? 'the store\'s basic arrow' : 'none (the store sells no whetstone)';
+      /* D-3 ruling 2: the Shop's basic ammo for every way that spends one: the bow's Bronze Arrows, the melee ways' Coarse Whetstones */
+      const melee = S.role === 'tank' || S.role === 'melee_dps';
+      set.ammo = S.role === 'ranger' ? 'bronze_arrows' : melee && ITEMS.coarse_whetstone ? 'coarse_whetstone' : null;
+      reasons.ammo = S.role === 'ranger' ? 'the store\'s basic arrow' : melee ? 'the Shop\'s Coarse Whetstone (D-3)' : 'none (a caster spends no ammo)';
     } else if (set.ammo) reasons.ammo = 'the best its skill may spend (skill ' + mainSkill + ')';
     return finish({ level: L, state, style, stretch: stretch.state, label: stretch.label, ground, opts, set, reasons });
   }

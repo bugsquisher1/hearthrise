@@ -1,13 +1,14 @@
 # ============================================================================
-# balance-arrival — THE COUPLED ARRIVAL-KIT RUN (13-build-plan.md D-3, FB-3).
+# balance-arrival — THE ARRIVAL KIT'S CONFIRM RUN (08-designer-d3.md section 1.5, FB-3).
 #
-# tools/balance-program/arrival-kit.mjs: the armor curve (x1, x2.4), the
-# arrival kit's skill offset (-8, -4, 0) and the jewelry share (100, 50, 25,
-# 0% of GR-38's plain numbers) on the proposed game, the lone hammer and the
-# standard four on Normal at eleven Levels, 4 seeds x 8 hours. 14
-# configurations in two parts each, one job a part. A MEASUREMENT, never a
-# gate, and never on a lane, set, release or main push. A cell that ended
-# no_fight is a TOOL RED (audit A-0): its job fails and still uploads.
+# tools/balance-program/arrival-kit.mjs: LOW, MID, MID with no jewelry and BIS
+# at the armor curve x2.4 (the ruling) and x1.6 (its switch rule), on the
+# proposed game with D-3's rows in, the lone hammer and the standard four on
+# Normal at eleven Levels with the gear steps at 60, 185 and 400, 4 seeds x
+# 8 hours. 8 configurations in two parts each, one job a part. A
+# MEASUREMENT, never a gate, and never on a lane, set, release or main push.
+# A cell that ended no_fight is a TOOL RED (audit A-0): its job fails and
+# still uploads.
 #
 # Run it:   git push origin HEAD:refs/heads/balance-arrival/<lane>
 # Join:     gh run download <id> --dir <dir> --pattern 'arrival-*'

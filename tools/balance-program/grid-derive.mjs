@@ -348,7 +348,8 @@ export function judgeGrid(D, grid, o = {}) {
     if (id === 'E3') { for (const g of T.gearRows) add(band, 'Level ' + g.L + ' (band ' + g.band + ')', g.e3, { shown: Math.round(g.lowToMid) + ' / ' + Math.round(g.bandNet || 0), ...unpriced(g) }); continue; }
     if (id === 'E1.levels') { const B = o.K ? o.K.BANDS : []; for (let i = 1; i < B.length; i++) add(band, B[i - 1] + '->' + B[i], B[i] - B[i - 1]); continue; }
     if (id === 'E1.weapon') { for (const g of T.gearRows) add(band, 'Level ' + g.L, g.weaponStep); continue; }
-    if (id === 'E1.armor') { for (const g of T.gearRows) add(band, 'Level ' + g.L, g.armorStep); continue; }
+    /* D-3 D3-1: under w.bandStepFrom the state back is a ladder tier (9 to 18% at x2.4), a report; the band step from there is graded */
+    if (id === 'E1.armor') { for (const g of T.gearRows) add(band, 'Level ' + g.L, g.armorStep, w.bandStepFrom && g.L < w.bandStepFrom && Number.isFinite(g.armorStep) ? { status: 'report', wouldBe: statusOf(g.armorStep, band), why: 'a ladder tier step under Level ' + w.bandStepFrom + ' (D-3, D3-1): the band step is graded from there' } : {}); continue; }
     if (/^E2\./.test(id)) { for (const g of T.gearRows.filter((x) => x.L >= w.levels[0] && x.L <= w.levels[1])) add(band, 'Level ' + g.L, g.e2.share, { shown: (g.e2.median ? g.e2.median.toFixed(1) + ' h' : '-') + (g.e2.elsewhere.length ? ', ' + g.e2.elsewhere.length + ' piece(s) not on this ground' : '') }); continue; }
     if (/^E6\./.test(id)) {
       for (const g of T.gearRows.filter((x) => x.L >= w.levels[0] && x.L <= w.levels[1])) { const v = g.bandHoursPace; const st = statusOf(v, band); add(band, 'band ' + g.band + ' (pace seat)', v, st === 'ok' ? {} : { status: 'bound', why: 'an upper bound: band starts only; rungs and jewelry change in between (a played life judges it)' }); }

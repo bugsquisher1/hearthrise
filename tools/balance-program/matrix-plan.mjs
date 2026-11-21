@@ -224,7 +224,26 @@ export function applyGearCurve(K, built, meta, g) {
   built.whatIf = { ...(built.whatIf || {}), items: { ...((built.whatIf && built.whatIf.items) || {}), ...items } };
   return built;
 }
-const applyPlan = (K, built, meta, plan) => (plan && plan.gearCurve ? applyGearCurve(K, built, meta, plan.gearCurve) : built);
+/**
+ * GR-38'S STAND-IN BY LEVEL (D-3 ruling 6, 08-designer-d3.md section 1.4): patches/items-2.json's tier 7 numbers play only from `js.from` (Level
+ * 110), times the scale of the cell's Level (0.5 to 185, 1 from 186); under it the four rows play as the tree holds them (K.ITEMS is the tree's).
+ * A what-if on the cell's item rows: the scratch copy keeps the patched rows, the cell reads its Level's.
+ */
+export function applyJewelryStandIn(K, built, meta, js) {
+  const f = meta.L < js.from ? null : [...js.scale].reverse().find(([l]) => meta.L >= l)[1];
+  const items = {};
+  for (const [id, row] of Object.entries(js.rows)) {
+    items[id] = Object.fromEntries(Object.entries(row).map(([k, v]) => [k, f === null ? (K.ITEMS[id] && typeof K.ITEMS[id][k] === 'number' ? K.ITEMS[id][k] : 0) : k === 'critB' ? v * f : Math.round(v * f)]));
+  }
+  built.whatIf = { ...(built.whatIf || {}), items: { ...((built.whatIf && built.whatIf.items) || {}), ...items } };
+  return built;
+}
+const applyPlan = (K, built, meta, plan) => {
+  let b = built;
+  if (plan && plan.gearCurve) b = applyGearCurve(K, b, meta, plan.gearCurve);
+  if (plan && plan.jewelryStandIn) b = applyJewelryStandIn(K, b, meta, plan.jewelryStandIn);
+  return b;
+};
 
 /**
  * Every cell of a run: { cells: [meta], jobs: [{ id, key, cell, whatIf }] }. `D` the grid's data (loadGridData), `K` its kits. `only`

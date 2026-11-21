@@ -76,7 +76,9 @@ export const GEAR_STATES = deep({
     idea: 'what a hero wears the day it enters a band, having bought nothing; also the player who never upgrades',
     ladder: { tierOffset: -1, only: 'all', underLevel15: 'start-kit' }, uniques: false, chest: false,
     jewelry: 'none', cloak: 'none', temper: { blows: 0, armor: 0 }, linings: 'none',
-    skills: { vsCareerLine: -8, fullFromLevel: 30, zeroAtLevel: 10 }, ammo: 'store-basic', projectedSources: false,
+    /* D-3 (08-designer-d3.md ruling 2): the mid kit one band back in GEAR only, skills on the career line, the Shop's basic ammo for every way
+       (Bronze Arrows for the bow, Coarse Whetstones for the melee ways) */
+    skills: { vsCareerLine: 0 }, ammo: 'store-basic', projectedSources: false,
   },
   mid: {
     name: 'MID: the kit the game hands you',
@@ -172,7 +174,7 @@ export const BANDS = deep([
   b('S3.bis', 'survival', 'lowHpTypical', { gear: 'bis', tier: 'dangerous', inBand: true, party: 4 }, 0.55, 0.75, 0.45, null, 'PROPOSED', 21, '', { reportOnly: 'the 2026-10-25 health row and the 2026-11-21 death count cannot both hold; S6 judges the tier on the death sample (12-balance-pass.md section 5, rows 2 and 3)' }),
   b('S4.mid', 'survival', 'lowHpTypical', { gear: 'mid', tier: 'deadly', inBand: true, party: 4 }, 0.15, 0.40, 0.10, 0.50, 'RULED', 21, '2026-10-25 "Extreme", kept by call 5', { ruled: '2026-11-21', call: 5, reportOnly: 'the 2026-10-25 health row and the 2026-11-21 death count cannot both hold; S6 judges the tier on the death sample (12-balance-pass.md section 5, rows 2 and 3)' }),
   b('S4.bis', 'survival', 'lowHpTypical', { gear: 'bis', tier: 'deadly', inBand: true, party: 4 }, 0.35, 0.50, 0.30, 0.55, 'RULED', 21, 'old G5', { reportOnly: 'the 2026-10-25 health row and the 2026-11-21 death count cannot both hold; S6 judges the tier on the death sample (12-balance-pass.md section 5, rows 2 and 3)' }),
-  b('S5.low', 'survival', 'damageTaken / mid', { gear: 'low' }, 1.15, 1.35, null, 1.50, 'PROPOSED', 23, 'an armor step is 3 to 5% (RULED); measured 13 to 26% a tier early'),
+  b('S5.low', 'survival', 'damageTaken / mid', { gear: 'low' }, 1.15, 1.35, null, 1.50, 'PROPOSED', 23, 'an armor step is 3 to 5% (RULED); measured 13 to 26% a tier early', { reportOnly: 'D-3 ruling 3 (08-designer-d3.md): a report, never a grade; an arrival is graded by S2.low, S1.low, P3 and S6' }),
   b('S5.bis', 'survival', 'damageTaken / mid', { gear: 'bis' }, 0.80, 0.90, 0.70, null, 'RULED', 23, 'call 3', { ruled: '2026-11-21', call: 3 }),
   /* DEATHS IN 1,000 HUNTED HOURS ON THE HARDER TIERS, the same count at every checkpoint (RULED 2026-11-21, call 5: a flat count, not XP lost).
      MID is the 10-25 ruling's Hard and Extreme rows. LOW and BiS are the auditor's numbers. Normal is S2. */
@@ -209,7 +211,8 @@ export const BANDS = deep([
   // ── gear ──
   b('E1.levels', 'gear', 'Levels between major upgrades', {}, 15, 25, 10, 30, 'RULED', 23, '2026-10-25 section 8'),
   b('E1.weapon', 'gear', 'hunting performance a weapon step', {}, 0.05, 0.08, 0.03, 0.10, 'RULED', 23, '2026-10-25 section 8'),
-  b('E1.armor', 'gear', 'less damage an armor step', {}, 0.03, 0.05, 0.02, 0.08, 'RULED', 23, '2026-10-25 section 9'),
+  /* D-3 (08-designer-d3.md section 1.4, D3-1): graded on the band step (+17%), from Level 110; a ladder tier step under it prints as a report */
+  b('E1.armor', 'gear', 'less damage an armor step', { bandStepFrom: 110 }, 0.03, 0.05, 0.02, 0.08, 'RULED', 23, '2026-10-25 section 9; D-3 D3-1'),
   b('E2.toKrell', 'gear', 'low to mid: share of band hours until every slot has dropped', { levels: [1, 110] }, null, 0.15, null, 0.25, 'PROPOSED', 23, '2026-11-20 generous to Krell'),
   b('E2.after', 'gear', 'low to mid: share of band hours until every slot has dropped', { levels: [110, 400] }, null, 0.35, null, 0.50, 'PROPOSED', 23, '2026-11-20 rare after'),
   b('E3', 'gear', 'low to mid: gold / the band\'s net gold', {}, null, 0.10, null, 0.20, 'PROPOSED', 23, 'MID is what the game hands you'),

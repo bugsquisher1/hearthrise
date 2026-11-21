@@ -15,7 +15,7 @@
 import { escapeHtml as esc } from '../utils/dom.js';
 import { AUTH_COPY } from '../net/auth.js';
 import { PASSWORD_MIN_LENGTH } from '../data/account-rules.js';
-import { MOBILE_QUERY } from '../world/core/camera.js';
+import { MOBILE_QUERY } from '../render/mobile-query.js';
 import { LEGAL_DOCS, openLegal } from './legal-reader.js';
 import { BUILD } from '../build-info.js';
 

@@ -72,7 +72,7 @@ const atlasImage = (set) => { if (!SHEETS.has(set)) SHEETS.set(set, decodePNG(re
 async function load(base) {
   const imp = (p) => import(pathToFileURL(join(base, p)).href + V);
   const [grid, zsort, roofs, shadows, camera, mapc, path, wang, route, compose, nullb, bookm, maps, terrain, hunts, sets, budget,
-    sceneSets, outfits, grounds, vfx, layouts, homeScene, chunksM, canvasM, platesM, bannerM, viewSheets, imagesM, gv, rough, folk, stations] = await Promise.all([
+    sceneSets, outfits, grounds, vfx, layouts, homeScene, chunksM, canvasM, platesM, bannerM, viewSheets, imagesM, gv, rough, folk, stations, mobileQ] = await Promise.all([
     'src/world/core/grid.js', 'src/world/core/zsort.js', 'src/world/core/roofs.js', 'src/world/core/shadows.js',
     'src/world/core/camera.js', 'src/world/core/map-compile.js', 'src/world/core/path.js', 'src/world/core/wang.js',
     'src/world/core/scene-route.js', 'src/world/core/compose.js', 'src/world/render/null-backend.js',
@@ -81,7 +81,7 @@ async function load(base) {
     'src/world/scene-sets.js', 'src/data/hunt-outfits.js', 'src/data/hunt-grounds.js', 'src/data/hunt-vfx.js',
     'src/data/world/house-layouts.js', 'src/world/home-scene.js', 'src/world/render/ground-chunks.js', 'src/world/render/canvas-backend.js',
     'src/world/core/plates.js', 'src/world/idle-banner.js', 'src/world/view-sheets.js', 'src/render/images.js', 'src/world/core/ground-variety.js', 'src/world/core/ground-rough.js', 'src/data/world/town/folk.js',
-    'src/data/world/stations.js',
+    'src/data/world/stations.js', 'src/render/mobile-query.js',
   ].map(imp));
   const manifests = {};
   /* every set on any grid (atlas-sets.js LOADED_SETS): the sandbox map lints against its own grid's art */
@@ -90,7 +90,7 @@ async function load(base) {
   const atlasReaders = readdirSync(join(base, 'src'), { recursive: true }).map((f) => String(f).replace(/\\/g, '/'))
     .filter((f) => f.endsWith('.js') && /import\s*\{[^}]*\bATLAS_SETS\b[^}]*\}\s*from/.test(readFileSync(join(base, 'src', f), 'utf8')));
   return { grid, zsort, roofs, shadows, camera, mapc, path, wang, route, compose, nullb, bookm, maps, terrain, hunts, budget, manifests, atlasReaders,
-    sceneSets, outfits, grounds, vfx, layouts, homeScene, atlasSets: sets, chunksM, canvasM, platesM, bannerM, viewSheets, imagesM, gv, rough, folk, stations,
+    sceneSets, outfits, grounds, vfx, layouts, homeScene, atlasSets: sets, chunksM, canvasM, platesM, bannerM, viewSheets, imagesM, gv, rough, folk, stations, mobileQ,
     canvasSrc: readFileSync(join(base, 'src/world/render/canvas-backend.js'), 'utf8'),
     worldCss: readFileSync(join(ROOT, 'src/styles/world.css'), 'utf8'), tokensCss: readFileSync(join(ROOT, 'src/styles/tokens.css'), 'utf8') };
 }
@@ -412,7 +412,7 @@ async function check(M) {
       ok('C10', !jump, stage + ': walking out of the Hearth\'s framing the camera jumps: ' + JSON.stringify(jump));
     }
     ok('C5', M.camera.fpsFor(true) === 30 && M.camera.fpsFor(false) === 60, '30 fps on the phone query, 60 elsewhere');
-    ok('C5', M.camera.MOBILE_QUERY === '(max-width: 540px), (max-height: 540px) and (max-width: 1024px)' && M.worldCss.includes('@media ' + M.camera.MOBILE_QUERY),
+    ok('C5', M.mobileQ.MOBILE_QUERY === '(max-width: 540px), (max-height: 540px) and (max-width: 1024px)' && M.worldCss.includes('@media ' + M.mobileQ.MOBILE_QUERY),
       'the 30 fps query must be the canonical mobile query world.css uses');
   });
 

@@ -64,7 +64,7 @@ import { dispatchBlock, runDispatch } from '../loot-dispatch.js';
 import { toolLossWords } from '../town-work.js';
 import { t } from '../../render/player-text.js';
 import { heroGroundOf } from '../widgets/first-target.js';
-import { MOBILE_QUERY } from '../../world/core/camera.js';
+import { MOBILE_QUERY } from '../../render/mobile-query.js';
 import { featuresOf } from '../../session/character-sections.js';
 
 const SCRATCH = new WeakMap();

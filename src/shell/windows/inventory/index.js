@@ -25,7 +25,7 @@
 // player was shown last time (the residue `bagSeen`).
 // ════════════════════════════════════════════════════════════════════════
 import { text, cls, prop, style } from '../../../render/paint.js';
-import { MOBILE_QUERY } from '../../../world/core/camera.js';
+import { MOBILE_QUERY } from '../../../render/mobile-query.js';
 import { whole, gold } from '../../../render/format.js';
 import { closeFloatMenu } from '../float-menu.js';
 import { stateOf } from './state.js';

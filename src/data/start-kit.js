@@ -44,7 +44,6 @@
 export const START_CURRENCY = Object.freeze({
   gold: 500,
   gems: 0,
-  hearthTokens: 0,          // the IAP bond. NEVER minted by a PvE path.
   hp: 150,
   bankCap: 100,
   farmPlots: 2,             // the Camp's plots (homestead-tiers.js PROPERTY_TIERS[0]); the ladder grants more

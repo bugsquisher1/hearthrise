@@ -148,8 +148,7 @@ export function joinHero(world, ground, hero, seat) {
 
 /**
  * A HERO LEAVES the instance (its session ended): the unit goes, every monster on
- * it drops its target (the next sub-step turns it on the party while its pack is in
- * the fight: targeting.js chooseTargets), and a pack it held loses its holder. The pull leader is
+ * it drops its target, and a pack it held loses its holder. The pull leader is
  * re-read (pullLeader); with no hero left the party is gone and `leader` is null.
  */
 export function leaveHero(world, unitId) {

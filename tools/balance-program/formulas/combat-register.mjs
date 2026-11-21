@@ -8,11 +8,17 @@
 //                                                                       generated tables inside docs/design/balance-program/41-formulas-combat.md
 //                                                                       (between its GENERATED markers; the prose around them is hand-written)
 //   node tools/balance-program/formulas/combat-register.mjs --check    exit 1 when formulas-combat.json or the doc's tables are not what this file writes
+//                                                                       (compared as text: an LF and a CRLF checkout read the same)
+//   node tools/balance-program/formulas/combat-register.mjs --selftest plants CRLF and changed rows on in-memory texts: CRLF alone must read in
+//                                                                       step, a changed row or value must still read STALE; exit 1 when a case fails
 //
 // READ-ONLY toward the game: it imports nothing from src/ and changes no game file. A row is evidence a person read (file:line at
 // set/v0.2.144 e6ea19170), so a line number can go stale: the id and the symbol name are the durable half.
 // CLASS: 1 foundational mechanic · 2 content parameter (belongs in data) · 3 intentional special mechanic (needs Tyler's explicit yes)
 //        · 4 accidental complexity (eliminate). STATUS: C confirmed (the code path was read, and measured where it says so) · H hypothesis.
+// mutant-anchors: none — --selftest plants CRLF and changed rows on in-memory texts; no tracked file is patched
+// ci-step: economy-selftests | Combat formula register - a CRLF checkout reads in step, a changed row or value reads STALE
+// ci-run: node tools/mutant-gate.mjs node tools/balance-program/formulas/combat-register.mjs --selftest
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { dirname, resolve, join } from 'node:path';
@@ -303,19 +309,55 @@ function docWith(text, t) {
   return out;
 }
 
+/* LINE ENDINGS. This file writes LF. A checkout with core.autocrlf hands the doc and the register back with CRLF, so every read goes
+   through lf(): the comparison is on the text, never on how a checkout ends its lines (2026-11-21: --check read STALE on a Windows
+   checkout whose tables matched). */
+const lf = (s) => s.replace(/\r\n/g, '\n');
+/** What --check calls stale, from the two files' texts (null = the file is missing). Pure, so --selftest can plant on it. */
+function staleOf(jsonText, docText, json) {
+  const stale = [];
+  if (jsonText == null || lf(jsonText) !== json) stale.push('formulas-combat.json');
+  if (docText == null || lf(docText) !== docWith(lf(docText), tables())) stale.push('41-formulas-combat.md tables');
+  return stale;
+}
+const read = (p) => (existsSync(p) ? readFileSync(p, 'utf8') : null);
+
 const bad = problems();
 if (bad.length) { console.error('combat-register: ' + bad.join('\n  ')); process.exit(2); }
 const json = JSON.stringify(register(), null, 1) + '\n';
 const mode = process.argv[2];
 if (mode === '--write') {
   writeFileSync(JSON_FILE, json);
-  if (existsSync(DOC_FILE)) writeFileSync(DOC_FILE, docWith(readFileSync(DOC_FILE, 'utf8'), tables()));
+  if (existsSync(DOC_FILE)) writeFileSync(DOC_FILE, docWith(lf(readFileSync(DOC_FILE, 'utf8')), tables()));
   console.log('wrote ' + JSON_FILE + (existsSync(DOC_FILE) ? ' and the tables of ' + DOC_FILE : ' (no doc yet)'));
 } else if (mode === '--check') {
-  const stale = [];
-  if (!existsSync(JSON_FILE) || readFileSync(JSON_FILE, 'utf8') !== json) stale.push('formulas-combat.json');
-  if (!existsSync(DOC_FILE) || readFileSync(DOC_FILE, 'utf8') !== docWith(readFileSync(DOC_FILE, 'utf8'), tables())) stale.push('41-formulas-combat.md tables');
+  const stale = staleOf(read(JSON_FILE), read(DOC_FILE), json);
   if (stale.length) { console.error('combat-register: STALE ' + stale.join(', ') + ' (run --write)'); process.exit(1); }
   console.log('combat-register: in step');
+} else if (mode === '--selftest') {
+  /* Plants on in-memory texts only: no file is written. The doc is built from this file's own tables, so the cases do not depend on
+     the checkout being in step. */
+  const crlf = (s) => lf(s).replace(/\n/g, '\r\n');
+  const t = tables();
+  const doc = docWith(Object.keys(t).map((k) => '<!-- GENERATED:' + k + ' (tools/balance-program/formulas/combat-register.mjs --write) -->\n<!-- END GENERATED:' + k + ' -->').join('\nprose\n') + '\n', t);
+  const row = '| ' + FORMULAS[0].id + ' |';
+  const cases = [
+    ['LF, in step', staleOf(json, doc, json), 0],
+    ['CRLF checkout of both files, in step', staleOf(crlf(json), crlf(doc), json), 0],
+    ['mixed endings in the doc, in step', staleOf(json, doc.replace('\n', '\r\n'), json), 0],
+    ['CRLF doc with one table row changed', staleOf(crlf(json), crlf(doc.replace(row, row + ' planted |')), json), 1],
+    ['CRLF doc with a table row removed', staleOf(json, crlf(doc.split('\n').filter((l) => !l.startsWith(row)).join('\n')), json), 1],
+    ['CRLF register with one value changed', staleOf(crlf(json.replace('"category": "combat"', '"category": "planted"')), crlf(doc), json), 1],
+    ['a missing register and a missing doc', staleOf(null, null, json), 2],
+  ];
+  let red = 0;
+  for (const [name, stale, want] of cases) {
+    const ok = stale.length === want;
+    if (!ok) red++;
+    console.log((ok ? 'ok   ' : 'FAIL ') + name + ': ' + (stale.length ? 'STALE ' + stale.join(', ') : 'in step') + (ok ? '' : ' (wanted ' + want + ' stale)'));
+  }
+  if (!doc.includes(row) || !json.includes('"category": "combat"')) { console.log('FAIL a plant found nothing to change: the change cases prove nothing'); red++; }
+  if (red) { console.error('combat-register --selftest: ' + red + ' case(s) FAILED'); process.exit(1); }
+  console.log('combat-register --selftest: ' + cases.length + ' cases');
 }
 console.log(JSON.stringify(counts()));

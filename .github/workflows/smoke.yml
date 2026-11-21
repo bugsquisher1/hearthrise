@@ -1713,6 +1713,16 @@ jobs:
         run: |
           node tests/balance-guard.mjs
           node tools/mutant-gate.mjs node tests/balance-guard.mjs --selftest
+      # tools/balance-program/formulas/architecture-register.mjs
+      - name: Formula architecture register - a bad merge, a class 3 row with no recommendation, a stale knob and a CRLF checkout are each caught
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tools/balance-program/formulas/architecture-register.mjs --selftest
+      # tools/balance-program/formulas/combat-register.mjs
+      - name: Combat formula register - a CRLF checkout reads in step, a changed row or value reads STALE
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tools/balance-program/formulas/combat-register.mjs --selftest
       # tools/balance-program/paths.mjs
       - name: Best-path solver - a planted dominant recipe reads DOMINANT, a planted slow one NEGLECTED
         if: ${{ !cancelled() }}

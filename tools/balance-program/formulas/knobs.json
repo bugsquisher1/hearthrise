@@ -1,0 +1,1336 @@
+{
+ "schema": "hearthrise.balance-knobs/1",
+ "from": "docs/design/balance-program/44-formula-architecture.md section 5 (the audited knob set, lane/d-formula-architecture, 2026-11-21)",
+ "format": [
+  "The format of tools/balance-program/knobs.mjs on lane/c-balance-matrix: a knob is a multiplier (1 = today) on numbers the game itself reads. Each site picks `count` lines of `file` that hold the text `line`, and on each the number after every `nums` prefix (a regular expression source that must match once on the line. { at, float } keeps a decimal. { all: true } takes every number on the line).",
+  "Fields this file adds, which a reader may ignore: `value` (the numbers today, in site and pick order, checked by formulas/architecture-register.mjs --check), `formula` (the id in formulas-architecture.json the knob moves), `ruled` (Tyler ruled today's value on that date: measure with it, do not ship a change without him), `sharesLineWith` (other knobs that pick numbers on the same source line: a patch that moves two of them must apply both picks to the one line).",
+  "`planned` are knobs the unified model adds. Each names the roadmap step that creates it and where it will live. They are not playable until that step lands. `notKnobs` are per-ground and compensating numbers that must not be tuned: each is replaced by the knob it names."
+ ],
+ "knobs": [
+  {
+   "id": "playerAttack",
+   "label": "Player attack",
+   "group": "Player combat",
+   "formula": "C-HERO-POWER",
+   "what": "The hero's largest blow: the skill term, the gear term and the base together. Every basic hit, and every spell, heal, shell and bleed, is a share of it. Splits into skillPower, gearPower and basePower at roadmap step R2 (the planned list)",
+   "value": [
+    0.35,
+    0.6,
+    2
+   ],
+   "sites": [
+    {
+     "file": "src/core/combat.js",
+     "line": "let maxHit = Math.floor((dmgLvl * ",
+     "count": 1,
+     "nums": [
+      "dmgLvl \\* ",
+      "strBonus \\* ",
+      {
+       "at": "\\) \\+ ",
+       "float": true
+      }
+     ]
+    }
+   ],
+   "steps": [
+    0.75,
+    0.875,
+    1,
+    1.125,
+    1.25
+   ]
+  },
+  {
+   "id": "critMult",
+   "label": "Critical hit size",
+   "group": "Player combat",
+   "formula": "C-CRIT",
+   "what": "A critical basic blow's multiple (COMBAT_BALANCE.critMult). With the 60% chance cap this bounds crit at +30% damage",
+   "value": [
+    1.5
+   ],
+   "sites": [
+    {
+     "file": "src/core/combat.js",
+     "line": "critMult: ",
+     "count": 1,
+     "nums": [
+      "critMult: "
+     ]
+    }
+   ],
+   "steps": [
+    0.75,
+    0.875,
+    1,
+    1.125,
+    1.25
+   ]
+  },
+  {
+   "id": "weaknessDamage",
+   "label": "Weakness bonus",
+   "group": "Player combat",
+   "formula": "C-WEAKNESS",
+   "what": "The damage multiple of a weapon a monster is weak to (WEAKNESS_BONUS.damage). Basic blows only today",
+   "value": [
+    1.2
+   ],
+   "sites": [
+    {
+     "file": "src/core/combat.js",
+     "line": "export const WEAKNESS_BONUS = ",
+     "count": 1,
+     "nums": [
+      "damage: "
+     ]
+    }
+   ],
+   "steps": [
+    0.9,
+    0.95,
+    1,
+    1.05,
+    1.1
+   ]
+  },
+  {
+   "id": "toHitBase",
+   "label": "To-hit base",
+   "group": "Player combat",
+   "formula": "C-HERO-TOHIT",
+   "what": "The flat rating both sides of every to-hit ratio start from (TO_HIT.base). It sets how much one point of skill, accuracy or Defense is worth at low Level. The monsters' aim and evasion are written through it",
+   "value": [
+    20
+   ],
+   "regen": true,
+   "sites": [
+    {
+     "file": "src/data/to-hit.js",
+     "line": "export const TO_HIT = Object.freeze({ base: ",
+     "count": 1,
+     "nums": [
+      "base: "
+     ]
+    }
+   ],
+   "steps": [
+    0.9,
+    0.95,
+    1,
+    1.05,
+    1.1
+   ]
+  },
+  {
+   "id": "heroAccuracy",
+   "label": "Player to-hit",
+   "group": "Player combat",
+   "formula": "C-MON-STATS",
+   "what": "The reference hero's chance to land on a same-Level regular, written on every monster as its evasion (STAT_FORMULA.heroHit)",
+   "value": [
+    0.85
+   ],
+   "regen": true,
+   "sites": [
+    {
+     "file": "src/data/balance-sheet.js",
+     "line": "  heroHit: ",
+     "count": 1,
+     "nums": [
+      "heroHit: "
+     ]
+    }
+   ],
+   "steps": [
+    0.85,
+    0.925,
+    1,
+    1.05,
+    1.1
+   ]
+  },
+  {
+   "id": "attackInterval",
+   "label": "Attack interval",
+   "group": "Player combat",
+   "formula": "C-CLOCKS",
+   "what": "The one basic attack clock for heroes and monsters, in ms (COMBAT_BALANCE.tickMs). RULED 2.0 s on 2026-10-15: a knob to measure with, not to ship without Tyler",
+   "value": [
+    2000
+   ],
+   "ruled": "2026-10-15",
+   "sites": [
+    {
+     "file": "src/core/combat.js",
+     "line": "  tickMs: ",
+     "count": 1,
+     "nums": [
+      "tickMs: "
+     ]
+    }
+   ],
+   "steps": [
+    0.9,
+    0.95,
+    1,
+    1.05,
+    1.1
+   ]
+  },
+  {
+   "id": "spellRollLow",
+   "label": "Spell roll floor",
+   "group": "Player combat",
+   "formula": "C-SPELL-HIT",
+   "what": "The low end of a spell hit's roll, permille of its top (ABILITY_RULES.hitLowPm). Swings roll from 1, spells from half: this is the spread of the one roll rule",
+   "value": [
+    500
+   ],
+   "sites": [
+    {
+     "file": "src/data/abilities.js",
+     "line": "  hitLowPm: ",
+     "count": 1,
+     "nums": [
+      "hitLowPm: "
+     ]
+    }
+   ],
+   "steps": [
+    0.75,
+    0.875,
+    1,
+    1.125,
+    1.25
+   ]
+  },
+  {
+   "id": "manaRegen",
+   "label": "Mana regeneration",
+   "group": "Player combat",
+   "formula": "C-MANA",
+   "what": "Mana back a minute, percent of max (ABILITY_RULES.manaRegenPctPerMin): casts an hour and drink bought",
+   "value": [
+    25
+   ],
+   "sites": [
+    {
+     "file": "src/data/abilities.js",
+     "line": "  manaRegenPctPerMin: ",
+     "count": 1,
+     "nums": [
+      "manaRegenPctPerMin: "
+     ]
+    }
+   ],
+   "steps": [
+    0.75,
+    0.875,
+    1,
+    1.125,
+    1.25
+   ]
+  },
+  {
+   "id": "storeSupplyShare",
+   "label": "Store supply strength",
+   "group": "Player combat",
+   "formula": "C-CAST-POWER",
+   "what": "What a store heal, drink, arrow or rune gives against its crafted partner (BASIC_EFFECT_SHARE)",
+   "value": [
+    0.75
+   ],
+   "sites": [
+    {
+     "file": "src/data/supply-basics.js",
+     "line": "export const BASIC_EFFECT_SHARE = ",
+     "count": 1,
+     "nums": [
+      "BASIC_EFFECT_SHARE = "
+     ]
+    }
+   ],
+   "steps": [
+    0.9,
+    0.95,
+    1,
+    1.05,
+    1.1
+   ]
+  },
+  {
+   "id": "monsterDamage",
+   "label": "Monster damage",
+   "group": "Monsters",
+   "formula": "C-MON-STATS",
+   "what": "A regular's largest blow as a share of a same-Level hero's HP, and the gentle grounds' cap (STAT_FORMULA.blow). All incoming damage, food bought and deaths",
+   "value": [
+    0.132,
+    0.22,
+    0.11
+   ],
+   "regen": true,
+   "sites": [
+    {
+     "file": "src/data/balance-sheet.js",
+     "line": "  blow: Object.freeze({ lo: ",
+     "count": 1,
+     "nums": [
+      "lo: ",
+      "hi: ",
+      "gentleCap: "
+     ]
+    }
+   ],
+   "steps": [
+    0.75,
+    0.875,
+    1,
+    1.125,
+    1.25
+   ]
+  },
+  {
+   "id": "monsterHp",
+   "label": "Monster HP",
+   "group": "Monsters",
+   "formula": "C-MON-STATS",
+   "what": "A regular's HP line, base and a Level (STAT_FORMULA.hp). Kill time everywhere, and XP and coin a kill, which are priced per HP point",
+   "value": [
+    4.95,
+    1.76
+   ],
+   "regen": true,
+   "sites": [
+    {
+     "file": "src/data/balance-sheet.js",
+     "line": "  hp: Object.freeze({ base: ",
+     "count": 1,
+     "nums": [
+      "base: ",
+      "perLevel: "
+     ]
+    }
+   ],
+   "steps": [
+    0.75,
+    0.875,
+    1,
+    1.125,
+    1.25
+   ]
+  },
+  {
+   "id": "monsterAccuracy",
+   "label": "Monster to-hit",
+   "group": "Monsters",
+   "formula": "C-MON-STATS",
+   "what": "A regular's chance to land on the reference hero, gentle and full grounds (STAT_FORMULA.hit)",
+   "value": [
+    0.4,
+    0.7
+   ],
+   "regen": true,
+   "sites": [
+    {
+     "file": "src/data/balance-sheet.js",
+     "line": "  hit: Object.freeze({ lo: ",
+     "count": 1,
+     "nums": [
+      "lo: ",
+      "hi: "
+     ]
+    }
+   ],
+   "steps": [
+    0.75,
+    0.875,
+    1,
+    1.125,
+    1.25
+   ]
+  },
+  {
+   "id": "monsterDefense",
+   "label": "Monster defense",
+   "group": "Monsters",
+   "formula": "C-MON-DEF",
+   "what": "A regular's defense a Level (STAT_FORMULA.def)",
+   "value": [
+    0.08
+   ],
+   "regen": true,
+   "sites": [
+    {
+     "file": "src/data/balance-sheet.js",
+     "line": "  def: Object.freeze({ perLevel: ",
+     "count": 1,
+     "nums": [
+      "perLevel: "
+     ]
+    }
+   ],
+   "steps": [
+    0.75,
+    0.875,
+    1,
+    1.125,
+    1.25
+   ]
+  },
+  {
+   "id": "monsterDefenseCut",
+   "label": "Defense cut a point",
+   "group": "Monsters",
+   "formula": "C-MON-DEF",
+   "what": "The whole points one point of monster defense takes off every blow and tick (COMBAT_BALANCE.monsterDefenseDamageReduction). Small hits against big ones: bleeds, area spells, multi-hit rows",
+   "value": [
+    0.03
+   ],
+   "sites": [
+    {
+     "file": "src/core/combat.js",
+     "line": "  monsterDefenseDamageReduction: ",
+     "count": 1,
+     "nums": [
+      "monsterDefenseDamageReduction: "
+     ]
+    }
+   ],
+   "steps": [
+    0.75,
+    0.875,
+    1,
+    1.125,
+    1.25
+   ]
+  },
+  {
+   "id": "partyGroundHp",
+   "label": "Party ground HP",
+   "group": "Monsters",
+   "formula": "C-MON-STATS",
+   "what": "The HP multiple of a monster on a ground built for a party (STAT_FORMULA.fit.party.hp)",
+   "value": [
+    2.5
+   ],
+   "regen": true,
+   "sharesLineWith": [
+    "partyGroundBlow"
+   ],
+   "sites": [
+    {
+     "file": "src/data/balance-sheet.js",
+     "line": "    party: Object.freeze({ hp: ",
+     "count": 1,
+     "nums": [
+      "hp: "
+     ]
+    }
+   ],
+   "steps": [
+    0.75,
+    0.875,
+    1,
+    1.125,
+    1.25
+   ]
+  },
+  {
+   "id": "partyGroundBlow",
+   "label": "Party ground blow",
+   "group": "Monsters",
+   "formula": "C-MON-STATS",
+   "what": "The blow multiple of a monster on a ground built for a party (STAT_FORMULA.fit.party.blow)",
+   "value": [
+    0.75
+   ],
+   "regen": true,
+   "sharesLineWith": [
+    "partyGroundHp"
+   ],
+   "sites": [
+    {
+     "file": "src/data/balance-sheet.js",
+     "line": "    party: Object.freeze({ hp: ",
+     "count": 1,
+     "nums": [
+      "blow: "
+     ]
+    }
+   ],
+   "steps": [
+    0.9,
+    0.95,
+    1,
+    1.05,
+    1.1
+   ]
+  },
+  {
+   "id": "tierDanger",
+   "label": "Harder-tier blows",
+   "group": "Tiers",
+   "formula": "C-TIER",
+   "what": "Dangerous and Deadly blows, permille of Normal (TIER_DIALS dmgPm). Today it also moves aim and the Level armor reads (X-TIER-TRIPLE)",
+   "value": [
+    1170,
+    1330
+   ],
+   "sharesLineWith": [
+    "tierHp",
+    "tierXp",
+    "tierPull"
+   ],
+   "sites": [
+    {
+     "file": "src/data/balance-sheet.js",
+     "line": "  dangerous: Object.freeze({ pull: ",
+     "count": 1,
+     "nums": [
+      "dmgPm: "
+     ]
+    },
+    {
+     "file": "src/data/balance-sheet.js",
+     "line": "  deadly: Object.freeze({ pull: ",
+     "count": 1,
+     "nums": [
+      "dmgPm: "
+     ]
+    }
+   ],
+   "steps": [
+    0.9,
+    0.95,
+    1,
+    1.05,
+    1.1
+   ]
+  },
+  {
+   "id": "tierHp",
+   "label": "Harder-tier HP",
+   "group": "Tiers",
+   "formula": "C-TIER",
+   "what": "Dangerous and Deadly monster HP, permille of Normal (TIER_DIALS hpPm)",
+   "value": [
+    1100,
+    1150
+   ],
+   "sharesLineWith": [
+    "tierDanger",
+    "tierXp",
+    "tierPull"
+   ],
+   "sites": [
+    {
+     "file": "src/data/balance-sheet.js",
+     "line": "  dangerous: Object.freeze({ pull: ",
+     "count": 1,
+     "nums": [
+      "hpPm: "
+     ]
+    },
+    {
+     "file": "src/data/balance-sheet.js",
+     "line": "  deadly: Object.freeze({ pull: ",
+     "count": 1,
+     "nums": [
+      "hpPm: "
+     ]
+    }
+   ],
+   "steps": [
+    0.9,
+    0.95,
+    1,
+    1.05,
+    1.1
+   ]
+  },
+  {
+   "id": "tierXp",
+   "label": "Harder-tier XP",
+   "group": "Tiers",
+   "formula": "C-TIER",
+   "what": "Dangerous and Deadly XP a kill, permille of Normal (TIER_DIALS xpPm): the reward half of risk against reward",
+   "value": [
+    1100,
+    1250
+   ],
+   "sharesLineWith": [
+    "tierDanger",
+    "tierHp",
+    "tierPull"
+   ],
+   "sites": [
+    {
+     "file": "src/data/balance-sheet.js",
+     "line": "  dangerous: Object.freeze({ pull: ",
+     "count": 1,
+     "nums": [
+      "xpPm: "
+     ]
+    },
+    {
+     "file": "src/data/balance-sheet.js",
+     "line": "  deadly: Object.freeze({ pull: ",
+     "count": 1,
+     "nums": [
+      "xpPm: "
+     ]
+    }
+   ],
+   "steps": [
+    0.9,
+    0.95,
+    1,
+    1.05,
+    1.1
+   ]
+  },
+  {
+   "id": "tierPull",
+   "label": "Harder-tier pull",
+   "group": "Tiers",
+   "formula": "C-PULL",
+   "what": "How many monsters a Dangerous or Deadly fight brings (TIER_DIALS pull). Kill rate, area damage worth, and the damage a tank holds",
+   "value": [
+    8,
+    8
+   ],
+   "sharesLineWith": [
+    "tierDanger",
+    "tierHp",
+    "tierXp"
+   ],
+   "sites": [
+    {
+     "file": "src/data/balance-sheet.js",
+     "line": "  dangerous: Object.freeze({ pull: ",
+     "count": 1,
+     "nums": [
+      "pull: "
+     ]
+    },
+    {
+     "file": "src/data/balance-sheet.js",
+     "line": "  deadly: Object.freeze({ pull: ",
+     "count": 1,
+     "nums": [
+      "pull: "
+     ]
+    }
+   ],
+   "steps": [
+    0.75,
+    1,
+    1.25
+   ]
+  },
+  {
+   "id": "heroHp",
+   "label": "Hero HP",
+   "group": "Survival",
+   "formula": "P11",
+   "what": "A hero's HP, base and a Level (VITALS). The monsters' blows are a share of it, so they follow",
+   "value": [
+    150,
+    10
+   ],
+   "regen": true,
+   "sites": [
+    {
+     "file": "src/data/core-model.js",
+     "line": "  hpBase: ",
+     "count": 1,
+     "nums": [
+      "hpBase: "
+     ]
+    },
+    {
+     "file": "src/data/core-model.js",
+     "line": "  hpPerLevel: ",
+     "count": 1,
+     "nums": [
+      "hpPerLevel: "
+     ]
+    }
+   ],
+   "steps": [
+    0.75,
+    0.875,
+    1,
+    1.125,
+    1.25
+   ]
+  },
+  {
+   "id": "heroMana",
+   "label": "Hero mana",
+   "group": "Survival",
+   "formula": "P11",
+   "what": "A hero's mana, base and a Level (VITALS): casts before a drink",
+   "value": [
+    100,
+    10
+   ],
+   "sites": [
+    {
+     "file": "src/data/core-model.js",
+     "line": "  manaBase: ",
+     "count": 1,
+     "nums": [
+      "manaBase: "
+     ]
+    },
+    {
+     "file": "src/data/core-model.js",
+     "line": "  manaPerLevel: ",
+     "count": 1,
+     "nums": [
+      "manaPerLevel: "
+     ]
+    }
+   ],
+   "steps": [
+    0.75,
+    0.875,
+    1,
+    1.125,
+    1.25
+   ]
+  },
+  {
+   "id": "armorMitigation",
+   "label": "Armor mitigation",
+   "group": "Survival",
+   "formula": "C-ARMOR-CHAIN",
+   "what": "The most dodge and absorb armor can reach, and ward a point (ARMOUR_MITIGATION)",
+   "value": [
+    650,
+    750,
+    1500
+   ],
+   "sharesLineWith": [
+    "armorCurve"
+   ],
+   "sites": [
+    {
+     "file": "src/data/core-model.js",
+     "line": "  dodge: Object.freeze({ maxPm: ",
+     "count": 1,
+     "nums": [
+      "maxPm: "
+     ]
+    },
+    {
+     "file": "src/data/core-model.js",
+     "line": "  absorb: Object.freeze({ maxPm: ",
+     "count": 1,
+     "nums": [
+      "maxPm: "
+     ]
+    },
+    {
+     "file": "src/data/core-model.js",
+     "line": "  ward: Object.freeze({ perPointPm: ",
+     "count": 1,
+     "nums": [
+      "perPointPm: "
+     ]
+    }
+   ],
+   "steps": [
+    0.75,
+    0.875,
+    1,
+    1.125,
+    1.25
+   ]
+  },
+  {
+   "id": "armorCurve",
+   "label": "Armor against Level",
+   "group": "Survival",
+   "formula": "C-ARMOR-CHAIN",
+   "what": "How fast a fixed set of armor fades against a higher-Level attacker (ARMOUR_MITIGATION dodge.k and absorb.k). Lower keeps old armor useful longer",
+   "value": [
+    0.4,
+    0.62
+   ],
+   "sharesLineWith": [
+    "armorMitigation"
+   ],
+   "sites": [
+    {
+     "file": "src/data/core-model.js",
+     "line": "  dodge: Object.freeze({ maxPm: ",
+     "count": 1,
+     "nums": [
+      {
+       "at": "k: ",
+       "float": true
+      }
+     ]
+    },
+    {
+     "file": "src/data/core-model.js",
+     "line": "  absorb: Object.freeze({ maxPm: ",
+     "count": 1,
+     "nums": [
+      {
+       "at": "k: ",
+       "float": true
+      }
+     ]
+    }
+   ],
+   "steps": [
+    0.75,
+    0.875,
+    1,
+    1.125,
+    1.25
+   ]
+  },
+  {
+   "id": "mitigationCap",
+   "label": "Mitigation cap",
+   "group": "Survival",
+   "formula": "C-ARMOR-CHAIN",
+   "what": "Dodge, absorb and ward together never take more than this share (ARMOUR_MITIGATION.capPm). RULED 60% on 2026-10-18 (K7). On any gear curve that keeps pace it is the real armor number",
+   "value": [
+    600
+   ],
+   "ruled": "2026-10-18",
+   "sites": [
+    {
+     "file": "src/data/core-model.js",
+     "line": "  capPm: ",
+     "count": 1,
+     "nums": [
+      "capPm: "
+     ]
+    }
+   ],
+   "steps": [
+    0.75,
+    0.875,
+    1,
+    1.125,
+    1.25
+   ]
+  },
+  {
+   "id": "regen",
+   "label": "Regeneration",
+   "group": "Survival",
+   "formula": "C-REGEN",
+   "what": "HP back a second, in a fight and between fights: downtime and food bought",
+   "value": [
+    3,
+    60
+   ],
+   "sites": [
+    {
+     "file": "src/data/core-model.js",
+     "line": "  inFightRegenPermillePerS: ",
+     "count": 1,
+     "nums": [
+      {
+       "at": "inFightRegenPermillePerS: ",
+       "float": true
+      }
+     ]
+    },
+    {
+     "file": "src/data/hunt-tuning.js",
+     "line": "  oocRegenPermillePerS: ",
+     "count": 1,
+     "nums": [
+      "oocRegenPermillePerS: "
+     ]
+    }
+   ],
+   "steps": [
+    0.75,
+    0.875,
+    1,
+    1.125,
+    1.25
+   ]
+  },
+  {
+   "id": "xpPerKill",
+   "label": "XP a kill",
+   "group": "Rewards",
+   "formula": "E01",
+   "what": "Level XP a monster HP point pays, and its floor (STAT_FORMULA.xp a and min). Hours a Level everywhere",
+   "value": [
+    1.436,
+    2.534
+   ],
+   "regen": true,
+   "sharesLineWith": [
+    "xpByLevel"
+   ],
+   "sites": [
+    {
+     "file": "src/data/balance-sheet.js",
+     "line": "  xp: Object.freeze({ a: ",
+     "count": 1,
+     "nums": [
+      "a: ",
+      "min: "
+     ]
+    }
+   ],
+   "steps": [
+    0.75,
+    0.875,
+    1,
+    1.125,
+    1.25
+   ]
+  },
+  {
+   "id": "xpByLevel",
+   "label": "XP a kill by Level",
+   "group": "Rewards",
+   "formula": "E01",
+   "what": "The power of monster Level in XP a HP point (STAT_FORMULA.xp b). Whether XP a kill outruns the pace line at high Level (0.4 against the contract's 1.274 less kill-HP growth)",
+   "value": [
+    0.4
+   ],
+   "regen": true,
+   "sharesLineWith": [
+    "xpPerKill"
+   ],
+   "sites": [
+    {
+     "file": "src/data/balance-sheet.js",
+     "line": "  xp: Object.freeze({ a: ",
+     "count": 1,
+     "nums": [
+      {
+       "at": "b: ",
+       "float": true
+      }
+     ]
+    }
+   ],
+   "steps": [
+    0.9,
+    0.95,
+    1,
+    1.05,
+    1.1
+   ]
+  },
+  {
+   "id": "coinPerKill",
+   "label": "Coin a kill",
+   "group": "Rewards",
+   "formula": "E23",
+   "what": "Gold a monster HP point pays (STAT_FORMULA.gp.perHp). Gold in at every Level. The four stacked coin dials fold into this at roadmap step R9",
+   "value": [
+    0.3
+   ],
+   "regen": true,
+   "sites": [
+    {
+     "file": "src/data/balance-sheet.js",
+     "line": "  gp: Object.freeze({ perHp: ",
+     "count": 1,
+     "nums": [
+      "perHp: "
+     ]
+    }
+   ],
+   "steps": [
+    0.75,
+    0.875,
+    1,
+    1.125,
+    1.25
+   ]
+  },
+  {
+   "id": "soloXp",
+   "label": "Solo XP bonus",
+   "group": "Parties",
+   "formula": "P21",
+   "what": "A lone hero's Level XP, permille (SOLO_XP_PM). RULED +15% on 2026-11-11. Folds into the party table as its first cell at roadmap step R8",
+   "value": [
+    1150
+   ],
+   "ruled": "2026-11-11",
+   "sites": [
+    {
+     "file": "src/data/party-class-xp.js",
+     "line": "export const SOLO_XP_PM = ",
+     "count": 1,
+     "nums": [
+      "SOLO_XP_PM = "
+     ]
+    }
+   ],
+   "steps": [
+    0.9,
+    0.95,
+    1,
+    1.05,
+    1.1
+   ]
+  },
+  {
+   "id": "partyXp",
+   "label": "Party XP table",
+   "group": "Parties",
+   "formula": "P21",
+   "what": "Every cell of the one party table, permille on the even share (PARTY_CLASS_XP): solo against party",
+   "value": [
+    880,
+    1500,
+    990,
+    1600,
+    1700,
+    970,
+    1580,
+    1670,
+    1700
+   ],
+   "sites": [
+    {
+     "file": "src/data/party-class-xp.js",
+     "line": "export const PARTY_CLASS_XP = row(",
+     "count": 1,
+     "nums": [
+      {
+       "all": true
+      }
+     ]
+    }
+   ],
+   "steps": [
+    0.9,
+    0.95,
+    1,
+    1.05,
+    1.1
+   ]
+  },
+  {
+   "id": "levelCurve",
+   "label": "Level XP curve",
+   "group": "Progression",
+   "formula": "P01",
+   "what": "The Level XP every Level costs (LEVEL_CURVE first and every bracket's rise). A death costs a share of it",
+   "value": [
+    210,
+    199,
+    389,
+    762,
+    4881,
+    5872,
+    8687,
+    8000,
+    5002,
+    30000,
+    4630,
+    74323,
+    300,
+    14454,
+    78689,
+    70000,
+    350000
+   ],
+   "sites": [
+    {
+     "file": "src/data/core-model.js",
+     "line": "  first: ",
+     "count": 1,
+     "nums": [
+      "first: "
+     ]
+    },
+    {
+     "file": "src/data/core-model.js",
+     "line": ", rise: ",
+     "count": 16,
+     "nums": [
+      "rise: "
+     ]
+    }
+   ],
+   "steps": [
+    0.75,
+    0.875,
+    1,
+    1.125,
+    1.25
+   ]
+  },
+  {
+   "id": "deathLoss",
+   "label": "Death cost",
+   "group": "Progression",
+   "formula": "P28",
+   "what": "The share of a hero's Level XP and combat-skill progress a death takes (DEATH_XP_LOSS). RULED 6% flat with no cap on 2026-11-21 (50-4)",
+   "value": [
+    0.06
+   ],
+   "ruled": "2026-11-21",
+   "sites": [
+    {
+     "file": "src/data/hunt-sessions.js",
+     "line": "export const DEATH_XP_LOSS = ",
+     "count": 1,
+     "nums": [
+      {
+       "at": "DEATH_XP_LOSS = ",
+       "float": true
+      }
+     ]
+    }
+   ],
+   "steps": [
+    0.5,
+    0.75,
+    1,
+    1.25,
+    1.5
+   ]
+  }
+ ],
+ "planned": [
+  {
+   "id": "skillPower",
+   "label": "Skill term of a blow",
+   "group": "Player combat",
+   "formula": "C-HERO-POWER",
+   "today": 0.35,
+   "arrivesWith": "R2",
+   "home": "src/core/combat.js COMBAT_BALANCE.strengthLevelScale, once the blow reads it",
+   "what": "How much of a hero's hit a trained skill level is worth. Against gearPower it decides skill's share of a hit at every Level"
+  },
+  {
+   "id": "gearPower",
+   "label": "Gear term of a blow",
+   "group": "Player combat",
+   "formula": "C-HERO-POWER",
+   "today": 0.6,
+   "arrivesWith": "R2",
+   "home": "src/core/combat.js COMBAT_BALANCE.strengthBonusScale",
+   "what": "How much of a hero's hit a point of weapon damage is worth"
+  },
+  {
+   "id": "basePower",
+   "label": "Base blow",
+   "group": "Player combat",
+   "formula": "C-HERO-POWER",
+   "today": 2,
+   "arrivesWith": "R2",
+   "home": "src/core/combat.js COMBAT_BALANCE.playerBaseMaxHit",
+   "what": "The flat part of a hit. It matters only in the first ten Levels"
+  },
+  {
+   "id": "powerFloor",
+   "label": "Beginner's floor on power",
+   "group": "Player combat",
+   "formula": "C-SPELL-HIT",
+   "today": "17 per-row floors",
+   "arrivesWith": "R6",
+   "home": "src/data/abilities.js ABILITY_RULES",
+   "what": "A cast never reads a hit under this number. One number in place of a floor on every spell row"
+  },
+  {
+   "id": "runeStep",
+   "label": "Rune tier step",
+   "group": "Player combat",
+   "formula": "C-CAST-POWER",
+   "today": "+10% a tier, five tiers, the last at skill 60",
+   "arrivesWith": "R6",
+   "home": "src/data/runes.js as a base and a step, not five typed numbers",
+   "what": "What a rune tier is worth, and whether tiers continue past skill 60"
+  },
+  {
+   "id": "gearSlope",
+   "label": "Gear curve slope",
+   "group": "Gear",
+   "formula": "C-GEAR-WEAPON",
+   "today": "none in the game. Staged: Dawnsteel x Level / 110",
+   "arrivesWith": "R10",
+   "home": "src/data/gear-curve.js",
+   "what": "How fast weapon damage and armor points grow with the Level a piece is worn at. Whether hero power and armor keep pace with monsters, forever"
+  },
+  {
+   "id": "gearBandStep",
+   "label": "Gear band width",
+   "group": "Gear",
+   "formula": "C-GEAR-WEAPON",
+   "today": "tiers at Levels 1, 15, 30, 45, 60, 75, 88",
+   "arrivesWith": "R10",
+   "home": "src/data/gear-curve.js",
+   "what": "How far apart upgrades sit, as a percent of power and not a count of Levels, so an upgrade is worth feeling at Level 2,000"
+  },
+  {
+   "id": "gearExchange",
+   "label": "Unique exchange rates",
+   "group": "Gear",
+   "formula": "C-GEAR-ARMOR",
+   "today": "each unique sized by hand against a simulator at the fourth digit",
+   "arrivesWith": "R11",
+   "home": "src/data/gear-curve.js",
+   "what": "How many armor points one point of accuracy, damage, crit or resistance costs. A unique's armor is then arithmetic"
+  },
+  {
+   "id": "paceContract",
+   "label": "Pace contract",
+   "group": "Progression",
+   "formula": "P02",
+   "today": "1385 x L^1.274 Level XP an hour",
+   "arrivesWith": "R12",
+   "home": "src/data/core-model.js LEVEL_PACE.contract (it exists, and only the judge reads it today)",
+   "what": "What an hour pays at Level L. After R12 the game derives XP a kill from it, so moving it moves every ground with no re-fit"
+  },
+  {
+   "id": "hoursPerLevel",
+   "label": "Hours a Level",
+   "group": "Progression",
+   "formula": "P01",
+   "today": "16 hand brackets",
+   "arrivesWith": "R13",
+   "home": "src/data/core-model.js",
+   "what": "How long each Level takes: a short table to Level 100 and one law after. The Level XP curve is this times the pace contract"
+  },
+  {
+   "id": "skillCurve",
+   "label": "Skill curve",
+   "group": "Progression",
+   "formula": "P03",
+   "today": "15 x s^2 x 1.04^(s-1)",
+   "arrivesWith": "V1",
+   "home": "src/data/core-model.js SKILL_CURVE (it exists. The matrix cannot move it until its heroes' skills come from the curve and not from a straight line)",
+   "what": "How fast skills rise: to-hit, Defense, and the yard's worth"
+  },
+  {
+   "id": "killRateRef",
+   "label": "Reference kill rate",
+   "group": "Rewards",
+   "formula": "E14",
+   "today": "no term. 15 GROUND_XP_FIT and 11 GROUND_GP_FIT numbers stand in for it",
+   "arrivesWith": "R12",
+   "home": "written by tools/gen-ground-stats.mjs from the matrix, one derived number a ground",
+   "what": "How many HP points of monster a ground gives up in an hour. It is derived, never typed: listed so nobody tunes the old per-ground numbers"
+  },
+  {
+   "id": "coinLine",
+   "label": "Coin line",
+   "group": "Rewards",
+   "formula": "E23",
+   "today": "four stacked dials: 0.30 x a floor line 0.5 to 1.4 x party 1.17 or 0.53 x ground 0.7",
+   "arrivesWith": "R9",
+   "home": "src/data/balance-sheet.js STAT_FORMULA.gp as one line by monster Level",
+   "what": "Gold a monster HP point pays at each Level, as one line"
+  },
+  {
+   "id": "wageShare",
+   "label": "Price in hours of wage",
+   "group": "Economy",
+   "formula": "E56",
+   "today": "six price lines, each straight in Level: refill 1000 + 250 L, Blessing 100 + 10 L, yard, rename, colors, Tempering tables",
+   "arrivesWith": "R15",
+   "home": "src/data/wage.js, and an hours column on each price row",
+   "what": "Every repeating price as hours of a lone MID hero's net gold at the buyer's Level"
+  },
+  {
+   "id": "healPrice",
+   "label": "Gold a hit point healed",
+   "group": "Economy",
+   "formula": "E18",
+   "today": "five hand prices, 0.19 to 1.75 gold a hit point",
+   "arrivesWith": "R14",
+   "home": "src/data/supply-basics.js as one line",
+   "what": "What the store charges to heal a hit point. It sets the supply bill of every harder tier"
+  },
+  {
+   "id": "sinkShare",
+   "label": "Standing sinks as band gold",
+   "group": "Economy",
+   "formula": "E38",
+   "today": "typed ladders that end at tier 7",
+   "arrivesWith": "R16",
+   "home": "src/data/temper.js and the other ladders, as a share",
+   "what": "What a band's standing upgrades cost as a share of the band's net gold. RULED 1.2 to 1.4 on 2026-11-18"
+  },
+  {
+   "id": "saleStep",
+   "label": "Sale share a tier",
+   "group": "Economy",
+   "formula": "E26",
+   "today": "seven typed shares, 0.5 down to 0.007",
+   "arrivesWith": "R17",
+   "home": "src/data/loot-bands.js as share1 x step^(tier-1) / bookClimb^(tier-1)",
+   "what": "What sold gear pays against its book value: sold-loot income, the market floor and the bench tax"
+  },
+  {
+   "id": "bandHours",
+   "label": "Drop band hours",
+   "group": "Economy",
+   "formula": "E46",
+   "today": "about 300 hand-typed chances",
+   "arrivesWith": "R18",
+   "home": "src/data/loot-bands.js BAND_TARGETS (it exists) with the chance derived",
+   "what": "How many hunted hours each kind of drop takes. The chance on each row is derived from the ground's kill rate"
+  }
+ ],
+ "notKnobs": [
+  {
+   "what": "GROUND_XP_FIT",
+   "count": 15,
+   "where": "src/data/balance-sheet.js:309 and 9 ground packs",
+   "why": "outputs of the missing kill-rate term, hand-fitted",
+   "replacedBy": "killRateRef (R12)"
+  },
+  {
+   "what": "GROUND_GP_FIT",
+   "count": 11,
+   "where": "src/data/balance-sheet.js:319",
+   "why": "one x0.7 typed 11 times",
+   "replacedBy": "coinLine (R9)"
+  },
+  {
+   "what": "per-ground tier overrides",
+   "count": 13,
+   "where": "src/data/balance-sheet.js BASE_TIER_OVERRIDES and the packs' tierOverride",
+   "why": "compensate kill reward on four grounds",
+   "replacedBy": "the one tier table (R12)"
+  },
+  {
+   "what": "xp.floorFit, the party fit's hitFull, blowShape, tierLift, gp and gpFull, blow.gentleCap, gentleHp",
+   "count": 9,
+   "where": "src/data/balance-sheet.js STAT_FORMULA and MONSTER_ROLES",
+   "why": "patches on the reward and on the lone hero on a party ground",
+   "replacedBy": "R9, R12"
+  },
+  {
+   "what": "monsterDamageScaleByTier",
+   "count": 4,
+   "where": "src/core/combat.js:45-56",
+   "why": "a monster's damage keyed on its art tier. It cancels for every formula row",
+   "replacedBy": "the row stores its blow (R4)"
+  },
+  {
+   "what": "scaled-hunt xpPm and partyPm",
+   "count": 2,
+   "where": "src/data/scaled-hunts.js",
+   "why": "re-dialed seven times to hold one guard",
+   "replacedBy": "derived from the kill reward (R12)"
+  }
+ ]
+}

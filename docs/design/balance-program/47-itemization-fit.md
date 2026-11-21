@@ -4,7 +4,7 @@ Game designer, 2026-11-21, `lane/d-itemization-fit`, cut from `set/v0.2.144` at 
 
 Tyler, 2026-11-21: "So far i love it, but lets not forget about the HUGE itemization plan, and make sure we are fitting that into all of this."
 
-**What was read.** `docs/design/itemization-plan.md` in full (1,375 lines), `itemization-canary-adjustments.md`, `itemization-system-review.md`, the rulings of record, `30-decisions.json` (all 113 calls), `30-plan.md` section D (the lanes), `46-from-scratch.md` and `54-review-items.md` in full, and the item, gear, drop, craft and Luck parts of 41, 42, 43, 50, 52, 53, 55, 56, 57, 58 and 59 by search. `44-formula-architecture.md` had not landed. The two superseded docs (`itemization-system.md`, `itemization-roadmap.md`) were not used as sources.
+**What was read.** `docs/design/itemization-plan.md` in full (1,375 lines), `itemization-canary-adjustments.md`, `itemization-system-review.md`, the rulings of record, `30-decisions.json` (all 113 calls), `30-plan.md` section D (the lanes), `46-from-scratch.md` and `54-review-items.md` in full, and the item, gear, drop, craft and Luck parts of 41, 42, 43, 50, 52, 53, 55, 56, 57, 58 and 59 by search. `44-formula-architecture.md` landed during this lane (d39ebd23d) and its sections 5, 7 and 8 were read and fitted: the gear curve (R10, R11), the kill reward and drops in hours (R12, R18), the Level law (R13) and sinks as a share of band gold (R16). The two superseded docs (`itemization-system.md`, `itemization-roadmap.md`) were not used as sources.
 
 **Labels.** Status is one of **built** (in `src/data` today, checked by search in this lane), **staged** (written, hidden or under `tools/balance-sim/staged`), **ruled** (Tyler said so, with the date or the decision id) and **proposed** (a design number nobody has ruled or measured). A verdict is one of **FITS**, **CHANGED** (by the overhaul, and how), **CONFLICTS** (both sides given in section 3) and **MISSED** (the overhaul never addressed it, placed in section 4). RE-OPEN marks a recommendation that needs Tyler's yes because it moves something he ruled.
 
@@ -12,7 +12,7 @@ Tyler, 2026-11-21: "So far i love it, but lets not forget about the HUGE itemiza
 
 ## 1. Summary
 
-**How much of the plan survives.** Most of it. I split the plan into 78 rows. 30 fit the overhaul as written. 16 are changed by it, nearly all by rulings you already made on 11-20 and 11-21. 20 are in conflict with a review or with a newer ruling. 12 were never addressed by any review. One row (Appendix B4) does not exist in the plan. Nothing in the plan needs to be cut.
+**How much of the plan survives.** Most of it. I split the plan into 82 rows. 33 fit the overhaul as written. 17 are changed by it, nearly all by rulings you already made on 11-20 and 11-21. 20 are in conflict with a review, an audit or a newer ruling. 12 were never addressed by any review. One row (Appendix B4) does not exist in the plan. Nothing in the plan needs to be cut.
 
 **Why the reviews looked like they ignored it.** The plan of record (`30-plan.md`) already carries the item plan as lanes L20, L29, L32 to L39, L43, L44, L47, L48 and L52. The phase A reviews were written on top of that plan and its rulings, so they cite decision ids and not the item plan. The Game Director (46) was written blind on purpose and read neither. That is where most of the real conflicts come from. Several of its objections are answered by pages of the plan it did not read.
 
@@ -28,7 +28,7 @@ Tyler, 2026-11-21: "So far i love it, but lets not forget about the HUGE itemiza
 
 5. **Six crafted slots must not stop at tier 7.** The items review runs jewelry to tier 7 and defers patterns until a market exists. The plan makes every worn recipe past tier 7 a pattern. Put together, the six crafted slots would freeze at Level 110 for 290 Levels, which is the same hole the review found at Level 30. Patterns ship with the Morrow Hills, and a pattern teaches the account and not one hero.
 
-**Three smaller things you should know.** The plan's measured numbers all predate the to-hit change, the spell rule and the harder monsters, so every one is re-measured on the new harness before its lane ships. Three band tables exist (the plan's, the code's, the standards'), and one must win. The worn in system is gone by your 23-4 ruling, and the job it did (two heroes, two different swords) has no owner unless Kindlings take it.
+**Three smaller things you should know.** The plan's measured numbers all predate the to-hit change, the spell rule and the harder monsters, so every one is re-measured on the new harness before its lane ships. The formula architecture (44) and the plan agree on the gear line past tier 7, but 44 sizes a band at +6.5%, which is 20 bands from Level 110 to 400 where the plan has 11. I recommend a band be a tier's worth, about +24% (C20). The worn in system is gone by your 23-4 ruling, and the job it did (two heroes, two different swords) has no owner unless Kindlings take it.
 
 ---
 
@@ -45,7 +45,7 @@ Citations are to the review or audit and its section. Decision ids are from `30-
 | 0c | The numbers that hold it together | measured and proposed | 23-5 replaces "accessory set at most one weapon step" with about 9% XP in five budgets, perks 4%, plain accessories as a tier. 50 section 2 puts Level 400 at 4,580 hunted hours for a MID four, where the plan estimated 4,200 for 110 to 400 | **CHANGED** by 23-5 and 50-2 |
 | 1 | Each system and its purpose (17 systems) | mixed | Every purpose is used somewhere in 54, 55 or 53. Worn in is gone (23-4). Weekly orders and stirred grounds have no reviewer (M3). Commissions are deferred (C17) | **FITS** |
 | 2a | Tiers 1 to 7, a tier every 15 Levels | built | 54 section 2.1: keep, seven is right. 42 X31: the steps are uneven and should come from one curve | **FITS** |
-| 2b | Bands past 110 on a budget line, no tier 8 | ruled 11-16, staged | 41 section 6.1 and model item 7, 42 M3: the line moves into `src/data` as the gear curve, and a unique's budget becomes arithmetic at published exchange rates. 42 section 7.6: bands of fixed width fade past Level 400. Three band tables disagree (C20) | **CHANGED**. The line becomes a formula. Fits the plan's intent |
+| 2b | Bands past 110 on a budget line, no tier 8 | ruled 11-16, staged | 44 section 5.2, steps R10 and R11, calls 1 and 19: the line becomes the gear curve in `src/data`, linear in Level, a unique spends a budget at published exchange rates, and a band is a +6.5% step and not a count of Levels. That is about 20 bands from 110 to 400 where the plan has 11 (C20) | **CHANGED**. The line as a formula fits the plan. The band width does not (C20) |
 | 2c | A region is about 55 Levels, six grounds, two bosses | ruled 11-18 (section 13, answer 8) | 53 section 4.7 and call 10: four grounds, one hall and one new rule a region | **CONFLICTS** (C9) |
 | 2d | Region rules: equal faction grounds, no bound gear, worn by Level only | ruled | 53 call 9 keeps faction pairs and makes a pair pay alike. 46 section 7 agrees with no bound gear | **FITS** |
 
@@ -85,7 +85,7 @@ Citations are to the review or audit and its section. Decision ids are from `30-
 
 | # | Plan item | Status | What the overhaul says | Verdict |
 |---|---|---|---|---|
-| 5a | Tempering, the Dawnsteel ladder, one ladder a band after | built to tier 7, bands staged | 23-2 (L35): pay only the difference going up a tier. 23-4: duplicates feed it past tier 7. 54 section 2.1: the one plain place gold buys percent | **CHANGED** by 23-2 and 23-4. See C2 |
+| 5a | Tempering, the Dawnsteel ladder, one ladder a band after | built to tier 7, bands staged | 23-2 (L35): pay only the difference going up a tier. 23-4: duplicates feed it past tier 7. 54 section 2.1: the one plain place gold buys percent. 44 row P-X33: the rung size becomes one line by gear Level. 44 step R16: the price becomes a share of band gold | **CHANGED** by 23-2 and 23-4. See C2 |
 | 5b | Salts, one a tier, at either bench | built | 54 call 8 and 56 section 2.2: remove the three workbench salt recipes | **CONFLICTS** (C13) |
 | 5c | Linings: one part and gold, 12 hours, stack to 48, guards and leech | ruled 11-18, not built | L32. 46 section 3c, 55 priority 4, 53 section 4.2 and 54 row 34 all say build it. 54 adds a saved kit a ground | **FITS** |
 | 5d | House curing | ruled 11-18 | 26-7 moves it to the Cellar at 250k, 750k and 2M, 4 hours a lining. 58 call and row 50: do not build it | **CONFLICTS** (C11) |
@@ -98,7 +98,7 @@ Citations are to the review or audit and its section. Decision ids are from `30-
 
 | # | Plan item | Status | What the overhaul says | Verdict |
 |---|---|---|---|---|
-| 6a | The Tower line, four keys, weapons at the next tier plus skill | built | 22-2 confirms the power. 46 section 3a and 54 section 2.2 keep it. 42 conflict 4 asks whether plus skill still means anything at high Level | **FITS** |
+| 6a | The Tower line, four keys, weapons at the next tier plus skill | built | 22-2 confirms the power. 46 section 3a and 54 section 2.2 keep it. 44 call 11 and row P-X38: make plus skill a percent of the blow. 44 step R22: the Tower reads any floor, which the plan's "one key a band" needs | **CONFLICTS** (C24) |
 | 6b | The Catacombs as a second chest line with its own mode | ruled 11-16, staged | 46 disagreement 4: merge it into one climb mode. 54 row 19: one wing and one key as the sample. 22-4 gives it its own rule | **CONFLICTS** (C16) |
 | 6c | A third wing that leans gloves | proposed | Not in L48 or any review | **MISSED** (M6) |
 | 6d | The late shape: 2% for ever, two-attribute pieces from Level 200, fusing | ruled (answer 4) and proposed | 50 section 1.4 lists two-attribute pieces as a projected source. No review or lane sizes them | **MISSED** (M5) |
@@ -159,7 +159,7 @@ Citations are to the review or audit and its section. Decision ids are from `30-
 | B4 | Does not exist. The plan's numbering goes from B3 to B5 | | | none |
 | B5 | Rune names. Spell leech and lining leech measured together | names ruled 11-18 | The names are settled. No lane measures the two leeches together | **MISSED** (M13) |
 
-**Counts.** 78 rows. FITS 30. CHANGED 16. CONFLICTS 20. MISSED 12. (B4 is not counted.)
+**Counts.** 82 rows, counted by script from the tables above. FITS 33. CHANGED 17. CONFLICTS 20. MISSED 12. (B4 is not counted.)
 
 ---
 
@@ -188,7 +188,7 @@ Evidence labels: **RULED** with the date or id, **COMPUTED** in this lane from n
 | 60 to 75 | 744k | 248k | 600k | 1.34M | 848k | 1.24M | 1.1x | 0.7x |
 | 75 to 90 | 992k | 248k | 900k | 1.89M | 1.15M | 1.32M | 1.4x | 0.9x |
 
-- **Recommendation.** Keep 23-2. No purchase wasted is right for players. Restore the over-ask at the formula layer: each tier's Tempering ladder is priced as a share of that band's gold on the 24-11 price index, sized so gear upgrades land in band E4. The difference between two index-priced ladders is then still a real bill. 43 conflict C6 asks for the same thing from the other side (every standing sink ends at tier 7 today). This re-opens "Tempering stays as built", so it needs your yes. Lane: L35 with L22.
+- **Recommendation.** Keep 23-2. No purchase wasted is right for players. Restore the over-ask at the formula layer: approve 44 call 18 (step R16), which prices Tempering, Hallmarks and linings as a share of the band's gold at your ruled size. One rider from this lane goes on that approval. The share must be sized on a hero who pays the difference at every tier, not on a hero who buys each ladder whole, or the table above is what ships. This re-opens "Tempering stays as built", so it needs your yes. L35 itself can ship now, since it only lowers a bill. The re-price rides R16, which also survives the Level law (R13) because a share of band gold does not care how long a band lasts.
 
 ### C3. Salvage by default and a token Shop price, against salvage as a choice
 
@@ -250,7 +250,8 @@ Evidence labels: **RULED** with the date or id, **COMPUTED** in this lane from n
 
 - **Side A.** 54 section 4.4: two new rune tiers at 75 and 90. 56 call 5: respace the five tiers to 1, 20, 40, 60 and 80.
 - **Side B.** Plan section 8: a Sealing Rune at 75 to 87, used up by tier 6 and tier 7 Hallmarks, and good batch topping out at 99. RULED 10-23: five tiers, one every 15 levels, cast at Magic 1, 15, 30, 45, 60. RULED 21-5: every spell scales with the caster's own hit, chosen over adding spell ranks.
-- **Recommendation.** The plan's Sealing Rune, in two grades: one at Runecrafting 75 for tier 6 Hallmarks and one at 88 for tier 7. It fills the gap, ties the fourth trade to jewelry, and adds a material to the two dearest Hallmarks. It touches no ruling. New rune tiers bring ten new spell versions the week after the spell rule removed the need for them. Respacing moves a number you ruled. Neither review saw the Sealing Rune, and it rides the jewelry lane for tiers 5 to 7.
+- **Also.** 44 call 9 and step R22: keep the built +10% a tier and continue the rune tiers past 60, one every 15 skill levels, when the gear curve lands.
+- **Recommendation.** Two steps, no menu. Now: the plan's Sealing Rune, in two grades, one at Runecrafting 75 for tier 6 Hallmarks and one at 88 for tier 7. It fills the gap with no spell math, ties the fourth trade to jewelry, adds a material to the two dearest Hallmarks and touches no ruling. It rides the jewelry lane for tiers 5 to 7. Later: rune tiers at 75 and 90 arrive with R22, as 44 and 54 both ask, once the spell rule has been played. Reject the respacing in 56, because it moves a number you ruled and R22 fills the same gap without doing that.
 
 ### C13. The workbench salt recipes
 
@@ -294,11 +295,14 @@ Evidence labels: **RULED** with the date or id, **COMPUTED** in this lane from n
 - **Side B.** RULED 11-20: Luck is rivets used plus Bestiary stages. "Anything else: none." The curve's hours are kept (50-9).
 - **Recommendation.** Keep two feeds. The find list is a good goal and belongs on the Honors page (56 section 4.2) and the Hall of Firsts (58 change 1), paying a line and a mount. No luck track in any build system. The kill ladder merge is fine for Luck as long as all six of the plan's stage payments survive.
 
-### C20. Three band tables
+### C20. Four band tables, and what a band is. Goes with 44 calls 1 and 19
 
-- **Side A.** Plan section 2: bands 8 to 18, two a region, about 27 Levels each. Luck's rivet table, the rarer-Rare step and the price index all count those bands.
-- **Side B.** `temper.js` `TEMPER_UNIQUE_BANDS` has four bands at 110, 125, 145 and 165. 50 section 1.4 projects a band every 20 Levels past 185. 42 section 7.6: on the ruled line a fixed-width band is +18% at Level 110 and +1% at Level 2,000.
-- **Recommendation.** One band table in `src/data`, beside the gear curve (41 model item 7, 42 M3), and every consumer reads it. To Level 400 it is the plan's table, because three ruled systems count on bands 8 to 18. COMPUTED on the ruled line, a 27 Level band is +25% at 110 and about +8% at 377, which still sits inside the weapon step. Past 400 a band is a fixed percent of the line and not a fixed number of Levels. The four bands in `temper.js` are re-keyed when the table lands.
+- **Side A.** Plan section 2: bands 8 to 18, two a region, about 27 Levels each, ruled with the regions (answer 8). Luck's rivet table (50 x band), the rarer-Rare step (15% at band 8 to 25% at band 18, ruled 11-20), chest keys ("one a band"), Tempering ladders ("one a band") and unique reforging ("up a band", A-3) all count those bands.
+- **Side B.** 44 section 5.2, step R10 and call 19: a band is a fixed +6.5% step on a line that is straight in Level. That is 7 Levels apart at 110, 20 at 300 and 65 at 1,000. `temper.js` `TEMPER_UNIQUE_BANDS` has four bands at 110, 125, 145 and 165. 50 section 1.4 projects one every 20 Levels past 185.
+- **Where they agree.** The line itself. Dawnsteel x Level / 110 is the plan's ruled budget (11-16) and 44's curve. A unique priced as a spend of that curve at exchange rates (R11) is the plan's "inside the band's budget, its own stat mix" made exact. Approve call 1.
+- **Where 44's band is too small.** COMPUTED: +6.5% on the line is 20 bands between Level 110 and 400. A four gains 69 Levels a month there (50 section 2.7), so it would cross a band every three days at Level 110. And +6.5% is a step in the gear's own numbers, not in hunting performance. The seven built tiers step +22 to +44% in weapon strength (42 section 7.6) and that measured +5 to +9% Level XP an hour (plan section 0). Your 10-25 ruling of 5 to 8% is about performance. So a +6.5% stat band is worth perhaps a quarter of a tier, twenty times. HYPOTHESIS until the grid plays one band on the curve, and it is the first thing R10's derivation diff should print.
+- **Where the plan's band is too even.** COMPUTED on the same line: a 27 Level band is a +25% stat step at 110, which is tier sized, and +8% at 377, which is about a third of a tier. Two bands a region stops being two upgrades a region somewhere past Level 250.
+- **Recommendation.** Keep 44's rule (a band is a fixed step of the curve, never a fixed count of Levels) and set the step from the built tiers: about +24% of the line, the size that already measures as one upgrade. COMPUTED, that puts bands at 110, 136, 169, 210, 260, 322 and 400. The first three land on the plan's Morrow and Catacombs bands almost exactly. From region 4 on it is about one band a region and not two. Then do two things so nothing ruled moves. Re-key the two Luck numbers from a band count to Level, with the same end points (15% at 110 to 25% at 400, and a unique's rivets by its worn Level). And put the one band table in `src/data` beside the curve, read by Tempering, chest keys, reforging and the price index. The four bands in `temper.js` are re-keyed when it lands. This is your call inside 44 call 19: rule the upgrade by its size, and make the size a tier's worth.
 
 ### C21. Krell's daily prize
 
@@ -316,6 +320,13 @@ Evidence labels: **RULED** with the date or id, **COMPUTED** in this lane from n
 
 - 59 section 4.8 and 57 section 4 both say you turned down weekly orders on 11-18. RULED 11-18: you rejected "wanted and unwanted lists on weekly orders" and three other ideas. Orders themselves were not objected to (plan section 12).
 - **Recommendation.** They stay in the plan as BUILD-LATER (ruled 11-21), behind chips and the market. See M3.
+
+### C24. Plus skill as a percent of the blow, against the chest weapon's mark
+
+- **Side A.** 44 call 11 and row P-X38: a flat +4 skill is about 1.4 damage at any Level, you asked for major upgrades, "both rulings cannot hold", so make it a percent of the blow.
+- **Side B.** RULED 11-14: Tower weapons carry +1, +2, +3 and +4 of their skill, your own numbers. RULED 11-18: major upgrades, and they keep the skill bonus. RULED 22-2 on 11-20: a chest weapon is the next tier's weapon plus its skill bonus, 4 to 8% faster when worn. Plan section 6 is built on that, and the Catacombs' armor and the special pieces use the same mark.
+- **What 44 missed.** 22-2 already made both rulings hold. The major upgrade is the next tier's numbers, which will come from the gear curve and so scale for ever. The skill bonus is the piece's mark, not its power. Under to-hit as a ratio (21-1) a point of skill also moves hit chance by the same share at every Level.
+- **Recommendation.** No re-open. Keep flat plus skill as ruled. R10 gives chest gear its scaling through "the next band's budget", which is the plan's late shape. If the grid later shows the mark is worth nothing a player can feel past Level 300, grow the number with the key tier (+5, +6, as your 11-14 "open column" already allows), which is a content row.
 
 ---
 
@@ -369,6 +380,20 @@ The plan's thirteen phases against the lanes of `30-plan.md` section D. Existing
 | Section 15 | Luck: bar, salvage, ring and rarer Rares | **L20**, **L34**, **L47** | 30-4 |
 | Section 5 | Tempering carries up | **L35**, with **L22** | C2 |
 
+### Where the formula roadmap meets these lanes (44 section 7)
+
+| 44 step | What it is | Meets the item plan at | The fit |
+|---|---|---|---|
+| R10 | The gear curve in `src/data` | Plan section 2, the budget line. L47's weapon and armor line. L29's chest weapons past Platinum. C20 | The plan's line, made a formula. It must land before L47. Krell's five (L52) and K1 do not wait for it, because at tier 7 a special piece is the standard piece plus one attribute. The band size is C20 |
+| R11 | Uniques spend a budget at exchange rates | Plan section 3, "inside the band's budget, its own stat mix". Finding 1's grid. C7 | The staged Morrow uniques are re-derived, not re-fitted. A guard or plus skill inside a unique's mix is bought at a published rate. Before L47 |
+| R12 | The kill reward follows the pace line. One tier table | Every "an hour" number in the plan: gear found, rivets an hour, the fist promise, the scaled-hunt shares | Nothing in the plan is keyed to a ground's XP fit, so it survives. Finding 5, the Luck feed (69 to 148 rivets an hour) and the fist table are re-measured after it, not before |
+| R13 | The Level curve derived from hours, at the wipe | Every number the plan sized to a band's length: the gem and chip pace, the over-ask, chest waits against a band, how long a tier is worn | Bands get longer in hours (56 trace 1 reads about 2.3 times). So the plan's band-sized numbers are authored as hours (R18) or as a share of band gold (R16), never as typed gold or typed chances. Then R13 moves none of them |
+| R16 | Standing sinks as a share of band gold | Plan section 10. L35, L37, J3, L32. C2 | This is the fix for C2. Hallmark and reforge fees for tiers 4 to 7 are your ruled 150k, 250k, 400k, 600k today. Under R16 they become shares that land near those numbers, so say on the approval that the ruled fees are the anchor points |
+| R17 | One sale formula that works at tier 8 | 23-10. Plan section 5, "salvage is never worth more than the Shop pays" | The no-mint guard (M4) reads this one formula |
+| R18 | Drops authored in hours, the chance derived | Plan section 15. L20, L34, L37's chips, K1's Very Rare band | It is the plan's "10 to 20 hours a Rare" kept by construction. Luck must not wait for it: L20 puts Magic Find in `effectiveDropChance` now, and R18 re-derives the rows under it later. Chips are authored in hours from the first row |
+| R20 | One modifier table: a key, sum or largest, a cap | Plan section 4, "each perk counts once, the larger worn". The 40% element cap. The one Magic Find budget | Fits as written. It also removes the tier set bonus on crit that the code still carries, which agrees with "no set bonuses" (11-14) |
+| R22 | Endless modes read any Level. Rune tiers past 60 | Plan section 6, "then one key a band". C12 | The Tower stops at floor 300 today. The late chest shape (M5) needs this first |
+
 ### The order
 
 Every item lane that changes a hero's power waits for L15 and L17, as the plan of record already says (stack rule S6). Inside that, this is the order I recommend.
@@ -393,7 +418,7 @@ Every item lane that changes a hero's power waits for L15 and L17, as the plan o
 | 16 | **J4** (new) | Commissions, single jobs only | J3, the market open, L41 | C17 |
 | 17 | **L33** | The Cellar as the curing room | L32 | Sized on the rested-hours reading (C11) |
 | 18 | **L56** | The four region sketches: six grounds opened four then two, the band table, the late chest shape in each key row | nothing. Design only | C9, C20, M5 |
-| 19 | **L47** | The Morrow Hills: the weapon and armor line as the gear curve, the re-cut grid at 15 to 20 uniques, region tables, patterns for the account, staples at 99, the maker's mark, Luck step 3, Very Rares on the party's clock, the Ox Road's Necrotic wall and the Old Guard's Storm | L15, L16, L17, L22, L34, L37, L44, L52 | C6, C20, M7, M8, M10 |
+| 19 | **L47** (after R10, R11) | The Morrow Hills: the weapon and armor line as the gear curve, the re-cut grid at 15 to 20 uniques, region tables, patterns for the account, staples at 99, the maker's mark, Luck step 3, Very Rares on the party's clock, the Ox Road's Necrotic wall and the Old Guard's Storm | L15, L16, L17, L22, L34, L37, L44, L52 | C6, C20, M7, M8, M10 |
 | 20 | **L48** | The Catacombs descent, one wing and one key first, then the rest, then the glove wing | L16, L29 | C16, M6 |
 | 21 | **L53** | Factions. The item plan's only stake is that every region has equal First Flame and Last Ember grounds, which C9's four-then-two opening keeps (two pairs, then a third) | L17 | none |
 | later | | Weekly orders, stirred grounds, bulk orders, the one-book market view, quivers, status wards, two-attribute chest pieces and fusing | their regions, the market | M3, M5, M9 |
@@ -411,9 +436,10 @@ Only these move something you ruled. Everything else in this document is a seque
 | C2 | 11-18, "Tempering stays as built" | Price each tier's ladder as a share of band gold, so 23-2 does not erase the over-ask | The table in C2: 1.0 to 1.4 times becomes 0.5 to 0.9 times at tiers 4 to 6 |
 | C8 | 23-5, perks add up to 4% | Read the 4% on a hero whose perks do not match the ground, and cap a fully matched hero at one weapon step | Perks measure about 1% each and nobody has paid a Hallmark fee (CITED 54, 10) |
 | C10 | 11-05, the skill tree on hold | Lift it for a Kindlings spec only, with the three fences | Three reviews found the same hole. Worn in's purpose has no owner |
+| C20 | 11-18 bands (two a region) and 11-20 Luck numbers keyed by band, inside 44 calls 1 and 19 | Approve the gear curve. Size a band at a tier's worth (about +24% of the line), not +6.5%. Re-key the Luck numbers to Level with the same end points | 20 bands from 110 to 400 at +6.5%, each about a quarter of a tier. HYPOTHESIS until played |
 | C15 | 11-14 and 22-8, Call out | One boss door, a key is a roll, mid-region pieces stay repeatable | One real use of Call out. 19 keys and no Hall fought |
 
-Four re-opens that reviews asked for and I do not recommend: salvage by default (C3), seven spells in place of sixteen (C4), dropping curing (C11), and the Catacombs as a Tower wing (C16).
+Five re-opens that reviews or audits asked for and I do not recommend: salvage by default (C3), seven spells in place of sixteen (C4), dropping curing (C11), the Catacombs as a Tower wing (C16), and plus skill as a percent of the blow (C24).
 
 ---
 
@@ -426,4 +452,6 @@ Four re-opens that reviews asked for and I do not recommend: salvage by default 
 | COMPUTED | A 27 Level band is +25% at 110 and about +8% at 377 on the ruled line | Dawnsteel x Level / 110, plan section 2 |
 | CITED | Real-player and solver numbers | 10, 11, 54, 55 as named beside each |
 | CHECKED | Status labels built and staged | A search of `src/data`, `src/core` and `tools/balance-sim/staged` in this lane: `fists.js`, `necrotic-storm.js`, `jewelry.js`, `special-attributes.js`, `patterns.js`, `catacomb-armor.js`, `temper.js` are present. No file holds salvage, chips, commissions, good batch, rivets, Magic Find, thorns, sweet spot or spell change |
-| NOT DONE | Nothing was played or measured. 52, 53 and 55 to 59 were read by search for item topics and not in full. 21 to 28 (the old dives) were not re-read. `44-formula-architecture.md` and `51-baseline.md` had not landed. Ruling 31-4 has an empty ruling field in `30-decisions.json` and is taken as ruled from the rulings of record |
+| COMPUTED | Band edges at +24% of the line: 110, 136, 169, 210, 260, 322, 400. Twenty bands from 110 to 400 at +6.5% | ln(400/110) over ln(1.24) and over ln(1.065) |
+| HYPOTHESIS | A +6.5% step in gear numbers is about a quarter of a tier in hunting performance | 42 section 7.6 (tier steps +22 to +44% in strength) against the plan's measured +5 to +9% XP a tier. Not played on the curve |
+| NOT DONE | Nothing was played or measured. 52, 53 and 55 to 59 were read by search for item topics and not in full. Of 44, sections 5, 7 and 8 were read and sections 2 to 4 and 6 were not. 21 to 28 (the old dives) were not re-read. `51-baseline.md` was not read. Ruling 31-4 has an empty ruling field in `30-decisions.json` and is taken as ruled from the rulings of record |

@@ -1,8 +1,10 @@
-# Balance program 55: Design review, the economy (phase A)
+# Balance program 55: Design review, the economy (phases A and B)
 
 Review of `lane/d-review-economy` (game designer, 2026-11-21), under Tyler's briefs 45 (design) and 40 (formulas). Phase A is reading and analysis only. No game code, data or migration was changed, and no grid, matrix or browser run was made. Numbers come from the cached grid (`tools/balance-program/progression-grid.json`, commit 07c836bfd), `node tools/balance-program/gold-model.mjs --shelf` (a join of JSON, no engine), the data rows under `src/data/`, and `10-real-players.md`. `51-baseline.md` had not landed on the set when this was written, so the red list is read from the grid directly.
 
 Every claim is labeled **EVIDENCE** (with its source) or **HYPOTHESIS** (to be measured in phase B or by real players).
+
+**Phase B (2026-11-21) is section 10.** It merged the set at 358417cb0, read 44, 46 and 47, and measured three patches on the real-engine matrix (`tools/balance-program/patches/economy-1.json` to `economy-3.json`, 207 cells each, 2 workers). Sections 1, 3, 6 and 7 below are updated to what the numbers say. Section 10.5 lists every verdict that changed. The matrix reads a party's store bill at 1.9 times the real one, so every party store and gold number here is an upper bound.
 
 ---
 
@@ -10,24 +12,26 @@ Every claim is labeled **EVIDENCE** (with its source) or **HYPOTHESIS** (to be m
 
 **Verdict.** The gold side of the game is well built and honest. It is not yet an economy. It is one account earning from monsters and paying a store, with a shelf of one-time buys beside it. The identity says "player-driven". Today no player needs another player for anything, and the market that would connect them is closed, manual and unused. That is the one thing I would not build the same way again.
 
-If we started today I would keep the gold formula, the per-use store, stamina, the slot ladder, Tempering and Premium. I would build the market differently, I would make every price come from one wage curve, and I would not have let gear drops become a gold faucet.
+If we started today I would keep the gold formula, the per-use store, stamina, the slot ladder, Tempering and Premium. I would build the market differently, and I would make every repeating price come from one wage curve.
 
 **The 5 changes that matter most**
 
 | # | Change | Why | Layer | Size |
 |---|---|---|---|---|
 | 1 | **Make the market idle, like the hunting.** Standing buy orders. The "Sell" loot rule sells to the best order when it beats the Shop. The one-tap refill buys player-made stock when it is cheaper than the store. Nobody has to open a market window for trade to happen. | Real players made 7 listings and 0 real purchases. A cooked shark saves a Deadly hunter 924 gold at the store and the Shop pays its maker 24. The trade is there. Nothing carries it. | new mechanic (one framework for orders), then data | L |
-| 2 | **One wage curve, and every price is hours of it. The store's healing price becomes a formula.** | Coin is a formula (0.30 gold a monster hit point). The price of healing is a hand table that climbs 9 times a hit point from shrimp to shark. That gap, not Deadly's damage, is why a lone hero on Deadly pays 5 to 12 times its coin. Refills, Blessings, the yard, renames and colors are each their own straight line in Level. | formula + coefficient | M |
-| 3 | **Size the repeating sinks before the beta grows, and stop the house dummy from deleting the biggest one.** Linings first, then the yard fee, then refills. The dummy halves the yard fee instead of ending it. | At 12 hours a day an own four buys the whole shelf to Krell (53M) in about 14 weeks. After that nothing takes gold out. The yard fee at 100 gold a skill level is the one sink that grows forever, and a 150k dummy pays itself back in a few days and ends it. | coefficient + content rows | M |
-| 4 | **Gear stops being gold. Salvage is where gear goes by default, and the Shop buys junk.** | 86% of gear drops are sold to the Shop and 0.9% are ever worn. Sold loot is 26% of all gold created. A drop that is always sold is a coin with extra presses. | content rule + one coefficient | M |
-| 5 | **Cut the fees nobody feels.** Bench tax gone. Setup slots 4 and 5 free. The market open on day one. Dead Shop rows deleted. | Each one is a concept a new player must learn, a guard, and a generator, for under 0.1% of gold out. Two of them sell back a decision the player already made. | content rows | S |
+| 2 | **One wage curve, and every repeating price is hours of it** (44 step R15). Hero slots and the House stay typed, as 44 judged. | Refills, Blessings, the yard, renames and colors are each their own straight line in Level, against a wage that is not a straight line. | formula, server | M |
+| 3 | **The store's healing price becomes one line** (44 step R14). | MEASURED: with the top of the line at 0.60 gold a hit point, a lone MID hero on Deadly pays 49% less at the store at every Level from 60 up, and no pace or survival number moves. It is the lone hero's fix. It does nothing for a party, whose bill is runes and arrows (see 10.3). | coefficient | S |
+| 4 | **Size the repeating sinks before the beta grows, and stop the house dummy from deleting the biggest one.** Linings first, then the yard fee, then refills. The dummy halves the yard fee instead of ending it. | At 12 hours a day an own four buys the whole shelf to Krell (53M) in about 14 weeks. After that nothing takes gold out. The yard fee at 100 gold a skill level is the one sink that grows forever, and a 150k dummy pays itself back in a few days and ends it. | coefficient + content rows | M |
+| 5 | **Cut the fees nobody feels.** Bench tax gone. Setup slots 4 and 5 free. The market open on day one. | Each one is a concept a new player must learn, a guard, and a generator, for under 0.1% of gold out. Two of them sell back a decision the player already made. | content rows | S |
 
 **Actively harming the game today**
 
 - The market is shut behind a 1,000,000 gold town project on a new server. The first thing a player learns about trade is "Not open yet".
-- The house dummy and the yard fee are two rulings that cancel each other (see 3 above).
+- The house dummy and the yard fee are two rulings that cancel each other (see 4 above).
 - A hunt on a hard tier can spend a whole purse while the player sleeps. The only guard is a gold floor that defaults to 300 and cannot be set above 100,000.
-- The store's food prices punish exactly the content that needs the most healing, by a factor nobody chose.
+- The store's food prices punish the lone hero who needs the most healing, by a factor nobody chose.
+
+**Withdrawn in phase B.** "Gear is salvaged by default and the Shop pays a token." The problem is real and the Game Director found it too. The remedy is not ready: MEASURED, a 15% fall in gold in turns 40 gold band rows worse and none better. Salvage ships as a choice, as ruled, and real players' picks decide the rest (10.5).
 
 **What I would add.** The idle market (change 1). A daily "gold made against gold destroyed" line from the journal, because nobody can steer what nobody reads. A spending budget for each hunt, remembered for each ground. Later, on a big server only, one prestige thing that clans bid burned gold for, because a bid is the only price that rises by itself as the server gets richer.
 
@@ -64,7 +68,7 @@ The first coefficient is a formula: 0.30, or 0.21 on the dialed grounds. The sec
 
 Store drinks run 0.14 to 0.49 gold a point of mana. EVIDENCE: the rows.
 
-So at the top of the ladder a hero breaks even only when it takes under an eighth of the damage it deals (0.21 / 1.75). On shrimp it breaks even taking as much as it deals. The need for the big food comes from the 2 second shared cooldown: a hero with 1,030 hit points at Level 88 that is being hit hard cannot keep up on 72 a bite. **So the store's price a hit point is a tax on how fast you must heal, and it rises 9 times across five rows.** Nobody ruled that slope. It is the biggest single reason for the G-2 red, and it is a coefficient, not a ground. This is the finding brief 40 asks for: the hard tier is not too dangerous, the healing is mispriced against the coin.
+So at the top of the ladder a hero breaks even only when it takes under an eighth of the damage it deals (0.21 / 1.75). On shrimp it breaks even taking as much as it deals. The need for the big food comes from the 2 second shared cooldown: a hero with 1,030 hit points at Level 88 that is being hit hard cannot keep up on 72 a bite. **So the store's price a hit point is a tax on how fast you must heal, and it rises 9 times across five rows.** Nobody ruled that slope. It is a coefficient, not a ground. Phase B measured it (10.3, run 1): it is the whole of a lone hero's Deadly bill and none of a party's. A party's bill is runes and arrows.
 
 **What the cached grid says (MID gear, a hero-hour, EVIDENCE: grid 07c836bfd; the four is the harness four, which buys more at the store than the real four does):**
 
@@ -158,7 +162,7 @@ So the fix is not more tradeable things. It is a market that works the way the r
 | 5 | Coin = gold a monster hit point | KEEP | The right formula |
 | 6 | The four dials on coin (floor line 0.5 to 1.4, role, party 1.17 / 0.53, ground 0.7) | MERGE | Into one wage curve by monster Level. Four compensating multipliers is brief 40's "accidental complexity" |
 | 7 | The Shop as buyer of last resort at half book | KEEP | A floor is needed and the market's floor rests on it |
-| 8 | Gear drops sold to the Shop as income | REDESIGN | Salvage by default, Shop price for gear cut to a token. Gear becomes Luck and materials, not coin |
+| 8 | Gear drops sold to the Shop as income | KEEP | Changed in phase B. Salvage is a choice beside Sell, as ruled (L21, L34), with both numbers shown and a starting loot plan. Revisit with a real reading of what players pick |
 | 9 | Tamsin's tally | KEEP | First goal, small gold on purpose |
 | 10 | Store supplies charged per use | KEEP | The price of pace, and zero repeated decisions |
 | 11 | The store's heal prices (5 rows, 0.19 to 1.75 gold a hit point) | REDESIGN | `price = heals x gold-a-hit-point(tier)`, the curve chosen against the coin coefficient |
@@ -191,7 +195,7 @@ So the fix is not more tradeable things. It is a market that works the way the r
 | 38 | "List for a friend" | KEEP | Ruled |
 | 39 | Premium, account-wide, comfort only | KEEP | Ruled |
 | 40 | The gold floor | REDESIGN | A budget for the hunt, remembered a ground, with a sane default |
-| 41 | `SUPPLY_SHOP_OFFERS` (40 Shop rows for supplies the Shop no longer sells) | REMOVE | HYPOTHESIS: dead since the 10-20 ruling. The formula audit confirms and deletes |
+| 41 | `SUPPLY_SHOP_OFFERS` (40 rows) | KEEP | Corrected in phase B. It is not dead. `src/data/shops.js:451-454` sells the tool, gear and seed kinds from it and keeps the rest as `SUPPLY_PRICE_LIST`. The phase A claim was wrong |
 | 42 | Scaled hunt hours for gold | KEEP | Repeating sink that revives old grounds |
 | 43 | Lone hunts out-earning parties in gold | KEEP | Ruled 11-13. A real choice between gold and XP |
 | 44 | Linings (designed) | ADD | The first repeating sink that buys power. Build before any other sink |
@@ -199,7 +203,7 @@ So the fix is not more tradeable things. It is a market that works the way the r
 | 46 | Clan castle tenure by burned bid | DEFER | The self-indexing sink. Needs hundreds of players |
 | 47 | Craft orders (I bring materials and a fee, your level 90 smith makes it) | DEFER | The second market after orders work. Skill level is the one thing an account cannot make in a day |
 
-**Counts (47 rows).** KEEP 26. REMOVE 6. MERGE 4. REDESIGN 6. ADD 2. DEFER 3. One more ADD (standing orders) is counted inside row 35.
+**Counts (47 rows, after phase B).** KEEP 28. REMOVE 5. MERGE 4. REDESIGN 5. ADD 2. DEFER 3. (Phase A read KEEP 26, REMOVE 6, REDESIGN 6.) One more ADD (standing orders) is counted inside row 35.
 
 ### The 8 criteria for each significant one
 
@@ -261,7 +265,7 @@ Not proposed, on purpose: a second soft currency, daily login gold, repair bills
 | Touches | Expected | Risk |
 |---|---|---|
 | Combat | No change to who lives or dies. Only the bill moves | None |
-| Economy | If the top of the curve comes down from 1.75 toward about 0.6 gold a hit point, a lone hero on Deadly reads about 2 to 4 times coin instead of 5 to 12, and the four moves toward the 45 to 65% band | Too gentle and Deadly is free again (the 11-16 lesson with Carved runes) |
+| Economy | MEASURED in phase B (10.3, run 1): with the top at 0.60 a lone MID hero on Deadly reads 0.8 to 1.9 times coin instead of 1.6 to 3.7, and the four does not move at all | Too gentle and Deadly is free again (the 11-16 lesson with Carved runes) |
 | Crafting | The room between the Shop's bid and the store's price narrows for high food. Cooking's top margin falls | Check `craft-wages` |
 | Parties | A healer's worth is the gap between food gold and mana gold a hit point. A flatter food curve makes the healer worth less in gold | Keep the healer ahead at every tier |
 | Progression | Cheaper hard tiers pull players up a tier sooner, so XP pace rises | Read against the Level table |
@@ -294,14 +298,14 @@ Not proposed, on purpose: a second soft currency, daily login gold, repair bills
 |---|---|---|---|---|---|---|---|---|
 | 1 | Idle market: orders, loot-rule routing, refill sourcing | **Critical** | L | Medium (money surface) | The identity line "player-driven economy" becomes true | Market open; loot plan (L21); Security | EVIDENCE that the market is unused and the margin exists. HYPOTHESIS that routing creates trade | Yes. Only a playtest of 30 or more shows whether orders fill |
 | 2 | Wage curve, prices as hours of it, coin dials folded | **Critical** | M | Low | One number moves the whole economy. Prices hold to Level 400 | The matrix (wage read from it); formula audit | EVIDENCE: six lines and four dials in data | No |
-| 3 | Heal price as a formula | **High** | S | Medium | G-2 fixed at its cause | 2; matrix diff | EVIDENCE: the table. HYPOTHESIS: the right slope | Partly. "Struggle or pay" is a feel |
+| 3 | Heal price as a formula (R14) | **High** | S | Low. MEASURED: 0 unintended bands | The lone hero's Deadly bill halved. A party's bill is untouched | 2; matrix diff | EVIDENCE: the table. HYPOTHESIS: the right slope | Partly. "Struggle or pay" is a feel |
 | 4 | Linings built first, yard fee live, dummy at half fee | **High** | L (linings), S (rest) | Low | Repeating sinks reach the G-9 band for rich accounts | L15, L19, L32 | EVIDENCE: shelf lasts 14 weeks. HYPOTHESIS: players choose to train | Yes: do players set "train" in the after-hunt plan |
 | 5 | The economy gauge | **High** | S | None | We can see inflation before players do | L13 | n/a | No |
-| 6 | Gear salvaged by default, Shop gear rate cut past tier 2 | **High** | M | Medium (moves every gold number) | Drops mean something. Faucet down a fifth | L34, L21 | EVIDENCE: 86% sold, 0.9% worn. HYPOTHESIS: players prefer Luck | Yes |
+| 6 | Salvage as a choice beside Sell, with a starting loot plan (was: salvage by default) | **High** | M | Low | Drops become a decision without moving gold in | L34, L21 | EVIDENCE: 86% sold, 0.9% worn. MEASURED: gold in x0.85 regresses 40 gold band rows | Yes: what players pick |
 | 7 | Hunt budget in place of the gold floor | **Medium** | S | None | No overnight empty purse | None | EVIDENCE: floor default 300, max 100,000; lone Deadly burns up to 121k an hour | No |
 | 8 | Market open on day one | **Medium** | S | None | First contact with trade is a market, not a locked door | A new first Works project | EVIDENCE: PLAYED in dive 24 | No |
 | 9 | Food rows merged to one ladder | **Medium** | S | Low | Fewer dominated rows, clearer Cooking | Crafting review | EVIDENCE: rows | No |
-| 10 | Bench tax removed, setup slots free, dead Shop supply rows deleted, stackable ceiling floor removed | **Remove or simplify** | S | None | Less to learn, less to maintain | None | EVIDENCE: 0 paid, under 0.1% of gold out | No |
+| 10 | Bench tax removed, setup slots free, stackable ceiling floor removed | **Remove or simplify** | S | None | Less to learn, less to maintain | None | EVIDENCE: 0 paid, under 0.1% of gold out | No |
 | 11 | Crowns | **Defer** | L | High | The money model | 1, 4, Premium (L27) | Ruled | Yes |
 | 12 | Castle tenure by burned bid; craft orders | **Defer** | M each | Medium | The sink that indexes itself; the skill market | Population; 1 | HYPOTHESIS | Yes |
 | 13 | Further raise of hero slots | **Do not do** | n/a | n/a | Negative for new players | n/a | EVIDENCE: lone deaths 6.7 a 100 h against 1.2 in a party; two players quit at Levels 7 to 9 | n/a |
@@ -314,9 +318,9 @@ Not proposed, on purpose: a second soft currency, daily login gold, repair bills
 
 1. **Build the idle market before Crowns and before any new sink beyond the ruled ones.** Reason: it is the only missing piece of the stated identity, and Crowns cannot have a price without it. *Strongest alternative:* leave the market as listings and accept that Hearthrise is a self-sufficient game with a Crown exchange.
 2. **Every price becomes hours of one wage curve, and the coin dials fold into that curve.** Reason: unlimited Levels, public formulas, and one number to steer. *Alternative:* the ruled band index past Krell only (24-11), leaving Levels 1 to 110 hand-priced.
-3. **The store's healing price becomes a formula, with its top near 3 times the coin coefficient instead of 8.** Reason: it is the cause of the Deadly bills, and it is one curve. *Alternative:* leave the table and re-tune Deadly's damage, which is the ground-by-ground patching brief 40 forbids.
+3. **Approve 44 step R14: the store's healing price becomes one line, with its top near 3 times the coin coefficient instead of 8, and heal size follows hero health.** Reason: MEASURED, it halves a lone hero's Deadly bill and moves nothing else. It does not fix a party's bill, which is runes. *Alternative:* leave the table, and a lone hero on Deadly keeps paying 1.8 to 3.7 times its coin.
 4. **The house dummy halves the yard fee and does not end it.** Reason: at the ruled fee it pays back in a few days and removes the one sink that never ends. This changes your 11-08 wording ("you don't have to pay per hour"). *Alternative:* keep "no fee" and price each skill at about 60 days of the fee it removes, which is tens of millions.
-5. **Gear is salvaged by default and the Shop's price for gear past tier 2 drops to a token.** Reason: gear is 26% of gold in and almost none is worn. *Alternative:* keep the Shop price and let the loot plan offer salvage as a choice (the plan as ruled).
+5. **Salvage ships as a choice, as ruled. No change to the Shop's price.** I withdraw the phase A call. Reason: a 15% fall in gold in made 40 gold band rows worse and none better, and it would break the first-slot guard and the Luck bar's hours. *Alternative:* salvage by default, after a playtest shows players choose Luck over gold anyway.
 6. **Open the market on day one. Town Works' first project builds something else.** Reason: a locked market teaches that there is no market. This changes 24-7. *Alternative:* the ruled goal sized to the server, which opens it in about a week.
 7. **Remove the bench tax and make setup slots 4 and 5 free.** Reason: two fees nobody feels, one of which charges for a remembered decision. The second changes your 11-05 ruling. *Alternative:* keep both as built. Neither moves a ledger.
 8. **Do not raise hero slots again.** Reason above. *Alternative:* raise only slot 4, which no new player meets.
@@ -328,7 +332,7 @@ Not proposed, on purpose: a second soft currency, daily login gold, repair bills
 
 | To | What |
 |---|---|
-| Formula audit (41 to 44) | Coin has four stacked dials (floor line, role, party fit, ground 0.7). The store heal table is a hand curve that sets every net-gold cell. Six price lines are each linear in Level against a wage that is not. `SUPPLY_SHOP_OFFERS` looks dead. `GOLD_FLOOR.max` 100,000 is an unexplained cap. `ceiling_min` 1,000 on the market is an unexplained floor |
+| Formula audit (41 to 44) | Coin has four stacked dials (floor line, role, party fit, ground 0.7). The store heal table is a hand curve that sets every net-gold cell. Six price lines are each linear in Level against a wage that is not. `GOLD_FLOOR.max` 100,000 is an unexplained cap. `ceiling_min` 1,000 on the market is an unexplained floor |
 | Combat review | The 2 second shared food cooldown is what forces the expensive food. Any change to hero hit points, heal sizes or the cooldown moves every gold cell. A healer's gold worth is food price less mana price a hit point |
 | Crafting and items reviews | The margin for every supply sits between the Shop's bid and the store's price (shark: 24 to 924). Is a maker's hourly wage on that margin under hunting's? Which of the 19 heal foods survive. Whether each region's materials come only from that region, so that no account makes everything at once |
 | Social review | Castle tenure as a burned-gold bid. On-call heroes and shared supply cost should pay through the same order book, not a second money surface |
@@ -369,3 +373,125 @@ Not proposed, on purpose: a second soft currency, daily login gold, repair bills
 | Server-wide destroyed over created stays under 0.5 after the shelf is bought | the gauge, on a live server |
 
 **Not checked in phase A.** The harness four over-buys at the store against the real four (known as K1), so every four-hero store share above is an upper bound. The Level 40 pair cell is one ground. No production read was made for this review.
+
+---
+
+## 10. Phase B: layers, measurements, and what changed
+
+### 10.1 Where 44, 46 and 47 already decided, and whether I agree
+
+| Source | What it says | My position |
+|---|---|---|
+| 44 section 5.3, step R15 | One wage curve for every price that repeats. The wage is a formula the server computes, checked against the matrix within 10%. Not read from a simulator | **Agree, and I change my proposal to match.** Phase A said "read from the matrix". 44 is right that a simulator must not sit in the path of a server price |
+| 44 section 5.3 | Hero slots and the House stay typed | **Agree.** Phase A row 34 did not ask to index them |
+| 44 step R14 | Heal price on one line, and heal size as a share of reference health, because the ladder stops at 396 hit points | **Agree with both halves.** My patch shows the second half is needed: at Levels 1,000 to 5,000 the cheaper line drops the lone Deadly bill under the band (0.26, 0.20, 0.17 of coin), because five rows of food cannot scale |
+| 44 step R16, call 18 | Tempering, Hallmarks and linings as a share of band gold at 1.2 to 1.4 | **Agree.** It is the standing-sink half of the wage curve |
+| 44 step R9, call 4 | Fold the four coin dials into one coin line, same gold | **Agree.** Same finding as phase A row 6 |
+| 44 call 14 | Blessing set priced at a share of the hours it saves | **Agree.** It replaces my "re-base on the wage curve" for row 21 |
+| 44 call 15 | The yard's rate should follow the skill level's cost | **Agree, with a rider.** The fee must follow the rate, or the keystone sink gets cheaper a point of XP as the rate rises |
+| 44 call 17 | Hold the refill price until the store-bill fault closes | **Agree** |
+| 47 C2 | Keep "Tempering pays the difference" (23-2) and restore the over-ask through R16, sized on a hero who pays the difference at every tier | **Agree.** Phase A row 27 kept Tempering's prices without seeing that 23-2 takes the Level 45 to 60 band from 1.0 to 0.5 of band gold. The rider is right |
+| 47 C3 | Salvage stays a choice. The Shop keeps its ruled price | **Agree. I withdraw my call.** See 10.3 run 3 and 10.5 |
+| 47 C17 | Single craft jobs ship with jewelry tiers 5 to 7. Bulk orders wait for the idle market | **Agree.** It is my 4.6 split in two, and the single job needs only the escrow that exists |
+| 47 M9 | The plan's "one book a piece, perks as filters" was not in my market design | **Accepted.** Standing orders are placed on that one book. An order for a rolled piece names the item and may name perks |
+| 46 seam 2 | "An account is a closed economy by design": 0 hours with another person, 0 market purchases | **Same conclusion, reached independently** (my 2.3). Two reviews finding it from different ends is evidence it is the main fault of the area |
+| 46 seam 3 and row "The Shop buying all gear" | Gear is coin: 86% sold, 0.9% worn | **Same finding.** We both proposed salvage and a token Shop price. 47 C3 and my run 3 say build it as a choice first |
+| 46 row "The market" | Refocus the market on rare pieces and Crowns. "Stop designing for bars and fish" | **CONFLICT. I recommend my side, narrowed.** 46 is right that nobody will walk to a window to trade fish. That is why the idle market has no window: the refill and the loot rule do the trade. But 46 is also right about order of work. So: rare pieces and the order book first, supplies through the refill second, and only if the first playtest shows orders fill |
+| 46 change 1 and its call 1 | The second hero in the first evening. The first slot should cost far less | **CONFLICT with the ruling, not with me.** Phase A said "do not raise slots again", for the same reason 46 gives (the lone game from 1 to 33 is the weakest stretch). 46 goes further and I think it is right on the evidence. It is 46's call to carry. On the economy side a cheaper first slot costs nothing: it is 400k of a 53M shelf |
+| 57 (social) | On-call heroes, shared supply cost | No conflict. Both should pay through the one order book and ledger |
+
+### 10.2 Every top proposal at its layer
+
+| # | Proposal | Layer | 44 ids | Measured? |
+|---|---|---|---|---|
+| 1 | Idle market: standing orders, loot-rule routing, refill sourcing | **New mechanic.** No formula id exists. One order framework on the built market. This is a hypothesis about a system, not a number | none. Its combat side is knob `storeSupplyShare` (`S-X02` neighbors) | Combat side MEASURED (run 2). Whether orders fill: playtest |
+| 2 | Wage curve, repeating prices in hours | **Formula, server** | R15, knob `wageShare` (planned), calls 14, 15, 17 | Not measurable until R15 exists. COMPUTED for the yard (10.4) |
+| 3 | Heal price as one line | **Coefficient** | R14, knob `healPrice` (planned), exception `S-X02` | MEASURED (run 1) |
+| 4 | Repeating sinks: linings, yard fee, dummy at half fee | **Coefficient** (the fee, the dummy) and **content rows** (linings) | R15 (the yard), R16 (linings), `E-X25` | COMPUTED (10.4). The matrix does not play town hours |
+| 5 | Coin dials folded to one line | **Coefficient**, identity in total | R9, knob `coinPerKill`, `E-X02`, `E-X03`, `E-X05`, `E-X19` | The coin coefficient MEASURED clean (run 3) |
+| 6 | Bench tax removed, setup slots free, market open on day one | **Content rows** | R17 keeps the bench tax unchanged, so removal is a design call outside the roadmap | No number to measure |
+| 7 | Hunt budget in place of the gold floor | **Content row** (`GOLD_FLOOR`) and UI | none | No. HYPOTHESIS. Settled by a first-session playtest: does a new player on a hard tier set it |
+| 8 | Economy gauge | **Tools** | R23 (`E-X37`: the gold model approximates) | n/a |
+
+### 10.3 The three matrix runs
+
+All three: `node tools/balance-program/balance-matrix.mjs --diff <patch> --subset --workers 2`, 207 cells, the same dice before and after, about 2 minutes each. Calibration printed on each run: the harness four kills 1,386 an hour against the real 1,251, its tank takes 96% of the damage against 69%, and its store bill is 1.87 times real. Levels 185 and up are PROVISIONAL.
+
+**Run 1. `economy-1.json`: store heal prices on one line (14, 36, 91, 150, 238 gold, which is 0.19 to 0.60 a hit point). Targets: gold.**
+
+| Flags | IMPROVED 15, REGRESSED 9, **UNINTENDED 0**. Gate: PASS |
+|---|---|
+| Combat, pace, survival | Nothing moved in any of 207 cells |
+| Lone hammer, MID, Deadly: store bill | -9.7% at Level 30, **-49.4% at every Level from 60 up** |
+| Lone hammer, MID, Deadly: store over coin (G-2.deadly) | 30: 1.12 to 1.01. 60: 3.74 to 1.89. 110: 1.75 to 0.89. 185: 3.03 to 1.53. 400: 1.59 to 0.80. All still red against 45 to 65%, all closer |
+| Lone hammer, MID, Deadly: net gold | +94%, +68%, +115%, +74%, +134% at 30, 60, 110, 185, 400 (from a loss toward break-even) |
+| The four, any tier, any gear | **Store bill +0.0% from Level 10 to 2,000.** A party does not eat store food. Its healer heals on mana |
+| REGRESSED | Six rows at Levels 1,000 to 5,000: the lone Deadly bill falls under the band (0.51 to 0.26 at 1,000). Three bow and crossbow G-9 rows by under 1 point |
+
+*What it proves.* The heal table is a clean coefficient: one line moves one thing. It is the lone hero's Deadly bill and nothing else. **Phase A was wrong to call it "the cause of the Deadly bills" in general.** For a party the bill is runes and arrows. EVIDENCE: the cached cells show the four's store units as ammo (which holds runes) with a trace of mana, and real players' store bill was 55% runes, 20% drinks, 13% ammunition and whetstones, 12% food.
+
+*The REGRESSED rows, traced.* The food ladder stops at 396 hit points, so past Level 400 a hero is on shark for ever and a cheaper shark is simply a smaller bill. That is 44's second half of R14 (heal size as a share of reference health). With it the rows would not move. PROVISIONAL Levels.
+
+**Run 2. `economy-2.json`: every supply at full effect (`storeSupplyShare` 0.75 to 1.0). The most the idle market can move combat. Targets: none, so every moved band is the trace.**
+
+| Flags | IMPROVED 0, REGRESSED 0, **UNINTENDED 321**. Gate: FAIL, as designed (nothing was targeted) |
+|---|---|
+| The four (median) | DPS +5.7%, Level XP +5.8%, damage taken -15.7%, store bill -9.3%, net gold +22.6% |
+| Lone (median) | DPS +3.4%, Level XP +3.6%, damage taken -1.8%, net gold +3.5%. The lone hammer does not move (it uses no rune or arrow in the harness) |
+| Deadly against Normal | Level XP +9.6% on Deadly, +3.9% on Normal. Damage taken -13.9% against -4.6% |
+| MID four on Deadly, by Level | XP +4.5%, +11.9%, +4.7%, +9.0%, +9.7% at 30, 60, 110, 185, 400. Damage taken -26%, -19%, -30%, -14%, -9% |
+| LOW four on Deadly | Net gold +212%, +156%, +26%, +80%, +25%. G-5 ("LOW on Deadly loses money") moves the wrong way at Level 60 |
+| Pace bands | P1 (the ruled hours), already red as too fast, moves further away at all 7 printed checkpoints. P9.deadly away at 12. P6.4 toward at 12, away at 4 |
+
+*Every UNINTENDED, traced to one cause.* A full-effect rune or arrow is a third more damage on that cast, and a full-effect heal or drink is a third more healing a bite. Faster kills are less time under attack, so damage taken falls more than damage dealt rises. Less damage is less to buy. That one chain is all 321 rows: pace (P1, P5, P6, P7, P8, P9), survival (S4, S5) and gold (G-2, G-4, G-5, G-9).
+
+*What it means for the proposal.* The idle market does not only move gold between players. If it works, hard tiers get up to 10% faster and up to 30% safer for parties, and that is pay-nothing power for anyone who trades. **It is an upper bound, and part of it is already in the game:** real players made a third of their supplies themselves. So the real shift is at most two thirds of these numbers. The verdict on the market stands. A rider is added: **the tiers must be sized on full-effect supplies (lane L16 sizes them "on the real kit"), and the market opens after that, not before.** The dial that owns this is one knob (`storeSupplyShare`). If Deadly turns out too soft with a working market, the answer is the store copy at 0.75 moving toward the crafted one, not a change to any ground.
+
+**Run 3. `economy-3.json`: coin a monster hit point x0.85 (`coinPerKill`). A stand-in for gold in falling 15%, which is the low end of what default salvage would do. Targets: gold.**
+
+| Flags | IMPROVED 0, **REGRESSED 40**, UNINTENDED 6. Gate: FAIL |
+|---|---|
+| Combat, pace, survival | Nothing moved |
+| Net gold | Lone -15.3% (median). The four -22.5%. Deadly -22.9%. A party loses more than the cut because its store bill does not shrink with its coin |
+| REGRESSED by band | G-9 x13, G-2.normal x11, G-2.deadly x8, G-3 x5, G-1 x3 |
+| UNINTENDED (6) | Band E3 (a band's gear cost over the band's gold), e.g. hammer at Level 30. Traced: prices are typed and the band's gold fell, so the ratio rose. This is exactly what R16 (sinks as a share of band gold) removes |
+
+*What it proves.* The coin coefficient is clean: it moves gold and nothing else, which is what R9 needs. And taking 15% out of gold in makes every gold band it touches worse and none better, before counting the first-slot guard or the Luck bar. That is enough to withdraw default salvage. Not measured: the real change would cut sold loot, not coin, and the matrix cannot re-route loot. So this is a stand-in, labeled as one.
+
+### 10.4 Computed, not played: the yard, the dummy, and G-9
+
+The matrix plays hunts, not rested hours. From the ruled fee (100 gold a skill level an hour) and the cached lone MID Normal cells:
+
+| Level | Skill (assumed near Level) | Fee, 12 rested hours | Lone net, 12 hunted hours | Fee over gold in |
+|---|---|---|---|---|
+| 50 | 45 | 54k | 137k | 39% |
+| 88 | 80 | 96k | 268k | 36% |
+
+So one lone hero that trains every rested hour sits inside G-9 (35 to 50%) from the yard alone. COMPUTED. A hero in the real four nets about 109k a 12 hour day, so the same training is 88% of its gold: a four trains some hours and works the rest, which is the choice the fee is meant to create. HYPOTHESIS until played.
+
+The house dummy at 150k for the first skill pays back in 2.8 days for one hero at Level 50 and under a day for four. All four skills (1.4M) pay back in 6.5 days at Level 50 and 3.6 at Level 88. COMPUTED from `src/data/gold-sinks.js` and the ruled fee. The phase A call (the dummy halves the fee) stands.
+
+### 10.5 Verdicts that changed, and why
+
+| Row | Phase A | Phase B | Why |
+|---|---|---|---|
+| 8 Gear sold to the Shop | REDESIGN: salvage by default, token Shop price | **KEEP as ruled: salvage is a choice** | Run 3: gold in x0.85 regressed 40 band rows and improved none. 47 C3: it breaks the one sale rule (23-10), the first slot at Level 32 (31-6) and the Luck bar's hours (50-9). The problem (gear is coin) stands and 46 found it too. The loot plan with both numbers shown, and a starting plan, is the step that costs nothing |
+| 41 `SUPPLY_SHOP_OFFERS` | REMOVE as dead | **KEEP** | Refuted by the architecture lane. `src/data/shops.js:451-454` uses it for the sold kinds and for `SUPPLY_PRICE_LIST`. My error: I read the filter and not the second export |
+| 11 Heal price | REDESIGN, called "the cause of the Deadly bills" | **REDESIGN, narrowed** | Run 1: it is the lone hero's bill only. The four's bill did not move by 0.1% |
+| 34 Price lines on the wage curve | Wage read from the matrix | **Wage as a server formula, checked by the matrix** | 44 section 5.3 |
+| 27 Tempering prices | KEEP as built | **KEEP the ladder, re-price by R16 with 47's rider** | 23-2 halves what a careful hero pays in the Level 45 to 60 band |
+| 35 Idle market | REDESIGN | **REDESIGN, with an order of work and a rider** | Rare pieces and the order book first (46). Tiers sized on full-effect supplies before it opens (run 2) |
+| New | none | **The party's store bill is a rune question** | Run 1. Handed to the combat review and the baseline: the harness buys the Level's own rune tier (fault F5) and real players do not. Until that closes, no party G-2 number should drive a price |
+
+Top 5 after phase B: (1) the idle market, (2) the wage curve by R15, (3) the heal line by R14, (4) the repeating sinks and the dummy, (5) the small removals. Default salvage left the list.
+
+### 10.6 Still hypotheses, and the playtest for each
+
+| Hypothesis | Playtest |
+|---|---|
+| Standing orders fill when nobody visits a market | 30 or more accounts, two weeks, orders posted and filled a day, and the share of refills that bought player stock |
+| Players with idle gold pay the yard | The same playtest: rested hours trained against worked, by purse size |
+| A hunt budget is set and understood | Five recorded first sessions on a hard tier |
+| Players pick Luck over gold when both numbers are shown | The loot plan's own counts, per item kind, after L34 |
+| Four lone hunts cost four times a party hunt on the server | The cost fixtures (L11). Not a playtest |
+| Server-wide destroyed over created | The gauge, live |

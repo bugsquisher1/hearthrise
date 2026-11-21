@@ -1,0 +1,431 @@
+# Decisions: core
+
+Lane `lane/d-decide-core`, 2026-11-21. Mirror of `core.json` (schema `hearthrise.decisions/1`). Docs only. No game code, data or migration was changed.
+
+These are decided, not asked. Tyler sees two short lists: the reversals he may veto, and the money calls only he can make.
+
+## One screen
+
+**45 rows.** 35 take the recommendation, 1 takes the alternative, 9 are a third option.
+
+**What was decided, in plain words.**
+
+- The formula clean-up goes first, and a tier's dial is applied once before any tier number is sized.
+- Deadly asks for a shield tank and a healer. It opens at blows 2.25 times Normal with a pull of 8. Dangerous stays at 1.17 with a pull of 5. The sample confirms both after the dial fix.
+- There is no new party buff system. Hunting together is better because of the Company bonus on Level XP, the bigger pulls, the seat jobs and shared healing. Coin is never multiplied by party size.
+- "Takes more" effects cap at +30% in all. Buffs from the MMO layer count inside the 60% armor cap.
+- A start-kit four holds the Sewer on Normal at Level 5. The first hour can stand on it.
+- The gear curve is a formula, linear in Level, with bands a tier wide.
+- The Level table is the clock of the plain four. Krell is day 31. The ruled hours are joined so a Level never gets cheaper.
+- A death stays 6% with no cap. Blessings past the third open by rule so Deadly still pays at high Level. A death in a world boss room is the normal death.
+- Status pairs are not built now. Kindlings get a paper sample only.
+
+**Reversals Tyler may veto (7).**
+
+| Id | What changes |
+|---|---|
+| GR-7 | The Blessing ladder. For a player who pays gold, a blessed death is held tighter than the 12 hour cap turned down in 50-4 (2026-11-21), and it adds rungs to the three Blessings of 11-10. An unblessed death is untouched. |
+| GR-4 | Gear bands are a fixed step of the curve (about +24%), not two for each region (11-18). The Luck numbers of 11-20 are keyed by Level with the same end points. |
+| GR-8 | Tempering, Hallmark and lining prices become a share of a band's gold. The typed prices kept on 11-18 go, and the size asked for that day (a bit more than a band earns) is what the share holds. |
+| GR-6b | Krell's Hold is day 31 for a plain four, not day 18. "Weeks, not months" still holds, and a buffed four is there near day 18 to 24. |
+| GR-18 | The hammer's Earth rune strike breaks a monster's spell windup. That re-opens "no stagger" (10-23) for windups only. |
+| GR-61 | The 11-05 hold on a skill tree is lifted for a paper spec and five sample rungs of Kindlings. Nothing is built. |
+| GR-65 | A death no longer takes Inner Flame progress (11-09 listed it with the combat skills). |
+
+**Money calls. TYLER CONFIRMS (2).**
+
+| Id | The call |
+|---|---|
+| MM-29-XP | May a bought boost fill the Level XP cap? Recommended no: boosts sell kill speed, and the +25% Level XP cap is earned only. It keeps your 11-04 avoid list. If you say yes, the cap already holds it at about 1.6 times a plain four. |
+| GR-66 | The risk reading is free for everyone. What the Premium analyzer holds beyond it is yours. |
+
+**Handed to others.**
+
+| To | What |
+|---|---|
+| Integrator | MM-7: core decided the normal death with four conditions. If the MMO decider chose a free death, reconcile. Core accepts a mode-table row and not a rule for one room. |
+| Integrator | MM-29-XP: core recommends no bought Level XP boost. Chapter 04 recommends yes. It is Tyler's call either way and GR-6a works under both. |
+| MMO decider | CORE-4: defensive buffs are written on the Defense rating, because mitigation buffs stop at the 60% cap. MM-26's 10% is read on damage taken an hour. |
+| MMO and economy deciders | GR-6a: they owe one number, the time-averaged pace of a player who fills every timed cap as often as the calendar and store allow. The region date is sized on it. |
+| Items decider | GR-4: the band step is a knob that opens at +24%. Every region must hold a band edge (330 to 385 does not at +24%). Confirm a +5% upgrade is reachable every 25 Levels between bands. GR-3: the shield row's guard is what must make a hammer in front fail on Deadly. |
+| Economy decider | GR-8: sets the sink share and ships with the Level law. CORE-2: if a four's net gold a head reads under the same four split on the harder tiers sample, the lever is one party cell on the coin line. |
+| World decider and art | GR-6a: the first region past staged content opens by about day 53 after Early Access, or day 37 to 42 if bought XP boosts are allowed. No ground is authored to close the four days between 116 and 120. |
+| Player experience decider | C3 holds. GR-24: hammer highlighted for the first hero, the company pre-filled as shield, staff and bow. Krell is day 31. |
+| Features decider | GR-61 keeps Kindlings on paper only, so GR-82 cannot lean on them yet. GR-9: banked hours on an old ground are a standing rule inside the hunt budget. |
+| Build plan | Order: GR-85 (R7 first), then GR-4, GR-5, the tier sample (CORE-1 with GR-3), then GR-6 with GR-8 and GR-7 with MM-7. The harness must follow the game's death rule before any tier number is final. |
+
+**Measured in this lane.**
+
+- Check C3: start-kit four, Level 5 and 6, Millrace Sewer, Normal, 4 seeds of 8 hours, 2 workers, the matrix cell builder and engine worker. 0 deaths in 128 hero-hours. XP a head 1.75 times the same four split, net gold a head 1.18 times.
+- Lineup run: balance-matrix.mjs --diff with tierDanger at 1.5, 2.0 and 2.5 times, --subset --blocks lineups --workers 2 (16 cells, 2 seeds of 1 hour). Direction only. The harness lets a dead hero stand up, so its death counts past the first death run high.
+- The Level law joined three ways on the ruled table. The log join has three cheaper Levels (100, 300, 500). The convex cut has none and is exact at every ruled point.
+
+## The formula and measuring foundation
+
+### GR-85: The formula clean-up steps that move no number, and a tier's dial applied once.
+
+- **Decision (recommended):** Go. Steps V1 to V5, R1 to R5, R7, the floor half of R6 and the fold of R8 are the first items of the build plan. R7 lands before any tier number is sized.
+- **Reason:** Every later number is read through these formulas, so they have to be one copy each before we tune anything. A Level 8 monster counting as Level 21 because of a tier dial is a bug, not a design.
+- **Evidence:** COMPUTED and MEASURED. V1 and V2 are built and proven in the instrument. My own lineup run on 2026-11-21 shows why R7 comes first: the same Deadly dial that kills a mixed four at Level 60 (1,250 deaths in 1,000 hours on the harness) kills nobody at Level 110. Part of that is the dial also moving the Level armor reads, and until that is fixed the two cannot be told apart.
+- **Replaces:** None. Builds 11-20 (Tower heat) and 24-8 (yard fee).
+- **Depends:** GR-88 gates each step. GR-27 numbers wait for R7.
+
+### GR-86: The later engine steps: one amount pipeline, one modifier table, every monster on the formula.
+
+- **Decision (recommended):** Take all three. R19 and R21 ride one combat batch. R20 lands before any MMO layer buff or bought boost exists.
+- **Reason:** A blow should be explainable to a player from start to finish, and a new perk or buff should be a row, never new code. Rounding once also makes a 1% bonus honest at Level 5.
+- **Evidence:** HYPOTHESIS for the size of the rounding change, which is largest in the first 15 Levels. The R19 coefficient diff overturns it if a start-kit hero no longer reaches Level 10 in the ruled 6 hours.
+- **Replaces:** None.
+- **Depends:** GR-13 (one roll rule), GR-11 (the floor), MM-24 (buff rows need the table). Combat batches stay spaced by the world-tick parity rule.
+
+### GR-87: Drops authored in hours, and one sale formula.
+
+- **Decision (recommended):** Take both. A drop row says how many hunted hours a piece takes at the ground floor and the chance is derived. Rows move in batches of 20 or fewer.
+- **Reason:** I think about drops in hours, so the data should be written in hours. About 300 typed chances cannot follow a kill rate that the kill reward is about to change.
+- **Evidence:** COMPUTED (44, 43). The derivation diff on bands D1, D2 and E2 judges it.
+- **Replaces:** None.
+- **Depends:** After GR-5, because the chance is derived from the kill rate. The items decider owns the hours on each row.
+
+### GR-88: The matrix diff as the release gate for every balance change.
+
+- **Decision (third):** Take the gate, with three changes. It gains the band for XP after deaths (S11), the four Deadly lineup cells, band rows on the ground axis and the first-hour check C3 as a standing cell. It does not gain pair cells or any lone-against-party band, and those numbers print and judge nothing. Every band stays in report mode until the instrument faults V3 and V4 close.
+- **Reason:** Nobody should balance by eye again. But I ruled no solo or group targets, so the gate must not sneak party-size balance back in through pair cells.
+- **Evidence:** EVIDENCE (51). The instrument is not true yet for survival and gold: the calibration printed with my runs reads store gold at 1.9 times real and the healer's damage taken at 0.01 of real. A four's pace reads 1.11 of real and can carry a decision.
+- **Replaces:** None. It follows 2026-11-21 (no solo or group targets) where the recommendation did not.
+- **Depends:** GR-7 (S11), GR-3 (lineup cells), chapter 08 (C3). The platform decider owns the CI wiring.
+
+### GR-1: How the server reaches its budget.
+
+- **Decision (recommended):** Rule closed-form town work now for training, gathering and benches, with every roll seeded at the start. The away hunt's save design waits for study 48 and a measurement at 12 hours.
+- **Reason:** Closed form is needed on every path and changes nothing a player can see, because the yield is the same as an hour settled step by step. The flush is a guess nobody has measured, so it should not be ruled on a guess.
+- **Evidence:** COMPUTED from assumed prices, best case (59, 61). The flush is a HYPOTHESIS. A synthetic load test of 1,000 accounts of four heroes (check A8) overturns it.
+- **Replaces:** None. Builds 28-11 and extends it.
+- **Depends:** The platform decider owns it from here. Any compute upgrade is Tyler's per-spend call and is not decided here.
+
+### GR-3: What Deadly must ask for.
+
+- **Decision (recommended):** Deadly is sized so a mid-geared four in band with a shield tank and a healer holds it, and the same four with a hammer in front, or with no healer, does not. One rider: the hammer cell is made to fail by what a shield carries (guard on the Defense rating, the brace stat, and Challenge), never by the tier dial alone and never by a rule keyed on the lineup.
+- **Reason:** Preparing the party is the game, so the hardest tier has to notice who is standing where. If any four clears Deadly, there is nothing to prepare.
+- **Evidence:** MEASURED on the uncalibrated harness, 2 seeds of 1 hour, direction only (my run of 2026-11-21, patches dial-1.5, dial-2.0 and dial-2.5). At today's dial every lineup holds with no deaths. With Deadly blows at 2.66 times Normal the two fours with no healer die 10 to 23 times as often as the mixed four at Level 60. The hammer in front dies 3.5 times as often at Level 60 but holds exactly as well as the shield at Level 110, where both wear plate at the 60% cap. So the dial separates healer from no healer and does not separate shield from hammer.
+- **Replaces:** None. Builds 21-3 and 31-9. Keeps 10-31.
+- **Depends:** GR-27 (the numbers), GR-85 step R7 first, GR-88 (the lineup cells). The items decider owns the shield row's guard.
+
+### GR-27: What the harder tiers bring.
+
+- **Decision (recommended):** Rule the shape: one pull number for each tier, the same on every ground, and no per-ground dial. The only thing a ground adds is how many monsters its rooms can hold, which is a map fact.
+- **Reason:** A tier should mean the same thing everywhere so a player learns it once. Per-ground dials are exactly the special cases I asked us to stop writing.
+- **Evidence:** MEASURED at the opening dial, one seed and one hour a cell (53, 61). Not yet played at the raised dial for a lone hero.
+- **Replaces:** None. Builds 11-07. The 11-16 line that every Dangerous party stands at or over its heroes alone is already dropped by 2026-11-21 (no solo or group targets).
+- **Depends:** GR-5 removes the per-ground dials and the floor-16 pull rule in the same step. The world decider owns room sizes.
+
+### CORE-1: The raised tier dials and the two pull numbers (chapter 01, still missing 1).
+
+- **Decision (third):** Opening numbers, as targets the sample must confirm. Dangerous: pull 5, blows and aim 1.17 times Normal, health 1.10, Level XP 1.10. Deadly: pull 8, blows and aim 2.25 times Normal, health 1.15, Level XP 1.25. They are sized only after R7 lands, on 4 seeds of 8 hours with the game's own death rule, against bands S3, S4, S6 and the lineup test.
+- **Reason:** Dangerous is the lone hero's hard tier and already sits where it should. Deadly at 1.33 is not deadly at all, and it needs to roughly double before a prepared four even notices it.
+- **Evidence:** MEASURED on the harness, direction only. Dangerous: a lone hero in band holds five at 35 to 49% health with no deaths at 1.17, which is inside band S3. Deadly, mixed four at Level 60: typical lowest health 0.78 at 1.33, 0.65 at 2.0, 0.39 at 2.66 and 0.19 at 3.33, with deaths starting between 2.0 and 2.66. Band S4 asks 15 to 40%. At Level 110 the same four is still at 0.59 at 2.66 and needs about 3.3 to reach the band. One dial does not bite the same at both Levels until R7 lands, which is why no final number is ruled today. HYPOTHESIS until the sample runs. It is overturned if the mixed four dies more than 100 times in 1,000 hours or the lineup cells still hold.
+- **Replaces:** None. Builds 21-3.
+- **Depends:** GR-85 step R7, GR-3, GR-7 (the death count sets what a Blessing is worth), GR-52 (the store bill on Deadly).
+
+### CORE-2: The party buffs, named (chapter 01, still missing 2).
+
+- **Decision (third):** There is no new buff system. Hunting together is better because of four things that already exist, and the Party window names them. One: the Company bonus, which is the party cell of the XP chain, one table by size and classes, the same on every ground, tier and mode. Two: the bigger pull of the harder tiers, which only a party can clear. Three: the seat jobs (Challenge, heals and shells, Hunter's Mark at +20%, Green Sickness at +10%). Four: one healer's mana in place of four heroes' potions. The Company bonus applies to Level XP only. Coin is never multiplied by party size. The Level law absorbs the size of the cell, so the cell is not re-tuned by band.
+- **Reason:** I said the same party buffs apply and it is a no-brainer. That is true today without inventing anything, as long as the game sends a four to ground it can hold as a four. A gold bonus by headcount would just mint gold for every account.
+- **Evidence:** MEASURED on the harness, 4 seeds of 8 hours (my run of 2026-11-21): a start-kit four at Level 5 in the Sewer on Normal earns 38,769 Level XP a head an hour against 22,150 for the same four split in the Thicket (1.75 times), and 1,915 net gold a head against 1,629 (1.18 times). EVIDENCE from `src/data/party-class-xp.js`: on grounds built for one hero a four on Normal earns 20 to 60% less a head, so the rule holds only on ground and tiers a four can use. HYPOTHESIS for gold past Level 60. The harder tiers sample prints net gold a head for the four against the same four split. If it reads under 1.0, the lever is one party cell on the coin line, owned by the economy decider.
+- **Replaces:** None now. One follow-up for later: once the lineup cells fail on Deadly, the classes column of the table is paying twice for something the monsters already enforce, and it can fold to size only. That would change 10-31 and is not decided here.
+- **Depends:** The economy decider (the coin line fallback). The MMO decider (MM-19, the two thirds line, sits on this same table). Chapter 08 (the first hour sends the four to the Sewer for this reason).
+
+### CORE-3: The total cap on "takes more" effects (chapter 01, still missing 3).
+
+- **Decision (third):** One cap of +30% on everything that makes a monster take more: Hunter's Mark, Sickness and any later marking status, summed. Element weakness and weapon weakness are separate keys and are not inside it.
+- **Reason:** Thirty is exactly what a bow and a staff already bring together, so nothing built today is cut and nothing later can stack past it. Any new mark then becomes another way to reach the cap, which gives more good parties and not a stronger one.
+- **Evidence:** COMPUTED from the built rows (20% plus 10%). HYPOTHESIS that 30 leaves room for choice. It is overturned if the Deadly sample shows fewer than three different fours within 5% of the best, and then the cap moves to 40 with the status pairs of GR-20.
+- **Replaces:** None.
+- **Depends:** GR-20. The items decider, because perks and linings that add "takes more" sit under the same cap.
+
+### CORE-4: Whether MMO layer buffs count inside the 60% mitigation cap (chapter 01, still missing 16).
+
+- **Decision (third):** They count inside it. Anything that takes a share off a blow is a row of the armor chain and stops at 60%, whether it is worn, cast, earned or bought. So that a capped tank still feels a defensive buff, the MMO layer writes that buff on the Defense rating (monsters land less often), which the cap does not govern. Deadly is sized on the plain mid four and a buffed four is meant to hold it with more room.
+- **Reason:** The 60% cap is the real armor number of the game and I ruled it. If a clan room or a bought boost could go past it, the cap would be a suggestion and Deadly would have to be sized twice.
+- **Evidence:** COMPUTED (chapter 01, 2.4): plate of its Level sits at the cap from Level 110 to 5,000, so a mitigation buff inside the cap is worth nothing to a tank and a rating buff is worth the same at every Level. The power budget grid (49 test G) overturns it if a buffed four takes less than 0.90 of a plain four's damage an hour.
+- **Replaces:** None. Keeps 10-18.
+- **Depends:** MM-24, MM-25, MM-26 (the MMO decider): the "damage taken" row becomes a Defense rating row, and the 10% target of MM-26 is read on damage taken an hour.
+
+### C3: Check C3 of chapter 08: does a start-kit four hold the Sewer on Normal at Level 5?
+
+- **Decision (recommended):** It holds. The first hour may stand on step 13. C3 joins the matrix as a standing cell so a later change cannot break it quietly.
+- **Reason:** The whole first hour ends with four heroes in the Sewer, so this had to be played before anybody builds the tutorial around it.
+- **Evidence:** MEASURED on the matrix's own cell builder and engine worker, 4 seeds of 8 hours, 2 workers, 128 hero-hours (2026-11-21). Kit: practice weapons only, no helm, supplies from the store, which is poorer than the tutorial kit. Shield, staff, bow and wand at Level 5: 0 deaths, the tank's typical lowest health 84%, worst tenth 65%, worst hundredth 55%, the Rat King killed 21 times an hour. XP a head 1.75 times the same four split, net gold a head 1.18 times. Level 6 reads the same. A hammer in front also holds (0 deaths, lowest health 77%). Caveat: the harness reads a four's damage low, but the margin is wide.
+- **Replaces:** None.
+- **Depends:** GR-24 (any front weapon holds, so the first hour does not force the shield). The player experience decider owns the sequence.
+
+## The long-game formulas and the chapter collisions
+
+### GR-4: A gear curve as a game formula.
+
+- **Decision (recommended):** Approve it. A piece's budget is linear in the Level it is worn at and lives in data. Past tier 7 a band is a fixed step of the curve, opening at +24% (Levels 110, 136, 169, 210, 260, 322, 400), and the step is one knob. Every unique is a spend of its band at published rates. The two Luck numbers are keyed by Level with the same end points. One rider: every region must hold at least one band edge, and if it does not, the knob or the region moves.
+- **Reason:** Levels never end, so gear has to be a formula or the game stops at whatever tier we last typed. A band as wide as a tier means a new band feels like tier 6 to tier 7 did, not like a quarter of an upgrade twenty times.
+- **Evidence:** MEASURED on stand-in grounds: typed gear is 9% slow at Level 400 and cannot hunt at 2,000. COMPUTED: a fixed 27 Levels is +25% at Level 110 and +8% at 377. Chapter arithmetic for the rider: at +24% the 330 to 385 region holds no band edge (322, then 400), and a step of +17% would give every region one. HYPOTHESIS that +24% feels right past Level 260, where a band lasts 75 to 95 days. The matrix gear-step cells and the items decider's upgrade cadence check overturn it.
+- **Replaces:** REVERSAL. Replaces 11-18 (two bands for each region), the reading of 10-25 (a major upgrade every 15 to 25 Levels, which is now carried by chest pieces, uniques and Tempering between bands) and re-keys the 11-20 Luck numbers from band to Level.
+- **Depends:** Decided with the items decider. If they pick a different step, the step is a knob and I accept theirs. GR-5 needs the curve first. GR-8 prices read the band table. MM-6 and MM-14 gear lines spend the same curve.
+
+### GR-5: What a kill pays.
+
+- **Decision (recommended):** The kill reward follows the pace line with one kill-rate reference, and there is one tier table for every ground. A ground carries at most one derived number for how its layout moves kills an hour, written by a generator and never typed. Party grounds stay one encounter type with three numbers. The per-ground tier dials and the "no bigger pulls under floor 16" rule go in the same step.
+- **Reason:** Grounds in the same band should pay about the same, so I choose where to hunt by drops and by what the ground asks of my party. Fifteen hand fits mean one ground is always the XP ground and the rest are dead.
+- **Evidence:** COMPUTED: it lands about a third lower than the hand fits (53). HYPOTHESIS that the missing kill-rate term is the cause of the overpay (44's analysis). The R12 derivation run overturns it if pace band P2 does not hold on every ground with the typed fits deleted.
+- **Replaces:** None. Builds 11-07.
+- **Depends:** After GR-4. Before GR-6, GR-87 and CORE-1. The world decider owns the layout facts.
+
+### GR-6: The Level table.
+
+- **Decision (third):** From Level 50 the table of hours is the law and the XP a Level costs is derived from it. Levels 1 to 50 stay timed on a lone new hero. The 106 hours the four gains before Level 50 are allowed at every ruled point. It ships with GR-8, after GR-5 and the tier numbers. Three things inside it are decided in their own rows: whose clock it is (GR-6a), Krell's day (GR-6b) and how the ruled points are joined (GR-6d).
+- **Reason:** I gave the hours, so the hours should be the law and the XP numbers should fall out of them. The first 50 Levels are the hook and they stay fast.
+- **Evidence:** COMPUTED from XP rates the simulator measured (56, chapter 05): Levels 100, 200 and 400 at 494, 1,574 and 4,474 hours. Level 185 and up is PROVISIONAL. The seat's multiple is one number that is not known until GR-5 and the tiers are measured.
+- **Replaces:** None. Builds 50-1 and 50-2. Keeps 27-2.
+- **Depends:** GR-4, GR-5, CORE-1 before it. GR-8 with it. Every chapter's day numbers after it.
+
+### GR-6a: Collision (a): is the table the clock of a plain four or a buffed four, and what happens to the runway?
+
+- **Decision (recommended):** The table is the clock of the plain mid-geared four. Buffs are rows on top and the law never reads them. The 120 days of grounds at Early Access are read on the plain four. "Each region opens 30 days before the first fours arrive" is read on the fastest seat a player can hold all the time, not on every cap full every hour. If the art schedule cannot hold that date, the timed Level XP cap of MM-25 comes down until it does. The Level law, a Level cap and a frontier penalty are never the answer. Past the last ground the soft wall stays: a Level costs more because XP an hour stops rising, and old grounds at your Level, the Tower, the Catacombs and world bosses carry the wait.
+- **Reason:** Every account sits in the plain seat from day 1, so that is the clock. If the table were timed on a buffed four, buffs would be a tax to get back to normal, and I want them to feel like time gained.
+- **Evidence:** COMPUTED (chapter 05, 2.4, and chapter arithmetic here). Staged content ends on day 116 for the plain four. The fastest seat held all the time is best gear with standing buffs and a timed damage boost, about 1.39, which ends staged content near day 83 and puts the next region's door at about day 53. If Tyler allows a bought Level XP boost that seat is about 1.6 to 1.7 and the door is day 37 to 42. The four days between 116 and 120 are inside the tolerance of a projection and no ground is authored to close them.
+- **Replaces:** None. It reads 50-7 on two seats, which the standards already implied.
+- **Depends:** MM-25, MM-26, MM-31 (the MMO and economy deciders): they owe one number, the time-averaged pace of a player who fills every timed cap as often as the calendar and the store allow. The world decider and the art and asset directors own the region date. MM-29-XP moves it.
+
+### GR-6b: Collision (b): Krell's day.
+
+- **Decision (recommended):** Day 31 for the plain mid-geared four. A four with best gear and buffs is there between day 18 and day 24.
+- **Reason:** I said weeks, not months, and four and a half weeks is weeks. Day 18 came from a table that was still timed on a lone hero, and keeping it exact would cost 15 days of content runway and put Level 100 46% ahead of my own table.
+- **Evidence:** COMPUTED on the law from Level 50 (chapter 05, 2.2). Starting the law at Level 88 to keep day 18 gives Level 100 on day 27 and staged content ending near day 101.
+- **Replaces:** REVERSAL of a number, not of the ruling's words. The record says "day 18 for a four" (2026-11-21). It becomes day 31 for the plain four.
+- **Depends:** GR-6. The player experience and world deciders quote day 31.
+
+### GR-6d: Collision (d): the log-scale kinks in the Level law at Level 100 and Level 300.
+
+- **Decision (third):** Drop the log-scale join. The law is the convex cut of the ruled table: hours a Level is one continuous line that never falls, and each ruled stretch adds up to exactly its ruled hours. A generator writes it from the table and nobody types a point. The ramp at Level 50 is the first piece of the same line, rising from what the four pays at 49 over about eight Levels. Nothing is smoothed by hand afterwards.
+- **Reason:** A Level should never get cheaper than the one before it, and a player should never hit a wall the day after a milestone. Patching two kinks by hand would leave the third one in.
+- **Evidence:** COMPUTED by my own script on the ruled table (2026-11-21). The log join makes a Level cheaper at three places, not two: Level 100 (11.0 hours, then 8.9), Level 300 (15.9, then 13.9) and Level 500 (23.1, then 23.0), and it jumps 29% in one Level at 400. The convex cut passes through every ruled point exactly (600, 1,680, 3,120, 4,580, 6,720, 13,440, 23,520 hours), has no cheaper Level anywhere to Level 1,000, and its largest step between two Levels is 8%. It reads 9.7 hours at Level 100, 12.8 at 200, 14.5 at 300 and 18.0 at 400. What stays is in the ruled table itself: Levels 200 to 400 cost almost the same (14.4 and 14.6 hours) and the cost then climbs to 21 hours after 400.
+- **Replaces:** None. It changes the method inside GR-6, not a ruling.
+- **Depends:** GR-6. Band P11 (no Level over twice the one before) and P12 read it. If Tyler wants Levels 300 to 400 to feel steeper than 200 to 300, that is a change to his table and not to the join.
+
+### GR-7: Death once Deadly bites.
+
+- **Decision (recommended):** Keep 6% flat with no cap. Past the third Blessing, a new Blessing opens whenever a fully blessed death would cost the pace seat more than five hunted hours. Each new one halves what is left and is priced under a fifth of the hours it saves, in gold. The five hours is one knob. The rungs are outputs of the rule (Levels 97, 140 and 257 on today's numbers). "Keep me blessed" covers the new rungs. It ships in the release where Deadly is made to bite, sized on the long death sample.
+- **Reason:** An unblessed death keeps all of its fear, which is what I asked for. But I also want Deadly to be worth it for a prepared party at Level 300, and a flat 6% with a flat death count makes that impossible unless Blessings grow with the hero. Paying gold to stay safe is struggle or pay.
+- **Evidence:** COMPUTED on measured XP rates and an assumed death count (chapter 05, 2.5 and 2.6). On three Blessings a mid four on Deadly earns less than the same heroes alone on Normal from Level 100 to 145. With the ladder it pays to Level 400, except at the very top of the death band from Level 225. HYPOTHESIS for the five hours. The long death sample and playtest 8 (is a morning death card a quit moment) overturn it.
+- **Replaces:** REVERSAL in effect. For a player who pays gold it holds a blessed death tighter than the 12 hour cap Tyler turned down in 50-4 (2026-11-21), and it adds to the three Blessings of 11-10. The unblessed death is untouched.
+- **Depends:** CORE-1 and GR-3 (ships with them). GR-51 (the wage curve prices the rungs). GR-88 (band S11). MM-7. GR-66 shows the cost before the hunt.
+
+### MM-7: Collision (c): a death in a world boss room.
+
+- **Decision (recommended):** It costs the normal death. Four conditions come with it. One death a send at most, because a death ends the hunt and nothing restarts by itself, and Carry on never sends a hero into a boss room. The room takes the one tier table and the one death band, so its Normal is safe by formula. Blessings, the ladder and "keep me blessed" all apply. The boss card shows the risk reading and what a death would cost this hero before the send. It is built with GR-7 and never before it.
+- **Reason:** One rule for every fight is easier to trust than a list of places where dying is free. If the boss room were free, everybody would send on Deadly and the tier choice would mean nothing.
+- **Evidence:** COMPUTED (chapter 05, 2.7): without the ladder a Level 300 hero risks 26 hunted hours for a chest roll, and with it three to five. HYPOTHESIS that an away player accepts it. Overturned if the first boss weekend shows sends on Dangerous and Deadly under a tenth of all sends, or if the walk-through of a Level 20 four's first boss weekend shows a death the player could not have seen coming.
+- **Replaces:** None.
+- **Depends:** The MMO decider owns MM-7 and should land on the same answer. If they chose a free death, the integrator must reconcile. Core can accept a row on the mode table (the Tower's row, whole) and cannot accept a death rule written for one room.
+
+### GR-8: Sinks that follow the gear, and the hole the slot prices left.
+
+- **Decision (recommended):** Tempering, Hallmarks and linings each cost a share of the band's gold, so a band's standing upgrades total 1.2 to 1.4 of what the band earns, sized on a hero who pays only the difference at every tier and read on a hero-day of the four. Linings and the yard fee come forward as the first repeating sinks. Clan castle rooms take the place of the slot gold. It ships in the same release as the Level law.
+- **Reason:** I want sinks to cost a bit more than a band earns so a player has to choose. Typed prices cannot hold that once a band lasts twice as long, so the price has to be a share.
+- **Evidence:** COMPUTED: on a trial curve typed prices fall to 0.19, 0.40 and 0.18 of a band's gold at Levels 60, 110 and 185 against the ruled 1.2 to 1.4, and a careful hero pays 0.5 to 0.9 of a band at tiers 4 to 6 without the re-price. Bands G-10 and E4 judge it.
+- **Replaces:** REVERSAL. Replaces the typed prices kept on 11-18 ("Tempering as built", Hallmarks at 150k, 250k, 400k and 600k) with a share that holds the size Tyler asked for the same day. Keeps 23-2 (Tempering pays the difference).
+- **Depends:** The economy decider co-owns it and sets the share. GR-4 (the band table), GR-6 (ships together), GR-51 (the wage curve), MM-22 (castle rooms).
+
+### GR-9: An old ground at your Level.
+
+- **Decision (recommended):** Switch scaled hunts on as ruled, bought by the hour, with one drop rule: a ground played above its band drops its own rows at its own rarity, gear rows pay at the hero's band, and its lining parts still drop. Read frontier use for two weeks. The fee is one data row and can go to zero. One rider: buying hours is a standing rule ("keep N hours banked for this ground"), remembered and paid inside the hunt budget, never a purchase repeated by hand.
+- **Reason:** The system I ruled has never been open to a player, so I do not know yet whether the fee is right. Open it, watch it, then decide. It is also what the fastest players do when they run out of new ground.
+- **Evidence:** EVIDENCE: zero uses says nothing because it was never open. HYPOTHESIS that frontier players use it. Playtest 4 overturns it: under a tenth of hunted hours past Level 110 on old grounds after two weeks means the fee goes to zero.
+- **Replaces:** None. Builds 22-9 and 11-07.
+- **Depends:** The world decider owns the drop rule's rows. GR-57 (the hunt budget). GR-6a leans on it past the last region.
+
+## Combat
+
+### GR-11: The beginner's floor on spells.
+
+- **Decision (recommended):** One floor on the blow a cast reads, one number for the whole game, in place of 17 floors on rows. Its value is computed from the rule that a start-kit hero reaches Level 10 in 6 hours.
+- **Reason:** First heals and first strikes should land whole in the first hours. One number does that and seventeen numbers do the same thing worse.
+- **Evidence:** MEASURED: without a floor the start-kit hero took 7.2 hours and first-ground kills were 21 to 36% slower. Three lanes reached the single floor separately.
+- **Replaces:** None. Builds 32-8.
+- **Depends:** GR-86 (the pipeline).
+
+### GR-12: Whether spells miss, crit and read weakness.
+
+- **Decision (recommended):** Spells never miss and never crit. A physical strike reads weapon weakness, and an elemental spell reads the monster's element profile.
+- **Reason:** A rune I paid for should never burn for nothing. "A spell always lands" is a rule a player can hold in their head.
+- **Evidence:** MEASURED small: at most 3.5% on any one way. The known cost is that accuracy and crit gear are worth less the more a hero casts.
+- **Replaces:** None. It was built and never decided.
+- **Depends:** The items decider (crit and accuracy perks), GR-16 (Live Bolt cannot refund on a crit).
+
+### GR-13: Three shapes of roll.
+
+- **Decision (recommended):** One roll rule with the spread as a number for each kind: a swing rolls 1 to Power, a spell hit rolls half to full, a heal or a shell does not roll.
+- **Reason:** A heal answers a wound, so I should be able to plan on its number. A weapon swing is allowed to feel wild.
+- **Evidence:** COMPUTED (44). An identity for swings and spells, a coefficient for heals.
+- **Replaces:** None.
+- **Depends:** GR-86.
+
+### GR-14: Weapon weakness.
+
+- **Decision (recommended):** Axes count as edged with swords and fists as blunt with hammers. The unused "resists a weapon" column is removed. Rend's share and bleed rise until the lone axes sit at 0.95 to 1.00 of the hammer from Level 30 to 110.
+- **Reason:** Every weapon should be able to meet a monster that is weak to it. The axes are last today and the fix belongs in Rend's number, not in a new rule for axes.
+- **Evidence:** MEASURED: moving the axes to the edged side lifts them 1.5 to 4.8% and moves no other way, and the repair alone still leaves the axes last.
+- **Replaces:** None. Bears on 32-3: the axes keep no Power Strike, as ruled, and Rend carries the difference.
+- **Depends:** GR-17 (fists are blunt). The world decider owns which monster classes are weak to which side.
+
+### GR-15: Turning Cut and Rend.
+
+- **Decision (recommended):** Turning Cut unlocks at Level 1 for the axes and the hammer and at Melee 10 for the sword. Rend sits on the default axes bar on the cheapest store rune, with the hero's own runes used first.
+- **Reason:** A new axe hero with an untouched bar should still have a strike. The sword stays slow early on purpose.
+- **Evidence:** MEASURED (52, phase B). The review changed its own answer from Melee 5 for every weapon after playing it.
+- **Replaces:** None. Keeps 11-19.
+- **Depends:** GR-24 (default bars for the starting weapons).
+
+### GR-16: Necrotic and Storm.
+
+- **Decision (recommended):** Seven spells first, one for each weapon, built after Deadly is sized. Sixteen stays the end state. The second batch is redesigned after the seven are played, under one rule: no two weapons share a mechanic. Spell leech and lining leech are sized together under one row before either ships.
+- **Reason:** I want every weapon to have both elements, and I want each one to play differently. Building sixteen mirrored spells at once would give me eight copies of two ideas.
+- **Evidence:** EVIDENCE (52, 47 C4). The element numbers (mana burn share, healing cut) are OPEN and need Tyler's yes before the elements switch on.
+- **Replaces:** None. Keeps 11-18 and 32-6.
+- **Depends:** CORE-1 first. The items decider owns Storm and Bone runes and leech linings.
+
+### GR-17: Fists.
+
+- **Decision (recommended):** Two rows. The Hands strike on mana with no element. The Palm strikes on mana in the element the player chose, and feeding it a rune of any family is the stronger cast. The gold test is re-run on the spell rule before anything is built.
+- **Reason:** Fists are the self-sufficient all-rounder, so their strikes cannot depend on buying a rune for every cast. Two rows cover every element with no extra spells.
+- **Evidence:** MEASURED on a stand-in: with every strike on a rune the store bill was 2 to 10 times the hammer's and it lost gold from Level 42.
+- **Replaces:** None. Keeps the 11-18 identity. Changes plan section 7, which was the designer's.
+- **Depends:** GR-14, GR-16. Whether fists need their own heal waits for the gold test.
+
+### GR-18: Quarry Blow breaks a monster's spell windup.
+
+- **Decision (recommended):** Yes. If the target is winding up a spell, the windup ends and that monster's spell clock restarts. On a boss it adds a share to the windup. It never stops a swing.
+- **Reason:** The hammer needs a job in a four besides damage, or a second melee hero is always a mistake. Breaking a cast is a job you set once with a rule on the bar.
+- **Evidence:** MEASURED: a second melee hero costs a four 8 to 13% today. HYPOTHESIS that a broken cast is felt in an idle hunt. Overturned if players on a caster ground do not keep the rule on "when a monster is casting" after a week.
+- **Replaces:** REVERSAL, narrow. Re-opens 10-23 ("no stagger") for spell windups only. The Earth rune strike of 32-5 is kept and gains the break.
+- **Depends:** GR-3 (the hammer's seat), GR-31 (grounds that cast).
+
+### GR-19: "Shooters first".
+
+- **Decision (recommended):** One new target mode, the bow's default, and Hunter's Mark follows it.
+- **Reason:** Monsters that shoot my healer are the thing a bow should deal with, and I should not have to work that out from a combat log.
+- **Evidence:** MEASURED on a real four: 28% of the damage taken landed on the healer, nearly all from shooters.
+- **Replaces:** None.
+- **Depends:** GR-3, CORE-1.
+
+### GR-20: A status opens a monster to one kind of damage.
+
+- **Decision (alternative):** Do not add it now. It stays a paper sample of three pairs. It is built only if the sized Deadly shows fewer than three different fours within 5% of the best.
+- **Reason:** The party puzzle already gets seat jobs, ground signatures and a Deadly that asks for roles, and none of those have been played yet. I would rather prove those than stack a fourth system on top of three unproven ones.
+- **Evidence:** HYPOTHESIS in its own source, with stacking as the named risk. The reopening check is the lineup spread in the harder tiers sample.
+- **Replaces:** None.
+- **Depends:** CORE-3 (the cap stays at 30 while this is on paper).
+
+### GR-21: The crossbow.
+
+- **Decision (recommended):** Its identity is its own list and its shield: single target, no Mark, no area shots, Leech Bolt. Its weapon numbers stay beside the bow's. The rest of its list is single-target rows only, written as a sample after the first seven spells are played.
+- **Reason:** A stat line does not make a weapon feel different. A list of spells and a shield do.
+- **Evidence:** MEASURED: a third more damage for a quarter less accuracy moved it only 3 to 6%, and the author withdrew it.
+- **Replaces:** None. Builds 32-6.
+- **Depends:** GR-16.
+
+### GR-22: Magic on a weapon hero.
+
+- **Decision (recommended):** Each Magic level adds 0.5% max mana, for every hero.
+- **Reason:** Every weapon hero spends mana and earns Magic XP, so the skill should give them something.
+- **Evidence:** MEASURED: the matrix gate passed, store bills fell 2 to 4% and nothing else moved.
+- **Replaces:** None.
+- **Depends:** None.
+
+### GR-23: Skill at high Level, and endless ladders.
+
+- **Decision (recommended):** A hit stays skill plus gear and never becomes skill times gear. Skill keeps its late worth through rune tiers past 60, one every 15 skill levels at +10% each, and through the to-hit ratio. The Tower reads any floor from one row.
+- **Reason:** Multiplying skill by gear would make every late number explode and every early number tiny. New rune tiers give a skill level something to unlock for ever.
+- **Evidence:** COMPUTED on the proposed gear curve: skill is 40% of a hit at Level 110, 23% at 400 and 14% at 1,000. MEASURED: a rune step deeper than +10% cuts Level 10 casts.
+- **Replaces:** None. Extends 10-23 (five rune tiers) past skill 60.
+- **Depends:** GR-4. The items decider names the tiers past five and who makes them (GR-45).
+
+### GR-24: The starting weapon.
+
+- **Decision (third):** The player picks a weapon for each hero at creation. The first hero's highlighted pick is the hammer. When the company is raised, the other three come pre-filled as shield, staff and bow, one press accepts them and every pick can be changed. Skills never lock a hero to the pick.
+- **Reason:** This is the first choice a player ever makes, so it should be theirs. But a brand-new player should not start alone on the one weapon I made slow on purpose, and should not have to know what a party needs.
+- **Evidence:** MEASURED (my C3 run, 2026-11-21): a start-kit four at Level 5 holds the Sewer on Normal with a shield in front (lowest health 84%) and with a hammer in front (77%), with no deaths in 128 hero-hours each. So a player who keeps the hammer hero in front is not punished.
+- **Replaces:** None.
+- **Depends:** The player experience decider (GR-79, the first hour). GR-15 (default bars).
+
+### GR-25: Special rules with no ruling on record.
+
+- **Decision (recommended):** Put all six on record: gentle first grounds under floor 16 (keep), the boss blow held to a third of the floor hero's health (keep), three training bases for three skills (keep), the roll shapes and chance rounding (fold into GR-13), and a tier a ground or mode does not offer as one content flag (fold).
+- **Reason:** These are deliberate differences, and the rule is that every deliberate difference is written down with my yes. The gentle ramp is the only Level threshold in monster stats and it protects the first hours.
+- **Evidence:** EVIDENCE (44, section 8.1). MEASURED for the gentle ramp through C3: the first party ground is safe for a start kit.
+- **Replaces:** None. They were built and never put to Tyler.
+- **Depends:** GR-88 (the register guard fails a special rule with no yes).
+
+### GR-26: Plus skill on chest weapons.
+
+- **Decision (recommended):** Keep the flat +1 to +4. The major upgrade is the next band's numbers from the gear curve.
+- **Reason:** It is what I ruled, and a flat skill bonus is one more thing that keeps skill worth having.
+- **Evidence:** COMPUTED (47 C24).
+- **Replaces:** None. Keeps 11-14, 11-18 and 22-2.
+- **Depends:** GR-4. The items decider.
+
+## Progression
+
+### GR-61: A permanent build choice.
+
+- **Decision (recommended):** Lift the hold for a written spec and a paper sample of five Kindling rungs, and nothing more. One system: every ten Inner Flame levels a hero lights one of three Kindlings, inside the 2% that was set aside for worn in. Nothing is built until the sample is read and the to-hit ratio and spell rule are live.
+- **Reason:** Inner Flame is uncapped and its regen curve is nearly flat past level 100, so a skill I can train for ever gives me nothing for most of that time. A small choice every ten levels fixes that without a new skill or a tree.
+- **Evidence:** COMPUTED: the regen curve gives +50% at level 50 and +67% at 100. HYPOTHESIS that the picks are a build and not a formality. Playtest 12 overturns it: over 80% of heroes of a weapon family on the same picks means it is cut before it is built.
+- **Replaces:** REVERSAL, small. Lifts the 11-05 hold on a skill tree for a paper spec only.
+- **Depends:** GR-82 (the Great Hearth, features decider). Chapter 01 fence: a pick changes a row inside the bar budget and never adds one.
+
+### GR-62: Honors.
+
+- **Decision (recommended):** One page, one rule, no power. Titles, Trophy display, mounts, firsts and round Levels are rows on it, derived from counters the server already holds, and they claim themselves. Levels 200, 300 and 400 give a title and a line to the whole server. Level 100 gives the server line to the first 100 heroes on a server, then to friends and clan. It starts as a sample of five.
+- **Reason:** Level 200 is a big deal and the game should say so out loud. Five small lists nobody opens are worse than one page.
+- **Evidence:** HYPOTHESIS that the page is used. Overturned if under 10 titles are worn for each hundred heroes past Level 30 after a month, and then the page is cut.
+- **Replaces:** None.
+- **Depends:** GR-73 (the Hall of Firsts, home decider), GR-48 (find lists).
+
+### GR-63: Dead ladders.
+
+- **Decision (recommended):** Delete the rested bank and the two old kill ladders. The ladders leave in the lane that builds the Bestiary and Luck.
+- **Reason:** They pay nothing and nobody would miss them. Making the bank pay would add an XP lever the Level law then has to carry.
+- **Evidence:** MEASURED: switching the bank off moved no number in 207 cells.
+- **Replaces:** None.
+- **Depends:** GR-85 step R5.
+
+### GR-64: No new skill, prestige or stat points.
+
+- **Decision (recommended):** None of the three.
+- **Reason:** An uncapped Level already is the prestige loop. Stat points would put Level into the blow, which I ruled out.
+- **Evidence:** EVIDENCE (56). Keeps 11-04 and 11-18 (no Level in combat).
+- **Replaces:** None.
+- **Depends:** None.
+
+### GR-65: Inner Flame and death.
+
+- **Decision (recommended):** A death does not take Inner Flame progress.
+- **Reason:** Inner Flame is trained at the Hearth, not in a fight, so losing it to a fight makes no sense to a player.
+- **Evidence:** EVIDENCE (44 special rule P-X18).
+- **Replaces:** REVERSAL, small. 11-09 takes 6% of each combat skill's progress, and Inner Flame was on that list by how it was built.
+- **Depends:** GR-61.
+
+### GR-66: The risk reading.
+
+- **Decision (recommended, money, TYLER CONFIRMS):** Every player sees, free, how close a hunt came to a death and the deaths per 100 hours of that ground and tier, before pressing Start. The same reading shows on a world boss card.
+- **Reason:** Selling the warning would read as selling safety. I want players to take big risks with their eyes open.
+- **Evidence:** HYPOTHESIS that it changes the tier a player picks. Playtest 9 reads the share of hunted hours by tier before and after.
+- **Replaces:** None.
+- **Depends:** MM-7, GR-7. What the Premium analyzer holds beyond this is a money call.
+
+## The money call
+
+### MM-29-XP: May a bought timed boost fill the Level XP cap? (the 11-04 avoid list against Crowns giving real advantages)
+
+- **Decision (third, money, TYLER CONFIRMS):** TYLER CONFIRMS. Not decided here. My recommendation: no. Bought boosts fill the timed damage cap and nothing on Level XP. The timed Level XP cap of +25% is earned only, from events, world bosses and clans. A payer is then about 27% faster than a plain four through best gear and a damage boost, and anybody who plays the shared world can add the XP on top.
+- **Reason:** Level is the score everybody is ranked on, and I put paid XP boosts on the avoid list myself. A kill speed boost is still a real edge you can feel, and it does not sell the scoreboard.
+- **Evidence:** COMPUTED: best gear 1.15 times a timed damage boost 1.10 is 1.27, against 1.58 with a bought XP boost (chapter 04). It also moves the date the next region must open from about day 37 to 42 to about day 53 (GR-6a).
+- **Replaces:** If Tyler says yes instead, it replaces the 11-04 avoid list line on paid XP boosts and the 11-18 line that power is never sold directly for Crowns.
+- **Depends:** MM-28, MM-29, MM-31 (the economy and MMO deciders, who may recommend yes). GR-6a works under either answer.

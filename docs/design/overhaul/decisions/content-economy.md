@@ -1,0 +1,643 @@
+# Decisions: content and economy
+
+Game designer, 2026-11-21, `lane/d-decide-content`. This mirrors `content-economy.json` (schema `hearthrise.decisions/1`), which is the source. Design decisions only. Nothing was played or measured in this lane, and every measured number is quoted from the source named beside it. No game code, data or migration is changed.
+
+## One screen
+
+**62 rows.** 53 take the recommendation, 0 take the alternative, 9 are a third option. 12 are money calls for Tyler. 10 change an older ruling.
+
+**What I decided, in plain words.**
+
+- World. One boss door with keys as the only clock. A hall pays only what no ground drops, and every hall boss is one formula times one number. Each ground asks one question, sampled on two grounds first. A region opens as four grounds and a hall, then two. The Catacombs stay their own mode and the Tower stays weekly.
+- Items. Jewelry and cloaks are built to tier 7 as a 6% share of the gear curve. Case perks are sized for their case, capped at one weapon step for a fully matched hero. The saved kit is built first, because every "bring the right thing" system leans on it. Salvage is a choice, never the default. Patterns teach the account.
+- Economy. The market runs itself on standing orders and is open on day one. Every repeating price is hours of one wage curve. The yard's rate follows the skill curve so the one endless sink does not die. A hunt budget replaces the gold floor. The bench tax stays exactly as ruled.
+- Home. The Trophy room becomes the Hall of Firsts with a fee for each piece hung. Three home looks. Rooms sell kept materials. One dropped seed as a sample, not two.
+- Collisions. Boss and arena gear is unique gear with no band, outside the regional count, at the same budget as any unique. The timed drop buff becomes a material buff and never touches gear, keys or any Rare row. The store sells no drop boost. First-week gold goes to the yard, the first Tempering and Hallmarks, and a House ladder re-read for four heroes. Hero prices stay in hero-hours and account prices are re-read in account-days.
+- Chapter flags. Town work is paid in closed form and still moves on screen. The XP weekend is the Hearthrise. Burn relief is not Yield. The account start kit is granted once.
+
+**Reversals. Tyler may veto any of these.**
+
+| Id | Replaces | What changes |
+|---|---|---|
+| GR-28 | 2026-11-14 and 22-8 | The boss call and the one roll a hero a day fold into keyed halls. One key is one roll. |
+| GR-39 | 23-5 (2026-11-20) | The 4% is read as the total of always-on perks. Case perks are sized for their case, with a matched hero capped at 8%. |
+| GR-54 | 2026-11-14, A-5 and 21-7 (2026-11-20) | The yard's rate follows the skill curve, capped at half of hunting, and the fee follows the rate. |
+| GR-55 | 24-7 (2026-11-20) | The market is open on day one. The first town project builds something else. |
+| GR-56a | 2026-11-05 | Setup slots are free. |
+| GR-73 | 26-6 (2026-11-20) | No mount rungs. The Hall of Firsts takes a fee for each piece hung. |
+| GR-75 | 26-3 and 26-11 (2026-11-20) | Three home looks, not six maps. Visiting opens from the Homestead. |
+| CE-5 | The gold numbers of 26-3 and 26-1 (2026-11-20) | Deeds, room rungs and chests are re-read in account-days for four heroes. The ladder itself is kept. |
+| CE-7 | 2026-10-22 | Town work moves on screen in real time. The server writes three times a job. |
+| CE-8 | 2026-10-25 | The Hearthrise lights on the calendar's weekend. The fire sets its size. |
+
+**Cut list. Goes to Tyler before anything is deleted.**
+
+| Id | What |
+|---|---|
+| GR-34 | 103 monster rows no hunt uses, three hunts with no ground and four called boss copies, after the item check. Anything with a planned home stays. |
+
+**Money calls. TYLER CONFIRMS each one. I designed the structure and did not decide a number.**
+
+| Id | The call | My recommendation in one line |
+|---|---|---|
+| MM-28 | The paid advantage | A real edge under one written ceiling that gold can also reach. |
+| MM-29 | What the store sells for Crowns | Premium, three timed boosts, comfort, looks. No drop boost, no setups, no room. Boosts need your explicit yes, sized at about 60% of each cap. |
+| MM-30 | Bought boosts and earned buffs | Bought and earned are the same rows under the same caps. |
+| MM-31 | The pace ceiling | Keep "no limit on how much sooner". Record 58% as a reading the caps add up to, held by a test. |
+| MM-32 | The gear ceiling | 0 bands ahead. Inside a band, at most best gear. |
+| MM-33 | The gold ceiling | The weekly cap is worth one account-week of gold, re-derived weekly from the Crown price. |
+| MM-34 | The path for players who do not pay | Everything for gold through the book. Premium about 3 account-days a month, a week of boosts about 1.5. |
+| MM-35 | How Crowns trade | A number on the account, one server-owned book, one trade then bound, 5% burned. |
+| MM-36 | The clamps | Eight clamps in the Security review, plus Crown purchases counting against the market's daily cap. |
+| MM-37 | Where paying gives no edge | No edge in the even arena, in events or in access. |
+| PREM-1 | What one Premium gives across four heroes | The ruled list, one training item a hero a day, no-press claim, tickets to 30. Leave out "buffs last longer", because Premium never adds power. |
+| PREM-2 | The price of Premium and of a Crown | 30 days priced in Crowns. A starting number to react to is 8 to 10 dollars a month. |
+
+**Handed to other deciders.**
+
+| To | What |
+|---|---|
+| Core decider | GR-4: agreed as written. GR-8: take the first-week order of CE-4 and the two-row price rule of CE-5. GR-87: size the Scarce pace for tier 7 weapons in the Hold (CE-6). GR-86: the hall number (GR-30). |
+| MMO decider | MM-6, MM-14, MM-27: take the ten rules of chapter 03 section 2.16, the material rule and the pace cap (CE-1). MM-25: the drop row is a material buff (CE-2). MM-22: boss materials are a small home for gold. MM-21: remove "buffs last a quarter longer" (PREM-1). MM-11, MM-42: the XP weekend is the Hearthrise (CE-8). |
+| Progression decider | GR-6: Krell on day 18 against the table moves the region runway (GR-33). GR-7: the Blessing price from Level 30 (CE-4). GR-62: the Honors page is built before the Hall of Firsts (GR-73). |
+| Features decider | GR-79: the Path names the first-week spends in the order of CE-4 and proves 500 gold covers four heroes' first supplies (CE-10). GR-82: name the first town project, which must not gate a core system (GR-55), and take the Hearthrise rule of CE-8. GR-84: setups are free and one idea (GR-56a). |
+| Platform decider | GR-1: closed-form town work with the re-reading of CE-7. Study 48: the cost of order matching and the gauge. |
+| Combat decider | A hunt budget is a new end reason (GR-57). GR-19 answers the volleys signature (GR-31). |
+| Security engineer | The market limits and the Level door (GR-50, GR-55), the laundering route (GR-59b), commissions and the no-mint guard (GR-44, GR-46), mount and unmount (GR-73), the start kit grant (CE-10), the Crowns book and its clamps (MM-35, MM-36). |
+| The build plan | Give the no-mint guard and reference values an owner lane. Build the saved kit (GR-48) before signatures, case perks and linings. |
+| The integrator | Chapters 02 and 03 say plain Dawnsteel drops "as Rares" and should say Scarce and hourly (CE-6). Chapter 06 says the boss material is used by Tempering, Hallmarks and linings and should say layer pieces only (CE-1). |
+
+**What nobody has decided yet in this area.** The hour values of every early price wait on the wage formula (R15). The hall number and the early halls' keys and prizes. The three signature stones. Signatures for six grounds. What it costs to reforge a unique up a band. The boss roster. Regions 4 to 7 have no sketch. How fast a region can be drawn.
+
+## The rows
+
+### World
+
+**GR-28. One boss door**
+
+- **Decision (recommended).** Every boss fight that pays a prize is a keyed hall. The boss call folds into it. One key is one prize roll and the key is the only clock. "Fight with N keys" is one press and the bar and party are remembered. A mid-region boss's pieces stay repeatable. Halls: the Rat King, Chief Coppercap, Captain Hask, Lord Krell, the Roost Mother, Father Gault, then two a region. Old Grayjaw and Rook stay route bosses for good, so no hall exists under Level 20.
+- **Reason.** Two doors to the same boss is one decision asked twice. One door with one clock is easier to learn, and world bosses and events get one boss system to build on. A key a hero-day keeps the pace the daily roll had, so nothing gets faster by accident.
+- **Evidence.** EVIDENCE: four reviews and study 47 ask for the merge (60 section 0.2 row 16). The key pace of about one a hero a hunted day is a TARGET. HYPOTHESIS that traded keys do not flood boss pieces. The check: on the matrix and in the beta, boss uniques found per account-week stay at or under the Very Rare clock of chapter 03 section 2.4. If they pass it, the key row gets rarer, never a second daily limit.
+- **Replaces.** 2026-11-14 (the boss call and one roll a hero a day) and 22-8 of 2026-11-20
+- **Money.** No
+- **Depends.** GR-29. GR-30. GR-35 (the named rare drops the key). MM-2 (the world boss reuses the hall room, mmo decider). GR-34 (the four called boss copies go)
+
+**GR-29. What a hall's prize holds**
+
+- **Decision (recommended).** A hall's roll holds only what no ground drops: the boss's uniques, the region's gem, a Trophy and the first-win piece. Plain Dawnsteel leaves Krell's roll and drops in Krell's Hold. Krell's five sidegrade weapons take its place. The same rule covers every prize in the game, the world boss and arena lines included (CE-1).
+- **Reason.** A prize that also drops on a ground is not a prize. If the hall is the only road to plain tier 7, every hero is gated on a boss for a plain ladder step, and that is the opposite of generous through Krell.
+- **Evidence.** MEASURED (study 54, one seed): a hero without his tier 7 weapon hunts the Hold about 9% slower through the whole band. The roll's new contents are PROPOSED.
+- **Replaces.** None. Keeps 2026-11-14. The roll's contents were a designer call
+- **Money.** No
+- **Depends.** CE-6 (how Dawnsteel drops in the Hold). CE-1. GR-28. GR-73 (three Trophy rows on Hask, the Provost and Krell)
+
+**GR-30. The hall boss**
+
+- **Decision (recommended).** A hall boss is the formula's boss role at his Level times one hall number that every hall shares. Krell's rows are left alone until hand rows move onto the formula. The number is sized so a mid-geared four in band wins 80 to 90% on the food the card names, and the weakest named lineup loses.
+- **Reason.** If every party wins, the party you bring does not matter, and preparing a party is the whole game. One number for every hall is the formula form. Tuning Krell by hand is the patch you ruled out.
+- **Evidence.** MEASURED on the proposed spell rule: all 36 tested parties won Krell's hall 38 to 40 times in 40 (study 53). The 80 to 90% band is a TARGET. The hall number itself is not sized and nothing is played at Levels 25, 52 and 75.
+- **Replaces.** None
+- **Money.** No
+- **Depends.** GR-86 (every monster on the formula, core decider). GR-28. MM-5 (the world boss room uses the same hall number)
+
+**GR-31. Every ground asks one question**
+
+- **Decision (recommended).** Each ground has one signature made of its own composition rows, said on its card, at full strength on the harder tiers and taught by frequency on Normal. One shared dose coefficient for every ground. Sample the Slake (the cold) and Krell's Hold (volleys) first. The six open grounds are assigned only after the sample is played. It ships after the saved kit (GR-48).
+- **Reason.** Fifteen grounds that play the same give a player nothing to prepare for after the first one. One question a ground makes where you hunt a decision about who and what you bring. The saved kit has to come first or the answer is a gear swap done by hand for four heroes on every move.
+- **Evidence.** HYPOTHESIS that players change what they bring. MEASURED on the proposed Slake doubling: nothing moved on Normal, and on Deadly a pair's bill rose 35 to 47% and a four's worst moment fell from 68% health to 33% (study 53). What overturns it: in the sample, a party that does not answer the signature pays under 1.5 times the supply bill of one that does, or players' saved kits for the two grounds do not differ from their default kit. Then signatures stay as card text only and the dose goes to zero.
+- **Replaces.** None
+- **Money.** No
+- **Depends.** GR-48 (the saved kit lands first). GR-27 (one pull number a tier, core decider). GR-19 (the shooters-first target mode, combat decider). GR-39 and linings (the answers a signature asks for)
+
+**GR-32. Thin bands and uneven pairs**
+
+- **Decision (recommended).** Wickstead moves to about Level 20 to 32 and the Slake to about 58 to 72. A faction pair of grounds shares one Level band and one XP line and differs by faction, weakness, signature and drops, never by pay. New maps go where the days are, so Levels 85 to 110 get the next new ground before any band under Level 45 does.
+- **Reason.** A player should always have two grounds to pick from, and the pick should be about what the ground asks, not which one pays more. If one side of a faction pair pays better, the side choice is made for you.
+- **Evidence.** COMPUTED from the ground table: the first 45 Levels hold six grounds and take under a week, and Levels 85 to 110 hold one ground and take about three weeks (chapter 02 section 2.4). Data only.
+- **Replaces.** None
+- **Money.** No
+- **Depends.** GR-5 (what a kill pays, core decider). GR-71 (faction side per hero, social decider)
+
+**GR-33. The shape of a region**
+
+- **Decision (recommended).** Six grounds stays the planning number. A region opens as four grounds and its hall, then its last two. Each region names one new rule before its grounds are drawn: an element, a signature or a monster trait no older ground has.
+- **Reason.** Art is the slowest thing we make, and a region has to be open 30 days before the first four arrives. Four and a hall is a whole region to play. The last two grounds then land as news in the middle of it.
+- **Evidence.** COMPUTED from the ruled Level table: a region lasts 52 to 79 days for the pace seat, and about 45 for a best-geared four (chapter 02 section 2.2). No measurement of how fast a region can be drawn exists.
+- **Replaces.** None. Keeps 2026-11-18
+- **Money.** No
+- **Depends.** The art and asset directors (how fast a region is drawn, still missing). GR-6 (Krell on day 18 against the table moves the runway by a factor of two, progression decider). MM-26 and MM-31 (a buffed four walks the runway faster)
+
+**GR-34. Dead rows**
+
+- **Decision (recommended).** Remove the 103 monster rows no hunt uses, the three hunts with no ground and the four called boss copies. The order is fixed: the item check runs first, and any monster that an item on the roadmap or a region sketch waits on stays in the data, hidden. The art stays in the library. The removal list goes on the one cut list you see before anything is deleted.
+- **Reason.** Rows nobody can meet are noise every tool and every reader pays for. Nothing planned is lost, because a monster with a planned home is not on the list.
+- **Evidence.** COUNTED by the world review and study 44 (103 rows, three hunts, four copies). 80 items wait on some of these monsters (audit M9), which is why the item check comes first.
+- **Replaces.** None. It is a cut, so it goes to Tyler on the one cut list (2026-11-21)
+- **Money.** No
+- **Depends.** GR-28 (the boss copies go only when the boss call folds). Lane L36 (the placed-or-cut table, item plan M11)
+
+**GR-35. The named rare of a ground**
+
+- **Decision (recommended).** Each ground's named rare gets one phase trait from the rows any monster may carry, so meeting it is an event in the log. On a hall's ground it is also the monster that drops the key.
+- **Reason.** A bigger health bar is not a moment. One trait makes the named rare something the party's rules have to deal with, and the key gives the kill a reason.
+- **Evidence.** EVIDENCE: phases as data rows exist and are ruled (2026-11-05). No measurement of the trait's effect on a hunt.
+- **Replaces.** None
+- **Money.** No
+- **Depends.** GR-28. GR-86
+
+**GR-36. The Catacombs**
+
+- **Decision (recommended).** The Catacombs stay their own mode. Build one wing and one key as the played sample before the other 36 pieces. The pack is a preset, refilled in one press. The Tower and the Catacombs take the one party XP table.
+- **Reason.** "Fight on what you carried down" is the best new decision in the endgame and it is not the Tower's question. One wing first is how we find out if packing stays a decision before drawing 36 more pieces.
+- **Evidence.** HYPOTHESIS that the pack stays a decision. What overturns it: if players' packs stop changing after the first three descents and deeper doors do not change the right pack, the mode becomes a wing of the Tower as study 46 asked.
+- **Replaces.** None. Keeps 2026-11-16 and 22-4
+- **Money.** No
+- **Depends.** GR-43 (the glove wing). GR-49. GR-37
+
+**GR-37. The Tower's beat**
+
+- **Decision (recommended).** The Tower stays weekly. Build the ruled fixes and stop. The board shows best floor ever and a "this week" column. No seasons.
+- **Reason.** An idle endgame should score how well you prepared, not how many hours you watched. A daily Tower would be a daily chore, and you ruled the weekly limits stay.
+- **Evidence.** EVIDENCE: your ruling of 2026-11-21 (call 6). The week column is PROPOSED and answers the open board question in chapter 02 section 2.8.
+- **Replaces.** None
+- **Money.** No
+- **Depends.** GR-36
+
+### Items and crafting
+
+**GR-38. Jewelry and cloaks past Level 30**
+
+- **Decision (recommended).** Build the six crafted slots to tier 7, starting with tier 4 and gem chips as the sample. Their plain numbers are one slot class worth 6% of a kit at every Level, derived from the gear curve and never typed for a tier.
+- **Reason.** Six of fourteen slots stop mattering at Level 30 unless this is built. A share of the curve keeps them worth the same at Level 30 and Level 400 with no row to retype.
+- **Evidence.** MEASURED (study 54): flat typed rows read 15% of a kit at Level 30 and 0.5% at Level 400, and one stat point a tier reads +5 to +13% at Level 110, twice the budget. The 6% share is a TARGET until the tier 4 sample is played.
+- **Replaces.** None. Builds the jewelry ruling
+- **Money.** No
+- **Depends.** GR-4 (the gear curve and slot classes, core decider. I agree with it as written). GR-39. GR-50 (one market book a piece comes first, item plan M9)
+
+**GR-39. Perk sizes**
+
+- **Decision (recommended).** A perk that works only in a narrow case is sized for that case, starting at about 5% inside it and never over five times its always-on size. Always-on perks keep their built sizes. A hero whose twelve seats all match the ground gains at most one weapon step, 8%. The ruled 4% is read as the total of always-on perks. The best gear state on the matrix includes a matched perk set and still reads about 15% over mid gear.
+- **Reason.** A 1% perk that only works against one element is a perk nobody reads. Sized for its case, it becomes a reason to own a second ring for a second ground. The 8% cap keeps a matched set inside one weapon step, so it is a real edge and never a second weapon.
+- **Evidence.** MEASURED (study 54): five times is the ceiling before a case perk beats a weapon step. HYPOTHESIS for every size, because 18 of the 23 perks have no engine hook and no cell measures one perk in and out of its case. That measurement is the first job of the perk lane and it overturns any size that pushes a matched hero past 8%.
+- **Replaces.** The reading of 23-5 of 2026-11-20 (4% as a total for all perks)
+- **Money.** No
+- **Depends.** GR-48 (the saved kit lands first, or case perks are a chore for four heroes). GR-4 and the ruled best gear ceiling of 15% (core decider). GR-31
+
+**GR-40. Build pieces before Krell**
+
+- **Decision (recommended).** Ship the three designed special pieces (Widow's Fang, Mudlark's Mitts, Demoncaller, all three found in src/data) and fill the ruled Very Rare band through Krell with signature stones a smith sets in jewelry, on three grounds first. No property piece on every ground.
+- **Reason.** A band before Krell lasts one to seven days, so a named piece on every ground would be thrown away in a week. A stone set in a ring is carried up every tier, so the first rare find is one the hero still wears at Level 300.
+- **Evidence.** COMPUTED: a band before Krell lasts one to seven days on the ruled table, and an account's four finds a Very Rare every 1.3 to 1.9 days (chapter 03 section 2.4). The three stones' names, perks and carriers are not written and are the sample's first job.
+- **Replaces.** None. Keeps 2026-11-20 and builds 2026-11-14 and 30-3
+- **Money.** No
+- **Depends.** GR-38 (stones need crafted pieces to sit in). GR-42 (a stone is the Very Rare, outside the six Rare rows)
+
+**GR-41. What a unique's property may be**
+
+- **Decision (recommended).** Past tier 7 a unique's one property is one of seven kinds that change a decision: bane, crit, a spell change, an element edge, a second socket, thorns, the bow's sweet spot. At tier 7 and below the full list stays.
+- **Reason.** Past Krell a piece is chosen for what it does. A bigger guard number is the plain ladder again under a new name.
+- **Evidence.** EVIDENCE: studies 54 and 47. A design rule with no measurement.
+- **Replaces.** None. Keeps 2026-11-14
+- **Money.** No
+- **Depends.** CE-1 (layer pieces follow the same rule). GR-4 (exchange rates)
+
+**GR-42. Rare rows for each ground**
+
+- **Decision (recommended).** At most six Rare rows for each ground. The next tier's ladder pieces are Scarce rows on the next ground, never Rare rows on this one. A dropped seed counts inside the six.
+- **Reason.** You ruled the big reveal fires on every Rare. The count of rows is the only thing that keeps it a moment and not a notification.
+- **Evidence.** COMPUTED: with six rows a hero sees a reveal every two to three hours and a four about every 40 minutes. MEASURED today: a four sees one every 7 minutes on the Warrens (study 54).
+- **Replaces.** None. Keeps 27-6
+- **Money.** No
+- **Depends.** CE-6. GR-77. GR-29
+
+**GR-43. The Crafting bench**
+
+- **Decision (recommended).** The Crafting bench is the outfitter: cloaks, belts, linings and ammunition. Belts move to it. Gloves drop hourly like other armor through tier 7. Its three salt recipes leave in the lane that ships linings.
+- **Reason.** A bench needs one job a player can say in a sentence. Salts on two benches is the same recipe learned twice.
+- **Evidence.** EVIDENCE: studies 54, 56 and 47. No number moves.
+- **Replaces.** None. Keeps 2026-11-18 (the glove wing)
+- **Money.** No
+- **Depends.** GR-36. GR-47
+
+**GR-44. Six crafted slots past tier 7**
+
+- **Decision (recommended).** Patterns ship with the Morrow Hills and a pattern teaches the account, not one hero. Single commissions (one Hallmark or one reforge on a piece the owner keeps, held by the server throughout) ship with jewelry tiers 5 to 7. Bulk orders wait until standing orders are proven to fill. Nothing ships before the no-mint guard exists and the Security review has read it.
+- **Reason.** A pattern learned four times is a decision repeated four times. Waiting for a full market would freeze six slots for 290 Levels, and a single held commission needs no market at all.
+- **Evidence.** EVIDENCE: studies 47 and 54. The no-mint guard (item plan M4) has no owner lane yet, and that is a gap the build plan must close.
+- **Replaces.** None. It changes a designer call
+- **Money.** No
+- **Depends.** The no-mint guard and reference values (build plan must give them an owner). Security review (a trade between players). GR-50
+
+**GR-45. Runecrafting 61 to 99**
+
+- **Decision (recommended).** A Sealing Rune at Runecrafting 75 and 88, used by the tier 6 and tier 7 Hallmarks. More rune tiers come later with GR-23.
+- **Reason.** Forty levels with nothing to unlock is a dead stretch. A rune the smith needs gives the rune bench a customer without touching spell math.
+- **Evidence.** EVIDENCE: studies 47, 54 and 56. No measurement. It adds one input to two Hallmark fees, so its cost sits inside the sink share of those tiers.
+- **Replaces.** None. Keeps 10-23
+- **Money.** No
+- **Depends.** GR-23 (combat decider). GR-8 (sink share, core decider)
+
+**GR-46. Salvage and the Shop**
+
+- **Decision (recommended).** Salvage is a line on the loot plan beside Keep, Deposit and Sell, set once for an item or a kind, with both numbers shown. It is never the default and a starting loot plan exists. The Shop keeps its ruled price. It ships behind the no-mint guard. The loot plan never sells or salvages a piece that is in a saved kit.
+- **Reason.** Sell or salvage is a real choice between gold now and Luck later, and it is made once and remembered. Making salvage the default would quietly take gold out of every new account.
+- **Evidence.** MEASURED (study 60 on the matrix): 15% less gold coming in made 40 gold bands worse and none better.
+- **Replaces.** None. Keeps 2026-11-20, 23-10 and 31-6
+- **Money.** No
+- **Depends.** The no-mint guard. GR-48. GR-87
+
+**GR-47. Curing and the Cellar**
+
+- **Decision (recommended).** Curing is built as ruled, last in the lining work, as a standing order ("keep these linings up"). The Cellar's five food rungs come off sale now.
+- **Reason.** You ruled curing twice, so it is built. As a standing order it is set once and never becomes a chore. The food rungs sell an effect that is being cut, and nothing should be on sale that a player cannot feel.
+- **Evidence.** EVIDENCE: your rulings of 2026-11-18 and 26-7. No measurement.
+- **Replaces.** None
+- **Money.** No
+- **Depends.** GR-76. GR-43
+
+**GR-48. Luck's feeds, the find list, the saved kit**
+
+- **Decision (recommended).** Luck keeps two feeds and one budget. Each ground has a find list on the Honors page that ticks with no press and pays no Luck. A hero's worn set, linings and unique can be saved against a ground and starting a hunt there wears it. The saved kit is built before case perks, linings or signatures.
+- **Reason.** The saved kit is the piece that makes every "bring the right thing" system in this book a decision made once. Without it, four heroes changing rings by hand on every move is the worst chore in the game.
+- **Evidence.** EVIDENCE: your Luck ruling of 2026-11-20 and the first principle of 2026-10-18. The kit's server shape and cost are not measured.
+- **Replaces.** None
+- **Money.** No
+- **Depends.** GR-31, GR-39, linings and the boss kit of chapter 06 all wait on it. Systems engineer (server shape). GR-56a and GR-84 (setups as one idea)
+
+**GR-49. Chest reforging**
+
+- **Decision (recommended).** Chest reforging stays its own action: the piece, six keys of the next tier, that tier's metal or hide, gold and one weekly open.
+- **Reason.** It is what makes an early chest piece the start of a line you carry. Folded into Tempering it would be one more percent for gold, and Tempering already sells that.
+- **Evidence.** EVIDENCE: 22-3 and 2026-11-18. COUNTED chest odds over 20,000 trials a cell (chapter 03 section 2.13).
+- **Replaces.** None
+- **Money.** No
+- **Depends.** GR-36. GR-37
+
+### Economy
+
+**GR-50. The market**
+
+- **Decision (recommended).** The market runs itself: standing buy orders with the gold held by the server, a Sell loot rule that routes to the best order when it beats the Shop, one book for each piece with grade and perks as filters, a suggested price on every book, and "always list these" as a loot rule. Order: the one book and rare pieces first, supplies through the one-tap refill second and only after the harder tiers are sized on full-effect supplies. The 1% listing fee and 4% cut stay, both burned.
+- **Reason.** Everything else in the game is decide once and it runs while you are away. A market that needs you at a window would be the one system that breaks that. Standing orders are also the only trade that works between two players who are never online together, which is every small server.
+- **Evidence.** HYPOTHESIS that standing orders fill. MEASURED as the most the supply side can move combat (study 55 run 2): about 6% damage and Level XP and about 16% less damage taken for a four. What overturns it: in the beta, if under half of standing orders at or above the suggested price fill inside 7 days, the supply step is dropped and the market stays the order book for rare pieces only.
+- **Replaces.** None
+- **Money.** No
+- **Depends.** GR-55. GR-59b. GR-44. Security review (every limit). Study 48 (the cost of order matching). GR-3 (Deadly sized on the real kit first, core decider)
+
+**GR-51. Prices**
+
+- **Decision (recommended).** Every repeating price is a row of hours on one wage curve the server computes. The wage is one hero-hour of a mid-geared four on Normal. A thing one hero uses is priced in hero-hours at that hero's Level. A thing the account owns is priced in account-hours at the account's highest hero Level. The four coin dials fold into one coin line. The House stays typed, with its typed numbers set from the same curve when written (CE-5). The screen may say "about 3 hours of hunting" beside any price.
+- **Reason.** Levels never end, so a price typed in gold is wrong one region later. Hours of your own hunting is the one price a player can reason about at Level 20 and at Level 2,000.
+- **Evidence.** COMPUTED design from studies 44 and 55. The wage formula (step R15) does not exist yet and the matrix must check it against played net gold within 10%. Study 51 found a lone seat cannot be calibrated, which is why the seat is the four.
+- **Replaces.** None. Extends 24-11
+- **Money.** No
+- **Depends.** GR-8 (sink share, core decider). CE-4. CE-5. MM-19 (the wage for a four of mixed Levels is not written). GR-58, GR-53, GR-73
+
+**GR-52. The store's healing**
+
+- **Decision (recommended).** Store healing is priced on one gold-a-hit-point line with its top near 0.60, and a heal's size is a share of reference health. It lands after the store-bill fault in the simulator closes. Store runes and ammunition get the same treatment in the same step: one price line each, read on the wage curve.
+- **Reason.** One line means a bigger heal is never a worse buy than a small one, so the store stops punishing the hero that takes the hardest hits. Runes and arrows are most of a party's bill and no formula owns them yet, so they are folded in here instead of becoming a second call.
+- **Evidence.** MEASURED (studies 44 and 55): a lone hero's Deadly bill falls 49% and no other number moves. The rune and ammunition line is PROPOSED and unmeasured.
+- **Replaces.** None
+- **Money.** No
+- **Depends.** Simulator fault F5 (which rune tier the kit buys, baseline lane). GR-58. GR-51
+
+**GR-53. The House dummy**
+
+- **Decision (recommended).** The dummy ends the yard fee, as ruled. It is sold in rungs by skill band and each rung costs 25 to 50 hours of the yard fee at that band.
+- **Reason.** The fault was never "no fee". The fee grew with skill and the dummy's price did not. Priced by band, both of your rulings hold and the purchase stays worth thinking about at every skill level.
+- **Evidence.** COMPUTED: the payback you approved on 2026-11-20 is 25 to 50 hours, and 2.8 days at 12 rested hours is 34 hours (audit C3). Band edges past skill 71 are not written.
+- **Replaces.** None. Keeps 2026-11-08 and 26-5
+- **Money.** No
+- **Depends.** GR-54 (the fee follows the rate). GR-51
+
+**GR-54. The yard's rate**
+
+- **Decision (recommended).** The yard's XP an hour is a share of the skill level's cost, capped so it never passes half of what hunting pays that skill. The fee follows the rate, so a point of XP never gets cheaper. One knob holds the share. The every-idle-hour reading stays a number we watch and never a gate.
+- **Reason.** Combat skills have no cap, and the yard is the one gold sink meant to never end. At a flat rate with a fee that climbs, a skill level takes 51 to 243 yard hours from skill 75 and nobody trains, so the sink dies exactly when gold piles up. The cap also closes the cheap Defense training you called not intended on 2026-11-18, on the training side as you asked.
+- **Evidence.** COMPUTED from the ruled fee and the skill curve (studies 44, 58, 55, 56): 51 to 243 yard hours a level from skill 75 at the flat rate. HYPOTHESIS for the share. What overturns it: on the matrix, if a four that trains all 48 rested hours levels its combat skills more than 1.5 times as fast as one that never trains, or the fee takes over half of gold in at mid Levels, the share comes down. The cap of one half is the hard line.
+- **Replaces.** 2026-11-14 (the flat rate), and A-5 and 21-7 of 2026-11-20
+- **Money.** No
+- **Depends.** GR-53. GR-51. CE-4 (the yard is the first repeating sink). GR-6 (skill pace beside Level pace, progression decider)
+
+**GR-55. When the market opens**
+
+- **Decision (recommended).** The market is open on day one. Anyone can read every book from the first minute. Listing and ordering sit behind the one Level door Security sets, which should be reachable in the first session. The town's first shared project builds something else.
+- **Reason.** A locked market teaches a new player that there is no market. With four heroes earning from the first hour, the first week needs places for gold and loot to go, and standing orders are one of them.
+- **Evidence.** EVIDENCE: study 55. No measurement. On a server of 10 the market would never open under a goal sized by gifts, and the idle market is the only trade that works there.
+- **Replaces.** 24-7 of 2026-11-20 (the first Town Works project opens the market)
+- **Money.** No
+- **Depends.** GR-82 (what the first project builds, features decider. It must not be a door on a core system). GR-50. GR-79 (the Path). Security review (the Level door)
+
+**GR-56a. The price on setup slots**
+
+- **Decision (recommended).** Setup slots are free. A saved setup is a remembered decision and is never sold, for gold or for Crowns.
+- **Reason.** Your first principle is that a choice made once is remembered. Charging for the memory taxes exactly the behavior the game is built on, and nobody has ever paid for one.
+- **Evidence.** EVIDENCE: studies 55 and 59 (no purchase on record). The first principle of 2026-10-18.
+- **Replaces.** 2026-11-05 (three free, then priced)
+- **Money.** No
+- **Depends.** GR-48. GR-84 (setups as one idea, features decider). MM-29 (no "more saved setups" row in the store)
+
+**GR-56b. The bench tax**
+
+- **Decision (third).** The bench tax stays exactly as ruled: 15% of the output's Shop bid on each job at a public bench, nothing on the cheapest goods, and nothing at a home bench. It gets no wage row. The Shop bid already comes from the one sale formula, so the tax already follows the gear curve. The screen may show it in hours.
+- **Reason.** The tax is what makes the first rung of every House room worth buying, so it has to stay. Moving it onto the wage curve would give one fee two formulas for no gain.
+- **Evidence.** COMPUTED: 15% of a formula output is itself a formula output (GR-87 one sale formula). EVIDENCE that removing it empties the first rung of the bench rooms (audit C4).
+- **Replaces.** None. Keeps 2026-11-01 and 26-1
+- **Money.** No
+- **Depends.** GR-76. GR-87 (core decider)
+
+**GR-57. Spending while you sleep**
+
+- **Decision (recommended).** A hunt budget replaces the gold floor: "spend at most N at the store on this hunt", remembered for each ground and tier. The default is the coin that hunt is expected to earn, so a hunt nobody touched cannot lose money. Reaching the budget is an end reason shown on the return card.
+- **Reason.** This game spends your gold while you are asleep. A floor of 300 against a Deadly hunt that can burn 121,000 an hour is no safety at all. A budget is a decision made once per ground and it protects the new player who never opens the setting.
+- **Evidence.** MEASURED: the floor defaults to 300 and Deadly can burn 121,000 an hour (study 55). The default rule is PROPOSED.
+- **Replaces.** None
+- **Money.** No
+- **Depends.** Combat decider (a new END_ORDER reason). GR-52. Systems engineer (both-paths tests, viewed and browser closed)
+
+**GR-58. The refill price**
+
+- **Decision (recommended).** The stamina refill's base price is held until the store-bill fault closes, then set as hours on the wage curve. The six ruled steps stay.
+- **Reason.** The finding that a refill costs more than its hours earn may be half its real size. Pricing on a number we know is wrong would mean pricing twice.
+- **Evidence.** EVIDENCE: study 51 reads a party's store bill at 1.7 to 2.2 times real, so every net gold number from the harness is direction only.
+- **Replaces.** None
+- **Money.** No
+- **Depends.** Simulator fault F5 (baseline lane). GR-51
+
+**GR-59a. The gauge**
+
+- **Decision (recommended).** One daily line printed from the journal: gold made, destroyed and held, by source and sink, by day and by account age. The Crown's gold price sits on the same page.
+- **Reason.** Nobody can steer what nobody reads. Every sink in this book is sized on a target that has no reader until this exists.
+- **Evidence.** EVIDENCE: study 55. A reading. It changes nothing in play. Its roll-up cost is pending study 48.
+- **Replaces.** None
+- **Money.** No
+- **Depends.** Study 48. CE-2 (the material buff gets its own source line)
+
+**GR-59b. One laundering route**
+
+- **Decision (recommended).** Remove the 1,000 gold per unit minimum on the stackable price ceiling, so junk cannot carry gold between accounts. It goes into the Security review with the rest of the market.
+- **Reason.** A hole that lets gold move between accounts is a hole in the Crowns engine too, because Crowns turn into gold.
+- **Evidence.** EVIDENCE: study 55 found the route by reading the ceiling rule. Not exploited on record.
+- **Replaces.** None
+- **Money.** No
+- **Depends.** Security engineer. MM-36
+
+**GR-60. When Crowns come**
+
+- **Decision (recommended).** Confirmed superseded. The Crowns engine (MM-28 to MM-37) does not wait for the market, because Crowns buy Premium and boosts and trade on their own book.
+- **Reason.** The old call waited for the market to have something scarce to price. Premium and boosts need no market, and the boss and arena lines give the market its scarce goods anyway.
+- **Evidence.** EVIDENCE: study 49 and chapter 04 section 2.8.
+- **Replaces.** None
+- **Money.** No
+- **Depends.** MM-28 to MM-37
+
+### Home
+
+**GR-73. The Trophy room**
+
+- **Decision (recommended).** The Trophy room becomes the Hall of Firsts. The Keep gives a wall and the Castle gives the Great Hall. No mount rungs are sold. Only rows flagged mountable can hang, one of each. Hanging a piece takes it from the bag and costs a mounting fee in hours of the wage of the piece's own band. Taking it down returns the piece and not the fee. No formula reads the Hall. Build order: the Honors page, then the Hall, then visiting.
+- **Reason.** It is the reason to keep a rare find instead of selling it. Five rungs for 695,000 is a sink that ends on the day you buy the last one. A fee for each piece grows with every region we add and costs nothing until you have something worth hanging.
+- **Evidence.** EVIDENCE: studies 58 and 56. The fee's hours and the wall's size are not set. They wait on a count of mountable rows. TARGET: the Great Hall filled costs about as much as the Castle.
+- **Replaces.** 26-6 of 2026-11-20 (five mount rungs)
+- **Money.** No
+- **Depends.** GR-62 (the Honors page, progression decider). GR-51. GR-75. GR-29 (three Trophy rows). Security review (mount and unmount move items)
+
+**GR-74. The farm's gates**
+
+- **Decision (recommended).** A crop opens at its Farming level and nothing else. Soil tiers are removed. Watering lives inside Tend the field and there is no water button on a bed. Every seed row and Tend result says what the harvest is worth to the hunt. Potato gets a hunt consumer in Wheat's ration recipes or is removed with the dead rows.
+- **Reason.** Four gates on one crop is three too many. One press that harvests, replants and waters is the farm with the chore taken out.
+- **Evidence.** COMPUTED: the soil tiers are a 130,500 gold sink in all, which is small beside the House re-read of CE-5. A full field makes about a four's daily drink bill (chapter 07 section 2.6).
+- **Replaces.** None
+- **Money.** No
+- **Depends.** CE-5. GR-34 (Potato, if it finds no consumer)
+
+**GR-75. Home looks and visiting**
+
+- **Decision (recommended).** Three home looks: a cottage for the Camp, Homestead and Farmstead, a manor for the Manor and the Keep, a castle for the Castle. Two new maps, drawn so a clan hall can reuse the tiles. Visiting is look-only, one read and no polling, open to friends and clan members, and it opens from the Homestead once the Hall of Firsts exists.
+- **Reason.** Ground art is what limits how fast the world grows, and three maps spent on the home are three regions' grounds delayed. A wall nobody can visit until the Castle is a wall nobody sees for the first two months.
+- **Evidence.** EVIDENCE: study 58. COMPUTED from chapter 02: a region is needed every 45 to 53 days and no lane says who draws them. Nothing here can be measured on the matrix.
+- **Replaces.** 26-3 (a map for each deed) and 26-11 (visiting opens at the Castle), both 2026-11-20
+- **Money.** No
+- **Depends.** GR-73. MM-18 ("party member" has no meaning once a party is your own four, mmo decider). The art director (the Camp's name against its picture)
+
+**GR-76. House room rungs**
+
+- **Decision (recommended).** House rooms sell kept materials, never speed, and the swap is built ahead of the lining work. If it cannot be built at once, the speed rungs come off sale until it is. Each rung's row says who it is for.
+- **Reason.** A rung that costs gold and never pays back is a trap, and the first player to do the sum tells everyone. Kept materials is worth more the costlier the recipe, so it stays worth buying at every tier.
+- **Evidence.** MEASURED: the swap is an identity for the hunt, and the sixteen speed rungs cost 5.25M and never pay back (study 58). COMPUTED, not played: rungs 2 to 5 pay back in about 120 bench hours on a room's best recipes.
+- **Replaces.** None. Builds 26-1 sooner
+- **Money.** No
+- **Depends.** GR-56b. CE-9. CE-5
+
+**GR-77. Seeds from monsters**
+
+- **Decision (third).** A sample of one, not two. The Moonbloom seed leaves the Shop and becomes a tradable Rare row on one Morrow Hills ground, inside that ground's six Rare rows. Its drink sits on the existing ladder at the next step and never above it. A second seed is written only after the first has been read in play.
+- **Reason.** A Rare line that is not gear and that a farmer wants to buy is a good idea worth one honest test. Moonbloom already exists as a crop, so the sample costs one drop row. Nobody has named the second seed, and inventing one to make the sample two is content for its own sake.
+- **Evidence.** EVIDENCE (patch home-2 on the uncalibrated harness, direction only): a four on all home-made supplies levels about 6% faster, about 10% on Deadly. That is why the drink never sits above the ladder. HYPOTHESIS that players plant or trade the seed. What overturns it: if the seed's book has no fills and under one account in ten plants it, no second seed is made.
+- **Replaces.** None
+- **Money.** No
+- **Depends.** GR-42. GR-50. The region lane (which ground carries it)
+
+### Collisions
+
+**CE-1. Collision: world boss and arena gear lines against the gear curve and the unique counts (MM-6, MM-14)**
+
+- **Decision (recommended).** Layer gear is unique gear on rows that carry no band, outside the regional count. The ten rules of chapter 03 section 2.16 are the design. In short: a layer piece spends the same budget as any unique of the earner's band and never a higher one. A line is written once and its numbers come from the curve. A region's 15 to 20 uniques and its coverage are met with no layer piece. A line carries a property no ground, hall or chest carries in that band. A line is at most five pieces and there are at most four boss lines and one arena line. It trades, it pays no rivets and Luck never moves it. Two places where chapter 06 differs are settled here. First, the layer's upgrade material feeds only the layer's own pieces and is never a required input for plain Tempering, Hallmarks or linings. Second, pace: an account earns at most one line piece for each boss weekend and one for each arena season.
+- **Reason.** A second pile of best pieces in every band would make the grounds the lesser chase and make a boss weekend something you cannot skip. As sidegrades with their own property, boss and arena pieces are worth fighting for and worth buying, and a player who never fights a boss still fills every slot.
+- **Evidence.** COMPUTED: a bandless line adds zero rows a band, so 25 rows cover every Level. The calendar holds 13 boss weekends and 13 seasons a year, so an account earns at most 26 layer pieces a year against about 52 Very Rares. HYPOTHESIS that a sidegrade is wanted enough to trade. What overturns it: in playtest E, if boss pieces sell under the price of a ground unique of the same band, the property kinds are re-drawn. The budget is never raised.
+- **Replaces.** None
+- **Money.** No
+- **Depends.** MM-6, MM-14, MM-27 (the mmo decider owns them and must take the ten rules, the material rule and the pace cap). MM-22 (boss materials are then a small home for the slot gold, see CE-4). GR-4 (core decider). GR-29. GR-41. MM-32 (0 bands ahead holds, because a piece drops at the earner's band)
+
+**CE-2. Collision: the +10% timed drop buff (MM-25)**
+
+- **Decision (third).** The timed drop row is a material buff. It adds 10% to rows tagged as materials: monster parts, lining parts, hides, ore, gem chips and gems below Rare. It never touches a Rare, Very Rare or Trophy row, never a gear row of any rarity, never a key and never a seed. The rivet allowance is computed with no buff. The gauge prints its gold as its own source line.
+- **Reason.** Skipping only the top three bands is not enough. More hourly gear means more salvage, more rivets and a faster Luck bar, which is a third feed for Luck by the back door. More gear to sell is also a coin buff, and the rule is no coin buff ever. More parts and chips is a buff players still want, because it feeds linings, jewelry and the market.
+- **Evidence.** COMPUTED from the rules on the page: rivets come from salvaged drops (chapter 03 section 2.12) and Luck is ruled at two feeds (2026-11-20). The size of the leftover gold leak through sold materials is not measured. The gauge reads it.
+- **Replaces.** None
+- **Money.** No
+- **Depends.** MM-25 and MM-24 (the mmo decider must take this scope into the buff table and name the knob). GR-59a. MM-42 (a ground weekend that "features named pieces" must use its own event row and not this buff)
+
+**CE-3. Collision: a drop chance boost in the Crowns store (MM-29) against the Luck ruling**
+
+- **Decision (recommended).** The store sells no drop chance boost and no material boost, for Crowns or for gold. The material buff of CE-2 is earned only, from bosses, clans, arenas and events.
+- **Reason.** You bound Luck on 2026-11-20 for one reason, so that neither gold nor Crowns could buy better drops. A boost that raises drops for Crowns is the same thing through another door. The gear chase is the one thing in this game that must not be for sale at either end.
+- **Evidence.** EVIDENCE: your words of 2026-11-20 ("Ok nvm let's bind it"). COMPUTED: the paid pace ceiling does not move, because it never used the drop row. Chapters 03, 04 and 06 all recommend the same.
+- **Replaces.** None
+- **Money.** No
+- **Depends.** MM-29 (the rest of the store list is a money call, see below). CE-2
+
+**CE-4. Collision: what first-week gold buys, now that slot prices are gone**
+
+- **Decision (third).** The first week's gold meets these in order. Minute 5: store supplies, under 15% of coin on Normal. Hour 1: the yard in rested hours, near zero at first. Hour 1: the Homestead, an errand at 400 gold. Day 1: bag rungs for each hero and the first Storage chest, each a small buy. Days 1 to 3: the first Tempering rungs and the first Hallmark, where one purse and four heroes make the first real choice. Days 2 to 4: the Farmstead as the first band goal. Week 1 on: Blessings from Level 30. Weeks 1 to 2: linings and the first curing slot. The gold the slots would have taken goes to the House ladder re-read for four (CE-5) and to the yard, not to the clan castle or boss materials, which a first-week account cannot reach. A played account of four must end week 1 having wanted more than it could buy.
+- **Reason.** A new account should never be broke and never be done. Supplies and the yard are cheap enough that nobody stalls, and by the first gear band four heroes are asking one purse for more than it holds. The hole the slots left is filled by things every account meets in its first days, and the House is the one you can see.
+- **Evidence.** HYPOTHESIS. No hour value can be set until the wage formula (R15) exists, and the harness reads gold as direction only (about 220,000 an account-day at Level 10). What overturns it: on the matrix or in the beta, an account of four at day 7 that holds over 3 days of its own income with nothing it wants, or one that cannot pay for Normal supplies, fails the design and the account-hour rows move.
+- **Replaces.** None. It fills a decision your 2026-11-21 ruling opened
+- **Money.** No
+- **Depends.** GR-8 and MM-22 (core and mmo deciders: the order above replaces "castle and boss materials first" for the first weeks). CE-5. GR-54. GR-55. GR-79 (the Path must name each of these in this order, features decider). GR-7 (Blessing price, progression decider)
+
+**CE-5. Collision: early prices for an account of four**
+
+- **Decision (third).** One rule in two rows. A price one hero pays (bag rungs, Blessings, Tempering, Hallmarks, linings, the yard) stays in hero-hours at that hero's Level and needs no change for four, because four heroes pay it four times from four incomes. A price the account pays (deeds, room rungs, Storage chests, the Key Ring, curing slots) is re-read in account-days, which is four times its one-hero size. Sizes: the Homestead stays a 400 gold errand, the Farmstead about 1 account-day, the Manor about 3, the Keep about 6 and the Castle about 20. Room rungs and chests are re-typed by the same factor against the size bands of chapter 04 section 2.3. Early hero prices: Tempering rung 1 costs about 1 hero-hour and each rung doubles. Hallmarks at tiers 1 to 3 scale down from the ruled tier 4 fee on the wage curve. Blessings stay free under Level 30. The gold numbers are typed once the wage formula exists.
+- **Reason.** The House was priced for one hero's income and four heroes earn about four times that, so today's ladder would be a string of errands. Read in account-days, the Castle is a long goal again, and it is where the gold the slots took shows up as something you chose.
+- **Evidence.** COMPUTED against the harness reading (direction only): at about 280,000 an account-day near Level 50, the ruled Castle price of 2.5M is 9 account-days and the Manor is half a day, against 36 days and 2 days for one hero. HYPOTHESIS for every size above. What overturns it: the day-7, day-14 and day-30 readings of CE-4, and band E4 (a hero that spends everything reaches 70 to 80% of its band's pool).
+- **Replaces.** The typed gold numbers of 26-3 and 26-1 of 2026-11-20. The ladder, the goods each deed asks for and what each opens are kept
+- **Money.** No
+- **Depends.** GR-51. GR-8 (core decider). CE-4. GR-76. Chapter 07 section 5 item 2
+
+**CE-6. Collision found here: 14 plain Dawnsteel pieces "as Rares" in Krell's Hold (GR-29) against six Rare rows a ground (GR-42)**
+
+- **Decision (third).** Tier 7 drops like every tier. Dawnsteel armor is the Hold's hourly drop. Dawnsteel weapons, shield and spellbook are Scarce rows in the Hold. None of them is a Rare row, so the Hold's six Rare rows stay free for its named pieces.
+- **Reason.** Fourteen Rare rows on one ground would fire the big reveal on plain ladder gear and bury the named pieces. Plain gear is meant to be generous through Krell, and the Hold is the longest band in the first two regions.
+- **Evidence.** COMPUTED from the two rules as written. MEASURED (study 54): about 9% slower through the band without the tier's weapon. The Scarce pace for ten weapon and off-hand rows on one ground is not sized and belongs to the drop bands (GR-87).
+- **Replaces.** None
+- **Money.** No
+- **Depends.** GR-29. GR-42. GR-87 (core decider). The integrator (chapter 02 and chapter 03 both say "as Rares" and should be corrected)
+
+**CE-7. Chapter 07 flag: closed-form town work against the 2026-10-22 ruling "town work updates in real time"**
+
+- **Decision (recommended).** Take the re-reading. The bar, the count and the bag line move on screen in real time as a prediction. The server writes at the start, when the count runs out and at a stop. Any press that needs the items or the skill level settles the job first, so nothing can spend a predicted number. Every gate reads the server's value.
+- **Reason.** What you asked for on 10-22 was that the player sees work happen and is not left waiting for a lump at the end. That still holds on the screen. What changes is how often the server writes, which a player cannot see and which is the difference between fitting your $0.15 budget and missing it.
+- **Evidence.** COMPUTED from production means stretched to four heroes: 48 rested hero-hours cost about 34 database-seconds a day by tick and about 1 in closed form, against a budget of 60 (chapter 07 section 2.11). Not measured at 12 hours.
+- **Replaces.** The wording of 2026-10-22 (the bag and skill XP update on the server in real time). The player-facing half is kept
+- **Money.** No
+- **Depends.** GR-1 (platform decider owns the call). Study 48. CLAUDE.md section 6 (the browser never disagrees with the server). Both-paths tests for every town activity
+
+**CE-8. Chapter 07 flag: the Hearthrise fire and MM-11's dated +25% weekend are one reward under two rules**
+
+- **Decision (recommended).** They are one reward: the world bonus weekend is the Hearthrise. The calendar sets when it lights. The fuel the server burned since the last one sets how large it burns, from a floor of +10% Level XP up to the ruled +25%. The fire's full size is a fixed amount of fuel for each weekly active account. Fuel only, never gold. No second XP event runs beside it.
+- **Reason.** Two events that both pay Level XP would either stack past your +25% line or make one of them pointless. Joined, feeding the fire matters and nobody has to be anywhere at a set hour. The floor means the calendar never promises a weekend that turns out to be nothing.
+- **Evidence.** HYPOTHESIS. The floor and the fuel per account are PROPOSED and unmeasured. What overturns it: if playtest servers fill the fire to the top every time whatever players do, feeding it is no decision and the weekend becomes a flat +25% on the calendar. If it never passes the floor, the fuel per account is cut.
+- **Replaces.** 2026-10-25 (the Hearthrise lights when the fire fills, with no date)
+- **Money.** No
+- **Depends.** MM-11 and MM-42 (mmo decider). GR-82 (features decider). MM-25 (the timed Level XP cap). MM-30 (a bought XP boost adds nothing that weekend, which is what "no edge in events" means)
+
+**CE-9. Chapter 07 flag: the Kitchen's 25% burn relief does not fit inside the ruled 15% Yield pool**
+
+- **Decision (third).** Burn relief is not Yield and does not count in the 15%. Burning is a failure row on a Cooking job. The Kitchen multiplies that chance down (13%, 19%, 25% less burnt) and Cooking level lowers it as it does now. The Yield pool keeps its meaning: the chance a job costs nothing or makes double, capped at 15%. The stacking rule gets one more line that says so.
+- **Reason.** A burnt fish is a job that paid less than a plain job. Relief can only bring it back up to plain and never above, so it cannot stack with anything into more than the bench ceiling. Counting it as Yield would use up the whole pool on one room and leave Good batch nothing.
+- **Evidence.** COMPUTED: relief has a natural stop at zero burn, which is the plain job the 1.92 best-bench number is already built on (chapter 07 section 2.3).
+- **Replaces.** None. It completes 26-2
+- **Money.** No
+- **Depends.** GR-76. GR-85 (burn chance as a data row, core decider)
+
+**CE-10. Chapter 08 flag: the start kit is granted once per account, decided under GR-8**
+
+- **Decision (recommended).** The account kit is granted once, with the first hero: 500 gold, 8 Turnip Seeds, 10 Raw Shrimp and the Camp's 2 farm plots. Each hero still gets its own weapon, worn pieces and bar supplies. A hero made later, or deleted and made again, gets the hero kit only.
+- **Reason.** The purse, the farm and Storage belong to the account. Paying the account kit for each hero would hand over four times the gold and let anyone mint gold by remaking a hero.
+- **Evidence.** COMPUTED walk-through from chapter 07 section 2.6 and chapter 08: 500 gold covers the 400 gold Homestead, 8 seeds fill 2 beds with 6 left, and 10 Raw Shrimp cover the first cook step. Not played with four heroes. The first-hour walk-through must prove 500 gold also covers four heroes' first Normal supplies.
+- **Replaces.** None
+- **Money.** No
+- **Depends.** GR-8 (core decider). GR-79 (the first hour, features decider). Security review (a grant on hero creation)
+
+### Money calls
+
+**MM-28. The paid advantage**
+
+- **Decision (recommended).** TYLER CONFIRMS. Recommended: paying gives a real edge under a ceiling written in numbers. A payer reaches the ceiling sooner and stays there. A player who does not pay reaches the same ceiling with gold. Nobody passes it.
+- **Reason.** It is your 2026-11-21 ruling written as a rule. One ceiling for everyone is what keeps the edge real and not broken.
+- **Evidence.** EVIDENCE: study 49 section 3.1 read ten games with a traded bought currency. Players accept time, membership, capped boosts and looks, and revolt when the store mints power.
+- **Replaces.** None
+- **Money.** Yes. TYLER CONFIRMS
+- **Depends.** MM-29 to MM-37
+
+**MM-29. What the store sells for Crowns**
+
+- **Decision (third).** TYLER CONFIRMS. Recommended structure: Premium, timed boosts on damage, damage taken and Level XP, comfort (more market listings, more banked arena tickets), looks and bound training items. No drop or material boost (CE-3). No saved setups (GR-56a). No bag or Storage room, which stay gold sinks. Never gear, materials, gold, Levels, skill levels, chests, rating, Luck, stamina or any roll. Boosts come in 1 day and 7 day sizes. One thing needs your explicit yes: a boost sold for Crowns is a direct sale of timed power, which your 11-04 and 11-18 words said would not happen without your word. I recommend yes, with each bought row sized at about 60% of its timed cap (about +15% Level XP, +6% damage, 3% less damage taken).
+- **Reason.** A traded currency needs something to spend it on every week or its buyers run out, and Premium once a month is not enough. A boost that is also earned in play and sits under the same cap is the mildest direct sale there is. Sizing the bought row under the cap keeps bosses, clans and events worth playing for a payer, because play is the only way to fill the rest.
+- **Evidence.** COMPUTED: pay alone then reads 1.15 x 1.06 x 1.15, about 40% more Levels an hour over a plain mid-geared four, and 58% with earned buffs on top. HYPOTHESIS that a weekly boost is bought. The alternative is boosts for gold only, which leaves Premium as the one repeating use of a Crown.
+- **Replaces.** Would complete, with your yes, the 2026-11-04 advice and the 2026-11-18 intent (power reaches a payer only through trade for gold)
+- **Money.** Yes. TYLER CONFIRMS
+- **Depends.** CE-3. MM-30. MM-25 (mmo decider). GR-56a
+
+**MM-30. Bought boosts and earned buffs**
+
+- **Decision (recommended).** TYLER CONFIRMS. Recommended: they are the same rows in the one modifier table and fill the same timed caps. One bought boost on a knob at a time.
+- **Reason.** One table and one cap is what makes the ceiling hold without a special rule for money. Earning a buff saves Crowns and buying one never stacks above the cap.
+- **Evidence.** COMPUTED from MM-24 and MM-25. Read at the settle with a hero's other modifiers, so it adds no server statement (ESTIMATED, study 49).
+- **Replaces.** None
+- **Money.** Yes. TYLER CONFIRMS
+- **Depends.** MM-24, MM-25 (mmo decider). MM-29
+
+**MM-31. The pace ceiling**
+
+- **Decision (third).** TYLER CONFIRMS. Recommended: keep your 2026-11-21 ruling (no limit on how much sooner) as it stands, and record the pace ceiling as a number the caps add up to, held by a test, not as a new limit. A fully boosted, best-geared four gains at most about 58% more Levels an hour than the same four in mid gear with no buffs, and nothing over a non-payer who reached the same caps.
+- **Reason.** You said the limit is on what can be bought, not how fast. The store list and the caps are that limit, and the 58% is just their sum. Writing it as a reading means no ruling of yours is reversed and a test still catches anyone who adds a row that breaks it.
+- **Evidence.** COMPUTED: 1.15 best gear x 1.10 timed damage x 1.25 timed Level XP = 1.58. On the pace line a band that takes a plain four 10 days takes this four a little over 6.
+- **Replaces.** None, if taken as a reading. Study 49 wrote it as a re-open of 50-11
+- **Money.** Yes. TYLER CONFIRMS
+- **Depends.** GR-6 and MM-26 (whether the Level table is the clock of a plain four, progression decider). MM-29
+
+**MM-32. The gear ceiling**
+
+- **Decision (recommended).** TYLER CONFIRMS. Recommended: paying puts a hero 0 bands ahead at any Level, and inside a band at most best gear over mid gear.
+- **Reason.** Gear is worn by Level only, so gold can buy the best piece of your band and never the next band. That protects the chase.
+- **Evidence.** COMPUTED from two rulings: gear is worn by Level only, and best gear is about 15% over mid (2026-11-21).
+- **Replaces.** None
+- **Money.** Yes. TYLER CONFIRMS
+- **Depends.** GR-4 (core decider). CE-1
+
+**MM-33. The gold ceiling**
+
+- **Decision (recommended).** TYLER CONFIRMS. Recommended: the weekly cap on Crowns an account sells is worth about one account-week of hunting gold at the seller's highest hero Level, so paying at most about doubles a week's gold. The server re-derives the cap in Crowns each week from the 7 day median Crown price.
+- **Reason.** Every band's sinks cost 1.2 to 1.4 times what the band earns. A payer at double income affords all of them and a free player affords most of them. That is an edge you can feel that buys nothing a free player cannot have. The weekly re-derive keeps "double" true on day 10 and day 600.
+- **Evidence.** COMPUTED from the sink share target. HYPOTHESIS for the size. It sizes clamp 1 of 24-5, which you already ruled must exist. It is the one true limit on "how much sooner", so it touches 50-11 and is yours.
+- **Replaces.** None. Sizes a clamp ruled on 2026-11-20
+- **Money.** Yes. TYLER CONFIRMS
+- **Depends.** GR-8. GR-51 (the wage). MM-36. GR-59a
+
+**MM-34. The path for players who do not pay**
+
+- **Decision (recommended).** TYLER CONFIRMS. Recommended: everything sold for Crowns can be had with gold through the book. Targets at the book's reference price: Premium for a month is about 3 account-days of gold, and a full week of boosts is about 1.5 account-days. Boost rows scale by the buyer's band so the cost in hours of play holds at every Level.
+- **Reason.** This is what makes the model fair to a player who never pays, and it is also where a payer's Crowns find their buyers.
+- **Evidence.** HYPOTHESIS. Players set the real Crown price inside the price band, so each target holds only once the book has run.
+- **Replaces.** None
+- **Money.** Yes. TYLER CONFIRMS
+- **Depends.** MM-35. PREM-2
+
+**MM-35. How Crowns trade**
+
+- **Decision (recommended).** TYLER CONFIRMS. Recommended: a Crown is a number on the account with its own append-only ledger. Crowns are sold for gold on one server-owned book in fixed lots. One trade, then bound. 1% to list and 4% of the gold, both burned. The player-facing name is "Crown Exchange".
+- **Reason.** One trade then bound means no speculation and no wash loop. The burn makes every Crown sold a gold sink too.
+- **Evidence.** EVIDENCE: builds 24-5 of 2026-11-20 and the ten-game reading of study 49.
+- **Replaces.** None
+- **Money.** Yes. TYLER CONFIRMS
+- **Depends.** MM-36. Security review
+
+**MM-36. The clamps**
+
+- **Decision (recommended).** TYLER CONFIRMS. Recommended: the eight clamps of chapter 04 section 2.8, all inside the Security review before Early Access. One addition: gold paid for Crowns counts against the market's daily spend cap.
+- **Reason.** A real-money link to gold must not be able to reach another player's economy unchecked.
+- **Evidence.** EVIDENCE: five clamps are ruled in outline (24-5). Three are added by study 49. The hold days and Steam's wallet rules are open Security questions.
+- **Replaces.** None
+- **Money.** Yes. TYLER CONFIRMS
+- **Depends.** Security engineer. GR-59b
+
+**MM-37. Where paying gives no edge**
+
+- **Decision (recommended).** TYLER CONFIRMS. Recommended: no edge in the even arena, in events, or in access to any Level, ground, drop or tier.
+- **Reason.** It names the places money never reaches, which is what lets a free player trust the rest.
+- **Evidence.** COMPUTED from the store list (MM-29) and the event rule of CE-8.
+- **Replaces.** None
+- **Money.** Yes. TYLER CONFIRMS
+- **Depends.** MM-13 (mmo decider). CE-8
+
+**PREM-1. What one Premium gives across four heroes**
+
+- **Decision (recommended).** TYLER CONFIRMS. Recommended contents: the ruled list (12 hour stamina bar on every hero, the full hunt analyzer, Premium looks and one free color change a day, 100 market listings for 14 days), plus one daily 1 hour training item for each hero with the skill pick remembered, the daily claim with no press, and arena tickets banking to 30. Not recommended: "timed buffs last a quarter longer" (MM-21). The risk reading stays free for everyone.
+- **Reason.** Premium is ruled to never add power, and a buff that lasts longer is more power for the same fight. Everything else on the list is comfort, information or looks, which is what a saver with idle gold will happily buy through the book.
+- **Evidence.** COMPUTED: the 12 hour bar gives a one-visit player the 12 hunted hours a two-visit player gets free. Four training items a day are about 4% more skill XP a hero under the yard cap of GR-54.
+- **Replaces.** None. The buff line would break 24-4 of 2026-11-20, which is why it is left out
+- **Money.** Yes. TYLER CONFIRMS
+- **Depends.** MM-21 (mmo decider: take the buff line out). GR-66 and GR-84 (progression and features deciders). GR-54
+
+**PREM-2. The price of Premium and of a Crown**
+
+- **Decision (recommended).** TYLER CONFIRMS. Recommended design: Premium is 30 days, priced in Crowns, at a real-money cost near the genre's monthly membership. A starting number to react to is 8 to 10 dollars a month. Crown lot sizes and the Crown price of each store row are set so that MM-34's targets hold at the book's opening reference price.
+- **Reason.** Premium does not need to be strong. It needs to be cheap enough in gold that a saver buys it without thinking, because that trade is the one the whole money model rests on.
+- **Evidence.** HYPOTHESIS. No price has been tested. It is your money call in full.
+- **Replaces.** None
+- **Money.** Yes. TYLER CONFIRMS
+- **Depends.** MM-34. MM-43 (test Crowns in the playtest are a grant and yours alone)
+

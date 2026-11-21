@@ -4,10 +4,10 @@
 // formula-driven brief 40-formula-brief.md §8 items 1-3), the ONE place they are written.
 //
 //   node tools/balance-program/formulas/combat-register.mjs            counts, and any row that is malformed
-//   node tools/balance-program/formulas/combat-register.mjs --write    writes tools/balance-program/formulas/combat.json and the three
+//   node tools/balance-program/formulas/combat-register.mjs --write    writes tools/balance-program/formulas/formulas-combat.json and the three
 //                                                                       generated tables inside docs/design/balance-program/41-formulas-combat.md
 //                                                                       (between its GENERATED markers; the prose around them is hand-written)
-//   node tools/balance-program/formulas/combat-register.mjs --check    exit 1 when combat.json or the doc's tables are not what this file writes
+//   node tools/balance-program/formulas/combat-register.mjs --check    exit 1 when formulas-combat.json or the doc's tables are not what this file writes
 //
 // READ-ONLY toward the game: it imports nothing from src/ and changes no game file. A row is evidence a person read (file:line at
 // set/v0.2.144 e6ea19170), so a line number can go stale: the id and the symbol name are the durable half.
@@ -20,7 +20,7 @@ import { fileURLToPath } from 'node:url';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..', '..', '..');
-const JSON_FILE = join(HERE, 'combat.json');
+const JSON_FILE = join(HERE, 'formulas-combat.json');
 const DOC_FILE = join(ROOT, 'docs', 'design', 'balance-program', '41-formulas-combat.md');
 
 const F = (id, computes, impl, params, deps, consumers, random) => ({ id, computes, impl, params, deps, consumers, random });
@@ -313,7 +313,7 @@ if (mode === '--write') {
   console.log('wrote ' + JSON_FILE + (existsSync(DOC_FILE) ? ' and the tables of ' + DOC_FILE : ' (no doc yet)'));
 } else if (mode === '--check') {
   const stale = [];
-  if (!existsSync(JSON_FILE) || readFileSync(JSON_FILE, 'utf8') !== json) stale.push('combat.json');
+  if (!existsSync(JSON_FILE) || readFileSync(JSON_FILE, 'utf8') !== json) stale.push('formulas-combat.json');
   if (!existsSync(DOC_FILE) || readFileSync(DOC_FILE, 'utf8') !== docWith(readFileSync(DOC_FILE, 'utf8'), tables())) stale.push('41-formulas-combat.md tables');
   if (stale.length) { console.error('combat-register: STALE ' + stale.join(', ') + ' (run --write)'); process.exit(1); }
   console.log('combat-register: in step');

@@ -44,6 +44,17 @@
     "S11.unblessed"
    ],
    "note": "Gone from the dashboard: every solo-against-group, pair, trio and four-multiple target (a head against a lone hero, a party's multiple of the lone contract, the party path against the lone path, and S11, the four after deaths against the lone hero). The matrix still plays parties and the tool still reads them; nothing is judged on party size. Death on the harder tiers is read against the same party on Normal (P9) in the deaths panel."
+  },
+  {
+   "id": "RULE-2026-11-21-deadly",
+   "title": "Deadly is for watching or gambling: its death band and its lost hours stand",
+   "ruled": "Tyler 2026-11-21 (review/01-sitting.md S-6, option A)",
+   "label": "RULED",
+   "modelled": true,
+   "locked": true,
+   "effect": "every cell plays the real death rule and records deaths, the hunts that ended early and the hunting time lost; the four on the harder tiers is played both ways (the rest hunting on, the default; and all coming home: the matrix's leave block)",
+   "retires": [],
+   "note": "The Deadly death band (S6, 50 to 100 a 1,000 hours for a mid four) stands and the lost time is accepted."
   }
  ],
  "proposals": [
@@ -146,7 +157,8 @@
    ],
    "after": [],
    "before": [],
-   "note": "Blessings 4 to 7 open at Levels 100, 185, 275 and 400; each halves what a fully blessed death still takes. The engine holds no Blessing for a harness hero, so the matrix reads it as XP after deaths at the ruled death counts (the band G-7 asks for), harder tier over the same party on Normal"
+   "note": "RULED (S-5, B): 6% flat, three Blessings, then a new one past the third whenever a blessed death would cost over about five hunted hours (the Levels measured for it: 100, 185, 275, 400; each halves what a blessed death still takes). Played in every cell since the measuring tool's step 1 (progression-grid.mjs buildCell blessedShare; Blessings 4 to 7 are bought at no price: their gold is not designed). The five hours is a guess until a real death rate exists",
+   "ruling": "RULED 2026-11-21 (the sitting S-5, option B)"
   },
   {
    "id": "GR-14",
@@ -252,7 +264,8 @@
    "shipsWith": [],
    "after": [],
    "before": [],
-   "note": "The rested bank off: moves no hunt number (identity)"
+   "note": "RULED (S-9, C): the rested bank is cut; the Level table is the only clock. No cell ever held it (a hunt passes zero), so cutting it is an identity",
+   "ruling": "RULED 2026-11-21 (the sitting S-9, option C: the rested bank is cut)"
   },
   {
    "id": "GR-76",
@@ -288,6 +301,60 @@
    "after": [],
    "before": [],
    "note": "A tier's dial moves the blow and the aim only: armor and Defense XP read the row's own Level (X-TIER-TRIPLE), and the stat formula sizes blows on the hero's real health, 150 + 10 x (L - 1) (X-REFHP-OFF-BY-ONE). 44: the dial may need one step up to hold S3 and S4 (the tierDanger slider)"
+  },
+  {
+   "id": "TAL",
+   "doc": [
+    "10-level-choices.md sections 3 to 8"
+   ],
+   "title": "Talents: a point every five Levels, four stat lines played",
+   "modelled": true,
+   "recommended": true,
+   "label": "HYPOTHESIS",
+   "layer": "engine seam (scratch hook) + content rows (tools/balance-program/talents.mjs)",
+   "patch": "patches/talents-hook.json",
+   "shipsWith": [],
+   "after": [],
+   "before": [
+    "GR-5",
+    "GR-6"
+   ],
+   "note": "BASELINE, not a bonus (chapter 10, 5.1): every harness hero carries the suggested build of its way (talents.mjs SUGGESTED, the plan rule of 3.4) and the Level law and the kill reward are derived with it in. Played through four seams planted on the scratch copy: Force on the permanent damage key, Footing on the Defense rating, Grit on max health, Reserve on max mana. Linger and every unlock are NOT MODELLED (see notModelled); a way whose plan spends on Linger (the axes) plays those points as nothing. PROVISIONAL sizes: ceilings 10 / 12 / 12 / 15%, half at rank 10. The contrast builds A to D are the matrix's talents block. The to-hit floor owed by CORE-4 bounds Footing and is not written: the matrix prints where it would bite"
+  },
+  {
+   "id": "S-4",
+   "doc": [
+    "review/01-sitting.md S-4"
+   ],
+   "title": "A clan room's standing Level XP bonus (the seam; size not designed)",
+   "modelled": true,
+   "recommended": true,
+   "label": "HYPOTHESIS",
+   "layer": "engine seam (scratch hook)",
+   "patch": "patches/level-xp-hook.json",
+   "identity": true,
+   "shipsWith": [],
+   "after": [],
+   "before": [],
+   "ruling": "RULED 2026-11-21, option A",
+   "note": "RULED that a clan room pays a standing Level XP bonus; its size is not designed, so no cell sets one and the seam moves nothing. A cell carries it as a buff row { type: \"level_xp\", magnitude } (cell.mjs), so the bonus drops in as data"
+  },
+  {
+   "id": "S-10",
+   "doc": [
+    "review/01-sitting.md S-10"
+   ],
+   "title": "Party XP by party size alone (the first build)",
+   "modelled": true,
+   "recommended": true,
+   "label": "HYPOTHESIS",
+   "layer": "content row (the size table)",
+   "patch": "patches/party-xp-by-size.json",
+   "shipsWith": [],
+   "after": [],
+   "before": [],
+   "ruling": "RULED 2026-11-21, option C",
+   "note": "RULED: size alone for the first build; the classes rule may return as one row once Deadly is sized on the fixed tool. The size values are the mixed party's cells (HYPOTHESIS until the size table is written). The lineups block keeps printing which fours win, as a report"
   },
   {
    "id": "world-1",
@@ -1452,6 +1519,39 @@
    "layer": "tools, architecture",
    "modelled": false,
    "reason": "tools: the matrix's scratch copy is already the only what-if door"
+  },
+  {
+   "id": "TAL-linger",
+   "doc": [
+    "10-level-choices.md 4, 8.2"
+   ],
+   "title": "Talents: Linger's stat line (bleeds, burns, chills and sicknesses tick harder)",
+   "section": "Talents",
+   "ruling": "PROVISIONAL",
+   "modelled": false,
+   "reason": "no engine seam: the status tick is an unnamed number (the census); never approximated. Its points are spent by the plan and play nothing"
+  },
+  {
+   "id": "TAL-unlocks",
+   "doc": [
+    "10-level-choices.md 3.3, 4, 8.2"
+   ],
+   "title": "Talents: every unlock (Focus fire, Surrounded, Draw fire, Deep well, Carry over, Stand in)",
+   "section": "Talents",
+   "ruling": "PROVISIONAL",
+   "modelled": false,
+   "reason": "each needs an engine hook that does not exist: the modifier table's \"when\" column, a row in the shooter rule of targeting.js, a condition on the regen row. The first matrix pass reads four stat lines and no unlock, so it sizes ceilings and cannot say whether builds differ"
+  },
+  {
+   "id": "S-1",
+   "doc": [
+    "review/01-sitting.md S-1"
+   ],
+   "title": "On-call and hired heroes: a party may include another account's hero",
+   "section": "the sitting",
+   "ruling": "RULED 2026-11-21, in Tyler's design",
+   "modelled": false,
+   "reason": "the matrix plays one account's heroes; no cell needs another account's hero yet"
   }
  ]
 }

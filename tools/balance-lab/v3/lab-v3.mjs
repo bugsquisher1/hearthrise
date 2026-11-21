@@ -100,13 +100,17 @@ export function liveMetrics(run, L) {
   const dealt = sum((h) => h.dealtPerH * h.hours), taken = sum((h) => h.takenPerH * h.hours);
   const healed = sum((h) => h.healInPerH.total * h.hours), regen = sum((h) => (h.regenPerH || 0) * h.hours);
   const ttk = Object.values(run.party.ttkBy || {}).reduce((a, [ms, k]) => [a[0] + ms, a[1] + k], [0, 0]);
-  const net = (gross - lost) / hh;
+  /* the death rule's reads (cell.mjs header; progression-grid.mjs cellRates): XP after deaths and the Blessings' cut over the time offered */
+  const wall = hs.reduce((a, h) => a + (Number.isFinite(h.raw.wallHours) ? h.raw.wallHours : h.hours), 0) || 1e-9;
+  const lostB = sum((h) => (Number.isFinite(h.raw.xpLostLevelBlessed) ? h.raw.xpLostLevelBlessed : h.raw.xpLostLevel)), blessGold = sum((h) => h.raw.blessingGold || 0);
+  const net = (gross - lostB) / wall;
+  void lost;
   const lows = hs.map((h) => h.encMinHpPct.p50).filter((x) => x !== null), lows10 = hs.map((h) => h.encMinHpPct.p10).filter((x) => x !== null);
   const seatTaken = hs.map((h) => h.takenPerH);
   const allTaken = seatTaken.reduce((a, b) => a + b, 0);
   return {
     dps: dealt / (ph * 3600), dpsHero: dealt / (ph * 3600) / n, takenPerH: taken / hh, healPerH: (healed + regen) / hh, levelXpPerH: gross / hh,
-    netPerH: (income - store * (1 - own)) / hh, storePerH: store / hh, suppliesPerH: sum((h) => Object.values(h.buysPerH || {}).reduce((a, b) => a + b, 0) * h.hours) / hh,
+    netPerH: (income - store * (1 - own) - blessGold) / hh, netLevelXpPerH: net, huntedShare: hh / wall, storePerH: store / hh, suppliesPerH: sum((h) => Object.values(h.buysPerH || {}).reduce((a, b) => a + b, 0) * h.hours) / hh,
     killsPerH: run.party.killsPerH, ttkS: ttk[1] ? ttk[0] / ttk[1] / 1000 : null, deathsPer1000h: (1000 * sum((h) => h.deaths)) / hh,
     lowHpTypical: lows.length ? Math.max(0, Math.min(...lows)) / 100 : null, lowHpP10: lows10.length ? Math.max(0, Math.min(...lows10)) / 100 : null,
     hpUnder30: Math.max(...hs.map((h) => (h.hpUnder || {}).p30 || 0)), hpUnder10: Math.max(...hs.map((h) => (h.hpUnder || {}).p10 || 0)),

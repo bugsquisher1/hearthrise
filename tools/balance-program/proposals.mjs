@@ -107,6 +107,40 @@ const STATIC = {
       { file: 'src/data/balance-sheet.js', from: 'export const TIER_PULL_FROM_FLOOR = 16;', to: 'export const TIER_PULL_FROM_FLOOR = 0;' },
     ],
   },
+  'patches/talents-hook.json': {
+    name: 'Talents: the engine seams a cell reads its four stat lines through (10-level-choices.md section 8.2; on the scratch copy only)',
+    why: 'Chapter 10 section 8.2: a cell carries each seat\'s allocation on m.perks.talents (tools/balance-program/talents.mjs, the suggested build of its way, BASELINE) and the member turns it into rows. These four edits are that turn, planted on the scratch copy, never on the tree: Force on the permanent damage key (inside its 20% cap), Footing on the hero\'s Defense rating, Grit on max health, Reserve on max mana. Linger and every unlock have no seam and are NOT MODELLED. A cell that carries no allocation plays as before',
+    kind: 'derivation', targets: ['pace', 'survival'],
+    edits: [
+      { file: 'src/core/perks.js', from: '    propertyTier: nonNegInt(r.propertyTier),', to: "    propertyTier: nonNegInt(r.propertyTier),\n    talents: r.talents && typeof r.talents === 'object' ? r.talents : null," },
+      { file: 'src/core/perks.js', from: '  /* The property capstone. */', to: "  /* TALENTS (the matrix's scratch hook): Force on the permanent damage key, summed with the rest and capped with them */\n  if (key === 'damage' && s.talents && s.talents.force > 0) t += s.talents.force / 1000;\n\n  /* The property capstone. */" },
+      { file: 'src/core/member.js', from: 'function applyVitals(state, equipment, items) {\n  const v = vitalsOf({ levelXp: state.levelXp, skills: state.skills, equipment, items });',
+        to: 'function applyVitals(state, equipment, items, talents) {\n  const v0 = vitalsOf({ levelXp: state.levelXp, skills: state.skills, equipment, items });\n  const v = talents ? { ...v0, maxHp: Math.round(v0.maxHp * (1 + (talents.grit || 0) / 1000)), maxMana: Math.round(v0.maxMana * (1 + (talents.reserve || 0) / 1000)) } : v0;' },
+      { file: 'src/core/member.js', from: '  applyVitals(state, equipment, items);', to: '  applyVitals(state, equipment, items, mi.perks && mi.perks.talents);' },
+      { file: 'src/core/member.js', from: 'applied > 0) applyVitals(state, equipment, items);', to: 'applied > 0) applyVitals(state, equipment, items, mi.perks && mi.perks.talents);' },
+      { file: 'src/core/member.js', from: '> lv0) applyVitals(state, equipment, items);', to: '> lv0) applyVitals(state, equipment, items, mi.perks && mi.perks.talents);' },
+      { file: 'src/core/member.js', from: 'temper: mi.perks && mi.perks.temper ? mi.perks.temper : null };', to: 'temper: mi.perks && mi.perks.temper ? mi.perks.temper : null, talents: mi.perks && mi.perks.talents ? mi.perks.talents : null };' },
+      { file: 'src/core/member.js', from: "  const def = Math.floor((Number(levelsOf(state.skills).defense) || 1) + skillPlusOf(c.eq, 'defense') + (Number(c.eq.guardB) || 0));",
+        to: "  const def = Math.floor(((Number(levelsOf(state.skills).defense) || 1) + skillPlusOf(c.eq, 'defense') + (Number(c.eq.guardB) || 0)) * (1 + ((c.talents && c.talents.footing) || 0) / 1000));" },
+    ],
+  },
+  'patches/party-xp-by-size.json': {
+    name: 'S-10: party XP by party size alone for the first build (the sitting, RULED 2026-11-21, option C)',
+    why: 'Tyler 2026-11-21 (review/01-sitting.md S-10, C): "Size alone for the first build", the classes rule may return as one row after Deadly is sized on a fixed tool. Every party reads its size\'s cell whatever classes it holds; the cell is the one a mixed party reads today (880/1500 a pair, 1700 a three and a four), so the standard four is unchanged and a one-class party rises to it. The SIZE values are a HYPOTHESIS until the size table is written; the lineup cells stay a report of which fours win',
+    kind: 'derivation', targets: ['pace'],
+    edits: [
+      { file: 'src/data/party-class-xp.js', from: '  const cell = cells[Math.min(Math.max(classes.length, 1), cells.length) - 1];', to: '  const cell = cells[cells.length - 1];' },
+    ],
+  },
+  'patches/level-xp-hook.json': {
+    name: 'S-4: the seam a clan room\'s standing Level XP bonus drops into (the sitting, RULED 2026-11-21, option A; size not designed)',
+    why: 'Tyler 2026-11-21 (review/01-sitting.md S-4, A): a clan room pays a standing Level XP bonus, size still to be designed. The engine has no Level XP buff on a hunt (the buff types pay skill and gather XP), so this plants one seam on the scratch copy: a kill\'s Level XP times 1 + perks.levelXpPm / 1000. A cell carries it as a buff row { type: \'level_xp\', magnitude: percent } (cell.mjs). No cell sets one until the size is designed, so today it moves nothing',
+    kind: 'identity', targets: [],
+    edits: [
+      { file: 'src/core/member.js', from: '    addLevelXp(amt, raw, ev) {\n      const n = Math.max(0, Math.floor(Number(amt) || 0));',
+        to: '    addLevelXp(amt, raw, ev) {\n      const n = Math.max(0, Math.floor((Number(amt) || 0) * (1 + ((mi.perks && mi.perks.levelXpPm) || 0) / 1000)));' },
+    ],
+  },
   'patches/R10-gear-curve.json': {
     name: 'The gear curve past tier 7 (60 G-4, 44 R10 and R11, 47 C20): a band every +24%, the line linear in the band\'s Level',
     why: 'From Level 110 a MID or BiS hero\'s weapon and armor are the line (the Dawnsteel row x the band Level / 110) at the band at or under its Level: 110, 136, 169, 210, 260, 322, 400 and on by +24%. LOW wears one band back. HYPOTHESIS: the band size until one band is played; uniques spending a budget (R11) and jewelry as a 6% share are not modelled',
@@ -154,7 +188,7 @@ export async function referenceKillHealth(root, cells, V) {
 async function derive(o) {
   const BM = await import('./balance-matrix.mjs');
   const MP = await import('./matrix-plan.mjs');
-  const { loadGridData } = await import('./progression-grid.mjs');
+  const { loadGridData, compsOf } = await import('./progression-grid.mjs');
   const { loadKits } = await import('./grid-kit.mjs');
   const SC = await import('./matrix-scratch.mjs');
   const D = await loadGridData(ROOT), K = await loadKits(ROOT);
@@ -182,7 +216,7 @@ async function derive(o) {
   console.log('R12: reference kill-health ' + c + ' x L^' + d + ' (' + ref.pts.length + ' points)');
   /* R13: the pace seat (a MID four on the hardest tier it holds: the subset's four block, hardest) on the proposed game without R13 */
   const base13 = reg.recommended.filter((id) => id !== 'GR-6');
-  const run13 = { id: 'derive-r13', levels: MP.RUNS.subset.levels.filter((L) => L >= 30 && L <= 1000), seeds: 1, hours: 1, blocks: [{ id: 'four', comps: [[['tank', 'healer', 'bow', 'mage'], 'thbm']], gears: ['mid'], tiers: ['hardest'] }] };
+  const run13 = { id: 'derive-r13', levels: MP.RUNS.subset.levels.filter((L) => L >= 30 && L <= 1000), seeds: 1, hours: 1, blocks: [{ id: 'four', comps: compsOf(4), gears: ['mid'], tiers: ['hardest'] }] };
   const r13 = await playOn(base13, run13, 'R13 pace seat');
   const xs = r13.cells.filter((x) => x.m && Number.isFinite(x.m.xContract)).map((x) => x.m.xContract).sort((a, b) => a - b);
   const seat = Number(xs[Math.floor((xs.length - 1) / 2)].toFixed(3));

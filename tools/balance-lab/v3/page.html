@@ -553,14 +553,14 @@ details > summary { cursor: pointer; color: var(--ink-2); font-size: 12px; min-h
 
   function renderLineups() {
     const ps = preStep();
-    let h = '<h2>Lineups on Deadly, MID <span class="tag pre">PRECOMPUTED</span></h2><div class="note">Other fours against the mixed four (tank, healer, bow, mage) on the proposed game, 2 seeds (52-review-combat 10.4).</div>';
+    let h = '<h2>Lineups on Deadly, MID <span class="tag pre">PRECOMPUTED</span></h2><div class="note">Other fours against the standard four (' + esc(DATA.four.join(', ')) + ', seated as the real Krell four sat) on the proposed game, 2 seeds (52-review-combat 10.4).</div>';
     const lu = PRE ? PRE.cells.filter((c) => c.block === 'lineups') : [];
     if (!lu.length) { $('lineups').innerHTML = h + '<div class="empty">No lineups in this build.</div>'; return; }
     const st = ps ? ps.st : null;
     const v = (key, id, after) => (after ? afterVal(st, key, id) : baseVal(key, id));
     h += '<div class="scroll"><table><tr><th>Four</th><th>XP vs mixed</th><th>Kills vs mixed</th><th>Low HP</th><th>Worst tenth</th><th>Deaths/1000h</th><th>Store/h</th></tr>';
     for (const c of lu.sort((a, b) => a.L - b.L)) {
-      const ref = lu.find((x) => x.L === c.L && x.styles.join() === 'tank,healer,bow,mage');
+      const ref = lu.find((x) => x.L === c.L && x.styles.join() === DATA.four.join());
       const two = (f, d) => { const b = f(false), a = st ? f(true) : null; return num(b, d) + (st ? ' <span class="' + cls(fin(a) && fin(b) && b ? a / b - 1 : null) + '">' + num(a, d) + '</span>' : ''); };
       h += '<tr><td>' + c.L + ' ' + esc(c.styles.join(', ')) + '</td><td>' + two((a) => v(c.key, 'levelXpPerH', a) / v(ref.key, 'levelXpPerH', a), 2) + '</td><td>' + two((a) => v(c.key, 'killsPerH', a) / v(ref.key, 'killsPerH', a), 2) + '</td>'
         + '<td>' + two((a) => v(c.key, 'lowHpTypical', a), 2) + '</td><td>' + two((a) => v(c.key, 'lowHpP10', a), 2) + '</td><td>' + two((a) => v(c.key, 'deathsPer1000h', a), 0) + '</td><td>' + two((a) => v(c.key, 'storePerH', a)) + '</td></tr>';

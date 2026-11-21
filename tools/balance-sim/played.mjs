@@ -19,9 +19,22 @@
 /* The store rune a slot names at a Magic level (a spell's version N casts at Magic 1 / 15 / 30 / 45 / 60 on that tier's rune). */
 export const RUNE_TIERS = Object.freeze([[60, 'graven'], [45, 'carved'], [30, 'etched'], [15, 'scored'], [1, 'chalked']]);
 export const runeTierAt = (magic) => (RUNE_TIERS.find(([lv]) => magic >= lv) || RUNE_TIERS[RUNE_TIERS.length - 1])[1];
+/* HOW REAL PLAYERS BUY RUNES (docs/design/balance-program/11-krell-hunt-2026-11-20.md section 4, 51-baseline.md F5): "the mage and the healer
+   buy Carved and Etched runes and not Graven, and the healer heals on the cheapest water rune". `rule` 'real': every rune spell one tier under
+   the tier the hero's Magic allows, a Healer's water spells (its heals) on the cheapest water rune; 'allowed' (a BiS hero, and the old rule):
+   the tier its Magic allows. */
+export const SHOPPING = Object.freeze(['real', 'allowed']);
+export function shoppingTier(role, family, magic, rule = 'allowed') {
+  if (!SHOPPING.includes(rule)) throw new Error('played: no shopping rule ' + rule);
+  const allowed = runeTierAt(magic || 1);
+  if (rule === 'allowed') return allowed;
+  if (role === 'healer' && family === 'water') return RUNE_TIERS[RUNE_TIERS.length - 1][1];
+  const i = RUNE_TIERS.findIndex(([, t]) => t === allowed);
+  return RUNE_TIERS[Math.min(RUNE_TIERS.length - 1, i + 1)][1];
+}
 const storeRune = (family, tier) => (tier === 'chalked' ? `plain_${family}_rune` : `plain_${tier}_${family}_rune`);
 const ownRunes = (family) => RUNE_TIERS.map(([, t]) => `${t}_${family}_rune`).reverse();
-const spell = (id, family, tier, conditions = []) => ({ id: 'p_' + id, join: 'and', conditions,
+const spellOn = (id, family, tier, conditions = []) => ({ id: 'p_' + id, join: 'and', conditions,
   action: { id, type: 'ability', own: ownRunes(family), store: storeRune(family, tier), onEmpty: 'store' } });
 const move = (id, conditions = []) => ({ id: 'p_' + id, join: 'and', conditions, action: { id, type: 'ability' } });
 const eat = (id, pct, key = 'p_food') => ({ id: key, join: 'and', action: { id, type: 'consume' }, conditions: [{ op: 'lt', value: pct, metric: 'self_hp_pct' }] });
@@ -30,10 +43,15 @@ const AOE = (n) => [{ op: 'gte', value: n, metric: 'enemies_in_aoe' }];
 
 /**
  * The bar a recorded hero of `role` runs (the recorded bars' slots, in their order; the food, drink and rune tier are the hero's own).
- * o: { magic (the hero's Magic level), food (own cooked food id), storeFood, storeDrink, arrows (the ammo it shoots, a Ranger's) }.
+ * o: { magic (the hero's Magic level), food (own cooked food id), storeFood, storeDrink, arrows (the ammo it shoots, a Ranger's),
+ * tierOf (family -> the store rune tier its spells cast on: shoppingTier; absent, the tier the Magic allows) }.
  */
 export function playedBar(role, o) {
-  const t = runeTierAt(o.magic || 1);
+  const t0 = runeTierAt(o.magic || 1);
+  const tierOf = typeof o.tierOf === 'function' ? o.tierOf : () => t0;
+  /* `t` (null) asks the shopping rule for the spell's family; a slot that names its own tier (the barrier on Chalked) keeps it */
+  const t = null;
+  const spell = (id, family, tier, conditions = []) => spellOn(id, family, tier || tierOf(family), conditions);
   const food = [o.food ? eat(o.food, 45) : null, o.storeFood ? eat(o.storeFood, 45, 'p_food_store') : null, o.storeDrink ? drink(o.storeDrink, 30) : null].filter(Boolean);
   if (role === 'tank' || role === 'melee_dps') {
     /* THE SPELL RULE (lane/c-spell-rule, Tyler 2026-11-21): Cleave merged into Turning Cut (32-2), so the recorded heroes' two-monster

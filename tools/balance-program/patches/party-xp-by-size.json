@@ -1,0 +1,16 @@
+{
+ "schema": "hearthrise.balance-patch/1",
+ "name": "S-10: party XP by party size alone for the first build (the sitting, RULED 2026-11-21, option C)",
+ "why": "Tyler 2026-11-21 (review/01-sitting.md S-10, C): \"Size alone for the first build\", the classes rule may return as one row after Deadly is sized on a fixed tool. Every party reads its size's cell whatever classes it holds; the cell is the one a mixed party reads today (880/1500 a pair, 1700 a three and a four), so the standard four is unchanged and a one-class party rises to it. The SIZE values are a HYPOTHESIS until the size table is written; the lineup cells stay a report of which fours win",
+ "kind": "derivation",
+ "targets": [
+  "pace"
+ ],
+ "edits": [
+  {
+   "file": "src/data/party-class-xp.js",
+   "from": "  const cell = cells[Math.min(Math.max(classes.length, 1), cells.length) - 1];",
+   "to": "  const cell = cells[cells.length - 1];"
+  }
+ ]
+}

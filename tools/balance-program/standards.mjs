@@ -61,7 +61,10 @@ export const PARTIES = deep([
   { size: 1, seats: [['warhammer']], note: 'the hammer is the unit; every way is also played at MID for parity (X19)' },
   { size: 2, seats: [['tank', 'mage'], ['ranger', 'healer']], pick: 'best', fromLevel: 5 },
   { size: 3, seats: [['tank', 'healer', 'mage']], fromLevel: 5 },
-  { size: 4, seats: [['tank', 'healer', 'ranger', 'mage']], fromLevel: 5 },
+  /* THE FOUR SITS AS THE REAL FOUR SAT (the critical review's step 1, 2026-11-21; F-framework-audit section 5): the real Krell four was a
+     hammer in front, then the bow, the mage and the healer, in that seat order, and took 69% / 1% / 1% / 28% of the damage. A shield tank in the
+     front seat takes 94% whatever the order (measured, 2 seeds x 1 h at Levels 79 and 85), so the shield four is a lineup, not the standard */
+  { size: 4, seats: [['warhammer', 'ranger', 'mage', 'healer']], fromLevel: 5 },
 ]);
 export const TIERS = F(['normal', 'dangerous', 'deadly']);
 export const SUPPLY = deep({ bar: 'played', ownShare: 0.25, ownFromLevel: 30, label: 'ASSUMED until the town model measures 12 rested hours' });
@@ -125,17 +128,22 @@ const b = (id, group, on, where, lo, hi, redLo, redHi, label, owner, why, extra 
 
 export const BANDS = deep([
   // ── pace ── `on`: the grid field or derived table the band reads. `where`: the cells it applies to.
+  /* TALENTS (10-level-choices.md 8.4): PROPOSED ids, PROVISIONAL ranges. Read off the matrix's talent block (matrix-metrics.mjs talentRows) */
+  b('TL1', 'talent', 'Level XP an hour, the fastest build / the suggested build, same seats', {}, null, 1.05, null, 1.08, 'PROPOSED', 21, 'a build is never worth a weapon step over a sensible one'),
+  b('TL2', 'talent', 'Level XP an hour, the empty build / the suggested build', {}, 0.90, 0.97, null, null, 'PROPOSED', 21, 'ignoring Talents costs something real, never a tenth of the game'),
+  b('TL3', 'talent', 'deaths a 1,000 hours on the hardest tier, every hero on Footing and Grit, MID four', { gear: 'mid', party: 4 }, 30, null, null, null, 'PROPOSED', 21, 'under 30 is the best-gear band (S6): Talents must not replace gear'),
+  b('TL4', 'talent', 'builds within 3% of the best on Level XP an hour, same seats', {}, 2, null, null, null, 'PROPOSED', 21, 'one build alone at the top is a red: the sameness test'),
   b('P1', 'pace', 'hoursToLevel / PACE_TABLE', { seat: 'pace-seat', levels: [10, 25, 50, 100, 200, 300, 400] }, 0.90, 1.10, 0.85, 1.15, 'RULED', 21, '2026-10-25 section 2; which seat is call 1', { ruled: '2026-11-21', call: 1 }),
   b('P2', 'pace', 'xContract', { gear: 'mid', party: 1, tier: 'normal' }, 0.95, 1.10, 0.85, 1.25, 'RULED', 21, 'the table\'s tolerance; old G1'),
   b('P3', 'pace', 'xp / mid', { gear: 'low', party: 1, tier: 'normal' }, 0.80, 0.90, 0.70, 0.95, 'PROPOSED', 23, 'one weapon step plus accessories and two rungs'),
   b('P4', 'pace', 'xp / mid', { gear: 'bis', party: 1, tier: 'normal' }, 1.10, 1.20, null, 1.25, 'RULED', 23, 'call 3', { ruled: '2026-11-21', call: 3 }),
   b('P5', 'pace', 'xp bis / xp low', { same: 'seat', tier: 'normal' }, null, 1.50, null, 1.60, 'PROPOSED', 23, 'one set of monsters must serve both; Normal only: on the harder tiers LOW is ruled to fail (S3.low, S4.low, G-5)'),
-  b('P6.2', 'pace', 'xp a head / lone, same tier', { gear: 'mid', party: 2 }, 1.05, 1.15, null, null, 'RULED', 25, '2026-10-25 section 5'),
-  b('P6.3', 'pace', 'xp a head / lone, same tier', { gear: 'mid', party: 3 }, 1.10, 1.20, null, null, 'RULED', 25, '2026-10-25 section 5'),
-  b('P6.4', 'pace', 'xp a head / lone, same tier', { gear: 'mid', party: 4, fromLevel: 10 }, 1.15, 1.25, 1.00, null, 'RULED', 25, '2026-10-25 section 5'),
-  b('P7.2', 'pace', 'xContract', { gear: 'mid', party: 2, tier: 'hardest-held' }, 1.2, 1.5, null, 1.7, 'RULED', 21, 'never played; the plan assumed 1.2 (call 8)', { ruled: '2026-11-21', call: 8 }),
-  b('P7.3', 'pace', 'xContract', { gear: 'mid', party: 3, tier: 'hardest-held' }, 1.5, 2.0, null, 2.2, 'RULED', 21, 'never played; the plan assumed 2.0 (call 8)', { ruled: '2026-11-21', call: 8 }),
-  b('P7.4', 'pace', 'xContract', { gear: 'mid', party: 4, tier: 'hardest-held', levels: [30, 185] }, 1.8, 2.5, 1.6, 2.6, 'RULED', 21, '2026-11-16, 21-4; old G3'),
+  b('P6.2', 'pace', 'xp a head / lone, same tier', { gear: 'mid', party: 2 }, 1.05, 1.15, null, null, 'RULED', 25, '2026-10-25 section 5', { dropped: 'GR-67, RULED 2026-11-21: one party size is never a target against another' }),
+  b('P6.3', 'pace', 'xp a head / lone, same tier', { gear: 'mid', party: 3 }, 1.10, 1.20, null, null, 'RULED', 25, '2026-10-25 section 5', { dropped: 'GR-67, RULED 2026-11-21: one party size is never a target against another' }),
+  b('P6.4', 'pace', 'xp a head / lone, same tier', { gear: 'mid', party: 4, fromLevel: 10 }, 1.15, 1.25, 1.00, null, 'RULED', 25, '2026-10-25 section 5', { dropped: 'GR-67, RULED 2026-11-21: one party size is never a target against another' }),
+  b('P7.2', 'pace', 'xContract', { gear: 'mid', party: 2, tier: 'hardest-held' }, 1.2, 1.5, null, 1.7, 'RULED', 21, 'never played; the plan assumed 1.2 (call 8)', { ruled: '2026-11-21', call: 8, dropped: 'GR-67, RULED 2026-11-21: one party size is never a target against another' }),
+  b('P7.3', 'pace', 'xContract', { gear: 'mid', party: 3, tier: 'hardest-held' }, 1.5, 2.0, null, 2.2, 'RULED', 21, 'never played; the plan assumed 2.0 (call 8)', { ruled: '2026-11-21', call: 8, dropped: 'GR-67, RULED 2026-11-21: one party size is never a target against another' }),
+  b('P7.4', 'pace', 'xContract', { gear: 'mid', party: 4, tier: 'hardest-held', levels: [30, 185] }, 1.8, 2.5, 1.6, 2.6, 'RULED', 21, '2026-11-16, 21-4; old G3', { dropped: 'GR-67, RULED 2026-11-21: one party size is never a target against another' }),
   b('P8', 'pace', 'xContract', { gear: 'bis', party: 4, tier: 'deadly' }, null, 2.75, null, 2.9, 'RULED', 21, '30-2; old G4'),
   b('P9.dangerous', 'pace', 'xp / normal, same party', { holds: true, tier: 'dangerous' }, 1.10, 1.25, 1.0, null, 'PROPOSED', 21, 'the tier rows: 1.10 a kill, a pull of 8'),
   b('P9.deadly', 'pace', 'xp / normal, same party', { holds: true, tier: 'deadly' }, 1.30, 1.60, 1.10, null, 'PROPOSED', 21, 'the tier rows: 1.25 a kill, a pull of 8'),
@@ -261,6 +269,9 @@ export const BANDS = deep([
   b('C5', 'cost', 'busy-hour CPU share at 1,000 accounts of four at 12 h, one database', {}, null, 0.70, null, 0.70, 'PROPOSED', 28, ''),
 ]);
 export const bandById = (id) => BANDS.find((x) => x.id === id) || null;
+/* THE DROPPED BANDS (GR-67): still in the table so a reader sees what was ruled away; nothing judges or prints them */
+export const DROPPED = Object.freeze(BANDS.filter((b) => b.dropped).map((b) => b.id));
+export const STANDING = Object.freeze(BANDS.filter((b) => !b.dropped));
 
 const x = (id, name, verdict, band, computes, owner) => ({ id, name, verdict, band, computes, owner });
 export const OTHER_STANDARDS = deep([

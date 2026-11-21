@@ -255,6 +255,11 @@ const strayHeld = heldRooms.filter((id) => !roomIds.includes(id));
 if (strayHeld.length) die(`HELD_HOME_ROOMS names rooms the catalogue does not have: ${strayHeld.join(', ')}`);
 const unsold = roomIds.filter((id) => !heldRooms.includes(id) && !rows.some((r) => r.unlock_id === id && r.value === 1 && r.refusal === null));
 if (unsold.length) die(`rooms that are not held sell no first rung: ${unsold.join(', ')}`);
+/* THE DEED LADDER (src/data/shops.js property.*; Tyler 2026-11-20, call 26-3): every tier sellable, one each, its gold climbing. The self-check
+   below buys them in order through hr_unlock_buy. */
+const deedLadder = rows.filter((r) => r.table_name === 'property' && r.refusal === null).sort((a, b) => a.value - b.value);
+if (deedLadder.length !== PROPERTY_TIERS.length - 1 || deedLadder.some((d, i) => d.value !== i + 1)) die(`the deed ladder is not one sellable row a tier 1..${PROPERTY_TIERS.length - 1}`);
+if (deedLadder.some((d, i) => i && !(d.gold > deedLadder[i - 1].gold))) die(`the deed ladder's gold does not climb: ${deedLadder.map((d) => d.gold).join(' / ')}`);
 
 /* ── DEMOLITION REGEN (2026-10-14): THIS FILE NOW LANDS AT THE CHAIN END ─────
    so a family a LATER migration re-seeded under this generator's own `source`
@@ -626,6 +631,62 @@ begin
     raise exception 'held rooms probe: LEAKED a probe row';
   end if;
   raise notice 'held rooms OK: % held, ${roomIds.length - heldRooms.length} other rooms sell their first rung', cardinality(c_held);
+end $$;
+
+-- ── THE DEED LADDER, AS THE PURCHASE SEES IT (src/data/shops.js property.*; Tyler 2026-11-20, balance call 26-3) ──
+-- ${deedLadder.map((d) => d.gold.toLocaleString('en-US')).join(' / ')} gold. Proved by EXECUTING hr_unlock_buy as a probe account with every deed's
+-- gold and materials: a deed above the next one is refused (the spine), each is then bought in order for exactly its gold, and the
+-- account ends at the top tier. Rolled back whole (a sentinel exception); a second apply proves it byte-identical.
+do $$
+declare
+  c_u    uuid := gen_random_uuid();
+  c_want text := ${q(deedLadder.map((d) => `${d.value}:${d.gold}`).join(','))};
+  v      jsonb;
+  v_r    record;
+  v_g0   bigint;
+  v_got  text := '';
+begin
+  begin
+    insert into auth.users (id) values (c_u);
+    insert into public.hr_access_allowlist (user_id, note) values (c_u, 'gen-unlock-offers deed ladder probe') on conflict (user_id) do nothing;
+    perform set_config('request.jwt.claim.sub', c_u::text, true);
+    perform set_config('request.jwt.claims', jsonb_build_object('sub', c_u, 'role', 'authenticated')::text, true);
+    v := public.hr_create_character(0);
+    if coalesce(v->>'ok', '') <> 'true' then raise exception 'deed ladder probe: hr_create_character refused: %', v; end if;
+    insert into public.account_wallet as w (user_id, gold)
+      select c_u, sum(o.gold)::bigint from public.hr_unlock_offers o where o.table_name = 'property' and o.refusal is null
+    on conflict (user_id) do update set gold = excluded.gold;
+    insert into public.player_inventory (user_id, slot, item_id, qty)
+      select c_u, 0, e.item_k, sum(e.item_n::bigint) from public.hr_unlock_offers o, jsonb_each_text(o.items) e(item_k, item_n)
+       where o.table_name = 'property' and o.refusal is null
+       group by e.item_k
+    on conflict (user_id, slot, item_id) do update set qty = excluded.qty;
+    -- the spine: the second deed is refused while the first is not owned, and nothing is charged
+    v_g0 := public.hr_purse_of(c_u);
+    v := public.hr_unlock_buy(null, 0, (select version from public.player_state where user_id = c_u and slot = 0), gen_random_uuid(),
+           (select o.offer_id from public.hr_unlock_offers o where o.table_name = 'property' and o.refusal is null order by o.value offset 1 limit 1));
+    if coalesce(v->>'ok', '') = 'true' or public.hr_purse_of(c_u) <> v_g0 then
+      raise exception 'deed ladder probe: a deed past the next one answered % and the purse moved % -> %', v, v_g0, public.hr_purse_of(c_u); end if;
+    -- each deed in order, for exactly its gold
+    for v_r in select o.offer_id, o.value, o.gold from public.hr_unlock_offers o where o.table_name = 'property' and o.refusal is null order by o.value loop
+      v_g0 := public.hr_purse_of(c_u);
+      v := public.hr_unlock_buy(null, 0, (select version from public.player_state where user_id = c_u and slot = 0), gen_random_uuid(), v_r.offer_id);
+      if coalesce(v->>'ok', '') <> 'true' then raise exception 'deed ladder probe: % refused: %', v_r.offer_id, v; end if;
+      v_got := v_got || case when v_got = '' then '' else ',' end || v_r.value || ':' || (v_g0 - public.hr_purse_of(c_u));
+    end loop;
+    if v_got is distinct from c_want then
+      raise exception 'deed ladder probe: the deeds sold as % (tier:gold), the data says %', v_got, c_want; end if;
+    if public.hr_account_property_tier(c_u) <> ${deedLadder.length ? deedLadder[deedLadder.length - 1].value : 0} then
+      raise exception 'deed ladder probe: the account ends at tier %', public.hr_account_property_tier(c_u); end if;
+    raise exception using errcode = 'HRH02', message = 'deed ladder probe: rolled back';
+  exception when sqlstate 'HRH02' then null;
+  end;
+  perform set_config('request.jwt.claim.sub', '', true);
+  perform set_config('request.jwt.claims', '', true);
+  if exists (select 1 from auth.users where id = c_u) or exists (select 1 from public.player_state where user_id = c_u) then
+    raise exception 'deed ladder probe: LEAKED a probe row';
+  end if;
+  raise notice 'deed ladder OK: % (tier:gold), each in order', c_want;
 end $$;
 `;
 

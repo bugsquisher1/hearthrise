@@ -3502,6 +3502,14 @@ jobs:
           node tests/hero-slots-one.mjs
           node tools/mutant-gate.mjs node tests/hero-slots-one.mjs --mutate
 
+      # THE FIRST HERO SLOT STAYS WITHIN ONE LONE HERO'S BANK (Tyler 2026-11-20, call 24-9: slots cost more, 400,000 / 1,500,000 / 4,000,000):
+      # the second hero costs at most what a PLAYED lone hero (tools/balance-sim/life.mjs) has banked on reaching the Coppercap Warrens' floor; the ladder climbs. Balance gate G9.
+      - name: Hero slots - the first within a lone hero's bank
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/slot-price-guard.mjs
+          node tools/mutant-gate.mjs node tests/slot-price-guard.mjs --selftest
+
       # A MERGE MUST NOT DROP AN IMPORT (2026-11-11, the v0.2.122 chain: bigPullParts, patchParts, t, three times). Every
       # name a src/** module uses is declared or imported, every import resolves and the target exports it; zero findings.
       - name: Imports resolve - no lost import, no missing export

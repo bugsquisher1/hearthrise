@@ -195,7 +195,9 @@ function grade(o) {
   ok(o.catalogue === Object.entries(LADDER).map(([s, c]) => `${s}:${c}:false`).join(','),
     `HS-1: hr_hero_slots reads ${o.catalogue}, not the ruled ladder with no starter`);
   ok(o.playCap === 4, `HS-1: the play cap is ${o.playCap}, not 4`);
-  ok(o.shop === Object.entries(LADDER).map(([s, c]) => `character_slot.${s}=${c}`).join(','), `HS-1: src/data/shops.js sells ${o.shop}`);
+  /* src/data/shops.js names the same three slots. Their PRICES moved on with Tyler's 2026-11-20 ruling (1015-hero-slots-dearer.sql): the data's
+     price is bound to the chain END by tests/hero-slot-buy.mjs BIND and held by tests/slot-price-guard.mjs, not to this file's ladder. */
+  ok(o.shop.replace(/=\d+/g, '') === Object.keys(LADDER).map((s) => `character_slot.${s}`).join(','), `HS-1: src/data/shops.js sells ${o.shop}`);
   ok(o.unlocks === 'character_slot:1,character_slot:2,character_slot:3', `HS-1: hr_unlocks names hero slots ${o.unlocks}`);
   ok(o.offers === 'character_slot.1,character_slot.2,character_slot.3', `HS-1: hr_unlock_offers names hero slots ${o.offers}`);
 

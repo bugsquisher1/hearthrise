@@ -270,6 +270,33 @@ async function runTests(mods) {
     for (const rows of bad) { let threw = false; try { WM.validateWindowRows(rows); } catch (e) { threw = true; } ok(threw, 'must refuse ' + JSON.stringify(rows)); }
   });
 
+  t('W15b a window open from the start (Chat): desktop only, no slide, no caret, no pick; Esc passes it by; its key gives the caret', () => {
+    const rows = [{ id: 'chat', label: 'Chat', key: 'enter', width: 400, height: 280, home: 'bl', startsOpen: 'chatOpen', typing: true },
+      { id: 'bag', label: 'Bag', key: 'b', width: 400 }, { id: 'settings', label: 'Settings', key: 'escape', width: 380, escape: true }];
+    const make = (phone) => {
+      const picks = [];
+      const wm = WM.createWindowManager({ windows: rows, isPhone: () => phone, world: () => ({ width: 1440, height: 860 }), reducedMotion: () => false,
+        schedule: (fn) => fn(), keep: (id, open) => picks.push(id + ':' + open) });
+      return { wm, picks };
+    };
+    const { wm, picks } = make(false);
+    eq(wm.openAtStart(() => false), ['chat'], 'the desktop opens Chat at start');
+    const c = wm.layout().find((e) => e.id === 'chat');
+    eq([c.entering, c.bottom, wm.takeCaret('chat'), picks.length], [false, WM.HOME_BOTTOM, false, 0], 'at home, no slide, no caret, no pick');
+    eq(make(false).wm.openAtStart(() => true), [], 'shut by the player: nothing opens');
+    eq(make(true).wm.openAtStart(() => false), [], 'the phone opens nothing at start');
+    wm.handleKey(key('Enter'));
+    ok(wm.isOpen('chat') && wm.takeCaret('chat'), 'Enter on the open Chat leaves it open and asks for the caret');
+    wm.open('bag');
+    wm.handleKey(key('Escape'));
+    eq(wm.openIds(), ['chat'], 'Esc closes the bag, the top window that is not Chat');
+    wm.handleKey(key('Escape'));
+    eq(wm.openIds(), ['chat', 'settings'], 'Esc with only Chat open opens Settings');
+    wm.close('chat');
+    wm.open('chat');
+    eq(picks, ['chat:false', 'chat:true'], 'the player\'s close and open are the picks the host keeps');
+  });
+
   t('W16 a link opens its window on its tab and asks for its row', () => {
     const { wm, flush } = harness(WM, { reduced: true });
     wm.open('equip');
@@ -751,6 +778,13 @@ async function runTests(mods) {
     const many = {};
     for (let i = 0; i < 100; i++) many['w' + i] = [300, 300];
     ok(Object.keys(CS.sanitizeResidueField('winSize', many)).length <= 16, 'the count is bounded');
+  });
+  t('R4b a window open at start (Chat) keeps the player\'s pick in an allowlisted switch field', () => {
+    eq(SW.filter((r) => r.startsOpen).map((r) => r.id), ['chat'], 'the windows open at start (Tyler 2026-10-22: Chat, by default)');
+    for (const r of SW.filter((x) => x.startsOpen)) {
+      ok(CS.RESIDUE_FIELDS.includes(r.startsOpen), r.id + "'s startsOpen field " + r.startsOpen + ' must be in RESIDUE_FIELDS, or a close is never kept');
+      eq(CS.sanitizeResidueField(r.startsOpen, { on: false, at: 7, x: 1 }), { on: false, at: 7 }, r.id + "'s pick round-trips as a switch");
+    }
   });
   t('R5 townZoom is an allowlisted residue field: one of the offered steps, else no pick', () => {
     ok(CS.RESIDUE_FIELDS.includes('townZoom'), 'townZoom must be in RESIDUE_FIELDS');
@@ -1633,6 +1667,15 @@ async function load(base) {
 
 const WH_FILE = 'src/shell/window-head.js';
 const MUTANTS = [
+  /* W15b: a window open from the start (lane/a-chat-opens) */
+  { test: 'W15b', file: WM_FILE, from: '    if (isPhone()) return [];\n', to: '' },
+  { test: 'W15b', file: WM_FILE, from: 'if (!reducedMotion() && !starting) entering.add(id);', to: 'if (!reducedMotion()) entering.add(id);' },
+  { test: 'W15b', file: WM_FILE, from: 'const caret = !starting && rows.get(id).typing === true;', to: 'const caret = rows.get(id).typing === true;' },
+  { test: 'W15b', file: WM_FILE, from: 'const l = live().filter((id) => !rows.get(id).startsOpen);', to: 'const l = live();' },
+  { test: 'W15b', file: WM_FILE, from: 'return r.typing && isOpen(r.id) ? openWindow(r.id) : toggle(r.id);', to: 'return toggle(r.id);' },
+  { test: 'W15b', file: WM_FILE, from: '    if (rows.get(id).startsOpen) keep(id, false);\n', to: '' },
+  /* R4b: Chat's open-at-start pick is a residue field the allowlist keeps (lane/a-chat-opens) */
+  { test: 'R4b', file: 'src/session/residue.js', from: '  chatOpen: sanitizeSwitch,', to: '  chatOpenGone: sanitizeSwitch,' },
   /* R3f: when the hunt ends (lane/c-hunt-itinerary) */
   { test: 'R3f', file: 'src/shell/hunt-after.js', from: "      if (!doing) continue;\n", to: '' },
   { test: 'R3f', file: 'src/shell/hunt-after.js', from: "  const d = a && a.last && a.last.session === id ? a.last.done : null;\n", to: "  const d = a && a.last ? a.last.done : null;\n" },

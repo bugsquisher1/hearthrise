@@ -25,7 +25,7 @@ Run ids used. R0 is GitHub run 44920906999, R1 is 44924971088, R2 is 44925664434
 
 **What waits.** Nothing is cut. Both arenas, the castle and its Library, boss gear lines, bought boosts and buff caps as final numbers, the priced Crowns book, Necrotic and Storm, fists, sinks as a share of band gold, the market's standing orders, Talent ranks 8 and up. Section 1.2 has the full list and what each waits on.
 
-**How it is built.** 15 lanes, one of them the matrix lane, in four waves of at most four lanes, then one assembly wave. Combat-engine changes go out in three batches, one lane holding the engine at a time. Everything lands on `set/v0.2.144`, is judged on GitHub through `next`, and ships as one big release (2026-11-21): every staged migration rehearsed on a copy of production and applied in one window, then the edge, then `main`. Four lanes can start the day the plan is approved: FB-1, FB-3, FB-4 and FB-5.
+**How it is built.** 15 lanes, one of them the matrix lane, in four waves of at most four lanes, then one assembly wave. Combat-engine changes go out in three batches, one lane holding the engine at a time. Everything lands on `set/v0.2.144`, is judged on GitHub through `next`, and ships as one big release (2026-11-21): every staged migration rehearsed on a copy of production and applied in one window, then the edge, then `main`. Four lanes can start the day the plan is approved: FB-1, FB-3 and FB-4 at once, and FB-5 once the designer rules D-1.
 
 **What Tyler answers.** Seven questions, S-11 to S-17, in `review/03-sitting-2.json` and its `.md` twin. Each is a place where the plan would bend one of his rulings or where only he can choose.
 
@@ -69,10 +69,10 @@ Run ids used. R0 is GitHub run 44920906999, R1 is 44924971088, R2 is 44925664434
 | 6 | Harder tiers on one tier table with one pull number a tier: Dangerous pull 5, Deadly pull 8, both blows 2.5 times Normal | 01 2.11, 12 3.1. CORE-1, GR-27, GR-3 RULED | PROVISIONAL. The death count on each ground waits on the playtest | S-12, S-13, S-14 |
 | 7 | The gear curve, +17% bands, tiers 1 to 7 and the Level 110 band as the played sample, with the armor curve probe and the arrival kit fixed together | 03 2.2, 2.3, 12 3.6. GR-4 | PROVISIONAL. +17% MEASURED for weapons (L, R0) | The arrival kit, the largest design miss (D-3). The cost to reforge a unique up a band (03 item 3) |
 | 8 | The kill reward on the pace line, with one coin line and one derived number a ground written by a generator | 05 2.3, 12 3.4. GR-5, R9, R12 | PROVISIONAL. Holds from Level 45 (MEASURED, R0) | Whether party grounds' two thirds is high (12 3.4) |
-| 9 | The Level law and the Blessing ladder past the third Blessing | 05 2.2, 2.5, 12 3.3, 3.5. GR-6, 6a, 6b, 6d DECIDED. GR-7 RULED | PROVISIONAL numbers | The seat (S-11). The ladder's threshold, 2 hours (D-4) |
+| 9 | The Level law and the Blessing ladder past the third Blessing | 05 2.2, 2.5, 12 3.3, 3.5. GR-6, 6a, 6b PROVISIONAL, GR-6d DECIDED, GR-7 RULED | PROVISIONAL numbers | The seat (S-11). The ladder's threshold, 2 hours (D-4) |
 | 10 | The wage formula as the source for prices, the prices four heroes break, the market open on day one | 04 2.3, 2.7, 2.10, 12 3.7. GR-51, CE-4, CE-5, GR-58, GR-55, GR-59b | PROVISIONAL | Gold in the tool is an upper bound (coin reads 1.24 times real, R0). The refill's base hours (GR-58) |
 | 11 | Town work in closed form with the yard fee | 07 2.11, 09 2.3. GR-1, CE-7, R5 fee | PROVISIONAL | A town-hour fixture and a load test, both built in FB-10 |
-| 12 | The server cost fixes, study 48 steps 1 to 8 | 09 2.3. GR-1 | PROVISIONAL | The tab's 33.5 seconds, before step 7 |
+| 12 | The server cost fixes, study 48 steps 1 to 8. Step 2 is already staged and step 6 is row 11 | 09 2.3. GR-1 | PROVISIONAL | The tab's 33.5 seconds, before step 7 |
 | 13 | Talents: five tracks, the stat lines, the rank 3 unlocks, Linger, plans, reset | 10. TAL-1 | PROVISIONAL | Every size. The unlocks' engine cost (10 section 12) |
 | 14 | On-call heroes with a hire stamina pool | 11 section 1. CH11-1. S-1 and the two pools RULED 2026-11-21 | PROVISIONAL | `onCallXpShare` 0.10, the opening Level (D-8) |
 | 15 | The cheap social layer | 06 2.5, 2.7, 2.9. GR-69 RULED, MM-8 (roster, chat, browser), MM-11, MM-20, MM-47, GR-70, GR-72, CE-8, GR-82 | PROVISIONAL and DECIDED | The calendar's rows (D-7) |
@@ -104,13 +104,13 @@ Run ids used. R0 is GitHub run 44920906999, R1 is 44924971088, R2 is 44925664434
 
 Each is a designer-level call, made here as JUDGMENT. None bends a ruling. Calls that do are in the sitting.
 
-1. **On call is in, the Library waits.** `decisions/all.json` lists "on-call heroes, the Library and the town day rule" as waiting. The brief for this plan and the two-pool ruling of 2026-11-21 put on call in the first build. The Library is a castle room, and the castle waits on clans existing. The integrator should update the `firstBuild` field.
+1. **On call is in, the Library waits.** `decisions/all.json` lists "on-call heroes, the Library and the town day rule" as waiting. This plan builds on call, as its brief asks, and the ruling of 2026-11-21 on two stamina pools completes its spec. Its own `waitsOn` (the Security review, a playtest with two clans) can only be met once it is built. The Library is a castle room, and the castle waits on clans existing. The town day rule is built in part: the queue and the ending of S-16, without castle labor. The integrator should update the `firstBuild` field.
 2. **Prices: the wage curve and the account prices, not the sink shares.** Pairing 3 of chapter 09 asks that the Level law ship with sinks as a share of band gold (R16). The first build ships the law with the hero sinks still typed (Tempering, Hallmarks, linings), which Tyler kept on 2026-11-18. The account prices that four heroes break by 7 to 12 times (COMPUTED, 12 3.7) are set from the curve.
 3. **The market as built, opened on day one.** The account market is built (`hr-accrue/market.js`, its first migration applied). The first build opens it from the first loot and closes one laundering route. Standing orders wait.
 4. **The return card reads line providers.** FB-6 builds the card with a seam: a system adds a file that supplies its line, and never edits the card. Talents, on call and the world boss each add one. It is the shape that holds at ten times the systems.
 5. **The Path is written once, in wave 1.** FB-5 writes every first-build Path row, each gated on a flag in its own system's data file. No later lane edits the Path table.
 6. **Two generated data files read the matrix.** The derived number a ground carries (FB-8) and the tier's risk line (FB-7) are written by generators from the committed matrix cache, with `--check` drift guards. The ground number's generator reads the ground axis with the number held at 1, so a re-run never compounds.
-7. **The staged chain from the earlier plan rides this release.** Migrations 1000 to 1035 are staged on the set. Three are replaced here: 1015 (hero slot prices, against four heroes free), 1000 and 1016 (the Level curve, against R13), and 1001 (XP a kill, against R12).
+7. **The staged chain from the earlier plan rides this release.** 36 migrations, 1000 to 1035, are staged on the set. Some are replaced here by later files: 1015 (hero slot prices, against four heroes free), 1000 and 1016 (the Level curve, against R13), and the three 1001 catalogues (XP a kill, against R12).
 
 ## 2. Lanes
 
@@ -118,7 +118,7 @@ Each is a designer-level call, made here as JUDGMENT. None bends a ruling. Calls
 
 | Wave | Lanes, at most four at once | What it leaves on the set |
 |---|---|---|
-| 0 | None. Tyler approves the plan and answers S-11 to S-17. The designer rules D-1, D-5 and D-7 | Rulings |
+| 0 | None. Tyler approves the plan and answers S-11 to S-17. The designer rules D-1. Every other ruling of 2.4 lands before its own lane starts | Rulings |
 | 1 | FB-1 then FB-2 (one systems engineer), FB-3, FB-4 first half, FB-5 | Engine batch 1. The instrument's band changes, the diff workflow, the engine tests, the arrival-kit run. Read once, the narrow town read, the flush and the hourly journal. Four heroes and the first hour |
 | 2 | FB-8 stages 1 and 2, FB-6, FB-7, FB-10 | The gear curve, the coin line, the kill reward and the tier table. The company. The report. Town work in closed form |
 | 3 | FB-8 stage 3, FB-9, FB-11, FB-12 | The Level law and the ladder. The wage and prices. Talents. The social layer. Engine batch 2 closes with one death sample |
@@ -148,6 +148,8 @@ A file has one writer in a wave. A later owner merges the set into its branch fi
 
 Baselines that tools regenerate (engine-parity, restore-census, the edge size ceiling, the client RPC surface) are re-pinned by whichever lane merges second, with its own tool and the cause proved. Never by hand.
 
+One file is shared on purpose: `.github/workflows/smoke.yml`, where CLAUDE.md section 5 has every lane register its new guards. Each lane adds its own step. A conflicting hunk goes back to the lane that merges second (CLAUDE.md 3.3).
+
 ### 2.3 The three combat-engine batches
 
 CLAUDE.md section 3.3b batches and spaces engine changes. Here one lane holds the engine files of 2.2 at a time, in this order. Between batches nothing enters the engine until one GitHub run on `next` is green with `tests/hunt-core/run-all.mjs`, `tests/hunt-core/engine-parity.mjs` (re-pinned by the batch's last lane, each cause proved), `tests/world-tick-parity.mjs` and a matrix diff from FB-3.
@@ -158,13 +160,15 @@ CLAUDE.md section 3.3b batches and spaces engine changes. Here one lane holds th
 | CB-2 | 2 and 3 | FB-8 (gear, coin, kill reward, tier table, party-wide damage if S-13 a or c), then FB-11 (R20, stat lines, unlocks, the to-hit floor) | One death sample, 4 seeds of 8 hours on 14 grounds, with everything that moves survival in. The tier dial moves one step if it must. This is the one sizing pass the Talents ruling asks for |
 | CB-3 | 4 | FB-13 (the boss room), then FB-14 (the guest seat in the settle) | The plain four's diff is empty. Neither mode moves it |
 
+FB-8's stage 1 is data only (the gear curve), so it may start while FB-2 finishes. It takes the engine at stage 2.
+
 The edge is deployed once, in the release window. The world's field list changes, so every running hunt's world restarts once at that deploy.
 
 ### 2.4 Where the designer rules first
 
 | Id | Before | What the designer rules |
 |---|---|---|
-| D-1 | FB-5 | Every first-build Path row and its opener. The weapon cards' tags from FB-3's check C1. The wand card's cost line. Where the first objective sits so Chat never covers it, with the art director |
+| D-1 | FB-5 | Every first-build Path row and its opener. The wand card's cost line. The weapon cards' tags once FB-3's check C1 reads, a data row FB-5 fills last. Where the first objective sits so Chat never covers it, with the art director |
 | D-2 | FB-6 | Gear found mid-hunt: worn at a safe moment in the hunt, or one press on the return card. The leader's default (the front hero). The order of "Needs you" |
 | D-3 | FB-8 stage 1, armor half | The arrival kit, from FB-3's coupled run of the armor curve probe, the arrival skill offset and the jewelry share. The band asks 1.15 to 1.35 of the mid kit's damage. It reads 2.2 under Level 45 (MEASURED, R0 and L) |
 | D-4 | FB-8 stage 3 | The Blessing ladder's threshold and rungs. Chapter 12 measured 5 hours as too high and sized 2 (COMPUTED on R0) |
@@ -282,19 +286,19 @@ The edge is deployed once, in the release window. The world's field list changes
 | | |
 |---|---|
 | Builds | Stage 1, the gear curve (R10, R11): the curve in `src/data` at +17% bands, tiers 1 to 7 as samples of it, the Level 110 band as the played sample past Krell, uniques at exchange rates, the armor half per D-3. Stage 2 (R9, R12): one coin line, XP a health point on the pace line with one kill-rate reference, the derived number a ground carries written by a generator, one tier table with one pull number a tier (Dangerous 5, Deadly 8, both blows 2.5 times Normal, health 1.10 and 1.15, Level XP 1.10 and 1.25), the per-ground dials and the floor-16 pull rule removed in the same step, party-wide damage as a tier row if S-13 is a or c. Stage 3 (R13): the Level law's convex cut from a generator, on the seat S-11 picks, and the Blessing ladder's rungs (D-4) |
-| Owns | `src/data/gear-tiers.js`, the generated gear rows of `items.js`, `wave3-uniques.js`, `hunt-xp.js`, `hunt-tiers.js`, `balance-sheet.js`, `scaled-hunts.js`, `blessings.js`, `src/core/hunt-rewards.js`, `src/core/xp.js`, the engine files of 2.2 in wave 2. New generated ground-pace and Level law files and their generators |
+| Owns | `src/data/gear-tiers.js`, `items.js` where a gear row is overridden, `wave3-uniques.js`, `hunt-xp.js`, `hunt-tiers.js`, `balance-sheet.js`, `scaled-hunts.js`, `blessings.js`, `src/core/hunt-rewards.js`, `src/core/xp.js`, the engine files of 2.2 in wave 2. New generated ground-pace and Level law files and their generators |
 | Migrations | About seven, mostly generated: items, ground tiers and hunt sessions, scaled hunts and the Tower, the Level curve (replaces staged 1000 and 1016), XP a kill (replaces 1001), the Blessing ladder |
 | Edge | Yes |
 | Authority | XP and coin are minted only in the settle from server catalogues. The Level curve is a generated server table with a drift guard. A Blessing is bought by RPC at the server's price, journalled |
 | Tests | `tests/hunt-core/run-all.mjs` and `engine-parity.mjs`, `tests/hunt-core/hunt-tiers.mjs` with its vacuous mutants fixed, `tests/level-curve.mjs`, each generator's `--check` with a mutant, a ladder test (a rung opens past the threshold, price from the server, journalled), death viewed and closed, `tests/xp-frac-carry.mjs`, the scaled-hunt tests |
 | Matrix | `bp-gear-step-117.json`, `R10-gear-curve.json`, `R12-kill-reward.json`, `bp-tiers-2500.json`, `R13-level-law.json` and `bp-level-law-dangerous-seat.json` become built. The death sample after stage 2 and again at the end of CB-2 |
-| Depends on | FB-2 (R7). D-3, D-4. S-11, S-12, S-13 |
+| Depends on | FB-2 (R7). FB-9's price rows before the ladder is sold. D-3, D-4. S-11, S-12, S-13 |
 
 #### FB-9 `lane/c-economy`. Lane C. Backend architect. Wave 3.
 
 | | |
 |---|---|
-| Builds | The wage curve (R15): `wage(L)` from the coin line and the kill-rate reference, on a mid four on Normal, computed by the server from a generated table. Prices as rows of hours: the refill's base (steps RULED), Blessings at every rung, the talent reset, rename and colors. The account prices of CE-5 set once from the curve: deeds, rooms, curing slots, founding a clan. The screen's "about 3 hours of hunting". The market open from the first loot (GR-55). The stackable price ceiling with no minimum a unit closed (GR-59b) |
+| Builds | The wage curve (R15): `wage(L)` from the coin line and the kill-rate reference, on a mid four on Normal, computed by the server from a generated table. Prices as rows of hours: the refill's base (steps RULED), Blessings at every rung, the talent reset, rename and colors. The account prices of CE-5 set once from the curve: deeds, room rungs and chests. The screen's "about 3 hours of hunting". The market open from the first loot (GR-55). The stackable price ceiling with no minimum a unit closed (GR-59b) |
 | Owns | A new `src/core/wage.js` (pure, both runtimes) and a new price-hours file in `src/data`. `src/data/stamina-refill.js`, `shops.js` (deeds and rooms), `homestead-tiers.js`. The market's SQL, `src/session/market-intents.js`, `src/shell/market-*.js`, `sink-words.js` |
 | Migrations | About four: the wage table (generated), price rows and the RPCs that read them, the account prices, the market's door and the laundering route |
 | Edge | Possibly, where `spend.js` prices a purchase |
@@ -307,7 +311,7 @@ The edge is deployed once, in the release window. The world's field list changes
 
 | | |
 |---|---|
-| Builds | Town work paid in closed form for training, gathering and benches: at the start, at each paid hour and at a stop, every roll seeded at the start. The screen moves in real time as a prediction nothing can spend (CE-7). A press that needs the items or the level settles the job first. The yard fee at 100 gold times the skill level an hour (RULED 2026-11-20) on today's flat rate. A standing job with no count if S-16 is a or c. A town-hour fixture, a replayed day equal to tick settles, and a synthetic load of 1,000 accounts |
+| Builds | Town work paid in closed form for training, gathering and benches: at the start, at each paid hour and at a stop, every roll seeded at the start. The screen moves in real time as a prediction nothing can spend (CE-7). A press that needs the items or the level settles the job first. The yard fee at 100 gold times the skill level an hour (RULED 2026-11-20) on the flat rate as ruled, since GR-54's rate change waits. A standing job with no count if S-16 is a or c. A town-hour fixture, a replayed day equal to tick settles, and a synthetic load of 1,000 accounts |
 | Owns | `hr-accrue/tick-gather.js`, `accrue-gather.js`, `accrue-artisan.js`, `tick-artisan.js`, `set-activity.js`, `settle-first.js`, the `tick*.js` files from FB-4. `src/core/skill-sim.js`, `artisan-sim.js`, `artisan.js`. `src/shell/town-work.js`, `training-now.js`, `training-words.js`, `away-work.js`. `src/session/town-intents.js`, `training-intents.js`, `training-sections.js`. `src/data/training.js` |
 | Migrations | About three: closed-form job rows, the yard fee, the sweep |
 | Edge | Yes |
@@ -316,7 +320,7 @@ The edge is deployed once, in the release window. The world's field list changes
 | Matrix | The town-hour fixture feeds bands T7 and TD1 through FB-3 |
 | Depends on | FB-4 first half. S-16 |
 
-#### FB-11 `lane/c-talents`. Lane C. Systems engineer. Wave 3. Engine batch 2, second holder.
+#### FB-11 `lane/c-talents`. Lane C. Systems engineer (FB-3's agent). Wave 3. Engine batch 2, second holder.
 
 | | |
 |---|---|
@@ -342,7 +346,7 @@ The edge is deployed once, in the release window. The world's field list changes
 | Matrix | Event XP is in no cell. FB-3 prints the weekend beside the pace readings |
 | Depends on | D-7 |
 
-#### FB-13 `lane/c-world-boss`. Lane C. Systems engineer. Wave 4. Engine batch 3, first holder.
+#### FB-13 `lane/c-world-boss`. Lane C. Systems engineer (FB-8's agent). Wave 4. Engine batch 3, first holder.
 
 | | |
 |---|---|
@@ -456,7 +460,7 @@ The one full adversarial review is a hard gate before Early Access and not befor
 - **The arrival kit.** Its fix is UNKNOWN until D-3. The first hour's survival rests on it.
 - **The old clan RPCs.** They were written in the `2026-08-*` migrations and carry castle, feast and rested-grant pieces that today's rulings cut or hold. FB-12 must read them all.
 - **Talents' unlocks need three new engine hooks.** Their cost is not estimated (chapter 10).
-- **"No hits landed" may be a real bug.** If a real four meets it, it is player-visible on live now.
+- **"No hits landed" may be a real bug.** It was seen in the tool on the proposed game. FB-1 first decides whether a real four on live meets it. If one does, it is player-visible now.
 - **Server cost.** Four heroes with 48 rested hours a day, town work drawn in town, and a watched tab. The 1,000-account load test is new in FB-10.
 - **Generated game data from a simulator cache.** The ground number and the tier risk line move whenever the matrix moves. Their drift guards bind them. JUDGMENT that this is safe only while nobody edits them by hand.
 

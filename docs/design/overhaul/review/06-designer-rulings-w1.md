@@ -14,19 +14,19 @@
 
 | Ruling | In one or two sentences |
 |---|---|
-| **D-7 The calendar** | A 28 day cycle with two beats in the first build: the Hearthrise on week 1 and the world boss on week 3, two weeks apart. Weeks 2 and 4 stay quiet until the ground weekend and the arena season are built. The weekly Open Halls row is retired, because Call out has cost no gold since 2026-11-20 and the event waives nothing. |
+| **D-7 The calendar** | A 28 day cycle with two beats in the first build: the Hearthrise on weekend 1 and the world boss on weekend 3, two weeks apart. Weekends 2 and 4 stay quiet until the ground weekend and the arena season are built. The weekly Open Halls row is retired, because Call out has cost no gold since 2026-11-20 and the event waives nothing. |
 | **D-7 The Hearthrise's size** | The fire has five marks over its floor. Each mark is +3%, so it lights at +10, 13, 16, 19, 22 or 25% Level XP. A full fire is a quarter of the fuel the server's weekly active accounts find, counted per account, so 7 accounts fill it as easily as 7,000. When the server drives the world boss off, the fire gains one mark. |
 | **D-6 The world boss** | **Mossback**, a huge old brook bear from Mosslight Glade who comes down the Meadowbrook for the honey under the mill. He is fought at **the Mill Pond**, in each party's own room, on the one monster formula. Rook's poachers come out of the trees at half his health. He never dies in the room. |
 | **D-6 The chest** | It pays both, by the account's own points. Mark 1, about 2 Normal party-hours: +5% damage for 7 days and, the first time, the trophy. Mark 2, about 6: one **Mossback Cloak** cut for the hero's way to fight. Mark 3, about 12: the buff runs 14 days. |
 | **D-8 On call** | It opens at hero Level 10, once the account has a friend or a clan. The default tier limit is Dangerous. `onCallXpShare` stays 0.10. |
-| **D-5 Prices** | Refills, Blessings, the talent reset and rename are rows of hours at the hero's Level. The first refill of the day costs 2 hours of the wage. Deeds are set once at CE-5's sizes in account-days, and rooms and chests keep their share of their deed. Everything Tyler typed stays typed. |
+| **D-5 Prices** | Refills, Blessings, the talent reset and rename are rows of hours at the hero's Level. The first refill of the day costs 2 hours of the wage. Deeds are set once at CE-5's sizes in account-days, and rooms and chests move by the one factor the deeds moved by. Everything Tyler typed stays typed. |
 | **D-5 The Weighhouse** | It stays the town's first project, as a building only. The market trades from day one while it goes up. Staged 1013 and 1014 stand. Only words move. |
 | **D-4 The Blessing ladder** | The threshold stays at Tyler's 5 hunted hours, now with evidence. Under S-12 a, Deadly should not pay on the day a four arrives and should pay once it grows past the edge, and 5 hours puts that line at about 50 deaths in 1,000 hours. Rungs halve what is left, as ruled, and their Levels come from the law. |
 | **D-10 Party-wide damage** | It stays in the data, the `group` rows, and gets no tier row. Group spells already scale with the tier's blow dial. Two open grounds have no group caster and get one each. A tier row is a named fallback with a measured trigger. |
 
 **What Tyler can veto, one line.**
 
-1. **The refill's shape (24-1, 2026-11-20).** At 2 hours of wage, the first two refills of a day pay for themselves at every Level, the third breaks even and the fourth to sixth are gold for XP at every Level. The typed price made the late ones gold for XP only from Level 80. "Veto R-1" sets the base at 1.33 hours, so only the sixth is gold for XP (section 4.2).
+1. **The refill's shape (24-1, 2026-11-20).** At 2 hours of wage, the first two refills of a day pay for themselves at every Level, the third breaks even and the fourth to sixth are gold for XP at every Level. The typed price made the late ones gold for XP only from Level 80. "Veto R-1" sets the base at 1.33 hours, so the first four pay for themselves, the fifth breaks even and only the sixth is gold for XP (section 4.2).
 
 Nothing else here bends a ruling of his. Where a ruling of mine moves an earlier Fable call (MM-6's marks, MM-11's order, the 2 hour ladder of chapters 05 and 12, GR-55's "builds something else"), it is named in its section and in "For the integrator".
 
@@ -366,8 +366,8 @@ Integer scales only, one palette, one perspective (`docs/ART_DIRECTION.md`).
 | System line, the fall | "Havora drove Mossback off. The Great Hearth's fire grew one mark." |
 | System line, the window ends with no fall | "Mossback went back up the brook. Next: {next}" |
 | Return card, mark 1 | "Mossback: +5% damage for 7 days" |
-| Return card, mark 2 | "Mossback: {name} got a Mossback Cloak ({cut})" |
-| Return card, mark 3 | "Mossback: your damage buff lasts 14 days" |
+| Return card, mark 2 | "{name} got a Mossback Cloak ({cut})" |
+| Return card, mark 3 | "Mossback: +5% damage for 14 days" |
 | Return card, the trophy | "Mossback's Claw added to your trophies" |
 | The hero sheet's buff | "Mossback: +5% damage ({left})" |
 | The Path, row 15 | "Level 13. Mossback" |
@@ -567,7 +567,7 @@ An account-day is 48 x `wage(L)`. FB-9 adds the held rooms to `HELD_HOME_ROOMS` 
 
 **Why 2.** 24-1 ruled that the first two refills always pay for themselves, so the base must stay under 2.67 hours. Every hero hunts 12 hours a day (2026-11-21) and the free bar is 8, so a free hero buys one refill a day. At 2 hours that refill leaves it 2 hours of gold ahead, and the 12 hour Premium bar saves an account 8 hero-hours of gold a day, a sixth of an account-day. That is Premium's gold value, and it is real without making the free day poor. JUDGMENT.
 
-**The veto (R-1).** The typed price made refills 4 to 6 gold for XP only from Level 80. In hours the shape is the same at every Level. "Veto R-1" sets the base at 1.33 hours: then the first five pay for themselves and only the sixth is gold for XP.
+**The veto (R-1).** The typed price made refills 4 to 6 gold for XP only from Level 80. In hours the shape is the same at every Level. "Veto R-1" sets the base at 1.33 hours. Then the first four pay for themselves, the fifth breaks even and only the sixth is gold for XP.
 
 S-17 a puts every hero on the 12 hour bar in the playtest, so refills are bought only past 12 hours there. Nothing sells hire stamina, and the refill never touches it (D-8).
 
@@ -646,6 +646,193 @@ The market's Level door stays Security's to set (GR-55). Today it is `hr_market_
 - **04 section 2.10.** The deed sizes of CE-5 become rows of account-days at Levels 20, 60, 90 and 110. Rooms and chests move by one factor.
 - **13 section 1.3, the staged table.** 1013 and 1014 stand. **13 FB-9.** It owns the hours rows, the deed generator, the factor, `wageShare` at 0.80, the Weighhouse's words and the tutorial step. Its tests add: the refill's six prices at Levels 20 and 200 in hours, a set-once deed equal to its generated row, and the market open with the Works unfinished.
 - **13 section 3.3, the release note table.** "The market is open from day one" (FB-9).
+- **00 section 5.3, a new reversal row 28.** "The refill's base is 2 hours of the hero's wage, so refills 4 to 6 are gold for XP at every Level, where 24-1's typed price made them so from Level 80. RULED by the designer 2026-11-21 (`review/06-designer-rulings-w1.md` section 4.2). For Tyler's veto: 'Veto R-1' sets 1.33 hours."
 - **`decisions/`.** GR-51, GR-58, CE-5 and GR-55 gain the sizes. Reversal row 15's text notes the deeds' rows.
 
 ---
+
+## 5. D-4, before FB-8 stage 3
+
+### 5.1 What moved since chapter 12 sized 2 hours
+
+Chapter 12 section 3.3 moved the ladder's threshold from Tyler's 5 hunted hours to 2, so that Deadly would pay through the whole ruled band at every Level. It read the four on Deadly, on the engine with two stalls. Three answers of 2026-11-21 move the ground under it.
+
+| Answer | What it changes for the ladder |
+|---|---|
+| **S-12 a** | The ruled counts, Dangerous 10 to 30 and Deadly 50 to 100 deaths in 1,000 hours, describe a four that has just arrived in a band. Each ground is a ladder: Dangerous on arrival, Deadly once the four grows past the edge. So Deadly is **not** meant to pay at the arrival count. Chapter 12's goal, Deadly paying through the whole band, is the goal S-12 a turned down |
+| **S-11 c** | The Level table is timed on the four on Dangerous. That is the pace seat a death's hours are read on. The ruled points of the table do not move (Level 100 at 600 hunted hours, Level 400 on day 382) |
+| **S-14 a** | The rest hunt on when one falls. A front death became four deaths in 121 of 129 front-first hunts (MEASURED, run 44948522187). The counts count every hero's death, so a Deadly arrival count of 50 to 100 is one wipe in every 10 to 20 party-hours. Each hero still loses its own death's hours, so the arithmetic below is per hero and holds |
+
+**The replay's readings used here**, all MEASURED on run 44948522187: Deadly, all cells, 44 deaths in 1,000 hours. Dangerous, all cells, 5. Deadly pays 20 to 29% over Dangerous in the upper part of each band. The seats read 1.261 on Dangerous and 1.741 on Deadly with no death.
+
+### 5.2 The rule
+
+| Row | Value | Label |
+|---|---|---|
+| The threshold, `overHours` | **5 hunted hours of the pace seat** | This ruling. Tyler's own number in S-5, now with a reason |
+| Each rung past the third | Halves what is left of the loss | RULED S-5 b |
+| The cut, in permille | Rung k from 4: 1000 minus 250 / 2^(k-3), rounded. So 875, 938, 969, 984 | Follows from the rule |
+| Where a rung opens | The lowest Level at which a death with every rung below it held costs the pace seat over `overHours`, on FB-8 stage 3's generated law | Nobody types a Level |
+| Its price | A fifth of the hours it saves on one death (D-5, section 4.1) | |
+| A death uses up every Blessing held | | RULED 2026-10-18 |
+| "Keep me blessed" | All, the first three, or none, chosen once for each hero. All includes the ladder's rungs | RULED 21-8 |
+
+**Where the rungs fall.** COMPUTED from chapter 05 section 2.5's table, which is the law at the ruled points that S-11 c keeps: an unblessed death costs 22.0 hunted hours at Level 100, 53.4 at 200, 105.4 at 300 and 150.2 at 400. So Blessing 4 opens at about Level 97, Blessing 5 at about 140 and Blessing 6 at about 257, and none more before Level 400. A fully blessed death then costs 2.5 to 5 hunted hours from Level 97 on. FB-8's generated law makes these exact.
+
+### 5.3 Why 5
+
+A watched four earns more Level XP on Deadly than on Dangerous while its deaths cost less than Deadly's gain. With D deaths in 1,000 hero-hours, h the hunted hours a blessed death costs and g Deadly's gain, the break-even is **D\* = 1000 x g / h**. On the ladder h sits between half the threshold, just after a rung opens, and the whole threshold, just before the next.
+
+| Threshold | h at its worst point | D\* at g 0.20 and 0.29 | h just after a rung | D\* there |
+|---|---|---|---|---|
+| 2 hours (chapter 12) | 2 | 100 and 145 | 1 | 200 and 290 |
+| **5 hours** | **5** | **40 and 58** | **2.5** | **80 and 116** |
+| 8 hours | 8 | 25 and 36 | 4 | 50 and 73 |
+
+COMPUTED on the replay's 20 to 29%.
+
+- **At 2 hours** a four arriving in a band profits on Deadly from its first day even at 100 deaths in 1,000 hours. Nobody would hunt Dangerous on arrival, so the ladder of S-12 a never forms and Deadly is the only tier.
+- **At 8 hours** a four must be nearly safe before Deadly pays, and a blessed death costs up to a working day of hunting.
+- **At 5 hours** the worst point's break-even, 40 to 58, sits at the floor of the arrival band. An arriving four (50 to 100) does better on Dangerous. A four that has grown past the edge and dies under about 40 times in 1,000 hours does better on Deadly. Just after a rung opens Deadly pays a little earlier. That is S-12 a's ladder, in XP, from the price of a death.
+
+**On Dangerous.** An arriving four at 10 to 30 deaths loses 5 to 15% of an hour's XP to deaths at 5 hours. That is the struggle on arrival asked for on 2026-11-19. The replay's pooled 5 is 2.5%, which is the cost S-12 a accepted ("Dangerous rarely kills a mid four inside its band").
+
+**What this counts.** XP only, for a watched four that starts again at once, as chapter 12 did. An away four also loses the hours until its owner returns when a wipe ends the hunt, so Deadly pays it less. That is the "watch or gamble" Tyler accepted (S-6 a).
+
+### 5.4 What FB-3 must measure
+
+1. **g at each checkpoint**, Levels 25, 50, 75, 110, 185, 300 and 400: the mid four's Level XP an hour on Deadly with no death over the same four on Dangerous after its deaths, on the fixed engine and the law timed on the Dangerous four.
+2. **Deaths in 1,000 hero-hours** on Deadly and Dangerous at each open ground's floor, middle (D-1's ask) and top, with the rest hunting on, 4 seeds of 8 hours, and the share of those deaths that came in wipes.
+3. **The unblessed death's hours** at each checkpoint on FB-8 stage 3's generated law, and the rung Levels the rule places.
+4. **The table** of D\* at the worst point for every checkpoint from Level 97 up.
+
+**The move rule.** The threshold holds while the median D\* at the worst point sits from 30 to 60. Under 30, `overHours` moves to 4. Over 60, it moves to 6. One step a pass, never on a run older than the fix. The playtest's real death rate reads it again (13 section 3.5). JUDGMENT for the band of 30 to 60: it is the arrival band's floor, give or take a fifth.
+
+### 5.5 Data, words and walk-through
+
+**Data.** In `src/data/blessings.js`, FB-8's in stage 3: `BLESSING_LADDER = { overHours: 5, halvesFrom: 4 }`. `BLESSING_CUT_PERMILLE` grows by the rule of section 5.2. The rung Levels are columns of the generated law file. The prices are FB-9's rows (D-5).
+
+**Words.**
+
+| Where | Words |
+|---|---|
+| A rung in the Bless window | "Blessing {n}" and "{pct}% less XP lost on a death" |
+| A rung not open yet | "Opens at Level {level}" |
+| "Keep me blessed" | "All", "First three", "None" |
+
+**Walk-through.**
+
+| # | Step | Holds before it | Checked in | Doable |
+|---|---|---|---|---|
+| 1 | A Level 100 hero holds Blessings 1 to 3 | Gold for 2 hours of its wage | `blessings.js` `BLESSING_CUT_PERMILLE` 250, 500, 750. `freeUntilLevel` 30 | Yes. The hours are D-5's |
+| 2 | Blessing 4 is open, because three Blessings leave a death at 5.5 hours, over 5 | Level 100 | Chapter 05's 22.0 hours at Level 100, times a quarter | New. FB-8 |
+| 3 | It buys Blessing 4 for a fifth of 2.75 hours, about 0.55 hours of wage | Gold | D-5 | New |
+| 4 | Its four dies on Deadly. Each hero loses 2.75 hunted hours of XP, and every Blessing is used up | | `consumedOnDeath` true. S-14 a | Yes |
+| 5 | "Keep me blessed: All" buys them back at the next Start | Gold | 21-8 | New for rung 4 |
+
+**Live state.** L-08: 20 heroes hold each of the three Blessings and keep them. A hero whose re-cut Level passes rung 4's sees it offered. Release note: "High-Level heroes can buy more Blessings past the third."
+
+**Evidence.**
+
+| Claim | Label |
+|---|---|
+| 44, 5, 20 to 29%, 121 of 129 | MEASURED, run 44948522187 |
+| The rung Levels | COMPUTED on chapter 05's table, which the generated law replaces |
+| D\* at 5 hours sits at the arrival band's floor | COMPUTED |
+| A four chooses its tier by XP | JUDGMENT. The playtest reads which tier fours hold at each point of a band |
+
+**For the integrator.**
+
+- **05 section 2.5.** "The ladder's threshold: 2 hours, PROVISIONAL" becomes 5 hours, with section 5.3's reason. The rung Levels return to about 97, 140 and 257, as its own table already says.
+- **12 section 3.3.** One line under the title: superseded by `review/06-designer-rulings-w1.md` section 5, after S-12 a.
+- **13 section 2.4, D-4.** Ruled. **13 FB-8.** Stage 3 builds the rule of 5.2 and the generated rung Levels. Its test: a death costs the pace seat no more than 5 hours with every rung held, at Levels 100, 200, 300 and 400.
+- **`decisions/` GR-7.** The threshold is 5 hours and the move rule is 5.4's.
+
+---
+
+## 6. D-10, before FB-8 stage 2
+
+### 6.1 The ruling
+
+**Party-wide damage stays in the data, the `group` rows of `src/data/monster-spells.js` (RULED 2026-11-08), and gets no tier row in the first build.** Reported, not asked (audit A-2).
+
+1. **The data already follows the tier.** A spell's top hit is its `hitPm` over 1000 times the caster's biggest normal hit at the hunt's tier (`monster-spells.js` "WHAT A SPELL HITS FOR", and `src/core/hunt/monster-spells.js`, which reads the row through `atTier` before `spellHit`). So every group spell already lands 2.5 times as hard on Dangerous and Deadly as on Normal. A tier row on group damage would count the blow dial twice.
+2. **S-12 a took the count on arrival, on the cliff.** The option that needed party-wide damage built into the tiers was S-12 c, a steady count at every Level. It was not chosen.
+3. **The formula brief's order.** Content data first, then a coefficient, then a tier row (2026-11-21).
+
+### 6.2 What the data owes
+
+**The rule.** Every open ground from Wickstead (Level 8) up has a group caster among its regular monsters, so the whole party takes damage there and a healer and a lining have a job. That is the point of the 2026-11-08 ruling. The Mill Cellar and Meadowbrook Thicket keep none, because a first ground teaches the plain fight (`monster-spells.js` header). The Sewer's party damage is the Rat King's Squeal at the end of its route.
+
+COUNTED from `src/data` on this branch:
+
+| Ground | Band | Group caster | Row |
+|---|---|---|---|
+| Wickstead | 8 to 18 | Turncoat | `smoke_pot`, fire |
+| Mosslight Glade | 16 to 31 | Walking Vine | `spore_cloud`, poison |
+| Coppercap Warrens | 32 to 50 | Goblin Digger | `blasting_charge`, fire |
+| **Hask's Ford** | 45 to 60 | **None** | |
+| The Slake | 50 to 65 | Bargeman | `cold_bilge`, frost |
+| **The Muster Barrows** | 55 to 75 | **None** (Captain Hask's pulse is a spec still open in its pack) | |
+| The Pyre Field | 70 to 90 | Stoker | `burning_ash`, fire |
+| Krell's Hold | 85 to 110 | Gatekeeper | `hot_pitch`, fire |
+
+**The two missing rows.** FB-8 adds them in stage 2, inside engine batch 2, so CB-2's one death sample plays them.
+
+| Row | On | n | shape | range | windupMs | cdMs | hitPm | element |
+|---|---|---|---|---|---|---|---|---|
+| `river_chill` | The Fordsunk, the Ford's heavy | "River Chill" | `group` | 6 | 2000 | 16000 | 1500 | `frost` |
+| `grave_chill` | The Cairn Wight, the Barrows' glass | "Grave Chill" | `group` | 6 | 2000 | 16000 | 1500 | `frost` |
+
+Both copy the pack precedent of 1.5 times a regular caster's hit every 16 seconds (`burning_ash` on the Stoker), inside `SPELL_BOUNDS`. Frost because the March's elements are fire and frost (chapter 02), so the grounds from 45 to 75 ask for the frost lining and the Pyre Field and the Hold ask for fire. On the Barrows the caster is fragile on purpose, so the answer is the target setting: kill the wights first. JUDGMENT.
+
+### 6.3 The order of levers, and when a tier row is allowed
+
+| Step | Lever | When |
+|---|---|---|
+| 1 | Content data: a ground's own caster, its cadence and `hitPm`, inside `SPELL_BOUNDS` | A ground whose group share of a mid four's damage taken reads under 5% on its Deadly floor |
+| 2 | A coefficient: one knob, `groupSpellScale`, on every group row at once | More than a third of grounds read under 5% after step 1 |
+| 3 | **A tier row**, a group multiplier on the one tier table | Only if, after the blow dial's one move in CB-2 and steps 1 and 2, Deadly floors still read outside 50 to 100 deaths in 1,000 hours on more than a third of grounds while their group share is at 20% |
+
+The Deadly count is the blow dial's question first (CB-2 moves it one step if it must). Party-wide damage is not the lever for a count that the dial owns. Dangerous floors that read under 10 are reported and never pushed up through group damage, because a Dangerous that hits harder than Deadly turns the tiers upside down on every ground with shooters (S-12 b's measured failure) and S-12 a accepted the lower Dangerous count.
+
+### 6.4 What FB-3 must measure
+
+1. **The group share**: the part of a mid four's damage taken that comes from group spells, for each open ground and tier, at its floor and top. PROPOSED band: 5 to 20% on every ground from Wickstead up, on Dangerous and Deadly. Before the fix it read 0 to 8% on nine grounds (R0).
+2. **The arrival counts**: deaths in 1,000 hero-hours at each floor on Dangerous and Deadly, rest hunting on, with the group rows in and with them out. The harness nulls the group rows in a what-if, since the game's spell switch turns every spell off at once. The gap is what party-wide damage carries.
+3. **Where wipes start**: the front hero first or a back hero first, for each ground.
+4. **The healer's share of healing** on grounds with and without a group caster, so a healer reads as more than a fourth damage dealer where group damage lands.
+
+### 6.5 Walk-through and evidence
+
+| # | Step | Checked in | Doable |
+|---|---|---|---|
+| 1 | A four on Dangerous at Hask's Ford, Level 45, meets a Fordsunk | `hasks_ford` pack, `fordsunk` role heavy | Yes |
+| 2 | It winds up River Chill for 2 seconds, then every hero takes a frost hit | `group` lands on every hero, `SPELL_SHAPES` | A new row |
+| 3 | A frost lining takes part of it | `src/core/elements.js` `heroElementPermille`, linings by element (`imbuements.js`) | Yes, once linings ship |
+| 4 | The healer's party heal rule answers it | The bar's heal rules | Yes |
+
+| Claim | Label |
+|---|---|
+| Group spells follow the tier's blow dial | Read from `src/core/hunt/monster-spells.js` |
+| The Ford and the Barrows have no group caster | COUNTED from `src/data` |
+| The share band of 5 to 20% | PROPOSED. JUDGMENT |
+| 0 to 8% on nine grounds | MEASURED, R0, before the fix |
+
+**For the integrator.**
+
+- **01, the area spells' section, and 02 section 2.5's mechanics table.** Party-wide damage is the `group` rows, every ground from Wickstead up carries one, and no tier row exists. The lever order of 6.3.
+- **13 section 2.4, D-10.** Ruled. **13 FB-8.** Stage 2 adds `river_chill` and `grave_chill`. **13 FB-3.** The four measures of 6.4 join the CB-2 death sample.
+- **`decisions/`.** S-13's withdrawn row points here.
+
+---
+
+## 7. What I did not check
+
+- I did not open the game. Every name was read from `src/data` and the book on this branch.
+- No number here was run. The replay's figures are quoted from the sitting and the Coordinator's brief, not from the run's own output, which I did not download. The committed matrix cache predates the fix.
+- I did not check that the journal holds every fuel burn as its own row (section 1.3). FB-12 confirms or takes the artisan pay point.
+- I did not read FB-13's `boss-room.js`, which does not exist yet, or check that a bar can refill inside the settle without a new world field.
+- I did not check whether `upgrade-plan.js` treats a cape with an attribute as strictly better than the plain rung (section 2.8 step 11).
+- The rung Levels of D-4 and the stand-in gold of D-5 are carried from chapters 05 and 12, not recomputed.
+- I did not size the Hall of Firsts, the next Works project, the ground weekend or the arena season. They wait, as the plan says.

@@ -5099,6 +5099,12 @@ jobs:
       # `utc-midnight-replay` job below for the guard and its full comment.
 
       # ── SELF-REGISTERED GUARDS: generated from each guard's `// ci-step:` header by `node tests/ci-shape.mjs --write`; never hand-edited ──
+      # tests/carry-on.mjs
+      - name: Carry on - one press for the account, both paths, the refusals, two presses one restart
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/carry-on.mjs
+          node tools/mutant-gate.mjs node tests/carry-on.mjs --mutate
       # tools/balance-program/inventory.mjs
       - name: The balance program's inventory still catches an unclaimed system
         if: ${{ !cancelled() }}

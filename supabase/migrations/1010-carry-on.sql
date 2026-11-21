@@ -512,7 +512,7 @@ begin
       raise exception 'carry-on §4(e): another gold figure answered %', v; end if;
     -- (f) the first hero's last hunt ended by the player's own hand
     update public.hunt_sessions set end_reason = 'left'
-     where id = (select h.id from public.hunt_sessions h where h.user_id = v_u and h.slot = 0 order by h.entered_at desc, h.id limit 1);
+     where user_id = v_u and id = (select h.id from public.hunt_sessions h where h.user_id = v_u and h.slot = 0 order by h.entered_at desc, h.id limit 1);
     delete from public.hr_rate_counters where user_id = v_u;
     v_plan := public.hr_carry_on_plan(null);
     if v_plan->'heroes'->0->>'state' is distinct from 'parked' then raise exception 'carry-on §4(f): a hero left by hand reads %', v_plan->'heroes'->0; end if;

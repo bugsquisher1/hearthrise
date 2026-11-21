@@ -21,7 +21,6 @@ import { t, hasText } from '../render/player-text.js';
 import { itemName } from './widgets/bits.js';
 import { refusalWords, runIntent } from './intent-words.js';
 import { huntName, partyMembershipOf } from '../session/party-sections.js';
-import { partyPeersOf } from '../session/party-intents.js';
 import { huntOf } from '../session/hunt-sections.js';
 import { carryOnPlan, carryOn } from '../session/carry-on-intents.js';
 import { TIER_NAME, DEFAULT_TIER } from '../data/hunt-tiers.js';
@@ -111,7 +110,8 @@ async function readPlan(ctx, refresh) {
 /** The card's controller hook: a fresh plan as the card opens, and when a hero's hunt starts or ends. */
 export function followCarry(ctx, refresh, opened) {
   const s = stateOf(ctx);
-  if (opened) { s.msg = ''; s.said = null; s.key = null; }
+  /* a card that opens again offers nothing until the server's plan for NOW lands (a plan from an earlier open may be stale) */
+  if (opened) { s.msg = ''; s.said = null; s.key = null; s.plan = null; }
   const key = keyOf(ctx);
   if (key === s.key || s.pending) return;
   s.key = key;
@@ -128,14 +128,12 @@ export async function pressCarry(ctx, refresh, dismissSlots) {
   let r;
   try { r = await carryOn(ctx.account, cs, plan.gold, null, jobs); } catch (e) { r = { ok: false, error: 'network' }; }
   s.pending = false;
+  /* a refusal says why (quote_changed / nothing_to_carry_on bring the server's plan as it stands now); an answer says who went */
+  s.msg = !(r && r.ok) ? refusalWords(r && r.error) : r.plan.went > 0 ? t('away.carry_went', { count: r.plan.went }) : t('away.carry_went_none');
   if (r && r.ok) {
     s.said = r.plan;
-    s.msg = r.plan.went > 0 ? t('away.carry_went', { count: r.plan.went }) : t('away.carry_went_none');
     dismissSlots(r.plan.heroes.filter((h) => h.state === 'went').map((h) => h.slot));
-  } else {
-    s.msg = refusalWords(r && r.error);
-    if (r && r.plan) s.plan = r.plan;   // quote_changed / nothing_to_carry_on: the server's plan as it stands now
-  }
+  } else if (r && r.plan) s.plan = r.plan;
   s.key = null;   // the next step reads the plan again
   refresh();
 }
@@ -144,8 +142,9 @@ export async function pressCarry(ctx, refresh, dismissSlots) {
 /** The slots of `cs`'s party when the account fills every seat and `cs` leads it (two or more), else null. */
 export function ownPartyOf(ctx, cs) {
   const p = partyMembershipOf(cs);
-  if (!p || !p.isLeader || p.seats.length < 2 || !ctx.account) return null;
-  const own = partyPeersOf(ctx.account, cs);
+  if (!p || !p.isLeader || p.seats.length < 2 || !ctx.account || typeof ctx.account.characters !== 'function') return null;
+  /* the account's heroes seated in this party (each one's own party section names it) */
+  const own = ctx.account.characters().filter((o) => o === cs || (partyMembershipOf(o) || {}).id === p.id);
   return own.length === p.seats.length ? own.map((o) => o.slot).sort((a, b) => a - b) : null;
 }
 

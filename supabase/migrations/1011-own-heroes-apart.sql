@@ -19,7 +19,7 @@
 --   A player who had ticked it on loses that tick (say so in the release note: CLAUDE.md §1 no back-compat; Tyler 11-07 be transparent).
 -- hr_party_leave_together_of(p_user, p_slot, p_party) -> boolean   NEW, owner-only, the ONE reading of the box: its value when said,
 --   else whether p_party seats a hero of another account. Read by the three places that read the box, each ONE ANCHORED SPLICE
---   (the anchor must match exactly as often as written, or the file raises; nothing else in any body moves; pins in §0):
+--   (each anchor must match exactly once, or the file raises; nothing else in any body moves; pins in §0):
 --     hr_hunt_instance_read   each member's `leave_together`, the engine's input (combat-sim.js cascadeFrom; the engine is untouched)
 --     hr_hunt_settle_session  the cascade end's proof, party_member_died and party_member_left (2 sites): the same reading the engine had
 --     hr_hunt_party_view      the viewer's own box, the party panel's checkbox
@@ -35,7 +35,7 @@
 --   hero's hunt. Reading the party's seats is the server's own row.
 --
 -- ── COST ─────────────────────────────────────────────────────────────────────
--- On the settle path: one inlined SQL function a member per instance read and per cascade proof, one indexed probe of the party's seats
+-- On the settle path: one plpgsql function (planned once a backend) a member per instance read and per cascade proof, one indexed probe of the party's seats
 --   (hunt_party_members by party) when the box is not said. No new statement, row or journal row.
 --
 -- EDGE: none (the engine reads the same key, a boolean). CLIENT: none (the party panel shows the server's box).
@@ -77,34 +77,47 @@ begin
 end $mig$;
 
 -- ── §2 THE ONE READING ───────────────────────────────────────────────────────
+-- In the plan-cache shape (tools/gen-plan-cache.mjs): a settle calls it once a member a read, and a LANGUAGE sql body with a SET clause is
+-- planned again on every call on PostgreSQL 17 (tests/settle-budget.mjs SB-3); plpgsql plans it once per backend.
 create or replace function public.hr_party_leave_together_of(p_user uuid, p_slot int, p_party uuid)
-returns boolean language sql stable set search_path = public, pg_catalog as $fn$
-  -- OWN-HEROES-APART (1011-own-heroes-apart.sql): the hero's box when its player said, else on only beside another account's hero.
+returns boolean language plpgsql stable set search_path = public, pg_catalog as $fn$
+-- OWN-HEROES-APART (1011-own-heroes-apart.sql): the hero's box when its player said, else on only beside another account's hero.
+#variable_conflict use_column
+begin
+  return (select hr_q.v from (
   select coalesce((select ps.party_leave_together from public.player_state ps where ps.user_id = p_user and ps.slot = p_slot),
                   exists (select 1 from public.hunt_party_members m where m.party_id = p_party and m.user_id <> p_user))
+  ) as hr_q(v) limit 1);
+end
 $fn$;
 revoke execute on function public.hr_party_leave_together_of(uuid, int, uuid) from public, anon, authenticated, service_role;
 
--- ── §3 THE THREE READERS, ONE ANCHORED SPLICE EACH ───────────────────────────
+-- ── §3 THE THREE READERS, ONE ANCHORED SPLICE A SITE ─────────────────────────
+-- Each anchor and its replacement are dollar-quoted, so the line a body holds after the splice is written here verbatim (a mutant
+-- anchored on it is read against this file: tests/mutant-anchors.mjs).
 do $mig$
 declare v_r record; v_def text; v_n int;
 begin
   for v_r in select * from (values
     ('public.hr_hunt_instance_read(uuid,integer)',
-     '''leave_together'', (select ps.party_leave_together from public.player_state ps where ps.user_id = h.user_id and ps.slot = h.slot),',
-     '''leave_together'', public.hr_party_leave_together_of(h.user_id, h.slot, v_i.id),', 1),
+     $a$'leave_together', (select ps.party_leave_together from public.player_state ps where ps.user_id = h.user_id and ps.slot = h.slot),$a$,
+     $b$'leave_together', public.hr_party_leave_together_of(h.user_id, h.slot, v_i.id),$b$),
     ('public.hr_hunt_settle_session(uuid,integer,uuid,jsonb)',
-     'coalesce((select ps.party_leave_together from public.player_state ps' || chr(10)
-       || '                                               where ps.user_id = p_user and ps.slot = p_slot), false)',
-     'public.hr_party_leave_together_of(p_user, p_slot, v_s.instance_id)', 2),
+     $a$      when 'party_member_died' then coalesce((select ps.party_leave_together from public.player_state ps
+                                               where ps.user_id = p_user and ps.slot = p_slot), false)$a$,
+     $b$      when 'party_member_died' then public.hr_party_leave_together_of(p_user, p_slot, v_s.instance_id)$b$),
+    ('public.hr_hunt_settle_session(uuid,integer,uuid,jsonb)',
+     $a$      when 'party_member_left' then coalesce((select ps.party_leave_together from public.player_state ps
+                                               where ps.user_id = p_user and ps.slot = p_slot), false)$a$,
+     $b$      when 'party_member_left' then public.hr_party_leave_together_of(p_user, p_slot, v_s.instance_id)$b$),
     ('public.hr_hunt_party_view(uuid,integer)',
-     '''leave_together'', (select ps.party_leave_together from public.player_state ps where ps.user_id = p_user and ps.slot = p_slot));',
-     '''leave_together'', public.hr_party_leave_together_of(p_user, p_slot, v_pid));', 1)) t(fn, find, repl, want) loop
+     $a$    'leave_together', (select ps.party_leave_together from public.player_state ps where ps.user_id = p_user and ps.slot = p_slot));$a$,
+     $b$    'leave_together', public.hr_party_leave_together_of(p_user, p_slot, v_pid));$b$)) t(fn, find, repl) loop
     v_def := replace(pg_get_functiondef(v_r.fn::regprocedure), chr(13), '');
     v_n := (length(v_def) - length(replace(v_def, v_r.find, ''))) / length(v_r.find);
     -- a second apply: the body already reads the helper (its post pin, §0) and the old text is gone
     if v_n = 0 and strpos(v_def, v_r.repl) > 0 then continue; end if;
-    if v_n <> v_r.want then raise exception 'SPLICE: % holds its anchor % times, want %', v_r.fn, v_n, v_r.want; end if;
+    if v_n <> 1 then raise exception 'SPLICE: % holds its anchor % times, want 1', v_r.fn, v_n; end if;
     execute replace(v_def, v_r.find, v_r.repl);
   end loop;
 end $mig$;

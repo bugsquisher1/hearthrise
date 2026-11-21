@@ -881,6 +881,19 @@ export function scan(sources, playerTables) {
 // finding (an entry that matches nothing is RED — the list may not rot), and a
 // `proof` entry's strings must all still be present in the file.
 export const ACKNOWLEDGED = {
+  '1011-own-heroes-apart.sql :: dml :: update player_state': {
+    verdict: 'scoped-by-proof',
+    sites: 1,
+    why: 'Section 1 is the file\'s WORK, not a self-check: the one-time pass that makes the box "Leave if anyone leaves" unsaid where it held '
+       + 'the old default (true -> null), so every hero reads the new default (off in the account\'s own party, on beside a friend). It runs '
+       + 'only while the column is still NOT NULL, so a second apply touches nothing; an untick (false) is never touched. It moves no value. '
+       + 'The proof strings are that fence and the one column it writes.',
+    proof: [
+      "column_name = 'party_leave_together') = 'NO' then",
+      'alter table public.player_state alter column party_leave_together drop not null;',
+      'update public.player_state set party_leave_together = null where party_leave_together;',
+    ],
+  },
   '2027-04-24-boss-call-series.sql :: dml :: update hunt_session_tally': {
     verdict: 'scoped-by-proof',
     sites: 1,

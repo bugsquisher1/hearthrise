@@ -11,6 +11,9 @@
 //                                        return card shows Carry on with the server's plan, ONE press sends both back, Storage first
 //
 // mutant-anchors: supabase/migrations/1010-carry-on.sql supabase/migrations/1011-own-heroes-apart.sql src/shell/carry-on.js src/session/carry-on-intents.js
+// ci-step: db-replay | Carry on - one press for the account, both paths, the refusals, two presses one restart
+// ci-run: node tests/carry-on.mjs
+// ci-run: node tools/mutant-gate.mjs node tests/carry-on.mjs --mutate
 //
 //   CO-CLOSED  BOTH PATHS, THE BROWSER CLOSED: four heroes of one account on four different last plans (the Cellar alone; the Thicket on a
 //              harder tier with an hours limit; a party of the account's own two on the Cellar) hunt with nobody watching; the world tick's

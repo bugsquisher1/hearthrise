@@ -104,8 +104,9 @@ Every row, with its reason and evidence, is in `docs/design/overhaul/decisions/a
 | 14 | PREM-2 | The price of Premium and a Crown | 30 days, priced in Crowns, at 8 to 10 dollars a month as a number to react to. Lot sizes are set so MM-34 holds at the opening price. |
 | 15 | GR-66 | The risk reading | Free for everyone: how close a hunt came to a death and deaths per 100 hours for the ground and tier. Premium keeps the full analyzer, as ruled in 24-4. |
 | 16 | MM-43 | Test Crowns in the playtest. THIS IS A GRANT | Yes, for the wiped Discord playtest only. The same amount for every account, one server switch that is off by default and removed before Early Access, every grant journalled. It needs your explicit yes. |
+| 17 | 48-engine-server | An always-on engine server, before 10,000 accounts. LATER. A spend, not decided | Nothing to buy now. The edge fits the beta and 1,000 accounts. Decide it before 10,000 accounts. ESTIMATED by study 48: at 10,000 accounts an account with a tab open 3.5 hours costs 30.3 database-seconds a day on the edge against a budget of 24, and 9.1 on an engine server. With the browser closed it is 10.0 against 3.5. It is the only way an account that watches fits 24, and it makes a shared fight cheap. Its cost in money is not in the study. |
 
-Row 16 is the grant. It needs an explicit yes.
+Row 16 is the grant. It needs an explicit yes. Row 17 is a later call and nothing is bought now.
 
 ### 4.2 Reversals he may veto
 
@@ -126,7 +127,7 @@ Row 16 is the grant. It needs an explicit yes.
 | 13 | GR-56a | Setup slots are free. | 2026-11-05, and the sinks list of 2026-11-04 | A saved setup is a remembered decision, and charging for it sells the first principle. |
 | 14 | GR-75 | Three home looks, and visiting opens from the Homestead. | 26-3 and 26-11 of 2026-11-20 | Three looks can be drawn well, and visiting is worth more the earlier it opens. |
 | 15 | CE-5 | Deeds, room rungs and chests are re-priced for an account of four. | The gold numbers of 26-3 and 26-1 of 2026-11-20 | The numbers were typed for one hero's income, and an account now has four. |
-| 16 | CE-7 | Town work moves on screen in real time and the server writes three times a job. | 2026-10-22 | It looks the same to the player and is what fits the server budget. |
+| 16 | CE-7 | Town work moves on screen in real time and the server writes at the start, at each paid hour and at a stop. | 2026-10-22 | It looks the same to the player, and study 48 shows no design meets the server budget without it (worth 109 database-seconds an account-day, ESTIMATED). |
 | 17 | CE-8 | The Hearthrise lights on the calendar's weekend, sized by the fire. (One row with GR-82.) | 2026-10-25 | A known weekend can be planned around, and the fire still decides how big it is. |
 | 18 | MM-18 | No hired, lent or on-call heroes. | 25-1 and the on-call board of 25-3, 2026-11-20 | Every account has four heroes of its own, so a hired seat has no job. |
 | 19 | MM-9 | The castle is priced for each member with a floor of five, one project at a time, open at any size. | 25-4 and the castle gate of 25-3 (2026-11-20), and 31-3 (2026-11-21) | Clans now pay buffs, so a fixed price would lock a small clan out of hero power. Tyler declined this option once. |
@@ -162,114 +163,130 @@ Kept hidden for later, and not cut: Capture the flag (MM-46). The clan's shared 
 
 Step A of the systems plan in `docs/design/systems-intelligence/00-plan.md`. A yes on one read-only script that stores nothing. It lists every top-level function in the rule code, says whether it holds a typed number and whether any register names it, and prints three numbers for each folder.
 
-## 5. Still missing
+## 5. Server cost
+
+The target game fits $0.15 an account a month at 1,000 accounts. At 10,000 accounts it fits for an account that does not watch a hunt, and misses by about a third for one that does unless the engine runs on an always-on server. GR-1: town work paid in closed form (worth 109 database-seconds a day, ESTIMATED), and a closed hunt saved every 10 minutes or at 1.2 seconds of engine time (the result is MEASURED identical at every cadence). Not answered yet: A load of 1,000 accounts, the bill's lines that are not the database, the market and the gauge, a town that draws working heroes, and the envelope for clans, events and arenas.
+
+The order of the edge fixes, as study 48 gives it, is an input to the build plan:
+
+1. Read once: the settle reads the party once. Proof: the settle parity arms, and the statements a save stay at 4.
+2. No off-screen poll, tick packing and the 5 minute prune.
+3. A narrow town read, the interim for town work until closed form ships.
+4. Confirm in the edge and save at the flush, and the hourly journal, before the beta passes 250 accounts.
+5. Plan fixes beside them.
+6. Town work in closed form.
+7. The tab sends its confirm and heartbeat only, once one controlled read names 33.5 seconds of a watched four-hour.
+8. The 10 minute save for closed hunts, after the flush has baked a nightly.
+9. Changed sections only, and one heartbeat.
+10. The engine server decision before 10,000 accounts, with the broadcast design for a shared fight.
+
+## 6. Still missing
 
 | Chapter | Item | What is missing | Owner |
 |---|---|---|---|
-| `01-core-and-combat.md` | 1 | The tier numbers | CORE-1opens them as hypotheses, sized on the mid-geared four: Dangerous pull 5 and blows 1.17 times Normal, Deadly pull 8 and 2.25 times |
-| `01-core-and-combat.md` | 4 | The Necrotic and Storm numbers | Thegame designer sizes them on the matrix with the first seven spells (GR-16) and reports them as decided. It is a design call and does not go to Tyler |
-| `01-core-and-combat.md` | 5 | The shares of the dark rows | Thefirst seven played, then a redesign under "no two weapons share a mechanic" |
-| `01-core-and-combat.md` | 6 | The crossbow's full list | Thegame designer, with GR-21 |
-| `01-core-and-combat.md` | 7 | The fist's own heal | Theplan's gold test re-run on the spell rule (GR-17) |
-| `01-core-and-combat.md` | 8 | Whether weapon accuracy stays a stat line | Thematrix lane, with the core decider, on the gear-step cells |
-| `01-core-and-combat.md` | 9 | A guard for heals at high Level | Thematrix lane, with the core decider. A band that reads a heal in monster blows at Levels 185 and 400. If it fails, Greater Mend moves to the max health kind |
-| `01-core-and-combat.md` | 10 | Names for rune tiers VI and on, and who makes them | 03-items-and-crafting.md,with GR-23 and GR-45 |
-| `01-core-and-combat.md` | 11 | Something for the bar past the last rune tier | GR-61(Kindlings), 05-progression.md. Combat's fence: a pick changes a row inside the bar budget and never adds one |
-| `01-core-and-combat.md` | 13 | The value of powerFloor | Roadmapstep R6's own run on Levels 1 to 15 against the 6 hour rule |
-| `01-core-and-combat.md` | 14 | The fist promise beside "no solo or group targets" | Tyler,only if he reads it differently |
-| `01-core-and-combat.md` | 15 | Whether the engine can run heroes on both sides of a fight | Onemeasurement by the systems engineer, for the arenas (06-mmo-layer.md) |
-| `02-world.md` | 2 | Regions 4 to 7 have no sketch of record | Thegame designer |
-| `02-world.md` | 3 | How fast a region can be drawn | Theart and asset directors, then Tyler |
-| `02-world.md` | 4 | The Morrow Hills between Levels 142 and 165 | Thegame designer |
-| `02-world.md` | 5 | Signatures for six grounds | Thegame designer, after the two-ground sample is played |
-| `02-world.md` | 6 | The hall number and the early halls | Thegame designer, with chapter 03, for the keys and prizes. The hall number acts on health and the clock (GR-30), and the hall grader plays it at Levels 25, 52 and 75 |
-| `02-world.md` | 9 | The Tower's board once the top follows Level | Thegame designer |
-| `02-world.md` | 10 | The Bestiary | Thegame designer. The stage bonus is a design call. The deep dive stays queued behind the balance work |
-| `02-world.md` | 11 | The faction benefit for hunting the opposite side's ground | Thegame designer, chapter 05 |
-| `02-world.md` | 12 | Loot rows for Wyvern Roost and the Catacombs ground | Chapter03 |
-| `02-world.md` | 13 | The measuring gaps in section 6 | Chapter09 |
-| `03-items-and-crafting.md` | 1 | The exchange rates themselves (gearExchange) and the slot-class shares other than the 6% for accessories | Roadmapstep R11, on the matrix |
-| `03-items-and-crafting.md` | 2 | Whether +17% reads as one upgrade when played on the curve, with +24% as the second cell | Oneband played. It is the first thing the R10 derivation prints |
-| `03-items-and-crafting.md` | 3 | What it costs to reforge a unique up a band: materials, gold, whether a duplicate or a key is needed | Thegame designer, inside GR-4 and GR-8, before the build plan |
-| `03-items-and-crafting.md` | 4 | The Tempering ladder for tier 7 and for each band, as shares | GR-8,then a matrix run on gold bands |
-| `03-items-and-crafting.md` | 6 | The three signature stones: names, perks and carriers | Thedesigner, with names checked against the data. Sample of three first |
-| `03-items-and-crafting.md` | 7 | 18 of the 23 perks have no engine hook and no measured size | Thefirst job of the perk lane |
-| `03-items-and-crafting.md` | 8 | Leech lining sizes, and spell leech with lining leech together | Onemeasurement |
-| `03-items-and-crafting.md` | 9 | The Morrow Hills grid re-cut from 46 uniques to 15 to 20 with carried pieces | Theregion lane, after R10 and R11 |
-| `03-items-and-crafting.md` | 10 | Chip pace in hours for each tier on the 12 hour clock | Withthe tier 4 sample |
-| `03-items-and-crafting.md` | 11 | Reference values and the no-mint guard have no owner lane | Thebuild plan |
-| `03-items-and-crafting.md` | 12 | The uniques for the Catacombs ground at Levels 165 to 185 | Theregion lane |
-| `03-items-and-crafting.md` | 13 | How a perk is stored on a held piece, so one market book can filter by it | Aschema call for the systems engineer |
-| `03-items-and-crafting.md` | 14 | The saved kit's server shape and cost | Thesystems engineer |
-| `03-items-and-crafting.md` | 17 | Rolls, tradeable gems and tradeable patterns in the Steam and legal review | Thesecurity engineer, in the one review before Early Access |
-| `03-items-and-crafting.md` | 18 | Whether the three armor weights are a live choice for each style | Thematrix lane, one run of heavy, medium and light on three styles |
-| `03-items-and-crafting.md` | 19 | Regions 4 to 7: elements, key rows, named content | Theregion sketches |
-| `04-economy-and-crowns.md` | 7 | The base hours of a stamina refill | GR-58,after fault F5 closes |
-| `04-economy-and-crowns.md` | 8 | The Blessing share, and the ladder past the third Blessing | GR-7is DECIDED as a reversal Tyler may veto. The share is sized on the long death sample |
-| `04-economy-and-crowns.md` | 9 | The wage for a four of mixed Levels | Thegame designer, after MM-19 |
-| `04-economy-and-crowns.md` | 10 | The castle's cost | MM-9is DECIDED as a reversal Tyler may veto. Still owed: the sizes of castleStagePerMember and clanWeeklyShare, by the game designer |
-| `04-economy-and-crowns.md` | 12 | Security questions on the Crowns book | Thesecurity engineer, then Tyler |
-| `04-economy-and-crowns.md` | 13 | The daily caps against dear items | Thesecurity engineer |
-| `04-economy-and-crowns.md` | 14 | The server gold model | Thebalance tools lane |
-| `04-economy-and-crowns.md` | 16 | Server cost of the market, the gauge and per-use spending for four heroes | Study48 |
-| `04-economy-and-crowns.md` | 17 | A ceiling on gold find | Thegame designer, with the perk lane |
-| `04-economy-and-crowns.md` | 18 | The dates for the beta and Early Access | Tyler,after the build plan |
-| `05-progression.md` | 4 | The seat's multiple | Aderivation run on the matrix after GR-5 and GR-27 |
-| `05-progression.md` | 6 | The five hour threshold of the Blessing ladder | GR-7is DECIDED as a reversal Tyler may veto. The five hours is one knob, sized on the long death sample |
-| `05-progression.md` | 7 | Blessing prices for rungs 4 to 6 | Thewage curve (GR-51) and band S10 |
-| `05-progression.md` | 8 | What a death takes from a hero in a boss room on Normal for a new account | TheMMO decider, before MM-7 is final. A walk-through in 06-mmo-layer.md |
-| `05-progression.md` | 9 | The Kindling rows | Thepaper sample of five, after GR-61 |
-| `05-progression.md` | 10 | The Honors catalogue | Thesample, then batches of 20 or fewer |
-| `05-progression.md` | 11 | The Catacombs' own numbers | Thesample wing (GR-36) |
+| `01-core-and-combat.md` | 1 | The tier numbers | CORE-1 opens them as hypotheses, sized on the mid-geared four: Dangerous pull 5 and blows 1.17 times Normal, Deadly pull 8 and 2.25 times |
+| `01-core-and-combat.md` | 4 | The Necrotic and Storm numbers | The game designer sizes them on the matrix with the first seven spells (GR-16) and reports them as decided. It is a design call and does not go to Tyler |
+| `01-core-and-combat.md` | 5 | The shares of the dark rows | The first seven played, then a redesign under "no two weapons share a mechanic" |
+| `01-core-and-combat.md` | 6 | The crossbow's full list | The game designer, with GR-21 |
+| `01-core-and-combat.md` | 7 | The fist's own heal | The plan's gold test re-run on the spell rule (GR-17) |
+| `01-core-and-combat.md` | 8 | Whether weapon accuracy stays a stat line | The matrix lane, with the core decider, on the gear-step cells |
+| `01-core-and-combat.md` | 9 | A guard for heals at high Level | The matrix lane, with the core decider. A band that reads a heal in monster blows at Levels 185 and 400. If it fails, Greater Mend moves to the max health kind |
+| `01-core-and-combat.md` | 10 | Names for rune tiers VI and on, and who makes them | The game designer, with GR-23 and GR-45 |
+| `01-core-and-combat.md` | 11 | Something for the bar past the last rune tier | GR-61 (Kindlings), 05-progression.md. Combat's fence: a pick changes a row inside the bar budget and never adds one |
+| `01-core-and-combat.md` | 13 | The value of powerFloor | Roadmap step R6's own run on Levels 1 to 15 against the 6 hour rule |
+| `01-core-and-combat.md` | 14 | The fist promise beside "no solo or group targets" | Tyler, only if he reads it differently |
+| `01-core-and-combat.md` | 15 | Whether the engine can run heroes on both sides of a fight | One measurement by the systems engineer, for the arenas (06-mmo-layer.md) |
+| `02-world.md` | 2 | Regions 4 to 7 have no sketch of record | The game designer |
+| `02-world.md` | 3 | How fast a region can be drawn | The art and asset directors, then Tyler |
+| `02-world.md` | 4 | The Morrow Hills between Levels 142 and 165 | The game designer |
+| `02-world.md` | 5 | Signatures for six grounds | The game designer, after the two-ground sample is played |
+| `02-world.md` | 6 | The hall number and the early halls | The game designer, with chapter 03, for the keys and prizes. The hall number acts on health and the clock (GR-30), and the hall grader plays it at Levels 25, 52 and 75 |
+| `02-world.md` | 9 | The Tower's board once the top follows Level | The game designer |
+| `02-world.md` | 10 | The Bestiary | The game designer. The stage bonus is a design call. The deep dive stays queued behind the balance work |
+| `02-world.md` | 11 | The faction benefit for hunting the opposite side's ground | The game designer, chapter 05 |
+| `02-world.md` | 12 | Loot rows for Wyvern Roost and the Catacombs ground | The game designer (03-items-and-crafting.md) |
+| `02-world.md` | 13 | The measuring gaps in section 6 | The systems engineer (09-platform-and-measurement.md) |
+| `03-items-and-crafting.md` | 1 | The exchange rates themselves (gearExchange) and the slot-class shares other than the 6% for accessories | Roadmap step R11, on the matrix |
+| `03-items-and-crafting.md` | 2 | Whether +17% reads as one upgrade when played on the curve, with +24% as the second cell | One band played. It is the first thing the R10 derivation prints |
+| `03-items-and-crafting.md` | 3 | What it costs to reforge a unique up a band: materials, gold, whether a duplicate or a key is needed | The game designer, inside GR-4 and GR-8, before the build plan |
+| `03-items-and-crafting.md` | 4 | The Tempering ladder for tier 7 and for each band, as shares | GR-8, then a matrix run on gold bands |
+| `03-items-and-crafting.md` | 6 | The three signature stones: names, perks and carriers | The designer, with names checked against the data. Sample of three first |
+| `03-items-and-crafting.md` | 7 | 18 of the 23 perks have no engine hook and no measured size | The first job of the perk lane |
+| `03-items-and-crafting.md` | 8 | Leech lining sizes, and spell leech with lining leech together | One measurement |
+| `03-items-and-crafting.md` | 9 | The Morrow Hills grid re-cut from 46 uniques to 15 to 20 with carried pieces | The region lane, after R10 and R11 |
+| `03-items-and-crafting.md` | 10 | Chip pace in hours for each tier on the 12 hour clock | With the tier 4 sample |
+| `03-items-and-crafting.md` | 11 | Reference values and the no-mint guard have no owner lane | The build plan |
+| `03-items-and-crafting.md` | 12 | The uniques for the Catacombs ground at Levels 165 to 185 | The region lane |
+| `03-items-and-crafting.md` | 13 | How a perk is stored on a held piece, so one market book can filter by it | A schema call for the systems engineer |
+| `03-items-and-crafting.md` | 14 | The saved kit's server shape and cost | The systems engineer |
+| `03-items-and-crafting.md` | 17 | Rolls, tradeable gems and tradeable patterns in the Steam and legal review | The security engineer, in the one review before Early Access |
+| `03-items-and-crafting.md` | 18 | Whether the three armor weights are a live choice for each style | The matrix lane, one run of heavy, medium and light on three styles |
+| `03-items-and-crafting.md` | 19 | Regions 4 to 7: elements, key rows, named content | The region sketches |
+| `04-economy-and-crowns.md` | 7 | The base hours of a stamina refill | GR-58, after fault F5 closes |
+| `04-economy-and-crowns.md` | 8 | The Blessing share, and the ladder past the third Blessing | GR-7 is DECIDED as a reversal Tyler may veto. The share is sized on the long death sample |
+| `04-economy-and-crowns.md` | 9 | The wage for a four of mixed Levels | The game designer, after MM-19 |
+| `04-economy-and-crowns.md` | 10 | The castle's cost | MM-9 is DECIDED as a reversal Tyler may veto. Still owed: the sizes of castleStagePerMember and clanWeeklyShare, by the game designer |
+| `04-economy-and-crowns.md` | 12 | Security questions on the Crowns book | The security engineer, then Tyler |
+| `04-economy-and-crowns.md` | 13 | The daily caps against dear items | The security engineer |
+| `04-economy-and-crowns.md` | 14 | The server gold model | The balance tools lane |
+| `04-economy-and-crowns.md` | 16 | Server cost of the market and the gauge | The reliability engineer, with a fixture |
+| `04-economy-and-crowns.md` | 17 | A ceiling on gold find | The game designer, with the perk lane |
+| `04-economy-and-crowns.md` | 18 | The dates for the beta and Early Access | Tyler, after the build plan |
+| `05-progression.md` | 4 | The seat's multiple | A derivation run on the matrix after GR-5 and GR-27 |
+| `05-progression.md` | 6 | The five hour threshold of the Blessing ladder | GR-7 is DECIDED as a reversal Tyler may veto. The five hours is one knob, sized on the long death sample |
+| `05-progression.md` | 7 | Blessing prices for rungs 4 to 6 | The wage curve (GR-51) and band S10 |
+| `05-progression.md` | 8 | What a death takes from a hero in a boss room on Normal for a new account | The MMO decider, before MM-7 is final. A walk-through in 06-mmo-layer.md |
+| `05-progression.md` | 9 | The Kindling rows | The paper sample of five, after GR-61 |
+| `05-progression.md` | 10 | The Honors catalogue | The sample, then batches of 20 or fewer |
+| `05-progression.md` | 11 | The Catacombs' own numbers | The sample wing (GR-36) |
 | `05-progression.md` | 12 | Tower landings past Platinum | The game designer (03-items-and-crafting.md) |
-| `05-progression.md` | 14 | Who draws regions, and how fast | Theart and asset directors, then Tyler |
-| `05-progression.md` | 16 | How the first hour teaches thirteen skills to an account with four heroes | Thegame designer, inside GR-79, with a walk-through against the real starting kit |
-| `05-progression.md` | 18 | Whether a morning death card is a quit moment | Playtest8, section 6 |
-| `06-mmo-layer.md` | 1 | The boss roster | Thegame designer. One sample boss first |
-| `06-mmo-layer.md` | 5 | What the layer may cost | Chapter09 |
-| `06-mmo-layer.md` | 6 | The engine check | Thesystems engineer |
-| `06-mmo-layer.md` | 7 | Arena balance between styles | Thegame designer, after the engine check |
-| `06-mmo-layer.md` | 8 | The numbers nobody has set | Thegame designer, on the balance matrix |
-| `06-mmo-layer.md` | 10 | The Security review's scope for the layer | Thesecurity engineer |
-| `06-mmo-layer.md` | 11 | Side against side | Thegame designer |
-| `06-mmo-layer.md` | 12 | Live ops when nobody is watching | Thepool rule is closed (MM-4): the boss leaves when the window ends and the server re-sizes the pool after each boss |
-| `06-mmo-layer.md` | 13 | Knobs missing from knobs.json | Thebalance tools lane |
-| `07-home-and-town.md` | 1 | Study 48 | Theplatform study, then Tyler |
-| `07-home-and-town.md` | 4 | The Hall's numbers | Thegame designer, after the mountable flag exists |
-| `07-home-and-town.md` | 5 | The yard's formula in numbers | Thegame designer, inside GR-54 and GR-53 |
-| `07-home-and-town.md` | 6 | The second dropped seed | Thegame designer, with the Morrow Hills. It is written only after the first dropped seed has been read in play (GR-77) |
-| `07-home-and-town.md` | 7 | A party hero's spare rested hours | Thegame designer, when the solver has a supplies goal |
-| `07-home-and-town.md` | 8 | The first town project | Thegame designer, after GR-55 |
-| `07-home-and-town.md` | 9 | Crops and costs with no consumer | Chapter03 and chapter 04 |
-| `07-home-and-town.md` | 10 | Names and pictures | Thegame designer and the art director |
-| `07-home-and-town.md` | 11 | The Hearthrise's size and seam with the calendar | Theseam is closed as a reversal Tyler may veto (CE-8, GR-82): the calendar says when it lights and the fire says how big, from +10% to +25% |
-| `07-home-and-town.md` | 12 | Who may visit | Thegame designer, inside GR-75. A party is an account's own four (MM-18), so "party member" leaves the visit rule |
-| `07-home-and-town.md` | 16 | A home axis for the matrix | Thebaseline lane |
-| `07-home-and-town.md` | 17 | Security scope | Thesecurity engineer |
-| `08-player-experience.md` | 3 | A measured tag for each starting way | Thebalance matrix (check C1). Owner: the core decider |
-| `08-player-experience.md` | 6 | The Path's rows for Levels 17 to 19, 21 to 24 and 26 to 29 | Chapter03 |
-| `08-player-experience.md` | 7b | How the thirteen skills are spread across four heroes past the first night | Thegame designer, inside GR-79, with chapter 05 (its item 16) |
-| `08-player-experience.md` | 10 | Whether the report's counters fit the session row with no added statement | Thesystems engineer |
-| `08-player-experience.md` | 11 | How an away hunt is saved, which sets how fresh a return card can be | Chapter09 (study 48) |
-| `08-player-experience.md` | 12 | A blind play of the whole first hour | Afresh reader, after it is built |
-| `08-player-experience.md` | 13 | What a player who refuses heroes two to four is shown, and for how long | Thedesigner, after playtest 1 |
-| `09-platform-and-measurement.md` | 1 | Study 48 itself | Thereliability engineer, then Tyler. Until it lands, section 2.3 cannot say the game fits $0.15 |
-| `09-platform-and-measurement.md` | 2 | The 10,000 account budget | Study48 |
-| `09-platform-and-measurement.md` | 4 | The Security review's size and owner for the MMO layer | TheSecurity engineer |
-| `09-platform-and-measurement.md` | 6 | A second calibration party | Realplay. The playtest supplies it |
-| `09-platform-and-measurement.md` | 7 | Readers for 19 bands | Thematrix lane, each with its own model |
-| `09-platform-and-measurement.md` | 8 | Bands for the MMO layer | Thematrix lane with the MMO layer study, after MM-25, MM-26 and MM-31 are ruled |
-| `09-platform-and-measurement.md` | 9 | A band for the early economy of four heroes | Chapter04 (economy and Crowns), then a band here |
-| `09-platform-and-measurement.md` | 10 | The Lab's proposal set | Thedashboard lane |
-| `09-platform-and-measurement.md` | 11 | The hunt tally's three fields | Systems,in the build plan |
-| `09-platform-and-measurement.md` | 13 | Whether a watched four of four people on four accounts changes the save design | Study48. MM-18 is decided, so a party is an account's own heroes and the case does not exist unless Tyler vetoes that reversal |
-| `09-platform-and-measurement.md` | 14 | Content authoring pace against the runway, timed | Theart and asset directors, then Tyler |
-| `09-platform-and-measurement.md` | 15 | The build plan's unit | TheCoordinator, after the rulings |
+| `05-progression.md` | 14 | Who draws regions, and how fast | The art and asset directors, then Tyler |
+| `05-progression.md` | 16 | How the first hour teaches thirteen skills to an account with four heroes | The game designer, inside GR-79, with a walk-through against the real starting kit |
+| `05-progression.md` | 18 | Whether a morning death card is a quit moment | Playtest 8, section 6 |
+| `06-mmo-layer.md` | 1 | The boss roster | The game designer. One sample boss first |
+| `06-mmo-layer.md` | 5 | What the layer may cost | The systems engineer (09-platform-and-measurement.md) |
+| `06-mmo-layer.md` | 6 | The engine check | The systems engineer |
+| `06-mmo-layer.md` | 7 | Arena balance between styles | The game designer, after the engine check |
+| `06-mmo-layer.md` | 8 | The numbers nobody has set | The game designer, on the balance matrix |
+| `06-mmo-layer.md` | 10 | The Security review's scope for the layer | The security engineer |
+| `06-mmo-layer.md` | 11 | Side against side | The game designer |
+| `06-mmo-layer.md` | 12 | Live ops when nobody is watching | The pool rule is closed (MM-4): the boss leaves when the window ends and the server re-sizes the pool after each boss |
+| `06-mmo-layer.md` | 13 | Knobs missing from knobs.json | The balance tools lane |
+| `07-home-and-town.md` | 1 | What a town that draws heroes at work costs | The reliability engineer |
+| `07-home-and-town.md` | 4 | The Hall's numbers | The game designer, after the mountable flag exists |
+| `07-home-and-town.md` | 5 | The yard's formula in numbers | The game designer, inside GR-54 and GR-53 |
+| `07-home-and-town.md` | 6 | The second dropped seed | The game designer, with the Morrow Hills. It is written only after the first dropped seed has been read in play (GR-77) |
+| `07-home-and-town.md` | 7 | A party hero's spare rested hours | The game designer, when the solver has a supplies goal |
+| `07-home-and-town.md` | 8 | The first town project | The game designer, after GR-55 |
+| `07-home-and-town.md` | 9 | Crops and costs with no consumer | The game designer |
+| `07-home-and-town.md` | 10 | Names and pictures | The game designer and the art director |
+| `07-home-and-town.md` | 11 | The Hearthrise's size and seam with the calendar | The seam is closed as a reversal Tyler may veto (CE-8, GR-82): the calendar says when it lights and the fire says how big, from +10% to +25% |
+| `07-home-and-town.md` | 12 | Who may visit | The game designer, inside GR-75. A party is an account's own four (MM-18), so "party member" leaves the visit rule |
+| `07-home-and-town.md` | 16 | A home axis for the matrix | The baseline lane |
+| `07-home-and-town.md` | 17 | Security scope | The security engineer |
+| `08-player-experience.md` | 3 | A measured tag for each starting way | The balance matrix (check C1). Owner: the core decider |
+| `08-player-experience.md` | 6 | The Path's rows for Levels 17 to 19, 21 to 24 and 26 to 29 | The game designer (03-items-and-crafting.md) |
+| `08-player-experience.md` | 7b | How the thirteen skills are spread across four heroes past the first night | The game designer, inside GR-79, with chapter 05 (its item 16) |
+| `08-player-experience.md` | 10 | Whether the report's counters fit the session row with no added statement | The systems engineer |
+| `08-player-experience.md` | 12 | A blind play of the whole first hour | A fresh reader, after it is built |
+| `08-player-experience.md` | 13 | What a player who refuses heroes two to four is shown, and for how long | The designer, after playtest 1 |
+| `09-platform-and-measurement.md` | 1 | What study 48 left open | Study 48 has landed and closed the first part: the away hunt's save, and whether the account-day fits (yes at 1,000, and at 10,000 only without a watched tab or with an engine server) |
+| `09-platform-and-measurement.md` | 2 | The 10,000 account budget | The engine server is a spend. TYLER CONFIRMS, later, money list row 17. The share of the bill that is not the database stays with the reliability engineer |
+| `09-platform-and-measurement.md` | 4 | The Security review's size and owner for the MMO layer | The Security engineer |
+| `09-platform-and-measurement.md` | 6 | A second calibration party | Real play. The playtest supplies it |
+| `09-platform-and-measurement.md` | 7 | Readers for 19 bands | The matrix lane, each with its own model |
+| `09-platform-and-measurement.md` | 8 | Bands for the MMO layer | The matrix lane with the MMO layer study, after MM-25, MM-26 and MM-31 are ruled |
+| `09-platform-and-measurement.md` | 9 | A band for the early economy of four heroes | Chapter 04 (economy and Crowns), then a band here |
+| `09-platform-and-measurement.md` | 10 | The Lab's proposal set | The dashboard lane |
+| `09-platform-and-measurement.md` | 11 | The hunt tally's three fields | Systems, in the build plan |
+| `09-platform-and-measurement.md` | 13 | Whether a watched four of four people on four accounts changes the save design | Partly answered by study 48 |
+| `09-platform-and-measurement.md` | 14 | Content authoring pace against the runway, timed | The art and asset directors, then Tyler |
+| `09-platform-and-measurement.md` | 15 | The build plan's unit | The Coordinator, after the rulings |
 | `decisions/review.md` | fix 4 | A floor in the to-hit formula, so Defense rating buffs cannot stack past the 60% cap | The matrix lane, with the core decider |
 | `decisions/review.md` | fix 12 | The hall number played by the hall grader at Levels 25, 52 and 75 | The matrix lane, with the game designer |
 | `decisions/review.md` | section 9 | The lineup cells, the price shares of GR-8 and the rung Levels of GR-7 were not re-run by the adversarial check | The matrix lane |
 
-## 6. Replaced by an MM call
+## 7. Replaced by an MM call
 
 | Id | By | Note |
 |---|---|---|

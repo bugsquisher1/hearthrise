@@ -244,7 +244,7 @@ Kept hidden for later, not cut: Capture the flag (MM-46). The clan's shared hunt
 
 ## Still missing, as the review listed it
 
-The full list, with every chapter's open items, is section 7 of `00-the-game.md`.
+The full list, with every chapter's open items, is section 8 of `00-the-game.md`.
 
 | What | Where | Owner |
 |---|---|---|

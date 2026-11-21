@@ -796,7 +796,7 @@
     {
       "id": "GR-64",
       "call": "No new skill, prestige or stat points.",
-      "decision": "None of the three.",
+      "decision": "No prestige, no rebirth and no fourteenth skill. A hero earns a talent point every five Levels. Points are stored as rows, and no blow reads a Level.",
       "outcome": "recommended",
       "reason": "An uncapped Level already is the prestige loop. Stat points would put Level into the blow, which I ruled out.",
       "evidence": "EVIDENCE (56). Keeps 11-04 and 11-18 (no Level in combat).",
@@ -804,7 +804,9 @@
       "money": false,
       "depends": "None.",
       "group": "Progression",
-      "status": "DECIDED"
+      "status": "DECIDED",
+      "wasBeforeTalents": "None of the three.",
+      "amendedBy": "Tyler's ruling of 2026-11-21 on level choices, and chapter 10 (docs/design/overhaul/10-level-choices.md). The old wording refused stat points a Level."
     },
     {
       "id": "GR-65",
@@ -858,6 +860,26 @@
       "wasBeforeTyler": "TYLER CONFIRMS. Recommended: no. No Level XP boost is sold, for Crowns or for gold. The timed Level XP cap of +25% is filled only by the Hearthrise weekend.",
       "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
       "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling."
+    },
+    {
+      "id": "TAL-1",
+      "file": "core",
+      "group": "Progression",
+      "call": "Talents: a build choice every five Levels.",
+      "decision": "One system called Talents. A hero earns one talent point every five Levels, for ever. A point goes into a track. Every rank gives a small stat on a curve that flattens, and at set ranks a track unlocks a rule that changes how the hero plays its seat. A plan set once spends new points with no press. A reset costs gold. The first build holds five tracks (Force, Footing, Grit, Reserve, Linger) and the rank 3 unlocks. No number in it is decided.",
+      "outcome": "recommended",
+      "reason": "The design is chapter 10. This row only carries it into the decision files.",
+      "evidence": "None measured. Every number is PROVISIONAL and the chapter says so. COMPUTED on the provisional curve: the fastest build is at most 1.2% faster than the suggested build.",
+      "replaces": "GR-61 (Kindlings), which Tyler's ruling of 2026-11-21 superseded. It amends GR-64.",
+      "money": false,
+      "depends": "The measuring tool's three fixes, the modifier table's \"when\" column (R20), the to-hit floor owed by CORE-4, the wage formula (R15) for the reset price, and MM-41 for the arenas.",
+      "status": "PROVISIONAL",
+      "waitsOn": "Section 12 of docs/design/overhaul/10-level-choices.md: the sample of five tracks played in the playtest, the matrix with four stat lines after the tool's fixes, the unlock sizes, the reset price, and the arena engine check",
+      "source": "docs/design/overhaul/10-level-choices.md",
+      "ruling": "Tyler, 2026-11-21: a build choice every five Levels is designed now and built with the first build. That is the only thing ruled about it.",
+      "firstBuild": "in the first build: five tracks and the rank 3 unlocks. Unlock ranks 8 and up, tracks six to eight and the arena build wait until the sample is played",
+      "decidedBy": "The level choices design lane, 2026-11-21",
+      "idNote": "The id TAL-1 was given by the integrator. Chapter 10 names no call id."
     }
   ],
   "tylerAnswers": "Tyler answered his lists on 2026-11-21. Each row he touched carries a tyler field. The full record is in all.json.",

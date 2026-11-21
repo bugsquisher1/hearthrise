@@ -21,7 +21,7 @@ Tyler adopted the critical review on 2026-11-21 (`review/00-critical-review.md`)
 9. The cheap social layer: presence, Global chat, clan roster, chat and browser, the calendar with the Hearthrise weekend.
 10. One world boss as a sample of one. It is an ordinary four in an ordinary room plus one shared number.
 
-**Plus level choices.** On 2026-11-21 Tyler lifted his 11-05 hold. A build choice every five Levels is designed now and built with the first build. It supersedes GR-61, which kept Kindlings on paper. The design is `10-level-choices.md`, which a design lane is writing. This book points to it and does not design it.
+**Plus Talents.** On 2026-11-21 Tyler lifted his 11-05 hold. A build choice every five Levels is designed now and built with the first build. It supersedes GR-61, which kept Kindlings on paper. The design is chapter 10, `10-level-choices.md`, and its decision row is TAL-1, PROVISIONAL. The first build holds five tracks and the rank 3 unlocks.
 
 **What waits, and until when.**
 
@@ -37,6 +37,7 @@ Tyler adopted the critical review on 2026-11-21 (`review/00-critical-review.md`)
 | The sixteen Necrotic and Storm spells, fists, status pairs | The eight weapon ways are distinct and Deadly is sized |
 | The Catacombs mode beyond one wing, the Hall of Firsts, the Honors catalogue | The first build is played |
 | Sinks as a share of band gold, and the yard rate change | The wage can be measured. Until then the typed prices are no worse |
+| Talent unlock ranks 8 and up, tracks six to eight, and the arena build | The sample of five tracks is played |
 
 Every row of the MMO layer outside the first build is marked "planned, waits" with what it waits on, in `06-mmo-layer.md` section 2.11 and in the `firstBuild` field of `decisions/all.json`.
 
@@ -65,7 +66,7 @@ Number words. TARGET is a number the design aims at. COMPUTED is arithmetic on r
 
 Ids. GR-x, MM-x, CE-x, CORE-x and PREM-x are calls in `decisions/all.json`. GR-2 and GR-67 are ruled and have no row there. GR-10a, GR-10b, GR-10c, GR-60, GR-68 and GR-83 were replaced by MM calls. Ids such as 25-4 or 50-11 are Tyler's rulings of 2026-11-20 and 2026-11-21.
 
-How the decisions were made. Three deciders took 157 rows. An adversarial check returned ACCEPT WITH FIXES with 31 fixes, re-ran the measurements it could, and withdrew one decision. All 31 are applied. 155 calls remain, because two were decided twice and merged. Tyler then answered his whole list on the page, and adopted a critical review of the result. Today 51 calls are DECIDED (6 of them with his yes on the page), 91 are PROVISIONAL, 5 are OPEN, 2 are RULED, 4 are PROPOSAL, 1 is superseded and 1 is withdrawn.
+How the decisions were made. Three deciders took 157 rows. An adversarial check returned ACCEPT WITH FIXES with 31 fixes, re-ran the measurements it could, and withdrew one decision. All 31 are applied. 155 calls remained, because two were decided twice and merged. Chapter 10 then added one row, TAL-1, so the file holds 156. Tyler then answered his whole list on the page, and adopted a critical review of the result. Today 51 calls are DECIDED (6 of them with his yes on the page), 92 are PROVISIONAL, 5 are OPEN, 2 are RULED, 4 are PROPOSAL, 1 is superseded and 1 is withdrawn.
 
 ## 3. Every ruling
 
@@ -75,7 +76,7 @@ One line each, newest first inside each group. A line is a ruling of Tyler's unl
 
 - 2026-11-21. The game designer decides every open design call. Tyler gets money calls, grants, plan approvals he asked for and any decision that reverses one of his rulings.
 - 2026-11-21. Tyler adopted the critical review. The book is re-issued with three honest words, and the first build is narrowed. Nothing is cut.
-- 2026-11-21. The 11-05 hold is lifted. A build choice every five Levels is designed now and built with the first build. (`10-level-choices.md`)
+- 2026-11-21. The 11-05 hold is lifted. A build choice every five Levels is designed now and built with the first build, inside the power budget and modelled in the balance matrix from the start. (`10-level-choices.md`)
 - 2026-11-21. On gear bought with gold from Crowns: "paying can put a hero way ahead, it depends on what is on the player market". (MM-32, his note)
 - 2026-11-21. On the gold price of Premium: "this depends on the crown price, we don't set it, the players do". (MM-34, his note)
 - 2026-11-21. Tyler answered his whole list on the page. Those quick picks are recorded in section 5 as his yes, not as rulings.
@@ -362,6 +363,7 @@ One line each, newest first inside each group. A line is a ruling of Tyler's unl
 | `07-home-and-town.md` | The property ladder, rooms, the Hall of Firsts, farming, curing, training, Storage, heroes at work in town and the Great Hearth |
 | `08-player-experience.md` | The first hour with four heroes, walked against real data. The company as one thing, the hunt report, away and return, the Path, teaching, and the chase with no dailies |
 | `09-platform-and-measurement.md` | The formula architecture, the 28 steps of the work, server cost, the balance matrix, what the simulator can be trusted for, playtests and the Security scope |
+| `10-level-choices.md` | Talents: a build choice every five Levels. The rule, a sample of five tracks, the power budget, what the matrix needs, the server shape and the new-player path. All PROVISIONAL |
 | `decisions/all.json` | Every call, one row each, with its status, its reason and its evidence. `decisions/all.md` is its mirror and `decisions/review.md` is the adversarial check |
 
 ## 5. Tyler's picks on the page, and what still needs him

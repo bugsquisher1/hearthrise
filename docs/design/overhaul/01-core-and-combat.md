@@ -117,6 +117,8 @@ The intentional special rules in combat, each with its status.
 | Three training bases | Melee and Ranged train on damage dealt, Magic on mana spent, Defense on blows taken | RULED 10-18 and 11-05 in parts. On record as one rule: OPEN (GR-25, waiting on Tyler for his explicit approval) |
 | Storm burns mana, Necrotic cuts healing | What makes the two elements different (2.5) | RULED 11-18 in kind. The game designer sizes the numbers on the matrix with the first seven spells (GR-16) |
 
+**Talents on the modifier table.** PROVISIONAL (TAL-1, `10-level-choices.md`). The table gains no key. Talent rows are sources on five keys that already exist: permanent damage (Force), the Defense rating (Footing), `heroHp` (Grit), `heroMana` (Reserve) and the status tick (Linger). The to-hit floor that CORE-4 owes now also bounds Footing, so it must land before Footing is final.
+
 ### 2.2 Hitting
 
 **To-hit is a ratio.** RULED 21-1 (11-20). The chance to land a basic blow is the attacker's rating measured against the defender's, at every Level. A point of skill is worth the same share at Level 10 and at Level 400. No blow reads the hero's own Level, and no multiplier is keyed on a Level gap (RULED 11-04 and 11-18).
@@ -612,6 +614,16 @@ One file, `tools/balance-program/formulas/knobs.json`. The Balance Lab turns eac
 | `armorMitigation`, `armorCurve`, `mitigationCap` | 650, 750, 1.5. 0.4, 0.62. 60% | What armor is worth |
 | `regen` | 0.3% a second in a fight, 6% out | Downtime, food bought |
 | `gearSlope`, `gearBandStep`, `gearExchange` | `03-items-and-crafting.md` | Whether hero power and armor keep pace, forever |
+| `talentEvery` | 5 Levels | How often a talent point arrives. RULED 2026-11-21 for the rhythm |
+| `talentHalf` | 10 ranks | How fast a track flattens. Lower pays breadth more |
+| `talentPower` | 1.0 | Every track's ceiling at once |
+| `talentUnlockSize` | 1.0 | Every unlock's size at once |
+| `talentResetHours` | 3 hours of wage | The reset's gold sink |
+| `talentFreeResetLevel` | Level 30 | How long a new hero may change its mind for nothing |
+
+The six talent knobs are PROVISIONAL (TAL-1, `10-level-choices.md`). They arrive with the Talents build step, and every one of their values is provisional.
+
+**The fences on Talents**, beside the combat fence (a pick changes a row inside the bar budget and never adds one). From `10-level-choices.md` section 3.6: no blow, heal or monster roll reads a Level, and talents are stored rows. No talent touches a drop, Magic Find, Luck, coin from kills or Level XP. No talent copies a jewelry perk's case or a unique's property kind. No talent takes a share off a blow, so protection is written on the Defense rating or on health. No talent adds a row to a bar lane, shortens a cooldown or changes attack speed. No talent row is keyed on a weapon, a ground or a monster name. Premium gives no points and no free reset, and Crowns buy neither. No town work track in the first set.
 
 ---
 

@@ -66,13 +66,14 @@ It is the test every system below passed, and the test any later social feature 
 
 | Step | Kill speed | Level pace | Label |
 |---|---|---|---|
-| A plain four in mid gear with no buffs | 1.00 | 1.00 | the reference, which is the clock of the Level table (RULED 2026-11-21) |
+| A plain four in mid gear on suggested talent builds, with no buffs | 1.00 | 1.00 | the reference, which is the clock of the Level table (RULED 2026-11-21) |
 | Best in slot for the band, which a boss or arena piece is one way to reach | 1.15 | 1.15 | RULED size, 2026-11-21 |
 | Plus both damage caps, +15% | 1.32 | 1.32 | COMPUTED, 1.15 x 1.15 |
 | Plus the timed Level XP cap, +25%, on a Hearthrise weekend | 1.32 | 1.65 | COMPUTED, 1.32 x 1.25 |
 | Paying alone: best gear sooner and a +6% damage boost | 1.22 | 1.22 | COMPUTED, 1.15 x 1.06 |
+| The fastest talent build over the suggested one, on top of every cap | 1.34 | about 1.67 | COMPUTED, 1.65 x 1.012. PROVISIONAL (TAL-1, `10-level-choices.md`) |
 
-There is one ceiling. It is a reading held by a test and never a new limit, and chapter 04 quotes the same numbers (MM-31). With every cap full a four reads 1.65 times a plain mid-geared four in Levels an hour and 1.32 in kills an hour, with about 10% less damage taken an hour and 10% more materials. Nobody holds 1.65 outside a Hearthrise weekend. Paying alone reads about 1.22. A player who earns every buff and buys nothing averages about 1.3 times the plain pace over a month. The kill speed is less than two gear bands (COMPUTED, 1.17 squared is 1.37). Most of the gain is timed and lapses when the player stops earning or buying it. Nothing in it lets a hero wear a higher band, enter a ground sooner or skip a Level.
+There is one ceiling. It is a reading held by a test and never a new limit, and chapter 04 quotes the same numbers (MM-31). With Talents in, the reference is a plain four on suggested builds and the ceiling reads about 1.67, because the fastest build is at most 1.2% faster than the suggested one. With every cap full a four reads 1.65 times a plain mid-geared four in Levels an hour and 1.32 in kills an hour, with about 10% less damage taken an hour and 10% more materials. Nobody holds 1.65 outside a Hearthrise weekend. Paying alone reads about 1.22. A player who earns every buff and buys nothing averages about 1.3 times the plain pace over a month. The kill speed is less than two gear bands (COMPUTED, 1.17 squared is 1.37). Most of the gain is timed and lapses when the player stops earning or buying it. Nothing in it lets a hero wear a higher band, enter a ground sooner or skip a Level.
 
 **What the player sees.** One line on the hero sheet: "Buffs: damage +11% of 15, Level XP +25% of 25." A player always knows what is filled and what is left to chase. PROVISIONAL (MM-24).
 
@@ -234,6 +235,8 @@ A building's level sets the size of its buff, up to the standing cap. A clan tha
 | At 10 accounts | Everyone can fight everyone | Thin. Mostly house teams of the band until it fills |
 | Season rewards, by rating tier | Up to +5% material find for the next season, inside the timed cap. A title and a banner | A piece of the arena's own gear line at the hero's band, with its own property, sized like a boss piece, at most one a season for an account (CE-1). The line's upgrade material. Up to +5% damage dealt for the next season, which no arena reads. A title |
 | Who it is for | The builder, the new account, the small server | The player who has invested in gear, and the player who buys an edge |
+
+**What each arena reads of Talents.** PROVISIONAL (TAL-1, `10-level-choices.md`), and it waits on the engine check (MM-41) like the rest of this section. In the Even Arena every hero gets the same number of points, the count for the arena's reference Level, so the reference kit gains a points count. The player sets an arena build for each hero once. It is saved, free to change, and never costs gold. A hero's real allocation is not read there. The Open Arena reads the hero as it stands, with its real points and its real allocation.
 
 **Rules both share.**
 

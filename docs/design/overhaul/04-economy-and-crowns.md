@@ -259,6 +259,7 @@ PROVISIONAL, GR-8, CE-4 and MM-22, Tyler said yes on the page, reversal, let sta
 | 3 | Linings | The first band whose ground has an element to guard against. TARGET: the second gear band | The first repeating gold-for-power. Sized inside the ruled 48 hour cap |
 | 4 | The House dummy rungs | When the yard fee starts to bite, by skill band | It converts a repeating fee into one large purchase, priced at 25 to 50 hours of the fee it ends |
 | 5 | The clan castle | When clans open (chapter 06) | Shared work, standing buffs under one cap. Sized below |
+| 7 | The talent reset | Level 30, when a reset stops being free | PROVISIONAL (TAL-1, `10-level-choices.md`). Priced in hours of the hero's own wage (`talentResetHours`, opening at 3), with no gold number until the wage formula of R15 exists. It is not a Crowns surface. Premium gives nothing here, and the store sells no points and no resets |
 | 6 | Boss and arena upgrade materials, bought from players | When the first world boss stands | The gold moves to the player who earned the material, and 5% burns on the way |
 
 The yard fee ships before linings (RULED 2026-11-20, 24-12). The first week's order is PROVISIONAL (CE-4) in section 2.10. Its sizes are PROVISIONAL (CE-5, Tyler said yes on the page, reversal of the gold numbers of 26-3 and 26-1, let stand on the page) and are a HYPOTHESIS.

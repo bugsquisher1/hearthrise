@@ -372,7 +372,7 @@ The huge hearth in the center of Havora (RULED 10-25, art approved). PROVISIONAL
 | The Works | Fed by gold. One project a month on the same window. The plaque stands at the Hearth |
 | The Colors | Powders and named fuels in one list. A powder is bought, a named fuel is found |
 | The split that never blurs | Fuel moves the Fire and only the Fire. Gold moves the Works and the Colors and never the Fire. So no gold ever buys XP for the server |
-| What a hero gets | Its Inner Flame, which pays in Kindlings if GR-61 is ruled (chapter 05). Kindlings are lit at the Hearth window |
+| What a hero gets | Its Inner Flame, with its regen and its fuels. GR-61 and its Kindlings are superseded by Talents (`10-level-choices.md`) |
 | Rule 0 | Everything here works while both players are asleep (PROVISIONAL MM-1, waits on a playtest that shows whether players ask for what was removed, Tyler said yes on the page). A fire that needs nobody at a set hour, and a project that fills from gifts made on any visit |
 | The engine | The staged-gift engine of the Works survives the merge. A clan project can be rows on it later (chapter 06) |
 

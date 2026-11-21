@@ -213,7 +213,7 @@
   },
   "decided": {
     "rowsDecided": 157,
-    "calls": 155,
+    "calls": 156,
     "mergedTwice": [
       "GR-24",
       "MM-7"
@@ -221,7 +221,7 @@
     "byStatus": {
       "DECIDED": 51,
       "ofWhichTylerSaidYesOnThePage": 6,
-      "PROVISIONAL": 91,
+      "PROVISIONAL": 92,
       "OPEN": 5,
       "RULED": 2,
       "PROPOSAL": 4,
@@ -232,8 +232,8 @@
     "rowsChangedByAFix": 40,
     "statusTagsInTheBook": {
       "decided": 324,
-      "provisional": 750,
-      "open": 114,
+      "provisional": 762,
+      "open": 115,
       "proposal": 36,
       "saidYesOnThePage": 349,
       "noCallId": 22
@@ -400,9 +400,9 @@
         ]
       },
       "Progression": {
-        "calls": 6,
+        "calls": 7,
         "DECIDED": 1,
-        "PROVISIONAL": 2,
+        "PROVISIONAL": 3,
         "OPEN": 0,
         "RULED": 0,
         "PROPOSAL": 1,
@@ -413,7 +413,8 @@
           "GR-63",
           "GR-64",
           "GR-65",
-          "GR-66"
+          "GR-66",
+          "TAL-1"
         ]
       },
       "Social": {
@@ -902,6 +903,10 @@
       {
         "id": "PREM-2",
         "waitsOn": "test Crowns run in a playtest, and the Security review. Money stays Tyler's. The clause re-derived after his two \"no\" answers was never put to him."
+      },
+      {
+        "id": "TAL-1",
+        "waitsOn": "Section 12 of docs/design/overhaul/10-level-choices.md: the sample of five tracks played in the playtest, the matrix with four stat lines after the tool's fixes, the unlock sizes, the reset price, and the arena engine check"
       }
     ],
     "proposals": [
@@ -937,7 +942,7 @@
       "The cheap social layer: presence, Global chat, clan roster, chat and browser, the calendar with the Hearthrise weekend",
       "One world boss as a sample of one. It is an ordinary four in an ordinary room plus one shared number"
     ],
-    "plus": "Level choices, a build choice every five Levels, by Tyler's ruling of 2026-11-21. See 10-level-choices.md.",
+    "plus": "Talents, a build choice every five Levels, by Tyler's ruling of 2026-11-21. The first build holds five tracks and the rank 3 unlocks. See 10-level-choices.md.",
     "waits": [
       {
         "what": "Both arenas, their seasons, tickets and gear line",
@@ -978,13 +983,17 @@
       {
         "what": "Sinks as a share of band gold, and the yard rate change",
         "until": "The wage can be measured. Until then the typed prices are no worse"
+      },
+      {
+        "what": "Talent unlock ranks 8 and up, tracks six to eight, and the arena build",
+        "until": "The sample of five tracks is played"
       }
     ]
   },
   "levelChoices": {
     "ruling": "Tyler, 2026-11-21. The 11-05 hold is lifted. A build choice every five Levels is designed now and built with the first build.",
     "supersedes": "GR-61, which put Kindlings on paper only",
-    "where": "docs/design/overhaul/10-level-choices.md, written by a design lane. This book points to it and does not design it."
+    "where": "docs/design/overhaul/10-level-choices.md, chapter 10, Talents. Its decision row is TAL-1."
   },
   "tyler": {
     "note": "Tyler answered his list on the page on 2026-11-21. Each pick is a real yes and was quick, so it is recorded as \"said yes on the page\". RULED is kept for the two answers where he wrote a note.",

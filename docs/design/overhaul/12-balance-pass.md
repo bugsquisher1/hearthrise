@@ -8,7 +8,7 @@ Labels. MEASURED is a run on the real engine, with the run, the cells, the seeds
 
 **What the fixed simulator says about the proposed game.** The base is sound and the harder tiers were not. Gear on a line, the kill reward and the Level table all read close to their targets from Level 45 up. But on the proposed game as registered, Dangerous and Deadly did nothing to a party. A mid-geared four on Deadly stood at 72 to 97% health on all 28 ground ends and nothing died (MEASURED, R0). So every number that leaned on "Deadly bites" was untested until this pass.
 
-**The few causes behind the 3,620 reds.** Twelve causes, and five of them hold 3,193 rows.
+**The few causes behind the 3,620 reds.** Twelve causes, and five of them hold 3,171 rows.
 
 | Cause | Rows | Kind |
 |---|---|---|
@@ -28,6 +28,7 @@ The design misses in 1,581 rows, a band is wrong in 1,368 and the tool is wrong 
 - **Deadly's pull of 8, Dangerous's pull of 5, and what they pay.** For a four, Dangerous pays 2.1 to 3.0 times Normal and Deadly pays 20 to 29% over Dangerous.
 - **The lost hunting time you accepted in S-6.** A four that sits on the edge of Deadly loses 16 to 34% of an 8 hour bar when left alone. The review computed 18 to 31%.
 - **The Talents power budget (TL1).** The fastest build is at most 2.2% faster than the suggested one.
+- **Your rule that the four together beats the same four split up.** With the new tiers in, the four on the best tier it keeps earns 1.4 to 2.6 times what its heroes earn apart, at 28 of 29 checkpoints from Level 5 to 400.
 
 **Changed, and to what.**
 - **Deadly blows: 2.25 to 2.5 times Normal.** At 2.25 a mid four dies at only 5 of 14 band floors. At 2.5 it dies at 10 of 14 floors and is safe at 12 of the 13 band tops that can be read.
@@ -49,9 +50,9 @@ The design misses in 1,581 rows, a band is wrong in 1,368 and the tool is wrong 
 | Id | Run | Cells, seeds, hours | What it is |
 |---|---|---|---|
 | R0 | GitHub run 44920906999 | 4,503 cells, 2 seeds of 2 hours | The full matrix on the proposed game as registered. Played on commit b0f472e7, one commit before the sitting's cells. The mixed four is the same four |
-| R1 | GitHub run 44924971088 | 442 cells, 2 seeds of 1 hour | The subset at the base dials with five buff rows on the four. The rest of this run was cancelled to free runners |
+| R1 | GitHub run 44924971088 | 670 cells, 2 seeds of 1 hour | The subset at the base dials with five buff rows, 240 buff cells. The rest of this run, a wider tier sweep, was cancelled to free runners for R2 |
 | R2 | GitHub run 44925664434 | 153 cells at each of two dial pairs, 4 seeds of 8 hours | The death sample. A four cell is 128 hero-hours. Dangerous at 2.6 and 3.0, Deadly at 2.25 and 2.5 |
-| R4 | GitHub run 44928035806 | R4-CELLS | The death sample and the full matrix with this pass's numbers in |
+| R4 | GitHub run 44928035806 | 153 cells at 4 seeds of 8 hours, and 4,567 cells at 2 seeds of 2 hours | The death sample with both harder tiers at 2.5, and the full matrix with this pass's three picks in |
 | L | Local, the dev PC, each under four minutes | 2 seeds of 1 hour | Six tier probes on the four, the gear step, the armor curve, jewelry on and off |
 
 Two seeds of two hours is 16 hero-hours for a four. It cannot see a death rate under about 60 in 1,000 hours. Every death number in this chapter comes from R2 or R4.
@@ -69,7 +70,7 @@ MEASURED on R0. Every RED row is filed under one cause. Kind (a) is the design m
 | 1 | **A lone hero judged on a tier band.** The tiers are sized on the mid four (CORE-1), and no solo target exists (2026-11-21) | 811 | b | S3, S4, G-2 on the harder tiers, G-5, P10 | Read these bands on the four only. Band change 1 |
 | 2 | **The arrival kit takes two to three times the damage of the mid kit under Level 110.** One tier back, no jewelry and eight skill points down | 735 | a | S5.low 615, P3 71, P5 49 | Section 3.6. Not fixed in this pass |
 | 3 | **G-9 reads the store bill as if it were every repeating sink.** Normal is asked to be under 15% by one band and over 25% by this one | 632 | c | G-9 | Retire the reader until a sink model exists. Band change 4 |
-| 4 | **The harder tiers do not bite a party** | 575 | a | S3 and S4 on parties 290, G-2 too low on the harder tiers 136, G-5 60, 89 more | Fixed by the tier patch, section 3.1 |
+| 4 | **The harder tiers do not bite a party** | 575 | a | S3 and S4 on parties 374, the store share too low on the harder tiers 136, G-5 60, P10 5 | Fixed by the tier patch, section 3.1 |
 | 5 | **Profit and store-share bands used as targets.** Ruled 2026-11-13: profit is reported, never graded | 418 | b | G-6 207, G-2.normal 169, G-1 34, G-3 8 | Report only. Band change 5 |
 | 6 | **Armor steps.** A tier of armor is worth 23 to 58% early and nothing once a set is at the 60% cap. Best gear protects too much under Level 45 | 198 | a | S5.bis 145, E1.armor 34, E1.weapon 13, 6 more | Section 3.6 |
 | 7 | **A way judged on the hammer's clock.** The tank and the healer are slow alone on purpose, and no lone target exists | 133 | b | P2 | Read P2 on the hammer. Band change 6 |
@@ -125,7 +126,7 @@ At 2.25 Deadly is free on nine grounds from the day a four arrives. At 2.5 a fou
 
 **Why Dangerous takes the same blows.** MEASURED, R2. Dangerous at 2.6 on a pull of five killed the bow on Wyvern Roost in all four seeds, where Deadly at 2.25 on the same ground had no death. A back hero dies to one big blow from a shooter, and the size of that blow is the dial, not the pull. If Dangerous hits harder than Deadly, the tiers invert on every ground with shooters. With one blow number, Dangerous is always the smaller pull of the same monsters. Dangerous at 3.0 was also worse than Deadly at 2.5 on the Coppercap Warrens, 657 deaths in 1,000 hours against 138.
 
-**Dangerous at 2.5.** R4-DANGEROUS
+**Dangerous at 2.5.** MEASURED, R4, 4 seeds of 8 hours, the mid four on 14 grounds at both band ends. 25 of 28 cells had no death. The Sewer's floor at Level 5 read 41 deaths in 1,000 hours, Wickstead's floor at Level 8 read 142, and the Roost's floor read 23, where the bow died twice. All cells together read 4 deaths in 1,000 hours. That is under the ruled 10 to 30. Reaching the ruled count needs Dangerous to hit harder than Deadly. At 2.6 the pool read 8. At 3.0 it read 29, with seven floors over the red line and two grounds where Dangerous was deadlier than Deadly. So at 2.5 Dangerous is the safe idle tier for a mid four inside its band, and the ruled count is on the list for Tyler.
 
 **Each ground is now a ladder.** JUDGMENT, on the measured shape. A four arrives and hunts Dangerous. Some way up the band Deadly stops killing it. By the top Deadly is safe and the next ground opens. That is your "strong enough or not" of 2026-11-08, and it is what one table can deliver. A flat death count at every Level is not.
 
@@ -137,7 +138,7 @@ At 2.25 Deadly is free on nine grounds from the day a four arrives. At 2.5 a fou
 |---|---|---|---|
 | Deaths of a mid four on Deadly | 50 to 100 in 1,000 hours, flat at every Level (ruled 2026-11-21) | The ruling stands as the entry point. It is not a steady state | MEASURED, R2 |
 | Hunting time lost by a four left alone on the edge | 18 to 31% on the 8 hour bar (COMPUTED by the review, accepted in S-6) | **16 to 34%**, with 25 to 75% of 8 hour hunts ending early | MEASURED, R2, the seven cells between 40 and 150 deaths. The eighth, at 32 deaths, lost 3% |
-| What dies | "A death ends that hero's hunt. The rest hunt on" | **The whole four.** In every cell with a death, when the front fell the other three died in the same hunt | MEASURED, R2 |
+| What dies | "A death ends that hero's hunt. The rest hunt on" | **The whole four.** When the front hero fell, the other three died in the same hunt, in every case. The one other kind of death was the bow on Wyvern Roost, killed alone by shooters | MEASURED, R2 and R4 |
 | Typical low health near the ruled death count | 15 to 40% (S4) | **36 to 66%, median 48%** | MEASURED, R2, eight cells |
 
 **The ruled band is a knife edge.** Of 56 Deadly ground cells in R2, one read inside 50 to 100. Forty had no death in 128 hero-hours. Eight read between 30 and 150, one read 8 and one read 292. Six wiped. The four heroes die together, so a count of 75 in 1,000 hero-hours is one wipe in about 13 party-hours.
@@ -242,7 +243,7 @@ COMPUTED on R0's rates, log-linear between checkpoints. The Dangerous four lands
 
 This has a cost and it is on the list for Tyler: a four that farms Deadly safely is 18% ahead of the table.
 
-R4-LAW
+**Read back on the full matrix.** MEASURED, R4, with the three picks in. The four on Dangerous reads 1.271 times the contract at the new dials (22 checkpoints), so 1.266 holds. The judge's pace seat reads 603 hours at Level 100, 1,531 at 200, 2,980 at 300 and 5,108 at 400, against your 600, 1,680, 3,120 and 4,580. Levels 100 to 300 are inside the band. Level 400 reads 11% slow. That is PROJECTED content, where the mid four no longer keeps a harder tier at the new dials.
 
 ### 3.6 The gear band step (GR-4), armor and the three gear states
 
@@ -296,7 +297,7 @@ So the whole property ladder is under four account-days of gold at Level 90. CE-
 
 **Hero prices.** MEASURED, R0. Full best gear costs 0.18 of a band's net gold for a lone hero where the ruling of 2026-11-18 asks 1.2 to 1.4 (E4 and G-10, all 22 rows RED). GR-8 already says this.
 
-**The store.** MEASURED, R0. The store bill of a four is 13 to 50% of its coin and does not move with the tier at the base dials. At the new dials it rises on the harder tiers, which is the "struggle or pay" you asked for on 2026-11-19. R4-STORE
+**The store.** MEASURED, R0. The store bill of a four is 13 to 50% of its coin and does not move with the tier at the base dials. At the new dials it rises on the harder tiers, which is the "struggle or pay" you asked for on 2026-11-19. At the new dials the median stays at 28% on all three tiers, and the top of the range rises to 58% on Dangerous (MEASURED, R4). The real four paid 48% on Deadly. So on the edge a four dies before it pays. The struggle is there and the bill is not.
 
 Every price stays PROVISIONAL until the wage formula of GR-51 exists. What this pass adds is the measured account-day and the size of the miss.
 
@@ -370,17 +371,17 @@ MEASURED, R0, the mid four on Deadly on every ground.
 
 | The front hero's share of the damage | Grounds |
 |---|---|
-| 92 to 100% | Ten of 15: the Thicket, the Sewer, Wickstead, the Glade, Hask's Ford, the Muster Barrows, the Pyre Field, the Ox Road, the Catacombs and the top of the Slake |
-| 82 to 89% | The Warrens, the floor of the Slake |
+| 92 to 100% | Nine of 14: the Thicket, the Sewer, Wickstead, the Glade, Hask's Ford, the Muster Barrows, the Pyre Field, the Ox Road and the Catacombs |
+| 82 to 89% | The Warrens and the Slake |
 | 71 to 81% | Krell's Hold, Carter's Rest, Wyvern Roost. These have shooters or casters that reach the back |
 
 The one real hunt was at Krell's Hold, so its 69% was the exception. A shield tank with Challenge pulls even those blows forward, which is the 94%.
 
 What it means for the design.
 
-1. **A party is one health bar.** Three of the four heroes are almost never hit. Their armor, their Defense, their Footing and Grit talents and the armor weight they chose do nothing on ten grounds. Defense trains only from blows taken, so back heroes never train it.
+1. **A party is one health bar.** Three of the four heroes are almost never hit. Their armor, their Defense, their Footing and Grit talents and the armor weight they chose do nothing on nine grounds. Defense trains only from blows taken, so back heroes never train it.
 2. **It is why a tier is a cliff.** All the danger of a pull lands on one hero and one healer answers it. Either the heal keeps up or it does not. When the front falls the other three die in the same hunt (R2, every wipe).
-3. **The tier wall you ruled on 2026-11-08 is not in the tier table.** You asked for more monsters to mean more area spells, so the whole party takes damage and resistance becomes the wall. A tier today scales the blow and the pull. Group damage is 0 to 8% of what a four takes on ten grounds. A tier row could carry a share of each pull's damage as a party-wide pulse. That would soften the cliff, give the back seats a reason to wear armor and make the death count something a dial can hold. It is a new mechanic, so it is not in this pass. It is the one design change the measurements argue for.
+3. **The tier wall you ruled on 2026-11-08 is not in the tier table.** You asked for more monsters to mean more area spells, so the whole party takes damage and resistance becomes the wall. A tier today scales the blow and the pull. Group damage is 0 to 8% of what a four takes on nine grounds. A tier row could carry a share of each pull's damage as a party-wide pulse. That would soften the cliff, give the back seats a reason to wear armor and make the death count something a dial can hold. It is a new mechanic, so it is not in this pass. It is the one design change the measurements argue for.
 4. **The shield against the hammer.** MEASURED, R2. At Level 110 on Deadly at 2.5 a shield front and a hammer front hold alike, 0.73 and 0.72. Both are at the armor cap. At Level 60 the shield held at 0.59 and four seeds had no death. So the shield's job is real only where armor is not capped, which is section 3.6 again.
 5. **What a party needs at the sized dial.** MEASURED, R2, Deadly at 2.5. At Level 60 three of the four fours with a shield tank and a healer had no death, and the fourth, with a hammer in the third seat, read 58 deaths in 1,000 hours. Three mages and a healer read 98 and hunted 40% of the time. Four mages wiped, and so did the hammer with three mages and no healer. At Level 110 the hammer with three mages held and was the fastest safe four by 3%. Three mages and a healer died 329 times in 1,000 hours. At the base dials three mages and a healer were the best four at Level 60 by 35%. So Deadly at 2.5 asks for a front hero at both Levels and a healer at 60. No one damage type wins: two mages behind a tank and a healer lead by 7% at 60, and the spread of the safe fours is 3 to 7%. Party XP by size alone holds for the first build, and S-10's question can rest. Two Levels, so thin.
 
@@ -408,7 +409,14 @@ Each band is `tools/balance-program/standards.mjs`. I changed no file there. The
 | 10 | The rule for "holds a tier" | Drop "net gold over zero" | Ruled 2026-11-13. The review named this in 1.3, row 8 |
 | 11 | MM-26's check G | Drop "no buffed four holds a tier the plain four cannot enter" | Section 3.8. It is how power works on a cliff |
 
-R4-BANDS
+**The bands after the pass.** MEASURED, R4, the full matrix with the three picks in, 4,567 cells.
+
+| | In band | Off | RED |
+|---|---|---|---|
+| R0, the proposed game as registered | 4,212 | 4,214 | 3,620 |
+| R4, with the pass in, on the standing bands | 4,059 | 2,950 | 3,519 |
+
+The count barely moves, and that is the point of section 2. Of R4's reds, 1,712 are bands set for another frame and 661 are readers. Lone heroes on the tier bands rose from 811 to 1,201, because a lone hero now dies on the harder tiers, as designed. With the band changes above applied, about 740 design reds are left, in four causes: the arrival kit (492), armor and best gear (174), sinks beside income (44) and the kill reward's ground number (29). None of those is a tier, a death or a clock.
 
 ## 6. The patches
 
@@ -430,7 +438,7 @@ The Blessing ladder's 2 hours has no patch. Its rungs live in `progression-grid.
 Four items. Each bends or leans on something you ruled.
 
 1. **The Level table is now timed on the four on Dangerous.** You ruled the table as the clock of a four on the hardest tier it holds, and you ruled Deadly a tier you watch or gamble on. Put together, the four that is left alone is the clock. **What it costs:** a four that farms Deadly safely runs 18% ahead of your table. It reaches Krell on day 24 and Level 400 on day 326, so the next region must be ready sooner. The other choice keeps the clock on Deadly and leaves every idle four 24% behind your table, at Level 400 on day 472.
-2. **Deadly cannot hold 50 to 100 deaths at every Level.** The engine gives a cliff. A four is safe or it wipes, and the ruled count is the thin line between. I sized Deadly so a four meets that line when it arrives in a band and is safe by the band's top. **What it costs:** for the upper part of each band Deadly is safe XP for a mid four, 20 to 29% over Dangerous. Holding a steady count would need the party-wide damage of your 2026-11-08 ruling built into the tiers, which is new work.
+2. **Neither harder tier can hold your death count at every Level.** You ruled 10 to 30 deaths in 1,000 hours on Dangerous and 50 to 100 on Deadly. The engine gives a cliff. A four is safe or it wipes, and the ruled count is the thin line between. I sized Deadly so a four meets that line when it arrives in a band and is safe by the band's top. All cells together read 41 on Deadly and 4 on Dangerous. **What it costs:** for the upper part of each band Deadly is safe XP for a mid four, 20 to 29% over Dangerous, and Dangerous is safe inside its band from about Level 10. Lifting Dangerous to its count would make it hit harder than Deadly, which turns the tiers upside down on grounds with shooters. Holding a steady count on both would need the party-wide damage of your 2026-11-08 ruling built into the tiers, which is new work.
 3. **Your own four dies together.** Your default for an account's own heroes is that the rest hunt on when one falls. Measured, when the front fell the other three died in the same hunt every time. **What it costs:** four death penalties for each wipe where "all come home" would cost one. The hunting time lost is the same either way. Turning the default on for a four with one front hero would cut the XP cost of Deadly by about three quarters.
 4. **The paid edge is smaller in pace than the book told you, and it is a step.** You said yes on the page to a ceiling of 1.65 and about 1.22 from paying alone. Measured, every cap full is 1.29 to 1.48 and paying alone is about 1.06 to 1.08 in Level pace. What a payer really gets is the next tier some Levels sooner, worth 20 to 29%. **What it costs:** nothing to change. But "pay to level 22% faster" is not a true line, and the test Crowns in the playtest should watch for what payers actually buy.
 
@@ -440,9 +448,9 @@ Chapters 00 to 11 are not edited here. These are the edits this pass asks for.
 
 | Where | Edit |
 |---|---|
-| `01-core-and-combat.md`, the tier numbers and CORE-1 | Dangerous pull 5 and blows 2.5. Deadly pull 8 and blows 2.5. One blow number for both. Status MEASURED on the fixed tool, with the death count on each ground still PROVISIONAL. Add the cliff, and the ladder inside each ground |
+| `01-core-and-combat.md`, the tier numbers and CORE-1 | Dangerous pull 5 and blows 2.5. Deadly pull 8 and blows 2.5. One blow number for both. Status MEASURED on the fixed tool, with the death count on each ground still PROVISIONAL. Add the cliff, and the ladder inside each ground. The four together beats the same four split at 28 of 29 checkpoints |
 | `01`, GR-27 | Dangerous brings five holds. Its blow number changes |
-| `01`, the party roles and section 2.4 | The front hero takes 92 to 100% on ten grounds. The shield and the hammer hold alike at the armor cap. Add section 4.1's third point as an open design: group damage as a tier row |
+| `01`, the party roles and section 2.4 | The front hero takes 92 to 100% on nine of 14 grounds. The shield and the hammer hold alike at the armor cap. Add section 4.1's third point as an open design: group damage as a tier row |
 | `05-progression.md`, 2.2 to 2.6 | The Level law's seat is the four on Dangerous, 1.266. Level 100 at 516 hours, Krell on day 33, Level 400 on day 400. The ladder's threshold is 2 hours, with rungs near 74, 98, 161, 248 and 387. Deadly's lost hours are measured at 16 to 34% |
 | `05`, GR-6, GR-6a, GR-6b, GR-7 | Their numbers move as above. They stay PROVISIONAL on the playtest death rate only |
 | `03-items-and-crafting.md`, GR-4 | +17% is MEASURED for weapons. Armor on the curve is worth nothing past Level 30. The armor curve probe and the arrival kit are one open item. Best gear is about 7% faster than mid, not 15% |
@@ -462,7 +470,7 @@ These are NOT MODELLED or wrong in the tool today. None is fixed here.
 
 | What | Seen in | Owner |
 |---|---|---|
-| **A strong four's hunt ends with "No hits landed".** On the Muster Barrows on Deadly, at Levels 60 and 75, every seed of the four ended on the no-fight rule with no death. The four hunted 5 to 33% of the time offered. On Wyvern Roost on Dangerous, once the bow died the other three landed no hit and the hunt ended | R0, R2 (16 of 16 ends at Level 75) | The systems engineer. If the game does this for a real four it is a player-visible bug. Level 60's four cell is unreadable until it is fixed |
+| **A strong four's hunt ends with "No hits landed".** On the Muster Barrows on Deadly, at Levels 60 and 75, every seed of the four ended on the no-fight rule with no death. The four hunted 5 to 52% of the time offered. On Wyvern Roost on Dangerous, once the bow died the other three landed no hit and the hunt ended | R0, R2 (16 of 16 ends at Level 75) | The systems engineer. If the game does this for a real four it is a player-visible bug. Level 60's four cell is unreadable until it is fixed |
 | The derivation of the Level law takes a median, so the seat does not land the ruled points | Section 3.5 | The matrix lane |
 | The death sample has no workflow. This pass ran it from throwaway branches | Section 1 | The matrix lane. A `balance-diff` workflow with seeds and hours as inputs would make GR-88's gate usable |
 | The R0 full matrix predates the sitting's cells by one commit | Section 1 | Closed by R4 |
@@ -474,7 +482,7 @@ These are NOT MODELLED or wrong in the tool today. None is fixed here.
 
 - I ran no browser and played nothing by hand. Every number is the tool's.
 - The death sample is four seeds of eight hours. A cell with no death in 128 hero-hours can still hide up to about 23 deaths in 1,000 hours.
-- Dangerous has a death band of 10 to 30 in 1,000 hours. At that rate most cells show no death in this sample. R4 pools them.
+- Dangerous has a ruled count of 10 to 30 deaths in 1,000 hours. At that rate most cells show no death in this sample, so only the pool of 3,448 hero-hours reads it.
 - Pairs and threes were not sized. They are in R0 and R4 and no ruling asks for them.
 - Levels 1 to 16 with four heroes were read only through the ground axis. The first hour is still unplayed.
 - I did not re-derive the kill reward on the new tiers. It is measured on a lone hero on Normal, which the tiers do not touch.

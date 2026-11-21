@@ -1718,6 +1718,11 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tools/mutant-gate.mjs node tools/balance-program/balance-matrix.mjs --selftest
+      # tools/balance-program/census.mjs
+      - name: Rule-code census - a planted uncited function and a planted typed number each show up, a named one reads named
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tools/balance-program/census.mjs --selftest
       # tools/balance-program/formulas/architecture-register.mjs
       - name: Formula architecture register - a bad merge, a class 3 row with no recommendation, a stale knob and a CRLF checkout are each caught
         if: ${{ !cancelled() }}

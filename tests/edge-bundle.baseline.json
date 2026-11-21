@@ -118,6 +118,11 @@
         "bytes": 3163459,
         "on": "2026-11-21",
         "why": "1026-job-counts (plan L08): set-activity.js reads the job THEN ids from src/data/hunt-after.js (JOB_NEXTS, the single source; first time in the edge) + the gathering count and the job-end switch in accrue-gather.js, accrue-artisan.js, envelope.js, skill-sim.js, request.js, tick-shadow.js, set-activity.js"
+      },
+      {
+        "bytes": 3157131,
+        "on": "2026-11-21",
+        "why": "cut locked in (6328 bytes)"
       }
     ]
   }

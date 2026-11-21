@@ -132,6 +132,9 @@ export function themeTokens(root = ROOT) {
 
 /* ── THE PAGE'S DATA ──────────────────────────────────────────────────────────────────────────────────────────────────────────── */
 const permille = (a, b) => (typeof a === 'number' && typeof b === 'number' && isFinite(a) && isFinite(b) && a !== 0 ? Math.round(((b - a) / Math.abs(a)) * 1000) : b === a ? 0 : null);
+/* the metrics that sit at zero in most cells (a death rate, time under a share of HP): a step keeps their AFTER value, not a change from zero */
+export const ABS_METRICS = Object.freeze(['deathsPer1000h', 'hpUnder30', 'hpUnder10']);
+const sig4 = (v) => (typeof v === 'number' && isFinite(v) ? Number(v.toPrecision(4)) : null);
 export async function pageData(root = ROOT) {
   const imp = (p) => import(pathToFileURL(join(root, p)).href);
   const PG = await imp('tools/balance-program/progression-grid.mjs');
@@ -154,9 +157,12 @@ export async function pageData(root = ROOT) {
   if (errors.length) throw new Error('lab v3 build: a live cell did not resolve: ' + errors[0].id + ' ' + errors[0].error);
   const resolvedOf = (j) => results[j.id];
   const jobOf = new Map(plan.jobs.map((j) => [j.key, j]));
+  /* `projected`: the placeholder floor a PROJECTED cell re-derives its rows at under the knobs (lab-v3.mjs liveWhatIf) */
+  const { projectedFloor } = await imp('tools/balance-program/grid-project.mjs');
+  const projOf = (c) => (c.stretch === 'PROJECTED' ? { floor: projectedFloor(c.L) } : null);
   const live = plan.cells.map((c) => { const j = jobOf.get(c.key); return { key: c.key, block: c.block, L: c.L, gear: c.gear, party: c.party, comp: c.comp, tier: c.tier, ground: c.ground,
-    styles: c.styles, stretch: c.stretch, hours: MP.RUNS.live.hours, resolved: resolvedOf(j), whatIf: j.whatIf || null }; });
-  const calibration = { key: 'CAL:harness', L: 85, styles: ['tank', 'healer', 'bow', 'mage'], hours: MP.RUNS.live.hours, resolved: resolvedOf(harness), whatIf: harness.whatIf || null };
+    styles: c.styles, stretch: c.stretch, projected: projOf(c), hours: MP.RUNS.live.hours, resolved: resolvedOf(j), whatIf: j.whatIf || null }; });
+  const calibration = { key: 'CAL:harness', L: 85, tier: 'deadly', projected: null, styles: ['tank', 'healer', 'bow', 'mage'], hours: MP.RUNS.live.hours, resolved: resolvedOf(harness), whatIf: harness.whatIf || null };
   /* THE PRECOMPUTED SWEEPS, each step as every cell's change of every metric (permille), the band rows it moved, its calibration row */
   const sw = existsSync(BM.SWEEP_FILE) ? JSON.parse(readFileSync(BM.SWEEP_FILE, 'utf8')) : null;
   let pre = null;
@@ -170,7 +176,7 @@ export async function pageData(root = ROOT) {
         for (const [key, row] of Object.entries(st.cells)) {
           const b = sw.baseline[key];
           if (!b) continue;
-          d[key] = row.slice(0, nM).map((v, i) => permille(b[i], v));
+          d[key] = row.slice(0, nM).map((v, i) => (ABS_METRICS.includes(METRICS[i][0]) ? sig4(v) : permille(b[i], v)));
           seats[key] = row[nM];
         }
         knobs[id].steps[m] = { d, seats, bands: st.bands, calibration: st.calibration, applied: st.applied };
@@ -185,7 +191,7 @@ export async function pageData(root = ROOT) {
     knobs: list.knobs.map((k) => ({ id: k.id, label: k.label, group: k.group, what: k.what, steps: k.steps, ruled: k.ruled || null, regen: !!k.regen, formula: k.formula || null,
       sharesLineWith: k.sharesLineWith || [], sites: locateKnob(root, k).map((s) => s.file + ':' + s.line) })),
     planned: list.planned.map((p) => ({ id: p.id, label: p.label, group: p.group, arrivesWith: p.arrivesWith, what: p.what })),
-    metrics: METRICS.map(([id, label, scope]) => ({ id, label, scope })), styleGroups: STYLE_GROUPS, bandGroups,
+    metrics: METRICS.map(([id, label, scope]) => ({ id, label, scope, abs: ABS_METRICS.includes(id) })), styleGroups: STYLE_GROUPS, bandGroups,
     live: { levels: MP.RUNS.live.levels, hours: MP.RUNS.live.hours, cells: live, calibration },
     real: CAL.KRELL_2026_11_20, precomputed: pre,
   };

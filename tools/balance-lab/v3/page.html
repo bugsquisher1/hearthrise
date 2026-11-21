@@ -110,12 +110,17 @@ details > summary { cursor: pointer; color: var(--ink-2); font-size: 12px; min-h
   const cls = (r) => (!fin(r) || Math.abs(r) < 0.0005 ? 'flat' : r > 0 ? 'up' : 'down');
   const median = (xs) => { const s = xs.filter(fin).sort((a, b) => a - b); return s.length ? s[Math.floor((s.length - 1) / 2)] : null; };
   /* a column of changes: the median over the cells that moved, and how many moved of how many (a knob that moves a few cells must show) */
-  const movedCell = (xs) => {
-    const all = xs.filter(fin), moved = all.filter((x) => Math.abs(x) >= 0.0005);
+  /* `abs`: a metric that sits at zero in most cells (deaths, time under a share of HP) moves in its own units, never as a share of zero */
+  const movedCell = (xs, abs) => {
+    const all = xs.filter(fin), moved = all.filter((x) => Math.abs(x) >= (abs ? 1e-9 : 0.0005));
     if (!all.length) return '<td class="flat">-</td>';
     const m = median(moved);
-    return '<td class="' + cls(m) + '">' + (moved.length ? pct(m) : '0.0%') + ' <span class="flat">' + moved.length + '/' + all.length + '</span></td>';
+    const shown = !moved.length ? (abs ? '0' : '0.0%') : abs ? (m > 0 ? '+' : '') + num(m, Math.abs(m) < 1 ? 4 : 1) : pct(m);
+    return '<td class="' + cls(m) + '">' + shown + ' <span class="flat">' + moved.length + '/' + all.length + '</span></td>';
   };
+  const ABS = new Set(MET.filter((m) => m.abs).map((m) => m.id));
+  /* one cell's change of one metric, LIVE: a share for most, the difference in its own units for ABS */
+  const liveChange = (b, a, id) => (!b || !a || !fin(b[id]) || !fin(a[id]) ? null : ABS.has(id) ? a[id] - b[id] : b[id] !== 0 ? (a[id] - b[id]) / Math.abs(b[id]) : (a[id] === b[id] ? 0 : null));
   const levelBand = (L) => (L <= 45 ? 'early' : L <= 110 ? 'mid' : L <= 400 ? 'late' : 'high');
   const BANDS = [['early', 'Early (to 45)'], ['mid', 'Mid (46 to 110)'], ['late', 'Late (111 to 400)'], ['high', 'High (1,000+)']];
 
@@ -254,8 +259,19 @@ details > summary { cursor: pointer; color: var(--ink-2); font-size: 12px; min-h
   const preStep = () => { const k = state.active, s = k && nearestStep(k); return k && s !== null && PRE ? { k, s, st: PRE.knobs[k].steps[String(s)] } : null; };
   const preCell = new Map(PRE ? PRE.cells.map((c) => [c.key, c]) : []);
   const baseVal = (key, id) => (PRE && PRE.baseline[key] ? PRE.baseline[key][MI[id]] : null);
-  const afterVal = (st, key, id) => { const b = baseVal(key, id), d = st && st.d[key] ? st.d[key][MI[id]] : null; return fin(b) && fin(d) ? b * (1 + d / 1000) : st ? null : b; };
-  const deltaOf = (st, key, id) => (st && st.d[key] && fin(st.d[key][MI[id]]) ? st.d[key][MI[id]] / 1000 : null);
+  /* a step holds each cell's change in permille, and for ABS metrics its value after (build-v3.mjs ABS_METRICS) */
+  const afterVal = (st, key, id) => {
+    const b = baseVal(key, id), d = st && st.d[key] ? st.d[key][MI[id]] : null;
+    if (!st) return b;
+    if (ABS.has(id)) return fin(d) ? d : null;
+    return fin(b) && fin(d) ? b * (1 + d / 1000) : null;
+  };
+  const deltaOf = (st, key, id) => {
+    const d = st && st.d[key] ? st.d[key][MI[id]] : null;
+    if (!fin(d)) return null;
+    if (ABS.has(id)) { const b = baseVal(key, id); return fin(b) ? d - b : null; }
+    return d / 1000;
+  };
 
   /* ── RENDER ── */
   function renderCalibration() {
@@ -284,18 +300,21 @@ details > summary { cursor: pointer; color: var(--ink-2); font-size: 12px; min-h
   function renderStyles() {
     const ps = preStep();
     let h = '<h2>By combat style: actual DPS and Level XP, alone, MID, Normal</h2><div class="scroll"><table><tr><th>Style</th><th>DPS before <span class="tag live">LIVE</span></th><th>DPS now</th><th>Change</th><th>XP/h change <span class="tag live">LIVE</span></th>'
-      + '<th>DPS change <span class="tag pre">PRE</span></th><th>XP/h change <span class="tag pre">PRE</span></th><th>Deaths/1000h change <span class="tag pre">PRE</span></th></tr>';
+      + '<th>DPS change <span class="tag pre">PRE</span></th><th>XP/h change <span class="tag pre">PRE</span></th><th>Deaths/1000h, mean <span class="tag pre">PRE</span></th></tr>';
     const liveRow = (ways) => {
       const cs = LIVE.cells.filter((c) => c.party === 1 && ways.includes(c.styles[0]));
       const sumOf = (src, id) => cs.reduce((a, c) => a + ((src && src[c.key] && src[c.key][id]) || 0), 0);
       const b = sumOf(state.liveBase, 'dps'), a = sumOf(state.liveNow, 'dps'), bx = sumOf(state.liveBase, 'levelXpPerH'), ax = sumOf(state.liveNow, 'levelXpPerH');
       return state.liveBase && state.liveNow && cs.length ? [b / cs.length, a / cs.length, b ? a / b - 1 : null, bx ? ax / bx - 1 : null] : [null, null, null, null];
     };
-    const preRow = (ways, id) => (ps ? median(PRE.cells.filter((c) => c.party === 1 && c.gear === 'mid' && c.tier === 'normal' && !c.step && ways.includes(c.styles[0])).map((c) => deltaOf(ps.st, c.key, id))) : null);
+    const preCells = (ways) => (PRE ? PRE.cells.filter((c) => c.party === 1 && c.gear === 'mid' && c.tier === 'normal' && !c.step && ways.includes(c.styles[0])) : []);
+    const preRow = (ways, id) => (ps ? median(preCells(ways).map((c) => deltaOf(ps.st, c.key, id))) : null);
+    const mean = (xs) => { const v = xs.filter(fin); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null; };
+    const deaths = (ways) => { const cs = preCells(ways); const b = mean(cs.map((c) => baseVal(c.key, 'deathsPer1000h'))); return ps ? num(b, 1) + ' &rarr; ' + num(mean(cs.map((c) => afterVal(ps.st, c.key, 'deathsPer1000h'))), 1) : num(b, 1); };
     const line = (label, ways, klass) => {
       const [b, a, d, dx] = liveRow(ways);
       return '<tr class="' + klass + '"><td>' + esc(label) + '</td><td>' + num(b) + '</td><td>' + num(a) + '</td><td class="' + cls(d) + '">' + pct(d) + '</td><td class="' + cls(dx) + '">' + pct(dx) + '</td>'
-        + ['dps', 'levelXpPerH', 'deathsPer1000h'].map((id) => { const x = preRow(ways, id); return '<td class="' + cls(x) + '">' + pct(x) + '</td>'; }).join('') + '</tr>';
+        + ['dps', 'levelXpPerH'].map((id) => { const x = preRow(ways, id); return '<td class="' + cls(x) + '">' + pct(x) + '</td>'; }).join('') + '<td>' + (PRE ? deaths(ways) : '-') + '</td></tr>';
     };
     for (const [g, ways] of Object.entries(DATA.styleGroups)) {
       if (!ways.length) { h += '<tr class="grp"><td>' + esc(g) + '</td><td colspan="7" class="flat">not built: the fist line is a hidden two-row sample (src/data/fists.js FIST_LINE.live false), no engine way yet</td></tr>'; continue; }
@@ -321,22 +340,22 @@ details > summary { cursor: pointer; color: var(--ink-2); font-size: 12px; min-h
     else {
       h += '<div class="scroll"><table><tr><th>Metric</th>' + cols.map(([l]) => '<th>' + esc(l) + '</th>').join('') + '</tr>';
       for (const m of MET) {
-        h += '<tr><td>' + esc(m.label) + '</td>' + cols.map(([, cs]) => movedCell(cs.map((c) => { const b = state.liveBase[c.key], a = (state.liveNow || {})[c.key]; return b && a && fin(b[m.id]) && fin(a[m.id]) && b[m.id] !== 0 ? (a[m.id] - b[m.id]) / Math.abs(b[m.id]) : (b && a && b[m.id] === a[m.id] ? 0 : null); }))).join('') + '</tr>';
+        h += '<tr><td>' + esc(m.label) + (m.abs ? ' <span class="flat">(change in its units)</span>' : '') + '</td>' + cols.map(([, cs]) => movedCell(cs.map((c) => liveChange(state.liveBase[c.key], (state.liveNow || {})[c.key], m.id)), m.abs)).join('') + '</tr>';
       }
       h += '</table></div>';
     }
     /* PRECOMPUTED */
-    h += '<h3><span class="tag pre">PRECOMPUTED</span> the median change over the subset cells that moved, and how many moved:' + (ps ? esc(KBY[ps.k].label) + ' at x' + ps.s : 'move a slider that has been swept') + '</h3>';
+    h += '<h3><span class="tag pre">PRECOMPUTED</span> the median change over the subset cells that moved, and how many moved: ' + (ps ? esc(KBY[ps.k].label) + ' at x' + ps.s : 'move a slider that has been swept') + '</h3>';
     if (!PRE) h += '<div class="empty">No sweeps in this build.</div>';
     else if (ps) {
       const pc = PRE.cells.filter((c) => !c.step && c.block !== 'lineups');
       const pcols = axisCells(pc);
       h += '<div class="scroll"><table><tr><th>Metric</th>' + pcols.map(([l]) => '<th>' + esc(l) + '</th>').join('') + '</tr>';
-      for (const m of MET) h += '<tr><td>' + esc(m.label) + '</td>' + pcols.map(([, cs]) => movedCell(cs.map((c) => deltaOf(ps.st, c.key, m.id)))).join('') + '</tr>';
+      for (const m of MET) h += '<tr><td>' + esc(m.label) + (m.abs ? ' <span class="flat">(change in its units)</span>' : '') + '</td>' + pcols.map(([, cs]) => movedCell(cs.map((c) => deltaOf(ps.st, c.key, m.id)), m.abs)).join('') + '</tr>';
       h += '</table></div><div class="note">Moved: ' + esc((ps.st.applied || []).join('; ')) + '</div>';
       h += '<details><summary>Every way and Level (MID, Normal, alone), before and after</summary><div class="scroll"><table><tr><th>Cell</th>' + ['dps', 'takenPerH', 'healPerH', 'levelXpPerH', 'netPerH', 'killsPerH', 'deathsPer1000h', 'lowHpTypical', 'hpUnder30', 'hoursPerLevel'].map((id) => '<th>' + esc(MET[MI[id]].label) + '</th>').join('') + '</tr>';
       for (const c of pc.filter((x) => x.party === 1 && x.gear === 'mid' && x.tier === 'normal').sort((a, b) => a.L - b.L || a.styles[0].localeCompare(b.styles[0]))) {
-        h += '<tr><td>' + c.L + ' ' + esc(c.styles[0]) + (c.stretch === 'PROJECTED' ? ' <span class="tag proj">PROJ</span>' : '') + '</td>' + ['dps', 'takenPerH', 'healPerH', 'levelXpPerH', 'netPerH', 'killsPerH', 'deathsPer1000h', 'lowHpTypical', 'hpUnder30', 'hoursPerLevel'].map((id) => { const d = deltaOf(ps.st, c.key, id); return '<td>' + num(baseVal(c.key, id)) + ' <span class="' + cls(d) + '">' + pct(d) + '</span></td>'; }).join('') + '</tr>';
+        h += '<tr><td>' + c.L + ' ' + esc(c.styles[0]) + (c.stretch === 'PROJECTED' ? ' <span class="tag proj">PROJ</span>' : '') + '</td>' + ['dps', 'takenPerH', 'healPerH', 'levelXpPerH', 'netPerH', 'killsPerH', 'deathsPer1000h', 'lowHpTypical', 'hpUnder30', 'hoursPerLevel'].map((id) => { const d = deltaOf(ps.st, c.key, id); return '<td>' + num(baseVal(c.key, id)) + ' <span class="' + cls(d) + '">' + (ABS.has(id) ? '&rarr; ' + num(afterVal(ps.st, c.key, id)) : pct(d)) + '</span></td>'; }).join('') + '</tr>';
       }
       h += '</table></div></details>';
     }

@@ -69,7 +69,7 @@ export const MAX_WORKERS = 4;
 const workersOf = () => Math.max(1, Number(arg('workers', Math.min(MAX_WORKERS, Math.max(1, availableParallelism() - 2)))));
 
 /* ── THE DATA A TREE PLAYS WITH: the grid's data, with the modules a patch can move read from that tree ─────────────────────────── */
-async function dataView(D, root) {
+export async function dataView(D, root) {
   if (resolve(root) === ROOT) return D;
   const imp = (p) => import(pathToFileURL(join(root, p)).href);
   const [XP, BS, MON, SB, TI, BL, LB] = await Promise.all(['src/core/xp.js', 'src/data/balance-sheet.js', 'src/data/monsters.js', 'src/data/supply-basics.js', 'src/data/hunt-tiers.js', 'src/data/blessings.js', 'src/data/loot-bands.js'].map(imp));

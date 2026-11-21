@@ -82,16 +82,23 @@ const V3 = await (async () => {
   const jobs = keys.map((k) => plan.jobs.find((j) => j.key === k));
   const resolved = await BM.playJobs(jobs.map((j) => ({ ...j, id: j.id + ':r', cell: { ...j.cell, resolveOnly: true } })), ROOT, 3);
   const plain = await BM.playJobs(jobs, ROOT, 3);
-  const KNOBS = { playerAttack: 1.25, monsterHp: 1.2 };
+  /* one knob read at a blow, one the rows are written from (it reaches the PROJECTED Mage's placeholder rows), one a harder tier's pull */
+  const KNOBS = { playerAttack: 1.25, monsterHp: 1.2, tierPull: 0.75 };
   const s = await SC.plantScratch({ knobs: KNOBS });
   let patched, scratchMonsters;
   try {
-    patched = await BM.playJobs([jobs[0]], s.root, 1);
+    /* the copy plans its own cells, as --diff does (its formula's placeholder rows, its tier rows' pulls) */
+    const pplan = MP.planMatrix(await BM.dataView(D, s.root), K, MP.RUNS.live);
+    const pjobs = keys.map((k) => pplan.jobs.find((j) => j.key === k));
+    const got = await BM.playJobs(pjobs, s.root, 3);
+    patched = pjobs.map((j) => got.results[j.id]);
     scratchMonsters = (await import(pathToFileURL(join(s.root, 'src/data/monsters.js')).href)).MONSTERS;
   } finally { s.done(); }
-  const cellOf = (i) => ({ key: keys[i], resolved: resolved.results[jobs[i].id + ':r'], whatIf: jobs[i].whatIf || null, hours: jobs[i].cell.hours, seedBase: 0 });
+  const { projectedFloor } = await imp('tools/balance-program/grid-project.mjs');
+  const cellOf = (i) => ({ key: keys[i], tier: meta[i].tier, projected: meta[i].stretch === 'PROJECTED' ? { floor: projectedFloor(meta[i].L) } : null,
+    resolved: resolved.results[jobs[i].id + ':r'], whatIf: jobs[i].whatIf || null, hours: jobs[i].cell.hours, seedBase: 0 });
   const roster = Object.entries((await imp('src/data/balance-sheet.js')).GROUND_ROSTER).flatMap(([, r]) => Object.keys(r));
-  return { eng, D, MM, keys, meta, cellOf, plain: jobs.map((j) => plain.results[j.id]), patched: patched.results[jobs[0].id], KNOBS, scratchMonsters, roster: [...new Set(roster)],
+  return { eng, D, MM, keys, meta, cellOf, plain: jobs.map((j) => plain.results[j.id]), patched, KNOBS, scratchMonsters, roster: [...new Set(roster)],
     FORMULA_FIELDS: (await imp('tools/gen-ground-stats.mjs')).FORMULA_FIELDS };
 })();
 
@@ -206,9 +213,12 @@ const CHECKS = {
   /* v3: a knob the bundle is created with moves the fight exactly as the matrix's scratch copy with that knob written in (a formula knob too) */
   v3knobs(m) {
     const lab = V3.eng.create(m ? { ...V3.KNOBS, playerAttack: 1.2 } : V3.KNOBS);
-    const got = shape(lab.playRun(V3.cellOf(0)));
-    if (got === shape(V3.plain[0])) return 'the knobs moved nothing';
-    return got === shape(V3.patched) ? null : 'the v3 bundle with ' + JSON.stringify(V3.KNOBS) + ' and the scratch copy disagree';
+    for (let i = 0; i < V3.keys.length; i++) {
+      const got = shape(lab.playRun(V3.cellOf(i)));
+      if (got === shape(V3.plain[i])) return V3.keys[i] + ': the knobs moved nothing';
+      if (got !== shape(V3.patched[i])) return V3.keys[i] + ': the v3 bundle with ' + JSON.stringify(V3.KNOBS) + ' and the scratch copy disagree';
+    }
+    return null;
   },
   /* v3: the formula's rows re-written in the bundle are the rows matrix-regen.mjs writes into the scratch copy */
   v3regen(m) {

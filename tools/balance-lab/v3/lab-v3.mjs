@@ -15,10 +15,11 @@ import { MONSTERS } from '../../../src/data/monsters.js';
 import { ITEMS } from '../../../src/data/items.js';
 import { HUNT_GROUNDS } from '../../../src/data/hunt-grounds.js';
 import { HUNT_INDEX } from '../../../src/data/hunts.js';
-import { GROUND_TIERS } from '../../../src/data/hunt-tiers.js';
+import { GROUND_TIERS, tiersOf, tierRowOf, pullOfTier } from '../../../src/data/hunt-tiers.js';
 import { charXpForLevel } from '../../../src/core/xp.js';
-import { GROUND_ROSTER, FORMULA_EXCEPTIONS, formulaStats, contractXpPerH } from '../../../src/data/balance-sheet.js';
+import { GROUND_ROSTER, FORMULA_EXCEPTIONS, formulaStats, contractXpPerH, tierRowFor } from '../../../src/data/balance-sheet.js';
 import { SUPPLY } from '../../balance-program/standards.mjs';
+import { PROJECTED, placeholderWhatIf } from '../../balance-program/grid-project.mjs';
 import { KNOB_LIST } from '../virtual/knobs.mjs';
 import { runCell, ENGINE_VERSION } from '../lab-core.mjs';
 /* the knob rule the bundle's instrumented numbers call (build.mjs __hrK): one rounding for the scratch copy and the browser */
@@ -60,12 +61,26 @@ export function start(knobs) {
   return started;
 }
 
+/* WHAT THE KNOBS MOVE IN A CELL'S PLAN (progression-grid.mjs buildCell, as the matrix plans an --diff on the copy's own formula): a PROJECTED
+   cell's placeholder monsters and tier rows from the formula at its floor (grid-project.mjs placeholderWhatIf; its projected gear line is
+   the knob-free tools line, kept from the build), and a harder tier's pull from the tier row the game reads now. */
+const floorOf = (g) => HUNT_INDEX[HUNT_GROUNDS[g].hunt].band[0];
+export function liveWhatIf(cell) {
+  if (!cell.projected) return cell.whatIf || {};
+  const w = placeholderWhatIf({ MONSTERS, GROUND_ROSTER, formulaStats, tierRowFor, tiersOf, floorOf, fitOf: (g) => groundFit(HUNT_GROUNDS[g]) }, cell.projected.floor);
+  return { monsters: w.monsters, tiers: w.tiers, ...(cell.whatIf && cell.whatIf.items ? { items: cell.whatIf.items } : {}) };
+}
+function liveDensity(cell, w) {
+  if (!cell.tier || cell.tier === 'normal') return cell.resolved.density;
+  const row = cell.projected ? ((w.tiers || {})[PROJECTED.template] || {})[cell.tier] : tierRowOf(cell.resolved.ground, cell.tier);
+  return row ? pullOfTier(row, cell.resolved.styles.length) || null : null;
+}
+
 /* A CELL'S WHAT-IF (tools/balance-sim/worker.mjs applyWhatIf, the parts a matrix cell names: placeholder monsters, their tier rows and the
    projected gear line), and the staged rows a seat wears; both put back after the cell. */
-function applyCell(cell) {
+function applyCell(cell, w) {
   const undo = [];
   const set = (row, k, v) => { undo.push([row, k, Object.prototype.hasOwnProperty.call(row, k), row[k]]); row[k] = v; };
-  const w = cell.whatIf || {};
   for (const [id, f] of Object.entries(w.monsters || {})) if (MONSTERS[id]) for (const [k, v] of Object.entries(f)) set(MONSTERS[id], k, v);
   for (const [id, f] of Object.entries(w.items || {})) if (ITEMS[id]) for (const [k, v] of Object.entries(f)) set(ITEMS[id], k, v);
   for (const [g, byTier] of Object.entries(w.tiers || {})) if (GROUND_TIERS[g]) for (const [t, row] of Object.entries(byTier)) set(GROUND_TIERS[g], t, row);
@@ -103,9 +118,10 @@ export function liveMetrics(run, L) {
 /** One live cell played (`cell.resolved` from cell.mjs resolveOnly, its what-if): the runner's whole answer (cell.mjs runCell's shape). */
 export function playRun(cell) {
   if (!started) throw new Error('lab v3: start(knobs) first');
-  const undo = applyCell(cell);
+  const w = liveWhatIf(cell);
+  const R = { ...cell.resolved, density: liveDensity(cell, w) };
+  const undo = applyCell(cell, w);
   try {
-    const R = cell.resolved;
     return runCell({ ground: R.ground, party: R.styles, resolved: R, hours: cell.hours, seeds: 1, seedBase: cell.seedBase || 0 });
   } finally { undo(); }
 }

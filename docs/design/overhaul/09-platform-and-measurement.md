@@ -23,6 +23,8 @@ This chapter covers four things that every other chapter stands on:
 
 ---
 
+**After Tyler's answers (2026-11-21).** Tyler answered his whole list. A pick of his is a ruling and reads RULED (call id, Tyler 2026-11-21). "Not the recommendation" marks a pick that went against the designer. A reversal he let stand reads "reversal of X, approved". OPEN (waiting on Tyler, T-fix-N) marks one of five items where two of his picks point opposite ways. Nobody decides those for him, and the chapter text there shows the design the book was written on until he answers. CUT (Tyler approved 2026-11-21) is a removal he approved, and KEPT (Tyler 2026-11-21) is something he refused to cut, with the way it stays DECIDED by the designer. The whole record is in `decisions/all.json` and section 5 of `00-the-game.md`.
+
 ## 1. The experience
 
 **Minute 5.** A new player opens the Book and reads how a hit is made: skill, weapon and a flat base, in the same three numbers the server uses. Nothing in the game is a secret multiplier. The first fight starts at once and never stutters, because the server runs it and the screen only draws it.
@@ -74,13 +76,13 @@ Nine mechanics. Their sizes belong to chapter 01. Their shape is fixed here.
 
 | # | Mechanic | The rule | Formula ids | Status |
 |---|---|---|---|---|
-| 1 | Power | One number a unit, its largest hit. A hero's is `skillPower x skill + gearPower x weapon damage + basePower`, read from named constants that the wiki also reads. A monster's is a share of a same-Level hero's health, stored on its row as a whole number | `C-HERO-POWER`, `C-MON-BLOW` | DECIDED (GR-85, Fable 2026-11-21, steps R2 and R4) |
+| 1 | Power | One number a unit, its largest hit. A hero's is `skillPower x skill + gearPower x weapon damage + basePower`, read from named constants that the wiki also reads. A monster's is a share of a same-Level hero's health, stored on its row as a whole number | `C-HERO-POWER`, `C-MON-BLOW` | RULED (GR-85, Tyler 2026-11-21, steps R2 and R4) |
 | 2 | Rating against rating | Hit chance is the attacker's rating against the defender's, one ratio for heroes and monsters | `C-HERO-TOHIT`, `C-MON-TOHIT` | RULED (kept as built, 2026-11-08 public formulas) |
 | 3 | One amount pipeline | Every amount (a swing, a spell hit, a tick, a monster blow, a heal, a shell) is `roll(Power x share) x the product of its modifiers`, multiplied in permille and rounded once, in one fixed order. Each blow can emit a short trace of its stages, so any outcome can be explained | `C-BASIC-BLOW`, `C-SPELL-HIT`, `C-SPELL-HEAL`, `C-SPELL-SHELL`, `C-HURT` | DECIDED (GR-86, Fable 2026-11-21, step R19). One roll rule with the spread as a number for each kind, and heals at a spread of zero, is GR-13 |
-| 4 | The armor chain | Dodge, absorb and ward in the ruled order, capped at 60%, read against the monster's own Level | `C-ARMOR-CHAIN` | RULED 2026-10-18 for the cap. DECIDED (GR-85, Fable 2026-11-21, step R7) for the monster's own Level |
+| 4 | The armor chain | Dodge, absorb and ward in the ruled order, capped at 60%, read against the monster's own Level | `C-ARMOR-CHAIN` | RULED 2026-10-18 for the cap. RULED (GR-85, Tyler 2026-11-21, step R7) for the monster's own Level |
 | 5 | The monster formula | Every monster is written from a Level, a role and an encounter type. Nothing about a monster's strength depends on its art | `C-MON-STATS` | DECIDED (GR-86, Fable 2026-11-21, step R21, and GR-85 step R4) |
-| 6 | One tier table | Normal, Dangerous and Deadly are one table for every ground: a pull, a difficulty percent and an XP percent. Coin a kill never scales with a tier. The difficulty dial moves the blow and the aim, and is applied once | `C-TIER`, `C-PULL` | RULED 2026-11-05 and 2026-11-07 for the shape. DECIDED (GR-85, Fable 2026-11-21, step R7, GR-5 and GR-27) for one table with no per-ground rows |
-| 7 | The gear curve | See 2.1.4 | `C-GEAR-WEAPON`, `C-GEAR-ARMOR` | DECIDED (GR-4, Fable 2026-11-21, reversal of two bands a region of 2026-11-18 and the Luck step of 2026-11-20, Tyler may veto) |
+| 6 | One tier table | Normal, Dangerous and Deadly are one table for every ground: a pull, a difficulty percent and an XP percent. Coin a kill never scales with a tier. The difficulty dial moves the blow and the aim, and is applied once | `C-TIER`, `C-PULL` | RULED 2026-11-05 and 2026-11-07 for the shape. RULED (GR-85, Tyler 2026-11-21, step R7, GR-5 and GR-27) for one table with no per-ground rows |
+| 7 | The gear curve | See 2.1.4 | `C-GEAR-WEAPON`, `C-GEAR-ARMOR` | RULED (GR-4, Tyler 2026-11-21, reversal of two bands a region of 2026-11-18 and the Luck step of 2026-11-20, approved) |
 | 8 | One modifier table | Every worn, cast, earned or bought modifier is a row: a key, a combine rule (sum or largest) and a cap. Clan rooms, boss buffs, event buffs and bought boosts are rows in this same table | `C-BUFF-BONUS`, `C-JEWEL-PERKS`, `C-STATUS` | DECIDED (GR-86, Fable 2026-11-21, step R20, and MM-24 for the MMO layer's rows) |
 | 9 | Sustain | Two heal kinds in data: a share of Power or a share of max health | `C-SPELL-HEAL`, `C-LEECH`, `C-REGEN` | RULED 2026-11-21 (32-4: Mend heals about 11% of max health) for the second kind |
 
@@ -90,10 +92,10 @@ Nine mechanics. Their sizes belong to chapter 01. Their shape is fixed here.
 
 | Mechanic | The rule | Formula ids | Status |
 |---|---|---|---|
-| The gear curve | A game formula in `src/data`, linear in the Level a piece is worn at, because monster health and hero health are both linear in Level and gear on any other curve drifts against them. A band is a fixed percent step of power, never a fixed count of Levels. The reference hero that every monster's aim and evasion are written against reads the curve. A unique spends a budget from the curve at published exchange rates, so its armor is arithmetic | `C-GEAR-WEAPON`, `C-GEAR-ARMOR`, `C-REF-HERO`, `P35` | DECIDED (GR-4, Fable 2026-11-21, reversal, Tyler may veto). The band's size is a tier's worth, about +24% of the line, with bands at Levels 110, 136, 169, 210, 260, 322 and 400. It is owned by chapter 03 |
-| The Level law | Hours to each Level is content Tyler owns: the ruled points, joined by a straight line on a log scale and carried past the last point at the last slope. The pace contract is the one law for what an hour pays at Level L. The XP a Level costs is derived: hours times what an hour pays, times the pace seat's multiple | `P01`, `P02` | RULED 2026-11-21 for the table (Level 400 at 4,580 hunted hours, day 382) and the pace seat (a mid-geared four on the hardest tier it holds). DECIDED (GR-6, Fable 2026-11-21, reversal of the hours of the 2026-10-25 table and "Level 400 is day 382", Tyler may veto) for the derivation from Level 50 |
-| The kill reward | XP a health point is `contract(L) / reference kill-health an hour(L)`, one reference line for the whole game. A ground carries at most one derived number, for how its layout (walking, pack size, respawn) moves kill-health an hour against the reference. The generator writes it from the matrix with a stated tolerance of 5%. Nobody types it | `E01`, `E14` | DECIDED (GR-5, Fable 2026-11-21, step R12) |
-| One XP chain | Kill XP x tier x mode x party x event. Each factor is one table for the whole game. The lone hero's share is the first cell of the party table. The Tower and the Catacombs take the same table. A hero far under its party's top Level follows one visible line: at two thirds of the top Level or more it keeps its full share, and below that its share is its Level over that line | `P20`, `P21`, `P22`, `P25`, `P27` | DECIDED (GR-85, Fable 2026-11-21 for the fold, GR-36 for the Tower and Catacombs, MM-19 for the two thirds line). The party table's cells belong to chapter 06. No band sets one party size against another (RULED 2026-11-21, GR-67) |
+| The gear curve | A game formula in `src/data`, linear in the Level a piece is worn at, because monster health and hero health are both linear in Level and gear on any other curve drifts against them. A band is a fixed percent step of power, never a fixed count of Levels. The reference hero that every monster's aim and evasion are written against reads the curve. A unique spends a budget from the curve at published exchange rates, so its armor is arithmetic | `C-GEAR-WEAPON`, `C-GEAR-ARMOR`, `C-REF-HERO`, `P35` | RULED (GR-4, Tyler 2026-11-21, reversal, approved). The band's size is a tier's worth, about +24% of the line, with bands at Levels 110, 136, 169, 210, 260, 322 and 400. It is owned by chapter 03 |
+| The Level law | Hours to each Level is content Tyler owns: the ruled points, joined by a straight line on a log scale and carried past the last point at the last slope. The pace contract is the one law for what an hour pays at Level L. The XP a Level costs is derived: hours times what an hour pays, times the pace seat's multiple | `P01`, `P02` | RULED 2026-11-21 for the table (Level 400 at 4,580 hunted hours, day 382) and the pace seat (a mid-geared four on the hardest tier it holds). RULED (GR-6, Tyler 2026-11-21, reversal of the hours of the 2026-10-25 table and "Level 400 is day 382", approved) for the derivation from Level 50 |
+| The kill reward | XP a health point is `contract(L) / reference kill-health an hour(L)`, one reference line for the whole game. A ground carries at most one derived number, for how its layout (walking, pack size, respawn) moves kill-health an hour against the reference. The generator writes it from the matrix with a stated tolerance of 5%. Nobody types it | `E01`, `E14` | RULED (GR-5, Tyler 2026-11-21, step R12) |
+| One XP chain | Kill XP x tier x mode x party x event. Each factor is one table for the whole game. The lone hero's share is the first cell of the party table. The Tower and the Catacombs take the same table. A hero far under its party's top Level follows one visible line: at two thirds of the top Level or more it keeps its full share, and below that its share is its Level over that line | `P20`, `P21`, `P22`, `P25`, `P27` | RULED (GR-85, Tyler 2026-11-21 for the fold, GR-36 for the Tower and Catacombs, MM-19 for the two thirds line). The party table's cells belong to chapter 06. No band sets one party size against another (RULED 2026-11-21, GR-67) |
 | Skills | The combat skill curve is one formula. Skill gains its late worth through rune tiers past skill 60, one every 15 skill levels, on the gear curve. The hit stays skill plus gear and never skill times gear | `P03`, `P05`, `P06`, `P07`, `P08` | DECIDED (GR-23, Fable 2026-11-21) |
 | Death | 6% of all Level XP and 6% of each combat skill's progress, flat, with no cap. One function, in whole numbers, the same in both runtimes | `P28` | RULED 2026-11-21 (50-4) |
 
@@ -104,7 +106,7 @@ Nine mechanics. Their sizes belong to chapter 01. Their shape is fixed here.
 | The coin line | Coin a kill is one line by monster Level times monster health. One number where four stacked dials would give the same gold | `E23`, `E24`, `E25` | DECIDED (GR-51, Fable 2026-11-21, step R9) |
 | The wage curve | `wage(L)` is what a lone mid-geared hero nets in an hour on Normal at Level L. The server computes it as a formula: the coin line times the kill reward's reference kill rate, less the supply share. A simulator is never in the path of a server price. The matrix checks the formula against played net gold within 10% | `E56`, `E17`, `E36`, `E37`, `E42` | DECIDED (GR-51, Fable 2026-11-21, step R15) |
 | Repeating prices in hours | Every price that repeats (the refill, a Blessing, the yard, a scaled hour) is a number of hours of the wage curve | `E17`, `E37`, `E42` | DECIDED (GR-51, Fable 2026-11-21). The yard fee of 100 gold x skill level an hour is RULED (24-8) and is the first row on the curve |
-| Sinks as a share of band gold | Tempering, Hallmarks and linings each cost a share of the band's wage, so every band has its sinks by construction. A band's standing upgrades cost 1.2 to 1.4 of the band's net gold, so players choose. The House stays typed content, judged by the same band | `E38`, `E40`, `E55`, `E43` | RULED 2026-11-18 for the size. DECIDED (GR-8, Fable 2026-11-21, reversal of the typed prices kept on 2026-11-18, Tyler may veto, step R16) for the formula, sized on an account of four heroes |
+| Sinks as a share of band gold | Tempering, Hallmarks and linings each cost a share of the band's wage, so every band has its sinks by construction. A band's standing upgrades cost 1.2 to 1.4 of the band's net gold, so players choose. The House stays typed content, judged by the same band | `E38`, `E40`, `E55`, `E43` | RULED 2026-11-18 for the size. RULED (GR-8, Tyler 2026-11-21, reversal of the typed prices kept on 2026-11-18, approved, step R16) for the formula, sized on an account of four heroes |
 | The heal price | A store heal costs hit points times one gold-a-hit-point line, with its top near 0.60. A heal item's size is a share of the reference health of its tier, on the gear curve | `E18`, `E29`, `E30` | DECIDED (GR-52, Fable 2026-11-21, step R14), after harness fault F5 closes |
 | Drops in hours | A drop row is authored as hours a piece for a hero at the ground's floor, and the chance is derived from the kill rate | `E44`, `E45`, `E46`, `E15` | DECIDED (GR-87, Fable 2026-11-21, step R18) |
 | One sale formula | What a shop pays is one formula of tier that holds at tier 8 and beyond | `E26`, `E27`, `E28` | DECIDED (GR-87, Fable 2026-11-21, step R17) |
@@ -116,7 +118,7 @@ These are money surfaces. Each one is a server migration, staged, and inside the
 
 A knob is one named multiplier on numbers the game itself reads. The set is `tools/balance-program/formulas/knobs.json` (schema `hearthrise.balance-knobs/1`). The matrix and the Balance Lab read that one file. The register tool reads every value from the tree, so a lane that moves a coefficient runs one command and nothing is typed twice.
 
-**33 knobs the matrix can turn.** RULED 2026-11-21 that the game is globally tunable. The set itself is DECIDED (GR-85, Fable 2026-11-21, step V5 guards it).
+**33 knobs the matrix can turn.** RULED 2026-11-21 that the game is globally tunable. The set itself is RULED (GR-85, Tyler 2026-11-21, step V5 guards it).
 
 | Group | Knobs | Formula | What they move |
 |---|---|---|---|
@@ -137,19 +139,19 @@ Knobs marked RULED are measured with freely and never shipped at a new value wit
 
 | Knob | What it sets | Step | Status |
 |---|---|---|---|
-| `skillPower`, `gearPower`, `basePower` | The three terms of a hero's blow, each on its own | R2 | DECIDED (GR-85, Fable 2026-11-21) |
+| `skillPower`, `gearPower`, `basePower` | The three terms of a hero's blow, each on its own | R2 | RULED (GR-85, Tyler 2026-11-21) |
 | `powerFloor` | The one beginner's floor on the blow a cast reads | R6 | DECIDED (GR-11, Fable 2026-11-21) |
 | `runeStep` | A rune tier as a base and a step, with no last tier | R6, R22 | DECIDED (GR-23, Fable 2026-11-21) |
-| `gearSlope`, `gearBandStep` | The gear curve's slope and the size of a band | R10 | DECIDED (GR-4, Fable 2026-11-21, reversal, Tyler may veto) |
-| `gearExchange` | What a unique may buy with its budget | R11 | DECIDED (GR-4, Fable 2026-11-21, reversal, Tyler may veto) |
-| `paceContract` | What an hour pays at Level L | R12 | DECIDED (GR-5, Fable 2026-11-21) |
-| `killRateRef` | The one reference kill rate | R12 | DECIDED (GR-5, Fable 2026-11-21) |
-| `hoursPerLevel` | The ruled table of hours | R13 | DECIDED (GR-6, Fable 2026-11-21, reversal, Tyler may veto) |
+| `gearSlope`, `gearBandStep` | The gear curve's slope and the size of a band | R10 | RULED (GR-4, Tyler 2026-11-21, reversal, approved) |
+| `gearExchange` | What a unique may buy with its budget | R11 | RULED (GR-4, Tyler 2026-11-21, reversal, approved) |
+| `paceContract` | What an hour pays at Level L | R12 | RULED (GR-5, Tyler 2026-11-21) |
+| `killRateRef` | The one reference kill rate | R12 | RULED (GR-5, Tyler 2026-11-21) |
+| `hoursPerLevel` | The ruled table of hours | R13 | RULED (GR-6, Tyler 2026-11-21, reversal, approved) |
 | `skillCurve` | The combat skill curve. The matrix can move it because its heroes' skills come from the curve | V1 | Built in the instrument (see 2.4.4) |
 | `coinLine` | Coin by monster Level | R9 | DECIDED (GR-51, Fable 2026-11-21) |
 | `healPrice` | Gold a hit point at the store | R14 | DECIDED (GR-52, Fable 2026-11-21) |
 | `wageShare` | A repeating price as hours of the wage | R15 | DECIDED (GR-51, Fable 2026-11-21) |
-| `sinkShare` | A standing sink as a share of band gold | R16 | DECIDED (GR-8, Fable 2026-11-21, reversal, Tyler may veto) |
+| `sinkShare` | A standing sink as a share of band gold | R16 | RULED (GR-8, Tyler 2026-11-21, reversal, approved) |
 | `saleStep` | The sale formula's step a tier | R17 | DECIDED (GR-87, Fable 2026-11-21) |
 | `bandHours` | Drop promises in hours | R18 | DECIDED (GR-87, Fable 2026-11-21) |
 
@@ -169,41 +171,41 @@ Server changes in any step are staged, never applied by a lane, and the client h
 
 | Step | What it builds | Proof | Needs | Status |
 |---|---|---|---|---|
-| V1 | The simulator's heroes carry the skills the game's own curve allows at every Level | The grid's selftest: skill at Level 400 over the curve's answer goes red | none | DECIDED (GR-85, Fable 2026-11-21). Built in the instrument and proven (fault F15) |
-| V2 | One cell builder for the grid, the matrix and the solver's rates, carrying each tier's pull | The calibration cell reads within 10% of the real party on kills an hour | none | DECIDED (GR-85, Fable 2026-11-21). Built and proven (fault F14) |
-| V3 | One death rule in the harness, the game's own: a death ends that hero's hunt. A failing cell reports the time to the first death | The same cell and seeds give the same deaths in every file | V2 | DECIDED (GR-85, Fable 2026-11-21). Half built. The two files agree. The instant stand-up is open (fault F4) |
-| V4 | Harness seats take damage the way real seats do | The front seat's share of damage within 10 points of real play, and the party's total within 20% | V2 | DECIDED (GR-85, Fable 2026-11-21). The split is proven on the real lineup (fault F16). The total reads a third low and is open |
-| V5 | The matrix diff is the gate, and the formula registers are guarded in CI | `architecture-register.mjs --check` and `--selftest`. A new accidental row, or a special rule with no recommendation, fails | the matrix `--diff` | DECIDED (GR-88, Fable 2026-11-21) |
+| V1 | The simulator's heroes carry the skills the game's own curve allows at every Level | The grid's selftest: skill at Level 400 over the curve's answer goes red | none | RULED (GR-85, Tyler 2026-11-21). Built in the instrument and proven (fault F15) |
+| V2 | One cell builder for the grid, the matrix and the solver's rates, carrying each tier's pull | The calibration cell reads within 10% of the real party on kills an hour | none | RULED (GR-85, Tyler 2026-11-21). Built and proven (fault F14) |
+| V3 | One death rule in the harness, the game's own: a death ends that hero's hunt. A failing cell reports the time to the first death | The same cell and seeds give the same deaths in every file | V2 | RULED (GR-85, Tyler 2026-11-21). Half built. The two files agree. The instant stand-up is open (fault F4) |
+| V4 | Harness seats take damage the way real seats do | The front seat's share of damage within 10 points of real play, and the party's total within 20% | V2 | RULED (GR-85, Tyler 2026-11-21). The split is proven on the real lineup (fault F16). The total reads a third low and is open |
+| V5 | The matrix diff is the gate, and the formula registers are guarded in CI | `architecture-register.mjs --check` and `--selftest`. A new accidental row, or a special rule with no recommendation, fails | the matrix `--diff` | RULED (GR-88, Tyler 2026-11-21) |
 
 **Track R: the model.**
 
 | Step | What it builds | Layer | Proof | Needs | Status |
 |---|---|---|---|---|---|
-| R1 | A tree with no rule that is written and does nothing | code | Identity. `dead-exports` | none | DECIDED (GR-85, and GR-63, Fable 2026-11-21 for the rested bank) |
-| R2 | The blow reads its named constants, and the wiki reads the same ones | formula | Identity. One test that the wiki's terms are the engine's, with a mutant | none | DECIDED (GR-85, Fable 2026-11-21) |
-| R3 | One implementation of each rule: one spell roll, one rune ladder, one status row for a mark, one door for elements and phases, one death function in whole numbers in both runtimes | formula | Identity. The curves' parity test at 20 Levels | R2 | DECIDED (GR-85, Fable 2026-11-21) |
-| R4 | A monster row stores its own blow as a whole number | formula, data | Identity. The combat replay | R2 | DECIDED (GR-85, Fable 2026-11-21). An engine change, so it rides the one combat batch |
+| R1 | A tree with no rule that is written and does nothing | code | Identity. `dead-exports` | none | RULED (GR-85, Tyler 2026-11-21). The rested bank is not part of this step any more: it is KEPT (Tyler 2026-11-21) and pays (GR-63) |
+| R2 | The blow reads its named constants, and the wiki reads the same ones | formula | Identity. One test that the wiki's terms are the engine's, with a mutant | none | RULED (GR-85, Tyler 2026-11-21) |
+| R3 | One implementation of each rule: one spell roll, one rune ladder, one status row for a mark, one door for elements and phases, one death function in whole numbers in both runtimes | formula | Identity. The curves' parity test at 20 Levels | R2 | RULED (GR-85, Tyler 2026-11-21) |
+| R4 | A monster row stores its own blow as a whole number | formula, data | Identity. The combat replay | R2 | RULED (GR-85, Tyler 2026-11-21). An engine change, so it rides the one combat batch |
 | R5 | Two rulings built: the Tower with no heat patch, and the yard fee at 100 gold x skill level an hour | coefficient | The Tower's floor cells. The fee's SQL self-check | none | RULED 2026-11-20 (the Tower heat dropped in the four dives, and 24-8) |
 | R6 | Spell amounts: one power floor, a strike reads weapon weakness, the rune step as a base and a step | formula, coefficient | Coefficient, on Levels 1 to 15 and on the melee ways | R2, V1 | DECIDED (GR-11, Fable 2026-11-21 for the floor, GR-12 for weakness, GR-23 for the rune step) |
-| R7 | A tier's difficulty dial applied once, and one source for hero health | formula | Coefficient, on the harder tiers. Defense XP an hour | V3, V4 | DECIDED (GR-85, Fable 2026-11-21). Ships with one step of the dial if the lowest-health bands need it |
-| R8 | One XP chain: the lone share as the first cell of the party table, the visible two thirds line, and the Tower and Catacombs on the same table | formula | Identity for the fold. Coefficient for the line | none | DECIDED (GR-85, Fable 2026-11-21 for the fold, MM-19 for the line, GR-36 for the Tower and Catacombs) |
+| R7 | A tier's difficulty dial applied once, and one source for hero health | formula | Coefficient, on the harder tiers. Defense XP an hour | V3, V4 | RULED (GR-85, Tyler 2026-11-21). Ships with one step of the dial if the lowest-health bands need it |
+| R8 | One XP chain: the lone share as the first cell of the party table, the visible two thirds line, and the Tower and Catacombs on the same table | formula | Identity for the fold. Coefficient for the line | none | RULED (GR-85, Tyler 2026-11-21 for the fold, MM-19 for the line, GR-36 for the Tower and Catacombs) |
 | R9 | One coin line | coefficient | Identity in total: coin a hero-hour the same on every ground | none | DECIDED (GR-51, Fable 2026-11-21) |
-| R10 | The gear curve in `src/data`, read by the reference hero | formula | Derivation: the pace holds from Level 110 to 5,000 | V1 | DECIDED (GR-4, Fable 2026-11-21, reversal, Tyler may veto) |
-| R11 | Uniques spend a budget at exchange rates | coefficient | The armor line within 1%, where a red means re-derive one rate | R10 | DECIDED (GR-4, Fable 2026-11-21, reversal, Tyler may veto) |
-| R12 | The kill reward follows the pace line, with one tier table and one pull number a tier | formula | Derivation: band P2 on every ground with no typed fit | V1 to V5, R7, R10 | DECIDED (GR-5 and GR-27, Fable 2026-11-21). The largest single step. It moves XP on every ground at once |
-| R13 | The Level curve derived from the table of hours and the contract | curve | Band P1 exact at every ruled point. P11 and P12 | R12 | DECIDED (GR-6, Fable 2026-11-21, reversal, Tyler may veto). Lands at the wipe |
+| R10 | The gear curve in `src/data`, read by the reference hero | formula | Derivation: the pace holds from Level 110 to 5,000 | V1 | RULED (GR-4, Tyler 2026-11-21, reversal, approved) |
+| R11 | Uniques spend a budget at exchange rates | coefficient | The armor line within 1%, where a red means re-derive one rate | R10 | RULED (GR-4, Tyler 2026-11-21, reversal, approved) |
+| R12 | The kill reward follows the pace line, with one tier table and one pull number a tier | formula | Derivation: band P2 on every ground with no typed fit | V1 to V5, R7, R10 | RULED (GR-5 and GR-27, Tyler 2026-11-21). The largest single step. It moves XP on every ground at once |
+| R13 | The Level curve derived from the table of hours and the contract | curve | Band P1 exact at every ruled point. P11 and P12 | R12 | RULED (GR-6, Tyler 2026-11-21, reversal, approved). Lands at the wipe |
 | R14 | Heal price and heal size on one line | coefficient | Bands G-2, G-4 and G-5 | fault F5 closed | DECIDED (GR-52, Fable 2026-11-21) |
 | R15 | The wage curve, and repeating prices in hours | formula, server | Bands G-8, G-9 and S10. SQL self-checks. Security review | R9, R12 | DECIDED (GR-51, Fable 2026-11-21). Money surface |
-| R16 | Standing sinks as a share of band gold | coefficient, server | Bands G-10, E3 and E4 | R10, R15 | DECIDED (GR-8, Fable 2026-11-21, reversal, Tyler may veto). Money surface |
+| R16 | Standing sinks as a share of band gold | coefficient, server | Bands G-10, E3 and E4 | R10, R15 | RULED (GR-8, Tyler 2026-11-21, reversal, approved). Money surface |
 | R17 | One sale formula | formula | Band G-1. The market floor and bench tax hold | R9 | DECIDED (GR-87, Fable 2026-11-21) |
 | R18 | Drops authored in hours | data | Bands D1, D2 and E2. The Luck bar lands on this | R12 | DECIDED (GR-87, Fable 2026-11-21). Rows move in batches of 20 |
 | R19 | One amount pipeline, rounded once, with a trace | formula | Coefficient, largest in the first 15 Levels. The combat replay | R3, R4 | DECIDED (GR-86 and GR-13, Fable 2026-11-21). The engine's inner loop, so it rides a combat batch |
 | R20 | One modifier table | formula | Identity | R3 | DECIDED (GR-86, Fable 2026-11-21). The MMO layer's buffs and bought boosts need it (MM-24) |
 | R21 | Every monster reads the formula | data | Coefficient, a ground at a time, in batches of 20 rows | R4 | DECIDED (GR-86, Fable 2026-11-21) |
 | R22 | Endless modes read any Level: the Tower reads any floor from one row, and rune tiers have no last tier | formula | The Tower's cells at floors 300, 500 and 1,000 | R5, R10 | DECIDED (GR-23, Fable 2026-11-21) |
-| R23 | The simulator never edits shared data. Data rows are frozen and the matrix's scratch copy is the only what-if door | tools | The matrix selftest refuses a write outside the scratch copy | V5 | DECIDED (GR-88, Fable 2026-11-21) |
+| R23 | The simulator never edits shared data. Data rows are frozen and the matrix's scratch copy is the only what-if door | tools | The matrix selftest refuses a write outside the scratch copy | V5 | RULED (GR-88, Tyler 2026-11-21) |
 
-**What must ship together.** These pairings bind the build plan. DECIDED as a set (GR-85, GR-5, GR-6, GR-8, Fable 2026-11-21, reversal, Tyler may veto).
+**What must ship together.** These pairings bind the build plan. RULED as a set (GR-85, GR-5, GR-6, GR-8, Tyler 2026-11-21, reversal, approved).
 
 | # | These ship together, or in this order | Why |
 |---|---|---|
@@ -228,7 +230,7 @@ Server changes in any step are staged, never applied by a lane, and the client h
 | C1 | Database time a hunted hero-hour: at most 1.25 seconds at 1,000 accounts and 0.5 at 10,000 | COMPUTED from C2 |
 | C3 | Journal rows: at most one a hero an hour an activity | RULED 2026-11-20 (28-2) |
 | C4b | The lines of the bill that are not the database (plan, journal disk, edge calls, Realtime, egress): at most $80 a month at 1,000 accounts and $1,015 at 10,000 | ASSUMED from list prices. To be re-read for the 12 hour day. OPEN after 48, which priced the database and not these lines. Owner: the reliability engineer. If these grow, C2 shrinks |
-| C5 | 1,000 accounts of four heroes at 12 hours fit one database under 70% CPU at the busy hour. 10,000 fit a plan that exists, with room | DECIDED (GR-1, Fable 2026-11-21). ESTIMATED by study 48 to fit at 1,000 accounts. At 10,000 an account with a tab open misses on the edge and fits on an engine server (section 2.3.4). The load test A8 is still owed |
+| C5 | 1,000 accounts of four heroes at 12 hours fit one database under 70% CPU at the busy hour. 10,000 fit a plan that exists, with room | RULED (GR-1, Tyler 2026-11-21). ESTIMATED by study 48 to fit at 1,000 accounts. At 10,000 an account with a tab open misses on the edge and fits on an engine server (section 2.3.4). The load test A8 is still owed |
 | C6 | A new system adds no statement on the settle path, no poll, and nothing that grows with players times players | RULED 2026-11-20 (the allowance of 28 section 3) |
 
 Compute upgrades are Tyler's call for each spend. The server stays on its small plan until a busy hour reads 50%. RULED 2026-11-20 (28-3).
@@ -260,15 +262,15 @@ Every system in every chapter is held to these lines. A system that needs more c
 |---|---|---|
 | 1 | **A watched hunt costs what an away hunt costs.** The edge holds the engine and the last saved state and answers the viewer from them every 16 seconds, so the fight on screen never freezes and Leave is never slower. The database saves on the flush, and at once on anything that matters: a death, a Level, a Leave, the hunt's end, a rare drop, and every money intent. Nothing a purchase, a gate or another player can read ever comes from unsaved state, and a save replays the same seeds | RULED 2026-11-20 (28-1) and 2026-11-10 (no frozen fight) |
 | 2 | **The hourly journal.** One `player_ledger` row a hero an hour an activity (hunting, supplies bought, supplies used, gathering, a bench), closed at the hunt's end. Every audit and day cap that reads the journal keeps its sums | RULED 2026-11-20 (28-2) |
-| 3 | **Delta envelopes.** A poll that changed nothing returns a version. A settle returns only the sections it moved. The envelope stays the truth, replaced and never merged upward (CLAUDE.md section 6) | DECIDED (GR-1, Fable 2026-11-21) |
+| 3 | **Delta envelopes.** A poll that changed nothing returns a version. A settle returns only the sections it moved. The envelope stays the truth, replaced and never merged upward (CLAUDE.md section 6) | DECIDED (GR-1, Fable 2026-11-21, on study 48) |
 | 4 | **Town presence by push.** A town instance pushes its moves on its own topic. A player alone in an instance is sent nothing. The account's own working heroes are drawn at their stations so the town is never empty | RULED 2026-11-20 (28-7). Drawing other accounts' heroes at work while their owner is away is DECIDED (GR-70, Fable 2026-11-21). Study 48 priced town presence as one heartbeat (worth 9 database-seconds a day to an account with a tab open, ESTIMATED) and did not price the drawn bodies. OPEN after 48, for the reliability engineer |
 | 5 | **One heartbeat.** Friends, the market and boards ride one version in the heartbeat. A board is refreshed when it is read and stale, never on a timer for nobody | RULED 2026-11-20 (28 section 3, polls 0) |
-| 6 | **Town work paid in closed form.** See below | DECIDED (GR-1, Fable 2026-11-21). Training alone is RULED 2026-11-20 (28-11) |
+| 6 | **Town work paid in closed form.** See below | RULED (GR-1, Tyler 2026-11-21). Training alone is RULED 2026-11-20 (28-11) |
 | 7 | **How an away hunt is saved.** Every 10 minutes, or at 1.2 seconds of engine time, whichever is less. See below | DECIDED (GR-1, Fable 2026-11-21, on study 48). The result is MEASURED identical at every cadence |
 | 7a | **The settle reads the party once.** One read of the party a save | DECIDED (GR-1, Fable 2026-11-21, on study 48). It ships first |
 | 7b | **An open tab sends only its confirm and its heartbeat** | DECIDED (GR-1, Fable 2026-11-21, on study 48). One controlled read names the rest of the traffic first |
 | 7c | **An account's four heroes are saved together.** One party is one save, and the tick packs an account's lone hunts into one save | DECIDED (GR-1, Fable 2026-11-21, on study 48) |
-| 7d | **Where the engine runs.** On the edge for the beta and for 1,000 accounts. An always-on engine server is decided before 10,000 accounts | The edge is DECIDED (GR-1). The engine server is a spend: TYLER CONFIRMS, later, money list row 17 |
+| 7d | **Where the engine runs.** On the edge for the beta and for 1,000 accounts. An always-on engine server is decided before 10,000 accounts | The edge is DECIDED (GR-1, Fable 2026-11-21, on study 48). The engine server is a spend: RULED (Tyler 2026-11-21) as a later call, with nothing to buy now, money list row 17 |
 | 8 | **Fewer presses.** One Start, one plan and one return card for the four heroes, a task that takes itself, and a starting loot plan. About 20 presses a day in place of 100 | DECIDED (GR-80, GR-78, Fable 2026-11-21). Owned by chapter 08. It is cost work as well as design work |
 | 9 | **One Global chat.** Lines are batched on the existing connection, with a slow mode when crowded | RULED 2026-11-21 (31-1) and 2026-11-20 (28-6). A client holds a small fixed number of live topics, so every social tab (Global, clan, whispers, party) rides one multiplexed topic and a new tab never needs a new connection. That part is OPEN after 48, which did not size it. Owner: the reliability engineer |
 | 10 | **One world, built in rooms.** One database until about 25,000 accounts. Every shared thing is built in rooms (town instances of 60, boards a world) so a second world is a new database and never a redesign | RULED 2026-11-20 (28-5). The 25,000 is ESTIMATED for a lighter day than the ruled one. Study 48 did not re-read it. OPEN after 48, for the reliability engineer |
@@ -277,8 +279,8 @@ Every system in every chapter is held to these lines. A system that needs more c
 
 **Town work in closed form.** DECIDED (GR-1, Fable 2026-11-21, on study 48's evidence). A job in town (a training session, a gathering trip, a bench run) is paid at its start, at each paid hour and at stop. The server computes what the hours paid from the rows and the clock. No combat engine runs and no settle fires for a hero in town. Study 48 named this as the first of its calls, and it is a design call, so the game designer decided it. It bends one ruling, the 2026-10-22 wording that town work updates on the server in real time, and that is reversal 16 on Tyler's list (CE-7): the screen still moves in real time, and any press that needs the items settles the job first.
 
-- One yield rule covers training, gathering and benches. It sits beside the skill grant (`P05`) and the training pay formula (`P09`), which pays a share of the skill level's cost and never one flat rate. DECIDED (GR-1 and GR-54, Fable 2026-11-21, reversal of 2026-11-14, 21-7 and A-5, Tyler may veto).
-- Yields are identical in the mean to an hour settled step by step. Every roll is seeded at the start, so stopping early or late cannot pick a better outcome. DECIDED (GR-1, Fable 2026-11-21).
+- One yield rule covers training, gathering and benches. It sits beside the skill grant (`P05`) and the training pay formula (`P09`), which pays a share of the skill level's cost and never one flat rate. RULED (GR-1 and GR-54, Tyler 2026-11-21, reversal of 2026-11-14, 21-7 and A-5, approved).
+- Yields are identical in the mean to an hour settled step by step. Every roll is seeded at the start, so stopping early or late cannot pick a better outcome. RULED (GR-1, Tyler 2026-11-21).
 - The journal holds one row a hero an hour a job (band C3).
 - What it is worth, from study 48. Closed form is worth 109 database-seconds an account-day (ESTIMATED from REAL mechanism costs: a town settle on the tick reads the whole hero again, 46 times a town hero-hour at 90 ms). Town work in closed form costs about 0.5 database-seconds an account-day (ASSUMED, CITED from study 59). No design meets 60 without this choice.
 - What it must prove before it ships. It is a money and XP path. Closed form must pay what the tick settles pay on a replayed day, and it goes through the Security review at Early Access.
@@ -309,19 +311,19 @@ The 3.5 hour tab day at 1,000 accounts, by line (ESTIMATED): closed hunting 6.9,
 
 | Choice | Worth, database-seconds a day | Risk | Status |
 |---|---|---|---|
-| Town work paid in closed form | 109 and 109 | Medium. A money and XP path | DECIDED (GR-1). Reversal 16 for the 2026-10-22 wording (CE-7) |
-| A closed hunt saved every 10 minutes, or at 1.2 seconds of engine time | 36 and 32 | Medium. No result changes (MEASURED) | DECIDED (GR-1) |
-| An open tab sends only the confirm and the heartbeat | 0 and 50 | Unknown until 33.5 seconds of a watched four-hour are named. UNATTRIBUTED in study 48 | DECIDED (GR-1). One controlled read first |
-| The settle reads the party once | 6.5 and 49 | None | DECIDED (GR-1). Ships first |
+| Town work paid in closed form | 109 and 109 | Medium. A money and XP path | RULED (GR-1, Tyler 2026-11-21). Reversal 16 for the 2026-10-22 wording (CE-7) |
+| A closed hunt saved every 10 minutes, or at 1.2 seconds of engine time | 36 and 32 | Medium. No result changes (MEASURED) | DECIDED (GR-1, Fable 2026-11-21, on study 48) |
+| An open tab sends only the confirm and the heartbeat | 0 and 50 | Unknown until 33.5 seconds of a watched four-hour are named. UNATTRIBUTED in study 48 | DECIDED (GR-1, Fable 2026-11-21, on study 48). One controlled read first |
+| The settle reads the party once | 6.5 and 49 | None | DECIDED (GR-1, Fable 2026-11-21, on study 48). Ships first |
 | Confirm in the edge, save at the flush | 0 and 26 | High. Nothing a purchase, a gate or another player reads may come from unsaved state | RULED 2026-11-20 (28-1) |
 | Off-screen heroes are fed by their frames, with no poll | 0 and 29 | Its own lane's | Design 1 and 5 above |
-| A read sends changed sections only | 0.7 and 19 | Medium. A section not sent is unchanged, never merged | DECIDED (GR-1), design 3 above. ASSUMED at a quarter of a whole read |
+| A read sends changed sections only | 0.7 and 19 | Medium. A section not sent is unchanged, never merged | DECIDED (GR-1, Fable 2026-11-21, on study 48), design 3 above. ASSUMED at a quarter of a whole read |
 | One heartbeat, nothing when alone | 0 and 9 | Low | RULED 2026-11-20 (28-7, 28 section 3) |
 | 20 presses a day | 5.7 and 5.7 | None | DECIDED (GR-80, GR-78) |
-| The settle's plans read once each | 1.7 and 8.8 | Low | DECIDED (GR-1) |
+| The settle's plans read once each | 1.7 and 8.8 | Low | DECIDED (GR-1, Fable 2026-11-21, on study 48) |
 | The hourly journal | 0.7 and 1.1. Its real worth is disk: one journal row a hero an hour | Medium. Every day cap and audit sum reads the same on a replayed day | RULED 2026-11-20 (28-2) |
-| An account's four heroes saved together | 6.7 and none | None | DECIDED (GR-1) |
-| The engine on an always-on server | It saves 6.5 and 21.2, and makes a shared fight cheap | A long-lived process and a second deploy surface | TYLER CONFIRMS, later. A spend |
+| An account's four heroes saved together | 6.7 and none | None | DECIDED (GR-1, Fable 2026-11-21, on study 48) |
+| The engine on an always-on server | It saves 6.5 and 21.2, and makes a shared fight cheap | A long-lived process and a second deploy surface | RULED (Tyler 2026-11-21): a later call. Nothing to buy now |
 
 **How an away hunt is saved.** DECIDED (GR-1, Fable 2026-11-21, on study 48). A closed hunt is saved when its window holds 10 minutes, or 1.2 seconds of measured engine time, whichever is less. A heavy party then saves every 4 to 5 minutes.
 
@@ -357,7 +359,7 @@ With the browser closed the cost is for each hero. The tab is for each account, 
 9. Changed sections only, and one heartbeat.
 10. The engine server decision before 10,000 accounts, with the MMO layer's broadcast design.
 
-**The engine server.** TYLER CONFIRMS, later. It is a spend, so it is not decided here, and nothing is bought now. It is the only way an account that watches fits 24 at 10,000 accounts, and it is what makes a shared fight cheap. On it the account-day is 4.4 closed and 10.0 with the tab at 1,000 accounts, and 3.5 and 9.1 at 10,000 (ESTIMATED). Its risk: a crash loses nothing, because the engine is deterministic from the last save, but the server must never answer from state older than the database's.
+**The engine server.** RULED (Tyler 2026-11-21) as recommended: it is a later call, a spend, and nothing is bought now. It is the only way an account that watches fits 24 at 10,000 accounts, and it is what makes a shared fight cheap. On it the account-day is 4.4 closed and 10.0 with the tab at 1,000 accounts, and 3.5 and 9.1 at 10,000 (ESTIMATED). Its risk: a crash loses nothing, because the engine is deterministic from the last save, but the server must never answer from state older than the database's.
 
 **What study 48 asks to be measured next.** The save's cost after read-once ships (expected: a read of about 35 ms and an apply of about 100 ms for a closed four). The tab's 33.5 seconds, by one controlled read. A town-hour fixture and a 20-hero boss fixture. An alarm on the settle read's mean, red over 40 ms.
 
@@ -371,7 +373,7 @@ The 10,000 account budget of 24 seconds is met by an account that does not watch
 
 #### 2.3.5 The cost envelope for world bosses, clans, events and arenas
 
-Rule 0 of the MMO layer is that every shared feature works while both players are asleep (DECIDED, MM-1, Fable 2026-11-21). That rule is also the cost rule: no part needs two people at the screen in the same minute, so no part needs a live connection between players.
+Rule 0 of the MMO layer is that every shared feature works while both players are asleep (RULED, MM-1, Tyler 2026-11-21). That rule is also the cost rule: no part needs two people at the screen in the same minute, so no part needs a live connection between players.
 
 The whole layer is held to **under 3 database-seconds an account-day**. ESTIMATED in study 49. Study 48 sized one part of it, a shared fight, and nothing else in the layer, so clans, events, arenas and presence are OPEN after 48. Every part obeys band C6.
 
@@ -386,13 +388,13 @@ The whole layer is held to **under 3 database-seconds an account-day**. ESTIMATE
 | Part | How it stays inside the allowance | Envelope | Status |
 |---|---|---|---|
 | World boss | A boss fight is an ordinary four in an ordinary instance. It spends stamina, so it takes the place of hunted hours and adds none. New damage folds into the one shared pool in one statement a minute while a boss stands. The pool is never written once a hit | TARGET under 0.1 database-seconds an account-day added. Check D of the validation plan measures it with 1,000 synthetic boss rooms | DECIDED (MM-2, MM-3, MM-4, Fable 2026-11-21) |
-| Clans | A gift is one press and one journal row. A roster is read when its window opens and is bounded by the roster size. The board is one weekly fold. The castle's totals are a bucket a day a project, summed on read, so 10,000 gifts in a minute never queue on one row | Close to nothing | DECIDED (MM-8, MM-9, MM-10, Fable 2026-11-21, reversal of 25-4, the castle gate of 25-3 and 31-3, Tyler may veto) |
-| Events | A calendar written a year ahead as data rows. An event's buff is a row in the one modifier table, read at the settle with the hero's other modifiers | 0 new statements | DECIDED (MM-11, MM-42, Fable 2026-11-21, reversal of the second half of 27-5, Tyler may veto) |
+| Clans | A gift is one press and one journal row. A roster is read when its window opens and is bounded by the roster size. The board is one weekly fold. The castle's totals are a bucket a day a project, summed on read, so 10,000 gifts in a minute never queue on one row | Close to nothing | DECIDED (MM-8, MM-9, MM-10, Fable 2026-11-21, reversal of 25-4, the castle gate of 25-3 and 31-3, approved, with MM-9 RULED by Tyler) |
+| Events | A calendar written a year ahead as data rows. An event's buff is a row in the one modifier table, read at the settle with the hero's other modifiers | 0 new statements | DECIDED (MM-11, MM-42, Fable 2026-11-21, reversal of the second half of 27-5, approved, with MM-42 RULED by Tyler) |
 | The two arenas | A fight reads two saved setups, simulates in the edge and writes one result. Opponents are saved setups and house teams, never live players. Tickets bound the count: 5 a day for each arena, banking to 20 | ESTIMATED 0.13 to 0.2 database-seconds a fight, under 2 an account-day for both arenas | DECIDED (MM-12, MM-13, MM-15, MM-40, Fable 2026-11-21). The engine check MM-41 comes first |
 | The presence strip | One small read a minute while a hunt is on screen, or none if it rides the hunt's own update | ESTIMATED about 0.5 | DECIDED (MM-20, Fable 2026-11-21) |
-| Buffs, clan rooms and bought boosts | Rows in the one modifier table, summed and capped by the server at the settle | 0 new statements | DECIDED (MM-24, MM-25, MM-30, Fable 2026-11-21, with MM-30 for Tyler to confirm) |
+| Buffs, clan rooms and bought boosts | Rows in the one modifier table, summed and capped by the server at the settle | 0 new statements | DECIDED (MM-24, MM-25, MM-30, Fable 2026-11-21, with MM-30 RULED by Tyler) |
 
-Three rules hold every later MMO design to the envelope. RULED 2026-11-20 (28 section 3) for the first two. DECIDED (MM-1, Fable 2026-11-21) for the third.
+Three rules hold every later MMO design to the envelope. RULED 2026-11-20 (28 section 3) for the first two. RULED (MM-1, Tyler 2026-11-21) for the third.
 
 1. Anything where N players write one row a second is refused until it is cut into rooms or folded on a timer.
 2. A shared total is a fold of journal rows, never a hot row.
@@ -429,7 +431,7 @@ The frame is RULED 2026-11-21: Level 1 to 400, three gear states, 12 hunted hour
 
 #### 2.4.2 The matrix and its gate
 
-**The gate.** A matrix diff is the release gate for every balance change. DECIDED (GR-88, Fable 2026-11-21). A patch names its `targets`. Anything else it moves is flagged UNINTENDED. A change with an UNINTENDED band outside seed noise goes back to its lane.
+**The gate.** A matrix diff is the release gate for every balance change. RULED (GR-88, Tyler 2026-11-21). A patch names its `targets`. Anything else it moves is flagged UNINTENDED. A change with an UNINTENDED band outside seed noise goes back to its lane.
 
 | Kind of proof | The claim | The proof |
 |---|---|---|
@@ -448,11 +450,11 @@ The frame is RULED 2026-11-21: Level 1 to 400, three gear states, 12 hunted hour
 
 Levels past 185 are PROJECTED on placeholder grounds and a projected gear line, and every reading there says so. A lone-against-four pairing in the subset is a pair of seats to play, not a band. No band sets one party size against another (RULED 2026-11-21).
 
-**What GR-88 adds to the gate.** DECIDED (GR-88, Fable 2026-11-21).
+**What GR-88 adds to the gate.** RULED (GR-88, Tyler 2026-11-21).
 
 - Band S11, XP after deaths, so a change to a death rule can never pass silently. Built in the instrument.
 - Band rows on the ground axis, so a ground patch moves a band and is not read by hand.
-- The four lineups that Deadly must turn red: fours without a tank or a healer (GR-3).
+- The four lineup cells, printed for reading only. No lineup is asked to fail (GR-3, ruled: the lineup test is out).
 - A band's mode moves one way. It starts in report. It turns red in the lane that lands the change it guards, and never goes back (`50-standards.md` 5.4).
 - The registers are guarded in CI (step V5).
 
@@ -464,9 +466,9 @@ Levels past 185 are PROJECTED on placeholder grounds and a projected gear line, 
 |---|---|---|---|
 | `combat-3` | Magic adds 0.5% max mana a level for every hero | PASS. 19 improved, 0 unintended | DECIDED (GR-22, Fable 2026-11-21) |
 | `economy-1` | The store's heal prices on one line | PASS. 15 improved, 0 unintended | DECIDED (GR-52, Fable 2026-11-21) |
-| `progression-3-rested-off` | No rested bank | An identity in 207 cells | DECIDED (GR-63, Fable 2026-11-21) |
+| `progression-3-rested-off` | No rested bank | An identity in 207 cells. Kept as evidence only: the bank stays and pays hours a hero missed, which the pace seat never has | KEPT (Tyler 2026-11-21), GR-63 |
 | `combat-1`, `combat-4`, `combat-5` | Axes read the sword's weak side, and a physical strike reads weapon weakness | Small, at most 3.5% on one way | DECIDED (GR-12, GR-14, Fable 2026-11-21) |
-| `world-2b-dangerous-five` | Dangerous brings five | Holds at the dial it was played on. Not yet played at the harder dial ruled on 2026-11-20 | DECIDED shape only (GR-27, Fable 2026-11-21) |
+| `world-2b-dangerous-five` | Dangerous brings five | Holds at the dial it was played on. Not yet played at the harder dial ruled on 2026-11-20 | RULED shape only (GR-27, Tyler 2026-11-21) |
 | `world-3-slake-signature` | A ground signature at double dose | Bites small parties first on the harder tiers | A sample for chapter 02 |
 | `economy-2` | Every supply at full effect | An upper bound: a four on Deadly up to 12% faster and 30% safer | The reason tiers are sized before the idle market opens (GR-50) |
 | `combat-2`, `economy-3`, `social-1`, `social-2` | A heavier crossbow line, gold in cut 15%, the party size row | Withdrawn or deferred | Not in the design |
@@ -528,10 +530,10 @@ Of the 108, 89 have a reader and 19 do not. The grid reads 85, and the atlas and
 
 | Fault | What it does | What closes it | Status |
 |---|---|---|---|
-| V3 and F4 | A dead harness hero stands up at once and hunts on, so a death count on a failing cell is a retry count | The harness follows the game's own rule: a death ends that hero's hunt until the next visit, and a failing cell reports time to the first death and hours lost | DECIDED (GR-85, Fable 2026-11-21, step V3). It follows a ruling and needs no new one |
+| V3 and F4 | A dead harness hero stands up at once and hunts on, so a death count on a failing cell is a retry count | The harness follows the game's own rule: a death ends that hero's hunt until the next visit, and a failing cell reports time to the first death and hours lost | RULED (GR-85, Tyler 2026-11-21, step V3). It follows a ruling and needs no new one |
 | F5 | The party's store bill reads 1.7 to 2.2 times real, because the simulated kit buys the rune tier its Magic allows and real players buy lower | A kit rule: mid gear casts one rune tier under what its Magic allows, a healer's heals use the cheapest water rune, best in slot casts the tier its Magic allows. Then one play of the grid | DECIDED (GR-52, Fable 2026-11-21): the kit rule in this row is the rule. Then the grid is played once |
 | F6 | The kit builder never wears the unique lines at Levels 110 to 185 | The unique lines in `grid-kit.mjs` | Tools work |
-| F7 | The Deadly death band judges a lone hero against the party's count | The S6 rows name the four as the seat they judge, which the no-targets ruling already implies | DECIDED (GR-88, Fable 2026-11-21) |
+| F7 | The Deadly death band judges a lone hero against the party's count | The S6 rows name the four as the seat they judge, which the no-targets ruling already implies | RULED (GR-88, Tyler 2026-11-21) |
 | F8 | One party band compares a party and a lone hero on different grounds | Closed by the ruling: the band is dropped (GR-67) | RULED 2026-11-21 |
 | F9 | The cost bands are a model on means read before the cost work was measured | A fresh read on study 48's account-day | Study 48 has landed. The re-read is the matrix lane's |
 | F10 | A re-run of a cell through the tool replays the same seeds | A fresh-seed option | Tools work |
@@ -540,7 +542,7 @@ Of the 108, 89 have a reader and 19 do not. The grid reads 85, and the atlas and
 | F13 | Band D2 has no row to read from Level 125 | A row | Tools work |
 | The damage total | A four's total damage taken reads a third low on the one ground that can be compared | One watched hour of a real four with the tally recording damage by source | OPEN. Needs real play |
 
-**What the instrument needs, in order.** DECIDED (GR-85, GR-88, Fable 2026-11-21).
+**What the instrument needs, in order.** RULED (GR-85, GR-88, Tyler 2026-11-21).
 
 1. The death rule of V3.
 2. The kit's rune rule of F5, then one play of the grid.
@@ -560,11 +562,11 @@ The Balance Lab is the global balance dashboard. It runs the real engine in a br
 | 2 | It shows the proposed game against its targets, which are the standards' bands and Tyler's rulings. It has no column for any other game | RULED 2026-11-21 (the current game is irrelevant, newest) |
 | 3 | Sliders tune the proposed game. Moving a slider replays the matrix's own cells live and shows the precomputed sweep of that knob over the 207-cell subset, as each cell's change in every metric | RULED 2026-11-21 (the formula brief) |
 | 4 | It stays local for now. Tyler's findings go to the dashboard lane, each with a test | RULED 2026-11-21 |
-| 5 | A proposal is a patch file under `tools/balance-program/patches` (schema `hearthrise.balance-patch/1`) naming its kind and its targets. The Lab's toggles and the matrix's `--diff` read the same files | DECIDED (GR-88, Fable 2026-11-21) |
+| 5 | A proposal is a patch file under `tools/balance-program/patches` (schema `hearthrise.balance-patch/1`) naming its kind and its targets. The Lab's toggles and the matrix's `--diff` read the same files | RULED (GR-88, Tyler 2026-11-21) |
 | 6 | It carries no row for one party size against another | RULED 2026-11-21 (GR-67) |
-| 7 | Every panel prints the calibration and the trust state of the band it shows, taken from the table in 2.4.3, so a red that rests on a faulty reading says so | DECIDED (GR-88, Fable 2026-11-21) |
+| 7 | Every panel prints the calibration and the trust state of the band it shows, taken from the table in 2.4.3, so a red that rests on a faulty reading says so | RULED (GR-88, Tyler 2026-11-21) |
 | 8 | Three sides are held equal by `tools/balance-lab/parity.mjs`: a cell in the Lab plays what the simulator's cell plays, a knob moves what the scratch copy moves, and formula rows re-written in the Lab are the generator's | Built in the instrument |
-| 9 | The 18 arriving knobs appear as sliders when their roadmap step lands, and not before | DECIDED (GR-85, Fable 2026-11-21) |
+| 9 | The 18 arriving knobs appear as sliders when their roadmap step lands, and not before | RULED (GR-85, Tyler 2026-11-21) |
 
 Not yet true of the Lab, and the dashboard lane's work: rule 1 needs every recommended proposal cut as a patch file, and the model steps R10, R12 and R13 cannot be toggled until they exist as staged formulas the Lab can read. Until then the Lab shows the proposed game as far as the patches reach and says which proposals it cannot yet play.
 
@@ -598,7 +600,7 @@ Not yet true of the Lab, and the dashboard lane's work: rule 1 needs every recom
 
 ### 2.6 The validation plan and playtests
 
-**Order.** DECIDED (GR-85, GR-88, MM-23, Fable 2026-11-21).
+**Order.** DECIDED (GR-85, GR-88, MM-23, Fable 2026-11-21, with GR-85 and GR-88 RULED by Tyler).
 
 1. Make the instrument true (2.4.4).
 2. The checks that need no players (table A).
@@ -643,7 +645,7 @@ Not yet true of the Lab, and the dashboard lane's work: rule 1 needs every recom
 | Database-seconds an account-day, read from production | Band C2 | Over 70 |
 | Five players asked "is buying Crowns worth it, and is it fair?" | Most say worth it, most say fair | "Not worth it" or "pay to win" from most |
 
-Testing the Crowns loop in a free, wiped playtest means every account receives the same weekly allowance of test Crowns by one server switch. That is a grant, so it needs Tyler's explicit yes. TYLER CONFIRMS (MM-43, a grant). Recommended yes, for the wiped Discord playtest only: the same amount for every account, one server switch that is off by default and removed before Early Access, and every grant journalled.
+Testing the Crowns loop in a free, wiped playtest means every account receives the same weekly allowance of test Crowns by one server switch. That is a grant, and Tyler gave an explicit yes. RULED (MM-43, Tyler 2026-11-21), for the wiped Discord playtest only: the same amount for every account, one server switch that is off by default and removed before Early Access, and every grant journalled.
 
 **Table C. Questions only players can settle.** DECIDED as the reading list (no call id, Fable 2026-11-21). Each has its measure set in advance.
 
@@ -689,14 +691,14 @@ Testing the Crowns loop in a free, wiped playtest means every account receives t
 
 | # | Surface | What the review must prove | Design status |
 |---|---|---|---|
-| 1 | **The Crowns book** (Crowns sold to players for gold) | Crowns are a number on the account written only by the server. Eight clamps hold: a weekly cap on Crowns sold and bought, a price band of half to twice the 7 day median, one trade and then bound, a hold after purchase for the payment provider's chargeback window, a Level door with the same-network guard, the boost catalogue and its cap, no power rows in the store, and a journal row for every Crown bought, listed, sold, bound and spent. It has its own escrow and is reviewed as its own surface | TYLER CONFIRMS (MM-35, MM-36), building the ruled 24-5 |
-| 2 | **The Crowns store and bought boosts** | A server catalogue with server prices and a server clock. One bought boost a knob at a time. A bought boost and an earned buff fill the same timed cap, applied by the server in the one modifier table. A test proves the store has no row for gear, materials, gold, Levels, skill levels, chests or rating. Luck is never sold (RULED 2026-11-20) | TYLER CONFIRMS (MM-29, MM-30) |
-| 3 | **The paid ceiling** | The caps cannot be stacked past: at most 60% more Levels an hour than a plain mid-geared four, zero bands of gear ahead, and about double a week's gold. Check A6 is the proof on the grid, and it is green before the book opens | TYLER CONFIRMS (MM-31, MM-32, MM-33) |
+| 1 | **The Crowns book** (Crowns sold to players for gold) | Crowns are a number on the account written only by the server. Eight clamps hold: a weekly cap on Crowns sold and bought, a price band of half to twice the 7 day median, one trade and then bound, a hold after purchase for the payment provider's chargeback window, a Level door with the same-network guard, the boost catalogue and its cap, no power rows in the store, and a journal row for every Crown bought, listed, sold, bound and spent. It has its own escrow and is reviewed as its own surface | RULED (MM-35, MM-36, Tyler 2026-11-21), building the ruled 24-5 |
+| 2 | **The Crowns store and bought boosts** | A server catalogue with server prices and a server clock. One bought boost a knob at a time. A bought boost and an earned buff fill the same timed cap, applied by the server in the one modifier table. A test proves the store has no row for gear, materials, gold, Levels, skill levels, chests or rating. Luck is never sold (RULED 2026-11-20) | RULED (MM-29, MM-30, Tyler 2026-11-21) |
+| 3 | **The paid ceiling** | The caps cannot be stacked past: at most 60% more Levels an hour than a plain mid-geared four, zero bands of gear ahead, and about double a week's gold. Check A6 is the proof on the grid, and it is green before the book opens | RULED (MM-31, MM-32, MM-33, Tyler 2026-11-21, not the recommendation) |
 | 4 | **The market** | Listing, buying, escrow, the fee and the house cut. Day caps on listings, spend and proceeds, sized against real item prices. Gold moved to another account through junk at the price floor is bounded. Standing buy orders and the idle refill buy only inside the same clamps. One book for each piece, so an order can name a rolled piece | RULED 2026-11-20 for the Weighhouse (24). DECIDED (GR-50, Fable 2026-11-21) for standing orders |
 | 5 | **The two arenas** | A fight is simulated by the server from two saved setups. No client value sets a rating, a result, a ticket count or a reward. Tickets bank to a server cap. The even arena reads nothing bought, proven by a test that a bought boost or better gear moves no even-arena outcome. Rating cannot be traded up by feeding wins between accounts on one network. Every arena write is journalled | DECIDED (MM-12 to MM-16, MM-38 to MM-40, Fable 2026-11-21) |
 | 6 | **World boss chests and boss gear** | The chest pays by the claimant's own points, counted by the server from its own rooms. A claim is idempotent. The pool cannot be moved by a client value. Boss pieces are ordinary tradeable gear and mint only from a chest | DECIDED (MM-5, MM-6, MM-27, Fable 2026-11-21) |
-| 7 | **Clan gifts, the castle and room buffs** | Gifts are one-way. A member holds a room's buff by giving that week's share and never by roster size. A contributor gate that alternate accounts cannot pass with token gifts. A leader cannot empty a finished castle of its members. Work is counted by the server from hunted minutes, never sent by the client | DECIDED (MM-8, MM-9, MM-10, Fable 2026-11-21, reversal, Tyler may veto) |
-| 8 | **Every repeating price and sink** | The wage curve is computed by the server. Refills, Blessings, the yard fee, scaled hours, Tempering, Hallmarks, linings and curing slots are each a server function with a server price | DECIDED (GR-51, GR-8, Fable 2026-11-21, reversal, Tyler may veto) |
+| 7 | **Clan gifts, the castle and room buffs** | Gifts are one-way. A member holds a room's buff by giving that week's share and never by roster size. A contributor gate that alternate accounts cannot pass with token gifts. A leader cannot empty a finished castle of its members. Work is counted by the server from hunted minutes, never sent by the client | DECIDED (MM-8, MM-9, MM-10, Fable 2026-11-21, reversal, approved, with MM-9 RULED by Tyler) |
+| 8 | **Every repeating price and sink** | The wage curve is computed by the server. Refills, Blessings, the yard fee, scaled hours, Tempering, Hallmarks, linings and curing slots are each a server function with a server price | DECIDED (GR-51, GR-8, Fable 2026-11-21, reversal, approved, with GR-8 RULED by Tyler) |
 | 9 | **The save design** | Nothing a purchase, a gate or another player can read comes from unsaved state. A save replays the same seeds. A player cannot buy a Blessing or swap a bar only when the seeds show a death is coming | RULED design condition (28-1). The seed horizon fix is staged |
 | 10 | **Mint paths** | No item or gold can be created by salvage, good batch, commissions, a cancelled cure or a mount. A no-mint guard exists before salvage and commissions do | DECIDED (GR-46, Fable 2026-11-21 for salvage, GR-44 for commissions). Owned by chapter 03 |
 | 11 | **Chest opens and keys** | A hero that never climbed cannot open keys passed through Storage | RULED direction 2026-11-20 (22-5) |
@@ -705,7 +707,7 @@ Testing the Crowns loop in a free, wiped playtest means every account receives t
 | 14 | **Account deletion** | A deleted hero leaves account-owned rows with the account. A held name, a clan it leads and a market escrow are each resolved | Staged. RULED to apply before Early Access (28) |
 | 15 | **The play cap** | Four heroes an account and four a hashed network. One account a player is declared and enforced by the economy clamps above, so every surface in this table is reviewed assuming a player can run a second account | RULED 2026-11-20 (28-8) |
 
-Hired and on-call heroes are not in the game (DECIDED, MM-18, Fable 2026-11-21, reversal of 25-1 and the on-call board of 25-3, Tyler may veto), so no hero-lending trade surface is in scope. PvP on the hunting grounds is never built (DECIDED, MM-17, Fable 2026-11-21), so no surface exists there.
+Hired and on-call heroes are not in the game (OPEN, MM-18, waiting on Tyler, T-fix-1), so no hero-lending trade surface is in scope. PvP on the hunting grounds is never built (DECIDED, MM-17, Fable 2026-11-21), so no surface exists there.
 
 **Order inside the review.** DECIDED (no call id, Fable 2026-11-21, and the security engineer may reorder it): surfaces 1 to 3 are reviewed as one bundle, because the ceiling is only as strong as its weakest clamp. Surface 4 comes before them, because the Crowns book reuses the market's caps. No Crowns surface is armed for anyone until its Security GO and until check A6 is green.
 
@@ -735,29 +737,29 @@ In decision-book order. Each line is the call and the decision this chapter take
 
 | Id | The call | The decision | Status |
 |---|---|---|---|
-| GR-85 | The formula steps that move no number, and a tier's dial applied once | Go: V1 to V5, R1 to R5, R7, the floor half of R6 and the fold of R8 | DECIDED (Fable 2026-11-21) |
-| GR-88 | The balance matrix as the gate | Yes, with band S11, ground-axis band rows, the four Deadly lineups, and guarded registers | DECIDED (Fable 2026-11-21) |
-| GR-1 | How the server reaches its budget | Town work paid in closed form. A closed hunt saved every 10 minutes or at 1.2 seconds of engine time. The settle reads the party once. The edge fixes in study 48's order. The engine server is a later spend for Tyler | DECIDED (Fable 2026-11-21, on study 48) |
-| MM-1 | Rule 0: every shared feature works while both players are asleep | Yes. It is the cost rule of the MMO layer as well as its design rule | DECIDED (Fable 2026-11-21) |
-| GR-4 | The gear curve | Linear in Level. Past tier 7 a band is a fixed step that opens at about +17% (110, 129, 151, 176, 206, 241, 282, 330, 386). Uniques are a spend of their band. The two Luck numbers are keyed by Level | DECIDED (reversal, Tyler may veto). Changes two bands a region of 2026-11-18 and the Luck step of 2026-11-20 (Fable 2026-11-21) |
-| GR-5 | What a kill pays | The pace line with one kill-rate reference and one tier table | DECIDED (Fable 2026-11-21) |
-| GR-6 | The Level table | From Level 50 the table of hours is the law. The four runs 106 hours ahead, so Level 100 lands at 494 hours and Level 400 on day 373 | DECIDED (reversal, Tyler may veto). Changes the hours of the 2026-10-25 table and "Level 400 is day 382" (Fable 2026-11-21) |
-| GR-8 | Sinks as a share of band gold | Tempering, Hallmarks and linings cost a share of a band's gold, 1.2 to 1.4 of what the band earns. The slot gold follows the order of CE-4 first, then the castle | DECIDED (reversal, Tyler may veto). Changes the typed prices kept on 2026-11-18 (Fable 2026-11-21) |
+| GR-85 | The formula steps that move no number, and a tier's dial applied once | Go: V1 to V5, R1 to R5, R7, the floor half of R6 and the fold of R8 | RULED (Tyler, 2026-11-21) |
+| GR-88 | The balance matrix as the gate | Yes, with band S11, ground-axis band rows and guarded registers. The four lineup cells print and judge nothing | RULED (Tyler, 2026-11-21). The lineup clause is DECIDED (Fable 2026-11-21) after GR-3 |
+| GR-1 | How the server reaches its budget | Town work paid in closed form. A closed hunt saved every 10 minutes or at 1.2 seconds of engine time. The settle reads the party once. The edge fixes in study 48's order. The engine server is a later spend for Tyler | RULED (Tyler, 2026-11-21) |
+| MM-1 | Rule 0: every shared feature works while both players are asleep | Yes. It is the cost rule of the MMO layer as well as its design rule | RULED (Tyler, 2026-11-21) |
+| GR-4 | The gear curve | Linear in Level. Past tier 7 a band is a fixed step that opens at about +17% (110, 129, 151, 176, 206, 241, 282, 330, 386). Uniques are a spend of their band. The two Luck numbers are keyed by Level | RULED (Tyler, 2026-11-21). It replaces The item plan section 2 (two bands a region, 2026-11-18), a major upgrade every 15 to 25 Levels (2026-10-25), the Luck step of 2026-11-20 |
+| GR-5 | What a kill pays | The pace line with one kill-rate reference and one tier table | RULED (Tyler, 2026-11-21). Cut list 15, approved by Tyler 2026-11-21. |
+| GR-6 | The Level table | From Level 50 the table of hours is the law. The four runs 106 hours ahead, so Level 100 lands at 494 hours and Level 400 on day 373 | RULED (Tyler, 2026-11-21). It replaces The table of 2026-10-25, and "Level 400 is day 382" of 2026-11-21 |
+| GR-8 | Sinks as a share of band gold | Tempering, Hallmarks and linings cost a share of a band's gold, 1.2 to 1.4 of what the band earns. The slot gold follows the order of CE-4 first, then the castle | RULED (Tyler, 2026-11-21). It replaces The typed prices kept on 2026-11-18 (Hallmarks 150k, 250k, 400k, 600k) |
 | GR-11, GR-12, GR-13 | The spell floor, how spells read the stats, one roll rule | One floor. Strikes read weapon weakness, spells never miss or crit. One roll with a spread for each kind | DECIDED (Fable 2026-11-21) |
 | GR-23 | Endless ladders | Rune tiers past skill 60 every 15 skill levels, and the Tower reads any floor from one row | DECIDED (Fable 2026-11-21) |
 | GR-25 | Nine special rules with no ruling on record | Approve as the formula audit recommends, each by name | DECIDED (Fable 2026-11-21) |
 | GR-36 | The Tower and Catacombs party table | They take the one party table | DECIDED (Fable 2026-11-21) |
 | GR-51, GR-52 | The wage curve and the store's healing | Prices in hours of a wage the server computes. One gold-a-hit-point line, after fault F5 closes. F5's kit rule is decided in GR-52: one rune tier under what Magic allows for mid gear, and the cheapest water rune for a healer | DECIDED (Fable 2026-11-21) |
-| GR-63 | Dead ladders | Delete the rested bank and the two old kill ladders | DECIDED (Fable 2026-11-21) |
+| GR-63 | The rested bank and the old kill ladders | Kept. The bank pays hours a hero missed, as one number a hero with no statement on the settle. The ladders read the one kill count | KEPT (Tyler 2026-11-21). How they stay is DECIDED (Fable 2026-11-21) |
 | GR-70 | The town draws heroes at work | Yes, inside the cost budget. Study 48 did not size the drawn bodies, so the fallback of GR-70 stands until it is sized | DECIDED (Fable 2026-11-21) |
 | GR-86 | The later engine steps | One amount pipeline with a trace, one modifier table, every monster on the formula | DECIDED (Fable 2026-11-21) |
 | GR-87 | Drops and sales | Drops authored in hours. One sale formula | DECIDED (Fable 2026-11-21) |
-| MM-19 | Mixed Levels in one fight | The visible two thirds line, in the same step as the XP chain | DECIDED (reversal, Tyler may veto). Changes the party XP rulings of 2026-11-08 (Fable 2026-11-21) |
+| MM-19 | Mixed Levels in one fight | The visible two thirds line, in the same step as the XP chain | RULED (Tyler, 2026-11-21). It replaces The party XP rulings of 2026-11-08 |
 | MM-23 | The order for planning | Approve, with the instrument first | DECIDED (Fable 2026-11-21) |
-| MM-24, MM-25, MM-30 | Buffs as rows with caps | One modifier table. Protection is written on the Defense rating and the timed drop row is material find. A bought boost and an earned buff fill the same cap | MM-24 and MM-25 are DECIDED (Fable 2026-11-21). MM-30 is TYLER CONFIRMS |
-| MM-31 to MM-36 | The paid ceiling and the eight clamps | One ceiling as a reading held by a test (1.65 with every cap full, about 1.22 from paying alone), and the eight clamps, all inside the Security review, with check A6 green before the book opens | TYLER CONFIRMS, each with one recommendation in `00-the-game.md` |
+| MM-24, MM-25, MM-30 | Buffs as rows with caps | One modifier table. Protection is written on the Defense rating and the timed drop row is material find. A bought boost and an earned buff fill the same cap | MM-24: DECIDED (Fable 2026-11-21). MM-25: DECIDED (Fable 2026-11-21). MM-30: RULED (Tyler, 2026-11-21) |
+| MM-31 to MM-36 | The paid ceiling and the eight clamps | One ceiling as a reading held by a test (1.65 with every cap full, about 1.22 from paying alone), and the eight clamps, all inside the Security review, with check A6 green before the book opens | MM-31: RULED (Tyler, 2026-11-21). One clause re-derived, DECIDED (Fable 2026-11-21). MM-32: RULED (Tyler, 2026-11-21), not the recommendation. MM-33: RULED (Tyler, 2026-11-21). One clause re-derived, DECIDED (Fable 2026-11-21). MM-34: RULED (Tyler, 2026-11-21), not the recommendation. MM-35: RULED (Tyler, 2026-11-21). MM-36: RULED (Tyler, 2026-11-21). One clause re-derived, DECIDED (Fable 2026-11-21) |
 | MM-41 | One engine check for both arenas | Measure heroes on both sides of a fight before either arena is planned | DECIDED (Fable 2026-11-21) |
-| MM-43 | Test Crowns in the playtest | No recommendation. It is a grant and needs Tyler's explicit yes | TYLER CONFIRMS (grant) |
+| MM-43 | Test Crowns in the playtest | Yes, for the wiped Discord playtest only. The same amount for every account, one switch off by default and removed before Early Access, every grant journalled | RULED (Tyler, 2026-11-21), an explicit yes |
 
 ---
 
@@ -766,7 +768,7 @@ In decision-book order. Each line is the call and the decision this chapter take
 | # | What is missing | Who decides, and what decides it |
 |---|---|---|
 | 1 | **What study 48 left open.** How an away hunt is saved is closed. Whether 60 database-seconds holds on shared cores. The bill's lines that are not the database, re-read for the 12 hour day. What a town that draws working heroes costs. A measured envelope for bosses, clans, events and arenas | Study 48 has landed and closed the first part: the away hunt's save, and whether the account-day fits (yes at 1,000, and at 10,000 only without a watched tab or with an engine server). Still open, for the reliability engineer: whether 60 holds on shared cores (check A8), the bill's lines that are not the database, what a town that draws working heroes costs, and a measured envelope for clans, events and arenas |
-| 2 | **The 10,000 account budget.** 24 database-seconds an account-day. ESTIMATED by study 48: an account that does not watch meets it at 10.0, and one with a tab open 3.5 hours misses at 30.3 on the edge and meets at 9.1 on an engine server | The engine server is a spend. TYLER CONFIRMS, later, money list row 17. The share of the bill that is not the database stays with the reliability engineer |
+| 2 | **The 10,000 account budget.** 24 database-seconds an account-day. ESTIMATED by study 48: an account that does not watch meets it at 10.0, and one with a tab open 3.5 hours misses at 30.3 on the edge and meets at 9.1 on an engine server | The engine server is a later spend, RULED (Tyler 2026-11-21) as such, money list row 17. The share of the bill that is not the database stays with the reliability engineer |
 | 3 | **Whether measurement and tool work may go ahead before the build plan.** The gear band, the kill reward and the harder tiers' pull each need a measurement, and all of them need the instrument made true | Closed. RULED 2026-11-21: studies, calibration and audits may run |
 | 4 | **The Security review's size and owner for the MMO layer.** Section 2.7 is a proposed scope, not a sized review | The Security engineer |
 | 5 | **The kit's rune rule (F5).** Nobody has ruled which rune tier a mid-geared hero is assumed to buy | Closed. GR-52: mid gear casts one rune tier under what its Magic allows, a healer's heals use the cheapest water rune, and best gear casts the tier its Magic allows |
@@ -776,7 +778,7 @@ In decision-book order. Each line is the call and the decision this chapter take
 | 9 | **A band for the early economy of four heroes.** No band reads what an account of four earns and spends in its first week | Chapter 04 (economy and Crowns), then a band here |
 | 10 | **The Lab's proposal set.** Not every recommended proposal exists as a patch file, and the model steps cannot be toggled until they are staged | The dashboard lane |
 | 11 | **The hunt tally's three fields.** Lowest health, tier and gear tier worn. Survival cannot be calibrated without the first | Systems, in the build plan |
-| 12 | **Test Crowns in the playtest (MM-43).** An equal weekly grant to every account is still a grant. Without it the Crowns rows of table B cannot be read before launch | TYLER CONFIRMS (MM-43, a grant), recommended yes for the wiped Discord playtest only |
+| 12 | **Test Crowns in the playtest (MM-43).** An equal weekly grant to every account is still a grant. Without it the Crowns rows of table B cannot be read before launch | RULED (MM-43, Tyler 2026-11-21, a grant), recommended yes for the wiped Discord playtest only |
 | 13 | **Whether a watched four of four people on four accounts changes the save design.** Study 49 says a party is an account's own heroes, so the case may not exist | Partly answered by study 48. A member open in a client costs one frame of 18 ms a save (REAL), so a four watched from four accounts adds three frames a save and does not change the save design. No fixture has played it. MM-18 is decided, so the case exists only if Tyler vetoes that reversal. Owner: the reliability engineer |
 | 14 | **Content authoring pace against the runway, timed.** Every ground, band, boss and recipe family ends its lane with its working hours (RULED 28-12). No lane has yet said who draws regions or how fast | The art and asset directors, then Tyler |
 | 15 | **The build plan's unit.** The plan of record is written in lanes and waves for a beta. It is re-issued once the calls are ruled, in the order of section 2.2 | The Coordinator, after the rulings |
@@ -837,7 +839,7 @@ In decision-book order. Each line is the call and the decision this chapter take
 | The inventory's counts of what exists in the existing game, the list of worst violations and the list of Levels where its formulas break (`44` sections 1 and 2.2) | This book describes the game we are building. The model keeps the 107 formulas and the four classes |
 | "11 steps fit the 0.2.144 beta" as a release split (`44` section 7) | Decisions first and no build lanes until a build plan exists, RULED 2026-11-21. The order of the steps stands. The release each lands in is the build plan's call |
 | Harness faults V1, V2 and V4 listed as open (`44` section 6.1), and "the grid's four kills 558 an hour" | Fixed and proven in `51-baseline.md`. The 558 was the solver's table, not the grid |
-| Hired and on-call heroes as a Security surface (`28` section 7, `60` section 10.4) | Not in the game (MM-18, DECIDED, Fable 2026-11-21, reversal, Tyler may veto) |
+| Hired and on-call heroes as a Security surface (`28` section 7, `60` section 10.4) | Not in the game (MM-18, OPEN, waiting on Tyler, T-fix-1) |
 | Honors-only, no-power rewards for the MMO layer, and a single normalized arena (`49` first issue) | Rewards are buffs and gear, and there are two arenas, RULED 2026-11-21 |
 | "No limit on how much sooner" for bought gold with no stated ceiling (`50` call 11) | Crowns give real advantages that are not broken, RULED 2026-11-21. The ceiling of MM-31 to MM-33 states it |
 | Staged cohorts and soaks as a way to open a channel | Arm for everyone after the Security GO and prove scale with synthetic load (CLAUDE.md section 3.3b) |

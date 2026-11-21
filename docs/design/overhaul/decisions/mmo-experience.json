@@ -163,9 +163,9 @@
       "waitsOn": "a playtest that shows whether players ask for what was removed",
       "firstBuild": "in the first build: the rule",
       "builtIn": {
-        "where": "waits",
-        "unplacedInThePlan": true,
-        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits on a playtest that shows whether players ask for what was removed. Nothing is cut."
+        "where": "nothing to build",
+        "class": "NOTHING TO BUILD",
+        "note": "Nothing to build. A design check every shared feature passes (14-the-rest.md section 3.4)."
       }
     },
     {
@@ -187,7 +187,16 @@
           "FB-13"
         ],
         "note": "In the first build. FB-13 lane/c-world-boss (13-build-plan.md section 2.6)."
-      }
+      },
+      "designer": [
+        {
+          "id": "D-6",
+          "file": "docs/design/overhaul/review/06-designer-rulings-w1.md",
+          "section": 2,
+          "when": "2026-11-21",
+          "what": "The sample world boss is Mossback, an old brook bear, fought at the Mill Pond in each party's own room on the one monster formula. The chest pays by the account's own points at 2, 6 and 12 Normal party-hours: a buff, one Mossback Cloak, then the buff's second week. Both names are new and are not in the game's data yet."
+        }
+      ]
     },
     {
       "id": "MM-3",
@@ -208,7 +217,16 @@
           "FB-13"
         ],
         "note": "In the first build. FB-13 lane/c-world-boss (13-build-plan.md section 2.6)."
-      }
+      },
+      "designer": [
+        {
+          "id": "D-6",
+          "file": "docs/design/overhaul/review/06-designer-rulings-w1.md",
+          "section": 2,
+          "when": "2026-11-21",
+          "what": "The sample world boss is Mossback, an old brook bear, fought at the Mill Pond in each party's own room on the one monster formula. The chest pays by the account's own points at 2, 6 and 12 Normal party-hours: a buff, one Mossback Cloak, then the buff's second week. Both names are new and are not in the game's data yet."
+        }
+      ]
     },
     {
       "id": "MM-4",
@@ -232,7 +250,16 @@
           "FB-13"
         ],
         "note": "In the first build. FB-13 lane/c-world-boss (13-build-plan.md section 2.6)."
-      }
+      },
+      "designer": [
+        {
+          "id": "D-6",
+          "file": "docs/design/overhaul/review/06-designer-rulings-w1.md",
+          "section": 2,
+          "when": "2026-11-21",
+          "what": "The sample world boss is Mossback, an old brook bear, fought at the Mill Pond in each party's own room on the one monster formula. The chest pays by the account's own points at 2, 6 and 12 Normal party-hours: a buff, one Mossback Cloak, then the buff's second week. Both names are new and are not in the game's data yet."
+        }
+      ]
     },
     {
       "id": "MM-5",
@@ -256,12 +283,22 @@
           "FB-13"
         ],
         "note": "In the first build. FB-13 lane/c-world-boss (13-build-plan.md section 2.6)."
-      }
+      },
+      "designer": [
+        {
+          "id": "D-6",
+          "file": "docs/design/overhaul/review/06-designer-rulings-w1.md",
+          "section": 2,
+          "when": "2026-11-21",
+          "what": "The sample world boss is Mossback, an old brook bear, fought at the Mill Pond in each party's own room on the one monster formula. The chest pays by the account's own points at 2, 6 and 12 Normal party-hours: a buff, one Mossback Cloak, then the buff's second week. Both names are new and are not in the game's data yet."
+        }
+      ],
+      "designerSizes": "The points rule gains `bossTierPm`, read from the one tier table."
     },
     {
       "id": "MM-6",
       "call": "A world boss pays a chest by your own points: its own named gear line at your band, its own upgrade material, a 7 day buff, a trophy. No coin.",
-      "decision": "The chest is by your own points at three marks (about 2, 8 and 20 Normal party-hours). The boss line is four unique pieces, one a style, dropped at the earner's band, on the same budget as the band's best piece with part of it spent on one property. So it is a sidegrade to the band's best, never a tier above it. An account earns at most one line piece a boss weekend. The material trades and feeds only layer pieces (CE-1). Level XP is about a Normal hunt. No coin. The room stays open to the end of the window, and an account's own marks still pay after the boss falls. The fall bonus is paid at the window's end to every account past the first mark, whenever it got there: the 7 day buff (+5% damage dealt) and a re-roll of which line piece the account receives, toward its own heroes' styles. It never adds a second piece.",
+      "decision": "The chest is by your own points at three marks (about 2, 6 and 12 Normal party-hours, D-6). The boss line is four unique pieces, one a style, dropped at the earner's band, on the same budget as the band's best piece with part of it spent on one property. So it is a sidegrade to the band's best, never a tier above it. An account earns at most one line piece a boss weekend. The material trades and feeds only layer pieces (CE-1). Level XP is about a Normal hunt. No coin. The room stays open to the end of the window, and an account's own marks still pay after the boss falls. The fall bonus is paid at the window's end to every account past the first mark, whenever it got there: the 7 day buff (+5% damage dealt) and a re-roll of which line piece the account receives, toward its own heroes' styles. It never adds a second piece.",
       "outcome": "third",
       "reason": "People want gear and buffs, so that is what it pays. But if my chest and my buff only read my own points then the shared health bar is decoration. Tying the buff and a bonus roll to the fall is what makes me care that other people showed up.",
       "evidence": "RULED direction (2026-11-21, buffs and gear). RULED 2026-11-18 that a unique is a sidegrade with a place where it is best. Sizes are TARGET and a HYPOTHESIS. Check E (chest value and XP per stamina hour beside a Normal hunt at Levels 20, 60, 110) and the playtest read \"over half of accounts hit the boss on both weekends\" overturn them.",
@@ -280,8 +317,19 @@
         "lanes": [
           "FB-13"
         ],
-        "note": "In the first build. FB-13 lane/c-world-boss (13-build-plan.md section 2.6). Part of it waits: The first boss has stood twice."
-      }
+        "note": "In the first build. FB-13 lane/c-world-boss (13-build-plan.md section 2.6). Part of it waits: The first boss has stood twice.",
+        "laterPart": "After the first build. It needs a design first: the designer rules D-19 before its lane starts. Lane FR-12, FR-10 (14-the-rest.md section 5). Nothing is cut."
+      },
+      "designer": [
+        {
+          "id": "D-6",
+          "file": "docs/design/overhaul/review/06-designer-rulings-w1.md",
+          "section": 2,
+          "when": "2026-11-21",
+          "what": "The sample world boss is Mossback, an old brook bear, fought at the Mill Pond in each party's own room on the one monster formula. The chest pays by the account's own points at 2, 6 and 12 Normal party-hours: a buff, one Mossback Cloak, then the buff's second week. Both names are new and are not in the game's data yet."
+        }
+      ],
+      "designerSizes": "The marks are 2, 6 and 12 Normal party-hours. Mark 1 pays +5% damage for 7 days and, the first time, the trophy. Mark 2 pays one Mossback Cloak cut for the hero's way to fight. Mark 3 runs the buff 14 days. The cloak is the best cape at its rung for its way until crafted cloaks roll perks, a small tension with CE-1 rule 3 that is accepted for the first build."
     },
     {
       "id": "MM-7",
@@ -306,7 +354,16 @@
           "FB-13"
         ],
         "note": "In the first build. FB-13 lane/c-world-boss (13-build-plan.md section 2.6)."
-      }
+      },
+      "designer": [
+        {
+          "id": "D-6",
+          "file": "docs/design/overhaul/review/06-designer-rulings-w1.md",
+          "section": 2,
+          "when": "2026-11-21",
+          "what": "The sample world boss is Mossback, an old brook bear, fought at the Mill Pond in each party's own room on the one monster formula. The chest pays by the account's own points at 2, 6 and 12 Normal party-hours: a buff, one Mossback Cloak, then the buff's second week. Both names are new and are not in the game's data yet."
+        }
+      ]
     },
     {
       "id": "MM-8",
@@ -353,8 +410,12 @@
       "sitting": "S-7, option B. The full castle is ruled as the direction: five buildings of ten levels, labor, upkeep, votes, a treasury, about a year.",
       "waitsOn": "Every size stays PROVISIONAL: stage prices, upkeep, labor value and the year. The fifth building is the library, which pays a standing Level XP bonus (S-4), and its size is owed by the design lane.",
       "builtIn": {
-        "where": "waits",
-        "note": "Not in the first build. It waits until: Clans exist and people are in them (13-build-plan.md section 1.2)."
+        "where": "later lane",
+        "class": "SIZED IN THE SIMULATOR",
+        "lanes": [
+          "FR-11"
+        ],
+        "note": "After the first build. Sized in the simulator and never left to a playtest: Stage prices in account-days of simulated gold. The Library is arithmetic (+4.9%, MEASURED R1). Lane FR-11 (14-the-rest.md section 5). Nothing is cut."
       }
     },
     {
@@ -373,8 +434,12 @@
       "waitsOn": "clans existing with people in them",
       "firstBuild": "planned, waits until clans exist and people are in them",
       "builtIn": {
-        "where": "waits",
-        "note": "Not in the first build. It waits until: Clans exist and people are in them (13-build-plan.md section 1.2)."
+        "where": "later lane",
+        "class": "SIZED IN THE SIMULATOR",
+        "lanes": [
+          "FR-11"
+        ],
+        "note": "After the first build. Sized in the simulator and never left to a playtest: Stage prices in account-days of simulated gold. The Library is arithmetic (+4.9%, MEASURED R1). Lane FR-11 (14-the-rest.md section 5). Nothing is cut."
       }
     },
     {
@@ -396,7 +461,17 @@
           "FB-12"
         ],
         "note": "In the first build. FB-12 lane/c-social (13-build-plan.md section 2.6)."
-      }
+      },
+      "designer": [
+        {
+          "id": "D-7",
+          "file": "docs/design/overhaul/review/06-designer-rulings-w1.md",
+          "section": 1,
+          "when": "2026-11-21",
+          "what": "A 28 day cycle with two beats in the first build: the Hearthrise on weekend 1 and the world boss on weekend 3. Weekends 2 and 4 stay quiet. The fire lights at +10% Level XP and gains +3% a mark to +25% at five marks. A full fire is a quarter of the fuel the week's active accounts find. The weekly Open Halls row is retired."
+        }
+      ],
+      "designerSizes": "In the first build: the Hearthrise on weekend 1 and the world boss on weekend 3, two weeks apart. Weekends 2 and 4 are quiet until the ground weekend and the arena season are built."
     },
     {
       "id": "MM-42",
@@ -418,9 +493,23 @@
       "waitsOn": "one buff played in a cell",
       "firstBuild": "planned, waits until Deadly is sized and one buff has been played in a cell",
       "builtIn": {
-        "where": "waits",
-        "note": "Not in the first build. It waits until: Deadly is sized and one buff is played in a cell (13-build-plan.md section 1.2)."
-      }
+        "where": "later lane",
+        "class": "SIZED IN THE SIMULATOR",
+        "lanes": [
+          "FR-12"
+        ],
+        "note": "After the first build. Sized in the simulator and never left to a playtest: Each row's effect on pace and safety, played on the buff hook. The readings held by tests. Lane FR-12 (14-the-rest.md section 5). Nothing is cut."
+      },
+      "designer": [
+        {
+          "id": "D-7",
+          "file": "docs/design/overhaul/review/06-designer-rulings-w1.md",
+          "section": 1,
+          "when": "2026-11-21",
+          "what": "A 28 day cycle with two beats in the first build: the Hearthrise on weekend 1 and the world boss on weekend 3. Weekends 2 and 4 stay quiet. The fire lights at +10% Level XP and gains +3% a mark to +25% at five marks. A full fire is a quarter of the fuel the week's active accounts find. The weekly Open Halls row is retired."
+        }
+      ],
+      "designerSizes": "Its slot is weekend 2, which is quiet in the first build."
     },
     {
       "id": "GR-82",
@@ -460,8 +549,12 @@
       "waitsOn": "one buff played in a cell",
       "firstBuild": "planned, waits until Deadly is sized and one buff has been played in a cell",
       "builtIn": {
-        "where": "waits",
-        "note": "Not in the first build. It waits until: Deadly is sized and one buff is played in a cell (13-build-plan.md section 1.2)."
+        "where": "later lane",
+        "class": "SIZED IN THE SIMULATOR",
+        "lanes": [
+          "FR-12"
+        ],
+        "note": "After the first build. Sized in the simulator and never left to a playtest: Each row's effect on pace and safety, played on the buff hook. The readings held by tests. Lane FR-12 (14-the-rest.md section 5). Nothing is cut."
       }
     },
     {
@@ -489,8 +582,12 @@
         "runIds": "R0 is GitHub run 44920906999 (the full matrix, 4,503 cells, 2 seeds of 2 hours). R1 is run 44924971088 (670 cells with five buff rows). R2 is run 44925664434 (the death sample, 4 seeds of 8 hours). R4 is run 44928035806 (the death sample with both tiers at 2.5, and the full matrix with the three picks in). L is local probes of 2 seeds of 1 hour."
       },
       "builtIn": {
-        "where": "waits",
-        "note": "Not in the first build. It waits until: Deadly is sized and one buff is played in a cell (13-build-plan.md section 1.2)."
+        "where": "later lane",
+        "class": "SIZED IN THE SIMULATOR",
+        "lanes": [
+          "FR-12"
+        ],
+        "note": "After the first build. Sized in the simulator and never left to a playtest: Each row's effect on pace and safety, played on the buff hook. The readings held by tests. Lane FR-12 (14-the-rest.md section 5). Nothing is cut."
       }
     },
     {
@@ -518,8 +615,12 @@
         "runIds": "R0 is GitHub run 44920906999 (the full matrix, 4,503 cells, 2 seeds of 2 hours). R1 is run 44924971088 (670 cells with five buff rows). R2 is run 44925664434 (the death sample, 4 seeds of 8 hours). R4 is run 44928035806 (the death sample with both tiers at 2.5, and the full matrix with the three picks in). L is local probes of 2 seeds of 1 hour."
       },
       "builtIn": {
-        "where": "waits",
-        "note": "Not in the first build. It waits until: Deadly is sized and one buff is played in a cell (13-build-plan.md section 1.2)."
+        "where": "later lane",
+        "class": "SIZED IN THE SIMULATOR",
+        "lanes": [
+          "FR-12"
+        ],
+        "note": "After the first build. Sized in the simulator and never left to a playtest: Each row's effect on pace and safety, played on the buff hook. The readings held by tests. Lane FR-12 (14-the-rest.md section 5). Nothing is cut."
       }
     },
     {
@@ -540,8 +641,12 @@
       "waitsOn": "the engine test of heroes against heroes",
       "firstBuild": "planned, waits until the one-day engine test shows heroes can fight heroes",
       "builtIn": {
-        "where": "waits",
-        "note": "Not in the first build. It waits until: FB-3's engine test shows heroes can fight heroes (13-build-plan.md section 1.2)."
+        "where": "later lane",
+        "class": "SIZED IN THE SIMULATOR",
+        "lanes": [
+          "FR-10"
+        ],
+        "note": "After the first build. Sized in the simulator and never left to a playtest: Fight length, each style against each style in the Even Arena, band matching in the Open Arena. Lane FR-10 (14-the-rest.md section 5). Nothing is cut."
       }
     },
     {
@@ -558,8 +663,14 @@
       "waitsOn": "the engine test of heroes against heroes",
       "firstBuild": "planned, waits until the one-day engine test shows heroes can fight heroes",
       "builtIn": {
-        "where": "waits",
-        "note": "Not in the first build. It waits until: FB-3's engine test shows heroes can fight heroes (13-build-plan.md section 1.2)."
+        "where": "later lane",
+        "class": "SIZED IN THE SIMULATOR",
+        "lanes": [
+          "FR-10",
+          "FR-12"
+        ],
+        "designFirst": "D-19",
+        "note": "After the first build. Sized in the simulator and never left to a playtest: Fight length, each style against each style in the Even Arena, band matching in the Open Arena. Lane FR-10, FR-12 (14-the-rest.md section 5). Its design half is D-19. Nothing is cut."
       }
     },
     {
@@ -579,8 +690,12 @@
       "waitsOn": "the engine test of heroes against heroes",
       "firstBuild": "planned, waits until the one-day engine test shows heroes can fight heroes",
       "builtIn": {
-        "where": "waits",
-        "note": "Not in the first build. It waits until: FB-3's engine test shows heroes can fight heroes (13-build-plan.md section 1.2)."
+        "where": "later lane",
+        "class": "SIZED IN THE SIMULATOR",
+        "lanes": [
+          "FR-10"
+        ],
+        "note": "After the first build. Sized in the simulator and never left to a playtest: Fight length, each style against each style in the Even Arena, band matching in the Open Arena. Lane FR-10 (14-the-rest.md section 5). Nothing is cut."
       }
     },
     {
@@ -597,8 +712,12 @@
       "waitsOn": "the engine test of heroes against heroes",
       "firstBuild": "planned, waits until the one-day engine test shows heroes can fight heroes",
       "builtIn": {
-        "where": "waits",
-        "note": "Not in the first build. It waits until: FB-3's engine test shows heroes can fight heroes (13-build-plan.md section 1.2)."
+        "where": "later lane",
+        "class": "SIZED IN THE SIMULATOR",
+        "lanes": [
+          "FR-10"
+        ],
+        "note": "After the first build. Sized in the simulator and never left to a playtest: Fight length, each style against each style in the Even Arena, band matching in the Open Arena. Lane FR-10 (14-the-rest.md section 5). Nothing is cut."
       }
     },
     {
@@ -615,8 +734,12 @@
       "waitsOn": "the engine test of heroes against heroes",
       "firstBuild": "planned, waits until the one-day engine test shows heroes can fight heroes",
       "builtIn": {
-        "where": "waits",
-        "note": "Not in the first build. It waits until: FB-3's engine test shows heroes can fight heroes (13-build-plan.md section 1.2)."
+        "where": "later lane",
+        "class": "SIZED IN THE SIMULATOR",
+        "lanes": [
+          "FR-10"
+        ],
+        "note": "After the first build. Sized in the simulator and never left to a playtest: Fight length, each style against each style in the Even Arena, band matching in the Open Arena. Lane FR-10 (14-the-rest.md section 5). Nothing is cut."
       }
     },
     {
@@ -633,8 +756,12 @@
       "waitsOn": "the engine test of heroes against heroes",
       "firstBuild": "planned, waits until the one-day engine test shows heroes can fight heroes",
       "builtIn": {
-        "where": "waits",
-        "note": "Not in the first build. It waits until: FB-3's engine test shows heroes can fight heroes (13-build-plan.md section 1.2)."
+        "where": "later lane",
+        "class": "SIZED IN THE SIMULATOR",
+        "lanes": [
+          "FR-10"
+        ],
+        "note": "After the first build. Sized in the simulator and never left to a playtest: Fight length, each style against each style in the Even Arena, band matching in the Open Arena. Lane FR-10 (14-the-rest.md section 5). Nothing is cut."
       }
     },
     {
@@ -649,9 +776,9 @@
       "depends": "MM-20.",
       "status": "DECIDED",
       "builtIn": {
-        "where": "waits",
-        "unplacedInThePlan": true,
-        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+        "where": "nothing to build",
+        "class": "NOTHING TO BUILD",
+        "note": "Nothing to build. \"Never\" rules. Each gets a guard where a catalogue can break it: no PvP intent on a ground, no daily row, no XP or drop boost in the store (14-the-rest.md section 3.4)."
       }
     },
     {
@@ -668,8 +795,12 @@
       "waitsOn": "the engine test of heroes against heroes",
       "firstBuild": "planned, waits until the one-day engine test shows heroes can fight heroes",
       "builtIn": {
-        "where": "waits",
-        "note": "Not in the first build. It waits until: FB-3's engine test shows heroes can fight heroes (13-build-plan.md section 1.2)."
+        "where": "later lane",
+        "class": "SIZED IN THE SIMULATOR",
+        "lanes": [
+          "FR-10"
+        ],
+        "note": "After the first build. Sized in the simulator and never left to a playtest: Fight length, each style against each style in the Even Arena, band matching in the Open Arena. Lane FR-10 (14-the-rest.md section 5). Nothing is cut."
       }
     },
     {
@@ -686,8 +817,12 @@
       "waitsOn": "the engine test of heroes against heroes",
       "firstBuild": "planned, waits until the one-day engine test shows heroes can fight heroes",
       "builtIn": {
-        "where": "waits",
-        "note": "Not in the first build. It waits until: FB-3's engine test shows heroes can fight heroes (13-build-plan.md section 1.2)."
+        "where": "later lane",
+        "class": "SIZED IN THE SIMULATOR",
+        "lanes": [
+          "FR-10"
+        ],
+        "note": "After the first build. Sized in the simulator and never left to a playtest: Fight length, each style against each style in the Even Arena, band matching in the Open Arena. Lane FR-10 (14-the-rest.md section 5). Nothing is cut."
       }
     },
     {
@@ -727,9 +862,9 @@
       "sitting": "S-1, his own words. It reverses the removal this row first decided. Ruling 25-1 stands in his new form.",
       "supersededBy": "Tyler's ruling at the sitting of 2026-11-21 (S-1): on-call heroes are kept, in his words. The design is row CH11-1 and chapter 11.",
       "builtIn": {
-        "where": "waits",
-        "unplacedInThePlan": true,
-        "note": "The build plan names it in no lane and on no waits row (audit A-8). Nothing is built from this row. Nothing is cut."
+        "where": "nothing to build",
+        "class": "NOTHING TO BUILD",
+        "note": "Nothing to build. Superseded or withdrawn (14-the-rest.md section 3.4)."
       }
     },
     {
@@ -837,10 +972,24 @@
       "status": "DECIDED",
       "firstBuild": "planned, waits until the first build is played",
       "builtIn": {
-        "where": "waits",
-        "unplacedInThePlan": true,
-        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
-      }
+        "where": "later lane",
+        "class": "SIZED IN THE SIMULATOR",
+        "lanes": [
+          "FR-14"
+        ],
+        "designFirst": "D-21",
+        "note": "After the first build. Sized in the simulator and never left to a playtest: The two skills' size. Lane FR-14 (14-the-rest.md section 5). Its design half is D-21. Nothing is cut."
+      },
+      "designer": [
+        {
+          "id": "D-3",
+          "file": "docs/design/overhaul/review/08-designer-d3.md",
+          "section": 1,
+          "when": "2026-11-21",
+          "what": "The armor curve is x2.4, or x1.6 if the confirm run shows it holds the same steps. The arrival kit is the mid kit one band back, in gear only. An arrival is graded by survival, pace and the tier it can hold, and S5.low is a report. Tiers 1 to 7 keep their built armor. Carter's Rest, the Ox Road and factions stay staged. A heavy piece pays for armor with lighter blows. The kill reward under Level 5 follows the curve at exponent 1.1."
+        }
+      ],
+      "designerSizes": "Factions stay held and the Morrow pair stays staged. They open in their own patch, started when the first live hero reaches Level 95. Open for Tyler's veto as D3-2."
     },
     {
       "id": "GR-72",
@@ -878,9 +1027,9 @@
       "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
       "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
       "builtIn": {
-        "where": "waits",
-        "unplacedInThePlan": true,
-        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+        "where": "nothing to build",
+        "class": "NOTHING TO BUILD",
+        "note": "Nothing to build. True by construction: every layer is open to all, and all gear trades. Premium's 30 tickets ride FR-10 (14-the-rest.md section 3.4)."
       }
     },
     {
@@ -899,9 +1048,9 @@
       "waitsOn": "the store-bill fault fixed and a wage formula that exists",
       "firstBuild": "planned, waits until clans exist and people are in them",
       "builtIn": {
-        "where": "waits",
-        "unplacedInThePlan": true,
-        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits on the store-bill fault fixed and a wage formula that exists. Nothing is cut."
+        "where": "nothing to build",
+        "class": "NOTHING TO BUILD",
+        "note": "Nothing to build. A direction, met by the castle's stage prices (14-the-rest.md section 3.4)."
       }
     },
     {
@@ -916,9 +1065,9 @@
       "depends": "The build plan. MM-41 can run now as a measurement.",
       "status": "DECIDED",
       "builtIn": {
-        "where": "waits",
-        "unplacedInThePlan": true,
-        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+        "where": "nothing to build",
+        "class": "NOTHING TO BUILD",
+        "note": "Nothing to build. Its order is replaced by this chapter's (14-the-rest.md section 3.4)."
       }
     },
     {
@@ -934,9 +1083,9 @@
       "status": "DECIDED",
       "firstBuild": "planned, waits until the first boss has stood twice. The first boss keeps its chest",
       "builtIn": {
-        "where": "waits",
-        "unplacedInThePlan": true,
-        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+        "where": "nothing to build",
+        "class": "NOTHING TO BUILD",
+        "note": "Nothing to build. True by construction: every layer is open to all, and all gear trades. Premium's 30 tickets ride FR-10 (14-the-rest.md section 3.4)."
       }
     },
     {
@@ -956,12 +1105,13 @@
       "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
       "firstBuild": "in the first build: the playtest",
       "builtIn": {
-        "where": "lane",
+        "where": "later lane",
         "lanes": [
-          "FB-15"
+          "FR-16"
         ],
-        "note": "In the first build. FB-15 lane/c-test-crowns (13-build-plan.md section 2.6)."
-      }
+        "note": "Not in the first build. Test Crowns wait for a later playtest (S-17 a, RULED 2026-11-21). Lane FR-16 (14-the-rest.md section 5)."
+      },
+      "sitting2": "S-17, option a. Premium is on for every hero in the playtest, through the closed-beta switch. Test Crowns wait for a later playtest. FB-15 shrinks to Premium for the account."
     },
     {
       "id": "MM-44",
@@ -977,8 +1127,12 @@
       "waitsOn": "clans existing with people in them",
       "firstBuild": "planned, waits until clans exist and people are in them",
       "builtIn": {
-        "where": "waits",
-        "note": "Not in the first build. It waits until: Clans exist and people are in them (13-build-plan.md section 1.2)."
+        "where": "later lane",
+        "class": "SIZED IN THE SIMULATOR",
+        "lanes": [
+          "FR-11"
+        ],
+        "note": "After the first build. Sized in the simulator and never left to a playtest: Stage prices in account-days of simulated gold. The Library is arithmetic (+4.9%, MEASURED R1). Lane FR-11 (14-the-rest.md section 5). Nothing is cut."
       }
     },
     {
@@ -995,8 +1149,12 @@
       "waitsOn": "the engine test of heroes against heroes",
       "firstBuild": "planned, waits until the one-day engine test shows heroes can fight heroes",
       "builtIn": {
-        "where": "waits",
-        "note": "Not in the first build. It waits until: FB-3's engine test shows heroes can fight heroes (13-build-plan.md section 1.2)."
+        "where": "later lane",
+        "class": "SIZED IN THE SIMULATOR",
+        "lanes": [
+          "FR-10"
+        ],
+        "note": "After the first build. Sized in the simulator and never left to a playtest: Fight length, each style against each style in the Even Arena, band matching in the Open Arena. Lane FR-10 (14-the-rest.md section 5). Nothing is cut."
       }
     },
     {
@@ -1013,8 +1171,11 @@
       "waitsOn": "the engine test of heroes against heroes",
       "firstBuild": "planned, waits until the one-day engine test shows heroes can fight heroes",
       "builtIn": {
-        "where": "waits",
-        "note": "Not in the first build. It waits until: FB-3's engine test shows heroes can fight heroes (13-build-plan.md section 1.2)."
+        "where": "later lane",
+        "class": "NEEDS A DESIGN FIRST",
+        "lanes": [],
+        "designFirst": "D-20",
+        "note": "After the first build. It needs a design first: the designer rules D-20 before its lane starts. Its lane is later and it stays hidden until both sides can be filled. Nothing is cut."
       }
     },
     {
@@ -1054,8 +1215,11 @@
       "waitsOn": "clans existing with people in them",
       "firstBuild": "planned, waits until clans exist and people are in them",
       "builtIn": {
-        "where": "waits",
-        "note": "Not in the first build. It waits until: Clans exist and people are in them (13-build-plan.md section 1.2)."
+        "where": "later lane",
+        "class": "NEEDS A DESIGN FIRST",
+        "lanes": [],
+        "designFirst": "D-20",
+        "note": "After the first build. It needs a design first: the designer rules D-20 before its lane starts. Its lane is later and it stays hidden until both sides can be filled. Nothing is cut."
       }
     },
     {
@@ -1080,7 +1244,16 @@
           "FB-5"
         ],
         "note": "In the first build. FB-5 lane/c-first-hour (13-build-plan.md section 2.6)."
-      }
+      },
+      "designer": [
+        {
+          "id": "D-1",
+          "file": "docs/design/overhaul/review/05-designer-rulings.md",
+          "section": 1,
+          "when": "2026-11-21",
+          "what": "The Path is one table of 21 row families, each reading its Level from its own system's file. The wand card says casting costs gold, about 100 on the first hunt. In the first hour the coach rings only screen controls. A harder tier is offered with no Level and no ground: when the party's last hunt there read Safe and the tier's risk row, at the gear the party wears, is inside the ruled death band."
+        }
+      ]
     },
     {
       "id": "GR-24",
@@ -1123,7 +1296,24 @@
           "FB-6"
         ],
         "note": "In the first build. FB-6 lane/c-company (13-build-plan.md section 2.6)."
-      }
+      },
+      "sitting2": "S-14, option a. For an account's own heroes the rest hunt on when one falls. \"All come home\" stays one plan line a player may choose.",
+      "designer": [
+        {
+          "id": "D-2",
+          "file": "docs/design/overhaul/review/05-designer-rulings.md",
+          "section": 2,
+          "when": "2026-11-21",
+          "what": "A standing plan line, \"Wear upgrades\", puts better gear on at every Start and every hunt end, in town. Nothing changes inside a running hunt. The leader is the hero the engine sends in front, and the player may pin another. \"Needs you\" holds eight kinds in a fixed order, one row a kind, three shown."
+        },
+        {
+          "id": "D-11",
+          "file": "docs/design/overhaul/review/05-designer-rulings.md",
+          "section": 3,
+          "when": "2026-11-21",
+          "what": "A rest plan's usual ending is a standing job with no count. It starts no hunt, never loops and stops by itself after 24 hours. \"Wait in town\" stays a choice. No rest plan ending starts a hunt."
+        }
+      ]
     },
     {
       "id": "GR-78",
@@ -1176,9 +1366,9 @@
       "depends": "MM-11.",
       "status": "DECIDED",
       "builtIn": {
-        "where": "waits",
-        "unplacedInThePlan": true,
-        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+        "where": "nothing to build",
+        "class": "NOTHING TO BUILD",
+        "note": "Nothing to build. \"Never\" rules. Each gets a guard where a catalogue can break it: no PvP intent on a ground, no daily row, no XP or drop boost in the store (14-the-rest.md section 3.4)."
       }
     },
     {
@@ -1215,7 +1405,7 @@
       "replaces": "It carries Tyler's ruling at the sitting (S-1), which is RULED. It supersedes MM-18.",
       "money": false,
       "status": "PROVISIONAL",
-      "waitsOn": "Section 8 of chapter 11",
+      "waitsOn": "Section 8 of chapter 11. Its three opening numbers are set by D-8",
       "source": "docs/design/overhaul/11-on-call-and-clan-xp.md",
       "decidedBy": "The on-call and clan XP design lane, 2026-11-21",
       "idNote": "The id CH11-1 was given by the integrator. Chapter 11 names no call id.",
@@ -1226,7 +1416,17 @@
           "FB-14"
         ],
         "note": "In the first build. FB-14 lane/c-on-call (13-build-plan.md section 2.6)."
-      }
+      },
+      "designer": [
+        {
+          "id": "D-8",
+          "file": "docs/design/overhaul/review/06-designer-rulings-w1.md",
+          "section": 3,
+          "when": "2026-11-21",
+          "what": "On call opens at hero Level 10, once the account has a friend or a clan. The default tier limit is Dangerous. `onCallXpShare` stays 0.10."
+        }
+      ],
+      "designerSizes": "The opening Level is 10, once the account has a friend or a clan. The default tier limit is Dangerous and the default \"who\" is friends and clan. `onCallXpShare` is 0.10. All three are PROVISIONAL."
     },
     {
       "id": "CH11-2",
@@ -1245,8 +1445,12 @@
       "decidedBy": "The on-call and clan XP design lane, 2026-11-21",
       "idNote": "The id CH11-2 was given by the integrator. Chapter 11 names no call id.",
       "builtIn": {
-        "where": "waits",
-        "note": "Not in the first build. It waits until: Clans exist and people are in them (13-build-plan.md section 1.2)."
+        "where": "later lane",
+        "class": "SIZED IN THE SIMULATOR",
+        "lanes": [
+          "FR-11"
+        ],
+        "note": "After the first build. Sized in the simulator and never left to a playtest: Stage prices in account-days of simulated gold. The Library is arithmetic (+4.9%, MEASURED R1). Lane FR-11 (14-the-rest.md section 5). Nothing is cut."
       }
     },
     {
@@ -1266,10 +1470,24 @@
       "decidedBy": "The on-call and clan XP design lane, 2026-11-21",
       "idNote": "The id CH11-3 was given by the integrator. Chapter 11 names no call id.",
       "builtIn": {
-        "where": "waits",
-        "unplacedInThePlan": true,
-        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits on section 8 of chapter 11: a town-hour model in the matrix (band TD1), and the first build played. Nothing is cut."
-      }
+        "where": "later lane",
+        "class": "SIZED IN THE SIMULATOR",
+        "lanes": [
+          "FR-11",
+          "FR-17"
+        ],
+        "note": "After the first build. Sized in the simulator and never left to a playtest: Rested hours filled, from C-4's model. A synthetic load of 10,000 accounts. The spend stays Tyler's later call. Lane FR-11, FR-17 (14-the-rest.md section 5). Nothing is cut."
+      },
+      "designer": [
+        {
+          "id": "D-11",
+          "file": "docs/design/overhaul/review/05-designer-rulings.md",
+          "section": 3,
+          "when": "2026-11-21",
+          "what": "A rest plan's usual ending is a standing job with no count. It starts no hunt, never loops and stops by itself after 24 hours. \"Wait in town\" stays a choice. No rest plan ending starts a hunt."
+        }
+      ],
+      "designerSizes": "The standing job runs until the hero next hunts, its bag fills, or 24 hours pass. First-build choices are Gather the best I can, Train and Wait in town. Labor and Fuel the Hearth wait."
     }
   ],
   "tylerAnswers": "Tyler answered his lists on 2026-11-21. Each row he touched carries a tyler field. The full record is in all.json.",

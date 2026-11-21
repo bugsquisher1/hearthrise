@@ -63,7 +63,7 @@ Every rule in the game belongs to exactly one class. The class decides where it 
 |---|---|---|---|---|
 | 1. Foundational | A mechanic the whole game shares | The shared engine, `src/core` | 12 | RULED 2026-11-21 |
 | 2. Content number | A value that describes one piece of content | A data row in `src/data` | 25 families | RULED 2026-11-21 |
-| 3. Intentional special rule | A deliberate difference, written down | Data, with a documented reason and Tyler's approval by name | 35. 26 carry a ruling on record. 9 wait on GR-25 | RULED for the 26. OPEN (GR-25, waiting on Tyler for his explicit approval) for the 9 |
+| 3. Intentional special rule | A deliberate difference, written down | Data, with a documented reason and Tyler's approval by name | 35. 26 carry a ruling on record. 9 were approved at the second sitting (GR-25, S-15 a) | RULED for the 26. RULED (GR-25, Tyler 2026-11-21, the second sitting, S-15 a) for the 9 |
 | 4. Accidental | A number that exists to correct another number | Nowhere. The game we are building has none | 0 kept. One fallback in a helper is unproven (`E-X36`) and is checked when its file is next opened | RULED 2026-11-21 as a principle |
 
 The inventory behind these counts is `tools/balance-program/formulas/formulas-architecture.json`, written by `architecture-register.mjs`. COUNTED: 107 formulas after the same formula filed by two audits was merged into one (42 combat ids, 23 progression, 42 economy), 198 edges between them, and 67 of those cross a category. EVIDENCE about the audit, not a design number: 115 of its 129 classified rows were confirmed by reading code and 14 are hypotheses that each say what would confirm them.
@@ -620,6 +620,8 @@ Not yet true of the Lab, and the dashboard lane's work: rule 1 needs every recom
 
 **Order.** DECIDED (GR-85, GR-88, MM-23, Tyler said yes on the page 2026-11-21, with GR-88 PROVISIONAL, Tyler said yes on the page).
 
+**The calibration.** `14-the-rest.md` section 2 is the calibration of the simulator: FB-3 runs checks C-1 to C-5 against production, read-only and in aggregate, so the tool's numbers can be taken as truth. GR-88's gate turns on after it passes, in lane FR-18. Anything the engine decides is then sized in the simulator. A playtest reads only what a player chooses (Tyler 2026-11-21).
+
 1. Make the instrument true (2.4.4).
 2. The checks that need no players (table A).
 3. Each roadmap step is proven by its kind of proof before the next step leans on it (2.2).
@@ -765,7 +767,7 @@ In decision-book order. Each line is the call and the decision this chapter take
 | GR-8 | Sinks as a share of band gold | Tempering, Hallmarks and linings cost a share of a band's gold, 1.2 to 1.4 of what the band earns. The slot gold follows the order of CE-4 first, then the castle | PROVISIONAL. Waits on the store-bill fault fixed and a wage formula that exists. Tyler said yes on the page 2026-11-21. It changes The typed prices kept on 2026-11-18 (Hallmarks 150k, 250k, 400k, 600k), which he let stand on the page |
 | GR-11, GR-12, GR-13 | The spell floor, how spells read the stats, one roll rule | One floor. Strikes read weapon weakness, spells never miss or crit. One roll with a spread for each kind | DECIDED (Fable 2026-11-21) |
 | GR-23 | Endless ladders | Rune tiers past skill 60 every 15 skill levels, and the Tower reads any floor from one row | PROVISIONAL. Waits on the kill reward and the tiers, because the seat's multiple is not one number until then |
-| GR-25 | Nine special rules with no ruling on record | Approve as the formula audit recommends, each by name | OPEN (waiting on Tyler). Tyler's explicit approval. The formula brief says a deliberate special rule needs it, and these five were never put to him. |
+| GR-25 | Nine special rules with no ruling on record | Approve as the formula audit recommends, each by name | RULED (Tyler, 2026-11-21, the second sitting, S-15 a). All five rules are approved. The roll rule and the tier flag are folded by FB-2, with no change in play |
 | GR-36 | The Tower and Catacombs party table | They take the one party table | PROVISIONAL. Waits on Deadly sized, and the system built |
 | GR-51, GR-52 | The wage curve and the store's healing | Prices in hours of a wage the server computes. One gold-a-hit-point line, after fault F5 closes. F5's kit rule is decided in GR-52: one rune tier under what Magic allows for mid gear, and the cheapest water rune for a healer | GR-51: PROVISIONAL. Waits on the store-bill fault fixed and a wage formula that exists. GR-52: DECIDED (Fable 2026-11-21) |
 | GR-63 | The rested bank and the old kill ladders | The rested bank is cut. The ladders reading the one kill count is a PROPOSAL | RULED (Tyler, 2026-11-21, the sitting) for the cut |

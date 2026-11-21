@@ -83,6 +83,8 @@ There is one ceiling. It is a reading held by a test and never a new limit, and 
 
 **The form.** A world boss is one health pool for the whole server. An account sends its own four into its own boss room, where the boss is scaled to that party. What the party does comes off the shared pool. When the pool is empty the boss falls for everyone. PROVISIONAL (MM-2, waits on the hall check at three Levels and one boss stood, decide first). This is the deliberate redesign of live world events that the 2026-10-22 ruling asked for.
 
+**The sample boss is Mossback.** RULED by the designer 2026-11-21 (D-6), `review/06-designer-rulings-w1.md` section 2. He is a huge old brook bear from Mosslight Glade who comes down the Meadowbrook for the honey under the mill. He is fought at the Mill Pond, in each party's own room, on the one monster formula. Rook's poachers come out of the trees at half his health. He never dies in the room. Both names are new and not in the game's data yet. The points rule gains `bossTierPm`, read from the one tier table.
+
 Why a pool and not one big fight: the one combat engine runs a party of up to four in its own instance (RULED, CLAUDE.md section 6). A shared pool puts "the server is killing this together" on the screen without a second engine.
 
 **The window.** A boss stands for about 72 hours over a weekend, and never appears at a set hour. PROVISIONAL (MM-3). Heroes fight with the browser closed, on stamina, exactly like a hunt.
@@ -106,12 +108,12 @@ Why a pool and not one big fight: the one combat engine runs a party of up to fo
 
 | Reward | Rule | Status |
 |---|---|---|
-| A chest at point thresholds | Paid by the account's own points, never by rank. Three thresholds. TARGET: the first at about 2 Normal party-hours, then about 8 and about 20. An account earns at most one line piece a boss weekend (CE-1). One chest for each boss weekend, so the ruled weekly limits on chest opens hold (RULED 2026-11-21). An account's own marks still pay after the boss falls | PROVISIONAL (MM-6, CE-1). The threshold sizes are checked by playtest E |
+| A chest at point thresholds | Paid by the account's own points, never by rank. Three thresholds. The marks are 2, 6 and 12 Normal party-hours (D-6. They were 2, 8 and 20). Mark 1 pays +5% damage for 7 days and, the first time, the trophy. Mark 2 pays one Mossback Cloak cut for the hero's way to fight. Mark 3 runs the buff 14 days. An account earns at most one line piece a boss weekend (CE-1). One chest for each boss weekend, so the ruled weekly limits on chest opens hold (RULED 2026-11-21). An account's own marks still pay after the boss falls | PROVISIONAL (MM-6, CE-1). The threshold sizes are checked by playtest E |
 | The boss's own gear line | Each boss has a named line of unique pieces, one for each of the four styles. A piece drops at the band of the hero who earned it. It spends the same budget as the best piece of that band (gear exchange rates, R11) and spends part of it on one property no other piece has. Past tier 7 that property is a kind that changes a decision (GR-41) | PROVISIONAL (MM-6, CE-1). Its fit to the item plan is the ten rules of `03-items-and-crafting.md` section 2.16 |
 | It reforges | A boss piece reforges up a band and keeps its property | RULED 2026-11-21 (31-4) |
 | It trades | A boss piece sells on the market like any gear | No bound gear is RULED 2026-10-23. DECIDED for this line (MM-27, Fable 2026-11-21) |
 | The boss's upgrade material | A material only this boss drops. It feeds only the layer's own pieces and is never a required input for plain Tempering, Hallmarks or linings. It trades | PROVISIONAL (CE-1, MM-6) |
-| The fall bonus | Paid only if the server fells the boss, at the window's end, to every account past the first threshold, whenever it got there. It is +5% damage dealt for 7 days inside the timed cap, and a re-roll of which line piece the account receives, toward its own heroes' styles. It never adds a second piece | PROVISIONAL (MM-6). HYPOTHESIS |
+| The fall bonus | It waits, as the build plan says. In the first build the fall adds one mark to the Hearthrise's fire (D-6, D-7). The design: paid only if the server fells the boss, at the window's end, to every account past the first threshold, whenever it got there. It is +5% damage dealt for 7 days inside the timed cap, and a re-roll of which line piece the account receives, toward its own heroes' styles. It never adds a second piece | PROVISIONAL (MM-6). HYPOTHESIS |
 | A trophy and the plaque | One account trophy for each boss. The plaque names the first blow, the last blow and the top clan | PROVISIONAL (MM-6) |
 | Level XP | About what the same stamina earns on a Normal hunt. Never a loss and never the best XP in the game | PROVISIONAL (MM-6), checked by playtest E |
 | Coin | None. Gold comes from selling what the boss dropped, to a player | PROVISIONAL (MM-6) |
@@ -210,9 +212,11 @@ A building's level sets the size of its buff, up to the standing cap. A clan tha
 | Weekend | Event | What it pays |
 |---|---|---|
 | 1 | The Hearthrise | A buff: Level XP for everyone, from +10% on an empty fire to +25% on a full one. Once every four weeks, as ruled (27-5). The calendar says when it lights and the fire says how big it burns (PROVISIONAL, CE-8 and GR-82, Tyler said yes on the page, a reversal of 2026-10-25, approved) |
-| 2 | A world boss stands | Gear and a buff: the boss's line, its material, its 7-day buff |
-| 3 | One ground's weekend | Gear: that ground's named pieces are featured for the weekend on their own event row, for everyone hunting that ground. The row is outside the buff caps, is never sold and never stacks with a second event, and the rivet allowance is computed without it. If the playtest shows it does not move people, it goes back to the ruled ground XP weekend |
+| 3 | A world boss stands | Gear and a buff: the boss's line, its material, its 7-day buff |
+| 2 | One ground's weekend | Gear: that ground's named pieces are featured for the weekend on their own event row, for everyone hunting that ground. The row is outside the buff caps, is never sold and never stacks with a second event, and the rivet allowance is computed without it. If the playtest shows it does not move people, it goes back to the ruled ground XP weekend |
 | 4 | Arena season end and clan honors | Buffs and gear: season buffs for both ladders, the Open Arena's gear line, the clan board's buff |
+
+RULED by the designer 2026-11-21 (D-7), `review/06-designer-rulings-w1.md` section 1. The cycle is 28 days. In the first build weekends 2 and 4 are quiet, and the boss stands on weekend 3, two weeks after the Hearthrise. The fire lights at +10% on an empty fire, then +3% a mark to +25% at five marks. A full fire is a quarter of the fuel the server's weekly active accounts find, counted per account, so 7 accounts fill it as easily as 7,000. The weekly Open Halls row is retired, because Call out has cost no gold since 2026-11-20 and the event waives nothing.
 
 - An event needs no code of its own. A buff is a row on a knob and a featured piece is a row on the drop formula.
 - Every weekend has one thing the whole server shares, and no two in a row ask for the same thing.
@@ -356,12 +360,14 @@ Chat is open by default so a new player sees that other people exist (RULED 2026
 
 Tyler adopted the critical review on 2026-11-21, and its step 4 narrows the first build. Of this chapter the first build holds the cheap social layer (presence, Global chat, the clan roster with its chat tab and browser, the calendar with the Hearthrise weekend), one world boss as a sample of one, and the one-day engine test that sizes the arenas. Everything else in the chapter is planned and waits. Nothing is cut.
 
+Each waiting row below now names its later lane, FR-1 to FR-18 of `14-the-rest.md`. Anything the engine decides is sized in the simulator, and only a player's choice is read live (Tyler 2026-11-21).
+
 | Id | The call | First build | Status |
 |---|---|---|---|
-| CE-1 | Collision: world boss and arena gear lines against the gear curve and the unique counts (MM-6, MM-14) | Planned, waits until the first boss has stood twice. The first boss keeps its chest | PROVISIONAL |
+| CE-1 | Collision: world boss and arena gear lines against the gear curve and the unique counts (MM-6, MM-14) | Planned, waits until the first boss has stood twice. The first boss keeps its chest. Lane FR-12 | PROVISIONAL |
 | CE-8 | Chapter 07 flag: the Hearthrise fire and MM-11's dated +25% weekend are one reward under two rules | In the first build: the Hearthrise weekend | PROVISIONAL |
 | GR-70 | The town shows heroes at work whether or not their owner is online. | In the first build: presence in town, inside the cost budget | PROVISIONAL |
-| GR-71 | A faction side is chosen for each hero. | Planned, waits until the first build is played | DECIDED |
+| GR-71 | A faction side is chosen for each hero. | Planned, waits until the first build is played. D-21, then lane FR-14 | DECIDED |
 | GR-72 | A friend link at sign-up, with no reward. | In the first build: the friend link | DECIDED |
 | GR-82 | Town Works, the Hearthrise event and flame powders become one Great Hearth. | In the first build: the Hearthrise weekend | PROVISIONAL |
 | MM-1 | Rule 0: every shared feature works while both players are asleep. | In the first build: the rule | PROVISIONAL |
@@ -369,43 +375,43 @@ Tyler adopted the critical review on 2026-11-21, and its step 4 narrows the firs
 | MM-3 | A world boss stands for a window of about 72 hours and never at a set hour. | In the first build: one sample boss | PROVISIONAL |
 | MM-4 | A world boss is sized by weekly active accounts, with a floor one account can fell. | In the first build: one sample boss | PROVISIONAL |
 | MM-5 | Your share of a world boss is counted against your own Level in a room scaled to your party. | In the first build: one sample boss | PROVISIONAL |
-| MM-6 | A world boss pays a chest by your own points: its own named gear line at your band, its own upgrade material,  | Planned, waits until the first boss has stood twice. The first boss keeps its chest | PROVISIONAL |
+| MM-6 | A world boss pays a chest by your own points: its own named gear line at your band, its own upgrade material,  | Planned, waits until the first boss has stood twice. The first boss keeps its chest. D-19, then lane FR-12, FR-10 | PROVISIONAL |
 | MM-7 | Collision (c): a death in a world boss room. | In the first build: one sample boss | PROVISIONAL |
 | MM-8 | A clan is a shared work, a team and a room that pays members in buffs, held by giving that week's share. | In the first build: the roster, the clan chat tab and the browser only | PROVISIONAL |
-| MM-9 | The castle is one project at a time on the town project engine. Each room carries one standing buff up to the  | Planned, waits until clans exist and people are in them | RULED in direction at the sitting. Sizes PROVISIONAL |
-| MM-10 | A weekly clan board. The top clans carry a small timed buff the next week. | Planned, waits until clans exist and people are in them | PROVISIONAL |
-| MM-11 | Events are a four-weekend rotation written a year ahead, with no dailies, login calendar or season pass. | In the first build: the calendar | PROVISIONAL |
-| MM-12 | Arena opponents are saved setups and house teams, never live players. | Planned, waits until the one-day engine test shows heroes can fight heroes | PROVISIONAL |
-| MM-13 | Two arenas: an even arena that normalizes every stat, and an open arena that reads real gear, upgrades and buf | Planned, waits until the one-day engine test shows heroes can fight heroes | PROVISIONAL |
-| MM-14 | Arena rewards by rating tier: a season buff and title in the even arena, and the arena's own gear line in the  | Planned, waits until the one-day engine test shows heroes can fight heroes | PROVISIONAL |
-| MM-15 | Arena fights use tickets that bank, 5 a day up to 20. | Planned, waits until the one-day engine test shows heroes can fight heroes | PROVISIONAL |
-| MM-16 | The server offers three opponents, being attacked costs nothing, and your defense is your last attack party. | Planned, waits until the one-day engine test shows heroes can fight heroes | PROVISIONAL |
+| MM-9 | The castle is one project at a time on the town project engine. Each room carries one standing buff up to the  | Planned, waits until clans exist and people are in them. Lane FR-11 | RULED in direction at the sitting. Sizes PROVISIONAL |
+| MM-10 | A weekly clan board. The top clans carry a small timed buff the next week. | Planned, waits until clans exist and people are in them. Lane FR-11 | PROVISIONAL |
+| MM-11 | Events are a four-weekend rotation written a year ahead, with no dailies, login calendar or season pass. | In the first build: the calendar, with the Hearthrise and the world boss two weeks apart | PROVISIONAL |
+| MM-12 | Arena opponents are saved setups and house teams, never live players. | Planned, waits until the one-day engine test shows heroes can fight heroes. D-19, then lane FR-10, FR-12 | PROVISIONAL |
+| MM-13 | Two arenas: an even arena that normalizes every stat, and an open arena that reads real gear, upgrades and buf | Planned, waits until the one-day engine test shows heroes can fight heroes. Lane FR-10 | PROVISIONAL |
+| MM-14 | Arena rewards by rating tier: a season buff and title in the even arena, and the arena's own gear line in the  | Planned, waits until the one-day engine test shows heroes can fight heroes. Lane FR-10 | PROVISIONAL |
+| MM-15 | Arena fights use tickets that bank, 5 a day up to 20. | Planned, waits until the one-day engine test shows heroes can fight heroes. Lane FR-10 | PROVISIONAL |
+| MM-16 | The server offers three opponents, being attacked costs nothing, and your defense is your last attack party. | Planned, waits until the one-day engine test shows heroes can fight heroes. Lane FR-10 | PROVISIONAL |
 | MM-20 | Other players on a hunting ground are seen through a presence strip and never fought beside. | In the first build: presence | PROVISIONAL |
-| MM-22 | The gold that hero slots took goes to the castle and to boss and arena upgrade materials first. | Planned, waits until clans exist and people are in them | PROVISIONAL |
-| MM-24 | Every buff is a row in one modifier table, and every MMO layer piece sits on the gear curve at the earner's ba | Planned, waits until Deadly is sized and one buff has been played in a cell | PROVISIONAL |
-| MM-25 | The buff caps: damage +5% standing and +10% timed, damage taken 5% and 5% less, Level XP +5% and +25%, drop ch | Planned, waits until Deadly is sized and one buff has been played in a cell | PROVISIONAL |
-| MM-26 | The power budget: a fully buffed, boss-geared four gains at most about 32% kill speed and about 72% Level pace | Planned, waits until Deadly is sized and one buff has been played in a cell | PROVISIONAL |
-| MM-27 | Boss and arena gear trades like all gear. | Planned, waits until the first boss has stood twice. The first boss keeps its chest | DECIDED |
-| MM-28 | The paid advantage | Planned, waits until test Crowns have run in the playtest | RULED at the sitting |
-| MM-29 | What the store sells for Crowns | Planned, waits until Deadly is sized and one buff has been played in a cell | PROVISIONAL |
-| MM-30 | Bought boosts and earned buffs | Planned, waits until Deadly is sized and one buff has been played in a cell | PROVISIONAL |
-| MM-31 | The pace ceiling | Planned, waits until Deadly is sized and one buff has been played in a cell | PROVISIONAL |
-| MM-33 | The gold ceiling | Planned, waits until test Crowns have run in the playtest | PROVISIONAL |
-| MM-34 | The path for players who do not pay | Planned, waits until test Crowns have run in the playtest | RULED |
-| MM-35 | How Crowns trade | Planned, waits until test Crowns have run in the playtest | PROVISIONAL |
-| MM-36 | The clamps | Planned, waits until test Crowns have run in the playtest | PROVISIONAL |
-| MM-37 | Where paying gives no edge | Planned, waits until test Crowns have run in the playtest | PROVISIONAL |
-| MM-38 | The open arena matches by gear band, then rating, and thin bands borrow from the next band and from house team | Planned, waits until the one-day engine test shows heroes can fight heroes | PROVISIONAL |
-| MM-39 | The even arena is one ladder for everyone, with three opponents offered near your rating. | Planned, waits until the one-day engine test shows heroes can fight heroes | PROVISIONAL |
-| MM-40 | Each arena has its own tickets. | Planned, waits until the one-day engine test shows heroes can fight heroes | PROVISIONAL |
+| MM-22 | The gold that hero slots took goes to the castle and to boss and arena upgrade materials first. | Planned, waits until clans exist and people are in them. Nothing to build (chapter 14 section 3.4) | PROVISIONAL |
+| MM-24 | Every buff is a row in one modifier table, and every MMO layer piece sits on the gear curve at the earner's ba | Planned, waits until Deadly is sized and one buff has been played in a cell. Lane FR-12 | PROVISIONAL |
+| MM-25 | The buff caps: damage +5% standing and +10% timed, damage taken 5% and 5% less, Level XP +5% and +25%, drop ch | Planned, waits until Deadly is sized and one buff has been played in a cell. Lane FR-12 | PROVISIONAL |
+| MM-26 | The power budget: a fully buffed, boss-geared four gains at most about 32% kill speed and about 72% Level pace | Planned, waits until Deadly is sized and one buff has been played in a cell. Lane FR-12 | PROVISIONAL |
+| MM-27 | Boss and arena gear trades like all gear. | Planned, waits until the first boss has stood twice. The first boss keeps its chest. Nothing to build (chapter 14 section 3.4) | DECIDED |
+| MM-28 | The paid advantage | Planned, waits until test Crowns have run in a later playtest (S-17 a). Nothing to build (chapter 14 section 3.4) | RULED at the sitting |
+| MM-29 | What the store sells for Crowns | Planned, waits until Deadly is sized and one buff has been played in a cell. Lane FR-12 | PROVISIONAL |
+| MM-30 | Bought boosts and earned buffs | Planned, waits until Deadly is sized and one buff has been played in a cell. Lane FR-12 | PROVISIONAL |
+| MM-31 | The pace ceiling | Planned, waits until Deadly is sized and one buff has been played in a cell. Lane FR-12 | PROVISIONAL |
+| MM-33 | The gold ceiling | Planned, waits until test Crowns have run in a later playtest (S-17 a). Lane FR-16 | PROVISIONAL |
+| MM-34 | The path for players who do not pay | Planned, waits until test Crowns have run in a later playtest (S-17 a). Lane FR-16 | RULED |
+| MM-35 | How Crowns trade | Planned, waits until test Crowns have run in a later playtest (S-17 a) | PROVISIONAL |
+| MM-36 | The clamps | Planned, waits until test Crowns have run in a later playtest (S-17 a) | PROVISIONAL |
+| MM-37 | Where paying gives no edge | Planned, waits until test Crowns have run in a later playtest (S-17 a). Nothing to build (chapter 14 section 3.4) | PROVISIONAL |
+| MM-38 | The open arena matches by gear band, then rating, and thin bands borrow from the next band and from house team | Planned, waits until the one-day engine test shows heroes can fight heroes. Lane FR-10 | PROVISIONAL |
+| MM-39 | The even arena is one ladder for everyone, with three opponents offered near your rating. | Planned, waits until the one-day engine test shows heroes can fight heroes. Lane FR-10 | PROVISIONAL |
+| MM-40 | Each arena has its own tickets. | Planned, waits until the one-day engine test shows heroes can fight heroes. Lane FR-10 | PROVISIONAL |
 | MM-41 | Measure once whether the engine can run heroes on both sides of a fight, before either arena is planned. | In the first build: the one-day engine test | DECIDED |
-| MM-42 | Events pay buffs and gear: a Level XP weekend, a ground weekend that features its named pieces, boss and arena | Planned, waits until Deadly is sized and one buff has been played in a cell | PROVISIONAL |
+| MM-42 | Events pay buffs and gear: a Level XP weekend, a ground weekend that features its named pieces, boss and arena | Planned, waits until Deadly is sized and one buff has been played in a cell. Lane FR-12 | PROVISIONAL |
 | MM-43 | For the playtest only, every account gets the same weekly allowance of test Crowns through one server switch. | In the first build: the playtest | DECIDED |
-| MM-44 | A standing clan gift. | Planned, waits until clans exist and people are in them | PROVISIONAL |
-| MM-45 | Spending banked arena tickets. | Planned, waits until the one-day engine test shows heroes can fight heroes | PROVISIONAL |
-| MM-46 | Capture the flag and the arenas. | Planned, waits until the one-day engine test shows heroes can fight heroes | PROVISIONAL |
+| MM-44 | A standing clan gift. | Planned, waits until clans exist and people are in them. Lane FR-11 | PROVISIONAL |
+| MM-45 | Spending banked arena tickets. | Planned, waits until the one-day engine test shows heroes can fight heroes. Lane FR-10 | PROVISIONAL |
+| MM-46 | Capture the flag and the arenas. | Planned, waits until the one-day engine test shows heroes can fight heroes. D-20, then a later lane | PROVISIONAL |
 | MM-47 | Friends. | In the first build: friends | DECIDED |
-| MM-48 | The clan's own shared hunt. | Planned, waits until clans exist and people are in them | PROVISIONAL |
+| MM-48 | The clan's own shared hunt. | Planned, waits until clans exist and people are in them. D-20, then a later lane | PROVISIONAL |
 
 MM-18 (on-call heroes, kept) and GR-69 (the finder and Local chat, removed) were ruled at the sitting, and the full castle is ruled as the direction. The rows above with no cell or code behind them are PROVISIONAL however they read in section 2: the review counted one measurement in the 49 rows of this layer.
 
@@ -484,14 +490,14 @@ In decision-book order. "First" marks a decide-first call.
 
 | # | What is missing | Who answers |
 |---|---|---|
-| 1 | **The boss roster.** How many bosses, their names, where they stand in the world and the story, their phase traits, and each line's four pieces and property. One sample boss comes first | The game designer. One sample boss first |
+| 1 | **The boss roster.** How many bosses, their names, where they stand in the world and the story, their phase traits, and each line's four pieces and property. One sample boss comes first | Closed for the sample. D-6: Mossback at the Mill Pond is written. Bosses two and on are D-19 of chapter 14 |
 | 2 | **How boss and arena gear lines fit the item plan and the gear curve.** A new tradeable line at the best in slot budget for every band changes what a hall prize (GR-29) and a ground's rare are worth | Closed. CE-1, the ten rules of `03-items-and-crafting.md` section 2.16 |
 | 3 | **A bought drop chance boost against the Luck ruling.** Tyler bound Luck items on 2026-11-20 so that gold and Crowns could not buy Magic Find. A drop chance boost in the store (MM-29) is close to that. My recommendation: the drop chance row stays as an earned and event buff, and chapter 04 leaves it out of the store unless Tyler says otherwise | Closed. CE-2 and CE-3: the row is material find, earned only, and no drop or material boost is sold |
 | 4 | **How the power budget moves the Level law and the content runway.** The Level table is the clock of a plain mid-geared four. A four at 1.72 pace walks 120 days of grounds in about 70 (COMPUTED, 120 over 1.72) | Closed. GR-6a and MM-26: the table is the plain four's clock, and the next region's door is near day 55 for the fastest seat |
 | 5 | **What the layer may cost.** Every server number here is ESTIMATED. The budget and the cost of a town that draws working heroes come from the platform study | Chapter 09 |
 | 6 | **The engine check** (MM-41). Until it runs, both arenas are a design and not a plan | The systems engineer |
 | 7 | **Arena balance between styles.** The four styles are balanced against monsters. The reference kit, the reference Level, and whether faction skills are read in the Even Arena are not written | The game designer, after the engine check |
-| 8 | **The numbers nobody has set.** `bossPoolPerAccount`, `bossPoolFloor`, the chest thresholds, room levels and their steps, `castleStagePerMember`, `clanWeeklyShare`, the clan roster cap (the design is checked at 60), the ration cap, the board's "top members" count and its buff size, rating tiers, the minimum fights for a tier, the house teams | The game designer, on the balance matrix |
+| 8 | **The numbers nobody has set.** `bossPoolPerAccount`, `bossPoolFloor`, the chest thresholds, room levels and their steps, `castleStagePerMember`, `clanWeeklyShare`, the clan roster cap (the design is checked at 60), the ration cap, the board's "top members" count and its buff size, rating tiers, the minimum fights for a tier, the house teams | The boss pool, the chest marks and the fire are set by D-6 and D-7. The castle, board and arena numbers are sized in the simulator, in lanes FR-10 and FR-11 |
 | 9 | **When each piece opens on the Path.** Chat and presence at minute 5 and clans from the first day are the design. The Level door for the boss, the arenas and the clan board is not set | Closed. GR-79: the world boss at Level 13 for each hero sent, the Even Arena at Level 20, the Open Arena at Level 30, the clan board when the account is in a clan |
 | 10 | **The Security review's scope for the layer.** The boss chest, clan gifts, the standing gift, rations, arena results and both gear lines are shared or reward surfaces | The security engineer |
 | 11 | **Side against side.** The weekly faction tally and any side event have no design that passes rule 0 yet | The game designer |

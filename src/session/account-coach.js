@@ -79,7 +79,8 @@ export class AccountCoach {
 
 /** The account's coach for this CharacterSession (AccountSession hands it over), or null when this client records none. */
 export function coachOf(cs) {
-  return cs && cs.accountCoach instanceof AccountCoach ? cs.accountCoach : null;
+  const c = cs && cs.accountCoach;
+  return c && c.read instanceof Set && c.taught instanceof Set && typeof c.mark === 'function' ? c : null;
 }
 
 /** The cards this account has taught on ANOTHER hero that this hero passes by: every taught card but a weapon's own first

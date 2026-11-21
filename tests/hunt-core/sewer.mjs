@@ -1318,11 +1318,11 @@ const cases = {
     const CHEST = { name: 'Millrace Crate', gold: 1500, items: [{ id: 'normal_log', qty: 40 }] };
     const rich = (lv, gold, more, ...read) => ({ ...atL(lv, 'weighhouse', 'roll_of_honor', 'pull_goal', ...read), gold, slotCost: 15000, slotsOwned: 2, home: { owned: false, next: DEED }, chest: CHEST, ...more });
     const purse = say(rich(M.tut.ROLL_LEVEL, 15000));
-    if (!purse || purse.id !== 'purse_goal' || purse.text !== 'Buy a hero slot or a House deed' || !purse.gotIt || M.tut.coachWindow(purse) !== 'house') return 'with 15,000 gp the card reads ' + JSON.stringify(purse);
+    if (!purse || purse.id !== 'purse_goal' || purse.text !== 'Buy a House deed' || !purse.gotIt || M.tut.coachWindow(purse) !== 'house') return 'with 15,000 gp the card reads ' + JSON.stringify(purse);
     /* The hero is a saving goal now (lane/c-gold-matters): the card comes at the What next line's share of its price (a half) and says what is short, never "enough". */
     if ((say(rich(M.tut.ROLL_LEVEL, 7499)) || {}).id === 'purse_goal') return 'the gold card came before the purse is a start on the next hero';
     const saving = say(rich(M.tut.ROLL_LEVEL, 7500));
-    if (!saving || saving.id !== 'purse_goal' || saving.text !== 'Buy a hero slot or a House deed') return 'saving for a hero the gold card reads ' + JSON.stringify(saving && saving.text);
+    if (!saving || saving.id !== 'purse_goal' || saving.text !== 'Buy a House deed') return 'saving for a hero the gold card reads ' + JSON.stringify(saving && saving.text);
     if ((say(rich(M.tut.ROLL_LEVEL, 15000, {}, 'purse_goal')) || {}).id === 'purse_goal') return 'Got it does not pass the gold card';
     if ((say(rich(M.tut.ROLL_LEVEL, 99999, { slotCost: null, slotsOwned: 5 })) || {}).id === 'purse_goal') return 'with no hero on offer the gold card still offers one';
     if ((say(rich(M.tut.ROLL_LEVEL, 15000, { huntId: 'mosslight_glade' })) || {}).id === 'purse_goal') return 'the gold card came up in a hunt';
@@ -1959,11 +1959,14 @@ const cases = {
     const imp = (p) => import(pathToFileURL(join(M.root, p)).href + V);
     const L = await imp('src/shell/launcher-coach.js');
     const { residueOf } = await imp('src/session/residue.js');
+    const { AccountCoach } = await imp('src/session/account-coach.js');
     const base = JSON.parse(readFileSync(join(M.root, 'tests/fixtures/alpha-envelope.json'), 'utf8'));
-    /* a CharacterSession as the shell reads it: its record (data + the allowlisted residue) and setResidue */
+    /* a CharacterSession as the shell reads it: its record (data + the allowlisted residue), setResidue, and the ACCOUNT's coach
+       (src/session/account-coach.js: what has been read and taught is the account's, 1039), held here with no server */
     const hero = (env, coach, slot = 0) => {
       const cs = { slot, puts: [], read: (k) => cs.record.data[k], record: { data: env, residue: residueOf({ coach: coach || {} }) },
-        setResidue(f, v) { cs.puts.push([f, v]); cs.record = { data: cs.record.data, residue: { ...cs.record.residue, ...residueOf({ [f]: v }) } }; return true; } };
+        setResidue(f, v) { cs.puts.push([f, v]); cs.record = { data: cs.record.data, residue: { ...cs.record.residue, ...residueOf({ [f]: v }) } }; return true; },
+        accountCoach: new AccountCoach(null, { read: (coach && coach.read) || [] }) };
       return cs;
     };
     const acct = (open, rows, limit) => ({ characters: () => open, lastRoster: () => rows, statedLimit: () => limit });
@@ -2006,13 +2009,13 @@ const cases = {
     /* without the Shop's prices the shell cannot say: unknown, never a wall */
     if (L.coachFactsOf(hero(town({ shop: undefined })), null).sellable !== null) return 'with no shop section the shell still claims a sellable count';
 
-    /* GOT IT: a card that only teaches offers Got it where the press can be recorded; the press adds its id to the
-       residue coach.read (and a fold keeps the reads); without a recorder there is no button and the card is passed by */
+    /* GOT IT: a card that only teaches offers Got it where the press can be recorded; the press adds its id to the ACCOUNT's
+       reads (account-coach.js; a fold writes only the hero's display residue); without a recorder there is no button and the card is passed by */
     const sc = M.tut.HUNT_TUTORIAL.find((r) => r.id === 'styles');
     const g = hero(town({ equipment: { ...worn, weapon: M.kit.START_EQUIPMENT.weapon }, inventory: kept, bag_rules: { ...base.bag_rules, loot: { rat_tail: 'sell' } },
       skills: { ...base.skills, farming: { xp: 28, level: 1, frac: 0 }, cooking: { xp: 30, level: 1, frac: 0 } } }), { read: KNOWN.filter((x) => x !== 'styles') });
     if (!L.coachHtml(g, M.tut.cardFor(sc, {})).includes('data-hs-act="coach-got"')) return 'Every weapon is a style has no Got it';
-    const noRec = { slot: 0, read: g.read, record: g.record };
+    const noRec = { slot: 0, read: g.read, record: g.record, setResidue: g.setResidue };
     if (L.coachHtml(noRec, M.tut.cardFor(sc, {})).includes('coach-got')) return 'Got it is offered where the press cannot be recorded';
     const gotCtx = { character: g, account: null, wm: { openIds: () => [], isOpen: () => false } };
     const atStyles = L.heldCard(gotCtx);
@@ -2022,19 +2025,18 @@ const cases = {
     if (L.ringPlan(atStyles, at('inventory'))[0] !== '[data-hs-win="inventory"] .hw-slot[data-slot="weapon"]') return 'the styles card rings ' + L.ringPlan(atStyles, at('inventory'))[0];
     /* a press on a box still showing another card finishes nothing: the card it would finish was never read (a skipped step, QA 2026-11-04) */
     L.actCoach(gotCtx, null, 'coach-got', { type: 'click', target: { closest: () => ({ getAttribute: () => 'plant_land' }) } });
-    if (g.puts.some(([f]) => f === 'coach')) return 'a Got it drawn on another card finished the held one: ' + JSON.stringify(g.puts);
+    if (g.accountCoach.read.has('styles') || g.puts.some(([f]) => f === 'coach')) return 'a Got it drawn on another card finished the held one: ' + JSON.stringify(g.puts);
     L.actCoach(gotCtx, null, 'coach-got', { type: 'click', target: { closest: () => ({ getAttribute: () => 'styles' }) } });
-    const put = g.puts.find(([f]) => f === 'coach');
-    if (!put || !put[1].read.includes('styles')) return 'Got it wrote ' + JSON.stringify(g.puts) + ', want coach.read to hold styles';
+    if (!g.accountCoach.read.has('styles')) return 'Got it read ' + JSON.stringify([...g.accountCoach.read]) + ', want the account\'s reads to hold styles';
     if ((L.heldCard(gotCtx) || {}).id === 'styles') return 'after Got it the styles card is still up';
     const fold = hero(town(), { read: ['bar_intro', 'styles'] });
     const fc = { character: fold, account: null, wm: { openIds: () => [], isOpen: () => false } };
     if (L.heldCard(fc)) {
       L.actCoach(fc, { ownerDocument: null, contains: () => false }, 'coach-min', { type: 'click' });
       const p = fold.puts.find(([f]) => f === 'coach');
-      if (!p || p[1].min !== true || !(p[1].read || []).includes('styles')) return 'folding the coach dropped the reads: ' + JSON.stringify(p);
+      if (!p || p[1].min !== true || 'read' in p[1] || !fold.accountCoach.read.has('styles')) return 'folding the coach wrote ' + JSON.stringify(p) + ' (a fold is the hero\'s, the reads the account\'s)';
     }
-    if (residueOf({ coach: { read: Array.from({ length: 300 }, (_, i) => 'c' + i) } }).coach.read.length > 128) return 'coach.read is not bounded';
+    if ('read' in residueOf({ coach: { read: ['c0'], min: true } }).coach) return 'the hero\'s residue still carries the coach\'s reads';
 
     /* READ ON SIGHT: "Your hero just ate" is marked read once its open box has been on screen its reading time; a Got it
        card never is; off screen the clock starts again */
@@ -2487,9 +2489,9 @@ const mutants = [
   { name: 'the coach counts the bag, not what Sell all loot sells', case: 'tutorial-shell-facts',
     edits: [['src/shell/launcher-coach.js', 'lootSale(bag, rulesOf(cs), shop, upgradeNeeds(homeOf(cs), chestsOf(cs))).lines.length', 'bag.length']] },
   { name: 'Got it records nothing', case: 'tutorial-shell-facts',
-    edits: [['src/shell/launcher-coach.js', "return cs.setResidue('coach', Object.assign({}, r, { read: Array.from(read).concat(card.id).slice(-COACH_READ_MAX) }));", 'return false;']] },
-  { name: 'folding the coach forgets the reads', case: 'tutorial-shell-facts',
-    edits: [['src/shell/launcher-coach.js', 'const keep = read && read.size ? { read: Array.from(read) } : {};', 'const keep = {};']] },
+    edits: [['src/shell/launcher-coach.js', "  return !!c && !!card && c.mark('read', [card.id]);", '  return false;']] },
+  { name: 'the hero\'s residue keeps the coach\'s reads again', case: 'tutorial-shell-facts',
+    edits: [['src/session/residue.js', "  if (typeof v.seen === 'string' && /^[a-z0-9_]{1,256}$/.test(v.seen)) out.seen = v.seen;\n", "  if (typeof v.seen === 'string' && /^[a-z0-9_]{1,256}$/.test(v.seen)) out.seen = v.seen;\n  if (Array.isArray(v.read)) out.read = v.read;\n"]] },
   { name: 'a folded read-on-sight card is never on screen (it sits there forever, v0.2.63)', case: 'tutorial-shell-facts',
     edits: [['src/shell/launcher-coach.js', `'.hs-pointer[data-tutorial="' + card.id + '"]'`, `'.hs-pointer[data-tutorial="' + card.id + '"]:not(.is-min)'`]] },
   { name: 'a Got it card is marked read on sight', case: 'tutorial-shell-facts',

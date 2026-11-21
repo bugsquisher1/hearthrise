@@ -145,11 +145,11 @@ export function npcLine(id, name, parts, at, o = {}) {
     role: null, slot: null, parts: parts.slice(0, 8), toId: null, toName: null, system: false, npc: true };
 }
 
-/** Which fixed tab a chat line belongs to, given the zone and party channels the server named. */
-export function tabOfChannel(channel, zone, party) {
+/** Which fixed tab a chat line belongs to, given the party and clan channels the server named (there is no Local tab, GR-69). */
+export function tabOfChannel(channel, party, clan) {
   if (channel === 'global') return 'global';
   if (channel === 'system') return 'system';
-  if (zone && channel === zone) return 'local';
   if (party && channel === party) return 'party';
+  if (clan && channel === clan) return 'clan';
   return null;
 }

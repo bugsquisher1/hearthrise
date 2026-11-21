@@ -102,7 +102,7 @@ export function mountTownCriers(win, account, o = {}) {
     clock.saidAt[pick.crier.id] = at;
     const key = pick.crier.id + '/' + pick.line.id;
     clock.said[key] = (clock.said[key] || 0) + 1;
-    social.chat.tell('local', cryLine(pick, at, ++n));
+    social.chat.tell('global', cryLine(pick, at, ++n));
   }
   const timer = set(tick, CRIER_CLOCK.tickMs);
   return { destroy() { clear(timer); }, tick };

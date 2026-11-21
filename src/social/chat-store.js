@@ -3,10 +3,11 @@
 // UNREAD COUNTS, AND THE ONE WAY TO SEND.
 //
 // One ChatStore per AccountSession (owned by its SocialSession). It speaks for
-// the VIEWED character: that character's zone and party decide which Local and
-// Party lines it hears, and a line it sends is that character's. Both channels
-// are the SERVER's (hr_chat_recent answers them); the client only notices that
-// the character's hunt or party changed and asks again.
+// the VIEWED character: that character's party decides which Party lines it
+// hears and the account's clan which Clan lines, and a line it sends is that
+// character's. Both channels are the SERVER's (hr_chat_recent answers them); the
+// client only notices that the character's party changed and asks again (a
+// clan joined or left asks again through refresh(), clan-intents.js).
 //   lines(tab)    the tab's lines, oldest first (CHAT_LIMITS.linesPerTab kept)
 //   unread(tab)   lines that arrived while the tab was not on screen
 //   view(tab, on) the window reports what is on screen (on = window open)
@@ -14,7 +15,7 @@
 //                 shows when the server answers it, never before
 //   draft         what the input holds (display state, survives a tab switch)
 //   addLink(id)   put a catalogue item's link into the draft
-//   tell(tab, l)  a townsperson's line (a town crier): local, display-only, kept
+//   tell(tab, l)  a townsperson's line (a town crier): display-only, kept
 //                 through re-reads, never sent
 //   hideFrom(id)  drop a blocked player's lines now (the history reads and the
 //                 party / whisper pushes stop at the server; a PUBLIC channel's
@@ -27,11 +28,10 @@
 // ════════════════════════════════════════════════════════════════════════
 import { CHAT_TABS, CHAT_LIMITS } from '../data/chat-channels.js';
 import { lineOf, systemLine, tabOfChannel, bodyOf, linkLabel } from './chat-lines.js';
-import { huntOf } from '../session/hunt-sections.js';
 import { partyMembershipOf } from '../session/party-sections.js';
 import { askVia } from '../session/intent-ledger.js';
 
-const SERVER_TABS = Object.freeze(['global', 'local', 'party', 'system']);
+const SERVER_TABS = Object.freeze(['global', 'party', 'clan', 'system']);
 const SEND_KIND = Object.freeze(Object.fromEntries(CHAT_TABS.filter((t) => t.send).map((t) => [t.id, t.send])));
 
 export class ChatStore {
@@ -61,8 +61,8 @@ export class ChatStore {
     this._offAlerts = null;
     this._alertSeen = new Set();
     this._screen = { tab: 'global', open: false, at: 0 };
-    this.zone = null;
     this.party = null;
+    this.clan = null;
     this.draft = { text: '', links: [], rev: 0 };
     this.loading = false;
     this._offAccount = null;
@@ -83,8 +83,12 @@ export class ChatStore {
 
   lines(tab) { return this._lines.get(tab) || []; }
   unread(tab) { return this._unread.get(tab) || 0; }
-  /** Is a tab shown right now (the Party tab only while in a party)? */
-  shows(tab) { const row = CHAT_TABS.find((t) => t.id === tab); return !!row && (row.needs !== 'party' || !!this.party); }
+  /** Is a tab shown right now (the Party tab only while in a party, the Clan tab only while the account is in a clan)? */
+  shows(tab) {
+    const row = CHAT_TABS.find((t) => t.id === tab);
+    if (!row) return false;
+    return row.needs === 'party' ? !!this.party : row.needs === 'clan' ? !!this.clan : true;
+  }
 
   /* The window says what it shows on every paint (4 Hz); a report older than a second means it closed. */
   view(tab, open) {
@@ -93,12 +97,11 @@ export class ChatStore {
   }
   _onScreen(tab) { const s = this._screen; return s.open && s.tab === tab && this._now() - s.at < 1000; }
 
-  /* The key that says the server's channels may have moved: the viewed character, its hunt, its party. */
+  /* The key that says the server's channels may have moved: the viewed character and its party. */
   _keyOf(cs) {
     if (!cs) return null;
-    const h = huntOf(cs);
     const p = partyMembershipOf(cs);
-    return cs.slot + '|' + (h && !h.ended ? h.huntId : 'town') + '|' + (p ? p.id : '');
+    return cs.slot + '|' + (p ? p.id : '');
   }
 
   _follow() {
@@ -121,8 +124,8 @@ export class ChatStore {
     this.loading = false;
     const b = ans.body;
     if (!ans.ok || !b || b.ok !== true || !Array.isArray(b.lines)) { this._changed(); return false; }
-    this.zone = typeof b.zone === 'string' ? b.zone : null;
     this.party = typeof b.party === 'string' ? b.party : null;
+    this.clan = typeof b.clan === 'string' ? b.clan : null;
     for (const tab of SERVER_TABS) {
       /* the server's window replaces the server's lines; the client's own stay: the System tab's alerts, a townsperson's line (tell) */
       const keep = this.lines(tab).filter((l) => (tab === 'system' && l.system) || l.npc === true);
@@ -139,7 +142,7 @@ export class ChatStore {
   _listen() {
     if (this._leave) { this._leave(); this._leave = null; }
     if (!this._rt) return;
-    const channels = ['global', 'system', this.zone, this.party].filter(Boolean);
+    const channels = ['global', 'system', this.party, this.clan].filter(Boolean);
     this._leave = this._rt.chat(this._account.userId, channels, (row) => { if (this._take(row, true)) this._changed(); },
       () => this._catchUpSoon());
   }
@@ -184,14 +187,14 @@ export class ChatStore {
     if (!l) return false;
     if (this._ids.has(l.id)) return this._rename(l);
     if (live && l.fromId && this._blocked(l.fromId)) return false;
-    const tab = tabOfChannel(l.channel, this.zone, this.party);
+    const tab = tabOfChannel(l.channel, this.party, this.clan);
     if (!tab) return false;
     this._push(tab, l, live);
     return true;
   }
 
   _rename(l) {
-    const tab = l.system ? null : tabOfChannel(l.channel, this.zone, this.party);
+    const tab = l.system ? null : tabOfChannel(l.channel, this.party, this.clan);
     const held = tab ? this.lines(tab).find((x) => x.id === l.id) : null;
     if (!held || held.name === l.name) return false;
     held.name = l.name;

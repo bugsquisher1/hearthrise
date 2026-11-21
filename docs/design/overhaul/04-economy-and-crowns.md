@@ -125,7 +125,7 @@ That table is the answer to "early prices sized for an account of four". RECOMME
 | A scaled hunt hour | An hourly fee to hunt an old ground at your own Level, on the wage curve | OPEN. Free or a fee is ruled after players have used it | RECOMMENDED, GR-9 (chapter 02) |
 | Setup slots | Free. A saved setup is a remembered decision and is never sold | 0 | RECOMMENDED, GR-56a. It re-opens 11-05 |
 | Rename, hero colors | Hours on the wage curve | Small buys, under 1 account-day. TARGET | RECOMMENDED, GR-51 |
-| The Town Crier, a Round, flame powders, titles | Being seen in town. Price rows that climb with each use in a day | | RULED 2026-11-04. Their merge into one Great Hearth is GR-82, chapter 06 |
+| The Town Crier, a Round, flame powders, titles | Being seen in town. Price rows that climb with each use in a day | | RULED 2026-11-04. Their merge into one Great Hearth is GR-82, chapter 07 |
 | Bag rungs, Storage chests, the Key Ring | Room. Typed ladders, judged by band G-8 | | RULED 2026-10-22 (Storage grows with gold) |
 | The House and its rooms | Typed content, judged by the same bands. Rooms are things, not a curve | | RECOMMENDED, GR-51 (44 section 5.3) |
 | Hero slots | None. All four heroes are free from the start | 0 | RULED 2026-11-21 |
@@ -239,7 +239,7 @@ Formula step R14, knob `healPrice`. RECOMMENDED, GR-52. It lands after the store
 | Scaled hunt hours | Players at the frontier, if the fee stays (GR-9) | The wage |
 | The market's 5% | Traders | Trade |
 | The Crowns book's 5% | Players who buy Crowns with gold | The Crown's gold price |
-| Clan castle gifts | Clan members who want the room buffs | Member count (MM-9, chapter 06) |
+| Clan castle gifts and the weekly clan share | Clan members who want the room buffs | Member count and the wage (MM-9, `docs/design/overhaul/06-mmo-layer.md`) |
 
 **The yard is the keystone.** Combat skills have no cap, so the yard is the one sink that never ends. COMPUTED from the ruled fee: a hero that trains all 12 rested hours pays `1,200 x skill level` gold a day, and four heroes pay `4,800 x skill level`. Each rested hour is then a real choice between training, which costs gold, and town work, which makes goods. Tyler's ruling that the every-idle-hour training reading is "a number we watch, never a gate" stands (RULED 2026-11-21).
 
@@ -253,10 +253,19 @@ RECOMMENDED, GR-8 and MM-22, in the order the gold should meet them:
 | 2 | Tempering and Hallmarks, sized on four heroes from one purse | The first gear band, from about Level 15 | The share rule already makes one band's sinks exceed one band's gold. Four heroes make it four times the choice |
 | 3 | Linings | The first band whose ground has an element to guard against. TARGET: the second gear band | The first repeating gold-for-power. Sized inside the ruled 48 hour cap |
 | 4 | The House dummy rungs | When the yard fee starts to bite, by skill band | It converts a repeating fee into one large purchase, priced at 25 to 50 hours of the fee it ends |
-| 5 | The clan castle | When clans open (chapter 06) | Shared work, standing buffs under one cap. Its shape is being revised with study 49, so its size is OPEN |
+| 5 | The clan castle | When clans open (chapter 06) | Shared work, standing buffs under one cap. Sized below |
 | 6 | Boss and arena upgrade materials, bought from players | When the first world boss stands | The gold moves to the player who earned the material, and 5% burns on the way |
 
 The yard fee ships before linings (RULED 2026-11-20, 24-12). The numbers for the first week are OPEN. See section 5.
+
+**The two clan prices chapter 06 hands to this chapter.** RECOMMENDED, MM-9 and MM-22, with GR-8 and GR-51. Both are new rows on formulas this chapter already owns, so neither is a special case.
+
+| Knob | Rule | Size. TARGET | Why |
+|---|---|---|---|
+| `clanWeeklyShare` | What a member gives each week to hold the room buffs. Hours of the wage curve at the account's highest hero Level (R15) | 4 to 8 account-hours a week, which is 1 to 2% of an account-week of gold | A standing buff of +5% must cost something a player notices and never something a new member cannot pay |
+| `castleStagePerMember` | What one stage of the castle costs for each member. A share of band gold at the members' average band (R16) | Sized so a stage takes 2 to 4 weeks at the weekly share plus free gifts, for a clan of 3 and a clan of 60 | The stage scales with the roster, so no clan size is the cheap one |
+
+Both numbers are TARGET with no measurement behind them, and they wait on the wage formula and on MM-9.
 
 ### 2.7 The market
 
@@ -319,7 +328,7 @@ No gold is created by money and no gear is created by the store.
 
 | The advantage | How a payer gets it | How a non-payer gets it | Bounded by |
 |---|---|---|---|
-| Timed boosts on damage, damage taken, Level XP and drop chance | The store, for Crowns, in 1 day and 7 day sizes | Earned from bosses, the clan, events and arenas. Or Crowns bought with gold | The timed caps below. A bought boost and an earned buff are the same row and fill the same cap. One bought boost on a knob at a time |
+| Timed boosts on damage, damage taken and Level XP. No drop chance boost is sold | The store, for Crowns, in 1 day and 7 day sizes | Earned from bosses, the clan, events and arenas. Or Crowns bought with gold | The timed caps below. A bought boost and an earned buff are the same row and fill the same cap. One bought boost on a knob at a time |
 | Premium | Crowns | Crowns bought with gold | One for each account (section 2.9) |
 | Gear sooner | Gold from Crowns buys pieces on the market | Drops, bosses, arenas, and hunted gold | The Level a piece needs. A hero wears only its own band |
 | Upgrades sooner | Gold from Crowns pays the sinks and buys the materials | The same sinks with hunted gold | Each sink's ladder ends at its band's top rung |
@@ -328,9 +337,11 @@ No gold is created by money and no gear is created by the store.
 | Looks | Crowns: outfits, dye sets, a rename | Crowns bought with gold | No power |
 | Training items | Crowns, and bound to the account | Gold, and tradeable | RULED 2026-11-14 |
 
-**Never sold for Crowns.** Gear, upgrade materials, gold, Levels, skill levels, boss chests, arena rating, Luck, stamina or stamina refills, hero slots, any roll of any kind. RECOMMENDED, MM-29. Luck is RULED 2026-11-20 and stamina is RULED 2026-10-18. Crowns are never earned in play (RULED 2026-10-13). Everything bought with Crowns is account-bound and only Crowns themselves trade (RULED 2026-11-14).
+**Never sold for Crowns.** Gear, upgrade materials, gold, Levels, skill levels, boss chests, arena rating, Luck, drop chance, stamina or stamina refills, hero slots, any roll of any kind. RECOMMENDED, MM-29. Luck is RULED 2026-11-20 and stamina is RULED 2026-10-18. Crowns are never earned in play (RULED 2026-10-13). Everything bought with Crowns is account-bound and only Crowns themselves trade (RULED 2026-11-14).
 
 **One conflict Tyler must see before he rules MM-29.** Two older lines say power is never sold for Crowns directly. On 11-04 the recorded advice was "no direct Crowns-for-power sale without his explicit word", and the 11-18 intent says power reaches a payer "only through player trade for gold". A timed boost on damage or Level XP sold for Crowns is a direct sale. The 11-21 ruling asks for real advantages under a ceiling and does not name boosts. So MM-29 needs Tyler's explicit yes on that one row, and the decision book does not flag it. My recommendation is to say yes. A boost that is also earned in play, sits under the same cap, and can be bought with gold through the book is the mildest direct sale there is, and it gives Crowns the weekly sink a traded currency needs. The alternative is to sell boosts for gold only, which keeps both older lines and leaves Premium as the only repeating use of a Crown.
+
+**The drop chance boost is not sold.** RECOMMENDED, at MM-29 and MM-25. Study 49 put a drop chance boost in the store. Tyler bound Luck on 2026-11-20 ("Ok nvm let's bind it") for one reason: so that neither gold nor Crowns could buy Magic Find. A boost that raises drop chance for Crowns is the same thing by another door, and because Crowns trade for gold it would let gold buy it too. So the store sells no drop chance boost. The +10% timed drop chance row of the buff caps stays in the game and is earned only, from bosses, clans, arenas and events (`docs/design/overhaul/06-mmo-layer.md`, section 2.2 and its flag 3, which recommends the same). The paid ceiling does not move, because the pace number never used the drop row. The cost is one less thing to sell. The gain is that the gear chase cannot be bought at either end.
 
 **One overlap resolved.** Study 49 lists "more saved setups" and "more bag and storage" as Crowns comfort. Saved setups are free (GR-56a), because a remembered decision is never sold. Bag rungs and Storage chests are gold sinks (RULED 2026-10-22) and stay gold. Crowns comfort is market listings and banked tickets only.
 
@@ -341,7 +352,7 @@ No gold is created by money and no gear is created by the store.
 | Damage dealt | +5% | +10% |
 | Damage taken | 5% less | 5% less |
 | Level XP | +5% | +25% |
-| Drop chance | none | +10% |
+| Drop chance | none | +10%, earned only. Never sold |
 | Coin from kills | none | none |
 | Town work speed | +10% | none |
 
@@ -515,7 +526,7 @@ PENDING study 48 (`48-platform-cost.md` has not landed on the set).
 | A market fill is one batched call at loot dispatch or at a refill. An account that never trades costs nothing | RECOMMENDED, GR-50 |
 | The Crowns book is one wallet row, one ledger row a movement, and one more book | ESTIMATED close to nothing (study 24) |
 | Bought boosts are read with a hero's other modifiers at the settle, so they add no statement | ESTIMATED (study 49) |
-| Town work in closed form, which is what makes 48 rested hours a day affordable | RECOMMENDED, GR-1 (chapter 07) |
+| Town work in closed form, which is what makes 48 rested hours a day affordable | RECOMMENDED, GR-1 (chapter 09) |
 
 What 48 must add for this chapter: the measured cost of order matching, of the gauge's daily roll-up, and of the journal rows that four heroes spending by the use write at 12 hours a day.
 
@@ -530,8 +541,10 @@ What 48 must add for this chapter: the measured cost of order matching, of the g
 | 02, world | Grounds, bands and tiers. Scaled hunts at your own Level (GR-9) | The scaled hour's price. Demand for old grounds' parts |
 | 03, items and crafting | What Tempering, Hallmarks, linings, salvage, Luck and commissions do. Reference values of items. Food and rune rows | What each costs (`sinkShare`). The Shop's sale formula. The market those goods trade on. Crafters' customers |
 | 05, progression | The Level law (the length of a band). The death cost and the Blessing ladder (GR-7). The yard's rate and the skill curve | Blessing, refill and yard prices. The paid pace ceiling, which moves the days of the Level law for a boosted four |
-| 06, the MMO layer | The modifier table and the buff caps (MM-24, MM-25). Boss and arena gear and materials. The clan castle | Bought boosts as rows in that table. Gold for castle gifts. Buyers for boss and arena gear. The Crowns engine as the demand side |
-| 07, home, features and platform | The House, its rooms, curing slots and the dummy. The Great Hearth. Closed-form town work. Server cost (study 48) | Prices of rooms and rungs by band G-8. The gauge. The journal load |
+| 06, the MMO layer (`docs/design/overhaul/06-mmo-layer.md`) | The modifier table and the buff caps (MM-24, MM-25). Boss and arena gear and materials. The clan castle | Bought boosts as rows in that table, with no drop chance boost. The sizes of `clanWeeklyShare` and `castleStagePerMember`. Gold for castle gifts. Buyers for boss and arena gear. The Crowns engine as the demand side |
+| 07, home and town | The House, its rooms, curing slots and the dummy. The town project and the Great Hearth | Prices of rooms and rungs by band G-8. The dummy's rungs |
+| 08, player experience | The Path and the first hour for four heroes (GR-79). The loot plan and the return card | The order a new account meets each spend (section 2.10). The hunt budget on the picker. "About N hours of hunting" beside every price |
+| 09, platform and measurement | Closed-form town work (GR-1). Server cost (study 48). The matrix and its faults | The gauge. The journal load of per-use spending. The bands of section 6 |
 
 ---
 
@@ -547,9 +560,9 @@ In decision-book order. Each line is the recommendation.
 | GR-1 | How the server reaches its budget | Town work in closed form now. The away hunt's save waits for study 48 |
 | GR-8 | Sinks that follow the gear, and the hole the slots left | Tempering, Hallmarks and linings cost 1.2 to 1.4 of a band's gold, sized on a hero who pays the difference, read on an account of four. The yard fee and linings come forward as the first repeating sinks. It re-opens 11-18 |
 | MM-24 | How rewards are sized | Every buff and bought boost is a row in one modifier table |
-| MM-25 | The buff caps | As in section 2.8. No coin buff, ever |
+| MM-25 | The buff caps | As in section 2.8. No coin buff, ever. The drop chance row is earned only |
 | MM-28 | The paid advantage | Paying gives a real edge under a written ceiling |
-| MM-29 | What the store sells for Crowns | Premium, timed boosts, comfort, looks, bound training items. Never gear, materials, gold, Levels, skill levels, chests or rating. Needs an explicit yes on boosts, which are a direct sale of timed power (section 2.8) |
+| MM-29 | What the store sells for Crowns | Premium, timed boosts on damage, damage taken and Level XP, comfort, looks, bound training items. No drop chance boost, by the 2026-11-20 Luck ruling. Never gear, materials, gold, Levels, skill levels, chests or rating. Needs an explicit yes on boosts, which are a direct sale of timed power (section 2.8) |
 | MM-30 | Bought boosts and earned buffs | The same rows, the same caps, one bought boost on a knob at a time |
 | MM-31 | The pace ceiling | At most 60% more Levels an hour. It re-opens 50-11 |
 | MM-32 | The gear ceiling | 0 bands ahead. Inside a band, at most best gear over mid gear |
@@ -609,7 +622,7 @@ Decisions or designs nobody has made yet in this area.
 | 7 | **The base hours of a stamina refill** | GR-58, after fault F5 closes | |
 | 8 | **The Blessing share, and the ladder past the third Blessing** | GR-7, chapter 05 | |
 | 9 | **The wage for a four of mixed Levels.** Section 2.3 reads each hero's own Level for hero prices and the highest for account prices. The group share inside the wage for a mixed four follows the two thirds line (MM-19) and is not written | The game designer, after MM-19 | |
-| 10 | **The castle's cost.** Its rooms, stages and gift sizes are being revised, so the largest new home for gold has no number | Study 49 revised, then Tyler (MM-9) | |
+| 10 | **The castle's cost.** Section 2.6 gives TARGET sizes for the weekly share and a stage. Neither has a measurement, and the rooms and stages wait on MM-9 | Study 49 revised, then Tyler (MM-9) | |
 | 11 | **Whether the Level law is the clock of a plain four or a buffed one.** A payer at the ceiling levels 60% faster, and a fully buffed four 72% faster, so content computed to last 120 days on the table ends sooner for them | The game designer, with GR-6, MM-26 and MM-31 | Decision book |
 | 12 | **Security questions on the Crowns book.** Whether gold paid for Crowns counts against the market's daily caps (it should). What a refund does to Premium time already used. The number of hold days. Steam's wallet rules for a currency players trade | The security engineer, then Tyler | Study 24 Q8 |
 | 13 | **The daily caps against dear items.** A piece priced over the daily spend cap can never be bought. Either the caps rise with the buyer's Level or no ceiling may pass the cap | The security engineer | Study 24 Q9 |
@@ -673,7 +686,7 @@ Decisions or designs nobody has made yet in this area.
 | Does the Crowns loop turn? Needs MM-43 | 20 to 30 strangers, 14 days, equal test Crowns | Accounts that sell Crowns for gold and accounts that buy them: each over a fifth. A bad sign is no buyers |
 | Does the Crown's price hold inside its band? | The same | Inside half to twice the reference. A bad sign is a price pinned at an edge |
 | Does the ceiling leak? | The same | Level pace of the top tenth of accounts over the median at the same hours: under 1.6. Over 1.7 means a cap is leaking and the book does not open |
-| Are buffs earned as well as bought? | The same | Share of the timed cap filled by earned buffs and by bought boosts: both above a quarter |
+| Are buffs earned as well as bought? Damage, damage taken and Level XP only | The same | Share of the timed cap filled by earned buffs and by bought boosts: both above a quarter |
 | Is it worth it, and is it fair? | Five players asked | Most say worth it and most say fair. A bad sign is "not worth it" or "pay to win" from most |
 | Is the server's gold healthy? | The gauge, live, from the second month | G-11 and X14 |
 
@@ -705,6 +718,7 @@ What this chapter dropped from its sources, and why.
 | The weekly Crowns cap sized to "about one Premium month and a few looks" | 24 Q8 | MM-33 sizes it to one account-week of gold, which is what makes the gold ceiling a number |
 | "At most 2 times faster to best gear" | 50 call 11 as first written | Tyler ruled the alternative. MM-31 to MM-33 are the new proposal |
 | Premium for each hero | Ruling of 10-17 | RULED 2026-11-21 and 24-3: one for each account |
+| A drop chance boost sold in the Crowns store | 49 section 5.9, MM-29 as written | RULED 2026-11-20: Luck is bound so gold and Crowns cannot buy Magic Find. The drop row is earned only. Chapter 06 recommends the same |
 | "More saved setups" and "more bag and storage" as Crowns comfort | 49 section 5.9 | A remembered decision is never sold (GR-56a), and room is a gold sink (RULED 2026-10-22) |
 | MMO rewards as honors only, with nothing for Premium and no hero power from clans | 49 first issue | RULED 2026-11-21: rewards are buffs and gear |
 | Every number that compared a proposal with the live game, and every week count at 3.3 hunted hours a day | 24, 43, 55 | RULED 2026-11-21: the current game is irrelevant, and every player hunts 12 hours a day |

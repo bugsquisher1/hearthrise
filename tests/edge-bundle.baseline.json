@@ -153,6 +153,11 @@
         "bytes": 3178142,
         "on": "2026-11-21",
         "why": "lane/c-pace armor half (D-3): core-model.js's armor curve x2.4 and its ruling note (+1.2 KB) and gear-tiers.js ARMOUR_CURVE_LINES, every armor row read through the gear curve (+0.6 KB); the engine reads both"
+      },
+      {
+        "bytes": 3178820,
+        "on": "2026-11-21",
+        "why": "lane/c-pace armor half: Krell's hall card asks for Salted Shark on the x2.4 armor curve (D-3), the pack's measured note why (+0.7 KB); the edge reads the ground pack"
       }
     ]
   }

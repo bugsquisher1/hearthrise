@@ -14,7 +14,9 @@
 // living heroes regroup at the entrance under the next leader.
 //
 // Packs: a cleared pack is back ground.respawnMs after it was cleared, never
-// while its pocket is mid-fight (PC-09). A new monster takes its spawn tile, or
+// while its pocket is mid-fight (PC-09), and (unless it is the route's next
+// pull) never while a hero stands on or beside its tiles: it waits for the
+// party to walk on (respawnPacks). A new monster takes its spawn tile, or
 // the first free one within 3 inside its area (PC-02). Units are made by
 // inst.makeUnit (world-state.makeUnit, handed in by world-step), so every
 // persisted field is present.
@@ -171,7 +173,15 @@ export function fallen(inst, u, sc) {
   });
 }
 
-/** Respawn hook: a cleared pack whose timer ran out comes back, never mid-fight (PC-09). */
+/* Does a living hero stand on, or beside, a tile pocket `p`'s pack would take (the rows spawnPack places, at their own spots)? */
+function heroAtPack(inst, p) {
+  const standing = heroes(inst).filter((h) => h.alive);
+  if (!standing.length) return false;
+  const rows = towerOf(inst.ground) ? towerPull(inst, p) : pullRows(inst.ground, p, inst.world.density);
+  return rows.some((s) => standing.some((h) => cheb(s, h) <= 1));
+}
+
+/** Respawn hook: a cleared pack whose timer ran out comes back, never mid-fight (PC-09), and never round a party passing through it. */
 export function respawnPacks(inst, sc) {
   if (!cycling(inst)) return;
   const w = inst.world;
@@ -179,6 +189,12 @@ export function respawnPacks(inst, sc) {
     const pack = w.packs[p];
     if (pack.alive || sc.atMs < pack.respawnAtMs) continue;
     if (w.phase === PHASE.FIGHT && pocketNow(inst) === p) continue;
+    /* NEVER ROUND A PARTY PASSING THROUGH (lane/a-no-fight-strong-four): a pack that is not the route's next pull waits while a hero stands
+       on or beside its tiles. Spawned there, it could ring the hero (a full box is all eight tiles round its pull tile) with nothing to
+       pull it, since only the route's pocket is pulled: the Muster Barrows' Long Barrows came back round a four's leader walking home from
+       Hask on Deadly, and the four stood until the no-fight end. The route's own pocket never waits: the party is coming to pull it, and a
+       ring on its own leader is pulled where it stands (travel's walled rule), so no wait here can hold the party up. */
+    if (pocketNow(inst) !== p && heroAtPack(inst, p)) continue;
     spawnPack(inst, p, sc);
   }
 }

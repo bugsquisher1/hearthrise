@@ -1713,6 +1713,11 @@ jobs:
         run: |
           node tests/balance-guard.mjs
           node tools/mutant-gate.mjs node tests/balance-guard.mjs --selftest
+      # tools/balance-program/arrival-kit.mjs
+      - name: The arrival-kit run scales only jewelry numbers, moves only the arrival offset, and reads LOW over MID by stretch
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tools/balance-program/arrival-kit.mjs --selftest
       # tools/balance-program/balance-matrix.mjs
       - name: The balance matrix's diff sees a planted attack and monster patch, an empty patch plays as the tree, and its flags bite
         if: ${{ !cancelled() }}

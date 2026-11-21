@@ -119,7 +119,8 @@ export async function playRun(D, K, run, root, o = {}) {
   /* o.shard [i, n]: every n-th cell from the i-th (a GitHub job's share of the full run; the simulator check plays in shard 0 only) */
   const plan = o.shard ? shardOf(plan0, o.shard) : plan0;
   const cal = o.calibrate === false || (o.shard && o.shard[0] !== 0) ? { jobs: [], cols: [], samples: [] } : await calibrationJobs(V, K, ROOT, { seeds: o.seeds || run.seeds, hours: o.hours || run.hours });
-  const jobs = [...plan.jobs, ...cal.jobs];
+  /* o.jobHook (a what-if a caller lays on every cell job: arrival-kit.mjs scales the jewelry rows) */
+  const jobs = [...(o.jobHook ? plan.jobs.map(o.jobHook) : plan.jobs), ...cal.jobs];
   if (o.say) o.say((o.label || run.id) + ': ' + plan.cells.length + ' cells' + (cal.jobs.length ? ' + calibration' : '') + ', ' + jobs.length + ' seed jobs, ' + (o.workers || workersOf()) + ' workers, on ' + (resolve(root) === ROOT ? 'the tree' : 'a scratch copy'));
   const { results, errors, workerMs, wallMs } = await playJobs(jobs, root, o.workers || workersOf(), o.quiet ? () => {} : progress(o.label || run.id));
   if (process.stderr.isTTY && !o.quiet) process.stderr.write('\n');

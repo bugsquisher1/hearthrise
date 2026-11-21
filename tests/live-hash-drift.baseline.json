@@ -25,10 +25,10 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-11-20",
- "replay_ms": 31499,
+ "replay_ms": 3921,
  "counts": {
-  "tracked_names": 990,
-  "entries": 841
+  "tracked_names": 999,
+  "entries": 850
  },
  "functions": [
   {
@@ -8703,10 +8703,12 @@
    "sig": "hr_hunt_member_state(p_user uuid, p_slot integer)",
    "name": "hr_hunt_member_state",
    "tracked_by": [
+    "chain",
     "pin",
     "restate"
    ],
    "touched_by": [
+    "1034-luck.sql",
     "2027-02-02-settle-cost.sql",
     "2027-03-13-gm-tools.sql"
    ],
@@ -8717,11 +8719,12 @@
     "source": "measured-live"
    },
    "replay": {
-    "md5": "7b60207972f90e7a6a8c9913d364b47c",
-    "norm_len": 3114,
+    "md5": "26f62f25aaa47ff2715d996374420137",
+    "norm_len": 3474,
     "source": "computed-from-replay"
    },
-   "agree": true
+   "agree": false,
+   "why": "REVIEW 2026-11-21: live and replay disagree and nobody has said why. Strip comments from both bodies and diff them; write what actually differs here. The guard is RED until this sentence is real."
   },
   {
    "sig": "hr_hunt_mode_freeze()",
@@ -11724,6 +11727,7 @@
     "restate"
    ],
    "touched_by": [
+    "1034-luck.sql",
     "2027-01-23-loot-dispatch.sql"
    ],
    "live": {
@@ -11733,11 +11737,12 @@
     "source": "measured-live"
    },
    "replay": {
-    "md5": "b37b3dedb0b86e41c706f91bdd67cb9c",
-    "norm_len": 8780,
+    "md5": "c26704ea2a83c5294176776e728cf5a3",
+    "norm_len": 14127,
     "source": "computed-from-replay"
    },
-   "agree": true
+   "agree": false,
+   "why": "REVIEW 2026-11-21: live and replay disagree and nobody has said why. Strip comments from both bodies and diff them; write what actually differs here. The guard is RED until this sentence is real."
   },
   {
    "sig": "hr_loot_plan_copy(p_slot integer, p_from integer, p_idem uuid)",
@@ -11769,6 +11774,7 @@
     "restate"
    ],
    "touched_by": [
+    "1034-luck.sql",
     "2027-01-23-loot-dispatch.sql"
    ],
    "live": {
@@ -11778,20 +11784,23 @@
     "source": "measured-live"
    },
    "replay": {
-    "md5": "94e6a471b83101b8043bc50ba48910d4",
-    "norm_len": 986,
+    "md5": "bc2b110bdc07e3b59dde2897a518ed8d",
+    "norm_len": 1412,
     "source": "computed-from-replay"
    },
-   "agree": true
+   "agree": false,
+   "why": "REVIEW 2026-11-21: live and replay disagree and nobody has said why. Strip comments from both bodies and diff them; write what actually differs here. The guard is RED until this sentence is real."
   },
   {
    "sig": "hr_loot_rule_set(p_slot integer, p_item text, p_rule text, p_idem uuid)",
    "name": "hr_loot_rule_set",
    "tracked_by": [
+    "chain",
     "pin",
     "restate"
    ],
    "touched_by": [
+    "1034-luck.sql",
     "2026-10-25-bag-rules.sql",
     "2027-01-23-loot-dispatch.sql"
    ],
@@ -11802,11 +11811,183 @@
     "source": "measured-live"
    },
    "replay": {
-    "md5": "57d2304cdfb89520fffd7a6ee13ac8b2",
-    "norm_len": 2794,
+    "md5": "05e632006103fb6322b4823c00bf7176",
+    "norm_len": 3161,
     "source": "computed-from-replay"
    },
-   "agree": true
+   "agree": false,
+   "why": "REVIEW 2026-11-21: live and replay disagree and nobody has said why. Strip comments from both bodies and diff them; write what actually differs here. The guard is RED until this sentence is real."
+  },
+  {
+   "sig": "hr_luck_credit(p_user uuid, p_kills bigint, p_salvage bigint)",
+   "name": "hr_luck_credit",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "1034-luck.sql"
+   ],
+   "live": null,
+   "replay": {
+    "md5": "70e849d5a080ee02d8503c5143203562",
+    "norm_len": 1024,
+    "source": "computed-from-replay"
+   },
+   "agree": false,
+   "why": "REVIEW 2026-11-21: live and replay disagree and nobody has said why. Strip comments from both bodies and diff them; write what actually differs here. The guard is RED until this sentence is real."
+  },
+  {
+   "sig": "hr_luck_fold(p_user uuid, p_slot integer, p_session uuid)",
+   "name": "hr_luck_fold",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "1034-luck.sql"
+   ],
+   "live": null,
+   "replay": {
+    "md5": "69d018c94867afde3ad501853d3223f4",
+    "norm_len": 4243,
+    "source": "computed-from-replay"
+   },
+   "agree": false,
+   "why": "REVIEW 2026-11-21: live and replay disagree and nobody has said why. Strip comments from both bodies and diff them; write what actually differs here. The guard is RED until this sentence is real."
+  },
+  {
+   "sig": "hr_luck_on(p_user uuid)",
+   "name": "hr_luck_on",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "1034-luck.sql"
+   ],
+   "live": null,
+   "replay": {
+    "md5": "d54241d940a543b2ebc88fc7bb46bc40",
+    "norm_len": 399,
+    "source": "computed-from-replay"
+   },
+   "agree": false,
+   "why": "REVIEW 2026-11-21: live and replay disagree and nobody has said why. Strip comments from both bodies and diff them; write what actually differs here. The guard is RED until this sentence is real."
+  },
+  {
+   "sig": "hr_luck_raise_only()",
+   "name": "hr_luck_raise_only",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "1034-luck.sql"
+   ],
+   "live": null,
+   "replay": {
+    "md5": "52159242d679b0becc64bcf2ab68beee",
+    "norm_len": 570,
+    "source": "computed-from-replay"
+   },
+   "agree": false,
+   "why": "REVIEW 2026-11-21: live and replay disagree and nobody has said why. Strip comments from both bodies and diff them; write what actually differs here. The guard is RED until this sentence is real."
+  },
+  {
+   "sig": "hr_luck_rank(p_luck bigint)",
+   "name": "hr_luck_rank",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "1034-luck.sql"
+   ],
+   "live": null,
+   "replay": {
+    "md5": "ba0e532b2d4b5caf6d55675d8824a3cd",
+    "norm_len": 674,
+    "source": "computed-from-replay"
+   },
+   "agree": false,
+   "why": "REVIEW 2026-11-21: live and replay disagree and nobody has said why. Strip comments from both bodies and diff them; write what actually differs here. The guard is RED until this sentence is real."
+  },
+  {
+   "sig": "hr_luck_section(p_user uuid, p_slot integer)",
+   "name": "hr_luck_section",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "1034-luck.sql"
+   ],
+   "live": null,
+   "replay": {
+    "md5": "6d8dfac4a331e886ee385735cca85658",
+    "norm_len": 2713,
+    "source": "computed-from-replay"
+   },
+   "agree": false,
+   "why": "REVIEW 2026-11-21: live and replay disagree and nobody has said why. Strip comments from both bodies and diff them; write what actually differs here. The guard is RED until this sentence is real."
+  },
+  {
+   "sig": "hr_luck_to_rank(p_n integer)",
+   "name": "hr_luck_to_rank",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "1034-luck.sql"
+   ],
+   "live": null,
+   "replay": {
+    "md5": "5ad010cef0a3662e107518a0f17eb014",
+    "norm_len": 523,
+    "source": "computed-from-replay"
+   },
+   "agree": false,
+   "why": "REVIEW 2026-11-21: live and replay disagree and nobody has said why. Strip comments from both bodies and diff them; write what actually differs here. The guard is RED until this sentence is real."
+  },
+  {
+   "sig": "hr_lucky_ring(p_slot integer, p_from text, p_price bigint, p_idem uuid)",
+   "name": "hr_lucky_ring",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "1034-luck.sql"
+   ],
+   "live": null,
+   "replay": {
+    "md5": "ef63e14ce47c5e1431edb491da77637a",
+    "norm_len": 4673,
+    "source": "computed-from-replay"
+   },
+   "agree": false,
+   "why": "REVIEW 2026-11-21: live and replay disagree and nobody has said why. Strip comments from both bodies and diff them; write what actually differs here. The guard is RED until this sentence is real."
+  },
+  {
+   "sig": "hr_magic_find_of(p_user uuid, p_slot integer)",
+   "name": "hr_magic_find_of",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "1034-luck.sql"
+   ],
+   "live": null,
+   "replay": {
+    "md5": "e4dd51d6ed182c781e42ba323dc41ef4",
+    "norm_len": 731,
+    "source": "computed-from-replay"
+   },
+   "agree": false,
+   "why": "REVIEW 2026-11-21: live and replay disagree and nobody has said why. Strip comments from both bodies and diff them; write what actually differs here. The guard is RED until this sentence is real."
   },
   {
    "sig": "hr_mark_seen(p_slot integer, p_session uuid, p_event_id bigint)",
@@ -16629,6 +16810,7 @@
     "restate"
    ],
    "touched_by": [
+    "1034-luck.sql",
     "2026-12-23-tally-tasks.sql"
    ],
    "live": {
@@ -16638,11 +16820,12 @@
     "source": "measured-live"
    },
    "replay": {
-    "md5": "ec3e80e0c02763750b5023a1da0fb34e",
-    "norm_len": 2079,
+    "md5": "6b53e308edcf69a10c02d4d0a4fd5cef",
+    "norm_len": 2531,
     "source": "computed-from-replay"
    },
-   "agree": true
+   "agree": false,
+   "why": "REVIEW 2026-11-21: live and replay disagree and nobody has said why. Strip comments from both bodies and diff them; write what actually differs here. The guard is RED until this sentence is real."
   },
   {
    "sig": "hr_tally_drop(p_slot integer, p_task text, p_idem uuid)",

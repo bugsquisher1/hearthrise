@@ -45,11 +45,11 @@ const MUTATE = process.argv.includes('--mutate');
 const FILE = '2027-01-23-loot-dispatch.sql';
 const COPY_FILE = '2027-04-24-loot-plan-copy.sql';
 const MIG = join(ROOT, 'supabase', 'migrations', FILE);
-/* LUCK (lane/d-luck-build, 2026-11-20): 1013-luck.sql restates this file's four bodies whole (hr_loot_dispatch, hr_loot_rule_set,
+/* LUCK (lane/d-luck-build, 2026-11-20): 1034-luck.sql restates this file's four bodies whole (hr_loot_dispatch, hr_loot_rule_set,
    hr_loot_plan_refusal, hr_hunt_loot_rules: the same text plus the Salvage and Use arms and the found count), md5-pinned to this file's
    images. So the bodies that RUN are 1007's: a mutant is planted there, and the second apply (LD-IDEM) is 1007's, the last author's;
    this file applied again on the whole chain trips 1007's pins, by design. */
-const LUCK_FILE = '1013-luck.sql';
+const LUCK_FILE = '1034-luck.sql';
 const LUCK_MIG = join(ROOT, 'supabase', 'migrations', LUCK_FILE);
 const idem = () => crypto.randomUUID();
 

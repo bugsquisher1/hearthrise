@@ -369,9 +369,9 @@ export const WORLD_FIELDS_READ = Object.freeze({
    and its CHECK admits a fight at 0 gold; 1001 (APPLIED) is carried whole. */
 /* 1021-tohit-ratio-hunt-sessions-catalogue (lane/c-tohit-ratio, 2026-11-20; balance program L15): the called Chief's drop rows follow the field Chief's
    re-fitted rates (the to-hit ratio slowed his kills a little); 1012 (STAGED) is carried whole. */
-/* 1010-luck-hunt-sessions-catalogue (lane/d-luck-build, 2026-11-20): the eight Lucky ring rows' vendor values; Tomato Soup leaves the supplies (its
+/* 1031-luck-hunt-sessions-catalogue (lane/d-luck-build, 2026-11-20): the eight Lucky ring rows' vendor values; Tomato Soup leaves the supplies (its
    drop buff cut); 1021 (STAGED) is carried whole. */
-export const OUT_NAME = '1010-luck-hunt-sessions-catalogue.generated.sql';
+export const OUT_NAME = '1031-luck-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);

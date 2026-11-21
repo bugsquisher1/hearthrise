@@ -62,7 +62,7 @@
 //
 // LUCK ON (lane/d-luck-build, 2026-11-20; balance-program/01-model.md §7 allowance): the lone hunting fixture is measured again with the
 // `luck` switch on for everyone, and Luck itself must write NOTHING while the hunt runs (its three tables and its ledger rows):
-// 1013-luck.sql hr_luck_fold folds a hunt into the account once, at its end. A row here is a Luck counter back on the settle path.
+// 1034-luck.sql hr_luck_fold folds a hunt into the account once, at its end. A row here is a Luck counter back on the settle path.
 // --selftest plants one (an account_kills upsert a combat row) and requires it red.
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
@@ -447,7 +447,7 @@ const UNIT_ROW = `
   create trigger hr_planted_unit_tally after insert or update on public.hunt_session_tally for each row execute function public.hr_planted_unit_rows();
   create trigger hr_planted_unit_bag after insert or update or delete on public.player_inventory for each row execute function public.hr_planted_unit_rows();`;
 
-/* THE LUCK PLANT (--selftest): a Luck counter written each settle, the shape 1013-luck.sql's fold replaced (an account_kills upsert for
+/* THE LUCK PLANT (--selftest): a Luck counter written each settle, the shape 1034-luck.sql's fold replaced (an account_kills upsert for
    every combat row that carries kills by monster). */
 const LUCK_WRITE = `create or replace function public.hr_planted_luck_write() returns trigger language plpgsql as $p$
   begin if jsonb_typeof(new.meta->'km') = 'object' then

@@ -705,7 +705,7 @@ function memberInput(m, inst, perks) {
     equipment: e.equipment, inventory: e.inventory, buffs: e.buffs,
     deathsLifetimeBefore: e.deathsLifetimeBefore,
     hearthfindReady: e.hearthfindReady, perks,
-    /* MAGIC FIND (src/data/luck.js; 1013-luck.sql hr_magic_find_of, through hr_hunt_member_state `magic_find`): this hero's whole
+    /* MAGIC FIND (src/data/luck.js; 1034-luck.sql hr_magic_find_of, through hr_hunt_member_state `magic_find`): this hero's whole
        percent, the account's Luck rank and its worn Lucky ring, 0 while the `luck` switch is off for the account. The server's own
        read, frozen for the settle, never the request; a read without it (an older server) is 0, today's game. */
     magicFind: Number.isInteger(env.magic_find) ? env.magic_find : 0,

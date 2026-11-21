@@ -189,7 +189,7 @@ const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'))
 /* LUCK (lane/d-luck-build, 2026-11-20; itemization plan §15 v3.1): 2027-06-05-harder-monsters-items-catalogue (STAGED, applied first) is the
    file before this one and this one carries it whole. hr_items gains lucky_rivet (bound, worth 0: tradeable false, no vendor value) and the
    eight Lucky ring rows (src/data/jewelry.js PERKS_MADE). ORDER: 1003, before the luck catalogue and migration (1005, 1006). */
-const OUT = join(ROOT, 'supabase', 'migrations', '1009-luck-items-catalogue.generated.sql');
+const OUT = join(ROOT, 'supabase', 'migrations', '1030-luck-items-catalogue.generated.sql');
 /* THE SECOND GENERATED FILE (2026-09-13). hr_item_buffs is emitted as its own
    migration rather than into OUT above, and that is a deliberate operational
    call: OUT is the FOURTH file in tests/schema-apply-order.json and is already
@@ -201,7 +201,7 @@ const OUT_ITEM_BUFFS = join(ROOT, 'supabase', 'migrations',
   /* THE COOKBOOK CUT (lane/d-kingsgrate-rivets, 2026-11-18): 2026-09-13 is APPLIED history; the three cut feasts' buff rows leave, ONE forward file, the same wholesale replace. */
   /* LUCK (lane/d-luck-build, 2026-11-20): 2027-05-22-cookbook-cut is APPLIED history; the four foods' drop-rate buff rows leave (itemization plan §15: Luck is
      the only drop lever), ONE forward file, the same wholesale replace. */
-  '1014-luck-item-buffs-catalogue.generated.sql');
+  '1035-luck-item-buffs-catalogue.generated.sql');
 /* THE THIRD GENERATED FILE (2026-09-13, buffs step 3). hr_room_perks is the
    ROOM RUNG -> PERK payload, the same table src/data/perks.js holds for the two
    JS runtimes, so hr_apply can price the Cellar's buffDuration under the

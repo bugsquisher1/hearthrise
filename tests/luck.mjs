@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // ════════════════════════════════════════════════════════════════════════
 // tests/luck.mjs — LUCK v3.1 HOLDS ITS RULES ON THE ENGINE AND ON THE SERVER (docs/design/itemization-plan.md §15; src/data/luck.js,
-// src/core/luck.js, src/core/drops.js, src/core/hunt-rewards.js, supabase/migrations/1013-luck.sql).
+// src/core/luck.js, src/core/drops.js, src/core/hunt-rewards.js, supabase/migrations/1034-luck.sql).
 //
 //   L1  THE CURVE IS THE DESIGNER'S, ON THE SERVER: hr_luck_to_rank(n) = 100 x (1^2 + ... + n^2) for n = 0..100 (38,500 at 10, 149,600 at
 //       16, 33.84M at the far stop); hr_luck_rank reads n at that Luck and n - 1 a Luck short; past the far stop it stays at 100.
@@ -189,7 +189,7 @@ async function L8(root) {
   return null;
 }
 
-/* L9, the server: the replayed chain (tests/schema-replay.mjs) with 1013-luck.sql applied. */
+/* L9, the server: the replayed chain (tests/schema-replay.mjs) with 1034-luck.sql applied. */
 async function L9() {
   const { bootReplay, closeReplays } = await import(pathToFileURL(join(ROOT, 'tests/schema-replay.mjs')).href);
   const { db } = await bootReplay();

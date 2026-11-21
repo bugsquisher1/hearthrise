@@ -142,7 +142,7 @@ export const CLIENT_RPCS = Object.freeze({
   hr_title_buy: 'claim a catalogue title at the quoted price; the server counts this hero\'s kills (title-intents.js buyTitle; 2027-02-28-titles.sql)',
   hr_hallmark: 'Hallmark one Fine jewelry piece into the catalogue\'s pair at the quoted price; the server checks the piece\'s own bench skill and takes the piece and the gem (hallmark-intents.js hallmarkPiece; 2027-03-14-jewelry-hallmark.sql)',
   hr_jewel_reforge: 'reforge one Hallmarked piece into the next tier\'s catalogue pair at the quoted fee difference; the server checks the new piece\'s bench skill and takes the piece, the bars and the gem (hallmark-intents.js reforgePiece; 2027-05-09-jewel-reforge.sql)',
-  hr_lucky_ring: 'make one plain ring the Fine Lucky ring at the quoted fee; the server reads the rivets and the result from its catalogue, checks the luck switch, the bench level and the day limit, and takes the ring and the rivets (hallmark-intents.js luckyRing; 1013-luck.sql)',
+  hr_lucky_ring: 'make one plain ring the Fine Lucky ring at the quoted fee; the server reads the rivets and the result from its catalogue, checks the luck switch, the bench level and the day limit, and takes the ring and the rivets (hallmark-intents.js luckyRing; 1034-luck.sql)',
   hr_title_wear: 'wear a title this hero holds, or null to take it off; moves no value (title-intents.js wearTitle)',
   /* The factions (2027-04-22-faction-standing.sql, behind the `factions` switch 2027-04-23-faction-section.sql): a slot, a side or a piece
      id and a fresh key, never a number; the server reads the Krell count, standing, swap time and cooldown itself. Moves no value. */

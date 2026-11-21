@@ -1,3 +1,0 @@
-{
-  "note": "STAGED, NOT APPLIED (lane/d-luck-build, systems-engineer, 2026-11-20): the hunt-sessions catalogue (gen-hunt-sessions) carries 1001-xp-a-kill-hunt-sessions-catalogue (STAGED, applied first) whole and adds the eight Lucky ring rows to hr_hunt_vendor_value (each sells for its plain ring's bid, like every graded jewel); Tomato Soup leaves hr_hunt_supplies (it was a parked drop_rate buff supply and its buff is cut). ORDER: 1010, after 1009 (hr_items holds the rows). EDGE: none."
-}

@@ -132,7 +132,6 @@ export function accrueGather(inp, span) {
       const res = grantXp(state, skillId, amt, {
         bonus,
         xpB: eq.xpB || 0,
-        restedQuantum: 0,     // Rested XP is not server state yet. Under-pays.
         authored: false,
       });
       for (const ev of res.events) {

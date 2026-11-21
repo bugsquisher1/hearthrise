@@ -9,7 +9,7 @@
 // never knows either exists.
 //
 // These functions DO mutate the state object they are handed (skills,
-// restedXp, toolCarry). That is deliberate: the alternative is copying a
+// xpFrac, toolCarry). That is deliberate: the alternative is copying a
 // whole character on every 500 ms tick. They mutate nothing else, read no
 // free variables, and perform no I/O — which is the property that lets
 // them run in Deno.
@@ -19,7 +19,6 @@
 
 import { skillLevelFromXp } from './xp.js';
 import { pacedXp } from './pacing.js';
-import { spendRestedCharge } from './rested.js';
 import { advanceToolCarry } from './tools.js';
 
 /* The skills the `combatXP` bonus channel pays: the four trained in a fight
@@ -90,17 +89,15 @@ export function xpFracChanges(before, after) {
 /**
  * The whole of addXp's maths.
  *
- * @param state  { skills, xpFrac, restedXp }  — MUTATED
- * @param ctx    { bonus, restedQuantum, authored }
- * @returns { gain, base, rested, oldLevel, newLevel, events }
+ * @param state  { skills, xpFrac }  — MUTATED
+ * @param ctx    { bonus, authored }
+ * @returns { gain, base, oldLevel, newLevel, events }
  *
  * Ordering is load-bearing:
  *   PACE first, then the additive perk block, applied to the EXACT value
  *   once, then ONE floor of (carried remainder + grant), the rest carried in
- *   `state.xpFrac[skillId]`; then the rested quantum ADDED OUTSIDE the floor
- *   and outside the multiplier. A rested charge is capacity, not throughput —
- *   letting +15% allXP scale it would quietly turn the bank back into
- *   throughput, which is the exact thing the b228 conversion exists to stop.
+ *   `state.xpFrac[skillId]`. (The rested bank that was added outside the floor
+ *   left the game with its server columns, Tyler 2026-11-21, S-9.)
  *   With a carry there is no "a positive grant never rounds to zero" floor:
  *   the 0.5 XP a 1-damage hit is worth is carried and paid on the next hit,
  *   which is exact where the old max(1, …) over-paid the low end and
@@ -113,7 +110,6 @@ export function grantXp(state, skillId, amt, ctx) {
   const perk = parts.all;
   const combat = COMBAT_XP_SKILLS.indexOf(skillId) >= 0 ? parts.combat : 0;
 
-  const rested = amt > 0 ? spendRestedCharge(state, c.restedQuantum || 0) : 0;
   const base = c.authored ? (Number(amt) || 0) : pacedXp(skillId, amt);
   const raw = base * (1 + perk + combat);
 
@@ -138,7 +134,7 @@ export function grantXp(state, skillId, amt, ctx) {
   } else {
     whole = raw > 0 ? Math.max(1, Math.floor(raw)) : 0;
   }
-  const gain = whole + rested;
+  const gain = whole;
 
   if (!state.skills) state.skills = {};
   const oldLevel = skillLevelFromXp(skillId, state.skills[skillId] || 0);
@@ -148,7 +144,7 @@ export function grantXp(state, skillId, amt, ctx) {
   const events = [];
   if (newLevel > oldLevel) events.push({ type: 'levelup', skill: skillId, from: oldLevel, to: newLevel });
 
-  return { gain, base, rested, oldLevel, newLevel, events };
+  return { gain, base, oldLevel, newLevel, events };
 }
 
 /**

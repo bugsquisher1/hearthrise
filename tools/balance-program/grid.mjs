@@ -80,7 +80,9 @@ export async function loadGridData(root = ROOT) {
       soloFrom: Number.isInteger(row.soloFrom) ? row.soloFrom : null, partyBest: Object.fromEntries([2, 3, 4].map((n) => [n, PCX.partyBestLine(g, n)])), heroes: 4 };
   }));
   const lines = SL.loadLines(join(root, 'tools', 'balance-sim', 'skill-lines.json')) || SL.loadLines();
+  const model = await imp('tools/balance-program/model.mjs'), measure = await imp('tools/balance-program/measure.mjs');
   return {
+    model, accountCost: measure.accountCost,
     G, HUNT_INDEX: H.HUNT_INDEX, TI, BS, MONSTERS: MON.MONSTERS, XP, HS, BL, SB, lines, skillsAt: SL.skillsAt, REVEAL_BANDS: LB.REVEAL_BANDS,
     floorOf, bandOfGround, fitOf,
     /** the ground the game advises at Level L for a party of n (its own recommendation; the staged grounds join from 110; past 185 the placeholder) */
@@ -105,8 +107,7 @@ export const cellKey = (L, gear, party, comp, tier, step = null) => [L, gear, pa
 
 /** One cell's engine job (without the seed): ground, seats, kits, skills, rungs, tier, pull, the projected what-if. */
 export function buildCell(D, K, { L, gear, styles, tier, ground, step = null }) {
-  const size = styles.length, line = size > 1 ? 'party' : 'alone', delta = (st) => (st === 'mid' ? 0 : null);
-  void delta;
+  const size = styles.length, line = size > 1 ? 'party' : 'alone';
   const skills = styles.map((style) => {
     const lv = { ...D.skillsAt(D.lines, line, style, L) }, d = K.skillDeltaOf(gear, L), m = MAIN[style] || 'melee';
     for (const k of [m, 'defense']) lv[k] = Math.max(1, (lv[k] || 1) + d);
@@ -223,7 +224,10 @@ export function cellRates(D, meta, seeds) {
   for (const r of seeds) for (const [m, n] of Object.entries(r.party.killsByPerH || {})) killsBy[m] = (killsBy[m] || 0) + n * r.party.hours;
   /* reveal rows (loot-bands.js REVEAL_BANDS: rare, trophy) by formula: each monster's measured kills x its rows' chance */
   let reveals = 0;
-  for (const [m, n] of Object.entries(killsBy)) for (const d of (D.MONSTERS[m] || {}).drops || []) if (D.REVEAL_BANDS.includes(d.band)) reveals += n * (d.ch || 0);
+  const byRow = {};
+  for (const [m, n] of Object.entries(killsBy)) for (const d of (D.MONSTERS[m] || {}).drops || []) if (D.REVEAL_BANDS.includes(d.band)) { reveals += n * (d.ch || 0); byRow[d.id] = (byRow[d.id] || 0) + n * (d.ch || 0); }
+  /* the ground's rarest reveal row, hunted hours a hero (the Very Rare of staged/luck.js is not built: this is the nearest thing the data has) */
+  const rarest = Object.values(byRow).filter((x) => x > 0).reduce((m, x) => Math.min(m, x), Infinity);
   const supplies = {};
   for (const r of seeds) for (const h of r.heroes) for (const [id, n] of Object.entries(h.buysPerH || {})) {
     const kind = (D.SB.BASIC_SUPPLIES.find((b) => b.id === id) || {}).kind || 'other';
@@ -249,10 +253,10 @@ export function cellRates(D, meta, seeds) {
     ownShare: own, netPerH: r0((income - store * (1 - own)) / heroHours), netADay: r0(((income - store * (1 - own)) / heroHours) * STD.CLOCK.huntHoursADay),
     storeShare: income > 0 ? r0((store * (1 - own)) / income, 3) : null, storeByKindPerH: Object.fromEntries(Object.entries(supplies).map(([k, n]) => [k, r0(n / heroHours, 1)])),
     takenPerH: r0(sum((h) => h.takenPerH * h.hours) / heroHours), healedPerH: r0(sum((h) => h.healInPerH * h.hours) / heroHours),
-    lowHpTypical: lows.length ? r0(Math.min(...lows) / 100, 3) : null, lowHpP10: lows10.length ? r0(Math.min(...lows10) / 100, 3) : null,
+    lowHpTypical: lows.length ? r0(Math.max(0, Math.min(...lows)) / 100, 3) : null, lowHpP10: lows10.length ? r0(Math.max(0, Math.min(...lows10)) / 100, 3) : null,
     deaths: sum((h) => h.deaths), deathsPer1000h: r0((1000 * sum((h) => h.deaths)) / heroHours, 1), deathTax: gross > 0 ? r0(lost / gross, 4) : null,
     killsPerH: r0(kills / partyHours), revealsPerPartyH: r0(reveals / partyHours, 4), revealEveryHeroH: reveals > 0 ? r0((size * partyHours) / reveals, 1) : null,
-    revealEveryPartyH: reveals > 0 ? r0(partyHours / reveals, 1) : null, killsByPerH: Object.fromEntries(Object.entries(killsBy).map(([m, n]) => [m, r0(n / partyHours, 1)])),
+    revealEveryPartyH: reveals > 0 ? r0(partyHours / reveals, 1) : null, rarestRevealEveryHeroH: Number.isFinite(rarest) ? r0((size * partyHours) / rarest, 1) : null, rarestRevealEveryPartyH: Number.isFinite(rarest) ? r0(partyHours / rarest, 1) : null, killsByPerH: Object.fromEntries(Object.entries(killsBy).map(([m, n]) => [m, r0(n / partyHours, 1)])),
     ended, seats, sample: { seeds: seeds.length, heroHours: r0(heroHours, 1), partyHours: r0(partyHours, 1), spread: mean > 0 && perSeed.length > 1 ? r0((Math.max(...perSeed) - Math.min(...perSeed)) / mean, 3) : null },
   };
 }
@@ -339,7 +343,8 @@ async function main() {
     grid = r.grid;
   }
   const D = await loadGridData();
-  const judged = DER.judgeGrid(D, grid, { currentHash: inputHash() });
+  const K = await loadKits(ROOT);
+  const judged = DER.judgeGrid(D, grid, { currentHash: inputHash(), K });
   DER.printReport(grid, judged);
   if (arg('json')) writeFileSync(resolve(arg('json')), JSON.stringify(judged, null, 1));
   return 0;

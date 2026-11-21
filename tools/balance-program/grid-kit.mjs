@@ -37,17 +37,20 @@ export const ARMOR_SLOTS = Object.freeze(['helmet', 'body', 'pants', 'boots', 'g
 export const JEWEL_SLOTS = Object.freeze({ ring1: 'ring', ring2: 'ring', earrings: 'earrings', necklace: 'necklace', cape: 'cape' });
 const MAIN_FIELDS = Object.freeze({ ranger: ['rangeAtkB', 'rangeStrB'], mage: ['magicAtkB', 'magicStrB'], healer: ['magicAtkB', 'magicStrB'] });
 const GRADE = Object.freeze({ hallmarked: 2, fine: 1 });
-/* the rungs each state holds on an OPEN ladder (50-standards 1.4) */
-const RUNGS = Object.freeze({ low: 0, mid: 2, bis: 5 });
-/* the career-line offset of the main skill and Defense */
-export function skillDeltaOf(state, level) {
-  if (state === 'mid') return 0;
-  if (state === 'bis') return GEAR_STATES.bis.skills.vsCareerLine;
-  const s = GEAR_STATES.low.skills;
+/* the rungs each state holds on an OPEN ladder (50-standards 1.4: standards.mjs GEAR_STATES[state].temper.blows) */
+const rungsOfState = (states, state) => Number((states[state].temper || {}).blows) || 0;
+/** The career-line offset of the main skill and Defense: GEAR_STATES[state].skills (LOW slides from 0 at its zero Level to full at its full Level). */
+export function skillDeltaOf(state, level, states = GEAR_STATES) {
+  const s = states[state].skills || {};
+  if (!Number.isFinite(s.vsCareerLine) || s.vsCareerLine === 0) return 0;
+  if (!Number.isFinite(s.fullFromLevel)) return s.vsCareerLine;
   return Math.round(s.vsCareerLine * Math.min(1, Math.max(0, (level - s.zeroAtLevel) / (s.fullFromLevel - s.zeroAtLevel))));
 }
 
-export async function loadKits(root) {
+/** opts.states: the gear-state rules to apply (standards.mjs GEAR_STATES by default; --selftest plants a changed rule and watches the kits move). */
+export async function loadKits(root, opts = {}) {
+  const STATES = opts.states || GEAR_STATES;
+  const RUNGS = Object.fromEntries(Object.keys(STATES).map((k) => [k, rungsOfState(STATES, k)]));
   const u = (p) => pathToFileURL(join(root, p)).href;
   const v = sourceQuery(root);
   const { loadGear, STYLES } = await import(u('tools/balance-sim/gear.mjs'));
@@ -131,7 +134,7 @@ export async function loadKits(root) {
     const L = Math.max(1, Math.round(level));
     const S = STYLES[style];
     if (!S) throw new Error('grid-kit: no style ' + style);
-    if (!GEAR_STATES[state]) throw new Error('grid-kit: no gear state ' + state);
+    if (!STATES[state]) throw new Error('grid-kit: no gear state ' + state);
     const stretch = stretchOf(L);
     if (stretch.state === 'PROJECTED') return projectedPlan(L, state, style, ctx);
     const ground = ctx.ground || null, mainSkill = Number.isInteger(ctx.mainSkill) ? ctx.mainSkill : L;
@@ -143,7 +146,7 @@ export async function loadKits(root) {
       base = gear.kitOf(style, L, { ground, ...opts });
       for (const k of Object.keys(base)) reasons[k] = 'the start kit (under Level 15)';
     } else if (state === 'low' && bandOf(L) <= LADDER_TOP) {
-      opts = { tierOffset: -1, only: 'all' };
+      opts = { tierOffset: STATES.low.ladder.tierOffset, only: STATES.low.ladder.only || 'all' };
       base = gear.kitOf(style, L, { ground, accessories: true, ammoSkill: mainSkill, ...opts });
       for (const k of ['weapon', 'shield', ...ARMOR_SLOTS]) if (base[k]) reasons[k] = 'the ladder, one tier under the Level\'s (tier ' + tierOf(base[k]) + ')';
     } else if (state === 'low') {
@@ -206,7 +209,7 @@ export async function loadKits(root) {
     return {
       level: p.level, state: p.state, style: p.style, stretch: p.stretch, label: p.label, ground: p.ground, ...(p.projectedBand ? { projectedBand: p.projectedBand } : {}),
       kit: worn, why: Object.fromEntries(Object.keys(worn).map((k) => [k, p.reasons[k] || 'the kit builder\'s pick'])),
-      gear: gearOpts, temper, temperShut: shut, skillDelta: skillDeltaOf(p.state, p.level),
+      gear: gearOpts, temper, temperShut: shut, skillDelta: skillDeltaOf(p.state, p.level, STATES),
       whatIfItems: p.whatIfItems || null, projectedAdds,
     };
   }
@@ -234,5 +237,19 @@ export async function loadKits(root) {
     return { slots, pieces, rungs: Math.max(0, rungs), total: pieces + Math.max(0, rungs) };
   }
 
-  return { kitFor, kitCost, upgradeCost, priceOf, gear, ITEMS, STYLES, BANDS, bandOf, bandAfter, bandBefore, stagedUpTo, floorOf, LINES, STAGED };
+  /** A plan with ONE group of slots taken from another plan of the same hero (E1's steps: the MID set with the LOW weapon, or the LOW armor). */
+  function mixPlan(base, from, slots) {
+    const set = { ...base.kit };
+    for (const k of slots) set[k] = from.kit[k] || null;
+    const items = { ...(base.whatIfItems || {}) };
+    for (const k of slots) if (from.kit[k] && from.whatIfItems && from.whatIfItems[from.kit[k]]) items[from.kit[k]] = from.whatIfItems[from.kit[k]];
+    const reasons = { ...base.why };
+    for (const k of slots) reasons[k] = 'the step: ' + (from.why[k] || 'none');
+    const { also, ...opts } = base.gear;
+    void also;
+    return finish({ level: base.level, state: base.state, style: base.style, stretch: base.stretch, label: base.label, ground: base.ground, opts: { ...opts, ...(from.gear.uniques ? { uniques: true } : {}) },
+      set, reasons, whatIfItems: Object.keys(items).length ? items : null, projectedBand: base.projectedBand });
+  }
+
+  return { kitFor, mixPlan, shopSells: (id) => SHOP_PRICE.has(id), temperTiers: T.TEMPER_TIERS, kitCost, upgradeCost, priceOf, skillDeltaOf: (state, level) => skillDeltaOf(state, level, STATES), gear, ITEMS, STYLES, BANDS, bandOf, bandAfter, bandBefore, stagedUpTo, floorOf, LINES, STAGED, STATES };
 }

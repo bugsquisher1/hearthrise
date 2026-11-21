@@ -30,7 +30,7 @@ h3 { font-size: 13px; color: var(--ink); margin: 12px 0 6px; }
 .knobs { position: sticky; top: 8px; max-height: calc(100vh - 16px); overflow: auto; }
 @media (max-width: 860px) { .knobs { position: static; max-height: none; } }
 .group { margin-bottom: 10px; }
-.group > .gname { color: var(--ink-3); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; margin: 8px 0 4px; }
+.group > .gname { color: var(--ink-3); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; margin: 8px 0 4px; cursor: pointer; min-height: 28px; }
 .knob { padding: 6px 0 8px; border-bottom: 1px solid var(--line-soft); }
 .knob.active .kname { color: var(--gold-2); }
 .krow { display: flex; align-items: baseline; gap: 8px; }
@@ -101,7 +101,7 @@ details > summary { cursor: pointer; color: var(--ink-2); font-size: 12px; min-h
   const KN = DATA.knobs, KBY = Object.fromEntries(KN.map((k) => [k.id, k]));
   const LIVE = DATA.live;
   const WORKER_URL = 'worker.js';
-  const state = { knobs: Object.fromEntries(KN.map((k) => [k.id, 1])), active: null, targets: new Set(), liveBase: null, liveNow: null, runId: 0 };
+  const state = { knobs: Object.fromEntries(KN.map((k) => [k.id, 1])), active: null, targets: new Set(), openGroups: new Set(), liveBase: null, liveNow: null, runId: 0 };
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const fin = (x) => typeof x === 'number' && isFinite(x);
@@ -140,8 +140,11 @@ details > summary { cursor: pointer; color: var(--ink-2); font-size: 12px; min-h
     const groups = {};
     for (const k of KN) (groups[k.group] || (groups[k.group] = [])).push(k);
     let h = '<h2>Global coefficients</h2><div class="note">A multiplier on numbers the game reads, at file:line (tools/balance-program/formulas/knobs.json). 1.00x is today.</div>';
+    /* on a phone the groups fold: the first, and any with a moved knob, stay open (a group the reader opened stays open across a redraw) */
+    const narrow = window.matchMedia('(max-width: 860px)').matches;
     for (const [g, ks] of Object.entries(groups)) {
-      h += '<div class="group"><div class="gname">' + esc(g) + '</div>';
+      const open = !narrow || state.openGroups.has(g) || g === Object.keys(groups)[0] || ks.some((k) => state.knobs[k.id] !== 1);
+      h += '<details class="group" data-group="' + esc(g) + '"' + (open ? ' open' : '') + '><summary class="gname">' + esc(g) + ' (' + ks.length + ')</summary>';
       for (const k of ks) {
         const min = Math.min(...k.steps), max = Math.max(...k.steps);
         h += '<div class="knob' + (state.active === k.id ? ' active' : '') + '" data-k="' + k.id + '"><div class="krow"><span class="kname">' + esc(k.label) + '</span>'
@@ -149,10 +152,10 @@ details > summary { cursor: pointer; color: var(--ink-2); font-size: 12px; min-h
           + '<span class="kval" id="v-' + k.id + '">' + state.knobs[k.id].toFixed(3) + 'x</span><button class="small" data-reset="' + k.id + '">Reset</button></div>'
           + '<input type="range" min="' + min + '" max="' + max + '" step="0.005" value="' + state.knobs[k.id] + '" data-slider="' + k.id + '" aria-label="' + esc(k.label) + '" list="t-' + k.id + '">'
           + '<datalist id="t-' + k.id + '">' + k.steps.map((s) => '<option value="' + s + '"></option>').join('') + '</datalist>'
-          + '<div class="kmeta">' + esc(k.what) + '</div><div class="kmeta">' + esc(k.sites.join(', ')) + (k.regen ? '. The monster rows are re-written from it' : '')
-          + (k.sharesLineWith.length ? '. Shares a line with ' + esc(k.sharesLineWith.join(', ')) : '') + (stepsOf(k.id).length ? '' : '. Not swept yet: LIVE only') + '</div></div>';
+          + '<details class="kabout"><summary class="kmeta">What it moves' + (stepsOf(k.id).length ? '' : ' (not swept yet: LIVE only)') + '</summary><div class="kmeta">' + esc(k.what) + '</div><div class="kmeta">' + esc(k.sites.join(', ')) + (k.regen ? '. The monster rows are re-written from it' : '')
+          + (k.sharesLineWith.length ? '. Shares a line with ' + esc(k.sharesLineWith.join(', ')) : '') + '</div></details></div>';
       }
-      h += '</div>';
+      h += '</details>';
     }
     if (DATA.planned.length) {
       h += '<details><summary>' + DATA.planned.length + ' planned knobs (they arrive with a roadmap step)</summary>';
@@ -160,6 +163,7 @@ details > summary { cursor: pointer; color: var(--ink-2); font-size: 12px; min-h
       h += '</details>';
     }
     $('knobs').innerHTML = h;
+    $('knobs').querySelectorAll('details.group').forEach((el) => el.addEventListener('toggle', () => { const g = el.getAttribute('data-group'); if (el.open) state.openGroups.add(g); else state.openGroups.delete(g); }));
     $('knobs').querySelectorAll('[data-slider]').forEach((el) => el.addEventListener('input', () => setKnob(el.getAttribute('data-slider'), Number(el.value))));
     $('knobs').querySelectorAll('[data-reset]').forEach((el) => el.addEventListener('click', () => setKnob(el.getAttribute('data-reset'), 1, true)));
   }

@@ -96,7 +96,7 @@ async function run() {
   const cr = await tryUser(uid, 'select public.hr_create_character(0) as r');
   const said = cr.err || JSON.stringify(cr.r);
   ok('G3', /gems_retired/.test(said), `a kit paying 1 gem was not refused gems_retired: ${said}`);
-  /* account_gem_grants (the grant keys) was cut with the gem rows 2026-11-20 (1027-approved-cuts.sql, plan L10): with no
+  /* account_gem_grants (the grant keys) was cut with the gem rows 2026-11-20 (1032-approved-cuts.sql, plan L10): with no
      grant table a grant cannot land at all, so its count reads 0 and the wallet's balance is the proof. */
   const hasGrants = (await q("select to_regclass('public.account_gem_grants') is not null as x"))[0].x === true;
   const w = (await q(`select coalesce((select sum(gems) from public.account_wallet where user_id = $1), 0)::bigint as g,

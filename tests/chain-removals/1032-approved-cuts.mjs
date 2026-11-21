@@ -1,4 +1,4 @@
-/* DECLARED REMOVALS for 1027-approved-cuts.sql (lane/c-approved-cuts, 2026-11-20: the approved cuts, Tyler's rulings 22-10,
+/* DECLARED REMOVALS for 1032-approved-cuts.sql (lane/c-approved-cuts, 2026-11-20: the approved cuts, Tyler's rulings 22-10,
    24-5 and 27-7, build plan L10).
 
    HR_STATE_OF: that file restates hr_state_of WHOLE from the LIVE image (its §0 pins md5 e0a71bfe, the

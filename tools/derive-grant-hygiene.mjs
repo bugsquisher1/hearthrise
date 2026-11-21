@@ -418,7 +418,7 @@ export const LINKS = [
     target: '1004-tick-pack-heroes.sql',
     patchIds: ['client_write_live_set', 'hunt_lease_free'],
   },
-  /* Link 25 (lane/c-approved-cuts, 2026-11-20) — TWO ENTRIES LEAVE, NOTHING ELSE MOVES. 1027-approved-cuts.sql drops the old
+  /* Link 25 (lane/c-approved-cuts, 2026-11-20) — TWO ENTRIES LEAVE, NOTHING ELSE MOVES. 1032-approved-cuts.sql drops the old
      dungeons and the scrip whole (Tyler 2026-11-20, the endgame dive 22-10, plan L10): hr_dungeon_settle and hr_quartermaster_buy
      are gone, so their c_engine_allow entries (and the claim comments above them) are REPLACED by a two-line note. A re-created
      function of either signature granted to hr_engine then reads engine_execute_outside_allowlist, the precedent of link 13
@@ -427,7 +427,7 @@ export const LINKS = [
      last toucher. */
   {
     base: '1004-tick-pack-heroes.sql',
-    target: '1027-approved-cuts.sql',
+    target: '1032-approved-cuts.sql',
     patchIds: ['old_dungeons_cut'],
   },
 ];

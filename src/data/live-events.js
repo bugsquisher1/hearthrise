@@ -71,8 +71,6 @@ export const WORDS = Object.freeze({
     hunts: '+{pct}% Level XP this weekend',
     page: '+{pct}% Level XP this weekend',
     analyzer: 'Hearthrise',
-    /* the town banner on the Friday, and the release note's line (the Coordinator's) */
-    banner: 'The Hearthrise is lit. +{pct}% Level XP until {end}.',
   }),
   mossback: Object.freeze({
     name: 'Mossback',

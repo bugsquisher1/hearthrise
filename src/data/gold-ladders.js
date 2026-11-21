@@ -5,10 +5,11 @@
 // bounded MAX-MERGE unlock ladder so that the ONE existing spend RPC
 // (public.hr_unlock_buy) sells it with no new code path:
 //
-//   bank          the bag's stack cap. 30 rungs. Price grows geometrically
-//                 (round(3000 * 1.32^k), k in [0,29]). hr_unlock_buy raises
-//                 player_state.bank_cap through hr_bank_cap_for_rungs
-//                 (2026-09-06-bank-cap-tracks-rungs.sql).
+//   bank          the bag's stack cap, each HERO's. 10 rungs (Tyler 2026-11-20,
+//                 call 26-9: it stops at 10; Storage grows in the depot). Price
+//                 round(3000 * 1.32^k). hr_unlock_buy raises player_state.bank_cap
+//                 through hr_bank_cap_for_rungs (raise-only: a rung owned past 10
+//                 keeps its bag).
 //
 //   key_ring      the Key Ring (Tyler 2026-11-16): ONE rung, once per hero. Every chest key
 //                 sits on it instead of in the bag (2027-04-27-tower-chest.sql, the ring
@@ -43,7 +44,7 @@
 /* round(3000 * 1.32^k), k = rungs already owned = value-1. */
 export const BANK_BASE = 3000;
 export const BANK_GROWTH = 1.32;
-export const BANK_RUNGS = 30;
+export const BANK_RUNGS = 10;
 export const BANK_STACKS_PER_RUNG = 20;   // client-read magnitude; NOT sent to SQL
 export function bankRungPrice(k) { return Math.round(BANK_BASE * Math.pow(BANK_GROWTH, k)); }
 
@@ -55,10 +56,10 @@ function rung(offerId, tableName, name, unlockId, value, gold, items, reqTier) {
   });
 }
 
-/* ── bank: 30 rungs, geometric price, no tier gate ───────────────────────── */
+/* ── bank: BANK_RUNGS rungs, geometric price, no tier gate ───────────────── */
 export const BANK_LADDER = Object.freeze(
   Array.from({ length: BANK_RUNGS }, (_, i) => {
-    const n = i + 1;               // rung value 1..30
+    const n = i + 1;               // rung value 1..BANK_RUNGS
     return rung(`bank.${i}`, 'bank', `Bank expansion (+${BANK_STACKS_PER_RUNG})`,
       'bank', n, bankRungPrice(i), {}, 0);
   }),

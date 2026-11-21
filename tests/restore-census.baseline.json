@@ -2027,7 +2027,11 @@
   "hr_town_works": {
    "class": "seeded",
    "replay": 1,
-   "note": "Generated catalogue (2027-03-04-town-works-catalogue.generated.sql from src/data/town-works.js): one row per Town Works project: map, smallest gift, day's cap, stages and their lines. Empty, the Works have nothing to give to and the verb refuses; nothing is charged. Rebuilt from repo, never a player's."
+   "note": "Generated catalogue (2027-03-04-town-works-catalogue.generated.sql, now 1013-approved-rows-town-works-catalogue.generated.sql, from src/data/town-works.js): one row per Town Works project: map, smallest gift, day's cap, stages and their lines, and per_active (the goal's gold a weekly active account, Tyler 2026-11-20). Empty, the Works have nothing to give to and the verb refuses; nothing is charged. Rebuilt from repo, never a player's."
+  },
+  "hr_town_works_goals": {
+   "class": "operational",
+   "note": "1014-works-goal-sized.sql: one row a sized Town Works project, today's goal from the weekly active accounts, written once a UTC day by hr_town_works_size_to (the first Works read of the day). A cache of a count, never player value: lost or empty, hr_town_works_goal reads the least goal until the next read sizes it again (and a project whose total has reached its goal reads done either way). Not restored."
   },
   "hr_training_gear": {
    "class": "seeded",
@@ -2051,7 +2055,7 @@
   },
   "hr_unlock_offers": {
    "class": "seeded",
-   "replay": 143,
+   "replay": 123,
    "note": "Generated catalogue (2026-08-16-unlock-offers.generated.sql, tools/gen-unlock-offers.mjs --check as a smoke preflight): every purchasable unlock offer with its namespace, rung and price. 142 rows, and it is a PRICE LIST — a rebuild producing a different set sells different things at different prices than the ledger's recorded purchases were made at. Rebuilt from repo, never restored."
   },
   "hr_unlocks": {

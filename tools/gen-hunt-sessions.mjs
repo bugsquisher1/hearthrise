@@ -365,7 +365,9 @@ export const WORLD_FIELDS_READ = Object.freeze({
    is x1.1 (src/data/balance-sheet.js STAT_FORMULA), so its XP and coin a kill rise with it and the most one kill can pay rises too. No ground, spawn, limit,
    end reason, vendor value or world shape moves. ORDER: after every 2027-05-28 file. */
 /* 1001-xp-a-kill-hunt-sessions-catalogue (lane/d-142-rulings, 2026-11-19): STAT_FORMULA's XP a kill x0.88, so every formula row's kill bound falls; 2027-06-05 is carried whole. */
-/* 1011-approved-cuts-hunt-sessions-catalogue (lane/c-approved-cuts, 2026-11-20; build plan L10): 1001 is carried whole; hr_hunt_vendor_value loses the Shop's bids on the
+/* 1012-approved-rows-hunt-sessions-catalogue (lane/c-approved-rows, 2026-11-20; Tyler, balance call 22-8): Call out costs stamina only, so hr_boss_calls.fight_fee is 0
+   and its CHECK admits a fight at 0 gold; 1001 (APPLIED) is carried whole. */
+/* 1011-approved-cuts-hunt-sessions-catalogue (lane/c-approved-cuts, 2026-11-20; build plan L10): 1012-approved-rows (STAGED, applied first) is carried whole; hr_hunt_vendor_value loses the Shop's bids on the
    Hearth Token and the three boss-forged body pieces, which 1010-approved-cuts-items-catalogue takes out of hr_items. ORDER: after 1010. */
 export const OUT_NAME = '1011-approved-cuts-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
@@ -848,10 +850,10 @@ function calledRows(S) {
     if (!g || g.call !== c.id) throw new Error(`call ${c.id}: its room's ground does not name it`);
     if (!(S.monsters[c.monster] && S.monsters[c.monster].called === true)) throw new Error(`call ${c.id} names ${c.monster}, which is no called row`);
     if (!from || from.call || !from.pockets.some((p) => (p.pack || []).concat(p.spawns).some((s) => s.monster === c.of))) throw new Error(`call ${c.id}: its press's ground ${c.from} does not field ${c.of}`);
-    /* ONE FIGHT'S PRICE (Tyler 2026-11-14: each fight costs stamina plus a small gold fee): whole gold in 1..1e9 (a free fight is a live event's
-       dial, never a row) and 1 s to 1 h of stamina. The one-fight verb's `fee` is gone: a row that still names one is refused rather than ignored. */
+    /* ONE FIGHT'S PRICE: STAMINA ONLY (Tyler 2026-11-20, balance call 22-8: no gold, so a call is never a roll bought with gold; was a small
+       fee, 2026-11-14): `fee` is exactly 0 and 1 s to 1 h of stamina. The one-fight verb's `fee` is gone: a row that still names one is refused. */
     const ft = c.fight || {};
-    if (!(whole(ft.fee) && ft.fee >= 1 && ft.fee <= 1000000000)) throw new Error(`call ${c.id} fight fee ${ft.fee} is not whole gold in 1..1e9`);
+    if (ft.fee !== 0) throw new Error(`call ${c.id} fight fee ${ft.fee}: a call costs stamina only, no gold (Tyler 2026-11-20, call 22-8)`);
     if (!(whole(ft.staminaMs) && ft.staminaMs >= 1000 && ft.staminaMs <= 3600000)) throw new Error(`call ${c.id} fight stamina ${ft.staminaMs} is not 1 s to 1 h in whole ms: a fight that costs no stamina has no limit`);
     if ('fee' in c) throw new Error(`call ${c.id} still names the one-fight fee: a fight's price is its \`fight\``);
     /* WHAT A WIN CAN DROP, AS THE PAGE SAYS IT (audit F24, 2026-11-15: "Why would I pay to fight the Rat King for nothing?"): his own table, in its order, each
@@ -1122,10 +1124,15 @@ export function render(src) {
 --   ${r.vendor.length} vendor values, ${r.basics.length} store supplies paid per use, ${r.targets.length} target modes,
 --   ${r.lanes.length} lanes, ${r.abilities.length} abilities, ${r.setOptions.length} action-set options, ${r.grounds.length} hunt grounds
 --
--- NEW IN THIS FILE (lane/d-142-rulings, game-designer, 2026-11-19; the pace held by XP a kill): balance-sheet.js STAT_FORMULA xp a and min
+-- NEW IN THIS FILE (lane/c-approved-rows, backend-architect, 2026-11-20; Tyler 2026-11-20, balance call 22-8: Call out costs stamina only, no
+--   gold). It carries 1001-xp-a-kill-hunt-sessions-catalogue (APPLIED 2026-11-20) whole. hr_boss_calls.fight_fee is 0 on both calls (was 50 and 100)
+--   and hr_boss_calls_fight_ck admits 0 (a call is never a roll bought with gold; the generator refuses a fee in the data). Every reader (hr_boss_call_quote, hr_boss_call, the settle's
+--   next fight) already prices a fight as fight_fee x the live dial's permille, so a fight charges 0 gold and the gold_out end never fires. No other
+--   row, bound, limit, end reason or world shape moves. ORDER: the sequence in its name. EDGE: none (no engine or edge file reads the fee).
+-- CARRIED FROM 1001-xp-a-kill-hunt-sessions-catalogue (lane/d-142-rulings, game-designer, 2026-11-19; the pace held by XP a kill): balance-sheet.js STAT_FORMULA xp a and min
 --   x0.88, so every formula row pays 12% less Level XP and its kill bound falls with it. No coin, HP or blow moves. Deploy the hr-accrue carrying
 --   the new rows BEFORE this applies.
--- NEW IN THIS FILE (lane/d-harder-monsters, systems-engineer, 2026-11-19; Tyler 2026-11-19: "raise HP and damage done by all monsters in the game
+-- CARRIED (lane/d-harder-monsters, systems-engineer, 2026-11-19; Tyler 2026-11-19: "raise HP and damage done by all monsters in the game
 -- slightly"). It carries 2027-05-28-cellar-outgrown-hunt-sessions-catalogue (STAGED on set/v0.2.142, applied first) whole. hr_hunt_kill_bounds moves: every
 -- formula monster's HP is x1.1 (src/data/balance-sheet.js STAT_FORMULA) and its XP a point x0.96, so its coin and XP bound a kill rise with it (the Mill
 -- Cellar's Slime XP falls 35 -> 33, its fit 1.22). hr_boss_calls' called Chief carries the field Chief's Cauldron at its new rate. No ground, spawn,
@@ -1699,7 +1706,7 @@ alter table public.hr_boss_calls drop column if exists fee, drop column if exist
 -- NATURAL WINS BEFORE THE CALL (lane/c-entry-gates; Tyler 2026-11-18): the boss the call copies (his kills on his ground are the count) and how many it needs.
 alter table public.hr_boss_calls add column if not exists boss_id text, add column if not exists wins int;
 comment on table public.hr_boss_calls is
-  'tools/gen-hunt-sessions.mjs from src/data/boss-calls.js: the called rooms, one fight''s price (stamina and gold) and the most fights one series may queue (Call out). Names no player; character wipe c_no_player.';
+  'tools/gen-hunt-sessions.mjs from src/data/boss-calls.js: the called rooms, one fight''s price (stamina; its gold is 0, Tyler 2026-11-20) and the most fights one series may queue (Call out). Names no player; character wipe c_no_player.';
 -- COMBAT TRAINING (training.js): the rules, one row, each training ground's place, skill and fee, and the training items. Read by hr_training_start,
 -- the settle's hourly charge (hr_training_hour), its window check and the items' spend (hr_training_window), the items' verbs and the section
 -- (2027-04-16-combat-training.sql, 2027-04-23-training-gear.sql).
@@ -1854,13 +1861,15 @@ delete from public.hr_hunt_vendor_value;
 insert into public.hr_hunt_vendor_value (item_id, unit) values
 ${vendorValues};
 delete from public.hr_boss_calls;
+-- the price's CHECK is restated below; it goes first, so a row the new one allows (a fight at 0 gold, Tyler 2026-11-20) is never judged by the old
+alter table public.hr_boss_calls drop constraint if exists hr_boss_calls_fight_ck;
 insert into public.hr_boss_calls (call_id, hunt_id, from_hunt, monster_id, limit_ms, fight_fee, fight_stamina_ms, max_fights, drops, boss_level, boss_id, wins) values
 ${callValues};
 alter table public.hr_boss_calls alter column fight_fee set not null, alter column fight_stamina_ms set not null, alter column max_fights set not null, alter column drops set not null,
   alter column boss_level set not null, alter column boss_id set not null, alter column wins set not null;
 alter table public.hr_boss_calls drop constraint if exists hr_boss_calls_fight_ck;
 alter table public.hr_boss_calls add constraint hr_boss_calls_fight_ck
-  check (fight_fee between 1 and 1000000000 and fight_stamina_ms between 1000 and 3600000 and max_fights between 1 and 1000
+  check (fight_fee between 0 and 1000000000 and fight_stamina_ms between 1000 and 3600000 and max_fights between 1 and 1000
          and jsonb_typeof(drops) = 'array' and jsonb_array_length(drops) between 1 and 32 and boss_level between 1 and 999);
 -- NATURAL WINS BEFORE THE CALL: a whole count, on a ground boss's own id (never a called row's: those wins are the call's, not the ground's).
 alter table public.hr_boss_calls drop constraint if exists hr_boss_calls_wins_ck;
@@ -1989,6 +1998,9 @@ ${r.abilities.filter((a) => a.area).map((a) => `    (${sq(a.id)}, ${sq(a.lane)},
                  or not exists (select 1 from public.hr_hunt_ground_spawns s where s.hunt_id = c.from_hunt and s.monster_id = c.boss_id)
                  or exists (select 1 from public.hr_hunt_ground_spawns s where s.monster_id = c.boss_id and s.hunt_id = c.hunt_id)) then
     raise exception 'a call''s natural wins are not the data''s, or are counted on a boss its press''s ground does not field'; end if;
+  -- CALL OUT COSTS STAMINA ONLY (Tyler 2026-11-20, balance call 22-8): no call charges gold a fight (the data refuses a fee: gen-hunt-sessions.mjs).
+  if exists (select 1 from public.hr_boss_calls c where c.fight_fee <> 0) then
+    raise exception 'a call charges gold a fight (Tyler 2026-11-20: Call out costs stamina only)'; end if;
   -- COMBAT TRAINING, THE MONEY LINE: every training ground stands in hr_hunts and hr_hunt_travel with one seat and the dummy alone; the dummy's bound
   -- pays no coin and no drop; no other ground fields it and no roster names it.
   if exists (select 1 from public.hr_training_grounds t
@@ -2171,7 +2183,7 @@ function selftest() {
       pockets: [{ room: [4, 5, 10, 10], spawns: [{ monster: 'rat_king_called', x: 7, y: 8 }] }, ...OPEN_GROUNDS.mill_cellar.pockets.slice(1)] } } }),
     'a call with no room': () => ({ calls: { ...BOSS_CALLS, ghost: { ...BOSS_CALLS.rat_king, id: 'ghost', hunt: 'nowhere_called' } } }),
     'a called hunt with no call': () => ({ calls: { rat_king: BOSS_CALLS.rat_king } }),
-    'a free call': () => ({ calls: { ...BOSS_CALLS, rat_king: { ...BOSS_CALLS.rat_king, fight: { ...BOSS_CALLS.rat_king.fight, fee: 0 } } } }),
+    'a call that costs gold (stamina only, Tyler 2026-11-20)': () => ({ calls: { ...BOSS_CALLS, rat_king: { ...BOSS_CALLS.rat_king, fight: { ...BOSS_CALLS.rat_king.fight, fee: 50 } } } }),
     'a fight that costs no stamina': () => ({ calls: { ...BOSS_CALLS, rat_king: { ...BOSS_CALLS.rat_king, fight: { ...BOSS_CALLS.rat_king.fight, staminaMs: 0 } } } }),
     'the one-fight fee back on a call': () => ({ calls: { ...BOSS_CALLS, rat_king: { ...BOSS_CALLS.rat_king, fee: 10000 } } }),
     'a daily cap on the call (stamina is the limit)': () => ({ callRules: { ...BOSS_CALL_RULES, perDay: 3 } }),

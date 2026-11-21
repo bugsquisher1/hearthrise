@@ -215,7 +215,7 @@ function printBlocks(rowsA, rowsB, cellsA, cellsB, out = console.log) {
 export function printToolReds(cells, out = console.log, label = '') {
   const t = toolReds(cells);
   if (!t.length) return 0;
-  out('TOOL RED' + (label ? ' (' + label + ')' : '') + ': ' + t.length + ' cell(s) ended ' + TOOL_RED_ENDS.join(' or ') + ', so they measured an engine stall, not the balance');
+  out('TOOL RED' + (label ? ' (' + label + ')' : '') + ': ' + t.length + ' cell(s) measured an engine stall or fault, not the balance (an end of ' + TOOL_RED_ENDS.join(' or ') + ', or an engine error that names one)');
   for (const x of t.slice(0, 12)) out('  TOOL RED ' + x.key + ': ' + x.why);
   if (t.length > 12) out('  ... ' + (t.length - 12) + ' more');
   return 1;

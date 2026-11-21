@@ -16,6 +16,9 @@
 // set/v0.2.144 e6ea19170), so a line number can go stale: the id and the symbol name are the durable half.
 // CLASS: 1 foundational mechanic · 2 content parameter (belongs in data) · 3 intentional special mechanic (needs Tyler's explicit yes)
 //        · 4 accidental complexity (eliminate). STATUS: C confirmed (the code path was read, and measured where it says so) · H hypothesis.
+// mutant-anchors: none — --selftest plants CRLF and changed rows on in-memory texts; no tracked file is patched
+// ci-step: economy-selftests | Combat formula register - a CRLF checkout reads in step, a changed row or value reads STALE
+// ci-run: node tools/mutant-gate.mjs node tools/balance-program/formulas/combat-register.mjs --selftest
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { dirname, resolve, join } from 'node:path';

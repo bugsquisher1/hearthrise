@@ -6,8 +6,9 @@
 //
 //   node tools/balance-program/formulas/architecture-register.mjs            the counts, and any merge that names a row that is not there
 //   node tools/balance-program/formulas/architecture-register.mjs --write    writes formulas-architecture.json and the generated tables inside
-//                                                                             docs/design/balance-program/44-formula-architecture.md
-//   node tools/balance-program/formulas/architecture-register.mjs --check    exit 1 when either is not what this file writes (compared as
+//                                                                             docs/design/balance-program/44-formula-architecture.md, and reads each knob's
+//                                                                             `value` in knobs.json from the tree again (a lane that moves a coefficient runs this)
+//   node tools/balance-program/formulas/architecture-register.mjs --check    exit 1 when either is not what this file writes, or knobs.json no longer matches the tree (compared as
 //                                                                             text: an LF and a CRLF checkout read the same)
 //   node tools/balance-program/formulas/architecture-register.mjs --selftest plants CRLF, a changed row, a merge of a missing row and a class 3
 //                                                                             row with no recommendation; exit 1 when a plant is not caught
@@ -18,14 +19,20 @@
 // a class moves.
 // IDS. A combat row keeps its id (C-..., X-...). Progression and economy both number their exceptions X01..., so those become P-X01 and
 // E-X01. A row this lane added from the design reviews is S-X...
+// mutant-anchors: none — --selftest plants on in-memory texts, merge lists and a loaded copy of knobs.json; no tracked file is patched
+// ci-step: economy-selftests | Formula architecture register - a bad merge, a class 3 row with no recommendation, a stale knob and a CRLF checkout are each caught
+// ci-run: node tools/mutant-gate.mjs node tools/balance-program/formulas/architecture-register.mjs --selftest
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { dirname, resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { isMain } from '../../../tests/_is-main.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..', '..', '..');
 const JSON_FILE = join(HERE, 'formulas-architecture.json');
+const KNOBS_FILE = join(HERE, 'knobs.json');
+export const KNOB_SCHEMA = 'hearthrise.balance-knobs/1';
 const DOC_FILE = join(ROOT, 'docs', 'design', 'balance-program', '44-formula-architecture.md');
 const SELF = 'tools/balance-program/formulas/architecture-register.mjs';
 export const SCHEMA = 'hearthrise.formula-architecture/1';
@@ -33,7 +40,7 @@ export const SCHEMA = 'hearthrise.formula-architecture/1';
 /* LINE ENDINGS: this file writes LF; a checkout with core.autocrlf hands files back with CRLF, so every read goes through lf(). */
 const lf = (s) => s.replace(/\r\n/g, '\n');
 const read = (p) => (existsSync(p) ? lf(readFileSync(p, 'utf8')) : null);
-const one = (v) => (Array.isArray(v) ? v.join('; ') : String(v == null ? '' : v));
+const one = (v) => (Array.isArray(v) ? v.join(', ') : String(v == null ? '' : v));
 const clip = (s, n) => (s.length > n ? s.slice(0, n - 1).trimEnd() + '…' : s);
 const cell = (s) => String(s).replace(/\|/g, '\\|').replace(/\n/g, ' ');
 
@@ -141,42 +148,61 @@ export const CROSS_EDGES = [
 //    date, or null when no approval of Tyler's is on record. ───────────────────────────────────────────────────────────────────
 const K = 'keep', FOLD = 'fold', RM = 'remove';
 export const CLASS3 = {
-  'X-NAMED-RAT-KING': [FOLD, '2026-11-18 (his hit, "open at 5")', 'The boss cap should bound his spell, not his attack. Then his row is the formula\'s and the named exception goes'],
+  'X-NAMED-RAT-KING': [FOLD, '2026-11-18 ("open at 5")', 'The boss cap should bound his spell, not his attack. Then his row is the formula\'s and the named exception goes'],
   'X-DANGER-RAMP': [K, null, 'One early-game curve for every ground under Level 16. Gentle first grounds are right. Document it as the only Level threshold in monster stats'],
   'X-TIER-PULL-FLOOR': [RM, null, 'It contradicts the 2026-11-07 ruling that harder tiers keep the bigger pulls. Its cause is kill reward with no kill-rate term, which the kill reward formula fixes'],
   'X-CELLAR-NORMAL-ONLY': [K, '2026-11-05', 'A content flag on the tutorial ground. It changes no formula'],
   'X-SCALED-NO-DEADLY': [FOLD, null, 'A tier a ground does not offer is the same content flag the Mill Cellar uses. One mechanic, read from the mode\'s row'],
-  'X-SPELL-FLOOR': [FOLD, '2026-11-21 (32-8, the effect)', 'Keep the effect he ruled. Replace 17 per-row floors with one number: a cast never reads a hit under N'],
+  'X-SPELL-FLOOR': [FOLD, '2026-11-21 (32-8, the effect)', 'Keep the effect you ruled. Replace 17 per-row floors with one number: a cast never reads a hit under N'],
   'X-MEND-MAXHP': [K, '2026-11-21 (32-4)', 'The second of two heal kinds, a share of max HP. It is the one heal that never falls behind at high Level'],
   'X-THREE-ROLLS': [FOLD, null, 'One roll rule with the spread as one number a kind of amount: swings, spell hits, heals. Three rows of one rule'],
-  'X-PARTY-ONLY-ROWS': [K, '2026-11-09 and 2026-11-19', 'One shared gate read from data. Tank spells are party only by his ruling'],
+  'X-PARTY-ONLY-ROWS': [K, '2026-11-09 and 2026-11-19', 'One shared gate read from data. Tank spells are party only by your ruling'],
   'X-BRACE': [FOLD, '2026-11-08 (direction)', 'Make it a stat on the shield row, so a future shield can carry more or less of it. No rule keyed on a slot'],
-  'X-ELEMENT-RULES': [K, '2026-11-18 (the two elements)', 'Storm burning mana and Necrotic cutting heals are what make the two elements different. The numbers need his yes before the switch goes on'],
+  'X-ELEMENT-RULES': [K, '2026-11-18 (the two elements)', 'Storm burning mana and Necrotic cutting heals are what make the two elements different. The numbers need your yes before the switch goes on'],
   'X-TEMPER-ROUNDING': [FOLD, null, 'Rounding by chance is the right idea. Use it once, at the end of the one amount pipeline, for every blow. Then small bonuses pay at low Level everywhere'],
-  'X-BOSS-FLOOR-CAP': [K, null, 'A boss must not one-shot the hero his ground is written for. Keep it as a bound in the monster formula and get his yes'],
+  'X-BOSS-FLOOR-CAP': [K, null, 'A boss must not one-shot the hero his ground is written for. Keep it as a bound in the monster formula and it needs your yes'],
   'X-CALLED-ROOM': [K, '2026-11-04 and 2026-11-05', 'A called fight is practice and a keyed hall is the reward. Two rows of one room mechanic'],
   'X-DUMMY': [K, '2026-11-08', 'The training yard needs a target that cannot kill or die'],
   'X-CASTER-BASIC': [K, '2026-10-15 and 2026-10-23', 'A basic attack costs by weapon. It is the supply identity of each way of fighting'],
   'X-PARTY-FIT': [K, null, 'Keep "built for a party" as one encounter type with three numbers (HP, blow, XP). Remove its three inner patches. 53-review-world asks to remove the whole type: the matrix decides between them'],
   'P-X07': [FOLD, '2026-11-11', 'Fold the +15% into the base of the one party table as its first cell. The number stays. One constant less'],
-  'P-X09': [FOLD, null, 'The Tower takes the one party table. His 2026-11-16 words were one table and not a unique formula everywhere'],
+  'P-X09': [FOLD, null, 'The Tower takes the one party table. Your 2026-11-16 words were one table and not a unique formula everywhere'],
   'P-X14': [K, '2026-11-14', 'The Tower trades XP for a free death. It is one row of the mode table'],
   'P-X15': [K, '2026-11-16 (the mode, not the numbers)', 'Keep the Catacombs on the mode table. Its copied numbers stay marked ASSUMED until the matrix plays them'],
   'P-X18': [K, '2026-11-09 and 2026-11-21', 'Level XP loses a share of the total and a skill a share of its progress. Take Inner Flame off the list: it is trained at the Hearth, not in a fight'],
   'P-X20': [FOLD, '2026-10-18', 'Free under Level 30 falls out of a price that follows the hours a Blessing saves. Early deaths cost minutes, so the price is near zero with no threshold'],
-  'P-X28': [RM, '2026-11-14', 'One fixed rate makes the yard worthless near skill 100. Pay a share of the skill level\'s cost. This changes a ruling, so it is his call'],
+  'P-X28': [RM, '2026-11-14', 'One fixed rate makes the yard worthless near skill 100. Pay a share of the skill level\'s cost. This changes a ruling, so it is your call'],
   'P-X33': [FOLD, '2026-11-15 and 2026-11-16', 'A rung is worth less on stronger gear. Make the rung size one line by gear Level, so the next band needs no new hand number'],
   'P-X35': [K, '2026-11-04', 'Starter gear has no Tempering. A content flag'],
   'P-X37': [K, '2026-11-14', 'Boss gems fix one thing about a jewelry roll. A content rule on the craft, not a combat formula'],
-  'P-X38': [RM, '2026-11-14 against 2026-11-18', 'A flat +4 skill is about 1.4 damage at any Level, and he asked for major upgrades. Make it a percent of the blow'],
-  'P-X41': [K, null, 'Melee trains on damage dealt, Magic on mana spent, Defense on blows taken. Three bases for three different jobs. It needs his yes on record'],
+  'P-X38': [RM, '2026-11-14 against 2026-11-18', 'A flat +4 skill is about 1.4 damage at any Level, and you asked for major upgrades. Make it a percent of the blow'],
+  'P-X41': [K, null, 'Melee trains on damage dealt, Magic on mana spent, Defense on blows taken. Three bases for three different jobs. It needs your yes on record'],
   'P-X44': [K, '2026-11-20 (27-5)', 'Events add and never pass +50%. One line of the XP chain'],
-  'E-X03': [FOLD, null, 'The coin line that climbs from x0.5 to x1.4 over the first grounds is one of four stacked coin dials. Fold all four into one coin line by monster Level'],
+  'E-X03': [FOLD, '2026-11-03 ("harder pays more on one line")', 'The coin line that climbs from x0.5 to x1.4 over the first grounds is one of four stacked coin dials. Fold all four into one coin line by monster Level'],
   'E-X11': [FOLD, '2026-11-07', 'Keep scaled hunts. Their XP and party shares become outputs of the kill reward formula, so nobody re-dials them an eighth time'],
-  'E-X29': [K, 'approved (43 section 2)', 'A hero\'s first hall roll always lands. A good first-time moment'],
-  'E-X30': [K, 'approved (43 section 2)', 'Chest warmth and stokes are the pity rule. Bounded by construction'],
+  'E-X29': [K, '2026-11-14', 'A hero\'s first hall roll always lands. A good first-time moment'],
+  'E-X30': [K, '2026-11-14 to 2026-11-16', 'Chest warmth and stokes are the pity rule. Bounded by construction'],
   'E-X32': [K, '2026-11-18 (linings, BUILD LATER)', 'The parts wait for linings. Nothing planned is cut. When linings land, part value becomes one line by monster Level with no steps'],
 };
+
+// ── WHAT EACH FRAMEWORK OF THE MODEL REMOVES: [framework, roadmap steps, the class 4 rows that go]. Every id must be a class 4 row, once. ──
+export const REMOVES = [
+  ['Dead rules deleted', 'R1', ['E-X26', 'E-X27', 'E-X28', 'X-STALE-HP-NOTE']],
+  ['Power from named constants, and a row that stores its blow', 'R2, R4, R7', ['X-POWER-LITERALS', 'X-ART-TIER-SCALE', 'X-REFHP-OFF-BY-ONE']],
+  ['Each duplicate becomes one', 'R3', ['X-ROLL-TWINS', 'X-TIER-LADDER-TWINS', 'X-MARK-TWO-WAYS', 'X-ROW-DOOR-BYPASS', 'X-STEADY-TWO-MEANINGS', 'P-X19', 'P-X21', 'E-X38']],
+  ['One tier table, applied once', 'R7, R12', ['X-TIER-TRIPLE', 'X-TIER-PER-GROUND', 'X-SCALED-THICKET', 'X-PARTY-FIT-PATCHES']],
+  ['One XP chain', 'R5, R8, R22', ['P-X06', 'X-TOWER-HEAT', 'X-TOWER-TOP']],
+  ['One coin line and one sale formula', 'R9, R17', ['E-X02', 'E-X05', 'E-X17', 'E-X18', 'E-X19']],
+  ['The gear curve and exchange rates', 'R10, R11', ['X-LINE-IN-TOOLS', 'X-ARMOR-LINE-FIT', 'P-X34', 'X-POWER-TOOLS']],
+  ['The pace law and the derived kill reward', 'V1, R12, R13', ['E-X01', 'E-X04', 'X-GENTLE-HP', 'X-GENTLE-CAP', 'P-X02', 'P-X42', 'P-X43']],
+  ['Spells read their own weakness', 'R6', ['X-SPELLS-SKIP-WEAKNESS']],
+  ['Drops authored in hours', 'R18', ['E-X14']],
+  ['One amount pipeline', 'R19', ['X-FLOOR-CHAIN', 'X-SHEET-ORDER']],
+  ['One modifier table', 'R20', ['X-STACKING-RULES', 'X-SET-CRIT', 'X-DORMANT-FACTORS', 'S-X01']],
+  ['Every monster reads the formula', 'R21', ['X-HAND-ROWS', 'X-NAMED-HASK-LOOKOUT', 'X-LEVEL-BY-TIER', 'X-SPELL-HOLDS']],
+  ['One skill grant', 'later, with the wipe', ['P-X24', 'P-X25', 'P-X26', 'P-X27']],
+  ['The simulator stops editing and approximating', 'R23', ['X-MUTABLE-ROWS', 'E-X37']],
+];
 
 // ── the build ───────────────────────────────────────────────────────────────
 export function build(lanes, o = {}) {
@@ -235,6 +261,14 @@ export function build(lanes, o = {}) {
     else if (![K, FOLD, RM].includes(r[0]) || !r[2]) problems.push('class 3 row ' + x.id + ': the recommendation must be keep, fold or remove, with a reason');
   }
   for (const id of Object.keys(class3)) if (!three.find((x) => x.id === id)) problems.push('a recommendation names ' + id + ', which is not a class 3 row');
+  // what the model removes: every id a class 4 row, named once
+  const four = exceptions.filter((x) => x.class === 4), removed = new Set();
+  for (const [name, , idsOf] of (o.removes || REMOVES)) for (const id of idsOf) {
+    if (!four.find((x) => x.id === id)) problems.push('"' + name + '" removes ' + id + ', which is not a class 4 row');
+    if (removed.has(id)) problems.push(id + ' is removed by two frameworks');
+    removed.add(id);
+  }
+  const notRemoved = four.filter((x) => !removed.has(x.id)).map((x) => x.id);
   // edges on the ids that stay
   const canon = (id) => { let v = id, n = 0; while (alias.has(v) && n++ < 5) v = alias.get(v); return v; };
   const ids = new Set(formulas.map((f) => f.id));
@@ -266,10 +300,67 @@ export function build(lanes, o = {}) {
     byClass, confirmed: exceptions.filter((x) => x.status === 'CONFIRMED').length, hypothesis: exceptions.filter((x) => x.status === 'HYPOTHESIS').length,
     class3Approved: three.filter((x) => class3[x.id] && class3[x.id][1]).length, class3NoApproval: three.filter((x) => class3[x.id] && !class3[x.id][1]).length,
     classDecided: exceptions.filter((x) => x.decided).length,
+    class4Removed: removed.size, class4Left: notRemoved,
     edges: edges.length, crossEdges: cross.length, inCycle: inCycle.length,
   };
-  return { problems, formulas, exceptions, edges, cross, hubs, inCycle, counts, catOf, class3 };
+  return { problems, formulas, exceptions, edges, cross, hubs, inCycle, counts, catOf, class3, removes: o.removes || REMOVES };
 }
+
+// ── THE KNOB FILE (knobs.json, the audited set of 44 section 5.5, in the format of lane/c-balance-matrix's tools/balance-program/knobs.mjs).
+//    Checked here so it cannot go stale in silence: every site picks exactly the lines and numbers it names on the tree (the matrix's
+//    locateKnob rule), `value` is what the tree holds today, every id is once, a `formula` is in the inventory, a `sharesLineWith` is
+//    mutual and true, and a planned knob names a roadmap step. ──
+const NUM = '(-?\\d+(?:\\.\\d+)?)';
+export function knobValues(root, knob) {
+  const out = [], lines = [];
+  for (const site of knob.sites) {
+    const text = lf(readFileSync(join(root, site.file), 'utf8')).split('\n');
+    const hits = text.map((t, i) => [t, i]).filter(([t]) => t.includes(site.line));
+    if (hits.length !== site.count) throw new Error(site.file + ' has ' + hits.length + ' lines with ' + JSON.stringify(site.line) + ', the knob names ' + site.count);
+    for (const [t, i] of hits) {
+      lines.push(site.file + ':' + (i + 1));
+      for (const n of site.nums) {
+        if (n && n.all) { for (const m of t.matchAll(/(?<![\w.])(-?\d+(?:\.\d+)?)(?![\w.])/g)) out.push(Number(m[1])); continue; }
+        const src = typeof n === 'string' ? n : n.at;
+        const ms = [...t.matchAll(new RegExp('(' + src + ')' + NUM, 'g'))];
+        if (ms.length !== 1) throw new Error(site.file + ':' + (i + 1) + ' has ' + ms.length + ' numbers after /' + src + '/, the knob names 1');
+        out.push(Number(ms[0][2]));
+      }
+    }
+  }
+  return { values: out, lines };
+}
+export function knobProblems(file, formulaIds, root = ROOT) {
+  const out = [];
+  if (!file) return ['knobs.json is missing'];
+  if (file.schema !== KNOB_SCHEMA) out.push('knobs.json: schema ' + file.schema + ' is not ' + KNOB_SCHEMA);
+  const seen = new Set(), linesOf = new Map();
+  for (const k of file.knobs || []) {
+    if (seen.has(k.id)) out.push('knob ' + k.id + ' is listed twice');
+    seen.add(k.id);
+    for (const key of ['label', 'group', 'what']) if (!k[key]) out.push('knob ' + k.id + ' has no ' + key);
+    if (!Array.isArray(k.steps) || !k.steps.includes(1)) out.push('knob ' + k.id + ': steps must include 1 (today)');
+    if (!formulaIds.has(k.formula)) out.push('knob ' + k.id + ' names formula ' + k.formula + ', which is not in the inventory');
+    try {
+      const { values, lines } = knobValues(root, k);
+      linesOf.set(k.id, new Set(lines));
+      if (JSON.stringify(values) !== JSON.stringify(k.value)) out.push('knob ' + k.id + ': the tree holds ' + JSON.stringify(values) + ', knobs.json says ' + JSON.stringify(k.value));
+    } catch (e) { out.push('knob ' + k.id + ': ' + e.message); }
+  }
+  for (const k of file.knobs || []) {
+    const mine = linesOf.get(k.id) || new Set();
+    const sharing = [...linesOf].filter(([id, set]) => id !== k.id && [...set].some((l) => mine.has(l))).map(([id]) => id).sort();
+    if (JSON.stringify(sharing) !== JSON.stringify([...(k.sharesLineWith || [])].sort())) out.push('knob ' + k.id + ' shares a source line with [' + sharing.join(', ') + '], knobs.json says [' + (k.sharesLineWith || []).join(', ') + ']');
+  }
+  for (const p of file.planned || []) {
+    if (seen.has(p.id)) out.push('planned knob ' + p.id + ' is also a live knob, or is listed twice');
+    seen.add(p.id);
+    if (!/^[VR]\d+$/.test(p.arrivesWith || '')) out.push('planned knob ' + p.id + ' names no roadmap step');
+    if (!formulaIds.has(p.formula)) out.push('planned knob ' + p.id + ' names formula ' + p.formula + ', which is not in the inventory');
+  }
+  return out;
+}
+const readKnobs = () => { const t = read(KNOBS_FILE); return t == null ? null : JSON.parse(t); };
 
 // ── what it writes ──────────────────────────────────────────────────────────
 export function tables(b) {
@@ -297,7 +388,11 @@ export function tables(b) {
   const word = { keep: 'Keep and document', fold: 'Fold into a shared mechanic', remove: 'Remove' };
   const CLASS3_TABLE = ['| id | what it is | approved | recommendation | why |', '|---|---|---|---|---|',
     ...b.exceptions.filter((x) => x.class === 3).map((x) => { const r = b.class3[x.id] || ['', null, '']; return '| ' + [x.id + (x.also.length ? ' (' + x.also.join(', ') + ')' : ''), clip(x.what, 170), r[1] || '**none on record**', '**' + (word[r[0]] || '') + '**', r[2]].map(cell).join(' | ') + ' |'; })].join('\n');
-  return { COUNTS, FORMULAS, EXCEPTIONS, EDGES, HUBS, CLASS3: CLASS3_TABLE };
+  const REMOVES_TABLE = ['| Framework | Roadmap steps | Accidental exceptions it removes |', '|---|---|---|',
+    ...b.removes.map(([name, steps, idsOf]) => '| ' + name + ' | ' + steps + ' | ' + idsOf.map((i) => '`' + i + '`').join(', ') + ' |'),
+    '| **In all** | | **' + c.class4Removed + ' of ' + c.byClass[4] + '** |',
+    '| No framework behind it | | ' + (c.class4Left.map((i) => '`' + i + '`').join(', ') || 'none') + ' |'].join('\n');
+  return { COUNTS, FORMULAS, EXCEPTIONS, EDGES, HUBS, CLASS3: CLASS3_TABLE, REMOVES: REMOVES_TABLE };
 }
 
 export function register(b) {
@@ -331,8 +426,20 @@ export function staleOf(jsonText, docText, json, t) {
 function main() {
   const b = build(loadLanes());
   if (b.problems.length) { console.error('architecture-register: ' + b.problems.join('\n  ')); process.exit(2); }
-  const t = tables(b), json = JSON.stringify(register(b), null, 1) + '\n';
   const mode = process.argv[2];
+  const fIds = new Set(b.formulas.map((x) => x.id));
+  const knobs = readKnobs();
+  /* A KNOB'S VALUE IS THE TREE'S. A lane that moves a coefficient moves a knob's `value`: --write reads it again, --check says STALE until
+     it has. A drifted value never fails --selftest (that step proves the checker bites; it must not turn red for a balance change). */
+  if (mode === '--write' && knobs) {
+    for (const k of knobs.knobs) { try { k.value = knobValues(ROOT, k).values; } catch { /* reported below */ } }
+    const text = JSON.stringify(knobs, null, 1) + '\n';
+    if (text !== read(KNOBS_FILE)) writeFileSync(KNOBS_FILE, text);
+  }
+  const knobBad = knobProblems(knobs, fIds);
+  b.counts.knobs = knobs ? knobs.knobs.length : 0; b.counts.knobsPlanned = knobs ? knobs.planned.length : 0;
+  const t = tables(b), json = JSON.stringify(register(b), null, 1) + '\n';
+  if (mode !== '--check' && mode !== '--selftest' && knobBad.length) console.error('architecture-register: knobs.json\n  ' + knobBad.join('\n  '));
   if (mode === '--write') {
     writeFileSync(JSON_FILE, json);
     const doc = read(DOC_FILE);
@@ -340,6 +447,7 @@ function main() {
     console.log('wrote ' + JSON_FILE + (doc != null ? ' and the tables of ' + DOC_FILE : ' (no doc yet)'));
   } else if (mode === '--check') {
     const stale = staleOf(read(JSON_FILE), read(DOC_FILE), json, t);
+    if (knobBad.length) stale.push('knobs.json (' + knobBad.join(' | ') + ')');
     if (stale.length) { console.error('architecture-register: STALE ' + stale.join(', ') + ' (run --write)'); process.exit(1); }
     console.log('architecture-register: in step');
   } else if (mode === '--selftest') {
@@ -349,6 +457,10 @@ function main() {
     const row = '| ' + b.formulas[0].id + ' |';
     const lanes = loadLanes();
     const threeId = b.exceptions.find((x) => x.class === 3).id;
+    /* knob plants are counted against today's problems, on the first knob that has none, so a value a lane moved cannot fail this step */
+    const base = knobBad.length, ki = knobs.knobs.findIndex((k) => !knobBad.some((p) => p.startsWith('knob ' + k.id + ' ') || p.startsWith('knob ' + k.id + ':')));
+    const kp = (file) => knobProblems(file, fIds).length - base;
+    const on = (fn) => ({ ...knobs, knobs: knobs.knobs.map((k, i) => (i === ki ? fn(k) : k)) });
     const without = Object.fromEntries(Object.entries(CLASS3).filter(([k]) => k !== threeId));
     const cases = [
       ['LF, in step', staleOf(json, doc, json, t).length, 0],
@@ -356,16 +468,22 @@ function main() {
       ['CRLF doc with one table row changed', staleOf(crlf(json), crlf(doc.replace(row, row + ' planted |')), json, t).length, 1],
       ['CRLF register with one value changed', staleOf(crlf(json.replace(SCHEMA, 'planted')), crlf(doc), json, t).length, 1],
       ['a merge that names a row no register holds', build(lanes, { formulaMerges: [...FORMULA_MERGES, ['C-HERO-POWER', ['P999'], 'planted']] }).problems.length, 1],
-      ['a merge across two classes with no decision', build(lanes, { exceptionMerges: EXCEPTION_MERGES.map((m) => (m.decided ? { id: m.id, also: m.also } : m)) }).problems.length, b.counts.classDecided],
+      ['a merge across two classes with no decision', build(lanes, { exceptionMerges: EXCEPTION_MERGES.map((m) => (m.decided ? { id: m.id, also: m.also } : m)) }).problems.filter((p) => p.includes('must name `cls`')).length, b.counts.classDecided],
       ['a class 3 row with no recommendation', build(lanes, { class3: without }).problems.length, 1],
+      ['a framework that removes a row that is not class 4', build(lanes, { removes: [...REMOVES, ['planted', 'R0', ['X-MIN-ONE']]] }).problems.length, 1],
+['a knob whose number moved on the tree', kp(on((k) => ({ ...k, value: k.value.map((v) => v + 1) }))), 1],
+      ['a knob whose line is not in the file', knobProblems(on((k) => ({ ...k, sites: [{ ...k.sites[0], line: 'no such line planted' }] })), fIds).filter((p) => p.includes('has 0 lines')).length, 1],
+      ['a knob that names a formula not in the inventory', kp(on((k) => ({ ...k, formula: 'C-PLANTED' }))), 1],
+      ['two knobs on one line with the mark taken off', knobProblems({ ...knobs, knobs: knobs.knobs.map((k) => ({ ...k, sharesLineWith: undefined })) }, fIds).filter((p) => p.includes('shares a source line')).length, knobs.knobs.filter((k) => k.sharesLineWith).length],
+      ['a planned knob with no roadmap step', kp({ ...knobs, planned: knobs.planned.map((p, i) => (i ? p : { ...p, arrivesWith: 'soon' })) }), 1],
       ['a recommendation for a row that is not class 3', build(lanes, { class3: { ...CLASS3, 'X-POWER-LITERALS': [K, null, 'planted'] } }).problems.length, 1],
     ];
     let red = 0;
     for (const [name, got, want] of cases) { const ok = got === want; if (!ok) red++; console.log((ok ? 'ok   ' : 'FAIL ') + name + ': ' + got + (ok ? '' : ' (wanted ' + want + ')')); }
-    if (!doc.includes(row) || !json.includes(SCHEMA) || !b.counts.classDecided) { console.log('FAIL a plant found nothing to change'); red++; }
+    if (!doc.includes(row) || !json.includes(SCHEMA) || !b.counts.classDecided || ki < 0) { console.log('FAIL a plant found nothing to change'); red++; }
     if (red) { console.error('architecture-register --selftest: ' + red + ' case(s) FAILED'); process.exit(1); }
     console.log('architecture-register --selftest: ' + cases.length + ' cases');
   }
   console.log(JSON.stringify(b.counts));
 }
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main();
+if (isMain(import.meta.url)) main();

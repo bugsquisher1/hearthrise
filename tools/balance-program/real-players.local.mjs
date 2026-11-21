@@ -25,6 +25,7 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { isMain } from '../../tests/_is-main.mjs';
 
 const REF = 'nezapsylztqbbwuwembx';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -693,7 +694,8 @@ function fixture(U1, U2, U3) {
 }
 
 /* ── MAIN ───────────────────────────────────────────────────────────────────────────────────────────────────────────── */
-if (ARGS.includes('--selftest')) await selftest();
+/* only when run: calibrate.mjs imports classify from here and must never start a read */
+if (!isMain(import.meta.url)) { /* imported */ } else if (ARGS.includes('--selftest')) await selftest();
 else {
   let raw;
   if (ARGS.includes('--from-raw')) raw = JSON.parse(readFileSync(join(OUT, 'raw.json'), 'utf8'));

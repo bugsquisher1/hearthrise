@@ -5,22 +5,24 @@
 // tab per open conversation (WHISPER below), made when one starts.
 //   id           the tab id (and the store's key for its lines)
 //   label        the tab's word
-//   send         the channel KIND hr_chat_send takes (global | local | party),
+//   send         the channel KIND hr_chat_send takes (global | party | clan),
 //                or null for a read-only tab
 //   placeholder  the input's words: who you are talking to
 //   needs        'party' shows the tab only while the character is in a party;
-//                'guild' would show it only once guilds exist — no guild row
-//                ships until they do (half-built features stay hidden)
+//                'clan' only while the account is in a clan (the server's answer
+//                names the clan's channel: hr_chat_recent's `clan`)
 //   unread       false: the tab never shows an unread dot (the combat log
 //                streams for as long as a hunt runs)
-// The server names the concrete channel (the zone, the party): the client
-// never sends one (supabase/migrations/2026-10-25-chat-channels.sql).
+// The server names the concrete channel (the party, the clan): the client
+// never sends one (supabase/migrations/2026-10-25-chat-channels.sql). There is
+// no Local tab: hunts are instanced, so 'here' is a party, which has its tab, and
+// criers speak in Global (GR-69, Tyler 2026-11-21; 1036-social-clans.sql).
 // ════════════════════════════════════════════════════════════════════════
 
 export const CHAT_TABS = Object.freeze([
   Object.freeze({ id: 'global', label: 'Global', send: 'global', placeholder: 'Message everyone online…' }),
-  Object.freeze({ id: 'local', label: 'Local', send: 'local', placeholder: 'Message everyone here…' }),
   Object.freeze({ id: 'party', label: 'Party', send: 'party', placeholder: 'Message the party…', needs: 'party' }),
+  Object.freeze({ id: 'clan', label: 'Clan', send: 'clan', placeholder: 'Message your clan…', needs: 'clan' }),
   Object.freeze({ id: 'system', label: 'System', send: null, placeholder: 'Server notices, alerts and drops' }),
   Object.freeze({ id: 'combat', label: 'Combat', send: null, placeholder: 'Combat log', unread: false }),
 ]);
@@ -49,10 +51,10 @@ export const CHAT_LIMITS = Object.freeze({
      reads "online" as seen inside 75 s (hr_social_state c_online), and a browser may hold a hidden page's timer to once a minute:
      under 60 s so that minute's firing still asks, whichever cadence the page gets. */
   friendsPollAwayMs: 55000,
-  /* Private broadcast topics one client may join for chat at once (src/social/realtime.js): global,
-     system and the zone are three, and the account's inbox (its whispers and its party's lines) is the
-     fourth; the fifth is slack. Each join is one authorization and one socket subscription on Realtime,
-     so the ceiling is a cost bound, not a feature (2026-12-26-chat-broadcast.sql). */
+  /* Private broadcast topics one client may join for chat at once (src/social/realtime.js): global and
+     system are two, and the account's inbox (its whispers, its party's lines and its clan's lines) is the
+     third; the rest is slack. Each join is one authorization and one socket subscription on Realtime,
+     so the ceiling is a cost bound, not a feature (2026-12-26-chat-broadcast.sql, 1036-social-clans.sql). */
   realtimeBindingsMax: 5,
   /* After a topic (re)joins, the history is re-read this long later, once for the whole burst of joins,
      to add the lines the socket missed while it was down. */
@@ -66,4 +68,26 @@ export const CHAT_LIMITS = Object.freeze({
      perCharacterPerDay  notices one character may post per UTC day; a streak past it is journalled, not posted */
 export const WORLD_NOTICES = Object.freeze({
   rare_drop: Object.freeze({ channel: 'system', perCharacterPerDay: 3 }),
+});
+
+/* ONE GLOBAL FOR THE WHOLE SERVER, IN SMALL BATCHES WITH A SLOW MODE WHEN CROWDED (Tyler 2026-11-20, 28-6, and 2026-11-21, 31-1).
+   supabase/migrations/1036-social-clans.sql seeds the server's rows from these (hr_chat_global_rule, hr_chat_slow_mode) and
+   tests/chat-social.mjs RB-2 holds them equal.
+   GLOBAL_BATCH  the server sends Global's new lines to everyone listening once every `everyS` seconds, as one message, never one a line:
+                 a line is sent once it is `settleS` old (so a send still committing is not skipped), at most `maxLines` a batch. The
+                 sender sees its own line at once, from its send's answer. JUDGMENT: a few seconds is chat, and one message a batch is the
+                 whole of the bill (31-1: "it costs nothing extra").
+   SLOW_MODE     how long one account waits between Global lines, by how many lines the whole room sent in the last minute: the
+                 busiest row at or under the room's rate applies; under the first row only the send limit holds. JUDGMENT, the
+                 playtest reads it: a room of a few is never slowed, a crowded one tightens as it grows. */
+export const GLOBAL_BATCH = Object.freeze({ everyS: 5, settleS: 2, maxLines: 100 });
+export const SLOW_MODE = Object.freeze([
+  Object.freeze({ linesPerMin: 12, gapS: 10 }),
+  Object.freeze({ linesPerMin: 30, gapS: 30 }),
+  Object.freeze({ linesPerMin: 60, gapS: 60 }),
+]);
+
+/* THE WORDS A SLOW MODE REFUSAL READS (the server's `wait_s`). */
+export const SLOW_MODE_WORDS = Object.freeze({
+  wait: (s) => 'Global is busy. You can send again in ' + s + (s === 1 ? ' second.' : ' seconds.'),
 });

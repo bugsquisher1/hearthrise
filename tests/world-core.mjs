@@ -1115,7 +1115,7 @@ async function check(M) {
 }
 
 /* src/data and src/core whole: the scene sheets (src/world/scene-sets.js) read the grounds, effects and rooms, and those their own imports */
-const COPY = ['src/world', 'src/data', 'src/core', 'src/render/images.js', 'src/build-info.js', 'src/render/player-text.js', 'src/render/creature-sprite.js', 'assets/world'];
+const COPY = ['src/world', 'src/data', 'src/core', 'src/render/images.js', 'src/build-info.js', 'src/render/player-text.js', 'src/render/creature-sprite.js', 'src/render/mobile-query.js', 'assets/world'];
 function copyTree() {
   const dir = mkdtempSync(join(tmpdir(), 'world-core-'));
   for (const p of COPY) {

@@ -20,6 +20,10 @@
 //   BC-6  the SKILL LINES (skill-lines.mjs: the skills a career gives a hero at its Level, which a played cell plays when it names none) sit on
 //         the recorded heroes: each recorded hero's main skill within LINE_PTS levels of its line at its Level ('alone' for a hero alone, 'party'
 //         for a party's seat). The old harness hero (every skill at its Level) reads a Level 72 party hero's main skill 72 against 56-59.
+//   BC-7  a shift declared here that covers Krell's Hold and is dated on or after the balance guard's real Krell four (tools/balance-program
+//         model.mjs REAL_KRELL_FOUR.read) is restated on that four too (REAL_KRELL_FOUR_SHIFTS, the same `why`, measured on K1's own cell):
+//         otherwise K1 compares the harness on today's engine with a hunt another engine paid, and a formula change reads as the harness
+//         closing on real play (lane/c-engine-reds: the to-hit ratio and the spell rule moved K1's Level XP 0.83 -> 1.06 with no harness change).
 //
 // JUDGED = `kit: 'held'` (the hunt began after the hero's last setup change, so today's worn set and bar are the ones it hunted in) and
 // an hour or more long. The other samples are context: `node tools/balance-sim/calibrate.mjs --run` prints them all.
@@ -43,6 +47,7 @@ import { loadLines, skillsAt } from '../tools/balance-sim/skill-lines.mjs';
 import { charLevelFromXp, skillLevelFromXp } from '../src/core/xp.js';
 import { HUNT_GROUNDS } from '../src/data/hunt-grounds.js';
 import { HUNT_INDEX } from '../src/data/hunts.js';
+import { REAL_KRELL_FOUR, REAL_KRELL_FOUR_SHIFTS } from '../tools/balance-program/model.mjs';
 import { fileURLToPath } from 'node:url';
 import { resolve, dirname } from 'node:path';
 
@@ -182,6 +187,13 @@ export function lineFails(fx, snap) {
   return { fails, rows };
 }
 
+/** BC-7: every declared shift on Krell's Hold dated on or after the real Krell four's hunt has its twin (same why) on that four. */
+function krellShiftFails(declared, restated, K = REAL_KRELL_FOUR) {
+  const have = new Set((restated || []).map((r) => r.why));
+  return declared.filter((d) => d.after >= K.read && (!d.grounds || d.grounds.includes(K.ground)) && !have.has(d.why))
+    .map((d) => `the shift "${d.why}" (after ${d.after}) is declared on the recorded hunts but not restated on the real Krell four K1 reads (tools/balance-program/model.mjs REAL_KRELL_FOUR_SHIFTS)`);
+}
+
 /** The whole guard on a fixture (and an optional planted drift); answers { fails, lines }. */
 async function check(fx, runner, plant = {}) {
   const fails = [], lines = [];
@@ -196,6 +208,7 @@ async function check(fx, runner, plant = {}) {
   for (const f of seatShareFails(exact, byId)) fails.push('BC-5 ' + f);
   const sl = lineFails(fx, plant.lines || SKILL_LINES);
   for (const f of sl.fails) fails.push('BC-6 ' + f);
+  for (const f of krellShiftFails(DECLARED_SHIFTS, plant.krellShifts || REAL_KRELL_FOUR_SHIFTS)) fails.push('BC-7 ' + f);
   lines.push('skill lines against the recorded heroes (BC-6, within ' + LINE_PTS + ' levels)', ...sl.rows);
   const fmt =(r) => ['killsPerH', 'levelXpPerH', 'coinPerH', 'dealtPerH', 'takenPerH', 'healedPerH', 'storePerH'].map((k) => (r.cmp[k].ratio === null ? '  -  ' : r.cmp[k].ratio.toFixed(2).padStart(5))).join(' ');
   lines.push('recorded heroes (sim over real)   kills    xp  coin dealt taken heald store   deaths real/sim');
@@ -228,6 +241,7 @@ const MUTANTS = [
   /* the pre-fix harness: a party entered by role NAME (play-ground.mjs keyed members `role + seat`), each seat's record moving with it */
   ['the replay enters a party by role name, not by seat', 'BC-5', (fx) => { const f = clone(fx); for (const s of f.samples) s.seats.sort((a, b) => (a.role < b.role ? -1 : a.role > b.role ? 1 : 0)); return { fx: f, plant: { skipPlayed: true } }; }],
   ['the skill lines are every skill at the Level again (the old harness hero)', 'BC-6', (fx) => ({ fx, plant: { lines: 'level', skipPlayed: true } })],
+  ['the real Krell four is read on its own engine (a declared Krell shift not restated for K1)', 'BC-7', (fx) => ({ fx, plant: { krellShifts: REAL_KRELL_FOUR_SHIFTS.slice(1), skipPlayed: true } })],
   ['no hunt is judged (every kit assumed)', 'BC-2', (fx) => { const f = clone(fx); for (const s of f.samples) s.kit = 'assumed'; return { fx: f, plant: { skipPlayed: true } }; }],
 ];
 

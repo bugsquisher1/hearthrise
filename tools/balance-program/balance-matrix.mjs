@@ -12,7 +12,7 @@
 //   node tools/balance-program/balance-matrix.mjs --diff <patch.json> [--subset]   the patch (matrix-scratch.mjs) on a SCRATCH COPY, the same
 //                                                                      cells and the same dice before and after: each cell's section 6 metrics
 //                                                                      and every band of standards.mjs, flagged IMPROVED / REGRESSED / UNINTENDED
-//   node tools/balance-program/balance-matrix.mjs --sweep [--knobs a,b] [--subset]  each knob (knobs.mjs) at each of its five steps: the
+//   node tools/balance-program/balance-matrix.mjs --sweep [--knobs a,b] [--subset]  each knob (formulas/knobs.json) at each of its steps: the
 //                                                                      precomputed table Balance Lab v3 reads (balance-sweeps.json)
 //   node tools/balance-program/balance-matrix.mjs --rates [--quick]   the ground axis alone, written as tools/balance-program/ground-rates.json
 //                                                                      (the solver's table: the SAME cells the matrix plays, one source)
@@ -50,9 +50,9 @@ import { loadGridData, inputHash, compsOf, cellKey } from './progression-grid.mj
 import { loadKits } from './grid-kit.mjs';
 import { RUNS, planMatrix, archetypeTable, WAYS, HIGH_LEVELS } from './matrix-plan.mjs';
 import { METRICS, cellMetrics, slimSeed, deriveMatrix, judgeMatrix, diffMatrices, axisSummary, levelBand, wayOf, styleGroupOf } from './matrix-metrics.mjs';
-import { plantScratch, knobTable, checkPatch, patchEdits, scaled, PATCH_SCHEMA } from './matrix-scratch.mjs';
+import { plantScratch, knobTable, checkPatch, patchEdits, scaled, readKnobs, PATCH_SCHEMA } from './matrix-scratch.mjs';
 import { calibrationJobs, calibrationTable, printCalibration } from './matrix-calibration.mjs';
-import { KNOBS, knobById, STYLE_GROUPS } from './knobs.mjs';
+import { STYLE_GROUPS, KNOB_FILE } from './knob-rules.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..', '..');
@@ -241,11 +241,35 @@ export async function diff(patch, run, o = {}) {
   } finally { s.done(); }
 }
 
+/**
+ * THE GATE (44-formula-architecture.md section 6.2): a patch names its kind, and the diff answers PASS or FAIL for it.
+ *   identity      "this changes no number": every metric of every cell equal and no band row moved (no tolerance)
+ *   coefficient   "this knob moves these bands and nothing else": no UNINTENDED band row
+ *   derivation    "this typed number is now derived": no targeted band row ends in a worse status than it started
+ * No kind: REPORT (the flags are read, nothing fails).
+ */
+export function gateOf(patch, d) {
+  const kind = patch && patch.kind;
+  if (!kind) return { verdict: 'REPORT', why: null };
+  if (kind === 'identity') {
+    const moved = d.cells.flatMap((c) => Object.entries(c.metrics).filter(([, [a, b]]) => a !== b).map(([id]) => c.key + ' ' + id));
+    return moved.length || d.bands.length ? { verdict: 'FAIL', why: moved.length + ' cell metric(s) and ' + d.bands.length + ' band row(s) moved, e.g. ' + (moved[0] || d.bands[0].band + ' ' + d.bands[0].at) } : { verdict: 'PASS', why: 'the diff is empty' };
+  }
+  if (kind === 'coefficient') {
+    const u = d.bands.filter((b) => b.flag === 'UNINTENDED');
+    return u.length ? { verdict: 'FAIL', why: u.length + ' UNINTENDED band row(s), e.g. ' + u[0].way + ' ' + u[0].band + ' at ' + u[0].at } : { verdict: 'PASS', why: 'only targeted bands moved' };
+  }
+  const RANK = { ok: 0, off: 1, RED: 2 };
+  const worse = d.bands.filter((b) => b.flag !== 'UNINTENDED' && RANK[b.statusAfter] > RANK[b.statusBefore]);
+  return worse.length ? { verdict: 'FAIL', why: worse.length + ' targeted band row(s) ended worse, e.g. ' + worse[0].band + ' at ' + worse[0].at + ' ' + worse[0].statusBefore + ' -> ' + worse[0].statusAfter } : { verdict: 'PASS', why: 'every targeted band held or improved' };
+}
+
 /* THE SWEEP: each knob at each step on the subset, every cell's section 6 metrics and the band flags, for the lab's precomputed table */
 async function sweep(run, o) {
   const D = await loadGridData(ROOT), K = await loadKits(ROOT);
-  const ids = arg('knobs') ? arg('knobs').split(',') : KNOBS.map((k) => k.id);
-  for (const id of ids) if (!knobById(id)) throw new Error('sweep: no knob ' + id);
+  const list = readKnobs(ROOT);
+  const ids = arg('knobs') ? arg('knobs').split(',') : list.knobs.map((k) => k.id);
+  for (const id of ids) if (!list.byId.has(id)) throw new Error('sweep: no live knob ' + id + ' in ' + KNOB_FILE);
   const t0 = Date.now();
   const before = await baseline(D, K, run, o);
   const rowsB = judgeMatrix(D, K, before.cells);
@@ -256,7 +280,7 @@ async function sweep(run, o) {
     baseline: compact(before.cells), calibration: before.calibration, knobs: {} };
   doc.at = new Date().toISOString().slice(0, 16) + 'Z';
   for (const id of ids) {
-    const k = knobById(id);
+    const k = list.byId.get(id);
     doc.knobs[id] = doc.knobs[id] || { label: k.label, group: k.group, what: k.what, steps: {} };
     for (const m of k.steps) {
       if (m === 1 || doc.knobs[id].steps[String(m)]) continue;
@@ -305,7 +329,12 @@ export async function runGroundRates(o = {}) {
 async function main() {
   if (has('selftest')) return selftest();
   if (has('knobs')) {
-    for (const k of knobTable()) console.log(k.id.padEnd(16) + k.group.padEnd(15) + k.sites.map((s) => s.at + ' [' + s.values.join(', ') + ']').join('; ') + (k.regen ? '  (rows re-written)' : '') + '\n' + ' '.repeat(31) + k.what + '\n' + ' '.repeat(31) + 'steps ' + k.steps.join(' / '));
+    const list = readKnobs(ROOT);
+    console.log('KNOBS: ' + KNOB_FILE + ' (' + (list.from || 'no source named') + '): ' + list.knobs.length + ' live, ' + list.planned.length + ' planned, ' + list.notKnobs.length + ' families that are not knobs');
+    for (const k of knobTable()) console.log(k.id.padEnd(20) + k.group.padEnd(15) + k.sites.map((s) => s.at + ' [' + s.values.join(', ') + ']').join('; ') + (k.regen ? '  (rows re-written)' : '')
+      + (k.ruled ? '  RULED ' + k.ruled : '') + (k.sharesLineWith.length ? '  shares a line with ' + k.sharesLineWith.join(', ') : '') + (k.stale ? '  STALE: the list\'s value is not today\'s' : '')
+      + '\n' + ' '.repeat(35) + k.what + '\n' + ' '.repeat(35) + 'steps ' + k.steps.join(' / '));
+    for (const p of list.planned) console.log(('planned ' + p.id).padEnd(35) + 'arrives with ' + p.arrivesWith + ': ' + p.home);
     return 0;
   }
   const run = has('subset') ? RUNS.subset : RUNS.full;
@@ -324,8 +353,10 @@ async function main() {
     printDiff(r.d, { patch, run: run.id, cells: r.after.cells.length, applied: r.applied, regen: r.regen });
     if (r.after.calibration) { console.log(''); printCalibration(r.after.calibration, console.log, r.before.calibration); }
     console.log('\nRUNTIME: before ' + (r.before.cached ? 'from the cache' : r.before.runtime.wallS + ' s') + ', after ' + r.after.runtime.wallS + ' s (' + r.after.runtime.workerS + ' worker-s, ' + r.after.runtime.workers + ' workers), diff total ' + Math.round((Date.now() - t0) / 1000) + ' s');
-    if (arg('json')) writeFileSync(resolve(arg('json')), JSON.stringify({ patch, applied: r.applied, regen: r.regen, counts: r.d.counts, bands: r.d.bands, cells: r.d.cells, calibration: { before: r.before.calibration, after: r.after.calibration } }, null, 1));
-    return 0;
+    const gate = gateOf(patch, r.d);
+    console.log('GATE (44 section 6.2, kind ' + (patch.kind || 'none named: report only') + '): ' + gate.verdict + (gate.why ? ' - ' + gate.why : ''));
+    if (arg('json')) writeFileSync(resolve(arg('json')), JSON.stringify({ patch, applied: r.applied, regen: r.regen, gate, counts: r.d.counts, bands: r.d.bands, cells: r.d.cells, calibration: { before: r.before.calibration, after: r.after.calibration } }, null, 1));
+    return gate.verdict === 'FAIL' ? 1 : 0;
   }
   let res;
   if (has('report')) {
@@ -359,6 +390,35 @@ async function selftest() {
   try { table = knobTable(); } catch (e) { check('every knob finds its numbers on the tree', false, e.message); }
   if (table) check('every knob finds its numbers on the tree (' + table.length + ' knobs, ' + table.reduce((a, k) => a + k.sites.length, 0) + ' lines)', table.every((k) => k.sites.length > 0));
   check('a whole number stays whole, a decimal keeps its places', scaled('150', 1.125) === '169' && scaled('0.35', 1.1) === '0.385' && scaled('2', 1.25, true) === '2.5');
+  check('every knob\'s numbers today are the list\'s `value` (no stale knob)', table && table.every((k) => !k.stale), table && table.filter((k) => k.stale).map((k) => k.id).join(', '));
+  /* 1b. KNOBS ON ONE LINE (knobs.json sharesLineWith): one edit a line, built from the untouched line, every pick scaled; two knobs on one
+     number multiply; and the plant applies it (its exactly-once anchor would refuse a second edit built from the untouched line) */
+  const list = readKnobs(ROOT);
+  const shared = list.knobs.filter((k) => (k.sharesLineWith || []).length);
+  const pair = shared.length ? [shared[0].id, shared[0].sharesLineWith[0]] : null;
+  if (!pair) check('the list has knobs that share a line (sharesLineWith)', false, 'none');
+  else {
+    const pe = patchEdits(ROOT, { knobs: { [pair[0]]: 1.25, [pair[1]]: 0.75 } }, list);
+    const files = pe.edits.map(([f, from]) => f + ':' + from);
+    const one = new Set(files).size === files.length;
+    const both = pe.applied.filter((a) => a.sharedWith).length >= 2 && pe.applied.every((a) => a.to.every((v, i) => v !== a.from[i]));
+    const sp = await plantScratch({ knobs: { [pair[0]]: 1.25, [pair[1]]: 0.75 } });
+    const landed = pe.applied.every((a) => readFileSync(join(sp.root, a.file), 'utf8').split('\n')[a.line - 1].includes(a.to[0]));
+    sp.done();
+    check('two knobs on one line (' + pair.join(' + ') + '): one edit a line, both moved, and the copy holds both', one && both && landed, JSON.stringify(pe.applied).slice(0, 300));
+    /* the same number picked by two knobs multiplies (a planted list: the same site twice) */
+    const k0 = list.byId.get(pair[0]);
+    const twin = { ...list, byId: new Map([...list.byId, ['twinOf' + pair[0], { ...k0, id: 'twinOf' + pair[0] }]]) };
+    const pt = patchEdits(ROOT, { knobs: { [pair[0]]: 1.25, ['twinOf' + pair[0]]: 1.25 } }, twin);
+    const a0 = pt.applied.find((a) => a.knob === pair[0]);
+    check('two knobs on the same number multiply (x1.25 twice is x1.5625)', pt.edits.length === k0.sites.reduce((n, s) => n + (s.count || 1), 0) && a0.to[0] === scaled(a0.from[0], 1.5625, k0.sites[0].nums[0] && k0.sites[0].nums[0].float), JSON.stringify(a0));
+  }
+  /* 1c. the gate: each kind passes and fails on planted diffs */
+  const dEmpty = { cells: [{ key: 'x', metrics: { dps: [1, 1, 0] } }], bands: [] }, dMoved = { cells: [{ key: 'x', metrics: { dps: [1, 2, 1] } }], bands: [{ way: 'hammer', band: 'S1.mid', at: 'a', flag: 'UNINTENDED', statusBefore: 'ok', statusAfter: 'off' }] };
+  const dWorse = { cells: [], bands: [{ way: 'hammer', band: 'P2', at: 'a', flag: 'REGRESSED', statusBefore: 'ok', statusAfter: 'RED' }] };
+  check('the gate: identity passes an empty diff and fails a moved one; coefficient fails an UNINTENDED band; derivation fails a targeted band gone worse; no kind only reports',
+    gateOf({ kind: 'identity' }, dEmpty).verdict === 'PASS' && gateOf({ kind: 'identity' }, dMoved).verdict === 'FAIL' && gateOf({ kind: 'coefficient' }, dMoved).verdict === 'FAIL'
+    && gateOf({ kind: 'coefficient' }, dWorse).verdict === 'PASS' && gateOf({ kind: 'derivation' }, dWorse).verdict === 'FAIL' && gateOf({ kind: 'derivation' }, dMoved).verdict === 'PASS' && gateOf({}, dMoved).verdict === 'REPORT');
   /* 2. the scratch copy: a path outside the planted trees is refused; the real tree is never written */
   let refused = false;
   try { checkPatch({ edits: [{ file: 'tools/balance-program/standards.mjs', from: 'a', to: 'b' }] }); } catch { refused = true; }

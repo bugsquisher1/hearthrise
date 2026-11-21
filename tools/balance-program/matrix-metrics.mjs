@@ -16,7 +16,7 @@ import * as STD from './standards.mjs';
 import { cellRates } from './progression-grid.mjs';
 import { judgeGrid, statusOf } from './grid-derive.mjs';
 import { ARCHETYPE_AXES } from './matrix-plan.mjs';
-import { STYLE_GROUPS } from './knobs.mjs';
+import { STYLE_GROUPS } from './knob-rules.mjs';
 
 const finite = (x) => typeof x === 'number' && Number.isFinite(x);
 const r = (x, d = 0) => (finite(x) ? Math.round(x * 10 ** d) / 10 ** d : null);

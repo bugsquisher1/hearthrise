@@ -1,17 +1,17 @@
 {
  "schema": "hearthrise.balance-patch/1",
- "name": "The Level law timed on the MID four on Dangerous (seat multiple 1.327, R13's default 1.741)",
- "why": "S-11 (RULED 2026-11-21, c): the Level table is the clock of the MID four on Dangerous after its deaths, read again before Early Access from real XP and the calibrated simulator. The multiple is fitted on the sample P1 grades: the full matrix (44948522187), the pace seat's hours to Levels 100, 200, 300, 400 against the ruled 600, 1680, 3120, 4580 hours, least squares on the logs. Layer: coefficient. Written by proposals.mjs --fit-seat",
+ "name": "The Level law timed on the MID four on Dangerous (seat multiple 1.153, R13's default 1.741)",
+ "why": "S-11 (RULED 2026-11-21, c): the Level table is the clock of the MID four on Dangerous after its deaths, read again before Early Access from real XP and the calibrated simulator. The multiple is fitted on the sample P1 grades: the full matrix (44957840040), the pace seat's hours to Levels 100, 200, 300, 400 against the ruled 600, 1680, 3120, 4580 hours, least squares on the logs. Layer: coefficient. Written by proposals.mjs --fit-seat",
  "kind": "coefficient",
  "targets": [
   "P1",
   "P12"
  ],
  "measuredOn": {
-  "run": "44948522187",
+  "run": "44957840040",
   "cells": "the full matrix, the MID four on Dangerous at every checkpoint to 400",
   "seat": "mid:4:dangerous",
-  "from": 1.261,
+  "from": 1.327,
   "readings": [
    [
     100,
@@ -19,15 +19,15 @@
    ],
    [
     200,
-    0.99
+    1.076
    ],
    [
     300,
-    1.02
+    1.004
    ],
    [
     400,
-    1.099
+    1.03
    ]
   ]
  },
@@ -35,7 +35,7 @@
   {
    "file": "src/core/xp.js",
    "from": "m: 1.741, from: 10 };",
-   "to": "m: 1.327, from: 10 };"
+   "to": "m: 1.153, from: 10 };"
   }
  ]
 }

@@ -6,7 +6,7 @@
 //   node tests/ledger-hours.mjs            the guard (replays the chain, plays the shipped engine)
 //   node tests/ledger-hours.mjs --mutate   each planted defect turns its arm red (1037's own self-check off, so this file catches it)
 //
-// mutant-anchors: MUTANTS below (each patches 1037-hourly-journal.sql in the replay; nothing tracked is written)
+// mutant-anchors: supabase/migrations/1037-hourly-journal.sql
 //
 // ── WHAT IT PLAYS ──────────────────────────────────────────────────────────
 // Four of tests/per-player-cost.mjs's fixtures through their own doors with the SHIPPED edge: a lone hero and the supply-heavy

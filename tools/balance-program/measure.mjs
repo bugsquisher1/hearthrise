@@ -75,7 +75,7 @@ export function rowOf(m, party) {
     defenseXpPerH: Math.round(mean(hs.map((h) => (h.skillXpPerH || {}).defense || 0))),
     incomePerH: Math.round(mean(hs.map((h) => h.incomePerH))), storePerH: Math.round(mean(hs.map((h) => h.storePerH))),
     netPerH: Math.round(mean(hs.map((h) => h.profitPerH))), netWithRaresPerH: Math.round(mean(hs.map((h) => h.netWithRaresPerH))),
-    takenPerH: Math.round(mean(hs.map((h) => h.takenPerH))), killsPerH: m.party.killsPerH, deaths: hs.reduce((n, h) => n + h.deaths, 0),
+    takenPerH: Math.round(mean(hs.map((h) => h.takenPerH))), takenBySeat: hs.map((h) => Math.round(h.takenPerH)), killsPerH: m.party.killsPerH, deaths: hs.reduce((n, h) => n + h.deaths, 0),
     lowHpP10: Math.min(...hs.map((h) => (h.encMinHpPct || {}).p10 ?? 100)),
   };
 }

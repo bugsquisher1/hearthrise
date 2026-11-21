@@ -43,6 +43,17 @@ const DEATH_SAMPLE_HERO_H = 32;
 export const deathOf = (c) => (c.deaths && c.deaths.sample ? { per1000h: c.deaths.deathsPer1000h, seatHours: c.deaths.sample.heroHours / c.party, net: c.deaths.netLevelXpPerH, low: c.deaths.lowHpTypical, planned: true }
   : { per1000h: c.rates.deathsPer1000h, seatHours: c.rates.sample.heroHours / c.party, net: c.rates.netLevelXpPerH, low: c.rates.lowHpTypical });
 
+/* S2 AND S7 ARE NORMAL'S DEATHS, and the deaths run plays the harder tiers only (RUNS.deaths.tiers), so no Normal cell ever carries a planned death
+   sample and both bands sat thin for good. A rate of 1 in 1,000 hours cannot be seen in one cell at any sample a night can play: it is judged on
+   the POOL of the band's cells (every in-band Normal cell of the gear state, each on its own 2 x 2 h), once the pool holds 1,000 hero-hours. */
+export const POOL_HERO_H = 1000;
+export function pooledDeaths(cells) {
+  let deaths = 0, hours = 0;
+  for (const c of cells) { if (!c.rates || !finite(c.rates.deaths) || !c.rates.sample) continue; deaths += c.rates.deaths; hours += c.rates.sample.heroHours; }
+  if (!(hours > 0)) return null;
+  return { at: 'POOLED: ' + cells.length + ' cells', deaths, hours, per1000h: (1000 * deaths) / hours, shown: deaths + ' deaths in ' + Math.round(hours) + ' hero-hours' };
+}
+
 /* ── the cells, looked up ──────────────────────────────────────────────────────────────────────────────────────────────────────── */
 function indexCells(grid) {
   const by = new Map();
@@ -210,7 +221,9 @@ export function judgeGrid(D, grid, o = {}) {
     }
     if (id === 'P2') { for (const c of cellsWhere(w)) add(band, at(c), c.rates.xContract); continue; }
     if (id === 'P3' || id === 'P4') { for (const c of cellsWhere(w)) add(band, at(c), ratio(c.rates.levelXpPerH, (get(c.L, 'mid', c.party, c.tier) || {}).rates?.levelXpPerH)); continue; }
-    if (id === 'P5') { for (const c of cellsWhere({ gear: 'bis' })) add(band, at(c), ratio(c.rates.levelXpPerH, (get(c.L, 'low', c.party, c.tier) || {}).rates?.levelXpPerH)); continue; }
+    /* P5 reads NORMAL only: on the harder tiers LOW is ruled to fail (S3.low, S4.low "dies", G-5 "nets under zero"), so BiS over a kit that dies at once
+       is a ratio of nothing (the first baseline's top red, 277 at Level 20 lone Deadly, was LOW earning 584 XP an hour between deaths) */
+    if (id === 'P5') { for (const c of cellsWhere({ gear: 'bis', tier: 'normal' })) add(band, at(c), ratio(c.rates.levelXpPerH, (get(c.L, 'low', c.party, c.tier) || {}).rates?.levelXpPerH)); continue; }
     if (/^P6\./.test(id)) { for (const c of cellsWhere(w)) add(band, at(c), ratio(c.rates.levelXpPerH, (get(c.L, 'mid', 1, c.tier) || {}).rates?.levelXpPerH)); continue; }
     if (/^P7\./.test(id)) {
       for (const L of levels) { if (w.levels && (L < w.levels[0] || L > w.levels[1])) continue; const h = T.hardest(L, 'mid', w.party); if (h.party !== w.party) continue; const c = get(L, 'mid', w.party, h.tier); if (c) add(band, at(c), c.rates.xContract); }
@@ -249,15 +262,38 @@ export function judgeGrid(D, grid, o = {}) {
       continue;
     }
     if (/^S1\.|^S3\.|^S4\./.test(id)) { for (const c of cellsWhere(w)) add(band, at(c), c.rates.lowHpTypical); continue; }
-    if (/^S2\.|^S6\./.test(id)) { for (const c of cellsWhere(w)) add(band, at(c), deathOf(c).per1000h, sampleOk(c) ? {} : { status: 'thin', why: Math.round(deathOf(c).seatHours) + ' hours a seat (X26: 4 seeds x 8 h; progression-grid.mjs --deaths plays it)' }); continue; }
+    if (/^S2\.|^S6\./.test(id)) {
+      for (const c of cellsWhere(w)) add(band, at(c), deathOf(c).per1000h, sampleOk(c) ? {} : { status: 'thin', why: Math.round(deathOf(c).seatHours) + ' hours a seat (X26: 4 seeds x 8 h; progression-grid.mjs --deaths plays it)' });
+      if (/^S2\./.test(id)) { const p = pooledDeaths(cellsWhere(w)); if (p) add(band, p.at, p.per1000h, p.hours >= POOL_HERO_H ? { shown: p.shown } : { status: 'thin', shown: p.shown, why: p.shown + ' (a pool judges from ' + POOL_HERO_H + ' hero-hours)' }); }
+      continue;
+    }
     if (/^S5\./.test(id)) { for (const c of cellsWhere(w)) add(band, at(c), ratio(c.rates.takenPerH, (get(c.L, 'mid', c.party, c.tier) || {}).rates?.takenPerH)); continue; }
-    if (/^S7\./.test(id)) { for (const c of cellsWhere(w)) add(band, at(c), Math.exp(-(deathOf(c).per1000h / 1000) * 12), sampleOk(c) ? {} : { status: 'thin', why: Math.round(deathOf(c).seatHours) + ' hours a seat' }); continue; }
+    if (/^S7\./.test(id)) {
+      for (const c of cellsWhere(w)) add(band, at(c), Math.exp(-(deathOf(c).per1000h / 1000) * 12), sampleOk(c) ? {} : { status: 'thin', why: Math.round(deathOf(c).seatHours) + ' hours a seat' });
+      const p = pooledDeaths(cellsWhere(w));
+      if (p) add(band, p.at, Math.exp(-(p.per1000h / 1000) * 12), p.hours >= POOL_HERO_H ? { shown: p.shown } : { status: 'thin', shown: p.shown, why: p.shown + ' (a pool judges from ' + POOL_HERO_H + ' hero-hours)' });
+      continue;
+    }
     if (id === 'S10') {
       for (const L of levels.filter((x) => x >= w.levels[0])) {
         const c = get(L, 'mid', 1, 'normal');
         if (!c) continue;
         const price = [1, 2, 3].reduce((s, t) => s + (D.BL.blessingPrice(t, L) || 0), 0), saved = (T.deathXp(L) * (1 - STD.DEATH_COST.blessedShare)) / c.rates.levelXpPerH;
         add(band, 'Level ' + L, c.rates.netPerH > 0 ? price / c.rates.netPerH / saved : null, { shown: Math.round(price) + ' gold, saves ' + saved.toFixed(1) + ' h' });
+      }
+      continue;
+    }
+    if (/^S11\./.test(id)) {
+      const key = id === 'S11.blessed' ? 'afterRuledBlessed' : 'afterRuledUnblessed';
+      for (const L of levels) {
+        if (w.levels && (L < w.levels[0] || L > w.levels[1])) continue;
+        const h = T.hardest(L, 'mid', 4), lone = get(L, 'mid', 1, 'normal');
+        if (h.party !== 4 || h.tier === 'normal' || !lone) continue;
+        const row = T.watch.find((x) => x.L === L && x.party === 4 && x.gear === 'mid');
+        const t = row && row[h.tier];
+        if (!t || !finite(t[key])) continue;
+        add(band, 'Level ' + L + ' (the MID four, hardest tier held)', ratio(t[key], lone.rates.netLevelXpPerH) ?? (t[key] <= 0 ? t[key] / lone.rates.netLevelXpPerH : null),
+          { shown: fmt(t[key]) + ' on ' + h.tier + ' at ' + t.ruledCount + ' deaths in 1,000 h / ' + fmt(lone.rates.netLevelXpPerH) + ' alone' });
       }
       continue;
     }
@@ -271,8 +307,11 @@ export function judgeGrid(D, grid, o = {}) {
     if (id === 'G-4' || id === 'G-5') { for (const c of cellsWhere(w)) add(band, at(c), c.rates.netPerH); continue; }
     if (id === 'G-6') { for (const c of cellsWhere({ gear: 'bis', tier: 'deadly' })) { const m = get(c.L, 'mid', c.party, 'dangerous'); add(band, at(c), m && m.rates.netPerH > 0 ? c.rates.netPerH / m.rates.netPerH : null); } continue; }
     if (id === 'G-8') { for (const g of T.gearRows) { const c = get(g.L, 'mid', 1, 'normal'); add(band, 'Level ' + g.L, c && c.rates.netADay > 0 ? g.dearest / c.rates.netADay : null, { shown: Math.round(g.dearest) + ' gold' }); } continue; }
-    if (id === 'G-10' || id === 'E4') { for (const g of T.gearRows) add(band, 'Level ' + g.L + ' (band ' + g.band + ')', g.e4, { shown: Math.round(g.midToBis) + ' / ' + Math.round(g.bandNet || 0) }); continue; }
-    if (id === 'E3') { for (const g of T.gearRows) add(band, 'Level ' + g.L + ' (band ' + g.band + ')', g.e3, { shown: Math.round(g.lowToMid) + ' / ' + Math.round(g.bandNet || 0) }); continue; }
+    /* past 185 the gear is the projector's line (grid-project.mjs), which carries power and no price row: a cost of nothing there is a missing row,
+       never a measured "BiS is free" (the first baseline read 2,130 gold for every band from 200 to 400 and judged it RED) */
+    const unpriced = (g) => (STD.stretchOf(g.L).state === 'PROJECTED' ? { status: 'n/a', why: 'the projected gear line has no price rows (grid-project.mjs)' } : {});
+    if (id === 'G-10' || id === 'E4') { for (const g of T.gearRows) add(band, 'Level ' + g.L + ' (band ' + g.band + ')', g.e4, { shown: Math.round(g.midToBis) + ' / ' + Math.round(g.bandNet || 0), ...unpriced(g) }); continue; }
+    if (id === 'E3') { for (const g of T.gearRows) add(band, 'Level ' + g.L + ' (band ' + g.band + ')', g.e3, { shown: Math.round(g.lowToMid) + ' / ' + Math.round(g.bandNet || 0), ...unpriced(g) }); continue; }
     if (id === 'E1.levels') { const B = o.K ? o.K.BANDS : []; for (let i = 1; i < B.length; i++) add(band, B[i - 1] + '->' + B[i], B[i] - B[i - 1]); continue; }
     if (id === 'E1.weapon') { for (const g of T.gearRows) add(band, 'Level ' + g.L, g.weaponStep); continue; }
     if (id === 'E1.armor') { for (const g of T.gearRows) add(band, 'Level ' + g.L, g.armorStep); continue; }
@@ -402,6 +441,8 @@ export async function selftest({ ROOT, loadGridData, loadKits, readGrid, quick }
   plant('gold: LOW on Deadly makes money (+50k a hero-hour)', 'G-5', (c) => c.gear === 'low' && c.party !== 2 && c.tier === 'deadly', (c) => { c.rates.netPerH = 50000; }, label);
   plant('gold: the store eats 95% of a MID Deadly party\'s coin', 'G-2.deadly', (c) => c.gear === 'mid' && c.party !== 2 && c.tier === 'deadly' && inBandCell(D, c), (c) => { c.rates.storeShare = 0.95; }, label);
   plant('gear: BiS twice MID alone', 'P4', (c) => c.gear === 'bis' && c.party === 1 && c.tier === 'normal', (c) => { c.rates.levelXpPerH *= 2; }, label);
+  plant('gear: BiS three times LOW alone on Normal', 'P5', (c) => c.gear === 'bis' && c.party === 1 && c.tier === 'normal' && c.L >= 15, (c) => { c.rates.levelXpPerH *= 3; }, label);
+  plant('death: the lone hero on Normal at five times its Level XP (a party at the ruled death count is then slower than its heroes alone)', 'S11.blessed', (c) => c.gear === 'mid' && c.party === 1 && c.tier === 'normal' && c.L >= 35 && c.L <= 110, (c) => { c.rates.netLevelXpPerH *= 5; c.rates.levelXpPerH *= 5; }, (c) => 'Level ' + c.L + ' (the MID four, hardest tier held)');
   plant('pace: one Level of the pace seat takes days (its checkpoint at a fiftieth of the Level XP)', 'P12.to300', null, null, null);
   plant('gear: LOW to MID costs more than the band earns (lone MID net at 1 gold an hour)', 'E3', (c) => c.gear === 'mid' && c.party === 1 && c.tier === 'normal' && c.L >= 15, (c) => { c.rates.netPerH = 1; c.rates.netADay = 12; }, (c) => 'Level ' + c.L + ' (band ' + K.bandOf(c.L) + ')');
   let fails = 0;
@@ -431,6 +472,44 @@ export async function selftest({ ROOT, loadGridData, loadKits, readGrid, quick }
     const j = judgeGrid(D, g, { K }); const newly = j.rows.filter((r) => r.status === 'RED' && !clean.rows.some((q) => q.band === r.band && q.at === r.at && q.status === 'RED'));
     const ok = !newly.length; if (!ok) fails++;
     console.log('  ' + (ok ? 'SILENT ' : 'NOISY  ') + 'NEGATIVE CONTROL: one lone MID cell +1% Level XP' + (ok ? '' : ': newly red ' + newly.map((r) => r.band + ' ' + r.at).join(', ')));
+  }
+  /* P5 is Normal's: BiS far over LOW on a harder tier (where LOW is ruled to fail) must not turn it red */
+  {
+    const g = clone(); const c = find((x) => x.gear === 'bis' && x.party === 1 && x.tier === 'deadly'); g.cells[c.key].rates.levelXpPerH *= 50;
+    const got = [...redAt(judgeGrid(D, g, { K }), 'P5')].filter((a) => !redAt(clean, 'P5').has(a));
+    /* and no P5 row is read off Normal at all (a cell already red there would hide the plant above) */
+    const off = clean.rows.filter((r) => r.band === 'P5' && !/ normal$/.test(String(r.at)));
+    const ok = !got.length && !off.length; if (!ok) fails++;
+    console.log('  ' + (ok ? 'SILENT ' : 'NOISY  ') + 'P5 on a harder tier: a lone BiS Deadly cell at 50 times its Level XP, and no P5 row off Normal' + (ok ? '' : ': P5 newly red at ' + (got.join(', ') || 'nothing') + '; ' + off.length + ' row(s) off Normal'));
+  }
+  /* S2 and S7 are judged on the pool: deaths planted across Normal MID cells (no one cell's sample can see them) must turn both red */
+  {
+    const g = clone(); let n = 0;
+    for (const c of Object.values(g.cells)) if (c.rates && !c.step && c.gear === 'mid' && c.tier === 'normal' && inBandCell(D, c) && n < 40) { c.rates.deaths = (c.rates.deaths || 0) + 5; n++; }
+    for (const c of Object.values(g.cells)) if (c.rates && c.rates.sample) c.rates.sample.heroHours *= 20;   // a pool wide enough to judge on the quick grid too (its Normal MID pool is about 110 hero-hours)
+    const j = judgeGrid(D, g, { K });
+    const row = (b) => j.rows.find((r) => r.band === b && String(r.at).startsWith('POOLED'));
+    const ok = row('S2.mid') && row('S2.mid').status === 'RED' && row('S7.mid') && row('S7.mid').status === 'RED';
+    if (!ok) fails++;
+    console.log('  ' + (ok ? 'CAUGHT ' : 'MISSED ') + 'deaths: 5 deaths planted in each of ' + n + ' Normal MID cells: the pooled rows read S2.mid ' + (row('S2.mid') || {}).status + ' (' + (row('S2.mid') || {}).shown + '), S7.mid ' + (row('S7.mid') || {}).status);
+  }
+  /* the projected gear line has no price: its checkpoints are never judged on a gear cost */
+  {
+    const bad = clean.rows.filter((r) => ['G-10', 'E4', 'E3'].includes(r.band) && Number(String(r.at).split(' ')[1]) >= 200 && r.status !== 'n/a');
+    const ok = !bad.length; if (!ok) fails++;
+    console.log('  ' + (ok ? 'SILENT ' : 'NOISY  ') + 'gear cost past 185 (no price rows) is not judged' + (ok ? '' : ': ' + bad.map((r) => r.band + ' ' + r.at + ' ' + r.status).join(', ')));
+  }
+  /* the heroes past the measured skill line (Level 100) are the game's own reference hero, never a straight line in skill levels (fault F15:
+     Melee 198 at Level 400 where the curve allows 129) */
+  {
+    const TH = await import(pathToFileURL(join(ROOT, 'src/data/to-hit.js')).href);
+    const bad = [];
+    for (const L of [110, 200, 400]) {
+      const sk = D.skillsAt(D.lines, 'alone', 'hammer', L), ref = TH.REF_HERO.find((r) => r[0] === L);
+      if (!ref || sk.melee !== ref[1] || sk.defense !== ref[2]) bad.push('Level ' + L + ': Melee ' + sk.melee + ' Defense ' + sk.defense + ', the reference hero ' + (ref ? ref[1] + ' / ' + ref[2] : 'has no row'));
+    }
+    const ok = !bad.length; if (!ok) fails++;
+    console.log('  ' + (ok ? 'SILENT ' : 'NOISY  ') + 'the lone hammer past Level 100 is the reference hero the monsters are written against' + (ok ? ' (Melee ' + D.skillsAt(D.lines, 'alone', 'hammer', 400).melee + ' at Level 400)' : ': ' + bad.join('; ')));
   }
   /* the kits: a changed RULE (LOW two tiers under), a changed DATA row (a planted gettable ring of a higher tier) */
   {

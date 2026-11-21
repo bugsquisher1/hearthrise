@@ -407,7 +407,11 @@ function judge(I) {
     const K = { ...MODEL.REAL_KRELL_FOUR, ...realKrellNow() }, r = R('krell-real');
     const net = r ? r.incomePerH - r.storePerH * (1 - K.ownStockShare) : NaN;
     line('K1', r ? [row('Level XP', r.levelXpPerH / K.levelXpAHeroHour, band('K1'), f2, ' (' + kG(r.levelXpPerH) + ')'), row('kills', r.killsPerH / K.killsAClockHour, band('K1'), f2, ' (' + r.killsPerH + ')'),
-      row('net gold', net / K.netGoldAHeroHour, band('K1'), f2, ' (' + kG(net) + ')')] : [{ at: 'krell', value: NaN, status: 'ERR', shown: 'no cell' }],
+      row('net gold', net / K.netGoldAHeroHour, band('K1'), f2, ' (' + kG(net) + ')'),
+      /* who takes the blows (51-baseline.md F16): the share of the four's damage on the last seat, and the four's damage a clock hour, each over the real hunt's */
+      ...(Array.isArray(r.takenBySeat) && r.takenBySeat.length ? (() => { const tot = r.takenBySeat.reduce((a, b) => a + b, 0), last = r.takenBySeat[r.takenBySeat.length - 1];
+        return [row('last seat dmg share', tot > 0 ? last / tot / K.damageShareLastSeat : NaN, band('K1'), f2, ' (' + (tot > 0 ? Math.round((100 * last) / tot) : '?') + '%)'),
+          row('party dmg', tot / K.damageAClockHour, band('K1'), f2, ' (' + kG(tot) + ')')]; })() : [])] : [{ at: 'krell', value: NaN, status: 'ERR', shown: 'no cell' }],
     'harness / ' + K.label + ', restated on the engine of today (' + K.shifts + ' formula shifts since its hunt); harness deaths ' + (r ? r.deaths : '?') + ' in ' + (r ? r.heroHours.toFixed(0) : '?') + ' hero-hours');
   }
   /* ── the plan audit's lines (31-plan-audit.md M2, M5, M9) ── */
@@ -535,6 +539,14 @@ function calibrate(J) {
   J.rows['krell-real'] = { ...r, levelXpPerH: K.levelXpAHeroHour, killsPerH: K.killsAClockHour, incomePerH: K.netGoldAHeroHour, storePerH: 0 };
   return J;
 }
+/* UNCALIBRATE: K1 reads the harness at half the real four's Level XP and kills (the gate shuts), wherever it reads today. The K1 gate's negative
+   control runs on it: with the real seats and the hunt restated on today's engine K1's Level XP sits at the gate's own edge (0.90), and a
+   control that needed the measured K1 to be outside the gate went NOISY the day the harness came into band (51-baseline.md F16). */
+function uncalibrate(J) {
+  const K = realKrellNow(), r = J.rows['krell-real'];
+  J.rows['krell-real'] = { ...r, levelXpPerH: K.levelXpAHeroHour * 0.5, killsPerH: K.killsAClockHour * 0.5 };
+  return J;
+}
 function inBandNightly(J) {
   J.nightly = true;
   for (const p of GC.DEADLY_POINTS) {
@@ -558,8 +570,8 @@ async function selftest(workers) {
   const clean0 = judge(I);
   if (exitOf(clean0, false) !== 0) { console.log('HARNESS: the clean tree is red in plain mode (' + [...redSet(clean0)].join(', ') + '): fix that before proving the plants'); return 2; }
   /* the clean judge each pre-step plants on */
-  const CLEAN = { none: clean0, cal: judge(calibrate(clone(I))), nightly: judge(inBandNightly(clone(I))) };
-  const PRE = { none: (J) => J, cal: calibrate, nightly: inBandNightly };
+  const CLEAN = { none: clean0, cal: judge(calibrate(clone(I))), nightly: judge(inBandNightly(clone(I))), uncal: judge(uncalibrate(clone(I))) };
+  const PRE = { none: (J) => J, cal: calibrate, nightly: inBandNightly, uncal: uncalibrate };
   /* the scan plants: a module's copy with one more row */
   const plantScan = async (file, edit) => SCAN.scanLevers(ROOT, async (f) => { const m = await SCAN.loadData(ROOT)(f); return f === file ? edit(m) : m; });
   const withItem = (row) => (m) => ({ ...m, ITEMS: { ...m.ITEMS, planted_meal: row } });
@@ -601,8 +613,8 @@ async function selftest(workers) {
   plant('NEGATIVE CONTROL: the Glade\'s lone hammer +1% Level XP', () => ({ at: 'none' }), (J) => { J.rows['ref:glade:lone'].levelXpPerH *= 1.01; }, { control: true });
   plant('NEGATIVE CONTROL: a meal that only heals (no buff)', () => ({ at: 'none' }), async (J) => { J.scan = await plantScan('items.js', withItem({ n: 'Planted Bread', heals: 10 })); }, { control: true });
   plant('NEGATIVE CONTROL: a new bow row that replaces Precision Shot (shares its cooldown)', () => ({ at: 'none' }), (J) => { J.data.bar.rows.push({ id: 'planted_shot', lane: 'offense', cdMs: 4000, disciplines: ['ranged'], replaces: 'precision_shot' }); }, { control: true });
-  plant('NEGATIVE CONTROL (the K1 gate): the four x1.6 while K1 reads the harness as measured stays uncalibrated', () => ({ at: 'none' }), (J) => { for (const p of GC.FOUR_POINTS) J.rows['ref:' + p.id + ':four'].levelXpPerH *= 1.6; },
-    { control: true, check: (got) => calibration(I).xp || got.find((l) => l.id === 'G3').status === 'uncalibrated' });
+  plant('NEGATIVE CONTROL (the K1 gate): the four x1.6 while K1 reads the harness at half the real four stays uncalibrated', () => ({ at: 'none' }), (J) => { for (const p of GC.FOUR_POINTS) J.rows['ref:' + p.id + ':four'].levelXpPerH *= 1.6; },
+    { control: true, pre: 'uncal', check: (got) => got.find((l) => l.id === 'G3').status === 'uncalibrated' });
 
   let fails = 0, n = 0;
   console.log('BALANCE GUARD --selftest: ' + P.length + ' plants on one clean measure (' + I.cells + ' cells, ' + (I.wallMs / 1000).toFixed(0) + ' s); each must turn its OWN row red and no other'

@@ -43,9 +43,18 @@ export function bandEnds(HUNT_INDEX, g, ground = null) {
 }
 
 /**
- * The cells to play. opts: { HUNT_GROUNDS, HUNT_INDEX, OPEN_GROUNDS, PARTIES, tiersOf, quick, seeds, hours, only (ground ids) }.
+ * The cells to play. opts: { HUNT_GROUNDS, HUNT_INDEX, OPEN_GROUNDS, PARTIES, tiersOf, pullOf, quick, seeds, hours, only (ground ids) }.
+ * A HARDER TIER CARRIES ITS PULL (pullOf(ground, tier, size): hunt-tiers.js pullOfTier on the ground's tier row), as progression-grid.mjs buildCell
+ * sets it: cell.mjs applies a tier's monster rows from options.tier and its pull ONLY from cell.density. Without it a "Deadly" cell is Deadly's
+ * monsters at Normal's pull: half the kills of the real tier, and a lone hero that never dies on it (the baseline, 51-baseline.md fault F14).
  * One cell a (ground, band end, composition, tier). A staged ground plays its own drops open (gear.openAlso), as measure.mjs does.
  */
+function pullFor(o, g, tier, size) {
+  if (typeof o.pullOf !== 'function') throw new Error('measureJobs: a harder tier needs pullOf(ground, tier, size): its pull is the tier (hunt-tiers.js pullOfTier)');
+  /* a tier row may leave a party size's pull unset (the ground's own pull stands): then no density, as progression-grid.mjs buildCell plays it */
+  const n = o.pullOf(g, tier, size);
+  return Number.isInteger(n) && n >= 1 ? n : null;
+}
 export function measureJobs(o) {
   const jobs = [];
   const comps = partyComps(o.PARTIES, o.quick);
@@ -58,7 +67,7 @@ export function measureJobs(o) {
       pc.comps.forEach((party, ci) => {
         for (const tier of useTiers) {
           jobs.push({ id: ['GR', g, level, pc.size, ci, tier].join(':'), ground: g, level, party, hours: o.hours, seeds: o.seeds, profile: 'played',
-            gear: { uniques: true, ...(o.OPEN_GROUNDS[g] ? {} : { openAlso: [g] }) }, ...(tier !== 'normal' ? { options: { tier } } : {}),
+            gear: { uniques: true, ...(o.OPEN_GROUNDS[g] ? {} : { openAlso: [g] }) }, ...(tier !== 'normal' ? { options: { tier }, ...(pullFor(o, g, tier, pc.size) ? { density: pullFor(o, g, tier, pc.size) } : {}) } : {}),
             meta: { ground: g, level, size: pc.size, comp: ci, tier } });
         }
       });

@@ -25,6 +25,11 @@ import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { execSync } from 'node:child_process';
 import { isMain } from '../../tests/_is-main.mjs';
+import * as XP_CURVE from '../../src/core/xp.js';
+import { LEVEL_PACE } from '../../src/data/core-model.js';
+
+/* what a projection past a line's top reads (skillsAt): this tree's skill curve and its pace of record */
+const CTX = Object.freeze({ XP: XP_CURVE, targets: LEVEL_PACE.targets });
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..', '..');
@@ -86,9 +91,15 @@ export function loadLines(file = SNAPSHOT) {
 
 /**
  * THE SKILLS a hero of `style` at Level `level` has on `line` ('alone' | 'party'), as skill LEVELS { melee, ranged, magic, defense, inner_flame }.
- * Past the line's top each skill goes on at the slope of its last ten Levels; under its start, the start. 'level': every skill at the Level.
+ * Under the line's start, the start. 'level': every skill at the Level.
+ * PAST THE LINE'S TOP each skill goes on at the skill XP an hour of its last ten Levels, over the hours of the pace of record, stretched by
+ * sqrt(L / top): projectSkill below, the ONE projection the game's reference hero is written with (tools/gen-ref-hero.mjs -> src/data/to-hit.js
+ * REF_HERO, the hero every monster's aim and evasion are written against). It was a straight line in skill LEVELS until 2026-11-21: Melee 198
+ * at Level 400 where the skill curve's cost allows 129, so every cell past Level 100 played a hero the game cannot make, against monsters
+ * written for the real one (42-formulas-progression.md X43; 51-baseline.md fault F15).
+ * `ctx` { XP: src/core/xp.js, targets: LEVEL_PACE.targets } is this tree's by default; a caller reading another tree passes its own.
  */
-export function skillsAt(snap, line, style, level) {
+export function skillsAt(snap, line, style, level, ctx = CTX) {
   const L = Math.max(1, Math.round(level));
   if (line === 'level') return Object.fromEntries(SKILLS.map((k) => [k, L]));
   if (!snap || !snap.lines || !snap.lines[line]) throw new Error('skill-lines: no ' + line + ' line (node tools/balance-sim/skill-lines.mjs --run, then --write)');
@@ -98,9 +109,26 @@ export function skillsAt(snap, line, style, level) {
   const at = (k, x) => row.skills[k][Math.min(row.to, Math.max(row.from, x)) - row.from];
   return Object.fromEntries(SKILLS.map((k) => {
     if (L <= row.to) return [k, Math.max(1, at(k, L))];
-    const back = Math.max(row.from, row.to - 10), slope = (at(k, row.to) - at(k, back)) / Math.max(1, row.to - back);
-    return [k, Math.max(1, Math.round(at(k, row.to) + slope * (L - row.to)))];
+    const back = Math.max(row.from, row.to - 10);
+    return [k, Math.max(1, projectSkill(ctx, k, at(k, row.to), at(k, back), row.to, back, L))];
   }));
+}
+
+/** The hunted hours the pace of record gives Level `L` (LEVEL_PACE.targets, read straight between its rows, held at its last). */
+export function paceHoursAt(targets, L) {
+  for (let i = 1; i < targets.length; i++) if (L <= targets[i][0]) return targets[i - 1][1] + ((targets[i][1] - targets[i - 1][1]) * (L - targets[i - 1][0])) / (targets[i][0] - targets[i - 1][0]);
+  return targets[targets.length - 1][1];
+}
+
+/**
+ * ONE SKILL PAST A LINE'S TOP: `s1` at Level `top`, `s0` at Level `back`. The skill XP an hour of that last stretch, carried over the pace's
+ * hours to Level `L` and stretched by sqrt(L / top), read back through the skill curve. A skill that did not move in the stretch stays.
+ */
+export function projectSkill(ctx, k, s1, s0, top, back, L) {
+  const span = paceHoursAt(ctx.targets, top) - paceHoursAt(ctx.targets, back);
+  if (!(span > 0) || s1 <= s0) return s1;
+  const x1 = ctx.XP.skillXpForLevel(k, s1), rate = (x1 - ctx.XP.skillXpForLevel(k, s0)) / span;
+  return Math.max(s1, ctx.XP.skillLevelFromXp(k, x1 + rate * (paceHoursAt(ctx.targets, L) - paceHoursAt(ctx.targets, top)) * Math.sqrt(L / top)));
 }
 
 /* ── --check: the lines beside the recorded heroes (tests/fixtures/balance-calibration.json: each seat's Level and skills at its hunt's start) ── */

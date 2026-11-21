@@ -103,6 +103,11 @@
         "bytes": 3134901,
         "on": "2026-11-20",
         "why": "+353 B, lane/c-approved-rows (Tyler 2026-11-20 calls 24-9, 26-3, 26-8, 26-9, 22-8): the ruled rows' one-line whys in shops.js, homestead-tiers.js (the Shrine held), gold-ladders.js (the bag stops at 10) and boss-calls.js (no gold); no new module reached; measured on set/v0.2.144"
+      },
+      {
+        "bytes": 3128573,
+        "on": "2026-11-21",
+        "why": "cut locked in (6328 bytes)"
       }
     ]
   }

@@ -102,8 +102,6 @@
       "marks",
       "max_hp",
       "plot_level",
-      "rested_at",
-      "rested_xp",
       "slot",
       "streak_day_key",
       "streak_days",

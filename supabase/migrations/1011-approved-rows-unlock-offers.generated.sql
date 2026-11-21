@@ -8,8 +8,8 @@
 --   here is reverted by the next generation and FAILS
 --   `node tools/gen-unlock-offers.mjs --check`, a preflight in tests/run-smoke.mjs.
 --
---   offer digest: 4017c0a9c58d3b9797bf44753aa1439d353caa62400a6cfe9f023b50f07d7120
---   48 authored unlock offers · 35 sellable (property=5 · room=30) · refused: held=10 · namespace_unsupported=3
+--   offer digest: 41826eafb95c09a3360d4d7d95d44fd9b55ab675ac315102ec7e706a7dc3f5a6
+--   45 authored unlock offers · 35 sellable (property=5 · room=30) · refused: held=10
 --
 -- ── WHAT THIS TABLE IS ──────────────────────────────────────────────────
 -- THE PRICE AND THE PREREQUISITE OF A PERMANENT UNLOCK, so that
@@ -130,7 +130,7 @@ begin
   alter table public.hr_unlock_offers
     add column source text not null default 'gen-unlock-offers';
   update public.hr_unlock_offers set source = 'foreign:pre-source'
-   where offer_id <> all (array['character_slot.1', 'character_slot.2', 'character_slot.3', 'property.castle', 'property.farmstead', 'property.homestead', 'property.keep', 'property.manor', 'room.cellar.1', 'room.cellar.2', 'room.cellar.3', 'room.cellar.4', 'room.cellar.5', 'room.forge.1', 'room.forge.2', 'room.forge.3', 'room.forge.4', 'room.forge.5', 'room.garden.1', 'room.garden.2', 'room.garden.3', 'room.garden.4', 'room.garden.5', 'room.kitchen.1', 'room.kitchen.2', 'room.kitchen.3', 'room.kitchen.4', 'room.kitchen.5', 'room.library.1', 'room.library.2', 'room.library.3', 'room.library.4', 'room.library.5', 'room.shrine.1', 'room.shrine.2', 'room.shrine.3', 'room.shrine.4', 'room.shrine.5', 'room.trophy.1', 'room.trophy.2', 'room.trophy.3', 'room.trophy.4', 'room.trophy.5', 'room.workshop.1', 'room.workshop.2', 'room.workshop.3', 'room.workshop.4', 'room.workshop.5']);
+   where offer_id <> all (array['property.castle', 'property.farmstead', 'property.homestead', 'property.keep', 'property.manor', 'room.cellar.1', 'room.cellar.2', 'room.cellar.3', 'room.cellar.4', 'room.cellar.5', 'room.forge.1', 'room.forge.2', 'room.forge.3', 'room.forge.4', 'room.forge.5', 'room.garden.1', 'room.garden.2', 'room.garden.3', 'room.garden.4', 'room.garden.5', 'room.kitchen.1', 'room.kitchen.2', 'room.kitchen.3', 'room.kitchen.4', 'room.kitchen.5', 'room.library.1', 'room.library.2', 'room.library.3', 'room.library.4', 'room.library.5', 'room.shrine.1', 'room.shrine.2', 'room.shrine.3', 'room.shrine.4', 'room.shrine.5', 'room.trophy.1', 'room.trophy.2', 'room.trophy.3', 'room.trophy.4', 'room.trophy.5', 'room.workshop.1', 'room.workshop.2', 'room.workshop.3', 'room.workshop.4', 'room.workshop.5']);
   raise notice 'hr_unlock_offers.source added; % pre-existing foreign row(s) preserved',
     (select count(*) from public.hr_unlock_offers where source = 'foreign:pre-source');
 end $$;
@@ -142,9 +142,6 @@ delete from public.hr_unlock_offers where source = 'gen-unlock-offers'
 insert into public.hr_unlock_offers
   (offer_id, table_name, name, unlock_id, value, gold, items, req_property_tier, req_item, refusal, source)
 values
-  ('character_slot.1', 'character_slot', 'Character slot 2', 'character_slot:1', 1, null, null, null, null, 'namespace_unsupported:character_slot', 'gen-unlock-offers'),
-  ('character_slot.2', 'character_slot', 'Character slot 3', 'character_slot:2', 1, null, null, null, null, 'namespace_unsupported:character_slot', 'gen-unlock-offers'),
-  ('character_slot.3', 'character_slot', 'Character slot 4', 'character_slot:3', 1, null, null, null, null, 'namespace_unsupported:character_slot', 'gen-unlock-offers'),
   ('property.castle', 'property', 'Hearthrise Castle', 'property:castle', 5, 2500000, '{"ember_bar":20,"gatekeepers_chain":10,"iron_fitting":30,"runewood_plank":60,"timber_beam":30}'::jsonb, 4, null, null, 'gen-unlock-offers'),
   ('property.farmstead', 'property', 'Fieldworth Farmstead', 'property:farmstead', 2, 25000, '{"cooked_shrimp":10,"copper_ore":25,"oak_log":40,"wolf_pelt":4}'::jsonb, 1, null, null, 'gen-unlock-offers'),
   ('property.homestead', 'property', 'Hearthside Homestead', 'property:homestead', 1, 400, '{"copper_ore":20,"normal_log":30}'::jsonb, 0, null, null, 'gen-unlock-offers'),
@@ -199,8 +196,8 @@ begin
   -- same table and are none of this count's business.
   select count(*) into v_n from public.hr_unlock_offers where source = 'gen-unlock-offers'
      and table_name <> all (array['companion']::text[]);
-  if v_n <> 48 then
-    raise exception 'hr_unlock_offers holds % gen-unlock-offers rows, expected 48 — the insert was partial', v_n;
+  if v_n <> 45 then
+    raise exception 'hr_unlock_offers holds % gen-unlock-offers rows, expected 45 — the insert was partial', v_n;
   end if;
   select count(*) into v_n from public.hr_unlock_offers
    where source = 'gen-unlock-offers' and refusal is null
@@ -294,7 +291,7 @@ begin
                     '''artisan'' cannot become payable';
   end if;
 
-  raise notice 'hr_unlock_offers OK — % rows, % sellable (property=5 · room=30)', 48, 35;
+  raise notice 'hr_unlock_offers OK — % rows, % sellable (property=5 · room=30)', 45, 35;
 end $$;
 
 -- ── ROOMS HELD WHOLE, AS THE PURCHASE SEES THEM (src/data/homestead-tiers.js HELD_HOME_ROOMS) ──

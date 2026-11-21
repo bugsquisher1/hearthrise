@@ -17,7 +17,7 @@ import { text, prop, attr } from '../../render/paint.js';
 import { clock, whole } from '../../render/format.js';
 import { track } from '../../net/observability.js';
 import { refusalText } from '../intent-words.js';
-import { pointerFor, actCoach, placeCoach } from '../launcher.js';
+import { pointerFor, actCoach, placeCoach } from '../launcher-coach.js';
 import { connection } from '../../net/connection.js';
 import { t } from '../../render/player-text.js';
 import { trainingNowOf } from '../training-now.js';

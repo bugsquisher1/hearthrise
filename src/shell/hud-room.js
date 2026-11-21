@@ -143,7 +143,7 @@ export function createHudRoom({ hud, worldHud, screenHud, layer, isPhone, gap, h
      A group's menu open steps it left (shell.css). */
   function dockTownCoach() {
     /* The place is kept on the row's WIDGET, not on the row: a group's menu or the card's own fold redraws the row (launcher-menu.js
-       setMenu, launcher.js actCoach) outside a widget pass, and a mark on the row went with it, so the card jumped back under the row. */
+       setMenu, launcher-coach.js actCoach) outside a widget pass, and a mark on the row went with it, so the card jumped back under the row. */
     const widget = screenHud.querySelector('[data-hs-widget="launchers"]');
     const host = widget && widget.querySelector('.hs-launchers');
     if (!host) return;

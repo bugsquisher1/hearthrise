@@ -252,7 +252,7 @@ function attendedCtx(L, { skills, perks, boost, rng, xpState, onGrant }) {
       botd: { killBonuses: () => ({ xpMult: 1, dropMult: 1, goldMult: 1 }) },
       fx: {
         addXp(skill, amt) {
-          const r = L.prog.grantXp(xpState, skill, amt, { bonus, restedQuantum: 0, authored: false });
+          const r = L.prog.grantXp(xpState, skill, amt, { bonus, authored: false });
           if (onGrant) onGrant(skill, amt, r);
         },
         addLevelXp() {},
@@ -304,7 +304,7 @@ async function runArms(L) {
       expect[k] = Number(tot / BigInt(SCALE));
       expect[`${k}.frac`] = Number(tot % BigInt(SCALE));
     }
-    const ctx = { bonus: perkB, restedQuantum: 0 };
+    const ctx = { bonus: perkB };
     // per grant
     const a = { skills: {}, xpFrac: { ...f0 } };
     for (const g of grants) L.prog.grantXp(a, g.skill, g.amt, ctx);

@@ -50,7 +50,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import {
   ROOM_PERKS, CAPSTONE_PERKS, CASTLE_TIER,
   EMPTY_PERKS, PERMANENT_CAP, GOVERNED,
-  normalisePerkState, permanentBonus, makeBonus, clampPermanent, restedPayload,
+  normalisePerkState, permanentBonus, makeBonus, clampPermanent,
 } from '../src/core/perks.js';
 import { burnChance, BURN_BASE } from '../src/core/artisan.js';
 import { zeroBonus, computeAccrual } from '../supabase/functions/hr-accrue/accrual.js';
@@ -383,11 +383,16 @@ async function run(patch) {
   }
 
   // ── P8 · NO ROOM PAYS RESTED XP (Master Design Reference §9, 2026-10-14) ─
-  // The Library's Rested quantum left with every other home-granted XP.
+  // The Library's Rested quantum left with every other home-granted XP, and the bank itself was cut on 2026-11-21
+  // (S-9 c): the perk module carries no Rested payload and no rung names a Rested key.
   {
-    for (let lv = 0; lv <= 6; lv++) {
-      const p = restedPayload({ rooms: { library: lv } });
-      ok(p.rested === 0 && p.restedCap === 0, `P8: Library rung ${lv} still pays Rested ${JSON.stringify(p)}`);
+    const PERKS = await import('../src/core/perks.js');
+    ok(!('restedPayload' in PERKS) && !('ROOM_RUNG_EXTRAS' in PERKS), 'P8: the perk module still carries the Library\'s Rested payload');
+    for (const [room, rungs] of Object.entries(ROOM_PERKS)) {
+      rungs.forEach((r, i) => {
+        const bad = Object.keys(r || {}).filter((k) => /^rested/i.test(k));
+        ok(!bad.length, `P8: ${room} rung ${i + 1} pays Rested (${bad})`);
+      });
     }
   }
 

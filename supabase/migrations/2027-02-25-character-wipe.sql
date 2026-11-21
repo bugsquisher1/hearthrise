@@ -65,6 +65,9 @@ declare
     'account_bank', 'account_farm', 'account_farm_plots', 'account_gem_grants', 'account_play_net', 'account_storage_chests', 'account_wallet',
     /* combat training (2027-04-16-combat-training.sql): the skills an account unlocked on its house dummy */
     'account_house_dummy',
+    /* the first hour (FB-5): the kits an account was paid (1038-start-kits.sql), so a wiped account is paid them again as new, and what
+       the coach taught it (1039-account-coach.sql), so it walks the first hour again */
+    'account_kits', 'account_coach',
     'active_bounty', 'character_names', 'character_presence', 'chat_messages', 'chat_whispers',
     'clan_bans', 'clan_invites', 'clan_ledger', 'clan_members', 'clan_order_ballots', 'clan_order_votes', 'clan_stores', 'clan_tavern',
     'clan_withdrawals', 'clan_work_labour', 'clan_work_orders', 'clans',
@@ -127,7 +130,7 @@ declare
     'hr_hunt_world_shape', 'hr_hunts', 'hr_item_buffs', 'hr_item_slots', 'hr_items', 'hr_ledger_config', 'hr_level_curve', 'hr_market_config',
     'hr_market_premium_items', 'hr_name_blocklist', 'hr_outfit_dyes', 'hr_outfits', 'hr_players_online_cache', 'hr_plot_tier', 'hr_premium_login_reward',
     'hr_qm_offers', 'hr_room_perks', 'hr_runes', 'hr_server_secrets', 'hr_session_modes', 'hr_settings', 'hr_shop_supply_offers', 'hr_skill_curve', 'hr_skills',
-    'hr_stamina_refill_rule', 'hr_start_equipment', 'hr_start_inventory', 'hr_start_kit', 'hr_start_skill_xp', 'hr_state_sections', 'hr_storage_chests',
+    'hr_stamina_refill_rule', 'hr_start_equipment', 'hr_start_inventory', 'hr_start_kit', 'hr_start_kit_lines', 'hr_start_skill_xp', 'hr_state_sections', 'hr_storage_chests',
     'hr_tally_config', 'hr_tally_materials', 'hr_tally_pieces', 'hr_tally_tasks', 'hr_tick_cohort', 'hr_tick_cron_log',
     /* Tamsin's tier book (2027-04-08-tally-worn.generated.sql): the gear tier of every item worn in her slots, a catalogue */
     'hr_tally_tiers',
@@ -197,9 +200,9 @@ begin
   end loop;
   if exists (select 1 from cron.job where jobname = 'hr-market-expire') then
     raise exception 'PRECONDITION: the expiry sweep is scheduled: apply 2027-02-20-market-wipe.sql first'; end if;
-  if to_regprocedure('public.hr_create_hero(integer,text,jsonb,uuid)') is null or to_regprocedure('public.hr_hero_slots_of(uuid)') is null
-     or to_regclass('public.hr_hero_slots') is null then
-    -- (an account always owns slot 0; since 2027-03-25-hero-slots-one.sql no other slot is a starter, so the count is not the check)
+  if (to_regprocedure('public.hr_create_hero(integer,text,jsonb,uuid)') is null and to_regprocedure('public.hr_create_hero(integer,text,jsonb,uuid,text)') is null)
+     or to_regprocedure('public.hr_hero_slots_of(uuid)') is null or to_regclass('public.hr_hero_slots') is null then
+    -- (an account always owns slot 0; the four-argument create took the starter set as a fifth, defaulted, in 1038-start-kits.sql)
     raise exception 'PRECONDITION: hero creation or the hero slot catalogue is missing: after this file an account would have no way back in'; end if;
 
   -- AN UNKNOWN TABLE STOPS THE WIPE: every public base table is on exactly one list...

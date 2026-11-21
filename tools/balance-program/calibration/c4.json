@@ -1,0 +1,56 @@
+{
+ "check": "C-4",
+ "source": "14-the-rest.md section 2",
+ "real_heroes": 15,
+ "hunted_h": 1382,
+ "gathering_h": 1649,
+ "crafting_h": 526,
+ "by_skill": [
+  {
+   "skill": "mining",
+   "hero_hours": 769.3,
+   "accounts": 4
+  },
+  {
+   "skill": "woodcutting",
+   "hero_hours": 443.6,
+   "accounts": 4
+  },
+  {
+   "skill": "fishing",
+   "hero_hours": 436.2,
+   "accounts": 4
+  },
+  {
+   "skill": "crafting",
+   "hero_hours": 187.8,
+   "accounts": 4
+  },
+  {
+   "skill": "cooking",
+   "hero_hours": 133.8,
+   "accounts": 4
+  },
+  {
+   "skill": "smithing",
+   "hero_hours": 121.6,
+   "accounts": 4
+  },
+  {
+   "skill": "runecrafting",
+   "hero_hours": 37.3,
+   "accounts": 3
+  },
+  {
+   "skill": "prayer",
+   "hero_hours": 30,
+   "accounts": 2
+  },
+  {
+   "skill": "inner_flame",
+   "hero_hours": 16.2,
+   "accounts": 4
+  }
+ ],
+ "town_over_hunt": 1.57
+}

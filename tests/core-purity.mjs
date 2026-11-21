@@ -263,18 +263,8 @@ export async function coreAnchorGuard() {
     if (farm.MAX_PLOT_LEVEL !== 5) problems.push('plot tiers drifted');
     if (!farm.canPlantCrop(5, 'moonbloom') || farm.canPlantCrop(1, 'moonbloom')) problems.push('plot crop gating drifted');
 
-    const rested = await load('rested.js');
-    const st = { restedXp: 0, restedAt: t0 };
-    const banked = rested.accrueRestedXp(st, t0 + 61 * 60 * 1000);
-    if (banked !== 10) problems.push(`61 minutes should bank 10 charges, banked ${banked}`);
-    /* The watermark invariant: a second read of the same clock pays nothing. */
-    if (rested.accrueRestedXp(st, t0 + 61 * 60 * 1000) !== 0) problems.push('rested accrual double-paid');
-    const capped = { restedXp: 0, restedAt: t0 };
-    rested.accrueRestedXp(capped, t0 + 1000 * 3600000);
-    if (capped.restedXp !== rested.RESTED_CAP) problems.push('rested bank exceeded its cap');
-    const spend = { restedXp: 5 };
-    if (rested.spendRestedCharge(spend, 0) !== 0 || spend.restedXp !== 5) problems.push('a worthless charge must not be burned');
-    if (rested.spendRestedCharge(spend, 160) !== 160 || spend.restedXp !== 4) problems.push('spending a charge misbehaved');
+    /* THE RESTED BANK IS CUT (Tyler 2026-11-21, S-9 c): no core module banks a charge. */
+    if (await load('rested.js').then(() => true, () => false)) problems.push('src/core/rested.js is back: the rested bank was cut (S-9 c)');
 
     const combat = await load('combat.js');
     const items = {
@@ -307,25 +297,29 @@ export async function coreAnchorGuard() {
        carry is ON when the state holds an `xpFrac` map — the server owns the
        column; WITHOUT one the pre-column floor stands, so an edge deployed
        ahead of its migration pays exactly what it used to. */
-    if (prog.grantXp({ skills: {}, restedXp: 0 }, 'mining', 1, {}).gain !== 1) problems.push('with no xpFrac map (no column yet) a 1-XP grant must still pay 1');
-    const tiny = { skills: {}, xpFrac: {}, restedXp: 0 };
+    if (prog.grantXp({ skills: {} }, 'mining', 1, {}).gain !== 1) problems.push('with no xpFrac map (no column yet) a 1-XP grant must still pay 1');
+    const tiny = { skills: {}, xpFrac: {} };
     const t3 = [1, 2, 3].map(() => prog.grantXp(tiny, 'mining', 1, {}).gain);
     if (JSON.stringify(t3) !== '[0,0,1]' || Math.abs(tiny.xpFrac.mining - 0.17) > 1e-9) {
       problems.push('three 1-XP grants must pay 0,0,1 and carry 0.17, paid ' + JSON.stringify(t3) + ' carry ' + JSON.stringify(tiny.xpFrac));
     }
     /* authored grants bypass PACE; earned grants do not. */
-    const earned = prog.grantXp({ skills: {}, restedXp: 0 }, 'mining', 100, {});
+    const earned = prog.grantXp({ skills: {} }, 'mining', 100, {});
     if (earned.gain !== 39) problems.push(`earned 100 XP should pay 39 after PACE, paid ${earned.gain}`);
-    const authored = prog.grantXp({ skills: {}, restedXp: 0 }, 'mining', 100, { authored: true });
+    const authored = prog.grantXp({ skills: {} }, 'mining', 100, { authored: true });
     if (authored.gain !== 100) problems.push('an authored grant must bypass PACE');
-    /* rested is added OUTSIDE the multiplier block. */
-    const withRest = prog.grantXp({ skills: {}, restedXp: 1 }, 'mining', 100, { bonus: () => 1, restedQuantum: 1000 });
-    if (withRest.gain !== 78 + 1000) problems.push(`rested must not be scaled by perks (got ${withRest.gain})`);
-    const lvl = prog.grantXp({ skills: { mining: 82 }, restedXp: 0 }, 'mining', 1, { authored: true });
+    /* NO RESTED QUANTUM (S-9 c): a grant handed the old bank and its quantum pays the plain grant (100 x PACE 0.39 x 2 = 78)
+       and spends no charge. Before the cut it paid 78 + 1000 and burned one. */
+    const handed = { skills: {}, restedXp: 1 };
+    const withRest = prog.grantXp(handed, 'mining', 100, { bonus: () => 1, restedQuantum: 1000 });
+    if (withRest.gain !== 78 || handed.restedXp !== 1 || 'rested' in withRest) {
+      problems.push(`a grant must pay no rested quantum and spend no charge (gain ${withRest.gain}, bank ${handed.restedXp})`);
+    }
+    const lvl = prog.grantXp({ skills: { mining: 82 } }, 'mining', 1, { authored: true });
     if (!lvl.events.some((e) => e.type === 'levelup' && e.from === 1 && e.to === 2)) {
       problems.push('crossing the 83-XP threshold must emit a level-up event');
     }
-    if (prog.grantXp({ skills: { mining: 200 }, restedXp: 0 }, 'mining', 1, { authored: true }).events.length) {
+    if (prog.grantXp({ skills: { mining: 200 } }, 'mining', 1, { authored: true }).events.length) {
       problems.push('a grant that crosses no threshold must emit no event');
     }
     /* the deterministic tool carry: 10 actions of a 10% tool = exactly 1 bonus */

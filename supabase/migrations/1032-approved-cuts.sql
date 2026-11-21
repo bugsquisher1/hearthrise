@@ -36,7 +36,10 @@
 --    image, nothing else), and NOTHING STRANDED.
 -- §1 THE ENVELOPE: hr_state_of restated WHOLE from the live image (md5 e0a71bfe…, 2027-01-18-dead-surfaces-cut.sql's),
 --    removing exactly `dungeon_cooldowns`, `state.dungeon_scrip`, `state.hearth_tokens` and `gem_unlocks` with their comment
---    blocks (tests/chain-removals/1032-approved-cuts.mjs, generated from the diff). hr_server_now restated without
+--    blocks (tests/chain-removals/1032-approved-cuts.mjs, generated from the diff), and `state.rested_xp` / `state.rested_at`
+--    with theirs: the rested bank is cut (Tyler 2026-11-21, S-9 c) and lane/c-formula-steps drops the two columns in a later
+--    file. Taken out HERE, in the one staged restatement of the envelope, so a second apply of this file never installs a
+--    body that reads a column the later file dropped. hr_server_now restated without
 --    `live_event_key`. Every other key, expression and comment is byte-identical.
 -- §2 THE OLD DUNGEONS AND THE SCRIP: six functions, three tables, the ledger's partial index for kind 'dungeon', and
 --    player_state.dungeon_scrip. The journal's old 'dungeon' rows (none live) stay: the ledger is append-only.
@@ -101,7 +104,7 @@ begin
     raise exception 'PRECONDITION: apply 2027-01-18-dead-surfaces-cut.sql, 2027-03-14-jewelry-hallmark.sql and 1004-tick-pack-heroes.sql first'; end if;
   -- THE PINS. Any other body is a concurrent restatement: refuse, never silently revert it (re-derive this file from it).
   select md5(replace(prosrc, chr(13), '')) into v_md5 from pg_proc where oid = 'public.hr_state_of(uuid,integer)'::regprocedure;
-  if v_md5 not in ('e0a71bfea1bf596df13f9cbfc59f5cf3', '5934b4ec0826b5af3ad64a226ef8b4ea') then
+  if v_md5 not in ('e0a71bfea1bf596df13f9cbfc59f5cf3', 'e04ff4a811d10d931ba8125ad2aa8b0d') then
     raise exception 'PIN: hr_state_of moved (md5 %): re-derive this restatement from the new body', v_md5; end if;
   select md5(replace(prosrc, chr(13), '')) into v_md5 from pg_proc where oid = 'public.hr_server_now()'::regprocedure;
   if v_md5 not in ('da61e5f17e005006466464900f8100ac', 'c2f9a557ce4b6f3eb51a110d5167bdd8') then
@@ -259,14 +262,6 @@ begin
       -- ── state.combat_xp_accrued_to — the combat-XP cadence watermark ──
       --    introduced by 2026-08-31-combat-xp-credit.sql
       'combat_xp_accrued_to', v_st.combat_xp_accrued_to,
-      -- rested-record (b437): the bank charge count + its wall-clock watermark,
-      -- flat like the other watermarks so a nested bag cannot hide a missing
-      -- column behind a default. The accrual shell reads them as st.rested_xp /
-      -- st.rested_at and settles [rested_at, now()] alongside the pointer.
-      -- ── state.rested_xp / rested_at — the rested bank and its watermark ──
-      --    introduced by 2026-08-22-rested-record.sql
-      'rested_xp', v_st.rested_xp,
-      'rested_at', v_st.rested_at,
       -- b348: THE GATHERING TOOL CARRY. Its presence here is what tells the
       -- accrual engine the server owns the carry — `st.tool_carry ?? null`, and
       -- the null branch omits the delta key. Never nested, for the same reason
@@ -1538,7 +1533,7 @@ declare
     'unlocked_recipes', 'renown_high', 'bounty', 'hero_slots', 'traits', 'companions', 'must_rename', 'inventory_complete',
     'farm_land'];
   c_state constant text[] := array['slot', 'gold', 'gold_v', 'gems', 'marks', 'hp', 'max_hp', 'level_xp', 'bank_cap',
-    'active_kind', 'active_id', 'active_since', 'accrued_to', 'combat_xp_accrued_to', 'rested_xp', 'rested_at', 'tool_carry',
+    'active_kind', 'active_id', 'active_since', 'accrued_to', 'combat_xp_accrued_to', 'tool_carry',
     'hearthfind_ready', 'hearthfind_last', 'hearthfind_titles', 'hearthfind_plinth', 'fight', 'deaths_lifetime', 'deaths_today',
     'streak_days', 'plot_level', 'streak_day_key'];
   v_u     constant uuid := '000000d5-0000-0000-0000-0000c0ffee10';
@@ -1581,7 +1576,7 @@ begin
   end if;
 
   -- (b) THE THREE RESTATED BODIES.
-  if (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = 'public.hr_state_of(uuid,integer)'::regprocedure) <> '5934b4ec0826b5af3ad64a226ef8b4ea'
+  if (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = 'public.hr_state_of(uuid,integer)'::regprocedure) <> 'e04ff4a811d10d931ba8125ad2aa8b0d'
      or (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = 'public.hr_server_now()'::regprocedure) <> 'c2f9a557ce4b6f3eb51a110d5167bdd8'
      or (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = 'public.hr_assert_grant_hygiene(boolean)'::regprocedure) <> '1cf0b8fa714f8b567abb7d52bbdda7f0' then
     raise exception 'approved-cuts §7(b): a restated body is not this file''s image'; end if;
@@ -1680,8 +1675,9 @@ begin
       raise exception 'approved-cuts §7(d): the market lists nothing'; end if;
     if exists (select 1 from public.hr_premium_login_reward p join public.hr_market_items m using (item_id) where m.listable) then
       raise exception 'approved-cuts §7(d): the premium login reward became listable'; end if;
-    if (select count(*) from public.hr_hero_slots where cost_gold > 0) < 1 then
-      raise exception 'approved-cuts §7(d): no hero slot is sold for gold'; end if;
+    -- every hero slot is paid in gold or free (all four free since 1036-four-starter-slots.sql, FB-5): none is priced in gems
+    if exists (select 1 from public.hr_hero_slots where cost_gold is null or cost_gold < 0 or (cost_gold = 0 and not starter)) then
+      raise exception 'approved-cuts §7(d): a hero slot is neither sold for gold nor a free starter'; end if;
     raise exception using errcode = 'HRC11', message = 'approved-cuts §7(d) complete - rolling back';
   exception when sqlstate 'HRC11' then null;
   end;

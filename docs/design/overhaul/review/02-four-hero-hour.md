@@ -57,6 +57,8 @@ Where a new player with four heroes is most likely to stop. JUDGMENT, from one p
 
 Checked against chapter 08 (GR-79, GR-80, GR-24).
 
+Ruled since, by the designer on 2026-11-21 (`review/05-designer-rulings.md`). The first two rows are ruled in D-1: the weapon pick wears the whole starter set row, and heroes two to four come pre-filled. The words for the Cellar's end are "Build your party". Gear that drops is worn by the plan line "Wear upgrades" (D-2).
+
 | The design says | What I met | Verdict |
 |---|---|---|
 | The player picks how each hero fights at creation (GR-24) | No pick. Three minutes lost in the bag | Needed. Build it first |

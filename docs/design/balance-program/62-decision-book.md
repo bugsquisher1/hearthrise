@@ -64,7 +64,7 @@ Tyler's later notes on MM-32 and MM-34 are rulings too and are in section 5. On 
 
 ## 3. Where every call stands
 
-157 rows were decided and 155 calls remained, because GR-24 and MM-7 were each decided twice and merged. Chapters 10 and 11 added TAL-1 and CH11-1 to CH11-3, so there are 159. Today: 51 DECIDED (6 of them with Tyler's yes on the page), 93 PROVISIONAL, 1 OPEN, 9 RULED (8 at the sitting), 2 PROPOSAL, 2 superseded and 1 withdrawn.
+157 rows were decided and 155 calls remained, because GR-24 and MM-7 were each decided twice and merged. Chapters 10 and 11 added TAL-1 and CH11-1 to CH11-3, so there are 159. Today: 51 DECIDED (6 of them with Tyler's yes on the page), 93 PROVISIONAL, 0 OPEN, 10 RULED (8 at the first sitting and 1 at the second), 2 PROPOSAL, 2 superseded and 1 withdrawn.
 
 | Area | Calls | Decided | Provisional | Open | Ruled | Proposal | Superseded or withdrawn |
 |---|---|---|---|---|---|---|---|
@@ -73,7 +73,7 @@ Tyler's later notes on MM-32 and MM-34 are rulings too and are in section 5. On 
 | The MMO layer | 39 | 7 | 30 | 0 | 1 | 0 | 1 |
 | The player's day | 8 | 3 | 5 | 0 | 0 | 0 | 0 |
 | The long game | 10 | 1 | 8 | 0 | 1 | 0 | 0 |
-| Combat | 16 | 9 | 6 | 1 | 0 | 0 | 0 |
+| Combat | 16 | 9 | 6 | 0 | 1 | 0 | 0 |
 | World | 10 | 3 | 6 | 0 | 0 | 1 | 0 |
 | Items and crafting | 12 | 9 | 3 | 0 | 0 | 0 | 0 |
 | Economy | 13 | 7 | 5 | 0 | 1 | 0 | 0 |
@@ -101,19 +101,20 @@ Plus Talents, the build choice every five Levels, in `docs/design/overhaul/10-le
 
 | Waits | Until |
 |---|---|
-| Both arenas, their seasons, tickets and gear line | The one-day engine test shows heroes can fight heroes |
-| Castle buildings, upkeep, labor, votes, the clan board | Clans exist and people are in them |
-| Boss gear lines past the first, boss materials, the fall bonus | The first boss has stood twice |
-| Bought boosts and the buff caps as final numbers | Deadly is sized, and one buff has been played in a cell |
-| The Crowns book as a priced design | Test Crowns have run in the playtest |
-| The Blessing ladder's threshold as a final number: 2 hours, sized in chapter 12, PROVISIONAL | A real death rate exists. The ladder itself is in the first build |
-| The sixteen Necrotic and Storm spells, fists, status pairs | The eight weapon ways are distinct and Deadly is sized |
-| The Catacombs mode beyond one wing, the Hall of Firsts, the Honors catalogue | The first build is played |
-| Sinks as a share of band gold, and the yard rate change | The wage can be measured. Until then the typed prices are no worse |
-| Talent unlock ranks 8 and up, tracks six to eight, and the arena build | The sample of five tracks is played |
-| The Library and the week's castle labor (chapter 11) | Clans exist and people are in them. Both are designed and PROVISIONAL |
-| Luck: the bar, the rivets and the Lucky ring (numbers ruled 2026-11-20) | The plan owner gives it a lane. Its lane is parked and the build plan does not name it (audit A-8) |
-| The unbuilt phases of the itemization plan, which is a source of record (ruled 2026-11-21) | The plan owner gives each phase a lane. The build plan does not name them (audit A-8) |
+| Both arenas, their seasons, tickets and gear line | FB-3's engine test shows heroes can fight heroes. Then lane FR-10 |
+| Castle buildings, upkeep, labor, votes, the clan board | Lane FR-11. Its stage prices are sized in the simulator. How a clan votes and gives is read live |
+| Boss gear lines past the first, boss materials, the fall bonus | The first boss has stood twice. Then D-19 and lane FR-12 |
+| Bought boosts and the buff caps as final numbers | Deadly is sized, and one buff has been played in a cell. Then lane FR-12 |
+| The Crowns book as a priced design, and test Crowns | A later playtest runs test Crowns (S-17 a). Lane FR-16 |
+| The Blessing ladder's threshold as a final number: 5 hours, ruled by the designer as D-4, PROVISIONAL | FB-3's measures on the fixed engine, then a real death rate. The ladder itself is in the first build |
+| The sixteen Necrotic and Storm spells, fists, status pairs | D-15 and D-16, then lane FR-5 |
+| The Catacombs mode beyond one wing, the Hall of Firsts, the Honors catalogue | Lane FR-8 for the Catacombs, and D-17, D-18 and lane FR-15 for the Hall of Firsts and Honors |
+| Sinks as a share of band gold, and the yard rate change | Tyler answers S-19 and S-20. Then lane FR-3, on the calibrated wage |
+| Talent unlock ranks 8 and up, tracks six to eight, and the arena build | D-14, then lane FR-13 |
+| The Library and the week's castle labor (chapter 11) | Lane FR-11. Both are designed and PROVISIONAL |
+| Luck: the bar, the rivets and the Lucky ring (numbers ruled 2026-11-20) | Lane FR-2, sized in the simulator on simulated kills |
+| The unbuilt phases of the itemization plan, which is a source of record (ruled 2026-11-21) | Lanes FR-6, FR-8 and FR-9, each phase sized in the simulator |
+| Carter's Rest, the Ox Road and factions | The first live hero reaches Level 95. Then the Morrow lane, FR-14 (D-3). Open for Tyler's veto as D3-2 |
 
 ## 5. Tyler's picks on the page
 
@@ -168,7 +169,7 @@ MM-43: Tyler said yes on the page. Test Crowns for the wiped Discord playtest on
 | 12 | GR-55 | The market is open on day one. | 24-7 of 2026-11-20 | Four heroes and Crowns for gold both need a market from the first day. | Let stand on the page, in about a second |
 | 13 | GR-56a | Setup slots are free. | 2026-11-05, and the sinks list of 2026-11-04 | A saved setup is a remembered decision, and charging for it sells the first principle. | REFUSED at the sitting (S-3 a). Slots stay priced: three free, then 15,000 and 40,000 gold |
 | 14 | GR-75 | Three home looks, and visiting opens from the Homestead. | 26-3 and 26-11 of 2026-11-20 | Three looks can be drawn well, and visiting is worth more the earlier it opens. | Let stand on the page, in about a second |
-| 15 | CE-5 | Deeds, room rungs and chests are re-priced for an account of four. | The gold numbers of 26-3 and 26-1 of 2026-11-20 | The numbers were typed for one hero's income, and an account now has four. | Let stand on the page, in about a second |
+| 15 | CE-5 | Deeds, room rungs and chests are re-priced for an account of four. | The gold numbers of 26-3 and 26-1 of 2026-11-20 | The numbers were typed for one hero's income, and an account now has four. | Let stand on the page, in about a second. The deeds are rows of account-days at Levels 20, 60, 90 and 110 (D-5) |
 | 16 | CE-7 | Town work moves on screen in real time and the server writes at the start, at each paid hour and at a stop. | 2026-10-22 | It looks the same to the player, and study 48 shows no design meets the server budget without it (worth 109 database-seconds an account-day, ESTIMATED). | Let stand on the page, in about a second |
 | 17 | CE-8 | The Hearthrise lights on the calendar's weekend, sized by the fire. (One row with GR-82.) | 2026-10-25 | A known weekend can be planned around, and the fire still decides how big it is. | Let stand on the page, in about a second |
 | 18 | MM-18 | No hired, lent or on-call heroes. | 25-1 and the on-call board of 25-3, 2026-11-20 | Every account has four heroes of its own, so a hired seat has no job. | REFUSED at the sitting (S-1). On-call heroes are kept, with his design. MM-18 is superseded and chapter 11 designs it |
@@ -180,7 +181,11 @@ MM-43: Tyler said yes on the page. Test Crowns for the wiped Discord playtest on
 | 24 | GR-3 | Party XP is paid by size alone for the first build. The classes rule may come back as one row of the table after Deadly is sized and played. | The 2026-10-31 rule that party XP is better only with different classes | Size alone needs no telling, and the look later keeps the door open. | RULED at the sitting (S-10 c) |
 | 25 | MM-9 | The full castle: five buildings of ten levels, labor, upkeep, votes, a treasury, about a year. | His two picks of 2026-11-21 against each other, and 25-4 | A long shared goal and a larger gold sink. | RULED as the direction at the sitting (S-7 b). Sizes stay PROVISIONAL |
 | 26 | MM-25 | A clan room pays a standing Level XP bonus. | 25-2 of 2026-11-20: clans give no Level XP | He kept the library, and at the sitting he chose the option that pays Level XP. | RULED at the sitting (S-4 a). The size is PROVISIONAL: +5% at Library level ten, in chapter 11 |
-| 27 | CH11-3 | A rest plan's usual ending is a standing job with no count, in place of "wait in town". | The 2026-11-20 ruling that a rest plan ends in "wait in town" or "hunt again, once" and never loops | Chapter 11 reads it as inside the ruling, because it does not loop and starts no hunt, and asks that it be listed as a change. | The designer rules it (S-16 is withdrawn from the sitting) and lists it here for veto. PROVISIONAL |
+| 27 | CH11-3 | A rest plan's usual ending is a standing job with no count, in place of "wait in town". | The 2026-11-20 ruling that a rest plan ends in "wait in town" or "hunt again, once" and never loops | Chapter 11 reads it as inside the ruling, because it does not loop and starts no hunt, and asks that it be listed as a change. | RULED by the designer 2026-11-21 (docs/design/overhaul/review/05-designer-rulings.md section 3). The standing job stops by itself after 24 hours. Tyler let it stand on 2026-11-21 |
+| 27b | CH11-3 | A rest plan has no ending that starts a hunt. | "Hunt again, once" of the plan approved 2026-11-20 (L08, 27-1) | It gives a free player the 12 hour day on one visit, which is what the Premium bar sells. | RULED by the designer 2026-11-21 (docs/design/overhaul/review/05-designer-rulings.md section 3.3). Tyler let it stand on 2026-11-21 |
+| 28 | GR-58 | The refill's base is 2 hours of the hero's wage, so refills 4 to 6 are gold for XP at every Level. | 24-1 of 2026-11-20, whose typed price made them gold for XP only from Level 80 | In hours the shape is the same at every Level, and the first two refills still pay for themselves as he ruled. | OPEN for Tyler's veto. RULED by the designer 2026-11-21 (docs/design/overhaul/review/06-designer-rulings-w1.md section 4.2). "Veto R-1" sets the base at 1.33 hours |
+| D3-1 | GR-4 | Tiers 1 to 7 keep their built armor, so an early ladder tier is worth about 9 to 18% less damage. The 3 to 5% is graded on the band step past Level 110. | The 2026-10-25 ruling that an armor upgrade is worth 3 to 5% less damage | The early ladder is the early hook, and resampling it on the curve leaves Bronze with about 3 points of plate a set. | OPEN for Tyler's veto. RULED by the designer 2026-11-21 (docs/design/overhaul/review/08-designer-d3.md section 1.3). "Veto D3-1" resamples tiers 1 to 7 on the curve |
+| D3-2 | GR-71 | Factions are not in the first build, because Carter's Rest and the Ox Road stay staged and no open ground pays standing. | The 2026-11-14 ruling that the faction war switches on once the beta has players | Opening the pair adds art for two grounds and faction skills sized on the engine to combat batch CB-2. | OPEN for Tyler's veto. RULED by the designer 2026-11-21 (docs/design/overhaul/review/08-designer-d3.md section 3). "Veto D3-2" opens the pair and arms factions in the first build |
 
 ### 5.4 Cuts
 
@@ -209,12 +214,11 @@ Kept hidden for later, and never on the cut list: Capture the flag (MM-46). The 
 
 | Item | What | Why it is held | What the book reads until he answers |
 |---|---|---|---|
-| S-15 | Five built special rules that were never put to him: gentle first grounds, the boss blow cap, three training bases, the roll rule and the tier flag (GR-25) | The formula brief says a deliberate special rule needs his explicit approval. | The book is written with all five kept. Answer now. Source: docs/design/overhaul/review/03-sitting-2.md. |
-| S-17 | Premium and test Crowns in the first playtest (MM-43, PREM-1, PREM-2) | Whether the first build carries them. A handful of accounts may not be able to answer the question test Crowns ask, and the amount granted is his to name. | Answer now. Source: docs/design/overhaul/review/03-sitting-2.md. |
-| S-18 | Who plays the first build () | The build plan lists nine things the playtest must measure and never says how many accounts play. COMPUTED from the plan's own tests: the Talents test alone asks for about 30 accounts. | New at the audit before wave 1. Answer now. Source: docs/design/overhaul/review/04-sitting-additions.json. |
-| S-11 | Which four is the Level table's clock: the four on Dangerous (1.263) or a four on Deadly that never dies (1.579), on run 44931089433 (GR-6, GR-6a, GR-6b) | He ruled the table as the clock of a four on the hardest tier it holds, and at the sitting he ruled Deadly a tier you watch or gamble on. The other four reaches Level 400 on about day 305 or day 477. | HELD until the replay on the fixed engine. The law is fitted at the ruled points, and chapter 05 shows both. It was item 12-7-1. |
-| S-12 | What the ruled death count means, when neither harder tier can hold it at every Level (CORE-1, GR-27) | He ruled 10 to 30 deaths in 1,000 hours on Dangerous and 50 to 100 on Deadly. The engine gives a cliff. | HELD until the replay on the fixed engine, because a stalled cell reads no death. It was item 12-7-2. |
-| S-14 | When one of an account's own four falls (GR-80) | His default is that the rest hunt on. The measured finding that the four died together was read on the path the engine fix changed. | HELD until the replay on the fixed engine. The ruled default stands. It was item 12-7-3. |
+| S-19 | Prices for gear upgrades: a share of band gold, or typed (GR-8) | On 2026-11-18 he kept typed Hallmark prices on purpose. GR-8 prices upgrades as a share of a band's gold, and he let that stand on the page in about a second (reversal row 6). | OPEN. The first build keeps his typed prices. The rest of the overhaul must pick one. Source: docs/design/overhaul/review/07-sitting-3.json. |
+| S-20 | The yard's rate: follows the skill curve, flat as ruled, or flat for each band (GR-54) | He kept a flat yard rate three times (2026-11-14, and twice on 2026-11-20). GR-54 makes it follow the skill curve, and he let that stand on the page in about a second (reversal row 11). | OPEN. The first build keeps the flat rate and the fee he ruled, 100 gold times the skill level an hour. Source: docs/design/overhaul/review/07-sitting-3.json. |
+| Reversal 28 | The refill's base is 2 hours of the hero's wage (GR-58) | At 2 hours refills 4 to 6 are gold for XP at every Level. His typed price of 24-1 made them so only from Level 80. | OPEN for his veto. The designer ruled 2 hours. "Veto R-1" sets 1.33 hours, so the first four pay for themselves. Source: docs/design/overhaul/review/06-designer-rulings-w1.md section 4.2. |
+| D3-1 | Early armor tiers keep their built armor (GR-4) | On 2026-10-25 he asked for 3 to 5% less damage an armor upgrade. A ladder tier under Level 110 gives about 9 to 18% (COMPUTED). | OPEN for his veto. The designer kept the ladder as built and grades 3 to 5% on the band step past Level 110. "Veto D3-1" resamples tiers 1 to 7 on the curve. Source: docs/design/overhaul/review/08-designer-d3.md section 0. |
+| D3-2 | Factions are not in the first build (GR-71) | On 2026-11-14 he ruled that the faction war switches on once the beta has players. With the Morrow pair staged, no ground pays standing. | OPEN for his veto. The designer kept the pair staged and factions held. "Veto D3-2" opens the pair and arms factions in the first build. Source: docs/design/overhaul/review/08-designer-d3.md section 0. |
 | 12-7-4 | The paid edge is smaller in pace than the book told him, and it is a step (MM-26, MM-31) | He said yes on the page to 1.65 and about 1.22. Measured: 1.29 to 1.48 and about 1.06 to 1.08. Check G's last clause fails by design on a cliff. | His yes stands as written, with the measured readings beside it. It is not a question of the second sitting. Source: docs/design/overhaul/12-balance-pass.md section 7. |
 
 ### 5.6 The sitting
@@ -231,6 +235,34 @@ Kept hidden for later, and never on the cut list: Capture the flag (MM-46). The 
 | S-8 | A | No ceiling on gear or gold bought through other players. Only structural limits remain. The buff caps stay. |
 | S-9 | C | The rested bank is cut. |
 | S-10 | C | Party XP by size alone for the first build. After Deadly is sized on the fixed tool, read which fours players run. The classes rule may come back as one row of the table. |
+
+### 5.7 The second sitting
+
+| Question | Pick | The ruling |
+|---|---|---|
+| S-11 | c | The Dangerous seat now. The Level table is timed on the mid-geared four on Dangerous. The law reads again before Early Access. |
+| S-12 | a | The death counts describe a four arriving in a band, so each ground is a ladder: Dangerous on arrival, Deadly once the four grows past the edge, then the next ground. |
+| S-14 | a | An account's own heroes keep "the rest hunt on" when one falls. "All come home" stays a plan line. |
+| S-15 | a | All five special rules of GR-25 are approved. The roll rule and the tier flag are folded, with no change in play. |
+| S-17 | a | Premium for all in the playtest, through the closed-beta switch. Test Crowns wait. FB-15 shrinks to Premium for the account. |
+| S-18 | c | The accounts in now play first. About 30 are invited once the play gate and a blind first-hour pass are clean. |
+
+### 5.8 The designer's rulings
+
+Ruled by the game designer on 2026-11-21 and reported to Tyler. They are not new decision rows. D-9, the Talents curve, is not ruled yet. D-12 to D-23 are named in 14-the-rest.md for the next ruling file.
+
+| Id | Before lane | The ruling | Its file |
+|---|---|---|---|
+| D-1 | FB-5, FB-7 | The Path is one table of 21 row families, each reading its Level from its own system's file. The wand card says casting costs gold, about 100 on the first hunt. In the first hour the coach rings only screen controls. A harder tier is offered with no Level and no ground: when the party's last hunt there read Safe and the tier's risk row, at the gear the party wears, is inside the ruled death band. | `review/05-designer-rulings.md` section 1 |
+| D-2 | FB-6 | A standing plan line, "Wear upgrades", puts better gear on at every Start and every hunt end, in town. Nothing changes inside a running hunt. The leader is the hero the engine sends in front, and the player may pin another. "Needs you" holds eight kinds in a fixed order, one row a kind, three shown. | `review/05-designer-rulings.md` section 2 |
+| D-3 | FB-8 stage 1 | The armor curve is x2.4, or x1.6 if the confirm run shows it holds the same steps. The arrival kit is the mid kit one band back, in gear only. An arrival is graded by survival, pace and the tier it can hold, and S5.low is a report. Tiers 1 to 7 keep their built armor. Carter's Rest, the Ox Road and factions stay staged. A heavy piece pays for armor with lighter blows. The kill reward under Level 5 follows the curve at exponent 1.1. | `review/08-designer-d3.md` section 1 |
+| D-4 | FB-8 stage 3 | The Blessing ladder's threshold is 5 hunted hours of the pace seat, Tyler's own number of S-5, now with a reason under S-12 a. Rungs halve what is left, and their Levels come from the law: about 97, 140 and 257. | `review/06-designer-rulings-w1.md` section 5 |
+| D-5 | FB-9 | Refills, Blessings, the talent reset, rename and colors are rows of hours at the hero's Level. The first refill of a day is 2 hours of wage. Deeds are set once in account-days, and rooms and chests move by one factor. `wageShare` opens at 0.80. The Weighhouse stays the first project as a building only, and the market trades from day one. | `review/06-designer-rulings-w1.md` section 4 |
+| D-6 | FB-13 | The sample world boss is Mossback, an old brook bear, fought at the Mill Pond in each party's own room on the one monster formula. The chest pays by the account's own points at 2, 6 and 12 Normal party-hours: a buff, one Mossback Cloak, then the buff's second week. Both names are new and are not in the game's data yet. | `review/06-designer-rulings-w1.md` section 2 |
+| D-7 | FB-12 | A 28 day cycle with two beats in the first build: the Hearthrise on weekend 1 and the world boss on weekend 3. Weekends 2 and 4 stay quiet. The fire lights at +10% Level XP and gains +3% a mark to +25% at five marks. A full fire is a quarter of the fuel the week's active accounts find. The weekly Open Halls row is retired. | `review/06-designer-rulings-w1.md` section 1 |
+| D-8 | FB-14 | On call opens at hero Level 10, once the account has a friend or a clan. The default tier limit is Dangerous. `onCallXpShare` stays 0.10. | `review/06-designer-rulings-w1.md` section 3 |
+| D-10 | FB-8 stage 2 | Party-wide damage stays in the data, the `group` rows of the monster spells, and gets no tier row in the first build. Hask's Ford and the Muster Barrows each gain one group caster. A tier row is a named fallback with a measured trigger. | `review/06-designer-rulings-w1.md` section 6 |
+| D-11 | FB-6, FB-10 | A rest plan's usual ending is a standing job with no count. It starts no hunt, never loops and stops by itself after 24 hours. "Wait in town" stays a choice. No rest plan ending starts a hunt. | `review/05-designer-rulings.md` section 3 |
 
 On-call heroes, the Library and the town day are designed in `docs/design/overhaul/11-on-call-and-clan-xp.md`, all PROVISIONAL.
 
@@ -279,9 +311,9 @@ The order of the edge fixes, as study 48 gives it, is an input to the build plan
 | `02-world.md` | 13 | The measuring gaps in section 6 | The systems engineer (09-platform-and-measurement.md) |
 | `03-items-and-crafting.md` | 1 | The exchange rates themselves (gearExchange) and the slot-class shares other than the 6% for accessories | Roadmap step R11, on the matrix |
 | `03-items-and-crafting.md` | 2 | Whether +17% reads as one upgrade when played on the curve, with +24% as the second cell | One band played. It is the first thing the R10 derivation prints |
-| `03-items-and-crafting.md` | 3 | What it costs to reforge a unique up a band: materials, gold, whether a duplicate or a key is needed | The game designer, inside GR-4 and GR-8, before the build plan |
-| `03-items-and-crafting.md` | 4 | The Tempering ladder for tier 7 and for each band, as shares | GR-8, then a matrix run on gold bands |
-| `03-items-and-crafting.md` | 6 | The three signature stones: names, perks and carriers | The designer, with names checked against the data. Sample of three first |
+| `03-items-and-crafting.md` | 3 | What it costs to reforge a unique up a band: materials, gold, whether a duplicate or a key is needed | The game designer, as D-23 of chapter 14, before lane FR-6 |
+| `03-items-and-crafting.md` | 4 | The Tempering ladder for tier 7 and for each band, as shares | Tyler answers S-19 on the form first. Then D-23 and lane FR-6 |
+| `03-items-and-crafting.md` | 6 | The three signature stones: names, perks and carriers | The designer, as D-23 of chapter 14, with names checked against the data. Sample of three first |
 | `03-items-and-crafting.md` | 7 | 18 of the 23 perks have no engine hook and no measured size | The first job of the perk lane |
 | `03-items-and-crafting.md` | 8 | Leech lining sizes, and spell leech with lining leech together | One measurement |
 | `03-items-and-crafting.md` | 9 | The Morrow Hills grid re-cut from 46 uniques to 15 to 20 with carried pieces | The region lane, after R10 and R11 |
@@ -296,7 +328,7 @@ The order of the edge fixes, as study 48 gives it, is an input to the build plan
 | `04-economy-and-crowns.md` | 4 | The real-money price of a Crown, lot sizes, and the Crown price of each store row | PREM-2 is PROVISIONAL, and Tyler said yes on the page |
 | `04-economy-and-crowns.md` | 5 | The boost catalog | PROVISIONAL (MM-29 and MM-30, Tyler said yes on the page): two boosts sold for gold, damage +6% and protection of about 3%, in 1 day and 7 day sizes, one bought boost on a knob at a time |
 | `04-economy-and-crowns.md` | 7 | The base hours of a stamina refill | GR-58, after fault F5 closes |
-| `04-economy-and-crowns.md` | 8 | The Blessing share, and the ladder past the third Blessing | GR-7 is RULED (Tyler 2026-11-21, the sitting). The share is sized on the long death sample |
+| `04-economy-and-crowns.md` | 8 | The Blessing share, and the ladder past the third Blessing | GR-7 is RULED (Tyler 2026-11-21, the sitting). A rung past the third costs a fifth of the hours it saves (D-5) |
 | `04-economy-and-crowns.md` | 9 | The wage for a four of mixed Levels | The game designer, after MM-19 |
 | `04-economy-and-crowns.md` | 10 | The castle's cost | MM-9 is RULED in direction at the sitting, the full castle |
 | `04-economy-and-crowns.md` | 12 | Security questions on the Crowns book | The security engineer, then Tyler |
@@ -306,8 +338,8 @@ The order of the edge fixes, as study 48 gives it, is an input to the build plan
 | `04-economy-and-crowns.md` | 17 | A ceiling on gold find | The game designer, with the perk lane |
 | `04-economy-and-crowns.md` | 18 | The dates for the beta and Early Access | Tyler, after the build plan |
 | `05-progression.md` | 4 | The seat's multiple | A derivation run on the matrix after GR-5 and GR-27 |
-| `05-progression.md` | 6 | The five hour threshold of the Blessing ladder | GR-7 is RULED (Tyler 2026-11-21, the sitting). The five hours stays PROVISIONAL until a real death rate exists |
-| `05-progression.md` | 7 | Blessing prices for rungs 4 to 6 | The wage curve (GR-51) and band S10 |
+| `05-progression.md` | 6 | The five hour threshold of the Blessing ladder | GR-7 is RULED (Tyler 2026-11-21, the sitting). The five hours is ruled by the designer (D-4) and stays PROVISIONAL until FB-3 measures it and a real death rate exists |
+| `05-progression.md` | 7 | Blessing prices for rungs 4 to 6 | Set by D-5: a fifth of the hours a rung saves. Read on band S10 |
 | `05-progression.md` | 8 | What a death takes from a hero in a boss room on Normal for a new account | The MMO decider, before MM-7 is final. A walk-through in 06-mmo-layer.md |
 | `05-progression.md` | 9 | The Kindling rows | The paper sample of five, after GR-61 |
 | `05-progression.md` | 10 | The Honors catalogue | The sample, then batches of 20 or fewer |
@@ -316,11 +348,10 @@ The order of the edge fixes, as study 48 gives it, is an input to the build plan
 | `05-progression.md` | 14 | Who draws regions, and how fast | The art and asset directors, then Tyler |
 | `05-progression.md` | 16 | How the first hour teaches thirteen skills to an account with four heroes | The game designer, inside GR-79, with a walk-through against the real starting kit |
 | `05-progression.md` | 18 | Whether a morning death card is a quit moment | Playtest 8, section 6 |
-| `06-mmo-layer.md` | 1 | The boss roster | The game designer. One sample boss first |
 | `06-mmo-layer.md` | 5 | What the layer may cost | The systems engineer (09-platform-and-measurement.md) |
 | `06-mmo-layer.md` | 6 | The engine check | The systems engineer |
 | `06-mmo-layer.md` | 7 | Arena balance between styles | The game designer, after the engine check |
-| `06-mmo-layer.md` | 8 | The numbers nobody has set | The game designer, on the balance matrix |
+| `06-mmo-layer.md` | 8 | The numbers nobody has set | The boss pool, the chest marks and the fire are set by D-6 and D-7. The castle, board and arena numbers are sized in the simulator, in lanes FR-10 and FR-11 |
 | `06-mmo-layer.md` | 10 | The Security review's scope for the layer | The security engineer |
 | `06-mmo-layer.md` | 11 | Side against side | The game designer |
 | `06-mmo-layer.md` | 12 | Live ops when nobody is watching | The pool rule is closed (MM-4): the boss leaves when the window ends and the server re-sizes the pool after each boss |
@@ -330,15 +361,12 @@ The order of the edge fixes, as study 48 gives it, is an input to the build plan
 | `07-home-and-town.md` | 5 | The yard's formula in numbers | The game designer, inside GR-54 and GR-53 |
 | `07-home-and-town.md` | 6 | The second dropped seed | The game designer, with the Morrow Hills. It is written only after the first dropped seed has been read in play (GR-77) |
 | `07-home-and-town.md` | 7 | A party hero's spare rested hours | The game designer, when the solver has a supplies goal |
-| `07-home-and-town.md` | 8 | The first town project | The game designer, after GR-55 |
 | `07-home-and-town.md` | 9 | Crops and costs with no consumer | The game designer |
 | `07-home-and-town.md` | 10 | Names and pictures | The game designer and the art director |
-| `07-home-and-town.md` | 11 | The Hearthrise's size and seam with the calendar | The seam is closed for now (CE-8 and GR-82, Tyler said yes on the page): the calendar says when it lights and the fire says how big, from +10% to +25% |
 | `07-home-and-town.md` | 12 | Who may visit | The game designer, inside GR-75. "Party member" stays in the visit rule, because on-call heroes are kept |
 | `07-home-and-town.md` | 16 | A home axis for the matrix | The baseline lane |
 | `07-home-and-town.md` | 17 | Security scope | The security engineer |
-| `08-player-experience.md` | 3 | A measured tag for each starting way | The balance matrix (check C1). Owner: the core decider |
-| `08-player-experience.md` | 6 | The Path's rows for Levels 17 to 19, 21 to 24 and 26 to 29 | The game designer (03-items-and-crafting.md) |
+| `08-player-experience.md` | 3 | A measured tag for each starting way | The fix is ruled (D-3): the kill reward curve's low end at exponent 1.1. FB-3's confirm run reads the six cells, and FB-5 fills the tags last |
 | `08-player-experience.md` | 7b | How the thirteen skills are spread across four heroes past the first night | The game designer, inside GR-79, with chapter 05 (its item 16) |
 | `08-player-experience.md` | 10 | Whether the report's counters fit the session row with no added statement | The systems engineer |
 | `08-player-experience.md` | 12 | A blind play of the whole first hour | A fresh reader, after it is built |
@@ -377,5 +405,7 @@ The order of the edge fixes, as study 48 gives it, is an input to the build plan
 3. Done: the balance pass is in (docs/design/overhaul/12-balance-pass.md).
 4. Done: the build plan is written (docs/design/overhaul/13-build-plan.md).
 5. Done: the audit before wave 1 is in, with the verdict go with changes (docs/design/overhaul/review/04-pre-wave-audit.md).
-6. Next: the pre-wave fixes, and the replay of the matrix, the death sample and the lineup cells on the fixed engine.
-7. Next: Tyler answers S-15, S-17 and S-18. S-11, S-12 and S-14 follow the replay.
+6. Done: the designer ruled D-1 to D-8, D-10 and D-11, and Tyler answered S-11, S-12, S-14, S-15, S-17 and S-18 at the second sitting.
+7. Done: chapter 14 plans everything that waits (docs/design/overhaul/14-the-rest.md).
+8. Next: Tyler answers S-19 and S-20, and may veto reversal 28, D3-1 and D3-2.
+9. Next: the build, wave by wave, on docs/design/overhaul/13-build-plan.md.

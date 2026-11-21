@@ -85,8 +85,9 @@
 //        10-17: every account starts with two): the screen names the hero and its
 //        Level, the empty owned slot offers Create hero, which opens the creation
 //        step (Tyler 2026-10-20: a name and four colours, the hero enters town only
-//        on Confirm): nothing is sent until Enter town, then ONE hr_create_hero for
-//        that slot with the typed name and the picked colours plays it. A RELOAD REOPENS
+//        on Confirm; GR-24: a way to fight, none picked for the player): nothing is
+//        sent until a way is picked and Enter town pressed, then ONE hr_create_hero for
+//        that slot with the typed name, the picked colours and the set plays it. A RELOAD REOPENS
 //        THE TAB'S HEROES (designer 10-30 #8: a hero picked once is never re-picked):
 //        the shown hero is shown again and the other plays beside it, nothing pressed;
 //        a fresh tab lists both heroes by name; once the server no longer holds the
@@ -97,18 +98,10 @@
 //        that reopens both never shows either as not open on the way; at the server's
 //        play-at-once limit Fennick has no Play, and a press says why in one plain
 //        line (12 px or more, on screen) and asks the server nothing
-//   B-11b each hero row shows the hero's own figure at a whole 2x or more, and the gold and the short line each stand on
-//        one line, at 1440x900, 922x423 and 667x375 (UI audit 2026-11-18)
-//   B-11 BUY A HERO SLOT (tracker r45; Tyler 10-17: up to five, for gold): the roster offers the
-//        server's next slot at the server's price, paid from "Your gold" — ONE purse per account
-//        (Tyler 10-23), so there is no payer to pick; short of gold it cannot be pressed and says
-//        how much more; the purse read at the newest wallet version wins; one press sends ONE
-//        hr_buy_hero_slot (slot, the acting hero, key, no price) and the button is off until the
-//        answer; the roster is re-read (the new empty slot offers Create hero, the next price
-//        shows); at five slots there is no offer
-//   B-11c BUY ASKS FIRST (audit 2026-11-18 A7): the first press sends nothing and asks at the server's price ("Buy the Third
-//        hero slot for 15,000 gold?", Buy for N and Cancel), Cancel takes it back, a double-click on Buy only asks, and only
-//        Buy for N sends the one hr_buy_hero_slot
+//   B-11b each hero row shows the hero's own figure at a whole 2x or more, at 1440x900, 922x423 and 667x375 (UI audit 2026-11-18)
+//   B-11 FOUR HERO SLOTS FROM THE START (Tyler 2026-11-21): the line over the roster says the heroes still to make, nothing is for
+//        sale, and an empty slot opens BUILD YOUR PARTY: every empty slot pre-filled (a shield, then a healer, said so), one press
+//        sends one hr_create_hero a slot, each with its name and its set
 //   B-10 A SESSION THAT ENDS UNDER THE GAME (live 2026-10-20: a dead token sent 805 times):
 //        every call answers 401 and the refresh is refused -> the sign-in screen with
 //        "You were signed out. Sign in again.", no session copy left, and the dead
@@ -230,24 +223,15 @@ async function stubServer(page, o) {
     if (o.heroes) {   // a stateful account: { slot: name } heroes; hr_create_hero adds one, named
       const name = url.split('?')[0].split('/').pop();
       if (name === 'hr_create_hero') {
-        o.created.push({ slot: body.p_slot, name: body.p_name, colors: body.p_colors });
+        o.created.push({ slot: body.p_slot, name: body.p_name, colors: body.p_colors, set: body.p_set });
         o.heroes[body.p_slot] = body.p_name;
         return r.fulfill({ contentType: 'application/json', body: JSON.stringify({ ok: true, slot: body.p_slot, name: body.p_name, created: true }) });
-      }
-      if (name === 'hr_buy_hero_slot') {   // B-11: the purchase, slow enough to see the button off
-        o.bought.push(body);
-        await new Promise((res) => setTimeout(res, 500));
-        o.purse -= o.ladder[body.p_slot_id]; o.goldV++;
-        o.slots.push(body.p_slot_id);
-        o.slowReread = 1200;   // the re-read after a yes: slow enough to read the screen in between
-        return r.fulfill({ contentType: 'application/json', body: JSON.stringify({ ok: true, slot_id: body.p_slot_id, hero_slots: o.slots }) });
       }
       if (o.slowReread) await new Promise((res) => setTimeout(res, o.slowReread));
       const slot = name === 'hr_load' ? body.p_slot : body.slot;
       const slots = o.slots || [0, 1];
-      const next = o.ladder ? Object.keys(o.ladder).map(Number).find((k) => !slots.includes(k)) : undefined;
       if (o.asked) o.asked.push(name + ':' + slot);   // B-9: what a press on a hero not open asked the server
-      const account = Object.assign({ max_concurrent: o.maxConcurrent || 4 }, o.ladder ? { hero_slots_max: 4, hero_slot_offer: next === undefined ? null : { slot_id: next, cost_gold: o.ladder[next] } } : {});
+      const account = { max_concurrent: o.maxConcurrent || 4, hero_slots_max: 4, hero_slot_offer: null };
       if (name === 'hr_load' || name === 'hr-accrue') {
         const b = o.heroes[slot] ? envelope(slot, 1, { name: o.heroes[slot], hero_slots: slots, account,
           /* THE ACCOUNT PURSE (one per account): every hero states it; a lagging hero states an older version. */
@@ -863,12 +847,20 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
       const residue = { coach: { read: [] } };
       let version = 1;
       const puts = [];
+      /* the cards read are the ACCOUNT's (1039-account-coach.sql): a union of ids the server keeps, read back on every load */
+      const coach = { read: [], taught: [], v: 0 };
       const api = async (req, res) => {
         const name = (/^\/(?:rest\/v1\/rpc|functions\/v1)\/([a-z_-]+)/.exec(req.url) || [])[1];
         if (!name) return false;
         let raw = ''; for await (const c of req) raw += c;
         const body = JSON.parse(raw || '{}');
         if (name === 'hr_put_client_state') { puts.push(body.p_patch); Object.assign(residue, body.p_patch); }
+        if (name === 'hr_account_coach') {
+          puts.push({ coach: body });
+          for (const k of ['read', 'taught']) for (const id of (body['p_' + k] || [])) if (!coach[k].includes(id)) { coach[k].push(id); coach.v++; }
+          res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify(Object.assign({ ok: true }, coach)));
+          return true;
+        }
         const hero = name === 'hr_load' || name === 'hr-accrue';
         const answer = hero ? withServerLevel(Object.assign({}, fixture, { version: ++version, hunt: null, client_state: residue, state: Object.assign({}, fixture.state, { level_xp: 0, active_kind: null, active_id: null }),
           equipment: Object.assign({}, fixture.equipment, { weapon: 'practice_sword' }), tally: { per_day: 3, held_max: 3, paid_today: 0, held: [], recent: [] } })) : { ok: true };
@@ -915,8 +907,8 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
           if (ms > 1200) fails.push(HARNESS + ' B-18: the reload began ' + ms + ' ms after the press, past the debounce: this run proves nothing');
           await wait(page, () => document.querySelector('.hs-launchers'), null, 15000);
           await page.waitForTimeout(1500);
-          const read = residue.coach && residue.coach.read;
-          if (!Array.isArray(read) || !read.includes(card)) fails.push('B-18 Got it on "' + card + '" just before a reload never reached the server: ' + JSON.stringify(puts.slice(before)));
+          const read = coach.read;
+          if (!read.includes(card)) fails.push('B-18 Got it on "' + card + '" just before a reload never reached the server: ' + JSON.stringify(puts.slice(before)));
           const again = await page.evaluate((id) => !!document.querySelector('[data-tutorial="' + id + '"]'), card);
           if (again) fails.push('B-18 the card "' + card + '" came back after the reload');
         }
@@ -1258,12 +1250,32 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
       /* The sign-in says what the game is, once, under the crest (newcomer panel 2026-11-01). */
       const pitch = await page.evaluate(() => { const p = document.querySelector('.auth-brand .auth-pitch'); return p && p.getClientRects().length ? p.textContent : null; });
       if (pitch !== 'Hunts keep going with the game closed') fails.push('B-9 the sign-in screen pitches ' + JSON.stringify(pitch));
+      /* THE PICK IS THE PLAYER'S (GR-24): a first hero comes with no way picked, Enter town sends nothing until one is, then the set goes with the name */
+      const pick = await page.evaluate(async () => {
+        const { renderHeroCreate } = await import(location.origin + '/src/app/hero-create.js');
+        const card = document.createElement('div'); document.body.append(card);
+        const sent = [];
+        const step = renderHeroCreate(card, { slot: 0, colorOf: () => '#000000', dyes: false, back() {}, done: () => true,
+          create: (n, c, k, set) => { sent.push(set); return Promise.resolve({ ok: true, answered: true }); } });
+        card.querySelector('.hero-name').value = 'Fennick';
+        const lit = card.querySelectorAll('.hero-way[aria-pressed="true"]').length, ways = card.querySelectorAll('.hero-way').length;
+        card.querySelector('.hero-confirm').click();
+        const said = card.querySelector('.auth-message').textContent, before = sent.length;
+        card.querySelector('.hero-way[data-hero-set="club"]').click();
+        card.querySelector('.hero-confirm').click();
+        await new Promise((r) => setTimeout(r, 0));
+        const mark = (card.querySelector('.hero-way[data-hero-set="club"] .hero-way-mark') || {}).textContent || '';
+        step.destroy(); card.remove();
+        return { lit, ways, said, before, sent, mark };
+      });
+      if (pick.lit !== 0 || pick.ways !== 6 || pick.before !== 0 || pick.said !== 'Pick how this hero fights first' || pick.sent.join() !== 'club' || pick.mark !== 'Good first hero')
+        fails.push('B-9 the first hero\'s pick reads ' + JSON.stringify(pick));
       /* THE PRESS MOVES ON (friends' panel 2026-11-01): off with its words while the server is out; a lost answer's retry keeps its key; once made, no press asks again. */
       const press = await page.evaluate(async () => {
         const { renderHeroCreate } = await import(location.origin + '/src/app/hero-create.js');
         const card = document.createElement('div'); document.body.append(card);
         const keys = []; let dones = 0, answer, went;
-        const step = renderHeroCreate(card, { slot: 1, colorOf: () => '#000000', dyes: false, back() {},
+        const step = renderHeroCreate(card, { slot: 1, colorOf: () => '#000000', dyes: false, back() {}, picked: 'club',
           create: (n, c, k) => { keys.push(k); return new Promise((r) => { answer = r; }); }, done: () => { dones++; return new Promise((r) => { went = r; }); } });
         const b = card.querySelector('.hero-confirm'), tick = () => new Promise((r) => setTimeout(r, 0));
         card.querySelector('.hero-name').value = 'Fennick';
@@ -1310,10 +1322,12 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
         fails.push('B-9 one hero and an empty owned slot list as ' + JSON.stringify(rows));
       else {
         await page.click('[data-app="create"][data-slot="1"]');
+        /* one hero already: the party step opens pre-filled (B-11); One at a time is the single step, its way carried over */
+        if (await wait(page, () => document.querySelector('.hero-alone'), null, 5000)) await page.click('.hero-alone');
         /* The creation step: a name and how you fight; nothing is sent before Enter town. The four color strips and the real hero show beside them
            (outfits.js HERO_DYES_SHOWN, lane/c-hero-colors), and Enter town shows with no scrolling at a laptop's 1366x768. */
         await page.setViewportSize({ width: 1366, height: 768 });
-        const step = await wait(page, () => document.querySelector('.hero-name') && document.querySelector('.hero-how-list'));
+        const step = await wait(page, () => document.querySelector('.hero-name') && document.querySelector('.hero-ways'));
         if (!step) fails.push('B-9 Create did not open the creation step (sent ' + JSON.stringify(o.created) + ')');
         else {
           const laptop = await page.evaluate(() => { const b = document.querySelector('.hero-confirm').getBoundingClientRect(); return { bottom: Math.round(b.bottom), H: innerHeight, doc: document.documentElement.scrollHeight, dyes: document.querySelectorAll('.hero-region, .hero-preview, .hero-note').length }; });
@@ -1321,7 +1335,7 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
           /* On a 922x423 phone the five ways to fight show too (playtest 2026-10-29: the phone hid them), in a column
              that scrolls, and Enter town still fits the screen. */
           await page.setViewportSize({ width: 922, height: 423 });
-          const phone = await page.evaluate(() => { const l = document.querySelector('.hero-how-list'), b = document.querySelector('.hero-confirm');
+          const phone = await page.evaluate(() => { const l = document.querySelector('.hero-ways'), b = document.querySelector('.hero-confirm');
             return { list: !!l && l.getClientRects().length > 0, fits: !!b && b.getBoundingClientRect().bottom <= innerHeight }; });
           if (!phone.list || !phone.fits) fails.push('B-9 on a 922x423 phone How you fight lists its styles: ' + phone.list + '; Enter town fits: ' + phone.fits);
           /* the smallest landscape phone (667x375): nothing runs off the right edge, and the note never widens the form */
@@ -1338,7 +1352,7 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
         }
         const played = await wait(page, () => document.querySelector('#panel-world[data-slot="1"]'));
         const c = o.created[0];
-        if (o.created.length !== 1 || c.slot !== 1 || c.name !== 'Fennick' || !c.colors || Object.keys(c.colors).join() !== 'head,body,legs,feet' || !played)
+        if (o.created.length !== 1 || c.slot !== 1 || c.name !== 'Fennick' || c.set !== 'tank' || !c.colors || Object.keys(c.colors).join() !== 'head,body,legs,feet' || !played)
           fails.push('B-9 Enter town sent ' + JSON.stringify(o.created) + (played ? '' : ' and did not play the new hero'));
         /* The reload: Fennick is shown again and Tester plays beside it, with no characters screen and no press. */
         const named = () => Array.from(document.querySelectorAll('.char-tab[data-app="show"] .char-tab-name')).map((n) => n.textContent).join() === 'Tester,Fennick';
@@ -1409,91 +1423,40 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
       await ctx.close();
     }
 
-    { // B-11 buy a hero slot with the account's gold, at the server's price; none at the cap
-      const o = { heroes: { 0: 'Tester', 1: 'Fennick' }, created: [], bought: [], slots: [0, 1], purse: 14100, goldV: 7,
-        lag: { 1: { gold: 90000, v: 3 } }, ladder: { 2: 15000, 3: 40000 } };   // four heroes an account (Tyler 2026-11-07): slots 2 and 3 are sold, no fifth
+    { // B-11 four hero slots from the start: nothing for sale; an empty slot opens the party pre-filled, one press makes it
+      const o = { heroes: { 0: 'Tester', 1: 'Fennick' }, created: [], slots: [0, 1, 2, 3], purse: 14100, goldV: 7 };
       const { ctx, page, errors } = await fresh(o);
       await page.goto(base + '/play.html', { waitUntil: 'load' });
       await wait(page, () => document.querySelector('form[data-auth="sign-in"]'));
       await page.fill('input[name=email]', 'qa@example.test');
       await page.fill('input[name=password]', 'not-a-real-password');
       await page.click('.auth-submit');
-      const shown = await wait(page, () => document.querySelector('[data-app="buy-slot"]'));
-      const btn = () => page.evaluate(() => { const b = document.querySelector('[data-app="buy-slot"]');
-        return b ? { text: b.textContent.trim(), off: b.disabled, pay: b.getAttribute('data-pay'), short: (document.querySelector('.slot-offer-short') || {}).textContent || '',
-          purse: (document.querySelector('.slot-offer-purse') || {}).textContent || '', picker: !!document.querySelector('select') } : null; });
-      const b0 = shown ? await btn() : null;
-      /* "Up to 4" beside two slots says how the other two come, at the server's price (blind playtest 2026-10-31). */
+      await wait(page, () => document.querySelectorAll('.char-row').length === 4);
       const lead = await page.evaluate(() => (document.querySelector('.auth-lead') || {}).textContent || '');
-      /* The price is the offer block's own (the server's quote), so the line names none (designer 2026-11-09). */
-      if (!/Hero slots: 2 \(up to 4 play at once\)\. More cost gold/.test(lead)) fails.push('B-11 the line over the roster reads ' + JSON.stringify(lead));
-      /* B-11b (UI audit 2026-11-18): each hero's row shows its own figure, drawn, at a whole 2x or more; the gold and the short line each stand
-         on ONE line beside or above the press (a grid beside it set "Need 299,500 more gold" one word a line), at the desktop and the phone width */
+      if (!/Heroes at once: up to 4\. 2 more heroes to make/.test(lead) || await page.$('[data-app="buy-slot"]') || await page.$('.slot-offer'))
+        fails.push('B-11 the line over two heroes of four reads ' + JSON.stringify(lead) + ', or a slot is still for sale');
+      /* B-11b (UI audit 2026-11-18): each hero's row shows its own figure, drawn, at a whole 2x or more, at the desktop and the phone widths */
       for (const vp of [[1440, 900], [922, 423], [667, 375]]) {
         await page.setViewportSize({ width: vp[0], height: vp[1] });
         const drawn = await wait(page, () => document.querySelectorAll('.char-row canvas.char-face[data-drawn]').length === 2, null, 5000);
-        const look = await page.evaluate(() => {
-          const lh = (e) => parseFloat(getComputedStyle(e).lineHeight);
-          /* no press or no offer card is a reading, not a crash: the mutant that takes them away must be caught by B-11/B-11b, not kill the run */
-          const buyEl = document.querySelector('[data-app="buy-slot"]'), cardEl = document.querySelector('.slot-offer');
-          if (!buyEl || !cardEl) return { faces: [], purse: false, short: false, missing: !buyEl ? 'buy-slot press' : 'slot-offer card' };
-          const buy = buyEl.getBoundingClientRect(), card = cardEl.getBoundingClientRect();
-          /* one line, its words inside their own box and the card, clear of the press */
-          const one = (q) => { const e = document.querySelector(q); if (!e) return false; const r = e.getBoundingClientRect(), rng = document.createRange(); rng.selectNodeContents(e); const w = rng.getBoundingClientRect();
-            return r.height <= lh(e) * 1.4 && w.right <= card.right + 1 && !(w.left < buy.right && buy.left < w.right && w.top < buy.bottom && buy.top < w.bottom); };
-          const faces = Array.from(document.querySelectorAll('.char-row canvas.char-face')).map((c) => { const k = c.getBoundingClientRect().width / c.width; return Math.abs(k - Math.round(k)) < 0.01 && k >= 2; });
-          return { faces, purse: one('.slot-offer-purse'), short: one('.slot-offer-short') };
-        });
-        if (!drawn || look.faces.length !== 2 || look.faces.some((f) => !f) || !look.purse || !look.short) fails.push('B-11b at ' + vp.join('x') + ' the characters screen reads ' + JSON.stringify({ drawn: !!drawn, ...look }));
+        const faces = await page.evaluate(() => Array.from(document.querySelectorAll('.char-row canvas.char-face'))
+          .map((c) => { const k = c.getBoundingClientRect().width / c.width; return Math.abs(k - Math.round(k)) < 0.01 && k >= 2; }));
+        if (!drawn || faces.length !== 2 || faces.some((f) => !f)) fails.push('B-11b at ' + vp.join('x') + ' the hero figures read ' + JSON.stringify({ drawn: !!drawn, faces }));
       }
       await page.setViewportSize({ width: 1280, height: 720 });
-      /* 14,100 at wallet version 7 is the purse; Fennick's older answer (90,000 at version 3) is not. */
-      if (!b0 || b0.text !== 'Buy a hero slot for 15,000 gold' || !b0.off || b0.pay !== '0' || b0.picker
-        || b0.purse !== 'Gold: 14,100 gp' || !/^Need 900 more gold/.test(b0.short)) fails.push('B-11 the offer short of gold reads ' + JSON.stringify(b0) + ' (expected Gold: 14,100, 900 short, off, no payer to pick)');
+      /* an empty slot opens BUILD YOUR PARTY: both empty slots, a shield and a healer pre-filled, the healer said; one press makes both, each with its set */
+      await page.click('.char-row.is-empty [data-app="create"]');
+      const party = await wait(page, () => document.querySelectorAll('.hero-member').length === 2);
+      const view = party ? await page.evaluate(() => ({ ways: Array.from(document.querySelectorAll('.hero-member-way')).map((s) => s.value),
+        healer: (document.querySelector('.hero-party-healer') || {}).textContent || '' })) : null;
+      if (!view || view.ways.join() !== 'tank,healer' || view.healer !== 'Your party has one healer.') fails.push('B-11 the party step reads ' + JSON.stringify(view));
       else {
-        o.purse = 80000; o.goldV = 8; o.lag = null;
-        await page.reload({ waitUntil: 'load' });
-        await wait(page, () => document.querySelector('[data-app="buy-slot"]') && !document.querySelector('[data-app="buy-slot"]').disabled);
-        const b1 = await btn();
-        if (!b1 || b1.off || b1.pay !== '0' || b1.short || b1.purse !== 'Gold: 80,000 gp') fails.push('B-11 the offer with gold reads ' + JSON.stringify(b1));
-        /* B-11c BUY ASKS FIRST (audit 2026-11-18 A7: 300,000 gold went on one click; a 5,500 gp refill asks): the first press sends nothing and asks at
-           the server's price, Cancel takes the question back, a double-click on Buy asks and never buys, and only Buy for N sends */
-        const askView = () => page.evaluate(() => ({ q: (document.querySelector('.slot-offer-ask') || {}).textContent || '',
-          yes: (document.querySelector('[data-app="buy-slot-yes"]') || {}).textContent || '', no: !!document.querySelector('[data-app="buy-slot-no"]'),
-          buy: !!document.querySelector('[data-app="buy-slot"]') }));
-        await page.click('[data-app="buy-slot"]');
-        await page.waitForTimeout(200);
-        const a1 = await askView();
-        if (o.bought.length !== 0 || a1.q !== 'Buy the Third hero slot for 15,000 gold?' || a1.yes !== 'Buy for 15,000 gold' || !a1.no || a1.buy)
-          fails.push('B-11c the first press on Buy ' + (o.bought.length ? 'bought (' + o.bought.length + ')' : 'reads ' + JSON.stringify(a1)));
-        if (a1.no) await page.click('[data-app="buy-slot-no"]');
-        await page.waitForTimeout(200);
-        const a2 = await askView();
-        if (o.bought.length !== 0 || a2.q || a2.yes || !a2.buy) fails.push('B-11c Cancel leaves ' + JSON.stringify(a2) + ', bought ' + o.bought.length);
-        if (a2.buy) await page.dblclick('[data-app="buy-slot"]');
-        await page.waitForTimeout(400);
-        const a3 = await askView();
-        if (o.bought.length !== 0 || a3.q !== a1.q) fails.push('B-11c a double-click on Buy ' + (o.bought.length ? 'bought (' + o.bought.length + ')' : 'reads ' + JSON.stringify(a3)));
-        if (a3.yes) await page.click('[data-app="buy-slot-yes"]');
-        const b2 = await btn();
-        if (!b2 || !b2.off || b2.text !== 'Buying…') fails.push('B-11 while the purchase is out the button reads ' + JSON.stringify(b2));
-        /* The yes is on screen at once, over the list, with the button still off: "Reading your characters…" alone for 2.5 s let a player press again (board 11-04). */
-        const told = await wait(page, () => /Hero slot bought/.test((document.querySelector('.auth-message') || {}).textContent || ''));
-        const between = await page.evaluate(() => ({ rows: document.querySelectorAll('.char-row').length, reading: /Loading characters/.test(document.body.textContent),
-          off: !!(document.querySelector('[data-app="buy-slot"]') || {}).disabled }));
-        if (!told || between.rows !== 2 || between.reading || !between.off) fails.push('B-11 between the yes and the re-read: ' + JSON.stringify({ told: !!told, ...between }));
-        o.slowReread = 0;
-        const reread = await wait(page, () => document.querySelectorAll('.char-row').length === 3 && document.querySelector('[data-app="create"][data-slot="2"]'));
-        const sent = o.bought[0] || {};
-        if (o.bought.length !== 1 || sent.p_slot_id !== 2 || sent.p_slot !== 0 || typeof sent.p_idem !== 'string' || Object.keys(sent).some((k) => /price|cost|gold/.test(k)))
-          fails.push('B-11 the press sent ' + JSON.stringify(o.bought));
-        const b3 = await btn();
-        /* The new slot stands empty, so no other is on sale until a hero is in it (newcomer panel 2026-11-01); the third hero brings the fourth slot's price. */
-        if (!reread || b3) fails.push('B-11 after the purchase the roster reads ' + JSON.stringify(b3) + (reread ? ' beside the new empty slot' : ' with no new empty slot'));
-        o.slots.push(3);
-        await page.reload({ waitUntil: 'load' });
-        await wait(page, () => document.querySelectorAll('.char-row').length === 4);
-        if ((await page.$$('.char-row')).length !== 4 || await page.$('[data-app="buy-slot"]')) fails.push('B-11 at four slots the roster still offers a slot, or does not list four');
+        await page.fill('.hero-name[data-member="0"]', 'Wren');
+        await page.fill('.hero-name[data-member="1"]', 'Moss');
+        await page.click('.hero-confirm');
+        await wait(page, () => false, null, 1500);
+        const sent = o.created.map((c) => c.slot + ':' + c.name + ':' + c.set).join();
+        if (sent !== '2:Wren:tank,3:Moss:healer') fails.push('B-11 one press sent ' + JSON.stringify(o.created));
       }
       if (errors.length) fails.push('B-11 console errors: ' + errors.slice(0, 3).join(' | '));
       await ctx.close();
@@ -1654,7 +1617,9 @@ const MUTANTS = [
   ['the page paints no loading shell', 'play.html', '<p class="boot-shell-line">Loading Hearthrise…</p>', ''],
   ['a made hero\'s press asks the server again', 'src/app/hero-create.js', "    if (made) { enter(); return; }\n", ''],
   ['Enter town comes back live under a slow town', 'src/app/hero-create.js', "    hold(t('heroes.entering'));\n", ''],
-  ['a lost answer\'s retry gets a new key', 'src/app/hero-create.js', "    if (!tried || tried.name !== name) tried =", '    tried ='],
+  ['a lost answer\'s retry gets a new key', 'src/app/hero-create.js', "    if (!tried || tried.name !== name || tried.set !== picked) tried =", '    tried ='],
+  ['a first hero comes with a way picked for the player (GR-24)', 'src/app/hero-create.js', "  let picked = typeof o.picked === 'string' && STARTER_SETS[o.picked] ? o.picked : null;", "  let picked = 'tank';"],
+  ['the party sends the first hero\'s set for every hero (B-11)', 'src/app/hero-create.js', 'const r = await o.create(name, colorsNow(), tried[i].key, sets[i], c.slots[i]);', 'const r = await o.create(name, colorsNow(), tried[i].key, sets[0], c.slots[i]);'],
   ['no Hearth behind the sign-in (B-23)', 'src/app/boot.js', "renderAuthScreen(box, auth, mode, { signedIn: () => startAccount(false) });\n    raiseBackdrop(root, win);", "renderAuthScreen(box, auth, mode, { signedIn: () => startAccount(false) });"],
   ['the Hearth is asked for before the crest is in (B-23)', 'src/app/auth-backdrop.js', '  if (!crest || crest.complete) after();\n', '  ask();\n  if (!crest || crest.complete) after();\n'],
   ['the Hearth picture is let go after its load (B-23, a GC between load and draw asks again)', 'src/app/auth-backdrop.js', '      held = img;\n', ''],
@@ -1663,13 +1628,8 @@ const MUTANTS = [
   ['the sign-in says nothing of the game', 'src/styles/app.css', '.auth:has(.auth-card[data-auth]) .auth-pitch { display: block; }\n', ''],
   ['Enter town runs under the fold at 1366x768', 'src/styles/app.css', '.auth:has(.auth-card.is-create) .auth-brand { display: none; }\n', ''],
   ['the color strips are gone though the world draws them', 'src/data/outfits.js', 'export const HERO_DYES_SHOWN = true;', 'export const HERO_DYES_SHOWN = false;'],
-  ['B-11c a hero slot buys on one click again (audit A7)', 'src/app/boot.js', "    else if (what === 'buy-slot') askSlot(true);", "    else if (what === 'buy-slot') { slotAsking = true; buySlot(Number(t.getAttribute('data-slot-id')), Number(t.getAttribute('data-pay'))); }"],
-  ['B-11c the double-click\'s second click answers the question (audit A7)', 'src/app/boot.js', "what === 'buy-slot-yes' && e.detail <= 1)", "what === 'buy-slot-yes')"],
-  ['the price line sits in a column beside the press again (B-11b)', 'src/styles/app.css', '.slot-offer-pay { display: flex; flex-wrap: wrap;', '.slot-offer-pay { display: grid; grid-template-columns: minmax(0, 1fr) max-content; flex-wrap: wrap;'],
-  ['the price line breaks again (B-11b)', 'src/styles/app.css', '.slot-offer-purse, .slot-offer-short { white-space: nowrap;', '.slot-offer-purse, .slot-offer-short { white-space: normal; max-width: 4em;'],
   ['the characters screen draws no hero (B-11b)', 'src/app/boot.js', "    G.drawRosterFaces(root.querySelector('.char-list'), roster)", "    Promise.resolve()"],
   ['a hero is drawn at 1x on the list (B-11b)', 'src/styles/app.css', '.char-face { flex: none; display: block; width: calc(42 * var(--art-px));', '.char-face { flex: none; display: block; width: 42px;'],
-  ['a bought slot is not re-read', 'src/app/boot.js', "if (r.ok) { track('hero_slot_bought'); await showCharacters(", "if (r.ok) { track('hero_slot_bought'); drawSlotOffer(); void ("],
   ['the notice page boots the app', 'index.html', '</body>', '<script type="module" src="src/app/boot.js?v=1"></script></body>'],
   ['the strip\'s tools ride behind the hero tabs (B-4)', 'src/styles/app.css', '.char-strip-tools { display: flex; align-items: stretch; flex: none; margin-left: auto; }', '.char-strip-tools { display: flex; align-items: stretch; flex: none; }'],
   ['signing out shows the next hero (B-5)', 'src/session/account-session.js', 'this._chars.size && !this._ending ? this.characters()[0].slot : null;', 'this._chars.size ? this.characters()[0].slot : null;'],

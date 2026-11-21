@@ -1,10 +1,8 @@
 {
   "schema": "hearthrise.balance-patch/1",
-  "name": "Progression 3: the rested bank's quantum capped at zero (56-review-progression.md section 2.5; 44 P-X26, roadmap R5)",
-  "why": "Every XP grant passes a rested quantum of 0, so the bank fills and pays nothing. Capping the quantum at zero is what removing the mechanism does to the numbers. An identity patch: no number in any cell and no band may move. If one does, something reads the bank and the removal is not free.",
+  "name": "Progression 3: the rested bank cut (56-review-progression.md section 2.5; 44 P-X26, roadmap R5). BUILT by lane/c-formula-steps (FB-2 slice 1, 2026-11-21)",
+  "why": "BUILT: the rested bank is gone from the tree (src/core/rested.js, accrue-rested.js, the charge in grantXp, the Library payload, and player_state.rested_xp / rested_at in 1040-rested-bank-cut.sql), so there is nothing left to plant. It was an identity patch (every grant passed a quantum of 0, so the bank filled and paid nothing) and the built game is that identity. Kept as an empty patch so the registry's toggle still plants until FB-3 retires the row in proposals.json.",
   "kind": "identity",
-  "edits": [
-    { "file": "src/core/rested.js", "from": "export const RESTED_QUANTUM_CAP = 1600;", "to": "export const RESTED_QUANTUM_CAP = 0;" }
-  ],
+  "edits": [],
   "targets": []
 }

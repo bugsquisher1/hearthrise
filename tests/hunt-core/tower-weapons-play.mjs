@@ -150,9 +150,9 @@ const mutants = [
   ['src/core/combat.js', 'const dmgLvl = levelOf(skills, profile.damageSkill) + skillPlusOf(eq, profile.damageSkill);', 'const dmgLvl = levelOf(skills, profile.damageSkill);']] },
   { name: 'the worn set never sums its +skill', case: 'both-paths', edits: [['src/core/combat.js', '  if (plus) Object.assign(s, { skillPlus: plus });', '']] },
   { name: 'a tower weapon hits harder than its twin', case: 'as-skill-levels', edits: [['src/data/chests.js', 'out[w.id] = { ...base, n: w.name,', 'out[w.id] = { ...base, strB: (base.strB || 0) + 1, n: w.name,']] },
-  { name: 'a spell reads the base level only', case: 'spells-grow', edits: [['src/core/hunt/abilities.js',
-    'const powerLevel = (h, row) => skillLevel(h, row) + plusOf(h, abilitySkill(row));', 'const powerLevel = (h, row) => skillLevel(h, row);']] },
-  { name: 'the settle never hands the +skill to the bar', case: 'spells-grow', edits: [['src/core/combat-sim.js', "          ...(m.skillPlus ? { skillPlus: m.skillPlus } : {}) };", '          };']] },
+  /* THE SPELL RULE (lane/c-spell-rule): a spell is a share of its caster's blow, so the +skill reaches it through the blow alone */
+  { name: 'a spell reads the base level only (the +skill never reaches the blow)', case: 'spells-grow', edits: [['src/core/combat.js',
+    '  const dmgLvl = levelOf(skills, profile.damageSkill) + skillPlusOf(eq, profile.damageSkill);', '  const dmgLvl = levelOf(skills, profile.damageSkill);']] },
   { name: 'a peer\'s frozen row drops the +skill', case: 'peers', edits: [['src/core/member.js', ', ...(snap.skillPlus ? { skillPlus: snap.skillPlus } : {}) });', ' });']] },
   { name: 'the frozen level reads the +skill', case: 'peers', edits: [['src/core/member.js',
     'for (const k of engineSkillsOf(m.hero.slots)) lv[k] = levelOf(m.state.skills, k);', 'for (const k of engineSkillsOf(m.hero.slots)) lv[k] = levelOf(m.state.skills, k) + ((m.skillPlus || {})[k] || 0);']] },

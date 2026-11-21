@@ -233,7 +233,7 @@ const cases = {
     const alone = Object.values(M.AD.ABILITIES).filter((r) => r.alone).map((r) => r.id);
     if (alone.join() !== 'undertow') return 'the alone spells are ' + JSON.stringify(alone) + ', want Undertow alone: re-judge this case';
     const row = M.AD.ABILITIES.undertow;
-    if (!row.disciplines.includes('restoration') || row.mana !== M.AD.ABILITIES.mend.mana || !row.dmg || row.target !== 'enemy') return 'Undertow is not the Healer’s single-target strike at a Mend’s mana: ' + JSON.stringify(row);
+    if (!row.disciplines.includes('restoration') || row.mana !== M.AD.ABILITIES.mend.mana || !M.AD.landsBlow(row) || row.target !== 'enemy') return 'Undertow is not the Healer’s single-target strike at a Mend’s mana: ' + JSON.stringify(row);
     const sl = slotOf('undertow', []);
     const facts = (alone) => ({ set: { discipline: 'restoration', role: 'healer', store: [], slots: [] }, bag: [{ id: 'chalked_water_rune', qty: 5 }], hero: { mana: 500 }, worn: null, skills: null, pack: null, party: alone ? 1 : 2, alone, holding: false, test: null });
     /* THE ENGINE: beside a living partner it never fires; with the partner dead it does (read at each cast). */
@@ -268,9 +268,10 @@ const cases = {
     const set = (id, c) => M.W.setupNote({ action: { type: 'ability', id }, conditions: [c], join: 'and' }, 1);
     if (!/^Waits under 3 monsters/.test(set('fireball', { metric: 'enemies_in_aoe', op: 'gte', value: 3 }))) return 'three on the area reads ' + JSON.stringify(set('fireball', { metric: 'enemies_in_aoe', op: 'gte', value: 3 }));
     if (!/^Never fires: reaches 1 monster at most, condition needs 2$/.test(set('power_strike', { metric: 'enemies_in_aoe', op: 'gte', value: 2 }))) return 'a strike wanting 2 reads ' + JSON.stringify(set('power_strike', { metric: 'enemies_in_aoe', op: 'gte', value: 2 }));
-    /* A Cleave hits up to three beside its hero (abilities.js maxHits): two is a crowd it can see, four never comes. */
-    if (/Never fires/.test(set('cleave', { metric: 'enemies_in_aoe', op: 'gte', value: 2 }))) return 'a Cleave wanting 2 reads ' + JSON.stringify(set('cleave', { metric: 'enemies_in_aoe', op: 'gte', value: 2 }));
-    if (!/^Never fires: reaches 3 monsters at most, condition needs 4$/.test(set('cleave', { metric: 'enemies_in_aoe', op: 'gte', value: 4 }))) return 'a Cleave wanting 4 reads ' + JSON.stringify(set('cleave', { metric: 'enemies_in_aoe', op: 'gte', value: 4 }));
+    /* Turning Cut (Cleave merged into it, Tyler 32-2) hits up to eight beside its hero (abilities.js maxHits, its ring's eight tiles): two is
+       a crowd it can see, nine never comes. */
+    if (/Never fires/.test(set('turning_cut', { metric: 'enemies_in_aoe', op: 'gte', value: 2 }))) return 'a Turning Cut wanting 2 reads ' + JSON.stringify(set('turning_cut', { metric: 'enemies_in_aoe', op: 'gte', value: 2 }));
+    if (!/^Never fires: reaches 8 monsters at most, condition needs 9$/.test(set('turning_cut', { metric: 'enemies_in_aoe', op: 'gte', value: 9 }))) return 'a Turning Cut wanting 9 reads ' + JSON.stringify(set('turning_cut', { metric: 'enemies_in_aoe', op: 'gte', value: 9 }));
     return /never happens/.test(set('mend', { metric: 'self_hp_pct', op: 'lt', value: 0 })) ? null : 'below 0% HP reads ' + JSON.stringify(set('mend', { metric: 'self_hp_pct', op: 'lt', value: 0 }));
   },
 };

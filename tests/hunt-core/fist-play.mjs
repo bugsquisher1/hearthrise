@@ -11,8 +11,9 @@
 // both-paths    a lone fist and a four with one, a watched hunt (10 s settles) and a closed browser (10 min) land every blow, strike,
 //               heal and coin alike; the fist casts its strikes; and its own heal changes the hunt (the same hero with the wraps'
 //               heal taken off eats more)
-// own-skill     AN ABILITY NAMING ITS OWN SKILL: Charged Hands lands harder at Magic 40 than at Magic 1 (its numbers read Magic, not
-//               Melee), and its hits train no Melee while the wraps' blows and Power Strike do (Magic is paid per mana)
+// own-skill     AN ABILITY NAMING ITS OWN SKILL: Charged Hands' own skill is Magic (its versions and unlock read it) while its numbers
+//               are a share of the wraps' blow (THE SPELL RULE: Melee grows them, Magic never does), and its hits train no Melee while
+//               the wraps' blows and Power Strike do (Magic is paid per mana)
 //
 // mutant-anchors: src/data/abilities.js src/core/hunt-rewards.js src/core/combat-sim.js src/core/member.js src/core/combat.js src/core/hunt/pull-cycle.js
 import { join } from 'node:path';
@@ -97,16 +98,21 @@ const cases = {
     return null;
   },
   'own-skill': async (X) => {
-    /* its numbers read MAGIC: Charged Hands' mean hit at Magic 40 against Magic 1, every other skill at the Level */
+    /* THE SPELL RULE (lane/c-spell-rule, Tyler 2026-11-21, 21-5): its numbers are a share of the wraps' own blow, which MELEE grows; its
+       own skill, Magic, gates its versions and is paid per mana, never in the hit. Charged Hands' mean hit at Magic 40 against Magic 1,
+       and at Melee 40 against Melee L, every other skill at the Level */
     const at = (magic, melee) => {
       const p = play(X, ['melee_dps'], { fistSeat: 0, spanMs: HOUR / 2,
         start: () => ({ skills: { melee: X.XP.skillXpForLevel('melee', melee), ranged: X.XP.skillXpForLevel('ranged', L), magic: X.XP.skillXpForLevel('magic', magic), defense: X.XP.skillXpForLevel('defense', L) } }) });
       const hits = p.events.filter((e) => e.type === 'dmg' && e.ability === 'ice_hands' && e.u === 1 && e.amount > 0);
       return hits.length ? hits.reduce((s, e) => s + e.amount, 0) / hits.length : 0;
     };
-    const low = at(1, L), high = at(40, L), strong = at(1, 40);
-    if (!(low > 0 && high > low * 1.25)) return 'Charged Hands at Magic 40 lands ' + high.toFixed(1) + ', at Magic 1 ' + low.toFixed(1) + ': it does not read Magic';
-    if (!(Math.abs(strong / low - 1) < 0.1)) return 'Charged Hands moved with Melee: ' + low.toFixed(1) + ' at Melee ' + L + ', ' + strong.toFixed(1) + ' at Melee 40';
+    /* the strike's own skill is Magic (its versions and its unlock read it); at Melee 99 the wraps' blow is past the strike's floor */
+    const hands = X.AD.ABILITIES.ice_hands;
+    if (!hands || X.AD.abilitySkill(hands) !== 'magic') return 'Charged Hands\' own skill is ' + (hands && X.AD.abilitySkill(hands)) + ', not Magic';
+    const low = at(1, L), high = at(40, L), strong = at(1, 99);
+    if (!(low > 0 && Math.abs(high / low - 1) < 0.1)) return 'Charged Hands moved with Magic: ' + low.toFixed(1) + ' at Magic 1, ' + high.toFixed(1) + ' at Magic 40';
+    if (!(strong > low * 1.25)) return 'Charged Hands at Melee 99 lands ' + strong.toFixed(1) + ', at Melee ' + L + ' ' + low.toFixed(1) + ': it does not read the wraps\' blow';
     /* its hits train no Melee (Magic is paid per mana); the wraps' blows and Power Strike train Melee */
     const rw = await import(pathToFileURL(join(X.root, 'src/core/hunt-rewards.js')).href + V);
     const got = { level: 0 };

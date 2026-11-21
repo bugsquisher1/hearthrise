@@ -166,7 +166,8 @@ const cases = {
     if (!(healed > 10) || healedW !== healed - Math.floor((healed * 300) / 1000)) return 'Mend: ' + healed + ' whole, ' + healedW + ' Withered';
     /* A SPELL'S LEECH: Reave's 30% back, then cut on a Withered caster (Melee 60, its own Etched Bone Runes) */
     const reave = (withered) => {
-      const x = oneHero(M, { hp: 10, maxHp: 1000 }, { bar: [slot('reave')], skills: { melee: M.XP.skillXpForLevel('melee', 60) },
+      /* (a Melee-60 sword's blow: Reave is a share of it, the spell rule) */
+      const x = oneHero(M, { hp: 10, maxHp: 1000, maxHit: 40 }, { bar: [slot('reave')], skills: { melee: M.XP.skillXpForLevel('melee', 60) },
         hs: supplySession(M, { bag: { etched_bone_rune: { loaded: 10 } } }) }, [{ x: 13, y: 3, hp: 5000, maxHp: 5000 }]);
       x.sc.rng = rngOf(M, 9);
       if (withered) wither(M, x.inst, x.h);

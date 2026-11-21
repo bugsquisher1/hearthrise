@@ -36,7 +36,9 @@ export function playedBar(role, o) {
   const t = runeTierAt(o.magic || 1);
   const food = [o.food ? eat(o.food, 45) : null, o.storeFood ? eat(o.storeFood, 45, 'p_food_store') : null, o.storeDrink ? drink(o.storeDrink, 30) : null].filter(Boolean);
   if (role === 'tank' || role === 'melee_dps') {
-    return [move('challenge'), move('turning_cut', AOE(3)), spell('flame_strike', 'fire', t), move('power_strike'), move('cleave'),
+    /* THE SPELL RULE (lane/c-spell-rule, Tyler 2026-11-21): Cleave merged into Turning Cut (32-2), so the recorded heroes' two-monster
+       button is Turning Cut at 2; the axes lost Power Strike (32-3), so their strike is Rend on its own Rupture runes. */
+    return [move('challenge'), move('turning_cut', AOE(2)), spell('flame_strike', 'fire', t), spell('rend', 'rupture', t), move('power_strike'),
       move('mend', [{ op: 'lt', value: 50, metric: 'self_hp_pct' }]), ...food];
   }
   if (role === 'ranger') {
@@ -68,4 +70,4 @@ export const PLAYED_OPTIONS = Object.freeze({
 });
 
 /* The rune families a role's played bar spends (its carried stock, when the cell's supply is 'own'). */
-export const PLAYED_RUNES = Object.freeze({ tank: ['fire'], melee_dps: ['fire'], ranger: ['fire'], mage: ['fire', 'ice', 'earth'], healer: ['poison', 'water', 'earth'] });
+export const PLAYED_RUNES = Object.freeze({ tank: ['fire'], melee_dps: ['fire', 'rupture'], ranger: ['fire'], mage: ['fire', 'ice', 'earth'], healer: ['poison', 'water', 'earth'] });

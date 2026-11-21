@@ -435,7 +435,7 @@ async function checks(overrides) {
       const want = (rule, name, re) => { if (!re.test(l[name] || '')) fails.push(rule + ' ' + name + ' reads ' + JSON.stringify(l[name])); };
       want('BW-6', 'enrageTank', /^Lost after his enrage, boss at 23%\nFood eaten: 6\n.*eat earlier/i);
       want('BW-6', 'enrageHealer', /^Lost after his enrage, boss at 23%\nHeals cast: 12\n/);
-      want('BW-6', 'addsMage', /^Lost during his adds, boss at 41%\nArea slot casts: 0\n.*Cleave, Fireball/);
+      want('BW-6', 'addsMage', /^Lost during his adds, boss at 41%\nArea slot casts: 0\n.*Turning Cut, Fireball/);
       want('BW-6', 'addsHealer', /^Lost during his adds, boss at 41%\nHeals cast: 2\n/);
       want('BW-6', 'addsTank', /^Lost during his adds, boss at 41%\nChallenge casts: 1\n/);
       want('BW-6', 'chiefAdds', /^Lost during his adds, boss at 41%\nArea slot casts: 3\nTip: Kill his adds first, heal whoever they attack$/);

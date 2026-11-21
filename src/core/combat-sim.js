@@ -452,8 +452,7 @@ export function simulateHuntInstance(inst, ctx) {
         byUnit.set(m.unitId, m);
         /* A TRAINING GROUND SHUTS THE BAR (src/core/hunt/training.js): the plain basic alone, no stop rule: the yard spends no supply. */
         heroes[m.unitId] = { hs: m.hs, slots: train ? TRAINING_SLOTS : m.hero.slots, stopRules: train ? [] : m.hero.stopRules, actionSet: m.hero.actionSet,
-          range: m.hero.range, rollsVs: m.rollsVs, shotRolls: m.shotRolls, ammo: m.hero.ammo, items: ctx.items || null, skills: m.state.skills,
-          ...(m.skillPlus ? { skillPlus: m.skillPlus } : {}) };
+          range: m.hero.range, rollsVs: m.rollsVs, shotRolls: m.shotRolls, ammo: m.hero.ammo, items: ctx.items || null, skills: m.state.skills };
       }
       /* MONSTER DENSITY for the packs that spawn from here: the party leader's pick (Tyler 2026-10-20),
          clamped to the ground for the party's size (hunt-grounds.js partyPick, densityFor). */

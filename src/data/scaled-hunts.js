@@ -102,7 +102,9 @@ export const SCALED_HUNTS = Object.freeze({
      the formula's own (its layout kills fast); at 800 every tested gap reads 0.5-0.9x the right-Level ground. 700 since the re-tune
      (lane/b-one-difficulty, 2026-11-08): the mixed party cells rose, and a scaled four reads its ground's cell (the Thicket's 1860, the
      Glade's 1730, against the Warrens' 1475), so at 800 the Thicket's and the Glade's fours at 50 read 1.01x and 1.08x the Warrens */
-  xpPm: 740,
+  /* 740 -> 730 (lane/c-spell-rule, 2026-11-21): under the spell rule a scaled Thicket at Level 41 paid 168,139 Level XP an hour against the
+     Warrens' own 166,887 (tests/scaled-hunts.mjs fee-guard) */
+  xpPm: 730,
   /* 820 since a scaled kill reads the top ground's XP fit (below; 2026-11-11): at 700 the Glade scaled one Level past its band paid 1.10x itself, under the 1.25x
      that makes a bought hour worth it (fee-guard), while a scaled Cellar hero alone at 50 read 0.65x the Warrens' own; 820 lands the Glade at about 1.29x itself and the
      scaled fours at 0.86-0.90x the Warrens' four, under it as ruled.

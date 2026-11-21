@@ -308,10 +308,41 @@ function shelter() {
   return g;
 }
 
-export const DRAW = Object.freeze({ mend, rend, protective_ward: ward, undertow, frost_slam: frostSlam, shelter });
+/* QUARRY BLOW (lane/c-spell-rule, 2026-11-21: the hammer's Earth rune strike, Tyler call 32-5): a war hammer's steel head coming down on a
+   quarried stone block, the block split under it and its chips thrown up. The stone is the verb's object, as the ice is Frost Slam's: not
+   the Ward's shield or the Barrier's disc (the Earth family's shells), and not Power Strike's star. World palette only, as the tank's two. */
+const ROCK = { lit: '#aaa49a', top: '#8a867d', face: '#6a6865', dark: '#4f4e52', deep: '#3a3a3e' };   // the palette's stone ramp
+const HAFT = { lit: '#a8743a', mid: '#7a4f26', dark: '#4a2e18' };                                    // bronze: a worn wooden haft
+
+function quarryBlow() {
+  const g = frame();
+  // the block: a squat cut stone sitting on the field's foot, lit on its top face, its crack running down from the blow
+  const block = [];
+  for (let y = 18; y < 29; y++) for (let x = 5; x < 27; x++) {
+    const topFace = y < 21, left = x < 8;
+    block.push([x, y, topFace ? (x < 14 ? ROCK.lit : ROCK.top) : left ? ROCK.top : y > 25 ? ROCK.dark : ROCK.face]);
+  }
+  stamp(g, block);
+  // the split: a dark zigzag from under the head to the foot, its lit lip beside it
+  for (const [x, y] of [[16, 18], [16, 19], [15, 20], [15, 21], [16, 22], [17, 23], [17, 24], [16, 25], [16, 26], [17, 27], [17, 28]]) {
+    g[y][x] = ROCK.deep;
+    if (g[y][x - 1] === ROCK.face || g[y][x - 1] === ROCK.top) g[y][x - 1] = ROCK.lit;
+  }
+  // the hammer's head, square-faced, coming down on the block from the upper right, its haft running off to the corner
+  const head = paint(['abbbbbbc', 'abbbbbbc', 'aabbbbcc', 'abbbbbbc', 'abbbbbbc', 'dddddddd'],
+    { a: STEEL.a, b: STEEL.b, c: STEEL.c, d: STEEL.d }, 12, 11);
+  stamp(g, head);
+  stamp(g, lens([19, 13], [27, 4], () => 1.1, (t, d) => (d > 0.2 ? HAFT.lit : d > -0.5 ? HAFT.mid : HAFT.dark)));
+  // the chips the blow throws up, and the dust on either side of the head
+  for (const [x, y, c] of [[9, 14, ROCK.top], [10, 12, ROCK.lit], [7, 16, ROCK.face], [23, 16, ROCK.top], [24, 14, ROCK.lit]]) g[y][x] = c;
+  for (const [x, y] of [[8, 17], [11, 16], [22, 17], [25, 17]]) g[y][x] = ROCK.lit;
+  return g;
+}
+
+export const DRAW = Object.freeze({ mend, rend, protective_ward: ward, undertow, frost_slam: frostSlam, shelter, quarry_blow: quarryBlow });
 
 /** The tiles whose emblems are locked to the world palette (the four above them wear their sibling tiles' colours, as the header says). */
-const ON_WORLD_PALETTE = Object.freeze(['frost_slam', 'shelter']);
+const ON_WORLD_PALETTE = Object.freeze(['frost_slam', 'shelter', 'quarry_blow']);
 
 /** The colours in tile `id` that are neither the world palette's nor the family frame's (frame, field, ink, white): [] when it is locked. */
 function offPalette(id) {

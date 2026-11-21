@@ -115,7 +115,7 @@ export function normalizeSlot(s) {
 export const ignores = (slot, m) => !!(slot && Array.isArray(slot.ignore) && slot.ignore.length && m && m.side === 'mon' && slot.ignore.includes(m.kind));
 
 /* The ability targets that are MONSTERS (abilities.js TARGETS): the only ones an ignore list can mean. */
-const MONSTER_TARGETS = Object.freeze(['taunt', 'mark', 'enemy', 'area', 'line', 'ring', 'cleave']);
+const MONSTER_TARGETS = Object.freeze(['taunt', 'mark', 'enemy', 'area', 'line', 'ring']);
 /** Does `slot` aim at monsters (an attack item, or an ability whose target is a monster)? An IGNORE LIST
     binds only these (Coordinator 2026-10-23): a food, a drink, a heal or a shield aims at a hero, so a hero
     fighting an ignored monster still eats, drinks and heals. */
@@ -424,20 +424,6 @@ export function reaches(inst, hero, range, t) {
   return dist2(hero, t) <= r * r && los(inst.grid, hero, t);
 }
 
-/* CLEAVE'S REACH (abilities.js effect 'cleave'): no square on an aim but the swing itself, its target and every other engaged
-   monster beside the hero, up to the row's maxHits. The target is the one abilities.js targetFor takes (in reach, not ignored:
-   the hero's own first, then the nearest, then the lowest id). Read as a footprint of 1 it said "one monster at most" of a
-   swing that hits three, so a Cleave held for a crowd never fired (lane/c-boss-call; tests/hunt-core/conditions.mjs). */
-function cleaveReach(inst, hero, range, row, slot) {
-  const mons = engagedMons(inst);
-  const can = mons.filter((m) => reaches(inst, hero, range, m) && !ignores(slot, m))
-    .sort((a, b) => (Number(b.id === hero.target) - Number(a.id === hero.target)) || (dist2(a, hero) - dist2(b, hero)) || (a.id - b.id));
-  if (!can.length) return 0;
-  const beside = mons.filter((m) => cheb(m, hero) <= 1);
-  return Math.min(row.maxHits, beside.length + (beside.includes(can[0]) ? 0 : 1));
-}
-const cleaveRow = (slot) => (slot && slot.action.type === 'ability' && ABILITIES[slot.action.id] && ABILITIES[slot.action.id].target === 'cleave' ? ABILITIES[slot.action.id] : null);
-
 /* An ability slot whose row strikes a line or a ring round its hero (abilities.js areaSpec): its row, else null. The
    3x3 'area' keeps its footprint (footprintOf); both are shapes.js shapes. */
 const shapedRow = (slot) => {
@@ -445,11 +431,9 @@ const shapedRow = (slot) => {
   return row && (row.target === 'line' || row.target === 'ring') ? row : null;
 };
 
-/** The most monsters `slot`'s action can hit at once: a Cleave's maxHits, a line's length, a ring's tiles (up to its
-    maxHits), else every tile of its footprint (src/shell/slot-waits.js). */
+/** The most monsters `slot`'s action can hit at once: a line's length, a ring's tiles (up to its maxHits), else every tile of
+    its footprint (src/shell/slot-waits.js). */
 export function areaTopOf(slot, h) {
-  const cl = cleaveRow(slot);
-  if (cl) return cl.maxHits;
   const sh = shapedRow(slot);
   if (sh) return Math.min(tilesMax(areaSpec(sh)), Number.isInteger(sh.maxHits) ? sh.maxHits : Infinity);
   const n = footprintOf(slot, h);
@@ -555,8 +539,6 @@ const EVAL = Object.freeze({
   ally_hp_pct: (cx, c) => { const a = allyOf(cx, c.subject, 'hp'); if (a) cx.ally = cx.ally || a; return a ? share(a.hp, a.maxHp) : null; },
   ally_mana_pct: (cx, c) => { const a = allyOf(cx, c.subject, 'mana'); return a ? share(a.mana, a.maxMana) : null; },
   enemies_in_aoe: (cx) => {
-    const cl = cleaveRow(cx.slot);
-    if (cl) return cleaveReach(cx.inst, cx.u, cx.h && cx.h.range, cl, cx.slot);
     const sh = shapedRow(cx.slot);
     if (sh) {
       const s = shapedAim(cx.inst, cx.u, cx.h && cx.h.range, sh, cx.slot);

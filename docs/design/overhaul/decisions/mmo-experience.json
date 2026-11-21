@@ -258,7 +258,8 @@
       "fixNote": "Decided twice with slightly different conditions. Merged into one row.",
       "status": "PROVISIONAL",
       "waitsOn": "a real death rate, and Tyler's answer on the hunting hours a death costs an idle party",
-      "firstBuild": "in the first build: one sample boss"
+      "firstBuild": "in the first build: one sample boss",
+      "sitting": "S-6, option A. Deadly is a tier you watch or gamble on, and idle players mostly use Dangerous. The lost hunting time is accepted: 18 to 31% on the 8 hour bar and 25 to 42% on the 12 hour bar, before the 6%."
     },
     {
       "id": "MM-8",
@@ -279,7 +280,7 @@
     {
       "id": "MM-9",
       "call": "The castle is one project at a time on the town project engine. Each room carries one standing buff up to the standing caps.",
-      "decision": "One project at a time on the town project engine. A stage is priced per member, as castleStagePerMember x max(5, members), so a small clan can build and a clan of one pays for five, and the castle is open at any roster size. A stage can never finish in under a week. Tyler said keep on the page 2026-11-21, and what follows is a PROPOSAL he has not seen: the castle's five buildings of ten levels, labor, votes, upkeep, the treasury and Clan Standing all stay, fitted to that price. Buildings: the War room (damage dealt up to +5%), the Ward (a Defense rating row worth up to about 5% less damage an hour), the Workshop (town work speed up to +10%), the Kitchen (the clan's weekly ration cap) and a fifth building held for T-fix-4. Each has ten levels and reaches its cap at level ten. Labor: a member's heroes can give rested town hours to the project as a closed-form town job, valued on the wage curve, so a stage's price is paid in gold, castle goods or labor. Treasury: members' weekly shares and gifts go into it, nothing ever comes back out (25-5), and it pays in a fixed order, upkeep first and then the open project. Upkeep: a weekly bill for each member with the same floor of five. The member's weekly share is what pays it, so there is one payment and not two. If upkeep is unpaid the rooms' buffs switch off until it is paid and nothing is lost. Votes: each account sets its vote for the next project once, as a standing choice. The leader breaks a tie and picks when nobody has voted. Clan Standing: a lifetime tally of what each account gave in gold, goods and labor. It shows on the roster and the plaque and pays no power. Fifty stages at 1 to 1.3 weeks is about a year for a full castle. Whether there is a library or a Level XP room is OPEN, waiting on Tyler (T-fix-4). Sizes are a HYPOTHESIS.",
+      "decision": "One project at a time on the town project engine. A stage is priced per member, as castleStagePerMember x max(5, members), so a small clan can build and a clan of one pays for five, and the castle is open at any roster size. A stage can never finish in under a week. RULED in direction at the sitting: the castle's five buildings of ten levels, labor, votes, upkeep, the treasury and Clan Standing all stay, fitted to that price. Buildings: the War room (damage dealt up to +5%), the Ward (a Defense rating row worth up to about 5% less damage an hour), the Workshop (town work speed up to +10%), the Kitchen (the clan's weekly ration cap) and the library, which pays a standing Level XP bonus (ruled at the sitting, size owed). Each has ten levels and reaches its cap at level ten. Labor: a member's heroes can give rested town hours to the project as a closed-form town job, valued on the wage curve, so a stage's price is paid in gold, castle goods or labor. Treasury: members' weekly shares and gifts go into it, nothing ever comes back out (25-5), and it pays in a fixed order, upkeep first and then the open project. Upkeep: a weekly bill for each member with the same floor of five. The member's weekly share is what pays it, so there is one payment and not two. If upkeep is unpaid the rooms' buffs switch off until it is paid and nothing is lost. Votes: each account sets its vote for the next project once, as a standing choice. The leader breaks a tie and picks when nobody has voted. Clan Standing: a lifetime tally of what each account gave in gold, goods and labor. It shows on the roster and the plaque and pays no power. Fifty stages at 1 to 1.3 weeks is about a year for a full castle. Sizes are a HYPOTHESIS.",
       "outcome": "third",
       "reason": "You said keep the castle a slow climb with gold and time, and I kept both. What I changed is the fixed price, because a fixed price means a clan of 3 never finishes and a clan of 60 finishes in a day. I also cut the XP room. A damage buff already makes me level faster, so an XP room is the same thing twice and it is the one room that broke your \"clans give no XP\" ruling.",
       "evidence": "COMPUTED: 4 rooms x 5 levels at one stage a week or slower is 20 to 26 weeks. Per-member pricing is flat by construction at 5 members and up. Sizes are TARGET with no measurement (chapter 04 section 2.6 says so). HYPOTHESIS that small clans build. Playtest read: clans with gifts from three or more members.",
@@ -289,15 +290,14 @@
       "was": "One project at a time on the town project engine, and four rooms of five levels. War room: damage dealt up to +5%. Ward: damage taken up to 5% less. Workshop: town work speed up to +10%. Kitchen: raises the clan's weekly ration cap. There is NO library and no Level XP room. A stage is priced per member, as castleStagePerMember x max(5, members), so a small clan can build and a clan of one pays for five. A stage can never finish in under a week. Twenty stages is about six months, the pace you kept on 11-20. The castle is open at any roster size. No labor, no upkeep, no treasury balance. Castle goods keep their prices (31-3).",
       "fixedBy": "review-4, review-16",
       "fixNote": "The row said it kept 31-3 while changing it, and \"about six months\" disagreed with chapter 04, which sized a stage at 2 to 4 weeks.",
-      "status": "PROPOSAL",
+      "status": "RULED (Tyler, 2026-11-21, the sitting)",
       "tyler": "He let the reversal stand on the page, in about a second. It changes the earlier ruling.",
       "wasBeforeTyler": "One project at a time on the town project engine, and four rooms of five levels. War room: damage dealt up to +5%. Ward: a Defense rating row sized so a mid-geared four takes up to about 5% less damage an hour (CORE-4). Workshop: town work speed up to +10%. Kitchen: raises the clan's weekly ration cap. There is NO library and no Level XP room. A stage is priced per member, as castleStagePerMember x max(5, members), so a small clan can build and a clan of one pays for five. A stage can never finish in under a week. castleStagePerMember is sized so a stage takes 1 to 1.3 weeks at the weekly share, which makes twenty stages 20 to 26 weeks. The castle is open at any roster size. No labor, no upkeep, no treasury balance. This changes 31-3 (castle goods keep their built prices) and it is the option Tyler declined on 25-4. The one new fact that justifies asking again is his 2026-11-21 ruling that clans pay buffs: a fixed price now locks a clan of three out of hero power. If Tyler vetoes, the castle keeps built prices and one work order a week for each slot, and only the ten-account gate goes.",
       "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
-      "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
-      "proposal": "Made in the fold 2026-11-21, not yet seen by Tyler. He said keep on a cut list. How it stays is the integrator's proposal and nothing more.",
       "firstBuild": "planned, waits until clans exist and people are in them",
-      "conflictForTheSitting": "Cut 5 (keep the castle's old parts) against reversal 19 (the simple castle priced for each member). The fold built both.",
-      "madeInTheFold": "Rewritten in the fold 2026-11-21 after his picks. Not yet seen by Tyler."
+      "madeInTheFold": "Rewritten in the fold 2026-11-21 after his picks. Not yet seen by Tyler.",
+      "sitting": "S-7, option B. The full castle is ruled as the direction: five buildings of ten levels, labor, upkeep, votes, a treasury, about a year.",
+      "waitsOn": "Every size stays PROVISIONAL: stage prices, upkeep, labor value and the year. The fifth building is the library, which pays a standing Level XP bonus (S-4), and its size is owed by the design lane."
     },
     {
       "id": "MM-10",
@@ -393,10 +393,10 @@
       "was": "The table as recommended with one cut: there is no standing Level XP cap, because no clan room gives XP (MM-9). Damage dealt: +5% standing, +10% timed. Damage taken: 5% less standing, 5% less timed. Level XP: none standing, +25% timed. Drop chance: none standing, +10% timed and earned only, never sold. Town work speed: +10% standing. Coin: no buff, ever. Who fills what: war room, ward and workshop fill the standing caps. Timed damage comes from the boss (+5%) and the Open Arena season (up to +5%). Timed damage taken comes from the clan board marks. Timed drop chance comes from the clan weekly goal (+5%) and the Even Arena season (up to +5%). Timed Level XP comes only from the Hearthrise weekend and whatever the store sells.",
       "fixedBy": "review-1, review-3, review-4",
       "fixNote": "The row called the timed drop row drop chance, wrote protection as a share off a blow, and left room for a store Level XP boost.",
-      "openPart": "Whether a clan library or a Level XP room exists is OPEN, waiting on Tyler (T-fix-4). The table is written with no standing Level XP cap.",
       "status": "PROVISIONAL",
-      "waitsOn": "one buff played in a cell",
-      "firstBuild": "planned, waits until Deadly is sized and one buff has been played in a cell"
+      "waitsOn": "one buff played in a cell. The standing Level XP row waits on the clan XP size",
+      "firstBuild": "planned, waits until Deadly is sized and one buff has been played in a cell",
+      "sitting": "S-4, option A. A clan room pays a standing Level XP bonus, which reverses 25-2. Its size is owed by the design lane."
     },
     {
       "id": "MM-26",
@@ -412,8 +412,9 @@
       "fixedBy": "review-2, review-4",
       "fixNote": "The ceiling was written as 1.65 here, 1.58 in MM-31 and 1.60 in the book. MM-31 left out the +5% standing damage row.",
       "status": "PROVISIONAL",
-      "waitsOn": "one buff played in a cell",
-      "firstBuild": "planned, waits until Deadly is sized and one buff has been played in a cell"
+      "waitsOn": "one buff played in a cell. The ceiling also waits on the clan XP size",
+      "firstBuild": "planned, waits until Deadly is sized and one buff has been played in a cell",
+      "sitting": "S-4, option A, as a knock-on. The pace ceiling rises with a clan Level XP room, to about 1.73 at +5%."
     },
     {
       "id": "MM-13",
@@ -562,16 +563,19 @@
     {
       "id": "MM-18",
       "call": "No hero is hired, lent or put on call. A party is your own heroes.",
-      "decision": "Yes. No hire, no lending, no on-call board. Nobody else ever sends your hero. Two friends can still form a party by hand through an invite, both on purpose, with the shared supply bill of 25-8. It comes back to you only if playtest friends ask to lend heroes without being prompted.",
+      "decision": "On-call heroes are kept, with Tyler's design. His words: \"on call is fine but should be full stamina, the on call hero trades their crafting/training time for a small cut of exp, no loss on death. HOWEVER they can only go on call once every 24 hours and it will only last for 12 hours. Then back to a chosen activity\". The full spec is docs/design/overhaul/11-on-call-and-clan-xp.md, which a design lane is writing. This row does not design it. A hero from another account can join a party again.",
       "outcome": "recommended",
       "reason": "On-call heroes were to fill empty party seats. Now every account has four heroes from the first hour and all four hunt 12 hours a day, so there is no empty seat and no spare hero-hour. What is left is a market in carried leveling and one more thing Security has to lock down.",
       "evidence": "COMPUTED: among four real players with top Levels 79, 46, 9 and 8, one pair in six could share XP under the two thirds line (chapter 06 section 2.10). RULED 2026-11-21 (four heroes from the start) is newer than 25-1.",
       "replaces": "REVERSAL. 25-1 (2026-11-20, on-call heroes at 2 hours a day, 4 at most) and the on-call board inside 25-3. The rest of 25-3 stands: roster, clan chat, clan browser.",
       "money": false,
       "depends": "Home decider: \"party member\" drops out of who may visit a house (GR-75). Chapter 09: no hero-lending trade surface in the Security scope. GR-10a is closed.",
-      "status": "OPEN (waiting on Tyler, T-fix-1)",
+      "status": "RULED (Tyler, 2026-11-21, the sitting)",
       "tyler": "Held. Cut 2 was not approved, and reversal 18 (MM-18, no hired, lent or on-call heroes) asks for the same removal. The two picks point opposite ways. Not decided. The decision text is what the book reads until he answers.",
-      "statusBeforeReissue": "OPEN (waiting on Tyler, T-fix-1)"
+      "statusBeforeReissue": "OPEN (waiting on Tyler, T-fix-1)",
+      "wasBeforeSitting": "Yes. No hire, no lending, no on-call board. Nobody else ever sends your hero. Two friends can still form a party by hand through an invite, both on purpose, with the shared supply bill of 25-8. It comes back to you only if playtest friends ask to lend heroes without being prompted.",
+      "sitting": "S-1, his own words. It reverses the removal this row first decided. Ruling 25-1 stands in his new form.",
+      "firstBuild": "waits on the spec in docs/design/overhaul/11-on-call-and-clan-xp.md"
     },
     {
       "id": "MM-19",
@@ -589,7 +593,8 @@
       "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
       "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
       "waitsOn": "a matrix cell with mixed Levels",
-      "madeInTheFold": "Rewritten in the fold 2026-11-21 after his picks. Not yet seen by Tyler."
+      "madeInTheFold": "Rewritten in the fold 2026-11-21 after his picks. Not yet seen by Tyler.",
+      "sitting": "S-1, as a knock-on. A hero from another account can join a party again, so the two thirds line has real cases."
     },
     {
       "id": "MM-20",
@@ -622,16 +627,18 @@
     {
       "id": "GR-69",
       "call": "Remove the Local chat tab and the live party finder, and strike the fifth seat.",
-      "decision": "Yes to all three. No Local tab. Town crier and NPC tip lines show as speech in the town itself and in the System tab, never in Global, because Global is for people. No live party finder: a party is your own four and friends invite by the right-click menu. The cap is four and \"maybe 5 later\" comes off the books.",
+      "decision": "No Local chat tab and no live party finder. Global, Clan, Party and whispers stay. Town criers speak in Global and in the town itself.",
       "outcome": "recommended",
       "reason": "Hunts are instanced so \"local\" is my party, which has its own tab. A live finder needs two strangers online at the same minute, which almost never happens here. Dead tabs and empty finders make a small game look abandoned.",
       "evidence": "EVIDENCE: 5 of 675 ten-minute windows held two people pressing (study 49). The review found none of the three in use (60 section 8.7). RULED 25-11 already caps a party at four.",
       "replaces": "REVERSAL, small. 2026-11-11 (criers call out in local chat): they speak in the town and the System tab. 2026-10-15/16 (a party finder that filters by weapon type) is removed.",
       "money": false,
       "depends": "MM-1, MM-18. Home decider: crier lines in the town (chapter 07). Chat tabs kept: Global, Clan, Party, Whispers, System, Combat.",
-      "status": "OPEN (waiting on Tyler, T-fix-2)",
+      "status": "RULED (Tyler, 2026-11-21, the sitting)",
       "tyler": "Held. Cuts 3 and 4 were not approved, and reversal 21 (GR-69) asks for the same removals. Not decided. The decision text is what the book reads until he answers.",
-      "statusBeforeReissue": "OPEN (waiting on Tyler, T-fix-2)"
+      "statusBeforeReissue": "OPEN (waiting on Tyler, T-fix-2)",
+      "wasBeforeSitting": "Yes to all three. No Local tab. Town crier and NPC tip lines show as speech in the town itself and in the System tab, never in Global, because Global is for people. No live party finder: a party is your own four and friends invite by the right-click menu. The cap is four and \"maybe 5 later\" comes off the books.",
+      "sitting": "S-2, option B. The removal is ruled."
     },
     {
       "id": "GR-71",

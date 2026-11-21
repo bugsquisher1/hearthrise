@@ -141,12 +141,12 @@ async function guard(X) {
   /* GB-RAGE: a pair, his blows sure and small, his enrage tripled: the largest before the line stays under his row's, after it passes it.
      No Challenge on the bars, so an add's first blow is its first aim (the Healer's id comes first, so a wave aimed round the whole
      party would land one add on the tank): GB-LINES' "whoever isn't holding him". His Knights can't hurt, so nobody falls before him. */
-  setRow(X, BOSS, { hp: 4000, atk: 10, baseAcc: 3, phases: { ...EM[BOSS].phases, enrageAtkPm: 3000 } });
-  if (holds[0]) setRow(X, holds[0].adds[0].monster, { atk: 1, baseAcc: 0 });
+  setRow(X, BOSS, { hp: 4000, atk: 10, aim: 100000, phases: { ...EM[BOSS].phases, enrageAtkPm: 3000 } });
+  if (holds[0]) setRow(X, holds[0].adds[0].monster, { atk: 1, aim: 1 });
   /* ...AND THE KNIGHTS BUILT INTO HIS BARROW (its spawns, not his wave: the wave is Pikemen) can't hurt either. Unpinned they hit the pair with their own
      rows, and since monsters a little harder (2026-11-19, balance-sheet.js STAT_FORMULA x1.1: atk 41 -> 45, up to 134 a blow on the Healer) they felled the
      tank before he reached his first line (0 adds, no enrage: the CONTROL went red, not the rule). Restored with the rest at the end (`keep`). */
-  if (holds[0]) for (const kind of new Set(holds[0].spawns.map((s) => s.monster))) if (kind !== BOSS) setRow(X, kind, { atk: 1, baseAcc: 0 });
+  if (holds[0]) for (const kind of new Set(holds[0].spawns.map((s) => s.monster))) if (kind !== BOSS) setRow(X, kind, { atk: 1, aim: 1 });
   {
     const NO_CHALLENGE = (role) => (role === 'tank' ? [{ action: { type: 'ability', id: 'power_strike' }, conditions: [], join: 'and' }] : []);
     /* a Level 50 tank in steel, so his blows land and the armor does not swallow the raise (at Level 75 in the ladder kit nine in ten miss) */
@@ -171,8 +171,8 @@ async function guard(X) {
   }
 
   /* GB-RESET, played: his wave can't hurt, he can't hurt until his enrage, and then he fells the tank holding him at once. The Healer plays on. */
-  setRow(X, BOSS, { hp: 900, atk: 1, baseAcc: 0, phases: { ...EM[BOSS].phases, enrageAtkPm: 1000000 } });
-  if (holds[0]) setRow(X, holds[0].adds[0].monster, { atk: 1, baseAcc: 0 });
+  setRow(X, BOSS, { hp: 900, atk: 1, aim: 1, phases: { ...EM[BOSS].phases, enrageAtkPm: 1000000 } });
+  if (holds[0]) setRow(X, holds[0].adds[0].monster, { atk: 1, aim: 1 });
   {
     const ways = CUTS.map((cut) => fight(X, { cut, roles: ['tank', 'healer'], spanMs: 5 * MINUTE }));
     for (const f of ways) if (keyOf(f) !== keyOf(ways[0])) bad.push('GB-RESET the cuts disagree: the ' + (f === ways[1] ? '30 s' : '10 min') + ' cut moves an event');

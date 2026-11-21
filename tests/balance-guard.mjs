@@ -106,7 +106,7 @@ function scaledWhatIf(ground, level) {
   for (const id of Object.keys(GROUND_ROSTER[ground] || {})) {
     const r = SCALED.scaledRow(MONSTERS[id], id, ground, level);
     if (r === MONSTERS[id]) return null;
-    rows[id] = Object.fromEntries(['level', 'hp', 'atk', 'baseAcc', 'def', 'xp', 'gp', 'drops', 'partyPm', 'lootPm'].map((k) => [k, r[k]]));
+    rows[id] = Object.fromEntries(['level', 'hp', 'atk', 'aim', 'evasion', 'def', 'xp', 'gp', 'drops', 'partyPm', 'lootPm'].map((k) => [k, r[k]]));
   }
   return Object.keys(rows).length ? { monsters: rows } : null;
 }

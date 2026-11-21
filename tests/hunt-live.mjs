@@ -248,10 +248,11 @@ function deadlyRows(M, hunt, mi, o) {
     const r = M.ENGINE_MONSTERS[id];
     let atk = r.atk || 1;
     while (C.monsterMaxHit({ ...r, atk }) * share < hp) atk++;
-    const base = Number.isFinite(r.baseAcc) ? r.baseAcc : C.COMBAT_BALANCE.monsterBaseAccuracy;
-    const lift = hit === null ? 0 : Math.max(0, Math.ceil((hit - C.monsterAccuracy({ ...r, atk }, def)) * 100) / 100);
-    rows[id] = lift > 0 ? { atk, baseAcc: Math.round((base + lift) * 100) / 100 } : { atk };
-    was[id] = { atk: r.atk, baseAcc: r.baseAcc };
+    /* the to-hit is the row's aim on the ratio (src/data/to-hit.js): raised until it lands `hit` on this defence, never past the rail */
+    let aim = r.aim || 1;
+    if (hit !== null) while (C.monsterAccuracy({ ...r, atk, aim }, def) < Math.min(hit, 0.97) && aim < 1e6) aim = Math.ceil(aim * 1.05) + 1;
+    rows[id] = aim !== r.aim ? { atk, aim } : { atk };
+    was[id] = { atk: r.atk, aim: r.aim };
   }
   const set = (list) => { for (const [id, x] of Object.entries(list)) for (const book of [M.ENGINE_MONSTERS, M.MONSTERS]) {
     for (const [k, v] of Object.entries(x)) { if (v === undefined) delete book[id][k]; else book[id][k] = v; } } };
@@ -355,10 +356,11 @@ function swingsOnly(events) {
    the spells and whose party cannot live through them. */
 /* THE WARRENS' FIVE AS THEY STOOD BEFORE 2026-11-19 (set/v0.2.141's rows, before monsters a little harder): LV-PULL's balance-blind arm plays them.
    Their XP is the rows' as the arm last passed (set/v0.2.142, before lane/d-142-rulings' XP a kill x0.88): a kill's XP moves when a Level lands,
-   and a Level moves the laps, so a balance-blind arm holds it too. */
+   and a Level moves the laps, so a balance-blind arm holds it too. Their to-hit is the aim that lands what their old baseAcc landed on the reference
+   hero of their Level (src/data/to-hit.js; ported 2026-11-20 with every hand row, L15). */
 const WARRENS_BEFORE_STEP = Object.freeze({
-  goblin_scavenger: { hp: 147, atk: 18, baseAcc: 0.72, xp: 659 }, goblin_skulker: { hp: 122, atk: 22, baseAcc: 0.77, xp: 689 }, goblin_digger: { hp: 206, atk: 17, baseAcc: 0.76, xp: 1079 },
-  hobgoblin_foreman: { hp: 312, atk: 23, baseAcc: 0.86, xp: 1815 }, chief_coppercap: { hp: 1096, atk: 28, baseAcc: 0.88, xp: 6975 },
+  goblin_scavenger: { hp: 147, atk: 18, aim: 50, xp: 659 }, goblin_skulker: { hp: 122, atk: 22, aim: 63, xp: 689 }, goblin_digger: { hp: 206, atk: 17, aim: 48, xp: 1079 },
+  hobgoblin_foreman: { hp: 312, atk: 23, aim: 73, xp: 1815 }, chief_coppercap: { hp: 1096, atk: 28, aim: 86, xp: 6975 },
 });
 /* `fn` with these monsters' fields set on both module instances of the rows (the engine's ?v= one and the plain one the live engine is handed), put back after */
 function withRows(M, rows, fn) {
@@ -949,7 +951,7 @@ function rules(M) {
 
   { // LV-CALL: A CALLED ROOM, THE HUNT VIEWED (Tyler 2026-11-05: "phases", src/core/hunt/boss-phases.js). His adds spawn inside a swing with no die drawn, so the browser's prediction
     // plays the same wave at the same instant: every commit matches, both lines fall once each on the screen, and the fight ends on the kill. (The closed path: tests/boss-call-db.mjs BD-BOTH.)
-    const ROWS = [['rat_king_called', { hp: 2400, atk: 1, baseAcc: 0 }], ['drain_rat_called', { hp: 60, atk: 1, baseAcc: 0 }]];
+    const ROWS = [['rat_king_called', { hp: 2400, atk: 1, aim: 1 }], ['drain_rat_called', { hp: 60, atk: 1, aim: 1 }]];
     const keep = ROWS.map(([id]) => [id, { ...M.ENGINE_MONSTERS[id] }]);
     for (const [id, row] of ROWS) { Object.assign(M.ENGINE_MONSTERS[id], row); Object.assign(M.MONSTERS[id], row); }
     try {

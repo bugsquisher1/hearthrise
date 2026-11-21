@@ -305,13 +305,14 @@ cases['glade-harder'] = (R) => {
   return null;
 };
 
-const GLADE_SOFT = [['hp: 33, atk: 13, baseAcc: 0.76, def: 1, xp: 101', 'hp: 33, atk: 2, def: 1, xp: 115'], ['hp: 29, atk: 15, baseAcc: 0.83, def: 1, xp: 114', 'hp: 29, atk: 2, def: 1, xp: 129'],
-  ['hp: 52, atk: 12, baseAcc: 0.8, def: 6, xp: 199', 'hp: 52, atk: 2, def: 6, xp: 226'], ['hp: 81, atk: 23, baseAcc: 0.76, def: 11, xp: 346', 'hp: 81, atk: 2, def: 11, xp: 393'],
-  ['hp: 90, atk: 24, baseAcc: 0.8, def: 14, xp: 401', 'hp: 90, atk: 2, def: 14, xp: 456'], ['hp: 57, atk: 17, baseAcc: 0.74, def: 8, xp: 225', 'hp: 57, atk: 2, def: 8, xp: 256']].map(([a, b]) => ['src/data/monsters.js', a, b]);
+const GLADE_SOFT = [['hp: 33, atk: 13, aim: 61, evasion: 17, def: 1, xp: 101', 'hp: 33, atk: 2, def: 1, xp: 115'], ['hp: 29, atk: 15, aim: 77, evasion: 16, def: 1, xp: 114', 'hp: 29, atk: 2, def: 1, xp: 129'],
+  ['hp: 52, atk: 12, aim: 51, evasion: 25, def: 5, xp: 199', 'hp: 52, atk: 2, def: 5, xp: 226'], ['hp: 81, atk: 23, aim: 73, evasion: 29, def: 8, xp: 346', 'hp: 81, atk: 2, def: 8, xp: 393'],
+  ['hp: 90, atk: 24, aim: 76, evasion: 31, def: 9, xp: 401', 'hp: 90, atk: 2, def: 9, xp: 456'], ['hp: 57, atk: 17, aim: 53, evasion: 25, def: 6, xp: 225', 'hp: 57, atk: 2, def: 6, xp: 256']].map(([a, b]) => ['src/data/monsters.js', a, b]);
 /* THE MUTANTS: each breaks one first-week way to fight, the way a data row would */
 const mutants = [
   { name: 'the Glade hits at the old accuracy: its floor is not felt', case: 'glade-harder',
-    edits: [['src/core/combat.js', 'const base = monster && Number.isFinite(monster.baseAcc) ? monster.baseAcc : b.monsterBaseAccuracy;', 'const base = b.monsterBaseAccuracy;'], ...GLADE_SOFT.map(([f, a]) => [f, a, a.replace(/atk: \d+/, 'atk: 2')])] },
+    /* since the to-hit ratio (src/data/to-hit.js) a monster's to-hit is its row's aim: the softened rows carry a fresh ground's aim and a tap of a blow */
+    edits: GLADE_SOFT.map(([f, a]) => [f, a, a.replace(/atk: \d+/, 'atk: 2').replace(/aim: \d+/, 'aim: 20')]) },
   { name: 'armor reads the hero\'s Level again: a swing ten Levels under lands no harder than at the floor', case: 'risk-ladder',
     edits: [['src/core/hunt/damage.js', "mitigationOf(target.armour, source && source.side === 'mon' ? levelAtTier(monsterLevelOf(rowOf(inst, source.kind)), inst.tier) : 1)", 'mitigationOf(target.armour, target.heroLv || 1)']] },
   { name: 'Studded Boots stop no more than Leather Boots again', case: 'armor-rungs', edits: [['src/data/items.js', "leather_boots:{n:'Leather Boots',icon:'🥾',v:35,type:'armor',slot:'boots',defB:1},", "leather_boots:{n:'Leather Boots',icon:'🥾',v:35,type:'armor',slot:'boots',defB:2},"]] },
@@ -363,17 +364,17 @@ const mutants = [
   /* RE-AIMED (NO PROFIT MOLDS, Tyler 2026-11-13): def 60 was caught only by the retired +25% bar (the kills slowed, the bill stood); twenty times
      the health is a Cellar a fresh hero cannot clear at pace */
   { name: 'the Cellar\'s rats, slimes and wasps with twenty times their health: a fresh hero cannot clear it', case: 'solo-mill_cellar',
-    edits: [['src/data/monsters.js', 'hp: 7, atk: 3, baseAcc: 0.34, def: 0, xp: 14, gp: [1, 1], formula: true, speed: 3400,', 'hp: 120, atk: 3, baseAcc: 0.34, def: 0, xp: 14, gp: [1, 1], formula: true, speed: 3400,'],
-      ['src/data/monsters.js', 'hp: 8, atk: 3, baseAcc: 0.28, def: 0, xp: 18, gp: [1, 1], formula: true, speed: 2400,', 'hp: 160, atk: 3, baseAcc: 0.28, def: 0, xp: 18, gp: [1, 1], formula: true, speed: 2400,'],
-      ['src/data/monsters.js', 'hp: 9, atk: 3, baseAcc: 0.47, def: 0, xp: 22, gp: [1, 2],', 'hp: 160, atk: 3, baseAcc: 0.47, def: 0, xp: 22, gp: [1, 2],']] },
+    edits: [['src/data/monsters.js', 'hp: 7, atk: 3, aim: 17, evasion: 8, def: 0, xp: 14, gp: [1, 1], formula: true, speed: 3400,', 'hp: 120, atk: 3, aim: 17, evasion: 8, def: 0, xp: 14, gp: [1, 1], formula: true, speed: 3400,'],
+      ['src/data/monsters.js', 'hp: 8, atk: 3, aim: 14, evasion: 12, def: 0, xp: 18, gp: [1, 1], formula: true, speed: 2400,', 'hp: 160, atk: 3, aim: 14, evasion: 12, def: 0, xp: 18, gp: [1, 1], formula: true, speed: 2400,'],
+      ['src/data/monsters.js', 'hp: 9, atk: 3, aim: 21, evasion: 8, def: 0, xp: 22, gp: [1, 2],', 'hp: 160, atk: 3, aim: 21, evasion: 8, def: 0, xp: 22, gp: [1, 2],']] },
   { name: 'Wickstead\'s Granary Rats bite like a Rat King (atk 5 -> 14)', case: 'solo-wickstead',
-    edits: [['src/data/monsters.js', 'hp: 17, atk: 5, baseAcc: 0.44, def: 0, xp: 43, gp: [2, 7], formula: true, speed: 3400', 'hp: 17, atk: 14, baseAcc: 0.44, def: 0, xp: 43, gp: [2, 7], formula: true, speed: 3400']] },
+    edits: [['src/data/monsters.js', 'hp: 17, atk: 5, aim: 21, evasion: 11, def: 0, xp: 43, gp: [2, 7], formula: true, speed: 3400', 'hp: 17, atk: 14, aim: 21, evasion: 11, def: 0, xp: 43, gp: [2, 7], formula: true, speed: 3400']] },
   /* THE UNIQUE CATCH (proved when written): at atk 12 drop-tables (floor-hour, caster-floor, ranger-floor), sewer,
      conditions and forest-cave all stay green, since their heroes wear the ladder kit's armour; only a fresh party in the
      practice sets dips (the tank: 3 in 2 h). level-curve C1 asks for a re-measure, not a fix. RE-AIMED on the formula's bat (atk 6 at
      to-hit 0.63, lane/b-ground-formula-2): at 12 the duo's tank dips once (the bar allows one), at 14 three times in 2 h, as the old 12 did. */
   { name: 'the Sewer\'s Culvert Bats bite more than twice as hard (atk 6 -> 14): a fresh party\'s tank keeps dipping under 25%', case: 'party-millrace_sewer',
-    edits: [['src/data/monsters.js', 'hp: 59, atk: 7, baseAcc: 0.44, def: 1, xp: 145, gp: [8, 23], formula: true, speed: 4400', 'hp: 59, atk: 14, baseAcc: 0.44, def: 1, xp: 145, gp: [8, 23], formula: true, speed: 4400']] },
+    edits: [['src/data/monsters.js', 'hp: 59, atk: 7, aim: 20, evasion: 15, def: 1, xp: 145, gp: [8, 23], formula: true, speed: 4400', 'hp: 59, atk: 14, aim: 20, evasion: 15, def: 1, xp: 145, gp: [8, 23], formula: true, speed: 4400']] },
 ];
 
 const R = makeReport('hunt-core/first-week-bands');

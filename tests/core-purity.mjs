@@ -288,11 +288,12 @@ export async function coreAnchorGuard() {
     if (combat.armorSetBonus(mixed, items)) problems.push('a mix-and-match loadout must not count as a set');
     const eq = combat.equipmentStats({ weapon: 'blade' }, items);
     if (eq.weaponType !== 'sword' || eq.atkB !== 10) problems.push('equipmentStats drifted');
-    const rolls = combat.playerCombatRolls({ def: 1000, tier: 6 }, { equipment: {}, items, skills: {} });
-    if (rolls.accuracy !== 0.15) problems.push('accuracy must floor at 0.15');
+    /* THE TO-HIT RAILS (src/data/to-hit.js TO_HIT.min / max): a ratio held there, never past */
+    const rolls = combat.playerCombatRolls({ def: 1000, evasion: 1000000, tier: 6 }, { equipment: {}, items, skills: {} });
+    if (rolls.accuracy !== 0.05) problems.push('accuracy must floor at 0.05');
     if (rolls.maxHit < 1) problems.push('maxHit must floor at 1');
-    const capRolls = combat.playerCombatRolls({ def: 0, tier: 1 }, { equipment: {}, items, skills: { melee: 99999999 } });
-    if (capRolls.accuracy !== 0.95) problems.push('accuracy must cap at 0.95');
+    const capRolls = combat.playerCombatRolls({ def: 0, evasion: 1, tier: 1 }, { equipment: {}, items, skills: { melee: 99999999 } });
+    if (capRolls.accuracy !== 0.97) problems.push('accuracy must cap at 0.97');
     if (capRolls.critChance > combat.COMBAT_BALANCE.critCap) problems.push('crit chance escaped its cap');
 
     const prog = await load('progression.js');

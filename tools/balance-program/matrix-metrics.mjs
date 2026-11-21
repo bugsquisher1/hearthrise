@@ -119,7 +119,27 @@ export function cellMetrics(D, meta, seeds, arch = {}) {
     toHit: meta.styles.map((_, i) => (seeds[0] && seeds[0].heroes[i] && seeds[0].heroes[i].toHit) || null),
     /* the Level XP one unblessed death takes at this Level (standards.mjs DEATH_COST: 6% of all Level XP, on this tree's curve) */
     deathXp: r(STD.DEATH_COST.share * D.XP.charXpForLevel(meta.L)),
+    /* EACH SEED'S ENDS (the sitting's S-14: does the four die together when the front falls?): every seat whose hunt ended before the seed's
+       time, [seat, hunted hours at its end, the reason], in the order they ended. Under the real death rule a seed is one hunt, so a seed's
+       list is what happened in that hunt; seats that hunted the whole time are not in it */
+    falls: seeds.map((s) => s.heroes.map((h, i) => [i, r(h.hours, 3), Object.keys(h.ended || {})[0] || null]).filter(([, , why]) => why).sort((a, b) => a[1] - b[1])),
   };
+}
+
+/* ── A TOOL RED: a cell whose numbers measured nothing (audit A-0, 13-build-plan.md FB-3) ──────────────────────────────────────── */
+/* An end that says the engine, not the balance, stopped the hunt: `no_fight` is a party that stood landing no blow until the no-fight rule
+   sent it home. Every one the balance pass read was an engine stall (FB-1, 02364f03a: a pack respawned round a passing party, a fought pack's
+   monster left with no target after a death). A cell that ends this way reads safe and slow, so the run is red, not the band */
+export const TOOL_RED_ENDS = Object.freeze(['no_fight']);
+/** The cells that measured nothing: [{ key, ends: { reason: count }, why }] (cells without numbers are errors, counted apart). */
+export function toolReds(cells) {
+  const out = [];
+  for (const c of cells) {
+    if (!c.m || !c.m.ended) continue;
+    const ends = Object.fromEntries(TOOL_RED_ENDS.filter((k) => c.m.ended[k] > 0).map((k) => [k, c.m.ended[k]]));
+    if (Object.keys(ends).length) out.push({ key: c.key, ends, why: Object.entries(ends).map(([k, n]) => n + ' hunt(s) ended ' + k).join(', ') + ' (an engine stall reads as a safe, slow cell)' });
+  }
+  return out;
 }
 
 /* ── ACROSS CELLS ──────────────────────────────────────────────────────────────────────────────────────────────────────────────── */

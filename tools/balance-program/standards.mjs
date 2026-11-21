@@ -119,7 +119,9 @@ export const PACE_TABLE = deep({
   ruled: [[10, 6], [25, 36], [50, 168], [100, 600], [200, 1680], [300, 3120], [500, 6720]],
   ruled400: [[400, 4580]], // RULED 2026-11-21 (call 2): today's curve at 1.00 x contract, and the geometric midpoint of the ruled 300 and 500
   tolerance: 0.10, redTolerance: 0.15,
-  seat: { ruled: 'MID four on the hardest tier it holds', ruledOn: '2026-11-21', call: 1, was: 'lone MID on Normal' },
+  /* THE CLOCK (S-11, RULED 2026-11-21, option c): the MID four on Dangerous after its deaths, the tier an idle four keeps; read again before Early
+     Access from real XP and the calibrated simulator. key: the grid's seat (grid-derive.mjs SEATS) */
+  seat: { ruled: 'MID four on Dangerous, after its deaths', key: 'mid:4:dangerous', ruledOn: '2026-11-21', call: 'S-11 c', was: 'MID four on the hardest tier it holds (2026-11-21, call 1); before it the lone MID on Normal' },
   /* COMPUTED on this commit from LEVEL_CURVE and the contract (the harness re-derives; never read these as targets). */
   computedHoursAtContract: { 10: 6.4, 25: 44.6, 50: 147, 100: 600, 110: 714, 185: 1577, 200: 1748, 300: 2907, 400: 4580 },
 });
@@ -133,7 +135,9 @@ export const BANDS = deep([
   b('TL2', 'talent', 'Level XP an hour, the empty build / the suggested build', {}, 0.90, 0.97, null, null, 'PROPOSED', 21, 'ignoring Talents costs something real, never a tenth of the game'),
   b('TL3', 'talent', 'deaths a 1,000 hours on the hardest tier, every hero on Footing and Grit, MID four', { gear: 'mid', party: 4 }, 30, null, null, null, 'PROPOSED', 21, 'under 30 is the best-gear band (S6): Talents must not replace gear'),
   b('TL4', 'talent', 'builds within 3% of the best on Level XP an hour, same seats', {}, 2, null, null, null, 'PROPOSED', 21, 'one build alone at the top is a red: the sameness test'),
-  b('P1', 'pace', 'hoursToLevel / PACE_TABLE', { seat: 'pace-seat', levels: [10, 25, 50, 100, 200, 300, 400] }, 0.90, 1.10, 0.85, 1.15, 'RULED', 21, '2026-10-25 section 2; which seat is call 1', { ruled: '2026-11-21', call: 1 }),
+  /* band change 8 (12-balance-pass.md section 5, applied on S-11 c): graded on the Dangerous four from Level 100; Levels under it and the Deadly four
+     with no death print as readings (GR-6 lets the four run ahead early) */
+  b('P1', 'pace', 'hoursToLevel / PACE_TABLE', { seat: 'pace-seat', levels: [10, 25, 50, 100, 200, 300, 400], from: 100 }, 0.90, 1.10, 0.85, 1.15, 'RULED', 21, '2026-10-25 section 2; the seat is S-11 c (2026-11-21); band change 8', { ruled: '2026-11-21', call: 1 }),
   b('P2', 'pace', 'xContract', { gear: 'mid', party: 1, tier: 'normal', way: 'hammer' }, 0.95, 1.10, 0.85, 1.25, 'RULED', 21, 'the table\'s tolerance; old G1', { groundMean: true, note: 'read on the hammer at a ground\'s mean; other ways print and judge nothing (12-balance-pass.md section 5, row 6)' }),
   b('P3', 'pace', 'xp / mid', { gear: 'low', party: 1, tier: 'normal' }, 0.80, 0.90, 0.70, 0.95, 'PROPOSED', 23, 'one weapon step plus accessories and two rungs'),
   b('P4', 'pace', 'xp / mid', { gear: 'bis', party: 1, tier: 'normal' }, 1.10, 1.20, null, 1.25, 'RULED', 23, 'call 3', { ruled: '2026-11-21', call: 3 }),
@@ -224,7 +228,7 @@ export const BANDS = deep([
 
   // ── runway ──
   b('R1', 'runway', 'days a region opens ahead of the four MID player', {}, 14, null, 0, null, 'RULED', 22, 'call 7; 30 days at a launch', { ruled: '2026-11-21', call: 7 }),
-  b('R2', 'runway', 'days of open content at the Early Access launch, four MID', {}, 120, null, 90, null, 'RULED', 22, 'call 7; 27 open and 60 staged today', { ruled: '2026-11-21', call: 7 }),
+  b('R2', 'runway', 'days of open and staged content at the Early Access launch, four MID (the pace seat reaching Level 185)', {}, 120, null, 90, null, 'RULED', 22, 'call 7; band change 8: staged content counts (27 open and 60 staged days on the old reading)', { ruled: '2026-11-21', call: 7 }),
   b('R3', 'runway', 'Levels authored a month / Levels the frontier gains a month', {}, 1.0, null, 0.8, null, 'PROPOSED', 28, 'the four gains about 69 a month past Level 110'),
 
   // ── server cost ──

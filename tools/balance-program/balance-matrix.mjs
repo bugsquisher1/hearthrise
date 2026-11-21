@@ -119,7 +119,8 @@ export async function playRun(D, K, run, root, o = {}) {
   /* o.shard [i, n]: every n-th cell from the i-th (a GitHub job's share of the full run; the simulator check plays in shard 0 only) */
   const plan = o.shard ? shardOf(plan0, o.shard) : plan0;
   const cal = o.calibrate === false || (o.shard && o.shard[0] !== 0) ? { jobs: [], cols: [], samples: [] } : await calibrationJobs(V, K, ROOT, { seeds: o.seeds || run.seeds, hours: o.hours || run.hours });
-  const jobs = [...plan.jobs, ...cal.jobs];
+  /* o.jobHook (a what-if a caller lays on every cell job: arrival-kit.mjs scales the jewelry rows) */
+  const jobs = [...(o.jobHook ? plan.jobs.map(o.jobHook) : plan.jobs), ...cal.jobs];
   if (o.say) o.say((o.label || run.id) + ': ' + plan.cells.length + ' cells' + (cal.jobs.length ? ' + calibration' : '') + ', ' + jobs.length + ' seed jobs, ' + (o.workers || workersOf()) + ' workers, on ' + (resolve(root) === ROOT ? 'the tree' : 'a scratch copy'));
   const { results, errors, workerMs, wallMs } = await playJobs(jobs, root, o.workers || workersOf(), o.quiet ? () => {} : progress(o.label || run.id));
   if (process.stderr.isTTY && !o.quiet) process.stderr.write('\n');
@@ -310,7 +311,8 @@ export async function baseOf(spec, without) {
   if (!spec || spec === 'today') return null;
   const P = await import('./proposals.mjs');
   const reg = P.loadProposals(ROOT);
-  const ids = (spec === 'proposed' ? reg.recommended : spec.split(',')).filter((id) => !(without || []).includes(id));
+  /* `without` turns each off as a toggle does, with whatever requires it (proposals.json `requires`: GR-6 takes GR-6-seat along) */
+  const ids = (without || []).reduce((set, id) => P.toggled(reg, set, id), spec === 'proposed' ? reg.recommended : spec.split(','));
   return { name: spec === 'proposed' ? 'proposed' + ((without || []).length ? '-without-' + without.join('+') : '') : 'set-' + ids.join('+'), ids, patch: P.composePatch(ROOT, ids, { reg }) };
 }
 /** Two patches as one (the base, then the change): edits in order, knobs multiplied, plan steps merged, targets of the change. */

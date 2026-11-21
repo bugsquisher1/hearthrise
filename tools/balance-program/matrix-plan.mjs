@@ -82,6 +82,43 @@ export const TALENT_BLOCK = Object.freeze({ id: 'talents', talents: true, levels
   Object.freeze({ styles: ['hammer', 'mage', 'mage', 'mage'], comp: lineupComp(['hammer', 'mage', 'mage', 'mage']), tier: 'hardest', builds: ['S', 'B'] }),
 ]) });
 
+/* THE DEATH SAMPLE (12-balance-pass.md section 1, R2 and R4; replayed by FB-3 on the fixed engine, audit A-0): what the harder tiers do to a
+   four, read where a death count can be read, 4 seeds of 8 hours (X26: 32 hours a seat). The mid four's every gear state on Dangerous and the
+   hardest tier; the lineups on Deadly; the buffed fours; the four's Talents builds; both party defaults (the leave block); and the 14 grounds
+   at both band ends, the first four on Dangerous and the hardest tier. `--run deaths`, GitHub only */
+const DEATHS = Object.freeze({ id: 'deaths', levels: Object.freeze([10, 30, 60, 110, 185, 400]), seeds: 4, hours: 8, blocks: Object.freeze([
+  { id: 'four', comps: compsOf(4), gears: STD.GEAR_STATE_IDS, tiers: ['dangerous', 'hardest'] },
+  { ...LINEUP_BLOCK, seeds: undefined },
+  { id: 'buff', levels: [60, 185], comps: compsOf(4), gears: ['mid'], tiers: ['dangerous', 'hardest'], variants: [{ tag: 'buff:damage10', buffs: [{ type: 'damage', magnitude: 10 }] }, { tag: 'buff:defense10', buffs: [{ type: 'defense', magnitude: 10 }] }, { tag: 'buff:caps', buffs: [{ type: 'damage', magnitude: 15 }, { type: 'defense', magnitude: 10 }, { type: 'level_xp', magnitude: 30 }] }] },
+  { ...TALENT_BLOCK, minSize: 4, levels: [60, 110, 185] },
+  LEAVE_BLOCK,
+  { id: 'grounds', grounds: true, sizes: [4], firstComp: true, tiers: ['dangerous', 'hardest'] },
+]) });
+
+/* CHAPTER 14'S FULL-GAME BLOCK (14-the-rest.md section 1, FB-3 in CB-2's single pass): what the tool can already play of chapter 14, as one more
+   block of the death sample, so the tier table is sized once with it in. The same cells on a copy with patches/ch14-full-game.json on (Necrotic and
+   Storm live, the fist line live, CORE-3's +30% cap on "takes more"; GR-14 and GR-22 are in the proposed game), the sample's spells on every bar
+   that casts them (ch14Slots), and every damage and XP cap full without the protection rows (they wait on CORE-4's rating row, FR-12). Best-gear
+   layer pieces are its BiS four. The dial pick reads it beside `deaths`; a band that moves between the two is chapter 14 content to re-size at
+   its own rows. No seat wears fists yet: the matrix has no fist way (FR-5 adds it), so the fist switch moves the tables and no cell */
+export const CH14_CAPS = Object.freeze({ id: 'caps', levels: Object.freeze([60, 185]), comps: compsOf(4), gears: ['mid'], tiers: ['dangerous', 'hardest'],
+  variants: Object.freeze([Object.freeze({ tag: 'buff:caps-no-protection', buffs: Object.freeze([Object.freeze({ type: 'damage', magnitude: 15 }), Object.freeze({ type: 'level_xp', magnitude: 30 })]) })]) });
+/* the store rune of the tier a skill level casts and the runes a hero owns of a family (the played bar's rule, elements-6b-table.mjs) */
+const RUNE_TIER_AT = Object.freeze([[60, 'graven'], [45, 'carved'], [30, 'etched'], [15, 'scored'], [1, 'chalked']]);
+const ch14Spell = (id, family, lv, conditions = []) => {
+  const t = RUNE_TIER_AT.find(([l]) => lv >= l)[1];
+  return { id: 'p_' + id, join: 'and', conditions, action: { id, type: 'ability', own: RUNE_TIER_AT.map(([, x]) => x + '_' + family + '_rune').reverse(), store: t === 'chalked' ? 'plain_' + family + '_rune' : 'plain_' + t + '_' + family + '_rune', onEmpty: 'store' } };
+};
+const AOE2 = Object.freeze([Object.freeze({ op: 'gte', value: 2, metric: 'enemies_in_aoe' })]);
+/** The sample's spells a party's bars carry (cell.mjs addSlots, by role): the Mage Updraft from Magic 25 and Blight from 40, after Hoarfrost, on two
+    in reach; the shield tank Brand from Melee 25 and Reave from 40, after Turning Cut (they stand in for a strike: abilities.js replaces). */
+export function ch14Slots(styles, skillsBySeat) {
+  const out = {}, seat = (st) => styles.indexOf(st);
+  if (seat('mage') >= 0) { const lv = ((skillsBySeat || [])[seat('mage')] || {}).magic || 1; const sl = [...(lv >= 25 ? [ch14Spell('updraft', 'storm', lv, AOE2)] : []), ...(lv >= 40 ? [ch14Spell('blight', 'bone', lv, AOE2)] : [])]; if (sl.length) out.mage = { after: 'hoarfrost', slots: sl }; }
+  if (seat('tank') >= 0) { const lv = ((skillsBySeat || [])[seat('tank')] || {}).melee || 1; const sl = [...(lv >= 25 ? [ch14Spell('brand', 'storm', lv)] : []), ...(lv >= 40 ? [ch14Spell('reave', 'bone', lv)] : [])]; if (sl.length) out.tank = { after: 'turning_cut', slots: sl }; }
+  return out;
+}
+
 /* THE RUNS. `blocks` name what each plays; a block's levels default to the run's, its seeds too (`seeds` on a block plays it on more). */
 export const RUNS = Object.freeze({
   /* the nightly matrix: every axis at every checkpoint and the high Levels, the grid's sample */
@@ -105,18 +142,9 @@ export const RUNS = Object.freeze({
     LINEUP_BLOCK,
     BUFF_BLOCK, BINDS_BLOCK, TRACKS_BLOCK, TALENT_BLOCK, LEAVE_BLOCK,
   ]) }),
-  /* THE DEATH SAMPLE (12-balance-pass.md section 1, R2 and R4; replayed by FB-3 on the fixed engine, audit A-0): what the harder tiers do to a
-     four, read where a death count can be read, 4 seeds of 8 hours (X26: 32 hours a seat). The mid four's every gear state on Dangerous and the
-     hardest tier; the lineups on Deadly; the buffed fours; the four's Talents builds; both party defaults (the leave block); and the 14 grounds
-     at both band ends, the first four on Dangerous and the hardest tier. `--run deaths`, GitHub only */
-  deaths: Object.freeze({ id: 'deaths', levels: Object.freeze([10, 30, 60, 110, 185, 400]), seeds: 4, hours: 8, blocks: Object.freeze([
-    { id: 'four', comps: compsOf(4), gears: STD.GEAR_STATE_IDS, tiers: ['dangerous', 'hardest'] },
-    { ...LINEUP_BLOCK, seeds: undefined },
-    { id: 'buff', levels: [60, 185], comps: compsOf(4), gears: ['mid'], tiers: ['dangerous', 'hardest'], variants: [{ tag: 'buff:damage10', buffs: [{ type: 'damage', magnitude: 10 }] }, { tag: 'buff:defense10', buffs: [{ type: 'defense', magnitude: 10 }] }, { tag: 'buff:caps', buffs: [{ type: 'damage', magnitude: 15 }, { type: 'defense', magnitude: 10 }, { type: 'level_xp', magnitude: 30 }] }] },
-    { ...TALENT_BLOCK, minSize: 4, levels: [60, 110, 185] },
-    LEAVE_BLOCK,
-    { id: 'grounds', grounds: true, sizes: [4], firstComp: true, tiers: ['dangerous', 'hardest'] },
-  ]) }),
+  deaths: DEATHS,
+  /* `--run deaths-full`: the death sample with chapter 14's full-game block (CH14 above); `patch` plays on top of the run's base */
+  'deaths-full': Object.freeze({ ...DEATHS, id: 'deaths-full', patch: 'patches/ch14-full-game.json', ch14: true, blocks: Object.freeze([...DEATHS.blocks, CH14_CAPS]) }),
   /* Balance Lab v3's LIVE cells (a slider move re-plays them in the browser, on the bundled engine): every way alone and the four on every tier,
      MID, early, at the end of open content and PROJECTED, a quarter hour on one seed. tools/balance-lab/build.mjs --v3
      resolves them (cell.mjs resolveOnly) so the page plays the matrix's own seats. */
@@ -209,6 +237,8 @@ export function planMatrix(D, K, run, o = {}) {
     if (seen.has(meta.key)) return;
     seen.add(meta.key);
     const b = applyPlan(K, b0, meta, o.plan);
+    /* chapter 14's full-game block: the sample's spells on the bars that cast them */
+    if (run.ch14) { const add = ch14Slots(meta.styles, b.cell.skillsBySeat); if (Object.keys(add).length) b.cell = { ...b.cell, addSlots: add }; }
     /* the seeds: the caller's, else the block's, else the run's */
     const seeds = o.seeds || meta.seeds || run.seeds;
     /* `skills`: each seat's main skill and Defense as played (the career line, skill-lines.mjs, and the gear state's offset) */

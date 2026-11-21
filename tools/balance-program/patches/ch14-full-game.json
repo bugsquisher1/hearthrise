@@ -1,0 +1,12 @@
+{
+ "schema": "hearthrise.balance-patch/1",
+ "name": "Chapter 14's full-game block: Necrotic and Storm live, the fist line live, CORE-3's cap on \"takes more\" at +30%",
+ "why": "14-the-rest.md section 1: what the tool can already play of chapter 14 joins CB-2's death sample as one more block, so the tier table is sized once with it in. On this copy the Necrotic and Storm sample is live (src/data/necrotic-storm.js: the elements, Withered, the Bone and Storm runes and their four spells, which matrix-plan.mjs RUNS['deaths-full'] puts on the Mage's and the tank's bars), the fist line is live (src/data/fists.js; no matrix seat wears it until the matrix has a fist way, FR-5), and CORE-3 caps a monster's \"takes more\" (Hunter's Mark plus the strongest marking status) at +30% in all (01-core-and-combat.md, PROVISIONAL). GR-14 and GR-22 are in the proposed game already. The damage and XP caps are the run's buff block; best-gear layer pieces are its BiS four. Layer: content and formula",
+ "kind": "coefficient",
+ "targets": ["survival", "S4", "S6", "X19"],
+ "edits": [
+  { "file": "src/data/necrotic-storm.js", "from": "  live: false,", "to": "  live: true," },
+  { "file": "src/data/fists.js", "from": "  live: false,", "to": "  live: true," },
+  { "file": "src/core/hunt/damage.js", "from": "  const markPm = (Number.isInteger(target.markPm) && target.markPm > 0 && target.markUntil > sc.atMs ? target.markPm : 0) + takenPmOf(target);", "to": "  const markPm = Math.min(300, (Number.isInteger(target.markPm) && target.markPm > 0 && target.markUntil > sc.atMs ? target.markPm : 0) + takenPmOf(target));" }
+ ]
+}

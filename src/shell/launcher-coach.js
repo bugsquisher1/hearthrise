@@ -14,7 +14,8 @@ import { tallyOf } from '../session/tally-sections.js';
 import { bagOf, rulesOf, shopOf, equipmentOf, nameOf } from '../session/item-sections.js';
 import { levelOf } from '../session/character-sections.js';
 import { huntOf, serverNowOf } from '../session/hunt-sections.js';
-import { COACH_READ_MAX, COACH_HID_MAX } from '../session/residue.js';
+import { COACH_HID_MAX } from '../session/residue.js';
+import { coachOf, taughtElsewhere } from '../session/account-coach.js';
 import { TIPS } from '../data/tips.js';
 import { switchOn, setSwitch } from '../session/player-switch.js';
 import { t } from '../render/player-text.js';
@@ -95,25 +96,26 @@ export function readMs(card) {
 
 /* ── THE SHELL'S FACTS (the lane 1 / lane 2 interface, src/session/tutorial-sections.js header) ──
    What only the shell knows, computed with the SAME function its control uses, so a card and its button never
-   disagree: the reads (residue `coach.read`), the account's heroes (the roster the server last read plus the open
+   disagree: the reads and the cards taught on another hero (the ACCOUNT's, src/session/account-coach.js), the account's heroes (the roster the server last read plus the open
    CharacterSessions, which are fresher), the slots owned and the play-at-once limit (the server's, never a fallback),
    what Sell all loot would sell (bag-model.js lootSale) and what Equip upgrades would put on (upgrade-line.js). A
    field the shell cannot know is null, and the card that needs it is passed by (never a wall). Kept per character
-   while the records it read are the same objects (every envelope and residue write replaces a record). */
+   while the records it read are the same objects (every envelope and residue write replaces a record) and the account's coach is unchanged. */
 const FACTS = new WeakMap();
-/** The cards this character has read (Got it, or on screen long enough), or null when this client cannot record one. */
+/** The cards this ACCOUNT has read (Got it, or on screen long enough, on any of its heroes), or null when this client cannot record one. */
 export function coachReadOf(cs) {
-  if (!cs || !cs.record || typeof cs.setResidue !== 'function') return null;
-  const r = cs.record.residue && cs.record.residue.coach;
-  return new Set(r && Array.isArray(r.read) ? r.read : []);
+  const c = coachOf(cs);
+  return c ? new Set(c.read) : null;
 }
+/* what the account's coach holds, so a fact read on one hero is read again when another hero is taught or reads a card */
+const coachKey = (cs) => { const c = coachOf(cs); return c ? c.v + ':' + c.read.size + ':' + c.taught.size : ''; };
 const huntOpenOf = (c) => { const h = huntOf(c); return !!h && !h.ended; };
 /** The shell's facts for `cs` (pointerCardOf's second argument). `account`: the AccountSession, or null. */
 export function coachFactsOf(cs, account) {
   if (!cs) return {};
   const open = account && typeof account.characters === 'function' ? account.characters() : [];
   const memo = FACTS.get(cs);
-  if (memo && cs.record && memo.record === cs.record && memo.account === account && memo.open.length === open.length
+  if (memo && cs.record && memo.record === cs.record && memo.account === account && memo.coach === coachKey(cs) && memo.open.length === open.length
     && memo.open.every((x, i) => x.cs === open[i] && x.record === open[i].record)) return memo.sh;
   const rows = account && typeof account.lastRoster === 'function' ? account.lastRoster() : null;
   let roster = null;
@@ -132,27 +134,26 @@ export function coachFactsOf(cs, account) {
     read: coachReadOf(cs),
     /* the cards hidden with Got it are passed by in the chain, so the next card shows (hunt-tutorial.js currentCard) */
     hid: coachHidOf(cs),
+    /* the cards another hero of this account was taught: passed by too (an account lesson is taught once, chapter 08 section 2.6) */
+    taught: taughtElsewhere(cs, HUNT_TUTORIAL),
     roster,
     slotsOwned: rows ? rows.length : null,
     playLimit: account && typeof account.statedLimit === 'function' ? account.statedLimit() : null,
     sellable: bag && shop ? lootSale(bag, rulesOf(cs), shop, upgradeNeeds(homeOf(cs), chestsOf(cs))).lines.length : null,
     upgrades: bag && eq ? upgradeOf(cs).picks.map((p) => p.id) : null,
     back: (cs.record && cs.record.residue && cs.record.residue.coach && cs.record.residue.coach.back) || null,
-    slotCost: account && account.slotOffer ? account.slotOffer.cost : null,
     /* the party pitch's ground: where the Hunts window's party advice sends a party of this hero's Level (the server's), null when none suits */
     partyGround: partyGroundFor((levelOf(cs) || {}).level),
   };
-  if (cs.record) FACTS.set(cs, { record: cs.record, account, open: open.map((c) => ({ cs: c, record: c.record })), sh });
+  if (cs.record) FACTS.set(cs, { record: cs.record, account, coach: coachKey(cs), open: open.map((c) => ({ cs: c, record: c.record })), sh });
   return sh;
 }
 
-/** Record `card` as read for this character (residue `coach.read`, display state): its Got it press, or a card the
+/** Record `card` as read for the ACCOUNT (src/session/account-coach.js, display state): its Got it press, or a card the
     player only has to read once it has been on screen its reading time. True when written. */
 export function markCoachRead(cs, card) {
-  const read = coachReadOf(cs);
-  if (!read || !card || read.has(card.id)) return false;
-  const r = (cs.record.residue && cs.record.residue.coach) || {};
-  return cs.setResidue('coach', Object.assign({}, r, { read: Array.from(read).concat(card.id).slice(-COACH_READ_MAX) }));
+  const c = coachOf(cs);
+  return !!c && !!card && c.mark('read', [card.id]);
 }
 
 /* ── NO TIP IS MANDATORY (Tyler 2026-11-11) ── The player's "Show tips" switch (src/data/tips.js: one pick for every open
@@ -215,6 +216,8 @@ const rankOf = (c) => (ORDER.has(c.id) ? ORDER.get(c.id) : HUNT_TUTORIAL.length)
    `shown` as it appears; the one it gave way to is `done` when `to` comes AFTER it (going back is not progress). */
 function noteCard(cs, from, to) {
   const slot = cs.slot;
+  /* a card this hero moved past is taught for the account: every other hero passes it by (account-coach.js taughtElsewhere) */
+  if (from && ORDER.has(from.id) && rankOf(to) > rankOf(from) && coachOf(cs)) coachOf(cs).mark('taught', [from.id]);
   if (from && ORDER.has(from.id) && rankOf(to) > rankOf(from)) trackOnce('tutorial_card', { slot, card: from.id, state: 'done' }, slot + ':' + from.id + ':done');
   if (ORDER.has(to.id)) trackOnce('tutorial_card', { slot, card: to.id, state: 'shown' }, slot + ':' + to.id + ':shown');
 }
@@ -394,10 +397,9 @@ export function actCoach(ctx, el, action, ev) {
   if (action === 'coach-close') { if (readable(card)) { markCoachRead(cs, card); return true; } action = 'coach-min'; }
   const doc = el.ownerDocument;
   const hadFocus = !!doc && !!doc.activeElement && el.contains(doc.activeElement);
-  /* Opening clears the mark: the card the player now sees is the one they have seen. The reads stay. */
-  const read = coachReadOf(cs);
-  /** @type {{ read?: string[], back?: string, backAt?: number, hid?: string[], hidIn?: string }} */
-  const keep = read && read.size ? { read: Array.from(read) } : {};
+  /* Opening clears the mark: the card the player now sees is the one they have seen. The reads are the account's and do not move. */
+  /** @type {{ back?: string, backAt?: number, hid?: string[], hidIn?: string }} */
+  const keep = {};
   const r = cs.record && cs.record.residue && cs.record.residue.coach;
   if (r && r.back) { keep.back = r.back; if (Number.isSafeInteger(r.backAt)) keep.backAt = r.backAt; }
   if (r && Array.isArray(r.hid) && r.hid.length && typeof r.hidIn === 'string') { keep.hid = r.hid.slice(); keep.hidIn = r.hidIn; } // a fold keeps this visit's hides

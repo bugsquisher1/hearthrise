@@ -11,10 +11,12 @@
 // THE SHELL'S FACTS (the lane 1 / lane 2 interface, PRIORITY_BOARD "Tutorial polish walkthrough (2026-10-25)" §4):
 // what only the shell knows or computes with its own rule, passed as pointerCardOf's second argument so a card and
 // the button it points at use ONE function. Each is optional; absent = unknown, and the card that needs it is passed by.
-//   read        string[] | Set   the card ids the player pressed Got it on or has read (residue `coach.read`,
-//                                display state); absent = this client records no read yet
+//   read        string[] | Set   the card ids the player pressed Got it on or has read, on any hero of the account
+//                                (src/session/account-coach.js, display state); absent = this client records no read yet
 //   hid         string[] | Set   the cards a server fact finishes that the player pressed Got it on (residue `coach.hid`):
 //                                passed by, so the next card shows (hunt-tutorial.js currentCard)
+//   taught      string[] | Set   the cards another hero of the account moved past (account-coach.js taughtElsewhere): passed by
+//                                the same way, so an account lesson is taught once (chapter 08 section 2.6)
 //   roster      [{ slot, level, name, open, hunting }]  the account's heroes (AccountSession.roster rows, `open`: a
 //                                CharacterSession is playing it, `hunting`: its own huntOf is open)
 //   slotsOwned  number           the hero slots the account owns (the roster's length)
@@ -23,7 +25,6 @@
 //                                and unlocked through sellPlan)
 //   upgrades    string[]         what Equip upgrades would put on (src/shell/upgrade-plan.js)
 //   back        string           the hunt the player came back to after an absence (residue `coach.back`, away-recap.js)
-//   slotCost    number           the next hero slot's price (AccountSession.slotOffer, the server's), absent when none is for sale
 // ════════════════════════════════════════════════════════════════════════
 import { currentCard, cardFor, nextGoal, ROLE_SKILL } from '../data/hunt-tutorial.js';
 import { levelOf, heroVitalsOf, deathLogOf } from './character-sections.js';
@@ -63,7 +64,9 @@ const storedSlot = (s) => (isObj(s) && isObj(s.action) && typeof s.action.id ===
 function shellFacts(sh) {
   const o = isObj(sh) ? sh : {};
   const read = o.read instanceof Set ? o.read : Array.isArray(o.read) ? new Set(o.read) : null;
-  const hid = o.hid instanceof Set ? o.hid : Array.isArray(o.hid) ? new Set(o.hid) : null;
+  const hid0 = o.hid instanceof Set ? o.hid : Array.isArray(o.hid) ? new Set(o.hid) : null;
+  const taught = o.taught instanceof Set ? o.taught : Array.isArray(o.taught) ? new Set(o.taught) : null;
+  const hid = hid0 || taught ? new Set([...(hid0 || []), ...(taught || [])]) : null;
   const roster = Array.isArray(o.roster) ? o.roster.slice(0, 8).filter((h) => isObj(h) && Number.isInteger(h.slot))
     .map((h) => ({ slot: h.slot, level: Number.isInteger(h.level) ? h.level : null, name: typeof h.name === 'string' ? h.name.slice(0, 40) : null,
       open: h.open === true, hunting: typeof h.hunting === 'boolean' ? h.hunting : null })) : null;
@@ -72,7 +75,7 @@ function shellFacts(sh) {
     hid: hid ? new Set(Array.from(hid).filter((id) => typeof id === 'string' && ID.test(id))) : null,
     roster, slotsOwned: nat(o.slotsOwned), playLimit: nat(o.playLimit), sellable: nat(o.sellable),
     upgrades: Array.isArray(o.upgrades) ? o.upgrades.filter((id) => typeof id === 'string' && ID.test(id)).slice(0, 14) : null,
-    back: typeof o.back === 'string' ? o.back : null, slotCost: nat(o.slotCost),
+    back: typeof o.back === 'string' ? o.back : null,
     /* the ground the Hunts window's party advice picks at this hero's Level (src/shell/hunt-list.js partyGroundFor), or null */
     partyGround: typeof o.partyGround === 'string' && ID.test(o.partyGround) ? o.partyGround : null,
   };
@@ -215,7 +218,7 @@ export function pointerCardOf(cs, sh) {
   const skill = ROLE_SKILL[role];
   return nextGoal({ charLevel: f.charLevel, role, skillLevel: sk && skill && sk[skill] ? sk[skill].level : null,
     defenseXp: sk && sk.defense ? sk.defense.xp : null, land: landOf(cs), inParty: f.inParty,
-    gold: f.gold, slotCost: f.slotCost, slotsOwned: f.slotsOwned, home: f.home,
+    gold: f.gold, slotsOwned: f.slotsOwned, home: f.home,
     roster: f.roster, visited: f.visited, staminaMs: f.staminaMs, refill: staminaRefillOf(cs), tally: f.tally, temper: f.temper,
     training: trainingRunOf(cs), partyGround: f.partyGround });
 }

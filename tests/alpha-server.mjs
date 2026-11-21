@@ -337,6 +337,9 @@ const ARMS = {
        or dies" at the server's default (on), and the kicked member's end does not send it home. */
     /* the box as the server reads it (1025-own-heroes-apart.sql): unsaid, on beside another account's hero */
     if (await H.one(db, 'select public.hr_party_leave_together_of($1, 0, $2::uuid)', [a, pid]) !== true) p.push('CONTROL: the leader’s box is not on by default');
+    /* ...and TICKED (said on): unsaid, the box reads off the moment the kick leaves the leader alone, so a kick could never send it home
+       and the kicked-flag mutant had nothing to move (A-PARTY MISSED, next run 44863151394). A ticked box is on whoever is left. */
+    await db.query('update public.player_state set party_leave_together = true where user_id = $1 and slot = 0', [a]);
     const sb = await H.one(db, 'select id from public.hunt_sessions where instance_id = $1 and user_id = $2 and ended_at is null', [pid, b]);
     const seatB = await H.one(db, 'select seat from public.hunt_party_members where party_id = $1 and user_id = $2', [pid, b]);
     const k = await ok(a, 'select public.hr_hunt_party_kick(0, $1, $2::uuid)', [seatB, idem()]);

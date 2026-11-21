@@ -11,7 +11,8 @@
 //
 // mutant-anchors: none — --selftest plants a journal row a kill (a trigger on the tally and the bag), one more statement a settle
 //   (this file's own counting exec), a settle four times slower (a burn inside the timed settle), an index.ts that lost its marker
-//   (an in-memory copy) and drifted budgets, all in memory or in the rolled-back replay; no tracked file is patched
+//   (an in-memory copy), drifted budgets and a calibration part free after its first reading, all in memory or in the rolled-back
+//   replay; no tracked file is patched
 //
 // ── WHY ────────────────────────────────────────────────────────────────────
 // The 2026-11-19 server audit (tools/qa/audit-2026-11-19-server/findings.md) put the ceiling at about 110-130 accounts online and
@@ -49,8 +50,8 @@
 //   row_writes_a_settle       inserts + updates + deletes a settle (median; WAL, wall 1): 20%
 //   settle_cpu_ms_a_hero_hour the settle's time a hero-hour (PGlite and the engine, both in this process), as CPU time and not wall
 //                             time (cpuMs below: a loaded box doubles the wall), in THIS run's calibration: the baseline holds the
-//                             writer's ms and its calibration_ms, and a run scales the cap by its own (a fixed SQL + JS workload, the
-//                             fastest of seven). A SMOKE ALARM, not a ratchet: +100% (a doubling: Krell is 1.9x the Thicket's engine
+//                             writer's ms and its calibration_ms, and a run scales the cap by its own (a fixed SQL + JSON workload, the
+//                             median of seven; no part a JIT tier makes cheaper, see calibrate()). A SMOKE ALARM, not a ratchet: +100% (a doubling: Krell is 1.9x the Thicket's engine
 //                             time, 28 §2). Counts are the ratchet; milliseconds only catch the gross step
 //
 // THE NIGHTLY (call 28 step 10). tools/beta-load.mjs --shape=krell4 plays the heavy four at the beta's concurrency on a real
@@ -460,20 +461,35 @@ async function measureAll(db, M, { plant = null, only = null } = {}) {
   return out;
 }
 
-/* THE MACHINE'S SPEED: a fixed SQL + JS workload of about 200 CPU ms (Windows counts CPU time in 15.6 ms ticks, so a short one reads
-   0, 15 or 31), one warm-up then the FASTEST of four (noise only ever adds time), taken after the fixtures have run (the engine and
-   PGlite warm, as the baseline's was). settle_cpu_ms is judged in units of it. */
-async function calibrate(db) {
+/* THE MACHINE'S SPEED: a fixed workload of the settle's own two kinds, about 170 CPU ms a round (Windows counts CPU time in 15.6 ms
+   ticks): a PGlite query (the database half, WASM) and a JSON round trip of small objects (the engine half, allocation and GC). Two
+   warm-up rounds, then the MEDIAN of seven (the settle is a sum over many windows, an average case, so its unit is one too), taken after
+   the fixtures have run (the engine and PGlite warm, as the baseline's was). settle_cpu_ms is judged in units of it.
+   NO PART A JIT TIER MAKES CHEAPER (lane/c-engine-reds, next run 44863151394): the old workload's third part, a tight integer loop, ran
+   110-125 ms until V8's optimizing tier replaced it mid-run and 15-31 ms after, so the fastest of four read ~200 or ~110 ms by when the
+   tier landed: 141 ms in CI's plain run and 90 ms in its --selftest, the same job, where the settle itself read 1,791 and 1,892. Half a
+   unit halves every cap, and the tree that wrote the baseline read red on it here (3,733 > 3,244 at x0.84). --selftest's CALIBRATION
+   arm holds three readings in one process within CAL_SPREAD of each other. `plant` 'warm_calibration' (the proof): the database half
+   answered from a memo after the first reading, the class of a part a warm process does for free. */
+const CAL_SPREAD = 1.5;
+let calMemo = null;
+async function calibrate(db, plant = null) {
   const t = []; let sink = 0;
-  for (let i = 0; i < 5; i++) {
+  const warm = plant === 'warm_calibration' && calMemo !== null;   // the proof's plant: free after the first reading
+  for (let i = 0; i < 9; i++) {
     const a = cpuMs();
-    sink += Number(await one(db, 'select count(distinct md5(i::text)) from generate_series(1, 75000) i'));
-    let h = 0; for (let k = 0; k < 2e7; k++) h = (h * 31 + k) | 0;
-    sink += h & 1;
-    sink += JSON.parse(JSON.stringify(Array.from({ length: 50000 }, (_, k) => ({ k, s: 'x' + k })))).length;
-    if (i > 0) t.push(cpuMs() - a);
+    if (warm) sink += calMemo;
+    else sink += (calMemo = Number(await one(db, 'select count(distinct md5(i::text)) from generate_series(1, 100000) i')));
+    sink += JSON.parse(JSON.stringify(Array.from({ length: 120000 }, (_, k) => ({ k, s: 'x' + k, v: [k, k + 1] })))).length;
+    if (i > 1) t.push(cpuMs() - a);
   }
-  return sink > 0 ? Math.round(Math.min(...t) * 10) / 10 : NaN;
+  return sink > 0 ? Math.round(med(t) * 10) / 10 : NaN;
+}
+/** Three readings of one machine in one process: { spread: max / min, readings }. */
+async function calibrationSpread(db, plant = null) {
+  calMemo = null;
+  const readings = [await calibrate(db, plant), await calibrate(db, plant), await calibrate(db, plant)];
+  return { spread: Math.max(...readings) / Math.min(...readings), readings };
 }
 
 /* THE CAPACITY SAMPLER READS THE SAME BUDGET (supabase/migrations/1002-ops-capacity-sample.sql): its edge wall is a body's
@@ -575,6 +591,14 @@ async function main() {
     const slower = judge(at, base, base.calibration_ms * 2); const same = judge(at, base, base.calibration_ms);
     arm('CONTROL: a slower machine\'s calibration widens the cap (2.5x on a 2x machine is green, on the same machine red)',
       slower.red.length === 0 && same.red.some((x) => x.includes('settle_cpu_ms')), `${slower.red.join('; ') || 'green'} | ${same.red.join('; ') || 'NOT red'}`);
+    /* THE UNIT HOLDS STILL: three readings of this machine agree, and a part a warm process does for free (the JIT-tiered loop's class)
+       is red here */
+    const cal = await calibrationSpread(db);
+    arm(`CONTROL: the calibration reads one machine the same way three times (within x${CAL_SPREAD})`, cal.spread <= CAL_SPREAD,
+      `${cal.readings.join(' / ')} ms, x${cal.spread.toFixed(2)}`);
+    const calWarm = await calibrationSpread(db, 'warm_calibration');
+    arm('MUTANT warm_calibration (a calibration part free after the first reading) is red', calWarm.spread > CAL_SPREAD,
+      `${calWarm.readings.join(' / ')} ms, x${calWarm.spread.toFixed(2)}`);
     arm('CONTROL: the round-trip model is index.ts\'s (RT-PIN)', pinned === null, pinned || 'pinned');
     const drift = tripsPin(readFileSync(join(ROOT, 'supabase', 'functions', 'hr-accrue', 'index.ts'), 'utf8').replace('await markSelf(tx);\n        return await tx.unsafe', 'return await tx.unsafe'));
     arm('MUTANT trips_drift: a player exec that lost its marker is red', drift !== null, drift || 'NOT red');

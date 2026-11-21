@@ -13,6 +13,7 @@
 //   REFERENCE_PLAYERS  the seven accounts every dive prices its system for (re-based on real players)
 //   REAL_OWN_FOUR_NET  what real own fours net in gold; HARNESS_GAPS where the harness disagrees with real play
 //   REAL_KRELL_FOUR    the heavy four's Krell hunt of 2026-11-20 (11-krell-hunt-2026-11-20.md): the harness's calibration point
+//   REAL_KRELL_FOUR_SHIFTS  each formula change since that hunt, measured on K1's cell, so K1 reads it on today's engine
 //   SERVER_AGES        the three server ages every dive answers for
 //   POPULATIONS        the three populations every dive answers for
 //
@@ -193,6 +194,23 @@ export const REAL_KRELL_FOUR = Object.freeze({
   storeAHeroHour: 10600,           // section 4
   deaths: 0, heroHours: 39,        // section 1
 });
+
+/* THE ENGINE SINCE THAT HUNT (lane/c-engine-reds, 2026-11-21). The real four played v0.2.142; a FORMULA change since moves what the same
+   seats earn, so the balance guard's K1 reads the hunt restated on today's engine (tests/balance-guard.mjs realKrellNow): Level XP and kills
+   times `levelXp` and `kills`, its gold rebuilt as income x `income` less store x `store`. MEASURED on K1's own cell (the harness four in
+   these seats, the plain guard's 1 h x 2 seeds), the set before the change against the change merged, harness over harness. Each `why` is
+   the twin of a tests/balance-calibration.mjs DECLARED_SHIFTS row (BC-7 holds the pair). Without these the two formulas read as the
+   harness closing on real play: K1's Level XP 0.83 -> 0.88 -> 1.06 with no change to the harness. */
+export const REAL_KRELL_FOUR_SHIFTS = Object.freeze([
+  /* src/data/to-hit.js toHitRatio, 0f49995fb -> c52b56f7b: Level XP 829,967 -> 883,745, kills 1,040 -> 1,106, income 18,107 -> 19,372,
+     store 17,350 -> 14,278 */
+  Object.freeze({ why: 'to-hit as a ratio (Tyler 21-1, 21-2): src/data/to-hit.js toHitRatio',
+    mult: Object.freeze({ levelXp: 1.0648, kills: 1.0635, income: 1.0699, store: 0.8229 }) }),
+  /* the spell rule (lane/c-spell-rule, L17), 16a533a02 -> 45e08b217: Level XP 883,745 -> 1,060,197, kills 1,106 -> 1,327, income 19,372 ->
+     22,386, store 14,278 -> 12,133 */
+  Object.freeze({ why: 'the spell rule: every cast a share of the caster\'s blow (Tyler 21-5, 32-x)',
+    mult: Object.freeze({ levelXp: 1.1997, kills: 1.1998, income: 1.1556, store: 0.8498 }) }),
+]);
 
 /* WHERE THE HARNESS IS KNOWN TO DISAGREE WITH REAL PLAYERS (10-real-players.md section 1). A dive quotes these beside any number they touch. */
 export const HARNESS_GAPS = Object.freeze([

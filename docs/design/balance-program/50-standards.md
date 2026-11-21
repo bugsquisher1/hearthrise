@@ -130,14 +130,14 @@ Hours each Level takes and the day it arrives, at 1.00 x contract (COMPUTED from
 | P2 | Lone MID on Normal | 0.95 to 1.10 x contract | under 0.85, over 1.25 | RULED tolerance. Guard G1 today |
 | P3 | Lone LOW on Normal | 0.80 to 0.90 x MID | under 0.70, over 0.95 | PROPOSED. One weapon step (5 to 8%, RULED) plus accessories and two rungs. Under 0.70 the arrival feels like a wall. Over 0.95 gear does not matter |
 | P4 | Lone BiS on Normal | 1.10 to 1.20 x MID | over 1.25 | RULED 11-21 (call 3): about 15% faster kills. The plan's own stack reads +10% to +26% today |
-| P5 | BiS over LOW, same seat | at most 1.50 | over 1.60 | PROPOSED. Past this the content cannot be written for both |
+| P5 | BiS over LOW, same seat, on Normal | at most 1.50 | over 1.60 | PROPOSED. Past this the content cannot be written for both. Read on Normal only (the baseline, 11-21): on Dangerous and Deadly LOW is ruled to fail (S3, S4, G-5), so the ratio there divides by a hero that dies at once |
 | P6 | Party a head over lone, same tier, MID | two 1.05 to 1.15, three 1.10 to 1.20, four 1.15 to 1.25 | four under 1.0 from Level 10 on a party ground | RULED 10-25 section 5 |
 | P7 | Party a head on the hardest tier it holds, MID | two 1.2 to 1.5, three 1.5 to 2.0, four 1.8 to 2.5 x contract | four over 2.6, two over 1.7 | Four RULED (11-16, 21-4). Two and three RULED 11-21 (call 8). Never played yet |
 | P8 | The four on Deadly in BiS | at most 2.75 x contract | over 2.9 | RULED 30-2 |
 | P9 | A harder tier, for a kit that holds it, over Normal | Dangerous 1.10 to 1.25, Deadly 1.30 to 1.60 in XP an hour | Deadly under Dangerous | PROPOSED from the tier rows (XP a kill 1.10 and 1.25, a pull of 8) |
 | P10 | A harder tier for a kit that does not hold it | XP an hour after deaths is **under** the tier below | over it | RULED direction 11-08: "Either they are strong enough to do the harder content or they aren't" |
 | P11 | No wall | no Level under 10 over 2 h. Level 10 in 6 h. No Level over twice the one before | as written | RULED 27-2, `LEVEL_PACE.smooth` |
-| P12 | A Level a day | the pace seat gains at least one Level in every 12 hunted hours to Level 300, and one in every 24 to Level 400 | over 13 h under 300, over 24 h under 400 | PROPOSED. Today it holds by a hair: 11.8 h at Level 300, 20.8 h at 400. CITED: daily-progress idle games keep a visible step a session (verify) |
+| P12 | A Level in a day and a quarter | the pace seat gains at least one Level in every 15 hunted hours to Level 300, and one in every 24 to Level 400. It read 12 until the baseline (11-21): the ruled table itself needs 14.4 hours a Level from 200 to 300, so 12 contradicted the ruling above it | over 16.5 h under 300, over 24 h under 400 | PROPOSED. Today it holds by a hair: 11.8 h at Level 300, 20.8 h at 400. CITED: daily-progress idle games keep a visible step a session (verify) |
 | P13 | Events | at most +0.25, one at a time, under 5% of all Level XP | over | RULED 27-5, restated for a player who hunts through the whole weekend |
 
 ### 2.2 Survival and death
@@ -167,6 +167,7 @@ Hours each Level takes and the day it arrives, at 1.00 x contract (COMPUTED from
 |---|---|---|---|
 | S8, S9 | One death | **6% of all Level XP, flat, with no cap in hours** | RULED 11-21 (call 4). The table above is the price, at every Level. The grid prints it and judges nothing |
 | S10 | The Blessing set | costs under a fifth of the hours it saves, priced in the buyer's own net gold | PROPOSED. 21-8's "two lone hours" was sized against a death worth 7 to 27 hours |
+| S11 | The death rules' own band (added by the baseline, 11-21) | on the hardest tier the MID four holds, Level XP a head after deaths **at the top of the ruled death count** is at least what the lone MID hero earns on Normal. Read once with every Blessing and once with none | PROPOSED. Derived from the ruled count and the ruled cost, because a 2 hour cell records almost no death. Without it a change to the death rules moved no band at all |
 
 ### 2.3 "Holds a tier"
 

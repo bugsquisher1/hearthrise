@@ -178,8 +178,11 @@
       "area": "World",
       "was": "Every boss fight that pays a prize is a keyed hall. The boss call folds into it. One key is one prize roll and the key is the only clock. \"Fight with N keys\" is one press and the bar and party are remembered. A mid-region boss's pieces stay repeatable. Halls: the Rat King, Chief Coppercap, Captain Hask, Lord Krell, the Roost Mother, Father Gault, then two a region. Old Grayjaw and Rook stay route bosses for good, so no hall exists under Level 20.",
       "fixedBy": "review-12, review-31",
-      "status": "RULED (Tyler, 2026-11-21)",
-      "tyler": "The reversal stands. It replaces the earlier ruling."
+      "status": "PROVISIONAL",
+      "tyler": "He let the reversal stand on the page, in about a second. It changes the earlier ruling.",
+      "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
+      "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
+      "waitsOn": "the hall check at three Levels and one boss stood"
     },
     {
       "id": "GR-29",
@@ -196,7 +199,8 @@
         "GR-28",
         "GR-73 (three Trophy rows on Hask, the Provost and Krell)"
       ],
-      "area": "World"
+      "area": "World",
+      "status": "DECIDED"
     },
     {
       "id": "GR-30",
@@ -216,7 +220,9 @@
       "was": "A hall boss is the formula's boss role at his Level times one hall number that every hall shares. Krell's rows are left alone until hand rows move onto the formula. The number is sized so a mid-geared four in band wins 80 to 90% on the food the card names, and the weakest named lineup loses.",
       "fixedBy": "review-12",
       "hypothesis": "HYPOTHESIS until the hall grader plays it at Levels 25, 52 and 75.",
-      "fixNote": "A hall lost one time in five or ten, with a death ending the hall at 6% of all Level XP, would have been the most expensive button in the game."
+      "fixNote": "A hall lost one time in five or ten, with a death ending the hall at 6% of all Level XP, would have been the most expensive button in the game.",
+      "status": "PROVISIONAL",
+      "waitsOn": "the hall check at three Levels and one boss stood"
     },
     {
       "id": "GR-31",
@@ -233,7 +239,9 @@
         "GR-19 (the shooters-first target mode, combat decider)",
         "GR-39 and linings (the answers a signature asks for)"
       ],
-      "area": "World"
+      "area": "World",
+      "status": "PROVISIONAL",
+      "waitsOn": "the playtest or measurement its own row names"
     },
     {
       "id": "GR-32",
@@ -248,7 +256,8 @@
         "GR-5 (what a kill pays, core decider)",
         "GR-71 (faction side per hero, social decider)"
       ],
-      "area": "World"
+      "area": "World",
+      "status": "DECIDED"
     },
     {
       "id": "GR-33",
@@ -266,12 +275,14 @@
       ],
       "area": "World",
       "fixedBy": "review-section-4-row-11",
-      "fixNote": "The row quoted Krell on day 18 while GR-6b says day 31. The decision text is unchanged, so there is no was."
+      "fixNote": "The row quoted Krell on day 18 while GR-6b says day 31. The decision text is unchanged, so there is no was.",
+      "status": "PROVISIONAL",
+      "waitsOn": "the kill reward and the tiers, because the seat's multiple is not one number until then"
     },
     {
       "id": "GR-34",
       "call": "Dead rows",
-      "decision": "KEPT (Tyler, 2026-11-21). Nothing is deleted. The 103 monster rows no hunt uses, the three hunts with no ground (Bramble Edge, Goblin Warren, Ridge Camp) and the four called boss copies stay in the data, hidden, each flagged as unplaced. Their home is the region work: a region sketch or a hall takes its roster from this pool first and writes a new row only when the pool has nothing that fits. A row leaves the pool when a ground, a hall or a world boss room names it. The items that wait on these monsters stay with them. A hidden row is never shown to a player and no guard counts it as content until it is placed.",
+      "decision": "Tyler said keep on the page 2026-11-21, and what follows is a PROPOSAL he has not seen. Nothing is deleted. The 103 monster rows no hunt uses, the three hunts with no ground (Bramble Edge, Goblin Warren, Ridge Camp) and the four called boss copies stay in the data, hidden, each flagged as unplaced. Their home is the region work: a region sketch or a hall takes its roster from this pool first and writes a new row only when the pool has nothing that fits. A row leaves the pool when a ground, a hall or a world boss room names it. The items that wait on these monsters stay with them. A hidden row is never shown to a player and no guard counts it as content until it is placed.",
       "outcome": "recommended",
       "reason": "Rows nobody can meet are noise every tool and every reader pays for. Nothing planned is lost, because a monster with a planned home is not on the list.",
       "evidence": "COUNTED by the world review and study 44 (103 rows, three hunts, four copies). 80 items wait on some of these monsters (audit M9), which is why the item check comes first.",
@@ -283,8 +294,10 @@
       ],
       "area": "World",
       "wasBeforeTyler": "Remove the 103 monster rows no hunt uses, the three hunts with no ground and the four called boss copies. The order is fixed: the item check runs first, and any monster that an item on the roadmap or a region sketch waits on stays in the data, hidden. The art stays in the library. The removal list goes on the one cut list you see before anything is deleted.",
-      "decidedAfterTyler": "Fable 2026-11-21, after Tyler's answers",
-      "status": "DECIDED"
+      "status": "PROPOSAL",
+      "statusBeforeReissue": "DECIDED",
+      "proposal": "Made in the fold 2026-11-21, not yet seen by Tyler. He said keep on a cut list. How it stays is the integrator's proposal and nothing more.",
+      "madeInTheFold": "Rewritten in the fold 2026-11-21 after his picks. Not yet seen by Tyler."
     },
     {
       "id": "GR-35",
@@ -299,7 +312,8 @@
         "GR-28",
         "GR-86"
       ],
-      "area": "World"
+      "area": "World",
+      "status": "DECIDED"
     },
     {
       "id": "GR-36",
@@ -315,7 +329,10 @@
         "GR-49",
         "GR-37"
       ],
-      "area": "World"
+      "area": "World",
+      "status": "PROVISIONAL",
+      "waitsOn": "Deadly sized, and the system built",
+      "firstBuild": "planned, waits until the first build is played"
     },
     {
       "id": "GR-37",
@@ -329,7 +346,9 @@
       "depends": [
         "GR-36"
       ],
-      "area": "World"
+      "area": "World",
+      "status": "PROVISIONAL",
+      "waitsOn": "Deadly sized, and the system built"
     },
     {
       "id": "GR-38",
@@ -345,7 +364,9 @@
         "GR-39",
         "GR-50 (one market book a piece comes first, item plan M9)"
       ],
-      "area": "Items and crafting"
+      "area": "Items and crafting",
+      "status": "PROVISIONAL",
+      "waitsOn": "Deadly sized, and the system built"
     },
     {
       "id": "GR-39",
@@ -362,8 +383,11 @@
         "GR-31"
       ],
       "area": "Items and crafting",
-      "status": "RULED (Tyler, 2026-11-21)",
-      "tyler": "The reversal stands. It replaces the earlier ruling."
+      "status": "PROVISIONAL",
+      "tyler": "He let the reversal stand on the page, in about a second. It changes the earlier ruling.",
+      "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
+      "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
+      "waitsOn": "Deadly sized, and the system built"
     },
     {
       "id": "GR-40",
@@ -378,7 +402,9 @@
         "GR-38 (stones need crafted pieces to sit in)",
         "GR-42 (a stone is the Very Rare, outside the six Rare rows)"
       ],
-      "area": "Items and crafting"
+      "area": "Items and crafting",
+      "status": "PROVISIONAL",
+      "waitsOn": "the kill reward and the tiers, because the seat's multiple is not one number until then"
     },
     {
       "id": "GR-41",
@@ -393,7 +419,8 @@
         "CE-1 (layer pieces follow the same rule)",
         "GR-4 (exchange rates)"
       ],
-      "area": "Items and crafting"
+      "area": "Items and crafting",
+      "status": "DECIDED"
     },
     {
       "id": "GR-42",
@@ -409,7 +436,8 @@
         "GR-77",
         "GR-29"
       ],
-      "area": "Items and crafting"
+      "area": "Items and crafting",
+      "status": "DECIDED"
     },
     {
       "id": "GR-43",
@@ -425,7 +453,8 @@
         "GR-47"
       ],
       "area": "Items and crafting",
-      "cutApproved": "Cut list 10, approved by Tyler 2026-11-21."
+      "cutApproved": "Cut list 10, Tyler said yes to the cut on the page 2026-11-21.",
+      "status": "DECIDED"
     },
     {
       "id": "GR-44",
@@ -441,7 +470,8 @@
         "Security review (a trade between players)",
         "GR-50"
       ],
-      "area": "Items and crafting"
+      "area": "Items and crafting",
+      "status": "DECIDED"
     },
     {
       "id": "GR-45",
@@ -456,7 +486,8 @@
         "GR-23 (combat decider)",
         "GR-8 (sink share, core decider)"
       ],
-      "area": "Items and crafting"
+      "area": "Items and crafting",
+      "status": "DECIDED"
     },
     {
       "id": "GR-46",
@@ -472,7 +503,8 @@
         "GR-48",
         "GR-87"
       ],
-      "area": "Items and crafting"
+      "area": "Items and crafting",
+      "status": "DECIDED"
     },
     {
       "id": "GR-47",
@@ -488,7 +520,8 @@
         "GR-43"
       ],
       "area": "Items and crafting",
-      "cutApproved": "Cut list 11, approved by Tyler 2026-11-21."
+      "cutApproved": "Cut list 11, Tyler said yes to the cut on the page 2026-11-21.",
+      "status": "DECIDED"
     },
     {
       "id": "GR-48",
@@ -507,7 +540,8 @@
       "area": "Items and crafting",
       "was": "Luck keeps two feeds and one budget. Each ground has a find list on the Honors page that ticks with no press and pays no Luck. A hero's worn set, linings and unique can be saved against a ground and starting a hunt there wears it. The saved kit is built before case perks, linings or signatures.",
       "fixedBy": "review-28",
-      "fixNote": "This row saved the worn set and GR-84 saved the bar. Two saved things for one decision makes the weak-side weapon a chore."
+      "fixNote": "This row saved the worn set and GR-84 saved the bar. Two saved things for one decision makes the weak-side weapon a chore.",
+      "status": "DECIDED"
     },
     {
       "id": "GR-49",
@@ -522,7 +556,8 @@
         "GR-36",
         "GR-37"
       ],
-      "area": "Items and crafting"
+      "area": "Items and crafting",
+      "status": "DECIDED"
     },
     {
       "id": "GR-50",
@@ -541,7 +576,9 @@
         "Study 48 (the cost of order matching)",
         "GR-3 (Deadly sized on the real kit first, core decider)"
       ],
-      "area": "Economy"
+      "area": "Economy",
+      "status": "PROVISIONAL",
+      "waitsOn": "the store-bill fault fixed and a wage formula that exists"
     },
     {
       "id": "GR-51",
@@ -559,7 +596,9 @@
         "MM-19 (the wage for a four of mixed Levels is not written)",
         "GR-58, GR-53, GR-73"
       ],
-      "area": "Economy"
+      "area": "Economy",
+      "status": "PROVISIONAL",
+      "waitsOn": "the store-bill fault fixed and a wage formula that exists"
     },
     {
       "id": "GR-52",
@@ -577,7 +616,8 @@
       ],
       "area": "Economy",
       "was": "Store healing is priced on one gold-a-hit-point line with its top near 0.60, and a heal's size is a share of reference health. It lands after the store-bill fault in the simulator closes. Store runes and ammunition get the same treatment in the same step: one price line each, read on the wage curve.",
-      "fixedBy": "review-29"
+      "fixedBy": "review-29",
+      "status": "DECIDED"
     },
     {
       "id": "GR-53",
@@ -592,7 +632,8 @@
         "GR-54 (the fee follows the rate)",
         "GR-51"
       ],
-      "area": "Economy"
+      "area": "Economy",
+      "status": "DECIDED"
     },
     {
       "id": "GR-54",
@@ -610,8 +651,12 @@
         "GR-6 (skill pace beside Level pace, progression decider)"
       ],
       "area": "Economy",
-      "status": "RULED (Tyler, 2026-11-21)",
-      "tyler": "The reversal stands. It replaces the earlier ruling."
+      "status": "PROVISIONAL",
+      "tyler": "He let the reversal stand on the page, in about a second. It changes the earlier ruling.",
+      "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
+      "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
+      "waitsOn": "the store-bill fault fixed and a wage formula that exists",
+      "firstBuild": "planned, waits until the wage can be measured. Until then the typed prices stand"
     },
     {
       "id": "GR-55",
@@ -629,8 +674,11 @@
         "Security review (the Level door)"
       ],
       "area": "Economy",
-      "status": "RULED (Tyler, 2026-11-21)",
-      "tyler": "The reversal stands. It replaces the earlier ruling."
+      "status": "PROVISIONAL",
+      "tyler": "He let the reversal stand on the page, in about a second. It changes the earlier ruling.",
+      "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
+      "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
+      "waitsOn": "the store-bill fault fixed and a wage formula that exists"
     },
     {
       "id": "GR-56a",
@@ -651,7 +699,8 @@
       "fixedBy": "review-19",
       "fixNote": "The second ruling it reverses was missing.",
       "status": "OPEN (waiting on Tyler, T-fix-3)",
-      "tyler": "Held. Cut 14 was not approved, and reversal 13 (GR-56a, setup slots are free) asks for the same removal. Not decided. The decision text is what the book reads until he answers."
+      "tyler": "Held. Cut 14 was not approved, and reversal 13 (GR-56a, setup slots are free) asks for the same removal. Not decided. The decision text is what the book reads until he answers.",
+      "statusBeforeReissue": "OPEN (waiting on Tyler, T-fix-3)"
     },
     {
       "id": "GR-56b",
@@ -666,7 +715,8 @@
         "GR-76",
         "GR-87 (core decider)"
       ],
-      "area": "Economy"
+      "area": "Economy",
+      "status": "DECIDED"
     },
     {
       "id": "GR-57",
@@ -682,7 +732,8 @@
         "GR-52",
         "Systems engineer (both-paths tests, viewed and browser closed)"
       ],
-      "area": "Economy"
+      "area": "Economy",
+      "status": "DECIDED"
     },
     {
       "id": "GR-58",
@@ -697,7 +748,9 @@
         "Simulator fault F5 (baseline lane)",
         "GR-51"
       ],
-      "area": "Economy"
+      "area": "Economy",
+      "status": "PROVISIONAL",
+      "waitsOn": "the store-bill fault fixed and a wage formula that exists"
     },
     {
       "id": "GR-59a",
@@ -712,7 +765,8 @@
         "Study 48",
         "CE-2 (the material buff gets its own source line)"
       ],
-      "area": "Economy"
+      "area": "Economy",
+      "status": "DECIDED"
     },
     {
       "id": "GR-59b",
@@ -727,7 +781,8 @@
         "Security engineer",
         "MM-36"
       ],
-      "area": "Economy"
+      "area": "Economy",
+      "status": "DECIDED"
     },
     {
       "id": "GR-60",
@@ -741,7 +796,8 @@
       "depends": [
         "MM-28 to MM-37"
       ],
-      "area": "Economy"
+      "area": "Economy",
+      "status": "DECIDED"
     },
     {
       "id": "GR-73",
@@ -763,12 +819,14 @@
       "was": "The Trophy room becomes the Hall of Firsts. The Keep gives a wall and the Castle gives the Great Hall. No mount rungs are sold. Only rows flagged mountable can hang, one of each. Hanging a piece takes it from the bag and costs a mounting fee in hours of the wage of the piece's own band. Taking it down returns the piece and not the fee. No formula reads the Hall. Build order: the Honors page, then the Hall, then visiting.",
       "fixedBy": "review-19",
       "fixNote": "It was listed as a reversal and is not one.",
-      "cutApproved": "Cut list 12, approved by Tyler 2026-11-21."
+      "cutApproved": "Cut list 12, Tyler said yes to the cut on the page 2026-11-21.",
+      "status": "DECIDED",
+      "firstBuild": "planned, waits until the first build is played"
     },
     {
       "id": "GR-74",
       "call": "The farm's gates",
-      "decision": "A crop opens at its Farming level. KEPT (Tyler, 2026-11-21): soil tiers and the water button stay. A soil tier is an account upgrade of the farm, bought once with gold, that raises what every bed yields, and the seed row says which soil a crop grows best in. It is a goal and a sink and never a second gate on planting. Its prices are re-read in account-days (CE-5). The water button stays on each bed for the player who wants it. \"Tend the field\" waters and tends every bed in one press, and \"tend the farm\" is a step a hero's rest plan can hold, so nobody waters by hand twice. Every seed row and Tend result says what the harvest is worth to the hunt. Potato gets a hunt consumer in Wheat's ration recipes. If it finds none it is cut, which Tyler approved.",
+      "decision": "A crop opens at its Farming level. Tyler said keep on the page 2026-11-21, and what follows is a PROPOSAL he has not seen: soil tiers and the water button stay. A soil tier is an account upgrade of the farm, bought once with gold, that raises what every bed yields, and the seed row says which soil a crop grows best in. It is a goal and a sink and never a second gate on planting. Its prices are re-read in account-days (CE-5). The water button stays on each bed for the player who wants it. \"Tend the field\" waters and tends every bed in one press, and \"tend the farm\" is a step a hero's rest plan can hold, so nobody waters by hand twice. Every seed row and Tend result says what the harvest is worth to the hunt. Potato gets a hunt consumer in Wheat's ration recipes. If it finds none it is cut, which Tyler said yes to on the page.",
       "outcome": "recommended",
       "reason": "Four gates on one crop is three too many. One press that harvests, replants and waters is the farm with the chore taken out.",
       "evidence": "COMPUTED: the soil tiers are a 130,500 gold sink in all, which is small beside the House re-read of CE-5. A full field makes about a four's daily drink bill (chapter 07 section 2.6).",
@@ -780,8 +838,10 @@
       ],
       "area": "Home",
       "wasBeforeTyler": "A crop opens at its Farming level and nothing else. Soil tiers are removed. Watering lives inside Tend the field and there is no water button on a bed. Every seed row and Tend result says what the harvest is worth to the hunt. Potato gets a hunt consumer in Wheat's ration recipes or is removed with the dead rows.",
-      "decidedAfterTyler": "Fable 2026-11-21, after Tyler's answers",
-      "status": "DECIDED"
+      "status": "PROPOSAL",
+      "statusBeforeReissue": "DECIDED",
+      "proposal": "Made in the fold 2026-11-21, not yet seen by Tyler. He said keep on a cut list. How it stays is the integrator's proposal and nothing more.",
+      "madeInTheFold": "Rewritten in the fold 2026-11-21 after his picks. Not yet seen by Tyler."
     },
     {
       "id": "GR-75",
@@ -798,8 +858,10 @@
         "The art director (the Camp's name against its picture)"
       ],
       "area": "Home",
-      "status": "RULED (Tyler, 2026-11-21)",
-      "tyler": "The reversal stands. It replaces the earlier ruling."
+      "status": "DECIDED",
+      "tyler": "He let the reversal stand on the page, in about a second. It changes the earlier ruling.",
+      "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
+      "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling."
     },
     {
       "id": "GR-76",
@@ -816,7 +878,9 @@
         "CE-5"
       ],
       "area": "Home",
-      "cutApproved": "Cut list 13, approved by Tyler 2026-11-21."
+      "cutApproved": "Cut list 13, Tyler said yes to the cut on the page 2026-11-21.",
+      "status": "PROVISIONAL",
+      "waitsOn": "the store-bill fault fixed and a wage formula that exists"
     },
     {
       "id": "GR-77",
@@ -833,7 +897,9 @@
         "The region lane (which ground carries it)"
       ],
       "area": "Home",
-      "cutApproved": "Cut list 16, approved by Tyler 2026-11-21."
+      "cutApproved": "Cut list 16, Tyler said yes to the cut on the page 2026-11-21.",
+      "status": "PROVISIONAL",
+      "waitsOn": "the store-bill fault fixed and a wage formula that exists"
     },
     {
       "id": "CE-1",
@@ -852,7 +918,10 @@
         "GR-41",
         "MM-32 (0 bands ahead holds, because a piece drops at the earner's band)"
       ],
-      "area": "Collisions"
+      "area": "Collisions",
+      "status": "PROVISIONAL",
+      "waitsOn": "the hall check at three Levels and one boss stood",
+      "firstBuild": "planned, waits until the first boss has stood twice. The first boss keeps its chest"
     },
     {
       "id": "CE-2",
@@ -870,7 +939,9 @@
       ],
       "area": "Collisions",
       "was": "The timed drop row is a material buff. It adds 10% to rows tagged as materials: monster parts, lining parts, hides, ore, gem chips and gems below Rare. It never touches a Rare, Very Rare or Trophy row, never a gear row of any rarity, never a key and never a seed. The rivet allowance is computed with no buff. The gauge prints its gold as its own source line.",
-      "fixedBy": "review-3"
+      "fixedBy": "review-3",
+      "status": "PROVISIONAL",
+      "waitsOn": "one buff played in a cell"
     },
     {
       "id": "CE-3",
@@ -885,7 +956,8 @@
         "MM-29 (the rest of the store list is a money call, see below)",
         "CE-2"
       ],
-      "area": "Collisions"
+      "area": "Collisions",
+      "status": "DECIDED"
     },
     {
       "id": "CE-4",
@@ -904,7 +976,9 @@
         "GR-79 (the Path must name each of these in this order, features decider)",
         "GR-7 (Blessing price, progression decider)"
       ],
-      "area": "Collisions"
+      "area": "Collisions",
+      "status": "PROVISIONAL",
+      "waitsOn": "the store-bill fault fixed and a wage formula that exists"
     },
     {
       "id": "CE-5",
@@ -927,8 +1001,11 @@
       "fixedBy": "review-22",
       "hypothesis": "HYPOTHESIS. The listed sizes were not played.",
       "fixNote": "The rule said four times the one-hero size and the listed sizes were not (the Farmstead about 2.2 times the rule, the Castle about 0.55 times).",
-      "status": "RULED (Tyler, 2026-11-21)",
-      "tyler": "The reversal stands. It replaces the earlier ruling."
+      "status": "PROVISIONAL",
+      "tyler": "He let the reversal stand on the page, in about a second. It changes the earlier ruling.",
+      "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
+      "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
+      "waitsOn": "the store-bill fault fixed and a wage formula that exists"
     },
     {
       "id": "CE-6",
@@ -945,7 +1022,8 @@
         "GR-87 (core decider)",
         "The integrator (chapter 02 and chapter 03 both say \"as Rares\" and should be corrected)"
       ],
-      "area": "Collisions"
+      "area": "Collisions",
+      "status": "DECIDED"
     },
     {
       "id": "CE-7",
@@ -965,8 +1043,11 @@
       "area": "Collisions",
       "wasBeforeStudy48": "Take the re-reading. The bar, the count and the bag line move on screen in real time as a prediction. The server writes at the start, when the count runs out and at a stop. Any press that needs the items or the skill level settles the job first, so nothing can spend a predicted number. Every gate reads the server's value.",
       "revisedBy": "study-48",
-      "status": "RULED (Tyler, 2026-11-21)",
-      "tyler": "The reversal stands. It replaces the earlier ruling."
+      "status": "PROVISIONAL",
+      "tyler": "He let the reversal stand on the page, in about a second. It changes the earlier ruling.",
+      "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
+      "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
+      "waitsOn": "a town-hour fixture and a load test"
     },
     {
       "id": "CE-8",
@@ -984,8 +1065,12 @@
         "MM-30 (a bought XP boost adds nothing that weekend, which is what \"no edge in events\" means)"
       ],
       "area": "Collisions",
-      "status": "RULED (Tyler, 2026-11-21)",
-      "tyler": "The reversal stands. It replaces the earlier ruling."
+      "status": "PROVISIONAL",
+      "tyler": "He let the reversal stand on the page, in about a second. It changes the earlier ruling.",
+      "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
+      "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
+      "waitsOn": "the playtest or measurement its own row names",
+      "firstBuild": "in the first build: the Hearthrise weekend"
     },
     {
       "id": "CE-9",
@@ -1000,7 +1085,8 @@
         "GR-76",
         "GR-85 (burn chance as a data row, core decider)"
       ],
-      "area": "Collisions"
+      "area": "Collisions",
+      "status": "DECIDED"
     },
     {
       "id": "CE-10",
@@ -1020,12 +1106,14 @@
       "was": "The account kit is granted once, with the first hero: 500 gold, 8 Turnip Seeds, 10 Raw Shrimp and the Camp's 2 farm plots. Each hero still gets its own weapon, worn pieces and bar supplies. A hero made later, or deleted and made again, gets the hero kit only.",
       "fixedBy": "review-27",
       "hypothesis": "HYPOTHESIS. This is the review's own design and nobody has played it.",
-      "fixNote": "The hero kit was granted again each time a hero was deleted and remade, and the kit's food sells. That minted gold."
+      "fixNote": "The hero kit was granted again each time a hero was deleted and remade, and the kit's food sells. That minted gold.",
+      "status": "PROVISIONAL",
+      "waitsOn": "being built and played past minute 17 by real new players"
     },
     {
       "id": "MM-28",
       "call": "The paid advantage",
-      "decision": "Paying gives a real edge under a ceiling written in numbers. A payer reaches the ceiling sooner and stays there. A player who does not pay reaches the same ceiling with gold. Nobody passes it.",
+      "decision": "Paying gives a real edge. In Tyler's words on MM-32: \"paying can put a hero way ahead, it depends on what is on the player market\". There is no ceiling that nobody passes. A player who does not pay can reach the same things with gold, as far as the market holds them.",
       "outcome": "recommended",
       "reason": "It is your 2026-11-21 ruling written as a rule. One ceiling for everyone is what keeps the edge real and not broken.",
       "evidence": "EVIDENCE: study 49 section 3.1 read ten games with a traded bought currency. Players accept time, membership, capped boosts and looks, and revolt when the store mints power.",
@@ -1035,10 +1123,14 @@
         "MM-29 to MM-37"
       ],
       "area": "Money calls",
-      "status": "RULED (Tyler, 2026-11-21)",
-      "tyler": "Confirmed as recommended.",
-      "rederived": "DECIDED (Fable 2026-11-21, after MM-32). \"One ceiling written in numbers\" now means the pace reading of MM-31 and nothing about gear. The check that the advantage is real and not broken is section 2.8 of chapter 04: market supply, the buff caps behind MM-31, the eight clamps of MM-36 and the places where paying gives no edge (MM-37).",
-      "wasBeforeTyler": "TYLER CONFIRMS. Recommended: paying gives a real edge under a ceiling written in numbers. A payer reaches the ceiling sooner and stays there. A player who does not pay reaches the same ceiling with gold. Nobody passes it."
+      "status": "PROVISIONAL",
+      "tyler": "He said yes on the page.",
+      "wasBeforeTyler": "TYLER CONFIRMS. Recommended: paying gives a real edge under a ceiling written in numbers. A payer reaches the ceiling sooner and stays there. A player who does not pay reaches the same ceiling with gold. Nobody passes it.",
+      "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
+      "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
+      "waitsOn": "test Crowns run in a playtest, and the Security review. Money stays Tyler's. The clause re-derived after his two \"no\" answers was never put to him.",
+      "firstBuild": "planned, waits until test Crowns have run in the playtest",
+      "wasBeforeReissue": "Paying gives a real edge under a ceiling written in numbers. A payer reaches the ceiling sooner and stays there. A player who does not pay reaches the same ceiling with gold. Nobody passes it."
     },
     {
       "id": "MM-29",
@@ -1060,9 +1152,13 @@
       "fixedBy": "review-1, review-2, review-4, review-17",
       "hypothesis": "HYPOTHESIS. This is the review's own design and nobody has played it.",
       "fixNote": "Both deciders sold boosts for Crowns, and this file also sold a Level XP boost. The review sells two boosts for gold so no ruling is reversed and the economy gains a weekly burned sink. A payer still feels them because bought gold keeps them running.",
-      "status": "RULED (Tyler, 2026-11-21)",
-      "tyler": "Confirmed as recommended.",
-      "wasBeforeTyler": "TYLER CONFIRMS. Recommended: Crowns buy Premium, looks and comfort (more market listings). Two timed boosts are sold for gold at the store, in 1 day and 7 day sizes, priced on the wage curve and burned: damage +6%, and a protection boost written on the Defense rating and sized so a mid-geared four takes about 3% less damage an hour. No Level XP boost is sold. Never a drop or material boost, a saved Setup, bag or Storage room, gear, materials, gold, Levels, skill levels, chests, rating, Luck, stamina or any roll. Bound training items join the Crowns store only after the yard fee and to-hit changes are live (ruled 26-10). Sold for gold, the boosts reverse no ruling. If Tyler prefers them sold for Crowns at the same sizes, that reverses the 2026-11-18 line that power is never sold directly for Crowns and it joins the reversal list as row 24."
+      "status": "PROVISIONAL",
+      "tyler": "He said yes on the page.",
+      "wasBeforeTyler": "TYLER CONFIRMS. Recommended: Crowns buy Premium, looks and comfort (more market listings). Two timed boosts are sold for gold at the store, in 1 day and 7 day sizes, priced on the wage curve and burned: damage +6%, and a protection boost written on the Defense rating and sized so a mid-geared four takes about 3% less damage an hour. No Level XP boost is sold. Never a drop or material boost, a saved Setup, bag or Storage room, gear, materials, gold, Levels, skill levels, chests, rating, Luck, stamina or any roll. Bound training items join the Crowns store only after the yard fee and to-hit changes are live (ruled 26-10). Sold for gold, the boosts reverse no ruling. If Tyler prefers them sold for Crowns at the same sizes, that reverses the 2026-11-18 line that power is never sold directly for Crowns and it joins the reversal list as row 24.",
+      "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
+      "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
+      "waitsOn": "one buff played in a cell",
+      "firstBuild": "planned, waits until Deadly is sized and one buff has been played in a cell"
     },
     {
       "id": "MM-30",
@@ -1078,9 +1174,13 @@
         "MM-29"
       ],
       "area": "Money calls",
-      "status": "RULED (Tyler, 2026-11-21)",
-      "tyler": "Confirmed as recommended.",
-      "wasBeforeTyler": "TYLER CONFIRMS. Recommended: they are the same rows in the one modifier table and fill the same timed caps. One bought boost on a knob at a time."
+      "status": "PROVISIONAL",
+      "tyler": "He said yes on the page.",
+      "wasBeforeTyler": "TYLER CONFIRMS. Recommended: they are the same rows in the one modifier table and fill the same timed caps. One bought boost on a knob at a time.",
+      "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
+      "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
+      "waitsOn": "one buff played in a cell",
+      "firstBuild": "planned, waits until Deadly is sized and one buff has been played in a cell"
     },
     {
       "id": "MM-31",
@@ -1099,10 +1199,14 @@
       "was": "TYLER CONFIRMS. Recommended: keep your 2026-11-21 ruling (no limit on how much sooner) as it stands, and record the pace ceiling as a number the caps add up to, held by a test, not as a new limit. A fully boosted, best-geared four gains at most about 58% more Levels an hour than the same four in mid gear with no buffs, and nothing over a non-payer who reached the same caps.",
       "fixedBy": "review-2",
       "fixNote": "The row said 58%. It multiplied 1.15 gear by 1.10 timed damage by 1.25 XP and left out the +5% standing damage of MM-25. With it the product is 1.65.",
-      "status": "RULED (Tyler, 2026-11-21)",
-      "tyler": "Confirmed as recommended.",
-      "rederived": "DECIDED (Fable 2026-11-21, after MM-32). The 1.65 reading does not move, because it is the caps and the ruled best-gear state. The paying-alone reading stays about 1.22 against a plain mid-geared four in the same band, and it now says what it is: the pace of a four in the best gear state with the +6% boost. It is reached only when the market holds the pieces, and it is not a limit on gear. If a set bought on the market ever reads over the ruled 15% above mid gear, the fix is at the formula layer (the best-gear definition or the gear curve), never a cap on buying.",
-      "wasBeforeTyler": "TYLER CONFIRMS. Recommended: keep ruling 50-11 (no limit on how much sooner) as it stands and record one reading held by a test, never a new limit. With every cap full a four reads 1.65 times a plain mid-geared four in Levels an hour and 1.32 in kills an hour. Paying alone reads about 1.22. These are the same numbers as MM-26."
+      "status": "PROVISIONAL",
+      "tyler": "He said yes on the page.",
+      "rederived": "PROVISIONAL. Re-derived in the fold 2026-11-21, not yet seen by Tyler. The 1.65 reading does not move, because it is the caps and the ruled best-gear state. The paying-alone reading stays about 1.22 against a plain mid-geared four in the same band, and it now says what it is: the pace of a four in the best gear state with the +6% boost. It is reached only when the market holds the pieces, and it is not a limit on gear. If a set bought on the market ever reads over the ruled 15% above mid gear, the fix is at the formula layer (the best-gear definition or the gear curve), never a cap on buying.",
+      "wasBeforeTyler": "TYLER CONFIRMS. Recommended: keep ruling 50-11 (no limit on how much sooner) as it stands and record one reading held by a test, never a new limit. With every cap full a four reads 1.65 times a plain mid-geared four in Levels an hour and 1.32 in kills an hour. Paying alone reads about 1.22. These are the same numbers as MM-26.",
+      "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
+      "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
+      "waitsOn": "one buff played in a cell. The clause re-derived after his two \"no\" answers was never put to him.",
+      "firstBuild": "planned, waits until Deadly is sized and one buff has been played in a cell"
     },
     {
       "id": "MM-32",
@@ -1119,8 +1223,9 @@
       ],
       "area": "Money calls",
       "wasBeforeTyler": "TYLER CONFIRMS. Recommended: paying puts a hero 0 bands ahead at any Level, and inside a band at most best gear over mid gear.",
-      "status": "RULED (Tyler, 2026-11-21), not the recommendation",
-      "tyler": "The recommendation was 0 bands ahead and at most best gear over mid gear. Tyler did not take it."
+      "status": "RULED (Tyler, 2026-11-21, his own note)",
+      "tyler": "The recommendation was 0 bands ahead and at most best gear over mid gear. Tyler did not take it.",
+      "statusBeforeReissue": "RULED (Tyler, 2026-11-21), not the recommendation"
     },
     {
       "id": "MM-33",
@@ -1138,10 +1243,14 @@
         "GR-59a"
       ],
       "area": "Money calls",
-      "status": "RULED (Tyler, 2026-11-21)",
-      "tyler": "Confirmed as recommended.",
-      "rederived": "DECIDED (Fable 2026-11-21, after MM-32 and MM-34). The cap wording changes and the cap stays. It is a weekly count of Crowns an account may sell and buy on the book, as ruling 24-5 requires. It opens as a fixed count of Crowns from a data row. Once the book has seven days of sales the server re-derives the count each week from the players' own 7 day median price, aimed at about one account-week of hunting gold. It reads the price players made and never sets one. It is a clamp against laundering and floods. It is not a ceiling on how far ahead bought gear can put a hero.",
-      "wasBeforeTyler": "TYLER CONFIRMS. Recommended: the weekly cap on Crowns an account sells is worth about one account-week of hunting gold at the seller's highest hero Level, so paying at most about doubles a week's gold. The server re-derives the cap in Crowns each week from the 7 day median Crown price."
+      "status": "PROVISIONAL",
+      "tyler": "He said yes on the page.",
+      "rederived": "PROVISIONAL. Re-derived in the fold 2026-11-21, not yet seen by Tyler. The cap wording changes and the cap stays. It is a weekly count of Crowns an account may sell and buy on the book, as ruling 24-5 requires. It opens as a fixed count of Crowns from a data row. Once the book has seven days of sales the server re-derives the count each week from the players' own 7 day median price, aimed at about one account-week of hunting gold. It reads the price players made and never sets one. It is a clamp against laundering and floods. It is not a ceiling on how far ahead bought gear can put a hero.",
+      "wasBeforeTyler": "TYLER CONFIRMS. Recommended: the weekly cap on Crowns an account sells is worth about one account-week of hunting gold at the seller's highest hero Level, so paying at most about doubles a week's gold. The server re-derives the cap in Crowns each week from the 7 day median Crown price.",
+      "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
+      "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
+      "waitsOn": "test Crowns run in a playtest, and the Security review. Money stays Tyler's. The clause re-derived after his two \"no\" answers was never put to him.",
+      "firstBuild": "planned, waits until test Crowns have run in the playtest"
     },
     {
       "id": "MM-34",
@@ -1158,8 +1267,10 @@
       ],
       "area": "Money calls",
       "wasBeforeTyler": "TYLER CONFIRMS. Recommended: everything sold for Crowns can be had with gold through the book. Targets at the book's reference price: Premium for a month is about 3 account-days of gold, and a full week of boosts is about 1.5 account-days. Boost rows scale by the buyer's band so the cost in hours of play holds at every Level.",
-      "status": "RULED (Tyler, 2026-11-21), not the recommendation",
-      "tyler": "The recommendation set targets at a reference price (Premium at about 3 account-days of gold). Tyler did not take it."
+      "status": "RULED (Tyler, 2026-11-21, his own note)",
+      "tyler": "The recommendation set targets at a reference price (Premium at about 3 account-days of gold). Tyler did not take it.",
+      "statusBeforeReissue": "RULED (Tyler, 2026-11-21), not the recommendation",
+      "firstBuild": "planned, waits until test Crowns have run in the playtest"
     },
     {
       "id": "MM-35",
@@ -1175,9 +1286,13 @@
         "Security review"
       ],
       "area": "Money calls",
-      "status": "RULED (Tyler, 2026-11-21)",
-      "tyler": "Confirmed as recommended.",
-      "wasBeforeTyler": "TYLER CONFIRMS. Recommended: a Crown is a number on the account with its own append-only ledger. Crowns are sold for gold on one server-owned book in fixed lots. One trade, then bound. 1% to list and 4% of the gold, both burned. The player-facing name is \"Crown Exchange\"."
+      "status": "PROVISIONAL",
+      "tyler": "He said yes on the page.",
+      "wasBeforeTyler": "TYLER CONFIRMS. Recommended: a Crown is a number on the account with its own append-only ledger. Crowns are sold for gold on one server-owned book in fixed lots. One trade, then bound. 1% to list and 4% of the gold, both burned. The player-facing name is \"Crown Exchange\".",
+      "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
+      "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
+      "waitsOn": "test Crowns run in a playtest, and the Security review. Money stays Tyler's",
+      "firstBuild": "planned, waits until test Crowns have run in the playtest"
     },
     {
       "id": "MM-36",
@@ -1193,10 +1308,14 @@
         "GR-59b"
       ],
       "area": "Money calls",
-      "status": "RULED (Tyler, 2026-11-21)",
-      "tyler": "Confirmed as recommended.",
-      "rederived": "DECIDED (Fable 2026-11-21, after MM-34). Clamp 2, the price band, reads the players' own 7 day median. Before a median exists it has no seeded target price: the band is a wide floor and ceiling from a data row whose only job is to stop one Crown being used as a gold transfer.",
-      "wasBeforeTyler": "TYLER CONFIRMS. Recommended: the eight clamps of chapter 04 section 2.8, all inside the Security review before Early Access. One addition: gold paid for Crowns counts against the market's daily spend cap."
+      "status": "PROVISIONAL",
+      "tyler": "He said yes on the page.",
+      "rederived": "PROVISIONAL. Re-derived in the fold 2026-11-21, not yet seen by Tyler. Clamp 2, the price band, reads the players' own 7 day median. Before a median exists it has no seeded target price: the band is a wide floor and ceiling from a data row whose only job is to stop one Crown being used as a gold transfer.",
+      "wasBeforeTyler": "TYLER CONFIRMS. Recommended: the eight clamps of chapter 04 section 2.8, all inside the Security review before Early Access. One addition: gold paid for Crowns counts against the market's daily spend cap.",
+      "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
+      "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
+      "waitsOn": "test Crowns run in a playtest, and the Security review. Money stays Tyler's. The clause re-derived after his two \"no\" answers was never put to him.",
+      "firstBuild": "planned, waits until test Crowns have run in the playtest"
     },
     {
       "id": "MM-37",
@@ -1212,9 +1331,13 @@
         "CE-8"
       ],
       "area": "Money calls",
-      "status": "RULED (Tyler, 2026-11-21)",
-      "tyler": "Confirmed as recommended.",
-      "wasBeforeTyler": "TYLER CONFIRMS. Recommended: no edge in the even arena, in events, or in access to any Level, ground, drop or tier."
+      "status": "PROVISIONAL",
+      "tyler": "He said yes on the page.",
+      "wasBeforeTyler": "TYLER CONFIRMS. Recommended: no edge in the even arena, in events, or in access to any Level, ground, drop or tier.",
+      "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
+      "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
+      "waitsOn": "test Crowns run in a playtest, and the Security review. Money stays Tyler's",
+      "firstBuild": "planned, waits until test Crowns have run in the playtest"
     },
     {
       "id": "PREM-1",
@@ -1231,9 +1354,11 @@
         "GR-54"
       ],
       "area": "Money calls",
-      "status": "RULED (Tyler, 2026-11-21)",
-      "tyler": "Confirmed as recommended.",
-      "wasBeforeTyler": "TYLER CONFIRMS. Recommended contents: the ruled list (12 hour stamina bar on every hero, the full hunt analyzer, Premium looks and one free color change a day, 100 market listings for 14 days), plus one daily 1 hour training item for each hero with the skill pick remembered, the daily claim with no press, and arena tickets banking to 30. Not recommended: \"timed buffs last a quarter longer\" (MM-21). The risk reading stays free for everyone."
+      "status": "DECIDED",
+      "tyler": "He said yes on the page.",
+      "wasBeforeTyler": "TYLER CONFIRMS. Recommended contents: the ruled list (12 hour stamina bar on every hero, the full hunt analyzer, Premium looks and one free color change a day, 100 market listings for 14 days), plus one daily 1 hour training item for each hero with the skill pick remembered, the daily claim with no press, and arena tickets banking to 30. Not recommended: \"timed buffs last a quarter longer\" (MM-21). The risk reading stays free for everyone.",
+      "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
+      "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling."
     },
     {
       "id": "PREM-2",
@@ -1249,11 +1374,16 @@
         "MM-43 (test Crowns in the playtest are a grant and yours alone)"
       ],
       "area": "Money calls",
-      "status": "RULED (Tyler, 2026-11-21)",
-      "tyler": "Confirmed as recommended.",
-      "rederived": "DECIDED (Fable 2026-11-21, after MM-34). The lot-size clause no longer leans on a gold target. A lot is a fixed count of Crowns. Thirty days of Premium costs a whole number of the smallest lot, so a gold buyer never holds a stranded remainder. The book opens with no seeded gold price and the first asks set it.",
-      "wasBeforeTyler": "TYLER CONFIRMS. Recommended design: Premium is 30 days, priced in Crowns, at a real-money cost near the genre's monthly membership. A starting number to react to is 8 to 10 dollars a month. Crown lot sizes and the Crown price of each store row are set so that MM-34's targets hold at the book's opening reference price."
+      "status": "PROVISIONAL",
+      "tyler": "He said yes on the page.",
+      "rederived": "PROVISIONAL. Re-derived in the fold 2026-11-21, not yet seen by Tyler. The lot-size clause no longer leans on a gold target. A lot is a fixed count of Crowns. Thirty days of Premium costs a whole number of the smallest lot, so a gold buyer never holds a stranded remainder. The book opens with no seeded gold price and the first asks set it.",
+      "wasBeforeTyler": "TYLER CONFIRMS. Recommended design: Premium is 30 days, priced in Crowns, at a real-money cost near the genre's monthly membership. A starting number to react to is 8 to 10 dollars a month. Crown lot sizes and the Crown price of each store row are set so that MM-34's targets hold at the book's opening reference price.",
+      "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
+      "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
+      "waitsOn": "test Crowns run in a playtest, and the Security review. Money stays Tyler's. The clause re-derived after his two \"no\" answers was never put to him.",
+      "firstBuild": "planned, waits until test Crowns have run in the playtest"
     }
   ],
-  "tylerAnswers": "Tyler answered his lists on 2026-11-21. Each row he touched carries a tyler field. The full record is in all.json."
+  "tylerAnswers": "Tyler answered his lists on 2026-11-21. Each row he touched carries a tyler field. The full record is in all.json.",
+  "reissue": "Statuses re-issued on 2026-11-21 after the critical review. all.json holds the record."
 }

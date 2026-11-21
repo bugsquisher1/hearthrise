@@ -49,7 +49,7 @@ import * as STD from './standards.mjs';
 import { loadGridData, inputHash, compsOf, cellKey, buildCell } from './progression-grid.mjs';
 import { loadKits } from './grid-kit.mjs';
 import { RUNS, planMatrix, archetypeTable, WAYS, HIGH_LEVELS } from './matrix-plan.mjs';
-import { METRICS, cellMetrics, slimSeed, deriveMatrix, judgeMatrix, diffMatrices, axisSummary, levelBand, wayOf, styleGroupOf, FLAG_WORDS } from './matrix-metrics.mjs';
+import { METRICS, cellMetrics, slimSeed, deriveMatrix, judgeMatrix, diffMatrices, axisSummary, levelBand, wayOf, styleGroupOf, FLAG_WORDS, checkGRows } from './matrix-metrics.mjs';
 import { plantScratch, knobTable, checkPatch, patchEdits, scaled, readKnobs, locateKnob, PATCH_SCHEMA, KnobGone } from './matrix-scratch.mjs';
 import { calibrationJobs, calibrationTable, printCalibration } from './matrix-calibration.mjs';
 import { STYLE_GROUPS, KNOB_FILE } from './knob-rules.mjs';
@@ -759,9 +759,27 @@ async function selftest() {
     try { ga = await playRun(D, K, GROUNDS, gs.root, o); } finally { gs.done(); }
     const rowsG = judgeMatrix(D, K, gb.cells).filter((r) => r.way === 'G:the_slake');
     check('the ground axis carries band rows (' + rowsG.length + ' on the Slake\'s ' + gb.cells.length + ' cells: ' + [...new Set(rowsG.map((r) => r.group))].join(', ') + ')', rowsG.length > 0 && ['pace', 'survival', 'gold'].every((g) => rowsG.some((r) => r.group === g)));
-    const gd = diffMatrices({ rows: judgeMatrix(D, K, gb.cells), cells: gb.cells }, { rows: judgeMatrix(ga.V, K, ga.cells), cells: ga.cells }, { targets: ['survival'] });
-    const flagged = gd.bands.filter((b) => b.way === 'G:the_slake' && b.group === 'survival' && b.flag !== 'UNTARGETED');
-    check('a ground patch (the Slake\'s Cold Bilge x5) flags the Slake\'s survival bands INTO or OUT (' + flagged.length + ')', flagged.length > 0, JSON.stringify(gd.counts));
+    /* since 12-balance-pass.md section 5 (rows 1 to 3) the harder tiers' health bands report only and the tier bands read the four only, so the
+       patch names every group the ground axis grades (the cell-level groups): the Slake's own rows must flag, none of them untargeted */
+    const gd = diffMatrices({ rows: judgeMatrix(D, K, gb.cells), cells: gb.cells }, { rows: judgeMatrix(ga.V, K, ga.cells), cells: ga.cells }, { targets: ['survival', 'pace', 'gold'] });
+    const flagged = gd.bands.filter((b) => b.way === 'G:the_slake' && b.flag !== 'UNTARGETED');
+    check('a ground patch (the Slake\'s Cold Bilge x5) flags the Slake\'s own bands INTO or OUT (' + flagged.length + ': ' + [...new Set(flagged.map((b) => b.band))].join(', ') + ')', flagged.length > 0, JSON.stringify(gd.counts));
+    /* 12-balance-pass.md section 5 row 6: P2 reads one row a ground, the mean of its two ends */
+    const p2g = judgeMatrix(D, K, gb.cells).filter((r) => r.way === 'G:the_slake' && r.band === 'P2');
+    check('P2 on the ground axis is one row a ground, the mean of its two ends (' + p2g.length + ': ' + (p2g[0] ? p2g[0].at : '-') + ')', p2g.length === 1 && /^the mean of /.test(p2g[0].at));
+  }
+  /* 8b. 12-balance-pass.md section 5 row 6: P2 grades the hammer only; every other way prints it, status report, with the status it would have */
+  {
+    const rowsMini = judgeMatrix(D, K, base.cells);
+    const p2 = rowsMini.filter((r) => r.band === 'P2');
+    check('P2 grades the hammer and reports on every other way (' + p2.filter((r) => r.way === 'hammer' && r.status !== 'report').length + ' graded on the hammer, ' + p2.filter((r) => r.way !== 'hammer' && r.status === 'report' && r.wouldBe).length + ' reported elsewhere)',
+      p2.some((r) => r.way === 'hammer' && r.status !== 'report') && p2.filter((r) => r.way !== 'hammer').length > 0 && p2.filter((r) => r.way !== 'hammer').every((r) => r.status === 'report' && r.wouldBe));
+    /* MM-26's check G (report only, waits on Tyler): a buffed four that holds a tier its plain four cannot is one report row, would be RED */
+    const m0 = { deathsPer1000h: 0, lowHpTypical: 0.5, netPerH: 1, sample: { heroHours: 64 } }, cell = (block, variant, low) => ({ L: 60, gear: 'mid', party: 4, comp: 'x', tier: 'deadly', block, variant, m: { ...m0, lowHpTypical: low } });
+    const g = checkGRows([cell('four', undefined, 0.01), cell('buff', 'buff:damage10', 0.5)]);
+    const g0 = checkGRows([cell('four', undefined, 0.5), cell('buff', 'buff:damage10', 0.5)]);
+    check('check G reads a buffed four that holds where the plain one does not, report only (' + (g[0] ? g[0].status + ', would be ' + g[0].wouldBe : 'no row') + '), and is silent when both hold',
+      g.length === 1 && g[0].status === 'report' && g[0].wouldBe === 'RED' && g0.length === 1 && g0[0].wouldBe === 'ok');
   }
   /* 9. THE MEASURING TOOL (the critical review's step 1, F-framework-audit sections 3 and 5): each fix and each new mechanic, with a play that
      fails without it */

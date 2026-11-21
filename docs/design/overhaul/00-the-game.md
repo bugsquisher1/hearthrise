@@ -15,10 +15,11 @@ Every design statement carries one status word.
 | Status | What it means |
 |---|---|
 | RULED (date or id) | Tyler decided it. It is the game |
+| RULED (call id, Tyler 2026-11-21) | Tyler picked it when he answered his list on 2026-11-21. "Not the recommendation" marks a pick that went against the designer. "Reversal of X, approved" marks a change to an older ruling that he let stand |
 | DECIDED (call id, Fable 2026-11-21) | The game designer decided the call and an adversarial check corrected it. It is the design. The call id is a row of `decisions/all.json` |
-| DECIDED (reversal, Tyler may veto) | Decided, and it changes one of Tyler's rulings. The first tag in a chapter names the ruling. It stands unless he vetoes it. Section 5.3 lists all 23 |
-| TYLER CONFIRMS | A money call or a grant. It carries one recommendation and waits for Tyler. Section 5.1 lists all 16 |
-| CUT (Tyler approves) | A removal that waits for his yes. Nothing is deleted before he has seen it. Section 5.4 lists all 16 |
+| OPEN (waiting on Tyler, T-fix-N) | Two of Tyler's picks point opposite ways. Nobody decides it for him. The chapter shows the design the book was written on until he answers. Section 5.5 lists all five |
+| CUT (Tyler approved 2026-11-21) | A removal he approved |
+| KEPT (Tyler 2026-11-21) | Something he refused to cut. How it stays is DECIDED by the designer |
 | OPEN | Nobody has decided it. The line says who does. Section 8 lists every one |
 | WITHDRAWN | Refused by the adversarial check. Only GR-65 |
 
@@ -28,15 +29,17 @@ Number words. TARGET is a number the design aims at. COMPUTED is arithmetic on r
 
 Ids. GR-x, MM-x, CE-x, CORE-x and PREM-x are calls in `decisions/all.json`. GR-2 and GR-67 are ruled and have no row there. GR-10a, GR-10b, GR-10c, GR-60, GR-68 and GR-83 were replaced by MM calls. Ids such as 25-4 or 50-11 are Tyler's rulings of 2026-11-20 and 2026-11-21.
 
-How the decisions were made. Three deciders took 157 rows. An adversarial check returned ACCEPT WITH FIXES with 31 fixes, re-ran the measurements it could, and withdrew one decision. All 31 are applied. 155 calls remain, because two were decided twice and merged. 114 are decided, 24 are decided as reversals, 16 wait for Tyler and 1 is withdrawn.
+How the decisions were made. Three deciders took 157 rows. An adversarial check returned ACCEPT WITH FIXES with 31 fixes, re-ran the measurements it could, and withdrew one decision. All 31 are applied. 155 calls remain, because two were decided twice and merged. Tyler then answered his whole list. Today 43 calls are ruled by Tyler, 107 are decided by the designer, 4 are held for Tyler inside five T-fix items, and 1 is withdrawn.
 
 ## 3. Every ruling
 
-One line each, newest first inside each group. A line is a ruling of Tyler's unless it says otherwise. Where a decision in section 5.3 asks to change a ruling, the ruling still stands here until he answers.
+One line each, newest first inside each group. A line is a ruling of Tyler's unless it says otherwise. The list holds the rulings as they stood before he answered his list on 2026-11-21. Section 5 holds those answers, and an answer wins over an older line here. The older lines that his answers replaced are named in section 5.3.
 
 ### 3.1 The frame (2026-11-21)
 
 - 2026-11-21. The game designer decides every open design call. Tyler gets money calls, grants, plan approvals he asked for and any decision that reverses one of his rulings.
+- 2026-11-21. Tyler answered his whole list: the money calls, the grant, the reversals and the cuts. Section 5 has every answer.
+- 2026-11-21. Leave the lineup test out, accept that the best four may be a hammer and three mages, and pay party XP by size alone. (GR-3, the alternative)
 - 2026-11-21. Everything is combined into one book and the work goes on from it.
 - 2026-11-21. The current game is irrelevant. Nothing is compared with it. Its data is evidence only.
 - 2026-11-21. Decisions first. No build lanes until every decision is made and a build plan exists. Studies, calibration and audits may run.
@@ -322,100 +325,125 @@ One line each, newest first inside each group. A line is a ruling of Tyler's unl
 | `09-platform-and-measurement.md` | The formula architecture, the 28 steps of the work, server cost, the balance matrix, what the simulator can be trusted for, playtests and the Security scope |
 | `decisions/all.json` | Every call, one row each, with its status, its reason and its evidence. `decisions/all.md` is its mirror and `decisions/review.md` is the adversarial check |
 
-## 5. For Tyler: the only things that need you
+## 5. Tyler's answers, and what still needs him
 
-Five lists. Everything else in the book is decided and needs nothing from you.
+Tyler answered his list on 2026-11-21. A pick of his is a ruling. Five items are held because two of his picks point opposite ways, and section 5.5 lists them. Nothing else in the book waits on him.
 
-### 5.1 Money: 16 calls, one recommendation each
+### 5.1 Money: all 17 answered
 
-| # | Id | The call | The one recommendation |
-|---|---|---|---|
-| 1 | MM-28 | The paid advantage | Yes. Paying gives a real edge under one ceiling written in numbers. A player who does not pay reaches the same ceiling with gold. |
-| 2 | MM-29 | What the store sells | Crowns buy Premium, looks and comfort. Two timed boosts, damage +6% and protection of about 3%, are sold for gold in 1 day and 7 day sizes, priced on the wage curve and burned. If you want stronger Crown demand, the same two are sold for Crowns and that becomes reversal 24. |
-| 3 | MM-29-XP | A bought Level XP boost | No. No Level XP boost is sold, for Crowns or for gold. |
-| 4 | MM-30 | Bought boosts and earned buffs | Yes. The same rows and the same caps. One bought boost on a knob at a time. |
-| 5 | MM-31 | The pace ceiling | Keep ruling 50-11. Record one reading held by a test: 1.65 with every cap full, about 1.22 from paying alone. |
-| 6 | MM-32 | The gear ceiling | Yes. Paying puts a hero 0 bands ahead, and inside a band at most best gear over mid gear. |
-| 7 | MM-33 | The gold ceiling | Yes. The weekly cap on Crowns an account sells is worth about one account-week of hunting gold, re-derived each week from the 7 day median price. |
-| 8 | MM-34 | The path for players who do not pay | Yes. Everything sold for Crowns can be had with gold through the book. Premium for a month targets about 3 account-days of gold. |
-| 9 | MM-35 | How Crowns trade | Yes. A number on the account, one server-owned book, fixed lots, one trade then bound, 1% to list and 4% of the gold, both burned. Named "Crown Exchange". |
-| 10 | MM-36 | The clamps | Yes. The eight clamps, with gold paid for Crowns counted against the market's daily spend cap, all inside the one Security review before Early Access. |
-| 11 | MM-37 | Where paying gives no edge | Yes. The Even Arena, events, and access to any Level, ground, drop or tier. The Open Arena reads bought boosts on purpose. |
-| 12 | MM-21 | Premium and the MMO layer | Everything in the layer is open to every account. Premium banks arena tickets to 30. Premium does not make buffs last longer. |
-| 13 | PREM-1 | What one Premium gives four heroes | The ruled list (12 hour bar on every hero, the full analyzer, looks and a free color change a day, 100 listings for 14 days), the daily claim with no press, one daily 1 hour training item for each hero, tickets to 30. |
-| 14 | PREM-2 | The price of Premium and a Crown | 30 days, priced in Crowns, at 8 to 10 dollars a month as a number to react to. Lot sizes are set so MM-34 holds at the opening price. |
-| 15 | GR-66 | The risk reading | Free for everyone: how close a hunt came to a death and deaths per 100 hours for the ground and tier. Premium keeps the full analyzer, as ruled in 24-4. |
-| 16 | MM-43 | Test Crowns in the playtest. THIS IS A GRANT | Yes, for the wiped Discord playtest only. The same amount for every account, one server switch that is off by default and removed before Early Access, every grant journalled. It needs your explicit yes. |
-| 17 | 48-engine-server | An always-on engine server, before 10,000 accounts. LATER. A spend, not decided | Nothing to buy now. The edge fits the beta and 1,000 accounts. Decide it before 10,000 accounts. ESTIMATED by study 48: at 10,000 accounts an account with a tab open 3.5 hours costs 30.3 database-seconds a day on the edge against a budget of 24, and 9.1 on an engine server. With the browser closed it is 10.0 against 3.5. It is the only way an account that watches fits 24, and it makes a shared fight cheap. Its cost in money is not in the study. |
-
-Row 17 is a later call that the server cost study raised. It is a spend, so it is yours and it is not decided. Nothing is bought now, and section 7 has its numbers.
-
-MM-29 is the one place the adversarial check overruled both deciders. They sold timed boosts for Crowns. The check sells them for gold, which reverses none of your rulings and gives the economy a weekly burned sink. A payer still feels them, because gold bought with Crowns keeps them running.
-
-### 5.2 The grant
-
-**MM-43, test Crowns in the playtest.** This is a grant, so only you can say yes. Recommended: yes, for the wiped Discord playtest only. The same amount for every account, one server switch that is off by default and removed before Early Access, and every grant journalled. Without it the Crowns loop cannot be tested before launch. It is row 16 of the money list.
-
-### 5.3 Reversals: 23 decisions that change a ruling of yours
-
-Each stands unless you veto it.
-
-| # | Id | What changes | The ruling it changes | Why, in one sentence |
+| # | Id | The call | The ruling | Tyler's answer |
 |---|---|---|---|---|
-| 1 | GR-7 | Past the third Blessing a new one opens whenever a fully blessed death would cost over five hunted hours. An unblessed death is untouched. | 50-4 of 2026-11-21 (6% flat, no cap, and the 12 hour blessed cap turned down), and the three Blessings of 2026-11-10 | Without it a death past about Level 100 costs so many hours that nobody would press Deadly. |
-| 2 | GR-6b | Krell's Hold is day 31 for the plain mid-geared four. | "Day 18 for a four" of 2026-11-21 | The Level table ruled the same day puts Level 85 on day 31, and both cannot be exact. |
-| 3 | GR-6 | The four runs 106 hours ahead of the table. Level 100 at 494 hours, Level 400 on day 373. | The table of 2026-10-25, and "Level 400 is day 382" of 2026-11-21 | Levels 1 to 50 stay timed on a lone new hero, so a four gains 106 hours there and keeps them. |
-| 4 | GR-6a | Staged content ends on day 116. | "120 days of grounds at Early Access" of 2026-11-21 | It follows from the row above. It is not a reversal if the top staged band runs to Level 189, which is the plan. |
-| 5 | GR-4 | A gear band is a fixed step of the curve, opening at about +17%. Luck's two numbers are keyed by Level. | The item plan section 2 (two bands a region, 2026-11-18), a major upgrade every 15 to 25 Levels (2026-10-25), the Luck step of 2026-11-20 | A fixed step lets gear keep pace with Levels that never end, with no table typed by hand. |
-| 6 | GR-8 | Tempering, Hallmark and lining prices are a share of a band's gold. | The typed prices kept on 2026-11-18 (Hallmarks 150k, 250k, 400k, 600k) | A share holds the size asked for that day at every Level, where a typed price goes stale. |
-| 7 | GR-18 | The hammer's Earth rune strike breaks a monster's spell windup. | "No stagger" of 2026-10-23 | It gives the hammer a job in a party, and it touches windups only. |
-| 8 | GR-61 | A written spec and five sample Kindling rungs. Nothing is built. | The skill tree hold of 2026-11-05 | Two tanks need a way to differ past the last rune tier, and paper costs nothing. |
-| 9 | GR-28 | The boss call and the daily roll fold into keyed halls. | 2026-11-14 and 22-8 of 2026-11-20 | Two doors to one boss is one decision asked twice. |
-| 10 | GR-39 | The 4% is the total of always-on perks. A matched hero gains at most 8%. | 23-5 of 2026-11-20 | A perk that only works in one case has to be bigger than 4% to be worth a slot. |
-| 11 | GR-54 | The yard's rate follows the skill curve, capped at half of hunting. | 2026-11-14, and 21-7 and A-5 of 2026-11-20 | A flat rate is too strong early and worthless late. This is close to the alternative Tyler passed over. |
-| 12 | GR-55 | The market is open on day one. | 24-7 of 2026-11-20 | Four heroes and Crowns for gold both need a market from the first day. |
-| 13 | GR-56a | Setup slots are free. | 2026-11-05, and the sinks list of 2026-11-04 | A saved setup is a remembered decision, and charging for it sells the first principle. |
-| 14 | GR-75 | Three home looks, and visiting opens from the Homestead. | 26-3 and 26-11 of 2026-11-20 | Three looks can be drawn well, and visiting is worth more the earlier it opens. |
-| 15 | CE-5 | Deeds, room rungs and chests are re-priced for an account of four. | The gold numbers of 26-3 and 26-1 of 2026-11-20 | The numbers were typed for one hero's income, and an account now has four. |
-| 16 | CE-7 | Town work moves on screen in real time and the server writes at the start, at each paid hour and at a stop. | 2026-10-22 | It looks the same to the player, and study 48 shows no design meets the server budget without it (worth 109 database-seconds an account-day, ESTIMATED). |
-| 17 | CE-8 | The Hearthrise lights on the calendar's weekend, sized by the fire. (One row with GR-82.) | 2026-10-25 | A known weekend can be planned around, and the fire still decides how big it is. |
-| 18 | MM-18 | No hired, lent or on-call heroes. | 25-1 and the on-call board of 25-3, 2026-11-20 | Every account has four heroes of its own, so a hired seat has no job. |
-| 19 | MM-9 | The castle is priced for each member with a floor of five, one project at a time, open at any size. | 25-4 and the castle gate of 25-3 (2026-11-20), and 31-3 (2026-11-21) | Clans now pay buffs, so a fixed price would lock a small clan out of hero power. Tyler declined this option once. |
-| 20 | MM-42 | The in-between ground weekend features named pieces in place of XP. | The second half of 27-5, 2026-11-20 | It keeps Level XP events rare and gives gear a weekend. |
-| 21 | GR-69 | No Local chat tab and no live party finder. | 2026-11-11 (criers in local chat), 2026-10-15/16 (the finder) | Both need two players at the screen in the same minute, which an idle game rarely has. |
-| 22 | MM-19 | One visible two thirds line for mixed Levels. | The party XP rulings of 2026-11-08 | A rule the player can read replaces a hidden cut. The ruled parts are untouched. |
-| 23 | MM-48 | A clan hunt is two rooms on one pool. | The second half of 25-11, 2026-11-20 | It keeps every fight a party of four, which is what the engine and the formulas are built on. |
+| 1 | MM-28 | The paid advantage | Yes. Paying gives a real edge. A player who does not pay reaches the same things with gold. | RULED as recommended |
+| 2 | MM-29 | What the store sells | Crowns buy Premium, looks and comfort. Two timed boosts, damage +6% and protection of about 3%, are sold for gold in 1 day and 7 day sizes, priced on the wage curve and burned. | RULED as recommended |
+| 3 | MM-29-XP | A bought Level XP boost | No. No Level XP boost is sold, for Crowns or for gold. | RULED as recommended |
+| 4 | MM-30 | Bought boosts and earned buffs | Yes. The same rows and the same caps. One bought boost on a knob at a time. | RULED as recommended |
+| 5 | MM-31 | The pace ceiling | Keep ruling 50-11. Record one reading held by a test: 1.65 with every cap full, and about 1.22 for a four in the best gear state with the boost. | RULED as recommended |
+| 6 | MM-32 | The gear ceiling | Paying has no designed gear ceiling. Tyler: "paying can put a hero way ahead, it depends on what is on the player market". What the player market holds is the bound. The standing rules still apply to a payer as to anyone: a piece needs the hero Level it is gated on (RULED 2026-10-24), no gear is ever sold by the store (MM-29), and every piece on the market was dropped or made by a player. | RULED, not the recommendation |
+| 7 | MM-33 | The gold ceiling | Yes. A weekly cap on Crowns an account sells and buys. It opens as a fixed count, then is re-derived each week from the players' own 7 day median price, aimed at about one account-week of hunting gold. | RULED as recommended |
+| 8 | MM-34 | The path for players who do not pay | Everything sold for Crowns can be had with gold through the book. There is no gold target for Premium or for anything else on the book. Tyler: "this depends on the crown price, we don't set it, the players do". | RULED, not the recommendation |
+| 9 | MM-35 | How Crowns trade | Yes. A number on the account, one server-owned book, fixed lots, one trade then bound, 1% to list and 4% of the gold, both burned. Named "Crown Exchange". | RULED as recommended |
+| 10 | MM-36 | The clamps | Yes. The eight clamps, with gold paid for Crowns counted against the market's daily spend cap, all inside the one Security review before Early Access. | RULED as recommended |
+| 11 | MM-37 | Where paying gives no edge | Yes. The Even Arena, events, and access to any Level, ground, drop or tier. The Open Arena reads bought boosts on purpose. | RULED as recommended |
+| 12 | MM-21 | Premium and the MMO layer | Everything in the layer is open to every account. Premium banks arena tickets to 30. Premium does not make buffs last longer. | RULED as recommended |
+| 13 | PREM-1 | What one Premium gives four heroes | The ruled list (12 hour bar on every hero, the full analyzer, looks and a free color change a day, 100 listings for 14 days), the daily claim with no press, one daily 1 hour training item for each hero, tickets to 30. | RULED as recommended |
+| 14 | PREM-2 | The price of Premium and a Crown | 30 days, priced in Crowns, at 8 to 10 dollars a month as a number to react to. A lot is a fixed count of Crowns and the book opens with no seeded gold price. | RULED as recommended |
+| 15 | GR-66 | The risk reading | Free for everyone: how close a hunt came to a death and deaths per 100 hours for the ground and tier. Premium keeps the full analyzer, as ruled in 24-4. | RULED as recommended |
+| 16 | MM-43 | Test Crowns in the playtest. A grant | Yes, for the wiped Discord playtest only. The same amount for every account, one server switch that is off by default and removed before Early Access, every grant journalled. | RULED, an explicit yes |
+| 17 | 48-engine-server | An always-on engine server, before 10,000 accounts. A later call and a spend | Nothing to buy now. The edge fits the beta and 1,000 accounts. Decide it before 10,000 accounts. ESTIMATED by study 48: at 10,000 accounts an account with a tab open 3.5 hours costs 30.3 database-seconds a day on the edge against a budget of 24, and 9.1 on an engine server. With the browser closed it is 10.0 against 3.5. It is the only way an account that watches fits 24, and it makes a shared fight cheap. Its cost in money is not in the study. | RULED as recommended: later, nothing to buy now |
 
-Not on this list. GR-65 asked that a death take no Inner Flame progress. It is withdrawn, because you were asked directly on 2026-10-25 and kept the loss. GR-73, the Hall of Firsts, builds your ruling 26-6 and reverses nothing. MM-29 would become row 24 only if you want the boosts sold for Crowns.
+Two answers went against the designer, and the book keeps his words.
 
-### 5.4 Cuts: 16 removals for your approval
+- **MM-32, gear.** "paying can put a hero way ahead, it depends on what is on the player market". There is no designed gear ceiling. What the player market holds is the bound.
+- **MM-34, the gold price of Premium.** "this depends on the crown price, we don't set it, the players do". There is no gold target for Premium. Everything sold for Crowns can still be had with gold through the book.
 
-Nothing is deleted before you have seen this list. Two rows cut things that were planned, and they are also reversals 18 and 21.
+What leaned on those two was re-derived, and each change is DECIDED (Fable 2026-11-21).
 
-| # | What goes | From | Planned for later, and notes |
+- **PREM-2.** The lot-size clause no longer leans on a gold target. A lot is a fixed count of Crowns. Thirty days of Premium costs a whole number of the smallest lot, so a gold buyer never holds a stranded remainder. The book opens with no seeded gold price and the first asks set it.
+- **MM-33.** The cap wording changes and the cap stays. It is a weekly count of Crowns an account may sell and buy on the book, as ruling 24-5 requires. It opens as a fixed count of Crowns from a data row. Once the book has seven days of sales the server re-derives the count each week from the players' own 7 day median price, aimed at about one account-week of hunting gold. It reads the price players made and never sets one. It is a clamp against laundering and floods. It is not a ceiling on how far ahead bought gear can put a hero.
+- **MM-31.** The 1.65 reading does not move, because it is the caps and the ruled best-gear state. The paying-alone reading stays about 1.22 against a plain mid-geared four in the same band, and it now says what it is: the pace of a four in the best gear state with the +6% boost. It is reached only when the market holds the pieces, and it is not a limit on gear. If a set bought on the market ever reads over the ruled 15% above mid gear, the fix is at the formula layer (the best-gear definition or the gear curve), never a cap on buying.
+- **MM-36.** Clamp 2, the price band, reads the players' own 7 day median. Before a median exists it has no seeded target price: the band is a wide floor and ceiling from a data row whose only job is to stop one Crown being used as a gold transfer.
+- **MM-28.** "One ceiling written in numbers" now means the pace reading of MM-31 and nothing about gear. The check that the advantage is real and not broken is section 2.8 of chapter 04: market supply, the buff caps behind MM-31, the eight clamps of MM-36 and the places where paying gives no edge (MM-37).
+
+### 5.2 The grant: an explicit yes
+
+**MM-43, test Crowns in the playtest. RULED (Tyler, 2026-11-21).** Test Crowns for the wiped Discord playtest only, the same amount for every account, one server switch that is off by default and removed before Early Access, and every grant journalled.
+
+### 5.3 Reversals: 19 stand and 4 are held
+
+A reversal that stands is now a ruling, and it replaces the older ruling named beside it.
+
+| # | Id | What changes | The ruling it replaces | Why, in one sentence | Tyler's answer |
+|---|---|---|---|---|---|
+| 1 | GR-7 | Past the third Blessing a new one opens whenever a fully blessed death would cost over five hunted hours. An unblessed death is untouched. | 50-4 of 2026-11-21 (6% flat, no cap, and the 12 hour blessed cap turned down), and the three Blessings of 2026-11-10 | Without it a death past about Level 100 costs so many hours that nobody would press Deadly. | HELD, T-fix-5 |
+| 2 | GR-6b | Krell's Hold is day 31 for the plain mid-geared four. | "Day 18 for a four" of 2026-11-21 | The Level table ruled the same day puts Level 85 on day 31, and both cannot be exact. | STANDS |
+| 3 | GR-6 | The four runs 106 hours ahead of the table. Level 100 at 494 hours, Level 400 on day 373. | The table of 2026-10-25, and "Level 400 is day 382" of 2026-11-21 | Levels 1 to 50 stay timed on a lone new hero, so a four gains 106 hours there and keeps them. | STANDS |
+| 4 | GR-6a | Staged content ends on day 116. | "120 days of grounds at Early Access" of 2026-11-21 | It follows from the row above. It is not a reversal if the top staged band runs to Level 189, which is the plan. | STANDS |
+| 5 | GR-4 | A gear band is a fixed step of the curve, opening at about +17%. Luck's two numbers are keyed by Level. | The item plan section 2 (two bands a region, 2026-11-18), a major upgrade every 15 to 25 Levels (2026-10-25), the Luck step of 2026-11-20 | A fixed step lets gear keep pace with Levels that never end, with no table typed by hand. | STANDS |
+| 6 | GR-8 | Tempering, Hallmark and lining prices are a share of a band's gold. | The typed prices kept on 2026-11-18 (Hallmarks 150k, 250k, 400k, 600k) | A share holds the size asked for that day at every Level, where a typed price goes stale. | STANDS |
+| 7 | GR-18 | The hammer's Earth rune strike breaks a monster's spell windup. | "No stagger" of 2026-10-23 | It gives the hammer a job in a party, and it touches windups only. | STANDS |
+| 8 | GR-61 | A written spec and five sample Kindling rungs. Nothing is built. | The skill tree hold of 2026-11-05 | Two tanks need a way to differ past the last rune tier, and paper costs nothing. | STANDS |
+| 9 | GR-28 | The boss call and the daily roll fold into keyed halls. | 2026-11-14 and 22-8 of 2026-11-20 | Two doors to one boss is one decision asked twice. | STANDS |
+| 10 | GR-39 | The 4% is the total of always-on perks. A matched hero gains at most 8%. | 23-5 of 2026-11-20 | A perk that only works in one case has to be bigger than 4% to be worth a slot. | STANDS |
+| 11 | GR-54 | The yard's rate follows the skill curve, capped at half of hunting. | 2026-11-14, and 21-7 and A-5 of 2026-11-20 | A flat rate is too strong early and worthless late. This is close to the alternative Tyler passed over. | STANDS |
+| 12 | GR-55 | The market is open on day one. | 24-7 of 2026-11-20 | Four heroes and Crowns for gold both need a market from the first day. | STANDS |
+| 13 | GR-56a | Setup slots are free. | 2026-11-05, and the sinks list of 2026-11-04 | A saved setup is a remembered decision, and charging for it sells the first principle. | HELD, T-fix-3 |
+| 14 | GR-75 | Three home looks, and visiting opens from the Homestead. | 26-3 and 26-11 of 2026-11-20 | Three looks can be drawn well, and visiting is worth more the earlier it opens. | STANDS |
+| 15 | CE-5 | Deeds, room rungs and chests are re-priced for an account of four. | The gold numbers of 26-3 and 26-1 of 2026-11-20 | The numbers were typed for one hero's income, and an account now has four. | STANDS |
+| 16 | CE-7 | Town work moves on screen in real time and the server writes at the start, at each paid hour and at a stop. | 2026-10-22 | It looks the same to the player, and study 48 shows no design meets the server budget without it (worth 109 database-seconds an account-day, ESTIMATED). | STANDS |
+| 17 | CE-8 | The Hearthrise lights on the calendar's weekend, sized by the fire. (One row with GR-82.) | 2026-10-25 | A known weekend can be planned around, and the fire still decides how big it is. | STANDS |
+| 18 | MM-18 | No hired, lent or on-call heroes. | 25-1 and the on-call board of 25-3, 2026-11-20 | Every account has four heroes of its own, so a hired seat has no job. | HELD, T-fix-1 |
+| 19 | MM-9 | The castle is priced for each member with a floor of five, one project at a time, open at any size. | 25-4 and the castle gate of 25-3 (2026-11-20), and 31-3 (2026-11-21) | Clans now pay buffs, so a fixed price would lock a small clan out of hero power. Tyler declined this option once. | STANDS |
+| 20 | MM-42 | The in-between ground weekend features named pieces in place of XP. | The second half of 27-5, 2026-11-20 | It keeps Level XP events rare and gives gear a weekend. | STANDS |
+| 21 | GR-69 | No Local chat tab and no live party finder. | 2026-11-11 (criers in local chat), 2026-10-15/16 (the finder) | Both need two players at the screen in the same minute, which an idle game rarely has. | HELD, T-fix-2 |
+| 22 | MM-19 | One visible two thirds line for mixed Levels. | The party XP rulings of 2026-11-08 | A rule the player can read replaces a hidden cut. The ruled parts are untouched. | STANDS |
+| 23 | MM-48 | A clan hunt is two rooms on one pool. | The second half of 25-11, 2026-11-20 | It keeps every fight a party of four, which is what the engine and the formulas are built on. | STANDS |
+
+Not on this list. GR-65 asked that a death take no Inner Flame progress. It was withdrawn, because the ruling of 2026-10-25 keeps the loss. GR-73, the Hall of Firsts, builds ruling 26-6 and reverses nothing.
+
+One early pick went the other way. On GR-3 Tyler took the alternative: "Leave the lineup test out, accept that the best four may be a hammer and three mages, and pay party XP by size alone." The decision had recorded the recommendation without seeing his pick, and his pick wins. It replaces the 2026-10-31 rule that party XP is better only with different weapon ways. Chapter 01 section 2.10, the tier sizing (CORE-1, GR-27), the gate (GR-88), the Party bonus (CORE-2) and the status pairs (GR-20) are rewritten on it, and the two thirds line for mixed Levels (MM-19) stands beside it. His other early picks, GR-85, GR-88, GR-1, MM-1, GR-27, GR-4, GR-5 and GR-6, were the recommendations and are ruled.
+
+### 5.4 Cuts: 7 approved, 4 kept, 5 held
+
+| # | What | From | Tyler's answer | How it stays, or the note |
+|---|---|---|---|---|
+| 1 | 103 monster rows no hunt uses, three hunts with no ground, four called boss copies | GR-34 | KEPT | DECIDED (Fable 2026-11-21). GR-34. The rows stay in the data, hidden and flagged as unplaced. Region sketches and halls take their rosters from this pool first. |
+| 2 | On-call, hired and lent heroes, and the on-call board | MM-18 | HELD, T-fix-1 | PLANNED, ruled 25-1. Also reversal 18. It is the one large cut of a planned thing. |
+| 3 | The live party finder | GR-69 | HELD, T-fix-2 | PLANNED, ruled 2026-10-15/16. Also reversal 21. |
+| 4 | The Local chat tab, and "maybe a fifth seat later" | GR-69 | HELD, T-fix-2 | Not planned. The fifth seat is already ruled out by 25-11. |
+| 5 | The castle's labor, votes, upkeep, treasury balance, Clan Standing and five buildings of ten levels | MM-9 | KEPT | DECIDED (Fable 2026-11-21). MM-9. Five buildings of ten levels, labor as a town job, a treasury that pays upkeep first and then the project, one standing vote an account, and Clan Standing as a tally that pays no power. All priced for each member with a floor of five. |
+| 6 | The clan library and any Level XP room | MM-9, MM-25 | HELD, T-fix-4 | Not planned. It keeps ruling 25-2. |
+| 7 | The rested bank and two old kill ladders | GR-63 | KEPT | DECIDED (Fable 2026-11-21). GR-63. The rested bank pays +50% Level XP on as many hunted hours as a hero missed, up to 24, so it is a way back and never a way ahead. The two old kill ladders become tracks on the one kill count. |
+| 8 | The farm's soil tiers and the water button on a bed | GR-74 | KEPT | DECIDED (Fable 2026-11-21). GR-74. A soil tier is an account upgrade that raises yield and never gates planting. The water button stays, and Tend the field or a rest plan step does every bed in one press. |
+| 9 | Potato, if it finds no hunt consumer | GR-74 | APPROVED | Not planned. |
+| 10 | The Crafting bench's three salt recipes | GR-43 | APPROVED | Not planned. Salts stay on the other bench. |
+| 11 | The Cellar's five food rungs, off sale | GR-47 | APPROVED | Not planned. The Cellar is ruled to become the curing room. |
+| 12 | The Trophy room's five mount rungs | GR-73 | APPROVED | Not planned. Off sale is RULED (26-6). |
+| 13 | The sixteen House speed rungs | GR-76 | APPROVED | Not planned. RULED (26-1). |
+| 14 | The priced setup slots | GR-56a | HELD, T-fix-3 | Ruled 2026-11-05 and 2026-11-04. Also reversal 13. |
+| 15 | The unused "resists a weapon" column, the per-ground tier dials and the "no bigger pulls under floor 16" rule | GR-14, GR-5, GR-27 | APPROVED | Not planned. Formula clean-up. |
+| 16 | The Moonbloom seed in the Shop | GR-77 | APPROVED | Not planned. It becomes a drop. |
+
+Kept hidden for later, and never on the cut list: Capture the flag (MM-46). The clan's shared hunt (MM-48). The status pairs of GR-20 (paper only). Kindlings (GR-61, paper only). The other 36 Catacombs pieces (GR-36). The second dropped seed (GR-77). Bulk commissions (GR-44). Side against side (GR-71).
+
+### 5.5 Still open for Tyler: five items
+
+Each is held on the rulings page because two of his picks point opposite ways. Nobody has decided them.
+
+| Item | What | Why it is held | What the book reads until he answers |
 |---|---|---|---|
-| 1 | 103 monster rows no hunt uses, three hunts with no ground, four called boss copies | GR-34 | Not planned for later. The item check runs first and anything with a planned home stays hidden. |
-| 2 | On-call, hired and lent heroes, and the on-call board | MM-18 | PLANNED, ruled 25-1. Also reversal 18. It is the one large cut of a planned thing. |
-| 3 | The live party finder | GR-69 | PLANNED, ruled 2026-10-15/16. Also reversal 21. |
-| 4 | The Local chat tab, and "maybe a fifth seat later" | GR-69 | Not planned. The fifth seat is already ruled out by 25-11. |
-| 5 | The castle's labor, votes, upkeep, treasury balance, Clan Standing and five buildings of ten levels | MM-9 | Built or planned in the social inventory. Rides reversal 19. |
-| 6 | The clan library and any Level XP room | MM-9, MM-25 | Not planned. It keeps ruling 25-2. |
-| 7 | The rested bank and two old kill ladders | GR-63 | Not planned. Measured as moving no number in 207 cells. |
-| 8 | The farm's soil tiers and the water button on a bed | GR-74 | Not planned. A built sink of 130,500 gold goes. |
-| 9 | Potato, if it finds no hunt consumer | GR-74 | Not planned. |
-| 10 | The Crafting bench's three salt recipes | GR-43 | Not planned. Salts stay on the other bench. |
-| 11 | The Cellar's five food rungs, off sale | GR-47 | Not planned. The Cellar is ruled to become the curing room. |
-| 12 | The Trophy room's five mount rungs | GR-73 | Not planned. Off sale is RULED (26-6). |
-| 13 | The sixteen House speed rungs | GR-76 | Not planned. RULED (26-1). |
-| 14 | The priced setup slots | GR-56a | Ruled 2026-11-05 and 2026-11-04. Also reversal 13. |
-| 15 | The unused "resists a weapon" column, the per-ground tier dials and the "no bigger pulls under floor 16" rule | GR-14, GR-5, GR-27 | Not planned. Formula clean-up. |
-| 16 | The Moonbloom seed in the Shop | GR-77 | Not planned. It becomes a drop. |
+| T-fix-1 | On-call and hired heroes (MM-18) | Cut 2 was not approved, and reversal 18 (MM-18, no hired, lent or on-call heroes) asks for the same removal. The two picks point opposite ways. | The book is written with no hired, lent or on-call heroes. If Tyler keeps them, ruling 25-1 and the on-call board of 25-3 stand and MM-18 is withdrawn. |
+| T-fix-2 | The party finder and Local chat (GR-69) | Cuts 3 and 4 were not approved, and reversal 21 (GR-69) asks for the same removals. | The book is written with no Local tab and no live finder. If Tyler keeps them, the rulings of 2026-11-11 and 2026-10-15/16 stand. |
+| T-fix-3 | Priced setup slots (GR-56a) | Cut 14 was not approved, and reversal 13 (GR-56a, setup slots are free) asks for the same removal. | The book is written with free Setups. If Tyler keeps the price, the rulings of 2026-11-05 and 2026-11-04 stand: three free, then priced. |
+| T-fix-4 | The clan library and a Level XP room (MM-9, MM-25) | Cut 6 was not approved, and ruling 25-2 says clans give no Level XP. | The book is written with no library and no standing Level XP cap. The castle's fifth building is held for this answer. |
+| T-fix-5 | The Blessing ladder against the capped death (GR-7) | Reversal 1 (GR-7) adds Blessings past the third. Ruling 50-4 is 6% flat with no cap, with the 12 hour blessed cap turned down. | The book is written with the ladder. If Tyler refuses it, a death stays 6% flat with three Blessings, and Deadly past about Level 100 is sized knowing a blessed death costs many hours. |
 
-Kept hidden for later, and not cut: Capture the flag (MM-46). The clan's shared hunt (MM-48). The status pairs of GR-20 (paper only). Kindlings (GR-61, paper only). The other 36 Catacombs pieces (GR-36). The second dropped seed (GR-77). Bulk commissions (GR-44). Side against side (GR-71).
+### 5.6 The plan
 
-### 5.5 One plan to approve
+Step A of the systems plan, in `docs/design/systems-intelligence/00-plan.md`, was not among the answers passed to this book. It is one read-only script that stores nothing and sizes every later step of that plan. It stays with the Coordinator.
 
-**Step A of the systems plan**, in `docs/design/systems-intelligence/00-plan.md`. It is one read-only script that stores nothing. It lists every top-level function in the rule code, says whether it holds a typed number and whether any formula register names it, and prints three numbers for each folder. Its output sizes every later step of that plan. The plan asks for a yes on step A alone, and on the rest after its output is seen. The plan also holds one question for you in its section 3.4.
+### 5.7 What comes next
+
+The build plan follows. Every call is ruled or decided except the five items of 5.5, and none of them blocks the plan's first steps.
 
 ## 6. Consistency check
 
@@ -459,6 +487,9 @@ The chapters were written by different lanes before the decisions existed, and t
 | 32 | Chapters named each other by topic | all | Numbered file names |
 | 33 | Four chapters and the game review said server cost was PENDING, and two still carried an account-day of about 150 database-seconds against a budget of 60 | 04, 07, 08, 09 and `60-game-review.md` | Study 48 is written in: about 11 with the browser closed and about 31 with a tab open, both under 60 |
 | 34 | Town work was "three statements a job" in the chapters and "start, each paid hour, stop" in study 48 | 07, 09, and the decisions GR-1 and CE-7 | Start, each paid hour and stop |
+| 35 | The decision on GR-3 recorded the recommendation, and Tyler had picked the alternative that morning | 01, 02, 05, 08, 09 and the decisions GR-3, CORE-1, CORE-2, GR-27, GR-88, GR-20 | His pick: no lineup test, and party XP by size alone |
+| 36 | Four chapters still carried a recommendation that the decision had refused: status pairs built as a sample (GR-20), the bench fee on the wage curve (GR-56b), a faction side for each hero (GR-71) and a next ground that starts by itself (GR-81) | 01, 04, 06, 07, 08 | Each chapter now reads as its decision does |
+| 37 | Premium made timed buffs last a quarter longer in one chapter and not in the decision | 04 | It does not (MM-21, ruled) |
 
 ### 6.2 Found and not fixed
 
@@ -469,6 +500,8 @@ The chapters were written by different lanes before the decisions existed, and t
 | 3 | `03-items-and-crafting.md` sizes a layer piece at about one a week of play. A boss stands every fourth weekend and pays at most one piece | The pace needs one number | The game designer, inside CE-1 |
 | 4 | The authoring pace in `02-world.md` (a region every 53 days) was not recomputed on the fastest seat of about 1.36 | It waits on who draws regions and how fast | The art and asset directors |
 | 5 | The day columns for a payer and for the fastest seat in `05-progression.md` are plain division, not a run | Nothing measures a buffed seat yet | The matrix lane |
+| 6 | The hall guard in `02-world.md` still asks the weakest named lineup to lose a hall. Tyler's pick on GR-3 drops the lineup test for Deadly and does not name halls | Nobody has said whether the hall floor goes with it | The game designer |
+| 7 | The sizes of what Tyler kept (the rested bank, soil tiers, the castle's fifty stages and upkeep) are new and unplayed | They were decided the same day he kept them | The game designer, on the matrix and in the playtest |
 
 What this check did not do. It followed the status tags, the call ids and searches for each fix. It did not re-read every paragraph of all nine chapters, so a stale sentence with no tag and no number may remain.
 
@@ -488,8 +521,8 @@ Study 48, the server cost study (`docs/design/balance-program/48-platform-cost.m
 
 The study named three calls.
 
-1. **Town work paid in closed form. DECIDED (GR-1, Fable 2026-11-21).** A town job is paid at its start, at each paid hour and at stop. It is worth 109 database-seconds an account-day (ESTIMATED) and no design meets 60 without it. It bends one ruling, the 2026-10-22 wording that town work updates on the server in real time, and that is reversal 16 in section 5.3. The screen still moves in real time. Before it ships it must pay what the tick settles pay on a replayed day, and it goes through the Security review at Early Access.
-2. **The engine server, before 10,000 accounts. TYLER CONFIRMS, later.** A spend, so it is not decided. It is row 17 of the money list. Nothing is bought now.
+1. **Town work paid in closed form. DECIDED (GR-1, Fable 2026-11-21).** A town job is paid at its start, at each paid hour and at stop. It is worth 109 database-seconds an account-day (ESTIMATED) and no design meets 60 without it. It bends one ruling, the 2026-10-22 wording that town work updates on the server in real time, and that is reversal 16 in section 5.3, which Tyler let stand. The screen still moves in real time. Before it ships it must pay what the tick settles pay on a replayed day, and it goes through the Security review at Early Access.
+2. **The engine server, before 10,000 accounts. RULED (Tyler, 2026-11-21) as recommended:** it is a later call and nothing is bought now. It is row 17 of the money list.
 3. **The order of the edge fixes.** An input to the build plan, as the study gives it:
 
 1. Read once: the settle reads the party once. Proof: the settle parity arms, and the statements a save stay at 4.
@@ -525,6 +558,7 @@ Every item that still has no decision, with its owner. The item number is its ro
 | `01-core-and-combat.md` | 13 | The value of powerFloor | Roadmap step R6's own run on Levels 1 to 15 against the 6 hour rule |
 | `01-core-and-combat.md` | 14 | The fist promise beside "no solo or group targets" | Tyler, only if he reads it differently |
 | `01-core-and-combat.md` | 15 | Whether the engine can run heroes on both sides of a fight | One measurement by the systems engineer, for the arenas (06-mmo-layer.md) |
+| `01-core-and-combat.md` | 18 | Death against the Deadly band | OPEN, waiting on Tyler (T-fix-5). The book is written on GR-7: past the third Blessing a new one opens whenever a fully blessed death would cost over five hunted hours |
 | `02-world.md` | 2 | Regions 4 to 7 have no sketch of record | The game designer |
 | `02-world.md` | 3 | How fast a region can be drawn | The art and asset directors, then Tyler |
 | `02-world.md` | 4 | The Morrow Hills between Levels 142 and 165 | The game designer |
@@ -551,10 +585,11 @@ Every item that still has no decision, with its owner. The item number is its ro
 | `03-items-and-crafting.md` | 17 | Rolls, tradeable gems and tradeable patterns in the Steam and legal review | The security engineer, in the one review before Early Access |
 | `03-items-and-crafting.md` | 18 | Whether the three armor weights are a live choice for each style | The matrix lane, one run of heavy, medium and light on three styles |
 | `03-items-and-crafting.md` | 19 | Regions 4 to 7: elements, key rows, named content | The region sketches |
+| `04-economy-and-crowns.md` | 4 | The real-money price of a Crown, lot sizes, and the Crown price of each store row | PREM-2 is RULED (Tyler 2026-11-21). Still owed: the lot count and the Crown price of each store row. The game designer drafts them and the money stays Tyler's |
 | `04-economy-and-crowns.md` | 7 | The base hours of a stamina refill | GR-58, after fault F5 closes |
-| `04-economy-and-crowns.md` | 8 | The Blessing share, and the ladder past the third Blessing | GR-7 is DECIDED as a reversal Tyler may veto. The share is sized on the long death sample |
+| `04-economy-and-crowns.md` | 8 | The Blessing share, and the ladder past the third Blessing | GR-7 is OPEN, waiting on Tyler (T-fix-5). The share is sized on the long death sample |
 | `04-economy-and-crowns.md` | 9 | The wage for a four of mixed Levels | The game designer, after MM-19 |
-| `04-economy-and-crowns.md` | 10 | The castle's cost | MM-9 is DECIDED as a reversal Tyler may veto. Still owed: the sizes of castleStagePerMember and clanWeeklyShare, by the game designer |
+| `04-economy-and-crowns.md` | 10 | The castle's cost | MM-9 is RULED (Tyler 2026-11-21). Still owed: the sizes of castleStagePerMember and clanWeeklyShare, and of upkeep and labor, by the game designer |
 | `04-economy-and-crowns.md` | 12 | Security questions on the Crowns book | The security engineer, then Tyler |
 | `04-economy-and-crowns.md` | 13 | The daily caps against dear items | The security engineer |
 | `04-economy-and-crowns.md` | 14 | The server gold model | The balance tools lane |
@@ -562,7 +597,7 @@ Every item that still has no decision, with its owner. The item number is its ro
 | `04-economy-and-crowns.md` | 17 | A ceiling on gold find | The game designer, with the perk lane |
 | `04-economy-and-crowns.md` | 18 | The dates for the beta and Early Access | Tyler, after the build plan |
 | `05-progression.md` | 4 | The seat's multiple | A derivation run on the matrix after GR-5 and GR-27 |
-| `05-progression.md` | 6 | The five hour threshold of the Blessing ladder | GR-7 is DECIDED as a reversal Tyler may veto. The five hours is one knob, sized on the long death sample |
+| `05-progression.md` | 6 | The five hour threshold of the Blessing ladder | GR-7 is OPEN, waiting on Tyler (T-fix-5). The five hours is one knob, sized on the long death sample |
 | `05-progression.md` | 7 | Blessing prices for rungs 4 to 6 | The wage curve (GR-51) and band S10 |
 | `05-progression.md` | 8 | What a death takes from a hero in a boss room on Normal for a new account | The MMO decider, before MM-7 is final. A walk-through in 06-mmo-layer.md |
 | `05-progression.md` | 9 | The Kindling rows | The paper sample of five, after GR-61 |
@@ -589,8 +624,8 @@ Every item that still has no decision, with its owner. The item number is its ro
 | `07-home-and-town.md` | 8 | The first town project | The game designer, after GR-55 |
 | `07-home-and-town.md` | 9 | Crops and costs with no consumer | The game designer |
 | `07-home-and-town.md` | 10 | Names and pictures | The game designer and the art director |
-| `07-home-and-town.md` | 11 | The Hearthrise's size and seam with the calendar | The seam is closed as a reversal Tyler may veto (CE-8, GR-82): the calendar says when it lights and the fire says how big, from +10% to +25% |
-| `07-home-and-town.md` | 12 | Who may visit | The game designer, inside GR-75. A party is an account's own four (MM-18), so "party member" leaves the visit rule |
+| `07-home-and-town.md` | 11 | The Hearthrise's size and seam with the calendar | The seam is closed |
+| `07-home-and-town.md` | 12 | Who may visit | The game designer, inside GR-75. Whether "party member" stays in the visit rule waits on T-fix-1 |
 | `07-home-and-town.md` | 16 | A home axis for the matrix | The baseline lane |
 | `07-home-and-town.md` | 17 | Security scope | The security engineer |
 | `08-player-experience.md` | 3 | A measured tag for each starting way | The balance matrix (check C1). Owner: the core decider |
@@ -600,7 +635,7 @@ Every item that still has no decision, with its owner. The item number is its ro
 | `08-player-experience.md` | 12 | A blind play of the whole first hour | A fresh reader, after it is built |
 | `08-player-experience.md` | 13 | What a player who refuses heroes two to four is shown, and for how long | The designer, after playtest 1 |
 | `09-platform-and-measurement.md` | 1 | What study 48 left open | Study 48 has landed and closed the first part: the away hunt's save, and whether the account-day fits (yes at 1,000, and at 10,000 only without a watched tab or with an engine server) |
-| `09-platform-and-measurement.md` | 2 | The 10,000 account budget | The engine server is a spend. TYLER CONFIRMS, later, money list row 17. The share of the bill that is not the database stays with the reliability engineer |
+| `09-platform-and-measurement.md` | 2 | The 10,000 account budget | The engine server is a later spend, RULED (Tyler 2026-11-21) as such, money list row 17 |
 | `09-platform-and-measurement.md` | 4 | The Security review's size and owner for the MMO layer | The Security engineer |
 | `09-platform-and-measurement.md` | 6 | A second calibration party | Real play. The playtest supplies it |
 | `09-platform-and-measurement.md` | 7 | Readers for 19 bands | The matrix lane, each with its own model |
@@ -613,6 +648,6 @@ Every item that still has no decision, with its owner. The item number is its ro
 | `09-platform-and-measurement.md` | 15 | The build plan's unit | The Coordinator, after the rulings |
 | `decisions/review.md` | fix 4 | A floor in the to-hit formula, so Defense rating buffs cannot stack past the 60% cap | The matrix lane, with the core decider |
 | `decisions/review.md` | fix 12 | The hall number played by the hall grader at Levels 25, 52 and 75 | The matrix lane, with the game designer |
-| `decisions/review.md` | section 9 | The lineup cells, the price shares of GR-8 and the rung Levels of GR-7 were not re-run by the adversarial check | The matrix lane |
+| `decisions/review.md` | section 9 | The price shares of GR-8 and the rung Levels of GR-7 were not re-run by the adversarial check | The matrix lane |
 
-101 items. None of them blocks reading the book. The build plan orders them.
+103 items. None of them blocks reading the book. The build plan orders them.

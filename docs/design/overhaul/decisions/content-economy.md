@@ -4,6 +4,8 @@ Game designer, 2026-11-21, `lane/d-decide-content`. This mirrors `content-econom
 
 ## After the review
 
+Tyler answered his whole list on 2026-11-21. Where a row below was ruled, kept or held by him, `all.md` and `all.json` hold the status and the wording that stands.
+
 The adversarial check (`review.md`) returned ACCEPT WITH FIXES. Its fixes are applied in `content-economy.json`, and `all.json` and `all.md` hold every call in one list with the final lists for Tyler. Where a row below differs from this table, this table is the decision. The first wording is kept in the JSON as `was`.
 
 In a reason, "I" is the decider. Only a ruling id or date cites Tyler.

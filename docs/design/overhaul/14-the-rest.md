@@ -2,6 +2,8 @@
 
 Written 2026-11-21 on `lane/d-plan-rest`, cut from `set/v0.2.144` at a94dd6e25. Docs only. No game code, data, migration or tool was changed. Chapters 00 to 13 and `decisions/` were not edited. Section 8 lists the edits for the integrator.
 
+**Folded since, by the integrator.** Section 8's edits are made: every decision row now names its later lane, "nothing to build" or its simulator default, and `00-the-game.md`, `06-mmo-layer.md`, `09-platform-and-measurement.md` and `13-build-plan.md` point here. Tyler answered S-17 a at the second sitting, so test Crowns wait and lane FR-16 builds the Crown Exchange. S-19 and S-20 are OPEN for him.
+
 Labels. MEASURED is a run on the real engine, with its run id. COUNTED is a count from a file by script, or from production where it says so. COMPUTED is arithmetic on named inputs. JUDGMENT is a design or planning opinion. UNKNOWN means nobody knows. Nothing here is measured against the game that runs today. Lane sizes and migration counts are JUDGMENT.
 
 Run ids. R0 is GitHub run 44920906999 (chapter 12). R6 is 44948522187, the replay on the engine fixed at 02364f03a (FB-3, milestone 1): the Dangerous four reads 1.261 times the pace contract, the Deadly four with no death 1.741, and all cells together read 44 deaths in 1,000 hours on Deadly and 5 on Dangerous.

@@ -130,6 +130,8 @@ Each step is checked against what the player holds from the steps before it and 
 
 Steps 9, 11 and 14 need features this chapter designs, and step 15 needs one press that plants every empty bed. Step 13 is measured and holds. Every other step is doable from the kit and the data as they stand.
 
+**Measured since, at the new tier dials.** From `12-balance-pass.md` (R0, R2 and local runs). The arrival kit takes 2.2 to 2.8 times the mid kit's damage under Level 45, where the band asks 1.15 to 1.35. A new four on the Sewer wipes on either harder tier at Level 5. A new account's four wears that kit, so the first hour stays on Normal, and the arrival kit is the largest open design miss in the matrix. PROVISIONAL, and it waits on the armor and arrival-kit run of chapter 12 section 3.6.
+
 **If check C3 ever fails.** C3 is a standing cell on the balance matrix, run on the default company with the four that has no healer printed beside it, so a later change cannot break the first hour quietly. If it fails, the four's first hunt together is Meadowbrook Thicket and the Sewer card moves to the Level where C3 passes. The fix is made at the formula or data layer: the Sewer's floor, or the gentle first grounds rule that GR-25 puts on record. The tutorial never gets its own monsters or its own math (RULED 2026-11-21, formula layer).
 
 ### 2.2 The company as one thing (GR-80)
@@ -144,7 +146,7 @@ A party is most often the account's own four heroes, so nothing here waits on an
 | **One Start** | Carry on is one press for the account. Every hero does again what it did last time: same ground, tier, setup, party, bag lines, Blessings, Tamsin's task and loot by plan | RULED 2026-11-20 (27-1) |
 | | No hunt ever starts by itself. A hunt starts on a press made in a server-authorized session | RULED 2026-11-20 (27-1), 2026-10-18 |
 | | Own heroes form a party with no invite and no accept. The plan names the leader, and the leader's hunt settings are the party's | PROVISIONAL (GR-80). The leader rule is RULED 2026-10-20 |
-| | "If one falls" is one plan line, chosen once: the rest hunt on, or all come home. For an account's own heroes the default is that the rest hunt on. They end together only if the player says so | RULED 27-1 as amended 2026-11-21: own heroes end together only if you say so. The plan line itself is PROVISIONAL (GR-80). The 2026-10-22 default of leaving together is for a party of different accounts |
+| | "If one falls" is one plan line, chosen once: the rest hunt on, or all come home. For an account's own heroes the default is that the rest hunt on. They end together only if the player says so | RULED 27-1 as amended 2026-11-21: own heroes end together only if you say so. The plan line itself is PROVISIONAL (GR-80). The 2026-10-22 default of leaving together is for a party of different accounts. MEASURED in `12-balance-pass.md` (R2): when the front hero fell, the other three died in the same hunt in every sampled wipe, which is four death penalties where "all come home" would cost one. The ruled default stands. Whether to turn it on for a four with one front hero is for Tyler (12 section 7, item 3) |
 | **One return card** | One card for the account on every return. Section 2.4 | PROVISIONAL (GR-80) |
 | **The job queue** | A hero's rest plan is an ordered list of up to three steps (TARGET, a data row). Each step is a job with a count. A gathering step always takes a count. A bench step may run until its inputs are gone | PROVISIONAL (GR-80) |
 | | The list ends in "wait in town" or "hunt again, once". A plan never loops | RULED 2026-11-20 (27-1) |
@@ -207,7 +209,7 @@ The report prints what happened. It does not predict a death rate from one hunt.
 | Premium | 12 hours | One | Hunt 12, rest 12 | RULED 2026-10-17. `STAMINA_MAX_MS.premium` |
 | The ceiling | Either | Refills | Six refills of 4 hours make 24 hunted hours. Each hour past 12 costs 2 refill hours, because the hero stops resting | RULED rows (COMPUTED in 50 section 1.1) |
 
-Stamina drains one for one while hunting and rests one for one at every other instant. On call spends none of the hero's own stamina. An on-call hero has a hire stamina pool separate from its own, and the hirer sees it and may spend all of it (RULED, Tyler 2026-11-21, chapter 11). A resting hero is always working: every town system is sized for a hero that fills all 12 rested hours (RULED 2026-11-21, 50-13). The stamina bar says so in words: "8 hours of hunting. It refills while your hero is in town. Two visits a day keeps a hero hunting 12 hours." (RULED 50-12, wording DECIDED, no call id, Fable 2026-11-21).
+Stamina drains one for one while hunting and rests one for one at every other instant. A hero has two pools: its own stamina and hire stamina. On call spends hire stamina and never the hero's own. The hirer sees the hire pool and may spend all of it, and the hero strip shows both (RULED, Tyler 2026-11-21, chapter 11). A resting hero is always working: every town system is sized for a hero that fills all 12 rested hours (RULED 2026-11-21, 50-13). The stamina bar says so in words: "8 hours of hunting. It refills while your hero is in town. Two visits a day keeps a hero hunting 12 hours." (RULED 50-12, wording DECIDED, no call id, Fable 2026-11-21).
 
 **The return card.** One card for the account, in this order.
 

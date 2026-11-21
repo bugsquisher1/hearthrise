@@ -208,6 +208,10 @@ Kept hidden for later, and never on the cut list: Capture the flag (MM-46). The 
 | Item | What | Why it is held | What the book reads until he answers |
 |---|---|---|---|
 | GR-25 | Five built special rules that were never put to him: gentle first grounds, the boss blow cap, three training bases, the roll rule and the tier flag (GR-25) | The formula brief says a deliberate special rule needs his explicit approval. | The book is written with all five kept. |
+| 12-7-1 | Which four times the Level law: the four on Dangerous (1.266) or the four on Deadly (GR-6, GR-6a, GR-6b) | He ruled the table as the clock of a four on the hardest tier it holds, and at the sitting he ruled Deadly a tier you watch or gamble on. | Both clocks are shown in chapter 05. The ruled table stays the target. Source: docs/design/overhaul/12-balance-pass.md, section 7. |
+| 12-7-2 | Neither harder tier can hold his death count at every Level (CORE-1, GR-27) | He ruled 10 to 30 deaths in 1,000 hours on Dangerous and 50 to 100 on Deadly. The engine gives a cliff: all cells together read 4 and 41. | Both tiers at blows 2.5, PROVISIONAL. Source: docs/design/overhaul/12-balance-pass.md, section 7. |
+| 12-7-3 | The leave rule for an account's own four (GR-80) | His default is that the rest hunt on when one falls. Measured, the four died together in every sampled wipe. | The ruled default stands, with the measured finding beside it. Source: docs/design/overhaul/12-balance-pass.md, section 7. |
+| 12-7-4 | The paid edge is smaller in pace than the book told him, and it is a step (MM-26, MM-31) | He said yes on the page to 1.65 and about 1.22. Measured: 1.29 to 1.48 and about 1.06 to 1.08. Check G's last clause fails by design on a cliff. | His yes stands as written, with the measured readings beside it. Check G keeps its clause, marked. Source: docs/design/overhaul/12-balance-pass.md, section 7. |
 
 ### 5.6 The sitting
 
@@ -247,7 +251,7 @@ The order of the edge fixes, as study 48 gives it, is an input to the build plan
 
 | Chapter | Item | What is missing | Owner |
 |---|---|---|---|
-| `01-core-and-combat.md` | 1 | The tier numbers | CORE-1 opens them as hypotheses, sized on the mid-geared four: Dangerous pull 5 and blows 1.17 times Normal, Deadly pull 8 and 2.25 times |
+| `01-core-and-combat.md` | 1 | The tier numbers | CORE-1, sized on the mid-geared four: Dangerous pull 5 and Deadly pull 8, with blows 2.5 times Normal for both (MEASURED in chapter 12, runs R2 and R4 |
 | `01-core-and-combat.md` | 4 | The Necrotic and Storm numbers | The game designer sizes them on the matrix with the first seven spells (GR-16) and reports them as decided. It is a design call and does not go to Tyler |
 | `01-core-and-combat.md` | 5 | The shares of the dark rows | The first seven played, then a redesign under "no two weapons share a mechanic" |
 | `01-core-and-combat.md` | 6 | The crossbow's full list | The game designer, with GR-21 |

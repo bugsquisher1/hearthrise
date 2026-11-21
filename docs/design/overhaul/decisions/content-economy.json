@@ -1007,7 +1007,14 @@
       "tyler": "He let the reversal stand on the page, in about a second. It changes the earlier ruling.",
       "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
       "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
-      "waitsOn": "the store-bill fault fixed and a wage formula that exists"
+      "waitsOn": "The wage formula of GR-51",
+      "measured": {
+        "label": "MEASURED",
+        "what": "An account of four on Dangerous nets 290,000 to 340,000 gold a day at Levels 16 to 31 and 845,000 to 1,030,000 at Levels 70 to 110. The typed deeds sit 7 to 12 times under CE-5's sizes.",
+        "runs": "R0",
+        "source": "docs/design/overhaul/12-balance-pass.md",
+        "runIds": "R0 is GitHub run 44920906999 (the full matrix, 4,503 cells, 2 seeds of 2 hours). R1 is run 44924971088 (670 cells with five buff rows). R2 is run 44925664434 (the death sample, 4 seeds of 8 hours). R4 is run 44928035806 (the death sample with both tiers at 2.5, and the full matrix with the three picks in). L is local probes of 2 seeds of 1 hour."
+      }
     },
     {
       "id": "CE-6",
@@ -1207,9 +1214,16 @@
       "wasBeforeTyler": "TYLER CONFIRMS. Recommended: keep ruling 50-11 (no limit on how much sooner) as it stands and record one reading held by a test, never a new limit. With every cap full a four reads 1.65 times a plain mid-geared four in Levels an hour and 1.32 in kills an hour. Paying alone reads about 1.22. These are the same numbers as MM-26.",
       "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
       "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
-      "waitsOn": "one buff played in a cell. The clause re-derived after his two \"no\" answers was never put to him.",
+      "waitsOn": "Tyler, 12 section 7 item 4",
       "firstBuild": "planned, waits until Deadly is sized and one buff has been played in a cell",
-      "sitting": "S-8, option A. The buff caps stay. This reading promises nothing about gear."
+      "sitting": "S-8, option A. The buff caps stay. This reading promises nothing about gear.",
+      "measured": {
+        "label": "MEASURED",
+        "what": "Tyler's yes on the page to 1.65 and about 1.22 stands as written. Measured beside it: every cap full reads 1.29 to 1.48, and paying alone about 1.06 to 1.08 in Level pace.",
+        "runs": "R1 and R2",
+        "source": "docs/design/overhaul/12-balance-pass.md",
+        "runIds": "R0 is GitHub run 44920906999 (the full matrix, 4,503 cells, 2 seeds of 2 hours). R1 is run 44924971088 (670 cells with five buff rows). R2 is run 44925664434 (the death sample, 4 seeds of 8 hours). R4 is run 44928035806 (the death sample with both tiers at 2.5, and the full matrix with the three picks in). L is local probes of 2 seeds of 1 hour."
+      }
     },
     {
       "id": "MM-32",

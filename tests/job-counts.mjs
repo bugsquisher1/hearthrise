@@ -15,7 +15,7 @@
 //   J-OPEN     WINDOW OPEN: a gathering job of 20, THEN wait, settled by the viewed hero's accrue-semantics settle
 //              (collectCurrentWindow with the pointer surviving: index.ts's computeAccrual literal, A14) every 20 s of
 //              server time: the job swings EXACTLY 20 times across the cut windows, ends itself, and its end says
-//              "count, 20 of 20, waited"; nothing pays after it.
+//              "count, 20 of 20, waited"; nothing pays after it. One ten-minute settle of a job of 20 also pays exactly 20.
 //   J-CLOSED   BROWSER CLOSED: the same job, THEN hunt, with the hero's last hunt behind it, settled by the world tick (the
 //              shipped runTick, 10 s polls folded into a 90 s flush): EXACTLY 20 swings, the job ends, its THEN is pending;
 //              the minute sweep starts the hero's last hunt again, once, journalled once; the hunt it starts will not resume
@@ -190,6 +190,18 @@ async function arms(db, edge) {
       && ob.version === oa.version && ob.logs === oa.logs,
     `window open: 20 swings exactly over ${orows.length} settles (${settles} asked), the job ended itself, "20 of 20, waited"; nothing paid after`,
     `window open: ${swings(orows)} swings in ${orows.length} rows, row ${js(oa)}, last meta ${js(orows[orows.length - 1])}, after ${js({ v: ob.version, logs: ob.logs })}`);
+  /* ...and ONE settle that covers ten minutes (about 125 swings of time) still pays exactly 20: the count caps the span itself,
+     not only the cut of the windows (20 s windows of a 4.8 s swing can land on 20 by arithmetic alone). */
+  const o2 = await makeHero(db);
+  const os2 = await startJob(db, edge, o2, { kind: 'gather', id: NODE, count: 20, next: 'wait' });
+  if (os2.status !== 200) throw Object.assign(new Error('J-OPEN-ONE start refused: ' + js(os2.body)), { harness: true });
+  await passes(db, o2, 600);
+  await viewedSettle(db, edge, o2);
+  const o2a = await stateOf(db, o2);
+  const o2rows = await gatherRows(db, o2);
+  arm('J-OPEN', o2a.active_kind === 'idle' && swings(o2rows) === 20 && o2rows.length === 1 && (o2a.job_end || {}).done === 20,
+    'window open: one ten-minute settle of a job of 20 swung exactly 20 and ended it',
+    `window open: one ten-minute settle swung ${swings(o2rows)} in ${o2rows.length} row(s), row ${js(o2a)}`);
 
   /* ── J-CLOSED: browser closed, the world tick ── */
   const c = await makeHero(db);

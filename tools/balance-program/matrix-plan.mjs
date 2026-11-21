@@ -22,6 +22,7 @@ import * as STD from './standards.mjs';
 import { STYLES } from '../balance-sim/styles.mjs';
 import { compsOf, cellKey, buildCell, MAIN } from './progression-grid.mjs';
 import { huntGrounds, bandEnds, partyComps } from './atlas/rates.mjs';
+import { lineKit } from './grid-project.mjs';
 
 export const WAYS = Object.freeze(Object.keys(STYLES));
 export const HIGH_LEVELS = Object.freeze([1000, 2000, 5000]);
@@ -63,22 +64,22 @@ export const RUNS = Object.freeze({
     LINEUP_BLOCK,
     { id: 'grounds', grounds: true },
   ]) }),
-  /* the representative subset (a --diff in a few minutes): every way, every gear state, lone and four, Normal and the hardest tier, every
+  /* the representative subset (a --diff in a few minutes): every way, every gear state, lone and four, Normal, Dangerous and the hardest tier, every
      slot class's step, early to Level 5,000. One seed an hour: a diff plays the same dice before and after, so a change reads as a pair. */
   subset: Object.freeze({ id: 'subset', levels: Object.freeze([10, 30, 60, 110, 185, 400, ...HIGH_LEVELS]), seeds: 1, hours: 1, blocks: Object.freeze([
     { id: 'ways', comps: WAYS.map(lone), gears: ['mid'], tiers: ['normal'] },
     { id: 'gear', comps: [lone('hammer')], gears: ['low', 'bis'], tiers: ['normal'] },
-    { id: 'tier', comps: [lone('hammer')], gears: ['mid'], tiers: ['hardest'] },
-    { id: 'four', comps: compsOf(4), gears: STD.GEAR_STATE_IDS, tiers: ['normal', 'hardest'] },
+    { id: 'tier', comps: [lone('hammer')], gears: ['mid'], tiers: ['dangerous', 'hardest'] },
+    { id: 'four', comps: compsOf(4), gears: STD.GEAR_STATE_IDS, tiers: ['normal', 'dangerous', 'hardest'] },
     { id: 'steps', comps: [lone('hammer')], steps: true, tiers: ['normal'] },
     LINEUP_BLOCK,
   ]) }),
-  /* Balance Lab v3's LIVE cells (a slider move re-plays them in the browser, on the bundled engine): every way alone and the four on Normal
-     and the hardest tier, MID, early, at the end of open content and PROJECTED, a quarter hour on one seed. tools/balance-lab/build.mjs --v3
+  /* Balance Lab v3's LIVE cells (a slider move re-plays them in the browser, on the bundled engine): every way alone and the four on every tier,
+     MID, early, at the end of open content and PROJECTED, a quarter hour on one seed. tools/balance-lab/build.mjs --v3
      resolves them (cell.mjs resolveOnly) so the page plays the matrix's own seats. */
   live: Object.freeze({ id: 'live', levels: Object.freeze([30, 110, 400]), seeds: 1, hours: 0.25, blocks: Object.freeze([
     { id: 'ways', comps: WAYS.map(lone), gears: ['mid'], tiers: ['normal'] },
-    { id: 'four', comps: compsOf(4), gears: ['mid'], tiers: ['normal', 'hardest'] },
+    { id: 'four', comps: compsOf(4), gears: ['mid'], tiers: ['normal', 'dangerous', 'hardest'] },
   ]) }),
 });
 
@@ -114,16 +115,51 @@ export function stepCell(D, K, built, { L, gear, from, styles, ground, slots }) 
   return { cell, whatIf, plans };
 }
 
+/* ── A PATCH'S PLAN STEPS (proposals that change what a cell wears, not a number in src: proposals.mjs) ──────────────────────────── */
+/** The gear curve's band at or under Level L (60 G-4: from 110, every +24%), `back` bands under it; null under the first band. */
+export function curveBand(L, g, back = 0) {
+  if (L < g.from) return null;
+  const k = Math.floor(Math.log(L / g.from) / Math.log(g.step) + 1e-9) - back;
+  return k < 0 ? null : Math.round(g.from * g.step ** k);
+}
+/**
+ * THE GEAR CURVE (R10, proposals GR-4): from its first band a MID or BiS seat's weapon and armor are the line (grid-project.mjs lineKit:
+ * the Dawnsteel row with its numbers at the band's Level), LOW one band back; shields, spellbooks, jewelry and the rest stay the kit's.
+ * Changes `built` (a buildCell answer) in place: the seats' explicit sets, the plans' kits and the what-if items.
+ */
+export function applyGearCurve(K, built, meta, g) {
+  const R = curveBand(meta.L, g, meta.gear === 'low' ? 1 : 0);
+  if (!R) return built;
+  /* a step cell (one slot class a state back): that class one band back on the curve, where there is a band back */
+  const back = meta.stepClass === 'weapon' || meta.stepClass === 'armor' ? curveBand(meta.L, g, meta.gear === 'low' ? 2 : 1) : null;
+  const ARMOR = UPGRADE_CLASSES.armor;
+  const items = {};
+  built.cell.gearBySeat = built.cell.gearBySeat.map((gear, i) => {
+    const line = lineKit(K.LINES, STYLES[meta.styles[i]], R);
+    if (back) {
+      const lb = lineKit(K.LINES, STYLES[meta.styles[i]], back);
+      for (const [slot, id] of Object.entries(lb.set)) if (meta.stepClass === 'weapon' ? slot === 'weapon' : ARMOR.includes(slot)) { line.set[slot] = id; line.items[id] = lb.items[id]; }
+    }
+    Object.assign(items, line.items);
+    built.plans[i] = { ...built.plans[i], kit: { ...built.plans[i].kit, ...line.set } };
+    return { ...gear, also: { ...(gear.also || {}), ...line.set } };
+  });
+  built.whatIf = { ...(built.whatIf || {}), items: { ...((built.whatIf && built.whatIf.items) || {}), ...items } };
+  return built;
+}
+const applyPlan = (K, built, meta, plan) => (plan && plan.gearCurve ? applyGearCurve(K, built, meta, plan.gearCurve) : built);
+
 /**
  * Every cell of a run: { cells: [meta], jobs: [{ id, key, cell, whatIf }] }. `D` the grid's data (loadGridData), `K` its kits. `only`
- * keeps those Levels; `blocks` those block ids.
+ * keeps those Levels; `blocks` those block ids; `plan` a patch's plan steps (applyPlan).
  */
 export function planMatrix(D, K, run, o = {}) {
   const cells = [], jobs = [], seen = new Set();
   const hours = o.hours || run.hours;
-  const add = (meta, b) => {
+  const add = (meta, b0) => {
     if (seen.has(meta.key)) return;
     seen.add(meta.key);
+    const b = applyPlan(K, b0, meta, o.plan);
     /* the seeds: the caller's, else the block's, else the run's */
     const seeds = o.seeds || meta.seeds || run.seeds;
     /* `skills`: each seat's main skill and Defense as played (the career line, skill-lines.mjs, and the gear state's offset) */

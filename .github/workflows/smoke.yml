@@ -1738,6 +1738,11 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tools/mutant-gate.mjs node tools/balance-program/progression-grid.mjs --selftest
+      # tools/balance-program/proposals.mjs
+      - name: The proposal registry is whole, every toggle plants, and an alternative stacked on what it replaces is refused
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tools/balance-program/proposals.mjs --selftest --quick
       # tools/balance-program/sources.mjs
       - name: Source atlas - an item with no source, a source nothing uses, a drop nobody can reach are each listed
         if: ${{ !cancelled() }}

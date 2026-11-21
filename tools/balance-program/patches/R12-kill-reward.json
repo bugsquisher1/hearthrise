@@ -1,0 +1,75 @@
+{
+ "schema": "hearthrise.balance-patch/1",
+ "name": "R12: the kill reward follows the pace line (60 G-5, 44 section 5.2)",
+ "kind": "derivation",
+ "targets": [
+  "pace",
+  "P2"
+ ],
+ "why": "XP a health point = contractXpPerH(L) / (1918.8 x L^0.838132), the reference kill-health an hour of a lone MID hammer on Normal (each kill's HP x its role's XP share x the lone bonus), MEASURED on the proposed game without R12 and R13 at Levels 10, 30, 60, 110, 185, 400, 1000, 2000, 5000 and fitted. The 15 per-ground XP fits, the floor fit and the 0.4 exponent go; party grounds pay two thirds of a plain kill (was 0.8). COMPUTED",
+ "measuredOn": {
+  "proposals": [
+   "GR-4",
+   "GR-5b",
+   "GR-7",
+   "GR-14",
+   "GR-22",
+   "GR-27",
+   "GR-38",
+   "GR-52",
+   "GR-63",
+   "GR-76",
+   "R7"
+  ],
+  "points": [
+   [
+    10,
+    14096
+   ],
+   [
+    30,
+    37765
+   ],
+   [
+    60,
+    56501
+   ],
+   [
+    110,
+    97015
+   ],
+   [
+    185,
+    131683
+   ],
+   [
+    400,
+    264663
+   ],
+   [
+    1000,
+    594949
+   ],
+   [
+    2000,
+    1156067
+   ],
+   [
+    5000,
+    2768933
+   ]
+  ]
+ },
+ "edits": [
+  {
+   "file": "src/data/balance-sheet.js",
+   "from": "  const xp = Math.max(1, Math.round(Math.max(F.xp.min || 0, F.xp.a * L ** F.xp.b) * hp * R.xp * fit.xp * gx * xFloor));",
+   "to": "  const xp = (void gx, void xFloor, Math.max(1, Math.round((contractXpPerH(L) / (1918.8 * Math.max(1, L) ** 0.838132)) * hp * R.xp * fit.xp)));"
+  },
+  {
+   "file": "src/data/balance-sheet.js",
+   "from": "    party: Object.freeze({ hp: 2.5, blow: 0.75, xp: 0.8,",
+   "to": "    party: Object.freeze({ hp: 2.5, blow: 0.75, xp: 0.667,"
+  }
+ ]
+}

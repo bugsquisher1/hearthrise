@@ -51,6 +51,8 @@
 //   party_reads_a_settle      hr_hunt_instance_read calls a landed settle (median; track_functions = all): exact, 0%. READ ONCE
 //                             (study 48 section 8): the settle read's `r` CTE is materialized, so the party is read once a settle,
 //                             not once a reference (3 a closed save inlined). 0 on the town fixture, which reads no party
+//   member_reads_a_settle     hr_hunt_member_read calls a landed settle (median): exact, 0%. One a member (1036-settle-plans.sql's
+//                             offset-0 fences: unfenced, the instance read made 6 a member)
 //   settle_cpu_ms_a_hero_hour the settle's time a hero-hour (PGlite and the engine, both in this process), as CPU time and not wall
 //                             time (cpuMs below: a loaded box doubles the wall), in THIS run's calibration: the baseline holds the
 //                             writer's ms and its calibration_ms, and a run scales the cap by its own (a fixed SQL + JSON workload, the
@@ -81,7 +83,7 @@ const POLLS = 24;            // watched door: landed settles 16 s apart (6.4 min
 const POLL_MS = 16000;       // src/session/config.js's viewed-hunt poll (tools/beta-load.mjs C.huntPollMs)
 const EARLY = [3, 5];        // 0.6 early asks a poll (tools/beta-load.mjs C.earlyAsksPerPoll), spread evenly
 const TOL = Object.freeze({ statements_a_settle: 0, statements_a_hero_hour: 0.02, round_trips_a_hero_hour: 0.02,
-  ledger_rows_a_hero_hour: 0.2, row_writes_a_settle: 0.2, party_reads_a_settle: 0, settle_cpu_ms_a_hero_hour: 1.0 });
+  ledger_rows_a_hero_hour: 0.2, row_writes_a_settle: 0.2, party_reads_a_settle: 0, member_reads_a_settle: 0, settle_cpu_ms_a_hero_hour: 1.0 });
 const METRICS = Object.keys(TOL);
 const uidOf = (i) => '00000000-0000-4000-8000-0000003c' + String(i).padStart(4, '0');
 const idem = () => crypto.randomUUID();
@@ -131,9 +133,14 @@ async function fire(db) {
 const tuples = async (db) => Object.fromEntries((await q(db, `select relname, (n_tup_ins + n_tup_upd + n_tup_del)::int as n
   from pg_stat_xact_user_tables where schemaname = 'public'`)).map((r) => [r.relname, r.n]));
 
-/* The party reads this transaction has made so far (pg_stat_xact_user_functions, track_functions = all, set by measureAll). */
-const partyReads = async (db) => Number(await one(db, `select coalesce(sum(calls), 0)::int from pg_stat_xact_user_functions
-  where schemaname = 'public' and funcname = 'hr_hunt_instance_read'`));
+/* The party reads and member reads this transaction has made so far (pg_stat_xact_user_functions, track_functions = all, set by
+   measureAll): { party, member }. */
+const partyReads = async (db) => {
+  const r = (await q(db, `select coalesce(sum(calls) filter (where funcname = 'hr_hunt_instance_read'), 0)::int as party,
+      coalesce(sum(calls) filter (where funcname = 'hr_hunt_member_read'), 0)::int as member
+    from pg_stat_xact_user_functions where schemaname = 'public'`))[0];
+  return { party: Number(r.party), member: Number(r.member) };
+};
 /** The edge's exec as index.ts runs it (one pooled transaction a statement), counted: payload statements and round trips.
     THE PLANT `read_inlined` (--selftest): the settle read as it was before read once, its `r` CTE inlined into each reference. */
 function countedExec(db, mode, stat, plant = null) {
@@ -415,7 +422,8 @@ async function measure(db, M, fx, door, plant, minSettles = null) {
     const t1 = await tuples(db);
     rows.push(Object.keys(t1).reduce((x, t) => x + (t1[t] - (t0[t] || 0)), 0));
     per.push(stat.stmts - s0);
-    reads.push(await partyReads(db) - r0);
+    const rN = await partyReads(db);
+    reads.push({ party: rN.party - r0.party, member: rN.member - r0.member });
   }
   if (per.length < (minSettles || n)) {
     const why = fx.sids.length ? (await q(db, 'select end_reason as r, count(*)::int as n from public.hunt_sessions where id = any ($1::uuid[]) group by 1', [fx.sids])).map((x) => `${x.r} x${x.n}`).join(', ') : 'the bench stopped';
@@ -425,7 +433,8 @@ async function measure(db, M, fx, door, plant, minSettles = null) {
   if (!(heroHours > 0)) throw new Error('the fixture paid no time');
   const led = await ledgerOf(db, fx) - led0;
   return { statements_a_settle: med(per), statements_a_hero_hour: r1(stat.stmts / heroHours), round_trips_a_hero_hour: r1(stat.trips / heroHours),
-    ledger_rows_a_hero_hour: r1(led / heroHours), row_writes_a_settle: med(rows), party_reads_a_settle: med(reads), settle_cpu_ms_a_hero_hour: Math.round(cpu / (heroHours * (per.length - 1) / per.length)) };
+    ledger_rows_a_hero_hour: r1(led / heroHours), row_writes_a_settle: med(rows), party_reads_a_settle: med(reads.map((x) => x.party)),
+    member_reads_a_settle: med(reads.map((x) => x.member)), settle_cpu_ms_a_hero_hour: Math.round(cpu / (heroHours * (per.length - 1) / per.length)) };
 }
 
 /* ── THE PLANTS (--selftest): a journal row a unit of work, game_events' old shape: a kill (the hunt's tally), or a unit a town job
@@ -453,6 +462,16 @@ const UNIT_ROW = `
   create trigger hr_planted_unit_tally after insert or update on public.hunt_session_tally for each row execute function public.hr_planted_unit_rows();
   create trigger hr_planted_unit_bag after insert or update or delete on public.player_inventory for each row execute function public.hr_planted_unit_rows();`;
 
+/* THE PLANT `member_unfenced`: the instance read and the member read without 1036-settle-plans.sql's offset-0 fences (rolled back). */
+async function unfence(db) {
+  for (const fn of ['public.hr_hunt_instance_read(uuid,integer)', 'public.hr_hunt_member_read(public.hunt_sessions)']) {
+    const def = String(await one(db, 'select pg_get_functiondef($1::regprocedure)', [fn]));
+    const un = def.split(' offset 0) ').join(') ');
+    if (un === def) throw new Error(`member_unfenced: ${fn} holds no offset-0 fence`);
+    await db.exec(un);
+  }
+}
+
 /** Every fixture (or `only`), each built and measured inside its own rolled-back savepoint. `plant`: the selftest's defect. */
 async function measureAll(db, M, { plant = null, only = null } = {}) {
   const out = {};
@@ -464,6 +483,7 @@ async function measureAll(db, M, { plant = null, only = null } = {}) {
       await db.query('savepoint fx');
       try {
         if (plant === 'unit_row') await db.exec(UNIT_ROW);
+        if (plant === 'member_unfenced') await unfence(db);
         const fx = await f.build(db, M);
         out[name] = await measure(db, M, fx, f.door, plant, f.minSettles);
       } catch (e) { throw new Error(`${name}: ${e.message}`); } finally { await db.query('rollback to savepoint fx'); }
@@ -597,6 +617,13 @@ async function main() {
       const hit = inl.red.filter((x) => x.startsWith(`${fx} party_reads_a_settle:`));
       arm(`MUTANT read_inlined (the party read once a reference, not once a settle): ${fx} is red`, hit.length === 1,
         hit.length ? hit[0].slice(fx.length + 1) : 'NOT red on party_reads_a_settle');
+    }
+    /* ...and with the member read copied into each reference again (the offset-0 fences gone) */
+    const unf = judge(await measureAll(db, M, { plant: 'member_unfenced', only }), base, calibration);
+    for (const fx of Object.keys(FIXTURES).filter((x) => (!only || x.includes(only)) && FIXTURES[x].door !== 'roster')) {
+      const hit = unf.red.filter((x) => x.startsWith(`${fx} member_reads_a_settle:`));
+      arm(`MUTANT member_unfenced (the member read once a reference, not once a member): ${fx} is red`, hit.length === 1,
+        hit.length ? hit[0].slice(fx.length + 1) : 'NOT red on member_reads_a_settle');
     }
     /* THE SMOKE ALARM: a settle four times slower (the engine's time burnt three times over, inside the timed settle) is red on one fixture;
        and the cap follows the machine: a settle 2.5x the baseline's is green on a machine whose calibration reads 2x, red on the same one */

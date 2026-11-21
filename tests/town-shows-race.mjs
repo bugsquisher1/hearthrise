@@ -33,12 +33,18 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { bootPg, attachPg } from '../tools/pg-replay.mjs';
 import { ownHeroSlots } from './_slots.mjs';
+import { TOWN_WORKS } from '../src/data/town-works.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const MUTATE = process.argv.includes('--mutate');
 const ONLY = (process.argv.find((a) => a.startsWith('--only=')) || '').slice(7).split(',').filter(Boolean);
 const TEMPLATE = process.env.HR_PG_TEMPLATE || undefined;
-const LANE_FILES = ['2027-02-27-gold-sinks-catalogue.generated.sql', '2027-02-27-gold-sinks-seams.sql', '2027-02-27-gold-given.sql', '2027-02-27-town-crier.sql', '2027-02-27-town-shows.sql', '2027-03-04-town-works-catalogue.generated.sql', '2027-03-04-town-works.sql', '2027-05-05-hearth-moods.sql'];
+const LANE_FILES = ['2027-02-27-gold-sinks-catalogue.generated.sql', '2027-02-27-gold-sinks-seams.sql', '2027-02-27-gold-given.sql', '2027-02-27-town-crier.sql', '2027-02-27-town-shows.sql', '2027-03-04-town-works-catalogue.generated.sql', '2027-03-04-town-works.sql', '2027-05-05-hearth-moods.sql',
+  /* the Works on the goal sized to the server (Tyler 2026-11-20, call 24-7): the newest catalogue and the bodies on it */
+  '1013-approved-rows-town-works-catalogue.generated.sql', '1014-works-goal-sized.sql'];
+/* What a fresh chain's Weighhouse asks: no dozen accounts hunted this week, so the goal is its least and each stage stands where the data writes it. */
+const ST = TOWN_WORKS.weighhouse.stages.map((s) => s.at);
+const GOAL = ST[ST.length - 1];
 const MAP = 'town_common';
 const SHOW = 'public.hr_town_show(integer,text,bigint,uuid)';
 const CRY = 'public.hr_crier_send(integer,text,bigint,uuid)';
@@ -345,7 +351,7 @@ const RACES = {
     await clearTown(w);
     const [a, b] = [await account(w, 1), await account(w, 1)];
     /* the project has room for one of these two, not both */
-    await w.db.query("insert into public.town_works_totals (project_id, total) values ('weighhouse', 999000)");
+    await w.db.query("insert into public.town_works_totals (project_id, total) values ('weighhouse', $1)", [GOAL - 1000]);
     await holdKey(w, 'hr:works:weighhouse');
     const pa = gift(w.A, a, 0, 1000);
     const ba = await blocked(w, w.A, pa);
@@ -357,7 +363,7 @@ const RACES = {
     const answers = [ra, rb];
     if (answers.filter((r) => r.ok === true).length !== 1 || answers.filter((r) => r.error === 'works_done').length !== 1) out.push('the race for the last gift answered ' + JSON.stringify(answers));
     const total = Number((await w.db.query("select total from public.town_works_totals where project_id = 'weighhouse'")).rows[0].total);
-    if (total !== 1000000) out.push('the project reads ' + total);
+    if (total !== GOAL) out.push('the project reads ' + total);
     const won = ra.ok === true ? a : b, lost = ra.ok === true ? b : a;
     if ((await purse(w, won)) !== 999000) out.push('the winner\'s purse reads ' + (await purse(w, won)));
     if ((await purse(w, lost)) !== 1000000) out.push('the loser was charged: ' + (await purse(w, lost)));
@@ -373,8 +379,8 @@ const RACES = {
     const out = [];
     await clearTown(w);
     const [a, b] = [await account(w, 1), await account(w, 1)];
-    /* each gift alone crosses 100,000: only the first to hold the key does */
-    await w.db.query("insert into public.town_works_totals (project_id, total) values ('weighhouse', 99500)");
+    /* each gift alone crosses the first stage: only the first to hold the key does */
+    await w.db.query("insert into public.town_works_totals (project_id, total) values ('weighhouse', $1)", [ST[1] - 500]);
     await holdKey(w, 'hr:works:weighhouse');
     const pa = gift(w.A, a, 0, 1000);
     const ba = await blocked(w, w.A, pa);
@@ -385,7 +391,7 @@ const RACES = {
     if (!ba || !bb) out.push('the race never opened: ' + JSON.stringify({ ba, bb, ra, rb }));
     if (ra.ok !== true || rb.ok !== true) out.push('the two gifts answered ' + JSON.stringify([ra, rb]));
     const total = Number((await w.db.query("select total from public.town_works_totals where project_id = 'weighhouse'")).rows[0].total);
-    if (total !== 101500) out.push('the total reads ' + total + ': a gift was lost');
+    if (total !== ST[1] + 1500) out.push('the total reads ' + total + ': a gift was lost');
     const rows = (await w.db.query("select from_id, body from public.chat_messages where from_name = 'The Weighhouse'")).rows;
     if (rows.length !== 1 || rows[0].body !== 'has its footings.') out.push('the stage spoke ' + JSON.stringify(rows));
     /* AS THE TOWN, ON REAL CLAIMS: the session's sub and its claims both come off for the one insert */

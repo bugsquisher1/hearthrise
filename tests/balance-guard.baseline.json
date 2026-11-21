@@ -4,9 +4,9 @@
   "pins.cutRows: rows a cut or dark lever carries (G14: a count over its pin is red). cost: a reference account's day (G16: 5% over is red). values: every line's numbers when written (the report prints what moved)."
  ],
  "schema": "hearthrise.balance-guard/1",
- "commit": "f5c847a95",
- "at": "2026-11-20",
- "why": "re-issued 30-plan E: K1 gate 0.9-1.1 XP / 0.8-1.2 gold; G24 rows keyed by the full ground id",
+ "commit": "88eba0ed1",
+ "at": "2026-11-21",
+ "why": "lane/c-approved-rows (plan L06, Tyler 2026-11-20): G9 the second hero 400,000 over the played bank (24-9); G22 the refills climb x1, 1.5 ... 3.5 (24-1)",
  "pins": {
   "cutRows": {
    "food-xp-buffs": 11,
@@ -135,7 +135,7 @@
    "hold": 8159.75
   },
   "G9": {
-   "slot 2": 0.674,
+   "slot 2": 0.898,
    "ruled 400k": 0.898
   },
   "G10": {
@@ -185,8 +185,8 @@
   "G15": {},
   "G16": {},
   "G17": {
-   "krell": 57.778,
-   "tower": 50.896
+   "krell": 85.5,
+   "tower": 83.692
   },
   "G18": {
    "new": 2,
@@ -209,22 +209,22 @@
    "ford three": 3.18
   },
   "G20": {
-   "shop slot 2 300.0k": 1.76,
-   "shop slot 3 750.0k": 3.282,
-   "shop four heroes 1500.0k": 7.043,
+   "shop slot 2 400.0k": 2.203,
+   "shop slot 3 1500.0k": 5.246,
+   "shop four heroes 4000.0k": 15.275,
    "ruled slot 2 400.0k": 2.203,
    "ruled slot 3 1500.0k": 5.246,
    "ruled four heroes 4000.0k": 15.275
   },
   "G21": {},
   "G22": {
-   "thicket 2nd": 0.233,
-   "glade 2nd": 0.229,
-   "ford 2nd": 0.337,
-   "slake 2nd": 0.363,
-   "pyre 2nd": 0.254,
-   "hold 2nd": 0.366,
-   "pyre all 6 (four)": 0.779
+   "thicket 2nd": 0.308,
+   "glade 2nd": 0.303,
+   "ford 2nd": 0.446,
+   "slake 2nd": 0.48,
+   "pyre 2nd": 0.336,
+   "hold 2nd": 0.485,
+   "pyre all 6 (four)": 1.314
   },
   "G23": {
    "shield": 0.972,
@@ -263,6 +263,11 @@
    "at": "2026-11-20",
    "commit": "f5c847a95",
    "why": "re-issued 30-plan E: K1 gate 0.9-1.1 XP / 0.8-1.2 gold; G24 rows keyed by the full ground id"
+  },
+  {
+   "at": "2026-11-21",
+   "commit": "88eba0ed1",
+   "why": "lane/c-approved-rows (plan L06, Tyler 2026-11-20): G9 the second hero 400,000 over the played bank (24-9); G22 the refills climb x1, 1.5 ... 3.5 (24-1)"
   }
  ]
 }

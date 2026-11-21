@@ -190,7 +190,7 @@ async function checks(overrides) {
       if (!range || range.min !== '1' || range.max !== String(TOP) || range.value !== '1' || !range.shown) fails.push('BW-2 the slider reads ' + JSON.stringify(range) + ', want 1 to the server\'s ' + TOP);
       const one = await facts(page);
       const wantOne = { count: 'Fights: 1', 'f-stamina': 'Stamina: 2 min a fight', 'f-cost': 'Cost: 50 gp a fight, win or lose', 'f-limit': 'Time limit: 10 min a fight', 'f-pay': 'Drops on a win. No XP or coin.',
-        'f-total': 'Total: 2.5 min of stamina, 57 gp', 'f-covers': 'Affordable now: 12 fights', 'f-ends': 'Ends on a death, or when stamina or gold runs out' };
+        'f-total': 'Total: 2.5 min of stamina, 57 gp', 'f-covers': 'Affordable now: 12 fights', 'f-ends': 'Ends on a death, or when stamina runs out' };
       if (JSON.stringify(one) !== JSON.stringify(wantOne)) fails.push('BW-2 at one fight the warning reads ' + JSON.stringify(one));
       /* moved to 5, not released: it answers as it moves, and the total is the SERVER'S entry for 5 (10.5 min and 257 gp, not 5 x 2 min and 5 x 50 gp) */
       await slide(page, 5);
@@ -223,7 +223,7 @@ async function checks(overrides) {
       if (got !== '7' || f.count !== 'Fights: 7') fails.push('BW-2 a top of 7 let the slider reach ' + got + ' and reads ' + JSON.stringify(f.count));
       if (f['f-cost'] !== 'Cost: no gold' || f['f-total'] !== 'Total: 14.5 min of stamina') fails.push('BW-2 a fight with no fee reads ' + JSON.stringify({ cost: f['f-cost'], total: f['f-total'] }));
       const heroes = await page.evaluate(() => { const e = document.querySelector('.hw-call-f-heroes'); return e && e.offsetParent !== null ? e.textContent : null; });
-      if (heroes !== 'Your 2 heroes: stamina each, gold shared') fails.push('BW-2 two of this account\'s heroes read ' + JSON.stringify(heroes));
+      if (heroes !== 'Your 2 heroes: each pays its own stamina') fails.push('BW-2 two of this account\'s heroes read ' + JSON.stringify(heroes));
       await ctx.close();
     }
     /* BW-11: NATURAL WINS BEFORE THE CALL (2027-05-05-entry-gates.sql; Tyler 2026-11-18: "you have to beat the boss in the hunting ground X times before

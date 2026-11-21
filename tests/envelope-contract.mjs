@@ -141,7 +141,7 @@ function contract(R, cs, body, tl) {
     need('party', !m.length && p.self !== null && p.leader !== null, 'partyOf misses ' + m.join(', ') + ' self ' + p.self + ' leader ' + p.leader);
   }
   const pm = R.PS.partyMembershipOf(cs);
-  /* LEAVE TOGETHER (2026-12-18-party-leave-together.sql): the viewer's own box, on by default (player_state.party_leave_together) */
+  /* LEAVE TOGETHER (2026-12-18-party-leave-together.sql): the viewer's own box, on by default beside another account's hero (1011-own-heroes-apart.sql hr_party_leave_together_of) */
   need('party', !!pm && pm.seats.length === 2 && pm.me !== null && pm.leader !== null && pm.isLeader && !!pm.tiers && pm.tiers.mill_cellar === 'dangerous' && pm.leaveTogether === true,
     'partyMembershipOf yields ' + JSON.stringify(pm && { seats: pm.seats.length, me: pm.me, leader: pm.leader, tiers: pm.tiers, leaveTogether: pm.leaveTogether }));
   // party_people: the player menu's targets, one per seat of the real party, with the server's account ids (2026-10-25-social.sql)
@@ -558,7 +558,7 @@ const DB_MUTANTS = [
   ['entry_gates', 'public.hr_entry_gates_view(uuid,integer)', "v_tower := jsonb_build_object('need', v_need,", "v_tower := jsonb_build_object('needs', v_need,"],
   ['entry_gates', 'public.hr_entry_gates_view(uuid,integer)', "'need', c.wins, 'have', v_have,", "'need', c.wins, 'count', v_have,"],
   ['party', 'public.hr_hunt_party_view(uuid,integer)', "'leader_tiers', coalesce", "'leader_tier', coalesce"],
-  ['party', 'public.hr_hunt_party_view(uuid,integer)', "'leave_together', (select ps.party_leave_together", "'leave_togther', (select ps.party_leave_together"],
+  ['party', 'public.hr_hunt_party_view(uuid,integer)', "'leave_together', public.hr_party_leave_together_of(", "'leave_togther', public.hr_party_leave_together_of("],
   ['hunt_settings', 'public.hr_hunt_settings_view(uuid,integer)', "'gather_share', v_eff->'gather_share',", "'gather', v_eff->'gather_share',"],
   ['hunt_analyzer', 'public.hr_hunt_analyzer_of(uuid,integer,uuid)', "'hunt_ms', floor(", "'huntms', floor("],
   ['hunt_analyzer', 'public.hr_hunt_stats_of(uuid[],numeric,uuid,integer)', "'kills', v_kills", "'kill_count', v_kills"],

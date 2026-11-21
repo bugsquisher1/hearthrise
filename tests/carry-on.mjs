@@ -92,12 +92,15 @@ async function backdate(db, uid, minutes, staminaMs) {
   }
 }
 /* THE WORLD TICK, browser closed: the engine settles every open hunt of `uid` to the database's now, slice by slice, until none is open. */
-async function tickUntilHome(db, M, uid) {
+async function tickUntilHome(db, M, uid, o = {}) {
   const exec = H.makeExec(db);
-  const toMs = await nowMs(db);
+  const toMs = o.toMs || await nowMs(db);
   for (let pass = 0; pass < 60; pass++) {
     const open = await openOf(db, uid);
     if (!open.length) return;
+    /* `o.toMs`: settle every open hunt to that instant and stop there (a hunt with stamina left stays out) */
+    if (o.toMs && pass > 0 && (await q(db, `select 1 from public.hunt_sessions h join public.hunt_instances i on i.id = h.instance_id
+        where h.user_id = $1 and h.ended_at is null and i.settled_to < to_timestamp($2::double precision / 1000) - interval '2 seconds'`, [uid, toMs])).length === 0) return;
     for (const s of open) {
       /* the REAL grounds (grounds: {} = the engine's own catalogue): the settle harness's default is its fixture Cellar, whose wolves the
          replayed chain's bounds would rightly refuse */
@@ -431,7 +434,46 @@ async function applyArm(db) {
   });
 }
 
-const ARMS = { closed: closedArm, viewed: viewedArm, refuse: refuseArm, idem: idemArm, bless: blessArm, loot: lootArm, words: wordsArm, apply: applyArm };
+/* ── CO-APART (1011-own-heroes-apart.sql): the account's own heroes end together only if the player says so ── */
+async function apartArm(db, M) {
+  return H.inTx(db, async () => {
+    const bad = [];
+    const run = async (tick) => {
+      await db.query('savepoint co_apart');
+      try {
+        await heroes(db, M, A, 2);
+        let r = await as(db, A, 'select public.hr_hunt_party_invite_own(0, 1, $1::uuid)', [idem()]);
+        if (!r || r.ok !== true) throw new Error('own invite: ' + JSON.stringify(r));
+        if (tick) {
+          r = await as(db, A, 'select public.hr_party_leave_together_set(1, true, $1::uuid)', [idem()]);
+          if (!r || r.ok !== true) throw new Error('tick: ' + JSON.stringify(r));
+        }
+        r = await as(db, A, 'select public.hr_hunt_party_start(0, $1, $2::uuid)', [CELLAR, idem()]);
+        if (!r || r.ok !== true) throw new Error('party start: ' + JSON.stringify(r));
+        await backdate(db, A, 6, 60000);
+        /* the member has stamina for the whole window, the leader for one minute of it */
+        await db.query('update public.player_state set stamina_ms = 3600000 where user_id = $1 and slot = 1', [A]);
+        const party = await one(db, 'select public.hr_hunt_party_of($1::uuid, 0)', [A]);
+        const shown = await as(db, A, `select public.hr_state_of($1::uuid, 1)->'party'->'leave_together'`, [A]);
+        /* the world tick, the browser closed, to now */
+        await tickUntilHome(db, M, A, { toMs: await nowMs(db) });
+        const ends = await q(db, 'select slot, end_reason from public.hunt_sessions where user_id = $1 order by slot', [A]);
+        return { ends: ends.map((e) => [e.slot, e.end_reason]), shown, said: await one(db, 'select public.hr_party_leave_together_of($1::uuid, 1, $2::uuid)', [A, party]) };
+      } finally { await db.query('rollback to savepoint co_apart'); }
+    };
+    const unsaid = await run(false);
+    if (JSON.stringify(unsaid.ends) !== '[[0,"stamina"],[1,null]]' || unsaid.shown !== false || unsaid.said !== false) {
+      bad.push('CO-APART unsaid, the account\'s own member ended ' + JSON.stringify(unsaid.ends) + ' (panel ' + unsaid.shown + '), want the leader home on stamina and the member hunting on');
+    }
+    const ticked = await run(true);
+    if (JSON.stringify(ticked.ends) !== '[[0,"stamina"],[1,"party_member_left"]]' || ticked.shown !== true) {
+      bad.push('CO-APART ticked, the member ended ' + JSON.stringify(ticked.ends) + ' (panel ' + ticked.shown + '), want it home with its leader');
+    }
+    return bad;
+  });
+}
+
+const ARMS = { closed: closedArm, viewed: viewedArm, refuse: refuseArm, idem: idemArm, bless: blessArm, loot: lootArm, apart: apartArm, words: wordsArm, apply: applyArm };
 
 /* ── THE MUTANTS: a defect planted in the booted chain's live body (SQL) or a served copy of a client module ── */
 const FN = { plan: 'public.hr_carry_on_plan_of(uuid,integer[])', press: 'public.hr_carry_on(integer[],bigint,uuid)' };
@@ -462,6 +504,11 @@ const MUTANTS = [
     replace: "      for v_x in select e from jsonb_array_elements('[]'::jsonb) e order by (e->>'tier')::int loop" },
   { name: 'the loot plan never runs', arm: 'loot', want: /^CO-LOOT the press/, fn: FN.press,
     find: "      if coalesce((v_h->>'loot')::boolean, false) then", replace: '      if false then' },
+  { name: 'an unsaid box reads on in the account\'s own party (the old default)', arm: 'apart', want: /^CO-APART unsaid/, fn: 'public.hr_party_leave_together_of(uuid,integer,uuid)',
+    find: 'exists (select 1 from public.hunt_party_members m where m.party_id = p_party and m.user_id <> p_user))', replace: 'true)' },
+  { name: 'a said box is not read', arm: 'apart', want: /^CO-APART ticked/, fn: 'public.hr_party_leave_together_of(uuid,integer,uuid)',
+    find: 'select coalesce((select ps.party_leave_together from public.player_state ps where ps.user_id = p_user and ps.slot = p_slot),',
+    replace: 'select coalesce(null::boolean,' },
   { name: 'the end card sends no slots (the whole account)', arm: 'viewed', want: /^CO-VIEWED the press sent/, src: ['src/shell/carry-on.js',
     'await runIntent(sc, repaint, () => carryOn(ctx.account, cs, plan.gold, slots, jobs)', 'await runIntent(sc, repaint, () => carryOn(ctx.account, cs, plan.gold, null, jobs)'] },
   { name: 'the press re-reads no hero', arm: 'viewed', want: /^CO-VIEWED after the press/, src: ['src/session/carry-on-intents.js',

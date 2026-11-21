@@ -103,7 +103,7 @@ export function advance(char, res) {
   if (typeof d.fight !== 'undefined') char.fight = d.fight;
   if (typeof d.ammo_carry !== 'undefined') char.ammoCarry = d.ammo_carry;
   if (typeof d.tool_carry !== 'undefined') char.toolCarry = d.tool_carry;
-  /* A JOB'S COUNT (1009-job-counts.sql), a checkpoint: the next poll of this flush window caps at what this one left,
+  /* A JOB'S COUNT (1018-job-counts.sql), a checkpoint: the next poll of this flush window caps at what this one left,
      or a 90 s window of 10 s polls would pay each poll the whole count. 0 (counted out) leaves none. */
   if (typeof d.active_left === 'number') char.activeLeft = d.active_left > 0 ? d.active_left : null;
   if (d.activity && d.activity.kind) {
@@ -188,7 +188,7 @@ export function shadowTick(char, fromMs, toMs, catalogues, opts) {
        and `activeLeft` through engineInputsFromEnvelope). PRESENT ONLY WHEN THE
        CHANNEL CARRIES THEM: gather's catalogues have no `recipes` and its session
        no `unlockedRecipes` key. `activeLeft` rides a gathering job's count too
-       (1009-job-counts.sql); a job with none carries no key, as before. */
+       (1018-job-counts.sql); a job with none carries no key, as before. */
     ...(catalogues.recipes ? { recipes: catalogues.recipes } : {}),
     ...(Object.prototype.hasOwnProperty.call(char, 'unlockedRecipes') ? { unlockedRecipes: char.unlockedRecipes } : {}),
     ...(Number.isInteger(char.activeLeft) ? { activeLeft: char.activeLeft } : {}),

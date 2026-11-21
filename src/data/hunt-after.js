@@ -40,7 +40,7 @@ export const JOB_GRACE_S = 60;
 
 export const AFTER_INDEX = Object.freeze(Object.fromEntries(AFTER_CHOICES.map((c) => [c.id, c])));
 
-/* ── A JOB'S COUNT AND ITS "THEN" (plan L08, retention R3; supabase/migrations/1009-job-counts.sql) ──────────────────────
+/* ── A JOB'S COUNT AND ITS "THEN" (plan L08, retention R3; supabase/migrations/1018-job-counts.sql) ──────────────────────
    A gathering job or a bench run takes a COUNT (actions, 1..JOB_COUNT_MAX) and a THEN, both set when it starts. The server
    stops the job on the action that reaches the count and then does the THEN, with the browser open or closed:
      wait   the hero waits in town

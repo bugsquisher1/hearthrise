@@ -1,7 +1,7 @@
 -- tests/fixtures/job-counts-slice-shim.sql — NOT A MIGRATION.
 --
 -- The 2026-08 SLICE chain (tests/pglite-chain.mjs bootChain + activity-intent's EXTRA list) runs the real hr-accrue
--- modules against an hr_apply that predates "make N" (2026-12-01-bench-count.sql). Since 1009-job-counts.sql every
+-- modules against an hr_apply that predates "make N" (2026-12-01-bench-count.sql). Since 1018-job-counts.sql every
 -- gathering job carries a count (set-activity.js refuses one without), and a job may carry its THEN as `next`, so the
 -- slice's activity allowlist is widened to READ the two keys and nothing more: the slice keeps no count (it has no
 -- column) and a job there runs as it did. The count and the THEN themselves are the full chain's, proved there by

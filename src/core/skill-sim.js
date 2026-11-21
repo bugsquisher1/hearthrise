@@ -100,7 +100,7 @@ export const STOP_REASON = Object.freeze({
      bank_full fuse). The artisan BAG_FULL stop's twin: the caller idles the pointer and says why,
      rather than proposing a settle hr_apply refuses window after window. */
   BAG_FULL: 'bag_full',
-  /* The CALLER capped the span's actions (`ctx.maxActions`: a job's count left, 1009-job-counts.sql). Not a property of
+  /* The CALLER capped the span's actions (`ctx.maxActions`: a job's count left, 1018-job-counts.sql). Not a property of
      the node: the caller decides what reaching it means (accrue-gather.js ends a job whose count ran out). The artisan
      BUDGET stop's twin. */
   BUDGET: 'budget',

@@ -1332,7 +1332,7 @@ function benchCountGuard() {
   const out = recipe.output;
   const per = Math.max(1, Number(recipe.outputQty) || 1);
   const big = supplyFor(recipe, 500);
-  /* (a) make 5 from a bag for 500, a 12 h window: 5 actions, the pointer ends, and the end says it left 0 (1009-job-counts.sql:
+  /* (a) make 5 from a bag for 500, a 12 h window: 5 actions, the pointer ends, and the end says it left 0 (1018-job-counts.sql:
      the count reached, which is what lets hr_apply run the job's THEN). */
   const five = call({ activeId: recipe.id, inventory: big, activeLeft: 5 });
   ok(five.accrued && five.summary.ticks === 5 && five.delta.items && five.delta.items[out] === 5 * per,

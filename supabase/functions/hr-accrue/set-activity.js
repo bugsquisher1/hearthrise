@@ -127,7 +127,7 @@ export function validateDeclaration(a) {
       detail: { why: kind === 'idle' ? 'idle takes no id' : 'this kind requires an id' },
     };
   }
-  /* A JOB'S COUNT AND ITS "THEN" (2026-12-01-bench-count.sql "make N"; 1009-job-counts.sql). A gathering job or a bench
+  /* A JOB'S COUNT AND ITS "THEN" (2026-12-01-bench-count.sql "make N"; 1018-job-counts.sql). A gathering job or a bench
      run takes a count; a GATHERING job must (every job has an end: 6,001 ore for a 20-ore errand). An unreadable count or
      THEN (the wire's `next`: a `then` key would make the object a thenable) is refused by name (request.js reads it as null)
      instead of running unbounded or doing nothing at the end. A THEN needs a count: "All" ends when its inputs run out,
@@ -482,7 +482,7 @@ export async function runSetActivity(o) {
   /* (3) THE SWITCH. The version is the one the COLLECT left behind, because a
          collect that paid has already bumped it. */
   const version = gate.version ?? env.version;
-  /* A JOB'S COUNT AND "THEN" REACH ONLY A DATABASE THAT STORES THEM (the self-configuring switch: 1009-job-counts.sql's
+  /* A JOB'S COUNT AND "THEN" REACH ONLY A DATABASE THAT STORES THEM (the self-configuring switch: 1018-job-counts.sql's
      `bench_run` section names `count`). Before that file a bench keeps its "make N" and a gathering job runs uncounted,
      as it did, so the edge and the migration are safe in either order; production applies the file first. */
   const counts = !!env.bench_run && Object.prototype.hasOwnProperty.call(env.bench_run, 'count');

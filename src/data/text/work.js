@@ -22,7 +22,7 @@ export const WORK_TEXT = Object.freeze({
   now_left: '{n} left',
   now_stops_out: 'Stops when materials run out',
   now_gather: 'Runs offline until a hunt starts',
-  /* A JOB'S COUNT AND ITS "THEN" (1009-job-counts.sql, plan L08): the line's end for a counted job, the how line over a gathering
+  /* A JOB'S COUNT AND ITS "THEN" (1018-job-counts.sql, plan L08): the line's end for a counted job, the how line over a gathering
      skill's rows, and the control that picks what the hero does when the count is done (one pick for the window, Wait by default). */
   now_then_wait: 'Then waits in town',
   now_then_hunt: 'Then goes back to hunting',

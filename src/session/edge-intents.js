@@ -140,7 +140,7 @@ const FIELD = Object.freeze({
     if (!v || typeof v !== 'object' || Array.isArray(v)) return null;
     if (v.kind === 'idle' && (v.id === undefined || v.id === null)) return { kind: 'idle' };
     if (!((v.kind === 'artisan' || v.kind === 'gather') && typeof v.id === 'string' && ID.test(v.id))) return null;
-    /* "Make N" (2026-12-01-bench-count.sql): a job may carry a whole count 1..100000, a gathering job always (1009-job-counts.sql);
+    /* "Make N" (2026-12-01-bench-count.sql): a job may carry a whole count 1..100000, a gathering job always (1018-job-counts.sql);
        the server stops there. Beside a count, `next`: what the hero does then (src/data/hunt-after.js JOB_NEXTS ids). */
     if (v.count === undefined || v.count === null) return v.kind === 'gather' || v.next !== undefined ? null : { kind: v.kind, id: v.id };
     if (!(Number.isInteger(v.count) && v.count >= 1 && v.count <= 100000)) return null;

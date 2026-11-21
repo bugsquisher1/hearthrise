@@ -43,7 +43,7 @@ export function accrueGather(inp, span) {
   const items = inp.items || {};
   const nodes = inp.nodes || {};
   const equipment = inp.equipment || {};
-  /* A JOB'S COUNT (1009-job-counts.sql): the swings this job may still make, from the server's own
+  /* A JOB'S COUNT (1018-job-counts.sql): the swings this job may still make, from the server's own
      player_state.active_left (envelope.js activeLeft). It caps the span, and the job ENDS on the swing that reaches
      it (below), so N swings are paid however the settles are cut. null = no count (a job set before counts). */
   const left0 = Number.isInteger(inp.activeLeft) && inp.activeLeft > 0 ? inp.activeLeft : null;
@@ -322,7 +322,7 @@ export function accrueGather(inp, span) {
       : finds[0];
   }
   if (nodeStopped) delta.activity = { kind: 'idle', id: null };
-  /* A JOB'S COUNT (1009-job-counts.sql): a job still short of its count proposes the lowered count; a job that ENDS
+  /* A JOB'S COUNT (1018-job-counts.sql): a job still short of its count proposes the lowered count; a job that ENDS
      states what it left beside its `activity: idle` (0 = counted out, which is what lets hr_apply run the job's THEN).
      hr_apply accepts only a count at or below the stored one, so a replayed or re-cut window cannot pay past N. */
   if (left1 !== null && (nodeStopped || left1 < left0)) delta.active_left = left1;

@@ -102,7 +102,7 @@ const EXTRA = [
   ['tool-carry', MIG('2026-08-15-tool-carry.sql')],
   /* Inner Flame replaced Prayer (2027-01-31): the slice's catalogue under today's names (A3d); see the file. */
   ['inner-flame-slice-shim', join(ROOT, 'tests', 'fixtures', 'inner-flame-slice-shim.sql')],
-  /* every gathering job carries a count since 1009-job-counts.sql: the slice READS the key (and `next`); see the file. */
+  /* every gathering job carries a count since 1018-job-counts.sql: the slice READS the key (and `next`); see the file. */
   ['job-counts-slice-shim', join(ROOT, 'tests', 'fixtures', 'job-counts-slice-shim.sql')],
 ];
 

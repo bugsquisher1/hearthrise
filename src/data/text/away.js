@@ -48,7 +48,7 @@ export const AWAY_TEXT = Object.freeze({
   work_how_left: '{n} more to go. Press Stop in Gathering and crafting to end it sooner.',
   work_how_bench: 'It stops when the materials run out, or press Stop in Gathering and crafting.',
   work_change: 'Stop or change it',
-  /* A JOB'S COUNT AND ITS "THEN" (1009-job-counts.sql, plan L08): the server's count ({done} of {count}) and what the hero does at the end. */
+  /* A JOB'S COUNT AND ITS "THEN" (1018-job-counts.sql, plan L08): the server's count ({done} of {count}) and what the hero does at the end. */
   work_how_count: '{done} of {count} done. {after}',
   work_then_wait: 'Then it waits in town.',
   work_then_hunt: 'Then it goes back to hunting.',

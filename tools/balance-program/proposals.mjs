@@ -43,7 +43,22 @@ export function loadProposals(root = ROOT) {
    charged for a hero slot, so it is an identity on every cell; the readings it retires (the slot-arrival day and the slot-price guard cells)
    are listed so the dashboard drops them from the proposed side */
 export const retiredOn = (reg) => new Set(reg.frame.flatMap((f) => f.retires || []));
-const readPatch = (root, p) => (p.patch ? JSON.parse(readFileSync(join(root, 'tools/balance-program', p.patch), 'utf8')) : {});
+/* a proposal plays one patch file, or several in order (GR-27: Dangerous brings five, then the balance pass's one blow dial): edits in order,
+   knobs multiplied, plan steps merged (a later file's wins), targets joined, the last file's kind */
+const readPatch = (root, p) => {
+  const files = Array.isArray(p.patch) ? p.patch : p.patch ? [p.patch] : [];
+  const out = { schema: 'hearthrise.balance-patch/1', knobs: {}, edits: [], plan: {}, targets: [] };
+  for (const file of files) {
+    const x = JSON.parse(readFileSync(join(root, 'tools/balance-program', file), 'utf8'));
+    if (files.length === 1) return x;
+    for (const [k, m] of Object.entries(x.knobs || {})) out.knobs[k] = (out.knobs[k] || 1) * m;
+    out.edits.push(...(x.edits || [])); Object.assign(out.plan, x.plan || {});
+    for (const t of x.targets || []) if (!out.targets.includes(t)) out.targets.push(t);
+    if (x.kind) out.kind = x.kind;
+    out.name = (out.name ? out.name + ' + ' : '') + (x.name || file);
+  }
+  return files.length ? out : {};
+};
 
 /** One patch of several proposals (registry order, so the edits apply in a stable order and a conflict is found the same way each time). */
 export function composePatch(root, ids, o = {}) {
@@ -197,7 +212,8 @@ async function derive(o) {
     const s = await SC.plantScratch(composePatch(ROOT, ids, { reg }));
     try { return await BM.playRun(D, K, run, s.root, { workers: o.workers, quiet: true, calibrate: false, label }); } finally { s.done(); }
   };
-  /* R12: on the proposed game without R12 (and R13, which comes after it), the gear curve on (R10 before R12) */
+  /* R12: on the proposed game without R12 (and R13, which comes after it), the gear curve on (R10 before R12). `--r13-only` keeps R12 as written */
+  if (!o.r13Only) {
   const base12 = reg.recommended.filter((id) => !['GR-5', 'GR-6'].includes(id));
   const run12 = { id: 'derive-r12', levels: MP.RUNS.subset.levels, seeds: 1, hours: 1, blocks: [{ id: 'ways', comps: [[['hammer'], 'h']], gears: ['mid'], tiers: ['normal'] }] };
   const r12 = await playOn(base12, run12, 'R12 reference');
@@ -214,21 +230,36 @@ async function derive(o) {
     ] };
   writeFileSync(join(HERE, 'patches/R12-kill-reward.json'), JSON.stringify(patch12, null, 1) + '\n');
   console.log('R12: reference kill-health ' + c + ' x L^' + d + ' (' + ref.pts.length + ' points)');
-  /* R13: the pace seat (a MID four on the hardest tier it holds: the subset's four block, hardest) on the proposed game without R13 */
+  }
+  /* R13: the Level law's seat multiple, FITTED AT THE RULED POINTS (12-balance-pass.md 3.5 and 9: a median does not land the ruled Levels). The MID
+     four plays the subset's Levels to 400 on Dangerous and on the hardest tier it holds, on the proposed game without R13. The default seat is the
+     four on the hardest tier with no death (its Level XP before deaths); the Dangerous four after its deaths is the GR-6-seat toggle (12 section 7,
+     item 1, waits on Tyler). A seat at x(L) times the contract spends, from Level 10, hours(L) = m x the sum of the ruled hours a Level / x; m is the
+     one number that puts those hours on the ruled points' hours best (least squares on the logs). */
   const base13 = reg.recommended.filter((id) => id !== 'GR-6');
-  const run13 = { id: 'derive-r13', levels: MP.RUNS.subset.levels.filter((L) => L >= 30 && L <= 1000), seeds: 1, hours: 1, blocks: [{ id: 'four', comps: compsOf(4), gears: ['mid'], tiers: ['hardest'] }] };
-  const r13 = await playOn(base13, run13, 'R13 pace seat');
-  const xs = r13.cells.filter((x) => x.m && Number.isFinite(x.m.xContract)).map((x) => x.m.xContract).sort((a, b) => a - b);
-  const seat = Number(xs[Math.floor((xs.length - 1) / 2)].toFixed(3));
-  const targets = (await import('../../src/data/core-model.js')).LEVEL_PACE.targets;
+  const run13 = { id: 'derive-r13', levels: MP.RUNS.subset.levels.filter((L) => L >= 10 && L <= 400), seeds: 2, hours: 1, blocks: [{ id: 'four', comps: compsOf(4), gears: ['mid'], tiers: ['dangerous', 'hardest'] }] };
+  const r13 = await playOn(base13, run13, 'R13 pace seats');
+  const CM = (await import('../../src/data/core-model.js')).LEVEL_PACE;
+  const targets = CM.targets, contract = (L) => CM.contract.a * Math.max(1, L) ** CM.contract.b;
+  const lawH = (L) => { const p = targets; let i = 1; while (i < p.length - 1 && p[i][0] < L) i++; const [a, ha] = p[i - 1], [b, hb] = p[i]; return Math.exp(Math.log(ha) + (Math.log(hb) - Math.log(ha)) * (Math.log(L) - Math.log(a)) / (Math.log(b) - Math.log(a))); };
+  const hardestOf = (L) => { const ts = r13.cells.filter((c) => c.L === L && c.m).map((c) => c.tier); return ts.includes('deadly') ? 'deadly' : ts.includes('dangerous') ? 'dangerous' : null; };
+  const seatPoints = (tierAt, field) => r13.cells.filter((c) => c.m && c.tier === tierAt(c.L) && Number.isFinite(c.m[field]) && c.m[field] > 0).map((c) => [c.L, c.m[field] / contract(c.L)]).sort((a, b) => a[0] - b[0]);
+  const fitSeat = (pts) => {
+    const x = (L) => { if (L <= pts[0][0]) return pts[0][1]; for (let i = 1; i < pts.length; i++) if (L <= pts[i][0]) { const [a, xa] = pts[i - 1], [b, xb] = pts[i]; return xa * (xb / xa) ** ((L - a) / (b - a)); } return pts[pts.length - 1][1]; };
+    const ruled = targets.filter(([L]) => L > 10 && L <= 400), logs = [];
+    for (const [L, H] of ruled) { let S = 0; for (let l = 11; l <= L; l++) S += (lawH(l) - lawH(l - 1)) / x(l - 1); logs.push(Math.log((H - lawH(10)) / S)); }
+    return { m: Number(Math.exp(logs.reduce((a, b) => a + b, 0) / logs.length).toFixed(3)), points: pts.map(([L, v]) => [L, Number(v.toFixed(3))]), ruled: ruled.map(([L]) => L) };
+  };
+  const deadly = fitSeat(seatPoints(hardestOf, 'levelXpPerH')), dangerous = fitSeat(seatPoints(() => 'dangerous', 'netLevelXpPerH'));
+  const seat = deadly.m;
   const law = 'const LAW = { pts: ' + JSON.stringify(targets) + ', m: ' + seat + ', from: 10 };\n'
     + 'const lawH = (L) => { const p = LAW.pts; let i = 1; while (i < p.length - 1 && p[i][0] < L) i++; const [a, ha] = p[i - 1], [b, hb] = p[i]; return Math.exp(Math.log(ha) + (Math.log(hb) - Math.log(ha)) * (Math.log(L) - Math.log(a)) / (Math.log(b) - Math.log(a))); };\n'
     + 'const LAW_XP = [];\n'
     + 'const lawXp = (L) => { if (!LAW_XP.length) LAW_XP[LAW.from] = xpForLevelOn(LEVEL_ROWS, LAW.from); for (let l = LAW_XP.length; l <= L; l++) LAW_XP[l] = LAW_XP[l - 1] + Math.max(1, Math.round((lawH(l) - lawH(l - 1)) * LEVEL_PACE.contract.a * (l - 1) ** LEVEL_PACE.contract.b * LAW.m)); return LAW_XP[L]; };\n';
   const patch13 = { schema: 'hearthrise.balance-patch/1', name: 'R13: the Level law, your table of hours is the law (60 G-6, 44 section 5.2)', kind: 'derivation', targets: ['pace', 'P1', 'P11', 'P12'],
     why: 'From Level 10 the XP a Level costs = the ruled hours for it (log-linear between ' + targets.map(([L, h]) => L + ':' + h).join(', ') + ', on at the last slope) x the pace contract x the pace seat\'s multiple, '
-      + seat + ' (the median xContract of a MID four on the hardest tier it holds, MEASURED on the proposed game without R13). Levels 1 to 10 keep today\'s steps (27-2). Not the withdrawn power law',
-    measuredOn: { proposals: base13, seatMultiples: xs },
+      + seat + ': the MID four on the hardest tier it holds with no death, FITTED at the ruled points ' + deadly.ruled.join(', ') + ' (12-balance-pass.md 3.5 and 9), MEASURED on the proposed game without R13 (2 seeds of 1 hour). Levels 1 to 10 keep today\'s steps (27-2). Not the withdrawn power law',
+    measuredOn: { proposals: base13, seat: 'mid four, hardest tier, no death', points: deadly.points },
     edits: [
       { file: 'src/core/xp.js', from: "import { LEVEL_CURVE, SKILL_CURVE } from '../data/core-model.js';", to: "import { LEVEL_CURVE, SKILL_CURVE, LEVEL_PACE } from '../data/core-model.js';" },
       { file: 'src/core/xp.js', from: 'export function charXpForLevel(lv) { return xpForLevelOn(LEVEL_ROWS, lv); }',
@@ -237,7 +268,13 @@ async function derive(o) {
         to: 'export function charLevelFromXp(xp) { { const x = Math.max(0, Math.floor(Number(xp) || 0)); if (x >= lawXp(LAW.from)) { let lo = LAW.from, hi = LAW.from * 2; while (lawXp(hi) <= x) hi *= 2; while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (lawXp(mid) <= x) lo = mid; else hi = mid; } return lo; } }' },
     ] };
   writeFileSync(join(HERE, 'patches/R13-level-law.json'), JSON.stringify(patch13, null, 1) + '\n');
-  console.log('R13: pace seat multiple ' + seat + ' (median of ' + xs.join(', ') + ')');
+  /* the GR-6-seat toggle: the same law timed on the Dangerous four after its deaths, one edit on R13's multiple */
+  const seatPatch = { schema: 'hearthrise.balance-patch/1', name: 'Balance pass: the Level law timed on the MID four on Dangerous (seat multiple ' + dangerous.m + ', the default ' + seat + ')',
+    why: 'R13 times the XP a Level costs on the MID four on the hardest tier it holds with no death (' + seat + '). The sitting ruled Deadly a tier you watch or gamble on and Dangerous the idle tier (S-6), so the four that is left alone hunts Dangerous. Its multiple, FITTED at the ruled points ' + dangerous.ruled.join(', ') + ' on its XP after deaths, is ' + dangerous.m + ' (MEASURED on the proposed game without R13, 2 seeds of 1 hour; 12-balance-pass.md 3.5, item 1 of section 7 waits on Tyler). Layer: coefficient. Written by proposals.mjs --derive',
+    kind: 'coefficient', targets: ['P1', 'P12'], measuredOn: { proposals: base13, seat: 'mid four, Dangerous, after deaths', points: dangerous.points },
+    edits: [{ file: 'src/core/xp.js', from: 'm: ' + seat + ', from: 10 };', to: 'm: ' + dangerous.m + ', from: 10 };' }] };
+  writeFileSync(join(HERE, 'patches/bp-level-law-dangerous-seat.json'), JSON.stringify(seatPatch, null, 1) + '\n');
+  console.log('R13: the seat multiple fitted at the ruled points: the Deadly four, no death ' + seat + ' (points ' + JSON.stringify(deadly.points) + '); the Dangerous four ' + dangerous.m + ' (points ' + JSON.stringify(dangerous.points) + ')');
 }
 
 /* ── THE SELFTEST: the registry is whole, every toggle plants, and each proposal's patch moves its targets on the proposed game ────────── */
@@ -349,7 +386,7 @@ if (isMain(import.meta.url)) {
   const argv = process.argv.slice(2), arg = (k, dflt) => { const i = argv.indexOf('--' + k); return i >= 0 && argv[i + 1] ? argv[i + 1] : dflt; };
   if (argv.includes('--selftest')) process.exit(await selftest({ quick: argv.includes('--quick'), workers: Number(arg('workers', 4)) }));
   if (argv.includes('--write')) console.log('wrote ' + writeStatic().join(', '));
-  else if (argv.includes('--derive')) await derive({ workers: Number(arg('workers', 4)) });
+  else if (argv.includes('--derive')) await derive({ workers: Number(arg('workers', 4)), r13Only: argv.includes('--r13-only') });
   else {
     const reg = loadProposals();
     for (const f of reg.frame) console.log('FRAME ' + f.id + ' (' + f.label + '): ' + f.title + '. Retires ' + (f.retires || []).join(', '));

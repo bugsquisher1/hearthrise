@@ -133,8 +133,8 @@ export function readTracks(root = ROOT) {
 }
 /* THE BLESSING LADDER (the sitting S-5, RULED 2026-11-21, option B; 60 G-7): 6% flat, three Blessings, then a new one past the third whenever a
    blessed death would cost over about five hunted hours. MEASURED there: Levels 100, 185, 275 and 400; each halves what a blessed death still takes */
-export const BLESSING_LADDER = Object.freeze([100, 185, 275, 400]);
-export const blessedShareAt = (L, blessings = 3) => (blessings >= 3 ? STD.DEATH_COST.blessedShare * 0.5 ** BLESSING_LADDER.filter((x) => L >= x).length : null);
+/* the ladder's one home is standards.mjs (DEATH_COST beside it) */
+export const { BLESSING_LADDER, blessedShareAt } = STD;
 export const TRACK_EFFECTS = Object.freeze(['damage', 'defense', 'damage_crit', 'drop_rate', 'gold_find', 'combat_xp', 'all_xp']);
 export function trackBuffs(track, L) {
   const sumBy = {};

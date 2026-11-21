@@ -68,15 +68,15 @@
    "title": "A gear curve as a game formula",
    "modelled": true,
    "recommended": true,
-   "label": "HYPOTHESIS",
+   "label": "MEASURED",
    "layer": "formula (plan: the kit a cell wears)",
-   "patch": "patches/R10-gear-curve.json",
+   "patch": "patches/bp-gear-step-117.json",
    "shipsWith": [],
    "after": [],
    "before": [
     "GR-5"
    ],
-   "note": "Weapon and armor from Level 110 on the line (Dawnsteel x the band Level / 110), a band every +24% (110, 136, 169, 210, 260, 322, 400, then on). LOW one band back. The band size is HYPOTHESIS until one band is played. Uniques spending a budget (R11) are not modelled: past 110 every MID and BiS piece is the line piece"
+   "note": "The gear curve past tier 7 at the decided +17% a band (12-balance-pass.md 3.6, bp-gear-step-117; MEASURED for weapons on the dev PC, 2 seeds of 1 hour). Weapon and armor from Level 110 on the line; LOW one band back. Armor on the curve is worth nothing past Level 30 (an open item with the arrival kit). Uniques spending a budget (R11) are not modelled"
   },
   {
    "id": "GR-5",
@@ -206,13 +206,16 @@
    "recommended": true,
    "label": "MEASURED",
    "layer": "data",
-   "patch": "patches/world-2b-dangerous-five.json",
+   "patch": [
+    "patches/world-2b-dangerous-five.json",
+    "patches/bp-tiers-2500.json"
+   ],
    "shipsWith": [
     "GR-5b"
    ],
    "after": [],
    "before": [],
-   "note": "Dangerous brings five on every ground, Deadly keeps the full box. MEASURED on one seed an hour at today's dial (61 H6)"
+   "note": "Dangerous brings five (world-2b), and both harder tiers hit 2.5 times Normal on one blow dial (12-balance-pass.md 3.1, bp-tiers-2500: the pick, MEASURED on the death sample R2 and R4). The death count on each ground stays PROVISIONAL"
   },
   {
    "id": "GR-38",
@@ -355,6 +358,25 @@
    "before": [],
    "ruling": "RULED 2026-11-21, option C",
    "note": "RULED: size alone for the first build; the classes rule may return as one row once Deadly is sized on the fixed tool. The size values are the mixed party's cells (HYPOTHESIS until the size table is written). The lineups block keeps printing which fours win, as a report"
+  },
+  {
+   "id": "GR-6-seat",
+   "doc": [
+    "12-balance-pass.md 3.5, 7 item 1"
+   ],
+   "title": "The Level law timed on the MID four on Dangerous (the idle seat)",
+   "modelled": true,
+   "recommended": false,
+   "label": "COMPUTED",
+   "layer": "coefficient (R13's seat multiple)",
+   "patch": "patches/bp-level-law-dangerous-seat.json",
+   "shipsWith": [],
+   "after": [
+    "GR-6"
+   ],
+   "before": [],
+   "ruling": "waits on Tyler (12 section 7, item 1)",
+   "note": "OFF until Tyler answers 12 section 7 item 1. The default law is timed on the MID four on the hardest tier it holds with no death; this times it on the MID four on Dangerous after its deaths, fitted at the ruled points of the Level table (proposals.mjs --derive writes both). A four that farms Deadly safely then runs ahead of the table"
   },
   {
    "id": "world-1",

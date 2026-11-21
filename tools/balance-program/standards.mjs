@@ -134,7 +134,7 @@ export const BANDS = deep([
   b('TL3', 'talent', 'deaths a 1,000 hours on the hardest tier, every hero on Footing and Grit, MID four', { gear: 'mid', party: 4 }, 30, null, null, null, 'PROPOSED', 21, 'under 30 is the best-gear band (S6): Talents must not replace gear'),
   b('TL4', 'talent', 'builds within 3% of the best on Level XP an hour, same seats', {}, 2, null, null, null, 'PROPOSED', 21, 'one build alone at the top is a red: the sameness test'),
   b('P1', 'pace', 'hoursToLevel / PACE_TABLE', { seat: 'pace-seat', levels: [10, 25, 50, 100, 200, 300, 400] }, 0.90, 1.10, 0.85, 1.15, 'RULED', 21, '2026-10-25 section 2; which seat is call 1', { ruled: '2026-11-21', call: 1 }),
-  b('P2', 'pace', 'xContract', { gear: 'mid', party: 1, tier: 'normal' }, 0.95, 1.10, 0.85, 1.25, 'RULED', 21, 'the table\'s tolerance; old G1'),
+  b('P2', 'pace', 'xContract', { gear: 'mid', party: 1, tier: 'normal', way: 'hammer' }, 0.95, 1.10, 0.85, 1.25, 'RULED', 21, 'the table\'s tolerance; old G1', { groundMean: true, note: 'read on the hammer at a ground\'s mean; other ways print and judge nothing (12-balance-pass.md section 5, row 6)' }),
   b('P3', 'pace', 'xp / mid', { gear: 'low', party: 1, tier: 'normal' }, 0.80, 0.90, 0.70, 0.95, 'PROPOSED', 23, 'one weapon step plus accessories and two rungs'),
   b('P4', 'pace', 'xp / mid', { gear: 'bis', party: 1, tier: 'normal' }, 1.10, 1.20, null, 1.25, 'RULED', 23, 'call 3', { ruled: '2026-11-21', call: 3 }),
   b('P5', 'pace', 'xp bis / xp low', { same: 'seat', tier: 'normal' }, null, 1.50, null, 1.60, 'PROPOSED', 23, 'one set of monsters must serve both; Normal only: on the harder tiers LOW is ruled to fail (S3.low, S4.low, G-5)'),
@@ -145,9 +145,9 @@ export const BANDS = deep([
   b('P7.3', 'pace', 'xContract', { gear: 'mid', party: 3, tier: 'hardest-held' }, 1.5, 2.0, null, 2.2, 'RULED', 21, 'never played; the plan assumed 2.0 (call 8)', { ruled: '2026-11-21', call: 8, dropped: 'GR-67, RULED 2026-11-21: one party size is never a target against another' }),
   b('P7.4', 'pace', 'xContract', { gear: 'mid', party: 4, tier: 'hardest-held', levels: [30, 185] }, 1.8, 2.5, 1.6, 2.6, 'RULED', 21, '2026-11-16, 21-4; old G3', { dropped: 'GR-67, RULED 2026-11-21: one party size is never a target against another' }),
   b('P8', 'pace', 'xContract', { gear: 'bis', party: 4, tier: 'deadly' }, null, 2.75, null, 2.9, 'RULED', 21, '30-2; old G4'),
-  b('P9.dangerous', 'pace', 'xp / normal, same party', { holds: true, tier: 'dangerous' }, 1.10, 1.25, 1.0, null, 'PROPOSED', 21, 'the tier rows: 1.10 a kill, a pull of 8'),
-  b('P9.deadly', 'pace', 'xp / normal, same party', { holds: true, tier: 'deadly' }, 1.30, 1.60, 1.10, null, 'PROPOSED', 21, 'the tier rows: 1.25 a kill, a pull of 8'),
-  b('P10', 'pace', 'xp after deaths / the tier below', { holds: false }, null, 1.0, null, 1.0, 'RULED', 21, '2026-11-08: strong enough or not'),
+  b('P9.dangerous', 'pace', 'xp / normal, same party', { holds: true, tier: 'dangerous', party: 4 }, 1.10, 1.25, 1.0, null, 'PROPOSED', 21, 'the tier rows: 1.10 a kill, a pull of 8'),
+  b('P9.deadly', 'pace', 'xp / normal, same party', { holds: true, tier: 'deadly', party: 4 }, 1.30, 1.60, 1.10, null, 'PROPOSED', 21, 'the tier rows: 1.25 a kill, a pull of 8'),
+  b('P10', 'pace', 'xp after deaths / the tier below', { holds: false, party: 4 }, null, 1.0, null, 1.0, 'RULED', 21, '2026-11-08: strong enough or not'),
   b('P11.early', 'pace', 'hours for a Level', { seat: 'new-player', levels: [1, 9] }, null, 2, null, 2.5, 'RULED', 27, '27-2; old G6'),
   b('P11.ten', 'pace', 'hours to Level 10', { seat: 'new-player' }, 5, 7, null, 7, 'RULED', 27, '27-2; old G6'),
   b('P11.smooth', 'pace', 'hours for a Level / the Level before', { levels: [1, 400] }, null, 2, null, 2, 'RULED', 21, 'LEVEL_PACE.smooth'),
@@ -164,41 +164,41 @@ export const BANDS = deep([
   b('S2.low', 'survival', 'deathsPer1000h', { gear: 'low', tier: 'normal', inBand: true }, null, 5, null, 10, 'PROPOSED', 21, 'an arrival must survive Normal', { sample: 'nightly-deaths' }),
   b('S2.mid', 'survival', 'deathsPer1000h', { gear: 'mid', tier: 'normal', inBand: true }, null, 1, null, 2, 'RULED', 21, '2026-10-25 section 3', { sample: 'nightly-deaths' }),
   b('S2.bis', 'survival', 'deathsPer1000h', { gear: 'bis', tier: 'normal', inBand: true }, null, 0.1, null, 1, 'PROPOSED', 21, 'the ruled Easy row', { sample: 'nightly-deaths' }),
-  b('S3.mid', 'survival', 'lowHpTypical', { gear: 'mid', tier: 'dangerous', inBand: true }, 0.35, 0.60, 0.25, 0.70, 'RULED', 21, '2026-10-25 "Hard"'),
-  b('S3.bis', 'survival', 'lowHpTypical', { gear: 'bis', tier: 'dangerous', inBand: true }, 0.55, 0.75, 0.45, null, 'PROPOSED', 21, ''),
-  b('S4.mid', 'survival', 'lowHpTypical', { gear: 'mid', tier: 'deadly', inBand: true }, 0.15, 0.40, 0.10, 0.50, 'RULED', 21, '2026-10-25 "Extreme", kept by call 5', { ruled: '2026-11-21', call: 5 }),
-  b('S4.bis', 'survival', 'lowHpTypical', { gear: 'bis', tier: 'deadly', inBand: true }, 0.35, 0.50, 0.30, 0.55, 'RULED', 21, 'old G5'),
+  b('S3.mid', 'survival', 'lowHpTypical', { gear: 'mid', tier: 'dangerous', inBand: true, party: 4 }, 0.35, 0.60, 0.25, 0.70, 'RULED', 21, '2026-10-25 "Hard"', { reportOnly: 'the 2026-10-25 health row and the 2026-11-21 death count cannot both hold; S6 judges the tier on the death sample (12-balance-pass.md section 5, rows 2 and 3)' }),
+  b('S3.bis', 'survival', 'lowHpTypical', { gear: 'bis', tier: 'dangerous', inBand: true, party: 4 }, 0.55, 0.75, 0.45, null, 'PROPOSED', 21, '', { reportOnly: 'the 2026-10-25 health row and the 2026-11-21 death count cannot both hold; S6 judges the tier on the death sample (12-balance-pass.md section 5, rows 2 and 3)' }),
+  b('S4.mid', 'survival', 'lowHpTypical', { gear: 'mid', tier: 'deadly', inBand: true, party: 4 }, 0.15, 0.40, 0.10, 0.50, 'RULED', 21, '2026-10-25 "Extreme", kept by call 5', { ruled: '2026-11-21', call: 5, reportOnly: 'the 2026-10-25 health row and the 2026-11-21 death count cannot both hold; S6 judges the tier on the death sample (12-balance-pass.md section 5, rows 2 and 3)' }),
+  b('S4.bis', 'survival', 'lowHpTypical', { gear: 'bis', tier: 'deadly', inBand: true, party: 4 }, 0.35, 0.50, 0.30, 0.55, 'RULED', 21, 'old G5', { reportOnly: 'the 2026-10-25 health row and the 2026-11-21 death count cannot both hold; S6 judges the tier on the death sample (12-balance-pass.md section 5, rows 2 and 3)' }),
   b('S5.low', 'survival', 'damageTaken / mid', { gear: 'low' }, 1.15, 1.35, null, 1.50, 'PROPOSED', 23, 'an armor step is 3 to 5% (RULED); measured 13 to 26% a tier early'),
   b('S5.bis', 'survival', 'damageTaken / mid', { gear: 'bis' }, 0.80, 0.90, 0.70, null, 'RULED', 23, 'call 3', { ruled: '2026-11-21', call: 3 }),
   /* DEATHS IN 1,000 HUNTED HOURS ON THE HARDER TIERS, the same count at every checkpoint (RULED 2026-11-21, call 5: a flat count, not XP lost).
      MID is the 10-25 ruling's Hard and Extreme rows. LOW and BiS are the auditor's numbers. Normal is S2. */
-  b('S6.dangerous.low', 'survival', 'deathsPer1000h', { gear: 'low', tier: 'dangerous', inBand: true }, 60, 150, 40, null, 'PROPOSED', 21, 'an arrival should step down', { call: 5, sample: 'nightly-deaths' }),
-  b('S6.dangerous.mid', 'survival', 'deathsPer1000h', { gear: 'mid', tier: 'dangerous', inBand: true }, 10, 30, 5, 45, 'RULED', 21, '2026-10-25 "Hard"; flat at every Level by call 5', { ruled: '2026-11-21', call: 5, sample: 'nightly-deaths' }),
-  b('S6.dangerous.bis', 'survival', 'deathsPer1000h', { gear: 'bis', tier: 'dangerous', inBand: true }, 2, 10, null, 15, 'PROPOSED', 21, '', { call: 5, sample: 'nightly-deaths' }),
-  b('S6.deadly.low', 'survival', 'deathsPer1000h', { gear: 'low', tier: 'deadly' }, 200, null, 150, null, 'PROPOSED', 21, 'strong enough or not', { call: 5, sample: 'nightly-deaths' }),
-  b('S6.deadly.mid', 'survival', 'deathsPer1000h', { gear: 'mid', tier: 'deadly', inBand: true }, 50, 100, 30, 150, 'RULED', 21, '2026-10-25 "Extreme"; flat at every Level by call 5', { ruled: '2026-11-21', call: 5, sample: 'nightly-deaths' }),
-  b('S6.deadly.bis', 'survival', 'deathsPer1000h', { gear: 'bis', tier: 'deadly', inBand: true }, 10, 30, null, 45, 'PROPOSED', 21, '', { call: 5, sample: 'nightly-deaths' }),
+  b('S6.dangerous.low', 'survival', 'deathsPer1000h', { gear: 'low', tier: 'dangerous', inBand: true, party: 4 }, 60, 150, 40, null, 'PROPOSED', 21, 'an arrival should step down', { call: 5, sample: 'nightly-deaths' }),
+  b('S6.dangerous.mid', 'survival', 'deathsPer1000h', { gear: 'mid', tier: 'dangerous', inBand: true, party: 4 }, 10, 30, 5, 45, 'RULED', 21, '2026-10-25 "Hard"; flat at every Level by call 5', { ruled: '2026-11-21', call: 5, sample: 'nightly-deaths' }),
+  b('S6.dangerous.bis', 'survival', 'deathsPer1000h', { gear: 'bis', tier: 'dangerous', inBand: true, party: 4 }, 2, 10, null, 15, 'PROPOSED', 21, '', { call: 5, sample: 'nightly-deaths' }),
+  b('S6.deadly.low', 'survival', 'deathsPer1000h', { gear: 'low', tier: 'deadly', party: 4 }, 200, null, 150, null, 'PROPOSED', 21, 'strong enough or not', { call: 5, sample: 'nightly-deaths' }),
+  b('S6.deadly.mid', 'survival', 'deathsPer1000h', { gear: 'mid', tier: 'deadly', inBand: true, party: 4 }, 50, 100, 30, 150, 'RULED', 21, '2026-10-25 "Extreme"; flat at every Level by call 5', { ruled: '2026-11-21', call: 5, sample: 'nightly-deaths' }),
+  b('S6.deadly.bis', 'survival', 'deathsPer1000h', { gear: 'bis', tier: 'deadly', inBand: true, party: 4 }, 10, 30, null, 45, 'PROPOSED', 21, '', { call: 5, sample: 'nightly-deaths' }),
   b('S7.mid', 'survival', 'share of 12 h Normal hunts that finish', { gear: 'mid', tier: 'normal', inBand: true }, 0.99, null, 0.97, null, 'RULED', 21, '2026-10-25 section 3', { sample: 'nightly-deaths' }),
   b('S7.low', 'survival', 'share of 12 h Normal hunts that finish', { gear: 'low', tier: 'normal', inBand: true }, 0.90, null, 0.80, null, 'PROPOSED', 21, '', { sample: 'nightly-deaths' }),
   /* THE DEATH RULES' OWN BAND (the progression review, 2026-11-21: a patch that halved the death loss moved 0 bands, because a 2 hour cell records almost
      no death and no band read XP after deaths). Derived, never counted: the hardest tier the MID four holds, its Level XP a head after deaths AT THE TOP OF
      THE RULED COUNT (S6's MID row: Dangerous 30, Deadly 100 in 1,000 hours) at the ruled cost (DEATH_COST), over the lone MID hero's on Normal. Under 1 a
      party that dies as often as the ruling says is slower than its heroes alone (RULED 11-16: a party stands at or over its heroes alone). */
-  b('S11.blessed', 'death', 'xp a head after deaths at the ruled count, the hardest tier the four holds / the lone hero on Normal, every Blessing', { gear: 'mid', party: 4, levels: [5, 400] }, 1.0, null, 1.0, null, 'PROPOSED', 21, 'the death rules move this band and no other'),
-  b('S11.unblessed', 'death', 'the same with no Blessing', { gear: 'mid', party: 4, levels: [5, 400] }, 1.0, null, 1.0, null, 'PROPOSED', 21, 'a party that buys no Blessing'),
+  b('S11.blessed', 'death', 'xp a head after deaths at the ruled count, the hardest tier the four holds / the lone hero on Normal, every Blessing', { gear: 'mid', party: 4, levels: [5, 400] }, 1.0, null, 1.0, null, 'PROPOSED', 21, 'the death rules move this band and no other', { reader: 'the Blessing ladder (S-5) at the measured death count (12-balance-pass.md section 5, row 7)' }),
+  b('S11.unblessed', 'death', 'the same with no Blessing', { gear: 'mid', party: 4, levels: [5, 400] }, 1.0, null, 1.0, null, 'PROPOSED', 21, 'a party that buys no Blessing', { reader: 'the Blessing ladder (S-5) at the measured death count (12-balance-pass.md section 5, row 7)' }),
   b('S10', 'death', 'Blessing set price in hours of net gold / hours it saves', { levels: [30, 400] }, null, 0.20, null, 0.35, 'PROPOSED', 24, '21-8 was sized against a death worth 7 to 27 hours'),
 
   // ── gold ── no band names a gold number not yet measured on this frame
-  b('G-1', 'gold', 'netGold, checkpoint over the one before', { gear: 'mid', party: 1, tier: 'normal' }, 1.0, null, 1.0, null, 'RULED', 24, '24-2; old G7'),
-  b('G-2.normal', 'gold', 'storeBill / coin', { gear: 'mid', tier: 'normal', inBand: true }, null, 0.15, null, 0.25, 'PROPOSED', 24, ''),
-  b('G-2.dangerous', 'gold', 'storeBill / coin', { gear: 'mid', tier: 'dangerous', inBand: true }, 0.25, 0.40, 0.15, 0.55, 'PROPOSED', 24, 'struggle or pay'),
-  b('G-2.deadly', 'gold', 'storeBill / coin', { gear: 'mid', tier: 'deadly', inBand: true }, 0.45, 0.65, 0.35, 0.80, 'PROPOSED', 24, 'REAL: 48% for the real four'),
-  b('G-3', 'gold', 'netGold / mid', { gear: 'low', tier: 'normal' }, 0.60, 0.85, 0.0, null, 'PROPOSED', 24, 'an arrival still earns its way to MID'),
+  b('G-1', 'gold', 'netGold, checkpoint over the one before', { gear: 'mid', party: 1, tier: 'normal' }, 1.0, null, 1.0, null, 'RULED', 24, '24-2; old G7', { reportOnly: 'ruled 2026-11-13: profit is reported, never graded (12-balance-pass.md section 5, row 5)' }),
+  b('G-2.normal', 'gold', 'storeBill / coin', { gear: 'mid', tier: 'normal', inBand: true }, null, 0.15, null, 0.25, 'PROPOSED', 24, '', { reportOnly: 'ruled 2026-11-13: profit is reported, never graded (12-balance-pass.md section 5, row 5)' }),
+  b('G-2.dangerous', 'gold', 'storeBill / coin', { gear: 'mid', tier: 'dangerous', inBand: true }, 0.25, 0.40, 0.15, 0.55, 'PROPOSED', 24, 'struggle or pay', { reportOnly: 'ruled 2026-11-13: profit is reported, never graded (12-balance-pass.md section 5, row 5)' }),
+  b('G-2.deadly', 'gold', 'storeBill / coin', { gear: 'mid', tier: 'deadly', inBand: true }, 0.45, 0.65, 0.35, 0.80, 'PROPOSED', 24, 'REAL: 48% for the real four', { reportOnly: 'ruled 2026-11-13: profit is reported, never graded (12-balance-pass.md section 5, row 5)' }),
+  b('G-3', 'gold', 'netGold / mid', { gear: 'low', tier: 'normal' }, 0.60, 0.85, 0.0, null, 'PROPOSED', 24, 'an arrival still earns its way to MID', { reportOnly: 'ruled 2026-11-13: profit is reported, never graded (12-balance-pass.md section 5, row 5)' }),
   b('G-4', 'gold', 'netGold a hero-hour', { gear: 'mid', party: 4, tier: 'deadly', levels: [50, 110] }, 3000, 8000, 0, null, 'RULED', 24, '30-5; old G8'),
-  b('G-5', 'gold', 'netGold a hero-hour', { gear: 'low', tier: 'deadly' }, null, 0, null, 0, 'RULED', 24, '2026-11-19: "wasting money"'),
-  b('G-6', 'gold', 'netGold bis deadly / netGold mid dangerous', { same: 'party' }, 1.0, null, 1.0, null, 'PROPOSED', 24, 'the top kit turns the top tier into profit'),
+  b('G-5', 'gold', 'netGold a hero-hour', { gear: 'low', tier: 'deadly', party: 4 }, null, 0, null, 0, 'RULED', 24, '2026-11-19: "wasting money"'),
+  b('G-6', 'gold', 'netGold bis deadly / netGold mid dangerous', { same: 'party' }, 1.0, null, 1.0, null, 'PROPOSED', 24, 'the top kit turns the top tier into profit', { reportOnly: 'ruled 2026-11-13: profit is reported, never graded (12-balance-pass.md section 5, row 5)' }),
   b('G-8', 'gold', 'price / buyer net gold a 12 h day', { powerBearing: true }, null, 60, null, 90, 'PROPOSED', 24, 'small under 1 day, band goal 3 to 10, long goal 20 to 60'),
-  b('G-9', 'gold', 'repeating sinks a day / gold in a day', { gear: 'mid', fromLevel: 30 }, 0.35, 0.50, 0.25, 0.65, 'PROPOSED', 24, 'the plan\'s dashboard promise'),
+  b('G-9', 'gold', 'repeating sinks a day / gold in a day', { gear: 'mid', fromLevel: 30 }, 0.35, 0.50, 0.25, 0.65, 'PROPOSED', 24, 'the plan\'s dashboard promise', { retired: 'it read the store share as every repeating sink; no sink model exists (12-balance-pass.md section 5, row 4)' }),
   b('G-10', 'gold', 'standing prices of a band / the band\'s net gold', { gear: 'mid', party: 1 }, 1.2, 1.4, 1.2, 1.4, 'RULED', 24, '2026-11-18 "choose what matters"; old G15'),
   b('G-11', 'gold', 'server gold destroyed / created, a day', { serverAgeDays: 30 }, 0.85, 1.00, 0.70, null, 'PROPOSED', 24, 'CITED practice (verify)'),
 
@@ -231,11 +231,15 @@ export const BANDS = deep([
   /* SERVER COST (RULED 2026-11-21, call 10 re-ruled: $0.15 an account-month at 1,000 accounts, no higher at 10,000). C2 is COMPUTED from it and 28-platform's ASSUMED
      list prices: one core carries 30,240 database-seconds a day (0.7 x 86,400 / 2). 1,000: $150 less about $80 of other lines = Medium ($60, 2 shared cores) = 60.
      10,000: $1,500 less about $1,015 = 2XL ($410, 8 cores) = 24. C1 = C2 / 48 hunted hero-hours. Today about 600; the four planned fixes about 190. */
-  b('C1.1k', 'cost', 'database seconds a hunted hero-hour, at 1,000 accounts', {}, null, 1.25, null, 1.5, 'COMPUTED', 28, 'C2.1k / 48'),
-  b('C1.10k', 'cost', 'database seconds a hunted hero-hour, at 10,000 accounts', {}, null, 0.5, null, 0.6, 'COMPUTED', 28, 'C2.10k / 48'),
-  b('C2.1k', 'cost', 'database seconds an account-day, four heroes at 12 h, at 1,000 accounts', {}, null, 60, null, 70, 'COMPUTED', 28, 'from the ruled $0.15 and 28\'s price list; old G16', { ruled: '2026-11-21', call: 10 }),
-  b('C2.10k', 'cost', 'database seconds an account-day, four heroes at 12 h, at 10,000 accounts', {}, null, 24, null, 30, 'COMPUTED', 28, 'from the ruled $0.15 and 28\'s price list', { ruled: '2026-11-21', call: 10 }),
-  b('C3', 'cost', 'journal rows a hero an hour an activity', {}, null, 1, null, 2, 'RULED', 28, '28-2'),
+  /* MM-26's CHECK G (06-mmo-layer.md: no buffed four holds a tier the plain four cannot enter). 12-balance-pass.md section 5 row 11 would drop it;
+     that waits on Tyler (section 7, item 4), so it stays, report only. Read off the matrix's buff block (a buffed four on the hardest tier that holds
+     where the plain one does not) */
+  b('MM26.G', 'buff', 'buffed fours that hold a tier the plain four cannot enter', { party: 4 }, null, 0, null, 0, 'PROPOSED', 24, 'MM-26 check G', { reportOnly: 'fails by design on a cliff, waits on Tyler (12-balance-pass.md section 7, item 4)' }),
+  b('C1.1k', 'cost', 'database seconds a hunted hero-hour, at 1,000 accounts', {}, null, 1.25, null, 1.5, 'COMPUTED', 28, 'C2.1k / 48', { reader: 'study 48\'s design numbers (48-platform-cost.md section 1, the 3.5-hour tab) (12-balance-pass.md section 5, row 9)' }),
+  b('C1.10k', 'cost', 'database seconds a hunted hero-hour, at 10,000 accounts', {}, null, 0.5, null, 0.6, 'COMPUTED', 28, 'C2.10k / 48', { reader: 'study 48\'s design numbers (48-platform-cost.md section 1, the 3.5-hour tab) (12-balance-pass.md section 5, row 9)' }),
+  b('C2.1k', 'cost', 'database seconds an account-day, four heroes at 12 h, at 1,000 accounts', {}, null, 60, null, 70, 'COMPUTED', 28, 'from the ruled $0.15 and 28\'s price list; old G16', { ruled: '2026-11-21', call: 10, reader: 'study 48\'s design numbers (48-platform-cost.md section 1, the 3.5-hour tab) (12-balance-pass.md section 5, row 9)' }),
+  b('C2.10k', 'cost', 'database seconds an account-day, four heroes at 12 h, at 10,000 accounts', {}, null, 24, null, 30, 'COMPUTED', 28, 'from the ruled $0.15 and 28\'s price list', { ruled: '2026-11-21', call: 10, reader: 'study 48\'s design numbers (48-platform-cost.md section 1, the 3.5-hour tab) (12-balance-pass.md section 5, row 9)' }),
+  b('C3', 'cost', 'journal rows a hero an hour an activity', {}, null, 1, null, 2, 'RULED', 28, '28-2', { reader: 'study 48\'s design numbers (48-platform-cost.md section 1, the 3.5-hour tab) (12-balance-pass.md section 5, row 9)' }),
   b('C4.1k', 'cost', 'dollars an account-month at 1,000 accounts', {}, null, 0.15, null, 0.15, 'RULED', 28, 'call 10, re-ruled: about $150 a month', { ruled: '2026-11-21', call: 10 }),
   b('C4.10k', 'cost', 'dollars an account-month at 10,000 accounts', {}, null, 0.15, null, 0.15, 'RULED', 28, 'call 10, re-ruled: no higher at 10,000', { ruled: '2026-11-21', call: 10 }),
   b('C4b.1k', 'cost', 'dollars a month that are not the database, at 1,000 accounts', {}, null, 80, null, 90, 'PROPOSED', 28, 'ASSUMED from 28\'s list prices at 3.3 h; re-read at 12 h'),
@@ -353,7 +357,8 @@ export const GRID = deep({
   },
   budgetsAre: 'ASSUMED from 28\'s 5 to 9 s a point; the harness build measures and re-cuts them',
   /* A kit holds a tier when all three are true on the nightly sample (50-standards 2.3). */
-  holds: ['deathsPer1000h at or under the top of S6\'s MID row for the tier', 'lowHpTypical inside S3 or S4', 'netGold over zero'],
+  /* 12-balance-pass.md section 5 row 10 (ruled 2026-11-13: profit is reported, never graded): "net gold over zero" is dropped */
+  holds: ['deathsPer1000h at or under the top of S6\'s MID row for the tier', 'lowHpTypical inside S3 or S4'],
 });
 
 export const GUARD_MAP = deep({ G1: 'P2', G3: 'P7.4', G4: 'P8', G5: 'S4.bis', G6: 'P11.ten', G7: 'G-1', G8: 'G-4', G9: 'X1', G10: 'E7', G12: 'E8', G13: 'D4',
@@ -399,6 +404,10 @@ export const GAPS = deep([
 
 /* THE DEATH PENALTY (RULED 2026-11-21, call 4): 6% of all Level XP, flat, no cap in hours. A printed table, never a band.
    hoursUnblessed is COMPUTED on this commit at the contract rate (the grid re-derives); fully blessed is a quarter. */
+/* THE BLESSING LADDER (the sitting S-5, RULED 2026-11-21, option B): three Blessings, then a new one past the third whenever a blessed death would cost
+   over about five hunted hours; MEASURED there at Levels 100, 185, 275 and 400 (60 G-7), each halving what a blessed death still takes */
+export const BLESSING_LADDER = Object.freeze([100, 185, 275, 400]);
+export const blessedShareAt = (L, blessings = 3) => (blessings >= 3 ? DEATH_COST.blessedShare * 0.5 ** BLESSING_LADDER.filter((x) => L >= x).length : null);
 export const DEATH_COST = deep({ share: 0.06, cap: null, label: 'RULED', ruled: '2026-11-21', call: 4,
   hoursUnblessed: { 30: 2.0, 50: 5.1, 100: 21.7, 200: 56.8, 300: 89, 400: 148 }, blessedShare: 0.25,
   watch: 'XP an hour after deaths, every tier and gear state at every checkpoint: at the ruled Deadly death count a fully blessed MID party loses more than Deadly adds from about Level 105 (COMPUTED, not played). No band judges it' });

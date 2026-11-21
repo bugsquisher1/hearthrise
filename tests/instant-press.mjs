@@ -3,7 +3,8 @@
 // tests/instant-press.mjs — EVERY PRESS ANSWERS AT ONCE, AND ?debug=live (tracker r20, r21).
 //
 //   node tests/instant-press.mjs            the rules
-//   node tests/instant-press.mjs --mutate   every planted defect must turn a rule RED
+//   node tests/instant-press.mjs --mutate   every planted defect must turn a NAMED rule RED (stopping at the first); a throw, a plant
+//                                           that does not parse or a line with no IP id is HARNESS, never a catch (tests/_mutant-verdict.mjs)
 //   node tests/instant-press.mjs --shots <dir>  also write the popup and the answer in view (1440x900, 667x375)
 //
 // mutant-anchors: src/shell/press-ack.js src/session/intent-ledger.js src/session/character-session.js src/app/live-overlay.js src/shell/windows/play-cap.js src/shell/intent-words.js src/styles/windows.css src/shell/widgets/alerts.js src/shell/windows/work.js
@@ -40,6 +41,7 @@ import { pathToFileURL } from 'node:url';
 import { ROOT, serve, SDK_STUB } from './_client-harness.mjs';
 import { scopedMutants } from '../tools/lib/mutant-scope.mjs';
 import { pinFonts } from './_test-fonts.mjs';
+import { harnessFail, judgePlanted, report, exitOf, cleanControl, stopAtFirstRed, FIRST_RED } from './_mutant-verdict.mjs';
 
 const { ITEMS } = await import(pathToFileURL(join(ROOT, 'src/data/items.js')).href);
 const { BUILD } = await import(pathToFileURL(join(ROOT, 'src/build-info.js')).href);
@@ -116,9 +118,10 @@ async function stub(page, s) {
   });
 }
 
-async function checks(overrides) {
+async function checks(overrides, { stopAtFirst = false } = {}) {
   const fails = await pure(overrides);
   if (overrides && fails.length) return fails;   // a mutant already caught needs no browser
+  if (stopAtFirst) stopAtFirstRed(fails);   // a mutant needs ONE red rule (tests/_mutant-verdict.mjs)
   const { server, port } = await serve(overrides);
   const browser = await leaseBrowser(chromium);
   const base = 'http://127.0.0.1:' + port;
@@ -382,7 +385,8 @@ async function checks(overrides) {
       await ctx.close();
     }
   } catch (e) {
-    fails.push('IP-1 the page broke: ' + String((e && e.message) || e).split('\n')[0]);
+    /* a step that threw is HARNESS, never a rule (it was "IP-1 the page broke", a named catch-all: tests/_mutant-verdict.mjs) */
+    if (e !== FIRST_RED) Array.prototype.push.call(fails, harnessFail('a page step', e));
   } finally {
     await browser.close();
     server.close();
@@ -419,18 +423,22 @@ async function main() {
   /* A gated push proves only the mutants its diff touches (tools/lib/mutant-scope.mjs); the nightly proves them all. */
   const MINE = scopedMutants('tests/instant-press.mjs', MUTANTS);
   if (!MINE.length) process.exit(0);
-  const clean = await checks(null);
-  if (clean.length) { console.log('  ✗ clean control RED: ' + clean.join('; ')); process.exit(1); }
-  let bad = 0;
+  const clean = await cleanControl(() => checks(null));
+  console.log(clean.line);
+  if (clean.code) process.exit(clean.code);
+  /* A mutant is caught only by a NAMED rule (IP-n); a plant that does not parse, a step that throws, or a line with no rule id is
+     HARNESS, never a catch (tests/_mutant-verdict.mjs; lane/c-hollow-proofs-browser 2026-11-20: a throw read "IP-1 the page broke", a
+     named catch-all, and this loop scored ANY fail line as the catch). */
+  const counts = { caught: 0, harness: 0, escaped: 0 };
   for (const [name, file, from, to] of MINE) {
     const text = (await readFile(join(ROOT, file), 'utf8')).replace(/\r\n/g, '\n');
-    if (!text.includes(from)) { console.log('  ✗ ' + name + ' — anchor not found in ' + file); bad++; continue; }
-    const fails = await checks({ [file]: text.replace(from, to) });
-    if (fails.length) console.log('  ✓ ' + name + ' — caught (' + fails[0].split(' ')[0] + ')');
-    else { console.log('  ✗ ' + name + ' — NOT caught'); bad++; }
+    if (!text.includes(from)) { console.log('  ✗ ' + name + ' — HARNESS: anchor not found in ' + file); counts.harness++; continue; }
+    const plant = { [file]: text.replace(from, to) };
+    console.log(report(name, await judgePlanted(plant, () => checks(plant, { stopAtFirst: true })), counts));
   }
-  console.log(bad ? 'instant-press --mutate: ' + bad + ' escaped' : 'instant-press --mutate: ' + MINE.length + '/' + MINE.length + ' mutants caught');
-  process.exit(bad ? 1 : 0);
+  console.log(exitOf(counts) ? 'instant-press --mutate: ' + counts.escaped + ' escaped, ' + counts.harness + ' HARNESS (not catches)'
+    : 'instant-press --mutate: ' + MINE.length + '/' + MINE.length + ' mutants caught, each by a named rule');
+  process.exit(exitOf(counts));
 }
 
 main();

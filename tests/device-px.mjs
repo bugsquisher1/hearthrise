@@ -3,7 +3,8 @@
 // tests/device-px.mjs — PIXEL ART DRAWS WHOLE DEVICE PX AT ANY DISPLAY SCALE, IN A REAL CHROMIUM (lane/a-visual-audit).
 //
 //   node tests/device-px.mjs            the rules
-//   node tests/device-px.mjs --mutate   every planted defect must turn a rule RED
+//   node tests/device-px.mjs --mutate   every planted defect must turn a NAMED rule RED; a throw, a plant that does not parse or a
+//                                       line with no DP id is HARNESS, never a catch (tests/_mutant-verdict.mjs)
 //
 // mutant-anchors: src/render/device-px.js src/app/boot.js src/styles/tokens.css src/styles/shell.css src/styles/windows.css src/styles/hunt.css
 // mutant-writes-tree: no — mutants are served overrides
@@ -33,6 +34,7 @@ import { pathToFileURL } from 'node:url';
 import { ROOT, serve, SDK_STUB } from './_client-harness.mjs';
 import { launchOptions } from './_chrome.mjs';
 import { pinFonts } from './_test-fonts.mjs';
+import { judgePlanted, report, exitOf, cleanControl } from './_mutant-verdict.mjs';
 
 const { decodePNG } = await import(pathToFileURL(join(ROOT, 'tools/world-art/png.mjs')).href);
 const BASE_ENV = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/alpha-envelope.json'), 'utf8'));
@@ -260,18 +262,21 @@ async function main() {
       : 'device-px: at 100, 110, 125, 150 and 175 % every pixel frame is whole device px an art px on every side, every item icon a whole scale (a bag icon x1 at 125 %, x2 at 150 %, inside its pocket), and a changed scale is written again');
     process.exit(fails.length ? 1 : 0);
   }
-  const clean = await checks(null);
-  if (clean.length) { console.log('  ✗ clean control RED: ' + clean.join('; ')); process.exit(1); }
-  let bad = 0;
+  const clean = await cleanControl(() => checks(null));
+  console.log(clean.line);
+  if (clean.code) process.exit(clean.code);
+  /* A mutant is caught only by a NAMED rule (DP-n); a plant that does not parse, a run that throws, or a line with no rule id is
+     HARNESS, never a catch (tests/_mutant-verdict.mjs; lane/c-hollow-proofs-browser 2026-11-20: this loop scored ANY fail line). */
+  const counts = { caught: 0, harness: 0, escaped: 0 };
   for (const [name, file, from, to, scales] of MUTANTS) {
     const text = (await readFile(join(ROOT, file), 'utf8')).replace(/\r\n/g, '\n');
-    if (text.split(from).length !== 2) { console.log('  ✗ ' + name + ' — anchor not found once in ' + file); bad++; continue; }
-    const fails = await checks({ [file]: text.replace(from, () => to) }, scales, false);
-    if (fails.length) console.log('  ✓ ' + name + ' — caught (' + fails[0].split(' ')[0] + ')');
-    else { console.log('  ✗ ' + name + ' — NOT caught'); bad++; }
+    if (text.split(from).length !== 2) { console.log('  ✗ ' + name + ' — HARNESS: anchor not found once in ' + file); counts.harness++; continue; }
+    const plant = { [file]: text.replace(from, () => to) };
+    console.log(report(name, await judgePlanted(plant, () => checks(plant, scales, false)), counts));
   }
-  console.log(bad ? 'device-px --mutate: ' + bad + ' escaped' : 'device-px --mutate: ' + MUTANTS.length + '/' + MUTANTS.length + ' mutants caught');
-  process.exit(bad ? 1 : 0);
+  console.log(exitOf(counts) ? 'device-px --mutate: ' + counts.escaped + ' escaped, ' + counts.harness + ' HARNESS (not catches)'
+    : 'device-px --mutate: ' + MUTANTS.length + '/' + MUTANTS.length + ' mutants caught, each by a named rule');
+  process.exit(exitOf(counts));
 }
 
 main();

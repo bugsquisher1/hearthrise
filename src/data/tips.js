@@ -5,7 +5,7 @@
 // thing, give an option to dismiss these tips and a setting in options to turn
 // it back on." Settings > Interface > "Show tips" is a player switch
 // (src/session/player-switch.js): one pick for every hero, kept in the residue.
-// Off, the coach's cards (src/shell/launcher.js heldCard) and the town criers'
+// Off, the coach's cards (src/shell/launcher-coach.js heldCard) and the town criers'
 // calls in Local chat (src/shell/town-criers.js) stay quiet; "Don't show tips"
 // on any card turns it off from there. The tutorial's own progress is the
 // server's and never moves with it (CLAUDE.md §6): on again, the coach shows

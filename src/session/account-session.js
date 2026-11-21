@@ -14,22 +14,16 @@
 //
 //   roster()      which slots this account owns and which hold a character
 //                 (its name and combat level), read from the server (hr_load
-//                 per owned slot; `hero_slots`: slot 0 and the starter slots
-//                 every account owns, plus any bought)
+//                 per owned slot; `hero_slots`: all four, every account's from its first second, 1036)
 //   notOpen()     the roster's heroes this tab has not open (the character strip
 //                 lists them as one-press opens, so no hero seems missing after a
 //                 reload that reopened only the tab's own: Andy 2026-11-09)
-//   slotOffer     the next hero slot the server sells this account ({ slotId, cost,
-//                 max }, from the envelope's `account.hero_slot_offer`), null at the
-//                 cap or before the roster has read it
-//   buySlot(slotId, slot)  ONE intent (hr_buy_hero_slot): buy that slot with the ACCOUNT's
-//                 gold (one purse, 2026-12-15-account-gold.sql); `slot` is the acting hero the
-//                 journal names. The server prices, checks and debits
 //   purse()       the account's gold as the newest answer any open hero read says it
 //                 ({ gold, v }: state.gold at wallet version state.gold_v), or null; a newer
 //                 one re-renders every other open hero (CharacterSession.notePurse)
-//   create(slot, name, colors)  ask the server to make the hero in an owned slot:
-//                 ONE intent (hr_create_hero) with its name and four dye indices;
+//   create(slot, name, colors, key, set)  ask the server to make the hero in an owned slot:
+//                 ONE intent (hr_create_hero) with its name, four dye indices and the starter set
+//                 picked (start-kit.js STARTER_SETS: the server checks it and pays the kit once);
 //                 a slot holding an unnamed character (roster `unnamed`) is named by it
 //   open(slot)    a CharacterSession for the slot: loaded, then connected
 //   close(slot)   leave and forget one character
@@ -49,6 +43,8 @@
 //                 `social` factory made for it (src/social/social-session.js,
 //                 handed in by src/app/boot.js), started once a character is
 //                 open, ended on sign-out
+//   coach         what the coach has taught this ACCOUNT (src/session/account-coach.js), handed to
+//                 each CharacterSession it opens (cs.accountCoach); a change repaints every open hero
 //   townOf(slot)  that character's TownPresence (src/session/town-presence.js):
 //                 who else stands in its town and where, made when it opens,
 //                 left and destroyed when it closes
@@ -65,6 +61,7 @@ import { benchJobOver } from './bench-sections.js';
 import { createIntentLedger } from './intent-ledger.js';
 import { purseOf, newerPurse, storageOf } from './item-sections.js';
 import { lastClimbOf } from './tower-sections.js';
+import { AccountCoach } from './account-coach.js';
 
 /* What the account's characters share: the depot (2026-11-27-account-depot.sql) and the
    farm land (2026-12-14-shared-farm.sql). A change to one re-reads the others. */
@@ -133,16 +130,6 @@ function doingOf(body) {
   return a.kind === 'busy' && !benchJobOver(read, Date.parse(body.now)) ? a.text : null;
 }
 
-/** The next hero slot the server sells, from an `account` section: { slotId, cost, max }, or null
-    (at the cap, or unstated: no offer is ever made up on this side). Pure. */
-export function slotOfferOf(account, cfg = SESSION_CONFIG) {
-  const o = account && typeof account === 'object' ? account.hero_slot_offer : null;
-  if (!o || typeof o !== 'object' || !Number.isInteger(o.slot_id) || o.slot_id < 1 || o.slot_id > cfg.maxSlot
-    || !Number.isSafeInteger(o.cost_gold) || o.cost_gold < 1) return null;
-  const max = Number.isInteger(account.hero_slots_max) && account.hero_slots_max > o.slot_id ? account.hero_slots_max : null;
-  return { slotId: o.slot_id, cost: o.cost_gold, max };
-}
-
 function newIdem() {
   const c = globalThis.crypto;
   return c && typeof c.randomUUID === 'function' ? c.randomUUID() : Date.now() + '-' + Math.floor(Math.random() * 1e9);
@@ -196,7 +183,9 @@ export class AccountSession {
     this._limit = null;
     this._roster = null;
     this._rosterReads = new Map();   // slot -> the roster's own hr_load answer, until that hero opens (_open)
-    this.slotOffer = null;
+    /* WHAT THE COACH HAS TAUGHT is the account's (1039-account-coach.sql): one store, every open hero reads it and repaints on it. */
+    this.coach = new AccountCoach(o.server || null);
+    this.coach.subscribe(() => { for (const cs of this._chars.values()) cs._emit('coach'); });
     this.viewed = null;
     this._purse = null;
     this._storage = null;   // { at, bank, depot }: the newest account Storage any open hero read (item-sections.js storageOf)
@@ -275,7 +264,7 @@ export class AccountSession {
   statedLimit() { this.limit(); return this._limit; }
 
   /** The roster rows as the server last read them (roster(): every owned slot, with or without a hero), or null
-      before the first read. A copy: the coach's facts (src/shell/launcher.js coachFactsOf) read it. */
+      before the first read. A copy: the coach's facts (src/shell/launcher-coach.js coachFactsOf) read it. */
   lastRoster() { return this._roster ? this._roster.map((r) => Object.assign({}, r)) : null; }
 
   /** The account's heroes this tab does NOT have open, as the roster last read them: [{ slot, name, level, doing }] in
@@ -335,7 +324,6 @@ export class AccountSession {
     if (first.closed) return [];
     const stated = accountLimitOf((k) => (first.ok && first.body ? first.body[k] : undefined));
     if (stated !== null) this._limit = stated;
-    this.slotOffer = slotOfferOf(first.ok && first.body ? first.body.account : null, this.config);
     const owned = ownedSlots(first.ok && first.body ? first.body.hero_slots : null, this.config);
     const answers = await Promise.all(owned.map((slot) => (slot === 0 ? first : this.server.rpc('hr_load', { p_slot: slot }))));
     this._rosterReads = new Map(owned.map((slot, i) => [slot, { ans: answers[i], at: this._nowMs() }]));
@@ -346,6 +334,7 @@ export class AccountSession {
         unnamed: !!(ans.ok && ans.body && ans.body.error === 'needs_name') }, heroOf(ans.ok ? ans.body : null));
     });
     this._roster = rows;
+    this.coach.load();   // what the coach has taught this account, read once a login (account-coach.js)
     this._emit('roster');   // the strip's not-open heroes are read from it (notOpen)
     return rows;
   }
@@ -360,40 +349,16 @@ export class AccountSession {
       retryAfterS: Number.isFinite(b.retry_after_s) ? b.retry_after_s : null };
   }
 
-  /** Ask the server to make the hero in an owned slot with its name and colours ({ head, body, legs, feet }
-      dye indices). { ok } or { ok:false, reason, nameReason }: the server's verdict, never the client's. */
-  create(slot, name, colors, key) {
+  /** Ask the server to make the hero in an owned slot with its name, colours ({ head, body, legs, feet } dye indices) and the
+      starter set picked (a STARTER_SETS id). { ok } or { ok:false, reason, nameReason }: the server's verdict, never the client's. */
+  create(slot, name, colors, key, set) {
     return this.intents.track('create_hero', async () => {
-      const ans = await this.server.rpc('hr_create_hero', { p_slot: slot, p_name: String(name || '').slice(0, 40), p_colors: colors, p_idem: key || newIdem() });
+      const ans = await this.server.rpc('hr_create_hero', { p_slot: slot, p_name: String(name || '').slice(0, 40), p_colors: colors,
+        p_set: typeof set === 'string' ? set.slice(0, 32) : null, p_idem: key || newIdem() });
       this._noteClosed(ans);
       const b = ans.body;
       const ok = !!(ans.ok && b && b.ok === true);
       return { ok, answered: !!b, error: ok ? null : (b && b.error) || ans.error || 'refused', reason: (b && b.error) || ans.error || null, nameReason: (b && b.reason) || null };
-    });
-  }
-
-  /**
-   * Buy hero slot `slotId` with the ACCOUNT's gold: ONE intent with its own key, an ask in the intent
-   * ledger; the server owns the price, the ladder, the cap and the debit. `paySlot` is the acting hero
-   * (the journal's provenance), never a choice of whose gold. On a yes that hero, if open, is re-read:
-   * its answer carries the new purse, which every other open hero then shows.
-   * { ok } or { ok:false, error, reason, shortBy }.
-   */
-  buySlot(slotId, paySlot) {
-    if (!Number.isInteger(slotId) || slotId < 1 || slotId > this.config.maxSlot
-      || !Number.isInteger(paySlot) || paySlot < 0 || paySlot > this.config.maxSlot) return Promise.resolve({ ok: false, error: 'bad_intent', reason: 'bad_intent', shortBy: null });
-    return this.intents.track('buy_hero_slot', async () => {
-      const ans = await this.server.rpc('hr_buy_hero_slot', { p_slot_id: slotId, p_slot: paySlot, p_idem: newIdem() });
-      this._noteClosed(ans);
-      const b = ans.body;
-      const ok = !!(ans.ok && b && b.ok === true);
-      if (ok) {
-        this.slotOffer = slotOfferOf(b, this.config);
-        const cs = this._chars.get(paySlot);
-        if (cs) await cs.load();
-      }
-      const reason = ok ? null : (b && b.error) || ans.error || 'refused';
-      return { ok, error: reason, reason, shortBy: !ok && b && Number.isSafeInteger(b.short_by) ? b.short_by : null };
     });
   }
 
@@ -418,6 +383,10 @@ export class AccountSession {
     /* ...and so is the Storage: every hero reads the newest copy any of them was told (item-sections.js bankOf). */
     cs.accountStorage = () => this._storage;
     cs.subscribe((s) => this._noteStorage(s));
+    /* ...and so is what the coach has taught (account-coach.js): read once a login, shared by every hero. */
+    cs.accountCoach = this.coach;
+    /* ...and the roster the server last read, so a hero's end card knows the heroes still to make (back-in-town.js partyToMake). */
+    cs.accountRoster = () => this._roster;
     this._chars.set(slot, cs);
     cs.subscribe((s, why) => { if (why === 'closed-game') this._noteClosed({ closed: true }); });
     /* THE BURNING TOWER'S BOARD (2027-04-30-tower-board.sql) is every hero's: a climb that ends moves the others' rank and rivals, which

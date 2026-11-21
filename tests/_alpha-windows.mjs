@@ -63,7 +63,7 @@ const ITEM_RPCS = ['hr_hunt_after_set', 'hr_item_lock', 'hr_loot_rule_set', 'hr_
 
 function scripted() {
   /* Like the real server, the residue a put stores comes back in every later envelope (client_state). */
-  const s = { env: clone(FIXTURE), version: 1, calls: [], delayMs: 300, reply: { ok: true }, residue: {} };
+  const s = { env: clone(FIXTURE), version: 1, calls: [], delayMs: 300, reply: { ok: true }, residue: {}, coach: { read: [], taught: [], v: 0 } };
   /* Like the real server, its clock moves between answers: the first read is a roster answer aged forward (account-session.js
      agedBy), and a later read stamped at the fixture's fixed `now` looks older, so _noteStorage drops every Storage change after it. */
   const said = s.env.now, born = Date.now();
@@ -103,6 +103,13 @@ async function stub(page, s) {
     }
     if (ITEM_RPCS.includes(name)) { await new Promise((ok) => setTimeout(ok, s.delayMs)); return json(s.reply); }
     if (name === 'hr_put_client_state') { Object.assign(s.residue, body.p_patch || {}); return json({ ok: true }); }
+    /* THE ACCOUNT'S COACH (1039-account-coach.sql): what was read and taught, a union of card ids, as the server keeps it */
+    if (name === 'hr_account_coach') {
+      const add = (have, more) => have.concat((Array.isArray(more) ? more : []).filter((x) => !have.includes(x)));
+      const read = add(s.coach.read, body.p_read), taught = add(s.coach.taught, body.p_taught);
+      if (read.length !== s.coach.read.length || taught.length !== s.coach.taught.length) s.coach = { read, taught, v: s.coach.v + 1 };
+      return json({ ok: true, read: s.coach.read, taught: s.coach.taught, v: s.coach.v });
+    }
     if (name === 'hr_account_items') {
       /* AW-75: the server stays silent until the rule lets it answer, or refuses */
       if (s.findGate) await s.findGate;
@@ -191,6 +198,8 @@ export async function pageRun(overrides, shots, { stopAtFirst = false } = {}, pu
     const s = scripted();
     if (o.mutateEnv) o.mutateEnv(s.env);
     if (o.residue) Object.assign(s.residue, o.residue);
+    /* a case's cards read are the ACCOUNT's now (1039): the coach's reads go to the account's row, the rest of the residue stays the hero's */
+    if (o.residue && o.residue.coach && Array.isArray(o.residue.coach.read)) s.coach = { read: o.residue.coach.read.slice(), taught: [], v: 1 };
     await stub(page, s);
     const up = await signInAndPlay(page, base);
     return { ctx, page, errors, s, up };

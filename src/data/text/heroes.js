@@ -84,7 +84,6 @@ export const HEROES_TEXT = Object.freeze({
   create_name: 'Name',
   create_name_hint: '3 to 20 letters',
   create_go: 'Enter town',
-  create_how: 'Fighting styles',
   create_more: 'More below',
   /* {outfit} the starting outfit, {parts} the parts the colors change ("hood and tunic") */
   create_start: 'Starting outfit: {outfit}',
@@ -97,4 +96,16 @@ export const HEROES_TEXT = Object.freeze({
   creating: 'Creating hero…',
   entering: 'Entering town…',
   enter_failed: 'Hero created, press Enter town again',
+  /* THE WEAPON PICK (GR-24, chapter 08 section 2.1): a card for each way to fight, none picked for the player */
+  create_pick: 'How this hero fights',
+  pick_needed: 'Pick how this hero fights first',
+  bad_set: 'Pick how this hero fights first',
+  /* HEROES TWO TO FOUR, pre-filled (chapter 08 section 2.1; designer D-1: the end card's press reads Build your party) */
+  company_title: 'Build your party',
+  company_lead: 'Your other heroes are ready to make. Change any of them, then press once.',
+  company_healer_one: 'Your party has one healer.',
+  company_healer_none: 'Your party has no healer.',
+  company_copy: 'Same colors as {name}',
+  company_go: { one: 'Create 1 hero', other: 'Create {count} heroes' },
+  company_one: 'One at a time',
 });

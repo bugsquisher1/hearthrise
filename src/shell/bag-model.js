@@ -302,7 +302,7 @@ export function lootToSell(items, needs) {
 }
 
 /** "Sell all junk": the plan its button shows and sends (src/shell/windows/shop.js) and the coach's `sellable` fact
-    reads (src/shell/launcher.js coachFactsOf), ONE function so the card and the button never disagree. `rules` and
+    reads (src/shell/launcher-coach.js coachFactsOf), ONE function so the card and the button never disagree. `rules` and
     `shop`: the server's sections (rulesOf, shopOf), or null. `needs`: upgradeNeeds. */
 export function lootSale(items, rules, shop, needs) {
   return sellPlan(items || [], lootToSell(items, needs), { locked: rules ? rules.locked : null, bids: shop ? shop.bids : null });

@@ -5,8 +5,8 @@
 --   perks}.js. Any hand edit here is reverted by the next generation and FAILS
 --   `node tools/gen-unlocks.mjs --check`, a preflight in tests/run-smoke.mjs.
 --
---   unlock digest: e3d1af9fdb1580203151256864af4e5f5b52b91e497e9faf0d6b7e0dda8b10af
---   16 unlock ids · character_slot=3 · property=5 · room=8
+--   unlock digest: cbfda196a6f571f0f4df4a708994c486d060a5d2221297a372443170c76d2ced
+--   13 unlock ids · property=5 · room=8
 --
 -- ⚠⚠⚠ DO NOT RE-APPLY THIS FILE STANDALONE — IT DESTROYS OTHER SEEDERS' ROWS.
 --   Its seed block opens with an UNSCOPED `delete from public.hr_unlocks` and
@@ -103,9 +103,6 @@ revoke all on public.hr_unlocks from public, anon, authenticated, service_role;
 insert into public.hr_unlocks
   (unlock_id, namespace, merge, progress_kind, max_value, rungs)
 values
-  ('character_slot:1', 'character_slot', 'flag', 'flag', null, null),
-  ('character_slot:2', 'character_slot', 'flag', 'flag', null, null),
-  ('character_slot:3', 'character_slot', 'flag', 'flag', null, null),
   ('property:castle', 'property', 'max', 'unlock', 5, array[5]::int[]),
   ('property:farmstead', 'property', 'max', 'unlock', 2, array[2]::int[]),
   ('property:homestead', 'property', 'max', 'unlock', 1, array[1]::int[]),
@@ -123,7 +120,7 @@ on conflict (unlock_id) do update set
   namespace = excluded.namespace, merge = excluded.merge,
   progress_kind = excluded.progress_kind, max_value = excluded.max_value,
   rungs = excluded.rungs;
-delete from public.hr_unlocks where unlock_id = any (array['bounty:auto_bounty_1', 'bounty:cosmetic_cape', 'bounty:free_reroll_2', 'bounty:mark_pouch', 'bounty:reroll_token', 'cosmetic:avatar_dragon', 'cosmetic:emote_pack', 'cosmetic:name_gold', 'cosmetic:pet_phoenix', 'dungeon_run:ancient_wyrm', 'dungeon_run:crypt_of_bones', 'dungeon_run:goblin_warcamp', 'dungeon_run:haunted_archive', 'dungeon_run:obsidian_keep', 'dungeon_run:voidbringer', 'recipe:alpha_pattern', 'recipe:captain_recipe', 'recipe:chief_blade_recipe', 'recipe:gemcutter_note', 'recipe:spellstone_diagram', 'plot:farm_plot', 'plot:scarecrow', 'plot:toolshed', 'plot:watchtower', 'worker', 'character_slot:4', 'recipe:field_cookbook', 'recipe:marrow_cookbook', 'recipe:soul_recipe', 'theme:default', 'theme:desert', 'theme:fairy', 'theme:forest', 'theme:volcanic', 'theme:winter']::text[]);
+delete from public.hr_unlocks where unlock_id = any (array['bounty:auto_bounty_1', 'bounty:cosmetic_cape', 'bounty:free_reroll_2', 'bounty:mark_pouch', 'bounty:reroll_token', 'cosmetic:avatar_dragon', 'cosmetic:emote_pack', 'cosmetic:name_gold', 'cosmetic:pet_phoenix', 'dungeon_run:ancient_wyrm', 'dungeon_run:crypt_of_bones', 'dungeon_run:goblin_warcamp', 'dungeon_run:haunted_archive', 'dungeon_run:obsidian_keep', 'dungeon_run:voidbringer', 'recipe:alpha_pattern', 'recipe:captain_recipe', 'recipe:chief_blade_recipe', 'recipe:gemcutter_note', 'recipe:spellstone_diagram', 'plot:farm_plot', 'plot:scarecrow', 'plot:toolshed', 'plot:watchtower', 'worker', 'character_slot:4', 'character_slot:1', 'character_slot:2', 'character_slot:3', 'recipe:field_cookbook', 'recipe:marrow_cookbook', 'recipe:soul_recipe', 'theme:default', 'theme:desert', 'theme:fairy', 'theme:forest', 'theme:volcanic', 'theme:winter']::text[]);
 
 -- ── SELF-CHECK ───────────────────────────────────────────────────────────
 do $$
@@ -133,9 +130,6 @@ begin
    where (u.unlock_id, u.namespace, u.merge, coalesce(u.progress_kind, ''), coalesce(u.max_value, -1), coalesce(u.rungs, '{}'::int[]))
       in (select x.unlock_id, x.namespace, x.merge, coalesce(x.progress_kind, ''), coalesce(x.max_value, -1), coalesce(x.rungs, '{}'::int[])
             from (values
-  ('character_slot:1', 'character_slot', 'flag', 'flag', null, null),
-  ('character_slot:2', 'character_slot', 'flag', 'flag', null, null),
-  ('character_slot:3', 'character_slot', 'flag', 'flag', null, null),
   ('property:castle', 'property', 'max', 'unlock', 5, array[5]::int[]),
   ('property:farmstead', 'property', 'max', 'unlock', 2, array[2]::int[]),
   ('property:homestead', 'property', 'max', 'unlock', 1, array[1]::int[]),
@@ -150,10 +144,10 @@ begin
   ('room:trophy', 'room', 'max', 'unlock', 5, array[1,2,3,4,5]::int[]),
   ('room:workshop', 'room', 'max', 'unlock', 5, array[1,2,3,4,5]::int[])
             ) as x (unlock_id, namespace, merge, progress_kind, max_value, rungs));
-  if v_n <> 16 then
-    raise exception 'hr_unlocks holds % of the 16 derived rows exactly — the upsert was partial', v_n;
+  if v_n <> 13 then
+    raise exception 'hr_unlocks holds % of the 13 derived rows exactly — the upsert was partial', v_n;
   end if;
-  select count(*) into v_n from public.hr_unlocks where unlock_id = any (array['bounty:auto_bounty_1', 'bounty:cosmetic_cape', 'bounty:free_reroll_2', 'bounty:mark_pouch', 'bounty:reroll_token', 'cosmetic:avatar_dragon', 'cosmetic:emote_pack', 'cosmetic:name_gold', 'cosmetic:pet_phoenix', 'dungeon_run:ancient_wyrm', 'dungeon_run:crypt_of_bones', 'dungeon_run:goblin_warcamp', 'dungeon_run:haunted_archive', 'dungeon_run:obsidian_keep', 'dungeon_run:voidbringer', 'recipe:alpha_pattern', 'recipe:captain_recipe', 'recipe:chief_blade_recipe', 'recipe:gemcutter_note', 'recipe:spellstone_diagram', 'plot:farm_plot', 'plot:scarecrow', 'plot:toolshed', 'plot:watchtower', 'worker', 'character_slot:4', 'recipe:field_cookbook', 'recipe:marrow_cookbook', 'recipe:soul_recipe', 'theme:default', 'theme:desert', 'theme:fairy', 'theme:forest', 'theme:volcanic', 'theme:winter']::text[]);
+  select count(*) into v_n from public.hr_unlocks where unlock_id = any (array['bounty:auto_bounty_1', 'bounty:cosmetic_cape', 'bounty:free_reroll_2', 'bounty:mark_pouch', 'bounty:reroll_token', 'cosmetic:avatar_dragon', 'cosmetic:emote_pack', 'cosmetic:name_gold', 'cosmetic:pet_phoenix', 'dungeon_run:ancient_wyrm', 'dungeon_run:crypt_of_bones', 'dungeon_run:goblin_warcamp', 'dungeon_run:haunted_archive', 'dungeon_run:obsidian_keep', 'dungeon_run:voidbringer', 'recipe:alpha_pattern', 'recipe:captain_recipe', 'recipe:chief_blade_recipe', 'recipe:gemcutter_note', 'recipe:spellstone_diagram', 'plot:farm_plot', 'plot:scarecrow', 'plot:toolshed', 'plot:watchtower', 'worker', 'character_slot:4', 'character_slot:1', 'character_slot:2', 'character_slot:3', 'recipe:field_cookbook', 'recipe:marrow_cookbook', 'recipe:soul_recipe', 'theme:default', 'theme:desert', 'theme:fairy', 'theme:forest', 'theme:volcanic', 'theme:winter']::text[]);
   if v_n <> 0 then
     raise exception 'hr_unlocks still holds % retired id(s)', v_n;
   end if;
@@ -185,5 +179,5 @@ begin
     raise exception 'the recipe namespace lost its flag storage — % of 0 rows', v_n;
   end if;
 
-  raise notice 'hr_unlocks OK — % ids, character_slot=3 · property=5 · room=8', 16;
+  raise notice 'hr_unlocks OK — % ids, property=5 · room=8', 13;
 end $$;

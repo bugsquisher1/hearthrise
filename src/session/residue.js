@@ -209,29 +209,23 @@ function sanitizePanelAlpha(v) {
   return Math.max(min, Math.min(max, Math.round(v / step) * step));
 }
 
-/* The coach line's fold (src/shell/launcher.js coachFoldOf): folded or not, and the card id the player last had in
-   front of them (a goal id joins its parts, so it may run long); and `read`, the tutorial cards the player pressed
-   Got it on or had on screen long enough to read (src/shell/launcher.js markCoachRead; ids, oldest first, bounded).
-   and `back`, the hunt session the player last came back to after an absence, with `backAt`, the stamp it was told from (src/shell/away-recap.js);
+/* The coach line's fold (src/shell/launcher-coach.js coachFoldOf): folded or not, and the card id the player last had in
+   front of them (a goal id joins its parts, so it may run long). What the coach has TAUGHT is the account's, not this hero's
+   (src/session/account-coach.js, 1039-account-coach.sql); and `back`, the hunt session the player last came back to after an absence, with `backAt`, the stamp it was told from (src/shell/away-recap.js);
    and `hid`, the cards the player pressed Got it on that a server fact finishes (Tyler 2026-11-11: tips are never mandatory): the
    card stays hidden, the chain's own progress stays the server's (ids, oldest first, bounded; a goal id joins its parts).
    Display state like the death popup's seen mark: a read only finishes a card that teaches; it gates and spends nothing. */
-export const COACH_READ_MAX = 128;
 export const COACH_HID_MAX = 64;
 function sanitizeCoach(v) {
   const out = {};
   if (!isObj(v)) return out;
   if (v.min === true) out.min = true;
   if (typeof v.seen === 'string' && /^[a-z0-9_]{1,256}$/.test(v.seen)) out.seen = v.seen;
-  if (Array.isArray(v.read)) {
-    const read = Array.from(new Set(v.read.filter((id) => typeof id === 'string' && /^[a-z0-9_]{1,64}$/.test(id)))).slice(-COACH_READ_MAX);
-    if (read.length) out.read = read;
-  }
   if (Array.isArray(v.hid)) {
     const hid = Array.from(new Set(v.hid.filter((id) => typeof id === 'string' && /^[a-z0-9_]{1,256}$/.test(id)))).slice(-COACH_HID_MAX);
     if (hid.length) out.hid = hid;
   }
-  /* the visit those hides hold for (src/shell/launcher.js visitOf: the hunt's session and in or back in town); a hide outlives no visit */
+  /* the visit those hides hold for (src/shell/launcher-coach.js visitOf: the hunt's session and in or back in town); a hide outlives no visit */
   if (out.hid && typeof v.hidIn === 'string' && /^[A-Za-z0-9_:.-]{1,64}$/.test(v.hidIn)) out.hidIn = v.hidIn;
   if (typeof v.back === 'string' && /^[A-Za-z0-9_:.-]{1,64}$/.test(v.back)) out.back = v.back;
   /* the last-seen stamp that return's line was told from (away-recap.js awayMinMsOf) */
@@ -281,7 +275,7 @@ const SANITIZERS = Object.freeze({
   huntStart: sanitizeHuntStart,     // display state: the server's Level and skill levels as the hunt began, for the end card (src/hunt-view/summary-recorder.js); gates and spends nothing
   winSize: sanitizeWinSize,         // display preference: a resizable window's size (src/shell/window-sizes.js); gates and spends nothing
   panelAlpha: sanitizePanelAlpha,   // display preference: the window opacity, a percent (src/shell/panel-alpha.js); gates and spends nothing
-  coach: sanitizeCoach,             // display state: the coach line folded to its title and the cards read (src/shell/launcher.js); gates and spends nothing
+  coach: sanitizeCoach,             // display state: the coach line folded to its title, this visit's hides, the return mark (src/shell/launcher-coach.js); gates and spends nothing
   marketView: sanitizeMarketView,   // display preference: the market window's category, sort, delivery and source; the server still decides each press
   marketSeen: sanitizeMarketSeen,   // display state: the newest market sale already told (src/shell/market-watch.js); gates and spends nothing
   townZoom: sanitizeTownZoom,       // display preference: the viewer's town zoom, one for every hero (src/world/town-zoom.js); gates and spends nothing

@@ -1,0 +1,58 @@
+# ============================================================================
+# balance-matrix-full — THE FULL BALANCE MATRIX, ONCE, SHARDED.
+#
+# tools/balance-program/balance-matrix.mjs on RUNS.full (every way, party,
+# gear state and tier at every checkpoint and the high Levels, the steps, the
+# lineups, the buff, binds and talent blocks and the ground axis: about 4,500
+# cells, 2 seeds x 2 hours each) on the proposed game (every recommended
+# proposal of tools/balance-program/proposals.json on a scratch copy), with
+# the measuring tool's step 1 in (the real death rule, the time booked as
+# hunted, real shopping, the four seated as the real four). Too heavy for a
+# PC: 16 jobs each play every 16th cell and upload their shard. A
+# MEASUREMENT, never a gate, and never on a lane, set, release or main push.
+#
+# Run it:   git push origin HEAD:refs/heads/balance-full/<lane>
+#           (only a branch under balance-full/ starts it)
+# Join:     gh run download <id> --dir <dir> --pattern 'matrix-shard-*'
+#           node tools/balance-program/balance-matrix.mjs --base proposed --join <dir>
+#           (writes tools/balance-program/balance-matrix-full-proposed.json and prints the report)
+# ============================================================================
+name: balance-matrix-full
+
+on:
+  push:
+    branches: ['balance-full/**']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: balance-full-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  shard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+    env:
+      SHARD: ${{ matrix.shard }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Play shard ${{ matrix.shard }} of 16 of the full matrix on the proposed game
+        run: node tools/balance-program/balance-matrix.mjs --base proposed --shard "$SHARD/16" --workers 4 --out "shard-$SHARD.json"
+      - name: Upload the shard
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: matrix-shard-${{ matrix.shard }}
+          path: shard-*.json
+          retention-days: 30

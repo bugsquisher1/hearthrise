@@ -132,6 +132,8 @@ tools/balance-program/*.jsonl
 # tools/balance-program/balance-matrix.mjs --sweep: about 9 MB for the 33 knobs; the store is the balance-sweeps.yml run's artifacts
 # (node tools/balance-program/sweeps-fetch.local.mjs joins them here), and Balance Lab v3's published page carries what it reads
 tools/balance-program/balance-sweeps.json
+tools/balance-program/balance-matrix.json
+tools/balance-program/balance-matrix-full-*.json
 
 # the coverage bot's reports (tools/qa/coverage/run.mjs): written per run, never committed
 tools/qa/coverage/out/

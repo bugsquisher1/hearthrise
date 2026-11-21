@@ -39,7 +39,7 @@
 // ci-run: node tools/mutant-gate.mjs node tools/balance-program/balance-matrix.mjs --selftest
 // ════════════════════════════════════════════════════════════════════════
 import { fork, execFileSync } from 'node:child_process';
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, readdirSync, statSync } from 'node:fs';
 import { availableParallelism } from 'node:os';
 import { join, resolve, dirname, relative, isAbsolute } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -110,8 +110,10 @@ const progress = (label) => (process.stderr.isTTY ? (k, total, id, ms) => proces
 export async function playRun(D, K, run, root, o = {}) {
   const t0 = Date.now();
   const V = await dataView(D, root);
-  const plan = planMatrix(V, K, run, { only: o.only, blocks: o.blocks, seeds: o.seeds, hours: o.hours, quick: o.quick, plan: o.plan });
-  const cal = o.calibrate === false ? { jobs: [], cols: [], samples: [] } : await calibrationJobs(V, K, ROOT, { seeds: o.seeds || run.seeds, hours: o.hours || run.hours });
+  const plan0 = planMatrix(V, K, run, { only: o.only, blocks: o.blocks, seeds: o.seeds, hours: o.hours, quick: o.quick, plan: o.plan });
+  /* o.shard [i, n]: every n-th cell from the i-th (a GitHub job's share of the full run; the simulator check plays in shard 0 only) */
+  const plan = o.shard ? shardOf(plan0, o.shard) : plan0;
+  const cal = o.calibrate === false || (o.shard && o.shard[0] !== 0) ? { jobs: [], cols: [], samples: [] } : await calibrationJobs(V, K, ROOT, { seeds: o.seeds || run.seeds, hours: o.hours || run.hours });
   const jobs = [...plan.jobs, ...cal.jobs];
   if (o.say) o.say((o.label || run.id) + ': ' + plan.cells.length + ' cells' + (cal.jobs.length ? ' + calibration' : '') + ', ' + jobs.length + ' seed jobs, ' + (o.workers || workersOf()) + ' workers, on ' + (resolve(root) === ROOT ? 'the tree' : 'a scratch copy'));
   const { results, errors, workerMs, wallMs } = await playJobs(jobs, root, o.workers || workersOf(), o.quiet ? () => {} : progress(o.label || run.id));
@@ -129,6 +131,42 @@ export async function playRun(D, K, run, root, o = {}) {
   return { run: run.id, seeds: o.seeds || run.seeds, hours: o.hours || run.hours, cells, calibration, V,
     runtime: { cells: plan.cells.length, jobs: jobs.length, workers: o.workers || workersOf(), wallS: Math.round((Date.now() - t0) / 1000), playS: Math.round(wallMs / 1000), workerS: Math.round(workerMs / 1000), errors: errors.length },
     errors: errors.slice(0, 20) };
+}
+
+export const SHARD_SCHEMA = 'hearthrise.balance-matrix-shard/1';
+/* every shard file under a folder (gh run download puts each artifact in its own sub-folder) */
+function shardFiles(dir) {
+  const out = [];
+  for (const f of readdirSync(dir)) {
+    const p = join(dir, f);
+    if (statSync(p).isDirectory()) out.push(...shardFiles(p));
+    else if (/^shard-\d+\.json$/.test(f)) out.push(p);
+  }
+  return out;
+}
+/** One run from its shards: the same run, base and tree, every shard of n once; the cells in shard order, the simulator check from shard 0. */
+export function joinShards(docs) {
+  if (!docs.length) throw new Error('join: no shard files');
+  const first = docs[0], n = first.shard[1], seen = new Set();
+  for (const d of docs) {
+    if (d.schema !== SHARD_SCHEMA) throw new Error('join: ' + (d.schema || 'no schema') + ' is not ' + SHARD_SCHEMA);
+    if (d.run !== first.run || d.hash !== first.hash || d.shard[1] !== n) throw new Error('join: shard ' + d.shard.join('/') + ' of ' + d.run + ' on ' + d.hash + ' beside ' + first.run + ' on ' + first.hash);
+    if (seen.has(d.shard[0])) throw new Error('join: shard ' + d.shard[0] + ' twice');
+    seen.add(d.shard[0]);
+  }
+  const missing = Array.from({ length: n }, (_, i) => i).filter((i) => !seen.has(i));
+  if (missing.length) throw new Error('join: shards missing: ' + missing.join(', '));
+  const cells = docs.flatMap((d) => d.cells), cal = docs.find((d) => d.shard[0] === 0);
+  const wallS = Math.max(...docs.map((d) => d.runtime.wallS)), workerS = docs.reduce((a, d) => a + (d.runtime.workerS || 0), 0);
+  return { run: first.run, base: first.base, hash: first.hash, commits: [...new Set(docs.map((d) => d.commit))], seeds: first.seeds, hours: first.hours, calibration: cal ? cal.calibration : null,
+    runtime: { cells: cells.length, shards: n, wallS, workerS, workers: docs.reduce((a, d) => a + (d.runtime.workers || 0), 0), errors: cells.filter((c) => c.error).length }, cells };
+}
+
+/** One shard of a plan: the cells at index i, i + n, ... and their seed jobs. */
+export function shardOf(plan, [i, n]) {
+  if (!(Number.isInteger(i) && Number.isInteger(n) && n > 0 && i >= 0 && i < n)) throw new Error('balance-matrix: a shard is i/n with 0 <= i < n');
+  const cells = plan.cells.filter((_, k) => k % n === i), keep = new Set(cells.map((c) => c.key));
+  return { cells, jobs: plan.jobs.filter((j) => keep.has(j.key)) };
 }
 
 /* ── THE CACHE: stamped with the grid's input hash and this harness's own files ────────────────────────────────────────────────── */
@@ -275,7 +313,7 @@ export async function playOnBase(D, K, run, base, o) {
   try { return { ...(await playRun(D, K, run, s.root, { ...o, plan: base.patch.plan })), applied: s.applied }; } finally { s.done(); }
 }
 export const baseHash = (base) => (base ? createHash('sha256').update(matrixHash() + JSON.stringify(base.patch) + [...new Set(base.patch.edits.map((e) => e.file))].map((f) => existsSync(join(ROOT, f)) ? readFileSync(join(ROOT, f), 'utf8') : '').join('\0')).digest('hex').slice(0, 16) : matrixHash());
-export const cacheFileOf = (run, base) => (run.id === 'subset' ? (base ? join(HERE, 'balance-matrix-' + base.name + '.json') : SUBSET_FILE) : MATRIX_FILE);
+export const cacheFileOf = (run, base) => (run.id === 'subset' ? (base ? join(HERE, 'balance-matrix-' + base.name + '.json') : SUBSET_FILE) : base ? join(HERE, 'balance-matrix-full-' + base.name + '.json') : MATRIX_FILE);
 
 /** The baseline of a run on its base: the cache when it is fresh and plays the same plan, else a fresh run (written back). */
 async function baseline(D, K, run, o) {
@@ -516,6 +554,32 @@ async function main() {
     }
     const doc = await sweep(RUNS.subset, o, arg('knobs') === 'none' ? [] : arg('knobs') ? arg('knobs').split(',') : null, out);
     console.log('sweep: ' + Object.keys(doc.knobs).length + ' knob(s) -> ' + (out || relative(ROOT, SWEEP_FILE)) + ' (' + doc.sweepS + ' s)');
+    return 0;
+  }
+  /* THE FULL MATRIX ON GITHUB (.github/workflows/balance-matrix-full.yml): `--shard i/n --out FILE` plays one job's share of the run on its base;
+     `--join DIR` reads every shard file under DIR (the run's artifacts), refuses shards of another run, base or tree, writes the run's cache
+     (cacheFileOf) and prints its report */
+  if (arg('shard')) {
+    const [i, n] = arg('shard').split('/').map(Number);
+    const D0 = await loadGridData(ROOT), K0 = await loadKits(ROOT);
+    const res = await playOnBase(D0, K0, run, o.base, { ...o, shard: [i, n], label: run.id + ' shard ' + i + '/' + n });
+    const doc = { schema: SHARD_SCHEMA, run: run.id, shard: [i, n], base: o.base ? { name: o.base.name, proposals: o.base.ids } : { name: 'today', proposals: [] }, hash: baseHash(o.base),
+      commit: commitOf(), seeds: res.seeds, hours: res.hours, runtime: res.runtime, calibration: res.calibration || null, cells: res.cells.map(keepCell) };
+    writeFileSync(resolve(arg('out') || 'shard-' + i + '.json'), JSON.stringify(doc) + '\n');
+    console.log('shard ' + i + '/' + n + ': ' + doc.cells.length + ' cells (' + doc.cells.filter((c) => c.error).length + ' errors) in ' + res.runtime.wallS + ' s');
+    return doc.cells.some((c) => c.error) ? 1 : 0;
+  }
+  if (arg('join')) {
+    const docs = shardFiles(resolve(arg('join'))).map((f) => JSON.parse(readFileSync(f, 'utf8')));
+    const joined = joinShards(docs);
+    if (joined.hash !== baseHash(o.base)) console.log('STALE: the shards were played on ' + joined.hash + ', this tree and base is ' + baseHash(o.base));
+    const file = cacheFileOf(run, o.base);
+    writeFileSync(file, JSON.stringify({ schema: 'hearthrise.balance-matrix/1', ...joined, refresh: 'GitHub balance-matrix-full: push to balance-full/<branch>, then --join' }) + '\n');
+    const D0 = await loadGridData(ROOT), K0 = await loadKits(ROOT), V = o.base ? await baseView(D0, o.base) : D0;
+    const rows = judgeMatrix(V, K0, joined.cells);
+    printRun({ ...joined, run: joined.run }, rows);
+    if (arg('json')) writeFileSync(resolve(arg('json')), JSON.stringify({ run: joined.run, runtime: joined.runtime, derived: deriveMatrix(joined.cells), bands: rows, calibration: joined.calibration }, null, 1));
+    console.log('\njoined ' + docs.length + ' shards, ' + joined.cells.length + ' cells -> ' + relative(ROOT, file));
     return 0;
   }
   const D = await loadGridData(ROOT), K = await loadKits(ROOT);

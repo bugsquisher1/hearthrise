@@ -14,6 +14,10 @@ import { runPool } from '../../balance-sim/pool.mjs';
 import { measureJobs, rowOfResult } from './rates.mjs';
 import { PARTIES } from '../standards.mjs';
 import { ROOT } from './data.mjs';
+import { tierRowOf, pullOfTier } from '../../../src/data/hunt-tiers.js';
+
+/** A tier's pull on a ground for a party size (the row the game itself reads). */
+export const pullOf = (ground, tier, size) => pullOfTier(tierRowOf(ground, tier), size);
 
 export const RATES_FILE = join(ROOT, 'tools', 'balance-program', 'ground-rates.json');
 const commitOf = () => { try { return execFileSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).trim(); } catch { return 'unknown'; } };
@@ -21,7 +25,7 @@ const commitOf = () => { try { return execFileSync('git', ['rev-parse', '--short
 export async function measureGroundRates(D, opts = {}) {
   const quick = !!opts.quick;
   const seeds = quick ? 1 : 2, hours = 1;
-  const jobs = measureJobs({ HUNT_GROUNDS: D.HUNT_GROUNDS, HUNT_INDEX: D.HUNT_INDEX, OPEN_GROUNDS: D.OPEN_GROUNDS, PARTIES, tiersOf: D.tiersOf, quick, seeds, hours, only: opts.only || null });
+  const jobs = measureJobs({ HUNT_GROUNDS: D.HUNT_GROUNDS, HUNT_INDEX: D.HUNT_INDEX, OPEN_GROUNDS: D.OPEN_GROUNDS, PARTIES, tiersOf: D.tiersOf, pullOf, quick, seeds, hours, only: opts.only || null });
   const commit = commitOf();
   const jsonl = join(tmpdir(), 'hr-ground-rates-' + commit + (quick ? '-quick' : '') + '.jsonl');
   if (opts.fresh && existsSync(jsonl)) rmSync(jsonl);
@@ -38,7 +42,7 @@ export async function measureGroundRates(D, opts = {}) {
   }
   rows.sort((a, b) => (a.ground + a.level + a.size + a.tier + a.comp).localeCompare(b.ground + b.level + b.size + b.tier + b.comp));
   const prev = existsSync(RATES_FILE) && opts.only ? JSON.parse(readFileSync(RATES_FILE, 'utf8')).rows.filter((r) => !opts.only.includes(r.ground)) : [];
-  const table = { schema: 'hearthrise.balance-program.ground-rates/1', commit, quick, seeds, hours, kit: 'MID (gear.mjs uniques, played profile, career-line skills)',
+  const table = { schema: 'hearthrise.balance-program.ground-rates/1', commit, quick, seeds, hours, kit: 'MID (gear.mjs uniques, played profile, career-line skills)', tierPull: 'every harder-tier cell carries its tier\'s pull (density)',
     playedMs: Date.now() - t0, cells: jobs.length, failed: res.failed, rows: [...prev, ...rows] };
   writeFileSync(RATES_FILE, JSON.stringify(table, null, 0).replace(/\},\{/g, '},\n{') + '\n');
   return { table, res, jsonl };

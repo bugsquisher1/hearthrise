@@ -274,7 +274,9 @@ async function selftest(o) {
   const D = await loadGridData(ROOT), K = await loadKits(ROOT);
   const lone = (w) => [[w], w === 'hammer' ? 'h' : w];
   const PMINI = { id: 'proposals-selftest', levels: [], seeds: 1, hours: 0.15, blocks: [
-    { id: 'a', levels: [60, 150], comps: [lone('hammer'), lone('axes'), lone('mage'), lone('crossbow')], gears: ['mid'], tiers: ['normal', 'hardest'] },
+    /* the early grounds (pull floor, per-ground tier dials), every tier (Dangerous's own row), BiS (the perked jewels) */
+    { id: 'e', levels: [10, 30], comps: [lone('hammer')], gears: ['mid', 'bis'], tiers: 'all' },
+    { id: 'a', levels: [60, 150], comps: [lone('hammer'), lone('axes'), lone('mage'), lone('crossbow')], gears: ['mid'], tiers: 'all' },
     { id: 'b', levels: [60], comps: [...compsOf(2), ...compsOf(3), ...compsOf(4)], gears: ['mid'], tiers: ['normal', 'hardest'] },
     { id: 'g', grounds: true, quick: true, only: ['the_slake'] },
   ] };

@@ -243,8 +243,8 @@ details > summary { cursor: pointer; color: var(--ink-2); font-size: 12px; min-h
         : '<span class="s-' + (rs.some((r) => r[5] === 'RED') ? 'RED' : 'off') + '">' + ok.length + ' of ' + rs.length + ' in band</span>'
           + (under.length ? ', ' + under.length + ' under (worst ' + by(wu[6]) + ')' : '') + (over.length ? ', ' + over.length + ' over (worst ' + by(wo[6]) + ')' : '');
       if (b.label !== lastLabel) { body += '<h3>' + esc(b.label === 'RULED' ? 'Ruled targets' : b.label === 'PROPOSED' ? 'Proposed targets' : b.label === 'COMPUTED' ? 'Computed targets' : 'Cited targets') + '</h3>'; lastLabel = b.label; }
-      const range = (fin(b.lo) ? num(b.lo) : '') + ' to ' + (fin(b.hi) ? num(b.hi) : '');
-      body += '<details class="band"><summary><span class="bid">' + esc(b.id) + '</span><span class="bon">' + esc(b.on) + ', target ' + esc(range.trim() === 'to' ? '-' : range) + (b.ruled ? ' <span class="tag ruled">RULED ' + esc(b.ruled) + '</span>' : '') + '</span><span class="bst">' + st + '</span></summary>'
+      const range = fin(b.lo) && fin(b.hi) ? num(b.lo) + ' to ' + num(b.hi) : fin(b.lo) ? 'at least ' + num(b.lo) : fin(b.hi) ? 'at most ' + num(b.hi) : '-';
+      body += '<details class="band"><summary><span class="bid">' + esc(b.id) + '</span><span class="bon">' + esc(b.on) + ', target ' + esc(range) + (b.ruled ? ' <span class="tag ruled">RULED ' + esc(b.ruled) + '</span>' : '') + '</span><span class="bst">' + st + '</span></summary>'
         + '<div class="scroll"><table><tr><th>At</th><th>Way</th><th>Value</th><th>Against the target</th></tr>'
         + [...rs].sort((x, y) => (y[6] || 0) - (x[6] || 0)).map((r) => '<tr><td>' + esc(r[3]) + '</td><td>' + esc(r[0]) + '</td><td>' + num(r[4], Math.abs(r[4]) < 10 ? 3 : undefined) + '</td><td>' + rowText(b, r) + '</td></tr>').join('')
         + '</table></div>' + (b.why ? '<div class="note">' + esc(b.why) + '</div>' : '') + '</details>';

@@ -100,14 +100,16 @@ for (const [cn, fn] of Object.entries(cases).filter(([k]) => !ONLY || ONLY.inclu
 }
 const PICKED = mutants.filter((m) => !ONLY || ONLY.includes(m.case));
 for (const mu of PICKED) {
-  const p = plant(mu.edits, [...PLAY_TREES, 'tests/hunt-core/fixtures', 'tools/balance-sim']);
+  /* the planted engine under this tree's simulator (cell.mjs reads the engine from the root it is handed, first-week-bands' way): a planted copy of
+     tools/balance-sim would need tests/_is-main.mjs and tools/lib too, and a mutant that only made the harness throw would read as caught */
+  const p = plant(mu.edits, [...PLAY_TREES, 'tests/hunt-core/fixtures']);
   try {
     let why = null;
     try {
-      const { loadCellRunner: planted } = await import(pathToFileURL(join(p.root, 'tools/balance-sim/cell.mjs')).href);
-      why = await cases[mu.case]({ M: await loadCore(p.root), R: await planted(p.root) });
+      why = await cases[mu.case]({ M: await loadCore(p.root), R: await loadCellRunner(p.root) });
     } catch (e) { why = 'threw ' + e.message; }
-    REPORT.ok(!!why, 'mutant "' + mu.name + '" was NOT caught by ' + mu.case);
+    /* a throw is the harness failing, never the case catching the defect */
+    REPORT.ok(!!why && !why.startsWith('threw '), 'mutant "' + mu.name + '" was NOT caught by ' + mu.case + (why ? ' (' + why.slice(0, 200) + ')' : ''));
     if (why && process.argv.includes('--verbose')) console.log('  caught: ' + mu.name + ' -> ' + why);
   } finally { p.done(); }
 }

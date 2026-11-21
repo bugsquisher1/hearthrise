@@ -64,8 +64,8 @@
    now takes about 1.95x the hours of the last (1.6-1.9x across the Cellar's end). Same total to Level 9: no live hero's Level moves. Were 159 /
    318 / 635 / 1,269 / 6,269 / 12,870 / 26,255 / 67,115. Forward file 1000-level-curve-early.
    LEVELS 7-9 RE-CUT 2026-11-20 (lane/c-levels-7-9, Tyler's 27-2): a new player took 3.5 and 4.2 h for Levels 8 and 9 (Level 10 at
-   10.6 h), where both light players quit. Steps 7-9 were 25,072 / 68,087 / 83,477; Levels 10-15 take the XP back, so Level 16 on
-   costs what it did. Forward file 1009-level-curve-new-player. */
+   10.6 h), where both light players quit. Steps 7-9 were 25,072 / 68,087 / 83,477; Levels 10-20 take the XP back (the Glade's 16-20
+   most), so Level 21 on costs what it did. Forward file 1009-level-curve-new-player. */
 export const LEVEL_CURVE = Object.freeze({
   first: 210,
   brackets: Object.freeze([
@@ -74,13 +74,14 @@ export const LEVEL_CURVE = Object.freeze({
     Object.freeze({ from: 3, rise: 762, bend: 0 }),
     Object.freeze({ from: 4, rise: 4881, bend: 0 }),
     Object.freeze({ from: 5, rise: 5872, bend: 0 }),
-    Object.freeze({ from: 6, rise: 11687, bend: 0 }),
-    Object.freeze({ from: 7, rise: 11500, bend: 0 }),
-    Object.freeze({ from: 8, rise: 5000, bend: 0 }),
-    Object.freeze({ from: 9, rise: 38494, bend: 0 }),
-    Object.freeze({ from: 10, rise: 27801, bend: 0 }),
-    Object.freeze({ from: 11, rise: 67, bend: 0 }),
-    Object.freeze({ from: 16, rise: 7884, bend: 657 }),
+    Object.freeze({ from: 6, rise: 8687, bend: 0 }),
+    Object.freeze({ from: 7, rise: 8000, bend: 0 }),
+    Object.freeze({ from: 8, rise: 5002, bend: 0 }),
+    Object.freeze({ from: 9, rise: 30000, bend: 0 }),
+    Object.freeze({ from: 10, rise: 4630, bend: 0 }),
+    Object.freeze({ from: 15, rise: 74323, bend: 0 }),
+    Object.freeze({ from: 16, rise: 300, bend: 0 }),
+    Object.freeze({ from: 21, rise: 14454, bend: 657 }),
     Object.freeze({ from: 50, rise: 78689, bend: 162 }),
     Object.freeze({ from: 110, rise: 70000, bend: 100 }), /* 2026-11-19: past the ceiling, fit by hand to the contract (no hero there) */
     Object.freeze({ from: 300, rise: 350000, bend: 100 }),
@@ -120,7 +121,7 @@ export const LEVEL_PACE = Object.freeze({
   contract: Object.freeze({ a: 1385, b: 1.274 }), /* re-pinned to the measured ladder 2026-11-19 (XP a kill x0.88; was 1378 x L^1.298) and 2026-11-11 (the Warrens x0.76; was 975 x L^1.421) */
   smooth: Object.freeze({ from: 1, ratio: 2 }),
   newPlayer: Object.freeze({ party: Object.freeze(['tank']), policy: 'new', level: 10, aim: 6, hours: Object.freeze([5, 7]),
-    steps: Object.freeze([Object.freeze({ from: 1, to: 9, aim: 2, h: 2.5 }), Object.freeze({ from: 10, to: 15, h: 5.5 })]) }),
+    steps: Object.freeze([Object.freeze({ from: 1, to: 9, aim: 2, h: 2.5 }), Object.freeze({ from: 10, to: 15, aim: 4, h: 4.5 })]) }),
 });
 
 /* THE UNCAPPED SKILL CURVE (Q2): Melee, Ranged, Magic, Defense, Inner Flame.

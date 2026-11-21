@@ -4,7 +4,7 @@
 //
 // Tyler ruled balance call 27-2 "recommended" (2026-11-20; docs/design/balance-program/27-retention.md, 30-plan.md row L05 and
 // guard line G6): hold "Level 10 in 6 hours" on the hero a new player really is, with no event, and re-cut Levels 7 to 9 so none
-// takes over 2 hours; Levels 10 to 15 take the XP back. Both light real players quit at Levels 7 to 9. The hero and its bounds are
+// takes over 2 hours; Levels 10 to 20 take the XP back (the designer's route, 2026-11-20: 10-15 alone could not hold 6 hours). Both light real players quit at Levels 7 to 9. The hero and its bounds are
 // data, src/data/core-model.js LEVEL_PACE.newPlayer: the sword and shield on the start kit and the start bar, Normal, the Mill Cellar
 // until its hunt ends at Level 5, then the ground its end card names (the Thicket) KEPT with Hunt again, every supply bought
 // (tools/balance-sim/life.mjs playLife, policy new). CALIBRATED (2026-11-20, the plan audit's B2): the retention dive's blind play
@@ -24,7 +24,7 @@
 // mutant-anchors: none — every mutant plants a curve or a monster scale in memory, never a file
 //
 // A red SK-1 or SK-2 is a curve or content change that moved the first hours: re-cut src/data/core-model.js LEVEL_CURVE (steps
-// 7-15, the total to Level 16 held) and re-measure the careers (tests/level-curve.mjs C1).
+// 7-20, the total to Level 21 held) and re-measure the careers (tests/level-curve.mjs C1).
 // ════════════════════════════════════════════════════════════════════════
 import { isMain } from './_is-main.mjs';
 import * as XP from '../src/core/xp.js';
@@ -72,8 +72,8 @@ const MUTANTS = [
   ['SK-1', 'the v0.2.142 curve back, the game before this re-cut (Level 10 at 10.6 h, Levels 8 and 9 at 3.5 and 4.2 h)', { xpFor: (L) => (L <= 16 ? V142[L] : real(L)) }],
   ['SK-1', 'monsters with half again their HP (a content change slows every kill)', { monsters: { hp: 1.5 } }],
   ['SK-1', 'Levels 2-10 at half price (the first ten Levels rushed)', { xpFor: (L) => (L <= 10 ? Math.round(real(L) / 2) : real(L) - Math.round(real(10) / 2)) }],
-  ['SK-2', '30,000 XP moved from Level 9 to Level 8 (a 3.4-hour Level under 10, Level 10 still inside its bounds)', { xpFor: (L) => real(L) + (L === 9 ? 30000 : 0) }],
-  ['SK-2', 'Level 12 -> 13 costs 45,000 more (a 7-hour Level where 10-15 take the XP back)', { xpFor: (L) => real(L) + (L > 12 ? 45000 : 0) }],
+  ['SK-2', '30,000 XP moved from Level 9 to Level 8 (a 3-hour Level under 10, Level 10 still inside its bounds)', { xpFor: (L) => real(L) + (L === 9 ? 30000 : 0) }],
+  ['SK-2', 'Level 12 -> 13 costs 45,000 more (a 5.6-hour Level where 10-15 take XP back)', { xpFor: (L) => real(L) + (L > 12 ? 45000 : 0) }],
   ['SK-3', 'a wall at Level 15 (its step ten times dearer: the life never reaches 16)', { xpFor: (L) => real(L) + (L > 15 ? 9 * (real(16) - real(15)) : 0) }],
 ];
 

@@ -223,8 +223,8 @@ export async function coreAnchorGuard() {
        v0.2.63, 2027-02-07-level-curve-wickstead; was 137,918 on the 10-25 pace curve, 21,591 on the old quartic), and a
        combat skill is uncapped (the full JS = SQL parity is tests/core-curves.mjs). */
     /* 198,367 since the +15% solo boost and the re-pinned pace contract (lane/d-solo-fifteen, 2026-11-11: LEVEL_CURVE re-fitted whole by tools/balance-sim/pace.mjs --fit, Levels 4-7 eased by hand; 2027-04-07-brook-bear-level-curve regenerated in place) */
-    /* 121,731 since Levels 7-9 were re-cut for the start-kit hero (lane/c-levels-7-9, 2026-11-20, Tyler's 27-2: Level 10 in 6 hours; 1009-level-curve-new-player) */
-    if (xp.charLevelFromXp(0) !== 1 || xp.charXpForLevel(10) !== 121731) problems.push('the Level curve anchors drifted (L1 at 0, L10 at 121,731)');
+    /* 105,733 since Levels 7-9 were re-cut for the start-kit hero (lane/c-levels-7-9, 2026-11-20, Tyler's 27-2: Level 10 in 6 hours; 1009-level-curve-new-player) */
+    if (xp.charLevelFromXp(0) !== 1 || xp.charXpForLevel(10) !== 105733) problems.push('the Level curve anchors drifted (L1 at 0, L10 at 105,733)');
     if (xp.skillLevelFromXp('melee', xp.skillXpForLevel('melee', 150)) !== 150) problems.push('a combat skill no longer climbs past 99');
     if (xp.skillLevelFromXp('mining', 99999999) !== 99) problems.push('a gathering skill no longer caps at 99');
 

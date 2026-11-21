@@ -63,7 +63,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 /* 1000-level-curve-early (lane/d-142-rulings, 2026-11-19): Levels 2-8 re-split for level-curve C6, the total to Level 9 held (no live Level moves),
    and the brackets past the ceiling re-fit to the re-pinned contract; core-model.js LEVEL_CURVE says why. Same table, 13 rows; 2027-04-07 stays history. */
 /* 1009-level-curve-new-player (lane/c-levels-7-9, 2026-11-20; Tyler ruled balance call 27-2): Levels 7-9 re-cut for the new player as played
-   (life.mjs policy new), Levels 10-15 take the XP back, the total to Level 16 held. Thresholds 8-15 only fall, so the hold is NO LEVEL LOST
+   (life.mjs policy new), Levels 10-20 take the XP back, the total to Level 21 held. Thresholds 8-20 only fall, so the hold is NO LEVEL LOST
    (the 11-19 route's name): a hero in a lowered gap reads its higher Level, one who would read a lower Level refuses the file. 1000 stays history. */
 export const OUT_NAME = '1009-level-curve-new-player.generated.sql';
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
@@ -103,15 +103,16 @@ export function buildSql(XP) {
 -- hr_level_of, the analyzer's ETA) follows with no edit.
 -- NEW IN THIS FILE (lane/c-levels-7-9, 2026-11-20; Tyler ruled balance call 27-2): the new player as
 -- played (start kit, Hunt again in the Thicket) took 1.4 / 3.5 / 4.2 hours for Levels 7, 8 and 9 and
--- reached Level 10 at 10.6 h, where both light players quit. Steps 7-9 re-cut to 24,000 / 35,500 /
--- 40,500 XP (Level 10 at 6.8 h, none over 2.1 h, tests/start-kit-pace.mjs); steps 10-15 take the XP
--- back, so the total to Level 16 and every step from 16 on cost what they did. Level 10 at ${l10} XP, Level 50 at ${l50}. LIVE CHARACTERS: nothing is
--- stored per Level, so a hero's Level is read from its Level XP. Only thresholds 8-15 move and all
+-- reached Level 10 at 10.6 h, where both light players quit. Steps 7-9 re-cut to 21,000 / 29,000 /
+-- 34,002 XP (Level 10 at 6.0 h, none of Levels 1-15 over 4 h, tests/start-kit-pace.mjs); steps 10-20
+-- take the XP back (the Glade's 16-20 most), so the total to Level 21 and every step from 21 on cost
+-- what they did. Level 10 at ${l10} XP, Level 50 at ${l50}. LIVE CHARACTERS: nothing is
+-- stored per Level, so a hero's Level is read from its Level XP. Only thresholds 8-20 move and all
 -- fall: §2 holds every hero's Level as the rows this file replaces made it and refuses the whole file
 -- if one would read LOWER (no Level is lost); a hero in a lowered gap reads its higher Level at once,
 -- and a notice counts them.
 -- ORDER: after 1000-level-curve-early.generated.sql (APPLIED). The hr-accrue deploy carrying the same
--- LEVEL_CURVE goes first, then this file at once: between the two a Level 8-15 hero's death is priced
+-- LEVEL_CURVE goes first, then this file at once: between the two a Level 8-20 hero's death is priced
 -- on two curves and may be refused once as death_xp_over, then settles on the next tick.
 -- No begin/commit (CLAUDE.md §2).
 -- ════════════════════════════════════════════════════════════════════════

@@ -24,7 +24,7 @@
 -- 3377 -> 2685, Wickstead's 2614 -> 2115 and 3295 -> 2685 (smaller blows, surer ones, the same danger). Every other row is
 -- 2027-06-05-harder-monsters-ground-tiers.generated.sql's, carried whole. No body reads dmg_pm (the freeze reads the pull): this file moves
 -- no server behaviour, it keeps the catalogue equal to the engine's rows (tests/hunt-core/hunt-tiers.mjs catalogue).
--- ORDER: 1016 in its name, after every file on its base; no other file writes hr_ground_tiers. Idempotent: the rows are rewritten whole, so
+-- ORDER: 1020 in its name, after every file on its base; no other file writes hr_ground_tiers. Idempotent: the rows are rewritten whole, so
 -- a second apply is byte-identical. No begin/commit (CLAUDE.md §2). EDGE: the hr-accrue carrying this lane's src/core/combat.js,
 -- src/data/to-hit.js, balance-sheet.js and the re-authored monster rows, either side of this apply. REVERSIBLE: re-apply
 -- 2027-06-05-harder-monsters-ground-tiers.generated.sql, with the engine from before this lane.
@@ -54,7 +54,7 @@ alter table public.hr_ground_tiers drop constraint if exists hr_ground_tiers_hp_
 
 -- ── §2 THE ROWS ──────────────────────────────────────────────────────────────
 comment on table public.hr_ground_tiers is
-  '1016-tohit-ratio-ground-tiers.generated.sql: the harder tiers a ground offers (src/data/hunt-tiers.js through tools/gen-ground-tiers.mjs; tests/hunt-core/hunt-tiers.mjs holds the two equal). Per ground and tier: the pull for 1-4 heroes, the monsters'' damage (dmg_pm) and health (hp_pm) and a kill''s Level XP (xp_pm), permille; never coin. Read by hr_hunt_tier_set and the freeze. No row = not offered. Normal is no row.';
+  '1020-tohit-ratio-ground-tiers.generated.sql: the harder tiers a ground offers (src/data/hunt-tiers.js through tools/gen-ground-tiers.mjs; tests/hunt-core/hunt-tiers.mjs holds the two equal). Per ground and tier: the pull for 1-4 heroes, the monsters'' damage (dmg_pm) and health (hp_pm) and a kill''s Level XP (xp_pm), permille; never coin. Read by hr_hunt_tier_set and the freeze. No row = not offered. Normal is no row.';
 delete from public.hr_ground_tiers;
 insert into public.hr_ground_tiers (hunt_id, tier, pull, dmg_pm, hp_pm, xp_pm) values
   ('millrace_sewer', 'dangerous', '{0,0,0,0}'::int[], 1170, 1150, 1100),

@@ -52,9 +52,9 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
    (balance-sheet.js STAT_FORMULA), and a scaled hunt is that formula read at the shifted Levels, so every scaled kill bound moves: a new dated file,
    applied AFTER every 2027-05-17 and 2027-05-22 file. */
 /* 1001-xp-a-kill-scaled-hunts-catalogue (lane/d-142-rulings, 2026-11-19): STAT_FORMULA's XP a kill x0.88; 2027-06-05 is carried whole. */
-/* 1019-tohit-ratio-scaled-hunts-catalogue (lane/c-tohit-ratio, 2026-11-20): SCALED_HUNTS.xpPm 760 -> 740 on the to-hit ratio, so every scaled XP bound
+/* 1023-tohit-ratio-scaled-hunts-catalogue (lane/c-tohit-ratio, 2026-11-20): SCALED_HUNTS.xpPm 760 -> 740 on the to-hit ratio, so every scaled XP bound
    falls; 1001 (APPLIED) is carried whole. */
-export const OUT_NAME = '1019-tohit-ratio-scaled-hunts-catalogue.generated.sql';
+export const OUT_NAME = '1023-tohit-ratio-scaled-hunts-catalogue.generated.sql';
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const whole = (n) => Number.isInteger(n) && n >= 1;

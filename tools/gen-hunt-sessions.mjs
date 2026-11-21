@@ -367,9 +367,9 @@ export const WORLD_FIELDS_READ = Object.freeze({
 /* 1001-xp-a-kill-hunt-sessions-catalogue (lane/d-142-rulings, 2026-11-19): STAT_FORMULA's XP a kill x0.88, so every formula row's kill bound falls; 2027-06-05 is carried whole. */
 /* 1012-approved-rows-hunt-sessions-catalogue (lane/c-approved-rows, 2026-11-20; Tyler, balance call 22-8): Call out costs stamina only, so hr_boss_calls.fight_fee is 0
    and its CHECK admits a fight at 0 gold; 1001 (APPLIED) is carried whole. */
-/* 1017-tohit-ratio-hunt-sessions-catalogue (lane/c-tohit-ratio, 2026-11-20; balance program L15): the called Chief's drop rows follow the field Chief's
+/* 1021-tohit-ratio-hunt-sessions-catalogue (lane/c-tohit-ratio, 2026-11-20; balance program L15): the called Chief's drop rows follow the field Chief's
    re-fitted rates (the to-hit ratio slowed his kills a little); 1012 (STAGED) is carried whole. */
-export const OUT_NAME = '1017-tohit-ratio-hunt-sessions-catalogue.generated.sql';
+export const OUT_NAME = '1021-tohit-ratio-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);

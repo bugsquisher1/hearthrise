@@ -29,9 +29,15 @@
       },
       {
         "modules": 12,
-        "gzipBytes": 202240,
-        "on": "2026-11-20",
-        "why": "Luck v3.1 (lane/d-luck-build): the Lucky Rivet and eight Lucky ring rows and their flavour lines (items.js, item-descriptions.js), Luck's text rows (text/luck.js, shop.js, jewel.js) on the one text table, and its client: luck-sections.js, the sheet's Magic Find bar, the loot plan's Salvage/Use lines and Dispatch answer, the Lucky job rows, the return card's Magic Find line"
+        "gzipBytes": 202670,
+        "on": "2026-11-21",
+        "why": "set/v0.2.144's merged lanes, measured per module (--deliver minify) against main fffede1b2 (v0.2.143): sign-in +0.5 KB is stylesheets that load with the page (summary.css +188 B, hunt.css +132, windows.css +125: Carry on and the end card) and the game list (+26); town +12.3 KB is the lanes' own game-half code: Carry on (carry-on.js + carry-on-intents.js, 3.5 KB), Tend the field (windows/farm-tend.js + session/farm-tend.js + farm text, 4.1 KB), to-hit.js (0.8 KB), next-buy +0.9, back-in-town +0.4, start-open, monsters and text rows. Windows load with the game half like every window; none is a lazy candidate on its own"
+      },
+      {
+        "modules": 12,
+        "gzipBytes": 202673,
+        "on": "2026-11-21",
+        "why": "lane/c-job-counts merged after the raise above (every job takes a count and a THEN: windows/work.js +62 lines, town-work.js +59, away-work.js +34, hunt-after.js JOB_NEXTS +41, skill-sim, work and away text, the coach's tutorial row) and this lane's rule-11 halves (farm-tend.js and carry-on-intents.js take the carried envelope, a few bytes): the Work window's own feature code on the game half; sign-in moved by under 0.1 KB"
       }
     ],
     "town": [
@@ -61,9 +67,15 @@
       },
       {
         "modules": 21,
-        "gzipBytes": 878279,
-        "on": "2026-11-20",
-        "why": "Luck v3.1 (lane/d-luck-build): the Lucky Rivet and eight Lucky ring rows and their flavour lines (items.js, item-descriptions.js), Luck's text rows (text/luck.js, shop.js, jewel.js) on the one text table, and its client: luck-sections.js, the sheet's Magic Find bar, the loot plan's Salvage/Use lines and Dispatch answer, the Lucky job rows, the return card's Magic Find line"
+        "gzipBytes": 883989,
+        "on": "2026-11-21",
+        "why": "set/v0.2.144's merged lanes, measured per module (--deliver minify) against main fffede1b2 (v0.2.143): sign-in +0.5 KB is stylesheets that load with the page (summary.css +188 B, hunt.css +132, windows.css +125: Carry on and the end card) and the game list (+26); town +12.3 KB is the lanes' own game-half code: Carry on (carry-on.js + carry-on-intents.js, 3.5 KB), Tend the field (windows/farm-tend.js + session/farm-tend.js + farm text, 4.1 KB), to-hit.js (0.8 KB), next-buy +0.9, back-in-town +0.4, start-open, monsters and text rows. Windows load with the game half like every window; none is a lazy candidate on its own"
+      },
+      {
+        "modules": 21,
+        "gzipBytes": 885458,
+        "on": "2026-11-21",
+        "why": "lane/c-job-counts merged after the raise above (every job takes a count and a THEN: windows/work.js +62 lines, town-work.js +59, away-work.js +34, hunt-after.js JOB_NEXTS +41, skill-sim, work and away text, the coach's tutorial row) and this lane's rule-11 halves (farm-tend.js and carry-on-intents.js take the carried envelope, a few bytes): the Work window's own feature code on the game half; sign-in moved by under 0.1 KB"
       }
     ]
   }

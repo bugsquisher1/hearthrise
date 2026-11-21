@@ -155,7 +155,7 @@ function rowAt(id, role, floor, run) {
   const row = MONSTERS[id];
   const L = towerLevelOf(floor, run);
   const s = formulaStats({ level: L, role, tier: row.tier, floor: L, fit: run.fit, ground: run.hunt }, heatOpts(floor, run));
-  return Object.freeze({ ...row, level: L, hp: s.hp, atk: s.atk, baseAcc: s.baseAcc, def: s.def, xp: s.xp, gp: Object.freeze([0, 0]),
+  return Object.freeze({ ...row, level: L, hp: s.hp, atk: s.atk, aim: s.aim, evasion: s.evasion, def: s.def, xp: s.xp, gp: Object.freeze([0, 0]),
     drops: Object.freeze([]) });
 }
 

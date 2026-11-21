@@ -23,6 +23,7 @@
       "equipment",
       "factions",
       "farm_land",
+      "farm_tend",
       "features",
       "gem_unlocks",
       "gm",
@@ -113,5 +114,5 @@
       "tool_carry"
     ]
   },
-  "generatedAt": "2026-11-18"
+  "generatedAt": "2026-11-21"
 }

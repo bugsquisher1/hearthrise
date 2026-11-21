@@ -15,8 +15,8 @@
 // dialog, memory huntera-bestiary-model): refill n of the day costs
 //   (1,712,500 + 5,250 x level) x (1 + (n - 1) x 2/15), floored,
 // buys 4 h, 6 a day, so a full day of six is exactly 8.0 x the base.
-// WE KEEP ITS SHAPE (a base plus a per-level term, the same linear +2/15 a
-// purchase, the same 4 h and 6 a day) and cut the gold about 1,700-fold.
+// WE KEEP ITS SHAPE (a base plus a per-level term, a linear step a purchase,
+// the same 4 h and 6 a day) and cut the gold about 1,700-fold.
 //
 // WHY THIS PRICE (designer 2026-11-03, lane/c-gold-matters, was 400 + 100 a Level:
 // a tenth of what the 4 h earned at every Level, so it was never a question).
@@ -27,6 +27,12 @@
 // 45 to 55; by the sixth at Level 55 it can cost all the 4 h earn, so a hero past
 // that line is paying gold for XP alone, which is the decision. Still far under
 // the 1,712,500 + 5,250 a Level we scaled from, and never Crowns.
+//
+// THE STEP (Tyler 2026-11-20, balance call 24-1; docs/design/balance-program/24-economy.md
+// Q4): refills climb by half a first refill each, x1, 1.5, 2, 2.5, 3, 3.5 (was 2/15 a
+// purchase, the Huntera curve, where all six paid for themselves to Level 105). The first
+// two still pay for themselves at every Level; from Level 80 the later ones are gold for
+// XP. A day of six is 13.5 x the first. The base and the per-Level term do not move.
 //
 // THE PRICE, integer only (the server computes it; the client only shows it):
 //   restoredMin = min(maxMinPerBuy, capMin - currentMin)   (refused if <= 0)
@@ -40,9 +46,9 @@
 //   1. Free, combat 10, 0 h, 1st buy today: restores 4 h (cap 8 h).
 //      (1,000 + 2,500) x 15/15 x 240/240 = 3,500 g.
 //   2. Free, combat 10, 6 h, 2nd buy today: restores 2 h (8 h cap - 6 h).
-//      ceil(3,500 x 17/15 x 120/240) = ceil(1,983.3) = 1,984 g. Counts as buy 2.
+//      ceil(3,500 x 3/2 x 120/240) = 2,625 g. Counts as buy 2.
 //   3. Premium, combat 50, 5 h, 3rd buy today: restores 4 h (cap 12 h).
-//      (1,000 + 12,500) x 19/15 x 240/240 = 17,100 g.
+//      (1,000 + 12,500) x 4/2 x 240/240 = 27,000 g.
 //
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
@@ -57,9 +63,10 @@ export const STAMINA_REFILL = Object.freeze({
   /* Purchases per character per server day, partial ones included. */
   perDay: 6,
   /* Escalation: purchase n costs (stepDen + stepNum x (n - 1)) / stepDen of the
-     first, linear, the Huntera curve (2/15 a purchase; 6 buys = 8.0 x base). */
-  stepNum: 2,
-  stepDen: 15,
+     first, linear: half a first refill a purchase (Tyler 2026-11-20, call 24-1:
+     x1, 1.5, 2, 2.5, 3, 3.5, so 6 buys = 13.5 x base). */
+  stepNum: 1,
+  stepDen: 2,
   /* What resets the escalation and the per-day count: the UTC server day. */
   resets: 'utc_day',
   /* What pays: gold only. */

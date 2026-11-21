@@ -105,9 +105,11 @@ async function signInAndPlay(page, base) {
 }
 
 const openWins = (page) => page.evaluate(() => Array.from(document.querySelectorAll('[data-hs-win]:not(.is-leaving)')).map((w) => w.getAttribute('data-hs-win')));
-/* Close every window (Esc closes the top one; with none open it would open Settings) and shut any menu. */
+/* Close every window (Esc closes the top one; with none open it would open Settings) and shut any menu. Chat stands open from the
+   start and Esc passes it by (window-manager.js onEscape), so it stays: the loop ends when it is all that is left. */
 async function closeAll(page) {
-  for (let i = 0; i < 5 && (await openWins(page)).length; i++) {
+  await page.evaluate(() => { const a = document.activeElement; if (a && a.blur) a.blur(); });   // a caret in Chat's field would take the next key
+  for (let i = 0; i < 5 && (await openWins(page)).some((w) => w !== 'chat'); i++) {
     await page.evaluate(() => { const a = document.activeElement; if (a && a.blur) a.blur(); });
     await page.keyboard.press('Escape');
     await page.waitForTimeout(170);
@@ -175,13 +177,25 @@ async function checks(overrides, shots, firstRed = false) {
         await page.waitForTimeout(100);
         if ((await menu()) !== null) fails.push('TB-4 a second press left the menu open');
         await tryPress(page, '[data-hs-group="town"]');
+        /* Chat stands open from the start (chat-social CW-12): Esc over the menu shuts the menu and leaves the windows as they were */
+        const was = JSON.stringify(await openWins(page));
         await page.keyboard.press('Escape');
         await page.waitForTimeout(250);
-        if ((await menu()) !== null || (await openWins(page)).length) fails.push('TB-4 Esc over the open menu left ' + JSON.stringify({ menu: await menu(), windows: await openWins(page) }) + ', want it shut and nothing opened');
+        if ((await menu()) !== null || JSON.stringify(await openWins(page)) !== was) fails.push('TB-4 Esc over the open menu left ' + JSON.stringify({ menu: await menu(), windows: await openWins(page), was: JSON.parse(was) }) + ', want it shut and nothing opened or closed');
         await tryPress(page, '[data-hs-group="town"]');
-        await page.mouse.click(400, 450);
+        /* a press on the bare World: a point the World itself takes, under no window (Chat stands open at its home from the start,
+           CW-12, over the point 400,450 this pressed, and a press on a window is not a press elsewhere) */
+        const bare = await page.evaluate(() => {
+          for (const [x, y] of [[720, 450], [900, 560], [1040, 330], [620, 640], [400, 450]]) {
+            const el = document.elementFromPoint(x, y);
+            if (el && el.closest('#panel-world') && !el.closest('[data-hs-win], .hs-launchers, [data-hs-widget]')) return [x, y];
+          }
+          return null;
+        });
+        if (!bare) fails.push('TB-4 no point of the World is bare at 1440x900 to press');
+        else await page.mouse.click(bare[0], bare[1]);
         await page.waitForTimeout(150);
-        if ((await menu()) !== null) fails.push('TB-4 a press on the World left the menu open');
+        if (bare && (await menu()) !== null) fails.push('TB-4 a press on the World left the menu open');
         await tryPress(page, '[data-hs-group="town"]');
         await page.evaluate(() => { const a = document.activeElement; if (a && a.blur) a.blur(); });
         await page.keyboard.press('m');

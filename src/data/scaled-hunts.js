@@ -102,7 +102,7 @@ export const SCALED_HUNTS = Object.freeze({
      the formula's own (its layout kills fast); at 800 every tested gap reads 0.5-0.9x the right-Level ground. 700 since the re-tune
      (lane/b-one-difficulty, 2026-11-08): the mixed party cells rose, and a scaled four reads its ground's cell (the Thicket's 1860, the
      Glade's 1730, against the Warrens' 1475), so at 800 the Thicket's and the Glade's fours at 50 read 1.01x and 1.08x the Warrens */
-  xpPm: 760,
+  xpPm: 740,
   /* 820 since a scaled kill reads the top ground's XP fit (below; 2026-11-11): at 700 the Glade scaled one Level past its band paid 1.10x itself, under the 1.25x
      that makes a bought hour worth it (fee-guard), while a scaled Cellar hero alone at 50 read 0.65x the Warrens' own; 820 lands the Glade at about 1.29x itself and the
      scaled fours at 0.86-0.90x the Warrens' four, under it as ruled.
@@ -112,7 +112,10 @@ export const SCALED_HUNTS = Object.freeze({
      760 since monsters a little harder (lane/d-harder-monsters, 2026-11-19; balance-sheet.js STAT_FORMULA x1.1): a hero alone on the Warrens, a party
      ground, now rests between pulls more (about 200k -> 190k Level XP an hour at 41), while the Thicket scaled to 41 kills in a blow or two and lost
      less (about 198k -> 194k), so it read 1.02x the right-Level ground (fee-guard red). 760 puts it under, and the Glade one past its band stays
-     worth buying (1.25x itself is the bar). */
+     worth buying (1.25x itself is the bar).
+     740 on the to-hit ratio (lane/c-tohit-ratio, 2026-11-20; src/data/to-hit.js): a hero alone lands fewer blows on the Warrens' party-built elites
+     (its rating against their evasion, where the old line sat near its 95% cap), about 167k -> 157k an hour at 41, while the Thicket scaled to 41 read
+     164k -> 158k, 1.01x the right-Level ground (fee-guard red). 740 puts it under (about 0.98x), and the Glade one past its band reads about 1.5x itself. */
   /* A PARTY'S SHARE ON A SCALED HUNT (designer 2026-11-11, lane/d-solo-fifteen): a party keeps this much of its ground's party cell (party-class-xp.js
      PARTY_CLASS_XP), a hero alone keeps the whole solo boost. The cells are fitted at the ground's floor so a mixed four earns 15-25% more a head
      than a hero alone there; on the same ground scaled to 41-50 a four kills far faster for its share, and since the 11-11 cells (a four's cell
@@ -167,7 +170,7 @@ function scaledStats(level, role, tier, g, groundId, to) {
   const own = formulaStats({ level, role, tier, floor: g.floor, fit: g.fit, ground: groundId });
   const ownMean = (own.gp[0] + own.gp[1]) / 2, mean = ownMean + Math.max(0, (f.gp[0] + f.gp[1]) / 2 - ownMean) * (SCALED_HUNTS.coinPm[g.fit] / 1000);
   const lo = Math.max(1, Math.round(mean * STAT_FORMULA.gp.lo));
-  return { level: level + gap, hp: f.hp, atk: f.atk, baseAcc: f.baseAcc, def: f.def,
+  return { level: level + gap, hp: f.hp, atk: f.atk, aim: f.aim, evasion: f.evasion, def: f.def,
     xp: Math.max(1, Math.round((f.xp * SCALED_HUNTS.xpPm) / 1000)), gp: [lo, Math.max(lo, Math.round(2 * mean - lo))], partyPm: SCALED_HUNTS.partyPm };
 }
 

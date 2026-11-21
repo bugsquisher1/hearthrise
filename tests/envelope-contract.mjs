@@ -141,7 +141,7 @@ function contract(R, cs, body, tl) {
     need('party', !m.length && p.self !== null && p.leader !== null, 'partyOf misses ' + m.join(', ') + ' self ' + p.self + ' leader ' + p.leader);
   }
   const pm = R.PS.partyMembershipOf(cs);
-  /* LEAVE TOGETHER (2026-12-18-party-leave-together.sql): the viewer's own box, on by default (player_state.party_leave_together) */
+  /* LEAVE TOGETHER (2026-12-18-party-leave-together.sql): the viewer's own box, on by default beside another account's hero (1025-own-heroes-apart.sql hr_party_leave_together_of) */
   need('party', !!pm && pm.seats.length === 2 && pm.me !== null && pm.leader !== null && pm.isLeader && !!pm.tiers && pm.tiers.mill_cellar === 'dangerous' && pm.leaveTogether === true,
     'partyMembershipOf yields ' + JSON.stringify(pm && { seats: pm.seats.length, me: pm.me, leader: pm.leader, tiers: pm.tiers, leaveTogether: pm.leaveTogether }));
   // party_people: the player menu's targets, one per seat of the real party, with the server's account ids (2026-10-25-social.sql)
@@ -357,6 +357,11 @@ function contract(R, cs, body, tl) {
   const fl = R.FS.farmLandOf(cs, 0);
   need('farm_land', !!fl && fl.cap >= 2 && fl.plotLevel >= 1 && fl.plots instanceof Map && (fl.plotLevel >= 5 || (!!fl.upgrade && fl.upgrade.gold > 0 && fl.upgrade.farming > 0)),
     'farmLandOf yields ' + JSON.stringify(fl && { cap: fl.cap, plotLevel: fl.plotLevel, upgrade: fl.upgrade, plots: fl.plots.size }) + ' from ' + JSON.stringify(body.farm_land));
+  /* Tend the field (1017-tend-the-field.sql): the server's bill for that field (a fresh field: nothing ready, two empty plots, no gold) */
+  const ft = R.FT.farmTendOf(cs);
+  need('farm_tend', !!ft && Array.isArray(ft.harvest) && Array.isArray(ft.water) && ft.gold === 0 && ft.choices instanceof Map
+    && ft.empty.length === (fl ? fl.cap - fl.plots.size : -1) && ft.empty.every((e) => e.why === 'unplanted'),
+    'farmTendOf yields ' + JSON.stringify(ft && { ...ft, choices: [...ft.choices.values()] }) + ' from ' + JSON.stringify(body.farm_tend));
   /* Tamsin's tally (2026-12-23-tally-tasks.sql): the cellar task taken in town, counted by six minutes of real settles */
   const ta = R.TS.tallyOf(cs);
   const tc = ta && ta.held.find((x) => x.task === 'cellar_giant_rats');
@@ -389,7 +394,7 @@ function sheetContract(R, cs, body) {
 export const CONTRACT_KEYS = Object.freeze(['hunt', 'hunt_track', 'hunt_events', 'hunt_server_now_ms', 'hunt_settings', 'hunt_analyzer',
   'party', 'party_people', 'stamina', 'premium', 'account', 'inventory', 'equipment', 'skills', 'state', 'bank', 'buffs', 'hero_slots',
   'name', 'bag_rules', 'shop', 'hunt_presets', 'role', 'party_invites', 'party_notices', 'stamina_refill', 'blessings',
-  'character_sheet', 'outfit', 'death_log', 'vitals', 'hunt_bests', 'hunt_tier', 'hunt_target_kind', 'depot', 'home', 'now', 'farm_land', 'bench_run', 'rename', 'tally',
+  'character_sheet', 'outfit', 'death_log', 'vitals', 'hunt_bests', 'hunt_tier', 'hunt_target_kind', 'depot', 'home', 'now', 'farm_land', 'farm_tend', 'bench_run', 'rename', 'tally',
   'skill_inputs', 'bench_tax', 'setup_slots', 'titles', 'temper', 'bag_expand', 'gm', 'hallmark', 'level', 'skill_levels', 'live_events', 'training', 'factions', 'hunt_after', 'scaled_hunts', 'boss_halls',
   'tower', 'key_ring', 'entry_gates', 'catacomb', 'features', 'unlocked_recipes']);
 
@@ -447,7 +452,7 @@ async function readers(root) {
   return {
     HS: await import(u('src/session/hunt-sections.js')), IS: await import(u('src/session/item-sections.js')),
     PS: await import(u('src/session/party-sections.js')), ACC: await import(u('src/session/account-session.js')),
-    CS: await import(u('src/session/character-sections.js')), FS: await import(u('src/session/farm-sections.js')), HO: await import(u('src/session/home-sections.js')),
+    CS: await import(u('src/session/character-sections.js')), FS: await import(u('src/session/farm-sections.js')), FT: await import(u('src/session/farm-tend.js')), HO: await import(u('src/session/home-sections.js')),
     TS: await import(u('src/session/tally-sections.js')), BT: await import(u('src/session/bench-sections.js')), TP: await import(u('src/session/temper-sections.js')), TD: await import(u('src/data/temper.js')),
     JW: await import(u('src/session/jewelry-sections.js')), LE: await import(u('src/session/live-event-sections.js')),
     TR: await import(u('src/session/training-sections.js')), FX: await import(u('src/session/faction-sections.js')),
@@ -558,7 +563,7 @@ const DB_MUTANTS = [
   ['entry_gates', 'public.hr_entry_gates_view(uuid,integer)', "v_tower := jsonb_build_object('need', v_need,", "v_tower := jsonb_build_object('needs', v_need,"],
   ['entry_gates', 'public.hr_entry_gates_view(uuid,integer)', "'need', c.wins, 'have', v_have,", "'need', c.wins, 'count', v_have,"],
   ['party', 'public.hr_hunt_party_view(uuid,integer)', "'leader_tiers', coalesce", "'leader_tier', coalesce"],
-  ['party', 'public.hr_hunt_party_view(uuid,integer)', "'leave_together', (select ps.party_leave_together", "'leave_togther', (select ps.party_leave_together"],
+  ['party', 'public.hr_hunt_party_view(uuid,integer)', "'leave_together', public.hr_party_leave_together_of(", "'leave_togther', public.hr_party_leave_together_of("],
   ['hunt_settings', 'public.hr_hunt_settings_view(uuid,integer)', "'gather_share', v_eff->'gather_share',", "'gather', v_eff->'gather_share',"],
   ['hunt_analyzer', 'public.hr_hunt_analyzer_of(uuid,integer,uuid)', "'hunt_ms', floor(", "'huntms', floor("],
   ['hunt_analyzer', 'public.hr_hunt_stats_of(uuid[],numeric,uuid,integer)', "'kills', v_kills", "'kill_count', v_kills"],

@@ -1,52 +1,69 @@
 #!/usr/bin/env node
 // ════════════════════════════════════════════════════════════════════════
 // tests/per-player-cost.mjs — WHAT ONE HERO COSTS THE SERVER ONLY GOES DOWN
-// (architecture audit 2026-11-18, new rule 10; CLAUDE.md §6)
+// (architecture audit 2026-11-18, new rule 10; CLAUDE.md §6; balance program build row L11, calls 28-10 and 28 step 10)
 //
 //   node tests/per-player-cost.mjs                     the ratchet (replays the chain, plays the shipped engine)
-//   node tests/per-player-cost.mjs --write             tighten the baseline to what this tree measures (never raises)
-//   node tests/per-player-cost.mjs --write --raise "<why>"   raise it, with the reason recorded beside the number
-//   node tests/per-player-cost.mjs --selftest          two planted regressions must go red; the clean control must pass
+//   node tests/per-player-cost.mjs --write "<why>"     re-pin the baseline to this tree's measurement; the why (20+ characters) is
+//                                                      recorded beside the numbers in its history, whether a number fell or rose
+//   node tests/per-player-cost.mjs --only <fixture>    one fixture (a name or a part of one), for a quick look; never with --write
+//   node tests/per-player-cost.mjs --selftest          the planted regressions each turn EVERY fixture red; the clean control passes
 //
-// mutant-anchors: none — --selftest plants a ledger-duplicating trigger and an extra statement in this file's own
-//   counting exec, both in memory; no tracked file is patched
+// mutant-anchors: none — --selftest plants a journal row a kill (a trigger on the tally and the bag), one more statement a settle
+//   (this file's own counting exec), a settle four times slower (a burn inside the timed settle), an index.ts that lost its marker
+//   (an in-memory copy) and drifted budgets, all in memory or in the rolled-back replay; no tracked file is patched
 //
 // ── WHY ────────────────────────────────────────────────────────────────────
-// The 2026-11-19 server audit (tools/qa/audit-2026-11-19-server/findings.md)
-// put the ceiling at about 110-130 accounts online before the database passes
-// 70% CPU, and named per-hero cost as the lever: "thousands online on this
-// design means a 16-64 core database, or cutting per-account cost 3-4x". A cost
-// nobody measures only grows (game_events reached 94% of the database at six
-// players, by logging one row per kill). So the two numbers that set the walls
-// are measured on every run, on the replayed chain with the SHIPPED edge
-// (supabase/functions/hr-accrue tick.js runTick + hunt-settle.js), browser
-// closed, in steady 100 s world-tick windows:
-//   statements a settle   pooled transactions (= network round trips x4) the
-//                         engine spends on one settle; exact, deterministic.
-//   ledger rows a hero-hour   player_ledger rows one hunting hero writes an hour
-//                         (wall 4: the prune's 480,000 rows a day).
-//   row writes a settle   inserts + updates + deletes a settle (WAL, wall 1).
-// for a lone hero (meadowbrook_thicket, Level 10) and a party of four
-// (millrace_sewer, Level 20), the audit's two fixtures. The baseline in
-// tests/per-player-cost.baseline.json only SHRINKS: a measurement above it is
-// red; --write tightens it to the new measurement; raising it needs --raise and
-// a written reason, which is the reviewable diff.
+// The 2026-11-19 server audit (tools/qa/audit-2026-11-19-server/findings.md) put the ceiling at about 110-130 accounts online and
+// named per-hero cost as the lever. A cost nobody measures only grows (game_events reached 94% of the database at six players, by
+// logging one row a kill). And the guard's first two fixtures (a Level 10 lone hero, a Level 20 four, almost no supplies) read
+// 44-48 journal rows a hero-hour where production read 216, and the heavy four's Krell hunt 426 (docs/design/balance-program/
+// 11-krell-hunt-2026-11-20.md §6). Bigger fights cost every hero forever (28-platform.md §2 level 2, call 28-10), so before any
+// engine change merges the team sees the cost of the shapes real players run:
+//
+// ── THE FIXTURES (each on the replayed chain with the SHIPPED edge: tick.js runTick, hunt-settle.js settleHunt) ──────────
+//   lone_L10_meadowbrook_thicket   a lone hero, browser closed (the audit's fixture)
+//   party4_L20_millrace_sewer      a party of four accounts, browser closed (the audit's fixture)
+//   town_hour_bench                A TOWN HOUR: one hero feeding the Hearth's fuel stand (a bench run) with the browser closed, settled
+//                                  by the world tick's roster one flush a fire (the bench is the armed town channel: the chain arms
+//                                  `artisan` and leaves `gather` disarmed, so an away gatherer costs nothing until its return)
+//   krell4_L80_deadly_watched      THE HEAVY FOUR (one account, four heroes, one party) on Krell's Hold, Deadly, sized like the real
+//                                  one (11-krell §1, §4): a hammer tank in tier-6 plate on his own swordfish and whetstones, a bow on
+//                                  store mithril arrows, a Mage on her own Carved fire runes and store ice, a Healer on her own Chalked
+//                                  water runes; the played bars (tools/balance-sim/played.mjs). Its tab open, as 87% of the real hunt
+//                                  was: a landed settle every 16 s and 0.6 early asks a poll (the client's cadence, tools/beta-load.mjs C)
+//   krell4_L80_deadly_closed       the same four, browser closed (its away hours; with the watched row, the nightly's band, below)
+//   tower4_L80_climb               the same four climbing the Burning Tower from landing 30 (a party climbs as one instance), closed, to
+//                                  its first death or 12 windows (from landing 30, 50 or 70 this four dies 15-22 minutes in)
+//   supply4_L50_hasks_ford_deadly  THE SUPPLY-HEAVY FOUR, the Own four's shape (28's REAL 216-row mix): Level 50 on Hask's Ford,
+//                                  Deadly, tier-4 kit, every role on its played bar, a third of its supplies carried, closed
+//
+// ── THE NUMBERS (one row a fixture, in tests/per-player-cost.baseline.json) ─────────────────────────────────────────────
+//   statements_a_settle       payload statements the engine sends a settle (median): exact, 0%
+//   statements_a_hero_hour    payload statements a hero-hour at the door's cadence: 2% (a statement more a settle is +7% or more)
+//   round_trips_a_hero_hour   network round trips a hero-hour, modelled from index.ts's transaction shapes (TRIPS, pinned below by
+//                             RT-PIN): a pooled transaction is BEGIN, SET LOCAL ROLE, [the self marker], its statements, COMMIT; the
+//                             hello's read is one transaction of six statements, five in savepoints. 2%
+//   ledger_rows_a_hero_hour   player_ledger rows a hero-hour (wall 4, the journal): 20%, sized from the audit's spread (43-49 over
+//                             36 windows); a row a kill is +200% or more on every hunting fixture (MEASURED by --selftest)
+//   row_writes_a_settle       inserts + updates + deletes a settle (median; WAL, wall 1): 20%
+//   settle_cpu_ms_a_hero_hour the settle's time a hero-hour (PGlite and the engine, both in this process), as CPU time and not wall
+//                             time (cpuMs below: a loaded box doubles the wall), in THIS run's calibration: the baseline holds the
+//                             writer's ms and its calibration_ms, and a run scales the cap by its own (a fixed SQL + JS workload, the
+//                             fastest of seven). A SMOKE ALARM, not a ratchet: +100% (a doubling: Krell is 1.9x the Thicket's engine
+//                             time, 28 §2). Counts are the ratchet; milliseconds only catch the gross step
+//
+// THE NIGHTLY (call 28 step 10). tools/beta-load.mjs --shape=krell4 plays the heavy four at the beta's concurrency on a real
+// PostgreSQL 17 and judges its per-hero journal rows and statements against THIS baseline's two Krell rows, blended by its share of
+// open tabs (concurrencyBand below): a regression past CONCURRENCY.band is red there. The release path runs only this replay.
 //
 // BUDGET-PIN. The capacity sampler (1002-ops-capacity-sample.sql) reads a body's engine time against
 // hr_ops.capacity_config.edge_budget_ms; this run also holds that number to the shipped HUNT_ENGINE_BUDGET_MS.
 //
-// TOLERANCE. Statements are counted exactly (0%). Ledger rows and row writes
-// follow the fight, and a session's dice follow its random id, so they carry a
-// band (TOL below), sized from the audit's spread (43-49 ledger rows a
-// hero-hour over 36 windows): a regression the size of one extra row a kill
-// (about +100%) is far outside it.
-//
-// Counts hold on any machine; nothing here reads a millisecond.
-//
-// LUCK ON (lane/d-luck-build, 2026-11-20; balance-program/01-model.md §7 allowance): the same fixtures are measured again with the
-// `luck` switch on for everyone, against the SAME baseline. Luck v3.1 writes nothing while a hunt runs (1013-luck.sql hr_luck_fold
-// folds a hunt into the account once, at its end), so a settle with Luck on costs what a dark one does: a red here is a Luck counter
-// back on the settle path. --selftest plants one (an account_kills upsert a combat row) and requires it red.
+// LUCK ON (lane/d-luck-build, 2026-11-20; balance-program/01-model.md §7 allowance): the lone hunting fixture is measured again with the
+// `luck` switch on for everyone, and Luck itself must write NOTHING while the hunt runs (its three tables and its ledger rows):
+// 1013-luck.sql hr_luck_fold folds a hunt into the account once, at its end. A row here is a Luck counter back on the settle path.
+// --selftest plants one (an account_kills upsert a combat row) and requires it red.
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
@@ -54,19 +71,52 @@ import { SHIM_CRYPTO, SHIM_VAULT, SHIM_NET } from './world-tick-token-shims.mjs'
 import { HARNESS } from './hunt-sessions-settle.mjs';
 import { bootReplay } from './schema-replay.mjs';
 import { isMain } from './_is-main.mjs';
+import { playedBar, PLAYED_OPTIONS } from '../tools/balance-sim/played.mjs';
 
 const { ROOT, loadEdge, pinDice, character, one, q, makeExec, groundsOf } = HARNESS;
 const BASELINE = join(ROOT, 'tests', 'per-player-cost.baseline.json');
 const argv = process.argv.slice(2);
-const WINDOWS = 12;
+const WINDOWS = 12;          // closed door: steady 100 s world-tick windows (20 minutes of hunt)
 const WINDOW_MS = 100000;
-const TOL = { statements_a_settle: 0, ledger_rows_a_hero_hour: 0.2, row_writes_a_settle: 0.2 };
+const POLLS = 24;            // watched door: landed settles 16 s apart (6.4 minutes of hunt)
+const POLL_MS = 16000;       // src/session/config.js's viewed-hunt poll (tools/beta-load.mjs C.huntPollMs)
+const EARLY = [3, 5];        // 0.6 early asks a poll (tools/beta-load.mjs C.earlyAsksPerPoll), spread evenly
+const TOL = Object.freeze({ statements_a_settle: 0, statements_a_hero_hour: 0.02, round_trips_a_hero_hour: 0.02,
+  ledger_rows_a_hero_hour: 0.2, row_writes_a_settle: 0.2, settle_cpu_ms_a_hero_hour: 1.0 });
 const METRICS = Object.keys(TOL);
 const uidOf = (i) => '00000000-0000-4000-8000-0000003c' + String(i).padStart(4, '0');
 const idem = () => crypto.randomUUID();
 const med = (a) => { const s = [...a].sort((x, y) => x - y); return s.length ? s[Math.floor(s.length / 2)] : null; };
 const r1 = (x) => Math.round(x * 10) / 10;
+const asUser = (db, uid) => db.query(`select set_config('request.jwt.claim.sub', $1, true)`, [uid]);
+/* THIS PROCESS'S CPU TIME, ms (PGlite runs in-process, so a settle's database work and its engine work are both here). Not wall time:
+   on a box running other lanes the same settles read 2x the wall time from one run to the next (MEASURED 2026-11-20, town 1,676 ->
+   3,889 ms a hero-hour), and CPU time does not wait in the scheduler's queue. */
+const cpuMs = () => { const u = process.cpuUsage(); return (u.user + u.system) / 1000; };
 
+/* ── THE ROUND-TRIP MODEL: index.ts's transaction shapes (RT-PIN holds it to the file) ───────────────────────────────── */
+export const TRIPS = Object.freeze({
+  tick: 3,                                     // execTick: BEGIN, set local role hr_engine, COMMIT around its one statement
+  player: 4,                                   // exec: the same and the self-echo marker
+  helloRead: Object.freeze({ statements: 6, savepoints: 5 }),   // the accrue read: one transaction, five reads in savepoints
+});
+const tripsOf = (mode) => TRIPS[mode] + 1;
+const HELLO_READ_TRIPS = TRIPS.player + TRIPS.helloRead.statements + 2 * TRIPS.helloRead.savepoints;
+/** RT-PIN: the shapes TRIPS models, read out of supabase/functions/hr-accrue/index.ts. Null = they hold. */
+export function tripsPin(src) {
+  const block = (from, to) => { const a = src.indexOf(from); const b = a < 0 ? -1 : src.indexOf(to, a + from.length); return a < 0 || b < 0 ? null : src.slice(a, b); };
+  const tick = block('const execTick = async', 'const out = await runTick');
+  const exec = block('    const exec = async (text: string', '/* ── THE CLOSED-MODE ANSWER');
+  const read = block('const read = await sql.begin', '\n    });');
+  const count = (s, re) => (s.match(re) || []).length;
+  const bad = [];
+  if (!tick || count(tick, /set local role hr_engine/g) !== 1 || count(tick, /tx\.unsafe\(/g) !== 1 || /markSelf/.test(tick)) bad.push('execTick is not BEGIN, role, one statement, COMMIT');
+  if (!exec || count(exec, /set local role hr_engine/g) !== 1 || count(exec, /markSelf\(tx\)/g) !== 1 || count(exec, /tx\.unsafe\(/g) !== 1) bad.push('exec is not BEGIN, role, marker, one statement, COMMIT');
+  if (!read || count(read, /tx\.savepoint\(/g) !== TRIPS.helloRead.savepoints || count(read, /hr_rate_gate/g) !== 1) bad.push(`the accrue read is not one gate and ${TRIPS.helloRead.savepoints} savepoint reads`);
+  return bad.length ? bad.join('; ') : null;
+}
+
+/* ── THE WORLD TICK, as the cron drives it ─────────────────────────────────────────────────────────────────────────── */
 async function armCron(db) {
   await db.exec(SHIM_CRYPTO + SHIM_VAULT + SHIM_NET);
   await db.query(`update public.hr_tick_config set enabled = true, flush_seconds = 90, cadence_seconds = 10, batch_limit = 200,
@@ -77,37 +127,137 @@ async function armCron(db) {
 async function fire(db) {
   await db.query('delete from net.http_request_queue');
   await one(db, 'select public.hr_tick_cron_run()');
-  return (await q(db, `select convert_from(body, 'UTF8') as b from net.http_request_queue order by id`))
-    .map((r) => JSON.parse(r.b)).filter((b) => Array.isArray(b.hunts) && b.hunts.length);
+  return (await q(db, `select convert_from(body, 'UTF8') as b from net.http_request_queue order by id`)).map((r) => JSON.parse(r.b));
 }
 const tuples = async (db) => Object.fromEntries((await q(db, `select relname, (n_tup_ins + n_tup_upd + n_tup_del)::int as n
   from pg_stat_xact_user_tables where schemaname = 'public'`)).map((r) => [r.relname, r.n]));
 
-/* Every statement the engine sends is one pooled transaction (index.ts execTick). `extra`: the selftest's planted round trip. */
-function countingExec(db, extra) {
+/** The edge's exec as index.ts runs it (one pooled transaction a statement), counted: payload statements and round trips. */
+function countedExec(db, mode, stat) {
   const base = makeExec(db);
-  const stat = { n: 0 };
-  const exec = async (text, params) => {
-    stat.n += 1;
-    if (extra && /hr_tick_settle/.test(String(text))) { stat.n += 1; await base('select 1', []); }
+  return async (text, params) => {
+    stat.stmts += 1; stat.trips += tripsOf(mode);
     return base(text, params);
   };
-  return { exec, stat };
+}
+/* THE PLANT `extra_statement`: one more round trip on the settle path, sent through the settle's own exec once it has landed. */
+const plantExtra = async (exec, plant) => { if (plant === 'extra_statement') await exec('select 1', []); };
+/* THE PLANT `slow_settle`: the settle's own time burnt three times more inside the timed region (an engine four times slower). */
+const plantSlow = (plant, since) => { if (plant !== 'slow_settle') return; const until = cpuMs() + 3 * (cpuMs() - since); while (cpuMs() < until) { /* burn */ } };
+
+/* ── THE HEAVY FOUR, AND THE OWN FOUR: one account, four heroes, one party (shared with tools/beta-load.mjs --shape=krell4) ── */
+const ARMOR = Object.freeze({
+  plate6: { helmet: 'ember_helm', body: 'ember_platebody', pants: 'ember_platelegs', boots: 'ember_boots', gloves: 'ember_gauntlets', belt: 'ember_belt' },
+  leather6: { helmet: 'dragonhide_helmet', body: 'dragonhide_body', pants: 'dragonhide_pants', boots: 'dragonhide_boots', gloves: 'dragonhide_gloves', belt: 'dragonhide_belt' },
+  cloth6: { helmet: 'archmage_helmet', body: 'archmage_body', pants: 'archmage_pants', boots: 'archmage_boots', gloves: 'archmage_gloves', belt: 'archmage_belt' },
+  plate4: { helmet: 'mithril_helm', body: 'mithril_platebody', pants: 'mithril_platelegs', boots: 'mithril_boots', gloves: 'mithril_gauntlets', belt: 'mithril_belt' },
+  leather4: { helmet: 'snakeskin_helmet', body: 'snakeskin_body', pants: 'snakeskin_pants', boots: 'snakeskin_boots', gloves: 'snakeskin_gloves', belt: 'snakeskin_belt' },
+  cloth4: { helmet: 'warlock_helmet', body: 'warlock_body', pants: 'warlock_pants', boots: 'warlock_boots', gloves: 'warlock_gloves', belt: 'warlock_belt' },
+});
+/* A seat: its role (played.mjs), skills, worn kit, the bar's inputs (playedBar's o) and its own stock (held, and carried in). */
+const seat = (role, skills, gear, bar, own) => Object.freeze({ role, skills, gear, bar, own: own || {} });
+/** THE HEAVY FOUR at Krell's Hold (11-krell-hunt-2026-11-20.md §1, §4): Levels 78-80, main skills 60-64, three of four on their own
+    supplies (the tank's swordfish and whetstones, the Mage's Carved fire runes, the Healer's Chalked water runes and suppers), the bow
+    on store arrows (562 an hour at 4 gold: mithril), the casters on store drinks and the Mage on store ice. */
+export const HEAVY_FOUR = Object.freeze({
+  hunt: 'krells_hold', tier: 'deadly', level: 80,
+  seats: Object.freeze([
+    seat('tank', { melee: 61, defense: 60, magic: 30, ranged: 20 }, { ...ARMOR.plate6, weapon: 'ember_warhammer' },
+      { magic: 30, food: 'cooked_swordfish', storeFood: 'salted_shrimp' }, { cooked_swordfish: 500, rune_whetstone: 500, etched_fire_rune: 1500 }),
+    seat('ranger', { ranged: 62, defense: 40, magic: 30, melee: 20 }, { ...ARMOR.leather6, weapon: 'runewood_bow', ammo: 'mithril_arrows' },
+      { magic: 30, storeFood: 'salted_shrimp', storeDrink: 'thin_pumpkin_cider', arrows: 'mithril_arrows' }, { mithril_arrows: 60 }),
+    seat('mage', { magic: 60, defense: 25, melee: 10, ranged: 10 }, { ...ARMOR.cloth6, weapon: 'runewood_wand', shield: 'runewood_codex' },
+      { magic: 45, storeFood: 'salted_shrimp', storeDrink: 'thin_pumpkin_cider' }, { carved_fire_rune: 2500 }),
+    seat('healer', { magic: 64, defense: 34, melee: 10, ranged: 10 }, { ...ARMOR.cloth6, weapon: 'runewood_staff' },
+      { magic: 1, food: 'cooked_swordfish', storeFood: 'salted_shrimp', storeDrink: 'thin_pumpkin_cider' }, { chalked_water_rune: 4000, cooked_swordfish: 80 }),
+  ]),
+});
+/** THE OWN FOUR's shape at its band (balance-program ref point `ford`: Level 50, Deadly; 28's reference "Own four": a third of its
+    supplies its own): tier-4 kit, the same four roles on their played bars, every kind of supply on the bar, a third of it carried. */
+export const OWN_FOUR = Object.freeze({
+  hunt: 'hasks_ford', tier: 'deadly', level: 50,
+  seats: Object.freeze([
+    seat('tank', { melee: 46, defense: 45, magic: 30, ranged: 10 }, { ...ARMOR.plate4, weapon: 'mithril_warhammer' },
+      { magic: 30, food: 'cooked_lobster', storeFood: 'salted_trout', storeDrink: 'thin_tomato_juice' }, { cooked_lobster: 120, steel_whetstone: 300 }),
+    seat('ranger', { ranged: 47, defense: 30, magic: 30, melee: 10 }, { ...ARMOR.leather4, weapon: 'maple_bow', ammo: 'mithril_arrows' },
+      { magic: 30, storeFood: 'salted_trout', storeDrink: 'thin_tomato_juice', arrows: 'mithril_arrows' }, { mithril_arrows: 400, etched_fire_rune: 150 }),
+    seat('mage', { magic: 46, defense: 22, melee: 10, ranged: 10 }, { ...ARMOR.cloth4, weapon: 'maple_wand', shield: 'maple_spellbook' },
+      { magic: 45, storeFood: 'salted_trout', storeDrink: 'thin_tomato_juice' }, { carved_fire_rune: 300 }),
+    seat('healer', { magic: 47, defense: 25, melee: 10, ranged: 10 }, { ...ARMOR.cloth4, weapon: 'maple_staff' },
+      { magic: 45, food: 'cooked_lobster', storeFood: 'salted_trout', storeDrink: 'thin_tomato_juice' }, { carved_water_rune: 400, cooked_lobster: 40 }),
+  ]),
+});
+
+/**
+ * One account's four heroes, dressed, barred and stocked, seated in one party on `shape.hunt` at `shape.tier` and entered.
+ * `as(uid)` sets the caller's claim (transaction-local on the replay, session-level on tools/beta-load.mjs's PostgreSQL 17). Extra hero
+ * slots are bought with gold in play: the caller opens them (hr_hero_slots.starter) while the fixture builds. Answers { slots, sids }.
+ */
+export async function buildFour(db, M, uid, shape, { as, gold = 2000000, name = null } = {}) {
+  const ask = async (sql, params) => { const r = (await db.query(sql, params)).rows[0]; return r ? Object.values(r)[0] : undefined; };
+  const need = (r, what) => { if (!r || !(r.ok === true || r.created === true)) throw new Error(`${what} refused: ${JSON.stringify(r).slice(0, 300)}`); return r; };
+  await db.query('insert into auth.users (id) values ($1) on conflict (id) do nothing', [uid]);
+  await db.query(`insert into public.hr_access_allowlist (user_id, note) values ($1, 'per-player-cost') on conflict (user_id) do nothing`, [uid]);
+  await as(uid);
+  const slots = shape.seats.map((_, s) => s);
+  for (const [s, st] of shape.seats.entries()) {
+    need(await ask('select public.hr_create_character($1::int)', [s]), `hero ${s}`);
+    await db.query(`update public.player_state set active_kind = 'idle', active_id = null, level_xp = $3 where user_id = $1 and slot = $2`,
+      [uid, s, M.XP.charXpForLevel(shape.level)]);
+    for (const [k, lv] of Object.entries(st.skills)) {
+      await db.query(`insert into public.player_skills (user_id, slot, skill_id, xp) values ($1, $2, $3, $4)
+                        on conflict (user_id, slot, skill_id) do update set xp = excluded.xp`, [uid, s, k, M.XP.skillXpForLevel(k, lv)]);
+    }
+    await db.query('delete from public.player_inventory where user_id = $1 and slot = $2', [uid, s]);
+    for (const [item, qty] of Object.entries(st.own)) {
+      await db.query('insert into public.player_inventory (user_id, slot, item_id, qty) values ($1, $2, $3, $4)', [uid, s, item, qty]);
+    }
+    await db.query('delete from public.player_equipment where user_id = $1 and slot = $2', [uid, s]);
+    for (const [eq, item] of Object.entries(st.gear)) {
+      await db.query('insert into public.player_equipment (user_id, slot, equip_slot, item_id) values ($1, $2, $3, $4)', [uid, s, eq, item]);
+    }
+    need(await ask('select public.hr_action_set_options($1::int, 0, $2::jsonb, $3::uuid)',
+      [s, JSON.stringify({ slots: playedBar(st.role, st.bar), ...PLAYED_OPTIONS[st.role] }), crypto.randomUUID()]), `the ${st.role}'s bar`);
+    if (name) need(await ask('select public.hr_character_name_set($1::int, $2, $3::uuid)', [s, name(s), crypto.randomUUID()]), `the ${st.role}'s name`);
+  }
+  await db.query(`insert into public.account_wallet (user_id, gold) values ($1, $2) on conflict (user_id) do update set gold = excluded.gold`, [uid, gold]);
+  const pid = await ask('select public.hr_party_open($1::uuid, 0)', [uid]);
+  for (const s of slots.slice(1)) await db.query('select public.hr_party_seat_into($1::uuid, $2::uuid, $3::int)', [pid, uid, s]);
+  await db.query('update public.hunt_parties set hunt_id = $2 where id = $1', [pid, shape.hunt]);
+  await as(uid);
+  if (shape.tier) need(await ask('select public.hr_hunt_tier_set(0, $1, $2, $3::uuid)', [shape.hunt, shape.tier, crypto.randomUUID()]), 'the tier');
+  const sids = [];
+  if (shape.tower) {
+    /* a climb starts at a landing each seat has reached (tower_progress, tests/tower-climb.mjs's `best`) */
+    for (const s of slots) {
+      await db.query(`insert into public.tower_progress (user_id, slot, hunt_id, best_floor, best_landing) values ($1, $2, $3, $4, $5)
+                        on conflict do nothing`, [uid, s, shape.hunt, shape.tower.landing + 5, shape.tower.landing]);
+    }
+    const r = need(await ask('select public.hr_tower_start(0, $1, $2::uuid)', [shape.tower.landing, crypto.randomUUID()]), 'the climb');
+    sids.push(...(await db.query('select id from public.hunt_sessions where instance_id = (select instance_id from public.hunt_sessions where id = $1) order by slot', [r.session_id])).rows.map((x) => x.id));
+  } else {
+    for (const [s, st] of shape.seats.entries()) {
+      const bag = Object.entries(st.own).map(([item, qty]) => ({ item, qty }));
+      const e = need(await ask('select public.hr_hunt_enter($1::int, $2, $3::jsonb, 0, null, $4::uuid)', [s, shape.hunt, JSON.stringify(bag), crypto.randomUUID()]), `the ${st.role}'s enter`);
+      sids.push(e.session.id);
+    }
+  }
+  return { slots, sids };
 }
 
+/* The audit's original fixtures: four ACCOUNTS of one hero each, invited by name (2026-11-19). */
 const WORDS = ['Alder', 'Birch', 'Cedar', 'Dogwood'];
-async function party(db, M, size, hunt, kit, base) {
-  const asUser = (uid) => db.query(`select set_config('request.jwt.claim.sub', $1, true)`, [uid]);
+async function accountsParty(db, M, size, hunt, kit, base) {
   await db.query('update public.hr_hunt_config set enabled = true where id');
   const uids = Array.from({ length: size }, (_, i) => uidOf(base + i));
   for (const uid of uids) await character(db, M, uid, kit);
   if (size > 1) {
     for (let i = 1; i < size; i++) {
-      await asUser(uids[i]);
+      await asUser(db, uids[i]);
       const nm = await one(db, 'select public.hr_character_name_set(0, $1, $2::uuid)', [`${WORDS[0]}cost ${'ABCDEF'[i]}`, idem()]);
       if (!nm || nm.ok !== true) throw new Error('name refused: ' + JSON.stringify(nm));
     }
-    await asUser(uids[0]);
+    await asUser(db, uids[0]);
     const inv = await one(db, 'select public.hr_hunt_party_invite(0, $1, $2::uuid)', [`${WORDS[0]}cost B`, idem()]);
     if (!inv || inv.ok !== true) throw new Error('invite refused: ' + JSON.stringify(inv));
     const pid = await one(db, 'select public.hr_hunt_party_of($1::uuid, 0)', [uids[0]]);
@@ -115,101 +265,235 @@ async function party(db, M, size, hunt, kit, base) {
     const listed = await one(db, 'select public.hr_hunt_party_list(0, true, $1::uuid)', [idem()]);
     if (!listed || listed.ok !== true) throw new Error('list refused: ' + JSON.stringify(listed));
     for (let i = 1; i < size; i++) {
-      await asUser(uids[i]);
+      await asUser(db, uids[i]);
       const j = await one(db, 'select public.hr_hunt_party_join(0, $1::uuid, $2::uuid)', [pid, idem()]);
       if (!j || j.ok !== true) throw new Error('join refused: ' + JSON.stringify(j));
     }
   }
   const sids = [];
   for (const uid of uids) {
-    await asUser(uid);
+    await asUser(db, uid);
     const e = await one(db, 'select public.hr_hunt_enter(0, $1, $2::jsonb, 0, null, $3::uuid)', [hunt, JSON.stringify(kit.bag), idem()]);
     if (!e || e.ok !== true) throw new Error('enter refused: ' + JSON.stringify(e));
     sids.push(e.session.id);
   }
-  await db.query(`select set_config('request.jwt.claim.sub', '', true)`);
-  return { uids, sids };
+  return { heroes: uids.map((u) => [u, 0]), sids };
 }
-async function backdate(db, sids, secs) {
-  const t = `date_trunc('second', now() - make_interval(secs => ${Number(secs)}))`;
-  await db.query(`update public.hunt_sessions set entered_at = ${t} - interval '1 minute', hunt_from = ${t}, settled_to = ${t},
-                    next_swing_at = ${t} where id = any ($1::uuid[])`, [sids]);
-  await db.query(`update public.hunt_instances i set settled_to = ${t}, next_swing_at = ${t}
-                    from public.hunt_sessions h where h.instance_id = i.id and h.id = any ($1::uuid[])`, [sids]);
+async function oneAccountFour(db, M, shape, base) {
+  await db.query('update public.hr_hunt_config set enabled = true where id');
+  await db.query('update public.hr_hero_slots set starter = true');   // the extra slots, opened while the fixture builds (rolled back)
+  const uid = uidOf(base);
+  const { slots, sids } = await buildFour(db, M, uid, shape, { as: (u) => asUser(db, u) });
+  return { heroes: slots.map((s) => [uid, s]), sids };
 }
-
-/** WINDOWS steady world-tick windows of one hunt; the three numbers. */
-async function measure(db, M, fx, { extra = false } = {}) {
-  const { sids } = fx;
-  const behind = (WINDOWS + 2) * (WINDOW_MS / 1000);
-  await backdate(db, sids, behind);
-  await armCron(db);
-  const nowMs = Number(await one(db, 'select floor(extract(epoch from now()) * 1000)::bigint'));
-  const start = Math.floor((nowMs - behind * 1000) / 1000) * 1000;
-  const { exec, stat } = countingExec(db, extra);
-  const led0 = Number(await one(db, 'select count(*) from public.player_ledger where session_id = any ($1::uuid[])', [sids]));
-  const stmts = []; const rows = []; let ran = 0;
-  for (let k = 1; k <= WINDOWS; k++) {
-    await db.query(`update public.hunt_tick_lease set lease_until = now() - interval '1 second' where session_id = any ($1::uuid[])`, [sids]);
-    const t0 = await tuples(db); const n0 = stat.n;
-    const mine = (await fire(db)).filter((b) => b.hunts.some((h) => sids.includes(h.session_id)));
-    if (!mine.length) throw new Error(`no tick body leased the hunt at window ${k}`);
-    let h = null;
-    for (const b of mine) h = (await M.TK.runTick({ exec, atMs: start + k * WINDOW_MS, body: b, grounds: groundsOf(M) })).body.hunts || {};
-    if (!h || !h.settled) throw new Error(`window ${k} did not settle: ${JSON.stringify(h)}`);
-    const t1 = await tuples(db);
-    rows.push(Object.keys(t1).reduce((a, t) => a + (t1[t] - (t0[t] || 0)), 0));
-    stmts.push(stat.n - n0);
-    ran += 1;
-    if (h.ended) break;
-  }
-  const led = Number(await one(db, 'select count(*) from public.player_ledger where session_id = any ($1::uuid[])', [sids])) - led0;
-  const hours = ran * WINDOW_MS / 3600000;
-  if (ran < WINDOWS) throw new Error(`the hunt ended after ${ran} of ${WINDOWS} windows: the fixture no longer lasts a measurement`);
-  return { statements_a_settle: med(stmts), ledger_rows_a_hero_hour: r1(led / sids.length / hours), row_writes_a_settle: med(rows) };
+/* A TOWN HOUR: a hero on the Hearth's fuel stand with no client (tests/artisan-tick.mjs's bench run, bones enough for the hour),
+   enrolled by the minute cron with the tick on. */
+async function townHero(db, M, base) {
+  const uid = uidOf(base);
+  await character(db, M, uid, { level: 20, inv: { bones: 3000 }, gold: 200000 });
+  await db.query('update public.hr_tick_config set enabled = true where id');
+  await db.query(`update public.player_state set active_kind = 'artisan', active_id = 'fuel_bones', active_since = now(), accrued_to = now(),
+                    last_seen_at = null where user_id = $1 and slot = 0`, [uid]);
+  await db.query('select public.hr_tick_enrol(200)');
+  return { heroes: [[uid, 0]], sids: [] };
 }
 
 const KIT10 = { level: 10, inv: { cooked_shrimp: 400 }, bag: [{ item: 'cooked_shrimp', qty: 300 }], gold: 200000 };
 const KIT20 = { level: 20, inv: { cooked_shrimp: 400 }, bag: [{ item: 'cooked_shrimp', qty: 300 }], gold: 200000 };
-const FIXTURES = {
-  lone_L10_meadowbrook_thicket: { size: 1, hunt: 'meadowbrook_thicket', kit: KIT10, base: 100 },
-  party4_L20_millrace_sewer: { size: 4, hunt: 'millrace_sewer', kit: KIT20, base: 200 },
-};
+const TOWER_FOUR = Object.freeze({ ...HEAVY_FOUR, hunt: 'the_burning_tower', tier: null, tower: Object.freeze({ landing: 30 }) });
+export const FIXTURES = Object.freeze({
+  lone_L10_meadowbrook_thicket: { door: 'closed', build: (db, M) => accountsParty(db, M, 1, 'meadowbrook_thicket', KIT10, 100) },
+  party4_L20_millrace_sewer: { door: 'closed', build: (db, M) => accountsParty(db, M, 4, 'millrace_sewer', KIT20, 200) },
+  town_hour_bench: { door: 'roster', build: (db, M) => townHero(db, M, 300) },
+  krell4_L80_deadly_watched: { door: 'watched', build: (db, M) => oneAccountFour(db, M, HEAVY_FOUR, 400) },
+  krell4_L80_deadly_closed: { door: 'closed', build: (db, M) => oneAccountFour(db, M, HEAVY_FOUR, 500) },
+  /* A climb ends at its first death (about 15-22 minutes for this four from any landing, measured 2026-11-20): it is measured to its
+     end or 12 windows, whichever comes first, and only a climb shorter than 6 windows (10 minutes) no longer lasts a measurement. */
+  tower4_L80_climb: { door: 'closed', minSettles: 6, build: (db, M) => oneAccountFour(db, M, TOWER_FOUR, 600) },
+  supply4_L50_hasks_ford_deadly: { door: 'closed', build: (db, M) => oneAccountFour(db, M, OWN_FOUR, 700) },
+});
 
-/** One measurement of every fixture, each inside its own rolled-back savepoint. `plant`: the selftest's defect. */
-async function measureAll(db, M, plant = null, luck = false) {
+/* ── THE MEASUREMENT ─────────────────────────────────────────────────────────────────────────────────────────────────── */
+async function backdate(db, fx, secs) {
+  const t = `date_trunc('second', now() - make_interval(secs => ${Number(secs)}))`;
+  if (fx.sids.length) {
+    await db.query(`update public.hunt_sessions set entered_at = ${t} - interval '1 minute', hunt_from = ${t}, settled_to = ${t},
+                      next_swing_at = ${t} where id = any ($1::uuid[])`, [fx.sids]);
+    await db.query(`update public.hunt_instances i set settled_to = ${t}, next_swing_at = ${t}
+                      from public.hunt_sessions h where h.instance_id = i.id and h.id = any ($1::uuid[])`, [fx.sids]);
+  }
+  for (const [u, s] of fx.heroes) {
+    if (fx.sids.length) continue;
+    await db.query(`update public.player_state set active_since = ${t}, accrued_to = ${t} where user_id = $1 and slot = $2`, [u, s]);
+    await db.query(`update public.hr_return_anchor set real_return_at = ${t} where user_id = $1 and slot = $2`, [u, s]);
+  }
+}
+/* The span the heroes were paid for, summed: the hunt sessions' clocks, or the town heroes' watermarks (ms). */
+const paidMs = async (db, fx) => (fx.sids.length
+  ? Number(await one(db, 'select coalesce(sum(floor(extract(epoch from settled_to) * 1000)), 0)::bigint from public.hunt_sessions where id = any ($1::uuid[])', [fx.sids]))
+  : Number(await one(db, `select coalesce(sum(floor(extract(epoch from accrued_to) * 1000)), 0)::bigint from public.player_state
+      where (user_id, slot) in (select x.u, x.s from unnest($1::uuid[], $2::int[]) as x(u, s))`, [fx.heroes.map((h) => h[0]), fx.heroes.map((h) => h[1])])));
+const ledgerOf = async (db, fx) => Number(await one(db, 'select count(*) from public.player_ledger where user_id = any ($1::uuid[])', [[...new Set(fx.heroes.map((h) => h[0]))]]));
+
+/** A browser's hello, as index.ts sends it: the accrue read (one transaction), the seed read, then the hunt settle as the player. */
+async function hello(db, M, stat, plant, viewer, o) {
+  const base = makeExec(db);
+  const [u, s] = viewer;
+  await base(`select public.hr_rate_gate($1::uuid, $2::int, 'accrue'::text) as allowed`, [u, s]);
+  await base('select public.hr_accrue_read($1::uuid, $2::int) as state, public.hr_accrue_cap_ms($1::uuid, $2::int) as cap_ms, now() as now', [u, s]);
+  await base('select monster_id, kills from public.hr_bestiary_of($1::uuid, $2::int)', [u, s]);
+  await base('select monster_id, stage from public.hr_trophy_of($1::uuid, $2::int)', [u, s]);
+  await base('select public.hr_hunt_open_of($1::uuid, $2::int) as session', [u, s]);
+  await base('select count(*)::int as n from public.hr_collection_of($1::uuid, $2::int)', [u, s]);
+  stat.stmts += TRIPS.helloRead.statements; stat.trips += HELLO_READ_TRIPS;
+  const exec = countedExec(db, 'player', stat);
+  await exec(`select (public.hr_seed($1::uuid, $2::int, $3) & 4294967295)::bigint as seed,
+             public.hr_seed($1::uuid, $2::int, $4)::text as salt, public.hr_perks_of($1::uuid, $2::int) as perks`, [u, s, 'accrue:x', 'intent:accrue:x']);
+  const v = await M.HS.settleHunt({ exec, user: u, slot: s, mode: 'settle', bucket: null, project: true, live: true, grounds: groundsOf(M), ...o });
+  if (v.outcome === 'paid') await plantExtra(exec, plant);
+  return v;
+}
+
+/** One fixture's numbers: `door` closed (the world tick's bodies), roster (the tick's town roster) or watched (the hello). */
+async function measure(db, M, fx, door, plant, minSettles = null) {
+  const n = door === 'watched' ? POLLS : WINDOWS;
+  const step = door === 'watched' ? POLL_MS : WINDOW_MS;
+  const behind = Math.ceil(((n + 2) * step) / 1000);
+  await backdate(db, fx, behind);
+  await armCron(db);
+  const nowMs = Number(await one(db, 'select floor(extract(epoch from now()) * 1000)::bigint'));
+  const start = Math.floor((nowMs - behind * 1000) / 1000) * 1000;
+  const stat = { stmts: 0, trips: 0 };
+  const mine = (b) => (Array.isArray(b.hunts) && b.hunts.some((h) => fx.sids.includes(h.session_id)))
+    || (Array.isArray(b.roster) && b.roster.some((r) => fx.heroes.some(([u, s]) => r.user_id === u && Number(r.slot) === s)));
+  const led0 = await ledgerOf(db, fx); const paid0 = await paidMs(db, fx);
+  /* cpu: every settle but the first (the engine's JIT and the plans' first touch), scaled back to the hours it covers */
+  const per = []; const rows = []; let cpu = 0; let held = null;
+  for (let k = 1; k <= n; k++) {
+    let s0 = stat.stmts; let t0 = await tuples(db);
+    if (door === 'watched') {
+      /* the live view's asks below the floor first (they answer the start point and settle nothing), then the landed poll */
+      const early = Math.floor((k * EARLY[0]) / EARLY[1]) - Math.floor(((k - 1) * EARLY[0]) / EARLY[1]);
+      const viewer = fx.heroes[0];
+      let a = cpuMs();
+      for (let i = 0; i < early; i++) {
+        const e = await hello(db, M, stat, plant, viewer, { minWindowMs: 1e15, ...(held === null ? {} : { have: held }) });
+        if (e.reason !== 'below_min_span') throw new Error(`poll ${k}: an early ask answered ${e.outcome}/${e.reason}`);
+      }
+      if (k > 1) cpu += cpuMs() - a;
+      s0 = stat.stmts; t0 = await tuples(db);
+      a = cpuMs();
+      const v = await hello(db, M, stat, plant, viewer, { atMs: start + k * step, ...(held === null ? {} : { have: held }) });
+      plantSlow(plant, a);
+      if (k > 1) cpu += cpuMs() - a;
+      if (v.outcome !== 'paid') throw new Error(`poll ${k} did not settle: ${v.outcome}/${v.reason}`);
+      if (v.body && v.body.state && Number.isSafeInteger(v.body.version)) held = v.body.version;
+      if (v.body && v.body.hunt_ended) break;
+    } else {
+      /* the fixture's own leases end, so this fire serves it again: the hunts' (hunt_tick_lease) or the bench's (hr_tick_ownership) */
+      if (fx.sids.length) await db.query(`update public.hunt_tick_lease set lease_until = now() - interval '1 second' where session_id = any ($1::uuid[])`, [fx.sids]);
+      else await db.query(`update public.hr_tick_ownership set lease_until = now() - interval '1 second' where user_id = any ($1::uuid[])`, [fx.heroes.map((x) => x[0])]);
+      s0 = stat.stmts; t0 = await tuples(db);   // the cron fire's own writes (its leases, its queue) are the settle's cost too
+      const bodies = (await fire(db)).filter(mine);
+      if (!bodies.length) throw new Error(`no tick body served the fixture at window ${k}`);
+      const exec = countedExec(db, 'tick', stat);
+      let h = null;
+      const a = cpuMs();
+      for (const b of bodies) h = (await M.TK.runTick({ exec, atMs: start + k * step, body: b, grounds: groundsOf(M) })).body;
+      plantSlow(plant, a);
+      if (k > 1) cpu += cpuMs() - a;
+      if (door === 'closed' && !(h && h.hunts && h.hunts.settled)) throw new Error(`window ${k} did not settle: ${JSON.stringify(h && h.hunts)}`);
+      if (door === 'roster' && !(h && h.processed > 0)) throw new Error(`window ${k}: the roster settled nothing: ${JSON.stringify(h).slice(0, 300)}`);
+      await plantExtra(exec, plant);
+      if (h && h.hunts && h.hunts.ended) break;
+    }
+    const t1 = await tuples(db);
+    rows.push(Object.keys(t1).reduce((x, t) => x + (t1[t] - (t0[t] || 0)), 0));
+    per.push(stat.stmts - s0);
+  }
+  if (per.length < (minSettles || n)) {
+    const why = fx.sids.length ? (await q(db, 'select end_reason as r, count(*)::int as n from public.hunt_sessions where id = any ($1::uuid[]) group by 1', [fx.sids])).map((x) => `${x.r} x${x.n}`).join(', ') : 'the bench stopped';
+    throw new Error(`the fixture ended after ${per.length} of ${n} settles (${why}): it no longer lasts a measurement`);
+  }
+  const heroHours = (await paidMs(db, fx) - paid0) / 3600000;
+  if (!(heroHours > 0)) throw new Error('the fixture paid no time');
+  const led = await ledgerOf(db, fx) - led0;
+  return { statements_a_settle: med(per), statements_a_hero_hour: r1(stat.stmts / heroHours), round_trips_a_hero_hour: r1(stat.trips / heroHours),
+    ledger_rows_a_hero_hour: r1(led / heroHours), row_writes_a_settle: med(rows), settle_cpu_ms_a_hero_hour: Math.round(cpu / (heroHours * (per.length - 1) / per.length)) };
+}
+
+/* ── THE PLANTS (--selftest): a journal row a unit of work, game_events' old shape: a kill (the hunt's tally), or a unit a town job
+   moved through the bag (the bench's bones burnt, a gatherer's logs) for a hero with no hunt open ───────────────────────────── */
+const UNIT_ROW = `
+  create or replace function public.hr_planted_unit_rows() returns trigger language plpgsql security definer set search_path = public, pg_catalog as $p$
+  declare v_n int; v_u uuid; v_s int;
+  begin
+    if tg_table_name = 'hunt_session_tally' then
+      v_n := coalesce(new.kills, 0) - (case when tg_op = 'UPDATE' then coalesce(old.kills, 0) else 0 end);
+      if v_n > 0 then
+        insert into public.player_ledger (user_id, slot, kind, intent, gold, meta, session_id, at)
+        select h.user_id, h.slot, 'hunt', 'planted_unit', 0, '{}'::jsonb, h.id, now() from public.hunt_sessions h, generate_series(1, v_n) where h.id = new.session_id;
+      end if;
+      return null;
+    end if;
+    if tg_op = 'DELETE' then v_u := old.user_id; v_s := old.slot; v_n := old.qty;
+    else v_u := new.user_id; v_s := new.slot; v_n := abs(new.qty - (case when tg_op = 'UPDATE' then old.qty else 0 end)); end if;
+    if v_n > 0 and not exists (select 1 from public.hunt_sessions h where h.user_id = v_u and h.slot = v_s and h.ended_at is null) then
+      insert into public.player_ledger (user_id, slot, kind, intent, gold, meta, at)
+      select v_u, v_s, 'craft', 'planted_unit', 0, '{}'::jsonb, now() from generate_series(1, v_n);
+    end if;
+    return null;
+  end $p$;
+  create trigger hr_planted_unit_tally after insert or update on public.hunt_session_tally for each row execute function public.hr_planted_unit_rows();
+  create trigger hr_planted_unit_bag after insert or update or delete on public.player_inventory for each row execute function public.hr_planted_unit_rows();`;
+
+/* THE LUCK PLANT (--selftest): a Luck counter written each settle, the shape 1013-luck.sql's fold replaced (an account_kills upsert for
+   every combat row that carries kills by monster). */
+const LUCK_WRITE = `create or replace function public.hr_planted_luck_write() returns trigger language plpgsql as $p$
+  begin if jsonb_typeof(new.meta->'km') = 'object' then
+    insert into public.account_kills as a (user_id, monster_id, kills) select new.user_id, e.key, (e.value #>> '{}')::bigint
+      from jsonb_each(new.meta->'km') e on conflict (user_id, monster_id) do update set kills = a.kills + excluded.kills; end if;
+    return null; end $p$;
+  create trigger hr_planted_luck_write after insert on public.player_ledger for each row execute function public.hr_planted_luck_write();`;
+const LUCK_FIXTURE = 'lone_L10_meadowbrook_thicket';
+
+/** Every fixture (or `only`), each built and measured inside its own rolled-back savepoint. `plant`: the selftest's defect. */
+async function measureAll(db, M, { plant = null, only = null, luck = false } = {}) {
   const out = {};
   await db.query('begin');
   try {
     for (const [name, f] of Object.entries(FIXTURES)) {
+      if (only && !name.includes(only)) continue;
       await db.query('savepoint fx');
       try {
-        if (plant === 'ledger_dup') {
-          await db.exec(`create or replace function public.hr_planted_ledger_dup() returns trigger language plpgsql as $p$
-            begin if new.intent is distinct from 'planted_dup' then
-              insert into public.player_ledger (user_id, slot, kind, intent, gold, meta, session_id, at)
-              values (new.user_id, new.slot, new.kind, 'planted_dup', 0, '{}'::jsonb, new.session_id, new.at); end if;
-              return null; end $p$;
-            create trigger hr_planted_ledger_dup after insert on public.player_ledger for each row execute function public.hr_planted_ledger_dup();`);
-        }
+        if (plant === 'unit_row') await db.exec(UNIT_ROW);
         if (luck) await db.query(`update public.hr_feature_switches set scope = 'everyone', accounts = '{}' where switch_id = 'luck'`);
-        if (plant === 'luck_write') {
-          await db.exec(`create or replace function public.hr_planted_luck_write() returns trigger language plpgsql as $p$
-            begin if jsonb_typeof(new.meta->'km') = 'object' then
-              insert into public.account_kills as a (user_id, monster_id, kills) select new.user_id, e.key, (e.value #>> '{}')::bigint
-                from jsonb_each(new.meta->'km') e on conflict (user_id, monster_id) do update set kills = a.kills + excluded.kills; end if;
-              return null; end $p$;
-            create trigger hr_planted_luck_write after insert on public.player_ledger for each row execute function public.hr_planted_luck_write();`);
-        }
-        const fx = await party(db, M, f.size, f.hunt, f.kit, f.base);
-        out[name] = await measure(db, M, fx, { extra: plant === 'extra_statement' });
+        if (plant === 'luck_write') await db.exec(LUCK_WRITE);
+        const fx = await f.build(db, M);
+        out[name] = await measure(db, M, fx, f.door, plant, f.minSettles);
         /* LUCK ON: what Luck itself wrote while the hunt ran (its three tables and its ledger rows): nothing, by design */
         if (luck) out[name].luck_rows = Number(await one(db, `select (select count(*) from public.account_kills) + (select count(*) from public.account_found)
           + (select count(*) from public.account_luck) + (select count(*) from public.player_ledger where intent like 'luck%')`));
-      } finally { await db.query('rollback to savepoint fx'); }
+      } catch (e) { throw new Error(`${name}: ${e.message}`); } finally { await db.query('rollback to savepoint fx'); }
     }
   } finally { await db.query('rollback'); }
   return out;
+}
+
+/* THE MACHINE'S SPEED: a fixed SQL + JS workload of about 200 CPU ms (Windows counts CPU time in 15.6 ms ticks, so a short one reads
+   0, 15 or 31), one warm-up then the FASTEST of four (noise only ever adds time), taken after the fixtures have run (the engine and
+   PGlite warm, as the baseline's was). settle_cpu_ms is judged in units of it. */
+async function calibrate(db) {
+  const t = []; let sink = 0;
+  for (let i = 0; i < 5; i++) {
+    const a = cpuMs();
+    sink += Number(await one(db, 'select count(distinct md5(i::text)) from generate_series(1, 75000) i'));
+    let h = 0; for (let k = 0; k < 2e7; k++) h = (h * 31 + k) | 0;
+    sink += h & 1;
+    sink += JSON.parse(JSON.stringify(Array.from({ length: 50000 }, (_, k) => ({ k, s: 'x' + k })))).length;
+    if (i > 0) t.push(cpuMs() - a);
+  }
+  return sink > 0 ? Math.round(Math.min(...t) * 10) / 10 : NaN;
 }
 
 /* THE CAPACITY SAMPLER READS THE SAME BUDGET (supabase/migrations/1002-ops-capacity-sample.sql): its edge wall is a body's
@@ -221,46 +505,99 @@ async function budgetPin(db, M) {
   return sql === Number(M.HS.HUNT_ENGINE_BUDGET_MS) ? null : `hr_ops.capacity_config.edge_budget_ms ${sql} != hunt-settle.js HUNT_ENGINE_BUDGET_MS ${M.HS.HUNT_ENGINE_BUDGET_MS}`;
 }
 
-/** Red lines: a measured value above its baseline by more than its tolerance. */
-export function judge(measured, base) {
+/** Red lines: a measured value above its baseline by more than its tolerance (settle_cpu_ms scaled by this run's calibration). */
+export function judge(measured, base, calibration = null) {
   const red = []; const tighter = [];
+  const scale = Number.isFinite(calibration) && Number(base.calibration_ms) > 0 ? calibration / Number(base.calibration_ms) : 1;
   for (const [fx, m] of Object.entries(measured)) {
     const b = (base.fixtures || {})[fx];
-    if (!b) { red.push(`${fx}: no baseline (run --write)`); continue; }
+    if (!b) { red.push(`${fx}: no baseline (run --write "<why>")`); continue; }
     for (const k of METRICS) {
-      const cap = b[k] * (1 + TOL[k]);
-      if (m[k] > cap) red.push(`${fx} ${k}: ${m[k]} > ${b[k]}${TOL[k] ? ` (+${TOL[k] * 100}% = ${r1(cap)})` : ''}`);
-      else if (m[k] < b[k] * (1 - TOL[k]) || (TOL[k] === 0 && m[k] < b[k])) tighter.push(`${fx} ${k}: ${m[k]} < ${b[k]}`);
+      if (!Number.isFinite(b[k])) { red.push(`${fx} ${k}: no baseline (run --write "<why>")`); continue; }
+      const at = k === 'settle_cpu_ms_a_hero_hour' ? b[k] * scale : b[k];
+      const cap = at * (1 + TOL[k]);
+      if (m[k] > cap) red.push(`${fx} ${k}: ${m[k]} > ${r1(at)}${TOL[k] ? ` (+${TOL[k] * 100}% = ${r1(cap)})` : ''}${k === 'settle_cpu_ms_a_hero_hour' ? ` (calibration x${scale.toFixed(2)})` : ''}`);
+      else if (m[k] < at * (1 - TOL[k]) || (TOL[k] === 0 && m[k] < at)) tighter.push(`${fx} ${k}: ${m[k]} < ${r1(at)}`);
     }
   }
   return { red, tighter };
 }
 
+/* ── THE NIGHTLY'S BAND (tools/beta-load.mjs --shape=krell4) ────────────────────────────────────────────────────────── */
+/** The heavy four at concurrency is judged against the two Krell rows, blended by its share of open tabs. */
+export const CONCURRENCY = Object.freeze({ watched: 'krell4_L80_deadly_watched', closed: 'krell4_L80_deadly_closed',
+  metrics: Object.freeze(['ledger_rows_a_hero_hour', 'statements_a_hero_hour']), band: 0.25 });
+/**
+ * measured: { ledger_rows_a_hero_hour, statements_a_hero_hour } over every hero of the population; tabs: the share of fours whose tab
+ * is open (0..1). Red: a number above the blend by more than CONCURRENCY.band (concurrency may add a retry or a deferral, never a
+ * quarter of a hero's cost). Low: under half the blend (the population did not settle at its cadence: a saturated bench or a broken door).
+ */
+export function concurrencyBand(measured, base, tabs) {
+  const w = base && base.fixtures && base.fixtures[CONCURRENCY.watched]; const c = base && base.fixtures && base.fixtures[CONCURRENCY.closed];
+  if (!w || !c) return { red: [`no ${CONCURRENCY.watched} / ${CONCURRENCY.closed} baseline in tests/per-player-cost.baseline.json`], low: [], expected: null };
+  if (!(tabs >= 0 && tabs <= 1)) return { red: [`tabs ${tabs} is not a share`], low: [], expected: null };
+  const red = []; const low = []; const expected = {};
+  for (const k of CONCURRENCY.metrics) {
+    const e = tabs * w[k] + (1 - tabs) * c[k];
+    expected[k] = r1(e);
+    const m = Number(measured && measured[k]);
+    if (!Number.isFinite(m)) red.push(`${k}: not measured`);
+    else if (m > e * (1 + CONCURRENCY.band)) red.push(`${k}: ${r1(m)} > ${r1(e)} (+${CONCURRENCY.band * 100}% = ${r1(e * (1 + CONCURRENCY.band))})`);
+    else if (m < e * 0.5) low.push(`${k}: ${r1(m)} < half of ${r1(e)}`);
+  }
+  return { red, low, expected };
+}
+
+/** The why after --write (--raise, the old spelling, is accepted before it). */
+function whyOf() {
+  const at = argv.indexOf('--write');
+  if (at < 0) return undefined;
+  let w = argv[at + 1];
+  if (w === '--raise') w = argv[at + 2];
+  return w && !w.startsWith('--') ? w : null;
+}
+
 async function main() {
   const base = existsSync(BASELINE) ? JSON.parse(readFileSync(BASELINE, 'utf8')) : null;
+  const pinned = tripsPin(readFileSync(join(ROOT, 'supabase', 'functions', 'hr-accrue', 'index.ts'), 'utf8'));
   const { db } = await bootReplay();
   await pinDice(db);
   const M = await loadEdge(ROOT);
+  const onlyAt = argv.indexOf('--only');
+  const only = onlyAt >= 0 ? argv[onlyAt + 1] : null;
 
   if (argv.includes('--selftest')) {
-    if (!base) { console.error('per-player-cost: no baseline; run --write first'); return 2; }
+    if (!base) { console.error('per-player-cost: no baseline; run --write "<why>" first'); return 2; }
     const fails = [];
     const arm = (label, cond, detail) => { console.log(`  ${cond ? 'ok    ' : 'FAILED'}  ${label}  ${detail}`); if (!cond) fails.push(label); };
-    const clean = judge(await measureAll(db, M), base);
+    const cleanM = await measureAll(db, M, { only });
+    const calibration = await calibrate(db);
+    const clean = judge(cleanM, base, calibration);
     arm('CONTROL: the tree as it is measures inside its baseline', clean.red.length === 0, clean.red.join('; ') || 'green');
-    const dup = judge(await measureAll(db, M, 'ledger_dup'), base);
-    arm('MUTANT ledger_dup: a second ledger row for every row is red', dup.red.some((r) => r.includes('ledger_rows_a_hero_hour')), dup.red.join('; ') || 'NOT red');
-    const ext = judge(await measureAll(db, M, 'extra_statement'), base);
-    arm('MUTANT extra_statement: one more round trip a settle is red', ext.red.some((r) => r.includes('statements_a_settle')), ext.red.join('; ') || 'NOT red');
-    const luckyM = await measureAll(db, M, null, true);
-    const lucky = judge(luckyM, base);
-    const luckyRows = Object.values(luckyM).map((m) => m.luck_rows);
-    arm('CONTROL: Luck on measures inside the same baseline and writes no Luck row mid-hunt', lucky.red.length === 0 && luckyRows.every((n) => n === 0),
-      (lucky.red.join('; ') || 'green') + ' ' + JSON.stringify(luckyRows));
-    const lwM = await measureAll(db, M, 'luck_write', true);
-    const lw = judge(lwM, base);
-    const lwRows = Object.values(lwM).map((m) => m.luck_rows);
-    arm('MUTANT luck_write: a Luck counter written each settle is red', lw.red.some((r) => r.includes('row_writes_a_settle')) || lwRows.some((n) => n > 0), lw.red.join('; ') || JSON.stringify(lwRows));
+    /* each plant must turn EVERY fixture red on each metric it moves */
+    for (const [plant, metrics, what] of [['unit_row', ['ledger_rows_a_hero_hour', 'row_writes_a_settle'], 'a journal row a kill, or a unit a town job moves'],
+      ['extra_statement', ['statements_a_settle', 'statements_a_hero_hour', 'round_trips_a_hero_hour'], 'one more statement a settle']]) {
+      const r = judge(await measureAll(db, M, { plant, only }), base, calibration);
+      for (const fx of Object.keys(FIXTURES).filter((x) => !only || x.includes(only))) {
+        const missed = metrics.filter((k) => !r.red.some((x) => x.startsWith(`${fx} ${k}:`)));
+        arm(`MUTANT ${plant} (${what}): ${fx} is red`, missed.length === 0,
+          missed.length ? `NOT red on ${missed.join(', ')}` : r.red.filter((x) => x.startsWith(fx + ' ')).map((x) => x.slice(fx.length + 1)).join('; '));
+      }
+    }
+    /* THE SMOKE ALARM: a settle four times slower (the engine's time burnt three times over, inside the timed settle) is red on one fixture;
+       and the cap follows the machine: a settle 2.5x the baseline's is green on a machine whose calibration reads 2x, red on the same one */
+    const slowAt = 'krell4_L80_deadly_closed';
+    const slowM = await measureAll(db, M, { plant: 'slow_settle', only: slowAt });
+    const slow = judge(slowM, base, calibration);
+    arm(`MUTANT slow_settle (a settle four times slower): ${slowAt} is red`, slow.red.some((x) => x.startsWith(`${slowAt} settle_cpu_ms`)),
+      slow.red.join('; ') || `NOT red (${JSON.stringify(slowM[slowAt])}, calibration ${calibration})`);
+    const b = base.fixtures[slowAt]; const at = { [slowAt]: { ...b, settle_cpu_ms_a_hero_hour: b.settle_cpu_ms_a_hero_hour * 2.5 } };
+    const slower = judge(at, base, base.calibration_ms * 2); const same = judge(at, base, base.calibration_ms);
+    arm('CONTROL: a slower machine\'s calibration widens the cap (2.5x on a 2x machine is green, on the same machine red)',
+      slower.red.length === 0 && same.red.some((x) => x.includes('settle_cpu_ms')), `${slower.red.join('; ') || 'green'} | ${same.red.join('; ') || 'NOT red'}`);
+    arm('CONTROL: the round-trip model is index.ts\'s (RT-PIN)', pinned === null, pinned || 'pinned');
+    const drift = tripsPin(readFileSync(join(ROOT, 'supabase', 'functions', 'hr-accrue', 'index.ts'), 'utf8').replace('await markSelf(tx);\n        return await tx.unsafe', 'return await tx.unsafe'));
+    arm('MUTANT trips_drift: a player exec that lost its marker is red', drift !== null, drift || 'NOT red');
     arm('CONTROL: the sampler\'s edge budget is the engine\'s', (await budgetPin(db, M)) === null, (await budgetPin(db, M)) || 'pinned');
     await db.query('begin');
     try {
@@ -268,51 +605,64 @@ async function main() {
       const pin = await budgetPin(db, M);
       arm('MUTANT budget_drift: a sampler budget off the engine\'s is red', pin !== null, pin || 'NOT red');
     } finally { await db.query('rollback'); }
+    /* THE NIGHTLY'S BAND bites on the same two defects, as the concurrency run would read them */
+    const w = base.fixtures[CONCURRENCY.watched]; const c = base.fixtures[CONCURRENCY.closed];
+    const blend = (k, x) => (0.5 * w[k] + 0.5 * c[k]) * x;
+    const ok = concurrencyBand({ ledger_rows_a_hero_hour: blend('ledger_rows_a_hero_hour', 1.1), statements_a_hero_hour: blend('statements_a_hero_hour', 1.1) }, base, 0.5);
+    arm('CONTROL: the nightly band holds a population 10% over the blend', ok.red.length === 0, ok.red.join('; ') || 'green');
+    const rows = concurrencyBand({ ledger_rows_a_hero_hour: blend('ledger_rows_a_hero_hour', 4), statements_a_hero_hour: blend('statements_a_hero_hour', 1) }, base, 0.5);
+    arm('MUTANT band_rows: a row a kill at concurrency is red', rows.red.some((x) => x.startsWith('ledger_rows')), rows.red.join('; ') || 'NOT red');
+    const st = concurrencyBand({ ledger_rows_a_hero_hour: blend('ledger_rows_a_hero_hour', 1), statements_a_hero_hour: blend('statements_a_hero_hour', 1.3) }, base, 0.5);
+    arm('MUTANT band_statements: a third more statements at concurrency is red', st.red.some((x) => x.startsWith('statements')), st.red.join('; ') || 'NOT red');
+    const lucky = await measureAll(db, M, { only: LUCK_FIXTURE, luck: true });
+    arm('CONTROL: Luck on writes no Luck row while the hunt runs', Object.values(lucky).every((m) => m.luck_rows === 0), JSON.stringify(Object.values(lucky).map((m) => m.luck_rows)));
+    const lw = await measureAll(db, M, { only: LUCK_FIXTURE, luck: true, plant: 'luck_write' });
+    arm('MUTANT luck_write: a Luck counter written each settle is red', Object.values(lw).some((m) => m.luck_rows > 0), JSON.stringify(Object.values(lw).map((m) => m.luck_rows)));
     return fails.length ? 1 : 0;
   }
 
-  const measured = await measureAll(db, M);
-  for (const [fx, m] of Object.entries(measured)) console.log(`  ${fx.padEnd(30)} ${METRICS.map((k) => `${k} ${m[k]}`).join(', ')}`);
+  const measured = await measureAll(db, M, { only });
+  const calibration = await calibrate(db);
+  console.log(`  calibration ${calibration} ms${base && base.calibration_ms ? ` (the baseline's ${base.calibration_ms} ms)` : ''}`);
+  for (const [fx, m] of Object.entries(measured)) console.log(`  ${fx.padEnd(30)} ${METRICS.map((k) => `${k.replace(/_a_/g, '/').replace(/_/g, ' ')} ${m[k]}`).join(', ')}`);
 
-  if (argv.includes('--write')) {
-    const raiseAt = argv.indexOf('--raise');
-    const why = raiseAt > 0 ? argv[raiseAt + 1] : null;
-    if (base && !why) {
-      const { red } = judge(measured, base);
-      const up = Object.entries(measured).some(([fx, m]) => METRICS.some((k) => base.fixtures[fx] && m[k] > base.fixtures[fx][k]));
-      if (red.length || up) { console.error(`--write only tightens; a higher number needs --raise "<why>"${red.length ? `:\n  ${red.join('\n  ')}` : ''}`); return 1; }
-    }
-    if (why !== null && (!why || why.length < 20)) { console.error('--raise needs a reason of at least 20 characters'); return 1; }
-    const fixtures = {};
-    for (const [fx, m] of Object.entries(measured)) {
-      const b = base && base.fixtures[fx];
-      fixtures[fx] = why || !b ? { ...m } : Object.fromEntries(METRICS.map((k) => [k, Math.min(m[k], b[k])]));
-    }
-    const history = [...((base && base.history) || []), { at: new Date().toISOString().slice(0, 10), fixtures, ...(why ? { raised: why } : {}) }].slice(-20);
+  const why = whyOf();
+  if (why !== undefined) {
+    if (only) { console.error('--write measures every fixture: drop --only'); return 1; }
+    if (!why || why.length < 20) { console.error('--write needs a reason of at least 20 characters: node tests/per-player-cost.mjs --write "<why>"'); return 1; }
+    const judged = base ? judge(measured, base, calibration).red : [];
+    const up = judged.filter((x) => !x.includes('no baseline'));
+    const added = judged.filter((x) => x.includes('no baseline')).map((x) => x.split(':')[0]);
+    const history = [...((base && base.history) || []), { at: new Date().toISOString().slice(0, 10), why, ...(up.length ? { raised: up } : {}),
+      ...(added.length ? { added } : {}), calibration_ms: calibration, fixtures: measured }].slice(-20);
     writeFileSync(BASELINE, JSON.stringify({ _readme: [
-      'Per-hero server cost, measured by tests/per-player-cost.mjs (CLAUDE.md §6 rule 10). Only shrinks:',
-      '--write tightens to a lower measurement; a higher one needs --raise "<why>", recorded in history.',
-    ], windows: WINDOWS, tolerance: TOL, fixtures, history }, null, 1) + '\n');
-    console.log('per-player-cost: baseline written');
+      'Per-hero server cost, measured by tests/per-player-cost.mjs (CLAUDE.md §6 rule 10; balance program L11). It moves only with a',
+      'stated reason: node tests/per-player-cost.mjs --write "<why>", recorded in history with every number that rose.',
+      'settle_cpu_ms_a_hero_hour is in this file\'s calibration_ms; a run scales it by its own (a smoke alarm, +100%).',
+    ], windows: WINDOWS, polls: POLLS, tolerance: TOL, calibration_ms: calibration, fixtures: measured, history }, null, 1) + '\n');
+    console.log(`per-player-cost: baseline written (${up.length ? up.length + ' number(s) rose' : 'nothing rose'})`);
     return 0;
   }
 
-  if (!base) { console.error('per-player-cost: no baseline; run --write'); return 2; }
-  const { red, tighter } = judge(measured, base);
-  /* LUCK ON: the same fixtures with the luck switch on for everyone, held to the same baseline (the header) */
-  const lucky = await measureAll(db, M, null, true);
-  for (const [fx, m] of Object.entries(lucky)) console.log(`  ${(fx + ' (Luck on)').padEnd(30)} ${METRICS.map((k) => `${k} ${m[k]}`).join(', ')}`);
-  for (const r of judge(lucky, base).red) red.push('LUCK ON ' + r);
-  for (const [fx, m] of Object.entries(lucky)) if (m.luck_rows !== 0) red.push(`LUCK ON ${fx}: Luck wrote ${m.luck_rows} row(s) while the hunt ran (want 0: the fold is once a hunt, at its end)`);
+  if (!base) { console.error('per-player-cost: no baseline; run --write "<why>"'); return 2; }
+  const { red, tighter } = judge(measured, base, calibration);
+  /* LUCK ON (the header): the lone hunt again with the switch on for everyone; Luck writes nothing until the hunt ends */
+  if (!only || LUCK_FIXTURE.includes(only)) {
+    for (const [fx, m] of Object.entries(await measureAll(db, M, { only: LUCK_FIXTURE, luck: true }))) {
+      console.log(`  ${fx} (Luck on): ${m.luck_rows} Luck row(s) written while the hunt ran`);
+      if (m.luck_rows !== 0) red.push(`LUCK ON ${fx}: Luck wrote ${m.luck_rows} row(s) while the hunt ran (want 0: the fold is once a hunt, at its end)`);
+    }
+  }
+  if (pinned) red.push(`RT-PIN ${pinned}: update TRIPS (the round-trip model) with index.ts`);
   const pin = await budgetPin(db, M);
   if (pin) red.push(`BUDGET-PIN ${pin}`);
   if (red.length) {
     for (const r of red) console.error(`  RED  ${r}`);
     console.error('\nper-player-cost: a hero costs the server more than the baseline (rule 10). Cut it, or');
-    console.error('  node tests/per-player-cost.mjs --write --raise "<why this cost is worth it>"');
+    console.error('  node tests/per-player-cost.mjs --write "<why this cost is worth it>"');
     return 1;
   }
-  for (const t of tighter) console.log(`  can tighten: ${t}  (node tests/per-player-cost.mjs --write)`);
+  for (const t of tighter) console.log(`  can tighten: ${t}  (node tests/per-player-cost.mjs --write "<why>")`);
   console.log('per-player-cost: green — no hero costs more than the baseline');
   return 0;
 }

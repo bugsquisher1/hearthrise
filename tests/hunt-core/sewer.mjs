@@ -37,6 +37,7 @@ import { tmpdir } from 'node:os';
 import { pathToFileURL } from 'node:url';
 import { loadCore, makeReport, ROOT } from './fixtures/h1.js';
 import { sourceQuery } from '../../tools/lib/version-stamp.mjs';
+import { caughtBy, missWhy } from '../_mutant-verdict.mjs';
 
 const V = sourceQuery(ROOT);
 const SEWER = ['drain_rat', 'sump_slime', 'culvert_bat', 'cistern_spider', 'kobold_tosher', 'rat_king'];
@@ -308,7 +309,8 @@ function walkChain(M, T, extra) {
       supplies: [{ item: 'cooked_shrimp', source: 'own', count: 6 }], read: f.read instanceof Set ? new Set([...f.read, 'first_eat', 'fight_settings']) : f.read }),
     help_page: () => read('help_page'),
     tamsin_pays: () => { L(7); set({ huntId: null, endReason: 'left', tally: tallyFact([], [RATS, WOLVES]), sellable: 0 }); },
-    save_setup: () => set({ presets: 1 }),
+    /* ...and the hero hunts on until its stamina runs out: the day-one town cards wait for that end (plan L08, retention R3) */
+    save_setup: () => set({ presets: 1, endReason: 'stamina' }),
     /* Level 7 is the day-one goals' Level (lane/b-first-hour): paid at 7, the hero meets "Make your own runes" next.
        Its press: a rune of the bar's spell family made and carried. */
     own_runes: () => {
@@ -354,6 +356,9 @@ const cases = {
       ['two heroes, the Glade unwalked', 10, { gold: 15000, visited: new Set([THICKET, WICK]) }, 'Next step up: Mosslight Glade, Level 16'],
       ['the Glade walked, 41k: the hero, never the Farmstead', 17, { gold: 41172, visited: new Set([THICKET, WICK, GLADE, WARRENS]), home: { owned: true, next: { name: 'Fieldworth Farmstead', gold: 2500, items: [{ id: 'normal_log', qty: 40 }] } } }, 'Next goal: a third hero slot, 50,000 gp'],
       ['the purse is there', 18, { gold: 50000, visited: new Set([THICKET, WICK, GLADE]) }, 'Buy a third hero slot for 50,000 gp'],
+      /* an empty slot with the purse for the next one: the free hero, never a sale (lane/c-hollow-proofs: at 15,000 gp the purse was too short for any
+         offer, so the mutant that sells a slot past an empty one escaped once its plant could load) */
+      ['the purse is there, one slot empty', 18, { gold: 50000, roster: roster(1), visited: new Set([THICKET, WICK, GLADE]) }, 'Create your free second hero in Characters'],
       ['the Warrens fifteen Levels up, unwalked', 17, { gold: 1000, slotCost: 200000, slotsOwned: 3, roster: roster(3), visited: new Set([GLADE]) }, 'Next step up: Coppercap Warrens, Level 32'],
       ['sixteen Levels under names no dare', 16, { gold: 1000, slotCost: 200000, slotsOwned: 3, roster: roster(3), visited: new Set([GLADE]) }, 'Find a party for Mosslight Glade'],
       ['out of stamina, gold in hand', 20, { gold: 9000, slotCost: 200000, slotsOwned: 3, roster: roster(3), visited: new Set([GLADE, WARRENS]), staminaMs: 60000, refill: { available: true, price: 6000, restoreMs: 14400000 } }, 'Press + beside stamina: 4 h for 6,000 gp'],
@@ -367,6 +372,9 @@ const cases = {
       if (!Array.isArray(g.also) || g.also.includes(g.text)) return what + ': the rest of the goals read ' + JSON.stringify(g.also);
       if (!/^goal_[a-z0-9_]+$/.test(g.id)) return what + ': the id ' + g.id + ' is not a coach key';
     }
+    /* NO SALE PAST AN EMPTY SLOT, in any of the card's lines (the free hero leads, so the first line alone could not tell: lane/c-hollow-proofs) */
+    const emptyFull = at(18, { gold: 50000, roster: roster(1), visited: new Set([THICKET, WICK, GLADE]) });
+    if ([emptyFull.text, ...emptyFull.also].some((x) => /hero slot for/.test(x))) return 'with a slot empty and the purse full the card sells a slot: ' + JSON.stringify([emptyFull.text, ...emptyFull.also]);
     /* the walk's every stop is doable with what the stop holds: each ground it names is a real, open, row; a press it names is a real window */
     for (const hunt of [GLADE, WARRENS]) if (!M.HUNTS[hunt] || M.HUNTS[hunt].staged) return hunt + ' is named and not open';
     /* the empty land, which led the card for a hunter, waits behind every goal with a press */
@@ -1145,8 +1153,13 @@ const cases = {
     const L9 = (f) => ({ ...f, levelXp: M.xp.charXpForLevel(9), charLevel: 9 });
     if ((say(R(L9({ ...inThicket, huntId: null, home: homeNext, bag: { normal_log: 3 } }), 'loot_rules', 'cook_catch')) || {}).id !== 'tamsin_pays') return 'a day-one card jumped the chain';
     const after = L9({ ...town, presets: 1 });
-    const home = say(R({ ...after, home: homeNext, bag: { normal_log: 3 } }));
-    if (!home || home.id !== 'home' || home.text !== 'Gather Normal Log: 3 of 30') return 'the house card reads ' + JSON.stringify(home && home.text);
+    /* PLAN L08 (retention R3): the house card waits for the first stamina end, then sets the job: the material still short, as a
+       counted job on its node (the Work window's row rings with that count), and the hero waits in town when it is done. */
+    const early = say(R({ ...after, home: homeNext, bag: { normal_log: 3 } }));
+    if (early && early.id === 'home') return 'the house card spoke before the stamina ran out: ' + JSON.stringify(early.text);
+    const home = say(R({ ...after, endReason: 'stamina', home: homeNext, bag: { normal_log: 3 } }));
+    if (!home || home.id !== 'home' || home.text !== 'Chop 27 Normal Log while stamina refills' || home.anchor !== 'crafting'
+        || !home.ring || home.ring.skill !== 'woodcutting' || home.ring.work !== 'normal_tree' || home.ring.count !== 27) return 'the house card reads ' + JSON.stringify(home && [home.text, home.anchor, home.ring]);
     const juice = say(R({ ...after, home: { owned: true, next: null }, land: { ready: { turnip: 2 } }, bag: {} }));
     if (!juice || juice.id !== 'harvest_juice' || juice.text !== 'Farm → Harvest, then cook Turnip Juice') return 'the juice card reads ' + JSON.stringify(juice && juice.text);
     if (juice.anchor !== 'farm') return 'crops ready and the juice card points at ' + juice.anchor;
@@ -1167,12 +1180,15 @@ const cases = {
     const runeless0 = after.slots.filter((s) => !(s && s.type === 'ability' && M.abilities.ABILITIES[s.id] && M.abilities.ABILITIES[s.id].rune));
     const juiced = { ...after, home: { owned: true, next: null }, bag: { turnip_juice: 6 }, carried: { turnip_juice: 6 }, slots: [...runeless0, fs],
       stored: [...after.stored, { type: 'consume', id: 'turnip_juice', conditions: [] }, { type: 'ability', id: 'flame_strike', conditions: [] }] };
-    if ((say(R({ ...juiced, slots: runeless0 })) || {}).id === 'own_runes') return 'with no rune spell on the bar the coach asks for runes';
-    const runes = say(R(juiced));
+    if ((say(R({ ...juiced, slots: runeless0, endReason: 'stamina' })) || {}).id === 'own_runes') return 'with no rune spell on the bar the coach asks for runes';
+    /* PLAN L08: the rune card, a day-one town card, waits for the stamina end too */
+    if ((say(R(juiced)) || {}).id === 'own_runes') return 'the rune card spoke before the stamina ran out';
+    const runes = say(R({ ...juiced, endReason: 'stamina' }));
     if (!runes || runes.id !== 'own_runes' || runes.text !== 'Mine Rune Essence, then bind runes in Runecrafting') return 'the rune card reads ' + JSON.stringify(runes && runes.text);
     if (say(R({ ...juiced, carried: { ...juiced.carried, chalked_fire_rune: 45 } }))) return 'with own runes the coach still asks: ' + say(R({ ...juiced, carried: { ...juiced.carried, chalked_fire_rune: 45 } })).id;
     /* THE FIRST HOUR (lane/b-first-hour, designer 2026-10-28). The day-one goals open at Level 7, the Thicket's first half hour. */
-    const L7 = { ...town, presets: 1, levelXp: M.xp.charXpForLevel(7), charLevel: 7 };
+    /* ...once the stamina has run out (plan L08) */
+    const L7 = { ...town, presets: 1, levelXp: M.xp.charXpForLevel(7), charLevel: 7, endReason: 'stamina' };
     if ((say(R({ ...L7, home: homeNext, bag: { normal_log: 3 } })) || {}).id !== 'home') return 'at Level 7 past the chain the house card is not up: ' + (say(R({ ...L7, home: homeNext, bag: { normal_log: 3 } })) || {}).id;
     if ((say(R({ ...L7, levelXp: M.xp.charXpForLevel(6), charLevel: 6, home: homeNext, bag: { normal_log: 3 } })) || {}).id === 'home') return 'the house card came before Level 7';
     /* The Hearth: back from the Cellar with the quarter hour's fuel (forest-cave --play: 9 Bones and 3 Lamp Jelly), the
@@ -1366,6 +1382,11 @@ const cases = {
     /* the ground it last hunted, when it has the tier and the Level is in its band */
     if (!(say(at({ ...base, last: 'wickstead' })) || {}).text.includes('→ Wickstead →')) return 'back from Wickstead the offer names ' + JSON.stringify((say(at({ ...base, last: 'wickstead' })) || {}).text);
     if (!(say(at({ ...base, last: 'mill_cellar' })) || {}).text.includes('→ Meadowbrook Thicket →')) return 'back from the Cellar (Normal only) the offer names ' + JSON.stringify((say(at({ ...base, last: 'mill_cellar' })) || {}).text);
+    /* the ground just hunted beats the highest one hunted (lane/c-hollow-proofs: back from Wickstead both read Wickstead, so the mutant that
+       drops the last hunt escaped once its plant could load): been to Wickstead, back from the Thicket, the offer names the Thicket */
+    const backLow = at({ ...base, last: 'meadowbrook_thicket' });
+    backLow.visited = new Set([...backLow.visited, 'wickstead']);
+    if (!(say(backLow) || {}).text.includes('→ Meadowbrook Thicket →')) return 'back from the Thicket, having hunted Wickstead, the offer names ' + JSON.stringify((say(backLow) || {}).text);
     /* not before its Level, not without armor on head and body, not unknown */
     if (id({ ...base, lv: 7 }) === 'first_dangerous') return 'the offer came at Level 7';
     if (id({ ...base, eq: { weapon: 'practice_sword', shield: 'practice_shield' } }) === 'first_dangerous') return 'the offer came to a hero in the practice kit (22 deaths in 2 h on the board)';
@@ -1498,6 +1519,14 @@ const cases = {
     const next = Object.values(M.HUNTS).filter((h) => h.staged !== true && Object.values(M.grounds.HUNT_GROUNDS).some((g) => g.hunt === h.id) && h.band[0] > L)
       .sort((a, b) => a.band[0] - b.band[0])[0];
     if (!goal.startsWith('goal_')) return 'after the guide (Level ' + L + ', in the Sewer) the pointer shows ' + (goal || 'nothing');
+    /* PAST THE THICKET, NO CHAIN CARD (lane/c-hollow-proofs 2026-11-20: in a hunt with no town section every town lesson is passed anyway, so the
+       mutant that drops the solo cap escaped once its plant could load): each chain card the walk meets, asked of its own facts at Level L, is passed by */
+    for (const s of walkChain(M, tutKit(M, 'tank'))) {
+      const c = s.id && M.tut.HUNT_TUTORIAL.find((r) => r.id === s.id);
+      if (!c || c.party || (c.reactive && !c.dayOne)) continue;
+      const past = M.tut.currentCard({ ...s.facts, charLevel: L, levelXp: M.xp.charXpForLevel(L), skillLevel: L });
+      if (past && past.id === c.id) return 'the chain card ' + c.id + ' is asked of a hero at Level ' + L + ', past the Thicket';
+    }
     if (next && !html.includes(next.name)) return 'the what-next line does not name ' + next.name + ': ' + html;
     /* THE PARTY PITCH, NOT A PARTY WALL (playtest 2026-10-24): a solo hero hears of the party ground its Level fits and
        how to make a party; a hero in a party does not. The ground is the one the Hunts window's party advice picks (lane/a-party-coach-card): at
@@ -1672,6 +1701,10 @@ const cases = {
     /* A title that says nothing alone keeps its words, however long the hunt (newcomer panel 2026-11-01). */
     for (const id of ['first_level', 'leave_cellar']) {
       const c = M.tut.HUNT_TUTORIAL.find((s) => s.id === id);
+      /* opened, then an hour on (lane/c-hollow-proofs: asked once, any card reads open, its first look starts its clock, so the mutant that drops
+         holdOpen escaped once its plant could load) */
+      restsNow(ctx, c);
+      t += 60 * 60000;
       if (!c.holdOpen || restsNow(ctx, c)) return 'under the hunt bar ' + id + ' folds to its bare title';
     }
     return null;
@@ -1898,8 +1931,10 @@ const cases = {
     const cs = { slot: 0, read: () => undefined, record: { data: {}, residue: residueOf({ coach: { hid: ['fuel_hearth'], hidIn: 'none:town' } }) }, setResidue: () => true };
     const sh = L.coachFactsOf(cs, null);
     if (!(sh.hid instanceof Set) || !sh.hid.has('fuel_hearth')) return 'the shell hands the chain no hidden cards: ' + JSON.stringify(sh.hid && [...sh.hid]);
-    const f = tutorialFactsOf({ slot: 0, read: () => undefined }, sh);
-    if (f && !(f.hid instanceof Set && f.hid.has('fuel_hearth'))) return 'the coach\'s facts drop the hidden cards: ' + JSON.stringify(f.hid);
+    /* a hero the facts can read (an empty envelope answers no facts at all, and `f &&` made this line vacuous: lane/c-hollow-proofs found its
+       mutant escaping once the plant could load) */
+    const f = tutorialFactsOf({ slot: 0, read: (k) => ({ state: { level_xp: M.xp.charXpForLevel(5) }, level: srvLevel(M, M.xp.charXpForLevel(5)) })[k] }, sh);
+    if (!f || !(f.hid instanceof Set && f.hid.has('fuel_hearth'))) return 'the coach\'s facts drop the hidden cards: ' + JSON.stringify(f && f.hid && [...f.hid]);
     /* GOT IT MEANS LATER, NOT NEVER (retention dive 2026-11-20, R5: Got it at Level 1 hid "Cash in" and "Into the Thicket" for good): a hide
        holds for the visit it was pressed on. Pressed in hunt s1, it holds in s1; back in town from s1, or in the next hunt, the card shows again. */
     const hunt = (session, ended) => ({ session_id: session, hunt_id: 'mill_cellar', ended, session: {}, hero: {}, pose: { units: [] } });
@@ -2139,7 +2174,7 @@ const mutants = [
   { name: 'any open window hides the coach again, Chat too', case: 'coach-beside-chat',
     edits: [['src/shell/launcher.js', '  return open.some((id) => !beside.has(id));', '  return true;']] },
   { name: 'Chat is not marked as a window the card stays up beside', case: 'coach-beside-chat',
-    edits: [['src/data/shell-windows.js', "object: 'plain', besideCoach: true }),", "object: 'plain' }),"]] },
+    edits: [['src/data/shell-windows.js', "object: 'plain', besideCoach: true,", "object: 'plain',"]] },
   { name: 'the card is drawn over every open window', case: 'coach-beside-chat',
     edits: [['src/shell/launcher.js', "  if (!cs || coachCovered(ctx.wm)) return '';", "  if (!cs) return '';"]] },
   { name: 'the what-next line never sees Defense (no armour hint)', case: 'tutorial-launcher-card',
@@ -2169,8 +2204,11 @@ const mutants = [
     edits: [['src/data/hunt-tutorial.js', "f.endReason === 'died' && f.freeDeath !== true,", "f.endReason === 'died',"]] },
   { name: 'the Tower card never comes', case: 'tutorial-reactive',
     edits: [['src/data/hunt-tutorial.js', "  tower_open: (p, f) => f.towerBest !== null && f.towerBest !== undefined,", '  tower_open: () => false,']] },
+  /* both gates off (lane/c-hollow-proofs 2026-11-20): tower_climbed reads an unknown best floor as unknown and holds the card on its own, so
+     tower_open alone was an equivalent mutant, "caught" only by a plant missing src/hunt-view */
   { name: 'the Tower card comes with the switch off', case: 'tutorial-reactive',
-    edits: [['src/data/hunt-tutorial.js', "  tower_open: (p, f) => f.towerBest !== null && f.towerBest !== undefined,", '  tower_open: () => true,']] },
+    edits: [['src/data/hunt-tutorial.js', "  tower_open: (p, f) => f.towerBest !== null && f.towerBest !== undefined,", '  tower_open: () => true,'],
+      ['src/data/hunt-tutorial.js', '  tower_climbed: (p, f) => known(f.towerBest, (b) => b > 0),', '  tower_climbed: (p, f) => (f.towerBest || 0) > 0,']] },
   { name: 'the gold card never comes', case: 'tutorial-reactive',
     edits: [['src/data/hunt-tutorial.js', "Number.isSafeInteger(f.slotCost) && f.slotCost > 0 && f.gold >= f.slotCost * SAVING_FROM : null),", "false : null),"]] },
   { name: 'Hunt together walls the coach again', case: 'tutorial-reactive',
@@ -2421,15 +2459,22 @@ const mutants = [
     edits: [['src/data/hunt-tutorial.js', '  if (r.knowledge && secondHero(f)) return false;\n', '']] },
   { name: 'a reactive card is capped by the guide\'s Level (no paid-Blessing card at Level 31)', case: 'tutorial-reactive',
     edits: [['src/data/hunt-tutorial.js', '    if (past && (!r.reactive || r.dayOne)) continue;', '    if (past) continue;']] },
-  { name: 'the death card reads no Blessing from the death log', case: 'tutorial-reactive',
-    edits: [['src/session/tutorial-sections.js', 'saved: d.saved ? { level: nat(d.saved.level) ?? 0 } : null', 'saved: null']] },
+  /* RETIRED (lane/c-hollow-proofs 2026-11-20): "the death card reads no Blessing from the death log" (tutorial-sections.js `saved: null`)
+     was "caught" only by a plant missing src/hunt-view. Loaded, no rule can catch it: the death card is a label since the 11-14 ruling
+     ("Shop → Services → Bless"), and no card reads `death.saved` any more (hunt-tutorial.js: `died` and `below_free` only). An equivalent
+     mutant on a field with no reader; the field itself is DISCOVERIES 2026-11-20 #4. */
   { name: 'the ate card never sees the analyzer', case: 'tutorial-reactive',
     edits: [['src/data/hunt-tutorial.js', "  ate: (p, f) => known(used(f, 'food', 'own'), (r) => r.length > 0),", '  ate: () => false,']] },
+  /* PLAN L08 (retention R3): the day-one town cards wait for the stamina end, and the house card sets the job's count */
+  { name: 'the house card speaks before the stamina runs out', case: 'tutorial-reactive',
+    edits: [['src/data/hunt-tutorial.js', "{ kind: 'level_at', at: DAY_ONE_LEVEL }, { kind: 'stamina_ended' }, { kind: 'home_unowned' }", "{ kind: 'level_at', at: DAY_ONE_LEVEL }, { kind: 'home_unowned' }"]] },
+  { name: 'the house card sends the hero gathering with no count', case: 'tutorial-reactive',
+    edits: [['src/data/hunt-tutorial.js', 'ring: { skill: node.skill, work: node.id, count: n } };', 'ring: { skill: node.skill, work: node.id } };']] },
   { name: 'a day-one card jumps the chain (placed before it)', case: 'tutorial-reactive',
     edits: [['src/data/hunt-tutorial.js', "  /* ── F. Day one: each waits for the chain, then starts on its own fact ── */\n", ''],
       ['src/data/hunt-tutorial.js', "  /* ── B. The first hunt, the bar while it fights ────────────────────── */\n",
         "  step('home', 'Build your home', 'x', 'house', { kind: 'home_owned' }, { reactive: true, dayOne: true, when: [IN_TOWN, { kind: 'level_at', at: DAY_ONE_LEVEL }, { kind: 'home_unowned' }] }),\n"],
-      ['src/data/hunt-tutorial.js', "  step('home', 'Build your home',\n    'Gather logs and ore for your first house',\n    'house', { kind: 'home_owned' }, { reactive: true, dayOne: true, when: [IN_TOWN, { kind: 'level_at', at: DAY_ONE_LEVEL }, { kind: 'home_unowned' }] }),\n", '']] },
+      ['src/data/hunt-tutorial.js', "  step('home', 'Build your home',\n    'Gather logs and ore for your first house',\n    'house', { kind: 'home_owned' }, { reactive: true, dayOne: true, when: [IN_TOWN, { kind: 'level_at', at: DAY_ONE_LEVEL }, { kind: 'stamina_ended' }, { kind: 'home_unowned' }] }),\n", '']] },
   { name: 'Tamsin\'s payment card shows while the hero hunts another ground', case: 'tutorial-town-chain',
     edits: [['src/data/hunt-tutorial.js', "{ kind: 'been', hunt: WOLVES.hunt, past: true }] }, { when: [{ kind: 'not_elsewhere', hunt: WOLVES.hunt }] }),", "{ kind: 'been', hunt: WOLVES.hunt, past: true }] }),"]] },
   { name: 'the first-return cards come back after the Thicket', case: 'tutorial-town-chain',
@@ -2464,10 +2509,13 @@ const mutants = [
 ];
 
 /* fixtures/h1.js `plant`, widened to the world engine and its manifests (the map cases read them):
-   a mutant that cannot load would read as caught, so every path this file imports is copied. */
+   a mutant that cannot load would read as caught, so every path this file imports is copied. It had drifted (lane/c-hollow-proofs
+   2026-11-20): with no src/hunt-view, src/net or src/social, no market migrations and no alpha envelope, 90 of its mutants "were caught" by Cannot find
+   module / ENOENT, their cases unrun; a throw is no catch now (tests/_mutant-verdict.mjs), so a missing path reads HARNESS. */
+const MARKET_SQL = ['supabase/migrations/2027-03-03-market-bench-gate.sql', 'supabase/migrations/2027-02-13-market-eligibility.sql'];
 function plant(edits) {
   const root = mkdtempSync(join(tmpdir(), 'hunt-sewer-'));
-  for (const d of ['src/core', 'src/data', 'src/world', 'src/session', 'src/shell', 'src/render', 'src/utils', 'assets/world', 'prototypes/hunt-sim-assets/manifest.json']) cpSync(join(ROOT, d), join(root, d), { recursive: true });
+  for (const d of ['src/core', 'src/data', 'src/world', 'src/session', 'src/shell', 'src/render', 'src/utils', 'src/hunt-view', 'src/net', 'src/social', 'assets/world', 'prototypes/hunt-sim-assets/manifest.json', ...MARKET_SQL, 'tests/fixtures/alpha-envelope.json']) cpSync(join(ROOT, d), join(root, d), { recursive: true });
   cpSync(join(ROOT, 'src/build-info.js'), join(root, 'src/build-info.js'));
   for (const [file, from, to] of edits) {
     const f = join(root, file);
@@ -2515,7 +2563,7 @@ for (const mu of mutants) {
     /* A planted copy that cannot even load is a broken mutant, not a caught one. */
     const PM = await load(p.root);
     try { why = await cases[mu.case](PM); } catch (e) { why = 'threw ' + e.message; }
-    R.ok(!!why, 'mutant "' + mu.name + '" was NOT caught by ' + mu.case);
+    R.ok(caughtBy(why), 'mutant "' + mu.name + '" was NOT caught by ' + mu.case + missWhy(why));
   } finally { p.done(); }
 }
 if (!R.fails.length) console.log('  ' + Object.keys(cases).filter((c) => !ONLY || ONLY.has(c)).length + ' cases, ' + caught + ' mutants caught');

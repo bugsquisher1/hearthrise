@@ -3,11 +3,17 @@
 // tests/tally-window.mjs — TAMSIN'S TALLY ON SCREEN, IN A REAL CHROMIUM (lane c-tally-tasks).
 //
 //   node tests/tally-window.mjs            the rules
-//   node tests/tally-window.mjs --mutate   every planted defect must turn a rule RED
+//   node tests/tally-window.mjs --mutate   every planted defect must turn a NAMED rule RED (stopping at the first); a run that throws or a
+//                                          line with no TW id is HARNESS, never a catch (tests/_mutant-verdict.mjs, lane/c-hollow-proofs)
 //   node tests/tally-window.mjs --mutate --shard=K/N   every Nth mutant from the Kth (smoke.yml's in-page-20, -47, -48)
 //   node tests/tally-window.mjs --shots <dir>   also write TW-11's screenshots (moved, folded; desktop and phone)
 //
-// mutant-anchors: src/styles/hunt.css src/render/format.js src/shell/windows/tally.js src/session/tally-sections.js src/session/tally-intents.js src/shell/windows/hunts.js src/shell/shell.js src/shell/widget-stack.js src/shell/widgets/tally-hud.js src/shell/widget-move.js src/shell/hud-room.js src/styles/windows.css src/styles/shell.css src/render/format.js
+// mutant-anchors: src/styles/hunt.css src/render/format.js src/shell/windows/tally.js src/shell/windows/hunts.js src/shell/shell.js src/shell/widget-stack.js src/shell/widgets/tally-hud.js src/shell/widget-move.js src/shell/hud-room.js src/styles/shell.css
+//
+// THE PURE HALF RUNS IN NODE (lane/c-rules-in-node 2026-11-20, architecture audit item 8): tests/tally-window-pure.mjs holds TW-9's
+// source scan, TW-18's stylesheet scan, the pure halves of TW-15 and TW-17 (they never needed the page), the logic half of TW-1, TW-3,
+// TW-6, TW-7, TW-13 and TW-14 (her words per state, the marks, the HUD line, the Take's body, the weight that suits, the fail-safe
+// read), and the 12 mutants planted in those modules, each caught there by the rule the page named for it. Every page rule stays here.
 //
 // play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs);
 // the character is tests/fixtures/alpha-envelope.json plus a `tally` section
@@ -61,11 +67,11 @@
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { leaseBrowser } from './_chrome.mjs';
-import { readFile, mkdir, readdir } from 'node:fs/promises';
+import { readFile, mkdir } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
-import { pathToFileURL } from 'node:url';
 import { ROOT, serve, SDK_STUB } from './_client-harness.mjs';
 import { scopedMutants } from '../tools/lib/mutant-scope.mjs';
+import { judge, report, exitOf, cleanControl } from './_mutant-verdict.mjs';
 import { COACH_TEXT } from '../src/data/text/coach.js';
 import { pinFonts } from './_test-fonts.mjs';
 
@@ -195,12 +201,10 @@ async function signInAndPlay(page, base) {
 }
 
 /* TW-9 THE WORDS (Tyler 2026-10-24: "this is weird dialogue"; 2026-11-11: Tamsin in the first person, one line per state,
-   src/data/text/tally.js): her first-visit line is her story, and no line a player reads from her (data, window, HUD,
-   refusals, alerts, the log) keeps the riddles it replaced. */
+   src/data/text/tally.js): her first-visit line is her story, and no line her window or the HUD shows keeps the riddles it replaced.
+   The source scan (no string in her data, window, HUD, refusals, alerts or the log keeps them) is pure: tests/tally-window-pure.mjs TW-9. */
 const FIRST_LINE = 'I kept the mill\'s rats down myself for thirty years. Then they got a king, so now I pay people to do it. Take one off my board.';
 const OLD_WORDS = /half of the stick|piece for your back|tally-keeper|picks for|her pick for you|tallies a day|you hold no tally|loads from the server|Tamsin has work/i;
-const COPY_FILES = ['src/data/tally-tasks.js', 'src/data/text/tally.js', 'src/shell/windows/tally.js', 'src/session/tally-sections.js', 'src/shell/widgets/tally-hud.js',
-  'src/data/refusal-words.js', 'src/data/alerts.js', 'src/shell/alerts.js', 'src/hunt-view/combat-log.js'];
 /* TW-18 (page side): every dot DRAWN in `root` (a text dot wider than 0 px, or a src/render/format.js sepHtml dot: hunt.css
    .hh-sep's fill on its space) has words on its own line on both sides: no line starts or ends on one (the v0.2.130 gate
    "Meadowbrook Thicket ·" / "Level 5", the v0.2.131 gate "Level 22" / "· uncommon"), with `root` as drawn or squeezed to `px`. */
@@ -258,39 +262,15 @@ const STATE = () => { const w = document.querySelector('[data-hs-win="tally"]');
     first: e && { task: e.getAttribute('data-task'), cut: e.querySelectorAll('.ht-five i.is-cut').length, done: e.classList.contains('is-done'), get: e.querySelector('.ht-get').textContent, where: e.querySelector('.ht-where').textContent },
     takes: Array.from(w.querySelectorAll('.ht-take')).map((b) => b.disabled) }; };
 
-/* TW-18 NO WORDS OR SEPARATORS DRAWN BY CSS (lane a-first-board-copy, 2026-11-13: "Paid today 0 of 3resets in 24 h", "Mill CellarLevel 1",
-   "HuntsMill Cellar"): a `content:` text is invisible to page text, copy and screen readers, so a dot, arrow-between-words or label is markup.
-   Allowed: '' (a box), ONE icon glyph standing alone on a control (a fold triangle, a page chevron), and the launcher's hover tip, which
-   repeats its button's own label (CSS_CONTENT_OK). Pure: reads src/styles/*.css (or `overrides`). */
-const ICON_GLYPH = /^(?:\\(?:203[9A]|25B[48ACE]|25C[24])|[‹›▴▸▾◂])$/i;
-const CSS_CONTENT_OK = new Set(['src/styles/shell.css|attr(data-tip) "  " attr(data-key)']);
-async function cssWords(overrides) {
-  const out = [];
-  const dir = join(ROOT, 'src/styles');
-  for (const name of (await readdir(dir)).filter((n) => n.endsWith('.css')).sort()) {
-    const f = 'src/styles/' + name;
-    const src = (overrides && overrides[f] !== undefined ? overrides[f] : await readFile(join(dir, name), 'utf8')).replace(/\/\*[\s\S]*?\*\//g, '');
-    for (const m of src.matchAll(/(?:^|[;{\s])content:\s*([^;}]+)/g)) {
-      const v = m[1].trim();
-      if (v === 'none' || v === 'normal' || /^(['"])\1$/.test(v) || CSS_CONTENT_OK.has(f + '|' + v)) continue;
-      const lit = v.match(/^(['"])(.*)\1$/);
-      if (lit && ICON_GLYPH.test(lit[2])) continue;
-      out.push(f + ' draws ' + v + ' in CSS: make it text in the markup');
-    }
-  }
-  return out;
-}
+/* TW-18 NO WORDS OR SEPARATORS DRAWN BY CSS (lane a-first-board-copy, 2026-11-13): the stylesheet scan is pure and runs in Node
+   (tests/tally-window-pure.mjs TW-18); the page side here reads the dots as drawn (DANGLING_DOTS). */
 
-async function checks(overrides, shots) {
+/* A mutant needs ONE red rule (hunt-screen's stopAtFirst): its run stops at the first, so a planted defect costs one page block, not
+   every rule after it (each mutant ran ALL rules, 52-121 s). The clean control and the plain run read every rule. */
+const STOP = Symbol('first red');
+async function checks(overrides, shots, { stopAtFirst = false } = {}) {
   const fails = [];
-  for (const f of COPY_FILES) {
-    const src = overrides && overrides[f] !== undefined ? overrides[f] : await readFile(join(ROOT, f), 'utf8');
-    /* the strings only: a comment may tell her lore (the split stick she notches) */
-    const strings = src.replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, '').match(/'(?:[^'\\\n]|\\.)*'/g) || [];
-    const hit = strings.find((s) => OLD_WORDS.test(s));
-    if (hit) fails.push('TW-9 ' + f + ' still says ' + hit);
-  }
-  for (const f of await cssWords(overrides)) fails.push('TW-18 ' + f);
+  if (stopAtFirst) fails.push = function (...a) { Array.prototype.push.apply(this, a); throw STOP; };
   const { server, port } = await serve(overrides);
   const browser = await leaseBrowser(chromium);
   const W = '[data-hs-win="tally"] ';
@@ -890,17 +870,7 @@ async function checks(overrides, shots) {
       }
       await ctx.close();
     }
-    { // TW-15 the pure half of the once note: her answer's rows carry pick.kind (tally-intents.js boardRow), and sharedPieces reads that
-      const { sharedPieces, cutMarks, resetWords, keeperSay, faceOf } = await import(pathToFileURL(join(ROOT, 'src/shell/windows/tally.js')).href);
-      /* TW-17 the pure half: a creature in the head set has a face, one the set lacks has none (the entry then draws no well and no broken image) */
-      if (faceOf('gray_wolf')?.src !== 'assets/icons-bundle/pixel/heads/gray_wolf.png' || faceOf('farmhand') === null || faceOf('not_a_creature') !== null || faceOf(undefined) !== null) fails.push('TW-17 faceOf reads ' + JSON.stringify([faceOf('gray_wolf'), faceOf('not_a_creature')]));
-      const both = sharedPieces([{ pick: { kind: 'piece', item: 'adept_helmet', qty: 1 } }, { pick: { kind: 'piece', item: 'adept_helmet', qty: 1 } }, { pick: { kind: 'material', item: 'slime_gel', qty: 4 } }, { pick: { kind: 'material', item: 'slime_gel', qty: 4 } }]);
-      if (both.size !== 1 || !both.has('adept_helmet')) fails.push('TW-15 sharedPieces over kind rows gives ' + JSON.stringify([...both]));
-      if ([cutMarks(112, 200, false), cutMarks(0, 25, false), cutMarks(24, 25, false), cutMarks(24, 25, true), cutMarks(9, 25, false)].join() !== '5,0,9,10,3') fails.push('TW-15 the marks cut ' + [cutMarks(112, 200, false), cutMarks(24, 25, false), cutMarks(24, 25, true)].join());
-      const now = Date.parse('2026-10-17T12:00:00Z');
-      if ([resetWords('2026-10-17T18:00:00Z', now), resetWords('2026-10-17T12:20:00Z', now), resetWords('2026-10-17T11:00:00Z', now), resetWords(null, now)].join('|') !== '6 h|20 m||') fails.push('TW-15 the reset reads ' + resetWords('2026-10-17T12:20:00Z', now));
-      if (keeperSay(null, false, false) !== '') fails.push('TW-15 with no tally she speaks');
-    }
+    /* (TW-15's and TW-17's pure halves, sharedPieces, cutMarks, resetWords, keeperSay and faceOf, run in Node: tests/tally-window-pure.mjs) */
     { // TW-7
       const { ctx, page, s, up } = await open({ hunt: null }, null, { ok: true, hunting: false, tally: null, board: BOARD.board });
       if (!(up && await show(page))) fails.push('TW-7 her window did not open without the section');
@@ -928,7 +898,7 @@ async function checks(overrides, shots) {
       }
       await ctx.close();
     }
-  } finally {
+  } catch (e) { if (e !== STOP) throw e; } finally {
     await browser.close();
     server.close();
   }
@@ -936,6 +906,10 @@ async function checks(overrides, shots) {
 }
 
 const MUTANTS = [
+  /* The mutants planted where no page is needed (her words, the stylesheet `content:` text, the section reader, the Take's body, the
+     window's pure helpers) are proven in Node (tests/tally-window-pure.mjs): a new one goes there, by the rule that catches it here. */
+  /* TW-8 docked: Chat at its home is sized inside the observer's own pass (shell.js), so it is not watched (lane/a-chat-opens) */
+  ['Chat at home is watched by the observer and the layout loops (TW-8)', 'src/shell/shell.js', 'if (sized && !(wm.row(p.id).home && !p.phone)) sized.ro.observe', 'if (sized) sized.ro.observe'],
   /* TW-18 the coach card's own slot (UI audit 2026-11-18 UI-6) */
   ['the town coach card hangs under the icon row over the Tally again', 'src/shell/hud-room.js', '  function dockCoach() {\n    dockTownCoach();', '  function dockCoach() {'],
   ['the town coach card docks on top of the Tally', 'src/shell/hud-room.js', '        for (const q of way) if (q.top < top + h + gap && q.bottom + gap > top) { top = q.bottom + gap; moved = true; }', ''],
@@ -950,13 +924,8 @@ const MUTANTS = [
   ['a done task is handed in mid-hunt', 'src/shell/windows/tally.js', "const due = tally && !hunting && tally.paidToday < tally.perDay", 'const due = tally && tally.paidToday < tally.perDay'],
   /* TW-17: the creature's head */
   ['an entry never draws its creature\'s head', 'src/shell/windows/tally.js', '  patchFace(li, h.monster, st);\n', ''],
-  ['a creature with no head still gets a head path', 'src/shell/windows/tally.js', '  const src = headPathFor(monster);', "  const src = headPathFor(monster) || 'assets/icons-bundle/pixel/heads/' + monster + '.png';"],
   /* TW-14, TW-15, TW-16: her ledger (mocks 2026-11-11) */
-  ['her line counts one kill more than the server', 'src/shell/windows/tally.js', "{ down: whole(open.kills), left: whole(open.target - open.kills) }", "{ down: whole(open.kills + 1), left: whole(open.target - open.kills - 1) }"],
-  ['her line is the same in every state', 'src/shell/windows/tally.js', "  const capped = tally.paidToday >= tally.perDay;\n  const done = tally.held.find((h) => h.done);", "  return t('tally.say_none');\n  const capped = tally.paidToday >= tally.perDay;\n  const done = tally.held.find((h) => h.done);"],
   ['a pay from yesterday reads as just paid', 'src/shell/windows/tally.js', "const justPaid = sc.paidNow || !!(paid && paid.at && nowMs - Date.parse(paid.at) < PAID_FRESH_MS);", "const justPaid = sc.paidNow || !!paid;"],
-  ['the marks cut a stroke ahead of the count', 'src/shell/windows/tally.js', "Math.floor((kills / target) * MARKS)", "Math.ceil((kills / target) * MARKS)"],
-  ['sharedPieces reads pick.pick again (the 11-11 bug)', 'src/shell/windows/tally.js', "if (!r.pick || r.pick.kind !== 'piece') continue;", "if (!r.pick || r.pick.pick !== 'piece') continue;"],
   ['the once note never shows on her board', 'src/shell/windows/tally.js', "text(root.querySelector('.ht-board-once'), st.shared.size ? t('tally.once') : '');", "text(root.querySelector('.ht-board-once'), '');"],
   /* TW-13 a first visit (fresh-account play 11-13) */
   ['her board names the material she would not pay before a weight', 'src/shell/windows/tally.js', '  const pick = st.tally && st.tally.weight ? r.pick : null;', '  const pick = r.pick;'],
@@ -964,7 +933,6 @@ const MUTANTS = [
   ['the weight is asked on every repaint', 'src/shell/windows/tally.js', ' && !sc.asking && !sc.weightAsked && !sc.pending && ctx.account) {', ' && !sc.asking && !sc.pending && ctx.account) {'],
   ['a refused weight ask reads its refusal', 'src/shell/windows/tally.js', ".then((r) => { if (!r.ok && !sc.pending) { sc.msg = ''; repaint(); } });", '.then(() => {});'],
   ['her story goes once the weight lands', 'src/shell/windows/tally.js', 'keeperSay(tally, hunting, justPaid, !!sc.firstMeet)', 'keeperSay(tally, hunting, justPaid)'],
-  ['the weight that suits is said twice', 'src/shell/windows/tally.js', "  return !tally.weight ? (suggest ? '' : t('tally.no_weight'))", "  return !tally.weight ? (suggest ? suggest.words : t('tally.no_weight'))"],
   ['the ground link goes nowhere', 'src/shell/windows/tally.js', "const groundLink = (hunt) => ({ words: huntName(hunt), target: targetOf({ kind: 'hunt', hunt }) });", "const groundLink = (hunt) => ({ words: huntName(hunt), target: null });"],
   ['a slot chip sends the old order', 'src/shell/windows/tally.js', "    order.splice(i, 1);\n    order.unshift(s);", "    order.splice(i, 1);\n    order.push(s);"],
   ['the day count hides its reset', 'src/shell/windows/tally.js', "text(root.querySelector('.ht-day-new'), left ? t('tally.day_resets', { left }) : '');", "text(root.querySelector('.ht-day-new'), '');"],
@@ -974,28 +942,21 @@ const MUTANTS = [
   ['a dot can start a line again', 'src/render/format.js', '<span class="hh-sep-t">\\u00a0\\u00b7</span> </span>', '<span class="hh-sep-t"></span> \\u00b7\\u00a0</span>'],
   ['a coach card can end on one word again', 'src/styles/shell.css', ':is(.hs-launchers, .hs-widget) > .hs-pointer { text-wrap: pretty; }', ''],
   /* TW-18: a separator drawn by CSS again (the old .hw-hunt-fit dot) */
-  ['a CSS content draws a separator again', 'src/styles/windows.css', '.hw-hunt-sep { font-weight: 400; color: var(--ink-3); }', ".hw-hunt-sep { font-weight: 400; color: var(--ink-3); }\n.hw-hunt-fit:not(:empty)::before { content: ' · '; }"],
   ['an entry\'s count runs together in text', 'src/shell/windows/tally.js', '<span class="ht-count"><b></b> <small></small></span>', '<span class="ht-count"><b></b><small></small></span>'],
   ['a row\'s ground and its Level run together in text', 'src/shell/windows/tally.js', "prop(li.querySelector('.ht-row-sep'), 'hidden', !lvl);", "prop(li.querySelector('.ht-row-sep'), 'hidden', true);"],
   ['held tasks stay on her board', 'src/shell/windows/tally.js', "rows(root.querySelector('.ht-list'), board.filter((r) => !r.held),", "rows(root.querySelector('.ht-list'), board,"],
   ['a done entry is not lifted', 'src/shell/windows/tally.js', "  cls(li, 'is-done', h.done);", "  cls(li, 'is-done', false);"],
   ['an entry says its ground counts here while hunting elsewhere', 'src/shell/windows/tally.js', "const here = st.hunting && st.huntId === h.hunt;", "const here = st.hunting;"],
   ['the visit is sent on every repaint', 'src/shell/windows/tally.js', '  if (due.length && sc.collected !== key && !sc.pending && ctx.account) {', '  if (due.length && !sc.pending && ctx.account) {'],
-  ['the reader invents a tally', 'src/session/tally-sections.js', "  if (!isObj(raw)) return null;\n  const had", "  if (!isObj(raw)) raw = { held: [], paid_today: 0, per_day: 3, held_max: 3, order: [] };\n  const had"],
-  ['take carries a count', 'src/session/tally-intents.js', "{ p_slot: cs.slot, p_task: task, p_weight: weight == null ? null : weight, p_idem: newIdem() }", "{ p_slot: cs.slot, p_task: task, p_weight: weight == null ? null : weight, p_count: 1, p_idem: newIdem() }"],
-  ['the HUD shows one more kill than the server', 'src/session/tally-sections.js', "return label + ' ' + h.kills + '/' + h.target;", "return label + ' ' + (h.kills + 1) + '/' + h.target;"],
   ['a refusal reads as a generic line', 'src/shell/windows/tally.js', "  const run = (send, busy, done) => runIntent(sc, repaint, send, busy, (r) => { sc.stale = true; return done(r); }, cs);", "  const run = (send, busy, done) => runIntent(sc, repaint, async () => { const r = await send(); if (!r.ok) r.error = 'refused'; return r; }, busy, (r) => { sc.stale = true; return done(r); }, cs);"],
-  ['Enter from her link leaves her window over the hunt (TW-16b, QA audit 2026-11-18 N12)', 'src/shell/windows/hunts.js', " if (by && by !== 'hunts') ctx.wm.close(by);", ''],
+  ['Enter from her link leaves her window over the hunt (TW-16b, QA audit 2026-11-18 N12)', 'src/shell/windows/hunts.js', " if (by && by !== 'hunts' && !(ctx.wm.row(by) || {}).home) ctx.wm.close(by);", ''],
   ['the hunt list drops the tally line', 'src/shell/windows/hunts.js', "patchParts(li.querySelector('.hw-hunt-tally'), withSeps(heldOn(tally, r.hunt).map(tallyLine)));", "patchParts(li.querySelector('.hw-hunt-tally'), []);"],
   ['the Tally is held at its capped height', 'src/shell/hud-room.js', 'phone ? rel(el) : Object.assign(rel(el), { height: wholeHeight(el) })', 'rel(el)'],
   ['her board says nothing of a missing weight', 'src/shell/windows/tally.js', "const why = !sc.board ? '' : hunting ? t('tally.board_hunting') : takeWhyOf(tally, hunting, suggest);", "const why = !sc.board ? '' : hunting ? t('tally.board_hunting') : '';"],
   ['every Take stays grey until a weight is picked', 'src/shell/windows/tally.js', "st.hunting || !tally || (!tally.weight && !st.suggest));", "st.hunting || !tally || !tally.weight);"],
   ['a first Take names no weight', 'src/shell/windows/tally.js', "takeTask(ctx.account, cs, task, first ? first.weight : null)", "takeTask(ctx.account, cs, task, null)"],
-  ['a first Take guesses with nothing to go on', 'src/shell/windows/tally.js', "const weight = wears || WEIGHT_FOR_ROLE[role] || null;", "const weight = wears || WEIGHT_FOR_ROLE[role] || 'heavy';"],
   ['the weight picker stands over her board again', 'src/shell/windows/tally.js', "    + '<h3 class=\"hw-ledger-head is-on ht-head ht-board-head\"><span></span></h3>'", "    + '<div class=\"ht-weights\"></div><h3 class=\"hw-ledger-head is-on ht-head ht-board-head\"><span></span></h3>'"],
   ['the tally sits at its anchor, over the analyzer', 'src/shell/widget-stack.js', '      const top = stackBelow(at, above, DOCK_EDGE);', '      const top = Math.round(at.top);'],
-  ['her first line is the riddle again', 'src/data/text/tally.js', "say_first: 'I kept the mill\\'s rats down myself for thirty years. Then they got a king, so now I pay people to do it. Take one off my board.',",
-    "say_first: 'Bring me your half of the stick when the count is done, and I pay. Coin, and a piece for your back.',"],
   ['a tally with nothing to show keeps its box', 'src/shell/widgets/tally-hud.js', "  cls(el, 'is-quiet', !tl || (!held.length && (hunting || !met)));", "  cls(el.querySelector('.hs-tally'), 'is-quiet', !tl || (!held.length && (hunting || !met)));"],
   ['a new hero\'s first screen carries Tamsin\'s line beside the coach', 'src/shell/widgets/tally-hud.js', '  const met = !!tl && (!!tl.weight || tl.recent.length > 0);', '  const met = !!tl;'],
   /* TW-11: move and fold (Tyler 2026-10-25) */
@@ -1032,18 +993,20 @@ async function main() {
   const list = sm ? picked.filter((_, i) => i % +sm[2] === +sm[1] - 1) : picked;
   if (sm) console.log('  shard ' + sm[1] + '/' + sm[2] + ': ' + list.length + ' of ' + picked.length + ' mutants');
   if (!list.length) process.exit(0);
-  const clean = await checks(null);
-  if (clean.length) { console.log('  ✗ clean control RED: ' + clean.join('; ')); process.exit(1); }
-  let bad = 0;
+  const clean = await cleanControl(() => checks(null));
+  console.log(clean.line);
+  if (clean.code) process.exit(clean.code);
+  /* A mutant is caught only by a NAMED rule (TW-n); a run that throws, or a fail line with no rule id, is HARNESS, never a catch
+     (tests/_mutant-verdict.mjs; lane/c-hollow-proofs 2026-11-20: this loop scored the first word of ANY fail line as the catch). */
+  const counts = { caught: 0, harness: 0, escaped: 0 };
   for (const [name, file, from, to] of list) {
     const text = (await readFile(join(ROOT, file), 'utf8')).replace(/\r\n/g, '\n');
-    if (!text.includes(from)) { console.log('  ✗ ' + name + ' — anchor not found in ' + file); bad++; continue; }
-    const fails = await checks({ [file]: text.replace(from, () => to) });
-    if (fails.length) console.log('  ✓ ' + name + ' — caught (' + fails[0].split(' ')[0] + ')');
-    else { console.log('  ✗ ' + name + ' — NOT caught'); bad++; }
+    if (!text.includes(from)) { console.log('  ✗ ' + name + ' — HARNESS: anchor not found in ' + file); counts.harness++; continue; }
+    console.log(report(name, await judge(() => checks({ [file]: text.replace(from, () => to) }, null, { stopAtFirst: true })), counts));
   }
-  console.log(bad ? 'tally-window --mutate: ' + bad + ' escaped' : 'tally-window --mutate: ' + list.length + '/' + list.length + ' mutants caught');
-  process.exit(bad ? 1 : 0);
+  console.log(exitOf(counts) ? 'tally-window --mutate: ' + counts.escaped + ' escaped, ' + counts.harness + ' HARNESS (not catches)'
+    : 'tally-window --mutate: ' + list.length + '/' + list.length + ' mutants caught, each by a named rule');
+  process.exit(exitOf(counts));
 }
 
 main();

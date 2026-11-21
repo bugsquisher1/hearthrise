@@ -600,7 +600,7 @@ async function loop1(S, M, tag, rows) {
   });
 
   await step(2, 'gather (fish)', async (t) => {
-    await p.act(t, 'set_activity gather:shrimp_s', { verb: 'set_activity', activity: { kind: 'gather', id: 'shrimp_s' } });
+    await p.act(t, 'set_activity gather:shrimp_s', { verb: 'set_activity', activity: { kind: 'gather', id: 'shrimp_s', count: 100000 } });
     const before = await p.settleAfter(t, 'fishing', 10);
     const got = inv(p.env, 'shrimp') - inv(before, 'shrimp');
     t.ok(got > 0, `ten minutes at the shrimp spot banked ${got} shrimp`);
@@ -876,7 +876,7 @@ async function loop3(S, M, tag, rows) {
   });
 
   await step(2, 'fish', async (t) => {
-    await p.act(t, 'set_activity gather:shrimp_s', { verb: 'set_activity', activity: { kind: 'gather', id: 'shrimp_s' } });
+    await p.act(t, 'set_activity gather:shrimp_s', { verb: 'set_activity', activity: { kind: 'gather', id: 'shrimp_s', count: 100000 } });
     const before = await p.settleAfter(t, 'fishing', 20);
     t.ok(inv(p.env, 'shrimp') > inv(before, 'shrimp'), 'twenty minutes of fishing banked no shrimp');
   });
@@ -961,7 +961,7 @@ async function loop4(S, M, tag, rows) {
 
   await step(4, 'never stranded: fishing pays, food can be bought', async (t) => {
     /* The player picks fishing itself (nothing resumes behind it). */
-    await p.act(t, 'set_activity gather:shrimp_s', { verb: 'set_activity', activity: { kind: 'gather', id: 'shrimp_s' } });
+    await p.act(t, 'set_activity gather:shrimp_s', { verb: 'set_activity', activity: { kind: 'gather', id: 'shrimp_s', count: 100000 } });
     const before = await p.settleAfter(t, 'fishing after the hunt', 20);
     t.ok(inv(p.env, 'shrimp') > inv(before, 'shrimp'), 'fishing after the hunt paid nothing');
     const o = cheapestFood(M);
@@ -1010,7 +1010,7 @@ async function loop5(S, M, tag, rows) {
     }
     if (Object.keys(kit).length) await p.act(t, 'equip the kit', { verb: 'equip', equip: kit });
     /* The activity the day resumes: a gather set before the hunt. */
-    await p.act(t, 'set_activity gather:shrimp_s', { verb: 'set_activity', activity: { kind: 'gather', id: 'shrimp_s' } });
+    await p.act(t, 'set_activity gather:shrimp_s', { verb: 'set_activity', activity: { kind: 'gather', id: 'shrimp_s', count: 100000 } });
     t.note(`combat ${combatOf(p.env)}, ${p.env.state.gold} gold, 1500 sharks, kit ${Object.values(kit).join(',')}`);
   });
 

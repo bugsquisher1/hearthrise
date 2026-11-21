@@ -33,11 +33,13 @@ import { isAdd } from './leash.js';
 
 const atOrUnder = (hp, maxHp, pm) => hp * 1000 <= maxHp * pm;
 
-/** The row monster `u` swings with, from `row` (his own at the party's tier): that row, or, a boss under his enrage line, it at his raised attack. */
+/** The row monster `u` swings with, from `row` (his own at the party's tier): that row, or, a boss under his enrage line, it at his raised
+    attack and aim (a harder blow is a surer one, as a tier's: src/data/hunt-tiers.js atTier). */
 export function swingRow(u, row) {
   const ph = (MONSTERS[u.kind] || {}).phases;
   if (!ph || !atOrUnder(u.hp, u.maxHp, ph.enragePm)) return row;
-  return Object.assign({}, row, { atk: Math.floor((row.atk * ph.enrageAtkPm) / 1000) });
+  return Object.assign({}, row, { atk: Math.floor((row.atk * ph.enrageAtkPm) / 1000) },
+    Number.isFinite(row.aim) ? { aim: (row.aim * ph.enrageAtkPm) / 1000 } : {});
 }
 
 /** The permille of a blow monster `t` takes: a boss's `phases.guardPm` while an add of his pocket (leash.js isAdd: one his line

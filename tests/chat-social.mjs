@@ -106,6 +106,10 @@
 //         or slides right past it when the room left is under the resize floor)
 //   CW-9  [page] A LOG OPENS AT ITS FOOT (2026-10-24: Chat at 1440x900 opened on its oldest lines): with more
 //         lines than the chat shows, the open log is scrolled to its newest line after the dock has sized it
+//   CW-12 [page] CHAT OPENS BY DEFAULT (Tyler 2026-10-22): a fresh hero's desktop screen comes up with Chat at its
+//         home and the caret in the World (B opens the bag); Esc passes it by (Settings opens, Chat stays); Enter
+//         gives its field the caret, it stays open; its X is
+//         ONE residue pick (chatOpen off) a reload keeps; Enter opens it again and a reload keeps that; a phone: no sheet
 //   CW-4  [page] the right-click menu on a name opens at page level with Inspect,
 //         Message, Add friend, Invite to party, Block (no Trade); a press on it never reaches the World;
 //         Inspect shows the worn items; zero console errors throughout
@@ -592,7 +596,7 @@ async function combatTab(browser, base, vp) {
     await wait(page, () => document.querySelector('[data-app="play"][data-slot="0"]'));
     await page.click('[data-app="play"][data-slot="0"]');
     await wait(page, () => document.querySelector('[data-hs-shell]'));
-    for (let i = 0; i < 5 && await page.evaluate(() => !!document.querySelector('[data-hs-win]:not(.is-leaving)')); i++) { await page.mouse.click(2, vp.height - 2); await page.keyboard.press('Escape'); await page.waitForTimeout(200); }
+    for (let i = 0; i < 5 && await page.evaluate(() => !!document.querySelector('[data-hs-win]:not(.is-leaving):not([data-hs-win="chat"])')); i++) { await page.mouse.click(2, vp.height - 2); await page.keyboard.press('Escape'); await page.waitForTimeout(200); }
     await page.mouse.click(2, vp.height - 2);
     await page.keyboard.press('Enter');
     if (!await wait(page, () => document.querySelector('[data-hs-win="chat"]:not(.is-leaving) .ha-tab[data-tab="combat"]'), null, 3000)) { fails.push('CW-11 [' + tag + '] the chat did not open'); return fails; }
@@ -620,6 +624,102 @@ async function combatTab(browser, base, vp) {
   } finally { await ctx.close(); }
 }
 
+/* CW-12 CHAT OPENS BY DEFAULT (Tyler 2026-10-22; lane/a-chat-opens: a new account found only "— online" in that corner). A fresh hero's
+   desktop screen comes up with Chat open at its home, the caret left in the World (B opens the bag, nothing typed); Enter gives its field
+   the caret and leaves it open; its X closes it as ONE pick (residue chatOpen off) and a reload keeps it shut; Enter opens it again and the
+   next reload has it open. A phone's screen comes up with no sheet. */
+async function startOpen(browser, base) {
+  const fails = [];
+  const enter = async (page) => {
+    await wait(page, () => document.querySelector('[data-hs-shell]') || document.querySelector('[data-app="play"][data-slot="0"]') || document.querySelector('form[data-auth="sign-in"]'));
+    if (await page.$('form[data-auth="sign-in"]')) {
+      await page.fill('input[name=email]', 'qa@example.test');
+      await page.fill('input[name=password]', 'not-a-real-password');
+      await page.click('.auth-submit');
+      await wait(page, () => document.querySelector('[data-hs-shell]') || document.querySelector('[data-app="play"][data-slot="0"]'));
+    }
+    if (!(await page.$('[data-hs-shell]'))) await page.click('[data-app="play"][data-slot="0"]');
+    await wait(page, () => document.querySelector('[data-hs-shell]'));
+    await page.waitForTimeout(600);
+  };
+  const look = (page) => page.evaluate(() => {
+    const w = document.querySelector('[data-hs-win="chat"]:not(.is-leaving)'), a = document.activeElement;
+    return { open: !!w, home: !!w && w.classList.contains('is-home'), caret: !!a && !!a.closest && !!a.closest('[data-hs-win="chat"]'),
+      field: a && a.classList ? a.classList.contains('hc-field') : false, typed: w ? w.querySelector('.hc-field').value : null,
+      bag: !!document.querySelector('[data-hs-win="inventory"]:not(.is-leaving)') };
+  });
+  const picks = (s) => s.calls.filter((c) => c.name === 'hr_put_client_state' && c.body.p_patch && c.body.p_patch.chatOpen).map((c) => c.body.p_patch.chatOpen.on);
+  for (const vp of [{ width: 1440, height: 900 }, { width: 844, height: 390 }]) {
+    const tag = vp.width + 'x' + vp.height, phone = vp.height <= 540;
+    const ctx = await browser.newContext({ viewport: vp });
+    const page = await ctx.newPage();
+    try {
+      const s = { calls: [], version: 1 };
+      await stub(page, s);
+      await page.goto(base + '/play.html', { waitUntil: 'load' });
+      await enter(page);
+      const fresh = await look(page);
+      if (phone) { if (fresh.open) fails.push('CW-12 [' + tag + '] a phone came up with the chat sheet over the World'); continue; }
+      if (!fresh.open || !fresh.home) { fails.push('CW-12 [' + tag + '] a fresh hero came up without Chat open at its home: ' + JSON.stringify(fresh)); continue; }
+      if (fresh.caret) fails.push('CW-12 [' + tag + '] Chat open at start took the caret from the World');
+      /* a slot's tip (or menu) opens up into Chat's column and rises over it (hunt.css: Chat at home is not a window the bar stays under) */
+      const tip = await page.evaluate(async () => {
+        const slot = document.querySelector('.hb-slot:not(.is-empty)');
+        if (!slot) return null;
+        slot.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+        await new Promise((r) => setTimeout(r, 250));
+        const t = document.querySelector('.hb-tip.is-on'), c = document.querySelector('[data-hs-win="chat"]:not(.is-leaving)');
+        const a = t && t.getBoundingClientRect(), b = c && c.getBoundingClientRect();
+        const over = !!a && !!b && a.left + 8 < b.right && b.left + 8 < a.right && a.top + 8 < b.bottom && b.top + 8 < a.bottom;
+        /* a tip takes no press (pointer-events: none), so it is made hit-testable for the one probe: the topmost box there is the one drawn on top */
+        const pe = t ? t.style.pointerEvents : '';
+        if (t) t.style.pointerEvents = 'auto';
+        const at = over ? document.elementFromPoint(Math.max(a.left, b.left) + 4, Math.max(a.top, b.top) + 4) : null;
+        if (t) t.style.pointerEvents = pe;
+        slot.dispatchEvent(new MouseEvent('mouseout', { bubbles: true }));
+        return { over, onTop: !!at && !!at.closest('.hb-tip') };
+      });
+      if (!tip || !tip.over) fails.push('CW-12 [' + tag + '] CONTROL: no slot tip reaches Chat\'s column, so the bar\'s rise over it is unproved: ' + JSON.stringify(tip));
+      else if (!tip.onTop) fails.push('CW-12 [' + tag + '] a slot\'s tip over Chat at its home lies under it');
+      await page.keyboard.press('b');
+      await page.waitForTimeout(300);
+      const keys = await look(page);
+      if (!keys.bag || keys.typed !== '') fails.push('CW-12 [' + tag + '] with Chat open at start B must open the bag, not type: ' + JSON.stringify(keys));
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(250);
+      /* Chat is part of the screen: Esc passes it by, so with only Chat open Esc still opens Settings, and closing Settings leaves Chat */
+      await page.mouse.click(vp.width / 2, 120);
+      await page.keyboard.press('Escape');
+      const esc = await wait(page, () => document.querySelector('[data-hs-win="settings"]:not(.is-leaving)'), null, 3000);
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(300);
+      if (!esc || !(await look(page)).open || picks(s).length) fails.push('CW-12 [' + tag + '] Esc with only Chat open must open Settings and leave Chat (and its pick) alone: ' + JSON.stringify({ settings: esc, chat: (await look(page)).open, picks: picks(s) }));
+      await page.mouse.click(vp.width / 2, 120);
+      await page.keyboard.press('Enter');
+      await page.waitForTimeout(300);
+      const typing = await look(page);
+      if (!typing.open || !typing.field) { fails.push('CW-12 [' + tag + '] Enter on the open Chat must give its field the caret and leave it open: ' + JSON.stringify(typing)); continue; }
+      await page.keyboard.press('Escape');
+      await page.click('[data-hs-win="chat"] [data-hs-close="chat"]');
+      if (!await wait(page, () => !document.querySelector('[data-hs-win="chat"]'), null, 3000)) fails.push('CW-12 [' + tag + '] its X did not close Chat');
+      await page.waitForTimeout(1500);
+      if (JSON.stringify(picks(s)) !== '[false]') fails.push('CW-12 [' + tag + '] closing Chat put the picks ' + JSON.stringify(picks(s)) + ', not ONE off');
+      await page.reload({ waitUntil: 'load' });
+      await enter(page);
+      if ((await look(page)).open) fails.push('CW-12 [' + tag + '] after the player closed it a reload opened Chat again');
+      await page.mouse.click(vp.width / 2, 120);
+      await page.keyboard.press('Enter');
+      if (!await wait(page, () => document.querySelector('[data-hs-win="chat"]:not(.is-leaving) .hc-field') === document.activeElement, null, 3000)) fails.push('CW-12 [' + tag + '] Enter did not open Chat with the caret');
+      await page.waitForTimeout(1500);
+      if (JSON.stringify(picks(s)) !== '[false,true]') fails.push('CW-12 [' + tag + '] opening Chat again put the picks ' + JSON.stringify(picks(s)));
+      await page.reload({ waitUntil: 'load' });
+      await enter(page);
+      if (!(await look(page)).open) fails.push('CW-12 [' + tag + '] opened again by the player, a reload did not bring Chat back');
+    } finally { await ctx.close(); }
+  }
+  return fails;
+}
+
 /* CW-8 at 1440x900: a party of four (its panel 448 px tall, top-left), the chat open at home. The chat overlaps
    no World widget, the panel is wholly on screen, and the panel's foot and last seat are what a press there hits. */
 async function fullParty(browser, base, shots) {
@@ -642,7 +742,7 @@ async function fullParty(browser, base, shots) {
     await page.click('[data-app="play"][data-slot="0"]');
     if (!await wait(page, () => document.querySelectorAll('[data-hs-widget="party"] .hp-m').length === 4)) { fails.push('CW-8 the four-seat party panel did not mount'); return fails; }
     /* as CW-7 opens it: a press on the World's corner (nothing else focused, no window open), then Enter */
-    for (let i = 0; i < 5 && await page.evaluate(() => !!document.querySelector('[data-hs-win]:not(.is-leaving)')); i++) { await page.mouse.click(2, 898); await page.keyboard.press('Escape'); await page.waitForTimeout(220); }
+    for (let i = 0; i < 5 && await page.evaluate(() => !!document.querySelector('[data-hs-win]:not(.is-leaving):not([data-hs-win="chat"])')); i++) { await page.mouse.click(2, 898); await page.keyboard.press('Escape'); await page.waitForTimeout(220); }
     await page.mouse.click(2, 898);
     await page.keyboard.press('Enter');
     if (!await wait(page, () => document.querySelector('[data-hs-win="chat"]:not(.is-leaving)'), null, 3000)) { fails.push('CW-8 Enter did not open the chat: ' + await page.evaluate(() => Array.from(document.querySelectorAll('[data-hs-win]')).map((w) => w.getAttribute('data-hs-win') + '.' + w.className).join(' ') + ' focus ' + (document.activeElement && document.activeElement.tagName))); return fails; }
@@ -764,7 +864,7 @@ async function pageRules(overrides, shots) {
       }
       if (shots) await page.screenshot({ path: join(shots, 'online-' + tag + '.png') });
       await page.keyboard.press('Enter');
-      if (!await wait(page, () => document.querySelector('[data-hs-win="chat"] .hc-log.is-talk.is-on li'))) { fails.push('CW-1 [' + tag + '] the chat did not open on Global with its history'); await ctx.close(); continue; }
+      if (!await wait(page, () => document.querySelector('[data-hs-win="chat"]:not(.is-leaving) .hc-log.is-talk.is-on li'))) { fails.push('CW-1 [' + tag + '] the chat did not open on Global with its history'); await ctx.close(); continue; }
       // CW-1
       /* The server's broadcast of a stored line (2026-12-26-chat-broadcast.sql): topic chat:global, event line. */
       const n = await page.evaluate(() => window.__hub.send('chat:global', { t: 'line', line: { id: '00000000-0000-4000-8000-00000000f001', channel: 'global',
@@ -1059,7 +1159,7 @@ async function pageRules(overrides, shots) {
         s.social = null; s.ask = null; s.block = null;
       }
       // CW-7: the chat's corner, its see-through plate, its grip and the size a reload keeps
-      const closeAll = async () => { for (let i = 0; i < 5 && await page.evaluate(() => !!document.querySelector('[data-hs-win]:not(.is-leaving)')); i++) { await page.mouse.click(2, vp.height - 2); await page.keyboard.press('Escape'); await page.waitForTimeout(220); } };
+      const closeAll = async () => { for (let i = 0; i < 5 && await page.evaluate(() => !!document.querySelector('[data-hs-win]:not(.is-leaving):not([data-hs-win="chat"])')); i++) { await page.mouse.click(2, vp.height - 2); await page.keyboard.press('Escape'); await page.waitForTimeout(220); } };
       const chatBox = () => page.evaluate(async () => {
         const w = document.querySelector('[data-hs-win="chat"]:not(.is-leaving)');
         if (!w) return null;
@@ -1077,6 +1177,13 @@ async function pageRules(overrides, shots) {
           alpha: m ? Number(m[1]) : 1, px: line ? parseFloat(getComputedStyle(line).fontSize) : 0, floating: w.classList.contains('is-floating'), grip: !!(grip && grip.offsetWidth) };
       });
       await closeAll();
+      /* the hunt's coach card docks in the left column over Chat's home and Chat yields to it, even folded (hud-room.js dockCoach,
+         shell.js capDock): this rule is Chat's grip, so the player turns the tips off ("Don't show tips", kept in the residue) and the
+         column is the Party panel's and Chat's alone, as the rule's 40 px grow was measured */
+      const folded = await page.$('[data-hs-widget="hunt-topbar"] .hs-pointer.is-min [data-hs-act="coach-open"]');
+      if (folded) { await folded.click(); await page.waitForTimeout(300); }
+      const tipsOff = await page.$('[data-hs-widget="hunt-topbar"] .hs-pointer [data-hs-act="coach-off"]');
+      if (tipsOff) { await tipsOff.click(); await page.waitForTimeout(400); }
       await page.keyboard.press('Enter');
       await wait(page, () => document.querySelector('[data-hs-win="chat"]:not(.is-leaving) .hc-log.is-talk.is-on li'), null, 3000);
       await page.waitForTimeout(300);
@@ -1119,6 +1226,7 @@ async function pageRules(overrides, shots) {
       await ctx.close();
     }
     fails.push(...await fullParty(browser, base, shots));   // CW-8
+    fails.push(...await startOpen(browser, base));   // CW-12
     for (const vp of [{ width: 1440, height: 900 }, { width: 844, height: 390 }]) fails.push(...await combatTab(browser, base, vp));   // CW-11
   } finally {
     await browser.close();
@@ -1223,6 +1331,12 @@ const PAGE_MUTANTS = [
   ['a blocked row keeps its first name (FR-2)', 'src/shell/windows/block-list.js', "patch: (el, p) => { text(el.querySelector('b'), p.name);", "patch: (el, p) => { if (!el.querySelector('b').textContent) text(el.querySelector('b'), p.name);"],
   ['a held chat line keeps its old name (CW-10)', 'src/social/chat-store.js', 'if (this._ids.has(l.id)) return this._rename(l);', 'if (this._ids.has(l.id)) return false;'],
   ['a drawn line never repaints its name (CW-10)', 'src/shell/windows/chat.js', 'build: (l) => lineEl(ctx, l), patch: patchName });', 'build: (l) => lineEl(ctx, l), patch: () => {} });'],
+  ['Chat never opens at start (CW-12)', 'src/shell/shell.js', '  wm.openAtStart((row) => startShut(ctx, row));', '  void startShut;'],
+  ['Chat open at start takes the caret (CW-12)', 'src/shell/windows/chat.js', "if (ctx.wm.takeCaret('chat') && can", 'if (can'],
+  ['Enter closes the open Chat (CW-12)', 'src/shell/window-manager.js', 'return r.typing && isOpen(r.id) ? openWindow(r.id) : toggle(r.id);', 'return toggle(r.id);'],
+  ['the player\'s close of Chat is not kept (CW-12)', 'src/shell/window-manager.js', '    if (rows.get(id).startsOpen) keep(id, false);\n', ''],
+  ['Esc closes Chat like any window (CW-12)', 'src/shell/window-manager.js', 'const l = live().filter((id) => !rows.get(id).startsOpen);', 'const l = live();'],
+  ['a slot\'s tip stays under Chat at home (CW-12)', 'src/styles/hunt.css', '.hs-shell:not(:has(.hs-win:not(.is-leaving):not(.is-home))) > .hs-hud:has(', '.hs-shell:not(:has(.hs-win:not(.is-leaving))) > .hs-hud:has('],
   ['the menu is drawn inside the World', 'src/shell/windows/float-menu.js', "  doc.body.appendChild(el);\n  return el;", "  (doc.querySelector('.world-stage') || doc.body).appendChild(el);\n  return el;"],
 ];
 
@@ -1266,7 +1380,10 @@ async function main() {
   for (const [name, file, from, to] of onlyPure ? [] : pick(PAGE_MUTANTS)) {
     const text = await readFile(join(ROOT, file), 'utf8');
     if (!text.includes(from)) { console.log('  ✗ ' + name + ' — anchor not found in ' + file); bad++; continue; }
-    const fails = await pageRules({ [file]: text.replace(from, to) }, null);
+    /* a mutant that throws the page out of its steps (a window a later step waits for never opens, a covered control never
+       takes its press: CW-8's Chat over the coach card) is caught, as on the pure side (lane/a-chat-opens 5140db0ce, lost in a merge) */
+    let fails;
+    try { fails = await pageRules({ [file]: text.replace(from, to) }, null); } catch (e) { fails = ['threw: ' + String(e && e.message).split('\n')[0]]; }
     if (fails.length) console.log('  ✓ ' + name + ' — caught (' + fails[0].split(' ')[0] + ')');
     else { console.log('  ✗ ' + name + ' — NOT caught'); bad++; }
   }

@@ -14,13 +14,14 @@
 // mutant-anchors: none — the selftest plants into rows it builds itself
 //
 // REFUSES (throws, nothing written): hunt-after.js validateAfter's problems (an unknown `runs`, a training choice with no
-// place or a place nobody trains at, a default that is no row or costs gold, no way to wait in town).
+// place or a place nobody trains at, a default that is no row or costs gold, no way to wait in town), and validateJobNexts'
+// (the job THEN rows the server's active_next CHECK lists, 1026-job-counts.sql).
 // ════════════════════════════════════════════════════════════════════════
 import { readFile, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { isMain } from '../tests/_is-main.mjs';
-import { AFTER_CHOICES, AFTER_DEFAULT, JOB_GRACE_S, validateAfter } from '../src/data/hunt-after.js';
+import { AFTER_CHOICES, AFTER_DEFAULT, JOB_GRACE_S, validateAfter, validateJobNexts } from '../src/data/hunt-after.js';
 import { TRAINING_PLACES } from '../src/data/training.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -30,7 +31,8 @@ const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 
 /** The catalogue's rows, or a throw naming every problem. Pure. */
 export function catalogueRows({ choices = AFTER_CHOICES, def = AFTER_DEFAULT, graceS = JOB_GRACE_S, places = Object.keys(TRAINING_PLACES) } = {}) {
-  const problems = validateAfter(choices, def, graceS, places);
+  /* the same module's job THEN rows too: 1026-job-counts.sql's CHECK on player_state.active_next mirrors them (tests/job-counts J-DATA) */
+  const problems = [...validateAfter(choices, def, graceS, places), ...validateJobNexts()];
   if (problems.length) throw new Error('gen-hunt-after: ' + problems.join('; '));
   return { choices: choices.map((c, ord) => ({ id: c.id, ord, runs: c.runs, place: c.place })), def, graceS };
 }

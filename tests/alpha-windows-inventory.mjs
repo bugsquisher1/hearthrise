@@ -301,7 +301,7 @@ async function checks(overrides, shots, opts) {
           else if (shots) await shot(page, 'alpha-1440x900-' + id);
         }
         /* AW-1 Havora (vitals 11-12: powders, rounds and gifts at zero for two days): its icon, not only a map building, opens it. */
-        for (let i = 0; i < 4 && await page.evaluate(() => document.querySelectorAll('[data-hs-win]:not(.is-leaving)').length > 0); i++) { await page.keyboard.press('Escape'); await page.waitForTimeout(160); }
+        for (let i = 0; i < 4 && await page.evaluate(() => document.querySelectorAll('[data-hs-win]:not(.is-leaving):not([data-hs-win="chat"])').length > 0); i++) { await page.keyboard.press('Escape'); await page.waitForTimeout(160); }
         await pressBar(page, 'havora').catch(() => null);
         if (!(await wait(page, () => document.querySelector('[data-hs-win="havora"] [data-hs-built]'), null, 3000))) fails.push('AW-1 the Havora icon did not open Havora');
         /* AW-15 (Tyler 10-18): one Inventory, no Gear and no Find window, and the item search only inside Inventory and Storage. */

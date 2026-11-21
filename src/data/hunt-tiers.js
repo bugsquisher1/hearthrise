@@ -18,7 +18,7 @@
 //   pull   monsters a pull: the instance's frozen density (hr_hunt_density_freeze). One entry per party size 1..4 because the
 //          server's catalogue reads it by size, and every entry is the tier's ONE number (balance-sheet.js TIER_DIALS; the rows
 //          case holds it). 0 = no more than Normal brings: the room as built, for every group (Tyler 2026-11-11).
-//   dmgPm  a monster's atk and its Level, permille of its row. Atk is its accuracy and its blow (combat.js); its Level is what
+//   dmgPm  a monster's atk, its aim and its Level, permille of its row. Atk is its blow and aim its to-hit (combat.js, to-hit.js); its Level is what
 //          armor reads (mitigation.js) and what a blow trains Defense by (hunt-rewards.js).
 //   hpPm   a monster's HP, permille of its row, the same for every party size. A kill still pays the
 //          row's whole kill: more HP never pays more coin or drops.
@@ -126,5 +126,7 @@ export const levelAtTier = (level, dial) => { const pm = pmOf(dial, 'dmgPm'); re
 export function atTier(row, dial) {
   const dmg = pmOf(dial, 'dmgPm'), hp = pmOf(dial, 'hpPm'), xp = pmOf(dial, 'xpPm');
   if (!row || (dmg === 1000 && hp === 1000 && xp === 1000)) return row;
-  return { ...row, atk: ((row.atk || 1) * dmg) / 1000, hp: hp === 1000 ? row.hp : Math.max(1, Math.round(((row.hp || 1) * hp) / 1000)), xp: ((row.xp || 0) * xp) / 1000 };
+  /* a harder blow is a surer one: the aim takes the atk's dial (src/data/to-hit.js; 21-combat.md B2 "a tier's harder blow raises the aim exactly as it raises atk") */
+  return { ...row, atk: ((row.atk || 1) * dmg) / 1000, ...(Number.isFinite(row.aim) ? { aim: (row.aim * dmg) / 1000 } : {}),
+    hp: hp === 1000 ? row.hp : Math.max(1, Math.round(((row.hp || 1) * hp) / 1000)), xp: ((row.xp || 0) * xp) / 1000 };
 }

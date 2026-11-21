@@ -34,6 +34,8 @@
 import { ITEMS } from '../../../src/data/items.js';
 import { HUNT_ROLES, roleForWeapon, wornRoleKey } from '../../../src/data/hunt-roles.js';
 import { playerCombatRolls } from '../../../src/core/combat.js';
+import { evasionFor } from '../../../src/data/to-hit.js';
+import { STAT_FORMULA } from '../../../src/data/balance-sheet.js';
 import { vitalsOf } from '../../../src/core/vitals.js';
 import { mitigationOf, steadyPmOf } from '../../../src/core/mitigation.js';
 import { buffQueueFromServer } from '../../../src/core/buffs.js';
@@ -62,14 +64,14 @@ const SHEET_READ_SQL = `
 /* `$5::text::jsonb`: the sheet is pre-stringified (spend.js APPLY_SQL explains why). */
 const SHEET_PUT_SQL = 'select public.hr_character_sheet_put($1::uuid, $2::int, $3::text, $4::text, $5::text::jsonb) as state';
 
-const NEUTRAL_FOE = Object.freeze({});
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const round = (v, dp) => Math.round((Number(v) || 0) * 10 ** dp) / 10 ** dp;
 
 /**
  * The sheet, from server state only. Every number is one the hunt engine
- * prices a swing with, against a foe with no defence or weakness (the
- * target's own defence is applied at the blow, src/core/hunt/damage.js hurt).
+ * prices a swing with: the damage against a foe with no defence or weakness (the
+ * target's own defence is applied at the blow, src/core/hunt/damage.js hurt), the
+ * hit chance against a regular of the hero's own Level (below).
  * Reads ONLY the SHEET_INPUTS paths of the envelope.
  *
  * @param env    the hr_state_of envelope
@@ -89,7 +91,11 @@ export function characterSheetOf(env, perks, nowMs) {
   const bonus = bonusFor(perkState, liveBuffHost(() => buffs));
   const snap = heroSnapshot({ skills, levelXp }, { eq, equipment, items: ITEMS, bonus, setBonus, profile });
   const mit = mitigationOf(snap.armour, snap.level);
-  const roll = playerCombatRolls(NEUTRAL_FOE, { eq, equipment, items: ITEMS, skills, bonus, setBonus, profile });
+  /* THE HIT CHANCE is against a regular of this hero's own Level as the formula writes one (src/data/to-hit.js evasionFor at
+     STAT_FORMULA.heroHit), the armour lines' rule below (a monster of this hero's Level). On the to-hit ratio a foe with no evasion
+     is the rail for every hero, so the snapshot's neutral foe would show every hero the same number. */
+  const levelFoe = Object.freeze({ evasion: evasionFor(STAT_FORMULA.heroHit, vit.level) });
+  const roll = playerCombatRolls(levelFoe, { eq, equipment, items: ITEMS, skills, bonus, setBonus, profile });
   const role = roleForWeapon(wornRoleKey(equipment, ITEMS), null);
   const row = role ? HUNT_ROLES[role] : null;
   /* The XP parts grantXp pays with; the lasting ones (no buff layer) split perks from food and drink. */
@@ -106,7 +112,7 @@ export function characterSheetOf(env, perks, nowMs) {
     regen_pct: round(vit.regenPm / 10, 1),
     move_speed: row ? row.speed : null,
     damage: { min: 1, max: snap.maxHit },
-    accuracy_pct: round(snap.acc / 10, 1),
+    accuracy_pct: round(roll.accuracy * 100, 1),
     crit_pct: round(roll.critChance * 100, 1),
     defence: snap.def,
     /* WHAT THE ARMOUR DOES TO A BLOW (ruling K7, src/core/mitigation.js): the chance a blow

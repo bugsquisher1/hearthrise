@@ -248,10 +248,11 @@ function deadlyRows(M, hunt, mi, o) {
     const r = M.ENGINE_MONSTERS[id];
     let atk = r.atk || 1;
     while (C.monsterMaxHit({ ...r, atk }) * share < hp) atk++;
-    const base = Number.isFinite(r.baseAcc) ? r.baseAcc : C.COMBAT_BALANCE.monsterBaseAccuracy;
-    const lift = hit === null ? 0 : Math.max(0, Math.ceil((hit - C.monsterAccuracy({ ...r, atk }, def)) * 100) / 100);
-    rows[id] = lift > 0 ? { atk, baseAcc: Math.round((base + lift) * 100) / 100 } : { atk };
-    was[id] = { atk: r.atk, baseAcc: r.baseAcc };
+    /* the to-hit is the row's aim on the ratio (src/data/to-hit.js): raised until it lands `hit` on this defence, never past the rail */
+    let aim = r.aim || 1;
+    if (hit !== null) while (C.monsterAccuracy({ ...r, atk, aim }, def) < Math.min(hit, 0.97) && aim < 1e6) aim = Math.ceil(aim * 1.05) + 1;
+    rows[id] = aim !== r.aim ? { atk, aim } : { atk };
+    was[id] = { atk: r.atk, aim: r.aim };
   }
   const set = (list) => { for (const [id, x] of Object.entries(list)) for (const book of [M.ENGINE_MONSTERS, M.MONSTERS]) {
     for (const [k, v] of Object.entries(x)) { if (v === undefined) delete book[id][k]; else book[id][k] = v; } } };
@@ -355,10 +356,11 @@ function swingsOnly(events) {
    the spells and whose party cannot live through them. */
 /* THE WARRENS' FIVE AS THEY STOOD BEFORE 2026-11-19 (set/v0.2.141's rows, before monsters a little harder): LV-PULL's balance-blind arm plays them.
    Their XP is the rows' as the arm last passed (set/v0.2.142, before lane/d-142-rulings' XP a kill x0.88): a kill's XP moves when a Level lands,
-   and a Level moves the laps, so a balance-blind arm holds it too. */
+   and a Level moves the laps, so a balance-blind arm holds it too. Their to-hit is the rows' own aim and evasion (src/data/to-hit.js, 2026-11-20): an aim
+   ported to land their old baseAcc on the reference hero (50 to 86) left the pull leader off the holder at 603 of 750 commits (Take turns). */
 const WARRENS_BEFORE_STEP = Object.freeze({
-  goblin_scavenger: { hp: 147, atk: 18, baseAcc: 0.72, xp: 659 }, goblin_skulker: { hp: 122, atk: 22, baseAcc: 0.77, xp: 689 }, goblin_digger: { hp: 206, atk: 17, baseAcc: 0.76, xp: 1079 },
-  hobgoblin_foreman: { hp: 312, atk: 23, baseAcc: 0.86, xp: 1815 }, chief_coppercap: { hp: 1096, atk: 28, baseAcc: 0.88, xp: 6975 },
+  goblin_scavenger: { hp: 147, atk: 18, xp: 659 }, goblin_skulker: { hp: 122, atk: 22, xp: 689 }, goblin_digger: { hp: 206, atk: 17, xp: 1079 },
+  hobgoblin_foreman: { hp: 312, atk: 23, xp: 1815 }, chief_coppercap: { hp: 1096, atk: 28, xp: 6975 },
 });
 /* `fn` with these monsters' fields set on both module instances of the rows (the engine's ?v= one and the plain one the live engine is handed), put back after */
 function withRows(M, rows, fn) {
@@ -677,7 +679,7 @@ function rules(M) {
 
   { // LV-SCALE-SPELL: A SCALED HUNT'S SPELLS HIT AT THE SCALED ROWS (audit 2026-11-13: monster-spells.js land read the catalogue row, so the
     // Sewer's Muck Fling hit at about 38% of the scaled swing). The Sewer at Level 50, unarmored heroes who cannot fall: browser closed
-    // (the server's commits) and viewed (every commit matches the prediction), 240 s to reach the Toshers (the fifth pocket): a spell lands harder than the catalogue row's top can.
+    // (the server's commits) and viewed (every commit matches the prediction), 360 s to reach the Toshers (the fifth pocket; 240 s held 2 Flings closed on the old to-hit line and 0 on the ratio; 360 s holds 7): a spell lands harder than the catalogue row's top can.
     const L = 30, HERO_L = 70, SPELL_ID = 'muck_fling';
     const play = M.ENGINE_SIM.huntPlayOf('millrace_sewer', { level: L });
     /* each row's top roll x the most a hero's stance takes (an Offensive hero takes 1.1x: hunt/damage.js hurt), the most one Fling can land;
@@ -695,7 +697,7 @@ function rules(M) {
           mi.hero = Object.assign({}, mi.hero, { lead: i === 0 });
           return mi;
         });
-        const r = run(M, mis, 240000, { server: { hunt: 'millrace_sewer', scale: L }, ...(viewer ? { viewer } : {}) });
+        const r = run(M, mis, 360000, { server: { hunt: 'millrace_sewer', scale: L }, ...(viewer ? { viewer } : {}) });
         const hits = r.verdicts.flatMap((x) => x.tl.hunt_events).filter((e) => e.type === 'dmg' && e.ability === SPELL_ID).map((e) => e.amount);
         ok('LV-SCALE-SPELL', hits.length > 0 && Math.max(...hits) > catTop && Math.max(...hits) <= scaledTop,
           name + ': ' + hits.length + ' Muck Flings landed, the hardest ' + Math.max(0, ...hits) + ' (the catalogue row tops at ' + catTop + ', the scaled row at ' + scaledTop + ')');
@@ -948,7 +950,7 @@ function rules(M) {
 
   { // LV-CALL: A CALLED ROOM, THE HUNT VIEWED (Tyler 2026-11-05: "phases", src/core/hunt/boss-phases.js). His adds spawn inside a swing with no die drawn, so the browser's prediction
     // plays the same wave at the same instant: every commit matches, both lines fall once each on the screen, and the fight ends on the kill. (The closed path: tests/boss-call-db.mjs BD-BOTH.)
-    const ROWS = [['rat_king_called', { hp: 2400, atk: 1, baseAcc: 0 }], ['drain_rat_called', { hp: 60, atk: 1, baseAcc: 0 }]];
+    const ROWS = [['rat_king_called', { hp: 2400, atk: 1, aim: 1 }], ['drain_rat_called', { hp: 60, atk: 1, aim: 1 }]];
     const keep = ROWS.map(([id]) => [id, { ...M.ENGINE_MONSTERS[id] }]);
     for (const [id, row] of ROWS) { Object.assign(M.ENGINE_MONSTERS[id], row); Object.assign(M.MONSTERS[id], row); }
     try {
@@ -1752,6 +1754,9 @@ function rules(M) {
   { /* LV-NOFIGHT a hero who can't fight goes home, viewed and with the browser closed */
     const SPAN = M.HSD.NO_FIGHT_END_MIN * 60000;
     const mi = memberOf(M, 'a', 0, 'ranger', 30);
+    /* it stands ten minutes under the Cellar's blows: on the to-hit ratio (2026-11-20) a Level alone no longer turns them aside (a bare Level 30 bow
+       died about three minutes short of the clock), so it carries a Defense the Cellar's aims mostly miss; the subject is the no-fight end, not the Cellar */
+    mi.skills = { ...mi.skills, defense: M.XP.skillXpForLevel('defense', 150) };
     mi.equipment = { weapon: 'shortbow' };
     mi.huntSession = Object.assign({}, mi.huntSession, { bag: {}, supplySource: 'mine', onEmpty: 'end' });
     mi.hero = M.SPAWN.heroSetup({ weaponType: 'ranged', options: {}, partyRoles: ['ranger'], bar: [] });

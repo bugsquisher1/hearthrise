@@ -64,6 +64,7 @@ import { applyPanelAlpha, clearPanelAlpha } from './panel-alpha.js';
 import { mountWidgetMoves, paintMove } from './widget-move.js';
 import { followGoto, seekRow, ownsKey } from './goto.js';
 import { hideTipIfGone } from './windows/item-tip.js';
+import { startShut, keepStart } from './start-open.js';
 
 /* The components' display clock: session timers and the timeline's due events (parity SH-05, DOM 4 Hz). */
 const DISPLAY_TICK_MS = 250;
@@ -117,7 +118,7 @@ export function mountShell(root, o) {
     sizeOf: (id) => sizes.read(id),
     isPhone: () => phoneMq.matches,
     world: () => ({ width: shell.clientWidth, height: shell.clientHeight }),
-    reducedMotion,
+    reducedMotion, keep: (id, open) => keepStart(ctx, wm.row(id), open),   // the player's close of Chat keeps it shut (./start-open.js)
     schedule: (fn, ms) => host.setTimeout(fn, ms),
   });
   /* The HUD layout and the facts it follows: which hunt widgets show, the default folds (src/shell/shell-hud.js). */
@@ -169,7 +170,7 @@ export function mountShell(root, o) {
     for (const el of Array.from(layer.children)) if (!keep.has(el.getAttribute('data-hs-win'))) el.remove();
     for (const p of placed) {
       let el = layer.querySelector(':scope > [data-hs-win="' + p.id + '"]');
-      if (!el) { el = frame(wm.row(p.id)); layer.appendChild(el); refresh(p.id); if (sized) sized.ro.observe(el, { box: 'border-box' }); }
+      if (!el) { el = frame(wm.row(p.id)); layer.appendChild(el); refresh(p.id); if (sized && !(wm.row(p.id).home && !p.phone)) sized.ro.observe(el, { box: 'border-box' }); }   // Chat at home is sized by capDock inside the observer's own pass: watched, it would loop
       const page = wm.pageIn(p.id);
       if (showPage(el, page)) refresh(page);
       paintHead(el, ctx, WINDOW_RENDERERS);
@@ -343,8 +344,8 @@ export function mountShell(root, o) {
        column (a four-seat party panel), never over either: it shrinks, or slides right past them (hud.js homeAt).
        Measured from its home column every time, so it comes back when the panel gets shorter. */
     const homes = layer.querySelectorAll('.hs-win.is-home');
-    const tops = homes.length ? Array.from(worldHud.querySelectorAll('[data-hs-widget]'))
-      .filter((e) => hud.layoutOf(e.getAttribute('data-hs-widget')).anchor[0] !== 'b')
+    const tops = homes.length ? Array.from(worldHud.querySelectorAll('[data-hs-widget], .is-coach-docked > .hs-pointer'))   // + a panel the player moved, the docked coach card (hud-room.js)
+      .filter((e) => { const id = e.getAttribute('data-hs-widget'); return !id || hud.isMoved(id) || hud.layoutOf(id).anchor[0] !== 'b'; })
       .map((e) => { const q = e.getBoundingClientRect(); return { left: q.left - b.left, top: q.top - b.top, width: q.width, height: q.height }; }) : [];
     for (const w of homes) {
       const at = homeAt({ left: DOCK_EDGE, width: w.offsetWidth }, bars, tops, DOCK_EDGE, HOME_BOTTOM, { width: b.width, height: b.height }, RESIZE_MIN.h);
@@ -401,7 +402,7 @@ export function mountShell(root, o) {
     summaryWasOpen = so;
     paintWindows();
     /* an open window asked to show another tab (R on an open Shop: window-manager.js openTab) shows it at once */
-    for (const id of wm.openIds()) if (wm.wantsTab(id) || wm.wantsFind(id)) refresh(id);
+    for (const id of wm.openIds()) if (wm.wantsTab(id) || wm.wantsFind(id) || wm.wantsCaret(id)) refresh(id);   // ...and Enter on an open Chat takes the caret now, not a tick later
     paintWidgets();
     coach();
   }
@@ -427,6 +428,7 @@ export function mountShell(root, o) {
      Characters button and hero tabs, src/app/character-strip.js). */
   const ringRoots = [shell, screen, opts.screen || doc.body];
   const offWm = wm.subscribe(onWm);
+  wm.openAtStart((row) => startShut(ctx, row));   // Chat stands open at its home unless the player shut it (Tyler 2026-10-22, ./start-open.js)
   /* A reset or a size-class reload moves every line of the HUD layout window too. */
   const offHud = hud.subscribe((id) => { paintWidgets(); if (id === null) for (const w of wm.openIds()) refresh(w); });
 
@@ -569,9 +571,7 @@ export function mountShell(root, o) {
 
   return {
     wm, hud,
-    open: (id) => wm.open(id),
-    close: (id) => wm.close(id),
-    toggle: (id) => wm.toggle(id),
+    open: (id) => wm.open(id), close: (id) => wm.close(id), toggle: (id) => wm.toggle(id),
     refresh,
     /** Repaint the widgets and patch the open component windows (every applied envelope). */
     paint() { followSummary(); paintWidgets(); for (const id of wm.openIds()) if (WINDOW_RENDERERS[id] && WINDOW_RENDERERS[id].patch) refresh(id); coach(); },

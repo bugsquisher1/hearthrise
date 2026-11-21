@@ -53,6 +53,7 @@ import { pathToFileURL } from 'node:url';
 import { readFileSync, existsSync } from 'node:fs';
 import { makeReport, ROOT, plant } from './fixtures/h1.js';
 import { sourceQuery } from '../../tools/lib/version-stamp.mjs';
+import { caughtBy, missWhy } from '../_mutant-verdict.mjs';
 
 const V = sourceQuery(ROOT);
 const imp = (root, p) => import(pathToFileURL(join(root, p)).href + V);
@@ -767,7 +768,8 @@ const playMutants = [
   { name: 'a boss Trophy every 44 h', rule: 'trophy-pace: meadowbrook_thicket', edit: (ms) => { ms.grayjaw.boss = true; ms.grayjaw.drops.push({ id: 'war_crown', ch: 0.001, band: 'trophy' }); } },
   { name: 'the Rat King\'s Crown at 0.2% (a full Bestiary under 100 h)', rule: 'trophy-pace: millrace_sewer', edit: (ms) => { rowOf(ms, 'rat_king', 'rat_kings_crown').ch = 0.002; } },
   /* the Trophy pace on the Chief's meaned kills (TROPHY_SEEDS) still bites both ways */
-  { name: 'the Chief\'s Cauldron at 0.17% (a full Bestiary under 100 h)', rule: 'trophy-pace: coppercap_warrens', edit: (ms) => { rowOf(ms, 'chief_coppercap', 'coppercaps_cauldron').ch = 0.0017; } },
+  /* (0.19%, was 0.17%: on the to-hit ratio, 2026-11-20, the Chief dies a little slower, so 0.17% read 130.7 h, inside the band's 125 h floor with its boost) */
+  { name: 'the Chief\'s Cauldron at 0.19% (a full Bestiary under 125 h)', rule: 'trophy-pace: coppercap_warrens', edit: (ms) => { rowOf(ms, 'chief_coppercap', 'coppercaps_cauldron').ch = 0.0019; } },
   { name: 'the Chief\'s Cauldron at 0.10% (the party waits over 150 h)', rule: 'trophy-pace: coppercap_warrens', edit: (ms) => { rowOf(ms, 'chief_coppercap', 'coppercaps_cauldron').ch = 0.001; } },
   { name: 'the den mother\'s fang a War Crown at 2% (value, not gear)', rule: 'total-value: meadowbrook_thicket', edit: (ms) => { Object.assign(rowOf(ms, 'grayjaw', 'alpha_fang'), { id: 'war_crown', ch: 0.02 }); } },
   { name: 'a fresh hero\'s heavy boots gone', rule: 'gear-pace: a fresh hero at the meadowbrook_thicket', fresh: true, edit: (ms) => { ms.gray_whelp.drops = ms.gray_whelp.drops.filter((d) => d.id !== 'bronze_boots'); } },
@@ -788,7 +790,7 @@ const plantMutants = [
   /* the floor hour (NO PROFIT MOLDS, Tyler 2026-11-13: the old coin-cut mutants of the +25% floor are retired with it). Planted, since the
      clone's monsters feed only the loot stream: the Drain Rat at ten times its bite ends the Sewer's floor hour in a death. */
   { name: 'the Drain Rat hits ten times as hard (the Sewer floor hour ends in a death)', rule: 'floor-hour: millrace_sewer',
-    edits: [['src/data/monsters.js', 'hp: 45, atk: 6, baseAcc: 0.31, def: 0, xp: 78, gp: [6, 17]', 'hp: 45, atk: 60, baseAcc: 0.31, def: 0, xp: 78, gp: [6, 17]']] },
+    edits: [['src/data/monsters.js', 'hp: 45, atk: 6, aim: 14, evasion: 12, def: 0, xp: 78, gp: [6, 17]', 'hp: 45, atk: 60, aim: 14, evasion: 12, def: 0, xp: 78, gp: [6, 17]']] },
   { name: 'worn gear sells at full book again', rule: 'gear-faucet: meadowbrook_thicket', edits: [['src/data/loot-bands.js', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075, 0.033, 0.015, 0.007]);', 'export const VENDOR_GEAR_RATES = Object.freeze([1, 1, 1, 1, 1, 1, 1]);']] },
   { name: 'tier-3 gear sells at the tier-1 rate', rule: 'gear-faucet: coppercap_warrens', edits: [['src/data/loot-bands.js', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075, 0.033, 0.015, 0.007]);', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.5, 0.075, 0.033, 0.015, 0.007]);']] },
   { name: 'the roller reveals nothing (a Rare credited with no hint)', rule: 'reveal-path: meadowbrook_thicket', fresh: true,
@@ -817,7 +819,7 @@ const warrensMutants = [
 /* NO PROFIT MOLDS (Tyler 2026-11-13): the shot-price and Drain Rat coin mutants (gold only) are retired with the +25% bar; the floor still
    bites on a party that does not live the hour. */
 const rangerMutants = [
-  { name: 'the Drain Rat hits ten times as hard (the Sewer party dies)', dice: { millrace_sewer: 1, coppercap_warrens: 1 }, edits: [['src/data/monsters.js', 'hp: 45, atk: 6, baseAcc: 0.31, def: 0, xp: 78, gp: [6, 17]', 'hp: 45, atk: 60, baseAcc: 0.31, def: 0, xp: 78, gp: [6, 17]']] },
+  { name: 'the Drain Rat hits ten times as hard (the Sewer party dies)', dice: { millrace_sewer: 1, coppercap_warrens: 1 }, edits: [['src/data/monsters.js', 'hp: 45, atk: 6, aim: 14, evasion: 12, def: 0, xp: 78, gp: [6, 17]', 'hp: 45, atk: 60, aim: 14, evasion: 12, def: 0, xp: 78, gp: [6, 17]']] },
 ];
 const engineMutants = [
   { name: 'the row\'s band ignored (the odds decide the reveal again)', case: 'band-is-the-reveal',
@@ -826,16 +828,21 @@ const engineMutants = [
     edits: [['src/data/loot-bands.js', "export const REVEAL_BANDS = Object.freeze(['rare', 'very_rare', 'trophy']);", "export const REVEAL_BANDS = Object.freeze(['rare', 'very_rare']);"]] },
   /* THE SALE LADDER FROM TIER 4 UP (lane/b-phase0-tier4, designer 2026-11-08): each new rate one notch under the floor its twin rule sets
      (0.0747 the Mithril Sword over the Steel, 0.025 the Rune Helm over the Mithril, 0.0127 the Ember Sword over the Rune). The high side is
-     gold-intents G1's pin on the whole ladder, and the faucet cap of each ground that drops the tier. */
-  { name: 'tier-4 gear sells at 0.07 of book (a Mithril Sword under the Steel one)', case: 'sale-ladder',
-    edits: [['src/data/loot-bands.js', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075, 0.033, 0.015, 0.007]);', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.07, 0.033, 0.015, 0.007]);']] },
-  { name: 'tier-5 gear sells at 0.02 of book (a Rune Helm under the Mithril one)', case: 'sale-ladder',
-    edits: [['src/data/loot-bands.js', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075, 0.033, 0.015, 0.007]);', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075, 0.02, 0.015, 0.007]);']] },
-  { name: 'tier-6 gear sells at 0.012 of book (an Ember Sword under the Rune one)', case: 'sale-ladder',
-    edits: [['src/data/loot-bands.js', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075, 0.033, 0.015, 0.007]);', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075, 0.033, 0.012, 0.007]);']] },
-  /* tier 7 (lane/d-barrow-data, designer 2026-11-13): the twin rule's floor is 0.0054 (Dawnsteel book 2.77x Emberforged) */
-  { name: 'tier-7 gear sells at 0.005 of book (a Dawnsteel Sword under the Ember one)', case: 'sale-ladder',
-    edits: [['src/data/loot-bands.js', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075, 0.033, 0.015, 0.007]);', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075, 0.033, 0.015, 0.005]);']] },
+     gold-intents G1's pin on the whole ladder, and the faucet cap of each ground that drops the tier.
+     RE-AIMED (lane/c-hollow-proofs 2026-11-20): these four were "caught" only by a missing hr-accrue/catalogue.js in their plant. Loaded,
+     none bit: since the ground income dial (src/data/loot-sale.js, catalogue.js vendorPriceOf) a dialed piece is floored at its lower twin's
+     bid, so the floor each rate must stay over is the twin's DIALED bid. MEASURED on this tree: 0.0667 (Mithril Sword, book 1500, over the
+     Steel Sword's 100), 0.0200 (Rune Sword 5000 over the Mithril's 100), 0.0088 (Ember Sword 13000 over the Rune's 115), 0.0038 (Dawnsteel
+     Platelegs 79200 over the Ember ones' 300). Each mutant is one notch under its floor again. */
+  { name: 'tier-4 gear sells at 0.066 of book (a Mithril Sword under the Steel one)', case: 'sale-ladder',
+    edits: [['src/data/loot-bands.js', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075, 0.033, 0.015, 0.007]);', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.066, 0.033, 0.015, 0.007]);']] },
+  { name: 'tier-5 gear sells at 0.019 of book (a Rune Sword under the Mithril one)', case: 'sale-ladder',
+    edits: [['src/data/loot-bands.js', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075, 0.033, 0.015, 0.007]);', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075, 0.019, 0.015, 0.007]);']] },
+  { name: 'tier-6 gear sells at 0.0085 of book (an Ember Sword under the Rune one)', case: 'sale-ladder',
+    edits: [['src/data/loot-bands.js', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075, 0.033, 0.015, 0.007]);', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075, 0.033, 0.0085, 0.007]);']] },
+  /* tier 7 (lane/d-barrow-data, designer 2026-11-13; floor re-measured above) */
+  { name: 'tier-7 gear sells at 0.0035 of book (a Dawnsteel piece under its Emberforged twin)', case: 'sale-ladder',
+    edits: [['src/data/loot-bands.js', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075, 0.033, 0.015, 0.007]);', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075, 0.033, 0.015, 0.0035]);']] },
 ];
 
 const R = makeReport('hunt-core/drop-tables');
@@ -858,14 +865,15 @@ if (process.argv.includes('--no-mutate')) { R.finish(); process.exit(R.fails.len
 for (const mu of dataMutants) {
   let why = null;
   try { why = cases[mu.case](mutated(M, mu.edit)); } catch (e) { why = 'threw ' + e.message; }
-  R.ok(!!why, 'mutant "' + mu.name + '" was NOT caught by ' + mu.case);
+  R.ok(caughtBy(why), 'mutant "' + mu.name + '" was NOT caught by ' + mu.case + missWhy(why));
 }
 for (const mu of engineMutants) {
-  const p = plant(mu.edits);
+  /* load() reads the server catalogue (supabase/functions/hr-accrue): without it every engine mutant threw Cannot find module (lane/c-hollow-proofs) */
+  const p = plant(mu.edits, PLAY_TREES);
   try {
     let why = null;
     try { why = cases[mu.case](await load(p.root)); } catch (e) { why = 'threw ' + e.message; }
-    R.ok(!!why, 'mutant "' + mu.name + '" was NOT caught by ' + mu.case);
+    R.ok(caughtBy(why), 'mutant "' + mu.name + '" was NOT caught by ' + mu.case + missWhy(why));
   } finally { p.done(); }
 }
 const groundOf = (rule) => /meadowbrook_thicket|millrace_sewer|mosslight_glade|coppercap_warrens|mill_cellar|wickstead/.exec(rule)[0];

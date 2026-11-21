@@ -123,7 +123,7 @@ export default definePack({
         { id: 'rune_boots', ch: 0.0115, band: 'scarce' }, { id: 'wyvernhide_boots', ch: 0.0115, band: 'scarce' }, { id: 'sorcerer_boots', ch: 0.0115, band: 'scarce' },
         { id: 'rune_sword', ch: 0.0115, band: 'scarce' }],
       /* (his Rare Runebound Shield, 0.08%, left for the Lurchers' hourly row: one home on a ground, lane/d-drop-homes 2026-11-18) */
-      hp: 103, atk: 53, baseAcc: 1, def: 28, xp: 720, gp: [15, 46], formula: true },
+      hp: 103, atk: 53, aim: 103, evasion: 28, def: 3, xp: 720, gp: [15, 46], formula: true },
     stoker: {
       name: 'Stoker', icon: '🪵', tier: 5, level: 74, cls: 'undead', family: 'Undead', speed: 2400,
       /* the tank, the slowest thing on the field: the Hold's woodmen who fed the pyres and forged in their heat. Worked in the
@@ -135,7 +135,7 @@ export default definePack({
         { id: 'rune_platelegs', ch: 0.029, band: 'scarce' }, { id: 'wyvernhide_pants', ch: 0.029, band: 'scarce' }, { id: 'sorcerer_pants', ch: 0.029, band: 'scarce' },
         { id: 'rune_warhammer', ch: 0.029, band: 'scarce' },
         { id: 'rune_belt', ch: 0.0019, band: 'rare' }, { id: 'wyvernhide_belt', ch: 0.0019, band: 'rare' }, { id: 'sorcerer_belt', ch: 0.0019, band: 'rare' }],
-      hp: 162, atk: 52, baseAcc: 1.04, def: 45, xp: 1274, gp: [24, 71], formula: true },
+      hp: 162, atk: 52, aim: 91, evasion: 45, def: 18, xp: 1274, gp: [24, 71], formula: true },
     lurcher: {
       name: 'Lurcher', icon: '🐕', tier: 5, level: 72, cls: 'mammal', family: 'Mammal', speed: 4600,
       /* the skirmisher: the company's camp dogs, lean and quick enough to run down a kiter, who never left their dead. Living, so the
@@ -146,7 +146,7 @@ export default definePack({
         { id: 'rune_helm', ch: 0.05, band: 'scarce' }, { id: 'wyvernhide_helmet', ch: 0.05, band: 'scarce' }, { id: 'sorcerer_helmet', ch: 0.05, band: 'scarce' },
         { id: 'runebound_shield', ch: 0.05, band: 'scarce' },
         { id: 'rune_gauntlets', ch: 0.0039, band: 'rare' }, { id: 'wyvernhide_gloves', ch: 0.0039, band: 'rare' }, { id: 'sorcerer_gloves', ch: 0.0039, band: 'rare' }],
-      hp: 99, atk: 70, baseAcc: 0.79, def: 29, xp: 840, gp: [15, 43], formula: true },
+      hp: 99, atk: 70, aim: 142, evasion: 29, def: 3, xp: 840, gp: [15, 43], formula: true },
     pyre_wraith: {
       name: 'Pyre Wraith', icon: '👻', tier: 5, level: 76, cls: 'undead', family: 'Undead', speed: 3600,
       /* the regular: a dead man Krell's rite bound into the pyre smoke, still in his shroud. A spell undoes the binding and a blade goes
@@ -156,7 +156,7 @@ export default definePack({
       drops: [{ id: 'grave_dust', ch: 0.3, band: 'common' }, { id: 'wraith_veil', ch: 0.2, band: 'common' }, { id: 'shroud_pin', ch: 0.08, band: 'uncommon' },
         { id: 'yew_staff', ch: 0.028, band: 'scarce' },
         { id: 'yew_wand', ch: 0.0019, band: 'rare' }, { id: 'yew_spellbook', ch: 0.0019, band: 'rare' }],
-      hp: 139, atk: 67, baseAcc: 0.88, def: 34, xp: 1004, gp: [20, 62], formula: true },
+      hp: 139, atk: 67, aim: 123, evasion: 34, def: 6, xp: 1004, gp: [20, 62], formula: true },
     provost: {
       name: 'Provost', icon: '⚔️', tier: 5, level: 80, cls: 'undead', family: 'Undead', speed: 3000,
       /* the bruiser and the rare carrier: the company's provosts, who hanged its deserters (Wickstead's Turncoats ran from them), burned
@@ -172,7 +172,7 @@ export default definePack({
         { id: 'ember_hatchets', ch: 0.002, band: 'rare' }, { id: 'runewood_crossbow', ch: 0.002, band: 'rare' },
         /* the tier-6 shield beside every tier-6 weapon (shields.js, the audit's F8) */
         { id: 'ember_tower_shield', ch: 0.002, band: 'rare' }],
-      hp: 233, atk: 70, baseAcc: 0.9, def: 56, xp: 1976, gp: [34, 103], formula: true },
+      hp: 233, atk: 70, aim: 127, evasion: 52, def: 26, xp: 1976, gp: [34, 103], formula: true },
   },
   roster: {
     charred_pikeman: 'swarm',   // the common majority

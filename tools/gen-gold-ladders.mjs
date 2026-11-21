@@ -72,6 +72,11 @@ for (const r of GOLD_LADDER_OFFERS) {
 }
 const bank0 = GOLD_LADDER_OFFERS.find((r) => r.offer_id === 'bank.0');
 if (!bank0) die('no bank.0 rung: the behaviour probe has no anchor');
+/* THE BAG'S CEILING (Tyler 2026-11-20, call 26-9: ten rungs a hero). The probe buys every rung and is refused the next. */
+const bankUnlock = GOLD_LADDER_UNLOCKS.find((u) => u.unlock_id === 'bank');
+const bankMax = bankUnlock ? bankUnlock.max_value : 0;
+if (bankMax !== 10) die(`the bag ladder stops at 10 rungs a hero (Tyler 2026-11-20, balance call 26-9), not ${bankMax}`);
+const bankAll = GOLD_LADDER_OFFERS.filter((r) => r.unlock_id === 'bank').reduce((a, r) => a + r.gold, 0);
 
 // ── EMIT ────────────────────────────────────────────────────────────────────
 const q = (s) => (s === null || s === undefined ? 'null' : `'${String(s).replace(/'/g, "''")}'`);
@@ -124,6 +129,13 @@ const file = `-- ═════════════════════
 --   carries its owner (\`source\`) and each deletes only its own, so any of them
 --   may be re-applied ALONE, in any order.
 --
+-- THE BAG STOPS AT ${bankMax} RUNGS A HERO (Tyler 2026-11-20, balance call 26-9; src/data/gold-ladders.js BANK_RUNGS):
+-- the bank ladder's hr_unlocks ceiling and rungs end at ${bankMax}, and its offers past rung ${bankMax} leave with the
+-- scoped delete, so hr_unlock_buy answers unknown_offer for them before any lock or charge (§4 (d) buys
+-- the whole ladder on a probe and proves it). A hero that already owns a rung past ${bankMax} KEEPS ITS BAG:
+-- nothing here writes a player row, player_state.bank_cap is raised only (hr_bank_cap_sync), and no
+-- writer touches a bank row it cannot sell; §0 counts any such hero in a NOTICE.
+--
 -- REVERSIBILITY
 --   Re-apply 2026-08-19-gold-spend-slices-2-3.sql's top-level hr_unlocks and
 --   hr_unlock_offers statements (they upsert the retired ladders). Nothing else is
@@ -150,6 +162,11 @@ begin
    where key = any (array[${retiredIds}]::text[]) and value > 0;
   if v_n > 0 then
     raise notice 'gold-ladders §0: % held rung row(s) of a retired ladder stay in player_progress, inert (no reader, no catalogue row)', v_n;
+  end if;
+  select count(*) into v_n from public.player_progress
+   where kind = 'unlock' and key = 'bank' and period_key = '' and value > ${bankMax};
+  if v_n > 0 then
+    raise notice 'gold-ladders §0: % hero(es) own a bag rung past ${bankMax}; each keeps its bag (bank_cap is raise-only and no row is written)', v_n;
   end if;
 end $$;
 
@@ -239,7 +256,7 @@ end $$;
 do $$
 declare
   v_uid  uuid := '00000000-0000-4000-8000-00000000b193';
-  v_r    jsonb; v_ver bigint; v_g0 bigint; v_g1 bigint; v_cap0 int; v_key uuid; v_off text;
+  v_r    jsonb; v_ver bigint; v_g0 bigint; v_g1 bigint; v_cap0 int; v_key uuid; v_off text; v_k int;
 begin
   if to_regprocedure('public.hr_create_character(int)') is null then
     raise exception 'gold-ladders §4 CANNOT RUN: hr_create_character is missing — a skipped check is not a passed one';
@@ -293,6 +310,29 @@ begin
       raise exception 'gold-ladders §4(c): a retired rung moved the purse';
     end if;
 
+    -- (d) THE BAG STOPS AT ${bankMax} (Tyler 2026-11-20): every rung after the first sells in order at its price, the bag ends
+    --     ${bankMax * BANK_STACKS_PER_RUNG} stacks above where it started, and the rung past it is an unknown offer that charges nothing.
+    for v_k in 1 .. ${bankMax - 1} loop
+      select version into v_ver from public.player_state where user_id = v_uid and slot = 0;
+      v_r := public.hr_unlock_buy(v_uid, 0, v_ver, gen_random_uuid(), 'bank.' || v_k);
+      if coalesce(v_r->>'ok', 'false') <> 'true' then
+        raise exception 'gold-ladders §4(d): bank.% refused (%)', v_k, v_r;
+      end if;
+    end loop;
+    if (select gold from public.account_wallet where user_id = v_uid) <> v_g0 - ${bankAll} then
+      raise exception 'gold-ladders §4(d): the ${bankMax} rungs cost %g, expected ${bankAll}', v_g0 - (select gold from public.account_wallet where user_id = v_uid);
+    end if;
+    if (select bank_cap from public.player_state where user_id = v_uid and slot = 0) <> v_cap0 + ${bankMax * BANK_STACKS_PER_RUNG} then
+      raise exception 'gold-ladders §4(d): the whole ladder moved the bag cap % -> %, expected +${bankMax * BANK_STACKS_PER_RUNG}',
+        v_cap0, (select bank_cap from public.player_state where user_id = v_uid and slot = 0);
+    end if;
+    v_g1 := (select gold from public.account_wallet where user_id = v_uid);
+    select version into v_ver from public.player_state where user_id = v_uid and slot = 0;
+    v_r := public.hr_unlock_buy(v_uid, 0, v_ver, gen_random_uuid(), 'bank.${bankMax}');
+    if v_r->>'error' is distinct from 'unknown_offer' or (select gold from public.account_wallet where user_id = v_uid) <> v_g1 then
+      raise exception 'gold-ladders §4(d): the rung past ${bankMax} answered % (expected unknown_offer, nothing charged)', v_r;
+    end if;
+
     raise exception using errcode = 'HRB19', message = 'gold-ladders §4 complete — rolling back';
   exception when sqlstate 'HRB19' then
     null;
@@ -306,7 +346,7 @@ begin
   end if;
 
   raise notice 'GOLD-LADDERS OK — the bank sells at tier 0, raises the bag cap and replays once; a retired '
-               'worker_hire or farm_land rung is an unknown offer and costs nothing. Zero residue.';
+               'worker_hire or farm_land rung is an unknown offer and costs nothing; the bag stops at ${bankMax} rungs. Zero residue.';
 end $$;
 `;
 

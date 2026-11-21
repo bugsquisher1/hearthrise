@@ -57,6 +57,7 @@ import { runAll as liveSettlementGuards, engineGuard as settleReport,
 import { runAll as deltaTransportGuards } from './delta-transport.mjs';
 import { runAll as jwtGuards } from './jwt-verify.mjs';
 import { runAll as corsGuards } from './cors-preflight.mjs';
+import { payloadMismatchIsReport } from './edge-payload-scope.mjs';
 import { recipeYieldGuard, recipeYieldMutationGuard } from './recipe-yield-guard.mjs';
 import { cacheBusterGuard, cacheBusterMutationGuard } from './cache-buster-guard.mjs';
 import { pack as packEdge, runAll as packCheck } from '../tools/pack-edge.mjs';
@@ -170,6 +171,12 @@ async function deployedPayloadGuard() {
       return { problems, note: '' };
     }
     const body = await res.json();
+    if (body?.payload_sha256 !== hash && payloadMismatchIsReport()) {
+      /* THE BIG RELEASE (CLAUDE.md §3.3b): `next` stages the set whose edge deploys only at the release, so here the mismatch is
+         said, not failed; release/** and main still fail on it (tests/edge-payload-scope.mjs proves the scope). */
+      return { problems, note: `REPORTED on next, not a failure: the deployed hr-accrue reports payload ${String(body?.payload_sha256).slice(0, 16)}… `
+        + `and this tree packs to ${hash.slice(0, 16)}… (the edge deploys at the release; release/** and main fail on this)` };
+    }
     if (body?.payload_sha256 !== hash) {
       problems.push(
         `the deployed hr-accrue reports payload ${String(body?.payload_sha256).slice(0, 16)}… but this repo packs to `

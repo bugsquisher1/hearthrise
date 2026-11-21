@@ -27,6 +27,7 @@ import { BOSS_HALL_WORDS, roomOfHunt } from '../../data/boss-halls.js';
 import { packFor, huntRows, seatsUnder, underWords } from '../hunt-list.js';
 import { partyMembershipOf, huntName } from '../../session/party-sections.js';
 import { startPartyHunt, warnPartyGround } from '../../session/party-intents.js';
+import { ownPartyOf, againAllWords, againAll } from '../carry-on.js';
 import { observeSessions } from '../../session/character-session.js';
 import { attach, summariesOf, liveDeaths, liveSummaryOf } from '../../hunt-view/summary-recorder.js';
 import { nameOf, bagOf, bagExpandOf } from '../../session/item-sections.js';
@@ -36,7 +37,7 @@ import { resultHtml, patchResult, goldFig } from '../result-block.js';
 import { afterDoneWords } from '../hunt-after.js';
 import { heldStep, glyphSvg } from '../launcher.js';
 import { coachWindow, coachTab } from '../../data/hunt-tutorial.js';
-import { townStepsOf, depositPlanned } from '../back-in-town.js';
+import { townStepsOf, depositPlanned, alwaysSell } from '../back-in-town.js';
 import { equipUpgrades } from '../widgets/upgrade-line.js';
 import { blessAll } from '../bless-all.js';
 import { blessingsOf } from '../../session/item-sections.js';
@@ -71,10 +72,14 @@ const nextStepOf = (ctx) => heldStep(ctx);
 observeSessions(attach);
 
 const SCRATCH = new WeakMap();
-const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { pending: false, msg: '', pick: null, did: new Map() }; SCRATCH.set(cs, s); } return s; };
+const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { pending: false, msg: '', pick: null, did: new Map(), sold: { id: null, items: [] } }; SCRATCH.set(cs, s); } return s; };
 /* The Back in town steps pressed on this card (by its session id), each with its title as pressed, so a step with nothing left reads
    Done and stays saying what it did. Display only. */
 const didOf = (sc, id) => { let d = sc.did.get(id); if (!d) { d = new Map(); sc.did.clear(); sc.did.set(id, d); } return d; };
+/* The junk this card's Sell took with no plan (its step's `fresh`), what "Always sell these" offers. Display only: a reload forgets the offer,
+   never a plan (the plans are the server's). */
+const soldOf = (sc, id) => (sc.sold.id === id ? sc.sold.items : []);
+const townOf = (cs, sc, id) => townStepsOf(cs, didOf(sc, id), soldOf(sc, id));
 /* ── The window ── */
 /* THE DETAILS, under the presses: the hunt's balance for everyone, balance per hour once the server rates the hunt (10 minutes of it: a
    shorter hunt showed a bare "–" there, core-loop play 2026-10-30), Level XP per hour with no party or solo bonus (the analyzer's own
@@ -264,7 +269,9 @@ renderHuntSummary.patch = function patchHuntSummary(body, ctx) {
     const go = root.querySelector('[data-hs-act="again"]');
     /* a training card's press opens the Training window on its Start (its own door, hr_training_start) */
     const trainAgain = !!cur.train;
-    text(go, trainAgain ? t('training.card_again') : t('controls.hunt_again'));
+    /* THE LEADER OF A PARTY THE ACCOUNT FILLS ALONE: "Hunt again, all four" is Carry on for that party's heroes (21-combat change 9, ../carry-on.js) */
+    const own = route && route.how === 'party' ? ownPartyOf(ctx, cs) : null;
+    text(go, trainAgain ? t('training.card_again') : own ? againAllWords(own.length) : t('controls.hunt_again'));
     prop(go, 'disabled', sc.pending || huntOpen || !again || !route.how);
     /* ...only opens a window, which says itself whether Start can go (a session running, out hunting, the purse): never off for a rule */
     if (trainAgain) prop(go, 'disabled', sc.pending);
@@ -276,7 +283,7 @@ renderHuntSummary.patch = function patchHuntSummary(body, ctx) {
     prop(next, 'hidden', !card);
     text(next, card ? 'Next: ' + card.title : '');
     /* the steps are about the bag NOW: the newest hunt's card only, with no hunt running */
-    const town = cur === list[0] && !huntOpen ? townStepsOf(cs, didOf(sc, cur.id)) : { steps: [], primary: 'again' };
+    const town = cur === list[0] && !huntOpen ? townOf(cs, sc, cur.id) : { steps: [], primary: 'again' };
     patchTown(root, ctx, sc, town);
     cls(go, 'is-primary', town.primary === 'again');
     /* A GROUND OUTGROWN (audit 2026-11-19 L2, played at 1440x900: the window led with a greyed Hunt again and "Hunt again off: Ground
@@ -341,6 +348,8 @@ function patchTown(root, ctx, sc, town) {
       text(btn, s.verb);
       /* THE NEXT BUY's Show is a link (goto.js): it opens the window where the buy is made, on its row, and sends nothing */
       attr(btn, 'data-hs-goto', s.place ? gotoKey(targetOf(s.place)) : null);
+      /* ...and a hero slot's opens the Characters screen, where slots are bought (the app's own door, boot.js data-app="characters") */
+      attr(btn, 'data-app', s.place && s.place.kind === 'characters' ? 'characters' : null);
       /* ...never the next ground's Show: the foot carries that press (Go to <ground>), so the window keeps one gold press */
       cls(btn, 'is-primary', town.primary === s.id && s.id !== 'ground');
       const done = el.querySelector('.hsum-done');
@@ -354,15 +363,25 @@ function patchTown(root, ctx, sc, town) {
    Deposit stacks as ONE hr_bank_move_many (back-in-town.js depositPlanned), the Services tab's Bless all. An answer that went marks the step pressed
    on this card, so a step with nothing left reads Done; the answer's words land on the summary's own line. */
 function doTown(ctx, cs, sc, repaint, cur, step) {
-  const town = townStepsOf(cs, didOf(sc, cur.id));
+  const town = townOf(cs, sc, cur.id);
   const s = town.steps.find((x) => x.id === step && !x.done);
   if (!s || sc.pending) return;
   const mark = (r) => { if (r && (r.ok || r.moved > 0)) { didOf(sc, cur.id).set(step, s.title); repaint(); } };
   if (step === 'equip') { equipUpgrades(cs, sc, repaint, { ops: s.ops }).then(mark); return; }
   if (step === 'sell') {
-    const lines = s.lines;
+    const lines = s.lines, fresh = s.fresh || [];
     runIntent(sc, repaint, () => cs.edgeIntent('vendor_sell_many', { lines }), t('summary.selling'),
-      (r) => (r && Number.isSafeInteger(r.paid) ? t('summary.sold', { gold: gold(r.paid) }) : t('summary.sold_plain')), cs).then(mark);
+      (r) => (r && Number.isSafeInteger(r.paid) ? t('summary.sold', { gold: gold(r.paid) }) : t('summary.sold_plain')), cs).then((r) => {
+      /* the junk it sold with no plan is what "Always sell these" offers next, once the server has taken the sale */
+      if (r && r.ok && fresh.length) sc.sold = { id: cur.id, items: fresh.slice() };
+      mark(r);
+    });
+    return;
+  }
+  /* ALWAYS SELL THESE: the plan Sell on each, one hr_loot_rule_set an item; the row reads the re-read plans, so it is done when the server says Sell */
+  if (step === 'always') {
+    const items = s.items || [];
+    runIntent(sc, repaint, () => alwaysSell(cs, items), t('summary.always_busy'), (r) => t('summary.always_done', { count: r.set }), cs).then(mark);
     return;
   }
   if (step === 'deposit') {
@@ -413,7 +432,9 @@ renderHuntSummary.act = function actHuntSummary(ctx, body, action, ev, el) {
     if (cur && cur.train) { ctx.show('training'); return true; }
     const args = huntAgainOf(cur);
     const how = args ? againRoute(partyMembershipOf(cs), args.hunt).how : null;
-    if (how === 'party') leadAgain(ctx, cs, sc, repaint, args.hunt);
+    const own = how === 'party' ? ownPartyOf(ctx, cs) : null;
+    if (own) againAll(ctx, cs, sc, repaint, own);
+    else if (how === 'party') leadAgain(ctx, cs, sc, repaint, args.hunt);
     else if (how === 'enter') runIntent(sc, repaint, () => cs.huntAgain(againWithBag(args, packFor(bagOf(cs)))), 'Setting out…', () => 'Setting out.', cs);
     return true;
   }

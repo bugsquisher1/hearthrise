@@ -33,8 +33,9 @@
 export const HELD_HOME_OFFERS = Object.freeze([]);
 
 /** ROOMS HELD WHOLE UNTIL REBUILT (CLAUDE.md §3.5, 26-home.md §4): the Trophy Room's wall hangs nothing (world-boot.js
-    `trophies: null`). No rung of one sells (unlock-catalogue.js, home-sections.js); rungs bought stay, shown (hr_home_view). */
-export const HELD_HOME_ROOMS = Object.freeze(['trophy']);
+    `trophies: null`); the Shrine's rungs are cut (Tyler 2026-11-20, call 26-8), its place on the map kept. No rung of one sells
+    (unlock-catalogue.js, home-sections.js); rungs bought stay, shown (hr_home_view). */
+export const HELD_HOME_ROOMS = Object.freeze(['trophy', 'shrine']);
 
 /** PROPERTY_TIERS[i] is property tier i. `rooms` are the rooms tier i first opens. */
 export const PROPERTY_TIERS = Object.freeze([

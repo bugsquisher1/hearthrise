@@ -129,7 +129,10 @@ async function underSkill(root) {
   const at = underSkillRun(P, 45, BAR, BAG);
   if (!(at.uses.mithril_arrows > 0) || !countOf(at.shots, 'mithril_arrows')) return 'CONTROL: Ranged 45 shot no Mithril Arrows: ' + JSON.stringify(at.uses);
   /* the store: nothing bought under the skill, the wait is said, and with nothing else to shoot the hunt ends no_fight (a slot with a test stands ahead of the worn row, conditions.js attackOrder) */
-  const store = underSkillRun(P, 42, [{ ...atk('mithril_arrows'), conditions: [{ metric: 'self_hp_pct', op: 'lte', value: 100 }] }], {});
+  /* (the hero stands twelve minutes under the Glade's blows and must outlast the no-fight clock: since the to-hit ratio, 2026-11-20, a Level
+     alone no longer turns those blows aside, so this one carries a Defense the Glade's aims mostly miss) */
+  const sturdy = () => ({ skills: Object.fromEntries(['melee', 'ranged', 'magic', 'defense', 'inner_flame'].map((k) => [k, XP.skillXpForLevel(k, k === 'defense' ? 150 : 42)])) });
+  const store = underSkillRun(P, 42, [{ ...atk('mithril_arrows'), conditions: [{ metric: 'self_hp_pct', op: 'lte', value: 100 }] }], {}, sturdy);
   if (store.buys.plain_mithril_arrows) return 'Ranged 42 bought ' + store.buys.plain_mithril_arrows + ' store Mithril Arrows';
   if (store.shots.length) return 'Ranged 42 with only Mithril on its bar shot ' + store.shots.length + ' time(s)';
   if (!store.waits.includes('mithril_arrows')) return 'the wait was not said (rule_wait level): ' + JSON.stringify(store.waits);

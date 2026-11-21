@@ -15,6 +15,7 @@ import { join, relative } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { plant, makeReport, ROOT } from './fixtures/h1.js';
 import { sourceQuery } from '../../tools/lib/version-stamp.mjs';
+import { caughtBy, missWhy } from '../_mutant-verdict.mjs';
 
 /* Fields a player reads, not the engine. */
 const DISPLAY = Object.freeze({ ability: ['n'], status: ['name'] });
@@ -185,7 +186,7 @@ for (const mu of mutants) {
     let why = null;
     try { why = cases[mu.case](await load(p.root)); } catch (e) { why = 'threw ' + e.message; }
     if (process.env.H2_WHY) console.log('  mutant "' + mu.name + '" -> ' + why);
-    R.ok(!!why, 'mutant "' + mu.name + '" was NOT caught by ' + mu.case);
+    R.ok(caughtBy(why), 'mutant "' + mu.name + '" was NOT caught by ' + mu.case + missWhy(why));
   } finally { p.done(); }
 }
 if (!R.fails.length) console.log('  ' + Object.keys(cases).length + ' cases, ' + mutants.length + ' mutants caught');

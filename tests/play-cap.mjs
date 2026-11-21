@@ -74,7 +74,7 @@ const engineExec = (db) => async (text, params) => {
   try { return (await db.query(text, params)).rows; } finally { await db.exec('reset role'); }
 };
 const enter = (db, uid, slot, hunt, ip = IP_X) => as(db, uid, ip, 'select public.hr_hunt_enter($1, $2, $3::jsonb, 0, null, $4::uuid)', [slot, hunt, '[]', idem()]);
-const gather = (db, uid, slot, node) => SA.runSetActivity({ exec: engineExec(db), user: uid, slot, intentId: idem(), activity: { kind: 'gather', id: node } });
+const gather = (db, uid, slot, node) => SA.runSetActivity({ exec: engineExec(db), user: uid, slot, intentId: idem(), activity: { kind: 'gather', id: node, count: 100000 } });
 const playing = (db, uid, slot) => one(db, 'select public.hr_playing($1, $2)', [uid, slot]);
 const err = (r) => (r && r.ok === true ? 'ok' : r && r.error);
 

@@ -72,6 +72,7 @@ const QUIET = Object.freeze({
   'r = await marketMine(cs); } catch': 'the sale notices\' background read (market-watch.js); a refusal leaves nothing new to tell, and the next read tries again',
   'r = await readWorks(ctx.account, cs); } catch': 'the closed Market\'s Works read (market/state.js readBuilding), never a press; a refusal leaves sc.works null and blockWords says the closed line instead',
   'stopWork(cs, send)).then': 'the armed stop (town-work.js) answers through the `send` its start was given: the window\'s runIntent',
+  'r = await carryOnPlan(ctx.account, cs, null); } catch': 'the return card\'s plan read (carry-on.js readPlan), never a press: a refused read offers no Carry on, each hero keeps its own press, and the next hunt start or end reads it again',
 });
 const RESERVED = new Set(['if', 'for', 'while', 'switch', 'catch', 'function', 'return']);
 
@@ -187,6 +188,10 @@ export const REASONS = Object.freeze({
     { cond: '!!block', words: "text(root.querySelector('.tw-off-why'), block)", where: 'Start training: the line above it says why (out hunting, in a party, no quote, a purse under the first hour, the dummy in use), and data-off-why says it on a press' },
     /* 2027-05-20-yard-stop.sql, post-140 audit C10: a Stop pending to the server's close */
     { cond: '!!stopping', words: "text(root.querySelector('.tw-stop-why'), stopping)", where: 'Stop training while its Stop pends: the line beside it says the hunt bar\'s words ("Leaving in 3s", "Leaving now…"), and data-off-why says it on a press' },
+  ],
+  /* Carry on (1024-carry-on.sql): off while the server's plan has no hero to send; the block is hidden then, except right after a press */
+  'src/shell/carry-on.js': [
+    { cond: 's.pending || !live', words: "text(el.querySelector('.haway-carry-msg'), s.msg)", where: 'Carry on: hidden while no hero would go; shown off only after a press, when the line under it says who went or why the server refused (a hero that stays reads its own reason in the list above)' },
   ],
   'src/shell/windows/house-dummy.js': [
     { cond: '!canBuy', words: "text(box.querySelector('.hd-why'), block)", where: 'Unlock on the dummy: the line under the ladder says why (no Homestead, short of the next price); every skill held reads "Every skill is unlocked" and hides the buttons' },
@@ -384,6 +389,10 @@ export const REASONS = Object.freeze({
     { cond: '!verb', words: 'verb', where: 'the plot says what it needs' },
     { cond: 'st.farming < up.farming || !afford', words: "t('farm.tier_next", where: 'the tier line names the price and Farming level (OPEN: does not say which is short)' },
   ],
+  /* Tend the field (1017-tend-the-field.sql): off only when the server's bill has nothing to do, and the bill's first line says so */
+  'src/shell/windows/farm-tend.js': [
+    { cond: '!b.work', words: "if (!b.work) out.push(t('farm.tend_nothing'));", where: 'Tend the field: the bill above it reads "Nothing to tend right now", and every plot it leaves empty says why' },
+  ],
   'src/shell/windows/configure-action.js': [
     { cond: 'off', words: "text(el.querySelector('.ca-need-t'), r.locked ? r.need || '' : '')", where: 'a locked row names what it needs under its name, whole in its title (rowNeed; UI audit 2026-11-18, phone-touch PH-1)' },
     { cond: 'MAX_CONDITIONS', words: 'MAX_CONDITIONS', where: 'the conditions list (OPEN: no words at the cap)' },
@@ -512,7 +521,7 @@ async function screens(overrides) {
       await page.click('[data-app="play"][data-slot="0"]');
       if (!(await wait(page, () => document.querySelector('.hs-launchers')))) { fails.push('SW-4 the game did not open'); await ctx.close(); continue; }
       const openWin = async (key, id) => {
-        for (let i = 0; i < 4 && await page.evaluate(() => document.querySelectorAll('[data-hs-win]:not(.is-leaving)').length > 0); i++) {
+        for (let i = 0; i < 4 && await page.evaluate(() => document.querySelectorAll('[data-hs-win]:not(.is-leaving):not([data-hs-win="chat"])').length > 0); i++) {
           await page.evaluate(() => { const a = document.activeElement; if (a && a.blur) a.blur(); });
           await page.keyboard.press('Escape');
           await page.waitForTimeout(160);

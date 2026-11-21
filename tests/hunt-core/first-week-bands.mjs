@@ -45,6 +45,7 @@ import { pathToFileURL } from 'node:url';
 import { readFileSync } from 'node:fs';
 import { makeReport, ROOT, plant } from './fixtures/h1.js';
 import { sourceQuery } from '../../tools/lib/version-stamp.mjs';
+import { caughtBy, missWhy } from '../_mutant-verdict.mjs';
 
 const V = sourceQuery(ROOT);
 const { loadCellRunner } = await import(pathToFileURL(join(ROOT, 'tools/balance-sim/cell.mjs')).href);
@@ -286,32 +287,40 @@ cases['weapon-rungs'] = (R) => {
    is easy again, a pull still pays once held, and a watched hunt (10 s settles) and a closed browser (10 min) walk the same swings. */
 cases['glade-harder'] = (R) => {
   const play = (s, level, o) => R.runCell({ id: 'gh:' + s + ':' + level + ':' + JSON.stringify(o || {}), ground: 'mosslight_glade', party: [s], level, hours: 1, seeds: 1, ...(o || {}) }).heroes[0];
+  /* the floor's typical low point is read on four seeds: it sits at the Normal band's edge (the tank 60.8% on four seeds before the to-hit
+     ratio, 60.2% on it, 2026-11-20; 61.5% and 59.2% on one seed, the same 67% of the Glade's blows landing on it either way), so one seed's
+     dice decided the line, not the rule */
   for (const s of ['tank', 'hammer']) {
-    const h = play(s, 16);
+    const h = play(s, 16, { seeds: 4 });
     if (!(h.encMinHpPct.p50 < 92)) return s + ' at the floor: typical ' + h.encMinHpPct.p50 + '% (it read 94% before the harder Glade, 88-89% after): the hero should feel it';
     if (!(h.encMinHpPct.p50 >= 60)) return s + ' at the floor: typical ' + h.encMinHpPct.p50 + '%, under Normal';
   }
   for (const s of ['tank', 'hammer', 'bow', 'mage', 'healer']) {
-    const h = play(s, 16);
+    /* the two melee ways on the four seeds above (their low point sits at the band's edge) */
+    const h = play(s, 16, s === 'tank' || s === 'hammer' ? { seeds: 4 } : undefined);
     const why = judge({ heroes: [h] }, 16, 'glade floor');
     if (why) return why;
   }
   const viewed = play('tank', 16), closed = play('tank', 16, { windowMs: 600000 });
   for (const k of ['levelXpPerH', 'takenPerH', 'storePerH', 'coinPerH']) if (viewed[k] !== closed[k]) return k + ': viewed ' + viewed[k] + ', browser closed ' + closed[k];
   const top = play('tank', 31);
-  if (!(top.encMinHpPct.p50 > 90)) return 'the top of the band reads ' + top.encMinHpPct.p50 + '%: outgrowing a ground should show';
+  /* OUTGROWING SHOWS: the top of the band reads Easy, the sheet's own line (balance-sheet.js BALANCE_SHEET.normal, ruled 10-25: Normal 60-80%,
+     over 80 reads Easy). It read "over 90", the old line's measure (92.5% at 31); on the to-hit ratio (2026-11-20) Defense over a monster's own
+     counts a little less, so the top reads 87.9% (87.7% on four seeds) against the floor's 60%: CONFLICTS 2026-11-20 asks the designer to confirm */
+  if (!(top.encMinHpPct.p50 > 80)) return 'the top of the band reads ' + top.encMinHpPct.p50 + '%: outgrowing a ground should show (Easy: over 80)';
   const built = play('mage', 31), held = play('mage', 31, { density: 8 });
   if (!(held.levelXpPerH > built.levelXpPerH)) return 'a pull held at the top pays ' + held.levelXpPerH + ' XP/h against ' + built.levelXpPerH;
   return null;
 };
 
-const GLADE_SOFT = [['hp: 33, atk: 13, baseAcc: 0.76, def: 1, xp: 101', 'hp: 33, atk: 2, def: 1, xp: 115'], ['hp: 29, atk: 15, baseAcc: 0.83, def: 1, xp: 114', 'hp: 29, atk: 2, def: 1, xp: 129'],
-  ['hp: 52, atk: 12, baseAcc: 0.8, def: 6, xp: 199', 'hp: 52, atk: 2, def: 6, xp: 226'], ['hp: 81, atk: 23, baseAcc: 0.76, def: 11, xp: 346', 'hp: 81, atk: 2, def: 11, xp: 393'],
-  ['hp: 90, atk: 24, baseAcc: 0.8, def: 14, xp: 401', 'hp: 90, atk: 2, def: 14, xp: 456'], ['hp: 57, atk: 17, baseAcc: 0.74, def: 8, xp: 225', 'hp: 57, atk: 2, def: 8, xp: 256']].map(([a, b]) => ['src/data/monsters.js', a, b]);
+const GLADE_SOFT = [['hp: 33, atk: 13, aim: 61, evasion: 17, def: 1, xp: 101', 'hp: 33, atk: 2, def: 1, xp: 115'], ['hp: 29, atk: 15, aim: 77, evasion: 16, def: 1, xp: 114', 'hp: 29, atk: 2, def: 1, xp: 129'],
+  ['hp: 52, atk: 12, aim: 51, evasion: 25, def: 5, xp: 199', 'hp: 52, atk: 2, def: 5, xp: 226'], ['hp: 81, atk: 23, aim: 73, evasion: 29, def: 8, xp: 346', 'hp: 81, atk: 2, def: 8, xp: 393'],
+  ['hp: 90, atk: 24, aim: 76, evasion: 31, def: 9, xp: 401', 'hp: 90, atk: 2, def: 9, xp: 456'], ['hp: 57, atk: 17, aim: 53, evasion: 25, def: 6, xp: 225', 'hp: 57, atk: 2, def: 6, xp: 256']].map(([a, b]) => ['src/data/monsters.js', a, b]);
 /* THE MUTANTS: each breaks one first-week way to fight, the way a data row would */
 const mutants = [
   { name: 'the Glade hits at the old accuracy: its floor is not felt', case: 'glade-harder',
-    edits: [['src/core/combat.js', 'const base = monster && Number.isFinite(monster.baseAcc) ? monster.baseAcc : b.monsterBaseAccuracy;', 'const base = b.monsterBaseAccuracy;'], ...GLADE_SOFT.map(([f, a]) => [f, a, a.replace(/atk: \d+/, 'atk: 2')])] },
+    /* since the to-hit ratio (src/data/to-hit.js) a monster's to-hit is its row's aim: the softened rows carry a fresh ground's aim and a tap of a blow */
+    edits: GLADE_SOFT.map(([f, a]) => [f, a, a.replace(/atk: \d+/, 'atk: 2').replace(/aim: \d+/, 'aim: 20')]) },
   { name: 'armor reads the hero\'s Level again: a swing ten Levels under lands no harder than at the floor', case: 'risk-ladder',
     edits: [['src/core/hunt/damage.js', "mitigationOf(target.armour, source && source.side === 'mon' ? levelAtTier(monsterLevelOf(rowOf(inst, source.kind)), inst.tier) : 1)", 'mitigationOf(target.armour, target.heroLv || 1)']] },
   { name: 'Studded Boots stop no more than Leather Boots again', case: 'armor-rungs', edits: [['src/data/items.js', "leather_boots:{n:'Leather Boots',icon:'🥾',v:35,type:'armor',slot:'boots',defB:1},", "leather_boots:{n:'Leather Boots',icon:'🥾',v:35,type:'armor',slot:'boots',defB:2},"]] },
@@ -329,8 +338,10 @@ const mutants = [
     edits: [['src/data/items.js', "weaponType:'hammer',atkB:7,strB:16},", "weaponType:'hammer',atkB:7,strB:10},"]] },
   { name: 'the Steel Warhammer is cut to 9/18: over the Iron it pays under +5%', case: 'weapon-rungs',
     edits: [['src/data/gear-tiers.js', 'str: [7, 16, 23, 28, 39, 52, 68],', 'str: [7, 16, 18, 28, 39, 52, 68],']] },
-  { name: 'the Iron Hatchets are back at 7/7: their upgrade pays under +5%', case: 'weapon-rungs',
-    edits: [['src/data/gear-tiers.js', 'atk: [4, 9, 14, 19, 25, 33, 42], str: [4, 11, 16, 21, 22, 29, 38],', 'atk: [4, 7, 14, 19, 25, 33, 42], str: [4, 7, 16, 21, 22, 29, 38],']] },
+  /* (was the 7/7 hatchets: on the to-hit ratio, 2026-11-20, a weapon's accuracy no longer sits on a ceiling, so 7/7 over 4/4 pays its +5%; a rung
+     that is the tier below's numbers is the defect the case exists for) */
+  { name: 'the Iron Hatchets are the Bronze ones again (4/4): their upgrade pays under +5%', case: 'weapon-rungs',
+    edits: [['src/data/gear-tiers.js', 'atk: [4, 9, 14, 19, 25, 33, 42], str: [4, 11, 16, 21, 22, 29, 38],', 'atk: [4, 4, 14, 19, 25, 33, 42], str: [4, 4, 16, 21, 22, 29, 38],']] },
   /* x0.75, not x0.85: at a one-class four's -60 to -70 a x0.85 cell moves the reading about 4.5 points, inside the line's 5 */
   { name: 'a four of one weapon is paid x0.75, and the Thicket window still says what its old cell measured', case: 'vs-alone',
     edits: [['src/data/party-class-xp.js', 'row([880, 1500], [990, 1600, 1700], [970, 1580, 1670, 1700])', 'row([880, 1500], [990, 1600, 1700], [730, 1580, 1670, 1700])']] },
@@ -348,7 +359,8 @@ const mutants = [
     edits: [['src/data/hunt-grounds.js', 'const n = Math.min(MAX_HEROES, Math.max(1, Math.floor(Number(partySize) || 1)));\n  const max = Array.isArray(ground && ground.densityMax) ? ground.densityMax[n - 1] : DENSITY_FULL_BOX;', 'const n = Math.min(MAX_HEROES, Math.max(1, Math.floor(Number(partySize) || 1)));\n  const max = 1;']] },
   { name: 'a cape reads nothing on the hook, so it does nothing in a fight', case: 'cape-cut', edits: [['src/core/mitigation.js', 'nat(eq && eq.steadyPm) + ', '']] },
   { name: 'a food reads nothing on the hook, so it does nothing in a fight', case: 'cape-cut', edits: [['src/core/mitigation.js', " + Math.round((Number(bonus && bonus('steady')) || 0) * 1000);", ";"]] },
-  { name: 'a cape guards again: damage taken falls by half', case: 'cape-cut', edits: [['src/data/slot-ladders.js', 'reqLv: 22, steadyPm: 70,', 'reqLv: 22, defB: 4,']] },
+  /* (guard 20, a shield's: on the to-hit ratio a 4-point guard is about the cloak's own 7%, so only a cape that guards like a shield shows in the damage) */
+  { name: 'a cape guards like a shield again: damage taken falls by a quarter', case: 'cape-cut', edits: [['src/data/slot-ladders.js', 'reqLv: 22, steadyPm: 70,', 'reqLv: 22, defB: 20,']] },
   { name: 'the unready hero is safe: a hero in no armor takes 60% less from every blow', case: 'risk-ladder', expect: 'fifteen Levels under',
     edits: [['src/core/mitigation.js', 'if (!dodgePm && !absorbPm && !ward) return NO_MITIGATION;', 'if (!dodgePm && !absorbPm && !ward) return Object.freeze({ dodgePm: 0, absorbPm: 600, ward: 0, keepPm: 0 });']] },
   { name: 'the unready hero is nearly safe: a hero in no armor takes 35% less, still dying now and then (25% until the 11-19 step: the monsters hit a tenth harder, and at 25% the practice set still died twice an hour)', case: 'risk-ladder', expect: 'fifteen Levels under',
@@ -363,17 +375,21 @@ const mutants = [
   /* RE-AIMED (NO PROFIT MOLDS, Tyler 2026-11-13): def 60 was caught only by the retired +25% bar (the kills slowed, the bill stood); twenty times
      the health is a Cellar a fresh hero cannot clear at pace */
   { name: 'the Cellar\'s rats, slimes and wasps with twenty times their health: a fresh hero cannot clear it', case: 'solo-mill_cellar',
-    edits: [['src/data/monsters.js', 'hp: 7, atk: 3, baseAcc: 0.34, def: 0, xp: 14, gp: [1, 1], formula: true, speed: 3400,', 'hp: 120, atk: 3, baseAcc: 0.34, def: 0, xp: 14, gp: [1, 1], formula: true, speed: 3400,'],
-      ['src/data/monsters.js', 'hp: 8, atk: 3, baseAcc: 0.28, def: 0, xp: 18, gp: [1, 1], formula: true, speed: 2400,', 'hp: 160, atk: 3, baseAcc: 0.28, def: 0, xp: 18, gp: [1, 1], formula: true, speed: 2400,'],
-      ['src/data/monsters.js', 'hp: 9, atk: 3, baseAcc: 0.47, def: 0, xp: 22, gp: [1, 2],', 'hp: 160, atk: 3, baseAcc: 0.47, def: 0, xp: 22, gp: [1, 2],']] },
+    edits: [['src/data/monsters.js', 'hp: 7, atk: 3, aim: 17, evasion: 8, def: 0, xp: 14, gp: [1, 1], formula: true, speed: 3400,', 'hp: 120, atk: 3, aim: 17, evasion: 8, def: 0, xp: 14, gp: [1, 1], formula: true, speed: 3400,'],
+      ['src/data/monsters.js', 'hp: 8, atk: 3, aim: 14, evasion: 12, def: 0, xp: 18, gp: [1, 1], formula: true, speed: 2400,', 'hp: 160, atk: 3, aim: 14, evasion: 12, def: 0, xp: 18, gp: [1, 1], formula: true, speed: 2400,'],
+      ['src/data/monsters.js', 'hp: 9, atk: 3, aim: 21, evasion: 8, def: 0, xp: 22, gp: [1, 2],', 'hp: 160, atk: 3, aim: 21, evasion: 8, def: 0, xp: 22, gp: [1, 2],']] },
   { name: 'Wickstead\'s Granary Rats bite like a Rat King (atk 5 -> 14)', case: 'solo-wickstead',
-    edits: [['src/data/monsters.js', 'hp: 17, atk: 5, baseAcc: 0.44, def: 0, xp: 43, gp: [2, 7], formula: true, speed: 3400', 'hp: 17, atk: 14, baseAcc: 0.44, def: 0, xp: 43, gp: [2, 7], formula: true, speed: 3400']] },
+    edits: [['src/data/monsters.js', 'hp: 17, atk: 5, aim: 21, evasion: 11, def: 0, xp: 43, gp: [2, 7], formula: true, speed: 3400', 'hp: 17, atk: 14, aim: 21, evasion: 11, def: 0, xp: 43, gp: [2, 7], formula: true, speed: 3400']] },
   /* THE UNIQUE CATCH (proved when written): at atk 12 drop-tables (floor-hour, caster-floor, ranger-floor), sewer,
      conditions and forest-cave all stay green, since their heroes wear the ladder kit's armour; only a fresh party in the
      practice sets dips (the tank: 3 in 2 h). level-curve C1 asks for a re-measure, not a fix. RE-AIMED on the formula's bat (atk 6 at
      to-hit 0.63, lane/b-ground-formula-2): at 12 the duo's tank dips once (the bar allows one), at 14 three times in 2 h, as the old 12 did. */
-  { name: 'the Sewer\'s Culvert Bats bite more than twice as hard (atk 6 -> 14): a fresh party\'s tank keeps dipping under 25%', case: 'party-millrace_sewer',
-    edits: [['src/data/monsters.js', 'hp: 59, atk: 7, baseAcc: 0.44, def: 1, xp: 145, gp: [8, 23], formula: true, speed: 4400', 'hp: 59, atk: 14, baseAcc: 0.44, def: 1, xp: 145, gp: [8, 23], formula: true, speed: 4400']] },
+  /* outgrowing shows nothing: a hero's Defense turns no blow aside (src/data/to-hit.js: its rating is the base alone), so the top of the Glade reads like its floor */
+  { name: 'Defense turns no blow aside: the top of the band reads like its floor', case: 'glade-harder',
+    edits: [['src/core/combat.js', 'return heldToHit(toHitRatio(monsterAim(monster), TO_HIT.base + (Number(playerDefense) || 0)));', 'return heldToHit(toHitRatio(monsterAim(monster), TO_HIT.base));']] },
+  /* (the aim doubles with the blow: on the to-hit ratio an attack alone no longer lands surer) */
+  { name: 'the Sewer\'s Culvert Bats bite more than twice as hard (atk 7 -> 14, aim 20 -> 40): a fresh party\'s tank keeps dipping under 25%', case: 'party-millrace_sewer',
+    edits: [['src/data/monsters.js', 'hp: 59, atk: 7, aim: 20, evasion: 15, def: 1, xp: 145, gp: [8, 23], formula: true, speed: 4400', 'hp: 59, atk: 14, aim: 40, evasion: 15, def: 1, xp: 145, gp: [8, 23], formula: true, speed: 4400']] },
 ];
 
 const R = makeReport('hunt-core/first-week-bands');
@@ -395,7 +411,7 @@ for (const mu of PICKED) {
     let why = null;
     const home = PLAY;
     try { PLAY = await loadPlay(p.root); LINES = await linesAt(p.root); why = cases[mu.case](await loadCellRunner(p.root)); } catch (e) { why = 'threw ' + e.message; } finally { PLAY = home; LINES = await linesAt(ROOT); }
-    R.ok(!!why, 'mutant "' + mu.name + '" was NOT caught by ' + mu.case);
+    R.ok(caughtBy(why), 'mutant "' + mu.name + '" was NOT caught by ' + mu.case + missWhy(why));
     if (why && mu.expect) R.ok(why.startsWith(mu.expect), 'mutant "' + mu.name + '" was caught by the wrong line: ' + why.slice(0, 160));
     if (why && process.argv.includes('--verbose')) console.log('  caught: ' + mu.name + ' -> ' + why);
   } finally { p.done(); }

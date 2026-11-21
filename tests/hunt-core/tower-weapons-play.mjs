@@ -19,6 +19,7 @@ import { pathToFileURL } from 'node:url';
 import { readFileSync } from 'node:fs';
 import { makeReport, ROOT, plant } from './fixtures/h1.js';
 import { sourceQuery } from '../../tools/lib/version-stamp.mjs';
+import { caughtBy, missWhy } from '../_mutant-verdict.mjs';
 
 const V = sourceQuery(ROOT);
 const { loadPlay, PLAY_TREES } = await import(pathToFileURL(join(ROOT, 'tests/hunt-core/fixtures/play-ground.mjs')).href);
@@ -72,11 +73,14 @@ const cases = {
           if (a.accuracy !== b.accuracy || a.maxHit !== b.maxHit) return `${id} at ${skill} ${S} rolls ${a.accuracy}/${a.maxHit}, ${twinId} at ${S + k.skillPlus} rolls ${b.accuracy}/${b.maxHit}`;
           n++;
         }
-        const plain = C.playerCombatRolls({}, { equipment: theirs, items: ITEMS, skills: at(S), profile });
-        const tower = C.playerCombatRolls({}, { equipment: mine, items: ITEMS, skills: at(S), profile });
-        /* a skill level moves the max hit in whole steps (combat.js: 0.35 a level), so +N shows at some levels and not others */
-        if (tower.maxHit > plain.maxHit || tower.accuracy > plain.accuracy) better = true;
-        if (tower.maxHit < plain.maxHit || tower.accuracy < plain.accuracy) return `${id} rolls worse than ${twinId} at ${skill} ${S}`;
+        /* against the ground's monsters (a foe with no evasion is the to-hit rail for both, src/data/to-hit.js): a skill level moves the max hit
+           in whole steps (combat.js: 0.35 a level) and the to-hit by the ratio, so +N shows at some levels and not others */
+        for (const m of foes) {
+          const plain = C.playerCombatRolls(m, { equipment: theirs, items: ITEMS, skills: at(S), profile });
+          const tower = C.playerCombatRolls(m, { equipment: mine, items: ITEMS, skills: at(S), profile });
+          if (tower.maxHit > plain.maxHit || tower.accuracy > plain.accuracy) better = true;
+          if (tower.maxHit < plain.maxHit || tower.accuracy < plain.accuracy) return `${id} rolls worse than ${twinId} at ${skill} ${S}`;
+        }
       }
       if (!better) return `${id} rolls no better than ${twinId} at any sampled ${skill} level`;
     }
@@ -176,7 +180,7 @@ for (const mu of PICKED) {
   try {
     let why = null;
     try { const m = await load(p.root); why = cases[mu.case](m.P, m.X); } catch (e) { why = 'threw ' + e.message; }
-    R.ok(!!why, 'mutant "' + mu.name + '" was NOT caught by ' + mu.case);
+    R.ok(caughtBy(why), 'mutant "' + mu.name + '" was NOT caught by ' + mu.case + missWhy(why));
     if (why && process.argv.includes('--verbose')) console.log('  caught: ' + mu.name + ' -> ' + why);
   } finally { p.done(); }
 }

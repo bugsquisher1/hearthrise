@@ -35,6 +35,9 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { bootReplay, manifest, ROOT } from './schema-replay.mjs';
+import { TOWN_WORKS } from '../src/data/town-works.js';
+/* The Weighhouse's first stage on a fresh chain: no dozen accounts hunted this week, so its goal is the least and the stage stands where the data writes it. */
+const FIRST_STAGE = TOWN_WORKS.weighhouse.stages[1].at;
 
 const MUTATE = process.argv.includes('--mutate') || process.argv.includes('--selftest');
 const CONTROL = Boolean(process.env.HR_MUTANT_CONTROL);
@@ -140,7 +143,7 @@ async function scenario(db, wipeSql) {
       if (!b || b.ok !== true) throw Object.assign(new Error('hr_town_show: ' + js(b)), { harness: true });
     }
     /* THE TOWN WORKS: a gift, and the project near a stage so the System line and the plaque are real rows the wipe must clear */
-    await db.query("insert into public.town_works_totals (project_id, total) values ('weighhouse', 99000)");
+    await db.query("insert into public.town_works_totals (project_id, total) values ('weighhouse', $1)", [FIRST_STAGE - 1000]);
     const gave = await ask(A, 'select public.hr_town_works_give(1, $1, 1000::bigint, $2::uuid)', ['weighhouse', key()]);
     if (!gave || gave.ok !== true || gave.stage !== 1) throw Object.assign(new Error('hr_town_works_give: ' + js(gave)), { harness: true });
     const cried = await ask(A, 'select public.hr_crier_send(1, $1, 1000::bigint, $2::uuid)', ['selling rat tails', key()]);

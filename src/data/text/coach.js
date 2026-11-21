@@ -80,6 +80,8 @@ export const COACH_TEXT = Object.freeze({
   club_make: 'Gathering and crafting → Smithing → {recipe}',
   club_equip: 'Bag → {club} → Equip',
   home_gather: 'Gather {item}: {have} of {qty}',
+  /* ...once stamina has run out (plan L08): the job is set for the count still short, and the hero waits in town when it is done. */
+  home_job: '{verb} {n} {item} while stamina refills',
   home_buy: 'House → Buy the {deed}',
   purse_goal: 'Buy a hero slot or a House deed',
   /* WHAT NEXT: one goal a line (hunt-tutorial.js nextGoal) */

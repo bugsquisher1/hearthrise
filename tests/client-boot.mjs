@@ -7,7 +7,11 @@
 //     [--shard=K/N]  every Nth mutant from the Kth (smoke.yml's in-page-41..43); [--only <fragment>]  the mutants whose name holds it
 //   node tests/client-boot.mjs --selftest  the sweep itself: a thrown or hung arm is HARNESS and never ends the sweep (no browser)
 //
-// mutant-anchors: src/app/sign-in.js src/app/legal-reader.js src/session/server.js src/styles/app.css src/data/outfits.js src/platform/load-shell.js play.html src/app/boot.js src/app/slot-offer.js src/app/world-pane.js src/net/auth.js src/world/world-boot.js src/world/view-sheets.js src/world/atlas.js src/world/render/canvas-backend.js src/world/prewarm.js src/render/images.js index.html src/app/closed-notice.js src/session/account-session.js src/app/auth-backdrop.js
+// mutant-anchors: src/app/sign-in.js src/app/legal-reader.js src/styles/app.css src/data/outfits.js src/platform/load-shell.js play.html src/app/boot.js src/app/world-pane.js src/net/auth.js src/world/world-boot.js src/world/view-sheets.js src/world/atlas.js src/world/render/canvas-backend.js src/world/prewarm.js src/render/images.js index.html src/app/closed-notice.js src/session/account-session.js src/app/auth-backdrop.js
+//
+// THE PURE HALF RUNS IN NODE (lane/c-rules-in-node 2026-11-20, architecture audit item 8): tests/client-boot-pure.mjs proves the logic
+// half of B-7, B-11, B-17 and B-20 (the slot offer, the admission read, the keepalive put, the legal pages) and holds the 8 mutants
+// planted in those modules, each caught there by the rule id that caught it here. Every rule below still runs in the page.
 //
 // The server is stubbed at the edges the client really uses: supabase-js (the
 // vendored UMD is replaced by a fake whose auth keeps its session in the
@@ -72,7 +76,8 @@
 //        Create account says "By creating an account you agree to the Terms of Service and the Privacy Policy." with both as links, every word
 //        12 px or more and on the screen, without pushing Create account or Back off it; each opens OVER the screen (what was typed stays typed),
 //        shows its own page (the wipe, and for the Privacy Policy the recording switch and "on by default") with no note to the owner in it, fits
-//        the screen and scrolls, closes with Escape or Close and gives the focus back; the reader escapes everything and links only https
+//        the screen and scrolls, closes with Escape or Close and gives the focus back (the reader's Markdown escaping and https-only links, and the
+//        server link's list of legal pages, are pure: tests/client-boot-pure.mjs B-20)
 //   B-8  a hunting character (tests/fixtures/hunt-envelope.json) mounts the hunt
 //        screen's panels (top bar, party, analyzer, bottom bar) with zero console
 //        errors; the rules of each panel are tests/hunt-screen.mjs
@@ -270,7 +275,7 @@ async function stubServer(page, o) {
 const wait = (page, fn, arg, ms = 8000) => page.waitForFunction(fn, arg, { timeout: ms }).then(() => true, () => false);
 /* a window by its hotkey, every open one closed first: true once it is built */
 async function openPane(page, key, id) {
-  for (let i = 0; i < 4 && await page.evaluate(() => document.querySelectorAll('[data-hs-win]:not(.is-leaving)').length > 0); i++) {
+  for (let i = 0; i < 4 && await page.evaluate(() => document.querySelectorAll('[data-hs-win]:not(.is-leaving):not([data-hs-win="chat"])').length > 0); i++) {
     await page.evaluate(() => { const a = document.activeElement; if (a && a.blur) a.blur(); });
     await page.keyboard.press('Escape');
     await page.waitForTimeout(160);
@@ -728,23 +733,7 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
           if (!(await wait(page, () => !document.querySelector('.auth-doc'), null, 3000))) fails.push('B-20 ' + tag + title + ' did not close');
           else if (!(await page.evaluate((k) => document.activeElement && document.activeElement.getAttribute('data-auth-legal') === k, which))) fails.push('B-20 ' + tag + 'closing ' + title + ' did not give the focus back to its link');
         }
-        /* the reader draws only what the rules allow: every character escaped, only https and mailto links, comments gone */
-        const drawn = await page.evaluate(async () => {
-          const { legalHtml } = await import(location.origin + '/src/app/legal-reader.js');
-          return legalHtml('# T\n\n<img src=x onerror=alert(1)> **b** [ok](https://a.example/x) [bad](javascript:alert(1))\n\n<!-- note -->\n\n* one\n* two', { dropTitle: true });
-        });
-        if (/<img|href="javascript|note/.test(drawn) || !/<strong>b<\/strong>/.test(drawn) || !/href="https:\/\/a\.example\/x"/.test(drawn) || !/<ul><li>one<\/li><li>two<\/li><\/ul>/.test(drawn)) fails.push('B-20 ' + tag + 'the reader drew: ' + drawn);
-        /* the one server link reads only the listed legal pages: any other path is refused with no request made */
-        const link = await page.evaluate(async () => {
-          const { readLegal } = await import(location.origin + '/src/session/server.js');
-          const asked = [];
-          const stub = async (u) => { asked.push(String(u)); return { ok: true, text: async () => 'page' }; };
-          const out = { ok: await readLegal('legal/PRIVACY_POLICY.md', location.href, stub), bad: [] };
-          for (const p of ['src/build-info.js', 'legal/../src/build-info.js', 'legal/PRIVACY_POLICY.md?x=1', 'https://evil.example/legal/PRIVACY_POLICY.md', '/legal/PRIVACY_POLICY.md', 'legal/EULA.md', '']) out.bad.push(await readLegal(p, location.href, stub));
-          out.asked = asked;
-          return out;
-        });
-        if (link.ok !== 'page' || link.bad.some((x) => x !== null) || link.asked.length !== 1 || !/\/legal\/PRIVACY_POLICY\.md$/.test(link.asked[0])) fails.push('B-20 ' + tag + 'the server link read a path outside its list, or refused one on it: ' + JSON.stringify(link));
+        /* (the reader's Markdown rules, legalHtml, and the server link's path list, readLegal, are pure: tests/client-boot-pure.mjs B-20) */
         if (errors.length) fails.push('B-20 ' + tag + 'console errors: ' + errors.slice(0, 3).join(' | '));
         } catch (e) {   // a step that throws is HARNESS (tests/_mutant-verdict.mjs), never B-20's catch and never the end of the run
           if (e === STOP) throw e;
@@ -1624,6 +1613,8 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
 }
 
 const MUTANTS = [
+  /* The mutants planted in modules a page only hosts (the slot offer, the admission read, the server link, the legal Markdown) are proven
+     in Node (tests/client-boot-pure.mjs, lane/c-rules-in-node 2026-11-20): a new one goes there, by the rule id that catches it here. */
   ['the loading shell stays over the first screen', 'src/app/boot.js', '    if (loading) loading.remove();\n', ''],
   ['the loading bar never moves', 'src/platform/load-shell.js', '      paint();\n', ''],
   ['a module that cannot load is not said', 'src/platform/load-shell.js', "    failed = true;\n", "    return;\n"],
@@ -1652,10 +1643,6 @@ const MUTANTS = [
   ['the sign-in says nothing of the game', 'src/styles/app.css', '.auth:has(.auth-card[data-auth]) .auth-pitch { display: block; }\n', ''],
   ['Enter town runs under the fold at 1366x768', 'src/styles/app.css', '.auth:has(.auth-card.is-create) .auth-brand { display: none; }\n', ''],
   ['the color strips are gone though the world draws them', 'src/data/outfits.js', 'export const HERO_DYES_SHOWN = true;', 'export const HERO_DYES_SHOWN = false;'],
-  ['no hero slot is offered', 'src/app/slot-offer.js', "  if (!offer || !purse || actor === null || anEmptySlot(roster)) return '';", "  return '';"],
-  ['the oldest hero answer is the purse', 'src/app/slot-offer.js', '    if (!best || v > best.v) best = { gold: r.gold, v };', '    if (!best || v < best.v) best = { gold: r.gold, v };'],
-  ['the buy button stays lit while buying', 'src/app/slot-offer.js', "(o.pending || short > 0 ? ' disabled' : '')", "(short > 0 ? ' disabled' : '')"],
-  ['a hero short of gold can press buy', 'src/app/slot-offer.js', "(o.pending || short > 0 ? ' disabled' : '')", "(o.pending ? ' disabled' : '')"],
   ['B-11c a hero slot buys on one click again (audit A7)', 'src/app/boot.js', "    else if (what === 'buy-slot') askSlot(true);", "    else if (what === 'buy-slot') { slotAsking = true; buySlot(Number(t.getAttribute('data-slot-id')), Number(t.getAttribute('data-pay'))); }"],
   ['B-11c the double-click\'s second click answers the question (audit A7)', 'src/app/boot.js', "what === 'buy-slot-yes' && e.detail <= 1)", "what === 'buy-slot-yes')"],
   ['the price line sits in a column beside the press again (B-11b)', 'src/styles/app.css', '.slot-offer-pay { display: flex; flex-wrap: wrap;', '.slot-offer-pay { display: grid; grid-template-columns: minmax(0, 1fr) max-content; flex-wrap: wrap;'],
@@ -1703,14 +1690,12 @@ const MUTANTS = [
   ['a refused copy leaves nothing selected (B-7)', 'src/app/closed-notice.js', "  select();\n  try { return win.document.execCommand", "  try { return win.document.execCommand"],
   ['Check again stays lit while it asks (B-7)', 'src/app/closed-notice.js', "    check.disabled = true;\n", ''],
   ['a no reads as no answer (B-7)', 'src/app/closed-notice.js', "say(SAY[answer] || SAY.unanswered);", "say(SAY.unanswered);"],
-  ['a failed read reads as a no (B-7)', 'src/session/account-session.js', "return ans.closed ? 'closed' : ans.ok ? 'in' : 'unanswered';", "return ans.ok ? 'in' : 'closed';"],
   ['an admitted account stays on the notice (B-7)', 'src/app/closed-notice.js', "if (answer === 'in') { o.win.location.reload(); return; }", ''],
   ['the account id runs off a phone (B-7)', 'src/styles/app.css', "flex: 1 1 18em; min-height: 36px;", "flex: 0 0 40em; min-height: 36px;"],
   ['the away stamp is not written on hide (B-17)', 'src/app/boot.js', 'if (alerts && doc.hidden) alerts.leaving({ hidden: true });', ''],
   ['the away stamp is not written on page leave (B-17)', 'src/app/boot.js', "win.addEventListener('pagehide', () => { if (alerts) alerts.leaving(); });", ''],
   ['the away stamp goes on a fetch the closing page cancels (B-17)', 'src/shell/alerts.js', 'cs.flushResidue({ keepalive: true, hidden })', 'cs.flushResidue({ hidden })'],
   ['only the away stamp is flushed on the way out, a pending Got it is lost to the reload (B-18)', 'src/shell/alerts.js', '{ stampAway(cs, true); cs.flushResidue({ keepalive: true, hidden }).catch(() => {}); }', '{ if (stampAway(cs, true)) cs.flushResidue({ keepalive: true, hidden }).catch(() => {}); }'],
-  ['the keepalive never reaches the fetch (B-17)', 'src/session/server.js', '...(keep && body.length < KEEPALIVE_MAX_BYTES ? { keepalive: true } : {}),', ''],
   ['only the viewed hero is stamped on the way out (B-17)', 'src/shell/alerts.js', 'for (const cs of account.characters()) { stampAway(cs, true);', 'for (const cs of account.characters().slice(0, 1)) { stampAway(cs, true);'],
   ['the away stamp is written every minute again (B-17)', 'src/shell/away-recap.js', 'export const STAMP_EVERY_MS = AWAY_MIN_MS;', 'export const STAMP_EVERY_MS = 60000;'],
   ['the town\'s sheets wait for Play again', 'src/app/boot.js', "    import('../world/prewarm.js", "    Promise.resolve({ prewarmTown() {} }, '../world/prewarm.js"],
@@ -1738,10 +1723,8 @@ const MUTANTS = [
   /* B-20: the Privacy Policy and the Terms from the sign-in screens */
   ['the sign-up says nothing of the Terms or the Privacy Policy (B-20)', 'src/app/sign-in.js', "(LEGAL_LINE[mode] || '')", "''"],
   ['the reader takes the form away, and what was typed with it (B-20)', 'src/app/legal-reader.js', '  box.appendChild(host);\n', "  box.innerHTML = '';\n  box.appendChild(host);\n"],
-  ['the server link reads any path it is given (B-20)', 'src/session/server.js', 'if (!LEGAL_PATHS.includes(path)) return null;', ''],
   ['the reader cannot be closed with Escape (B-20)', 'src/app/legal-reader.js', "if (e.key === 'Escape') { e.preventDefault(); shut(); return; }", ''],
   ['the reader does not give the focus back (B-20)', 'src/app/legal-reader.js', "if (opener && typeof opener.focus === 'function' && opener.isConnected) opener.focus();", ''],
-  ['the reader shows the owner\'s notes to players (B-20)', 'src/app/legal-reader.js', ".replace(/<!--[\\s\\S]*?-->/g, '')", ''],
   ['the reader is wider than a phone (B-20)', 'src/styles/app.css', '.auth-card.auth-doc-card { width: min(46rem, 100%);', '.auth-card.auth-doc-card { width: 46rem;'],
   ['the reader\'s words are under 12 px (B-20)', 'src/styles/app.css', 'padding: 4px 6px 4px 0; font-size: var(--t-small);', 'padding: 4px 6px 4px 0; font-size: 11px;'],
 ];

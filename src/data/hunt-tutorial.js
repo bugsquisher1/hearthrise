@@ -76,7 +76,7 @@ import { PARTY } from './party.js';
 import { END_ORDER, STAMINA_LOW_MIN } from './hunt-sessions.js';
 import { nextUnlock } from './skill-unlocks.js';
 import { SKILLS_DEF } from './skills.js';
-import { CROPS } from './gathering.js';
+import { CROPS, TREES, ROCKS, FISH_SPOTS } from './gathering.js';
 import { tallyTask } from './tally-tasks.js';
 import { ITEMS } from './items.js';
 import { BASIC_INDEX } from './supply-basics.js';
@@ -484,12 +484,15 @@ export const HUNT_TUTORIAL = Object.freeze([
   step('purse_goal', 'Spend your gold',
     t('coach.purse_goal'),
     'house', READ, { reactive: true, knowledge: true, gotIt: true, when: [IN_TOWN, { kind: 'purse_saving_hero' }] }),
+  /* THE DAY-ONE TOWN CARDS WAIT FOR THE FIRST STAMINA END (plan L08, retention R3: a lone hero sent to the rocks at Level 7 left the hunt,
+     and the job never ended): they speak when the latest hunt ended on stamina, when a town job costs the hunt nothing, and the home card
+     sets the job's count (SAY.home: the material still short, then the hero waits in town). */
   step('home', 'Build your home',
     'Gather logs and ore for your first house',
-    'house', { kind: 'home_owned' }, { reactive: true, dayOne: true, when: [IN_TOWN, { kind: 'level_at', at: DAY_ONE_LEVEL }, { kind: 'home_unowned' }] }),
+    'house', { kind: 'home_owned' }, { reactive: true, dayOne: true, when: [IN_TOWN, { kind: 'level_at', at: DAY_ONE_LEVEL }, { kind: 'stamina_ended' }, { kind: 'home_unowned' }] }),
   step('own_runes', 'Make your own runes',
     'Mine Rune Essence, then bind runes in Runecrafting',
-    'crafting', { kind: 'rune_owned' }, { reactive: true, dayOne: true, when: [IN_TOWN, { kind: 'level_at', at: DAY_ONE_LEVEL }, { kind: 'rune_unowned' }] }),
+    'crafting', { kind: 'rune_owned' }, { reactive: true, dayOne: true, when: [IN_TOWN, { kind: 'level_at', at: DAY_ONE_LEVEL }, { kind: 'stamina_ended' }, { kind: 'rune_unowned' }] }),
   /* The first-hour rung (slot-ladders.js graypelt_cloak): at its Level with the pelts in the bag, the card rings the
      recipe. Finished by any Crafting XP (a fresh hero has none: the cloak is most heroes' first craft). */
   step('stitch_cloak', 'Stitch a cloak',
@@ -741,6 +744,8 @@ const FACTS = Object.freeze({
   /* death and Blessings (the server's section: held, its free limit and its prices) */
   /* ...never a death its mode took nothing for (the Tower spits you out: session-modes.js deathLossPm 0), which a Blessing has nothing to cut */
   died: (p, f) => !f.huntId && f.endReason === 'died' && f.freeDeath !== true,
+  /* the latest hunt ended because stamina ran out (the server's end reason): the moment a town job costs the hunt nothing (plan L08) */
+  stamina_ended: (p, f) => !f.huntId && f.endReason === 'stamina',
   /* the server offers the Burning Tower (its section, the burning_tower switch); climbed: a floor on its record */
   tower_open: (p, f) => f.towerBest !== null && f.towerBest !== undefined,
   tower_climbed: (p, f) => known(f.towerBest, (b) => b > 0),
@@ -749,7 +754,7 @@ const FACTS = Object.freeze({
   below_free: (p, f) => known(f.blessings, (b) => Number.isInteger(b.freeUntil) && f.charLevel < b.freeUntil),
   at_free: (p, f) => known(f.blessings, (b) => Number.isInteger(b.freeUntil) && f.charLevel >= b.freeUntil),
   /* the purse holds the price of the next hero slot the server offers; none on offer: never (unknown until the account's offer is read) */
-  /* The purse is a real start on the next hero (the What next line's own share): at 300,000 gp for the second (Tyler 2026-11-09) that is 150,000 gp, about hour 30 of hunting at Level 23-24 (designer, table D); the first house speaks until then (lane/c-slots-lower). */
+  /* The purse is a real start on the next hero (the What next line's own share): at 400,000 gp for the second (Tyler 2026-11-20) that is 200,000 gp; the first house speaks until then (lane/c-slots-lower). */
   purse_saving_hero: (p, f) => (Number.isSafeInteger(f.gold) && Number.isInteger(f.slotsOwned) ? Number.isSafeInteger(f.slotCost) && f.slotCost > 0 && f.gold >= f.slotCost * SAVING_FROM : null),
   /* more than one hero (the account's roster, from the shell) */
   one_hero: (p, f) => known(heroesOn(f), (h) => h.length === 1 && Number.isInteger(f.slotsOwned) && f.slotsOwned > 1),
@@ -1050,9 +1055,25 @@ const SAY = Object.freeze({
     if (!deed || !Array.isArray(deed.items) || deed.items.some((x) => !name(x.id))) return null;
     /* the first material still short, with its count; all in the bag: the House's Buy */
     const need = deed.items.map((x) => ({ ...x, have: (f.bag && f.bag[x.id]) || 0 })).find((x) => x.have < x.qty);
-    return { text: need ? t('coach.home_gather', { item: name(need.id), have: need.have, qty: need.qty }) : t('coach.home_buy', { deed: deed.name }) };
+    if (!need) return { text: t('coach.home_buy', { deed: deed.name }) };
+    /* A GATHERED MATERIAL IS A JOB WITH A COUNT (plan L08): the card rings its node's Start in Gathering and crafting with the count
+       still short set on the row (windows/work.js reads ring.count), and the job ends there with the hero waiting in town. */
+    const node = gatherNodeFor(need.id);
+    const n = need.qty - need.have;
+    if (node) return { text: t('coach.home_job', { verb: node.verb, n, item: name(need.id) }), anchor: 'crafting', ring: { skill: node.skill, work: node.id, count: n } };
+    return { text: t('coach.home_gather', { item: name(need.id), have: need.have, qty: need.qty }) };
   },
 });
+
+/* The lowest gathering node that yields `item` ({ id, skill, verb }), or null: the one a new hero can work first. */
+const GATHER_ROWS = Object.freeze([['woodcutting', TREES, 'Chop'], ['mining', ROCKS, 'Mine'], ['fishing', FISH_SPOTS, 'Catch']]);
+function gatherNodeFor(item) {
+  let best = null;
+  for (const [skill, rows, verb] of GATHER_ROWS) {
+    for (const r of rows) if (r.prod === item && (!best || (r.req || 1) < best.req)) best = { id: r.id, skill, verb, req: r.req || 1 };
+  }
+  return best;
+}
 
 /* The card as stated from the facts ({ text, barSlot?, store?, other? }), or null when it cannot be stated truly. */
 function stated(card, facts) {
@@ -1137,8 +1158,8 @@ function readyWords(ready) {
 
 /* WHAT TO WANT, HOURS 5 TO 20 (panel 2026-11-01: 16-22k gold and "nothing to want"; designer's ruling, PRIORITY_BOARD 2026-11-01): the purse's
    next buy on the What next line, at the server's price. Below this share of the next hero's price, it is too far off to be a goal and the house's deeds speak instead.
-   A HALF (the ladder at 300,000 / 750,000 / 1,500,000 since Tyler 2026-11-09, one slot to start; no fifth slot since 2026-11-07): the second speaks from
-   150,000 gp, about hour 30 of a lone hero's hunting, the third from 375,000 gp and the fourth from 750,000 gp (the purse is the account's). */
+   A HALF (the ladder at 400,000 / 1,500,000 / 4,000,000 since Tyler 2026-11-20, one slot to start; no fifth slot since 2026-11-07): the second speaks from
+   200,000 gp, the third from 750,000 gp and the fourth from 2,000,000 gp (the purse is the account's; the price is always the server's offer). */
 const SAVING_FROM = 0.5;
 const ORDINAL = Object.freeze(['', 'first', 'second', 'third', 'fourth', 'fifth']);
 const gp = (n) => n.toLocaleString('en-US') + ' gp';

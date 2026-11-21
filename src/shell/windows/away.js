@@ -12,6 +12,8 @@
 // raised once per absence, kept up to date by each envelope (awayNowOf: still hunting or ended, the stamina now). The alert
 // lines widget leaves them to this card. Closing the card is reading them: every away line is dismissed. Nothing here
 // counts or predicts a number; Hunt again is the server's own restart (CharacterSession.restartHunt), checked there.
+// CARRY ON (Tyler RULED 27-1, 2026-11-20; ../carry-on.js): above the heroes, ONE press for the whole account and the server's plan for
+// each hero; while it is on offer it is the card's one gold press, and each hero's own press stays the way to send just that hero.
 // ════════════════════════════════════════════════════════════════════════
 import { rows, text, cls, prop, attr, element } from '../../render/paint.js';
 import { whole, gold } from '../../render/format.js';
@@ -29,6 +31,7 @@ import { summariesOf } from '../../hunt-view/summary-recorder.js';
 import { roomOfHunt } from '../../data/boss-halls.js';
 import { trainingOf as trainedBy } from '../../data/training.js';
 import { runRulesOf } from '../../data/tower.js';
+import { renderCarry, patchCarry, followCarry, pressCarry } from '../carry-on.js';
 
 /* The away lines the centre holds now, oldest hero slot first. */
 const linesOf = (ctx) => (ctx.alerts ? ctx.alerts.list().filter((a) => a.kind === 'away') : []).sort((a, b) => a.slot - b.slot);
@@ -110,7 +113,7 @@ function blessOf(cs, f) {
 
 /** The skeleton (built once): how long the player was away, the heroes, OK. */
 export function renderAway() {
-  return '<div class="haway"><p class="haway-gone"></p><ol class="haway-heroes"></ol>'
+  return '<div class="haway"><p class="haway-gone"></p>' + renderCarry() + '<ol class="haway-heroes"></ol>'
     /* THE FIRST HERO'S PRESS IN THE FOOT TOO (v0.2.141 visual gate, 922x423: with a yard session open the sheet stops above the action bar,
        275 px tall, and Open Training lay under the sticky OK): the same press as the hero's row (its alert, its go), shown in the foot on a
        phone only (summary.css), where the row's own one is hidden, so the one gold press is in view as the card opens */
@@ -134,6 +137,9 @@ function heroRow(ctx) {
 renderAway.patch = function patchAway(body, ctx) {
   const root = body.querySelector('.haway');
   const list = linesOf(ctx);
+  /* Carry on, while on offer, is the card's one gold press (../carry-on.js) */
+  const carry = patchCarry(root.querySelector('.haway-carry'), ctx);
+  cls(root, 'is-carry', carry);
   const longest = list.reduce((m, a) => Math.max(m, a.facts && Number.isFinite(a.facts.gone) ? a.facts.gone : 0), 0);
   text(root.querySelector('.haway-gone'), longest > 0 ? t('away.card_gone', { time: spanWords(longest) }) : '');
   const mine = ctx.character ? list.find((a) => a.slot === ctx.character.slot && awayBlockOf(ctx.character, a).summary) : null;
@@ -162,7 +168,7 @@ renderAway.patch = function patchAway(body, ctx) {
       attr(go, 'data-go', b.go);
       prop(go, 'disabled', !!a.pending);
       /* ONE gold press on the card: the first hero's next move */
-      cls(go, 'is-primary', list.indexOf(a) === 0);
+      cls(go, 'is-primary', list.indexOf(a) === 0 && !carry);
       const bless = li.querySelector('[data-hs-act="away-bless"]');
       text(bless, b.bless);
       prop(bless, 'hidden', !b.bless);
@@ -181,7 +187,7 @@ renderAway.patch = function patchAway(body, ctx) {
   const first = list[0] || null, lead = first ? awayBlockOf(heroOf(ctx, first), first) : null;
   const pending = !!(first && first.pending);   // that hero's ask is out: the press says "Sending…", as the row's does
   const footGo = root.querySelector('.haway-foot-go');
-  prop(footGo, 'hidden', !first);
+  prop(footGo, 'hidden', !first || carry);
   text(footGo, !first ? '' : pending ? t('heroes.sending') : lead.label);
   attr(footGo, 'data-alert', first ? first.key : null);
   attr(footGo, 'data-go', lead ? lead.go : null);
@@ -194,6 +200,14 @@ function dismissAll(ctx) { for (const a of linesOf(ctx)) ctx.alerts.dismiss(a.ke
 renderAway.act = function actAway(ctx, body, action, ev, el) {
   if (ev.type !== 'click') return false;
   if (action === 'away-ok') { ctx.wm.close('away'); return true; }
+  /* Carry on: the account's one press; each hero that went has its away line read, and the card goes once none is left */
+  if (action === 'away-carry') {
+    pressCarry(ctx, () => { if (ctx.wm.isOpen('away')) renderAway.patch(body, ctx); }, (slots) => {
+      for (const a of linesOf(ctx)) if (slots.includes(a.slot)) ctx.alerts.dismiss(a.key);
+      if (!linesOf(ctx).length) ctx.wm.close('away');
+    });
+    return true;
+  }
   /* away-free: a stamina-free loop's press (its own act: a phone hides the first hero's row copy of away-go, summary.css) */
   if (action !== 'away-go' && action !== 'away-summary' && action !== 'away-bless' && action !== 'away-free') return false;
   const a = linesOf(ctx).find((x) => x.key === el.getAttribute('data-alert'));
@@ -258,6 +272,7 @@ renderAway.follow = function followAway(ctx, refresh) {
     }
     if (!open) return;
     if (!list.length) { ctx.wm.close('away'); return; }
+    followCarry(ctx, () => refresh('away'), !up);
     refresh('away');
   };
   /* the window manager and the centre both call back while a step opens or closes: one step at a time, then once more for what it moved */

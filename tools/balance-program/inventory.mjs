@@ -14,7 +14,7 @@
 //   node tools/balance-program/inventory.mjs --write     also write docs/design/balance-program/00-inventory.md
 //   node tools/balance-program/inventory.mjs --selftest  HERMETIC (runs in CI): it never reads ~/.claude or origin/lane/*. It plants
 //                                                        its own memory folder (a temp dir) and lane list, built from
-//                                                        EXTRA_CLAIMS so the clean control is clean anywhere, then nine cases: an unclaimed table and an unclaimed
+//                                                        EXTRA_CLAIMS so the clean control is clean anywhere, then twelve cases: an unclaimed table and an unclaimed
 //                                                        ruling must go red, a planted system must claim its anchor and
 //                                                        appear in the written table, a bad domain, a twin id, a stale
 //                                                        exact claim and a removed exact claim must each go red
@@ -23,6 +23,9 @@
 //   code kinds   a row's `code` pattern on `<kind>:<id>`, or an EXTRA_CLAIMS row naming its id
 //   lanes        a row's `docs` pattern on the lane's words (never on the word "lane"); a lane whose tip is older than
 //                LANE_SWEEP_FLOOR is counted apart (old work, merged or dead) and never an orphan
+//   build lanes  a lane nothing above claims is PROCESS when the build plan knows it: its own commits cite a plan id that is a
+//                row of docs/design/balance-program/30-plan.md section D (L01..), or the plan names the branch. Any other new
+//                lane is still an orphan: a branch nobody planned may be a system nobody listed
 //   other docs   a row's `docs` pattern on the anchor's id and text, or an EXTRA_CLAIMS row its text contains
 // A fault is: a system with no domain or status of the lists, a twin id, an EXTRA_CLAIMS row that matches nothing or
 // names no owner (a lane row may match nothing: lanes merge and go), a code anchor only an OUT_OF_SCOPE docs pattern would hold, a system id missing from 03-domains.md.
@@ -48,6 +51,16 @@ const DOC = join(ROOT, 'docs', 'design', 'balance-program', '00-inventory.md');
 const DOMAINS_DOC = join(ROOT, 'docs', 'design', 'balance-program', '03-domains.md');
 const AUDIT = join(ROOT, 'docs', 'design', 'whole-game-audit-2026-11-20.md');
 const OLD_LANES = 'x-lane-old';
+const PLAN_LANES = 'x-plan-lane';
+const PLAN_DOC = join(ROOT, 'docs', 'design', 'balance-program', '30-plan.md');
+
+/** The build plan's lane ids (the `| Lnn |` rows of section D) and the branches it names. No file = an empty plan. */
+export function readPlan(file = PLAN_DOC) {
+  const text = existsSync(file) ? readFileSync(file, 'utf8') : '';
+  const at = text.search(/^## D\. /m), end = at < 0 ? -1 : text.slice(at + 1).search(/^## [A-Z]\. /m);
+  const d = at < 0 ? '' : text.slice(at, end < 0 ? undefined : at + 1 + end);
+  return { ids: new Set([...d.matchAll(/^\|\s*(L\d{2})\s*\|/gm)].map((m) => m[1])), lanes: new Set(text.match(/lane\/[a-z0-9][a-z0-9-]*/g) || []) };
+}
 const isCode = (a) => CODE_KINDS.includes(a.kind);
 const laneDate = (a) => a.text.split(' ').pop();
 
@@ -55,7 +68,7 @@ const laneDate = (a) => a.text.split(' ').pop();
  * Who owns every anchor. Pure: the registry is passed in, so the selftest can plant rows.
  * @returns {{owners: Map<object, string[]>, orphans: object[], faults: string[], oldLanes: number}}
  */
-export function judge({ anchors, systems = SYSTEMS, out = OUT_OF_SCOPE, extras = EXTRA_CLAIMS, domainsDoc = null }) {
+export function judge({ anchors, systems = SYSTEMS, out = OUT_OF_SCOPE, extras = EXTRA_CLAIMS, domainsDoc = null, plan = { ids: new Set(), lanes: new Set() } }) {
   const faults = [];
   const ids = new Set();
   for (const s of systems) {
@@ -86,6 +99,7 @@ export function judge({ anchors, systems = SYSTEMS, out = OUT_OF_SCOPE, extras =
       if (kind !== a.kind) return;
       if (isCode(a) ? a.id === needle : a.id === needle || a.text.includes(needle)) { extraHits[i] += 1; if (!mine.includes(owner)) mine.push(owner); }
     });
+    if (!mine.length && a.kind === 'lane' && (plan.lanes.has(a.id) || (a.cites || []).some((id) => plan.ids.has(id)))) mine.push(PLAN_LANES);
     owners.set(a, mine);
     if (!mine.length) orphans.push(a);
   }
@@ -105,7 +119,7 @@ const some = (list, n) => (list.length <= n ? list.join(', ') : `${list.slice(0,
 /** docs/design/balance-program/00-inventory.md, as text. */
 export function render({ anchors, verdict, systems = SYSTEMS, audit = auditLines(systems), memoryRead = true }) {
   const mineOf = new Map(systems.map((s) => [s.id, []]));
-  const outCount = new Map([...OUT_OF_SCOPE.map((o) => [o.id, 0]), [OLD_LANES, 0]]);
+  const outCount = new Map([...OUT_OF_SCOPE.map((o) => [o.id, 0]), [OLD_LANES, 0], [PLAN_LANES, 0]]);
   for (const [a, ids] of verdict.owners) for (const id of ids) { if (mineOf.has(id)) mineOf.get(id).push(a); else outCount.set(id, (outCount.get(id) || 0) + 1); }
   const by = (id, kinds) => mineOf.get(id).filter((a) => kinds.includes(a.kind)).map((a) => a.id).sort();
   const kinds = {};
@@ -116,7 +130,7 @@ export function render({ anchors, verdict, systems = SYSTEMS, audit = auditLines
   o += 'Every system in Hearthrise, read from the game itself and not from memory: the source tree, the replayed database chain, the edge function, staged migrations, unmerged lanes, the board, the itemization plans and Tyler\'s rulings. Written by `node tools/balance-program/inventory.mjs --write`; do not edit by hand. The registry is `tools/balance-program/systems.mjs`.\n\n';
   o += `**${systems.length} systems, ${anchors.length} anchors, ${verdict.orphans.length} orphans.**${memoryRead ? '' : ' Tyler\'s memory was NOT readable on this machine: rulings and memory anchors are missing from this run.'}\n\n`;
   o += '| Anchors read | ' + Object.keys(kinds).sort().map((k) => k).join(' | ') + ' |\n|---|' + Object.keys(kinds).map(() => '---').join('|') + '|\n| count | ' + Object.keys(kinds).sort().map((k) => kinds[k]).join(' | ') + ' |\n\n';
-  o += `Not game systems, counted and never hidden: ${OUT_OF_SCOPE.map((x) => `${x.name} ${outCount.get(x.id)}`).join('; ')}; lanes older than ${LANE_SWEEP_FLOOR} ${outCount.get(OLD_LANES)}.\n\n`;
+  o += `Not game systems, counted and never hidden: ${OUT_OF_SCOPE.map((x) => `${x.name} ${outCount.get(x.id)}`).join('; ')}; lanes older than ${LANE_SWEEP_FLOOR} ${outCount.get(OLD_LANES)}; build lanes the plan knows (30-plan.md section D) ${outCount.get(PLAN_LANES)}.\n\n`;
   o += '| Domain | Systems | ' + STATUSES.join(' | ') + ' |\n|---|---|' + STATUSES.map(() => '---').join('|') + '|\n';
   for (const d of DOMAINS) { const r = systems.filter((s) => s.domain === d.id); o += `| ${d.name} | ${r.length} | ${STATUSES.map((st) => r.filter((s) => s.status === st).length).join(' | ')} |\n`; }
   o += `| All | ${systems.length} | ${STATUSES.map((st) => systems.filter((s) => s.status === st).length).join(' | ')} |\n\n`;
@@ -214,6 +228,14 @@ async function selftest() {
   say('a twin id', v.faults.some((f) => f.includes('used twice')), 'is a fault');
   v = judge({ anchors, extras: [...EXTRA_CLAIMS, ['section', 'zz_no_such_section', 'hunts']] });
   say('a stale exact claim', v.faults.some((f) => f.includes('zz_no_such_section') && f.includes('stale')), 'is a fault');
+  const plan = { ids: new Set(['L03']), lanes: new Set(['lane/zz-named-in-the-plan']) };
+  const lane = (id, cites = []) => ({ kind: 'lane', id, text: `${id.replace(/^lane\//, '').replace(/-/g, ' ')} 2026-11-21`, cites });
+  const unknown = lane('lane/zz-qqq'), cited = lane('lane/zz-www', ['L03']), wrongId = lane('lane/zz-vvv', ['L99']), named = lane('lane/zz-named-in-the-plan');
+  v = judge({ anchors: [...anchors, unknown, cited, wrongId, named], plan });
+  say('a new lane the plan does not know', v.orphans.includes(unknown) && v.orphans.includes(wrongId), 'is an orphan, and so is one citing an id the plan has no row for');
+  say('a lane citing a plan id, and a lane the plan names', v.owners.get(cited).includes(PLAN_LANES) && v.owners.get(named).includes(PLAN_LANES) && !v.orphans.includes(cited) && !v.orphans.includes(named), 'are claimed as process');
+  v = judge({ anchors: [...anchors, cited, named] });
+  say('the same two lanes with no plan', v.orphans.includes(cited) && v.orphans.includes(named), 'are orphans');
   v = judge({ anchors, extras: EXTRA_CLAIMS.slice(1) });
   say('a removed exact claim', v.orphans.some((a) => a.kind === EXTRA_CLAIMS[0][0] && a.id === EXTRA_CLAIMS[0][1]), `${EXTRA_CLAIMS[0][1]} is an orphan again`);
   const ok = cases.every(Boolean);
@@ -226,9 +248,9 @@ async function main() {
   const known = ['--check', '--write', '--selftest'];
   if (args.some((a) => !known.includes(a))) { console.error('usage: inventory.mjs [--check] [--write] | --selftest'); return 2; }
   if (args.includes('--selftest')) return selftest();
-  const { anchors, memoryRead } = await collectAll({ root: ROOT });
+  const { anchors, memoryRead } = await collectAll({ root: ROOT, citeFrom: LANE_SWEEP_FLOOR });
   const domainsDoc = existsSync(DOMAINS_DOC) ? readFileSync(DOMAINS_DOC, 'utf8') : null;
-  const verdict = judge({ anchors, domainsDoc });
+  const verdict = judge({ anchors, domainsDoc, plan: readPlan() });
   report(anchors, verdict);
   if (!memoryRead) console.log('  NOTE Tyler\'s memory is not on this machine: rulings and memory lines were not read.');
   if (args.includes('--write')) { writeFileSync(DOC, render({ anchors, verdict, memoryRead })); console.log('wrote ' + DOC); }

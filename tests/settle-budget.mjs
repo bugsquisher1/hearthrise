@@ -122,6 +122,10 @@ const RESTATED_AFTER = Object.freeze({ hr_hunt_view: '2027-02-18-party-truth.sql
   hr_outfit_owned: '2027-04-30-sweeps-coat.sql',
   /* each setup says what it fights as and whether its gear is on (a setup switches mid-hunt, bar only): the plan cache's pre-image says neither */
   hr_hunt_presets_view: '2027-05-04-setup-swap-mid-hunt.sql' });
+/* Bodies a LATER file DROPPED with the system they served (the approved cuts, Tyler 2026-11-20, plan L10: the old dungeons'
+   cooldown read and the gem rows' entitlement read). No settle calls them at the chain end, and their SQL pre-images read tables
+   that file drops too, so there is nothing to restore and nothing to compare: SB-4 plants the other pre-images. */
+const CUT_AFTER = Object.freeze({ hr_dungeon_cooldowns: '1016-approved-cuts.sql', hr_gem_unlocks_of: '1016-approved-cuts.sql' });
 /** The pre-image DDL the lane's files carry (their pg_temp copies), renamed back to the public functions they were. */
 export function preImages() {
   const out = [];
@@ -183,7 +187,12 @@ export async function parity(db, m, { plantAfter = null } = {}) {
     return out;
   };
   const diffOf = (a, b) => a.filter(([k, v], i) => !b[i] || b[i][0] !== k || b[i][1] !== v).map(([k]) => k);
-  const pre = preImages();
+  for (const [name, file] of Object.entries(CUT_AFTER)) {
+    if (!readFileSync(join(ROOT, 'supabase', 'migrations', file), 'utf8').includes('drop function if exists public.' + name + '(')) {
+      throw new Error(`settle-budget: CUT_AFTER says ${file} dropped ${name}, and it does not drop it`);
+    }
+  }
+  const pre = preImages().filter((x) => !CUT_AFTER[x.name]);
   await db.exec('reset role');
   const kept = {};
   for (const [name, file] of Object.entries(RESTATED_AFTER)) {
@@ -242,7 +251,7 @@ function judge(x, src, log = true) {
 
 /** SB-4's verdict over parity()'s answer. */
 function sameBytes(p) {
-  return p.restored && p.preImages === PRE_IMAGES && p.diffs.length === 0 && p.heroes === 4 && p.sessions >= 4
+  return p.restored && p.preImages === PRE_IMAGES - Object.keys(CUT_AFTER).length && p.diffs.length === 0 && p.heroes === 4 && p.sessions >= 4
     && p.paid && p.deterministic && p.tables >= 6;
 }
 

@@ -1522,7 +1522,8 @@ async function run(mutate, blind) {
   ok(proj.some((p) => Number(p.remaining_ms) > 0),
     '[9] every projected remaining_ms is 0 while a buff is running — the client would render no countdown '
     + 'and the step-2 reconcile would drop a live buff as expired');
-  for (const k of ['renown_high', 'dungeon_cooldowns', 'place', 'now', 'state']) {
+  /* ('dungeon_cooldowns' left the envelope with the old dungeons, 1016-approved-cuts.sql, 2026-11-20.) */
+  for (const k of ['renown_high', 'place', 'now', 'state']) {
     ok(Object.prototype.hasOwnProperty.call(env || {}, k),
       `[9] the splice ATE the '${k}' projection — the patch was not additive`);
   }

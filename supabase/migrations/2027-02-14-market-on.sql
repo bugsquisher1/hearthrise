@@ -20,9 +20,12 @@
 -- ── §0 THE REVIEW'S CONDITIONS ───────────────────────────────────────────────
 do $mig$
 begin
-  -- Change 1: the premium bond is refused by the one listable rule.
-  if to_regclass('public.hr_market_premium_items') is null
-     or (select listable from public.hr_market_items where item_id = 'hearth_token') is distinct from false then
+  -- Change 1: the premium bond is refused by the one listable rule. Since the approved cuts (2026-11-20, plan L10,
+  -- 1016-approved-cuts.sql and its items catalogue) there is no bond to refuse: while hr_items still holds hearth_token,
+  -- the bond's list must still refuse it; once the row is gone, the condition holds by construction.
+  if exists (select 1 from public.hr_items where item_id = 'hearth_token')
+     and (to_regclass('public.hr_market_premium_items') is null
+          or (select listable from public.hr_market_items where item_id = 'hearth_token') is distinct from false) then
     raise exception 'PRECONDITION: apply 2027-02-13-market-premium-bond.sql first'; end if;
   -- Change 2: a member's own refusal ends that member only (threat model #7).
   if to_regprocedure('public.hr_hunt_forfeit_seat(uuid,uuid,text,jsonb,integer)') is null then

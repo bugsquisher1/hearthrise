@@ -45,7 +45,6 @@ import { GEAR_ITEMS } from '../src/data/gear-tiers.js';
 import { effectsAreLive } from '../src/data/item-effects.js';
 import { pathFor } from '../src/data/item-art.js';
 import { SHOP_OFFERS } from '../src/data/shops.js';
-import { BOSSES } from '../src/data/bosses.js';
 import { HEARTHFIND_TABLE } from '../src/data/hearthfind.js';
 import { effectiveDropChance } from '../src/core/drops.js';
 import { lootKey } from '../src/core/goals.js';
@@ -83,12 +82,6 @@ function equipmentFor(tier) {
   const m = LOADOUT[tier].metal;
   return { weapon: `${m}_sword`, helmet: `${m}_helm`, body: `${m}_platebody`, pants: `${m}_platelegs`,
     gloves: `${m}_gauntlets`, boots: `${m}_boots` };
-}
-function mentions(v, id) {
-  if (v === id) return true;
-  if (Array.isArray(v)) return v.some((x) => mentions(x, id));
-  if (v && typeof v === 'object') return Object.keys(v).some((k) => k === id || mentions(v[k], id));
-  return false;
 }
 const shopGranted = (id) => SHOP_OFFERS.some((o) => (o.grant || []).some((g) => g.kind === 'item' && g.id === id));
 const gpMidOf = (m) => ((m.gp || [0, 0])[0] + (m.gp || [0, 0])[1]) / 2;
@@ -182,7 +175,6 @@ function check(monsters) {
       ok(!!pathFor(d.id), 'a', `${tag}: item has no art in item-art.js`);
       ok(!luckyItems.has(d.id), 'a', `${tag}: item is a lucky find`);
       ok(!shopGranted(d.id), 'a', `${tag}: item is granted by a shop offer (shops.js)`);
-      ok(!mentions(BOSSES, d.id), 'a', `${tag}: item is boss loot`);
       for (const [oid, om] of Object.entries(monsters)) {
         (om.drops || []).forEach((od, oi) => {
           /* a loot-band row may share the item: its faucet is drop-tables.mjs' (pace + value cap) */

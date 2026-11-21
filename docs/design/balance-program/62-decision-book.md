@@ -64,12 +64,14 @@ Tyler's later notes on MM-32 and MM-34 are rulings too and are in section 5. On 
 
 ## 3. Where every call stands
 
-157 rows were decided and 155 calls remained, because GR-24 and MM-7 were each decided twice and merged. Chapter 10 added TAL-1, so there are 156. Today: 51 DECIDED (6 of them with Tyler's yes on the page), 90 PROVISIONAL, 1 OPEN, 10 RULED (9 at the sitting), 2 PROPOSAL, 1 superseded and 1 withdrawn.
+157 rows were decided and 155 calls remained, because GR-24 and MM-7 were each decided twice and merged. Chapters 10 and 11 added TAL-1 and CH11-1 to CH11-3, so there are 159. Today: 51 DECIDED (6 of them with Tyler's yes on the page), 93 PROVISIONAL, 1 OPEN, 9 RULED (8 at the sitting), 2 PROPOSAL, 2 superseded and 1 withdrawn.
 
 | Area | Calls | Decided | Provisional | Open | Ruled | Proposal | Superseded or withdrawn |
 |---|---|---|---|---|---|---|---|
 | Foundation and checks | 12 | 2 | 9 | 0 | 1 | 0 | 0 |
 | Collisions between chapters | 10 | 3 | 7 | 0 | 0 | 0 | 0 |
+| The MMO layer | 39 | 7 | 30 | 0 | 1 | 0 | 1 |
+| The player's day | 8 | 3 | 5 | 0 | 0 | 0 | 0 |
 | The long game | 10 | 1 | 8 | 0 | 1 | 0 | 0 |
 | Combat | 16 | 9 | 6 | 1 | 0 | 0 | 0 |
 | World | 10 | 3 | 6 | 0 | 0 | 1 | 0 |
@@ -78,8 +80,6 @@ Tyler's later notes on MM-32 and MM-34 are rulings too and are in section 5. On 
 | Progression | 7 | 1 | 3 | 0 | 1 | 0 | 2 |
 | Social | 4 | 2 | 1 | 0 | 1 | 0 | 0 |
 | Home | 5 | 2 | 2 | 0 | 0 | 1 | 0 |
-| The player's day | 7 | 3 | 4 | 0 | 0 | 0 | 0 |
-| The MMO layer | 37 | 7 | 28 | 0 | 2 | 0 | 0 |
 | Money | 13 | 2 | 8 | 0 | 3 | 0 | 0 |
 
 Every row, with its status, what it waits on, its reason and its evidence, is in `docs/design/overhaul/decisions/all.json`.
@@ -111,7 +111,7 @@ Plus Talents, the build choice every five Levels, in `docs/design/overhaul/10-le
 | The Catacombs mode beyond one wing, the Hall of Firsts, the Honors catalogue | The first build is played |
 | Sinks as a share of band gold, and the yard rate change | The wage can be measured. Until then the typed prices are no worse |
 | Talent unlock ranks 8 and up, tracks six to eight, and the arena build | The sample of five tracks is played |
-| On-call heroes, and the clan Level XP room | The spec in 11-on-call-and-clan-xp.md is written. Both are ruled and neither is designed in this book |
+| On-call heroes, the Library and the town day rule | What section 8 of chapter 11 names for each. All three are designed there and all three are PROVISIONAL |
 
 ## 5. Tyler's picks on the page
 
@@ -169,7 +169,7 @@ MM-43: Tyler said yes on the page. Test Crowns for the wiped Discord playtest on
 | 15 | CE-5 | Deeds, room rungs and chests are re-priced for an account of four. | The gold numbers of 26-3 and 26-1 of 2026-11-20 | The numbers were typed for one hero's income, and an account now has four. | Let stand on the page, in about a second |
 | 16 | CE-7 | Town work moves on screen in real time and the server writes at the start, at each paid hour and at a stop. | 2026-10-22 | It looks the same to the player, and study 48 shows no design meets the server budget without it (worth 109 database-seconds an account-day, ESTIMATED). | Let stand on the page, in about a second |
 | 17 | CE-8 | The Hearthrise lights on the calendar's weekend, sized by the fire. (One row with GR-82.) | 2026-10-25 | A known weekend can be planned around, and the fire still decides how big it is. | Let stand on the page, in about a second |
-| 18 | MM-18 | No hired, lent or on-call heroes. | 25-1 and the on-call board of 25-3, 2026-11-20 | Every account has four heroes of its own, so a hired seat has no job. | REFUSED at the sitting (S-1). On-call heroes are kept, with his design |
+| 18 | MM-18 | No hired, lent or on-call heroes. | 25-1 and the on-call board of 25-3, 2026-11-20 | Every account has four heroes of its own, so a hired seat has no job. | REFUSED at the sitting (S-1). On-call heroes are kept, with his design. MM-18 is superseded and chapter 11 designs it |
 | 19 | MM-9 | The castle is priced for each member with a floor of five, one project at a time, open at any size. | 25-4 and the castle gate of 25-3 (2026-11-20), and 31-3 (2026-11-21) | Clans now pay buffs, so a fixed price would lock a small clan out of hero power. Tyler declined this option once. | Let stand on the page for the price by member. The full castle is RULED as the direction at the sitting (S-7 b) |
 | 20 | MM-42 | The in-between ground weekend features named pieces in place of XP. | The second half of 27-5, 2026-11-20 | It keeps Level XP events rare and gives gear a weekend. | Let stand on the page, in about a second |
 | 21 | GR-69 | No Local chat tab and no live party finder. | 2026-11-11 (criers in local chat), 2026-10-15/16 (the finder) | Both need two players at the screen in the same minute, which an idle game rarely has. | RULED at the sitting (S-2 b). The removal stands |
@@ -177,14 +177,15 @@ MM-43: Tyler said yes on the page. Test Crowns for the wiped Discord playtest on
 | 23 | MM-48 | A clan hunt is two rooms on one pool. | The second half of 25-11, 2026-11-20 | It keeps every fight a party of four, which is what the engine and the formulas are built on. | Let stand on the page, in about a second |
 | 24 | GR-3 | Party XP is paid by size alone for the first build. The classes rule may come back as one row of the table after Deadly is sized and played. | The 2026-10-31 rule that party XP is better only with different classes | Size alone needs no telling, and the look later keeps the door open. | RULED at the sitting (S-10 c) |
 | 25 | MM-9 | The full castle: five buildings of ten levels, labor, upkeep, votes, a treasury, about a year. | His two picks of 2026-11-21 against each other, and 25-4 | A long shared goal and a larger gold sink. | RULED as the direction at the sitting (S-7 b). Sizes stay PROVISIONAL |
-| 26 | MM-25 | A clan room pays a standing Level XP bonus. | 25-2 of 2026-11-20: clans give no Level XP | He kept the library, and at the sitting he chose the option that pays Level XP. | RULED at the sitting (S-4 a). The size is PROVISIONAL and owed by the design lane |
+| 26 | MM-25 | A clan room pays a standing Level XP bonus. | 25-2 of 2026-11-20: clans give no Level XP | He kept the library, and at the sitting he chose the option that pays Level XP. | RULED at the sitting (S-4 a). The size is PROVISIONAL: +5% at Library level ten, in chapter 11 |
+| 27 | CH11-3 | A rest plan's usual ending is a standing job with no count, in place of "wait in town". | The 2026-11-20 ruling that a rest plan ends in "wait in town" or "hunt again, once" and never loops | Chapter 11 reads it as inside the ruling, because it does not loop and starts no hunt, and asks that it be listed as a change. | Not put to Tyler. PROVISIONAL |
 
 ### 5.4 Cuts
 
 | # | What | From | Tyler's answer | How it stays, or the note |
 |---|---|---|---|---|
 | 1 | 103 monster rows no hunt uses, three hunts with no ground, four called boss copies | GR-34 | Said keep on the page | PROPOSAL, made in the fold 2026-11-21, not yet seen by Tyler. GR-34. The rows stay in the data, hidden and flagged as unplaced. Region sketches and halls take their rosters from this pool first. |
-| 2 | On-call, hired and lent heroes, and the on-call board | MM-18 | KEPT. RULED at the sitting (S-1): on-call heroes stay, with his design | The spec is being written in docs/design/overhaul/11-on-call-and-clan-xp.md. |
+| 2 | On-call, hired and lent heroes, and the on-call board | MM-18 | KEPT. RULED at the sitting (S-1): on-call heroes stay, with his design | The design is chapter 11. |
 | 3 | The live party finder | GR-69 | CUT. RULED at the sitting (S-2 b) | PLANNED, ruled 2026-10-15/16. Also reversal 21. |
 | 4 | The Local chat tab, and "maybe a fifth seat later" | GR-69 | CUT. RULED at the sitting (S-2 b) | Not planned. The fifth seat is already ruled out by 25-11. |
 | 5 | The castle's labor, votes, upkeep, treasury balance, Clan Standing and five buildings of ten levels | MM-9 | KEPT. RULED as the direction at the sitting (S-7 b) | Sizes stay PROVISIONAL. MM-9. Five buildings of ten levels, labor as a town job, a treasury that pays upkeep first and then the project, one standing vote an account, and Clan Standing as a tally that pays no power. All priced for each member with a floor of five. |
@@ -223,7 +224,7 @@ Kept hidden for later, and never on the cut list: Capture the flag (MM-46). The 
 | S-9 | C | The rested bank is cut. |
 | S-10 | C | Party XP by size alone for the first build. After Deadly is sized on the fixed tool, read which fours players run. The classes rule may come back as one row of the table. |
 
-The on-call and clan XP spec is being written in `docs/design/overhaul/11-on-call-and-clan-xp.md`.
+On-call heroes, the Library and the town day are designed in `docs/design/overhaul/11-on-call-and-clan-xp.md`, all PROVISIONAL.
 
 ## 6. Server cost
 

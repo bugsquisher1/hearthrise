@@ -349,6 +349,8 @@ No design meets 60 without closed form. With it, and with the away hunt saved ev
 
 Crafting is a quarter to a half of the step from mid gear to best gear, and a player who never crafts can buy it (RULED 11-21). That band is chapter 03's and this chapter's benches are where it is made.
 
+**Castle labor joins the list of town work.** PROVISIONAL (CH11-3, `11-on-call-and-clan-xp.md`), section 3. A resting hero does one job at a time: the queue first, then the week's castle labor up to a cap, then one standing job with no count (train, gather, labor, fuel the Hearth or wait in town). On call is a switch that may interrupt whichever job is running.
+
 ### 2.12 The Great Hearth
 
 The huge hearth in the center of Havora (RULED 10-25, art approved). PROVISIONAL GR-82, Tyler said yes on the page, reversal of 2026-10-25, let stand on the page: the three town systems that stand around it become one place with one window. It is a HYPOTHESIS that one is more fun than its parts, and it re-opens 24-10.
@@ -441,7 +443,7 @@ In decision-book order.
 | 4 | **The Hall's numbers.** The count of mountable rows, the size of the wall and the Great Hall, the fee's hours, and whether a visitor sees every mount | The game designer, after the mountable flag exists |
 | 5 | **The yard's formula in numbers.** The share of a skill level's cost an hour pays, the hunting reference it is capped by, how the fee follows the rate, and a knob for each in `knobs.json`. The dummy's band edges past skill 71 | The game designer, inside GR-54 and GR-53 |
 | 6 | **The second dropped seed,** its ground, its drink and the drink ladder's step size | The game designer, with the Morrow Hills. It is written only after the first dropped seed has been read in play (GR-77) |
-| 7 | **A party hero's spare rested hours.** The solver reads 2.1 to 4.4 of 12 wanted, under the 6 to 12 band. Either the yard and market gathering fill them, or the band is wrong. It also sets what a curing slot is worth | The game designer, when the solver has a supplies goal |
+| 7 | **A party hero's spare rested hours.** See `11-on-call-and-clan-xp.md` section 3 and its band TD1 (3 to 9 of 12 hours filled by the queue and the week's labor). The solver reads 2.1 to 4.4 of 12 wanted, under the 6 to 12 band. Either the yard and market gathering fill them, or the band is wrong. It also sets what a curing slot is worth | The game designer, when the solver has a supplies goal |
 | 8 | **The first town project** if the market opens on day one | The game designer, after GR-55 |
 | 9 | **Crops and costs with no consumer.** Potato. Room rungs that ask for Wheat Bread and Field Rations if meals are cut. The War Crown. The Moonbloom Elixir, whose Shop price is far above the shop-as-a-floor rule. What stands on the Shrine's spot. How burn relief counts in the Yield pool | Chapter 03 and chapter 04 |
 | 10 | **Names and pictures.** Chests 5 to 8. The Camp's name against its scene. Prices for the Cellar's rungs 2 and 4 | The game designer and the art director |
@@ -520,7 +522,7 @@ In decision-book order.
 | Curing made general (any bench job in a slot), home buffs for the hunt, furniture placement, farm animals, weather, seasons, a second home, hired workers | Considered in 58 | Each fails the purpose test or a ruling. Not to be proposed again without new evidence |
 | Every payback or price written in weeks at 3.3 hunted hours, and every "own four" reading that assumed heroes arrive over weeks | 26 | RULED 11-21: 12 hunted hours a day, four heroes from day 1 |
 | Deed, rung and chest prices weighed against hero slot prices | 26, 24 | RULED 11-21: no slot prices |
-| "Party member" as someone who may visit, and any town rule that leans on on-call heroes | 26-11, 57 | MM-18 is RULED (Tyler 2026-11-21, the sitting: on-call heroes are kept). On-call heroes are kept, so a town rule may lean on them once the spec in `11-on-call-and-clan-xp.md` is written |
+| "Party member" as someone who may visit, and any town rule that leans on on-call heroes | 26-11, 57 | MM-18 is RULED (Tyler 2026-11-21, the sitting: on-call heroes are kept). On-call heroes are kept, and `11-on-call-and-clan-xp.md` specs them: on call is a switch that may interrupt a hero's town job |
 | The claim that the budget "cannot be met otherwise" as the whole case for closed form | 59 phase A | 59 phase B: necessary and not sufficient |
 
 ---

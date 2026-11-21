@@ -526,7 +526,7 @@
     {
       "id": "GR-48",
       "call": "Luck's feeds, the find list, the saved kit",
-      "decision": "Luck keeps two feeds and one budget. Each ground has a find list on the Honors page that ticks with no press and pays no Luck. One Setup for each ground holds the weapon, the worn set, the linings, the unique, the bar and the target mode. It is saved once, starting a hunt there wears it, and it can be copied to another hero or ground. The Setup is built before case perks, linings or signatures.",
+      "decision": "Luck keeps two feeds and one budget. Each ground has a find list on the Honors page that ticks with no press and pays no Luck. There is one remembered Setup for each ground: a ground points to one of the hero's slots. A Setup holds the weapon, the worn set, the linings, the unique, the bar and the target mode. It is saved once, starting a hunt there wears it, and it can be copied to another hero or ground. The Setup is built before case perks, linings or signatures.",
       "outcome": "recommended",
       "reason": "The saved kit is the piece that makes every \"bring the right thing\" system in this book a decision made once. Without it, four heroes changing rings by hand on every move is the worst chore in the game.",
       "evidence": "EVIDENCE: your Luck ruling of 2026-11-20 and the first principle of 2026-10-18. The kit's server shape and cost are not measured.",

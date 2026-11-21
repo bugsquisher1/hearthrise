@@ -6,7 +6,6 @@ Part of "Hearthrise: the game we are building". Lane `lane/d-on-call-clan-xp` (g
 
 - **RULED** (date): the owner decided it knowing what it cost. The sitting of 2026-11-21 (`review/01-sitting.md`) showed each option with its cost and no recommendation, so its answers are informed rulings.
 - **PROVISIONAL**: this chapter's design and every number in it. A plan that has not been tested. Section 8 says what each part waits on.
-- **A READING**: where the owner's words can be read two ways, the reading I built on, and the other one.
 - Evidence: **MEASURED**, **COMPUTED**, **ESTIMATED**, **JUDGMENT**, **UNKNOWN**. Nothing in this chapter is measured by me.
 
 ---
@@ -19,7 +18,7 @@ Three rulings of the sitting needed a design. They share one resource, a hero's 
 
 > "on call is fine but should be full stamina, the on call hero trades their crafting/training time for a small cut of exp, no loss on death. HOWEVER they can only go on call once every 24 hours and it will only last for 12 hours. Then back to a chosen activity"
 
-The spec. A hero's owner switches it on call once, with limits. Its window opens once every 24 hours and lasts 12. Inside the window the hero keeps doing its town job until a friend or clan mate seats it in a hunt. It then hunts on a full bar of its own that does not touch its stamina. It earns 10% of its seat's XP (PROVISIONAL). It takes no coin and no drops, pays for no supplies and loses nothing on a death. When the hunt or the window ends it goes back to its job. The caller's own heroes earn exactly what they would beside a fourth hero of their own.
+The spec. A hero's owner switches it on call once, with limits. Its window opens once every 24 hours and lasts 12. Inside the window the hero keeps doing its town job until a friend or clan mate seats it in a hunt. It then hunts on its hire stamina, a second pool that is separate from its own stamina. The caller sees that pool and may spend all of it. It earns 10% of its seat's XP (PROVISIONAL). It takes no coin and no drops, pays for no supplies and loses nothing on a death. When the hunt or the window ends it goes back to its job. The caller's own heroes earn exactly what they would beside a fourth hero of their own.
 
 **2. The clan XP room (S-4 a, inside the full castle of S-7 b).** The castle's fifth building is the Library. Each of its ten levels pays +0.5% Level XP as a standing buff, +5% at the top (PROVISIONAL). It is one row on the modifier table and fills a new standing cap on Level XP. COMPUTED: the ceiling on a Hearthrise weekend moves from about 1.67 to about 1.74. The pace a player can hold all the time moves from about 1.36 to about 1.44. The Level table stays the clock of the plain four, which is now also the four in no clan. The first region past staged content must be open by about day 50 and not day 55.
 
@@ -71,7 +70,7 @@ The spec. A hero's owner switches it on call once, with limits. Its window opens
 | The words | The spec | Label |
 |---|---|---|
 | "on call is fine" | On-call heroes are in the game. Another account's hero can fill a seat again. This reverses MM-18 | RULED 2026-11-21 |
-| "should be full stamina" | A called hero hunts on a full bar of its own, the on-call bar. It is as long as the window. The hero's own stamina is not spent and keeps resting the way it does at a town job | A READING. See below |
+| "should be full stamina" | The hero has **hire stamina**, a pool separate from its own stamina. The hirer sees how much it holds and may spend all of it. Hunting on call never spends the hero's own stamina. Section 1.3 | RULED 2026-11-21, in the owner's second answer below. The pool's size and refill are PROVISIONAL |
 | "trades their crafting/training time" | On call draws on the hero's rested hours and on nothing else. An hour hunted on call is an hour of town work not done. A hero on its own hunt cannot be called | RULED 2026-11-21 |
 | "for a small cut of exp" | The hero earns a share of what its seat would earn, in Level XP and combat skill XP. It earns nothing else | RULED for "small". The size is PROVISIONAL |
 | "no loss on death" | A death on call costs the hero no Level XP, no skill progress and no Blessing | RULED 2026-11-21 |
@@ -79,16 +78,27 @@ The spec. A hero's owner switches it on call once, with limits. Its window opens
 | "it will only last for 12 hours" | The window closes 12 hours after it opens, called or not | RULED 2026-11-21 |
 | "Then back to a chosen activity" | When a called hunt ends, or the window closes, the hero's rest plan carries on | RULED 2026-11-21 |
 
-**The reading of "full stamina".** The 2026-11-20 design had a hero on call for 2 hours a day, 4 at most. I read "full stamina" as the answer to that: the on-call stint is a whole bar and not a sliver, which matches "it will only last for 12 hours". The other reading is that a hero must hold a full stamina bar of its own before it may go on call. I did not build on it, because a hero that has just hunted its 12 hours has an empty bar, so it could never be on call in the hours it is meant to trade. If the other reading is the one meant, sections 1.3 and 1.5 change and the rest stands. The Coordinator should confirm it.
+**What "full stamina" means.** RULED 2026-11-21. The first issue of this chapter asked, and the owner answered in these words: "I just mean the person hiring them can see how much stamina the hired hand has and the person hiring can use all of it, hired stamina and regular stamina should be two different sets of stamina I think". So there are two pools. Three things follow and all three are ruled: the hirer sees the hire stamina, the hirer may spend all of it, and a call never spends the hero's own.
 
-### 1.3 The window and the day
+### 1.3 The window, the hire stamina and the day
+
+**Hire stamina.** PROVISIONAL for the size and the refill.
+
+- It is a second bar on the hero. It opens at 12 hours (`hireStaminaHours`), the length of the window, so a hero seated for a whole window can be used for all of it.
+- It refills to full when a window opens, which is once in 24 hours. It does not rest back inside a window and nothing sells a refill for it. A refill for gold would let a hirer buy more of a friend's hero than the ruling allows.
+- It drains one for one while the hero hunts on call, the way own stamina drains on an own hunt. It drains at no other time.
+- It is spent only by a hirer. The owner cannot hunt on it.
+- **When it runs out mid-hunt the guest leaves.** The hunt goes on for the rest of the party, by the caller's "if one falls" line. The guest goes back to its rest plan. It cannot be seated again until its next window.
+- A guest also leaves when the window closes, with whatever hire stamina is left unspent. So what a hirer can use is the smaller of the two, and the seat card shows that one number first.
+
+**The window.**
 
 - The owner switches a hero **On call** on its rest plan, once. It stays set until switched off.
 - The window opens when the hero next starts resting, if 24 hours have passed since its last window opened. It closes 12 hours later.
 - Inside the window the hero does its town job as usual. It is only taken from that job when someone seats it. So an hour is traded only when it is used.
 - A hero can be seated more than once in a window, one hunt at a time.
-- A called hunt ends for the guest at the window's close at the latest. The caller sees the time left before pressing Start: "On call: 7h 20m".
-- The hero's own stamina rests through the window as it would at any town job. So a full on-call day is 12 hours of its own hunting and up to 12 on call, with no town work. That is the trade the ruling names.
+- A called hunt ends for the guest when its hire stamina is spent or at the window's close, whichever comes first. The caller sees both before pressing Start: "Hire stamina: 7h 20m".
+- The hero's own stamina is never touched by a call. It rests through the window as it would at any town job. So a full on-call day is 12 hours of its own hunting and up to 12 on call, with no town work. That is the trade the ruling names.
 - **The owner is never locked out.** The owner can recall the hero at any time. It leaves the party the way it would at the window's close, and that window is used up. A free account's two-visit day (hunt 8, rest 4, hunt 4, rest 8) needs this, because its own second hunt can start inside the window.
 
 ### 1.4 Who can call, and how
@@ -96,7 +106,7 @@ The spec. A hero's owner switches it on call once, with limits. Its window opens
 | Rule | Value | Label |
 |---|---|---|
 | Who | The owner's friends, the owner's clan mates, or both. The owner picks once. Never a stranger. There is no live party finder (RULED 2026-11-21, S-2 b) | PROVISIONAL |
-| Where a caller finds one | The Friends list and the clan roster show heroes on call with their Level, weapon, time left and tier limit. One control: Seat. This is the on-call board of the 2026-11-20 ruling, as a view of two lists that exist | PROVISIONAL |
+| Where a caller finds one | The Friends list and the clan roster show heroes on call with their Level, weapon, hire stamina and tier limit. One control: Seat. This is the on-call board of the 2026-11-20 ruling, as a view of two lists that exist | PROVISIONAL |
 | The owner's limits, set once | The highest tier the hero may be taken to. Who may call | PROVISIONAL |
 | What the caller cannot do | Change the guest's gear, bar, talents or target rules. The guest fights with its own saved Setup for that ground, or its default one | PROVISIONAL |
 | Consent | A server row for each hero. The caller's Start is checked against it. No accept is needed, because the owner is asleep by design | PROVISIONAL |
@@ -144,8 +154,10 @@ A build spec. Nothing here is built. It is a new server surface where one accoun
 
 | Thing | Shape |
 |---|---|
-| Consent | One row for each hero: on or off, who may call, the tier limit, when the last window opened. Written only by the owner's intent. Per-user RLS. Friends and clan mates read it through a projection, never the table |
+| Consent | One row for each hero: on or off, who may call, the tier limit, when the last window opened, and the hire stamina left (`hire_stamina_ms`, a server column beside the hero's own stamina and never the same number). Written only by the owner's intent. Per-user RLS. Friends and clan mates read it through a projection, never the table |
 | The window | Opened and closed by the server clock. The client never sends a time |
+| Hire stamina | Set to full by the server when a window opens. Drained only by the settle of a hunt the hero is a guest in, by the time that settle covers. No intent from any client can raise it |
+| The projection | The owner sees the pool in `hr_state_of` beside own stamina. A friend or clan mate sees it in the on-call list and on the seat card, through the same projection that shows the consent. Every number on those cards is the server's and is replaced by each envelope |
 | The seat | A guest seat on the party's hunt names the hero, its owner and the consent it was seated under |
 | The credit | Computed in the same settle that pays the other seats, from the seat's share times `onCallXpShare`. Written to the guest's hero by the settle. No client value is involved at any step |
 
@@ -154,14 +166,14 @@ A build spec. Nothing here is built. It is a new server surface where one accoun
 | Intent | Sent by | Client sends | Server checks |
 |---|---|---|---|
 | Set on call | The owner | hero, on or off, who may call, tier limit | The hero is the caller's |
-| Seat | The caller, as part of the party start | the guest hero's id, the seat | The consent is on. The caller is a friend or clan mate as the consent asks. The window is open. The hero is resting and not seated elsewhere. The ground and tier are inside the limits. The party holds no other guest. The caller's purse can stock the guest |
+| Seat | The caller, as part of the party start | the guest hero's id, the seat | The consent is on. The caller is a friend or clan mate as the consent asks. The window is open. The hero holds hire stamina. The hero is resting and not seated elsewhere. The ground and tier are inside the limits. The party holds no other guest. The caller's purse can stock the guest |
 | Recall | The owner | hero | The hero is the owner's |
 
 **What happens at each seam.**
 
 - **Seated.** The guest's town job is stopped and paid in closed form. Its Setup is read from the owner's rows by the server. Its supplies are bought from the caller's purse.
-- **Each save.** The guest is a seat. Its reduced XP is applied with the other seats. The consent and the window are re-checked. If either has ended, the guest leaves at that save.
-- **Seat ends** (hunt end, death, window close, recall). One ledger row for the owner's account: the hero, the caller, the hunt, the hours and the XP credited. The guest's rest plan starts its next job.
+- **Each save.** The guest is a seat. Its reduced XP is applied with the other seats. The save drains the guest's hire stamina by the time it covers. The consent, the window and the pool are re-checked. If any has ended, the guest leaves at the instant it ended, as an own hero does when its stamina runs out.
+- **Seat ends** (hunt end, death, hire stamina spent, window close, recall). One ledger row for the owner's account: the hero, the caller, the hunt, the hours and the XP credited. The guest's rest plan starts its next job.
 
 **Clamps.** A hero is credited on call for at most 12 hours in any 24. A day's on-call XP for a hero is capped at `onCallXpShare` times 12 hours of the best pace its Level can read with every cap full. A settle that would credit more is refused and logged. A forged party cannot mint XP for a friend, because no party value comes from a browser.
 
@@ -178,9 +190,11 @@ A build spec. Nothing here is built. It is a new server surface where one accoun
 1. A guest's hunt changes no gold, item or stamina on the owner's account.
 2. A guest's death changes no XP, skill progress, Blessing or death count on the owner's hero.
 3. The caller's heroes are paid the same with a guest as with an own hero of the same seat.
-4. No hero is credited on call past 12 hours in 24, across any number of seats.
+4. No hero is credited on call past its hire stamina, and so never past 12 hours in 24, across any number of seats.
 5. A Seat with consent off, a closed window, a stranger, a second guest or a tier over the limit is refused with no change.
 6. The same hunt settled with the caller's browser open and closed credits the guest the same. Both paths.
+7. A guest hunt changes the hero's own stamina by nothing, and an own hunt changes its hire stamina by nothing.
+8. Hire stamina is raised only by a window opening. No intent raises it.
 
 ### 1.9 What a mixed party costs to save
 
@@ -199,9 +213,9 @@ From study 48, which I read in part.
 |---|---|---|
 | The Path | One row. On call opens when the account has its first friend or joins a clan, and has a hero at Level 10 or more | PROVISIONAL |
 | The rest plan | One switch for each hero: On call. Under it, set once: who may call, the tier limit. "Apply to all four" as one press | PROVISIONAL |
-| The hero strip | A badge on a hero that is on call or out on a call | PROVISIONAL |
+| The hero strip | A badge on a hero that is on call or out on a call. The owner sees hire stamina as a second, smaller bar under the hero's own | PROVISIONAL |
 | Friends and the clan roster | Heroes on call, with Seat | PROVISIONAL |
-| The Party window | A guest seat shows the guest's Level, weapon, time left and the two-thirds line if it applies. It shows the supply cost the caller will pay | PROVISIONAL |
+| The Party window | The guest's seat card shows its Level, weapon, **hire stamina as a bar with hours and minutes** and the two-thirds line if it applies. If the window closes before the pool would be spent, the card shows the smaller time and says which. It shows the supply cost the caller will pay | PROVISIONAL |
 | The return card | One line for the account: which heroes were called, for how long, by whom, and the XP earned. A death on call reads as no loss | PROVISIONAL |
 | The hunt report | The guest's row, marked as a guest | PROVISIONAL |
 
@@ -215,11 +229,11 @@ Labels are standard words: On call, Seat, Recall, Guest. A good mechanic that re
 | 2 | Owner | Switches one hero On call, friends and clan, up to Dangerous | A hero at Level 10. The rest plan | New build |
 | 3 | Owner | Sends the four hunting and closes the game | One Start | Yes |
 | 4 | Server | The hero's hunt ends, it starts its town job, and its window opens | Step 2. 24 hours since its last window | New build |
-| 5 | Caller | Opens the Party window and sees the hero under Friends, "On call: 11h 40m" | Step 4 | New build |
+| 5 | Caller | Opens the Party window and sees the hero under Friends, "Hire stamina: 11h 40m" | Step 4 | New build |
 | 6 | Caller | Puts three own heroes and the guest in the party and presses Start | An empty seat. Gold for the guest's supplies. A ground inside the limits | New build |
 | 7 | Server | Stops the guest's job, pays it, seats the guest | Closed-form town work (GR-1) | New build, on GR-1 |
 | 8 | Server | Saves the hunt. The guest gets 10% of its share. The caller's three get their full shares and all the coin and drops | The party XP step | New build |
-| 9 | Server | The window closes. The guest leaves and its rest plan starts the next job | Step 4's clock | New build |
+| 9 | Server | The hire stamina is spent or the window closes. The guest leaves and its rest plan starts the next job | Step 4's clock | New build |
 | 10 | Owner | Reads one line on the return card | Step 9's ledger row | New build |
 
 ---
@@ -388,6 +402,7 @@ For `tools/balance-program/formulas/knobs.json`. None exists in the game today.
 |---|---|---|---|
 | `onCallXpShare` | 0.10 | The small cut | PROVISIONAL |
 | `onCallWindowHours` | 12 | How long a window lasts | RULED 2026-11-21 |
+| `hireStaminaHours` | 12 | The size of the hire pool. That it is a separate pool is RULED 2026-11-21 | PROVISIONAL |
 | `onCallEveryHours` | 24 | How often a window opens | RULED 2026-11-21 |
 | `onCallSeatsPerParty` | 1 | Guests in one party | PROVISIONAL |
 | The standing cap on Level XP | +5% | The Library's ceiling. A cell of the cap table, not a new knob | PROVISIONAL |
@@ -441,7 +456,6 @@ The framework audit found no town work, no buff and no mixed-account party in an
 - I ran nothing. No engine, no matrix, no browser.
 - I did not read `25-social.md` or `48-platform-cost.md` whole.
 - I did not check in code how a party start seats a hero, how the loot plan splits a share, or whether a settle can write a hero of another account today.
-- The reading of "full stamina" in 1.2 is mine and is not confirmed.
 - I did not size a castle stage, the weekly share or upkeep. Chapter 06 owns them and they are a hypothesis there.
 - I did not re-derive the 1.36 held seat of chapter 05. I reproduced it from its stated inputs.
 
@@ -451,7 +465,7 @@ The framework audit found no town work, no buff and no mixed-account party in an
 
 | Part | Waits on |
 |---|---|
-| On call, the mechanic | The reading of "full stamina" confirmed. The Security review. A playtest with at least two clans |
+| On call, the mechanic | The Security review. A playtest with at least two clans |
 | `onCallXpShare` | The mixed-Level cells of MM-19, then play |
 | A guest's save cost | The reliability engineer, on a party from two accounts |
 | The Library's step | Clans existing with people in them. One buff played in a cell, as the review asks for every buff |
@@ -486,7 +500,10 @@ I edited no other chapter and no decision file. I checked this list by search ag
 | `08-player-experience.md`, 2.2 | The plan row gains: a ground with no pointer uses the hero's first Setup. An edit made at a ground asks Save or Save as new. Copy to another hero fills one of that hero's slots |
 | `04-economy-and-crowns.md` | No number changes. 55,000 gold a hero and 220,000 for four stand. One sentence: slots four and five sell a fourth and fifth kit, never the memory of a ground |
 | `10-level-choices.md` | No change. A guest fights with its own talents. The ceiling it quotes, about 1.67, is the reading before the Library |
-| A question for the Coordinator | The reading of "full stamina" in 1.2 |
+| `08-player-experience.md`, the stamina day | A hero has two pools: its own stamina and hire stamina. The book's line that on call spends no stamina becomes: on call spends hire stamina and never the hero's own. The hero strip shows both |
+| `06-mmo-layer.md`, the on-call rows, and `00-the-game.md`, S-1 | Add the owner's second answer of 2026-11-21 on two pools beside his S-1 words. The reading asked of the Coordinator is closed |
+| `09-platform-and-measurement.md` | One more knob, `hireStaminaHours`, and one more server column on the Security list |
+| `04-economy-and-crowns.md` | Nothing sells hire stamina. The stamina refill does not touch it |
 
 ---
 

@@ -34,8 +34,11 @@ export function distanceOf(v, band) {
   if (band.lo !== null && band.lo !== undefined && v < band.lo) return past(band.lo, band.lo - v);
   return 0;
 }
-/* X26: a death rate is judged on 4 seeds x 8 h or more (32 hero-hours a seat); under it the number prints as `thin` */
+/* X26: a death rate is judged on 4 seeds x 8 h or more (32 hero-hours a seat); under it the number prints as `thin`. A cell the deaths run
+   (grid.mjs --deaths) played carries `deaths`, which every death reading prefers. */
 const DEATH_SAMPLE_HERO_H = 32;
+export const deathOf = (c) => (c.deaths && c.deaths.sample ? { per1000h: c.deaths.deathsPer1000h, seatHours: c.deaths.sample.heroHours / c.party, net: c.deaths.netLevelXpPerH, low: c.deaths.lowHpTypical }
+  : { per1000h: c.rates.deathsPer1000h, seatHours: c.rates.sample.heroHours / c.party, net: c.rates.netLevelXpPerH, low: c.rates.lowHpTypical });
 
 /* ── the cells, looked up ──────────────────────────────────────────────────────────────────────────────────────────────────────── */
 function indexCells(grid) {
@@ -62,8 +65,8 @@ const inBandCell = (D, c) => {
 function holds(c) {
   if (!c || !c.rates) return false;
   if (c.tier === 'normal') return true;
-  const r = c.rates, d = STD.bandById('S6.' + c.tier + '.mid'), hp = STD.bandById(c.tier === 'dangerous' ? 'S3.mid' : 'S4.mid');
-  return finite(r.deathsPer1000h) && r.deathsPer1000h <= d.hi && finite(r.lowHpTypical) && r.lowHpTypical >= hp.lo && r.netPerH > 0;
+  const r = c.rates, x = deathOf(c), d = STD.bandById('S6.' + c.tier + '.mid'), hp = STD.bandById(c.tier === 'dangerous' ? 'S3.mid' : 'S4.mid');
+  return finite(x.per1000h) && x.per1000h <= d.hi && finite(r.lowHpTypical) && r.lowHpTypical >= hp.lo && r.netPerH > 0;
 }
 
 /* ── THE DERIVED TABLES ────────────────────────────────────────────────────────────────────────────────────────────────────────── */
@@ -117,7 +120,7 @@ export function derive(D, grid, K = null) {
       const band = STD.bandById('S6.' + tier + '.' + gear);
       const ruled = band ? (band.hi !== null ? band.hi : band.lo) : null;
       const cost = (count, share) => (count / 1000) * deathXp(L) * share;
-      row[tier] = { gross: c.rates.levelXpPerH, afterMeasured: c.rates.netLevelXpPerH, deathsPer1000h: c.rates.deathsPer1000h, heroHours: c.rates.sample.heroHours,
+      row[tier] = { gross: c.rates.levelXpPerH, afterMeasured: deathOf(c).net, deathsPer1000h: deathOf(c).per1000h, seatHours: deathOf(c).seatHours,
         ruledCount: ruled, afterRuledUnblessed: finite(ruled) ? Math.round(c.rates.levelXpPerH - cost(ruled, 1)) : null,
         afterRuledBlessed: finite(ruled) ? Math.round(c.rates.levelXpPerH - cost(ruled, STD.DEATH_COST.blessedShare)) : null };
     }
@@ -191,7 +194,7 @@ export function judgeGrid(D, grid, o = {}) {
     && (!w.levels || (c.L >= w.levels[0] && c.L <= w.levels[1])) && (!w.fromLevel || c.L >= w.fromLevel) && (!w.inBand || inBandCell(D, c)));
   const at = (c) => c.L + ' ' + c.gear + ' x' + c.party + ' ' + c.tier;
   const ratio = (a, b) => (a && b && b > 0 ? a / b : null);
-  const sampleOk = (c) => c.rates.sample.heroHours / c.party >= DEATH_SAMPLE_HERO_H;
+  const sampleOk = (c) => deathOf(c).seatHours >= DEATH_SAMPLE_HERO_H;
   for (const band of STD.BANDS) {
     const w = band.where || {}, id = band.id;
     if (NOT_GRID[id]) { rows.push({ band: id, group: band.group, label: band.label, at: '-', value: null, status: 'n/a', dist: 0, why: NOT_GRID[id] }); continue; }
@@ -242,9 +245,9 @@ export function judgeGrid(D, grid, o = {}) {
       continue;
     }
     if (/^S1\.|^S3\.|^S4\./.test(id)) { for (const c of cellsWhere(w)) add(band, at(c), c.rates.lowHpTypical); continue; }
-    if (/^S2\.|^S6\./.test(id)) { for (const c of cellsWhere(w)) add(band, at(c), c.rates.deathsPer1000h, sampleOk(c) ? {} : { status: 'thin', why: c.rates.sample.heroHours + ' hero-hours (X26: 4 seeds x 8 h a seat)' }); continue; }
+    if (/^S2\.|^S6\./.test(id)) { for (const c of cellsWhere(w)) add(band, at(c), deathOf(c).per1000h, sampleOk(c) ? {} : { status: 'thin', why: Math.round(deathOf(c).seatHours) + ' hours a seat (X26: 4 seeds x 8 h; grid.mjs --deaths plays it)' }); continue; }
     if (/^S5\./.test(id)) { for (const c of cellsWhere(w)) add(band, at(c), ratio(c.rates.takenPerH, (get(c.L, 'mid', c.party, c.tier) || {}).rates?.takenPerH)); continue; }
-    if (/^S7\./.test(id)) { for (const c of cellsWhere(w)) add(band, at(c), Math.exp(-(c.rates.deathsPer1000h / 1000) * 12), sampleOk(c) ? {} : { status: 'thin', why: c.rates.sample.heroHours + ' hero-hours' }); continue; }
+    if (/^S7\./.test(id)) { for (const c of cellsWhere(w)) add(band, at(c), Math.exp(-(deathOf(c).per1000h / 1000) * 12), sampleOk(c) ? {} : { status: 'thin', why: Math.round(deathOf(c).seatHours) + ' hours a seat' }); continue; }
     if (id === 'S10') {
       for (const L of levels.filter((x) => x >= w.levels[0])) {
         const c = get(L, 'mid', 1, 'normal');

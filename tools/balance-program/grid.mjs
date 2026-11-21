@@ -7,6 +7,10 @@
 //                                                               REAL engine; writes tools/balance-program/grid.json and prints the report
 //   node tools/balance-program/grid.mjs --quick                 the release subset: the 12 guard checkpoints x 3 gear states x lone and
 //                                                               four x Normal and the hardest tier, 2 seeds x 1 h; writes grid-quick.json
+//   node tools/balance-program/grid.mjs --deaths [--third 0|1|2|all]  the death sample (50-standards 5.3 nightly deaths): a rotating third of the
+//                                                               harder-tier cells at 4 seeds x 8 h (by the day of the year, or --third), merged
+//                                                               into grid.json as each cell's `deaths`: the only run that judges S2, S6, S7 and
+//                                                               what `holds` reads; the grid's own 2 x 2 h is too thin for a death rate (X26)
 //   node tools/balance-program/grid.mjs --report [--quick]      NO PLAY: the cached grid judged against standards.mjs, one screen a band
 //                                                               family, then the gap list's numbers, then the bands furthest out
 //   node tools/balance-program/grid.mjs --kits <Level>          NO PLAY: what every way wears at that Level in LOW, MID and BiS, and why
@@ -59,6 +63,7 @@ const arg = (k, d = null) => { const i = argv.indexOf('--' + k); return i >= 0 &
 export const RUNS = Object.freeze({
   full: Object.freeze({ id: 'full', checkpoints: STD.CHECKPOINTS, parties: [1, 2, 3, 4], tiers: 'all', seeds: 2, hours: 2, steps: true, file: GRID_FILE }),
   quick: Object.freeze({ id: 'quick', checkpoints: STD.GUARD_CHECKPOINTS, parties: [1, 4], tiers: 'normal+hardest', seeds: 2, hours: 1, steps: false, file: QUICK_FILE }),
+  deaths: Object.freeze({ id: 'deaths', checkpoints: STD.CHECKPOINTS, parties: [1, 2, 3, 4], tiers: 'harder', seeds: 4, hours: 8, steps: false, file: GRID_FILE, rotate: 3 }),
 });
 /* The main skill of each way (measure.mjs MAIN) */
 export const MAIN = Object.freeze({ hammer: 'melee', tank: 'melee', sword: 'melee', axes: 'melee', mage: 'magic', healer: 'magic', bow: 'ranged', crossbow: 'ranged' });
@@ -145,7 +150,7 @@ export function planCells(D, K, run, only = null) {
       if (size > 1 && L < (STD.PARTIES.find((p) => p.size === size).fromLevel || 1)) continue;
       const ground = D.groundAt(L, size);
       const offered = D.TI.tiersOf(ground);
-      const tiers = run.tiers === 'all' ? offered : ['normal', offered[offered.length - 1]].filter((t, i, a) => a.indexOf(t) === i);
+      const tiers = run.tiers === 'all' ? offered : run.tiers === 'harder' ? offered.filter((t) => t !== 'normal') : ['normal', offered[offered.length - 1]].filter((t, i, a) => a.indexOf(t) === i);
       for (const gear of STD.GEAR_STATE_IDS) for (const tier of tiers) for (const [styles, comp] of compsOf(size)) {
         const key = cellKey(L, gear, size, comp, tier);
         const b = buildCell(D, K, { L, gear, styles, tier, ground });
@@ -266,18 +271,28 @@ export function cellRates(D, meta, seeds) {
 }
 
 /* ── THE INPUT HASH: a cache knows when the tree moved under it ────────────────────────────────────────────────────────────────── */
-const HASHED = ['src/core', 'src/data', 'supabase/functions/hr-accrue', 'tools/balance-sim', 'tools/balance-program/grid-kit.mjs', 'tools/balance-program/grid-project.mjs', 'tools/balance-program/grid.mjs', 'tools/balance-program/standards.mjs', 'src/shell/hunt-list.js'];
+/* WHAT A CELL DEPENDS ON: the engine and the data, the cell runner and its kit, the kit builder, the projector and the bands' gear states, the
+   advice; and of this file only the code that builds and measures a cell (its report, packing and CLI move no cell, so editing them leaves the
+   cache fresh). Tracked files only (git ls-files), so a local run's output folders never read as a change. */
+const HASHED = ['src/core', 'src/data', 'supabase/functions/hr-accrue', 'src/shell/hunt-list.js', 'tests/hunt-core/fixtures/play-ground.mjs', 'tools/lib/version-stamp.mjs', 'tools/gen-ground-stats.mjs',
+  'tools/balance-sim/cell.mjs', 'tools/balance-sim/gear.mjs', 'tools/balance-sim/worker.mjs', 'tools/balance-sim/played.mjs', 'tools/balance-sim/skill-lines.mjs', 'tools/balance-sim/skill-lines.json',
+  'tools/balance-sim/styles.mjs', 'tools/balance-sim/stats.mjs', 'tools/balance-sim/weapon-power.mjs', 'tools/balance-sim/armor-power.mjs', 'tools/balance-sim/career.mjs', 'tools/balance-sim/staged',
+  'tools/balance-program/grid-kit.mjs', 'tools/balance-program/grid-project.mjs', 'tools/balance-program/standards.mjs'];
+const cellCode = () => [buildCell, planCells, cellRates, compsOf, cellKey, ownShareAt, slimResult, slimPlan].map((f) => f.toString()).join('\n')
+  + JSON.stringify([COMPS, MAIN, RUNS.full, RUNS.quick, STD.SUPPLY]);
 export function inputHash(root = ROOT) {
   const h = createHash('sha256');
-  const walk = (p) => {
-    const abs = join(root, p);
-    if (!existsSync(abs)) return;
-    const st = statSync(abs);
-    if (st.isDirectory()) { for (const f of readdirSync(abs).sort()) walk(p + '/' + f); return; }
-    if (!/\.(m?js|json|ts)$/.test(p) || /\.jsonl$/.test(p)) return;
-    h.update(p + '\0'); h.update(readFileSync(abs, 'utf8').replace(/\r\n/g, '\n')); h.update('\0');
-  };
-  for (const p of HASHED) walk(p);
+  let files;
+  try { files = execFileSync('git', ['ls-files', '-z', '--', ...HASHED], { cwd: root, encoding: 'utf8', maxBuffer: 64 << 20 }).split('\0').filter(Boolean).sort(); }
+  catch { files = null; }
+  if (!files || !files.length) {
+    files = [];
+    const walk = (p) => { const abs = join(root, p); if (!existsSync(abs)) return; if (statSync(abs).isDirectory()) { for (const f of readdirSync(abs).sort()) walk(p + '/' + f); return; } files.push(p); };
+    for (const p of HASHED) walk(p);
+    files.sort();
+  }
+  for (const p of files) { if (!/\.(m?js|json|ts)$/.test(p) || !existsSync(join(root, p))) continue; h.update(p + '\0'); h.update(readFileSync(join(root, p), 'utf8').replace(/\r\n/g, '\n')); h.update('\0'); }
+  h.update(cellCode());
   return h.digest('hex').slice(0, 16);
 }
 const commitOf = () => { try { return execFileSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).trim(); } catch { return 'unknown'; } };
@@ -290,13 +305,34 @@ async function play(run) {
   const sc = selfCheck(D.projectD);
   if (sc.length) throw new Error('grid: the projector does not start where the template ends: ' + sc.join('; '));
   const only = arg('only') ? arg('only').split(',').map(Number) : null;
-  const { jobs, cells } = planCells(D, K, run, only);
+  let { jobs, cells } = planCells(D, K, run, only);
+  /* the deaths run plays a rotating third (the day of the year, or --third): every harder-tier cell once in three nights */
+  if (run.rotate) {
+    const third = arg('third', String(Math.floor((Date.now() - Date.UTC(new Date().getUTCFullYear(), 0, 1)) / 86400000) % run.rotate));
+    if (third !== 'all') { const keep = new Set(cells.filter((_, i) => i % run.rotate === Number(third)).map((c) => c.key)); cells = cells.filter((c) => keep.has(c.key)); jobs = jobs.filter((j) => keep.has(j.key)); }
+    if (!existsSync(run.file)) throw new Error('grid --deaths: no grid.json to merge into: run the full grid first');
+  }
   const workers = Number(arg('workers', Math.max(1, Math.min(16, availableParallelism() - 2))));
   const resumeFile = has('resume') ? run.file.replace(/\.json$/, '.jsonl') : null;
   console.error('grid ' + run.id + ': ' + cells.length + ' cells, ' + jobs.length + ' seed jobs (' + run.seeds + ' seeds x ' + run.hours + ' h), ' + workers + ' workers');
   const { results, errors, workerMs } = await playAll(jobs, workers, { log: process.stderr.isTTY ? (s) => process.stderr.write('\r  ' + s.slice(0, 110).padEnd(110)) : () => {}, resumeFile });
   if (process.stderr.isTTY) process.stderr.write('\n');
-  const prev = only && existsSync(run.file) ? JSON.parse(readFileSync(run.file, 'utf8')) : null;
+  const prev = (only || run.rotate) && existsSync(run.file) ? unpackGrid(JSON.parse(readFileSync(run.file, 'utf8'))) : null;
+  if (run.rotate) {
+    /* merged into the full grid's cells: each played cell gains `deaths`, the rest of the cache stands as it was */
+    let n = 0;
+    for (const c of cells) {
+      const seeds = Array.from({ length: run.seeds }, (_, s) => results[c.key + '#' + s]).filter(Boolean).map((r) => r.result);
+      if (seeds.length < run.seeds || !prev.cells[c.key]) continue;
+      const r = cellRates(D, c, seeds);
+      prev.cells[c.key].deaths = { deathsPer1000h: r.deathsPer1000h, deathTax: r.deathTax, netLevelXpPerH: r.netLevelXpPerH, lowHpTypical: r.lowHpTypical, netPerH: r.netPerH, sample: r.sample, ended: r.ended, at: new Date().toISOString().slice(0, 10) };
+      n++;
+    }
+    prev.deathsRun = { at: new Date().toISOString().slice(0, 16) + 'Z', cells: n, seeds: run.seeds, hours: run.hours, wallS: Math.round((Date.now() - t0) / 1000), workerS: Math.round(workerMs / 1000), workers, errors: errors.length };
+    writeFileSync(run.file, JSON.stringify(packGrid(prev)) + '\n');
+    console.error('grid deaths: merged ' + n + ' cells into ' + relative(ROOT, run.file) + ' (' + prev.deathsRun.wallS + ' s wall, ' + prev.deathsRun.workerS + ' worker-s)');
+    return { grid: prev, errors };
+  }
   const out = { schema: 'hearthrise.balance-program.grid/1', run: run.id, commit: commitOf(), at: new Date().toISOString().slice(0, 16) + 'Z', inputHash: inputHash(),
     sample: { seeds: run.seeds, hours: run.hours }, refresh: 'by hand: re-run and commit in the lane that moves a number a band reads, and whenever the balance guard prints STALE (inputHash differs)',
     clock: existsSync(join(HERE, 'stamina-day.json')) ? JSON.parse(readFileSync(join(HERE, 'stamina-day.json'), 'utf8')) : null,
@@ -307,16 +343,42 @@ async function play(run) {
     if (seeds.length < run.seeds) { out.cells[c.key] = { ...c, error: (errors.find((e) => e.id.startsWith(c.key + '#')) || {}).error || 'a seed is missing' }; continue; }
     out.cells[c.key] = { ...c, label: STD.STRETCHES.find((s) => s.state === c.stretch).label, rates: cellRates(D, c, seeds) };
   }
-  writeFileSync(run.file, JSON.stringify(out) + '\n');
+  writeFileSync(run.file, JSON.stringify(packGrid(out)) + '\n');
   console.error('grid ' + run.id + ': wrote ' + relative(ROOT, run.file) + ' (' + Object.keys(out.cells).length + ' cells, ' + out.runtime.wallS + ' s wall, ' + out.runtime.workerS + ' worker-s, ' + errors.length + ' errors)');
   for (const e of errors.slice(0, 5)) console.error('  ERROR ' + e.id + ': ' + e.error);
   return { grid: out, errors };
 }
 
-/** The cached grid (full by default), or null. */
+/* THE CACHE'S SHAPE ON DISK: a cell is a row of CELL_FIELDS, its rates a row of RATE_FIELDS and each seat a row of SEAT_FIELDS (the names once,
+   in the file's head), so the committed file stays small. The kits are not kept: they are a rule on the data, and grid-kit.mjs kitFor (or
+   grid.mjs --kits) rebuilds any of them from the same tree (inputHash says which). readGrid answers the plain shape grid-derive.mjs reads. */
+export const CELL_FIELDS = Object.freeze(['key', 'L', 'gear', 'party', 'comp', 'tier', 'ground', 'styles', 'stretch', 'label', 'step', 'error', 'deaths']);
+export const RATE_FIELDS = Object.freeze(['levelXpPerH', 'netLevelXpPerH', 'xContract', 'contractXpPerH', 'mainSkillXpPerH', 'coinPerH', 'incomePerH', 'storePerH', 'ownShare', 'netPerH',
+  'netADay', 'storeShare', 'storeByKindPerH', 'takenPerH', 'healedPerH', 'lowHpTypical', 'lowHpP10', 'deaths', 'deathsPer1000h', 'deathTax', 'killsPerH', 'revealsPerPartyH',
+  'revealEveryHeroH', 'revealEveryPartyH', 'rarestRevealEveryHeroH', 'rarestRevealEveryPartyH', 'killsByPerH', 'ended', 'seats', 'sample']);
+export const SEAT_FIELDS = Object.freeze(['style', 'levelXpPerH', 'takenPerH', 'lowP50', 'lowP10', 'deaths', 'maxHp']);
+const row = (o, fields) => fields.map((f) => (o[f] === undefined ? null : o[f]));
+const obj = (r, fields) => Object.fromEntries(fields.map((f, i) => [f, r[i]]).filter(([, v]) => v !== null));
+export function packGrid(g) {
+  const cells = Object.values(g.cells).map((c) => [row(c, CELL_FIELDS), c.rates ? row({ ...c.rates, seats: c.rates.seats.map((x) => row({ ...x, lowP50: x.lowP50 === null ? null : Math.round(x.lowP50 * 10) / 10 }, SEAT_FIELDS)) }, RATE_FIELDS) : null]);
+  return { ...g, packed: 2, cellFields: CELL_FIELDS, rateFields: RATE_FIELDS, seatFields: SEAT_FIELDS, cells };
+}
+export function unpackGrid(g) {
+  if (!g || g.packed !== 2) return g;
+  const cells = {};
+  for (const [cr, rr] of g.cells) {
+    const c = obj(cr, g.cellFields);
+    if (rr) { const r = obj(rr, g.rateFields); r.seats = (r.seats || []).map((s) => obj(s, g.seatFields)); c.rates = r; }
+    cells[c.key] = c;
+  }
+  const { cellFields, rateFields, seatFields, packed, ...rest } = g;
+  void cellFields; void rateFields; void seatFields; void packed;
+  return { ...rest, cells };
+}
+/** The cached grid (full by default), or null, in the plain shape. */
 export function readGrid(quick = false) {
   const f = quick ? QUICK_FILE : GRID_FILE;
-  return existsSync(f) ? JSON.parse(readFileSync(f, 'utf8')) : null;
+  return existsSync(f) ? unpackGrid(JSON.parse(readFileSync(f, 'utf8'))) : null;
 }
 
 async function kits(L) {
@@ -343,7 +405,7 @@ async function main() {
     grid = readGrid(quick);
     if (!grid) { console.error('grid: no cached ' + (quick ? 'grid-quick.json' : 'grid.json') + ': run node tools/balance-program/grid.mjs' + (quick ? ' --quick' : '')); return 2; }
   } else {
-    const r = await play(quick ? RUNS.quick : RUNS.full);
+    const r = await play(has('deaths') ? RUNS.deaths : quick ? RUNS.quick : RUNS.full);
     grid = r.grid;
   }
   const D = await loadGridData();

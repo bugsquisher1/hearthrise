@@ -4,6 +4,15 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+## 2026-11-21 · systems-engineer (lane/c-balance-matrix) · the balance matrix's first reads (subset, 1 seed x 1 h, real engine)
+
+| # | Found | Affected | Action |
+|---|---|---|---|
+| 1 | The solver's ground-rates.json played Dangerous and Deadly at the ground's BUILT pull: its jobs named the tier but no `density`, so a lone Deadly hero met Normal's crowd and read 0 deaths (the grid, which passes the tier row's pull, read 104-219). On the matrix's cells a lone MID hero on Krell's Deadly at 85 dies 42 times in 2 h | atlas/measure.mjs, paths.mjs, sources.mjs (V3) | Fixed here: ground-rates.json is written from the matrix's `grounds` block (the grid's buildCell); re-measure it with `node tools/balance-program/balance-matrix.mjs --rates` |
+| 2 | V4's seat damage is the seat, not the engine: on Krell's Deadly the harness heroes in the REAL four's ways (hammer, bow, mage, healer) at Level 79 take the real split (front 72%, healer 26%; real 69% and 28%); the grid's four (a sword-and-shield tank) puts 96% on the tank | standards.mjs PARTIES, every party survival and supply band | Game Designer and the baseline lane: decide the four the bands are read on (the real players' or the ruled one) |
+| 3 | `tools/gen-ground-stats.mjs --write` throws at the first monster row that lives in a ground pack (`no row troll_picker in monsters.js`): a STAT_FORMULA change cannot be written by the game's own tool today | gen-ground-stats.mjs, every formula knob | Formula roadmap owner: point writeRows at each row's file (matrix-regen.mjs does, for scratch copies) |
+| 4 | Today's harness four at 85 on Krell's Deadly kills 1,386 an hour (real 1,251, +11%); the store bill is 1.9x real (the kit buys the Level's rune tier) | V2, F5 | The calibration row prints on every --diff |
+
 ## 2026-11-20 · qa-engineer (lane/c-hollow-proofs) · mutation proofs that passed because the harness threw
 
 | # | Found | Affected | Action |

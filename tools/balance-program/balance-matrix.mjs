@@ -402,10 +402,13 @@ async function selftest() {
     const files = pe.edits.map(([f, from]) => f + ':' + from);
     const one = new Set(files).size === files.length;
     const both = pe.applied.filter((a) => a.sharedWith).length >= 2 && pe.applied.every((a) => a.to.every((v, i) => v !== a.from[i]));
-    const sp = await plantScratch({ knobs: { [pair[0]]: 1.25, [pair[1]]: 0.75 } });
-    const landed = pe.applied.every((a) => readFileSync(join(sp.root, a.file), 'utf8').split('\n')[a.line - 1].includes(a.to[0]));
-    sp.done();
-    check('two knobs on one line (' + pair.join(' + ') + '): one edit a line, both moved, and the copy holds both', one && both && landed, JSON.stringify(pe.applied).slice(0, 300));
+    let landed = false, why = '';
+    try {
+      const sp = await plantScratch({ knobs: { [pair[0]]: 1.25, [pair[1]]: 0.75 } });
+      landed = pe.applied.every((a) => readFileSync(join(sp.root, a.file), 'utf8').split('\n')[a.line - 1].includes(a.to[0]));
+      sp.done();
+    } catch (e) { why = e.message; }
+    check('two knobs on one line (' + pair.join(' + ') + '): one edit a line, both moved, and the copy holds both', one && both && landed, why || JSON.stringify(pe.applied).slice(0, 300));
     /* the same number picked by two knobs multiplies (a planted list: the same site twice) */
     const k0 = list.byId.get(pair[0]);
     const twin = { ...list, byId: new Map([...list.byId, ['twinOf' + pair[0], { ...k0, id: 'twinOf' + pair[0] }]]) };

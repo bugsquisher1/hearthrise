@@ -1,6 +1,6 @@
 # 13. The build plan: the first build
 
-Written 2026-11-21 on `lane/d-build-plan`, cut from `set/v0.2.144` at 735feda87 and merged up to 82e806c9d. This is step 4 of the critical review (`review/00-critical-review.md`, section 8): narrow the first build. Revised the same day for the audit before wave 1 (`review/04-pre-wave-audit.md`, GO WITH CHANGES, and Part C, `review/04c-existing-game-coverage.md`). Docs only. No game code, data, migration or tool was changed. Chapters 00 to 12 and `decisions/` were not edited.
+Written 2026-11-21 on `lane/d-build-plan`, cut from `set/v0.2.144` at 735feda87 and merged up to 8d9496980. This is step 4 of the critical review (`review/00-critical-review.md`, section 8): narrow the first build. Revised the same day for the audit before wave 1 (`review/04-pre-wave-audit.md`, GO WITH CHANGES, and Part C, `review/04c-existing-game-coverage.md`). Docs only. No game code, data, migration or tool was changed. Chapters 00 to 12 and `decisions/` were not edited.
 
 Labels. MEASURED is a run on the real engine, with its run id. COUNTED is a count from a file by script, or from production where it says so. COMPUTED is arithmetic on named inputs. JUDGMENT is a design or planning opinion. UNKNOWN means nobody knows. Nothing here is measured against the game that runs today. Lane sizes and migration counts are JUDGMENT.
 

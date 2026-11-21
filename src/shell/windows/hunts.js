@@ -239,7 +239,8 @@ renderHunts.patch = function patchHunts(body, ctx) {
   if (sc.closeOnHunt && now) {
     sc.closeOnHunt = false;
     const by = typeof ctx.wm.backTo === 'function' ? ctx.wm.backTo('hunts') : null;
-    queueMicrotask(() => { ctx.wm.close('hunts'); if (by && by !== 'hunts') ctx.wm.close(by); });
+    /* never Chat at its home (a crier's link): it is the player's corner, not a step on the way, and its close would be their pick */
+    queueMicrotask(() => { ctx.wm.close('hunts'); if (by && by !== 'hunts' && !(ctx.wm.row(by) || {}).home) ctx.wm.close(by); });
   }
   const level = levelOf(cs);
   const party = partyMembershipOf(cs);

@@ -98,6 +98,16 @@
         "bytes": 3134548,
         "on": "2026-11-20",
         "why": "hr-accrue +282 B on set/v0.2.143, all ground data the engine's own index reads: ox_road/pack.js +177 (lane/b-morrow-kit 69cac9aa7, the Ox Road's gather nodes), carters_rest/map.js +130 (e596bbb08, the row chars that are no hex digit and the line saying why), ox_road/map.js -7, balance-sheet.js -18 (1cd286297's comment trim); measured file by file with pack-edge on 97d631f32 and e596bbb08"
+      },
+      {
+        "bytes": 3134901,
+        "on": "2026-11-20",
+        "why": "+353 B, lane/c-approved-rows (Tyler 2026-11-20 calls 24-9, 26-3, 26-8, 26-9, 22-8): the ruled rows' one-line whys in shops.js, homestead-tiers.js (the Shrine held), gold-ladders.js (the bag stops at 10) and boss-calls.js (no gold); no new module reached; measured on set/v0.2.144"
+      },
+      {
+        "bytes": 3135898,
+        "on": "2026-11-21",
+        "why": "src/data/core-model.js: Levels 7-9 re-cut for the new player and Levels 10-20 taking the XP back (three more LEVEL_CURVE brackets) plus LEVEL_PACE.newPlayer, the row Tyler's 27-2 pace is held on (lane/c-levels-7-9)"
       }
     ]
   }

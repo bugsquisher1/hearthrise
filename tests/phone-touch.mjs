@@ -518,7 +518,7 @@ async function tallEnough(page, q, min, what, tag, fails) {
   else if (Math.min(...hs) < min) fails.push('PH-5 [' + tag + '] ' + what + ' are ' + Math.min(...hs) + ' px tall (want >= ' + min + ')');
 }
 async function openKey(page, key, id) {
-  for (let i = 0; i < 4 && await page.evaluate(() => document.querySelectorAll('[data-hs-win]:not(.is-leaving)').length > 0); i++) {
+  for (let i = 0; i < 4 && await page.evaluate(() => document.querySelectorAll('[data-hs-win]:not(.is-leaving):not([data-hs-win="chat"])').length > 0); i++) {
     await page.evaluate(() => { const a = document.activeElement; if (a && a.blur) a.blur(); });
     await page.keyboard.press('Escape');
     await page.waitForTimeout(200);

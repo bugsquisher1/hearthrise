@@ -228,7 +228,7 @@ async function checks(overrides, shots, opts) {
       const { ctx, page, errors, up } = await open({ mutateEnv: dressed, residue: { coach: { read: TUT.map((r) => r.id).filter((id) => id !== 'first_dangerous') } } });
       if (!up) fails.push('AW-99 the page did not mount');
       else {
-        for (let i = 0; i < 4 && await page.evaluate(() => document.querySelectorAll('[data-hs-win]:not(.is-leaving)').length > 0); i++) { await page.keyboard.press('Escape'); await page.waitForTimeout(160); }
+        for (let i = 0; i < 4 && await page.evaluate(() => document.querySelectorAll('[data-hs-win]:not(.is-leaving):not([data-hs-win="chat"])').length > 0); i++) { await page.keyboard.press('Escape'); await page.waitForTimeout(160); }
         await page.waitForTimeout(300);
         const card = await page.evaluate(() => { const p = document.querySelector('.hs-pointer[data-tutorial]'); return p ? { id: p.getAttribute('data-tutorial'), text: (p.querySelector('.hs-coach-text') || {}).textContent || null } : null; });
         if (!card || card.id !== 'first_dangerous' || card.text !== 'Hunts → Meadowbrook Thicket → Dangerous → Enter') fails.push('AW-99 in town the coach shows ' + JSON.stringify(card));
@@ -603,7 +603,7 @@ const MUTANTS = [
   /* audit 2026-11-19 L2 (AW-105): the outgrown card leads with Go to the next ground, in view on a phone too */
   ['AW-105 the outgrown card leads with a greyed Hunt again again', 'src/shell/windows/hunt-summary.js', "    const way = town.primary === 'ground' ? town.steps.find((s) => s.id === 'ground') : null;", '    const way = null;'],
   ['AW-105 a phone stacks the Go to press under the steps', 'src/styles/summary.css', '  .hsum-card.is-onward > .hsum-foot { order: 0; position: sticky;', '  .hsum-card.is-onward > .hsum-foot { order: 1; position: static;'],
-  ['AW-78 the steps are not the newest card\'s', 'src/shell/windows/hunt-summary.js', "const town = cur === list[0] && !huntOpen ? townStepsOf(cs, didOf(sc, cur.id)) : { steps: [], primary: 'again' };", "const town = { steps: [], primary: 'again' };"],
+  ['AW-78 the steps are not the newest card\'s', 'src/shell/windows/hunt-summary.js', "const town = cur === list[0] && !huntOpen ? townOf(cs, sc, cur.id) : { steps: [], primary: 'again' };", "const town = { steps: [], primary: 'again' };"],
   ['AW-78 the return card rings the Shop, never the summary\'s row', 'src/data/hunt-tutorial.js', "      hooks: ['[data-hs-win=\"hunt-summary\"] [data-hs-act=\"town\"][data-step=\"sell\"]',\n        '[data-hs-win=\"shop\"] .hw-tab[data-tab=\"sell\"]',", "      hooks: ['[data-hs-win=\"shop\"] .hw-tab[data-tab=\"sell\"]',"],
   ['Bury debits the bag before the server answers', 'src/shell/windows/inventory/bury.js', "  const qty = buryQty(cs, id);\n", "  const qty = buryQty(cs, id);\n  delete cs.read('inventory')[id];\n"],
   ['the Burying line ignores the server pointer', 'src/shell/windows/inventory/bury.js', "  if (e) return lineParts(buryingWord(e) + ' ' + itemName(e.input), runParts(cs, workOf(cs), true), '');", '  if (e) return [];'],
@@ -619,7 +619,7 @@ const MUTANTS = [
   ['coach: the sale\'s confirmation is never ringed (AW-31)', 'src/shell/windows/shop.js', ' data-coach-hook="sell-confirm"', ''],
   ['coach: R opens nothing once Services left the icon row (AW-31)', 'src/data/shell-windows.js', ", tabKeys: Object.freeze({ r: 'services' }) }),", ' }),'],
   ['coach: "Decide once" rings Bones for the shop (AW-31)', 'src/shell/windows/inventory/grid.js', "attr(sel, 'data-coin', coin.has(l.item) ? '' : null);", "attr(sel, 'data-coin', '');"],
-  ['coach: R over the open Shop never switches it to Services (AW-31)', 'src/shell/shell.js', '    for (const id of wm.openIds()) if (wm.wantsTab(id) || wm.wantsFind(id)) refresh(id);\n', ''],
+  ['coach: R over the open Shop never switches it to Services (AW-31)', 'src/shell/shell.js', '    for (const id of wm.openIds()) if (wm.wantsTab(id) || wm.wantsFind(id) || wm.wantsCaret(id)) refresh(id);', '    void 0;'],
   ['coach: an ended hunt\'s bar stays over its open summary (AW-31)', 'src/shell/shell-hud.js', " && !wm.isOpen('hunt-summary');", ';'],
   ['AW-25 the page shows the first ground, not the pick', 'src/shell/windows/hunts.js', '  const r = list.find((x) => x.hunt === sc.pick) || null;', '  const r = list[0] || null;'],
   ['AW-29 the pick resets after a hunt', 'src/shell/windows/hunts.js', '  if ((!sc.pick || sc.auto) && list.length) {', '  if ((!sc.pick || sc.auto || (h && h.ended)) && list.length) {'],

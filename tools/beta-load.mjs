@@ -1,11 +1,26 @@
 #!/usr/bin/env node
 // ════════════════════════════════════════════════════════════════════════
 // tools/beta-load.mjs — THE BETA'S WORST HOUR, REPLAYED: real chain, real engine, real concurrency, PostgreSQL 17.
-//   (lane/r-beta-load, reliability-engineer, 2026-11-01.) Load-test only; nothing imports it; never touches production.
+//   (lane/r-beta-load, reliability-engineer, 2026-11-01.) Load-test only; nothing imports it (importing runs it); never touches production.
 //
 //   node tools/beta-load.mjs --accounts=20 [--heroes=4] [--minutes=5] [--party=0.4] [--town=0.25] [--workers=2] [--idle-accounts=80] [--warm=240] [--engine-pool=15] [--rest-pool=15] [--unviewed-poll-ms=0]
 //                            [--drill=tick-stop|edge-5xx|retry] [--json=out.json]
-//   node tools/beta-load.mjs --selftest     the conservation audit, proved to bite on planted double pay and lost time
+//   node tools/beta-load.mjs --shape=krell4 --accounts=40 --online=0.5 ...   THE HEAVY FOUR'S BAND (below)
+//   node tools/beta-load.mjs --selftest     the conservation audit, proved to bite on planted double pay and lost time; the band's wiring
+//
+// THE HEAVY FOUR'S BAND (lane/c-cost-fixtures 2026-11-20; balance program L11, call 28 step 10). --shape=krell4 makes every account the
+// heavy four on Krell's Hold, Deadly (tests/per-player-cost.mjs HEAVY_FOUR, built by its buildFour: the fixture the release path measures
+// alone on PGlite), the first --online share with its tab open (a hello every 16 s and the early asks), the rest away on the world tick.
+// At the end its journal rows and settle statements a hero-hour (every statement the engine sent to settle: the workers' execOf counters)
+// are judged against that file's two Krell rows, blended by the open share (concurrencyBand): past +25% is red (exit 1), beside the audit.
+// THE CONCURRENCY. The beta's 250 accounts (docs/design/balance-program/30-plan.md §F: the gate runs "before the beta passes 250
+// accounts") at 28-platform.md's mixed share of Heavy fours (15%) is 38 heavy-four accounts: 40, every four hunting at once, half the tabs
+// open (30-plan §F's "half their tabs open"). The plan's 1,000 Own-four accounts do not fit a 4-core runner (28's own table: 5.8 cores, a
+// 2XL), so the gate runs the shape that SETS the per-hero cost at a size a runner holds; absolute capacity is the capacity sample's.
+// ESTIMATED, NOT YET RUN ON A RUNNER (no PostgreSQL 17 on the authoring PC): world ~1 min (40 x ~90 statements), warm 1, measured 3,
+// drain and audit ~0.5 = ~5.5 min beside the mixed run's ~8 in pg17-load's 26; re-budget both from the first nightly.
+// ci-step: pg17-load | The heavy four at the beta's concurrency, its journal rows and statements a hero-hour in band (nightly, PostgreSQL 17)
+// ci-run: node tools/beta-load.mjs --shape=krell4 --accounts=40 --online=0.5 --minutes=3 --warm=60 --workers=2 --json=beta-load-krell4.json
 //
 // WHY THIS AND NOT tools/load-probe.mjs. load-probe's model multiplies ONE measured settle; settle-cost measures one
 // instance in series. This runs the whole population at once on a real server: hr_tick_cron_run's real roster and leases,
@@ -32,7 +47,7 @@
 //
 // A run ends with THE AUDIT: every session's journalled window ms == its clock's move (nothing lost or paid twice), every
 // tally == its ledger, no intent id twice. A drill passes only if the audit is clean and the lag came back.
-// Exit: 0 audit clean · 1 audit red · 2 harness.
+// Exit: 0 audit clean (and, --shape=krell4, the band green) · 1 audit or band red · 2 harness.
 // ════════════════════════════════════════════════════════════════════════
 import { Worker, isMainThread, parentPort, workerData } from 'node:worker_threads';
 import { execFileSync } from 'node:child_process';
@@ -86,6 +101,7 @@ async function workerMain() {
 
   /* index.ts's exec: one transaction a statement, on the pool, role hr_engine, the frame-self marker if a player asked. */
   const execOf = (s, marker) => async (text, params) => {
+    s.stmts = (s.stmts || 0) + 1;   // payload statements, the unit tests/per-player-cost.mjs counts (--shape=krell4's band)
     const t0 = performance.now(); let t1 = t0;
     const rows = await engine.begin(async (tx) => {
       t1 = performance.now(); s.queue += t1 - t0;
@@ -144,8 +160,10 @@ async function workerMain() {
     await x(`select (public.hr_seed($1::uuid, $2::int, $3) & 4294967295)::bigint as seed,
              public.hr_seed($1::uuid, $2::int, $4)::text as salt, public.hr_perks_of($1::uuid, $2::int) as perks`, [a.uid, a.viewed, 'accrue:x', 'intent:accrue:x']);
     const t = performance.now();
+    /* the shipped client's ask names the version its record holds whole (character-session.js `have`): the last answer that carried it */
     const v = await HS.settleHunt({ exec: x, user: a.uid, slot: a.viewed, mode: 'settle', bucket: null, project: true, live: true,
-      ...(early ? { minWindowMs: 1e15 } : {}) });
+      ...(early ? { minWindowMs: 1e15 } : {}), ...(Number.isSafeInteger(a.held) ? { have: a.held } : {}) });
+    if (v && v.body && v.body.state && Number.isSafeInteger(v.body.version)) a.held = v.body.version;
     s.settle = (s.settle || 0) + performance.now() - t;
     s.outcomes = s.outcomes || {}; s.outcomes[v.outcome + (v.reason ? ':' + v.reason : '')] = (s.outcomes[v.outcome + (v.reason ? ':' + v.reason : '')] || 0) + 1;
     return v.body;
@@ -260,7 +278,7 @@ const nowMs = () => performance.now();
 const pct = (a, q) => { if (!a.length) return 0; const s = a.slice().sort((x, y) => x - y); return s[Math.min(s.length - 1, Math.floor(q * (s.length - 1)))]; };
 const uidOf = (i) => `00000000-0000-4000-8000-${(0xbe7a0000 + i).toString(16).padStart(12, '0')}`;
 
-async function buildWorld(db, { accounts, heroes, partyShare, townShare, online, idleAccounts }) {
+async function buildWorld(db, { accounts, heroes, partyShare, townShare, online, idleAccounts, shape = 'mixed' }) {
   const H = (await import('../tests/hunt-sessions-settle.mjs')).HARNESS;
   const M = await H.loadEdge(H.ROOT);
   const { SHIM_CRYPTO, SHIM_VAULT, SHIM_NET } = await import('../tests/world-tick-token-shims.mjs');
@@ -291,7 +309,17 @@ async function buildWorld(db, { accounts, heroes, partyShare, townShare, online,
   const starters = (await db.query('select slot_id from public.hr_hero_slots where starter')).rows.map((r) => r.slot_id);
   await db.query('update public.hr_hero_slots set starter = true');
   const idle = Number(idleAccounts || 0);
-  for (let i = 0; i < accounts + idle; i++) {
+  /* --shape=krell4: every account is THE HEAVY FOUR on Krell's Hold, Deadly (tests/per-player-cost.mjs HEAVY_FOUR and buildFour: the
+     fixture the release path measures alone, here at concurrency), its tab open for the first `online` share */
+  if (shape === 'krell4') {
+    const PPC = await import('../tests/per-player-cost.mjs');
+    for (let i = 0; i < accounts; i++) {
+      const uid = uidOf(i);
+      const { slots } = await PPC.buildFour(db, M, uid, PPC.HEAVY_FOUR, { as: asUser });
+      out.push({ uid, slots, viewed: 0, kind: 'party', online: i / accounts < online, map: townMap });
+    }
+  }
+  for (let i = shape === 'krell4' ? accounts : 0; i < accounts + idle; i++) {
     const uid = uidOf(i);
     await db.query('insert into auth.users (id) values ($1) on conflict (id) do nothing', [uid]);
     await db.query(`insert into public.hr_access_allowlist (user_id, note) values ($1, 'beta-load') on conflict (user_id) do nothing`, [uid]);
@@ -307,8 +335,10 @@ async function buildWorld(db, { accounts, heroes, partyShare, townShare, online,
       }
       slots.push(s);
       await db.query(`update public.player_state set active_kind = 'idle', active_id = null, level_xp = $3 where user_id = $1 and slot = $2`, [uid, s, levelXp]);
+      /* skill_id (2026-08-11-player-state.sql): until 2026-11-20 this wrote a column `skill` that never existed behind a silent catch,
+         so every bench hero fought at combat skill 1 under its Level 20 */
       for (const [skill, xp] of Object.entries(skillXp)) {
-        await db.query(`insert into public.player_skills (user_id, slot, skill, xp) values ($1, $2, $3, $4) on conflict (user_id, slot, skill) do update set xp = excluded.xp`, [uid, s, skill, xp]).catch(() => {});
+        await db.query(`insert into public.player_skills (user_id, slot, skill_id, xp) values ($1, $2, $3, $4) on conflict (user_id, slot, skill_id) do update set xp = excluded.xp`, [uid, s, skill, xp]);
       }
       await db.query(`insert into public.player_inventory (user_id, slot, item_id, qty) select $1, $2, x, 1 from unnest($3::text[]) x on conflict do nothing`, [uid, s, stacks]).catch(() => {});
       await db.query(`insert into public.player_inventory (user_id, slot, item_id, qty) values ($1, $2, 'cooked_shrimp', 400) on conflict (user_id, slot, item_id) do update set qty = excluded.qty`, [uid, s]);
@@ -369,7 +399,9 @@ async function main() {
   const accounts = Number(arg('accounts', 20)); const heroes = Number(arg('heroes', 4)); const minutes = Number(arg('minutes', 5));
   const partyShare = Number(arg('party', 0.4)); const townShare = Number(arg('town', 0.25)); const online = Number(arg('online', 1));
   const W = Number(arg('workers', accounts > 40 ? 3 : 2)); const drill = arg('drill', ''); const jsonOut = arg('json', '');
-  const report = { args: { accounts, heroes, minutes, partyShare, townShare, online, drill }, at: new Date().toISOString() };
+  const shape = arg('shape', 'mixed');
+  if (!['mixed', 'krell4'].includes(shape)) throw new Error(`--shape is mixed | krell4, not ${shape}`);
+  const report = { args: { shape, accounts, heroes: shape === 'krell4' ? 4 : heroes, minutes, partyShare, townShare, online, drill }, at: new Date().toISOString() };
   const log = (s) => process.stdout.write(`[${new Date().toISOString().slice(11, 19)}] ${s}\n`);
 
   const { bootPg } = await import('./pg-replay.mjs');
@@ -381,7 +413,7 @@ async function main() {
   if (!/\bpg_stat_statements\b/.test(pre)) throw new Error(`the server preloads "${pre}", not pg_stat_statements: restart the scratch cluster (tools/pg-replay.mjs starts it with the preload)`);
   await db.exec('create extension if not exists pg_stat_statements');
   const t0 = Date.now();
-  const world = await buildWorld(db, { accounts, heroes, partyShare, townShare, online, idleAccounts: Number(arg('idle-accounts', 0)) });
+  const world = await buildWorld(db, { accounts, heroes, partyShare, townShare, online, idleAccounts: Number(arg('idle-accounts', 0)), shape });
   log(`world built in ${((Date.now() - t0) / 1000).toFixed(0)} s: refused ${JSON.stringify(world.refused)}; party ${world.partyGround}, solo ${world.soloGround}`);
   const admin = connect(name, 4);
   const openN = (await admin.unsafe('select count(*)::int s, count(distinct instance_id)::int i from public.hunt_sessions where ended_at is null'))[0];
@@ -531,7 +563,7 @@ async function main() {
   const perMin = (n) => (60 * n) / elapsedS;
   const rows = {};
   for (const [k, s] of merged) {
-    rows[k] = { n: s.n, perMin: Math.round(perMin(s.n) * 10) / 10, p50: Math.round(pct(s.wall, 0.5)), p95: Math.round(pct(s.wall, 0.95)), max: Math.round(pct(s.wall, 1)),
+    rows[k] = { n: s.n, stmts: s.stmts || 0, perMin: Math.round(perMin(s.n) * 10) / 10, p50: Math.round(pct(s.wall, 0.5)), p95: Math.round(pct(s.wall, 0.95)), max: Math.round(pct(s.wall, 1)),
       queueMean: s.n ? Math.round(s.queue / s.n) : 0, dbMean: s.n ? Math.round(s.db / s.n) : 0, kbMean: s.n ? Math.round(s.bytes / s.n / 102.4) / 10 : 0, errors: s.errors, n5xx: s.n5xx, lost: s.lost,
       settled: s.settled, nothing: s.nothing, refused: s.refused, ended: s.ended, deferred: s.deferred, engineMs: s.engine ? Math.round(s.engine) : undefined, engineMax: s.engineMax, engineRunMax: s.engineRunMax,
       outcomes: s.outcomes, reasons: s.reasons, last: s.last };
@@ -568,15 +600,59 @@ async function main() {
   log(`DB CPU ${m.db_cpu_cores_local?.toFixed(2)} local cores · exec ${m.db_exec_ms_per_s.toFixed(0)} ms/s · ${m.statements_per_s.toFixed(0)} stmts/s · WAL ${m.wal_mb_per_s.toFixed(2)} MB/s · frames ${m.frames_per_s.toFixed(2)}/s (${m.frame_kb_mean.toFixed(0)} KB) · edge ${m.edge_invocations_per_min.toFixed(0)}/min`);
   log(`lag max ${m.lag.max_s.toFixed(0)} s, stalled samples ${m.lag.stalled_samples}/${m.lag.samples}; audit: ${audit.sessions} sessions, ${audit.windows} windows, ${audit.red.length} red`);
   for (const r of audit.red.slice(0, 5)) log('  RED ' + r);
+  let cost = { red: [] };
+  if (shape === 'krell4') {
+    const PPC = await import('../tests/per-player-cost.mjs');
+    const base = JSON.parse(readFileSync(join(fileURLToPath(new URL('..', import.meta.url)), 'tests', 'per-player-cost.baseline.json'), 'utf8'));
+    cost = krellVerdict({ seconds: m.seconds, heroes: openN.s, ledger_rows_per_hero_hour: m.ledger_rows_per_hero_hour, rows: m.rows }, base, online, PPC.concurrencyBand);
+    report.cost = cost;
+    log(`THE HEAVY FOUR x${accounts}, ${Math.round(online * 100)}% of tabs open: ${cost.per.ledger_rows_a_hero_hour.toFixed(1)} journal rows and ${cost.per.statements_a_hero_hour.toFixed(1)} statements a hero-hour `
+      + `against the fixtures' blend ${JSON.stringify(cost.expected)} (tests/per-player-cost.mjs, band +${PPC.CONCURRENCY.band * 100}%); engine max ${m.rows.tick_body?.engineRunMax ?? '-'} ms a run`);
+    for (const r of cost.red) log('  RED cost ' + r);
+    for (const r of cost.low || []) log('  LOW cost ' + r + ' (not red: read the lag above)');
+  }
   if (jsonOut) writeFileSync(jsonOut, JSON.stringify(report, null, 1));
   else process.stdout.write(JSON.stringify(report, null, 1) + '\n');
   await admin.end({ timeout: 5 });
   await db.close().catch(() => {});
-  process.exit(audit.red.length ? 1 : 0);
+  process.exit(audit.red.length || cost.red.length ? 1 : 0);
+}
+
+/* THE HEAVY FOUR'S BAND (--shape=krell4; balance program L11, call 28 step 10). The population's journal rows and settle statements a
+   hero-hour (the hellos, the early asks and the tick bodies: every statement the engine sent to settle, counted in the workers' execOf)
+   against tests/per-player-cost.mjs's two Krell rows, blended by the share of open tabs (its concurrencyBand). Pure: --selftest feeds it. */
+const SETTLE_KINDS = Object.freeze(['hello', 'hello_early', 'tick_body']);
+function krellVerdict(measured, base, tabs, band) {
+  const hours = Number(measured.seconds) / 3600;
+  const heroes = Number(measured.heroes);
+  const stmts = SETTLE_KINDS.reduce((n, k) => n + Number((measured.rows[k] || {}).stmts || 0) + Number((measured.rows[k + ':retry'] || {}).stmts || 0), 0);
+  const per = { ledger_rows_a_hero_hour: Number(measured.ledger_rows_per_hero_hour), statements_a_hero_hour: heroes > 0 && hours > 0 ? stmts / heroes / hours : NaN };
+  return { per, ...band(per, base, tabs) };
+}
+
+/* THE BAND'S WIRING (no database): a population costing what the fixtures cost is green; a row a kill, or a third more statements a
+   settle, counted the way the workers count them (rows[kind].stmts over heroes and seconds), is red. */
+async function krellBandProof() {
+  const PPC = await import('../tests/per-player-cost.mjs');
+  const base = JSON.parse(readFileSync(join(fileURLToPath(new URL('..', import.meta.url)), 'tests', 'per-player-cost.baseline.json'), 'utf8'));
+  const w = base.fixtures[PPC.CONCURRENCY.watched]; const c = base.fixtures[PPC.CONCURRENCY.closed];
+  const tabs = 0.5; const heroes = 160; const seconds = 180;
+  const at = (k, x) => (tabs * w[k] + (1 - tabs) * c[k]) * x;
+  /* the statements a hero-hour, spread over the three settle kinds as counters (half the hellos' share each to two kinds) */
+  const rowsOf = (x) => { const n = at('statements_a_hero_hour', x) * heroes * (seconds / 3600); return { hello: { stmts: n * 0.5 }, hello_early: { stmts: n * 0.2 }, tick_body: { stmts: n * 0.3 } }; };
+  const run = (rowsX, stmtsX) => krellVerdict({ seconds, heroes, ledger_rows_per_hero_hour: at('ledger_rows_a_hero_hour', rowsX), rows: rowsOf(stmtsX) }, base, tabs, PPC.concurrencyBand);
+  const out = [];
+  const clean = run(1.05, 1.05);
+  if (clean.red.length) out.push('KRELL-BAND CONTROL: a population at the fixtures\' blend reads red: ' + clean.red.join('; '));
+  if (!run(4, 1).red.some((r) => r.startsWith('ledger_rows'))) out.push('KRELL-BAND a row a kill at concurrency went unseen');
+  if (!run(1, 1.35).red.some((r) => r.startsWith('statements'))) out.push('KRELL-BAND a third more statements a settle at concurrency went unseen');
+  return out;
 }
 
 /* --selftest: the audit must go red on a planted double payment and on planted lost time, on a real replayed chain. */
 async function selftest() {
+  const bandProblems = await krellBandProof();
+  console.log(bandProblems.length ? 'beta-load --selftest: the heavy four band RED, ' + bandProblems.join('; ') : 'beta-load --selftest: the heavy four band, 2/2 planted defects caught, control clean (no database)');
   const { bootPg } = await import('./pg-replay.mjs');
   const { db, name } = await bootPg({});
   const world = await buildWorld(db, { accounts: 1, heroes: 1, partyShare: 0, townShare: 0, online: 1 });
@@ -591,7 +667,7 @@ async function selftest() {
   for (const k of fromBy.keys()) fromBy.set(k, fromBy.get(k) - 200000);
   const base = await purseBase(admin);
   const v = await M.HS.settleHunt({ exec, user: uid, slot: 0, mode: 'settle', bucket: null, project: true, live: true });
-  const problems = [];
+  const problems = [...bandProblems];
   if (v.outcome !== 'paid') problems.push('CONTROL: the settle did not pay: ' + JSON.stringify({ o: v.outcome, r: v.reason }));
   const clean = await auditSessions(admin, fromBy, base);
   if (clean.red.length || clean.windows < 1) problems.push('CONTROL: a clean settle reads red or empty: ' + JSON.stringify(clean));
@@ -620,7 +696,7 @@ async function selftest() {
   if (!a1.red.some((r) => /journalled/.test(r))) problems.push('A1: a window paid twice went unseen');
   await admin.end({ timeout: 5 }); await db.close().catch(() => {});
   for (const p of problems) console.log('RED ' + p);
-  console.log(problems.length ? `beta-load --selftest: ${problems.length} red` : 'beta-load --selftest: 4/4 planted defects caught, control clean');
+  console.log(problems.length ? `beta-load --selftest: ${problems.length} red` : 'beta-load --selftest: 4/4 planted defects caught, control clean; the heavy four band: 2/2 caught, control clean');
   process.exit(problems.length ? 1 : 0);
 }
 

@@ -17,7 +17,7 @@ Formula and knob names are the ones in `44-formula-architecture.md` and `tools/b
 
 ---
 
-**The status words, re-issued 2026-11-21.** Tyler adopted the critical review (`review/00-critical-review.md`), and the book now uses three honest words. They replace the list above. **DECIDED** means evidence and rulings support it. Where Tyler also said yes on the page, the tag says so. **PROVISIONAL** means a reasonable plan that has not been tested, and the first tag in a chapter names what it waits on. **OPEN** means it waits on Tyler. **RULED** is kept only for what Tyler ruled knowing what it was: his typed words, his own executive decisions, and a pick where he wrote a note. A quick pick on the page is a real yes and reads "Tyler said yes on the page", never RULED. **PROPOSAL** marks a design made in the fold of 2026-11-21 that Tyler has not seen. CUT and KEPT record his picks on the cut list. The record is `decisions/all.json` and `00-the-game.md`.
+**The status words, re-issued 2026-11-21.** Tyler adopted the critical review (`review/00-critical-review.md`), and the book now uses three honest words. They replace the list above. **DECIDED** means evidence and rulings support it. Where Tyler also said yes on the page, the tag says so. **PROVISIONAL** means a reasonable plan that has not been tested, and the first tag in a chapter names what it waits on. **OPEN** means it waits on Tyler. **RULED** is kept only for what Tyler ruled knowing what it was: his typed words, his own executive decisions, and a pick where he wrote a note, and his answers at the sitting of 2026-11-21, where he saw every option's cost. A quick pick on the page is a real yes and reads "Tyler said yes on the page", never RULED. **PROPOSAL** marks a design made in the fold of 2026-11-21 that Tyler has not seen. CUT and KEPT record his picks on the cut list. The record is `decisions/all.json` and `00-the-game.md`.
 
 ## 1. The experience
 
@@ -74,7 +74,7 @@ COMPUTED from ln(400/110) over ln(1.17): eight bands to Level 400, about one and
 
 **Exchange rates.** A unique is not sized by hand. It spends its band's budget at published rates between stats (`gearExchange`, step R11), so its armor or damage is arithmetic. A guard or a skill bonus inside a unique's stat mix is bought at the same rates. [PROVISIONAL GR-4, Tyler said yes on the page, reversal, let stand on the page]
 
-**Slot classes.** Each slot class holds a fixed share of a kit's power at every Level. The six crafted pieces together are one class worth 6% of the kit. Their plain numbers are derived from the curve and never typed for a tier. [PROVISIONAL GR-38, waits on Deadly sized, and the system built] MEASURED as evidence (study 54): flat typed accessory rows read 15% at Level 30 and 0.5% at Level 400, and one stat point a tier to tier 7 reads +5 to +13% at Level 110, which is twice the budget.
+**Slot classes.** Each slot class holds a fixed share of a kit's power at every Level. The six crafted pieces together are one class worth 6% of the kit. Their plain numbers are derived from the curve and never typed for a tier. [RULED GR-3, Tyler 2026-11-21, the sitting8, waits on Deadly sized, and the system built] MEASURED as evidence (study 54): flat typed accessory rows read 15% at Level 30 and 0.5% at Level 400, and one stat point a tier to tier 7 reads +5 to +13% at Level 110, which is twice the budget.
 
 ### 2.3 Dropped gear, tiers 1 to 7
 
@@ -217,12 +217,12 @@ That is six Rare rows. Region tables are an authoring shape only: a pack compile
 | Hallmark skill level | The next tier's skill level: 30, 45, 60, 75, 88, 99 | [RULED 11-18] |
 | Gems | One gem a tier. It works in any slot and forces no perk | [RULED 11-18] |
 | Each perk counts once a hero | The larger worn | [RULED] |
-| Plain stats | Help all three styles, and come from the curve as a 6% share | [PROVISIONAL GR-38] |
+| Plain stats | Help all three styles, and come from the curve as a 6% share | [RULED GR-3, Tyler 2026-11-21, the sitting8] |
 | Re-rolls for gold | Never | [RULED] |
 | Trade | Everything | [RULED] |
 | The Shop sells plain jewelry | At ten times a crafter's cost, as a fallback that never undercuts a crafter | [RULED] |
 
-**The ladder.** Jewelry and cloaks are built to tier 7, tier 4 first as the played sample, then tiers 5 to 7 [PROVISIONAL GR-38]. Hallmark fees for tiers 4 to 7 are [RULED 11-18]. Under GR-8 every fee is a share of the band's gold and these numbers are the anchor points.
+**The ladder.** Jewelry and cloaks are built to tier 7, tier 4 first as the played sample, then tiers 5 to 7 [RULED GR-3, Tyler 2026-11-21, the sitting8]. Hallmark fees for tiers 4 to 7 are [RULED 11-18]. Under GR-8 every fee is a share of the band's gold and these numbers are the anchor points.
 
 | Tier, Level | Metal | Gem and its carrier | Hallmark fee, each | Reforge to this tier, each | Shop ceiling, Fine / Hallmarked |
 |---|---|---|---|---|---|
@@ -263,7 +263,7 @@ Cloak and belt materials are common drops: pelts, Bear Pelt, Silk Thread and coa
 
 Cloaks carry no element perks. Elements belong to linings. A fully Hallmarked hero plays 12 of 23.
 
-**Perk sizes.** [PROVISIONAL GR-39, Tyler said yes on the page, reversal of 23-5, let stand on the page]
+**Perk sizes.** [RULED GR-3, Tyler 2026-11-21, the sitting9, Tyler said yes on the page, reversal of 23-5, let stand on the page]
 
 | Rule | Value | Label |
 |---|---|---|
@@ -296,7 +296,7 @@ MEASURED as evidence (study 54, one seed): every perk at five times reads +9 to 
 | 4 | One cost line: "6 Steel Bars (you have 9), 1 Seam Jasper (you have 1), 75,000 gp. Requires Smithing 45. Worn from Level 30." A missing part is named |
 | 5 | Press Reforge. The old piece is used up and the new one is worn if it was worn and your Level allows |
 
-**The Fine order.** One standing order at the bench: "Make until Fine with one of these perks, salvage the rest, stop after this many bars." Salvaging a plain crafted piece returns half its metal and no XP. Chasing a first perk is one decision, never sixty presses, and it cannot be farmed for XP. [PROVISIONAL GR-38]
+**The Fine order.** One standing order at the bench: "Make until Fine with one of these perks, salvage the rest, stop after this many bars." Salvaging a plain crafted piece returns half its metal and no XP. Chasing a first perk is one decision, never sixty presses, and it cannot be farmed for XP. [RULED GR-3, Tyler 2026-11-21, the sitting8]
 
 **Lucky.** The seventh ring perk. See 2.11.
 
@@ -465,7 +465,7 @@ Statuses: Storm and Bone runes at Runecrafting 25 and 40 [RULED 11-21]. Five run
 | Tools | Smithing | The gear every gatherer crafts | [RULED] |
 | Whetstones | Smithing | The one supply only a crafter makes | [RULED] |
 | Tempering salts | Smithing. The workbench copy leaves in the release that ships linings | One a tier | [DECIDED GR-43, Fable 2026-11-21] |
-| Jewelry, gem jobs, Hallmarks, jewel reforging | Smithing | 2.6 | [PROVISIONAL GR-38] |
+| Jewelry, gem jobs, Hallmarks, jewel reforging | Smithing | 2.6 | [RULED GR-3, Tyler 2026-11-21, the sitting8] |
 | Cloaks, belts | Crafting | 2.6. Belts use buckles from the forge | [DECIDED GR-43, Fable 2026-11-21] |
 | Arrows and bolts | Crafting | Every tier. The row says what a job saves against the store | [DECIDED GR-43, Fable 2026-11-21] |
 | Linings | Crafting | 2.8 | [RULED 11-18] |
@@ -588,8 +588,8 @@ MEASURED as evidence for keeping it a choice (study 60): 15% less gold coming in
 
 | Chest line | Gives | Keys | Status |
 |---|---|---|---|
-| The Tower | Weapons, one a family a key tier | Bronze, Silver, Gold, Platinum at landings 10, 40, 70, 100. Then one key tier a band | [RULED]. The Tower stays weekly [PROVISIONAL GR-37] |
-| Catacombs, Bone Wing | Leans helmets | The same tiers | [RULED 11-16]. One wing and one key built first [PROVISIONAL GR-36] |
+| The Tower | Weapons, one a family a key tier | Bronze, Silver, Gold, Platinum at landings 10, 40, 70, 100. Then one key tier a band | [RULED]. The Tower stays weekly [RULED GR-3, Tyler 2026-11-21, the sitting7] |
+| Catacombs, Bone Wing | Leans helmets | The same tiers | [RULED 11-16]. One wing and one key built first [RULED GR-3, Tyler 2026-11-21, the sitting6] |
 | Catacombs, Flooded Wing | Leans boots | The same | [RULED 11-16] |
 | Catacombs, glove wing | Gloves 70%, helmets and boots 15% each. Twelve rows | The same family, the same 6 opens | [RULED 11-18 for a glove path]. PROPOSED rows |
 
@@ -610,7 +610,7 @@ Rules. Chest gear stays rare. It is never bound. A chest weapon is the next tier
 
 ### 2.14 The saved kit and the find list
 
-- **One Setup for each ground.** It holds the weapon, the worn set, the linings, the unique, the bar and the target mode. It is saved once, starting a hunt there wears it, and it can be copied to another hero or ground. The saved kit and the bar setup are the same thing, so the weak-side weapon is never a chore (GR-84). It lands before case-sized perks or linings ship, because each of them asks a hero to change gear when the party moves, four heroes at a time. [DECIDED GR-48, Fable 2026-11-21]
+- **Setups, and what a ground remembers.** A hero has three free Setup slots, then two more at 15,000 and 40,000 gold (RULED, GR-56a, Tyler 2026-11-21, the sitting). A ground remembers which Setup was last used there. How "one Setup for each ground" fits five slots is OPEN for the game designer. A Setup holds the weapon, the worn set, the linings, the unique, the bar and the target mode. It is saved once, starting a hunt there wears it, and it can be copied to another hero or ground. The saved kit and the bar setup are the same thing, so the weak-side weapon is never a chore (GR-84). It lands before case-sized perks or linings ship, because each of them asks a hero to change gear when the party moves, four heroes at a time. [DECIDED GR-48, Fable 2026-11-21]
 - **A find list for each ground.** The ground's page lists its named pieces. The first time an account finds each one it is ticked with no press. It shows on the Honors page and pays no Luck. [DECIDED GR-48, Fable 2026-11-21]
 
 ### 2.15 Systems kept for later
@@ -659,7 +659,7 @@ Chapter 06 pays in buffs and gear [RULED 11-21]. This chapter owns how that gear
 |---|---|---|
 | The gear curve and bands | The Level law and pace contract (progression chapter). The monster and hero formulas (combat chapter) | The kill reward, which needs the curve first (progression chapter). Every reward line of chapter 06. The reference hero of the balance matrix |
 | Dropped gear and Rare rows | Grounds, regions, halls and keys (world chapter). The loot bands and drops in hours | The Shop's sale rule and gold in (economy chapter). The reveal and the return card (features chapter) |
-| Uniques and properties | The modifier table and spell list (combat chapter). Regions (world chapter) | The market's scarce goods (economy chapter). Kindlings, which own the "two heroes, two different swords" purpose that worn in had (progression chapter, GR-61) |
+| Uniques and properties | The modifier table and spell list (combat chapter). Regions (world chapter) | The market's scarce goods (economy chapter). Talents, which own the "two heroes, two different swords" purpose that worn in had (`10-level-choices.md`, which supersedes GR-61). E7, the Add pool, does not read Talents. The 2% set aside for worn in and then for Kindlings is unspent. Still to check: Tempering's Blows track against the 20% permanent damage cap with Force beside it |
 | Jewelry, perks, stones | Gems and chips from grounds. Smithing and Crafting levels | Hallmark fees as a live sink. The saved kit. The one market book (economy chapter) |
 | Tempering, linings, curing | Band gold and the wage curve (economy chapter). Elements, Withered and group spells (combat chapter). The Cellar (town and home chapter) | The standing sinks of every band. The whale's edge of the Crowns engine (chapter 06) |
 | Luck | Kills and settles. The Bestiary | Rare, Very Rare and Trophy rows. The Honors page (progression chapter) |

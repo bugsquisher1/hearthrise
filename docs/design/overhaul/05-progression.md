@@ -14,11 +14,11 @@ Part of "Hearthrise: the game we are building", the combined design of record. L
 - **PROVISIONAL**: every number from Level 185 up. The simulator's heroes and grounds past 185 are projections.
 - **Chapter arithmetic**: worked in this chapter from numbers on the page, not run through a tool.
 
-The pace seat is the clock everything is timed on: a four in mid gear, with no buffs, on the hardest tier it holds, hunting 12 hours a day (RULED 2026-11-21, 50-1 and the 12 hour ruling). Every account has four heroes from day 1 (RULED 2026-11-21), so every account sits in this seat.
+The pace seat is the clock everything is timed on: a four in mid gear on suggested talent builds (`10-level-choices.md`), with no buffs, on the hardest tier it holds, hunting 12 hours a day (RULED 2026-11-21, 50-1 and the 12 hour ruling). Every account has four heroes from day 1 (RULED 2026-11-21), so every account sits in this seat.
 
 ---
 
-**The status words, re-issued 2026-11-21.** Tyler adopted the critical review (`review/00-critical-review.md`), and the book now uses three honest words. They replace the list above. **DECIDED** means evidence and rulings support it. Where Tyler also said yes on the page, the tag says so. **PROVISIONAL** means a reasonable plan that has not been tested, and the first tag in a chapter names what it waits on. **OPEN** means it waits on Tyler. **RULED** is kept only for what Tyler ruled knowing what it was: his typed words, his own executive decisions, and a pick where he wrote a note. A quick pick on the page is a real yes and reads "Tyler said yes on the page", never RULED. **PROPOSAL** marks a design made in the fold of 2026-11-21 that Tyler has not seen. CUT and KEPT record his picks on the cut list. The record is `decisions/all.json` and `00-the-game.md`.
+**The status words, re-issued 2026-11-21.** Tyler adopted the critical review (`review/00-critical-review.md`), and the book now uses three honest words. They replace the list above. **DECIDED** means evidence and rulings support it. Where Tyler also said yes on the page, the tag says so. **PROVISIONAL** means a reasonable plan that has not been tested, and the first tag in a chapter names what it waits on. **OPEN** means it waits on Tyler. **RULED** is kept only for what Tyler ruled knowing what it was: his typed words, his own executive decisions, and a pick where he wrote a note, and his answers at the sitting of 2026-11-21, where he saw every option's cost. A quick pick on the page is a real yes and reads "Tyler said yes on the page", never RULED. **PROPOSAL** marks a design made in the fold of 2026-11-21 that Tyler has not seen. CUT and KEPT record his picks on the cut list. The record is `decisions/all.json` and `00-the-game.md`.
 
 ## 1. The experience
 
@@ -45,7 +45,7 @@ The pace seat is the clock everything is timed on: a four in mid gear, with no b
 | No blow reads a Level. A fight is stats against stats | RULED 2026-11-04, 2026-11-18 |
 | Gear names a Level to wear it (P35). Tiers 1 to 7 are worn at Levels 1, 15, 30, 45, 60, 75 and 88 | RULED (gear tiers) |
 | Level 200 is a big deal | RULED 2026-10-14. Section 2.11 is how the game says so |
-| No prestige, no rebirth, no stat points a Level, no fourteenth skill | DECIDED GR-64, Fable 2026-11-21. An uncapped Level already is the prestige loop, and stat points would put Level into the blow |
+| No prestige, no rebirth and no fourteenth skill. A hero earns a talent point every five Levels. Points are stored as rows, and no blow reads a Level | DECIDED GR-64, Fable 2026-11-21, for the three refusals. Talents are RULED 2026-11-21 for the rhythm and PROVISIONAL (TAL-1, `10-level-choices.md`) for the design |
 
 Level's worth shrinks by itself as it grows: +10 health is 0.47% at Level 200 and 0.24% at Level 400. It needs no diminishing rule beyond the Level law below.
 
@@ -102,10 +102,10 @@ Level's worth shrinks by itself as it grows: +10 health is 0.47% at Level 200 an
 | One XP chain, each factor one table for the whole game: kill XP x tier x mode x party x event | P20 | DECIDED GR-5, GR-85, Tyler said yes on the page 2026-11-21, with GR-5 PROVISIONAL, Tyler said yes on the page |
 | Tier: one table for every ground. A tier is a bigger pull, a percent of difficulty and a percent of XP. Coin a kill never scales with a tier | Knobs `tierXp`, `tierDanger`, `tierHp`, `tierPull` | RULED 2026-11-05, 2026-11-07. One pull number a tier is PROVISIONAL GR-27, Tyler said yes on the page |
 | Mode: the Tower and the Catacombs pay 37.5% of a kill's Level XP, and a death there costs nothing | P25, one row of the mode table | RULED 2026-11-14 (the Tower). The Catacombs' copy is ASSUMED until played |
-| Party: one table by size alone. A four of one weapon way and a mixed four are paid the same. The lone hero is its first cell. The Tower and the Catacombs take the same table | P21, P22. Knobs `partyXp`, `soloXp` | PROVISIONAL (GR-3, Tyler said yes on the page: party XP by size alone, which replaces the classes rule of 10-31). One table for every mode is PROVISIONAL GR-36, waits on Deadly sized, and the system built |
+| Party: one table by size alone. A four of one weapon way and a mixed four are paid the same. The lone hero is its first cell. The Tower and the Catacombs take the same table | P21, P22. Knobs `partyXp`, `soloXp` | RULED (GR-3, Tyler 2026-11-21, the sitting: party XP by size alone, which replaces the classes rule of 10-31). One table for every mode is RULED GR-3, Tyler 2026-11-21, the sitting6, waits on Deadly sized, and the system built |
 | Event: Level XP +25% at most, one at a time. The whole world once a month, one ground's own weekend in between | P27 | RULED 27-5 (2026-11-20) |
 | Buffs on Level XP: a standing cap of +5% and a timed cap of +25%. The world weekend fills the timed cap by itself | The modifier table of `06-mmo-layer.md` | PROVISIONAL MM-25, waits on one buff played in a cell |
-| The rested bank stays and pays. A hero banks the hunted hours it missed, up to 24, and banked hours pay +50% Level XP on that many later hunted hours. A hero with a bank never out-earns one that hunted every hour. The pace seat hunts all 12 hours, so its bank is empty and the Level law does not read it | P30 as one row of the XP chain. One number a hero, written when a hunt starts and ends | KEPT (Tyler's pick on the page 2026-11-21, cut list 7). How it pays is PROPOSAL (GR-63, made in the fold 2026-11-21, not yet seen by Tyler). HYPOTHESIS sizes. Evidence: with the bank switched off no number moved in 207 measured cells, which fits a bank that only pays a hero who missed hours |
+| The rested bank is cut. The Level table is the only clock, and a missed day is simply missed | P30 and its argument on P05 deleted. Step R5 | CUT. RULED (GR-63, Tyler 2026-11-21, the sitting). Evidence: switching it off moved no number in 207 measured cells |
 | No gold-funded or paid server XP buff | | RULED 2026-11-04 (the avoid list). Section 5 flags how bought timed boosts meet this |
 
 ### 2.4 Whose clock the table is: the plain four or the buffed four
@@ -115,6 +115,8 @@ Level's worth shrinks by itself as it grows: +10 health is 0.47% at Level 200 an
 The collision. The Level table is the clock of a mid-geared four (RULED 50-1). With every buff cap full a four gains at most about 65% more Levels an hour than that plain four. MM-26 and MM-31 quote that one ceiling, and nobody holds it outside a Hearthrise weekend. Paying alone is worth about 22%. So the same Level arrives on different days.
 
 Chapter arithmetic, every hour of the plain seat divided by the multiple. The last column overstates what anyone can hold, because the Level XP part is one weekend in four:
+
+The plain four carries suggested talent builds. The three faster clocks below each gain a factor of at most 1.012 from the fastest build over the suggested one (COMPUTED in `10-level-choices.md`, PROVISIONAL (TAL-1, `10-level-choices.md`)), which moves no day in the table by more than a few. At the sitting Tyler ruled that a clan room pays a standing Level XP bonus (S-4). Every clan member then levels faster than the Level table all the time. The clock, the content runway and the days below are PROVISIONAL and wait on the clan XP size, which the design lane owes. At +5% the top reading is about 1.73.
 
 | Door | Plain mid four (the law) | Paying alone, 1.22 | The fastest seat held all the time, 1.36 (best gear, both damage caps, the weekend averaged) | Every cap full, 1.65, on a Hearthrise weekend only |
 |---|---|---|---|---|
@@ -147,8 +149,8 @@ If that schedule cannot be met, the fix belongs in the buff caps (MM-25) and nev
 | Blessings 1 to 3 cut the cost by 25%, 50% and 75%. A death uses them up | Content rows | RULED 2026-11-10 |
 | "Keep me blessed" is remembered for each hero: all, the first three, or none. Chosen once | | RULED 21-8 (2026-11-20) |
 | The set of three costs about two hours of a lone hero's gold at its Level, the first one cheap | Step R15. Knob `wageShare` | RULED 21-8 |
-| Every Blessing is priced as a share of the hours it saves, under a fifth, in the buyer's own gold. Free at low Level falls out of that price, with no Level threshold | Band S10. Step R15 | PROVISIONAL GR-7 with GR-51, waits on the store-bill fault fixed and a wage formula that exists, with GR-7 OPEN, waiting on Tyler, T-fix-5 |
-| **The ladder.** Past the third Blessing, a new one opens whenever a fully blessed death would cost the pace seat over five hunted hours. Each halves what is left | Content rows, placed by rule | OPEN GR-7, waiting on Tyler, T-fix-5 (re-opens 50-4 in effect, and adds to the three of 2026-11-10) |
+| Every Blessing is priced as a share of the hours it saves, under a fifth, in the buyer's own gold. Free at low Level falls out of that price, with no Level threshold | Band S10. Step R15 | PROVISIONAL GR-7 with GR-51, waits on the store-bill fault fixed and a wage formula that exists, with GR-7 RULED at the sitting |
+| **The ladder.** Past the third Blessing, a new one opens whenever a fully blessed death would cost the pace seat over five hunted hours. Each halves what is left | Content rows, placed by rule | RULED GR-7, Tyler 2026-11-21, the sitting (re-opens 50-4 in effect, and adds to the three of 2026-11-10) |
 | The risk reading is free. Every player sees how close a hunt came to a death, and the deaths per 100 hours of that ground and tier, before pressing Start | A server-held rate. No formula | PROVISIONAL GR-66, waits on the playtest or measurement its own row names, Tyler said yes on the page |
 
 **The identity underneath** (COMPUTED). On any curve shaped like the ruled table, 6% of total Level XP is about 3.2% of every hour the hero has ever hunted, and 0.8% with three Blessings. The cost of a death grows in a straight line with a hero's lifetime, for ever.
@@ -168,7 +170,7 @@ If that schedule cannot be met, the fix belongs in the buff caps (MM-25) and nev
 
 ### 2.6 Death against the Deadly death band
 
-Two targets are ruled. A mid party on Deadly dies 50 to 100 times in 1,000 hunted hours, the same count at every Level (RULED 50-5, band S6). A death costs 6% with no cap (RULED 50-4). Deadly is also meant to be the best way for a four to level (RULED 2026-11-16).
+Two targets are ruled. A mid party on Deadly dies 50 to 100 times in 1,000 hunted hours, the same count at every Level (RULED 50-5, band S6). A death costs 6% with no cap (RULED 50-4). Deadly is also meant to be the best way for a four to level (RULED 2026-11-16). At the sitting of 2026-11-21 Tyler accepted what that costs an idle party (RULED, S-6): Deadly is a tier you watch or gamble on, and idle players mostly use Dangerous. With all four coming home on a death, an away party loses 18 to 31% of its hunting time on the 8 hour bar and 25 to 42% on the 12 hour bar, before the 6% (COMPUTED in the critical review from the ruled death band). So Deadly is the best way to level for a four that is watched, and not for an idle one.
 
 **They do not fit together past about Level 100 on three Blessings.** This is arithmetic on measured XP rates and an assumed death count. It is not a measurement. Evidence about the simulator: it recorded no deaths in all but three Deadly cells, and the one real four died once in 449 party hours, 2.2 in 1,000 (THIN).
 
@@ -191,9 +193,9 @@ The first checkpoint where the blessed four earns less a head than the same hero
 | Mid on Dangerous (10 to 30) | Level 325 | Level 165 | never | never |
 | Best in slot on Deadly (10 to 30) | Level 400 | Level 225 | never | never |
 
-**The design.** With the ladder, Deadly pays a mid four across the whole ruled band to Level 400, except at the very top of the band from Level 225, where a party steps down to Dangerous or gears up. That is the intended shape: Deadly is for a party that prepared, and best in slot always holds it. OPEN GR-7, waiting on Tyler, T-fix-5.
+**The design.** With the ladder, Deadly pays a mid four across the whole ruled band to Level 400, except at the very top of the band from Level 225, where a party steps down to Dangerous or gears up. That is the intended shape: Deadly is for a party that prepared, and best in slot always holds it. RULED GR-7, Tyler 2026-11-21, the sitting.
 
-**When it ships.** In the release where the harder tiers are made to bite (GR-3, GR-27), sized then on the long death sample and not on the band. OPEN GR-7, waiting on Tyler, T-fix-5.
+**When it ships.** In the release where the harder tiers are made to bite (GR-3, GR-27), sized then on the long death sample and not on the band. RULED GR-7, Tyler 2026-11-21, the sitting.
 
 **The check that guards it.** Band S11: on the hardest tier the mid four holds, Level XP a head after deaths at the top of the ruled death count is at least what the same heroes earn alone on Normal, read once with every Blessing and once with none. PROVISIONAL GR-88, waits on the measuring tool's faults fixed and the full matrix run once, Tyler said yes on the page. Without it a change to the death rule passes every other band silently.
 
@@ -233,11 +235,11 @@ Thirteen skills, and the count is right. Four combat skills are uncapped. Nine t
 | Melee, Ranged | What a hero is. Skills do not move with the weapon, so a style is an investment without a vocation | Damage dealt x 1.5 (P06) | RULED 2026-10-14 (classless). Uncapped |
 | Magic | The caster's skill, and the rune tiers a hero can cast | Mana spent x 1.5 x the ability's multiple (P08) | Cast tiers at skill 1, 15, 30, 45, 60 (RULED 2026-10-23), then 75, 90 and every 15 on (PROVISIONAL GR-23). Each level adds 0.5% max mana for every hero (DECIDED GR-22, Fable 2026-11-21) |
 | Defense | Who the front row is | Blows aimed at an armored hero, doubled when a shield turns one (P07) | RULED (kept). The to-hit ratio gives it its value (`01-core-and-combat.md`). Three bases for three jobs is kept: OPEN (GR-25, waiting on Tyler for his explicit approval), 44 special rule P-X41 |
-| Inner Flame | The hero's regen, and the home of its build | Bones and fuels burned at the Hearth by a loot rule set once, with no hero time spent | Uncapped on the combat curve. Bones by loot rule RULED 21-9. Kindlings SUPERSEDED GR-61, by Tyler's 2026-11-21 ruling on level choices, see `10-level-choices.md`, reversal of the skill tree hold of 2026-11-05, let stand on the page. Section 2.9 |
+| Inner Flame | The hero's regen. It is no longer the home of a hero's build, which is Talents (`10-level-choices.md`). Its flat stretch past level 100 is OPEN again with no owner | Bones and fuels burned at the Hearth by a loot rule set once, with no hero time spent | Uncapped on the combat curve. Bones by loot rule RULED 21-9. Kindlings SUPERSEDED GR-61, by Tyler's 2026-11-21 ruling on level choices, see `10-level-choices.md`, reversal of the skill tree hold of 2026-11-05, let stand on the page. Section 2.9 |
 | Woodcutting, Mining, Fishing | What a resting hero does. Three chains: logs to planks, ore to bars, fish to food | Node work in rested hours | 1 to 99 (RULED, kept as three). |
 | Farming | The timed chain: crops to drinks and meals | Plots | 1 to 99. A crop opens at its Farming level and nothing else (PROPOSAL GR-74, made in the fold 2026-11-21, not yet seen by Tyler) |
 | Cooking | Food and drink for every hunt | Bench | 1 to 99: shrimp and herring, trout and bread at 15, lobster and soup at 30, swordfish and stews at 45, shark and pies at 60, Frostfin and Ember Tart at 75, Moonfish and Moonbloom Elixir at 88 (itemization plan §8, source of record) |
-| Smithing | Tools, whetstones, salts, and all jewelry: rings, earrings and necklaces. It reforges named shields and chest pieces. It makes no armor and no weapons | Bench | 1 to 99. Jewelry tier 2 at 15, tier 3 and Hallmark tier 2 at 30, tier 4 and Hallmark 3 at 45, tier 5 and Hallmark 4 at 60, tier 6 and Hallmark 5 at 75, tier 7 and Hallmark 6 at 88, Hallmark tier 7 at 99. RULED 2026-11-18. Tiers 4 to 7 built is PROVISIONAL GR-38 |
+| Smithing | Tools, whetstones, salts, and all jewelry: rings, earrings and necklaces. It reforges named shields and chest pieces. It makes no armor and no weapons | Bench | 1 to 99. Jewelry tier 2 at 15, tier 3 and Hallmark tier 2 at 30, tier 4 and Hallmark 3 at 45, tier 5 and Hallmark 4 at 60, tier 6 and Hallmark 5 at 75, tier 7 and Hallmark 6 at 88, Hallmark tier 7 at 99. RULED 2026-11-18. Tiers 4 to 7 built is RULED GR-3, Tyler 2026-11-21, the sitting8 |
 | Crafting | The outfitter: cloaks, belts, linings, arrows and bolts, planks and beams | Bench | 1 to 99. Stitched linings at 15, Corded at 45, Sealed at 75, cloak and belt tiers beside Smithing's. Cloaks and belts RULED 2026-11-18. The outfitter job and the cut-and-stitch step of linings DECIDED GR-43, Fable 2026-11-21. Its three temper salt recipes leave in the lane that ships linings |
 | Runecrafting | The supply of every caster, and of hammers and tanks | Bench | 1 to 99. Blank and Chalked at 1, Scored 15, Etched 30, Carved 45, Graven 60 (RULED 2026-10-23). Storm runes at 25 and Bone runes at 40 (RULED 32-1). The Sealing Rune at 75 and 88, used by tier 6 and tier 7 Hallmarks (DECIDED GR-45, Fable 2026-11-21). Rune tiers at 75 and 90 arrive with the cast tiers (PROVISIONAL GR-23) |
 
@@ -254,7 +256,7 @@ Thirteen skills, and the count is right. Four combat skills are uncapped. Nine t
 
 ### 2.9 Inner Flame and Kindlings
 
-**Superseded for the build choice.** On 2026-11-21 Tyler lifted his 11-05 hold. A build choice every five Levels is designed now and built with the first build. That ruling supersedes GR-61, which put Kindlings on paper only and tied the choice to Inner Flame. The design is `10-level-choices.md`, which a design lane is writing. The Kindling rows below are kept as the record of GR-61 and are not the plan. Inner Flame itself, as a skill, is unchanged by this.
+**Superseded for the build choice.** On 2026-11-21 Tyler lifted his 11-05 hold. A build choice every five Levels is designed now and built with the first build. That ruling supersedes GR-61, which put Kindlings on paper only and tied the choice to Inner Flame. The design is chapter 10, `10-level-choices.md`, called Talents. The Kindling rows below are kept as the record of GR-61 and are not the plan. Inner Flame itself, as a skill, is unchanged by this.
 
 | Rule | Status |
 |---|---|
@@ -264,7 +266,7 @@ Thirteen skills, and the count is right. Four combat skills are uncapped. Nine t
 | The whole track spends the 2% of the Add budget that was set aside for worn in. It touches no drop and no Magic Find and copies no jewelry perk. Every Kindling is a row on a channel the engine already has. It never multiplies | SUPERSEDED GR-61, by Tyler's 2026-11-21 ruling on level choices, see `10-level-choices.md`, reversal, let stand on the page (the three fences of the itemization fit, C10) |
 | The pick is made at the Hearth, saved with the setup and copyable to another hero. It is free to change under Flame 30. Past that a re-light burns Cinders | SUPERSEDED GR-61, by Tyler's 2026-11-21 ruling on level choices, see `10-level-choices.md`, reversal, let stand on the page. The re-light price is OPEN until the sample is played |
 | It is built after the to-hit ratio and the spell rule are live, so it is balanced once | SUPERSEDED GR-61, by Tyler's 2026-11-21 ruling on level choices, see `10-level-choices.md`, reversal, let stand on the page |
-| Town Works, the Hearthrise event and flame powders become one Great Hearth the server feeds. Inner Flame stays a hero's skill and pays in Kindlings | PROVISIONAL GR-82, Tyler said yes on the page, reversal of 2026-10-25, let stand on the page (`08-player-experience.md` owns it) |
+| Town Works, the Hearthrise event and flame powders become one Great Hearth the server feeds. Inner Flame stays a hero's skill, with its regen and its fuels | PROVISIONAL GR-82, Tyler said yes on the page, reversal of 2026-10-25, let stand on the page (`08-player-experience.md` owns it) |
 
 Why this skill. The game is named for the Hearth. Every input already drops in every hunt, the skill is uncapped so there is always a next Kindling, and the choice is pure preparation: made in town, remembered, copied. Rungs come every few days early and every few weeks late.
 
@@ -298,13 +300,13 @@ A sample shape only, not rows: a rung might offer "regen counts double under 30%
 | The four Hearthfinds stay and are listed on the page. Lucky finds are never cut | RULED 2026-11-20 (23-7) |
 | The Chronicle stays its own tab. It is story and opens by place. Tamsin's Tally stays, and a task is taken when a hero enters its ground | RULED (kept). The self-taking task is DECIDED GR-78, Fable 2026-11-21 |
 | Six leaderboards, each opening on this week | RULED 27-4 |
-| The collection log, the per-monster trophy ladder and the class charm ladder are gone | RULED 27-7, 27-3. The removal with its fixture check is PROPOSAL GR-63, made in the fold 2026-11-21, not yet seen by Tyler |
+| The collection log, the per-monster trophy ladder and the class charm ladder are gone | RULED 27-7, 27-3. The removal with its fixture check is CUT GR-63, RULED by Tyler 2026-11-21 at the sitting |
 
 It starts as a sample of five honors: two boss Trophies, one title, Level 100 and a first Platinum landing. It is worth building only if every prize is worn or hung where other players see it. A checklist in a menu fails the purpose test and is cut.
 
 ### 2.12 The Burning Tower
 
-The Tower is the one place a build is scored on something other than XP an hour. It is a weekly beat and stays one (PROVISIONAL GR-37). An idle endgame scores preparation, not hours at the screen.
+The Tower is the one place a build is scored on something other than XP an hour. It is a weekly beat and stays one (RULED GR-3, Tyler 2026-11-21, the sitting7). An idle endgame scores preparation, not hours at the screen.
 
 | Rule | Formula, knob | Status |
 |---|---|---|
@@ -327,11 +329,11 @@ The Tower as a progression: a hero's top floor moves with every Level and every 
 | Rule | Status |
 |---|---|
 | The store does not reach a descent. The party fights on the food, drink, runes and arrows it carried down, and the run ends when they are gone | RULED 22-4 (2026-11-20) |
-| The Catacombs stay their own mode with their own doors. One wing and one key are built and played first, before the other pieces | PROVISIONAL GR-36 |
+| The Catacombs stay their own mode with their own doors. One wing and one key are built and played first, before the other pieces | RULED GR-3, Tyler 2026-11-21, the sitting6 |
 | Three wings pay armor through the same four key tiers and the same six opens: the Bone Wing leans helmets, the Flooded Wing leans boots, the third wing leans gloves 70% with helmets and boots 15% each | RULED 2026-11-18 (the glove wing), itemization plan §6. The third wing's twelve rows are PROPOSED |
 | Clan rations may be carried down, capped by the week | RULED 30-8 (2026-11-20) |
 | The mode row (37.5% Level XP, free death) and the door Level are copies of the Tower's | ASSUMED until the matrix plays them. OPEN, decided by the sample wing |
-| The Catacombs take the one party table | PROVISIONAL GR-36 |
+| The Catacombs take the one party table | RULED GR-3, Tyler 2026-11-21, the sitting6 |
 | The Unmarked Catacombs is also a hunting ground at Levels 165 to 185, and it needs its own uniques before it opens | RULED (plan §2, §6). PROVISIONAL |
 
 The Catacombs as a progression: depth is a function of what the party can carry and how little it wastes, so bag rungs, cooking, runecrafting and the bar all show up as doors reached. HYPOTHESIS: a pack is a preset, so packing stays a decision only if deeper doors change what the right pack is. The sample wing answers it.
@@ -366,7 +368,7 @@ On the Level law a band lasts about twice as long in hours, so the 10,000 kill s
 |---|---|
 | 120 days of grounds at Early Access for the four in mid gear (band R2) | RULED 50-7. On the law Level 185 reads day 116. PROVISIONAL (GR-6a, Tyler said yes on the page): no new ground. The Catacombs ground's band runs to Level 189, which is day 120 |
 | Each region is open 30 days before the first fours arrive (band R1) | RULED 50-7. Read on the fastest seat: PROVISIONAL (GR-6a, Tyler said yes on the page), section 2.4 |
-| Regions are about 55 Levels and six grounds, to Level 400 | RULED 2026-11-18 (§13 answer 8). Opened as four grounds and a hall, then two: PROVISIONAL GR-33 |
+| Regions are about 55 Levels and six grounds, to Level 400 | RULED 2026-11-18 (§13 answer 8). Opened as four grounds and a hall, then two: RULED GR-3, Tyler 2026-11-21, the sitting3 |
 | Drops are generous through Krell and really rare and strong after | RULED 2026-11-20 |
 | An old ground can be hunted at the party's own Level, with one drop rule, and its lining parts still drop | RULED 22-9, 2026-11-07, 2026-11-18. The one drop rule is PROVISIONAL GR-9 |
 | Past the last region there is always a chase that needs no new ground: the Tower's floors, the Catacombs, Bestiary stages, Luck, Very Rares, Kindlings, Honors, old grounds at Level (band R4) | TARGET (PROPOSED band) |
@@ -435,7 +437,7 @@ In decision-book order.
 | GR-4 | The gear curve as a game formula | Linear in Level. Past tier 7 a band is a fixed step that opens at about +17% (110, 129, 151, 176, 206, 241, 282, 330, 386). Uniques are a spend of their band. The two Luck numbers are keyed by Level | PROVISIONAL. Waits on one band played on the curve. Tyler said yes on the page 2026-11-21. It changes The item plan section 2 (two bands a region, 2026-11-18), a major upgrade every 15 to 25 Levels (2026-10-25), the Luck step of 2026-11-20, which he let stand on the page |
 | GR-5 | What a kill pays | The kill reward follows the pace line, with one tier table. Owned by `01-core-and-combat.md`. The Level law waits on it | PROVISIONAL. Waits on the death fault fixed in the measuring tool, then the death sample of 4 seeds by 8 hours. Tyler said yes on the page 2026-11-21. Cut list 15, Tyler said yes to the cut on the page 2026-11-21. |
 | GR-6 | The Level table | From Level 50 the table of hours is the law. The four runs 106 hours ahead, so Level 100 lands at 494 hours and Level 400 on day 373 | PROVISIONAL. Waits on the kill reward and the tiers, because the seat's multiple is not one number until then. Tyler said yes on the page 2026-11-21. It changes The table of 2026-10-25, and "Level 400 is day 382" of 2026-11-21, which he let stand on the page |
-| GR-7 | Death once Deadly bites | Keep 6% flat with no cap. Past the third Blessing a new one opens whenever a blessed death would cost over five hours. Rungs at Levels 97, 140 and 257. Ships with the harder tiers | OPEN (waiting on Tyler, T-fix-5) |
+| GR-7 | Death once Deadly bites | Keep 6% flat with no cap. Past the third Blessing a new one opens whenever a blessed death would cost over five hours. Rungs at Levels 97, 140 and 257. Ships with the harder tiers | RULED (Tyler, 2026-11-21, the sitting). The five hours stays PROVISIONAL until a real death rate exists |
 | GR-8 | Sinks as a share of a band's gold | Tempering, Hallmarks and linings cost a share of a band's gold, 1.2 to 1.4 of what the band earns. The slot gold follows the order of CE-4 first, then the castle | PROVISIONAL. Waits on the store-bill fault fixed and a wage formula that exists. Tyler said yes on the page 2026-11-21. It changes The typed prices kept on 2026-11-18 (Hallmarks 150k, 250k, 400k, 600k), which he let stand on the page |
 | GR-9 | An old ground at your Level | Switch scaled hunts on as ruled, with one drop rule. Owned by `02-world.md`. It is the runway past the last region | PROVISIONAL. Waits on the playtest or measurement its own row names |
 | GR-22 | Magic on a weapon hero | 0.5% max mana a Magic level for every hero | DECIDED (Fable 2026-11-21) |
@@ -450,8 +452,8 @@ In decision-book order.
 | GR-54 | The yard's rate | It follows the skill curve and never passes half of hunting. Re-opens three rulings | PROVISIONAL. Waits on the store-bill fault fixed and a wage formula that exists. Tyler said yes on the page 2026-11-21. It changes 2026-11-14, and 21-7 and A-5 of 2026-11-20, which he let stand on the page |
 | GR-61 | A permanent build choice | Lift the hold for a spec and a paper sample of five Kindling rungs only | SUPERSEDED by Tyler's 2026-11-21 ruling on level choices. See `10-level-choices.md`. It changes The skill tree hold of 2026-11-05, which he let stand on the page |
 | GR-62 | Honors | One page, one rule, no power. A server line at Levels 100, 200, 300 and 400 | PROVISIONAL. Waits on the playtest or measurement its own row names |
-| GR-63 | The rested bank and the old kill ladders | The rested bank pays +50% Level XP on as many hunted hours as a hero missed, up to 24. The two old kill ladders are tracks on the one kill count | PROPOSAL. Made in the fold 2026-11-21, not yet seen by Tyler |
-| GR-64 | No new skill, prestige or stat points | None of the three | DECIDED (Fable 2026-11-21) |
+| GR-63 | The rested bank and the old kill ladders | The rested bank is cut. Keeping the two old kill ladders as tracks on the one kill count is a PROPOSAL he has not seen | RULED (Tyler, 2026-11-21, the sitting) for the cut |
+| GR-64 | No new skill and no prestige | No prestige, no rebirth and no fourteenth skill. A hero earns a talent point every five Levels, stored as rows, and no blow reads a Level (`10-level-choices.md`) | DECIDED (Fable 2026-11-21), amended by Tyler's 2026-11-21 ruling on level choices |
 | GR-65 | Inner Flame and death | WITHDRAWN. A death takes Inner Flame progress like every combat skill, as ruled on 2026-10-25 | WITHDRAWN |
 | GR-66 | The risk reading | Free for every player | PROVISIONAL. Waits on the playtest or measurement its own row names. Tyler said yes on the page 2026-11-21 |
 | GR-73 | The Hall of Firsts | The Trophy room becomes the Hall of Firsts, with no mount rungs sold and a mounting fee for each piece hung. It builds ruling 26-6 | DECIDED (Fable 2026-11-21). Cut list 12, Tyler said yes to the cut on the page 2026-11-21. |
@@ -462,9 +464,9 @@ In decision-book order.
 
 ---
 
-**Cuts in this chapter.** KEPT (Tyler's pick on the page 2026-11-21), cut list 7: the rested bank and the two old kill ladders stay (GR-63, section 2.3). CUT (Tyler said yes on the page 2026-11-21), cut list 10: the Crafting bench's three salt recipes (GR-43).
+**Cuts in this chapter.** CUT, RULED at the sitting (S-9), cut list 7: the rested bank (GR-63). The two old kill ladders of the same cut line he kept on the page, and how they stay is a PROPOSAL. CUT (Tyler said yes on the page 2026-11-21), cut list 10: the Crafting bench's three salt recipes (GR-43).
 
-**Held for Tyler.** OPEN (waiting on Tyler, T-fix-5): the Blessing ladder of GR-7 against the capped death. Ruling 50-4 is 6% flat with no cap, with the 12 hour blessed cap turned down. GR-7 adds Blessings past the third. Sections 2.5 to 2.7 are written with the ladder. If Tyler refuses it, a death stays 6% flat with three Blessings, and Deadly past about Level 100 is sized knowing what a blessed death costs.
+**Ruled at the sitting.** RULED (GR-7, Tyler 2026-11-21, the sitting, S-5): the Blessing ladder. 6% flat stays. Past the third Blessing a new one opens whenever a blessed death would cost over five hunted hours. The five hours stays PROVISIONAL until a real death rate exists.
 
 
 **Withdrawn.** GR-65 asked that a death take no Inner Flame progress. The adversarial check refused it, because Tyler was asked directly on 2026-10-25 and kept the loss. A death takes Inner Flame progress like every combat skill.
@@ -478,7 +480,7 @@ In decision-book order.
 | 3 | **Whether a bought timed boost may fill the Level XP cap.** MM-28 to MM-30 sell timed boosts for Crowns and put them in the same caps as earned buffs. A bought Level XP boost collides with the 2026-11-04 avoid list (no paid XP boost through the Crowns link) and the 2026-11-18 line that power is never sold directly for Crowns. The 2026-11-21 ruling says Crowns must give real advantages. Tyler has not said which wins for Level XP | Closed. Tyler said yes on the page (MM-29-XP). No Level XP boost is sold, for Crowns or for gold |
 | 4 | **The seat's multiple.** One number, not known until the kill reward and the harder tiers are measured | A derivation run on the matrix after GR-5 and GR-27 |
 | 5 | **The law's ramp at Level 50 and its fit through the ruled points** so a Level never gets cheaper | Closed. GR-6d: the convex cut with the smallest largest step |
-| 6 | **The five hour threshold of the Blessing ladder.** It is a proposal. Three or eight hours would move every rung | GR-7 is OPEN, waiting on Tyler (T-fix-5). The five hours is one knob, sized on the long death sample |
+| 6 | **The five hour threshold of the Blessing ladder.** It is a proposal. Three or eight hours would move every rung | GR-7 is RULED (Tyler 2026-11-21, the sitting). The five hours stays PROVISIONAL until a real death rate exists |
 | 7 | **Blessing prices for rungs 4 to 6**, and whether the set is always worth buying | The wage curve (GR-51) and band S10 |
 | 8 | **What a death takes from a hero in a boss room on Normal for a new account.** Blessings are near free at low Level by the price rule, but nobody has walked a Level 20 four through its first boss weekend | The MMO decider, before MM-7 is final. A walk-through in `06-mmo-layer.md` |
 | 9 | **The Kindling rows.** No rung exists. The re-light price, the number of rungs before the track thins out, and what fills the 2% are all unwritten | The paper sample of five, after GR-61 |
@@ -500,7 +502,7 @@ In decision-book order.
 
 | Change | Kind of proof | Bands that judge it |
 |---|---|---|
-| The rested bank pays only missed hours | A fixture hero that hunts all 12 hours reads the same with the bank on and off. A hero that missed a day earns at most half of it back | None may move for the pace seat |
+| The rested bank removed | Identity: the diff is empty | None may move. Proven: 207 cells, 0 flags |
 | The two old kill ladders read the one kill count | Identity, on a fixture hero holding 20,000 kills: one counter a monster a hero, and the old rungs read it | None may move |
 | The kill reward (R12) | Derivation: the typed fits are deleted and the pace band holds on every ground | P2 on every ground |
 | The Level law (R13) | Derivation | P1: the pace seat reaches the ruled Levels within 10%, with 106 hours allowed at Level 100. P11: no Level under 10 over 2 hours, Level 10 in 5 to 7 hours, no Level over twice the one before. P12: at most 15 hours a Level to 300 and 24 to 400. Nothing in a fight may move |
@@ -546,7 +548,7 @@ Numbered rows keep their numbers from the game review's list.
 | Rune tiers respaced to 1, 20, 40, 60, 80 (56 call 5) | It moves a 2026-10-23 ruling. The Sealing Rune fills the gap (47 C12) |
 | Crafting's salts removed at once (56) | Until linings ship they are all Crafting makes at 45, 60 and 75 (47 C13) |
 | Kindlings capped at one weapon-tier step (56 phase A) | The itemization fit's three fences are tighter: the 2% set aside for worn in |
-| Marks every five Levels into six tracks (46 change 5) | It puts a build choice on Level, which the game keeps out of the blow. Kindlings reuse a skill that exists |
+| "No build choice on Level", which had refused marks every five Levels (46 change 5) in favor of Kindlings | RULED 2026-11-21: a build choice every five Levels is designed now and built with the first build. It is Talents, `10-level-choices.md`. No blow reads a Level, because points are stored rows |
 | The Tower and the Catacombs merged into one mode (46 change 3) | Written without ruling 22-4. Judged after the descent is played |
 | A gear band step that compounds (56 hypothesis, 50's "every 20 Levels") | Answered by the gear curve: linear in Level, bands by size (44, GR-4) |
 | The party size ladder and every solo, pair and three band (P6, P7's pair and three rows, 50-8, the "REGRESSED for solo viable" finding of 56) | RULED 2026-11-21: no solo or group targets. Lone numbers are printed and judge nothing |

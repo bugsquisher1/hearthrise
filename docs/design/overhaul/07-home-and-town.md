@@ -17,7 +17,7 @@ Numbers are **TARGET** (what the design aims at) or **COMPUTED** (arithmetic on 
 
 ---
 
-**The status words, re-issued 2026-11-21.** Tyler adopted the critical review (`review/00-critical-review.md`), and the book now uses three honest words. They replace the list above. **DECIDED** means evidence and rulings support it. Where Tyler also said yes on the page, the tag says so. **PROVISIONAL** means a reasonable plan that has not been tested, and the first tag in a chapter names what it waits on. **OPEN** means it waits on Tyler. **RULED** is kept only for what Tyler ruled knowing what it was: his typed words, his own executive decisions, and a pick where he wrote a note. A quick pick on the page is a real yes and reads "Tyler said yes on the page", never RULED. **PROPOSAL** marks a design made in the fold of 2026-11-21 that Tyler has not seen. CUT and KEPT record his picks on the cut list. The record is `decisions/all.json` and `00-the-game.md`.
+**The status words, re-issued 2026-11-21.** Tyler adopted the critical review (`review/00-critical-review.md`), and the book now uses three honest words. They replace the list above. **DECIDED** means evidence and rulings support it. Where Tyler also said yes on the page, the tag says so. **PROVISIONAL** means a reasonable plan that has not been tested, and the first tag in a chapter names what it waits on. **OPEN** means it waits on Tyler. **RULED** is kept only for what Tyler ruled knowing what it was: his typed words, his own executive decisions, and a pick where he wrote a note, and his answers at the sitting of 2026-11-21, where he saw every option's cost. A quick pick on the page is a real yes and reads "Tyler said yes on the page", never RULED. **PROPOSAL** marks a design made in the fold of 2026-11-21 that Tyler has not seen. CUT and KEPT record his picks on the cut list. The record is `decisions/all.json` and `00-the-game.md`.
 
 ## 1. The experience
 
@@ -44,7 +44,7 @@ Numbers are **TARGET** (what the design aims at) or **COMPUTED** (arithmetic on 
 | Two visits a day is the free game. A visit is a few minutes for four heroes | RULED 11-21 (50-12) |
 | A job is one press that sets a count and a "then". No job needs a second visit inside its own run. No decision is repeated by hand | RULED (the first principle, 10-18). Band T8 |
 | No hunt starts by itself. One "Carry on" press sends every hero back to what it did last | RULED 11-20 (27-1) |
-| The home gives a hunt nothing except through supplies it made and skills it trained. No home buff. The rested bank is a hero's own and no room feeds it | PROVISIONAL GR-76 and GR-63, waits on the store-bill fault fixed and a wage formula that exists, with GR-63 PROPOSAL, made in the fold 2026-11-21, not yet seen by Tyler. Evidence: patch `home-1` is an identity on 207 cells (section 6) |
+| The home gives a hunt nothing except through supplies it made and skills it trained. No home buff and no rested XP. The rested bank is cut | PROVISIONAL GR-76 and GR-63, waits on the store-bill fault fixed and a wage formula that exists, with GR-63 cut at the sitting. Evidence: patch `home-1` is an identity on 207 cells (section 6) |
 | House prices are typed content rows (formula `E43`). They are things, not a curve. Repeating prices (the yard fee, the bench fee, the mounting fee) are hours of the wage curve | PROVISIONAL GR-51 |
 | Gathering and crafting skills stop at 99. A death takes nothing from them | RULED 10-25 |
 
@@ -142,7 +142,7 @@ The place where rare finds and firsts live. It is the "Show" job, and it is the 
 | Reuse | The manor and castle tiles are drawn so a clan hall can reuse them | DECIDED GR-75, Tyler said yes on the page 2026-11-21, reversal, let stand on the page. Chapter 06 owns the clan hall |
 | The Camp | Its name and its picture agree. Either the scene is a camp or the deed is not called one | OPEN. An art and naming choice (section 5, item 10) |
 | Visiting | A look-only visit to another account's home. One read of that account's home section, no polling, and a visited home accepts no intent | RULED 11-20 (26-11) |
-| Who may visit | Friends and clan members | DECIDED GR-75, Tyler said yes on the page 2026-11-21, reversal, let stand on the page. 26-11 says "a friend or party member". If MM-18 is ruled as recommended, a party is an account's own four, so "party member" has no meaning here |
+| Who may visit | Friends and clan members | DECIDED GR-75, Tyler said yes on the page 2026-11-21, reversal, let stand on the page. 26-11 says "a friend or party member". On-call heroes are kept (MM-18, ruled at the sitting), so a party can hold another account's hero and "party member" keeps its meaning here |
 | When it opens | For the owner, from the Homestead, once the Hall exists | DECIDED GR-75, Tyler said yes on the page 2026-11-21, reversal, let stand on the page. RULED 11-20 (26-11) opens it at the Castle, which GR-75 re-opens |
 
 Formula: none. Content rows in `HOUSE_TEMPLATES`. Nothing here is measurable in the matrix. It is a playtest question (section 6).
@@ -372,7 +372,7 @@ The huge hearth in the center of Havora (RULED 10-25, art approved). PROVISIONAL
 | The Works | Fed by gold. One project a month on the same window. The plaque stands at the Hearth |
 | The Colors | Powders and named fuels in one list. A powder is bought, a named fuel is found |
 | The split that never blurs | Fuel moves the Fire and only the Fire. Gold moves the Works and the Colors and never the Fire. So no gold ever buys XP for the server |
-| What a hero gets | Its Inner Flame, which pays in Kindlings if GR-61 is ruled (chapter 05). Kindlings are lit at the Hearth window |
+| What a hero gets | Its Inner Flame, with its regen and its fuels. GR-61 and its Kindlings are superseded by Talents (`10-level-choices.md`) |
 | Rule 0 | Everything here works while both players are asleep (PROVISIONAL MM-1, waits on a playtest that shows whether players ask for what was removed, Tyler said yes on the page). A fire that needs nobody at a set hour, and a project that fills from gifts made on any visit |
 | The engine | The staged-gift engine of the Works survives the merge. A clan project can be rows on it later (chapter 06) |
 
@@ -380,7 +380,7 @@ The huge hearth in the center of Havora (RULED 10-25, art approved). PROVISIONAL
 
 **The first project.** RULED 11-20 (24-7): the first project is the Weighhouse and its goal opens the market. PROVISIONAL GR-55, Tyler said yes on the page, reversal of 24-7, let stand on the page (chapter 04): the market is open on day one and the first project builds something else. What it builds is OPEN (section 5, item 8).
 
-**Not part of the merge.** The Town Crier and a Round for the Tavern stay as built and stay shut behind the population gate of the Path (PROVISIONAL GR-79, chapter 08). There is no Local chat tab (GR-69), so the criers speak in the town itself and in the System tab.
+**Not part of the merge.** The Town Crier and a Round for the Tavern stay as built and stay shut behind the population gate of the Path (PROVISIONAL GR-79, chapter 08). There is no Local chat tab (RULED, GR-69, the sitting), so the criers speak in Global and in the town itself.
 
 ---
 
@@ -416,7 +416,7 @@ In decision-book order.
 | GR-54 | The yard's rate | It follows the skill curve and never passes half of hunting. The fee follows the rate | PROVISIONAL. Waits on the store-bill fault fixed and a wage formula that exists. Tyler said yes on the page 2026-11-21. It changes 2026-11-14, and 21-7 and A-5 of 2026-11-20, which he let stand on the page |
 | GR-53 | The House dummy | It ends the yard fee. Its unlocks are rungs by skill band, each 25 to 50 hours of the fee | DECIDED (Fable 2026-11-21) |
 | GR-56b | The bench fee | It stays exactly as ruled, with no wage row. The screen may show it in hours | DECIDED (Fable 2026-11-21) |
-| GR-63 | The rested bank | Kept. It pays Level XP on hunted hours a hero missed. The home gives nothing to it (chapter 05 owns the call) | PROPOSAL. Made in the fold 2026-11-21, not yet seen by Tyler |
+| GR-63 | The rested bank | Cut. The home gives nothing to it (chapter 05 owns the call) | RULED (Tyler, 2026-11-21, the sitting) |
 | GR-70 | The town | It draws heroes at work whether or not their owner is online, inside the cost budget. Study 48 did not size the drawn bodies, so the fallback stands until it is sized | PROVISIONAL. Waits on the playtest or measurement its own row names |
 | GR-73 | The Trophy room | The Trophy room becomes the Hall of Firsts, with no mount rungs sold and a mounting fee for each piece hung. It builds ruling 26-6 | DECIDED (Fable 2026-11-21). Cut list 12, Tyler said yes to the cut on the page 2026-11-21. |
 | GR-75 | Home looks and visiting | Three looks. Visiting from the Homestead once the Hall exists | DECIDED. Tyler said yes on the page 2026-11-21. It changes 26-3 and 26-11 of 2026-11-20, which he let stand on the page |
@@ -446,7 +446,7 @@ In decision-book order.
 | 9 | **Crops and costs with no consumer.** Potato. Room rungs that ask for Wheat Bread and Field Rations if meals are cut. The War Crown. The Moonbloom Elixir, whose Shop price is far above the shop-as-a-floor rule. What stands on the Shrine's spot. How burn relief counts in the Yield pool | Chapter 03 and chapter 04 |
 | 10 | **Names and pictures.** Chests 5 to 8. The Camp's name against its scene. Prices for the Cellar's rungs 2 and 4 | The game designer and the art director |
 | 11 | **The Hearthrise's size and seam with the calendar** (section 2.12) and how much fuel fills the fire | The seam is closed for now (CE-8 and GR-82, Tyler said yes on the page): the calendar says when it lights and the fire says how big, from +10% to +25%. Still owed: how much fuel fills the fire, by the game designer |
-| 12 | **Who may visit** once a party is an account's own four | The game designer, inside GR-75. Whether "party member" stays in the visit rule waits on T-fix-1 |
+| 12 | **Who may visit** once a party is an account's own four | The game designer, inside GR-75. "Party member" stays in the visit rule, because on-call heroes are kept |
 | 13 | **Clan town work +10% and Crowns storage.** Both come from the re-issued study 49 (MM-9, MM-25 and its Crowns table). Where the clan buff enters the Speed pool, and whether Crowns storage sits beside chests 5 to 8 or replaces them | Closed. Clan town work is the Workshop row inside the Speed pool (MM-9). Bag and Storage room are never sold for Crowns (MM-29) |
 | 14 | **Premium's daily training item across four heroes:** one for the account or one for each hero | Closed. Tyler said yes on the page (PREM-1): one for each hero |
 | 15 | **The 10-22 real-time ruling under closed form** (section 2.11) | Closed for now. PROVISIONAL (CE-7, Tyler said yes on the page): town work moves on screen in real time and the server writes at the start, at each paid hour and at a stop |
@@ -462,7 +462,7 @@ In decision-book order.
 | Check | Result |
 |---|---|
 | Patch `home-1` (identity): bench rungs 2 to 5 give kept materials and the Cellar's food effect pays nothing | 207 cells identical on every metric. No room perk reaches a hunt. The identity proof carries a decision without a caveat |
-| The rested bank switched off (chapter 05's patch) | 207 cells, no number moved. The bank is KEPT (Tyler's pick on the page 2026-11-21) and pays only hours a hero missed |
+| The rested bank switched off (chapter 05's patch) | 207 cells, no number moved. The bank is cut (RULED at the sitting) |
 
 **Read, direction only (uncalibrated harness).**
 
@@ -520,7 +520,7 @@ In decision-book order.
 | Curing made general (any bench job in a slot), home buffs for the hunt, furniture placement, farm animals, weather, seasons, a second home, hired workers | Considered in 58 | Each fails the purpose test or a ruling. Not to be proposed again without new evidence |
 | Every payback or price written in weeks at 3.3 hunted hours, and every "own four" reading that assumed heroes arrive over weeks | 26 | RULED 11-21: 12 hunted hours a day, four heroes from day 1 |
 | Deed, rung and chest prices weighed against hero slot prices | 26, 24 | RULED 11-21: no slot prices |
-| "Party member" as someone who may visit, and any town rule that leans on on-call heroes | 26-11, 57 | MM-18 is OPEN, waiting on Tyler (T-fix-1). The book is written with a party as an account's own four |
+| "Party member" as someone who may visit, and any town rule that leans on on-call heroes | 26-11, 57 | MM-18 is RULED (Tyler 2026-11-21, the sitting: on-call heroes are kept). On-call heroes are kept, so a town rule may lean on them once the spec in `11-on-call-and-clan-xp.md` is written |
 | The claim that the budget "cannot be met otherwise" as the whole case for closed form | 59 phase A | 59 phase B: necessary and not sufficient |
 
 ---

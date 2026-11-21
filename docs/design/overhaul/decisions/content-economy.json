@@ -683,11 +683,11 @@
     {
       "id": "GR-56a",
       "call": "The price on setup slots",
-      "decision": "Setup slots are free. A saved setup is a remembered decision and is never sold, for gold or for Crowns.",
+      "decision": "Setup slots are priced as ruled on 2026-11-05: three free, then 15,000 and 40,000 gold. That is 55,000 gold a hero and 220,000 for four.",
       "outcome": "recommended",
       "reason": "Your first principle is that a choice made once is remembered. Charging for the memory taxes exactly the behavior the game is built on, and nobody has ever paid for one.",
       "evidence": "EVIDENCE: studies 55 and 59 (no purchase on record). The first principle of 2026-10-18.",
-      "replaces": "2026-11-05 (three free, then priced) and the sinks list of 2026-11-04 (paid action-bar setups beyond a free couple)",
+      "replaces": "None. It keeps 2026-11-05 and the sinks list of 2026-11-04.",
       "money": false,
       "depends": [
         "GR-48",
@@ -698,9 +698,11 @@
       "was": "Setup slots are free. A saved setup is a remembered decision and is never sold, for gold or for Crowns.",
       "fixedBy": "review-19",
       "fixNote": "The second ruling it reverses was missing.",
-      "status": "OPEN (waiting on Tyler, T-fix-3)",
+      "status": "RULED (Tyler, 2026-11-21, the sitting)",
       "tyler": "Held. Cut 14 was not approved, and reversal 13 (GR-56a, setup slots are free) asks for the same removal. Not decided. The decision text is what the book reads until he answers.",
-      "statusBeforeReissue": "OPEN (waiting on Tyler, T-fix-3)"
+      "statusBeforeReissue": "OPEN (waiting on Tyler, T-fix-3)",
+      "wasBeforeSitting": "Setup slots are free. A saved setup is a remembered decision and is never sold, for gold or for Crowns.",
+      "sitting": "S-3, option A. Priced. The free-slots reversal is refused."
     },
     {
       "id": "GR-56b",
@@ -1113,7 +1115,7 @@
     {
       "id": "MM-28",
       "call": "The paid advantage",
-      "decision": "Paying gives a real edge. In Tyler's words on MM-32: \"paying can put a hero way ahead, it depends on what is on the player market\". There is no ceiling that nobody passes. A player who does not pay can reach the same things with gold, as far as the market holds them.",
+      "decision": "Paying gives a real edge. The game promises no ceiling on gear or gold bought through other players. The limits that remain are structural: gear is worn by Level, the store sells no gear, and an account may sell only so many Crowns a week. The buff caps stay.",
       "outcome": "recommended",
       "reason": "It is your 2026-11-21 ruling written as a rule. One ceiling for everyone is what keeps the edge real and not broken.",
       "evidence": "EVIDENCE: study 49 section 3.1 read ten games with a traded bought currency. Players accept time, membership, capped boosts and looks, and revolt when the store mints power.",
@@ -1123,14 +1125,14 @@
         "MM-29 to MM-37"
       ],
       "area": "Money calls",
-      "status": "PROVISIONAL",
+      "status": "RULED (Tyler, 2026-11-21, the sitting)",
       "tyler": "He said yes on the page.",
       "wasBeforeTyler": "TYLER CONFIRMS. Recommended: paying gives a real edge under a ceiling written in numbers. A payer reaches the ceiling sooner and stays there. A player who does not pay reaches the same ceiling with gold. Nobody passes it.",
       "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
-      "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
-      "waitsOn": "test Crowns run in a playtest, and the Security review. Money stays Tyler's. The clause re-derived after his two \"no\" answers was never put to him.",
       "firstBuild": "planned, waits until test Crowns have run in the playtest",
-      "wasBeforeReissue": "Paying gives a real edge under a ceiling written in numbers. A payer reaches the ceiling sooner and stays there. A player who does not pay reaches the same ceiling with gold. Nobody passes it."
+      "wasBeforeReissue": "Paying gives a real edge under a ceiling written in numbers. A payer reaches the ceiling sooner and stays there. A player who does not pay reaches the same ceiling with gold. Nobody passes it.",
+      "wasBeforeSitting": "Paying gives a real edge. In Tyler's words on MM-32: \"paying can put a hero way ahead, it depends on what is on the player market\". There is no ceiling that nobody passes. A player who does not pay can reach the same things with gold, as far as the market holds them.",
+      "sitting": "S-8, option A. No ceiling. Only structural limits remain."
     },
     {
       "id": "MM-29",
@@ -1206,7 +1208,8 @@
       "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
       "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
       "waitsOn": "one buff played in a cell. The clause re-derived after his two \"no\" answers was never put to him.",
-      "firstBuild": "planned, waits until Deadly is sized and one buff has been played in a cell"
+      "firstBuild": "planned, waits until Deadly is sized and one buff has been played in a cell",
+      "sitting": "S-8, option A. The buff caps stay. This reading promises nothing about gear."
     },
     {
       "id": "MM-32",
@@ -1223,9 +1226,10 @@
       ],
       "area": "Money calls",
       "wasBeforeTyler": "TYLER CONFIRMS. Recommended: paying puts a hero 0 bands ahead at any Level, and inside a band at most best gear over mid gear.",
-      "status": "RULED (Tyler, 2026-11-21, his own note)",
+      "status": "RULED (Tyler, 2026-11-21, the sitting)",
       "tyler": "The recommendation was 0 bands ahead and at most best gear over mid gear. Tyler did not take it.",
-      "statusBeforeReissue": "RULED (Tyler, 2026-11-21), not the recommendation"
+      "statusBeforeReissue": "RULED (Tyler, 2026-11-21), not the recommendation",
+      "sitting": "S-8, option A. No ceiling on gear or gold bought through other players. His note of the same day stands."
     },
     {
       "id": "MM-33",

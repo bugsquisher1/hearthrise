@@ -6,7 +6,7 @@
   "whoIsI": "In every reason field, \"I\" is the decider. Only the replaces field and a ruling id cite Tyler. The build plan cites ruling ids only. (review-24)",
   "counts": {
     "rowsInTheThreeFiles": 157,
-    "calls": 155,
+    "calls": 156,
     "mergedTwice": [
       "GR-24",
       "MM-7"
@@ -24,20 +24,24 @@
     "byStatus": {
       "DECIDED": 51,
       "ofWhichTylerSaidYesOnThePage": 6,
-      "PROVISIONAL": 91,
-      "OPEN": 5,
-      "RULED": 2,
-      "PROPOSAL": 4,
+      "PROVISIONAL": 90,
+      "OPEN": 1,
+      "RULED": 10,
+      "ofWhichAtTheSitting": 9,
+      "PROPOSAL": 2,
       "SUPERSEDED": 1,
       "WITHDRAWN": 1
-    }
+    },
+    "addedAfterTheDeciders": [
+      "TAL-1"
+    ]
   },
   "statusWords": {
     "DECIDED": "Evidence and rulings support it. Where Tyler also said yes on the page, the row says so in pagePick.",
     "PROVISIONAL": "A reasonable plan that has not been tested. waitsOn names what it waits on.",
     "OPEN": "Waiting on Tyler.",
-    "RULED": "Tyler ruled it knowing what it was: his typed words, his own executive decisions, or a pick where he wrote a note. Only MM-32 and MM-34 among the calls.",
-    "PROPOSAL": "A design the integrator made on 2026-11-21 when Tyler said keep on a cut list. He has not seen it.",
+    "RULED": "Tyler ruled it knowing what it was: his typed words, his own executive decisions, a pick where he wrote a note, or an answer at the sitting of 2026-11-21, where he saw every option's cost and no recommendation.",
+    "PROPOSAL": "A design the integrator made on 2026-11-21 when Tyler said keep on a cut list. He has not seen it. Two remain: GR-34 and GR-74.",
     "SUPERSEDED": "Replaced by a later ruling of Tyler's.",
     "WITHDRAWN": "Refused by the first adversarial check. The ruling stands."
   },
@@ -191,8 +195,8 @@
         "change": "Past the third Blessing a new one opens whenever a fully blessed death would cost over five hunted hours. An unblessed death is untouched.",
         "ruling": "50-4 of 2026-11-21 (6% flat, no cap, and the 12 hour blessed cap turned down), and the three Blessings of 2026-11-10",
         "reason": "Without it a death past about Level 100 costs so many hours that nobody would press Deadly.",
-        "answer": "HELD, T-fix-5",
-        "status": "OPEN (waiting on Tyler, T-fix-5)"
+        "answer": "RULED at the sitting (S-5 b). The five hours stays PROVISIONAL",
+        "status": "RULED (Tyler, 2026-11-21, the sitting)"
       },
       {
         "n": 2,
@@ -299,8 +303,8 @@
         "change": "Setup slots are free.",
         "ruling": "2026-11-05, and the sinks list of 2026-11-04",
         "reason": "A saved setup is a remembered decision, and charging for it sells the first principle.",
-        "answer": "HELD, T-fix-3",
-        "status": "OPEN (waiting on Tyler, T-fix-3)"
+        "answer": "REFUSED at the sitting (S-3 a). Slots stay priced: three free, then 15,000 and 40,000 gold",
+        "status": "RULED (Tyler, 2026-11-21, the sitting)"
       },
       {
         "n": 14,
@@ -344,8 +348,8 @@
         "change": "No hired, lent or on-call heroes.",
         "ruling": "25-1 and the on-call board of 25-3, 2026-11-20",
         "reason": "Every account has four heroes of its own, so a hired seat has no job.",
-        "answer": "HELD, T-fix-1",
-        "status": "OPEN (waiting on Tyler, T-fix-1)"
+        "answer": "REFUSED at the sitting (S-1). On-call heroes are kept, with his design",
+        "status": "RULED (Tyler, 2026-11-21, the sitting)"
       },
       {
         "n": 19,
@@ -353,8 +357,8 @@
         "change": "The castle is priced for each member with a floor of five, one project at a time, open at any size.",
         "ruling": "25-4 and the castle gate of 25-3 (2026-11-20), and 31-3 (2026-11-21)",
         "reason": "Clans now pay buffs, so a fixed price would lock a small clan out of hero power. Tyler declined this option once.",
-        "answer": "Let stand on the page, in about a second",
-        "status": "PROPOSAL"
+        "answer": "Let stand on the page for the price by member. The full castle is RULED as the direction at the sitting (S-7 b)",
+        "status": "RULED (Tyler, 2026-11-21, the sitting)"
       },
       {
         "n": 20,
@@ -371,8 +375,8 @@
         "change": "No Local chat tab and no live party finder.",
         "ruling": "2026-11-11 (criers in local chat), 2026-10-15/16 (the finder)",
         "reason": "Both need two players at the screen in the same minute, which an idle game rarely has.",
-        "answer": "HELD, T-fix-2",
-        "status": "OPEN (waiting on Tyler, T-fix-2)"
+        "answer": "RULED at the sitting (S-2 b). The removal stands",
+        "status": "RULED (Tyler, 2026-11-21, the sitting)"
       },
       {
         "n": 22,
@@ -395,22 +399,29 @@
       {
         "n": 24,
         "id": "GR-3",
-        "change": "Party XP is paid by size alone.",
+        "change": "Party XP is paid by size alone for the first build. The classes rule may come back as one row of the table after Deadly is sized and played.",
         "ruling": "The 2026-10-31 rule that party XP is better only with different classes",
-        "reason": "It is in the option he picked, and it matches his 2026-11-16 ruling of one flat formula by size.",
-        "answer": "For the sitting. He picked the option in 42 seconds and nobody told him it ends the classes rule",
-        "status": "PROVISIONAL",
-        "forTheSitting": true
+        "reason": "Size alone needs no telling, and the look later keeps the door open.",
+        "answer": "RULED at the sitting (S-10 c)",
+        "status": "RULED (Tyler, 2026-11-21, the sitting)"
       },
       {
         "n": 25,
         "id": "MM-9",
-        "change": "The castle. He said keep the old parts (cut 5) and let the simple castle priced for each member stand (reversal 19).",
+        "change": "The full castle: five buildings of ten levels, labor, upkeep, votes, a treasury, about a year.",
         "ruling": "His two picks of 2026-11-21 against each other, and 25-4",
-        "reason": "The fold built both as one castle of five buildings. That design is a proposal he has not seen.",
-        "answer": "For the sitting. The conflict was not on the page",
-        "status": "PROPOSAL",
-        "forTheSitting": true
+        "reason": "A long shared goal and a larger gold sink.",
+        "answer": "RULED as the direction at the sitting (S-7 b). Sizes stay PROVISIONAL",
+        "status": "RULED (Tyler, 2026-11-21, the sitting)"
+      },
+      {
+        "n": 26,
+        "id": "MM-25",
+        "change": "A clan room pays a standing Level XP bonus.",
+        "ruling": "25-2 of 2026-11-20: clans give no Level XP",
+        "reason": "He kept the library, and at the sitting he chose the option that pays Level XP.",
+        "answer": "RULED at the sitting (S-4 a). The size is PROVISIONAL and owed by the design lane",
+        "status": "PROVISIONAL"
       }
     ],
     "cuts": [
@@ -430,8 +441,8 @@
           "MM-18"
         ],
         "what": "On-call, hired and lent heroes, and the on-call board",
-        "note": "PLANNED, ruled 25-1. Also reversal 18. It is the one large cut of a planned thing.",
-        "answer": "HELD, T-fix-1"
+        "note": "The spec is being written in docs/design/overhaul/11-on-call-and-clan-xp.md.",
+        "answer": "KEPT. RULED at the sitting (S-1): on-call heroes stay, with his design"
       },
       {
         "n": 3,
@@ -440,7 +451,7 @@
         ],
         "what": "The live party finder",
         "note": "PLANNED, ruled 2026-10-15/16. Also reversal 21.",
-        "answer": "HELD, T-fix-2"
+        "answer": "CUT. RULED at the sitting (S-2 b)"
       },
       {
         "n": 4,
@@ -449,7 +460,7 @@
         ],
         "what": "The Local chat tab, and \"maybe a fifth seat later\"",
         "note": "Not planned. The fifth seat is already ruled out by 25-11.",
-        "answer": "HELD, T-fix-2"
+        "answer": "CUT. RULED at the sitting (S-2 b)"
       },
       {
         "n": 5,
@@ -457,9 +468,8 @@
           "MM-9"
         ],
         "what": "The castle's labor, votes, upkeep, treasury balance, Clan Standing and five buildings of ten levels",
-        "note": "Built or planned in the social inventory. Rides reversal 19.",
-        "answer": "Said keep on the page",
-        "proposal": "PROPOSAL, made in the fold 2026-11-21, not yet seen by Tyler. MM-9. Five buildings of ten levels, labor as a town job, a treasury that pays upkeep first and then the project, one standing vote an account, and Clan Standing as a tally that pays no power. All priced for each member with a floor of five."
+        "note": "Sizes stay PROVISIONAL. MM-9. Five buildings of ten levels, labor as a town job, a treasury that pays upkeep first and then the project, one standing vote an account, and Clan Standing as a tally that pays no power. All priced for each member with a floor of five.",
+        "answer": "KEPT. RULED as the direction at the sitting (S-7 b)"
       },
       {
         "n": 6,
@@ -468,8 +478,8 @@
           "MM-25"
         ],
         "what": "The clan library and any Level XP room",
-        "note": "Not planned. It keeps ruling 25-2.",
-        "answer": "HELD, T-fix-4"
+        "note": "It reverses 25-2. The size is owed by the design lane.",
+        "answer": "KEPT. RULED at the sitting (S-4 a): the library pays a standing Level XP bonus"
       },
       {
         "n": 7,
@@ -477,9 +487,8 @@
           "GR-63"
         ],
         "what": "The rested bank and two old kill ladders",
-        "note": "Not planned. Measured as moving no number in 207 cells.",
-        "answer": "Said keep on the page",
-        "proposal": "PROPOSAL, made in the fold 2026-11-21, not yet seen by Tyler. GR-63. The rested bank pays +50% Level XP on as many hunted hours as a hero missed, up to 24, so it is a way back and never a way ahead. The two old kill ladders become tracks on the one kill count."
+        "note": "The paying rested bank made in the fold is removed. Keeping the two kill ladders as tracks on the one kill count is still a PROPOSAL he has not seen.",
+        "answer": "The rested bank is CUT. RULED at the sitting (S-9 c). The two old kill ladders: he said keep on the page"
       },
       {
         "n": 8,
@@ -542,8 +551,8 @@
           "GR-56a"
         ],
         "what": "The priced setup slots",
-        "note": "Ruled 2026-11-05 and 2026-11-04. Also reversal 13.",
-        "answer": "HELD, T-fix-3"
+        "note": "As ruled on 2026-11-05.",
+        "answer": "KEPT. RULED at the sitting (S-3 a): priced, three free"
       },
       {
         "n": 15,
@@ -956,7 +965,8 @@
       "wasBeforeTyler": "Opening numbers, as hypotheses the sample must confirm. Both tiers are sized on the mid-geared four in band. Dangerous is read against S3 (typical lowest health 35 to 60%) and Deadly against S4 (15 to 40%). A lone hero's reading prints and judges nothing. Dangerous: pull 5, blows and aim 1.17 times Normal, health 1.10, Level XP 1.10. Deadly: pull 8, blows and aim 2.25 times Normal, health 1.15, Level XP 1.25. They are sized only after R7 lands, on 4 seeds of 8 hours with the game's own death rule, against bands S3, S4, S6 and the lineup test.",
       "statusBeforeReissue": "DECIDED",
       "waitsOn": "the death fault fixed in the measuring tool, then the death sample of 4 seeds by 8 hours",
-      "madeInTheFold": "Rewritten in the fold 2026-11-21 after his picks. Not yet seen by Tyler."
+      "madeInTheFold": "Rewritten in the fold 2026-11-21 after his picks. Not yet seen by Tyler.",
+      "sitting": "S-6, option A. Deadly is a tier you watch or gamble on, and idle players mostly use Dangerous. The lost hunting time is accepted: 18 to 31% on the 8 hour bar and 25 to 42% on the 12 hour bar, before the 6%."
     },
     {
       "id": "CORE-2",
@@ -1042,21 +1052,21 @@
       "file": "core",
       "group": "Foundation",
       "call": "What Deadly must ask for.",
-      "decision": "Leave the lineup test out. Accept that the best four may be a hammer and three mages, and pay party XP by size alone. Deadly is sized on the mid-geared four in band against the tier bands (S3, S4, S6) and nothing else. No cell asks a lineup to fail. Roles still matter by formula, because a pull of eight wants a holder and shooters reach the back row, but no tier is tuned until a named lineup dies.",
+      "decision": "No lineup test. Party XP is paid by size alone for the first build. After Deadly is sized on the fixed measuring tool, read which fours players really run. If one damage type wins everywhere, the classes rule can come back as one row of the table.",
       "outcome": "recommended",
       "reason": "Preparing the party is the game, so the hardest tier has to notice who is standing where. If any four clears Deadly, there is nothing to prepare.",
       "evidence": "MEASURED on the uncalibrated harness, 2 seeds of 1 hour, direction only (my run of 2026-11-21, patches dial-1.5, dial-2.0 and dial-2.5). At today's dial every lineup holds with no deaths. With Deadly blows at 2.66 times Normal the two fours with no healer die 10 to 23 times as often as the mixed four at Level 60. The hammer in front dies 3.5 times as often at Level 60 but holds exactly as well as the shield at Level 110, where both wear plate at the 60% cap. So the dial separates healer from no healer and does not separate shield from hammer.",
       "replaces": "None. Builds 21-3 and 31-9. Keeps 10-31.",
       "money": false,
       "depends": "GR-27 (the numbers), GR-85 step R7 first, GR-88 (the lineup cells). The items decider owns the shield row's guard.",
-      "status": "PROVISIONAL",
+      "status": "RULED (Tyler, 2026-11-21, the sitting)",
       "decidedBy": "Fable 2026-11-21",
       "wasBeforeTyler": "Deadly is sized so a mid-geared four in band with a shield tank and a healer holds it, and the same four with a hammer in front, or with no healer, does not. One rider: the hammer cell is made to fail by what a shield carries (guard on the Defense rating, the brace stat, and Challenge), never by the tier dial alone and never by a rule keyed on the lineup.",
       "tyler": "Tyler picked the alternative at 08:37 UTC. The core decider recorded the recommendation without seeing his pick. His pick wins.",
       "statusBeforeReissue": "RULED (Tyler, 2026-11-21), the alternative",
-      "pagePick": "Tyler picked the alternative on the page 2026-11-21, in 42 seconds. It was a quick pick, so it is not printed as a ruling.",
-      "waitsOn": "the death fault fixed in the measuring tool, then the death sample of 4 seeds by 8 hours",
-      "reversalForTheSitting": "Party XP by size alone ends the 2026-10-31 rule that party XP is better only with different classes. Nobody told Tyler that when he picked it."
+      "waitsOn": "The look later: Deadly sized on the fixed tool, then a read of which fours players run.",
+      "wasBeforeSitting": "Leave the lineup test out. Accept that the best four may be a hammer and three mages, and pay party XP by size alone. Deadly is sized on the mid-geared four in band against the tier bands (S3, S4, S6) and nothing else. No cell asks a lineup to fail. Roles still matter by formula, because a pull of eight wants a holder and shooters reach the back row, but no tier is tuned until a named lineup dies.",
+      "sitting": "S-10, option C. Size now, look later. It ends the 2026-10-31 classes rule for the first build."
     },
     {
       "id": "GR-4",
@@ -1131,7 +1141,8 @@
       "tyler": "He let the reversal stand on the page, in about a second. It changes The table of 2026-10-25, and \"Level 400 is day 382\" of 2026-11-21. He picked the recommendation on the page that morning.",
       "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
       "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
-      "waitsOn": "the kill reward and the tiers, because the seat's multiple is not one number until then"
+      "waitsOn": "the kill reward and the tiers, because the seat's multiple is not one number until then. The runway and the clock also wait on the clan XP size",
+      "sitting": "S-4, option A, as a knock-on. Every clan member levels faster than the Level table, so the content runway and the clock move."
     },
     {
       "id": "GR-6a",
@@ -1157,7 +1168,8 @@
       "tyler": "He let the reversal stand on the page, in about a second. It changes \"120 days of grounds at Early Access\" of 2026-11-21.",
       "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
       "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
-      "waitsOn": "the kill reward and the tiers, because the seat's multiple is not one number until then"
+      "waitsOn": "the kill reward and the tiers, because the seat's multiple is not one number until then. The runway and the clock also wait on the clan XP size",
+      "sitting": "S-4, option A, as a knock-on. Every clan member levels faster than the Level table, so the content runway and the clock move."
     },
     {
       "id": "GR-6b",
@@ -1213,7 +1225,7 @@
       "replaces": "REVERSAL in effect. For a player who pays gold it holds a blessed death tighter than the 12 hour cap Tyler turned down in 50-4 (2026-11-21), and it adds to the three Blessings of 11-10. The unblessed death is untouched.",
       "money": false,
       "depends": "CORE-1 and GR-3 (ships with them). GR-51 (the wage curve prices the rungs). GR-88 (band S11). MM-7. GR-66 shows the cost before the hunt.",
-      "status": "OPEN (waiting on Tyler, T-fix-5)",
+      "status": "RULED (Tyler, 2026-11-21, the sitting)",
       "reversal": {
         "n": 1,
         "ruling": "50-4 of 2026-11-21 (6% flat, no cap, and the 12 hour blessed cap turned down), and the three Blessings of 2026-11-10"
@@ -1221,7 +1233,9 @@
       "decidedBy": "Fable 2026-11-21",
       "tyler": "Held. Reversal 1 (GR-7) adds Blessings past the third. Ruling 50-4 is 6% flat with no cap, with the 12 hour blessed cap turned down. Not decided. The decision text is what the book reads until he answers.",
       "statusBeforeReissue": "OPEN (waiting on Tyler, T-fix-5)",
-      "firstBuild": "planned, waits until a real death rate exists"
+      "firstBuild": "planned, waits until a real death rate exists",
+      "sitting": "S-5, option B. The Blessing ladder is ruled.",
+      "waitsOn": "The five hours stays PROVISIONAL until a real death rate exists."
     },
     {
       "id": "GR-8",
@@ -2218,11 +2232,11 @@
       "file": "content-economy",
       "group": "Economy",
       "call": "The price on setup slots",
-      "decision": "Setup slots are free. A saved setup is a remembered decision and is never sold, for gold or for Crowns.",
+      "decision": "Setup slots are priced as ruled on 2026-11-05: three free, then 15,000 and 40,000 gold. That is 55,000 gold a hero and 220,000 for four.",
       "outcome": "recommended",
       "reason": "Your first principle is that a choice made once is remembered. Charging for the memory taxes exactly the behavior the game is built on, and nobody has ever paid for one.",
       "evidence": "EVIDENCE: studies 55 and 59 (no purchase on record). The first principle of 2026-10-18.",
-      "replaces": "2026-11-05 (three free, then priced) and the sinks list of 2026-11-04 (paid action-bar setups beyond a free couple)",
+      "replaces": "None. It keeps 2026-11-05 and the sinks list of 2026-11-04.",
       "money": false,
       "depends": [
         "GR-48",
@@ -2232,7 +2246,7 @@
       "fixedBy": "review-19",
       "was": "Setup slots are free. A saved setup is a remembered decision and is never sold, for gold or for Crowns.",
       "fixNote": "The second ruling it reverses was missing.",
-      "status": "OPEN (waiting on Tyler, T-fix-3)",
+      "status": "RULED (Tyler, 2026-11-21, the sitting)",
       "reversal": {
         "n": 13,
         "ruling": "2026-11-05, and the sinks list of 2026-11-04"
@@ -2242,7 +2256,9 @@
       ],
       "decidedBy": "Fable 2026-11-21",
       "tyler": "Held. Cut 14 was not approved, and reversal 13 (GR-56a, setup slots are free) asks for the same removal. Not decided. The decision text is what the book reads until he answers.",
-      "statusBeforeReissue": "OPEN (waiting on Tyler, T-fix-3)"
+      "statusBeforeReissue": "OPEN (waiting on Tyler, T-fix-3)",
+      "wasBeforeSitting": "Setup slots are free. A saved setup is a remembered decision and is never sold, for gold or for Crowns.",
+      "sitting": "S-3, option A. Priced. The free-slots reversal is refused."
     },
     {
       "id": "GR-56b",
@@ -2405,27 +2421,27 @@
       "file": "core",
       "group": "Progression",
       "call": "Dead ladders.",
-      "decision": "Tyler said keep on the page 2026-11-21, and what follows is a PROPOSAL he has not seen. The rested bank stays and now pays. A hero banks the hunted hours it missed: every hour it stands at full stamina and is not hunting adds to its bank, up to 24 hours. Banked hours pay +50% Level XP on that many later hunted hours. So a missed day is half made up and a hero with a bank never out-earns one that hunted every hour. It is a way back and never a way ahead. The pace seat hunts all 12 hours, so its bank is empty and the Level law does not read it. It is one row of the XP chain and one number a hero, written when a hunt starts and ends, with no statement on the settle. The two old kill ladders stay as tracks on the one kill ladder: one kill count a monster a hero, the count the Bestiary stages and GR-78 already read, with the old rungs kept as rows on that count and no second counter. Sizes are a HYPOTHESIS.",
+      "decision": "The rested bank is cut. The Level table is the only clock, and a missed day is simply missed. The two old kill ladders are a separate matter: he said keep on the page, and keeping them as tracks on the one kill count is still a PROPOSAL he has not seen.",
       "outcome": "recommended",
       "reason": "They pay nothing and nobody would miss them. Making the bank pay would add an XP lever the Level law then has to carry.",
       "evidence": "MEASURED: switching the bank off moved no number in 207 cells.",
       "replaces": "None.",
       "money": false,
       "depends": "GR-85 step R5.",
-      "status": "PROPOSAL",
+      "status": "RULED (Tyler, 2026-11-21, the sitting)",
       "decidedBy": "Fable 2026-11-21",
       "wasBeforeTyler": "Delete the rested bank and the two old kill ladders. The ladders leave in the lane that builds the Bestiary and Luck.",
       "statusBeforeReissue": "DECIDED",
-      "proposal": "Made in the fold 2026-11-21, not yet seen by Tyler. He said keep on a cut list. How it stays is the integrator's proposal and nothing more.",
-      "firstBuild": "planned, waits until Tyler has seen it. It is new",
-      "madeInTheFold": "Rewritten in the fold 2026-11-21 after his picks. Not yet seen by Tyler."
+      "madeInTheFold": "Rewritten in the fold 2026-11-21 after his picks. Not yet seen by Tyler.",
+      "wasBeforeSitting": "Tyler said keep on the page 2026-11-21, and what follows is a PROPOSAL he has not seen. The rested bank stays and now pays. A hero banks the hunted hours it missed: every hour it stands at full stamina and is not hunting adds to its bank, up to 24 hours. Banked hours pay +50% Level XP on that many later hunted hours. So a missed day is half made up and a hero with a bank never out-earns one that hunted every hour. It is a way back and never a way ahead. The pace seat hunts all 12 hours, so its bank is empty and the Level law does not read it. It is one row of the XP chain and one number a hero, written when a hunt starts and ends, with no statement on the settle. The two old kill ladders stay as tracks on the one kill ladder: one kill count a monster a hero, the count the Bestiary stages and GR-78 already read, with the old rungs kept as rows on that count and no second counter. Sizes are a HYPOTHESIS.",
+      "sitting": "S-9, option C. The rested bank is cut. The paying design made in the fold is removed."
     },
     {
       "id": "GR-64",
       "file": "core",
       "group": "Progression",
       "call": "No new skill, prestige or stat points.",
-      "decision": "None of the three.",
+      "decision": "No prestige, no rebirth and no fourteenth skill. A hero earns a talent point every five Levels. Points are stored as rows, and no blow reads a Level.",
       "outcome": "recommended",
       "reason": "An uncapped Level already is the prestige loop. Stat points would put Level into the blow, which I ruled out.",
       "evidence": "EVIDENCE (56). Keeps 11-04 and 11-18 (no Level in combat).",
@@ -2434,7 +2450,9 @@
       "depends": "None.",
       "status": "DECIDED",
       "decidedBy": "Fable 2026-11-21",
-      "statusBeforeReissue": "DECIDED"
+      "statusBeforeReissue": "DECIDED",
+      "wasBeforeTalents": "None of the three.",
+      "amendedBy": "Tyler's ruling of 2026-11-21 on level choices, and chapter 10 (docs/design/overhaul/10-level-choices.md). The old wording refused stat points a Level."
     },
     {
       "id": "GR-65",
@@ -2479,14 +2497,14 @@
       "id": "GR-69",
       "file": "mmo-experience",
       "call": "Remove the Local chat tab and the live party finder, and strike the fifth seat.",
-      "decision": "Yes to all three. No Local tab. Town crier and NPC tip lines show as speech in the town itself and in the System tab, never in Global, because Global is for people. No live party finder: a party is your own four and friends invite by the right-click menu. The cap is four and \"maybe 5 later\" comes off the books.",
+      "decision": "No Local chat tab and no live party finder. Global, Clan, Party and whispers stay. Town criers speak in Global and in the town itself.",
       "outcome": "recommended",
       "reason": "Hunts are instanced so \"local\" is my party, which has its own tab. A live finder needs two strangers online at the same minute, which almost never happens here. Dead tabs and empty finders make a small game look abandoned.",
       "evidence": "EVIDENCE: 5 of 675 ten-minute windows held two people pressing (study 49). The review found none of the three in use (60 section 8.7). RULED 25-11 already caps a party at four.",
       "replaces": "REVERSAL, small. 2026-11-11 (criers call out in local chat): they speak in the town and the System tab. 2026-10-15/16 (a party finder that filters by weapon type) is removed.",
       "money": false,
       "depends": "MM-1, MM-18. Home decider: crier lines in the town (chapter 07). Chat tabs kept: Global, Clan, Party, Whispers, System, Combat.",
-      "status": "OPEN (waiting on Tyler, T-fix-2)",
+      "status": "RULED (Tyler, 2026-11-21, the sitting)",
       "reversal": {
         "n": 21,
         "ruling": "2026-11-11 (criers in local chat), 2026-10-15/16 (the finder)"
@@ -2497,7 +2515,9 @@
       ],
       "decidedBy": "Fable 2026-11-21",
       "tyler": "Held. Cuts 3 and 4 were not approved, and reversal 21 (GR-69) asks for the same removals. Not decided. The decision text is what the book reads until he answers.",
-      "statusBeforeReissue": "OPEN (waiting on Tyler, T-fix-2)"
+      "statusBeforeReissue": "OPEN (waiting on Tyler, T-fix-2)",
+      "wasBeforeSitting": "Yes to all three. No Local tab. Town crier and NPC tip lines show as speech in the town itself and in the System tab, never in Global, because Global is for people. No live party finder: a party is your own four and friends invite by the right-click menu. The cap is four and \"maybe 5 later\" comes off the books.",
+      "sitting": "S-2, option B. The removal is ruled."
     },
     {
       "id": "GR-70",
@@ -3019,7 +3039,8 @@
       "decidedBy": "Fable 2026-11-21",
       "statusBeforeReissue": "DECIDED",
       "waitsOn": "a real death rate, and Tyler's answer on the hunting hours a death costs an idle party",
-      "firstBuild": "in the first build: one sample boss"
+      "firstBuild": "in the first build: one sample boss",
+      "sitting": "S-6, option A. Deadly is a tier you watch or gamble on, and idle players mostly use Dangerous. The lost hunting time is accepted: 18 to 31% on the 8 hour bar and 25 to 42% on the 12 hour bar, before the 6%."
     },
     {
       "id": "MM-8",
@@ -3044,7 +3065,7 @@
       "id": "MM-9",
       "file": "mmo-experience",
       "call": "The castle is one project at a time on the town project engine. Each room carries one standing buff up to the standing caps.",
-      "decision": "One project at a time on the town project engine. A stage is priced per member, as castleStagePerMember x max(5, members), so a small clan can build and a clan of one pays for five, and the castle is open at any roster size. A stage can never finish in under a week. Tyler said keep on the page 2026-11-21, and what follows is a PROPOSAL he has not seen: the castle's five buildings of ten levels, labor, votes, upkeep, the treasury and Clan Standing all stay, fitted to that price. Buildings: the War room (damage dealt up to +5%), the Ward (a Defense rating row worth up to about 5% less damage an hour), the Workshop (town work speed up to +10%), the Kitchen (the clan's weekly ration cap) and a fifth building held for T-fix-4. Each has ten levels and reaches its cap at level ten. Labor: a member's heroes can give rested town hours to the project as a closed-form town job, valued on the wage curve, so a stage's price is paid in gold, castle goods or labor. Treasury: members' weekly shares and gifts go into it, nothing ever comes back out (25-5), and it pays in a fixed order, upkeep first and then the open project. Upkeep: a weekly bill for each member with the same floor of five. The member's weekly share is what pays it, so there is one payment and not two. If upkeep is unpaid the rooms' buffs switch off until it is paid and nothing is lost. Votes: each account sets its vote for the next project once, as a standing choice. The leader breaks a tie and picks when nobody has voted. Clan Standing: a lifetime tally of what each account gave in gold, goods and labor. It shows on the roster and the plaque and pays no power. Fifty stages at 1 to 1.3 weeks is about a year for a full castle. Whether there is a library or a Level XP room is OPEN, waiting on Tyler (T-fix-4). Sizes are a HYPOTHESIS.",
+      "decision": "One project at a time on the town project engine. A stage is priced per member, as castleStagePerMember x max(5, members), so a small clan can build and a clan of one pays for five, and the castle is open at any roster size. A stage can never finish in under a week. RULED in direction at the sitting: the castle's five buildings of ten levels, labor, votes, upkeep, the treasury and Clan Standing all stay, fitted to that price. Buildings: the War room (damage dealt up to +5%), the Ward (a Defense rating row worth up to about 5% less damage an hour), the Workshop (town work speed up to +10%), the Kitchen (the clan's weekly ration cap) and the library, which pays a standing Level XP bonus (ruled at the sitting, size owed). Each has ten levels and reaches its cap at level ten. Labor: a member's heroes can give rested town hours to the project as a closed-form town job, valued on the wage curve, so a stage's price is paid in gold, castle goods or labor. Treasury: members' weekly shares and gifts go into it, nothing ever comes back out (25-5), and it pays in a fixed order, upkeep first and then the open project. Upkeep: a weekly bill for each member with the same floor of five. The member's weekly share is what pays it, so there is one payment and not two. If upkeep is unpaid the rooms' buffs switch off until it is paid and nothing is lost. Votes: each account sets its vote for the next project once, as a standing choice. The leader breaks a tie and picks when nobody has voted. Clan Standing: a lifetime tally of what each account gave in gold, goods and labor. It shows on the roster and the plaque and pays no power. Fifty stages at 1 to 1.3 weeks is about a year for a full castle. Sizes are a HYPOTHESIS.",
       "outcome": "third",
       "reason": "You said keep the castle a slow climb with gold and time, and I kept both. What I changed is the fixed price, because a fixed price means a clan of 3 never finishes and a clan of 60 finishes in a day. I also cut the XP room. A damage buff already makes me level faster, so an XP room is the same thing twice and it is the one room that broke your \"clans give no XP\" ruling.",
       "evidence": "COMPUTED: 4 rooms x 5 levels at one stage a week or slower is 20 to 26 weeks. Per-member pricing is flat by construction at 5 members and up. Sizes are TARGET with no measurement (chapter 04 section 2.6 says so). HYPOTHESIS that small clans build. Playtest read: clans with gifts from three or more members.",
@@ -3054,7 +3075,7 @@
       "fixedBy": "review-4, review-16",
       "was": "One project at a time on the town project engine, and four rooms of five levels. War room: damage dealt up to +5%. Ward: damage taken up to 5% less. Workshop: town work speed up to +10%. Kitchen: raises the clan's weekly ration cap. There is NO library and no Level XP room. A stage is priced per member, as castleStagePerMember x max(5, members), so a small clan can build and a clan of one pays for five. A stage can never finish in under a week. Twenty stages is about six months, the pace you kept on 11-20. The castle is open at any roster size. No labor, no upkeep, no treasury balance. Castle goods keep their prices (31-3).",
       "fixNote": "The row said it kept 31-3 while changing it, and \"about six months\" disagreed with chapter 04, which sized a stage at 2 to 4 weeks.",
-      "status": "PROPOSAL",
+      "status": "RULED (Tyler, 2026-11-21, the sitting)",
       "reversal": {
         "n": 19,
         "ruling": "25-4 and the castle gate of 25-3 (2026-11-20), and 31-3 (2026-11-21)"
@@ -3063,11 +3084,10 @@
       "tyler": "He let the reversal stand on the page, in about a second. It changes 25-4 and the castle gate of 25-3 (2026-11-20), and 31-3 (2026-11-21).",
       "wasBeforeTyler": "One project at a time on the town project engine, and four rooms of five levels. War room: damage dealt up to +5%. Ward: a Defense rating row sized so a mid-geared four takes up to about 5% less damage an hour (CORE-4). Workshop: town work speed up to +10%. Kitchen: raises the clan's weekly ration cap. There is NO library and no Level XP room. A stage is priced per member, as castleStagePerMember x max(5, members), so a small clan can build and a clan of one pays for five. A stage can never finish in under a week. castleStagePerMember is sized so a stage takes 1 to 1.3 weeks at the weekly share, which makes twenty stages 20 to 26 weeks. The castle is open at any roster size. No labor, no upkeep, no treasury balance. This changes 31-3 (castle goods keep their built prices) and it is the option Tyler declined on 25-4. The one new fact that justifies asking again is his 2026-11-21 ruling that clans pay buffs: a fixed price now locks a clan of three out of hero power. If Tyler vetoes, the castle keeps built prices and one work order a week for each slot, and only the ten-account gate goes.",
       "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
-      "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
-      "proposal": "Made in the fold 2026-11-21, not yet seen by Tyler. He said keep on a cut list. How it stays is the integrator's proposal and nothing more.",
       "firstBuild": "planned, waits until clans exist and people are in them",
-      "conflictForTheSitting": "Cut 5 (keep the castle's old parts) against reversal 19 (the simple castle priced for each member). The fold built both.",
-      "madeInTheFold": "Rewritten in the fold 2026-11-21 after his picks. Not yet seen by Tyler."
+      "madeInTheFold": "Rewritten in the fold 2026-11-21 after his picks. Not yet seen by Tyler.",
+      "sitting": "S-7, option B. The full castle is ruled as the direction: five buildings of ten levels, labor, upkeep, votes, a treasury, about a year.",
+      "waitsOn": "Every size stays PROVISIONAL: stage prices, upkeep, labor value and the year. The fifth building is the library, which pays a standing Level XP bonus (S-4), and its size is owed by the design lane."
     },
     {
       "id": "MM-10",
@@ -3216,14 +3236,14 @@
       "id": "MM-18",
       "file": "mmo-experience",
       "call": "No hero is hired, lent or put on call. A party is your own heroes.",
-      "decision": "Yes. No hire, no lending, no on-call board. Nobody else ever sends your hero. Two friends can still form a party by hand through an invite, both on purpose, with the shared supply bill of 25-8. It comes back to you only if playtest friends ask to lend heroes without being prompted.",
+      "decision": "On-call heroes are kept, with Tyler's design. His words: \"on call is fine but should be full stamina, the on call hero trades their crafting/training time for a small cut of exp, no loss on death. HOWEVER they can only go on call once every 24 hours and it will only last for 12 hours. Then back to a chosen activity\". The full spec is docs/design/overhaul/11-on-call-and-clan-xp.md, which a design lane is writing. This row does not design it. A hero from another account can join a party again.",
       "outcome": "recommended",
       "reason": "On-call heroes were to fill empty party seats. Now every account has four heroes from the first hour and all four hunt 12 hours a day, so there is no empty seat and no spare hero-hour. What is left is a market in carried leveling and one more thing Security has to lock down.",
       "evidence": "COMPUTED: among four real players with top Levels 79, 46, 9 and 8, one pair in six could share XP under the two thirds line (chapter 06 section 2.10). RULED 2026-11-21 (four heroes from the start) is newer than 25-1.",
       "replaces": "REVERSAL. 25-1 (2026-11-20, on-call heroes at 2 hours a day, 4 at most) and the on-call board inside 25-3. The rest of 25-3 stands: roster, clan chat, clan browser.",
       "money": false,
       "depends": "Home decider: \"party member\" drops out of who may visit a house (GR-75). Chapter 09: no hero-lending trade surface in the Security scope. GR-10a is closed.",
-      "status": "OPEN (waiting on Tyler, T-fix-1)",
+      "status": "RULED (Tyler, 2026-11-21, the sitting)",
       "reversal": {
         "n": 18,
         "ruling": "25-1 and the on-call board of 25-3, 2026-11-20"
@@ -3233,7 +3253,10 @@
       ],
       "decidedBy": "Fable 2026-11-21",
       "tyler": "Held. Cut 2 was not approved, and reversal 18 (MM-18, no hired, lent or on-call heroes) asks for the same removal. The two picks point opposite ways. Not decided. The decision text is what the book reads until he answers.",
-      "statusBeforeReissue": "OPEN (waiting on Tyler, T-fix-1)"
+      "statusBeforeReissue": "OPEN (waiting on Tyler, T-fix-1)",
+      "wasBeforeSitting": "Yes. No hire, no lending, no on-call board. Nobody else ever sends your hero. Two friends can still form a party by hand through an invite, both on purpose, with the shared supply bill of 25-8. It comes back to you only if playtest friends ask to lend heroes without being prompted.",
+      "sitting": "S-1, his own words. It reverses the removal this row first decided. Ruling 25-1 stands in his new form.",
+      "firstBuild": "waits on the spec in docs/design/overhaul/11-on-call-and-clan-xp.md"
     },
     {
       "id": "MM-19",
@@ -3257,7 +3280,8 @@
       "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
       "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
       "waitsOn": "a matrix cell with mixed Levels",
-      "madeInTheFold": "Rewritten in the fold 2026-11-21 after his picks. Not yet seen by Tyler."
+      "madeInTheFold": "Rewritten in the fold 2026-11-21 after his picks. Not yet seen by Tyler.",
+      "sitting": "S-1, as a knock-on. A hero from another account can join a party again, so the two thirds line has real cases."
     },
     {
       "id": "MM-20",
@@ -3365,10 +3389,10 @@
         6
       ],
       "decidedBy": "Fable 2026-11-21",
-      "openPart": "Whether a clan library or a Level XP room exists is OPEN, waiting on Tyler (T-fix-4). The table is written with no standing Level XP cap.",
       "statusBeforeReissue": "DECIDED",
-      "waitsOn": "one buff played in a cell",
-      "firstBuild": "planned, waits until Deadly is sized and one buff has been played in a cell"
+      "waitsOn": "one buff played in a cell. The standing Level XP row waits on the clan XP size",
+      "firstBuild": "planned, waits until Deadly is sized and one buff has been played in a cell",
+      "sitting": "S-4, option A. A clan room pays a standing Level XP bonus, which reverses 25-2. Its size is owed by the design lane."
     },
     {
       "id": "MM-26",
@@ -3387,8 +3411,9 @@
       "status": "PROVISIONAL",
       "decidedBy": "Fable 2026-11-21",
       "statusBeforeReissue": "DECIDED",
-      "waitsOn": "one buff played in a cell",
-      "firstBuild": "planned, waits until Deadly is sized and one buff has been played in a cell"
+      "waitsOn": "one buff played in a cell. The ceiling also waits on the clan XP size",
+      "firstBuild": "planned, waits until Deadly is sized and one buff has been played in a cell",
+      "sitting": "S-4, option A, as a knock-on. The pace ceiling rises with a clan Level XP room, to about 1.73 at +5%."
     },
     {
       "id": "MM-27",
@@ -3411,7 +3436,7 @@
       "file": "content-economy",
       "group": "Money calls",
       "call": "The paid advantage",
-      "decision": "Paying gives a real edge. In Tyler's words on MM-32: \"paying can put a hero way ahead, it depends on what is on the player market\". There is no ceiling that nobody passes. A player who does not pay can reach the same things with gold, as far as the market holds them.",
+      "decision": "Paying gives a real edge. The game promises no ceiling on gear or gold bought through other players. The limits that remain are structural: gear is worn by Level, the store sells no gear, and an account may sell only so many Crowns a week. The buff caps stay.",
       "outcome": "recommended",
       "reason": "It is your 2026-11-21 ruling written as a rule. One ceiling for everyone is what keeps the edge real and not broken.",
       "evidence": "EVIDENCE: study 49 section 3.1 read ten games with a traded bought currency. Players accept time, membership, capped boosts and looks, and revolt when the store mints power.",
@@ -3420,16 +3445,16 @@
       "depends": [
         "MM-29 to MM-37"
       ],
-      "status": "PROVISIONAL",
+      "status": "RULED (Tyler, 2026-11-21, the sitting)",
       "tylerMoney": 1,
       "decidedBy": "Fable 2026-11-21",
       "tyler": "He said yes on the page.",
       "wasBeforeTyler": "TYLER CONFIRMS. Recommended: paying gives a real edge under a ceiling written in numbers. A payer reaches the ceiling sooner and stays there. A player who does not pay reaches the same ceiling with gold. Nobody passes it.",
       "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
-      "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
-      "waitsOn": "test Crowns run in a playtest, and the Security review. Money stays Tyler's. The clause re-derived after his two \"no\" answers was never put to him.",
       "firstBuild": "planned, waits until test Crowns have run in the playtest",
-      "wasBeforeReissue": "Paying gives a real edge under a ceiling written in numbers. A payer reaches the ceiling sooner and stays there. A player who does not pay reaches the same ceiling with gold. Nobody passes it."
+      "wasBeforeReissue": "Paying gives a real edge under a ceiling written in numbers. A payer reaches the ceiling sooner and stays there. A player who does not pay reaches the same ceiling with gold. Nobody passes it.",
+      "wasBeforeSitting": "Paying gives a real edge. In Tyler's words on MM-32: \"paying can put a hero way ahead, it depends on what is on the player market\". There is no ceiling that nobody passes. A player who does not pay can reach the same things with gold, as far as the market holds them.",
+      "sitting": "S-8, option A. No ceiling. Only structural limits remain."
     },
     {
       "id": "MM-29",
@@ -3537,7 +3562,8 @@
       "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
       "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
       "waitsOn": "one buff played in a cell. The clause re-derived after his two \"no\" answers was never put to him.",
-      "firstBuild": "planned, waits until Deadly is sized and one buff has been played in a cell"
+      "firstBuild": "planned, waits until Deadly is sized and one buff has been played in a cell",
+      "sitting": "S-8, option A. The buff caps stay. This reading promises nothing about gear."
     },
     {
       "id": "MM-32",
@@ -3554,12 +3580,13 @@
         "GR-4 (core decider)",
         "CE-1"
       ],
-      "status": "RULED (Tyler, 2026-11-21, his own note)",
+      "status": "RULED (Tyler, 2026-11-21, the sitting)",
       "tylerMoney": 6,
       "decidedBy": "Fable 2026-11-21",
       "wasBeforeTyler": "TYLER CONFIRMS. Recommended: paying puts a hero 0 bands ahead at any Level, and inside a band at most best gear over mid gear.",
       "tyler": "The recommendation was 0 bands ahead and at most best gear over mid gear. Tyler did not take it.",
-      "statusBeforeReissue": "RULED (Tyler, 2026-11-21), not the recommendation"
+      "statusBeforeReissue": "RULED (Tyler, 2026-11-21), not the recommendation",
+      "sitting": "S-8, option A. No ceiling on gear or gold bought through other players. His note of the same day stands."
     },
     {
       "id": "MM-33",
@@ -3940,6 +3967,26 @@
       "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
       "waitsOn": "test Crowns run in a playtest, and the Security review. Money stays Tyler's. The clause re-derived after his two \"no\" answers was never put to him.",
       "firstBuild": "planned, waits until test Crowns have run in the playtest"
+    },
+    {
+      "id": "TAL-1",
+      "file": "core",
+      "group": "Progression",
+      "call": "Talents: a build choice every five Levels.",
+      "decision": "One system called Talents. A hero earns one talent point every five Levels, for ever. A point goes into a track. Every rank gives a small stat on a curve that flattens, and at set ranks a track unlocks a rule that changes how the hero plays its seat. A plan set once spends new points with no press. A reset costs gold. The first build holds five tracks (Force, Footing, Grit, Reserve, Linger) and the rank 3 unlocks. No number in it is decided.",
+      "outcome": "recommended",
+      "reason": "The design is chapter 10. This row only carries it into the decision files.",
+      "evidence": "None measured. Every number is PROVISIONAL and the chapter says so. COMPUTED on the provisional curve: the fastest build is at most 1.2% faster than the suggested build.",
+      "replaces": "GR-61 (Kindlings), which Tyler's ruling of 2026-11-21 superseded. It amends GR-64.",
+      "money": false,
+      "depends": "The measuring tool's three fixes, the modifier table's \"when\" column (R20), the to-hit floor owed by CORE-4, the wage formula (R15) for the reset price, and MM-41 for the arenas.",
+      "status": "PROVISIONAL",
+      "waitsOn": "Section 12 of docs/design/overhaul/10-level-choices.md: the sample of five tracks played in the playtest, the matrix with four stat lines after the tool's fixes, the unlock sizes, the reset price, and the arena engine check",
+      "source": "docs/design/overhaul/10-level-choices.md",
+      "ruling": "Tyler, 2026-11-21: a build choice every five Levels is designed now and built with the first build. That is the only thing ruled about it.",
+      "firstBuild": "in the first build: five tracks and the rank 3 unlocks. Unlock ranks 8 and up, tracks six to eight and the arena build wait until the sample is played",
+      "decidedBy": "The level choices design lane, 2026-11-21",
+      "idNote": "The id TAL-1 was given by the integrator. Chapter 10 names no call id."
     }
   ],
   "tylerAnswers": {
@@ -3980,7 +4027,7 @@
       "terms": "Test Crowns for the wiped Discord playtest only, the same amount for every account, one server switch that is off by default and removed before Early Access, every grant journalled."
     },
     "reversals": {
-      "stand": [
+      "letStandOnThePage": [
         2,
         3,
         4,
@@ -4001,31 +4048,36 @@
         22,
         23
       ],
-      "held": [
+      "heldOnThePageThenRuledAtTheSitting": [
         {
           "n": 1,
           "id": "GR-7",
-          "tfix": "T-fix-5"
+          "sitting": "S-5: ruled"
         },
         {
           "n": 13,
           "id": "GR-56a",
-          "tfix": "T-fix-3"
+          "sitting": "S-3: refused, slots stay priced"
         },
         {
           "n": 18,
           "id": "MM-18",
-          "tfix": "T-fix-1"
+          "sitting": "S-1: refused, on-call heroes stay"
         },
         {
           "n": 21,
           "id": "GR-69",
-          "tfix": "T-fix-2"
+          "sitting": "S-2: ruled"
         }
+      ],
+      "addedAtTheSitting": [
+        24,
+        25,
+        26
       ]
     },
     "cuts": {
-      "approved": [
+      "saidYesOnThePage": [
         9,
         10,
         11,
@@ -4034,19 +4086,24 @@
         15,
         16
       ],
-      "kept": [
+      "saidKeepOnThePage": [
         1,
-        5,
-        7,
         8
       ],
-      "held": [
-        2,
-        3,
-        4,
-        14,
-        6
-      ]
+      "ruledAtTheSitting": {
+        "cut": [
+          3,
+          4,
+          7
+        ],
+        "kept": [
+          2,
+          5,
+          6,
+          14
+        ]
+      },
+      "note": "Cut 7 is the rested bank. The two old kill ladders on the same line he kept on the page."
     },
     "earlyPicks": {
       "asRecommended": [
@@ -4082,10 +4139,6 @@
       {
         "id": "MM-36",
         "what": "Clamp 2, the price band, reads the players' own 7 day median. Before a median exists it has no seeded target price: the band is a wide floor and ceiling from a data row whose only job is to stop one Crown being used as a gold transfer."
-      },
-      {
-        "id": "MM-28",
-        "what": "\"One ceiling written in numbers\" now means the pace reading of MM-31 and nothing about gear. The check that the advantage is real and not broken is section 2.8 of chapter 04: market supply, the buff caps behind MM-31, the eight clamps of MM-36 and the places where paying gives no edge (MM-37)."
       }
     ],
     "decidedByFableAfter": [
@@ -4101,57 +4154,117 @@
       "MM-9"
     ],
     "plan": "Step A of the systems plan was not among the answers passed to this lane. It stays with the Coordinator.",
-    "rule": "A pick on the page is a real yes. It is printed as \"Tyler said yes on the page 2026-11-21\" and never as RULED, unless he wrote a note."
+    "rule": "A pick on the page is a real yes. It is printed as \"Tyler said yes on the page 2026-11-21\" and never as RULED, unless he wrote a note.",
+    "sitting": {
+      "when": "2026-11-21, 15:59 to 16:03 UTC",
+      "where": "docs/design/overhaul/review/01-sitting.md",
+      "why": "He saw every option's cost and no recommendation, so these are informed rulings.",
+      "answers": [
+        {
+          "q": "S-1",
+          "pick": "his own words",
+          "ruling": "On-call heroes are kept. \"on call is fine but should be full stamina, the on call hero trades their crafting/training time for a small cut of exp, no loss on death. HOWEVER they can only go on call once every 24 hours and it will only last for 12 hours. Then back to a chosen activity\"",
+          "rows": [
+            "MM-18",
+            "MM-19"
+          ],
+          "spec": "docs/design/overhaul/11-on-call-and-clan-xp.md, being written"
+        },
+        {
+          "q": "S-2",
+          "pick": "B",
+          "ruling": "No Local chat tab and no live party finder. Global, Clan, Party and whispers stay. Criers speak in Global and in town.",
+          "rows": [
+            "GR-69"
+          ]
+        },
+        {
+          "q": "S-3",
+          "pick": "A",
+          "ruling": "Setup slots are priced as ruled on 2026-11-05: three free, then 15,000 and 40,000 gold.",
+          "rows": [
+            "GR-56a"
+          ]
+        },
+        {
+          "q": "S-4",
+          "pick": "A",
+          "ruling": "A clan room pays a standing Level XP bonus. It reverses 25-2. Its size is owed by the design lane and is PROVISIONAL.",
+          "rows": [
+            "MM-9",
+            "MM-25",
+            "MM-26",
+            "GR-6",
+            "GR-6a"
+          ],
+          "spec": "docs/design/overhaul/11-on-call-and-clan-xp.md, being written"
+        },
+        {
+          "q": "S-5",
+          "pick": "B",
+          "ruling": "The Blessing ladder. The five hours stays PROVISIONAL until a real death rate exists.",
+          "rows": [
+            "GR-7"
+          ]
+        },
+        {
+          "q": "S-6",
+          "pick": "A",
+          "ruling": "Deadly is a tier you watch or gamble on, and idle players mostly use Dangerous. The lost hunting time is accepted: 18 to 31% on the 8 hour bar, 25 to 42% on the 12 hour bar.",
+          "rows": [
+            "CORE-1",
+            "MM-7"
+          ]
+        },
+        {
+          "q": "S-7",
+          "pick": "B",
+          "ruling": "The full castle is the direction: five buildings of ten levels, labor, upkeep, votes, a treasury, about a year. Sizes stay PROVISIONAL.",
+          "rows": [
+            "MM-9"
+          ]
+        },
+        {
+          "q": "S-8",
+          "pick": "A",
+          "ruling": "No ceiling on gear or gold bought through other players. Only structural limits remain. The buff caps stay.",
+          "rows": [
+            "MM-28",
+            "MM-31",
+            "MM-32"
+          ]
+        },
+        {
+          "q": "S-9",
+          "pick": "C",
+          "ruling": "The rested bank is cut.",
+          "rows": [
+            "GR-63"
+          ]
+        },
+        {
+          "q": "S-10",
+          "pick": "C",
+          "ruling": "Party XP by size alone for the first build. After Deadly is sized on the fixed tool, read which fours players run. The classes rule may come back as one row of the table.",
+          "rows": [
+            "GR-3"
+          ]
+        }
+      ]
+    }
   },
   "openForTyler": [
     {
-      "id": "T-fix-1",
-      "what": "On-call and hired heroes",
-      "conflict": "Cut 2 got a keep on the page, and reversal 18 (MM-18, no hired, lent or on-call heroes) asks for the same removal. The two picks point opposite ways.",
+      "id": "GR-25",
+      "what": "Five built special rules that were never put to him: gentle first grounds, the boss blow cap, three training bases, the roll rule and the tier flag",
+      "conflict": "The formula brief says a deliberate special rule needs his explicit approval.",
       "calls": [
-        "MM-18"
+        "GR-25"
       ],
-      "bookReads": "The book is written with no hired, lent or on-call heroes. If Tyler keeps them, ruling 25-1 and the on-call board of 25-3 stand and MM-18 is withdrawn."
-    },
-    {
-      "id": "T-fix-2",
-      "what": "The party finder and Local chat",
-      "conflict": "Cuts 3 and 4 got a keep on the page, and reversal 21 (GR-69) asks for the same removals.",
-      "calls": [
-        "GR-69"
-      ],
-      "bookReads": "The book is written with no Local tab and no live finder. If Tyler keeps them, the rulings of 2026-11-11 and 2026-10-15/16 stand."
-    },
-    {
-      "id": "T-fix-3",
-      "what": "Priced setup slots",
-      "conflict": "Cut 14 got a keep on the page, and reversal 13 (GR-56a, setup slots are free) asks for the same removal.",
-      "calls": [
-        "GR-56a"
-      ],
-      "bookReads": "The book is written with free Setups. If Tyler keeps the price, the rulings of 2026-11-05 and 2026-11-04 stand: three free, then priced."
-    },
-    {
-      "id": "T-fix-4",
-      "what": "The clan library and a Level XP room",
-      "conflict": "Cut 6 got a keep on the page, and ruling 25-2 says clans give no Level XP.",
-      "calls": [
-        "MM-9",
-        "MM-25"
-      ],
-      "bookReads": "The book is written with no library and no standing Level XP cap. The castle's fifth building is held for this answer."
-    },
-    {
-      "id": "T-fix-5",
-      "what": "The Blessing ladder against the capped death",
-      "conflict": "Reversal 1 (GR-7) adds Blessings past the third. Ruling 50-4 is 6% flat with no cap, with the 12 hour blessed cap turned down.",
-      "calls": [
-        "GR-7"
-      ],
-      "bookReads": "The book is written with the ladder. If Tyler refuses it, a death stays 6% flat with three Blessings, and Deadly past about Level 100 is sized knowing a blessed death costs many hours."
+      "bookReads": "The book is written with all five kept."
     }
   ],
-  "then": "Before any build plan: fix the measuring tool, one real sitting with Tyler of ten questions at most, play the first hour with four heroes, and build only the narrowed first build.",
+  "then": "Before any build plan: fix the measuring tool, play the first hour with four heroes, and build only the narrowed first build. The sitting is done.",
   "reissue": {
     "when": "2026-11-21",
     "why": "Tyler adopted the critical review (docs/design/overhaul/review/00-critical-review.md). Its step 5 is to re-issue the book with three honest words: decided, provisional, open.",
@@ -4160,7 +4273,7 @@
   "levelChoices": {
     "ruling": "Tyler, 2026-11-21. The 11-05 hold is lifted. A build choice every five Levels is designed now and built with the first build.",
     "supersedes": "GR-61, which put Kindlings on paper only",
-    "where": "docs/design/overhaul/10-level-choices.md, written by a design lane. This book points to it and does not design it."
+    "where": "docs/design/overhaul/10-level-choices.md, chapter 10, Talents. Its decision row is TAL-1."
   },
   "firstBuild": {
     "from": "docs/design/overhaul/review/00-critical-review.md section 4. Nothing is cut. What is outside it is planned and waits.",
@@ -4176,7 +4289,7 @@
       "The cheap social layer: presence, Global chat, clan roster, chat and browser, the calendar with the Hearthrise weekend",
       "One world boss as a sample of one. It is an ordinary four in an ordinary room plus one shared number"
     ],
-    "plus": "Level choices, a build choice every five Levels, by Tyler's ruling of 2026-11-21. See 10-level-choices.md.",
+    "plus": "Talents, a build choice every five Levels, by Tyler's ruling of 2026-11-21. The first build holds five tracks and the rank 3 unlocks. See 10-level-choices.md.",
     "waits": [
       {
         "what": "Both arenas, their seasons, tickets and gear line",
@@ -4199,12 +4312,8 @@
         "until": "Test Crowns have run in the playtest"
       },
       {
-        "what": "The Blessing ladder",
+        "what": "The Blessing ladder's five hours, as a final number",
         "until": "A real death rate exists"
-      },
-      {
-        "what": "The rested bank as a paying system",
-        "until": "Tyler has seen it. It is new"
       },
       {
         "what": "The sixteen Necrotic and Storm spells, fists, status pairs",
@@ -4217,7 +4326,20 @@
       {
         "what": "Sinks as a share of band gold, and the yard rate change",
         "until": "The wage can be measured. Until then the typed prices are no worse"
+      },
+      {
+        "what": "Talent unlock ranks 8 and up, tracks six to eight, and the arena build",
+        "until": "The sample of five tracks is played"
+      },
+      {
+        "what": "On-call heroes, and the clan Level XP room",
+        "until": "The spec in 11-on-call-and-clan-xp.md is written. Both are ruled and neither is designed in this book"
       }
     ]
+  },
+  "onCallAndClanXp": {
+    "where": "docs/design/overhaul/11-on-call-and-clan-xp.md",
+    "status": "Being written by a design lane. This book points to it and does not design it.",
+    "carries": "The on-call hero spec from S-1, and the size of the clan Level XP room from S-4."
   }
 }

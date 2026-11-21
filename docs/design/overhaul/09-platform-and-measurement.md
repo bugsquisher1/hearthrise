@@ -23,7 +23,7 @@ This chapter covers four things that every other chapter stands on:
 
 ---
 
-**The status words, re-issued 2026-11-21.** Tyler adopted the critical review (`review/00-critical-review.md`), and the book now uses three honest words. They replace the list above. **DECIDED** means evidence and rulings support it. Where Tyler also said yes on the page, the tag says so. **PROVISIONAL** means a reasonable plan that has not been tested, and the first tag in a chapter names what it waits on. **OPEN** means it waits on Tyler. **RULED** is kept only for what Tyler ruled knowing what it was: his typed words, his own executive decisions, and a pick where he wrote a note. A quick pick on the page is a real yes and reads "Tyler said yes on the page", never RULED. **PROPOSAL** marks a design made in the fold of 2026-11-21 that Tyler has not seen. CUT and KEPT record his picks on the cut list. The record is `decisions/all.json` and `00-the-game.md`.
+**The status words, re-issued 2026-11-21.** Tyler adopted the critical review (`review/00-critical-review.md`), and the book now uses three honest words. They replace the list above. **DECIDED** means evidence and rulings support it. Where Tyler also said yes on the page, the tag says so. **PROVISIONAL** means a reasonable plan that has not been tested, and the first tag in a chapter names what it waits on. **OPEN** means it waits on Tyler. **RULED** is kept only for what Tyler ruled knowing what it was: his typed words, his own executive decisions, and a pick where he wrote a note, and his answers at the sitting of 2026-11-21, where he saw every option's cost. A quick pick on the page is a real yes and reads "Tyler said yes on the page", never RULED. **PROPOSAL** marks a design made in the fold of 2026-11-21 that Tyler has not seen. CUT and KEPT record his picks on the cut list. The record is `decisions/all.json` and `00-the-game.md`.
 
 ## 1. The experience
 
@@ -181,7 +181,7 @@ Server changes in any step are staged, never applied by a lane, and the client h
 
 | Step | What it builds | Layer | Proof | Needs | Status |
 |---|---|---|---|---|---|
-| R1 | A tree with no rule that is written and does nothing | code | Identity. `dead-exports` | none | DECIDED (GR-85, Tyler said yes on the page 2026-11-21). The rested bank is not part of this step any more: it is KEPT (Tyler's pick on the page 2026-11-21) and pays (GR-63) |
+| R1 | A tree with no rule that is written and does nothing | code | Identity. `dead-exports` | none | DECIDED (GR-85, Tyler said yes on the page 2026-11-21). The rested bank is part of this step again: it is cut (GR-63, RULED at the sitting) |
 | R2 | The blow reads its named constants, and the wiki reads the same ones | formula | Identity. One test that the wiki's terms are the engine's, with a mutant | none | DECIDED (GR-85, Tyler said yes on the page 2026-11-21) |
 | R3 | One implementation of each rule: one spell roll, one rune ladder, one status row for a mark, one door for elements and phases, one death function in whole numbers in both runtimes | formula | Identity. The curves' parity test at 20 Levels | R2 | DECIDED (GR-85, Tyler said yes on the page 2026-11-21) |
 | R4 | A monster row stores its own blow as a whole number | formula, data | Identity. The combat replay | R2 | DECIDED (GR-85, Tyler said yes on the page 2026-11-21). An engine change, so it rides the one combat batch |
@@ -371,6 +371,8 @@ Whatever the cadence, three properties are fixed design and not open. RULED (CLA
 
 The 10,000 account budget of 24 seconds is met by an account that does not watch and missed by about a third by one that does, on the edge. The engine server closes it. The share of that bill that is not the database is OPEN after 48.
 
+**Talents.** PROVISIONAL (TAL-1, `10-level-choices.md`). ESTIMATED, not measured: no statement is added to a settle, because the allocation rides a read the settle already makes. Points earned are written inside a write that already happens, once every five Levels for a hero. Storage is one small row a hero, and the intents are a few a week for an account. UNKNOWN until the backend lane confirms the Tempering seam can carry it. The census should count `src/core/talents.js` when it exists.
+
 #### 2.3.5 The cost envelope for world bosses, clans, events and arenas
 
 Rule 0 of the MMO layer is that every shared feature works while both players are asleep (PROVISIONAL, MM-1, waits on a playtest that shows whether players ask for what was removed, Tyler said yes on the page). That rule is also the cost rule: no part needs two people at the screen in the same minute, so no part needs a live connection between players.
@@ -454,7 +456,7 @@ Levels past 185 are PROJECTED on placeholder grounds and a projected gear line, 
 
 - Band S11, XP after deaths, so a change to a death rule can never pass silently. Built in the instrument.
 - Band rows on the ground axis, so a ground patch moves a band and is not read by hand.
-- The four lineup cells, printed for reading only. No lineup is asked to fail (GR-3, his pick on the page: the lineup test is out).
+- The four lineup cells, printed for reading only. No lineup is asked to fail (GR-3, ruled at the sitting: the lineup test is out).
 - A band's mode moves one way. It starts in report. It turns red in the lane that lands the change it guards, and never goes back (`50-standards.md` 5.4).
 - The registers are guarded in CI (step V5).
 
@@ -466,7 +468,7 @@ Levels past 185 are PROJECTED on placeholder grounds and a projected gear line, 
 |---|---|---|---|
 | `combat-3` | Magic adds 0.5% max mana a level for every hero | PASS. 19 improved, 0 unintended | DECIDED (GR-22, Fable 2026-11-21) |
 | `economy-1` | The store's heal prices on one line | PASS. 15 improved, 0 unintended | DECIDED (GR-52, Fable 2026-11-21) |
-| `progression-3-rested-off` | No rested bank | An identity in 207 cells. Kept as evidence only: the bank stays and pays hours a hero missed, which the pace seat never has | KEPT (Tyler's pick on the page 2026-11-21), GR-63 |
+| `progression-3-rested-off` | No rested bank | An identity in 207 cells | CUT. RULED (GR-63, Tyler 2026-11-21, the sitting) |
 | `combat-1`, `combat-4`, `combat-5` | Axes read the sword's weak side, and a physical strike reads weapon weakness | Small, at most 3.5% on one way | DECIDED (GR-12, GR-14, Fable 2026-11-21) |
 | `world-2b-dangerous-five` | Dangerous brings five | Holds at the dial it was played on. Not yet played at the harder dial ruled on 2026-11-20 | PROVISIONAL shape only (GR-27, Tyler said yes on the page) |
 | `world-3-slake-signature` | A ground signature at double dose | Bites small parties first on the harder tiers | A sample for chapter 02 |
@@ -475,6 +477,14 @@ Levels past 185 are PROJECTED on placeholder grounds and a projected gear line, 
 | `progression-1-level-law` | A trial power-law curve | Withdrawn. To be re-cut on the ruled table when the kill reward lands | GR-6 |
 | `progression-2-fourth-blessing` | The death share halved | Moved no band, which is how band S11 came to exist | GR-7 |
 | `world-1-one-fit` | The party-ground formula removed | Refuted the cause it tested | GR-5 |
+
+**What Talents add to the matrix.** PROVISIONAL (TAL-1, `10-level-choices.md`). From `10-level-choices.md` section 8, for the simulator lane to add beside its fixes to the death rule, the store bill and the seats.
+
+- Six knobs in `knobs.json`: `talentEvery`, `talentHalf`, `talentPower`, `talentUnlockSize`, `talentResetHours` and `talentFreeResetLevel`.
+- One data file of tracks, and one suggested build for each harness way. The suggested build is on in every cell of every run.
+- A build block: the suggested build, A all Force, B the built holder, C empty and D all safety, on the lone ways and the standard four in mid gear at Levels 25, 60, 110, 185 and 400. It is a small block beside the lineup block and not a new axis.
+- Four bands in `standards.mjs`, all PROVISIONAL. TL1: the fastest build over the suggested build is at most 1.05 in Level XP an hour, red over 1.08. TL2: the empty build reads 0.90 to 0.97 of the suggested one. TL3: build D on Deadly in mid gear never reads under 30 deaths in 1,000 hours. TL4: at least two builds within 3% of the best for each way.
+- One row in `proposals.json`: Talents, playable for four stat lines, not modelled for Linger and the unlocks.
 
 #### 2.4.3 The 108 bands, and which can be judged
 
@@ -707,7 +717,7 @@ Testing the Crowns loop in a free, wiped playtest means every account receives t
 | 14 | **Account deletion** | A deleted hero leaves account-owned rows with the account. A held name, a clan it leads and a market escrow are each resolved | Staged. RULED to apply before Early Access (28) |
 | 15 | **The play cap** | Four heroes an account and four a hashed network. One account a player is declared and enforced by the economy clamps above, so every surface in this table is reviewed assuming a player can run a second account | RULED 2026-11-20 (28-8) |
 
-Hired and on-call heroes are not in the game (OPEN, MM-18, waiting on Tyler, T-fix-1), so no hero-lending trade surface is in scope. PvP on the hunting grounds is never built (DECIDED, MM-17, Fable 2026-11-21), so no surface exists there.
+On-call heroes are kept (RULED, MM-18, Tyler 2026-11-21, the sitting), so one account's hero earning inside another account's hunt is a server-owned surface the one Security review must cover. Its spec is `11-on-call-and-clan-xp.md`, being written. PvP on the hunting grounds is never built (DECIDED, MM-17, Fable 2026-11-21), so no surface exists there.
 
 **Order inside the review.** DECIDED (no call id, Fable 2026-11-21, and the security engineer may reorder it): surfaces 1 to 3 are reviewed as one bundle, because the ceiling is only as strong as its weakest clamp. Surface 4 comes before them, because the Crowns book reuses the market's caps. No Crowns surface is armed for anyone until its Security GO and until check A6 is green.
 
@@ -750,7 +760,7 @@ In decision-book order. Each line is the call and the decision this chapter take
 | GR-25 | Nine special rules with no ruling on record | Approve as the formula audit recommends, each by name | OPEN (waiting on Tyler). Tyler's explicit approval. The formula brief says a deliberate special rule needs it, and these five were never put to him. |
 | GR-36 | The Tower and Catacombs party table | They take the one party table | PROVISIONAL. Waits on Deadly sized, and the system built |
 | GR-51, GR-52 | The wage curve and the store's healing | Prices in hours of a wage the server computes. One gold-a-hit-point line, after fault F5 closes. F5's kit rule is decided in GR-52: one rune tier under what Magic allows for mid gear, and the cheapest water rune for a healer | GR-51: PROVISIONAL. Waits on the store-bill fault fixed and a wage formula that exists. GR-52: DECIDED (Fable 2026-11-21) |
-| GR-63 | The rested bank and the old kill ladders | Kept. The bank pays hours a hero missed, as one number a hero with no statement on the settle. The ladders read the one kill count | PROPOSAL. Made in the fold 2026-11-21, not yet seen by Tyler |
+| GR-63 | The rested bank and the old kill ladders | The rested bank is cut. The ladders reading the one kill count is a PROPOSAL | RULED (Tyler, 2026-11-21, the sitting) for the cut |
 | GR-70 | The town draws heroes at work | Yes, inside the cost budget. Study 48 did not size the drawn bodies, so the fallback of GR-70 stands until it is sized | PROVISIONAL. Waits on the playtest or measurement its own row names |
 | GR-86 | The later engine steps | One amount pipeline with a trace, one modifier table, every monster on the formula | PROVISIONAL. Waits on the playtest or measurement its own row names |
 | GR-87 | Drops and sales | Drops authored in hours. One sale formula | DECIDED (Fable 2026-11-21) |
@@ -779,7 +789,7 @@ In decision-book order. Each line is the call and the decision this chapter take
 | 10 | **The Lab's proposal set.** Not every recommended proposal exists as a patch file, and the model steps cannot be toggled until they are staged | The dashboard lane |
 | 11 | **The hunt tally's three fields.** Lowest health, tier and gear tier worn. Survival cannot be calibrated without the first | Systems, in the build plan |
 | 12 | **Test Crowns in the playtest (MM-43).** An equal weekly grant to every account is still a grant. Without it the Crowns rows of table B cannot be read before launch | Closed. Tyler said yes on the page (MM-43), for the wiped Discord playtest only |
-| 13 | **Whether a watched four of four people on four accounts changes the save design.** Study 49 says a party is an account's own heroes, so the case may not exist | Partly answered by study 48. A member open in a client costs one frame of 18 ms a save (REAL), so a four watched from four accounts adds three frames a save and does not change the save design. No fixture has played it. MM-18 is OPEN (T-fix-1), so the case exists only if hired heroes stay. Owner: the reliability engineer |
+| 13 | **Whether a watched four of four people on four accounts changes the save design.** Study 49 says a party is an account's own heroes, so the case may not exist | Partly answered by study 48. A member open in a client costs one frame of 18 ms a save (REAL), so a four watched from four accounts adds three frames a save and does not change the save design. No fixture has played it. On-call heroes are kept (MM-18, ruled at the sitting), so a hero from another account can join again and the case exists. It needs a fixture. Owner: the reliability engineer |
 | 14 | **Content authoring pace against the runway, timed.** Every ground, band, boss and recipe family ends its lane with its working hours (RULED 28-12). No lane has yet said who draws regions or how fast | The art and asset directors, then Tyler |
 | 15 | **The build plan's unit.** The plan of record is written in lanes and waves for a beta. It is re-issued once the calls are ruled, in the order of section 2.2 | The Coordinator, after the rulings |
 
@@ -839,7 +849,7 @@ In decision-book order. Each line is the call and the decision this chapter take
 | The inventory's counts of what exists in the existing game, the list of worst violations and the list of Levels where its formulas break (`44` sections 1 and 2.2) | This book describes the game we are building. The model keeps the 107 formulas and the four classes |
 | "11 steps fit the 0.2.144 beta" as a release split (`44` section 7) | Decisions first and no build lanes until a build plan exists, RULED 2026-11-21. The order of the steps stands. The release each lands in is the build plan's call |
 | Harness faults V1, V2 and V4 listed as open (`44` section 6.1), and "the grid's four kills 558 an hour" | Fixed and proven in `51-baseline.md`. The 558 was the solver's table, not the grid |
-| Hired and on-call heroes as a Security surface (`28` section 7, `60` section 10.4) | Not in the game (MM-18, OPEN, waiting on Tyler, T-fix-1) |
+| "Hired and on-call heroes are not in the game", which this book was written on | In the game again: on-call heroes are kept (RULED, MM-18, Tyler 2026-11-21, the sitting). The surface goes into the one Security review |
 | Honors-only, no-power rewards for the MMO layer, and a single normalized arena (`49` first issue) | Rewards are buffs and gear, and there are two arenas, RULED 2026-11-21 |
 | "No limit on how much sooner" for bought gold with no stated ceiling (`50` call 11) | Crowns give real advantages that are not broken, RULED 2026-11-21. The ceiling of MM-31 to MM-33 states it |
 | Staged cohorts and soaks as a way to open a channel | Arm for everyone after the Security GO and prove scale with synthetic load (CLAUDE.md section 3.3b) |

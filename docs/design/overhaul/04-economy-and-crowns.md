@@ -17,7 +17,7 @@ Chapter 04 of "Hearthrise: the game we are building". Game designer, 2026-11-21,
 
 ---
 
-**The status words, re-issued 2026-11-21.** Tyler adopted the critical review (`review/00-critical-review.md`), and the book now uses three honest words. They replace the list above. **DECIDED** means evidence and rulings support it. Where Tyler also said yes on the page, the tag says so. **PROVISIONAL** means a reasonable plan that has not been tested, and the first tag in a chapter names what it waits on. **OPEN** means it waits on Tyler. **RULED** is kept only for what Tyler ruled knowing what it was: his typed words, his own executive decisions, and a pick where he wrote a note. A quick pick on the page is a real yes and reads "Tyler said yes on the page", never RULED. **PROPOSAL** marks a design made in the fold of 2026-11-21 that Tyler has not seen. CUT and KEPT record his picks on the cut list. The record is `decisions/all.json` and `00-the-game.md`.
+**The status words, re-issued 2026-11-21.** Tyler adopted the critical review (`review/00-critical-review.md`), and the book now uses three honest words. They replace the list above. **DECIDED** means evidence and rulings support it. Where Tyler also said yes on the page, the tag says so. **PROVISIONAL** means a reasonable plan that has not been tested, and the first tag in a chapter names what it waits on. **OPEN** means it waits on Tyler. **RULED** is kept only for what Tyler ruled knowing what it was: his typed words, his own executive decisions, and a pick where he wrote a note, and his answers at the sitting of 2026-11-21, where he saw every option's cost. A quick pick on the page is a real yes and reads "Tyler said yes on the page", never RULED. **PROPOSAL** marks a design made in the fold of 2026-11-21 that Tyler has not seen. CUT and KEPT record his picks on the cut list. The record is `decisions/all.json` and `00-the-game.md`.
 
 ## 1. The experience
 
@@ -128,7 +128,7 @@ That table is the answer to "early prices sized for an account of four". PROVISI
 | Training items | Double the yard's rate for their hours. Sold for gold and tradeable, or for Crowns and bound | | RULED 2026-11-14 |
 | Bench tax | 15% of the output's Shop bid on each job, until the House room for that bench is bought | 15% | RULED 2026-11-01. DECIDED, GR-56b, Fable 2026-11-21: it stays exactly as ruled and gets no wage row. The Shop bid already comes from the one sale formula. The screen may show it in hours |
 | A scaled hunt hour | An hourly fee to hunt an old ground at your own Level, on the wage curve | The fee is one data row and can go to zero. Frontier use is read for two weeks. Buying hours is a standing rule ("keep N hours banked for this ground"), never a purchase repeated by hand | PROVISIONAL, GR-9, waits on the playtest or measurement its own row names (chapter 02) |
-| Setup slots | Free. A saved setup is a remembered decision and is never sold | 0 | OPEN, GR-56a, waiting on Tyler, T-fix-3. It re-opens 11-05 |
+| Setup slots | Three free for a hero, then 15,000 and 40,000 gold | 55,000 a hero, 220,000 for four | RULED (GR-56a, Tyler 2026-11-21, the sitting): priced, as he ruled on 2026-11-05 |
 | Rename, hero colors | Hours on the wage curve | Small buys, under 1 account-day. TARGET | PROVISIONAL, GR-51 |
 | The Town Crier, a Round, flame powders, titles | Being seen in town. Price rows that climb with each use in a day | | RULED 2026-11-04. Their merge into one Great Hearth is GR-82, chapter 07 |
 | Bag rungs, Storage chests, the Key Ring | Room. Typed ladders, judged by band G-8 | | RULED 2026-10-22 (Storage grows with gold) |
@@ -259,6 +259,7 @@ PROVISIONAL, GR-8, CE-4 and MM-22, Tyler said yes on the page, reversal, let sta
 | 3 | Linings | The first band whose ground has an element to guard against. TARGET: the second gear band | The first repeating gold-for-power. Sized inside the ruled 48 hour cap |
 | 4 | The House dummy rungs | When the yard fee starts to bite, by skill band | It converts a repeating fee into one large purchase, priced at 25 to 50 hours of the fee it ends |
 | 5 | The clan castle | When clans open (chapter 06) | Shared work, standing buffs under one cap. Sized below |
+| 7 | The talent reset | Level 30, when a reset stops being free | PROVISIONAL (TAL-1, `10-level-choices.md`). Priced in hours of the hero's own wage (`talentResetHours`, opening at 3), with no gold number until the wage formula of R15 exists. It is not a Crowns surface. Premium gives nothing here, and the store sells no points and no resets |
 | 6 | Boss and arena upgrade materials, bought from players | When the first world boss stands | The gold moves to the player who earned the material, and 5% burns on the way |
 
 The yard fee ships before linings (RULED 2026-11-20, 24-12). The first week's order is PROVISIONAL (CE-4) in section 2.10. Its sizes are PROVISIONAL (CE-5, Tyler said yes on the page, reversal of the gold numbers of 26-3 and 26-1, let stand on the page) and are a HYPOTHESIS.
@@ -315,7 +316,7 @@ The market is the Weighhouse. PROVISIONAL, GR-50. It is a big bet and it rests o
 
 **Tyler's rule.** "This game needs a model where buying crowns and selling for gold WILL provide advantages. Just not broken af ones." (RULED 2026-11-21.) And the intent behind it: "I plan on making money in this game by people buying premium, and people buying crowns to sell to other players for gold. I don't want to cripple people so that the only way they can progress is by paying to win, however, I do want whales to pay for gold so they can have an 'edge'." (RULED 2026-11-18.)
 
-**The rule of the design.** MM-28, in Tyler's own words on MM-32: "paying can put a hero way ahead, it depends on what is on the player market". Paying gives a real edge that can be felt. There is no ceiling that nobody passes. A player who does not pay can reach the same things with gold, as far as the market holds them. PROVISIONAL (MM-28): it waits on test Crowns run in a playtest and on the Security review, and money stays Tyler's.
+**The rule of the design.** MM-28, in Tyler's own words on MM-32: "paying can put a hero way ahead, it depends on what is on the player market". Paying gives a real edge that can be felt. There is no ceiling that nobody passes. A player who does not pay can reach the same things with gold, as far as the market holds them. RULED (MM-28 and MM-32, Tyler 2026-11-21, the sitting): the game promises no ceiling on gear or gold bought through other players. The limits that remain are structural: gear is worn by Level, the store sells no gear, and an account may sell only so many Crowns a week. The buff caps stay.
 
 **When it comes.** The Crowns engine runs on its own book and does not wait for the market, because Crowns buy Premium, looks and comfort and those need no market (MM-28 to MM-37, which supersede GR-60).
 
@@ -350,7 +351,7 @@ No gold is created by money and no gear is created by the store.
 
 **The drop chance boost is not sold.** DECIDED (CE-3, Fable 2026-11-21). Study 49 put a drop chance boost in the store. Tyler bound Luck on 2026-11-20 ("Ok nvm let's bind it") for one reason: so that neither gold nor Crowns could buy Magic Find. A boost that raises drop chance for Crowns is the same thing by another door, and because Crowns trade for gold it would let gold buy it too. So the store sells no drop chance boost. The +10% timed row of the buff caps stays in the game as material find (CE-2). It adds to rows tagged as materials and never touches a Rare, a gear row, a key or a seed. It is earned only, from bosses, clans, arenas and events (`06-mmo-layer.md`, section 2.2). The paid ceiling does not move, because the pace number never used the drop row. The cost is one less thing to sell. The gain is that the gear chase cannot be bought at either end.
 
-**One overlap resolved.** Study 49 lists "more saved setups" and "more bag and storage" as Crowns comfort. Saved setups are free in this book (GR-56a), because a remembered decision is never sold. Whether slots past three stay priced is OPEN, waiting on Tyler (T-fix-3). Bag rungs and Storage chests are gold sinks (RULED 2026-10-22) and stay gold. Crowns comfort is market listings only, and Premium banks arena tickets.
+**One overlap resolved.** Study 49 lists "more saved setups" and "more bag and storage" as Crowns comfort. Saved setups are sold for gold and never for Crowns: three free, then 15,000 and 40,000 gold (RULED, GR-56a, Tyler 2026-11-21, the sitting). Bag rungs and Storage chests are gold sinks (RULED 2026-10-22) and stay gold. Crowns comfort is market listings only, and Premium banks arena tickets.
 
 **The buff caps the boosts live under.** PROVISIONAL, MM-24 and MM-25. Chapter 06 owns the table. It is repeated here because it is the ceiling of everything bought.
 
@@ -358,7 +359,7 @@ No gold is created by money and no gear is created by the store.
 |---|---|---|
 | Damage dealt | +5% | +10% |
 | Protection, as Defense rating rows (CORE-4) | about 5% less damage an hour | about 5% less damage an hour |
-| Level XP | none | +25%, from the Hearthrise weekend only. Never sold |
+| Level XP | A clan room pays a standing bonus (RULED at the sitting, which reverses 25-2). Its size is PROVISIONAL and owed by the design lane | +25%, from the Hearthrise weekend only. Never sold |
 | Material find (CE-2) | none | +10%, earned only. Never sold |
 | Coin from kills | none | none |
 | Town work speed | +10% | none |
@@ -369,12 +370,12 @@ On gear (MM-32): "paying can put a hero way ahead, it depends on what is on the 
 
 On the price of Premium in gold (MM-34): "this depends on the crown price, we don't set it, the players do".
 
-So the design has no gear ceiling and no gold price target. What keeps the advantage from being broken is four things, and the check below is PROVISIONAL. It was written in the fold of 2026-11-21 after his two "no" answers and he has not seen it. Money stays his.
+So the design has no gear ceiling and no gold price target. What keeps the advantage from being broken is four things, and at the sitting he ruled the promise: no ceiling, only structural limits. The table below lists them. The buff reading in it stays PROVISIONAL until one buff is played in a cell.
 
 | Guard | What it bounds | How | Status |
 |---|---|---|---|
 | Market supply | Gear | Every piece a payer buys was dropped or made by a player. The store has no row for gear, materials, gold, Levels or rating. A payer can be way ahead of a player who buys nothing, and never ahead of what players have found. A piece still needs the hero Level it is gated on (RULED 2026-10-24) | RULED, MM-32, Tyler 2026-11-21, his own note |
-| The buff caps | Pace from buffs and boosts | With every cap full a four gains at most 65% more Levels an hour than the same four in mid gear with no buffs, and 32% more kills an hour. COMPUTED: best gear 1.15 x both damage caps 1.15 x timed Level XP 1.25 = 1.65. Nobody holds it outside a Hearthrise weekend, because no Level XP boost is sold. It is one reading held by a test, never a new limit, and chapter 06 quotes the same numbers (MM-26) | PROVISIONAL, MM-31, waits on one buff played in a cell, Tyler said yes on the page. It keeps 50-11 |
+| The buff caps | Pace from buffs and boosts | With every cap full a four gains at most 65% more Levels an hour than the same four in mid gear with no buffs, and 32% more kills an hour. COMPUTED: best gear 1.15 x both damage caps 1.15 x timed Level XP 1.25 = 1.65. Nobody holds it outside a Hearthrise weekend, because no Level XP boost is sold. It is one reading held by a test, never a new limit, and chapter 06 quotes the same numbers (MM-26). With a clan Level XP room it rises, to about 1.73 at +5%, which is PROVISIONAL and waits on the clan XP size | PROVISIONAL, MM-31, waits on one buff played in a cell, Tyler said yes on the page. It keeps 50-11 |
 | The eight clamps | Gold moved by Crowns | The weekly cap, the price band, one trade then bound, the hold, the Level door and the daily caps, the boost catalog, the store with no power rows, and the journal | PROVISIONAL, MM-36 and MM-33, Tyler said yes on the page |
 | Where paying gives no edge | Fair places | The Even Arena, events, and access to any Level, ground, drop or tier | PROVISIONAL, MM-37, waits on test Crowns run in a playtest, and the Security review, Tyler said yes on the page |
 
@@ -517,7 +518,7 @@ This section is new design. No source covered it. The order is PROVISIONAL (CE-4
 
 **Newcomers on an old server.** Inflation hurts a newcomer only if veterans need nothing a newcomer makes. The design gives veterans reasons to buy from low bands: linings need one monster part from the ground that drops it, old grounds can be hunted at your own Level and still drop their parts (GR-9), and salts and staples are wanted at every tier. A rich server then pays its newcomers.
 
-**The self-raising sink, built later.** One scarce, visible, shared thing whose price is a bid of burned gold, such as castle tenure for a month. A bid is the only price that rises by itself as a server gets richer. It needs hundreds of players. It stays in the plan, hidden until the population exists (RULED 2026-11-21: nothing planned is cut). It waits for the castle (PROPOSAL, MM-9, made in the fold 2026-11-21, not yet seen by Tyler).
+**The self-raising sink, built later.** One scarce, visible, shared thing whose price is a bid of burned gold, such as castle tenure for a month. A bid is the only price that rises by itself as a server gets richer. It needs hundreds of players. It stays in the plan, hidden until the population exists (RULED 2026-11-21: nothing planned is cut). It waits for the castle (RULED in direction, MM-9, Tyler 2026-11-21, the sitting, with every size PROVISIONAL).
 
 **At 10 players and at 10,000.** At 10 there is no market depth, so the Shop is floor and ceiling, and standing orders are the only trade that works between two players who are never on together. At 10,000 there are several hundred thin books carried by the suggested price, the daily caps bind real traders, and the Crowns book's 5% becomes the largest trade sink. HYPOTHESIS at both sizes until the gauge reads a live server.
 
@@ -571,7 +572,7 @@ In decision-book order. Each line is the decision.
 | GR-8 | Sinks that follow the gear, and the hole the slots left | Tempering, Hallmarks and linings cost a share of a band's gold, 1.2 to 1.4 of what the band earns. The slot gold follows the order of CE-4 first, then the castle | PROVISIONAL. Waits on the store-bill fault fixed and a wage formula that exists. Tyler said yes on the page 2026-11-21. It changes The typed prices kept on 2026-11-18 (Hallmarks 150k, 250k, 400k, 600k), which he let stand on the page |
 | MM-24 | How rewards are sized | Every buff and bought boost is a row in one modifier table | PROVISIONAL. Waits on one buff played in a cell |
 | MM-25 | The buff caps | Damage +5% standing and +10% timed. Protection as Defense rating rows worth about 5% and 5% less damage an hour. Level XP +25% timed only, from the Hearthrise weekend. Material find +10% timed, earned only. Town work +10%. No coin buff | PROVISIONAL. Waits on one buff played in a cell |
-| MM-28 | The paid advantage | Paying gives a real edge under a written ceiling | PROVISIONAL. Waits on test Crowns run in a playtest, and the Security review. Money stays Tyler's. The clause re-derived after his two "no" answers was never put to him.. Tyler said yes on the page 2026-11-21 |
+| MM-28 | The paid advantage | Paying gives a real edge. No ceiling on gear or gold bought through other players. Only structural limits remain, and the buff caps stay | RULED (Tyler, 2026-11-21, the sitting) |
 | MM-29 | What the store sells for Crowns | Crowns buy Premium, looks and comfort. Two timed boosts, damage +6% and protection of about 3%, are sold for gold in 1 day and 7 day sizes, priced on the wage curve and burned. HYPOTHESIS. Sold for Crowns they would be reversal 24 | PROVISIONAL. Waits on one buff played in a cell. Tyler said yes on the page 2026-11-21 |
 | MM-30 | Bought boosts and earned buffs | The same rows, the same caps, one bought boost on a knob at a time | PROVISIONAL. Waits on one buff played in a cell. Tyler said yes on the page 2026-11-21 |
 | MM-31 | The pace ceiling | Keep ruling 50-11. Record the same reading as MM-26: 1.65 with every cap full, about 1.22 from paying alone | PROVISIONAL. Waits on one buff played in a cell. The clause re-derived after his two "no" answers was never put to him.. Tyler said yes on the page 2026-11-21 |
@@ -591,7 +592,7 @@ In decision-book order. Each line is the decision.
 | GR-51 | Prices | Every repeating price is hours of one wage curve the server computes, read on a hero of a mid-geared four. The House stays typed | PROVISIONAL. Waits on the store-bill fault fixed and a wage formula that exists |
 | GR-54 | The yard's rate | Follows the skill curve, never past half of hunting, and the fee follows the rate. It re-opens 11-14 and two rulings of 11-20 | PROVISIONAL. Waits on the store-bill fault fixed and a wage formula that exists. Tyler said yes on the page 2026-11-21. It changes 2026-11-14, and 21-7 and A-5 of 2026-11-20, which he let stand on the page |
 | GR-55 | When the market opens | Day one. It re-opens 24-7 | PROVISIONAL. Waits on the store-bill fault fixed and a wage formula that exists. Tyler said yes on the page 2026-11-21. It changes 24-7 of 2026-11-20, which he let stand on the page |
-| GR-56a | Setup slots | Setup slots are free | OPEN (waiting on Tyler, T-fix-3) |
+| GR-56a | Setup slots | Priced as ruled on 2026-11-05: three free, then 15,000 and 40,000 gold | RULED (Tyler, 2026-11-21, the sitting) |
 | GR-66 | The risk reading | Free for everyone, never Premium | PROVISIONAL. Waits on the playtest or measurement its own row names. Tyler said yes on the page 2026-11-21 |
 | MM-21 | Premium and the shared world | Everything is open to all. Premium banks arena tickets to 30. It does not make timed buffs last longer | DECIDED. Tyler said yes on the page 2026-11-21 |
 | MM-22 | Where the slot gold goes | The slot gold follows the order of CE-4 in the first weeks. The castle is its long home. Boss and arena materials are a small home | PROVISIONAL. Waits on the store-bill fault fixed and a wage formula that exists |
@@ -617,7 +618,7 @@ In decision-book order. Each line is the decision.
 
 ---
 
-**Cuts in this chapter.** OPEN (waiting on Tyler, T-fix-3), cut list 14: the priced setup slots (GR-56a). KEPT (Tyler's pick on the page 2026-11-21), cut list 8: the farm's soil tiers and water button stay, so the built sink of 130,500 gold stays, re-read in account-days (GR-74, chapter 07).
+**Cuts in this chapter.** KEPT, RULED at the sitting, cut list 14: the priced setup slots stay (GR-56a). KEPT (Tyler's pick on the page 2026-11-21), cut list 8: the farm's soil tiers and water button stay, so the built sink of 130,500 gold stays, re-read in account-days (GR-74, chapter 07).
 
 ## 5. Still missing
 
@@ -632,9 +633,9 @@ Decisions or designs nobody has made yet in this area.
 | 5 | **The boost catalog.** The rows, their sizes inside each timed cap, and how a 1 day and a 7 day boost combine with an earned buff that is already filling the cap | PROVISIONAL (MM-29 and MM-30, Tyler said yes on the page): two boosts sold for gold, damage +6% and protection of about 3%, in 1 day and 7 day sizes, one bought boost on a knob at a time. Still owed: their gold prices on the wage curve, by the game designer | Study 49 names the knobs and the caps, not the rows |
 | 6 | **A price line for store runes and ammunition.** A party's store bill is runes and arrows, and no formula step owns their price. R14 covers healing only | Closed. GR-52: one price line each for store runes and ammunition, read on the wage curve, and the kit rule for fault F5 | Decision book, "which rune tier the simulated kit buys" |
 | 7 | **The base hours of a stamina refill** | GR-58, after fault F5 closes | |
-| 8 | **The Blessing share, and the ladder past the third Blessing** | GR-7 is OPEN, waiting on Tyler (T-fix-5). The share is sized on the long death sample |
+| 8 | **The Blessing share, and the ladder past the third Blessing** | GR-7 is RULED (Tyler 2026-11-21, the sitting). The share is sized on the long death sample |
 | 9 | **The wage for a four of mixed Levels.** Section 2.3 reads each hero's own Level for hero prices and the highest for account prices. The group share inside the wage for a mixed four follows the two thirds line (MM-19) and is not written | The game designer, after MM-19 | |
-| 10 | **The castle's cost.** Section 2.6 gives TARGET sizes for the weekly share and a stage. Neither has a measurement, and the rooms and stages wait on MM-9 | MM-9 is a PROPOSAL Tyler has not seen. Still owed: the sizes of `castleStagePerMember` and `clanWeeklyShare`, and of upkeep and labor, by the game designer |
+| 10 | **The castle's cost.** Section 2.6 gives TARGET sizes for the weekly share and a stage. Neither has a measurement, and the rooms and stages wait on MM-9 | MM-9 is RULED in direction at the sitting, the full castle. Still owed: the sizes of `castleStagePerMember` and `clanWeeklyShare`, and of upkeep and labor, by the game designer |
 | 11 | **Whether the Level law is the clock of a plain four or a buffed one.** A payer at the ceiling levels 60% faster, and a fully buffed four 72% faster, so content computed to last 120 days on the table ends sooner for them | Closed. GR-6a: the plain four. One ceiling of 1.65 with every cap full, and about 1.22 from paying alone | Decision book |
 | 12 | **Security questions on the Crowns book.** Whether gold paid for Crowns counts against the market's daily caps (it should). What a refund does to Premium time already used. The number of hold days. Steam's wallet rules for a currency players trade | The security engineer, then Tyler | Study 24 Q8 |
 | 13 | **The daily caps against dear items.** A piece priced over the daily spend cap can never be bought. Either the caps rise with the buyer's Level or no ceiling may pass the cap | The security engineer | Study 24 Q9 |
@@ -731,7 +732,7 @@ What this chapter dropped from its sources, and why.
 | "At most 2 times faster to best gear" | 50 call 11 as first written | Tyler ruled the alternative. MM-31 to MM-33 are the new proposal |
 | Premium for each hero | Ruling of 10-17 | RULED 2026-11-21 and 24-3: one for each account |
 | A drop chance boost sold in the Crowns store | 49 section 5.9, MM-29 as written | RULED 2026-11-20: Luck is bound so gold and Crowns cannot buy Magic Find. The drop row is earned only. Chapter 06 recommends the same |
-| "More saved setups" and "more bag and storage" as Crowns comfort | 49 section 5.9 | A remembered decision is never sold (GR-56a), and room is a gold sink (RULED 2026-10-22) |
+| "More saved setups" and "more bag and storage" as Crowns comfort | 49 section 5.9 | Setups are a gold sink, three free and then priced (GR-56a, ruled at the sitting), and room is a gold sink (RULED 2026-10-22) |
 | MMO rewards as honors only, with nothing for Premium and no hero power from clans | 49 first issue | RULED 2026-11-21: rewards are buffs and gear |
 | Every number that compared a proposal with the live game, and every week count at 3.3 hunted hours a day | 24, 43, 55 | RULED 2026-11-21: the current game is irrelevant, and every player hunts 12 hours a day |
 | Gold bands judged on a lone mid hero | 50 G-1, G-10, E4 as written | No party-size targets. The bands keep their numbers and are read on a hero of the four |

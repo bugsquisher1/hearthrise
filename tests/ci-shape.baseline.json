@@ -219,6 +219,7 @@
     "node tests/balance-guard.mjs": "economy-selftests",
     "node tools/mutant-gate.mjs node tests/balance-guard.mjs --selftest": "economy-selftests",
     "node tools/mutant-gate.mjs node tools/balance-program/paths.mjs --selftest": "economy-selftests",
+    "node tools/mutant-gate.mjs node tools/balance-program/progression-grid.mjs --selftest": "economy-selftests",
     "node tools/mutant-gate.mjs node tools/balance-program/sources.mjs --selftest": "economy-selftests",
     "node tests/party-flow.mjs": "db-replay-15",
     "node tools/mutant-gate.mjs node tests/party-flow.mjs --mutate": "db-replay-15",

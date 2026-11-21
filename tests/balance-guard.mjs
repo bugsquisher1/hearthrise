@@ -11,6 +11,8 @@
 //                                                engine) and proves each turns its OWN line red and no other
 //   node tests/balance-guard.mjs --write --why "<what moved and why>"   re-writes tests/balance-guard.baseline.json
 //   --json <file>  every number it read; --workers N  worker processes (default: the cores, at most 4)
+//   After its lines it prints THE STANDARDS: every band of tools/balance-program/standards.mjs judged on the progression grid's cached cells
+//   (tools/balance-program/progression-grid.json, played nightly by progression-grid.mjs; grid-derive.mjs judges). Report mode: never an exit, nothing played here.
 //
 // mutant-anchors: none — every --selftest plant transforms the measured inputs, a loaded module's copy or an engine row inside a
 // worker (worker.mjs whatIf), never a file
@@ -629,6 +631,25 @@ async function selftest(workers) {
   return fails ? 1 : 0;
 }
 
+/* ── THE STANDARDS (50-standards 5.4), REPORT MODE ──────────────────────────────────────────────────────────────────────────────────
+   Every band of tools/balance-program/standards.mjs judged on the progression grid's CACHED cells (progression-grid.json, else progression-grid-quick.json:
+   tools/balance-program/progression-grid.mjs plays them nightly, 1,116 cells on the real engine). Nothing is played here, and no band changes the exit
+   code: a band starts in report and turns red in the lane that lands the change it guards (5.4). A cache whose input hash differs from the
+   tree's prints STALE. */
+async function standardsBlock() {
+  const GRID = await import(u('tools/balance-program/progression-grid.mjs'));
+  const DER = await import(u('tools/balance-program/grid-derive.mjs'));
+  const g = GRID.readGrid(false) || GRID.readGrid(true);
+  if (!g) { console.log('STANDARDS (50-standards): no cached grid (node tools/balance-program/progression-grid.mjs): every band unread'); return; }
+  const [D, K] = await Promise.all([GRID.loadGridData(ROOT), (await import(u('tools/balance-program/grid-kit.mjs'))).loadKits(ROOT)]);
+  const j = DER.judgeGrid(D, g, { currentHash: GRID.inputHash(ROOT), K });
+  const S = DER.bandSummary(j);
+  const n = (st) => S.filter((s) => s.status === st).length;
+  console.log('STANDARDS (50-standards 5.4, report mode) on the cached ' + g.run + ' grid ' + g.commit + ' (' + g.at + ', ' + Object.keys(g.cells).length + ' cells' + (j.stale ? ', STALE: the tree moved since' : '') + '): '
+    + n('ok') + ' in band, ' + n('off') + ' off, ' + n('RED') + ' red, ' + (S.length - n('ok') - n('off') - n('RED')) + ' unread (thin, proxy or not the grid\'s) of ' + S.length);
+  for (const s of S.filter((x) => x.status === 'RED' || x.status === 'off')) console.log('  ' + s.band.padEnd(17) + (s.status === 'RED' ? '!' : '~') + ' ' + s.red + ' red, ' + s.off + ' off of ' + s.n + '; worst ' + s.worst.at + ': ' + (s.worst.shown || s.worst.value));
+}
+
 /* ── the run ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── */
 async function main() {
   const workers = Number(arg('workers', Math.min(4, availableParallelism())));
@@ -655,6 +676,7 @@ async function main() {
   }
   const lines = judge(I);
   report(I, lines, strict);
+  await standardsBlock();
   if (arg('json')) writeFileSync(resolve(arg('json')), JSON.stringify({ lines, rows: I.rows, ms: I.ms, life: I.life, errors: I.errors }, null, 1));
   return exitOf(lines, strict);
 }

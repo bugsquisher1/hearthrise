@@ -2,7 +2,7 @@
 
 **RULED by the game designer** 2026-11-21 on `lane/d-designer-d3`, from `set/v0.2.144` at 3464fb7f2. Docs only. No game code, data, migration or tool is touched. Chapters 00 to 14, `decisions/` and `review/06-designer-rulings-w1.md` are not edited. Each ruling ends with the rows a build lane takes, and section 6 lists the edits for the integrator.
 
-**Evidence words.** MEASURED carries its run. **Run A** is GitHub run 44950722457, the coupled arrival-kit run on set 3464fb7f2 (`tools/balance-program/arrival-kit.mjs`, 48 pairings, 4 seeds of 8 hours). **Local** is the same tool, the same seeds and the same 8 hours, replayed on the dev PC for configurations Run A's table did not print, plus three configurations the tool does not have (a scratch copy of its job, not committed, named in section 5). **C1 local** is `tools/balance-program/start-cards.mjs`, 4 lives a way. COMPUTED is arithmetic on named rows. PLAYED is `review/02-four-hero-hour.md`. JUDGMENT is a design call. UNKNOWN names what would settle it. Nothing here is compared with the game that runs today.
+**Evidence words.** MEASURED carries its run. **Run A** is GitHub run 44950722457, the coupled arrival-kit run on set 3464fb7f2 (`tools/balance-program/arrival-kit.mjs`, 48 pairings, 4 seeds of 8 hours). **Local** is the same tool, the same seeds and the same 8 hours, replayed on the dev PC for configurations Run A's table did not print, plus two configurations the tool does not have (a scratch copy of its job, not committed, named in section 5). Where Local and Run A played the same configuration they read the same to two places. **C1 local** is `tools/balance-program/start-cards.mjs`, 4 lives a way. COMPUTED is arithmetic on named rows. PLAYED is `review/02-four-hero-hour.md`. JUDGMENT is a design call. UNKNOWN names what would settle it. Nothing here is compared with the game that runs today.
 
 ---
 
@@ -10,12 +10,12 @@
 
 | Ruling | In one or two sentences |
 |---|---|
-| **D-3 The armor curve** | ×2.4. It is the only setting where an armor step is worth what the 2026-10-25 ruling asks past Level 45. At ×1 armor is decoration from Level 45 to 400 |
+| **D-3 The armor curve** | ×2.4. It is the only setting played where an armor step is worth what the 2026-10-25 ruling asks past Level 45. At ×1 armor is decoration from Level 45 to 400. It makes the mid kit take 18 to 32% more damage, so CB-2 sizes the tier dial with it in. If ×1.6 holds the same steps on the confirm run, the curve is ×1.6 |
 | **D-3 What the arrival kit is** | The mid kit one band back, in gear only. Skills sit on the career line, and the hero carries the Shop's basic whetstone as it carries the Shop's basic arrow |
 | **D-3 What S5.low measures** | It becomes a report, never a grade. An arrival is graded by what a player feels: it never dies on Normal (S2.low), its low point (S1.low), its pace (P3), and for a party the tier it can hold (S6) |
-| **D-3 Level 10** | Not an arrival. It is a hero in no armor beside one in Bronze, and Bronze plate alone explains the whole gap. Survival grades it, and the "Wear upgrades" line of D-2 ends it |
+| **D-3 Level 10** | Not an arrival. It is a hero in no armor beside one in Bronze, and for a lone hero Bronze plate alone explains the whole gap. Survival grades it, and the "Wear upgrades" line of D-2 ends it |
 | **D-3 Jewelry** | In the game, no number moves in the first build. In the matrix, GR-38's stand-in leaves every cell under Level 110, as its own registry note says, and plays at 0.5 to Level 185 and 1.0 after, where it reads the decided 6% |
-| **D-3 The early tiers** | Tiers 1 to 7 keep their built armor. An early tier is worth 13 to 26% less damage, far over 3 to 5%, and that is the early hook. On the veto list |
+| **D-3 The early tiers** | Tiers 1 to 7 keep their built armor. A ladder tier is worth about 9 to 18% less damage, far over 3 to 5%, and that is the early hook. On the veto list |
 | **D-3 Carter's Rest, the Ox Road, factions** | They stay staged and factions stay held. They open in their own patch, started when the first live hero reaches Level 95 |
 | **D-3 The heavy trade** | A heavy piece pays for armor with lighter blows (`strB`), never with to-hit. The hidden sample is re-cut on ×2.4 |
 | **GR-5 Under Level 5** | Fix (a), the curve, at exponent 1.1. Every starting card reaches Level 5 in 16.2 to 19.2 minutes with no death. The Mill Cellar carries no ground number |
@@ -23,8 +23,8 @@
 
 **What Tyler can veto, one line each.**
 
-1. **D3-1, early armor tiers.** The ruling of 2026-10-25 asks 3 to 5% less damage an armor upgrade. Tiers 1 to 6 give 13 to 26% early (MEASURED, itemization plan section 0), and this ruling keeps them, and keeps them off the line the gear curve would resample them to. "Veto D3-1" resamples tiers 1 to 7 on the curve, which leaves Bronze with about 3 points of plate a set and makes the Bronze to Iron step about fifteen times (COMPUTED, section 1.6).
-2. **D3-2, factions not in the first build.** On 2026-11-14 the faction war was to switch on "when the beta has players". With the Morrow pair staged, no ground pays standing, so factions cannot open. "Veto D3-2" opens the pair and arms factions in the first build. That adds art for two grounds and the faction skills sized on the engine to combat batch CB-2.
+1. **D3-1, early armor tiers.** The ruling of 2026-10-25 asks 3 to 5% less damage an armor upgrade. A ladder tier gives about 9 to 18% at ×2.4 (COMPUTED, section 1.3 ruling 5) and 13 to 26% early in an older measurement (itemization plan section 0). This ruling keeps the ladder as built, and grades 3 to 5% on the band step past Level 110, where it holds. "Veto D3-1" resamples tiers 1 to 7 on the curve, which leaves Bronze with about 3 points of plate a set and makes the Bronze to Iron step about fifteen times (COMPUTED, section 1.6).
+2. **D3-2, factions not in the first build.** On 2026-11-14 the faction war was ruled to switch on once the beta has players. With the Morrow pair staged, no ground pays standing, so factions cannot open. "Veto D3-2" opens the pair and arms factions in the first build. That adds art for two grounds and the faction skills sized on the engine to combat batch CB-2.
 
 **One thing the plan owner must know.** GR-38's stand-in (`patches/items-2.json`) has inflated the mid kit under Level 110 in every matrix run since it was registered. Its own note says to read it at Level 110 and past only. It gives a Level 15 necklace and studs, and a Level 30 ring and cloak, their tier 7 numbers. Dropping it under 110 lowers the mid four's pace there, so the Level law's seat (1.263, S-11) is re-read on the confirm run before FB-8 stage 3 fits the law (section 1.5).
 
@@ -34,13 +34,13 @@
 
 ### 1.1 What Run A shows, taken apart
 
-Run A found no setting that holds S5.low at every Level. Five separate things sit inside its 492 red rows. Two are the design. Three are the definition of the arrival kit.
+Run A found no setting that holds S5.low at every Level, and R5 read 492 red rows on it. Five separate things sit inside them. Two are the definition of the arrival kit, one is a measurement leak, and two are the design.
 
 | # | What it is | Evidence | Kind |
 |---|---|---|---|
-| 1 | **Level 10 is a hero in no armor against one in Bronze.** Under Level 15 the arrival kit is the start kit, which holds no armor (`start-kit.js` START_EQUIPMENT: a practice sword and shield). Bronze plate, 18 points a set, takes 56% off a Level 10 blow, so the hero in no armor takes 2.26 times as much. At ×2.4 Bronze takes 41% and the gap is 1.69 | COMPUTED from `mitigation.js` and `gear-tiers.js`. Run A read 2.1 to 2.4 at ×1 and 1.6 at ×2.4 | Definition |
+| 1 | **Level 10 is a hero in no armor against one in Bronze.** Under Level 15 the arrival kit is the start kit, which holds no armor (`start-kit.js` START_EQUIPMENT: a practice sword and shield). Bronze plate, 18 points a set, takes 56% off a Level 10 blow, so the hero in no armor takes 2.26 times as much. At ×2.4 Bronze takes 41% and the gap is 1.69. A four reads higher (2.6 to 3.1 at ×1), because its slower kills keep the front hero in the fight longer, as in row 5 | COMPUTED from `mitigation.js` and `gear-tiers.js`. Run A read 2.1 to 2.4 lone at ×1 and 1.6 at ×2.4. Local read 1.68 lone at ×2.4 | Definition |
 | 2 | **The eight skill points are not gear.** The arrival kit was eight Melee and Defense points under the career line. Skills come from hunting, and a hero that reaches a band has hunted to it. The risk line of D-1 sorts a party by the gear it wears, so a low kit that is also low on skills describes a weaker hero than the one reading it | `standards.mjs` GEAR_STATES.low. D-1 section 1.4 rule 4 | Definition |
-| 3 | **The mid kit wore tier 7 jewelry from Level 15.** GR-38's stand-in gives Fang Studs and the Wolfbone Necklace (Level 15) and the Seam Jasper Band and Warband Bulwark (Level 30) tier 7 numbers: 7 on every attack and strength field, and 255 steady on the cloak, which is a 25.5% cut off every hit. The arrival kit wears no jewelry, so the gap carried it. At 25% of the stand-in the four rows read close to what they hold today | `patches/items-2.json` and its registry note: "Read it at Level 110 and past only". COMPUTED: 7 × 0.25 is 2 against today's 2, 2 and 3, and 255 × 0.25 is 64 against today's 110 | Measurement |
+| 3 | **The mid kit wore tier 7 jewelry from Level 15.** GR-38's stand-in gives Fang Studs and the Wolfbone Necklace (Level 15) and the Seam Jasper Band and Warband Bulwark (Level 30) tier 7 numbers: 7 on every attack and strength field, and 255 steady on the cloak, which is a 25.5% cut off every hit. The arrival kit wears no jewelry, so the gap carried it. At 25% of the stand-in the four rows sit just under what they hold today | `patches/items-2.json` and its registry note: "Read it at Level 110 and past only". COMPUTED: 7 × 0.25 is 2 against today's 2, 2 and 3, and 255 × 0.25 is 64 steady against today's 110 | Measurement |
 | 4 | **Armor is decoration past Level 45 at ×1.** A full mid set holds more armor than the 60% cap can use, and one tier back is at the cap too. So an armor step is worth nothing, and the arrival gap past 45 is all offense | MEASURED in chapter 12 section 3.6 (R0 and L): an armor step reads −0.8 to +1% past 45 at ×1, and 3.6% at Level 60 and 4.1% at Level 400 at ×2.4 | Design |
 | 5 | **A four's gap is its kill speed, not its armor.** On Normal the four kills as fast as the ground respawns in either kit, so its kills an hour match. But the low four takes 2.5 to 3.7 times as long on each kill, so the front hero is hit for longer. The healer covers it | Local, ×2.4, offset 0, Level 20 to 45: kills an hour 732 against 742, a kill 1.13 s against 0.46 s, the front seat takes 99% of the damage | Design |
 
@@ -66,7 +66,11 @@ So the damage ratio was never the thing a player feels. It is a proxy that multi
 
 ### 1.3 The rulings
 
-**Ruling 1. The armor curve is ×2.4.** `armorCurve` 2.4, layer: coefficient. It is the only setting played where an armor step lands inside the ruled 3 to 5% past Level 45 (MEASURED, chapter 12 section 3.6). At ×1 every armor system past Level 45 does nothing: the armor half of Tempering, the armor line past Dawnsteel, heavy and light uniques, the Catacomb armor chase. The cost is that a hero a band behind now feels its armor, and that is the honest cost of armor mattering.
+**Ruling 1. The armor curve is ×2.4.** `armorCurve` 2.4, layer: coefficient. It is the only setting played where an armor step lands inside the ruled 3 to 5% past Level 45 (MEASURED, chapter 12 section 3.6). At ×1 a mid set past Level 45 sits at the 60% cap, so every armor system there does nothing: the armor half of Tempering, the armor line past Dawnsteel, heavy and light uniques, the Catacomb armor chase. At ×2.4 the best kit's extra armor also counts, which S5.bis (ruled, 0.80 to 0.90) needs past Level 110, where it read only 7 to 9% less damage at ×1.
+
+What it costs, and a correction. Chapter 12 section 3.6 says the mid hero's damage "did not move" at ×2.4. On 4 seeds of 8 hours it does. The mid kit takes 18 to 32% more damage on Normal at every Level, lone and four, and its pace does not move (Local, `mid-a24-j25` against `mid-a10-j25`). Normal stays safe: the mid kit's typical low point reads 76 to 97% lone and 93 to 98% for a four, still at or over the ruled 60 to 80%. On the harder tiers the same 18 to 32% lands, so the tier dial of CB-2 is sized with ×2.4 in. If the ruled death counts need it, the tier dial moves, never the armor curve.
+
+**The switch rule, decided now.** A smaller curve could buy the same step for less of that cost. COMPUTED for a plate set on the line, absorb only: a +17% band step is worth about 5% less damage at any curve from ×1.3 up, and ×1.6 raises the mid kit's damage by about 15% where ×2.4 raises it by about 31%. So the confirm run plays ×1.6 beside ×2.4. If ×1.6 holds E1.armor inside 3 to 5% at Levels 60, 185 and 400, and S5.bis inside 0.80 to 0.90 past Level 110, the curve is ×1.6. Otherwise it is ×2.4.
 
 **Ruling 2. The arrival kit is the mid kit one band back, in gear only.** Skills on the career line. Every way carries the Shop's basic consumable: Bronze Arrows for the bow, as today, and Coarse Whetstones for the melee ways. The Shop sells ten for 60 gold (`shops.js` seed.coarse_whetstone, strB 2). The kit builder's line "the store sells none" is wrong. Nothing crafted, no Tempering rung, one tier or band back on every dropped slot.
 
@@ -76,14 +80,14 @@ So the damage ratio was never the thing a player feels. It is a proxy that multi
 |---|---|---|
 | S2.low | It never dies on Normal: at most 5 deaths in 1,000 hunted hours, red over 10 | PROPOSED, kept. MEASURED 0 everywhere (Run A, Local) |
 | S1.low | Its typical low point on Normal sits from 45 to 70%, red under 35% | PROPOSED, kept. MEASURED 55 to 92% lone, 88 to 97% for a four (Local) |
-| P3 | A lone hero's pace on Normal is 0.80 to 0.90 of the mid kit's | PROPOSED, kept. MEASURED 0.74 to 0.95 (Local). It reads the four as a report, because a four on Normal is held by the respawn |
+| P3 | A lone hero's pace on Normal is 0.80 to 0.90 of the mid kit's, red under 0.70 | PROPOSED, kept. It already reads the lone hero only. MEASURED 0.74 to 0.95 (Local), so no red. A four's pace is held by the respawn (0.86 to 0.99) and prints beside it |
 | S6.dangerous.low, S6.deadly.low | A four in the arrival kit should step down from the harder tiers | PROPOSED, kept. Read on the death sample in CB-2, with these rulings in |
 
-S5.low's band of 1.15 to 1.35 was set by the standards auditor from the armor step alone (`standards.mjs`: "an armor step is 3 to 5% (RULED); measured 13 to 26% a tier early"). It was never ruled by Tyler. It asks for one number that would hold a lone hero and a four held by the respawn at once, and nothing a player can see reads it.
+S5.low's band of 1.15 to 1.35 was set by the standards auditor from the armor step alone. Its note in `standards.mjs` cites the ruled 3 to 5% and an early tier measured at 13 to 26%. It is PROPOSED and was never ruled by Tyler. It asks for one number that would hold a lone hero and a four held by the respawn at once, and nothing a player can see reads it.
 
 **Ruling 4. Under Level 15 there is no arrival.** The first band has no band behind it. The start kit is graded by S1.low and S2.low on Normal only (MEASURED: no death at Level 10, lone or four, at either armor curve), and by checks C1 and C3. D-2's "Wear upgrades" line and Tamsin's Bronze Helm at about minute 10 keep a real hero out of it. The first armor piece is meant to halve the damage a hero takes. That is the first thing the game teaches about gear.
 
-**Ruling 5. The early tiers keep their built armor.** Today's plate sets per tier are 18, 36, 66, 104, 153, 210 and 281 points (`gear-tiers.js`, COUNTED one piece a slot). From tier 2 on they sit within about 10% of the gear line at their Levels. Bronze sits far over it, because the line at Level 1 holds about 3 points. FB-8's generator writes tiers 1 to 7 as the built rows, and checks that each from tier 2 on is within one band step (17%) of the line. Tier 1's armor is held at the built 18 points a plate set. On the veto list as D3-1.
+**Ruling 5. The ladder keeps its built armor.** Today's plate sets per tier are 18, 36, 66, 104, 153, 210 and 281 points (`gear-tiers.js`, COUNTED one piece a slot). Tiers 2 to 6 already sit at 0.86 to 1.09 of the gear line at their Levels, and tier 7 is Dawnsteel, the line's own anchor. Bronze sits far over the line, because the line at Level 1 holds about 3 points. So FB-8's generator writes the armor line from Level 110 and does not rewrite tiers 1 to 7. On the ladder a tier step is worth far more than 3 to 5%: COMPUTED for plate at ×2.4, about 18% less damage at Level 20, 17% at 30, 13% at 45, 12% at 60 and 9% at 88, an upper bound because spells skip armor. That is the early hook ruled on 2026-11-20, and it is on the veto list as D3-1. E1.armor is graded on the band step (+17%) and prints the ladder's tier steps as a report.
 
 **Ruling 6. Jewelry.** Two halves.
 
@@ -101,7 +105,7 @@ S5.low's band of 1.15 to 1.35 was set by the standards auditor from the armor st
 | `src/data/core-model.js` | ARMOUR_MITIGATION `absorb.k` | 1.488 | 0.62 | Coefficient, `armorCurve` 2.4 |
 | `src/data/core-model.js` | ARMOUR_MITIGATION `dodge.k` | 0.96 | 0.4 | Coefficient, `armorCurve` 2.4 |
 | `src/data/core-model.js` | ARMOUR_MITIGATION `ward`, `maxPm`, `capPm` | Unchanged | | |
-| `src/data/gear-tiers.js` and the generated tier rows | Armor `defB` of tiers 1 to 7 | As built. The generator checks tiers 2 to 7 sit within 17% of the line at their Levels and holds tier 1 at the built value | | Content data, ruling 5 |
+| `src/data/gear-tiers.js` | Armor `defB` of tiers 1 to 7 | As built. The curve's generator writes armor from Level 110 only | Resampled on the line | Content data, ruling 5 |
 | Jewelry and cloak rows (`slot-ladders.js`, `items.js`) | Plain numbers | Unchanged | | Ruling 6 |
 | `src/data/hunts.js` | `staged` on `carters_rest`, `ox_road` | Unchanged | | Section 3 |
 
@@ -113,7 +117,7 @@ S5.low's band of 1.15 to 1.35 was set by the standards auditor from the armor st
 | `tools/balance-program/standards.mjs` | GEAR_STATES.low.ammo | `store-basic`: the Shop's basic arrow and the Shop's Coarse Whetstone | The basic arrow only |
 | `tools/balance-program/grid-kit.mjs` | LOW's ammo line | Melee ways carry `coarse_whetstone` | "none (the store sells no whetstone)" |
 | `tools/balance-program/standards.mjs` | S5.low | `mode: 'report'`, no red | Graded, 1.15 to 1.35, red over 1.50 |
-| `tools/balance-program/standards.mjs` | P3 | Graded on the lone hero. The four prints as a report | Graded on every party |
+| `tools/balance-program/standards.mjs` | E1.armor | Graded on the band step (+17%). The ladder's tier steps under Level 110 print as a report (D3-1) | Graded on every step |
 | `tools/balance-program/standards.mjs` | The mid kit's jewelry stand-in | GR-38's patch applies to cells at Level 110 and up only, its plain numbers × 0.5 to Level 185 and × 1.0 from 186 (`jewelRows` by the cell's Level) | Applied at every Level, × 1.0 |
 
 ### 1.5 What FB-3 plays to confirm
@@ -126,12 +130,13 @@ One run, the arrival-kit shape: the lone hammer and the standard four, Normal, L
 | MID | `armorCurve` 2.4, GR-38's stand-in only from Level 110 at 0.5 and 1.0 |
 | MID, no jewelry | The same with every jewelry and cloak number × 0, for the crafted class's share |
 | BIS | `armorCurve` 2.4, as the standards define it, for S5.bis |
+| LOW, MID and BIS at ×1.6 | The same three at `armorCurve` 1.6, for the switch rule of ruling 1 |
 
-It reads S1.low, S2.low, P3 on the lone hero, S5.low and the four's P3 as reports, E1.armor, S5.bis (RULED 0.80 to 0.90), and the crafted class's share of a lone mid hero's Level pace (decided 6%, read 4 to 8%). Then the death sample of CB-2 plays the low and mid fours on Dangerous and Deadly with the same rows in, for S6.
+It reads S1.low, S2.low, P3 on the lone hero, S5.low and the four's pace as reports, E1.armor on the band step at Levels 60, 185 and 400, S5.bis (RULED 0.80 to 0.90), and the crafted class's share of a lone mid hero's Level pace. Then the death sample of CB-2 plays the low and mid fours on Dangerous and Deadly with the chosen curve in, for S6, and sizes the tier dial with it.
 
 **What would change this ruling.** A death on Normal in the arrival kit at any Level. A lone arrival's pace under 0.70 of the mid kit's at two Levels or more. E1.armor outside 3 to 5% past Level 45. Then the step that is out of its band is fixed at its own layer: the armor coefficient, the tier rows, or the jewelry share. Never the arrival kit's definition, and never a number on one ground.
 
-**The seat.** With the stand-in gone under 110, the mid four on Dangerous earns less there. FB-3 re-reads the seat's multiple of the pace contract (1.263 on R5) on the same base before FB-8 stage 3 fits the Level law to it. The ruled hours do not move. The XP a Level costs does.
+**The seat.** With the stand-in gone under 110, the mid four earns a little less there. On Normal the crafted class is worth 0.1 to 3% of a four's pace (Local), because the respawn holds a four. FB-3 re-reads the seat's multiple of the pace contract (1.263 on R5) on the same base before FB-8 stage 3 fits the Level law to it. The ruled hours do not move. The XP a Level costs may, by about that much.
 
 ### 1.6 Why not the other settings
 
@@ -151,7 +156,8 @@ It reads S1.low, S2.low, P3 on the lone hero, S5.low and the four's P3 as report
 | Section 1.2's table | MEASURED, Local, 4 seeds of 8 hours a cell, on set 3464fb7f2. The tool's own jobs `low-a24-s0`, `mid-a24-j25`, `mid-a24-j0` |
 | The four's kills an hour match and its kills take longer | MEASURED, Local, the cells' `killsPerH` and `ttkS` |
 | An armor step at ×2.4 | MEASURED in chapter 12 (R0 and L, 2 seeds of 1 hour). Not re-measured here. The confirm run reads E1.armor |
-| The mid kit's damage at ×2.4 against ×1 | PENDING-MIDX |
+| The mid kit's damage at ×2.4 against ×1 | MEASURED, Local, `mid-a24-j25` against `mid-a10-j25`: 1.18 to 1.32 lone and 1.07 to 1.35 for a four, Level XP an hour 0.996 to 1.002 |
+| ×1.6 gives the same band step for about half the extra damage | COMPUTED for a plate set on the line, absorb only. Not played. The confirm run decides it |
 | The jewelry rows the first build ships, and the stand-in's scale | PENDING-JEWEL-EVIDENCE |
 | Tier armor against the line | COMPUTED from `gear-tiers.js` rows and LINE_BASE |
 | A Coarse Whetstone is sold | Read from `shops.js` seed.coarse_whetstone (10 for 60 gold) and `items.js` (strB 2) |
@@ -234,7 +240,7 @@ What the player holds after each step, from the steps before it and the real kit
 **Why.**
 
 1. **No hero reaches the band during the first build's first weeks.** On the Level law at the Dangerous seat, Level 110 costs about 278 million Level XP and 691 hunted hours, day 58 at 12 hours a day (COMPUTED from R13's points and 1.263). The live hero with the most Level XP holds about 102 million (COUNTED, chapter 13 L-04), which is about Level 79 on the new law. A four on the seat would need about 300 more hunted hours, about 25 days (COMPUTED). A new account invited to the playtest arrives about day 58.
-2. **Factions cannot open honestly without them.** Standing is paid only on the three Morrow grounds (`src/data/factions.js`, `standingFor`), and the faction skills ruled on 2026-11-21 ("make the skills matter", 31-8) are not built in the engine. Opening factions now means a side that pays nothing and a skill that does not exist.
+2. **Factions cannot open honestly without them.** Standing is paid only on the three Morrow grounds (`src/data/hunts.js` `standingFor`, and `factions.js` FACTION_RULES.standingAfter), and the faction skills, ruled on 2026-11-21 to be sized so they matter, are not built in the engine. Opening factions now means a side that pays nothing and a skill that does not exist.
 3. **Opening them costs work the first build does not have room for.** Each ground needs its style-1 art before the flag can go (`hunts.js` header, `staged`). The faction skills must be sized on the engine, which is combat batch CB-2's single sizing pass.
 
 **The trigger.** When the first live hero reaches **Level 95**, the Coordinator starts the Morrow lane: the art for both grounds, the two flags off, the faction skills sized on the engine, and the faction files applied (2027-05-28 swap cancel, then 2027-05-27 arm). Level 95 is about 145 hunted hours, about 12 days at 12 hours, before Level 110 on the seat (COMPUTED). The Coordinator reads it in `tools/vitals.mjs` or `tools/char-state.local.mjs`. Until then a hero past 110 still hunts Krell's Hold (no ground past the Mill Cellar ends itself, COUNTED from `hunt-grounds.js`), the Burning Tower to floor 300, and the Catacomb descent.
@@ -245,11 +251,11 @@ What the player holds after each step, from the steps before it and the real kit
 
 ## 4. The heavy trade in the armor line
 
-**What broke.** Since to-hit became a ratio (2398754cb), a point of to-hit buys almost no armor. The Wagon Guard's Breastplate holds only 4 armor more for atkB −8, so the re-cut sized it, and the Outrider's Visor, at the line's armor with a Melee cost and nothing for it (`.claude/coordination/DISCOVERIES.md`, row 1). And at ×1 a heavy plate piece at Levels 111 to 125 sits at the 60% cap, where more armor buys nothing anyway.
+**What broke.** Since to-hit became a ratio (2398754cb), a point of to-hit buys almost no armor. At atkB −8 the Wagon Guard's Breastplate holds only 4 armor more, so the re-cut left it, and the Outrider's Visor, at the line's armor with a Melee cost and nothing for it (`.claude/coordination/DISCOVERIES.md`, row 1, and the header of `armor-line.js`). And at ×1 a heavy plate piece at Levels 111 to 125 sits at the 60% cap, where more armor buys nothing anyway.
 
 **The ruling.** A heavy piece pays for armor above the line with lighter blows: its own style's strength (`strB` for plate, `rangeStrB` for leather, `magicStrB` for cloth). Never with to-hit. A light piece is the mirror: less armor, a stronger blow. This is the exchange rate step R11 (`gearExchange`) publishes for every unique. The off-style penalties a weight carries today (plate's −23 Ranged and −45 Magic attack) stay. They are the weight's identity, not the trade.
 
-**Why strength.** It still buys armor on the ratio (MEASURED in the re-cut: strB −2 on the Leg Plates holds 81 armor where to-hit could not). And it reads right to a player: heavy armor makes your swing heavier and slower, not your eyes worse.
+**Why strength.** It still buys armor on the ratio, where to-hit does not (the re-cut's own reading, DISCOVERIES row 1: "strB buys it"). And it reads right to a player: heavy armor makes your swing heavier, not your eyes worse.
 
 **The rows, FB-8 stage 1 with the uniques at exchange rates.** In `tools/balance-sim/staged/armor-line.js`, on the ×2.4 curve:
 
@@ -275,7 +281,7 @@ These pieces are hidden and drop nowhere in the first build. Nothing here reache
 
 ## 5. What I did not check
 
-- I did not download Run A's artifacts. Section 1.2 comes from Local replays of the same tool, seeds and hours. The Local rows for configurations Run A also played can be checked against its table: Local reads the ×1, offset 0 arrival kit at PENDING-REPRO, against Run A's PENDING-REPRO-A.
+- I did not download Run A's artifacts. Section 1.2 comes from Local replays of the same tool, seeds and hours. Where they overlap they match: Local reads Run A's "closest" setting (×1, offset 0, jewelry 25%) lone at 1.38 to 2.20, 1.06 to 1.25, 1.11 to 1.12 and 1.11 to 1.13 by stretch, the same four ranges Run A printed.
 - Three configurations were played with a scratch copy of the tool's job (`proposed` without GR-38, at ×2.4, with and without jewelry). It is the tool's own `playRun` with one base changed, and it is not committed.
 - No harder tier was played here. What an arrival four costs on Dangerous and Deadly waits on CB-2's death sample.
 - The Coarse Whetstone in the arrival kit was not played. Its strB 2 against the mid kit's tier whetstone (3 to 18) closes part of the lone gap. The confirm run reads it.

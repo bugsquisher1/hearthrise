@@ -115,7 +115,8 @@ async function run(indexSrc) {
   // ── C4 — every emit that spreads bestiary spreads collection too ─────────
   const bSites = indexSrc.split(BESTIARY_SPREAD).length - 1;
   const cSites = indexSrc.split(COLLECTION_SPREAD).length - 1;
-  ok(bSites >= 4, `C4: expected >= 4 bestiary emit sites in index.ts, found ${bSites}`);
+  /* 3 since 2026-11-21: the rested bank's standalone settle (one of the four) left with the bank (S-9 c). */
+  ok(bSites >= 3, `C4: expected >= 3 bestiary emit sites in index.ts, found ${bSites}`);
   ok(cSites === bSites, `C4: ${bSites} bestiary emit sites but ${cSites} collection spreads — a response path drops the count`);
   let at = -1;
   while ((at = indexSrc.indexOf(BESTIARY_SPREAD, at + 1)) >= 0) {

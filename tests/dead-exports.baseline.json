@@ -24,8 +24,6 @@
     "src/core/hunt/conditions.js evaluatorGaps",
     "src/core/hunt/marks.js markTiles",
     "src/core/pacing.js SPEED_KEYS",
-    "src/core/perks.js restedPayload",
-    "src/core/rested.js RESTED_CAP_LIBRARY",
     "src/core/skill-sim.js duplicateGatherIds",
     "src/core/xp.js skillCapOf",
     "src/core/xp.js totalLevel",

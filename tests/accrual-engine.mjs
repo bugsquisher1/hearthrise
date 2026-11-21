@@ -264,7 +264,7 @@ function clientGatherSpan(opts) {
     // addXp — legacy.js:2534, through core's grantXp with the client's xpGrantCtx
     const tXp = toolXpB(bestTool(skill, G.inventory, G.equipment, ITEMS));
     grantXp(G, skill, tXp > 0 ? node.xp * (1 + tXp) : node.xp,
-      { bonus, xpB: eqStats.xpB || 0, restedQuantum: 0, authored: false });
+      { bonus, xpB: eqStats.xpB || 0, authored: false });
     return true;
   };
 

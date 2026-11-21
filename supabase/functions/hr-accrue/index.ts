@@ -70,7 +70,7 @@
 // ============================================================================
 
 import postgres from 'npm:postgres@3.4.5';
-import { computeAccrual, degradeStep, accrueRested, CALLER_AUTHORITY, SKIP } from './accrual.js';
+import { computeAccrual, degradeStep, CALLER_AUTHORITY, SKIP } from './accrual.js';
 import { levelsOf } from '../../../src/core/xp.js';
 /* THE ENVELOPE -> ENGINE INPUT MAP, shared with the world tick (2026-09-22).
    ONE field list for a two-level projection; see ./envelope.js. */
@@ -640,8 +640,8 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
          same read in set-activity.js, claim-reward.js and spend.js;
          tests/world-tick-presence-horizon.mjs E1 pins all four.
          THE STATE TERM IS hr_accrue_read (2027-02-10-settle-reads.sql): hr_state_of for anyone not hunting; for a
-         hunter only the keys this path reads of it (the pointer computeAccrual answers hunt_open on, version, clock,
-         the rested bank) — the hello settles the hunt next and answers the commit's projection, so a whole envelope
+         hunter only the keys this path reads of it (the pointer computeAccrual answers hunt_open on, version, clock)
+         — the hello settles the hunt next and answers the commit's projection, so a whole envelope
          here was built and dropped every hello (live 10-30: 88.5 ms, a quarter of a watched party's settle). A
          database without it answers 42883 inside the savepoint and the statement before it runs, verbatim. */
       let row: Row;
@@ -1001,51 +1001,14 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
 
     let out = runAccrual({ capMs, actionBudget: null });
 
-    /* ── THE PARALLEL RESTED SETTLE (b437) ──────────────────────────────────
-       Rested XP banks on WALL-CLOCK, independent of the pointer — you rest
-       whether or not an activity is running — so it is settled here, on its OWN
-       watermark `rested_at`, and EVEN WHEN the pointer accrual refused.
-       `accrueRested` is pure, draws no rng, and is watermark-idempotent.
-       The bank cap is left at the server default (a Great Library owner's raised
-       120 bank is a named arm-blocker — under-pays the SIZE only, never the rate).
-       `restedAtMs === null` (the column is absent) omits the keys entirely — the
-       same self-configuring switch tool_carry/fight use.
-       (The hired crew's parallel settle, accrueWorkers on `workers_accrued_to`,
-       was cut with its last reader on 2026-11-18: 2027-01-18-dead-surfaces-cut.sql
-       dropped the hire doors and took the crew and its watermark out of
-       hr_state_of, so it settled nothing for anyone.) */
-    const rout = accrueRested({
-      nowMs,
-      restedAtMs: st.rested_at ? new Date(st.rested_at).getTime() : null,
-      restedXp: Number(st.rested_xp) || 0,
-      libraryCap: null,
-    });
-
-    /* Fold the NEW ABSOLUTE bank values into any delta bound for hr_apply.
-       `rested_at` is an ISO STRING (hr_apply casts `::timestamptz`); it is the
-       exact advanced watermark (old + granted*CHARGE_MS), NOT `now()`, so the
-       bank cannot be double-paid on the next call. Applied to a COPY at every
-       apply site — including each degrade rung and the standalone settle below —
-       because the figures are small, constant across attempts, and must ride the
-       ONE hr_apply call the pointer makes. */
-    const mergeRested = (delta: Record<string, any>): Record<string, any> => {
-      if (!rout.accrued) return delta;
-      return {
-        ...delta,
-        rested_xp: Number(rout.restedXp),
-        rested_at: new Date(Number(rout.restedAt)).toISOString(),
-      };
-    };
-
     if (!out.accrued) {
       /* ── A HUNTER'S ACCRUE (lane C2) ───────────────────────────────────────
          The engine answered SKIP.HUNT_OPEN: the session owns the pointer's
-         window. The rested settle below runs EXACTLY as for any idle pointer
-         (its own watermark, its own apply), and THEN the hunt is settled
-         through the one hunt settle (./hunt-settle.js, a fresh read, so the
-         version the aux apply moved is not stale). That is what keeps the
-         shipped client's `settle_first` recovery — "run accrue, retry" —
-         working for a hunter, and why a hunter's rested bank never stops. */
+         window, so the hunt is settled through the one hunt settle
+         (./hunt-settle.js, a fresh read). That is what keeps the shipped
+         client's `settle_first` recovery — "run accrue, retry" — working
+         for a hunter. Nothing else settles here: the rested bank that rode
+         this path left the game on 2026-11-21 (S-9). */
       const huntOpenHere = out.reason === SKIP.HUNT_OPEN;
       const respond = async (auxOut: Record<string, any>): Promise<Response> => {
         if (!huntOpenHere) return json(auxOut);
@@ -1054,87 +1017,9 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
           return json({ ...auxOut, hunt: { outcome: hv.outcome, reason: hv.reason ?? null } });
         }
         return json({ ...auxOut, ...hv.body, ok: true,
-          accrued: hv.outcome === 'paid' || auxOut.accrued === true,
+          accrued: hv.outcome === 'paid',
           reason: hv.outcome === 'paid' ? null : (hv.reason ?? auxOut.reason ?? null) });
       };
-      // The pointer owes nothing. If the RESTED bank owes something, settle it
-      // in ONE hr_apply call — the watermark that advances is rested_at, NEVER
-      // accrued_to (so the daily streak does not bump on a pointer-idle settle).
-      // No degrade ladder: a handful of rested charges is tiny and cannot trip a
-      // per-call clamp.
-      if (rout.accrued) {
-        // A plain `accrue` row (kind is allowlisted), intent `accrue:rested`.
-        const journal = { kind: 'accrue', intent: 'accrue:rested', meta: { rested: rout.granted } };
-        // Named `delta` (not `restedDelta`) so the `::text::jsonb` transport is
-        // the SAME shape tests/delta-transport.mjs grades on every apply site —
-        // a bare ::jsonb here would double-serialise and answer bad_delta.
-        const delta = mergeRested({ journal });
-        // Keyed on the watermark that drove the settle: a replay dedups on this
-        // intent id, and even a fresh call cannot double-pay because
-        // accrueRested recomputes from the ADVANCED watermark.
-        const auxWatermark = 'rested:' + String(st.rested_at ?? '');
-        const wIntentId = await intentIdFor({
-          user, slot, watermark: auxWatermark,
-          version: env.version, salt, attempt: 0,
-        });
-        const wres = await sql.begin(async (tx) => {
-          await tx`set local role hr_engine`;
-          await markSelf(tx);
-          const [r] = await tx`
-            select public.hr_apply(${user}::uuid, ${slot}::int, ${env.version}::bigint,
-                                   ${wIntentId}::uuid, ${JSON.stringify(delta)}::text::jsonb) as res`;
-          return r as Row;
-        });
-        const wr = wres?.res as Record<string, any>;
-        if (wr && wr.ok === true && wr.replayed !== true) {
-          /* THE ENVELOPE CONTRACT (b475). A standalone rested settle applied a
-             delta and advanced its watermark exactly like the main away path,
-             so it MUST carry an `away` receipt or the client gate
-             `isEnvelopeApplicable` (src/net/accrue.js) rejects the 200 as
-             malformed — three of those trip ACCRUE_HALT_AFTER_TRIES and raise
-             the alarming "Away progress is paused" modal while HIDING a grant
-             the server already made. The receipt below is a PURE PROJECTION of
-             what was already granted on THIS call — no new rolls, no
-             Math.random, so AWAY-1 determinism holds and no forgery surface is
-             added (it only reports values the server minted).
-
-             `grantMs` is the wall span from the rested watermark to `now`
-             (rested banks on wall-clock for everyone). The rested BANK is
-             surfaced through the existing `rested:{granted}` field, NOT folded
-             into `away.xp` — summaryFromAway would otherwise misreport a bank
-             charge as skill XP. */
-          const driveMs = st.rested_at ? new Date(st.rested_at).getTime() : nowMs;
-          const grantMs = Math.max(0, nowMs - driveMs);
-          const away = {
-            grantMs,
-            capped: false,
-            awayMs: grantMs,
-            paidMs: grantMs,
-            unpaidMs: 0,
-            /* MS NUMBERS, not ISO. The main away path sets these from
-               credit.fromMs / credit.toMs (accrual.js), and the client's
-               summaryFromAway reads them as `Number(a.windowFrom) || null` — an
-               ISO string coerces to NaN and the welcome-back card would show a
-               null window. So the projection uses the same numeric contract. */
-            windowFrom: driveMs,
-            windowTo: nowMs,
-            tickMs: 0,
-            perkChannel: 'n/a',
-            foodEaten: 0,
-            gold: 0,
-            xp: {},
-            items: {},
-            levelUps: [],
-            events: [],
-          };
-          return await respond({ ok: true, accrued: true, ...wr, away,
-            ...(bestiary ? { bestiary } : {}),
-            ...(collection ? { collection } : {}),
-            rested: { granted: rout.granted } });
-        }
-        // A refused / replayed aux settle falls through to the plain not-accrued
-        // response: nothing was minted, no watermark moved.
-      }
       // Nothing to pay. NOTHING IS WRITTEN — in particular the watermark is not
       // advanced, so a sub-threshold call cannot confiscate the time it
       // declined to pay for. The rate budget HAS been spent (see the gate
@@ -1194,7 +1079,7 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
 
     const apply = (delta: unknown, attempt: number) => applyOnce(delta, attempt);
 
-    let res = await apply(mergeRested(out.delta), 0);
+    let res = await apply(out.delta, 0);
     let degraded: Record<string, unknown> | null = null;
 
     /* THE DEGRADE LADDER (S8). Only ever entered on a clamp — never on a
@@ -1223,7 +1108,7 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
          instead of grinding down to the forfeit. */
       if (Number(next.summary?.ticks) >= Number(out.summary?.ticks)) break;
       out = next;
-      res = await apply(mergeRested(out.delta), attempt);
+      res = await apply(out.delta, attempt);
     }
 
     if (res && res.ok !== true && degraded && DEGRADABLE.has(String(res.error))) {

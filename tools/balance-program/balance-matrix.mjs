@@ -264,24 +264,33 @@ export function gateOf(patch, d) {
   return worse.length ? { verdict: 'FAIL', why: worse.length + ' targeted band row(s) ended worse, e.g. ' + worse[0].band + ' at ' + worse[0].at + ' ' + worse[0].statusBefore + ' -> ' + worse[0].statusAfter } : { verdict: 'PASS', why: 'every targeted band held or improved' };
 }
 
-/* THE SWEEP: each knob at each step on the subset, every cell's section 6 metrics and the band flags, for the lab's precomputed table */
-async function sweep(run, o) {
+/* THE SWEEP: each knob at each of its steps on the subset, every cell's section 6 metrics, each seat's share of the damage, the band rows it
+   moved and the calibration row, for the lab's precomputed table. `out` null: merged into balance-sweeps.json (resumable, a step at a
+   time); a file: that file holds only these knobs (one GitHub job a knob: .github/workflows/balance-sweeps.yml, joined by assembleSweeps). */
+export const SWEEP_SCHEMA = 'hearthrise.balance-sweeps/1';
+/* a cell's METRICS in order, then each seat's share of the damage; five significant digits (the table is a reading, not a ledger) */
+const sig = (v) => (typeof v === 'number' && Number.isFinite(v) ? Number(v.toPrecision(5)) : v ?? null);
+const compactCells = (cells) => Object.fromEntries(cells.filter((c) => c.m).map((c) => [c.key, [...METRICS.map(([id]) => sig(c.m[id])), c.m.seatsM.map((x) => sig(x.takenShare))]]));
+export const BAND_FIELDS = Object.freeze(['way', 'band', 'group', 'at', 'before', 'after', 'statusBefore', 'statusAfter', 'direction']);
+async function sweep(run, o, ids0, out = null) {
   const D = await loadGridData(ROOT), K = await loadKits(ROOT);
   const list = readKnobs(ROOT);
-  const ids = arg('knobs') ? arg('knobs').split(',') : list.knobs.map((k) => k.id);
+  const ids = ids0 || list.knobs.map((k) => k.id);
   for (const id of ids) if (!list.byId.has(id)) throw new Error('sweep: no live knob ' + id + ' in ' + KNOB_FILE);
   const t0 = Date.now();
   const before = await baseline(D, K, run, o);
   const rowsB = judgeMatrix(D, K, before.cells);
-  const compact = (cells) => Object.fromEntries(cells.filter((c) => c.m).map((c) => [c.key, [...METRICS.map(([id]) => c.m[id] ?? null), c.m.seatsM.map((x) => x.takenShare)]]));
-  const prev = readCache(SWEEP_FILE);
-  const doc = prev && prev.hash === matrixHash() && prev.run === run.id ? prev : { schema: 'hearthrise.balance-sweeps/1', run: run.id, hash: matrixHash(), commit: commitOf(), seeds: before.seeds, hours: before.hours,
-    metrics: METRICS.map(([id, label, scope]) => ({ id, label, scope })), cells: before.cells.filter((c) => c.m).map((c) => ({ key: c.key, block: c.block, L: c.L, gear: c.gear, party: c.party, comp: c.comp, tier: c.tier, ground: c.ground, styles: c.styles, step: c.step || null, stretch: c.stretch })),
-    baseline: compact(before.cells), calibration: before.calibration, knobs: {} };
+  const file = out || SWEEP_FILE;
+  const prev = readCache(file);
+  const doc = prev && prev.hash === matrixHash() && prev.run === run.id ? prev : { schema: SWEEP_SCHEMA, run: run.id, hash: matrixHash(), commit: commitOf(), seeds: before.seeds, hours: before.hours,
+    metrics: METRICS.map(([id, label, scope]) => ({ id, label, scope })), bandFields: BAND_FIELDS,
+    cells: before.cells.filter((c) => c.m).map((c) => ({ key: c.key, block: c.block, L: c.L, gear: c.gear, party: c.party, comp: c.comp, tier: c.tier, ground: c.ground, styles: c.styles, step: c.step || null, stepFrom: c.stepFrom || null, stepClass: c.stepClass || null, stretch: c.stretch })),
+    baseline: compactCells(before.cells), baselineBands: rowsB.filter((b) => b.status in { ok: 1, off: 1, RED: 1 }).map((b) => [b.way, b.band, b.group, b.at, b.value, b.status]),
+    calibration: before.calibration, knobs: {} };
   doc.at = new Date().toISOString().slice(0, 16) + 'Z';
   for (const id of ids) {
     const k = list.byId.get(id);
-    doc.knobs[id] = doc.knobs[id] || { label: k.label, group: k.group, what: k.what, steps: {} };
+    doc.knobs[id] = doc.knobs[id] || { label: k.label, group: k.group, what: k.what, ruled: k.ruled || null, steps: {} };
     for (const m of k.steps) {
       if (m === 1 || doc.knobs[id].steps[String(m)]) continue;
       const patch = { schema: PATCH_SCHEMA, name: id + ' x' + m, knobs: { [id]: m }, targets: [] };
@@ -290,16 +299,38 @@ async function sweep(run, o) {
         const after = await playRun(D, K, run, s.root, { ...o, label: id + ' x' + m });
         const rowsA = judgeMatrix(after.V, K, after.cells);
         const d = diffMatrices({ rows: rowsB, cells: before.cells }, { rows: rowsA, cells: after.cells }, patch);
-        doc.knobs[id].steps[String(m)] = { applied: s.applied.map((a) => a.file + ':' + a.line + ' ' + a.from.join(',') + '->' + a.to.join(',')), cells: compact(after.cells),
-          bands: d.bands.map((b) => [b.way, b.band, b.at, b.before, b.after, b.statusBefore, b.statusAfter, b.direction]), calibration: after.calibration ? after.calibration.rows.map((x) => [x.metric, x.harness]) : null, wallS: after.runtime.wallS };
-        writeFileSync(SWEEP_FILE, JSON.stringify(doc) + '\n');
+        doc.knobs[id].steps[String(m)] = { applied: s.applied.map((a) => a.file + ':' + a.line + ' ' + a.from.join(',') + '->' + a.to.join(',')), cells: compactCells(after.cells),
+          bands: d.bands.map((b) => BAND_FIELDS.map((f) => b[f] ?? null)), calibration: after.calibration ? after.calibration.rows.map((x) => [x.metric, x.harness]) : null,
+          wallS: after.runtime.wallS, workerS: after.runtime.workerS };
+        writeFileSync(file, JSON.stringify(doc) + '\n');
         console.error(id + ' x' + m + ': ' + after.runtime.wallS + ' s, ' + d.bands.length + ' band rows moved');
       } finally { s.done(); }
     }
   }
   doc.sweepS = Math.round((Date.now() - t0) / 1000);
-  writeFileSync(SWEEP_FILE, JSON.stringify(doc) + '\n');
+  writeFileSync(file, JSON.stringify(doc) + '\n');
   return doc;
+}
+
+/**
+ * One table from per-knob sweeps (the GitHub jobs' artifacts): every doc must be a sweep of the same run on the same tree (hash), so their
+ * baselines are the same cells on the same dice; a knob in two docs is refused. Answers the merged doc (balance-sweeps.json's shape).
+ */
+export function assembleSweeps(docs) {
+  if (!docs.length) throw new Error('assemble: no sweep docs');
+  const first = docs[0];
+  for (const d of docs) {
+    if (d.schema !== SWEEP_SCHEMA) throw new Error('assemble: ' + (d.schema || 'no schema') + ' is not ' + SWEEP_SCHEMA);
+    if (d.hash !== first.hash || d.run !== first.run) throw new Error('assemble: a sweep of ' + d.run + ' on tree ' + d.hash + ' beside one of ' + first.run + ' on ' + first.hash + ': not the same cells');
+  }
+  const knobs = {};
+  for (const d of docs) for (const [id, k] of Object.entries(d.knobs)) {
+    if (knobs[id]) throw new Error('assemble: knob ' + id + ' is in two sweeps');
+    knobs[id] = k;
+  }
+  const { knobs: _k, sweepS: _s, ...head } = first;
+  void _k; void _s;
+  return { ...head, at: new Date().toISOString().slice(0, 16) + 'Z', commits: [...new Set(docs.map((d) => d.commit))], sweepS: docs.reduce((a, d) => a + (d.sweepS || 0), 0), knobs };
 }
 
 /* THE GROUND RATES the solver reads (sources.mjs loadRates / rateOf), written from the matrix's `grounds` block: one cell a row, the table's
@@ -328,7 +359,16 @@ export async function runGroundRates(o = {}) {
 
 async function main() {
   if (has('selftest')) return selftest();
-  if (has('knobs')) {
+  /* --knob-ids [a,b]: the live knob ids as a JSON list (the sweep workflow's job matrix); a named id that is no live knob is refused */
+  if (has('knob-ids')) {
+    const list = readKnobs(ROOT), want = arg('knob-ids') ? arg('knob-ids').split(',').map((s) => s.trim()).filter(Boolean) : null;
+    const bad = (want || []).filter((id) => !/^[A-Za-z][A-Za-z0-9]*$/.test(id) || !list.byId.has(id));
+    if (bad.length) { console.error('balance-matrix: no live knob ' + bad.join(', ')); return 2; }
+    console.log(JSON.stringify(want || list.knobs.map((k) => k.id)));
+    return 0;
+  }
+  /* --knobs alone lists them; `--sweep --knobs a,b` names the knobs a sweep plays */
+  if (has('knobs') && !has('sweep')) {
     const list = readKnobs(ROOT);
     console.log('KNOBS: ' + KNOB_FILE + ' (' + (list.from || 'no source named') + '): ' + list.knobs.length + ' live, ' + list.planned.length + ' planned, ' + list.notKnobs.length + ' families that are not knobs');
     for (const k of knobTable()) console.log(k.id.padEnd(20) + k.group.padEnd(15) + k.sites.map((s) => s.at + ' [' + s.values.join(', ') + ']').join('; ') + (k.regen ? '  (rows re-written)' : '')
@@ -344,7 +384,12 @@ async function main() {
     console.log('ground rates: ' + r.table.rows.length + ' rows (' + r.table.failed + ' failed) in ' + Math.round(r.table.playedMs / 1000) + ' s -> ' + r.file);
     return 0;
   }
-  if (has('sweep')) { const doc = await sweep(RUNS.subset, o); console.log('sweep: ' + Object.keys(doc.knobs).length + ' knobs -> ' + relative(ROOT, SWEEP_FILE) + ' (' + doc.sweepS + ' s)'); return 0; }
+  if (has('sweep')) {
+    const out = arg('out') ? resolve(arg('out')) : null;
+    const doc = await sweep(RUNS.subset, o, arg('knobs') ? arg('knobs').split(',') : null, out);
+    console.log('sweep: ' + Object.keys(doc.knobs).length + ' knob(s) -> ' + (out || relative(ROOT, SWEEP_FILE)) + ' (' + doc.sweepS + ' s)');
+    return 0;
+  }
   const D = await loadGridData(ROOT), K = await loadKits(ROOT);
   if (arg('diff')) {
     const patch = JSON.parse(readFileSync(resolve(arg('diff')), 'utf8'));
@@ -422,6 +467,12 @@ async function selftest() {
   check('the gate: identity passes an empty diff and fails a moved one; coefficient fails an UNINTENDED band; derivation fails a targeted band gone worse; no kind only reports',
     gateOf({ kind: 'identity' }, dEmpty).verdict === 'PASS' && gateOf({ kind: 'identity' }, dMoved).verdict === 'FAIL' && gateOf({ kind: 'coefficient' }, dMoved).verdict === 'FAIL'
     && gateOf({ kind: 'coefficient' }, dWorse).verdict === 'PASS' && gateOf({ kind: 'derivation' }, dWorse).verdict === 'FAIL' && gateOf({ kind: 'derivation' }, dMoved).verdict === 'PASS' && gateOf({}, dMoved).verdict === 'REPORT');
+  /* 1d. the per-knob sweeps join into one table only when they are the same cells on the same tree, a knob once */
+  const sw = (hash, id) => ({ schema: SWEEP_SCHEMA, run: 'subset', hash, commit: 'c', sweepS: 10, cells: [], baseline: {}, knobs: { [id]: { steps: { '1.1': {} } } } });
+  const refusedOf = (docs) => { try { assembleSweeps(docs); return false; } catch { return true; } };
+  const joined = assembleSweeps([sw('h1', 'a'), sw('h1', 'b')]);
+  check('sweeps join: two knobs on one tree make one table; a sweep of another tree, or a knob twice, is refused',
+    Object.keys(joined.knobs).join() === 'a,b' && joined.sweepS === 20 && refusedOf([sw('h1', 'a'), sw('h2', 'b')]) && refusedOf([sw('h1', 'a'), sw('h1', 'a')]));
   /* 2. the scratch copy: a path outside the planted trees is refused; the real tree is never written */
   let refused = false;
   try { checkPatch({ edits: [{ file: 'tools/balance-program/standards.mjs', from: 'a', to: 'b' }] }); } catch { refused = true; }

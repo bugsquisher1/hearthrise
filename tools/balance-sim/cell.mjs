@@ -401,6 +401,8 @@ export async function loadCellRunner(root) {
         /* a what-if on the ground's own row (respawnMs, pockets ...): a copy, never the frozen table */
         if (cell.groundPatch) opts.ground = { ...ground, ...cell.groundPatch };
         if (run) Object.assign(opts, { ground: opts.ground || ground, sessionMode: ground.mode, tower: { floor: run.floor }, dropEnded: true });
+        /* cell.resolveOnly: the seats this runner would field, played by nobody (resolvedOf): Balance Lab v3 plays the same seats in the browser */
+        if (cell.resolveOnly) return resolvedOf(cell, party, roles, levels, kits, opts);
         const res = play.run(cell.ground, levels.length > 1 ? levels : levels[0], roles, opts);
         for (const h of H) close(h, live[h.key]);
         const played = Math.max(res.playedMs, 60000);
@@ -410,6 +412,19 @@ export async function loadCellRunner(root) {
       }
     }
     return summarise(cell, H, P, ground);
+  }
+
+  /* A CELL'S SEATS, RESOLVED (cell.resolveOnly; tools/balance-lab lab-core.mjs `cell.resolved` plays them): each seat's worn set, bar, bag,
+     hunt options and start (Level XP and skill XP), the pull, the rungs, the leave rule, the settle's cut, and every staged row a seat wears
+     (gear.mjs registers those into ITEMS; the browser's bundle registers the same rows). Plain JSON; nothing is played. */
+  function resolvedOf(cell, party, roles, levels, kits, opts) {
+    const clone = (x) => (x === undefined ? null : JSON.parse(JSON.stringify(x)));
+    const seat = (f) => (typeof f === 'function' ? roles.map((r, i) => clone(f(r, i, levels[i]))) : null);
+    const staged = {};
+    for (const k of kits) for (const id of Object.values(k)) if (id && gear.staged && gear.staged.has(id) && ITEMS[id]) staged[id] = clone(ITEMS[id]);
+    return { ground: cell.ground, styles: [...party], roles: [...roles], levels: [...levels], equipment: kits.map((k) => ({ ...k })), bar: seat(opts.bar), bag: seat(opts.bag),
+      options: seat(opts.options), start: seat(opts.start), density: Number.isInteger(opts.density) ? opts.density : null, temper: clone(opts.temper) || null,
+      leaveTogether: !!opts.leaveTogether, windowMs: opts.windowMs, segmentH: cell.segmentH || 2, staged };
   }
 
   /* THE CELL'S METRICS (the ruling's §11 list), per hero and per party, compact enough to keep thousands of cells. */

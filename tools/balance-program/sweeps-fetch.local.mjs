@@ -1,0 +1,62 @@
+#!/usr/bin/env node
+// ════════════════════════════════════════════════════════════════════════
+// tools/balance-program/sweeps-fetch.local.mjs — JOIN THE GITHUB SWEEPS INTO balance-sweeps.json (lane/c-balance-matrix, Balance Lab v3).
+//
+//   node tools/balance-program/sweeps-fetch.local.mjs [--run <id>] [--branch <branch>] [--dir <folder>]
+//
+// .github/workflows/balance-sweeps.yml runs one job a knob and uploads `sweep-<knob>`. This downloads every artifact of the run (`--run`, else
+// the newest balance-sweeps run on `--branch`, else on the current branch) with the GitHub CLI (`gh run download`), joins them with
+// balance-matrix.mjs assembleSweeps (the same tree, the same cells, a knob once) and writes tools/balance-program/balance-sweeps.json, the
+// precomputed table Balance Lab v3 reads. `--dir`: join sweep-*.json files already on disk instead. Prints the knobs it holds, the live knobs
+// it lacks, and STALE when the sweeps were measured on another tree than this one. Reads GitHub, writes one file, plays nothing.
+// ════════════════════════════════════════════════════════════════════════
+import { execFileSync } from 'node:child_process';
+import { mkdtempSync, readdirSync, readFileSync, writeFileSync, statSync, rmSync } from 'node:fs';
+import { join, resolve, dirname, relative } from 'node:path';
+import { tmpdir } from 'node:os';
+import { fileURLToPath } from 'node:url';
+import { assembleSweeps, matrixHash, SWEEP_FILE } from './balance-matrix.mjs';
+import { readKnobs } from './matrix-scratch.mjs';
+
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
+const argv = process.argv.slice(2);
+const arg = (k) => { const i = argv.indexOf('--' + k); return i >= 0 && argv[i + 1] && !argv[i + 1].startsWith('--') ? argv[i + 1] : null; };
+const gh = (...a) => execFileSync('gh', a, { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+
+/* every sweep-*.json under a folder (gh run download puts each artifact in its own sub-folder) */
+function sweepFiles(dir) {
+  const out = [];
+  for (const f of readdirSync(dir)) {
+    const p = join(dir, f);
+    if (statSync(p).isDirectory()) out.push(...sweepFiles(p));
+    else if (/^sweep-.*\.json$/.test(f)) out.push(p);
+  }
+  return out;
+}
+
+let dir = arg('dir') ? resolve(arg('dir')) : null, scratch = null, runId = arg('run');
+if (!dir) {
+  if (!runId) {
+    const branch = arg('branch') || execFileSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).trim();
+    const runs = JSON.parse(gh('run', 'list', '--workflow', 'balance-sweeps.yml', '--branch', branch, '--limit', '1', '--json', 'databaseId,status,conclusion,headSha,createdAt'));
+    if (!runs.length) { console.error('sweeps-fetch: no balance-sweeps run on ' + branch + ' (gh workflow run balance-sweeps.yml --ref ' + branch + ')'); process.exit(2); }
+    runId = String(runs[0].databaseId);
+    console.log('sweeps-fetch: run ' + runId + ' on ' + branch + ' (' + runs[0].status + (runs[0].conclusion ? ', ' + runs[0].conclusion : '') + ', ' + runs[0].headSha.slice(0, 9) + ', ' + runs[0].createdAt + ')');
+  }
+  dir = scratch = mkdtempSync(join(tmpdir(), 'hr-sweeps-'));
+  gh('run', 'download', runId, '--dir', dir, '--pattern', 'sweep-*');
+}
+try {
+  const files = sweepFiles(dir);
+  if (!files.length) { console.error('sweeps-fetch: no sweep-*.json in ' + (runId ? 'run ' + runId : dir)); process.exit(2); }
+  const doc = assembleSweeps(files.map((f) => JSON.parse(readFileSync(f, 'utf8'))));
+  if (runId) doc.githubRun = runId;
+  writeFileSync(SWEEP_FILE, JSON.stringify(doc) + '\n');
+  const live = readKnobs(ROOT).knobs.map((k) => k.id);
+  const missing = live.filter((id) => !doc.knobs[id]);
+  console.log('sweeps-fetch: ' + Object.keys(doc.knobs).length + ' knob(s), ' + Object.values(doc.knobs).reduce((a, k) => a + Object.keys(k.steps).length, 0) + ' steps -> ' + relative(ROOT, SWEEP_FILE));
+  if (missing.length) console.log('  not swept: ' + missing.join(', '));
+  if (doc.hash !== matrixHash()) console.log('  STALE: measured on tree ' + doc.hash + ', this tree is ' + matrixHash() + ' (re-dispatch balance-sweeps.yml to refresh)');
+} finally {
+  if (scratch) rmSync(scratch, { recursive: true, force: true });
+}

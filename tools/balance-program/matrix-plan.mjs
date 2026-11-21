@@ -54,6 +54,13 @@ export const RUNS = Object.freeze({
     { id: 'four', comps: compsOf(4), gears: STD.GEAR_STATE_IDS, tiers: ['normal', 'hardest'] },
     { id: 'steps', comps: [lone('hammer')], steps: true, tiers: ['normal'] },
   ]) }),
+  /* Balance Lab v3's LIVE cells (a slider move re-plays them in the browser, on the bundled engine): every way alone and the four on Normal
+     and the hardest tier, MID, early, at the end of open content and PROJECTED, a quarter hour on one seed. tools/balance-lab/build.mjs --v3
+     resolves them (cell.mjs resolveOnly) so the page plays the matrix's own seats. */
+  live: Object.freeze({ id: 'live', levels: Object.freeze([30, 110, 400]), seeds: 1, hours: 0.25, blocks: Object.freeze([
+    { id: 'ways', comps: WAYS.map(lone), gears: ['mid'], tiers: ['normal'] },
+    { id: 'four', comps: compsOf(4), gears: ['mid'], tiers: ['normal', 'hardest'] },
+  ]) }),
 });
 
 /** A tier list resolved on a ground: 'all', ['normal', 'hardest'] ... -> the ids it offers. */

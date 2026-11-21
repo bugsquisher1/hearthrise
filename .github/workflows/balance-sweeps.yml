@@ -1,0 +1,78 @@
+# ============================================================================
+# balance-sweeps — THE BALANCE LAB'S PRECOMPUTED SWEEPS, ONE JOB A KNOB.
+#
+# tools/balance-program/balance-matrix.mjs --sweep on the representative subset
+# (207 cells on the real engine, Level 10 to 5,000): each live knob of
+# tools/balance-program/formulas/knobs.json at each of its steps, on a scratch
+# copy, every cell's section 6 metrics and the bands it moved
+# (40-formula-brief section 6; 44-formula-architecture section 6.2). About six
+# minutes a knob on four cores, so the knobs fan out as a job matrix and each
+# uploads its own sweep. A MEASUREMENT, never a gate, and never on a push.
+#
+# Dispatch: gh workflow run balance-sweeps.yml --ref <branch> [-f knobs=a,b]
+# Join:     node tools/balance-program/sweeps-fetch.local.mjs [--run <id>]
+#           (downloads the artifacts, writes tools/balance-program/balance-sweeps.json)
+# ============================================================================
+name: balance-sweeps
+
+on:
+  workflow_dispatch:
+    inputs:
+      knobs:
+        description: 'knob ids, comma-separated (blank: every live knob in knobs.json)'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+# one sweep per branch at a time: a newer dispatch replaces the run in flight
+concurrency:
+  group: balance-sweeps-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      knobs: ${{ steps.knobs.outputs.knobs }}
+    env:
+      KNOBS: ${{ github.event.inputs.knobs || '' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - id: knobs
+        name: The knobs to sweep (validated against knobs.json)
+        run: echo "knobs=$(node tools/balance-program/balance-matrix.mjs --knob-ids "$KNOBS")" >> "$GITHUB_OUTPUT"
+
+  sweep:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        knob: ${{ fromJSON(needs.plan.outputs.knobs) }}
+    env:
+      KNOB: ${{ matrix.knob }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Sweep ${{ matrix.knob }} on the subset
+        run: node tools/balance-program/balance-matrix.mjs --sweep --knobs "$KNOB" --workers 4 --out "sweep-$KNOB.json"
+      - name: Upload the sweep
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: sweep-${{ matrix.knob }}
+          path: sweep-*.json
+          retention-days: 30

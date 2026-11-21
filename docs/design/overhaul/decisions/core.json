@@ -101,6 +101,30 @@
     "Lineup run: balance-matrix.mjs --diff with tierDanger at 1.5, 2.0 and 2.5 times, --subset --blocks lineups --workers 2 (16 cells, 2 seeds of 1 hour). Direction only. The harness lets a dead hero stand up, so its death counts past the first death run high.",
     "The Level law joined three ways on the ruled table. The log join has three cheaper Levels (100, 300, 500). The convex cut has none and is exact at every ruled point."
   ],
+  "review": {
+    "verdict": "ACCEPT WITH FIXES",
+    "source": "docs/design/overhaul/decisions/review.md",
+    "applied": "2026-11-21 on lane/d-book-integrate",
+    "how": "A fixed row carries fixedBy (the review fix numbers), was (the decision as first written) and sometimes fixNote. The final lists for Tyler live in all.json.",
+    "whoIsI": "In every reason field, \"I\" is the decider. Only the replaces field and a ruling id cite Tyler. The build plan cites ruling ids only. (review-24)",
+    "labels": "The review spot-checked 28 evidence labels. The ones that were wrong or wider than their run are corrected by fixes 2, 6, 10, 11, 13, 15, 16, 19, 20, 21 and 22. (review-25)",
+    "rowsFixed": [
+      "CORE-1",
+      "CORE-2",
+      "CORE-4",
+      "C3",
+      "GR-4",
+      "GR-6",
+      "GR-6a",
+      "GR-6d",
+      "MM-7",
+      "GR-8",
+      "GR-16",
+      "GR-24",
+      "GR-65",
+      "MM-29-XP"
+    ]
+  },
   "rows": [
     {
       "id": "GR-85",
@@ -189,26 +213,32 @@
     {
       "id": "CORE-1",
       "call": "The raised tier dials and the two pull numbers (chapter 01, still missing 1).",
-      "decision": "Opening numbers, as targets the sample must confirm. Dangerous: pull 5, blows and aim 1.17 times Normal, health 1.10, Level XP 1.10. Deadly: pull 8, blows and aim 2.25 times Normal, health 1.15, Level XP 1.25. They are sized only after R7 lands, on 4 seeds of 8 hours with the game's own death rule, against bands S3, S4, S6 and the lineup test.",
+      "decision": "Opening numbers, as hypotheses the sample must confirm. Both tiers are sized on the mid-geared four in band. Dangerous is read against S3 (typical lowest health 35 to 60%) and Deadly against S4 (15 to 40%). A lone hero's reading prints and judges nothing. Dangerous: pull 5, blows and aim 1.17 times Normal, health 1.10, Level XP 1.10. Deadly: pull 8, blows and aim 2.25 times Normal, health 1.15, Level XP 1.25. They are sized only after R7 lands, on 4 seeds of 8 hours with the game's own death rule, against bands S3, S4, S6 and the lineup test.",
       "outcome": "third",
       "reason": "Dangerous is the lone hero's hard tier and already sits where it should. Deadly at 1.33 is not deadly at all, and it needs to roughly double before a prepared four even notices it.",
       "evidence": "MEASURED on the harness, direction only. Dangerous: a lone hero in band holds five at 35 to 49% health with no deaths at 1.17, which is inside band S3. Deadly, mixed four at Level 60: typical lowest health 0.78 at 1.33, 0.65 at 2.0, 0.39 at 2.66 and 0.19 at 3.33, with deaths starting between 2.0 and 2.66. Band S4 asks 15 to 40%. At Level 110 the same four is still at 0.59 at 2.66 and needs about 3.3 to reach the band. One dial does not bite the same at both Levels until R7 lands, which is why no final number is ruled today. HYPOTHESIS until the sample runs. It is overturned if the mixed four dies more than 100 times in 1,000 hours or the lineup cells still hold.",
       "replaces": "None. Builds 21-3.",
       "money": false,
       "depends": "GR-85 step R7, GR-3, GR-7 (the death count sets what a Blessing is worth), GR-52 (the store bill on Deadly).",
-      "group": "Foundation"
+      "group": "Foundation",
+      "was": "Opening numbers, as targets the sample must confirm. Dangerous: pull 5, blows and aim 1.17 times Normal, health 1.10, Level XP 1.10. Deadly: pull 8, blows and aim 2.25 times Normal, health 1.15, Level XP 1.25. They are sized only after R7 lands, on 4 seeds of 8 hours with the game's own death rule, against bands S3, S4, S6 and the lineup test.",
+      "fixedBy": "review-14",
+      "fixNote": "The row sized Dangerous on a lone hero. Ruling 21-3 sizes the harder tiers on a party with a healer, and the 2026-11-21 ruling says no solo or group targets."
     },
     {
       "id": "CORE-2",
       "call": "The party buffs, named (chapter 01, still missing 2).",
-      "decision": "There is no new buff system. Hunting together is better because of four things that already exist, and the Party window names them. One: the Company bonus, which is the party cell of the XP chain, one table by size and classes, the same on every ground, tier and mode. Two: the bigger pull of the harder tiers, which only a party can clear. Three: the seat jobs (Challenge, heals and shells, Hunter's Mark at +20%, Green Sickness at +10%). Four: one healer's mana in place of four heroes' potions. The Company bonus applies to Level XP only. Coin is never multiplied by party size. The Level law absorbs the size of the cell, so the cell is not re-tuned by band.",
+      "decision": "There is no new buff system. Hunting together is better because of four things that already exist, and the Party window names them. One: the Party bonus, which is the party cell of the XP chain, one table by size and classes, the same on every ground, tier and mode. Two: the bigger pull of the harder tiers, which only a party can clear. Three: the seat jobs (Challenge, heals and shells, Hunter's Mark at +20%, Green Sickness at +10%). Four: one healer's mana in place of four heroes' potions. The Party bonus applies to Level XP only. Coin is never multiplied by party size. The Level law absorbs the size of the cell, so the cell is not re-tuned by band.",
       "outcome": "third",
       "reason": "I said the same party buffs apply and it is a no-brainer. That is true today without inventing anything, as long as the game sends a four to ground it can hold as a four. A gold bonus by headcount would just mint gold for every account.",
       "evidence": "MEASURED on the harness, 4 seeds of 8 hours (my run of 2026-11-21): a start-kit four at Level 5 in the Sewer on Normal earns 38,769 Level XP a head an hour against 22,150 for the same four split in the Thicket (1.75 times), and 1,915 net gold a head against 1,629 (1.18 times). EVIDENCE from `src/data/party-class-xp.js`: on grounds built for one hero a four on Normal earns 20 to 60% less a head, so the rule holds only on ground and tiers a four can use. HYPOTHESIS for gold past Level 60. The harder tiers sample prints net gold a head for the four against the same four split. If it reads under 1.0, the lever is one party cell on the coin line, owned by the economy decider.",
       "replaces": "None now. One follow-up for later: once the lineup cells fail on Deadly, the classes column of the table is paying twice for something the monsters already enforce, and it can fold to size only. That would change 10-31 and is not decided here.",
       "money": false,
       "depends": "The economy decider (the coin line fallback). The MMO decider (MM-19, the two thirds line, sits on this same table). Chapter 08 (the first hour sends the four to the Sewer for this reason).",
-      "group": "Foundation"
+      "group": "Foundation",
+      "was": "There is no new buff system. Hunting together is better because of four things that already exist, and the Party window names them. One: the Company bonus, which is the party cell of the XP chain, one table by size and classes, the same on every ground, tier and mode. Two: the bigger pull of the harder tiers, which only a party can clear. Three: the seat jobs (Challenge, heals and shells, Hunter's Mark at +20%, Green Sickness at +10%). Four: one healer's mana in place of four heroes' potions. The Company bonus applies to Level XP only. Coin is never multiplied by party size. The Level law absorbs the size of the cell, so the cell is not re-tuned by band.",
+      "fixedBy": "review-30",
+      "fixNote": "The player-facing label follows the 2026-11-14 rule that labels outside lore are genre words."
     },
     {
       "id": "CORE-3",
@@ -225,38 +255,46 @@
     {
       "id": "CORE-4",
       "call": "Whether MMO layer buffs count inside the 60% mitigation cap (chapter 01, still missing 16).",
-      "decision": "They count inside it. Anything that takes a share off a blow is a row of the armor chain and stops at 60%, whether it is worn, cast, earned or bought. So that a capped tank still feels a defensive buff, the MMO layer writes that buff on the Defense rating (monsters land less often), which the cap does not govern. Deadly is sized on the plain mid four and a buffed four is meant to hold it with more room.",
+      "decision": "They count inside it. Anything that takes a share off a blow is a row of the armor chain and stops at 60%, whether it is worn, cast, earned or bought. So that a capped tank still feels a defensive buff, the MMO layer writes that buff on the Defense rating (monsters land less often), which the cap does not govern. Deadly is sized on the plain mid four and a buffed four is meant to hold it with more room. One check is owed before it is final: the to-hit formula needs its own floor, so rating rows cannot stack into a second way past the cap.",
       "outcome": "third",
       "reason": "The 60% cap is the real armor number of the game and I ruled it. If a clan room or a bought boost could go past it, the cap would be a suggestion and Deadly would have to be sized twice.",
       "evidence": "COMPUTED (chapter 01, 2.4): plate of its Level sits at the cap from Level 110 to 5,000, so a mitigation buff inside the cap is worth nothing to a tank and a rating buff is worth the same at every Level. The power budget grid (49 test G) overturns it if a buffed four takes less than 0.90 of a plain four's damage an hour.",
       "replaces": "None. Keeps 10-18.",
       "money": false,
       "depends": "MM-24, MM-25, MM-26 (the MMO decider): the \"damage taken\" row becomes a Defense rating row, and the 10% target of MM-26 is read on damage taken an hour.",
-      "group": "Foundation"
+      "group": "Foundation",
+      "was": "They count inside it. Anything that takes a share off a blow is a row of the armor chain and stops at 60%, whether it is worn, cast, earned or bought. So that a capped tank still feels a defensive buff, the MMO layer writes that buff on the Defense rating (monsters land less often), which the cap does not govern. Deadly is sized on the plain mid four and a buffed four is meant to hold it with more room.",
+      "fixedBy": "review-4"
     },
     {
       "id": "C3",
       "call": "Check C3 of chapter 08: does a start-kit four hold the Sewer on Normal at Level 5?",
-      "decision": "It holds. The first hour may stand on step 13. C3 joins the matrix as a standing cell so a later change cannot break it quietly.",
+      "decision": "It holds. The first hour may stand on step 13. C3 joins the matrix as a standing cell so a later change cannot break it quietly. The standing C3 cell on the matrix is the default company (hammer, shield, staff, bow), with the four that has no healer printed beside it.",
       "outcome": "recommended",
       "reason": "The whole first hour ends with four heroes in the Sewer, so this had to be played before anybody builds the tutorial around it.",
       "evidence": "MEASURED on the matrix's own cell builder and engine worker, 4 seeds of 8 hours, 2 workers, 128 hero-hours (2026-11-21). Kit: practice weapons only, no helm, supplies from the store, which is poorer than the tutorial kit. Shield, staff, bow and wand at Level 5: 0 deaths, the tank's typical lowest health 84%, worst tenth 65%, worst hundredth 55%, the Rat King killed 21 times an hour. XP a head 1.75 times the same four split, net gold a head 1.18 times. Level 6 reads the same. A hammer in front also holds (0 deaths, lowest health 77%). Caveat: the harness reads a four's damage low, but the margin is wide.",
       "replaces": "None.",
       "money": false,
       "depends": "GR-24 (any front weapon holds, so the first hour does not force the shield). The player experience decider owns the sequence.",
-      "group": "Foundation"
+      "group": "Foundation",
+      "was": "It holds. The first hour may stand on step 13. C3 joins the matrix as a standing cell so a later change cannot break it quietly.",
+      "fixedBy": "review-6, review-20",
+      "fixNote": "The measured four (shield, staff, bow, wand) was not the company GR-24 pre-fills. The review measured the default company: 0 deaths in 64 hero-hours. \"Any front weapon holds\" is true only with a healer. A four with no healer and no shield died once in 16 party-hours."
     },
     {
       "id": "GR-4",
       "call": "A gear curve as a game formula.",
-      "decision": "Approve it. A piece's budget is linear in the Level it is worn at and lives in data. Past tier 7 a band is a fixed step of the curve, opening at +24% (Levels 110, 136, 169, 210, 260, 322, 400), and the step is one knob. Every unique is a spend of its band at published rates. The two Luck numbers are keyed by Level with the same end points. One rider: every region must hold at least one band edge, and if it does not, the knob or the region moves.",
+      "decision": "Approve it. A piece's budget is linear in the Level it is worn at and lives in data. Past tier 7 a band is a fixed step of the curve, and the step is one knob. It opens at the largest step that keeps the rider below, which is about +17% on the planned region edges (bands at Levels 110, 129, 151, 176, 206, 241, 282, 330 and 386). That is eight bands to Level 400, about one and a half a region. Every unique is a spend of its band at published rates. The two Luck numbers are keyed by Level with the same end points. One rider: every region must hold at least one band edge, and if it does not, the knob or the region moves. +24% stays a hypothesis for the one-band play and can ship only if region edges move with it.",
       "outcome": "recommended",
       "reason": "Levels never end, so gear has to be a formula or the game stops at whatever tier we last typed. A band as wide as a tier means a new band feels like tier 6 to tier 7 did, not like a quarter of an upgrade twenty times.",
       "evidence": "MEASURED on stand-in grounds: typed gear is 9% slow at Level 400 and cannot hunt at 2,000. COMPUTED: a fixed 27 Levels is +25% at Level 110 and +8% at 377. Chapter arithmetic for the rider: at +24% the 330 to 385 region holds no band edge (322, then 400), and a step of +17% would give every region one. HYPOTHESIS that +24% feels right past Level 260, where a band lasts 75 to 95 days. The matrix gear-step cells and the items decider's upgrade cadence check overturn it.",
       "replaces": "REVERSAL. Replaces 11-18 (two bands for each region), the reading of 10-25 (a major upgrade every 15 to 25 Levels, which is now carried by chest pieces, uniques and Tempering between bands) and re-keys the 11-20 Luck numbers from band to Level.",
       "money": false,
       "depends": "Decided with the items decider. If they pick a different step, the step is a knob and I accept theirs. GR-5 needs the curve first. GR-8 prices read the band table. MM-6 and MM-14 gear lines spend the same curve.",
-      "group": "Long game"
+      "group": "Long game",
+      "was": "Approve it. A piece's budget is linear in the Level it is worn at and lives in data. Past tier 7 a band is a fixed step of the curve, opening at +24% (Levels 110, 136, 169, 210, 260, 322, 400), and the step is one knob. Every unique is a spend of its band at published rates. The two Luck numbers are keyed by Level with the same end points. One rider: every region must hold at least one band edge, and if it does not, the knob or the region moves.",
+      "fixedBy": "review-15",
+      "fixNote": "At +24% the Level 330 to 385 region holds no band edge, which breaks the row's own rider, and a plain band lasts 75 to 95 days at the top."
     },
     {
       "id": "GR-5",
@@ -273,26 +311,32 @@
     {
       "id": "GR-6",
       "call": "The Level table.",
-      "decision": "From Level 50 the table of hours is the law and the XP a Level costs is derived from it. Levels 1 to 50 stay timed on a lone new hero. The 106 hours the four gains before Level 50 are allowed at every ruled point. It ships with GR-8, after GR-5 and the tier numbers. Three things inside it are decided in their own rows: whose clock it is (GR-6a), Krell's day (GR-6b) and how the ruled points are joined (GR-6d).",
+      "decision": "From Level 50 the table of hours is the law and the XP a Level costs is derived from it. Levels 1 to 50 stay timed on a lone new hero. The 106 hours the four gains before Level 50 are allowed at every ruled point, so the four reaches Level 100 at 494 hours and Level 400 on day 373. Both change ruled numbers and are on the reversal list for Tyler. It ships with GR-8, after GR-5 and the tier numbers. Three things inside it are decided in their own rows: whose clock it is (GR-6a), Krell's day (GR-6b) and how the ruled points are joined (GR-6d).",
       "outcome": "third",
       "reason": "I gave the hours, so the hours should be the law and the XP numbers should fall out of them. The first 50 Levels are the hook and they stay fast.",
       "evidence": "COMPUTED from XP rates the simulator measured (56, chapter 05): Levels 100, 200 and 400 at 494, 1,574 and 4,474 hours. Level 185 and up is PROVISIONAL. The seat's multiple is one number that is not known until GR-5 and the tiers are measured.",
-      "replaces": "None. Builds 50-1 and 50-2. Keeps 27-2.",
+      "replaces": "REVERSAL of two numbers. The table of 2026-10-25 (Level 100 at 600 hours) and \"Level 400 is day 382\" of 2026-11-21. Builds 50-1 and 50-2. Keeps 27-2.",
       "money": false,
       "depends": "GR-4, GR-5, CORE-1 before it. GR-8 with it. Every chapter's day numbers after it.",
-      "group": "Long game"
+      "group": "Long game",
+      "was": "From Level 50 the table of hours is the law and the XP a Level costs is derived from it. Levels 1 to 50 stay timed on a lone new hero. The 106 hours the four gains before Level 50 are allowed at every ruled point. It ships with GR-8, after GR-5 and the tier numbers. Three things inside it are decided in their own rows: whose clock it is (GR-6a), Krell's day (GR-6b) and how the ruled points are joined (GR-6d).",
+      "fixedBy": "review-11",
+      "fixNote": "The row said it replaced nothing. Level 100 at 494 hours is 18% early, past the standards' own 15% red line."
     },
     {
       "id": "GR-6a",
       "call": "Collision (a): is the table the clock of a plain four or a buffed four, and what happens to the runway?",
-      "decision": "The table is the clock of the plain mid-geared four. Buffs are rows on top and the law never reads them. The 120 days of grounds at Early Access are read on the plain four. \"Each region opens 30 days before the first fours arrive\" is read on the fastest seat a player can hold all the time, not on every cap full every hour. If the art schedule cannot hold that date, the timed Level XP cap of MM-25 comes down until it does. The Level law, a Level cap and a frontier penalty are never the answer. Past the last ground the soft wall stays: a Level costs more because XP an hour stops rising, and old grounds at your Level, the Tower, the Catacombs and world bosses carry the wait.",
+      "decision": "The table is the clock of the plain mid-geared four. Buffs are rows on top and the law never reads them. The 120 days of grounds at Early Access are read on the plain four. \"Each region opens 30 days before the first fours arrive\" is read on the fastest seat a player can hold all the time, not on every cap full every hour. If the art schedule cannot hold that date, the timed Level XP cap of MM-25 comes down until it does. The Level law, a Level cap and a frontier penalty are never the answer. Past the last ground the soft wall stays: a Level costs more because XP an hour stops rising, and old grounds at your Level, the Tower, the Catacombs and world bosses carry the wait. Staged content ends on day 116 on the plain four's clock. The four days to 120 are closed with a content row and no new ground: the top staged ground's band runs to Level 189, which is where the plain four stands at 1,440 hours. The fastest seat a player can hold all the time is about 1.36 times the plain pace (1.15 x 1.15 x 1.027). Staged content ends near day 85 for that seat and the next region's door is near day 55.",
       "outcome": "recommended",
       "reason": "Every account sits in the plain seat from day 1, so that is the clock. If the table were timed on a buffed four, buffs would be a tax to get back to normal, and I want them to feel like time gained.",
       "evidence": "COMPUTED (chapter 05, 2.4, and chapter arithmetic here). Staged content ends on day 116 for the plain four. The fastest seat held all the time is best gear with standing buffs and a timed damage boost, about 1.39, which ends staged content near day 83 and puts the next region's door at about day 53. If Tyler allows a bought Level XP boost that seat is about 1.6 to 1.7 and the door is day 37 to 42. The four days between 116 and 120 are inside the tolerance of a projection and no ground is authored to close them.",
-      "replaces": "None. It reads 50-7 on two seats, which the standards already implied.",
+      "replaces": "REVERSAL only if the top staged band is not run to Level 189: \"120 days of grounds at Early Access\" of 2026-11-21 would become 116. It reads 50-7 on two seats.",
       "money": false,
       "depends": "MM-25, MM-26, MM-31 (the MMO and economy deciders): they owe one number, the time-averaged pace of a player who fills every timed cap as often as the calendar and the store allow. The world decider and the art and asset directors own the region date. MM-29-XP moves it.",
-      "group": "Long game"
+      "group": "Long game",
+      "was": "The table is the clock of the plain mid-geared four. Buffs are rows on top and the law never reads them. The 120 days of grounds at Early Access are read on the plain four. \"Each region opens 30 days before the first fours arrive\" is read on the fastest seat a player can hold all the time, not on every cap full every hour. If the art schedule cannot hold that date, the timed Level XP cap of MM-25 comes down until it does. The Level law, a Level cap and a frontier penalty are never the answer. Past the last ground the soft wall stays: a Level costs more because XP an hour stops rising, and old grounds at your Level, the Tower, the Catacombs and world bosses carry the wait.",
+      "fixedBy": "review-11, review-21",
+      "fixNote": "The fastest seat was written as 1.39 with a +5% standing Level XP buff that MM-25 cut."
     },
     {
       "id": "GR-6b",
@@ -309,14 +353,17 @@
     {
       "id": "GR-6d",
       "call": "Collision (d): the log-scale kinks in the Level law at Level 100 and Level 300.",
-      "decision": "Drop the log-scale join. The law is the convex cut of the ruled table: hours a Level is one continuous line that never falls, and each ruled stretch adds up to exactly its ruled hours. A generator writes it from the table and nobody types a point. The ramp at Level 50 is the first piece of the same line, rising from what the four pays at 49 over about eight Levels. Nothing is smoothed by hand afterwards.",
+      "decision": "Drop the log-scale join. The law is the convex cut of the ruled table: hours a Level is one continuous line that never falls, and each ruled stretch adds up to exactly its ruled hours. A generator writes it from the table and nobody types a point. The ramp at Level 50 is the first piece of the same line, rising from what the four pays at 49 over about eight Levels. Nothing is smoothed by hand afterwards. The generator's rule is written here so the law is one line and not one of many: it is the non-falling line through every ruled total that has the smallest largest step between two Levels.",
       "outcome": "third",
       "reason": "A Level should never get cheaper than the one before it, and a player should never hit a wall the day after a milestone. Patching two kinks by hand would leave the third one in.",
       "evidence": "COMPUTED by my own script on the ruled table (2026-11-21). The log join makes a Level cheaper at three places, not two: Level 100 (11.0 hours, then 8.9), Level 300 (15.9, then 13.9) and Level 500 (23.1, then 23.0), and it jumps 29% in one Level at 400. The convex cut passes through every ruled point exactly (600, 1,680, 3,120, 4,580, 6,720, 13,440, 23,520 hours), has no cheaper Level anywhere to Level 1,000, and its largest step between two Levels is 8%. It reads 9.7 hours at Level 100, 12.8 at 200, 14.5 at 300 and 18.0 at 400. What stays is in the ruled table itself: Levels 200 to 400 cost almost the same (14.4 and 14.6 hours) and the cost then climbs to 21 hours after 400.",
       "replaces": "None. It changes the method inside GR-6, not a ruling.",
       "money": false,
       "depends": "GR-6. Band P11 (no Level over twice the one before) and P12 read it. If Tyler wants Levels 300 to 400 to feel steeper than 200 to 300, that is a change to his table and not to the join.",
-      "group": "Long game"
+      "group": "Long game",
+      "was": "Drop the log-scale join. The law is the convex cut of the ruled table: hours a Level is one continuous line that never falls, and each ruled stretch adds up to exactly its ruled hours. A generator writes it from the table and nobody types a point. The ramp at Level 50 is the first piece of the same line, rising from what the four pays at 49 over about eight Levels. Nothing is smoothed by hand afterwards.",
+      "fixedBy": "review-10",
+      "fixNote": "Many lines pass every ruled point without falling. Core's had an 8% step and a line under 2% exists."
     },
     {
       "id": "GR-7",
@@ -333,26 +380,31 @@
     {
       "id": "MM-7",
       "call": "Collision (c): a death in a world boss room.",
-      "decision": "It costs the normal death. Four conditions come with it. One death a send at most, because a death ends the hunt and nothing restarts by itself, and Carry on never sends a hero into a boss room. The room takes the one tier table and the one death band, so its Normal is safe by formula. Blessings, the ladder and \"keep me blessed\" all apply. The boss card shows the risk reading and what a death would cost this hero before the send. It is built with GR-7 and never before it.",
+      "decision": "A death in a boss room costs the normal death and nothing else. One death a send at most, because a death ends the fight and nothing restarts by itself. Carry on never sends a hero into a boss room. The first send defaults to Normal. Blessings, the ladder and \"keep me blessed\" apply. The boss card shows the risk reading (deaths per 100 hours for the tier) and what a death would cost this hero before the send. It is one row on the mode table and never a rule for one room. Deaths in the room sit inside the death band of the tier chosen, because the hall number acts on the boss's health and the clock and never on his blows (GR-30). It is built with GR-7 and never before it.",
       "outcome": "recommended",
       "reason": "One rule for every fight is easier to trust than a list of places where dying is free. If the boss room were free, everybody would send on Deadly and the tier choice would mean nothing.",
       "evidence": "COMPUTED (chapter 05, 2.7): without the ladder a Level 300 hero risks 26 hunted hours for a chest roll, and with it three to five. HYPOTHESIS that an away player accepts it. Overturned if the first boss weekend shows sends on Dangerous and Deadly under a tenth of all sends, or if the walk-through of a Level 20 four's first boss weekend shows a death the player could not have seen coming.",
       "replaces": "None.",
       "money": false,
       "depends": "The MMO decider owns MM-7 and should land on the same answer. If they chose a free death, the integrator must reconcile. Core can accept a row on the mode table (the Tower's row, whole) and cannot accept a death rule written for one room.",
-      "group": "Long game"
+      "group": "Long game",
+      "was": "It costs the normal death. Four conditions come with it. One death a send at most, because a death ends the hunt and nothing restarts by itself, and Carry on never sends a hero into a boss room. The room takes the one tier table and the one death band, so its Normal is safe by formula. Blessings, the ladder and \"keep me blessed\" all apply. The boss card shows the risk reading and what a death would cost this hero before the send. It is built with GR-7 and never before it.",
+      "fixedBy": "review-5, review-12",
+      "fixNote": "Decided twice with slightly different conditions. Merged into one row. \"Safe by formula\" could not hold while the hall number raised the boss's blows."
     },
     {
       "id": "GR-8",
       "call": "Sinks that follow the gear, and the hole the slot prices left.",
-      "decision": "Tempering, Hallmarks and linings each cost a share of the band's gold, so a band's standing upgrades total 1.2 to 1.4 of what the band earns, sized on a hero who pays only the difference at every tier and read on a hero-day of the four. Linings and the yard fee come forward as the first repeating sinks. Clan castle rooms take the place of the slot gold. It ships in the same release as the Level law.",
+      "decision": "Tempering, Hallmarks and linings each cost a share of the band's gold, so a band's standing upgrades total 1.2 to 1.4 of what the band earns, sized on a hero who pays only the difference at every tier and read on a hero-day of the four. Linings and the yard fee come forward as the first repeating sinks. The gold the hero slots would have taken follows the order of CE-4 in the first weeks: supplies, the yard, the House ladder re-read for four, bag rungs, Tempering, Hallmarks, Blessings and linings. The castle is the long home for that gold once an account is in a clan. Boss and arena materials are a small home. It ships in the same release as the Level law.",
       "outcome": "recommended",
       "reason": "I want sinks to cost a bit more than a band earns so a player has to choose. Typed prices cannot hold that once a band lasts twice as long, so the price has to be a share.",
       "evidence": "COMPUTED: on a trial curve typed prices fall to 0.19, 0.40 and 0.18 of a band's gold at Levels 60, 110 and 185 against the ruled 1.2 to 1.4, and a careful hero pays 0.5 to 0.9 of a band at tiers 4 to 6 without the re-price. Bands G-10 and E4 judge it.",
       "replaces": "REVERSAL. Replaces the typed prices kept on 11-18 (\"Tempering as built\", Hallmarks at 150k, 250k, 400k and 600k) with a share that holds the size Tyler asked for the same day. Keeps 23-2 (Tempering pays the difference).",
       "money": false,
       "depends": "The economy decider co-owns it and sets the share. GR-4 (the band table), GR-6 (ships together), GR-51 (the wage curve), MM-22 (castle rooms).",
-      "group": "Long game"
+      "group": "Long game",
+      "was": "Tempering, Hallmarks and linings each cost a share of the band's gold, so a band's standing upgrades total 1.2 to 1.4 of what the band earns, sized on a hero who pays only the difference at every tier and read on a hero-day of the four. Linings and the yard fee come forward as the first repeating sinks. Clan castle rooms take the place of the slot gold. It ships in the same release as the Level law.",
+      "fixedBy": "review-8"
     },
     {
       "id": "GR-9",
@@ -429,14 +481,17 @@
     {
       "id": "GR-16",
       "call": "Necrotic and Storm.",
-      "decision": "Seven spells first, one for each weapon, built after Deadly is sized. Sixteen stays the end state. The second batch is redesigned after the seven are played, under one rule: no two weapons share a mechanic. Spell leech and lining leech are sized together under one row before either ships.",
+      "decision": "Seven spells first, one for each weapon, built after Deadly is sized. Sixteen stays the end state. The second batch is redesigned after the seven are played, under one rule: no two weapons share a mechanic. Spell leech and lining leech are sized together under one row before either ships. The game designer sizes the mana burn share and the healing cut with the first seven spells, on the matrix, and reports them as decided.",
       "outcome": "recommended",
       "reason": "I want every weapon to have both elements, and I want each one to play differently. Building sixteen mirrored spells at once would give me eight copies of two ideas.",
       "evidence": "EVIDENCE (52, 47 C4). The element numbers (mana burn share, healing cut) are OPEN and need Tyler's yes before the elements switch on.",
       "replaces": "None. Keeps 11-18 and 32-6.",
       "money": false,
       "depends": "CORE-1 first. The items decider owns Storm and Bone runes and leech linings.",
-      "group": "Combat"
+      "group": "Combat",
+      "was": "Seven spells first, one for each weapon, built after Deadly is sized. Sixteen stays the end state. The second batch is redesigned after the seven are played, under one rule: no two weapons share a mechanic. Spell leech and lining leech are sized together under one row before either ships.",
+      "fixedBy": "review-18",
+      "fixNote": "The chapter pushed the element numbers to Tyler. That is a design call, not money, a grant or a reversal."
     },
     {
       "id": "GR-17",
@@ -525,14 +580,17 @@
     {
       "id": "GR-24",
       "call": "The starting weapon.",
-      "decision": "The player picks a weapon for each hero at creation. The first hero's highlighted pick is the hammer. When the company is raised, the other three come pre-filled as shield, staff and bow, one press accepts them and every pick can be changed. Skills never lock a hero to the pick.",
+      "decision": "The player picks a weapon for each hero at creation, from the six starter set rows. No card is preselected. Each card carries its measured tag from check C1 (\"Good alone\" or \"Best in a party. Slow alone.\"). The hammer card carries a \"Good first hero\" mark. Heroes two to four come pre-filled as shield, staff and bow, one press accepts them and any pick can be changed. The pre-filled company always holds one healer, and the creation screen says so before a player changes it. The pick only sets what is in hand. Every hero still owns the whole practice kit, and skills never lock a hero to the pick. Core owns the row. Check C1 is still owed.",
       "outcome": "third",
       "reason": "This is the first choice a player ever makes, so it should be theirs. But a brand-new player should not start alone on the one weapon I made slow on purpose, and should not have to know what a party needs.",
       "evidence": "MEASURED (my C3 run, 2026-11-21): a start-kit four at Level 5 holds the Sewer on Normal with a shield in front (lowest health 84%) and with a hammer in front (77%), with no deaths in 128 hero-hours each. So a player who keeps the hammer hero in front is not punished.",
       "replaces": "None.",
       "money": false,
       "depends": "The player experience decider (GR-79, the first hour). GR-15 (default bars).",
-      "group": "Combat"
+      "group": "Combat",
+      "was": "The player picks a weapon for each hero at creation. The first hero's highlighted pick is the hammer. When the company is raised, the other three come pre-filled as shield, staff and bow, one press accepts them and every pick can be changed. Skills never lock a hero to the pick.",
+      "fixedBy": "review-6, review-7, review-20",
+      "fixNote": "Core highlighted the hammer and the MMO row preselected nothing. Merged. \"Any front weapon holds\" was measured only with a healer."
     },
     {
       "id": "GR-25",
@@ -609,14 +667,17 @@
     {
       "id": "GR-65",
       "call": "Inner Flame and death.",
-      "decision": "A death does not take Inner Flame progress.",
-      "outcome": "recommended",
+      "decision": "WITHDRAWN. A death takes Inner Flame progress like every combat skill, as ruled on 2026-10-25.",
+      "outcome": "withdrawn",
       "reason": "Inner Flame is trained at the Hearth, not in a fight, so losing it to a fight makes no sense to a player.",
       "evidence": "EVIDENCE (44 special rule P-X18).",
-      "replaces": "REVERSAL, small. 11-09 takes 6% of each combat skill's progress, and Inner Flame was on that list by how it was built.",
+      "replaces": "None. The ruling of 2026-10-25 stands.",
       "money": false,
       "depends": "GR-61.",
-      "group": "Progression"
+      "group": "Progression",
+      "was": "A death does not take Inner Flame progress.",
+      "fixedBy": "review-13",
+      "fixNote": "Tyler was asked directly on 2026-10-25 and said Prayer keeps its death loss, and the record says not to re-propose an exemption. Inner Flame is that skill renamed. The row cited the wrong ruling and offered no new evidence."
     },
     {
       "id": "GR-66",
@@ -633,14 +694,17 @@
     {
       "id": "MM-29-XP",
       "call": "May a bought timed boost fill the Level XP cap? (the 11-04 avoid list against Crowns giving real advantages)",
-      "decision": "TYLER CONFIRMS. Not decided here. My recommendation: no. Bought boosts fill the timed damage cap and nothing on Level XP. The timed Level XP cap of +25% is earned only, from events, world bosses and clans. A payer is then about 27% faster than a plain four through best gear and a damage boost, and anybody who plays the shared world can add the XP on top.",
+      "decision": "TYLER CONFIRMS. Recommended: no. No Level XP boost is sold, for Crowns or for gold. The timed Level XP cap of +25% is filled only by the Hearthrise weekend.",
       "outcome": "third",
       "reason": "Level is the score everybody is ranked on, and I put paid XP boosts on the avoid list myself. A kill speed boost is still a real edge you can feel, and it does not sell the scoreboard.",
       "evidence": "COMPUTED: best gear 1.15 times a timed damage boost 1.10 is 1.27, against 1.58 with a bought XP boost (chapter 04). It also moves the date the next region must open from about day 37 to 42 to about day 53 (GR-6a).",
       "replaces": "If Tyler says yes instead, it replaces the 11-04 avoid list line on paid XP boosts and the 11-18 line that power is never sold directly for Crowns.",
       "money": true,
       "depends": "MM-28, MM-29, MM-31 (the economy and MMO deciders, who may recommend yes). GR-6a works under either answer.",
-      "group": "Money"
+      "group": "Money",
+      "was": "TYLER CONFIRMS. Not decided here. My recommendation: no. Bought boosts fill the timed damage cap and nothing on Level XP. The timed Level XP cap of +25% is earned only, from events, world bosses and clans. A payer is then about 27% faster than a plain four through best gear and a damage boost, and anybody who plays the shared world can add the XP on top.",
+      "fixedBy": "review-1",
+      "fixNote": "Core said no and content-economy said yes at about +15%. Tyler's words on 2026-11-04, 2026-11-18 and 2026-11-21 all run Crowns to gold to an edge, and Level is the ranked score."
     }
   ]
 }

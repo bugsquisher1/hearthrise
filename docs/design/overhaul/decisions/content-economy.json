@@ -136,11 +136,33 @@
       "what": "Chapters 02 and 03 say plain Dawnsteel drops \"as Rares\" and should say Scarce and hourly (CE-6). Chapter 06 says the boss material is used by Tempering, Hallmarks and linings and should say layer pieces only (CE-1)."
     }
   ],
+  "review": {
+    "verdict": "ACCEPT WITH FIXES",
+    "source": "docs/design/overhaul/decisions/review.md",
+    "applied": "2026-11-21 on lane/d-book-integrate",
+    "how": "A fixed row carries fixedBy (the review fix numbers), was (the decision as first written) and sometimes fixNote. The final lists for Tyler live in all.json.",
+    "whoIsI": "In every reason field, \"I\" is the decider. Only the replaces field and a ruling id cite Tyler. The build plan cites ruling ids only. (review-24)",
+    "labels": "The review spot-checked 28 evidence labels. The ones that were wrong or wider than their run are corrected by fixes 2, 6, 10, 11, 13, 15, 16, 19, 20, 21 and 22. (review-25)",
+    "rowsFixed": [
+      "GR-28",
+      "GR-30",
+      "GR-33",
+      "GR-48",
+      "GR-52",
+      "GR-56a",
+      "GR-73",
+      "CE-2",
+      "CE-5",
+      "CE-10",
+      "MM-29",
+      "MM-31"
+    ]
+  },
   "rows": [
     {
       "id": "GR-28",
       "call": "One boss door",
-      "decision": "Every boss fight that pays a prize is a keyed hall. The boss call folds into it. One key is one prize roll and the key is the only clock. \"Fight with N keys\" is one press and the bar and party are remembered. A mid-region boss's pieces stay repeatable. Halls: the Rat King, Chief Coppercap, Captain Hask, Lord Krell, the Roost Mother, Father Gault, then two a region. Old Grayjaw and Rook stay route bosses for good, so no hall exists under Level 20.",
+      "decision": "Every boss fight that pays a prize is a keyed hall. The boss call folds into it. One key is one prize roll and the key is the only clock. \"Fight with N keys\" is one press and the bar and party are remembered. A mid-region boss's pieces stay repeatable. Halls: the Rat King, Chief Coppercap, Captain Hask, Lord Krell, the Roost Mother, Father Gault, then two a region. Old Grayjaw and Rook stay route bosses for good, so no hall exists under Level 20. \"Fight with N keys\" stops at the first death, as every hunt does. The Rat King is one monster row used on the Sewer route and in his hall, so no copy row returns.",
       "outcome": "recommended",
       "reason": "Two doors to the same boss is one decision asked twice. One door with one clock is easier to learn, and world bosses and events get one boss system to build on. A key a hero-day keeps the pace the daily roll had, so nothing gets faster by accident.",
       "evidence": "EVIDENCE: four reviews and study 47 ask for the merge (60 section 0.2 row 16). The key pace of about one a hero a hunted day is a TARGET. HYPOTHESIS that traded keys do not flood boss pieces. The check: on the matrix and in the beta, boss uniques found per account-week stay at or under the Very Rare clock of chapter 03 section 2.4. If they pass it, the key row gets rarer, never a second daily limit.",
@@ -153,7 +175,9 @@
         "MM-2 (the world boss reuses the hall room, mmo decider)",
         "GR-34 (the four called boss copies go)"
       ],
-      "area": "World"
+      "area": "World",
+      "was": "Every boss fight that pays a prize is a keyed hall. The boss call folds into it. One key is one prize roll and the key is the only clock. \"Fight with N keys\" is one press and the bar and party are remembered. A mid-region boss's pieces stay repeatable. Halls: the Rat King, Chief Coppercap, Captain Hask, Lord Krell, the Roost Mother, Father Gault, then two a region. Old Grayjaw and Rook stay route bosses for good, so no hall exists under Level 20.",
+      "fixedBy": "review-12, review-31"
     },
     {
       "id": "GR-29",
@@ -175,7 +199,7 @@
     {
       "id": "GR-30",
       "call": "The hall boss",
-      "decision": "A hall boss is the formula's boss role at his Level times one hall number that every hall shares. Krell's rows are left alone until hand rows move onto the formula. The number is sized so a mid-geared four in band wins 80 to 90% on the food the card names, and the weakest named lineup loses.",
+      "decision": "A hall boss is the formula's boss role at his Level times one hall number that every hall shares. The hall number acts on the boss's health, and so on the 10 minute clock, never on his blows. Krell's rows are left alone until hand rows move onto the formula. The number is sized so a mid-geared four in band wins 80 to 90% on the food the card names, and the weakest named lineup loses to the clock. Deaths in a hall sit inside the same death band as the tier chosen.",
       "outcome": "recommended",
       "reason": "If every party wins, the party you bring does not matter, and preparing a party is the whole game. One number for every hall is the formula form. Tuning Krell by hand is the patch you ruled out.",
       "evidence": "MEASURED on the proposed spell rule: all 36 tested parties won Krell's hall 38 to 40 times in 40 (study 53). The 80 to 90% band is a TARGET. The hall number itself is not sized and nothing is played at Levels 25, 52 and 75.",
@@ -186,7 +210,11 @@
         "GR-28",
         "MM-5 (the world boss room uses the same hall number)"
       ],
-      "area": "World"
+      "area": "World",
+      "was": "A hall boss is the formula's boss role at his Level times one hall number that every hall shares. Krell's rows are left alone until hand rows move onto the formula. The number is sized so a mid-geared four in band wins 80 to 90% on the food the card names, and the weakest named lineup loses.",
+      "fixedBy": "review-12",
+      "hypothesis": "HYPOTHESIS until the hall grader plays it at Levels 25, 52 and 75.",
+      "fixNote": "A hall lost one time in five or ten, with a death ending the hall at 6% of all Level XP, would have been the most expensive button in the game."
     },
     {
       "id": "GR-31",
@@ -231,10 +259,12 @@
       "money": false,
       "depends": [
         "The art and asset directors (how fast a region is drawn, still missing)",
-        "GR-6 (Krell on day 18 against the table moves the runway by a factor of two, progression decider)",
+        "GR-6b (Krell is day 31 for the plain four, and every chapter quotes that one day)",
         "MM-26 and MM-31 (a buffed four walks the runway faster)"
       ],
-      "area": "World"
+      "area": "World",
+      "fixedBy": "review-section-4-row-11",
+      "fixNote": "The row quoted Krell on day 18 while GR-6b says day 31. The decision text is unchanged, so there is no was."
     },
     {
       "id": "GR-34",
@@ -454,7 +484,7 @@
     {
       "id": "GR-48",
       "call": "Luck's feeds, the find list, the saved kit",
-      "decision": "Luck keeps two feeds and one budget. Each ground has a find list on the Honors page that ticks with no press and pays no Luck. A hero's worn set, linings and unique can be saved against a ground and starting a hunt there wears it. The saved kit is built before case perks, linings or signatures.",
+      "decision": "Luck keeps two feeds and one budget. Each ground has a find list on the Honors page that ticks with no press and pays no Luck. One Setup for each ground holds the weapon, the worn set, the linings, the unique, the bar and the target mode. It is saved once, starting a hunt there wears it, and it can be copied to another hero or ground. The Setup is built before case perks, linings or signatures.",
       "outcome": "recommended",
       "reason": "The saved kit is the piece that makes every \"bring the right thing\" system in this book a decision made once. Without it, four heroes changing rings by hand on every move is the worst chore in the game.",
       "evidence": "EVIDENCE: your Luck ruling of 2026-11-20 and the first principle of 2026-10-18. The kit's server shape and cost are not measured.",
@@ -465,7 +495,10 @@
         "Systems engineer (server shape)",
         "GR-56a and GR-84 (setups as one idea)"
       ],
-      "area": "Items and crafting"
+      "area": "Items and crafting",
+      "was": "Luck keeps two feeds and one budget. Each ground has a find list on the Honors page that ticks with no press and pays no Luck. A hero's worn set, linings and unique can be saved against a ground and starting a hunt there wears it. The saved kit is built before case perks, linings or signatures.",
+      "fixedBy": "review-28",
+      "fixNote": "This row saved the worn set and GR-84 saved the bar. Two saved things for one decision makes the weak-side weapon a chore."
     },
     {
       "id": "GR-49",
@@ -522,7 +555,7 @@
     {
       "id": "GR-52",
       "call": "The store's healing",
-      "decision": "Store healing is priced on one gold-a-hit-point line with its top near 0.60, and a heal's size is a share of reference health. It lands after the store-bill fault in the simulator closes. Store runes and ammunition get the same treatment in the same step: one price line each, read on the wage curve.",
+      "decision": "Store healing is priced on one gold-a-hit-point line with its top near 0.60, and a heal's size is a share of reference health. It lands after the store-bill fault in the simulator closes. Store runes and ammunition get the same treatment in the same step: one price line each, read on the wage curve. The simulated kit's rune tier is decided here and not sent back to the baseline lane: a mid-geared hero casts one rune tier under what its Magic allows, a healer's heals use the cheapest water rune, and best gear casts the tier its Magic allows. Then the grid is played once.",
       "outcome": "recommended",
       "reason": "One line means a bigger heal is never a worse buy than a small one, so the store stops punishing the hero that takes the hardest hits. Runes and arrows are most of a party's bill and no formula owns them yet, so they are folded in here instead of becoming a second call.",
       "evidence": "MEASURED (studies 44 and 55): a lone hero's Deadly bill falls 49% and no other number moves. The rune and ammunition line is PROPOSED and unmeasured.",
@@ -533,7 +566,9 @@
         "GR-58",
         "GR-51"
       ],
-      "area": "Economy"
+      "area": "Economy",
+      "was": "Store healing is priced on one gold-a-hit-point line with its top near 0.60, and a heal's size is a share of reference health. It lands after the store-bill fault in the simulator closes. Store runes and ammunition get the same treatment in the same step: one price line each, read on the wage curve.",
+      "fixedBy": "review-29"
     },
     {
       "id": "GR-53",
@@ -591,14 +626,17 @@
       "outcome": "recommended",
       "reason": "Your first principle is that a choice made once is remembered. Charging for the memory taxes exactly the behavior the game is built on, and nobody has ever paid for one.",
       "evidence": "EVIDENCE: studies 55 and 59 (no purchase on record). The first principle of 2026-10-18.",
-      "replaces": "2026-11-05 (three free, then priced)",
+      "replaces": "2026-11-05 (three free, then priced) and the sinks list of 2026-11-04 (paid action-bar setups beyond a free couple)",
       "money": false,
       "depends": [
         "GR-48",
         "GR-84 (setups as one idea, features decider)",
         "MM-29 (no \"more saved setups\" row in the store)"
       ],
-      "area": "Economy"
+      "area": "Economy",
+      "was": "Setup slots are free. A saved setup is a remembered decision and is never sold, for gold or for Crowns.",
+      "fixedBy": "review-19",
+      "fixNote": "The second ruling it reverses was missing."
     },
     {
       "id": "GR-56b",
@@ -697,7 +735,7 @@
       "outcome": "recommended",
       "reason": "It is the reason to keep a rare find instead of selling it. Five rungs for 695,000 is a sink that ends on the day you buy the last one. A fee for each piece grows with every region we add and costs nothing until you have something worth hanging.",
       "evidence": "EVIDENCE: studies 58 and 56. The fee's hours and the wall's size are not set. They wait on a count of mountable rows. TARGET: the Great Hall filled costs about as much as the Castle.",
-      "replaces": "26-6 of 2026-11-20 (five mount rungs)",
+      "replaces": "None. It builds 26-6 of 2026-11-20 (the Trophy room off sale, rebuilt as mounts for real Trophy drops and firsts).",
       "money": false,
       "depends": [
         "GR-62 (the Honors page, progression decider)",
@@ -706,7 +744,10 @@
         "GR-29 (three Trophy rows)",
         "Security review (mount and unmount move items)"
       ],
-      "area": "Home"
+      "area": "Home",
+      "was": "The Trophy room becomes the Hall of Firsts. The Keep gives a wall and the Castle gives the Great Hall. No mount rungs are sold. Only rows flagged mountable can hang, one of each. Hanging a piece takes it from the bag and costs a mounting fee in hours of the wage of the piece's own band. Taking it down returns the piece and not the fee. No formula reads the Hall. Build order: the Honors page, then the Hall, then visiting.",
+      "fixedBy": "review-19",
+      "fixNote": "It was listed as a reversal and is not one."
     },
     {
       "id": "GR-74",
@@ -793,7 +834,7 @@
     {
       "id": "CE-2",
       "call": "Collision: the +10% timed drop buff (MM-25)",
-      "decision": "The timed drop row is a material buff. It adds 10% to rows tagged as materials: monster parts, lining parts, hides, ore, gem chips and gems below Rare. It never touches a Rare, Very Rare or Trophy row, never a gear row of any rarity, never a key and never a seed. The rivet allowance is computed with no buff. The gauge prints its gold as its own source line.",
+      "decision": "The timed drop row is a material buff. It adds 10% to rows tagged as materials: monster parts, lining parts, hides, ore, gem chips and gems below Rare. It never touches a Rare, Very Rare or Trophy row, never a gear row of any rarity, never a key and never a seed. The rivet allowance is computed with no buff. The gauge prints its gold as its own source line. The row is named material find. A ground weekend's featured row (MM-42) is a separate event row, and the rivet allowance is computed with neither.",
       "outcome": "third",
       "reason": "Skipping only the top three bands is not enough. More hourly gear means more salvage, more rivets and a faster Luck bar, which is a third feed for Luck by the back door. More gear to sell is also a coin buff, and the rule is no coin buff ever. More parts and chips is a buff players still want, because it feeds linings, jewelry and the market.",
       "evidence": "COMPUTED from the rules on the page: rivets come from salvaged drops (chapter 03 section 2.12) and Luck is ruled at two feeds (2026-11-20). The size of the leftover gold leak through sold materials is not measured. The gauge reads it.",
@@ -804,7 +845,9 @@
         "GR-59a",
         "MM-42 (a ground weekend that \"features named pieces\" must use its own event row and not this buff)"
       ],
-      "area": "Collisions"
+      "area": "Collisions",
+      "was": "The timed drop row is a material buff. It adds 10% to rows tagged as materials: monster parts, lining parts, hides, ore, gem chips and gems below Rare. It never touches a Rare, Very Rare or Trophy row, never a gear row of any rarity, never a key and never a seed. The rivet allowance is computed with no buff. The gauge prints its gold as its own source line.",
+      "fixedBy": "review-3"
     },
     {
       "id": "CE-3",
@@ -843,7 +886,7 @@
     {
       "id": "CE-5",
       "call": "Collision: early prices for an account of four",
-      "decision": "One rule in two rows. A price one hero pays (bag rungs, Blessings, Tempering, Hallmarks, linings, the yard) stays in hero-hours at that hero's Level and needs no change for four, because four heroes pay it four times from four incomes. A price the account pays (deeds, room rungs, Storage chests, the Key Ring, curing slots) is re-read in account-days, which is four times its one-hero size. Sizes: the Homestead stays a 400 gold errand, the Farmstead about 1 account-day, the Manor about 3, the Keep about 6 and the Castle about 20. Room rungs and chests are re-typed by the same factor against the size bands of chapter 04 section 2.3. Early hero prices: Tempering rung 1 costs about 1 hero-hour and each rung doubles. Hallmarks at tiers 1 to 3 scale down from the ruled tier 4 fee on the wage curve. Blessings stay free under Level 30. The gold numbers are typed once the wage formula exists.",
+      "decision": "One rule in two rows. A price one hero pays (bag rungs, Blessings, Tempering, Hallmarks, linings, the yard) stays in hero-hours at that hero's Level and needs no change for four, because four heroes pay it four times from four incomes. A price the account pays (deeds, room rungs, Storage chests, the Key Ring, curing slots) is re-read in account-days. The sizes below are the decision. Sizes: the Homestead stays a 400 gold errand, the Farmstead about 1 account-day, the Manor about 3, the Keep about 6 and the Castle about 20. Room rungs and chests are re-typed by the same factor against the size bands of chapter 04 section 2.3. Early hero prices: Tempering rung 1 costs about 1 hero-hour and each rung doubles. Hallmarks at tiers 1 to 3 scale down from the ruled tier 4 fee on the wage curve. Blessings stay free under Level 30. The gold numbers are typed once the wage formula exists.",
       "outcome": "third",
       "reason": "The House was priced for one hero's income and four heroes earn about four times that, so today's ladder would be a string of errands. Read in account-days, the Castle is a long goal again, and it is where the gold the slots took shows up as something you chose.",
       "evidence": "COMPUTED against the harness reading (direction only): at about 280,000 an account-day near Level 50, the ruled Castle price of 2.5M is 9 account-days and the Manor is half a day, against 36 days and 2 days for one hero. HYPOTHESIS for every size above. What overturns it: the day-7, day-14 and day-30 readings of CE-4, and band E4 (a hero that spends everything reaches 70 to 80% of its band's pool).",
@@ -856,7 +899,11 @@
         "GR-76",
         "Chapter 07 section 5 item 2"
       ],
-      "area": "Collisions"
+      "area": "Collisions",
+      "was": "One rule in two rows. A price one hero pays (bag rungs, Blessings, Tempering, Hallmarks, linings, the yard) stays in hero-hours at that hero's Level and needs no change for four, because four heroes pay it four times from four incomes. A price the account pays (deeds, room rungs, Storage chests, the Key Ring, curing slots) is re-read in account-days, which is four times its one-hero size. Sizes: the Homestead stays a 400 gold errand, the Farmstead about 1 account-day, the Manor about 3, the Keep about 6 and the Castle about 20. Room rungs and chests are re-typed by the same factor against the size bands of chapter 04 section 2.3. Early hero prices: Tempering rung 1 costs about 1 hero-hour and each rung doubles. Hallmarks at tiers 1 to 3 scale down from the ruled tier 4 fee on the wage curve. Blessings stay free under Level 30. The gold numbers are typed once the wage formula exists.",
+      "fixedBy": "review-22",
+      "hypothesis": "HYPOTHESIS. The listed sizes were not played.",
+      "fixNote": "The rule said four times the one-hero size and the listed sizes were not (the Farmstead about 2.2 times the rule, the Castle about 0.55 times)."
     },
     {
       "id": "CE-6",
@@ -927,7 +974,7 @@
     {
       "id": "CE-10",
       "call": "Chapter 08 flag: the start kit is granted once per account, decided under GR-8",
-      "decision": "The account kit is granted once, with the first hero: 500 gold, 8 Turnip Seeds, 10 Raw Shrimp and the Camp's 2 farm plots. Each hero still gets its own weapon, worn pieces and bar supplies. A hero made later, or deleted and made again, gets the hero kit only.",
+      "decision": "The account kit is granted once, with the first hero: 500 gold, 8 Turnip Seeds, 10 Raw Shrimp and the Camp's 2 farm plots. The hero kit (weapon, worn pieces, bar supplies) is granted once for each of the account's four slots. A hero remade in a used slot gets the practice weapons only, which have no sale value. Security reads it with the rest.",
       "outcome": "recommended",
       "reason": "The purse, the farm and Storage belong to the account. Paying the account kit for each hero would hand over four times the gold and let anyone mint gold by remaking a hero.",
       "evidence": "COMPUTED walk-through from chapter 07 section 2.6 and chapter 08: 500 gold covers the 400 gold Homestead, 8 seeds fill 2 beds with 6 left, and 10 Raw Shrimp cover the first cook step. Not played with four heroes. The first-hour walk-through must prove 500 gold also covers four heroes' first Normal supplies.",
@@ -938,7 +985,11 @@
         "GR-79 (the first hour, features decider)",
         "Security review (a grant on hero creation)"
       ],
-      "area": "Collisions"
+      "area": "Collisions",
+      "was": "The account kit is granted once, with the first hero: 500 gold, 8 Turnip Seeds, 10 Raw Shrimp and the Camp's 2 farm plots. Each hero still gets its own weapon, worn pieces and bar supplies. A hero made later, or deleted and made again, gets the hero kit only.",
+      "fixedBy": "review-27",
+      "hypothesis": "HYPOTHESIS. This is the review's own design and nobody has played it.",
+      "fixNote": "The hero kit was granted again each time a hero was deleted and remade, and the kit's food sells. That minted gold."
     },
     {
       "id": "MM-28",
@@ -957,11 +1008,11 @@
     {
       "id": "MM-29",
       "call": "What the store sells for Crowns",
-      "decision": "TYLER CONFIRMS. Recommended structure: Premium, timed boosts on damage, damage taken and Level XP, comfort (more market listings, more banked arena tickets), looks and bound training items. No drop or material boost (CE-3). No saved setups (GR-56a). No bag or Storage room, which stay gold sinks. Never gear, materials, gold, Levels, skill levels, chests, rating, Luck, stamina or any roll. Boosts come in 1 day and 7 day sizes. One thing needs your explicit yes: a boost sold for Crowns is a direct sale of timed power, which your 11-04 and 11-18 words said would not happen without your word. I recommend yes, with each bought row sized at about 60% of its timed cap (about +15% Level XP, +6% damage, 3% less damage taken).",
+      "decision": "TYLER CONFIRMS. Recommended: Crowns buy Premium, looks and comfort (more market listings). Two timed boosts are sold for gold at the store, in 1 day and 7 day sizes, priced on the wage curve and burned: damage +6%, and a protection boost written on the Defense rating and sized so a mid-geared four takes about 3% less damage an hour. No Level XP boost is sold. Never a drop or material boost, a saved Setup, bag or Storage room, gear, materials, gold, Levels, skill levels, chests, rating, Luck, stamina or any roll. Bound training items join the Crowns store only after the yard fee and to-hit changes are live (ruled 26-10). Sold for gold, the boosts reverse no ruling. If Tyler prefers them sold for Crowns at the same sizes, that reverses the 2026-11-18 line that power is never sold directly for Crowns and it joins the reversal list as row 24.",
       "outcome": "third",
       "reason": "A traded currency needs something to spend it on every week or its buyers run out, and Premium once a month is not enough. A boost that is also earned in play and sits under the same cap is the mildest direct sale there is. Sizing the bought row under the cap keeps bosses, clans and events worth playing for a payer, because play is the only way to fill the rest.",
       "evidence": "COMPUTED: pay alone then reads 1.15 x 1.06 x 1.15, about 40% more Levels an hour over a plain mid-geared four, and 58% with earned buffs on top. HYPOTHESIS that a weekly boost is bought. The alternative is boosts for gold only, which leaves Premium as the one repeating use of a Crown.",
-      "replaces": "Would complete, with your yes, the 2026-11-04 advice and the 2026-11-18 intent (power reaches a payer only through trade for gold)",
+      "replaces": "None when the boosts are sold for gold. Sold for Crowns it would reverse the 2026-11-18 line that power is never sold directly for Crowns.",
       "money": true,
       "depends": [
         "CE-3",
@@ -969,7 +1020,11 @@
         "MM-25 (mmo decider)",
         "GR-56a"
       ],
-      "area": "Money calls"
+      "area": "Money calls",
+      "was": "TYLER CONFIRMS. Recommended structure: Premium, timed boosts on damage, damage taken and Level XP, comfort (more market listings, more banked arena tickets), looks and bound training items. No drop or material boost (CE-3). No saved setups (GR-56a). No bag or Storage room, which stay gold sinks. Never gear, materials, gold, Levels, skill levels, chests, rating, Luck, stamina or any roll. Boosts come in 1 day and 7 day sizes. One thing needs your explicit yes: a boost sold for Crowns is a direct sale of timed power, which your 11-04 and 11-18 words said would not happen without your word. I recommend yes, with each bought row sized at about 60% of its timed cap (about +15% Level XP, +6% damage, 3% less damage taken).",
+      "fixedBy": "review-1, review-2, review-4, review-17",
+      "hypothesis": "HYPOTHESIS. This is the review's own design and nobody has played it.",
+      "fixNote": "Both deciders sold boosts for Crowns, and this file also sold a Level XP boost. The review sells two boosts for gold so no ruling is reversed and the economy gains a weekly burned sink. A payer still feels them because bought gold keeps them running."
     },
     {
       "id": "MM-30",
@@ -989,7 +1044,7 @@
     {
       "id": "MM-31",
       "call": "The pace ceiling",
-      "decision": "TYLER CONFIRMS. Recommended: keep your 2026-11-21 ruling (no limit on how much sooner) as it stands, and record the pace ceiling as a number the caps add up to, held by a test, not as a new limit. A fully boosted, best-geared four gains at most about 58% more Levels an hour than the same four in mid gear with no buffs, and nothing over a non-payer who reached the same caps.",
+      "decision": "TYLER CONFIRMS. Recommended: keep ruling 50-11 (no limit on how much sooner) as it stands and record one reading held by a test, never a new limit. With every cap full a four reads 1.65 times a plain mid-geared four in Levels an hour and 1.32 in kills an hour. Paying alone reads about 1.22. These are the same numbers as MM-26.",
       "outcome": "third",
       "reason": "You said the limit is on what can be bought, not how fast. The store list and the caps are that limit, and the 58% is just their sum. Writing it as a reading means no ruling of yours is reversed and a test still catches anyone who adds a row that breaks it.",
       "evidence": "COMPUTED: 1.15 best gear x 1.10 timed damage x 1.25 timed Level XP = 1.58. On the pace line a band that takes a plain four 10 days takes this four a little over 6.",
@@ -999,7 +1054,10 @@
         "GR-6 and MM-26 (whether the Level table is the clock of a plain four, progression decider)",
         "MM-29"
       ],
-      "area": "Money calls"
+      "area": "Money calls",
+      "was": "TYLER CONFIRMS. Recommended: keep your 2026-11-21 ruling (no limit on how much sooner) as it stands, and record the pace ceiling as a number the caps add up to, held by a test, not as a new limit. A fully boosted, best-geared four gains at most about 58% more Levels an hour than the same four in mid gear with no buffs, and nothing over a non-payer who reached the same caps.",
+      "fixedBy": "review-2",
+      "fixNote": "The row said 58%. It multiplied 1.15 gear by 1.10 timed damage by 1.25 XP and left out the +5% standing damage of MM-25. With it the product is 1.65."
     },
     {
       "id": "MM-32",

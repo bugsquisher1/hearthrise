@@ -128,6 +128,7 @@ export const ENGINE_STATE_KEYS = Object.freeze([
   'deathsTodayBefore', 'deathsLifetimeBefore',
   'hearthfindReady',
   'storage', 'bagCap', 'benchTax',
+  'jobEnds',
 ]);
 
 /* SKILLS FROM STORAGE (2027-01-24-skills-from-storage.sql, Tyler 2026-10-25): the account's Storage a bench
@@ -264,6 +265,10 @@ export function engineInputsFromEnvelope(env, nowMs) {
        player their night. The switch is the ENVELOPE, never a deploy flag. */
     /* THE WALL (2027-03-13-gm-tools.sql): a walled hero rolls no find, so the server's Nth-ever counters count only real heroes. */
     hearthfindReady: st.hearthfind_ready === true && e.gm !== true,
+    /* A JOB'S END, THE SAME KIND OF SWITCH (1018-job-counts.sql): only a database whose `bench_run` section names `count`
+       takes an `active_left` beside the engine's `activity: idle` (what an ending job left; 0 runs its THEN). Before it,
+       the engine ends a counted run as it always did, and hr_apply is never asked for a key it would refuse. */
+    jobEnds: !!e.bench_run && typeof e.bench_run === 'object' && Object.prototype.hasOwnProperty.call(e.bench_run, 'count'),
   };
 }
 

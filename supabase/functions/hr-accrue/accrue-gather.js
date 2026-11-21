@@ -325,7 +325,7 @@ export function accrueGather(inp, span) {
   /* A JOB'S COUNT (1018-job-counts.sql): a job still short of its count proposes the lowered count; a job that ENDS
      states what it left beside its `activity: idle` (0 = counted out, which is what lets hr_apply run the job's THEN).
      hr_apply accepts only a count at or below the stored one, so a replayed or re-cut window cannot pay past N. */
-  if (left1 !== null && (nodeStopped || left1 < left0)) delta.active_left = left1;
+  if (left1 !== null && ((nodeStopped && inp.jobEnds === true) || (!nodeStopped && left1 < left0))) delta.active_left = left1;
 
   return {
     accrued: true,

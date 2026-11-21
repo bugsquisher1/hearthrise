@@ -619,6 +619,8 @@ try {
       /* "MAKE N" (2026-12-01-bench-count.sql): the run's count rides the `bench_run` section,
          read as `bench_run.left` (the probe below carries 7 so the swap arm is not vacuous). */
       activeLeft: { from: 'bench_run', level: 'top' },
+      /* A JOB'S END (1018-job-counts.sql): the switch is the same section naming `count` (the chain end's does). */
+      jobEnds: { from: 'bench_run', level: 'top' },
       /* SKILLS FROM STORAGE (2027-01-24-skills-from-storage.sql): the account's Storage a bench draws on, read off the
          top-level `bank` only where the `skill_inputs` section names it (the probe holds a Storage stack so the swap
          arm is not vacuous); the bag's stack cap off `state.bank_cap`. */
@@ -696,6 +698,8 @@ try {
       buffs: env.buffs,
       ammoCarry: null,
       activeLeft: env.bench_run && env.bench_run.left,
+      /* the replayed chain ends past 1018-job-counts.sql, so its envelope's bench_run names `count`: job ends are on */
+      jobEnds: true,
       storage: env.skill_inputs && env.skill_inputs.from && env.skill_inputs.from.includes('storage') ? env.bank : null,
       bagCap: env.state.bank_cap,
       benchTax: env.bench_tax,

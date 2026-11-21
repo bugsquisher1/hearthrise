@@ -12,7 +12,7 @@ Part of "Hearthrise: the game we are building", the combined design of record. W
 
 ---
 
-**After Tyler's answers (2026-11-21).** Tyler answered his whole list. A pick of his is a ruling and reads RULED (call id, Tyler 2026-11-21). "Not the recommendation" marks a pick that went against the designer. A reversal he let stand reads "reversal of X, approved". OPEN (waiting on Tyler, T-fix-N) marks one of five items where two of his picks point opposite ways. Nobody decides those for him, and the chapter text there shows the design the book was written on until he answers. CUT (Tyler approved 2026-11-21) is a removal he approved, and KEPT (Tyler 2026-11-21) is something he refused to cut, with the way it stays DECIDED by the designer. The whole record is in `decisions/all.json` and section 5 of `00-the-game.md`.
+**The status words, re-issued 2026-11-21.** Tyler adopted the critical review (`review/00-critical-review.md`), and the book now uses three honest words. They replace the list above. **DECIDED** means evidence and rulings support it. Where Tyler also said yes on the page, the tag says so. **PROVISIONAL** means a reasonable plan that has not been tested, and the first tag in a chapter names what it waits on. **OPEN** means it waits on Tyler. **RULED** is kept only for what Tyler ruled knowing what it was: his typed words, his own executive decisions, and a pick where he wrote a note. A quick pick on the page is a real yes and reads "Tyler said yes on the page", never RULED. **PROPOSAL** marks a design made in the fold of 2026-11-21 that Tyler has not seen. CUT and KEPT record his picks on the cut list. The record is `decisions/all.json` and `00-the-game.md`.
 
 ## 1. The experience
 
@@ -44,26 +44,26 @@ Part of "Hearthrise: the game we are building", the combined design of record. W
 
 | Rule | Detail | Status |
 |---|---|---|
-| The player picks how each hero fights when the hero is created | One card for each row of the starter sets: Sword and shield, Hatchets, Club, Bow and crossbow, Wand and spellbook, Staff. The list reads the starter set rows, so a new way to fight (fists, the crossbow's own list) is one more row | DECIDED (GR-24, Fable 2026-11-21) |
+| The player picks how each hero fights when the hero is created | One card for each row of the starter sets: Sword and shield, Hatchets, Club, Bow and crossbow, Wand and spellbook, Staff. The list reads the starter set rows, so a new way to fight (fists, the crossbow's own list) is one more row | PROVISIONAL (GR-24, waits on being built and played past minute 17 by real new players) |
 | The pick sets what is in hand and nothing else | Every hero still owns the whole practice kit and can switch in town at any time. No hero is locked to a way | RULED 2026-10-14 (classless), 2026-10-20 (the practice kit) |
-| Each card says what the way does, what it uses, and one honest tag | "Good alone" or "Best in a party". Sword and shield and Staff carry "Best in a party. Slow alone." | DECIDED (GR-24, Fable 2026-11-21). The tank's slow lone pace is RULED 2026-11-19 |
-| The tag is measured, never believed | Each way's tag comes from its start-kit cell on the balance matrix (section 6) | DECIDED (GR-24, GR-88, Fable 2026-11-21, with GR-88 RULED by Tyler) |
-| The first hero has no preselected card | "Enter town" lights when a card is picked. It is the first choice a player ever makes and the screen does not make it for them. The Club card (the hammer way) carries a "Good first hero" mark | DECIDED (GR-24, Fable 2026-11-21) |
-| Heroes two to four come pre-filled | Sword and shield, Staff, and Bow and crossbow. One press accepts all three and any pick can be changed. The pre-filled company always holds one healer, and the screen says so before a player changes it | DECIDED (GR-24, GR-79, Fable 2026-11-21). MEASURED by the adversarial check: this company held the Sewer with 0 deaths in 64 hero-hours. A four with no healer and no shield died once in 16 party-hours |
-| Look | Sixteen colors on four regions, free. Heroes two to four offer "same colors as [first hero]" as one press | RULED 2026-10-15 (four regions), 2026-10-19 (a name and colors step). The copy press is DECIDED (GR-80, Fable 2026-11-21) |
+| Each card says what the way does, what it uses, and one honest tag | "Good alone" or "Best in a party". Sword and shield and Staff carry "Best in a party. Slow alone." | PROVISIONAL (GR-24). The tank's slow lone pace is RULED 2026-11-19 |
+| The tag is measured, never believed | Each way's tag comes from its start-kit cell on the balance matrix (section 6) | PROVISIONAL (GR-24, GR-88) |
+| The first hero has no preselected card | "Enter town" lights when a card is picked. It is the first choice a player ever makes and the screen does not make it for them. The Club card (the hammer way) carries a "Good first hero" mark | PROVISIONAL (GR-24) |
+| Heroes two to four come pre-filled | Sword and shield, Staff, and Bow and crossbow. One press accepts all three and any pick can be changed. The pre-filled company always holds one healer, and the screen says so before a player changes it | PROVISIONAL (GR-24, GR-79). MEASURED by the adversarial check: this company held the Sewer with 0 deaths in 64 hero-hours. A four with no healer and no shield died once in 16 party-hours |
+| Look | Sixteen colors on four regions, free. Heroes two to four offer "same colors as [first hero]" as one press | RULED 2026-10-15 (four regions), 2026-10-19 (a name and colors step). The copy press is PROVISIONAL (GR-80) |
 
 #### The starting kit for an account of four
 
 | Row | Value | Status |
 |---|---|---|
 | Each hero, at creation | 20 Cooked Shrimp, 50 Bronze Arrows, 10 Coarse Whetstones, and a practice set for every way to fight with the picked one in hand | RULED (the practice kit, 2026-10-20). Quantities are the kit rows |
-| The account, once, with the first hero | 500 gold, 8 Turnip Seeds, 10 Raw Shrimp, 2 farm plots | DECIDED (CE-10, Fable 2026-11-21). The purse, the farm and Storage belong to the account, so a grant for each hero would pay four times. Chapter 04 owns the number |
-| A hero remade in a used slot | The hero kit above is granted once for each of the account's four slots. A hero deleted and made again gets the practice weapons only, which have no sale value | DECIDED (CE-10, Fable 2026-11-21). HYPOTHESIS. It closes a mint: the kit's food sells. Security reads it with the rest |
+| The account, once, with the first hero | 500 gold, 8 Turnip Seeds, 10 Raw Shrimp, 2 farm plots | PROVISIONAL (CE-10). The purse, the farm and Storage belong to the account, so a grant for each hero would pay four times. Chapter 04 owns the number |
+| A hero remade in a used slot | The hero kit above is granted once for each of the account's four slots. A hero deleted and made again gets the practice weapons only, which have no sale value | PROVISIONAL (CE-10). HYPOTHESIS. It closes a mint: the kit's food sells. Security reads it with the rest |
 | The starting bar | Slot 1 eats the hero's own Cooked Shrimp under 60% health. Slot 2 buys Salted Shrimp from the store at 14 gold once the hero's own food is gone. Slot 3 drinks Thin Turnip Juice at 10 gold under 30% mana. A bar left empty plays the role's own moves in order | RULED 2026-10-21 (the starter bar) |
 | No rune in the kit | A rune spell casts on the store's Plain rune at 1 gold a cast, bought by its slot | RULED 2026-10-23, 2026-11-05 |
-| The starting loot plan | Sell gear worse than what is worn. Keep what a bench the hero can use takes. Never sell a Rare or better. The player edits it and never builds it | DECIDED (GR-80, Fable 2026-11-21, with the loot plan by kind in chapter 03) |
-| The starting rest plan | Section 2.2, the job queue | DECIDED (GR-80, Fable 2026-11-21) |
-| Blessings | All three are free under Level 30. "Keep my company blessed" is one standing choice, set once, applied to every hero on every Start | The free band is RULED 2026-10-18. The standing choice is DECIDED (GR-80, Fable 2026-11-21) |
+| The starting loot plan | Sell gear worse than what is worn. Keep what a bench the hero can use takes. Never sell a Rare or better. The player edits it and never builds it | PROVISIONAL (GR-80, with the loot plan by kind in chapter 03) |
+| The starting rest plan | Section 2.2, the job queue | PROVISIONAL (GR-80) |
+| Blessings | All three are free under Level 30. "Keep my company blessed" is one standing choice, set once, applied to every hero on every Start | The free band is RULED 2026-10-18. The standing choice is PROVISIONAL (GR-80) |
 
 #### The first hour, minute by minute
 
@@ -71,23 +71,23 @@ Minutes are TARGETS for a new player who follows the coach. The first 17 minutes
 
 | Minute | The player does | The screen says | What it teaches | Status |
 |---|---|---|---|---|
-| 0:00 | Signs in. Creates the first hero: a name, a way to fight, a look | "Create your hero. No classes. Every weapon is yours. The one in hand sets how this hero fights." | Who my hero is. The first real choice | DECIDED (GR-24, Fable 2026-11-21) |
-| 0:01 | Lands in Havora beside the Great Hearth | The Town menu shows two lines, Shop and Tamsin's tally, and the next locked line with its opener. The coach rings Hunts | The town is a place. One next step | DECIDED (GR-79, Fable 2026-11-21) |
-| 0:02 | Opens Hunts, presses the Mill Cellar, presses Enter | The Cellar is marked Recommended. Tamsin's Giant Rats task is taken on entry with no press | A hunt is one press. Hunting inside two minutes | DECIDED (GR-78, GR-79, Fable 2026-11-21) |
-| 0:03 | Watches kills. Opens one bar slot | The slot's rule as a sentence, for the hero's own first move (table below). The coach asks for one change to one number | The bar is where I outsmart a hunt. A rule is a sentence | DECIDED (GR-79, Fable 2026-11-21) |
-| 0:04 to 0:10 | Watches, or looks around. Levels 2, 3 and 4 arrive | One coach card at a time, each fired by an event: first Level, first loot line, Tamsin's count | Fights run themselves. Levels come fast | DECIDED (GR-79, Fable 2026-11-21) |
+| 0:00 | Signs in. Creates the first hero: a name, a way to fight, a look | "Create your hero. No classes. Every weapon is yours. The one in hand sets how this hero fights." | Who my hero is. The first real choice | PROVISIONAL (GR-24) |
+| 0:01 | Lands in Havora beside the Great Hearth | The Town menu shows two lines, Shop and Tamsin's tally, and the next locked line with its opener. The coach rings Hunts | The town is a place. One next step | PROVISIONAL (GR-79) |
+| 0:02 | Opens Hunts, presses the Mill Cellar, presses Enter | The Cellar is marked Recommended. Tamsin's Giant Rats task is taken on entry with no press | A hunt is one press. Hunting inside two minutes | DECIDED (GR-78, GR-79, Fable 2026-11-21, with GR-79 PROVISIONAL) |
+| 0:03 | Watches kills. Opens one bar slot | The slot's rule as a sentence, for the hero's own first move (table below). The coach asks for one change to one number | The bar is where I outsmart a hunt. A rule is a sentence | PROVISIONAL (GR-79) |
+| 0:04 to 0:10 | Watches, or looks around. Levels 2, 3 and 4 arrive | One coach card at a time, each fired by an event: first Level, first loot line, Tamsin's count | Fights run themselves. Levels come fast | PROVISIONAL (GR-79) |
 | 0:10 | 25 rats. Presses Leave | "Rats done. Tamsin has a helm for you." | Leaving is safe and is how I cash in | DECIDED (GR-78, Fable 2026-11-21) |
-| 0:10 | Reads the first end card | The first hunt report: lowest health and what did it, and what the changed rule did. Under it at most three presses: Wear the helm, Keep my company blessed, Carry on. Loot was sold by the starting plan and the card says what was sold | The report. Equip. Blessings as one standing choice. Carry on | DECIDED (GR-66, GR-78, GR-80, Fable 2026-11-21, with GR-66 RULED by Tyler) |
+| 0:10 | Reads the first end card | The first hunt report: lowest health and what did it, and what the changed rule did. Under it at most three presses: Wear the helm, Keep my company blessed, Carry on. Loot was sold by the starting plan and the card says what was sold | The report. Equip. Blessings as one standing choice. Carry on | DECIDED (GR-66, GR-78, GR-80, Fable 2026-11-21, with GR-66 and GR-80 PROVISIONAL, waits on the playtest or measurement its own row names, Tyler said yes on the page) |
 | 0:11 to 0:17 | Carries on in the Cellar | Level 5 lands and the Cellar ends itself: "Ground outgrown" | Grounds are outgrown. The game tells me when | Content row (the Cellar ends at Level 5) |
-| 0:17 | Reads the end card | "[Name] has outgrown the Mill Cellar. You have three more places in your company, and the Sewer under the mill wants a full party." Main press: Raise your company. Second press: Go on alone to Meadowbrook Thicket | I run four heroes. Alone stays allowed | DECIDED (GR-79, Fable 2026-11-21). Lone play allowed is RULED 2026-11-21 |
-| 0:17 to 0:20 | Creates three heroes in one flow | The three come pre-filled as Sword and shield, Staff, and Bow and crossbow. One press accepts them, or each screen is a name, a way to fight and the look copy press. The screen says the company holds one healer | Roles come from weapons. A party wants a shield and a healer | DECIDED (GR-24, GR-79, Fable 2026-11-21) |
-| 0:20 | Reads the first company plan and presses Start once | Four rows, filled in. The three recruits: Mill Cellar, each in its own hunt. The first hero: Meadowbrook Thicket, Normal. One Start begins all four hunts | One plan and one Start for the account | DECIDED (GR-79, GR-80, Fable 2026-11-21). HYPOTHESIS: the three lone hunts on one Start were not played |
-| 0:20 to 0:36 | Watches the first hero in the Thicket. Presses a portrait on the hero strip to look at the recruits | Tamsin's Gray Wolves taken on entry. The strip shows each recruit's Level rising. Two optional lessons, each fired by the player's own act: press a portrait to watch that hero, and "Copy this rule to every hero" on the rule changed at minute 3 | Heroes run in parallel and I watch one. A decision made once can be copied | DECIDED (GR-79, GR-80, Fable 2026-11-21) |
-| 0:36 | The recruits reach Level 5 and the Cellar ends for each of them | "Your company is ready for the Sewer." Main press: Gather and go. The first hero leaves the Thicket and the party forms with no invites | The first party | DECIDED (GR-80, Fable 2026-11-21) |
-| 0:37 | Reads the Sewer's prep page and presses Enter | Seats, with the shield in front and the healer behind. The note that the Rat King's room is built for a party. Normal | Where heroes stand. A boss has a room | DECIDED (GR-79, Fable 2026-11-21). The party note is RULED 2026-11-08 |
-| 0:38 to 0:55 | Watches the four fight | Two event lines, each shown once: the first time Challenge pulls a monster off another hero, and the first time a heal lands on an ally. Gear drops and "Equip upgrades for all four" is one press | Roles in action. Gear moves between my heroes | DECIDED (GR-79, GR-80, Fable 2026-11-21) |
-| 0:50 | Reads the rest plan | "When stamina runs out your heroes go to work. Here is their plan." Two fish and cook, one mines 20 Copper Ore, one chops 30 Normal Logs. "This builds your first home." One press plants both farm beds with Turnip Seeds | Heroes work while they rest. Each hero takes a different trade. The first town goal | DECIDED (GR-80, GR-79, Fable 2026-11-21) |
-| 0:55 | Reads the last card of the hour | "It is safe to close the game. Your company hunts for about 7 more hours, then goes to work. Come back in about 8 hours." | The idle promise, with a time on it | DECIDED (GR-79, Fable 2026-11-21) |
+| 0:17 | Reads the end card | "[Name] has outgrown the Mill Cellar. You have three more places in your company, and the Sewer under the mill wants a full party." Main press: Raise your company. Second press: Go on alone to Meadowbrook Thicket | I run four heroes. Alone stays allowed | PROVISIONAL (GR-79). Lone play allowed is RULED 2026-11-21 |
+| 0:17 to 0:20 | Creates three heroes in one flow | The three come pre-filled as Sword and shield, Staff, and Bow and crossbow. One press accepts them, or each screen is a name, a way to fight and the look copy press. The screen says the company holds one healer | Roles come from weapons. A party wants a shield and a healer | PROVISIONAL (GR-24, GR-79) |
+| 0:20 | Reads the first company plan and presses Start once | Four rows, filled in. The three recruits: Mill Cellar, each in its own hunt. The first hero: Meadowbrook Thicket, Normal. One Start begins all four hunts | One plan and one Start for the account | PROVISIONAL (GR-79, GR-80). HYPOTHESIS: the three lone hunts on one Start were not played |
+| 0:20 to 0:36 | Watches the first hero in the Thicket. Presses a portrait on the hero strip to look at the recruits | Tamsin's Gray Wolves taken on entry. The strip shows each recruit's Level rising. Two optional lessons, each fired by the player's own act: press a portrait to watch that hero, and "Copy this rule to every hero" on the rule changed at minute 3 | Heroes run in parallel and I watch one. A decision made once can be copied | PROVISIONAL (GR-79, GR-80) |
+| 0:36 | The recruits reach Level 5 and the Cellar ends for each of them | "Your company is ready for the Sewer." Main press: Gather and go. The first hero leaves the Thicket and the party forms with no invites | The first party | PROVISIONAL (GR-80) |
+| 0:37 | Reads the Sewer's prep page and presses Enter | Seats, with the shield in front and the healer behind. The note that the Rat King's room is built for a party. Normal | Where heroes stand. A boss has a room | PROVISIONAL (GR-79). The party note is RULED 2026-11-08 |
+| 0:38 to 0:55 | Watches the four fight | Two event lines, each shown once: the first time Challenge pulls a monster off another hero, and the first time a heal lands on an ally. Gear drops and "Equip upgrades for all four" is one press | Roles in action. Gear moves between my heroes | PROVISIONAL (GR-79, GR-80) |
+| 0:50 | Reads the rest plan | "When stamina runs out your heroes go to work. Here is their plan." Two fish and cook, one mines 20 Copper Ore, one chops 30 Normal Logs. "This builds your first home." One press plants both farm beds with Turnip Seeds | Heroes work while they rest. Each hero takes a different trade. The first town goal | PROVISIONAL (GR-80, GR-79) |
+| 0:55 | Reads the last card of the hour | "It is safe to close the game. Your company hunts for about 7 more hours, then goes to work. Come back in about 8 hours." | The idle promise, with a time on it | PROVISIONAL (GR-79) |
 | 1:00 | Closes the game | The four are Level 6 to 7 in the Sewer | | TARGET |
 
 **The first move each way reads at minute 3.** Every name below is a row of the ability data.
@@ -103,7 +103,7 @@ Minutes are TARGETS for a new player who follows the coach. The first 17 minutes
 
 **Default bars.** A new hero's bar is left empty except for the starting food and drink slots, and an empty bar plays its role's own moves in order. That answers chapter 01's question on default bars: there is no second list to keep true.
 
-A coach card that names a spell reads that spell's unlock level and its party-only mark from the data, so a card can never name a move the hero cannot cast (DECIDED, GR-79, Fable 2026-11-21).
+A coach card that names a spell reads that spell's unlock level and its party-only mark from the data, so a card can never name a move the hero cannot cast (PROVISIONAL, GR-79).
 
 #### The walk-through against real data
 
@@ -138,22 +138,22 @@ A party is the account's own four heroes, so nothing here waits on another playe
 
 | Part | Rule | Status |
 |---|---|---|
-| **One plan** | Each hero has a plan: where it hunts (ground, tier, setup, bag lines), with whom, what it does when the hunt ends (its rest plan), and its standing choices (blessed, loot plan, spending budget). The company plan is the four plans on one card | DECIDED (GR-80, Fable 2026-11-21) |
-| | Any line can be set once and applied to all four. A new hero copies the plan of the hero it stands beside | DECIDED (GR-80, Fable 2026-11-21) |
-| | A ground remembers the Setup, tier and seats last used there, so nothing is picked twice. One Setup for each ground holds the weapon, the worn set, the linings, the bar and the target mode. It is saved once and can be copied to another hero or ground | DECIDED (GR-84, GR-48, Fable 2026-11-21) |
+| **One plan** | Each hero has a plan: where it hunts (ground, tier, setup, bag lines), with whom, what it does when the hunt ends (its rest plan), and its standing choices (blessed, loot plan, spending budget). The company plan is the four plans on one card | PROVISIONAL (GR-80) |
+| | Any line can be set once and applied to all four. A new hero copies the plan of the hero it stands beside | PROVISIONAL (GR-80) |
+| | A ground remembers the Setup, tier and seats last used there, so nothing is picked twice. One Setup for each ground holds the weapon, the worn set, the linings, the bar and the target mode. It is saved once and can be copied to another hero or ground | DECIDED (GR-84, GR-48, Fable 2026-11-21, with GR-84 PROVISIONAL) |
 | **One Start** | Carry on is one press for the account. Every hero does again what it did last time: same ground, tier, setup, party, bag lines, Blessings, Tamsin's task and loot by plan | RULED 2026-11-20 (27-1) |
 | | No hunt ever starts by itself. A hunt starts on a press made in a server-authorized session | RULED 2026-11-20 (27-1), 2026-10-18 |
-| | Own heroes form a party with no invite and no accept. The plan names the leader, and the leader's hunt settings are the party's | DECIDED (GR-80, Fable 2026-11-21). The leader rule is RULED 2026-10-20 |
-| | "If one falls" is one plan line, chosen once: all come home (the default) or the rest hunt on | DECIDED (GR-80, Fable 2026-11-21). Leave together, default on, is RULED 2026-10-22 |
-| **One return card** | One card for the account on every return. Section 2.4 | DECIDED (GR-80, Fable 2026-11-21) |
-| **The job queue** | A hero's rest plan is an ordered list of up to three steps (TARGET, a data row). Each step is a job with a count. A gathering step always takes a count. A bench step may run until its inputs are gone | DECIDED (GR-80, Fable 2026-11-21) |
+| | Own heroes form a party with no invite and no accept. The plan names the leader, and the leader's hunt settings are the party's | PROVISIONAL (GR-80). The leader rule is RULED 2026-10-20 |
+| | "If one falls" is one plan line, chosen once: the rest hunt on, or all come home. For an account's own heroes the default is that the rest hunt on. They end together only if the player says so | RULED 27-1 as amended 2026-11-21: own heroes end together only if you say so. The plan line itself is PROVISIONAL (GR-80). The 2026-10-22 default of leaving together is for a party of different accounts |
+| **One return card** | One card for the account on every return. Section 2.4 | PROVISIONAL (GR-80) |
+| **The job queue** | A hero's rest plan is an ordered list of up to three steps (TARGET, a data row). Each step is a job with a count. A gathering step always takes a count. A bench step may run until its inputs are gone | PROVISIONAL (GR-80) |
 | | The list ends in "wait in town" or "hunt again, once". A plan never loops | RULED 2026-11-20 (27-1) |
-| | A gathering step may say "the best I can": the highest node of that line the hero's skill opens. It is a choice, because a player may want copper | DECIDED (GR-80, Fable 2026-11-21) |
-| | The rest plan runs when a hunt ends for any reason, with the browser open or closed | DECIDED (GR-80, Fable 2026-11-21). Both paths is RULED (CLAUDE.md section 4) |
-| | The starting rest plan gives a new company: two heroes fish 100 at the Shrimp Spot and then Cook Shrimp, one mines 20 Copper Ore, one chops 30 Normal Logs | DECIDED (GR-80, Fable 2026-11-21) |
+| | A gathering step may say "the best I can": the highest node of that line the hero's skill opens. It is a choice, because a player may want copper | PROVISIONAL (GR-80) |
+| | The rest plan runs when a hunt ends for any reason, with the browser open or closed | PROVISIONAL (GR-80). Both paths is RULED (CLAUDE.md section 4) |
+| | The starting rest plan gives a new company: two heroes fish 100 at the Shrimp Spot and then Cook Shrimp, one mines 20 Copper Ore, one chops 30 Normal Logs | PROVISIONAL (GR-80) |
 | **Next ground when outgrown** | Refused. No hunt ever starts by itself (27-1 is kept whole). When a ground is outgrown the hero goes to its rest plan and works in town. The return card puts "outgrown, go to the next ground" first under Needs you, as one press for the whole party | DECIDED (GR-81, Fable 2026-11-21) |
 | **Tamsin's task takes itself** | The task for a ground is taken when a hero enters it. Its pay is collected on the end card or by Carry on | DECIDED (GR-78, Fable 2026-11-21) |
-| **Refills** | "Keep me topped up to N" is one line of the plan, run by Carry on. Its price and limits are chapter 04's | DECIDED (GR-80, GR-58, Fable 2026-11-21) |
+| **Refills** | "Keep me topped up to N" is one line of the plan, run by Carry on. Its price and limits are chapter 04's | PROVISIONAL (GR-80, GR-58) |
 
 **How the server sees it.** One Start is one intent that the server expands into the same per-hero starts a player could press by hand, through the same door and the same checks. It adds no authority to the client. Town work is paid in closed form (GR-1, chapter 09), so a job step costs a statement at its start, at its count and at its stop.
 
@@ -165,13 +165,13 @@ A death costs 6% of all Level XP, flat, with no cap (RULED 2026-11-21, knob `dea
 
 | Line | What it reads | Status |
 |---|---|---|
-| Lowest health | For each hero: the lowest share of health it reached, and the monster and blow that did it | RULED (GR-66, Tyler 2026-11-21) |
-| Close calls | How many times each hero fell under a quarter of its health | RULED (GR-66, Tyler 2026-11-21) |
-| What ran out | Food, drink, runes or gold that hit zero, and when | RULED (GR-66, Tyler 2026-11-21) |
-| Deaths | Each death, what it cost in Level XP and in hunted hours, and what the Blessings saved | RULED (GR-66, Tyler 2026-11-21) |
-| One word for the hunt | **Safe**: no hero under 50%. **Close**: a hero under 50%. **Near death**: a hero under 10%, or three or more close calls | RULED (GR-66, Tyler 2026-11-21). Thresholds are TARGETS |
-| The tier's own line | On the Hunts page before Enter: the deaths in 1,000 hunted hours the balance matrix reads for a mid-geared party on this ground and tier, and the reading from this party's last hunt here | RULED (GR-66, GR-88, Tyler 2026-11-21). Formulas are public (RULED 2026-11-08) |
-| The risk block is never sold | Selling the warning would read as selling safety | RULED (GR-66, Tyler 2026-11-21) |
+| Lowest health | For each hero: the lowest share of health it reached, and the monster and blow that did it | PROVISIONAL (GR-66, Tyler said yes on the page) |
+| Close calls | How many times each hero fell under a quarter of its health | PROVISIONAL (GR-66, Tyler said yes on the page) |
+| What ran out | Food, drink, runes or gold that hit zero, and when | PROVISIONAL (GR-66, Tyler said yes on the page) |
+| Deaths | Each death, what it cost in Level XP and in hunted hours, and what the Blessings saved | PROVISIONAL (GR-66, Tyler said yes on the page) |
+| One word for the hunt | **Safe**: no hero under 50%. **Close**: a hero under 50%. **Near death**: a hero under 10%, or three or more close calls | PROVISIONAL (GR-66, Tyler said yes on the page). Thresholds are TARGETS |
+| The tier's own line | On the Hunts page before Enter: the deaths in 1,000 hunted hours the balance matrix reads for a mid-geared party on this ground and tier, and the reading from this party's last hunt here | PROVISIONAL (GR-66, GR-88, Tyler said yes on the page). Formulas are public (RULED 2026-11-08) |
+| The risk block is never sold | Selling the warning would read as selling safety | PROVISIONAL (GR-66, Tyler said yes on the page) |
 
 The report prints what happened. It does not predict a death rate from one hunt. Evidence about this design, from the matrix of the proposed game (59 section 0.3, as corrected by the cold audit): all 9 cells with a death read under 50% lowest health, so did 8 cells with no death, and none of the 190 cells at 50% or over held a death. That supports 50% as the line for Safe. It is PROVISIONAL: one seed and one hour a cell, and 115 of the 207 cells sit at Level 185 or over.
 
@@ -179,19 +179,19 @@ The report prints what happened. It does not predict a death rate from one hunt.
 
 | Line | What it reads | Free or Premium | Status |
 |---|---|---|---|
-| Fired | For each bar slot: how many times it fired | Free | RULED (GR-66, Tyler 2026-11-21) |
-| Never fired | One line for a slot that never fired, with the reason: its condition was never true, no mana, no rune, on cooldown, or still locked | Free | RULED (GR-66, Tyler 2026-11-21) |
-| The change line | When the bar changed since the last hunt on this ground: "You changed slot 2. Power Strike did 22% of damage. It was 14%." | Free | RULED (GR-66, Tyler 2026-11-21) |
-| Share | Each slot's share of the hero's damage or healing | Free | RULED (GR-66, Tyler 2026-11-21) |
-| The full breakdown | By monster, over time, damage taken by source, and a comparison with any saved hunt | Premium analyzer | RULED (GR-66, Tyler 2026-11-21). The full analyzer in Premium is RULED 2026-10-17 |
+| Fired | For each bar slot: how many times it fired | Free | PROVISIONAL (GR-66, Tyler said yes on the page) |
+| Never fired | One line for a slot that never fired, with the reason: its condition was never true, no mana, no rune, on cooldown, or still locked | Free | PROVISIONAL (GR-66, Tyler said yes on the page) |
+| The change line | When the bar changed since the last hunt on this ground: "You changed slot 2. Power Strike did 22% of damage. It was 14%." | Free | PROVISIONAL (GR-66, Tyler said yes on the page) |
+| Share | Each slot's share of the hero's damage or healing | Free | PROVISIONAL (GR-66, Tyler said yes on the page) |
+| The full breakdown | By monster, over time, damage taken by source, and a comparison with any saved hunt | Premium analyzer | PROVISIONAL (GR-66, Tyler said yes on the page). The full analyzer in Premium is RULED 2026-10-17 |
 
 **Rules for the build.**
 
 | Rule | Status |
 |---|---|
-| The report is a screen over counters the engine already computes. It adds no formula and no knob | RULED (GR-66, Tyler 2026-11-21) |
-| The counters live in the session row the settle already writes. No added statement a kill or a settle, and no journal row | RULED (GR-66, Tyler 2026-11-21). HYPOTHESIS until the systems engineer confirms the counters fit |
-| The player and the balance matrix read the same counter (`lowHpP10` on the matrix) | RULED (GR-66, GR-88, Tyler 2026-11-21) |
+| The report is a screen over counters the engine already computes. It adds no formula and no knob | PROVISIONAL (GR-66, Tyler said yes on the page) |
+| The counters live in the session row the settle already writes. No added statement a kill or a settle, and no journal row | PROVISIONAL (GR-66, Tyler said yes on the page). HYPOTHESIS until the systems engineer confirms the counters fit |
+| The player and the balance matrix read the same counter (`lowHpP10` on the matrix) | PROVISIONAL (GR-66, GR-88, Tyler said yes on the page) |
 | The report is identical for a watched hunt and a hunt with the browser closed | RULED (one engine, CLAUDE.md section 6) |
 
 ### 2.4 Away and return, and two visits a day
@@ -210,10 +210,10 @@ Stamina drains one for one while hunting and rests one for one at every other in
 
 | # | Block | Content | Status |
 |---|---|---|---|
-| 1 | The header | Time away. The company's totals: Levels gained, net gold with coin and supplies shown apart, kills | DECIDED (GR-80, Fable 2026-11-21) |
-| 2 | The night in three lines | The closest call. What ran out. The best find | DECIDED (GR-66, GR-80, Fable 2026-11-21, with GR-66 RULED by Tyler) |
-| 3 | One row for each hero | Level before and after, where it is, what it is doing now and for how long, and the hunt's one word | DECIDED (GR-80, Fable 2026-11-21) |
-| 4 | Needs you | At most three things that need a decision, ranked. Anything that stops a hero from hunting comes first, then anything that costs progress, then gains | DECIDED (GR-80, Fable 2026-11-21) |
+| 1 | The header | Time away. The company's totals: Levels gained, net gold with coin and supplies shown apart, kills | PROVISIONAL (GR-80) |
+| 2 | The night in three lines | The closest call. What ran out. The best find | PROVISIONAL (GR-66, GR-80, Tyler said yes on the page) |
+| 3 | One row for each hero | Level before and after, where it is, what it is doing now and for how long, and the hunt's one word | PROVISIONAL (GR-80) |
+| 4 | Needs you | At most three things that need a decision, ranked. Anything that stops a hero from hunting comes first, then anything that costs progress, then gains | PROVISIONAL (GR-80) |
 | 5 | Carry on | One press. Under it, "Change the plan" | RULED 2026-11-20 (27-1) |
 | 6 | The Rare reveal | Every Rare found while away rolls through on the card | RULED 2026-11-20 (27-6) |
 
@@ -236,7 +236,7 @@ What can appear in "Needs you": a death and a hero left unblessed. Better gear f
 | Time from opening the game to all four hunting | Under 3 minutes after any gap | TARGET (standard X9) |
 | A normal return | One press, plus one for each real decision | TARGET (GR-80) |
 
-**A return notice** ("all your heroes are rested") waits for the mobile build and is opt-in only. Steam has no push channel and a notice nobody asked for costs goodwill. BUILD-LATER, DECIDED (GR-80, Fable 2026-11-21).
+**A return notice** ("all your heroes are rested") waits for the mobile build and is opt-in only. Steam has no push channel and a notice nobody asked for costs goodwill. BUILD-LATER, PROVISIONAL (GR-80).
 
 ### 2.5 The Path (GR-79)
 
@@ -246,47 +246,47 @@ One table says what opens every system. Each row has an opener, the line that an
 
 | Kind | Example | Status |
 |---|---|---|
-| A Level | The Burning Tower at Level 10 | DECIDED (GR-79, Fable 2026-11-21) |
-| A first event on the account | The first Level 5. The first stamina end. The first Rat King kill | DECIDED (GR-79, Fable 2026-11-21) |
-| A count of active accounts on the server | The Town Crier at 50 accounts a day | DECIDED (GR-79, Fable 2026-11-21). The server already counts weekly active accounts for the Town Works goal |
+| A Level | The Burning Tower at Level 10 | PROVISIONAL (GR-79) |
+| A first event on the account | The first Level 5. The first stamina end. The first Rat King kill | PROVISIONAL (GR-79) |
+| A count of active accounts on the server | The Town Crier at 50 accounts a day | PROVISIONAL (GR-79). The server already counts weekly active accounts for the Town Works goal |
 
 **Rules of the table.**
 
 | Rule | Status |
 |---|---|
-| The Path announces. It never takes away something ruled. A player who knows the game can create all four heroes at second zero | DECIDED (GR-79, Fable 2026-11-21). Four from the start is RULED |
-| The Town menu shows the lines that are open and the next two locked lines with their openers ("Burning Tower, Level 10"). The rest are absent | DECIDED (GR-79, Fable 2026-11-21). HYPOTHESIS that a locked line keeps the promise without the clutter. Playtest 14 decides |
-| Every Level from 1 to 30 names a next thing within 3 Levels. A guard asserts it from the table | DECIDED (GR-79, Fable 2026-11-21). It makes standards X11 and X28 checkable |
+| The Path announces. It never takes away something ruled. A player who knows the game can create all four heroes at second zero | PROVISIONAL (GR-79). Four from the start is RULED |
+| The Town menu shows the lines that are open and the next two locked lines with their openers ("Burning Tower, Level 10"). The rest are absent | PROVISIONAL (GR-79). HYPOTHESIS that a locked line keeps the promise without the clutter. Playtest 14 decides |
+| Every Level from 1 to 30 names a next thing within 3 Levels. A guard asserts it from the table | PROVISIONAL (GR-79). It makes standards X11 and X28 checkable |
 | A system that is planned and not finished stays off the table and stays hidden | RULED 2026-11-21 (nothing planned is cut, hidden until it works) |
-| No hidden system is opened to players before a stranger has stayed twenty hunted hours in a playtest | DECIDED (GR-79, Fable 2026-11-21) |
-| A room that is shut is not polled. A feature's section of the state read is fetched when its window opens | DECIDED (GR-79, Fable 2026-11-21), with chapter 09 |
-| An opener owned by another chapter is read from that chapter's data. The Path holds no second copy of a Level | DECIDED (GR-79, Fable 2026-11-21) |
+| No hidden system is opened to players before a stranger has stayed twenty hunted hours in a playtest | PROVISIONAL (GR-79) |
+| A room that is shut is not polled. A feature's section of the state read is fetched when its window opens | PROVISIONAL (GR-79), with chapter 09 |
+| An opener owned by another chapter is read from that chapter's data. The Path holds no second copy of a Level | PROVISIONAL (GR-79) |
 
 **The table.** Levels are the content rows on this branch unless marked. Where another chapter owns the opener, the row says so.
 
 | Opener | What opens | Announced by | Status |
 |---|---|---|---|
-| The start | Hunts, Inventory, Character, the Book, the Mill Cellar, Shop, Tamsin's tally | The coach's first ring | DECIDED (GR-79, Fable 2026-11-21) |
-| First kill | The action bar | One card, minute 3 | DECIDED (GR-79, Fable 2026-11-21) |
-| First Leave | The end card, the hunt report, Blessings, the loot plan | The end card itself | DECIDED (GR-79, Fable 2026-11-21) |
-| First Level 5 on the account | The company: heroes two to four, the hero strip, the company plan, Storage | The Cellar's end card | DECIDED (GR-79, Fable 2026-11-21) |
+| The start | Hunts, Inventory, Character, the Book, the Mill Cellar, Shop, Tamsin's tally | The coach's first ring | PROVISIONAL (GR-79) |
+| First kill | The action bar | One card, minute 3 | PROVISIONAL (GR-79) |
+| First Leave | The end card, the hunt report, Blessings, the loot plan | The end card itself | PROVISIONAL (GR-79) |
+| First Level 5 on the account | The company: heroes two to four, the hero strip, the company plan, Storage | The Cellar's end card | PROVISIONAL (GR-79) |
 | Level 5 | Meadowbrook Thicket. The Sewer for a party | "Ground outgrown" | RULED 2026-11-18 (the Sewer at 5) |
-| First company hunt, ten minutes in | Skills, the job queue, the Farm, the House as a goal | The rest plan card | DECIDED (GR-79, Fable 2026-11-21). The farm loop of chapter 07 needs only Level 1, so the later opener is the Path's choice: the first ten minutes hold one lesson at a time |
-| First stamina end | The return card. The Hearthside Homestead, if the materials are in Storage | The return card | DECIDED (GR-79, Fable 2026-11-21) |
-| Level 8, with a helm and body armor worn | Wickstead. The first Dangerous offer, with the risk reading beside it | The Hunts page | DECIDED (GR-79, Fable 2026-11-21). Risk as a warned choice is RULED 2026-11-04 |
-| First Rat King kill | The Rat King's Hall, as the first boss door and key | The loot line | DECIDED (GR-79, GR-28, Fable 2026-11-21, reversal of 2026-11-14 and 22-8, approved, with GR-28 RULED by Tyler) |
-| Level 10 | The Burning Tower and the Hearth Chest. The Weighhouse | One card each | The Tower's Level is RULED 2026-11-18. The market is open on day one: RULED (GR-55, Tyler 2026-11-21, reversal of 24-7, approved, chapter 04). The Weighhouse card moves to the first return |
-| Level 16 | Mosslight Glade. The Honors page | "Ground opened" | DECIDED (GR-79, GR-62, Fable 2026-11-21) |
+| First company hunt, ten minutes in | Skills, the job queue, the Farm, the House as a goal | The rest plan card | PROVISIONAL (GR-79). The farm loop of chapter 07 needs only Level 1, so the later opener is the Path's choice: the first ten minutes hold one lesson at a time |
+| First stamina end | The return card. The Hearthside Homestead, if the materials are in Storage | The return card | PROVISIONAL (GR-79) |
+| Level 8, with a helm and body armor worn | Wickstead. The first Dangerous offer, with the risk reading beside it | The Hunts page | PROVISIONAL (GR-79). Risk as a warned choice is RULED 2026-11-04 |
+| First Rat King kill | The Rat King's Hall, as the first boss door and key | The loot line | PROVISIONAL (GR-79, GR-28, reversal of 2026-11-14 and 22-8, let stand on the page) |
+| Level 10 | The Burning Tower and the Hearth Chest. The Weighhouse | One card each | The Tower's Level is RULED 2026-11-18. The market is open on day one: PROVISIONAL (GR-55, waits on the store-bill fault fixed and a wage formula that exists, Tyler said yes on the page, reversal of 24-7, let stand on the page, chapter 04). The Weighhouse card moves to the first return |
+| Level 16 | Mosslight Glade. The Honors page | "Ground opened" | PROVISIONAL (GR-79, GR-62) |
 | Level 30 | Blessings cost gold. "Keep my company blessed" shows its price | The end card, two Levels ahead | RULED 2026-10-18 (free under 30) |
 | Level 32 | Coppercap Warrens | "Ground opened" | Content row |
 | Levels 45 to 85 | Hask's Ford, the Slake, the Muster Barrows, the Pyre Field, Krell's Hold | "Ground opened", with the Chronicle's teaser | Content rows |
 | Set by chapter 03 | Tempering, Hallmarks, linings, jewelry tiers, salvage and Luck, the find list | One card each at its opener | OPEN. Chapter 03 sets each opener |
-| Set by chapter 05 | Kindlings every ten Inner Flame levels. Honors lines at Level 100, 200, 300 and 400 | The Level card | DECIDED there (GR-61, GR-62, Fable 2026-11-21, reversal of the skill tree hold of 2026-11-05, approved, with GR-61 RULED by Tyler) |
-| Set by chapter 02 | Old grounds at your Level. Each region. The Catacombs | "Region opened" | DECIDED there (GR-9, GR-33, GR-36, Fable 2026-11-21) |
+| Set by chapter 05 | Kindlings every ten Inner Flame levels. Honors lines at Level 100, 200, 300 and 400 | The Level card | PROVISIONAL there (GR-61, GR-62, reversal of the skill tree hold of 2026-11-05, let stand on the page, with GR-61 SUPERSEDED, by Tyler's 2026-11-21 ruling on level choices, see `10-level-choices.md`) |
+| Set by chapter 02 | Old grounds at your Level. Each region. The Catacombs | "Region opened" | PROVISIONAL there (GR-9, GR-33, GR-36) |
 | The start | Chat and the presence strip | No card. They are on screen | DECIDED in chapter 06 (Fable 2026-11-21) |
 | The first day | Clans: the roster and its chat tab | One line on the first return card | DECIDED in chapter 06 (Fable 2026-11-21) |
-| Level 13, 20 and 30 | The world boss opens at Level 13 for each hero sent. The Even Arena at Level 20. The Open Arena at Level 30. The clan board when the account is in a clan. The calendar banner after the first stamina end | The System tab and a town banner | DECIDED (GR-79, Fable 2026-11-21) |
-| 50 active accounts a day | The Town Crier, Rounds for the Tavern, flame powders, rank numbers on the boards | A town line | DECIDED (GR-79, Fable 2026-11-21). TARGET count |
+| Level 13, 20 and 30 | The world boss opens at Level 13 for each hero sent. The Even Arena at Level 20. The Open Arena at Level 30. The clan board when the account is in a clan. The calendar banner after the first stamina end | The System tab and a town banner | PROVISIONAL (GR-79) |
+| 50 active accounts a day | The Town Crier, Rounds for the Tavern, flame powders, rank numbers on the boards | A town line | PROVISIONAL (GR-79). TARGET count |
 
 ### 2.6 Teaching and the coach
 
@@ -294,44 +294,44 @@ The coach teaches the loop and then gets out of the way. It is two things: a sho
 
 | Rule | Detail | Status |
 |---|---|---|
-| The loop deck is about fifteen cards | Hunt, Level, the bar, loot, leave, the report, wear, Blessings, Carry on, the company, the hero strip, copy a rule, roles, the rest plan, close the game | DECIDED (GR-79, Fable 2026-11-21). TARGET count |
-| Every other card is a Path row | It fires when its opener happens and never before | DECIDED (GR-79, Fable 2026-11-21) |
-| One card at a time | Dismissing a card never shows the next one. The next card waits for its own opener | DECIDED (GR-79, Fable 2026-11-21) |
-| A card the server can finish is finished by the server | Dismissing it means later, not done | DECIDED (GR-79, Fable 2026-11-21) |
-| A card names only what the hero can do now | It reads unlock levels, party-only marks, Levels and stock from the data | DECIDED (GR-79, Fable 2026-11-21) |
-| No card sends a hero with stamina left away from its hunt | Town goals are offered at a stamina end or through the rest plan | DECIDED (GR-79, Fable 2026-11-21) |
-| An account lesson is taught once | A card seen on one hero is seen for the account. Only a card about a weapon's own first move is per hero | DECIDED (GR-79, Fable 2026-11-21, the first principle) |
+| The loop deck is about fifteen cards | Hunt, Level, the bar, loot, leave, the report, wear, Blessings, Carry on, the company, the hero strip, copy a rule, roles, the rest plan, close the game | PROVISIONAL (GR-79). TARGET count |
+| Every other card is a Path row | It fires when its opener happens and never before | PROVISIONAL (GR-79) |
+| One card at a time | Dismissing a card never shows the next one. The next card waits for its own opener | PROVISIONAL (GR-79) |
+| A card the server can finish is finished by the server | Dismissing it means later, not done | PROVISIONAL (GR-79) |
+| A card names only what the hero can do now | It reads unlock levels, party-only marks, Levels and stock from the data | PROVISIONAL (GR-79) |
+| No card sends a hero with stamina left away from its hunt | Town goals are offered at a stamina end or through the rest plan | PROVISIONAL (GR-79) |
+| An account lesson is taught once | A card seen on one hero is seen for the account. Only a card about a weapon's own first move is per hero | PROVISIONAL (GR-79, the first principle) |
 | Every card ships with its walk-through test | The step is proven doable from the steps before it | RULED (CLAUDE.md section 3.5) |
-| What next is the Path's next row | On the end card, the return card and the Character window, always the same answer | DECIDED (GR-79, Fable 2026-11-21) |
-| The end card shows at most three things that need a decision | Everything else is one press | DECIDED (GR-79, GR-80, Fable 2026-11-21) |
+| What next is the Path's next row | On the end card, the return card and the Character window, always the same answer | PROVISIONAL (GR-79) |
+| The end card shows at most three things that need a decision | Everything else is one press | PROVISIONAL (GR-79, GR-80) |
 | Every line is plain English in Tyler's voice | No semicolons, no clipped fragments | RULED 2026-11-06, 2026-11-09 |
-| Teaching is checked by a blind reader | Every system a player meets under Level 30 is named on screen before it is needed | DECIDED (GR-79, Fable 2026-11-21). The band is standard X28 |
+| Teaching is checked by a blind reader | Every system a player meets under Level 30 is named on screen before it is needed | PROVISIONAL (GR-79). The band is standard X28 |
 
 ### 2.7 The chase by day, week and month, with no dailies
 
-**The standing rule.** Hearthrise has no daily quests, no login calendar and no season pass. With four heroes a daily is four chores, and a visit is two to four minutes. The beats of the game are the visit, the stamina bar, the weekly turn, the weekend and the monthly cycle. DECIDED (MM-11, Fable 2026-11-21, which answers GR-83). Daily goals were cut on 2026-10-22 (RULED). Premium's daily claim is not a daily in this sense, because its streak never resets and it needs no press.
+**The standing rule.** Hearthrise has no daily quests, no login calendar and no season pass. With four heroes a daily is four chores, and a visit is two to four minutes. The beats of the game are the visit, the stamina bar, the weekly turn, the weekend and the monthly cycle. PROVISIONAL (MM-11, which answers GR-83). Daily goals were cut on 2026-10-22 (RULED). Premium's daily claim is not a daily in this sense, because its streak never resets and it needs no press.
 
 | Beat | What it is | What it pays or shows | Status |
 |---|---|---|---|
-| **The visit** | Twice a day free, once with Premium | The return card: the night in three lines, up to three decisions, Carry on | RULED 50-12. The card is DECIDED (GR-80, Fable 2026-11-21) |
+| **The visit** | Twice a day free, once with Premium | The return card: the night in three lines, up to three decisions, Carry on | RULED 50-12. The card is PROVISIONAL (GR-80) |
 | **The day** | 12 hunted hours a hero | At least one Level for the pace seat in every 15 hunted hours to Level 300 (standard P12, chapter 05). Tamsin's tasks. Bestiary stages that pay Luck. Rare reveals | The 12 hour day is RULED. The reveal on every Rare is RULED 27-6 |
 | **The longest dry spell** | Hunted hours with no reward of any kind | At most 30 minutes under Level 10, 2 hours to Level 50, 6 hours to Level 110, 12 hours after | RULED direction 2026-10-25. Bands are standard X12 |
-| **The weekly turn** | One instant for everything weekly | The Hearth Chest's opens reset. The Tower's weekly climb. The six boards open on "this week". The Week card | The limits are RULED 2026-11-21. The Tower weekly is DECIDED (GR-37, Fable 2026-11-21). Six boards is RULED 27-4 |
-| **The Week card** | Shown on the first return after the turn | This week against your last week for the account: Levels, hours hunted, best find, Bestiary stages, Tower floor, rank moves and what just reset. It pays nothing, ever | DECIDED (GR-84, Fable 2026-11-21) |
-| **The weekend** | A four-weekend rotation written a year ahead as rows | The Hearthrise, a world boss, one ground's weekend, the arena season end with clan honors. Never over +25%, one at a time | DECIDED (MM-11, MM-3, Fable 2026-11-21). The +25% cap is RULED 27-5 |
-| **The month** | One turn of the rotation | Each of the four weekends once. The Great Hearth's shared project | The Hearth merge is RULED (GR-82, Tyler 2026-11-21, reversal of 2026-10-25, approved), a HYPOTHESIS |
-| **The long chase** | Past any one month | Krell's Hold on day 31 for a plain four, and day 18 to 24 with best gear and buffs. Level 400 on day 373. The Luck bar at +16% by 500 hours and +39% by 5,000. Honors lines at Level 100, 200, 300 and 400. Late Bestiary stages. Rare finds past Krell | The Luck bar is RULED 2026-11-21. Krell's day and Level 400's day are RULED (GR-6b and GR-6, Tyler 2026-11-21, reversals of "day 18 for a four" and "Level 400 is day 382", approved). Honors is DECIDED (GR-62, Fable 2026-11-21) |
+| **The weekly turn** | One instant for everything weekly | The Hearth Chest's opens reset. The Tower's weekly climb. The six boards open on "this week". The Week card | The limits are RULED 2026-11-21. The Tower weekly is PROVISIONAL (GR-37, waits on Deadly sized, and the system built). Six boards is RULED 27-4 |
+| **The Week card** | Shown on the first return after the turn | This week against your last week for the account: Levels, hours hunted, best find, Bestiary stages, Tower floor, rank moves and what just reset. It pays nothing, ever | PROVISIONAL (GR-84) |
+| **The weekend** | A four-weekend rotation written a year ahead as rows | The Hearthrise, a world boss, one ground's weekend, the arena season end with clan honors. Never over +25%, one at a time | PROVISIONAL (MM-11, MM-3). The +25% cap is RULED 27-5 |
+| **The month** | One turn of the rotation | Each of the four weekends once. The Great Hearth's shared project | The Hearth merge is PROVISIONAL (GR-82, Tyler said yes on the page, reversal of 2026-10-25, let stand on the page), a HYPOTHESIS |
+| **The long chase** | Past any one month | Krell's Hold on day 31 for a plain four, and day 18 to 24 with best gear and buffs. Level 400 on day 373. The Luck bar at +16% by 500 hours and +39% by 5,000. Honors lines at Level 100, 200, 300 and 400. Late Bestiary stages. Rare finds past Krell | The Luck bar is RULED 2026-11-21. Krell's day and Level 400's day are PROVISIONAL (GR-6b and GR-6, waits on the kill reward and the tiers, because the seat's multiple is not one number until then, Tyler said yes on the page, reversals of "day 18 for a four" and "Level 400 is day 382", let stand on the page). Honors is PROVISIONAL (GR-62) |
 
 **What a company can see ahead of it.** Every row names one goal the player can read on screen (standard X11). Days are at 12 hunted hours.
 
 | When | Named on screen | Status |
 |---|---|---|
 | Minute 5 | Level 5 and the end of the Cellar | RULED row |
-| Hour 1 | The Sewer as a four. The Homestead from the first night's work | DECIDED (GR-79, Fable 2026-11-21) |
+| Hour 1 | The Sewer as a four. The Homestead from the first night's work | PROVISIONAL (GR-79) |
 | Day 1 | Level 10 by 6 hunted hours, with no Level under 10 over 2 hours. The Tower, the Chest, Wickstead and the first Dangerous run | RULED (27-2, standard P11) |
-| Week 1 | The Rat King's Hall. Mosslight Glade and the Honors page. The first sinks sized for an account of four | The order of the sinks is DECIDED (CE-4, Fable 2026-11-21, chapter 04) and their sizes are a HYPOTHESIS (CE-5). The Levels reached are set by the Level law (GR-6, chapter 05) |
-| Day 31 | Krell's Hold, for a plain four. Day 18 to 24 with best gear and buffs | RULED (GR-6b, Tyler 2026-11-21, reversal, approved) |
-| Month 6 and after | A region open 30 days before the first fours arrive. Old grounds at your Level | RULED 2026-11-21 (runway). GR-9 is DECIDED, Fable 2026-11-21 in chapter 02 |
+| Week 1 | The Rat King's Hall. Mosslight Glade and the Honors page. The first sinks sized for an account of four | The order of the sinks is PROVISIONAL (CE-4, chapter 04) and their sizes are a HYPOTHESIS (CE-5). The Levels reached are set by the Level law (GR-6, chapter 05) |
+| Day 31 | Krell's Hold, for a plain four. Day 18 to 24 with best gear and buffs | PROVISIONAL (GR-6b, Tyler said yes on the page, reversal, let stand on the page) |
+| Month 6 and after | A region open 30 days before the first fours arrive. Old grounds at your Level | RULED 2026-11-21 (runway). GR-9 is PROVISIONAL in chapter 02 |
 
 ### 2.8 Premium's comfort and convenience across four heroes
 
@@ -341,15 +341,15 @@ There is one Premium for each account and it covers every hero (RULED 2026-11-20
 |---|---|---|
 | The 12 hour stamina bar | Every hero. The 12 hour day takes one visit in place of two | RULED 2026-10-17 (the bar), 2026-11-21 (the account) |
 | The full hunt analyzer | Every hero and the party view | RULED 2026-10-17 |
-| The daily training item (the 1 hour tier) | Granted into Storage on the first visit of the day with no press. The streak never resets | Kept: RULED 2026-11-20 (24-4). No press is DECIDED (GR-84, Fable 2026-11-21) |
-| How many items a day | One for each hero, so four a day | RULED (PREM-1, Tyler 2026-11-21), chapter 04. It is four hours of training a day for one price, so the yard's rate (GR-54) sizes it |
+| The daily training item (the 1 hour tier) | Granted into Storage on the first visit of the day with no press. The streak never resets | Kept: RULED 2026-11-20 (24-4). No press is PROVISIONAL (GR-84) |
+| How many items a day | One for each hero, so four a day | DECIDED (PREM-1, Tyler said yes on the page 2026-11-21), chapter 04. It is four hours of training a day for one price, so the yard's rate (GR-54) sizes it |
 | Premium outfits | Every hero | RULED 2026-10-17 |
-| In the MMO layer | Timed buffs last a quarter longer. Arena tickets bank to 30 | RULED (MM-21, Tyler 2026-11-21, chapter 06) |
+| In the MMO layer | Arena tickets bank to 30. Premium does not make timed buffs last longer | DECIDED (MM-21, Tyler said yes on the page 2026-11-21, chapter 06) |
 
 | What Premium never is | Status |
 |---|---|
-| The risk block of the hunt report | RULED (GR-66, Tyler 2026-11-21) |
-| Carry on, the company plan, the job queue, the return card, the copy actions and the first five saved setups. A feature that removes a repeated decision is the game, not a comfort | DECIDED (GR-80, GR-56a, Fable 2026-11-21, with GR-56a OPEN (T-fix-3)) |
+| The risk block of the hunt report | PROVISIONAL (GR-66, Tyler said yes on the page) |
+| Carry on, the company plan, the job queue, the return card, the copy actions and the first five saved setups. A feature that removes a repeated decision is the game, not a comfort | PROVISIONAL (GR-80, GR-56a, with GR-56a OPEN, waiting on Tyler, T-fix-3) |
 | A Level, a ground, a drop or a gear tier | RULED 2026-11-18 (monetization intent) |
 | More hunted hours than a free player can reach. Both reach 12 without a refill | RULED 2026-11-21 (50-12) |
 
@@ -361,39 +361,39 @@ The eight criteria in short form: player value, depth, uniqueness, what it plugs
 
 | Feature | Value | Depth | Unique | Plugs into | Balance | Cost | Hour 1,000 | Verdict | Status |
 |---|---|---|---|---|---|---|---|---|---|
-| The return card, the end card, the after-hunt plan | High. A visit is the game | Medium | Yes | Everything | None | Low | Yes | KEEP. The end card becomes a named system with the three-decision rule | DECIDED (GR-80, Fable 2026-11-21) |
+| The return card, the end card, the after-hunt plan | High. A visit is the game | Medium | Yes | Everything | None | Low | Yes | KEEP. The end card becomes a named system with the three-decision rule | PROVISIONAL (GR-80) |
 | Carry on, one press for the account | High | Low. It frees attention | Yes | Party, bag, tally, Blessings | None | Low | Yes | KEEP | RULED 27-1 |
-| The company plan and the job queue | High | Medium | Yes | Skills, the House, the hunt | None on rates | Medium | Yes | ADD | DECIDED (GR-80, Fable 2026-11-21) |
-| The hunt report | High | High. Feedback for ground, tier and bar | Yes | Tiers, Blessings, the bar | None on numbers. Players may avoid Deadly, which a ruled band cannot see | Medium | Rises with Level | ADD | RULED (GR-66, Tyler 2026-11-21) |
+| The company plan and the job queue | High | Medium | Yes | Skills, the House, the hunt | None on rates | Medium | Yes | ADD | PROVISIONAL (GR-80) |
+| The hunt report | High | High. Feedback for ground, tier and bar | Yes | Tiers, Blessings, the bar | None on numbers. Players may avoid Deadly, which a ruled band cannot see | Medium | Rises with Level | ADD | PROVISIONAL (GR-66, Tyler said yes on the page) |
 | The analyzer and personal bests | Medium | Medium | Yes | The report | None | Low | Yes | KEEP. Gains the report's full breakdown | RULED 2026-10-17 |
-| The Path and the population gate | High early | Low. It makes real decisions findable | Replaces four partial copies | Every system | None | Medium. One file and its readers | Yes | ADD | DECIDED (GR-79, Fable 2026-11-21) |
-| The coach | High in hour 1 | Low | Folded into the Path | The Path | None | Shrinks over time | No | REDESIGN onto the Path | DECIDED (GR-79, Fable 2026-11-21) |
-| What next | High at hour 100 | Low | Folded into the Path | The Path | None | Low | Yes | MERGE into the Path | DECIDED (GR-79, Fable 2026-11-21) |
+| The Path and the population gate | High early | Low. It makes real decisions findable | Replaces four partial copies | Every system | None | Medium. One file and its readers | Yes | ADD | PROVISIONAL (GR-79) |
+| The coach | High in hour 1 | Low | Folded into the Path | The Path | None | Shrinks over time | No | REDESIGN onto the Path | PROVISIONAL (GR-79) |
+| What next | High at hour 100 | Low | Folded into the Path | The Path | None | Low | Yes | MERGE into the Path | PROVISIONAL (GR-79) |
 | Tamsin's tally | High. The one side feature everyone uses | Low | Yes. A gear piece you are missing | Gear, gold | Small | Low | Fades | KEEP. The task takes itself | DECIDED (GR-78, Fable 2026-11-21) |
 | The Bestiary | Medium | Low | Yes. It pays Luck | Luck | Inside the Magic Find budget | Low | Yes | KEEP as ruled | RULED 2026-11-20 |
-| Titles | Low alone | None | A fourth kill count | Honors | None | Low | Some | MERGE into the Honors page | DECIDED (GR-62, Fable 2026-11-21) |
+| Titles | Low alone | None | A fourth kill count | Honors | None | Low | Some | MERGE into the Honors page | PROVISIONAL (GR-62) |
 | Leaderboards | Medium | Low | Yes | The weekly turn | None | Low | Yes | KEEP as six weekly boards | RULED 27-4 |
-| The Week card | Medium | Low. A mirror | Yes | The weekly snapshot | None. It must never pay | Low | Yes | ADD | DECIDED (GR-84, Fable 2026-11-21) |
-| The event calendar | Medium | Low | Yes | The MMO layer | Capped at +25% | Low. Rows, never run by hand | Yes | KEEP as a four-weekend rotation | DECIDED (MM-11, Fable 2026-11-21) |
+| The Week card | Medium | Low. A mirror | Yes | The weekly snapshot | None. It must never pay | Low | Yes | ADD | PROVISIONAL (GR-84) |
+| The event calendar | Medium | Low | Yes | The MMO layer | Capped at +25% | Low. Rows, never run by hand | Yes | KEEP as a four-weekend rotation | PROVISIONAL (MM-11) |
 | The Rare reveal | High | None | Yes | Loot, the return card | None | Low | Yes | KEEP on every Rare | RULED 27-6 |
-| Setups, action sets and hunt presets | High. The identity feature | High | Three nouns for one idea | The bar, grounds | None | Medium | Yes | MERGE into one noun, "Setup", remembered for each ground. It holds the weapon, worn set, linings, bar and target mode, so the saved kit of GR-48 is the same thing | DECIDED (GR-84, GR-48, Fable 2026-11-21) |
+| Setups, action sets and hunt presets | High. The identity feature | High | Three nouns for one idea | The bar, grounds | None | Medium | Yes | MERGE into one noun, "Setup", remembered for each ground. It holds the weapon, worn set, linings, bar and target mode, so the saved kit of GR-48 is the same thing | DECIDED (GR-84, GR-48, Fable 2026-11-21, with GR-84 PROVISIONAL) |
 | Paid setup slots 4 and 5 | None | None | No | Nothing | Not a sink | Negative | No | REMOVE the price | OPEN (GR-56a, waiting on Tyler, T-fix-3, chapter 04). His pick on cut 14 points the other way from reversal 13, so both are held |
-| A starting loot plan and a starting rest plan | High in hour 1 | None. They remove presses | Yes | The loot plan, the job queue | None | Low | No | ADD | DECIDED (GR-80, Fable 2026-11-21) |
+| A starting loot plan and a starting rest plan | High in hour 1 | None. They remove presses | Yes | The loot plan, the job queue | None | Low | No | ADD | PROVISIONAL (GR-80) |
 | Next ground when outgrown, started by itself | High for 20 hours | Low | Yes | The after-hunt plan | None | Low | No | REFUSE. One press on the return card does it for the whole party | DECIDED (GR-81, Fable 2026-11-21) |
-| The Premium daily claim as a press | None | None | No | Premium | None | Low | No | REDESIGN. Granted with no press | DECIDED (GR-84, Fable 2026-11-21) |
-| The rested bank | Medium. It pays back a missed day | Low | A missed day is half made up | The XP chain, away and return | None | Low: one number a hero | Yes | KEEP. It pays +50% Level XP on as many hunted hours as a hero missed, up to 24 | KEPT (Tyler 2026-11-21, cut list 7). How it stays is DECIDED (GR-63, Fable 2026-11-21, chapter 05) |
+| The Premium daily claim as a press | None | None | No | Premium | None | Low | No | REDESIGN. Granted with no press | PROVISIONAL (GR-84) |
+| The rested bank | Medium. It pays back a missed day | Low | A missed day is half made up | The XP chain, away and return | None | Low: one number a hero | Yes | KEEP. It pays +50% Level XP on as many hunted hours as a hero missed, up to 24 | KEPT (Tyler's pick on the page 2026-11-21, cut list 7). How it stays is PROPOSAL (GR-63, made in the fold 2026-11-21, not yet seen by Tyler, chapter 05) |
 | Old server leftovers, the gift code, Open Halls | None | None | No | Nothing | None | Negative | No | REMOVE | RULED (27-7, the cut list) |
-| The Town Crier, Rounds, flame powders | Medium in a crowd | Low | Yes | Gold sinks | Small | Built | Yes | KEEP, shut by the population gate | DECIDED (GR-79, Fable 2026-11-21) |
-| One Great Hearth | Medium | Low | Merges three rooms | Town Works, the event, powders | Small | Medium | Yes | MERGE | RULED (GR-82, Tyler 2026-11-21, reversal, approved). HYPOTHESIS |
+| The Town Crier, Rounds, flame powders | Medium in a crowd | Low | Yes | Gold sinks | Small | Built | Yes | KEEP, shut by the population gate | PROVISIONAL (GR-79) |
+| One Great Hearth | Medium | Low | Merges three rooms | Town Works, the event, powders | Small | Medium | Yes | MERGE | PROVISIONAL (GR-82, Tyler said yes on the page, reversal, let stand on the page). HYPOTHESIS |
 | The Book of formulas and the Chronicle | Medium | Low | Yes. The honesty feature | The Path | None | Low | Yes | KEEP. The Book reads the engine's own constants | RULED 2026-11-08 |
 | Settings and widgets | Medium | None | Yes | Everything | None | Low | Yes | KEEP | DECIDED (no call id, Fable 2026-11-21) |
 | Account deletion | Required | None | Yes | Accounts | None | Low | Yes | ADD before Early Access | DECIDED (no call id, Fable 2026-11-21, chapter 09) |
-| A return notice | Medium on phones | None | Yes | The stamina day | None | Medium | Yes | BUILD-LATER, opt-in, with the mobile build | DECIDED (GR-80, Fable 2026-11-21) |
+| A return notice | Medium on phones | None | Yes | The stamina day | None | Medium | Yes | BUILD-LATER, opt-in, with the mobile build | PROVISIONAL (GR-80) |
 | Companions | None until redesigned | Low | No | A seventh power lever | Risky | Built, hidden | Maybe, as a collection | BUILD-LATER, hidden | RULED 2026-10-22 |
 | A skill tree | Covered by Kindlings | High | No | Combat | Risky | High | Yes | ON HOLD | RULED 2026-11-05 |
 | Game modes | Medium | Medium | Yes | Accounts | Own ladders | High | Yes | After launch, for each account | RULED 27-9 |
 | Weekly orders | Medium | Low | Yes | Crafting | Small | Medium | Yes | BUILD-LATER, judged against the ground weekend and the Week card | RULED 2026-11-21 (nothing planned is cut) |
-| Daily quests, a login calendar, a season pass | Negative across four heroes | None | No | Nothing | A chore faucet | Medium | No | NEVER | DECIDED (MM-11, Fable 2026-11-21) |
+| Daily quests, a login calendar, a season pass | Negative across four heroes | None | No | Nothing | A chore faucet | Medium | No | NEVER | PROVISIONAL (MM-11) |
 | A loop that restarts hunts when stamina is full | It makes the free game zero visits | None | No | Stamina | It would end the stamina day | Low | No | NEVER | RULED 27-1 |
 
 ---
@@ -426,21 +426,21 @@ In decision-book order.
 
 | Id | The call | The decision | Status |
 |---|---|---|---|
-| GR-79 | The Path, and a first hour that teaches four heroes | One table opens every system. The first hour is one hero to Level 5, then three recruits who each run their own Mill Cellar hunt on one Start, then the Sewer as a four at about minute 36. The company always holds one healer. HYPOTHESIS | DECIDED (Fable 2026-11-21) |
-| GR-8 | The first week's sinks, sized for an account of four | Tempering, Hallmarks and linings cost a share of a band's gold, 1.2 to 1.4 of what the band earns. The slot gold follows the order of CE-4 first, then the castle | RULED (Tyler, 2026-11-21). It replaces The typed prices kept on 2026-11-18 (Hallmarks 150k, 250k, 400k, 600k) |
-| GR-24 | The starting weapon | The player picks for each hero at creation. No card is preselected. Each card carries a measured tag and the hammer a "Good first hero" mark. Heroes two to four come pre-filled as shield, staff and bow | DECIDED (Fable 2026-11-21) |
-| GR-66 | The risk reading | The risk block is free to every player. The rules block is free in short form and the full breakdown sits in the Premium analyzer | RULED (Tyler, 2026-11-21) |
+| GR-79 | The Path, and a first hour that teaches four heroes | One table opens every system. The first hour is one hero to Level 5, then three recruits who each run their own Mill Cellar hunt on one Start, then the Sewer as a four at about minute 36. The company always holds one healer. HYPOTHESIS | PROVISIONAL. Waits on being built and played past minute 17 by real new players |
+| GR-8 | The first week's sinks, sized for an account of four | Tempering, Hallmarks and linings cost a share of a band's gold, 1.2 to 1.4 of what the band earns. The slot gold follows the order of CE-4 first, then the castle | PROVISIONAL. Waits on the store-bill fault fixed and a wage formula that exists. Tyler said yes on the page 2026-11-21. It changes The typed prices kept on 2026-11-18 (Hallmarks 150k, 250k, 400k, 600k), which he let stand on the page |
+| GR-24 | The starting weapon | The player picks for each hero at creation. No card is preselected. Each card carries a measured tag and the hammer a "Good first hero" mark. Heroes two to four come pre-filled as shield, staff and bow | PROVISIONAL. Waits on being built and played past minute 17 by real new players |
+| GR-66 | The risk reading | The risk block is free to every player. The rules block is free in short form and the full breakdown sits in the Premium analyzer | PROVISIONAL. Waits on the playtest or measurement its own row names. Tyler said yes on the page 2026-11-21 |
 | GR-78 | Tamsin's task | Taken when a hero enters the ground, with no press | DECIDED (Fable 2026-11-21) |
-| GR-84 | Small presses | The Premium claim needs no press. One noun, Setup, holds weapon, worn set, linings, bar and target mode for each ground. A Week card that pays nothing | DECIDED (Fable 2026-11-21) |
-| GR-80 | The company as one thing | One Start, one plan, one return card and a job queue of up to three steps | DECIDED (Fable 2026-11-21) |
+| GR-84 | Small presses | The Premium claim needs no press. One noun, Setup, holds weapon, worn set, linings, bar and target mode for each ground. A Week card that pays nothing | PROVISIONAL. Waits on the playtest or measurement its own row names |
+| GR-80 | The company as one thing | One Start, one plan, one return card and a job queue of up to three steps | PROVISIONAL. Waits on being built and played past minute 17 by real new players |
 | GR-81 | Next ground when outgrown | No. 27-1 is kept whole. The return card offers the next ground as one press for the party | DECIDED (Fable 2026-11-21) |
-| GR-82 | One Great Hearth | Merge Town Works, the Hearthrise event and flame powders. A HYPOTHESIS | RULED (Tyler, 2026-11-21). It replaces 2026-10-25 |
-| MM-11 | Events and no dailies | A four-weekend rotation written a year ahead. No daily quests, login calendar or season pass, as a standing rule | DECIDED (Fable 2026-11-21) |
-| MM-21 | Premium inside the MMO layer | Everything is open to all. Premium makes timed buffs last a quarter longer and banks arena tickets to 30 (chapters 04 and 06) | RULED (Tyler, 2026-11-21) |
+| GR-82 | One Great Hearth | Merge Town Works, the Hearthrise event and flame powders. A HYPOTHESIS | PROVISIONAL. Waits on the playtest or measurement its own row names. Tyler said yes on the page 2026-11-21. It changes 2026-10-25, which he let stand on the page |
+| MM-11 | Events and no dailies | A four-weekend rotation written a year ahead. No daily quests, login calendar or season pass, as a standing rule | PROVISIONAL. Waits on the playtest or measurement its own row names |
+| MM-21 | Premium inside the MMO layer | Everything is open to all. Premium banks arena tickets to 30 and does not make timed buffs last longer (chapters 04 and 06) | DECIDED. Tyler said yes on the page 2026-11-21 |
 
 ---
 
-**Cuts in this chapter, after Tyler's answers.** KEPT (Tyler 2026-11-21), cut list 7: the rested bank (GR-63). OPEN (waiting on Tyler): T-fix-3, the priced setup slots (cut 14 against reversal 13). T-fix-1 and T-fix-2, lent and on-call heroes and the live party finder, which chapter 06 owns.
+**Cuts in this chapter, after Tyler's answers.** KEPT (Tyler's pick on the page 2026-11-21), cut list 7: the rested bank (GR-63). OPEN (waiting on Tyler): T-fix-3, the priced setup slots (cut 14 against reversal 13). T-fix-1 and T-fix-2, lent and on-call heroes and the live party finder, which chapter 06 owns.
 
 ## 5. Still missing
 
@@ -450,14 +450,14 @@ In decision-book order.
 | 2 | Closed. Three heroes together in the Cellar do not keep pace with one | MEASURED, check C2, failed at 0.53 times | The recruits run three lone hunts on one Start (section 2.1) |
 | 3 | A measured tag for each starting way | The balance matrix (check C1). Owner: the core decider | Six start-kit cells. Still owed |
 | 4 | What the first week's gold buys, and early prices for an account of four | Closed. CE-4 gives the order and CE-5 the sizes, as a HYPOTHESIS | The decision book lists both as missing |
-| 5 | Premium's daily item: one an account or one a hero. And Premium's price | Closed. RULED (PREM-1 and PREM-2, Tyler 2026-11-21): one item for each hero, and 8 to 10 dollars a month as a number to react to | A money call |
+| 5 | Premium's daily item: one an account or one a hero. And Premium's price | Closed for now. Tyler said yes on the page (PREM-1 and PREM-2): one item for each hero, and 8 to 10 dollars a month as a number to react to | A money call |
 | 6 | The Path's rows for Levels 17 to 19, 21 to 24 and 26 to 29 | Chapter 03 | The content rows on this branch name nothing there except skill unlocks at 20 and 25. Gear tier rows should fill them, or the guard in section 6 fails |
 | 7 | The Level doors for the world boss, both arenas and the clan board | Closed. GR-79: Level 13, 20 and 30, and the clan board when the account is in a clan | Chapter 06 asks this chapter for them. They cannot be set before the boss pool and arena tiers have numbers |
 | 7b | How the thirteen skills are spread across four heroes past the first night | The game designer, inside GR-79, with chapter 05 (its item 16) | The starting rest plan gives each hero a different trade on night one. Nothing yet says who should train what after that, or whether the game should say it at all |
 | 8 | The player-facing word for the account's four | Closed. "Heroes" for the account screen and "Party" inside a hunt, by the genre-words rule | "Heroes" and "Party" are recommended. "Company" is design vocabulary |
 | 9 | Whether kit items can be turned into gold by deleting and remaking a hero | Closed. CE-10: the hero kit is granted once for each of the four slots and a remade hero gets practice weapons only. Security reads it with the rest | The kit's food sells for a little. Account deletion is staged, and hero deletion has no design here |
 | 10 | Whether the report's counters fit the session row with no added statement | The systems engineer | HYPOTHESIS until confirmed |
-| 11 | Closed. An away hunt is saved every 10 minutes, or at 1.2 seconds of engine time for a heavy party, which is every 4 to 5 minutes | DECIDED (GR-1, Fable 2026-11-21, on study 48). MEASURED: the result is identical at every cadence | The return card is never stale. Opening the game settles the window to now on the first hello, so the card shows the saved state and then the present. A hunt that ended while away is filed back in town up to 10 minutes after its true end, and the next planned hunt starts from that true end |
+| 11 | Closed. An away hunt is saved every 10 minutes, or at 1.2 seconds of engine time for a heavy party, which is every 4 to 5 minutes | PROVISIONAL (GR-1, waits on a town-hour fixture and a load test, Tyler said yes on the page, on study 48). MEASURED: the result is identical at every cadence | The return card is never stale. Opening the game settles the window to now on the first hello, so the card shows the saved state and then the present. A hunt that ended while away is filed back in town up to 10 minutes after its true end, and the next planned hunt starts from that true end |
 | 12 | A blind play of the whole first hour | A fresh reader, after it is built | The sequence from minute 17 has never been played |
 | 13 | What a player who refuses heroes two to four is shown, and for how long | The designer, after playtest 1 | Recommended: one quiet line on the return card, once a visit |
 

@@ -60,8 +60,10 @@ export const TEMPERED_DAWNSTEEL = 1.02;
 /* THE LINE'S FIRST LEVEL by family: the lowest Level from the anchor where the line's weapon beats fully tempered Dawnsteel on every late
    ground, pace and safety (weapon-power.mjs firstLevel; tests/weapon-line.mjs WL10 re-measures it). Under it the line can't carry a
    unique: at the anchor the line IS Dawnsteel, so nothing can stay under it and beat tempered Dawnsteel anywhere. A unique whose home opens
-   under its family's first Level is worn from that Level (WL5): Carter's Rest opens at the anchor, 110, so its sword is worn from 117. */
-export const WEAPON_FIRST_LEVEL = Object.freeze({ sword: 117, hatchets: 119, warhammer: 116, bow: 115, crossbow: 116, wand: 114, staff: 115 });
+   under its family's first Level is worn from that Level (WL5): Carter's Rest opens at the anchor, 110, so its sword is worn from 117.
+   Re-measured 2026-11-20 on the to-hit ratio (lane/c-tohit-ratio, src/data/to-hit.js, weapon-power.mjs firstLevel): only the staff
+   moved, 115 -> 117. */
+export const WEAPON_FIRST_LEVEL = Object.freeze({ sword: 117, hatchets: 119, warhammer: 116, bow: 115, crossbow: 116, wand: 114, staff: 117 });
 
 /** The fields the line scales: a weapon's attack and damage, in every style it carries them. */
 export const LINE_FIELDS = Object.freeze(['atkB', 'strB', 'rangeAtkB', 'rangeStrB', 'magicAtkB', 'magicStrB']);

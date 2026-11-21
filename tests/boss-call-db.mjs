@@ -80,8 +80,8 @@ const WINDOW = 90000;
 const GEAR = Object.freeze({ helmet: 'steel_helm', body: 'steel_platebody', pants: 'steel_platelegs', boots: 'steel_boots', weapon: 'steel_sword', shield: 'coppercap_shield' });
 const STAFF = Object.freeze({ helmet: 'scholar_helmet', body: 'scholar_body', pants: 'scholar_pants', boots: 'scholar_boots', weapon: 'willow_staff' });
 /* A boss a strong hero fells in a few swings and who hurts nobody: the series' arms measure the charge and the count, never the fight. */
-const SOFT = Object.freeze({ hp: 400, atk: 1, baseAcc: 0, spells: [] });
-const SOFT_ADD = Object.freeze({ hp: 60, atk: 1, baseAcc: 0 });
+const SOFT = Object.freeze({ hp: 400, atk: 1, aim: 1, spells: [] });
+const SOFT_ADD = Object.freeze({ hp: 60, atk: 1, aim: 1 });
 const idem = () => crypto.randomUUID();
 const asUser = (db, uid) => db.query(`select set_config('request.jwt.claim.sub', $1, true)`, [uid]);
 const purse = async (db, uid) => Number(await one(db, 'select gold from public.account_wallet where user_id = $1', [uid]));
@@ -384,10 +384,10 @@ const JOBS = [
   { name: 'a death', want: ['died', 'party_member_died'], level: 2, uids: [2, 3], gear: [{}, {}], row: { spells: [] } },
   /* A DEATH WITH HIS SPELLS ON, his real row: whichever of the two ends the dice give, both doors give the same one on the same instant. */
   { name: 'a death to his spells', want: ['died', 'party_member_died'], or: ['died'], level: 2, uids: [14, 15], gear: [{}, {}], row: null },
-  { name: 'the limit', want: ['boss_time'], level: 60, uids: [4, 5], row: { hp: 100000000, atk: 1, baseAcc: 0 }, stood: [999, 1000], manyWindows: true },
+  { name: 'the limit', want: ['boss_time'], level: 60, uids: [4, 5], row: { hp: 100000000, atk: 1, aim: 1 }, stood: [999, 1000], manyWindows: true },
   /* THE PHASES: a death with the wave up, and the limit with the wave up (a row that takes 1 a blow, so his first line falls inside ten minutes and his last HP doesn't). */
-  { name: 'a death in the add wave', want: ['died', 'party_member_died'], level: 60, uids: [6, 7], row: { hp: 2000, atk: 1, baseAcc: 0 }, add: { hp: 100000, atk: 800, baseAcc: 3 }, stood: [1, 500] },
-  { name: 'the limit with the wave up', want: ['boss_time'], level: 60, uids: [8, 9], row: { hp: 410, atk: 1, baseAcc: 0, def: 100000 }, add: { hp: 10000000, atk: 1, baseAcc: 0 }, stood: [1, 500] },
+  { name: 'a death in the add wave', want: ['died', 'party_member_died'], level: 60, uids: [6, 7], row: { hp: 2000, atk: 1, aim: 1 }, add: { hp: 100000, atk: 800, aim: 100000 }, stood: [1, 500] },
+  { name: 'the limit with the wave up', want: ['boss_time'], level: 60, uids: [8, 9], row: { hp: 410, atk: 1, aim: 1, def: 100000 }, add: { hp: 10000000, atk: 1, aim: 1 }, stood: [1, 500] },
   /* A HERO ALONE (the designer's ruling 2, 2026-11-10): the same room and the same fight for one seat, through both doors. */
   { name: 'a lone kill', want: ['boss_felled'], level: 60, uids: [10], lone: true, felled: true, row: null, stood: [0, 0] },
   { name: 'a lone death', want: ['died'], level: 2, uids: [11], lone: true, gear: [{}], row: null },
@@ -415,9 +415,9 @@ async function bothDoors(door, boot) {
   await db.query('update public.hr_hunt_config set enabled = true where id');
   const ends = {};
   const row = EM[KING.monster];
-  const keep = { hp: row.hp, atk: row.atk, baseAcc: row.baseAcc, def: row.def, spells: row.spells };
+  const keep = { hp: row.hp, atk: row.atk, aim: row.aim, def: row.def, spells: row.spells };
   const ADD = EM[ADD_ID];
-  const keepAdd = { hp: ADD.hp, atk: ADD.atk, baseAcc: ADD.baseAcc };
+  const keepAdd = { hp: ADD.hp, atk: ADD.atk, aim: ADD.aim };
   for (const job of JOBS) {
     const uids = job.uids.map((i) => UIDS[i]);
     const anchorMs = Date.UTC(2026, 9, 25, 12, 0, 0);
@@ -523,11 +523,11 @@ async function bothDoors(door, boot) {
 const SERIES = [
   { name: 'three wins alone', fights: 3, uids: [16], lone: true, want: ['boss_felled'], paid: [3], won: 3 },
   { name: 'three wins, a pair', fights: 3, uids: [17, 18], want: ['boss_felled', 'boss_felled'], paid: [3, 3], won: 3 },
-  { name: 'a loss in the second fight', arm: 'BD-LOSS', fights: 3, uids: [19], lone: true, after1: { hp: 100000000, atk: 60000, baseAcc: 5, spells: [] }, want: ['died'], paid: [2], won: 1 },
+  { name: 'a loss in the second fight', arm: 'BD-LOSS', fights: 3, uids: [19], lone: true, after1: { hp: 100000000, atk: 60000, aim: 100000, spells: [] }, want: ['died'], paid: [2], won: 1 },
   { name: 'out of stamina alone', arm: 'BD-STAM', fights: 5, uids: [20], lone: true, pools: [2], want: ['stamina'], paid: [2], won: 2 },
   { name: 'a pair, one out of stamina', arm: 'BD-STAM', fights: 5, uids: [21, 22], pools: [null, 1], want: ['party_member_left', 'stamina'], paid: [1, 1], won: 1, by: [1, 'stamina'] },
   { name: 'out of gold', arm: 'BD-GOLD', fights: 5, uids: [23], lone: true, purse: 3, want: ['gold_out'], paid: [2], won: 2 },
-  { name: 'the second fight\'s limit', arm: 'BD-LIMIT2', fights: 2, uids: [24], lone: true, after1: { hp: 100000000, atk: 1, baseAcc: 0, spells: [] }, want: ['boss_time'], paid: [2], won: 1 },
+  { name: 'the second fight\'s limit', arm: 'BD-LIMIT2', fights: 2, uids: [24], lone: true, after1: { hp: 100000000, atk: 1, aim: 1, spells: [] }, want: ['boss_time'], paid: [2], won: 1 },
 ];
 
 async function seriesDoors(door, boot) {
@@ -538,8 +538,8 @@ async function seriesDoors(door, boot) {
   await db.query('update public.hr_hunt_config set enabled = true where id');
   const ends = {};
   const row = EM[KING.monster], ADD = EM[ADD_ID];
-  const keep = { hp: row.hp, atk: row.atk, baseAcc: row.baseAcc, def: row.def, spells: row.spells };
-  const keepAdd = { hp: ADD.hp, atk: ADD.atk, baseAcc: ADD.baseAcc };
+  const keep = { hp: row.hp, atk: row.atk, aim: row.aim, def: row.def, spells: row.spells };
+  const keepAdd = { hp: ADD.hp, atk: ADD.atk, aim: ADD.aim };
   const setRow = (o) => { for (const inst of [row, PM[KING.monster]]) Object.assign(inst, o); };
   for (const job of SERIES) {
     const tag = (job.arm || 'BD-SERIES') + ' ' + door + ' ' + job.name;
@@ -745,8 +745,8 @@ async function forged(boot) {
   const wPool1 = await pool(db, w);
   await backdate(db, room, anchorMs);
   const row = EM[KING.monster], ADD = EM[ADD_ID];
-  const keep = { hp: row.hp, atk: row.atk, baseAcc: row.baseAcc, def: row.def, spells: row.spells };
-  const keepAdd = { hp: ADD.hp, atk: ADD.atk, baseAcc: ADD.baseAcc };
+  const keep = { hp: row.hp, atk: row.atk, aim: row.aim, def: row.def, spells: row.spells };
+  const keepAdd = { hp: ADD.hp, atk: ADD.atk, aim: ADD.aim };
   for (const inst of [row, PM[KING.monster]]) Object.assign(inst, SOFT);
   for (const inst of [ADD, PM[ADD_ID]]) Object.assign(inst, SOFT_ADD);
   try {

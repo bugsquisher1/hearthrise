@@ -27,7 +27,8 @@ import { shownBand } from './hunt-list.js';
 import { DEATH_XP_LOSS } from '../data/hunt-sessions.js';
 import { BLESSING_CUT_PERMILLE } from '../data/blessings.js';
 import { MAX_LEVEL, isCapped, skillXpForLevel, charXpForLevel } from '../core/xp.js';
-import { COMBAT_BALANCE, WEAKNESS_BONUS, ACC_DEF_MUL, playerCombatRolls, monsterAccuracy, monsterMaxHit } from '../core/combat.js';
+import { COMBAT_BALANCE, WEAKNESS_BONUS, playerCombatRolls, monsterAccuracy, monsterMaxHit } from '../core/combat.js';
+import { TO_HIT } from '../data/to-hit.js';
 import { levelDeathLoss } from '../core/action-rules.js';
 import { residentsOf, raresOf, materialsOf } from './hunt-ground-facts.js';
 
@@ -93,12 +94,11 @@ export function groundPages() {
   });
 }
 
-/** The worked examples' monster: the first creature a hero meets (lowest ground first) that has some defense and the common
-    starting chance to hit, so every term of every example counts; else the first with that common chance; never a boss. */
+/** The worked examples' monster: the first creature a hero meets (lowest ground first) that has some defense, so every term of every
+    example counts; else the first it meets; never a boss. */
 function exampleMonster() {
   const met = groundsInOrder().flatMap(({ g }) => residentsOf(g.hunt)).filter((m) => !m.boss && MONSTERS[m.id]);
-  const pick = met.find((m) => (MONSTERS[m.id].def || 0) > 0 && !Number.isFinite(MONSTERS[m.id].baseAcc))
-    || met.find((m) => !Number.isFinite(MONSTERS[m.id].baseAcc)) || met[0];
+  const pick = met.find((m) => (MONSTERS[m.id].def || 0) > 0) || met[0];
   return pick ? Object.assign({ id: pick.id }, MONSTERS[pick.id]) : null;
 }
 
@@ -115,22 +115,19 @@ export function formulaPages(heroLevel = null) {
   const L = EXAMPLE_LEVEL;
   const skills = { melee: skillXpForLevel('melee', L), defense: skillXpForLevel('defense', L) };
   const rolls = playerCombatRolls(mon, { skills, equipment: {}, items: {} });
-  const defScore = (mon.def || 0) * (ACC_DEF_MUL[mon.tier || 1] || 1);
   const scale = B.monsterDamageScaleByTier[mon.tier] || B.monsterAttackDamageScale;
   const deathXp = charXpForLevel(DEATH_EXAMPLE_LEVEL);
   const oneCut = BLESSING_CUT_PERMILLE[0];
   return [
     { id: 'hit',
-      terms: { base: B.playerBaseAccuracy, per: B.playerAccuracyPerPoint, min: B.playerMinAccuracy, max: B.playerMaxAccuracy,
-        weak: WEAKNESS_BONUS.accuracy, defMul: ACC_DEF_MUL },
-      example: { inputs: { level: L, accuracy: 0, def: mon.def || 0, tier: mon.tier || 1, weak: rolls.weak.matched, monster: mon.name }, result: rolls.accuracy } },
+      terms: { base: TO_HIT.base, min: TO_HIT.min, max: TO_HIT.max, weak: WEAKNESS_BONUS.accuracy },
+      example: { inputs: { level: L, accuracy: 0, evasion: mon.evasion || 0, weak: rolls.weak.matched, monster: mon.name }, result: rolls.accuracy } },
     { id: 'max',
       terms: { lvl: B.strengthLevelScale, str: B.strengthBonusScale, flat: B.playerBaseMaxHit, cut: B.monsterDefenseDamageReduction, weak: WEAKNESS_BONUS.damage },
-      example: { inputs: { level: L, strength: 0, defScore, weak: rolls.weak.matched, monster: mon.name }, result: rolls.maxHit } },
+      example: { inputs: { level: L, strength: 0, defScore: mon.def || 0, weak: rolls.weak.matched, monster: mon.name }, result: rolls.maxHit } },
     { id: 'mon_hit',
-      terms: { base: B.monsterBaseAccuracy, per: B.monsterAccuracyPerPoint, min: B.monsterMinAccuracy, max: B.monsterMaxAccuracy },
-      example: { inputs: { atk: mon.atk || 1, defense: L, baseAcc: Number.isFinite(mon.baseAcc) ? mon.baseAcc : null, monster: mon.name },
-        result: monsterAccuracy(mon, L) } },
+      terms: { base: TO_HIT.base, min: TO_HIT.min, max: TO_HIT.max },
+      example: { inputs: { aim: mon.aim || 0, defense: L, monster: mon.name }, result: monsterAccuracy(mon, L) } },
     { id: 'mon_max',
       terms: { scale: B.monsterAttackDamageScale, byTier: B.monsterDamageScaleByTier },
       example: { inputs: { atk: mon.atk || 1, tier: mon.tier || 1, scale, monster: mon.name }, result: monsterMaxHit(mon) } },

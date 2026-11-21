@@ -52,11 +52,13 @@ export function packSources(pack, query) {
   const head = (what) => `// src/data/grounds/${pack.id}/${what} — written by tools/pack.mjs (lane/b-ground-pack). Shape: src/data/grounds/shape.js.\n`;
   /* a monster row in the house style (monsters.js): one row a block, its stat line on its own, so tools/pack.mjs propose --write
      (gen-ground-stats writeRows) finds and moves it like any other */
-  const STAT = ['hp', 'atk', 'baseAcc', 'def', 'xp', 'gp', 'formula'];
+  const STAT = ['hp', 'atk', 'aim', 'evasion', 'def', 'xp', 'gp', 'formula'];
   const monster = (id, m) => {
     if (!['hp', 'atk', 'def', 'xp'].every((k) => Number.isInteger(m[k])) || !Array.isArray(m.gp)) return `    ${id}: ${lit(m)},\n`;
     const other = Object.fromEntries(Object.entries(m).filter(([k]) => !STAT.includes(k)));
-    const stat = 'hp: ' + (m.hp | 0) + ', atk: ' + (m.atk | 0) + (Number.isFinite(m.baseAcc) ? ', baseAcc: ' + m.baseAcc : '') + ', def: ' + (m.def | 0)
+    /* the to-hit ratings (src/data/to-hit.js) sit as a pair, or not at all: a fresh row gets them from `propose --write` */
+    const rated = Number.isInteger(m.aim) && Number.isInteger(m.evasion);
+    const stat = 'hp: ' + (m.hp | 0) + ', atk: ' + (m.atk | 0) + (rated ? ', aim: ' + m.aim + ', evasion: ' + m.evasion : '') + ', def: ' + (m.def | 0)
       + ', xp: ' + (m.xp | 0) + ', gp: [' + (m.gp || [1, 1]).join(', ') + ']' + (m.formula ? ', formula: true' : '');
     return `    ${id}: {\n      ${lit(other).slice(1, -1).trim()},\n      ${stat} },\n`;
   };

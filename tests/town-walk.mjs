@@ -533,7 +533,7 @@ async function pureRules(M) {
     let b = await boot();
     /* the boot OPENS the other character (account-session.js openOthers): one the server still drew from an old body, never opened,
        keeps no body of its own and is never re-stood after its hunt (rehearsal 44866483507: `character(1)` was null and the run threw) */
-    if (!b.a.character(1)) { fail('TW-11 boot did not open the account\'s other character (slot 1): it stands only while its old body lasts'); break tw11; }
+    if (!b.a.character(1)) { fail('TW-11 boot did not open the account\'s other character (slot 1): it stands only while its old body lasts'); b.a.close(0); await settle(); break tw11; }
     if (b.slots.join() !== '1') fail('TW-11 fresh boot: the viewed character sees own slots ' + JSON.stringify(b.slots) + ' (want [1]) before the other is viewed');
     b.a.close(0); b.a.close(1); await settle();
     b = await boot();   // reload

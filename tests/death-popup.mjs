@@ -271,10 +271,22 @@ async function pageRules(overrides, shots, { stopAtFirst = false } = {}) {
           /* DP-8 OK STAYS ON SCREEN: the smallest phone the game plays on, the longest why line (the card scrolls; its answers do not). */
           if (vp.height < 500) {
             await a.page.setViewportSize({ width: 667, height: 375 });
-            await a.page.evaluate((q) => { const put = (sel, t) => { const n = document.querySelector(q + ' ' + sel); n.textContent = t; n.classList.add('is-on'); }; put('.hdeath-why', 'You were 31 Levels under this ground, and its monsters are stronger than you. Better armor, food eaten sooner, a healer or a few more Levels would help.'); put('.hdeath-saved', "No Blessing was active. Blessings, in the Shop's Services tab, lower what dying costs, and they're free until Level 30."); }, POP);
             await a.page.waitForTimeout(200);
-            const hit = await a.page.evaluate((q) => { const b = document.querySelector(q + ' [data-hs-act="death-ok"]').getBoundingClientRect(); const e = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2); return { bottom: b.bottom, edge: document.querySelector(q + ' .hs-win-body').getBoundingClientRect().bottom, ok: !!e && !!e.closest('[data-hs-act="death-ok"]') }; }, POP);
-            if (!hit.ok || hit.bottom > hit.edge + 0.5) fails.push('DP-8 [667x375] OK runs past the card on a long card: ' + JSON.stringify(hit));
+            /* the longest why line the words can say, twice over: a card well past a 375 px sheet whatever the other lines read. Put and
+               measured in ONE task: the card's own repaint re-wrote the words within the old 200 ms wait (rehearsal 44869461943: the why
+               line read its 48 real characters, the card overflowed by 4 px, and the mutant that drops the sticky answers escaped). */
+            const hit = await a.page.evaluate((q) => {
+              const put = (sel, t) => { const n = document.querySelector(q + ' ' + sel); n.textContent = t; n.classList.add('is-on'); };
+              const why = 'You were 31 Levels under this ground, and its monsters are stronger than you. Better armor, food eaten sooner, a healer or a few more Levels would help.';
+              put('.hdeath-why', why + ' ' + why); put('.hdeath-saved', "No Blessing was active. Blessings, in the Shop's Services tab, lower what dying costs, and they're free until Level 30.");
+              const body = document.querySelector(q + ' .hs-win-body'); body.scrollTop = 0;
+              const b = document.querySelector(q + ' [data-hs-act="death-ok"]').getBoundingClientRect(); const e = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2);
+              return { bottom: b.bottom, edge: body.getBoundingClientRect().bottom, over: body.scrollHeight - body.clientHeight, ok: !!e && !!e.closest('[data-hs-act="death-ok"]') };
+            }, POP);
+            /* the card must really be longer than the sheet, or OK is on screen whatever the answers' rule says: a card that does not scroll
+               is a fixture line (HARNESS), never a pass */
+            if (hit.over < 40) fails.push('DP-8 fixture: the long card overflows its sheet by ' + hit.over + ' px at 667x375, too little to test OK');
+            else if (!hit.ok || hit.bottom > hit.edge + 0.5) fails.push('DP-8 [667x375] OK runs past the card on a long card: ' + JSON.stringify(hit));
             await a.page.setViewportSize(vp);
           }
           /* A reload before OK: the popup comes back, with the same server cost. */

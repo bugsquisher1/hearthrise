@@ -51,12 +51,12 @@ It is the test every system below passed, and the test any later social feature 
 |---|---|---|---|---|
 | Damage dealt | `playerAttack` | +5% | +10% | +15% |
 | Protection | Defense rating rows, each sized on the matrix so a mid-geared four takes this much less damage an hour (CORE-4) | about 5% less | about 5% less | about 10% less |
-| Level XP | `xpPerKill` | a clan room, size PROVISIONAL (S-4) | +25% | +25% and the clan room |
+| Level XP | `xpPerKill` | +5%, the Library (PROVISIONAL (CH11-2, `11-on-call-and-clan-xp.md`)) | +25% | +30% |
 | Material find | the material term of the drop formula. No knob in `knobs.json` yet | none | +10% | +10% |
 | Coin from kills | `coinPerKill` | none | none | none, ever |
 | Town work speed | no knob in `knobs.json` yet | +10% | none | +10% |
 
-- **The +25% timed Level XP cap is the ruled event ceiling.** RULED 2026-11-20 (27-5): never above +25% and never two at once. Only the Hearthrise weekend fills it, from +10% to +25% by the size of the fire (CE-8). No Level XP boost is sold (MM-29-XP). A clan room pays a standing Level XP bonus (RULED, Tyler 2026-11-21, the sitting, S-4), which reverses 25-2. Its size is PROVISIONAL and owed by the design lane in `11-on-call-and-clan-xp.md`, which is being written.
+- **The +25% timed Level XP cap is the ruled event ceiling.** RULED 2026-11-20 (27-5): never above +25% and never two at once. Only the Hearthrise weekend fills it, from +10% to +25% by the size of the fire (CE-8). No Level XP boost is sold (MM-29-XP). A clan room pays a standing Level XP bonus (RULED, Tyler 2026-11-21, the sitting, S-4), which reverses 25-2. Its size is PROVISIONAL (CH11-2, `11-on-call-and-clan-xp.md`): +0.5% a Library level and +5% at level ten, a new standing cap on Level XP.
 - **Protection is written on the Defense rating.** Anything that takes a share off a blow stops at the 60% mitigation cap, and plate of its Level sits at that cap from Level 110 on. So a defensive buff makes monsters land less often, which a capped tank still feels. One check is owed before these rows are final: the to-hit formula needs its own floor, so rating rows cannot stack into a second way past the cap. PROVISIONAL (CORE-4).
 - **No coin buff, ever.** Gold enters the world from kills and leaves through sinks. A buff that mints gold for the buffed raises prices for everyone else and would let money mint gold. PROVISIONAL (MM-25).
 - **Material find is not Luck.** Luck has two feeds and no more (RULED 2026-11-20). The row adds 10% to rows tagged as materials: monster parts, lining parts, hides, ore, gem chips and gems below Rare. It never touches a Rare, Very Rare or Trophy row, a gear row of any rarity, a key or a seed. It is earned only and never sold, and the rivet allowance is computed without it. PROVISIONAL (CE-2).
@@ -73,7 +73,7 @@ It is the test every system below passed, and the test any later social feature 
 | Paying alone: best gear sooner and a +6% damage boost | 1.22 | 1.22 | COMPUTED, 1.15 x 1.06 |
 | The fastest talent build over the suggested one, on top of every cap | 1.34 | about 1.67 | COMPUTED, 1.65 x 1.012. PROVISIONAL (TAL-1, `10-level-choices.md`) |
 
-There is one ceiling. It is a reading held by a test and never a new limit, and chapter 04 quotes the same numbers (MM-31). With Talents in, the reference is a plain four on suggested builds and the ceiling reads about 1.67, because the fastest build is at most 1.2% faster than the suggested one. A clan Level XP room raises it again, to about 1.73 at +5%. That number is PROVISIONAL and waits on the clan XP size. With every cap full a four reads 1.65 times a plain mid-geared four in Levels an hour and 1.32 in kills an hour, with about 10% less damage taken an hour and 10% more materials. Nobody holds 1.65 outside a Hearthrise weekend. Paying alone reads about 1.22. A player who earns every buff and buys nothing averages about 1.3 times the plain pace over a month. The kill speed is less than two gear bands (COMPUTED, 1.17 squared is 1.37). Most of the gain is timed and lapses when the player stops earning or buying it. Nothing in it lets a hero wear a higher band, enter a ground sooner or skip a Level.
+There is one ceiling. It is a reading held by a test and never a new limit, and chapter 04 quotes the same numbers (MM-31). With Talents in, the reference is a plain four on suggested builds and the ceiling reads about 1.67, because the fastest build is at most 1.2% faster than the suggested one. With the Library full the readings are about 1.74 on a Hearthrise weekend and about 1.44 held all the time (COMPUTED in `11-on-call-and-clan-xp.md` section 2.4, PROVISIONAL). The table sums rows on one knob, which is why the weekend reads 1.74 and not the 1.73 the sitting quoted. With every cap full a four reads 1.65 times a plain mid-geared four in Levels an hour and 1.32 in kills an hour, with about 10% less damage taken an hour and 10% more materials. Nobody holds 1.65 outside a Hearthrise weekend. Paying alone reads about 1.22. A player who earns every buff and buys nothing averages about 1.3 times the plain pace over a month. The kill speed is less than two gear bands (COMPUTED, 1.17 squared is 1.37). Most of the gain is timed and lapses when the player stops earning or buying it. Nothing in it lets a hero wear a higher band, enter a ground sooner or skip a Level.
 
 **What the player sees.** One line on the hero sheet: "Buffs: damage +11% of 15, Level XP +25% of 25." A player always knows what is filled and what is left to chase. PROVISIONAL (MM-24).
 
@@ -134,7 +134,7 @@ Why a pool and not one big fight: the one combat engine runs a party of up to fo
 
 ### 2.4 Clans
 
-**What a clan is.** A shared work, a team and a room, and its work pays its members in buffs. A member holds a buff by giving, never by the size of the roster. A clan never fills a party seat. PROVISIONAL (MM-8, waits on clans existing with people in them). The direction, that clans pay buffs, is RULED 2026-11-21. "Clans give no Level XP" (25-2) is kept: no room pays Level XP.
+**What a clan is.** A shared work, a team and a room, and its work pays its members in buffs. A member holds a buff by giving, never by the size of the roster. A clan never fills a party seat. A clan mate's on-call hero may (S-1, chapter 11). PROVISIONAL (MM-8, waits on clans existing with people in them). The direction, that clans pay buffs, is RULED 2026-11-21. "Clans give no Level XP" (25-2) is reversed for one room: the Library pays a standing Level XP bonus (RULED, the sitting, S-4).
 
 | Piece | Rule | Status |
 |---|---|---|
@@ -151,7 +151,7 @@ Why a pool and not one big fight: the one combat engine runs a party of up to fo
 - One project at a time, on the same engine as the server's town project (chapter 07). One engine to build and one to secure.
 - Members give gold and castle goods. Ruling 31-3 kept the built prices of castle goods, and the price for each member changes that. It is part of the reversal above.
 - Each stage changes how the castle looks and builds or raises one building by one level. There are five buildings of ten levels, so fifty stages, and a full castle is about a year at 1 to 1.3 weeks a stage. HYPOTHESIS.
-- **Labor.** A member's heroes can give rested town hours to the open project. It is a town job paid in closed form and valued on the wage curve, so a stage's price is paid in gold, castle goods or labor.
+- **Labor.** A member's heroes can give rested town hours to the open project. It follows the town day rule of `11-on-call-and-clan-xp.md` section 3: the week's labor runs after a hero's job queue, up to a cap in hours a week, and labor covers the weekly share before gold does (PROVISIONAL (CH11-3, `11-on-call-and-clan-xp.md`)). It is a town job paid in closed form and valued on the wage curve, so a stage's price is paid in gold, castle goods or labor.
 - **The treasury.** Shares and gifts go into it and nothing ever comes back out (25-5). It pays in a fixed order: upkeep first, then the open project. Every movement is journalled.
 - **Upkeep.** A weekly bill for each member, with the same floor of five. The member's weekly share is what pays it, so a member makes one payment and not two. If upkeep is unpaid the rooms' buffs switch off until it is paid. Nothing is lost and nothing decays.
 - **Votes.** Each account sets its vote for the next project once, as a standing choice. The leader breaks a tie and picks when nobody has voted.
@@ -169,7 +169,7 @@ Why a pool and not one big fight: the one combat engine runs a party of up to fo
 | Workshop | Town work speed | +10% |
 | Kitchen | The clan's weekly ration cap | raised |
 
-Each building has ten levels and reaches its cap at level ten. The fifth building is the library. RULED (Tyler 2026-11-21, the sitting, S-4): it pays a standing Level XP bonus, which reverses ruling 25-2. Its size is PROVISIONAL and is owed by the design lane in `11-on-call-and-clan-xp.md`, which is being written.
+Each building has ten levels and reaches its cap at level ten. The fifth building is the library. RULED (Tyler 2026-11-21, the sitting, S-4): it pays a standing Level XP bonus, which reverses ruling 25-2. Its step is PROVISIONAL (CH11-2, `11-on-call-and-clan-xp.md`): each level pays +0.5% Level XP and level ten pays +5%. A clan that votes for nothing else reaches +5% in 10 to 13 weeks.
 
 
 A building's level sets the size of its buff, up to the standing cap. A clan that has finished the four buff buildings has filled every standing cap, and what remains of the castle is looks, the plaque and the weekly goal.
@@ -302,7 +302,7 @@ PROVISIONAL (MM-19, waits on a matrix cell with mixed Levels, Tyler said yes on 
 - **It is not a party-size target.** There are no solo or group balance targets (RULED 2026-11-21).
 - **Where it is not read.** Boss points, because the room is scaled. Both arenas, because they pay no XP.
 
-**Parties across accounts.** A party is up to four heroes and never more than four (RULED 2026-11-20, 25-11). Most parties are an account's own heroes. A hero from another account can join again: by an invite by hand, and as an on-call hero (RULED, MM-18, Tyler 2026-11-21, the sitting). Two accounts may still form a party by hand through an invite. When a party holds two or more accounts it is offered a shared supply bill, agreed once and remembered (RULED 2026-11-20, 25-8). There is no live party finder (RULED, GR-69, Tyler 2026-11-21, the sitting: removed).
+**Parties across accounts.** A party is up to four heroes and never more than four (RULED 2026-11-20, 25-11). Most parties are an account's own heroes. A hero from another account can join again: by an invite by hand, and in the guest seat as an on-call hero (RULED, S-1, Tyler 2026-11-21, the sitting). The guest seat is PROVISIONAL (CH11-1, `11-on-call-and-clan-xp.md`): one guest a party, seated by a friend or clan mate inside the hero's 12 hour window. Two accounts may still form a party by hand through an invite. When a party holds two or more accounts it is offered a shared supply bill, agreed once and remembered (RULED 2026-11-20, 25-8). There is no live party finder (RULED, GR-69, Tyler 2026-11-21, the sitting: removed).
 
 ### 2.9 Chat, friends and factions
 
@@ -343,7 +343,6 @@ Chat is open by default so a new player sees that other people exist (RULED 2026
 
 | Not in the game | Why | Status |
 |---|---|---|
-| On-call heroes. Kept, so this row leaves the list | Tyler's words at the sitting: "on call is fine but should be full stamina, the on call hero trades their crafting/training time for a small cut of exp, no loss on death. HOWEVER they can only go on call once every 24 hours and it will only last for 12 hours. Then back to a chosen activity". The full spec is `11-on-call-and-clan-xp.md`, which a design lane is writing. This chapter does not design it | RULED (MM-18, Tyler 2026-11-21, the sitting, S-1). It reverses the removal this book was written on |
 | Shared combat grounds, 8-person areas | A contested spawn with both owners asleep is a tax and not a meeting. A busy server would need channels, which is instancing again. One party, one instance is the engine | PROVISIONAL (MM-20) |
 | A raid of many heroes in one fight | It needs people at the screen and a second engine. The world boss is the server's shared fight. A clan's own shared hunt, planned as two parties of four in one hall (25-11), takes the same form when it is built: each party in its own room on one clan pool | PROVISIONAL (MM-1, MM-2, MM-48, Tyler said yes on the page, reversal of the second half of 25-11, let stand on the page) |
 | PvP on the hunting grounds | The idle hunt is never interrupted by another player | DECIDED (MM-17, Fable 2026-11-21) |
@@ -457,7 +456,7 @@ In decision-book order. "First" marks a decide-first call.
 | MM-15, MM-40 | Tickets | Each arena its own, 5 a day banking to 20 | PROVISIONAL. Waits on the engine test of heroes against heroes |
 | MM-16 | Arena matching | Three offered. Being attacked costs nothing. Defense is the last attack party | PROVISIONAL. Waits on the engine test of heroes against heroes |
 | MM-17 | PvP on the grounds | Never | DECIDED (Fable 2026-11-21) |
-| MM-18 | On-call heroes | Kept, with Tyler's design from the sitting. The spec is `11-on-call-and-clan-xp.md`, being written | RULED (Tyler, 2026-11-21, the sitting) |
+| MM-18 | On-call heroes | The removal this call decided is superseded by S-1: on-call heroes are kept. The design is chapter 11 | SUPERSEDED by Tyler's ruling at the sitting (S-1). The design is PROVISIONAL (CH11-1, `11-on-call-and-clan-xp.md`) |
 | MM-19 | Mixed Levels | The visible two-thirds rule, one rule for every party | PROVISIONAL. Waits on a matrix cell with mixed Levels. Tyler said yes on the page 2026-11-21. It changes The party XP rulings of 2026-11-08, which he let stand on the page |
 | MM-20 with GR-70 | Presence | One system in three places: the town, the ground strip, the boss page. Seen, never fought beside | PROVISIONAL. Waits on the playtest or measurement its own row names |
 | MM-21 | Premium and the layer | Everything is open to all. Premium banks arena tickets to 30. It does not make timed buffs last longer | DECIDED. Tyler said yes on the page 2026-11-21 |
@@ -556,8 +555,8 @@ The reads on bought boosts, the Crowns book and the test allowance (MM-43) are i
 | "Clans give no XP" (25-2) as a blanket rule | The 2026-11-21 reward ruling is newer. At the sitting Tyler reversed 25-2 for one room: the library pays a standing Level XP bonus. The bound rations of 25-2 stand |
 | The castle at built prices with one work order a week for each slot, five buildings of ten levels, labor, votes, upkeep, a treasury balance and Clan Standing (25-4 and the social review's inventory) | Tyler let the price for each member stand (MM-9) and kept the buildings, labor, votes, upkeep, treasury and Clan Standing, which section 2.4 fits to that price |
 | The castle hidden until a clan has ten accounts (25-3) | A price by member makes a castle of three work. Needs Tyler's yes at MM-9 |
-| On-call heroes at 2 to 4 hours a day, standing parties, the on-call board, friends as an on-call roster (25-1, 25-3, the social review's first change) | Four heroes from day 1 at 12 hunted hours leave no seat to fill and no hour to lend. That reasoning was overruled: on-call heroes are kept (RULED, MM-18, the sitting) |
-| The playtest "is finding your hero came back from a friend's hunt fun?" (game review 7.3, item 3) | It tests on-call heroes. It returns only if MM-18 is refused |
+| On-call heroes at 2 to 4 hours a day, standing parties, the on-call board, friends as an on-call roster (25-1, 25-3, the social review's first change) | Four heroes from day 1 at 12 hunted hours leave no seat to fill and no hour to lend. That reasoning was overruled. On-call heroes are back in Tyler's S-1 form, one 12 hour window every 24 hours (chapter 11), which replaces the 2 to 4 hours a day and the on-call board of 25-1 and 25-3 |
+| The playtest "is finding your hero came back from a friend's hunt fun?" (game review 7.3, item 3) | It tests on-call heroes, which are kept (S-1). The playtest comes back |
 | The hidden, ground-keyed Level cut on party XP, and removing it with nothing in its place | The two-thirds rule replaces both in one step (MM-19). A phase B measurement beat the phase A guess of "21 times" |
 | Party size bands for pairs, threes and fours, and the size ladder work of the social review | Tyler 2026-11-21: no solo or group targets |
 | A ground's own XP weekend between world weekends (27-5, second half) | MM-42 makes the ground weekend a featured-gear weekend. The +25% ceiling and "never two at once" of 27-5 stand |

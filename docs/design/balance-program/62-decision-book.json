@@ -208,12 +208,12 @@
     "OPEN": "Waiting on Tyler.",
     "RULED": "Tyler ruled it knowing what it was: his typed words, his own executive decisions, a pick where he wrote a note, or an answer at the sitting of 2026-11-21, where he saw every option's cost and no recommendation.",
     "PROPOSAL": "A design the integrator made on 2026-11-21 when Tyler said keep on a cut list. He has not seen it. Two remain: GR-34 and GR-74.",
-    "SUPERSEDED": "Replaced by a later ruling of Tyler's.",
+    "SUPERSEDED": "Replaced by a later ruling of Tyler's: GR-61 by level choices, MM-18 by his S-1 answer.",
     "WITHDRAWN": "Refused by the first adversarial check. The ruling stands."
   },
   "decided": {
     "rowsDecided": 157,
-    "calls": 156,
+    "calls": 159,
     "mergedTwice": [
       "GR-24",
       "MM-7"
@@ -221,21 +221,21 @@
     "byStatus": {
       "DECIDED": 51,
       "ofWhichTylerSaidYesOnThePage": 6,
-      "PROVISIONAL": 90,
+      "PROVISIONAL": 93,
       "OPEN": 1,
-      "RULED": 10,
-      "ofWhichAtTheSitting": 9,
+      "RULED": 9,
+      "ofWhichAtTheSitting": 8,
       "PROPOSAL": 2,
-      "SUPERSEDED": 1,
+      "SUPERSEDED": 2,
       "WITHDRAWN": 1
     },
     "fixesApplied": 31,
     "rowsChangedByAFix": 40,
     "statusTagsInTheBook": {
       "decided": 324,
-      "provisional": 738,
+      "provisional": 755,
       "open": 83,
-      "proposal": 27,
+      "proposal": 26,
       "saidYesOnThePage": 344,
       "noCallId": 22
     },
@@ -282,6 +282,75 @@
           "CE-8",
           "CE-9",
           "CE-10"
+        ]
+      },
+      "The MMO layer": {
+        "calls": 39,
+        "DECIDED": 7,
+        "PROVISIONAL": 30,
+        "OPEN": 0,
+        "RULED": 1,
+        "PROPOSAL": 0,
+        "other": 1,
+        "ids": [
+          "CH11-1",
+          "CH11-2",
+          "MM-1",
+          "MM-2",
+          "MM-3",
+          "MM-4",
+          "MM-5",
+          "MM-6",
+          "MM-8",
+          "MM-9",
+          "MM-10",
+          "MM-11",
+          "MM-12",
+          "MM-13",
+          "MM-14",
+          "MM-15",
+          "MM-16",
+          "MM-17",
+          "MM-18",
+          "MM-19",
+          "MM-20",
+          "MM-21",
+          "MM-22",
+          "MM-23",
+          "MM-24",
+          "MM-25",
+          "MM-26",
+          "MM-27",
+          "MM-38",
+          "MM-39",
+          "MM-40",
+          "MM-41",
+          "MM-42",
+          "MM-43",
+          "MM-44",
+          "MM-45",
+          "MM-46",
+          "MM-47",
+          "MM-48"
+        ]
+      },
+      "The player's day": {
+        "calls": 8,
+        "DECIDED": 3,
+        "PROVISIONAL": 5,
+        "OPEN": 0,
+        "RULED": 0,
+        "PROPOSAL": 0,
+        "other": 0,
+        "ids": [
+          "CH11-3",
+          "GR-78",
+          "GR-79",
+          "GR-80",
+          "GR-81",
+          "GR-82",
+          "GR-83",
+          "GR-84"
         ]
       },
       "The long game": {
@@ -449,72 +518,6 @@
           "GR-77"
         ]
       },
-      "The player's day": {
-        "calls": 7,
-        "DECIDED": 3,
-        "PROVISIONAL": 4,
-        "OPEN": 0,
-        "RULED": 0,
-        "PROPOSAL": 0,
-        "other": 0,
-        "ids": [
-          "GR-78",
-          "GR-79",
-          "GR-80",
-          "GR-81",
-          "GR-82",
-          "GR-83",
-          "GR-84"
-        ]
-      },
-      "The MMO layer": {
-        "calls": 37,
-        "DECIDED": 7,
-        "PROVISIONAL": 28,
-        "OPEN": 0,
-        "RULED": 2,
-        "PROPOSAL": 0,
-        "other": 0,
-        "ids": [
-          "MM-1",
-          "MM-2",
-          "MM-3",
-          "MM-4",
-          "MM-5",
-          "MM-6",
-          "MM-8",
-          "MM-9",
-          "MM-10",
-          "MM-11",
-          "MM-12",
-          "MM-13",
-          "MM-14",
-          "MM-15",
-          "MM-16",
-          "MM-17",
-          "MM-18",
-          "MM-19",
-          "MM-20",
-          "MM-21",
-          "MM-22",
-          "MM-23",
-          "MM-24",
-          "MM-25",
-          "MM-26",
-          "MM-27",
-          "MM-38",
-          "MM-39",
-          "MM-40",
-          "MM-41",
-          "MM-42",
-          "MM-43",
-          "MM-44",
-          "MM-45",
-          "MM-46",
-          "MM-47",
-          "MM-48"
-        ]
-      },
       "Money": {
         "calls": 13,
         "DECIDED": 2,
@@ -574,6 +577,18 @@
         "waitsOn": "being built and played past minute 17 by real new players"
       },
       {
+        "id": "CH11-1",
+        "waitsOn": "Section 8 of chapter 11, and Tyler's answer on what \"full stamina\" means in his S-1 words"
+      },
+      {
+        "id": "CH11-2",
+        "waitsOn": "Section 8 of chapter 11: clans existing, and one buff played in a cell"
+      },
+      {
+        "id": "CH11-3",
+        "waitsOn": "Section 8 of chapter 11: a town-hour model in the matrix (band TD1), and the first build played"
+      },
+      {
         "id": "CORE-1",
         "waitsOn": "the death fault fixed in the measuring tool, then the death sample of 4 seeds by 8 hours"
       },
@@ -603,11 +618,11 @@
       },
       {
         "id": "GR-6",
-        "waitsOn": "the kill reward and the tiers, because the seat's multiple is not one number until then. The runway and the clock also wait on the clan XP size"
+        "waitsOn": "the kill reward and the tiers, because the seat's multiple is not one number until then. The runway and the clock also wait on the Library's size in chapter 11 (row CH11-2, +5% as it opens)"
       },
       {
         "id": "GR-6a",
-        "waitsOn": "the kill reward and the tiers, because the seat's multiple is not one number until then. The runway and the clock also wait on the clan XP size"
+        "waitsOn": "the kill reward and the tiers, because the seat's multiple is not one number until then. The runway and the clock also wait on the Library's size in chapter 11 (row CH11-2, +5% as it opens)"
       },
       {
         "id": "GR-6b",
@@ -827,11 +842,11 @@
       },
       {
         "id": "MM-25",
-        "waitsOn": "one buff played in a cell. The standing Level XP row waits on the clan XP size"
+        "waitsOn": "one buff played in a cell. The standing Level XP row waits on the Library's size in chapter 11 (row CH11-2, +5% as it opens)"
       },
       {
         "id": "MM-26",
-        "waitsOn": "one buff played in a cell. The ceiling also waits on the clan XP size"
+        "waitsOn": "one buff played in a cell. The ceiling also waits on the Library's size in chapter 11 (row CH11-2, +5% as it opens)"
       },
       {
         "id": "MM-29",
@@ -970,8 +985,8 @@
         "until": "The sample of five tracks is played"
       },
       {
-        "what": "On-call heroes, and the clan Level XP room",
-        "until": "The spec in 11-on-call-and-clan-xp.md is written. Both are ruled and neither is designed in this book"
+        "what": "On-call heroes, the Library and the town day rule",
+        "until": "What section 8 of chapter 11 names for each. All three are designed there and all three are PROVISIONAL"
       }
     ]
   },
@@ -1161,7 +1176,7 @@
               "MM-18",
               "MM-19"
             ],
-            "spec": "docs/design/overhaul/11-on-call-and-clan-xp.md, being written"
+            "spec": "docs/design/overhaul/11-on-call-and-clan-xp.md"
           },
           {
             "q": "S-2",
@@ -1190,7 +1205,7 @@
               "GR-6",
               "GR-6a"
             ],
-            "spec": "docs/design/overhaul/11-on-call-and-clan-xp.md, being written"
+            "spec": "docs/design/overhaul/11-on-call-and-clan-xp.md"
           },
           {
             "q": "S-5",
@@ -1548,8 +1563,8 @@
         "change": "No hired, lent or on-call heroes.",
         "ruling": "25-1 and the on-call board of 25-3, 2026-11-20",
         "reason": "Every account has four heroes of its own, so a hired seat has no job.",
-        "answer": "REFUSED at the sitting (S-1). On-call heroes are kept, with his design",
-        "status": "RULED (Tyler, 2026-11-21, the sitting)"
+        "answer": "REFUSED at the sitting (S-1). On-call heroes are kept, with his design. MM-18 is superseded and chapter 11 designs it",
+        "status": "SUPERSEDED"
       },
       {
         "n": 19,
@@ -1620,7 +1635,16 @@
         "change": "A clan room pays a standing Level XP bonus.",
         "ruling": "25-2 of 2026-11-20: clans give no Level XP",
         "reason": "He kept the library, and at the sitting he chose the option that pays Level XP.",
-        "answer": "RULED at the sitting (S-4 a). The size is PROVISIONAL and owed by the design lane",
+        "answer": "RULED at the sitting (S-4 a). The size is PROVISIONAL: +5% at Library level ten, in chapter 11",
+        "status": "PROVISIONAL"
+      },
+      {
+        "n": 27,
+        "id": "CH11-3",
+        "change": "A rest plan's usual ending is a standing job with no count, in place of \"wait in town\".",
+        "ruling": "The 2026-11-20 ruling that a rest plan ends in \"wait in town\" or \"hunt again, once\" and never loops",
+        "reason": "Chapter 11 reads it as inside the ruling, because it does not loop and starts no hunt, and asks that it be listed as a change.",
+        "answer": "Not put to Tyler. PROVISIONAL",
         "status": "PROVISIONAL"
       }
     ],
@@ -1641,7 +1665,7 @@
           "MM-18"
         ],
         "what": "On-call, hired and lent heroes, and the on-call board",
-        "note": "The spec is being written in docs/design/overhaul/11-on-call-and-clan-xp.md.",
+        "note": "The design is chapter 11.",
         "answer": "KEPT. RULED at the sitting (S-1): on-call heroes stay, with his design"
       },
       {
@@ -1794,6 +1818,15 @@
           "GR-25"
         ],
         "bookReads": "The book is written with all five kept."
+      },
+      {
+        "id": "S-1 \"full stamina\"",
+        "what": "What \"full stamina\" means in his S-1 words",
+        "conflict": "Chapter 11 section 1.2 read it as: the 12 hour stint is a whole bar that does not spend the hero's own stamina. The other reading is that a hero must hold a full stamina bar of its own before it may go on call.",
+        "calls": [
+          "CH11-1"
+        ],
+        "bookReads": "The book is written on the first reading. If the second is meant, sections 1.3 and 1.5 of chapter 11 change and the rest stands. Nobody has decided it."
       }
     ],
     "sitting": {
@@ -1809,7 +1842,7 @@
             "MM-18",
             "MM-19"
           ],
-          "spec": "docs/design/overhaul/11-on-call-and-clan-xp.md, being written"
+          "spec": "docs/design/overhaul/11-on-call-and-clan-xp.md"
         },
         {
           "q": "S-2",
@@ -1838,7 +1871,7 @@
             "GR-6",
             "GR-6a"
           ],
-          "spec": "docs/design/overhaul/11-on-call-and-clan-xp.md, being written"
+          "spec": "docs/design/overhaul/11-on-call-and-clan-xp.md"
         },
         {
           "q": "S-5",
@@ -1895,8 +1928,12 @@
     },
     "onCallAndClanXp": {
       "where": "docs/design/overhaul/11-on-call-and-clan-xp.md",
-      "status": "Being written by a design lane. This book points to it and does not design it.",
-      "carries": "The on-call hero spec from S-1, and the size of the clan Level XP room from S-4."
+      "status": "Written. Chapter 11 of the book. Its designs are PROVISIONAL and the rulings behind them are RULED (S-1, S-3, S-4, S-7).",
+      "rows": [
+        "CH11-1",
+        "CH11-2",
+        "CH11-3"
+      ]
     },
     "plan": {
       "what": "Step A of the systems plan",

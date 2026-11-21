@@ -37,13 +37,13 @@ Tyler adopted the critical review on 2026-11-21 (`review/00-critical-review.md`)
 | The Catacombs mode beyond one wing, the Hall of Firsts, the Honors catalogue | The first build is played |
 | Sinks as a share of band gold, and the yard rate change | The wage can be measured. Until then the typed prices are no worse |
 | Talent unlock ranks 8 and up, tracks six to eight, and the arena build | The sample of five tracks is played |
-| On-call heroes, and the clan Level XP room | The spec in 11-on-call-and-clan-xp.md is written. Both are ruled and neither is designed in this book |
+| On-call heroes, the Library and the town day rule | What section 8 of chapter 11 names for each. All three are designed there and all three are PROVISIONAL |
 
 Every row of the MMO layer outside the first build is marked "planned, waits" with what it waits on, in `06-mmo-layer.md` section 2.11 and in the `firstBuild` field of `decisions/all.json`.
 
 **Before any build plan**, the review asks for four things: fix the measuring tool, hold one real sitting with Tyler, play the first hour with four heroes, and run the two cheap tests that size what waits (heroes against heroes in the engine, and one boss room at three Levels). The sitting is done, and section 5 has its ten rulings.
 
-**Being written.** `11-on-call-and-clan-xp.md` is the spec for on-call heroes (S-1) and for the size of the clan Level XP room (S-4). A design lane is writing it. This book points to it and does not design either.
+**Chapter 11.** `11-on-call-and-clan-xp.md` designs on-call heroes (S-1), the Library as the clan Level XP room (S-4 inside the full castle of S-7), the town day rule and how a ground remembers a Setup (S-3). Its designs are PROVISIONAL (rows CH11-1 to CH11-3). The rulings behind them stay RULED.
 
 ## 2. How to read the book
 
@@ -56,9 +56,9 @@ Every design statement carries one status word.
 | DECIDED | Evidence and rulings support it. Where Tyler also said yes on the page, the tag says so |
 | PROVISIONAL | A reasonable plan that has not been tested. The tag or the row names what it waits on |
 | OPEN | It waits on Tyler |
-| RULED | Kept only for what Tyler ruled knowing what it was: his typed words, his own executive decisions, a pick where he wrote a note, and his answers at the sitting of 2026-11-21, where he saw every option's cost and no recommendation. Among the calls that is MM-34 and the nine rows the sitting ruled |
+| RULED | Kept only for what Tyler ruled knowing what it was: his typed words, his own executive decisions, a pick where he wrote a note, and his answers at the sitting of 2026-11-21, where he saw every option's cost and no recommendation. Among the calls that is MM-34 and the eight rows the sitting ruled. MM-18 is superseded by his S-1 answer |
 | PROPOSAL | A design made in the fold of 2026-11-21 when Tyler said keep on a cut list. He has not seen it. Two remain: the monster-row pool and the soil tiers |
-| SUPERSEDED, WITHDRAWN | GR-61 is superseded by his ruling on level choices. GR-65 was refused by the first check |
+| SUPERSEDED, WITHDRAWN | GR-61 is superseded by his ruling on level choices, and MM-18 by his S-1 answer. GR-65 was refused by the first check |
 
 Why the words changed. The book had printed 43 calls as "RULED (Tyler, 2026-11-21)". The page's own timestamps show ten items answered in about three minutes in the morning and 57 in under six minutes in the afternoon, with the 23 reversals let stand in 25 seconds. A pick like that is a real yes. It is not informed consent, so it now reads "Tyler said yes on the page 2026-11-21" and never RULED. Most of what the book called decided is a good plan waiting for a test, and it now says PROVISIONAL and names the test.
 
@@ -68,7 +68,7 @@ Number words. TARGET is a number the design aims at. COMPUTED is arithmetic on r
 
 Ids. GR-x, MM-x, CE-x, CORE-x and PREM-x are calls in `decisions/all.json`. GR-2 and GR-67 are ruled and have no row there. GR-10a, GR-10b, GR-10c, GR-60, GR-68 and GR-83 were replaced by MM calls. Ids such as 25-4 or 50-11 are Tyler's rulings of 2026-11-20 and 2026-11-21.
 
-How the decisions were made. Three deciders took 157 rows. An adversarial check returned ACCEPT WITH FIXES with 31 fixes, re-ran the measurements it could, and withdrew one decision. All 31 are applied. 155 calls remained, because two were decided twice and merged. Chapter 10 then added one row, TAL-1, so the file holds 156. Tyler then answered his whole list on the page, and adopted a critical review of the result. Today 51 calls are DECIDED (6 of them with his yes on the page), 90 are PROVISIONAL, 1 is OPEN, 10 are RULED (9 of them at the sitting), 2 are PROPOSAL, 1 is superseded and 1 is withdrawn.
+How the decisions were made. Three deciders took 157 rows. An adversarial check returned ACCEPT WITH FIXES with 31 fixes, re-ran the measurements it could, and withdrew one decision. All 31 are applied. 155 calls remained, because two were decided twice and merged. Chapters 10 and 11 then added four rows (TAL-1, and CH11-1 to CH11-3), so the file holds 159. Tyler then answered his whole list on the page, and adopted a critical review of the result. Today 51 calls are DECIDED (6 of them with his yes on the page), 93 are PROVISIONAL, 1 is OPEN, 9 are RULED (8 of them at the sitting), 2 are PROPOSAL, 2 are superseded and 1 is withdrawn.
 
 ## 3. Every ruling
 
@@ -376,6 +376,7 @@ One line each, newest first inside each group. A line is a ruling of Tyler's unl
 | `08-player-experience.md` | The first hour with four heroes, walked against real data. The company as one thing, the hunt report, away and return, the Path, teaching, and the chase with no dailies |
 | `09-platform-and-measurement.md` | The formula architecture, the 28 steps of the work, server cost, the balance matrix, what the simulator can be trusted for, playtests and the Security scope |
 | `10-level-choices.md` | Talents: a build choice every five Levels. The rule, a sample of five tracks, the power budget, what the matrix needs, the server shape and the new-player path. All PROVISIONAL |
+| `11-on-call-and-clan-xp.md` | On-call heroes as a guest seat, the Library as the clan XP room, the town day rule for a resting hero, and how a ground remembers a Setup. All PROVISIONAL, on rulings of the sitting |
 | `decisions/all.json` | Every call, one row each, with its status, its reason and its evidence. `decisions/all.md` is its mirror and `decisions/review.md` is the adversarial check |
 
 ## 5. Tyler's rulings at the sitting, his picks on the page, and what still needs him
@@ -386,10 +387,10 @@ On 2026-11-21, between 15:59 and 16:03 UTC, Tyler answered the ten questions of 
 
 | Question | His answer | What it rules |
 |---|---|---|
-| S-1 | His own words | On-call heroes are kept. "on call is fine but should be full stamina, the on call hero trades their crafting/training time for a small cut of exp, no loss on death. HOWEVER they can only go on call once every 24 hours and it will only last for 12 hours. Then back to a chosen activity". It reverses MM-18. A hero from another account can join a party again. The spec is being written in `11-on-call-and-clan-xp.md` |
+| S-1 | His own words | On-call heroes are kept. "on call is fine but should be full stamina, the on call hero trades their crafting/training time for a small cut of exp, no loss on death. HOWEVER they can only go on call once every 24 hours and it will only last for 12 hours. Then back to a chosen activity". It reverses MM-18. A hero from another account can join a party again. The design is chapter 11, `11-on-call-and-clan-xp.md`, and it is PROVISIONAL. What "full stamina" means is OPEN (section 5.5) |
 | S-2 | B | No Local chat tab and no live party finder. Global, Clan, Party and whispers stay. Criers speak in Global and in town (GR-69) |
 | S-3 | A | Setup slots stay priced as ruled on 2026-11-05: three free, then 15,000 and 40,000 gold (GR-56a) |
-| S-4 | A | A clan room pays a standing Level XP bonus. It reverses 25-2. Its size is owed by the design lane and is PROVISIONAL. The pace ceiling (about 1.73 at +5%), the content runway and the Level law's clock are PROVISIONAL and wait on the clan XP size |
+| S-4 | A | A clan room pays a standing Level XP bonus. It reverses 25-2. Its size is PROVISIONAL in chapter 11: the Library, +0.5% a level and +5% at level ten. With it full the pace reads about 1.74 on a Hearthrise weekend and about 1.44 held all the time, and the next region must be open by about day 50. The Level table stays the clock of the plain four, which is now also the four in no clan |
 | S-5 | B | The Blessing ladder (GR-7). The five hours stays PROVISIONAL until a real death rate exists |
 | S-6 | A | Deadly is a tier you watch or gamble on, and idle players mostly use Dangerous. The lost hunting time is accepted: 18 to 31% on the 8 hour bar and 25 to 42% on the 12 hour bar, before the 6% |
 | S-7 | B | The full castle is the direction: five buildings of ten levels, labor, upkeep, votes, a treasury, about a year (MM-9). Its sizes stay PROVISIONAL |
@@ -459,7 +460,7 @@ The 23 listed reversals were let stand on the page in 25 seconds. The sitting th
 | 15 | CE-5 | Deeds, room rungs and chests are re-priced for an account of four. | The gold numbers of 26-3 and 26-1 of 2026-11-20 | The numbers were typed for one hero's income, and an account now has four. | Let stand on the page, in about a second |
 | 16 | CE-7 | Town work moves on screen in real time and the server writes at the start, at each paid hour and at a stop. | 2026-10-22 | It looks the same to the player, and study 48 shows no design meets the server budget without it (worth 109 database-seconds an account-day, ESTIMATED). | Let stand on the page, in about a second |
 | 17 | CE-8 | The Hearthrise lights on the calendar's weekend, sized by the fire. (One row with GR-82.) | 2026-10-25 | A known weekend can be planned around, and the fire still decides how big it is. | Let stand on the page, in about a second |
-| 18 | MM-18 | No hired, lent or on-call heroes. | 25-1 and the on-call board of 25-3, 2026-11-20 | Every account has four heroes of its own, so a hired seat has no job. | REFUSED at the sitting (S-1). On-call heroes are kept, with his design |
+| 18 | MM-18 | No hired, lent or on-call heroes. | 25-1 and the on-call board of 25-3, 2026-11-20 | Every account has four heroes of its own, so a hired seat has no job. | REFUSED at the sitting (S-1). On-call heroes are kept, with his design. MM-18 is superseded and chapter 11 designs it |
 | 19 | MM-9 | The castle is priced for each member with a floor of five, one project at a time, open at any size. | 25-4 and the castle gate of 25-3 (2026-11-20), and 31-3 (2026-11-21) | Clans now pay buffs, so a fixed price would lock a small clan out of hero power. Tyler declined this option once. | Let stand on the page for the price by member. The full castle is RULED as the direction at the sitting (S-7 b) |
 | 20 | MM-42 | The in-between ground weekend features named pieces in place of XP. | The second half of 27-5, 2026-11-20 | It keeps Level XP events rare and gives gear a weekend. | Let stand on the page, in about a second |
 | 21 | GR-69 | No Local chat tab and no live party finder. | 2026-11-11 (criers in local chat), 2026-10-15/16 (the finder) | Both need two players at the screen in the same minute, which an idle game rarely has. | RULED at the sitting (S-2 b). The removal stands |
@@ -467,7 +468,8 @@ The 23 listed reversals were let stand on the page in 25 seconds. The sitting th
 | 23 | MM-48 | A clan hunt is two rooms on one pool. | The second half of 25-11, 2026-11-20 | It keeps every fight a party of four, which is what the engine and the formulas are built on. | Let stand on the page, in about a second |
 | 24 | GR-3 | Party XP is paid by size alone for the first build. The classes rule may come back as one row of the table after Deadly is sized and played. | The 2026-10-31 rule that party XP is better only with different classes | Size alone needs no telling, and the look later keeps the door open. | RULED at the sitting (S-10 c) |
 | 25 | MM-9 | The full castle: five buildings of ten levels, labor, upkeep, votes, a treasury, about a year. | His two picks of 2026-11-21 against each other, and 25-4 | A long shared goal and a larger gold sink. | RULED as the direction at the sitting (S-7 b). Sizes stay PROVISIONAL |
-| 26 | MM-25 | A clan room pays a standing Level XP bonus. | 25-2 of 2026-11-20: clans give no Level XP | He kept the library, and at the sitting he chose the option that pays Level XP. | RULED at the sitting (S-4 a). The size is PROVISIONAL and owed by the design lane |
+| 26 | MM-25 | A clan room pays a standing Level XP bonus. | 25-2 of 2026-11-20: clans give no Level XP | He kept the library, and at the sitting he chose the option that pays Level XP. | RULED at the sitting (S-4 a). The size is PROVISIONAL: +5% at Library level ten, in chapter 11 |
+| 27 | CH11-3 | A rest plan's usual ending is a standing job with no count, in place of "wait in town". | The 2026-11-20 ruling that a rest plan ends in "wait in town" or "hunt again, once" and never loops | Chapter 11 reads it as inside the ruling, because it does not loop and starts no hunt, and asks that it be listed as a change. | Not put to Tyler. PROVISIONAL |
 
 Not on this list. GR-65 was withdrawn, because the ruling of 2026-10-25 keeps the Inner Flame loss. GR-73 builds ruling 26-6 and reverses nothing. GR-61 is superseded by Tyler's ruling on level choices.
 
@@ -476,7 +478,7 @@ Not on this list. GR-65 was withdrawn, because the ruling of 2026-10-25 keeps th
 | # | What | From | Tyler's answer | How it stays, or the note |
 |---|---|---|---|---|
 | 1 | 103 monster rows no hunt uses, three hunts with no ground, four called boss copies | GR-34 | Said keep on the page | PROPOSAL, made in the fold 2026-11-21, not yet seen by Tyler. GR-34. The rows stay in the data, hidden and flagged as unplaced. Region sketches and halls take their rosters from this pool first. |
-| 2 | On-call, hired and lent heroes, and the on-call board | MM-18 | KEPT. RULED at the sitting (S-1): on-call heroes stay, with his design | The spec is being written in docs/design/overhaul/11-on-call-and-clan-xp.md. |
+| 2 | On-call, hired and lent heroes, and the on-call board | MM-18 | KEPT. RULED at the sitting (S-1): on-call heroes stay, with his design | The design is chapter 11. |
 | 3 | The live party finder | GR-69 | CUT. RULED at the sitting (S-2 b) | PLANNED, ruled 2026-10-15/16. Also reversal 21. |
 | 4 | The Local chat tab, and "maybe a fifth seat later" | GR-69 | CUT. RULED at the sitting (S-2 b) | Not planned. The fifth seat is already ruled out by 25-11. |
 | 5 | The castle's labor, votes, upkeep, treasury balance, Clan Standing and five buildings of ten levels | MM-9 | KEPT. RULED as the direction at the sitting (S-7 b) | Sizes stay PROVISIONAL. MM-9. Five buildings of ten levels, labor as a town job, a treasury that pays upkeep first and then the project, one standing vote an account, and Clan Standing as a tally that pays no power. All priced for each member with a floor of five. |
@@ -496,11 +498,12 @@ Not on this list. GR-65 was withdrawn, because the ruling of 2026-10-25 keeps th
 
 Kept hidden for later, and never on the cut list: Capture the flag (MM-46). The clan's shared hunt (MM-48). The status pairs of GR-20 (paper only). Kindlings (GR-61, paper only). The other 36 Catacombs pieces (GR-36). The second dropped seed (GR-77). Bulk commissions (GR-44). Side against side (GR-71).
 
-### 5.5 Still open for Tyler: one item
+### 5.5 Still open for Tyler: two items
 
 | Item | What | Why it is held | What the book reads until he answers |
 |---|---|---|---|
 | GR-25 | Five built special rules that were never put to him: gentle first grounds, the boss blow cap, three training bases, the roll rule and the tier flag (GR-25) | The formula brief says a deliberate special rule needs his explicit approval. | The book is written with all five kept. |
+| S-1 "full stamina" | What "full stamina" means in his S-1 words (CH11-1) | Chapter 11 section 1.2 read it as: the 12 hour stint is a whole bar that does not spend the hero's own stamina. The other reading is that a hero must hold a full stamina bar of its own before it may go on call. | The book is written on the first reading. If the second is meant, sections 1.3 and 1.5 of chapter 11 change and the rest stands. Nobody has decided it. |
 
 ### 5.6 The plan
 
@@ -508,7 +511,7 @@ Step A of the systems plan, in `docs/design/systems-intelligence/00-plan.md`, wa
 
 ### 5.7 What comes next
 
-Not a build plan yet. Fix the measuring tool, play the first hour with four heroes, and build only the narrowed first build of section 1.1. The on-call and clan XP spec is being written.
+Not a build plan yet. Fix the measuring tool, play the first hour with four heroes, and build only the narrowed first build of section 1.1. Chapter 11 designs on-call heroes, the Library and the town day, all PROVISIONAL.
 
 ## 6. Consistency check
 
@@ -535,7 +538,7 @@ The chapters were written by different lanes before the decisions existed, and t
 | 15 | World boss points were minutes survived in the chapter and bars broken in the decision | 06 | Bars broken times the tier multiplier |
 | 16 | The first hour sent three recruits through the Cellar together. Measured, that pays 0.53 times one hero alone | 08 | Three lone Cellar hunts on one Start |
 | 17 | Heroes two to four were marked "Your company needs this" in one row and pre-filled in another | 01, 08 | Pre-filled as Sword and shield, Staff, and Bow and crossbow. No card is preselected for the first hero |
-| 18 | A saved kit and a Setup were two saved things for one decision | 01, 02, 03, 08 | One Setup for each ground |
+| 18 | A saved kit and a Setup were two saved things for one decision | 01, 02, 03, 08 | A Setup is one saved thing, and a ground points to one |
 | 19 | "One more staged ground" in one chapter and "no ground is authored" in a decision | 02, 05 | No new ground. The Catacombs ground's band runs to Level 189 |
 | 20 | Region 4 had to be open by day 86 to 100 in one chapter and day 37 to 42 in another | 02, 05 | About day 55, read on the fastest seat |
 | 21 | A death spared Inner Flame while Tyler's ruling keeps the loss | 05 | Withdrawn. The ruling stands |
@@ -576,8 +579,9 @@ The chapters were written by different lanes before the decisions existed, and t
 | 5 | The day columns for a payer and for the fastest seat in `05-progression.md` are plain division, not a run | Nothing measures a buffed seat yet | The matrix lane |
 | 6 | The hall guard in `02-world.md` still asks the weakest named lineup to lose a hall. Tyler's pick on GR-3 drops the lineup test for Deadly and does not name halls | Nobody has said whether the hall floor goes with it | The game designer |
 | 7 | The sizes of the full castle (fifty stages, upkeep, labor) and of soil tiers are new and unplayed | The castle is ruled in direction only | The game designer, on the matrix and in the playtest |
-| 8 | The book keeps "one Setup for each ground" while Setup slots are five a hero, three of them free | The sitting ruled the price and did not say how the two fit | The game designer |
-| 9 | On-call heroes and the clan Level XP room are ruled and not designed here. The clan XP size moves the pace ceiling (about 1.73 at +5%), the content runway and the Level law's clock | The spec is being written | The design lane, in `11-on-call-and-clan-xp.md` |
+| 8 | Closed. The book kept "one Setup for each ground" while Setup slots are five a hero | Chapter 11 section 10: a Setup is a named kit in a slot, and each ground remembers one by pointing to a slot. Pointing is free. PROVISIONAL | Closed by chapter 11 |
+| 9 | Closed. On-call heroes and the clan Level XP room were ruled and not designed | Chapter 11 designs both, PROVISIONAL. The ceiling reads about 1.74 on a weekend and about 1.44 held, and the next region's door is about day 50 | Closed by chapter 11 |
+| 10 | Chapter 11 makes a standing job the usual ending of a rest plan, in place of "wait in town" | It reads that as inside the 2026-11-20 ruling and asks that it be listed as a change. It was not put to Tyler | The Coordinator, row 27 of the reversal list |
 
 What this check did not do. It followed the status tags, the call ids and searches for each fix. It did not re-read every paragraph of all nine chapters, so a stale sentence with no tag and no number may remain.
 

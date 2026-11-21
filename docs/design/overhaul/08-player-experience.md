@@ -134,7 +134,7 @@ Steps 9, 11 and 14 need features this chapter designs, and step 15 needs one pre
 
 ### 2.2 The company as one thing (GR-80)
 
-A party is most often the account's own four heroes, so nothing here waits on another player. An on-call hero from another account can join (MM-18, ruled at the sitting, `11-on-call-and-clan-xp.md`, being written). Starting and stopping four heroes one at a time is a decision repeated by hand, and the first principle calls that a design bug.
+A party is most often the account's own four heroes, so nothing here waits on another player. An on-call hero from another account can join in the guest seat (S-1, ruled at the sitting. The design is PROVISIONAL (CH11-1, `11-on-call-and-clan-xp.md`)). Starting and stopping four heroes one at a time is a decision repeated by hand, and the first principle calls that a design bug.
 
 | Part | Rule | Status |
 |---|---|---|
@@ -148,6 +148,9 @@ A party is most often the account's own four heroes, so nothing here waits on an
 | **One return card** | One card for the account on every return. Section 2.4 | PROVISIONAL (GR-80) |
 | **The job queue** | A hero's rest plan is an ordered list of up to three steps (TARGET, a data row). Each step is a job with a count. A gathering step always takes a count. A bench step may run until its inputs are gone | PROVISIONAL (GR-80) |
 | | The list ends in "wait in town" or "hunt again, once". A plan never loops | RULED 2026-11-20 (27-1) |
+| | The rest plan gains three things. The week's labor: castle labor up to a cap in hours a week, set once. The standing job: one job with no count that fills what is left, and it is the usual ending in place of "wait in town". It does not loop and starts no hunt, so chapter 11 reads it as inside the ruling above, and it is still a change to what was on the page. The On call switch, which may interrupt a job | PROVISIONAL (CH11-1 and CH11-3, `11-on-call-and-clan-xp.md`), sections 3.2 and 3.6 |
+| | A ground with no pointer uses the hero's first Setup. An edit made at a ground asks Save or Save as new. Copy to another hero fills one of that hero's slots | PROVISIONAL (CH11-3, `11-on-call-and-clan-xp.md`), section 10 |
+| | The return card gains one line for on call: what the account's heroes earned as guests | PROVISIONAL (CH11-1, `11-on-call-and-clan-xp.md`) |
 | | A gathering step may say "the best I can": the highest node of that line the hero's skill opens. It is a choice, because a player may want copper | PROVISIONAL (GR-80) |
 | | The rest plan runs when a hunt ends for any reason, with the browser open or closed | PROVISIONAL (GR-80). Both paths is RULED (CLAUDE.md section 4) |
 | | The starting rest plan gives a new company: two heroes fish 100 at the Shrimp Spot and then Cook Shrimp, one mines 20 Copper Ore, one chops 30 Normal Logs | PROVISIONAL (GR-80) |
@@ -204,7 +207,7 @@ The report prints what happened. It does not predict a death rate from one hunt.
 | Premium | 12 hours | One | Hunt 12, rest 12 | RULED 2026-10-17. `STAMINA_MAX_MS.premium` |
 | The ceiling | Either | Refills | Six refills of 4 hours make 24 hunted hours. Each hour past 12 costs 2 refill hours, because the hero stops resting | RULED rows (COMPUTED in 50 section 1.1) |
 
-Stamina drains one for one while hunting and rests one for one at every other instant. A resting hero is always working: every town system is sized for a hero that fills all 12 rested hours (RULED 2026-11-21, 50-13). The stamina bar says so in words: "8 hours of hunting. It refills while your hero is in town. Two visits a day keeps a hero hunting 12 hours." (RULED 50-12, wording DECIDED, no call id, Fable 2026-11-21).
+Stamina drains one for one while hunting and rests one for one at every other instant. On call spends no stamina: a called hero hunts on a bar of its own (chapter 11, and what "full stamina" means there is OPEN for Tyler). A resting hero is always working: every town system is sized for a hero that fills all 12 rested hours (RULED 2026-11-21, 50-13). The stamina bar says so in words: "8 hours of hunting. It refills while your hero is in town. Two visits a day keeps a hero hunting 12 hours." (RULED 50-12, wording DECIDED, no call id, Fable 2026-11-21).
 
 **The return card.** One card for the account, in this order.
 
@@ -282,6 +285,7 @@ One table says what opens every system. Each row has an opener, the line that an
 | Levels 45 to 85 | Hask's Ford, the Slake, the Muster Barrows, the Pyre Field, Krell's Hold | "Ground opened", with the Chronicle's teaser | Content rows |
 | Set by chapter 03 | Tempering, Hallmarks, linings, jewelry tiers, salvage and Luck, the find list | One card each at its opener | OPEN. Chapter 03 sets each opener |
 | Level 10 | Talents. The panel opens with two points. One line on the return card, for the account and never four. Setups carry the talent plan and the unlock switches. Order at Level 10: Talents on the first return after Level 10, then the Burning Tower after the first spend, then the Hearth Chest | One coach card, then a second after the first spend | PROVISIONAL (TAL-1, `10-level-choices.md`). The rhythm is RULED 2026-11-21. The order is chapter 10's and is PROVISIONAL. The first hour is unchanged |
+| Set by chapter 11 | On call: a hero's owner switches it on once, with limits | One card | PROVISIONAL (CH11-1, `11-on-call-and-clan-xp.md`). Its opening Level is content data there |
 | Set by chapter 05 | Honors lines at Level 100, 200, 300 and 400 | The Level card | PROVISIONAL there (GR-62) |
 | Set by chapter 02 | Old grounds at your Level. Each region. The Catacombs | "Region opened" | PROVISIONAL there (GR-9, GR-33, GR-36) |
 | The start | Chat and the presence strip | No card. They are on screen | DECIDED in chapter 06 (Fable 2026-11-21) |
@@ -511,7 +515,7 @@ Playtests 1 and 9 fit the first invite wave. There is no comparison group for pl
 | The second hero on the first evening for about 10,000 gold. The slot ladder, its guard and "the first hero slot" as the week 1 goal | 46 change 1, 59 decision 5, 27, 50 standard X11 | RULED 2026-11-21: all four heroes from the start, no slot prices |
 | A first hour, a coach and a fix to Levels 7 to 10 sized on one hero | 27 question 1, 59 section 2.3, 60 section 4.7 | Re-designed on an account of four (section 2.1). The fix 27-2 itself stands |
 | One hero's return as the unit: one card and 8 to 10 presses a hero | 27 question 3 | One card and one press for the account (GR-80) |
-| Lent seats and on-call heroes as the early party | 46 change 1 part 3, 57 | The early party is the account's own four. On-call heroes are kept for later play (RULED, MM-18, the sitting, chapter 06) |
+| Lent seats and on-call heroes as the early party | 46 change 1 part 3, 57 | The early party is the account's own four. On-call heroes are kept (S-1) and designed in chapter 11, as a guest seat for a friend or clan mate |
 | "Krell at month 4 to 6" and every week counted at 3.3 hours a day | 27 question 2, 30 | RULED 2026-11-21: 12 hunted hours a day, and Krell in weeks, not months. Day 31 for a plain four (GR-6b) |
 | One kill ladder that merges the tally, the Bestiary, titles and trophies | 59 phase A, row 7 | Withdrawn in 59 phase B and by 47 C19. The tally takes itself, the Bestiary keeps its six Luck payments, titles go to Honors |
 | Removing the built companions | 59 phase A, row 15 | RULED 2026-10-22 and 2026-11-21: hidden, built later |

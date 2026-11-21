@@ -1,5 +1,5 @@
 // ════════════════════════════════════════════════════════════════════════
-// src/data/boss-calls.js — CALL OUT: A BOSS'S DROPS FOR STAMINA AND A LITTLE GOLD, WITHOUT THE ROUTE (Tyler 2026-11-04; reshaped 2026-11-14).
+// src/data/boss-calls.js — CALL OUT: A BOSS'S DROPS FOR STAMINA, WITHOUT THE ROUTE (Tyler 2026-11-04; reshaped 2026-11-14; no gold 2026-11-20).
 //
 // A hero alone, or a party's leader, presses Call out on a ground's page and fights a stronger copy of that ground's boss in
 // one room. A fight ends on `boss_felled`, on a death, or at the limit. A hero alone is warned, never refused (designer's ruling 2,
@@ -28,7 +28,7 @@
 // THE PRICE (designer 2026-11-14, the real settle, 3 seeds x 2 h a cell): on the Sewer a four meets the Rat King every 2.6
 // stamina minutes a hero, a pair every 4.6; on the Warrens a four meets Chief Coppercap every 3.1, a pair every 5.1. A call
 // fight costs 2 and 2.5: cheaper a boss kill, while the ground keeps its coin, its Level XP and its other drops, so the ground
-// stays the better all-round hour. The fee is a small sink, never the main cost.
+// stays the better all-round hour. NO GOLD (Tyler 2026-11-20, call 22-8): `fee` is 0, a call is never a roll bought with gold.
 // THE DROP DOOR IS OPEN (BOSS_CALL_RULES.dropsLive): it opened with the server half that allows a win's window its items
 // (hr_boss_call_pays), holds every win to a paid fight (hunt_sessions' CHECK: wins never pass the fights paid) and proves the win
 // from the window's own kill. tests/boss-call.mjs still plays the door shut.
@@ -61,9 +61,9 @@ export const BOSS_CALL_RULES = Object.freeze({
    `callOnly` the piece only his called fight drops (CALL_ITEMS). */
 export const BOSS_CALLS = Object.freeze({
   rat_king: Object.freeze({ id: 'rat_king', hunt: 'millrace_sewer_called', from: 'millrace_sewer', monster: 'rat_king_called', of: 'rat_king',
-    boss: 'the Rat King', Boss: 'The Rat King', fight: Object.freeze({ staminaMs: 2 * 60000, fee: 50 }), callOnly: 'kingstooth' }),
+    boss: 'the Rat King', Boss: 'The Rat King', fight: Object.freeze({ staminaMs: 2 * 60000, fee: 0 }), callOnly: 'kingstooth' }),
   chief_coppercap: Object.freeze({ id: 'chief_coppercap', hunt: 'coppercap_warrens_called', from: 'coppercap_warrens', monster: 'chief_coppercap_called', of: 'chief_coppercap',
-    boss: 'Chief Coppercap', Boss: 'Chief Coppercap', fight: Object.freeze({ staminaMs: 150000, fee: 100 }), callOnly: 'cauldron_lid' }),
+    boss: 'Chief Coppercap', Boss: 'Chief Coppercap', fight: Object.freeze({ staminaMs: 150000, fee: 0 }), callOnly: 'cauldron_lid' }),
 });
 
 /* ── THE CALL-ONLY PIECES (Tyler 2026-11-14: "sprinkle items like this throughout the game", normal stats plus ONE attribute) ──
@@ -131,8 +131,8 @@ export const BOSS_CALL_WORDS = Object.freeze({
     totalFree: 'Total: {stamina} min of stamina',
     covers: Object.freeze({ none: 'Affordable now: none', one: 'Affordable now: 1 fight', other: 'Affordable now: {covers} fights' }),
     /* more than one of this account's heroes in the room ({heroes}, the server's count): whose stamina, whose gold */
-    heroes: 'Your {heroes} heroes: stamina each, gold shared',
-    ends: 'Ends on a death, or when stamina or gold runs out',
+    heroes: 'Your {heroes} heroes: each pays its own stamina',
+    ends: 'Ends on a death, or when stamina runs out',
     confirm: 'Call him out {n} times',
     confirmOne: 'Call him out once',
     /* WHAT A WIN CAN DROP (audit F24, 2026-11-15: "Why would I pay to fight the Rat King for nothing?"): the head of the list on the page, and how a row's

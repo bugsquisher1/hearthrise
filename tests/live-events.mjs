@@ -281,6 +281,9 @@ const DB_ARMS = {
     await db.query('select public.hr_party_open($1::uuid, 0)', [a]);
     const pid = await one(db, 'select public.hr_hunt_party_of($1::uuid, 0)', [a]);
     await db.query('select public.hr_party_seat_into($1::uuid, $2::uuid, 0)', [pid, b]);
+    /* CALL OUT COSTS STAMINA ONLY since Tyler's 2026-11-20 ruling (call 22-8): the shipped fee is 0 (tests/boss-call-db.mjs BD-FREE). The dial still
+       reads the fee, so this arm plants one in its own transaction (rolled back with it) and keeps proving that the dial waives gold and only gold. */
+    await db.query(`update public.hr_boss_calls set fight_fee = 50 where call_id = 'rat_king'`);
     const fee = Number(await one(db, `select fight_fee::text from public.hr_boss_calls where call_id = 'rat_king'`));
     const stam = Number(await one(db, `select fight_stamina_ms::text from public.hr_boss_calls where call_id = 'rat_king'`));
     const pool0 = Number(await one(db, 'select public.hr_stamina_of($1::uuid, 0, now())::text', [a]));

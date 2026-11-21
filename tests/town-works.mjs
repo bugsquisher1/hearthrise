@@ -8,7 +8,7 @@
 //   node tests/town-works.mjs --selftest  every planted defect must turn its arm red
 //   node tests/town-works.mjs --mutate=<id>
 //
-// mutant-anchors: supabase/migrations/2027-03-04-town-works.sql
+// mutant-anchors: supabase/migrations/2027-03-04-town-works.sql supabase/migrations/1014-works-goal-sized.sql
 //
 // The real chain replayed (PGlite), the real client modules and map; production untouched:
 //   TW-RULES   hr_town_works holds exactly the data file's rows; every stage's art exists and shares one frame, anchor and footprint
@@ -22,6 +22,9 @@
 //   TW-PLAQUE  the top accounts, each as its lead hero; a hidden hero can't lead, a hidden account holds no place, a blocked name reads Name hidden; no account id leaves
 //   TW-VIEW    the window's read: the server's numbers, own place and total off the plaque's end, the last gift, the most that can go today
 //   TW-EXTRAS  a gift reaches every viewer's town read, and the map draws its stage from that alone
+//   TW-SIZED   THE GOAL SIZED TO THE SERVER (Tyler 2026-11-20, call 24-7; 1014-works-goal-sized.sql): an account that entered a hunt this week counts
+//              once, a week and a day ago not at all; the goal is the least until it is outgrown, then 20,000 a weekly active account, every stage at its
+//              share, in the read, the window's words and the map; done stays done when the server shrinks under the total and grows again; once a UTC day
 //   TW-MAP     the lot blocks from stage 0 and a stage never moves what blocks; the oak is gone; compose y-sorts the stage's art with the people, and the fire's ambient draw never carries it
 //   TW-TAP     the plaque opens Works; a site opens Works on its own tiles and the street above it still walks; finished, it opens the Market
 //   TW-NO-BUFF THE STANDING GUARD: nothing in the engine, XP, drops or prices reads a project: a gold-funded power effect is on Tyler's avoid list
@@ -37,6 +40,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { isMain } from './_is-main.mjs';
 import { ownHeroSlots } from './_slots.mjs';
 import { sourceQuery } from '../tools/lib/version-stamp.mjs';
+import { TOWN_WORKS as TOWN_WORKS_DATA } from '../src/data/town-works.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const A = '000000c0-0000-4000-a000-0000901d8a01';
@@ -44,8 +48,14 @@ const B = '000000c0-0000-4000-a000-0000901d8a02';
 const P = 'weighhouse';
 const idem = () => crypto.randomUUID();
 const MIG = (f) => readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8').replace(/\r\n/g, '\n');
-const CATALOGUE = '2027-03-04-town-works-catalogue.generated.sql';
-const WORKS = '2027-03-04-town-works.sql';
+/* The newest catalogue (gen-town-works.mjs OUT_FILE) and the bodies on the sized goal (Tyler 2026-11-20, call 24-7); 2027-03-04 is their history. */
+const CATALOGUE = '1013-approved-rows-town-works-catalogue.generated.sql';
+const SIZED = '1014-works-goal-sized.sql';
+/* THE GOAL A REPLAY READS: no dozen accounts hunted this week, so the sized goal is the Weighhouse's least and each stage stands where the
+   data file writes it. The arms read both from the data file, so a re-sized row moves them all. */
+const ST = TOWN_WORKS_DATA.weighhouse.stages.map((s) => s.at);
+const GOAL = ST[ST.length - 1];
+const gp = (n) => n.toLocaleString('en-US');
 const GIVE = 'public.hr_town_works_give(integer,text,bigint,uuid)';
 const VIEW = 'public.hr_town_works_view(integer)';
 const NOTICE = 'public.hr_town_notice(text,text)';
@@ -54,6 +64,11 @@ const PLAQUE = 'public.hr_town_works_plaque(text,uuid,integer)';
 const EXTRAS = 'public.hr_town_extras(text)';
 const FAULT = 'public.hr_town_works_fault(bigint,bigint,bigint,bigint,bigint)';
 const GIVEN = 'public.hr_town_works_given_today(uuid)';
+/* THE GOAL SIZED TO THE SERVER (1014-works-goal-sized.sql): owner-only, every one */
+const COUNT = 'public.hr_weekly_actives_count(uuid[])';
+const SIZE_TO = 'public.hr_town_works_size_to(integer)';
+const SIZE = 'public.hr_town_works_size()';
+const SIZING = [COUNT, 'public.hr_town_works_stages(bigint[],bigint)', 'public.hr_town_works_goal(text)', SIZE_TO, SIZE];
 
 /* ── THE PLANTED DEFECTS ─────────────────────────────────────────────────────
    db: a live body edited inside the arm's transaction (fn, find, replace). ddl: a statement in it. sql: an edit of a migration's TEXT the arm re-applies.
@@ -61,7 +76,7 @@ const GIVEN = 'public.hr_town_works_given_today(uuid)';
 export const MUTANTS = {
   rules_drift: { arm: 'TW-RULES', why: 'the table no longer says what the data file says', ddl: `update public.hr_town_works set per_day = 50000 where project_id = 'weighhouse'` },
   stage_art_frame: { arm: 'TW-RULES', why: 'a stage drawn on another frame jumps when it swaps',
-    js: ['src/data/town-works.js', [["stage(600000, 'havora_weighhouse_walled',", "stage(600000, 'havora_tavern',"]]] },
+    js: ['src/data/town-works.js', [["stage(150000, 'havora_weighhouse_walled',", "stage(150000, 'havora_tavern',"]]] },
   /* A GIFT */
   charge_twice: { arm: 'TW-GIVE', why: 'a gift charges double', db: [GIVE, "             'gold', -p_amount,\n", "             'gold', -2 * p_amount,\n"] },
   gift_pays_xp: { arm: 'TW-GIVE', why: 'a gift pays XP: the buff on the avoid list', db: [GIVE, "             'gold', -p_amount,\n", "             'gold', -p_amount, 'xp', jsonb_build_object('inner_flame', 500),\n"] },
@@ -79,6 +94,9 @@ export const MUTANTS = {
   policy_open: { arm: 'TW-ONLY', why: 'a policy opens the totals', ddl: 'create policy zz_open on public.town_works_totals for select to authenticated using (true)' },
   notice_open: { arm: 'TW-ONLY', why: 'a client can speak as the town', ddl: 'grant execute on function public.hr_town_notice(text, text) to authenticated' },
   anon_gives: { arm: 'TW-ONLY', why: 'a signed-out call reaches the verb', ddl: 'grant execute on function public.hr_town_works_give(integer, text, bigint, uuid) to anon' },
+  goals_second_writer: { arm: 'TW-ONLY', why: 'another function moves the day\'s goal', ddl: `create function public.hr__zz_goal() returns void language sql as $f$ update public.hr_town_works_goals set goal = 1 $f$` },
+  goals_open: { arm: 'TW-ONLY', why: 'a client can read the day\'s goals', ddl: 'grant select on public.hr_town_works_goals to authenticated' },
+  sizing_open: { arm: 'TW-ONLY', why: 'a client can size the goal to any count it names', ddl: 'grant execute on function public.hr_town_works_size_to(integer) to authenticated' },
   /* THE RULE */
   no_minimum: { arm: 'TW-REFUSE', why: 'a 1 gp gift is taken', db: [FAULT, "    when p_amount < least(p_min, p_left) then jsonb_build_object('error', 'works_small', 'min', least(p_min, p_left))\n", ''] },
   no_project_cap: { arm: 'TW-REFUSE', why: 'a gift over what the project needs is taken', db: [FAULT, "    when p_amount > p_left and p_left <= p_per_day - p_given then jsonb_build_object('error', 'works_short', 'left', p_left)\n", ''] },
@@ -129,6 +147,13 @@ export const MUTANTS = {
   view_mine_in_top_only: { arm: 'TW-VIEW', why: 'an account off the plaque has no place', db: [VIEW, "  if v_g.user_id is not null and public.hr_town_works_lead(v_uid, v_g.by_slot) is not null then\n", "  if false then\n"] },
   /* THE MAP */
   extras_always_zero: { arm: 'TW-EXTRAS', why: 'a gift never reaches the map', db: [EXTRAS, "public.hr_town_works_stage(w.stage_at, t.total)", '0'] },
+  /* THE GOAL SIZED TO THE SERVER */
+  sized_ignores_count: { arm: 'TW-SIZED', why: 'the goal never grows past the least, whatever the server', db: [SIZE_TO, 'least(1000000000::bigint, r.per_active * v_n)', 'least(1000000000::bigint, 0)'] },
+  done_reopens: { arm: 'TW-SIZED', why: 'a done project reopens when the server grows', db: [SIZE_TO, "    v_goal := case when v_old is not null and v_total >= v_old then v_old\n                   when", '    v_goal := case when'] },
+  stages_unscaled: { arm: 'TW-SIZED', why: 'the window reads the least\'s stages under a sized goal', db: [VIEW, '  v_p.stage_at := public.hr_town_works_stages(v_p.stage_at, v_goal);\n', ''] },
+  map_unscaled: { arm: 'TW-SIZED', why: 'the map draws the least\'s stages under a sized goal', db: [EXTRAS, 'public.hr_town_works_stages(x.stage_at, public.hr_town_works_goal(x.project_id)) as stage_at', 'x.stage_at'] },
+  count_takes_old: { arm: 'TW-SIZED', why: 'a hunt ten weeks old still counts', db: [COUNT, "where h.entered_at > now() - interval '7 days'", "where h.entered_at > now() - interval '70 days'"] },
+  sized_every_read: { arm: 'TW-SIZED', why: 'the goal is sized on every read, so it moves under a giver', db: [SIZE, "declare v_day date := (now() at time zone 'utc')::date;", "declare v_day date := (now() at time zone 'utc')::date + 1;"] },
   extras_other_map: { arm: 'TW-EXTRAS', why: 'every town draws the Weighhouse', db: [EXTRAS, "      where w.map_id = p_map\n", '\n'] },
   swap_stuck: { arm: 'TW-EXTRAS', why: 'the map never draws past stage 0',
     js: ['src/world/town-works.js', [["    out = out ? Object.assign({}, out, swaps[stage]) : swaps[stage];\n", '']]] },
@@ -154,6 +179,8 @@ export const MUTANTS = {
     ddl: `create function public.hr_works_xp_rate() returns numeric language sql stable as $f$ select 1 + coalesce(sum(total), 0) / 1000000.0 from public.town_works_totals $f$` },
   price_reads_gifts: { arm: 'TW-NO-BUFF', why: 'a discount reads what an account gave',
     ddl: `create function public.hr_works_discount(p_user uuid) returns numeric language sql stable as $f$ select coalesce(sum(gold), 0) / 1000000.0 from public.town_works_gifts where user_id = p_user $f$` },
+  xp_reads_goal: { arm: 'TW-NO-BUFF', why: 'an XP rate reads the day\'s goal',
+    ddl: `create function public.hr_works_goal_rate() returns numeric language sql stable as $f$ select 1 + coalesce(sum(goal), 0) / 1000000.0 from public.hr_town_works_goals $f$` },
   view_feeds_engine: { arm: 'TW-NO-BUFF', why: 'a view exposes the totals to whatever wants them', ddl: 'create view public.hr_works_done as select project_id from public.town_works_totals where finished_at is not null' },
   drop_reads_extras: { arm: 'TW-NO-BUFF', why: 'a drop rate reads the map\'s stage', ddl: `create function public.hr_works_drop_boost(p_map text) returns jsonb language sql stable as $f$ select public.hr_town_extras(p_map) $f$` },
   trigger_on_totals: { arm: 'TW-NO-BUFF', why: 'a trigger on the totals feeds something else',
@@ -227,13 +254,15 @@ const ARMS = {
     for (const r of rows) {
       const d = X.TWD.TOWN_WORKS[r.project_id];
       if (!d) continue;
-      if (r.map_id !== d.map || r.name !== d.name || Number(r.min_gift) !== d.minGift || Number(r.per_day) !== d.perDay || r.per_minute !== d.perMinute || r.plaque_top !== d.plaqueTop) out.push(`${r.project_id}: the row reads ${JSON.stringify(r)}`);
+      if (r.map_id !== d.map || r.name !== d.name || Number(r.min_gift) !== d.minGift || Number(r.per_day) !== d.perDay || r.per_minute !== d.perMinute || r.plaque_top !== d.plaqueTop
+        || Number(r.per_active) !== d.perActive) out.push(`${r.project_id}: the row reads ${JSON.stringify(r)}`);
       if (r.stage_at.map(Number).join() !== d.stages.map((s) => s.at).join()) out.push(`${r.project_id}: stages ${r.stage_at}`);
       if (JSON.stringify(r.stage_lines) !== JSON.stringify(d.stages.map((s) => s.line))) out.push(`${r.project_id}: lines ${r.stage_lines}`);
     }
-    /* the numbers Tyler approved, read from the row */
+    /* the numbers Tyler approved, read from the row: 100 to 25,000 a day (2026-11-04), and the goal sized to the server, 20,000 a weekly
+       active account and 250,000 at least (2026-11-20, balance call 24-7) */
     const w = X.TWD.TOWN_WORKS.weighhouse;
-    if (w.perDay !== 25000 || w.minGift !== 100 || w.stages.at(-1).at !== 1000000) out.push('the Weighhouse no longer asks 100 to 25,000 a day of 1,000,000');
+    if (w.perDay !== 25000 || w.minGift !== 100 || w.stages.at(-1).at !== 250000 || w.perActive !== 20000) out.push('the Weighhouse no longer asks 100 to 25,000 a day of 20,000 a weekly active account, 250,000 at least');
     /* EVERY STAGE IS ONE FRAME: the swap must not jump, and it must block the same tiles */
     for (const [id, d] of Object.entries(X.TWD.TOWN_WORKS)) {
       const base = X.book.sprites[d.stages[0].art];
@@ -288,20 +317,22 @@ const ARMS = {
     const WRITES = (t) => new RegExp('(insert\\s+into|update|delete\\s+from|truncate)\\s+(table\\s+)?(public\\.)?' + t + '\\b', 'i');
     for (const f of fns) {
       for (const t of ['town_works_totals', 'town_works_gifts']) if (WRITES(t).test(f.prosrc || '') && f.proname !== 'hr_town_works_give') out.push(f.proname + ' writes ' + t);
+      /* THE DAY'S GOALS (1014-works-goal-sized.sql) move only in the day's sizing */
+      if (WRITES('hr_town_works_goals').test(f.prosrc || '') && f.proname !== 'hr_town_works_size_to') out.push(f.proname + ' writes hr_town_works_goals');
     }
     for (const role of ['anon', 'authenticated']) {
-      for (const t of ['public.hr_town_works', 'public.town_works_totals', 'public.town_works_gifts']) {
+      for (const t of ['public.hr_town_works', 'public.town_works_totals', 'public.town_works_gifts', 'public.hr_town_works_goals']) {
         if (await one(db, 'select has_table_privilege($1, $2, $3) or has_table_privilege($1, $2, $4)', [role, t, 'select', 'insert,update,delete'])) out.push(`${role} reaches ${t}`);
       }
-      for (const fn of [FAULT, GIVEN, LEAD, PLAQUE, NOTICE, EXTRAS, 'public.hr_town_works_stage(bigint[],bigint)']) {
+      for (const fn of [FAULT, GIVEN, LEAD, PLAQUE, NOTICE, EXTRAS, 'public.hr_town_works_stage(bigint[],bigint)', ...SIZING]) {
         if (await one(db, 'select has_function_privilege($1, $2, $3)', [role, fn, 'execute'])) out.push(`${role} reaches ${fn}`);
       }
     }
     if (await one(db, "select has_function_privilege('anon', $1, 'execute')", [GIVE])) out.push('anon reaches the verb');
     if (await one(db, "select has_function_privilege('anon', $1, 'execute')", [VIEW])) out.push('anon reaches the read');
     if (!(await one(db, "select has_function_privilege('authenticated', $1, 'execute')", [GIVE]))) out.push('a player can\'t reach the verb');
-    if (Number(await one(db, "select count(*) from pg_policies where schemaname = 'public' and tablename in ('hr_town_works', 'town_works_totals', 'town_works_gifts')"))) out.push('a policy opens a table');
-    for (const t of ['hr_town_works', 'town_works_totals', 'town_works_gifts']) if (!(await one(db, "select relrowsecurity from pg_class where oid = $1::regclass", ['public.' + t]))) out.push(`${t} has no RLS`);
+    if (Number(await one(db, "select count(*) from pg_policies where schemaname = 'public' and tablename in ('hr_town_works', 'town_works_totals', 'town_works_gifts', 'hr_town_works_goals')"))) out.push('a policy opens a table');
+    for (const t of ['hr_town_works', 'town_works_totals', 'town_works_gifts', 'hr_town_works_goals']) if (!(await one(db, "select relrowsecurity from pg_class where oid = $1::regclass", ['public.' + t]))) out.push(`${t} has no RLS`);
     /* the client's surface */
     const base = (await q(db, "select proname from public.hr_client_rpc_baseline where proname like 'hr_town_works%' or proname = 'hr_town_notice' or proname = 'hr_town_extras' order by 1")).map((r) => r.proname).join();
     if (base !== 'hr_town_works_give,hr_town_works_view') out.push('the client surface reads ' + base);
@@ -344,15 +375,15 @@ const ARMS = {
     if (!slot || slot.error !== 'no_character') out.push('a hero who doesn\'t exist answered ' + JSON.stringify(slot));
     await unmoved('a hero who doesn\'t exist');
     /* THE PROJECT: what it still needs, under the server's number */
-    await setTotal(db, 999000);
+    await setTotal(db, GOAL - 1000);
     await refused(5000, 'works_short', 'left', 1000);
-    await setTotal(db, 999950);
+    await setTotal(db, GOAL - 50);
     await refused(100, 'works_short', 'left', 50);
     await refused(49, 'works_small', 'min', 50);
     /* THE LAST COINS CAN BE GIVEN, or the last 50 gp could never go in */
     await calm(db);
     const last = await give(db, A, 0, 50);
-    if (!last || last.ok !== true || Number(last.total) !== 1000000) out.push('the last 50 gp answered ' + JSON.stringify(last));
+    if (!last || last.ok !== true || Number(last.total) !== GOAL) out.push('the last 50 gp answered ' + JSON.stringify(last));
     /* PAST THE FINISH */
     await calm(db);
     const done = await give(db, A, 0, 100);
@@ -409,10 +440,10 @@ const ARMS = {
     await hero(db, A, 0, 'Marlow');
     await hero(db, B, 0, 'Tamsel');
     await rich(db, A);
-    await setTotal(db, 998000);
+    await setTotal(db, GOAL - 2000);
     /* what another account's commit looks like while this gift waits on the project's key: the first read saw 2,000 left */
     await db.exec(`create or replace function public.hr__zz_fill() returns trigger language plpgsql as $f$ begin
-        update public.town_works_totals set total = 999500 where project_id = '${P}';
+        update public.town_works_totals set total = ${GOAL - 500} where project_id = '${P}';
         return new; end $f$;
       create trigger hr__zz_fill before insert on public.player_ledger for each row execute function public.hr__zz_fill();`);
     const key = idem();
@@ -426,11 +457,11 @@ const ARMS = {
     if (await one(db, 'select exists (select 1 from public.account_gold_given where user_id = $1)', [A])) out.push('the gift that lost the race counted on the board');
     if ((await lines(db)).length) out.push('the gift that lost the race spoke');
     /* the trigger's update rolled back with the block: what's on the row is what the first read saw */
-    if ((await total(db)) > 1000000) out.push('the project overfilled: ' + (await total(db)));
+    if ((await total(db)) > GOAL) out.push('the project overfilled: ' + (await total(db)));
     /* NOTHING WAS SPENT: the same key gives it, once */
     const again = await give(db, A, 0, 1000, key);
     if (!again || again.ok !== true || (await purse(db, A)) !== 9999000) out.push('the same key after the race answered ' + JSON.stringify(again));
-    if ((await total(db)) !== 999000) out.push('after the race the total reads ' + (await total(db)));
+    if ((await total(db)) !== GOAL - 1000) out.push('after the race the total reads ' + (await total(db)));
     return out;
   },
 
@@ -468,7 +499,7 @@ const ARMS = {
     await rich(db, B);
     const said = async () => (await lines(db)).map((l) => l.body);
     /* ONE COIN SHORT SAYS NOTHING; CROSSING SAYS IT ONCE; THE NEXT GIFT PAST IT SAYS NOTHING */
-    await setTotal(db, 99000);
+    await setTotal(db, ST[1] - 1000);
     await give(db, A, 0, 999);
     if ((await said()).length) out.push('one coin short of the stage spoke: ' + (await said()));
     await calm(db);
@@ -501,7 +532,7 @@ const ARMS = {
     if (both.join() !== 'has its first.,has its second.') out.push('a gift across two stages said ' + both);
     /* THE FINISH: the line, the stamp, no more gifts, and it stands */
     await calm(db);
-    await setTotal(db, 999000);
+    await setTotal(db, GOAL - 1000);
     const fin = await give(db, B, 0, 1000);
     if (!fin || fin.ok !== true || fin.stage !== 4) out.push('the finishing gift answered ' + JSON.stringify(fin));
     if (!(await said()).includes('is finished.')) out.push('the finish said nothing: ' + (await said()));
@@ -579,7 +610,7 @@ const ARMS = {
     const read = (u, s = 0) => as(db, u, 'select public.hr_town_works_view($1::int)', [s]);
     const fresh = await read(A);
     if (!fresh || fresh.ok !== true) return ['the read answered ' + JSON.stringify(fresh)];
-    if (Number(fresh.total) !== 0 || Number(fresh.goal) !== 1000000 || fresh.stage !== 0 || Number(fresh.left_today) !== 25000 || Number(fresh.max_gift) !== 25000 || Number(fresh.min_gift) !== 100
+    if (Number(fresh.total) !== 0 || Number(fresh.goal) !== GOAL || fresh.stage !== 0 || Number(fresh.left_today) !== 25000 || Number(fresh.max_gift) !== 25000 || Number(fresh.min_gift) !== 100
       || fresh.last_gift !== null || fresh.place !== null || Number(fresh.gold) !== 0 || fresh.plaque.length !== 0) out.push('a fresh read answers ' + JSON.stringify(fresh));
     await give(db, B, 0, 9000);
     await give(db, A, 0, 2000);
@@ -609,14 +640,14 @@ const ARMS = {
     const off = await read(A);
     if (off.plaque.length !== 10 || off.place !== 12 || off.plaque.some((r) => r.mine)) out.push('off the plaque the read answers ' + JSON.stringify({ n: off.plaque.length, place: off.place }));
     /* WHAT'S LEFT ON THE PROJECT TAKES OVER FROM TODAY'S */
-    await setTotal(db, 999000);
+    await setTotal(db, GOAL - 1000);
     const near = await read(A);
     if (Number(near.max_gift) !== 1000 || Number(near.left) !== 1000) out.push('near the finish the read answers ' + JSON.stringify({ max: near.max_gift, left: near.left }));
-    await setTotal(db, 999950);
+    await setTotal(db, GOAL - 50);
     const lastCoins = await read(A);
     if (Number(lastCoins.min_gift) !== 50 || Number(lastCoins.max_gift) !== 50) out.push('the last coins read ' + JSON.stringify({ min: lastCoins.min_gift, max: lastCoins.max_gift }));
     /* THE FINISH */
-    await setTotal(db, 1000000);
+    await setTotal(db, GOAL);
     const done = await read(A);
     if (done.finished !== true || done.stage !== 4 || Number(done.max_gift) !== 0 || Number(done.left) !== 0) out.push('finished, the read answers ' + JSON.stringify(done));
     if (done.plaque.length !== 10) out.push('the plaque did not stay');
@@ -636,7 +667,7 @@ const ARMS = {
     const fresh = await read();
     if (!fresh || !fresh.extras || !fresh.extras.works || fresh.extras.works.weighhouse !== 0) out.push('a fresh town read holds ' + JSON.stringify(fresh && fresh.extras));
     if (Object.keys(await one(db, "select public.hr_town_extras('no_such_town')")).length) out.push('a town with no project reads Works');
-    const stages = [[0, 0], [99999, 0], [100000, 1], [299999, 1], [300000, 2], [600000, 3], [999999, 3], [1000000, 4]];
+    const stages = [[0, 0], [ST[1] - 1, 0], [ST[1], 1], [ST[2] - 1, 1], [ST[2], 2], [ST[3], 3], [GOAL - 1, 3], [GOAL, 4]];
     const map = { id: 'town_common' };
     const w = X.TWD.TOWN_WORKS.weighhouse;
     for (const [t, k] of stages) {
@@ -648,7 +679,7 @@ const ARMS = {
       if (k === 0 ? swap !== null : !swap || swap[w.stages[0].art] !== w.stages[k].art) out.push(`stage ${k} draws ${JSON.stringify(swap)}`);
     }
     /* A GIFT REACHES A STRANGER'S NEXT READ */
-    await setTotal(db, 99000);
+    await setTotal(db, ST[1] - 1000);
     await give(db, A, 0, 1000);
     const after = await read();
     if (!after.extras || after.extras.works.weighhouse !== 1) out.push('a gift never reached a stranger: ' + JSON.stringify(after.extras));
@@ -659,6 +690,62 @@ const ARMS = {
     if (X.TW.townWorksSwap({ id: 'somewhere_else' }, { works: { weighhouse: 2 } }) !== null) out.push('the swap reaches another town');
     /* THE ANSWER IS MADE ONCE: this runs every town frame */
     if (X.TW.townWorksSwap(map, { works: { weighhouse: 2 } }) !== X.TW.townWorksSwap(map, { works: { weighhouse: 2 } })) out.push('the swap allocates per frame');
+    return out;
+  },
+
+  'TW-SIZED': async (db, X) => {
+    const out = [];
+    const PER = X.TWD.TOWN_WORKS.weighhouse.perActive;
+    const read = (u) => as(db, u, 'select public.hr_town_works_view($1::int)', [0]);
+    const sizeTo = (n) => db.query('select public.hr_town_works_size_to($1::int)', [n]);
+    await hero(db, A, 0, 'Marlow');
+    await hero(db, B, 0, 'Tamsel');
+    /* THE COUNT: a hunt entered this week counts its account once; one a week and a day old does not, nor an account that did nothing */
+    const hunt = await firstHunt(db);
+    for (const u of [A, B]) {
+      await calm(db);
+      const e = await as(db, u, "select public.hr_hunt_enter(0, $1, '[]'::jsonb, 0, null, gen_random_uuid())", [hunt]);
+      if (!e || e.ok !== true) return out.concat('hr_hunt_enter: ' + JSON.stringify(e));
+    }
+    await db.query("update public.hunt_sessions set entered_at = now() - interval '8 days' where user_id = $1", [B]);
+    await db.query("update public.player_state set active_since = now() - interval '8 days' where user_id = $1 and active_since is not null", [B]);
+    const C = '000000c0-0000-4000-a000-0000901d8a03';
+    await hero(db, C, 0, 'Wren');
+    const counted = Number(await one(db, 'select public.hr_weekly_actives_count(array[$1, $2, $3]::uuid[])', [A, B, C]));
+    if (counted !== 1) out.push(`a hunt now, one a week and a day old and an idle account count ${counted}, want 1`);
+    /* THE LEAST UNTIL IT IS OUTGROWN, THEN PER A HEAD: the read's goal and every stage at its share */
+    await sizeTo(Math.floor(GOAL / PER) - 1);
+    let v = await read(A);
+    if (Number(v.goal) !== GOAL || JSON.stringify(v.stage_at.map(Number)) !== JSON.stringify(ST)) out.push('a server under the least reads ' + JSON.stringify({ goal: v.goal, at: v.stage_at }));
+    const N = 50, BIG = N * PER, AT = ST.map((s) => Math.floor(s * BIG / GOAL));
+    await sizeTo(N);
+    v = await read(A);
+    if (Number(v.goal) !== BIG || JSON.stringify(v.stage_at.map(Number)) !== JSON.stringify(AT) || Number(v.left) !== BIG) out.push(`${N} weekly actives read ` + JSON.stringify({ goal: v.goal, at: v.stage_at, left: v.left }));
+    const w = X.TI.parseWorks(v);
+    if (!w || X.WK.stageWords(w, X.TWD.TOWN_WORKS.weighhouse) !== `Staked out: 0 of ${gp(BIG)} gp`) out.push('the window reads ' + (w && X.WK.stageWords(w, X.TWD.TOWN_WORKS.weighhouse)));
+    await setTotal(db, AT[1]);
+    const ex = await one(db, "select public.hr_town_extras('town_common')");
+    if (!ex || !ex.works || ex.works.weighhouse !== 1) out.push(`the map draws ${gp(AT[1])} of ${gp(BIG)} at ` + JSON.stringify(ex));
+    await setTotal(db, AT[1] - 1);
+    if ((await one(db, "select public.hr_town_extras('town_common')")).works.weighhouse !== 0) out.push('the map draws the first stage one coin short of its sized place');
+    /* DONE STAYS DONE: the server shrinks under what was given, then grows again */
+    const GIVEN = GOAL + 50000;
+    await setTotal(db, GIVEN);
+    await sizeTo(Math.floor(GOAL / PER) - 1);
+    v = await read(A);
+    if (v.finished !== true || Number(v.goal) !== GIVEN || v.stage !== ST.length - 1) out.push('a server that shrank under the total reads ' + JSON.stringify({ finished: v.finished, goal: v.goal, stage: v.stage }));
+    await sizeTo(N * 10);
+    v = await read(A);
+    if (v.finished !== true || Number(v.goal) !== GIVEN) out.push('a done project reopened when the server grew: ' + JSON.stringify({ finished: v.finished, goal: v.goal }));
+    await rich(db, A);
+    await calm(db);
+    const late = await give(db, A, 0, 1000);
+    if (!late || late.error !== 'works_done') out.push('a gift to a done project answered ' + JSON.stringify(late));
+    /* ONCE A UTC DAY: the first read of the day sizes, the next does not */
+    await db.query('delete from public.hr_town_works_goals');
+    const first = await one(db, 'select public.hr_town_works_size()');
+    const second = await one(db, 'select public.hr_town_works_size()');
+    if (first !== true || second !== false) out.push(`the day's sizing answered ${first} then ${second}, want true then false`);
     return out;
   },
 
@@ -734,18 +821,22 @@ const ARMS = {
   'TW-NO-BUFF': async (db, X, mutant) => {
     const out = [];
     /* EVERY READER IS NAMED HERE. A new one is argued here first: a gold-funded power effect is on Tyler's avoid list. */
-    const READERS = new Set(['hr_town_works_give', 'hr_town_works_view', 'hr_town_works_given_today', 'hr_town_works_plaque', 'hr_town_extras']);
+    /* hr_town_works_goal, _size and _size_to (1014-works-goal-sized.sql, Tyler 2026-11-20, call 24-7) size a project's GOAL to the server: they
+       read its total to keep a done project done, and only the Works' own verb, read and map read call them. A goal is no buff either. */
+    const READERS = new Set(['hr_town_works_give', 'hr_town_works_view', 'hr_town_works_given_today', 'hr_town_works_plaque', 'hr_town_extras',
+      'hr_town_works_goal', 'hr_town_works_size', 'hr_town_works_size_to']);
     const fns = await q(db, "select p.proname, p.prosrc from pg_proc p where p.pronamespace = 'public'::regnamespace");
     for (const f of fns) {
       if (/\btown_works_(totals|gifts)\b/.test(f.prosrc || '') && !READERS.has(f.proname)) out.push(f.proname + ' reads a project\'s total or gifts');
       if (/\bhr_town_works\b/.test(f.prosrc || '') && !READERS.has(f.proname)) out.push(f.proname + ' reads the Works catalogue');
+      if (/\bhr_town_works_(goals?|size|size_to)\b/.test(f.prosrc || '') && !READERS.has(f.proname)) out.push(f.proname + ' reads a project\'s goal');
       if (/\bhr_town_extras\b/.test(f.prosrc || '') && f.proname !== 'hr_town_view') out.push(f.proname + ' reads the map\'s extras');
       if (/town_works:/.test(f.prosrc || '') && f.proname !== 'hr_town_works_give') out.push(f.proname + ' reads the gifts off the journal');
     }
     const views = await q(db, "select c.relname, pg_get_viewdef(c.oid) d from pg_class c where c.relnamespace = 'public'::regnamespace and c.relkind in ('v', 'm')");
-    for (const v of views) if (/\b(town_works_totals|town_works_gifts|hr_town_works|hr_town_extras)\b/.test(v.d)) out.push('the view ' + v.relname + ' reads a project');
+    for (const v of views) if (/\b(town_works_totals|town_works_gifts|hr_town_works|hr_town_works_goals?|hr_town_extras)\b/.test(v.d)) out.push('the view ' + v.relname + ' reads a project');
     /* hr_gm_wall (2027-03-13-gm-tools.sql) refuses a walled hero's insert and reads no total, so it may hang here, running one of the wall's two guards; nothing else may */
-    for (const t of ['town_works_totals', 'town_works_gifts']) {
+    for (const t of ['town_works_totals', 'town_works_gifts', 'hr_town_works_goals']) {
       const hung = await q(db, `select g.tgname, g.tgfoid::regprocedure::text as fn, g.tgfoid in (to_regprocedure('public.hr_gm_wall_guard()'), to_regprocedure('public.hr_gm_wall_session()')) as wall
                                  from pg_trigger g where g.tgrelid = $1::regclass and not g.tgisinternal`, ['public.' + t]);
       for (const g of hung) if (!(g.tgname === 'hr_gm_wall' && g.wall === true)) out.push(`a trigger hangs off ${t}: ${g.tgname} runs ${g.fn}`);
@@ -777,7 +868,7 @@ const ARMS = {
     const inventory = async () => (await q(db, `select p.oid::regprocedure::text fn, md5(pg_get_functiondef(p.oid)) m from pg_proc p
       where p.pronamespace = 'public'::regnamespace and p.prokind = 'f' and p.proname like any (array['hr_town_works%', 'hr_town_notice', 'hr_town_extras']) order by 1`)).map((r) => r.fn + ':' + r.m).join('\n');
     const before = await inventory();
-    for (const f of [CATALOGUE, WORKS]) await db.exec(plantIn(f));
+    for (const f of [CATALOGUE, SIZED]) await db.exec(plantIn(f));   // the newest catalogue and the bodies on it (2027-03-04 is their history)
     if ((await inventory()) !== before) out.push('a second apply moved a body');
     if ((await total(db)) !== 1000) out.push('a second apply lost the total: ' + (await total(db)));
     if (Number(await one(db, 'select gold from public.town_works_gifts where user_id = $1', [A])) !== 1000) out.push('a second apply lost the gifts');
@@ -842,14 +933,14 @@ const ARMS = {
     await give(db, A, 0, 2000);
     const view = await as(db, A, 'select public.hr_town_works_view(0)');
     const w = X.TI.parseWorks(view);
-    if (!w || w.total !== 2000 || w.goal !== 1000000 || w.stage !== 0 || w.leftToday !== 23000 || w.maxGift !== 23000 || w.lastGift !== 2000 || w.place !== 1 || w.gold !== 2000 || w.plaque[0].name !== 'Marlow' || !w.plaque[0].mine) out.push('the window parses ' + JSON.stringify(w));
+    if (!w || w.total !== 2000 || w.goal !== GOAL || w.stage !== 0 || w.leftToday !== 23000 || w.maxGift !== 23000 || w.lastGift !== 2000 || w.place !== 1 || w.gold !== 2000 || w.plaque[0].name !== 'Marlow' || !w.plaque[0].mine) out.push('the window parses ' + JSON.stringify(w));
     if (X.TI.parseWorks({ ok: true }) !== null || X.TI.parseWorks({ ok: false }) !== null || X.TI.parseWorks(null) !== null) out.push('a broken answer parsed');
     if (w && X.TI.parseWorks({ ...view, stage_at: ['x'] }) !== null) out.push('a broken stage list parsed');
     const row = X.TWD.TOWN_WORKS.weighhouse;
     if (w) {
       if (X.WK.maxWords(w) !== 'Give the 23,000 gp left today') out.push('the last button reads ' + X.WK.maxWords(w));
-      if (X.WK.stageWords(w, row) !== 'Staked out: 2,000 of 1,000,000 gp') out.push('the stage line reads ' + X.WK.stageWords(w, row));
-      if (X.WK.nextWords(w, row) !== '98,000 gp more and it has its footings.') out.push('the next line reads ' + X.WK.nextWords(w, row));
+      if (X.WK.stageWords(w, row) !== `Staked out: 2,000 of ${gp(GOAL)} gp`) out.push('the stage line reads ' + X.WK.stageWords(w, row));
+      if (X.WK.nextWords(w, row) !== `${gp(ST[1] - 2000)} gp more and it has its footings.`) out.push('the next line reads ' + X.WK.nextWords(w, row));
       if (X.WK.todayWords(w) !== 'Left today: 23,000 gp, resets at midnight UTC') out.push('today\'s line reads ' + X.WK.todayWords(w));
       if (X.WK.meWords(w) !== 'Rank: 1st, 2,000 gp given') out.push('own line reads ' + X.WK.meWords(w));
       const near = { ...w, left: 800, maxGift: 800 };

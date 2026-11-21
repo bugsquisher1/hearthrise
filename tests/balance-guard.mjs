@@ -3,7 +3,7 @@
 // tests/balance-guard.mjs — THE WHOLE GAME AGAINST THE PLAN, EVERY RELEASE (balance program 30-plan section E, lane L14).
 //
 //   node tests/balance-guard.mjs                 the guard: plays its cells on the real settle, prints one screen, exits 0 unless a
-//                                                line in `red` mode is out of band (today only G14)
+//                                                line in `red` mode is out of band (today G14, and G6 since L05)
 //   node tests/balance-guard.mjs --strict        every line judged as if `red` (exit 1 on any line outside its red band): the waves' check
 //   node tests/balance-guard.mjs --nightly       + the nightly twin: the death cells at 4 seeds x 8 h, judging D1 and D2
 //                                                (also chosen when GITHUB_EVENT_NAME=schedule)
@@ -144,11 +144,11 @@ function playAll(jobs, workers, log = () => {}) {
 }
 
 /** A played life (tools/balance-sim/life.mjs), read from its --out file: { json, error }. */
-function playLife(policy, to, max) {
+function playLife(policy, to, max, party = ['hammer']) {
   const dir = mkdtempSync(join(tmpdir(), 'balance-guard-'));
   const out = join(dir, 'life.json');
   return new Promise((done) => {
-    const p = spawn(process.execPath, [LIFE, '--party', 'hammer', '--policy', policy, '--to', String(to), '--max', String(max), '--out', out], { stdio: ['ignore', 'ignore', 'inherit'] });
+    const p = spawn(process.execPath, [LIFE, '--party', party.join(','), '--policy', policy, '--to', String(to), '--max', String(max), '--out', out], { stdio: ['ignore', 'ignore', 'inherit'] });
     p.on('exit', (code) => {
       let json = null, error = null;
       try { json = JSON.parse(readFileSync(out, 'utf8')); } catch (e) { error = 'life.mjs --policy ' + policy + ' exited ' + code + ': ' + e.message; }
@@ -157,7 +157,9 @@ function playLife(policy, to, max) {
     });
   });
 }
-/** G6: the start-kit life to Level 10 (life.mjs --policy idle): hours to 10 and each Level's step. */
+/** G6: the new player's life to Level 10 (LEVEL_PACE.newPlayer: the start kit, life.mjs --policy new, Hunt again in the Thicket; lane/c-levels-7-9
+    calibrated it on the retention dive's blind play within 4%, where --policy idle's walk to Wickstead read half the hours): hours to 10 and
+    each Level's step. */
 function lifeIdleOf(j) {
   const at = (q) => (j.miles['0:' + q] || {}).h;
   const steps = [];
@@ -220,7 +222,7 @@ async function measure({ nightly = false, workers, quiet = false }) {
   const t0 = Date.now();
   const jobs = GC.plainCells(CTX).filter((j) => !j.id.startsWith('time-'));
   const twin = nightly ? GC.nightlyCells(CTX) : [];
-  const lifeP = playLife('idle', 10, 14), bankP = playLife(BANK_LIFE.policy, BANK_LIFE.to, BANK_LIFE.max);
+  const lifeP = playLife(LEVEL_PACE.newPlayer.policy, 10, 14, LEVEL_PACE.newPlayer.party), bankP = playLife(BANK_LIFE.policy, BANK_LIFE.to, BANK_LIFE.max);
   const scanP = SCAN.scanLevers(ROOT);
   const progress = quiet ? () => {} : (() => { let k = 0; const total = jobs.length + twin.length; return () => { k++; if (process.stderr.isTTY) process.stderr.write('\r  cells ' + k + '/' + total + '   '); }; })();
   const { results, errors } = await playAll([...jobs, ...twin], workers, progress);
@@ -564,8 +566,8 @@ async function selftest(workers) {
   /* a machine's timing: planted as three times the line's own budget, whatever this machine measured (a x3 on a fast machine stays inside it) */
   plant('a settle three times past its budget: a Krell window at 3 x 200 ms', (c) => firstClean(c, 'G17', (r) => r.at === 'krell'), (J) => { J.ms['time-krell:warm'] = 3 * LINE.G17.keep[1] * J.rows['time-krell:warm'].partyHours * 36; });
   plant('the Own four hunts 7 hours a day with no new press', (c) => firstClean(c, 'G18', (r) => r.at === 'ownfour'), (J) => { J.data.stamina.players = J.data.stamina.players.map((p) => (p.id === 'ownfour' ? { ...p, huntHoursADay: 7 } : p)); });
-  plant('a slower first hour: Level 10 at 9 hours', (c) => firstClean(c, 'G6', (r) => r.at === 'Level 10'), (J) => { J.life.level10 = 9; });
-  plant('the new player\'s worst Level at 3 hours', (c) => firstClean(c, 'G6', (r) => /longest/.test(r.at)), (J) => { J.life.steps[J.life.steps.length - 1][1] = 3; });
+  plant('a slower first hour: Level 10 at 9 hours', (c) => firstClean(c, 'G6', (r) => r.at === 'Level 10'), (J) => { J.life.level10 = 9; }, { redMode: true });
+  plant('the new player\'s worst Level at 3 hours', (c) => firstClean(c, 'G6', (r) => /longest/.test(r.at)), (J) => { J.life.steps[J.life.steps.length - 1][1] = 3; }, { redMode: true });
   plant('a new XP food row (a planted meal with all_xp)', (c) => firstClean(c, 'G14', (r) => r.at === 'food-xp-buffs'), async (J) => { J.scan = await plantScan('items.js', withItem({ n: 'Planted Meal', buff: { type: 'all_xp', magnitude: 2, durationMs: 1 } })); }, { redMode: true });
   plant('a lever with no class (a gold_find meal)', (c) => firstClean(c, 'G14', (r) => r.at === 'strangers'), async (J) => { J.scan = await plantScan('items.js', withItem({ n: 'Planted Purse Pie', buff: { type: 'gold_find', magnitude: 2, durationMs: 1 } })); }, { redMode: true });
   plant('a lever-named field in a new place (a planted goldBonusPm)', (c) => firstClean(c, 'G14', (r) => r.at === 'strangers'), async (J) => { J.scan = await plantScan('party.js', (m) => ({ ...m, PLANTED: { goldBonusPm: 1200 } })); }, { redMode: true });

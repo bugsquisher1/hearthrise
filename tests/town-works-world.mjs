@@ -27,6 +27,11 @@ import { pressBar, groupOf } from './_bar.mjs';
    numbers (src/shell/windows/havora/works.js), the finished line from the works_done sentence it repeats (src/shell/sink-words.js). */
 import { meWords } from '../src/shell/windows/havora/works.js';
 import { sinkRefusal } from '../src/shell/sink-words.js';
+import { TOWN_WORKS } from '../src/data/town-works.js';
+/* The Weighhouse a fresh world asks: no dozen accounts hunted this week, so its goal is the least (Tyler 2026-11-20, call 24-7) and each stage stands where the data writes it. */
+const ST = TOWN_WORKS.weighhouse.stages.map((s) => s.at);
+const GOAL = ST[ST.length - 1];
+const gpOf = (n) => n.toLocaleString('en-US');
 const exactly = (words) => new RegExp('^' + words.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$');
 
 const args = process.argv.slice(2);
@@ -91,7 +96,7 @@ try {
   await page.waitForSelector('.hs-launchers [data-hs-group="' + groupOf('havora') + '"]', { timeout: 30000 });
 
   // ── WW-1 ── every stage, from the town read alone. The hero is set down on the high street, in front of the plaque (plan 103, 54 = map 127, 54).
-  const stageArt = [[0, null, 'staked'], [100000, 'havora_weighhouse_footings', 'footings'], [300000, 'havora_weighhouse_framed', 'framed'], [600000, 'havora_weighhouse_walled', 'walled'], [1000000, 'havora_weighhouse_finished', 'finished']];
+  const stageArt = [[ST[0], null, 'staked'], [ST[1], 'havora_weighhouse_footings', 'footings'], [ST[2], 'havora_weighhouse_framed', 'framed'], [ST[3], 'havora_weighhouse_walled', 'walled'], [GOAL, 'havora_weighhouse_finished', 'finished']];
   const here = await walkOf();
   step('WW-1 the World reports its frame', !!here, JSON.stringify(here));
   const canWalk = !!here;
@@ -117,14 +122,14 @@ try {
   await p.shot('stage-finished-zoom-1x');
   await page.click('[data-zoom="1"]').catch(() => {});
   await page.waitForTimeout(500);
-  await setTotal(99000);
+  await setTotal(ST[1] - 1000);
   await worksArt(null);
 
   // ── WW-2 ──
   const plaqueOpens = await (async () => {
     await goTile(128, 55);
     await tapTile(127, 53);
-    return waitText(WIN + ' .hv-works-stage', /Staked out: 99,000 of 1,000,000 gp/);
+    return waitText(WIN + ' .hv-works-stage', new RegExp('Staked out: ' + gpOf(ST[1] - 1000) + ' of ' + gpOf(GOAL) + ' gp'));
   })();
   step('WW-2 a tap on the plaque opens Works on the server\'s numbers', plaqueOpens, await textOf(WIN));
   await page.waitForTimeout(500);
@@ -210,7 +215,7 @@ try {
   await closeWindow('chat');
 
   // ── WW-6 ── a hero on rows 53-54 stands behind stage 4; a hero south of the lot in front of it
-  await setTotal(1000000);
+  await setTotal(GOAL);
   await worksArt('havora_weighhouse_finished');
   await coachAway();
   await goTile(122, 54);

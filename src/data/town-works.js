@@ -14,8 +14,13 @@
 //   minGift    the smallest gift (a gift that exactly finishes the project may be smaller, or the last few coins could never be given)
 //   perDay     how much one ACCOUNT may give in a UTC day, across all its heroes
 //   perMinute  the verb's own rate bucket
-//   stages     in order; the first starts at 0 and the last's `at` is the goal. art: the sprite drawn on the lot (all one frame, stage 0's is the map's object);
-//              line: the System line when the total crosses `at`, read after `name`
+//   perActive  THE GOAL SIZED TO THE SERVER (Tyler 2026-11-20, balance call 24-7; 24-economy.md Q9): the goal is perActive gold for each WEEKLY ACTIVE
+//              ACCOUNT, and never under the last stage's `at` (the least goal), so a playtest of ten opens its market in about a week and a server of a
+//              thousand in a day. The SERVER counts the accounts (hr_weekly_actives: an account that entered a hunt in the last 7 days on the server's
+//              clock), once a UTC day; no client sends a count. 0 = the stages as written, a fixed goal.
+//   stages     in order; the first starts at 0 and the last's `at` is the (least) goal. A sized goal moves every stage with it: stage k stands at
+//              at_k / at_last of the goal. art: the sprite drawn on the lot (all one frame, stage 0's is the map's object);
+//              line: the System line when the total crosses its stage, read after `name`
 //   gifts      the amounts the window offers as buttons; the player may type any other
 //   plaqueTop  how many accounts the plaque names
 //
@@ -30,12 +35,14 @@ export const TOWN_WORKS = Object.freeze({
     aboutDone: 'Havora raised the Weighhouse on the east bank, and the biggest givers stand on its plaque.',
     map: 'town_common', minGift: 100, perDay: 25000, perMinute: 20,
     gifts: Object.freeze([1000, 5000]), plaqueTop: 10,
+    /* 20,000 a weekly active account, 250,000 at least (was a fixed 1,000,000, which only a server of hundreds ever finished). */
+    perActive: 20000,
     stages: Object.freeze([
       stage(0, 'havora_weighhouse_staked', 'Staked out', null),
-      stage(100000, 'havora_weighhouse_footings', 'Footings', 'has its footings.'),
-      stage(300000, 'havora_weighhouse_framed', 'Framed', 'has its frame.'),
-      stage(600000, 'havora_weighhouse_walled', 'Walled', 'has its walls.'),
-      stage(1000000, 'havora_weighhouse_finished', 'Finished', 'is finished.'),
+      stage(25000, 'havora_weighhouse_footings', 'Footings', 'has its footings.'),
+      stage(75000, 'havora_weighhouse_framed', 'Framed', 'has its frame.'),
+      stage(150000, 'havora_weighhouse_walled', 'Walled', 'has its walls.'),
+      stage(250000, 'havora_weighhouse_finished', 'Finished', 'is finished.'),
     ]),
   }),
 });

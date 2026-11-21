@@ -754,7 +754,7 @@ const FACTS = Object.freeze({
   below_free: (p, f) => known(f.blessings, (b) => Number.isInteger(b.freeUntil) && f.charLevel < b.freeUntil),
   at_free: (p, f) => known(f.blessings, (b) => Number.isInteger(b.freeUntil) && f.charLevel >= b.freeUntil),
   /* the purse holds the price of the next hero slot the server offers; none on offer: never (unknown until the account's offer is read) */
-  /* The purse is a real start on the next hero (the What next line's own share): at 300,000 gp for the second (Tyler 2026-11-09) that is 150,000 gp, about hour 30 of hunting at Level 23-24 (designer, table D); the first house speaks until then (lane/c-slots-lower). */
+  /* The purse is a real start on the next hero (the What next line's own share): at 400,000 gp for the second (Tyler 2026-11-20) that is 200,000 gp; the first house speaks until then (lane/c-slots-lower). */
   purse_saving_hero: (p, f) => (Number.isSafeInteger(f.gold) && Number.isInteger(f.slotsOwned) ? Number.isSafeInteger(f.slotCost) && f.slotCost > 0 && f.gold >= f.slotCost * SAVING_FROM : null),
   /* more than one hero (the account's roster, from the shell) */
   one_hero: (p, f) => known(heroesOn(f), (h) => h.length === 1 && Number.isInteger(f.slotsOwned) && f.slotsOwned > 1),
@@ -1158,8 +1158,8 @@ function readyWords(ready) {
 
 /* WHAT TO WANT, HOURS 5 TO 20 (panel 2026-11-01: 16-22k gold and "nothing to want"; designer's ruling, PRIORITY_BOARD 2026-11-01): the purse's
    next buy on the What next line, at the server's price. Below this share of the next hero's price, it is too far off to be a goal and the house's deeds speak instead.
-   A HALF (the ladder at 300,000 / 750,000 / 1,500,000 since Tyler 2026-11-09, one slot to start; no fifth slot since 2026-11-07): the second speaks from
-   150,000 gp, about hour 30 of a lone hero's hunting, the third from 375,000 gp and the fourth from 750,000 gp (the purse is the account's). */
+   A HALF (the ladder at 400,000 / 1,500,000 / 4,000,000 since Tyler 2026-11-20, one slot to start; no fifth slot since 2026-11-07): the second speaks from
+   200,000 gp, the third from 750,000 gp and the fourth from 2,000,000 gp (the purse is the account's; the price is always the server's offer). */
 const SAVING_FROM = 0.5;
 const ORDINAL = Object.freeze(['', 'first', 'second', 'third', 'fourth', 'fifth']);
 const gp = (n) => n.toLocaleString('en-US') + ' gp';

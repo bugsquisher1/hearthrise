@@ -348,7 +348,7 @@ function accountDay(m, day) {
 function rungsOf(R) {
   const each = (m, part, f) => { for (const s of ['four', 'lone']) m.closedCommitMs[s][part] *= f; };
   return [
-    { id: 'R0', roadmap: 'new (a fix of L01\'s shipped read)', layer: 'edge SQL, one word', name: 'the settle read runs the hero read once: `r as materialized`',
+    { id: 'R0', roadmap: 'new (48 section 8)', layer: 'edge SQL, one word', name: 'the settle read reads the party once (`r as materialized`)',
       apply: (m) => { each(m, 'read', R.R0.readFactor); return m; } },
     { id: 'L01', roadmap: 'L01 (28 change 1)', layer: 'edge + server, staged', name: 'no off-screen poll, tick packing, the 5-minute prune',
       apply: (m) => { m.watched.offscreenLoadSAnHour = 0; return m; } },
@@ -365,13 +365,13 @@ function rungsOf(R) {
       apply: (m, day) => { day.presses = R.L07.presses; return m; } },
     { id: 'L13', roadmap: 'L13 (28-2, 43 E18)', layer: 'server', name: 'the hourly journal: one row a hero an hour an activity',
       apply: (m) => { each(m, 'core', R.L13.coreFactor); return m; } },
-    { id: 'P1', roadmap: 'new (this file, section 2)', layer: 'server plans', name: 'the read calls no function a row, the skill curve is read by its XP, a limit is read once',
+    { id: 'P1', roadmap: 'new (48 section 8)', layer: 'server plans', name: 'the read calls no function a row, the skill curve is read by its XP, a limit is read once',
       apply: (m) => { each(m, 'read', R.P1.readFactor); each(m, 'core', R.P1.coreFactor); return m; } },
     { id: 'TCF', roadmap: '59 row 30 (formula, P05, P-X28)', layer: 'formula + server', name: 'town work paid in closed form: start, each paid hour, stop',
       apply: (m) => { m.townDayS = R.TCF.townDayS; return m; } },
-    { id: 'RES', roadmap: 'to be found (section 7)', layer: 'client + server', name: 'the open tab\'s unattributed 33.5 s a watched four-hour, found and cut (a CONDITION, not a built change)',
+    { id: 'RES', roadmap: 'new (48 section 10, step 2)', layer: 'client + server', name: 'an open tab sends only its confirm and its heartbeat (the measured 33.5 s a watched four-hour beyond them, found and removed)',
       apply: (m) => { m.watched.residualSAnHour = 0; return m; } },
-    { id: 'C10', roadmap: 'new (this file, section 3)', layer: 'dial + edge', name: 'a closed hunt commits every 10 minutes: fold_windows 6, the edge slice sized by engine time',
+    { id: 'C10', roadmap: 'new (48 section 7)', layer: 'dial + edge', name: 'a closed hunt commits every 10 minutes: fold_windows 6, the edge slice sized by engine time',
       apply: (m) => { m.closedCoreFactor = R.C10.commitFactor; m.awayCommitsAnHour = R.C10.commitsAnHour; return m; } },
   ];
 }
@@ -400,6 +400,44 @@ function ladder() {
   }
   heroesTable(J);
   bossTable(J);
+}
+
+/* ── THE TARGET DESIGN: every choice taken, and what each one is worth inside it (48 sections 1 and 3) ─────────────────── */
+/* T1 is a step on the way, not a choice of the target: town work in closed form replaces what it saves */
+const NOT_A_TARGET_CHOICE = new Set(['T1']);
+/** The target with every choice taken except `skip` (null: all of them). */
+function targetWithout(J, skip) {
+  let m = structuredClone(J.today); const d = { presses: 100 };
+  for (const r of rungsOf(J.rungs)) if (r.id !== skip) m = r.apply(m, d);
+  return { m, presses: d.presses };
+}
+/** The target on a stateful engine host: a viewed hunt's confirm is answered from memory (no database read), a closed hunt commits once an hour. */
+function onHost(m, H) {
+  const h = structuredClone(m);
+  h.watched.readsAPoll = 0; h.watched.pollMs = { confirm: 0 };
+  h.awayCommitsAnHour = H.closedCommitsAnHour; h.closedCoreFactor = H.closedCommitFactor;
+  return h;
+}
+function design() {
+  const J = loadInputs();
+  const T = targetWithout(J, null);
+  console.log('THE TARGET: four heroes from day one, 12 h hunted and 12 h of town work a hero, every choice of 48 section 3 taken. Database-seconds an account-day.');
+  console.log('day shape | the target (the edge engine) | the target on a stateful engine host | C2');
+  for (const [label, day] of Object.entries(J.days)) {
+    const band = day.accounts >= 10000 ? J.bands['C2.10k'] : J.bands['C2.1k'];
+    const a = accountDay(T.m, { ...day, presses: T.presses }); const h = accountDay(onHost(T.m, J.rungs.HOST), { ...day, presses: T.presses });
+    console.log([label, `${r1(a.total)} ${verdict(a.total, band)}`, `${r1(h.total)} ${verdict(h.total, band)}`, band].join(' | '));
+  }
+  const [closed, real] = Object.keys(J.days);
+  const at = (x, label) => accountDay(x.m, { ...J.days[label], presses: x.presses }).total;
+  const base = [at(T, closed), at(T, real)];
+  console.log(`\nWHAT EACH CHOICE IS WORTH: the target with that one choice not taken (${closed} / ${real})`);
+  console.log('choice | roadmap | layer | the choice | not taken: closed / real-shaped | it is worth');
+  for (const r of rungsOf(J.rungs)) {
+    if (NOT_A_TARGET_CHOICE.has(r.id)) continue;
+    const x = targetWithout(J, r.id); const c = at(x, closed); const w = at(x, real);
+    console.log([r.id, r.roadmap, r.layer, r.name, `${r1(c)} / ${r1(w)}`, `${r1(c - base[0])} / ${r1(w - base[1])}`].join(' | '));
+  }
 }
 
 /* ── HEROES AN ACCOUNT (Tyler 2026-11-21: every account has all four heroes from the start) ─────────────────────────── */
@@ -490,6 +528,12 @@ function selftest() {
   arm('CALIBRATION: the model\'s watched four-hour at the old read sits in the REAL range (107 to 119 s)', w >= 107 && w <= 119, `${r1(w)}`);
   const ap = J.today.closedCommitMs.four.core + sum(J.today.watched.commitMs);
   arm('CALIBRATION: a watched commit\'s apply sits within 10% of production\'s hr_hunt_apply_instance mean (203 ms)', Math.abs(ap - 203) <= 20.3, `${r1(ap)}`);
+  /* the target: no choice is worth less than nothing, and the host never costs more than the edge */
+  const T = targetWithout(J, null); const d0 = Object.values(J.days)[1];
+  const t0 = accountDay(T.m, { ...d0, presses: T.presses }).total;
+  const worth = rungsOf(J.rungs).filter((r) => !NOT_A_TARGET_CHOICE.has(r.id)).map((r) => { const x = targetWithout(J, r.id); return [r.id, accountDay(x.m, { ...d0, presses: x.presses }).total - t0]; });
+  arm('DESIGN: every choice of the target is worth zero or more', worth.every(([, v]) => v >= -1e-9), worth.map(([k, v]) => k + ' ' + r1(v)).join(', '));
+  arm('DESIGN: the stateful host never costs more than the edge', accountDay(onHost(T.m, J.rungs.HOST), { ...d0, presses: T.presses }).total <= t0 + 1e-9);
   arm('KEY: a statement is named by the public function it calls', keyOf('select public.hr_hunt_apply_instance($1::uuid)') === 'hr_hunt_apply_instance' && keyOf('begin') === 'begin');
   console.log(fails.length ? `platform-cost --selftest: ${fails.length} FAILED` : 'platform-cost --selftest: green');
   return fails.length ? 1 : 0;
@@ -502,6 +546,7 @@ async function main() {
   else if (cmd === 'window') await windows();
   else if (cmd === 'aged') await aged();
   else if (cmd === 'ladder') ladder();
+  else if (cmd === 'design') design();
   else { console.log('usage: node tools/balance-program/platform-cost.mjs profile|window|aged [--only <fixture>] | ladder | --selftest'); return 2; }
   return 0;
 }

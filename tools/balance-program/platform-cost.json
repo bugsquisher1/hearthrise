@@ -100,6 +100,11 @@
    "commitsAnHour": 6,
    "commitFactor": 1.1,
    "why": "MEASURED: the same 20 minutes committed every 100 s and every 600 s end IDENTICAL on four fixtures; a 600 s commit costs 1.09 times a 100 s one (Krell four, read fixed: 53.4 -> 58.3 PGlite ms)"
+  },
+  "HOST": {
+   "closedCommitsAnHour": 1,
+   "closedCommitFactor": 1.3,
+   "why": "ASSUMED: an always-on engine server holds a viewed instance between confirms (no read a confirm) and commits a closed hunt once an hour; a one-hour commit costs 1.3 a 100 s one (MEASURED 1.09 at 600 s, extrapolated)"
   }
  },
  "days": {

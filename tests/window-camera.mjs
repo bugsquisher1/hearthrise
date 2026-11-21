@@ -853,7 +853,7 @@ async function viewerZoom(browser, base) {
 const SHOTS = process.argv.includes('--shots') ? process.argv[process.argv.indexOf('--shots') + 1] : null;
 
 const MUTANTS = [
-  ['the hunt coach card yields its column to Chat at home (WC-11)', 'src/shell/hud-room.js', "querySelectorAll('.hs-win:not(.is-leaving):not(.is-home)')", "querySelectorAll('.hs-win:not(.is-leaving)')"],
+  /* (WC-11's "the hunt coach card yields its column to Chat at home" left: since 2026-11-21 that is the rule, D-1 1.3 rule 5, the game never moves Chat; art review #8) */
   ['a modal never drags (WC-5b)', 'src/shell/shell.js', '    if (!head || e.button !== 0 || phoneMq.matches) return;', '    if (!head || e.button !== 0 || phoneMq.matches || wm.row(id).modal) return;'],
   ['a dragged modal keeps its centring transform (WC-5b)', 'src/styles/shell.css', '.hs-win.is-modal.is-moved { transform: none; }', '.hs-win.is-modal.is-moved { }'],
   ['a modal is clamped by a 48 px head, not its height (WC-5b)', 'src/shell/shell.js', '    const h = wm.row(id).modal ? r.height : undefined;', '    const h = undefined;'],

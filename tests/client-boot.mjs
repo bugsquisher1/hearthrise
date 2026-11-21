@@ -1432,8 +1432,8 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
       await page.fill('input[name=password]', 'not-a-real-password');
       await page.click('.auth-submit');
       await wait(page, () => document.querySelectorAll('.char-row').length === 4);
-      const lead = await page.evaluate(() => (document.querySelector('.auth-lead') || {}).textContent || '');
-      if (!/Heroes at once: up to 4\. 2 more heroes to make/.test(lead) || await page.$('[data-app="buy-slot"]') || await page.$('.slot-offer'))
+      const lead = await page.evaluate(() => Array.from(document.querySelectorAll('.auth-lead')).map((p) => p.textContent).join(' | '));
+      if (!/\| Heroes at once: up to 4\. 2 more heroes to make\.$/.test(lead) || await page.$('[data-app="buy-slot"]') || await page.$('.slot-offer'))
         fails.push('B-11 the line over two heroes of four reads ' + JSON.stringify(lead) + ', or a slot is still for sale');
       /* B-11b (UI audit 2026-11-18): each hero's row shows its own figure, drawn, at a whole 2x or more, at the desktop and the phone widths */
       for (const vp of [[1440, 900], [922, 423], [667, 375]]) {
@@ -1447,6 +1447,9 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
       /* an empty slot opens BUILD YOUR PARTY: both empty slots, a shield and a healer pre-filled, the healer said; one press makes both, each with its set */
       await page.click('.char-row.is-empty [data-app="create"]');
       const party = await wait(page, () => document.querySelectorAll('.hero-member').length === 2);
+      /* the name fields are the sunk game field at 14.5 px or more, never the browser's white box (art review 2026-11-21 #1) */
+      const field = party ? await page.evaluate(() => { const c = getComputedStyle(document.querySelector('.hero-member .hero-name')); return { px: parseFloat(c.fontSize), well: c.boxShadow !== 'none', bg: c.backgroundColor }; }) : null;
+      if (!field || field.px < 14.5 || !field.well || field.bg === 'rgb(255, 255, 255)') fails.push('B-11 the party step\'s name field reads ' + JSON.stringify(field) + ', want the sunk field at 14.5 px or more');
       const view = party ? await page.evaluate(() => ({ ways: Array.from(document.querySelectorAll('.hero-member-way')).map((s) => s.value),
         healer: (document.querySelector('.hero-party-healer') || {}).textContent || '' })) : null;
       if (!view || view.ways.join() !== 'tank,healer' || view.healer !== 'Your party has one healer.') fails.push('B-11 the party step reads ' + JSON.stringify(view));
@@ -1619,6 +1622,7 @@ const MUTANTS = [
   ['Enter town comes back live under a slow town', 'src/app/hero-create.js', "    hold(t('heroes.entering'));\n", ''],
   ['a lost answer\'s retry gets a new key', 'src/app/hero-create.js', "    if (!tried || tried.name !== name || tried.set !== picked) tried =", '    tried ='],
   ['a first hero comes with a way picked for the player (GR-24)', 'src/app/hero-create.js', "  let picked = typeof o.picked === 'string' && STARTER_SETS[o.picked] ? o.picked : null;", "  let picked = 'tank';"],
+  ['the party\'s name fields are the browser\'s white box again (B-11, art review #1)', 'src/styles/app.css', '.auth-field input, .hero-member .hero-name {\n', '.auth-field input {\n'],
   ['the party sends the first hero\'s set for every hero (B-11)', 'src/app/hero-create.js', 'const r = await o.create(name, colorsNow(), tried[i].key, sets[i], c.slots[i]);', 'const r = await o.create(name, colorsNow(), tried[i].key, sets[0], c.slots[i]);'],
   ['no Hearth behind the sign-in (B-23)', 'src/app/boot.js', "renderAuthScreen(box, auth, mode, { signedIn: () => startAccount(false) });\n    raiseBackdrop(root, win);", "renderAuthScreen(box, auth, mode, { signedIn: () => startAccount(false) });"],
   ['the Hearth is asked for before the crest is in (B-23)', 'src/app/auth-backdrop.js', '  if (!crest || crest.complete) after();\n', '  ask();\n  if (!crest || crest.complete) after();\n'],

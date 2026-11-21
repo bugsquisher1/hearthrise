@@ -159,9 +159,11 @@ export function townSteps(o) {
   const party = o && o.outgrown && o.party && o.party.count > 0 ? o.party : null;
   if (party) {
     const first = FIRST_LEVEL_5 && party.first;
-    out.push({ id: 'party', count: 1, done: false, title: first ? FIRST_LEVEL_5.line.replace('{Name}', party.name)
-      : t('summary.party_line', { name: party.name, ground: party.ground, count: party.count, n: inWords(party.count) }),
-      words: '', verb: t('summary.party_go'), icon: null, glyph: null, place: { kind: 'characters' } });
+    /* a short title and the line as its words, so the gold press never squeezes a two-sentence title (art review 2026-11-21 #5); the
+       Characters press's own glyph, never the Bless shield a step without one borrows (#6) */
+    out.push({ id: 'party', count: party.count, done: false, title: t('summary.party_title', { count: party.count }),
+      words: first ? FIRST_LEVEL_5.line.replace('{Name}', party.name) : t('summary.party_line', { name: party.name, ground: party.ground, count: party.count, n: inWords(party.count) }),
+      verb: t('summary.party_go'), icon: null, glyph: 'navProfile', place: { kind: 'characters' } });
   }
   /* ground: the step up the Hunts list recommends, after the chores and before the buy; it points, so never the gold press */
   const g = o && o.ground;

@@ -1,0 +1,8 @@
+{
+  "schema": "hearthrise.balance-patch/1",
+  "name": "Economy 2: every supply at its maker's full effect (the idle market's upper bound on combat)",
+  "why": "55-review-economy change 1, interaction trace 5.1. If the refill fills from player-made stock, a hunter uses full-effect food, drinks, arrows and runes where it used the store's 75% copies. BASIC_EFFECT_SHARE 0.75 -> 1.0 is the most that can move pace and survival. Nothing is targeted: every moved band is the trace.",
+  "kind": "coefficient",
+  "knobs": { "storeSupplyShare": 1.3333333 },
+  "targets": []
+}

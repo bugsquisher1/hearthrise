@@ -1,0 +1,14 @@
+{
+  "schema": "hearthrise.balance-patch/1",
+  "name": "Economy 3: economy 1 and 2 together (does Deadly stop costing anything?)",
+  "why": "55-review-economy traces 5.1 and 5.2 together: the heal price line and full-effect supplies. The check is that LOW on Deadly still loses gold (G-5) and the Deadly four stays inside G-4.",
+  "kind": "coefficient",
+  "knobs": { "storeSupplyShare": 1.3333333 },
+  "edits": [
+    { "file": "src/data/supply-basics.js", "from": "heal('salted_trout', 'Salted Trout', 'cooked_trout', 120, 40),", "to": "heal('salted_trout', 'Salted Trout', 'cooked_trout', 120, 36)," },
+    { "file": "src/data/supply-basics.js", "from": "heal('salted_lobster', 'Salted Lobster', 'cooked_lobster', 216, 180),", "to": "heal('salted_lobster', 'Salted Lobster', 'cooked_lobster', 216, 91)," },
+    { "file": "src/data/supply-basics.js", "from": "heal('salted_swordfish', 'Salted Swordfish', 'cooked_swordfish', 288, 432),", "to": "heal('salted_swordfish', 'Salted Swordfish', 'cooked_swordfish', 288, 150)," },
+    { "file": "src/data/supply-basics.js", "from": "heal('salted_shark', 'Salted Shark', 'cooked_shark', 396, 693),", "to": "heal('salted_shark', 'Salted Shark', 'cooked_shark', 396, 238)," }
+  ],
+  "targets": ["gold"]
+}

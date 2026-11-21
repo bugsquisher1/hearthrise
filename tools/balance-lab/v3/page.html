@@ -319,7 +319,7 @@ details > summary { cursor: pointer; color: var(--ink-2); font-size: 12px; min-h
           + (k.ruled ? '<span class="tag ruled" title="Tyler ruled this value on ' + esc(k.ruled) + '">RULED</span>' : '')
           + '<span class="kval" id="v-' + k.id + '">' + state.knobs[k.id].toFixed(3) + 'x</span><button class="small" data-reset="' + k.id + '">Reset</button></div>'
           + '<input type="range" min="' + min + '" max="' + max + '" step="0.005" value="' + state.knobs[k.id] + '" data-slider="' + k.id + '" aria-label="' + esc(k.label) + '"' + (gone ? ' disabled' : '') + '>'
-          + (gone ? '<div class="warn">Not on the proposed game: a proposal rewrote the line it moves</div>' : still ? '<div class="warn">Moves nothing on the proposed game: a proposal derives the number it scaled</div>' : '')
+          + (gone ? '<div class="warn">Not on the proposed game: a proposal rewrote the line it moves</div>' : still ? '<div class="warn">Moved no precomputed cell of the proposed game: a proposal derives the number it scales, or no sampled cell reads it (a death is rare in an hour)</div>' : '')
           + '<details class="kabout"><summary class="kmeta">What it moves' + (stepsOf(k.id).length ? '' : ' (not swept on the proposed game: LIVE only)') + '</summary><div class="kmeta">' + esc(k.what) + '</div><div class="kmeta">' + esc(k.sites.join(', ')) + (k.regen ? '. The monster rows are re-written from it' : '')
           + (k.sharesLineWith.length ? '. Shares a line with ' + esc(k.sharesLineWith.join(', ')) : '') + '</div></details></div>';
       }

@@ -119,6 +119,18 @@ async function selftest() {
   const { atlas: a0 } = await atlasOf({ D: D0, rates, grid: null, kits: false, checkpoints: cps });
   check('control: the Thicket\'s gray wolves drop something priced', Object.values(a0.sources).some((s) => s.kind === 'drop' && s.state === 'OPEN' && s.cost && s.item && a0.sources['drop:meadowbrook_thicket:' + s.item]));
   check('control: no planted id on any list', !a0.lists.noSource.some((x) => x.id === 'zz_atlas_plant'));
+  /* the ground-rate cells: a harder tier is played at ITS pull (cell.mjs takes the pull only from cell.density), and the cached table says so */
+  {
+    const { measureJobs } = await import('./atlas/rates.mjs');
+    const HT = await import('../../src/data/hunt-tiers.js');
+    const pullOf = (ground, tier, size) => HT.pullOfTier(HT.tierRowOf(ground, tier), size);   // the row the game itself reads
+    const jobs = measureJobs({ HUNT_GROUNDS: D0.HUNT_GROUNDS, HUNT_INDEX: D0.HUNT_INDEX, OPEN_GROUNDS: D0.OPEN_GROUNDS, PARTIES, tiersOf: D0.tiersOf, pullOf, quick: false, seeds: 1, hours: 1, only: ['krells_hold'] });
+    const hard = jobs.filter((j) => j.meta.tier !== 'normal'), bad = hard.filter((j) => (j.density ?? null) !== (pullOf(j.ground, j.meta.tier, j.meta.size) ?? null));
+    check('a harder-tier ground-rate cell carries its tier\'s pull', hard.length > 0 && !bad.length && jobs.filter((j) => j.meta.tier === 'normal').every((j) => j.density === undefined), hard.length + ' harder cells, ' + bad.length + ' without the pull; Deadly x4 pulls ' + pullOf('krells_hold', 'deadly', 4));
+    const four = (tier) => rates.rows.find((r) => r.ground === 'krells_hold' && r.size === 4 && r.tier === tier);
+    const n = four('normal'), d = four('deadly');
+    check('the cached table was played with the pull: a four kills faster on Deadly than on Normal at Krell\'s Hold', !!n && !!d && d.killsPerH > n.killsPerH * 1.3, n && d ? 'Normal ' + n.killsPerH + ', Deadly ' + d.killsPerH + ' kills an hour' : 'rows missing');
+  }
   /* M1: an item row with no source -> noSource, undeclared */
   const D1 = await loadData();
   D1.ITEMS.zz_atlas_plant = { n: 'Planted Trinket', type: 'jewelry', slot: 'ring', tier: 2, v: 100, reqLv: 15 };

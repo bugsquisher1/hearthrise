@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // ════════════════════════════════════════════════════════════════════════
 // tests/carry-on.mjs — CARRY ON: ONE PRESS FOR THE ACCOUNT, NO HUNT WITHOUT ONE (lane/c-carry-on; build plan L07; Tyler RULED 27-1, 2026-11-20).
-//   supabase/migrations/1010-carry-on.sql, src/session/carry-on-intents.js, src/shell/carry-on.js (the away card and the end card).
+//   supabase/migrations/1024-carry-on.sql, src/session/carry-on-intents.js, src/shell/carry-on.js (the away card and the end card).
 //
 //   node tests/carry-on.mjs              the guard (the replayed chain, the real engine, the real client modules)
 //   node tests/carry-on.mjs --arm=closed one arm
@@ -10,7 +10,7 @@
 //                                        the tab closes, the tick ends both hunts, the player signs back in and presses Play; the
 //                                        return card shows Carry on with the server's plan, ONE press sends both back, Storage first
 //
-// mutant-anchors: supabase/migrations/1010-carry-on.sql supabase/migrations/1011-own-heroes-apart.sql src/shell/carry-on.js src/session/carry-on-intents.js
+// mutant-anchors: supabase/migrations/1024-carry-on.sql supabase/migrations/1025-own-heroes-apart.sql src/shell/carry-on.js src/session/carry-on-intents.js
 // ci-step: db-replay | Carry on - one press for the account, both paths, the refusals, two presses one restart
 // ci-run: node tests/carry-on.mjs
 // ci-run: node tools/mutant-gate.mjs node tests/carry-on.mjs --mutate
@@ -32,9 +32,9 @@
 //              through hr_blessing_buy (journalled, the purse less exactly that) and the hero goes blessed
 //   CO-LOOT    the hero's loot plan runs first (a sell rule: the stack sold, the purse up) and the hero still goes
 //   CO-WORDS   the plan in the player's words: a line a hero, Storage and the store said, a refusal named, no semicolon or dash
-//   CO-APART   (1011-own-heroes-apart.sql) the account's own two in a party, browser closed: the leader runs out of stamina and the member,
+//   CO-APART   (1025-own-heroes-apart.sql) the account's own two in a party, browser closed: the leader runs out of stamina and the member,
 //              its box unsaid, hunts on (its panel reads off); ticked, it goes home with its leader (party_member_left)
-//   CO-APPLY   a second apply of 1010-carry-on.sql moves no body and no baseline row
+//   CO-APPLY   a second apply of 1024-carry-on.sql moves no body and no baseline row
 //
 // Exit: 0 green · 1 red · 2 harness.
 // ════════════════════════════════════════════════════════════════════════
@@ -48,7 +48,7 @@ import { ownHeroSlots } from './_slots.mjs';
 const H = (await import('./hunt-sessions-settle.mjs')).HARNESS;
 const { one, q } = H;
 const ROOT = H.ROOT;
-const FILE = '1010-carry-on.sql';
+const FILE = '1024-carry-on.sql';
 const CELLAR = 'mill_cellar', THICKET = 'meadowbrook_thicket', FOOD = 'cooked_shrimp';
 const [A, B] = H.UIDS;
 const idem = () => crypto.randomUUID();
@@ -442,7 +442,7 @@ async function applyArm(db) {
   });
 }
 
-/* ── CO-APART (1011-own-heroes-apart.sql): the account's own heroes end together only if the player says so ── */
+/* ── CO-APART (1025-own-heroes-apart.sql): the account's own heroes end together only if the player says so ── */
 async function apartArm(db, M) {
   return H.inTx(db, async () => {
     const bad = [];

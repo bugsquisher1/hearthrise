@@ -67,7 +67,7 @@ const whatIfOf = (S, gid, L) => {
   for (const id of Object.keys(B.GROUND_ROSTER[gid])) {
     const r = S.scaledRow(MONSTERS[id], id, gid, L);
     if (r === MONSTERS[id]) throw new Error('scaled-hunts: ' + gid + ' did not scale ' + id + ' for a Level ' + L + ' leader');
-    rows[id] = Object.fromEntries(['level', 'hp', 'atk', 'baseAcc', 'def', 'xp', 'gp', 'drops', 'partyPm', 'lootPm'].map((k) => [k, r[k]]));
+    rows[id] = Object.fromEntries(['level', 'hp', 'atk', 'aim', 'evasion', 'def', 'xp', 'gp', 'drops', 'partyPm', 'lootPm'].map((k) => [k, r[k]]));
   }
   return { monsters: rows };
 };
@@ -212,7 +212,7 @@ function rules(S) {
         const mean = oMean + Math.max(0, (f.gp[0] + f.gp[1]) / 2 - oMean) * (H.coinPm[g.fit] / 1000), got = (r.gp[0] + r.gp[1]) / 2;
         const k = gid + ' L' + L + ' ' + id;
         if (r.level !== m.level + gap) bad.push(k + ': Level ' + r.level + ', want ' + (m.level + gap));
-        for (const f2 of ['hp', 'atk', 'baseAcc', 'def']) if (r[f2] !== f[f2]) bad.push(k + ': ' + f2 + ' ' + r[f2] + ', the formula ' + f[f2]);
+        for (const f2 of ['hp', 'atk', 'aim', 'evasion', 'def']) if (r[f2] !== f[f2]) bad.push(k + ': ' + f2 + ' ' + r[f2] + ', the formula ' + f[f2]);
         if (r.xp !== Math.max(1, Math.round((f.xp * H.xpPm) / 1000))) bad.push(k + ': xp ' + r.xp + ', the formula x ' + H.xpPm + ' permille');
         if (Math.abs(got - mean) > 1) bad.push(k + ': coin mean ' + got + ', its own ' + oMean.toFixed(1) + ' + ' + H.coinPm[g.fit] + ' permille of the rise ' + mean.toFixed(1));
         if (r.drops !== m.drops) bad.push(k + ': its drops are not the row\'s');

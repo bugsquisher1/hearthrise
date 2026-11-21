@@ -30,6 +30,9 @@
 //   heat            past `from`, a floor's blows x(1 + perFloorPm/1000) a floor, compounding; HP, XP and the server's bounds stay the
 //                   formula's (designer 2026-11-19, the board's "2026-11-19 The Tower's curve": the straight-line formula made floors 100-170
 //                   feel the same, then walled). Move `from` up when a region past 110 opens
+//                   10 -> 12 permille (lane/c-tohit-ratio, 2026-11-20): on the to-hit ratio a deep room's aim no longer climbs with its blow, so
+//                   at 10 the played four's typical low fell only 12 points from floors 101-110 to 131-140 (tests/tower-climb.mjs TC-CURVE wants 15);
+//                   plan L18 takes the heat out and sizes the curve on this engine
 //
 // TOWER_PARTY_XP: a kill's Level XP, in permille, shared by the heroes alive at it (xp-share.js reads it itself; the one hunting table,
 //   party-class-xp.js, never names the Tower): a hero alone takes the plain kill (no +15%: the solo boost keeps hunting alone up with a party, and in the Tower the
@@ -51,7 +54,7 @@ export const TOWER_RULES = Object.freeze({
   floorTop: 300,
   fit: 'both',
   minLevel: 10,
-  heat: Object.freeze({ from: 100, perFloorPm: 10 }),
+  heat: Object.freeze({ from: 100, perFloorPm: 12 }),
 });
 
 export const TOWER_PARTY_XP = Object.freeze({ 1: 1000, 2: 1100, 3: 1200, 4: 1300 });

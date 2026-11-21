@@ -28,8 +28,9 @@
 // the combat curve to 120) and past the cap and deep, beside `skills`' own level
 // (readEnvelopeSkills); its keys are SKILLS_DEF's.
 //
-// AND CURVE-HOLD (2026-11-19): the newest Level curve file (tools/gen-level-curve.mjs) moves no live hero's
-// Level; a hero planted in a moved gap refuses it, one off the gaps does not (curveHold below).
+// AND CURVE-HOLD (2026-11-19; raise-only 2026-11-20): the newest Level curve file (tools/gen-level-curve.mjs)
+// takes no live hero's Level; a hero who would read lower refuses it, one a lowered gap lifts applies and
+// reads its higher Level, one off the gaps applies (curveHold below).
 //
 //   node tests/core-curves.mjs              compare; exit 1 on any mismatch
 //   node tests/core-curves.mjs --selftest   each planted drift must be named (JS drifts, then
@@ -293,11 +294,16 @@ const SKILL_DRIFTS = [
   ['the envelope carries no skill_levels section', "delete from public.hr_state_sections where key = 'skill_levels';"],
 ];
 
-/* ── CURVE-HOLD: A CURVE FILE MOVES NO LIVE LEVEL (2026-11-19, the Coordinator's no-Level-loss route) ─────────────────────────────
-   tools/gen-level-curve.mjs's newest file holds every hero's Level on the rows it replaces and refuses itself if one would move. Here the
-   file runs again over the rows the chain held before it (the last earlier file that wrote hr_level_curve), inside a transaction that is
-   rolled back: once with a hero planted on a Level the two curves part on (it must be refused, naming every mover), once with only a
-   hero they agree on (it must apply). `fileSql` is the file's text, so --selftest can hand it a copy without the refusal. */
+/* ── CURVE-HOLD: A CURVE FILE TAKES NO LIVE LEVEL (2026-11-19, the Coordinator's no-Level-loss route; raise-only 2026-11-20) ──────────
+   tools/gen-level-curve.mjs's newest file holds every hero's Level on the rows it replaces and refuses itself if one would read LOWER; a
+   threshold it lowers lifts the hero standing in the gap (lane/c-levels-7-9: the quitters sit at Levels 7-9, so a no-move rule would never
+   apply). Here the file runs again, inside a transaction that is rolled back, over prior rows:
+     LOSS   rows one XP a step cheaper than the file's (every Level 2+ threshold under the file's), with a hero on that curve's Level 2: it
+            must be refused, naming the one hero
+     LIFT   the rows the chain held before it (the last earlier file that wrote hr_level_curve), with a hero on a Level the file lowered (when
+            it lowers one): it must apply, and the hero must read the file's higher Level
+     STILL  the same rows with only a hero at 0 XP: it must apply
+   `fileSql` is the file's text, so --selftest can hand it a copy without the refusal, or with the old no-move rule. */
 const HOLD_MOVER = '1e0e1000-0000-4000-8000-00000000a0e1', HOLD_STILL = '1e0e1000-0000-4000-8000-00000000a0e2';
 const parseCurveRows = (sql) => {
   const m = /insert into public\.hr_level_curve \(from_level, base_xp, first_xp, rise, bend\) values\s*([\s\S]*?);/.exec(sql);
@@ -312,8 +318,12 @@ async function curveHoldCase(db, fileSql, prior, heroes) {
       ${heroes.map(([id, x]) => `insert into auth.users (id) values ('${id}') on conflict do nothing;
       insert into public.player_state (user_id, slot, version, level_xp) values ('${id}', 0, 1, ${x}) on conflict (user_id, slot) do update set level_xp = excluded.level_xp;`).join('\n')}`);
     const xs = (await db.query('select level_xp::text as x from public.player_state')).rows.map((r) => Number(r.x));
-    const movers = xs.filter((x) => levelOn(prior, x) !== XP.charLevelFromXp(x)).length;
-    try { await db.exec(fileSql); return { movers, refused: null }; } catch (e) { return { movers, refused: String(e.message || e) }; }
+    const losers = xs.filter((x) => levelOn(prior, x) > XP.charLevelFromXp(x)).length;
+    try { await db.exec(fileSql); } catch (e) { return { losers, refused: String(e.message || e), after: null }; }
+    /* applied: the Level each planted hero reads on the file's rows, read back before the rollback */
+    const after = Object.fromEntries((await db.query(`select user_id::text as id, public.hr_char_level(level_xp)::int as lv from public.player_state
+      where user_id in (${heroes.map(([id]) => `'${id}'`).join(', ')})`)).rows.map((r) => [r.id, Number(r.lv)]));
+    return { losers, refused: null, after };
   } finally { await db.exec('rollback'); }
 }
 async function curveHold(db, fileSql) {
@@ -326,16 +336,24 @@ async function curveHold(db, fileSql) {
   for (let i = at - 1; i >= 0 && !prior; i--) prior = parseCurveRows(await readFile(chain[i][1], 'utf8'));
   if (!prior || !prior.length) return ['CURVE-HOLD: no earlier file writes hr_level_curve'];
   const now = XP.levelCurveRows();
-  let mover = null;
-  for (let L = 2; L < 3000 && mover === null; L++) for (const x of [XP.xpForLevelOn(now, L), XP.xpForLevelOn(prior, L)]) if (mover === null && levelOn(prior, x) !== XP.charLevelFromXp(x)) mover = x;
-  if (mover === null) return ['CURVE-HOLD: ' + OUT_NAME + ' moves no Level threshold below 3,000 against the rows before it, so nothing here can be refused'];
   const bad = [];
-  const a = await curveHoldCase(db, fileSql, prior, [[HOLD_MOVER, mover], [HOLD_STILL, 0]]);
-  if (!a.refused || !a.refused.includes(a.movers + ' live hero(es) would change Level')) {
-    bad.push(`CURVE-HOLD: a hero at ${mover} Level XP (Level ${levelOn(prior, mover)} on the rows before, ${XP.charLevelFromXp(mover)} on these) was not refused naming ${a.movers} mover(s): ${a.refused || 'the file applied'}`);
+  /* LOSS: on rows one XP a step cheaper, a hero at that curve's Level 2 reads Level 2 there and Level 1 on the file's rows */
+  const cheaper = XP.levelCurveRowsOf({ first: now[0].first - 1, brackets: now.map((r) => ({ from: r.from, rise: r.rise, bend: r.bend })) });
+  const lost = XP.xpForLevelOn(cheaper, 2);
+  const a = await curveHoldCase(db, fileSql, cheaper, [[HOLD_MOVER, lost], [HOLD_STILL, 0]]);
+  if (a.losers !== 1 || !a.refused || !a.refused.includes('1 live hero(es) would lose a Level')) {
+    bad.push(`CURVE-HOLD: a hero at ${lost} Level XP (Level ${levelOn(cheaper, lost)} on rows one XP a step cheaper, ${XP.charLevelFromXp(lost)} on these) was not refused naming 1 hero: ${a.refused || 'the file applied'}`);
   }
-  const b = await curveHoldCase(db, fileSql, prior, [[HOLD_STILL, 0]]);
-  if (b.movers === 0 && b.refused) bad.push('CURVE-HOLD: with no hero in a moved gap the file refused itself: ' + b.refused.slice(0, 200));
+  /* LIFT: a hero in a gap the file lowered against the rows the chain held before it reads its higher Level, and the file applies */
+  let lifted = null;
+  for (let L = 2; L < 3000 && lifted === null; L++) { const x = XP.xpForLevelOn(now, L); if (levelOn(prior, x) < XP.charLevelFromXp(x)) lifted = x; }
+  if (lifted !== null) {
+    const b = await curveHoldCase(db, fileSql, prior, [[HOLD_MOVER, lifted], [HOLD_STILL, 0]]);
+    if (b.refused) bad.push(`CURVE-HOLD: a hero the file lifts (${lifted} Level XP: Level ${levelOn(prior, lifted)} before, ${XP.charLevelFromXp(lifted)} on these) refused the file: ${b.refused.slice(0, 200)}`);
+    else if (b.after[HOLD_MOVER] !== XP.charLevelFromXp(lifted)) bad.push(`CURVE-HOLD: a hero the file lifts reads Level ${b.after[HOLD_MOVER]} after it, not ${XP.charLevelFromXp(lifted)}`);
+  }
+  const c = await curveHoldCase(db, fileSql, prior, [[HOLD_STILL, 0]]);
+  if (c.refused) bad.push('CURVE-HOLD: with no hero in a moved gap the file refused itself: ' + c.refused.slice(0, 200));
   return bad;
 }
 /* the file as the chain applies it */
@@ -355,17 +373,20 @@ async function main() {
   /* CURVE-HOLD runs first, before the envelope probes plant their own heroes */
   const fileSql = await curveFileSql();
   const hold = await curveHold(db, fileSql);
-  const holdSaid = process.argv.includes('--selftest')
-    ? await curveHold(db, fileSql.replace(/  if v_bad <> '0' then raise exception 'level-curve: % live hero\(es\) would change Level[^\n]*\n/, ''))
-    : [];
+  const selftest = process.argv.includes('--selftest');
+  /* the file without its refusal (a loser applies), and with the 11-19 no-move rule back (a lifted hero refuses it) */
+  const holdSaid = selftest ? await curveHold(db, fileSql.replace(/  if v_bad <> '0' then raise exception 'level-curve: % live hero\(es\) would lose a Level[^\n]*\n/, '')) : [];
+  const strictSaid = selftest ? await curveHold(db, fileSql.replace('where public.hr_char_level(s.level_xp) < h.lv;', 'where public.hr_char_level(s.level_xp) <> h.lv;')) : [];
   const sql = await readSql(db);
   if (process.argv.includes('--selftest')) {
     let missed = 0;
     if (compare(JS, sql).length) { console.error('core-curves --selftest: the clean JS already disagrees'); process.exit(1); }
     if (hold.length) { console.error('core-curves --selftest: CURVE-HOLD is red on the clean file: ' + hold[0]); process.exit(1); }
-    /* CURVE-HOLD's own drift: the newest curve file without its refusal must be named */
-    console.log(`  ${holdSaid.length ? 'ok  ' : 'MISS'} a curve file that moves a live Level${holdSaid.length ? ' (' + holdSaid[0].slice(0, 110) + ')' : ' — nothing said'}`);
+    /* CURVE-HOLD's own drifts: the newest curve file without its refusal, and with the no-move rule that refuses a lifted hero */
+    console.log(`  ${holdSaid.length ? 'ok  ' : 'MISS'} a curve file that takes a live Level${holdSaid.length ? ' (' + holdSaid[0].slice(0, 110) + ')' : ' — nothing said'}`);
     if (!holdSaid.length) missed++;
+    console.log(`  ${strictSaid.length ? 'ok  ' : 'MISS'} a curve file that refuses a hero its lowered gap lifts${strictSaid.length ? ' (' + strictSaid[0].slice(0, 110) + ')' : ' — nothing said'}`);
+    if (!strictSaid.length) missed++;
     for (const [name, over] of MUTANTS) {
       const caught = compare({ ...JS, ...over }, sql).length > 0;
       console.log(`  ${caught ? 'ok  ' : 'MISS'} ${name}`);
@@ -391,7 +412,7 @@ async function main() {
       if (!caught) missed++;
     }
     if (compareSkillEnvelope(JS, await readEnvelopeSkills(db)).length) { console.error('core-curves --selftest: the skill arm is red after its plants were rolled back'); missed++; }
-    const total = MUTANTS.length + ENV_DRIFTS.length + SKILL_DRIFTS.length + 1;
+    const total = MUTANTS.length + ENV_DRIFTS.length + SKILL_DRIFTS.length + 2;
     console.log(missed ? `core-curves --selftest: ${missed} drift(s) not caught` : `core-curves --selftest: all ${total} drifts caught`);
     process.exit(missed ? 1 : 0);
   }

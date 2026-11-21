@@ -881,7 +881,7 @@ export function scan(sources, playerTables) {
 // finding (an entry that matches nothing is RED — the list may not rot), and a
 // `proof` entry's strings must all still be present in the file.
 export const ACKNOWLEDGED = {
-  '1011-own-heroes-apart.sql :: dml :: update player_state': {
+  '1025-own-heroes-apart.sql :: dml :: update player_state': {
     verdict: 'scoped-by-proof',
     sites: 1,
     why: 'Section 1 is the file\'s WORK, not a self-check: the one-time pass that makes the box "Leave if anyone leaves" unsaid where it held '

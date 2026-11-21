@@ -3,7 +3,7 @@
 //
 // Tyler RULED 27-1 (2026-11-20): one "Carry on" press on the return card sends every hero back to what it did last (its ground, tier,
 // setup, party, Tamsin's Repeat, Blessings, loot plan), Storage before the store; no hunt ever starts by itself
-// (supabase/migrations/1010-carry-on.sql). The end card's "Hunt again, all four" is the same press for one party's own heroes.
+// (supabase/migrations/1024-carry-on.sql). The end card's "Hunt again, all four" is the same press for one party's own heroes.
 //
 //   carryOnPlan(account, cs, slots)          hr_carry_on_plan: what one press would do now, the SERVER's plan for each hero (a read:
 //                                            nothing moves). `slots`: null = the whole account, or the heroes the press is for.

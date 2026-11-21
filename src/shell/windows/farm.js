@@ -30,6 +30,9 @@
 //                      hr_farm_harvest and "Harvest and clear plot" → hr_farm_harvest_clear
 //                      (report #66). On its last harvest it withers, so it reads like any crop.
 //   The plot tier      Improve the soil at the server's price → hr_farm_upgrade_plot.
+//   Tend the field     under the field (./farm-tend.js): the server's bill (harvest, plant again, water, the seeds
+//                      and their gold, the plots left empty and why), then ONE hr_farm_tend at that bill's gold.
+//   Each seed row also says what its crop makes (its mana drink, else its Cooking rows), from the data.
 // Every number is the server's (src/session/farm-sections.js). The countdown only
 // displays, and when it runs out the window asks the server again; Harvest opens
 // on the server's `ready`, never on the clock. Every control is off while an
@@ -37,6 +40,8 @@
 // ════════════════════════════════════════════════════════════════════════
 import { farmLandOf, readyInMs } from '../../session/farm-sections.js';
 import { plantCrop, waterPlot, harvestPlot, clearPlot, upgradePlot } from '../../session/farm-intents.js';
+import { tendField } from '../../session/farm-tend.js';
+import { tendHtml, patchTend, tendPress, tendLine, cropMakes } from './farm-tend.js';
 import { bagOf, skillsOf, goldOf, shopOf, heldOf, drawsOnStorage } from '../../session/item-sections.js';
 import { CROPS } from '../../data/gathering.js';
 import { requiredPlotLevel, unlockedCrops, emptyPlotIndices } from '../../core/farm.js';
@@ -49,7 +54,7 @@ import { t, hasText } from '../../render/player-text.js';
 import { patchParts, targetOf } from '../goto.js';
 
 const SCRATCH = new WeakMap();
-const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { pick: null, pending: false, msg: '', asked: null }; SCRATCH.set(cs, s); } return s; };
+const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { pick: null, pending: false, msg: '', asked: null, tendCrop: null }; SCRATCH.set(cs, s); } return s; };
 
 /* The farm's own refusals, in plain words: farm.refused_<code> (some codes mean something else elsewhere: `not_ready`
    is the party's too). An own-property read, so a code like `constructor` falls through to the shared table. */
@@ -81,7 +86,7 @@ export function renderFarm() {
     + '<p class="hw-cap"><span class="hw-farm-land"></span><span class="hw-gold"></span></p>'
     + '<p class="hs-note hw-farm-shared">' + esc(t('farm.shared')) + '</p>'
     + '<ul class="hw-field" aria-label="' + esc(t('farm.plots_aria')) + '"></ul>'
-    + '<p class="hh-empty hw-farm-wait">' + esc(t('farm.loading')) + '</p>'
+    + '<p class="hh-empty hw-farm-wait">' + esc(t('farm.loading')) + '</p>' + tendHtml()
     + '<section class="hw-sow"><h3 class="hw-ledger-head is-on hw-sow-head"></h3><ul class="hw-ledger hw-seeds"></ul>'
     + '<p class="hs-note hw-sow-none"></p><div class="hw-tools"><button type="button" class="hh-tool is-link" data-hs-act="shop">' + esc(t('farm.open_shop')) + '</button>'
     + '<button type="button" class="hh-tool" data-hs-act="unpick">' + esc(t('controls.close')) + '</button></div></section>'
@@ -170,12 +175,13 @@ function patchSow(root, st, ctx) {
   rows(root.querySelector('.hw-seeds'), list, {
     key: (r) => r.id,
     build: (r) => element(ctx.doc, '<li class="hw-line" data-crop="' + esc(r.id) + '"><span class="hw-ico">' + itemIconHtml(ctx.glyphs, r.c.seed) + '</span>'
-      + '<span class="hw-line-name"><b>' + esc(r.c.name) + '</b><small></small></span>'
+      + '<span class="hw-line-name"><b>' + esc(r.c.name) + '</b><small></small><small class="hw-seed-makes"></small></span>'
       + '<button type="button" class="hh-tool" data-hs-act="sow" data-crop="' + esc(r.id) + '">' + esc(t('farm.plant')) + '</button>'
       + '<button type="button" class="hh-tool hw-sow-all" data-hs-act="sowall" data-crop="' + esc(r.id) + '"></button></li>'),
     patch: (li, r) => {
       patchParts(li.querySelector('small'), [t('farm.seed_line', { hours: r.c.hours, status: r.why || t(st.seedsWhere, { count: r.held, held: whole(r.held) }) })]
         .concat(r.buy ? [' ', r.buy] : []));
+      text(li.querySelector('.hw-seed-makes'), cropMakes(r.id));
       cls(li, 'is-locked', !!r.why);
       prop(li.querySelector('[data-hs-act="sow"]'), 'disabled', !!r.why || st.sc.pending);
       const all = li.querySelector('.hw-sow-all');
@@ -234,6 +240,7 @@ renderFarm.patch = function patchFarm(body, ctx) {
     + (extras.length ? ' · ' + t('farm.land_extra', { count: extras.length }) : ''));
   const ids = Array.from({ length: land.cap }, (_, i) => i).concat(extras);
   rows(root.querySelector('.hw-field'), ids, { key: String, build: (i) => element(ctx.doc, plotHtml(i)), patch: (li, i) => patchPlot(li, i, st, now) });
+  patchTend(root, cs, sc, ctx.doc);
   patchSow(root, st, ctx);
   patchTier(root, st);
   /* A countdown that ran out asks the server once per envelope; Harvest opens only on its answer. */
@@ -281,10 +288,12 @@ async function sowEach(ctx, sc, repaint, order, crop) {
 }
 
 renderFarm.act = function actFarm(ctx, body, action, ev, el) {
-  if (ev.type !== 'click') return false;
   const cs = ctx.character;
   const sc = scratchOf(cs);
   const repaint = () => renderFarm.patch(body, ctx);
+  /* Plant with: the crop for every plot the tend plants (the server's bill for it is in the envelope already) */
+  if (action === 'tendcrop') { if (ev.type === 'change' && !sc.pending) { sc.tendCrop = el.value || null; repaint(); } return true; }
+  if (ev.type !== 'click') return false;
   const plot = Number(el.getAttribute('data-plot'));
   const land = farmLandOf(cs, typeof ctx.now === 'function' ? ctx.now() : 0);
   if (action === 'shop') { if (ctx.wm) ctx.wm.goTo('shop', { tab: 'buy' }); return true; }
@@ -312,6 +321,11 @@ renderFarm.act = function actFarm(ctx, body, action, ev, el) {
       sc.pick = nextEmpty(cs, ctx, -1);
       return t('farm.planted_many', { crop: cropName(crop), count: r.n }) + (r.stop ? ' ' + t('farm.planted_stopped', { n: r.at + 1, why: farmWords(r.stop) }) : '');
     });
+    return true;
+  }
+  if (action === 'tend') {
+    const p = tendPress(cs, sc);   // the bill on screen: its crop and the gold the server put on it
+    if (p) run(sc, repaint, () => tendField(ctx.account, cs, p.crop, p.gold), t('farm.tending'), (r) => tendLine(r, farmWords));
     return true;
   }
   if (action === 'water') { run(sc, repaint, () => waterPlot(ctx.account, cs, plot), t('farm.watering'), () => t('farm.watered_done')); return true; }

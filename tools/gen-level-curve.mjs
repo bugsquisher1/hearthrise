@@ -62,7 +62,10 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
    new rows; 2027-03-23 stays history. */
 /* 1000-level-curve-early (lane/d-142-rulings, 2026-11-19): Levels 2-8 re-split for level-curve C6, the total to Level 9 held (no live Level moves),
    and the brackets past the ceiling re-fit to the re-pinned contract; core-model.js LEVEL_CURVE says why. Same table, 13 rows; 2027-04-07 stays history. */
-export const OUT_NAME = '1000-level-curve-early.generated.sql';
+/* 1016-level-curve-new-player (renumbered from 1009 past the set's 1009-1015; lane/c-levels-7-9, 2026-11-20; Tyler ruled balance call 27-2): Levels 7-9 re-cut for the new player as played
+   (life.mjs policy new), Levels 10-20 take the XP back, the total to Level 21 held. Thresholds 8-20 only fall, so the hold is NO LEVEL LOST
+   (the 11-19 route's name): a hero in a lowered gap reads its higher Level, one who would read a lower Level refuses the file. 1000 stays history. */
+export const OUT_NAME = '1016-level-curve-new-player.generated.sql';
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 
 /* The Levels the self-check pins: every bracket's edge, Tyler's target Levels and a deep one. */
@@ -98,17 +101,18 @@ export function buildSql(XP) {
 -- plpgsql since 2027-02-11-settle-plan-cache-2.generated.sql: a SQL copy is re-planned on
 -- every call on PostgreSQL 17), so every reader (the settle's death floor, hr_level_block,
 -- hr_level_of, the analyzer's ETA) follows with no edit.
--- NEW IN THIS FILE (lane/d-142-rulings, 2026-11-19): the Cellar ends at Level 5 and a kill pays 12%
--- less (balance-sheet.js STAT_FORMULA), so the early steps read 2.01-2.11x the one before (level-curve
--- C6). Steps 2 to 8 re-split to about 1.95x each, the total to Level 9 held, so every Level from 9
--- costs what it did; a new bracket at Level 110 and the one at 300 re-fit to the re-pinned contract
--- (no hero past 110). Level 10 at ${l10} XP, Level 50 at ${l50}. LIVE CHARACTERS: nothing is
--- stored per Level, so a hero's Level is read from its Level XP; §2 holds every hero's Level as the
--- rows this file replaces made it and refuses the whole file if one would move (read-only check
--- 2026-11-19: 22 heroes, 0 move; a hero mid-climb in a moved gap of Levels 2-8 at apply time refuses it).
--- ORDER: after 2027-02-11-settle-plan-cache-2.generated.sql (APPLIED). The hr-accrue deploy carrying
--- the same LEVEL_CURVE and XP a kill goes FIRST (the 1001 catalogues need it), then this file, then
--- the three 1001 files, at once: between the deploy and this file a Level 2-8 hero's death is priced
+-- NEW IN THIS FILE (lane/c-levels-7-9, 2026-11-20; Tyler ruled balance call 27-2): the new player as
+-- played (start kit, Hunt again in the Thicket) took 1.4 / 3.5 / 4.2 hours for Levels 7, 8 and 9 and
+-- reached Level 10 at 10.6 h, where both light players quit. Steps 7-9 re-cut to 21,000 / 29,000 /
+-- 34,002 XP (Level 10 at 6.0 h, none of Levels 1-15 over 4 h, tests/start-kit-pace.mjs); steps 10-20
+-- take the XP back (the Glade's 16-20 most), so the total to Level 21 and every step from 21 on cost
+-- what they did. Level 10 at ${l10} XP, Level 50 at ${l50}. LIVE CHARACTERS: nothing is
+-- stored per Level, so a hero's Level is read from its Level XP. Only thresholds 8-20 move and all
+-- fall: §2 holds every hero's Level as the rows this file replaces made it and refuses the whole file
+-- if one would read LOWER (no Level is lost); a hero in a lowered gap reads its higher Level at once,
+-- and a notice counts them.
+-- ORDER: 1016 in its name, after 1015 (no table or function shared with 1009-1015). The hr-accrue deploy carrying the same
+-- LEVEL_CURVE goes first, then this file at once: between the two a Level 8-20 hero's death is priced
 -- on two curves and may be refused once as death_xp_over, then settles on the next tick.
 -- No begin/commit (CLAUDE.md §2).
 -- ════════════════════════════════════════════════════════════════════════
@@ -148,9 +152,9 @@ ${values};
 -- The rows are exactly the generated set; both functions answer the JS values at every pinned Level (bracket edges,
 -- the target Levels, a deep one) and read back each boundary exactly (x - 1, x, the next total - 1); every step from
 -- Level 1 to 3,000 costs more than the one before; the block a fresh hero projects is Level 1 needing the first step;
--- no live hero's Level moves; no client reaches the rows or the functions.
+-- no live hero loses a Level; no client reaches the rows or the functions.
 do $$
-declare v_bad text; v_role text;
+declare v_bad text; v_role text; v_up int;
 begin
   if (select count(*) from public.hr_level_curve) <> ${rows.length}
      or exists (select 1 from (values
@@ -168,12 +172,17 @@ ${values}) d(from_level, base_xp, first_xp, rise, bend)
       or (p.l > 1 and public.hr_char_level(p.x - 1) <> p.l - 1)
       or public.hr_char_level(public.hr_char_xp_for_level(p.l + 1) - 1) <> p.l;
   if v_bad is not null then raise exception 'level-curve: hr_char_level does not read back Level(s) %', v_bad; end if;
-  /* NO LIVE LEVEL MOVES (2026-11-19, the Coordinator's no-Level-loss route): every hero reads the Level on these rows that it read on
-     the rows they replace. One hero standing in a moved gap refuses the whole file; nothing applies. */
+  /* NO LIVE LEVEL LOST (2026-11-19, the Coordinator's no-Level-loss route; 2026-11-20 lane/c-levels-7-9: a lowered threshold may lift a
+     hero, it never drops one): every hero reads at least the Level on these rows that it read on the rows they replace. One hero who
+     would read lower refuses the whole file; nothing applies. */
   select count(*)::text into v_bad from pg_temp.hr_level_curve_held h
     join public.player_state s on s.user_id = h.user_id and s.slot = h.slot
-   where public.hr_char_level(s.level_xp) <> h.lv;
-  if v_bad <> '0' then raise exception 'level-curve: % live hero(es) would change Level on these rows; nothing applied', v_bad; end if;
+   where public.hr_char_level(s.level_xp) < h.lv;
+  if v_bad <> '0' then raise exception 'level-curve: % live hero(es) would lose a Level on these rows; nothing applied', v_bad; end if;
+  select count(*) into v_up from pg_temp.hr_level_curve_held h
+    join public.player_state s on s.user_id = h.user_id and s.slot = h.slot
+   where public.hr_char_level(s.level_xp) > h.lv;
+  raise notice 'level-curve: % live hero(es) read a higher Level on these rows', v_up;
   select string_agg(s.l::text, ', ') into v_bad from (
     select l, public.hr_char_xp_for_level(l + 1) - public.hr_char_xp_for_level(l) as step,
            lag(public.hr_char_xp_for_level(l + 1) - public.hr_char_xp_for_level(l)) over (order by l) as before
@@ -224,12 +233,13 @@ async function selftest() {
      or read the retired limits */
   if (/create or replace function/.test(sql) || /level_quartic|hr_hunt_limit/.test(sql)) { console.error('  MISSED  the file restates a curve function'); bad++; }
   else console.log('  caught  a curve function restated (SQL, re-planned per call)');
-  /* no live Level moves (2026-11-19): the file holds every hero's Level before the rows go and refuses itself if one moved; the
-     replay half (a hero planted in a moved gap is refused, one off it is not) is tests/core-curves.mjs's CURVE-HOLD */
+  /* no live Level lost (2026-11-19, raise-only since 2026-11-20): the file holds every hero's Level before the rows go and refuses
+     itself if one would read lower; the replay half (a hero planted where it would drop is refused, one lifted by a lowered gap applies
+     and reads its higher Level) is tests/core-curves.mjs's CURVE-HOLD */
   if (!/create temp table hr_level_curve_held as\s+select s\.user_id, s\.slot, public\.hr_char_level\(s\.level_xp\)/.test(sql)
       || sql.indexOf('create temp table hr_level_curve_held') > sql.indexOf('delete from public.hr_level_curve')
-      || !/where public\.hr_char_level\(s\.level_xp\) <> h\.lv;\s+if v_bad <> '0' then raise exception/.test(sql)) { console.error('  MISSED  a curve file that can move a live Level'); bad++; }
-  else console.log('  caught  a curve file that can move a live Level');
+      || !/where public\.hr_char_level\(s\.level_xp\) < h\.lv;\s+if v_bad <> '0' then raise exception/.test(sql)) { console.error('  MISSED  a curve file that can take a live Level'); bad++; }
+  else console.log('  caught  a curve file that can take a live Level');
   if (bad) { console.error('gen-level-curve --selftest: ' + bad + ' refusal(s) did not bite'); process.exit(1); }
   console.log('gen-level-curve --selftest: every refusal bites');
 }

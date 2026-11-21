@@ -118,7 +118,7 @@ export const AWAY_TEXT = Object.freeze({
   done_party: '{name} waited in town: training is solo',
   done_no_train: '{name} couldn\'t train {skill} and waited in town',
 
-  /* CARRY ON (Tyler RULED 27-1, 2026-11-20; src/shell/carry-on.js, 1010-carry-on.sql): the return card's one press for the whole account, and
+  /* CARRY ON (Tyler RULED 27-1, 2026-11-20; src/shell/carry-on.js, 1024-carry-on.sql): the return card's one press for the whole account, and
      what it will do for each hero, every fact the server's plan. {name} the hero, {ground} its ground, {tier} the tier's name, {items}
      "40 Cooked Swordfish, 20 Mana Potion", {gold} a gold figure. One hero a line, short sentences, no semicolons. */
   carry_press: 'Carry on',

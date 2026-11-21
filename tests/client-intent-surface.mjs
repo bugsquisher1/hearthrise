@@ -88,7 +88,7 @@ export const CLIENT_RPCS = Object.freeze({
   hr_hunt_enter: 'go hunting with names and counts of own supplies; band, stamina and stock are the server’s (CharacterSession.enterHunt; CharacterSession.huntAgain, the Hunt again card)',
   hr_bank_move: 'move a stack between the bag and the home storage, value-neutral (CharacterSession.moveStorage)',
   /* The UX flow audit 2026-11-11 (2027-04-13-bank-move-many.sql): ids and a direction, WHOLE stacks at the server's own count, all or nothing. */
-  /* CARRY ON (1010-carry-on.sql, Tyler RULED 27-1): the plan is a read; the press names slots, the gold figure the player was shown and a key */
+  /* CARRY ON (1024-carry-on.sql, Tyler RULED 27-1): the plan is a read; the press names slots, the gold figure the player was shown and a key */
   hr_carry_on_plan: 'what one Carry on press would do for each of the caller\'s own heroes: the slots, nothing else; a read, nothing moves (carry-on-intents.js carryOnPlan)',
   hr_carry_on: 'ONE press sends the caller\'s own heroes back to their last hunt through the existing doors: the slots (or none for the account), the Blessings gold the plan showed (it only refuses: quote_changed) and a key; no ground, count, item or price (carry-on-intents.js carryOn)',
   hr_bank_move_many: 'move many whole stacks between the bag and the home storage in one call, value-neutral, all or nothing (storage-intents.js moveStorageMany)',
@@ -174,6 +174,8 @@ export const CLIENT_RPCS = Object.freeze({
   hr_farm_harvest_clear: 'harvest a ready plot, then remove a regrowing plant so the plot is empty; a slot, a plot and a key only (farm-intents.js clearPlot; 2027-01-26-farm-harvest-clear.sql)',
   hr_farm_harvest_replant: 'harvest a ready plot and plant the same crop again, from an own seed or one bought at the listed Shop price (farm-intents.js harvestPlot)',
   hr_farm_upgrade_plot: 'buy the next plot tier the client expects; the server prices it in gold (farm-intents.js upgradePlot)',
+  /* Tend the field (1017-tend-the-field.sql): a slot, a crop id or null, the bill's gold AS THE SERVER SENT IT (compared, never charged as given) and a key; never a plot. */
+  hr_farm_tend: 'harvest every ready plot, plant it again and water the field in one press at the farm_tend bill’s gold; the server plans, compares and refuses quote_changed (farm-tend.js tendField)',
   /* Tamsin's tally (2026-12-23-tally-tasks.sql): catalogue ids only; the server counts the kills, prices the reward and picks the piece. */
   /* What gold buys in town (2027-02-27-town-shows.sql, -town-crier.sql): a catalogue id, the price the player saw and a fresh key; the server re-quotes and charges. */
   hr_town_sinks_view: 'the Havora window\'s read of this account\'s quotes and last choices; a read, while the window is open (town-intents.js readSinks)',

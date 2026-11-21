@@ -189,7 +189,7 @@ export const REASONS = Object.freeze({
     /* 2027-05-20-yard-stop.sql, post-140 audit C10: a Stop pending to the server's close */
     { cond: '!!stopping', words: "text(root.querySelector('.tw-stop-why'), stopping)", where: 'Stop training while its Stop pends: the line beside it says the hunt bar\'s words ("Leaving in 3s", "Leaving now…"), and data-off-why says it on a press' },
   ],
-  /* Carry on (1010-carry-on.sql): off while the server's plan has no hero to send; the block is hidden then, except right after a press */
+  /* Carry on (1024-carry-on.sql): off while the server's plan has no hero to send; the block is hidden then, except right after a press */
   'src/shell/carry-on.js': [
     { cond: 's.pending || !live', words: "text(el.querySelector('.haway-carry-msg'), s.msg)", where: 'Carry on: hidden while no hero would go; shown off only after a press, when the line under it says who went or why the server refused (a hero that stays reads its own reason in the list above)' },
   ],
@@ -388,6 +388,10 @@ export const REASONS = Object.freeze({
     { cond: '!r.why', words: 'r.why', where: 'the crop row\'s own why' },
     { cond: '!verb', words: 'verb', where: 'the plot says what it needs' },
     { cond: 'st.farming < up.farming || !afford', words: "t('farm.tier_next", where: 'the tier line names the price and Farming level (OPEN: does not say which is short)' },
+  ],
+  /* Tend the field (1017-tend-the-field.sql): off only when the server's bill has nothing to do, and the bill's first line says so */
+  'src/shell/windows/farm-tend.js': [
+    { cond: '!b.work', words: "if (!b.work) out.push(t('farm.tend_nothing'));", where: 'Tend the field: the bill above it reads "Nothing to tend right now", and every plot it leaves empty says why' },
   ],
   'src/shell/windows/configure-action.js': [
     { cond: 'off', words: "text(el.querySelector('.ca-need-t'), r.locked ? r.need || '' : '')", where: 'a locked row names what it needs under its name, whole in its title (rowNeed; UI audit 2026-11-18, phone-touch PH-1)' },

@@ -1,11 +1,11 @@
 -- ════════════════════════════════════════════════════════════════════════
--- supabase/migrations/1011-own-heroes-apart.sql — AN ACCOUNT'S OWN HEROES END TOGETHER ONLY IF THE PLAYER SAYS SO
+-- supabase/migrations/1025-own-heroes-apart.sql — AN ACCOUNT'S OWN HEROES END TOGETHER ONLY IF THE PLAYER SAYS SO
 --   (lane/c-carry-on, systems-engineer, 2026-11-20; build plan L07, docs/design/balance-program/30-plan.md §D: "Own heroes end together
 --   only if you say so"; 27-retention.md "For other dives", 21 combat: REAL, 99 of 249 hunts ended because another hero of the same
 --   account left; "Leave if anyone leaves" is on by default and one hero's stamina ends four hunts).
 --
--- STATUS: supabase/migration-notes/1011-own-heroes-apart.sql.json (STAGED until the Coordinator applies it).
--- ORDER: the sequence in this file's name (CLAUDE.md rule 12): it runs after every file on its base (after 1010-carry-on.sql; neither
+-- STATUS: supabase/migration-notes/1025-own-heroes-apart.sql.json (STAGED until the Coordinator applies it).
+-- ORDER: the sequence in this file's name (CLAUDE.md rule 12): it runs after every file on its base (after 1024-carry-on.sql; neither
 -- needs the other). Applied as ONE transaction by the apply tool; never begin/commit here. Ends with its §4 self-check.
 --
 -- ── THE RULE ────────────────────────────────────────────────────────────────
@@ -81,7 +81,7 @@ end $mig$;
 -- planned again on every call on PostgreSQL 17 (tests/settle-budget.mjs SB-3); plpgsql plans it once per backend.
 create or replace function public.hr_party_leave_together_of(p_user uuid, p_slot int, p_party uuid)
 returns boolean language plpgsql stable set search_path = public, pg_catalog as $fn$
--- OWN-HEROES-APART (1011-own-heroes-apart.sql): the hero's box when its player said, else on only beside another account's hero.
+-- OWN-HEROES-APART (1025-own-heroes-apart.sql): the hero's box when its player said, else on only beside another account's hero.
 #variable_conflict use_column
 begin
   return (select hr_q.v from (

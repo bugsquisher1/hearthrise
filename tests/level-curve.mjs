@@ -15,7 +15,9 @@
 //   C1  the measurement is THIS game's: taken on this LEVEL_CURVE, and the data a
 //       ground's XP an hour is made of (monsters' xp/hp/level/atk/def, the open
 //       grounds' bands, fits, respawns and pockets) is unchanged since
-//   C2  at the reference rate every target Level is within LEVEL_PACE.tolerance
+//   C2  at the reference rate every target Level is within LEVEL_PACE.tolerance (the
+//       careers' targets: the one LEVEL_PACE.newPlayer names, Level 10, is held on the
+//       start-kit hero by tests/start-kit-pace.mjs, Tyler 2026-11-20)
 //   C3  the careers themselves (the real engine, not the per-Level model) reached
 //       every target Level they could reach within the tolerance, and Level
 //       LEVEL_PACE.early.level inside its hours (the tutorial's promise); every career reached the
@@ -44,7 +46,7 @@ import { fileURLToPath } from 'node:url';
 import { isMain } from './_is-main.mjs';
 import * as XP from '../src/core/xp.js';
 import { LEVEL_CURVE, LEVEL_PACE } from '../src/data/core-model.js';
-import { paceFingerprint, loadPaceData, hoursTo, referenceRate } from '../tools/balance-sim/pace.mjs';
+import { paceFingerprint, loadPaceData, hoursTo, referenceRate, careerTargets } from '../tools/balance-sim/pace.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SNAP = JSON.parse(readFileSync(join(ROOT, 'tools/balance-sim/level-pace.json'), 'utf8'));
@@ -79,10 +81,11 @@ function judge(w) {
   const below = (c) => ({ first: c.first, brackets: c.brackets.filter((b) => b.from < snap.ceiling) });
   if (!same(below(snap.curve), below(w.curve))) out.push('C1: tools/balance-sim/level-pace.json was measured on another LEVEL_CURVE below Level ' + snap.ceiling + ': re-measure (see the header)');
   if (snap.fingerprint !== w.fingerprint) out.push(`C1: the grounds or monsters changed since the pace was measured (${snap.fingerprint} -> ${w.fingerprint}): re-measure (see the header)`);
-  /* C2 */
+  /* C2. The careers' targets: Level 10 is LEVEL_PACE.newPlayer's (Tyler 2026-11-20, 27-2), held on the start-kit hero by
+     tests/start-kit-pace.mjs, so neither C2 nor C3 pulls the careers' Level 10 back to 6 hours */
   const R = referenceRate(snap, pace.contract);
   const h = hoursTo(xpFor, R, pace.targets.map((t) => t[0]));
-  for (const [L, T] of pace.targets) {
+  for (const [L, T] of careerTargets(pace)) {
     const e = h[L] / T - 1;
     if (!(Math.abs(e) <= pace.tolerance)) out.push(`C2: Level ${L} takes ${h[L].toFixed(1)} h at the reference rate, target ${T} h (${pct(e)}, tolerance ${pct(pace.tolerance)})`);
   }
@@ -90,7 +93,7 @@ function judge(w) {
      alone, so their rate and their median read fast (the March's first measure: 6 of 8 short of Level 100, which "took" 406 h) */
   const short = Object.entries(snap.careers || {}).filter(([, c]) => !(Math.max(...(c.reached || [0])) >= snap.ceiling)).map(([s, c]) => s + ' ' + Math.max(...(c.reached || [0])));
   if (short.length) out.push(`C3: ${short.length} career(s) stopped under the ceiling (Level ${snap.ceiling}): ${short.join(', ')}; the Levels past them are the faster styles' alone: re-measure to the ceiling`);
-  for (const [L, T] of pace.targets) {
+  for (const [L, T] of careerTargets(pace)) {
     if (L > snap.ceiling) continue;
     const m = snap.measuredHours[L];
     if (!Number.isFinite(m)) { out.push(`C3: the careers never reached Level ${L} (ceiling ${snap.ceiling})`); continue; }
@@ -154,6 +157,7 @@ const MUTANTS = [
   ['C2', 'the 10-19 quartic back (Level 10 in about an hour)', { xpFor: (L) => { const n = L - 1; return n ** 4 + 20 * n ** 3 + 50 * n; } }],
   ['C2', 'every Level 15% dearer', { xpFor: scaled(1.15) }],
   ['C2', 'every Level 15% cheaper', { xpFor: scaled(0.85) }],
+  ['C2', 'LEVEL_PACE.newPlayer gone (no start-kit guard holds Level 10, so the careers must again)', { pace: (w) => ({ ...w.pace, newPlayer: undefined }) }],
   ['C2', 'the long climb past Level 300 half as steep', { xpFor: (L) => (L <= 300 ? XP.charXpForLevel(L) : XP.charXpForLevel(300) + Math.round((XP.charXpForLevel(L) - XP.charXpForLevel(300)) / 2)) }],
   ['C0', 'xp.js reads its brackets one Level late', { xpFor: (L) => XP.charXpForLevel(Math.max(1, L - 1)) }],
   ['C0', 'xp.js totals one XP short past Level 60', { xpFor: (L) => (L > 60 ? XP.charXpForLevel(L) - 1 : XP.charXpForLevel(L)) }],

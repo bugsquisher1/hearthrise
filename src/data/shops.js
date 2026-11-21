@@ -54,26 +54,25 @@ function supplyOffer(s) {
 /** Every offer whose price is data. shop_buy sells only what a Shop tab lists (supply-basics.js SHOP_SOLD_KINDS; the rest
     is refused not_listed, catalogue.js offerRefusal): the legacy equip.* and seed.* rows are a vendor price list only. */
 export const SHOP_OFFERS = [
-  /* THE HERO-SLOT LADDER (Tyler 2026-11-09, "like a week to afford the first alt"; the designer's prices, PRIORITY_BOARD
-     "2026-11-09 Death share and alt price"): an account starts with ONE slot, the second costs about a week of one daily
-     login's hunting. The server charges public.hr_hero_slots (2027-03-25-hero-slots-one.sql), bound to these rows by
-     tests/hero-slot-buy.mjs. */
+  /* THE HERO-SLOT LADDER: one slot to start (Tyler 2026-11-09); "slots should cost even more" (Tyler 2026-11-20, call 24-9, 24-economy.md Q9).
+     The first stays within one lone hero's bank by the party grounds (tests/slot-price-guard.mjs); the later two climb freely. The server
+     charges public.hr_hero_slots (1015-hero-slots-dearer.sql), bound here by tests/hero-slot-buy.mjs. */
   {
     id: "character_slot.1", table: "character_slot",
     name: "Character slot 2",
-    cost: [{ kind: "currency", id: "gold", amount: 300000 }],
+    cost: [{ kind: "currency", id: "gold", amount: 400000 }],
     grant: [{ kind: "unlock", id: "character_slot:1", amount: 1 }],
   },
   {
     id: "character_slot.2", table: "character_slot",
     name: "Character slot 3",
-    cost: [{ kind: "currency", id: "gold", amount: 750000 }],
+    cost: [{ kind: "currency", id: "gold", amount: 1500000 }],
     grant: [{ kind: "unlock", id: "character_slot:2", amount: 1 }],
   },
   {
     id: "character_slot.3", table: "character_slot",
     name: "Character slot 4",
-    cost: [{ kind: "currency", id: "gold", amount: 1500000 }],
+    cost: [{ kind: "currency", id: "gold", amount: 4000000 }],
     grant: [{ kind: "unlock", id: "character_slot:3", amount: 1 }],
   },
   {
@@ -157,7 +156,8 @@ export const SHOP_OFFERS = [
      nails, shroud pins, Ford Weed, Grave Dust) and top crafts (Emberforged Bars, Runewood and Duskwood Planks, Cooked Shark). Gold: Castle
      2,500,000, rooms 600,000 to 900,000, 8,450,000 in all, once an account. MEASURED (`audit-table.mjs gold --to 90`): a hero banks 1.10M from
      Level 45 to 60, 1.77M to 75, 1.89M to 90, and Tempering 4 to 6 asks 2.23M of it, so the House is the account's chase of months. A fifth
-     rung is +2% at its bench (perks.js), a farm bed or a mount: capacity and comfort, never power. */
+     rung is +2% at its bench (perks.js), a farm bed or a mount: capacity and comfort, never power.
+     THE DEEDS RE-SPACED (Tyler 2026-11-20, call 26-3; 26-home.md §1): 400 / 25,000 / 150,000 / 600,000 / 2,500,000. A tier bought stays bought. */
   {
     id: "property.castle", table: "property",
     name: "Hearthrise Castle",
@@ -167,7 +167,7 @@ export const SHOP_OFFERS = [
   {
     id: "property.farmstead", table: "property",
     name: "Fieldworth Farmstead",
-    cost: [{ kind: "currency", id: "gold", amount: 2500 }, { kind: "item", id: "cooked_shrimp", amount: 10 }, { kind: "item", id: "copper_ore", amount: 25 }, { kind: "item", id: "oak_log", amount: 40 }, { kind: "item", id: "wolf_pelt", amount: 4 }],
+    cost: [{ kind: "currency", id: "gold", amount: 25000 }, { kind: "item", id: "cooked_shrimp", amount: 10 }, { kind: "item", id: "copper_ore", amount: 25 }, { kind: "item", id: "oak_log", amount: 40 }, { kind: "item", id: "wolf_pelt", amount: 4 }],
     grant: [{ kind: "unlock", id: "property:farmstead", amount: 2 }],
   },
   {
@@ -179,13 +179,13 @@ export const SHOP_OFFERS = [
   {
     id: "property.keep", table: "property",
     name: "Ironvale Keep",
-    cost: [{ kind: "currency", id: "gold", amount: 40000 }, { kind: "item", id: "bear_pelt", amount: 5 }, { kind: "item", id: "big_bones", amount: 20 }, { kind: "item", id: "iron_fitting", amount: 12 }, { kind: "item", id: "maple_plank", amount: 50 }, { kind: "item", id: "steel_bar", amount: 35 }, { kind: "item", id: "timber_beam", amount: 12 }],
+    cost: [{ kind: "currency", id: "gold", amount: 600000 }, { kind: "item", id: "bear_pelt", amount: 5 }, { kind: "item", id: "big_bones", amount: 20 }, { kind: "item", id: "iron_fitting", amount: 12 }, { kind: "item", id: "maple_plank", amount: 50 }, { kind: "item", id: "steel_bar", amount: 35 }, { kind: "item", id: "timber_beam", amount: 12 }],
     grant: [{ kind: "unlock", id: "property:keep", amount: 4 }],
   },
   {
     id: "property.manor", table: "property",
     name: "Stonecross Manor",
-    cost: [{ kind: "currency", id: "gold", amount: 10000 }, { kind: "item", id: "iron_fitting", amount: 6 }, { kind: "item", id: "iron_ore", amount: 40 }, { kind: "item", id: "silk_thread", amount: 8 }, { kind: "item", id: "timber_beam", amount: 6 }, { kind: "item", id: "willow_plank", amount: 35 }],
+    cost: [{ kind: "currency", id: "gold", amount: 150000 }, { kind: "item", id: "iron_fitting", amount: 6 }, { kind: "item", id: "iron_ore", amount: 40 }, { kind: "item", id: "silk_thread", amount: 8 }, { kind: "item", id: "timber_beam", amount: 6 }, { kind: "item", id: "willow_plank", amount: 35 }],
     grant: [{ kind: "unlock", id: "property:manor", amount: 3 }],
   },
   {

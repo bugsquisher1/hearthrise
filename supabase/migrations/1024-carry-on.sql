@@ -1,9 +1,9 @@
 -- ════════════════════════════════════════════════════════════════════════
--- supabase/migrations/1010-carry-on.sql — CARRY ON: ONE PRESS FOR THE ACCOUNT SENDS EVERY HERO BACK TO WHAT IT DID LAST
+-- supabase/migrations/1024-carry-on.sql — CARRY ON: ONE PRESS FOR THE ACCOUNT SENDS EVERY HERO BACK TO WHAT IT DID LAST
 --   (lane/c-carry-on, systems-engineer, 2026-11-20; build plan L07, docs/design/balance-program/30-plan.md §D; Tyler RULED 27-1
 --   recommended on 2026-11-20: "one Carry on press for the whole account on the return card, and no hunt ever starts by itself").
 --
--- STATUS: supabase/migration-notes/1010-carry-on.sql.json (STAGED until the Coordinator applies it).
+-- STATUS: supabase/migration-notes/1024-carry-on.sql.json (STAGED until the Coordinator applies it).
 -- ORDER: the sequence in this file's name (CLAUDE.md rule 12): it runs after every file on its base.
 -- Applied as ONE transaction by the apply tool; never begin/commit here. Ends with its §4 self-check.
 --
@@ -394,9 +394,9 @@ end $$;
 delete from public.hr_client_rpc_baseline where grantee = 'authenticated' and proname in ('hr_carry_on', 'hr_carry_on_plan');
 insert into public.hr_client_rpc_baseline (proname, identity_args, grantee, note) values
   ('hr_carry_on', 'p_slots integer[], p_gold bigint, p_idem uuid', 'authenticated',
-   'added 1010-carry-on (lane/c-carry-on): ONE press sends the caller''s own heroes back to their last hunt through the existing doors (loot dispatch, Tamsin, Blessings at the planned price, Storage first, hr_hunt_enter_for); p_gold only refuses (quote_changed); refuses nothing_to_carry_on'),
+   'added 1024-carry-on (lane/c-carry-on): ONE press sends the caller''s own heroes back to their last hunt through the existing doors (loot dispatch, Tamsin, Blessings at the planned price, Storage first, hr_hunt_enter_for); p_gold only refuses (quote_changed); refuses nothing_to_carry_on'),
   ('hr_carry_on_plan', 'p_slots integer[]', 'authenticated',
-   'added 1010-carry-on (lane/c-carry-on): READ ONLY, what that press would do for each of the caller''s own heroes, and the Blessings gold it would spend');
+   'added 1024-carry-on (lane/c-carry-on): READ ONLY, what that press would do for each of the caller''s own heroes, and the Blessings gold it would spend');
 
 -- ── §4 SELF-CHECK (CLAUDE.md §4), EXECUTED, every probe rolled back ──────────
 -- (a) two heroes of one account hunted the Mill Cellar, ate from their bags, and their hunts ended (stamina); Storage holds food: the plan

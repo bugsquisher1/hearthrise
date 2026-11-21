@@ -3917,7 +3917,7 @@ const DB_ARMS = {
       const r = await one(db, 'select public.hr_party_leave_together_set(0, false, $1::uuid)', [idem()]);
       if (!r || r.ok !== true || r.leave_together !== false) throw new Error('the untick answered ' + JSON.stringify(r));
     } });
-    /* each hero's box as the server reads it (1011-own-heroes-apart.sql hr_party_leave_together_of): four accounts, so unsaid reads on */
+    /* each hero's box as the server reads it (1025-own-heroes-apart.sql hr_party_leave_together_of): four accounts, so unsaid reads on */
     const boxes = async () => (await q(db, 'select public.hr_party_leave_together_of(ps.user_id, 0, $2::uuid) b from public.player_state ps where ps.user_id = any($1::uuid[]) and ps.slot = 0 order by array_position($1::uuid[], ps.user_id)', [UIDS, h.party])).map((r) => r.b).join();
     /* (g) on by default, (f) only the stranger's own box moved; each hero's party section reads its own */
     if (await boxes() !== 'true,true,true,false') return [`the boxes read ${await boxes()}, not the default on with seat 3's own untick`];
@@ -5437,7 +5437,7 @@ const DB_MUTANTS = [
     find: "  c_xp_skills constant text[] := array(select k.skill_id from public.hr_skills k where k.cat = 'combat' order by k.skill_id);",
     replace: "  c_xp_skills constant text[] := array(select k.skill_id from public.hr_skills k where k.cat = 'combat' and k.skill_id <> 'inner_flame' order by k.skill_id);" },
   /* LEAVE TOGETHER (2026-12-18-party-leave-together.sql): each server rule goes red on its own defect. */
-  /* the box's one reading since 1011-own-heroes-apart.sql: hr_party_leave_together_of (said, else on only beside another account's hero) */
+  /* the box's one reading since 1025-own-heroes-apart.sql: hr_party_leave_together_of (said, else on only beside another account's hero) */
   { arm: 'PARTY-LEAVE', name: '[leave together] a cascade end is proven for an unticked hero', fn: SS,
     find: "      when 'party_member_left' then public.hr_party_leave_together_of(p_user, p_slot, v_s.instance_id)",
     replace: "      when 'party_member_left' then true or public.hr_party_leave_together_of(p_user, p_slot, v_s.instance_id)" },
@@ -5464,7 +5464,7 @@ const DB_MUTANTS = [
   { arm: 'RUNE-LADDER-IDEM', name: '[rune ladder] a second apply rewrites a store rune\'s spell table', fn: 'public.hr_hunt_rune_spells()', asOf: true,
     find: '"rend":{"skill":"melee"', replace: '"rend":{"skill":"magic"' },
   /* the anchor is the CASE arm's head, which the whole chain's body (the harness's pre-check) and the body as of the file both hold:
-     1011-own-heroes-apart.sql moved what follows it */
+     1025-own-heroes-apart.sql moved what follows it */
   { arm: 'PARTY-LEAVE-IDEM', name: '[leave together] §0 takes a spliced body another file moved', fn: SS, asOf: true,
     find: "      when 'party_member_died' then ",
     replace: "      when 'party_member_died' then /* moved */ " },

@@ -78,6 +78,8 @@ declare
     /* an open hunt session's held setup to its seed horizon (1005-lever-horizon.sql): goes with the sessions it holds for */
     'hunt_setup_holds',
     'account_gold_given', 'player_titles', 'town_shows', 'town_works_gifts', 'town_works_totals',
+    /* the Works' day's goals, sized from the accounts the wipe clears (1014-works-goal-sized.sql): the first read after re-sizes them */
+    'hr_town_works_goals',
     /* scaled hunts' banked hours (2027-03-21-scaled-hunts.sql): a hero's, bought with gold the wipe also clears */
     'player_scaled_hours',
     /* a hero's training-item hours (2027-04-23-training-gear.sql): bought with gold or Crowns the wipe also clears */

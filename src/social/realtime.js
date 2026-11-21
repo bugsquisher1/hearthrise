@@ -12,7 +12,7 @@
 //                                                   its party and of its clan (event 'line')
 // A message is { t, line } with `line` the server's row (hr_chat_row /
 // hr_whisper_row), handed on as the server wrote it. GLOBAL COMES IN SMALL
-// BATCHES (31-1, supabase/migrations/1036-social-clans.sql hr_chat_global_flush):
+// BATCHES (31-1, supabase/migrations/1041-social-clans.sql hr_chat_global_flush):
 // event 'lines', { t, lines: [row, ...] }, each row handed on in order. Nothing is a postgres_changes
 // subscription any more: the WAL poller those cost (38.6 % of database time,
 // 2026-10-23) has nothing to decode (tests/realtime-cost.mjs).

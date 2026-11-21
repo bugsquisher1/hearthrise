@@ -1,9 +1,9 @@
 -- ════════════════════════════════════════════════════════════════════════
--- supabase/migrations/1037-hearthrise.sql — THE HEARTHRISE: THE XP WEEKEND SIZED BY THE GREAT HEARTH'S FIRE, ON THE 28 DAY CALENDAR
+-- supabase/migrations/1043-hearthrise.sql — THE HEARTHRISE: THE XP WEEKEND SIZED BY THE GREAT HEARTH'S FIRE, ON THE 28 DAY CALENDAR
 --   (lane/c-social, backend-architect, FB-12; the designer's ruling D-7, docs/design/overhaul/review/06-designer-rulings-w1.md section 1).
 --
--- STATUS: supabase/migration-notes/1037-hearthrise.sql.json (STAGED until the Coordinator applies it).
--- ORDER: the sequence in this file's name (CLAUDE.md rule 12): after 1037-hearthrise-live-events-catalogue.generated.sql (the rows, the
+-- STATUS: supabase/migration-notes/1043-hearthrise.sql.json (STAGED until the Coordinator applies it).
+-- ORDER: the sequence in this file's name (CLAUDE.md rule 12): after 1042-hearthrise-live-events-catalogue.generated.sql (the rows, the
 --   fire rule and the shape this file reads) and 1014-works-goal-sized.sql (hr_weekly_actives_count, the one definition of a weekly active
 --   account). Applied as ONE transaction by the apply tool; never begin/commit here. Ends with its §4 self-check.
 -- EDGE: none. The engine is handed the dial per window (hr_hunt_instance_read's live_xp) and multiplies at each kill's own combat time,
@@ -66,7 +66,7 @@ declare v_r record; v_def text;
 begin
   if to_regclass('public.hr_hearth_fire_rule') is null
      or not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'hr_live_events' and column_name = 'sized_by') then
-    raise exception 'PRECONDITION: apply 1037-hearthrise-live-events-catalogue.generated.sql first'; end if;
+    raise exception 'PRECONDITION: apply 1042-hearthrise-live-events-catalogue.generated.sql first'; end if;
   if to_regprocedure('public.hr_weekly_actives_count(uuid[])') is null then
     raise exception 'PRECONDITION: apply 1014-works-goal-sized.sql first (hr_weekly_actives_count)'; end if;
   if to_regprocedure('public.hr_live_event_windows(text,timestamp with time zone,timestamp with time zone)') is null
@@ -79,7 +79,7 @@ begin
     ('public.hr_live_events_view(uuid,integer)', '979dca775f9dc1f2b826564cabec1bd2'),
     ('public.hr_live_events_announce(timestamp with time zone)', '0b3512bf3d7a2962ad1a6b3e08ef4150')) t(fn, pre) loop
     v_def := pg_get_functiondef(v_r.fn::regprocedure);
-    if md5(regexp_replace(v_def, '[[:space:]]+', ' ', 'g')) is distinct from v_r.pre and strpos(v_def, 'HEARTHRISE (1037-hearthrise.sql)') = 0 then
+    if md5(regexp_replace(v_def, '[[:space:]]+', ' ', 'g')) is distinct from v_r.pre and strpos(v_def, 'HEARTHRISE (1043-hearthrise.sql)') = 0 then
       raise exception 'PIN: % is neither its expected image (%) nor this file''s: md5 % - another file moved it', v_r.fn, v_r.pre,
         md5(regexp_replace(v_def, '[[:space:]]+', ' ', 'g')); end if;
   end loop;
@@ -87,7 +87,7 @@ end $mig$;
 
 -- ── §1 THE SWITCHES ──────────────────────────────────────────────────────────
 insert into public.hr_feature_switches (switch_id, scope, note) values
-  ('event_world_boss', 'off', '1037-hearthrise.sql: who a world_boss event (Mossback at the Mill Pond, D-6) is live for. Off until FB-13 ships the boss.')
+  ('event_world_boss', 'off', '1043-hearthrise.sql: who a world_boss event (Mossback at the Mill Pond, D-6) is live for. Off until FB-13 ships the boss.')
   on conflict (switch_id) do nothing;
 -- Open Halls is retired (D-7): Call out costs no gold since 2026-11-20, so its type waived nothing. No catalogue row reads the switch now.
 delete from public.hr_feature_switches where switch_id = 'event_open_halls';
@@ -131,13 +131,13 @@ create table if not exists public.hr_hearth_fire_boss (
   at           timestamptz not null default now()
 );
 comment on table public.hr_hearth_fire is
-  '1037-hearthrise.sql: the Great Hearth''s fire (D-7), one row: fuel and boss marks since the last lighting, the fold''s watermark, the goal the next lighting reads. Written only by the fold, the lighting and the boss mark, under its row lock.';
+  '1043-hearthrise.sql: the Great Hearth''s fire (D-7), one row: fuel and boss marks since the last lighting, the fold''s watermark, the goal the next lighting reads. Written only by the fold, the lighting and the boss mark, under its row lock.';
 comment on table public.hr_hearth_fire_day is
-  '1037-hearthrise.sql: one account''s fuel counted into the fire in one UTC day, held to day_cap_shares x per_active_day (D-7). Written only by hr_hearth_fire_fold.';
+  '1043-hearthrise.sql: one account''s fuel counted into the fire in one UTC day, held to day_cap_shares x per_active_day (D-7). Written only by hr_hearth_fire_fold.';
 comment on table public.hr_hearthrise_lit is
-  '1037-hearthrise.sql: one Hearthrise window''s size, read ONCE from the fire at its lighting (D-7). hr_live_xp_windows pays it for the whole window.';
+  '1043-hearthrise.sql: one Hearthrise window''s size, read ONCE from the fire at its lighting (D-7). hr_live_xp_windows pays it for the whole window.';
 comment on table public.hr_hearth_fire_boss is
-  '1037-hearthrise.sql: the world boss falls that gave the fire a mark, one a window (D-7, FB-13 calls hr_hearth_fire_boss_mark).';
+  '1043-hearthrise.sql: the world boss falls that gave the fire a mark, one a window (D-7, FB-13 calls hr_hearth_fire_boss_mark).';
 alter table public.hr_hearth_fire enable row level security;
 alter table public.hr_hearth_fire_day enable row level security;
 alter table public.hr_hearthrise_lit enable row level security;
@@ -194,7 +194,7 @@ declare
   r public.hr_hearth_fire_rule%rowtype; f public.hr_hearth_fire%rowtype; v_to timestamptz; v_cap bigint;
   b record; v_old bigint; v_new bigint; v_added bigint := 0; v_next record;
 begin
-  -- HEARTHRISE (1037-hearthrise.sql): the one fold. Fuel only: an artisan settle of a fuel_<item> recipe on inner_flame (the items it
+  -- HEARTHRISE (1043-hearthrise.sql): the one fold. Fuel only: an artisan settle of a fuel_<item> recipe on inner_flame (the items it
   -- burnt) and a named burn (the rule's named_fuel). Never gold, never a client number.
   select * into r from public.hr_hearth_fire_rule where id;
   select * into f from public.hr_hearth_fire where id for update;
@@ -247,7 +247,7 @@ declare
   v_at timestamptz := least(coalesce(p_at, now()), now());
   w record; f public.hr_hearth_fire%rowtype; v_size jsonb; v_goal bigint; v_n int := 0; v_ins int;
 begin
-  -- HEARTHRISE (1037-hearthrise.sql): a minute's lead so a settle never reads the window before its size is written.
+  -- HEARTHRISE (1043-hearthrise.sql): a minute's lead so a settle never reads the window before its size is written.
   for w in
     select e.event_id, x.starts, x.ends
       from public.hr_live_events e
@@ -278,7 +278,7 @@ create or replace function public.hr_hearth_fire_boss_mark(p_window_start timest
 returns boolean language plpgsql security definer set search_path = public, pg_catalog as $fn$
 declare v_ins int;
 begin
-  -- HEARTHRISE (1037-hearthrise.sql): FB-13's fall calls this; nobody else.
+  -- HEARTHRISE (1043-hearthrise.sql): FB-13's fall calls this; nobody else.
   if p_window_start is null or p_boss is null or p_boss !~ '^[a-z0-9_]{1,64}$' then return false; end if;
   perform 1 from public.hr_hearth_fire where id for update;
   insert into public.hr_hearth_fire_boss (window_start, boss) values (p_window_start, p_boss) on conflict (window_start) do nothing;
@@ -293,7 +293,7 @@ create or replace function public.hr_hearthrise_tick()
 returns jsonb language plpgsql security definer set search_path = public, pg_catalog as $fn$
 declare v_lit int := 0; v_added bigint := null; v_last timestamptz;
 begin
-  -- HEARTHRISE (1037-hearthrise.sql): one tick at a time; a busy tick skips, the next minute catches up.
+  -- HEARTHRISE (1043-hearthrise.sql): one tick at a time; a busy tick skips, the next minute catches up.
   if not pg_try_advisory_xact_lock(hashtext('hr_hearthrise_tick')) then return jsonb_build_object('ok', false, 'busy', true); end if;
   v_lit := public.hr_hearthrise_light(now());
   select folded_at into v_last from public.hr_hearth_fire where id;
@@ -309,7 +309,7 @@ create or replace function public.hr_live_xp_windows(p_user uuid, p_ground text,
 returns jsonb language plpgsql stable security definer set search_path = public, pg_catalog as $fn$
 declare v_out jsonb;
 begin
-  -- HEARTHRISE (1037-hearthrise.sql): a fire-sized row pays its window's lit size (hr_hearthrise_pm); every other rule is 2027-03-22's.
+  -- HEARTHRISE (1043-hearthrise.sql): a fire-sized row pays its window's lit size (hr_hearthrise_pm); every other rule is 2027-03-22's.
   if p_user is null or p_ground is null or p_from is null or p_to is null or p_to <= p_from then return '[]'::jsonb; end if;
   -- the early out: no XP type switched on for this account, nothing to read
   if not exists (select 1 from public.hr_live_event_types t where t.dial = 'xpPm' and public.hr_feature_on(t.switch_id, p_user)) then
@@ -339,7 +339,7 @@ create or replace function public.hr_live_events_view(p_user uuid, p_slot int)
 returns jsonb language plpgsql stable security definer set search_path = public, pg_catalog as $fn$
 declare v_out jsonb; v_fire public.hr_hearth_fire%rowtype; v_proj int;
 begin
-  -- HEARTHRISE (1037-hearthrise.sql): one cycle ahead, the next window of each event; a fire row's pm is its lit size, or the size it would
+  -- HEARTHRISE (1043-hearthrise.sql): one cycle ahead, the next window of each event; a fire row's pm is its lit size, or the size it would
   -- light at now; a type with no dial says dial null and names its boss.
   if p_user is null or not exists (select 1 from public.hr_live_event_types t where public.hr_feature_on(t.switch_id, p_user)) then return null; end if;
   select * into v_fire from public.hr_hearth_fire where id;
@@ -369,7 +369,7 @@ declare
   r record; w record; v_edge text; v_at timestamptz; v_on boolean; v_body text; v_next timestamptz; v_n int := 0; v_ins int; v_pm int;
   utc constant text := 'FMDay at HH24:MI "UTC"';
 begin
-  -- HEARTHRISE (1037-hearthrise.sql): a fire row's {pct} is its window's lit size; everything else is 2027-03-22's.
+  -- HEARTHRISE (1043-hearthrise.sql): a fire row's {pct} is its window's lit size; everything else is 2027-03-22's.
   for r in select e.*, t.switch_id, t.dial from public.hr_live_events e join public.hr_live_event_types t on t.type_id = e.type_id order by e.event_id loop
     for w in select * from public.hr_live_event_windows(r.event_id, p_at - interval '1 hour' - make_interval(hours => r.hours), p_at + interval '1 millisecond') loop
       foreach v_edge in array array['start', 'end'] loop
@@ -404,7 +404,7 @@ returns jsonb language plpgsql stable security definer set search_path = public,
 declare f public.hr_hearth_fire%rowtype; r public.hr_hearth_fire_rule%rowtype; v_size jsonb; v_next record; v_lit public.hr_hearthrise_lit%rowtype;
         v_fm int; v_need bigint;
 begin
-  -- HEARTHRISE (1037-hearthrise.sql): counts only. `need` is the fuel to the next fuel mark (null when the fire is full).
+  -- HEARTHRISE (1043-hearthrise.sql): counts only. `need` is the fuel to the next fuel mark (null when the fire is full).
   if p_user is null or not exists (select 1 from public.hr_live_event_types t where t.dial = 'xpPm' and public.hr_feature_on(t.switch_id, p_user)) then
     return null; end if;
   select * into f from public.hr_hearth_fire where id;
@@ -422,7 +422,7 @@ begin
     'lit', case when v_lit.event_id is not null then jsonb_build_object('id', v_lit.event_id, 'pm', v_lit.pm, 'starts', v_lit.starts, 'ends', v_lit.ends) end);
 end $fn$;
 insert into public.hr_state_sections (key, fn, note) values
-  ('hearth_fire', 'hr_hearth_fire_view', '1037-hearthrise.sql: the Great Hearth''s fire (D-7): marks, fuel, goal, the fuel to the next mark, the next lighting, a lit weekend; null while the XP switch is off')
+  ('hearth_fire', 'hr_hearth_fire_view', '1043-hearthrise.sql: the Great Hearth''s fire (D-7): marks, fuel, goal, the fuel to the next mark, the next lighting, a lit weekend; null while the XP switch is off')
   on conflict (key) do update set fn = excluded.fn, note = excluded.note;
 
 -- ── §5 THE CRON ROW AND THE GRANTS ───────────────────────────────────────────

@@ -1,9 +1,9 @@
 -- ════════════════════════════════════════════════════════════════════════
--- supabase/migrations/1038-friend-link.sql — THE FRIEND LINK AT SIGN-UP: A NEW PLAYER WHO ARRIVES BY A FRIEND'S LINK STARTS WITH THAT FRIEND
+-- supabase/migrations/1044-friend-link.sql — THE FRIEND LINK AT SIGN-UP: A NEW PLAYER WHO ARRIVES BY A FRIEND'S LINK STARTS WITH THAT FRIEND
 --   (lane/c-social, backend-architect, FB-12; GR-72, DECIDED by Fable 2026-11-21: "A friend link at sign-up, with no reward"; chapter 06
 --   section 2.9; MM-47, friends for each account with one request, which 2026-10-25-social.sql already holds: friend_links is per account).
 --
--- STATUS: supabase/migration-notes/1038-friend-link.sql.json (STAGED until the Coordinator applies it).
+-- STATUS: supabase/migration-notes/1044-friend-link.sql.json (STAGED until the Coordinator applies it).
 -- ORDER: the sequence in this file's name (CLAUDE.md rule 12): after 2026-10-25-social.sql and 2027-01-17-social-pass.sql (the friend tables
 --   and the person helper). Applied as ONE transaction by the apply tool; never begin/commit here. Ends with its §4 self-check.
 -- EDGE: none. ON THE EA SECURITY LIST: it makes a friendship without the second press (the link's owner consented by sharing it).
@@ -11,7 +11,7 @@
 -- ── THE CONTRACT ─────────────────────────────────────────────────────────────
 -- friend_link_codes (NEW)    one row an account: its code (server-made, 10 hex characters; the shape accepts [a-z0-9]). RLS on, no client grant.
 -- friend_link_redeemed (NEW) one row an account that arrived by a link: whose, and when. Once an account, ever. RLS on, no client grant.
--- hr_friend_link_rule        one row: new_hours, 1036-social-catalogue.generated.sql's (src/data/chat-channels.js FRIEND_LINK).
+-- hr_friend_link_rule        one row: new_hours, 1040-social-catalogue.generated.sql's (src/data/chat-channels.js FRIEND_LINK).
 -- hr_friend_link() -> { ok, code }                CLIENT. The caller's code, made on first ask. 20 a minute.
 -- hr_friend_link_redeem(p_code text) -> { ok, person, state }   CLIENT. The caller, an account made within new_hours, becomes friends with
 --   the code's owner: one friend_links row (lo, hi), any pending ask between them gone. No gold, item, XP or anything else moves (no reward).
@@ -55,8 +55,8 @@ create table if not exists public.friend_link_redeemed (
   at        timestamptz not null default now(),
   check (user_id <> from_user)
 );
-comment on table public.friend_link_codes is '1038-friend-link.sql: one account''s friend link code (GR-72), made by the server on first ask. No client grant.';
-comment on table public.friend_link_redeemed is '1038-friend-link.sql: an account that arrived by a friend''s link, once ever. No client grant.';
+comment on table public.friend_link_codes is '1044-friend-link.sql: one account''s friend link code (GR-72), made by the server on first ask. No client grant.';
+comment on table public.friend_link_redeemed is '1044-friend-link.sql: an account that arrived by a friend''s link, once ever. No client grant.';
 alter table public.friend_link_codes enable row level security;
 alter table public.friend_link_redeemed enable row level security;
 revoke all on public.friend_link_codes from public, anon, authenticated, service_role;
@@ -67,7 +67,7 @@ create or replace function public.hr_friend_link()
 returns jsonb language plpgsql security definer set search_path = public, pg_catalog as $fn$
 declare v_uid uuid := auth.uid(); v_code text; i int;
 begin
-  -- FRIEND-LINK (1038-friend-link.sql): the caller's code, made on first ask.
+  -- FRIEND-LINK (1044-friend-link.sql): the caller's code, made on first ask.
   if v_uid is null then return jsonb_build_object('ok', false, 'error', 'not_signed_in'); end if;
   perform public.hr_access_check();
   if not public.hr_rate_ok(v_uid, 'social:link', 20, interval '1 minute') then return jsonb_build_object('ok', false, 'error', 'rate_limited'); end if;
@@ -89,7 +89,7 @@ create or replace function public.hr_friend_link_redeem(p_code text)
 returns jsonb language plpgsql security definer set search_path = public, pg_catalog as $fn$
 declare v_uid uuid := auth.uid(); v_owner uuid; v_hours int; v_born timestamptz; v_ins int;
 begin
-  -- FRIEND-LINK (1038-friend-link.sql): GR-72. A friendship, nothing else: no gold, item or XP moves.
+  -- FRIEND-LINK (1044-friend-link.sql): GR-72. A friendship, nothing else: no gold, item or XP moves.
   if v_uid is null then return jsonb_build_object('ok', false, 'error', 'not_signed_in'); end if;
   perform public.hr_access_check();
   if not public.hr_rate_ok(v_uid, 'social:link', 20, interval '1 minute') then return jsonb_build_object('ok', false, 'error', 'rate_limited'); end if;
@@ -126,9 +126,9 @@ begin
 end $grants$;
 delete from public.hr_client_rpc_baseline where grantee = 'authenticated' and proname in ('hr_friend_link', 'hr_friend_link_redeem');
 insert into public.hr_client_rpc_baseline (proname, identity_args, grantee, note) values
-  ('hr_friend_link', '', 'authenticated', 'added 1038-friend-link (FB-12, GR-72): the caller''s friend link code, made by the server on first ask; moves no value'),
+  ('hr_friend_link', '', 'authenticated', 'added 1044-friend-link (FB-12, GR-72): the caller''s friend link code, made by the server on first ask; moves no value'),
   ('hr_friend_link_redeem', 'p_code text', 'authenticated',
-   'added 1038-friend-link (FB-12, GR-72): a new account (hr_friend_link_rule) arriving by a friend''s link becomes that account''s friend, once; refused across a block; moves no value, no reward');
+   'added 1044-friend-link (FB-12, GR-72): a new account (hr_friend_link_rule) arriving by a friend''s link becomes that account''s friend, once; refused across a block; moves no value, no reward');
 
 -- ── §3 SELF-CHECK (CLAUDE.md §4), EXECUTED, every probe row rolled back ───────
 -- (a) the grants: both verbs authenticated's alone; the tables no client's; the detector passes strict

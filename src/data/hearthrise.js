@@ -12,7 +12,7 @@
 //   goal = fuelPerActiveDay x weekly active accounts x the days since the last lighting (at most maxDays), so 7 accounts fill it as
 //   easily as 7,000. One account adds at most fireDayCapShares x fuelPerActiveDay in a UTC day.
 // Gold never moves the fire (RULED 2026-11-04). The server folds the journal's fuel rows into the fire at most once an hour, never on the
-// settle path (supabase/migrations/1037-hearthrise.sql). Its copy of these numbers is the generated catalogue hr_hearth_fire_rule
+// settle path (supabase/migrations/1043-hearthrise.sql). Its copy of these numbers is the generated catalogue hr_hearth_fire_rule
 // (tools/gen-live-events.mjs, --check).
 //
 // WHY A FILE OF ITS OWN and not src/data/hearth.js (where D-7 names the row): hearth.js is vendored into the hr-accrue edge bundle, and

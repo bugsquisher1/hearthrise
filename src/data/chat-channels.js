@@ -16,7 +16,7 @@
 // The server names the concrete channel (the party, the clan): the client
 // never sends one (supabase/migrations/2026-10-25-chat-channels.sql). There is
 // no Local tab: hunts are instanced, so 'here' is a party, which has its tab, and
-// criers speak in Global (GR-69, Tyler 2026-11-21; 1036-social-clans.sql).
+// criers speak in Global (GR-69, Tyler 2026-11-21; 1041-social-clans.sql).
 // ════════════════════════════════════════════════════════════════════════
 
 export const CHAT_TABS = Object.freeze([
@@ -54,7 +54,7 @@ export const CHAT_LIMITS = Object.freeze({
   /* Private broadcast topics one client may join for chat at once (src/social/realtime.js): global and
      system are two, and the account's inbox (its whispers, its party's lines and its clan's lines) is the
      third; the rest is slack. Each join is one authorization and one socket subscription on Realtime,
-     so the ceiling is a cost bound, not a feature (2026-12-26-chat-broadcast.sql, 1036-social-clans.sql). */
+     so the ceiling is a cost bound, not a feature (2026-12-26-chat-broadcast.sql, 1041-social-clans.sql). */
   realtimeBindingsMax: 5,
   /* After a topic (re)joins, the history is re-read this long later, once for the whole burst of joins,
      to add the lines the socket missed while it was down. */
@@ -86,7 +86,7 @@ export const SLOW_MODE = Object.freeze([
   Object.freeze({ linesPerMin: 60, gapS: 60 }),
 ]);
 
-/* THE FRIEND LINK AT SIGN-UP (GR-72; 1038-friend-link.sql): an account this many hours old or newer may arrive by a friend's link, once. */
+/* THE FRIEND LINK AT SIGN-UP (GR-72; 1044-friend-link.sql): an account this many hours old or newer may arrive by a friend's link, once. */
 export const FRIEND_LINK = Object.freeze({ newAccountHours: 24 });
 
 /* THE WORDS A SLOW MODE REFUSAL READS (the server's `wait_s`). */

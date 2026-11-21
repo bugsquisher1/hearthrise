@@ -7,7 +7,7 @@
 //   hr_chat_global_rule  one row   src/data/chat-channels.js GLOBAL_BATCH (31-1: Global's batch cadence)
 //   hr_chat_slow_mode    a row a step  src/data/chat-channels.js SLOW_MODE (31-1: Global's slow mode)
 //   hr_friend_link_rule  one row   src/data/chat-channels.js FRIEND_LINK (GR-72: how new an account must be)
-// supabase/migrations/1036-social-clans.sql and 1038-friend-link.sql read them; this file runs before both.
+// supabase/migrations/1041-social-clans.sql and 1044-friend-link.sql read them; this file runs before both.
 //
 // THE FORWARD-FILE RULE: an applied file is history and is never regenerated in place; a moved row is a new file (OUT_NAME).
 //
@@ -25,7 +25,7 @@ import { dirname, join } from 'node:path';
 import { isMain } from '../tests/_is-main.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-export const OUT_NAME = '1036-social-catalogue.generated.sql';
+export const OUT_NAME = '1040-social-catalogue.generated.sql';
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 
 const int = (v, lo, hi, what) => { if (!Number.isInteger(v) || v < lo || v > hi) throw new Error('gen-social-catalogue: ' + what + ' ' + v + ' outside [' + lo + ', ' + hi + ']'); return v; };
@@ -63,9 +63,9 @@ export function buildSql(c) {
 --
 -- STATUS: supabase/migration-notes/${OUT_NAME}.json (STAGED until the Coordinator applies it; lane/c-social, backend-architect, FB-12).
 -- The Coordinator applies (tools/apply-migration.mjs, one file, never inside begin/commit). ON THE EA SECURITY LIST with
--- 1036-social-clans.sql: hr_clan_rules.found_gold is a price.
+-- 1041-social-clans.sql: hr_clan_rules.found_gold is a price.
 -- WHAT: four server-only catalogues, each rewritten whole. No function, grant or client verb.
--- ORDER: before 1036-social-clans.sql and 1038-friend-link.sql, which read them (the name sorts first in its sequence).
+-- ORDER: before 1041-social-clans.sql and 1044-friend-link.sql, which read them (the name sorts first in its sequence).
 -- Idempotent: the tables are made if absent and every row rewritten whole, so a second apply is byte-identical. No begin/commit.
 -- REVERSIBLE: drop the four tables (1036 and 1038 first: they read them).
 -- ════════════════════════════════════════════════════════════════════════

@@ -24,7 +24,7 @@
 //         body, nothing about the sender; the line shows only from the answer
 //   CL-3  CHANNELS ARE THE SERVER'S: the client listens to exactly global, system and
 //         the party and clan hr_chat_recent named; Party shows only in a party, Clan only
-//         in a clan; there is no Local tab (GR-69, 1036-social-clans.sql)
+//         in a clan; there is no Local tab (GR-69, 1041-social-clans.sql)
 //   CL-4  HISTORY IS THE SERVER'S WINDOW (2026-11-19-chat-stream-safe.sql): every
 //         re-read REPLACES the server tabs with exactly the lines hr_chat_recent
 //         returned (a line older than the server's floor leaves the window), and a
@@ -86,7 +86,7 @@
 //         under that player's name (the server's party_people id: Message, Add friend,
 //         Block), a monster opens Look, the ground opens nothing, the viewed hero no menu
 //   RT-1  the realtime joins one client holds are capped by CHAT_LIMITS.realtimeBindingsMax (the inbox counts once)
-//   RT-3  GLOBAL IN BATCHES (31-1, 1036-social-clans.sql hr_chat_global_flush): one 'lines' message hands on each of its rows in order
+//   RT-3  GLOBAL IN BATCHES (31-1, 1041-social-clans.sql hr_chat_global_flush): one 'lines' message hands on each of its rows in order
 //   RB-2  ONE GLOBAL'S RULES (31-1): the slow mode's refusal reads the server's whole seconds, and a busy room tightens (the data's steps rise)
 //   RT-2  every chat join is a PRIVATE broadcast topic (2026-12-26-chat-broadcast.sql): chat:<channel> for a public
 //         channel, the account's own chat:inbox:<uid> for its party's lines and its whispers; no postgres_changes
@@ -198,7 +198,7 @@ async function pureRules(M) {
       fail('WN-1 a world notice reads ' + JSON.stringify(n && { system: n.system, words, level: n.level }));
     if (M.lines.tabOfChannel('system', PARTY, CLAN) !== 'system') fail('WN-1 a System row is not on the System tab');
     if (M.lines.tabOfChannel('local:town', PARTY, CLAN) !== null) fail('CL-3 a Local line still has a tab');
-    /* A town notice (a powder on the Hearth) is the System tab's since there is no Local (1036-social-clans.sql hr_chat_zone_of): one sentence;
+    /* A town notice (a powder on the Hearth) is the System tab's since there is no Local (1041-social-clans.sql hr_chat_zone_of): one sentence;
        a player's line never reads as one, because hr_chat_send always stamps a Level */
     const tn = lineOf(row({ channel: 'system', from_name: 'Mira', from_level: null, from_weapon: null, from_role: 'notice', body: 'threw Cinnabar on the Great Hearth.' }));
     if (!tn || tn.system !== true || tn.channel !== 'system' || tn.parts.map((x) => x.text).join('') !== 'Mira threw Cinnabar on the Great Hearth.') fail('WN-1 a town notice reads ' + JSON.stringify(tn && { system: tn.system, channel: tn.channel, parts: tn.parts }));
@@ -1026,7 +1026,7 @@ async function pageRules(overrides, shots, { stopAtFirst = false } = {}) {
         await crierBtn.click();
       }
       // CW-2
-      /* a clan mate's line arrives in this account's own inbox (1036-social-clans.sql hr_chat_broadcast) */
+      /* a clan mate's line arrives in this account's own inbox (1041-social-clans.sql hr_chat_broadcast) */
       await page.evaluate((clan) => window.__hub.send('chat:inbox:11111111-2222-3333-4444-555555555555', { t: 'line', line: { id: '00000000-0000-4000-8000-00000000f002', channel: clan,
         from_id: 'aaaaaaaa-0000-4000-8000-0000000000b1', from_name: 'Bramble', from_slot: 0, from_level: 34, from_weapon: 'shield', from_role: null,
         body: 'down here', created_at: new Date().toISOString() } }, 'line'), CLAN);

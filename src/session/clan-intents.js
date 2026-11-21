@@ -1,5 +1,5 @@
 // ════════════════════════════════════════════════════════════════════════
-// src/session/clan-intents.js — THE CLAN'S VERBS AND READS (lane/c-social, FB-12; supabase/migrations/1036-social-clans.sql).
+// src/session/clan-intents.js — THE CLAN'S VERBS AND READS (lane/c-social, FB-12; supabase/migrations/1041-social-clans.sql).
 //
 // A clan is the ACCOUNT's (25-7): every call here names the account through its session and nothing about it or the clan beyond an id or
 // a typed name. The server decides who may do what, the price and every count. Reads are asked when the Clan window opens or after a

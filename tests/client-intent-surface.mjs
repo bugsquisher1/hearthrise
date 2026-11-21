@@ -193,7 +193,7 @@ export const CLIENT_RPCS = Object.freeze({
   hr_tally_collect: 'in town, be paid for done kill tasks; the server decides what is due, its gold and her pick (tally-intents.js collectTally)',
   /* The social side (2026-10-25-chat-channels.sql, 2026-10-25-social.sql): a slot, a channel KIND, a body,
      a target (a user id or a claimed name) and a yes/no — never a name, level, zone or role of the sender. */
-  hr_chat_send: 'post a line to global / party / clan; the server names the sender and the channel, and holds Global’s slow mode (ChatStore.send; 1036-social-clans.sql)',
+  hr_chat_send: 'post a line to global / party / clan; the server names the sender and the channel, and holds Global’s slow mode (ChatStore.send; 1041-social-clans.sql)',
   hr_chat_recent: 'the chat history and the channels to listen to, a read (ChatStore.refresh)',
   hr_whisper_send: 'a private line to one player; refused across a block (WhisperStore.send)',
   hr_whispers_recent: 'the recent whispers to and from this account, a read (WhisperStore.load)',
@@ -203,7 +203,7 @@ export const CLIENT_RPCS = Object.freeze({
   hr_friend_remove: 'end a friendship or withdraw an ask (FriendStore.remove)',
   hr_social_state: 'friends, asks and blocks, and this account’s presence stamp, a read (SocialSession.reread)',
   hr_inspect: 'another player’s worn items, a read (inspectOf)',
-  /* Clans (1036-social-clans.sql, FB-12): an id, a typed name or tag, a policy, a rank and, to found one, the price the server quoted and a fresh key. */
+  /* Clans (1041-social-clans.sql, FB-12): an id, a typed name or tag, a policy, a rank and, to found one, the price the server quoted and a fresh key. */
   hr_clan_roster: 'the account’s clan and its members, or the invites waiting for it, a read (clan-intents.js readRoster)',
   hr_clan_browser: 'the clans by name or tag, members first, a read (clan-intents.js browse)',
   hr_clan_found: 'found a clan at the server’s quoted price from the account’s purse; a name, a tag, open or invite only, the slot and a fresh key (clan-intents.js found)',
@@ -214,7 +214,7 @@ export const CLIENT_RPCS = Object.freeze({
   clan_invite_revoke: 'withdraw an invite by id (clan-intents.js revoke)',
   hr_clan_rank: 'set a member’s rank or hand the clan on, the leader (clan-intents.js rank)',
   clan_join_policy_set: 'open or invite only (clan-intents.js setPolicy)',
-  /* The friend link (1038-friend-link.sql) and presence (1039-ground-presence.sql): a code, a yes/no, a slot and a ground id. */
+  /* The friend link (1044-friend-link.sql) and presence (1045-ground-presence.sql): a code, a yes/no, a slot and a ground id. */
   hr_friend_link: 'this account’s friend link code, made by the server on first ask (friend-link.js linkOf)',
   hr_friend_link_redeem: 'a new account arriving by a friend’s link becomes that account’s friend, once, nothing else moving (friend-link.js redeem)',
   hr_presence_quiet_set: 'quiet presence for every hero of the account (friend-link.js setQuiet)',

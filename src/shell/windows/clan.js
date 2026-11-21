@@ -1,6 +1,6 @@
 // ════════════════════════════════════════════════════════════════════════
 // src/shell/windows/clan.js — THE CLAN: FIND ONE, FOUND ONE, OR SEE YOURS (lane/c-social, FB-12; chapter 06 section 2.4, MM-8 first build:
-// the roster, the clan chat tab and the browser; supabase/migrations/1036-social-clans.sql).
+// the roster, the clan chat tab and the browser; supabase/migrations/1041-social-clans.sql).
 //
 // One window, two faces, chosen by the server's roster answer (src/session/clan-intents.js):
 //   NO CLAN   what a clan is (S-18 c: a small server's empty list still says what the room is for), the invites waiting, the clan list

@@ -1,16 +1,16 @@
 -- ════════════════════════════════════════════════════════════════════════
--- supabase/migrations/1036-social-clans.sql — CLANS OPEN (ROSTER, BROWSER, CLAN CHAT) WITH THE CASTLE HIDDEN; ONE GLOBAL IN SMALL BATCHES
+-- supabase/migrations/1041-social-clans.sql — CLANS OPEN (ROSTER, BROWSER, CLAN CHAT) WITH THE CASTLE HIDDEN; ONE GLOBAL IN SMALL BATCHES
 --   WITH A SLOW MODE; THE LOCAL TAB GONE (lane/c-social, backend-architect, FB-12; chapter 06 sections 2.4, 2.9 and 2.11; Tyler's rulings
 --   25-3, 25-6, 25-7 of 2026-11-20, 28-6, 31-1 and GR-69 of 2026-11-21; Part C X-04, T-12).
 --
--- STATUS: supabase/migration-notes/1036-social-clans.sql.json (STAGED until the Coordinator applies it).
+-- STATUS: supabase/migration-notes/1041-social-clans.sql.json (STAGED until the Coordinator applies it).
 -- ORDER: the sequence in this file's name (CLAUDE.md rule 12): it runs after every file on its base. It reads 1003-dead-client-writes.sql
 --   (clan_members takes no client write: every clan door is a SECURITY DEFINER verb) and the 2026-08 clan chain as production holds it.
 -- Applied as ONE transaction by the apply tool; never begin/commit here. Ends with its §4 self-check.
 -- EDGE: none. ON THE EA SECURITY LIST: gold (the founding price), names (a clan's name and tag), who hears a clan's lines.
 --
 -- ── WHAT ─────────────────────────────────────────────────────────────────────
--- THE RULES are 1036-social-catalogue.generated.sql's (tools/gen-social-catalogue.mjs from src/data, --check): hr_clan_rules (25-6: the
+-- THE RULES are 1040-social-catalogue.generated.sql's (tools/gen-social-catalogue.mjs from src/data, --check): hr_clan_rules (25-6: the
 --   founding price), hr_chat_global_rule (31-1: the batch), hr_chat_slow_mode (31-1: the slow mode). This file reads them.
 -- clans.tag (NEW): 2 to 4 letters or digits, stored in capitals, unique; set at founding.
 -- THE CLAN VERBS (client-executable, each on hr_client_rpc_baseline; hr_access_check first, rate-gated):
@@ -79,7 +79,7 @@ do $mig$
 declare v_r record; v_def text;
 begin
   if to_regclass('public.hr_clan_rules') is null or to_regclass('public.hr_chat_slow_mode') is null or to_regclass('public.hr_chat_global_rule') is null then
-    raise exception 'PRECONDITION: apply 1036-social-catalogue.generated.sql first (the rules this file reads)'; end if;
+    raise exception 'PRECONDITION: apply 1040-social-catalogue.generated.sql first (the rules this file reads)'; end if;
   if to_regclass('public.clans') is null or to_regclass('public.clan_members') is null or to_regclass('public.clan_invites') is null
      or to_regclass('public.clan_bans') is null or to_regclass('public.clan_ledger') is null or to_regclass('public.hr_castle_tiers') is null then
     raise exception 'PRECONDITION: the 2026-08 clan chain is missing'; end if;
@@ -97,12 +97,12 @@ begin
     ('public.hr_chat_topic(text)', '8b4ab32f504d3925150baddd8d4ddec5'),
     ('public.hr_chat_zone_of(uuid,integer)', '46d40d8d663da418006698a0b2888d71')) t(fn, pre) loop
     v_def := pg_get_functiondef(v_r.fn::regprocedure);
-    if md5(regexp_replace(v_def, '[[:space:]]+', ' ', 'g')) is distinct from v_r.pre and strpos(v_def, 'SOCIAL-CLANS (1036-social-clans.sql)') = 0 then
+    if md5(regexp_replace(v_def, '[[:space:]]+', ' ', 'g')) is distinct from v_r.pre and strpos(v_def, 'SOCIAL-CLANS (1041-social-clans.sql)') = 0 then
       raise exception 'PIN: % is neither its expected image (%) nor this file''s: md5 % - another file moved it', v_r.fn, v_r.pre,
         md5(regexp_replace(v_def, '[[:space:]]+', ' ', 'g')); end if;
   end loop;
   v_def := (select prosrc from pg_proc where oid = to_regprocedure('public.hr_realtime_policies()'));
-  if v_def is null or (md5(replace(v_def, chr(13), '')) is distinct from 'facea09281fe2085a0b0260958729309' and strpos(v_def, 'SOCIAL-CLANS (1036-social-clans.sql)') = 0) then
+  if v_def is null or (md5(replace(v_def, chr(13), '')) is distinct from 'facea09281fe2085a0b0260958729309' and strpos(v_def, 'SOCIAL-CLANS (1041-social-clans.sql)') = 0) then
     raise exception 'PIN: hr_realtime_policies() is neither 2026-12-26''s image (facea092) nor this file''s'; end if;
 end $mig$;
 
@@ -112,7 +112,7 @@ create table if not exists public.hr_chat_flush (
   flushed_to timestamptz not null,
   flushed_at timestamptz
 );
-comment on table public.hr_chat_flush is '1036-social-clans.sql: Global''s batch cursor: lines up to flushed_to have been sent. Written only by hr_chat_global_flush.';
+comment on table public.hr_chat_flush is '1041-social-clans.sql: Global''s batch cursor: lines up to flushed_to have been sent. Written only by hr_chat_global_flush.';
 alter table public.hr_chat_flush enable row level security;
 revoke all on public.hr_chat_flush from public, anon, authenticated, service_role;
 insert into public.hr_chat_flush (channel, flushed_to) values ('global', now()) on conflict (channel) do nothing;
@@ -125,7 +125,7 @@ begin
 end $mig$;
 create unique index if not exists clans_tag_key on public.clans (tag) where tag is not null;
 create unique index if not exists clans_name_lower_key on public.clans (lower(name));
-comment on column public.clans.tag is '1036-social-clans.sql: the clan''s tag, letters and digits in capitals (hr_clan_rules tag_min..tag_max), unique, set at founding.';
+comment on column public.clans.tag is '1041-social-clans.sql: the clan''s tag, letters and digits in capitals (hr_clan_rules tag_min..tag_max), unique, set at founding.';
 
 -- ── §2 THE CLAN VERBS ────────────────────────────────────────────────────────
 -- One account's clan key: hr_clan_found takes it before it reads the account's membership.
@@ -156,7 +156,7 @@ declare
   v_policy text := lower(btrim(coalesce(p_policy, 'open')));
   v_verb text;
 begin
-  -- SOCIAL-CLANS (1036-social-clans.sql): a clan for gold (25-6), from the account's purse, journalled; every refusal before the charge.
+  -- SOCIAL-CLANS (1041-social-clans.sql): a clan for gold (25-6), from the account's purse, journalled; every refusal before the charge.
   if v_uid is null then return jsonb_build_object('ok', false, 'error', 'not_signed_in'); end if;
   if not public.hr_rpc_gate('clan_create') then return jsonb_build_object('ok', false, 'error', 'rate_limited'); end if;
   if p_slot is null or p_slot < 0 or p_slot > 5 then return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'bad_slot')); end if;
@@ -223,7 +223,7 @@ returns jsonb language plpgsql security definer set search_path = public, pg_cat
 declare
   v_uid uuid := auth.uid(); v_max int; v_lim int; v_q text; v_mine uuid; v_rows jsonb;
 begin
-  -- SOCIAL-CLANS (1036-social-clans.sql): the clan browser with search (25-3). Counts and names only.
+  -- SOCIAL-CLANS (1041-social-clans.sql): the clan browser with search (25-3). Counts and names only.
   perform public.hr_access_check();
   if v_uid is null then return jsonb_build_object('ok', false, 'error', 'not_signed_in'); end if;
   if not public.hr_rate_ok(v_uid, 'rpc:hr_clan_browser', 60, interval '1 minute') then
@@ -252,7 +252,7 @@ declare
   c_online constant interval := interval '75 seconds';
   v_uid uuid := auth.uid(); v_me public.clan_members%rowtype;
 begin
-  -- SOCIAL-CLANS (1036-social-clans.sql): names, ranks and Levels the server holds; online and what each does only when not quiet.
+  -- SOCIAL-CLANS (1041-social-clans.sql): names, ranks and Levels the server holds; online and what each does only when not quiet.
   perform public.hr_access_check();
   if v_uid is null then return jsonb_build_object('ok', false, 'error', 'not_signed_in'); end if;
   if not public.hr_rate_ok(v_uid, 'clan:read', 30, interval '1 minute') then
@@ -293,7 +293,7 @@ returns jsonb language plpgsql security definer set search_path = public, pg_cat
 declare
   v_uid uuid := auth.uid(); v_clan uuid; v_role text; v_t record; v_theirs uuid; v_n int; v_cap int; v_id uuid; v_exp timestamptz; v_days int;
 begin
-  -- SOCIAL-CLANS (1036-social-clans.sql): one resolver for every social target (hr_social_target); nothing about the target crosses from the client.
+  -- SOCIAL-CLANS (1041-social-clans.sql): one resolver for every social target (hr_social_target); nothing about the target crosses from the client.
   if v_uid is null then return jsonb_build_object('ok', false, 'error', 'not_signed_in'); end if;
   if not public.hr_rpc_gate('clan_invite') then return jsonb_build_object('ok', false, 'error', 'rate_limited'); end if;
   select m.clan_id, m.role into v_clan, v_role from public.clan_members m where m.user_id = v_uid;
@@ -326,7 +326,7 @@ create or replace function public.hr_clan_rank(p_target uuid, p_rank text)
 returns jsonb language plpgsql security definer set search_path = public, pg_catalog as $fn$
 declare v_uid uuid := auth.uid(); v_me public.clan_members%rowtype; v_them public.clan_members%rowtype; v_rank text := lower(btrim(coalesce(p_rank, '')));
 begin
-  -- SOCIAL-CLANS (1036-social-clans.sql): MM-8's ranks. Both rows locked, the caller's first.
+  -- SOCIAL-CLANS (1041-social-clans.sql): MM-8's ranks. Both rows locked, the caller's first.
   perform public.hr_access_check();
   if v_uid is null then return jsonb_build_object('ok', false, 'error', 'not_signed_in'); end if;
   if not public.hr_rate_ok(v_uid, 'clan:rank', 12, interval '1 minute') then return jsonb_build_object('ok', false, 'error', 'rate_limited'); end if;
@@ -384,20 +384,20 @@ delete from public.hr_client_rpc_baseline where grantee = 'authenticated' and pr
    'clan_join', 'clan_leave', 'clan_kick', 'clan_invite_revoke', 'clan_join_policy_set');
 insert into public.hr_client_rpc_baseline (proname, identity_args, grantee, note) values
   ('hr_clan_found', 'p_slot integer, p_name text, p_tag text, p_policy text, p_price bigint, p_idem uuid', 'authenticated',
-   'added 1036-social-clans (FB-12): MONEY (a gold sink) - found a clan at the server''s price (hr_clan_rules, 25-6) from the account''s purse through hr_apply, journalled kind clan; the clan charset and name filter; refuses quote_changed'),
+   'added 1041-social-clans (FB-12): MONEY (a gold sink) - found a clan at the server''s price (hr_clan_rules, 25-6) from the account''s purse through hr_apply, journalled kind clan; the clan charset and name filter; refuses quote_changed'),
   ('hr_clan_browser', 'p_query text, p_limit integer', 'authenticated',
-   'added 1036-social-clans (FB-12): the clan browser with search (25-3); cards only (name, tag, members, cap, policy, leader''s name); 60/min'),
+   'added 1041-social-clans (FB-12): the clan browser with search (25-3); cards only (name, tag, members, cap, policy, leader''s name); 60/min'),
   ('hr_clan_roster', '', 'authenticated',
-   'added 1036-social-clans (FB-12): the account''s clan and members (name, Level, rank; online and doing only when not quiet), or its invites; 30/min'),
+   'added 1041-social-clans (FB-12): the account''s clan and members (name, Level, rank; online and doing only when not quiet), or its invites; 30/min'),
   ('hr_clan_invite', 'p_target text', 'authenticated',
-   'added 1036-social-clans (FB-12): a leader or officer invites a character by name or an account by id; refused across a block; the member cap'),
+   'added 1041-social-clans (FB-12): a leader or officer invites a character by name or an account by id; refused across a block; the member cap'),
   ('hr_clan_rank', 'p_target uuid, p_rank text', 'authenticated',
-   'added 1036-social-clans (FB-12): the leader sets officer or member, or hands the clan on; journalled in clan_ledger'),
-  ('clan_join', 'p_clan_id uuid', 'authenticated', 'opened 1036-social-clans (FB-12): the 2026-08-11 body; join an open clan or one that invited the account; bans and the member cap hold'),
-  ('clan_leave', '', 'authenticated', 'opened 1036-social-clans (FB-12): the 2026-08-11 body; leave; a leader passes it on; the last one out disbands'),
-  ('clan_kick', 'p_user_id uuid, p_ban_hours integer', 'authenticated', 'opened 1036-social-clans (FB-12): the 2026-08-11 body; a leader or officer removes a member (an officer only rank-and-file)'),
-  ('clan_invite_revoke', 'p_user_id uuid', 'authenticated', 'opened 1036-social-clans (FB-12): the 2026-08-11 body; withdraw an invite'),
-  ('clan_join_policy_set', 'p_policy text', 'authenticated', 'opened 1036-social-clans (FB-12): the 2026-08-11 body; open or invite only, a leader or officer');
+   'added 1041-social-clans (FB-12): the leader sets officer or member, or hands the clan on; journalled in clan_ledger'),
+  ('clan_join', 'p_clan_id uuid', 'authenticated', 'opened 1041-social-clans (FB-12): the 2026-08-11 body; join an open clan or one that invited the account; bans and the member cap hold'),
+  ('clan_leave', '', 'authenticated', 'opened 1041-social-clans (FB-12): the 2026-08-11 body; leave; a leader passes it on; the last one out disbands'),
+  ('clan_kick', 'p_user_id uuid, p_ban_hours integer', 'authenticated', 'opened 1041-social-clans (FB-12): the 2026-08-11 body; a leader or officer removes a member (an officer only rank-and-file)'),
+  ('clan_invite_revoke', 'p_user_id uuid', 'authenticated', 'opened 1041-social-clans (FB-12): the 2026-08-11 body; withdraw an invite'),
+  ('clan_join_policy_set', 'p_policy text', 'authenticated', 'opened 1041-social-clans (FB-12): the 2026-08-11 body; open or invite only, a leader or officer');
 
 -- ── §4 CHAT: CLAN LINES, NO LOCAL, GLOBAL IN BATCHES WITH A SLOW MODE ───────
 create or replace function public.hr_chat_send(p_slot integer, p_kind text, p_body text)
@@ -406,7 +406,7 @@ declare
   v_uid uuid := auth.uid(); v_body text; v_fault text; v_channel text; v_pid uuid; v_aud uuid[];
   v_row public.chat_messages%rowtype; v_until timestamptz; v_clan uuid; v_rate int; v_gap int; v_last timestamptz;
 begin
-  -- SOCIAL-CLANS (1036-social-clans.sql): global | party | clan; no Local (GR-69); Global's slow mode (31-1). The rest is 2027-03-13's.
+  -- SOCIAL-CLANS (1041-social-clans.sql): global | party | clan; no Local (GR-69); Global's slow mode (31-1). The rest is 2027-03-13's.
   if v_uid is null then return jsonb_build_object('ok', false, 'error', 'not_signed_in'); end if;
   perform public.hr_access_check();
   -- GM-TOOLS (2027-03-13-gm-tools.sql): a mute says so; hr_chat_zgm_gate is the second lock.
@@ -459,7 +459,7 @@ returns jsonb language plpgsql security definer set search_path = public, pg_cat
 -- CHAT-STREAM-SAFE (2026-11-19): lines at or after hr_chat_history_floor(), every body masked.
 declare v_uid uuid := auth.uid(); v_pid uuid; v_party text; v_clan text; v_floor timestamptz;
 begin
-  -- SOCIAL-CLANS (1036-social-clans.sql): Global, the party, the account's clan (current members only) and System. No zone.
+  -- SOCIAL-CLANS (1041-social-clans.sql): Global, the party, the account's clan (current members only) and System. No zone.
   if v_uid is null then return jsonb_build_object('ok', false, 'error', 'not_signed_in'); end if;
   perform public.hr_access_check();
   if p_slot is null or p_slot < 0 or p_slot > 5 then return jsonb_build_object('ok', false, 'error', 'bad_slot'); end if;
@@ -490,13 +490,13 @@ end $fn$;
 -- hr_town_show), now writes to the System tab, beside a named fuel's burn (2027-01-31-inner-flame.sql).
 create or replace function public.hr_chat_zone_of(p_user uuid, p_slot integer)
 returns text language sql stable set search_path = public, pg_catalog as $fn$
-  -- SOCIAL-CLANS (1036-social-clans.sql): no Local (GR-69); a town notice is the world's news.
+  -- SOCIAL-CLANS (1041-social-clans.sql): no Local (GR-69); a town notice is the world's news.
   select 'system'::text
 $fn$;
 
 create or replace function public.hr_chat_topic(p_channel text)
 returns text language sql immutable set search_path = public as $fn$
-  -- SOCIAL-CLANS (1036-social-clans.sql): the public topics are Global and System; party and clan lines go to the members' inboxes.
+  -- SOCIAL-CLANS (1041-social-clans.sql): the public topics are Global and System; party and clan lines go to the members' inboxes.
   select case when p_channel in ('global', 'system') then 'chat:' || p_channel end
 $fn$;
 
@@ -505,7 +505,7 @@ returns trigger language plpgsql security definer set search_path = public, pg_c
 declare v_msg jsonb; v_topic text; v_u uuid;
 begin
   -- CHAT-BROADCAST (2026-12-26-chat-broadcast.sql): the stored line, once, to everyone allowed to hear it.
-  -- SOCIAL-CLANS (1036-social-clans.sql): Global goes in batches (hr_chat_global_flush); a clan line to each member's own inbox.
+  -- SOCIAL-CLANS (1041-social-clans.sql): Global goes in batches (hr_chat_global_flush); a clan line to each member's own inbox.
   begin
     if new.channel = 'global' then return null; end if;
     if to_regprocedure('realtime.send(jsonb,text,text,boolean)') is null then return null; end if;
@@ -542,7 +542,7 @@ create or replace function public.hr_chat_global_flush()
 returns int language plpgsql security definer set search_path = public, pg_catalog as $fn$
 declare r public.hr_chat_global_rule%rowtype; v_from timestamptz; v_to timestamptz; v_lines jsonb; v_n int; v_max timestamptz;
 begin
-  -- SOCIAL-CLANS (1036-social-clans.sql): 31-1's small batches. A push failure never loses a line: it is stored, and a (re)join re-reads.
+  -- SOCIAL-CLANS (1041-social-clans.sql): 31-1's small batches. A push failure never loses a line: it is stored, and a (re)join re-reads.
   if not pg_try_advisory_xact_lock(hashtext('hr_chat_global_flush')) then return 0; end if;
   select * into r from public.hr_chat_global_rule where id;
   select f.flushed_to into v_from from public.hr_chat_flush f where f.channel = 'global' for update;
@@ -568,7 +568,7 @@ end $fn$;
 create or replace function public.hr_realtime_policies()
 returns integer language plpgsql set search_path = public, pg_catalog as $fn$
 begin
-  -- SOCIAL-CLANS (1036-social-clans.sql): 2026-12-26's two policies, the chat:local clause gone (GR-69).
+  -- SOCIAL-CLANS (1041-social-clans.sql): 2026-12-26's two policies, the chat:local clause gone (GR-69).
   if to_regclass('realtime.messages') is null then return 0; end if;
   -- THE CHARACTER'S FRAME TOPIC hr:<uid>:<slot> (2026-09-22-frame-push-channel.sql §6, verbatim): its owner only,
   -- slot 0-5, exactly three segments, broadcast only.
@@ -627,10 +627,10 @@ begin
   grant execute on function public.hr_chat_recent(integer) to authenticated;
 end $grants$;
 update public.hr_client_rpc_baseline set note =
-  'added 2026-10-25 (chat-channels): post a line to global / party / clan (1036-social-clans: Local gone, Global''s slow mode, the clan''s channel); name, level, weapon, role and audience are the server''s; 5/10 s, 20/min; item links checked against hr_items'
+  'added 2026-10-25 (chat-channels): post a line to global / party / clan (1041-social-clans: Local gone, Global''s slow mode, the clan''s channel); name, level, weapon, role and audience are the server''s; 5/10 s, 20/min; item links checked against hr_items'
  where grantee = 'authenticated' and proname = 'hr_chat_send';
 update public.hr_client_rpc_baseline set note =
-  'added 2026-10-25 (chat-channels): the chat window''s history and the channels to show (1036-social-clans: Global, party, clan, System; no zone); blocked senders removed; 30/min'
+  'added 2026-10-25 (chat-channels): the chat window''s history and the channels to show (1041-social-clans: Global, party, clan, System; no zone); blocked senders removed; 30/min'
  where grantee = 'authenticated' and proname = 'hr_chat_recent';
 
 -- ── §5 SELF-CHECK (CLAUDE.md §4), EXECUTED, every probe row rolled back ───────

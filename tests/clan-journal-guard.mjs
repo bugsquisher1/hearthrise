@@ -410,7 +410,7 @@ async function run(mutationId) {
 
   // ── T-12 · the castle's calls this guard journals are hidden from every client and never dropped ──
   const hid = hiddenProblems(['clan_contribute', 'clan_work_supply', 'clan_feast_deposit', 'clan_deposit']);
-  check('J15 contribute, supply, feast and deposit are hidden from every client, never dropped (1036-social-clans.sql, X-04)', hid.length === 0, hid.join('; '));
+  check('J15 contribute, supply, feast and deposit are hidden from every client, never dropped (1041-social-clans.sql, X-04)', hid.length === 0, hid.join('; '));
 
   return out;
 }

@@ -8,7 +8,7 @@
 //   node tests/live-events.mjs            the guard
 //   node tests/live-events.mjs --mutate   every planted defect must turn its arm red
 //
-// mutant-anchors: supabase/migrations/2027-03-22-live-events.sql supabase/migrations/2027-04-24-boss-call-series.sql supabase/migrations/1037-hearthrise.sql
+// mutant-anchors: supabase/migrations/2027-03-22-live-events.sql supabase/migrations/2027-04-24-boss-call-series.sql supabase/migrations/1043-hearthrise.sql
 //
 // ARMS (no database)
 //   LE-PMAT    pmAt: a window holds [from, to): its start in, its end out; a malformed window is no window; no hook when nobody has one
@@ -28,7 +28,7 @@
 //   LE-BOUND   the commit re-proves the claim: the Level XP bound grows by the account's own dial and nothing else (kills x the
 //              ground's best kill x headroom x 1.25 lands, one more is refused; the same without the event is refused); an event
 //              part with no event live, or more than the dial could add, is refused (bad_xp_event)
-//   LE-FIRE    THE HEARTHRISE ON A CLOSED HUNT BY THE SERVER CLOCK (D-7, 1037-hearthrise.sql): a fire-sized row lit at +25% pays the hunt
+//   LE-FIRE    THE HEARTHRISE ON A CLOSED HUNT BY THE SERVER CLOCK (D-7, 1043-hearthrise.sql): a fire-sized row lit at +25% pays the hunt
 //              exactly what a typed +25% row pays (Level XP and the event's part to the unit); unlit, it pays exactly the floor (+10%)
 //   LE-FEE     A FEE DIAL WAIVES GOLD ONLY (2027-04-24-boss-call-series.sql: a series of fights, each costing stamina and a fee; Open Halls,
 //              its only row, is retired by D-7, so the arm plants its own fee type): the

@@ -1,6 +1,6 @@
 // ════════════════════════════════════════════════════════════════════════
-// src/social/friend-link.js — THE FRIEND LINK AT SIGN-UP (GR-72; supabase/migrations/1038-friend-link.sql) AND QUIET PRESENCE FOR THE
-// ACCOUNT (MM-20; 1039-ground-presence.sql), lane/c-social FB-12.
+// src/social/friend-link.js — THE FRIEND LINK AT SIGN-UP (GR-72; supabase/migrations/1044-friend-link.sql) AND QUIET PRESENCE FOR THE
+// ACCOUNT (MM-20; 1045-ground-presence.sql), lane/c-social FB-12.
 //
 // A player shares play.html?friend=<code> (their code is the SERVER's, made on first ask). A new player who arrives by it carries the
 // code through sign-up (the confirmation email returns to the same address, src/app/boot.js redirectTo) and, once signed in, asks the

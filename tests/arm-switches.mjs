@@ -19,7 +19,7 @@
 //
 // ARMS (the live calendar)
 //   AS-ROWS    the chain leaves event_xp_bonus and scaled_hunts at everyone with no account list (event_open_halls is gone with its type,
-//              1037-hearthrise.sql, D-7), a stranger's `features` names both, a second apply of the scaled hunts' arm file moves no switch
+//              1043-hearthrise.sql, D-7), a stranger's `features` names both, a second apply of the scaled hunts' arm file moves no switch
 //              row (updated_at included), and a second apply of 2027-05-17-scaled-best.sql leaves both its bodies and its column byte for
 //              byte. 2027-05-14-arm-switches.sql is applied history whose precondition names the retired Open Halls switch: never re-run
 //   AS-SCALED  SCALED HUNTS: a Level 20 stranger in its Level's iron hunting the Mill Cellar reads it in its `scaled_hunts` section at Level 20 for 40 x 20

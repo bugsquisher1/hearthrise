@@ -309,7 +309,7 @@ function grade(o) {
     `D6: a caller with no server character was not refused no_character (${JSON.stringify(o.d6)})`);
   ok(o.d6_store === 0, 'D6: a caller with no character still moved clan_stores');
 
-  // D7 (T-12): the Storehouse's deposit is the castle's, hidden from every client and never dropped (1036-social-clans.sql, X-04)
+  // D7 (T-12): the Storehouse's deposit is the castle's, hidden from every client and never dropped (1041-social-clans.sql, X-04)
   for (const p of hiddenProblems(['clan_deposit', 'clan_deposit__ungated'])) ok(false, 'D7: ' + p);
 }
 

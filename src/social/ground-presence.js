@@ -1,5 +1,5 @@
 // ════════════════════════════════════════════════════════════════════════
-// src/social/ground-presence.js — WHO ELSE IS HUNTING A GROUND, AS THE SERVER SAYS (MM-20; supabase/migrations/1039-ground-presence.sql
+// src/social/ground-presence.js — WHO ELSE IS HUNTING A GROUND, AS THE SERVER SAYS (MM-20; supabase/migrations/1045-ground-presence.sql
 // hr_ground_presence), lane/c-social FB-12.
 //
 // "Seen, never fought beside": the other parties on a ground, by leader, clan tag and party size, friends and clan mates first, quiet

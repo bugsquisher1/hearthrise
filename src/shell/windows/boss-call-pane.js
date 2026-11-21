@@ -12,7 +12,7 @@
 // each row's odds as the quote hands them (`drops`; this file never reads monsters.js for it), and one line for each danger the server read
 // of the room (`danger`: a hero under his Level, no tank, no healer, a bar with no food). Food, a healer, a tank: never Challenge.
 // A fight that costs no gold reads the no-gold labels (Call out costs no gold since 2026-11-20, src/data/boss-calls.js; Open Halls, the
-// event that once waived the fee, is retired by the calendar's ruling D-7, 1037-hearthrise.sql).
+// event that once waived the fee, is retired by the calendar's ruling D-7, 1043-hearthrise.sql).
 // NATURAL WINS BEFORE THE CALL (2027-05-05-entry-gates.sql, Tyler 2026-11-18): "Rat King wins: 2/10" and each seat still short, from the quote's
 // `wins`, or before a quote and after a reload from the envelope's `entry_gates` section; a gate the server says is shut holds the press off.
 // ════════════════════════════════════════════════════════════════════════

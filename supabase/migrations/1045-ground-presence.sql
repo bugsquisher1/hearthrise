@@ -1,10 +1,10 @@
 -- ════════════════════════════════════════════════════════════════════════
--- supabase/migrations/1039-ground-presence.sql — THE PRESENCE STRIP ON A GROUND, AND QUIET PRESENCE FOR THE ACCOUNT (lane/c-social,
+-- supabase/migrations/1045-ground-presence.sql — THE PRESENCE STRIP ON A GROUND, AND QUIET PRESENCE FOR THE ACCOUNT (lane/c-social,
 --   backend-architect, FB-12; MM-20 and GR-70, chapter 06 section 2.7: "Presence counts heroes, not browsers. Seen, never fought beside.
 --   One list, capped. Clan mates and friends sort first, then nearest Level. A player who turns quiet presence on is left off every list").
 --
--- STATUS: supabase/migration-notes/1039-ground-presence.sql.json (STAGED until the Coordinator applies it).
--- ORDER: the sequence in this file's name (CLAUDE.md rule 12): after 1036-social-clans.sql (clans.tag) and the town presence chain
+-- STATUS: supabase/migration-notes/1045-ground-presence.sql.json (STAGED until the Coordinator applies it).
+-- ORDER: the sequence in this file's name (CLAUDE.md rule 12): after 1041-social-clans.sql (clans.tag) and the town presence chain
 --   (hr_set_presence_quiet__ungated, 2026-09-13). Applied as ONE transaction by the apply tool; never begin/commit here. Ends with its §4.
 -- EDGE: none. THE TOWN half of presence (GR-70: heroes at work drawn whether or not their owner is online) is already the server's:
 --   hr_town_view shows a body while hr_town_live_of holds (a work stand needs no owner online; 2027-01-28-town-stands.sql), quiet and blocks
@@ -40,7 +40,7 @@ do $mig$
 begin
   if to_regprocedure('public.hr_set_presence_quiet__ungated(integer,boolean)') is null or to_regclass('public.hunt_sessions') is null
      or not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'clans' and column_name = 'tag') then
-    raise exception 'PRECONDITION: the town presence chain and 1036-social-clans.sql (clans.tag) first'; end if;
+    raise exception 'PRECONDITION: the town presence chain and 1041-social-clans.sql (clans.tag) first'; end if;
 end $mig$;
 
 create index if not exists hunt_sessions_open_hunt on public.hunt_sessions (hunt_id) where ended_at is null;
@@ -52,7 +52,7 @@ declare
   c_cap constant int := 6;
   v_uid uuid := auth.uid(); v_lv int; v_clan uuid; v_friends uuid[]; v_blocked uuid[]; v_total int; v_list jsonb;
 begin
-  -- GROUND-PRESENCE (1039-ground-presence.sql): MM-20. Seen, never fought beside.
+  -- GROUND-PRESENCE (1045-ground-presence.sql): MM-20. Seen, never fought beside.
   if v_uid is null then return jsonb_build_object('ok', false, 'error', 'not_signed_in'); end if;
   perform public.hr_access_check();
   if p_slot is null or p_slot < 0 or p_slot > 5 then return jsonb_build_object('ok', false, 'error', 'bad_slot'); end if;
@@ -102,7 +102,7 @@ create or replace function public.hr_presence_quiet_set(p_quiet boolean)
 returns jsonb language plpgsql security definer set search_path = public, pg_catalog as $fn$
 declare v_uid uuid := auth.uid(); v_slot int; v jsonb; v_changed boolean := false;
 begin
-  -- GROUND-PRESENCE (1039-ground-presence.sql): one switch for every hero of the account (MM-20: "a player who turns it on").
+  -- GROUND-PRESENCE (1045-ground-presence.sql): one switch for every hero of the account (MM-20: "a player who turns it on").
   if v_uid is null then return jsonb_build_object('ok', false, 'error', 'not_signed_in'); end if;
   perform public.hr_access_check();
   if p_quiet is null then return jsonb_build_object('ok', false, 'error', 'bad_intent'); end if;
@@ -117,12 +117,12 @@ end $fn$;
 
 create or replace function public.hr_presence_view(p_user uuid, p_slot int)
 returns jsonb language sql stable security definer set search_path = public, pg_catalog as $fn$
-  -- GROUND-PRESENCE (1039-ground-presence.sql): quiet only when every hero of the account is.
+  -- GROUND-PRESENCE (1045-ground-presence.sql): quiet only when every hero of the account is.
   select jsonb_build_object('quiet', coalesce(bool_and(coalesce(ps.presence_quiet, false)), false))
     from public.player_state ps where ps.user_id = p_user
 $fn$;
 insert into public.hr_state_sections (key, fn, note) values
-  ('presence', 'hr_presence_view', '1039-ground-presence.sql: quiet presence for the account (every hero quiet), MM-20')
+  ('presence', 'hr_presence_view', '1045-ground-presence.sql: quiet presence for the account (every hero quiet), MM-20')
   on conflict (key) do update set fn = excluded.fn, note = excluded.note;
 
 do $grants$
@@ -137,9 +137,9 @@ end $grants$;
 delete from public.hr_client_rpc_baseline where grantee = 'authenticated' and proname in ('hr_ground_presence', 'hr_presence_quiet_set');
 insert into public.hr_client_rpc_baseline (proname, identity_args, grantee, note) values
   ('hr_ground_presence', 'p_slot integer, p_hunt text', 'authenticated',
-   'added 1039-ground-presence (FB-12, MM-20): the other parties hunting a ground, by leader name, Level, clan tag and size, capped at 6; quiet, blocked and not-admitted parties left off; 30/min; moves no value'),
+   'added 1045-ground-presence (FB-12, MM-20): the other parties hunting a ground, by leader name, Level, clan tag and size, capped at 6; quiet, blocked and not-admitted parties left off; 30/min; moves no value'),
   ('hr_presence_quiet_set', 'p_quiet boolean', 'authenticated',
-   'added 1039-ground-presence (FB-12, MM-20): quiet presence for every hero of the account (hr_set_presence_quiet__ungated each, journalled on change); 6/min; moves no value');
+   'added 1045-ground-presence (FB-12, MM-20): quiet presence for every hero of the account (hr_set_presence_quiet__ungated each, journalled on change); 6/min; moves no value');
 
 -- ── §3 SELF-CHECK (CLAUDE.md §4), EXECUTED, every probe row rolled back ───────
 -- (a) the grants; the section; the index

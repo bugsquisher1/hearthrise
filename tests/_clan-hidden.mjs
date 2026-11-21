@@ -6,7 +6,7 @@
 // two promises FB-12 makes about the same calls on the WHOLE chain, cheaply, with no second boot:
 //   NEVER DROPPED  every hidden call is still a function on the replayed chain (tests/schema-drift.baseline.json, the fingerprint the
 //                  chain rebuilds to, which tests/schema-drift.mjs holds on every run)
-//   REFUSED        1036-social-clans.sql hides every one (its grants block revokes it from every request role) and its §5 self-check names
+//   REFUSED        1041-social-clans.sql hides every one (its grants block revokes it from every request role) and its §5 self-check names
 //                  every one, so the replay that runs that self-check (tests/schema-drift.mjs) proves no request role can run it and that
 //                  `authenticated` calling one is refused 42501
 // A guard names the calls it exercises; a name outside the list, a call dropped, or a call the migration stopped hiding is a finding.
@@ -29,7 +29,7 @@ export const CLAN_HIDDEN_CALLS = Object.freeze([
   'clan_work_supply', 'clan_work_supply__ungated',
 ]);
 
-/* The array literal a block of 1036-social-clans.sql names its hidden calls in, as a list of names, or null. */
+/* The array literal a block of 1041-social-clans.sql names its hidden calls in, as a list of names, or null. */
 function namesIn(sql, from) {
   const at = sql.indexOf(from);
   if (at < 0) return null;
@@ -45,15 +45,15 @@ function namesIn(sql, from) {
 export function hiddenProblems(names, o = {}) {
   const out = [];
   const baseline = o.baseline ?? JSON.parse(readFileSync(join(ROOT, 'tests', 'schema-drift.baseline.json'), 'utf8'));
-  const sql = (o.sql ?? readFileSync(join(ROOT, 'supabase', 'migrations', '1036-social-clans.sql'), 'utf8')).replace(/\r\n/g, '\n');
+  const sql = (o.sql ?? readFileSync(join(ROOT, 'supabase', 'migrations', '1041-social-clans.sql'), 'utf8')).replace(/\r\n/g, '\n');
   const fns = new Set(((baseline.inventory || baseline).functions || []).map((f) => String(f).replace(/\(.*$/, '')));
   const grants = namesIn(sql, "where n.nspname = 'public' and p.proname = any (array[") || [];
   const check = namesIn(sql, 'c_hidden constant text[] := array[') || [];
   for (const n of names) {
     if (!CLAN_HIDDEN_CALLS.includes(n)) out.push(n + ' is not on the hidden list (tests/_clan-hidden.mjs CLAN_HIDDEN_CALLS)');
     if (!fns.has(n)) out.push(n + ' was DROPPED from the replayed chain (X-04: hide, never drop): it is not in tests/schema-drift.baseline.json');
-    if (!grants.includes(n)) out.push(n + ' is not revoked from every request role by 1036-social-clans.sql (its grants block no longer names it)');
-    if (!check.includes(n)) out.push(n + ' is not proved refused by 1036-social-clans.sql §5 (its self-check no longer names it)');
+    if (!grants.includes(n)) out.push(n + ' is not revoked from every request role by 1041-social-clans.sql (its grants block no longer names it)');
+    if (!check.includes(n)) out.push(n + ' is not proved refused by 1041-social-clans.sql §5 (its self-check no longer names it)');
   }
   return out;
 }
@@ -66,7 +66,7 @@ export function hiddenProblems(names, o = {}) {
 export function hiddenSelftest() {
   const out = [];
   const baseline = JSON.parse(readFileSync(join(ROOT, 'tests', 'schema-drift.baseline.json'), 'utf8'));
-  const sql = readFileSync(join(ROOT, 'supabase', 'migrations', '1036-social-clans.sql'), 'utf8').replace(/\r\n/g, '\n');
+  const sql = readFileSync(join(ROOT, 'supabase', 'migrations', '1041-social-clans.sql'), 'utf8').replace(/\r\n/g, '\n');
   const n = 'clan_contribute';
   if (hiddenProblems([n]).length) out.push('the real sources already report ' + n);
   const dropped = { ...baseline, inventory: { ...baseline.inventory, functions: baseline.inventory.functions.filter((f) => !f.startsWith(n + '(')) } };

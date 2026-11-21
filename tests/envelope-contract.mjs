@@ -342,19 +342,19 @@ function contract(R, cs, body, tl) {
   need('level', !!lb && !!lr && isNum(lb.level) && lr.level === lb.level && lr.xp === lb.xp && lr.into === lb.into && lr.need === lb.need
     && tv.level === lb.level && tv.into === lb.into && tv.need === lb.need && body.vitals.level === lb.level && lb.xp === body.state.level_xp,
     'levelOf yields ' + JSON.stringify(lr) + ' from the envelope\'s level block ' + JSON.stringify(lb) + ' (vitals ' + JSON.stringify(body.vitals) + ', state.level_xp ' + JSON.stringify(body.state && body.state.level_xp) + ')');
-  /* the live events (2027-03-22-live-events.sql, 1037-hearthrise.sql hr_live_events_view; src/shell/live-events-view.js reads it for the
+  /* the live events (2027-03-22-live-events.sql, 1043-hearthrise.sql hr_live_events_view; src/shell/live-events-view.js reads it for the
      plate, the Hunts lines and the ground's page): the Hearthrise, switched on and holding now, not yet lit, so at the size the fire would
      light at (an empty fire: the floor), as the reader takes it (null when every switch is off) */
   const le = R.LE.liveEventsOf(cs);
   const hr = le && le.find((e) => e.id === 'hearthrise');
   need('live_events', !!hr && hr.type === 'xp_bonus' && hr.dial === 'xpPm' && hr.pm === 1100 && hr.live === true && hr.scope.includes('world')
     && hr.sized === 'fire' && hr.lit === false && hr.startsMs < Date.now() && hr.endsMs > Date.now(), 'liveEventsOf yields ' + JSON.stringify(le) + ' from ' + JSON.stringify(body.live_events));
-  /* the Great Hearth's fire (1037-hearthrise.sql hr_hearth_fire_view; live-events-view.js fireLines on the Hearth tab): an empty fire's marks,
+  /* the Great Hearth's fire (1043-hearthrise.sql hr_hearth_fire_view; live-events-view.js fireLines on the Hearth tab): an empty fire's marks,
      goal, the fuel to its first mark and the size it would light at */
   const fire = R.LE.fireOf(cs);
   need('hearth_fire', !!fire && fire.marks === 0 && fire.of === 5 && fire.fuel === 0 && fire.goal > 0 && fire.need > 0 && fire.pm === 1100 && fire.full === false,
     'fireOf yields ' + JSON.stringify(fire) + ' from ' + JSON.stringify(body.hearth_fire));
-  /* quiet presence for the account (1039-ground-presence.sql hr_presence_view; the Friends window's switch reads it) */
+  /* quiet presence for the account (1045-ground-presence.sql hr_presence_view; the Friends window's switch reads it) */
   need('presence', !!body.presence && body.presence.quiet === false, 'the presence section reads ' + JSON.stringify(body.presence));
   /* the Farm window (2026-11-26-farm-window.sql): a fresh hero's field — room for 2 plots at the Camp, tier 1, the tier-2 price */
   const fl = R.FS.farmLandOf(cs, 0);
@@ -492,7 +492,7 @@ async function realBody(db, M, H) {
     poses.push(await H.one(db, 'select public.hr_hunt_section_view($1::uuid, 0)', [H.UIDS[0]]));
   }
   await seedS2(db, M, H);
-  /* LIVE EVENTS (1037-hearthrise.sql): the XP switch on for everyone and the Hearthrise's window holding now (inside this test's
+  /* LIVE EVENTS (1043-hearthrise.sql): the XP switch on for everyone and the Hearthrise's window holding now (inside this test's
      transaction only), so the section lists it and the fire is projected; set AFTER the settle above, so no settle number moves. */
   await db.query("update public.hr_feature_switches set scope = 'everyone', updated_at = now() where switch_id = 'event_xp_bonus'");
   /* SCALED HUNTS (2027-03-21-scaled-hunts.sql): the switch on for everyone, so the section is projected (off, it is null) */

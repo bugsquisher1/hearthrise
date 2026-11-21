@@ -1,6 +1,6 @@
 // ════════════════════════════════════════════════════════════════════════
 // src/shell/live-events-view.js — WHAT A PLAYER READS OF THE CALENDAR (Tyler 2026-11-07 "live events from data"; the 28 day cycle and the
-// Hearthrise are the designer's ruling D-7; the server, supabase/migrations/2027-03-22-live-events.sql and 1037-hearthrise.sql).
+// Hearthrise are the designer's ruling D-7; the server, supabase/migrations/2027-03-22-live-events.sql and 1043-hearthrise.sql).
 //
 // PURE. One reader for every surface, so the plate, a Hunts line, a ground's page, the Character sheet and the Great Hearth say the same:
 //   plateLines(cs)            the plate over the World (widgets/event-plate.js): an event on now, or starting within a day; on a quiet

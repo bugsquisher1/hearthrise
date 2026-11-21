@@ -1,3 +1,0 @@
-{
-  "note": "STAGED, NOT APPLIED (lane/c-social, backend-architect, 2026-11-21; FB-12, GR-72). The friend link at sign-up: hr_friend_link (the account's server-made code) and hr_friend_link_redeem (an account under 24 hours old becomes the code owner's friend, once, no reward, refused across a block). Friends were already one request for each account (MM-47, 2026-10-25-social.sql). ORDER: 1038 in its name. EDGE: none."
-}

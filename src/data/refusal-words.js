@@ -157,7 +157,7 @@ export const REFUSAL_VERB_WORDS = Object.freeze({
     dummy_max: 'Every skill unlocked',
     already_owned: 'Already unlocked',
   }),
-  /* The clan (1036-social-clans.sql, FB-12): its codes share names with the party's and the sides', so they read in the clan's words. */
+  /* The clan (1041-social-clans.sql, FB-12): its codes share names with the party's and the sides', so they read in the clan's words. */
   clan: Object.freeze({
     already_in_clan: 'Already in a clan',
     not_member: 'Not in a clan',
@@ -185,7 +185,7 @@ export const REFUSAL_VERB_WORDS = Object.freeze({
     unavailable: 'Player unavailable',
     no_clan: 'Clan gone',
   }),
-  /* The friend link at sign-up (1038-friend-link.sql, GR-72). */
+  /* The friend link at sign-up (1044-friend-link.sql, GR-72). */
   friend_link: Object.freeze({
     bad_code: 'Friend link not found',
     own_link: 'That is your own link',
@@ -519,7 +519,7 @@ export const REFUSAL_WORDS = Object.freeze({
   away: 'Player away',
   not_listed: 'Party not open, ask for an invite',
   not_in_party: 'Not in a party',
-  /* One Global with a slow mode (1036-social-clans.sql, 31-1); the Clan tab. */
+  /* One Global with a slow mode (1041-social-clans.sql, 31-1); the Clan tab. */
   slow_mode: 'Global is busy, wait a moment',
   not_in_clan: 'Not in a clan',
   /* Chat and the social side. */

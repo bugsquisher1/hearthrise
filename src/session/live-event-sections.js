@@ -1,7 +1,7 @@
 // ════════════════════════════════════════════════════════════════════════
 // src/session/live-event-sections.js — THE LIVE EVENTS AS THE SERVER STATES THEM (supabase/migrations/2027-03-22-live-events.sql §3).
 //
-// Reads the envelope's `live_events` section (hr_live_events_view, 1037-hearthrise.sql): the next window of every event within one
+// Reads the envelope's `live_events` section (hr_live_events_view, 1043-hearthrise.sql): the next window of every event within one
 // cycle (28 days) whose switch (hr_feature_switches: event_xp_bonus, event_world_boss) is on for this account. THE SWITCH IS THE SERVER'S: a switch off for
 // everyone answers null, and null is no event at all, so a half-built or switched-off event shows nothing anywhere.
 // Every envelope replaces the section; nothing here holds a number of its own. The dial (`pm`), the window (`starts`, `ends`)
@@ -37,7 +37,7 @@ export function liveEventsOf(cs) {
 }
 
 /**
- * THE GREAT HEARTH'S FIRE as the server states it (the `hearth_fire` section, 1037-hearthrise.sql hr_hearth_fire_view), or null while
+ * THE GREAT HEARTH'S FIRE as the server states it (the `hearth_fire` section, 1043-hearthrise.sql hr_hearth_fire_view), or null while
  * the XP switch is off for this account or the section is malformed: { marks, of, fuel, goal, need, pm, full, next: {id, startsMs, endsMs}
  * | null, lit: {id, pm, startsMs, endsMs} | null }. `need` is the fuel to the next mark (null when full); `pm` the size it would light at now.
  */

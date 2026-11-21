@@ -11,7 +11,7 @@
 //
 // play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs), in UTC and en-US so the times read one way.
 // The stub server states `now` (2026-11-18 18:00 UTC, a Wednesday) and the `live_events` section hr_live_events_view would
-// (1037-hearthrise.sql: the Hearthrise sized by the fire, a world boss row with no dial; Open Halls is retired by D-7).
+// (1043-hearthrise.sql: the Hearthrise sized by the fire, a world boss row with no dial; Open Halls is retired by D-7).
 //   LW-OFF    SWITCHED OFF IS INVISIBLE: with the section null (every switch off), or not sent at all, there is no plate, no Hunts
 //             line, no line on a ground's page, no line for the plate in HUD layout or Settings, and Call out is today's
 //   LW-PLAY   THE HEARTHRISE END TO END (lit at +16%): the plate says what the server's row says ("+16% Level XP ends Sat 6:00 AM",

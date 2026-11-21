@@ -100,7 +100,7 @@ export function lineOf(row, o = {}) {
       slot: null, parts: [{ text: 'Game Master: ' }, ...partsOf(body, true)], toId: null, toName: null, system: true };
   }
   /* A System row is the server's notice: one sentence, the hero's name first, no level or role tag. A town notice (a powder on the Hearth)
-     is one too: with no Local channel it is written to System (1036-social-clans.sql hr_chat_zone_of), and no player can write System. */
+     is one too: with no Local channel it is written to System (1041-social-clans.sql hr_chat_zone_of), and no player can write System. */
   if (!whisper && row.channel === 'system') {
     return { id: row.id, channel: row.channel, at, time: clockOf(at, o.tz), fromId, name, level: null, role: null,
       slot: int(row.from_slot, 0, 32), parts: [{ text: name + ' ' }, ...partsOf(body, true)], toId: null, toName: null, system: true };

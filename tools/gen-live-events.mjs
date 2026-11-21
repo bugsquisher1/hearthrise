@@ -11,7 +11,7 @@
 //                         is the floor), boss (a world boss row's boss), scope (text[]: '{world}' or ground / call ids), first_at, hours,
 //                         every_days, until_at, name, start_words, end_words (the System lines the announcer writes at a window's edges)
 //   hr_hearth_fire_rule   one row: the fire's share, day cap, marks, floor, step, days, a named fuel's worth, fuel per active day
-// 2027-03-22-live-events.sql and 1037-hearthrise.sql read them (hr_live_events_at, hr_live_xp_windows, the section, the announcer, the fire).
+// 2027-03-22-live-events.sql and 1043-hearthrise.sql read them (hr_live_events_at, hr_live_xp_windows, the section, the announcer, the fire).
 // tests/live-events.mjs `catalogue` holds the tables equal to the data on the replayed chain; --check is the CI half.
 //
 // THE FORWARD-FILE RULE: an applied file is history and is never regenerated in place; a moved row is a new dated file (OUT_NAME).
@@ -40,7 +40,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 /* THE CALENDAR'S 28 DAY CYCLE (designer D-7, lane/c-social FB-12): the Hearthrise sized by the fire replaces the fortnightly bonus weekend,
    Mossback's world boss row is new (FB-13 reads it), Open Halls is retired, the XP range narrows to [1100, 1250], every row is an offset
    from CALENDAR_ANCHOR, and the fire's rule joins the catalogue. */
-export const OUT_NAME = '1037-hearthrise-live-events-catalogue.generated.sql';
+export const OUT_NAME = '1042-hearthrise-live-events-catalogue.generated.sql';
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const DIALS = Object.freeze({ xpPm: 'grounds', feePm: 'calls' });
@@ -182,7 +182,7 @@ export function buildSql(c) {
 --
 -- STATUS: supabase/migration-notes/${OUT_NAME}.json (each forward file of this generator is its own apply; the first was lane/c-live-events,
 -- backend-architect, 2026-11-07; this one lane/c-social, FB-12, the designer's ruling D-7). The Coordinator applies (tools/apply-migration.mjs,
--- one file, never inside begin/commit). ON THE EA SECURITY LIST with 2027-03-22-live-events.sql and 1037-hearthrise.sql: a row here moves
+-- one file, never inside begin/commit). ON THE EA SECURITY LIST with 2027-03-22-live-events.sql and 1043-hearthrise.sql: a row here moves
 -- Level XP (a ranked board).
 -- WHAT: three server-only catalogues, each rewritten whole. hr_live_event_types (${c.types.length} rows: one permille dial a type or none, its
 -- range, how two live rows combine, its scope's kind, the switch that arms it), hr_live_events (${c.events.length} rows: type, pm, sized_by,
@@ -191,11 +191,11 @@ export function buildSql(c) {
 -- may carry no dial (a world boss opens his room and moves no number), and an event may be sized by the fire (its pm is the floor; the
 -- server reads the size at the lighting) or name its boss. A guard trigger holds every pm inside its type's range. No function, grant or
 -- client verb here beyond that trigger.
--- ORDER: after every file of this generator before it. 1037-hearthrise.sql reads the new columns and the fire rule.
+-- ORDER: after every file of this generator before it. 1043-hearthrise.sql reads the new columns and the fire rule.
 -- Idempotent: the tables are made if absent, the shape's constraints dropped and re-made, every row rewritten whole, so a second apply is
 -- byte-identical. No begin/commit.
 -- REVERSIBLE: re-apply 2027-05-07-open-halls-words-live-events-catalogue.generated.sql after dropping hr_live_events.sized_by and .boss,
--- the shape constraint and hr_hearth_fire_rule (1037-hearthrise.sql first: it reads them).
+-- the shape constraint and hr_hearth_fire_rule (1043-hearthrise.sql first: it reads them).
 -- ════════════════════════════════════════════════════════════════════════
 
 -- ── §0 PRECONDITIONS ─────────────────────────────────────────────────────────
@@ -270,7 +270,7 @@ comment on table public.hr_live_event_types is
 comment on table public.hr_live_events is
   '${OUT_NAME}: the live events (src/data/live-events.js LIVE_EVENTS): type, pm (the floor when sized_by is fire), boss, scope, the schedule (first_at, hours, every_days, until_at) and the System lines of a window''s edges. Server-only.';
 comment on table public.hr_hearth_fire_rule is
-  '${OUT_NAME}: the Hearthrise''s fire rule (src/data/hearthrise.js HEARTHRISE_FIRE, designer D-7): share, day cap, marks, floor, step, days, a named fuel''s worth, fuel per active day. Server-only. Read by 1037-hearthrise.sql.';
+  '${OUT_NAME}: the Hearthrise''s fire rule (src/data/hearthrise.js HEARTHRISE_FIRE, designer D-7): share, day cap, marks, floor, step, days, a named fuel''s worth, fuel per active day. Server-only. Read by 1043-hearthrise.sql.';
 
 -- THE RANGE, held by the database too: a row's pm inside its type's (a table CHECK can't read another table).
 create or replace function public.hr_live_events_guard()

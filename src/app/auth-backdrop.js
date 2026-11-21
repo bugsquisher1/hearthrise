@@ -12,6 +12,10 @@
 import { BUILD } from '../build-info.js';
 
 const BACKDROP_SRC = 'assets/brand/hearth-square.png?v=' + BUILD.cache;
+/* THE PICTURE, HELD FOR THE PAGE'S LIFE. The stylesheet draws the url() the Image loaded only while that Image's load is alive in the
+   browser's memory cache: an Image collected between its load and the next frame made the stylesheet fetch the picture a second time
+   (tests/client-boot.mjs B-23 under a forced GC; next run 44891464929 read "backdrop asked, backdrop asked"). */
+let held = null;
 
 /** After this account screen's crest has arrived, fetch the Hearth picture once and show it behind every account screen. */
 export function raiseBackdrop(root, win) {
@@ -23,6 +27,7 @@ export function raiseBackdrop(root, win) {
     const img = new win.Image();
     img.decoding = 'async';
     img.onload = () => {
+      held = img;
       root.style.setProperty('--auth-backdrop', 'url("' + src + '")');
       root.dataset.backdrop = 'shown';
     };

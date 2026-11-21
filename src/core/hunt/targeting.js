@@ -281,11 +281,8 @@ export function chooseTargets(inst, sc) {
     /* (a SHOOTER turns on the hero farthest from it instead: shooters.js aimOf) */
     if (!t || !t.alive) { retarget(inst, m, aimOf(inst, m, k && k !== t ? k.id : null), sc); m.holdMs = 0; }
   }
-  /* A MONSTER WHOSE TARGET WALKED OUT turns the same way while its pack is in the fight. A member whose hunt ends (a death, or any other
-     end) leaves at its next boundary and hunt-spawn.js leaveHero takes it off every monster on it; a death also stops the swing at once
-     (world-step.js), so the turn above never ran for them. Holding no target they are not engaged, no hero may pick them and the pocket
-     could never clear: the rest of the party stood until the no-fight end (lane/a-no-fight-strong-four, Wyvern Roost's Ledge Wyverns on
-     the hero that fell). A pack not in the fight keeps its idle monsters idle (a reset, a holder who left: the next pull takes them). */
+  /* A monster whose target walked out (leaveHero clears it; a death stops the swing first, so the turn above never ran) turns the same
+     way while its pack is in the fight, else no hero can pick it and the pocket never clears (a no-fight stall). */
   for (const m of livingOf(inst, 'mon')) {
     if (Number.isInteger(m.target) || !(inst.world.packs[m.pocket] && inst.world.packs[m.pocket].aggro)) continue;
     retarget(inst, m, aimOf(inst, m, k ? k.id : null), sc); m.holdMs = 0;

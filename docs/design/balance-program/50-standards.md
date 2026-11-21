@@ -2,7 +2,7 @@
 
 The yardstick for the whole game plan (Tyler, 2026-11-21). Every system, every dive and the plan itself are measured against this file. It sets standards. It redesigns nothing. The same bands are data in `tools/balance-program/standards.mjs`, which the harness and the balance guard read.
 
-Written by the standards auditor on `lane/d-standards`. No game code, data or migration was changed. It supersedes the measurement frame of `01-model.md` sections 3 to 5, the reference hours in `model.mjs` and guard line G18, and the scope of `lane/d-twelve-hours` wherever they differ.
+Written by the standards auditor on `lane/d-standards`. No game code, data or migration was changed. It supersedes the measurement frame of `01-model.md` sections 3 to 5, the town hours in `model.mjs`, and the scope of `lane/d-twelve-hours` wherever they differ. That lane is merged (89d13ec0a): `HUNT_HOURS_A_DAY` is 12 in `model.mjs`, the gold model and the guard are re-based, and G20 reads the fourth hero at 3.9 weeks. It fixed the hours. It did not add gear states, checkpoints, parties of two and three, or town time.
 
 **Labels.** RULED (Tyler, with the date). PROPOSED (the auditor's band, waiting for Tyler or for evidence). CITED (a genre benchmark or another file's measurement). COMPUTED (arithmetic here on the game's own data rows, not played). REAL (production, from `10-real-players.md`). Nothing in this file was measured by playing. A PROPOSED band is a target to test, never a finding.
 
@@ -21,7 +21,7 @@ Written by the standards auditor on `lane/d-standards`. No game code, data or mi
 Three things the old frame got wrong, found while writing this one:
 
 - **The 12 hour day was already ruled on 2026-10-25** ("Baseline: 12 hours of active hunting daily, without purchased stamina"). `01-model.md` set it aside ("the pace table's 12 hours a day describes nobody") and counted every week at 3.3 hours. So this is a return to a ruling, and every "weeks" number in the plan is 3.6 times too long.
-- **A free hero already reaches 12 hours a day with no refill.** Stamina drains 1:1 hunting and rests 1:1 at every other instant (`src/data/hunt-sessions.js`). A day has 24 hours, so any hero that never lets its bar sit full hunts exactly 12. The free 8 hour bar needs two visits about 12 hours apart (8 hours, then 4). Premium's 12 hour bar needs one. So the bar sets how many visits the day takes. It does not set the hours. (COMPUTED. The "open design check" in the 12 h ruling closes: no refill is needed.)
+- **A free hero already reaches 12 hours a day with no refill.** Stamina drains 1:1 hunting and rests 1:1 at every other instant (`src/data/hunt-sessions.js`). A day has 24 hours, so any hero that never lets its bar sit full hunts exactly 12. The free 8 hour bar needs two visits about 12 hours apart (8 hours, then 4). Premium's 12 hour bar needs one. So the bar sets how many visits the day takes. It does not set the hours. (COMPUTED from the data rows, and the merged model charges 0 refills at 12 h. Nobody has watched the server do it. "Verify the stamina day on the server" is the first line of the harness spec, 5.2.)
 - **Nearly everyone ends up a four.** At 12 hours the fourth hero arrives in about 4 weeks (RULED text, 11-21). A four on Deadly is ruled at 1.8 to 2.5 times the lone pace. So the Level table Tyler ruled (Level 200 in 140 days) describes a lone hero that almost nobody will be after the first month. On today's numbers a mid-geared four passes Level 200 on about day 66 and Level 400 on about day 174 (COMPUTED). That is the first thing Tyler must rule on (section 9, call 1).
 
 ---
@@ -35,7 +35,8 @@ Three things the old frame got wrong, found while writing this one:
 | Hunted hours a hero a day | **12**, every hero, every day, no refill | RULED 11-21, 10-25 |
 | How a free hero gets there | two visits about 12 hours apart: 8 hours, then 4 | COMPUTED from the stamina rule |
 | How a Premium hero gets there | one visit a day | COMPUTED |
-| Rested hours a hero a day | 12. This is all the town time there is (benches, nodes, farm, yard, curing) | COMPUTED. Replaces REAL 1.57 town hours a hunted hour |
+| Rested hours a hero a day | 12. This is all the town time there is (benches, nodes, farm, yard, curing) | COMPUTED |
+| **Town hours a hero a day** | **12: a resting hero is always working.** Every town system is sized for a hero that fills all 12 rested hours, and is also printed at the real 4 so we see what a player who skips town gets | PROPOSED, call 13. The 12 h ruling covers hunting. `model.mjs` still holds the real 2 to 6. The reason is the same as the ruling: it is an idle game, a job costs one press, so assume the hours are used |
 | The Ceiling player | 24 hunted hours a hero a day: six refills of 4 hours, every day | RULED rows (`stamina-refill.js`). Hours past 12 cost 2 refill hours each, because the hero stops resting |
 | A week, a month | 84 and 360 hunted hours a hero | COMPUTED |
 | Real-player data | calibrates rates an hour. Never hours a day | RULED 11-21 |
@@ -275,7 +276,7 @@ Each is a dimension the audit must be prompted with. Verdict, band, what the har
 | X18 | **Phone against desktop** | KEEP, thin | No balance band: one web core, one rule set. The standard is X10 met on a phone in landscape with the same number of presses | the press count on the sheet layout | 28 |
 | X19 | **Way-to-fight parity** | ADD | At MID, alone, every way is within 1.5 of the median way (G2), and the slow ones are the ruled ones (sword and shield, sword alone early). In a four every role is wanted: a four without it is at least 10% slower or 20% less safe | every way at every checkpoint at MID. The four with one seat swapped | 21 |
 | X20 | **Setup quality** | ADD | The default bar a new hero gets reads at least 0.85 of the played bar at every checkpoint to Level 30. A player should not need a guide to be at MID | default rules against the played bar, MID kit | 21, 27 |
-| X21 | **Town work at 12 rested hours** | ADD | A gathering or bench skill reaches 99 in 60 to 120 days of one hero's 12 rested hours. A third of a hero's supplies can be home-made inside its own rested hours. Every town hour has a consumer | hours to 99 a skill and stock made a rested day, from the recipe rows | 26 |
+| X21 | **Town work at 12 rested hours** (call 13) | ADD | A gathering or bench skill reaches 99 in 60 to 120 days of one hero's 12 rested hours. A third of a hero's supplies can be home-made inside its own rested hours. Every town hour has a consumer | hours to 99 a skill and stock made a rested day, from the recipe rows | 26 |
 | X22 | **Weekly gates against a 12 hour pace** | ADD | No weekly cap is the only way to a power source inside a band that lasts under two weeks (E5). Weekly resets land at the same instant for all boards | band lengths in weeks beside every weekly cap | 22 |
 | X23 | **Luck, by percentile** | ADD | Every chance-based goal is printed at the 10th, 50th and 90th percentile in days. The 90th is never over three times the median for anything that carries power | the percentile table from the drop rows and chest odds | 23 |
 | X24 | **Ranks at equal hours** | ADD | When everyone hunts 12 h, a board ranks setup, party and tier, which is good. A board that refills can buy must say so or have a no-refill twin | the rank gap between a 12 h and a 24 h account on each board | 27 |
@@ -341,7 +342,9 @@ Derived tables, each from cells and data rows only:
 | Town: stock and skill XP a rested day | recipe and node rows |
 | Server cost a hero-day and an account-day | `tests/per-player-cost.mjs` at 12 h |
 
-### 5.2 The three builders it needs
+### 5.2 One check first, then three builders
+
+0. **Verify the stamina day on the server.** Play one free hero and one Premium hero through 48 hours on the local world (`tools/qa/local-world.mjs`, time skip): the free hero hunts 8 hours then 4 a day on two starts 12 hours apart, the Premium hero 12 on one start, neither buys a refill, and both read 12.0 hunted hours a day. If the server disagrees, the clock of 1.1 is wrong and everything waits.
 
 1. **The kit builder.** `kitFor(level, state, way)` for the three states of 1.4, on top of `tools/balance-sim/gear.mjs`. It prints what each slot wears and why. It fails loudly if a state cannot be built from data.
 2. **The projector.** Placeholder grounds from Level 185 to 400: a floor every 9 Levels, six to a region, monsters from `STAT_FORMULA` (`tools/pack.mjs propose`), pay from the contract, and a gear line that adds one band every 20 Levels inside E1. Staged under `tools/balance-sim/staged/`, never in `src/`.
@@ -360,7 +363,7 @@ The cell times are ASSUMED from 28's measured 5 to 9 seconds a point. The first 
 
 ### 5.4 How the guard checks the bands
 
-`tests/balance-guard.mjs` imports `BANDS` from `standards.mjs`. For each band it reads the cells or the table the band names, and prints target, measured and state. A band starts in **report**. It turns **red** in the lane that lands the change it guards, and never goes back. The old lines map across: G1 is P2, G3 is P7, G4 is P8, G5 is S4, G7 is G-1, G8 is G-4, G10 is E7, G12 is E8, G15 is G-10, G16 is C2, G19 is P7, G20 is X1. **G18 is deleted**: its target (3.3 to 5.3 hunted hours a day) contradicts the 12 h ruling. `--mutate` plants one change a band and each must turn its own band red. No band that judges a party turns red while X27 is out of band.
+`tests/balance-guard.mjs` imports `BANDS` from `standards.mjs`. For each band it reads the cells or the table the band names, and prints target, measured and state. A band starts in **report**. It turns **red** in the lane that lands the change it guards, and never goes back. The old lines map across: G1 is P2, G3 is P7, G4 is P8, G5 is S4, G7 is G-1, G8 is G-4, G10 is E7, G12 is E8, G15 is G-10, G16 is C2, G19 is P7, G20 is X1. G18 is X6: the merged lane already moved it to 12 hours a day with no new press, and it now also reads the two-visit day. `--mutate` plants one change a band and each must turn its own band red. No band that judges a party turns red while X27 is out of band.
 
 ---
 
@@ -371,7 +374,7 @@ Every place the plan, the dives and the audits did not measure on this frame, an
 | # | The gap | Decisions resting on it | Lanes | Guard |
 |---|---|---|---|---|
 | 1 | Every "weeks" and "days" number is counted at 3.3 hunted hours a day. At 12 h each is 3.6 times shorter | 30-1, 24-9, 31-5, 31-6, 26-3, 25-4, 24-10, 27-5, 31-2 | L06, L22, L42 | G9, G20 |
-| 2 | G18 holds the Own four to 3.3 to 5.3 hours a day, against the ruling | 25-1 | L40 | G18 |
+| 2 | G18 held the Own four to 3.3 to 5.3 hours a day. Re-based to 12 by the merged lane. The plan text of section E still prints the old band | 25-1 | L40 | G18 |
 | 3 | On-call heroes spend "idle stamina, 4.7 of 8 hours a day". At 12 h there is none. An on-call hour is an hour the owner's hero did not hunt for itself | 25-1, plan C12 and S4 | L40 | G18 |
 | 4 | "Stamina does not bind" is false on this frame, so what Premium's bar and a refill are worth was never measured. A refill is now hours 13 to 16 | 24-1, 24-3, 24-4, A-6, A-7 | L06, L27 | G22 |
 | 5 | The yard was sized against 14 to 20 idle hours. A hero has 12 rested hours, shared with every bench, node and cure | 21-7, 24-8, 26-5, 26-10, A-4, A-5, 31-7 | L19 | G11, G12 |
@@ -405,6 +408,8 @@ Every place the plan, the dives and the audits did not measure on this frame, an
 | 33 | Account age, server age and the newcomer were judged as designs. None has a number | 24-6, 24-7, 25-3 | L40, L41 | none |
 | 34 | Gold past tier 7 and the price index past Krell are formulas with no played cell under them | 24-2, 24-11 | L22, L47 | G15 |
 
+**Closed in part on 11-21 by `lane/d-twelve-hours`:** gaps 1, 2 and 27 have their hours fixed in the model, the gold model and the guard. The decisions resting on them still need their numbers re-read, and none of the other 31 gaps moved. Town time (gaps 5, 19, 20) was left at the real 2 to 6 hours on purpose, for this file to set.
+
 **What was measured well and stands:** the start kit to Level 10 (27-2, L05, G6) is a real LOW-kit measurement on a played life. The drop tables matched their listed chances in real play. The first-hour text and Carry on (L03, L04, L07 to L10) rest on blind play, not on the frame.
 
 ---
@@ -413,7 +418,7 @@ Every place the plan, the dives and the audits did not measure on this frame, an
 
 | Step | What | Owes | Gate |
 |---|---|---|---|
-| 0 | **Tyler rules** on section 9 | calls 1 to 4 at least. They set the bands every later step reads | none of steps 3 to 5 start on a PROPOSED band for calls 1 to 4 |
+| 0 | **Tyler rules** on section 9 | calls 1 to 4 and 13 at least. They set the bands every later step reads | none of steps 3 to 5 start on a PROPOSED band for calls 1 to 4 |
 | 1 | **Harness build** (one lane, systems + designer) | the kit builder, the projector, the town model, `grid.mjs`, measured cell times, `standards.mjs` wired into the guard in report mode, G18 deleted | every kit prints from data. The grid runs inside its budget |
 | 2 | **Calibrate** | X27 on at least three real parties, including a lone hero and a pair | in band, or the party bands stay in report |
 | 3 | **Baseline** | the full grid on today's set. One page: every band, target against measured, the red list ranked by first-hour value | the page is read cold by someone who did not build the harness |
@@ -466,3 +471,5 @@ Each call has a recommendation and an alternative. Until a call is ruled the rec
 11. **How much sooner may bought gold get you there?** A player who sells Crowns for gold reaches the same gear as everyone else, only sooner. Recommended: at most twice as fast to best in slot, and never anything a free player cannot reach. Alternative: no limit on how much sooner, only on what.
 
 12. **Is two visits a day the free game?** A free hero reaches 12 hours with two visits about 12 hours apart. Premium does it in one. Refills are only for hunting more than 12. Recommended: yes, that is the design, and we say it on the stamina bar. Alternative: the free bar should take three visits, so Premium is worth more.
+
+13. **Do heroes work in town when they are not hunting?** A hero rests 12 hours a day. Recommended: yes, assume every resting hero is at a bench, a node or the yard for all 12 hours, and size the town for that. We also print what a player gets if they only do 4. Alternative: size the town on the 2 to 6 hours real players did, and accept that a player who fills every hour gets far more than planned.

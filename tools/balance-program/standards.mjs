@@ -35,6 +35,8 @@ export const DOMAINS = F({ 21: 'combat', 22: 'endgame', 23: 'items', 24: 'econom
 export const CLOCK = deep({
   huntHoursADay: 12, label: 'RULED', ruling: '2026-11-21, 2026-10-25',
   restHoursADay: 12, // every other instant rests 1:1 (hunt-sessions.js STAMINA): all the town time a hero has
+  townHoursADay: { standard: 12, alsoPrintedAt: 4, label: 'PROPOSED', call: 13 }, // a resting hero is always working; model.mjs still holds the real 2 to 6
+  verifyOnServer: 'the stamina day (8 h then 4 h free, 12 h Premium, 0 refills) is COMPUTED from data rows; the harness plays it on the local world first',
   visitsADay: { free: 2, premium: 1 }, // COMPUTED: an 8 h bar is 8 h then 4 h, twelve hours apart; a 12 h bar is one start
   ceilingHoursADay: 24, // six refills of 4 h (stamina-refill.js); each hour past 12 costs two refill hours
   hoursAWeek: 84, hoursAMonth: 360,
@@ -261,6 +263,7 @@ export const GRID = deep({
     'deathTax', 'killsAnHour', 'supplies', 'rareRows', 'seeds', 'hours', 'spread', 'contentState'],
   derived: ['hoursToLevel', 'gearRatios', 'hardestTierHeld', 'partyAndTierAdvantage', 'deathCost', 'gearCostAndTime', 'goldADay', 'accountLife', 'runway',
     'rewardLog', 'town', 'serverCost'],
+  firstCheck: 'verify the stamina day on the server (tools/qa/local-world.mjs, 48 h, one free and one Premium hero, 12.0 hunted hours a day, 0 refills)',
   builders: ['kitFor(level, state, way)', 'the projector (placeholder grounds 185 to 400)', 'the town model (12 rested hours)'],
   runs: [
     { id: 'release', seeds: 2, hours: 1, cells: 120, budgetMin: 4, when: 'every release' },
@@ -273,7 +276,7 @@ export const GRID = deep({
 });
 
 export const GUARD_MAP = deep({ G1: 'P2', G3: 'P7.4', G4: 'P8', G5: 'S4.bis', G6: 'P11.ten', G7: 'G-1', G8: 'G-4', G9: 'X1', G10: 'E7', G12: 'E8', G13: 'D4',
-  G15: 'G-10', G16: 'C2', G18: null /* deleted: 3.3 to 5.3 h a day contradicts the 12 h ruling */, G19: 'P7.2', G20: 'X1', G22: 'X6' });
+  G15: 'G-10', G16: 'C2', G18: 'X6' /* re-based to 12 h by lane/d-twelve-hours; now also reads the two-visit day */, G19: 'P7.2', G20: 'X1', G22: 'X6' });
 
 const g = (n, gap, decisions, lanes, guard) => ({ n, gap, decisions, lanes, guard });
 export const GAPS = deep([
@@ -326,6 +329,7 @@ export const TYLER_CALLS = deep([
   { n: 10, ask: 'what a player may cost', recommended: '$0.50 an account-month at 1,000, $0.30 at 10,000', alternative: 'another number, or size to the hardware', bands: ['C4.1k', 'C4.10k'] },
   { n: 11, ask: 'how much sooner bought gold gets you there', recommended: 'at most twice as fast to BiS', alternative: 'no limit on sooner, only on what', bands: [] },
   { n: 12, ask: 'two visits a day is the free game', recommended: 'yes, and the stamina bar says so', alternative: 'three visits free, so Premium is worth more', bands: [] },
+  { n: 13, ask: 'do heroes work in town when they are not hunting', recommended: 'yes: size the town for all 12 rested hours, print it at 4 too', alternative: 'size the town on the real 2 to 6 hours', bands: [] },
 ]);
 
 /** Every problem with the tables, as strings. Empty = well formed. */

@@ -11,6 +11,12 @@ _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md
 
 ## Log
 
+### 2026-11-21 · the four unowned next reds, T-04..T-07 (lane/a-ci-reds-pre-wave)
+1. *A sleep equal to a debounce is a coin toss.* CW-12 slept residueDebounceMs (1500) and then counted the put. Prove such a race by slowing the stub's answer (300 ms) in a throwaway copy: the old check printed the exact CI line, the fixed one passed. Wait for the call, bounded by the config value plus a margin.
+2. *A staged sample's AL3 red after an engine change: bisect the measure first.* `git checkout <sha>^` then `<sha>`, run the guard: 2398754cb (to-hit ratio) moved it. Re-cut by the file's own sizing rule with a scratch loop over `problems(lineCopy)`; one point past the cut is the edge mutant.
+3. *A boot-path red of 3 bytes is a chance to cut, not raise.* Bundle `src/app/boot.js` with esbuild's metafile and sort inputs by bytesInOutput: camera.js + art-budget.js rode in for one string. esbuild keeps every top-level `Object.freeze(...)` (it cannot prove it pure), so a data module imported for one constant ships whole.
+4. The worktree has no node_modules: `npm ci` before build-site (esbuild). chat-social plain is 36 s here, --mutate --only=CW-12 a few minutes.
+
 ### 2026-11-10 · first-run green, the cancelled sweep, the silent install (lane/a-ci-first-run)
 1. *Read every red, then count.* `gh run list --json` → `gh run view <id> --json jobs` → `--log-failed`. A cancelled job's log is not in `--log-failed`: use `gh run view --job <id> --log`. That gives the LATEST attempt; an earlier attempt's log needs `gh api --allow-escape-sequences repos/{owner}/{repo}/actions/jobs/<id>/logs`.
 2. *Grep a red run for "full sweep:" before blaming its diff.* Five runs on 11-10 ran every proof because a cancelled dispatch stood as the last nightly. Their reds belonged to other changes.

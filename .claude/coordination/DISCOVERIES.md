@@ -4,6 +4,15 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+## 2026-11-21 · qa-engineer (lane/a-ci-reds-pre-wave) · the four unowned next reds (04c T-04..T-07)
+
+| # | Found | Sev | Affected | Action |
+|---|---|---|---|---|
+| 1 | T-04: to-hit as a ratio (2398754cb) made a Melee point cost about a tenth of the pace it did, so the hidden armor sample's heavy plate pieces read 100.07 to 100.60% of the line. Re-cut by the file's own sizing rule (most armor under the line): Breastplate 105 to 100, Leg Plates 86 to 81, Visor 70 to 55, Watchman's Helm 84 to 67, Limewashed 130 to 128. The Breastplate and Visor now sit AT the line's armor with a Melee cost: their "heavy" trade is gone (atkB -8 buys only 4 armor back; strB buys it) | P3 (hidden content) | tools/balance-sim/staged/armor-line.js; the Roost healerTiers deaths were measured with the Leg Plates at 86 | **Game Designer / FB-8 stage 1**: re-price heavy plate in strB (or another lever) when the uniques are re-cut; re-measure the Roost's healerTiers |
+| 2 | T-05: `blessingPrice` is alive since 184f28d45 (the Balance Lab's lab-core.mjs, an entry tool). `skillCapOf` and `totalLevel` are dead again, correctly on the baseline | P4 | tests/dead-exports.baseline.json | Done (pruned with --write) |
+| 3 | T-06: the sign-in stage carried src/world/core/camera.js and the whole src/data/world/art-budget.js for one string, MOBILE_QUERY (sign-in.js, off-why.js). It now lives in src/render/mobile-query.js: sign-in 197.9 to 195.2 KB gzip, 12 modules. The cut is inside BOOT_SLACK, so the ceiling (202,673 B) was not lowered: FB-5 has 2.7 KB of room | P2 | play.html preload, src/app/game-modules.js | Coordinator: lock it in with `--boot-path-write` if the room is not wanted |
+| 4 | T-07: CW-12 slept 1500 ms, exactly SESSION_CONFIG.residueDebounceMs, before reading the residue put, so a busy runner lost the race. With a 300 ms stub answer the old check reproduces the CI line. CW-7 (2200 ms) has the same shape with 700 ms of margin | P1 (red in-page test) | tests/chat-social.mjs | Done for CW-12; a test reading a debounced put waits for it, never a fixed sleep |
+
 ## 2026-11-21 · systems-engineer (lane/c-balance-matrix) · the measuring tool's step 1
 
 | # | Found | Affected | Action |

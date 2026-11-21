@@ -7202,7 +7202,7 @@ jobs:
           node tests/artisan-tick.mjs
           node tools/mutant-gate.mjs node tests/artisan-tick.mjs --mutate
 
-      # A JOB'S COUNT AND ITS "THEN" (1018-job-counts.sql + hr-accrue; plan L08). A gathering job of 20 swings
+      # A JOB'S COUNT AND ITS "THEN" (1026-job-counts.sql + hr-accrue; plan L08). A gathering job of 20 swings
       # exactly 20 and ends itself with the window open (the viewed settle) and the browser closed (the shipped
       # runTick); its THEN of hunt is started once by the minute sweep, and never loops. --mutate: 4 edge-copy.
       - name: Job counts — a job of 20 stops at 20 and does its THEN, both paths

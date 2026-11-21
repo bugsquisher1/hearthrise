@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // ════════════════════════════════════════════════════════════════════════
 // tests/job-counts.mjs — EVERY JOB TAKES A COUNT AND A "THEN", AND THE SERVER ENDS IT AT THE COUNT, WINDOW OPEN OR BROWSER
-//   CLOSED (plan L08, retention R3; supabase/migrations/1018-job-counts.sql + supabase/functions/hr-accrue).
+//   CLOSED (plan L08, retention R3; supabase/migrations/1026-job-counts.sql + supabase/functions/hr-accrue).
 //
 //   node tests/job-counts.mjs            the guard (the whole replayed chain, the shipped edge modules)
 //   node tests/job-counts.mjs --mutate   every planted defect in the edge must turn its arm red

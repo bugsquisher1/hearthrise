@@ -213,7 +213,7 @@ export const ACTIVITY_KINDS = Object.freeze(['idle', 'combat', 'gather', 'artisa
 export const CATALOGUE_ID_RE = /^[a-z0-9_]{1,64}$/;
 export const ACTIVITY_ID_RE = CATALOGUE_ID_RE;
 
-/** The largest count a job takes ("make N", and a gathering job's swings since 1018-job-counts.sql):
+/** The largest count a job takes ("make N", and a gathering job's swings since 1026-job-counts.sql):
     player_state.active_left's CHECK (2026-12-01-bench-count.sql). */
 export const BENCH_COUNT_MAX = 100000;
 
@@ -657,7 +657,7 @@ export function readActivity(body) {
     const c = a.count;
     out.count = (Number.isInteger(c) && c >= 1 && c <= BENCH_COUNT_MAX) ? c : null;
   }
-  /* A JOB'S "THEN" as `next` (1018-job-counts.sql; never `then`, which would make the object a thenable): what the hero does
+  /* A JOB'S "THEN" as `next` (1026-job-counts.sql; never `then`, which would make the object a thenable): what the hero does
      once the server has counted the job out, as a plain id. ABSENT is `undefined` (wait); present but not a plain id is `null`,
      refused by name by the intent layer, which also checks the id against src/data/hunt-after.js JOB_NEXTS. */
   if (Object.prototype.hasOwnProperty.call(a, 'next')) {

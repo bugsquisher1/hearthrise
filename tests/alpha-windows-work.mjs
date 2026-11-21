@@ -26,7 +26,7 @@
 //   AW-22 GATHERING AND CRAFTING (designer 2026-10-22: the town skills had no door):
 //         each gathering and bench skill in the ledger opens its work; a row shows what
 //         the server's level opens (and the next two, "Needs Woodcutting 15"); Start is
-//         ONE set_activity { kind:'gather'|'artisan', id, count, next } (every job has an end: 1018-job-counts.sql), a switch from another is ONE
+//         ONE set_activity { kind:'gather'|'artisan', id, count, next } (every job has an end: 1026-job-counts.sql), a switch from another is ONE
 //         more (no stop first); the work line reads the server's pointer and survives a
 //         reload; Stop is ONE idle and says what the server made; a bench row's amount
 //         (1 / 5 / All; a tool starts on 1, stock on All) rides the Start as `count` and
@@ -281,11 +281,11 @@ async function tickerRules(base) {
     workLine('smelt_bronze', { copper_ore: 40 }, Object.assign({ bench_run: { left: 5 } }, tally('smelt_bronze', T0, 3)), 2 * sstep + 100),
     workLine('cook_shrimp', { shrimp: 6 }, Object.assign({ bench_run: { left: 6 } }, tally('cook_shrimp', T0, 0)), 2 * cstep + 100),
     workLine('fuel_bones', { bones: 8 }, { bench_run: { left: 2 } }),
-    /* 1018-job-counts.sql: the server's whole count wins over the tally, and the job's THEN is said; a Hearth errand of one says none */
+    /* 1026-job-counts.sql: the server's whole count wins over the tally, and the job's THEN is said; a Hearth errand of one says none */
     workLine('smelt_bronze', { copper_ore: 40 }, { bench_run: { left: 5, count: 9, next: 'hunt' } }),
     workLine('fuel_bones', { bones: 8 }, { bench_run: { left: 1, count: 1, next: null } }),
   ];
-  /* A counted run that its inputs cover ends at its count and says what the hero does then (1018-job-counts.sql: wait unless set). */
+  /* A counted run that its inputs cover ends at its count and says what the hero does then (1026-job-counts.sql: wait unless set). */
   const W8 = '. Then waits in town';
   const countedWant = ['Making Etched Water Rune: 45 of 300 left' + W8, 'Making Etched Water Rune: 45 of 45 left' + W8, 'Making Etched Water Rune: 45 left' + W8,
     'Making Etched Water Rune: 45 of 300 left. Stops when materials run out', 'Making Etched Water Rune: 8,300 Blank Rune left. Stops when materials run out',
@@ -629,7 +629,7 @@ async function checks(overrides, shots, opts) {
         await page.click(W + ' .hw-work-row[data-id="normal_tree"] .hw-work-go');
         await page.waitForTimeout(800);
         let go = sent(s, 'hr-accrue', 'set_activity');
-        /* EVERY JOB HAS AN END (1018-job-counts.sql, plan L08): a gathering Start carries the row's count (100 until picked) and the
+        /* EVERY JOB HAS AN END (1026-job-counts.sql, plan L08): a gathering Start carries the row's count (100 until picked) and the
            window's "When it is done" (Wait in town until picked); the line says the server's count left and what the hero does then. */
         if (go.length !== 1 || JSON.stringify(go[0].body.activity) !== '{"kind":"gather","id":"normal_tree","count":100,"next":"wait"}') fails.push('AW-22 Start sent ' + JSON.stringify(go.map((c) => c.body)));
         if (!/^Chopping the Normal Tree: 0 chopped so far, 100 left\. Then waits in town$/.test(await nowText())) fails.push('AW-22 no line from the server pointer: ' + JSON.stringify(await nowText()));

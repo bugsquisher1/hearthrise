@@ -1332,7 +1332,7 @@ function benchCountGuard() {
   const out = recipe.output;
   const per = Math.max(1, Number(recipe.outputQty) || 1);
   const big = supplyFor(recipe, 500);
-  /* (a) make 5 from a bag for 500, a 12 h window: 5 actions, the pointer ends, and the end says it left 0 (1018-job-counts.sql:
+  /* (a) make 5 from a bag for 500, a 12 h window: 5 actions, the pointer ends, and the end says it left 0 (1026-job-counts.sql:
      the count reached, which is what lets hr_apply run the job's THEN). */
   const five = call({ activeId: recipe.id, inventory: big, activeLeft: 5, jobEnds: true });
   ok(five.accrued && five.summary.ticks === 5 && five.delta.items && five.delta.items[out] === 5 * per,
@@ -1360,7 +1360,7 @@ function benchCountGuard() {
   const free = call({ activeId: recipe.id, inventory: supplyFor(recipe, 7) });
   ok(free.accrued && free.summary.ticks === 7 && !('active_left' in free.delta),
     `T9: an uncounted run paid ${free.summary && free.summary.ticks} of 7 or proposed active_left ${free.delta && free.delta.active_left}`);
-  /* (e) a database before 1018-job-counts.sql (its envelope names no job end: jobEnds false) is never asked for an
+  /* (e) a database before 1026-job-counts.sql (its envelope names no job end: jobEnds false) is never asked for an
      `active_left` beside the idle, which its hr_apply would refuse: the run ends as it always did. */
   const old = call({ activeId: recipe.id, inventory: big, activeLeft: 5 });
   ok(old.accrued && old.summary.ticks === 5 && old.delta.activity && old.delta.activity.kind === 'idle' && !('active_left' in old.delta),

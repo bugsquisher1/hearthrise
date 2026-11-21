@@ -85,7 +85,7 @@ function whyStopped(cs, w) {
 }
 
 /* HOW A JOB STILL RUNNING ENDS (retention dive 2026-11-20: 8 h at the Copper Rock for a 20-ore errand, the card said only "Still mining"): a
-   counted job says the server's "N of M" and what the hero does then (1018-job-counts.sql); a bench run on All stops when its materials run
+   counted job says the server's "N of M" and what the hero does then (1026-job-counts.sql); a bench run on All stops when its materials run
    out; a gathering job from before counts runs until stopped. */
 function howItEnds(cs, w) {
   const job = jobOf(cs);

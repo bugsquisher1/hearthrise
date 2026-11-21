@@ -143,14 +143,14 @@ export function defaultCount(w) {
   return gear ? 1 : 'all';
 }
 
-/** Actions left on the hero's job (a bench run or, since 1018-job-counts.sql, a gathering job), from the server
+/** Actions left on the hero's job (a bench run or, since 1026-job-counts.sql, a gathering job), from the server
     (`bench_run.left`), or null (no count: a bench until the bag runs out). */
 export function leftOf(cs) {
   const b = cs && typeof cs.read === 'function' ? cs.read('bench_run') : null;
   return b && Number.isInteger(b.left) && b.left > 0 ? b.left : null;
 }
 
-/** THE JOB AS THE SERVER HOLDS IT (1018-job-counts.sql; the `bench_run` section): { left, count, next, ended } where `count` is
+/** THE JOB AS THE SERVER HOLDS IT (1026-job-counts.sql; the `bench_run` section): { left, count, next, ended } where `count` is
     the whole count it was set with, `next` its THEN (wait | hunt), and `ended` the last counted job the server ended ({ kind, id,
     count, done, left, next, end: count | stopped, at, next_state?, why? }) or null. Display only: every envelope replaces it. */
 export function jobOf(cs) {
@@ -360,7 +360,7 @@ const isErrand = (w, n) => w.kind === 'artisan' && w.skill === 'inner_flame' && 
  */
 export function startWork(cs, w, send, repaint, words, count, next) {
   const run = runOf(cs);
-  /* A JOB'S COUNT AND "THEN" (1018-job-counts.sql): a gathering job always takes a count (the server refuses one without), a bench
+  /* A JOB'S COUNT AND "THEN" (1026-job-counts.sql): a gathering job always takes a count (the server refuses one without), a bench
      a whole count or All (null: until its inputs run out, which takes no THEN). The server ends the job at the count and does its
      THEN (the wire's `next`); a Hearth errand of one is a visit and goes back to the job it interrupted, so it sends none. */
   const n = Number.isInteger(count) && count > 0 ? count : w.kind === 'gather' ? GATHER_COUNT_DEFAULT : null;
@@ -382,7 +382,7 @@ export function startWork(cs, w, send, repaint, words, count, next) {
       const endAt = Date.now() + runs * actionMs(cs, w) + SLACK_MS;
       let asks = 0;
       const arm = () => { run.timer = setTimeout(fire, Math.max(0, Math.min(MAX_WAIT_MS, endAt - Date.now()))); };
-      /* At the end of a run on All: stop (it collects). A COUNTED job is the server's to end (1018-job-counts.sql): its end runs
+      /* At the end of a run on All: stop (it collects). A COUNTED job is the server's to end (1026-job-counts.sql): its end runs
          its THEN, which a Stop would not, so the end asks for a settle (hello), and again in a moment while the job still shows.
          On a long run, every MAX_WAIT_MS: one settle so the bag and XP move. */
       const fire = () => {
@@ -508,7 +508,7 @@ function countedRun(cs, w) {
   if (left === null) return null;
   const tick = tickOf(cs);
   const done = tick ? tick.actions : 0;
-  /* `of`: the job's whole count as the server holds it (1018-job-counts.sql bench_run.count); before it, the bench tax's tally */
+  /* `of`: the job's whole count as the server holds it (1026-job-counts.sql bench_run.count); before it, the bench tax's tally */
   const job = jobOf(cs);
   const st = stateOf(cs);
   const run = benchTaxOf(cs) ? benchRunOf(cs) : undefined;
@@ -573,7 +573,7 @@ export function nowParts(cs) {
   const w = workOf(cs);
   if (!w) return [];
   const words = workWords(w);
-  /* A counted run says its own count, ends at it and says what the hero does then (1018-job-counts.sql); it says the inputs stop
+  /* A counted run says its own count, ends at it and says what the hero does then (1026-job-counts.sql); it says the inputs stop
      it only where they run out first. A gathering job from before counts runs until a hunt starts. */
   const run = countedRun(cs, w);
   const how = runParts(cs, w, false, run);

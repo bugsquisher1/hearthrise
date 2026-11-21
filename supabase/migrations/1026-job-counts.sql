@@ -1,8 +1,8 @@
 -- ════════════════════════════════════════════════════════════════════════
--- supabase/migrations/1018-job-counts.sql — EVERY JOB TAKES A COUNT AND A "THEN", AND THE SERVER ENDS IT AT THE COUNT
+-- supabase/migrations/1026-job-counts.sql — EVERY JOB TAKES A COUNT AND A "THEN", AND THE SERVER ENDS IT AT THE COUNT
 --   (plan L08, retention R3; lane/c-job-counts, backend-architect, 2026-11-20).
 --
--- STATUS: supabase/migration-notes/1018-job-counts.sql.json (STAGED until the Coordinator applies it).
+-- STATUS: supabase/migration-notes/1026-job-counts.sql.json (STAGED until the Coordinator applies it).
 -- ORDER: the sequence in this file's name (CLAUDE.md rule 12): it runs after every file on its base.
 -- Applied as ONE transaction by the apply tool; never begin/commit here. Ends with its §4 self-check.
 -- EDGE: hr-accrue moves with it (accrue-gather.js counts a gathering job down and ends it; accrue-artisan.js and
@@ -123,11 +123,11 @@ begin
   end if;
 end $mig$;
 comment on column public.player_state.active_count is
-  '1018-job-counts.sql: the job''s whole count as set (active_left is what is left of it); NULL with no count.';
+  '1026-job-counts.sql: the job''s whole count as set (active_left is what is left of it); NULL with no count.';
 comment on column public.player_state.active_next is
-  '1018-job-counts.sql: what the hero does when the server counts the job out (src/data/hunt-after.js JOB_THENS); NULL = wait.';
+  '1026-job-counts.sql: what the hero does when the server counts the job out (src/data/hunt-after.js JOB_THENS); NULL = wait.';
 comment on column public.player_state.job_end is
-  '1018-job-counts.sql: the last counted job the engine ended, and what came of its then. Display only; written by hr_apply and hr_job_next_start.';
+  '1026-job-counts.sql: the last counted job the engine ended, and what came of its then. Display only; written by hr_apply and hr_job_next_start.';
 create index if not exists player_state_job_next_pending on public.player_state (user_id, slot)
   where (job_end->>'next_state') = 'pending';
 
@@ -178,11 +178,11 @@ $a$];
   a_new := array[
 $a$  -- BENCH-COUNT (2026-12-01-bench-count.sql): the run's count this apply writes.
   v_bench_left int;
-  -- JOB-COUNTS (1018-job-counts.sql): the statement's whole count and THEN, and the end of a job the engine counted out.
+  -- JOB-COUNTS (1026-job-counts.sql): the statement's whole count and THEN, and the end of a job the engine counted out.
   v_job_count int; v_job_next text; v_job_end jsonb; v_job_left int;
 $a$,
 $a$                  where ak <> all (array['kind','id','restart','count','next'])) then$a$,
-$a$    -- ── JOB-COUNTS (1018-job-counts.sql; "make N" 2026-12-01-bench-count.sql) ─────────────────
+$a$    -- ── JOB-COUNTS (1026-job-counts.sql; "make N" 2026-12-01-bench-count.sql) ─────────────────
     -- `count` rides a gathering job or a bench run's statement (a whole number 1..100000), `next` (wait | hunt) only beside
     -- a count; a statement without them clears the job's count and THEN. `active_left` is the engine's countdown, only on
     -- an accrual (accrued_to), of a stored gathering job or bench run that has a count: alone, a whole number at least 1
@@ -256,7 +256,7 @@ end $mig$;
 create or replace function public.hr_work_job_note()
 returns trigger language plpgsql set search_path = public, pg_catalog as $fn$
 begin
-  -- JOB-COUNTS (1018-job-counts.sql). Named to fire AFTER hr_town_errand (a table's triggers fire in name order), so the errand's
+  -- JOB-COUNTS (1026-job-counts.sql). Named to fire AFTER hr_town_errand (a table's triggers fire in name order), so the errand's
   -- word on the pointer and its errand_* columns is in NEW.
   -- (1) A HEARTH ERRAND KEEPS THE JOB'S WHOLE COUNT AND THEN, AND GIVES THEM BACK with the job (its kind, id and count left are
   --     hr_town_errand's). Any other end of the errand drops them.
@@ -294,7 +294,7 @@ returns integer language sql stable set search_path = public, pg_catalog as $fn$
   -- as the count its resume may run for; NULL = this kind has no count, or nothing is left. A bench: the smaller of its own
   -- count (`p_left`, player_state.active_left; none on "All") and what its stock can make now, held to active_left's range
   -- (player_state_active_left_range, 100000). A new kind adds its arm here.
-  -- JOB-COUNTS (1018-job-counts.sql): a gathering job spends nothing, so its count left is its own.
+  -- JOB-COUNTS (1026-job-counts.sql): a gathering job spends nothing, so its count left is its own.
   select case when p_kind = 'artisan' then
     (select case when x.n >= 1 then x.n::int end
        from (select least(coalesce(p_left, 100000)::bigint,
@@ -308,7 +308,7 @@ returns jsonb language sql stable set search_path = public, pg_catalog as $fn$
   -- BENCH-RESUME (2027-04-24-bench-resume.sql): THE BY-KIND RULE AT THE HUNT'S END, given the count remembered at Enter
   -- (player_state.last_activity_left). { ok, left?, why? }. A bench resumes only for that count, and only while one action's
   -- inputs are still held. A new kind adds its arm here.
-  -- JOB-COUNTS (1018-job-counts.sql): a gathering job resumes only for the count it still had (none: it was done, or it is a
+  -- JOB-COUNTS (1026-job-counts.sql): a gathering job resumes only for the count it still had (none: it was done, or it is a
   -- job from before counts, the 6,001-ore path); anything else that spends nothing resumes as it always did.
   select case
     when p_kind = 'gather' and p_left is null then jsonb_build_object('ok', false, 'why', 'no_count')
@@ -328,7 +328,7 @@ returns jsonb language plpgsql stable set search_path = public, pg_catalog as $f
 begin
   return (select hr_q.v from (
 
-  -- JOB-COUNTS (1018-job-counts.sql): the hero's job as the server holds it. `left`: its count left (a gathering job's swings
+  -- JOB-COUNTS (1026-job-counts.sql): the hero's job as the server holds it. `left`: its count left (a gathering job's swings
   -- or a bench run's actions; the engine reads it as activeLeft, envelope.js); `count`: the whole; `next`: wait | hunt (null:
   -- wait); `ended`: the last counted job the engine ended and what came of its THEN (player_state.job_end). The key keeps the
   -- bench's name from before gathering took a count.

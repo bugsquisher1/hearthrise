@@ -475,7 +475,7 @@ export function accrueArtisan(inp, span) {
   if (stopped) delta.activity = { kind: 'idle', id: null };
   /* "MAKE N": a run still short of its count proposes the lowered count (hr_apply accepts it
      only below the stored one, on an accrual): a replayed or re-cut window cannot pay past N.
-     A run that ENDS states what it left beside its `activity: idle` (1018-job-counts.sql: 0 = counted out, which is what
+     A run that ENDS states what it left beside its `activity: idle` (1026-job-counts.sql: 0 = counted out, which is what
      lets hr_apply run the job's THEN; more = the inputs, the bag or the purse ended it first). */
   if (left1 !== null && ((stopped && inp.jobEnds === true) || (!stopped && left1 < left0))) delta.active_left = left1;
 

@@ -136,7 +136,7 @@ export function predictTown(o) {
   let sum;
   if (gather) {
     one[w.id] = { skill: w.skill, node: w.row };
-    /* a gathering job's count left caps it as the engine does (1018-job-counts.sql) */
+    /* a gathering job's count left caps it as the engine does (1026-job-counts.sql) */
     const jobLeft = count(o.left) || null;
     sum = simulateSkillSpan(scratch, Object.assign(ctx, { nodes: one, maxActions: jobLeft }));
   } else {

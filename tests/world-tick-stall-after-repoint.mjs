@@ -209,7 +209,7 @@ async function arm(id, u, kind, target, { microClock }) {
 
   // (2) THE RE-POINT, through the shipped intent, as hr_engine.
   const r = await runSetActivity({
-    exec, user: u, slot: 0, intentId: crypto.randomUUID(), activity: { kind, id: target, ...(kind === 'gather' ? { count: 100000 } : {}) },   // a gathering job always takes a count (1018-job-counts.sql)
+    exec, user: u, slot: 0, intentId: crypto.randomUUID(), activity: { kind, id: target, ...(kind === 'gather' ? { count: 100000 } : {}) },   // a gathering job always takes a count (1026-job-counts.sql)
   });
   if (r.status !== 200) { bad(`${id}-repoint`, `set_activity answered ${r.status} ${JSON.stringify(r.body)}`); return; }
   const st = await one(`select accrued_to = active_since as same, active_id from public.player_state

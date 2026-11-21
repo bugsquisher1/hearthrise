@@ -123,7 +123,7 @@ const RESTATED_AFTER = Object.freeze({ hr_hunt_view: '2027-02-18-party-truth.sql
   /* each setup says what it fights as and whether its gear is on (a setup switches mid-hunt, bar only): the plan cache's pre-image says neither */
   hr_hunt_presets_view: '2027-05-04-setup-swap-mid-hunt.sql',
   /* the job's section says its whole count, its THEN and its end (plan L08): the plan cache's pre-image says only what is left */
-  hr_bench_run_view: '1018-job-counts.sql' });
+  hr_bench_run_view: '1026-job-counts.sql' });
 /** The pre-image DDL the lane's files carry (their pg_temp copies), renamed back to the public functions they were. */
 export function preImages() {
   const out = [];

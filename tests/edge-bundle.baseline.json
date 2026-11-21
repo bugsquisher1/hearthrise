@@ -113,6 +113,11 @@
         "bytes": 3150187,
         "on": "2026-11-21",
         "why": "the to-hit ratio (balance program L15): src/data/to-hit.js, the rule and the generated reference hero (6.0 KB), and every monster row's aim and evasion in place of baseAcc (monsters.js and nine ground packs), with the comments that say why"
+      },
+      {
+        "bytes": 3163459,
+        "on": "2026-11-21",
+        "why": "1026-job-counts (plan L08): set-activity.js reads the job THEN ids from src/data/hunt-after.js (JOB_NEXTS, the single source; first time in the edge) + the gathering count and the job-end switch in accrue-gather.js, accrue-artisan.js, envelope.js, skill-sim.js, request.js, tick-shadow.js, set-activity.js"
       }
     ]
   }

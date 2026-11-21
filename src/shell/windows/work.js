@@ -66,7 +66,7 @@ const SCRATCH = new WeakMap();
 const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { skill: null, pending: false, msg: '', n: {} }; SCRATCH.set(cs, s); } return s; };
 /* The display state this hero keeps on the server (the residue allowlist, src/session/residue.js). */
 const residueOf = (cs) => (cs && cs.record && cs.record.residue) || {};
-/* The amount a row will do on its next Start (a bench: 1, 5, 'all' or X; a gathering node: its counts or X, 1018-job-counts.sql): the
+/* The amount a row will do on its next Start (a bench: 1, 5, 'all' or X; a gathering node: its counts or X, 1026-job-counts.sql): the
    player's pick, else the count the coach's card sets for this row (`sc.coach`, hunt-tutorial.js SAY.home), else the row's default. */
 const countOf = (sc, w) => (Object.prototype.hasOwnProperty.call(sc.n, w.id) ? sc.n[w.id]
   : sc.coach && sc.coach.work === w.id ? sc.coach.count : w.kind === 'gather' ? GATHER_COUNT_DEFAULT : defaultCount(w));
@@ -188,7 +188,7 @@ function rowHtml(g, w) {
     + '<span class="hw-work-ins"><span class="hw-work-what">' + inputsHtml(g, w) + '</span><small class="hw-work-stat"></small></span>'
     + '<small class="hw-work-odds"></small><small class="hw-work-fee"></small><small class="hw-work-why"></small>'
     /* "Make N", under the row's words: how many the next Start does; the server stops the job there (a gathering node too since
-       1018-job-counts.sql: every job has an end). */
+       1026-job-counts.sql: every job has an end). */
     + ('<span class="hh-segs hw-work-n" role="group" aria-label="' + esc(t('work.count_label')) + '">'
       + countsFor(w).map((n) => '<button type="button" class="hh-seg" data-hs-act="work-n" data-id="' + esc(w.id) + '" data-n="' + n + '">'
         + (n === 'all' ? 'All' : whole(n)) + '</button>').join('')
@@ -269,7 +269,7 @@ export function renderWork() {
     + '<section class="hw-work"><div class="hw-work-head">'
     + '<b class="hw-work-title"></b>' + skillBarHtml('Skill') + '<small class="hw-skill-xp"></small><b class="hw-skill-lv"></b></div>'
     + '<p class="hs-note hw-work-use"></p><p class="hs-note hw-work-tool"></p>'
-    /* WHAT THE HERO DOES WHEN A COUNTED JOB IS DONE (1018-job-counts.sql): one pick for the window, sent with the next Start. */
+    /* WHAT THE HERO DOES WHEN A COUNTED JOB IS DONE (1026-job-counts.sql): one pick for the window, sent with the next Start. */
     + '<p class="hs-note hw-work-next">' + esc(t('work.then_label')) + ' <span class="hh-segs" role="group" aria-label="' + esc(t('work.then_label')) + '">'
     + JOB_NEXTS.map((c) => '<button type="button" class="hh-seg" data-hs-act="work-next" data-next="' + esc(c.id) + '">' + esc(t('work.then_' + c.id)) + '</button>').join('')
     + '</span></p>' + hallmarkPaneHtml() + sortMenuHtml() + '<ul class="hw-ledger hw-work-rows"></ul><div class="hw-work-ladder"></div></section>'

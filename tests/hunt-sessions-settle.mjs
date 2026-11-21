@@ -884,8 +884,14 @@ const ENGINE_ARMS = {
      cellar's rats cost a hero in its band no supplies at all, so the cellar proves nothing.) */
   'ECON-1': async (M) => {
     const problems = [];
+    /* THE MANA IT SPENDS (lane/c-spell-rule, 2026-11-21): the harness hero is a hammer, whose default bar was Power Strike and Cleave from
+       Level 1. Cleave merged into Turning Cut (Tyler 32-2), and on its new slot's rule (2 or more beside) the fresh hammer spent half the
+       mana and never drank, so this scenario proved nothing about the drinks. Its bar here is its default one with Turning Cut on any one
+       beside it, Cleave's old rule: the same mana a fresh melee hero spent, so the coins still have drinks to pay for. */
+    const defaults = M.SPAWN.heroSetup({ weaponType: 'hammer', options: {}, bar: [], partyRoles: ['melee_dps'] }).slots.map((r) => r.slot);
+    const bar = defaults.map((s) => (s.action.type === 'ability' && s.action.id === 'turning_cut' ? { ...s, conditions: [] } : s));
     const fresh = () => [memberIn(M, 'a', { level: 8, gold: 0,
-      bag: { cooked_shrimp: { loaded: 20 } }, equipment: { weapon: 'bronze_sword' } })];
+      bag: { cooked_shrimp: { loaded: 20 } }, equipment: { weapon: 'bronze_sword' }, bar })];
     const cuts = Array.from({ length: 5 }, (_, i) => T0 + (i + 1) * 600000);
     const out = runCut(M, fresh, 3600000, cuts, groundWith(M, 'drain_rat'));
     const ms = out.outs.flatMap((o) => o.members);
@@ -5086,11 +5092,11 @@ const MUTANTS = [
     from: ' && Number.isInteger(u.target) && aimsAtMonsters(slot)) {', to: ' && Number.isInteger(u.target)) {' },
   { arm: 'SPELL-CONTENT', name: '[spell-content] Mend casts at full health', file: 'src/core/hunt/abilities.js',
     from: "    case 'self': return pct(hero) < 100 ? hero : null;",
-    to: "    case 'self': return row.heal || pct(hero) < 100 ? hero : null;" },
+    to: "    case 'self': return heals(row) || pct(hero) < 100 ? hero : null;" },
   { arm: 'SPELL-CONTENT', name: '[spell-content] a heal aimed at yourself finds nobody', file: 'src/core/hunt/conditions.js',
     from: "  if (subject === 'self') return cx.u.alive ? cx.u : null;\n", to: '' },
   { arm: 'SPELL-CONTENT', name: '[spell-content] Protective Ward shields nothing', file: 'src/core/hunt/abilities.js',
-    from: '      t.shield = scaled(row.shield);\n', to: '      t.shield = 0;\n' },
+    from: '      t.shield = amount().shield;\n', to: '      t.shield = 0;\n' },
   { arm: 'SPELL-CONTENT', name: '[spell-content] Green Sickness marks nothing', file: 'src/core/hunt/abilities.js',
     from: '    if (!row.status) return;', to: "    if (!row.status || row.target === 'area') return;" },
   { arm: 'BUFF', name: 'the hunt never re-measures the buff queue (a buff never pays)', file: 'src/core/combat-sim.js',

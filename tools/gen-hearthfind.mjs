@@ -52,7 +52,9 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
    forward file, which rewrites the same tables. */
 /* 1022-tohit-ratio-hearthfind-catalogue (lane/c-tohit-ratio, 2026-11-20): 2026-10-27 is APPLIED history; three boss kill rates re-measured on the
    to-hit ratio move their one_in (hours as ruled). */
-const OUT = join(ROOT, 'supabase', 'migrations', '1022-tohit-ratio-hearthfind-catalogue.generated.sql');
+/* 1030-spell-rule-hearthfind-catalogue (lane/c-spell-rule, 2026-11-21): 1022 (STAGED) is carried; three boss kill rates re-measured under the spell rule
+   move their one_in (hours as ruled). */
+const OUT = join(ROOT, 'supabase', 'migrations', '1030-spell-rule-hearthfind-catalogue.generated.sql');
 const ID_RE = /^[a-z0-9_]+$/;
 
 const die = (msg) => { throw new Error(`gen-hearthfind: ${msg}`); };

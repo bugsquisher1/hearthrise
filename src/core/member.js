@@ -27,7 +27,6 @@ import { honeOf, honeWornAt, ammoPerShot } from './ammo.js';
 import { armourValues, steadyPmOf } from './mitigation.js';
 import { isRune } from '../data/runes.js';
 import { ABILITIES, abilitySkill } from '../data/abilities.js';
-import { STATUSES } from '../data/statuses.js';
 import { BASIC_EFFECT_SHARE } from '../data/supply-basics.js';
 import { LANE_OF } from './hunt/conditions.js';
 import { blowsPmOf, armorPmOf } from './temper.js';
@@ -339,8 +338,9 @@ export function memberSide(mi, ctx) {
       shield: holdsShield(equipment, items),
       buffsAt: (atMs) => { state.buffs = buffQueueFromServer(buffRows, atMs); },
       bonus, weakness, rollsVs, shotRolls,
-      /* THE WORN +SKILL ({ skill: n } or null, combat.js SKILL_PLUS_FIELDS): what a spell's output and a bleed read on top of the base
-         level (hunt/abilities.js powerLevel), live like rollsVs (the loadout can change mid-hunt: unhone). */
+      /* THE WORN +SKILL ({ skill: n } or null, combat.js SKILL_PLUS_FIELDS), live like rollsVs (the loadout can change mid-hunt: unhone).
+         The engine reads it through the blow (rollsVs and the snapshot's maxHit: a spell is a share of it, the spell rule); this copy is
+         what the tools show reached the hero (tools/balance-sim/gear.mjs engineView, uniques-proof.mjs U4). */
       get skillPlus() { return /** @type {any} */ (eq).skillPlus || null; },
       /* MAGIC FIND (src/data/luck.js): this hero's whole percent as the SERVER computed it (hr_hunt_instance_read `magic_find`:
          the account's Luck rank and its worn Lucky ring, 0 while the `luck` switch is off), clamped to 0..MAGIC_FIND_MAX. Drops are
@@ -401,8 +401,8 @@ export function sharePurses(sides) {
    (tests/hunt-live.mjs LV-P).
    EVERY INPUT THE ENGINE READS OFF A HERO, AS A NUMBER (Andy #64/#65, live v0.2.45: match 0 in a
    4-hero party, every commit re-seeded): `lv` is the LEVEL (never the XP) of each skill its bar's
-   abilities grow with (abilitySkill: a spell's version and output, Tyler 10-23; a status's
-   scalesWith), so a peer's Fireball lands as hard in the browser as on the server; `shots` is its
+   abilities are gated by (abilitySkill: a spell's unlock and rune version, Tyler 10-23; what a cast lands is
+   a share of the unit's own maxHit, THE SPELL RULE), so a peer's Fireball lands as hard in the browser as on the server; `shots` is its
    blow priced by every item its attack lane can spend other than the worn ammo as worn (a bar's
    other arrows, and any store shot at the store's share: member shotRolls), so a peer shooting
    store arrows hits as it does on the server. Without them a peer cast at Magic 1 and shot at its
@@ -433,7 +433,8 @@ const shotKey = (ammo, sharePm) => String(ammo) + '|' + (Number.isInteger(shareP
 /* One roll against a monster, as the frozen row keeps it (frozenSide gives it back in playerCombatRolls' shape). */
 const vsRow = (r) => ({ accuracy: finiteOr(r.accuracy, 0), critChance: finiteOr(r.critChance, 0), damageMult: finiteOr(r.weak && r.weak.damageMult, 1) });
 
-/** The skills whose LEVEL the engine reads for a hero running `slots` (heroSlots rows): each ability's own skill and its status's scalesWith. */
+/** The skills whose LEVEL the engine reads for a hero running `slots` (heroSlots rows): each ability's own skill (its unlock and rune version;
+    a status's tick is a share of the caster's blow, statuses.js blowPm, and reads no skill). */
 export function engineSkillsOf(slots) {
   const out = new Set();
   for (const r of Array.isArray(slots) ? slots : []) {
@@ -441,8 +442,6 @@ export function engineSkillsOf(slots) {
     const row = a && a.type === 'ability' ? ABILITIES[a.id] : null;
     if (!row) continue;
     out.add(abilitySkill(row));
-    const st = row.status ? STATUSES[row.status] : null;
-    if (st && typeof st.scalesWith === 'string') out.add(st.scalesWith);
   }
   return Array.from(out).sort();
 }
@@ -537,7 +536,7 @@ export function frozenSide(row) {
       return v ? rolled(v) : { accuracy: snap.acc / 1000, critChance: 0, weak: { damageMult: 1 } };
     },
     snapshot: () => snap,
-    /* its worn +skill, from the frozen snapshot (heroSnapshot), so its spells grow with it as on the server */
+    /* its worn +skill, from the frozen snapshot (heroSnapshot): its blow (snap.maxHit) already carries it, so its spells grow with it as on the server */
     skillPlus: snap.skillPlus || null,
     hero: f.hero || {},
   };

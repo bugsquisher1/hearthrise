@@ -6,9 +6,10 @@
 //   node tools/balance-sim/staged/spell-ratios.mjs
 //
 // For every ability that lands a number: the version a career caster holds (I-V at 1 / 15 / 30 / 45 / 60 in the row's skill), what
-// one cast lands on a same-Level regular of a full ground (src/core/hunt/damage.js hurt: the row's roll minus the monster's defence
-// reduction, THEN the version's permille), as a share of that monster's HP, beside the hero's own basic blow; and for a heal or a
-// shell, as a share of the caster's HP and of the monster's largest blow. The skill is the measured career line of the way that
+// one cast lands on a same-Level regular of a full ground UNDER THE SPELL RULE (lane/c-spell-rule, 2026-11-21: src/data/abilities.js
+// castAmount, a share of the caster's own largest blow, its unit's maxHit against a zero-defence foe; src/core/hunt/damage.js hurt takes
+// the monster's defence once, THEN the version's step), as a share of that monster's HP, beside the hero's own basic blow; and for a heal
+// or a shell, as a share of the caster's HP and of the monster's largest blow. The skill is the measured career line of the way that
 // casts it (skill-lines.json), projected past Level 100 on the skill curve's own cost (the projection of `measure.mjs curves`).
 import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -64,7 +65,9 @@ for (const way of ['hammer', 'sword', 'tank', 'axes', 'bow', 'mage', 'healer']) 
     const sk = project(way, MAIN[way], L);
     const profile = MEM.deriveProfile ? MEM.deriveProfile(eq.weaponType) : undefined;
     let r;
-    try { r = C.playerCombatRolls(MON[L].mon, { equipment: kit.equipment || kit, items: gear.ITEMS, eq, skills: { [MAIN[way]]: XP.skillXpForLevel(MAIN[way], sk) }, ...(kit.profile ? { profile: kit.profile } : profile ? { profile } : {}) }); } catch { r = null; }
+    const ctx = { equipment: kit.equipment || kit, items: gear.ITEMS, eq, skills: { [MAIN[way]]: XP.skillXpForLevel(MAIN[way], sk) }, ...(kit.profile ? { profile: kit.profile } : profile ? { profile } : {}) };
+    /* the unit's own maxHit is against a zero-defence foe (member.js heroSnapshot), the to-hit against this monster */
+    try { r = C.playerCombatRolls(MON[L].mon, ctx); r = { ...r, maxHit: C.playerCombatRolls({}, ctx).maxHit }; } catch { r = null; }
     (BASIC[way] = BASIC[way] || {})[L] = r;
     return r ? sk + ', ' + r.maxHit + ', ' + pct(r.accuracy * (r.maxHit + 1) / 2 / MON[L].f.hp) : 'n/a';
   });
@@ -76,21 +79,20 @@ for (const row of Object.values(A.ABILITIES)) {
   const d = (row.disciplines || [])[0];
   const way = WAY[d] || (row.skill === 'magic' ? 'mage' : 'hammer');
   const skill = row.skill || A.DISCIPLINE_SKILL[d] || 'melee';
-  const isDmg = A.landsBlow(row) && ['enemy', 'area', 'line', 'ring', 'cleave'].includes(row.target);
-  const base = row.dmg || row.heal || (row.shield ? [row.shield, row.shield] : null);
-  if (!isDmg && !row.heal && !row.shield && !(row.target === 'self' && row.dmg) && !(['self', 'ally', 'party'].includes(row.target) && row.dmg)) continue;
+  const isDmg = A.landsBlow(row);
+  if (!isDmg && !A.heals(row) && !A.shells(row)) continue;
   const cells = LEVELS.map((L) => {
     const lv = project(way, skill, L), n = row.versions ? verAt(lv) : 1;
-    const ver = A.versionOf(row, n), pm = A.outputPm(row, n, lv);
-    const M = MON[L];
+    const ver = A.versionOf(row, n), pm = ver.outPm;
+    const M = MON[L], b = BASIC[way] && BASIC[way][L];
+    if (!b) return 'n/a';
+    const a = A.castAmount(row, b.maxHit, M.hp, pm);
     if (isDmg) {
-      let lands;
-      if (Number.isInteger(row.hitPm)) { const b = BASIC[way] && BASIC[way][L]; if (!b) return 'n/a'; const [lo, hi] = A.blowShare(b.maxHit, row); lands = Math.max(1, (lo + hi) / 2 - M.red) * pm / 1000; } else if (!row.dmg) return 'status only';
-      else lands = Math.max(1, mid(row.dmg) - M.red) * pm / 1000;
+      const lands = Math.max(1, mid(a.hit) - M.red) * pm / 1000 * (row.hits || 1);
       return lv + ' -> ' + 'I II III IV V'.split(' ')[n - 1] + ', ' + ver.mana + ', ' + lands.toFixed(0) + ', ' + pct(lands / M.f.hp);
     }
-    const amt = mid(base) * pm / 1000;
+    const amt = a.heal || a.shield;
     return lv + ' -> ' + 'I II III IV V'.split(' ')[n - 1] + ', ' + ver.mana + ', ' + amt.toFixed(0) + ', ' + pct(amt / M.hp) + ' / ' + pct(amt / M.blow);
   });
-  console.log([row.n + ' (' + (d || 'any') + ', ' + row.cdMs / 1000 + ', ' + row.target + (row.hitPm ? ', ' + row.hitPm / 10 + '% of own blow' : '') + ')', ...cells].join(' | '));
+  console.log([row.n + ' (' + (d || 'any') + ', ' + row.cdMs / 1000 + ', ' + row.target + ', ' + (row.hitPm || row.healPm || row.shieldPm || row.healHpPm) / 10 + '% of own ' + (row.healHpPm ? 'max HP' : 'blow') + ')', ...cells].join(' | '));
 }

@@ -347,10 +347,10 @@ export const ITEM_ART_SET = 'pixel';
 export const PIXEL_DIR = 'assets/icons-bundle/pixel/items/';
 
 /* THE ABILITY ICONS: 32x32 pixel tiles, one per ability, under assets/icons-bundle/pixel/abilities/<id>.png
-   (ported from the hunt sim's set, the same 32 px grid as the items; Mend, Rend, Protective Ward, Undertow, Frost Slam
-   and Shelter are drawn in that family by tools/world-art/ability-tiles.mjs). A new ability with no tile is a tests/pixel-icons.mjs finding. */
+   (ported from the hunt sim's set, the same 32 px grid as the items; Mend, Rend, Protective Ward, Undertow, Frost Slam,
+   Shelter and Quarry Blow are drawn in that family by tools/world-art/ability-tiles.mjs). A new ability with no tile is a tests/pixel-icons.mjs finding. */
 export const ABILITY_DIR = 'assets/icons-bundle/pixel/abilities/';
-export const ABILITY_ART = Object.freeze(['challenge', 'flame_strike', 'power_strike', 'cleave', 'rend', 'hunters_mark', 'flame_volley', 'precision_shot',
+export const ABILITY_ART = Object.freeze(['challenge', 'flame_strike', 'power_strike', 'quarry_blow', 'rend', 'hunters_mark', 'flame_volley', 'precision_shot',
   'fireball', 'frost_lance', 'arcane_barrier', 'greater_mend', 'circle_of_renewal', 'green_sickness', 'protective_ward', 'undertow', 'mend', 'hoarfrost', 'raking_shot', 'turning_cut', 'spring_tide',
   'frost_slam', 'shelter']);
 

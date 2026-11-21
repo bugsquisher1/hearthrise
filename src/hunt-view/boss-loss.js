@@ -7,16 +7,16 @@
 // THE SERIES' LINE (seriesLine; Tyler 2026-11-14, a slider of fights): how many fights the server counted, how many were won and what it charged.
 // PURE.
 // ════════════════════════════════════════════════════════════════════════
-import { ABILITIES } from '../data/abilities.js';
+import { ABILITIES, AREA_TARGETS, heals, landsBlow } from '../data/abilities.js';
 import { MONSTERS } from '../data/monsters.js';
 import { BOSS_CALL_WORDS, isGuarded } from '../data/boss-calls.js';
 import { roomOfHunt } from '../data/boss-halls.js';
 import { whole } from '../render/format.js';
 
 const LOST = Object.freeze(['died', 'party_member_died', 'boss_time']);
-/* Every ability that heals (abilities.js `heal`), and every one that hits a crowd (an area cast or a Cleave). */
-const HEALS = Object.values(ABILITIES).filter((r) => !!r.heal).map((r) => r.id);
-const AREAS = Object.values(ABILITIES).filter((r) => r.target === 'area' || r.target === 'cleave').map((r) => r.id);
+/* Every ability that heals (abilities.js heals), and every one that hits a crowd (a shape that lands a blow: an area, a line, a ring). */
+const HEALS = Object.values(ABILITIES).filter(heals).map((r) => r.id);
+const AREAS = Object.values(ABILITIES).filter((r) => AREA_TARGETS.includes(r.target) && landsBlow(r)).map((r) => r.id);
 
 const sum = (fired, ids) => ids.reduce((n, id) => n + (Number.isInteger(fired[id]) ? fired[id] : 0), 0);
 const count = (line, n) => line.replace('{n}', String(n));

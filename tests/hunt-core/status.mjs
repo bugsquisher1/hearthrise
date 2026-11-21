@@ -35,7 +35,7 @@ const cases = {
     const t = unit(M, 2, 'mon');
     const sc = ctx35(M, 1);
     const w = worldOf(M, [unit(M, 1, 'hero'), t]);
-    for (let i = 0; i < 7; i++) M.status.applyStatus(inst(w), t, bleed(M), { u: 1 + (i % 2), skillLv: 0, runeTier: 1 }, sc);
+    for (let i = 0; i < 7; i++) M.status.applyStatus(inst(w), t, bleed(M), { u: 1 + (i % 2), runeTier: 1 }, sc);
     if (t.statuses.length !== 5) return 'seven applications left ' + t.statuses.length + ' stacks';
     const last = sc.events.filter((e) => e.type === 'status_on').pop();
     return last && last.stacks === 5 ? null : 'the last status_on does not report 5 stacks';
@@ -46,7 +46,7 @@ const cases = {
     const t = unit(M, 2, 'mon');
     const w = worldOf(M, [unit(M, 1, 'hero'), t]);
     const sc = ctx35(M, 2);
-    M.status.applyStatus(inst(w), t, bleed(M), { u: 1, skillLv: 0, runeTier: 1 }, sc);
+    M.status.applyStatus(inst(w), t, bleed(M), { u: 1, runeTier: 1 }, sc);
     steps(inst(w), sc, 0, 59, M.status.tickStatuses);
     if (ticks(sc).length !== 5 || t.statuses.length !== 1) return 'before 6 s: ' + ticks(sc).length + ' ticks, ' + t.statuses.length + ' stacks';
     steps(inst(w), sc, 59, 30, M.status.tickStatuses);
@@ -60,7 +60,7 @@ const cases = {
     const t = unit(M, 2, 'mon');
     const w = worldOf(M, [unit(M, 1, 'hero'), t]);
     const sc = ctx35(M, 3);
-    const src = { u: 1, skillLv: 0, runeTier: 1 };
+    const src = { u: 1, runeTier: 1 };
     M.status.applyStatus(inst(w), t, bleed(M), src, sc);
     steps(inst(w), sc, 0, 30, M.status.tickStatuses);
     M.status.applyStatus(inst(w), t, bleed(M), src, sc);
@@ -70,23 +70,26 @@ const cases = {
     steps(inst(w), sc, 89, 1, M.status.tickStatuses);
     return t.statuses.length === 0 ? null : 'the stacks did not end together';
   },
-  /* ST-03: tick = base x (1 + Melee x 0.004) x tier (1.00/1.10/1.20), fixed when the stack lands. */
+  /* ST-03 under THE SPELL RULE (lane/c-spell-rule, 2026-11-21): a stack's scale is max(tier, the source's max hit x blowPm x tier / 1000), fixed
+     when the stack lands, and a tick is its 1-3 roll at that scale (statuses.js bleed: blowPm 33, tiers 1.0 / 1.1 / 1.2 / 1.3 / 1.4). The name
+     keeps its case id; it is the caster's blow that scales it now, not a Melee level. */
   'scales-with-melee-and-tier': (M) => {
-    const S = (lv, tier) => M.status.stackScale(bleed(M), { skillLv: lv, runeTier: tier });
-    /* five rune tiers (src/data/runes.js): a Graven Rupture Rune's bleed is the fifth step */
-    const want = [[0, 1, 1000], [50, 1, 1200], [50, 3, 1440], [99, 2, 1535], [0, 5, 1400], [0, null, 1000]];
-    for (const [lv, tier, s] of want) if (S(lv, tier) !== s) return 'scale(' + lv + ', ' + tier + ') = ' + S(lv, tier) + ', want ' + s;
-    for (const bad of [[0, 6], [-1, 1], [1.5, 1]]) {
+    const S = (hit, tier) => M.status.stackScale(bleed(M), { maxHit: hit, runeTier: tier });
+    /* five rune tiers (src/data/runes.js): a Graven Rupture Rune's bleed is the fifth step; a small blow sits on the tier's floor */
+    const want = [[1, 1, 1000], [50, 1, 1650], [50, 3, 1980], [99, 2, 3593], [1, 5, 1400], [1, null, 1000]];
+    for (const [hit, tier, s] of want) if (S(hit, tier) !== s) return 'scale(' + hit + ', ' + tier + ') = ' + S(hit, tier) + ', want ' + s;
+    for (const bad of [[1, 6], [0, 1], [1.5, 1]]) {
       try { S(...bad); return 'scale(' + bad + ') was accepted'; } catch { /* refused, never clamped */ }
     }
     if (M.status.tickAmount(3, 1440) !== 4 || M.status.tickAmount(1, 1000) !== 1) return 'tickAmount rounds wrong';
     const t = unit(M, 2, 'mon');
     const w = worldOf(M, [unit(M, 1, 'hero'), t]);
     const sc = ctx35(M, 4);
-    M.status.applyStatus(inst(w), t, bleed(M), { u: 1, skillLv: 50, runeTier: 3 }, sc);
+    M.status.applyStatus(inst(w), t, bleed(M), { u: 1, maxHit: 50, runeTier: 3 }, sc);
     steps(inst(w), sc, 0, 60, M.status.tickStatuses);
     const amts = ticks(sc).map((e) => e.amount);
-    return amts.length === 6 && amts.every((a) => a >= 1 && a <= 4) && amts.some((a) => a > 3)
+    /* a 1-3 roll at 1980 permille: 2, 4 or 6 */
+    return amts.length === 6 && amts.every((a) => [2, 4, 6].includes(a)) && amts.some((a) => a >= 4)
       ? null : 'scaled ticks are ' + amts;
   },
   /* ST-05: every tick is physical damage. */
@@ -94,7 +97,7 @@ const cases = {
     const t = unit(M, 2, 'mon');
     const w = worldOf(M, [unit(M, 1, 'hero'), t]);
     const sc = ctx35(M, 5);
-    M.status.applyStatus(inst(w), t, bleed(M), { u: 1, skillLv: 0, runeTier: 1 }, sc);
+    M.status.applyStatus(inst(w), t, bleed(M), { u: 1, runeTier: 1 }, sc);
     steps(inst(w), sc, 0, 60, M.status.tickStatuses);
     return ticks(sc).length === 6 && ticks(sc).every((e) => e.element === 'physical') ? null : 'a tick was not physical';
   },
@@ -103,7 +106,7 @@ const cases = {
     const h = unit(M, 1, 'hero');
     const w = worldOf(M, [h, unit(M, 2, 'mon')]);
     const sc = ctx35(M, 6);
-    M.status.applyStatus(inst(w), h, bleed(M), { u: 2, skillLv: 0 }, sc);
+    M.status.applyStatus(inst(w), h, bleed(M), { u: 2 }, sc);
     steps(inst(w), sc, 0, 20, M.status.tickStatuses);
     if (ticks(sc).length !== 2 || ticks(sc).some((e) => e.t !== 1)) return 'the hero did not bleed: ' + JSON.stringify(ticks(sc));
     /* It falls on the very sub-step its third tick is due: no tick lands on the fallen. */
@@ -118,7 +121,7 @@ const cases = {
     const t = unit(M, 2, 'mon', { hp: 60000 });
     const w = worldOf(M, [unit(M, 1, 'hero'), t]);
     const sc = ctx35(M, 7);
-    M.status.applyStatus(inst(w), t, bleed(M), { u: 1, skillLv: 0, runeTier: 1 }, sc);
+    M.status.applyStatus(inst(w), t, bleed(M), { u: 1, runeTier: 1 }, sc);
     steps(inst(w), sc, 0, 30, M.status.tickStatuses);
     const dots = sc.events.filter((e) => e.type === 'dmg' && e.dot && e.t === 2);
     if (ticks(sc).length < 2 || dots.length !== ticks(sc).length) return 'fixture: ' + ticks(sc).length + ' ticks, ' + dots.length + ' landed';
@@ -132,7 +135,7 @@ const cases = {
       let w = worldOf(M, [unit(M, 1, 'hero'), t]);
       const sc = ctx35(M, 7);
       const apply = (i) => {
-        if (i % 7 === 0 && i < 50) M.status.applyStatus(inst(w), w.units[1], bleed(M), { u: 1, skillLv: 20, runeTier: 2 }, sc);
+        if (i % 7 === 0 && i < 50) M.status.applyStatus(inst(w), w.units[1], bleed(M), { u: 1, maxHit: 20, runeTier: 2 }, sc);
       };
       for (let i = 0; i < 120; i++) {
         if (cutAt.includes(i)) w = cut(M, w);
@@ -154,7 +157,7 @@ const mutants = [
   { name: 'the tick at expiry is lost', case: 'bleed-6s',
     edits: [['src/core/hunt/status.js', 'if (st.next > 0 || st.left < 0) continue;', 'if (st.next > 0 || st.left <= 0) continue;']] },
   { name: 'the rune tier does not scale', case: 'scales-with-melee-and-tier',
-    edits: [['src/core/hunt/status.js', ' * row.tierPermille[tier - 1]) / 1000);', ' * 1000) / 1000);']] },
+    edits: [['src/core/hunt/status.js', ' * row.tierPermille[tier - 1]) / 1000));', ' * 1000) / 1000));']] },
   { name: '[tank runes] a slowing tier list is never checked', case: 'statuses-valid',
     edits: [['src/data/statuses.js', "    if (kind === 'slowPm' && row.tierPermille !== undefined) {", "    if (false) {"]] },
   { name: '[tank runes] a marking status takes a tier list', case: 'statuses-valid',

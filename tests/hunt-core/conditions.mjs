@@ -62,8 +62,9 @@ const AREA_MIGRATION = 'supabase/migrations/2027-04-15-area-conditions.sql';
 const VIEW_MIGRATION = 'supabase/migrations/2027-03-08-rune-ladder-slots.sql';
 /* The role rule sets once more (every default rune spell names its store rune, Flame Volley and Rend off the default bars: lane/c-caster-starter-bars, designer 2026-11-05),
    and again (Undertow on the Healer's set: lane/b-one-difficulty, Tyler 2026-11-09), (the area moves, 2027-04-18), and Flame Volley back on the bow's set
-   (the balance audit's fix 7, lane/d-audit-fixes-sim 2026-11-19). */
-const BAR_MIGRATION = 'supabase/migrations/2027-05-25-volley-default-bar.sql';
+   (the balance audit's fix 7, lane/d-audit-fixes-sim 2026-11-19), and the spell rule's melee set (Cleave merged into Turning Cut, Rend the axes'
+   strike: lane/c-spell-rule 2026-11-21). */
+const BAR_MIGRATION = 'supabase/migrations/1027-spell-rule-default-bar.sql';
 
 async function load(root) {
   const M = await loadCore(root);
@@ -360,22 +361,23 @@ const cases = {
     const t = (size, v) => M.cond.testSlot(inst, h, Object.assign(row, { items: Object.assign({}, M.ITEMS, { iron_arrows: { ...M.ITEMS.iron_arrows, area: size } }) }),
       slot('attack_with_item', 'iron_arrows', [c('enemies_in_aoe', 'gte', v)])).pass;
     if (!t(3, 5) || t(3, 6) || t(1, 2)) return 'enemies_in_aoe did not read the slot item\'s footprint';
-    /* A CLEAVE reads its swing (abilities.js: its target and the rest beside the hero, up to maxHits 3), not a footprint of 1. */
+    /* TURNING CUT (Cleave merged into it, Tyler 2026-11-21, 32-2) reads its ring round the hero (abilities.js: every monster beside, up to
+       maxHits 8), not a footprint of 1. */
     const cleaveCount = (spots, ignore) => {
       const hm = hero(M, 1, 6, 6, { role: 'melee_dps' });
       const around = spots.map(([x, y], i) => mon(M, 10 + i, 0, x, y, { target: 1 }));
       const ci = instOf(M, world(M, [hm, ...around]));
       const cr = heroRow(M, { range: 1 });
       ci.heroes = { 1: cr };
-      const n = (v) => M.cond.testSlot(ci, hm, cr, Object.assign(ab('cleave', [c('enemies_in_aoe', 'gte', v)]), ignore ? { ignore } : {})).pass;
-      return [1, 2, 3, 4].filter(n).length;
+      const n = (v) => M.cond.testSlot(ci, hm, cr, Object.assign(ab('turning_cut', [c('enemies_in_aoe', 'gte', v)]), ignore ? { ignore } : {})).pass;
+      return [1, 2, 3, 4, 5].filter(n).length;
     };
     const four = [[7, 6], [5, 6], [6, 5], [6, 7]];
-    if (cleaveCount(four) !== 3) return 'a Cleave beside four reads ' + cleaveCount(four) + ', want its maxHits 3';
-    if (cleaveCount([[7, 6]]) !== 1) return 'a Cleave beside one reads ' + cleaveCount([[7, 6]]);
-    if (cleaveCount([[7, 6], [6, 5]]) !== 2) return 'a Cleave beside two reads ' + cleaveCount([[7, 6], [6, 5]]);
-    if (cleaveCount([[7, 6], [9, 9]]) !== 1) return 'a Cleave counted a monster out of its swing';
-    if (cleaveCount([[7, 6]], ['rat']) !== 0) return 'a Cleave with nothing it may swing at read a crowd';
+    if (cleaveCount(four) !== 4) return 'a Turning Cut beside four reads ' + cleaveCount(four) + ', want all four';
+    if (cleaveCount([[7, 6]]) !== 1) return 'a Turning Cut beside one reads ' + cleaveCount([[7, 6]]);
+    if (cleaveCount([[7, 6], [6, 5]]) !== 2) return 'a Turning Cut beside two reads ' + cleaveCount([[7, 6], [6, 5]]);
+    if (cleaveCount([[7, 6], [9, 9]]) !== 1) return 'a Turning Cut counted a monster out of its ring';
+    if (cleaveCount([[7, 6]], ['rat']) !== 0) return 'a Turning Cut with nothing it may swing at read a crowd';
     /* An aim out of sight does not count: wall the plus off. */
     return null;
   },
@@ -383,13 +385,13 @@ const cases = {
     const run = (hp) => {
       const h = hero(M, 1, 12, 3, { role: 'tank', hp, maxHp: 100, mana: 100, maxMana: 100 });
       const inst = instOf(M, world(M, [h, mon(M, 10, 0, 13, 3, { target: 1, hp: 500, maxHp: 500 })]));
-      inst.heroes = { 1: heroRow(M, { slots: rows([ab('power_strike', [c('self_hp_pct', 'lt', 50)], 'and', 'ps'), ab('cleave', [], 'and', 'cl')]) }) };
+      inst.heroes = { 1: heroRow(M, { slots: rows([ab('power_strike', [c('self_hp_pct', 'lt', 50)], 'and', 'ps'), ab('turning_cut', [], 'and', 'cl')]) }) };
       const sc = subStep(0); sc.rng = M.rng.createRng(7);
       M.abilities.castAbilities(inst, sc);
       return sc.events.filter((e) => e.type === 'cast').map((e) => e.ability + '#' + e.rule + ':' + e.pass).join();
     };
     const a = run(40); const b = run(90);
-    return a === 'power_strike#ps:1' && b === 'cleave#cl:0' ? null : 'at 40% fired ' + a + ', at 90% fired ' + b;
+    return a === 'power_strike#ps:1' && b === 'turning_cut#cl:0' ? null : 'at 40% fired ' + a + ', at 90% fired ' + b;
   },
   join: (M) => {
     const h = hero(M, 1, 12, 3, { hp: 40, maxHp: 100, mana: 90, maxMana: 100 });
@@ -430,7 +432,7 @@ const cases = {
     const ward = ab('protective_ward', [c('ally_hp_pct', 'lt', 90, 'lowest')]);
     const a = run([ward], [100, 60]);
     const sh = a.ev.find((e) => e.type === 'shield');
-    if (!sh || sh.u !== 1 || sh.t !== 2 || a.k.shield !== sh.amount || sh.amount !== M.AD.ABILITIES.protective_ward.shield) return 'Protective Ward did not shield the wounded tank: ' + JSON.stringify(sh);
+    if (!sh || sh.u !== 1 || sh.t !== 2 || a.k.shield !== sh.amount || sh.amount !== M.AD.ABILITIES.protective_ward.base) return 'Protective Ward did not shield the wounded tank: ' + JSON.stringify(sh);
     if (run([ward], [100, 60], 12).ev.some((e) => e.type === 'cast')) return 'Protective Ward recast over a standing shield';
     const self = ab('greater_mend', [c('ally_hp_pct', 'lt', 70, 'self')]);
     const heal = run([self], [60, 30]).ev.find((e) => e.type === 'heal');
@@ -489,11 +491,11 @@ const cases = {
       return sc.events.filter((e) => e.type === 'cast').map((e) => e.ability + '@' + e.t).join();
     };
     const off = Object.assign(ab('power_strike'), { enabled: false });
-    if (fight([off, ab('cleave')], [[10, 13, 3, 'rat']], 10) !== 'cleave@10') return 'an Off Power Strike above Cleave: ' + fight([off, ab('cleave')], [[10, 13, 3, 'rat']], 10);
+    if (fight([off, ab('turning_cut')], [[10, 13, 3, 'rat']], 10) !== 'turning_cut@10') return 'an Off Power Strike above Turning Cut: ' + fight([off, ab('turning_cut')], [[10, 13, 3, 'rat']], 10);
     if (fight([off], [[10, 13, 3, 'rat']], 10) !== '') return 'a bar whose only ability is Off cast ' + fight([off], [[10, 13, 3, 'rat']], 10) + ' (a role default stood in)';
     const ign = Object.assign(ab('power_strike'), { ignore: ['rat'] });
-    if (fight([ign, ab('cleave')], [[10, 13, 3, 'rat']], 10) !== 'cleave@10') return 'Power Strike ignoring rats fired at a rat: ' + fight([ign, ab('cleave')], [[10, 13, 3, 'rat']], 10);
-    if (fight([ign, ab('cleave')], [[10, 13, 3, 'slime']], 10) !== 'power_strike@10') return 'Power Strike ignoring rats did not fire at a slime';
+    if (fight([ign, ab('turning_cut')], [[10, 13, 3, 'rat']], 10) !== 'turning_cut@10') return 'Power Strike ignoring rats fired at a rat: ' + fight([ign, ab('turning_cut')], [[10, 13, 3, 'rat']], 10);
+    if (fight([ign, ab('turning_cut')], [[10, 13, 3, 'slime']], 10) !== 'power_strike@10') return 'Power Strike ignoring rats did not fire at a slime';
     /* while its hero fights a rat, Power Strike ignoring rats waits even with a slime beside it (it fires at the
        slime once the slime is the hero's target) */
     const pair = [[10, 13, 3, 'rat'], [11, 13, 4, 'slime']];
@@ -563,7 +565,7 @@ const cases = {
   },
   /* STABLE RULE IDS: a reorder keeps every rule's id; an edit changes only the edited slot's; a repeat is unique. */
   'stable-ids': (M) => {
-    const A = ab('power_strike', [c('self_hp_pct', 'lt', 50)]); const B = ab('cleave'); const C2 = slot('consume', 'cooked_shrimp', [c('self_hp_pct', 'lt', 40)]);
+    const A = ab('power_strike', [c('self_hp_pct', 'lt', 50)]); const B = ab('turning_cut'); const C2 = slot('consume', 'cooked_shrimp', [c('self_hp_pct', 'lt', 40)]);
     const ids = (list) => Object.fromEntries(M.cond.heroSlots(list, null).filter((r) => !r.rule.startsWith('d_')).map((r) => [r.slot.action.id + JSON.stringify(r.slot.conditions), r.rule]));
     const one = ids([A, B, C2]); const re = ids([C2, null, B, A]);
     if (JSON.stringify(Object.entries(one).sort()) !== JSON.stringify(Object.entries(re).sort())) return 'a reorder changed ids: ' + JSON.stringify([one, re]);
@@ -571,10 +573,10 @@ const cases = {
     const ed = ids([A2, B, C2]);
     const same = Object.keys(ed).filter((k) => one[k] === ed[k]);
     if (same.length !== 2 || Object.values(ed).includes(one[Object.keys(one)[0]])) return 'an edit to one slot moved other ids: ' + JSON.stringify([one, ed]);
-    const dup = M.cond.heroSlots([B, B], null).filter((r) => r.slot.action.id === 'cleave').map((r) => r.rule);
+    const dup = M.cond.heroSlots([B, B], null).filter((r) => r.slot.action.id === 'turning_cut').map((r) => r.rule);
     if (dup.length !== 2 || dup[0] === dup[1]) return 'two identical slots share an id: ' + dup;
     /* A stamped id wins over the hash, so the server's id is what the engine reports. */
-    return M.cond.heroSlots([ab('cleave', [], 'and', 'srv1')], null)[0].rule === 'srv1' ? null : 'the stored id was not kept';
+    return M.cond.heroSlots([ab('turning_cut', [], 'and', 'srv1')], null)[0].rule === 'srv1' ? null : 'the stored id was not kept';
   },
   /* THE BAR / STOP RULES CHANGE MID-HUNT: state keyed by id survives a move, an id that is gone is dropped. */
   'rekey': (M) => {
@@ -582,7 +584,7 @@ const cases = {
     const inst = instOf(M, world(M, [h]));
     const keep = { id: 'keep', conditions: [c('self_mana_pct', 'lt', 20)], forMs: 60000 };
     const gone = { id: 'gone', conditions: [c('self_mana_pct', 'lt', 30)], forMs: 60000 };
-    const r = heroRow(M, { slots: rows([ab('cleave', [], 'and', 'w1'), ab('power_strike', [], 'and', 'w2')]), stopRules: M.cond.heroStopRules([keep, gone]) });
+    const r = heroRow(M, { slots: rows([ab('turning_cut', [], 'and', 'w1'), ab('power_strike', [], 'and', 'w2')]), stopRules: M.cond.heroStopRules([keep, gone]) });
     inst.heroes = { 1: r };
     h.ruleWait = { ability: 'w1:mana', consume: 'zz:busy' };
     const sc = subStep(0);
@@ -591,7 +593,7 @@ const cases = {
     if (!h.ruleWait || h.ruleWait.ability !== 'w1:mana' || h.ruleWait.consume) return 'a wait on a rule that is not on the bar survived: ' + JSON.stringify(h.ruleWait);
     /* The player reorders the stop rules, drops one, and moves w1 to the end of the bar. */
     r.stopRules = M.cond.heroStopRules([keep]);
-    r.slots = rows([ab('power_strike', [], 'and', 'w2'), ab('cleave', [], 'and', 'w1')]);
+    r.slots = rows([ab('power_strike', [], 'and', 'w2'), ab('turning_cut', [], 'and', 'w1')]);
     sc.atMs = 500; M.cond.checkStopRules(inst, sc);
     if (!h.ruleHold || h.ruleHold.keep !== 600 || 'gone' in h.ruleHold) return 'after the edit holds are ' + JSON.stringify(h.ruleHold);
     if (!h.ruleWait || h.ruleWait.ability !== 'w1:mana') return 'the moved rule lost its wait: ' + JSON.stringify(h.ruleWait);
@@ -883,10 +885,16 @@ const cases = {
     const v = set('ranger').find((s) => s.action.id === 'flame_volley');
     const rune = M.AD.ABILITIES.flame_volley.rune;
     if (!M.basics.BASIC_SUPPLIES.some((b) => b.id === v.action.store && b.partner === rune && b.price === 1)) return 'the bow\'s Flame Volley names ' + v.action.store + ', not its family\'s 1 g Plain store rune';
+    /* no tank or sword-alone way gets a rune spell by default (Tyler 2026-11-19), nor the hammer (its Quarry Blow is the player's pick, as the
+       sword's Flame Strike); the axes' Rend is on the melee set since the spell rule (Tyler 2026-11-21, 32-3: it is their one strike at one
+       target once Power Strike and Cleave are gone), on its family's 1 g Plain rune, and only the axes hold it */
     for (const role of ['tank', 'melee_dps']) {
-      const spells = set(role).filter((s) => M.AD.ABILITIES[s.action.id] && M.AD.ABILITIES[s.action.id].rune).map((s) => s.action.id);
-      if (spells.length) return 'the ' + role + ' default set casts a rune spell (' + spells.join(', ') + '): no tank or sword-alone way gets one by default (Tyler 2026-11-19)';
+      const spells = set(role).filter((s) => M.AD.ABILITIES[s.action.id] && M.AD.ABILITIES[s.action.id].rune
+        && M.AD.ABILITIES[s.action.id].disciplines.some((d) => ['shield', 'sword', 'club'].includes(d))).map((s) => s.action.id);
+      if (spells.length) return 'the ' + role + ' default set casts a rune spell (' + spells.join(', ') + ') for a tank, a sword alone or a hammer: none gets one by default (Tyler 2026-11-19)';
     }
+    const rend = set('melee_dps').find((s) => s.action.id === 'rend'), rr = M.AD.ABILITIES.rend;
+    if (!rend || JSON.stringify(rr.disciplines) !== '["dual_axe"]' || !M.basics.BASIC_SUPPLIES.some((b) => b.id === rend.action.store && b.partner === rr.rune && b.price === 1)) return 'the axes\' Rend is not on the melee set on its 1 g Plain rune: ' + JSON.stringify(rend);
     return null;
   },
   /* THE AREA MOVES ON AN UNEDITED BAR (playtest v0.2.127 P1: a Level 14 sword, a Level 24 mage and a Level 36 party saw none).
@@ -1154,13 +1162,13 @@ const mutants = [
   { name: 'a slot fires while its hero fights an ignored monster', case: 'slot-switch-and-ignore', edits: [['src/core/hunt/conditions.js', '    if (ignores(slot, t)) return { pass: false, mask: 0, cx };\n', '']] },
   { name: 'an ignore list holds back a food or a heal slot (S1a)', case: 'slot-switch-and-ignore', edits: [['src/core/hunt/conditions.js', ' && Number.isInteger(u.target) && aimsAtMonsters(slot)) {', ' && Number.isInteger(u.target)) {']] },
   { name: '[spell-content] Protective Ward recasts over a standing shield', case: 'friend-shield-and-yourself',
-    edits: [['src/core/hunt/abilities.js', " && pct(a) < 100 && (row.heal || !(int(a.shield) > 0))\n", ' && pct(a) < 100\n']] },
+    edits: [['src/core/hunt/abilities.js', " && pct(a) < 100 && (heals(row) || !(int(a.shield) > 0))\n", ' && pct(a) < 100\n']] },
   { name: '[spell-content] Protective Ward shields nothing', case: 'friend-shield-and-yourself',
-    edits: [['src/core/hunt/abilities.js', '      t.shield = scaled(row.shield);\n', '      t.shield = 0;\n']] },
+    edits: [['src/core/hunt/abilities.js', '      t.shield = amount().shield;\n', '      t.shield = 0;\n']] },
   { name: '[spell-content] a heal aimed at yourself finds nobody', case: 'friend-shield-and-yourself',
     edits: [['src/core/hunt/conditions.js', "  if (subject === 'self') return cx.u.alive ? cx.u : null;\n", '']] },
   { name: 'an ignore list holds back a food slot', case: 'slot-switch-and-ignore', edits: [['src/core/hunt/conditions.js', "  if (a.type === 'attack_with_item') return true;\n", "  if (a.type === 'attack_with_item' || a.type === 'consume') return true;\n"]] },
-  { name: 'an ignore list holds back an ally heal', case: 'slot-switch-and-ignore', edits: [['src/core/hunt/conditions.js', "const MONSTER_TARGETS = Object.freeze(['taunt', 'mark', 'enemy', 'area', 'line', 'ring', 'cleave']);", "const MONSTER_TARGETS = Object.freeze(['taunt', 'mark', 'enemy', 'area', 'line', 'ring', 'cleave', 'ally']);"]] },
+  { name: 'an ignore list holds back an ally heal', case: 'slot-switch-and-ignore', edits: [['src/core/hunt/conditions.js', "const MONSTER_TARGETS = Object.freeze(['taunt', 'mark', 'enemy', 'area', 'line', 'ring']);", "const MONSTER_TARGETS = Object.freeze(['taunt', 'mark', 'enemy', 'area', 'line', 'ring', 'ally']);"]] },
   { name: 'an area slot aims at an ignored monster', case: 'slot-switch-and-ignore', edits: [['src/core/hunt/conditions.js', '  const cand = mons.filter((m) => reaches(inst, hero, range, m) && !ignores(slot, m))', '  const cand = mons.filter((m) => reaches(inst, hero, range, m))']] },
   { name: 'an ignored monster may be a single-target ability\'s target', case: 'slot-switch-and-ignore', edits: [['src/core/hunt/abilities.js', '  const near = mons.filter((m) => inReach(inst, hero, h.range, m) && !ignores(cx && cx.slot, m)).sort(byPreference(hero));', '  const near = mons.filter((m) => inReach(inst, hero, h.range, m)).sort(byPreference(hero));']] },
   { name: 'an unknown monster may be ignored', case: 'validation', edits: [['src/core/hunt/conditions.js', "  if (!s.ignore.every((id) => typeof id === 'string' && Object.prototype.hasOwnProperty.call(MONSTERS, id)) || new Set(s.ignore).size !== s.ignore.length) return { error: 'bad_ignore' };\n", '']] },
@@ -1196,9 +1204,10 @@ const mutants = [
   { name: 'the tank\'s default set holds Flame Strike again, with no store rune (struck from minute one)', case: 'starter-bar-fires',
     edits: [['src/data/rule-subjects.js', "  tank: Object.freeze([slot('challenge'), slot('power_strike')]),", "  tank: Object.freeze([slot('challenge'), NO_STORE('flame_strike'), slot('power_strike')]),"], NO_STORE_ROW] },
   { name: 'a sword alone casts Flame Strike again, with no store rune (struck from minute one)', case: 'starter-bar-fires',
-    edits: [['src/data/rule-subjects.js', "  melee_dps: Object.freeze([slot('power_strike'), slot('cleave'), slot('turning_cut')]),", "  melee_dps: Object.freeze([NO_STORE('flame_strike'), slot('power_strike'), slot('cleave'), slot('turning_cut')]),"], NO_STORE_ROW] },
-  { name: 'Rend comes back on the axes\' default set with no store rune', case: 'starter-bar-fires',
-    edits: [['src/data/rule-subjects.js', "  melee_dps: Object.freeze([slot('power_strike'), slot('cleave'), slot('turning_cut')]),", "  melee_dps: Object.freeze([slot('power_strike'), slot('cleave'), NO_STORE('rend'), slot('turning_cut')]),"], NO_STORE_ROW] },
+    edits: [['src/data/rule-subjects.js', "  melee_dps: Object.freeze([slot('power_strike'), slot('turning_cut'), slot('rend')]),", "  melee_dps: Object.freeze([NO_STORE('flame_strike'), slot('power_strike'), slot('turning_cut'), slot('rend')]),"], NO_STORE_ROW] },
+  /* Rend stands on the axes' default set since the spell rule (lane/c-spell-rule 2026-11-21: the axes lost Power Strike and Cleave, Tyler 32-2 and 32-3) */
+  { name: 'Rend on the axes\' default set names no store rune', case: 'starter-bar-fires',
+    edits: [['src/data/rule-subjects.js', "  melee_dps: Object.freeze([slot('power_strike'), slot('turning_cut'), slot('rend')]),", "  melee_dps: Object.freeze([slot('power_strike'), slot('turning_cut'), NO_STORE('rend')]),"], NO_STORE_ROW] },
   /* Flame Volley stands on the bow's default set since the balance audit's fix 7 (lane/d-audit-fixes-sim, 2026-11-19): its store rune is what lets it fire */
   { name: 'Flame Volley on the Ranger\'s default set names no store rune', case: 'starter-bar-fires',
     edits: [['src/data/rule-subjects.js', "slot('raking_shot', RAKING_WHEN), slot('flame_volley')]),", "slot('raking_shot', RAKING_WHEN), NO_STORE('flame_volley')]),"], NO_STORE_ROW] },

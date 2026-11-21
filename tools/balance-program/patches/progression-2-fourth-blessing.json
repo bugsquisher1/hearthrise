@@ -1,0 +1,8 @@
+{
+  "schema": "hearthrise.balance-patch/1",
+  "name": "Progression 2: one more Blessing (the death share halved), as the engine sees it (56-review-progression.md section 2.3)",
+  "why": "The Blessing ladder adds a Blessing each time lifetime hours double; each halves what a death still takes. The engine has one death share (P28), so this plays ONE rung of the ladder at every Level: the death cost x0.5. The Level-by-Level ladder is derived on the cached grid by tools/balance-program/review-progression.mjs deaths. It targets survival and pace after deaths.",
+  "kind": "coefficient",
+  "knobs": { "deathLoss": 0.5 },
+  "targets": ["pace", "survival", "death"]
+}

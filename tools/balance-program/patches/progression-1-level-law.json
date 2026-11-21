@@ -1,0 +1,12 @@
+{
+  "schema": "hearthrise.balance-patch/1",
+  "name": "Progression 1: the one Level law past Level 50 (56-review-progression.md section 2.1)",
+  "why": "From Level 100 a Level costs H'(L) x 2.0 x the contract, H(L) = 0.643 x L^1.485 (the ruled table inside 3% to Level 500); Levels 50 to 100 ramp onto it with no step over 1.4 times the one before. Levels 1 to 50 are untouched. It carries formula P01 (44 roadmap R13) as brackets so the planted tree reads it. It targets pace and the runway.",
+  "kind": "derivation",
+  "edits": [
+    { "file": "src/data/core-model.js", "from": "Object.freeze({ from: 50, rise: 78689, bend: 162 }),", "to": "Object.freeze({ from: 50, rise: 371353, bend: 0 }), Object.freeze({ from: 58, rise: 109822, bend: 0 })," },
+    { "file": "src/data/core-model.js", "from": "Object.freeze({ from: 110, rise: 70000, bend: 100 }),", "to": "Object.freeze({ from: 100, rise: 154992, bend: 529 }), Object.freeze({ from: 200, rise: 260334, bend: 467 })," },
+    { "file": "src/data/core-model.js", "from": "Object.freeze({ from: 300, rise: 350000, bend: 100 }),", "to": "Object.freeze({ from: 300, rise: 353507, bend: 431 })," }
+  ],
+  "targets": ["pace", "P1", "P12", "R"]
+}

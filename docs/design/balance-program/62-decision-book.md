@@ -2,11 +2,11 @@
 
 The short form of the whole plan, for ruling. It mirrors `62-decision-book.json` (schema `hearthrise.decision-book/1`), which is the source. The long form is `60-game-review.md` and `49-mmo-layer.md`. Every line describes the game we are building.
 
-**Counts.** 92 GR rows and 23 MM calls, 115 in all. Ruled 2. Decide first 17. Needs your eye 29. Safe to accept 45. Superseded by an MM call 5. MM calls being revised 17.
+**Counts.** 92 GR rows and 43 MM calls, 135 in all. Ruled 2. Decide first 31. Needs your eye 41. Safe to accept 55. Superseded by an MM call 6.
 
 ## 1. The game we are building
 
-You run four heroes from your first day. They hunt while you are away, and you win by preparing them: who stands where, what they wear, what their bars do and where you send them. Harder tiers ask for a real party with roles. Gear is a chase with rare finds worth keeping. Levels never end, and gear, sinks and old grounds keep pace by formula. Around the hunt stands a shared world that works while everyone sleeps: clans, world bosses, a calendar of events, and two arenas, one on equal stats and one on your own gear. Its rewards are buffs and gear worth trading for. Every number comes from formulas you can read.
+You run four heroes from your first day. They hunt while you are away, and you win by preparing them: who stands where, what they wear, what their bars do and where you send them. Harder tiers ask for a real party with roles. Gear is a chase with rare finds worth keeping. Levels never end, and gear, sinks and old grounds keep pace by formula. Around the hunt stands a shared world that works while everyone sleeps: clans, world bosses, events and two arenas, paying buffs and gear. Crowns buy comfort and timed boosts, trade to other players for gold, and give a real edge under a stated ceiling. Every number comes from formulas you can read.
 
 ## 2. Already ruled
 
@@ -15,8 +15,10 @@ You run four heroes from your first day. They hunt while you are away, and you w
 | 2026-11-21 | All four heroes from the start. No slot prices. (GR-2) |
 | 2026-11-21 | One Premium for each account. |
 | 2026-11-21 | No solo or group balance targets. Party buffs make hunting together the obvious choice. (GR-67) |
+| 2026-11-21 | The four together, on the tier they can hold, earn more for each hero than the same four split up. A lone hero is a slower choice, never a trap. |
 | 2026-11-21 | The MMO layer is clans, world bosses, events and PvP arenas, and it is heavy work going forward. |
 | 2026-11-21 | Decisions first. No build lanes until every decision is made and a build plan exists. |
+| 2026-11-21 | Buying Crowns and selling them for gold gives real advantages, just not broken ones. |
 | 2026-11-21 | The MMO layer rewards buffs and gear, because that is what drives players to buy Crowns and sell them for gold. |
 | 2026-11-21 | Two PvP arenas: one with normalized stats and one that uses your gear. |
 | 2026-11-21 | The current game is irrelevant. Nothing is compared with it. Its data is evidence only. |
@@ -80,7 +82,21 @@ You run four heroes from your first day. They hunt while you are away, and you w
 | 14 | GR-29 | A hall's prize holds only what no ground drops. | It decides what the end of every region is worth. |
 | 15 | GR-40 | Three special pieces and a signature stone on three grounds, as the first rare finds a hero keeps. | It is the sample that every later rare item is sized on. |
 | 16 | GR-9 | An old ground can be hunted at your own Level, with one drop rule. | It is how the world keeps up with Levels that never end. |
-| 17 | MM-2 | A world boss is one health pool the whole server shares, fought by each account in its own room. | It is the first place another player moves a number you care about, and events build on it. |
+| 17 | MM-2 | A world boss is one health pool the whole server shares, fought by each account in its own room. | It is the first place another player moves a number you care about. |
+| 18 | MM-24 | Every buff is a row in one modifier table, and every MMO layer piece sits on the gear curve at the earner's band. | It is how everything the layer pays is sized, by formula. |
+| 19 | MM-25 | The buff caps: damage +5% standing and +10% timed, damage taken 5% and 5% less, Level XP +5% and +25%, drop chance +10% timed, town work +10%, no coin buff. | Every reward in the layer and every bought boost fills these caps. |
+| 20 | MM-26 | The power budget: a fully buffed, boss-geared four gains at most about 32% kill speed and about 72% Level pace over a plain four in mid gear. | It moves the days of the Level law (GR-6) and the content runway, so rule them together. |
+| 21 | MM-13 | Two arenas: an even arena that normalizes every stat, and an open arena that reads real gear, upgrades and buffs. | You ruled two arenas. This says what each one reads. |
+| 22 | MM-28 | Paying gives a real edge: timed boosts, gear sooner, upgrades sooner, clan rooms sooner, Premium, comfort and looks. | It is the money model, built on your ruling that Crowns must give real advantages. |
+| 23 | MM-29 | The store sells Premium, timed boosts, comfort and looks for Crowns. Never gear, materials, gold, Levels, skill levels, chests or rating. | It draws the line between a real edge and a broken one. |
+| 24 | MM-30 | Bought boosts and earned buffs are the same rows and fill the same timed caps. | It is what keeps paying under the caps of MM-25. |
+| 25 | MM-31 | The pace ceiling: a fully Crowns-boosted four gains at most 60% more Levels an hour than the same four in mid gear with no buffs. | It replaces your 11-21 ruling of no limit on how much sooner (50-11). |
+| 26 | MM-32 | The gear ceiling: paying puts you 0 bands ahead, and inside a band at most best in slot over mid gear. | It protects the gear chase from being bought. |
+| 27 | MM-33 | The gold ceiling: the weekly cap on Crowns sold is worth about one week of a four's hunting gold. | It sets how much gold money can add, and so every price in the game. |
+| 28 | MM-34 | Everything sold for Crowns can be had with gold through the book, at stated target prices. | It is what makes the model fair to a player who never pays. |
+| 29 | MM-35 | Crowns are a number on the account, sold to other players for gold on a server-owned book. One trade, then bound. | It is the trade surface the whole engine runs on. |
+| 30 | MM-36 | Eight clamps on the Crowns book, all inside the Security review before Early Access. | A real-money link to gold must not be able to reach another player's economy unchecked. |
+| 31 | MM-37 | Paying gives no edge in the even arena, in events, or in access to any Level, ground, drop or tier. | It names the places money never reaches. |
 
 ## 4. The rest, by area
 
@@ -166,7 +182,6 @@ You run four heroes from your first day. They hunt while you are away, and you w
 | GR-54 | The yard's rate follows the skill curve, never past half of hunting. | Re-opens 11-14 and two rulings of 11-20. |
 | GR-55 | The market is open on day one. | Re-opens 24-7. |
 | GR-56a | Setup slots 4 and 5 are free. | Re-opens 11-05. |
-| GR-60 | Crowns come after the market has something scarce to price. | A money call, which is yours. |
 
 **Safe to accept**
 
@@ -264,32 +279,52 @@ You run four heroes from your first day. They hunt while you are away, and you w
 
 ### The MMO layer
 
-**BEING REVISED after Tyler's 11-21 reward ruling. Only the calls that stand unchanged are listed with a recommendation.**
-
-Being revised, no recommendation yet: MM-4 (World boss size). MM-5 (World boss contribution). MM-6 (World boss pay. No recommendation until the revised study lands). MM-7 (A death in the boss room). MM-8 (What a clan gives. No recommendation until the revised study lands). MM-9 (The clan castle). MM-10 (The clan board). MM-13 (Arena fairness. Ruled in part: two arenas, one normalized and one on gear). MM-14 (Arena rewards. No recommendation until the revised study lands). MM-15 (Arena tickets). MM-16 (Arena matching). MM-17 (PvP on the hunting grounds). MM-18 (Hired and on-call heroes). MM-20 (Shared hunting grounds). MM-21 (Premium and the layer). MM-22 (Where the gold that hero slots took goes). MM-23 (The order for planning).
-
 **Needs your eye**
 
 | Id | The call | Why it needs you |
 |---|---|---|
-| MM-12 | Arena opponents are saved setups and house teams, never live players. | It shapes what PvP means in this game, for both arenas. |
+| MM-6 | A world boss pays a chest by your own points: its own named gear line at your band, its own upgrade material, a 7 day buff, a trophy. No coin. | A new tradeable gear line at the best in slot budget. It has to fit the item plan. |
+| MM-7 | A death in the boss room costs the normal death. | The boss is fought for 72 hours while you are away, at 6% with no cap. Rule it with GR-7. |
+| MM-8 | A clan is a shared work, a team and a room that pays members in buffs, held by giving that week's share. | A clan now gives hero power. It answers GR-10c. |
+| MM-9 | The castle is one project at a time on the town project engine. Each room carries one standing buff up to the standing caps. | Replaces 25-4 of 2026-11-20. It answers GR-68. |
+| MM-10 | A weekly clan board. The top clans carry a small timed buff the next week. | The strongest clans get stronger. HYPOTHESIS that it stays fair on a small server. |
+| MM-14 | Arena rewards by rating tier: a season buff and title in the even arena, and the arena's own gear line in the open arena. | The open arena pays gear to the best geared. A big bet. |
+| MM-18 | No hero is hired, lent or put on call. A party is your own heroes. | Replaces 25-1 of 2026-11-20. It answers GR-10a. |
 | MM-19 | Mixed Levels in one fight follow one visible two thirds line. | Re-opens 11-08. It answers GR-10b. |
+| MM-20 | Other players on a hunting ground are seen through a presence strip and never fought beside. | You named 8-person open-world areas as an option. This says no to them. |
+| MM-21 | Every boss, clan, event and arena is open to all. Premium makes timed buffs last a quarter longer and banks arena tickets to 30. | A money call, which is yours. |
+| MM-22 | The gold that hero slots took goes to the castle and to boss and arena upgrade materials first. | About 5.5M of sink has to land somewhere. It joins GR-8. |
+| MM-27 | Boss and arena gear trades like all gear. | It is what gives the market and Crowns something to price. |
+| MM-38 | The open arena matches by gear band, then rating, and thin bands borrow from the next band and from house teams. | HYPOTHESIS that it feels fair on a small server. |
+| MM-42 | Events pay buffs and gear: a Level XP weekend, a ground weekend that features its named pieces, boss and arena weekends. | It sets how often the timed Level XP cap is full. |
+| MM-43 | For the playtest only, every account gets the same weekly allowance of test Crowns through one server switch. | THIS IS A GRANT. It needs your explicit yes, even though it is equal for all and wiped. |
 
 **Safe to accept**
 
 | Id | The call | Why it is safe |
 |---|---|---|
 | MM-3 | A world boss stands for a window of about 72 hours and never at a set hour. | Follows from rule 0. |
+| MM-4 | A world boss is sized by weekly active accounts, with a floor one account can fell. | It works at 10 accounts and at 10,000. |
+| MM-5 | Your share of a world boss is counted against your own Level in a room scaled to your party. | It uses the one monster formula. |
 | MM-11 | Events are a four-weekend rotation written a year ahead, with no dailies, login calendar or season pass. | Builds the ruled calendar. It answers GR-83. |
+| MM-12 | Arena opponents are saved setups and house teams, never live players. | Follows from rule 0. |
+| MM-15 | Arena fights use tickets that bank, 5 a day up to 20. | A missed day loses nothing. |
+| MM-16 | The server offers three opponents, being attacked costs nothing, and your defense is your last attack party. | No chore and no loss while away. |
+| MM-17 | No PvP on the hunting grounds, ever. | A standing rule that protects the idle hunt. |
+| MM-23 | Approve the order of study 49 section 6.1 as the order for planning. | An order only. Nothing builds until the build plan exists. |
+| MM-39 | The even arena is one ladder for everyone, with three opponents offered near your rating. | Simple, and nothing bought is read. |
+| MM-40 | Each arena has its own tickets. | Neither arena eats the other. |
+| MM-41 | Measure once whether the engine can run heroes on both sides of a fight, before either arena is planned. | A measurement. It changes nothing in play. |
 
 ### Superseded by an MM call
 
 | Id | Rule it at | Note |
 |---|---|---|
-| GR-10a | MM-18 | On-call heroes. Study 49 recommends no hired or on-call heroes. That MM call is being revised. |
+| GR-10a | MM-18 | On-call heroes. No hero is hired, lent or put on call. |
 | GR-10b | MM-19 | The Level cut on party XP. One visible two thirds line. |
-| GR-10c | MM-8, MM-9, MM-10 | When and what clans are. That MM call is being revised. |
-| GR-68 | MM-9 | The clan castle. That MM call is being revised. |
+| GR-10c | MM-8, MM-9, MM-10 | What a clan is and when it comes: a shared work that pays members in buffs. |
+| GR-60 | MM-28 to MM-37 | When Crowns come. The Crowns engine does not wait for the market, because Crowns buy Premium and boosts and trade on their own book. |
+| GR-68 | MM-9 | The clan castle: rooms with standing buffs on the town project engine. |
 | GR-83 | MM-11 | No dailies. |
 
 ## 5. Still waiting
@@ -299,20 +334,19 @@ Being revised, no recommendation yet: MM-4 (World boss size). MM-5 (World boss c
 | Study 51, the instrument (landed) | The simulator follows the game's own death rule: a death ends that hero's hunt. This follows a ruling and needs no new one. | The baseline lane |
 | Study 51, the instrument (landed) | Which rune tier the simulated kit buys, decided with the heal price and supply calls (GR-52, GR-51, GR-50). | The game designer, inside those calls |
 | Study 51, the instrument (landed) | Every band stays in report mode until the open faults close. A four's pace can carry a decision. Gold and survival are direction only. | The baseline lane |
-| The revised study 49 | What world bosses, clans and the two arenas pay in buffs and gear, and how Crowns for gold runs through them. 17 MM calls are being revised. | The MMO layer study, then you |
-| Study 49, the MMO layer (landed) | One measurement before the arena is ruled final: whether the engine can run heroes on both sides of a fight. | The systems engineer |
 | Study 48, server cost | How an away hunt is saved, and whether the game fits $0.15 an account with four heroes working 12 rested hours. | The platform study, then you |
 | Study 48, server cost | What clans, world bosses, events and arenas may cost, since nothing may grow with players times players. | The platform study |
 | Missing decision | What the first week's gold is spent on, now that there are no slot prices. | The game designer, then you |
 | Missing decision | Early prices sized for an account of four heroes. | The game designer |
 | Missing decision | How the first hour teaches four heroes, as a walked-through sequence. | The game designer, then you |
 | Missing decision | What one Premium gives across four heroes, and its price. | You. It is a money call |
-| Missing decision | Whether idle capture the flag and PvP arenas are one system or two. | You |
 | Missing decision | Whether measuring and tool work may go ahead before the build plan. | You. Recommended yes, because the calls above depend on it |
 | Missing decision | The Level law's start and its two rough edges. | The game designer, inside GR-6 |
 | Missing decision | The Security review's scope for arenas, hire and clan projects. | The security engineer |
 | Missing decision | How fast regions can be drawn against how fast a four levels. | The art and asset directors, then you |
 | Missing decision | The dates for the beta and Early Access. | You, after the build plan exists |
+| Missing decision | How the power budget of the MMO layer (MM-26) and the pace ceiling (MM-31) change the days of the Level law and the content runway. | The game designer, with GR-6 |
+| Missing decision | How boss and arena gear lines fit the item plan and the gear curve (GR-4, MM-6, MM-14). | The game designer |
 
 ## 6. Then
 

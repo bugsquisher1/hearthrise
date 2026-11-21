@@ -55,10 +55,10 @@ Part of "Hearthrise: the game we are building", the combined design of record. W
 | Row | Value | Status |
 |---|---|---|
 | Each hero, at creation | 20 Cooked Shrimp, 50 Bronze Arrows, 10 Coarse Whetstones, and a practice set for every way to fight with the picked one in hand | RULED (the practice kit, 2026-10-20). Quantities are the kit rows |
-| The account, once, with the first hero | 500 gold, 8 Turnip Seeds, 10 Raw Shrimp, 2 farm plots | RECOMMENDED (GR-8). The purse, the farm and Storage belong to the account, so a per-hero grant would pay four times and would let a deleted and remade hero mint gold. The economy chapter owns the number |
+| The account, once, with the first hero | 500 gold, 8 Turnip Seeds, 10 Raw Shrimp, 2 farm plots | RECOMMENDED (GR-8). The purse, the farm and Storage belong to the account, so a per-hero grant would pay four times and would let a deleted and remade hero mint gold. Chapter 04 owns the number |
 | The starting bar | Slot 1 eats the hero's own Cooked Shrimp under 60% health. Slot 2 buys Salted Shrimp from the store at 14 gold once the hero's own food is gone. Slot 3 drinks Thin Turnip Juice at 10 gold under 30% mana. A bar left empty plays the role's own moves in order | RULED 2026-10-21 (the starter bar) |
 | No rune in the kit | A rune spell casts on the store's Plain rune at 1 gold a cast, bought by its slot | RULED 2026-10-23, 2026-11-05 |
-| The starting loot plan | Sell gear worse than what is worn. Keep what a bench the hero can use takes. Never sell a Rare or better. The player edits it and never builds it | RECOMMENDED (GR-80, with the loot plan by kind in the items chapter) |
+| The starting loot plan | Sell gear worse than what is worn. Keep what a bench the hero can use takes. Never sell a Rare or better. The player edits it and never builds it | RECOMMENDED (GR-80, with the loot plan by kind in chapter 03) |
 | The starting rest plan | Section 2.2, the job queue | RECOMMENDED (GR-80) |
 | Blessings | All three are free under Level 30. "Keep my company blessed" is one standing choice, set once, applied to every hero on every Start | The free band is RULED 2026-10-18. The standing choice is RECOMMENDED (GR-80) |
 
@@ -83,7 +83,7 @@ Minutes are TARGETS for a new player who follows the coach. The first 17 minutes
 | 0:36 | The recruits reach Level 5 and the Cellar ends for them | "Your company is ready for the Sewer." Main press: Gather and go. The first hero leaves the Thicket and the party forms with no invites | The first party | RECOMMENDED (GR-80) |
 | 0:37 | Reads the Sewer's prep page and presses Enter | Seats, with the shield in front and the healer behind. The note that the Rat King's room is built for a party. Normal | Where heroes stand. A boss has a room | RECOMMENDED (GR-79). The party note is RULED 2026-11-08 |
 | 0:38 to 0:55 | Watches the four fight | Two event lines, each shown once: the first time Challenge pulls a monster off another hero, and the first time a heal lands on an ally. Gear drops and "Equip upgrades for all four" is one press | Roles in action. Gear moves between my heroes | RECOMMENDED (GR-79, GR-80) |
-| 0:50 | Reads the rest plan | "When stamina runs out your heroes go to work. Here is their plan." Two fish and cook, one mines 20 Copper Ore, one chops 30 Normal Logs. "This builds your first home." | Heroes work while they rest. The first town goal | RECOMMENDED (GR-80, GR-79) |
+| 0:50 | Reads the rest plan | "When stamina runs out your heroes go to work. Here is their plan." Two fish and cook, one mines 20 Copper Ore, one chops 30 Normal Logs. "This builds your first home." One press plants both farm beds with Turnip Seeds | Heroes work while they rest. Each hero takes a different trade. The first town goal | RECOMMENDED (GR-80, GR-79) |
 | 0:55 | Reads the last card of the hour | "It is safe to close the game. Your company hunts for about 7 more hours, then goes to work. Come back in about 8 hours." | The idle promise, with a time on it | RECOMMENDED (GR-79) |
 | 1:00 | Closes the game | The four are Level 6 to 7 in the Sewer | | TARGET |
 
@@ -93,10 +93,12 @@ Minutes are TARGETS for a new player who follows the coach. The first 17 minutes
 |---|---|---|---|
 | Sword and shield | Challenge, then Power Strike | Mana only | RULED rows |
 | Club | Power Strike. The hammer's Earth rune strike (Quarry Blow) sits beside it | Mana. One Plain Earth Rune a cast | RULED 2026-11-21 (32-5) |
-| Hatchets | Rend, and Turning Cut from Level 1 | One Plain Rupture Rune a cast. Mana | Rend is RULED (32-3). Turning Cut at Level 1 is RECOMMENDED (GR-15, the combat chapter) |
+| Hatchets | Rend, and Turning Cut from Level 1 | One Plain Rupture Rune a cast. Mana | Rend is RULED (32-3). Turning Cut at Level 1 is RECOMMENDED (GR-15, chapter 01) |
 | Bow and crossbow | Hunter's Mark, then Precision Shot | Mana. Bronze Arrows never run out | RULED rows |
 | Wand and spellbook | Fireball | One Plain Fire Rune a cast. Mana | RULED rows |
 | Staff | Greater Mend. Mend needs no rune | One Plain Water Rune a cast. Mana | RULED rows. Mend at about 11% of max health is RULED 2026-11-21 (32-4) |
+
+**Default bars.** A new hero's bar is left empty except for the starting food and drink slots, and an empty bar plays its role's own moves in order. That answers chapter 01's question on default bars: there is no second list to keep true.
 
 A coach card that names a spell reads that spell's unlock level and its party-only mark from the data, so a card can never name a move the hero cannot cast (RECOMMENDED, GR-79).
 
@@ -120,9 +122,10 @@ Each step is checked against what the player holds from the steps before it and 
 | 12 | The four enter the Sewer | Every hero at the floor | Four heroes at Level 5 to 6 | Sewer band 5 to 25 (RULED 2026-11-18), groupFit "both", four start seats | Yes |
 | 13 | The four walk the Sewer on Normal | To survive the route, the Rat King's room included | Practice weapons, a helm each, 20 Cooked Shrimp each, a purse of about 1,300 to 1,600 gold (COMPUTED from the PLAYED 730 at minute 18 plus the recruits' Cellar coin) | Drain Rat 10, Sump Slime 10, Sewer Kobold 13, Culvert Bat 15, Cistern Spider 20, Rat King 25. His room carries forParty 2 | **Not proven for a start-kit four.** MEASURED 2026-11-18: a day-one four at Levels 5 to 7 earned about 1.6 times what it made alone in the Thicket, with no deaths. The kit of that four is not on record. This is check C3 and it gates the sequence |
 | 14 | The rest plan: fish, cook, mine, chop | Level 1 nodes and a Level 1 recipe | 10 Raw Shrimp on the account | `gathering.js`: Shrimp Spot, Copper Rock and Normal Tree all need level 1. `recipes.js`: Cook Shrimp needs level 1. `hunt-after.js`: a gathering job takes a count, and 20 and 100 are offered | Yes, once a hero's plan can hold two steps (the job queue, GR-80) |
-| 15 | Build the Hearthside Homestead on the first return | 400 gold, 20 Copper Ore, 30 Normal Logs | Purse over 400. Ore and logs from step 14 | `shops.js` property.homestead cost row | Yes |
+| 15 | Plant both beds | Seeds and beds | 8 Turnip Seeds, 2 beds | `gathering.js`: Turnip needs Farming 1 and takes 4 hours. `start-kit.js`: 2 farm plots | Yes. Ready before the first return. Chapter 07 walks the rest of the farm loop |
+| 16 | Build the Hearthside Homestead on the first return | 400 gold, 20 Copper Ore, 30 Normal Logs | Purse over 400. Ore and logs from step 14 | `shops.js` property.homestead cost row | Yes |
 
-Steps 11 and 14 need features this chapter designs. Step 13 needs a measurement. Every other step is doable from the kit and the data as they stand.
+Steps 11 and 14 need features this chapter designs, and step 15 needs one press that plants every empty bed. Step 13 needs a measurement. Every other step is doable from the kit and the data as they stand.
 
 **If check C3 fails.** The fix is made at the formula or data layer: the Sewer's floor, or the gentle first grounds rule that GR-25 puts on record. The tutorial never gets its own monsters or its own math (RULED 2026-11-21, formula layer).
 
@@ -147,9 +150,9 @@ A party is the account's own four heroes, so nothing here waits on another playe
 | | The starting rest plan gives a new company: two heroes fish 100 at the Shrimp Spot and then Cook Shrimp, one mines 20 Copper Ore, one chops 30 Normal Logs | RECOMMENDED (GR-80) |
 | **Next ground when outgrown** | A one-step "when the hunt ends" choice. If the hunt ended because the ground was outgrown, the party goes once to the recommended ground on Normal, and only if every seat is at or over its floor. Stamina still ends the day | RECOMMENDED (GR-81). It re-opens 27-1 and needs Tyler's yes |
 | **Tamsin's task takes itself** | The task for a ground is taken when a hero enters it. Its pay is collected on the end card or by Carry on | RECOMMENDED (GR-78) |
-| **Refills** | "Keep me topped up to N" is one line of the plan, run by Carry on. Its price and limits are the economy chapter's | RECOMMENDED (GR-80, GR-58) |
+| **Refills** | "Keep me topped up to N" is one line of the plan, run by Carry on. Its price and limits are chapter 04's | RECOMMENDED (GR-80, GR-58) |
 
-**How the server sees it.** One Start is one intent that the server expands into the same per-hero starts a player could press by hand, through the same door and the same checks. It adds no authority to the client. Town work is paid in closed form (GR-1, the platform chapter), so a job step costs a statement at its start, at its count and at its stop.
+**How the server sees it.** One Start is one intent that the server expands into the same per-hero starts a player could press by hand, through the same door and the same checks. It adds no authority to the client. Town work is paid in closed form (GR-1, chapter 09), so a job step costs a statement at its start, at its count and at its stop.
 
 ### 2.3 The hunt report (GR-66)
 
@@ -253,7 +256,7 @@ One table says what opens every system. Each row has an opener, the line that an
 | Every Level from 1 to 30 names a next thing within 3 Levels. A guard asserts it from the table | RECOMMENDED (GR-79). It makes standards X11 and X28 checkable |
 | A system that is planned and not finished stays off the table and stays hidden | RULED 2026-11-21 (nothing planned is cut, hidden until it works) |
 | No hidden system is opened to players before a stranger has stayed twenty hunted hours in a playtest | RECOMMENDED (GR-79) |
-| A room that is shut is not polled. A feature's section of the state read is fetched when its window opens | RECOMMENDED (GR-79), with the platform chapter |
+| A room that is shut is not polled. A feature's section of the state read is fetched when its window opens | RECOMMENDED (GR-79), with chapter 09 |
 | An opener owned by another chapter is read from that chapter's data. The Path holds no second copy of a Level | RECOMMENDED (GR-79) |
 
 **The table.** Levels are the content rows on this branch unless marked. Where another chapter owns the opener, the row says so.
@@ -265,19 +268,21 @@ One table says what opens every system. Each row has an opener, the line that an
 | First Leave | The end card, the hunt report, Blessings, the loot plan | The end card itself | RECOMMENDED (GR-79) |
 | First Level 5 on the account | The company: heroes two to four, the hero strip, the company plan, Storage | The Cellar's end card | RECOMMENDED (GR-79) |
 | Level 5 | Meadowbrook Thicket. The Sewer for a party | "Ground outgrown" | RULED 2026-11-18 (the Sewer at 5) |
-| First company hunt, ten minutes in | Skills, the job queue, the Farm, the House as a goal | The rest plan card | RECOMMENDED (GR-79) |
+| First company hunt, ten minutes in | Skills, the job queue, the Farm, the House as a goal | The rest plan card | RECOMMENDED (GR-79). The farm loop of chapter 07 needs only Level 1, so the later opener is the Path's choice: the first ten minutes hold one lesson at a time |
 | First stamina end | The return card. The Hearthside Homestead, if the materials are in Storage | The return card | RECOMMENDED (GR-79) |
 | Level 8, with a helm and body armor worn | Wickstead. The first Dangerous offer, with the risk reading beside it | The Hunts page | RECOMMENDED (GR-79). Risk as a warned choice is RULED 2026-11-04 |
 | First Rat King kill | The Rat King's Hall, as the first boss door and key | The loot line | RECOMMENDED (GR-79, GR-28) |
-| Level 10 | The Burning Tower and the Hearth Chest. The Weighhouse | One card each | The Tower's Level is RULED 2026-11-18. The Weighhouse on day one is OPEN (GR-55, the economy chapter) |
+| Level 10 | The Burning Tower and the Hearth Chest. The Weighhouse | One card each | The Tower's Level is RULED 2026-11-18. The Weighhouse on day one is OPEN (GR-55, chapter 04) |
 | Level 16 | Mosslight Glade. The Honors page | "Ground opened" | RECOMMENDED (GR-79, GR-62) |
 | Level 30 | Blessings cost gold. "Keep my company blessed" shows its price | The end card, two Levels ahead | RULED 2026-10-18 (free under 30) |
 | Level 32 | Coppercap Warrens | "Ground opened" | Content row |
 | Levels 45 to 85 | Hask's Ford, the Slake, the Muster Barrows, the Pyre Field, Krell's Hold | "Ground opened", with the Chronicle's teaser | Content rows |
-| Set by the items chapter | Tempering, Hallmarks, linings, jewelry tiers, salvage and Luck, the find list | One card each at its opener | OPEN. The items chapter sets each opener |
-| Set by the progression chapter | Kindlings every ten Inner Flame levels. Honors lines at Level 100, 200, 300 and 400 | The Level card | RECOMMENDED there (GR-61, GR-62) |
-| Set by the world chapter | Old grounds at your Level. Each region. The Catacombs | "Region opened" | RECOMMENDED there (GR-9, GR-33, GR-36) |
-| Set by the MMO chapter | Clans, world bosses, the event calendar, both arenas | The System tab and a town banner | OPEN. 17 MM calls are being revised |
+| Set by chapter 03 | Tempering, Hallmarks, linings, jewelry tiers, salvage and Luck, the find list | One card each at its opener | OPEN. Chapter 03 sets each opener |
+| Set by chapter 05 | Kindlings every ten Inner Flame levels. Honors lines at Level 100, 200, 300 and 400 | The Level card | RECOMMENDED there (GR-61, GR-62) |
+| Set by chapter 02 | Old grounds at your Level. Each region. The Catacombs | "Region opened" | RECOMMENDED there (GR-9, GR-33, GR-36) |
+| The start | Chat and the presence strip | No card. They are on screen | RECOMMENDED in chapter 06 |
+| The first day | Clans: the roster and its chat tab | One line on the first return card | RECOMMENDED in chapter 06 |
+| Not set | The world boss, both arenas, the clan board, the event calendar's first banner | The System tab and a town banner | OPEN. Chapter 06 names no Level door yet (its section 5, item 9). The designer sets them with GR-79 once the MM calls on size and pay are ruled |
 | 50 active accounts a day | The Town Crier, Rounds for the Tavern, flame powders, rank numbers on the boards | A town line | RECOMMENDED (GR-79). TARGET count |
 
 ### 2.6 Teaching and the coach
@@ -306,7 +311,7 @@ The coach teaches the loop and then gets out of the way. It is two things: a sho
 | Beat | What it is | What it pays or shows | Status |
 |---|---|---|---|
 | **The visit** | Twice a day free, once with Premium | The return card: the night in three lines, up to three decisions, Carry on | RULED 50-12. The card is RECOMMENDED (GR-80) |
-| **The day** | 12 hunted hours a hero | At least one Level for the pace seat in every 15 hunted hours to Level 300 (standard P12, the progression chapter). Tamsin's tasks. Bestiary stages that pay Luck. Rare reveals | The 12 hour day is RULED. The reveal on every Rare is RULED 27-6 |
+| **The day** | 12 hunted hours a hero | At least one Level for the pace seat in every 15 hunted hours to Level 300 (standard P12, chapter 05). Tamsin's tasks. Bestiary stages that pay Luck. Rare reveals | The 12 hour day is RULED. The reveal on every Rare is RULED 27-6 |
 | **The longest dry spell** | Hunted hours with no reward of any kind | At most 30 minutes under Level 10, 2 hours to Level 50, 6 hours to Level 110, 12 hours after | RULED direction 2026-10-25. Bands are standard X12 |
 | **The weekly turn** | One instant for everything weekly | The Hearth Chest's opens reset. The Tower's weekly climb. The six boards open on "this week". The Week card | The limits are RULED 2026-11-21. The Tower weekly is RECOMMENDED (GR-37). Six boards is RULED 27-4 |
 | **The Week card** | Shown on the first return after the turn | This week against your last week for the account: Levels, hours hunted, best find, Bestiary stages, Tower floor, rank moves and what just reset. It pays nothing, ever | RECOMMENDED (GR-84) |
@@ -321,22 +326,22 @@ The coach teaches the loop and then gets out of the way. It is two things: a sho
 | Minute 5 | Level 5 and the end of the Cellar | RULED row |
 | Hour 1 | The Sewer as a four. The Homestead from the first night's work | RECOMMENDED (GR-79) |
 | Day 1 | Level 10 by 6 hunted hours, with no Level under 10 over 2 hours. The Tower, the Chest, Wickstead and the first Dangerous run | RULED (27-2, standard P11) |
-| Week 1 | The Rat King's Hall. Mosslight Glade and the Honors page. The first sinks sized for an account of four | The sinks are OPEN (GR-8, the economy chapter). The Levels reached are set by the Level law (GR-6, the progression chapter) |
+| Week 1 | The Rat King's Hall. Mosslight Glade and the Honors page. The first sinks sized for an account of four | The sinks are OPEN (GR-8, chapter 04). The Levels reached are set by the Level law (GR-6, chapter 05) |
 | Day 18 | Krell's Hold | RULED 2026-11-21 |
-| Month 6 and after | A region open 30 days before the first fours arrive. Old grounds at your Level | RULED 2026-11-21 (runway). GR-9 is RECOMMENDED in the world chapter |
+| Month 6 and after | A region open 30 days before the first fours arrive. Old grounds at your Level | RULED 2026-11-21 (runway). GR-9 is RECOMMENDED in chapter 02 |
 
 ### 2.8 Premium's comfort and convenience across four heroes
 
-There is one Premium for each account and it covers every hero (RULED 2026-11-20 and 2026-11-21). Its price, and everything Crowns buy, are in chapter 04. This section says only what Premium does to the player's day.
+There is one Premium for each account and it covers every hero (RULED 2026-11-20 and 2026-11-21). Its price, its full list of perks and everything Crowns buy are in chapter 04 (section 2.9 there). This section says only what Premium does to the player's day.
 
 | Benefit | Across four heroes | Status |
 |---|---|---|
 | The 12 hour stamina bar | Every hero. The 12 hour day takes one visit in place of two | RULED 2026-10-17 (the bar), 2026-11-21 (the account) |
 | The full hunt analyzer | Every hero and the party view | RULED 2026-10-17 |
 | The daily training item (the 1 hour tier) | Granted into Storage on the first visit of the day with no press. The streak never resets | Kept: RULED 2026-11-20 (24-4). No press is RECOMMENDED (GR-84) |
-| How many items a day | One for each hero, so four a day | OPEN. A money call for Tyler with chapter 04. The designer's lean is one for each hero, because every other benefit covers every hero. It is four hours of training a day for one price, so chapter 04 and the yard's rate (GR-54) must size it first |
+| How many items a day | One for each hero, so four a day | RECOMMENDED in chapter 04, and part of Tyler's open money call on Premium. It is four hours of training a day for one price, so the yard's rate (GR-54) sizes it |
 | Premium outfits | Every hero | RULED 2026-10-17 |
-| In the MMO layer | Timed buffs last a quarter longer. Arena tickets bank to 30 | OPEN (MM-21, being revised) |
+| In the MMO layer | Timed buffs last a quarter longer. Arena tickets bank to 30 | RECOMMENDED (MM-21, chapter 06) |
 
 | What Premium never is | Status |
 |---|---|
@@ -369,17 +374,17 @@ The eight criteria in short form: player value, depth, uniqueness, what it plugs
 | The event calendar | Medium | Low | Yes | The MMO layer | Capped at +25% | Low. Rows, never run by hand | Yes | KEEP as a four-weekend rotation | RECOMMENDED (MM-11) |
 | The Rare reveal | High | None | Yes | Loot, the return card | None | Low | Yes | KEEP on every Rare | RULED 27-6 |
 | Setups, action sets and hunt presets | High. The identity feature | High | Three nouns for one idea | The bar, grounds | None | Medium | Yes | MERGE into one noun, "Setup", remembered for each ground | RECOMMENDED (GR-84) |
-| Paid setup slots 4 and 5 | None | None | No | Nothing | Not a sink | Negative | No | REMOVE the price | RECOMMENDED (GR-56a, the economy chapter) |
+| Paid setup slots 4 and 5 | None | None | No | Nothing | Not a sink | Negative | No | REMOVE the price | RECOMMENDED (GR-56a, chapter 04) |
 | A starting loot plan and a starting rest plan | High in hour 1 | None. They remove presses | Yes | The loot plan, the job queue | None | Low | No | ADD | RECOMMENDED (GR-80) |
 | Next ground when outgrown | High for 20 hours | Low | Yes | The after-hunt plan | None. Normal only | Low | No | ADD | RECOMMENDED (GR-81) |
 | The Premium daily claim as a press | None | None | No | Premium | None | Low | No | REDESIGN. Granted with no press | RECOMMENDED (GR-84) |
-| The rested bank | None. It pays nothing on any path | None | No | Nothing | MEASURED: switching it off moved no band in 207 cells of the proposed matrix | Negative | No | REMOVE | RECOMMENDED (GR-63, the progression chapter) |
+| The rested bank | None. It pays nothing on any path | None | No | Nothing | MEASURED: switching it off moved no band in 207 cells of the proposed matrix | Negative | No | REMOVE | RECOMMENDED (GR-63, chapter 05) |
 | Old server leftovers, the gift code, Open Halls | None | None | No | Nothing | None | Negative | No | REMOVE | RULED (27-7, the cut list) |
 | The Town Crier, Rounds, flame powders | Medium in a crowd | Low | Yes | Gold sinks | Small | Built | Yes | KEEP, shut by the population gate | RECOMMENDED (GR-79) |
 | One Great Hearth | Medium | Low | Merges three rooms | Town Works, the event, powders | Small | Medium | Yes | MERGE | RECOMMENDED (GR-82). HYPOTHESIS |
 | The Book of formulas and the Chronicle | Medium | Low | Yes. The honesty feature | The Path | None | Low | Yes | KEEP. The Book reads the engine's own constants | RULED 2026-11-08 |
 | Settings and widgets | Medium | None | Yes | Everything | None | Low | Yes | KEEP | RECOMMENDED |
-| Account deletion | Required | None | Yes | Accounts | None | Low | Yes | ADD before Early Access | RECOMMENDED (the platform chapter) |
+| Account deletion | Required | None | Yes | Accounts | None | Low | Yes | ADD before Early Access | RECOMMENDED (chapter 09) |
 | A return notice | Medium on phones | None | Yes | The stamina day | None | Medium | Yes | BUILD-LATER, opt-in, with the mobile build | RECOMMENDED (GR-80) |
 | Companions | None until redesigned | Low | No | A seventh power lever | Risky | Built, hidden | Maybe, as a collection | BUILD-LATER, hidden | RULED 2026-10-22 |
 | A skill tree | Covered by Kindlings | High | No | Combat | Risky | High | Yes | ON HOLD | RULED 2026-11-05 |
@@ -394,21 +399,21 @@ The eight criteria in short form: player value, depth, uniqueness, what it plugs
 
 | This chapter reads from | What |
 |---|---|
-| The combat chapter | Each way's first moves and unlocks (GR-15, 32-3, 32-5). The party XP table that makes the four together beat the four split (knob `partyXp`, formula P21, RULED 2026-11-21). The tiers and their death band, which the report prints |
-| The progression chapter | The Level law and day numbers (GR-6, knob `levelCurve`, formula P01). The fix to Levels 7 to 10 (27-2). The death cost (knob `deathLoss`, P28) and the Blessing ladder (GR-7). Kindlings and Honors as Path rows |
-| The world chapter | Each ground's band, floor and party note. GR-25's gentle first grounds. Old grounds at your Level (GR-9) |
-| The items chapter | The loot plan by kind. The tally's piece rule. Every item opener on the Path |
-| The economy chapter and chapter 04 | The first week's sinks for an account of four (GR-8). The hunt's spending budget (GR-57). The refill price (GR-58). The Weighhouse's opening (GR-55). Premium's price and what Crowns buy |
-| The MMO chapter | The event calendar (MM-11), the boss window (MM-3), Premium inside the layer (MM-21), and every MMO row of the Path |
-| The platform chapter | Town work in closed form (GR-1). How an away hunt is saved (study 48). Sections of the state read fetched on open |
+| Chapter 01 | Each way's first moves and unlocks (GR-15, 32-3, 32-5). The party XP table that makes the four together beat the four split (knob `partyXp`, formula P21, RULED 2026-11-21). The tiers and their death band, which the report prints |
+| Chapter 05 | The Level law and day numbers (GR-6, knob `levelCurve`, formula P01). The fix to Levels 7 to 10 (27-2). The death cost (knob `deathLoss`, P28) and the Blessing ladder (GR-7). Kindlings and Honors as Path rows |
+| Chapter 02 | Each ground's band, floor and party note. GR-25's gentle first grounds. Old grounds at your Level (GR-9) |
+| Chapter 03 | The loot plan by kind. The tally's piece rule. Every item opener on the Path |
+| Chapter 04 | The first week's sinks for an account of four (GR-8). The hunt's spending budget (GR-57). The refill price (GR-58). The Weighhouse's opening (GR-55). Premium's price and what Crowns buy |
+| Chapter 06 | The event calendar (MM-11), the boss window (MM-3), Premium inside the layer (MM-21), and every MMO row of the Path |
+| Chapter 09 | Town work in closed form (GR-1). How an away hunt is saved (study 48). Sections of the state read fetched on open |
 
 | This chapter feeds | What |
 |---|---|
 | Every chapter | The Path. Each system gets one row and announces itself through it |
 | The balance matrix | The start-kit cells and the report's counters (section 6) |
-| The combat and progression chapters | The risk reading, which changes which tier players pick |
-| The economy chapter | Press counts and standing plan lines, which raise the use of refills and Blessings |
-| The platform chapter | The intent count of a visit, which is a line of the server budget |
+| Chapters 01 and 05 | The risk reading, which changes which tier players pick |
+| Chapter 04 | Press counts and standing plan lines, which raise the use of refills and Blessings |
+| Chapter 09 | The intent count of a visit, which is a line of the server budget |
 
 ---
 
@@ -419,7 +424,7 @@ In decision-book order.
 | Id | The call | Recommendation |
 |---|---|---|
 | GR-79 | The Path, and a first hour that teaches four heroes | One table opens every system. The first hour is one hero to Level 5, then three at once, then the Sewer as a four (section 2.1) |
-| GR-8 | The first week's sinks, sized for an account of four | Owned by the economy chapter. This chapter asks that the account's 500 gold be granted once |
+| GR-8 | The first week's sinks, sized for an account of four | Owned by chapter 04. This chapter asks that the account's 500 gold be granted once |
 | GR-24 | The starting weapon | The player picks for each hero at creation, with a measured tag on each card |
 | GR-66 | The risk reading | The risk block is free to every player. The rules block is free in short form and the full breakdown sits in the Premium analyzer |
 | GR-78 | Tamsin's task | Taken when a hero enters the ground, with no press |
@@ -428,7 +433,7 @@ In decision-book order.
 | GR-81 | Next ground when outgrown | Allow it as a one-step choice, Normal only. It re-opens 27-1 |
 | GR-82 | One Great Hearth | Merge Town Works, the Hearthrise event and flame powders. A HYPOTHESIS |
 | MM-11 | Events and no dailies | A four-weekend rotation written a year ahead. No daily quests, login calendar or season pass, as a standing rule |
-| MM-21 | Premium inside the MMO layer | Being revised. No recommendation here |
+| MM-21 | Premium inside the MMO layer | Everything is open to all. Premium makes timed buffs last a quarter longer and banks arena tickets to 30 (chapters 04 and 06) |
 
 ---
 
@@ -439,14 +444,15 @@ In decision-book order.
 | 1 | Proof that a start-kit four holds the Sewer on Normal at Level 5, the Rat King's room included | The balance matrix (check C3) | The first hour stands on it |
 | 2 | Proof that three heroes in the Cellar reach Level 5 no slower than one | The balance matrix (check C2) | It follows from the ruling that together beats split. The Cellar's spawn rate may limit it |
 | 3 | A measured tag for each starting way | The balance matrix (check C1) | Six start-kit cells |
-| 4 | What the first week's gold buys, and early prices for an account of four | The economy chapter, then Tyler (GR-8) | The decision book lists both as missing |
+| 4 | What the first week's gold buys, and early prices for an account of four | Chapter 04, then Tyler (GR-8) | The decision book lists both as missing |
 | 5 | Premium's daily item: one an account or one a hero. And Premium's price | Tyler, with chapter 04 | A money call |
-| 6 | The Path's rows for Levels 17 to 19, 21 to 24 and 26 to 29 | The items chapter | The content rows on this branch name nothing there except skill unlocks at 20 and 25. Gear tier rows should fill them, or the guard in section 6 fails |
-| 7 | Every MMO opener on the Path | The MMO chapter | 17 MM calls are being revised |
+| 6 | The Path's rows for Levels 17 to 19, 21 to 24 and 26 to 29 | Chapter 03 | The content rows on this branch name nothing there except skill unlocks at 20 and 25. Gear tier rows should fill them, or the guard in section 6 fails |
+| 7 | The Level doors for the world boss, both arenas and the clan board | The designer, with GR-79, after the MM calls on size and pay | Chapter 06 asks this chapter for them. They cannot be set before the boss pool and arena tiers have numbers |
+| 7b | How the thirteen skills are spread across four heroes past the first night | The designer, with chapter 05 (its item 16) | The starting rest plan gives each hero a different trade on night one. Nothing yet says who should train what after that, or whether the game should say it at all |
 | 8 | The player-facing word for the account's four | The art director, then Tyler | "Heroes" and "Party" are recommended. "Company" is design vocabulary |
 | 9 | Whether kit items can be turned into gold by deleting and remaking a hero | The systems engineer and Security | The kit's food sells for a little. Account deletion is staged, and hero deletion has no design here |
 | 10 | Whether the report's counters fit the session row with no added statement | The systems engineer | HYPOTHESIS until confirmed |
-| 11 | How an away hunt is saved, which sets how fresh a return card can be | The platform chapter (study 48) | |
+| 11 | How an away hunt is saved, which sets how fresh a return card can be | Chapter 09 (study 48) | |
 | 12 | A blind play of the whole first hour | A fresh reader, after it is built | The sequence from minute 17 has never been played |
 | 13 | What a player who refuses heroes two to four is shown, and for how long | The designer, after playtest 1 | Recommended: one quiet line on the return card, once a visit |
 
@@ -499,7 +505,7 @@ Playtests 1 and 9 fit the first invite wave. There is no comparison group for pl
 | The second hero on the first evening for about 10,000 gold. The slot ladder, its guard and "the first hero slot" as the week 1 goal | 46 change 1, 59 decision 5, 27, 50 standard X11 | RULED 2026-11-21: all four heroes from the start, no slot prices |
 | A first hour, a coach and a fix to Levels 7 to 10 sized on one hero | 27 question 1, 59 section 2.3, 60 section 4.7 | Re-designed on an account of four (section 2.1). The fix 27-2 itself stands |
 | One hero's return as the unit: one card and 8 to 10 presses a hero | 27 question 3 | One card and one press for the account (GR-80) |
-| Lent seats and on-call heroes as the early party | 46 change 1 part 3, 57 | A party is the account's own four. Hire is MM-18 in the MMO chapter and is being revised |
+| Lent seats and on-call heroes as the early party | 46 change 1 part 3, 57 | A party is the account's own four. Hire is MM-18 in chapter 06 and is being revised |
 | "Krell at month 4 to 6" and every week counted at 3.3 hours a day | 27 question 2, 30 | RULED 2026-11-21: 12 hunted hours a day, Krell on day 18 for a four |
 | One kill ladder that merges the tally, the Bestiary, titles and trophies | 59 phase A, row 7 | Withdrawn in 59 phase B and by 47 C19. The tally takes itself, the Bestiary keeps its six Luck payments, titles go to Honors |
 | Removing the built companions | 59 phase A, row 15 | RULED 2026-10-22 and 2026-11-21: hidden, built later |
@@ -508,10 +514,10 @@ Playtests 1 and 9 fit the first invite wave. There is no comparison group for pl
 | "On this hunt you would die about once in 30 hours" as a line of the report | 59 section 4.1 | The cold audit (61 M5): the reading carries signal and is not a clean line. The report prints facts and the tier's matrix line |
 | The whole hunt report in the Premium analyzer | 59 decision 3, alternative | Selling the warning reads as selling safety. The risk block is free |
 | "Weekly orders were cut" | 59 phase A, section 4.8 | A misreading, corrected by 47 C23. Weekly orders are built later |
-| The market card behind the population gate | 59 row 24 and section 3 | GR-55 recommends the market open on day one. The economy chapter decides, and the crowd gate keeps the Crier, Rounds, powders and rank numbers |
+| The market card behind the population gate | 59 row 24 and section 3 | GR-55 recommends the market open on day one. Chapter 04 decides, and the crowd gate keeps the Crier, Rounds, powders and rank numbers |
 | Premium for each hero | Rulings of 2026-10-17 | RULED 2026-11-20 and 2026-11-21: one Premium for each account |
 | A standing plan that loops and restarts hunts when stamina is full | 27 call 1, alternative | RULED 27-1 |
-| "60 database-seconds is the ruled budget" | 59 section 0.2 | The cold audit (61 M3): Tyler ruled $0.15 an account a month. 60 is COMPUTED from it. The platform chapter carries the number |
+| "60 database-seconds is the ruled budget" | 59 section 0.2 | The cold audit (61 M3): Tyler ruled $0.15 an account a month. 60 is COMPUTED from it. Chapter 09 carries the number |
 | Every comparison with the game as it stood, and every count of presses or cards taken from it | 27, 46, 59 | RULED 2026-11-21: the current game is irrelevant. Played logs are kept only as evidence about the opening this design keeps |
 
 ---
@@ -522,9 +528,9 @@ Playtests 1 and 9 fit the first invite wave. There is no comparison group for pl
 |---|---|
 | `27-retention.md` | Questions 1, 2, 3 and 8. The cards for first-hours, what-next, away-return and analyzer. Changes 1 to 3. Calls 1, 2 and 8 |
 | `46-from-scratch.md` | Section 0 (the played first hour). Section 2's moments table. Section 3d's rows for the company and the job queue. Change 1, parts 1 and 2 |
-| `59-review-features.md` | Sections 0.3 to 0.5, 1, 2.3, 3 (rows 3 to 8, 15 to 26, 31 to 37), 4, 5 (traces 2, 3, 5 and 6), 6 and 7 for this area. Town work and server cost stay with the platform chapter |
+| `59-review-features.md` | Sections 0.3 to 0.5, 1, 2.3, 3 (rows 3 to 8, 15 to 26, 31 to 37), 4, 5 (traces 2, 3, 5 and 6), 6 and 7 for this area. Town work and server cost stay with chapter 09 |
 | `60-game-review.md` | Section 1.7 for this area. Section 3 rows 2, 9, 12 and 13. Section 4.7. Section 7.3 playtests 1, 8, 9, 14 and 15. Section 8.9. Section 10.3 rows 3 and 4 |
 | `62-decision-book.json` | The Features area. GR-24 and GR-66 as they bear on this area. In `waiting`: how the first hour teaches four heroes, and what one Premium gives across four heroes |
 | `50-standards.md` | Section 1.1 (the clock) and standards X6, X9, X10, X11, X12 and X28 as this area's bands |
-| `49-mmo-layer.md` | Section 5.3 (events and no dailies) and call 21 as they bear on the player's day. The MMO chapter owns the rest |
+| `49-mmo-layer.md` | Section 5.3 (events and no dailies) and call 21 as they bear on the player's day. Chapter 06 owns the rest |
 | Rulings of record | Four heroes from the start, one Premium, decisions first, the 12 hour day, two visits a day, the first principle |

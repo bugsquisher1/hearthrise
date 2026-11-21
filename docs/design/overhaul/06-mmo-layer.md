@@ -429,7 +429,7 @@ In decision-book order. "First" marks a decide-first call.
 | 10 | **The Security review's scope for the layer.** The boss chest, clan gifts, the standing gift, rations, arena results and both gear lines are shared or reward surfaces | The security engineer |
 | 11 | **Side against side.** The weekly faction tally and any side event have no design that passes rule 0 yet | The game designer |
 | 12 | **Live ops when nobody is watching.** The calendar runs itself, but nothing says who notices a boss that never falls or a pool sized wrong. The pool needs a rule that settles it at the window's end either way | The pool rule is closed (MM-4): the boss leaves when the window ends and the server re-sizes the pool after each boss. Still owed: who notices a boss that never falls. The game designer, with the reliability engineer |
-| 13 | **Knobs missing from `knobs.json`:** drop chance, town work speed, and every new knob named in this chapter | The balance tools lane |
+| 13 | **Knobs missing from `knobs.json`:** material find, town work speed, and every new knob named in this chapter | The balance tools lane |
 
 ---
 

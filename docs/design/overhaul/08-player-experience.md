@@ -316,7 +316,7 @@ The coach teaches the loop and then gets out of the way. It is two things: a sho
 | **The longest dry spell** | Hunted hours with no reward of any kind | At most 30 minutes under Level 10, 2 hours to Level 50, 6 hours to Level 110, 12 hours after | RULED direction 2026-10-25. Bands are standard X12 |
 | **The weekly turn** | One instant for everything weekly | The Hearth Chest's opens reset. The Tower's weekly climb. The six boards open on "this week". The Week card | The limits are RULED 2026-11-21. The Tower weekly is DECIDED (GR-37, Fable 2026-11-21). Six boards is RULED 27-4 |
 | **The Week card** | Shown on the first return after the turn | This week against your last week for the account: Levels, hours hunted, best find, Bestiary stages, Tower floor, rank moves and what just reset. It pays nothing, ever | DECIDED (GR-84, Fable 2026-11-21) |
-| **The weekend** | A four-weekend rotation written a year ahead as rows | A world bonus weekend, a world boss, one ground's weekend, the arena season end with clan honors. Never over +25%, one at a time | DECIDED (MM-11, MM-3, Fable 2026-11-21). The +25% cap is RULED 27-5 |
+| **The weekend** | A four-weekend rotation written a year ahead as rows | The Hearthrise, a world boss, one ground's weekend, the arena season end with clan honors. Never over +25%, one at a time | DECIDED (MM-11, MM-3, Fable 2026-11-21). The +25% cap is RULED 27-5 |
 | **The month** | One turn of the rotation | Each of the four weekends once. The Great Hearth's shared project | The Hearth merge is DECIDED (GR-82, Fable 2026-11-21, reversal of 2026-10-25, Tyler may veto), a HYPOTHESIS |
 | **The long chase** | Past any one month | Krell's Hold on day 31 for a plain four, and day 18 to 24 with best gear and buffs. Level 400 on day 373. The Luck bar at +16% by 500 hours and +39% by 5,000. Honors lines at Level 100, 200, 300 and 400. Late Bestiary stages. Rare finds past Krell | The Luck bar is RULED 2026-11-21. Krell's day and Level 400's day are DECIDED (GR-6b and GR-6, Fable 2026-11-21, reversals of "day 18 for a four" and "Level 400 is day 382", Tyler may veto). Honors is DECIDED (GR-62, Fable 2026-11-21) |
 
@@ -328,7 +328,7 @@ The coach teaches the loop and then gets out of the way. It is two things: a sho
 | Hour 1 | The Sewer as a four. The Homestead from the first night's work | DECIDED (GR-79, Fable 2026-11-21) |
 | Day 1 | Level 10 by 6 hunted hours, with no Level under 10 over 2 hours. The Tower, the Chest, Wickstead and the first Dangerous run | RULED (27-2, standard P11) |
 | Week 1 | The Rat King's Hall. Mosslight Glade and the Honors page. The first sinks sized for an account of four | The order of the sinks is DECIDED (CE-4, Fable 2026-11-21, chapter 04) and their sizes are a HYPOTHESIS (CE-5). The Levels reached are set by the Level law (GR-6, chapter 05) |
-| Day 18 | Krell's Hold | RULED 2026-11-21 |
+| Day 31 | Krell's Hold, for a plain four. Day 18 to 24 with best gear and buffs | DECIDED (GR-6b, Fable 2026-11-21, reversal, Tyler may veto) |
 | Month 6 and after | A region open 30 days before the first fours arrive. Old grounds at your Level | RULED 2026-11-21 (runway). GR-9 is DECIDED, Fable 2026-11-21 in chapter 02 |
 
 ### 2.8 Premium's comfort and convenience across four heroes

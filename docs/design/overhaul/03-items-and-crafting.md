@@ -23,7 +23,7 @@ Formula and knob names are the ones in `44-formula-architecture.md` and `tools/b
 
 **Hour 20.** Gear falls fast and freely. Every armor slot of a tier arrives in the first hours of its band, and a new tier arrives every few days. The player has set the loot plan once: what is kept, what is sold, what is salvaged for Lucky Rivets. In town the smith has made the first rings and the outfitter the first cloak. One ring came out Fine, and the player paid a Hallmark fee to pick its second perk. The first real question of the item game has been asked: there is not enough gold for both Tempering tracks and six Hallmarks, so which hero gets what. Somewhere on the Glade a named stone dropped with the big reveal, and a smith set it in a ring the hero will still wear at Level 300.
 
-**Day 18, Krell.** The ladder of plain tiers ends. From here a piece is chosen for what it does, not for a bigger number. Krell's sword hits the Undead harder. His bow rewards holding range. The Hearth Chest has paid a Tower weapon that is the best all-rounder, and the question is which one to wear on which ground. A saved kit for each ground remembers the answer.
+**Day 31, Krell.** The ladder of plain tiers ends. From here a piece is chosen for what it does, not for a bigger number. Krell's sword hits the Undead harder. His bow rewards holding range. The Hearth Chest has paid a Tower weapon that is the best all-rounder, and the question is which one to wear on which ground. A saved kit for each ground remembers the answer.
 
 **Hour 2,000.** The account's Luck bar reads Magic Find 28% or more, and the next percent always costs more. Rares past the Morrow door are truly rare, and each ground has one piece that takes a party about a week to find and is announced to the server. Rings carried since Level 45 have been reforged up every tier and band with their perks intact. The smith at 99 holds patterns from four regions and takes commissions. Gold never runs out of things to buy, and a player who buys gold with Crowns affords more of them, and nothing else.
 
@@ -483,7 +483,7 @@ Statuses: Storm and Bone runes at Runecrafting 25 and 40 [RULED 11-21]. Five run
 
 **Good batch.** A consumable job sometimes makes double: 2% at level 1 to 10% at 99. All yield bonuses together cap at 15%. It makes every level between two unlocks worth something. [RULED 11-18, 26-2]
 
-**Gathering.** Woodcutting, Mining, Fishing and Farming supply every input and are designed in the town and home chapter. This chapter needs from them the region's ore or wood node on two grounds of every region.
+**Gathering.** Woodcutting, Mining, Fishing and Farming supply every input and are designed in `07-home-and-town.md`. This chapter needs from them the region's ore or wood node on two grounds of every region.
 
 **A hero's day.** A hero hunts up to 12 hours and does one thing in town for the other 12: gather, bench, or train. At Level 10 a hero smiths a Copper Ring and sews a Graypelt Cloak, the first pieces no hunt drops. At Level 40 the town makes salts, a tier 3 set, a lining and a first reforge. At Level 70 it reforges the set to tier 5, makes Corded linings and does a chest reforge. At Level 100 it finishes tier 7 with Krell's gem at skill 99, makes Sealed linings and takes commissions. Best in slot for 6 of 14 slots is only ever made. TARGET for the best path: it asks for 6 to 12 of the 12 rested hours (band T7).
 

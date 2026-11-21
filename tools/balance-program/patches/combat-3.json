@@ -1,0 +1,10 @@
+{
+  "schema": "hearthrise.balance-patch/1",
+  "name": "combat-3: Magic adds max mana (+0.5% a Magic level, every hero)",
+  "why": "52-review-combat M2. Since Mend became a share of max HP (32-4) the Magic skill has no consumer on a weapon hero. This gives it one: max mana grows 0.5% a Magic level. The real change is one coefficient in VITALS; the edit here plays it in the engine's vitals. It targets gold (drinks bought) and survival. The review's worry is that it widens the wand's lead.",
+  "kind": "coefficient",
+  "edits": [
+    { "file": "src/core/vitals.js", "from": "maxMana: maxManaFor(level, w.light),", "to": "maxMana: Math.floor(maxManaFor(level, w.light) * (1000 + 5 * levelOf(c && c.skills, 'magic')) / 1000)," }
+  ],
+  "targets": ["gold", "survival"]
+}

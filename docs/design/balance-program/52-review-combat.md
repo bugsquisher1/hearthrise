@@ -1,32 +1,43 @@
 # Balance program 52: design review, combat styles
 
-Game-designer, `lane/d-review-combat`, 2026-11-21, on `set/v0.2.144`. PHASE A: reading and analysis only. No game code, data or migration was changed. Nothing was played and no grid was run (the PC was busy with other lanes). One small read-only count of the monster table was run and is named where it is used.
+Game-designer, `lane/d-review-combat`, 2026-11-21, on `set/v0.2.144`. No game code, data or migration was changed in either phase.
+
+**Phase A** (sections 2 to 6, 8 and 9) was reading and analysis only, with one small read-only count of the monster table. **Phase B** (section 10, and sections 1 and 7 rewritten from it) measured the top proposals on the real engine with the balance matrix. Where section 10 disagrees with an older section, section 10 wins, and 10.9 lists every verdict that changed. Phase B added five patch files under `tools/balance-program/patches/combat-*.json` and nothing else.
 
 Briefs: `45-design-brief.md` (main), `40-formula-brief.md` (every change below names its layer: formula, coefficient, curve or content row).
 
-**Labels.** EVIDENCE means read from the code or data named, or cited from a measurement another lane ran. HYPOTHESIS means a design judgement that phase B or a playtest has to prove. Nothing here is a measured balance number of my own.
+**Labels.** EVIDENCE means read from the code or data named, cited from a measurement another lane ran, or MEASURED in section 10 with its command. HYPOTHESIS means a design judgement that a build or a playtest still has to prove.
 
 ---
 
 ## 1. Summary for Tyler
 
-**Verdict.** The combat styles are well engineered and thinly differentiated. The spell rule fixed the maths. It also made plain what was always true. Most spells are "some extra swings on a timer", and most weapons are the same weapon with a different damage number. Eight weapon ways exist. In a party only three jobs exist. They are stand in front, deal damage and heal. If we built this from scratch today I would keep the weapons, the roles from the worn set, the lanes, the bar budget and the spell rule. I would not build sixteen mirrored Necrotic and Storm spells, I would not build the fists as six rows, and I would give each weapon one job in a four that no other weapon does.
+*Rewritten after phase B. Section 10 has the measurements. Where a number below is measured it says so.*
+
+**Verdict.** The combat styles are well engineered and thinly differentiated, and the engine now says the same thing in numbers. Eight weapon ways exist. In a party only three jobs exist. They are stand in front, deal damage and heal. On Deadly today a four does not need two of them. A hammer and three mages with no healer and no shield was the fastest four I measured at Level 60, with no deaths. If we built this from scratch today I would keep the weapons, the roles from the worn set, the lanes, the bar budget and the spell rule. I would not build sixteen mirrored Necrotic and Storm spells in one go, I would not build the fists as six rows, and I would give each weapon one job in a four that no other weapon does.
 
 **The 5 changes that matter most.**
 
-1. **Give every weapon one party job that is a rule on the bar, not a button.** The hammer breaks a monster's spell windup (Quarry Blow). The bow shoots what is shooting the back row. The axes are the boss weapon. The mage stops monsters mending. Today the hammer, the axes and the sword alone add nothing to a four but damage.
-2. **Ship 7 Necrotic and Storm spells, not 16.** One per weapon, picked to fit that weapon. Sixteen mirrored spells give every weapon the same leech and the same mana return, which removes identity instead of adding it. The other nine wait until the first seven are played.
-3. **Fix the weapon weakness table.** No monster in the game is weak to axes or fists. 68 of 190 are weak to hammers. The table also holds a "resists" column that nothing in the game reads.
-4. **Rebuild the fists as two rows, not six.** The Palm takes its element from the rune you feed it. That is the whole "element by choice" promise in one mechanic, and it makes the fists the one weapon that can cast every rune family.
-5. **Make the crossbow a different weapon from the bow.** Today they are the same numbers within 5% and the same spell list, and the crossbow can also wear a shield. Give it the heavy single-target, self-reliant kit and leave the party kit to the bow.
+1. **Make Deadly a fight before anything else in this area.** Measured on the real engine at Levels 60 and 110, one seed and one hour a cell. Swapping the shield tank for a hammer made the four 10% and 5% faster with no deaths. Dropping the healer for a third mage made it 22% faster at Level 60. Four mages with nobody in front held Deadly with no deaths. Every role idea below is worth nothing until this changes. This is the harder tiers lane (L16).
+2. **Give every weapon one party job that is a rule on the bar.** The hammer breaks a monster's spell windup. The bow shoots what is shooting the back row. The mage stops monsters mending. Measured: a second melee hero in a four costs 8 to 13% today, and the bow seat is the cheapest seat to replace.
+3. **Ship seven Necrotic and Storm spells first, one per weapon.** Your ruling of sixteen stands as the end state. The other nine are redesigned after the seven are played, so that no two weapons share one trick. The itemization fit (47) reached the same answer.
+4. **Repair the weapon weakness table.** No monster can be weak to axes. Measured: reading axes as the sword's side lifts the lone axes 1.5 to 4.8% from Level 10 to 60 and moves no other way. The axes are still the slowest melee way after it, so Rend needs a bigger share as well.
+5. **Rebuild the fists as two rows.** The Hands and one Palm. The Palm strikes on mana in the element you chose, and feeding it a rune is the stronger cast. That keeps the plan's gold promise and covers Storm and Necrotic with no extra rows.
 
 **What is actively harming the game.**
 
-- A role only has a job if the fight is dangerous. The one real four that reached Krell's Hold ran a hammer in front with no shield, on Deadly, 5 to 9 Levels under the ground, with no deaths in 39 hero-hours. The sword and shield is the slowest way to level and nobody needs it. Every role idea in this review depends on the harder tiers lane (L16) making Deadly a fight.
-- The wand is the best damage seat and the party table takes only 2% off a four for doubling up a class. I expect two-mage fours to be the best four on most grounds. That is a hypothesis until the matrix runs.
-- Since Mend became a share of max HP, the Magic skill does nothing for a sword, axe, hammer or bow hero. It still levels on their Skills window.
+- The shield tank is the slowest way alone (0.84 to 0.92 of the hammer, measured) and makes a four slower too. It is also the hero every new player starts as. The Game Director's blind play found the same thing from the other side.
+- The wand is 20 to 31% faster than the hammer alone at Levels 30 to 110 (measured), and it stacks. Its only price is gold.
+- Since Mend became a share of max HP, the Magic skill does nothing for a weapon hero. Measured: letting Magic add max mana cuts casters' store bills 2 to 4%, moves no pace and passes the matrix gate with no unintended band.
 
-**What I would add.** One mechanic. A status can open a monster to one kind of damage, so a Chilled monster takes more from a hammer and a Bleeding one takes more from Necrotic. It turns "which four heroes do I build" into a real puzzle and it needs no attention during a hunt. I would also lift the hold on the skill tree for a small written sample, because past hour 254 nothing on any hero's bar ever changes again.
+**What phase B changed in my own view.**
+
+- The sword alone is not dominated any more. After the spell rule it measures level with the hammer from Level 10 to 60. I withdraw that finding.
+- A different stat line does not make the crossbow a different weapon. A third more strength and a quarter less accuracy moved it 3 to 6%. Its identity has to come from its spell list and its shield.
+- Letting physical strikes read weapon weakness (roadmap step R6) is small, at most 3.5% on any way. The order against the table repair does not matter much.
+- Turning Cut should unlock at Level 1 for the axes and the hammer and stay at 10 for the sword, as the formula audit recommends. I had asked for Melee 5 for all.
+
+**What I would add.** One mechanic. A status can open a monster to one kind of damage, so a Chilled monster takes more from a hammer and a Bleeding one takes more from Necrotic. I would also lift the hold on the skill tree for a small written sample, because past hunted hour 254 nothing on any hero's bar ever changes again.
 
 **What I would not add.** No ninth weapon. No attack speed. No new rune family past Storm and Bone.
 
@@ -516,22 +527,24 @@ Complexity S, M, L. Risk low, medium, high.
 
 ## 7. Tyler decides
 
-Each is one recommendation, its reason, and the strongest alternative.
+Rewritten after phase B. Each is one recommendation, its reason, and the strongest alternative.
 
-1. **Necrotic and Storm.** Recommend seven spells first, one per weapon (Storm for sword, hammer, bow and staff. Necrotic for axes, crossbow and wand. The fists cast both through the Palm). Reason: sixteen mirrored spells give every weapon the same two tricks, and that removes the identity you asked for. Alternative: all sixteen as you ruled on 11-18, at more than twice the content cost.
-2. **Quarry Blow.** Recommend it breaks a monster's spell windup. Reason: as built it is Flame Strike with no element, a rune bill and no decision, and the hammer has no job in a four. This reopens "no stagger" (10-23) in a narrow form: it never stops a swing. Alternative: leave it as built and accept the hammer is damage only.
-3. **Fists.** Recommend two rows: the Hands on mana with no element, and the Palm taking its element from the rune it spends. Reason: six near-identical buttons for the "simple" weapon, and this delivers "elemental flexibility" better than three fixed elements. Alternative: the six rows on one shared clock, as the 11-20 audit said.
-4. **The crossbow.** Recommend it becomes the lone Ranger's weapon: a heavier bolt, a shield, single target, no Mark and no area shots. The bow keeps the party kit. Reason: today they are one weapon and the crossbow is strictly better. Alternative: give it a list that copies the bow's and differs only in its two new spells.
-5. **Weapon weakness.** Recommend axes count as "edged" with swords and fists as "blunt" with hammers, and the unused "resists" column goes. Reason: no monster can ever be weak to an axe today. Alternative: give axes their own side and move three monster classes to it, which rewrites the bestiary.
-6. **The skill tree hold (11-05).** Recommend lifting it for a written sample only: one weapon family, four picks at skill 70 to 100. Reason: nothing on any bar changes after hour 254 and Levels are endless. Alternative: keep the hold and let gear alone carry the long game.
-7. **The six spell rule calls** (`CONFLICTS.md`, 2026-11-21):
-   - Call 1, the beginner's floor: **replace the 17 per-row floors with one floor on the blow a cast reads.** The rows' floors imply a blow of 10 to 19, most of them 15 to 17, so one number near 16 does the same job within a few points for the six hours it matters. Until that is measured the built floor stays. Alternative: keep the per-row floors.
-   - Call 2, Rend on the default Melee set: **yes.** The axes need one strike at one target.
-   - Call 3, Turning Cut's unlock: **Melee 5 for every weapon that holds it, the sword too.** That is about when a hero leaves the Mill Cellar for packs. The hammer is the first weapon most players hold and it measured 24% slower at the Thicket without an area strike. One row keeps one unlock. Alternative: leave it at 10 and accept 3.83 hours to Level 10 for the hammer.
-   - Call 4, the x1.4 ladder: **yes.** A tier at +10% for a much higher price makes the rune tier a real cost decision, and real players already make it.
-   - Call 5, heals land whole: **yes.**
-   - Call 6, the dark rows: **sized by L43 and L44 on this review's lists** (seven spells, two fist rows).
-8. **The tank's test.** Recommend naming it now: after L16, an in-band four with a shield must hold Deadly where the same four with a hammer in front cannot. If it fails, Challenge moves to any Melee hero in Defensive stance and the shield is just armor. Reason: the only real four that got to Krell did not bring one. Alternative: judge the tank on feel later.
+1. **Deadly and the tank's test.** Recommend the harder tiers lane sizes Deadly so that an in-band four with a shield tank and a healer holds it, and the same four with a hammer in front or with no healer does not. Reason: measured, both of those fours are faster today and neither dies. If the shield still loses after L16, Challenge moves to any Melee hero in Defensive stance and the shield becomes plain armor. Alternative: leave Deadly and accept that the best four is a hammer and three mages.
+2. **Necrotic and Storm.** Recommend seven spells first, one per weapon (Storm for sword, hammer, bow and staff. Necrotic for axes, crossbow and wand). Sixteen stays the end state as you ruled. The other nine are redesigned after the seven are played, under one rule: no two weapons share a mechanic. Reason: the plan's nine as written repeat one leech and one mana return. Alternative: build all sixteen from the plan as written.
+3. **Quarry Blow.** Recommend it breaks a monster's spell windup. Reason: as built it is Flame Strike with no element, and a second melee hero costs a four 8 to 13% today because it brings nothing but damage. This reopens "no stagger" (10-23) in a narrow form: it never stops a swing. Alternative: leave it as built.
+4. **Fists.** Recommend two rows. The Hands on mana with no element. The Palm on mana in the element you chose, with a rune as the stronger cast. Reason: six near-identical buttons for the "simple" weapon, and the fist prototype lost gold when every strike cost a rune. Alternative: the six rows on one shared clock.
+5. **The crossbow.** Recommend its identity comes from its list and its shield: single target, no Mark, no area shots, Leech Bolt. Leave its numbers where they are. Reason: measured, a heavier stat line moved it only 3 to 6%, and in a four it already costs 16 to 24% less at the store than the bow for 1 to 2% less XP. Alternative: a list that copies the bow's.
+6. **Weapon weakness.** Recommend axes count as "edged" with swords, fists as "blunt" with hammers, the unused "resists" column goes, and Rend's share rises until the axes sit with the other melee ways. Reason: measured, the repair alone leaves the axes 2 to 13% behind the hammer and last among the damage ways. Alternative: give axes their own side and move three monster classes to it.
+7. **The party table.** Recommend it stays as it is until Deadly is a fight. Reason: the social review (57) asks for a table that reads size only. Measured, four mages already kill as fast as the mixed four on Deadly and do not die, so on a size-only table they would be the best four in the game. Alternative: size only now, as 57 recommends, and fix the mage in combat afterwards.
+8. **Magic on a weapon hero.** Recommend Magic adds a little max mana for every hero (measured at half a percent a level). Reason: the skill has no use on a weapon hero today, and the change cut store bills 2 to 4% with nothing else moving. Alternative: stop paying Magic XP to weapon heroes.
+9. **The skill tree hold (11-05).** Recommend lifting it for a written sample only: one weapon family, four picks at skill 70 to 100. Reason: nothing on any bar changes after hunted hour 254 and Levels are endless. Alternative: keep the hold and let gear alone carry the long game.
+10. **The six spell rule calls** (`CONFLICTS.md`, 2026-11-21). The formula audit (41, 44) has answered them and I agree with every answer:
+    - Call 1, the beginner's floor: **one floor on the blow a cast reads, in place of 17 per-row floors** (roadmap R6, the 0.2.144 half). Three lanes reached this separately.
+    - Call 2, Rend on the default Melee set: **yes.**
+    - Call 3, Turning Cut's unlock: **Level 1 for the axes and the hammer, 10 for the sword.** This is 41's answer and I drop my "Melee 5 for all". It gives the hammer and the axes back exactly what the merge took and keeps your 11-19 ruling whole.
+    - Call 4, the x1.4 ladder: **yes.**
+    - Call 5, heals land whole: **yes.**
+    - Call 6, the dark rows: **sized by L43 and L44 on calls 2 and 4 above.**
 
 ---
 
@@ -583,4 +596,176 @@ Each is one recommendation, its reason, and the strongest alternative.
 - One floor near 16 on the blow reproduces the first six hours within the pace guard.
 - Every statement that something will be fun.
 
-**Not done.** Nothing was played. No grid, matrix or browser run. `51-baseline.md` had not landed when this was written, so its red list is not reflected. The paper spells' full text (itemization plan Appendix B3) was read through the 11-20 audit's summary of it, not the appendix itself. The monster count is the whole table, not only the monsters on live grounds.
+**Not done in phase A** (section 10 is the phase B record). Nothing was played. No grid, matrix or browser run. `51-baseline.md` had not landed when this was written, so its red list is not reflected. The paper spells' full text (itemization plan Appendix B3) was read through the 11-20 audit's summary of it, not the appendix itself. The monster count is the whole table, not only the monsters on live grounds.
+
+---
+
+## 10. Phase B: layers, measurements, and what changed
+
+Phase B, 2026-11-21, on `set/v0.2.144` 358417cb0 merged into this lane. Read first: `41-formulas-combat.md`, `44-formula-architecture.md` (sections 5, 7, 8), `46-from-scratch.md`, `47-itemization-fit.md` (rows 7, 13-5, 13-7, B3, F5, C4, C5), `57-review-social.md` (its party table call), and `docs/design/itemization-plan.md` section 7 and Appendix B.
+
+### 10.1 How it was measured
+
+- **The matrix diff.** `node tools/balance-program/balance-matrix.mjs --diff tools/balance-program/patches/combat-<n>.json --subset --workers 2 --blocks ways --only 10,30,60,110` (combat-3 also played `--blocks ways,four --only 30,60,110`). The real engine on a scratch copy, the same dice before and after, one seed and one hour a cell, MID gear, Normal for the lone ways. Each run took 34 to 73 seconds. `pc-load` read 20 to 45% CPU before each.
+- **The lineups.** The matrix plays one four (tank, healer, bow, mage). To test party claims I played other fours through the matrix's own exports (`loadGridData`, `loadKits`, `buildCell`, `playJobs`, `cellMetrics`) from a one-off read-only script, on the tree as it stands: MID gear, the hardest tier, the grid's own ground for a four at that Level (the Muster Barrows at 60, Krell's Hold at 110), one seed, one hour. No patch. **One seed and one hour is thin. Read the lineups as direction and size, not as a balance number.** The matrix lane should add these lineups as real cells (10.6).
+- **The calibration caveats apply** (printed on every run): the harness four kills 11% more than the real one, its tank takes 96% of the damage where the real front takes 69%, and its store bill is 1.9 times the real one. So party store and gold are upper bounds, and "the healer is not needed" is understated in the harness if anything, because the harness sends almost nothing at the back row.
+- **Time.** Nothing in this review is counted in weeks. Where a horizon is needed it is 50-standards 2.7 (Krell's Hold on day 18 for a four on Deadly).
+
+### 10.2 Every top proposal, with its layer
+
+Formula and step ids are 44's and 41's. Knob ids are `tools/balance-program/formulas/knobs.json`.
+
+| # | Proposal | Layer | Formula, exception or step | Measured? |
+|---|---|---|---|---|
+| C1 | Deadly is a fight | coefficient | `tierDanger`, `tierHp` (C-TIER). Owned by L16 | Yes, as lineups (10.4) |
+| H1 | Axes read the sword's side, fists the hammer's. `weaponResist` goes | content row (a family to side map) plus one deletion | C-WEAKNESS, exception S-X01 | Yes, combat-1 |
+| H1b | Rend's share up until the axes sit with the melee ways | coefficient on a content row (`hitPm`, bleed `blowPm`) | C-SPELL-HIT | Sized by need, not yet patched (10.5) |
+| H2 | Seven Necrotic and Storm spells first | content rows | L44, 47 C4 | No: the rows are paper. HYPOTHESIS about content |
+| H3 | Fists as two rows, the Palm on mana with a rune as the stronger cast | content rows, one content parameter (the element a row lands) | L43, 47 C5 | No: no fist way in the matrix. HYPOTHESIS about content |
+| H4 | Quarry Blow breaks a windup | formula (one new reusable effect on a row, read in the monster cast step) | a new mechanic beside C-MON-SPELL. Class 1 in brief 40's terms, needs Tyler's yes | No: the effect does not exist. HYPOTHESIS |
+| H5 | "Shooters first" target mode | content row (TARGET_MODES) plus one ordering in the targeting formula | C-TARGET | No: the harness four sends 0.5% of damage to the healer, so the matrix cannot see the problem this solves (10.6) |
+| H6 | The crossbow's own line | content rows | C-GEAR-WEAPON for the stat half, the ability list for the rest | Stat half yes, combat-2. List half is content, HYPOTHESIS |
+| M1 | A status opens one damage kind | formula (extends `takenPm` with a damage-kind key), then content rows, under 44's one modifier table (X-STACKING-RULES) | C-HURT | No. HYPOTHESIS |
+| M2 | Magic adds max mana | coefficient | P-VITALS, beside `heroMana` | Yes, combat-3 |
+| M3 | One floor on the blow a cast reads | coefficient | X-SPELL-FLOOR, roadmap R6, planned knob `powerFloor` | Not by me: the matrix starts at Level 10 and the floor acts under about 15. R6's own diff on Levels 1 to 15 is the measurement |
+| M4 | Turning Cut's unlock | content row (a per-weapon unlock field) | X-TURNING-CUT-10 | Not by the matrix (Level 10 is past it). CITED: lone hammer 24% slower at the Thicket without it |
+| - | Physical strikes read weapon weakness (44's, not mine) | formula | X-SPELLS-SKIP-WEAKNESS, R6 second half | Yes, combat-4 and combat-5 |
+| D2 | Style picks at skill milestones | new system | none. HYPOTHESIS about content | No |
+
+### 10.3 The lone ways today (the before column of every run)
+
+MEASURED, lone, MID, Normal. Level XP an hour as a share of the hammer's, and net gold an hour.
+
+| Way | 10 | 30 | 60 | 110 | Net gold an hour at 60 |
+|---|---|---|---|---|---|
+| Sword and shield | 0.84 | 0.91 | 0.92 | 0.84 | 12,461 |
+| Sword alone | 0.96 | 1.00 | 1.00 | 0.93 | 15,388 |
+| Hammer | 1.00 | 1.00 | 1.00 | 1.00 | 16,820 |
+| Axes | 0.86 | 0.95 | 0.88 | 0.87 | 14,023 |
+| Bow | 0.94 | 1.09 | 1.09 | 1.01 | 7,122 |
+| Crossbow and shield | 0.95 | 1.08 | 1.05 | 0.96 | 15,333 |
+| Wand | 1.11 | 1.21 | 1.31 | 1.20 | 83 |
+| Staff | 0.82 | 0.89 | 0.91 | 0.89 | -2,203 |
+
+Readings. The wand leads by 20 to 31% from Level 30 and pays for it in gold. The axes are the slowest damage way at three of four Levels. The sword alone is level with the hammer to Level 60, which the spell rule did (its strikes scale now). Every lone way is over the pace band P2 (0.95 to 1.10 of the contract) at Levels 10, 60 and 110: that is a baseline red, not something a patch here caused, and it is why the diff calls any speed-up "REGRESSED away".
+
+### 10.4 The fours (lineups on Deadly, no patch)
+
+MEASURED, one seed, one hour, MID. Level XP a hero-hour, against the matrix's four.
+
+| Four | Level 60: XP, vs mixed | Low HP, deaths | Level 110: XP, vs mixed | Low HP, deaths |
+|---|---|---|---|---|
+| tank, healer, bow, mage (the mixed four) | 797,900 | 0.78, 0 | 1,203,700 | 0.86, 0 |
+| **hammer**, healer, bow, mage | 878,500, +10% | 0.75, 0 | 1,265,700, +5% | 0.86, 0 |
+| tank, healer, **mage**, mage | 857,900, +8% | 0.78, 0 | 1,218,800, +1% | 0.86, 0 |
+| hammer, healer, mage, mage | 915,900, +15% | 0.76, 0 | 1,261,400, +5% | 0.87, 0 |
+| **hammer, mage, mage, mage** (no healer) | 970,100, +22% | 0.49, 0 | 1,220,700, +1% | 0.82, 0 |
+| mage, mage, mage, healer (nobody in front) | 702,300, -12% | 0.84, 0 | 1,184,800, -2% | 0.87, 0 |
+| mage x4 (one class, cell 970) | 465,500, -42% | 0.78, 0 | 735,400, -39% | 0.82, 0 |
+| tank, healer, **crossbow**, mage | 781,600, -2% | 0.78, 0 | 1,188,100, -1% | 0.86, 0 |
+| tank, healer, **hammer**, mage | 717,900, -10% | 0.77, 0 | 1,106,000, -8% | 0.84, 0 |
+| tank, healer, **axes**, mage | 692,600, -13% | 0.77, 0 | 1,064,000, -12% | 0.83, 0 |
+| hammer x4 | 449,500, -44% | 0.37, 1 in the hour | 593,000, -51% | 0.66, 0 |
+
+What this turns from hypothesis into evidence:
+
+1. **The shield tank is a worse fourth than a hammer.** +10% and +5% for swapping it out, no deaths, the same low point. Phase A had this from one real hunt. The engine agrees.
+2. **The healer is not needed on Deadly at Level 60.** A hammer and three mages is the fastest four measured there, dips to 49% and does not die. Its store bill is the highest (24,400 against 15,500), so it pays gold for the speed.
+3. **Nobody is needed in front.** Three mages and a healer, and four mages, both hold Deadly with no deaths. Four mages kill 944 and 1,614 monsters an hour against the mixed four's 925 and 1,506. Only the one-class cell (970 against 1,700) keeps them from being the best four.
+4. **Mage stacking is real and modest with a tank (+8%, +1%), and larger without one.** Phase A's hypothesis holds in direction. The bigger effect is not the second mage. It is that the two "safety" seats can be dropped.
+5. **A second melee hero is the worst use of a seat**: -8 to -13%, of which 2 points are the class cell. The axes are the worst of them. This is the measured size of "melee damage brings nothing but damage".
+6. **The crossbow is the better Ranger in a four for gold**: 1 to 2% less XP for a store bill 16 to 24% lower.
+
+The tier dials are L16's. The finding for L16: on today's dials the low point of a Deadly four is 0.75 to 0.87 with no deaths, and a four with no healer bottoms at 0.49 and lives.
+
+### 10.5 The patches
+
+| Patch | What it plays | Target | Flags | Gate |
+|---|---|---|---|---|
+| `combat-1.json` | axes read the sword's weak side | pace | IMPROVED 0, REGRESSED 2, UNINTENDED 1 | FAIL (1 unintended) |
+| `combat-2.json` | crossbow: accuracy -23%, strength +33% at tier 7 | pace | IMPROVED 0, REGRESSED 3, UNINTENDED 5 | FAIL |
+| `combat-3.json` | Magic adds 0.5% max mana a level | gold, survival | IMPROVED 19, REGRESSED 5, UNINTENDED 0 | **PASS** |
+| `combat-4.json` | a physical strike reads weapon weakness (44 R6) | pace | IMPROVED 3, REGRESSED 7, UNINTENDED 29 | FAIL |
+| `combat-5.json` | combat-1 and combat-4 together | pace | IMPROVED 3, REGRESSED 8, UNINTENDED 31 | FAIL |
+
+**combat-1, the weakness repair.** Only the axes moved. Level XP an hour: +1.5% at 10, +3.8% at 30, +4.8% at 60, 0 at 110 (Krell's Hold has no sword-side monsters for a lone hero). Damage taken -2.6 to -4.8%. Against the hammer the axes go from 0.86 / 0.95 / 0.88 / 0.87 to 0.88 / 0.98 / 0.92 / 0.87.
+- REGRESSED, axes P2 at 10 (1.286 to 1.305) and 60 (1.120 to 1.173): the axes were already over the pace band and went further over. Every way is over it today. Against the other ways this is the wanted direction.
+- UNINTENDED, axes S1.mid at 60 (0.890 to 0.899, still off): the low point of a typical fight rose one point because fights are shorter. Traced: it is the same effect as the pace move, on the survival band. Harmless.
+- Verdict: KEEP the proposal, and it is **not enough**. The axes stay last among the damage ways. Rend's share and its bleed have to come up as well (H1b), sized so the axes land between 0.95 and 1.00 of the hammer at Levels 30 to 110. That is one content coefficient, to be patched once R6's floor is in so each number moves once.
+
+**combat-2, the crossbow's stat line.** Only the crossbow moved: Level XP 0 at 10, +3.1% at 30, +5.4% at 60, +6.0% at 110.
+- REGRESSED, crossbow P2 at 30, 60, 110: it was over the band and went further.
+- UNINTENDED: S1.mid at 110 (0.892 to 0.925): it took 15% less damage there because monsters died sooner. G-2 and G-9 (the store's share of income) at 30, 60, 110 moved under a point each: heavier bolts change kills an hour and so the share. All five are the pace move seen from the survival and gold bands.
+- Verdict: **CHANGED.** A third more strength for a quarter less accuracy is worth 3 to 6%. That is too little to make a weapon feel different and it pushes a way that is already fast further over the band. The stat-line half of H6 is withdrawn. The crossbow's numbers stay. Its identity is its list and its shield. It also corrects my phase A arithmetic, which predicted about +10% for this trade at Level 60. It measured +5%, so that arithmetic overstated strength against accuracy.
+
+**combat-3, Magic adds max mana.** No way's pace, kills or damage moved. Store gold fell 2.3 to 3.8% for the mage and the healer, 1.6 to 3.6% for the bow, crossbow and sword at Level 30, and 0.9 to 2.5% for the four. Net gold rose 2.9 to 4.1% for the casters where it was positive (the mage's net at 60 went from 83 to 582 gold an hour, which prints as +601%).
+- IMPROVED 19: the store-share bands G-2 and G-9 moved toward their range for the mage, the healer and the four, and G-1 (net gold rising from checkpoint to checkpoint) for the mage and the healer at 60.
+- REGRESSED 5: G-9 at Level 30 for the bow, crossbow and sword moved half a point away, because those ways already spend under the band's floor and now spend a little less. G-2.deadly at 30 and G-4 at 110 for the four moved 1 to 2%. All five are the same cheaper drinks.
+- UNINTENDED 0. Gate PASS.
+- My phase A worry was that it widens the wand's lead. Measured: the wand's XP did not move at all. Its gold moved 3 to 4%. Verdict: KEEP, at this size.
+
+**combat-4 and combat-5, strikes read weapon weakness (44's R6).** Median Level XP change by way: tank 0, sword 0 (up to +3.5% at 60), hammer -0.3% (+2.5% at 110), bow +0.7%, crossbow +0.9%, axes 0. With the table repaired as well (combat-5) the axes read +0.5% at 10, +5.8% at 30, +7.3% at 60 against today.
+- The 29 and 31 UNINTENDED rows are small moves of the survival and store-share bands on the ways whose strikes got 20% bigger on some monsters, plus dice: changing one strike's roll changes every later roll in that hour, so a way with no physical strike on a weak-side monster still moved a point (the hammer at 60 reads -1.1%). No row changed a band's status except bow G-9 at 110 (off to ok) and sword G-2 at 10 (off to ok).
+- Verdict: I agree with 44's call. The effect is small, at most 3.5% on one way at one Level. **CHANGED:** phase A warned that R6 on today's lopsided table would favor the hammer. Measured, it does not in any way that matters. The two changes can ship in either order. Shipping them together gives the axes the most (+7.3% at 60).
+
+### 10.6 What the matrix could not measure, and the run that would
+
+| Proposal | Why not | What settles it |
+|---|---|---|
+| H4, the cast break | the effect is not built | Build it on a scratch branch behind the row. Matrix cells on the grounds with casters (53 counts 14 casters of 52 open-ground monsters), a hammer four against the mixed four. Then a week of play: do players keep the rule on "when a monster is casting" |
+| H5, shooters first | the harness four sends 0.5% of its damage to the healer where the real four sends 28.5% | Fix the calibration first: the matrix needs the real four's lineup and a ground whose shooters reach the back row. Then the healer's damage taken and drinks, before and after |
+| H2, seven spells | paper rows | L44's own sample measurement, with the leech linings (47 M13) |
+| H3, the fists | no fist way in the matrix | L43, after the itemization plan's Finding 5 is re-run on the spell rule engine |
+| M1, status pairs | not built | A three-pair sample. IMPROVED if three or more different fours sit within 5% of the best. Then play |
+| M3, the floor | the matrix starts at Level 10 | R6's diff on Levels 1 to 15 |
+| The lineups of 10.4 | played once, one seed | **For the matrix lane:** add `hammer,healer,bow,mage`, `hammer,mage,mage,mage`, `mage,mage,mage,healer` and `mage x4` to the four block, at 2 seeds. They are the cells L16 has to turn red to green |
+
+### 10.7 Where the other docs decided, and whether I agree
+
+| Doc | Decision in my area | My answer |
+|---|---|---|
+| 41 call 1, 44 section 8 row 6, roadmap R6 | One floor on the blow a cast reads, in 0.2.144 | **Agree.** Three lanes reached it separately (41, 44, this review). That is convergence |
+| 41 call 2, 44 section 5.1 | A physical strike reads weapon weakness. Spells never miss and never crit | **Agree**, and measured small (combat-4) |
+| 41 call 7 | Turning Cut from Level 1 for weapons without a shield, 10 for the sword | **Agree. I change my answer** from "Melee 5 for all". A per-weapon unlock is a data field and it bends no ruling |
+| 44 S-X01 | `weaponResist` is read by nothing: wire it or delete it | **Delete.** Wiring it would add a third weakness sign for players to track, on a system measured at under 5% |
+| 44 S-X03 | The mana ladder as one coefficient | Agree |
+| 44 X-PARTY-ONLY-ROWS | Keep the alone and party-only gates, documented | Agree |
+| 47 C4 | Sixteen stays the end state. My seven are the first batch. The other nine are redesigned so no two weapons share a mechanic | **Agree.** It is a better answer than my "defer nine", because it keeps the ruling and still removes the mirrored rows |
+| 47 C5 | Fists as two rows, with the Palm striking on mana and a rune as the stronger cast | **Agree.** I had the rune as the only way to cast it. The plan's Finding 5 shows that loses gold from Level 42 |
+| 47 M13 | Spell leech and lining leech measured together | Agree. It applies to Leech Bolt in the first seven |
+| 46 section 3c | Defer Necrotic and Storm and the fists whole | **Disagree in part.** Both are ruled and both give a weapon its identity. Order them after L16, not out of the plan |
+| 46 (the starting hero) | The default hero is sword and shield, the worst lone pick, and its next spells are party only | **Same conclusion, reached separately.** Measured here: 0.84 to 0.92 of the hammer alone, and 5 to 10% slower as the front of a four. Let the player pick the first weapon |
+| 57 call 2 | Party XP reads size only. The class count goes | **Conflict. Keep the class count for now.** Measured: four mages kill as fast as the mixed four on Deadly and do not die, so on a size-only table they are the best four in the game. 57 itself says that in that case the fix belongs in combat. I agree with that sentence. So the order is L16 first, then re-measure, then 57's table |
+| 53 (handoff to 52) | The model four kills 558 an hour on Krell's Deadly in the grid against 1,251 real | The matrix's four reads 1,386 there and my lineup 1,506 at Level 110. The grid cell 53 read is stale against the matrix. For the baseline lane |
+
+### 10.8 The itemization plan
+
+Read: section 7 (the fist line), Appendix B1 to B3, Finding 5, and Tyler's section 13 answers through 47.
+
+| Plan | This review |
+|---|---|
+| 13-5, "each weapon type to have a spell for both" | Kept as the end state (47 C4). Changes the plan's sample from four spells to seven, and its batch of ten to a redesigned nine |
+| Section 7, cost: "elemental strikes on mana, a rune is the optional stronger cast" | Kept. I drop "the Palm needs a rune" |
+| Section 7, element "by choice through Charged Hands", and Live Hand and Draw | Changed: one Hands row and one Palm row. The Palm covers Storm and Necrotic, so Live Hand and Draw are not built |
+| 13-7, the fist promise | Unchanged. To be re-measured in L43 |
+| B1, Necrotic cuts healing and Storm burns mana on a hero | Agrees. It is the monster side of the elements and the reason Static Ward (staff, Storm) is in the first seven |
+| 13-12, quivers as late bow off-hands | Agrees with keeping the bow two-handed and distinct from the crossbow with a shield |
+
+### 10.9 Verdicts that changed since phase A
+
+| Row | Phase A | Now | Why |
+|---|---|---|---|
+| Sword alone | "dominated, 0.85 to 0.96 of the hammer" | KEEP, and not dominated | Measured level with the hammer from 10 to 60 after the spell rule |
+| Crossbow | REDESIGN its stat line and its list | REDESIGN its list only | combat-2: the stat line is worth 3 to 6% |
+| The accuracy number | "about an eighth of strength" | worth more than that in play | combat-2 predicted about +10% on that arithmetic and measured +5% |
+| Hatchets | REDESIGN (the table) | REDESIGN (the table and Rend's share) | combat-1: the repair leaves the axes last |
+| Turning Cut's unlock | Melee 5 for all | Level 1 for axes and hammer, 10 for the sword | 41's answer is cleaner |
+| The seven second Necrotic and Storm spells | DEFER | REDESIGN, then build | 47 C4 |
+| Fist Palm | a rune every cast | on mana, a rune is the stronger cast | 47 C5 and Finding 5 |
+| R6 weakness against the table repair | "repair the table first" | either order | combat-4 and combat-5 |
+| Mage stacking | HYPOTHESIS | EVIDENCE in direction, +8% and +1% with a tank | 10.4 |
+| "The tank has no job" | EVIDENCE from one real hunt | EVIDENCE from the engine as well | 10.4 |
+| Magic adds max mana | HYPOTHESIS, medium risk | EVIDENCE, gate PASS | combat-3 |
+| The healer in a four | not questioned | not needed on Deadly at Level 60 | 10.4 |
+
+The verdict counts of section 3.1 move in one place: the seven second spells go from DEFER to REDESIGN (the fists' two, Live Hand and Draw, stay removed because the Palm covers them). KEEP 46, REDESIGN 17, ADD 12, DEFER 2, REMOVE 3, MERGE 1.

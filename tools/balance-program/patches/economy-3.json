@@ -1,0 +1,8 @@
+{
+  "schema": "hearthrise.balance-patch/1",
+  "name": "Economy 3: coin a monster hit point x0.85 (a stand-in for gold in falling 15%)",
+  "why": "55-review-economy trace 5.4. Phase A proposed gear salvaged by default, which takes 15 to 25% out of gold in. The matrix cannot re-route loot, so this moves the coin coefficient by the low end of that range to read which gold bands a 15% fall in gold in breaks, and to prove the coin coefficient moves nothing but gold. It targets the gold bands.",
+  "kind": "coefficient",
+  "knobs": { "coinPerKill": 0.85 },
+  "targets": ["gold"]
+}

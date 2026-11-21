@@ -1,0 +1,13 @@
+{
+  "schema": "hearthrise.balance-patch/1",
+  "name": "Economy 1: the store's heal price as one line (R14), top near 3x the coin coefficient",
+  "why": "55-review-economy change 3. Store food is typed at 0.19, 0.33, 0.83, 1.50, 1.75 gold a hit point; coin is 0.21 to 0.30 a monster hit point. This patch prices each store heal as heals x a gentle line: 0.19, 0.30, 0.42, 0.52, 0.60. It targets the gold bands; any moved pace or survival band is UNINTENDED.",
+  "kind": "coefficient",
+  "edits": [
+    { "file": "src/data/supply-basics.js", "from": "heal('salted_trout', 'Salted Trout', 'cooked_trout', 120, 40),", "to": "heal('salted_trout', 'Salted Trout', 'cooked_trout', 120, 36)," },
+    { "file": "src/data/supply-basics.js", "from": "heal('salted_lobster', 'Salted Lobster', 'cooked_lobster', 216, 180),", "to": "heal('salted_lobster', 'Salted Lobster', 'cooked_lobster', 216, 91)," },
+    { "file": "src/data/supply-basics.js", "from": "heal('salted_swordfish', 'Salted Swordfish', 'cooked_swordfish', 288, 432),", "to": "heal('salted_swordfish', 'Salted Swordfish', 'cooked_swordfish', 288, 150)," },
+    { "file": "src/data/supply-basics.js", "from": "heal('salted_shark', 'Salted Shark', 'cooked_shark', 396, 693),", "to": "heal('salted_shark', 'Salted Shark', 'cooked_shark', 396, 238)," }
+  ],
+  "targets": ["gold"]
+}

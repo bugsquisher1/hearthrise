@@ -259,8 +259,19 @@ const kG = (v) => (Number.isFinite(v) ? (Math.abs(v) >= 1000 ? (v / 1000).toFixe
 /** K1'S GATE (31-plan-audit M3; the Coordinator 2026-11-20): a line read on the harness's party (`gate` 'xp' or 'gold' on the line or a
     row) is judged only while K1 reads the real Krell four within its own target, on Level XP and kills ('xp') or on net gold ('gold').
     Outside it the row reports its number and the status `uncal`: never red, never green, never an exit. */
+/* THE REAL FOUR ON TODAY'S ENGINE (model.mjs REAL_KRELL_FOUR_SHIFTS, lane/c-engine-reds): its Level XP and kills times every formula shift
+   since its hunt, its gold rebuilt from its income and its store bill each times theirs. K1 compares the harness with the hunt as today's
+   engine would pay it, never with a number another engine paid (the to-hit ratio and the spell rule moved K1's Level XP 0.83 -> 1.06 with
+   no change to the harness: the gate would have opened on an engine change). */
+function realKrellNow(K = MODEL.REAL_KRELL_FOUR, shifts = MODEL.REAL_KRELL_FOUR_SHIFTS) {
+  const m = (k) => shifts.reduce((x, s) => x * ((s.mult && s.mult[k]) || 1), 1);
+  const income = K.netGoldAHeroHour + K.storeAHeroHour;
+  return { levelXpAHeroHour: K.levelXpAHeroHour * m('levelXp'), killsAClockHour: K.killsAClockHour * m('kills'),
+    netGoldAHeroHour: income * m('income') - K.storeAHeroHour * m('store'), shifts: shifts.length };
+}
+
 function calibration(I) {
-  const K = MODEL.REAL_KRELL_FOUR, r = I.rows['krell-real'], G = GC.K1_GATE;
+  const K = { ...MODEL.REAL_KRELL_FOUR, ...realKrellNow() }, r = I.rows['krell-real'], G = GC.K1_GATE;
   const inT = (x, t) => Number.isFinite(x) && x >= t[0] && x <= t[1];
   if (!r) return { xp: false, gold: false };
   return { xp: inT(r.levelXpPerH / K.levelXpAHeroHour, G.xp) && inT(r.killsPerH / K.killsAClockHour, G.xp), gold: inT((r.incomePerH - r.storePerH * (1 - K.ownStockShare)) / K.netGoldAHeroHour, G.gold) };
@@ -393,11 +404,11 @@ function judge(I) {
       'on-call heroes not built (L40); the data\'s ceiling a hero: bar ' + S.freeH + ' h + refills ' + S.refillH + ' h = ' + ceiling + ' h, of a 24 h day');
   }
   {
-    const K = MODEL.REAL_KRELL_FOUR, r = R('krell-real');
+    const K = { ...MODEL.REAL_KRELL_FOUR, ...realKrellNow() }, r = R('krell-real');
     const net = r ? r.incomePerH - r.storePerH * (1 - K.ownStockShare) : NaN;
     line('K1', r ? [row('Level XP', r.levelXpPerH / K.levelXpAHeroHour, band('K1'), f2, ' (' + kG(r.levelXpPerH) + ')'), row('kills', r.killsPerH / K.killsAClockHour, band('K1'), f2, ' (' + r.killsPerH + ')'),
       row('net gold', net / K.netGoldAHeroHour, band('K1'), f2, ' (' + kG(net) + ')')] : [{ at: 'krell', value: NaN, status: 'ERR', shown: 'no cell' }],
-    'harness / ' + K.label + '; harness deaths ' + (r ? r.deaths : '?') + ' in ' + (r ? r.heroHours.toFixed(0) : '?') + ' hero-hours');
+    'harness / ' + K.label + ', restated on the engine of today (' + K.shifts + ' formula shifts since its hunt); harness deaths ' + (r ? r.deaths : '?') + ' in ' + (r ? r.heroHours.toFixed(0) : '?') + ' hero-hours');
   }
   /* ── the plan audit's lines (31-plan-audit.md M2, M5, M9) ── */
   {
@@ -520,7 +531,7 @@ const BYID = (id) => GC.BY_ID[id];
 /* PRE-STEPS a plant may need so its line is judged at all. CALIBRATE: K1 reads the real Krell four exactly (the gate opens).
    NIGHTLY: the twin's and the Tower's rows planted in band (a plain measure has none), then calibrated (D1, D2 are gated). */
 function calibrate(J) {
-  const K = MODEL.REAL_KRELL_FOUR, r = J.rows['krell-real'];
+  const K = realKrellNow(), r = J.rows['krell-real'];
   J.rows['krell-real'] = { ...r, levelXpPerH: K.levelXpAHeroHour, killsPerH: K.killsAClockHour, incomePerH: K.netGoldAHeroHour, storePerH: 0 };
   return J;
 }

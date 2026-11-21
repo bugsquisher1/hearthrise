@@ -1,0 +1,12 @@
+{
+ "schema": "hearthrise.balance-patch/1",
+ "name": "Home 2 (a measurement, not a proposal): every store supply works like its home-made partner",
+ "why": "The matrix has no home axis. The one place Home reaches a hunt is supplies: a crafted heal, drink, arrow or rune gives 1 / 0.75 of the store's. Raising BASIC_EFFECT_SHARE from 0.75 to 1.0 plays every cell as if the hero were fully supplied from home, at store prices. The moved pace, survival and gold bands are what Home is worth to a hunt today, and the ceiling for any better home drink (dropped seeds).",
+ "kind": "coefficient",
+ "knobs": {
+  "storeSupplyShare": 1.3333333
+ },
+ "targets": [
+  "all"
+ ]
+}

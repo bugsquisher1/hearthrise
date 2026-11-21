@@ -1,0 +1,1455 @@
+{
+ "schema": "hearthrise.balance-proposals/1",
+ "from": [
+  "docs/design/balance-program/60-game-review.md section 8 (calls G-1 to G-88, being renamed GR-1 to GR-88; 61-review-audit.md)",
+  "44-formula-architecture.md sections 5 and 7 (R1 to R23)",
+  "47-itemization-fit.md",
+  "the phase B patches in tools/balance-program/patches/"
+ ],
+ "rule": "ONE FILE. A proposal the matrix can model names its patch (a scratch-copy derivation, never an edit of the tree) or its derived reading; `recommended` is on in the proposed game the dashboard opens on; `shipsWith` pairs are flagged when one is on without the other; `after` is the ruled order. `excludes`: an alternative to those proposals (it rewrites what they rewrite), so turning it on turns them off. A proposal the matrix cannot model says why.",
+ "frame": [
+  {
+   "id": "RULE-2026-11-21",
+   "title": "All four heroes from the start, one Premium per account",
+   "ruled": "Tyler 2026-11-21 ~09:50 UTC, executive decision (rulings of record); settles GR-2; built by lane/c-four-from-start",
+   "label": "RULED",
+   "modelled": true,
+   "locked": true,
+   "effect": "identity on every hunt cell: the matrix never charged for a hero slot. Its party cells are your own two, three and four from the party Level (STD.PARTIES fromLevel 5, the Sewer's Level), and its gold readings are hunt gold less store buys. The proposed game therefore already plays your own four from day 1 with no slot purchase in any gold or pace cell.",
+   "retires": [
+    "X1",
+    "G9",
+    "G20"
+   ],
+   "note": "Retired on the proposed side: the day each hero slot arrives (X1) and the slot-price guard cells G9 and G20, which read the 400k / 1.5M / 4M prices this ruling replaces. Premium is not a matrix input (the stamina day is stamina-day.mjs), so one Premium per account moves no cell. The slot sink was about 5.5M of the 5.9M standing sinks; sinks as band gold (R16) stay not modelled until they are re-planned."
+  },
+  {
+   "id": "RULE-2026-11-21-party",
+   "title": "Party buffs are part of the game; no party-size targets",
+   "ruled": "Tyler 2026-11-21, verbatim: \"Let's just not really worry about the targets for solo / group stuff. The same party buffs will apply, it's a no brainer to hunt together.\"",
+   "label": "RULED",
+   "modelled": true,
+   "locked": true,
+   "effect": "identity on every cell: the party buffs the proposed game plays are the ones in the tree, as they stand",
+   "retires": [
+    "P6.2",
+    "P6.3",
+    "P6.4",
+    "P7.2",
+    "P7.3",
+    "P7.4",
+    "P8",
+    "B9"
+   ],
+   "note": "Gone from the dashboard: every solo-against-group, pair, trio and four-multiple target (a head against a lone hero, a party's multiple of the lone contract, the party path against the lone path). The matrix still plays parties and the tool still reads them; nothing is judged on party size."
+  }
+ ],
+ "proposals": [
+  {
+   "id": "GR-4",
+   "doc": [
+    "G-4",
+    "R10",
+    "R11"
+   ],
+   "title": "A gear curve as a game formula",
+   "modelled": true,
+   "recommended": true,
+   "label": "HYPOTHESIS",
+   "layer": "formula (plan: the kit a cell wears)",
+   "patch": "patches/R10-gear-curve.json",
+   "shipsWith": [],
+   "after": [],
+   "before": [
+    "GR-5"
+   ],
+   "note": "Weapon and armor from Level 110 on the line (Dawnsteel x the band Level / 110), a band every +24% (110, 136, 169, 210, 260, 322, 400, then on). LOW one band back. The band size is HYPOTHESIS until one band is played. Uniques spending a budget (R11) are not modelled: past 110 every MID and BiS piece is the line piece"
+  },
+  {
+   "id": "GR-5",
+   "doc": [
+    "G-5",
+    "R12"
+   ],
+   "title": "What a kill pays",
+   "modelled": true,
+   "recommended": true,
+   "label": "COMPUTED",
+   "layer": "formula",
+   "patch": "patches/R12-kill-reward.json",
+   "shipsWith": [
+    "GR-5b"
+   ],
+   "after": [
+    "GR-4",
+    "R7"
+   ],
+   "before": [],
+   "note": "XP a health point = the pace contract over the reference kill-health an hour (a lone MID hammer on Normal, measured on the matrix and fitted c x L^d), so the 15 per-ground XP fits, the floor fit and the 0.4 exponent go. Party grounds keep their type with XP a kill at two thirds of a plain kill (was 0.8)"
+  },
+  {
+   "id": "GR-5b",
+   "doc": [
+    "G-5",
+    "R12"
+   ],
+   "title": "One tier table for every ground",
+   "modelled": true,
+   "recommended": true,
+   "label": "COMPUTED",
+   "layer": "data",
+   "patch": "patches/one-tier-table.json",
+   "shipsWith": [
+    "GR-5"
+   ],
+   "after": [],
+   "before": [],
+   "note": "One tier table: the per-ground tier dials go (pull capacity stays, it is geography) and so does the floor-16 pull rule"
+  },
+  {
+   "id": "GR-6",
+   "doc": [
+    "G-6",
+    "R13"
+   ],
+   "title": "The Level table",
+   "modelled": true,
+   "recommended": true,
+   "label": "COMPUTED",
+   "layer": "curve",
+   "patch": "patches/R13-level-law.json",
+   "shipsWith": [
+    "GR-7",
+    "GR-8"
+   ],
+   "after": [
+    "GR-5"
+   ],
+   "before": [],
+   "note": "Your table of hours is the law: the XP a Level costs is the ruled hours (log-linear between the ruled points, on at the last slope past 1,000) times the pace contract times the pace seat's measured multiple. Levels 1 to 10 keep today's steps (27-2). Not the withdrawn power law (progression-1)"
+  },
+  {
+   "id": "GR-7",
+   "doc": [
+    "G-7"
+   ],
+   "title": "Death past Level 100",
+   "modelled": true,
+   "recommended": true,
+   "label": "COMPUTED",
+   "layer": "content rows",
+   "derived": "blessingLadder",
+   "shipsWith": [
+    "GR-6"
+   ],
+   "after": [],
+   "before": [],
+   "note": "Blessings 4 to 7 open at Levels 100, 185, 275 and 400; each halves what a fully blessed death still takes. The engine holds no Blessing for a harness hero, so the matrix reads it as XP after deaths at the ruled death counts (the band G-7 asks for), harder tier over the same party on Normal"
+  },
+  {
+   "id": "GR-14",
+   "doc": [
+    "G-14",
+    "G-12",
+    "R6"
+   ],
+   "title": "Weapon weakness",
+   "modelled": true,
+   "recommended": true,
+   "label": "MEASURED",
+   "layer": "formula, content row",
+   "patch": "patches/combat-5.json",
+   "shipsWith": [],
+   "after": [
+    "R6 floor"
+   ],
+   "before": [],
+   "note": "Axes on the edged side and physical strikes read weapon weakness (combat-1 with combat-4). Rend's raised share is not in the patch (sized by need, 52 section 10.5)"
+  },
+  {
+   "id": "GR-22",
+   "doc": [
+    "G-22"
+   ],
+   "title": "Magic on a weapon hero",
+   "modelled": true,
+   "recommended": true,
+   "label": "MEASURED",
+   "layer": "formula",
+   "patch": "patches/combat-3.json",
+   "shipsWith": [],
+   "after": [],
+   "before": [],
+   "note": "Magic adds 0.5% max mana a level for every hero"
+  },
+  {
+   "id": "GR-27",
+   "doc": [
+    "G-27"
+   ],
+   "title": "What Dangerous brings",
+   "modelled": true,
+   "recommended": true,
+   "label": "MEASURED",
+   "layer": "data",
+   "patch": "patches/world-2b-dangerous-five.json",
+   "shipsWith": [
+    "GR-5b"
+   ],
+   "after": [],
+   "before": [],
+   "note": "Dangerous brings five on every ground, Deadly keeps the full box. MEASURED on one seed an hour at today's dial (61 H6)"
+  },
+  {
+   "id": "GR-38",
+   "doc": [
+    "G-38"
+   ],
+   "title": "Jewelry and cloaks past Level 30",
+   "modelled": true,
+   "recommended": true,
+   "label": "HYPOTHESIS",
+   "layer": "content rows",
+   "patch": "patches/items-2.json",
+   "shipsWith": [
+    "GR-4"
+   ],
+   "after": [],
+   "before": [],
+   "note": "Jewelry and cloaks at their tier 7 numbers (items-2): the upper bound of building them to tier 7. The 6% share of the gear curve past tier 7 is not modelled"
+  },
+  {
+   "id": "GR-52",
+   "doc": [
+    "G-52",
+    "R14"
+   ],
+   "title": "The store's healing",
+   "modelled": true,
+   "recommended": true,
+   "label": "MEASURED",
+   "layer": "coefficient",
+   "patch": "patches/economy-1.json",
+   "shipsWith": [],
+   "after": [],
+   "before": [],
+   "note": "The store's heal price on one line. Heal size on the gear curve is not modelled. The harness store bill reads about twice real (F5)"
+  },
+  {
+   "id": "GR-63",
+   "doc": [
+    "G-63"
+   ],
+   "title": "Dead ladders",
+   "modelled": true,
+   "recommended": true,
+   "label": "MEASURED",
+   "layer": "code clean-up",
+   "patch": "patches/progression-3-rested-off.json",
+   "identity": true,
+   "shipsWith": [],
+   "after": [],
+   "before": [],
+   "note": "The rested bank off: moves no hunt number (identity)"
+  },
+  {
+   "id": "GR-76",
+   "doc": [
+    "G-76",
+    "G-56"
+   ],
+   "title": "Sixteen speed rungs",
+   "modelled": true,
+   "recommended": true,
+   "label": "MEASURED",
+   "layer": "content rows",
+   "patch": "patches/home-1.json",
+   "identity": true,
+   "shipsWith": [],
+   "after": [],
+   "before": [],
+   "note": "Room rungs sell kept materials, not speed: moves no hunt number (identity)"
+  },
+  {
+   "id": "R7",
+   "doc": [
+    "R7",
+    "G-85"
+   ],
+   "title": "A tier's dial applied once",
+   "modelled": true,
+   "recommended": true,
+   "label": "COMPUTED",
+   "layer": "formula",
+   "patch": "patches/R7-tier-dial-once.json",
+   "shipsWith": [],
+   "after": [],
+   "before": [],
+   "note": "A tier's dial moves the blow and the aim only: armor and Defense XP read the row's own Level (X-TIER-TRIPLE), and the stat formula sizes blows on the hero's real health, 150 + 10 x (L - 1) (X-REFHP-OFF-BY-ONE). 44: the dial may need one step up to hold S3 and S4 (the tierDanger slider)"
+  },
+  {
+   "id": "world-1",
+   "doc": [
+    "53 4.3"
+   ],
+   "title": "One stat formula: the party-ground fit set to the plain fit",
+   "modelled": true,
+   "recommended": false,
+   "label": "MEASURED",
+   "layer": "formula",
+   "patch": "patches/world-1-one-fit.json",
+   "shipsWith": [],
+   "after": [],
+   "before": [],
+   "note": "REFUTED by its own run: the party-ground fit is not the cause (G-5 keeps the type)",
+   "excludes": [
+    "GR-5"
+   ],
+   "excludesWhy": "the party-ground fit line: GR-5 brings its XP a kill to two thirds, world-1 sets the whole fit to the plain one (60 G-11 keeps the party ground)"
+  },
+  {
+   "id": "world-2",
+   "doc": [
+    "53 4.5"
+   ],
+   "title": "Dangerous brings the ground as built",
+   "modelled": true,
+   "recommended": false,
+   "label": "MEASURED",
+   "layer": "data",
+   "patch": "patches/world-2-dangerous-as-built.json",
+   "shipsWith": [],
+   "after": [],
+   "before": [],
+   "note": "Dangerous as built: superseded by world-2b (GR-27)",
+   "excludes": [
+    "GR-27"
+   ],
+   "excludesWhy": "the Dangerous row: GR-27 brings five, world-2 brings the ground as built"
+  },
+  {
+   "id": "world-3",
+   "doc": [
+    "G-31"
+   ],
+   "title": "A signature a ground",
+   "modelled": true,
+   "recommended": false,
+   "label": "HYPOTHESIS",
+   "layer": "content row",
+   "patch": "patches/world-3-slake-signature.json",
+   "shipsWith": [],
+   "after": [],
+   "before": [],
+   "note": "One ground's signature at double dose: a sample of G-31, not the program"
+  },
+  {
+   "id": "social-1",
+   "doc": [
+    "57"
+   ],
+   "title": "The party size ladder, pair and three lowered",
+   "modelled": true,
+   "recommended": false,
+   "label": "MEASURED",
+   "layer": "coefficient",
+   "patch": "patches/social-1.json",
+   "shipsWith": [],
+   "after": [],
+   "before": [],
+   "note": "Moot since 2026-11-21: party-size balancing is dropped (frame row RULE-2026-11-21-party), so the ladder it tunes has no target. Kept as a toggle only"
+  },
+  {
+   "id": "social-2",
+   "doc": [
+    "57"
+   ],
+   "title": "The party size ladder, three and four raised",
+   "modelled": true,
+   "recommended": false,
+   "label": "MEASURED",
+   "layer": "coefficient",
+   "patch": "patches/social-2.json",
+   "shipsWith": [],
+   "after": [],
+   "before": [],
+   "note": "Moot since 2026-11-21: party-size balancing is dropped (frame row RULE-2026-11-21-party), so the ladder it tunes has no target. Kept as a toggle only"
+  },
+  {
+   "id": "combat-2",
+   "doc": [
+    "G-21"
+   ],
+   "title": "The crossbow",
+   "modelled": true,
+   "recommended": false,
+   "label": "MEASURED",
+   "layer": "content row",
+   "patch": "patches/combat-2.json",
+   "shipsWith": [],
+   "after": [],
+   "before": [],
+   "note": "A crossbow line: G-21 keeps its numbers"
+  },
+  {
+   "id": "progression-1",
+   "doc": [
+    "56 2.1"
+   ],
+   "title": "One Level law past Level 50 (the earlier power law)",
+   "modelled": true,
+   "recommended": false,
+   "label": "MEASURED",
+   "layer": "curve",
+   "patch": "patches/progression-1-level-law.json",
+   "shipsWith": [],
+   "after": [],
+   "before": [],
+   "note": "The withdrawn power law (61 C1). GR-6 is the ruled table",
+   "excludes": [
+    "GR-6"
+   ],
+   "excludesWhy": "the Level table: GR-6 derives it from the ruled hours, progression-1 is the withdrawn power law past Level 50"
+  },
+  {
+   "id": "economy-2",
+   "doc": [
+    "55"
+   ],
+   "title": "Every supply at its maker's full effect",
+   "modelled": true,
+   "recommended": false,
+   "label": "MEASURED",
+   "layer": "coefficient",
+   "patch": "patches/economy-2.json",
+   "shipsWith": [],
+   "after": [],
+   "before": [],
+   "note": "A measurement: every supply at its maker's full effect (the idle market's upper bound)"
+  },
+  {
+   "id": "economy-3",
+   "doc": [
+    "55"
+   ],
+   "title": "Coin a monster hit point x0.85",
+   "modelled": true,
+   "recommended": false,
+   "label": "MEASURED",
+   "layer": "coefficient",
+   "patch": "patches/economy-3.json",
+   "shipsWith": [],
+   "after": [],
+   "before": [],
+   "note": "A stand-in: gold in falling 15%"
+  },
+  {
+   "id": "items-1",
+   "doc": [
+    "G-39"
+   ],
+   "title": "Perk sizes",
+   "modelled": true,
+   "recommended": false,
+   "label": "MEASURED",
+   "layer": "content rows",
+   "patch": "patches/items-1.json",
+   "shipsWith": [],
+   "after": [],
+   "before": [],
+   "note": "Every jewel perk at five times: the ceiling, not a proposal"
+  }
+ ],
+ "notModelled": [
+  {
+   "id": "GR-1",
+   "doc": [
+    "G-1"
+   ],
+   "title": "How the server reaches 60 database-seconds",
+   "section": "The ten that matter most",
+   "ruling": "New. Extends 28-11 (closed form for training). Bears on 11-21 (call 10)",
+   "modelled": false,
+   "reason": "server cost: measured by measure.mjs and the load rig, not by a hunt cell"
+  },
+  {
+   "id": "GR-2",
+   "doc": [
+    "G-2"
+   ],
+   "title": "The price of the second hero",
+   "section": "The ten that matter most",
+   "ruling": "SETTLED 2026-11-21: all four heroes from the start, slots never sold",
+   "modelled": false,
+   "reason": "settled by the 2026-11-21 ruling (frame row RULE-2026-11-21): no slot is sold, so there is no price to model"
+  },
+  {
+   "id": "GR-3",
+   "doc": [
+    "G-3"
+   ],
+   "title": "What Deadly must ask for",
+   "section": "The ten that matter most",
+   "ruling": "New. Follows your 11-19 direction. Keeps 10-31",
+   "modelled": false,
+   "reason": "the Deadly dials are lane L16's, not written. The lineups block measures what L16 must change; the tierDanger, tierHp and tierPull sliders tune it here"
+  },
+  {
+   "id": "GR-8",
+   "doc": [
+    "G-8"
+   ],
+   "title": "Sinks that follow the gear",
+   "section": "The ten that matter most",
+   "ruling": "RE-OPEN 11-18 (\"Tempering stays as built\")",
+   "modelled": false,
+   "reason": "sinks are paid outside a hunt. The gear-cost bands (E3, E4, G-10) read prices through the kit builder on the real tree, which a scratch copy does not reach yet"
+  },
+  {
+   "id": "GR-9",
+   "doc": [
+    "G-9"
+   ],
+   "title": "Ground past its band",
+   "section": "The ten that matter most",
+   "ruling": "RE-OPEN 11-07 (the hourly fee, and \"the party leader's Level\")",
+   "modelled": false,
+   "reason": "risen grounds need the one-formula ground above its band (R22), not written"
+  },
+  {
+   "id": "GR-10",
+   "doc": [
+    "G-10"
+   ],
+   "title": "Playing together while away",
+   "section": "The ten that matter most",
+   "ruling": "Builds 10-25 and 25-3, and re-orders 25-3. Amends 11-08 (the cut was ruled out, and I ask for a gentler visible one in its place)",
+   "modelled": false,
+   "reason": "on-call heroes are a system; the matrix's parties stand at one Level, so the Level range on party XP never reads"
+  },
+  {
+   "id": "GR-11",
+   "doc": [
+    "G-11"
+   ],
+   "title": "The beginner's floor on spells",
+   "section": "Combat",
+   "ruling": "Builds 11-21 (32-8)",
+   "modelled": false,
+   "reason": "an identity step (one floor in place of 17 with the same effect): an identity diff proves it, nothing moves"
+  },
+  {
+   "id": "GR-13",
+   "doc": [
+    "G-13"
+   ],
+   "title": "Three shapes of roll",
+   "section": "Combat",
+   "ruling": "New",
+   "modelled": false,
+   "reason": "one roll rule: not written as a patch"
+  },
+  {
+   "id": "GR-15",
+   "doc": [
+    "G-15"
+   ],
+   "title": "Turning Cut and Rend",
+   "section": "Combat",
+   "ruling": "Keeps 11-19",
+   "modelled": false,
+   "reason": "a combat rule or row with no patch yet: the matrix plays the rows the tree holds and nothing here is built or written as a patch"
+  },
+  {
+   "id": "GR-16",
+   "doc": [
+    "G-16"
+   ],
+   "title": "Necrotic and Storm",
+   "section": "Combat",
+   "ruling": "Keeps 11-18 and 32-6",
+   "modelled": false,
+   "reason": "a combat rule or row with no patch yet: the matrix plays the rows the tree holds and nothing here is built or written as a patch"
+  },
+  {
+   "id": "GR-17",
+   "doc": [
+    "G-17"
+   ],
+   "title": "Fists",
+   "section": "Combat",
+   "ruling": "Keeps 11-18",
+   "modelled": false,
+   "reason": "a combat rule or row with no patch yet: the matrix plays the rows the tree holds and nothing here is built or written as a patch"
+  },
+  {
+   "id": "GR-18",
+   "doc": [
+    "G-18"
+   ],
+   "title": "Quarry Blow",
+   "section": "Combat",
+   "ruling": "RE-OPEN 10-23 (\"no stagger\"), in a narrow form",
+   "modelled": false,
+   "reason": "a combat rule or row with no patch yet: the matrix plays the rows the tree holds and nothing here is built or written as a patch"
+  },
+  {
+   "id": "GR-19",
+   "doc": [
+    "G-19"
+   ],
+   "title": "\"Shooters first\"",
+   "section": "Combat",
+   "ruling": "New",
+   "modelled": false,
+   "reason": "a combat rule or row with no patch yet: the matrix plays the rows the tree holds and nothing here is built or written as a patch"
+  },
+  {
+   "id": "GR-20",
+   "doc": [
+    "G-20"
+   ],
+   "title": "A status opens one kind of damage",
+   "section": "Combat",
+   "ruling": "New",
+   "modelled": false,
+   "reason": "a combat rule or row with no patch yet: the matrix plays the rows the tree holds and nothing here is built or written as a patch"
+  },
+  {
+   "id": "GR-21",
+   "doc": [
+    "G-21"
+   ],
+   "title": "The crossbow",
+   "section": "Combat",
+   "ruling": "Builds 32-6",
+   "modelled": false,
+   "reason": "keeps today's numbers: nothing to model (combat-2 was the rejected alternative)"
+  },
+  {
+   "id": "GR-23",
+   "doc": [
+    "G-23"
+   ],
+   "title": "Skill at high Level, and endless ladders",
+   "section": "Combat",
+   "ruling": "Extends 10-23 (five rune tiers). Builds 11-20",
+   "modelled": false,
+   "reason": "a combat rule or row with no patch yet: the matrix plays the rows the tree holds and nothing here is built or written as a patch"
+  },
+  {
+   "id": "GR-24",
+   "doc": [
+    "G-24"
+   ],
+   "title": "The starting weapon",
+   "section": "Combat",
+   "ruling": "New",
+   "modelled": false,
+   "reason": "the starting weapon: the matrix starts at Level 10"
+  },
+  {
+   "id": "GR-25",
+   "doc": [
+    "G-25"
+   ],
+   "title": "Special rules with no ruling on record",
+   "section": "Combat",
+   "ruling": "New. Nine rules were never put to you",
+   "modelled": false,
+   "reason": "approves rules already in the tree: nothing moves"
+  },
+  {
+   "id": "GR-26",
+   "doc": [
+    "G-26"
+   ],
+   "title": "Plus skill on chest weapons",
+   "section": "Combat",
+   "ruling": "Keeps 11-14, 11-18, 22-2",
+   "modelled": false,
+   "reason": "keeps the ruled numbers: nothing moves"
+  },
+  {
+   "id": "GR-28",
+   "doc": [
+    "G-28"
+   ],
+   "title": "One boss door",
+   "section": "World",
+   "ruling": "RE-OPEN 11-14 and 22-8",
+   "modelled": false,
+   "reason": "content not written (halls, doors, signatures, regions, rows): no rows to plant"
+  },
+  {
+   "id": "GR-29",
+   "doc": [
+    "G-29"
+   ],
+   "title": "What a hall's prize holds",
+   "section": "World",
+   "ruling": "Keeps 11-14. The roll's contents were the designer's",
+   "modelled": false,
+   "reason": "content not written (halls, doors, signatures, regions, rows): no rows to plant"
+  },
+  {
+   "id": "GR-30",
+   "doc": [
+    "G-30"
+   ],
+   "title": "Krell's hall is won 38 to 40 times in 40 by every party",
+   "section": "World",
+   "ruling": "New",
+   "modelled": false,
+   "reason": "content not written (halls, doors, signatures, regions, rows): no rows to plant"
+  },
+  {
+   "id": "GR-31",
+   "doc": [
+    "G-31"
+   ],
+   "title": "A signature a ground",
+   "section": "World",
+   "ruling": "New",
+   "modelled": false,
+   "reason": "the signature program is content; world-3 is one sample, off by default"
+  },
+  {
+   "id": "GR-32",
+   "doc": [
+    "G-32"
+   ],
+   "title": "Thin bands and uneven pairs",
+   "section": "World",
+   "ruling": "New",
+   "modelled": false,
+   "reason": "content not written (halls, doors, signatures, regions, rows): no rows to plant"
+  },
+  {
+   "id": "GR-33",
+   "doc": [
+    "G-33"
+   ],
+   "title": "The shape of a region",
+   "section": "World",
+   "ruling": "Keeps 11-18",
+   "modelled": false,
+   "reason": "content not written (halls, doors, signatures, regions, rows): no rows to plant"
+  },
+  {
+   "id": "GR-34",
+   "doc": [
+    "G-34"
+   ],
+   "title": "Dead rows",
+   "section": "World",
+   "ruling": "New. Cousin of 22-10",
+   "modelled": false,
+   "reason": "content not written (halls, doors, signatures, regions, rows): no rows to plant"
+  },
+  {
+   "id": "GR-35",
+   "doc": [
+    "G-35"
+   ],
+   "title": "The named rare of a ground",
+   "section": "World",
+   "ruling": "New",
+   "modelled": false,
+   "reason": "content not written (halls, doors, signatures, regions, rows): no rows to plant"
+  },
+  {
+   "id": "GR-36",
+   "doc": [
+    "G-36"
+   ],
+   "title": "The Catacombs",
+   "section": "World",
+   "ruling": "Keeps 11-16 and 22-4. New for the party table",
+   "modelled": false,
+   "reason": "content not written (halls, doors, signatures, regions, rows): no rows to plant"
+  },
+  {
+   "id": "GR-37",
+   "doc": [
+    "G-37"
+   ],
+   "title": "The Tower's beat",
+   "section": "World",
+   "ruling": "Keeps 11-21 (call 6)",
+   "modelled": false,
+   "reason": "content not written (halls, doors, signatures, regions, rows): no rows to plant"
+  },
+  {
+   "id": "GR-39",
+   "doc": [
+    "G-39"
+   ],
+   "title": "Perk sizes",
+   "section": "Items and crafting",
+   "ruling": "RE-OPEN the reading of 23-5 (4% as a total)",
+   "modelled": false,
+   "reason": "perk sizes by case: items-1 measures the ceiling, the sizes are not written"
+  },
+  {
+   "id": "GR-40",
+   "doc": [
+    "G-40"
+   ],
+   "title": "Build pieces before Krell",
+   "section": "Items and crafting",
+   "ruling": "Keeps 11-20. Builds 11-14 and 30-3",
+   "modelled": false,
+   "reason": "crafting, salvage, drop and item content outside a hunt cell, or rows not written"
+  },
+  {
+   "id": "GR-41",
+   "doc": [
+    "G-41"
+   ],
+   "title": "What a unique's property may be",
+   "section": "Items and crafting",
+   "ruling": "Keeps 11-14",
+   "modelled": false,
+   "reason": "crafting, salvage, drop and item content outside a hunt cell, or rows not written"
+  },
+  {
+   "id": "GR-42",
+   "doc": [
+    "G-42"
+   ],
+   "title": "Rare rows a ground",
+   "section": "Items and crafting",
+   "ruling": "Keeps 27-6",
+   "modelled": false,
+   "reason": "crafting, salvage, drop and item content outside a hunt cell, or rows not written"
+  },
+  {
+   "id": "GR-43",
+   "doc": [
+    "G-43"
+   ],
+   "title": "The Crafting bench",
+   "section": "Items and crafting",
+   "ruling": "Keeps 11-18 (the glove wing). New for the rest",
+   "modelled": false,
+   "reason": "crafting, salvage, drop and item content outside a hunt cell, or rows not written"
+  },
+  {
+   "id": "GR-44",
+   "doc": [
+    "G-44"
+   ],
+   "title": "Six crafted slots past tier 7",
+   "section": "Items and crafting",
+   "ruling": "Changes the designer's 11-18 per-hero call. Builds 50-15",
+   "modelled": false,
+   "reason": "crafting, salvage, drop and item content outside a hunt cell, or rows not written"
+  },
+  {
+   "id": "GR-45",
+   "doc": [
+    "G-45"
+   ],
+   "title": "Runecrafting 61 to 99",
+   "section": "Items and crafting",
+   "ruling": "Keeps 10-23",
+   "modelled": false,
+   "reason": "crafting, salvage, drop and item content outside a hunt cell, or rows not written"
+  },
+  {
+   "id": "GR-46",
+   "doc": [
+    "G-46"
+   ],
+   "title": "Salvage and the Shop",
+   "section": "Items and crafting",
+   "ruling": "Keeps 11-20, 23-10, 31-6",
+   "modelled": false,
+   "reason": "crafting, salvage, drop and item content outside a hunt cell, or rows not written"
+  },
+  {
+   "id": "GR-47",
+   "doc": [
+    "G-47"
+   ],
+   "title": "Curing and the Cellar",
+   "section": "Items and crafting",
+   "ruling": "Keeps 11-18 and 26-7",
+   "modelled": false,
+   "reason": "crafting, salvage, drop and item content outside a hunt cell, or rows not written"
+  },
+  {
+   "id": "GR-48",
+   "doc": [
+    "G-48"
+   ],
+   "title": "Luck's feeds, the find list, the saved kit",
+   "section": "Items and crafting",
+   "ruling": "Keeps 11-20. New for the kit",
+   "modelled": false,
+   "reason": "crafting, salvage, drop and item content outside a hunt cell, or rows not written"
+  },
+  {
+   "id": "GR-49",
+   "doc": [
+    "G-49"
+   ],
+   "title": "Chest reforging",
+   "section": "Items and crafting",
+   "ruling": "Keeps 22-3",
+   "modelled": false,
+   "reason": "crafting, salvage, drop and item content outside a hunt cell, or rows not written"
+  },
+  {
+   "id": "GR-50",
+   "doc": [
+    "G-50"
+   ],
+   "title": "The market",
+   "section": "Economy",
+   "ruling": "New",
+   "modelled": false,
+   "reason": "prices, fees, the market and town costs sit outside a hunt cell: the matrix reads hunting coin, loot and the store bill"
+  },
+  {
+   "id": "GR-51",
+   "doc": [
+    "G-51"
+   ],
+   "title": "Prices",
+   "section": "Economy",
+   "ruling": "Extends 24-11. Builds 11-16 (\"cut income instead\")",
+   "modelled": false,
+   "reason": "repeating prices in hours of a wage: outside a hunt cell (R15)"
+  },
+  {
+   "id": "GR-53",
+   "doc": [
+    "G-53"
+   ],
+   "title": "The House dummy",
+   "section": "Economy",
+   "ruling": "RE-OPEN 11-08 (\"you don't have to pay per hour\")",
+   "modelled": false,
+   "reason": "prices, fees, the market and town costs sit outside a hunt cell: the matrix reads hunting coin, loot and the store bill"
+  },
+  {
+   "id": "GR-54",
+   "doc": [
+    "G-54"
+   ],
+   "title": "The yard's rate",
+   "section": "Economy",
+   "ruling": "RE-OPEN 11-14",
+   "modelled": false,
+   "reason": "prices, fees, the market and town costs sit outside a hunt cell: the matrix reads hunting coin, loot and the store bill"
+  },
+  {
+   "id": "GR-55",
+   "doc": [
+    "G-55"
+   ],
+   "title": "When the market opens",
+   "section": "Economy",
+   "ruling": "RE-OPEN 24-7",
+   "modelled": false,
+   "reason": "prices, fees, the market and town costs sit outside a hunt cell: the matrix reads hunting coin, loot and the store bill"
+  },
+  {
+   "id": "GR-57",
+   "doc": [
+    "G-57"
+   ],
+   "title": "Spending while you sleep",
+   "section": "Economy",
+   "ruling": "New",
+   "modelled": false,
+   "reason": "prices, fees, the market and town costs sit outside a hunt cell: the matrix reads hunting coin, loot and the store bill"
+  },
+  {
+   "id": "GR-58",
+   "doc": [
+    "G-58"
+   ],
+   "title": "The refill price",
+   "section": "Economy",
+   "ruling": "New",
+   "modelled": false,
+   "reason": "the refill price is outside a hunt cell"
+  },
+  {
+   "id": "GR-59",
+   "doc": [
+    "G-59"
+   ],
+   "title": "The gauge, and one laundering route",
+   "section": "Economy",
+   "ruling": "New",
+   "modelled": false,
+   "reason": "prices, fees, the market and town costs sit outside a hunt cell: the matrix reads hunting coin, loot and the store bill"
+  },
+  {
+   "id": "GR-60",
+   "doc": [
+    "G-60"
+   ],
+   "title": "Crowns",
+   "section": "Economy",
+   "ruling": "Keeps the Crown rulings. Timing is new",
+   "modelled": false,
+   "reason": "prices, fees, the market and town costs sit outside a hunt cell: the matrix reads hunting coin, loot and the store bill"
+  },
+  {
+   "id": "GR-61",
+   "doc": [
+    "G-61"
+   ],
+   "title": "A permanent build choice",
+   "section": "Progression",
+   "ruling": "RE-OPEN 11-05, for a spec only",
+   "modelled": false,
+   "reason": "a screen, a page or a system with no hunt number in it"
+  },
+  {
+   "id": "GR-62",
+   "doc": [
+    "G-62"
+   ],
+   "title": "Honors",
+   "section": "Progression",
+   "ruling": "New. Builds \"Level 200 is a big deal\"",
+   "modelled": false,
+   "reason": "a screen, a page or a system with no hunt number in it"
+  },
+  {
+   "id": "GR-64",
+   "doc": [
+    "G-64"
+   ],
+   "title": "No new skill, prestige or stat points",
+   "section": "Progression",
+   "ruling": "New",
+   "modelled": false,
+   "reason": "a screen, a page or a system with no hunt number in it"
+  },
+  {
+   "id": "GR-65",
+   "doc": [
+    "G-65"
+   ],
+   "title": "Inner Flame and death",
+   "section": "Progression",
+   "ruling": "Amends 11-09",
+   "modelled": false,
+   "reason": "Inner Flame and death: not written as a patch"
+  },
+  {
+   "id": "GR-66",
+   "doc": [
+    "G-66"
+   ],
+   "title": "The risk reading",
+   "section": "Progression",
+   "ruling": "New",
+   "modelled": false,
+   "reason": "the risk reading is a screen over numbers the matrix already measures (low HP, time under 30%)"
+  },
+  {
+   "id": "GR-67",
+   "doc": [
+    "G-67"
+   ],
+   "title": "Two party bands that cannot both be met",
+   "section": "Progression",
+   "ruling": "Reads 10-25 against 11-16 and 11-21",
+   "modelled": false,
+   "reason": "a reading of two bands, not a game change: the dashboard shows both"
+  },
+  {
+   "id": "GR-68",
+   "doc": [
+    "G-68"
+   ],
+   "title": "The clan castle",
+   "section": "Social",
+   "ruling": "Re-shapes the clan plan. Keeps rations",
+   "modelled": false,
+   "reason": "accounts and players together: the matrix plays one account's heroes"
+  },
+  {
+   "id": "GR-69",
+   "doc": [
+    "G-69"
+   ],
+   "title": "Three things nobody used",
+   "section": "Social",
+   "ruling": "Builds 25-11. New for the rest",
+   "modelled": false,
+   "reason": "accounts and players together: the matrix plays one account's heroes"
+  },
+  {
+   "id": "GR-70",
+   "doc": [
+    "G-70"
+   ],
+   "title": "The town",
+   "section": "Social",
+   "ruling": "New",
+   "modelled": false,
+   "reason": "accounts and players together: the matrix plays one account's heroes"
+  },
+  {
+   "id": "GR-71",
+   "doc": [
+    "G-71"
+   ],
+   "title": "Factions",
+   "section": "Social",
+   "ruling": "Keeps 31-8. Amends 25-10",
+   "modelled": false,
+   "reason": "accounts and players together: the matrix plays one account's heroes"
+  },
+  {
+   "id": "GR-72",
+   "doc": [
+    "G-72"
+   ],
+   "title": "A friend link at sign-up",
+   "section": "Social",
+   "ruling": "New",
+   "modelled": false,
+   "reason": "accounts and players together: the matrix plays one account's heroes"
+  },
+  {
+   "id": "GR-73",
+   "doc": [
+    "G-73"
+   ],
+   "title": "The Trophy room",
+   "section": "Home",
+   "ruling": "Re-shapes L51",
+   "modelled": false,
+   "reason": "the House and the farm sit outside a hunt cell"
+  },
+  {
+   "id": "GR-74",
+   "doc": [
+    "G-74"
+   ],
+   "title": "The farm's gates",
+   "section": "Home",
+   "ruling": "New",
+   "modelled": false,
+   "reason": "the House and the farm sit outside a hunt cell"
+  },
+  {
+   "id": "GR-75",
+   "doc": [
+    "G-75"
+   ],
+   "title": "Home looks and visiting",
+   "section": "Home",
+   "ruling": "RE-OPEN 26-11",
+   "modelled": false,
+   "reason": "the House and the farm sit outside a hunt cell"
+  },
+  {
+   "id": "GR-77",
+   "doc": [
+    "G-77"
+   ],
+   "title": "Seeds from monsters",
+   "section": "Home",
+   "ruling": "New",
+   "modelled": false,
+   "reason": "the House and the farm sit outside a hunt cell"
+  },
+  {
+   "id": "GR-78",
+   "doc": [
+    "G-78"
+   ],
+   "title": "Tamsin's tally",
+   "section": "Features",
+   "ruling": "New",
+   "modelled": false,
+   "reason": "a screen or a flow: the matrix plays hunts, not screens"
+  },
+  {
+   "id": "GR-79",
+   "doc": [
+    "G-79"
+   ],
+   "title": "The Path and the population gate",
+   "section": "Features",
+   "ruling": "New",
+   "modelled": false,
+   "reason": "a screen or a flow: the matrix plays hunts, not screens"
+  },
+  {
+   "id": "GR-80",
+   "doc": [
+    "G-80"
+   ],
+   "title": "The company as one thing",
+   "section": "Features",
+   "ruling": "New",
+   "modelled": false,
+   "reason": "a screen or a flow: the matrix plays hunts, not screens"
+  },
+  {
+   "id": "GR-81",
+   "doc": [
+    "G-81"
+   ],
+   "title": "Next ground when outgrown",
+   "section": "Features",
+   "ruling": "Reads \"no hunt starts by itself\"",
+   "modelled": false,
+   "reason": "a screen or a flow: the matrix plays hunts, not screens"
+  },
+  {
+   "id": "GR-82",
+   "doc": [
+    "G-82"
+   ],
+   "title": "One Great Hearth",
+   "section": "Features",
+   "ruling": "Re-shapes 24-7 and 24-10",
+   "modelled": false,
+   "reason": "a screen or a flow: the matrix plays hunts, not screens"
+  },
+  {
+   "id": "GR-83",
+   "doc": [
+    "G-83"
+   ],
+   "title": "No dailies",
+   "section": "Features",
+   "ruling": "Extends 10-22",
+   "modelled": false,
+   "reason": "a screen or a flow: the matrix plays hunts, not screens"
+  },
+  {
+   "id": "GR-84",
+   "doc": [
+    "G-84"
+   ],
+   "title": "Small presses",
+   "section": "Features",
+   "ruling": "New",
+   "modelled": false,
+   "reason": "a screen or a flow: the matrix plays hunts, not screens"
+  },
+  {
+   "id": "GR-86",
+   "doc": [
+    "G-86"
+   ],
+   "title": "The later engine steps",
+   "section": "Architecture",
+   "ruling": "New",
+   "modelled": false,
+   "reason": "later engine steps (R19 to R23): not written"
+  },
+  {
+   "id": "GR-87",
+   "doc": [
+    "G-87"
+   ],
+   "title": "Drops and sales",
+   "section": "Architecture",
+   "ruling": "New",
+   "modelled": false,
+   "reason": "drops authored in hours (R18) and one sale formula (R17): not written"
+  },
+  {
+   "id": "GR-88",
+   "doc": [
+    "G-88"
+   ],
+   "title": "The gate",
+   "section": "Architecture",
+   "ruling": "New",
+   "modelled": false,
+   "reason": "a process or later engine work: nothing a hunt cell can read yet"
+  },
+  {
+   "id": "R1",
+   "doc": [
+    "R1"
+   ],
+   "title": "Delete rules that are written and do nothing",
+   "section": "44 section 7",
+   "layer": "code clean-up",
+   "modelled": false,
+   "reason": "deletes rules that do nothing: identity"
+  },
+  {
+   "id": "R2",
+   "doc": [
+    "R2"
+   ],
+   "title": "The blow reads its named constants",
+   "section": "44 section 7",
+   "layer": "formula",
+   "modelled": false,
+   "reason": "named constants: identity"
+  },
+  {
+   "id": "R3",
+   "doc": [
+    "R3"
+   ],
+   "title": "Each duplicate becomes one",
+   "section": "44 section 7",
+   "layer": "formula",
+   "modelled": false,
+   "reason": "duplicates to one: identity"
+  },
+  {
+   "id": "R4",
+   "doc": [
+    "R4"
+   ],
+   "title": "A monster row stores its blow",
+   "section": "44 section 7",
+   "layer": "formula, data",
+   "modelled": false,
+   "reason": "a row stores its blow: identity"
+  },
+  {
+   "id": "R5",
+   "doc": [
+    "R5"
+   ],
+   "title": "Build two rulings already made",
+   "section": "44 section 7",
+   "layer": "coefficient",
+   "modelled": false,
+   "reason": "builds two rulings already made: no patch"
+  },
+  {
+   "id": "R8",
+   "doc": [
+    "R8"
+   ],
+   "title": "One XP chain",
+   "section": "44 section 7",
+   "layer": "formula",
+   "modelled": false,
+   "reason": "one XP chain: identity fold"
+  },
+  {
+   "id": "R9",
+   "doc": [
+    "R9"
+   ],
+   "title": "One coin line",
+   "section": "44 section 7",
+   "layer": "coefficient",
+   "modelled": false,
+   "reason": "one coin line: the same gold (identity in total)"
+  },
+  {
+   "id": "R15",
+   "doc": [
+    "R15"
+   ],
+   "title": "The wage curve, and repeating prices in hours",
+   "section": "44 section 7",
+   "layer": "formula, server",
+   "modelled": false,
+   "reason": "the wage curve and prices in hours: outside a hunt cell"
+  },
+  {
+   "id": "R16",
+   "doc": [
+    "R16"
+   ],
+   "title": "Standing sinks as a share of band gold",
+   "section": "44 section 7",
+   "layer": "coefficient, server",
+   "modelled": false,
+   "reason": "sinks as band gold sit outside a hunt cell (see GR-8), and the slot sink they were sized on is gone (2026-11-21): re-planned sinks first"
+  },
+  {
+   "id": "R17",
+   "doc": [
+    "R17"
+   ],
+   "title": "One sale formula",
+   "section": "44 section 7",
+   "layer": "formula",
+   "modelled": false,
+   "reason": "one sale formula: not written"
+  },
+  {
+   "id": "R18",
+   "doc": [
+    "R18"
+   ],
+   "title": "Drops authored in hours",
+   "section": "44 section 7",
+   "layer": "data",
+   "modelled": false,
+   "reason": "drops in hours: not written"
+  },
+  {
+   "id": "R19",
+   "doc": [
+    "R19"
+   ],
+   "title": "One amount pipeline, rounded once, with a trace",
+   "section": "44 section 7",
+   "layer": "formula",
+   "modelled": false,
+   "reason": "one rounding pipeline: identity, not written"
+  },
+  {
+   "id": "R20",
+   "doc": [
+    "R20"
+   ],
+   "title": "One modifier table",
+   "section": "44 section 7",
+   "layer": "formula",
+   "modelled": false,
+   "reason": "one modifier table: not written"
+  },
+  {
+   "id": "R21",
+   "doc": [
+    "R21"
+   ],
+   "title": "Every monster reads the formula",
+   "section": "44 section 7",
+   "layer": "data",
+   "modelled": false,
+   "reason": "every monster on the formula: the hand rows' numbers are not written"
+  },
+  {
+   "id": "R22",
+   "doc": [
+    "R22"
+   ],
+   "title": "Endless modes read any Level",
+   "section": "44 section 7",
+   "layer": "formula",
+   "modelled": false,
+   "reason": "endless modes at any Level: not written"
+  },
+  {
+   "id": "R23",
+   "doc": [
+    "R23"
+   ],
+   "title": "The simulator stops editing shared data",
+   "section": "44 section 7",
+   "layer": "tools, architecture",
+   "modelled": false,
+   "reason": "tools: the matrix's scratch copy is already the only what-if door"
+  }
+ ]
+}

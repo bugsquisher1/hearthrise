@@ -1,0 +1,17 @@
+{
+ "schema": "hearthrise.balance-patch/1",
+ "name": "The gear curve past tier 7 (60 G-4, 44 R10 and R11, 47 C20): a band every +24%, the line linear in the band's Level",
+ "why": "From Level 110 a MID or BiS hero's weapon and armor are the line (the Dawnsteel row x the band Level / 110) at the band at or under its Level: 110, 136, 169, 210, 260, 322, 400 and on by +24%. LOW wears one band back. HYPOTHESIS: the band size until one band is played; uniques spending a budget (R11) and jewelry as a 6% share are not modelled",
+ "kind": "derivation",
+ "targets": [
+  "pace",
+  "gear",
+  "E1"
+ ],
+ "plan": {
+  "gearCurve": {
+   "from": 110,
+   "step": 1.24
+  }
+ }
+}

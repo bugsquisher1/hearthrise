@@ -1,0 +1,53 @@
+{
+ "schema": "hearthrise.balance-patch/1",
+ "name": "R13: the Level law, your table of hours is the law (60 G-6, 44 section 5.2)",
+ "kind": "derivation",
+ "targets": [
+  "pace",
+  "P1",
+  "P11",
+  "P12"
+ ],
+ "why": "From Level 10 the XP a Level costs = the ruled hours for it (log-linear between 10:6, 25:36, 50:168, 100:600, 200:1680, 300:3120, 500:6720, 750:13440, 1000:23520, on at the last slope) x the pace contract x the pace seat's multiple, 1.365 (the median xContract of a MID four on the hardest tier it holds, MEASURED on the proposed game without R13). Levels 1 to 10 keep today's steps (27-2). Not the withdrawn power law",
+ "measuredOn": {
+  "proposals": [
+   "GR-4",
+   "GR-5",
+   "GR-5b",
+   "GR-7",
+   "GR-14",
+   "GR-22",
+   "GR-27",
+   "GR-38",
+   "GR-52",
+   "GR-63",
+   "GR-76",
+   "R7"
+  ],
+  "seatMultiples": [
+   1.225,
+   1.347,
+   1.365,
+   1.414,
+   1.604,
+   2.192
+  ]
+ },
+ "edits": [
+  {
+   "file": "src/core/xp.js",
+   "from": "import { LEVEL_CURVE, SKILL_CURVE } from '../data/core-model.js';",
+   "to": "import { LEVEL_CURVE, SKILL_CURVE, LEVEL_PACE } from '../data/core-model.js';"
+  },
+  {
+   "file": "src/core/xp.js",
+   "from": "export function charXpForLevel(lv) { return xpForLevelOn(LEVEL_ROWS, lv); }",
+   "to": "const LAW = { pts: [[10,6],[25,36],[50,168],[100,600],[200,1680],[300,3120],[500,6720],[750,13440],[1000,23520]], m: 1.365, from: 10 };\nconst lawH = (L) => { const p = LAW.pts; let i = 1; while (i < p.length - 1 && p[i][0] < L) i++; const [a, ha] = p[i - 1], [b, hb] = p[i]; return Math.exp(Math.log(ha) + (Math.log(hb) - Math.log(ha)) * (Math.log(L) - Math.log(a)) / (Math.log(b) - Math.log(a))); };\nconst LAW_XP = [];\nconst lawXp = (L) => { if (!LAW_XP.length) LAW_XP[LAW.from] = xpForLevelOn(LEVEL_ROWS, LAW.from); for (let l = LAW_XP.length; l <= L; l++) LAW_XP[l] = LAW_XP[l - 1] + Math.max(1, Math.round((lawH(l) - lawH(l - 1)) * LEVEL_PACE.contract.a * (l - 1) ** LEVEL_PACE.contract.b * LAW.m)); return LAW_XP[L]; };\nexport function charXpForLevel(lv) { const L = Math.max(1, Math.floor(Number(lv) || 1)); return L <= LAW.from ? xpForLevelOn(LEVEL_ROWS, L) : lawXp(L); }"
+  },
+  {
+   "file": "src/core/xp.js",
+   "from": "export function charLevelFromXp(xp) {",
+   "to": "export function charLevelFromXp(xp) { { const x = Math.max(0, Math.floor(Number(xp) || 0)); if (x >= lawXp(LAW.from)) { let lo = LAW.from, hi = LAW.from * 2; while (lawXp(hi) <= x) hi *= 2; while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (lawXp(mid) <= x) lo = mid; else hi = mid; } return lo; } }"
+  }
+ ]
+}

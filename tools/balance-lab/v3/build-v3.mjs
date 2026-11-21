@@ -6,12 +6,17 @@
 //   node tools/balance-lab/v3/build-v3.mjs [--out DIR]      default tools/balance-lab/v3/dist (gitignored: rebuild, never commit)
 //   node tools/balance-lab/v3/build-v3.mjs --engine DIR     the bundle alone (worker.js + engine-v3.mjs), for tools/balance-lab/parity.mjs
 //
+// THE PROPOSED GAME (phase 3, Tyler 2026-11-21): the page is built on every recommended proposal of tools/balance-program/proposals.json,
+// planted once on a scratch copy (matrix-scratch.mjs plantScratch); the engine is bundled from that copy and the live cells are planned and
+// resolved there. Today's tree is never shown: it is only the base the proposals are planted on.
+//
 // Writes:
 //   index.html   the page (v3/page.html) with the Charcoal and Gold tokens of src/styles/tokens.css inlined (the default theme's
-//                resolved values) and its data inlined as JSON: the knob list (tools/balance-program/formulas/knobs.json), the LIVE cells
-//                (matrix-plan.mjs RUNS.live, resolved by tools/balance-sim/cell.mjs resolveOnly, so the browser plays the matrix's own
-//                seats), the calibration cell and the real Krell hunt, and the PRECOMPUTED sweeps (tools/balance-program/balance-sweeps.json,
-//                each knob at each step on the 207-cell subset), each step as every cell's change of every section 6 metric
+//                resolved values) and its data inlined as JSON: the proposal registry, the bands of standards.mjs, the knob list
+//                (tools/balance-program/formulas/knobs.json), the LIVE cells (matrix-plan.mjs RUNS.live on the proposed game, resolved by
+//                tools/balance-sim/cell.mjs resolveOnly, so the browser plays the matrix's own seats), the real Krell hunt and the
+//                simulator's reading of it, and the PRECOMPUTED sweeps on the proposed game (tools/balance-program/balance-sweeps.json: its
+//                cells and band rows, each proposal toggle's effect, each knob at each step)
 //   worker.js    a CLASSIC script: the engine (v2's bundling, tools/balance-lab/build.mjs collect) from tools/balance-lab/v3/lab-v3.mjs,
 //                with every knob's numbers read from the knob settings the lab is CREATED with (`__hrK`: knob-rules.mjs knobValue, the
 //                rounding the matrix's scratch copy writes). In a worker it waits for { type: 'init', knobs }; on a page with no workers
@@ -34,11 +39,14 @@ const noNul = (t) => t.split(String.fromCharCode(0)).join('\\u0000');
 const commitOf = () => { try { return execFileSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).trim(); } catch { return 'unknown'; } };
 
 /* ── THE KNOB NUMBERS, READ FROM THE SETTINGS: every live knob's picks become __hrK([knob ids], "the number as written", float) ──────── */
-export function knobInstrumenter(root = ROOT) {
+/* `srcRoot`: the game trees the bundle is built from (the proposed game's scratch copy); a knob whose line a proposal rewrote away is `gone` */
+export function knobInstrumenter(root = ROOT, srcRoot = root) {
   const list = readKnobs(root);
   const byFile = new Map();
+  const gone = {};
   let picks = 0;
-  for (const k of list.knobs) for (const site of locateKnob(root, k)) {
+  const sitesOf = (k) => { try { return locateKnob(srcRoot, k); } catch (e) { gone[k.id] = e.message; return []; } };
+  for (const k of list.knobs) for (const site of sitesOf(k)) {
     const f = byFile.get(site.file) || byFile.set(site.file, new Map()).get(site.file);
     const line = f.get(site.line) || f.set(site.line, new Map()).get(site.line);
     for (const p of site.picks) {
@@ -62,7 +70,7 @@ export function knobInstrumenter(root = ROOT) {
     }
     return lines.join('\n');
   };
-  return { instrument, files: [...byFile.keys()], count: () => picks };
+  return { instrument, files: [...byFile.keys()], count: () => picks, gone };
 }
 
 /* the registry as a FACTORY: each create(knobs) is a fresh set of module instances whose knob numbers read those settings */
@@ -87,12 +95,12 @@ function factory(modules) {
     + '}\n';
 }
 
-/** The engine bundle: { worker, engine, stamp }. */
-export function bundleV3(root = ROOT) {
+/** The engine bundle: { worker, engine, stamp }. `srcRoot`: the game trees it bundles (the proposed game's scratch copy; default the repo). */
+export function bundleV3(root = ROOT, srcRoot = root, game = 'the tree') {
   const BUILD_VERSION = (readFileSync(join(root, 'src/build-info.js'), 'utf8').match(/version:\s*'([^']+)'/) || [])[1] || '?';
-  const kn = knobInstrumenter(root);
-  const graph = collect([ENTRY], { instrument: kn.instrument });
-  const stamp = { version: BUILD_VERSION, hash: graph.hash, built: new Date().toISOString(), modules: graph.modules.length, knobPicks: kn.count(), knobFiles: kn.files.length };
+  const kn = knobInstrumenter(root, srcRoot);
+  const graph = collect([ENTRY], { instrument: kn.instrument, root: srcRoot });
+  const stamp = { version: BUILD_VERSION, game, hash: graph.hash, built: new Date().toISOString(), modules: graph.modules.length, knobPicks: kn.count(), knobFiles: kn.files.length, knobsGone: kn.gone };
   const head = (what) => '// tools/balance-lab/v3/dist/' + what + ' — GENERATED by tools/balance-lab/v3/build-v3.mjs from the game\'s own src/core + src/data at v' + stamp.version
     + ' (sources ' + stamp.hash + ', ' + stamp.knobPicks + ' knob numbers read from the settings). Do not edit; rebuild.\n';
   const reg = factory(graph.modules);
@@ -130,48 +138,52 @@ export function themeTokens(root = ROOT) {
   return ':root {\n' + [...out].map(([k, v]) => '  --' + k + ': ' + v + ';').join('\n') + '\n}\n';
 }
 
-/* ── THE PAGE'S DATA ──────────────────────────────────────────────────────────────────────────────────────────────────────────── */
+/* ── THE PAGE'S DATA: THE PROPOSED GAME AGAINST ITS TARGETS (Tyler 2026-11-21: "the current game is irrelevant"; the page never shows today's
+   game: today's tree is only the base the proposals are planted on, inside the tools) ───────────────────────────────────────────────── */
 const permille = (a, b) => (typeof a === 'number' && typeof b === 'number' && isFinite(a) && isFinite(b) && a !== 0 ? Math.round(((b - a) / Math.abs(a)) * 1000) : b === a ? 0 : null);
 /* the metrics that sit at zero in most cells (a death rate, time under a share of HP): a step keeps their AFTER value, not a change from zero */
 export const ABS_METRICS = Object.freeze(['deathsPer1000h', 'hpUnder30', 'hpUnder10']);
 const sig4 = (v) => (typeof v === 'number' && isFinite(v) ? Number(v.toPrecision(4)) : null);
 const BAND_ROWS = 80;
-export async function pageData(root = ROOT) {
+/** The page's data. `game`: { base, root } (the proposed game planted on a scratch copy: buildV3 plants it). */
+export async function pageData(root = ROOT, game) {
   const imp = (p) => import(pathToFileURL(join(root, p)).href);
   const PG = await imp('tools/balance-program/progression-grid.mjs');
   const { loadKits } = await imp('tools/balance-program/grid-kit.mjs');
   const MP = await imp('tools/balance-program/matrix-plan.mjs');
   const BM = await imp('tools/balance-program/balance-matrix.mjs');
   const CAL = await imp('tools/balance-program/matrix-calibration.mjs');
+  const P = await imp('tools/balance-program/proposals.mjs');
   const { METRICS } = await imp('tools/balance-program/matrix-metrics.mjs');
   const { STYLE_GROUPS } = await imp('tools/balance-program/knob-rules.mjs');
   const STD = await imp('tools/balance-program/standards.mjs');
   const D = await PG.loadGridData(root), K = await loadKits(root);
+  const V = await BM.dataView(D, game.root);
   const list = readKnobs(root);
-  /* THE LIVE CELLS, resolved: the seats cell.mjs would field for each, answered by the matrix's own worker processes (cell.resolveOnly; a
-     cell runner in this process would register the staged rows a second time beside the kit builder's) */
-  const plan = MP.planMatrix(D, K, MP.RUNS.live);
-  const cal = await CAL.calibrationJobs(D, K, root, { seeds: 1, hours: MP.RUNS.live.hours });
-  const harness = cal.jobs.find((j) => j.key === 'CAL:harness');
-  const jobs = [...plan.jobs, harness].map((j) => ({ ...j, cell: { ...j.cell, resolveOnly: true } }));
-  const { results, errors } = await BM.playJobs(jobs, root, 4);
+  const reg = P.loadProposals(root);
+  /* THE LIVE CELLS on the proposed game, resolved: the seats cell.mjs would field for each on the planted copy (the proposals' plan steps,
+     the gear curve among them), answered by the matrix's own worker processes there (cell.resolveOnly) */
+  const plan = MP.planMatrix(V, K, MP.RUNS.live, { plan: game.base.patch.plan });
+  const jobs = plan.jobs.map((j) => ({ ...j, cell: { ...j.cell, resolveOnly: true } }));
+  const { results, errors } = await BM.playJobs(jobs, game.root, 4);
   if (errors.length) throw new Error('lab v3 build: a live cell did not resolve: ' + errors[0].id + ' ' + errors[0].error);
-  const resolvedOf = (j) => results[j.id];
   const jobOf = new Map(plan.jobs.map((j) => [j.key, j]));
   /* `projected`: the placeholder floor a PROJECTED cell re-derives its rows at under the knobs (lab-v3.mjs liveWhatIf) */
   const { projectedFloor } = await imp('tools/balance-program/grid-project.mjs');
   const projOf = (c) => (c.stretch === 'PROJECTED' ? { floor: projectedFloor(c.L) } : null);
   const live = plan.cells.map((c) => { const j = jobOf.get(c.key); return { key: c.key, block: c.block, L: c.L, gear: c.gear, party: c.party, comp: c.comp, tier: c.tier, ground: c.ground,
-    styles: c.styles, stretch: c.stretch, projected: projOf(c), hours: MP.RUNS.live.hours, resolved: resolvedOf(j), whatIf: j.whatIf || null }; });
-  const calibration = { key: 'CAL:harness', L: 85, tier: 'deadly', projected: null, styles: ['tank', 'healer', 'bow', 'mage'], hours: MP.RUNS.live.hours, resolved: resolvedOf(harness), whatIf: harness.whatIf || null };
-  /* THE PRECOMPUTED SWEEPS, each step as every cell's change of every metric (permille), the band rows it moved, its calibration row */
+    styles: c.styles, stretch: c.stretch, projected: projOf(c), hours: MP.RUNS.live.hours, resolved: results[j.id], whatIf: j.whatIf || null }; });
+  /* THE PRECOMPUTED SWEEPS on the proposed game: its cells and band rows, each proposal toggle's effect, each knob at its steps */
   const sw = existsSync(BM.SWEEP_FILE) ? JSON.parse(readFileSync(BM.SWEEP_FILE, 'utf8')) : null;
   let pre = null;
-  if (sw) {
+  if (sw && sw.base && sw.base.name === 'proposed') {
     const nM = METRICS.length;
+    const F = Object.fromEntries((sw.bandFields || []).map((f, i) => [f, i]));
+    /* a moved band row for the page: [way, band, group, at, before, after, status before, status after, toward, dist before, dist after] */
+    const slim = (b) => [b[F.way], b[F.band], b[F.group], b[F.at], sig4(b[F.before]), sig4(b[F.after]), b[F.statusBefore], b[F.statusAfter], b[F.direction] === 'toward' ? 1 : 0, sig4(b[F.distBefore]), sig4(b[F.distAfter])];
     const knobs = {};
     for (const [id, k] of Object.entries(sw.knobs)) {
-      knobs[id] = { label: k.label, group: k.group, steps: {} };
+      knobs[id] = { label: k.label, group: k.group, steps: {}, gone: k.gone || null };
       for (const [m, st] of Object.entries(k.steps)) {
         const d = {}, seats = {};
         for (const [key, row] of Object.entries(st.cells)) {
@@ -184,53 +196,67 @@ export async function pageData(root = ROOT) {
           d[key] = dk;
           seats[key] = row[nM];
         }
-        /* THE BANDS IT MOVED, small enough for a phone: per band group how many rows moved toward their range and how many away (the page
-           flags them against the groups ticked as targets), and the rows themselves, status changes first, at most BAND_ROWS */
-        const F = Object.fromEntries((sw.bandFields || []).map((f, i) => [f, i]));
+        /* THE BANDS IT MOVED: per band group how many rows moved toward their range and how many away, and the rows (status changes first) */
         const counts = {};
         for (const b of st.bands) { const g = b[F.group] || 'other', c = counts[g] || (counts[g] = [0, 0]); c[b[F.direction] === 'toward' ? 0 : 1]++; }
         const rank = (b) => (b[F.statusBefore] !== b[F.statusAfter] ? 0 : 1);
-        const rows = [...st.bands].sort((a, b) => rank(a) - rank(b)).slice(0, BAND_ROWS)
-          .map((b) => [b[F.way], b[F.band], b[F.group], b[F.at], sig4(b[F.before]), sig4(b[F.after]), b[F.statusBefore], b[F.statusAfter], b[F.direction] === 'toward' ? 1 : 0]);
-        knobs[id].steps[m] = { d, seats, bandCounts: counts, bandRows: rows, bandTotal: st.bands.length, calibration: st.calibration, applied: st.applied };
+        knobs[id].steps[m] = { d, seats, bandCounts: counts, bandRows: [...st.bands].sort((a, b) => rank(a) - rank(b)).slice(0, BAND_ROWS).map(slim), bandMoved: st.bands.map(slim), bandTotal: st.bands.length, applied: st.applied };
       }
     }
-    /* STALE only when the tree moved AND its baseline moved: a sweep measured on an earlier tree whose subset plays cell for cell the same
-       numbers today (balance-matrix-subset.json, fresh on this tree) still reads true; the page says which */
-    const hashNow = BM.matrixHash(root), cache = BM.readCache(BM.SUBSET_FILE);
-    const cacheFresh = cache && cache.hash === hashNow;
-    const sameBaseline = sw.hash === hashNow || (cacheFresh && JSON.stringify(BM.compactCells(cache.cells)) === JSON.stringify(sw.baseline));
+    /* THE TOGGLES: each proposal's effect on the proposed game (the game without it, or with an alternative), its flags by its own targets */
+    const variants = {};
+    for (const [v, x] of Object.entries(sw.variants || {})) {
+      const rows = x.effect.bands.map((b) => [...slim(b), b[b.length - 1]]);
+      variants[v] = { id: x.id, adding: !!x.adding, label: x.label, proposals: x.proposals, targets: x.targets, counts: x.effect.counts, rows, derived: x.derived || [] };
+    }
+    /* STALE when the proposed game this tree plants is not the one the sweeps measured (same base hash), unless its subset plays the same */
+    const hashNow = BM.baseHash(game.base), cache = BM.readCache(BM.cacheFileOf(MP.RUNS.subset, game.base));
+    const sameBaseline = sw.hash === hashNow || (cache && cache.hash === hashNow && JSON.stringify(BM.compactCells(cache.cells)) === JSON.stringify(sw.baseline));
     pre = { run: sw.run, at: sw.at, commits: sw.commits || [sw.commit], hash: sw.hash, stale: !sameBaseline, sameTree: sw.hash === hashNow, githubRun: sw.githubRun || null, seeds: sw.seeds, hours: sw.hours,
-      bandFields: sw.bandFields, cells: sw.cells, baseline: sw.baseline, baselineBands: sw.baselineBands || [], calibration: sw.calibration, knobs };
+      base: sw.base, cells: sw.cells, baseline: sw.baseline, baselineBands: sw.baselineBands || [], baselineDerived: sw.baselineDerived || [], calibration: sw.calibration, calibrationOn: sw.calibrationOn || null, knobs, variants };
   }
   const bandGroups = Object.fromEntries(STD.BANDS.filter((b) => b.group).map((b) => [b.id, b.group]));
+  const retired = [...P.retiredOn(reg)];
   return {
-    stamp: { commit: commitOf(), built: new Date().toISOString().slice(0, 16) + 'Z', matrixHash: BM.matrixHash(root) },
+    stamp: { commit: commitOf(), built: new Date().toISOString().slice(0, 16) + 'Z', matrixHash: BM.matrixHash(root), baseHash: BM.baseHash(game.base) },
+    game: { name: game.base.name, proposals: game.base.ids },
+    registry: { rule: reg.rule, frame: reg.frame, proposals: reg.proposals.map((p) => ({ id: p.id, doc: p.doc, title: p.title, label: p.label, layer: p.layer, recommended: !!p.recommended, patch: p.patch || null,
+      derived: p.derived || null, shipsWith: p.shipsWith || [], after: p.after || [], excludes: p.excludes || [], excludesWhy: p.excludesWhy || '', note: p.note || '' })),
+      notModelled: reg.notModelled.map((p) => ({ id: p.id, title: p.title, reason: p.reason })) },
+    bands: STD.BANDS.map((b) => ({ id: b.id, group: b.group, on: b.on, lo: b.lo, hi: b.hi, redLo: b.redLo, redHi: b.redHi, label: b.label, why: b.why, ruled: b.ruled || null })),
+    retired,
     knobs: list.knobs.map((k) => ({ id: k.id, label: k.label, group: k.group, what: k.what, steps: k.steps, ruled: k.ruled || null, regen: !!k.regen, formula: k.formula || null,
-      sharesLineWith: k.sharesLineWith || [], sites: locateKnob(root, k).map((s) => s.file + ':' + s.line) })),
+      sharesLineWith: k.sharesLineWith || [], sites: (() => { try { return locateKnob(game.root, k).map((s) => s.file + ':' + s.line); } catch { return []; } })() })),
     planned: list.planned.map((p) => ({ id: p.id, label: p.label, group: p.group, arrivesWith: p.arrivesWith, what: p.what })),
     metrics: METRICS.map(([id, label, scope]) => ({ id, label, scope, abs: ABS_METRICS.includes(id) })), styleGroups: STYLE_GROUPS, bandGroups,
-    live: { levels: MP.RUNS.live.levels, hours: MP.RUNS.live.hours, cells: live, calibration },
+    live: { levels: MP.RUNS.live.levels, hours: MP.RUNS.live.hours, cells: live },
     real: CAL.KRELL_2026_11_20, precomputed: pre,
   };
 }
 
-/** The publishable folder: index.html and worker.js. */
+/** The publishable folder: index.html and worker.js, on the proposed game (every recommended proposal of proposals.json, planted once). */
 export async function buildV3(outDir = join(HERE, 'dist'), root = ROOT) {
   const t0 = Date.now();
-  const b = bundleV3(root);
-  const data = await pageData(root);
-  data.stamp.engine = b.stamp;
-  const page = readFileSync(join(HERE, 'page.html'), 'utf8')
-    .replace('/*@TOKENS@*/', () => themeTokens(root))
-    .replace('<!--@DATA@-->', () => '<script type="application/json" id="lab-data">' + JSON.stringify(data).replace(/</g, '\\u003c') + '</script>');
-  /* the page's own script must parse (a broken page publishes as a blank one) */
-  const { Script } = await import('node:vm');
-  for (const m of page.matchAll(/<script>([\s\S]*?)<\/script>/g)) new Script(m[1], { filename: 'v3/page.html' });
-  mkdirSync(outDir, { recursive: true });
-  writeFileSync(join(outDir, 'index.html'), page);
-  writeFileSync(join(outDir, 'worker.js'), b.worker);
-  return { outDir, ms: Date.now() - t0, bytes: { page: Buffer.byteLength(page), worker: Buffer.byteLength(b.worker) }, stamp: b.stamp, sweeps: data.precomputed ? Object.keys(data.precomputed.knobs).length : 0, live: data.live.cells.length };
+  const BM = await import(pathToFileURL(join(root, 'tools/balance-program/balance-matrix.mjs')).href);
+  const { plantScratch } = await import(pathToFileURL(join(root, 'tools/balance-program/matrix-scratch.mjs')).href);
+  const base = await BM.baseOf('proposed');
+  const s = await plantScratch(base.patch);
+  try {
+    const b = bundleV3(root, s.root, 'the proposed game (' + base.ids.join(', ') + ')');
+    const data = await pageData(root, { base, root: s.root });
+    data.stamp.engine = b.stamp;
+    const page = readFileSync(join(HERE, 'page.html'), 'utf8')
+      .replace('/*@TOKENS@*/', () => themeTokens(root))
+      .replace('<!--@DATA@-->', () => '<script type="application/json" id="lab-data">' + JSON.stringify(data).replace(/</g, '\\u003c') + '</script>');
+    /* the page's own script must parse (a broken page publishes as a blank one) */
+    const { Script } = await import('node:vm');
+    for (const m of page.matchAll(/<script>([\s\S]*?)<\/script>/g)) new Script(m[1], { filename: 'v3/page.html' });
+    mkdirSync(outDir, { recursive: true });
+    writeFileSync(join(outDir, 'index.html'), page);
+    writeFileSync(join(outDir, 'worker.js'), b.worker);
+    return { outDir, ms: Date.now() - t0, bytes: { page: Buffer.byteLength(page), worker: Buffer.byteLength(b.worker) }, stamp: b.stamp, sweeps: data.precomputed ? Object.keys(data.precomputed.knobs).length : 0,
+      toggles: data.precomputed ? Object.keys(data.precomputed.variants).length : 0, live: data.live.cells.length, stale: data.precomputed ? data.precomputed.stale : null };
+  } finally { s.done(); }
 }
 
 if (isMain(import.meta.url)) {
@@ -243,6 +269,7 @@ if (isMain(import.meta.url)) {
     console.log('lab v3 engine: ' + b.stamp.modules + ' modules, ' + b.stamp.knobPicks + ' knob numbers in ' + b.stamp.knobFiles + ' files -> ' + at('--engine'));
   } else {
     const r = await buildV3(at('--out') || undefined);
-    console.log('lab v3: ' + r.live + ' live cells, ' + r.sweeps + ' swept knobs, page ' + Math.round(r.bytes.page / 1024) + ' KB, worker ' + Math.round(r.bytes.worker / 1024) + ' KB in ' + r.ms + ' ms -> ' + r.outDir);
+    console.log('lab v3 on ' + r.stamp.game + ': ' + r.live + ' live cells, ' + r.sweeps + ' swept knobs, ' + r.toggles + ' proposal toggles' + (r.stale ? ' (STALE sweeps)' : r.stale === null ? ' (no sweeps on the proposed game)' : '')
+      + (Object.keys(r.stamp.knobsGone).length ? ', knobs not on this game: ' + Object.keys(r.stamp.knobsGone).join(', ') : '') + ', page ' + Math.round(r.bytes.page / 1024) + ' KB, worker ' + Math.round(r.bytes.worker / 1024) + ' KB in ' + r.ms + ' ms -> ' + r.outDir);
   }
 }

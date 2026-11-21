@@ -1,13 +1,19 @@
 # ============================================================================
-# balance-sweeps — THE BALANCE LAB'S PRECOMPUTED SWEEPS, ONE JOB A KNOB.
+# balance-sweeps — THE BALANCE LAB'S PRECOMPUTED SWEEPS ON THE PROPOSED GAME,
+# ONE JOB A KNOB AND ONE A PROPOSAL TOGGLE.
 #
-# tools/balance-program/balance-matrix.mjs --sweep on the representative subset
-# (207 cells on the real engine, Level 10 to 5,000): each live knob of
-# tools/balance-program/formulas/knobs.json at each of its steps, on a scratch
-# copy, every cell's section 6 metrics and the bands it moved
-# (40-formula-brief section 6; 44-formula-architecture section 6.2). About six
-# minutes a knob on four cores, so the knobs fan out as a job matrix and each
-# uploads its own sweep. A MEASUREMENT, never a gate, and never on a push.
+# tools/balance-program/balance-matrix.mjs --sweep --base proposed on the
+# representative subset (223 cells on the real engine, Level 10 to 5,000), on
+# the proposed game (every recommended proposal of
+# tools/balance-program/proposals.json, planted on a scratch copy):
+#   k:<knob>    each live knob of tools/balance-program/formulas/knobs.json at
+#               each of its steps on the proposed game
+#   t:<id>      the proposed game without that proposal (its effect, judged on
+#               the proposed game); t:+<id> with a proposal that is off
+# Every cell's section 6 metrics and the band rows of standards.mjs. A few
+# minutes a job on four cores, so they fan out as a job matrix and each
+# uploads its own sweep. A MEASUREMENT, never a gate, and never on a push of a
+# lane, set, release or main.
 #
 # Run it:   gh workflow run balance-sweeps.yml --ref <branch> [-f knobs=a,b]
 #           (GitHub dispatches only a workflow the default branch holds; until
@@ -26,7 +32,7 @@ on:
   workflow_dispatch:
     inputs:
       knobs:
-        description: 'knob ids, comma-separated (blank: every live knob in knobs.json)'
+        description: 'knob ids, comma-separated (blank: every live knob in knobs.json); every proposal toggle runs too'
         required: false
         default: ''
 
@@ -43,7 +49,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
-      knobs: ${{ steps.knobs.outputs.knobs }}
+      jobs: ${{ steps.jobs.outputs.jobs }}
     env:
       KNOBS: ${{ github.event.inputs.knobs || '' }}
     steps:
@@ -53,9 +59,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - id: knobs
-        name: The knobs to sweep (validated against knobs.json)
-        run: echo "knobs=$(node tools/balance-program/balance-matrix.mjs --knob-ids "$KNOBS")" >> "$GITHUB_OUTPUT"
+      - id: jobs
+        name: The knobs and toggles to sweep (validated against knobs.json and proposals.json)
+        run: echo "jobs=$(node tools/balance-program/balance-matrix.mjs --sweep-jobs "$KNOBS")" >> "$GITHUB_OUTPUT"
 
   sweep:
     needs: plan
@@ -64,9 +70,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        knob: ${{ fromJSON(needs.plan.outputs.knobs) }}
+        job: ${{ fromJSON(needs.plan.outputs.jobs) }}
     env:
-      KNOB: ${{ matrix.knob }}
+      JOB: ${{ matrix.job }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -74,12 +80,19 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - name: Sweep ${{ matrix.knob }} on the subset
-        run: node tools/balance-program/balance-matrix.mjs --sweep --knobs "$KNOB" --workers 4 --out "sweep-$KNOB.json"
+      - name: Sweep ${{ matrix.job }} on the proposed game
+        run: |
+          case "$JOB" in
+            k:*) ID="${JOB#k:}"; NAME="knob-$ID"; set -- --knobs "$ID" ;;
+            t:*) ID="${JOB#t:}"; NAME="toggle-${ID/+/with-}"; set -- --knobs none --variants "$ID" ;;
+            *) echo "unknown job $JOB"; exit 2 ;;
+          esac
+          node tools/balance-program/balance-matrix.mjs --sweep --base proposed "$@" --workers 4 --out "sweep-$NAME.json"
+          echo "NAME=$NAME" >> "$GITHUB_ENV"
       - name: Upload the sweep
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && env.NAME != '' }}
         uses: actions/upload-artifact@v4
         with:
-          name: sweep-${{ matrix.knob }}
+          name: sweep-${{ env.NAME }}
           path: sweep-*.json
           retention-days: 30

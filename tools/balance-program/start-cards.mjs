@@ -10,7 +10,7 @@
 // death, net gold at or over zero). A way inside reads "Good alone"; outside, the card's tag is the designer's call (D-1). A READING, never
 // a gate: it prints and exits 0, and the designer writes the tag into the data row FB-5 fills.
 //
-//   node tools/balance-program/start-cards.mjs [--base proposed|today] [--without GR-5,S-10] [--seeds 4] [--json <file>]
+//   node tools/balance-program/start-cards.mjs [--base proposed|today] [--without GR-5,S-10] [--patch <file>] [--seeds 4] [--json <file>]
 //   node tools/balance-program/start-cards.mjs --selftest     the band rule on planted lives (no play)
 //
 // Exit: 0 ran · 1 a selftest proof failed · 2 harness.
@@ -18,7 +18,7 @@
 // ci-step: economy-selftests | Check C1 reads the weapon cards' band on planted lives (Good alone, Slow alone, a death, a loss)
 // ci-run: node tools/mutant-gate.mjs node tools/balance-program/start-cards.mjs --selftest
 // ════════════════════════════════════════════════════════════════════════
-import { writeFileSync } from 'node:fs';
+import { writeFileSync, readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isMain } from '../../tests/_is-main.mjs';
@@ -81,11 +81,13 @@ async function main() {
   const spec = arg('base', 'proposed');
   let root = ROOT, done = () => {}, name = 'today';
   if (spec !== 'today') {
-    const { baseOf } = await import('./balance-matrix.mjs');
+    const { baseOf, combinePatches } = await import('./balance-matrix.mjs');
     const { plantScratch } = await import('./matrix-scratch.mjs');
     const base = await baseOf(spec, arg('without') ? arg('without').split(',') : []);
-    const s = await plantScratch(base.patch);
-    root = s.root; done = s.done; name = base.name + ' (' + base.ids.join(', ') + ')';
+    /* --patch <file>: a balance patch on top of the base (a what-if for the designer: bp-kill-reward-under-5.json) */
+    const extra = arg('patch') ? JSON.parse(readFileSync(resolve(arg('patch')), 'utf8')) : null;
+    const s = await plantScratch(extra ? combinePatches(base.patch, extra) : base.patch);
+    root = s.root; done = s.done; name = base.name + ' (' + base.ids.join(', ') + ')' + (extra ? ' + ' + arg('patch') : '');
   }
   let rows;
   try { rows = await playCards({ root, seeds }); } finally { done(); }

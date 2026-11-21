@@ -46,13 +46,14 @@ Run A found no setting that holds S5.low at every Level, and R5 read 492 red row
 
 ### 1.2 What the arrival costs a player, on Normal
 
-Local, ×2.4, the arrival kit with skills on the line, against the mid kit with jewelry at 25% of the stand-in. 4 seeds of 8 hours, Normal.
+Local, ×2.4, the arrival kit with skills on the line, against the mid kit wearing the jewelry the first build ships (the proposed game without GR-38's stand-in). 4 seeds of 8 hours, Normal.
 
 | Level | 10 | 20 | 30 | 45 | 60 | 88 | 110 | 145 | 185 | 300 | 400 |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| Lone: damage taken, low over mid | 1.68 | 1.45 | 1.56 | 1.40 | 1.41 | 1.31 | 1.17 | 1.19 | 1.21 | 1.18 | 1.19 |
-| Lone: Level XP an hour, low over mid | 1.00 | 0.74 | 0.80 | 0.89 | 0.84 | 0.86 | 0.95 | 0.89 | 0.91 | 0.91 | 0.91 |
+| Lone: damage taken, low over mid | 1.82 | 1.54 | 1.66 | 1.50 | 1.52 | 1.39 | 1.24 | 1.26 | 1.28 | 1.26 | 1.25 |
+| Lone: Level XP an hour, low over mid | 0.94 | 0.72 | 0.79 | 0.88 | 0.82 | 0.85 | 0.94 | 0.89 | 0.90 | 0.90 | 0.90 |
 | Lone: the low kit's typical low point | 92% | 55% | 83% | 79% | 82% | 75% | 87% | 73% | 76% | 68% | 68% |
+| Lone: the low kit's store bill, share of its coin | 5% | 59% | 1% | 9% | 0% | 3% | 0% | 2% | 1% | 2% | 1% |
 | Four: damage taken, low over mid | 1.99 | 1.96 | 1.83 | 1.80 | 1.72 | 1.49 | 1.16 | 1.41 | 1.28 | 1.33 | 1.33 |
 | Four: Level XP an hour, low over mid | 0.95 | 0.99 | 0.98 | 0.93 | 0.86 | 0.99 | 0.99 | 0.99 | 0.96 | 0.97 | 0.97 |
 | Four: the low kit's typical low point | 88% | 91% | 95% | 93% | 89% | 95% | 97% | 94% | 94% | 92% | 91% |
@@ -60,7 +61,7 @@ Local, ×2.4, the arrival kit with skills on the line, against the mid kit with 
 
 No death in any cell, here or in Run A's 308.
 
-**What this says.** A lone hero who arrives a band behind feels it: up to a quarter slower and a fuller food bill, never near death. A four on Normal barely feels it in pace or gold. Its healer absorbs the extra damage, and its store bill is often smaller, because the mid kit buys better ammo and whetstones. For a four the arrival shows up where the four's pace lives: the tier it can hold. That is what the low rows of S6 grade (an arrival four should step down from Dangerous).
+**What this says.** A lone hero who arrives a band behind feels it: up to 28% slower and a fuller food bill, never near death. The worst cell is Level 20, where the arrival still swings the Practice Club. Its store bill takes 59% of its coin, and it keeps the rest. A four on Normal barely feels it in pace or gold. Its healer absorbs the extra damage, and its store bill is often smaller, because the mid kit buys better ammo and whetstones. For a four the arrival shows up where the four's pace lives: the tier it can hold. That is what the low rows of S6 grade (an arrival four should step down from Dangerous).
 
 So the damage ratio was never the thing a player feels. It is a proxy that multiplies every offense step through the ground's respawn. The rulings below grade the arrival by what a player feels, and fix the two real design misses at their own layer.
 
@@ -91,8 +92,15 @@ S5.low's band of 1.15 to 1.35 was set by the standards auditor from the armor st
 
 **Ruling 6. Jewelry.** Two halves.
 
-- **The game.** No jewelry or cloak number moves in the first build. GR-38's derivation (the six crafted slots as 6% of the kit, written from the curve) waits where the plan has it. Measured on what the first build ships, the rows read PENDING-REAL of a lone mid hero's Level pace from Level 45 to 88 (Local, proposed without GR-38).
-- **The matrix.** GR-38's stand-in is played only where its own note allows it, from Level 110, scaled so the crafted class reads its decided 6%: 0.5 of the stand-in from Level 110 to 185, and 1.0 from 186. Under 110 the mid kit wears the rows the first build ships. MEASURED for the scale: PENDING-SCALE.
+- **The game: 1.0, no number moves in the first build.** The rows the first build ships are worth this much of a lone mid hero's Level pace (Local, ×2.4, the proposed game without GR-38's stand-in, against the same kit with every jewelry number at 0):
+
+  | Level | 10 | 20 | 30 | 45 | 60 | 88 | 110 | 145 | 185 | 300 | 400 |
+  |---|---|---|---|---|---|---|---|---|---|---|---|
+  | The crafted class, lone | 6.4% | 13.9% | 13.7% | 8.5% | 11.0% | 6.3% | 5.4% | 5.3% | 3.7% | 3.8% | 2.2% |
+  | The crafted class, a four (25% of the stand-in) | 0.1% | 0.8% | 1.0% | 2.3% | 3.0% | 0.4% | 0.5% | 0.5% | 1.4% | 0.8% | 0.6% |
+
+  That is up to twice GR-38's decided 6% from Level 20 to 60, and under it past 110. I keep the rows anyway, for three reasons. A four, the way the game is played, gets 3% or less from them on Normal. They are the first crafted pieces a hero wears (the Path's rows at Levels 8, 15 and 22), and crafting should pay early. And GR-38's derivation writes every row from the curve at once when its lane runs, so a hand cut now retypes rows that lane rewrites. GR-38's 6% stands as its target. JUDGMENT.
+- **The matrix.** GR-38's stand-in is played only where its own note allows it, from Level 110, scaled so the crafted class reads its decided 6%: 0.5 of the stand-in from Level 110 to 185, and 1.0 from 186. COMPUTED on a straight line between Run A's printed shares: the whole stand-in reads 10 to 14% from 111 to 185 and 6 to 8% from 186, a quarter of it 3 to 4% and 2 to 3%. The confirm run reads it. Under 110 the mid kit wears the rows the first build ships. Past 110 nothing ships in the first build, so the matrix plays the end state GR-38 will build there, and the Level law fitted past 110 does not move again when it lands.
 
 **Ruling 7. The four's damage ratio is a report too.** It reads kill speed through the respawn (section 1.1, row 5). Where a four's arrival should hurt is on the harder tiers, and S6 grades that.
 
@@ -158,7 +166,8 @@ It reads S1.low, S2.low, P3 on the lone hero, S5.low and the four's pace as repo
 | An armor step at ×2.4 | MEASURED in chapter 12 (R0 and L, 2 seeds of 1 hour). Not re-measured here. The confirm run reads E1.armor |
 | The mid kit's damage at ×2.4 against ×1 | MEASURED, Local, `mid-a24-j25` against `mid-a10-j25`: 1.18 to 1.32 lone and 1.07 to 1.35 for a four, Level XP an hour 0.996 to 1.002 |
 | ×1.6 gives the same band step for about half the extra damage | COMPUTED for a plate set on the line, absorb only. Not played. The confirm run decides it |
-| The jewelry rows the first build ships, and the stand-in's scale | PENDING-JEWEL-EVIDENCE |
+| The share of the rows the first build ships | MEASURED, Local, the scratch job `mid-a24-real` against the tool's `mid-a24-j0` |
+| The stand-in's scale past Level 110 | COMPUTED from Run A's printed shares. Not played at 0.5 |
 | Tier armor against the line | COMPUTED from `gear-tiers.js` rows and LINE_BASE |
 | A Coarse Whetstone is sold | Read from `shops.js` seed.coarse_whetstone (10 for 60 gold) and `items.js` (strB 2) |
 | What an arrival costs a four in Dangerous and Deadly | UNKNOWN until CB-2's death sample with these rows in |
@@ -185,6 +194,8 @@ Why 1.1 and not the measured 0.85. At 0.85 five of the seven cards miss C1's 15 
 
 MEASURED, C1 local, 4 lives a way, median hunted minutes to Level 5. No death in any life at any exponent. The 0.85 row matches what the matrix lane reported (19.8 to 23.4).
 
+At 1.1 every card reads "Good alone" on C1. The sword and shield and the staff keep D-1's "Best in a party. Slow alone." That tag comes from the ruling of 2026-11-19 on the tank's lone pace, not from C1.
+
 At 1.1 a Giant Rat (Level 2, 7 health) pays about 2.7 times the line, a Hive Wasp (Level 4) about 1.3 times. Level 10 moves by a few minutes at most: Levels 1 to 4 are about 20 minutes of the 6.31 hours the matrix lane read at 0.85, so Level 10 stays inside the ruled 5 to 7 hours (COMPUTED). The confirm run reads it.
 
 ### 2.2 The ground number under Level 10
@@ -207,7 +218,7 @@ The derived number a ground carries (GR-5, written by FB-8's generator) would un
 
 ### 2.4 Exploit read
 
-No item or gold moves. Only three monsters are under Level 5: the Giant Rat, the Slime and the Hive Wasp, all in the Mill Cellar (COUNTED from `monsters.js`), plus the yard dummy, which pays no XP and never falls. A hero over Level 5 cannot farm them: the Cellar ends itself at Level 5 (`endsAtLevel`), and its pull is one monster a minute. A scaled hunt raises a monster's Level, so the factor falls to 1. XP is still minted only in the settle from the server's catalogue.
+No item or gold moves. Only three monsters are under Level 5: the Giant Rat, the Slime and the Hive Wasp, all in the Mill Cellar (COUNTED from `monsters.js`), plus the yard dummy, which pays no XP and never falls. A hero over Level 5 cannot farm them: the Cellar ends itself at Level 5 (`endsAtLevel`), and its spawn is small and slow on purpose (pull 1, each pack back after 60 seconds). A scaled hunt raises a monster's Level, so the factor falls to 1. At 1.1 a Giant Rat pays about 19 XP (the patch's 7 × 2.74). XP is still minted only in the settle from the server's catalogue.
 
 ### 2.5 The wand card's cost line
 
@@ -282,9 +293,9 @@ These pieces are hidden and drop nowhere in the first build. Nothing here reache
 ## 5. What I did not check
 
 - I did not download Run A's artifacts. Section 1.2 comes from Local replays of the same tool, seeds and hours. Where they overlap they match: Local reads Run A's "closest" setting (×1, offset 0, jewelry 25%) lone at 1.38 to 2.20, 1.06 to 1.25, 1.11 to 1.12 and 1.11 to 1.13 by stretch, the same four ranges Run A printed.
-- Three configurations were played with a scratch copy of the tool's job (`proposed` without GR-38, at ×2.4, with and without jewelry). It is the tool's own `playRun` with one base changed, and it is not committed.
+- Two configurations were played with a scratch copy of the tool's job (`proposed` without GR-38, at ×2.4, with and without jewelry). It is the tool's own `playRun` with one base changed, and it is not committed. With every jewelry number at 0 it reads the same as the tool's own `mid-a24-j0`, as it should.
 - No harder tier was played here. What an arrival four costs on Dangerous and Deadly waits on CB-2's death sample.
-- The Coarse Whetstone in the arrival kit was not played. Its strB 2 against the mid kit's tier whetstone (3 to 18) closes part of the lone gap. The confirm run reads it.
+- The Coarse Whetstone in the arrival kit was not played. A job hook meant to hand it to the arrival kit did not reach the kit, and its readings came back identical, so they are not used. Its strB 2 against the mid kit's tier whetstone (3 to 18) should close part of the lone gap, most of all at Level 20, where it adds to a Practice Club's strB 7. The confirm run reads it.
 - The first real weapon. Under Level 30 the arrival kit wields the practice weapon, because the start kit holds tier 1's weapon rung (GR-85). It is the largest single step in the early game (Practice Club strB 7, Iron Warhammer strB 16). How soon an Iron weapon drops in band 2 is band E2's and FB-8's, not D-3's.
 - Light armor's ward is a flat number a point and does not fade with the attacker's Level. A cloth step is large early and small late. The armor curve does not touch it. It is a formula-layer item for chapter 01, owned by the game designer, and not ruled here.
 - I did not open the game. Nothing in this ruling changes a screen.
@@ -293,21 +304,21 @@ These pieces are hidden and drop nowhere in the first build. Nothing here reache
 
 ## 6. For the integrator
 
-- **00 section 5.5 (open items), row 12.** Closed by this ruling: "`review/08-designer-d3.md`. The armor curve is ×2.4. The arrival kit is the mid kit a band back in gear only. S5.low is a report, and the arrival is graded by S1.low, S2.low, P3 and S6."
+- **00 section 5.5 (open items), row 12.** Closed by this ruling: "`review/08-designer-d3.md`. The armor curve is ×2.4, or ×1.6 if the confirm run shows it holds the same steps. The arrival kit is the mid kit a band back in gear only. S5.low is a report, and the arrival is graded by S1.low, S2.low, P3 and S6."
 - **00 section 5.3 (the reversal list).** Add D3-1 and D3-2 as written in section 0.
-- **01 section 2 (mitigation) and the knob table.** `armorCurve` reads 0.96 and 1.488 (×2.4), DECIDED D-3. Add one line: light armor's ward does not fade with Level (section 5).
-- **03 section 2.2.** Replace "The armor curve probe and the arrival kit are one open item and cannot ship apart" with "The armor curve is ×2.4 (D-3). An armor step reads 3.6 to 4.1% past Level 45". In "The formula", add: "Tiers 1 to 7 keep their built armor. Tier 1 is held over the line, because the line at Level 1 is no armor (D-3, on the veto list as D3-1)".
-- **03 section 2.2, slot classes, and GR-38's row in section 4.** Add: "The matrix plays GR-38's stand-in only from Level 110, at 0.5 to 185 and 1.0 after. The first build moves no jewelry number."
+- **01 section 2 (mitigation) and the knob table.** `armorCurve` reads 0.96 and 1.488 (×2.4), DECIDED D-3, with the switch rule of ruling 1. Add two lines: the mid kit takes 18 to 32% more damage at ×2.4 than at ×1 (Local), and light armor's ward does not fade with Level (section 5).
+- **03 section 2.2.** Replace "The armor curve probe and the arrival kit are one open item and cannot ship apart" with "The armor curve is ×2.4 (D-3). A band step of armor reads 3.6% at Level 60 and 4.1% at Level 400". In "The formula", add: "Tiers 1 to 7 keep their built armor, and the curve writes armor from Level 110. A ladder tier is worth about 9 to 18% less damage, on purpose (D-3, on the veto list as D3-1)".
+- **03 section 2.2, slot classes, and GR-38's row in section 4.** Add: "The matrix plays GR-38's stand-in only from Level 110, at the scale of D-3 ruling 6. The first build moves no jewelry number. Its rows read 6 to 14% of a lone mid hero's pace under Level 110 and 2 to 5% past it (D-3, Local), so GR-38's derivation lowers Levels 20 to 60 and raises the rest."
 - **05 section 2.16, the gear-state table.** LOW's combat skills: "On the career line." LOW's ammo: "The Shop's basic arrow and whetstone." The band rows: "Low under mid" reads "0.80 to 0.90 of mid's pace for a lone hero on Normal (P3). Damage taken is reported (S5.low)". The paragraph under it: "LOW is ruled to fail the harder tiers" stays.
 - **08 section 2 "Measured since".** Replace the arrival paragraph with: "The arrival kit never dies on Normal (MEASURED, run 44950722457 and local replays). A lone arrival is up to a quarter slower and eats more. A four barely feels it on Normal and feels it as the tier it can hold (D-3)."
 - **08 section 6, check C1.** The fix is the curve's low end at exponent 1.1 (D-3 section 2). The wand's cost line reads 100.
 - **12 section 3.4.** The ground-number generator reads a ground from Level 10, and the Mill Cellar carries none (section 2.2).
-- **12 section 3.6.** The armor curve and the arrival kit are ruled in `review/08-designer-d3.md`.
+- **12 section 3.6.** The armor curve and the arrival kit are ruled in `review/08-designer-d3.md`. The sentence "The mid hero's damage taken did not move, by 0 to 3% from Level 30 to 400" is wrong on 4 seeds of 8 hours. Replace it with "The mid kit takes 18 to 32% more damage at ×2.4, and its pace does not move (D-3, Local)".
 - **13 section 1.1, row 8.** "Still OPEN" loses the arrival kit and the two grounds: "Ruled in D-3: ×2.4, the arrival graded by survival, pace and tier held, the two grounds stay staged."
 - **13 section 1.3, item 11.** "They do not open in the first build (D-3). The Morrow lane starts when the first live hero reaches Level 95."
 - **13 section 2.4, D-3's row.** Mark it ruled, and point here.
 - **13 FB-3.** Add the confirm run of section 1.5 and the C1 confirm of section 2.3. Add: GR-38's stand-in leaves cells under Level 110, and the seat is re-read on that base before FB-8 stage 3.
-- **13 FB-8.** Stage 1: the armor rows of section 1.4, tiers 1 to 7 as built with the generator's check, the heavy trade of section 4. Stage 2: the kill reward's low end and the ground-number rule of section 2. FB-8 does not take `hunts.js`.
+- **13 FB-8.** Stage 1: the armor rows of section 1.4, tiers 1 to 7 as built with the curve writing armor from Level 110, the heavy trade of section 4. Stage 2: the kill reward's low end and the ground-number rule of section 2. FB-8 does not take `hunts.js`.
 - **13 section 4, the arrival kit risk.** "Ruled in D-3. Confirmed by FB-3's run of section 1.5."
 - **D-1 (`review/05-designer-rulings.md`) section 1.2.** The wand row's words are replaced by section 2.5's, and the default {N} is 100.
 - **`.claude/coordination/DISCOVERIES.md` row 1.** Owner's answer: section 4.

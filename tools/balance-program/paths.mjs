@@ -199,9 +199,12 @@ async function main() {
       const sc = { ...predictSc.sc, scale: { [system]: factor }, sample: 0, without: undefined };
       const rr = playScenario(ctx, sc);
       const v = judge({ runs: [rr], atlas: ctx.atlas, rules: VERDICT_RULES, systemIds: [] }).rows.find((x) => x.system === system);
-      return { pieces: v ? v.share.pieces : 0, margin: v ? v.share.medianMargin : null, on: sc.id };
+      const v0 = judge({ runs: [predictSc], atlas: ctx.atlas, rules: VERDICT_RULES, systemIds: [] }).rows.find((x) => x.system === system);
+      return { before: v0 ? v0.share.pieces : 0, marginBefore: v0 ? v0.share.medianMargin : null, pieces: v ? v.share.pieces : 0, margin: v ? v.share.medianMargin : null, on: sc.id };
     } : null;
-    verdict = judge({ runs: runs.filter((r) => r.bands), atlas: ctx.atlas, rules: VERDICT_RULES, systemIds: SYSTEMS.map((s) => s.id), predict, bandOrder: GEAR_BANDS.map((b) => b.id),
+    /* the verdicts read the paths a player plays: free and Premium, every party, both town days; bought gold and the no-bench path are bands B7
+       and T5, never a system's evidence (the market there is an assumption, not a route) */
+    verdict = judge({ runs: runs.filter((r) => r.bands && r.sc.payer !== 'bought' && !r.sc.market && !r.sc.without), atlas: ctx.atlas, rules: VERDICT_RULES, systemIds: SYSTEMS.map((s) => s.id), predict, bandOrder: GEAR_BANDS.map((b) => b.id),
       sample: ctx.rates ? ctx.rates.seeds + ' seed(s) x ' + ctx.rates.hours + ' h a cell' : 'seeds x 1 h' });
   }
   const ms = Date.now() - t0;

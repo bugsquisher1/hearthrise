@@ -31,6 +31,11 @@ export const RULINGS = Object.freeze({
 const median = (a) => { if (!a.length) return null; const s = a.slice().sort((x, y) => x - y); return s[Math.floor(s.length / 2)]; };
 const r2 = (x) => (x === null || !Number.isFinite(x) ? null : Math.round(x * 100) / 100);
 
+/* a piece is CONTESTED when another system (not the market: a price, not a route) also reaches it. Tests (b) and (c) read only contested
+   pieces: a system that is a slot's only home (a cloak's bench) is not 'picked by a wide margin', it is the only door (this file's reading
+   of 10.4's 'the solver keeps picking it'). Test (a) reads every slot, as written. */
+const contested = (f) => !!(f.next && f.next.system !== f.system && f.next.system !== 'market');
+
 export function shareTables(runs) {
   const slots = {}, paths = {};
   for (const run of runs) for (const b of run.bands) {
@@ -40,9 +45,10 @@ export function shareTables(runs) {
     p.total++;
     const seen = new Set();
     for (const f of b.fills) {
+      if (!contested(f)) { if (!f.item.startsWith('temper:')) { t.total++; t.by[f.system] = (t.by[f.system] || 0) + 1; } continue; }
       if (f.item.startsWith('temper:')) continue;   // a rung is not a gear slot
       t.total++; t.by[f.system] = (t.by[f.system] || 0) + 1;
-      seen.add(f.system);
+      seen.add(f.system);   // (c) counts a path only where the system WON A CHOICE (a piece another system could also give)
     }
     for (const sys of seen) p.by[sys] = (p.by[sys] || 0) + 1;
   }
@@ -63,7 +69,9 @@ export function judge({ runs, atlas, rules, systemIds, predict, bandOrder, sampl
     srcSystems.set(s.system, x);
   }
   for (const sid of atlas.lists.sourcesUnused) { const s = atlas.sources[sid]; if (s) srcSystems.get(s.system).unused++; }
-  const all = new Set([...srcSystems.keys(), ...(systemIds || [])]);
+  /* the solver judges a system that has a source row; a registry system with none (chat, the settle engine) is the grid's or a dive's to judge */
+  const all = new Set([...srcSystems.keys()].filter((x) => x !== 'market'));
+  const notJudged = (systemIds || []).filter((id) => !srcSystems.has(id));
   const fills = runs.flatMap((run) => run.bands.flatMap((b) => b.fills.map((f) => ({ ...f, band: b.band, party: run.sc.party, payer: run.sc.payer, townH: run.sc.townH }))));
   const usedSids = new Set(runs.flatMap((run) => run.bands.flatMap((b) => b.used || [])));
   const usedSystems = new Set([...usedSids].map((sid) => atlas.sources[sid] && atlas.sources[sid].system).filter(Boolean));
@@ -71,13 +79,13 @@ export function judge({ runs, atlas, rules, systemIds, predict, bandOrder, sampl
   for (const system of [...all].sort()) {
     const mine = fills.filter((f) => f.system === system);
     const near = fills.filter((f) => f.system !== system && f.bySys && f.bySys[system] !== undefined && f.bySys[system] <= f.days * (1 + N.nearBest));
-    const margins = mine.filter((f) => f.next && f.next.days > 0 && f.days > 0).map((f) => f.next.days / f.days);
+    const margins = mine.filter((f) => contested(f) && f.next.days > 0 && f.days > 0).map((f) => f.next.days / f.days);
     const ev = { system, verdict: 'HEALTHY', ruleTripped: '-', solverEvidence: '', gridEvidence: '', change: 'none', predictedResult: '-', rulingsTouched: RULINGS[system] || 'none found' };
     /* (a) over half the gear slots at a band, for a party size */
     const a = Object.entries(slots).map(([k, t]) => ({ k, share: (t.by[system] || 0) / Math.max(1, t.total), n: t.by[system] || 0, of: t.total })).filter((x) => x.share > D.a.over).sort((x, y) => y.share - x.share);
     /* (b) the median of next-route / this-route over the pieces it wins (the median is this file's aggregation; the rule reads one goal) */
     const mb = median(margins);
-    const worst = mine.filter((f) => f.next).sort((x, y) => y.next.days / Math.max(1e-9, y.days) - x.next.days / Math.max(1e-9, x.days))[0];
+    const worst = mine.filter((f) => contested(f)).sort((x, y) => y.next.days / Math.max(1e-9, y.days) - x.next.days / Math.max(1e-9, x.days))[0];
     /* (c) on over 60% of the band's paths, three bands in a row */
     const order = bandOrder || Object.keys(paths);
     let streak = 0, bestStreak = 0, streakAt = null;
@@ -129,12 +137,12 @@ export function judge({ runs, atlas, rules, systemIds, predict, bandOrder, sampl
   /* PREDICTED: re-run the solver with the change staged (predict is the caller's: a scaled re-solve of the scenario it trips most) */
   if (predict) for (const ev of rows) if (ev.predictPlan) {
     const p = predict(ev.predictPlan.system, ev.verdict === 'DOMINANT' ? ev.predictPlan.factor : 1 / ev.predictPlan.factor);
-    ev.predictedResult = p ? 'pieces ' + ev.share.pieces + ' -> ' + p.pieces + ', median margin ' + ev.share.medianMargin + ' -> ' + p.margin + ' (' + p.on + ')' : 'not re-run (--report runs it)';
+    ev.predictedResult = p ? 'on ' + p.on + ': pieces won ' + (p.before ?? '?') + ' -> ' + p.pieces + ', median margin ' + (p.marginBefore ?? '-') + ' -> ' + (p.margin ?? '-') : 'not re-run (--report runs it)';
   }
   for (const ev of rows) delete ev.predictPlan;
   const order = { DOMINANT: 0, 'FAILS PURPOSE': 1, NEGLECTED: 2, HEALTHY: 3 };
   rows.sort((x, y) => order[x.verdict] - order[y.verdict] || (y.share.pieces - x.share.pieces));
-  return { rows, shares: { slots, paths } };
+  return { rows, notJudged, shares: { slots, paths } };
 }
 
 /* an item's home: the system its own catalogue row points at (the first non-market source in the atlas's order: drops first, then the rest) */

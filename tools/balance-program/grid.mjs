@@ -30,8 +30,12 @@
 // say STALE when the tree's hash differs. REFRESH: re-run and commit it in the lane that moves a number a band reads, and whenever the guard
 // prints STALE (a full run is about an hour of worker time; CI cannot commit it back, so no workflow refreshes it on its own yet).
 //
-// RUNTIME (50-standards 5.3 asks the build to measure it): see the `runtime` block grid.json carries (cells, worker-seconds, wall clock,
-// workers) and this lane's report.
+// RUNTIME (50-standards 5.3 asks the build to measure it; each cache carries its own `runtime` block). MEASURED 2026-11-21 on the dev PC
+// with other lanes holding its CPU at 100%: the full grid 1,363 cells (1,116 of the frame plus the pair's second seating and E1's 58 step
+// cells), 2,726 seed jobs, 19,714 worker-seconds, 1,650 s wall on 12 workers (budget 60 min); the quick grid 144 cells, 839 worker-seconds,
+// 108 s on 8 workers (budget 4 min). A seed job: a lone hero 2 to 3 s an hour, a four 5 to 8 s. The deaths run (4 x 8 h) is 8 times the
+// full grid's worker time a cell: MEASURED 10 cells at Level 88 in 1,386 worker-seconds (147 s on 10 workers), so its third of the harder
+// tiers (about 290 cells) is about 11 worker-hours, an hour on 12 workers: a nightly's run, not a lane's (this lane played Level 88's third).
 //
 // Exit: 0 ran (report mode: an out-of-band band never fails a run) · 1 a --selftest plant not caught · 2 harness.
 // mutant-anchors: none — --selftest plants on an in-memory copy of the cached grid and on a loaded kit builder; no tracked file is patched

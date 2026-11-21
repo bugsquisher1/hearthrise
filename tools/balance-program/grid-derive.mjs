@@ -39,7 +39,8 @@ export function distanceOf(v, band) {
 /* X26: a death rate is judged on 4 seeds x 8 h or more (32 hero-hours a seat); under it the number prints as `thin`. A cell the deaths run
    (grid.mjs --deaths) played carries `deaths`, which every death reading prefers. */
 const DEATH_SAMPLE_HERO_H = 32;
-export const deathOf = (c) => (c.deaths && c.deaths.sample ? { per1000h: c.deaths.deathsPer1000h, seatHours: c.deaths.sample.heroHours / c.party, net: c.deaths.netLevelXpPerH, low: c.deaths.lowHpTypical }
+/* the deaths run's sample is the run's design (4 seeds x 8 h a seat): a seat that dies often hunts fewer hours, which is its answer, not a thin sample */
+export const deathOf = (c) => (c.deaths && c.deaths.sample ? { per1000h: c.deaths.deathsPer1000h, seatHours: c.deaths.sample.heroHours / c.party, net: c.deaths.netLevelXpPerH, low: c.deaths.lowHpTypical, planned: true }
   : { per1000h: c.rates.deathsPer1000h, seatHours: c.rates.sample.heroHours / c.party, net: c.rates.netLevelXpPerH, low: c.rates.lowHpTypical });
 
 /* ── the cells, looked up ──────────────────────────────────────────────────────────────────────────────────────────────────────── */
@@ -197,7 +198,7 @@ export function judgeGrid(D, grid, o = {}) {
     && (!w.levels || (c.L >= w.levels[0] && c.L <= w.levels[1])) && (!w.fromLevel || c.L >= w.fromLevel) && (!w.inBand || inBandCell(D, c)));
   const at = (c) => c.L + ' ' + c.gear + ' x' + c.party + ' ' + c.tier;
   const ratio = (a, b) => (a && b && b > 0 ? a / b : null);
-  const sampleOk = (c) => deathOf(c).seatHours >= DEATH_SAMPLE_HERO_H;
+  const sampleOk = (c) => deathOf(c).planned === true || deathOf(c).seatHours >= DEATH_SAMPLE_HERO_H;
   for (const band of STD.BANDS) {
     const w = band.where || {}, id = band.id;
     if (NOT_GRID[id]) { rows.push({ band: id, group: band.group, label: band.label, at: '-', value: null, status: 'n/a', dist: 0, why: NOT_GRID[id] }); continue; }

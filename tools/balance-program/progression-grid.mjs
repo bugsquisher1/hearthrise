@@ -131,6 +131,10 @@ export function readTracks(root = ROOT) {
   if (doc.schema !== 'hearthrise.build-tracks/1') throw new Error('grid: ' + BUILD_TRACKS_FILE + ' is ' + doc.schema);
   return { ...doc, byId: new Map((doc.tracks || []).map((t) => [t.id, t])) };
 }
+/* THE BLESSING LADDER (the sitting S-5, RULED 2026-11-21, option B; 60 G-7): 6% flat, three Blessings, then a new one past the third whenever a
+   blessed death would cost over about five hunted hours. MEASURED there: Levels 100, 185, 275 and 400; each halves what a blessed death still takes */
+export const BLESSING_LADDER = Object.freeze([100, 185, 275, 400]);
+export const blessedShareAt = (L, blessings = 3) => (blessings >= 3 ? STD.DEATH_COST.blessedShare * 0.5 ** BLESSING_LADDER.filter((x) => L >= x).length : null);
 export const TRACK_EFFECTS = Object.freeze(['damage', 'defense', 'damage_crit', 'drop_rate', 'gold_find', 'combat_xp', 'all_xp']);
 export function trackBuffs(track, L) {
   const sumBy = {};
@@ -178,7 +182,7 @@ export function buildCell(D, K, { L, gear, styles, tier, ground, step = null, bu
      the stat lines bite only where the tree has the seam (the Talents proposal's scratch hook) */
   const talentsBySeat = styles.map((st) => talentsOf(st, L, build).pm);
   const cell = { ground, party: [...styles], level: L, profile: 'played', supply: 'store', skillsBySeat: skills, gearBySeat: plans.map((p) => p.gear),
-    talentsBySeat, build, deathRule: 'real', blessings, shopping: gear === 'bis' ? 'allowed' : 'real', ...(endTogether ? { endTogether: true } : {}),
+    talentsBySeat, build, deathRule: 'real', blessings, ...(Number.isFinite(blessedShareAt(L, blessings)) ? { blessedShare: blessedShareAt(L, blessings) } : {}), shopping: gear === 'bis' ? 'allowed' : 'real', ...(endTogether ? { endTogether: true } : {}),
     ...(rows.length ? { buffs: rows } : {}), ...(Number.isFinite(staminaH) ? { staminaH } : {}), ...(Number.isFinite(purse) ? { purse } : {}), ...(Number.isInteger(goldFloor) ? { goldFloor } : {}),
     ...(Object.keys(temper).length ? { temper } : {}), ...(tier !== 'normal' ? { options: { tier } } : {}), ...(pull ? { density: pull } : {}) };
   return { cell, whatIf, plans };
@@ -314,6 +318,8 @@ export function cellRates(D, meta, seeds) {
     deaths: sum((h) => h.deaths), deathsPer1000h: r0((1000 * sum((h) => h.deaths)) / heroHours, 1), deathTax: gross > 0 ? r0(lostBlessed / gross, 4) : null, deathTaxUnblessed: gross > 0 ? r0(lost / gross, 4) : null,
     killsPerH: r0(kills / partyHours), revealsPerPartyH: r0(reveals / partyHours, 4), revealEveryHeroH: reveals > 0 ? r0((size * partyHours) / reveals, 1) : null,
     revealEveryPartyH: reveals > 0 ? r0(partyHours / reveals, 1) : null, rarestRevealEveryHeroH: Number.isFinite(rarest) ? r0((size * partyHours) / rarest, 1) : null, rarestRevealEveryPartyH: Number.isFinite(rarest) ? r0(partyHours / rarest, 1) : null, killsByPerH: Object.fromEntries(Object.entries(killsBy).map(([m, n]) => [m, r0(n / partyHours, 1)])),
+    /* the sitting's S-6: the hunts that ended before their time (a death, a bar or a purse), over every hero's hunt of every seed */
+    endedEarly: Object.values(ended).reduce((a, n) => a + n, 0), endedEarlyShare: r0(Object.values(ended).reduce((a, n) => a + n, 0) / Math.max(1, seeds.length * size), 3),
     ended, seats, sample: { seeds: seeds.length, heroHours: r0(heroHours, 1), partyHours: r0(partyHours, 1), spread: mean > 0 && perSeed.length > 1 ? r0((Math.max(...perSeed) - Math.min(...perSeed)) / mean, 3) : null },
   };
 }
@@ -326,7 +332,7 @@ const HASHED = ['src/core', 'src/data', 'supabase/functions/hr-accrue', 'src/she
   'tools/balance-sim/cell.mjs', 'tools/balance-sim/gear.mjs', 'tools/balance-sim/worker.mjs', 'tools/balance-sim/played.mjs', 'tools/balance-sim/skill-lines.mjs', 'tools/balance-sim/skill-lines.json',
   'tools/balance-sim/styles.mjs', 'tools/balance-sim/stats.mjs', 'tools/balance-sim/weapon-power.mjs', 'tools/balance-sim/armor-power.mjs', 'tools/balance-sim/career.mjs', 'tools/balance-sim/staged',
   'tools/balance-program/grid-kit.mjs', 'tools/balance-program/grid-project.mjs', 'tools/balance-program/build-tracks.json', 'tools/balance-program/talents.mjs'];
-const cellCode = () => [buildCell, trackBuffs, talentsOf, planCells, cellRates, compsOf, cellKey, ownShareAt, slimResult, slimPlan].map((f) => f.toString()).join('\n')
+const cellCode = () => [buildCell, trackBuffs, talentsOf, blessedShareAt, planCells, cellRates, compsOf, cellKey, ownShareAt, slimResult, slimPlan].map((f) => f.toString()).join('\n')
   /* of standards.mjs only what shapes a cell (the gear rules, the stretches, the parties, the supply share, the checkpoints), never a band: a
      ruling that moves a target leaves the cells as they were. A run's file path is the machine's, so it is left out. */
   + JSON.stringify([COMPS, MAIN, ...[RUNS.full, RUNS.quick].map(({ file, ...r }) => (void file, r)), STD.SUPPLY, STD.GEAR_STATES, STD.STRETCHES, STD.PARTIES, STD.POWER_SOURCES, STD.CHECKPOINTS, STD.GUARD_CHECKPOINTS, STD.TIERS]);

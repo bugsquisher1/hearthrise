@@ -215,7 +215,10 @@ export function printRun(res, rows, out = console.log) {
   /* THE DEATH RULE (cell.mjs header): the share of the time offered that was hunted, and XP after deaths over that time, where it is under 1 */
   const short = ok.filter((c) => !c.variant && Number.isFinite(c.m.huntedShare) && c.m.huntedShare < 0.999 && c.block !== 'grounds');
   out('\nTHE DEATH RULE (a death ends that hero\'s hunt; the rest hunt on): ' + short.length + ' of ' + ok.filter((c) => !c.variant).length + ' cells lost hunting time'
-    + (short.length ? '; the worst: ' + [...short].sort((a, b) => a.m.huntedShare - b.m.huntedShare).slice(0, 8).map((c) => c.key + ' hunted ' + pct(c.m.huntedShare).replace('+', '') + ', XP after deaths ' + fmt(c.m.netLevelXpPerH)).join('; ') : ''));
+    + (short.length ? '; the worst: ' + [...short].sort((a, b) => a.m.huntedShare - b.m.huntedShare).slice(0, 8).map((c) => c.key + ' hunted ' + pct(c.m.huntedShare).replace('+', '') + ', ' + pct(c.m.endedEarlyShare).replace('+', '') + ' of hunts ended early, XP after deaths ' + fmt(c.m.netLevelXpPerH)).join('; ') : ''));
+  /* the four on the harder tiers both ways (S-6): the rest hunting on (the default) and all coming home (the leave block) */
+  const both = D.variants.filter((v) => v.variant === 'leave:together');
+  if (both.length) out('  both party defaults, the MID four (hunted share, rest hunt on -> all come home): ' + both.map((v) => v.L + ' ' + v.tier + ' ' + pct(v.huntedShare[0]).replace('+', '') + ' -> ' + pct(v.huntedShare[1]).replace('+', '')).join('; '));
   out('\nVARIANTS against the plain cell (matrix-plan.mjs: one timed buff, a bar and a purse that bind, build tracks): DPS | kills | Level XP | XP after deaths | net gold | hunted');
   for (const v of D.variants) out('  ' + (v.L + ' ' + v.gear + ' x' + v.party + ' ' + v.tier + ' ' + v.variant).padEnd(40) + [fmt(v.dps, 3), fmt(v.killsPerH, 3), fmt(v.levelXpPerH, 3), fmt(v.netLevelXpPerH, 3), fmt(v.netPerH, 3), fmt(v.huntedShare[1], 3)].map((s) => s.padStart(8)).join(' '));
   /* TALENTS (10-level-choices.md 8.3): each contrast build over the suggested build of the same seats; Linger and the unlocks are not modelled */
@@ -827,6 +830,27 @@ async function selftest() {
     let refusedTrack = false;
     try { PG.trackBuffs({ id: 'x', picks: [{ at: 5, effects: { luck: 5 } }] }, 10); } catch { refusedTrack = true; }
     check('the build-track hook: picks up to the Level summed, an unknown effect refused', JSON.stringify(PG.trackBuffs({ id: 'x', picks: [{ at: 5, effects: { damage: 2 } }, { at: 10, effects: { damage: 3 } }, { at: 15, effects: { damage: 9 } }] }, 12)) === JSON.stringify([{ type: 'damage', magnitude: 5 }]) && refusedTrack);
+    /* 9l. THE SITTING (review/01-sitting.md, RULED 2026-11-21). S-5: the Blessing ladder in every cell; S-10: party XP by size alone; S-4: a Level
+       XP row drops into the seam; S-6: the four is played both ways (the leave block) */
+    check('S-5: three Blessings, then each ladder Level halves what a blessed death takes (L50 ' + PG.blessedShareAt(50) + ', L100 ' + PG.blessedShareAt(100) + ', L400 ' + PG.blessedShareAt(400) + '), and every cell carries it',
+      PG.blessedShareAt(50) === 0.25 && PG.blessedShareAt(100) === 0.125 && PG.blessedShareAt(400) === 0.015625 && buildCell(D, K, { L: 185, gear: 'mid', styles: ['hammer'], tier: 'normal', ground: D.groundAt(185, 1) }).cell.blessedShare === 0.0625);
+    const ladderJob = await playJobs([{ id: 'ladder', cell: { ...pair, blessings: 3, blessedShare: 0.125, id: 'SELF:ladder', seeds: 1 } }], ROOT, 1);
+    const lw = ladderJob.results.ladder.heroes[0];
+    check('S-5: a cell plays the ladder\'s share (' + lw.raw.xpLostLevel + ' -> ' + Math.round(lw.raw.xpLostLevelBlessed) + ')', lw.deaths >= 1 && Math.abs(lw.raw.xpLostLevelBlessed - 0.125 * lw.raw.xpLostLevel) < 1);
+    const size = await plantScratch(P.composePatch(ROOT, ['S-10'])), lvx = await plantScratch(P.composePatch(ROOT, ['S-4']));
+    try {
+      const pcx = async (root) => (await import(pathToFileURL(join(root, 'src/data/party-class-xp.js')).href)).partyClassXp;
+      const [onTree, onSize] = [await pcx(ROOT), await pcx(size.root)];
+      const four = ['mage', 'mage', 'mage', 'mage'], mixed = ['melee_dps', 'ranger', 'mage', 'healer'];
+      check('S-10: by size alone a one-class four reads the mixed four\'s cell (' + onSize(four).permille + ' = ' + onSize(mixed).permille + '; the tree ' + onTree(four).permille + ')', onSize(four).permille === onSize(mixed).permille && onTree(four).permille < onTree(mixed).permille);
+      const xpCell = { ...ham, buffs: [{ type: 'level_xp', magnitude: 10 }], hours: 0.5, seeds: 1 };
+      const lx = (await playJobs([{ id: 'hook', cell: { ...xpCell, id: 'SELF:lx-hook' } }, { id: 'plain', cell: { ...ham, hours: 0.5, seeds: 1, id: 'SELF:lx-plain' } }], lvx.root, 2)).results;
+      const lt = (await playJobs([{ id: 'tree', cell: { ...xpCell, id: 'SELF:lx-tree' } }], ROOT, 1)).results;
+      const ratioX = lx.hook.heroes[0].levelXpPerH / lx.plain.heroes[0].levelXpPerH;
+      check('S-4: a Level XP row of 10% pays about 10% more Level XP through the seam (' + ratioX.toFixed(3) + ') and nothing on a tree without it', ratioX > 1.08 && ratioX < 1.12 && Math.abs(lt.tree.heroes[0].levelXpPerH - lx.plain.heroes[0].levelXpPerH) < 1);
+    } finally { size.done(); lvx.done(); }
+    const leave = planMatrix(D, K, RUNS.subset, { blocks: ['leave'] });
+    check('S-6: the four on the harder tiers is played with every hero coming home (' + leave.cells.length + ' leave cells, all endTogether)', leave.cells.length > 0 && leave.jobs.every((j) => j.cell.endTogether === true));
   }
   console.log('balance-matrix selftest: ' + (fails.length ? fails.length + ' FAILED' : 'green') + ' in ' + Math.round((Date.now() - t0) / 1000) + ' s');
   return fails.length ? 1 : 0;

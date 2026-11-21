@@ -152,6 +152,8 @@ export async function loadPlay(root) {
     /* opts.talents ((role, seat) -> { force, footing, grit, reserve } permille, or null): a hero's Talents beside its rungs, on m.perks.talents
        (tools/balance-program/talents.mjs; read only where the engine has the seam: the matrix's scratch hook, patches/talents-hook.json) */
     if (typeof opts.talents === 'function') members.forEach((m, i) => { const t = opts.talents(roles[i], i); if (t) m.perks = { ...(m.perks || {}), talents: t }; });
+    /* opts.levelXpPm: a standing Level XP bonus in permille on m.perks.levelXpPm (a clan room, the sitting's S-4; read only where the scratch hook has the seam) */
+    if (Number.isFinite(opts.levelXpPm) && opts.levelXpPm > 0) for (const m of members) m.perks = { ...(m.perks || {}), levelXpPm: opts.levelXpPm };
     /* opts.xpFrac: the server's carry (player_skills.xp_frac): an empty map at the start, each window's xp_frac written back below */
     if (opts.xpFrac === true) for (const m of members) m.xpFrac = {};
     /* common vs rare by the hunt's own drop rows: a loot-band row (src/data/loot-bands.js) is a common in the common and

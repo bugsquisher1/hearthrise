@@ -255,8 +255,11 @@ export async function loadCellRunner(root) {
     /* Blessings held at each hunt's start (bought again after a death uses them up): the cut on a death's Level XP loss, and their price */
     const blessings = Number.isInteger(cell.blessings) ? cell.blessings : 0;
     if (blessings < 0 || blessings > BL.BLESSING_CUT_PERMILLE.length) throw new Error('balance-sim: blessings is 0 to ' + BL.BLESSING_CUT_PERMILLE.length);
-    const blessedShare = 1 - (blessings ? BL.BLESSING_CUT_PERMILLE[blessings - 1] : 0) / 1000;
+    /* `blessedShare` (the ladder of the sitting's S-5: past the third Blessing each further one halves what a blessed death takes) overrides the table's */
+    const blessedShare = Number.isFinite(cell.blessedShare) ? cell.blessedShare : 1 - (blessings ? BL.BLESSING_CUT_PERMILLE[blessings - 1] : 0) / 1000;
     const blessingsPrice = (L) => { let g = 0; for (let t = 1; t <= blessings; t++) g += BL.blessingPrice(t, L) || 0; return g; };
+    const engineBuffs = (cell.buffs || []).filter((b) => b.type !== 'level_xp');
+    const levelXpPm = Math.round(10 * (cell.buffs || []).filter((b) => b.type === 'level_xp').reduce((a, b) => a + (Number(b.magnitude) || 0), 0));
     for (let seed = 0; seed < cell.seeds; seed++) {
       let left = cell.hours * 3600000, seg = 0;
       for (const h of H) h.wallHours += cell.hours;
@@ -446,7 +449,10 @@ export async function loadCellRunner(root) {
           bar: seats ? (role, i) => (seats[i].bar ? JSON.parse(JSON.stringify(seats[i].bar)) : asPlayed ? playedBarFor(role, i) : barFor(cell.ground, cell.bar || {})) : cell.startBar ? () => JSON.parse(JSON.stringify(START_BAR)) : cell.bar || cell.slotsByRole
             ? (role) => barFor(cell.ground, cell.bar || {}).concat(JSON.parse(JSON.stringify((cell.slotsByRole && cell.slotsByRole[role]) || []))) : asPlayed ? playedBarFor : undefined,
           bag: seats ? (role, i) => (seats[i].bag ? JSON.parse(JSON.stringify(seats[i].bag)) : asPlayed ? playedBagFor(role, i) : bagFor(cell.ground, cell.supply || 'store', kits[i], null)) : asPlayed ? playedBagFor : (role, i) => bagFor(cell.ground, cell.supply || 'store', kits[i], cell.bagByRole && cell.bagByRole[role]),
-          buffs: cell.buffs ? () => buffRows(cell.buffs, span / 3600000) : undefined,
+          buffs: engineBuffs.length ? () => buffRows(engineBuffs, span / 3600000) : undefined,
+          /* a Level XP row (the sitting's S-4: a clan room's standing bonus) is no engine buff type: it rides m.perks.levelXpPm, the seam the
+             scratch hook patches/level-xp-hook.json reads (a tree without it plays it as nothing) */
+          ...(levelXpPm ? { levelXpPm } : {}),
           start: cell.skillsBySeat || cell.startBySeat ? startFor : undefined,
           /* the box "Leave if anyone leaves the hunt or dies": 'real' follows 27-1 as amended (own heroes: OFF unless the cell sets
              `endTogether`); the legacy rule kept the old default (ON for a party unless `leaveTogether: false`) */
@@ -497,7 +503,7 @@ export async function loadCellRunner(root) {
       /* the death rule, Blessings, the timed buffs (server rows), the purse and the stamina bar (cell.mjs header) */
       talents: Array.isArray(cell.talentsBySeat) ? clone(cell.talentsBySeat) : null,
       deathRule: cell.deathRule || 'reenter', dropEnded: opts.dropEnded === true, blessings: Number.isInteger(cell.blessings) ? cell.blessings : 0,
-      buffs: opts.buffs ? opts.buffs() : null, gold: Number.isInteger(opts.gold) ? opts.gold : null, session: opts.session ? opts.session() : null };
+      buffs: opts.buffs ? opts.buffs() : null, levelXpPm: opts.levelXpPm || 0, blessedShare: Number.isFinite(cell.blessedShare) ? cell.blessedShare : null, gold: Number.isInteger(opts.gold) ? opts.gold : null, session: opts.session ? opts.session() : null };
   }
 
   /* THE CELL'S METRICS (the ruling's §11 list), per hero and per party, compact enough to keep thousands of cells. */
@@ -529,7 +535,7 @@ export async function loadCellRunner(root) {
         /* THE DEATH RULE'S READS: the hours the seeds offered, the share of them hunted, the hours lost after a hunt ended early, deaths a
            hunted hero-hour, and Level XP after deaths (the Blessings' cut applied) a hero-hour of the time offered */
         wallHours: round(h.wallHours, 2), huntedShare: h.wallHours > 0 ? round(h.hours / h.wallHours, 4) : null, lostHours: round(Math.max(0, h.wallHours - h.hours), 3),
-        deathsPerHeroH: h.hours > 0 ? round(h.deaths / h.hours, 4) : null,
+        deathsPerHeroH: h.hours > 0 ? round(h.deaths / h.hours, 4) : null, sessionsEndedEarly: Object.values(h.ended).reduce((a, n) => a + n, 0),
         xpAfterDeathsPerWallH: h.wallHours > 0 ? round((h.levelXp - h.xpLostLevelBlessed) / h.wallHours, 0) : null, blessingGoldPerH: per(h.blessingGold),
         dealtPerH: per(h.dealt), dps: round(h.dealt / (hr * 3600), 2), dealtBy: h.dealtBy,
         takenPerH: per(h.taken), takenBy: Object.fromEntries(Object.entries(h.takenBy).sort((a, b) => b[1] - a[1]).slice(0, 6)),

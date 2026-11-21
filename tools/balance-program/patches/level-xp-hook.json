@@ -1,0 +1,14 @@
+{
+ "schema": "hearthrise.balance-patch/1",
+ "name": "S-4: the seam a clan room's standing Level XP bonus drops into (the sitting, RULED 2026-11-21, option A; size not designed)",
+ "why": "Tyler 2026-11-21 (review/01-sitting.md S-4, A): a clan room pays a standing Level XP bonus, size still to be designed. The engine has no Level XP buff on a hunt (the buff types pay skill and gather XP), so this plants one seam on the scratch copy: a kill's Level XP times 1 + perks.levelXpPm / 1000. A cell carries it as a buff row { type: 'level_xp', magnitude: percent } (cell.mjs). No cell sets one until the size is designed, so today it moves nothing",
+ "kind": "identity",
+ "targets": [],
+ "edits": [
+  {
+   "file": "src/core/member.js",
+   "from": "    addLevelXp(amt, raw, ev) {\n      const n = Math.max(0, Math.floor(Number(amt) || 0));",
+   "to": "    addLevelXp(amt, raw, ev) {\n      const n = Math.max(0, Math.floor((Number(amt) || 0) * (1 + ((mi.perks && mi.perks.levelXpPm) || 0) / 1000)));"
+  }
+ ]
+}

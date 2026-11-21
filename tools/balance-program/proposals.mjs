@@ -124,6 +124,23 @@ const STATIC = {
         to: "  const def = Math.floor(((Number(levelsOf(state.skills).defense) || 1) + skillPlusOf(c.eq, 'defense') + (Number(c.eq.guardB) || 0)) * (1 + ((c.talents && c.talents.footing) || 0) / 1000));" },
     ],
   },
+  'patches/party-xp-by-size.json': {
+    name: 'S-10: party XP by party size alone for the first build (the sitting, RULED 2026-11-21, option C)',
+    why: 'Tyler 2026-11-21 (review/01-sitting.md S-10, C): "Size alone for the first build", the classes rule may return as one row after Deadly is sized on a fixed tool. Every party reads its size\'s cell whatever classes it holds; the cell is the one a mixed party reads today (880/1500 a pair, 1700 a three and a four), so the standard four is unchanged and a one-class party rises to it. The SIZE values are a HYPOTHESIS until the size table is written; the lineup cells stay a report of which fours win',
+    kind: 'derivation', targets: ['pace'],
+    edits: [
+      { file: 'src/data/party-class-xp.js', from: '  const cell = cells[Math.min(Math.max(classes.length, 1), cells.length) - 1];', to: '  const cell = cells[cells.length - 1];' },
+    ],
+  },
+  'patches/level-xp-hook.json': {
+    name: 'S-4: the seam a clan room\'s standing Level XP bonus drops into (the sitting, RULED 2026-11-21, option A; size not designed)',
+    why: 'Tyler 2026-11-21 (review/01-sitting.md S-4, A): a clan room pays a standing Level XP bonus, size still to be designed. The engine has no Level XP buff on a hunt (the buff types pay skill and gather XP), so this plants one seam on the scratch copy: a kill\'s Level XP times 1 + perks.levelXpPm / 1000. A cell carries it as a buff row { type: \'level_xp\', magnitude: percent } (cell.mjs). No cell sets one until the size is designed, so today it moves nothing',
+    kind: 'identity', targets: [],
+    edits: [
+      { file: 'src/core/member.js', from: '    addLevelXp(amt, raw, ev) {\n      const n = Math.max(0, Math.floor(Number(amt) || 0));',
+        to: '    addLevelXp(amt, raw, ev) {\n      const n = Math.max(0, Math.floor((Number(amt) || 0) * (1 + ((mi.perks && mi.perks.levelXpPm) || 0) / 1000)));' },
+    ],
+  },
   'patches/R10-gear-curve.json': {
     name: 'The gear curve past tier 7 (60 G-4, 44 R10 and R11, 47 C20): a band every +24%, the line linear in the band\'s Level',
     why: 'From Level 110 a MID or BiS hero\'s weapon and armor are the line (the Dawnsteel row x the band Level / 110) at the band at or under its Level: 110, 136, 169, 210, 260, 322, 400 and on by +24%. LOW wears one band back. HYPOTHESIS: the band size until one band is played; uniques spending a budget (R11) and jewelry as a 6% share are not modelled',

@@ -14,7 +14,7 @@
 // Every number is read off the engine's answer (tools/balance-sim/cell.mjs runCell); nothing here computes a fight.
 // ════════════════════════════════════════════════════════════════════════
 import * as STD from './standards.mjs';
-import { cellRates, compsOf } from './progression-grid.mjs';
+import { cellRates, compsOf, BLESSING_LADDER } from './progression-grid.mjs';
 import { judgeGrid, statusOf, distanceOf } from './grid-derive.mjs';
 import { ARCHETYPE_AXES } from './matrix-plan.mjs';
 import { STYLE_GROUPS } from './knob-rules.mjs';
@@ -124,7 +124,7 @@ export function cellMetrics(D, meta, seeds, arch = {}) {
 
 /* ── ACROSS CELLS ──────────────────────────────────────────────────────────────────────────────────────────────────────────────── */
 /* Blessings 4 to 7 open at these Levels (60 G-7: where a fully blessed death passes about five of the pace seat's hours, MEASURED there) */
-export const BLESSING_LADDER = Object.freeze([100, 185, 275, 400]);
+export { BLESSING_LADDER };
 export const LEVEL_BANDS = Object.freeze([['early', 1, 45], ['mid', 46, 110], ['late', 111, 400], ['high', 401, Infinity]]);
 export const levelBand = (L) => LEVEL_BANDS.find(([, a, b]) => L >= a && L <= b)[0];
 export const wayOf = (c) => (c.party === 1 ? c.styles[0] : 'party:' + c.comp);

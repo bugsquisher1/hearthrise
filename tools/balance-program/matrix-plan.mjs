@@ -66,6 +66,10 @@ export const BUFF_BLOCK = Object.freeze({ id: 'buff', levels: Object.freeze([30,
   variants: Object.freeze([Object.freeze({ tag: 'buff:damage10', buffs: Object.freeze([Object.freeze({ type: 'damage', magnitude: 10 })]) })]) });
 export const BINDS_BLOCK = Object.freeze({ id: 'binds', levels: Object.freeze([60, 110]), comps: [lone('hammer'), lone('mage')], gears: ['mid'], tiers: ['normal'],
   variants: Object.freeze([Object.freeze({ tag: 'stamina:half', staminaShare: 0.5 }), Object.freeze({ tag: 'purse:0', purse: 0, goldFloor: 300 })]) });
+/* THE LEAVE RULE (the sitting S-6, RULED 2026-11-21: Deadly's death band and its lost hours stand; run both party defaults): the standard four on
+   the harder tiers with every hero coming home on a death, beside the default where the rest hunt on (the four block) */
+export const LEAVE_BLOCK = Object.freeze({ id: 'leave', comps: compsOf(4), gears: ['mid'], tiers: ['dangerous', 'hardest'],
+  variants: Object.freeze([Object.freeze({ tag: 'leave:together', endTogether: true })]) });
 export const TRACKS_BLOCK = Object.freeze({ id: 'tracks', tracks: true, comps: [lone('hammer'), ...compsOf(4)], gears: ['mid'], tiers: ['normal'] });
 /* THE TALENT BUILDS (10-level-choices.md section 8.3; tools/balance-program/talents.mjs BUILDS): every lone way alone on Normal and the standard four on
    the hardest tier, MID, at Levels 25, 60, 110, 185 and 400, on the suggested build (S, the reference, its own cell here) and each contrast:
@@ -86,7 +90,7 @@ export const RUNS = Object.freeze({
     { id: 'parties', comps: [2, 3, 4].flatMap((n) => compsOf(n)), gears: STD.GEAR_STATE_IDS, tiers: 'all' },
     { id: 'steps', comps: [lone('hammer'), ...compsOf(4)], steps: true, tiers: ['normal'] },
     LINEUP_BLOCK,
-    BUFF_BLOCK, BINDS_BLOCK, TRACKS_BLOCK, TALENT_BLOCK,
+    BUFF_BLOCK, BINDS_BLOCK, TRACKS_BLOCK, TALENT_BLOCK, LEAVE_BLOCK,
     { id: 'grounds', grounds: true },
   ]) }),
   /* the representative subset (a --diff in a few minutes): every way, every gear state, lone and four, Normal, Dangerous and the hardest tier, every
@@ -99,7 +103,7 @@ export const RUNS = Object.freeze({
     { id: 'four', comps: compsOf(4), gears: STD.GEAR_STATE_IDS, tiers: ['normal', 'dangerous', 'hardest'] },
     { id: 'steps', comps: [lone('hammer')], steps: true, tiers: ['normal'] },
     LINEUP_BLOCK,
-    BUFF_BLOCK, BINDS_BLOCK, TRACKS_BLOCK, TALENT_BLOCK,
+    BUFF_BLOCK, BINDS_BLOCK, TRACKS_BLOCK, TALENT_BLOCK, LEAVE_BLOCK,
   ]) }),
   /* Balance Lab v3's LIVE cells (a slider move re-plays them in the browser, on the bundled engine): every way alone and the four on every tier,
      MID, early, at the end of open content and PROJECTED, a quarter hour on one seed. tools/balance-lab/build.mjs --v3

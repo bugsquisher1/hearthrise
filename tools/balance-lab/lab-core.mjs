@@ -193,6 +193,7 @@ function playHunt(huntId, levels, roles, o) {
   if (o.temper) for (const m of members) m.perks = { temper: o.temper };
   /* o.talents: each seat's Talents on m.perks.talents (play-ground.mjs, the same line) */
   if (o.talents) members.forEach((m, i) => { if (o.talents[i]) m.perks = { ...(m.perks || {}), talents: clone(o.talents[i]) }; });
+  if (o.levelXpPm > 0) for (const m of members) m.perks = { ...(m.perks || {}), levelXpPm: o.levelXpPm };
   /* o.buffs: the server's timed buff rows, fresh for every hero (the engine drains them) */
   if (o.buffs) for (const m of members) m.buffs = clone(o.buffs);
   let world = null, next = T0, played = 0;
@@ -279,7 +280,10 @@ export function playCell(cell, seeds, hooks = {}) {
   const S = R || cell;
   const real = S.deathRule === 'real';
   const blessings = Number.isInteger(S.blessings) ? S.blessings : 0;
-  const blessedShare = 1 - (blessings ? BLESSING_CUT_PERMILLE[blessings - 1] : 0) / 1000;
+  const blessedShare = Number.isFinite(S.blessedShare) ? S.blessedShare : 1 - (blessings ? BLESSING_CUT_PERMILLE[blessings - 1] : 0) / 1000;
+  /* a Level XP row (S-4) rides m.perks.levelXpPm, never the engine's buff rows (cell.mjs, the same split) */
+  const levelXpPm = R ? R.levelXpPm || 0 : Math.round(10 * (cell.buffs || []).filter((b) => b.type === 'level_xp').reduce((a, b) => a + (Number(b.magnitude) || 0), 0));
+  const engineBuffs = R ? R.buffs : (cell.buffs || []).filter((b) => b.type !== 'level_xp');
   const blessingsPrice = (L) => { let g = 0; for (let t = 1; t <= blessings; t++) g += blessingPrice(t, L) || 0; return g; };
   const totalMs = list.length * cell.hours * 3600000;
   let doneMs = 0;
@@ -454,7 +458,7 @@ export function playCell(cell, seeds, hooks = {}) {
         bag: (role, i) => bagFor(cell.ground, cell.supply || 'store', kits[i], cell.bagByRole && cell.bagByRole[role]),
         start: cell.skillsBySeat || cell.startBySeat ? startFor : null,
         leaveTogether: real ? party.length > 1 && cell.endTogether === true : party.length > 1 && cell.leaveTogether !== false, dropEnded: real,
-        buffs: S.buffs ? S.buffs.map((b) => ({ type: b.type, magnitude: b.magnitude, until: b.until ?? T0 + BUFF_MAX_UNTIL_MS })) : null, gold: Number.isInteger(S.gold) ? S.gold : Number.isFinite(cell.purse) ? Math.max(0, Math.round(cell.purse)) : null,
+        buffs: engineBuffs && engineBuffs.length ? engineBuffs.map((b) => ({ type: b.type, magnitude: b.magnitude, until: b.until ?? T0 + BUFF_MAX_UNTIL_MS, ...(b.from !== undefined ? { from: b.from } : {}) })) : null, levelXpPm, gold: Number.isInteger(S.gold) ? S.gold : Number.isFinite(cell.purse) ? Math.max(0, Math.round(cell.purse)) : null,
         session: S.session || (Number.isFinite(cell.staminaH) || Number.isInteger(cell.goldFloor) ? { ...(Number.isFinite(cell.staminaH) ? { staminaMs: Math.round(cell.staminaH * 3600000), staminaMaxMs: Math.max(Math.round(cell.staminaH * 3600000), 12 * 3600000) } : {}), ...(Number.isInteger(cell.goldFloor) ? { goldFloor: cell.goldFloor } : {}) } : null),
         options: cell.options ? (role, i) => (Array.isArray(cell.options) ? cell.options[i] : cell.options) : null,
         density: Number.isInteger(cell.density) ? cell.density : null,
@@ -546,7 +550,7 @@ export function summarise(cell, totals) {
       deaths: h.deaths, deathsPer1000h: deaths, killers: h.killers,
       levelXpLostPerDeath: round(lostMean, 0), deathCostHours: lostMean !== null && xph > 0 ? round(lostMean / xph, 2) : null,
       wallHours: round(h.wallHours, 2), huntedShare: h.wallHours > 0 ? round(h.hours / h.wallHours, 4) : null, lostHours: round(Math.max(0, h.wallHours - h.hours), 3),
-      deathsPerHeroH: h.hours > 0 ? round(h.deaths / h.hours, 4) : null,
+      deathsPerHeroH: h.hours > 0 ? round(h.deaths / h.hours, 4) : null, sessionsEndedEarly: Object.values(h.ended).reduce((a, n) => a + n, 0),
       xpAfterDeathsPerWallH: h.wallHours > 0 ? round((h.levelXp - h.xpLostLevelBlessed) / h.wallHours, 0) : null, blessingGoldPerH: per(h.blessingGold),
       dealtPerH: per(h.dealt), dps: round(h.dealt / (hr * 3600), 2), dealtBy: h.dealtBy,
       takenPerH: per(h.taken), takenBy: Object.fromEntries(Object.entries(h.takenBy).sort((a, b) => b[1] - a[1]).slice(0, 6)),

@@ -47,12 +47,16 @@
 // would fold rows the database no longer holds.
 //
 // Exit: 0 in sync · 1 drift · 2 harness problem.
+//   · HIDDEN, NEVER DROPPED (T-12, X-04; tests/_clan-hidden.mjs): the feast calls that read this catalogue are the castle's,
+//     kept on the replayed chain and hidden from every request role by 1036-social-clans.sql, whose executed self-check proves a
+//     client calling one is refused.
 // ════════════════════════════════════════════════════════════════════════
 
 import { readFile } from 'node:fs/promises';
 import { join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isMain } from './_is-main.mjs';
+import { hiddenProblems } from './_clan-hidden.mjs';
 import { loadApplyOrder } from '../tools/lib/apply-order.mjs';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
@@ -144,6 +148,9 @@ export async function feastCatalogueDriftGuard(opts = {}) {
   for (const [id, heals] of fromSql) {
     if (!fromData.has(id)) problems.push(`${seededBy.get(id)} seeds "${id}" (heals ${heals}) — NOT a feast-eligible food in items.js`);
   }
+
+  // ── T-12: the feast calls that read this catalogue are the castle's, hidden from every client and never dropped (1036-social-clans.sql, X-04) ──
+  for (const p of hiddenProblems(['clan_feast_call', 'clan_feast_call__ungated', 'clan_feast_deposit', 'clan_feast_deposit__ungated'])) problems.push('T-12 ' + p);
 
   if (opts.report) problems.unshift(`  note  seeds read, in apply order: ${files.join(' → ')}`);
   return problems;

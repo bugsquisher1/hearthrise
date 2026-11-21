@@ -20,6 +20,9 @@
 //     lock, advances the meter by the SERVER's heal value, and refuses when the
 //     caller lacks the food or names a non-food item;
 //   · buy_listing / buy_listing__ungated no longer exist and cannot be called.
+//   · HIDDEN, NEVER DROPPED (T-12, X-04; tests/_clan-hidden.mjs): clan_contribute and clan_feast_deposit (and their __ungated twins) are the castle's,
+//     kept on the replayed chain and hidden from every request role by 1036-social-clans.sql, whose executed
+//     self-check proves a client calling one is refused. The castle (chapter 14) builds on them.
 //
 // NOT PROVEN
 //   · TRUE CONCURRENCY (PGlite is one backend — advisory locks are exercised,
@@ -31,6 +34,7 @@
 import { join } from 'node:path';
 import { bootChain, ROOT } from './pglite-chain.mjs';
 import { isMain } from './_is-main.mjs';
+import { hiddenProblems, hiddenSelftest } from './_clan-hidden.mjs';
 
 const MIG = join(ROOT, 'supabase', 'migrations', '2026-08-27-clan-economy-sinks.sql');
 
@@ -245,6 +249,12 @@ async function run() {
   try { await db.query("select public.buy_listing('00000000-0000-0000-0000-000000000000'::uuid, 1)"); }
   catch { threw = true; }
   check('E15 calling buy_listing throws (the RPC is unreachable)', threw, `threw=${threw}`);
+
+  // ── T-12 · the castle's calls above are hidden from every client and never dropped ──
+  const hid = hiddenProblems(['clan_contribute', 'clan_contribute__ungated', 'clan_feast_deposit', 'clan_feast_deposit__ungated']);
+  check('E16 contribute and feast are hidden from every client, never dropped (1036-social-clans.sql, X-04)', hid.length === 0, hid.join('; '));
+  const bite = hiddenSelftest();
+  check('E17 the hidden check bites: a dropped call, an unhidden call, an unproved call and an open call are each a finding', bite.length === 0, bite.join('; '));
 
   return { out };
 }

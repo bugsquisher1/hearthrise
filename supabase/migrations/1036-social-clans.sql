@@ -33,7 +33,8 @@
 --   hr_chat_recent RESTATED WHOLE: Global, the party, the clan and System; no zone. Answers `party` and `clan` (the channels to show).
 --   hr_chat_broadcast RESTATED WHOLE: a Global line is no longer pushed one by one (hr_chat_global_flush sends it in a batch); a clan line
 --        reaches each member's own inbox, never the sender's, never a member who blocked the sender; a party line as before.
---   hr_chat_topic RESTATED: chat:global and chat:system only. hr_realtime_policies RESTATED and run: the chat:local clause goes.
+--   hr_chat_topic RESTATED: chat:global and chat:system only. hr_chat_zone_of RESTATED: 'system' (a powder's notice on the Hearth,
+--        its one writer left, reaches the System tab, not a Local channel nobody hears). hr_realtime_policies RESTATED and run: the chat:local clause goes.
 --   hr_chat_global_flush (NEW, pg_cron hr-chat-global each every_s seconds): the Global lines older than settle_s since the last batch,
 --        at most max_lines, as ONE broadcast {t:'lines', lines:[...]} on chat:global; the cursor advances in the same statement.
 --   hr_chat_flush (NEW): the cursor, one row.
@@ -93,7 +94,8 @@ begin
     ('public.hr_chat_send(integer,text,text)', 'bb01f726ababc0d970db3a80741a39ef'),
     ('public.hr_chat_recent(integer)', '18f8c572d31b07a561c212556e6a5877'),
     ('public.hr_chat_broadcast()', '7181202283c7e8ed0b29a8abcff8aa22'),
-    ('public.hr_chat_topic(text)', '8b4ab32f504d3925150baddd8d4ddec5')) t(fn, pre) loop
+    ('public.hr_chat_topic(text)', '8b4ab32f504d3925150baddd8d4ddec5'),
+    ('public.hr_chat_zone_of(uuid,integer)', '46d40d8d663da418006698a0b2888d71')) t(fn, pre) loop
     v_def := pg_get_functiondef(v_r.fn::regprocedure);
     if md5(regexp_replace(v_def, '[[:space:]]+', ' ', 'g')) is distinct from v_r.pre and strpos(v_def, 'SOCIAL-CLANS (1036-social-clans.sql)') = 0 then
       raise exception 'PIN: % is neither its expected image (%) nor this file''s: md5 % - another file moved it', v_r.fn, v_r.pre,
@@ -484,6 +486,14 @@ begin
     where not exists (select 1 from public.chat_blocks b where b.blocker_id = v_uid and b.blocked_id = x.from_id)), '[]'::jsonb));
 end $fn$;
 
+-- NO LOCAL CHANNEL (GR-69): the one writer that still named a zone, a powder's notice on the Great Hearth (2027-02-27-town-shows.sql
+-- hr_town_show), now writes to the System tab, beside a named fuel's burn (2027-01-31-inner-flame.sql).
+create or replace function public.hr_chat_zone_of(p_user uuid, p_slot integer)
+returns text language sql stable set search_path = public, pg_catalog as $fn$
+  -- SOCIAL-CLANS (1036-social-clans.sql): no Local (GR-69); a town notice is the world's news.
+  select 'system'::text
+$fn$;
+
 create or replace function public.hr_chat_topic(p_channel text)
 returns text language sql immutable set search_path = public as $fn$
   -- SOCIAL-CLANS (1036-social-clans.sql): the public topics are Global and System; party and clan lines go to the members' inboxes.
@@ -771,6 +781,7 @@ begin
     v := public.hr_chat_send(0, 'clan', 'zq clan probe line');
     if coalesce(v->>'ok', '') <> 'true' or v->'line'->>'channel' <> 'clan:' || v_clan::text then raise exception 'social-clans §5(e): the clan line read %', v; end if;
     if public.hr_chat_send(0, 'local', 'zq local')->>'error' is distinct from 'bad_channel' then raise exception 'social-clans §5(e): Local still takes a line'; end if;
+    if public.hr_chat_zone_of(c_a, 0) is distinct from 'system' then raise exception 'social-clans §5(e): a town notice still names a zone'; end if;
     perform set_config('request.jwt.claim.sub', c_b::text, true);
     v := public.clan_kick(c_c, 0);
     if coalesce(v->>'ok', '') <> 'true' then raise exception 'social-clans §5(d): the officer could not remove a member: %', v; end if;

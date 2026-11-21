@@ -532,7 +532,7 @@ async function run(mutate) {
     const byId = new Map(view.map((r) => [r.item_id, r]));
     for (const id of banned) ok(byId.has(id) && byId.get(id).listable === false, `M5 DRIFT: src/data names ${id} in the kit/premium and the server lists it`);
     /* NO PREMIUM ITEM. The bond (hearth_token, premium:true) and the market's list of premium items were cut 2026-11-20
-       (1016-approved-cuts.sql, plan L10): Crowns are a number on the account, never an item. An item marked premium:true again
+       (1027-approved-cuts.sql, plan L10): Crowns are a number on the account, never an item. An item marked premium:true again
        would have no market rule refusing it, so it is red here until one is built with it. */
     const premiumItems = Object.keys(ITEMS).filter((id) => ITEMS[id].premium === true);
     ok(premiumItems.length === 0, `M5: ${premiumItems.join(', ')} is premium:true, and the market has no premium-item rule since the bond was cut`);

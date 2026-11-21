@@ -127,7 +127,7 @@ const RESTATED_AFTER = Object.freeze({ hr_hunt_view: '2027-02-18-party-truth.sql
 /* Bodies a LATER file DROPPED with the system they served (the approved cuts, Tyler 2026-11-20, plan L10: the old dungeons'
    cooldown read and the gem rows' entitlement read). No settle calls them at the chain end, and their SQL pre-images read tables
    that file drops too, so there is nothing to restore and nothing to compare: SB-4 plants the other pre-images. */
-const CUT_AFTER = Object.freeze({ hr_dungeon_cooldowns: '1016-approved-cuts.sql', hr_gem_unlocks_of: '1016-approved-cuts.sql' });
+const CUT_AFTER = Object.freeze({ hr_dungeon_cooldowns: '1027-approved-cuts.sql', hr_gem_unlocks_of: '1027-approved-cuts.sql' });
 /** The pre-image DDL the lane's files carry (their pg_temp copies), renamed back to the public functions they were. */
 export function preImages() {
   const out = [];

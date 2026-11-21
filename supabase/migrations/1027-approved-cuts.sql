@@ -1,12 +1,12 @@
 -- ════════════════════════════════════════════════════════════════════════
--- supabase/migrations/1016-approved-cuts.sql — THE APPROVED CUTS: the old dungeons and the scrip whole, the gem rows and the
+-- supabase/migrations/1027-approved-cuts.sql — THE APPROVED CUTS: the old dungeons and the scrip whole, the gem rows and the
 --   gem RPC, the premium bond, and the Discord gift code (lane/c-approved-cuts, backend-architect, 2026-11-20).
 --
--- STATUS: supabase/migration-notes/1016-approved-cuts.sql.json (STAGED until the Coordinator applies it).
--- ORDER: the sequence in this file's name (CLAUDE.md rule 12): it runs after every file on its base (lane/c-approved-rows' 1009-1015
---   included). This lane's items, tally and unlock catalogues (1017, 1019, 1020) run AFTER it, so the bond's start-kit column is gone
---   before a catalogue upserts the kit without it; the Shop's bids on the cut items leave earlier, folded into the STAGED
---   1012-approved-rows-hunt-sessions-catalogue (one forward file per generator).
+-- STATUS: supabase/migration-notes/1027-approved-cuts.sql.json (STAGED until the Coordinator applies it).
+-- ORDER: the sequence in this file's name (CLAUDE.md rule 12): it runs after every file on its base (the set's 1009-1026 included).
+--   This lane's items, tally and unlock catalogues (1028, 1029, 1030) run AFTER it, so the bond's start-kit column is gone before a
+--   catalogue upserts the kit without it; the Shop's bids on the cut items leave earlier, folded into the STAGED hunt-sessions
+--   forward files 1012-approved-rows and 1021-tohit-ratio (one forward file per generator).
 -- Applied as ONE transaction by the apply tool; never begin/commit here. Ends with its §7 self-check.
 --
 -- ── WHY (Tyler 2026-11-20, the balance program's rulings; build plan L10) ─────────────────────────────────────────────────
@@ -36,7 +36,7 @@
 --    image, nothing else), and NOTHING STRANDED.
 -- §1 THE ENVELOPE: hr_state_of restated WHOLE from the live image (md5 e0a71bfe…, 2027-01-18-dead-surfaces-cut.sql's),
 --    removing exactly `dungeon_cooldowns`, `state.dungeon_scrip`, `state.hearth_tokens` and `gem_unlocks` with their comment
---    blocks (tests/chain-removals/1016-approved-cuts.mjs, generated from the diff). hr_server_now restated without
+--    blocks (tests/chain-removals/1027-approved-cuts.mjs, generated from the diff). hr_server_now restated without
 --    `live_event_key`. Every other key, expression and comment is byte-identical.
 -- §2 THE OLD DUNGEONS AND THE SCRIP: six functions, three tables, the ledger's partial index for kind 'dungeon', and
 --    player_state.dungeon_scrip. The journal's old 'dungeon' rows (none live) stay: the ledger is append-only.

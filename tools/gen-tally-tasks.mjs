@@ -57,9 +57,9 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
    of the same tables, for the same reason. No function body moves; no task, piece, material or gold moves. ORDER: after this lane's items
    catalogue. */
 /* THE APPROVED CUTS (lane/c-approved-cuts, 2026-11-20; build plan L10): the three boss-forged body pieces leave hr_items
-   (1017-approved-cuts-items-catalogue), so the tier book loses their rows in this forward file, the same full rewrite of the same
-   tables. No task, piece, material or gold moves. ORDER: after 1017. */
-export const OUT_FILE = '1019-approved-cuts-tally.generated.sql';
+   (1028-approved-cuts-items-catalogue), so the tier book loses their rows in this forward file, the same full rewrite of the same
+   tables. No task, piece, material or gold moves. ORDER: after 1028. */
+export const OUT_FILE = '1029-approved-cuts-tally.generated.sql';
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_FILE);
 
 /**

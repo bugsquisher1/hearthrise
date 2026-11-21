@@ -189,10 +189,10 @@ const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'))
 /* THE APPROVED CUTS (lane/c-approved-cuts, backend-architect 2026-11-20; Tyler's rulings 22-10, 24-5, 27-7, build plan L10):
    2027-06-05-harder-monsters-items-catalogue (APPLIED) is the file before this one and this one carries it whole. hr_items loses the
    Hearth Token (the bond) and the three boss-forged body pieces (src/data/boss-forge.js, cut with the old dungeons); hr_item_slots
-   loses the three pieces' body rows; hr_start_kit is upserted without hearth_tokens (1016-approved-cuts.sql drops that column) and
-   the grant-source check no longer reads the dropped hr_dungeon_loot / hr_qm_offers. ORDER: after 1016-approved-cuts.sql (the
-   column and the two tables are gone first) and after 1012-approved-rows-hunt-sessions-catalogue (the Shop's bids on the four leave there). */
-const OUT = join(ROOT, 'supabase', 'migrations', '1017-approved-cuts-items-catalogue.generated.sql');
+   loses the three pieces' body rows; hr_start_kit is upserted without hearth_tokens (1027-approved-cuts.sql drops that column) and
+   the grant-source check no longer reads the dropped hr_dungeon_loot / hr_qm_offers. ORDER: after 1027-approved-cuts.sql (the
+   column and the two tables are gone first) and after 1021-tohit-ratio-hunt-sessions-catalogue (the Shop's bids on the four leave there and in 1012). */
+const OUT = join(ROOT, 'supabase', 'migrations', '1028-approved-cuts-items-catalogue.generated.sql');
 /* THE SECOND GENERATED FILE (2026-09-13). hr_item_buffs is emitted as its own
    migration rather than into OUT above, and that is a deliberate operational
    call: OUT is the FOURTH file in tests/schema-apply-order.json and is already

@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 // mutant-rule-functions: pure
-// mutant-runner-functions: main planted
 // ════════════════════════════════════════════════════════════════════════
 // tests/hunt-screen-pure.mjs — THE HUNT SCREEN'S RULES THAT NEED NO BROWSER, PROVEN IN NODE.
 //
@@ -13,7 +12,7 @@
 // ci-run: node tools/mutant-gate.mjs node tests/hunt-screen-pure.mjs --mutate
 //
 // mutant-anchors: src/shell/action-facts.js src/shell/bar-draft.js src/shell/action-table.js src/session/hunt-sections.js src/hunt-view/summary-model.js src/session/character-session.js src/shell/hunt-go.js src/shell/hunt-list.js src/data/combat-text.js
-// mutant-writes-tree: no — every mutant is planted into a temp copy of src (planted)
+// mutant-writes-tree: no — every mutant is planted into a temp copy of src (tests/_pure-guard.mjs planted)
 //
 // WHY (architecture audit item 8, "rules proven in Node, not the browser"; lane/c-rules-in-node 2026-11-20). tests/hunt-screen.mjs
 // was the most expensive guard CI runs: nightly 44730692384 spent 16,400 job-seconds on it (1,398 plain + 15,002 across 13
@@ -55,17 +54,13 @@
 //         a new food slot starts with its HP test; Hunt prep reads a store food per use; the tier note is the tier's plain
 //         line (no number), the line beside Enter its first sentence, the facts line the server's pull
 // ════════════════════════════════════════════════════════════════════════
-import { mkdtempSync, cpSync, writeFileSync, rmSync, readFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join, dirname } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { mock } from 'node:test';
 import { withServerLevel } from './_server-level.mjs';
-import { judge, report, exitOf, cleanControl } from './_mutant-verdict.mjs';
-import { scopedMutants } from '../tools/lib/mutant-scope.mjs';
+import { ROOT, runPureGuard } from './_pure-guard.mjs';
 
-const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const GUARD = 'tests/hunt-screen-pure.mjs';
 const FIXTURE = JSON.parse(readFileSync(join(ROOT, 'tests/fixtures/hunt-envelope.json'), 'utf8'));
 const clone = (o) => JSON.parse(JSON.stringify(o));
 const UID = '11111111-2222-3333-4444-555555555555';
@@ -519,50 +514,6 @@ const MUTANTS = [
   ['a re-read that crossed the residue put drops the card (HS-25)', 'src/session/character-session.js', 'this._pending = {}; this._sent = Object.assign({}, this._sent, patch);', 'this._pending = {};'],
 ];
 
-/** A temp copy of src (the vendored SDK left out) with `over` (file -> text) written in, the rules run from it, the copy removed. */
-async function planted(over) {
-  const tmp = mkdtempSync(join(tmpdir(), 'hr-hunt-screen-pure-'));
-  try {
-    cpSync(join(ROOT, 'src'), join(tmp, 'src'), { recursive: true, filter: (p) => !/[\\/]vendor([\\/]|$)/.test(p.slice(ROOT.length)) });
-    for (const [f, text] of Object.entries(over)) writeFileSync(join(tmp, f), text);
-    return await pure(tmp);
-  } finally { rmSync(tmp, { recursive: true, force: true }); }
-}
-
-async function main() {
-  if (!process.argv.includes('--mutate')) {
-    const fails = await pure(ROOT);
-    for (const f of fails) console.log('  ✗ ' + f);
-    console.log(fails.length ? 'hunt-screen-pure: ' + fails.length + ' rule(s) RED'
-      : 'hunt-screen-pure: the hunt screen\'s pure rules hold (HS-27, HS-4, HS-5, HS-7, HS-19, HS-20, HS-24, HS-25, HS-11, HS-8)');
-    return fails.length ? 1 : 0;
-  }
-  const at = process.argv.indexOf('--only');
-  const words = at > 0 ? process.argv[at + 1] : null;
-  const picked = MUTANTS.filter(([name]) => !words || name.includes(words));
-  if (!picked.length) { console.log('  ✗ --only ' + words + ' selects no mutant'); return 2; }
-  /* A gated push proves only the mutants its diff touches (tools/lib/mutant-scope.mjs); the nightly proves them all. */
-  const mine = scopedMutants(GUARD, picked);
-  if (!mine.length) return 0;
-  /* Two controls: the repository's rules green, and the same rules green from a temp copy with nothing planted (a copy that
-     cannot load would make every mutant read as caught). */
-  for (const [label, run] of [['', () => pure(ROOT)], [' (a temp copy of src, nothing planted)', () => planted({})]]) {
-    const clean = await cleanControl(run);
-    console.log(clean.line + label);
-    if (clean.code) return clean.code;
-  }
-  const counts = { caught: 0, harness: 0, escaped: 0 };
-  for (const [name, file, from, to] of mine) {
-    let text = readFileSync(join(ROOT, file), 'utf8');
-    const pairs = Array.isArray(from) ? from : [[from, to]];
-    const missing = pairs.find(([x]) => !text.includes(x));
-    if (missing) { console.log('  ✗ ' + name + ' — HARNESS: anchor not found in ' + file); counts.harness++; continue; }
-    for (const [x, y] of pairs) text = text.replace(x, y);
-    console.log(report(name, await judge(() => planted({ [file]: text })), counts));
-  }
-  console.log(exitOf(counts) ? 'hunt-screen-pure --mutate: ' + counts.escaped + ' escaped, ' + counts.harness + ' HARNESS (not catches)'
-    : 'hunt-screen-pure --mutate: ' + mine.length + '/' + mine.length + ' mutants caught, each by a named rule' + (mine.length === MUTANTS.length ? '' : ' (of ' + MUTANTS.length + ')'));
-  return exitOf(counts);
-}
-
-main().then((code) => process.exit(code));
+runPureGuard({ mutate: process.argv.includes('--mutate'), guard: 'tests/hunt-screen-pure.mjs', pure, mutants: MUTANTS,
+  green: 'the hunt screen\'s pure rules hold (HS-27, HS-4, HS-5, HS-7, HS-19, HS-20, HS-24, HS-25, HS-11, HS-8)' })
+  .then((code) => process.exit(code));

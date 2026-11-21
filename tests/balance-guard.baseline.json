@@ -4,9 +4,9 @@
   "pins.cutRows: rows a cut or dark lever carries (G14: a count over its pin is red). cost: a reference account's day (G16: 5% over is red). values: every line's numbers when written (the report prints what moved)."
  ],
  "schema": "hearthrise.balance-guard/1",
- "commit": "88eba0ed1",
+ "commit": "5aece30d7",
  "at": "2026-11-21",
- "why": "lane/c-approved-rows (plan L06, Tyler 2026-11-20): G9 the second hero 400,000 over the played bank (24-9); G22 the refills climb x1, 1.5 ... 3.5 (24-1)",
+ "why": "lane/c-levels-7-9 (L05), the designer's 6 h route: Levels 7-9 21,000/29,000/34,002, Levels 10-20 take the XP back (total to 21 held); the new player reaches Level 10 at 5.98 h",
  "pins": {
   "cutRows": {
    "food-xp-buffs": 11,
@@ -116,8 +116,8 @@
    "hold-10": 48.8
   },
   "G6": {
-   "Level 10": 6.12,
-   "longest under 10": 2.2
+   "Level 10": 5.98,
+   "longest under 10": 1.77
   },
   "G7": {
    "thicket": 4500,
@@ -135,8 +135,8 @@
    "hold": 8159.75
   },
   "G9": {
-   "slot 2": 0.898,
-   "ruled 400k": 0.898
+   "slot 2": 0.921,
+   "ruled 400k": 0.921
   },
   "G10": {
    "glade lone xp": 1.052,
@@ -185,8 +185,8 @@
   "G15": {},
   "G16": {},
   "G17": {
-   "krell": 85.5,
-   "tower": 83.692
+   "krell": 74.944,
+   "tower": 69.534
   },
   "G18": {
    "new": 2,
@@ -209,12 +209,12 @@
    "ford three": 3.18
   },
   "G20": {
-   "shop slot 2 400.0k": 2.203,
-   "shop slot 3 1500.0k": 5.246,
-   "shop four heroes 4000.0k": 15.275,
-   "ruled slot 2 400.0k": 2.203,
-   "ruled slot 3 1500.0k": 5.246,
-   "ruled four heroes 4000.0k": 15.275
+   "shop slot 2 400.0k": 2.081,
+   "shop slot 3 1500.0k": 5.124,
+   "shop four heroes 4000.0k": 15.153,
+   "ruled slot 2 400.0k": 2.081,
+   "ruled slot 3 1500.0k": 5.124,
+   "ruled four heroes 4000.0k": 15.153
   },
   "G21": {},
   "G22": {
@@ -268,6 +268,11 @@
    "at": "2026-11-21",
    "commit": "88eba0ed1",
    "why": "lane/c-approved-rows (plan L06, Tyler 2026-11-20): G9 the second hero 400,000 over the played bank (24-9); G22 the refills climb x1, 1.5 ... 3.5 (24-1)"
+  },
+  {
+   "at": "2026-11-21",
+   "commit": "5aece30d7",
+   "why": "lane/c-levels-7-9 (L05), the designer's 6 h route: Levels 7-9 21,000/29,000/34,002, Levels 10-20 take the XP back (total to 21 held); the new player reaches Level 10 at 5.98 h"
   }
  ]
 }

@@ -70,10 +70,15 @@ Every lane:
 ### 3.3a Release mechanics
 - Ready branches assemble on `set/vX.Y.Z` (never local `main`), pushed to `next` as it grows. Local `main` equals `origin/main` between releases; docs-only commits go through a separate main checkout.
 - A release: bump → ONE CHANGELOG entry in player-facing words → push `release/vX.Y.Z` → GitHub green → push `main`.
-- Lane C applies don't wait for a release: a reviewed migration applies when ready; its client half rides the next release. The apply-order note, live-hash baseline and census re-pin land the same day.
+- Lane C applies don't wait for a release: a reviewed migration applies when ready; its client half rides the next release. The apply-order note, live-hash baseline and census re-pin land the same day. **Suspended while §3.3b's one big release is open: server changes stay STAGED until that release.**
 
-### 3.3b Cadence: big patches (Tyler, 2026-11-14; replaces the 10-10 "ship continuously")
-"If I were you I would just do big patches from now on." Until Tyler says otherwise:
+### 3.3b Cadence: ONE BIG RELEASE for the beta scope (Tyler, 2026-11-21: "Yes, one big release"; replaces the 11-14 "big patches" until it ships)
+- **Production is frozen on v0.2.143.** Only a P0 ships before the big release, as a hotfix branch from `main` through the normal Lane A gates.
+- **Every lane merges into the integration set (`set/v0.2.144`) as it lands.** The set is pushed to `next` so GitHub judges it (one run at a time, at least nightly); a red on `next` is fixed forward like a release red. Nothing else gets a version bump, CHANGELOG entry, Discord note or `release/*` run until the big release.
+- **Server changes are STAGED, not applied, until the release** (migrations with STAGED notes, the edge bundle hashed but not deployed). At release: rehearse the whole apply on a copy of production first, then apply in order, deploy the edge, re-measure live-hash, push `release/v0.2.144`, GitHub green, push `main`, Pages, play gate, one Discord note.
+- **The beta scope is waves 1-2 of `docs/design/balance-program/30-plan.md`.** The build tracker artifact shows each lane's state.
+
+Before 2026-11-21 (the 11-14 cadence, returns after the big release unless Tyler says otherwise): "If I were you I would just do big patches from now on."
 - **Lanes work continuously and merge onto the next set; one release per big patch.** No fixed daily cut, no batching behind an unrelated red.
 - **After each big patch ships:** a blind playthrough audit of what changed (play as a human, learn only from the screen) plus a short Level 1-20 pass; findings go to fix lanes (Tyler 2026-11-15).
 - **No player-protection staging:** no cohort percentages or soaks. Arm channels for everyone after the Security GO; prove scale with synthetic load tests. Old content may be cut freely.
@@ -98,6 +103,7 @@ The 2026-10-14 lightening is for a beta nobody plays. Before EA: the one full ad
 
 ## 4. Testing discipline
 
+- **Lanes run light (Tyler, 2026-11-21):** a lane runs only the PLAIN tests its diff touches locally; a mutation proof (`--mutate`, `--selftest`, mutant-gate) runs locally only for a guard whose own file the lane edited. GitHub's `next`, release and nightly runs prove the rest (proofs went nightly-only 2026-11-19). Heavy runs go to GitHub (`gh workflow run smoke.yml --ref <lane branch>`) or a cloud session, never eight at once on Tyler's PC. Hunt, combat, stamina and supply lanes still test both paths.
 - **While the game is CLOSED (Tyler, 2026-10-21):** a lane is done when the tests ITS change touches pass (one at a time, exit codes, `LANE DONE:` commit listing them); no per-lane `lane-done` and no per-lane mutation sweep. A release set runs NOTHING else locally: the GitHub run is the gate (no duplicate local sweep, Tyler 2026-10-21); only when the edge bundle changed, ONE local `node tests/run-smoke.mjs` precedes the deploy (§3.3); the full mutation sweep runs nightly and a nightly red blocks the next release. Migrations still replay on `schema-drift` and carry their §4 self-check; §1–§2 lines unchanged. The rule below returns at the reopen / EA tightening (§3.7).
 - **A lane is done only when `node tools/lane-done.mjs` is green in its worktree** (debt ratchets, client-module-size, session-core (+--mutate), client-intent-surface, no-client-xp-mint, dead-exports, dead-css, window-globals-exist, token-single-source, css-literal-ratchet, breakpoint-guard, ci-shape, guard-hygiene, `bump-version.sh --check`). Paydown happens in the lane that wrote the code.
 - **Claims are gated on exit codes.** `( cmd || echo RED )` returns 0; run the guard, branch on `$?`, then write "green".

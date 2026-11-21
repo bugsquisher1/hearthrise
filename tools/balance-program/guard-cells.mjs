@@ -71,7 +71,7 @@ export const LINES = Object.freeze([
   { id: 'G4', words: 'The four on Deadly fully invested, x contract', on: 'Levels 30 to 175', target: [null, 2.75], keep: [null, 2.9], turnsRedIn: 'L16 (re-read L29, L37, L44)', mode: 'report', gate: 'xp' },
   { id: 'G5', words: 'Deadly is a fight: the four\'s low point (HP p10 %)', on: 'Ford, Pyre, Krell; in band and 10 under the floor', target: null, keep: null, turnsRedIn: 'L16', mode: 'report', gate: 'xp',
     parts: { band: { target: [35, 50], keep: [30, 55] }, under: { target: [null, 25], keep: [null, 35] } } },
-  { id: 'G6', words: 'The new player on the start kit: hours to Level 10; the longest Level under 10', on: 'life.mjs --policy idle, Normal, no event', target: null, keep: null, turnsRedIn: 'L05', mode: 'report',
+  { id: 'G6', words: 'The new player on the start kit: hours to Level 10; the longest Level under 10', on: 'life.mjs, src/data/core-model.js LEVEL_PACE.newPlayer (the start-kit tank, policy new: Hunt again in the Thicket), Normal, no event', target: null, keep: null, turnsRedIn: 'L05 (red since lane/c-levels-7-9)', mode: 'red',
     parts: { level10: { target: [null, 6], keep: [null, 7] }, step: { target: [null, 2], keep: [null, 2.5] } } },
   { id: 'G7', words: 'A ground never pays a lone in-range hero less gold (in) than the one before', on: 'the eight points', target: null, keep: null, turnsRedIn: 'L22', mode: 'report', bands: 'rising / red on any fall' },
   { id: 'G8', words: 'Deadly costs gold and never loses it: net a hero-hour, Krell-kit four', on: 'Levels 50, 80, 105', target: [3000, 8000], keep: [0, null], turnsRedIn: 'L16 (re-read L32)', mode: 'report', gate: 'gold' },

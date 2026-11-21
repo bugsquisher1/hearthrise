@@ -105,9 +105,9 @@
         "why": "+353 B, lane/c-approved-rows (Tyler 2026-11-20 calls 24-9, 26-3, 26-8, 26-9, 22-8): the ruled rows' one-line whys in shops.js, homestead-tiers.js (the Shrine held), gold-ladders.js (the bag stops at 10) and boss-calls.js (no gold); no new module reached; measured on set/v0.2.144"
       },
       {
-        "bytes": 3149190,
+        "bytes": 3135898,
         "on": "2026-11-21",
-        "why": "the to-hit ratio (balance program L15): src/data/to-hit.js, the rule and the generated reference hero (6.0 KB), and every monster row's aim and evasion in place of baseAcc (monsters.js and nine ground packs), with the comments that say why"
+        "why": "src/data/core-model.js: Levels 7-9 re-cut for the new player and Levels 10-20 taking the XP back (three more LEVEL_CURVE brackets) plus LEVEL_PACE.newPlayer, the row Tyler's 27-2 pace is held on (lane/c-levels-7-9)"
       }
     ]
   }

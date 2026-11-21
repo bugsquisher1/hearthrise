@@ -66,6 +66,8 @@ export function composePatch(root, ids, o = {}) {
   const want = new Set(ids);
   for (const id of want) if (!reg.byId.has(id)) throw new Error('proposals: no modelled proposal ' + id);
   for (const id of want) for (const x of reg.byId.get(id).excludes || []) if (want.has(x)) throw new Error('proposals: ' + id + ' is an alternative to ' + x + ' (' + reg.byId.get(id).excludesWhy + '): never both');
+  /* `requires`: a proposal whose patch edits what another writes (GR-6-seat edits R13's law) never plays without it */
+  for (const id of want) for (const x of reg.byId.get(id).requires || []) if (!want.has(x)) throw new Error('proposals: ' + id + ' requires ' + x + ' (its patch edits what ' + x + ' writes)');
   const out = { schema: 'hearthrise.balance-patch/1', name: o.name || 'proposals ' + [...want].join('+'), knobs: {}, edits: [], plan: {}, targets: [], derived: [], proposals: [] };
   for (const p of reg.proposals) {
     if (!want.has(p.id)) continue;
@@ -80,13 +82,19 @@ export function composePatch(root, ids, o = {}) {
   return out;
 }
 
-/** A toggle's set: `base` with `id` off, or ('+id') on in place of the proposals it is an alternative to. */
+/** Every proposal that requires `id` (its `requires`), and theirs in turn. */
+export function dependentsOf(reg, id) {
+  const out = new Set(), todo = [id];
+  while (todo.length) { const x = todo.pop(); for (const p of reg.proposals) if ((p.requires || []).includes(x) && !out.has(p.id)) { out.add(p.id); todo.push(p.id); } }
+  return [...out];
+}
+/** A toggle's set: `base` with `id` off (and whatever requires it), or ('+id') on in place of the proposals it is an alternative to (with what it requires). */
 export function toggled(reg, base, v) {
   const id = v.replace(/^\+/, '');
   if (!reg.byId.has(id)) throw new Error('proposals: no modelled proposal ' + id);
-  if (!v.startsWith('+')) return base.filter((x) => x !== id);
-  const ex = reg.byId.get(id).excludes || [];
-  return [...base.filter((x) => !ex.includes(x)), id];
+  if (!v.startsWith('+')) { const off = new Set([id, ...dependentsOf(reg, id)]); return base.filter((x) => !off.has(x)); }
+  const ex = new Set((reg.byId.get(id).excludes || []).flatMap((x) => [x, ...dependentsOf(reg, x)])), need = (reg.byId.get(id).requires || []).filter((x) => !base.includes(x));
+  return [...base.filter((x) => !ex.has(x)), ...need, id];
 }
 
 /** The "ships with" and order flags of a set: [{ id, missing, why }] for every pair the registry ties together that the set breaks. */
@@ -210,7 +218,11 @@ async function derive(o) {
   const reg = loadProposals(ROOT);
   const playOn = async (ids, run, label) => {
     const s = await SC.plantScratch(composePatch(ROOT, ids, { reg }));
-    try { return await BM.playRun(D, K, run, s.root, { workers: o.workers, quiet: true, calibrate: false, label }); } finally { s.done(); }
+    let res;
+    try { res = await BM.playRun(D, K, run, s.root, { workers: o.workers, quiet: true, calibrate: false, label }); } finally { s.done(); }
+    /* a cell that ended no_fight measured an engine stall (audit A-0): the derivation still prints, and the command exits 1 */
+    if (BM.printToolReds(res.cells, (x) => console.error(x), label)) process.exitCode = 1;
+    return res;
   };
   /* R12: on the proposed game without R12 (and R13, which comes after it), the gear curve on (R10 before R12). `--r13-only` keeps R12 as written */
   if (!o.r13Only) {
@@ -236,7 +248,8 @@ async function derive(o) {
      four on the hardest tier with no death (its Level XP before deaths); the Dangerous four after its deaths is the GR-6-seat toggle (12 section 7,
      item 1, waits on Tyler). A seat at x(L) times the contract spends, from Level 10, hours(L) = m x the sum of the ruled hours a Level / x; m is the
      one number that puts those hours on the ruled points' hours best (least squares on the logs). */
-  const base13 = reg.recommended.filter((id) => id !== 'GR-6');
+  /* without R13 and whatever edits its law (GR-6-seat, ON since S-11 c) */
+  const base13 = toggled(reg, reg.recommended, 'GR-6');
   const run13 = { id: 'derive-r13', levels: MP.RUNS.subset.levels.filter((L) => L >= 10 && L <= 400), seeds: 2, hours: 1, blocks: [{ id: 'four', comps: compsOf(4), gears: ['mid'], tiers: ['dangerous', 'hardest'] }] };
   const r13 = await playOn(base13, run13, 'R13 pace seats');
   const CM = (await import('../../src/data/core-model.js')).LEVEL_PACE;
@@ -315,6 +328,7 @@ async function selftest(o) {
     if (p.patch) { try { const x = readPatch(ROOT, p); if (x.schema !== 'hearthrise.balance-patch/1') bad.push(p.id + ': ' + p.patch + ' schema ' + x.schema); SC.checkPatch(x); } catch (e) { bad.push(p.id + ': ' + e.message); } }
     for (const w of p.excludes || []) if (!ids.includes(w)) bad.push(p.id + ' is an alternative to ' + w + ', which is no modelled proposal');
     for (const w of p.shipsWith || []) if (!ids.includes(w) && !reg.notModelled.some((n) => n.id === w)) bad.push(p.id + ' ships with ' + w + ', which the registry does not hold');
+    for (const w of p.requires || []) if (!ids.includes(w)) bad.push(p.id + ' requires ' + w + ', which is no modelled proposal');
   }
   if (new Set(ids).size !== ids.length) bad.push('an id twice');
   for (const n of reg.notModelled) if (!n.reason) bad.push(n.id + ': not modelled without a reason');
@@ -335,6 +349,15 @@ async function selftest(o) {
   check('an alternative stacked on what it replaces is refused (' + (alt ? alt.id + ' with ' + alt.excludes.join(',') : 'none') + ')', !alt || refused);
   const flags = shipsWithFlags(reg, reg.recommended.filter((id) => id !== 'GR-5b'));
   check('ships-with: the proposed game without GR-5b flags GR-5 (it ships with it)', flags.some((f) => f.id === 'GR-5' && f.missing === 'GR-5b'), JSON.stringify(flags));
+  /* the seat fit (--fit-seat): hours past Level 10 at half the ruled ones read a multiple twice the current, and land every point on the table */
+  { const ruled = [[100, 600], [200, 1680]], f = seatMultiple({ hours: (L) => (L === 10 ? 2 : 2 + 0.5 * ((ruled.find(([l]) => l === L) || [0, 2])[1] - 2)), ruled, m0: 1.3 });
+    check('the seat fit: hours at half the table past Level 10 read the multiple x2 (' + f.m + ') and land on it (' + f.readings.map(([, x]) => x).join(', ') + ')', f.m === 2.6 && f.readings.every(([, x]) => x === 1)); }
+  /* requires (S-11 c put GR-6-seat on, and it edits R13's law): GR-6 off takes it along; on its own it is refused by name */
+  const req = reg.proposals.find((p) => (p.requires || []).length);
+  let reqRefused = false;
+  if (req) { try { composePatch(ROOT, toggled(reg, reg.recommended, req.id).filter((x) => x !== req.requires[0]).concat(req.id), { reg }); } catch (e) { reqRefused = /requires/.test(e.message); } }
+  check('requires: ' + (req ? req.requires[0] + ' off takes ' + req.id + ' along, and ' + req.id + ' without it is refused' : 'no proposal requires another'),
+    !!req && !toggled(reg, reg.recommended, req.requires[0]).includes(req.id) && reqRefused && toggled(reg, toggled(reg, reg.recommended, req.requires[0]), '+' + req.id).includes(req.requires[0]));
   if (o.quick) return done();
   /* 3. EACH PROPOSAL MOVES ITS TARGETS ON THE PROPOSED GAME: its toggle (the game without it, or with an alternative) played on a mini plan
      against the proposed game on the same dice; a non-identity patch must move a metric its targets are judged on, an identity none */
@@ -382,10 +405,53 @@ async function selftest(o) {
   function done() { console.log('proposals selftest: ' + (fails.length ? fails.length + ' FAILED' : 'green') + ' in ' + Math.round((Date.now() - t0) / 1000) + ' s'); return fails.length ? 1 : 0; }
 }
 
+/* THE SEAT FITTED WHERE P1 GRADES IT (the Coordinator 2026-11-21: "fitted at the ruled points" means the pace seat lands on the table in the
+   sample P1 reads). The full matrix's cache on the proposed game (balance-matrix.mjs --join writes it), its hammer frame as judgeMatrix builds it,
+   the pace seat's hours to each Level P1 grades (grid-derive.mjs SEATS[PACE]: the MID four on Dangerous after its deaths, S-11 c). From Level
+   10 the law's XP a Level is the multiple times the ruled hours' slope, so the hours past Level 10 scale with it: the multiple that puts the graded
+   Levels on the ruled table best (least squares on the logs) is the current one times exp(mean log(ruled past 10 / read past 10)). */
+export function seatMultiple({ hours, ruled, m0, from = 10 }) {
+  const h0 = hours(from), logs = ruled.map(([L, H]) => Math.log((H - h0) / (hours(L) - h0)));
+  const m = m0 * Math.exp(logs.reduce((a, b) => a + b, 0) / logs.length);
+  return { m: Number(m.toFixed(3)), readings: ruled.map(([L, H]) => [L, Number(((h0 + (m / m0) * (hours(L) - h0)) / H).toFixed(3))]), before: ruled.map(([L, H]) => [L, Number((hours(L) / H).toFixed(3))]) };
+}
+async function fitSeat(o) {
+  const BM = await import('./balance-matrix.mjs'), GD = await import('./grid-derive.mjs'), MM = await import('./matrix-metrics.mjs'), STD = await import('./standards.mjs');
+  const SC = await import('./matrix-scratch.mjs'), { loadGridData } = await import('./progression-grid.mjs');
+  const file = resolve(o.from || join(HERE, 'balance-matrix-full-proposed.json'));
+  const C = JSON.parse(readFileSync(file, 'utf8'));
+  /* composed here, not through balance-matrix.mjs baseOf: that imports this module, which is still running its top-level await */
+  const reg = loadProposals(ROOT), base = { ids: reg.recommended, patch: composePatch(ROOT, reg.recommended, { reg }) };
+  if (!base.ids.includes('GR-6-seat')) throw new Error('fit-seat: the proposed game does not time the law on the Dangerous seat (GR-6-seat off)');
+  const s = await SC.plantScratch(base.patch);
+  let V, m0;
+  try { V = await BM.dataView(await loadGridData(ROOT), s.root); m0 = Number((/m: ([0-9.]+), from: 10 \};/.exec(readFileSync(join(s.root, 'src/core/xp.js'), 'utf8')) || [])[1]); } finally { s.done(); }
+  const frame = C.cells.filter((c) => c.m && c.block !== 'grounds' && c.block !== 'lineups' && !c.variant && (c.party > 1 || (c.styles[0] === 'hammer')));
+  const T = GD.derive(V, MM.asGrid(frame));
+  const seat = T.SEATS[T.PACE];
+  if (!seat || !Number.isFinite(m0)) throw new Error('fit-seat: no pace seat (' + T.PACE + ') in ' + file + ' or no law multiple on the tree');
+  const P1 = STD.bandById('P1'), targets = [...STD.PACE_TABLE.ruled, ...(STD.PACE_TABLE.ruled400 || [])];
+  const ruled = P1.where.levels.filter((L) => L >= (P1.where.from || 0) && L <= 400).map((L) => targets.find(([l]) => l === L)).filter(Boolean);
+  const fit = seatMultiple({ hours: (L) => seat.cum[L], ruled, m0 });
+  const r13 = JSON.parse(readFileSync(join(HERE, 'patches/R13-level-law.json'), 'utf8')), r13m = Number((/m: ([0-9.]+), from: 10 \};/.exec(r13.edits.map((e) => e.to).join('\n')) || [])[1]);
+  console.log('THE SEAT ON P1\'S OWN SAMPLE (' + file + ', ' + (C.cells || []).length + ' cells, ' + (o.run || 'run unnamed') + '): the pace seat ' + T.PACE + ', law multiple ' + m0 + ' -> ' + fit.m);
+  console.log('  P1 (hours to Level / the ruled table): ' + fit.before.map(([L, x], i) => 'Level ' + L + ' ' + x + ' -> ' + fit.readings[i][1]).join(', '));
+  if (o.write) {
+    const p = { schema: 'hearthrise.balance-patch/1', name: 'The Level law timed on the MID four on Dangerous (seat multiple ' + fit.m + ', R13\'s default ' + r13m + ')',
+      why: 'S-11 (RULED 2026-11-21, c): the Level table is the clock of the MID four on Dangerous after its deaths, read again before Early Access from real XP and the calibrated simulator. The multiple is fitted on the sample P1 grades: the full matrix (' + (o.run || file) + '), the pace seat\'s hours to Levels ' + ruled.map(([L]) => L).join(', ') + ' against the ruled ' + ruled.map(([, H]) => H).join(', ') + ' hours, least squares on the logs. Layer: coefficient. Written by proposals.mjs --fit-seat',
+      kind: 'coefficient', targets: ['P1', 'P12'], measuredOn: { run: o.run || null, cells: 'the full matrix, the MID four on Dangerous at every checkpoint to 400', seat: T.PACE, from: m0, readings: fit.readings },
+      edits: [{ file: 'src/core/xp.js', from: 'm: ' + r13m + ', from: 10 };', to: 'm: ' + fit.m + ', from: 10 };' }] };
+    writeFileSync(join(HERE, 'patches/bp-level-law-dangerous-seat.json'), JSON.stringify(p, null, 1) + '\n');
+    console.log('  wrote patches/bp-level-law-dangerous-seat.json (' + r13m + ' -> ' + fit.m + ')');
+  }
+  return fit;
+}
+
 if (isMain(import.meta.url)) {
   const argv = process.argv.slice(2), arg = (k, dflt) => { const i = argv.indexOf('--' + k); return i >= 0 && argv[i + 1] ? argv[i + 1] : dflt; };
   if (argv.includes('--selftest')) process.exit(await selftest({ quick: argv.includes('--quick'), workers: Number(arg('workers', 4)) }));
-  if (argv.includes('--write')) console.log('wrote ' + writeStatic().join(', '));
+  if (argv.includes('--fit-seat')) await fitSeat({ from: arg('from', null), run: arg('run', null), write: argv.includes('--save') });
+  else if (argv.includes('--write')) console.log('wrote ' + writeStatic().join(', '));
   else if (argv.includes('--derive')) await derive({ workers: Number(arg('workers', 4)), r13Only: argv.includes('--r13-only') });
   else {
     const reg = loadProposals();

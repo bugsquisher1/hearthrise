@@ -1,0 +1,71 @@
+# ============================================================================
+# balance-arrival — THE ARRIVAL KIT'S CONFIRM RUN (08-designer-d3.md section 1.5, FB-3).
+#
+# tools/balance-program/arrival-kit.mjs: LOW, MID, MID with no jewelry and BIS
+# at the armor curve x2.4 (the ruling) and x1.6 (its switch rule), on the
+# proposed game with D-3's rows in, the lone hammer and the standard four on
+# Normal at eleven Levels with the gear steps at 60, 185 and 400, 4 seeds x
+# 8 hours. 8 configurations in two parts each, one job a part. A
+# MEASUREMENT, never a gate, and never on a lane, set, release or main push.
+# A cell that ended no_fight is a TOOL RED (audit A-0): its job fails and
+# still uploads.
+#
+# Run it:   git push origin HEAD:refs/heads/balance-arrival/<lane>
+# Join:     gh run download <id> --dir <dir> --pattern 'arrival-*'
+#           node tools/balance-program/arrival-kit.mjs --join <dir> [--json <file>]
+# ============================================================================
+name: balance-arrival
+
+on:
+  push:
+    branches: ['balance-arrival/**']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: balance-arrival-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      jobs: ${{ steps.jobs.outputs.jobs }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - id: jobs
+        run: echo "jobs=$(node tools/balance-program/arrival-kit.mjs --jobs)" >> "$GITHUB_OUTPUT"
+
+  play:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        job: ${{ fromJSON(needs.plan.outputs.jobs) }}
+    env:
+      JOB: ${{ matrix.job }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Play ${{ matrix.job }}
+        run: node tools/balance-program/arrival-kit.mjs --job "$JOB" --workers 4 --out "arrival-$JOB.json"
+      - name: Upload
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: arrival-${{ matrix.job }}
+          path: arrival-*.json
+          retention-days: 30

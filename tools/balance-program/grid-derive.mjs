@@ -120,12 +120,13 @@ export function derive(D, grid, K = null) {
     const t = hoursTable(gear, party, mode);
     if (t) SEATS[gear + ':' + party + ':' + mode] = t;
   }
-  /* THE TWO SEATS P1 READS (12-balance-pass.md section 5 row 8 waits on Tyler, section 7 item 1): the MID four on the hardest tier it holds with no
-     death, and the MID four on Dangerous after its deaths. Both print; the table's own seat stays PACE */
+  /* THE TWO SEATS P1 PRINTS (12-balance-pass.md section 5 row 8, applied on S-11 c): the MID four on Dangerous after its deaths (the pace seat, graded
+     from Level 100) and the MID four on the hardest tier it holds with no death (a reading) */
   { const t = hoursTable('mid', 4, 'hardest', 'levelXpPerH'); if (t) SEATS['mid:4:hardest:nodeath'] = t; }
   { const t = hoursTable('mid', 4, 'dangerous'); if (t) SEATS['mid:4:dangerous'] = t; }
   const P1_SEATS = [['mid:4:hardest:nodeath', 'the Deadly four, no death'], ['mid:4:dangerous', 'the Dangerous four']];
-  const PACE = STD.PACE_TABLE.seat.ruled ? 'mid:4:hardest' : 'mid:1:normal';
+  /* THE PACE SEAT, the table's own clock (standards.mjs PACE_TABLE.seat.key: S-11 c, the MID four on Dangerous after its deaths) */
+  const PACE = STD.PACE_TABLE.seat.key || 'mid:4:hardest';
   /* the doors of 2.7 and the day each seat reaches them */
   const DOORS = [[45, 'the Barrow March'], [88, 'Krell\'s Hold'], [110, 'end of open content'], [175, 'the Catacombs'], [185, 'end of staged content'], [240, 'Region 5'], [295, 'Region 6'], [350, 'Region 7'], [400, 'Level 400']];
   const H12 = hoursADayOf(grid);
@@ -238,9 +239,17 @@ export function judgeGrid(D, grid, o = {}) {
     if (['atlas', 'town', 'path'].includes(band.group)) { rows.push({ band: id, group: band.group, label: band.label, at: '-', value: null, status: 'n/a', dist: 0, why: 'read from ' + (band.group === 'path' ? 'paths.json' : 'atlas.json') + ' (lane/c-sources-paths)' }); continue; }
     if (id === 'P1') {
       const target = [...STD.PACE_TABLE.ruled, ...(STD.PACE_TABLE.ruled400 || STD.PACE_TABLE.proposed || [])];
+      /* band change 8: graded on the pace seat from w.from; under it, and on the other seat, a reading with the status it would have */
       for (const [key, words] of T.P1_SEATS) {
         const seat = SEATS[key];
-        for (const L of w.levels) { const t = target.find(([l]) => l === L); if (seat && t && L <= 400) add(band, 'Level ' + L + ' (' + words + ')', seat.cum[L] / t[1], { seat: key, shown: Math.round(seat.cum[L]) + ' h / ' + t[1] + ' h' }); }
+        for (const L of w.levels) {
+          const t = target.find(([l]) => l === L);
+          if (!seat || !t || L > 400) continue;
+          const v = seat.cum[L] / t[1];
+          const why = key !== T.PACE ? 'S-11 (RULED 2026-11-21, c): the Level table is timed on the pace seat (' + T.PACE + '); this seat prints'
+            : w.from && L < w.from ? 'band change 8: P1 reads from Level ' + w.from + ' (GR-6 lets the four run ahead early)' : null;
+          add(band, 'Level ' + L + ' (' + words + ')', v, { seat: key, shown: Math.round(seat.cum[L]) + ' h / ' + t[1] + ' h', ...(why ? { status: 'report', wouldBe: statusOf(v, band), why } : {}) });
+        }
       }
       continue;
     }
@@ -339,7 +348,8 @@ export function judgeGrid(D, grid, o = {}) {
     if (id === 'E3') { for (const g of T.gearRows) add(band, 'Level ' + g.L + ' (band ' + g.band + ')', g.e3, { shown: Math.round(g.lowToMid) + ' / ' + Math.round(g.bandNet || 0), ...unpriced(g) }); continue; }
     if (id === 'E1.levels') { const B = o.K ? o.K.BANDS : []; for (let i = 1; i < B.length; i++) add(band, B[i - 1] + '->' + B[i], B[i] - B[i - 1]); continue; }
     if (id === 'E1.weapon') { for (const g of T.gearRows) add(band, 'Level ' + g.L, g.weaponStep); continue; }
-    if (id === 'E1.armor') { for (const g of T.gearRows) add(band, 'Level ' + g.L, g.armorStep); continue; }
+    /* D-3 D3-1: under w.bandStepFrom the state back is a ladder tier (9 to 18% at x2.4), a report; the band step from there is graded */
+    if (id === 'E1.armor') { for (const g of T.gearRows) add(band, 'Level ' + g.L, g.armorStep, w.bandStepFrom && g.L < w.bandStepFrom && Number.isFinite(g.armorStep) ? { status: 'report', wouldBe: statusOf(g.armorStep, band), why: 'a ladder tier step under Level ' + w.bandStepFrom + ' (D-3, D3-1): the band step is graded from there' } : {}); continue; }
     if (/^E2\./.test(id)) { for (const g of T.gearRows.filter((x) => x.L >= w.levels[0] && x.L <= w.levels[1])) add(band, 'Level ' + g.L, g.e2.share, { shown: (g.e2.median ? g.e2.median.toFixed(1) + ' h' : '-') + (g.e2.elsewhere.length ? ', ' + g.e2.elsewhere.length + ' piece(s) not on this ground' : '') }); continue; }
     if (/^E6\./.test(id)) {
       for (const g of T.gearRows.filter((x) => x.L >= w.levels[0] && x.L <= w.levels[1])) { const v = g.bandHoursPace; const st = statusOf(v, band); add(band, 'band ' + g.band + ' (pace seat)', v, st === 'ok' ? {} : { status: 'bound', why: 'an upper bound: band starts only; rungs and jewelry change in between (a played life judges it)' }); }
@@ -348,7 +358,8 @@ export function judgeGrid(D, grid, o = {}) {
     /* the Very Rare (staged/luck.js VERY_RARE_HOURS) is not built: the rarest reveal row's hours print beside the band, never judged */
     if (id === 'D1') { for (const c of cellsWhere({ gear: 'mid', party: 1, tier: 'normal', levels: w.levels })) add(band, at(c), c.rates.rarestRevealEveryHeroH, { status: 'proxy', why: 'the Very Rare is not built (L20); the rarest reveal row by formula on measured kills, never judged' }); continue; }
     if (id === 'D2') { for (const L of levels.filter((x) => x >= w.levels[0])) { const c = T.seatCell(L, 'mid', 4, 'hardest'); if (c) add(band, at(c), c.rates.rarestRevealEveryPartyH, { status: 'proxy', why: 'the Very Rare is not built (L20); the rarest reveal row, the party\'s hours' }); } continue; }
-    if (id === 'R2') { const d = T.dayAt(PACE, 110); add(band, 'the pace seat (' + PACE + ') reaches Level 110', d); continue; }
+    /* band change 8: staged content counts, so the runway is the day the pace seat reaches the end of staged content (DOORS: Level 185) */
+    if (id === 'R2') { const d = T.dayAt(PACE, 185); add(band, 'the pace seat (' + PACE + ') reaches Level 185, the end of staged content', d); continue; }
     /* the database time of one account does not depend on how many there are: the same reading is judged against each population's band */
     /* 12-balance-pass.md section 5 row 9: study 48's design numbers (48-platform-cost.md section 1: the recommended design, the 3.5-hour tab; the
        journal at one row a hero an hour an activity), never the old engine's reads */
@@ -398,7 +409,7 @@ export function printReport(grid, judged, out = console.log) {
     }
   }
   out('\n== PACE: the day each seat reaches each door (' + T.H12 + ' hunted hours a day, the stamina day as played; Level XP an hour after deaths) ==');
-  const seats = [['mid:1:normal', 'lone MID Normal'], [T.PACE, 'THE PACE SEAT (MID four, hardest held)'], ['mid:4:hardest:nodeath', 'P1: Deadly four, no death'], ['mid:4:dangerous', 'P1: the Dangerous four'], ['low:1:normal', 'lone LOW Normal'], ['bis:4:hardest', 'BiS four, hardest held']];
+  const seats = [['mid:1:normal', 'lone MID Normal'], [T.PACE, 'THE PACE SEAT (' + T.PACE + ')'], ['mid:4:hardest', 'MID four, hardest held'], ['mid:4:hardest:nodeath', 'Deadly four, no death'], ['low:1:normal', 'lone LOW Normal'], ['bis:4:hardest', 'BiS four, hardest held']];
   out('  door'.padEnd(30) + seats.map(([, n]) => n.slice(0, 22).padEnd(24)).join(''));
   for (const [L, name] of T.DOORS) out(('  ' + L + ' ' + name).padEnd(30) + seats.map(([k]) => (finite(T.dayAt(k, L)) ? 'day ' + T.dayAt(k, L).toFixed(1) : '-').padEnd(24)).join(''));
   out('\n== DEATH (6% of all Level XP, no cap): XP an hour after deaths, the four (lone under 5): measured (its own deaths) | at the TOP of the ruled count (S6 for the gear: MID Dangerous 30, Deadly 100 a 1,000 h), unblessed / fully blessed ==');
@@ -530,9 +541,11 @@ export async function selftest({ ROOT, loadGridData, loadKits, readGrid, quick }
     if (broke) broke.rates.netPerH = -1e6;
     const ok3 = !!broke && clean.T.holds(broke); if (!ok3) fails++;
     console.log('  ' + (ok3 ? 'CAUGHT ' : 'MISSED ') + 'a kit holds a tier whatever its gold: ' + (h ? h.key + ' at -1,000,000 a hero-hour still holds' : 'no held cell'));
-    const seats = new Set(clean.rows.filter((r) => r.band === 'P1').map((r) => r.seat));
-    const ok4 = seats.has('mid:4:hardest:nodeath') && seats.has('mid:4:dangerous'); if (!ok4) fails++;
-    console.log('  ' + (ok4 ? 'CAUGHT ' : 'MISSED ') + 'P1 reads both seats: ' + [...seats].join(', '));
+    const p1 = clean.rows.filter((r) => r.band === 'P1'), seats = new Set(p1.map((r) => r.seat));
+    const graded = p1.filter((r) => r.status !== 'report');
+    const ok4 = seats.has('mid:4:hardest:nodeath') && seats.has('mid:4:dangerous') && graded.length > 0 && graded.every((r) => r.seat === 'mid:4:dangerous' && +r.at.match(/Level ([0-9]+)/)[1] >= 100)
+      && p1.filter((r) => r.status === 'report').every((r) => r.wouldBe && r.why); if (!ok4) fails++;
+    console.log('  ' + (ok4 ? 'CAUGHT ' : 'MISSED ') + 'P1 (band change 8) grades the Dangerous four from Level 100 (' + graded.length + ' rows) and prints the rest as readings: ' + [...seats].join(', '));
   }
   /* S2 and S7 are judged on the pool: deaths planted across Normal MID cells (no one cell's sample can see them) must turn both red */
   {

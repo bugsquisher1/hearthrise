@@ -120,6 +120,48 @@
    "note": "One tier table: the per-ground tier dials go (pull capacity stays, it is geography) and so does the floor-16 pull rule"
   },
   {
+   "id": "GR-5-under-5",
+   "doc": [
+    "08-designer-d3.md section 2",
+    "GR-5",
+    "C1"
+   ],
+   "title": "The kill reward under Level 5: the curve steepens at exponent 1.1",
+   "modelled": true,
+   "recommended": true,
+   "label": "MEASURED",
+   "layer": "formula",
+   "patch": "patches/bp-kill-reward-under-5.json",
+   "shipsWith": [],
+   "after": [
+    "GR-5"
+   ],
+   "before": [],
+   "requires": [
+    "GR-5"
+   ],
+   "ruling": "RULED by the designer 2026-11-21 (08-designer-d3.md section 2.1): fix (a), the curve, not a number on the Mill Cellar",
+   "note": "Edits R12's line, so it requires GR-5 and goes off with it. Every starting card at Level 5 in 16.2 to 19.2 minutes (start-cards.mjs, check C1)"
+  },
+  {
+   "id": "D3-armor",
+   "doc": [
+    "08-designer-d3.md ruling 1",
+    "CORE-4"
+   ],
+   "title": "The armor curve: armor fades 2.4 times as fast against the attacker's Level",
+   "modelled": true,
+   "recommended": true,
+   "label": "COMPUTED",
+   "layer": "coefficient",
+   "patch": "patches/bp-armor-curve-240.json",
+   "shipsWith": [],
+   "after": [],
+   "before": [],
+   "ruling": "RULED by the designer 2026-11-21 (D-3 ruling 1): x2.4 (absorb.k 1.488, dodge.k 0.96); switches to x1.6 only if x1.6 holds both the 3 to 5% band step and S5.bis",
+   "note": "The only setting played where an armor step lands inside the ruled 3 to 5% past Level 45. The mid kit takes 18 to 32% more damage on Normal, so it goes into CB-2's single sizing pass with the tier dial"
+  },
+  {
    "id": "GR-6",
    "doc": [
     "G-6",
@@ -366,7 +408,7 @@
    ],
    "title": "The Level law timed on the MID four on Dangerous (the idle seat)",
    "modelled": true,
-   "recommended": false,
+   "recommended": true,
    "label": "COMPUTED",
    "layer": "coefficient (R13's seat multiple)",
    "patch": "patches/bp-level-law-dangerous-seat.json",
@@ -375,8 +417,11 @@
     "GR-6"
    ],
    "before": [],
-   "ruling": "waits on Tyler (12 section 7, item 1)",
-   "note": "OFF until Tyler answers 12 section 7 item 1. The default law is timed on the MID four on the hardest tier it holds with no death; this times it on the MID four on Dangerous after its deaths, fitted at the ruled points of the Level table (proposals.mjs --derive writes both). A four that farms Deadly safely then runs ahead of the table"
+   "ruling": "RULED 2026-11-21 (S-11, option c): the Level table is timed on the four on Dangerous, read again before Early Access from real XP and the calibrated simulator",
+   "note": "ON (S-11 c). R13 writes the law on the MID four on the hardest tier it holds with no death; this one edit times it on the MID four on Dangerous after its deaths, fitted at the ruled points (proposals.mjs --derive writes both; 1.261 on the fixed engine, run 44948522187). It edits R13 text, so it requires GR-6 and goes off with it",
+   "requires": [
+    "GR-6"
+   ]
   },
   {
    "id": "world-1",

@@ -66,6 +66,7 @@ const GC = await import(u('tools/balance-program/guard-cells.mjs'));
 const MODEL = await import(u('tools/balance-program/model.mjs'));
 const MEASURE = await import(u('tools/balance-program/measure.mjs'));
 const GOLD = await import(u('tools/balance-program/gold-model.mjs'));
+const { HERO_SLOTS } = await import(u('src/data/shops.js'));
 const SCAN = await import(u('tools/balance-program/lever-scan.mjs'));
 const SL = await import(u('tools/balance-sim/skill-lines.mjs'));
 const tiers = await import(u('src/data/hunt-tiers.js'));
@@ -208,8 +209,11 @@ function costOf(ci) {
 function dataInputs() {
   const ruled = GOLD.SLOT_LADDERS.find(([name]) => /^A\b/.test(name))[1];
   return {
-    slot: { price: GOLD.offer('character_slot.1'), at: 32, ruled: ruled[0] },
-    ladders: { shop: [1, 2, 3].map((i) => GOLD.offer('character_slot.' + i)), ruled: [...ruled] },
+    /* ALL FOUR HERO SLOTS ARE FREE (Tyler 2026-11-21; src/data/shops.js HERO_SLOTS, 1036-four-starter-slots.sql): the shop sells none, so the
+       slot the gates read costs 0. G9 and G20 judge a price that no longer exists; FB-3 retires them in standards.mjs (the request:
+       tools/balance-program/patches/fb5-free-hero-slots.json). Until then they read the free ladder, never a made-up price. */
+    slot: { price: HERO_SLOTS.free ? 0 : NaN, at: 32, ruled: ruled[0] },
+    ladders: { shop: [1, 2, 3].map(() => (HERO_SLOTS.free ? 0 : NaN)), ruled: [...ruled] },
     refill: { ...STAMINA_REFILL },
     bar: { lanes: { ...ABIL.ABILITY_LANES }, rows: Object.values(ABIL.ABILITIES).map((r) => ({ id: r.id, lane: r.lane, cdMs: r.cdMs, disciplines: [...r.disciplines], replaces: r.replaces || null })), budget: { ...GC.BAR_BUDGET } },
     temper: TEMPER_TIERS, training: { rules: TRAINING.TRAINING_RULES, gear: TRAINING.TRAINING_GEAR, fee: TRAINING.trainingFee },

@@ -1652,41 +1652,20 @@ const run = async () => {
       exitCode = e.harness ? 2 : 1;
     }
 
-    /* ── The HERO-SLOT purchase guard (2026-09-08) ───────────────────────
-       Three live defects in one surface. The Buy button was LIT AND DEAD:
-       hr_unlock_offers refuses the character_slot namespace by construction
-       (a hero slot is priced in gems and that catalogue has a gold column
-       and no other), and the only other path was a client-side G.gems debit
-       the next envelope reconciles away — so the click dead-ended through a
-       confirm modal with no visible outcome. Ownership was client-authored
-       in the G.heroSlotsUnlocked residue, which is the b371 gem dupe
-       ("the purchase became free"). And hr_create_character validated its
-       slot for SHAPE ONLY, so {"p_slot":4} minted a fifth character with a
-       full starting kit for nothing — the whole 3,100-gem ladder bypassed
-       by one fetch, five times over.
-       The guard drives a real player through the real rate-gated
-       hr_buy_hero_slot on a fully replayed PGlite chain: shape and catalogue
-       refusals, the ladder, the exact debit from the CALLING character's
-       wallet with the entitlement on the ACCOUNT row, the idempotent replay,
-       already_owned, insufficient-then-buyable-with-the-same-key, the
-       grandfathered two-character account (the production shape — zero
-       character_slot flag rows), the premium waiver as OWNERSHIP rather
-       than a price of zero, cross-verb key reuse, the create gate, and the
-       account-scoped projection. It also BINDS the three copies of the price
-       ladder — src/multi-character.js SLOT_COSTS_GEMS, the generated
-       src/data/shops.js offers, and public.hr_hero_slots — so a price that
-       differs by one gem fails the build by name.
-       `--selftest` plants sixteen real defects; every one must read RED. */
+    /* ── The HERO-SLOT guard (2026-09-08; four free slots since 2026-11-21) ──
+       Every account owns all four hero slots from its first second and nothing is for sale (Tyler 2026-11-21,
+       1036-four-starter-slots.sql): src/data/shops.js HERO_SLOTS bound to public.hr_hero_slots, a new account
+       owning every slot and making a hero in each through hr_create_hero, slot 4 and 5 refused, the purchase
+       gone from the schema and the client surface, and a live-shaped account that bought a slot kept whole
+       (its heroes byte for byte, no refund). `--mutate` plants three defects; each must read RED by its arm. */
     const heroSlotProblems = await heroSlotBuyGuard();
     if (heroSlotProblems.length) {
-      console.log('\nHero-slot purchase — FAILED:');
+      console.log('\nHero slots — FAILED:');
       for (const p of heroSlotProblems) console.log(`  ✗ ${p}`);
       exitCode = 1;
     } else {
-      console.log('\nHero-slot guard — server-priced, ladder-ordered, debited once from the wallet '
-        + 'the player can see, entitlement on the account row, idempotent on replay, grandfathered '
-        + 'characters kept, the premium waiver expressed as ownership rather than a free price, and '
-        + 'the free-character mint closed.');
+      console.log('\nHero-slot guard — four slots every account owns from the start, nothing for sale, the purchase gone, '
+        + 'a live account that bought a slot kept whole with no refund.');
     }
 
     /* (b497 Auto-Eat-at-creation guard retired by lane C2 — see the import note.) */

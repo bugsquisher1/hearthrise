@@ -1,0 +1,39 @@
+{
+ "schema": "hearthrise.balance-patch/1",
+ "name": "Kill reward under Level 5: the line steepens, XP a health point x (5 / monster Level) ^ 1.1 (GR-5 under Level 5, D-1 check C1; RULED by the designer, 08-designer-d3.md section 2)",
+ "kind": "coefficient",
+ "targets": [
+  "pace",
+  "P3"
+ ],
+ "why": "Check C1 (08 section 6): on the proposed game every weapon card took 36 to 42 hunted minutes to Level 5 in the Mill Cellar. The cause is R12 (GR-5): its reference kill-health line, fitted from Level 10, pays a Level 2 rat half the tree. Under Level 5 XP a health point is multiplied by (5 / the monster's Level) ^ 1.1, a content number, never the hero's; from Level 5 up nothing moves. The designer ruled 1.1 over the measured 0.85: every starting card reaches Level 5 in 16.2 to 19.2 minutes with no death (08-designer-d3.md section 2.1)",
+ "measuredOn": {
+  "proposals": [
+   "GR-4",
+   "GR-5",
+   "GR-5b",
+   "GR-6",
+   "GR-7",
+   "GR-14",
+   "GR-22",
+   "GR-27",
+   "GR-38",
+   "GR-52",
+   "GR-63",
+   "GR-76",
+   "R7",
+   "TAL",
+   "S-4",
+   "S-10"
+  ],
+  "lives": 4,
+  "check": "C1"
+ },
+ "edits": [
+  {
+   "file": "src/data/balance-sheet.js",
+   "from": "  const xp = (void gx, void xFloor, Math.max(1, Math.round((contractXpPerH(L) / (1885.35 * Math.max(1, L) ** 0.847253)) * hp * R.xp * fit.xp)));",
+   "to": "  const xp = (void gx, void xFloor, Math.max(1, Math.round((contractXpPerH(L) / (1885.35 * Math.max(1, L) ** 0.847253)) * Math.max(1, 5 / L) ** 1.1 * hp * R.xp * fit.xp)));"
+  }
+ ]
+}

@@ -1,0 +1,622 @@
+{
+ "check": "C-1",
+ "source": "14-the-rest.md section 2",
+ "read_day": "2026-11-21",
+ "real_heroes": 16,
+ "rule": "each field is real minus the MID kit at the same Level and way; a state passes a field when its value sits inside the real spread",
+ "all": {
+  "bands": [
+   {
+    "band": "1-15",
+    "heroes": 4,
+    "real": {
+     "weaponTier": [
+      0,
+      0,
+      0
+     ],
+     "armorPieces": [
+      -6,
+      -3.5,
+      -2
+     ],
+     "armorTier": [
+      -1,
+      0,
+      0
+     ],
+     "jewels": [
+      -5,
+      -5,
+      -4
+     ],
+     "mainVsLine": [
+      -1,
+      -1,
+      2
+     ],
+     "defenseVsLine": [
+      0,
+      5.5,
+      10
+     ]
+    },
+    "states": {
+     "low": {
+      "weaponTier": 0,
+      "armorPieces": -6,
+      "armorTier": -1,
+      "jewels": -5,
+      "mainVsLine": 0,
+      "defenseVsLine": 0
+     },
+     "mid": {
+      "weaponTier": 0,
+      "armorPieces": 0,
+      "armorTier": 0,
+      "jewels": 0,
+      "mainVsLine": 0,
+      "defenseVsLine": 0
+     },
+     "bis": {
+      "weaponTier": 0,
+      "armorPieces": 0,
+      "armorTier": 0,
+      "jewels": 0,
+      "mainVsLine": 10,
+      "defenseVsLine": 10
+     }
+    },
+    "inside": {
+     "low": {
+      "weaponTier": true,
+      "armorPieces": true,
+      "armorTier": true,
+      "jewels": true,
+      "mainVsLine": true,
+      "defenseVsLine": true
+     },
+     "mid": {
+      "weaponTier": true,
+      "armorPieces": false,
+      "armorTier": true,
+      "jewels": false,
+      "mainVsLine": true,
+      "defenseVsLine": true
+     },
+     "bis": {
+      "weaponTier": true,
+      "armorPieces": false,
+      "armorTier": true,
+      "jewels": false,
+      "mainVsLine": false,
+      "defenseVsLine": true
+     }
+    }
+   },
+   {
+    "band": "16-30",
+    "heroes": 0,
+    "reading": "no real hero: calibrated by the engine alone"
+   },
+   {
+    "band": "31-44",
+    "heroes": 0,
+    "reading": "no real hero: calibrated by the engine alone"
+   },
+   {
+    "band": "45-64",
+    "heroes": 8,
+    "real": {
+     "weaponTier": [
+      -2,
+      -1.5,
+      -1
+     ],
+     "armorPieces": [
+      -2,
+      -1,
+      0
+     ],
+     "armorTier": [
+      -1.2,
+      -1.1,
+      -1
+     ],
+     "jewels": [
+      -4,
+      -2,
+      0
+     ],
+     "mainVsLine": [
+      -13,
+      -1.5,
+      9
+     ],
+     "defenseVsLine": [
+      -11,
+      10,
+      39
+     ]
+    },
+    "states": {
+     "low": {
+      "weaponTier": -1,
+      "armorPieces": 0,
+      "armorTier": -1,
+      "jewels": -5,
+      "mainVsLine": 0,
+      "defenseVsLine": 0
+     },
+     "mid": {
+      "weaponTier": 0,
+      "armorPieces": 0,
+      "armorTier": 0,
+      "jewels": 0,
+      "mainVsLine": 0,
+      "defenseVsLine": 0
+     },
+     "bis": {
+      "weaponTier": 0,
+      "armorPieces": 0,
+      "armorTier": 0,
+      "jewels": 0,
+      "mainVsLine": 10,
+      "defenseVsLine": 10
+     }
+    },
+    "inside": {
+     "low": {
+      "weaponTier": true,
+      "armorPieces": true,
+      "armorTier": true,
+      "jewels": false,
+      "mainVsLine": true,
+      "defenseVsLine": true
+     },
+     "mid": {
+      "weaponTier": false,
+      "armorPieces": true,
+      "armorTier": false,
+      "jewels": true,
+      "mainVsLine": true,
+      "defenseVsLine": true
+     },
+     "bis": {
+      "weaponTier": false,
+      "armorPieces": true,
+      "armorTier": false,
+      "jewels": true,
+      "mainVsLine": false,
+      "defenseVsLine": true
+     }
+    }
+   },
+   {
+    "band": "65-84",
+    "heroes": 4,
+    "real": {
+     "weaponTier": [
+      0,
+      0,
+      0
+     ],
+     "armorPieces": [
+      0,
+      0,
+      0
+     ],
+     "armorTier": [
+      -0.2,
+      0,
+      0
+     ],
+     "jewels": [
+      0,
+      0,
+      0
+     ],
+     "mainVsLine": [
+      -4,
+      -2.5,
+      1
+     ],
+     "defenseVsLine": [
+      1,
+      15.5,
+      44
+     ]
+    },
+    "states": {
+     "low": {
+      "weaponTier": -1,
+      "armorPieces": 0,
+      "armorTier": -1,
+      "jewels": -5,
+      "mainVsLine": 0,
+      "defenseVsLine": 0
+     },
+     "mid": {
+      "weaponTier": 0,
+      "armorPieces": 0,
+      "armorTier": 0,
+      "jewels": 0,
+      "mainVsLine": 0,
+      "defenseVsLine": 0
+     },
+     "bis": {
+      "weaponTier": 0,
+      "armorPieces": 0,
+      "armorTier": 0,
+      "jewels": 0,
+      "mainVsLine": 10,
+      "defenseVsLine": 10
+     }
+    },
+    "inside": {
+     "low": {
+      "weaponTier": false,
+      "armorPieces": true,
+      "armorTier": false,
+      "jewels": false,
+      "mainVsLine": true,
+      "defenseVsLine": false
+     },
+     "mid": {
+      "weaponTier": true,
+      "armorPieces": true,
+      "armorTier": true,
+      "jewels": true,
+      "mainVsLine": true,
+      "defenseVsLine": false
+     },
+     "bis": {
+      "weaponTier": true,
+      "armorPieces": true,
+      "armorTier": true,
+      "jewels": true,
+      "mainVsLine": false,
+      "defenseVsLine": true
+     }
+    }
+   },
+   {
+    "band": "85-110",
+    "heroes": 0,
+    "reading": "no real hero: calibrated by the engine alone"
+   },
+   {
+    "band": "111-185",
+    "heroes": 0,
+    "reading": "no real hero: calibrated by the engine alone"
+   }
+  ]
+ },
+ "front": {
+  "bands": [
+   {
+    "band": "1-15",
+    "heroes": 3,
+    "real": {
+     "weaponTier": [
+      0,
+      0,
+      0
+     ],
+     "armorPieces": [
+      -6,
+      -5,
+      -2
+     ],
+     "armorTier": [
+      -1,
+      0,
+      0
+     ],
+     "jewels": [
+      -5,
+      -5,
+      -5
+     ],
+     "mainVsLine": [
+      -1,
+      -1,
+      2
+     ],
+     "defenseVsLine": [
+      0,
+      6,
+      10
+     ]
+    },
+    "states": {
+     "low": {
+      "weaponTier": 0,
+      "armorPieces": -6,
+      "armorTier": -1,
+      "jewels": -5,
+      "mainVsLine": 0,
+      "defenseVsLine": 0
+     },
+     "mid": {
+      "weaponTier": 0,
+      "armorPieces": 0,
+      "armorTier": 0,
+      "jewels": 0,
+      "mainVsLine": 0,
+      "defenseVsLine": 0
+     },
+     "bis": {
+      "weaponTier": 0,
+      "armorPieces": 0,
+      "armorTier": 0,
+      "jewels": 0,
+      "mainVsLine": 10,
+      "defenseVsLine": 10
+     }
+    },
+    "inside": {
+     "low": {
+      "weaponTier": true,
+      "armorPieces": true,
+      "armorTier": true,
+      "jewels": true,
+      "mainVsLine": true,
+      "defenseVsLine": true
+     },
+     "mid": {
+      "weaponTier": true,
+      "armorPieces": false,
+      "armorTier": true,
+      "jewels": false,
+      "mainVsLine": true,
+      "defenseVsLine": true
+     },
+     "bis": {
+      "weaponTier": true,
+      "armorPieces": false,
+      "armorTier": true,
+      "jewels": false,
+      "mainVsLine": false,
+      "defenseVsLine": true
+     }
+    }
+   },
+   {
+    "band": "16-30",
+    "heroes": 0,
+    "reading": "no real hero: calibrated by the engine alone"
+   },
+   {
+    "band": "31-44",
+    "heroes": 0,
+    "reading": "no real hero: calibrated by the engine alone"
+   },
+   {
+    "band": "45-64",
+    "heroes": 0,
+    "reading": "2 real hero(es), under 3: not shown"
+   },
+   {
+    "band": "65-84",
+    "heroes": 0,
+    "reading": "1 real hero(es), under 3: not shown"
+   },
+   {
+    "band": "85-110",
+    "heroes": 0,
+    "reading": "no real hero: calibrated by the engine alone"
+   },
+   {
+    "band": "111-185",
+    "heroes": 0,
+    "reading": "no real hero: calibrated by the engine alone"
+   }
+  ]
+ },
+ "back": {
+  "bands": [
+   {
+    "band": "1-15",
+    "heroes": 0,
+    "reading": "1 real hero(es), under 3: not shown"
+   },
+   {
+    "band": "16-30",
+    "heroes": 0,
+    "reading": "no real hero: calibrated by the engine alone"
+   },
+   {
+    "band": "31-44",
+    "heroes": 0,
+    "reading": "no real hero: calibrated by the engine alone"
+   },
+   {
+    "band": "45-64",
+    "heroes": 6,
+    "real": {
+     "weaponTier": [
+      -2,
+      -1.5,
+      -1
+     ],
+     "armorPieces": [
+      -2,
+      -1,
+      0
+     ],
+     "armorTier": [
+      -1.2,
+      -1.1,
+      -1
+     ],
+     "jewels": [
+      -4,
+      -2,
+      0
+     ],
+     "mainVsLine": [
+      -13,
+      -2.5,
+      1
+     ],
+     "defenseVsLine": [
+      -11,
+      2,
+      22
+     ]
+    },
+    "states": {
+     "low": {
+      "weaponTier": -1,
+      "armorPieces": 0,
+      "armorTier": -1,
+      "jewels": -5,
+      "mainVsLine": 0,
+      "defenseVsLine": 0
+     },
+     "mid": {
+      "weaponTier": 0,
+      "armorPieces": 0,
+      "armorTier": 0,
+      "jewels": 0,
+      "mainVsLine": 0,
+      "defenseVsLine": 0
+     },
+     "bis": {
+      "weaponTier": 0,
+      "armorPieces": 0,
+      "armorTier": 0,
+      "jewels": 0,
+      "mainVsLine": 10,
+      "defenseVsLine": 10
+     }
+    },
+    "inside": {
+     "low": {
+      "weaponTier": true,
+      "armorPieces": true,
+      "armorTier": true,
+      "jewels": false,
+      "mainVsLine": true,
+      "defenseVsLine": true
+     },
+     "mid": {
+      "weaponTier": false,
+      "armorPieces": true,
+      "armorTier": false,
+      "jewels": true,
+      "mainVsLine": true,
+      "defenseVsLine": true
+     },
+     "bis": {
+      "weaponTier": false,
+      "armorPieces": true,
+      "armorTier": false,
+      "jewels": true,
+      "mainVsLine": false,
+      "defenseVsLine": true
+     }
+    }
+   },
+   {
+    "band": "65-84",
+    "heroes": 3,
+    "real": {
+     "weaponTier": [
+      0,
+      0,
+      0
+     ],
+     "armorPieces": [
+      0,
+      0,
+      0
+     ],
+     "armorTier": [
+      -0.2,
+      0,
+      0
+     ],
+     "jewels": [
+      0,
+      0,
+      0
+     ],
+     "mainVsLine": [
+      -4,
+      -4,
+      1
+     ],
+     "defenseVsLine": [
+      1,
+      10,
+      21
+     ]
+    },
+    "states": {
+     "low": {
+      "weaponTier": -1,
+      "armorPieces": 0,
+      "armorTier": -1,
+      "jewels": -5,
+      "mainVsLine": 0,
+      "defenseVsLine": 0
+     },
+     "mid": {
+      "weaponTier": 0,
+      "armorPieces": 0,
+      "armorTier": 0,
+      "jewels": 0,
+      "mainVsLine": 0,
+      "defenseVsLine": 0
+     },
+     "bis": {
+      "weaponTier": 0,
+      "armorPieces": 0,
+      "armorTier": 0,
+      "jewels": 0,
+      "mainVsLine": 10,
+      "defenseVsLine": 10
+     }
+    },
+    "inside": {
+     "low": {
+      "weaponTier": false,
+      "armorPieces": true,
+      "armorTier": false,
+      "jewels": false,
+      "mainVsLine": true,
+      "defenseVsLine": false
+     },
+     "mid": {
+      "weaponTier": true,
+      "armorPieces": true,
+      "armorTier": true,
+      "jewels": true,
+      "mainVsLine": true,
+      "defenseVsLine": false
+     },
+     "bis": {
+      "weaponTier": true,
+      "armorPieces": true,
+      "armorTier": true,
+      "jewels": true,
+      "mainVsLine": false,
+      "defenseVsLine": true
+     }
+    }
+   },
+   {
+    "band": "85-110",
+    "heroes": 0,
+    "reading": "no real hero: calibrated by the engine alone"
+   },
+   {
+    "band": "111-185",
+    "heroes": 0,
+    "reading": "no real hero: calibrated by the engine alone"
+   }
+  ]
+ }
+}

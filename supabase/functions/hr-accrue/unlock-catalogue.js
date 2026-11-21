@@ -80,7 +80,7 @@ const OFFER_FIELDS_UNDERSTOOD = Object.freeze(['id', 'table', 'name', 'cost', 'g
  *    dungeon_run      merge='none' — a one-shot action with no persistent home.
  *                     The intent that CONSUMES it owns it (hr_unlocks' own
  *                     header), and it is refused by the storage guard anyway.
- *    theme / cosmetic / character_slot / entitlement / bounty
+ *    theme / cosmetic / entitlement / bounty
  *                     priced in gems, Bounty Marks (no server column at all) or
  *                     real money (the platform's authority, not ours).
  *    trait            trait:auto_eat already has its own applied, live RPC

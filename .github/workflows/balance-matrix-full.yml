@@ -1,21 +1,36 @@
 # ============================================================================
-# balance-matrix-full — THE FULL BALANCE MATRIX, ONCE, SHARDED.
+# balance-matrix-full — THE FULL BALANCE MATRIX AND THE DEATH SAMPLE, ONCE,
+# SHARDED, WITH THE LEVEL LAW'S SEATS AND THE WEAPON CARDS.
 #
 # tools/balance-program/balance-matrix.mjs on RUNS.full (every way, party,
 # gear state and tier at every checkpoint and the high Levels, the steps, the
 # lineups, the buff, binds and talent blocks and the ground axis: about 4,500
-# cells, 2 seeds x 2 hours each) on the proposed game (every recommended
-# proposal of tools/balance-program/proposals.json on a scratch copy), with
-# the measuring tool's step 1 in (the real death rule, the time booked as
-# hunted, real shopping, the four seated as the real four). Too heavy for a
-# PC: 16 jobs each play every 16th cell and upload their shard. A
-# MEASUREMENT, never a gate, and never on a lane, set, release or main push.
+# cells, 2 seeds x 2 hours each) and on RUNS.deaths (the death sample of
+# 12-balance-pass.md, R2 and R4: the four and the lineups on the harder
+# tiers, the 14 grounds at both band ends, 153 cells, 4 seeds x 8 hours) and
+# on RUNS['deaths-full'] (the same with chapter 14's full-game block on:
+# 14-the-rest.md section 1, so CB-2 sizes the tiers once with it in), on
+# the proposed game (every recommended proposal of
+# tools/balance-program/proposals.json on a scratch copy). Beside them, the
+# Level law's two seats fitted at the ruled points (proposals.mjs --derive
+# --r13-only: the patch files it writes upload) and check C1, the weapon
+# cards (start-cards.mjs). What wave 1's replay and wave 5's run read
+# together (13-build-plan.md FB-3). Too heavy for a PC. A MEASUREMENT, never
+# a gate, and never on a lane, set, release or main push. A cell that ended
+# no_fight is a TOOL RED (audit A-0): its job fails and still uploads.
 #
 # Run it:   git push origin HEAD:refs/heads/balance-full/<lane>
 #           (only a branch under balance-full/ starts it)
 # Join:     gh run download <id> --dir <dir> --pattern 'matrix-shard-*'
 #           node tools/balance-program/balance-matrix.mjs --base proposed --join <dir>
 #           (writes tools/balance-program/balance-matrix-full-proposed.json and prints the report)
+#           gh run download <id> --dir <dir2> --pattern 'deaths-shard-*'
+#           node tools/balance-program/balance-matrix.mjs --base proposed --join <dir2>
+#           (the shards name their run: writes balance-matrix-deaths-proposed.json)
+#           gh run download <id> --dir <dir4> --pattern 'deaths-full-shard-*'
+#           node tools/balance-program/balance-matrix.mjs --base proposed --join <dir4>
+#           (chapter 14's full-game block: prints it against the death sample joined above)
+#           gh run download <id> --dir <dir3> --name level-law --name start-cards
 # ============================================================================
 name: balance-matrix-full
 
@@ -55,4 +70,101 @@ jobs:
         with:
           name: matrix-shard-${{ matrix.shard }}
           path: shard-*.json
+          retention-days: 30
+
+  deaths:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+    env:
+      SHARD: ${{ matrix.shard }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Play shard ${{ matrix.shard }} of 12 of the death sample on the proposed game
+        run: node tools/balance-program/balance-matrix.mjs --run deaths --base proposed --shard "$SHARD/12" --workers 4 --out "shard-$SHARD.json"
+      - name: Upload the shard
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: deaths-shard-${{ matrix.shard }}
+          path: shard-*.json
+          retention-days: 30
+
+  deaths-full:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+    env:
+      SHARD: ${{ matrix.shard }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Play shard ${{ matrix.shard }} of 12 of chapter 14's full-game block (the death sample with its patch) on the proposed game
+        run: node tools/balance-program/balance-matrix.mjs --run deaths-full --base proposed --shard "$SHARD/12" --workers 4 --out "shard-$SHARD.json"
+      - name: Upload the shard
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: deaths-full-shard-${{ matrix.shard }}
+          path: shard-*.json
+          retention-days: 30
+
+  level-law:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Fit the Level law's two seats at the ruled points on the proposed game without R13
+        shell: bash
+        run: node tools/balance-program/proposals.mjs --derive --r13-only --workers 4 2>&1 | tee level-law.txt
+      - name: Upload the seats
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: level-law
+          path: |
+            level-law.txt
+            tools/balance-program/patches/R13-level-law.json
+            tools/balance-program/patches/bp-level-law-dangerous-seat.json
+          retention-days: 30
+
+  start-cards:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Check C1, the weapon cards, on the proposed game
+        shell: bash
+        run: node tools/balance-program/start-cards.mjs --base proposed --seeds 4 --json start-cards.json 2>&1 | tee start-cards.txt
+      - name: Upload the cards
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: start-cards
+          path: start-cards.*
           retention-days: 30

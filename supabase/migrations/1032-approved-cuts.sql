@@ -1675,8 +1675,9 @@ begin
       raise exception 'approved-cuts §7(d): the market lists nothing'; end if;
     if exists (select 1 from public.hr_premium_login_reward p join public.hr_market_items m using (item_id) where m.listable) then
       raise exception 'approved-cuts §7(d): the premium login reward became listable'; end if;
-    if (select count(*) from public.hr_hero_slots where cost_gold > 0) < 1 then
-      raise exception 'approved-cuts §7(d): no hero slot is sold for gold'; end if;
+    -- every hero slot is paid in gold or free (all four free since 1036-four-starter-slots.sql, FB-5): none is priced in gems
+    if exists (select 1 from public.hr_hero_slots where cost_gold is null or cost_gold < 0 or (cost_gold = 0 and not starter)) then
+      raise exception 'approved-cuts §7(d): a hero slot is neither sold for gold nor a free starter'; end if;
     raise exception using errcode = 'HRC11', message = 'approved-cuts §7(d) complete - rolling back';
   exception when sqlstate 'HRC11' then null;
   end;

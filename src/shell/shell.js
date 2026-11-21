@@ -49,7 +49,7 @@ import { createHudRoom } from './hud-room.js';
 import { createWidgetStack } from './widget-stack.js';
 import { fitDocked, dockedHeight, trimEnds } from './window-fit.js';
 import { headHtml, bodyOf, showPage, paintHead, pressHead, oneGold } from './window-head.js';
-import { actCoach, heldCard, coachHtml, placeCoach, fitCoachLine, ringCoach, noteCoachSight, coachOnScreen } from './launcher.js';
+import { actCoach, heldCard, coachHtml, placeCoach, fitCoachLine, ringCoach, noteCoachSight, coachOnScreen } from './launcher-coach.js';
 import { coachWindow } from '../data/hunt-tutorial.js';
 import { WINDOW_RENDERERS, WIDGET_RENDERERS } from './renderers.js';
 import { mountContextMenu } from './context-menu.js';
@@ -406,7 +406,7 @@ export function mountShell(root, o) {
     paintWidgets();
     coach();
   }
-  /* The coach (launcher.js heldCard) inside the window it points into, and its gold ring (launcher.js ringCoach), after every
+  /* The coach (launcher-coach.js heldCard) inside the window it points into, and its gold ring (launcher-coach.js ringCoach), after every
      paint and on the display tick; a card that gives way on the tick (a held card read) redraws the icon row too. */
   let coachShown = null;
   function coach(tick) {
@@ -445,7 +445,7 @@ export function mountShell(root, o) {
   /* The display tick: components patch their clocks and play the timeline's due events. A hidden page patches nothing (nobody reads it). */
   function patchComponents() {
     /* The coach FIRST, while the page is still laid out from the last frame: its ring asks what is on screen
-       (launcher.js shown, getClientRects), and asked after the patches below it forced a whole layout inside the
+       (launcher-coach.js shown, getClientRects), and asked after the patches below it forced a whole layout inside the
        tick (perf lane 2026-10-28: up to 79 ms of an 81 ms tick at 4x CPU). A control that appears on this tick is
        ringed on the next, 250 ms later. One gold plate per window reads the same laid-out page (window-head.js). */
     for (const w of layer.querySelectorAll(':scope > .hs-win')) oneGold(w);

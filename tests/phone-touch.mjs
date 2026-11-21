@@ -9,7 +9,7 @@
 //   node tests/phone-touch.mjs --shots <dir>  also write the visual-gate screenshots (667x375, 844x390,
 //                                             922x423, portrait 390x844 and desktop 1440x900, fonts loaded)
 //
-// mutant-anchors: src/render/format.js src/shell/windows/hunts.js src/shell/window-head.js src/app/hero-create.js src/shell/context-menu.js src/styles/market.css src/shell/launcher.js src/shell/widgets/party-panel.js src/shell/windows/item-tip.js src/shell/windows/party.js src/shell/windows/storage.js src/styles/hunt.css src/styles/windows.css src/styles/shell.css src/styles/app.css src/shell/shell.js src/shell/shell-hud.js play.html src/shell/windows/configure-action.js src/shell/action-facts.js src/data/text/bar.js src/shell/widgets/hunt-topbar.js src/shell/widgets/analyzer.js src/shell/windows/settings.js src/data/hud-widgets.js src/shell/windows/characters.js src/shell/widgets/action-bar.js src/shell/launcher-names.js src/shell/off-why.js src/shell/windows/tally.js src/shell/windows/shop.js src/app/world-pane.js src/app/sign-in.js src/app/boot.js src/net/connection.js src/shell/windows/boss-hall-pane.js src/shell/windows/inventory/index.js
+// mutant-anchors: src/render/format.js src/shell/windows/hunts.js src/shell/window-head.js src/app/hero-create.js src/shell/context-menu.js src/styles/market.css src/shell/launcher-coach.js src/shell/widgets/party-panel.js src/shell/windows/item-tip.js src/shell/windows/party.js src/shell/windows/storage.js src/styles/hunt.css src/styles/windows.css src/styles/shell.css src/styles/app.css src/shell/shell.js src/shell/shell-hud.js play.html src/shell/windows/configure-action.js src/shell/action-facts.js src/data/text/bar.js src/shell/widgets/hunt-topbar.js src/shell/widgets/analyzer.js src/shell/windows/settings.js src/data/hud-widgets.js src/shell/windows/characters.js src/shell/widgets/action-bar.js src/shell/launcher-names.js src/shell/off-why.js src/shell/windows/tally.js src/shell/windows/shop.js src/app/world-pane.js src/app/sign-in.js src/app/boot.js src/net/connection.js src/shell/windows/boss-hall-pane.js src/shell/windows/inventory/index.js
 // mutant-writes-tree: no — page mutants are served overrides
 // mutant-rule-functions: huntsWholeRows bagReach configureFits analyzerToggles analyzerOverTown portrait settingsTouch tallEnough bagByTouch coachFits coachOffFight barFits desktopBar staminaBuy coachSheet coachSheetHunting gotItRests huntBarApart partyActs tappedItem createDoor heroDoor groundPage groundBackHunting detailsTabs wordsFit partyFolds barPresses weighhouse sorts partyInvite menuSending inviteToast sheetWords mouseWordsAndTargets stripReach inviteByPress slotPage chatFoot touchMeaning touchHunt alertStack townCard waitWords leaveWords doorRule hallDoor barBesideSheet rules
 // mutant-runner-functions: main
@@ -106,7 +106,8 @@
 //   PH-27 EVERY CARD'S WORDS FIT: each tutorial card's words (three times over since the one-line cards) whole without a scroll, in the town's card, beside a sheet and under the
 //         hunt bar, up to the length each room holds (under the hunt bar the cards a hunt can show, each title on one line, its presses on a row under the words); a longer
 //         card's corner shows the gold tip until its words end; at 1440x900 no title of three words or more ends on one word
-//   PH-28 HOW YOU FIGHT: the lead and all five ways (at twice their English) whole with no scroll; a refusal keeps Enter town on screen; on a screen too short, "More below" until its end
+//   PH-28 HOW THIS HERO FIGHTS (GR-24, the six pick cards since FB-5): the lead and the first way (at twice their English) whole with no scroll,
+//        "More below" while a way is under the fold and gone at its end, every way reachable; a refusal keeps Enter town on screen
 //   PH-29 THE PARTY PANEL: alone, folded to its name and plus, and a press opens it for good; in a party, open; a desktop from 1280 px starts open with its dash (narrower: HS-28)
 //   PH-30 THE BAR'S PRESSES: the slots' page at least 36 px wide, the setup's name 36 px tall and clear of its neighbour
 //   PH-31 AFTER CREATE ACCOUNT: only the answer and the way back, no word left from the form
@@ -193,6 +194,12 @@ async function stub(page, s, fonts) {
     if (name === 'hr_load') return json(s.next());
     if (name === 'hr-accrue') return json(Object.assign({ accrued: true }, s.next()));
     if (name === 'hr_put_client_state') { s.residue = Object.assign({}, s.residue, body.p_patch || {}); return json({ ok: true }); }
+    /* THE ACCOUNT'S COACH (1039-account-coach.sql): a case's cards read (its seeded residue coach.read) are the account's now; marks join them as a union */
+    if (name === 'hr_account_coach') {
+      if (!s.coach) { const c = s.residue && s.residue.coach; s.coach = { read: c && Array.isArray(c.read) ? c.read.slice() : [], taught: [], v: 1 }; }
+      for (const k of ['read', 'taught']) for (const id of (body['p_' + k] || [])) if (!s.coach[k].includes(id)) { s.coach[k].push(id); s.coach.v++; }
+      return json(Object.assign({ ok: true }, s.coach));
+    }
     /* PH-9: a stamina refill, held while s.holdRefill (s.releaseRefill answers it); s.onRefill is the server. */
     if (name === 'hr_stamina_refill' && s.onRefill) { if (s.holdRefill) await new Promise((ok) => { s.releaseRefill = ok; }); return json(s.onRefill(body)); }
     /* PH-14: her board; PH-16: a leave whose answer does not come (a tunnel). */
@@ -953,25 +960,29 @@ async function heroDoor(page, tag, fails) {
   await wait(page, () => document.querySelector('[data-app="create"]'));
   await page.click('[data-app="create"]');
   if (!(await wait(page, () => document.querySelector('.hero-confirm'), null, 5000))) { fails.push('PH-22 [' + tag + '] CONTROL: no hero creation'); return; }
+  /* an account with a hero opens the party step (hero-create.js renderCompany): One at a time is the step this door reads */
+  if (await page.$('.hero-alone')) { await page.click('.hero-alone'); await wait(page, () => document.querySelector('.hero-body'), null, 5000); }
   await page.waitForTimeout(150);
   const on = await page.evaluate(RECT + `;[document.querySelector('.hero-confirm'), document.querySelector('.hero-back')].every((e) => window.__onScreen(window.__r(e)))`);
   if (!on) fails.push('PH-22 [' + tag + '] Enter town or its way back runs off the screen');
   /* The step's box takes no height from its words, so its own height is what shows them. */
   const tall = await page.evaluate(() => Math.round(document.querySelector('.hero-body').getBoundingClientRect().height));
   if (tall < 150) fails.push('PH-22 [' + tag + '] How you fight is ' + tall + ' px tall');
-  /* PH-28: the lead and all five ways with no scroll on a phone's screen; too short for them (browser bars, a keyboard), the cue says so until the end. */
-  const how = () => page.evaluate(() => { const s = document.querySelector('.hero-body'), h = s.querySelector('.hero-how'), box = (e) => e.getBoundingClientRect(), last = box(h.querySelector('.hero-how-list li:last-child')), lead = box(s.querySelector('.hero-how-lead')), b = box(s), name = box(s.querySelector('.hero-name')), cue = h.querySelector('.hero-how-more'), c = box(cue);
-    return { ways: h.querySelectorAll('.hero-how-list li').length, over: Math.round(last.bottom - b.bottom), leadOver: Math.round(lead.bottom - b.bottom), leadOnName: lead.top < name.bottom - 0.5, leadOnWays: lead.right > box(h).left + 0.5, field: Math.round(name.width), end: s.scrollHeight - s.clientHeight, cue: !!cue.getClientRects().length && c.bottom <= b.bottom + 1 && c.top >= b.top - 1 }; });
+  /* PH-28: the lead and the first way whole with no scroll on a phone's screen; the six cards with their tags and cost lines run on, and the cue says so
+     until the end (D-1's cost line and tags made the list longer than a phone: each way is reached by scrolling the step, never hidden). */
+  const how = () => page.evaluate(() => { const s = document.querySelector('.hero-body'), h = s.querySelector('.hero-how'), box = (e) => e.getBoundingClientRect(), first = box(h.querySelector('.hero-way')), last = box(h.querySelector('.hero-way:last-of-type')), lead = box(s.querySelector('.hero-how-lead')), b = box(s), name = box(s.querySelector('.hero-name')), cue = h.querySelector('.hero-how-more'), c = box(cue);
+    return { ways: h.querySelectorAll('.hero-way').length, over: Math.round(first.bottom - b.bottom), below: Math.round(last.bottom - b.bottom), leadOver: Math.round(lead.bottom - b.bottom), leadOnName: lead.top < name.bottom - 0.5, leadOnWays: lead.right > box(h).left + 0.5, field: Math.round(name.width), end: s.scrollHeight - s.clientHeight, cue: !!cue.getClientRects().length && c.bottom <= b.bottom + 1 && c.top >= b.top - 1 }; });
   for (const vp of [SMALL_PHONES[0], SMALL_PHONES[1]]) {
     await page.setViewportSize(vp);
     await page.waitForTimeout(150);
     const f = await how();
-    if (f.ways !== 5) fails.push('PH-28 [' + tagOf(vp) + '] CONTROL: ' + f.ways + ' ways to fight');
-    if (f.over > 0) fails.push('PH-28 [' + tagOf(vp) + '] How you fight is cut: its last way ends ' + f.over + ' px below the step');
+    if (f.ways !== 6) fails.push('PH-28 [' + tagOf(vp) + '] CONTROL: ' + f.ways + ' ways to fight');
+    if (f.over > 0) fails.push('PH-28 [' + tagOf(vp) + '] How this hero fights is cut: its first way ends ' + f.over + ' px below the step');
+    if (f.below > 1 && !f.cue) fails.push('PH-28 [' + tagOf(vp) + '] a way is ' + f.below + ' px below the step with no sign of it');
     if (f.leadOver > 0) fails.push('PH-28 [' + tagOf(vp) + '] the lead is cut: it ends ' + f.leadOver + ' px below the step');
     if (f.leadOnName || f.leadOnWays) fails.push('PH-28 [' + tagOf(vp) + '] the lead lies on ' + (f.leadOnName ? 'the name' : 'the five ways'));
     if (f.field < 110) fails.push('PH-28 [' + tagOf(vp) + '] the name\'s field is ' + f.field + ' px wide');
-    if (f.cue) fails.push('PH-28 [' + tagOf(vp) + '] the step says More below with nothing below');
+    if (f.cue && f.below <= 1) fails.push('PH-28 [' + tagOf(vp) + '] the step says More below with nothing below');
     const on = await page.evaluate(() => { const r = (q) => document.querySelector(q).getBoundingClientRect(); return [r('.hero-confirm'), r('.hero-back'), r('.auth-card')].every((b) => b.top >= -0.5 && b.bottom <= innerHeight + 0.5); });
     if (!on) fails.push('PH-28 [' + tagOf(vp) + '] the card runs off the screen');
   }
@@ -2191,7 +2202,7 @@ const MUTANTS = [
   ['PH-14 a slot\'s sheet does not say why', 'src/shell/windows/configure-action.js', "text(root.querySelector('.ca-why'), fireWhy ? fireWhy.text : '');", ''],
   ['PH-14 her board does not say why while it is loaded', 'src/shell/windows/tally.js', "const why = !sc.board ? '' : hunting ? t('tally.board_hunting') : takeWhyOf(tally, hunting, suggest);", "const why = !sc.board ? '' : takeWhyOf(tally, hunting, suggest);"],
   ['PH-15 a sliver of card stays under a tall alert', 'src/styles/shell.css', '  .hs-widget.is-no-room > .hs-pointer { display: none; }\n', ''],
-  ['PH-6 a press on a folded card\'s tab opens nothing on a return', 'src/shell/launcher.js', '  if (r && r.seen === card.id && r.min !== true) return false;\n', ''],
+  ['PH-6 a press on a folded card\'s tab opens nothing on a return', 'src/shell/launcher-coach.js', '  if (r && r.seen === card.id && r.min !== true) return false;\n', ''],
   ['PH-15 every alert stacks on a phone', 'src/styles/windows.css', '  .hw-alert-list > .hw-alert:not(:first-child) { display: none; }\n', ''],
   ['PH-15 the alert is see-through', 'src/styles/windows.css', 'padding: 0 0 0 10px; background: var(--bg-2); }', 'padding: 0 0 0 10px; }'],
   ['PH-15 nothing counts the alerts behind', 'src/styles/windows.css', '  .hw-alerts-more:not(:empty) { display: block; }\n', ''],
@@ -2208,9 +2219,9 @@ const MUTANTS = [
   ['PH-17 the links are 24 px', 'src/styles/app.css', '  .auth-link { min-height: var(--tap); padding: 0 8px; }\n', ''],
   ['PH-18 a card stands in the sheet again', 'src/styles/shell.css', '  .hs-win:not(.is-modal) > .hs-win-coach > .hs-pointer { position: absolute; margin: 0; top: 10px; left: calc(min(400px, 48vw) + 5px - 100vw); }\n', ''],
   ['PH-18 the note stands over the ground the card names', 'src/styles/shell.css', '  [data-hs-win="hunts"]:has(.hs-win-coach .hs-pointer) .hw-hunts-now { display: none; }\n', '  [data-hs-win="hunts"]:has(.hs-win-coach .hs-pointer) .hw-hunts-now { min-height: 120px; }\n'],
-  ['PH-18 Got it chains the next card open', 'src/shell/launcher.js', 'min = folded.min || !!rest || (!!inWin && RESTED.get(cs) === coachWindow(card));', 'min = folded.min || !!rest;'],
+  ['PH-18 Got it chains the next card open', 'src/shell/launcher-coach.js', 'min = folded.min || !!rest || (!!inWin && RESTED.get(cs) === coachWindow(card));', 'min = folded.min || !!rest;'],
   ['PH-18 the coach foot shares the title row again', 'src/styles/shell.css', '  :is(.hs-launchers, .hs-win-coach, .hs-widget.is-hunt-topbar) > .hs-pointer:not(.is-min) > .hs-coach-foot { grid-area: 3 / 1 / 4 / 3; margin: 0; white-space: normal; }\n  :is(.hs-launchers, .hs-win-coach, .hs-widget.is-hunt-topbar) > .hs-pointer:not(.is-min) > .hs-coach-foot > :is(.hs-coach-got, .hs-coach-off) { min-height: 40px; }\n  :is(.hs-launchers, .hs-win-coach, .hs-widget.is-hunt-topbar) > .hs-pointer:not(.is-min):has(> .hs-coach-foot) > .hs-coach-min { grid-area: 3 / 3; }\n  :is(.hs-launchers, .hs-win-coach, .hs-widget.is-hunt-topbar) > .hs-pointer:not(.is-min):has(> .hs-coach-foot) > b { grid-area: 1 / 1 / 2 / -1; padding-right: 8px; line-height: 1.05; }\n', ''],
-  ['PH-18 the next card\'s tab opens nothing', 'src/shell/launcher.js', "  if (action === 'coach-open') RESTED.delete(cs);\n", ''],
+  ['PH-18 the next card\'s tab opens nothing', 'src/shell/launcher-coach.js', "  if (action === 'coach-open') RESTED.delete(cs);\n", ''],
   ['PH-19 Summary and Leave stay 7 px apart', 'src/styles/hunt.css', '  .ht-bar [data-hs-act="leave"] { margin-left: 10px; }\n', ''],
   ['PH-19 the folded card lies on the Details close', 'src/styles/hunt.css', '.app:has(.hs-widget.is-analyzer) .hs-widget.is-hunt-topbar > .hs-pointer { display: none; }', '.app:has(.hs-widget.is-analyzer) .hs-widget.is-hunt-topbar > .hs-pointer:not(.is-min) { display: none; }'],
   ['PH-20 the party\'s presses run off the sheet', 'src/styles/windows.css', '  .hw-party-acts { flex-wrap: wrap; }\n', '  .hw-party-acts { flex-wrap: nowrap; min-width: 460px; }\n'],
@@ -2249,7 +2260,7 @@ const MUTANTS = [
   ['PH-27 the presses keep a column down the card', 'src/styles/shell.css', '  .hs-pointer:not(.is-min) > .hs-coach-min { position: static; grid-area: 1 / 3; width: 40px; height: 40px; }\n', '  .hs-pointer:not(.is-min) > .hs-coach-min { position: absolute; top: 0; right: 0; width: 44px; height: 44px; }\n  .hs-pointer:not(.is-min) { padding-right: 48px !important; }\n'],
   ['PH-27 the town\'s card stays narrow', 'src/styles/shell.css', '{ width: min(340px, calc(50vw - 56px)); right: calc(100vw - 8px - min(340px, calc(50vw - 56px))); }', '{ width: 200px; }'],
   ['PH-27 a wrapped title leaves its last word alone', 'src/render/format.js', '.split(/ +/).length >= 3 ? t.replace(', '.split(/ +/).length >= 99 ? t.replace('],
-  ['PH-27 the open card draws its title unglued', 'src/shell/launcher.js', "'<b>' + esc(keepLastWords(card.title)) + '</b>", "'<b>' + esc(card.title) + '</b>"],
+  ['PH-27 the open card draws its title unglued', 'src/shell/launcher-coach.js', "'<b>' + esc(keepLastWords(card.title)) + '</b>", "'<b>' + esc(card.title) + '</b>"],
   ['PH-27 the words under the hunt bar set at 1.3','src/styles/shell.css', '  .hs-widget.is-hunt-topbar > .hs-pointer:not(.is-min):has(> .hs-coach-foot) > .hs-coach-text { line-height: 1.25; }\n', ''],
   ['PH-27 the card under the hunt bar keeps its presses on the title\'s row', 'src/styles/shell.css', '  :is(.hs-launchers, .hs-win-coach, .hs-widget.is-hunt-topbar) > .hs-pointer:not(.is-min):has(> .hs-coach-foot) { padding: 0 0 0 12px; }\n  :is(.hs-launchers, .hs-win-coach, .hs-widget.is-hunt-topbar) > .hs-pointer:not(.is-min) > .hs-coach-foot { grid-area: 3 / 1 / 4 / 3; margin: 0; white-space: normal; }\n  :is(.hs-launchers, .hs-win-coach, .hs-widget.is-hunt-topbar) > .hs-pointer:not(.is-min) > .hs-coach-foot > :is(.hs-coach-got, .hs-coach-off) { min-height: 40px; }\n  :is(.hs-launchers, .hs-win-coach, .hs-widget.is-hunt-topbar) > .hs-pointer:not(.is-min):has(> .hs-coach-foot) > .hs-coach-min { grid-area: 3 / 3; }\n  :is(.hs-launchers, .hs-win-coach, .hs-widget.is-hunt-topbar) > .hs-pointer:not(.is-min):has(> .hs-coach-foot) > b { grid-area: 1 / 1 / 2 / -1; padding-right: 8px; line-height: 1.05; }\n', '  :is(.hs-launchers, .hs-win-coach) > .hs-pointer:not(.is-min):has(> .hs-coach-foot) { padding: 0 0 0 12px; }\n  :is(.hs-launchers, .hs-win-coach) > .hs-pointer:not(.is-min) > .hs-coach-foot { grid-area: 3 / 1 / 4 / 3; margin: 0; white-space: normal; }\n  :is(.hs-launchers, .hs-win-coach) > .hs-pointer:not(.is-min) > .hs-coach-foot > :is(.hs-coach-got, .hs-coach-off) { min-height: 40px; }\n  :is(.hs-launchers, .hs-win-coach) > .hs-pointer:not(.is-min):has(> .hs-coach-foot) > .hs-coach-min { grid-area: 3 / 3; }\n  :is(.hs-launchers, .hs-win-coach) > .hs-pointer:not(.is-min):has(> .hs-coach-foot) > b { grid-area: 1 / 1 / 2 / -1; padding-right: 8px; line-height: 1.05; }\n'],
   ['PH-27 the card under the hunt bar stays narrow', 'src/styles/shell.css', '  .hs-widget.is-hunt-topbar > .hs-pointer:not(.is-min) { width: min(320px, 100%); }\n', '  .hs-widget.is-hunt-topbar > .hs-pointer:not(.is-min) { width: min(200px, 100%); }\n'],
@@ -2257,7 +2268,7 @@ const MUTANTS = [
   ['PH-7 the ring\'s XP grows past the disc', 'src/styles/hunt.css', '  .hb-xp { font-size-adjust: var(--f-ui-aspect); }\n', '  .hb-xp { font-size-adjust: .7; }\n'],
   ['PH-26 a wide font pans the tabs', 'src/styles/hunt.css', '  .ha-analyzer .ha-tabs .ha-tab { font-size-adjust: var(--f-ui-aspect); }\n', ''],
   ['PH-27 a wide font cuts a card', 'src/styles/shell.css', '  .hs-pointer:not(.is-min) > .hs-coach-text { font-size-adjust: var(--f-ui-aspect); }\n', ''],
-  ['PH-28 a wide font cuts How you fight', 'src/styles/app.css', '  .hero-how-lead, .hero-how-list { font-size-adjust: var(--f-ui-aspect); }\n', ''],
+  ['PH-28 a wide font cuts How you fight', 'src/styles/app.css', '  .hero-how-lead, .hero-way { font-size-adjust: var(--f-ui-aspect); }\n', ''],
   ['PH-27 the tip never goes', 'src/styles/shell.css', "  .hs-pointer:not(.is-min) > .hs-coach-text::after { content: ''; display: block; height: 1lh; margin: -1lh -14px 0 0; background: var(--bg-2); }\n", ''],
   ['PH-28 the lead stays in the column', 'src/styles/app.css', '  .hero-how-lead { position: absolute; left: 0; top: 42px; width: 200px; margin: 0; line-height: 1.3; }\n', ''],
   ['PH-28 the longer lead runs past the step', 'src/styles/app.css', '  .hero-how-lead { position: absolute; left: 0; top: 42px; width: 200px;', '  .hero-how-lead { position: absolute; left: 0; top: 66px; width: 150px;'],

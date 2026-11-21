@@ -201,7 +201,7 @@ export const STAT_FORMULA = Object.freeze({
    middle paid 1.20x the pace contract at heavy 1.2 / elite 1.6, 1.05x at 1.0 / 1.2; lane/b-ground-formula-2).
    `evasion`: the role's to-hit defense rating against the regular's (to-hit.js evasionFor), so the reference hero lands 85% on a
    regular, about 87% on a swarm or glass body, 80% on a heavy and 78% on an elite or boss (the ratio: 1 - 0.15 x evasion). Read
-   off the measured proposal the ruling took (tools/balance-sim/staged/tohit-ratio.mjs, 2026-11-20): its role factor was the row's
+   off the measured proposal the ruling took (tools/balance-sim/staged/tohit-ratio.mjs, retired when this was built; git history): its role factor was the row's
    defense against a regular's, which with the retired def.past term read 0.90-0.93, 1.29-1.39 and 1.43-1.58 from Level 50 to 400. */
 export const MONSTER_ROLES = Object.freeze({
   /* many and weak: the common majority (rats, whelps) */

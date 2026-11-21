@@ -81,7 +81,7 @@ Three lanes filed 131 formulas and 154 exceptions. The same thing was often file
 | Class 4, accidental | | 57 |
 | Confirmed, hypothesis | | 115, 14 |
 | Rows where two lanes disagreed on the class | | 6 |
-| Edges between formulas | | 198 (67 cross a category) |
+| Edges between formulas | | 197 (67 cross a category) |
 | Formulas that sit on a circle | | 59 |
 <!-- END GENERATED:COUNTS -->
 
@@ -142,7 +142,7 @@ Full parameters, every implementation site and every consumer are in each lane's
 | P02 |  | progression | Pace contract: the Level XP an hour a ground must pay at its own Level: 1385 x L^1.274 | src/data/balance-sheet.js:92 | live |
 | P03 |  | progression | Combat skill curve: XP from skill level s to s+1 = floor(15 x s^2 x 1.04^(s-1)), no cap | src/core/xp.js:68-112 | live |
 | P04 |  | progression | Capped skill table: gathering and crafting levels 1 to 99 from a 99-row XP table | src/core/xp.js:24-61 | live |
-| P05 |  | progression | Skill XP grant: credited XP = floor(carry + base x (1 + allXP + combatXP)), base = amount x 0.39 unless the skill is exempt; plus a rested quantum outside the multiplier | src/core/progression.js:110-152 | live |
+| P05 |  | progression | Skill XP grant: credited XP = floor(carry + base x (1 + allXP + combatXP)), base = amount x 0.39 unless the skill is exempt (the rested quantum is gone: P30 cut 2026-11-21) | src/core/progression.js:110-152 | live |
 | P06 | E09 | progression, hunting and economy | Weapon skill XP from a blow: Melee or Ranged XP = damage dealt x 1.5 **Owner:** progression owns the three skill XP routes (P06, P07, P08) | src/core/hunt-rewards.js:245 | live |
 | P07 |  | progression | Defense XP from a monster's blow: 0.2 x the attacker's Level (raised by the tier's damage dial) per blow aimed at an armored hero, x2 when a shield turns it | src/core/hunt-rewards.js:59-63 | live |
 | P08 |  | progression | Magic XP from a cast: floor(mana spent x 1.5 x the ability's multiplier) | src/core/hunt/xp-share.js:143-148 | live |
@@ -157,7 +157,7 @@ Full parameters, every implementation site and every consumer are in each lane's
 | P25 | E08 | progression, hunting and economy | Session mode share: the Tower and the Catacombs pay 37.5% of a kill's Level XP and a death there costs nothing **Owner:** progression owns the mode share | src/data/session-modes.js:26-45 | live |
 | P27 |  | progression | XP weekend: +25% Level XP a kill for 72 hours every 14 days; live rows add, never past +50% | src/data/live-events.js:26-34,90-95 | live |
 | P28 |  | progression | Death cost: Level XP lost = floor(total Level XP x 0.06 x the mode's share); each combat skill loses floor(0.06 x its progress into its level) | src/core/action-rules.js:313-346 | live |
-| P30 |  | progression | Rested bank: one charge every 6 minutes to a cap of 80 (120 with the Library); a spent charge adds a flat quantum of at most 1,600 XP | src/core/rested.js:20-72 | live |
+| P30 |  | progression | Rested bank: CUT 2026-11-21 (FB-2, 1040-rested-bank-cut.sql; the sitting S-9 C): no rested bank. It was one charge every 6 minutes to a cap of 80 (120 with the Library), a spent charge a flat quantum of at most 1,600 XP |  | live |
 | P31 |  | progression | Perk XP channels: allXP and combatXP sum from rooms, renown, buffs and a companion; permanent sources are held to +20%; a companion's bonus = base x (1 + 0.05 x (level - 1)) and is added after the cap | src/core/perks.js:87-140,217-280 | live |
 | P35 |  | progression | Gear worn by Level: every piece of equipment names a hero Level as its requirement | src/data/gear-tiers.js:33 | live |
 | P37 |  | progression | Skill lines (simulator projection): the skills the balance simulator gives a hero at a Level; past the measured line a straight line on its last ten Levels | tools/balance-sim/skill-lines.mjs:91-104 | tools only |
@@ -249,7 +249,7 @@ Class 4 first, then 3, 2 and 1.
 | P-X21 |  | 4 | CONFIRMED | The Hunts page works out the death percent in the browser from the data constant and the server's cut | src/shell/hunt-list.js:179 |  |
 | P-X24 |  | 4 | CONFIRMED | A global XP dial of 0.39 with an exempt list, and Inner Flame's recipe XP authored at 40 so that 40 x 0.39 lands 15.6 | src/core/pacing.js:17-22; src/data/core-model.js:230-232 |  |
 | P-X25 |  | 4 | CONFIRMED | The skill grant has two rounding paths: the carried remainder, and an older floor of at least 1 for a state with no remainder map | src/core/progression.js:132-140 |  |
-| P-X26 |  | 4 | CONFIRMED | The rested bank fills on the server and pays nothing. All four grant callers pass a quantum of 0 | src/core/rested.js; supabase/functions/hr-accrue/accrue-rested.js; src/core/member.js:220,230; supabase/funct… |  |
+| P-X26 |  | 4 | CONFIRMED | The rested bank fills on the server and pays nothing. All four grant callers pass a quantum of 0 | removed 2026-11-21 by FB-2 (1040-rested-bank-cut.sql): the rested files are deleted and the grant callers pas… |  |
 | P-X27 |  | 4 | HYPOTHESIS | A companion's XP bonus is added after the +20% permanent cap, on its own curve, restated from a client file | src/core/companion-perk.js:71-76,101-121 |  |
 | P-X34 |  | 4 | CONFIRMED | Past Level 110 a Tempering ladder is keyed on the piece's Level band instead of its tier, because every piece past Dawnsteel is still tier 7 | src/data/temper.js:107-117 |  |
 | P-X42 |  | 4 | CONFIRMED | The reference hero past Level 1,000 is a straight line. It reads Melee 375 at Level 5,000, where the skill curve allows about 248 | src/data/to-hit.js:56-66 |  |

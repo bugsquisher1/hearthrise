@@ -35,12 +35,10 @@ export const G8_OWN_SHARE = 0.25;
    every day since the yard opens to it (src/data/training.js TRAINING_RULES.minLevel), on the lone pace table (src/data/core-model.js
    LEVEL_PACE.targets: the slowest an Own four hero reaches a Level, so an UPPER BOUND on the hours trained). */
 export const G11_PLAYER = 'ownfour';
-/* G19 and G20: the pair and the three the slot ladder makes of the Own four (31-plan-audit M2: the fastest of each it measured). */
+/* G19: the pair and the three the slot ladder made of the Own four (31-plan-audit M2: the fastest of each it measured). */
 export const SMALL_PARTIES = Object.freeze({ pair: Object.freeze(['hammer', 'mage']), three: Object.freeze(['tank', 'bow', 'mage']) });
 export const SMALL_POINTS = P('glade', 'ford');                                // G19: "Levels 30 to 50"
-/* G20: the Own four buys slot 2 with one lone hero, slot 3 with the pair (about Level 31, the Glade) and slot 4 with the three (about
-   Level 41 to 51, Hask's Ford), on the Own four's day (model.mjs 'ownfour') and its stock (a third home-made: the store bill x 2/3). */
-export const G20_SLOT_AT = Object.freeze({ 3: Object.freeze({ party: 'pair', point: 'glade' }), 4: Object.freeze({ party: 'three', point: 'ford' }) });
+/* (G9 and G20 retired 2026-11-21 with the slot prices: patches/fb5-free-hero-slots.json) */
 /* G23 (21-combat.md B4, PROPOSED; the tank and the Healer by ruling): the share of the offense lane a discipline's offense rows may fill. */
 export const BAR_BUDGET = Object.freeze({ '*': 0.85, shield: 0.6, restoration: 0.3 });
 /* G24: the scaled grounds the endgame dive measured over or near the right-Level ground (22-endgame.md section 8), at the reference
@@ -75,7 +73,6 @@ export const LINES = Object.freeze([
     parts: { level10: { target: [null, 6], keep: [null, 7] }, step: { target: [null, 2], keep: [null, 2.5] } } },
   { id: 'G7', words: 'A ground never pays a lone in-range hero less gold (in) than the one before', on: 'the eight points', target: null, keep: null, turnsRedIn: 'L22', mode: 'report', bands: 'rising / red on any fall' },
   { id: 'G8', words: 'Deadly costs gold and never loses it: net a hero-hour, Krell-kit four', on: 'Levels 50, 80, 105', target: [3000, 8000], keep: [0, null], turnsRedIn: 'L16 (re-read L32)', mode: 'report', gate: 'gold' },
-  { id: 'G9', words: 'The first hero slot within one lone hero\'s bank at Level 32: price / bank', on: 'shops.js character_slot.1; the bank a played lone hero holds at 32 (life.mjs --policy rec)', target: [null, 1], keep: [null, 1], turnsRedIn: 'L06', mode: 'report' },
   { id: 'G10', words: 'The gear pool over the played kit: XP, and its damage cut / one armor step\'s', on: 'Levels 30, 60, 105, lone and four', target: null, keep: null, turnsRedIn: 'L15 (damage), L37 (XP)', mode: 'report',
     parts: { xp: { target: [null, 1.09], keep: [null, 1.10] }, dmg: { target: [null, 1], keep: [null, 1] } } },
   { id: 'G11', words: 'The hero that trains every idle hour: XP, and damage cut', on: 'Levels 30, 60, 105', target: null, keep: null, turnsRedIn: 'never (a report line, never a gate: 30-plan 31-7)', mode: 'report',
@@ -94,8 +91,6 @@ export const LINES = Object.freeze([
   { id: 'D2', words: 'Nightly twin: deaths a 100 hero-hours, the four 10 Levels under the floor', on: 'Ford, Pyre, Krell, 4 seeds x 8 h', target: [6.25, null], keep: [6.25, null], turnsRedIn: 'L16', mode: 'report', nightly: true, gate: 'xp' },
   /* THE PLAN AUDIT'S LINES (docs/design/balance-program/31-plan-audit.md M2, M5, M9; the Coordinator 2026-11-20), all report. */
   { id: 'G19', words: 'The pair and the three on Deadly, x contract a head (and x the four a head)', on: 'Levels 30 and 50: hammer + Mage, tank + bow + Mage (the fastest of each in the audit)', target: [1.8, 2.5], keep: [1.6, 2.6], turnsRedIn: 'L16', mode: 'report', gate: 'xp' },
-  { id: 'G20', words: 'Weeks to each hero slot for the Own four, every coin to the slot: the prices in the shop and the ruled 400k / 1.5M / 4M', on: 'slot 2 the played lone bank, slot 3 the pair, slot 4 the three; 12 h a hero a day (RULED 2026-11-21), a third own stock', target: null, keep: null, turnsRedIn: 'L16, L22, L23 (re-read)', mode: 'report',
-    parts: { info: { target: [null, null], keep: [null, null] }, four: { target: [null, 5], keep: [null, 6] } }, bands: 'four heroes by week 5 / red past 6 at 12 h a hero a day (Tyler 2026-11-21: about 4 weeks at 12 h; was 16 / 20 at the real 3.3 h, the same hunted hours)' },
   { id: 'G21', words: 'The Tower: a set-up four tops out between its Level and Level + 25; no hero from 10 to 30 earns more there than hunting', on: 'nightly: climbs from the landing (endgame.mjs climb --from level), fours at 30, 60, 105, a lone hammer and Mage at 10 and 30', target: null, keep: null, turnsRedIn: 'L18', mode: 'report', nightly: true,
     parts: { top: { target: [0, 25], keep: [0, 25] }, xp: { target: [null, 1], keep: [null, 1] } }, bands: 'top - Level 0-25; Tower XP / hunting XP <=1 (22-1, 22-7)' },
   { id: 'G22', words: 'Stamina refills: the second pays for itself alone at every Level; six are gold-neutral for the four at 80', on: 'stamina-refill.js rows, played net gold', target: null, keep: null, turnsRedIn: 'L06', mode: 'report',
@@ -179,7 +174,7 @@ export function plainCells(ctx, size = SIZES.plain) {
     push('krell-real', { ground: R.ground, party, level, profile: 'played', options: { tier: R.tier }, ...(pull ? { density: pull } : {}),
       skillsBySeat: line.map((lv, i) => ({ ...lv, ...R.seats[i].skills })), runeTierByRole: { ...R.runeTierByRole } });
   }
-  /* G19, G20: the pair and the three on the hardest tier their ground has, the pull of that tier for their size */
+  /* G19: the pair and the three on the hardest tier their ground has, the pull of that tier for their size */
   for (const p of SMALL_POINTS) for (const [k, party] of Object.entries(SMALL_PARTIES)) {
     const ts = ctx.tiers.tiersOf(p.ground), tier = ts.includes('deadly') ? 'deadly' : ts.includes('dangerous') ? 'dangerous' : 'normal';
     const pull = tier === 'normal' ? null : ctx.tiers.pullOfTier(ctx.tiers.tierRowOf(p.ground, tier), party.length);

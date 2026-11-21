@@ -157,16 +157,11 @@ function contract(R, cs, body, tl) {
   need('account', R.ACC.accountLimitOf((k) => cs.read(k)) === R.CFG.SESSION_CONFIG.maxConcurrentCharacters,
     'account.max_concurrent reads ' + R.ACC.accountLimitOf((k) => cs.read(k)) + ' from ' + JSON.stringify(body.account));
   /* the roster's hero-slot offer (2026-11-03-hero-slots-gold.sql): a fresh account owns two, so slot 2 is for sale */
-  /* THE SLOTS THE DATA SELLS (src/data/shops.js character_slot rows, the server catalogue's source): the offer is the cheapest unowned one,
-     and the account's top is one past the highest slot sold (four heroes an account, Tyler 2026-11-07; 2027-03-22-four-slots.sql). */
-  const sold = R.SHOP.SHOP_OFFERS.filter((o) => o.table === 'character_slot').map((o) => ({
-    slot: Number(String((o.grant.find((g) => g.kind === 'unlock') || {}).id || '').split(':')[1]),
-    gold: (o.cost.find((c) => c.id === 'gold') || {}).amount }));
-  const first = sold.reduce((a, b) => (b.slot < a.slot ? b : a), sold[0] || { slot: NaN });
-  const top = Math.max(...sold.map((x) => x.slot)) + 1;
-  const so = R.ACC.slotOfferOf(cs.read('account'));
-  need('account', sold.length > 0 && !!so && so.slotId === first.slot && so.cost === first.gold && so.max === top,
-    'slotOfferOf yields ' + JSON.stringify(so) + ' from ' + JSON.stringify(body.account) + ' (the data sells slot ' + first.slot + ' for ' + first.gold + ', top ' + top + ')');
+  /* FOUR HERO SLOTS FROM THE START (Tyler 2026-11-21; src/data/shops.js HERO_SLOTS, 1036-four-starter-slots.sql): the data sells none, and
+     the account section offers none, its top the data's count */
+  const acct = cs.read('account') || {};
+  need('account', !R.SHOP.SHOP_OFFERS.some((o) => o.table === 'character_slot') && acct.hero_slot_offer == null && acct.hero_slots_max === R.SHOP.HERO_SLOTS.count,
+    'the account section reads ' + JSON.stringify(body.account) + ' (want no slot offer and a top of ' + R.SHOP.HERO_SLOTS.count + ')');
   // the alpha windows' sections the server projects
   const bag = R.IS.bagOf(cs);
   need('inventory', Array.isArray(bag), 'bagOf reads no inventory');

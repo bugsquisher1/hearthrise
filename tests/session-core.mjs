@@ -75,9 +75,11 @@
 //          network or a rate limit reads nothing
 //   REFUSE-ASKVIA (A20, the class) every askVia call site is classified; each module intent on the shared rule (quoted-ask.js
 //          afterRefusal), driven: a refusal re-reads the hero ONCE, a dropped network or a rate limit reads nothing
-//   ACC-5  a hero slot is bought at the SERVER's offer (account.hero_slot_offer; none at the cap or
-//          unstated): ONE hr_buy_hero_slot with the slot, the paying hero and a fresh idem key, no
-//          price; a refusal comes back by name (short_by kept); a yes re-reads the open paying hero
+//   ACC-5  four hero slots, nothing for sale (1036): the account holds no offer and no purchase; create sends the
+//          picked starter set (p_set) with its key; every hero opened holds the ACCOUNT's coach (1039)
+//   ACC-COACH what the coach taught is the account's (src/session/account-coach.js): the load reads the server's row, a mark
+//          sends only new, well-shaped ids with a key, a stale answer never takes a card back, and another hero passes a
+//          taught card by except a weapon's own first move
 //   ACC-FARM the farm land is the account's: hero 0 plants and hero 1 (open beside it) sees the plot
 //          at once; hero 1 harvests it as itself (its slot) and hero 0 sees it gone
 //   TOWER-1 a hero's climb that ends (a new tower.last) re-reads every other open hero once (the board is everyone's); a first read
@@ -138,6 +140,7 @@ async function load(base) {
     R: await import(u('src/session/residue.js')),
     C: await import(u('src/session/character-session.js')),
     A: await import(u('src/session/account-session.js')),
+    AC: await import(u('src/session/account-coach.js')),
     S: await import(u('src/session/server.js')),
     AU: await import(u('src/net/auth.js')),
     NB: await import(u('src/net/supabase-bootstrap.js')),
@@ -193,8 +196,6 @@ function fakeServer(bySlot, o = {}) {
       if (name === 'hr_load') return answer(bySlot[args.p_slot] || { ok: false, error: 'no_character' });
       if (name === 'hr_put_client_state') return answer({ ok: true });
       if (name === 'hr_create_hero') return answer(args.p_name === 'Taken' ? { ok: false, error: 'name_taken' } : { ok: true, slot: args.p_slot, name: args.p_name, created: true });
-      if (name === 'hr_buy_hero_slot') return answer(args.p_slot === 1 ? { ok: false, error: 'insufficient_gold', short_by: 400 }
-        : { ok: true, slot_id: args.p_slot_id, gold: 5, hero_slots: [0, 1, 2], hero_slot_offer: { slot_id: 3, cost_gold: 75000 }, hero_slots_max: 4 });
       return answer({ ok: false, error: 'unknown' });
     },
     accrue: async (body) => { calls.push(['accrue', body]); return answer(Object.assign({ accrued: true }, bySlot[body.slot])); },
@@ -303,7 +304,7 @@ const ASKVIA_RULE_CALLS = Object.freeze([
 async function rules(M) {
   const fails = [];
   const t = async (id, fn) => { try { const r = await fn(); if (r !== true) fails.push(id + ': ' + r); } catch (e) { fails.push(harnessFail(id, e)); } };
-  const { E, R, C, A, S, AU, NB, AR, SI, CFG, TP, TW, PS, HB, I, FI, FS, XP, CS, GG, AWAY, ITEMS, LEVEL_REQ, SW, TT, RCP, ARTISAN, TI, HI } = M;
+  const { E, R, C, A, AC, S, AU, NB, AR, SI, CFG, TP, TW, PS, HB, I, FI, FS, XP, CS, GG, AWAY, ITEMS, LEVEL_REQ, SW, TT, RCP, ARTISAN, TI, HI } = M;
 
   await t('ENV-1', () => {
     const a = E.applyEnvelope(null, env(3, { skills: { mining: 5 }, buffs: [1] })).record;
@@ -1687,30 +1688,51 @@ async function rules(M) {
     return (r2 === 1 && most === 3) || 'three other heroes opened in ' + r2 + ' round trips with at most ' + most + ' loads at once (one, three)';
   });
   await t('ACC-5', async () => {
-    const offer = (o) => ({ account: { max_concurrent: 4, hero_slot_offer: o, hero_slots_max: 4 } });   // four heroes an account (Tyler 2026-11-07)
-    /* the offer is the server's, bounded; none at the cap, none unstated, none malformed */
-    const none = [offer(null), offer({ slot_id: 2, cost_gold: 0 }), offer({ slot_id: 9, cost_gold: 15000 }), offer({ slot_id: 2, cost_gold: '15000' }), {}];
-    for (const extra of none) {
-      const acc = mkAccount(fakeServer({ 0: env(1, extra) }));
-      await acc.roster();
-      if (acc.slotOffer !== null) return 'an offer was read from ' + JSON.stringify(extra) + ': ' + JSON.stringify(acc.slotOffer);
-    }
-    const srv = fakeServer({ 0: env(1, Object.assign({ hero_slots: [0, 1], name: 'Tester', state: { gold: 80000 } }, offer({ slot_id: 2, cost_gold: 25000 }))),
-      1: env(1, { name: 'Fennick', state: { gold: 10 } }) });
+    /* FOUR SLOTS, NOTHING FOR SALE (1036): the account holds no offer and no purchase; a hero is made with the set picked (GR-24) */
+    const srv = fakeServer({ 0: env(1, { hero_slots: [0, 1, 2, 3], name: 'Tester', account: { max_concurrent: 4, hero_slots_max: 4, hero_slot_offer: null } }) });
     const acc = mkAccount(srv);
-    const r = await acc.roster();
-    if (JSON.stringify(acc.slotOffer) !== '{"slotId":2,"cost":25000,"max":4}' || r[0].gold !== 80000 || r[1].gold !== 10) return 'the roster read ' + JSON.stringify([acc.slotOffer, r]);
+    await acc.roster();
+    if ('slotOffer' in acc || typeof acc.buySlot === 'function') return 'the account still holds a slot offer or a purchase';
+    const made = await acc.create(1, 'Fennick', { head: 0, body: 0, legs: 0, feet: 0 }, 'k-1', 'healer');
+    const sent = srv.calls.filter((c) => c[0] === 'hr_create_hero').map((c) => c[1]);
+    if (!made.ok || sent.length !== 1 || sent[0].p_set !== 'healer' || sent[0].p_slot !== 1 || sent[0].p_idem !== 'k-1') return 'create sent ' + JSON.stringify(sent);
+    /* THE COACH IS THE ACCOUNT'S (1039): every hero opened holds the same store; a mark sends only the new ids, with a key */
     await acc.open(0);
-    srv.calls.length = 0;
-    const yes = await acc.buySlot(2, 0);
-    const no = await acc.buySlot(2, 1);
-    const bad = await acc.buySlot(2, 'x');
-    const sent = srv.calls.filter((c) => c[0] === 'hr_buy_hero_slot').map((c) => c[1]);
-    if (!yes.ok || no.ok || no.reason !== 'insufficient_gold' || no.shortBy !== 400 || bad.ok || sent.length !== 2) return 'buySlot answered ' + JSON.stringify([yes, no, bad, sent]);
-    if (Object.keys(sent[0]).sort().join() !== 'p_idem,p_slot,p_slot_id' || sent[0].p_slot_id !== 2 || sent[0].p_slot !== 0
-      || typeof sent[0].p_idem !== 'string' || sent[0].p_idem === sent[1].p_idem) return 'buySlot sent ' + JSON.stringify(sent);
-    if (!srv.calls.some((c) => c[0] === 'hr_load' && c[1].p_slot === 0)) return 'the paying hero was not re-read after the purchase';
-    return JSON.stringify(acc.slotOffer) === '{"slotId":3,"cost":75000,"max":4}' || 'after the purchase the offer is ' + JSON.stringify(acc.slotOffer);
+    const cs = acc.character(0);
+    if (!cs || !(cs.accountCoach instanceof AC.AccountCoach) || cs.accountCoach !== acc.coach) return 'the hero was not handed the account\'s coach';
+    return true;
+  });
+  await t('ACC-COACH', async () => {
+    const calls = [];
+    let row = { read: ['bar_intro'], taught: ['enter_cellar'], v: 3 };
+    const server = { rpc: async (name, args) => {
+      calls.push([name, args]);
+      if (name !== 'hr_account_coach') return { ok: false, body: null };
+      const add = (have, more) => have.concat((more || []).filter((x) => !have.includes(x)));
+      const next = { read: add(row.read, args.p_read), taught: add(row.taught, args.p_taught) };
+      const moved = next.read.length !== row.read.length || next.taught.length !== row.taught.length;
+      row = Object.assign(next, { v: row.v + (moved ? 1 : 0) });
+      return { ok: true, body: Object.assign({ ok: true }, row) };
+    } };
+    const c = new AC.AccountCoach(server);
+    await c.load();
+    if (![...c.read].includes('bar_intro') || ![...c.taught].includes('enter_cellar') || c.v !== 3) return 'the load read ' + JSON.stringify([[...c.read], [...c.taught], c.v]);
+    if (c.mark('read', ['bar_intro'])) return 'a card already read was sent again';
+    c.mark('taught', ['first_kill', 'Bad Id']);
+    await c._sending;
+    const put = calls.filter((x) => x[0] === 'hr_account_coach' && (x[1].p_read.length || x[1].p_taught.length)).map((x) => x[1]);
+    if (put.length !== 1 || JSON.stringify(put[0].p_taught) !== '["first_kill"]' || put[0].p_read.length || typeof put[0].p_idem !== 'string')
+      return 'the mark sent ' + JSON.stringify(put);
+    /* a stale answer (an older version) never takes a taught card back */
+    row = { read: [], taught: [], v: 1 };
+    await c._send([], []);
+    if (![...c.taught].includes('first_kill') || c.v !== 4) return 'a stale answer moved the coach to ' + JSON.stringify([[...c.taught], c.v]);
+    /* another hero of the account passes a taught card by, but a weapon's own first move (a bar card) stays its own */
+    const cs = { accountCoach: c };
+    const rows = [{ id: 'first_kill', anchor: 'hunt_topbar' }, { id: 'bar_intro', anchor: 'action_bar' }];
+    c.mark('taught', ['bar_intro']);
+    const passed = [...AC.taughtElsewhere(cs, rows)];
+    return (passed.includes('first_kill') && !passed.includes('bar_intro')) || 'the cards passed by on another hero are ' + JSON.stringify(passed);
   });
   /* QUOTE-1 (lane/a-quote-changed, QA 2026-11-14: the stamina panel kept 197 gp after the server answered quote_changed at 169, every retry
      refused until a reload): a priced press the SERVER refused re-reads the hero before it resolves, so the section's price is the server's;
@@ -2695,10 +2717,12 @@ const MUTANTS = [
   ['no state accepted', 'src/session/envelope.js', "if (!isObj(env.state)) return keep('incomplete');", ''],
   ['residue unfiltered', 'src/session/residue.js', '  for (const f of RESIDUE_FIELDS) if (Object.prototype.hasOwnProperty.call(bag, f)) out[f] = sanitizeResidueField(f, bag[f]);', '  Object.assign(out, bag);'],
   ['one topic for every slot', 'src/session/frame-channel.js', "return 'hr:' + uid.toLowerCase() + ':' + slot;", "return 'hr:' + uid.toLowerCase();"],
-  ['the slot offer is made up on this side', 'src/session/account-session.js', '    || !Number.isSafeInteger(o.cost_gold) || o.cost_gold < 1) return null;', '    || false) return null;'],
-  ['a slot purchase sends a price', 'src/session/account-session.js', "{ p_slot_id: slotId, p_slot: paySlot, p_idem: newIdem() }", "{ p_slot_id: slotId, p_slot: paySlot, p_price: this.slotOffer && this.slotOffer.cost, p_idem: newIdem() }"],
+  ['the pick is not sent (ACC-5)', 'src/session/account-session.js', "        p_set: typeof set === 'string' ? set.slice(0, 32) : null, p_idem: key || newIdem() });", "        p_set: null, p_idem: key || newIdem() });"],
+  ['a hero is handed no coach (ACC-5)', 'src/session/account-session.js', '    cs.accountCoach = this.coach;\n', ''],
   ['the roster never says a hero is hunting', 'src/session/account-session.js', '    doing: doingOf(body),\n', '    doing: null,\n'],
-  ['the paying hero keeps its old gold', 'src/session/account-session.js', '      if (cs) await cs.load();\n', ''],
+  ['a stale coach answer takes a card back (ACC-COACH)', 'src/session/account-coach.js', '|| b.v < this.v) return false;', ') return false;'],
+  ['a mark resends what the account already holds (ACC-COACH)', 'src/session/account-coach.js', "const add = set ? ids(cardIds).filter((id) => !set.has(id)) : [];", 'const add = set ? ids(cardIds) : [];'],
+  ['a bar card is taught for every hero (ACC-COACH)', 'src/session/account-coach.js', "  return !!card && card.anchor === 'action_bar';", '  return false;'],
   ['a lost channel waits out the deferral', 'src/session/character-session.js', '      if (this._fed && this._huntOpen()) { this._fed = false; this._poll.arm(this._pace.waitMs()); }\n', ''],
   ['a frame never marks the re-read as fed', 'src/session/character-session.js', '    this._fed = deferred === true;', '    this._fed = false;'],
   ['the roster reads its heroes one after another', 'src/session/account-session.js', "    const answers = await Promise.all(owned.map((slot) => (slot === 0 ? first : this.server.rpc('hr_load', { p_slot: slot }))));",

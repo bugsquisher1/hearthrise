@@ -114,7 +114,7 @@ Three things this table shows.
 
 | Card | Cost line |
 |---|---|
-| Wand and spellbook | "Casting costs gold. Each Fireball uses 1 rune and some mana. The store sells both as you go. Your first hunt will cost about {N} gold more than it earns. You start with 500." |
+| Wand and spellbook | "Casting costs gold. Each Fireball uses 1 rune and some mana. The store sells both as you go. Your first hunt spends about 100 gold more than it picks up in coins, and its loot sells for more than that. You start with 500." (Replaced by D-3, `review/08-designer-d3.md` section 2.5. The default {N} is 100.) |
 | Staff, Hatchets | "Uses runes. The store sells them for 1 gold each as you cast." |
 | Club | No cost line. Power Strike needs no rune. Quarry Blow's rune is said on the bar |
 | Sword and shield, Bow and crossbow | No cost line |

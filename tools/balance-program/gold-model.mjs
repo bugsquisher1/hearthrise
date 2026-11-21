@@ -97,8 +97,8 @@ const HALLMARK = { 2: 25000, 3: 100000, 4: 150000, 5: 250000, 6: 400000, 7: 6000
 const REFORGE = { 2: 150000, 3: 450000, 4: 300000, 5: 600000, 6: 900000, 7: 1200000 };  /* six pieces carried up, itemization-plan section 10 */
 const SHELF = [
   { L: 10, rows: [['Homestead and Farmstead', sum(['property.homestead', 'property.farmstead']), 1], [CHEAP.map((r) => r[0].toUpperCase() + r.slice(1)).join(', ') + ', rungs 1 to 3', rooms(1, 3, CHEAP), 1], ['Setup slots 4 and 5', SINK_RULES.setup_slot.prices.reduce((a, b) => a + b, 0), 'h'], ['Key Ring', 25000, 1]] },
-  { L: 30, rows: [['Hero slot 2', offer('character_slot.1'), 1], ['Hero slot 3', offer('character_slot.2'), 1], ['Manor', offer('property.manor'), 1], ['Forge, Kitchen, Library, Workshop, rungs 1 to 2 (each ends its bench tax)', rooms(1, 2, BENCH), 1], ['Tempering tier 2, both tracks', temper(2), 'h'], ['Six crafted pieces Hallmarked, tier 2', REFORGE[2], 'h', 1]] },
-  { L: 50, rows: [['Hero slot 4', offer('character_slot.3'), 1], ['Keep', offer('property.keep'), 1], ['The bench rooms to rung 4, the other four rooms rung 4', rooms(3, 4, BENCH) + rooms(4, 4, CHEAP), 1], ['House dummy, four skills', SINK_RULES.house_dummy.prices.reduce((a, b) => a + b, 0), 1], ['Tempering tiers 3 and 4, both tracks', temper(3) + temper(4), 'h'], ['Six pieces carried to tiers 3 and 4 (tier 4 fee RULED, not built)', REFORGE[3] + REFORGE[4], 'h', 1]] },
+  { L: 30, rows: [['Manor', offer('property.manor'), 1], ['Forge, Kitchen, Library, Workshop, rungs 1 to 2 (each ends its bench tax)', rooms(1, 2, BENCH), 1], ['Tempering tier 2, both tracks', temper(2), 'h'], ['Six crafted pieces Hallmarked, tier 2', REFORGE[2], 'h', 1]] },
+  { L: 50, rows: [['Keep', offer('property.keep'), 1], ['The bench rooms to rung 4, the other four rooms rung 4', rooms(3, 4, BENCH) + rooms(4, 4, CHEAP), 1], ['House dummy, four skills', SINK_RULES.house_dummy.prices.reduce((a, b) => a + b, 0), 1], ['Tempering tiers 3 and 4, both tracks', temper(3) + temper(4), 'h'], ['Six pieces carried to tiers 3 and 4 (tier 4 fee RULED, not built)', REFORGE[3] + REFORGE[4], 'h', 1]] },
   { L: 80, rows: [['Rooms, rung 5', rooms(5, 5), 1], ['Castle', offer('property.castle'), 1], ['Tempering tiers 5 and 6, both tracks', temper(5) + temper(6), 'h'], ['Six pieces carried to tiers 5 and 6 (RULED, not built)', REFORGE[5] + REFORGE[6], 'h', 1]] },
   { L: 105, rows: [['Tempering tier 7, both tracks', temper(7), 'h'], ['Six pieces carried to tier 7 (RULED, not built)', REFORGE[7], 'h', 1]] },
   { L: 118, rows: [['Nothing new is built past Krell (linings, worn in and unique reforges are designed)', 0, 1]] },
@@ -166,7 +166,7 @@ function offers() {
     line('Tempering Blows, tier ' + t + ', rungs 4 and 5', L, all - three, '+' + (pct * 0.4).toFixed(1) + '% XP', ((all - three) / net(L) / (pct * 0.4)).toFixed(1) + ' h a 1%', 'CITED size');
   }
   for (const L of [30, 50, 80, 105]) { const b = STAMINA_REFILL.base + STAMINA_REFILL.perLevel * L; line('Stamina refill, first of the day', L, b, '4 hunt hours', (b / net(L) / 4).toFixed(2) + ' h a hunt hour', 'READ FROM DATA'); line('Stamina refill, sixth of the day', L, Math.ceil(b * refillStep(5)), '4 hunt hours', (b * refillStep(5) / net(L) / 4).toFixed(2) + ' h a hunt hour', 'READ FROM DATA'); }
-  for (const [i, L] of [[1, 30], [2, 30], [3, 50]]) { const p = offer('character_slot.' + i); line('Hero slot ' + (i + 1), L, p, 'one more hero for good', 'pays itself back in ' + (p / net(L)).toFixed(0) + ' of its own hunt hours', 'READ FROM DATA'); }
+  /* (no hero slot line: all four are free from the start, Tyler 2026-11-21; patches/fb5-free-hero-slots.json) */
   for (const L of [30, 50, 80]) { const sk = Math.round(L * 0.9), fee = TRAINING_RULES.feeBase + TRAINING_RULES.feePerLevel * sk; line('The yard, an hour (skill ' + sk + ')', L, fee, '30,000 skill XP, no stamina', (fee / net(L)).toFixed(2) + ' h an hour trained', 'READ FROM DATA'); }
   line('Training item, 12 h', 50, TRAINING_GEAR.gold[12], '+30,000 skill XP an hour for 12 h', (TRAINING_GEAR.gold[12] / net(50) / 12).toFixed(1) + ' h an hour doubled', 'READ FROM DATA');
   line('House dummy, first skill', 50, SINK_RULES.house_dummy.prices[0], 'the yard with no fee', 'saves ' + (TRAINING_RULES.feeBase + TRAINING_RULES.feePerLevel * 45) + ' an hour: ' + Math.round(SINK_RULES.house_dummy.prices[0] / (TRAINING_RULES.feeBase + TRAINING_RULES.feePerLevel * 45)) + ' trained hours to pay back', 'READ FROM DATA');
@@ -190,7 +190,8 @@ const fourRate = (L) => lerp(LEVELS.map((l) => [l, FOUR[l].coin + FOUR[l].sold -
 export const SLOT_LADDERS = Object.freeze([['Was (to 2026-11-20)', [300000, 750000, 1500000]], ['A (recommended)', [400000, 1500000, 4000000]], ['B', [600000, 1500000, 3000000]], ['C', [300000, 2000000, 6000000]]]);
 function slots() {
   /* 'Shipped' is src/data/shops.js as it stands (ladder A since lane/c-approved-rows); the dive's ladders follow. */
-  const shipped = [1, 2, 3].map((i) => shops.SHOP_OFFERS.find((o) => o.id === 'character_slot.' + i).cost[0].amount);
+  /* all four hero slots are free since 2026-11-21 (shops.js HERO_SLOTS): the shipped ladder is three zeros */
+  const shipped = [1, 2, 3].map(() => (shops.HERO_SLOTS.free ? 0 : NaN));
   const LADDERS = [['Shipped', shipped], ...SLOT_LADDERS];
   const pls = REFERENCE_PLAYERS.filter((p) => p.id !== 'whale');
   console.log('| Ladder | Slot | Price | Level on arrival | Lone hunted hours (slot 2) | ' + pls.map((p) => p.name + ', weeks').join(' | ') + ' | Buyer |\n|---|---|---|---|---|' + pls.map(() => '---').join('|') + '|---|');

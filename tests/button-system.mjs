@@ -61,6 +61,8 @@ export const CONTROLS = Object.freeze({
   'hw-go': 'row', 'hw-mi': 'row', 'hw-slot': 'row', 'tt-lbl': 'row', 'ca-row': 'row', 'hw-dl-head': 'row', 'mf-open': 'row',
   'hw-icon-name': 'row', 'hc-name': 'row', 'hc-link': 'row', 'ck-toc-go': 'row', 'hpb-ready': 'row', 'char-pick': 'row',
   'hs-name': 'row', 'hero-dye': 'choice',
+  // the way to fight a new hero is made with (src/app/hero-create.js pickCardsHtml): a sunk well, the gold edge when picked
+  'hero-way': 'choice',
   // the chat's own: its tab's x and the "New messages" pill over the log
   'hc-x': 'head', 'hc-pill': 'head',
   // the top bar and the icon row (the HUD over the World, not a window): its icons, its group menus' lines, the hero tabs' tools

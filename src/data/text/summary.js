@@ -79,9 +79,6 @@ export const SUMMARY_TEXT = Object.freeze({
   buy_chest_words: { one: '+1 Storage space', other: '+{count} Storage spaces' },
   buy_bag: 'Next buy: Bag space ({price})',
   buy_bag_words: { one: '+1 bag space', other: '+{count} bag spaces' },
-  /* {n} the slot's number on the Characters screen (the server's slot id + 1) */
-  buy_slot: 'Next buy: Hero slot {n} ({price})',
-  buy_slot_words: 'Another hero for your account',
   buy_refill: 'Next buy: Stamina refill ({price})',
   buy_refill_words: '+{time} of stamina',
   /* ...and a buy the purse does not cover yet: the nearest, with what it still needs ({short}: the server's price less the server's purse) */
@@ -92,6 +89,12 @@ export const SUMMARY_TEXT = Object.freeze({
   ground_up_words: '{band}, recommended for {levels}',
   /* ...and after a ground outgrown, the card's gold press (audit 2026-11-19 L2), on the summary's foot and the away card: it opens that ground in Hunts */
   go_ground: 'Go to {ground}',
+  /* A GROUND OUTGROWN WITH HEROES STILL TO MAKE (designer D-1, the Path's first_level_5): the line, its press, and the next ground as the second press.
+     {name} the hero, {ground} the ground outgrown, {n} the heroes still to make in words */
+  party_line: { one: '{name} has outgrown the {ground}. You have {n} more hero to make, and the Sewer wants a full party.',
+    other: '{name} has outgrown the {ground}. You have {n} more heroes to make, and the Sewer wants a full party.' },
+  party_go: 'Build your party',
+  alone_to: 'Go on alone to {ground}',
   /* The answers. */
   selling: 'Selling…',
   depositing: 'Depositing…',

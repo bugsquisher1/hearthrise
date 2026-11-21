@@ -89,7 +89,8 @@ export const GUARDED = [
   /* hr_bounty_spend__ungated left the chain end with the bounty board
      (2026-10-23-demolition-bounty-gems-close.sql, K4): a dropped body has no
      replay to guard; tests/bounty-gems-close.mjs proves it does not resolve. */
-  'public.hr_buy_hero_slot__ungated(int,int,uuid)',
+  /* hr_buy_hero_slot__ungated left the chain end with the purchase (1036-four-starter-slots.sql: all four slots free from the start):
+     a dropped body has no replay to guard; tests/hero-slot-buy.mjs HS-GONE proves it does not resolve. */
   'public.hr_farm_harvest(int,int,uuid)',
   'public.hr_farm_plant(int,int,text,uuid)',
   /* (int,uuid,int) since 2026-10-04-expected-level-idempotency.sql, which RESTATES

@@ -3,11 +3,9 @@
 //
 //   boot → auth (src/net/auth.js over the one supabase-js client)
 //        → AccountSession (src/session/account-session.js): one per login
-//        → the characters screen: the account's slots, read from the server
-//          and, under them, the next hero slot for sale at the server's price, paid
-//          from the account's gold (src/app/slot-offer.js; ONE intent, re-read on its answer)
-//        → an empty (or unnamed) slot opens the creation step (src/app/hero-create.js):
-//          name + four colours, ONE intent; the hero enters town on the server's yes
+//        → the characters screen: the account's four slots, read from the server (src/app/slot-offer.js: the line over them)
+//        → an empty (or unnamed) slot opens the creation step (src/app/hero-create.js): a name, a way to fight and four
+//          colours, ONE intent a hero; heroes two to four come pre-filled; a hero enters town on the server's yes
 //        → the game: the character strip (src/app/character-strip.js; up to the
 //          server's concurrent limit, each its own CharacterSession, and the
 //          account's heroes not open here, one Play press each), built
@@ -135,8 +133,6 @@ function startApp(win) {
   let creating = null;
   let rosterSlots = [];   // the account's existing characters, as the roster last read them
   let roster = [];        // the roster rows the characters screen shows (the server's, as last read)
-  let slotBuying = false; // a hero-slot purchase is in flight: the button stays off until the answer
-  let slotAsking = false; // Buy was pressed once: the offer asks before anything is sent (audit 2026-11-18 A7)
   let soon = new Set();   // the heroes play() opens next, beside the one it shows: off the strip's not-open list until tried
 
   const recovering = /type=recovery/.test(win.location.hash);
@@ -254,24 +250,18 @@ function startApp(win) {
   }
 
   /* `was`: what this tab had open before a reload ({ slots, viewed }): once the roster is read, those heroes reopen and
-     the shown one is shown, with no list drawn; if the shown one does not load (the server no longer holds it), the list.
-     `inPlace`: the list stays up while it is re-read and the note says the answer at once (a bought slot: the screen read
-     only "Reading your characters…" for 2.5 s, with no word that the gold had gone, and a player may press again). */
-  async function showCharacters(note, was, inPlace) {
-    if (inPlace) sayOnCard(note);
-    else {
-      clear();
-      obs.screen('characters');
-      root.className = 'app is-auth';
-      root.innerHTML = '<main class="auth">' + AUTH_BRAND + '<div class="auth-card"><h1 class="auth-title">Characters</h1>'
-        + '<p class="auth-lead" role="status">Loading characters…</p></div></main>';
-      raiseBackdrop(root, win);
-    }
+     the shown one is shown, with no list drawn; if the shown one does not load (the server no longer holds it), the list. */
+  async function showCharacters(note, was) {
+    clear();
+    obs.screen('characters');
+    root.className = 'app is-auth';
+    root.innerHTML = '<main class="auth">' + AUTH_BRAND + '<div class="auth-card"><h1 class="auth-title">Characters</h1>'
+      + '<p class="auth-lead" role="status">Loading characters…</p></div></main>';
+    raiseBackdrop(root, win);
     const a = account;
     const seq = paneSeq;
     const read = await a.roster();
     timing.read();
-    if (inPlace) slotBuying = false;
     /* a row stays pressable while the list re-reads: that press's screen wins */
     if (a !== account || a.closedGame || seq !== paneSeq) return;
     roster = read;
@@ -293,12 +283,10 @@ function startApp(win) {
       + '</button></li>').join('');
     /* the server's play-at-once limit, never a client fallback (board 2026-10-25 #8: an empty account read "One can play
        at a time." because the server had not said yet); unsaid, nothing is said */
-    const playLine = G.playLineOf(a.statedLimit(), a.limit(), roster.length, a.slotOffer, roster);
-    slotAsking = false;   // a fresh roster asks nothing until Buy is pressed on it
+    const playLine = G.playLineOf(a.statedLimit(), a.limit(), roster);
     root.querySelector('.auth-card').innerHTML = '<h1 class="auth-title">Characters</h1>'
       + '<p class="auth-lead">Signed in as ' + esc(auth.email() || 'you') + '. ' + playLine + '</p>'
       + '<ul class="char-list">' + (rows || '<li class="char-row">No server response, reload the page</li>') + '</ul>'
-      + '<div class="slot-offer-mount">' + G.slotOfferHtml(a.slotOffer, roster, { pending: slotBuying, asking: false }) + '</div>'
       + '<p class="auth-message' + (note ? ' is-good' : '') + '" role="status" aria-live="polite">' + esc(note || '') + '</p>'
       + '<p class="auth-links"><button type="button" class="auth-link" data-app="sign-out">Sign out</button></p>';
     ringCharacters(a, root.querySelector('.auth-card'));
@@ -308,49 +296,12 @@ function startApp(win) {
 
   /* THE COACH ON THE CHARACTERS SCREEN (board 2026-10-25 D4 "More than one hero"): the game's shell is gone here, so the
      screen rings the step the viewed hero's card names on it (its hooks: Create hero in the empty slot), the deepest
-     one on screen, from the same facts the shell reads (src/shell/launcher.js coachFactsOf). Display only. */
+     one on screen, from the same facts the shell reads (src/shell/launcher-coach.js coachFactsOf). Display only. */
   function ringCharacters(a, card) {
     const cs = a.character(a.viewed);
     const c = cs ? G.pointerCardOf(cs, G.coachFactsOf(cs, a)) : null;
     const el = c && c.hooks ? c.hooks.slice().reverse().map((q) => card.querySelector(q)).find(Boolean) : null;
     if (el) el.setAttribute('data-coach-ring', '');
-  }
-
-  /* The offer block alone, redrawn while a purchase is in flight. */
-  function drawSlotOffer() {
-    const m = root.querySelector('.slot-offer-mount');
-    if (m && account) m.innerHTML = G.slotOfferHtml(account.slotOffer, roster, { pending: slotBuying, asking: slotAsking });
-  }
-
-  /* BUY ASKS FIRST (audit 2026-11-18 A7, the stamina refill's way): the first press only asks, at the server's price on the offer; Buy for N
-     sends. The second click of a double-click (`detail` 2) is never the answer to a question it asked a moment ago. */
-  function askSlot(on) {
-    if (slotBuying || !account) return;
-    slotAsking = on;
-    drawSlotOffer();
-  }
-
-  /* The characters card's answer line. */
-  function sayOnCard(note) {
-    const m = root.querySelector('.auth-message');
-    if (m) { m.classList.add('is-good'); m.textContent = note; }
-  }
-
-  /* ONE purchase from the account's gold (`actor`: the hero the journal names): the button is off until the
-     server answers and, on a yes, until the roster is re-read from the server. */
-  async function buySlot(slotId, actor) {
-    if (slotBuying || !slotAsking || !account || !Number.isInteger(slotId) || !Number.isInteger(actor)) return;
-    const a = account;
-    slotAsking = false;
-    slotBuying = true;
-    drawSlotOffer();
-    const r = await a.buySlot(slotId, actor);
-    if (a !== account || a.closedGame) { slotBuying = false; return; }
-    if (r.ok) { track('hero_slot_bought'); await showCharacters('Hero slot bought', null, true); return; }
-    slotBuying = false;
-    drawSlotOffer();
-    const m = root.querySelector('.auth-message');
-    if (m) { m.classList.remove('is-good'); m.textContent = G.slotRefusalText(r); }
   }
 
   /* The creation step over the characters card: the hero enters town only on the server's yes. */
@@ -363,11 +314,13 @@ function startApp(win) {
     creating = G.renderHeroCreate(root.querySelector('.auth-card'), {
       slot,
       colorOf: (t) => tokens.getPropertyValue('--' + t),
-      create: (name, colors, key) => account.create(slot, name, colors, key),
+      create: (name, colors, key, set, at = slot) => account.create(at, name, colors, key, set),
       done: () => { track('character_created'); return play(slot); },
       back: () => showCharacters(),
       /* the account's hero slots, the line the Characters screen just read from the server (never typed numbers) */
-      slots: G.playLineOf(account.statedLimit(), account.limit(), roster.length, account.slotOffer, roster),
+      slots: G.playLineOf(account.statedLimit(), account.limit(), roster),
+      /* heroes two to four come pre-filled (chapter 08 section 2.1): every empty slot from this one, and the first hero's look to copy */
+      company: G.companyOf(roster, slot),
     });
   }
 
@@ -470,9 +423,6 @@ function startApp(win) {
     else if (what === 'open-hero') openHero(slot);
     else if (what === 'all') { if (pane) pane.shell.toggle('characters'); }
     else if (what === 'create') showCreate(slot);
-    else if (what === 'buy-slot') askSlot(true);
-    else if (what === 'buy-slot-no') askSlot(false);
-    else if (what === 'buy-slot-yes' && e.detail <= 1) buySlot(Number(t.getAttribute('data-slot-id')), Number(t.getAttribute('data-pay')));
   });
 
   /* A HIDDEN PAGE ASKS NOTHING (AccountSession.setPageHidden): the hunts run on the server; shown again, one catch-up. */

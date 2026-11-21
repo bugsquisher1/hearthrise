@@ -1,12 +1,12 @@
 {
  "schema": "hearthrise.balance-patch/1",
- "name": "Kill reward under Level 5: the line steepens, XP a health point x (5 / monster Level) ^ 0.85 (check C1, D-1, FB-8)",
+ "name": "Kill reward under Level 5: the line steepens, XP a health point x (5 / monster Level) ^ 1.1 (GR-5 under Level 5, D-1 check C1; RULED by the designer, 08-designer-d3.md section 2)",
  "kind": "coefficient",
  "targets": [
   "pace",
   "P3"
  ],
- "why": "Check C1 (08 section 6): on the proposed game every weapon card took 36 to 42 hunted minutes to Level 5 in the Mill Cellar, against 15 to 20. The cause is R12 (GR-5) alone: its reference kill-health line c x L^d, fitted from Level 10, pays a Level 2 rat 7 XP where the tree pays 14. Under Level 5 this patch multiplies XP a health point by (5 / L) ^ 0.85 (Level 2 x2.18, Level 3 x1.54, Level 4 x1.21); from Level 5 up nothing moves, so the Level law and the kill reward past Level 45 are untouched (0 of 48 monsters at 45 and over moved). MEASURED, 4 lives a way (start-cards.mjs, playLife policy new): Level 5 in 19.8 to 23.4 minutes (bow and crossbow 19.8, wand 20.4, Club 20.4, sword and shield 21.6, Hatchets 22.2, Staff 23.4); the new player reaches Level 10 at 6.31 hours (ruled 5 to 7). The alternative, a ground number on the Mill Cellar alone, reads 18.0 to 21.3 minutes at x2 and 19.8 to 23.4 at x1.85, and is a special rule GR-5 removed",
+ "why": "Check C1 (08 section 6): on the proposed game every weapon card took 36 to 42 hunted minutes to Level 5 in the Mill Cellar. The cause is R12 (GR-5): its reference kill-health line, fitted from Level 10, pays a Level 2 rat half the tree. Under Level 5 XP a health point is multiplied by (5 / the monster's Level) ^ 1.1, a content number, never the hero's; from Level 5 up nothing moves. The designer ruled 1.1 over the measured 0.85: every starting card reaches Level 5 in 16.2 to 19.2 minutes with no death (08-designer-d3.md section 2.1)",
  "measuredOn": {
   "proposals": [
    "GR-4",
@@ -33,7 +33,7 @@
   {
    "file": "src/data/balance-sheet.js",
    "from": "  const xp = (void gx, void xFloor, Math.max(1, Math.round((contractXpPerH(L) / (1885.35 * Math.max(1, L) ** 0.847253)) * hp * R.xp * fit.xp)));",
-   "to": "  const xp = (void gx, void xFloor, Math.max(1, Math.round((contractXpPerH(L) / (1885.35 * Math.max(1, L) ** 0.847253)) * Math.max(1, 5 / L) ** 0.85 * hp * R.xp * fit.xp)));"
+   "to": "  const xp = (void gx, void xFloor, Math.max(1, Math.round((contractXpPerH(L) / (1885.35 * Math.max(1, L) ** 0.847253)) * Math.max(1, 5 / L) ** 1.1 * hp * R.xp * fit.xp)));"
   }
  ]
 }

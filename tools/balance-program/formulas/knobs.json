@@ -1105,6 +1105,60 @@
     1.25,
     1.5
    ]
+  },
+  {
+   "id": "necroticCut",
+   "label": "Necrotic's heal cut",
+   "group": "Survival",
+   "formula": "C-HEAL-CUT",
+   "what": "How much of every heal a Withered hero loses after a Necrotic blow (statuses.js Withered healCutPm.hero: 300 is 30%). Moves nothing while NECROTIC_STORM.live is false: chapter 14's full-game block (patches/ch14-full-game.json) plays it live",
+   "value": [
+    300
+   ],
+   "sites": [
+    {
+     "file": "src/data/statuses.js",
+     "line": "healCutPm: Object.freeze({ hero: ",
+     "count": 1,
+     "nums": [
+      "hero: "
+     ]
+    }
+   ],
+   "steps": [
+    0.5,
+    0.75,
+    1,
+    1.25,
+    1.5
+   ]
+  },
+  {
+   "id": "stormDrain",
+   "label": "Storm's mana burn",
+   "group": "Survival",
+   "formula": "C-MANA",
+   "what": "The share of the HP a Storm blow takes from a hero that it also burns from the hero's mana (elements.js ELEMENT_ON_HERO.storm.manaBurnPm: 500 is half). Moves nothing while NECROTIC_STORM.live is false: chapter 14's full-game block plays it live",
+   "value": [
+    500
+   ],
+   "sites": [
+    {
+     "file": "src/data/elements.js",
+     "line": "storm: Object.freeze({ manaBurnPm: ",
+     "count": 1,
+     "nums": [
+      "manaBurnPm: "
+     ]
+    }
+   ],
+   "steps": [
+    0.5,
+    0.75,
+    1,
+    1.25,
+    1.5
+   ]
   }
  ],
  "planned": [
@@ -1287,6 +1341,26 @@
    "arrivesWith": "R18",
    "home": "src/data/loot-bands.js BAND_TARGETS (it exists) with the chance derived",
    "what": "How many hunted hours each kind of drop takes. The chance on each row is derived from the ground's kill rate"
+  },
+  {
+   "id": "takesMoreCap",
+   "label": "The cap on \"takes more\"",
+   "group": "Player combat",
+   "formula": "C-STATUS",
+   "today": "no cap; CORE-3 proposes +30% in all (0.30)",
+   "arrivesWith": "R2",
+   "home": "src/core/hunt/damage.js, the sum of Hunter's Mark and the strongest marking status (patches/ch14-full-game.json plants the cap at 300 permille for chapter 14's full-game block)",
+   "what": "The most a monster can take more from marks and marking statuses together. Element weakness and weapon weakness are separate keys outside it (01-core-and-combat.md, CORE-3, PROVISIONAL)"
+  },
+  {
+   "id": "magicManaPerLevel",
+   "label": "Max mana a Magic level",
+   "group": "Player combat",
+   "formula": "C-MANA",
+   "today": "0.005 with GR-22 (patches/combat-3.json: 5 permille a Magic level, every hero)",
+   "arrivesWith": "R2",
+   "home": "src/core/vitals.js maxMana, once GR-22 is built and the number is named",
+   "what": "How much max mana every Magic level adds to any hero. It lives in GR-22's patch until the build names it"
   }
  ],
  "notKnobs": [

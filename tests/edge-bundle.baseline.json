@@ -143,6 +143,11 @@
         "bytes": 3165883,
         "on": "2026-11-21",
         "why": "+1106 B ceiling, all src/core/hunt pull-cycle.js (heroAtPack: a pack waits for a party passing through) and targeting.js (a fought pack's monster whose target walked out turns on the party) = lane/a-no-fight-strong-four's no-fight stall fix; its comments trimmed 1073 B first"
+      },
+      {
+        "bytes": 3166835,
+        "on": "2026-11-21",
+        "why": "+952 B ceiling: +180 B src/core/hunt/tally.js (lane/a-kill-credit-null: a kill with no dealer credits no hero, the settle no longer throws) and +772 B already on set/v0.2.144 from lane/c-first-hour's data (src/data/the-path.js, start-kit.js, how-to-play.js, text/*), measured with tally.js at base"
       }
     ]
   }

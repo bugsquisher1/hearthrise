@@ -7,7 +7,7 @@
 //   node tests/top-bar.mjs --mutate --only=<name fragment>   just those mutants, after the clean control (a local re-check)
 //   node tests/top-bar.mjs --shots <dir>   also write the bar and each group's menu at each size
 //
-// mutant-anchors: src/data/shell-windows.js src/shell/launcher.js src/shell/launcher-menu.js src/styles/shell.css src/styles/app.css src/shell/widgets/action-bar.js src/shell/shell.js src/render/paint.js src/styles/hunt.css src/shell/windows/hunt-detail.js
+// mutant-anchors: src/data/shell-windows.js src/shell/launcher.js src/shell/launcher-coach.js src/shell/launcher-menu.js src/styles/shell.css src/styles/app.css src/shell/widgets/action-bar.js src/shell/shell.js src/render/paint.js src/styles/hunt.css src/shell/windows/hunt-detail.js
 //
 // Tyler 2026-11-16: "Our top menu bar is starting to get long again, are there some things we can either combine or move to clean
 // it up? It's getting a bit overwhelming." The row had grown back to 19 icons (WORLD_SHELL.md §1 started at 8). The windows a player
@@ -127,7 +127,7 @@ async function checks(overrides, shots, firstRed = false) {
   const fails = [];
   const { SHELL_WINDOWS, LAUNCHER_GROUPS } = await src('src/data/shell-windows.js');
   if (!overrides) { // TB-1, TB-2 (pure: a mutant of these files is read by the page rules below)
-    const L = await src('src/shell/launcher.js');
+    const L = await src('src/shell/launcher-coach.js');
     const { barPlan } = await src('src/shell/launcher-menu.js');
     const icons = SHELL_WINDOWS.filter((r) => r.launcher !== false);
     const plan = barPlan(icons);
@@ -472,7 +472,7 @@ const MUTANTS = [
   ['the arrows do not walk the menu', 'src/shell/launcher-menu.js', '      items[to].focus();', '      void to;'],
   ['the row leaves the group\'s ring to the coach, so every paint rebuilds it', 'src/shell/launcher.js', "+ (inside && !shown ? ' data-coach-ring=\"\"' : '')", "+ ''"],
   ['the group keeps its ring while its menu is open', 'src/shell/launcher.js', "+ (inside && !shown ? ' data-coach-ring=\"\"' : '')", "+ (inside ? ' data-coach-ring=\"\"' : '')"],
-  ['the ring\'s way never reaches the group', 'src/shell/launcher.js', "group ? ['.hs-launchers [data-hs-group=\"' + group + '\"]'] : []", '[]'],
+  ['the ring\'s way never reaches the group', 'src/shell/launcher-coach.js', "group ? ['.hs-launchers [data-hs-group=\"' + group + '\"]'] : []", '[]'],
   ['the phone\'s menu is a dropdown, not a sheet', 'src/styles/shell.css', '    position: fixed; top: 40px; right: 0; bottom: 0; width: min(400px, 48vw);', '    width: min(400px, 48vw);'],
   ['the phone\'s menu lines lose a thumb\'s height', 'src/styles/shell.css', '  .hs-launch-item { grid-template-columns: 20px 1fr; gap: 8px; min-height: var(--tap); padding: 0 6px; }', '  .hs-launch-item { grid-template-columns: 20px 1fr; gap: 8px; min-height: 30px; padding: 0 6px; }'],
   ['every paint rebuilds the row, so an envelope takes the keyboard off the open menu', 'src/shell/shell.js', '      else markup(el, render(ctx));', "      else { const html = render(ctx); if (el.innerHTML !== html) el.innerHTML = html; }"],

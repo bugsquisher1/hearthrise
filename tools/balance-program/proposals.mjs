@@ -349,6 +349,9 @@ async function selftest(o) {
   check('an alternative stacked on what it replaces is refused (' + (alt ? alt.id + ' with ' + alt.excludes.join(',') : 'none') + ')', !alt || refused);
   const flags = shipsWithFlags(reg, reg.recommended.filter((id) => id !== 'GR-5b'));
   check('ships-with: the proposed game without GR-5b flags GR-5 (it ships with it)', flags.some((f) => f.id === 'GR-5' && f.missing === 'GR-5b'), JSON.stringify(flags));
+  /* the seat fit (--fit-seat): hours past Level 10 at half the ruled ones read a multiple twice the current, and land every point on the table */
+  { const ruled = [[100, 600], [200, 1680]], f = seatMultiple({ hours: (L) => (L === 10 ? 2 : 2 + 0.5 * ((ruled.find(([l]) => l === L) || [0, 2])[1] - 2)), ruled, m0: 1.3 });
+    check('the seat fit: hours at half the table past Level 10 read the multiple x2 (' + f.m + ') and land on it (' + f.readings.map(([, x]) => x).join(', ') + ')', f.m === 2.6 && f.readings.every(([, x]) => x === 1)); }
   /* requires (S-11 c put GR-6-seat on, and it edits R13's law): GR-6 off takes it along; on its own it is refused by name */
   const req = reg.proposals.find((p) => (p.requires || []).length);
   let reqRefused = false;
@@ -402,10 +405,53 @@ async function selftest(o) {
   function done() { console.log('proposals selftest: ' + (fails.length ? fails.length + ' FAILED' : 'green') + ' in ' + Math.round((Date.now() - t0) / 1000) + ' s'); return fails.length ? 1 : 0; }
 }
 
+/* THE SEAT FITTED WHERE P1 GRADES IT (the Coordinator 2026-11-21: "fitted at the ruled points" means the pace seat lands on the table in the
+   sample P1 reads). The full matrix's cache on the proposed game (balance-matrix.mjs --join writes it), its hammer frame as judgeMatrix builds it,
+   the pace seat's hours to each Level P1 grades (grid-derive.mjs SEATS[PACE]: the MID four on Dangerous after its deaths, S-11 c). From Level
+   10 the law's XP a Level is the multiple times the ruled hours' slope, so the hours past Level 10 scale with it: the multiple that puts the graded
+   Levels on the ruled table best (least squares on the logs) is the current one times exp(mean log(ruled past 10 / read past 10)). */
+export function seatMultiple({ hours, ruled, m0, from = 10 }) {
+  const h0 = hours(from), logs = ruled.map(([L, H]) => Math.log((H - h0) / (hours(L) - h0)));
+  const m = m0 * Math.exp(logs.reduce((a, b) => a + b, 0) / logs.length);
+  return { m: Number(m.toFixed(3)), readings: ruled.map(([L, H]) => [L, Number(((h0 + (m / m0) * (hours(L) - h0)) / H).toFixed(3))]), before: ruled.map(([L, H]) => [L, Number((hours(L) / H).toFixed(3))]) };
+}
+async function fitSeat(o) {
+  const BM = await import('./balance-matrix.mjs'), GD = await import('./grid-derive.mjs'), MM = await import('./matrix-metrics.mjs'), STD = await import('./standards.mjs');
+  const SC = await import('./matrix-scratch.mjs'), { loadGridData } = await import('./progression-grid.mjs');
+  const file = resolve(o.from || join(HERE, 'balance-matrix-full-proposed.json'));
+  const C = JSON.parse(readFileSync(file, 'utf8'));
+  /* composed here, not through balance-matrix.mjs baseOf: that imports this module, which is still running its top-level await */
+  const reg = loadProposals(ROOT), base = { ids: reg.recommended, patch: composePatch(ROOT, reg.recommended, { reg }) };
+  if (!base.ids.includes('GR-6-seat')) throw new Error('fit-seat: the proposed game does not time the law on the Dangerous seat (GR-6-seat off)');
+  const s = await SC.plantScratch(base.patch);
+  let V, m0;
+  try { V = await BM.dataView(await loadGridData(ROOT), s.root); m0 = Number((/m: ([0-9.]+), from: 10 \};/.exec(readFileSync(join(s.root, 'src/core/xp.js'), 'utf8')) || [])[1]); } finally { s.done(); }
+  const frame = C.cells.filter((c) => c.m && c.block !== 'grounds' && c.block !== 'lineups' && !c.variant && (c.party > 1 || (c.styles[0] === 'hammer')));
+  const T = GD.derive(V, MM.asGrid(frame));
+  const seat = T.SEATS[T.PACE];
+  if (!seat || !Number.isFinite(m0)) throw new Error('fit-seat: no pace seat (' + T.PACE + ') in ' + file + ' or no law multiple on the tree');
+  const P1 = STD.bandById('P1'), targets = [...STD.PACE_TABLE.ruled, ...(STD.PACE_TABLE.ruled400 || [])];
+  const ruled = P1.where.levels.filter((L) => L >= (P1.where.from || 0) && L <= 400).map((L) => targets.find(([l]) => l === L)).filter(Boolean);
+  const fit = seatMultiple({ hours: (L) => seat.cum[L], ruled, m0 });
+  const r13 = JSON.parse(readFileSync(join(HERE, 'patches/R13-level-law.json'), 'utf8')), r13m = Number((/m: ([0-9.]+), from: 10 \};/.exec(r13.edits.map((e) => e.to).join('\n')) || [])[1]);
+  console.log('THE SEAT ON P1\'S OWN SAMPLE (' + file + ', ' + (C.cells || []).length + ' cells, ' + (o.run || 'run unnamed') + '): the pace seat ' + T.PACE + ', law multiple ' + m0 + ' -> ' + fit.m);
+  console.log('  P1 (hours to Level / the ruled table): ' + fit.before.map(([L, x], i) => 'Level ' + L + ' ' + x + ' -> ' + fit.readings[i][1]).join(', '));
+  if (o.write) {
+    const p = { schema: 'hearthrise.balance-patch/1', name: 'The Level law timed on the MID four on Dangerous (seat multiple ' + fit.m + ', R13\'s default ' + r13m + ')',
+      why: 'S-11 (RULED 2026-11-21, c): the Level table is the clock of the MID four on Dangerous after its deaths, read again before Early Access from real XP and the calibrated simulator. The multiple is fitted on the sample P1 grades: the full matrix (' + (o.run || file) + '), the pace seat\'s hours to Levels ' + ruled.map(([L]) => L).join(', ') + ' against the ruled ' + ruled.map(([, H]) => H).join(', ') + ' hours, least squares on the logs. Layer: coefficient. Written by proposals.mjs --fit-seat',
+      kind: 'coefficient', targets: ['P1', 'P12'], measuredOn: { run: o.run || null, cells: 'the full matrix, the MID four on Dangerous at every checkpoint to 400', seat: T.PACE, from: m0, readings: fit.readings },
+      edits: [{ file: 'src/core/xp.js', from: 'm: ' + r13m + ', from: 10 };', to: 'm: ' + fit.m + ', from: 10 };' }] };
+    writeFileSync(join(HERE, 'patches/bp-level-law-dangerous-seat.json'), JSON.stringify(p, null, 1) + '\n');
+    console.log('  wrote patches/bp-level-law-dangerous-seat.json (' + r13m + ' -> ' + fit.m + ')');
+  }
+  return fit;
+}
+
 if (isMain(import.meta.url)) {
   const argv = process.argv.slice(2), arg = (k, dflt) => { const i = argv.indexOf('--' + k); return i >= 0 && argv[i + 1] ? argv[i + 1] : dflt; };
   if (argv.includes('--selftest')) process.exit(await selftest({ quick: argv.includes('--quick'), workers: Number(arg('workers', 4)) }));
-  if (argv.includes('--write')) console.log('wrote ' + writeStatic().join(', '));
+  if (argv.includes('--fit-seat')) await fitSeat({ from: arg('from', null), run: arg('run', null), write: argv.includes('--save') });
+  else if (argv.includes('--write')) console.log('wrote ' + writeStatic().join(', '));
   else if (argv.includes('--derive')) await derive({ workers: Number(arg('workers', 4)), r13Only: argv.includes('--r13-only') });
   else {
     const reg = loadProposals();

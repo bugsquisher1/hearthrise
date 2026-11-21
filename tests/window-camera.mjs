@@ -576,6 +576,15 @@ async function checks(overrides, pages = null) {
       const { ctx, page, errors, up } = await enter(browser, base, { width: 1440, height: 900 });
       if (!up) fails.push('WC-3 the town did not mount');
       else {
+        /* Chat stands open at its home from the start (lane/a-chat-opens, CW-12): shut it first, so the steps below open a window
+           over a World with none and close the last one again. With Chat left open a docked window that takes the World took it
+           before the first reading and never moved it again (the WC-3 mutant escaped on next run 44852122216). */
+        if (await page.$('[data-hs-win="chat"] [data-hs-close="chat"]')) {
+          await press(page, '[data-hs-win="chat"] [data-hs-close="chat"]');
+          await page.waitForFunction(() => !document.querySelector('[data-hs-win]:not(.is-leaving)'), null, { timeout: 3000 }).catch(() => {});
+          await settle(page);
+        }
+        if (await page.evaluate(() => !!document.querySelector('[data-hs-win]:not(.is-leaving)'))) fails.push('WC-3 a window is still open before the steps');
         /* The World as the player sees it: the canvas box, the map corner and the hero on screen. */
         const view = () => page.evaluate(() => {
           const c = document.querySelector('#panel-world canvas').getBoundingClientRect();

@@ -482,7 +482,7 @@ begin
     if v_st.active_left is distinct from 5 or v_st.active_count is distinct from 5 or v_st.active_next is distinct from 'hunt' then
       raise exception 'job-counts §8(a): stored left %, count %, then %', v_st.active_left, v_st.active_count, v_st.active_next; end if;
     v := public.hr_state_of(c_u, 0)->'bench_run';
-    if (v->>'left')::int is distinct from 5 or (v->>'count')::int is distinct from 5 or v->>'then' is distinct from 'hunt' then
+    if (v->>'left')::int is distinct from 5 or (v->>'count')::int is distinct from 5 or v->>'next' is distinct from 'hunt' then
       raise exception 'job-counts §8(a): the envelope says %', v; end if;
 
     -- (b) FORGED: a count off a job or out of range, a THEN with no count or no such THEN: bad_activity, nothing moves.

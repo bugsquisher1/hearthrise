@@ -364,7 +364,7 @@ begin
     returning folded, gold, gold_in, xp_in, qty_in, gems_in, qty, xp
   ),
   del as (
-    delete from public.player_ledger l using src s where l.id = s.id and l.at = s.at
+    delete from public.player_ledger l using src s where l.id = s.id and l.at = s.at and l.at >= p_lo and l.at < p_hi
     returning l.gold, l.gold_in, l.xp_in, l.qty_in, l.gems_in, l.qty, l.xp
   )
   select (select jsonb_build_object('rows', count(*), 'gold', coalesce(sum(gold), 0), 'gold_in', coalesce(sum(gold_in), 0),

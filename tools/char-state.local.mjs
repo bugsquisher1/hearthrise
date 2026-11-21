@@ -55,7 +55,7 @@ const watched = watchedOf(await q(WATCHED_SQL))(seats);
 console.log('Hunts:');
 for (const h of hunts) console.log(`  ${h.ended ? '   ' : 'NOW'} ${h.hunt_id} seat ${h.seat} unit ${h.unit_id} ${h.entered}–${h.ended || '…'} ${h.end_reason || ''}${h.leaving ? ' (leaving)' : ''}${h.ended ? '' : ` · server lag ${h.lag_s}s${(() => { const v = lagVerdict({ lagS: Number(h.lag_s), watched }); return v.code === 'ok' ? ' (' + v.note + ')' : ' ' + v.note; })()}`}`);
 for (const [label, table, where, order] of [['Outfit', 'player_outfits', W, ''], ['Party', 'hunt_party_members', W, ''], ['Hunt presets', 'player_hunt_presets', W, ''],
-  ['Refusals today', 'hr_rejections', W + ' and day = current_date', 'last_at desc'], ['Ledger (last 5)', 'player_ledger', W, '1 desc']]) {
+  ['Refusals today', 'hr_rejections', W + ' and day = current_date', 'last_at desc'], ['Ledger (last 5)', 'player_ledger', W, 'at desc, id desc']]) {
   const r = await rows(table, where, order, 5);
   console.log(`${label}: ${r.length ? '' : 'none'}`);
   for (const x of r) console.log('  ' + short(x));

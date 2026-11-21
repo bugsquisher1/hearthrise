@@ -38,6 +38,8 @@ export const BANDS = Object.freeze([[1, 15], [16, 30], [31, 44], [45, 64], [65, 
 export const ARMOR_SLOTS = Object.freeze(['helmet', 'body', 'pants', 'boots', 'gloves', 'belt']);
 export const JEWEL_SLOTS = Object.freeze(['ring1', 'ring2', 'earrings', 'necklace', 'cape']);
 export const STATES = Object.freeze(['low', 'mid', 'bis']);
+/* the fewest real heroes a band shows numbers for */
+export const MIN_HEROES = 3;
 const MAIN = Object.freeze({ hammer: 'melee', tank: 'melee', sword: 'melee', axes: 'melee', mage: 'magic', healer: 'magic', bow: 'ranged', crossbow: 'ranged' });
 
 /** The matrix's way of a worn set: its weapon family, a shield beside a sword, a crossbow or a staff by name. */
@@ -65,13 +67,16 @@ export const FIELDS = Object.freeze(['weaponTier', 'armorPieces', 'armorTier', '
 /**
  * C-1 from real heroes [{ L, style, kit: kitNumbers, main, defense }] and a model `model(L, style, state)` -> { kit, main, defense } (the matrix's
  * kit and skills for that state). Answers { bands: [{ band, heroes, real: { field: [min, median, max] }, states: { state: { field: value } },
- * inside: { state: { field: bool } } }] }: every field read against the MID kit at the hero's own Level and way (real minus MID), so heroes
+ * inside: { state: { field: bool } } }] }: every field read against the MID kit at the same Level and way (real minus MID), so heroes
  * of other ways and Levels in one band compare.
  */
 export function readC1(heroes, model) {
   const out = [];
   for (const [a, b] of BANDS) {
-    const hs = heroes.filter((h) => h.L >= a && h.L <= b && h.style);
+    const hs0 = heroes.filter((h) => h.L >= a && h.L <= b && h.style);
+    /* a band of one or two heroes would show one person's numbers: it is counted, never shown */
+    if (hs0.length > 0 && hs0.length < MIN_HEROES) { out.push({ band: a + '-' + b, heroes: 0, reading: hs0.length + ' real hero(es), under ' + MIN_HEROES + ': not shown' }); continue; }
+    const hs = hs0;
     const rel = (h, num) => { const m = model(h.L, h.style, 'mid'); return { weaponTier: num.kit.weaponTier - m.kit.weaponTier, armorPieces: num.kit.armorPieces - m.kit.armorPieces,
       armorTier: num.kit.armorTier - m.kit.armorTier, jewels: num.kit.jewels - m.kit.jewels, mainVsLine: num.main - m.main, defenseVsLine: num.defense - m.defense }; };
     const realRel = hs.map((h) => rel(h, { kit: h.kit, main: h.main, defense: h.defense }));
@@ -123,15 +128,21 @@ async function c1() {
     const lv = (k) => XP.skillLevelFromXp(k, Number(sk[k]) || 0);
     return { L, style, kit: kitNumbers(worn, ITEMS), main: style ? lv(MAIN[style]) : null, defense: lv('defense') };
   }).filter((h) => h.style && h.L >= 1);
+  /* by seat as well (14 section 2: fit the skill line by seat): the front ways take the blows and train Defense, the back ways do not */
+  const FRONT = new Set(['tank', 'hammer', 'sword', 'axes']);
   const J = { check: 'C-1', source: '14-the-rest.md section 2', read_day: raw.meta && raw.meta[0] ? String(raw.meta[0].read_at).slice(0, 10) : null, real_heroes: heroes.length,
-    rule: 'each field is real minus the MID kit at the hero\'s own Level and way; a state passes a field when its value sits inside the real spread', ...readC1(heroes, model) };
+    rule: 'each field is real minus the MID kit at the same Level and way; a state passes a field when its value sits inside the real spread',
+    all: readC1(heroes, model), front: readC1(heroes.filter((h) => FRONT.has(h.style)), model), back: readC1(heroes.filter((h) => !FRONT.has(h.style)), model) };
   const leaks = anonymityProblems(J, raw.accounts.map((a) => a.u));
   if (leaks.length) { console.error('calibrate: the aggregate is not anonymous (' + leaks.join(', ') + '): nothing written'); return 1; }
-  console.log('C-1, THE HEROES THE TOOL PLAYS (' + J.real_heroes + ' real heroes, read ' + J.read_day + '): each field real minus the MID kit at the hero\'s own Level and way; [min / median / max]');
-  for (const b of J.bands) {
-    if (!b.heroes) { console.log('  Level ' + b.band + ': ' + b.reading); continue; }
-    console.log('  Level ' + b.band + ' (' + b.heroes + ' heroes)');
-    for (const f of FIELDS) console.log('    ' + f.padEnd(15) + ('real ' + b.real[f].join(' / ')).padEnd(26) + STATES.map((st) => st.toUpperCase() + ' ' + b.states[st][f] + (b.inside[st][f] ? '' : ' OUT')).join('   '));
+  console.log('C-1, THE HEROES THE TOOL PLAYS (' + J.real_heroes + ' real heroes, read ' + J.read_day + '): each field real minus the MID kit at the same Level and way; [min / median / max]');
+  for (const [seat, fields] of [['all', FIELDS.slice(0, 4)], ['front', FIELDS.slice(4)], ['back', FIELDS.slice(4)]]) {
+    console.log((seat === 'all' ? ' GEAR, every way' : ' SKILLS, the ' + seat + ' ways'));
+    for (const b of J[seat].bands) {
+      if (!b.heroes) { console.log('  Level ' + b.band + ': ' + b.reading); continue; }
+      console.log('  Level ' + b.band + ' (' + b.heroes + ' heroes)');
+      for (const f of fields) console.log('    ' + f.padEnd(15) + ('real ' + b.real[f].join(' / ')).padEnd(26) + STATES.map((st) => st.toUpperCase() + ' ' + b.states[st][f] + (b.inside[st][f] ? '' : ' OUT')).join('   '));
+    }
   }
   if (arg('json')) { const f = resolve(arg('json')); mkdirSync(dirname(f), { recursive: true }); writeFileSync(f, JSON.stringify(J, null, 1) + '\n'); console.log('wrote ' + f); }
   return 0;
@@ -151,6 +162,8 @@ function selftest() {
   check('C-1 reads a band\'s real spread against MID and places each state in it (' + JSON.stringify(b && b.real.weaponTier) + ', LOW ' + JSON.stringify(b && b.states.low) + ')',
     b && b.heroes === 4 && b.real.weaponTier[0] === -1 && b.real.weaponTier[2] === 0 && b.inside.low.weaponTier && b.inside.mid.weaponTier && !b.inside.bis.weaponTier && !b.inside.mid.defenseVsLine
     && J.bands.find((x) => x.band === '85-110').reading);
+  const two = readC1(heroes.slice(0, 2).map((h) => ({ ...h, L: 50 })), model).bands.find((x) => x.band === '45-64');
+  check('a band of fewer than ' + MIN_HEROES + ' real heroes is counted and never shown (' + (two && two.reading) + ')', two && !two.real && /not shown/.test(two.reading));
   check('an aggregate that repeats an account id or names a player is refused', anonymityProblems({ a: 'x-123' }, ['x-123']).length === 1 && anonymityProblems({ u: 'H1' }, []).length === 1 && anonymityProblems(J, ['x-123']).length === 0);
   console.log('calibrate selftest: ' + (fails.length ? fails.length + ' FAILED' : 'green'));
   return fails.length ? 1 : 0;

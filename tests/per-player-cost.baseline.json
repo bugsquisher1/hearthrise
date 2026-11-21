@@ -20,16 +20,16 @@
    "statements_a_settle": 4,
    "statements_a_hero_hour": 144,
    "round_trips_a_hero_hour": 576,
-   "ledger_rows_a_hero_hour": 57,
-   "row_writes_a_settle": 30,
+   "ledger_rows_a_hero_hour": 48,
+   "row_writes_a_settle": 28,
    "settle_cpu_ms_a_hero_hour": 5524
   },
   "party4_L20_millrace_sewer": {
    "statements_a_settle": 4,
    "statements_a_hero_hour": 36,
    "round_trips_a_hero_hour": 144,
-   "ledger_rows_a_hero_hour": 47.3,
-   "row_writes_a_settle": 98,
+   "ledger_rows_a_hero_hour": 44.3,
+   "row_writes_a_settle": 103,
    "settle_cpu_ms_a_hero_hour": 2314
   },
   "town_hour_bench": {
@@ -44,24 +44,24 @@
    "statements_a_settle": 9,
    "statements_a_hero_hour": 768.8,
    "round_trips_a_hero_hour": 2953.1,
-   "ledger_rows_a_hero_hour": 510.9,
-   "row_writes_a_settle": 92,
+   "ledger_rows_a_hero_hour": 532,
+   "row_writes_a_settle": 89,
    "settle_cpu_ms_a_hero_hour": 20749
   },
   "krell4_L80_deadly_closed": {
    "statements_a_settle": 4,
    "statements_a_hero_hour": 36,
    "round_trips_a_hero_hour": 144,
-   "ledger_rows_a_hero_hour": 81.8,
-   "row_writes_a_settle": 129,
+   "ledger_rows_a_hero_hour": 89.3,
+   "row_writes_a_settle": 127,
    "settle_cpu_ms_a_hero_hour": 2698
   },
   "tower4_L80_climb": {
    "statements_a_settle": 4,
-   "statements_a_hero_hour": 36.4,
-   "round_trips_a_hero_hour": 145.5,
-   "ledger_rows_a_hero_hour": 115.2,
-   "row_writes_a_settle": 102,
+   "statements_a_hero_hour": 38.5,
+   "round_trips_a_hero_hour": 153.8,
+   "ledger_rows_a_hero_hour": 133.7,
+   "row_writes_a_settle": 101,
    "settle_cpu_ms_a_hero_hour": 2868
   },
   "supply4_L50_hasks_ford_deadly": {
@@ -69,7 +69,7 @@
    "statements_a_hero_hour": 36,
    "round_trips_a_hero_hour": 144,
    "ledger_rows_a_hero_hour": 84.8,
-   "row_writes_a_settle": 118,
+   "row_writes_a_settle": 119,
    "settle_cpu_ms_a_hero_hour": 2608
   }
  },
@@ -254,7 +254,7 @@
   },
   {
    "at": "2026-11-21",
-   "why": "calibration re-cut (lane/c-engine-reds, next run 44863151394): the old unit's integer loop is halved by V8's optimizing tier mid-run, so one machine read 141 ms and 90 ms in one CI job and the baseline's own tree read red on it locally (3,733 > 3,244 at x0.84); the new unit is SQL + JSON, median of seven. No count rose; settle CPU measured interleaved on one PC: set 3,145-3,682 vs the baseline's tree 3,426-3,770 ms a hero-hour",
+   "why": "calibration re-cut (lane/c-engine-reds, next run 44863151394): the old unit's integer loop is halved by V8's optimizing tier mid-run, so one machine read 141 ms and 90 ms in one CI job and the baseline's own tree read red on it locally (3,733 > 3,244 at x0.84); the new unit is SQL + JSON, median of seven. No count rose; settle CPU measured interleaved on one PC: set 3,145-3,682 vs the baseline's tree 3,426-3,770 ms a hero-hour. Only the unit moved: calibration_ms and settle_cpu_ms are this run's, every count keeps its old pin (the Thicket read 57 journal rows a hero-hour against 48, the Sewer 47.3 against 44.3: inside the band, not absorbed)",
    "calibration_ms": 203,
    "fixtures": {
     "lone_L10_meadowbrook_thicket": {

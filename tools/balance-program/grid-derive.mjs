@@ -75,12 +75,13 @@ const inBandCell = (D, c) => {
 };
 
 /* A KIT HOLDS A TIER (50-standards 2.3, standards.mjs GRID.holds): deaths at or under the top of S6's MID row, the low point inside S3 or S4's
-   MID row (at or over its floor), net gold over zero. Normal is held by every kit that is on it. */
-function holds(c) {
+   MID row (at or over its floor). Net gold is not read (12-balance-pass.md section 5 row 10; ruled 2026-11-13: profit is reported, never graded).
+   Normal is held by every kit that is on it. */
+export function holds(c) {
   if (!c || !c.rates) return false;
   if (c.tier === 'normal') return true;
   const r = c.rates, x = deathOf(c), d = STD.bandById('S6.' + c.tier + '.mid'), hp = STD.bandById(c.tier === 'dangerous' ? 'S3.mid' : 'S4.mid');
-  return finite(x.per1000h) && x.per1000h <= d.hi && finite(r.lowHpTypical) && r.lowHpTypical >= hp.lo && r.netPerH > 0;
+  return finite(x.per1000h) && x.per1000h <= d.hi && finite(r.lowHpTypical) && r.lowHpTypical >= hp.lo;
 }
 
 /* ── THE DERIVED TABLES ────────────────────────────────────────────────────────────────────────────────────────────────────────── */
@@ -96,12 +97,14 @@ export function derive(D, grid, K = null) {
   };
   const seatCell = (L, gear, party, mode) => {
     if (mode === 'hardest') { const h = hardest(L, gear, party); return get(L, gear, h.party, h.tier); }
+    if (mode === 'dangerous') return get(L, gear, party, 'dangerous') || get(L, gear, party, 'normal');
     return get(L, gear, party, 'normal') || get(L, gear, 1, 'normal');
   };
   /* HOURS TO EACH LEVEL by seat: Level XP an hour AFTER deaths, log-linear between checkpoints, over the curve (src/core/xp.js) */
   const xpAt = (l) => D.XP.charXpForLevel(l);
-  function hoursTable(gear, party, mode) {
-    const pts = levels.map((L) => [L, (seatCell(L, gear, party, mode) || { rates: {} }).rates.netLevelXpPerH]).filter(([, r]) => finite(r) && r > 0);
+  /* `field`: netLevelXpPerH (after deaths, the time offered) or levelXpPerH (no death: the seat as if it never fell) */
+  function hoursTable(gear, party, mode, field = 'netLevelXpPerH') {
+    const pts = levels.map((L) => [L, (seatCell(L, gear, party, mode) || { rates: {} }).rates[field]]).filter(([, r]) => finite(r) && r > 0);
     if (!pts.length) return null;
     const rate = (l) => {
       if (l <= pts[0][0]) return pts[0][1];
@@ -117,6 +120,11 @@ export function derive(D, grid, K = null) {
     const t = hoursTable(gear, party, mode);
     if (t) SEATS[gear + ':' + party + ':' + mode] = t;
   }
+  /* THE TWO SEATS P1 READS (12-balance-pass.md section 5 row 8 waits on Tyler, section 7 item 1): the MID four on the hardest tier it holds with no
+     death, and the MID four on Dangerous after its deaths. Both print; the table's own seat stays PACE */
+  { const t = hoursTable('mid', 4, 'hardest', 'levelXpPerH'); if (t) SEATS['mid:4:hardest:nodeath'] = t; }
+  { const t = hoursTable('mid', 4, 'dangerous'); if (t) SEATS['mid:4:dangerous'] = t; }
+  const P1_SEATS = [['mid:4:hardest:nodeath', 'the Deadly four, no death'], ['mid:4:dangerous', 'the Dangerous four']];
   const PACE = STD.PACE_TABLE.seat.ruled ? 'mid:4:hardest' : 'mid:1:normal';
   /* the doors of 2.7 and the day each seat reaches them */
   const DOORS = [[45, 'the Barrow March'], [88, 'Krell\'s Hold'], [110, 'end of open content'], [175, 'the Catacombs'], [185, 'end of staged content'], [240, 'Region 5'], [295, 'Region 6'], [350, 'Region 7'], [400, 'Level 400']];
@@ -137,7 +145,10 @@ export function derive(D, grid, K = null) {
       const cost = (count, share) => (count / 1000) * deathXp(L) * share;
       row[tier] = { gross: c.rates.levelXpPerH, afterMeasured: deathOf(c).net, deathsPer1000h: deathOf(c).per1000h, seatHours: deathOf(c).seatHours,
         ruledCount: ruled, afterRuledUnblessed: finite(ruled) ? Math.round(c.rates.levelXpPerH - cost(ruled, 1)) : null,
-        afterRuledBlessed: finite(ruled) ? Math.round(c.rates.levelXpPerH - cost(ruled, STD.DEATH_COST.blessedShare)) : null };
+        afterRuledBlessed: finite(ruled) ? Math.round(c.rates.levelXpPerH - cost(ruled, STD.DEATH_COST.blessedShare)) : null,
+        /* 12-balance-pass.md section 5 row 7: the Blessing ladder (S-5) at the MEASURED death count, and the same unblessed */
+        afterMeasuredLadder: finite(deathOf(c).per1000h) ? Math.round(c.rates.levelXpPerH - cost(deathOf(c).per1000h, STD.blessedShareAt(L))) : null,
+        afterMeasuredUnblessed: finite(deathOf(c).per1000h) ? Math.round(c.rates.levelXpPerH - cost(deathOf(c).per1000h, 1)) : null };
     }
     watch.push(row);
   }
@@ -171,7 +182,7 @@ export function derive(D, grid, K = null) {
     const hh = pl.heroes * pl.huntHoursADay;
     cost = { player: 'ownfour', heroes: pl.heroes, huntH: pl.huntHoursADay, dbSADay: Math.round(a.dbS), dbSAHeroHour: Math.round((a.dbS / hh) * 100) / 100, rowsAHeroHour: Math.round((a.rows / hh) * 10) / 10 };
   }
-  return { X, get, levels, hardest, holds, SEATS, PACE, DOORS, H12, dayAt, deathXp, xpAt, watch, crossover, gearRows, cost, seatCell };
+  return { X, get, levels, hardest, holds, SEATS, PACE, P1_SEATS, DOORS, H12, dayAt, deathXp, xpAt, watch, crossover, gearRows, cost, seatCell };
 }
 
 /* E2: the median hunted hours until every MID weapon and armor piece that drops on the advised ground has dropped (each piece's rate = the
@@ -194,18 +205,28 @@ function dropWait(D, cell, plan, K, bandH) {
   return { median: hi, share: finite(bandH) && bandH > 0 ? hi / bandH : null, elsewhere };
 }
 
+/* STUDY 48's DESIGN NUMBERS (docs/design/balance-program/48-platform-cost.md section 1): database seconds an account-day under the recommended design,
+   a 3.5-hour tab, at 1,000 and 10,000 accounts; its journal is one row a hero an hour an activity */
+export const DESIGN_48 = Object.freeze({ 1000: 31.2, 10000: 30.3, journalRows: 1 });
+
 /* ── THE JUDGE ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────── */
 const NOT_GRID = {
   P13: 'events: the grid plays no event calendar', 'G-11': 'server gold: needs the server gold model (X14), not a cell', E5: 'chest and capped sources: the sources lane (atlas.json)',
   'E7': 'the Add pool: balance guard G10 plays it', E8: 'gold-for-power offers: balance guard G12', D4: 'Magic Find: balance guard G13 (Luck not built)',
-  TL1: 'the talent builds: balance-matrix.mjs judges them', TL2: 'the talent builds: balance-matrix.mjs judges them', TL3: 'the talent builds: balance-matrix.mjs judges them', TL4: 'the talent builds: balance-matrix.mjs judges them',
+  'MM26.G': 'the buff block: balance-matrix.mjs reads it', TL1: 'the talent builds: balance-matrix.mjs judges them', TL2: 'the talent builds: balance-matrix.mjs judges them', TL3: 'the talent builds: balance-matrix.mjs judges them', TL4: 'the talent builds: balance-matrix.mjs judges them',
   R1: 'region open dates: a schedule, not a cell', R3: 'Levels authored a month: the pack log', 'C4.1k': 'money: measure.mjs cost', 'C4.10k': 'money: measure.mjs cost', 'C4b.1k': 'the other lines of the bill: 28-platform\'s price list', 'C4b.10k': 'the other lines of the bill: 28-platform\'s price list', C5: 'capacity: measure.mjs cost and the load rig',
 };
 export function judgeGrid(D, grid, o = {}) {
   const T = derive(D, grid, o.K || null);
   const { X, get, levels, SEATS, PACE } = T;
   const rows = [];
-  const add = (band, at, value, extra = {}) => rows.push({ band: band.id, group: band.group, label: band.label, at, value: finite(value) ? Math.round(value * 1000) / 1000 : value, status: extra.status || statusOf(value, band), dist: distanceOf(value, band), ...extra });
+  /* a REPORT-ONLY band (standards.mjs reportOnly) prints its reading with status 'report' and `wouldBe`, the status it would have: it grades nothing,
+     and its mutation proof reads `wouldBe` (12-balance-pass.md section 5) */
+  const add = (band, at, value, extra = {}) => {
+    const st = extra.status || statusOf(value, band);
+    rows.push({ band: band.id, group: band.group, label: band.label, at, value: finite(value) ? Math.round(value * 1000) / 1000 : value, dist: distanceOf(value, band), ...extra,
+      status: band.reportOnly && st !== 'n/a' ? 'report' : st, ...(band.reportOnly && st !== 'n/a' ? { wouldBe: st, why: band.reportOnly } : {}) });
+  };
   const cellsWhere = (w) => X.all.filter((c) => !c.step && (!w.gear || c.gear === w.gear) && (w.party === undefined || c.party === w.party) && (!w.tier || typeof w.tier !== 'string' || w.tier === 'hardest-held' || c.tier === w.tier)
     && (!w.levels || (c.L >= w.levels[0] && c.L <= w.levels[1])) && (!w.fromLevel || c.L >= w.fromLevel) && (!w.inBand || inBandCell(D, c)));
   const at = (c) => c.L + ' ' + c.gear + ' x' + c.party + ' ' + c.tier;
@@ -213,11 +234,14 @@ export function judgeGrid(D, grid, o = {}) {
   const sampleOk = (c) => deathOf(c).planned === true || deathOf(c).seatHours >= DEATH_SAMPLE_HERO_H;
   for (const band of STD.STANDING) {
     const w = band.where || {}, id = band.id;
-    if (NOT_GRID[id]) { rows.push({ band: id, group: band.group, label: band.label, at: '-', value: null, status: 'n/a', dist: 0, why: NOT_GRID[id] }); continue; }
+    if (NOT_GRID[id] || band.retired) { rows.push({ band: id, group: band.group, label: band.label, at: '-', value: null, status: 'n/a', dist: 0, why: NOT_GRID[id] || 'retired: ' + band.retired }); continue; }
     if (['atlas', 'town', 'path'].includes(band.group)) { rows.push({ band: id, group: band.group, label: band.label, at: '-', value: null, status: 'n/a', dist: 0, why: 'read from ' + (band.group === 'path' ? 'paths.json' : 'atlas.json') + ' (lane/c-sources-paths)' }); continue; }
     if (id === 'P1') {
-      const seat = SEATS[PACE], target = [...STD.PACE_TABLE.ruled, ...(STD.PACE_TABLE.ruled400 || STD.PACE_TABLE.proposed || [])];
-      for (const L of w.levels) { const t = target.find(([l]) => l === L); if (seat && t && L <= 400) add(band, 'Level ' + L + ' (' + PACE + ')', seat.cum[L] / t[1], { shown: Math.round(seat.cum[L]) + ' h / ' + t[1] + ' h' }); }
+      const target = [...STD.PACE_TABLE.ruled, ...(STD.PACE_TABLE.ruled400 || STD.PACE_TABLE.proposed || [])];
+      for (const [key, words] of T.P1_SEATS) {
+        const seat = SEATS[key];
+        for (const L of w.levels) { const t = target.find(([l]) => l === L); if (seat && t && L <= 400) add(band, 'Level ' + L + ' (' + words + ')', seat.cum[L] / t[1], { seat: key, shown: Math.round(seat.cum[L]) + ' h / ' + t[1] + ' h' }); }
+      }
       continue;
     }
     if (id === 'P2') { for (const c of cellsWhere(w)) add(band, at(c), c.rates.xContract); continue; }
@@ -232,11 +256,11 @@ export function judgeGrid(D, grid, o = {}) {
     }
     if (id === 'P8') { for (const c of cellsWhere(w)) add(band, at(c), c.rates.xContract); continue; }
     if (/^P9\./.test(id)) {
-      for (const c of X.all.filter((x) => !x.step && x.tier === w.tier && holds(x))) add(band, at(c), ratio(c.rates.netLevelXpPerH, (get(c.L, c.gear, c.party, 'normal') || {}).rates?.netLevelXpPerH));
+      for (const c of X.all.filter((x) => !x.step && x.tier === w.tier && (w.party === undefined || x.party === w.party) && holds(x))) add(band, at(c), ratio(c.rates.netLevelXpPerH, (get(c.L, c.gear, c.party, 'normal') || {}).rates?.netLevelXpPerH));
       continue;
     }
     if (id === 'P10') {
-      for (const c of X.all.filter((x) => !x.step && x.tier !== 'normal' && !holds(x))) {
+      for (const c of X.all.filter((x) => !x.step && x.tier !== 'normal' && (w.party === undefined || x.party === w.party) && !holds(x))) {
         const below = get(c.L, c.gear, c.party, c.tier === 'deadly' ? 'dangerous' : 'normal') || get(c.L, c.gear, c.party, 'normal');
         add(band, at(c), ratio(c.rates.netLevelXpPerH, below && below.rates.netLevelXpPerH));
       }
@@ -285,7 +309,7 @@ export function judgeGrid(D, grid, o = {}) {
       continue;
     }
     if (/^S11\./.test(id)) {
-      const key = id === 'S11.blessed' ? 'afterRuledBlessed' : 'afterRuledUnblessed';
+      const key = id === 'S11.blessed' ? 'afterMeasuredLadder' : 'afterMeasuredUnblessed';
       for (const L of levels) {
         if (w.levels && (L < w.levels[0] || L > w.levels[1])) continue;
         const h = T.hardest(L, 'mid', 4), lone = get(L, 'mid', 1, 'normal');
@@ -294,7 +318,7 @@ export function judgeGrid(D, grid, o = {}) {
         const t = row && row[h.tier];
         if (!t || !finite(t[key])) continue;
         add(band, 'Level ' + L + ' (the MID four, hardest tier held)', ratio(t[key], lone.rates.netLevelXpPerH) ?? (t[key] <= 0 ? t[key] / lone.rates.netLevelXpPerH : null),
-          { shown: fmt(t[key]) + ' on ' + h.tier + ' at ' + t.ruledCount + ' deaths in 1,000 h / ' + fmt(lone.rates.netLevelXpPerH) + ' alone' });
+          { shown: fmt(t[key]) + ' on ' + h.tier + ' at the measured ' + fmt(t.deathsPer1000h) + ' deaths in 1,000 h' + (id === 'S11.blessed' ? ' (the ladder: ' + STD.blessedShareAt(L) + ' of a death)' : '') + ' / ' + fmt(lone.rates.netLevelXpPerH) + ' alone' });
       }
       continue;
     }
@@ -326,9 +350,11 @@ export function judgeGrid(D, grid, o = {}) {
     if (id === 'D2') { for (const L of levels.filter((x) => x >= w.levels[0])) { const c = T.seatCell(L, 'mid', 4, 'hardest'); if (c) add(band, at(c), c.rates.rarestRevealEveryPartyH, { status: 'proxy', why: 'the Very Rare is not built (L20); the rarest reveal row, the party\'s hours' }); } continue; }
     if (id === 'R2') { const d = T.dayAt(PACE, 110); add(band, 'the pace seat (' + PACE + ') reaches Level 110', d); continue; }
     /* the database time of one account does not depend on how many there are: the same reading is judged against each population's band */
-    if (/^C1(\.|$)/.test(id)) { if (T.cost) add(band, 'the Own four, 12 h, today\'s engine', T.cost.dbSAHeroHour); continue; }
-    if (/^C2(\.|$)/.test(id)) { if (T.cost) add(band, 'the Own four, 12 h, today\'s engine', T.cost.dbSADay); continue; }
-    if (id === 'C3') { if (T.cost) add(band, 'the Own four, 12 h (every activity)', T.cost.rowsAHeroHour); continue; }
+    /* 12-balance-pass.md section 5 row 9: study 48's design numbers (48-platform-cost.md section 1: the recommended design, the 3.5-hour tab; the
+       journal at one row a hero an hour an activity), never the old engine's reads */
+    if (/^C1(\.|$)/.test(id)) { const d = DESIGN_48[id.endsWith('10k') ? 10000 : 1000]; add(band, 'study 48\'s design, the Own four at 12 h, a 3.5-hour tab', d / 48, { shown: d + ' / 48 hunted hero-hours' }); continue; }
+    if (/^C2(\.|$)/.test(id)) { const d = DESIGN_48[id.endsWith('10k') ? 10000 : 1000]; add(band, 'study 48\'s design, the Own four at 12 h, a 3.5-hour tab', d); continue; }
+    if (id === 'C3') { add(band, 'study 48\'s design: one journal row a hero an hour an activity', DESIGN_48.journalRows); continue; }
     rows.push({ band: id, group: band.group, label: band.label, at: '-', value: null, status: 'n/a', dist: 0, why: 'no reader in grid-derive.mjs yet' });
   }
   const stale = o.currentHash && grid.inputHash && o.currentHash !== grid.inputHash;
@@ -338,11 +364,13 @@ export function judgeGrid(D, grid, o = {}) {
 /** Per band: its rows' worst status, the worst row (furthest out), and counts. */
 export function bandSummary(judged) {
   const out = [];
-  const RANK = { ok: 0, thin: 0, bound: 0, proxy: 0, 'n/a': 0, off: 1, RED: 2 };
+  const RANK = { ok: 0, thin: 0, bound: 0, proxy: 0, 'n/a': 0, report: 0, off: 1, RED: 2 };
   for (const band of STD.STANDING) {
     const rs = judged.rows.filter((r) => r.band === band.id);
     const judgedRows = rs.filter((r) => ['ok', 'off', 'RED'].includes(r.status));
-    const worst = judgedRows.reduce((m, r) => (!m || r.dist > m.dist ? r : m), null);
+    /* a report-only band prints its furthest reading */
+    const shownRows = judgedRows.length ? judgedRows : rs.filter((r) => r.status === 'report');
+    const worst = shownRows.reduce((m, r) => (!m || r.dist > m.dist ? r : m), null);
     const status = !rs.length ? 'n/a' : rs.every((r) => r.status === 'n/a') ? 'n/a' : !judgedRows.length ? rs[0].status : judgedRows.reduce((s, r) => (RANK[r.status] > RANK[s] ? r.status : s), 'ok');
     out.push({ band: band.id, group: band.group, label: band.label, status, worst, n: rs.length, red: rs.filter((r) => r.status === 'RED').length, off: rs.filter((r) => r.status === 'off').length,
       ok: rs.filter((r) => r.status === 'ok').length, thin: rs.filter((r) => ['thin', 'proxy', 'bound'].includes(r.status)).length, why: (rs.find((r) => r.why) || {}).why || '' });
@@ -365,12 +393,12 @@ export function printReport(grid, judged, out = console.log) {
     out('\n== ' + fam.toUpperCase() + ' ==   band | status | rows ok/off/RED (thin) | worst cell: value | target / red | label');
     for (const s of S.filter((x) => x.group === fam)) {
       const b = STD.bandById(s.band);
-      out('  ' + s.band.padEnd(17) + s.status.padEnd(6) + (s.ok + '/' + s.off + '/' + s.red + (s.thin ? ' (' + s.thin + ' thin)' : '')).padEnd(16)
+      out('  ' + s.band.padEnd(17) + s.status.padEnd(7) + (s.ok + '/' + s.off + '/' + s.red + (s.thin ? ' (' + s.thin + ' thin)' : '')).padEnd(16)
         + (s.worst ? s.worst.at + ': ' + (s.worst.shown || fmt(s.worst.value)) : s.why ? '- ' + s.why : '-').slice(0, 78).padEnd(80) + rng(b) + ' | ' + b.label);
     }
   }
   out('\n== PACE: the day each seat reaches each door (' + T.H12 + ' hunted hours a day, the stamina day as played; Level XP an hour after deaths) ==');
-  const seats = [['mid:1:normal', 'lone MID Normal'], [T.PACE, 'THE PACE SEAT (MID four, hardest held)'], ['low:1:normal', 'lone LOW Normal'], ['bis:4:hardest', 'BiS four, hardest held']];
+  const seats = [['mid:1:normal', 'lone MID Normal'], [T.PACE, 'THE PACE SEAT (MID four, hardest held)'], ['mid:4:hardest:nodeath', 'P1: Deadly four, no death'], ['mid:4:dangerous', 'P1: the Dangerous four'], ['low:1:normal', 'lone LOW Normal'], ['bis:4:hardest', 'BiS four, hardest held']];
   out('  door'.padEnd(30) + seats.map(([, n]) => n.slice(0, 22).padEnd(24)).join(''));
   for (const [L, name] of T.DOORS) out(('  ' + L + ' ' + name).padEnd(30) + seats.map(([k]) => (finite(T.dayAt(k, L)) ? 'day ' + T.dayAt(k, L).toFixed(1) : '-').padEnd(24)).join(''));
   out('\n== DEATH (6% of all Level XP, no cap): XP an hour after deaths, the four (lone under 5): measured (its own deaths) | at the TOP of the ruled count (S6 for the gear: MID Dangerous 30, Deadly 100 a 1,000 h), unblessed / fully blessed ==');
@@ -391,7 +419,7 @@ export function printReport(grid, judged, out = console.log) {
     1,000 and the 10,000 account bands) is one entry, its bands listed together. */
 export function furthest(judged, n = 10) {
   const out = [];
-  for (const s of bandSummary(judged).filter((x) => x.worst && x.worst.dist > 0).sort((a, b) => b.worst.dist - a.worst.dist)) {
+  for (const s of bandSummary(judged).filter((x) => x.worst && x.worst.dist > 0 && x.status !== 'report').sort((a, b) => b.worst.dist - a.worst.dist)) {
     const twin = out.find((o) => o.worst.at === s.worst.at && o.worst.value === s.worst.value);
     if (twin) { twin.bands.push(s.band); continue; }
     out.push({ ...s, bands: [s.band] });
@@ -430,7 +458,8 @@ export async function selftest({ ROOT, loadGridData, loadKits, readGrid, quick }
   const D = await loadGridData();
   const K = await loadKits(ROOT);
   const clone = () => JSON.parse(JSON.stringify(grid0));
-  const redAt = (j, band) => new Set(j.rows.filter((r) => r.band === band && r.status === 'RED').map((r) => r.at));
+  /* a report-only band's proof reads the status it would have (wouldBe), so it keeps biting while it grades nothing */
+  const redAt = (j, band) => new Set(j.rows.filter((r) => r.band === band && (r.status === 'RED' || (r.status === 'report' && r.wouldBe === 'RED'))).map((r) => r.at));
   const clean = judgeGrid(D, grid0, { K });
   const find = (pred) => Object.values(grid0.cells).find((c) => c.rates && !c.step && pred(c));
   const P = [];
@@ -438,8 +467,8 @@ export async function selftest({ ROOT, loadGridData, loadKits, readGrid, quick }
   const label = (c) => c.L + ' ' + c.gear + ' x' + c.party + ' ' + c.tier;
   plant('pace: the lone MID hero runs away (x2.5 the contract)', 'P2', (c) => c.gear === 'mid' && c.party === 1 && c.tier === 'normal', (c) => { c.rates.xContract = 2.5; }, label);
   plant('survival: a MID kit on Normal bottoms out at 20%', 'S1.mid', (c) => c.gear === 'mid' && c.party !== 2 && c.tier === 'normal' && inBandCell(D, c), (c) => { c.rates.lowHpTypical = 0.2; }, label);
-  plant('deaths: MID on Deadly dies 400 times a 1,000 h on a full sample', 'S6.deadly.mid', (c) => c.gear === 'mid' && c.party !== 2 && c.tier === 'deadly' && inBandCell(D, c), (c) => { c.rates.deathsPer1000h = 400; c.rates.sample.heroHours = 64 * c.party; }, label);
-  plant('gold: LOW on Deadly makes money (+50k a hero-hour)', 'G-5', (c) => c.gear === 'low' && c.party !== 2 && c.tier === 'deadly', (c) => { c.rates.netPerH = 50000; }, label);
+  plant('deaths: MID on Deadly dies 400 times a 1,000 h on a full sample', 'S6.deadly.mid', (c) => c.gear === 'mid' && c.party === 4 && c.tier === 'deadly' && inBandCell(D, c), (c) => { c.rates.deathsPer1000h = 400; c.rates.sample.heroHours = 64 * c.party; }, label);
+  plant('gold: LOW on Deadly makes money (+50k a hero-hour)', 'G-5', (c) => c.gear === 'low' && c.party === 4 && c.tier === 'deadly', (c) => { c.rates.netPerH = 50000; }, label);
   plant('gold: the store eats 95% of a MID Deadly party\'s coin', 'G-2.deadly', (c) => c.gear === 'mid' && c.party !== 2 && c.tier === 'deadly' && inBandCell(D, c), (c) => { c.rates.storeShare = 0.95; }, label);
   plant('gear: BiS twice MID alone', 'P4', (c) => c.gear === 'bis' && c.party === 1 && c.tier === 'normal', (c) => { c.rates.levelXpPerH *= 2; }, label);
   plant('gear: BiS three times LOW alone on Normal', 'P5', (c) => c.gear === 'bis' && c.party === 1 && c.tier === 'normal' && c.L >= 15, (c) => { c.rates.levelXpPerH *= 3; }, label);
@@ -482,6 +511,28 @@ export async function selftest({ ROOT, loadGridData, loadKits, readGrid, quick }
     const off = clean.rows.filter((r) => r.band === 'P5' && !/ normal$/.test(String(r.at)));
     const ok = !got.length && !off.length; if (!ok) fails++;
     console.log('  ' + (ok ? 'SILENT ' : 'NOISY  ') + 'P5 on a harder tier: a lone BiS Deadly cell at 50 times its Level XP, and no P5 row off Normal' + (ok ? '' : ': P5 newly red at ' + (got.join(', ') || 'nothing') + '; ' + off.length + ' row(s) off Normal'));
+  }
+  /* 12-balance-pass.md section 5: the tier bands read the four only (row 1); a report-only band prints and grades nothing, and its plant still
+     reads (rows 2, 3, 5); a kit holds a tier whatever its gold (row 10); P1 prints both seats (row 8 waits on Tyler) */
+  {
+    const tierBands = ['S3.mid', 'S4.mid', 'S6.dangerous.mid', 'S6.deadly.mid', 'P9.dangerous', 'P9.deadly', 'P10', 'G-5'];
+    const lone = clean.rows.filter((r) => tierBands.includes(r.band) && / x1 /.test(String(r.at)));
+    const ok1 = !lone.length; if (!ok1) fails++;
+    console.log('  ' + (ok1 ? 'SILENT ' : 'NOISY  ') + 'the tier bands read no lone hero' + (ok1 ? '' : ': ' + lone.slice(0, 3).map((r) => r.band + ' ' + r.at).join(', ')));
+    const g = clone(), c = Object.values(g.cells).find((x) => x.rates && !x.step && x.gear === 'mid' && x.party === 4 && x.tier === 'deadly' && inBandCell(D, x));
+    if (c) c.rates.lowHpTypical = 0.02;
+    const j = judgeGrid(D, g, { K }), row = c && j.rows.find((r) => r.band === 'S4.mid' && r.at === label(c));
+    const S = bandSummary(j).find((x) => x.band === 'S4.mid');
+    const ok2 = !!row && row.status === 'report' && row.wouldBe === 'RED' && S.status === 'report' && S.red === 0; if (!ok2) fails++;
+    console.log('  ' + (ok2 ? 'CAUGHT ' : 'MISSED ') + 'report only: a MID four on Deadly at 2% low HP prints S4.mid ' + (row ? row.status + ' (would be ' + row.wouldBe + ')' : 'nothing') + ', graded ' + (S ? S.status : '-'));
+    const h = Object.values(grid0.cells).find((x) => x.rates && !x.step && x.party === 4 && x.tier !== 'normal' && clean.T.holds(x));
+    const broke = h && JSON.parse(JSON.stringify(h));
+    if (broke) broke.rates.netPerH = -1e6;
+    const ok3 = !!broke && clean.T.holds(broke); if (!ok3) fails++;
+    console.log('  ' + (ok3 ? 'CAUGHT ' : 'MISSED ') + 'a kit holds a tier whatever its gold: ' + (h ? h.key + ' at -1,000,000 a hero-hour still holds' : 'no held cell'));
+    const seats = new Set(clean.rows.filter((r) => r.band === 'P1').map((r) => r.seat));
+    const ok4 = seats.has('mid:4:hardest:nodeath') && seats.has('mid:4:dangerous'); if (!ok4) fails++;
+    console.log('  ' + (ok4 ? 'CAUGHT ' : 'MISSED ') + 'P1 reads both seats: ' + [...seats].join(', '));
   }
   /* S2 and S7 are judged on the pool: deaths planted across Normal MID cells (no one cell's sample can see them) must turn both red */
   {

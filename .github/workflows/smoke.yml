@@ -4213,11 +4213,16 @@ jobs:
       # (tools/pack-edge.mjs, what the deploy ships) stay under a ceiling that rises only with a written reason
       # (--raise), and the engine reads maps through src/data/world/maps/grids.js, never the renderer's index.
       # --selftest plants 17 defects and checks the writer 4 ways; about 2 s, no credentials.
+      # The Smoke suite's Edge payload guard reports a deployed-payload mismatch on `next` (the big release deploys the
+      # edge at the release, CLAUDE.md §3.3b) and fails it on release/** and main: tests/edge-payload-scope.mjs, a pure
+      # scope over every ref shape and its wiring in run-smoke, --selftest plants 10 defects. Under a second.
       - name: Edge bundle ceiling + the engine's map index
         if: ${{ !cancelled() }}
         run: |
           node tests/edge-bundle.mjs
           node tools/mutant-gate.mjs node tests/edge-bundle.mjs --selftest
+          node tests/edge-payload-scope.mjs
+          node tools/mutant-gate.mjs node tests/edge-payload-scope.mjs --selftest
 
       # TWO MORE PROOFS ADOPTED (b569), both RED on origin/main and registered
       # nowhere (plain runs are in run-smoke). delta-transport --selftest died as

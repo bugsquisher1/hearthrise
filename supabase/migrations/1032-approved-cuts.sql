@@ -1629,6 +1629,13 @@ begin
     if exists (select 1 from pg_roles where rolname = 'hr_engine')
        and not (coalesce(v->'engine_execute_outside_allowlist', '[]'::jsonb)::text ~ 'hr_dungeon_settle') then
       raise exception 'approved-cuts §7(c): a re-granted hr_dungeon_settle reads as allowed: %', v->'engine_execute_outside_allowlist'; end if;
+    /* THE PROBES LEAVE AS THEY CAME. The rollback below undoes them anyway; the drops are written out so the probe reads
+       create-then-drop in this file (tests/live-hash-drift.mjs sweep(): a body created after this file's §2 drop and never
+       dropped again would read as re-created, and the cut body as still built). */
+    drop function public.hr_buy_gem_unlock(text, integer, uuid);
+    if exists (select 1 from pg_roles where rolname = 'hr_engine') then
+      drop function public.hr_dungeon_settle(uuid, integer, bigint, uuid, text, text, numeric);
+    end if;
     raise exception using errcode = 'HRC10', message = 'approved-cuts §7(c) regrant probe - rolling back';
   exception when sqlstate 'HRC10' then null;
   end;

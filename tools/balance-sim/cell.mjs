@@ -19,7 +19,7 @@
 import { pathToFileURL } from 'node:url';
 import { join } from 'node:path';
 import { loadGear, STYLES } from './gear.mjs';
-import { rateCI, quantile, round, gini } from './stats.mjs';
+import { rateCI, quantile, round, gini, underInto } from './stats.mjs';
 import { playedBar, runeTierAt, RUNE_TIERS, PLAYED_OPTIONS, PLAYED_RUNES } from './played.mjs';
 import { loadLines, skillsAt } from './skill-lines.mjs';
 import { sourceQuery } from '../lib/version-stamp.mjs';
@@ -195,8 +195,10 @@ export async function loadCellRunner(root) {
       rareItems: [], gear: {}, store: 0, buys: {}, uses: {}, deaths: 0, killers: {}, xpLostLevel: 0, deathLevelXpLost: [],
       xpLostSkill: {}, dealt: 0, dealtBy: {}, taken: 0, takenBy: {}, spellsIn: {}, healIn: { food: 0, self: 0, ally: 0 }, healOut: 0, shieldIn: 0,
       blowsLanded: 0, blowsMissed: 0, dodged: 0, eats: { own: 0, store: 0 }, drinks: { own: 0, store: 0 }, casts: {}, castGold: 0, castMana: {}, castBack: {},
-      manaShots: 0, enc: [], towerEnc: [], close: 0, dips: 0, ttdClose: [], ended: {} }));
-    const P = { kills: 0, killsBy: {}, ttk: [], hours: 0, segments: 0, rareRolls: 0, rareWins: {}, pulls: 0, ...(run ? { tower: { from: run.floor, top: null, cleared: [] } } : {}) };
+      manaShots: 0, enc: [], towerEnc: [], close: 0, dips: 0, ttdClose: [], ended: {},
+      /* the HP regained with no event (regeneration: the window's gap, below), the hunted ms under 30% / 10% of max HP, damage dealt by target kind */
+      regen: 0, under: { p30: 0, p10: 0 }, dealtTo: {} }));
+    const P = { kills: 0, killsBy: {}, ttk: [], ttkBy: {}, hours: 0, segments: 0, rareRolls: 0, rareWins: {}, pulls: 0, ...(run ? { tower: { from: run.floor, top: null, cleared: [] } } : {}) };
     const byKey = Object.fromEntries(H.map((h) => [h.key, h]));
     for (let seed = 0; seed < cell.seeds; seed++) {
       let left = cell.hours * 3600000, seg = 0;
@@ -258,6 +260,7 @@ export async function loadCellRunner(root) {
                 } else if (uk) {
                   const h = byKey[uk];
                   h.dealt += n; const a = e.ability || 'basic'; h.dealtBy[a] = (h.dealtBy[a] || 0) + n;
+                  const to = (out.units && out.units[e.t] && out.units[e.t][0]) || '?'; h.dealtTo[to] = (h.dealtTo[to] || 0) + n;
                   if (firstHit[e.t] === undefined) firstHit[e.t] = e.atMs;
                 }
                 break;
@@ -277,7 +280,10 @@ export async function loadCellRunner(root) {
                 if (tk) byKey[tk].shieldIn += e.amount || 0;
                 break;
               case 'kill':
-                if (!tk) { P.kills++; const kd = (out.units && out.units[e.t] && out.units[e.t][0]) || '?'; P.killsBy[kd] = (P.killsBy[kd] || 0) + 1; if (firstHit[e.t] !== undefined) { P.ttk.push(e.atMs - firstHit[e.t]); delete firstHit[e.t]; } }
+                if (!tk) {
+                  P.kills++; const kd = (out.units && out.units[e.t] && out.units[e.t][0]) || '?'; P.killsBy[kd] = (P.killsBy[kd] || 0) + 1;
+                  if (firstHit[e.t] !== undefined) { const ms = e.atMs - firstHit[e.t]; P.ttk.push(ms); const t = P.ttkBy[kd] || (P.ttkBy[kd] = [0, 0]); t[0] += ms; t[1]++; delete firstHit[e.t]; }
+                }
                 break;
               case 'eat': case 'drink':
                 if (uk) { const h = byKey[uk]; (e.type === 'eat' ? h.eats : h.drinks)[e.source === 'store' ? 'store' : 'own']++; }
@@ -316,10 +322,14 @@ export async function loadCellRunner(root) {
             let c = x.cur;
             for (const [, k, n] of hp) if (k === h.key) c = Math.min(x.max, c + n);
             const gap = endHp[h.key] - c;
-            if (gap > 0 && winTo > winFrom) x.rate = gap / (winTo - winFrom);
+            if (gap > 0 && winTo > winFrom) { x.rate = gap / (winTo - winFrom); h.regen += gap; }
           }
-          /* pass two: the HP each hero stood at through the window */
-          const step = (x, at) => { if (x.rate > 0 && at > x.at) x.cur = Math.min(x.max, x.cur + x.rate * (at - x.at)); x.at = Math.max(x.at, at); };
+          /* pass two: the HP each hero stood at through the window (and the time it stood under UNDER_SHARES: stats.mjs underInto, never
+             after a death; capped below at the hunted time the window paid) */
+          const step = (x, at) => {
+            if (at > x.at && !x.dead) underInto(x.under || (x.under = {}), x.cur, x.rate, x.max, at - x.at);
+            if (x.rate > 0 && at > x.at) x.cur = Math.min(x.max, x.cur + x.rate * (at - x.at)); x.at = Math.max(x.at, at);
+          };
           for (const [at, k, n] of hp) {
             if (k === 'floor') { floorNow = n + 1; continue; }
             if (k === null) {
@@ -329,7 +339,7 @@ export async function loadCellRunner(root) {
             const x = live[k];
             if (x.cur === null) continue;
             step(x, at);
-            if (n === -Infinity) { x.cur = 0; lower(x, at); continue; }
+            if (n === -Infinity) { x.cur = 0; x.dead = true; lower(x, at); continue; }
             if (n < 0) { x.cur += n; x.recent.push([at, -n]); if (x.recent.length > 64) x.recent.splice(0, 32); lower(x, at); }
             else x.cur = Math.min(x.max, x.cur + n);
           }
@@ -359,6 +369,10 @@ export async function loadCellRunner(root) {
             if (hu.ended) h.ended[hu.ended.reason] = (h.ended[hu.ended.reason] || 0) + 1;
             /* a run's ended hero is settled no more (dropEnded): it opens no later floor's encounter */
             if (hu.ended && run) x.done = true;
+            /* the window's tail (the last HP move to its end) under UNDER_SHARES, then its time under, never more than it hunted */
+            if (x.cur !== null && !x.dead && winTo > x.at) underInto(x.under || (x.under = {}), x.cur, x.rate, x.max, winTo - x.at);
+            for (const k of Object.keys(h.under)) h.under[k] += Math.min((x.under && x.under[k]) || 0, hu.paid_ms || 0);
+            x.under = {};
             /* the engine's HP at the window's end: the anchor for the next window */
             if (Number.isInteger(d.hp) && !hu.ended) { x.cur = d.hp; if (x.enc) x.enc.min = Math.min(x.enc.min, x.cur); }
           }
@@ -446,6 +460,10 @@ export async function loadCellRunner(root) {
           income, store: h.store, rares },
         /* a run's encounters, each its floor and its low HP % (0: the hero fell there) */
         ...(P.tower ? { towerEnc: h.towerEnc } : {}),
+        /* THE BALANCE MATRIX'S READS (tools/balance-program/balance-matrix.mjs; 40-formula-brief section 6): the HP regained with no event
+           (regeneration), the share of hunted time under 30% and 10% of max HP, and the damage dealt to each kind of monster */
+        regenPerH: per(h.regen), hpUnder: Object.fromEntries(Object.entries(h.under).map(([k, ms]) => [k, round(ms / (hr * 3600000), 4)])),
+        dealtToPerH: Object.fromEntries(Object.entries(h.dealtTo).map(([k, n]) => [k, per(n)])),
       };
     });
     const hours = P.hours || 1e-9;
@@ -460,7 +478,9 @@ export async function loadCellRunner(root) {
         levelXpPerHeroPerH: round(heroes.reduce((s, h) => s + (h.levelXpPerH || 0), 0) / heroes.length, 0),
         createdPerH: round(heroes.reduce((s, h) => s + h.incomePerH + h.raresPerH, 0), 0),
         destroyedPerH: round(heroes.reduce((s, h) => s + h.storePerH, 0), 0),
-        ...(P.tower ? { tower: P.tower } : {}) },
+        ...(P.tower ? { tower: P.tower } : {}),
+        /* time to kill by monster kind: [ms summed, kills timed] (seeds merge by adding) */
+        ttkBy: P.ttkBy },
       heroes,
     };
   }

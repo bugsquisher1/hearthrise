@@ -15,7 +15,7 @@ import { mkdtempSync, readdirSync, readFileSync, writeFileSync, statSync, rmSync
 import { join, resolve, dirname, relative } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
-import { assembleSweeps, matrixHash, SWEEP_FILE } from './balance-matrix.mjs';
+import { assembleSweeps, matrixHash, SWEEP_FILE, SUBSET_FILE, readCache, compactCells } from './balance-matrix.mjs';
 import { readKnobs } from './matrix-scratch.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -60,7 +60,14 @@ try {
   const missing = live.filter((id) => !doc.knobs[id]);
   console.log('sweeps-fetch: ' + Object.keys(doc.knobs).length + ' knob(s), ' + Object.values(doc.knobs).reduce((a, k) => a + Object.keys(k.steps).length, 0) + ' steps -> ' + relative(ROOT, SWEEP_FILE));
   if (missing.length) console.log('  not swept: ' + missing.join(', '));
-  if (doc.hash !== matrixHash()) console.log('  STALE: measured on tree ' + doc.hash + ', this tree is ' + matrixHash() + ' (re-dispatch balance-sweeps.yml to refresh)');
+  /* STALE only when this tree's subset plays other numbers than the sweeps' baseline (the cache must be fresh to tell) */
+  if (doc.hash !== matrixHash()) {
+    const cache = readCache(SUBSET_FILE);
+    const fresh = cache && cache.hash === matrixHash();
+    const same = fresh && JSON.stringify(compactCells(cache.cells)) === JSON.stringify(doc.baseline);
+    console.log('  measured on tree ' + doc.hash + ', this tree is ' + matrixHash() + ': ' + (same ? 'this tree\'s subset plays the same numbers cell for cell, the sweeps hold'
+      : fresh ? 'STALE, this tree\'s subset plays other numbers (push the tree to balance-sweeps/<branch> to re-sweep)' : 'not judged: run balance-matrix.mjs --subset to refresh the cache, then fetch again'));
+  }
 } finally {
   if (scratch) rmSync(scratch, { recursive: true, force: true });
 }

@@ -901,8 +901,10 @@ for (const mu of casterMutants) {
   try {
     const MR = { fails: [], ok(c, msg) { if (!c) this.fails.push(msg); } };
     casterFloor(M, await loadPlay(p.root), MR, false);
-    R.ok(MR.fails.length > 0, 'mutant "' + mu.name + '" was NOT caught by caster-floor');
-    if (MR.fails.length) console.log('  caster mutant "' + mu.name + '" caught: ' + MR.fails[0].slice(0, 140));
+    /* judged by the rule's own lines, never by the list's length (tests/_mutant-verdict.mjs, lane/c-hollow-proofs-browser) */
+    const named = MR.fails.filter((f) => f.startsWith('caster-floor: '));
+    R.ok(named.length > 0, 'mutant "' + mu.name + '" was NOT caught by caster-floor');
+    if (named.length) console.log('  caster mutant "' + mu.name + '" caught: ' + named[0].slice(0, 140));
   } finally { p.done(); }
 }
 for (const mu of warrensMutants) {
@@ -910,8 +912,9 @@ for (const mu of warrensMutants) {
   try {
     const MR = { fails: [], ok(c, msg) { if (!c) this.fails.push(msg); } };
     warrensFloor({ ...M, G: await imp(p.root, 'src/data/hunt-grounds.js') }, await loadPlay(p.root), MR, false);
-    R.ok(MR.fails.length > 0, 'mutant "' + mu.name + '" was NOT caught by warrens-floor');
-    if (MR.fails.length) console.log('  warrens mutant "' + mu.name + '" caught: ' + MR.fails[0].slice(0, 140));
+    const named = MR.fails.filter((f) => f.startsWith('warrens-floor: '));
+    R.ok(named.length > 0, 'mutant "' + mu.name + '" was NOT caught by warrens-floor');
+    if (named.length) console.log('  warrens mutant "' + mu.name + '" caught: ' + named[0].slice(0, 140));
   } finally { p.done(); }
 }
 for (const mu of rangerMutants) {
@@ -919,8 +922,9 @@ for (const mu of rangerMutants) {
   try {
     const MR = { fails: [], ok(c, msg) { if (!c) this.fails.push(msg); } };
     rangerFloor(M, await loadPlay(p.root), MR, false, mu.dice);
-    R.ok(MR.fails.some((f) => f.startsWith('ranger-floor: the millrace_sewer party')), 'mutant "' + mu.name + '" was NOT caught by ranger-floor (fails: ' + (MR.fails.join(' | ') || 'none') + ')');
-    if (MR.fails.length) console.log('  ranger mutant "' + mu.name + '" caught: ' + MR.fails[0].slice(0, 160));
+    const named = MR.fails.filter((f) => f.startsWith('ranger-floor: the millrace_sewer party'));
+    R.ok(named.length > 0, 'mutant "' + mu.name + '" was NOT caught by ranger-floor (fails: ' + (MR.fails.join(' | ') || 'none') + ')');
+    if (named.length) console.log('  ranger mutant "' + mu.name + '" caught: ' + named[0].slice(0, 160));
   } finally { p.done(); }
 }
 if (!R.fails.length) console.log('  ' + Object.keys(cases).length + ' cases + the plays, ' + (dataMutants.length + engineMutants.length + playMutants.length + bigPullMutants.length + plantMutants.length + casterMutants.length + warrensMutants.length + rangerMutants.length) + ' mutants caught');

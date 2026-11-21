@@ -21,6 +21,10 @@
 //            exits 2, and a clean control that throws is HARNESS too.
 //   ESCAPED  no fail line at all: the mutant was NOT caught (exit 1).
 //
+// EVERY PAGE RUNNER NOW (2026-11-20, lane/c-hollow-proofs-browser: the 21 left OWED). A planted .js that does not parse is HARNESS before
+// its page runs (judgePlanted); `<ID> threw` and `<ID> fixture:` lines never measured, so they are HARNESS too; a run needs ONE red
+// (stopAtFirstRed); a press a mutant can take away is its rule's red, with Playwright's reason (guardLines), never a 30 s throw.
+//
 // THE SAME RULE FOR NODE CASE RUNNERS (2026-11-20, lane/c-hollow-proofs: hunt-tiers' 25 mutants and 110 more in hunt-core were "caught"
 // by `threw Cannot find module` or a load-time refusal): caseVerdict / caughtBy judge a case's answer, and a throw, a HARNESS line or a
 // `fixture:` line is never a catch. The plain run scans every runner in tests/ and tools/ for a score that takes any answer as a catch.
@@ -352,10 +356,10 @@ export const OWED = Object.freeze([]);
 /* FOUND (frozen 2026-11-20; it only shrinks): what the WIDENED shapes above found the day they were written, node and DB runners outside
    the 21 page runners, each scoring a mutant on its list's length or filing a throw into the list it scores. Each leaves as OWED's did:
    onto judge/report/exitOf or caseVerdict, and a run of its proof (tools/vitals.mjs, tools/economy-watch.local.mjs, tests/town-life.mjs,
-   tests/town-yard-farm.mjs and tests/button-system.mjs left that day). */
+   tests/town-yard-farm.mjs, tests/button-system.mjs and tests/hunt-core/drop-tables.mjs left that day). */
 export const OWED_FOUND = Object.freeze([
   'tests/catalogue-regrow-limit.mjs', 'tests/chat-stream-safe.mjs', 'tests/farm-harvest-clear.mjs', 'tests/farm-tend.mjs',
-  'tests/frame-self-echo.mjs', 'tests/hearth-moods.mjs', 'tests/hero-colors.mjs', 'tests/house-pelts.mjs', 'tests/hunt-core/drop-tables.mjs',
+  'tests/frame-self-echo.mjs', 'tests/hearth-moods.mjs', 'tests/hero-colors.mjs', 'tests/house-pelts.mjs',
   'tests/hunt-live.mjs', 'tests/hunt-scene-live.mjs', 'tests/inner-flame.mjs', 'tests/party-hunt-start-gate.mjs',
   'tests/plot-tier-price-replay.mjs', 'tests/realtime-cost.mjs', 'tests/scaled-hunts.mjs', 'tests/settle-drop-bounds.mjs', 'tests/setup-slots.mjs',
   'tests/skills-from-storage.mjs', 'tests/tally-tasks.mjs', 'tests/temper-uniques.mjs', 'tests/titles.mjs', 'tests/town-crier.mjs',

@@ -1,0 +1,189 @@
+{
+ "_readme": [
+  "The measured inputs of 48-platform-cost.md's ladder (lane/d-platform-cost, 2026-11-21). Aggregates only: no account, hero or session.",
+  "Seconds are PRODUCTION database-seconds. REAL = production read (tools/balance-program/platform-cost.local.mjs, 2026-11-21 07:00-08:00 UTC,",
+  "pg_stat_statements since 2026-10-31 13:42, 20.74 days, 40,015 s). MEASURED = this lane's replay runs (platform-cost.mjs profile/window/aged).",
+  "ESTIMATED = arithmetic on both, with the method in `why`. node tools/balance-program/platform-cost.mjs ladder prints the tables."
+ ],
+ "read_at": "2026-11-21",
+ "bands": {
+  "C2.1k": 60,
+  "C2.10k": 24
+ },
+ "today": {
+  "awayCommitsAnHour": 36,
+  "watchedCommitsAnHour": 201,
+  "watched": {
+   "pollsAnHour": 201,
+   "pollMs": {
+    "seed": 2.2,
+    "helloReads": 33.6,
+    "earlyAskState": 28.8
+   },
+   "commitMs": {
+    "projection": 48,
+    "frames": 55
+   },
+   "offscreenLoadSAnHour": 19.6,
+   "residualSAnHour": 33.5,
+   "readsAPoll": 1.6,
+   "calibrationReadMs": 19.1,
+   "lonePollsAnHour": 181,
+   "loneCommitsAnHour": 181
+  },
+  "townHeroHourS": 4.15,
+  "townTabHourS": 4.7,
+  "pressS": 0.107,
+  "fixedSADay": 1010,
+  "why": {
+   "awayCommitsAnHour": "REAL commits: 36.0 a hero-hour away at every party size, 14 days",
+   "watchedCommitsAnHour": "REAL commits: 200.8 a four-hour watched (181 lone, 198 three)",
+   "watched.pollMs": "REAL means: the settle read is closedCommitMs.four.read; hr_seed+perks 2.17; the hello six reads 21 ms x 1.6 a poll; hr_state_of 48 ms on 0.6 early asks a poll",
+   "watched.commitMs": "the closed core plus the asker's projection (REAL hr_state_of 48 ms) and 3 frames (55 ms: what is left of production's 203 ms apply mean)",
+   "watched.residualSAnHour": "REAL minus the model at the old read: 113 s less 79.5 explained (polls 19.1, commits 40.8, the off-screen load 19.6). UNATTRIBUTED, 30% of a watched four-hour",
+   "townHeroHourS": "REAL: 46 town settles a town hero-hour (75,395 settles / 1,626 h) x (hr_tick_settle 2.45 calls x 18.6 ms + the visit's whole-character hr_state_of 0.84 x 48 ms + perks and seed 4 ms) = 90 ms a settle",
+   "townTabHourS": "REAL x MEASURED (28): a tab standing in town alone, 660 calls an hour",
+   "pressS": "REAL: hr_apply 59.6 ms + the state its answer carries 48 ms",
+   "fixedSADay": "REAL (28): cron that runs whoever plays",
+   "closedCommitMs": "REAL four: pg_stat_statements delta over 607 s (07:34-07:44 UTC) while one four hunted, 6 settles: the read 187.2 ms and the apply 112.2 ms a call; no hero was open in a client for 9 of the 10 minutes, so about 100 ms with no frame and no projection (95 to 112). The read is 183.4 over its 1,299 calls. Lone: the replay's lone/four ratios (read 35.9/103.5, apply 28.9/58.9 PGlite ms) x the four",
+   "offscreen": "REAL hr_load 109-111 ms x 3 off-screen heroes x 60 an hour (28): gone with lane/c-server-cost (L01)",
+   "watched.readsAPoll": "the landed poll and 0.6 early asks each run the settle read (the replay: hr_hunt_instance_read 4.8 calls a watched settle = 1.6 x 3)",
+   "watched.calibrationReadMs": "REAL: the watched minutes of the capacity sample (11-20 17:00 to 11-21 04:00 UTC) ran on the old 19.1 ms read: the new 183 ms statement has 1,299 calls in all, too few for that many watched polls",
+   "watched.lonePollsAnHour": "REAL commits: a lone watched hunt commits 181.2 times an hour (14 days)"
+  },
+  "closedCommitMs": {
+   "four": {
+    "read": 185,
+    "core": 100
+   },
+   "lone": {
+    "read": 64,
+    "core": 49
+   }
+  }
+ },
+ "rungs": {
+  "R0": {
+   "readFactor": 0.19,
+   "why": "REAL: the read before perks were folded in was 19.1 ms (38,631 calls); folded, with r inlined, 183.4. MEASURED on the replay: materialized, the four's read 103.5 -> 32.4 PGlite ms (x0.31), hr_hunt_instance_read 3 calls a settle -> 1. 35 ms central (19.1 + 4 perks of 1.83 = 26 to 183 x 0.31 = 57)"
+  },
+  "T1": {
+   "townFactor": 0.55,
+   "why": "REAL: the town visit reads the whole hero (hr_state_of 48 ms, 0.84 a settle) only to learn its activity and version: 40.7 of a town settle's 90 ms. MEASURED on the replay: 45% of the town settle"
+  },
+  "L12": {
+   "commitsAnHour": 36,
+   "why": "RULED 28-1: a watched instance commits at the flush, as a closed one does"
+  },
+  "L24": {
+   "stateFactor": 0.25,
+   "why": "28's ASSUMED x4 on every whole-character read"
+  },
+  "L07": {
+   "presses": 20,
+   "why": "59: 20 presses a day after Carry on and the plans"
+  },
+  "L13": {
+   "coreFactor": 0.9,
+   "why": "MEASURED share: journal inserts and the day-budget reads, 5 to 10% of a commit on the replay (aged 0 to 4,500 rows today: +4 ms)"
+  },
+  "P1": {
+   "readFactor": 0.6,
+   "coreFactor": 0.9,
+   "why": "ESTIMATED from the replay: after R0 the four's read still calls hr_hunt_member_read 24 times (4 members), hr_hunt_setup_live 176 times and hr_hunt_limit hundreds of times, and reads 15,710 hr_skill_curve rows; production's indexes read 3.03 billion skill-curve and 0.85 billion XP-table tuples in 20.7 days"
+  },
+  "TCF": {
+   "townDayS": 0.5,
+   "why": "59: 3 statements a job, 2 jobs a hero a day, 20 ms each"
+  },
+  "C10": {
+   "commitsAnHour": 6,
+   "commitFactor": 1.1,
+   "why": "MEASURED: the same 20 minutes committed every 100 s and every 600 s end IDENTICAL on four fixtures; a 600 s commit costs 1.09 times a 100 s one (Krell four, read fixed: 53.4 -> 58.3 PGlite ms)"
+  },
+  "HOST": {
+   "closedCommitsAnHour": 1,
+   "closedCommitFactor": 1.3,
+   "why": "ASSUMED: an always-on engine server holds a viewed instance between confirms (no read a confirm) and commits a closed hunt once an hour; a one-hour commit costs 1.3 a 100 s one (MEASURED 1.09 at 600 s, extrapolated)"
+  }
+ },
+ "days": {
+  "1,000 accounts, browser closed all day": {
+   "accounts": 1000,
+   "heroes": 4,
+   "huntH": 12,
+   "townH": 12,
+   "watchedH": 0,
+   "townTabH": 0,
+   "presses": 100
+  },
+  "1,000 accounts, the real-shaped tab (1.5 h watched, 2 h in town)": {
+   "accounts": 1000,
+   "heroes": 4,
+   "huntH": 12,
+   "townH": 12,
+   "watchedH": 1.5,
+   "townTabH": 2,
+   "presses": 100
+  },
+  "1,000 accounts, the stress tab (39% of 12 h watched)": {
+   "accounts": 1000,
+   "heroes": 4,
+   "huntH": 12,
+   "townH": 12,
+   "watchedH": 4.7,
+   "townTabH": 2,
+   "presses": 100
+  },
+  "10,000 accounts, browser closed all day": {
+   "accounts": 10000,
+   "heroes": 4,
+   "huntH": 12,
+   "townH": 12,
+   "watchedH": 0,
+   "townTabH": 0,
+   "presses": 100
+  },
+  "10,000 accounts, the real-shaped tab (1.5 h watched, 2 h in town)": {
+   "accounts": 10000,
+   "heroes": 4,
+   "huntH": 12,
+   "townH": 12,
+   "watchedH": 1.5,
+   "townTabH": 2,
+   "presses": 100
+  }
+ },
+ "boss": {
+  "minutes": 10,
+  "sizes": [
+   4,
+   20,
+   40,
+   100
+  ],
+  "prodFactor": 1.49,
+  "viewShare": 1,
+  "frameMs": 18.3,
+  "readsAPoll": 1.6,
+  "pollS": 16,
+  "hostWindowS": 100,
+  "edgeBudgetMs": 1200,
+  "engineMsAHeroSimS": 1.55,
+  "pglite": {
+   "fixedMs": 12.4,
+   "perMemberMs": 11.4,
+   "readFixedMs": 5.3,
+   "readPerMemberMs": 6.8
+  },
+  "why": {
+   "pglite": "MEASURED, read fixed: the apply 23.8 ms lone and 57.9 for four (11.4 a member, 12.4 fixed), the read 12.1 and 32.4 (6.8 a member, 5.3 fixed)",
+   "prodFactor": "REAL / MEASURED: a closed four after R0 is 35 + 100 = 135 production ms against 90.9 PGlite",
+   "frameMs": "a member frame, 55 ms for three (watched.commitMs.frames)",
+   "engineMsAHeroSimS": "CITED hunt-settle.js: 6.2 ms a simulated second at the four-hero p95, a quarter a hero; ASSUMED linear in heroes",
+   "edgeBudgetMs": "the engine time a slice may use under the edge's 2 s (C10's rule)",
+   "hostWindowS": "the 100 s flush with no edge limit",
+   "sizes": "a party (4) beside a boss of 20, 40 and 100 heroes"
+  }
+ }
+}

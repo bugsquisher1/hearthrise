@@ -1733,6 +1733,11 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tools/mutant-gate.mjs node tools/balance-program/paths.mjs --selftest
+      # tools/balance-program/platform-cost.mjs
+      - name: Platform cost ladder - its account-day is its hand-computed lines, no rung raises the day, a planted rung that does is caught
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tools/balance-program/platform-cost.mjs --selftest
       # tools/balance-program/progression-grid.mjs
       - name: The progression grid's judge turns a planted out-of-band cell red, and its kits follow their rules and the data
         if: ${{ !cancelled() }}

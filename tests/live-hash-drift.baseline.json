@@ -25,7 +25,7 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-11-20",
- "replay_ms": 3921,
+ "replay_ms": 9223,
  "counts": {
   "tracked_names": 999,
   "entries": 850
@@ -3065,7 +3065,7 @@
     "source": "computed-from-replay"
    },
    "agree": false,
-   "why": "STAGED for the v0.2.144 release by 1024-carry-on.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21. The release apply re-measures with --live --write."
+   "why": "REVIEW 2026-11-21: live and replay disagree and nobody has said why. Strip comments from both bodies and diff them; write what actually differs here. The guard is RED until this sentence is real."
   },
   {
    "sig": "hr_carry_on_plan(p_slots integer[])",
@@ -3083,7 +3083,7 @@
     "source": "computed-from-replay"
    },
    "agree": false,
-   "why": "STAGED for the v0.2.144 release by 1024-carry-on.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21. The release apply re-measures with --live --write."
+   "why": "REVIEW 2026-11-21: live and replay disagree and nobody has said why. Strip comments from both bodies and diff them; write what actually differs here. The guard is RED until this sentence is real."
   },
   {
    "sig": "hr_carry_on_plan_of(p_uid uuid, p_slots integer[])",
@@ -3101,7 +3101,7 @@
     "source": "computed-from-replay"
    },
    "agree": false,
-   "why": "STAGED for the v0.2.144 release by 1024-carry-on.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21. The release apply re-measures with --live --write."
+   "why": "REVIEW 2026-11-21: live and replay disagree and nobody has said why. Strip comments from both bodies and diff them; write what actually differs here. The guard is RED until this sentence is real."
   },
   {
    "sig": "hr_carry_on_scope_ok(p_slots integer[])",
@@ -3119,7 +3119,7 @@
     "source": "computed-from-replay"
    },
    "agree": false,
-   "why": "STAGED for the v0.2.144 release by 1024-carry-on.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21. The release apply re-measures with --live --write."
+   "why": "REVIEW 2026-11-21: live and replay disagree and nobody has said why. Strip comments from both bodies and diff them; write what actually differs here. The guard is RED until this sentence is real."
   },
   {
    "sig": "hr_catacomb_section(p_user uuid, p_slot integer)",
@@ -5762,7 +5762,7 @@
     "source": "computed-from-replay"
    },
    "agree": false,
-   "why": "STAGED for the v0.2.144 release by 1017-tend-the-field.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21. The release apply re-measures with --live --write."
+   "why": "REVIEW 2026-11-21: live and replay disagree and nobody has said why. Strip comments from both bodies and diff them; write what actually differs here. The guard is RED until this sentence is real."
   },
   {
    "sig": "hr_farm_tend_plan(p_user uuid, p_slot integer, p_crop text, p_purse bigint)",
@@ -5781,7 +5781,7 @@
     "source": "computed-from-replay"
    },
    "agree": false,
-   "why": "STAGED for the v0.2.144 release by 1017-tend-the-field.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21. The release apply re-measures with --live --write."
+   "why": "REVIEW 2026-11-21: live and replay disagree and nobody has said why. Strip comments from both bodies and diff them; write what actually differs here. The guard is RED until this sentence is real."
   },
   {
    "sig": "hr_farm_tend_view(p_user uuid, p_slot integer)",
@@ -5800,7 +5800,7 @@
     "source": "computed-from-replay"
    },
    "agree": false,
-   "why": "STAGED for the v0.2.144 release by 1017-tend-the-field.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21. The release apply re-measures with --live --write."
+   "why": "REVIEW 2026-11-21: live and replay disagree and nobody has said why. Strip comments from both bodies and diff them; write what actually differs here. The guard is RED until this sentence is real."
   },
   {
    "sig": "hr_farm_upgrade_plot(p_slot integer, p_idem uuid, p_expect_level integer)",
@@ -8719,7 +8719,7 @@
     "source": "measured-live"
    },
    "replay": {
-    "md5": "26f62f25aaa47ff2715d996374420137",
+    "md5": "7773881e9610cc30e8d15b33c926b52b",
     "norm_len": 3474,
     "source": "computed-from-replay"
    },
@@ -9678,6 +9678,7 @@
     "restate"
    ],
    "touched_by": [
+    "1029-spell-rule-rune-spells.generated.sql",
     "2027-02-21-rune-spells.generated.sql",
     "2027-03-08-rune-ladder-rune-spells.generated.sql",
     "2027-03-24-undertow-rune-spells.generated.sql",
@@ -9691,11 +9692,12 @@
     "source": "measured-live"
    },
    "replay": {
-    "md5": "3774cb759c1e5db34011d86f6949471c",
-    "norm_len": 4692,
+    "md5": "9cff766450b5db9fe055ce6e07947f48",
+    "norm_len": 4996,
     "source": "computed-from-replay"
    },
-   "agree": true
+   "agree": false,
+   "why": "REVIEW 2026-11-21: live and replay disagree and nobody has said why. Strip comments from both bodies and diff them; write what actually differs here. The guard is RED until this sentence is real."
   },
   {
    "sig": "hr_hunt_rune_state(p_user uuid, p_slot integer, p_session uuid, p_ability text, p_own jsonb)",
@@ -10791,7 +10793,7 @@
     "source": "computed-from-replay"
    },
    "agree": false,
-   "why": "STAGED for the v0.2.144 release by 1026-job-counts.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21. The release apply re-measures with --live --write."
+   "why": "REVIEW 2026-11-21: live and replay disagree and nobody has said why. Strip comments from both bodies and diff them; write what actually differs here. The guard is RED until this sentence is real."
   },
   {
    "sig": "hr_job_next_sweep(p_limit integer)",
@@ -10809,7 +10811,7 @@
     "source": "computed-from-replay"
    },
    "agree": false,
-   "why": "STAGED for the v0.2.144 release by 1026-job-counts.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21. The release apply re-measures with --live --write."
+   "why": "REVIEW 2026-11-21: live and replay disagree and nobody has said why. Strip comments from both bodies and diff them; write what actually differs here. The guard is RED until this sentence is real."
   },
   {
    "sig": "hr_jsonb_add(p_a jsonb, p_b jsonb)",
@@ -11737,7 +11739,7 @@
     "source": "measured-live"
    },
    "replay": {
-    "md5": "c26704ea2a83c5294176776e728cf5a3",
+    "md5": "12bbc241badc9682cf1ba3524e424018",
     "norm_len": 14127,
     "source": "computed-from-replay"
    },
@@ -11784,7 +11786,7 @@
     "source": "measured-live"
    },
    "replay": {
-    "md5": "bc2b110bdc07e3b59dde2897a518ed8d",
+    "md5": "88ab012b152500ff48afc9eb376f479c",
     "norm_len": 1412,
     "source": "computed-from-replay"
    },
@@ -11811,7 +11813,7 @@
     "source": "measured-live"
    },
    "replay": {
-    "md5": "05e632006103fb6322b4823c00bf7176",
+    "md5": "f647a04e10be1ce310b5b3714ae47a18",
     "norm_len": 3161,
     "source": "computed-from-replay"
    },
@@ -11830,7 +11832,7 @@
    ],
    "live": null,
    "replay": {
-    "md5": "70e849d5a080ee02d8503c5143203562",
+    "md5": "53f5a814ae5a3f80005457306340a5fd",
     "norm_len": 1024,
     "source": "computed-from-replay"
    },
@@ -11849,7 +11851,7 @@
    ],
    "live": null,
    "replay": {
-    "md5": "69d018c94867afde3ad501853d3223f4",
+    "md5": "f9efa402e08808c0802e7e42d3e03419",
     "norm_len": 4243,
     "source": "computed-from-replay"
    },
@@ -11868,7 +11870,7 @@
    ],
    "live": null,
    "replay": {
-    "md5": "d54241d940a543b2ebc88fc7bb46bc40",
+    "md5": "20f1be3e78dff024f7d0ae901ef15966",
     "norm_len": 399,
     "source": "computed-from-replay"
    },
@@ -11887,7 +11889,7 @@
    ],
    "live": null,
    "replay": {
-    "md5": "52159242d679b0becc64bcf2ab68beee",
+    "md5": "47543d9ca9020421d5b90c75c1a32de7",
     "norm_len": 570,
     "source": "computed-from-replay"
    },
@@ -11906,7 +11908,7 @@
    ],
    "live": null,
    "replay": {
-    "md5": "ba0e532b2d4b5caf6d55675d8824a3cd",
+    "md5": "c5763260ee93b6dcfc704d246861ef7e",
     "norm_len": 674,
     "source": "computed-from-replay"
    },
@@ -11925,7 +11927,7 @@
    ],
    "live": null,
    "replay": {
-    "md5": "6d8dfac4a331e886ee385735cca85658",
+    "md5": "e3f165c9154ec52c83f823c4a03d1bbd",
     "norm_len": 2713,
     "source": "computed-from-replay"
    },
@@ -11944,7 +11946,7 @@
    ],
    "live": null,
    "replay": {
-    "md5": "5ad010cef0a3662e107518a0f17eb014",
+    "md5": "bdd42ecd217d3d2c8e075dcada37b511",
     "norm_len": 523,
     "source": "computed-from-replay"
    },
@@ -11963,7 +11965,7 @@
    ],
    "live": null,
    "replay": {
-    "md5": "ef63e14ce47c5e1431edb491da77637a",
+    "md5": "ff442497cc41df71c6701d066221ba94",
     "norm_len": 4673,
     "source": "computed-from-replay"
    },
@@ -11982,7 +11984,7 @@
    ],
    "live": null,
    "replay": {
-    "md5": "e4dd51d6ed182c781e42ba323dc41ef4",
+    "md5": "ffc09a4c1b70bf7eedec7d0b43ef13f8",
     "norm_len": 731,
     "source": "computed-from-replay"
    },
@@ -13374,7 +13376,7 @@
     "source": "computed-from-replay"
    },
    "agree": false,
-   "why": "STAGED for the v0.2.144 release by 1025-own-heroes-apart.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21. The release apply re-measures with --live --write."
+   "why": "REVIEW 2026-11-21: live and replay disagree and nobody has said why. Strip comments from both bodies and diff them; write what actually differs here. The guard is RED until this sentence is real."
   },
   {
    "sig": "hr_party_leave_together_set(p_slot integer, p_on boolean, p_idem uuid)",
@@ -16820,7 +16822,7 @@
     "source": "measured-live"
    },
    "replay": {
-    "md5": "6b53e308edcf69a10c02d4d0a4fd5cef",
+    "md5": "d173395e0f0cde1bae57896531f62002",
     "norm_len": 2531,
     "source": "computed-from-replay"
    },
@@ -18908,7 +18910,7 @@
     "source": "computed-from-replay"
    },
    "agree": false,
-   "why": "STAGED for the v0.2.144 release by 1014-works-goal-sized.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21. The release apply re-measures with --live --write."
+   "why": "REVIEW 2026-11-21: live and replay disagree and nobody has said why. Strip comments from both bodies and diff them; write what actually differs here. The guard is RED until this sentence is real."
   },
   {
    "sig": "hr_town_works_lead(p_user uuid, p_by bigint[])",
@@ -18971,7 +18973,7 @@
     "source": "computed-from-replay"
    },
    "agree": false,
-   "why": "STAGED for the v0.2.144 release by 1014-works-goal-sized.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21. The release apply re-measures with --live --write."
+   "why": "REVIEW 2026-11-21: live and replay disagree and nobody has said why. Strip comments from both bodies and diff them; write what actually differs here. The guard is RED until this sentence is real."
   },
   {
    "sig": "hr_town_works_size_to(p_actives integer)",
@@ -18990,7 +18992,7 @@
     "source": "computed-from-replay"
    },
    "agree": false,
-   "why": "STAGED for the v0.2.144 release by 1014-works-goal-sized.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21. The release apply re-measures with --live --write."
+   "why": "REVIEW 2026-11-21: live and replay disagree and nobody has said why. Strip comments from both bodies and diff them; write what actually differs here. The guard is RED until this sentence is real."
   },
   {
    "sig": "hr_town_works_stage(p_at bigint[], p_total bigint)",
@@ -19032,7 +19034,7 @@
     "source": "computed-from-replay"
    },
    "agree": false,
-   "why": "STAGED for the v0.2.144 release by 1014-works-goal-sized.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21. The release apply re-measures with --live --write."
+   "why": "REVIEW 2026-11-21: live and replay disagree and nobody has said why. Strip comments from both bodies and diff them; write what actually differs here. The guard is RED until this sentence is real."
   },
   {
    "sig": "hr_town_works_view(p_slot integer)",
@@ -19795,7 +19797,7 @@
     "source": "computed-from-replay"
    },
    "agree": false,
-   "why": "STAGED for the v0.2.144 release by 1014-works-goal-sized.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21. The release apply re-measures with --live --write."
+   "why": "REVIEW 2026-11-21: live and replay disagree and nobody has said why. Strip comments from both bodies and diff them; write what actually differs here. The guard is RED until this sentence is real."
   },
   {
    "sig": "hr_whisper_broadcast()",
@@ -19955,7 +19957,7 @@
     "source": "computed-from-replay"
    },
    "agree": false,
-   "why": "STAGED for the v0.2.144 release by 1026-job-counts.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21. The release apply re-measures with --live --write."
+   "why": "REVIEW 2026-11-21: live and replay disagree and nobody has said why. Strip comments from both bodies and diff them; write what actually differs here. The guard is RED until this sentence is real."
   },
   {
    "sig": "hr_world_finds_of(p_limit integer)",

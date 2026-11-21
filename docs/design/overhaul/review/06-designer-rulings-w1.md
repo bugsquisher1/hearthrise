@@ -424,3 +424,228 @@ Integer scales only, one palette, one perspective (`docs/ART_DIRECTION.md`).
 - **`decisions/`.** MM-2 to MM-7 gain "one sample: Mossback". MM-6's thresholds become 2, 6 and 12.
 
 ---
+
+## 3. D-8, before FB-14
+
+### 3.1 The three numbers
+
+| Number | Ruling | Why |
+|---|---|---|
+| **The opening Level** | **10, for each hero.** A hero under Level 10 cannot be switched On call. The Path row opens for the account once it has a friend or a clan and a hero at Level 10 | Tyler's words are that the hero "trades their crafting/training time". The Training Yard opens at Level 10 (`training.js` `minLevel` 10), so from 10 the trade is real. Under 10 a hero is in its first hours, its rest plan is the starting queue, and nobody wants a Level 5 guest. JUDGMENT |
+| **The default tier limit** | **Dangerous.** The owner may raise it to Deadly or lower it to Normal, once, and "Apply to all four" sets it for the account | S-6 a: Deadly is a tier you watch or gamble on and idle players mostly use Dangerous, so a Dangerous limit covers the calls that will happen. A guest risks nothing on Deadly, so the owner gives up nothing by opting in. But a no-loss guest in front on Deadly is the death-shield case band OC3 watches (chapter 11 section 1.7), and a default should not hand it out. JUDGMENT |
+| **`onCallXpShare`** | **0.10**, as chapter 11 opened it | Unchanged. "A small cut" (RULED S-1). At 0.10 a full window is worth at most +10% Level pace for that hero (band OC2), and an hour on call is a different currency from an hour at the yard, which pays skill XP at up to half of hunting for gold (GR-54). Under about 0.05 nobody gives a rested hour for it. JUDGMENT, read by OC1 to OC3 |
+
+**What stays as chapter 11 wrote it.** Hire stamina is its own pool of 12 hours, full when a window opens, drained only by a guest settle, never sold and never touched by the refill (RULED 2026-11-21, two pools). One guest a party. Friends and clan mates only. No boss room, Tower, Catacombs or arena. No loss on death. The caller's purse stocks the guest. These are not re-ruled here.
+
+**The default "who may seat"** is friends and clan mates both. It is the widest the ruling allows and the owner narrows it once.
+
+**One thing the seat card must say plainly.** A guest is read by the two-thirds rule like any hero (MM-19), and a high guest lowers the low heroes' shares. COMPUTED on MM-19's line: a Level 50 guest in a party of Level 20 heroes leaves each of them 20 / (2/3 x 50), 60% of its XP share. So lending a veteran to a newcomer trades the newcomer's XP for safety. That is a fair trade and a visible one, and the card shows it before Start (chapter 11 section 1.10 already asks for the line). The other way round, a Level 10 guest in a Level 60 party keeps 25% of 10% of its share, which is nearly nothing and harms nobody.
+
+### 3.2 Data
+
+A new file `src/data/on-call.js`, FB-14's.
+
+| Row | Value | Label |
+|---|---|---|
+| `ON_CALL_RULES.minLevel` | 10 | This ruling |
+| `ON_CALL_RULES.xpSharePm` | 100 | This ruling. Permille, so the server reads an integer |
+| `ON_CALL_RULES.windowHours` | 12 | RULED 2026-11-21 |
+| `ON_CALL_RULES.everyHours` | 24 | RULED 2026-11-21 |
+| `ON_CALL_RULES.hireStaminaHours` | 12 | Chapter 11, inside the two-pools ruling |
+| `ON_CALL_RULES.seatsPerParty` | 1 | Chapter 11 |
+| `ON_CALL_DEFAULTS` | `{ who: 'friends_and_clan', tierLimit: 'dangerous', on: false }` | This ruling. Off by default (chapter 11 section 3.3) |
+
+**The Path row (D-1 row 24).** `{ id: 'on_call', opener: { kind: 'event', event: 'on_call_open', expectLevel: null }, opens: ['friends'], flag: 'src/data/on-call.js ON_CALL_RULES', scope: 'account' }`. The event fires when the account first has a friend or a clan and a hero at `minLevel`. A lone account may never meet it, so it carries no `expectLevel` and the Path guard does not count it toward coverage. That is the one reading of D-1's rule 2 this needs.
+
+### 3.3 The words
+
+| Where | Words |
+|---|---|
+| The rest plan's switch | "On call" |
+| Its settings | "Who can seat", with "Friends", "Clan" and "Friends and clan". "Highest tier", with "Normal", "Dangerous" and "Deadly". "Apply to all four" |
+| The one line under the switch | "Friends and clan mates can bring this hero on their hunts while it rests. It earns 10% of its XP share and loses nothing if it dies." |
+| Under Level 10 | "Requires Level 10" |
+| The hero strip | The badge "On call", or "Out on a call". The second bar's label "Hire stamina" |
+| Friends and the clan roster | The control "Seat" |
+| The seat card | "Hire stamina: {h}h {m}m". "XP: 10% of its share". When the window closes first: "Window closes in {h}h {m}m". For each hero under the line: "{Name} keeps {pct}% of its XP share". "Supplies: {gold} gp from your purse" |
+| Refusals | "Not on call", "Window closed", "No hire stamina left", "Above this hero's tier limit", "Party already has a guest", "Requires Level 10" |
+| The Path line | "On call is open. Friends and clan can bring your heroes on their hunts." |
+| The return card | "{Name} hunted with {caller} for {h}h {m}m and earned {xp} Level XP" |
+| The return card, a death | "{Name} died on {caller}'s hunt. Nothing was lost." |
+
+### 3.4 Walk-through against real data
+
+| # | Who | Step | Holds before it | Checked in | Doable |
+|---|---|---|---|---|---|
+| 1 | Owner | Adds a friend | An account | The `friends` window (`shell-windows.js`) and MM-47's one request, FB-12 | Yes, once FB-12 lands |
+| 2 | Owner | Switches a Level 12 hero On call, friends and clan, up to Dangerous | A hero at Level 10 or more | `training.js` `minLevel` 10. The rest plan (FB-6) | New |
+| 3 | Owner | Sends the party hunting and closes the game | One Start | FB-6 | Yes |
+| 4 | Server | The hero's hunt ends on stamina, its town job starts, its window opens and hire stamina fills to 12 hours | Step 2. 24 hours since the last window | `hunt-sessions.js` END_ORDER `stamina`. FB-14's window | New |
+| 5 | Caller | Opens the Party window and sees the hero under Friends, "Hire stamina: 12h 0m" | Step 4 | The `hunt-party` window (`shell-windows.js`) | New |
+| 6 | Caller | Seats the guest beside three own heroes and presses Start on Dangerous | An empty seat, gold for the guest's supplies, a tier inside the limit | The tier is `dangerous`, inside the default | New |
+| 7 | Server | Stops and pays the guest's job, seats it, and settles the hunt. The guest earns 10% of its share | Closed-form town work (FB-10) | Chapter 11 section 1.8 | New, on FB-10 |
+| 8 | Server | The guest dies. Nothing is taken from it | | Chapter 11 section 1.7 | New |
+| 9 | Server | The window is still open, so the guest is free to be seated again until it closes | | | New |
+| 10 | Owner | Reads one line on the return card | The seat's ledger row | FB-6's return card provider | New |
+
+Step 6 with Deadly picked instead is refused with "Above this hero's tier limit", and the card says so before the press.
+
+### 3.5 Evidence
+
+| Claim | Label |
+|---|---|
+| Training opens at Level 10 | Read from `src/data/training.js` |
+| Idle players mostly use Dangerous | RULED S-6 a |
+| A Level 50 guest leaves Level 20 heroes 60% of their share | COMPUTED on MM-19 |
+| 0.10 is small and still chosen | JUDGMENT. Bands OC1 to OC3 read it once two clans play (chapter 11 section 8). With 7 accounts they cannot read it (S-18), so it stays PROVISIONAL into the invited group |
+
+### 3.6 For the integrator
+
+- **11 sections 1.4, 1.6 and 4.** The opening Level is 10, the default tier limit Dangerous, the default "who" friends and clan, `onCallXpShare` 0.10. The knobs table gains the defaults. Section 1.10's Path row reads the event of section 3.2 here.
+- **08 section 2.5, the Path.** Row 24 reads `on_call_open` with no `expectLevel`, not counted toward coverage.
+- **13 FB-14.** It owns `src/data/on-call.js`. Its tests add the refusal for a tier over the limit and for a hero under Level 10.
+- **`decisions/` CH11-1.** The three numbers are set, PROVISIONAL.
+
+---
+
+## 4. D-5, before FB-9
+
+### 4.1 Which prices are rows of hours
+
+Three kinds. A price is in exactly one. The wage is `wage(L)`, one hero-hour of a mid four on Normal (GR-51), computed by the server from FB-9's generated table.
+
+**Rows of hours, read live at the buyer's Level.** The row holds hours. The gold is hours x `wage(L)` at the instant of the purchase.
+
+| Price | Hours | Read at | Status |
+|---|---|---|---|
+| Stamina refill, the first of the day, a full 4 hours | **2**, then x1, 1.5, 2, 2.5, 3, 3.5 (RULED 24-1). A part refill is pro rata, as today | The hero's Level | Base: this ruling |
+| Blessings 1, 2 and 3 | **0.4, 0.6 and 1.0**: the set is 2 hours, the first cheap (RULED 21-8). Free under Level 30 (`blessings.js` `freeUntilLevel`) | The hero's Level | This ruling sizes 21-8 in the wage's unit |
+| Each Blessing past the third | **A fifth of the hours that rung saves on one death**: 0.2 x its added cut x the hours an unblessed death costs at that Level | The hero's Level | Chapter 04's "under a fifth", set at a fifth. The ladder is D-4 |
+| The talent reset | **3**, free under Level 30, ten a day | The hero's Level | Chapter 10, `talentResetHours`, unchanged |
+| Rename | **8** | The hero's Level | Tyler: a name change "should cost a lot of gold" (2026-10-22). Today's 20,000 + 500 a Level was sized at about 8 hours (`hero-rename.js`), so the hours keep its intent at every Level |
+| Hero colors | **1** | The hero's Level | Waits for its art (`HERO_DYES_SHOWN` is false). The row exists for when it ships |
+
+**Set once from the wage curve.** The generator writes typed gold from a row of account-days and a reference Level, with `--check`. The gold does not follow the buyer's Level, because the House is typed content (GR-51), and it moves only when a release re-runs the generator on purpose.
+
+| Price | Row | Status |
+|---|---|---|
+| The Hearthside Homestead | **400 gold, unchanged.** It is the first return's errand (D-1 walk-through step 16) | CE-5 |
+| The Fieldworth Farmstead | **1 account-day at Level 20** | CE-5's size. The Level is chapter 12 section 3.7's |
+| The Stonecross Manor | **3 account-days at Level 60** | The same |
+| The Ironvale Keep | **6 account-days at Level 90** | The same |
+| The Hearthrise Castle | **20 account-days at Level 110** | The same |
+| Every sellable room rung and every Storage chest | **Its gold today x F**, rounded to two figures, where F is the geometric mean of the four deeds' new gold over their gold today | CE-5's "the same factor". One factor, so a Homestead room and a Farmstead room move together. The deeds' materials are unchanged |
+
+An account-day is 48 x `wage(L)`. FB-9 adds the held rooms to `HELD_HOME_ROOMS` before it prices anything (Part C X-01), so only sellable rungs are re-priced.
+
+**Typed as ruled, no wage row in the first build.**
+
+| Price | Why it stays |
+|---|---|
+| The yard fee, 100 x skill level an hour | RULED 24-8. GR-54's rate change waits (13 section 1.2) |
+| Tempering, Hallmarks, linings | Kept typed by Tyler on 2026-11-18. Sinks as a share of band gold wait (13 section 1.3 point 2) |
+| Setup slots 15,000 and 40,000 | RULED S-3 a |
+| The bench tax, 15% of the Shop bid | DECIDED GR-56b |
+| The market's 1% and 4% | GR-50 |
+| The Town Crier, a Round, flame powders | RULED 2026-11-04, prices that climb in a day |
+| Works gifts | RULED 24-10 |
+| Bag rungs and the Key Ring | A hero's own room. CE-5: a price one hero pays needs no change for four |
+| Founding a clan, 100,000 | Cheap on purpose on a server with no clans yet (S-18, audit A-20) |
+
+### 4.2 The refill's base hours
+
+**2 hours of the hero's wage for the first full refill of the day.** COMPUTED at every Level, because both sides are hours. A full refill gives 4 hunted hours, which earn about 4 hours of wage on Normal and more on a harder tier.
+
+| Refill of the day | Costs, in hours of wage | Earns back, on Normal | |
+|---|---|---|---|
+| 1 | 2 | 4 | Pays for itself |
+| 2 | 3 | 4 | Pays for itself |
+| 3 | 4 | 4 | Breaks even |
+| 4 | 5 | 4 | Gold for XP |
+| 5 | 6 | 4 | Gold for XP |
+| 6 | 7 | 4 | Gold for XP |
+
+**Why 2.** 24-1 ruled that the first two refills always pay for themselves, so the base must stay under 2.67 hours. Every hero hunts 12 hours a day (2026-11-21) and the free bar is 8, so a free hero buys one refill a day. At 2 hours that refill leaves it 2 hours of gold ahead, and the 12 hour Premium bar saves an account 8 hero-hours of gold a day, a sixth of an account-day. That is Premium's gold value, and it is real without making the free day poor. JUDGMENT.
+
+**The veto (R-1).** The typed price made refills 4 to 6 gold for XP only from Level 80. In hours the shape is the same at every Level. "Veto R-1" sets the base at 1.33 hours: then the first five pay for themselves and only the sixth is gold for XP.
+
+S-17 a puts every hero on the 12 hour bar in the playtest, so refills are bought only past 12 hours there. Nothing sells hire stamina, and the refill never touches it (D-8).
+
+### 4.3 The wage until the playtest
+
+`wage(L)` reads the coin line and the kill-rate reference, which are the tool's. The tool over-reads the one real four: its coin 1.24 times (R0, before the fix) and its kills 1.26 times (run 44948522187). So **`wageShare` opens at 0.80**, about one over 1.25, and every price above reads the wage through it.
+
+When the playtest has at least 200 hunted hero-hours in a Level band, FB-3's reader compares the formula with played net gold from the ledger and re-fits `wageShare` so they agree within 10% (GR-51). Rows of hours follow at once. Set-once prices move only at the next release that re-runs the generator. JUDGMENT for 0.80 and the 200 hours.
+
+### 4.4 The account prices, for scale
+
+COMPUTED on chapter 12's measured account-days (R0, the mid four on Dangerous, before the fix and an upper bound). The real numbers come from the generator. These say only how far the typed ladder moves.
+
+| Deed | Typed today (26-3) | Account-days at its Level | For scale |
+|---|---|---|---|
+| Farmstead | 25,000 | 1 at Level 20 | About 300,000 |
+| Manor | 150,000 | 3 at Level 60 | About 1.7 million |
+| Keep | 600,000 | 6 at Level 90 | About 5.6 million |
+| Castle | 2,500,000 | 20 at Level 110 | About 20 million |
+
+On these F is about 10, so the first Storage chest moves from 1,500 to about 15,000 and the last from 90,000 to about 900,000. The wage's Normal seat and `wageShare` both bring every number down from these. Tyler's typed deeds of 26-3 were already reversed by CE-5, which he let stand (reversal row 15), so this is no new veto.
+
+**Live state.** Everything owned stays owned at the price paid (13 FB-9, L-06).
+
+### 4.5 The Weighhouse
+
+**Ruling.** The Weighhouse stays the town's first Works project, **as a building only**. The market trades from the first loot while it goes up. When it is finished, the square shows it and its plaque, and nothing else changes. Staged 1013 and 1014 stand as written.
+
+| Why | |
+|---|---|
+| The market is named for it and its five stages and its plaque are drawn | `art/world/havora/havora_weighhouse_staked` to `finished`, and `_plaque` |
+| A building the market works out of while the town finishes it is a story a player believes. A new first project would need a new idea, five new stages of art and a new row, for nothing the player gains | JUDGMENT |
+| It gives a server of 7 a shared win in its first days | COMPUTED. Its goal is the larger of 250,000 and 20,000 for each weekly active account (24-7, 1014), so 250,000 at 7 accounts. 57,000 is already given (1013's note). Seven accounts at the 25,000 a day cap finish it in about two days |
+| It opens nothing | It never gated a buff (RULED 2026-11-04: no formula reads a project's total). Under GR-55 it no longer opens the market either |
+
+This keeps half of 24-7 (the first project is the Weighhouse) and GR-55's other half (the market opens on day one). GR-55's "the first project builds something else" is read as "opens nothing else". The project a month after it (24-10) needs its next row and art. That is not in the first build, and the Works says "Finished" with the plaque until it comes.
+
+**What moves, and only words move.**
+
+| Where | Today | After |
+|---|---|---|
+| `src/data/text/shop.js` `market_unbuilt_head`, `market_unbuilt_body`, `market_fund` | The market's closed state while the Works builds it | Removed. The market is never closed for the Works |
+| The open market's one line while the Works raises it | None | "Weighhouse: {total} / {goal} gp given", the existing `market_fund_given`, with the existing "Go to Works" (`market_to_works`). Hidden once it is finished |
+| `src/data/hunt-tutorial.js` step `weighhouse` | Title "The Weighhouse is open", fired when the market opens | Title "The Weighhouse", body "Buy and sell items with other players", fired on the first return (D-1 Path row 11's `first_stamina_end`) |
+| `src/shell/windows/market/state.js` `buildingWorks` | Read to close the window | Read only to show the line above |
+| The release note | | "The market is open from day one. The town is still raising the Weighhouse, and you can give toward it at Works." |
+
+The market's Level door stays Security's to set (GR-55). Today it is `hr_market_config.min_level`, 10.
+
+### 4.6 Walk-through against real data
+
+| # | Step | Holds before it | Checked in | Doable |
+|---|---|---|---|---|
+| 1 | A Level 20 hero buys its first refill of the day | Gold, an empty bar | `stamina-refill.js` `maxMinPerBuy` 240, steps 1 over 2 (staged 1009) | Yes. `base` and `perLevel` become `baseHours` |
+| 2 | A Level 31 hero buys Blessing 1 | Gold | `blessings.js` `BLESSING_TIERS` rows hold `base` and `perLevel` today | Yes. They become hours |
+| 3 | The account buys the Farmstead at Level 22 | Gold and 10 Cooked Shrimp, 25 Copper Ore, 40 Oak Logs, 4 Wolf Pelts | `shops.js` `property.farmstead` | Yes. Only the gold moves |
+| 4 | It buys the Workshop's first rung | Gold, 5 Iron Fittings, 200 Oak Planks, 10 Timber Beams | `shops.js` `room.workshop.1`, opened by the Farmstead (`homestead-tiers.js`) | Yes. Gold x F |
+| 5 | A hero lists a Wolf Pelt on the market on day one | A pelt, Level past the door | `hr_market_config.min_level` (`2027-02-13-market-eligibility.sql`) | Yes, behind Security's door |
+| 6 | The account gives 5,000 at Works | Gold | `town-works.js` gifts 1,000 and 5,000, 25,000 a day | Yes |
+| 7 | The Weighhouse is finished | Gifts reach the goal | The last stage's line "is finished." after "The Weighhouse" | Yes |
+
+### 4.7 Evidence
+
+| Claim | Label |
+|---|---|
+| The typed deeds sit 7 to 12 times under CE-5's sizes | MEASURED, R0, before the fix, chapter 12 section 3.7 |
+| Rename was sized at about 8 hours | Read from `src/data/hero-rename.js` |
+| The tool over-reads coin and kills by about 1.25 | MEASURED, R0 and run 44948522187 |
+| Base 2 hours, `wageShare` 0.80, F | JUDGMENT and COMPUTED. Every gold number is PROVISIONAL until the playtest re-fits the wage |
+| The Weighhouse finishes in about two days on 7 accounts | COMPUTED from the 1013 and 1014 notes and the gift cap |
+
+### 4.8 For the integrator
+
+- **04 section 2.3, the price table.** The refill's base hours are 2. Blessings 1 to 3 are 0.4, 0.6 and 1.0 hours. Rungs past the third are a fifth of the hours they save. Rename is 8 hours, colors 1. The talent reset 3. Add the three kinds of section 4.1.
+- **04 section 2.7 and 07 section 2.12, "The first project".** The Weighhouse stays the first project as a building only. Item 8 of chapter 07 section 5 closes.
+- **04 section 2.10.** The deed sizes of CE-5 become rows of account-days at Levels 20, 60, 90 and 110. Rooms and chests move by one factor.
+- **13 section 1.3, the staged table.** 1013 and 1014 stand. **13 FB-9.** It owns the hours rows, the deed generator, the factor, `wageShare` at 0.80, the Weighhouse's words and the tutorial step. Its tests add: the refill's six prices at Levels 20 and 200 in hours, a set-once deed equal to its generated row, and the market open with the Works unfinished.
+- **13 section 3.3, the release note table.** "The market is open from day one" (FB-9).
+- **`decisions/`.** GR-51, GR-58, CE-5 and GR-55 gain the sizes. Reversal row 15's text notes the deeds' rows.
+
+---

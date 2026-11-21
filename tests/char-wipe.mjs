@@ -21,7 +21,7 @@
 //               every row of every relation in every schema; every wiped table is empty, for everyone
 //   CW-WORKS    the Town Works' totals and plaque are cleared and the Weighhouse reads stage 0, with its project row still there to fund
 //   CW-KEPT     auth, the allowlist, friends, blocks, bug reports, signup log, catalogues and config all stand; the profile is a fresh signup's
-//   CW-SLOTS    a bought slot goes: the account owns the catalogue's starters and no more
+//   CW-SLOTS    a bought slot goes (its purchase flag): the account owns the catalogue's starters (all four since 1036) and no more
 //   CW-STALE    a settle computed before the wipe, a stale tab's residue and verbs: refused, no ghost row
 //   CW-JOBS     every scheduled job's own command answers on the empty world and brings nothing back
 //   CW-PLAY     the same account makes a Level 1 hero and goes hunting; its old name is free for anyone, a moderated one still isn't
@@ -281,7 +281,9 @@ async function scenario(db, wipeSql) {
     /* CW-SLOTS */
     const slotsA = await one('select public.hr_hero_slots_of($1::uuid)', [A]);
     const starters = await one(`select jsonb_agg(s order by s) from (select 0 as s union select slot_id from public.hr_hero_slots where starter) q`);
-    arm('CW-SLOTS', js(slotsA) === js(starters) && starters.includes(0) && !starters.includes(slotId), `the slot it bought went; it owns ${js(slotsA)}, the catalogue's starters`, js({ slotsA, starters, slotId }));
+    /* all four slots are starters since 1036, so what a purchase left (its flag row) is what must go: the account owns the starters and no more */
+    const flags = Number(await one("select count(*)::int from public.player_progress where user_id = $1::uuid and key like 'character_slot:%'", [A]));
+    arm('CW-SLOTS', js(slotsA) === js(starters) && starters.includes(0) && flags === 0, `the slot it bought went; it owns ${js(slotsA)}, the catalogue's starters, and holds ${flags} purchase flag(s)`, js({ slotsA, starters, slotId, flags }));
 
     /* CW-STALE: what a tab or a settle that began before the wipe can still send. */
     const staleApply = await attempt(() => one('select public.hr_hunt_apply_instance($1::uuid, 0::bigint, $2::jsonb, $3::jsonb, $4::uuid, 0)', [inst, '{}', '[]', key()]));

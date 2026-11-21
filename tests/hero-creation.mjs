@@ -36,7 +36,7 @@ import { BASE_REGIONS, BASE_DEFAULT_COLORS } from '../src/data/outfits.js';
 import { roleForWeapon, roleKeyOf } from '../src/data/hunt-roles.js';
 import { vendorPriceOf } from '../supabase/functions/hr-accrue/catalogue.js';
 import { previewDyes, refusalText, howYouFightHtml } from '../src/app/hero-create.js';
-import { HOW_YOU_FIGHT, validate as validateHowToPlay } from '../src/data/how-to-play.js';
+import { HOW_YOU_FIGHT, validate as validateHowToPlay, STARTER_PICKS } from '../src/data/how-to-play.js';
 import { shopOf } from '../src/session/item-sections.js';
 import { renderShop } from '../src/shell/windows/shop.js';
 import { renderHuntSummary } from '../src/shell/windows/hunt-summary.js';
@@ -112,13 +112,15 @@ export function checkClient({ cells = previewDyes, text = refusalText, shop = sh
   if (/data-tab="refill"|data-hs-act="refill"/.test(windows.shop())) out.push('H-C3 the Shop still has a Refill');
   if (/data-hs-act="refill"/.test(windows.prep())) out.push('H-C3 Hunt prep still offers a refill');
   if (/restock/i.test(windows.summary())) out.push('H-C3 the hunt summary still offers Restock');
-  // H-C4 the step says how you fight where a newcomer looks for a class (Tyler 2026-10-22): no class, the
-  // weapon is the style, one line per way to fight naming its starter weapon, every role and starter weapon covered.
+  // H-C4 THE PICK (GR-24; designer D-1): the step says no class is locked and the weapon in hand sets how the hero fights, then one
+  // card a starter set (STARTER_PICKS), none picked for the player, the Club marked "Good first hero"; every role and starter weapon covered.
   const how = howHtml();
-  if (!/no classes/i.test(how) || !/weapon[^.]*\bin hand sets the style/i.test(how)) out.push('H-C4 the creation step does not say the weapon, not a class, sets the style');
-  /* the five rows read as a menu (blind panel 11-03: "I wanted to pick"): the lead says there is nothing to pick, and that the hero already owns them all */
-  if (!/nothing to pick/i.test(how) || !/every weapon below is yours/i.test(how)) out.push('H-C4 the creation step lists five styles and does not say they are not a choice here');
-  for (const r of HOW_YOU_FIGHT) if (!how.includes('data-style="' + r.id + '"') || !how.includes(r.name)) out.push(`H-C4 the creation step leaves out ${r.name}`);
+  if (!/no classes/i.test(how) || !/the one in hand sets how this hero fights/i.test(how) || !/every weapon is yours/i.test(how))
+    out.push('H-C4 the creation step does not say the weapon, not a class, sets how the hero fights');
+  if (/nothing to pick/i.test(how)) out.push('H-C4 the creation step still says there is nothing to pick (M-02: the player picks a way to fight)');
+  for (const r of STARTER_PICKS) if (!how.includes('data-hero-set="' + r.set + '"') || !how.includes(r.name)) out.push(`H-C4 the creation step leaves out ${r.name}`);
+  if (/aria-pressed="true"/.test(how)) out.push('H-C4 a way to fight is picked for the player before they pick');
+  if (!/data-hero-set="club"[^>]*>.*?Good first hero/.test(how)) out.push('H-C4 the Club does not carry the Good first hero mark');
   /* H-C5 (QA audit 2026-11-18 N8): "Switch any time in town Hero slots: 1, buy 3 more, all 4 play at once" ran two lines together, and its numbers were
      typed in the copy. The lead ends its last sentence; the slots are their own line, the server's words handed in, and nothing at all while unsaid. */
   const lead = (/<p class="hero-how-lead">([^<]*)<\/p>/.exec(how) || [])[1] || '';
@@ -127,12 +129,13 @@ export function checkClient({ cells = previewDyes, text = refusalText, shop = sh
   const said = howHtml('Hero slots: 2 (up to 4 play at once)');
   if (!/<p class="hero-how-slots">Hero slots: 2 \(up to 4 play at once\)<\/p>/.test(said)) out.push('H-C5 the server\'s slot line is not its own line: ' + JSON.stringify(said.slice(0, 300)));
   for (const p of howValidate()) out.push('H-C4 ' + p);
-  /* H-C6 (audit 2026-11-18 A14): "Holds monsters off the party Uses food" read as one run-on line: what a style does and what it uses stand apart,
-     a separator between them, read aloud as "Holds monsters off the party · Uses food" */
-  for (const r of HOW_YOU_FIGHT) {
-    const row = (new RegExp('<li data-style="' + r.id + '">(.*?)</li>').exec(how) || [])[1] || '';
-    const aloud = row.replace(/<[^>]+>/g, '').replace(/ /g, ' ').replace(/\s+/g, ' ').trim();
-    if (aloud !== r.name + ' ' + r.does + ' · ' + r.uses) out.push('H-C6 the ' + r.name + ' row reads aloud as ' + JSON.stringify(aloud));
+  /* H-C6 (audit 2026-11-18 A14): what a way does and what it uses stand apart, a separator between them, read aloud as
+     "Holds monsters off the party · Uses food", then its mark, its honest tag and its cost line, each its own words */
+  for (const r of STARTER_PICKS) {
+    const row = (new RegExp('<button[^>]*data-hero-set="' + r.set + '"[^>]*>(.*?)</button>').exec(how) || [])[1] || '';
+    const aloud = row.replace(/<[^>]+>/g, ' ').replace(/ /g, ' ').replace(/\s+/g, ' ').trim();
+    const want = [r.name, r.mark, r.does + ' · ' + r.uses, r.tag, r.cost].filter(Boolean).join(' ');
+    if (aloud !== want) out.push('H-C6 the ' + r.name + ' card reads aloud as ' + JSON.stringify(aloud));
   }
   return out;
 }

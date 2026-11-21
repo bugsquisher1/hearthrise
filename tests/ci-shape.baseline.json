@@ -385,6 +385,8 @@
     "node tools/mutant-gate.mjs node tests/start-kits.mjs --mutate": "client-guards-4",
     "node tests/the-path.mjs": "client-guards-4",
     "node tools/mutant-gate.mjs node tests/the-path.mjs --mutate": "client-guards-4",
+    "node tests/tutorial-once.mjs": "client-guards-4",
+    "node tools/mutant-gate.mjs node tests/tutorial-once.mjs --mutate": "client-guards-4",
     "node tests/four-hero-slots.mjs": "client-guards-4",
     "node tools/mutant-gate.mjs node tests/four-hero-slots.mjs --mutate": "client-guards-4",
     "node tests/imports-resolve.mjs": "client-guards-4",

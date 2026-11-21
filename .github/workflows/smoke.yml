@@ -3561,6 +3561,11 @@ jobs:
         run: |
           node tests/the-path.mjs
           node tools/mutant-gate.mjs node tests/the-path.mjs --mutate
+      - name: First hour - the tutorial taught once for four heroes
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/tutorial-once.mjs
+          node tools/mutant-gate.mjs node tests/tutorial-once.mjs --mutate
 
       # FOUR HEROES AN ACCOUNT (Tyler 2026-11-07, lane/c-four-slots): slot 4 is never offered, sold or made; an old slot-4 hero is kept.
       # (All four free from the start since 2026-11-21: tests/hero-slot-buy.mjs.)

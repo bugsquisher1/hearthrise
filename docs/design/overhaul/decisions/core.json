@@ -140,7 +140,14 @@
       "status": "DECIDED",
       "tyler": "He picked the recommendation on the page that morning.",
       "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
-      "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling."
+      "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
+      "builtIn": {
+        "where": "lane",
+        "lanes": [
+          "FB-2"
+        ],
+        "note": "In the first build. FB-2 lane/c-formula-steps (13-build-plan.md section 2.6)."
+      }
     },
     {
       "id": "GR-86",
@@ -154,7 +161,14 @@
       "depends": "GR-13 (one roll rule), GR-11 (the floor), MM-24 (buff rows need the table). Combat batches stay spaced by the world-tick parity rule.",
       "group": "Foundation",
       "status": "PROVISIONAL",
-      "waitsOn": "the playtest or measurement its own row names"
+      "waitsOn": "the playtest or measurement its own row names",
+      "builtIn": {
+        "where": "lane",
+        "lanes": [
+          "FB-2"
+        ],
+        "note": "In the first build. FB-2 lane/c-formula-steps (13-build-plan.md section 2.6)."
+      }
     },
     {
       "id": "GR-87",
@@ -167,7 +181,12 @@
       "money": false,
       "depends": "After GR-5, because the chance is derived from the kill rate. The items decider owns the hours on each row.",
       "group": "Foundation",
-      "status": "DECIDED"
+      "status": "DECIDED",
+      "builtIn": {
+        "where": "waits",
+        "unplacedInThePlan": true,
+        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+      }
     },
     {
       "id": "GR-88",
@@ -186,7 +205,12 @@
       "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
       "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
       "waitsOn": "the measuring tool's faults fixed and the full matrix run once",
-      "madeInTheFold": "Rewritten in the fold 2026-11-21 after his picks. Not yet seen by Tyler."
+      "madeInTheFold": "Rewritten in the fold 2026-11-21 after his picks. Not yet seen by Tyler.",
+      "builtIn": {
+        "where": "waits",
+        "unplacedInThePlan": true,
+        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits on the measuring tool's faults fixed and the full matrix run once. Nothing is cut."
+      }
     },
     {
       "id": "GR-1",
@@ -205,7 +229,15 @@
       "tyler": "He picked the recommendation on the page that morning: closed-form town work. The away hunt's 10 minute save was decided afterwards on study 48 and is DECIDED, not ruled.",
       "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
       "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
-      "waitsOn": "a town-hour fixture and a load test"
+      "waitsOn": "a town-hour fixture and a load test",
+      "builtIn": {
+        "where": "lane",
+        "lanes": [
+          "FB-4",
+          "FB-10"
+        ],
+        "note": "In the first build. FB-4 lane/c-settle-cost, FB-10 lane/c-town-closed (13-build-plan.md section 2.6)."
+      }
     },
     {
       "id": "GR-3",
@@ -224,7 +256,14 @@
       "statusBeforeReissue": "RULED (Tyler, 2026-11-21), the alternative",
       "waitsOn": "The look later: Deadly sized on the fixed tool, then a read of which fours players run.",
       "wasBeforeSitting": "Leave the lineup test out. Accept that the best four may be a hammer and three mages, and pay party XP by size alone. Deadly is sized on the mid-geared four in band against the tier bands (S3, S4, S6) and nothing else. No cell asks a lineup to fail. Roles still matter by formula, because a pull of eight wants a holder and shooters reach the back row, but no tier is tuned until a named lineup dies.",
-      "sitting": "S-10, option C. Size now, look later. It ends the 2026-10-31 classes rule for the first build."
+      "sitting": "S-10, option C. Size now, look later. It ends the 2026-10-31 classes rule for the first build.",
+      "builtIn": {
+        "where": "lane",
+        "lanes": [
+          "FB-8"
+        ],
+        "note": "In the first build. FB-8 lane/c-pace (13-build-plan.md section 2.6)."
+      }
     },
     {
       "id": "GR-27",
@@ -243,7 +282,7 @@
       "cutApproved": "Cut list 15, Tyler said yes to the cut on the page 2026-11-21.",
       "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
       "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
-      "waitsOn": "The playtest death rate",
+      "waitsOn": "The playtest death rate. Its death numbers were played before the engine stall fixes at 02364f03a and wait on the replay",
       "madeInTheFold": "Rewritten in the fold 2026-11-21 after his picks. Not yet seen by Tyler.",
       "measured": {
         "label": "MEASURED",
@@ -251,6 +290,13 @@
         "runs": "R0, R2 and R4",
         "source": "docs/design/overhaul/12-balance-pass.md",
         "runIds": "R0 is GitHub run 44920906999 (the full matrix, 4,503 cells, 2 seeds of 2 hours). R1 is run 44924971088 (670 cells with five buff rows). R2 is run 44925664434 (the death sample, 4 seeds of 8 hours). R4 is run 44928035806 (the death sample with both tiers at 2.5, and the full matrix with the three picks in). L is local probes of 2 seeds of 1 hour."
+      },
+      "builtIn": {
+        "where": "lane",
+        "lanes": [
+          "FB-8"
+        ],
+        "note": "In the first build. FB-8 lane/c-pace (13-build-plan.md section 2.6)."
       }
     },
     {
@@ -270,7 +316,7 @@
       "wasBeforeTyler": "Opening numbers, as hypotheses the sample must confirm. Both tiers are sized on the mid-geared four in band. Dangerous is read against S3 (typical lowest health 35 to 60%) and Deadly against S4 (15 to 40%). A lone hero's reading prints and judges nothing. Dangerous: pull 5, blows and aim 1.17 times Normal, health 1.10, Level XP 1.10. Deadly: pull 8, blows and aim 2.25 times Normal, health 1.15, Level XP 1.25. They are sized only after R7 lands, on 4 seeds of 8 hours with the game's own death rule, against bands S3, S4, S6 and the lineup test.",
       "status": "PROVISIONAL",
       "statusBeforeReissue": "DECIDED",
-      "waitsOn": "The playtest death rate",
+      "waitsOn": "The playtest death rate. Its death numbers were played before the engine stall fixes at 02364f03a and wait on the replay",
       "madeInTheFold": "Rewritten in the fold 2026-11-21 after his picks. Not yet seen by Tyler.",
       "sitting": "S-6, option A. Deadly is a tier you watch or gamble on, and idle players mostly use Dangerous. The lost hunting time is accepted: 18 to 31% on the 8 hour bar and 25 to 42% on the 12 hour bar, before the 6%.",
       "measured": {
@@ -280,7 +326,14 @@
         "source": "docs/design/overhaul/12-balance-pass.md",
         "runIds": "R0 is GitHub run 44920906999 (the full matrix, 4,503 cells, 2 seeds of 2 hours). R1 is run 44924971088 (670 cells with five buff rows). R2 is run 44925664434 (the death sample, 4 seeds of 8 hours). R4 is run 44928035806 (the death sample with both tiers at 2.5, and the full matrix with the three picks in). L is local probes of 2 seeds of 1 hour."
       },
-      "wasBeforeBalancePass": "Opening numbers, as hypotheses the sample must confirm. Both tiers are sized on the mid-geared four in band. Dangerous is read against S3 (typical lowest health 35 to 60%) and Deadly against S4 (15 to 40%). A lone hero's reading prints and judges nothing. Dangerous: pull 5, blows and aim 1.17 times Normal, health 1.10, Level XP 1.10. Deadly: pull 8, blows and aim 2.25 times Normal, health 1.15, Level XP 1.25. They are sized only after R7 lands, on 4 seeds of 8 hours with the game's own death rule, against bands S3, S4 and S6. There is no lineup test (GR-3, his pick on the page)."
+      "wasBeforeBalancePass": "Opening numbers, as hypotheses the sample must confirm. Both tiers are sized on the mid-geared four in band. Dangerous is read against S3 (typical lowest health 35 to 60%) and Deadly against S4 (15 to 40%). A lone hero's reading prints and judges nothing. Dangerous: pull 5, blows and aim 1.17 times Normal, health 1.10, Level XP 1.10. Deadly: pull 8, blows and aim 2.25 times Normal, health 1.15, Level XP 1.25. They are sized only after R7 lands, on 4 seeds of 8 hours with the game's own death rule, against bands S3, S4 and S6. There is no lineup test (GR-3, his pick on the page).",
+      "builtIn": {
+        "where": "lane",
+        "lanes": [
+          "FB-8"
+        ],
+        "note": "In the first build. FB-8 lane/c-pace (13-build-plan.md section 2.6)."
+      }
     },
     {
       "id": "CORE-2",
@@ -300,7 +353,12 @@
       "status": "PROVISIONAL",
       "statusBeforeReissue": "DECIDED",
       "waitsOn": "the playtest or measurement its own row names",
-      "madeInTheFold": "Rewritten in the fold 2026-11-21 after his picks. Not yet seen by Tyler."
+      "madeInTheFold": "Rewritten in the fold 2026-11-21 after his picks. Not yet seen by Tyler.",
+      "builtIn": {
+        "where": "waits",
+        "unplacedInThePlan": true,
+        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits on the playtest or measurement its own row names. Nothing is cut."
+      }
     },
     {
       "id": "CORE-3",
@@ -314,7 +372,12 @@
       "depends": "GR-20. The items decider, because perks and linings that add \"takes more\" sit under the same cap.",
       "group": "Foundation",
       "status": "PROVISIONAL",
-      "waitsOn": "the death fault fixed in the measuring tool, then the death sample of 4 seeds by 8 hours"
+      "waitsOn": "the death fault fixed in the measuring tool, then the death sample of 4 seeds by 8 hours",
+      "builtIn": {
+        "where": "waits",
+        "unplacedInThePlan": true,
+        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits on the death fault fixed in the measuring tool, then the death sample of 4 seeds by 8 hours. Nothing is cut."
+      }
     },
     {
       "id": "CORE-4",
@@ -330,7 +393,14 @@
       "was": "They count inside it. Anything that takes a share off a blow is a row of the armor chain and stops at 60%, whether it is worn, cast, earned or bought. So that a capped tank still feels a defensive buff, the MMO layer writes that buff on the Defense rating (monsters land less often), which the cap does not govern. Deadly is sized on the plain mid four and a buffed four is meant to hold it with more room.",
       "fixedBy": "review-4",
       "status": "PROVISIONAL",
-      "waitsOn": "one buff played in a cell"
+      "waitsOn": "one buff played in a cell",
+      "builtIn": {
+        "where": "lane",
+        "lanes": [
+          "FB-11"
+        ],
+        "note": "In the first build. FB-11 lane/c-talents (13-build-plan.md section 2.6)."
+      }
     },
     {
       "id": "C3",
@@ -347,7 +417,14 @@
       "fixedBy": "review-6, review-20",
       "fixNote": "The measured four (shield, staff, bow, wand) was not the company GR-24 pre-fills. The review measured the default company: 0 deaths in 64 hero-hours. \"Any front weapon holds\" is true only with a healer. A four with no healer and no shield died once in 16 party-hours.",
       "status": "PROVISIONAL",
-      "waitsOn": "being built and played past minute 17 by real new players"
+      "waitsOn": "being built and played past minute 17 by real new players",
+      "builtIn": {
+        "where": "lane",
+        "lanes": [
+          "FB-5"
+        ],
+        "note": "In the first build. FB-5 lane/c-first-hour (13-build-plan.md section 2.6)."
+      }
     },
     {
       "id": "GR-4",
@@ -374,6 +451,13 @@
         "runs": "R0 and L",
         "source": "docs/design/overhaul/12-balance-pass.md",
         "runIds": "R0 is GitHub run 44920906999 (the full matrix, 4,503 cells, 2 seeds of 2 hours). R1 is run 44924971088 (670 cells with five buff rows). R2 is run 44925664434 (the death sample, 4 seeds of 8 hours). R4 is run 44928035806 (the death sample with both tiers at 2.5, and the full matrix with the three picks in). L is local probes of 2 seeds of 1 hour."
+      },
+      "builtIn": {
+        "where": "lane",
+        "lanes": [
+          "FB-8"
+        ],
+        "note": "In the first build. FB-8 lane/c-pace (13-build-plan.md section 2.6)."
       }
     },
     {
@@ -399,6 +483,13 @@
         "runs": "R0",
         "source": "docs/design/overhaul/12-balance-pass.md",
         "runIds": "R0 is GitHub run 44920906999 (the full matrix, 4,503 cells, 2 seeds of 2 hours). R1 is run 44924971088 (670 cells with five buff rows). R2 is run 44925664434 (the death sample, 4 seeds of 8 hours). R4 is run 44928035806 (the death sample with both tiers at 2.5, and the full matrix with the three picks in). L is local probes of 2 seeds of 1 hour."
+      },
+      "builtIn": {
+        "where": "lane",
+        "lanes": [
+          "FB-8"
+        ],
+        "note": "In the first build. FB-8 lane/c-pace (13-build-plan.md section 2.6)."
       }
     },
     {
@@ -419,14 +510,21 @@
       "tyler": "He let the reversal stand on the page, in about a second. It changes the earlier ruling. He picked the recommendation on the page that morning.",
       "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
       "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
-      "waitsOn": "Tyler, 12 section 7 item 1, and the playtest death rate",
+      "waitsOn": "Tyler, S-11 of the second sitting, held until the replay on the fixed engine (02364f03a), and the playtest death rate",
       "sitting": "S-4, option A, as a knock-on. Every clan member levels faster than the Level table, so the content runway and the clock move.",
       "measured": {
         "label": "MEASURED",
-        "what": "The seat's multiple is 1.266 on the four on Dangerous, the median of 28 checkpoints, where the book had 1.492 on the four on Deadly with no death. On 1.266: Level 100 at 516 hours, Krell on day 33, Level 400 on day 400. The ruled table stays the target. Both clocks are shown in chapter 05.",
-        "runs": "R0 and R4",
+        "what": "The law is fitted at the ruled points, so whichever four is the clock lands on the table: Level 100 at 600 hours and Level 400 on day 382. MEASURED on run 44931089433: the four on Dangerous reads 1.263 times the pace contract and a four on Deadly that never dies 1.579. The other four reaches Level 400 on about day 305 (a safe Deadly four, 25% ahead) or about day 477 (the Dangerous four, 25% behind). This replaces the earlier 1.266 and 1.492.",
+        "runs": "GitHub run 44931089433",
         "source": "docs/design/overhaul/12-balance-pass.md",
         "runIds": "R0 is GitHub run 44920906999 (the full matrix, 4,503 cells, 2 seeds of 2 hours). R1 is run 44924971088 (670 cells with five buff rows). R2 is run 44925664434 (the death sample, 4 seeds of 8 hours). R4 is run 44928035806 (the death sample with both tiers at 2.5, and the full matrix with the three picks in). L is local probes of 2 seeds of 1 hour."
+      },
+      "builtIn": {
+        "where": "lane",
+        "lanes": [
+          "FB-8"
+        ],
+        "note": "In the first build. FB-8 lane/c-pace (13-build-plan.md section 2.6)."
       }
     },
     {
@@ -447,14 +545,21 @@
       "tyler": "He let the reversal stand on the page, in about a second. It changes the earlier ruling.",
       "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
       "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
-      "waitsOn": "Tyler, 12 section 7 item 1, and the playtest death rate",
+      "waitsOn": "Tyler, S-11 of the second sitting, held until the replay on the fixed engine (02364f03a), and the playtest death rate",
       "sitting": "S-4, option A, as a knock-on. Every clan member levels faster than the Level table, so the content runway and the clock move.",
       "measured": {
         "label": "MEASURED",
-        "what": "Staged content ends on day 117 on the Dangerous seat. A four that farms Deadly safely would run 18% ahead of the table.",
-        "runs": "R0",
+        "what": "The law is fitted at the ruled points, so whichever four is the clock lands on the table: Level 100 at 600 hours and Level 400 on day 382. MEASURED on run 44931089433: the four on Dangerous reads 1.263 times the pace contract and a four on Deadly that never dies 1.579. The other four reaches Level 400 on about day 305 (a safe Deadly four, 25% ahead) or about day 477 (the Dangerous four, 25% behind). This replaces the earlier 1.266 and 1.492.",
+        "runs": "GitHub run 44931089433",
         "source": "docs/design/overhaul/12-balance-pass.md",
         "runIds": "R0 is GitHub run 44920906999 (the full matrix, 4,503 cells, 2 seeds of 2 hours). R1 is run 44924971088 (670 cells with five buff rows). R2 is run 44925664434 (the death sample, 4 seeds of 8 hours). R4 is run 44928035806 (the death sample with both tiers at 2.5, and the full matrix with the three picks in). L is local probes of 2 seeds of 1 hour."
+      },
+      "builtIn": {
+        "where": "lane",
+        "lanes": [
+          "FB-8"
+        ],
+        "note": "In the first build. FB-8 lane/c-pace (13-build-plan.md section 2.6)."
       }
     },
     {
@@ -472,13 +577,20 @@
       "tyler": "He let the reversal stand on the page, in about a second. It changes the earlier ruling.",
       "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
       "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
-      "waitsOn": "Tyler, 12 section 7 item 1, and the playtest death rate",
+      "waitsOn": "Tyler, S-11 of the second sitting, held until the replay on the fixed engine (02364f03a), and the playtest death rate",
       "measured": {
         "label": "MEASURED",
-        "what": "Krell's Hold is day 33 on the Dangerous seat, day 24 for a four that farms Deadly safely.",
-        "runs": "R0",
+        "what": "The law is fitted at the ruled points, so whichever four is the clock lands on the table: Level 100 at 600 hours and Level 400 on day 382. MEASURED on run 44931089433: the four on Dangerous reads 1.263 times the pace contract and a four on Deadly that never dies 1.579. The other four reaches Level 400 on about day 305 (a safe Deadly four, 25% ahead) or about day 477 (the Dangerous four, 25% behind). This replaces the earlier 1.266 and 1.492.",
+        "runs": "GitHub run 44931089433",
         "source": "docs/design/overhaul/12-balance-pass.md",
         "runIds": "R0 is GitHub run 44920906999 (the full matrix, 4,503 cells, 2 seeds of 2 hours). R1 is run 44924971088 (670 cells with five buff rows). R2 is run 44925664434 (the death sample, 4 seeds of 8 hours). R4 is run 44928035806 (the death sample with both tiers at 2.5, and the full matrix with the three picks in). L is local probes of 2 seeds of 1 hour."
+      },
+      "builtIn": {
+        "where": "lane",
+        "lanes": [
+          "FB-8"
+        ],
+        "note": "In the first build. FB-8 lane/c-pace (13-build-plan.md section 2.6)."
       }
     },
     {
@@ -495,7 +607,14 @@
       "was": "Drop the log-scale join. The law is the convex cut of the ruled table: hours a Level is one continuous line that never falls, and each ruled stretch adds up to exactly its ruled hours. A generator writes it from the table and nobody types a point. The ramp at Level 50 is the first piece of the same line, rising from what the four pays at 49 over about eight Levels. Nothing is smoothed by hand afterwards.",
       "fixedBy": "review-10",
       "fixNote": "Many lines pass every ruled point without falling. Core's had an 8% step and a line under 2% exists.",
-      "status": "DECIDED"
+      "status": "DECIDED",
+      "builtIn": {
+        "where": "lane",
+        "lanes": [
+          "FB-8"
+        ],
+        "note": "In the first build. FB-8 lane/c-pace (13-build-plan.md section 2.6)."
+      }
     },
     {
       "id": "GR-7",
@@ -513,7 +632,7 @@
       "statusBeforeReissue": "OPEN (waiting on Tyler, T-fix-5)",
       "firstBuild": "planned, waits until a real death rate exists",
       "sitting": "S-5, option B. The Blessing ladder is ruled.",
-      "waitsOn": "The playtest death rate",
+      "waitsOn": "The playtest death rate. Its death numbers were played before the engine stall fixes at 02364f03a and wait on the replay",
       "measured": {
         "label": "MEASURED",
         "what": "The ladder's threshold moves from 5 hunted hours to 2, COMPUTED on MEASURED Level XP rates. New Blessings open near Levels 74, 98, 161, 248 and 387. At 5 hours a watched four on Deadly earns less than on Dangerous through most of the ruled death band. A four on the edge of Deadly loses 16 to 34% of an 8 hour bar when left alone.",
@@ -521,7 +640,14 @@
         "source": "docs/design/overhaul/12-balance-pass.md",
         "runIds": "R0 is GitHub run 44920906999 (the full matrix, 4,503 cells, 2 seeds of 2 hours). R1 is run 44924971088 (670 cells with five buff rows). R2 is run 44925664434 (the death sample, 4 seeds of 8 hours). R4 is run 44928035806 (the death sample with both tiers at 2.5, and the full matrix with the three picks in). L is local probes of 2 seeds of 1 hour."
       },
-      "wasBeforeBalancePass": "Keep 6% flat with no cap. Past the third Blessing, a new Blessing opens whenever a fully blessed death would cost the pace seat more than five hunted hours. Each new one halves what is left and is priced under a fifth of the hours it saves, in gold. The five hours is one knob. The rungs are outputs of the rule (Levels 97, 140 and 257 on today's numbers). \"Keep me blessed\" covers the new rungs. It ships in the release where Deadly is made to bite, sized on the long death sample."
+      "wasBeforeBalancePass": "Keep 6% flat with no cap. Past the third Blessing, a new Blessing opens whenever a fully blessed death would cost the pace seat more than five hunted hours. Each new one halves what is left and is priced under a fifth of the hours it saves, in gold. The five hours is one knob. The rungs are outputs of the rule (Levels 97, 140 and 257 on today's numbers). \"Keep me blessed\" covers the new rungs. It ships in the release where Deadly is made to bite, sized on the long death sample.",
+      "builtIn": {
+        "where": "lane",
+        "lanes": [
+          "FB-8"
+        ],
+        "note": "In the first build. FB-8 lane/c-pace (13-build-plan.md section 2.6)."
+      }
     },
     {
       "id": "MM-7",
@@ -540,7 +666,14 @@
       "status": "PROVISIONAL",
       "waitsOn": "a real death rate, and Tyler's answer on the hunting hours a death costs an idle party",
       "firstBuild": "in the first build: one sample boss",
-      "sitting": "S-6, option A. Deadly is a tier you watch or gamble on, and idle players mostly use Dangerous. The lost hunting time is accepted: 18 to 31% on the 8 hour bar and 25 to 42% on the 12 hour bar, before the 6%."
+      "sitting": "S-6, option A. Deadly is a tier you watch or gamble on, and idle players mostly use Dangerous. The lost hunting time is accepted: 18 to 31% on the 8 hour bar and 25 to 42% on the 12 hour bar, before the 6%.",
+      "builtIn": {
+        "where": "lane",
+        "lanes": [
+          "FB-13"
+        ],
+        "note": "In the first build. FB-13 lane/c-world-boss (13-build-plan.md section 2.6)."
+      }
     },
     {
       "id": "GR-8",
@@ -560,7 +693,11 @@
       "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
       "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
       "waitsOn": "the store-bill fault fixed and a wage formula that exists",
-      "firstBuild": "planned, waits until the wage can be measured. Until then the typed prices stand"
+      "firstBuild": "planned, waits until the wage can be measured. Until then the typed prices stand",
+      "builtIn": {
+        "where": "waits",
+        "note": "Not in the first build. It waits until: The wage is measured against played gold (13-build-plan.md section 1.2)."
+      }
     },
     {
       "id": "GR-9",
@@ -574,7 +711,12 @@
       "depends": "The world decider owns the drop rule's rows. GR-57 (the hunt budget). GR-6a leans on it past the last region.",
       "group": "Long game",
       "status": "PROVISIONAL",
-      "waitsOn": "the playtest or measurement its own row names"
+      "waitsOn": "the playtest or measurement its own row names",
+      "builtIn": {
+        "where": "waits",
+        "unplacedInThePlan": true,
+        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits on the playtest or measurement its own row names. Nothing is cut."
+      }
     },
     {
       "id": "GR-11",
@@ -587,7 +729,12 @@
       "money": false,
       "depends": "GR-86 (the pipeline).",
       "group": "Combat",
-      "status": "DECIDED"
+      "status": "DECIDED",
+      "builtIn": {
+        "where": "waits",
+        "unplacedInThePlan": true,
+        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+      }
     },
     {
       "id": "GR-12",
@@ -600,7 +747,12 @@
       "money": false,
       "depends": "The items decider (crit and accuracy perks), GR-16 (Live Bolt cannot refund on a crit).",
       "group": "Combat",
-      "status": "DECIDED"
+      "status": "DECIDED",
+      "builtIn": {
+        "where": "waits",
+        "unplacedInThePlan": true,
+        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+      }
     },
     {
       "id": "GR-13",
@@ -613,7 +765,12 @@
       "money": false,
       "depends": "GR-86.",
       "group": "Combat",
-      "status": "DECIDED"
+      "status": "DECIDED",
+      "builtIn": {
+        "where": "waits",
+        "unplacedInThePlan": true,
+        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+      }
     },
     {
       "id": "GR-14",
@@ -627,7 +784,12 @@
       "depends": "GR-17 (fists are blunt). The world decider owns which monster classes are weak to which side.",
       "group": "Combat",
       "cutApproved": "Cut list 15, Tyler said yes to the cut on the page 2026-11-21.",
-      "status": "DECIDED"
+      "status": "DECIDED",
+      "builtIn": {
+        "where": "waits",
+        "unplacedInThePlan": true,
+        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+      }
     },
     {
       "id": "GR-15",
@@ -640,7 +802,12 @@
       "money": false,
       "depends": "GR-24 (default bars for the starting weapons).",
       "group": "Combat",
-      "status": "DECIDED"
+      "status": "DECIDED",
+      "builtIn": {
+        "where": "waits",
+        "unplacedInThePlan": true,
+        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+      }
     },
     {
       "id": "GR-16",
@@ -658,7 +825,11 @@
       "fixNote": "The chapter pushed the element numbers to Tyler. That is a design call, not money, a grant or a reversal.",
       "status": "PROVISIONAL",
       "waitsOn": "Deadly sized, and the system built",
-      "firstBuild": "planned, waits until the eight weapon ways are distinct and Deadly is sized"
+      "firstBuild": "planned, waits until the eight weapon ways are distinct and Deadly is sized",
+      "builtIn": {
+        "where": "waits",
+        "note": "Not in the first build. It waits until: The weapon ways are distinct and Deadly is sized (13-build-plan.md section 1.2)."
+      }
     },
     {
       "id": "GR-17",
@@ -673,7 +844,11 @@
       "group": "Combat",
       "status": "PROVISIONAL",
       "waitsOn": "Deadly sized, and the system built",
-      "firstBuild": "planned, waits until the eight weapon ways are distinct and Deadly is sized"
+      "firstBuild": "planned, waits until the eight weapon ways are distinct and Deadly is sized",
+      "builtIn": {
+        "where": "waits",
+        "note": "Not in the first build. It waits until: The weapon ways are distinct and Deadly is sized (13-build-plan.md section 1.2)."
+      }
     },
     {
       "id": "GR-18",
@@ -690,7 +865,12 @@
       "tyler": "He let the reversal stand on the page, in about a second. It changes the earlier ruling.",
       "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
       "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
-      "waitsOn": "the playtest or measurement its own row names"
+      "waitsOn": "the playtest or measurement its own row names",
+      "builtIn": {
+        "where": "waits",
+        "unplacedInThePlan": true,
+        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits on the playtest or measurement its own row names. Nothing is cut."
+      }
     },
     {
       "id": "GR-19",
@@ -703,7 +883,12 @@
       "money": false,
       "depends": "GR-3, CORE-1.",
       "group": "Combat",
-      "status": "DECIDED"
+      "status": "DECIDED",
+      "builtIn": {
+        "where": "waits",
+        "unplacedInThePlan": true,
+        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+      }
     },
     {
       "id": "GR-20",
@@ -721,7 +906,11 @@
       "statusBeforeReissue": "DECIDED",
       "waitsOn": "Deadly sized, and the system built",
       "firstBuild": "planned, waits until the eight weapon ways are distinct and Deadly is sized",
-      "madeInTheFold": "Rewritten in the fold 2026-11-21 after his picks. Not yet seen by Tyler."
+      "madeInTheFold": "Rewritten in the fold 2026-11-21 after his picks. Not yet seen by Tyler.",
+      "builtIn": {
+        "where": "waits",
+        "note": "Not in the first build. It waits until: The weapon ways are distinct and Deadly is sized (13-build-plan.md section 1.2)."
+      }
     },
     {
       "id": "GR-21",
@@ -734,7 +923,12 @@
       "money": false,
       "depends": "GR-16.",
       "group": "Combat",
-      "status": "DECIDED"
+      "status": "DECIDED",
+      "builtIn": {
+        "where": "waits",
+        "unplacedInThePlan": true,
+        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+      }
     },
     {
       "id": "GR-22",
@@ -747,7 +941,12 @@
       "money": false,
       "depends": "None.",
       "group": "Combat",
-      "status": "DECIDED"
+      "status": "DECIDED",
+      "builtIn": {
+        "where": "waits",
+        "unplacedInThePlan": true,
+        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+      }
     },
     {
       "id": "GR-23",
@@ -761,7 +960,12 @@
       "depends": "GR-4. The items decider names the tiers past five and who makes them (GR-45).",
       "group": "Combat",
       "status": "PROVISIONAL",
-      "waitsOn": "the kill reward and the tiers, because the seat's multiple is not one number until then"
+      "waitsOn": "the kill reward and the tiers, because the seat's multiple is not one number until then",
+      "builtIn": {
+        "where": "waits",
+        "unplacedInThePlan": true,
+        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits on the kill reward and the tiers, because the seat's multiple is not one number until then. Nothing is cut."
+      }
     },
     {
       "id": "GR-24",
@@ -778,7 +982,14 @@
       "fixedBy": "review-6, review-7, review-20",
       "fixNote": "Core highlighted the hammer and the MMO row preselected nothing. Merged. \"Any front weapon holds\" was measured only with a healer.",
       "status": "PROVISIONAL",
-      "waitsOn": "being built and played past minute 17 by real new players"
+      "waitsOn": "being built and played past minute 17 by real new players",
+      "builtIn": {
+        "where": "lane",
+        "lanes": [
+          "FB-5"
+        ],
+        "note": "In the first build. FB-5 lane/c-first-hour (13-build-plan.md section 2.6)."
+      }
     },
     {
       "id": "GR-25",
@@ -792,7 +1003,14 @@
       "depends": "GR-88 (the register guard fails a special rule with no yes).",
       "group": "Combat",
       "status": "OPEN (waiting on Tyler)",
-      "waitsOn": "Tyler's explicit approval. The formula brief says a deliberate special rule needs it, and these five were never put to him."
+      "waitsOn": "Tyler's explicit approval. The formula brief says a deliberate special rule needs it, and these five were never put to him.",
+      "builtIn": {
+        "where": "lane",
+        "lanes": [
+          "FB-2"
+        ],
+        "note": "In the first build. FB-2 lane/c-formula-steps (13-build-plan.md section 2.6)."
+      }
     },
     {
       "id": "GR-26",
@@ -805,7 +1023,12 @@
       "money": false,
       "depends": "GR-4. The items decider.",
       "group": "Combat",
-      "status": "DECIDED"
+      "status": "DECIDED",
+      "builtIn": {
+        "where": "waits",
+        "unplacedInThePlan": true,
+        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+      }
     },
     {
       "id": "GR-61",
@@ -822,7 +1045,12 @@
       "tyler": "He let the reversal stand on the page, in about a second. It changes the earlier ruling.",
       "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
       "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
-      "supersededBy": "Tyler's ruling of 2026-11-21. He lifted the 11-05 hold: a build choice every five Levels is designed now and built with the first build. See docs/design/overhaul/10-level-choices.md, which a design lane is writing."
+      "supersededBy": "Tyler's ruling of 2026-11-21. He lifted the 11-05 hold: a build choice every five Levels is designed now and built with the first build. See docs/design/overhaul/10-level-choices.md, which a design lane is writing.",
+      "builtIn": {
+        "where": "waits",
+        "unplacedInThePlan": true,
+        "note": "The build plan names it in no lane and on no waits row (audit A-8). Nothing is built from this row. Nothing is cut."
+      }
     },
     {
       "id": "GR-62",
@@ -837,7 +1065,11 @@
       "group": "Progression",
       "status": "PROVISIONAL",
       "waitsOn": "the playtest or measurement its own row names",
-      "firstBuild": "planned, waits until the first build is played"
+      "firstBuild": "planned, waits until the first build is played",
+      "builtIn": {
+        "where": "waits",
+        "note": "Not in the first build. It waits until: The first build is played (13-build-plan.md section 1.2)."
+      }
     },
     {
       "id": "GR-63",
@@ -855,7 +1087,12 @@
       "statusBeforeReissue": "DECIDED",
       "madeInTheFold": "Rewritten in the fold 2026-11-21 after his picks. Not yet seen by Tyler.",
       "wasBeforeSitting": "Tyler said keep on the page 2026-11-21, and what follows is a PROPOSAL he has not seen. The rested bank stays and now pays. A hero banks the hunted hours it missed: every hour it stands at full stamina and is not hunting adds to its bank, up to 24 hours. Banked hours pay +50% Level XP on that many later hunted hours. So a missed day is half made up and a hero with a bank never out-earns one that hunted every hour. It is a way back and never a way ahead. The pace seat hunts all 12 hours, so its bank is empty and the Level law does not read it. It is one row of the XP chain and one number a hero, written when a hunt starts and ends, with no statement on the settle. The two old kill ladders stay as tracks on the one kill ladder: one kill count a monster a hero, the count the Bestiary stages and GR-78 already read, with the old rungs kept as rows on that count and no second counter. Sizes are a HYPOTHESIS.",
-      "sitting": "S-9, option C. The rested bank is cut. The paying design made in the fold is removed."
+      "sitting": "S-9, option C. The rested bank is cut. The paying design made in the fold is removed.",
+      "builtIn": {
+        "where": "waits",
+        "unplacedInThePlan": true,
+        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+      }
     },
     {
       "id": "GR-64",
@@ -870,7 +1107,12 @@
       "group": "Progression",
       "status": "DECIDED",
       "wasBeforeTalents": "None of the three.",
-      "amendedBy": "Tyler's ruling of 2026-11-21 on level choices, and chapter 10 (docs/design/overhaul/10-level-choices.md). The old wording refused stat points a Level."
+      "amendedBy": "Tyler's ruling of 2026-11-21 on level choices, and chapter 10 (docs/design/overhaul/10-level-choices.md). The old wording refused stat points a Level.",
+      "builtIn": {
+        "where": "waits",
+        "unplacedInThePlan": true,
+        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+      }
     },
     {
       "id": "GR-65",
@@ -886,7 +1128,12 @@
       "was": "A death does not take Inner Flame progress.",
       "fixedBy": "review-13",
       "fixNote": "Tyler was asked directly on 2026-10-25 and said Prayer keeps its death loss, and the record says not to re-propose an exemption. Inner Flame is that skill renamed. The row cited the wrong ruling and offered no new evidence.",
-      "status": "WITHDRAWN"
+      "status": "WITHDRAWN",
+      "builtIn": {
+        "where": "waits",
+        "unplacedInThePlan": true,
+        "note": "The build plan names it in no lane and on no waits row (audit A-8). Nothing is built from this row. Nothing is cut."
+      }
     },
     {
       "id": "GR-66",
@@ -903,7 +1150,14 @@
       "tyler": "He said yes on the page.",
       "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
       "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
-      "waitsOn": "the playtest or measurement its own row names"
+      "waitsOn": "the playtest or measurement its own row names",
+      "builtIn": {
+        "where": "lane",
+        "lanes": [
+          "FB-7"
+        ],
+        "note": "In the first build. FB-7 lane/c-hunt-report (13-build-plan.md section 2.6)."
+      }
     },
     {
       "id": "MM-29-XP",
@@ -923,7 +1177,12 @@
       "tyler": "He said yes on the page.",
       "wasBeforeTyler": "TYLER CONFIRMS. Recommended: no. No Level XP boost is sold, for Crowns or for gold. The timed Level XP cap of +25% is filled only by the Hearthrise weekend.",
       "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
-      "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling."
+      "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
+      "builtIn": {
+        "where": "waits",
+        "unplacedInThePlan": true,
+        "note": "The build plan names it in no lane and on no waits row (audit A-8). It waits until the first build is played, and the plan owner then gives it a lane. Nothing is cut."
+      }
     },
     {
       "id": "TAL-1",
@@ -950,6 +1209,13 @@
         "runs": "R0 and R2",
         "source": "docs/design/overhaul/12-balance-pass.md",
         "runIds": "R0 is GitHub run 44920906999 (the full matrix, 4,503 cells, 2 seeds of 2 hours). R1 is run 44924971088 (670 cells with five buff rows). R2 is run 44925664434 (the death sample, 4 seeds of 8 hours). R4 is run 44928035806 (the death sample with both tiers at 2.5, and the full matrix with the three picks in). L is local probes of 2 seeds of 1 hour."
+      },
+      "builtIn": {
+        "where": "lane",
+        "lanes": [
+          "FB-11"
+        ],
+        "note": "In the first build. FB-11 lane/c-talents (13-build-plan.md section 2.6)."
       }
     }
   ],

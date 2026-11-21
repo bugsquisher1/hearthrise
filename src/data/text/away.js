@@ -48,6 +48,16 @@ export const AWAY_TEXT = Object.freeze({
   work_how_left: '{n} more to go. Press Stop in Gathering and crafting to end it sooner.',
   work_how_bench: 'It stops when the materials run out, or press Stop in Gathering and crafting.',
   work_change: 'Stop or change it',
+  /* What a job still running is doing, by its skill, before how it ends (src/shell/away-work.js); a bench with no word of its own says work_still. */
+  work_still_woodcutting: 'Still chopping.',
+  work_still_mining: 'Still mining.',
+  work_still_fishing: 'Still fishing.',
+  work_still_cooking: 'Still cooking.',
+  work_still: 'Still at the bench.',
+  /* What a gathering hero did, before the node's name: "Wren chopped the Oak Tree" ({node}: the node's own name). */
+  work_did_woodcutting: 'chopped the {node}',
+  work_did_mining: 'mined the {node}',
+  work_did_fishing: 'fished at the {node}',
   /* A JOB'S COUNT AND ITS "THEN" (1026-job-counts.sql, plan L08): the server's count ({done} of {count}) and what the hero does at the end. */
   work_how_count: '{done} of {count} done. {after}',
   work_then_wait: 'Then it waits in town.',

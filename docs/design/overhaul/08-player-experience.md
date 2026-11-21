@@ -207,7 +207,7 @@ The report prints what happened. It does not predict a death rate from one hunt.
 | Premium | 12 hours | One | Hunt 12, rest 12 | RULED 2026-10-17. `STAMINA_MAX_MS.premium` |
 | The ceiling | Either | Refills | Six refills of 4 hours make 24 hunted hours. Each hour past 12 costs 2 refill hours, because the hero stops resting | RULED rows (COMPUTED in 50 section 1.1) |
 
-Stamina drains one for one while hunting and rests one for one at every other instant. On call spends no stamina: a called hero hunts on a bar of its own (chapter 11, and what "full stamina" means there is OPEN for Tyler). A resting hero is always working: every town system is sized for a hero that fills all 12 rested hours (RULED 2026-11-21, 50-13). The stamina bar says so in words: "8 hours of hunting. It refills while your hero is in town. Two visits a day keeps a hero hunting 12 hours." (RULED 50-12, wording DECIDED, no call id, Fable 2026-11-21).
+Stamina drains one for one while hunting and rests one for one at every other instant. On call spends none of the hero's own stamina. An on-call hero has a hire stamina pool separate from its own, and the hirer sees it and may spend all of it (RULED, Tyler 2026-11-21, chapter 11). A resting hero is always working: every town system is sized for a hero that fills all 12 rested hours (RULED 2026-11-21, 50-13). The stamina bar says so in words: "8 hours of hunting. It refills while your hero is in town. Two visits a day keeps a hero hunting 12 hours." (RULED 50-12, wording DECIDED, no call id, Fable 2026-11-21).
 
 **The return card.** One card for the account, in this order.
 

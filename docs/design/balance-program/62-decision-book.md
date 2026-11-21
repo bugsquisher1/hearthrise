@@ -208,7 +208,6 @@ Kept hidden for later, and never on the cut list: Capture the flag (MM-46). The 
 | Item | What | Why it is held | What the book reads until he answers |
 |---|---|---|---|
 | GR-25 | Five built special rules that were never put to him: gentle first grounds, the boss blow cap, three training bases, the roll rule and the tier flag (GR-25) | The formula brief says a deliberate special rule needs his explicit approval. | The book is written with all five kept. |
-| S-1 "full stamina" | What "full stamina" means in his S-1 words (CH11-1) | Chapter 11 section 1.2 read it as: the 12 hour stint is a whole bar that does not spend the hero's own stamina. The other reading is that a hero must hold a full stamina bar of its own before it may go on call. | The book is written on the first reading. If the second is meant, sections 1.3 and 1.5 of chapter 11 change and the rest stands. Nobody has decided it. |
 
 ### 5.6 The sitting
 

@@ -78,6 +78,7 @@ One line each, newest first inside each group. A line is a ruling of Tyler's unl
 
 - 2026-11-21. The game designer decides every open design call. Tyler gets money calls, grants, plan approvals he asked for and any decision that reverses one of his rulings.
 - 2026-11-21, the sitting. On-call heroes are kept: "on call is fine but should be full stamina, the on call hero trades their crafting/training time for a small cut of exp, no loss on death. HOWEVER they can only go on call once every 24 hours and it will only last for 12 hours. Then back to a chosen activity". (S-1)
+- 2026-11-21. On "full stamina" for an on-call hero: "I just mean the person hiring them can see how much stamina the hired hand has and the person hiring can use all of it, hired stamina and regular stamina should be two different sets of stamina I think". Hire stamina and the hero's own stamina are two separate pools.
 - 2026-11-21, the sitting. No Local chat tab and no live party finder. Global, Clan, Party and whispers stay. Criers speak in Global and in town. (S-2)
 - 2026-11-21, the sitting. Setup slots stay priced: three free, then 15,000 and 40,000 gold. (S-3)
 - 2026-11-21, the sitting. A clan room pays a standing Level XP bonus. This reverses 25-2. (S-4)
@@ -387,7 +388,7 @@ On 2026-11-21, between 15:59 and 16:03 UTC, Tyler answered the ten questions of 
 
 | Question | His answer | What it rules |
 |---|---|---|
-| S-1 | His own words | On-call heroes are kept. "on call is fine but should be full stamina, the on call hero trades their crafting/training time for a small cut of exp, no loss on death. HOWEVER they can only go on call once every 24 hours and it will only last for 12 hours. Then back to a chosen activity". It reverses MM-18. A hero from another account can join a party again. The design is chapter 11, `11-on-call-and-clan-xp.md`, and it is PROVISIONAL. What "full stamina" means is OPEN (section 5.5) |
+| S-1 | His own words | On-call heroes are kept. "on call is fine but should be full stamina, the on call hero trades their crafting/training time for a small cut of exp, no loss on death. HOWEVER they can only go on call once every 24 hours and it will only last for 12 hours. Then back to a chosen activity". It reverses MM-18. A hero from another account can join a party again. The design is chapter 11, `11-on-call-and-clan-xp.md`, and it is PROVISIONAL. On "full stamina" he then said: "I just mean the person hiring them can see how much stamina the hired hand has and the person hiring can use all of it, hired stamina and regular stamina should be two different sets of stamina I think". So an on-call hero has a hire stamina pool separate from its own, the hirer sees it and may spend all of it, and hunting on call never spends the hero's own stamina. RULED |
 | S-2 | B | No Local chat tab and no live party finder. Global, Clan, Party and whispers stay. Criers speak in Global and in town (GR-69) |
 | S-3 | A | Setup slots stay priced as ruled on 2026-11-05: three free, then 15,000 and 40,000 gold (GR-56a) |
 | S-4 | A | A clan room pays a standing Level XP bonus. It reverses 25-2. Its size is PROVISIONAL in chapter 11: the Library, +0.5% a level and +5% at level ten. With it full the pace reads about 1.74 on a Hearthrise weekend and about 1.44 held all the time, and the next region must be open by about day 50. The Level table stays the clock of the plain four, which is now also the four in no clan |
@@ -498,12 +499,11 @@ Not on this list. GR-65 was withdrawn, because the ruling of 2026-10-25 keeps th
 
 Kept hidden for later, and never on the cut list: Capture the flag (MM-46). The clan's shared hunt (MM-48). The status pairs of GR-20 (paper only). Kindlings (GR-61, paper only). The other 36 Catacombs pieces (GR-36). The second dropped seed (GR-77). Bulk commissions (GR-44). Side against side (GR-71).
 
-### 5.5 Still open for Tyler: two items
+### 5.5 Still open for Tyler: one item
 
 | Item | What | Why it is held | What the book reads until he answers |
 |---|---|---|---|
 | GR-25 | Five built special rules that were never put to him: gentle first grounds, the boss blow cap, three training bases, the roll rule and the tier flag (GR-25) | The formula brief says a deliberate special rule needs his explicit approval. | The book is written with all five kept. |
-| S-1 "full stamina" | What "full stamina" means in his S-1 words (CH11-1) | Chapter 11 section 1.2 read it as: the 12 hour stint is a whole bar that does not spend the hero's own stamina. The other reading is that a hero must hold a full stamina bar of its own before it may go on call. | The book is written on the first reading. If the second is meant, sections 1.3 and 1.5 of chapter 11 change and the rest stands. Nobody has decided it. |
 
 ### 5.6 The plan
 

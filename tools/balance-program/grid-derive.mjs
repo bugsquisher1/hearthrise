@@ -17,7 +17,9 @@ import { pathToFileURL } from 'node:url';
 import * as STD from './standards.mjs';
 import { projectedFloor } from './grid-project.mjs';
 
-const H12 = STD.CLOCK.huntHoursADay;
+/* THE DAY: the hunted hours a free hero hunts in 24 h of server time as the stamina day PLAYED it (stamina-day.mjs, the grid's `clock`), the
+   ruled 12 when the cache carries no played day */
+export const hoursADayOf = (grid) => { const h = grid && grid.clock && grid.clock.heroes && grid.clock.heroes['free-2']; return h && h.huntedHoursADay > 0 ? h.huntedHoursADay : STD.CLOCK.huntHoursADay; };
 const finite = (x) => typeof x === 'number' && Number.isFinite(x);
 const inR = (v, lo, hi) => (lo === null || lo === undefined || v >= lo) && (hi === null || hi === undefined || v <= hi);
 export function statusOf(v, band) {
@@ -106,6 +108,7 @@ export function derive(D, grid, K = null) {
   const PACE = STD.PACE_TABLE.seat.ruled ? 'mid:4:hardest' : 'mid:1:normal';
   /* the doors of 2.7 and the day each seat reaches them */
   const DOORS = [[45, 'the Barrow March'], [88, 'Krell\'s Hold'], [110, 'end of open content'], [175, 'the Catacombs'], [185, 'end of staged content'], [240, 'Region 5'], [295, 'Region 6'], [350, 'Region 7'], [400, 'Level 400']];
+  const H12 = hoursADayOf(grid);
   const dayAt = (seat, L) => (SEATS[seat] ? SEATS[seat].cum[L] / H12 : null);
   /* DEATH COST (standards.mjs DEATH_COST: 6% of all Level XP, flat, no cap) and XP an hour after deaths at the RULED counts (DEATH_COST.watch) */
   const deathXp = (L) => STD.DEATH_COST.share * xpAt(L);
@@ -156,7 +159,7 @@ export function derive(D, grid, K = null) {
     const hh = pl.heroes * pl.huntHoursADay;
     cost = { player: 'ownfour', heroes: pl.heroes, huntH: pl.huntHoursADay, dbSADay: Math.round(a.dbS), dbSAHeroHour: Math.round((a.dbS / hh) * 100) / 100, rowsAHeroHour: Math.round((a.rows / hh) * 10) / 10 };
   }
-  return { X, get, levels, hardest, holds, SEATS, PACE, DOORS, dayAt, deathXp, xpAt, watch, crossover, gearRows, cost, seatCell };
+  return { X, get, levels, hardest, holds, SEATS, PACE, DOORS, H12, dayAt, deathXp, xpAt, watch, crossover, gearRows, cost, seatCell };
 }
 
 /* E2: the median hunted hours until every MID weapon and armor piece that drops on the advised ground has dropped (each piece's rate = the
@@ -324,7 +327,7 @@ export function printReport(grid, judged, out = console.log) {
         + (s.worst ? s.worst.at + ': ' + (s.worst.shown || fmt(s.worst.value)) : s.why ? '- ' + s.why : '-').slice(0, 78).padEnd(80) + rng(b) + ' | ' + b.label);
     }
   }
-  out('\n== PACE: the day each seat reaches each door (12 h a day; Level XP an hour after deaths) ==');
+  out('\n== PACE: the day each seat reaches each door (' + T.H12 + ' hunted hours a day, the stamina day as played; Level XP an hour after deaths) ==');
   const seats = [['mid:1:normal', 'lone MID Normal'], [T.PACE, 'THE PACE SEAT (MID four, hardest held)'], ['low:1:normal', 'lone LOW Normal'], ['bis:4:hardest', 'BiS four, hardest held']];
   out('  door'.padEnd(30) + seats.map(([, n]) => n.slice(0, 22).padEnd(24)).join(''));
   for (const [L, name] of T.DOORS) out(('  ' + L + ' ' + name).padEnd(30) + seats.map(([k]) => (finite(T.dayAt(k, L)) ? 'day ' + T.dayAt(k, L).toFixed(1) : '-').padEnd(24)).join(''));

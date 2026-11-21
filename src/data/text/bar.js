@@ -46,7 +46,6 @@ export const BAR_TEXT = Object.freeze({
   target_ring_max: 'Hits up to {max} adjacent monsters',
   target_ring_far: 'Hits monsters within {tiles} tiles',
   target_ring_far_max: 'Hits up to {max} monsters within {tiles} tiles',
-  target_cleave: 'Hits monsters in front',
   target_self: 'Self only',
   target_ally: 'Goes to the ally who needs it most.',
   target_party: 'Hero and nearby allies',
@@ -57,15 +56,7 @@ export const BAR_TEXT = Object.freeze({
 
   /* A spell's effect lines. */
   effect_mark: 'Target takes {pct}% more damage for {secs} s',
-  effect_dmg: 'Deals {lo}–{hi} damage.',
-  effect_dmg_el: 'Deals {lo}–{hi} {element} damage.',
-  effect_dmg_area: 'Deals {lo}–{hi} damage to each monster hit.',
-  effect_dmg_area_el: 'Deals {lo}–{hi} {element} damage to each monster hit.',
-  effect_dmg_max: 'Deals {lo}–{hi} damage to up to {max} monsters.',
-  effect_dmg_max_el: 'Deals {lo}–{hi} {element} damage to up to {max} monsters.',
-  effect_dmg_hits: 'Deals {lo}–{hi} damage, {hits} times.',
-  effect_dmg_hits_el: 'Deals {lo}–{hi} {element} damage, {hits} times.',
-  /* a spell that hits for a share of your own blow (abilities.js hitPm, blowShare): half the share to the share */
+  /* a spell hits for a share of your own blow (THE SPELL RULE, abilities.js hitPm, blowShare): half the share to the share, at its rune */
   effect_blow: 'Each monster hit: {lo}% to {hi}% of Max Hit',
   effect_blow_el: 'Each monster hit: {lo}% to {hi}% of Max Hit as {element}',
   effect_blow_line: 'On the line: {lo}% to {hi}% of Max Hit',
@@ -74,8 +65,15 @@ export const BAR_TEXT = Object.freeze({
   effect_blow_ring_el: 'Each monster reached: {lo}% to {hi}% of Max Hit as {element}',
   effect_blow_enemy: 'Target: {lo}% to {hi}% of Max Hit',
   effect_blow_enemy_el: 'Target: {lo}% to {hi}% of Max Hit as {element}',
-  effect_heal: 'Heals {lo}–{hi}.',
-  effect_shield: 'Blocks the next {points} damage.',
+  effect_blow_enemy_hits: 'Target, {hits} times: {lo}% to {hi}% of Max Hit',
+  effect_blow_enemy_hits_el: 'Target, {hits} times: {lo}% to {hi}% of Max Hit as {element}',
+  /* a heal or a shell is a share of your own blow too; Mend heals a share of your max HP (abilities.js healPm, shieldPm, healHpPm) */
+  effect_heal_blow: 'Heals {pct}% of Max Hit',
+  effect_heal_hp: 'Heals {pct}% of your max HP',
+  effect_shield_blow: 'Blocks damage up to {pct}% of Max Hit',
+  /* the beginner's floor (abilities.js base): what a cast lands while that share of your blow is smaller */
+  effect_floor_hit: 'Never less than {lo}–{hi} a hit',
+  effect_floor: 'Never less than {points}',
   /* what a status does to the monster it lands on, from its row (statuses.js durationMs, slowPm, takenPm) */
   effect_status: 'Causes {status}.',
   effect_status_for: 'Causes {status} for {secs} s.',
@@ -132,9 +130,12 @@ export const BAR_TEXT = Object.freeze({
   shop_rune_plain: '{name}, {price} g each',
   shop_rune_short: '{name}, {price} g each, needs {needs}',
   /* What one cast lands for this hero (cast-facts.js outputWords). */
-  out_dmg: '{lo}–{hi} damage',
-  out_heal: 'heals {lo}–{hi}',
-  out_shield: 'shields {points}',
+  out_blow: '{lo}–{hi}% of Max Hit',
+  out_heal_blow: 'heals {pct}% of Max Hit',
+  out_heal_hp: 'heals {pct}% of max HP',
+  out_shield_blow: 'shields {pct}% of Max Hit',
+  out_floor_hit: 'at least {lo}–{hi}',
+  out_floor: 'at least {points}',
 
   /* A slot's setup, and what another slot does to it. */
   setup_any: 'Any of: {conditions}.',

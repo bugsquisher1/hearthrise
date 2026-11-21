@@ -419,9 +419,9 @@ async function planRules(base) {
      AND TAKES NONE OFF (report #79, 2026-11-09: staff to spellbook deleted a Healer's four staff spells, and the staff again brought none back): the moves trade places, food never moves */
   const { barAfterSwap } = await imp('src/shell/bar-assign.js');
   const barSlot = (type, id) => ({ action: { type, id }, conditions: [], join: 'and' });
-  const swapped = barAfterSwap({ discipline: 'club', slots: [barSlot('ability', 'hunters_mark'), barSlot('ability', 'flame_volley'), barSlot('ability', 'precision_shot'), barSlot('consume', 'cooked_shrimp'), barSlot('consume', 'salted_shrimp'), barSlot('consume', 'thin_turnip_juice'), barSlot('ability', 'power_strike'), barSlot('ability', 'cleave')] });
+  const swapped = barAfterSwap({ discipline: 'club', slots: [barSlot('ability', 'hunters_mark'), barSlot('ability', 'flame_volley'), barSlot('ability', 'precision_shot'), barSlot('consume', 'cooked_shrimp'), barSlot('consume', 'salted_shrimp'), barSlot('consume', 'thin_turnip_juice'), barSlot('ability', 'power_strike'), barSlot('ability', 'turning_cut')] });
   const swapRead = (swapped || []).slice(0, 9).map((w) => (w ? w.action.id : '-')).join(' ');
-  if (swapRead !== 'power_strike cleave hunters_mark cooked_shrimp salted_shrimp thin_turnip_juice flame_volley precision_shot -') fails.push('AW-27 the bar after bow to club reads ' + JSON.stringify(swapRead));
+  if (swapRead !== 'power_strike turning_cut hunters_mark cooked_shrimp salted_shrimp thin_turnip_juice flame_volley precision_shot -') fails.push('AW-27 the bar after bow to club reads ' + JSON.stringify(swapRead));
   if (barAfterSwap({ discipline: 'club', slots: [barSlot('ability', 'power_strike'), barSlot('consume', 'cooked_shrimp')] }) !== null) fails.push('AW-27 a bar with nothing left behind is restated anyway');
   /* the Healer's round trip, as Marigold played it: staff (restoration) to spellbook (destruction) and back gives the bar she had */
   const healerBar = [barSlot('ability', 'mend'), barSlot('ability', 'greater_mend'), barSlot('ability', 'circle_of_renewal'), barSlot('ability', 'green_sickness'), barSlot('ability', 'protective_ward'), null, barSlot('consume', 'cooked_shrimp')];

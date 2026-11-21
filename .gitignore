@@ -127,6 +127,8 @@ docs/reports/css-ab/
 
 # tools/balance-sim: simulator runs (JSONL per plan); the committed summary is tools/balance-sim/baseline-summary.json
 tools/balance-sim/out/
+# tools/balance-program/grid.mjs --resume: the seeds a run has played (JSONL); the committed cache is grid.json / grid-quick.json
+tools/balance-program/*.jsonl
 
 # the coverage bot's reports (tools/qa/coverage/run.mjs): written per run, never committed
 tools/qa/coverage/out/

@@ -136,14 +136,15 @@ const aoe = (n) => ({ metric: 'enemies_in_aoe', op: 'gte', value: n });
    Mage's spell the boss doesn't resist (the King resists fire: Frost Lance, Fireball only on 3 or more; the Chief resists frost: Fireball every cast). A role's list may be per call. */
 const BARS = {
   bad: { eat: 40, tmode: 'strongest', spells: {
-    tank: [['power_strike']], healer: [['greater_mend', [under_('ally_hp_pct', 40, 'lowest')]]], hammer: [['power_strike']], axes: [['power_strike']], mage: [['frost_lance']], bow: [['precision_shot']] } },
+    tank: [['power_strike']], healer: [['greater_mend', [under_('ally_hp_pct', 40, 'lowest')]]], hammer: [['power_strike']], axes: [['rend']], mage: [['frost_lance']], bow: [['precision_shot']] } },
   good: { eat: 75, tmode: 'weakest', spells: {
     tank: [['challenge'], ['power_strike']],
     healer: [['circle_of_renewal', [{ metric: 'allies_below', op: 'gte', value: 2, subject: 'under_80' }]], ['greater_mend', [under_('ally_hp_pct', 85, 'lowest')]]],
-    hammer: [['cleave', []], ['power_strike']], axes: [['cleave', []], ['power_strike']],
+    /* (the spell rule, Tyler 32-2 and 32-3: Cleave merged into Turning Cut, the axes' strike is Rend) */
+    hammer: [['turning_cut', []], ['power_strike']], axes: [['turning_cut', []], ['rend']],
     mage: { rat_king: [['fireball', [aoe(3)]], ['frost_lance']], chief_coppercap: [['fireball', []]], krells_hold: [['fireball', [aoe(3)]], ['frost_lance']] }, bow: [['flame_volley', [aoe(2)]], ['precision_shot']] } },
 };
-/* DOES EACH QUESTION BITE? The good bar with one answer taken away. At the Chief the Mage keeps Fireball, his one spell he doesn't resist, so "no area slot" there is the hammer's Cleave. */
+/* DOES EACH QUESTION BITE? The good bar with one answer taken away. At the Chief the Mage keeps Fireball, his one spell he doesn't resist, so "no area slot" there is the hammer's Turning Cut. */
 const without = (spells) => ({ ...BARS.good, spells: { ...BARS.good.spells, ...spells } });
 BARS.noChallenge = without({ tank: [['power_strike']] });
 BARS.noArea = without({ hammer: [['power_strike']], mage: { rat_king: [['frost_lance']], chief_coppercap: [['fireball', []]], krells_hold: [['frost_lance']] } });

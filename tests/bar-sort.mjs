@@ -40,7 +40,7 @@ function messyBar() {
   b[0] = slot('consume', 'wheat_bread', HP);          // food, ruled
   b[1] = slot('attack_with_item', 'barbed_arrows');   // ammo, plain
   b[3] = slot('ability', 'power_strike');             // move, plain
-  b[4] = slot('ability', 'cleave', [{ metric: 'enemies_in_aoe', op: 'gte', value: 2 }]);   // move, ruled
+  b[4] = slot('ability', 'turning_cut', [{ metric: 'enemies_in_aoe', op: 'gte', value: 2 }]);   // move, ruled
   b[5] = slot('consume', 'goldenroot_tea');           // drink, plain
   b[6] = slot('ability', 'fireball', [], { enabled: false });   // move, off, plain
   b[8] = slot('attack_with_item', 'loaded', BOSS);    // ammo, ruled
@@ -98,7 +98,7 @@ export async function rules(base) {
   // the whole picture, so a reader sees it: moves (ruled cleave, then power_strike, mend; off challenge, fireball), food and drink
   // (ruled wheat_bread, cooked_shrimp; plain goldenroot_tea; off turnip_juice), ammo (ruled loaded; plain barbed_arrows, iron_bolts), the unknown, then holes.
   // The off ones keep the order they had: fireball (slot 7) before challenge (slot 10), ruled or not.
-  const whole = 'cleave power_strike mend fireball! challenge! wheat_bread cooked_shrimp goldenroot_tea turnip_juice! loaded barbed_arrows iron_bolts ghost - - - - - - -';
+  const whole = 'turning_cut power_strike mend fireball! challenge! wheat_bread cooked_shrimp goldenroot_tea turnip_juice! loaded barbed_arrows iron_bolts ghost - - - - - - -';
   if (got !== whole && !fails.length) fails.push('BS-1 the whole bar reads ' + got + ' (want ' + whole + ')');
   return fails;
 }

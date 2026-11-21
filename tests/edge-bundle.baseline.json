@@ -118,6 +118,21 @@
         "bytes": 3163459,
         "on": "2026-11-21",
         "why": "1026-job-counts (plan L08): set-activity.js reads the job THEN ids from src/data/hunt-after.js (JOB_NEXTS, the single source; first time in the edge) + the gathering count and the job-end switch in accrue-gather.js, accrue-artisan.js, envelope.js, skill-sim.js, request.js, tick-shadow.js, set-activity.js"
+      },
+      {
+        "bytes": 3170624,
+        "on": "2026-11-21",
+        "why": "lane/c-spell-rule (plan L17): the spell rule's data and engine (abilities.js castAmount, hitRange and the floor's words, every row's share and base, runes.js steps, statuses.js blowPm) grew the bundle 7.2 KB; nothing new is reached"
+      },
+      {
+        "bytes": 3171095,
+        "on": "2026-11-21",
+        "why": "lane/c-spell-rule (plan L17): the re-measured Hearthfind boss rates' and the scaled hunts' xpPm comments (+471 bytes); nothing new is reached"
+      },
+      {
+        "bytes": 3171105,
+        "on": "2026-11-21",
+        "why": "lane/c-spell-rule: the boss adds tip and a gear-tiers note name Turning Cut, not the merged Cleave (+10 bytes)"
       }
     ]
   }

@@ -1,7 +1,7 @@
 // ════════════════════════════════════════════════════════════════════════
 // tools/balance-program/standards.mjs — THE STANDARDS, AS DATA (balance program 50, Tyler 2026-11-21).
 // The words and the reasons are docs/design/balance-program/50-standards.md. This file is what the grid harness
-// (tools/balance-program/grid.mjs, to be built) and tests/balance-guard.mjs read, so a band means one thing everywhere.
+// (tools/balance-program/progression-grid.mjs) and tests/balance-guard.mjs read, so a band means one thing everywhere.
 //
 //   CLOCK          the 12 hunted hours a hero a day every duration is counted on (RULED 11-21, 10-25)
 //   CHECKPOINTS    the 31 Levels from 1 to 400 every cell is measured at
@@ -312,7 +312,7 @@ export const VERDICT_RULES = deep({
 export const SOURCE_KINDS = F(['drop', 'boss', 'chest', 'bestiary-luck', 'shop', 'market', 'recipe', 'gather', 'farm', 'temper', 'hallmark', 'lining', 'event', 'task', 'planned']);
 
 export const GRID = deep({
-  out: 'tools/balance-program/grid.json',
+  out: 'tools/balance-program/progression-grid.json',
   axes: { checkpoints: 31, gear: 3, party: 4, tier: 3, fullCells: 1116 },
   cellFields: ['levelXp', 'xContract', 'mainSkillXp', 'coin', 'storeBill', 'netGold', 'damageTaken', 'healed', 'lowHpTypical', 'lowHpP10', 'deaths',
     'deathTax', 'killsAnHour', 'supplies', 'rareRows', 'seeds', 'hours', 'spread', 'contentState'],
@@ -327,10 +327,10 @@ export const GRID = deep({
   ],
   tools: {
     'sources.mjs': { out: 'tools/balance-program/atlas.json', budgetSec: 30, plays: false, bands: ['A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7', 'T1', 'T7'],
-      reads: ['src/data/catalogue-coherence.js', 'monsters.js', 'grounds/*', 'loot-bands.js', 'chests.js', 'tower.js', 'bosses.js', 'boss-halls.js', 'bestiary.js', 'shops.js', 'recipes.js', 'gathering.js', 'temper.js', 'jewelry.js', 'imbuements.js', 'live-events.js', 'tally-tasks.js', 'tools/balance-sim/staged/*', 'grid.json'] },
+      reads: ['src/data/catalogue-coherence.js', 'monsters.js', 'grounds/*', 'loot-bands.js', 'chests.js', 'tower.js', 'bosses.js', 'boss-halls.js', 'bestiary.js', 'shops.js', 'recipes.js', 'gathering.js', 'temper.js', 'jewelry.js', 'imbuements.js', 'live-events.js', 'tally-tasks.js', 'tools/balance-sim/staged/*', 'progression-grid.json'] },
     'paths.mjs': { out: 'tools/balance-program/paths.json', budgetMin: 30, releaseBudgetMin: 1, search: 'beam by day (by the hour for two days), expected values, then 200 seeded runs for chance',
       goals: ['fastest Level', 'LOW to MID', 'full BiS', 'most gold a day', 'a town skill to 99'], for: { party: [1, 2, 3, 4], payer: ['free', 'premium', 'bought-gold'] },
-      bands: ['T2', 'T3', 'T4', 'T5', 'T6', 'B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'B8', 'B9'], reads: ['grid.json', 'atlas.json'] },
+      bands: ['T2', 'T3', 'T4', 'T5', 'T6', 'B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'B8', 'B9'], reads: ['progression-grid.json', 'atlas.json'] },
   },
   budgetsAre: 'ASSUMED from 28\'s 5 to 9 s a point; the harness build measures and re-cuts them',
   /* A kit holds a tier when all three are true on the nightly sample (50-standards 2.3). */

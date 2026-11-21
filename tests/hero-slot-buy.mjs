@@ -97,7 +97,8 @@ async function boot(patches) {
 }
 
 const MUTANTS = [
-  ['slot 3 stays priced (HS-BIND, HS-OWN)', [NO_SELF_CHECK, ['   where slot_id in (1, 2, 3) and (not starter or cost_gold <> 0);', '   where slot_id in (1, 2) and (not starter or cost_gold <> 0);']], 'HS-'],
+  /* a starter that keeps its price: every account still owns it (so no other file refuses), and only the binding sees the price */
+  ['a free slot keeps its old price (HS-BIND)', [NO_SELF_CHECK, ['     set starter = true, cost_gold = 0', '     set starter = true']], 'HS-BIND'],
   ['the purchase stays on the client surface (HS-GONE)', [NO_SELF_CHECK, ["delete from public.hr_client_rpc_baseline where proname = 'hr_buy_hero_slot';\n", '']], 'HS-GONE'],
   ['the free slots refund the gold paid (HS-LIVE)', [NO_SELF_CHECK, ['-- ── §2 THE PURCHASE LEAVES ─', "update public.account_wallet set gold = gold + 300000 where user_id in (select user_id from public.player_progress where key like 'character_slot:%');\n-- ── §2 THE PURCHASE LEAVES ─"]], 'HS-LIVE'],
 ];

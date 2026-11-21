@@ -373,7 +373,7 @@ async function errandArm(db, M, closed) {
   const crafts = async () => (await q(db, "select meta from public.player_ledger where user_id = $1 and slot = 0 and kind = 'craft' and meta->>'recipe' = 'fuel_bones' order by id", [U1])).map((r) => r.meta);
 
   /* FISHING at the shore, the body at its station */
-  const fish = await call({ kind: 'gather', id: SPOT });
+  const fish = await call({ kind: 'gather', id: SPOT, count: 100000 });
   if (fish.status !== 200 || !fish.body || fish.body.ok !== true) return ['the fishing was refused: ' + JSON.stringify(fish).slice(0, 300)];
   if (closed) await db.query("update public.player_state set last_seen_at = null where user_id = $1 and slot = 0", [U1]);
   if ((await read()).station_id !== shore) out.push('the fisher stands at ' + JSON.stringify(await body()) + ', not the ' + shore);
@@ -398,7 +398,7 @@ async function errandArm(db, M, closed) {
   if (rows.length !== 1 || Number((d(rows[0]).i || {}).bones) !== -1 || Number((d(rows[0]).x || {}).inner_flame) !== gained) out.push('the burn is not ONE craft row of one bone and its XP: ' + JSON.stringify(rows).slice(0, 300));
   /* BACK TO FISHING, the same spot */
   const s2 = await st();
-  if (s2.active_kind !== 'gather' || s2.active_id !== SPOT || s2.active_left !== null || s2.errand_kind !== null) out.push('after the errand the hero is ' + JSON.stringify(s2) + ', not fishing again');
+  if (s2.active_kind !== 'gather' || s2.active_id !== SPOT || !(s2.active_left > 0 && s2.active_left <= 100000) || s2.errand_kind !== null) out.push('after the errand the hero is ' + JSON.stringify(s2) + ', not fishing again');
   /* the body stays at the fire while the visit holds (the walk and the throw), then walks back to the shore */
   if ((await read()).station_id !== 'hearth') out.push('the fishing took the body off the Hearth before its visit ended: ' + JSON.stringify(await body()));
   await db.query('update public.town_bodies set visit_until = now() - interval \'1 second\' where user_id = $1 and slot = 0', [U1]);

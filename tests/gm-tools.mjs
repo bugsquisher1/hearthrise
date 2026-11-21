@@ -249,7 +249,7 @@ const ARMS = {
   },
   'GM-STOP-JOB': async (W, say) => {
     const { k, node } = W;
-    const started = await SA.runSetActivity({ exec: k.engine, user: B, slot: 0, intentId: key(), activity: { kind: 'gather', id: node } });
+    const started = await SA.runSetActivity({ exec: k.engine, user: B, slot: 0, intentId: key(), activity: { kind: 'gather', id: node, count: 100000 } });
     if (started.status !== 200) throw harness('a real gather refused: ' + js(started.body).slice(0, 200));
     await k.db.query(`update public.player_state set active_since = now() - interval '1 hour', accrued_to = now() - interval '1 hour' where user_id = $1 and slot = 0`, [B]);
     const before = await k.one(`select count(*)::int from public.player_ledger where user_id = $1 and slot = 0`, [B]);
@@ -296,7 +296,7 @@ const ARMS = {
   },
   'GM-CAP': async (W, say) => {
     const { k, node } = W;
-    const go = (u, slot) => SA.runSetActivity({ exec: k.engine, user: u, slot, intentId: key(), activity: { kind: 'gather', id: node } });
+    const go = (u, slot) => SA.runSetActivity({ exec: k.engine, user: u, slot, intentId: key(), activity: { kind: 'gather', id: node, count: 100000 } });
     /* Four real heroes on one network fill it. The walled hero still starts; a fifth real one doesn't. */
     for (const [u, s] of [[A, 0], [A, 1], [D, 0], [D, 1]]) {
       const r = await go(u, s);
@@ -376,7 +376,7 @@ const ARMS = {
     const { k, hunt, node } = W;
     const e = await k.call(D, `select public.hr_hunt_enter(0, $1, '[]'::jsonb, 0, null, $2::uuid)`, [hunt, key()]);
     if (!e || e.ok !== true) throw harness('a real hunt refused: ' + js(e));
-    const j = await SA.runSetActivity({ exec: k.engine, user: D, slot: 1, intentId: key(), activity: { kind: 'gather', id: node } });
+    const j = await SA.runSetActivity({ exec: k.engine, user: D, slot: 1, intentId: key(), activity: { kind: 'gather', id: node, count: 100000 } });
     if (j.status !== 200) throw harness('a real gather refused: ' + js(j.body).slice(0, 200));
     const noWhy = await k.call(GM, 'select public.hr_gm_ban($1::uuid, $2, $3::uuid)', [D, '', key()]);
     if (!noWhy || noWhy.error !== 'needs_reason') say('a ban with no reason answered ' + js(noWhy));
@@ -479,7 +479,7 @@ const ARMS = {
     if ((await k.call(GM, 'select public.hr_gm_grant_level(0, 20, $1, $2::uuid)', ['lowering it', key()])).error !== 'already_there') say('a Level grant lowered a hero');
     if ((await k.call(GM, 'select public.hr_gm_grant_level(0, 501, $1, $2::uuid)', ['over the top', key()])).error !== 'bad_level') say('a Level over the clamp');
     /* A hero at work is refused: a grant never races a settle. */
-    const busy = await SA.runSetActivity({ exec: k.engine, user: GM, slot: 0, intentId: key(), activity: { kind: 'gather', id: node } });
+    const busy = await SA.runSetActivity({ exec: k.engine, user: GM, slot: 0, intentId: key(), activity: { kind: 'gather', id: node, count: 100000 } });
     if (busy.status !== 200) throw harness('a walled gather refused: ' + js(busy.body).slice(0, 200));
     if ((await k.call(GM, 'select public.hr_gm_grant_gold(0, 5::bigint, $1, $2::uuid)', ['while it works', key()])).error !== 'hero_busy') say('a working hero took a grant');
     await k.fresh();

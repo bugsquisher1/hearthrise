@@ -57,6 +57,7 @@ import { refusalBody } from './envelope.js';
 import { GATHER_NODES, ARTISAN_RECIPES_ALL, ARTISAN_RECIPES_PAYABLE } from './catalogue.js';
 import { ITEMS } from '../../../src/data/items.js';
 import { MONSTERS } from '../../../src/data/monsters.js';
+import { JOB_NEXT_INDEX } from '../../../src/data/hunt-after.js';
 import { huntFor } from '../../../src/core/hunt-spawn.js';
 
 /* ── THE INTENT'S ALLOWLIST — DERIVED FROM THE PAYER, NEVER RESTATED ────────
@@ -126,12 +127,23 @@ export function validateDeclaration(a) {
       detail: { why: kind === 'idle' ? 'idle takes no id' : 'this kind requires an id' },
     };
   }
-  /* "MAKE N" (2026-12-01-bench-count.sql): only a bench run takes a count, and an unreadable
-     one is refused by name (request.js reads it as null) instead of running unbounded. */
-  if (a.count !== undefined && (kind !== 'artisan' || a.count === null)) {
-    return { ok: false, error: INTENT_ERRORS.BAD_ACTIVITY, detail: { why: kind !== 'artisan' ? 'only a bench run takes a count' : 'count is a whole number 1..100000' } };
+  /* A JOB'S COUNT AND ITS "THEN" (2026-12-01-bench-count.sql "make N"; 1026-job-counts.sql). A gathering job or a bench
+     run takes a count; a GATHERING job must (every job has an end: 6,001 ore for a 20-ore errand). An unreadable count or
+     THEN (the wire's `next`: a `then` key would make the object a thenable) is refused by name (request.js reads it as null)
+     instead of running unbounded or doing nothing at the end. A THEN needs a count: "All" ends when its inputs run out,
+     which is not the count reached. hr_apply re-checks all of it. */
+  const job = kind === 'gather' || kind === 'artisan';
+  if (a.count !== undefined && (!job || a.count === null)) {
+    return { ok: false, error: INTENT_ERRORS.BAD_ACTIVITY, detail: { why: !job ? 'only a job takes a count' : 'count is a whole number 1..100000' } };
   }
-  return { ok: true, kind, id: kind === 'idle' ? null : id, ...(a.count !== undefined ? { count: a.count } : {}) };
+  if (kind === 'gather' && a.count === undefined) {
+    return { ok: false, error: INTENT_ERRORS.BAD_ACTIVITY, detail: { why: 'a gathering job takes a count' } };
+  }
+  if (a.next !== undefined && (!job || a.count === undefined || a.next === null || !catalogueHas(JOB_NEXT_INDEX, a.next))) {
+    return { ok: false, error: INTENT_ERRORS.BAD_ACTIVITY, detail: { why: 'next is one of ' + Object.keys(JOB_NEXT_INDEX).join(', ') + ', on a job with a count' } };
+  }
+  return { ok: true, kind, id: kind === 'idle' ? null : id,
+    ...(a.count !== undefined ? { count: a.count } : {}), ...(a.next !== undefined ? { next: a.next } : {}) };
 }
 
 /**
@@ -144,15 +156,18 @@ export function validateDeclaration(a) {
  * pointing at the previous activity's start, and accrual.js's fail-closed
  * precondition would then refuse to pay a brand-new character at all.
  */
-export function activityDelta(kind, id, from, count) {
-  /* "MAKE N": a bench run's count rides the statement; hr_apply stores it as player_state.active_left. */
-  const n = kind === 'artisan' && Number.isInteger(count) ? count : null;
+export function activityDelta(kind, id, from, count, next) {
+  /* A JOB'S COUNT AND "THEN": the count rides the statement (hr_apply stores it as player_state.active_left and
+     active_count), the THEN beside it as `next` (active_next); a statement with neither clears both. */
+  const n = (kind === 'artisan' || kind === 'gather') && Number.isInteger(count) ? count : null;
+  const th = n !== null && typeof next === 'string' ? next : null;
   return {
     activity: {
       kind,
       id: kind === 'idle' ? null : id,
       restart: true,
       ...(n !== null ? { count: n } : {}),
+      ...(th !== null ? { next: th } : {}),
     },
     journal: {
       /* `admin`, not the activity's own kind. A declaration MOVES NO VALUE, and
@@ -166,7 +181,8 @@ export function activityDelta(kind, id, from, count) {
       /* Small, and genuinely useful: it records the TRANSITION, which no other
          row does. The window that was paid on the way here has its own ledger
          row with its own `ms`, so nothing is duplicated. */
-      meta: { from_kind: (from && from.kind) || null, from_id: (from && from.id) || null, ...(n !== null ? { count: n } : {}) },
+      meta: { from_kind: (from && from.kind) || null, from_id: (from && from.id) || null, ...(n !== null ? { count: n } : {}),
+              ...(th !== null ? { next: th } : {}) },
     },
   };
 }
@@ -466,7 +482,12 @@ export async function runSetActivity(o) {
   /* (3) THE SWITCH. The version is the one the COLLECT left behind, because a
          collect that paid has already bumped it. */
   const version = gate.version ?? env.version;
-  const delta = activityDelta(decl.kind, decl.id, { kind: st.active_kind, id: st.active_id }, decl.count);
+  /* A JOB'S COUNT AND "THEN" REACH ONLY A DATABASE THAT STORES THEM (the self-configuring switch: 1026-job-counts.sql's
+     `bench_run` section names `count`). Before that file a bench keeps its "make N" and a gathering job runs uncounted,
+     as it did, so the edge and the migration are safe in either order; production applies the file first. */
+  const counts = !!env.bench_run && Object.prototype.hasOwnProperty.call(env.bench_run, 'count');
+  const delta = activityDelta(decl.kind, decl.id, { kind: st.active_kind, id: st.active_id },
+    counts || decl.kind === 'artisan' ? decl.count : undefined, counts ? decl.next : undefined);
   const [applied] = await exec(APPLY_SQL, [user, slot, version, intentId, JSON.stringify(delta)]);
   const res = applied && applied.res;
 

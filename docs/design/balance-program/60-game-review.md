@@ -12,6 +12,8 @@ What it rests on: the formula architecture (44) and its three audits (41 to 43),
 
 **Decisions first, then a build plan. RULED 2026-11-21.** "The MMORPG portion will be PvP arenas as well. We don't need build lanes yet. Let's get all of the decisions completed and then work on a build plan." So the MMO layer is clans, world bosses, events and PvP arenas, and study 49 covers all four. And every "Order" column, lane id and release name in this document describes order only. Nothing builds until the build plan exists. Section 8.12 maps the 34 older calls still shown as open on the Rulings page, so you never rule twice. Section 10 lists every decision still missing before a build plan can be written.
 
+**No solo or group balance targets. RULED 2026-11-21.** Call GR-67 is settled: party buffs make hunting together the obvious choice, so the game carries no band that sets a lone hero against a party or one party size against another. And you ruled that nothing is to be compared with the existing game. `62-decision-book.json` is the short form of this document and is written that way throughout. This document still quotes measured numbers from the existing engine as evidence, each labeled, and none of them is a target.
+
 **This is the second issue.** The cold audit (`61-review-audit.md`) found 5 Critical, 14 High, 13 Medium and 8 Low faults in the first issue, most of them in the Ruling column, the evidence labels and the claims of convergence. Every Critical and High fix is applied here, and section 9.7 lists what changed. The call ids are now GR-1 to GR-88, because GR-1 to GR-12 are already the gold bands of the standards. The numbers are the same as before.
 
 **The frame (Tyler, 2026-11-21).** "At this point the current game is irrelevant. We can use some of the data, but in the end it's all going to be useless once we rework all the systems." Every recommendation here is judged against the target game, which is the standards' bands and your rulings. Today's numbers are evidence about the engine and about people. They are not a baseline to protect. Implementation cost counts. Risk to today's live heroes does not, because everything is wiped at Early Access.
@@ -828,7 +830,7 @@ These are the calls behind the top 10 that carry the most weight. Section 6.1 na
 | GR-64 | Low | No new skill, prestige or stat points | None of the three. An uncapped Level already is the prestige loop, and stat points put Level into the blow | None offered | New | 56 |
 | GR-65 | Remove or simplify | Inner Flame and death | Take Inner Flame off the list of skills a death takes progress from. It is trained at the Hearth, not in a fight | Leave it on the list | **RE-OPEN** 11-09 | 44, 56 |
 | GR-66 | High | The risk reading | Every player sees, free, how close a hunt came to a death and the deaths per 100 hours of that ground and tier. The per-rule bar report may sit in the Premium analyzer. Selling the warning would read as selling safety | Both blocks in the Premium analyzer | New | 59, 56, 53 |
-| GR-67 | Medium | Two party bands that cannot both be met | **ON HOLD, PENDING 49. No recommendation.** What is known, MEASURED on the uncalibrated harness: P6 wants a four at 1.15 to 1.25 of a lone hero on the same tier, P7 wants it at 1.8 to 2.5 of the contract, and a lone hero on Deadly already reads 1.9 to 2.8 of the contract, so any four that meets P6 breaks P7. With the own four as the frame from day 1, P7 is the band every account lives on. Whether P6 still means anything waits on hire and on-call | Not offered while on hold | Until 49 lands, 10-25, 11-16 and 11-21 stand | 57 |
+| GR-67 | Medium | Party bands | **RULED 2026-11-21: no solo or group balance targets.** Party buffs make hunting together the obvious choice. The bands that set a four against a lone hero (P6) and a pair or a three against the contract are dropped as targets. The pace seat stays the mid-geared four, which is every account from day 1 | None. Ruled | **RULED 2026-11-21.** Replaces the party rows of 10-25, 11-16 and 50-8 | Tyler |
 
 ### 8.7 Social
 
@@ -885,7 +887,7 @@ These are the calls behind the top 10 that carry the most weight. Section 6.1 na
 | Home | 5 | 5 | GR-73 to GR-77 | 2 (GR-73, GR-75) |
 | Features | 7 | 7 | GR-78 to GR-84 | 2 (GR-81, GR-82) |
 | Architecture | 4 | 4 | GR-85 to GR-88 | 0 |
-| **All** | **88** | **92** | | **17**, with 5 rows on hold and 1 ruled |
+| **All** | **88** | **92** | | **17**, with 4 rows on hold and 2 ruled (GR-2, GR-67) |
 
 **How the re-open count moved.** The first issue counted 15. The audit read the Ruling column against the rulings file and found 23, because eight calls changed a ruling under a softer word. In this issue five of the audit's alternatives stop re-opening a ruling (GR-9, GR-27, GR-53, GR-56b and GR-68) and GR-2 is ruled by you, one call gained a ruling the audit found (GR-69), and the split of GR-10 counts two rows. That left 19 rows. Then the MMO layer went on hold pending study 49, and the two re-opens inside GR-10 went with it, which leaves 17.
 
@@ -921,7 +923,7 @@ The Rulings page still shows 34 calls from the plan audit (31), the spell audit 
 | 50-5 | How often Deadly kills a mid-geared party | DECIDED BY your 11-21 ruling (alternative) | A flat death count. GR-7 shows it conflicts with 50-4 past about Level 100, and is where that is settled |
 | 50-6 | How long best in slot takes | DECIDED BY your 11-21 ruling (alternative) | The weekly limits stay. GR-37 keeps it |
 | 50-7 | How far ahead content must be | DECIDED BY your 11-21 ruling (recommended) | 120 days at Early Access. COMPUTED on the recommended Level law the staged content reaches day 116 |
-| 50-8 | How much faster two and three heroes are | SUPERSEDED BY GR-67 (on hold, PENDING 49) | You ruled a pair at 1.2 to 1.5 and a three at 1.5 to 2.0. With four heroes from the start a pair or a three is a choice, and the party bands are on hold with the MMO layer |
+| 50-8 | How much faster two and three heroes are | DECIDED BY your 11-21 ruling on GR-67 | No solo or group balance targets. The pair and three bands are dropped |
 | 50-9 | Luck on the 12 hour clock | DECIDED BY your 11-21 ruling (recommended) | The hours stay. GR-4 re-keys two Luck numbers from a band count to Level with the same end points |
 | 50-10 | What a player may cost us | DECIDED BY your 11-21 ruling, re-ruled the same day | At most $0.15 an account-month. How to reach it is GR-1, PENDING 48 |
 | 50-11 | How much sooner bought gold gets you there | DECIDED BY your 11-21 ruling (alternative) | No limit on how much sooner, only on what. PvP arenas raise a new question about bought power (section 10) |
@@ -934,8 +936,8 @@ The Rulings page still shows 34 calls from the plan audit (31), the spell audit 
 
 | Verdict | Count | Ids |
 |---|---|---|
-| DECIDED BY a ruling | 30 | 28 by your 11-21 rulings on the page. 2 by the executive decision (31-5, 31-6) |
-| SUPERSEDED BY a GR call | 3 | 32-5 by GR-18. 50-4 by GR-7. 50-8 by GR-67 |
+| DECIDED BY a ruling | 31 | 28 by your 11-21 rulings on the page. 2 by the executive decision (31-5, 31-6). 1 by your ruling on GR-67 (50-8) |
+| SUPERSEDED BY a GR call | 2 | 32-5 by GR-18. 50-4 by GR-7 |
 | STILL OPEN | 1 | 31-2, the dates |
 
 **Checked against the 11-21 frame.** None of the 30 decided calls argues from keeping today's game working. Three lean on today's numbers and should be read as targets, not as protections: 31-3 (built prices), 31-7 (a reading taken on today's to-hit rule) and 50-13 (a town sized on today's cost). I did not re-read the 30 against the dives they came from. The verdicts are from the rulings file and the call text.
@@ -1033,8 +1035,8 @@ You ruled that every decision comes before any build lane. This is the full list
 
 | What | Count | Where |
 |---|---|---|
-| Calls waiting for your ruling | 86 rows | Section 8. Of the 92 rows, GR-2 is ruled and 5 are on hold |
-| On hold, PENDING study 49 | 5 rows | GR-10a, GR-10b, GR-10c, GR-67, GR-80, with the party XP table inside GR-3 and the live finder inside GR-69 |
+| Calls waiting for your ruling | 86 rows | Section 8. Of the 92 rows, GR-2 and GR-67 are ruled and 4 are on hold |
+| On hold, PENDING study 49 | 4 rows | GR-10a, GR-10b, GR-10c, GR-80, with the party XP table inside GR-3 and the live finder inside GR-69 |
 | Older calls | 1 | 31-2, the dates (section 8.12) |
 
 ### 10.2 What the three pending documents will add
@@ -1053,8 +1055,8 @@ You ruled that every decision comes before any build lane. This is the full list
 | 2 | **The early economy of an account with four heroes from day 1** | Early coin and town labor are a multiple of one hero's. Every early price (the first deed, bag rungs, Blessings under Level 30, the first Tempering) was sized on one hero. Nobody has re-read them |
 | 3 | **How the first hour teaches four heroes** | The coach, the Path (GR-79) and the ruled fix to Levels 7 to 10 (27-2) were all sized on one new hero. Open questions: whether all four start at once or are introduced one at a time in the first session, which weapons they start with (GR-24), and what the first party hunt is. This needs a designed sequence with a walk-through against the real starting kit |
 | 4 | **What one Premium for each account gives** | Premium was per hero. Across four heroes: the 12 hour stamina bar, the daily claim, the analyzer. The price is your money call |
-| 5 | **Whether hunting alone is still a supported path** | The balance frame is the own four from day 1. The standards still carry lone bands (lone MID on Normal at 0.95 to 1.10 of the contract, the lone +15%). COMPUTED: on the Level law a lone hero reaches Level 200 on day 211. Say whether lone bands stay as targets or become readings |
-| 6 | **Whether pairs and threes stay as targets** | 50-8 ruled bands for them. With four heroes from the start they are a choice. On hold under GR-67 |
+| 5 | Settled: no solo or group balance targets (RULED 11-21, GR-67) | Hunting alone is allowed and is not a target. What is left is to name the party buffs that make hunting together the obvious choice, which study 49 and the party XP table carry |
+| 6 | Settled: pairs and threes are not targets (RULED 11-21, GR-67) | Nothing more to rule |
 | 7 | **Bought power and PvP** | You ruled that gold-bought power may be reached through Crowns (11-04) and that there is no limit on how much sooner, only on what (50-11). An arena is the first place one player's bought power meets another player. The rulings file still lists the public stance on Premium and power as an open conflict |
 | 8 | **Idle PvP capture the flag (backlog, 11-14) against PvP arenas** | Say whether they are one system or two |
 | 9 | **The 8-person open-world hunting areas** | You named them as an option before the executive decision. The decision did not mention them. Say whether they are in the MMO layer or dropped |

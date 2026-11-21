@@ -339,9 +339,9 @@ const EVERY_RUNNER = [
    onto judge/report/exitOf (or caseVerdict/caughtBy) and a run of its --mutate; a file on this list no longer on the shape is red until
    it is struck from it. The 21 page runners the hollow-proofs lane left here were re-proved by lane/c-hollow-proofs-browser (2026-11-20). */
 export const OWED = Object.freeze([]);
-/* FOUND (frozen 2026-11-20; it only shrinks): what the WIDENED shapes above found the day they were written, node and DB runners and two
-   tools selftests outside the 21 page runners, each scoring a mutant on its list's length or filing a throw into the list it scores. Each
-   leaves as OWED's did: onto judge/report/exitOf or caseVerdict, and a run of its proof. */
+/* FOUND (frozen 2026-11-20; it only shrinks): what the WIDENED shapes above found the day they were written, node and DB runners outside
+   the 21 page runners, each scoring a mutant on its list's length or filing a throw into the list it scores. Each leaves as OWED's did:
+   onto judge/report/exitOf or caseVerdict, and a run of its proof (tools/vitals.mjs and tools/economy-watch.local.mjs left that day). */
 export const OWED_FOUND = Object.freeze([
   'tests/button-system.mjs', 'tests/catalogue-regrow-limit.mjs', 'tests/chat-stream-safe.mjs', 'tests/farm-harvest-clear.mjs', 'tests/farm-tend.mjs',
   'tests/frame-self-echo.mjs', 'tests/hearth-moods.mjs', 'tests/hero-colors.mjs', 'tests/house-pelts.mjs', 'tests/hunt-core/drop-tables.mjs',
@@ -350,7 +350,7 @@ export const OWED_FOUND = Object.freeze([
   'tests/skills-from-storage.mjs', 'tests/tally-tasks.mjs', 'tests/temper-uniques.mjs', 'tests/titles.mjs', 'tests/town-crier.mjs',
   'tests/town-criers.mjs', 'tests/town-life.mjs', 'tests/town-shows.mjs', 'tests/town-works.mjs', 'tests/town-yard-farm.mjs',
   'tests/world-assets.mjs', 'tests/world-tick-armed-cap.mjs', 'tests/world-tick-gather-widen.mjs', 'tests/world-tick-presence-horizon.mjs',
-  'tests/world-tick-presence-signal.mjs', 'tests/world-tick-scale.mjs', 'tools/economy-watch.local.mjs', 'tools/vitals.mjs',
+  'tests/world-tick-presence-signal.mjs', 'tests/world-tick-scale.mjs',
 ]);
 export function plainProblems(files, owed = [...OWED, ...OWED_FOUND]) {
   const out = [];

@@ -801,9 +801,11 @@ async function selftest() {
   let missed = 0;
   for (const m of MUTANTS) {
     if (!RULE_SRC.includes(m.find)) { console.error(`vitals --selftest: mutant ${m.name} cannot be planted — its anchor is gone`); return 2; }
-    let red;
-    try { red = checks(lift(RULE_SRC.replace(m.find, m.repl))).filter((c) => !c.ok).map((c) => c.id.split(' ')[0]); } catch (e) { red = [`threw: ${e.message}`]; }
-    if (red.length) console.log(`  CAUGHT ${m.name} by ${red.join(', ')}`);
+    /* a planted rule that THREW never answered: HARNESS, never a catch (tests/_mutant-verdict.mjs; it was filed as `threw:` and counted) */
+    let red = null, threw = null;
+    try { red = checks(lift(RULE_SRC.replace(m.find, m.repl))).filter((c) => !c.ok).map((c) => c.id.split(' ')[0]); } catch (e) { threw = String(e && e.message); }
+    if (threw !== null) { missed += 1; console.log(`  HARNESS ${m.name}: the planted rule threw (${threw.slice(0, 120)}), not a catch`); }
+    else if (red.length) console.log(`  CAUGHT ${m.name} by ${red.join(', ')}`);
     else { missed += 1; console.log(`  MISSED ${m.name}: every assertion stayed green`); }
   }
   if (realRed || missed) {

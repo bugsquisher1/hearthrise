@@ -658,9 +658,11 @@ async function selftest() {
   let missed = 0;
   for (const [name, find, repl] of MUTANTS) {
     if (!RULES.includes(find)) { console.error(`economy-watch --selftest: mutant ${name} cannot be planted, its anchor is gone`); return 2; }
-    let red;
-    try { red = checks(lift(RULES.replace(find, repl))).filter((c) => !c.ok).map((c) => c.id.split(' ')[0]); } catch (e) { red = [`threw (${e.message})`]; }
-    if (red.length) console.log(`  CAUGHT ${name} by ${red.join(', ')}`);
+    /* a planted rule that THREW never answered: HARNESS, never a catch (tests/_mutant-verdict.mjs; it was filed as `threw` and counted) */
+    let red = null, threw = null;
+    try { red = checks(lift(RULES.replace(find, repl))).filter((c) => !c.ok).map((c) => c.id.split(' ')[0]); } catch (e) { threw = String(e && e.message); }
+    if (threw !== null) { missed += 1; console.log(`  HARNESS ${name}, the planted rules threw (${threw.slice(0, 120)}), not a catch`); }
+    else if (red.length) console.log(`  CAUGHT ${name} by ${red.join(', ')}`);
     else { missed += 1; console.log(`  MISSED ${name}, every assertion stayed green`); }
   }
   if (realRed || missed) { console.log(`\neconomy-watch --selftest: RED, ${realRed} assertion(s) red on the real rules, ${missed} mutant(s) survived`); return 1; }

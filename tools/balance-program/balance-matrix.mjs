@@ -218,7 +218,7 @@ export function printDiff(d, meta, out = console.log) {
   out('\nCELLS (the change of each metric; flags: the band rows moved at that cell): ' + show.join(' | '));
   const atOf = (c) => c.L + ' ' + c.gear + ' x' + c.party + ' ' + c.tier;
   for (const c of [...d.cells].sort((a, b) => a.L - b.L || a.party - b.party || String(a.way).localeCompare(String(b.way)))) {
-    const fl = d.bands.filter((b) => b.at === atOf(c) && !c.step && c.block !== 'lineups' && (c.party > 1 ? b.way === 'hammer' : b.way === c.way));
+    const fl = d.bands.filter((b) => b.at === atOf(c) && !c.step && c.block !== 'lineups' && (c.block === 'grounds' ? b.way === c.way : c.party > 1 ? b.way === 'hammer' : b.way === c.way));
     const tag = fl.length ? '  ' + ['IMPROVED', 'REGRESSED', 'UNINTENDED'].map((k) => [k, fl.filter((b) => b.flag === k).map((b) => b.band)]).filter(([, bs]) => bs.length).map(([k, bs]) => k + ' ' + bs.join(',')).join('; ') : '';
     out('  ' + (c.L + ' ' + c.way + ' ' + c.gear + ' ' + c.tier + (c.step ? ' ' + c.step : '')).padEnd(40) + show.map((id) => (c.metrics[id] ? pct(c.metrics[id][2]) : '-').padStart(8)).join(' ') + tag);
   }
@@ -536,6 +536,23 @@ async function selftest() {
   const dipped = all.filter((c) => finite(c.m.lowHpP10) && c.m.lowHpP10 < 0.3);
   check('every cell whose fights dip under 30% HP records time under 30% (' + dipped.length + ' such cells)', dipped.length > 0 && dipped.every((c) => c.m.hpUnder30 > 0), dipped.filter((c) => !(c.m.hpUnder30 > 0)).map((c) => c.key).join('; ') || 'no cell dipped');
   check('the seat damage shares of a four add to 1', base.cells.filter((c) => c.party === 4).every((c) => Math.abs(c.m.seatsM.reduce((a, s) => a + (s.takenShare || 0), 0) - 1) < 0.01));
+  /* 8. THE GROUND AXIS IS JUDGED (the Coordinator 2026-11-21: four ground diffs read IMPROVED 0, REGRESSED 0, UNINTENDED 0): a ground patch,
+     the Slake's group spell at five times its dose (found on its row as written), flags that ground's survival bands as the patch targets them */
+  const GROUNDS = { id: 'selftest-grounds', levels: [], seeds: 1, hours: 0.25, blocks: [{ id: 'grounds', grounds: true, quick: true, only: ['the_slake'] }] };
+  const packFile = 'src/data/grounds/the_slake/pack.js';
+  const spell = readFileSync(join(ROOT, packFile), 'utf8').match(/cold_bilge:[^\n]*hitPm: (\d+)/);
+  if (!spell) check('the ground axis is judged', false, 'no Cold Bilge hitPm on ' + packFile);
+  else {
+    const gb = await playRun(D, K, GROUNDS, ROOT, o);
+    const gs = await plantScratch({ edits: [{ file: packFile, from: spell[0], to: spell[0].replace('hitPm: ' + spell[1], 'hitPm: ' + Number(spell[1]) * 5) }] });
+    let ga;
+    try { ga = await playRun(D, K, GROUNDS, gs.root, o); } finally { gs.done(); }
+    const rowsG = judgeMatrix(D, K, gb.cells).filter((r) => r.way === 'G:the_slake');
+    check('the ground axis carries band rows (' + rowsG.length + ' on the Slake\'s ' + gb.cells.length + ' cells: ' + [...new Set(rowsG.map((r) => r.group))].join(', ') + ')', rowsG.length > 0 && ['pace', 'survival', 'gold'].every((g) => rowsG.some((r) => r.group === g)));
+    const gd = diffMatrices({ rows: judgeMatrix(D, K, gb.cells), cells: gb.cells }, { rows: judgeMatrix(ga.V, K, ga.cells), cells: ga.cells }, { targets: ['survival'] });
+    const flagged = gd.bands.filter((b) => b.way === 'G:the_slake' && b.group === 'survival' && b.flag !== 'UNINTENDED');
+    check('a ground patch (the Slake\'s Cold Bilge x5) flags the Slake\'s survival bands IMPROVED or REGRESSED (' + flagged.length + ')', flagged.length > 0, JSON.stringify(gd.counts));
+  }
   console.log('balance-matrix selftest: ' + (fails.length ? fails.length + ' FAILED' : 'green') + ' in ' + Math.round((Date.now() - t0) / 1000) + ' s');
   return fails.length ? 1 : 0;
 }

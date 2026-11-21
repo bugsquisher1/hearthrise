@@ -249,7 +249,7 @@ export function deriveMatrix(cells) {
 
 /* ── THE JUDGE: standards.mjs's bands, per way ─────────────────────────────────────────────────────────────────────────────────── */
 /** Grid-shaped cells for grid-derive.mjs (the grid's own judge, so the matrix and the grid can never read a band two ways). */
-const asGrid = (cells) => ({ run: 'matrix', cells: Object.fromEntries(cells.map((c) => [c.key, { key: c.key, L: c.L, gear: c.gear, party: c.party, comp: c.comp, tier: c.tier,
+export const asGrid = (cells) => ({ run: 'matrix', cells: Object.fromEntries(cells.map((c) => [c.key, { key: c.key, L: c.L, gear: c.gear, party: c.party, comp: c.comp, tier: c.tier,
   ground: c.ground, styles: c.styles, stretch: c.stretch, ...(c.step ? { step: c.step } : {}), rates: c.m }])) });
 /**
  * Every band row on the matrix: the hammer and the parties as the grid frames them, and each other way's lone rows on its own frame.

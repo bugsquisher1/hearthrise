@@ -29,6 +29,7 @@ import { pathToFileURL } from 'node:url';
 import { readFileSync, writeFileSync, readdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { makeReport, ROOT, plant } from './fixtures/h1.js';
+import { caughtBy, missWhy } from '../_mutant-verdict.mjs';
 
 const { loadPlay, PLAY_TREES } = await import(pathToFileURL(join(ROOT, 'tests/hunt-core/fixtures/play-ground.mjs')).href);
 const BASELINE = join(ROOT, 'tests/hunt-core/engine-parity.baseline.json');
@@ -275,8 +276,9 @@ for (const mu of PICK) {
   const p = plant(mu.edits, [...PLAY_TREES, 'tests/hunt-core/fixtures']);
   try {
     let caught = null;
-    try { if (mu.before) mu.before(); caught = against(await loadPlay(p.root), PIN, mu.only); } catch (e) { caught = 'threw ' + e.message; }
-    R.ok(!!caught, 'mutant "' + mu.name + '" was NOT caught');
+    /* the planted AUDIT throws by design: its throw is the index-audited rule's line, named so; any other throw is HARNESS (lane/c-hollow-proofs) */
+    try { if (mu.before) mu.before(); caught = against(await loadPlay(p.root), PIN, mu.only); } catch (e) { caught = (/^unit-index audit: /.test(e.message) ? 'index-audited: ' : 'threw ') + e.message; }
+    R.ok(caughtBy(caught), 'mutant "' + mu.name + '" was NOT caught' + missWhy(caught));
     if (caught && process.argv.includes('--verbose')) console.log('  caught: ' + mu.name + ' -> ' + caught);
   } finally { p.done(); }
 }

@@ -13,6 +13,7 @@
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { makeReport, ROOT, plant } from './fixtures/h1.js';
+import { caughtBy, missWhy } from '../_mutant-verdict.mjs';
 
 const { loadPlay, PLAY_TREES } = await import(pathToFileURL(join(ROOT, 'tests/hunt-core/fixtures/play-ground.mjs')).href);
 
@@ -132,7 +133,7 @@ for (const mu of MUTANTS) {
   try {
     let w = null;
     try { w = secondTankDefense(await loadPlay(p.root), true); } catch (e) { w = 'threw ' + e.message; }
-    R.ok(!!w, 'mutant "' + mu.name + '" was NOT caught by second-tank-defense');
+    R.ok(caughtBy(w), 'mutant "' + mu.name + '" was NOT caught by second-tank-defense' + missWhy(w));
   } finally { p.done(); }
 }
 if (!R.fails.length) console.log('  2 cases, ' + (MUTANTS.length + LONE_MUTANTS.length) + ' mutants caught');

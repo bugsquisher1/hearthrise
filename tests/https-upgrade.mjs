@@ -26,6 +26,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import vm from 'node:vm';
 import { ROOT } from './_client-harness.mjs';
+import { verdict, report, exitOf, harnessFail } from './_mutant-verdict.mjs';
 
 const SCRIPT = 'src/platform/https-upgrade.js';
 const TAG = /^<script\s+src="src\/platform\/https-upgrade\.js(?:\?v=\d[\d.]*)?"\s*><\/script>$/;   // bare in the source, stamped by the site build
@@ -80,7 +81,8 @@ export function scriptFails(src) {
   const fails = [];
   for (const [from, want] of CASES) {
     let got;
-    try { got = redirectOf(src, from); } catch (e) { got = 'threw ' + e.message; }
+    /* a script that throws is the run failing, never HU-2 judging a redirect (tests/_mutant-verdict.mjs: a HARNESS line is no catch) */
+    try { got = redirectOf(src, from); } catch (e) { fails.push(harnessFail('HU-2 ' + from, e)); continue; }
     if (got !== want) fails.push('HU-2 ' + from + ' → ' + (got || 'stays') + '; want ' + (want || 'stays'));
   }
   return fails;
@@ -118,16 +120,15 @@ function selftest() {
     ['*.localhost is sent to https', {}, src.replace(" || /\\.localhost$/.test(h)", '')],
     ['[::1] is sent to https', {}, src.replace("h === '[::1]' || h === '::1' || ", '')],
   ];
-  let bad = 0;
+  /* a mutant is caught only by a NAMED rule (HU-n); a HARNESS line is never a catch (lane/c-hollow-proofs 2026-11-20) */
+  const counts = { caught: 0, harness: 0, escaped: 0 };
   for (const [name, override, s] of MUT) {
     const changed = Object.keys(override).some((k) => override[k] !== p[k]) || s !== src;
-    if (!changed) { console.log('  ✗ ' + name + ' — anchor not found'); bad++; continue; }
-    const fails = check(Object.assign({}, p, override), s);
-    if (fails.length) console.log('  ✓ ' + name + ' — caught (' + fails[0].split(' ')[0] + ')');
-    else { console.log('  ✗ ' + name + ' — NOT caught'); bad++; }
+    if (!changed) { console.log('  ✗ ' + name + ' — HARNESS: anchor not found'); counts.harness++; continue; }
+    console.log(report(name, verdict(check(Object.assign({}, p, override), s)), counts));
   }
-  console.log(bad ? 'https-upgrade --selftest: ' + bad + ' escaped' : 'https-upgrade --selftest: ' + MUT.length + '/' + MUT.length + ' mutants caught');
-  return bad ? 1 : 0;
+  console.log(exitOf(counts) ? 'https-upgrade --selftest: ' + counts.escaped + ' escaped, ' + counts.harness + ' HARNESS (not catches)' : 'https-upgrade --selftest: ' + MUT.length + '/' + MUT.length + ' mutants caught, each by a named rule');
+  return exitOf(counts);
 }
 
 function main() {

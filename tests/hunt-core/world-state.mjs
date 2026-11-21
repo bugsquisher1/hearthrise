@@ -35,8 +35,11 @@ const cases = {
      hunt); one of this shape decodes; a malformed one of this shape still throws. */
   'stored-another-shape-restarts': (M) => {
     const enc = JSON.parse(JSON.stringify(M.worldstate.encode(sample(M))));
-    if (M.worldstate.decodeStored(Object.assign({}, enc, { s: (enc.s + 1) >>> 0 })) !== null) return 'a stored world of another shape did not read as a restart';
-    if (M.worldstate.decodeStored(Object.assign({}, enc, { v: enc.v + 1 })) !== null) return 'a stored world of another version did not read as a restart';
+    /* a throw here IS the defect (a frozen hunt), so the case names it: thrown out of the case it would read HARNESS (lane/c-hollow-proofs) */
+    const stored = (e) => { try { return M.worldstate.decodeStored(e); } catch (x) { return 'threw ' + x.message; } };
+    const other = stored(Object.assign({}, enc, { s: (enc.s + 1) >>> 0 })), older = stored(Object.assign({}, enc, { v: enc.v + 1 }));
+    if (other !== null) return 'a stored world of another shape did not read as a restart: ' + (typeof other === 'string' ? other : 'it decoded');
+    if (older !== null) return 'a stored world of another version did not read as a restart: ' + (typeof older === 'string' ? older : 'it decoded');
     const back = M.worldstate.decodeStored(enc);
     if (!back || back.swing !== 17) return 'a stored world of this shape did not decode';
     try { M.worldstate.decodeStored(Object.assign({}, enc, { u: [enc.u[0].slice(0, -1)] })); } catch { return null; }
@@ -53,6 +56,11 @@ const cases = {
   'fields-composed-from-modules': (M) => {
     const names = M.worldstate.FIELDS.unit.map(([n]) => n);
     for (const n of ['id', 'x', 'y', 'prog', 'path', 'spot']) if (!names.includes(n)) return 'the unit field list lacks ' + n;
+    /* ONE OWNER A FIELD: two modules persisting one name would decode the later over the earlier */
+    for (const part of Object.keys(M.worldstate.FIELDS)) {
+      const ns = M.worldstate.FIELDS[part].map(([n]) => n), twice = ns.filter((n, i) => ns.indexOf(n) !== i);
+      if (twice.length) return 'the ' + part + ' field list persists ' + twice.join(', ') + ' twice';
+    }
     return null;
   },
 };
@@ -66,8 +74,11 @@ const mutants = [
     edits: [['src/core/hunt/world-state.js', '    && (enc.v !== WORLD_VERSION || enc.s !== SHAPE)) return null;', '    && false) return null;']] },
   { name: 'a malformed stored world reads as a restart', case: 'stored-another-shape-restarts',
     edits: [['src/core/hunt/world-state.js', '  return decode(enc);\n}', '  try { return decode(enc); } catch { return null; }\n}']] },
+  /* with world-state's own load-time refusal taken out (the reader half): alone, the duplicate never loaded and its throw read as the
+     catch, the case unrun (lane/c-hollow-proofs 2026-11-20) */
   { name: 'two modules persist one field', case: 'fields-composed-from-modules',
-    edits: [['src/core/hunt/roles.js', "unit: Object.freeze([['role', 'str'],", "unit: Object.freeze([['x', 'int'], ['role', 'str'],"]] },
+    edits: [['src/core/hunt/roles.js', "unit: Object.freeze([['role', 'str'],", "unit: Object.freeze([['x', 'int'], ['role', 'str'],"],
+      ['src/core/hunt/world-state.js', "      if (seen.has(name)) throw new Error('world-state: ' + part + ' field ' + name + ' is persisted by two modules');\n", '']] },
 ];
 
 await suite('hunt-core/world-state', cases, mutants);

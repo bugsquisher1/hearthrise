@@ -2,6 +2,7 @@
 // and a sub-step driver for consumables.js / abilities.js. Built on fixtures/h1.js (spec §1.6).
 import { hero, mon, world, instOf, subStep, loadCore, plant, makeReport, ROOT } from './h1.js';
 import { sourceQuery } from '../../../tools/lib/version-stamp.mjs';
+import { caughtBy, missWhy } from '../../_mutant-verdict.mjs';
 
 export const STORE_FOOD = 'salted_shrimp';
 export const STORE_DRINK = 'thin_turnip_juice';
@@ -91,7 +92,7 @@ export async function suiteH4(name, cases, mutants) {
     try {
       let why = null;
       try { why = await cases[mu.case](await load(p.root)); } catch (e) { why = 'threw ' + e.message; }
-      R.ok(!!why, 'mutant "' + mu.name + '" was NOT caught by ' + mu.case);
+      R.ok(caughtBy(why), 'mutant "' + mu.name + '" was NOT caught by ' + mu.case + missWhy(why));
     } finally { p.done(); }
   }
   if (!R.fails.length) console.log('  ' + Object.keys(cases).length + ' cases, ' + (mutants || []).length + ' mutants caught');

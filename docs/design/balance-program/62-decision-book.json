@@ -1,18 +1,17 @@
 {
   "schema": "hearthrise.decision-book/1",
   "issued": "2026-11-21",
-  "source": "docs/design/balance-program/60-game-review.md (calls GR-1 to GR-88, 92 rows) and 49-mmo-layer.md (calls MM-1 to MM-23)",
+  "source": "docs/design/balance-program/60-game-review.md (calls GR-1 to GR-88, 92 rows) and 49-mmo-layer.md (calls MM-1 to MM-42, plus MM-43 from its playtest)",
   "counts": {
     "grRows": 92,
-    "mmCalls": 23,
+    "mmCalls": 43,
     "ruled": 2,
-    "decideFirst": 17,
-    "needsYourEye": 29,
-    "safeToAccept": 45,
-    "supersededByAnMmCall": 5,
-    "mmBeingRevised": 17
+    "decideFirst": 31,
+    "needsYourEye": 41,
+    "safeToAccept": 55,
+    "supersededByAnMmCall": 6
   },
-  "vision": "You run four heroes from your first day. They hunt while you are away, and you win by preparing them: who stands where, what they wear, what their bars do and where you send them. Harder tiers ask for a real party with roles. Gear is a chase with rare finds worth keeping. Levels never end, and gear, sinks and old grounds keep pace by formula. Around the hunt stands a shared world that works while everyone sleeps: clans, world bosses, a calendar of events, and two arenas, one on equal stats and one on your own gear. Its rewards are buffs and gear worth trading for. Every number comes from formulas you can read.",
+  "vision": "You run four heroes from your first day. They hunt while you are away, and you win by preparing them: who stands where, what they wear, what their bars do and where you send them. Harder tiers ask for a real party with roles. Gear is a chase with rare finds worth keeping. Levels never end, and gear, sinks and old grounds keep pace by formula. Around the hunt stands a shared world that works while everyone sleeps: clans, world bosses, events and two arenas, paying buffs and gear. Crowns buy comfort and timed boosts, trade to other players for gold, and give a real edge under a stated ceiling. Every number comes from formulas you can read.",
   "ruled": [
     {
       "date": "2026-11-21",
@@ -28,11 +27,19 @@
     },
     {
       "date": "2026-11-21",
+      "what": "The four together, on the tier they can hold, earn more for each hero than the same four split up. A lone hero is a slower choice, never a trap."
+    },
+    {
+      "date": "2026-11-21",
       "what": "The MMO layer is clans, world bosses, events and PvP arenas, and it is heavy work going forward."
     },
     {
       "date": "2026-11-21",
       "what": "Decisions first. No build lanes until every decision is made and a build plan exists."
+    },
+    {
+      "date": "2026-11-21",
+      "what": "Buying Crowns and selling them for gold gives real advantages, just not broken ones."
     },
     {
       "date": "2026-11-21",
@@ -303,8 +310,92 @@
     {
       "id": "MM-2",
       "call": "A world boss is one health pool the whole server shares, fought by each account in its own room.",
-      "whyFirst": "It is the first place another player moves a number you care about, and events build on it.",
+      "whyFirst": "It is the first place another player moves a number you care about.",
       "order": 17
+    },
+    {
+      "id": "MM-24",
+      "call": "Every buff is a row in one modifier table, and every MMO layer piece sits on the gear curve at the earner's band.",
+      "whyFirst": "It is how everything the layer pays is sized, by formula.",
+      "order": 18
+    },
+    {
+      "id": "MM-25",
+      "call": "The buff caps: damage +5% standing and +10% timed, damage taken 5% and 5% less, Level XP +5% and +25%, drop chance +10% timed, town work +10%, no coin buff.",
+      "whyFirst": "Every reward in the layer and every bought boost fills these caps.",
+      "order": 19
+    },
+    {
+      "id": "MM-26",
+      "call": "The power budget: a fully buffed, boss-geared four gains at most about 32% kill speed and about 72% Level pace over a plain four in mid gear.",
+      "whyFirst": "It moves the days of the Level law (GR-6) and the content runway, so rule them together.",
+      "order": 20
+    },
+    {
+      "id": "MM-13",
+      "call": "Two arenas: an even arena that normalizes every stat, and an open arena that reads real gear, upgrades and buffs.",
+      "whyFirst": "You ruled two arenas. This says what each one reads.",
+      "order": 21
+    },
+    {
+      "id": "MM-28",
+      "call": "Paying gives a real edge: timed boosts, gear sooner, upgrades sooner, clan rooms sooner, Premium, comfort and looks.",
+      "whyFirst": "It is the money model, built on your ruling that Crowns must give real advantages.",
+      "order": 22
+    },
+    {
+      "id": "MM-29",
+      "call": "The store sells Premium, timed boosts, comfort and looks for Crowns. Never gear, materials, gold, Levels, skill levels, chests or rating.",
+      "whyFirst": "It draws the line between a real edge and a broken one.",
+      "order": 23
+    },
+    {
+      "id": "MM-30",
+      "call": "Bought boosts and earned buffs are the same rows and fill the same timed caps.",
+      "whyFirst": "It is what keeps paying under the caps of MM-25.",
+      "order": 24
+    },
+    {
+      "id": "MM-31",
+      "call": "The pace ceiling: a fully Crowns-boosted four gains at most 60% more Levels an hour than the same four in mid gear with no buffs.",
+      "whyFirst": "It replaces your 11-21 ruling of no limit on how much sooner (50-11).",
+      "order": 25
+    },
+    {
+      "id": "MM-32",
+      "call": "The gear ceiling: paying puts you 0 bands ahead, and inside a band at most best in slot over mid gear.",
+      "whyFirst": "It protects the gear chase from being bought.",
+      "order": 26
+    },
+    {
+      "id": "MM-33",
+      "call": "The gold ceiling: the weekly cap on Crowns sold is worth about one week of a four's hunting gold.",
+      "whyFirst": "It sets how much gold money can add, and so every price in the game.",
+      "order": 27
+    },
+    {
+      "id": "MM-34",
+      "call": "Everything sold for Crowns can be had with gold through the book, at stated target prices.",
+      "whyFirst": "It is what makes the model fair to a player who never pays.",
+      "order": 28
+    },
+    {
+      "id": "MM-35",
+      "call": "Crowns are a number on the account, sold to other players for gold on a server-owned book. One trade, then bound.",
+      "whyFirst": "It is the trade surface the whole engine runs on.",
+      "order": 29
+    },
+    {
+      "id": "MM-36",
+      "call": "Eight clamps on the Crowns book, all inside the Security review before Early Access.",
+      "whyFirst": "A real-money link to gold must not be able to reach another player's economy unchecked.",
+      "order": 30
+    },
+    {
+      "id": "MM-37",
+      "call": "Paying gives no edge in the even arena, in events, or in access to any Level, ground, drop or tier.",
+      "whyFirst": "It names the places money never reaches.",
+      "order": 31
     }
   ],
   "byArea": [
@@ -531,11 +622,6 @@
           "id": "GR-56a",
           "call": "Setup slots 4 and 5 are free.",
           "reason": "Re-opens 11-05."
-        },
-        {
-          "id": "GR-60",
-          "call": "Crowns come after the market has something scarce to price.",
-          "reason": "A money call, which is yours."
         }
       ],
       "safeToAccept": [
@@ -725,14 +811,79 @@
       "area": "The MMO layer",
       "needsYourEye": [
         {
-          "id": "MM-12",
-          "call": "Arena opponents are saved setups and house teams, never live players.",
-          "reason": "It shapes what PvP means in this game, for both arenas."
+          "id": "MM-6",
+          "call": "A world boss pays a chest by your own points: its own named gear line at your band, its own upgrade material, a 7 day buff, a trophy. No coin.",
+          "reason": "A new tradeable gear line at the best in slot budget. It has to fit the item plan."
+        },
+        {
+          "id": "MM-7",
+          "call": "A death in the boss room costs the normal death.",
+          "reason": "The boss is fought for 72 hours while you are away, at 6% with no cap. Rule it with GR-7."
+        },
+        {
+          "id": "MM-8",
+          "call": "A clan is a shared work, a team and a room that pays members in buffs, held by giving that week's share.",
+          "reason": "A clan now gives hero power. It answers GR-10c."
+        },
+        {
+          "id": "MM-9",
+          "call": "The castle is one project at a time on the town project engine. Each room carries one standing buff up to the standing caps.",
+          "reason": "Replaces 25-4 of 2026-11-20. It answers GR-68."
+        },
+        {
+          "id": "MM-10",
+          "call": "A weekly clan board. The top clans carry a small timed buff the next week.",
+          "reason": "The strongest clans get stronger. HYPOTHESIS that it stays fair on a small server."
+        },
+        {
+          "id": "MM-14",
+          "call": "Arena rewards by rating tier: a season buff and title in the even arena, and the arena's own gear line in the open arena.",
+          "reason": "The open arena pays gear to the best geared. A big bet."
+        },
+        {
+          "id": "MM-18",
+          "call": "No hero is hired, lent or put on call. A party is your own heroes.",
+          "reason": "Replaces 25-1 of 2026-11-20. It answers GR-10a."
         },
         {
           "id": "MM-19",
           "call": "Mixed Levels in one fight follow one visible two thirds line.",
           "reason": "Re-opens 11-08. It answers GR-10b."
+        },
+        {
+          "id": "MM-20",
+          "call": "Other players on a hunting ground are seen through a presence strip and never fought beside.",
+          "reason": "You named 8-person open-world areas as an option. This says no to them."
+        },
+        {
+          "id": "MM-21",
+          "call": "Every boss, clan, event and arena is open to all. Premium makes timed buffs last a quarter longer and banks arena tickets to 30.",
+          "reason": "A money call, which is yours."
+        },
+        {
+          "id": "MM-22",
+          "call": "The gold that hero slots took goes to the castle and to boss and arena upgrade materials first.",
+          "reason": "About 5.5M of sink has to land somewhere. It joins GR-8."
+        },
+        {
+          "id": "MM-27",
+          "call": "Boss and arena gear trades like all gear.",
+          "reason": "It is what gives the market and Crowns something to price."
+        },
+        {
+          "id": "MM-38",
+          "call": "The open arena matches by gear band, then rating, and thin bands borrow from the next band and from house teams.",
+          "reason": "HYPOTHESIS that it feels fair on a small server."
+        },
+        {
+          "id": "MM-42",
+          "call": "Events pay buffs and gear: a Level XP weekend, a ground weekend that features its named pieces, boss and arena weekends.",
+          "reason": "It sets how often the timed Level XP cap is full."
+        },
+        {
+          "id": "MM-43",
+          "call": "For the playtest only, every account gets the same weekly allowance of test Crowns through one server switch.",
+          "reason": "THIS IS A GRANT. It needs your explicit yes, even though it is equal for all and wiped."
         }
       ],
       "safeToAccept": [
@@ -742,80 +893,59 @@
           "reason": "Follows from rule 0."
         },
         {
-          "id": "MM-11",
-          "call": "Events are a four-weekend rotation written a year ahead, with no dailies, login calendar or season pass.",
-          "reason": "Builds the ruled calendar. It answers GR-83."
-        }
-      ],
-      "status": "BEING REVISED after Tyler's 11-21 reward ruling. Only the calls that stand unchanged are listed with a recommendation.",
-      "beingRevised": [
-        {
           "id": "MM-4",
-          "topic": "World boss size"
+          "call": "A world boss is sized by weekly active accounts, with a floor one account can fell.",
+          "reason": "It works at 10 accounts and at 10,000."
         },
         {
           "id": "MM-5",
-          "topic": "World boss contribution"
+          "call": "Your share of a world boss is counted against your own Level in a room scaled to your party.",
+          "reason": "It uses the one monster formula."
         },
         {
-          "id": "MM-6",
-          "topic": "World boss pay. No recommendation until the revised study lands"
+          "id": "MM-11",
+          "call": "Events are a four-weekend rotation written a year ahead, with no dailies, login calendar or season pass.",
+          "reason": "Builds the ruled calendar. It answers GR-83."
         },
         {
-          "id": "MM-7",
-          "topic": "A death in the boss room"
-        },
-        {
-          "id": "MM-8",
-          "topic": "What a clan gives. No recommendation until the revised study lands"
-        },
-        {
-          "id": "MM-9",
-          "topic": "The clan castle"
-        },
-        {
-          "id": "MM-10",
-          "topic": "The clan board"
-        },
-        {
-          "id": "MM-13",
-          "topic": "Arena fairness. Ruled in part: two arenas, one normalized and one on gear"
-        },
-        {
-          "id": "MM-14",
-          "topic": "Arena rewards. No recommendation until the revised study lands"
+          "id": "MM-12",
+          "call": "Arena opponents are saved setups and house teams, never live players.",
+          "reason": "Follows from rule 0."
         },
         {
           "id": "MM-15",
-          "topic": "Arena tickets"
+          "call": "Arena fights use tickets that bank, 5 a day up to 20.",
+          "reason": "A missed day loses nothing."
         },
         {
           "id": "MM-16",
-          "topic": "Arena matching"
+          "call": "The server offers three opponents, being attacked costs nothing, and your defense is your last attack party.",
+          "reason": "No chore and no loss while away."
         },
         {
           "id": "MM-17",
-          "topic": "PvP on the hunting grounds"
-        },
-        {
-          "id": "MM-18",
-          "topic": "Hired and on-call heroes"
-        },
-        {
-          "id": "MM-20",
-          "topic": "Shared hunting grounds"
-        },
-        {
-          "id": "MM-21",
-          "topic": "Premium and the layer"
-        },
-        {
-          "id": "MM-22",
-          "topic": "Where the gold that hero slots took goes"
+          "call": "No PvP on the hunting grounds, ever.",
+          "reason": "A standing rule that protects the idle hunt."
         },
         {
           "id": "MM-23",
-          "topic": "The order for planning"
+          "call": "Approve the order of study 49 section 6.1 as the order for planning.",
+          "reason": "An order only. Nothing builds until the build plan exists."
+        },
+        {
+          "id": "MM-39",
+          "call": "The even arena is one ladder for everyone, with three opponents offered near your rating.",
+          "reason": "Simple, and nothing bought is read."
+        },
+        {
+          "id": "MM-40",
+          "call": "Each arena has its own tickets.",
+          "reason": "Neither arena eats the other."
+        },
+        {
+          "id": "MM-41",
+          "call": "Measure once whether the engine can run heroes on both sides of a fight, before either arena is planned.",
+          "reason": "A measurement. It changes nothing in play."
         }
       ]
     }
@@ -835,16 +965,6 @@
       "from": "Study 51, the instrument (landed)",
       "adds": "Every band stays in report mode until the open faults close. A four's pace can carry a decision. Gold and survival are direction only.",
       "whoAnswers": "The baseline lane"
-    },
-    {
-      "from": "The revised study 49",
-      "adds": "What world bosses, clans and the two arenas pay in buffs and gear, and how Crowns for gold runs through them. 17 MM calls are being revised.",
-      "whoAnswers": "The MMO layer study, then you"
-    },
-    {
-      "from": "Study 49, the MMO layer (landed)",
-      "adds": "One measurement before the arena is ruled final: whether the engine can run heroes on both sides of a fight.",
-      "whoAnswers": "The systems engineer"
     },
     {
       "from": "Study 48, server cost",
@@ -878,11 +998,6 @@
     },
     {
       "from": "Missing decision",
-      "adds": "Whether idle capture the flag and PvP arenas are one system or two.",
-      "whoAnswers": "You"
-    },
-    {
-      "from": "Missing decision",
       "adds": "Whether measuring and tool work may go ahead before the build plan.",
       "whoAnswers": "You. Recommended yes, because the calls above depend on it"
     },
@@ -905,6 +1020,16 @@
       "from": "Missing decision",
       "adds": "The dates for the beta and Early Access.",
       "whoAnswers": "You, after the build plan exists"
+    },
+    {
+      "from": "Missing decision",
+      "adds": "How the power budget of the MMO layer (MM-26) and the pace ceiling (MM-31) change the days of the Level law and the content runway.",
+      "whoAnswers": "The game designer, with GR-6"
+    },
+    {
+      "from": "Missing decision",
+      "adds": "How boss and arena gear lines fit the item plan and the gear curve (GR-4, MM-6, MM-14).",
+      "whoAnswers": "The game designer"
     }
   ],
   "then": [
@@ -916,7 +1041,7 @@
     {
       "id": "GR-10a",
       "by": "MM-18",
-      "note": "On-call heroes. Study 49 recommends no hired or on-call heroes. That MM call is being revised."
+      "note": "On-call heroes. No hero is hired, lent or put on call."
     },
     {
       "id": "GR-10b",
@@ -926,12 +1051,17 @@
     {
       "id": "GR-10c",
       "by": "MM-8, MM-9, MM-10",
-      "note": "When and what clans are. That MM call is being revised."
+      "note": "What a clan is and when it comes: a shared work that pays members in buffs."
+    },
+    {
+      "id": "GR-60",
+      "by": "MM-28 to MM-37",
+      "note": "When Crowns come. The Crowns engine does not wait for the market, because Crowns buy Premium and boosts and trade on their own book."
     },
     {
       "id": "GR-68",
       "by": "MM-9",
-      "note": "The clan castle. That MM call is being revised."
+      "note": "The clan castle: rooms with standing buffs on the town project engine."
     },
     {
       "id": "GR-83",

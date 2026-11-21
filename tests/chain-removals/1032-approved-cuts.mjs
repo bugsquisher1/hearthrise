@@ -2,11 +2,13 @@
    24-5 and 27-7, build plan L10).
 
    HR_STATE_OF: that file restates hr_state_of WHOLE from the LIVE image (its §0 pins md5 e0a71bfe, the
-   2027-01-18-dead-surfaces-cut.sql body: replay chain = production) and removes exactly four keys, nothing else:
+   2027-01-18-dead-surfaces-cut.sql body: replay chain = production) and removes exactly six keys, nothing else:
      · `dungeon_cooldowns` (hr_dungeon_cooldowns is dropped with the old dungeons) and its comment block;
      · `state.dungeon_scrip` (player_state.dungeon_scrip is dropped with the scrip) and its comment block;
      · `state.hearth_tokens` (account_wallet.hearth_tokens is dropped with the bond); the comment above it stops naming tokens;
-     · `gem_unlocks` (hr_gem_unlocks_of is dropped with the gem rows) and its comment block.
+     · `gem_unlocks` (hr_gem_unlocks_of is dropped with the gem rows) and its comment block;
+     · `state.rested_xp` / `state.rested_at` and their comment block (the rested bank is cut, Tyler 2026-11-21 S-9 c; the
+       columns go in 1036-rested-bank-cut.sql, added by lane/c-formula-steps).
    HR_ASSERT_GRANT_HYGIENE: link 25 of HR_GRANT_HYGIENE_CHAIN replaces ONE block of link 24's c_engine_allow, the entries of
    hr_quartermaster_buy and hr_dungeon_settle with their claim comments (both functions are dropped in the same file), by a
    two-line note (tools/derive-grant-hygiene.mjs patch old_dungeons_cut).
@@ -51,6 +53,16 @@ export const HR_STATE_OF = Object.freeze([
   "    -- ── gem_unlocks — the ACCOUNT’s entitlements. NEVER truncated ──",
   "    --    introduced by 2026-09-14-gem-unlock-buy.sql",
   "    'gem_unlocks', public.hr_gem_unlocks_of(p_user, v_st.slot),",
+  /* the rested bank (Tyler 2026-11-21, S-9 c): its two scalars and their comment block, taken out here so a second apply of
+     this file never installs a body that reads the columns 1036-rested-bank-cut.sql drops (lane/c-formula-steps). */
+  "      -- rested-record (b437): the bank charge count + its wall-clock watermark,",
+  "      -- flat like the other watermarks so a nested bag cannot hide a missing",
+  "      -- column behind a default. The accrual shell reads them as st.rested_xp /",
+  "      -- st.rested_at and settles [rested_at, now()] alongside the pointer.",
+  "      -- ── state.rested_xp / rested_at — the rested bank and its watermark ──",
+  "      --    introduced by 2026-08-22-rested-record.sql",
+  "      'rested_xp', v_st.rested_xp,",
+  "      'rested_at', v_st.rested_at,",
 ]);
 
 export const HR_ASSERT_GRANT_HYGIENE = Object.freeze([

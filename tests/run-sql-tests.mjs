@@ -91,6 +91,7 @@ import * as ACCOUNT_DEPOT_REMOVALS from './chain-removals/2026-11-27-account-dep
 import * as ACCOUNT_GOLD_REMOVALS from './chain-removals/2026-12-15-account-gold.mjs';
 import * as DEAD_SURFACES_REMOVALS from './chain-removals/2027-01-18-dead-surfaces-cut.mjs';
 import * as APPROVED_CUTS_REMOVALS from './chain-removals/1032-approved-cuts.mjs';
+import * as RESTED_CUT_REMOVALS from './chain-removals/1036-rested-bank-cut.mjs';
 import { loadApplyOrder } from '../tools/lib/apply-order.mjs';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
@@ -679,6 +680,9 @@ const ALSO_LINTED = [
   /* THE APPROVED CUTS (lane/c-approved-cuts, 2026-11-20; build plan L10): the newest link of HR_STATE_OF_CHAIN and link 25 of
      HR_GRANT_HYGIENE_CHAIN; its revokes (hr_state_of, hr_server_now, the detector) are linted here. */
   '1032-approved-cuts.sql',
+  /* THE RESTED BANK CUT (lane/c-formula-steps, 2026-11-21; Tyler S-9 c): HR_APPLY_CHAIN's newest link (the chain end read
+     back, minus the bank) and hr_accrue_read restated; its drops are linted here. */
+  '1036-rested-bank-cut.sql',
 ];
 
 // ── THE hr_apply DERIVATION CHAIN ────────────────────────────────────────
@@ -739,6 +743,11 @@ const HR_APPLY_CHAIN = [
      model's edits: level_xp (the hunt settle only), the derived max HP, no recovery line, one death row.
      Its declared removals are FROZEN in tests/chain-removals/2026-10-27-core-bodies.mjs. */
   '2026-10-27-core-bodies.sql',
+  /* THE RESTED BANK CUT (lane/c-formula-steps, 2026-11-21; Tyler S-9 c). The chain-end body read back with
+     pg_get_functiondef (core-bodies plus the 18 anchored splices since, 1026-job-counts' four included), minus the rested
+     bank's two delta keys and two SET lines. Chain depth 0 again. Its declared removals are FROZEN in
+     tests/chain-removals/1036-rested-bank-cut.mjs, split there into the splices' replacements and the bank. */
+  '1036-rested-bank-cut.sql',
 ];
 
 // ── THE hr_state_of DERIVATION CHAIN ─────────────────────────────────────
@@ -2086,6 +2095,7 @@ say(`── ${SPEC.fn} derivation chain (each body derived from the last, nothin
        module (336 lines: whole features, so too long to inline here). */
     '2026-10-22-hunt-sessions-delete-away.sql': DELETE_AWAY_REMOVALS.HR_APPLY,
     '2026-10-27-core-bodies.sql': CORE_BODIES_REMOVALS.HR_APPLY,
+    '1036-rested-bank-cut.sql': RESTED_CUT_REMOVALS.HR_APPLY,
     /* hr_assert_grant_hygiene: 2026-09-23-world-tick-shadow-state-chain.sql is
        THE FIRST LINK OF THAT CHAIN THAT REPLACES AN ENGINE ENTRY. It carries
        its predecessor's body verbatim — every check and every other allowlist
@@ -2619,7 +2629,6 @@ say('── every currency delta key has a per-call clamp AND a daily ceiling (S
     equip: ['conserved', 'a TRANSFER between player_inventory and player_equipment; totals conserved'],
     activity: ['pointer', 'names an activity; validated against hr_activities + the skill gate'],
     accrued_to: ['clock', 'clamped into [old, now()] by the server; never a value'],
-    farm: ['pointer', 'crop id validated against hr_crops; planted_at is now()'],
     progress: ['bounded', 'kind allowlisted, add clamped, "claimed" unreachable'],
     progress_claim: ['bounded', 'requires an already-done row; row_count is the check'],
     journal: ['metadata', 'kind allowlisted, intent is a label'],
@@ -2658,9 +2667,13 @@ say('── every currency delta key has a per-call clamp AND a daily ceiling (S
     deaths: ['metadata', 'rev. 2 N3 — an array of server-derived death records fanned out to one '
       + 'ledger row each. Audit only: the rows carry no gold_in/xp_in/qty_in, so they enter no '
       + 'conservation sum and there is nothing here to clamp, only to refuse'],
-    rested_xp: ['bounded', 'b437 — the ABSOLUTE rested bank. Engine output, clamped at the write; it '
-      + 'is a MULTIPLIER budget, not a balance, and it is not tradeable or rankable'],
-    rested_at: ['clock', 'the rested bank\'s own watermark, advanced from now() by the server'],
+    /* Two keys the splices since core-bodies added, read by this lint from 2026-11-21 (1036-rested-bank-cut.sql restates
+       the chain end, so the LAST link is the body production runs again). Neither moves a balance. */
+    active_left: ['bounded', '2026-12-01 bench count / 1026 job counts: a stored job\'s count, only ever counted DOWN on an '
+      + 'accrual of the hero\'s own gathering or bench pointer (never above the stored value); moves no balance'],
+    bench_tax: ['metadata', '2027-02-19 bench tax: the engine\'s count of a taxed window\'s crafts. hr_bench_tax_settle '
+      + 're-derives the fee from the SERVER pointer; the fee moves through the clamped, budgeted gold key and the purse '
+      + 'lock; refused (bench_tax_bad) on any window that is not a bench\'s'],
     /* Phase 0, live settlement. NOT a currency and NOT budgeted, and here is the
        one line the lint demands. `fight` is an ABSOLUTE checkpoint of the fight
        in flight — `{monster, hp, kills}` — and it moves no balance: no gold, no

@@ -27,43 +27,41 @@ export async function accrueEnvelopeAwayGuard() {
   const problems = [];
   const fail = (m) => problems.push('accrue-envelope-away: ' + m);
 
-  // ── PART 1 — SOURCE: the standalone-settle return attaches `away`. ─────────
-  // This is the check that would have caught the class at build time. The
-  // branch is the `if (wr && wr.ok === true && wr.replayed !== true)` block; it
-  // must build an `away` receipt before returning accrued:true.
+  // ── PART 1 — SOURCE: the not-accrued branch writes nothing of its own. ─────
+  // The b475 class lived in a STANDALONE parallel settle inside index.ts's
+  // `if (!out.accrued)` block (the crew's until 2026-11-18, the rested bank's
+  // until 2026-11-21, S-9 c): an hr_apply of its own that returned accrued:true
+  // without an `away` receipt. The last one left with the rested bank. The
+  // branch now settles nothing itself: a hunter's accrue goes to the one hunt
+  // settle (respond -> settleHunt), every other idle pointer answers
+  // accrued:false and writes nothing. So the rule reads: no hr_apply call in
+  // the branch, no fresh roll, and any literal accrued:true it returns carries
+  // an `away` receipt. A side bank that comes back must bring its receipt.
   try {
     const idx = await readFile(new URL('supabase/functions/hr-accrue/index.ts', ROOT), 'utf8');
-    const start = idx.indexOf('const wr = wres?.res as Record<string, any>;');
-    if (start < 0) {
-      fail('SOURCE: could not locate the standalone parallel-settle branch in index.ts '
-        + '(the `const wr = wres?.res` line) — the guard is stale, fix it before trusting green');
+    const start = idx.indexOf('    if (!out.accrued) {');
+    const end = start < 0 ? -1 : idx.indexOf('// ── APPLY.', start);
+    if (start < 0 || end < 0) {
+      fail('SOURCE: could not locate the not-accrued branch in index.ts (`if (!out.accrued) {` up to '
+        + 'the `// ── APPLY.` banner) — the guard is stale, fix it before trusting green');
     } else {
-      // The branch ends at the fall-through comment after the if.
-      const end = idx.indexOf('A refused / replayed aux settle', start);
-      const branch = idx.slice(start, end < 0 ? start + 2500 : end);
-      // The accrued:true return in this branch must carry an away receipt.
-      /* `respond(...)` since lane C2 (hunt sessions): the same json() return,
-         with a hunter's session view attached — the payload literal is unchanged. */
-      const ret = branch.match(/return (?:json|await respond)\(\{\s*ok:\s*true,\s*accrued:\s*true[\s\S]*?\}\);/);
-      if (!ret) {
-        fail('SOURCE: could not find the accrued:true return inside the standalone-settle branch');
-      } else if (!/\baway\b/.test(ret[0])) {
-        fail('SOURCE: the standalone parallel-settle branch returns accrued:true WITHOUT an `away` '
-          + 'receipt — isEnvelopeApplicable will reject it as malformed and the "Away progress is '
-          + 'paused" modal fires while the grant is hidden. This is the b475 class.');
+      const branch = idx.slice(start, end);
+      const code = branch.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+      if (/hr_apply\s*\(/.test(code)) {
+        fail('SOURCE: the not-accrued branch calls hr_apply again — a standalone parallel settle is back. '
+          + 'It must return its grant with an `away` receipt (summaryFromAway reads it) or the b475 '
+          + '"Away progress is paused" modal fires while the grant is hidden.');
       }
-      // And it must build the receipt as a pure projection — never a fresh roll.
-      if (/Math\.random\s*\(/.test(branch)) {
-        fail('SOURCE: the standalone-settle branch uses Math.random — the away receipt must be a '
-          + 'pure projection of what was already granted (determinism / AWAY-1).');
+      for (const ret of code.match(/return (?:json|await respond)\(\{\s*ok:\s*true,\s*accrued:\s*true[\s\S]*?\}\);/g) || []) {
+        if (!/\baway\b/.test(ret)) {
+          fail('SOURCE: the not-accrued branch returns accrued:true WITHOUT an `away` receipt — '
+            + 'isEnvelopeApplicable rejects it as malformed. This is the b475 class.');
+        }
       }
-      // windowTo must be the numeric now (nowMs), NOT the ISO `read.now` — the
-      // client's summaryFromAway reads it as Number(a.windowTo) and an ISO
-      // string coerces to NaN, carding a null window. The main away path uses
-      // credit.toMs (ms). This is the exact field-type defect flagged in review.
-      if (/windowTo:\s*read\.now\b/.test(branch)) {
-        fail('SOURCE: the standalone-settle away receipt sets `windowTo: read.now` (an ISO string) — '
-          + 'summaryFromAway does Number(a.windowTo) so the card shows a null window. Use nowMs (ms).');
+      // Any receipt there must be a pure projection — never a fresh roll.
+      if (/Math\.random\s*\(/.test(code)) {
+        fail('SOURCE: the not-accrued branch uses Math.random — a receipt must be a pure projection '
+          + 'of what was already granted (determinism / AWAY-1).');
       }
     }
   } catch (e) {

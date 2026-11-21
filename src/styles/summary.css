@@ -132,6 +132,16 @@
 .haway-msg:empty { display: none; }
 .haway-foot { justify-content: flex-end; margin: 0; padding-top: 10px; border-top: 2px solid var(--steel-sep); }
 .haway-foot [hidden] { display: none; }
+/* CARRY ON (../shell/carry-on.js): the account's one press above the heroes, the server's plan a hero a line; a hero that stays reads quieter */
+.haway-carry { margin: 0 2px 10px; }
+.haway-carry[hidden] { display: none; }
+.haway-carry-head { margin: 0 0 6px; font-size: var(--t-small); line-height: 1.4; color: var(--ink-2); }
+.haway-carry-list { margin: 0 0 4px; padding: 0; list-style: none; }
+.haway-carry-line { margin: 0 0 4px; font-size: var(--t-small); line-height: 1.4; color: var(--ink); font-variant-numeric: lining-nums tabular-nums; }
+.haway-carry-line.is-no { color: var(--ink-2); }
+.haway-carry > .haway-acts { margin: 6px 0 0; }
+.haway-carry-msg { margin: 6px 0 0; }
+.haway-carry-msg:empty { display: none; }
 /* the first hero's press in the foot is a phone's (away.js renderAway): on a desktop the hero's own row holds it */
 .haway-foot > .haway-foot-go { display: none; }
 
@@ -197,6 +207,8 @@
   .haway-foot > .hh-tool { flex: 1 1 auto; }
   .haway-foot > [data-hs-act="away-ok"] { flex: 0 0 auto; min-width: 64px; }
   .haway-hero:first-child .haway-acts > [data-hs-act="away-go"] { display: none; }
+  /* ...unless Carry on is the gold press (it stands first, above the heroes): the first hero keeps its own press in its row */
+  .haway.is-carry .haway-hero:first-child .haway-acts > [data-hs-act="away-go"] { display: revert; }
   .hres-level { margin-bottom: 4px; }
   .hres-figs { padding: 4px 0 6px; }
   .hres-fig small { margin-top: 0; }

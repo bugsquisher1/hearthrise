@@ -366,6 +366,9 @@ export const REFUSAL_WORDS = Object.freeze({
   no_ground: 'Hunt not open yet',
   hunts_paused: 'Hunts paused, try again soon',
   no_stamina: 'No stamina left',
+  /* Carry on (1010-carry-on.sql): a hero in another account's party waits for that leader's Start; a press with every hero busy. */
+  party_leader: 'Waits for its party leader to start',
+  nothing_to_carry_on: 'Every hero is busy, nothing to carry on',
   activity_locked: 'Level too low for that hunt',
   /* A ground whose hunt ends at a Level (2027-05-28-cellar-outgrown.sql; hunt-grounds.js endsAtLevel: the Mill Cellar's 5): the hero is at it. */
   outgrown: 'Ground outgrown, pick a harder one',

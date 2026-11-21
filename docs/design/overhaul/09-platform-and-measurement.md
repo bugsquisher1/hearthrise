@@ -292,7 +292,7 @@ How far to trust the table: it is arithmetic on production means read at 3.3 hun
 
 To fit 60, the hunt's saves must come down from 121 to about 31. Two designs reach that, and study 48 chooses and sizes one:
 
-- **A slower idle flush.** About 10 saves a hero-hour, which is a flush near every 6 minutes. Deaths, Levels, Leave, rare drops and money intents still save at once, so nothing a player can see should change. HYPOTHESIS.
+- **A slower idle flush.** About 9 to 10 saves a hero-hour, which is a flush near every 6 minutes. Deaths, Levels, Leave, rare drops and money intents still save at once, so nothing a player can see should change. HYPOTHESIS.
 - **A cheaper save at the same pace.** A save of about 20 ms. HYPOTHESIS.
 
 Whichever is chosen, three properties are fixed design and not open. RULED (CLAUDE.md sections 1 and 6).
@@ -435,7 +435,7 @@ Six of the 21 pace bands set one party size against another (P6.2, P6.3, P6.4, P
 | Everything past Level 185 | PROJECTED | Shape only |
 | Very Rare hours (D1, D2) | A stand-in until the Very Rare exists | No |
 | Server cost (C1, C2, C3) | A model on production means. Reads about 110 seconds a day high on C1 and C2 and low on C3 (fault F9) | Direction only. PENDING 48 |
-| 19 bands with no reader | E5, E7, E8, D4, P13, G-11, R1, R3, C4, C4b, C5, T3, B7 and others | No. Each needs its own reader or model |
+| 19 bands with no reader | Among them E5, P13, G-11, R1, R3, C4, C4b, C5, T3 and B7: chest pieces, events, server-wide gold, schedules and money are not cells | No. Each needs its own reader or model |
 
 Of the 108, 89 have a reader and 19 do not. The grid reads 85, and the atlas and the solver read 23.
 
@@ -538,7 +538,7 @@ Not yet true of the Lab, and the dashboard lane's work: rule 1 needs every recom
 
 | # | Question | How | Target | Decides |
 |---|---|---|---|---|
-| A1 | Does the stamina day read 12.0 hunted hours on the server, free and Premium? | One free hero and one Premium hero through 48 hours on the local world with time skip | 12.0 each, with no refill bought | Whether the clock of the whole frame is right. If the server disagrees, everything waits |
+| A1 | Does the stamina day read 12.0 hunted hours on the server, free and Premium? | One free hero and one Premium hero through 48 hours on the local world with time skip | 12.0 each, with no refill bought. EVIDENCE about the instrument: the stamina-day tool reads 12.02 | Whether the clock of the whole frame is right. If the server disagrees, everything waits |
 | A2 | Can heroes fight heroes in the engine? | A four against a four on the replay harness, about a day of systems work | It runs, in bounded edge time, and no one style wins every time | Whether the arenas are a large or a very large build (MM-41) |
 | A3 | What does the boss pool cost? | 1,000 synthetic boss rooms | Under 0.1 database-seconds an account-day added | MM-2 |
 | A4 | What must a boss chest pay? | The grid: chest value and XP for each stamina hour beside a Normal hunt at Levels 20, 60 and 110 | Neither a loss nor the best XP in the game | MM-6 |

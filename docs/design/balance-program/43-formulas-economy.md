@@ -1,6 +1,6 @@
 # Balance program 43: Formula audit, hunting and economy
 
-Lane `lane/d-formulas-economy` (systems engineer, 2026-11-21), on `set/v0.2.144` at e6ea19170. Brief: `40-formula-brief.md`, section 8 items 1 to 4, and this category's half of items 5 and 7. **No game code, data or migration was changed.** The machine-readable registers are `tools/balance-program/formulas/economy.json`. The numbers in section 7 come from `tools/balance-program/formulas/economy-probe.mjs`, a read-only script.
+Lane `lane/d-formulas-economy` (systems engineer, 2026-11-21), on `set/v0.2.144` at e6ea19170. Brief: `40-formula-brief.md`, section 8 items 1 to 4, and this category's half of items 5 and 7. **No game code, data or migration was changed.** The machine-readable registers are `tools/balance-program/formulas/formulas-economy.json`. The numbers in section 7 come from `tools/balance-program/formulas/economy-probe.mjs`, a read-only script.
 
 Labels: CONFIRMED (the code path was read, and measured where it matters), HYPOTHESIS (what would confirm it is stated), FORMULA (the game's own function evaluated), GRID (the cached real-engine grid, PROJECTED past Level 185), DERIVED (arithmetic on those).
 
@@ -43,7 +43,7 @@ Labels: CONFIRMED (the code path was read, and measured where it matters), HYPOT
 
 ## 1. Formula inventory
 
-Full records (every implementation site with its line, parameters and current values, dependencies, consumers, random stream, where it runs) are in `economy.json` under `formulas`. This is the index.
+Full records (every implementation site with its line, parameters and current values, dependencies, consumers, random stream, where it runs) are in `formulas-economy.json` under `formulas`. This is the index.
 
 ### 1.1 Monster XP, spawn and kill rate, hunting efficiency
 
@@ -139,7 +139,7 @@ Magic Find and the Luck bar do not exist in code. Today a drop's only multiplier
 
 ## 2. Exception inventory
 
-All 39 with file and line, origin and fix are in `economy.json` under `exceptions`. Grouped by Tyler's list.
+All 39 with file and line, origin and fix are in `formulas-economy.json` under `exceptions`. Grouped by Tyler's list.
 
 **Hunting grounds with custom XP or loot math**
 
@@ -217,7 +217,7 @@ All 39 with file and line, origin and fix are in `economy.json` under `exception
 
 ## 3. Dependency map
 
-Inside the category (formula feeds formula). The edge list is `economy.json` `edges.inside`.
+Inside the category (formula feeds formula). The edge list is `formulas-economy.json` `edges.inside`.
 
 ```
 monster HP (E02) ──> XP a kill (E01) ──> XP split (E03) <── tier (E04), party cell (E05), floor cut (E06), scaled (E07), mode (E08)

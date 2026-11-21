@@ -378,6 +378,7 @@ One line each, newest first inside each group. A line is a ruling of Tyler's unl
 | `09-platform-and-measurement.md` | The formula architecture, the 28 steps of the work, server cost, the balance matrix, what the simulator can be trusted for, playtests and the Security scope |
 | `10-level-choices.md` | Talents: a build choice every five Levels. The rule, a sample of five tracks, the power budget, what the matrix needs, the server shape and the new-player path. All PROVISIONAL |
 | `11-on-call-and-clan-xp.md` | On-call heroes as a guest seat, the Library as the clan XP room, the town day rule for a resting hero, and how a ground remembers a Setup. All PROVISIONAL, on rulings of the sitting |
+| `12-balance-pass.md` | The balance pass on the fixed simulator: what the full matrix and the death samples say about the first build's numbers, what moved, and four items for Tyler. Numbers that moved stay PROVISIONAL with MEASURED evidence |
 | `decisions/all.json` | Every call, one row each, with its status, its reason and its evidence. `decisions/all.md` is its mirror and `decisions/review.md` is the adversarial check |
 
 ## 5. Tyler's rulings at the sitting, his picks on the page, and what still needs him
@@ -393,7 +394,7 @@ On 2026-11-21, between 15:59 and 16:03 UTC, Tyler answered the ten questions of 
 | S-3 | A | Setup slots stay priced as ruled on 2026-11-05: three free, then 15,000 and 40,000 gold (GR-56a) |
 | S-4 | A | A clan room pays a standing Level XP bonus. It reverses 25-2. Its size is PROVISIONAL in chapter 11: the Library, +0.5% a level and +5% at level ten. With it full the pace reads about 1.74 on a Hearthrise weekend and about 1.44 held all the time, and the next region must be open by about day 50. The Level table stays the clock of the plain four, which is now also the four in no clan |
 | S-5 | B | The Blessing ladder (GR-7). The five hours stays PROVISIONAL until a real death rate exists |
-| S-6 | A | Deadly is a tier you watch or gamble on, and idle players mostly use Dangerous. The lost hunting time is accepted: 18 to 31% on the 8 hour bar and 25 to 42% on the 12 hour bar, before the 6% |
+| S-6 | A | Deadly is a tier you watch or gamble on, and idle players mostly use Dangerous. The lost hunting time is accepted: 18 to 31% on the 8 hour bar and 25 to 42% on the 12 hour bar, before the 6%. MEASURED since in `12-balance-pass.md`: 16 to 34% of an 8 hour bar. "Deadly is the best way to level only for a four that is watched" is true only with the Blessing ladder at 2 hours, which is PROVISIONAL |
 | S-7 | B | The full castle is the direction: five buildings of ten levels, labor, upkeep, votes, a treasury, about a year (MM-9). Its sizes stay PROVISIONAL |
 | S-8 | A | No ceiling on gear or gold bought through other players. Only structural limits remain: gear is worn by Level, the store sells no gear, and an account may sell only so many Crowns a week. The buff caps stay (MM-28, MM-31, MM-32) |
 | S-9 | C | The rested bank is cut (GR-63) |
@@ -499,11 +500,17 @@ Not on this list. GR-65 was withdrawn, because the ruling of 2026-10-25 keeps th
 
 Kept hidden for later, and never on the cut list: Capture the flag (MM-46). The clan's shared hunt (MM-48). The status pairs of GR-20 (paper only). Kindlings (GR-61, paper only). The other 36 Catacombs pieces (GR-36). The second dropped seed (GR-77). Bulk commissions (GR-44). Side against side (GR-71).
 
-### 5.5 Still open for Tyler: one item
+### 5.5 Still open for Tyler: five items
+
+GR-25, and four items from the balance pass (`12-balance-pass.md` section 7). Each of the four bends or leans on something he ruled. He has not answered them, and the book writes none of them as decided.
 
 | Item | What | Why it is held | What the book reads until he answers |
 |---|---|---|---|
 | GR-25 | Five built special rules that were never put to him: gentle first grounds, the boss blow cap, three training bases, the roll rule and the tier flag (GR-25) | The formula brief says a deliberate special rule needs his explicit approval. | The book is written with all five kept. |
+| 12-7-1 | Which four times the Level law: the four on Dangerous (1.266) or the four on Deadly (GR-6, GR-6a, GR-6b) | He ruled the table as the clock of a four on the hardest tier it holds, and at the sitting he ruled Deadly a tier you watch or gamble on. | Both clocks are shown in chapter 05. The ruled table stays the target. Source: docs/design/overhaul/12-balance-pass.md, section 7. |
+| 12-7-2 | Neither harder tier can hold his death count at every Level (CORE-1, GR-27) | He ruled 10 to 30 deaths in 1,000 hours on Dangerous and 50 to 100 on Deadly. The engine gives a cliff: all cells together read 4 and 41. | Both tiers at blows 2.5, PROVISIONAL. Source: docs/design/overhaul/12-balance-pass.md, section 7. |
+| 12-7-3 | The leave rule for an account's own four (GR-80) | His default is that the rest hunt on when one falls. Measured, the four died together in every sampled wipe. | The ruled default stands, with the measured finding beside it. Source: docs/design/overhaul/12-balance-pass.md, section 7. |
+| 12-7-4 | The paid edge is smaller in pace than the book told him, and it is a step (MM-26, MM-31) | He said yes on the page to 1.65 and about 1.22. Measured: 1.29 to 1.48 and about 1.06 to 1.08. Check G's last clause fails by design on a cliff. | His yes stands as written, with the measured readings beside it. Check G keeps its clause, marked. Source: docs/design/overhaul/12-balance-pass.md, section 7. |
 
 ### 5.6 The plan
 
@@ -566,6 +573,8 @@ The chapters were written by different lanes before the decisions existed, and t
 | 43 | Four designs made in the fold read as decided or ruled | 02, 05, 06, 07, 08 | PROPOSAL, made in the fold 2026-11-21, not yet seen by Tyler |
 | 45 | Five items held two of Tyler's picks against each other, and two more conflicts and one unlisted reversal were never on the page | 04, 05, 06, 07, 08, 09 and the decisions | The sitting of 2026-11-21 ruled all of them, S-1 to S-10 |
 | 46 | The book was written on "a party is an account's own four" and on free Setups, and said Deadly is the best way for a four to level | 03, 04, 05, 06, 07, 08, 09 | On-call heroes are kept, Setups are priced past three, and Deadly is the best way only for a four that is watched |
+| 47 | The tier numbers the book opened on (Dangerous blows 1.17, Deadly 2.25) did nothing to a party, and the pace ceiling multiplied damage into pace | 01, 04, 05, 06 and the decisions | Chapter 12 measured them: both tiers at blows 2.5, and every cap full reads 1.29 to 1.48. All PROVISIONAL, with the ruled and page numbers kept beside them |
+| 48 | The book read on call as spending no stamina | 04, 06, 08, 09 | Two pools: hire stamina is spent on call and the hero's own never is. Nothing sells hire stamina |
 | 44 | GR-61 kept Kindlings on paper while Tyler lifted the hold and asked for a build choice every five Levels | 01, 05 | GR-61 is superseded, and the book points to `10-level-choices.md` |
 
 ### 6.2 Found and not fixed
@@ -581,6 +590,9 @@ The chapters were written by different lanes before the decisions existed, and t
 | 7 | The sizes of the full castle (fifty stages, upkeep, labor) and of soil tiers are new and unplayed | The castle is ruled in direction only | The game designer, on the matrix and in the playtest |
 | 8 | Closed. The book kept "one Setup for each ground" while Setup slots are five a hero | Chapter 11 section 10: a Setup is a named kit in a slot, and each ground remembers one by pointing to a slot. Pointing is free. PROVISIONAL | Closed by chapter 11 |
 | 9 | Closed. On-call heroes and the clan Level XP room were ruled and not designed | Chapter 11 designs both, PROVISIONAL. The ceiling reads about 1.74 on a weekend and about 1.44 held, and the next region's door is about day 50 | Closed by chapter 11 |
+| 11 | Group damage as a tier row. A tier scales the blow and the pull, and the front hero takes 92 to 100% of the damage on nine of 14 grounds | It is a new mechanic that chapter 12 section 4.1 argues for. It is an OPEN design item, not a proposal and not decided | The game designer |
+| 12 | Armor on the gear curve is worth nothing past Level 30, and the arrival kit takes 2.2 to 2.8 times the mid kit's damage under Level 45 | The armor curve probe fixes the first and worsens the second, so they are one open item | The game designer, with the matrix lane |
+| 13 | The Level law is shown on two clocks, 1.492 and 1.266 | Which four times the law is for Tyler (12 section 7, item 1) | Tyler |
 | 10 | Chapter 11 makes a standing job the usual ending of a rest plan, in place of "wait in town" | It reads that as inside the 2026-11-20 ruling and asks that it be listed as a change. It was not put to Tyler | The Coordinator, row 27 of the reversal list |
 
 What this check did not do. It followed the status tags, the call ids and searches for each fix. It did not re-read every paragraph of all nine chapters, so a stale sentence with no tag and no number may remain.
@@ -626,7 +638,7 @@ Every item that still has no decision, with its owner. The item number is its ro
 
 | Chapter | Item | What is missing | Owner |
 |---|---|---|---|
-| `01-core-and-combat.md` | 1 | The tier numbers | CORE-1 opens them as hypotheses, sized on the mid-geared four: Dangerous pull 5 and blows 1.17 times Normal, Deadly pull 8 and 2.25 times |
+| `01-core-and-combat.md` | 1 | The tier numbers | CORE-1, sized on the mid-geared four: Dangerous pull 5 and Deadly pull 8, with blows 2.5 times Normal for both (MEASURED in chapter 12, runs R2 and R4 |
 | `01-core-and-combat.md` | 4 | The Necrotic and Storm numbers | The game designer sizes them on the matrix with the first seven spells (GR-16) and reports them as decided. It is a design call and does not go to Tyler |
 | `01-core-and-combat.md` | 5 | The shares of the dark rows | The first seven played, then a redesign under "no two weapons share a mechanic" |
 | `01-core-and-combat.md` | 6 | The crossbow's full list | The game designer, with GR-21 |

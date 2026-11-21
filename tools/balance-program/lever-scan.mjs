@@ -34,8 +34,7 @@ export const LEVER_CARRIERS = Object.freeze([
     read: (m) => m.ROOM_PERK_KEYS.map((k) => ['room-perk:' + k, k]) },
   { file: 'jewelry.js', what: 'a jewel perk (JEWEL_PERKS)', claims: [],
     read: (m) => Object.keys(m.JEWEL_PERKS).map((k) => ['jewel-perk:' + k, k]) },
-  { file: 'bestiary-charms.js', what: 'a charm rank\'s drop or damage multiplier (CHARM_RANKS)', claims: [],
-    read: (m) => m.CHARM_RANKS.flatMap((r) => [...(r.drop > 1 ? [['charm:drop', r.id]] : []), ...(r.dmg > 1 ? [['charm:damage', r.id]] : [])]) },
+  /* (the class charm ladder, bestiary-charms.js, is cut with Luck v3.1: itemization plan §15 "The cuts"; its file is gone) */
   { file: 'bestiary.js', what: 'a trophy\'s or the memory\'s multiplier (MAX_TROPHY_*, MAX_MEMORY_DROP_MULT)', claims: [],
     read: (m) => [...(m.MAX_TROPHY_DROP_MULT > 1 ? [['trophy:drop', 'MAX_TROPHY_DROP_MULT']] : []), ...(m.MAX_TROPHY_DAMAGE_MULT > 1 ? [['trophy:damage', 'MAX_TROPHY_DAMAGE_MULT']] : []),
       ...(m.MAX_MEMORY_DROP_MULT > 1 ? [['memory:drop', 'MAX_MEMORY_DROP_MULT']] : [])] },

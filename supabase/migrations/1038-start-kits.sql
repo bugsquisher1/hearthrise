@@ -33,9 +33,11 @@
 --    'account' is new (its gold through hr_purse_move under the purse's row lock), and ONE ledger row.
 --    hr_create_character(p_slot integer default 0) keeps its signature and grant (every fixture and probe calls it) and now reads
 --    `select public.hr_create_character__as(p_slot, null)`: the default set.
--- §4 hr_create_hero(p_slot, p_name, p_colors, p_set, p_idem) REPLACES the 4-argument hr_create_hero (dropped; its baseline row is
---    re-pinned with the new identity). The pick is required: a missing or unknown set answers bad_set, journalled by
---    hr_note_rejection, before the replay cache, the bucket or the lock. Everything else is as before.
+-- §4 hr_create_hero(p_slot, p_name, p_colors, p_idem, p_set default null) REPLACES the 4-argument hr_create_hero (dropped; its
+--    baseline row is re-pinned with the new identity). The pick is a set of the server's catalogue: an unknown one answers bad_set,
+--    journalled by hr_note_rejection, before the replay cache, the bucket or the lock. No set at all makes the default set, as
+--    hr_create_character does (the client always sends the player's pick: src/app/hero-create.js lets no hero in without one; a
+--    caller that sends none gets the practice sword and shield, which every hero owns anyway). Everything else is as before.
 -- REFUSAL CODES: bad_set (new). Unchanged: not_signed_in, bad_slot, bad_idem, bad_name, slot_not_owned, rate_limited, name_taken,
 --   already_created, no_start_kit.
 --
@@ -268,7 +270,7 @@ end $function$;
 -- ── §4 THE PICK AT CREATION ────────────────────────────────────────────────
 drop function if exists public.hr_create_hero(integer, text, jsonb, uuid);
 
-create or replace function public.hr_create_hero(p_slot integer, p_name text, p_colors jsonb, p_set text, p_idem uuid)
+create or replace function public.hr_create_hero(p_slot integer, p_name text, p_colors jsonb, p_idem uuid, p_set text default null)
 returns jsonb
 language plpgsql
 security definer
@@ -289,8 +291,8 @@ begin
   if p_slot is null or p_slot < 0 or p_slot > 5 then
     return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'bad_slot')); end if;
   if p_idem is null then return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'bad_idem')); end if;
-  -- THE PICK (GR-24): a set of the server's catalogue, never a client list of items.
-  if p_set is null or not exists (select 1 from public.hr_start_kit_lines l where l.kit = 'practice' and l.set_id = p_set) then
+  -- THE PICK (GR-24): a set of the server's catalogue, never a client list of items (none: the default set, hr_create_character__as).
+  if p_set is not null and not exists (select 1 from public.hr_start_kit_lines l where l.kit = 'practice' and l.set_id = p_set) then
     return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'bad_set')); end if;
   v_ok := public.hr_validate_display_name(p_name);
   if coalesce(v_ok->>'ok', '') <> 'true' then
@@ -333,13 +335,13 @@ begin
   return v_r;
 end $function$;
 
-revoke all on function public.hr_create_hero(integer, text, jsonb, text, uuid) from public, anon;
-grant execute on function public.hr_create_hero(integer, text, jsonb, text, uuid) to authenticated;
+revoke all on function public.hr_create_hero(integer, text, jsonb, uuid, text) from public, anon;
+grant execute on function public.hr_create_hero(integer, text, jsonb, uuid, text) to authenticated;
 
 delete from public.hr_client_rpc_baseline where proname = 'hr_create_hero';
 insert into public.hr_client_rpc_baseline (proname, identity_args, grantee, note)
-values ('hr_create_hero', 'p_slot integer, p_name text, p_colors jsonb, p_set text, p_idem uuid', 'authenticated',
-        'added 2026-11-01, the pick 2026-11-21 (1038-start-kits.sql): create a hero with its name, base colours and starter set id (checked against hr_start_kit_lines), all or nothing; the kit is hr_create_character__as''s, once an account and once a slot');
+values ('hr_create_hero', 'p_slot integer, p_name text, p_colors jsonb, p_idem uuid, p_set text', 'authenticated',
+        'added 2026-11-01, the pick 2026-11-21 (1038-start-kits.sql): create a hero with its name, base colours and starter set id (none: the default set) (checked against hr_start_kit_lines), all or nothing; the kit is hr_create_character__as''s, once an account and once a slot');
 
 -- ── §5 SELF-CHECK (CLAUDE.md §4): properties asserted by EXECUTING ─────────
 -- Every probe is its own account and rolled back. Nothing here reads or counts a real player's row.
@@ -365,7 +367,7 @@ begin
     -- (a) the FIRST hero of a new account, made in slot 2 as a Mage: the account kit and the hero kit, the wand and the spellbook in
     --     hand, every other practice weapon in the bag, the kit's gold in the purse, one ledger row saying so.
     perform set_config('request.jwt.claim.sub', c_new::text, true);
-    v := public.hr_create_hero(2, 'Kitprobe Mage', '{"head":0,"body":0,"legs":0,"feet":0}'::jsonb, 'mage', gen_random_uuid());
+    v := public.hr_create_hero(2, 'Kitprobe Mage', '{"head":0,"body":0,"legs":0,"feet":0}'::jsonb, gen_random_uuid(), 'mage');
     if coalesce(v->>'ok', '') <> 'true' then raise exception 'VERIFY(a): the first hero answered %', v; end if;
     select jsonb_object_agg(equip_slot, item_id) into v_worn from public.player_equipment where user_id = c_new and slot = 2;
     if v_worn is distinct from (select jsonb_object_agg(equip_slot, item_id) from public.hr_start_kit_lines where set_id = 'mage' and worn) then
@@ -381,7 +383,7 @@ begin
       raise exception 'VERIFY(a): the creation is not journalled as paying the account kit'; end if;
 
     -- (b) the SECOND hero, slot 0 as a Healer: the hero kit and the staff, no account kit and no gold.
-    v := public.hr_create_hero(0, 'Kitprobe Healer', '{"head":0,"body":0,"legs":0,"feet":0}'::jsonb, 'healer', gen_random_uuid());
+    v := public.hr_create_hero(0, 'Kitprobe Healer', '{"head":0,"body":0,"legs":0,"feet":0}'::jsonb, gen_random_uuid(), 'healer');
     if coalesce(v->>'ok', '') <> 'true' then raise exception 'VERIFY(b): the second hero answered %', v; end if;
     select jsonb_object_agg(item_id, qty) into v_bag from public.player_inventory where user_id = c_new and slot = 0;
     if v_bag is distinct from (v_hero || (select jsonb_object_agg(item_id, qty) from public.hr_start_kit_lines
@@ -393,12 +395,16 @@ begin
     if (select gold from public.account_wallet where user_id = c_new) <> v_gold0 then
       raise exception 'VERIFY(b): the second hero paid gold'; end if;
 
-    -- (c) THE PICK IS THE SERVER'S: no set and an unknown set are refused and nothing is made; a slot past four is refused.
-    v := public.hr_create_hero(1, 'Kitprobe None', '{"head":0,"body":0,"legs":0,"feet":0}'::jsonb, null, gen_random_uuid());
-    if v->>'error' is distinct from 'bad_set' then raise exception 'VERIFY(c): no set answered %', v; end if;
-    v := public.hr_create_hero(1, 'Kitprobe Bogus', '{"head":0,"body":0,"legs":0,"feet":0}'::jsonb, 'practice_sword', gen_random_uuid());
+    -- (c) THE PICK IS THE SERVER'S: an unknown set is refused and nothing is made; no set at all wears the default set.
+    v := public.hr_create_hero(1, 'Kitprobe Bogus', '{"head":0,"body":0,"legs":0,"feet":0}'::jsonb, gen_random_uuid(), 'practice_sword');
     if v->>'error' is distinct from 'bad_set' or exists (select 1 from public.player_state where user_id = c_new and slot = 1) then
       raise exception 'VERIFY(c): an unknown set answered %', v; end if;
+    v := public.hr_create_hero(1, 'Kitprobe None', '{"head":0,"body":0,"legs":0,"feet":0}'::jsonb, gen_random_uuid());
+    if coalesce(v->>'ok', '') <> 'true'
+       or (select jsonb_object_agg(equip_slot, item_id) from public.player_equipment where user_id = c_new and slot = 1)
+          is distinct from (select jsonb_object_agg(equip_slot, item_id) from public.hr_start_kit_lines where default_set and worn) then
+      raise exception 'VERIFY(c): no set answered % and wears %', v,
+        (select jsonb_object_agg(equip_slot, item_id) from public.player_equipment where user_id = c_new and slot = 1); end if;
 
     -- (d) AN ACCOUNT LIKE A LIVE ONE (L-02): its account kit and slots 0 and 1 marked paid, as §2 marks every live account. A hero in
     --     slot 1 (a slot paid before: a remade hero) gets the practice set only; a hero in slot 2 gets the hero kit and no account kit.
@@ -435,8 +441,8 @@ begin
        or has_function_privilege(v_role, 'public.hr_create_character__as(integer,text)', 'execute') then
       raise exception 'VERIFY(e): % can read the kit grants or reach the creation body', v_role; end if;
   end loop;
-  if has_function_privilege('anon', 'public.hr_create_hero(integer,text,jsonb,text,uuid)', 'execute')
-     or not has_function_privilege('authenticated', 'public.hr_create_hero(integer,text,jsonb,text,uuid)', 'execute')
+  if has_function_privilege('anon', 'public.hr_create_hero(integer,text,jsonb,uuid,text)', 'execute')
+     or not has_function_privilege('authenticated', 'public.hr_create_hero(integer,text,jsonb,uuid,text)', 'execute')
      or to_regprocedure('public.hr_create_hero(integer,text,jsonb,uuid)') is not null then
     raise exception 'VERIFY(e): the pick''s create is not the one client door';
   end if;

@@ -164,14 +164,7 @@ async function server(L) {
   const as = (uid) => db.query(`select set_config('request.jwt.claim.sub', $1, false)`, [uid]);
   await as(UID);
   for (const slot of [0, 1]) {
-    /* the second hero's slot is bought, as a player buys it: the account's purse is funded to the server's own offer (a test fixture) */
-    if (slot === 1) {
-      const offer = (await one('select public.hr_account_view($1::uuid, 0) v', [UID])).v.hero_slot_offer;
-      if (!offer || offer.slot_id !== 1) throw harness('the account is offered ' + JSON.stringify(offer) + ', not slot 1');
-      await db.query(`insert into public.account_wallet as w (user_id, gold) values ($1, $2) on conflict (user_id) do update set gold = excluded.gold`, [UID, offer.cost_gold]);
-      const b = (await one(`select public.hr_buy_hero_slot__ungated(1, 0, '00000a7e-0000-4000-8000-0000000051a1') b`)).b;
-      if (!b || b.ok !== true) throw harness('buying slot 1 answered ' + JSON.stringify(b));
-    }
+    /* the second hero's slot is the account's from the start (all four free, 1036-four-starter-slots.sql): nothing is bought */
     const r = (await one('select public.hr_create_character($1) r', [slot])).r;
     if (!r || r.created !== true) throw harness('hr_create_character(' + slot + ') answered ' + JSON.stringify(r));
     /* both heroes at Smithing 99 with the reforge's inputs, so the gate is the only thing between them and the bench */

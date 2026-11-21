@@ -103,15 +103,13 @@ async function scenario(db, wipeSql) {
     await db.query('insert into auth.users (id) values ($1) on conflict (id) do nothing', [C]);
 
     /* A PLAYED ACCOUNT: three heroes (one in a slot it bought), gold, a bag, Storage, a house and land, an open hunt, a party with a friend, a market listing, chat. */
-    /* One slot to start (2027-03-25-hero-slots-one.sql): A's second and third heroes stand in slots it bought with gold. */
+    /* All four slots are free from the start (1036-four-starter-slots.sql); A's second slot also holds the flag a purchase wrote under the old
+       ladder (the shape of the 4 live accounts that bought one), which the wipe must take. */
     await hero(A, 0, 'Marlow');
     await hero(B, 0, 'Tamsel');
     await db.query('update public.account_wallet set gold = 90000000 where user_id = $1', [A]);
-    const buys = (await db.query('select slot_id from public.hr_hero_slots where not starter and slot_id > 0 order by slot_id limit 2')).rows.map((r) => r.slot_id);
-    for (const id of buys) {
-      const bought = await ask(A, 'select public.hr_buy_hero_slot($1::int, 0, $2::uuid)', [id, key()]);
-      if (!bought || bought.ok !== true) throw Object.assign(new Error('hr_buy_hero_slot: ' + js(bought)), { harness: true });
-    }
+    const buys = [1, 2];
+    await db.query("insert into public.player_progress (user_id, slot, kind, key, value, period_key) values ($1, 0, 'flag', 'character_slot:1', 1, '') on conflict do nothing", [A]);
     const slotId = buys[0];
     await hero(A, buys[0], 'Sorrel');
     await hero(A, buys[1], 'Wrenna');

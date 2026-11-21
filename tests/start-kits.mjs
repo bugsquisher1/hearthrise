@@ -60,7 +60,7 @@ export async function rules(db) {
   await db.query(`insert into auth.users (id) values ('${NEW}') on conflict do nothing`);
   await db.query(`insert into public.profiles (id) values ('${NEW}') on conflict do nothing`);
   await db.query(`insert into public.hr_access_allowlist (user_id, note) values ('${NEW}', 'start-kits new') on conflict do nothing`);
-  const make = (uid, slot, set, name) => as(db, uid, "select public.hr_create_hero($1, $2, '{\"head\":0,\"body\":0,\"legs\":0,\"feet\":0}'::jsonb, $3, gen_random_uuid())", [slot, name, set]);
+  const make = (uid, slot, set, name) => as(db, uid, "select public.hr_create_hero($1, $2, '{\"head\":0,\"body\":0,\"legs\":0,\"feet\":0}'::jsonb, gen_random_uuid(), $3)", [slot, name, set]);
   /* K-ONCE */
   const sets = Object.keys(STARTER_SETS);
   const r0 = await make(NEW, 0, 'mage', 'Kitguard Mab');

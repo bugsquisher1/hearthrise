@@ -69,7 +69,7 @@ export async function rules(db, before) {
   arm('HS-OWN', view && view.hero_slot_offer === null && view.hero_slots_max === HERO_SLOTS.count, 'the account view reads ' + JSON.stringify(view));
   const sets = ['club', 'tank', 'healer', 'ranger'];
   for (let s = 0; s < HERO_SLOTS.count; s++) {
-    const r = await as(db, NEW, "select public.hr_create_hero($1, $2, '{\"head\":0,\"body\":0,\"legs\":0,\"feet\":0}'::jsonb, $3, gen_random_uuid())", [s, 'Slotprobe ' + 'abcd'[s], sets[s]]);
+    const r = await as(db, NEW, "select public.hr_create_hero($1, $2, '{\"head\":0,\"body\":0,\"legs\":0,\"feet\":0}'::jsonb, gen_random_uuid(), $3)", [s, 'Slotprobe ' + 'abcd'[s], sets[s]]);
     arm('HS-MAKE', r && r.ok === true, 'a hero in slot ' + s + ' answered ' + JSON.stringify(r));
   }
   for (const [s, e] of [[4, 'slot_not_owned'], [5, 'slot_not_owned'], [6, 'bad_slot']]) {

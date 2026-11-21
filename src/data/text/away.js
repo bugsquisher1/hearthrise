@@ -135,7 +135,6 @@ export const AWAY_TEXT = Object.freeze({
   carry_no: '{name} stays in town: {why}.',
   carry_leader: '{name} waits for {leader} to start the party\'s hunt.',
   carry_parked: '{name} stays where you left it.',
-  carry_loading: 'Checking each hero…',
   carry_went: { one: '{count} hero went back out.', other: '{count} heroes went back out.' },
   carry_went_none: 'No hero went back out.',
   /* The end card's press for a party of the player's own heroes (21-combat change 9): {count} the party's own heroes. */

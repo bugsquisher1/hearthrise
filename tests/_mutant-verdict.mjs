@@ -323,6 +323,16 @@ const OLD_SHAPES = [
   [/'[A-Z]+-[x?] [^']*(step failed|step threw)/, 'files a throw under a catch-all rule id'],
   [/fails\.push\(id \+ ': threw '/, 'files a throw under the rule that threw'],
 ];
+/* A list's length printed as "caught", unless the list was FILTERED to the mutant's own rule or finding first (outfit-masks'
+   `findings(...).filter((f) => f.startsWith(rule + ' '))`, world-assets' `.filter((f) => f.includes(want))`): that is a judge by name. */
+const ANY_LINE = {
+  test(src) {
+    for (const m of String(src).matchAll(/if \((?:\w+\.)?(\w+)\.length(?: > 0)?\) console\.(?:log|error)\(\s*[`'"][^\n]*caught/g)) {
+      if (!new RegExp('\\b' + m[1] + '\\s*=\\s*[^;\\n]*\\.filter\\(').test(src)) return true;
+    }
+    return false;
+  },
+};
 const EVERY_RUNNER = [
   [/\.ok\(\s*!!\s*\w+\s*,\s*'mutant /, 'scores a mutant on a truthy answer (a throw filed as the answer reads as a catch): judge it with caughtBy / caseVerdict'],
   [/if \(fails\.length\) console\.log\('  ✓ ' \+ \w+ \+ ' — caught/, 'counts any fail line as a catch (a HARNESS line reads as one): judge it with verdict / judge'],
@@ -330,7 +340,7 @@ const EVERY_RUNNER = [
   /* WIDENED (lane/c-hollow-proofs-browser 2026-11-20): the same scores in the other spellings the tree uses. Any list's length printed
      as "caught" (`if (p.length) console.log(\`  ✓ ${id} — caught`), a throw filed into the list it scores (`catch (e) { p = ['threw`),
      and a catch-all that files a throw under a NAMED rule id (`catch (e) { fails.push('OB-0 the checks stopped: ' + String(e`). */
-  [/if \((?:\w+\.)?\w+\.length(?: > 0)?\) console\.(?:log|error)\(\s*[`'"][^\n]*caught/, 'counts any line in its list as a catch: judge it with verdict / judge (a named rule) or caseVerdict'],
+  [ANY_LINE, 'counts any line in its list as a catch: judge it with verdict / judge (a named rule) or caseVerdict'],
   [/catch \((\w+)\) \{\s*\w+ = \[['`]threw/, 'files a throw into the list it scores, so a crash reads as a catch: judge it with judge / caseVerdict'],
   [/catch \((\w+)\) \{\s*(?:\/\*[^*]*\*\/\s*)?(?:if \(\1 !== \w+\) )?(?:Array\.prototype\.push\.call\()?(?:fails|problems|out)(?:\.push\(|, )['`][A-Z][A-Z0-9]*-[A-Za-z0-9]+ [^'`]*['`] \+ String\(\(?\1\b/,
     'files a throw under a named rule id (a named catch-all), so a crash reads as that rule\'s catch: push harnessFail(where, e)'],
@@ -346,11 +356,10 @@ export const OWED = Object.freeze([]);
 export const OWED_FOUND = Object.freeze([
   'tests/button-system.mjs', 'tests/catalogue-regrow-limit.mjs', 'tests/chat-stream-safe.mjs', 'tests/farm-harvest-clear.mjs', 'tests/farm-tend.mjs',
   'tests/frame-self-echo.mjs', 'tests/hearth-moods.mjs', 'tests/hero-colors.mjs', 'tests/house-pelts.mjs', 'tests/hunt-core/drop-tables.mjs',
-  'tests/hunt-live.mjs', 'tests/hunt-scene-live.mjs', 'tests/inner-flame.mjs', 'tests/outfit-masks.mjs', 'tests/party-hunt-start-gate.mjs',
+  'tests/hunt-live.mjs', 'tests/hunt-scene-live.mjs', 'tests/inner-flame.mjs', 'tests/party-hunt-start-gate.mjs',
   'tests/plot-tier-price-replay.mjs', 'tests/realtime-cost.mjs', 'tests/scaled-hunts.mjs', 'tests/settle-drop-bounds.mjs', 'tests/setup-slots.mjs',
   'tests/skills-from-storage.mjs', 'tests/tally-tasks.mjs', 'tests/temper-uniques.mjs', 'tests/titles.mjs', 'tests/town-crier.mjs',
-  'tests/town-criers.mjs', 'tests/town-shows.mjs', 'tests/town-works.mjs',
-  'tests/world-assets.mjs', 'tests/world-tick-armed-cap.mjs', 'tests/world-tick-gather-widen.mjs', 'tests/world-tick-presence-horizon.mjs',
+  'tests/town-shows.mjs', 'tests/town-works.mjs', 'tests/world-tick-armed-cap.mjs', 'tests/world-tick-gather-widen.mjs', 'tests/world-tick-presence-horizon.mjs',
   'tests/world-tick-presence-signal.mjs', 'tests/world-tick-scale.mjs',
 ]);
 export function plainProblems(files, owed = [...OWED, ...OWED_FOUND]) {
@@ -395,7 +404,8 @@ if (isMain(import.meta.url) && !process.argv.includes('--selftest')) {
   ];
   /* ...and the shapes that are not the old way stay green: a named-rule judge, a harnessFail catch, a rule line that mentions a throw */
   const fine = plainProblems([['tests/p.mjs', "  } catch (e) {\n    if (e !== FIRST_RED) Array.prototype.push.call(fails, harnessFail('a page step', e));\n  }\n"
-    + "    console.log(report(name, await judgePlanted(plant, () => checks(plant)), counts));\n    if (!tn) fail('WN-1 a town notice reads Mira threw Cinnabar');"]]);
+    + "    console.log(report(name, await judgePlanted(plant, () => checks(plant)), counts));\n    if (!tn) fail('WN-1 a town notice reads Mira threw Cinnabar');\n"
+    + "    const hit = findings(plant(t)).filter((f) => f.startsWith(rule + ' '));\n    if (hit.length) console.log(`  ✓ ${name}: caught by [${rule}]`);"]]);
   for (const f of fine) console.log('  ✗ a shape that is not the old way read as one: ' + f);
   const blind = planted.findIndex((p) => !p.length);
   if (blind >= 0) console.log('  ✗ planted old shape #' + (blind + 1) + ' was not seen');

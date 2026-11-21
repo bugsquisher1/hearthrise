@@ -828,16 +828,21 @@ const engineMutants = [
     edits: [['src/data/loot-bands.js', "export const REVEAL_BANDS = Object.freeze(['rare', 'trophy']);", "export const REVEAL_BANDS = Object.freeze(['rare']);"]] },
   /* THE SALE LADDER FROM TIER 4 UP (lane/b-phase0-tier4, designer 2026-11-08): each new rate one notch under the floor its twin rule sets
      (0.0747 the Mithril Sword over the Steel, 0.025 the Rune Helm over the Mithril, 0.0127 the Ember Sword over the Rune). The high side is
-     gold-intents G1's pin on the whole ladder, and the faucet cap of each ground that drops the tier. */
-  { name: 'tier-4 gear sells at 0.07 of book (a Mithril Sword under the Steel one)', case: 'sale-ladder',
-    edits: [['src/data/loot-bands.js', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075, 0.033, 0.015, 0.007]);', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.07, 0.033, 0.015, 0.007]);']] },
-  { name: 'tier-5 gear sells at 0.02 of book (a Rune Helm under the Mithril one)', case: 'sale-ladder',
-    edits: [['src/data/loot-bands.js', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075, 0.033, 0.015, 0.007]);', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075, 0.02, 0.015, 0.007]);']] },
-  { name: 'tier-6 gear sells at 0.012 of book (an Ember Sword under the Rune one)', case: 'sale-ladder',
-    edits: [['src/data/loot-bands.js', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075, 0.033, 0.015, 0.007]);', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075, 0.033, 0.012, 0.007]);']] },
-  /* tier 7 (lane/d-barrow-data, designer 2026-11-13): the twin rule's floor is 0.0054 (Dawnsteel book 2.77x Emberforged) */
-  { name: 'tier-7 gear sells at 0.005 of book (a Dawnsteel Sword under the Ember one)', case: 'sale-ladder',
-    edits: [['src/data/loot-bands.js', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075, 0.033, 0.015, 0.007]);', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075, 0.033, 0.015, 0.005]);']] },
+     gold-intents G1's pin on the whole ladder, and the faucet cap of each ground that drops the tier.
+     RE-AIMED (lane/c-hollow-proofs 2026-11-20): these four were "caught" only by a missing hr-accrue/catalogue.js in their plant. Loaded,
+     none bit: since the ground income dial (src/data/loot-sale.js, catalogue.js vendorPriceOf) a dialed piece is floored at its lower twin's
+     bid, so the floor each rate must stay over is the twin's DIALED bid. MEASURED on this tree: 0.0667 (Mithril Sword, book 1500, over the
+     Steel Sword's 100), 0.0200 (Rune Sword 5000 over the Mithril's 100), 0.0088 (Ember Sword 13000 over the Rune's 115), 0.0038 (Dawnsteel
+     Platelegs 79200 over the Ember ones' 300). Each mutant is one notch under its floor again. */
+  { name: 'tier-4 gear sells at 0.066 of book (a Mithril Sword under the Steel one)', case: 'sale-ladder',
+    edits: [['src/data/loot-bands.js', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075, 0.033, 0.015, 0.007]);', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.066, 0.033, 0.015, 0.007]);']] },
+  { name: 'tier-5 gear sells at 0.019 of book (a Rune Sword under the Mithril one)', case: 'sale-ladder',
+    edits: [['src/data/loot-bands.js', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075, 0.033, 0.015, 0.007]);', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075, 0.019, 0.015, 0.007]);']] },
+  { name: 'tier-6 gear sells at 0.0085 of book (an Ember Sword under the Rune one)', case: 'sale-ladder',
+    edits: [['src/data/loot-bands.js', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075, 0.033, 0.015, 0.007]);', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075, 0.033, 0.0085, 0.007]);']] },
+  /* tier 7 (lane/d-barrow-data, designer 2026-11-13; floor re-measured above) */
+  { name: 'tier-7 gear sells at 0.0035 of book (a Dawnsteel piece under its Emberforged twin)', case: 'sale-ladder',
+    edits: [['src/data/loot-bands.js', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075, 0.033, 0.015, 0.007]);', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075, 0.033, 0.015, 0.0035]);']] },
 ];
 
 const R = makeReport('hunt-core/drop-tables');

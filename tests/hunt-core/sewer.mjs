@@ -355,6 +355,9 @@ const cases = {
       ['two heroes, the Glade unwalked', 10, { gold: 15000, visited: new Set([THICKET, WICK]) }, 'Next step up: Mosslight Glade, Level 16'],
       ['the Glade walked, 41k: the hero, never the Farmstead', 17, { gold: 41172, visited: new Set([THICKET, WICK, GLADE, WARRENS]), home: { owned: true, next: { name: 'Fieldworth Farmstead', gold: 2500, items: [{ id: 'normal_log', qty: 40 }] } } }, 'Next goal: a third hero slot, 50,000 gp'],
       ['the purse is there', 18, { gold: 50000, visited: new Set([THICKET, WICK, GLADE]) }, 'Buy a third hero slot for 50,000 gp'],
+      /* an empty slot with the purse for the next one: the free hero, never a sale (lane/c-hollow-proofs: at 15,000 gp the purse was too short for any
+         offer, so the mutant that sells a slot past an empty one escaped once its plant could load) */
+      ['the purse is there, one slot empty', 18, { gold: 50000, roster: roster(1), visited: new Set([THICKET, WICK, GLADE]) }, 'Create your free second hero in Characters'],
       ['the Warrens fifteen Levels up, unwalked', 17, { gold: 1000, slotCost: 200000, slotsOwned: 3, roster: roster(3), visited: new Set([GLADE]) }, 'Next step up: Coppercap Warrens, Level 32'],
       ['sixteen Levels under names no dare', 16, { gold: 1000, slotCost: 200000, slotsOwned: 3, roster: roster(3), visited: new Set([GLADE]) }, 'Find a party for Mosslight Glade'],
       ['out of stamina, gold in hand', 20, { gold: 9000, slotCost: 200000, slotsOwned: 3, roster: roster(3), visited: new Set([GLADE, WARRENS]), staminaMs: 60000, refill: { available: true, price: 6000, restoreMs: 14400000 } }, 'Press + beside stamina: 4 h for 6,000 gp'],
@@ -368,6 +371,9 @@ const cases = {
       if (!Array.isArray(g.also) || g.also.includes(g.text)) return what + ': the rest of the goals read ' + JSON.stringify(g.also);
       if (!/^goal_[a-z0-9_]+$/.test(g.id)) return what + ': the id ' + g.id + ' is not a coach key';
     }
+    /* NO SALE PAST AN EMPTY SLOT, in any of the card's lines (the free hero leads, so the first line alone could not tell: lane/c-hollow-proofs) */
+    const emptyFull = at(18, { gold: 50000, roster: roster(1), visited: new Set([THICKET, WICK, GLADE]) });
+    if ([emptyFull.text, ...emptyFull.also].some((x) => /hero slot for/.test(x))) return 'with a slot empty and the purse full the card sells a slot: ' + JSON.stringify([emptyFull.text, ...emptyFull.also]);
     /* the walk's every stop is doable with what the stop holds: each ground it names is a real, open, row; a press it names is a real window */
     for (const hunt of [GLADE, WARRENS]) if (!M.HUNTS[hunt] || M.HUNTS[hunt].staged) return hunt + ' is named and not open';
     /* the empty land, which led the card for a hunter, waits behind every goal with a press */
@@ -1367,6 +1373,11 @@ const cases = {
     /* the ground it last hunted, when it has the tier and the Level is in its band */
     if (!(say(at({ ...base, last: 'wickstead' })) || {}).text.includes('→ Wickstead →')) return 'back from Wickstead the offer names ' + JSON.stringify((say(at({ ...base, last: 'wickstead' })) || {}).text);
     if (!(say(at({ ...base, last: 'mill_cellar' })) || {}).text.includes('→ Meadowbrook Thicket →')) return 'back from the Cellar (Normal only) the offer names ' + JSON.stringify((say(at({ ...base, last: 'mill_cellar' })) || {}).text);
+    /* the ground just hunted beats the highest one hunted (lane/c-hollow-proofs: back from Wickstead both read Wickstead, so the mutant that
+       drops the last hunt escaped once its plant could load): been to Wickstead, back from the Thicket, the offer names the Thicket */
+    const backLow = at({ ...base, last: 'meadowbrook_thicket' });
+    backLow.visited = new Set([...backLow.visited, 'wickstead']);
+    if (!(say(backLow) || {}).text.includes('→ Meadowbrook Thicket →')) return 'back from the Thicket, having hunted Wickstead, the offer names ' + JSON.stringify((say(backLow) || {}).text);
     /* not before its Level, not without armor on head and body, not unknown */
     if (id({ ...base, lv: 7 }) === 'first_dangerous') return 'the offer came at Level 7';
     if (id({ ...base, eq: { weapon: 'practice_sword', shield: 'practice_shield' } }) === 'first_dangerous') return 'the offer came to a hero in the practice kit (22 deaths in 2 h on the board)';
@@ -1499,6 +1510,14 @@ const cases = {
     const next = Object.values(M.HUNTS).filter((h) => h.staged !== true && Object.values(M.grounds.HUNT_GROUNDS).some((g) => g.hunt === h.id) && h.band[0] > L)
       .sort((a, b) => a.band[0] - b.band[0])[0];
     if (!goal.startsWith('goal_')) return 'after the guide (Level ' + L + ', in the Sewer) the pointer shows ' + (goal || 'nothing');
+    /* PAST THE THICKET, NO CHAIN CARD (lane/c-hollow-proofs 2026-11-20: in a hunt with no town section every town lesson is passed anyway, so the
+       mutant that drops the solo cap escaped once its plant could load): each chain card the walk meets, asked of its own facts at Level L, is passed by */
+    for (const s of walkChain(M, tutKit(M, 'tank'))) {
+      const c = s.id && M.tut.HUNT_TUTORIAL.find((r) => r.id === s.id);
+      if (!c || c.party || (c.reactive && !c.dayOne)) continue;
+      const past = M.tut.currentCard({ ...s.facts, charLevel: L, levelXp: M.xp.charXpForLevel(L), skillLevel: L });
+      if (past && past.id === c.id) return 'the chain card ' + c.id + ' is asked of a hero at Level ' + L + ', past the Thicket';
+    }
     if (next && !html.includes(next.name)) return 'the what-next line does not name ' + next.name + ': ' + html;
     /* THE PARTY PITCH, NOT A PARTY WALL (playtest 2026-10-24): a solo hero hears of the party ground its Level fits and
        how to make a party; a hero in a party does not. The ground is the one the Hunts window's party advice picks (lane/a-party-coach-card): at
@@ -1673,6 +1692,10 @@ const cases = {
     /* A title that says nothing alone keeps its words, however long the hunt (newcomer panel 2026-11-01). */
     for (const id of ['first_level', 'leave_cellar']) {
       const c = M.tut.HUNT_TUTORIAL.find((s) => s.id === id);
+      /* opened, then an hour on (lane/c-hollow-proofs: asked once, any card reads open, its first look starts its clock, so the mutant that drops
+         holdOpen escaped once its plant could load) */
+      restsNow(ctx, c);
+      t += 60 * 60000;
       if (!c.holdOpen || restsNow(ctx, c)) return 'under the hunt bar ' + id + ' folds to its bare title';
     }
     return null;
@@ -1899,8 +1922,10 @@ const cases = {
     const cs = { slot: 0, read: () => undefined, record: { data: {}, residue: residueOf({ coach: { hid: ['fuel_hearth'], hidIn: 'none:town' } }) }, setResidue: () => true };
     const sh = L.coachFactsOf(cs, null);
     if (!(sh.hid instanceof Set) || !sh.hid.has('fuel_hearth')) return 'the shell hands the chain no hidden cards: ' + JSON.stringify(sh.hid && [...sh.hid]);
-    const f = tutorialFactsOf({ slot: 0, read: () => undefined }, sh);
-    if (f && !(f.hid instanceof Set && f.hid.has('fuel_hearth'))) return 'the coach\'s facts drop the hidden cards: ' + JSON.stringify(f.hid);
+    /* a hero the facts can read (an empty envelope answers no facts at all, and `f &&` made this line vacuous: lane/c-hollow-proofs found its
+       mutant escaping once the plant could load) */
+    const f = tutorialFactsOf({ slot: 0, read: (k) => ({ state: { level_xp: M.xp.charXpForLevel(5) }, level: srvLevel(M, M.xp.charXpForLevel(5)) })[k] }, sh);
+    if (!f || !(f.hid instanceof Set && f.hid.has('fuel_hearth'))) return 'the coach\'s facts drop the hidden cards: ' + JSON.stringify(f && f.hid && [...f.hid]);
     /* GOT IT MEANS LATER, NOT NEVER (retention dive 2026-11-20, R5: Got it at Level 1 hid "Cash in" and "Into the Thicket" for good): a hide
        holds for the visit it was pressed on. Pressed in hunt s1, it holds in s1; back in town from s1, or in the next hunt, the card shows again. */
     const hunt = (session, ended) => ({ session_id: session, hunt_id: 'mill_cellar', ended, session: {}, hero: {}, pose: { units: [] } });
@@ -2170,8 +2195,11 @@ const mutants = [
     edits: [['src/data/hunt-tutorial.js', "f.endReason === 'died' && f.freeDeath !== true,", "f.endReason === 'died',"]] },
   { name: 'the Tower card never comes', case: 'tutorial-reactive',
     edits: [['src/data/hunt-tutorial.js', "  tower_open: (p, f) => f.towerBest !== null && f.towerBest !== undefined,", '  tower_open: () => false,']] },
+  /* both gates off (lane/c-hollow-proofs 2026-11-20): tower_climbed reads an unknown best floor as unknown and holds the card on its own, so
+     tower_open alone was an equivalent mutant, "caught" only by a plant missing src/hunt-view */
   { name: 'the Tower card comes with the switch off', case: 'tutorial-reactive',
-    edits: [['src/data/hunt-tutorial.js', "  tower_open: (p, f) => f.towerBest !== null && f.towerBest !== undefined,", '  tower_open: () => true,']] },
+    edits: [['src/data/hunt-tutorial.js', "  tower_open: (p, f) => f.towerBest !== null && f.towerBest !== undefined,", '  tower_open: () => true,'],
+      ['src/data/hunt-tutorial.js', '  tower_climbed: (p, f) => known(f.towerBest, (b) => b > 0),', '  tower_climbed: (p, f) => (f.towerBest || 0) > 0,']] },
   { name: 'the gold card never comes', case: 'tutorial-reactive',
     edits: [['src/data/hunt-tutorial.js', "Number.isSafeInteger(f.slotCost) && f.slotCost > 0 && f.gold >= f.slotCost * SAVING_FROM : null),", "false : null),"]] },
   { name: 'Hunt together walls the coach again', case: 'tutorial-reactive',
@@ -2422,8 +2450,10 @@ const mutants = [
     edits: [['src/data/hunt-tutorial.js', '  if (r.knowledge && secondHero(f)) return false;\n', '']] },
   { name: 'a reactive card is capped by the guide\'s Level (no paid-Blessing card at Level 31)', case: 'tutorial-reactive',
     edits: [['src/data/hunt-tutorial.js', '    if (past && (!r.reactive || r.dayOne)) continue;', '    if (past) continue;']] },
-  { name: 'the death card reads no Blessing from the death log', case: 'tutorial-reactive',
-    edits: [['src/session/tutorial-sections.js', 'saved: d.saved ? { level: nat(d.saved.level) ?? 0 } : null', 'saved: null']] },
+  /* RETIRED (lane/c-hollow-proofs 2026-11-20): "the death card reads no Blessing from the death log" (tutorial-sections.js `saved: null`)
+     was "caught" only by a plant missing src/hunt-view. Loaded, no rule can catch it: the death card is a label since the 11-14 ruling
+     ("Shop → Services → Bless"), and no card reads `death.saved` any more (hunt-tutorial.js: `died` and `below_free` only). An equivalent
+     mutant on a field with no reader; the field itself is DISCOVERIES 2026-11-20 #4. */
   { name: 'the ate card never sees the analyzer', case: 'tutorial-reactive',
     edits: [['src/data/hunt-tutorial.js', "  ate: (p, f) => known(used(f, 'food', 'own'), (r) => r.length > 0),", '  ate: () => false,']] },
   { name: 'a day-one card jumps the chain (placed before it)', case: 'tutorial-reactive',
@@ -2466,12 +2496,12 @@ const mutants = [
 
 /* fixtures/h1.js `plant`, widened to the world engine and its manifests (the map cases read them):
    a mutant that cannot load would read as caught, so every path this file imports is copied. It had drifted (lane/c-hollow-proofs
-   2026-11-20): with no src/hunt-view, no market migrations and no alpha envelope, 90 of its mutants "were caught" by Cannot find
+   2026-11-20): with no src/hunt-view, src/net or src/social, no market migrations and no alpha envelope, 90 of its mutants "were caught" by Cannot find
    module / ENOENT, their cases unrun; a throw is no catch now (tests/_mutant-verdict.mjs), so a missing path reads HARNESS. */
 const MARKET_SQL = ['supabase/migrations/2027-03-03-market-bench-gate.sql', 'supabase/migrations/2027-02-13-market-eligibility.sql'];
 function plant(edits) {
   const root = mkdtempSync(join(tmpdir(), 'hunt-sewer-'));
-  for (const d of ['src/core', 'src/data', 'src/world', 'src/session', 'src/shell', 'src/render', 'src/utils', 'src/hunt-view', 'assets/world', 'prototypes/hunt-sim-assets/manifest.json', ...MARKET_SQL, 'tests/fixtures/alpha-envelope.json']) cpSync(join(ROOT, d), join(root, d), { recursive: true });
+  for (const d of ['src/core', 'src/data', 'src/world', 'src/session', 'src/shell', 'src/render', 'src/utils', 'src/hunt-view', 'src/net', 'src/social', 'assets/world', 'prototypes/hunt-sim-assets/manifest.json', ...MARKET_SQL, 'tests/fixtures/alpha-envelope.json']) cpSync(join(ROOT, d), join(root, d), { recursive: true });
   cpSync(join(ROOT, 'src/build-info.js'), join(root, 'src/build-info.js'));
   for (const [file, from, to] of edits) {
     const f = join(root, file);

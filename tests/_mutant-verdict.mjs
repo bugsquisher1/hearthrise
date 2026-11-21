@@ -20,6 +20,10 @@
 //            run (judge) — or a fail line with no rule id. Never a catch: the runner
 //            exits 2, and a clean control that throws is HARNESS too.
 //   ESCAPED  no fail line at all: the mutant was NOT caught (exit 1).
+//
+// THE SAME RULE FOR NODE CASE RUNNERS (2026-11-20, lane/c-hollow-proofs: hunt-tiers' 25 mutants and 110 more in hunt-core were "caught"
+// by `threw Cannot find module` or a load-time refusal): caseVerdict / caughtBy judge a case's answer, and a throw, a HARNESS line or a
+// `fixture:` line is never a catch. The plain run scans every runner in tests/ and tools/ for a score that takes any answer as a catch.
 // ════════════════════════════════════════════════════════════════════════
 import { isMain } from './_is-main.mjs';
 

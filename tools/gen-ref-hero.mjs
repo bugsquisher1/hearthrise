@@ -46,18 +46,11 @@ export async function refRows(root = ROOT) {
   const lines = loadLines(join(root, 'tools', 'balance-sim', 'skill-lines.json'));
   if (!lines) throw new Error('gen-ref-hero: no tools/balance-sim/skill-lines.json');
   const top = lines.top;
-  const hoursAt = (L) => {
-    const t = LEVEL_PACE.targets;
-    for (let i = 1; i < t.length; i++) if (L <= t[i][0]) return t[i - 1][1] + ((t[i][1] - t[i - 1][1]) * (L - t[i - 1][0])) / (t[i][0] - t[i - 1][0]);
-    return t[t.length - 1][1];
-  };
-  const lineAt = (k, L) => skillsAt(lines, 'alone', 'hammer', Math.min(L, top))[k];
-  const project = (k, L) => {
-    if (L <= top) return lineAt(k, L);
-    const s1 = lineAt(k, top), s0 = lineAt(k, top - 10);
-    const rate = (XP.skillXpForLevel(k, s1) - XP.skillXpForLevel(k, s0)) / (hoursAt(top) - hoursAt(top - 10));
-    return XP.skillLevelFromXp(k, XP.skillXpForLevel(k, s1) + rate * (hoursAt(L) - hoursAt(top)) * Math.sqrt(L / top));
-  };
+  void top;
+  /* the lone hammer's line, and past its top the ONE projection every simulated hero uses (skill-lines.mjs skillsAt -> projectSkill): the
+     reference hero and the harness's heroes cannot drift apart (51-baseline.md fault F15) */
+  const ctx = { XP, targets: LEVEL_PACE.targets };
+  const project = (k, L) => skillsAt(lines, 'alone', 'hammer', L, ctx)[k];
   const accOf = (L) => {
     const kit = gear.kitOf('hammer', Math.min(L, KIT_TOP), { uniques: true });
     let a = 0;

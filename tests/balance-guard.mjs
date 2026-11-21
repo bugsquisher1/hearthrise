@@ -396,7 +396,11 @@ function judge(I) {
     const K = MODEL.REAL_KRELL_FOUR, r = R('krell-real');
     const net = r ? r.incomePerH - r.storePerH * (1 - K.ownStockShare) : NaN;
     line('K1', r ? [row('Level XP', r.levelXpPerH / K.levelXpAHeroHour, band('K1'), f2, ' (' + kG(r.levelXpPerH) + ')'), row('kills', r.killsPerH / K.killsAClockHour, band('K1'), f2, ' (' + r.killsPerH + ')'),
-      row('net gold', net / K.netGoldAHeroHour, band('K1'), f2, ' (' + kG(net) + ')')] : [{ at: 'krell', value: NaN, status: 'ERR', shown: 'no cell' }],
+      row('net gold', net / K.netGoldAHeroHour, band('K1'), f2, ' (' + kG(net) + ')'),
+      /* who takes the blows (51-baseline.md F16): the share of the four's damage on the last seat, and the four's damage a clock hour, each over the real hunt's */
+      ...(Array.isArray(r.takenBySeat) && r.takenBySeat.length ? (() => { const tot = r.takenBySeat.reduce((a, b) => a + b, 0), last = r.takenBySeat[r.takenBySeat.length - 1];
+        return [row('last seat dmg share', tot > 0 ? last / tot / K.damageShareLastSeat : NaN, band('K1'), f2, ' (' + (tot > 0 ? Math.round((100 * last) / tot) : '?') + '%)'),
+          row('party dmg', tot / K.damageAClockHour, band('K1'), f2, ' (' + kG(tot) + ')')]; })() : [])] : [{ at: 'krell', value: NaN, status: 'ERR', shown: 'no cell' }],
     'harness / ' + K.label + '; harness deaths ' + (r ? r.deaths : '?') + ' in ' + (r ? r.heroHours.toFixed(0) : '?') + ' hero-hours');
   }
   /* ── the plan audit's lines (31-plan-audit.md M2, M5, M9) ── */

@@ -179,11 +179,16 @@ export const REAL_OWN_FOUR_NET = Object.freeze([[46, 6530], [55, 7495], [84, 907
 export const REAL_KRELL_FOUR = Object.freeze({
   ground: 'krells_hold', tier: 'deadly', read: '2026-11-20', label: 'REAL, THIN (one person, one day)',
   seats: Object.freeze([
-    Object.freeze({ style: 'tank', level: 79, skills: Object.freeze({ melee: 60, defense: 59 }) }),
-    Object.freeze({ style: 'healer', level: 77, skills: Object.freeze({ magic: 63, defense: 32 }) }),
+    /* THE SEATS AS PLAYED (read from production 2026-11-21, 51-baseline.md fault F16): the front hero wields a two-handed HAMMER, so it carries no
+       shield and cannot cast Challenge (abilities.js: disciplines ['shield']); the Healer sits in the LAST seat, which is where an unchallenged
+       Hask's Lookout shoots. The row read `tank, healer, bow, mage` until then: a shield tank that Challenged every Lookout onto itself. */
+    Object.freeze({ style: 'hammer', level: 79, skills: Object.freeze({ melee: 60, defense: 59 }) }),
     Object.freeze({ style: 'bow', level: 79, skills: Object.freeze({ ranged: 61 }) }),
     Object.freeze({ style: 'mage', level: 79, skills: Object.freeze({ magic: 59 }) }),
+    Object.freeze({ style: 'healer', level: 77, skills: Object.freeze({ magic: 63, defense: 32 }) }),
   ]),
+  damageShareLastSeat: 0.27,       // REAL, five hunts, 30 clock hours: the Healer in the last seat takes 25 to 28% of the four's damage, the front hero 69 to 75%
+  damageAClockHour: 176000,        // REAL, the same five hunts: 167k to 188k for the four
   runeTierByRole: Object.freeze({ mage: 'carved', healer: 'etched' }),
   ownStockShare: 0.24,             // section 4: home-made is 24% of all supply units used
   levelXpAHeroHour: 1001000,       // section 2, before the event

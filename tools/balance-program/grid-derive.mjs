@@ -482,6 +482,18 @@ export async function selftest({ ROOT, loadGridData, loadKits, readGrid, quick }
     const ok = !bad.length; if (!ok) fails++;
     console.log('  ' + (ok ? 'SILENT ' : 'NOISY  ') + 'gear cost past 185 (no price rows) is not judged' + (ok ? '' : ': ' + bad.map((r) => r.band + ' ' + r.at + ' ' + r.status).join(', ')));
   }
+  /* the heroes past the measured skill line (Level 100) are the game's own reference hero, never a straight line in skill levels (fault F15:
+     Melee 198 at Level 400 where the curve allows 129) */
+  {
+    const TH = await import(pathToFileURL(join(ROOT, 'src/data/to-hit.js')).href);
+    const bad = [];
+    for (const L of [110, 200, 400]) {
+      const sk = D.skillsAt(D.lines, 'alone', 'hammer', L), ref = TH.REF_HERO.find((r) => r[0] === L);
+      if (!ref || sk.melee !== ref[1] || sk.defense !== ref[2]) bad.push('Level ' + L + ': Melee ' + sk.melee + ' Defense ' + sk.defense + ', the reference hero ' + (ref ? ref[1] + ' / ' + ref[2] : 'has no row'));
+    }
+    const ok = !bad.length; if (!ok) fails++;
+    console.log('  ' + (ok ? 'SILENT ' : 'NOISY  ') + 'the lone hammer past Level 100 is the reference hero the monsters are written against' + (ok ? ' (Melee ' + D.skillsAt(D.lines, 'alone', 'hammer', 400).melee + ' at Level 400)' : ': ' + bad.join('; ')));
+  }
   /* the kits: a changed RULE (LOW two tiers under), a changed DATA row (a planted gettable ring of a higher tier) */
   {
     const base = K.kitFor(45, 'low', 'hammer', { ground: 'hasks_ford' });

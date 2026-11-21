@@ -304,7 +304,7 @@ function startApp(win) {
 
   /* THE COACH ON THE CHARACTERS SCREEN (board 2026-10-25 D4 "More than one hero"): the game's shell is gone here, so the
      screen rings the step the viewed hero's card names on it (its hooks: Create hero in the empty slot), the deepest
-     one on screen, from the same facts the shell reads (src/shell/launcher.js coachFactsOf). Display only. */
+     one on screen, from the same facts the shell reads (src/shell/launcher-coach.js coachFactsOf). Display only. */
   function ringCharacters(a, card) {
     const cs = a.character(a.viewed);
     const c = cs ? G.pointerCardOf(cs, G.coachFactsOf(cs, a)) : null;

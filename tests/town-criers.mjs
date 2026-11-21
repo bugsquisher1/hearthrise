@@ -5,7 +5,7 @@
 //   node tests/town-criers.mjs            the rules (pure node)
 //   node tests/town-criers.mjs --mutate   every planted defect must turn a rule RED
 //
-// mutant-anchors: src/shell/town-criers.js src/session/crier-facts.js src/social/chat-store.js src/shell/launcher.js
+// mutant-anchors: src/shell/town-criers.js src/session/crier-facts.js src/social/chat-store.js src/shell/launcher-coach.js
 // mutant-writes-tree: no — mutants plant into a temp copy of src/
 //
 // Tyler: "the 'what's next' tutorial thing should not be a mandatory thing, give an option to dismiss these tips and
@@ -39,7 +39,7 @@ const SEC = 1000, MIN = 60 * SEC;
 
 const MODULES = {
   shell: 'src/shell/town-criers.js', data: 'src/data/town-criers.js', facts: 'src/session/crier-facts.js', store: 'src/social/chat-store.js',
-  stations: 'src/data/world/stations.js', windows: 'src/data/shell-windows.js', text: 'src/render/player-text.js', launcher: 'src/shell/launcher.js',
+  stations: 'src/data/world/stations.js', windows: 'src/data/shell-windows.js', text: 'src/render/player-text.js', launcher: 'src/shell/launcher-coach.js',
   settings: 'src/data/settings.js', model: 'src/shell/settings-model.js', tips: 'src/data/tips.js', residue: 'src/session/residue.js',
   temper: 'src/data/temper.js', items: 'src/data/items.js',
 };
@@ -316,10 +316,10 @@ const MUTANTS = [
   ['the criers ignore Show tips', 'src/shell/town-criers.js', '|| !switchOn(account.characters(), TIPS)', '|| false'],
   ['the line loses its link', 'src/shell/town-criers.js', 'if (target) parts.push(', 'if (false) parts.push('],
   ['a hero who has hunted is told the gate', 'src/session/crier-facts.js', 'unhunted: lv.xp === 0,', 'unhunted: true,'],
-  ['the coach ignores a hidden card', 'src/shell/launcher.js', '    hid: coachHidOf(cs),\n', ''],
-  ['the coach ignores Show tips', 'src/shell/launcher.js', 'if (cs && !tipsOn(ctx)) { HELD.delete(cs); return null; }', ''],
-  ['Got it records nothing on a server-fact card', 'src/shell/launcher.js', 'if (card.gotIt || readable(card)) markCoachRead(cs, card); else markCoachHid(cs, card);', 'if (card.gotIt || readable(card)) markCoachRead(cs, card);'],
-  ['Don\'t show tips presses nothing', 'src/shell/launcher.js', "if (action === 'coach-off') { setSwitch(heroesOf(ctx), TIPS, false, serverNowOf(cs)); return true; }", "if (action === 'coach-off') return true;"],
+  ['the coach ignores a hidden card', 'src/shell/launcher-coach.js', '    hid: coachHidOf(cs),\n', ''],
+  ['the coach ignores Show tips', 'src/shell/launcher-coach.js', 'if (cs && !tipsOn(ctx)) { HELD.delete(cs); return null; }', ''],
+  ['Got it records nothing on a server-fact card', 'src/shell/launcher-coach.js', 'if (card.gotIt || readable(card)) markCoachRead(cs, card); else markCoachHid(cs, card);', 'if (card.gotIt || readable(card)) markCoachRead(cs, card);'],
+  ['Don\'t show tips presses nothing', 'src/shell/launcher-coach.js', "if (action === 'coach-off') { setSwitch(heroesOf(ctx), TIPS, false, serverNowOf(cs)); return true; }", "if (action === 'coach-off') return true;"],
 ];
 
 function copySrc() {

@@ -275,7 +275,7 @@ export class AccountSession {
   statedLimit() { this.limit(); return this._limit; }
 
   /** The roster rows as the server last read them (roster(): every owned slot, with or without a hero), or null
-      before the first read. A copy: the coach's facts (src/shell/launcher.js coachFactsOf) read it. */
+      before the first read. A copy: the coach's facts (src/shell/launcher-coach.js coachFactsOf) read it. */
   lastRoster() { return this._roster ? this._roster.map((r) => Object.assign({}, r)) : null; }
 
   /** The account's heroes this tab does NOT have open, as the roster last read them: [{ slot, name, level, doing }] in

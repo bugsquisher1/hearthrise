@@ -11,7 +11,7 @@
 //   node tests/alpha-windows-pure.mjs --mutate --shard=K/N   the Kth of N shards, balanced by measured seconds (CI splits them)
 //   node tests/alpha-windows-pure.mjs --shard-plan   no browser: smoke.yml's shards cover every mutant once, each in budget
 //
-// mutant-anchors: src/shell/windows/inventory/bury.js src/shell/bag-model.js src/session/edge-intents.js src/shell/hunt-list.js src/shell/launcher.js src/shell/upgrade-plan.js src/shell/widgets/upgrade-line.js src/shell/town-work.js src/shell/hunt-ground-facts.js src/shell/hunt-go.js src/shell/alerts.js src/shell/carry-in.js src/shell/action-facts.js src/shell/social-watch.js src/shell/windows/inventory/index.js
+// mutant-anchors: src/shell/windows/inventory/bury.js src/shell/bag-model.js src/session/edge-intents.js src/shell/hunt-list.js src/shell/launcher-coach.js src/shell/upgrade-plan.js src/shell/widgets/upgrade-line.js src/shell/town-work.js src/shell/hunt-ground-facts.js src/shell/hunt-go.js src/shell/alerts.js src/shell/carry-in.js src/shell/action-facts.js src/shell/social-watch.js src/shell/windows/inventory/index.js
 // mutant-writes-tree: no — every mutant is planted into a temp copy of src (tickerMutant, pureMutant)
 //
 // One of the alpha windows' guards, split from tests/alpha-windows.mjs (2026-11-19, arch audit item 7): tests/_alpha-windows.mjs
@@ -1139,7 +1139,7 @@ async function panelLeftovers(base) {
   const { overBagWords } = await imp('src/shell/windows/inventory/index.js');
   if (overBagWords(99, 100) !== '' || !/^Bag full/.test(overBagWords(114, 100))) fails.push('AW-63 a bag past its spaces says ' + overBagWords(114, 100));
   /* THE NEWCOMER'S PANEL (2026-11-01). */
-  const { coachHtml } = await imp('src/shell/launcher.js');
+  const { coachHtml } = await imp('src/shell/launcher-coach.js');
   const reader = { read: () => null, record: { residue: { coach: { read: [] } } } };
   const aCard = { id: 'x', title: 'A title', text: 'Some words', done: { kind: 'read' }, gotIt: true };
   if (!/hs-pointer is-line/.test(coachHtml(reader, aCard, true)) || !/data-hs-act="coach-more"/.test(coachHtml(reader, aCard, true)) || /is-line|coach-more/.test(coachHtml(reader, aCard, false))) fails.push('AW-62 a card in a window is not one line, or one outside is');
@@ -1147,7 +1147,7 @@ async function panelLeftovers(base) {
      had 0 px and More "opened" a card that only said them, "...empty plotLess"). Measured as the Farm window measured: the card stands whole, More
      goes; a line that shows a readable share keeps More; a line whose words fit has none; and More/Less stands a word apart from the words. */
   {
-    const { fitCoachLine } = await imp('src/shell/launcher.js');
+    const { fitCoachLine } = await imp('src/shell/launcher-coach.js');
     const lineAt = (client, scroll) => {
       const cl = new Set(['hs-pointer', 'is-line']), attrs = {};
       const more = { hidden: true }, words = { clientWidth: client, scrollWidth: scroll };
@@ -1222,9 +1222,9 @@ const MUTANTS = [
   ['item truth: a kit item says the Weighhouse lists it', 'src/shell/item-lore.js', "return isStartKit(id) ? t('item.kit_unlisted')", "return false ? t('item.kit_unlisted')"],
   ['item truth: the Weighhouse has one vague reason', 'src/shell/market-words.js', "(Object.prototype.hasOwnProperty.call(WHY_NOT, why) ? ': ' + WHY_NOT[why] + '.' : '.')", "'.'"],
   /* post-140 audit C12: a one-line card with no room for its words stands whole; More/Less a word apart */
-  ['item truth: panel: a line with no room for its words stays a line (post-140 C12)', 'src/shell/launcher.js', "  if (p.classList.contains('is-line') && words.clientWidth < Math.min(words.scrollWidth, LINE_WORDS_MIN_PX)) {", '  if (false) {'],
-  ['item truth: panel: a card stood whole goes back to a line on the next paint (post-140 C12)', 'src/shell/launcher.js', "  if (p.getAttribute('data-fit') === 'whole') { if (!more.hidden) more.hidden = true; return; }\n", ''],
-  ['item truth: panel: More runs into the words (post-140 C12)', 'src/shell/launcher.js', "    + (line ? ' <button type=\"button\" class=\"hs-coach-more\"", "    + (line ? '<button type=\"button\" class=\"hs-coach-more\""],
+  ['item truth: panel: a line with no room for its words stays a line (post-140 C12)', 'src/shell/launcher-coach.js', "  if (p.classList.contains('is-line') && words.clientWidth < Math.min(words.scrollWidth, LINE_WORDS_MIN_PX)) {", '  if (false) {'],
+  ['item truth: panel: a card stood whole goes back to a line on the next paint (post-140 C12)', 'src/shell/launcher-coach.js', "  if (p.getAttribute('data-fit') === 'whole') { if (!more.hidden) more.hidden = true; return; }\n", ''],
+  ['item truth: panel: More runs into the words (post-140 C12)', 'src/shell/launcher-coach.js', "    + (line ? ' <button type=\"button\" class=\"hs-coach-more\"", "    + (line ? '<button type=\"button\" class=\"hs-coach-more\""],
   ['item truth: panel: the line over her board goes', 'src/shell/windows/tally.js', "  return !tally.weight ? (suggest ? '' : t('tally.no_weight')) : tally.held.length >= tally.heldMax ? t('tally.board_full', { n: countWord(tally.heldMax) }) : '';", "  return '';"],
   ['item truth: panel: Burn all keeps its old number', 'src/shell/windows/inventory/bury.js', "  if (cs && buryingOf(cs) === e) return e.skill === 'cooking' ? 'Cooking…' : 'Fueling…';\n", ''],
   ['item truth: panel: the sale hides its rares', 'src/shell/item-lore.js', "rare.length ? t('item.sells_rares', { items: listWords(rare) }) : ''", "''"],
@@ -1233,7 +1233,7 @@ const MUTANTS = [
   ['item truth: panel: the press drops the replaced job\'s line', 'src/shell/town-work.js', "return [replaced, words].filter(Boolean).join(' ');", "return words || '';"],
   ['item truth: panel: a replaced job says nothing', 'src/shell/town-work.js', "  return what ? 'Stopped ' + what : '';", "  return '';"],
   ['item truth: panel: pressing the running job says it stopped', 'src/shell/town-work.js', "if (!now || now.id === w.id || !townWorkRunning(", "if (!now || !townWorkRunning("],
-  ['item truth: panel: a coach card takes the window', 'src/shell/launcher.js', "(line ? ' is-line' : '')", "''"],
+  ['item truth: panel: a coach card takes the window', 'src/shell/launcher-coach.js', "(line ? ' is-line' : '')", "''"],
   ['item truth: panel: a full bag says nothing', 'src/shell/windows/inventory/index.js', "  return used >= cap ? 'Bag full", "  return false ? 'Bag full"],
   ['item truth: panel: a request already answered still toasts (AW-61)', 'src/shell/social-watch.js', "(a.kind === 'friend' && !asked.has(a.id)) || ", ''],
   ['item truth: panel: a message already read still toasts (AW-61)', 'src/shell/social-watch.js', " || (a.kind === 'whisper' && !unread.has(a.peer))", ''],

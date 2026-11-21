@@ -15,6 +15,15 @@
 export const COACH_TEXT = Object.freeze({
   /* every card's two presses (Tyler 2026-11-11: no tip is mandatory): Got it closes this one, Don't show tips hides them all */
   got_it: 'Got it',
+  /* the card's own presses, and what a screen reader hears for them (src/shell/launcher-coach.js coachHtml) */
+  close: 'Close',
+  close_card: 'Close {title}',
+  minimize: 'Minimize',
+  minimize_card: 'Minimize {title}',
+  show: '{title}: show',
+  show_new: '{title}, something new: show',
+  more: 'More',
+  less: 'Less',
   no_tips: 'Don\'t show tips',
   /* Tamsin's rats, the first ten minutes (designer 2026-11-10) */
   tamsins_rats_title: 'Tamsin\'s rats',

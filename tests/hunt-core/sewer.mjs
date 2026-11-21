@@ -394,7 +394,7 @@ const cases = {
     const tops = (more) => whatNext(at(20, { visited: new Set([GLADE, WARRENS]), refill: q, ...more })).includes('beside stamina');
     if (tops({ gold: 5999, staminaMs: 60000 }) || tops({ gold: 9000, staminaMs: 1800000 }) || tops({ gold: 9000, staminaMs: 60000, refill: { available: false, why: 'refill_limit', price: null, restoreMs: null } }) || !tops({ gold: 6000, staminaMs: 60000 })) return 'the stamina line speaks at the wrong time';
     /* the card draws one goal and keeps the rest behind More; shut until pressed */
-    const { coachHtml, actCoach } = await import(pathToFileURL(join(M.root, 'src/shell/launcher.js')).href + V);
+    const { coachHtml, actCoach } = await import(pathToFileURL(join(M.root, 'src/shell/launcher-coach.js')).href + V);
     const reader = { read: () => null, record: { residue: {} }, setResidue: () => {} };
     const html = coachHtml(reader, hunter, false);
     if (!/<span class="hs-coach-text">Next goal: a third hero slot, 50,000 gp/.test(html) || !/data-hs-act="coach-more"/.test(html) || !/class="hs-coach-also" hidden/.test(html) || !html.includes('Plant a seed on the Farm')) return 'the card draws ' + html;
@@ -576,7 +576,7 @@ const cases = {
      off the server's tally: the held row's own done, the day's pays. */
   'tamsin-first': async (M) => {
     const imp = (p) => import(pathToFileURL(join(M.root, p)).href + V);
-    const { ringPlan } = await imp('src/shell/launcher.js');
+    const { ringPlan } = await imp('src/shell/launcher-coach.js');
     const { tutorialFactsOf } = await imp('src/session/tutorial-sections.js');
     const { MONSTERS } = await imp('src/data/monsters.js');
     const RATS = 'cellar_giant_rats', WOLVES = 'thicket_gray_wolves';
@@ -641,7 +641,7 @@ const cases = {
      take the card's place, in town under the icon row and in a hunt under the hunt bar; any other open window still does. */
   'coach-beside-chat': async (M) => {
     const imp = (p) => import(pathToFileURL(join(M.root, p)).href + V);
-    const { pointerFor, coachCovered } = await imp('src/shell/launcher.js');
+    const { pointerFor, coachCovered } = await imp('src/shell/launcher-coach.js');
     const { SHELL_WINDOWS } = await imp('src/data/shell-windows.js');
     const env = { state: { level_xp: M.xp.charXpForLevel(3) }, level: { xp: M.xp.charXpForLevel(3), level: 3, into: 0, need: 1 }, hunt_settings: { preset: 1, slots: [] }, hunt: { session_id: 's1', hunt_id: 'mill_cellar', ended: false, session: {}, hero: {}, pose: { units: [] } } };
     const cs = { read: (k) => env[k], record: { residue: {} }, setResidue: () => true };
@@ -1361,7 +1361,7 @@ const cases = {
     const say = (f) => { const c = M.tut.currentCard(f); return c ? M.tut.cardFor(c, f) : null; };
     const imp = (p) => import(pathToFileURL(join(M.root, p)).href + V);
     const tsb = await imp('src/session/tutorial-sections.js');
-    const L = await imp('src/shell/launcher.js');
+    const L = await imp('src/shell/launcher-coach.js');
     const DRESSED = { weapon: 'practice_sword', shield: 'practice_shield', helmet: 'bronze_helm', body: 'bronze_platebody' };
     /* the facts the envelope gives (tutorialFactsOf), over a hero who has walked the chain */
     const envFacts = (o) => tsb.tutorialFactsOf({ read: (k) => ({ state: { level_xp: M.xp.charXpForLevel(o.lv) }, level: srvLevel(M, M.xp.charXpForLevel(o.lv)), equipment: o.eq,
@@ -1631,7 +1631,7 @@ const cases = {
        through a re-render and a reload (the residue `coach`, through the real allowlist), marks the folded tab when
        the card changes without opening it, and opens to the full text; the hunt bar redraws it on each change. */
     const imp = (p) => import(pathToFileURL(join(M.root, p)).href + V);
-    const { renderLaunchers, placeCoach } = await imp('src/shell/launcher.js');
+    const { renderLaunchers } = await imp('src/shell/launcher.js'); const { placeCoach } = await imp('src/shell/launcher-coach.js');
     const { residueOf, RESIDUE_FIELDS } = await imp('src/session/residue.js');
     if (!RESIDUE_FIELDS.includes('coach')) return 'the coach fold is not on the residue allowlist';
     const env = (hunt) => ({ state: { level_xp: 0 }, level: srvLevel(M, 0), hunt_settings: { preset: 1, slots: [] },
@@ -1684,7 +1684,7 @@ const cases = {
      own press on the tab opens it for good; in town it stays open. */
   'coach-rests-in-a-hunt': async (M) => {
     const imp = (p) => import(pathToFileURL(join(M.root, p)).href + V);
-    const { pointerFor, restsNow, COACH_HUNT_OPEN_MS } = await imp('src/shell/launcher.js');
+    const { pointerFor, restsNow, COACH_HUNT_OPEN_MS } = await imp('src/shell/launcher-coach.js');
     let t = 1000;
     const env = { state: { level_xp: M.xp.charXpForLevel(3) }, level: { xp: M.xp.charXpForLevel(3), level: 3, into: 0, need: 1 }, level: srvLevel(M, M.xp.charXpForLevel(3)), hunt_settings: { preset: 1, slots: [] }, hunt: { session_id: 's1', hunt_id: 'mill_cellar', ended: false, session: {}, hero: {}, pose: { units: [] } } };
     const cs = { read: (k) => env[k], record: { residue: {} }, setResidue: (k, v) => { cs.record = { residue: { ...cs.record.residue, [k]: v } }; return true; } };
@@ -1715,7 +1715,7 @@ const cases = {
        enough to read; one the server passed while another was being read gets its turn, in order; a card the PLAYER
        finished (Enter) gives way at once; a reload shows the server's card at once. On the display clock (ctx.now). */
     const imp = (p) => import(pathToFileURL(join(M.root, p)).href + V);
-    const { pointerFor, readMs } = await imp('src/shell/launcher.js');
+    const { pointerFor, readMs } = await imp('src/shell/launcher-coach.js');
     const card = (id) => M.tut.HUNT_TUTORIAL.find((s) => s.id === id);
     let t = 1000;
     const env = { state: { level_xp: 0 }, level: srvLevel(M, 0), hunt_settings: { preset: 1, slots: [] } };
@@ -1738,7 +1738,7 @@ const cases = {
     if (shown(hero()) !== 'earn_the_thicket') return 'a reload replays a held card';
     /* A PRESS ALWAYS ACTS (2026-11-20, the retention dive's play: Got it on a held "Fights on its own" did nothing for its reading time): Got
        it ends the hold and the next card shows at once, the one the server passed first (Level up), then the chain's. The hide is the visit's. */
-    const { actCoach } = await imp('src/shell/launcher.js');
+    const { actCoach } = await imp('src/shell/launcher-coach.js');
     const { residueOf } = await imp('src/session/residue.js');
     const keep = { hunt: env.hunt, state: env.state, level: env.level };
     const pressing = { read: (k) => env[k], record: { data: {}, residue: residueOf({ coach: { read: [] } }) },
@@ -1770,7 +1770,7 @@ const cases = {
        anything): the window's icon while it is closed, then the control inside it, deepest first; the bar's food slot
        until its own Configure action is open, then Save. The icon row draws its ring itself, as the last attribute. */
     const imp = (p) => import(pathToFileURL(join(M.root, p)).href + V);
-    const { renderLaunchers, ringPlan } = await imp('src/shell/launcher.js');
+    const { renderLaunchers } = await imp('src/shell/launcher.js'); const { ringPlan } = await imp('src/shell/launcher-coach.js');
     const { SHELL_WINDOWS } = await imp('src/data/shell-windows.js');
     const card = (id) => M.tut.HUNT_TUTORIAL.find((s) => s.id === id);
     for (const [a, row] of Object.entries(M.tut.TUTORIAL_ANCHORS)) {
@@ -1903,7 +1903,7 @@ const cases = {
      reported case, in town at Level 3 with 12 Bones, moves from the Hearth to the farm; and the shell hands the hidden set to the chain. */
   'tutorial-got-it-moves-on': async (M) => {
     const imp = (p) => import(pathToFileURL(join(M.root, p)).href + V);
-    const L = await imp('src/shell/launcher.js');
+    const L = await imp('src/shell/launcher-coach.js');
     const { tutorialFactsOf } = await imp('src/session/tutorial-sections.js');
     const { residueOf } = await imp('src/session/residue.js');
     const reads = (d) => d.kind === 'read' || (d.kind === 'any' && d.of.some(reads));
@@ -1957,7 +1957,7 @@ const cases = {
        trigger shows it, its ring lands on the real control (ringPlan: the card's hooks, deepest first), and the
        server's next answer (or the Got it press, residue `coach.read`) moves the card on. */
     const imp = (p) => import(pathToFileURL(join(M.root, p)).href + V);
-    const L = await imp('src/shell/launcher.js');
+    const L = await imp('src/shell/launcher-coach.js');
     const { residueOf } = await imp('src/session/residue.js');
     const base = JSON.parse(readFileSync(join(M.root, 'tests/fixtures/alpha-envelope.json'), 'utf8'));
     /* a CharacterSession as the shell reads it: its record (data + the allowlisted residue) and setResidue */
@@ -2121,14 +2121,14 @@ const mutants = [
     edits: [['src/data/hunt-tutorial.js', 'x.disciplines.includes(f.discipline) && castsNow(x)) : null;', 'x.disciplines.includes(f.discipline)) : null;']] },
   /* GOT IT MEANS LATER, NOT NEVER (retention dive 2026-11-20, R5) */
   { name: 'a card hidden with Got it stays hidden on every later visit', case: 'tutorial-got-it-moves-on',
-    edits: [['src/shell/launcher.js', 'Array.isArray(r.hid) && r.hidIn === visitOf(cs) ? r.hid : []', 'Array.isArray(r.hid) ? r.hid : []']] },
+    edits: [['src/shell/launcher-coach.js', 'Array.isArray(r.hid) && r.hidIn === visitOf(cs) ? r.hid : []', 'Array.isArray(r.hid) ? r.hid : []']] },
   { name: 'Sell junk read once never comes back', case: 'tutorial-got-it-moves-on',
     edits: [['src/data/hunt-tutorial.js', "'shop', { kind: 'any', of: [{ kind: 'loot_sold' },", "'shop', { kind: 'any', of: [READ, { kind: 'loot_sold' },"]] },
   /* GOT IT NEVER HOLDS THE CHAIN (2026-11-18) */
   { name: 'a card hidden with Got it holds every card after it again', case: 'tutorial-got-it-moves-on',
     edits: [['src/data/hunt-tutorial.js', '    if (facts.hid instanceof Set && facts.hid.has(r.id)) continue;\n', '']] },
   { name: 'the shell hands the chain no hidden cards', case: 'tutorial-got-it-moves-on',
-    edits: [['src/shell/launcher.js', '    hid: coachHidOf(cs),\n', '    hid: null,\n']] },
+    edits: [['src/shell/launcher-coach.js', '    hid: coachHidOf(cs),\n', '    hid: null,\n']] },
   { name: 'the coach\'s facts drop the hidden cards', case: 'tutorial-got-it-moves-on',
     edits: [['src/session/tutorial-sections.js', "    hid: hid ? new Set(Array.from(hid).filter((id) => typeof id === 'string' && ID.test(id))) : null,\n", '    hid: null,\n']] },
   { name: 'a hidden card passes by the cards after it too', case: 'tutorial-got-it-moves-on',
@@ -2142,7 +2142,7 @@ const mutants = [
   { name: 'How hard can you hunt? is said again after the offer', case: 'first-dangerous-run',
     edits: [['src/data/hunt-tutorial.js', "{ kind: 'any', of: [READ, { kind: 'card_read', card: FIRST_DANGEROUS }, { kind: 'tier_taken' }] }", 'READ']] },
   { name: 'the offer rings no Dangerous press', case: 'first-dangerous-run',
-    edits: [['src/shell/launcher.js', "const tier = g.tier ? [inWin(", "const tier = false ? [inWin("]] },
+    edits: [['src/shell/launcher-coach.js', "const tier = g.tier ? [inWin(", "const tier = false ? [inWin("]] },
   { name: 'the offer names the lowest ground, not the one just hunted', case: 'first-dangerous-run',
     edits: [['src/data/hunt-tutorial.js', 'return fits.find((g) => g.hunt === f.lastHunt) || ', 'return ']] },
   { name: 'the Hunts window forgets the offer was taken', case: 'first-dangerous-run',
@@ -2172,11 +2172,11 @@ const mutants = [
   { name: 'the coach never sees a held task\'s done', case: 'tamsin-first',
     edits: [['src/session/tutorial-sections.js', '{ kills: h.kills, target: h.target, done: h.done }', '{ kills: h.kills, target: h.target, done: false }']] },
   { name: 'any open window hides the coach again, Chat too', case: 'coach-beside-chat',
-    edits: [['src/shell/launcher.js', '  return open.some((id) => !beside.has(id));', '  return true;']] },
+    edits: [['src/shell/launcher-coach.js', '  return open.some((id) => !beside.has(id));', '  return true;']] },
   { name: 'Chat is not marked as a window the card stays up beside', case: 'coach-beside-chat',
     edits: [['src/data/shell-windows.js', "object: 'plain', besideCoach: true,", "object: 'plain',"]] },
   { name: 'the card is drawn over every open window', case: 'coach-beside-chat',
-    edits: [['src/shell/launcher.js', "  if (!cs || coachCovered(ctx.wm)) return '';", "  if (!cs) return '';"]] },
+    edits: [['src/shell/launcher-coach.js', "  if (!cs || coachCovered(ctx.wm)) return '';", "  if (!cs) return '';"]] },
   { name: 'the what-next line never sees Defense (no armour hint)', case: 'tutorial-launcher-card',
     edits: [['src/session/tutorial-sections.js', 'defenseXp: sk && sk.defense ? sk.defense.xp : null', 'defenseXp: null']] },
   { name: 'the farm line keys off this hero\'s Farming XP again, not the shared land (v0.2.35 "Nothing grows" over ready crops)', case: 'tutorial-launcher-card',
@@ -2191,10 +2191,10 @@ const mutants = [
   { name: 'nothing to aim at after the guide (no what-next line)', case: 'tutorial-launcher-card',
     edits: [['src/session/tutorial-sections.js', '  if (card) return cardFor(card, f);\n', '  return card && cardFor(card, f);\n']] },
   { name: 'the launcher shows only the first card', case: 'tutorial-launcher-card',
-    edits: [['src/shell/launcher.js', 'card = pointerCardOf(cs, sh), gone =',
+    edits: [['src/shell/launcher-coach.js', 'card = pointerCardOf(cs, sh), gone =',
       "card = pointerCardOf(cs, sh) && { id: 'to_the_cellar', title: 'a', text: 'b' }, gone ="]] },
   { name: 'the pointer is drawn over an open window', case: 'tutorial-launcher-card',
-    edits: [['src/shell/launcher.js', 'coachCovered(ctx.wm)', 'ctx.wm.row(ctx.wm.openIds()[0] || "") && ctx.wm.row(ctx.wm.openIds()[0]).modal']] },
+    edits: [['src/shell/launcher-coach.js', 'coachCovered(ctx.wm)', 'ctx.wm.row(ctx.wm.openIds()[0] || "") && ctx.wm.row(ctx.wm.openIds()[0]).modal']] },
   { name: 'the launcher keeps the pointer in a hunt (over Leave hunt)', case: 'tutorial-launcher-card',
     edits: [['src/shell/launcher.js', "(ctx.hud && ctx.hud.isShown('hunt-topbar') ? '' : pointerFor(ctx))", 'pointerFor(ctx)']] },
   { name: 'the gold card stands ahead of Klappa\'s Club', case: 'tutorial-reactive',
@@ -2224,15 +2224,15 @@ const mutants = [
   { name: 'the coach fold is not kept (off the residue allowlist: open again after a reload)', case: 'coach-folds',
     edits: [['src/session/residue.js', '  coach: sanitizeCoach,', '']] },
   { name: 'a new card never marks the folded coach', case: 'coach-folds',
-    edits: [['src/shell/launcher.js', 'fresh: min && !!card && r.seen !== card.id', 'fresh: false']] },
+    edits: [['src/shell/launcher-coach.js', 'fresh: min && !!card && r.seen !== card.id', 'fresh: false']] },
   { name: 'the hunt bar redraws the coach on a new card only (a fold in a hunt does nothing)', case: 'coach-folds',
-    edits: [['src/shell/launcher.js', '/data-coach="([a-z0-9_:]+)"/', '/data-tutorial="([a-z0-9_]+)"/'],
-      ['src/shell/launcher.js', "have.getAttribute('data-coach') !== key", "have.getAttribute('data-tutorial') !== key"],
-      ['src/shell/launcher.js', "have.getAttribute('data-coach') === key", "have.getAttribute('data-tutorial') === key"]] },
+    edits: [['src/shell/launcher-coach.js', '/data-coach="([a-z0-9_:]+)"/', '/data-tutorial="([a-z0-9_]+)"/'],
+      ['src/shell/launcher-coach.js', "have.getAttribute('data-coach') !== key", "have.getAttribute('data-tutorial') !== key"],
+      ['src/shell/launcher-coach.js', "have.getAttribute('data-coach') === key", "have.getAttribute('data-tutorial') === key"]] },
   { name: 'Cash in folds to its bare title in a hunt', case: 'coach-rests-in-a-hunt',
-    edits: [['src/shell/launcher.js', '  if (card.holdOpen) return false;\n', '']] },
+    edits: [['src/shell/launcher-coach.js', '  if (card.holdOpen) return false;\n', '']] },
   { name: 'the coach never rests in a hunt', case: 'coach-rests-in-a-hunt',
-    edits: [['src/shell/launcher.js', "return card ? coachHtml(cs, card, false, !!hunting && restsNow(ctx, card)) : '';", "return card ? coachHtml(cs, card) : '';"]] },
+    edits: [['src/shell/launcher-coach.js', "return card ? coachHtml(cs, card, false, !!hunting && restsNow(ctx, card)) : '';", "return card ? coachHtml(cs, card) : '';"]] },
   { name: 'the first hunt\'s lessons wall Cash in again', case: 'first-hour-never-walls',
     edits: [['src/data/hunt-tutorial.js', "lesson_time: (p, f) => f.charLevel < HUNT_INDEX[p.hunt].band[0] || reached(f, p.hunt),", 'lesson_time: () => true,']] },
   { name: 'a bow with nothing loaded says nothing', case: 'first-hour-never-walls',
@@ -2288,9 +2288,9 @@ const mutants = [
   { name: 'the stamina line offers what the purse cannot pay', case: 'what-next-one-goal',
     edits: [['src/data/hunt-tutorial.js', 'if (!Number.isSafeInteger(f.gold) || f.gold < q.price) return null;\n', '']] },
   { name: 'More reaches nothing in the town row (played 11-04)', case: 'what-next-one-goal',
-    edits: [['src/shell/launcher.js', "const p = el.querySelector('.hs-pointer'), b = p && p.querySelector(':scope > .hs-coach-more');", "const p = el.querySelector(':scope > .hs-pointer'), b = p && p.querySelector(':scope > .hs-coach-more');"]] },
+    edits: [['src/shell/launcher-coach.js', "const p = el.querySelector('.hs-pointer'), b = p && p.querySelector(':scope > .hs-coach-more');", "const p = el.querySelector(':scope > .hs-pointer'), b = p && p.querySelector(':scope > .hs-coach-more');"]] },
   { name: 'a repaint shuts the goals More opened', case: 'what-next-one-goal',
-    edits: [['src/shell/launcher.js', 'const open = !!also && ALSO_OPEN.get(cs) === card.id;', 'const open = false;']] },
+    edits: [['src/shell/launcher-coach.js', 'const open = !!also && ALSO_OPEN.get(cs) === card.id;', 'const open = false;']] },
   { name: 'a return with no stamp keeps its old cards (played 11-04)', case: 'return-with-no-stamp',
     edits: [['src/shell/alerts.js', ' else if (judged) backWithNoStamp(cs);', '']] },
   { name: 'a young hunt reads as a return', case: 'return-with-no-stamp',
@@ -2298,7 +2298,7 @@ const mutants = [
   { name: 'a stamped hunt is marked twice over', case: 'return-with-no-stamp',
     edits: [['src/shell/away-recap.js', '(was && was.s === h.sessionId) || !a', '!a']] },
   { name: 'the coach keeps its goals to itself', case: 'what-next-one-goal',
-    edits: [['src/shell/launcher.js', "const also = Array.isArray(card.also) && card.also.length ? card.also : null;", "const also = null;"]] },
+    edits: [['src/shell/launcher-coach.js', "const also = Array.isArray(card.also) && card.also.length ? card.also : null;", "const also = null;"]] },
   { name: 'What next offers a slot the server is not selling', case: 'tutorial-reactive',
     edits: [['src/data/hunt-tutorial.js', "const slot = Number.isSafeInteger(f.slotCost) && f.slotCost > 0 ? f.slotCost : null;", "const slot = 15000;"]] },
   { name: 'More than one hero walls a hero who wants one', case: 'tutorial-reactive',
@@ -2388,17 +2388,17 @@ const mutants = [
   { name: 'a solo hero hears no way to make a party', case: 'tutorial-launcher-card',
     edits: [['src/data/hunt-tutorial.js', "  const solo = facts.inParty !== true;\n", '  const solo = false;\n']] },
   { name: 'a card the server finishes is replaced before it can be read', case: 'coach-hold',
-    edits: [['src/shell/launcher.js', '  if (auto(had.card) && !gone(had.card) && now - had.since < readMs(had.card)) return had.card;\n', '']] },
+    edits: [['src/shell/launcher-coach.js', '  if (auto(had.card) && !gone(had.card) && now - had.since < readMs(had.card)) return had.card;\n', '']] },
   { name: 'Got it on a held card does nothing for its reading time', case: 'coach-hold',
-    edits: [['src/shell/launcher.js', '  if (auto(had.card) && !gone(had.card) && now - had.since < readMs(had.card)) return had.card;\n', '  if (auto(had.card) && now - had.since < readMs(had.card)) return had.card;\n']] },
+    edits: [['src/shell/launcher-coach.js', '  if (auto(had.card) && !gone(had.card) && now - had.since < readMs(had.card)) return had.card;\n', '  if (auto(had.card) && now - had.since < readMs(had.card)) return had.card;\n']] },
   { name: 'a card the server passed while another was read is never shown', case: 'coach-hold',
-    edits: [['src/shell/launcher.js', 'const passed = HUNT_TUTORIAL.slice(from + 1, to).find((r) => auto(r) && !gone(r));', 'const passed = null;']] },
+    edits: [['src/shell/launcher-coach.js', 'const passed = HUNT_TUTORIAL.slice(from + 1, to).find((r) => auto(r) && !gone(r));', 'const passed = null;']] },
   { name: 'a card the player finished is held over (Save looks ignored)', case: 'coach-hold',
-    edits: [['src/shell/launcher.js', 'const auto = (r) => !!r && !!r.done && AUTO_KINDS.includes(r.done.kind);', 'const auto = (r) => !!r;']] },
+    edits: [['src/shell/launcher-coach.js', 'const auto = (r) => !!r && !!r.done && AUTO_KINDS.includes(r.done.kind);', 'const auto = (r) => !!r;']] },
   { name: 'no ring on the icon a card starts at', case: 'coach-ring',
     edits: [['src/data/hunt-tutorial.js', 'return a && a.icon && !open(a.window) ? a.window : null;', 'return null;']] },
   { name: 'the bar ring stays on the slot while its Configure action is open', case: 'coach-ring',
-    edits: [['src/shell/launcher.js', "if (!(open('configure-action') && at.configuring === card.barSlot)) return", 'if (true) return']] },
+    edits: [['src/shell/launcher-coach.js', "if (!(open('configure-action') && at.configuring === card.barSlot)) return", 'if (true) return']] },
   { name: 'the icon row draws no ring of its own (a repaint drops it)', case: 'coach-ring',
     edits: [['src/shell/launcher.js', "data-key=\"' + esc(key) + '\"' + (ringed ? ' data-coach-ring=\"\"' : '')", "data-key=\"' + esc(key) + '\"'"]] },
   /* lane/b-tutorial-cards (the 2026-10-25 curriculum) */
@@ -2483,27 +2483,27 @@ const mutants = [
     edits: [['src/data/hunt-tutorial.js', "export const AUTO_KINDS = Object.freeze(['kills', 'level', 'pull']);", "export const AUTO_KINDS = Object.freeze(['kills', 'level', 'pull', 'unlock']);"]] },
   /* lane 2: the shell's facts, Got it, read on sight, the hooks' order */
   { name: 'the shell passes the coach no facts (the twelve cards stay hidden)', case: 'tutorial-shell-facts',
-    edits: [['src/shell/launcher.js', 'card = pointerCardOf(cs, sh), gone =', 'card = pointerCardOf(cs, undefined), gone =']] },
+    edits: [['src/shell/launcher-coach.js', 'card = pointerCardOf(cs, sh), gone =', 'card = pointerCardOf(cs, undefined), gone =']] },
   { name: 'the coach counts the bag, not what Sell all loot sells', case: 'tutorial-shell-facts',
-    edits: [['src/shell/launcher.js', 'lootSale(bag, rulesOf(cs), shop, upgradeNeeds(homeOf(cs), chestsOf(cs))).lines.length', 'bag.length']] },
+    edits: [['src/shell/launcher-coach.js', 'lootSale(bag, rulesOf(cs), shop, upgradeNeeds(homeOf(cs), chestsOf(cs))).lines.length', 'bag.length']] },
   { name: 'Got it records nothing', case: 'tutorial-shell-facts',
-    edits: [['src/shell/launcher.js', "return cs.setResidue('coach', Object.assign({}, r, { read: Array.from(read).concat(card.id).slice(-COACH_READ_MAX) }));", 'return false;']] },
+    edits: [['src/shell/launcher-coach.js', "return cs.setResidue('coach', Object.assign({}, r, { read: Array.from(read).concat(card.id).slice(-COACH_READ_MAX) }));", 'return false;']] },
   { name: 'folding the coach forgets the reads', case: 'tutorial-shell-facts',
-    edits: [['src/shell/launcher.js', 'const keep = read && read.size ? { read: Array.from(read) } : {};', 'const keep = {};']] },
+    edits: [['src/shell/launcher-coach.js', 'const keep = read && read.size ? { read: Array.from(read) } : {};', 'const keep = {};']] },
   { name: 'a folded read-on-sight card is never on screen (it sits there forever, v0.2.63)', case: 'tutorial-shell-facts',
-    edits: [['src/shell/launcher.js', `'.hs-pointer[data-tutorial="' + card.id + '"]'`, `'.hs-pointer[data-tutorial="' + card.id + '"]:not(.is-min)'`]] },
+    edits: [['src/shell/launcher-coach.js', `'.hs-pointer[data-tutorial="' + card.id + '"]'`, `'.hs-pointer[data-tutorial="' + card.id + '"]:not(.is-min)'`]] },
   { name: 'a Got it card is marked read on sight', case: 'tutorial-shell-facts',
-    edits: [['src/shell/launcher.js', 'const readOnSight = (card) => readable(card) && !card.gotIt;', 'const readOnSight = (card) => readable(card);']] },
+    edits: [['src/shell/launcher-coach.js', 'const readOnSight = (card) => readable(card) && !card.gotIt;', 'const readOnSight = (card) => readable(card);']] },
   { name: 'a read-on-sight card is marked at once', case: 'tutorial-shell-facts',
-    edits: [['src/shell/launcher.js', '  if (now - s.since < readMs(card)) return false;\n', '']] },
+    edits: [['src/shell/launcher-coach.js', '  if (now - s.since < readMs(card)) return false;\n', '']] },
   { name: 'the slots owned are the heroes, not the slots', case: 'tutorial-shell-facts',
-    edits: [['src/shell/launcher.js', 'slotsOwned: rows ? rows.length : null,', 'slotsOwned: rows ? rows.filter((r) => r.exists).length : null,']] },
+    edits: [['src/shell/launcher-coach.js', 'slotsOwned: rows ? rows.length : null,', 'slotsOwned: rows ? rows.filter((r) => r.exists).length : null,']] },
   { name: 'a hero out hunting counts as in town for a party', case: 'tutorial-shell-facts',
-    edits: [['src/shell/launcher.js', 'open: true, hunting: huntOpenOf(c) });', 'open: true, hunting: false });']] },
+    edits: [['src/shell/launcher-coach.js', 'open: true, hunting: huntOpenOf(c) });', 'open: true, hunting: false });']] },
   { name: 'one press of − sends the player to Save before the card\'s goal HP', case: 'coach-ring',
-    edits: [['src/shell/launcher.js', 'if (at.edited && !(Number.isFinite(card.goal) && Number.isFinite(at.cond0) && at.cond0 > card.goal)) return [save];', 'if (at.edited) return [save];']] },
+    edits: [['src/shell/launcher-coach.js', 'if (at.edited && !(Number.isFinite(card.goal) && Number.isFinite(at.cond0) && at.cond0 > card.goal)) return [save];', 'if (at.edited) return [save];']] },
   { name: 'the hooks ring in the order written (the tab over its own control)', case: 'tutorial-shell-facts',
-    edits: [['src/shell/launcher.js', 'default: return (card.hooks || []).slice().reverse();', 'default: return (card.hooks || []).slice();']] },
+    edits: [['src/shell/launcher-coach.js', 'default: return (card.hooks || []).slice().reverse();', 'default: return (card.hooks || []).slice();']] },
   { name: 'the Blessing cards still point at the old Services window', case: 'tutorial-shell-facts',
     edits: [['src/data/hunt-tutorial.js', "'shop', true, 'services'),", "'services', true),"]] },
 ];

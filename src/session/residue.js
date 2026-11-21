@@ -209,9 +209,9 @@ function sanitizePanelAlpha(v) {
   return Math.max(min, Math.min(max, Math.round(v / step) * step));
 }
 
-/* The coach line's fold (src/shell/launcher.js coachFoldOf): folded or not, and the card id the player last had in
+/* The coach line's fold (src/shell/launcher-coach.js coachFoldOf): folded or not, and the card id the player last had in
    front of them (a goal id joins its parts, so it may run long); and `read`, the tutorial cards the player pressed
-   Got it on or had on screen long enough to read (src/shell/launcher.js markCoachRead; ids, oldest first, bounded).
+   Got it on or had on screen long enough to read (src/shell/launcher-coach.js markCoachRead; ids, oldest first, bounded).
    and `back`, the hunt session the player last came back to after an absence, with `backAt`, the stamp it was told from (src/shell/away-recap.js);
    and `hid`, the cards the player pressed Got it on that a server fact finishes (Tyler 2026-11-11: tips are never mandatory): the
    card stays hidden, the chain's own progress stays the server's (ids, oldest first, bounded; a goal id joins its parts).
@@ -231,7 +231,7 @@ function sanitizeCoach(v) {
     const hid = Array.from(new Set(v.hid.filter((id) => typeof id === 'string' && /^[a-z0-9_]{1,256}$/.test(id)))).slice(-COACH_HID_MAX);
     if (hid.length) out.hid = hid;
   }
-  /* the visit those hides hold for (src/shell/launcher.js visitOf: the hunt's session and in or back in town); a hide outlives no visit */
+  /* the visit those hides hold for (src/shell/launcher-coach.js visitOf: the hunt's session and in or back in town); a hide outlives no visit */
   if (out.hid && typeof v.hidIn === 'string' && /^[A-Za-z0-9_:.-]{1,64}$/.test(v.hidIn)) out.hidIn = v.hidIn;
   if (typeof v.back === 'string' && /^[A-Za-z0-9_:.-]{1,64}$/.test(v.back)) out.back = v.back;
   /* the last-seen stamp that return's line was told from (away-recap.js awayMinMsOf) */

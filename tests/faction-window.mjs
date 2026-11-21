@@ -3,7 +3,8 @@
 // tests/faction-window.mjs — THE FACTIONS ON SCREEN, IN A REAL CHROMIUM (lane/b-faction-ui).
 //
 //   node tests/faction-window.mjs            the rules
-//   node tests/faction-window.mjs --mutate   every planted defect must turn a rule RED
+//   node tests/faction-window.mjs --mutate   every planted defect must turn a NAMED rule RED (stopping at the first); a throw, a plant
+//                                            that does not parse or a line with no FW id is HARNESS, never a catch (tests/_mutant-verdict.mjs)
 //   node tests/faction-window.mjs --shots <dir>   also write the desktop and phone screenshots
 //
 // mutant-anchors: src/shell/windows/faction-join.js src/shell/windows/character/faction.js src/shell/windows/character/index.js src/session/faction-sections.js src/session/faction-intents.js src/shell/faction-words.js src/shell/windows/hunt-detail.js src/shell/windows/character/outfit.js
@@ -39,6 +40,7 @@ import { readFile, mkdir } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { ROOT, serve, SDK_STUB } from './_client-harness.mjs';
 import { pinFonts } from './_test-fonts.mjs';
+import { judgePlanted, report, exitOf, cleanControl, stopAtFirstRed, FIRST_RED } from './_mutant-verdict.mjs';
 
 const BASE_ENV = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/alpha-envelope.json'), 'utf8'));
 const clone = (o) => JSON.parse(JSON.stringify(o));
@@ -122,8 +124,9 @@ async function groundSide(page, hunt) {
   return page.evaluate(() => { const p = document.querySelector('.hw-hd-side'); return !p || p.hidden ? null : { text: p.textContent, mark: p.querySelector('.hw-fx-mark').children.length }; });
 }
 
-async function checks(overrides, shots) {
+async function checks(overrides, shots, { stopAtFirst = false } = {}) {
   const fails = [];
+  if (stopAtFirst) stopAtFirstRed(fails);   // a mutant needs ONE red rule (tests/_mutant-verdict.mjs)
   /* a press the rule needs: a control that is not on screen is that rule's red, never a thrown harness (a mutant can take it away) */
   const press = (page, sel, rule) => page.click(sel, { timeout: 2500 }).then(() => true, () => { fails.push(rule + ' the press ' + sel + ' is not on screen'); return false; });
   const { server, port } = await serve(Object.assign(await groundPlant(), overrides || {}));
@@ -396,7 +399,8 @@ async function checks(overrides, shots) {
       if (errors.length) fails.push('FW-5 console errors: ' + errors.slice(0, 3).join(' | '));
       await ctx.close();
     }
-  } finally {
+  } catch (e) { if (e !== FIRST_RED) throw e; } finally {
+    await browser.close();   // the lease's own contexts: a run that stops at its first red leaves its page open
     server.close();
   }
   return fails;
@@ -441,18 +445,21 @@ async function main() {
       : 'faction-window: hidden with the switch off; the prompt asks once with both sides drawn the same, Not now kept; one join, the side from the re-read; claims and swaps off until the server\'s numbers allow; a sheet on the phone');
     process.exit(fails.length ? 1 : 0);
   }
-  const clean = await checks(null);
-  if (clean.length) { console.log('  ✗ clean control RED: ' + clean.join('; ')); process.exit(1); }
-  let bad = 0;
+  const clean = await cleanControl(() => checks(null));
+  console.log(clean.line);
+  if (clean.code) process.exit(clean.code);
+  /* A mutant is caught only by a NAMED rule (FW-n); a plant that does not parse, a step that throws, or a line with no rule id is
+     HARNESS, never a catch (tests/_mutant-verdict.mjs; lane/c-hollow-proofs-browser 2026-11-20: this loop scored ANY fail line). */
+  const counts = { caught: 0, harness: 0, escaped: 0 };
   for (const [name, file, from, to] of MUTANTS) {
     const text = (await readFile(join(ROOT, file), 'utf8')).replace(/\r\n/g, '\n');
-    if (text.split(from).length !== 2) { console.log('  ✗ ' + name + ' — anchor not found once in ' + file); bad++; continue; }
-    const fails = await checks({ [file]: text.replace(from, () => to) });
-    if (fails.length) console.log('  ✓ ' + name + ' — caught (' + fails[0].split(' ')[0] + ')');
-    else { console.log('  ✗ ' + name + ' — NOT caught'); bad++; }
+    if (text.split(from).length !== 2) { console.log('  ✗ ' + name + ' — HARNESS: anchor not found once in ' + file); counts.harness++; continue; }
+    const plant = { [file]: text.replace(from, () => to) };
+    console.log(report(name, await judgePlanted(plant, () => checks(plant, null, { stopAtFirst: true })), counts));
   }
-  console.log(bad ? 'faction-window --mutate: ' + bad + ' escaped' : 'faction-window --mutate: ' + MUTANTS.length + '/' + MUTANTS.length + ' mutants caught');
-  process.exit(bad ? 1 : 0);
+  console.log(exitOf(counts) ? 'faction-window --mutate: ' + counts.escaped + ' escaped, ' + counts.harness + ' HARNESS (not catches)'
+    : 'faction-window --mutate: ' + MUTANTS.length + '/' + MUTANTS.length + ' mutants caught, each by a named rule');
+  process.exit(exitOf(counts));
 }
 
 main();

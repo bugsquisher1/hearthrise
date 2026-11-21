@@ -29,7 +29,8 @@
 //
 //   node tests/say-why.mjs                   the rules
 //   node tests/say-why.mjs --shots <dir>     the rules + screenshots
-//   node tests/say-why.mjs --mutate          every planted defect must turn a rule RED
+//   node tests/say-why.mjs --mutate          every planted defect must turn a NAMED rule RED; a throw, a plant that does not parse or a
+//                                            line with no SW id is HARNESS, never a catch (tests/_mutant-verdict.mjs)
 //
 // mutant-anchors: src/shell/windows/shop.js src/shell/windows/inventory/actions.js src/shell/town-work.js src/session/refusal.js src/shell/intent-words.js src/shell/windows/services.js src/styles/windows.css
 // ════════════════════════════════════════════════════════════════════════
@@ -39,6 +40,7 @@ import { pathToFileURL } from 'node:url';
 import { ROOT, serve, SDK_STUB } from './_client-harness.mjs';
 import { pinFonts } from './_test-fonts.mjs';
 import { withServerLevel } from './_server-level.mjs';
+import { harnessFail, judge, judgePlanted, report, exitOf, cleanControl } from './_mutant-verdict.mjs';
 
 const ARGS = process.argv.slice(2);
 const SHOTS = ARGS.includes('--shots') ? ARGS[ARGS.indexOf('--shots') + 1] : null;
@@ -582,7 +584,7 @@ async function screens(overrides) {
     }
   } catch (e) {
     /* A step that threw (a load timeout under a busy machine) is HARNESS, never a rule, and never a caught mutant. */
-    fails.push('HARNESS a page step threw: ' + String(e && e.message).split('\n')[0]);
+    fails.push(harnessFail('a page step', e));
   } finally {
     await browser.close();
     server.close();
@@ -637,22 +639,25 @@ async function main() {
       : 'say-why: every intent site speaks; every rule-disabled control says why on screen; the words carry the server\'s numbers; Cook all, a starting-kit Sell plan, a short Shop buy and a locked hunt say why in play.html');
     process.exit(fails.length ? 1 : 0);
   }
-  const clean = await checks(null, true);
-  if (clean.length) { console.log('  ✗ clean control RED: ' + clean.join('; ')); process.exit(1); }
-  let bad = 0;
+  const clean = await cleanControl(() => checks(null, true));
+  console.log(clean.line);
+  if (clean.code) process.exit(clean.code);
+  /* A mutant is caught only by a NAMED rule (SW-n); a plant that does not parse, a run that throws, or a line with no rule id is
+     HARNESS, never a catch (tests/_mutant-verdict.mjs; lane/c-hollow-proofs-browser 2026-11-20: a HARNESS line beside an unnamed one
+     still scored as the catch). The arms run in order, the next only while nothing has judged: static, pure, then the page. */
+  const counts = { caught: 0, harness: 0, escaped: 0 };
   for (const [name, file, from, to, browser] of MUTANTS) {
     const text = (await readFile(join(ROOT, file), 'utf8')).replace(/\r\n/g, '\n');
-    if (!text.includes(from)) { console.log('  ✗ ' + name + ' — anchor not found in ' + file); bad++; continue; }
+    if (!text.includes(from)) { console.log('  ✗ ' + name + ' — HARNESS: anchor not found in ' + file); counts.harness++; continue; }
     const over = { [file]: text.replace(from, to) };
-    let fails = await staticFails(over);
-    if (!fails.length) fails = await pureWith(over);
-    if (!fails.length && browser) fails = await screens(over);
-    if (fails.length && fails.every((f) => f.startsWith('HARNESS'))) { console.log('  ✗ ' + name + ' — HARNESS, not a verdict: ' + fails[0]); bad++; continue; }
-    if (fails.length) console.log('  ✓ ' + name + ' — caught (' + fails[0].split(' ')[0] + ')');
-    else { console.log('  ✗ ' + name + ' — NOT caught'); bad++; }
+    let v = await judgePlanted(over, () => staticFails(over));
+    if (v.kind === 'escaped') v = await judge(() => pureWith(over));
+    if (v.kind === 'escaped' && browser) v = await judge(() => screens(over));
+    console.log(report(name, v, counts));
   }
-  console.log(bad ? 'say-why --mutate: ' + bad + ' escaped' : 'say-why --mutate: ' + MUTANTS.length + '/' + MUTANTS.length + ' mutants caught');
-  process.exit(bad ? 1 : 0);
+  console.log(exitOf(counts) ? 'say-why --mutate: ' + counts.escaped + ' escaped, ' + counts.harness + ' HARNESS (not catches)'
+    : 'say-why --mutate: ' + MUTANTS.length + '/' + MUTANTS.length + ' mutants caught, each by a named rule');
+  process.exit(exitOf(counts));
 }
 
 /* The pure rules against a planted file: src/ is copied to a temp dir (the tree is never written), the mutant planted

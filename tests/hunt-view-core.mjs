@@ -3,7 +3,8 @@
 // tests/hunt-view-core.mjs — THE HUNT SCREEN'S PURE RULES, IN NODE.
 //
 //   node tests/hunt-view-core.mjs           the rules
-//   node tests/hunt-view-core.mjs --mutate  every planted defect must turn a rule RED
+//   node tests/hunt-view-core.mjs --mutate  every planted defect must turn a NAMED rule RED; a copy that cannot load, a throw or a
+//                                           line with no rule id is HARNESS, never a catch (tests/_mutant-verdict.mjs)
 //
 // mutant-anchors: src/hunt-view/ src/session/hunt-sections.js src/session/character-session.js src/session/envelope.js src/session/residue.js src/data/combat-text.js
 // mutant-writes-tree: no — mutants are planted into a temp copy of src/
@@ -37,6 +38,7 @@ import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { sourceQuery } from '../tools/lib/version-stamp.mjs';
+import { judge, report, exitOf, cleanControl } from './_mutant-verdict.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const V = sourceQuery(ROOT);
@@ -415,23 +417,24 @@ async function main() {
     console.log(fails.length ? 'hunt-view-core: ' + fails.length + ' rule(s) RED' : 'hunt-view-core: timeline plays once and smoothly, sections replace, roles from weapons, float defaults, intents only, log once');
     process.exit(fails.length ? 1 : 0);
   }
-  const clean = await rules(await load(ROOT));
-  if (clean.length) { console.log('  ✗ clean control RED: ' + clean.join('; ')); process.exit(1); }
-  console.log('  ✓ clean control green');
-  let bad = 0;
+  const clean = await cleanControl(async () => rules(await load(ROOT)));
+  console.log(clean.line);
+  if (clean.code) process.exit(clean.code);
+  /* A mutant is caught only by a NAMED rule; a copy that cannot load, a run that throws, or a line with no rule id is HARNESS, never a
+     catch (tests/_mutant-verdict.mjs; lane/c-hollow-proofs-browser 2026-11-20: this loop scored ANY fail line as the catch). */
+  const counts = { caught: 0, harness: 0, escaped: 0 };
   for (const [name, file, from, to] of MUTANTS) {
     const tmp = mkdtempSync(join(tmpdir(), 'hr-huntview-'));
     try {
       cpSync(join(ROOT, 'src'), join(tmp, 'src'), { recursive: true });
       const text = readFileSync(join(tmp, file), 'utf8');
-      if (!text.includes(from)) { console.log('  ✗ ' + name + ' — anchor not found in ' + file); bad++; continue; }
+      if (!text.includes(from)) { console.log('  ✗ ' + name + ' — HARNESS: anchor not found in ' + file); counts.harness++; continue; }
       writeFileSync(join(tmp, file), text.replace(from, to));
-      const fails = await rules(await load(tmp));
-      if (fails.length) console.log('  ✓ ' + name + ' — caught (' + fails[0].split(':')[0] + ')');
-      else { console.log('  ✗ ' + name + ' — NOT caught'); bad++; }
+      console.log(report(name, await judge(async () => rules(await load(tmp))), counts));
     } finally { rmSync(tmp, { recursive: true, force: true }); }
   }
-  console.log(bad ? 'hunt-view-core --mutate: ' + bad + ' escaped' : 'hunt-view-core --mutate: ' + MUTANTS.length + '/' + MUTANTS.length + ' mutants caught');
-  process.exit(bad ? 1 : 0);
+  console.log(exitOf(counts) ? 'hunt-view-core --mutate: ' + counts.escaped + ' escaped, ' + counts.harness + ' HARNESS (not catches)'
+    : 'hunt-view-core --mutate: ' + MUTANTS.length + '/' + MUTANTS.length + ' mutants caught, each by a named rule');
+  process.exit(exitOf(counts));
 }
 main();

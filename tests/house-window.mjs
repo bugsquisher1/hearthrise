@@ -3,7 +3,8 @@
 // tests/house-window.mjs — THE HOUSE WINDOW'S RULES, IN A REAL CHROMIUM.
 //
 //   node tests/house-window.mjs            the rules
-//   node tests/house-window.mjs --mutate   every planted defect must turn a rule RED
+//   node tests/house-window.mjs --mutate   every planted defect must turn a NAMED rule RED (stopping at the first); a throw, a plant
+//                                          that does not parse or a line with no HW id is HARNESS, never a catch (tests/_mutant-verdict.mjs)
 //
 // mutant-anchors: src/shell/windows/house.js src/session/home-sections.js src/session/home-intents.js src/session/refusal.js
 //
@@ -45,6 +46,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { ROOT, serve, SDK_STUB } from './_client-harness.mjs';
 import { pinFonts } from './_test-fonts.mjs';
+import { judgePlanted, report, exitOf, cleanControl, stopAtFirstRed, FIRST_RED } from './_mutant-verdict.mjs';
 
 const BASE_ENV = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/alpha-envelope.json'), 'utf8'));
 const clone = (o) => JSON.parse(JSON.stringify(o));
@@ -107,8 +109,9 @@ async function signInAndPlay(page, base) {
   return wait(page, () => document.querySelector('.hs-launchers'));
 }
 
-async function checks(overrides) {
+async function checks(overrides, { stopAtFirst = false } = {}) {
   const fails = [];
+  if (stopAtFirst) stopAtFirstRed(fails);   // a mutant needs ONE red rule (tests/_mutant-verdict.mjs)
   const { server, port } = await serve(overrides);
   const browser = await leaseBrowser(chromium);
   const open = async (sections) => {
@@ -220,7 +223,7 @@ async function checks(overrides) {
       }
       await ctx.close();
     }
-  } finally {
+  } catch (e) { if (e !== FIRST_RED) throw e; } finally {
     await browser.close();
     server.close();
   }
@@ -253,18 +256,21 @@ async function main() {
       : 'house-window: opens on E; the deed, rooms and chests from the server; a chest at its quoted price after a confirmation; a rung through unlock_buy; refusals in words; a held room is not sold; fails safe');
     process.exit(fails.length ? 1 : 0);
   }
-  const clean = await checks(null);
-  if (clean.length) { console.log('  ✗ clean control RED: ' + clean.join('; ')); process.exit(1); }
-  let bad = 0;
+  const clean = await cleanControl(() => checks(null));
+  console.log(clean.line);
+  if (clean.code) process.exit(clean.code);
+  /* A mutant is caught only by a NAMED rule (HW-n); a plant that does not parse, a step that throws, or a line with no rule id is
+     HARNESS, never a catch (tests/_mutant-verdict.mjs; lane/c-hollow-proofs-browser 2026-11-20: this loop scored ANY fail line). */
+  const counts = { caught: 0, harness: 0, escaped: 0 };
   for (const [name, file, from, to] of MUTANTS) {
     const text = (await readFile(join(ROOT, file), 'utf8')).replace(/\r\n/g, '\n');
-    if (!text.includes(from)) { console.log('  ✗ ' + name + ' — anchor not found in ' + file); bad++; continue; }
-    const fails = await checks({ [file]: text.replace(from, to) });
-    if (fails.length) console.log('  ✓ ' + name + ' — caught (' + fails[0].split(' ')[0] + ')');
-    else { console.log('  ✗ ' + name + ' — NOT caught'); bad++; }
+    if (!text.includes(from)) { console.log('  ✗ ' + name + ' — HARNESS: anchor not found in ' + file); counts.harness++; continue; }
+    const plant = { [file]: text.replace(from, to) };
+    console.log(report(name, await judgePlanted(plant, () => checks(plant, { stopAtFirst: true })), counts));
   }
-  console.log(bad ? 'house-window --mutate: ' + bad + ' escaped' : 'house-window --mutate: ' + MUTANTS.length + '/' + MUTANTS.length + ' mutants caught');
-  process.exit(bad ? 1 : 0);
+  console.log(exitOf(counts) ? 'house-window --mutate: ' + counts.escaped + ' escaped, ' + counts.harness + ' HARNESS (not catches)'
+    : 'house-window --mutate: ' + MUTANTS.length + '/' + MUTANTS.length + ' mutants caught, each by a named rule');
+  process.exit(exitOf(counts));
 }
 
 main();

@@ -3,7 +3,8 @@
 // tests/report-problem.mjs — A PLAYER'S PROBLEM REPORT REACHES THE TEAM, WITH ITS DETAILS.
 //
 //   node tests/report-problem.mjs           the checks
-//   node tests/report-problem.mjs --mutate  every planted defect must turn a check RED
+//   node tests/report-problem.mjs --mutate  every planted defect must turn a NAMED check RED; a throw, a plant that does not parse or
+//                                           a line with no RP id is HARNESS, never a catch (tests/_mutant-verdict.mjs)
 //
 // mutant-anchors: src/session/account-session.js src/shell/report-model.js src/shell/windows/report.js src/data/settings.js src/data/shell-windows.js src/styles/windows.css
 //
@@ -29,6 +30,7 @@ import { join } from 'node:path';
 import { ROOT, serve, SDK_STUB } from './_client-harness.mjs';
 import { pinFonts } from './_test-fonts.mjs';
 import { pressBar, menuLines, groupOf } from './_bar.mjs';
+import { judgePlanted, report, exitOf, cleanControl } from './_mutant-verdict.mjs';
 
 const BUILD_SRC = await readFile(join(ROOT, 'src/build-info.js'), 'utf8');
 const VERSION = /version:\s*'([^']+)'/.exec(BUILD_SRC)[1];
@@ -201,18 +203,20 @@ async function main() {
     console.log(fails.length ? 'report-problem: ' + fails.length + ' check(s) RED' : 'report-problem: the launcher and Settings open it; one body with the character, its hunt, the errors and a picture reaches the bridge; Sent and the rate limit read plainly');
     process.exit(fails.length ? 1 : 0);
   }
-  let bad = 0;
-  const clean = await checks(null);
-  if (clean.length) { console.log('  ✗ clean control RED: ' + clean.join('; ')); process.exit(1); }
-  console.log('  ✓ clean control green');
+  const clean = await cleanControl(() => checks(null));
+  console.log(clean.line);
+  if (clean.code) process.exit(clean.code);
+  /* A mutant is caught only by a NAMED check (RP-n); a plant that does not parse, a run that throws, or a line with no check id is
+     HARNESS, never a catch (tests/_mutant-verdict.mjs; lane/c-hollow-proofs-browser 2026-11-20: this loop scored ANY fail line). */
+  const counts = { caught: 0, harness: 0, escaped: 0 };
   for (const [name, file, from, to] of MUTANTS) {
     const text = await readFile(join(ROOT, file), 'utf8');
-    if (!text.includes(from)) { console.log('  ✗ ' + name + ' — anchor not found in ' + file); bad++; continue; }
-    const fails = await checks({ [file]: text.replace(from, to) });
-    if (fails.length) console.log('  ✓ ' + name + ' — caught (' + fails[0].split(' ')[0] + ')');
-    else { console.log('  ✗ ' + name + ' — NOT caught'); bad++; }
+    if (!text.includes(from)) { console.log('  ✗ ' + name + ' — HARNESS: anchor not found in ' + file); counts.harness++; continue; }
+    const plant = { [file]: text.replace(from, to) };
+    console.log(report(name, await judgePlanted(plant, () => checks(plant)), counts));
   }
-  console.log(bad ? 'report-problem --mutate: ' + bad + ' escaped' : 'report-problem --mutate: ' + MUTANTS.length + '/' + MUTANTS.length + ' mutants caught');
-  process.exit(bad ? 1 : 0);
+  console.log(exitOf(counts) ? 'report-problem --mutate: ' + counts.escaped + ' escaped, ' + counts.harness + ' HARNESS (not catches)'
+    : 'report-problem --mutate: ' + MUTANTS.length + '/' + MUTANTS.length + ' mutants caught, each by a named check');
+  process.exit(exitOf(counts));
 }
 main();

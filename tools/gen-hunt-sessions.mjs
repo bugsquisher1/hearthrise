@@ -369,9 +369,9 @@ export const WORLD_FIELDS_READ = Object.freeze({
    and its CHECK admits a fight at 0 gold; 1001 (APPLIED) is carried whole. */
 /* 1021-tohit-ratio-hunt-sessions-catalogue (lane/c-tohit-ratio, 2026-11-20; balance program L15): the called Chief's drop rows follow the field Chief's
    re-fitted rates (the to-hit ratio slowed his kills a little); 1012 (STAGED) is carried whole. */
-/* 1025-spell-rule-hunt-sessions-catalogue (lane/c-spell-rule, 2026-11-21; balance program L17, Tyler 32-2, 32-3, 32-5): hr_hunt_abilities loses Cleave and
+/* 1028-spell-rule-hunt-sessions-catalogue (lane/c-spell-rule, 2026-11-21; balance program L17, Tyler 32-2, 32-3, 32-5): hr_hunt_abilities loses Cleave and
    gains Quarry Blow, and Power Strike is no longer the axes'; 1021 (STAGED) is carried whole. */
-export const OUT_NAME = '1025-spell-rule-hunt-sessions-catalogue.generated.sql';
+export const OUT_NAME = '1028-spell-rule-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -1131,8 +1131,8 @@ export function render(src) {
 --   It carries 1021-tohit-ratio-hunt-sessions-catalogue (STAGED) whole. Only hr_hunt_abilities moves: cleave leaves, quarry_blow (the club's, an Earth rune
 --   spell, offense, 8 s, 10 mana) joins, and power_strike's disciplines lose dual_axe. A cast's numbers are the engine's (no column carries them), so the
 --   spell rule itself is the hr-accrue's. No ground, spawn, kill bound, limit, bid, end reason or world shape moves. ORDER: the sequence in its name,
---   after 1024-spell-rule-default-bar.sql (no default slot may name Cleave when it leaves). EDGE: the hr-accrue carrying this lane's src/core and
---   src/data right after this file and 1026 (an old engine casts Cleave from a stored slot the server no longer projects; a new one before this file
+--   after 1027-spell-rule-default-bar.sql (no default slot may name Cleave when it leaves). EDGE: the hr-accrue carrying this lane's src/core and
+--   src/data right after this file and 1029 (an old engine casts Cleave from a stored slot the server no longer projects; a new one before this file
 --   would cast Quarry Blow from no slot the server accepts: harmless either way, and no world restarts).
 -- CARRIED FROM 1021-tohit-ratio-hunt-sessions-catalogue (lane/c-tohit-ratio, systems-engineer, 2026-11-20; balance program L15, Tyler ruled 21-1 and 21-2: to-hit as a ratio of two
 --   ratings). It carries 1012-approved-rows-hunt-sessions-catalogue (STAGED) whole. Only hr_boss_calls' called Chief Coppercap drop rows move: a called

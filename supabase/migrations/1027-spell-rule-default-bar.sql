@@ -1,9 +1,9 @@
 -- ════════════════════════════════════════════════════════════════════════
--- supabase/migrations/1024-spell-rule-default-bar.sql — THE DEFAULT MELEE SET UNDER THE SPELL RULE
+-- supabase/migrations/1027-spell-rule-default-bar.sql — THE DEFAULT MELEE SET UNDER THE SPELL RULE
 -- (lane/c-spell-rule, systems-engineer, 2026-11-21; balance program plan lane L17, Tyler's spell calls of 2026-11-21).
 --
--- STATUS: supabase/migration-notes/1024-spell-rule-default-bar.sql.json (STAGED until the Coordinator applies it).
--- ORDER: the sequence in this file's name (CLAUDE.md rule 12): it runs after every file on its base, BEFORE 1025 (the catalogue
+-- STATUS: supabase/migration-notes/1027-spell-rule-default-bar.sql.json (STAGED until the Coordinator applies it).
+-- ORDER: the sequence in this file's name (CLAUDE.md rule 12): it runs after every file on its base, BEFORE 1028 (the catalogue
 -- that drops Cleave from hr_hunt_abilities: this file is what stops a default slot naming it).
 -- Applied as ONE transaction by the apply tool; never begin/commit here. Ends with its §4 self-check.
 --
@@ -21,7 +21,7 @@
 --                        tests/hunt-core/conditions.mjs sql-rows; 18 -> 18 rows, 5 roles): melee_dps is Power Strike,
 --                        Turning Cut (2+ in its ring), Rend (its Plain Rupture Rune). Every other set is unchanged.
 -- No function body, grant, signature, table or player row moves. A stored bar is the player's and is untouched: a stored
--- Cleave slot reads as an empty slot once 1025 lands (hr_hunt_slot_check refuses an unknown move; the view's "invalid row
+-- Cleave slot reads as an empty slot once 1028 lands (hr_hunt_slot_check refuses an unknown move; the view's "invalid row
 -- reads as an empty tablet"), and the engine skips it (src/core/hunt/abilities.js gateOf: inactive).
 --
 -- ── EXPLOIT SURFACE ─────────────────────────────────────────────────────────

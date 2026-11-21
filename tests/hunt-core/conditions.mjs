@@ -63,7 +63,7 @@ const VIEW_MIGRATION = 'supabase/migrations/2027-03-08-rune-ladder-slots.sql';
    and again (Undertow on the Healer's set: lane/b-one-difficulty, Tyler 2026-11-09), (the area moves, 2027-04-18), and Flame Volley back on the bow's set
    (the balance audit's fix 7, lane/d-audit-fixes-sim 2026-11-19), and the spell rule's melee set (Cleave merged into Turning Cut, Rend the axes'
    strike: lane/c-spell-rule 2026-11-21). */
-const BAR_MIGRATION = 'supabase/migrations/1024-spell-rule-default-bar.sql';
+const BAR_MIGRATION = 'supabase/migrations/1027-spell-rule-default-bar.sql';
 
 async function load(root) {
   const M = await loadCore(root);

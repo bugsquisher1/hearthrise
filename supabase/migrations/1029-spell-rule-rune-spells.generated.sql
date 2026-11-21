@@ -18,7 +18,7 @@
 -- (carried, or the store's) is accepted and read usable. Carried from 2027-05-25-tank-runes-rune-spells.generated.sql (STAGED on
 -- set/v0.2.142, applied first): Frost Slam, Shelter and every spell before them; no other spell's runes or store rows move.
 --
--- APPLY ORDER: right after 1025-spell-rule-hunt-sessions-catalogue.generated.sql (hr_hunt_abilities carries Quarry Blow,
+-- APPLY ORDER: right after 1028-spell-rule-hunt-sessions-catalogue.generated.sql (hr_hunt_abilities carries Quarry Blow,
 --              and this file's self-check compares the two), before the hr-accrue deploy and the client that offers
 --              the spell. SAFE TO RE-RUN (create or replace).
 -- ══════════════════════════════════════════════════════════════

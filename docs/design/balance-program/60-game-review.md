@@ -28,7 +28,7 @@ They also agree on what is wrong, and it is one sentence. **Hearthrise is a stro
 
 On your worry, that twenty good systems might not form one good game: you were right to worry, and the reviews say where. The systems form one game for the two players who run four heroes on Deadly. They do not form one game for a new player with one hero, and they do not connect players to each other at all.
 
-**What that means for the plan.** No new engine and no new big system. The work is to fix the formulas the long game stands on (gear, kill reward, the Level table, prices), make Deadly a fight, bring the second hero forward, and build fewer of the shelf's parts and make each of them lead somewhere. Of about 340 things the eight reviews judged, about 62% are KEEP.
+**What that means for the plan.** No new engine and no new big system. The work is to fix the formulas the long game stands on (gear, kill reward, the Level table, prices), make Deadly a fight, bring the second hero forward, and build fewer of the shelf's parts and make each of them lead somewhere. Of about 440 rows the eight reviews judged, 55% are KEEP, and most of the rest are REDESIGN or ADD on mechanics that already exist.
 
 ### 0.1 Where they converged independently
 
@@ -285,7 +285,7 @@ The specific things to keep, remove, combine or redesign. Nothing planned for la
 | REDESIGN, then ship | Fists | Two rows, as "blunt". Re-run the plan's gold test first |
 | REMOVE | `weaponResist` | Read by nothing |
 | DO NOT ADD | A ninth weapon, attack speed by weapon | The eight are not distinct yet |
-| CHANGE | The starting weapon | Picked at creation. Every hero still keeps all the practice sets |
+| CHANGE | The starting weapon | Picked at creation. Every hero still keeps all six sets |
 
 ### 2.3 Equipment and items
 
@@ -369,5 +369,275 @@ Only the absences that more than one source found or that a measurement supports
 | 14 | **A place where firsts and rare finds live** (Honors and the Hall of Firsts) | You ruled Level 200 is a big deal and nothing in the game marks it | EVIDENCE: zero uses on titles and Hearthfinds. Two to six mounts in a collection game | 56, 58 |
 
 Looked at and not recommended by any review: a ninth weapon, attack speed, random pack affixes, a world boss, mercenary heroes for a fee, a mentor system, furniture placement, farm animals or weather, home buffs for the hunt, a second soft currency, daily quests, a login calendar and a season pass.
+
+---
+
+## 4. Progression and balance assessment
+
+**Does the game support meaningful long-term progression? Not yet. It supports about the first 27 days of a four, and that part is good.** Past that point four formulas are missing or wrong, and each one is a formula-layer fault, not a content fault. With them fixed the answer becomes yes to Level 400 on what is already staged, and the open question moves from numbers to whether the long game is fun, which only players can answer.
+
+### 4.1 Pace
+
+| Reading | Number | Label |
+|---|---|---|
+| A four reaches Level 100 | 257 hunted hours. You ruled 600 | MEASURED rates, derived hours (56) |
+| The pace seat's XP over the contract | 2.83 at Level 50, 2.05 at 100, about 1.45 from 185 on | MEASURED (56) |
+| The Level table | 16 hand brackets, re-fitted nine times in four weeks because it chases the grounds | 44, 56 |
+| Where the cost of a Level jumps | 4.1 times at Level 5, 1.9 times at 10 and at 16 | COMPUTED (44) |
+| A lone hero on the three party grounds | 2.0 times the contract at the Muster Barrows' floor against 1.56 at the Pyre Field's | MEASURED (53) |
+| Every weapon way alone on Normal | over the pace band today | MEASURED (52) |
+
+The cause is one missing term. What a kill pays has no term for how fast a ground's monsters die, so every ground got a hand correction: 15 XP multipliers, 13 tier rows and a scaled-hunt number changed seven times. The Level curve, the pace target and kill XP were then fitted to each other in a circle (44). The fix is the kill reward (step R12) and then the Level law (R13).
+
+**What the Level law does, measured.** Your table of hours becomes the law and the XP a Level costs is derived from it. For the pace seat, Krell's Hold moves from day 16 to day 27, the end of open content from day 26 to day 42, and the end of staged content from day 79 to day 143. **A lone hero pays for it.** Level 100 moves from day 42 to day 68 and Level 200 from day 136 to day 245. That is the direct result of your 11-21 ruling that the table is the four's clock, and it is the best argument in this document for bringing the second hero forward.
+
+**The law cannot be fitted today, by anyone.** The pace seat has no single multiple until the kill reward is derived and Deadly's dials land. Any curve cut before that is a fit to grounds that are about to move.
+
+### 4.2 The cost of a death
+
+One death, in the pace seat's hunted hours (56, MEASURED rates):
+
+| Level | Today, unblessed | On the Level law, unblessed | On the law with Blessings 4 to 7 |
+|---|---|---|---|
+| 100 | 10.6 | 18 | 2.3 |
+| 200 | 36 | 68 | 4.3 |
+| 300 | 60 | 133 | 4.1 |
+| 400 | 102 | 208 | 3.3 |
+
+The first checkpoint where a blessed four on a harder tier earns less a head than the same heroes alone on Normal:
+
+| Curve | MID on Deadly | MID on Dangerous | BiS on Deadly |
+|---|---|---|---|
+| Today, three Blessings | Level 145 to 185 | 225 to 400 | 300 or never |
+| The Level law, three Blessings | **Level 100** to 145 | 165 to 300 | 185 to 325 |
+| The Level law, Blessings 4 to 7 | never at the low death count | never | never |
+
+Three things follow. The game does not collapse to hunting alone all at once. It collapses tier by tier, Deadly first. Putting the Level table right makes it worse, because total XP roughly doubles and every death costs that much more. And the balance matrix cannot see any of it: halving the death rule moved no cell and no band, so today a change to death passes every check silently.
+
+### 4.3 The content runway
+
+| Door | Four, MID on Deadly, today | On the Level law | Ruled |
+|---|---|---|---|
+| Krell's Hold (Level 88) | day 16 to 18 | day 27 | |
+| End of open content (110) | day 26 to 27 | day 42 | 120 days at Early Access |
+| End of staged content (185) | day 60 to 79 | day 143 | |
+
+The two readings of "today" are the standards' table (50) and the progression review's finer grid (56). Past Level 110 a four gains about 69 Levels a month and a region is 55 Levels. No authoring schedule keeps ahead of that with six-ground regions. Three things together meet the target: the Level law, opening what is staged, and ground that rises to your Level (Risen grounds), which is the only one of the three that keeps working after the last region.
+
+### 4.4 Gear past Level 110
+
+| What breaks | Where | Label |
+|---|---|---|
+| The last gear tier | Level 88 | 44 |
+| Kill speed starts to fall on today's gear | Level 111 | 44 |
+| Plate leaves its 60% cap and fades | Level 120 | 44 |
+| Six accessory slots have nothing new | from Level 30. Worth 15% at Level 30 and 0.5% at 400 | MEASURED (54) |
+| Priced sinks end and gold piles up | Level 110 | 44, 55 |
+| Standing prices of a band over the band's gold | 0.39, 0.66 and 0.38 at Levels 60, 110 and 185, against a ruled 1.2 to 1.4 | MEASURED (56) |
+| Today's gear stops keeping pace | Level 300. 0.91 of the pace at 400, 0.47 at 1,000 | COMPUTED (44) |
+| Skill as a share of a hit | under a quarter at Level 400, 14% at 1,000 | COMPUTED (44) |
+| Rune tiers | end at skill 60 | 44 |
+| The Tower | replays floor 300 above floor 300 | 44 |
+
+**What holds.** The monster formula, hero health and mana, the tail of the Level curve, the party split, crit and leech all hold to Level 5,000. On a gear curve that is linear in Level the pace holds from Level 200 to 5,000 with no other change (42, MEASURED on the real engine with stand-in gear).
+
+The gear curve is the most important single formula in this document. It also decides whether a +5 to 8% upgrade "every 15 to 25 Levels" (10-25) can be true: on a straight line it is true only near Level 300. Rule the upgrade by its size (G-4).
+
+### 4.5 Server cost. CRITICAL. PENDING `48-platform-cost.md`
+
+You ruled at most $0.15 an account-month at 1,000 accounts. That is 60 database-seconds an account-day, and 24 at 10,000 accounts. The features review computed the path (59 section 0.2, COMPUTED from production means stretched to four heroes at 12 hunted and 12 rested hours. Not measured at 12 hours):
+
+| Step | Database-seconds an account-day | Times the budget |
+|---|---|---|
+| Today | **645** | 10.7 |
+| The server-cost lane (L01) | 532 | 8.9 |
+| Commit at the flush (L12, ruled) | 270 | 4.5 |
+| Delta envelopes (L24) | 195 | 3.3 |
+| Town alone sends nothing, the hourly journal, Carry on and the plans | **180** | 3.0 |
+| Town work in closed form | **147** | 2.4 |
+| The ruled budget | **60** | 1.0 |
+
+1. **Every fix in the plan leaves the account at three times the budget.** This is a system question, not a tuning.
+2. **Closed-form town work is necessary and not sufficient.** Four heroes working their 12 rested hours cost 34 of the 60 seconds. You already ruled closed form for training. It has to cover gathering and benches too.
+3. **What is left is the away hunt's own commit.** 34 seconds over 48 hunted hero-hours is about 10 commits a hero-hour against 36 today. That is a flush about every 6 minutes, with every death, Level, Leave, rare drop and money intent still saved at once. Sizing it is the platform review's job and its answer is not on the set.
+4. **Presses are a real line.** 100 presses a day is 11 seconds, a sixth of the budget. Carry on, the loot plan by kind and a tally that takes itself are cost work as well as design work.
+5. **Two thirds of the bill at 10,000 accounts is not the database.** The other lines (edge calls, Realtime, egress) were priced for 3.3 hour accounts and must be re-read at 12 hours.
+
+Every design proposal in this review was checked against this. None adds a statement on the settle path. The hunt report reads counters the settle already writes. Heroes at work in town (57) is the one proposal with a real cost and it waits for the platform sizing.
+
+### 4.6 Balance between styles and party sizes
+
+| Finding | Number | Label |
+|---|---|---|
+| A party does not make a hero faster. It lets a hero stand on a tier it could not hold alone | 0.91 to 1.11 of a lone hero a head on the same tier | MEASURED (57) |
+| A lone hero in mid gear holds Dangerous at the top of a band | 1.5 to 2.6 times the contract, with far more gold than a four | MEASURED, one seed, thin (57) |
+| A four on Normal off the party grounds | 0.62 to 1.03 of the contract. It runs out of monsters | MEASURED (53) |
+| The wand alone against the hammer | 20 to 31% faster at Levels 30 to 110 | MEASURED (52) |
+| The shield tank alone | 0.84 to 0.92 of the hammer | MEASURED (52) |
+| Dropping the healer for a third mage | 22% faster at Level 60, no deaths | MEASURED, one seed (52) |
+| Two ruled party bands cannot both be met | P6 wants a four at 1.15 to 1.25 of a lone hero on the same tier. P7 wants it at 1.8 to 2.5 of the contract. A lone hero on Deadly already reads 1.9 to 2.8 | MEASURED (57) |
+
+So "solo viable alongside rewarding fours" is half true today. Solo is viable. Fours are not yet rewarding in the cells where a lone hero holds the tier, and the fight does not ask for roles. The cause is the tier, not the party table. Both social patches on the table regressed a ruled band.
+
+### 4.7 Decisions and milestones between the big upgrades
+
+| Stretch | What is there today | What the reviews add |
+|---|---|---|
+| Levels 5 to 10 alone | Two grounds, two spells, no danger on Normal. Both light players stopped here | The second hero. A starting weapon. The Path naming the next thing at every Level |
+| Level 10 to 32 | One hero until 400,000 is banked | The pair, the Sewer as a real party ground, Dangerous on five |
+| Level 30 to 110 | A ladder that equips itself. A slot fills in an hour and nothing changes for fifteen Levels | Jewelry tiers 4 to 7, perks sized by case, signature stones, a signature a ground |
+| Past Level 45 | A Level is hours for +10 HP | Honors at round Levels. Kindlings every ten Inner Flame levels |
+| Past Level 110 | Nothing is live | Risen grounds, Krell's five, the Catacombs wing sample, patterns |
+
+---
+
+## 5. Systems interaction analysis
+
+Your brief asks that a local change be traced before it is recommended. The reviews did that with the matrix. This section puts the traces together: which proposals move each other, and which must ship in one release.
+
+### 5.1 What the matrix flagged
+
+Every patch was played on a scratch copy of the real engine with the same dice before and after. A patch names its targets, and anything else it moves is flagged UNINTENDED.
+
+| Patch | What it plays | IMPROVED | REGRESSED | UNINTENDED | What it decided |
+|---|---|---|---|---|---|
+| combat-1 | Axes read the sword's weak side | 0 | 2 | 1 | Keep, and not enough. Only the axes moved, +1.5 to +4.8% |
+| combat-2 | The crossbow's heavier stat line | 0 | 3 | 5 | **Withdrawn.** Worth 3 to 6% |
+| combat-3 | Magic adds 0.5% max mana a level | 19 | 5 | 0 | **PASS.** Store bills fall 2 to 4%, no pace moves |
+| combat-4, combat-5 | A physical strike reads weapon weakness, alone and with combat-1 | 3 | 7 to 8 | 29 to 31 | Small, at most 3.5% on one way. The unintended rows are the pace move seen from other bands, plus dice |
+| world-1 | The party-ground formula removed | 0 | 0 | 0 | **Phase A's cause refuted.** A lone hero's kills double and its XP does not move. The formula feeds a four on Normal |
+| world-2, world-2b | Dangerous brings Normal's pack, or five | 0 | 0 | 0 | The pack as built is not a tier. **Five works** |
+| world-3 | A signature at double dose on the Slake | 0 | 0 | 0 | Nothing on Normal. On harder tiers it bites small parties first. Nothing off the Slake moved |
+| economy-1 | The store's heal prices on one line | 15 | 9 | 0 | **PASS.** A lone hero's Deadly bill falls 49%. A four's bill moves 0.0% |
+| economy-2 | Every supply at full effect | 0 | 0 | 321 | An upper bound on what an idle market does to combat: a four on Deadly up to 12% faster and up to 30% safer |
+| economy-3 | Gold in falls 15% | 0 | 40 | 6 | **Default salvage withdrawn** |
+| progression-1 | The Level law | 4 | 1 | 7 | The ruled hours are met at Levels 300 and 400. Six of the seven unintended rows are one finding: sinks halve |
+| progression-2 | The death share halved | 0 | 0 | 0 | **The matrix cannot see a death's cost** |
+| progression-3 | The rested bank off | 0 | 0 | 0 | An identity. Removal is free |
+| social-1, social-2 | The party size row, both ways | | | | Lowering the pair broke a ruled band on 16 rows. Raising the four pushed it to 3.7 times the contract. **Deferred** |
+
+The world patches read 0, 0, 0 because the ground axis carries no band rows yet, not because nothing moved. The world review read the cells by hand. That is a hole in the instrument (section 7.2).
+
+### 5.2 What must ship with what
+
+| # | These ship together, or in this order | Why | Source |
+|---|---|---|---|
+| 1 | **The Level law (R13) with sinks as band gold (R16) and Blessings 4 to 7. All three after the kill reward (R12) and after Deadly's dials (L16)** | MEASURED: the law doubles a band's length, so typed sinks fall to half price (G-10 from 0.39 to 0.19). The law doubles total XP, so a death costs twice as much and Deadly switches off at Level 100. And the law cannot be fitted until R12 and L16 make the pace seat's multiple one number | 56, 47, 44 |
+| 2 | **The kill reward (R12) with the per-ground tier dials, the floor-16 pull rule and the party-ground XP cut** | Each of those numbers exists because the reward has no kill-rate term. Remove them before R12 and the first grounds overpay again | 44, 53 |
+| 3 | **The gear curve (R10) before the kill reward (R12)** | The reward's reference line has to be measured on heroes whose power keeps pace | 44 |
+| 4 | **The tier dial applied once (R7) with one step of the dial** | Harder tiers get a little easier on armor and Defense trains slower there. The dial may need one step up to hold the ruled lowest-health bands | 44 |
+| 5 | **Deadly as a fight (L16) before any change to the party XP table, the size row, or status pairs** | MEASURED: until Deadly asks for a tank and a healer, every role idea is worth nothing and every table change crowns the mage four | 52, 57 |
+| 6 | **Dangerous on five with "Deadly brings six" and a ruling on the 11-16 line** | The six per-ground overrides become one field. On Hask's Ford a four on Dangerous then earns under a lone hero on Dangerous | 53 |
+| 7 | **The hidden Level cut removed and the visible Level range added, in one step, before on-call heroes cross accounts** | MEASURED: with no rule a Level 5 behind a Level 37 party earns 6 times its pace. With on-call that is a stranger's hero, not your own alt | 57, 44 |
+| 8 | **The second hero early with a re-read of early income and the first-slot guard (G20)** | It doubles an account's early coin and town labor. Slots 3 and 4 then carry the timing of the full four | 46, 59 |
+| 9 | **The idle market only after the tiers are sized on full-effect supplies** | MEASURED: full-effect supplies make a four on Deadly up to 12% faster and 30% safer. If Deadly is sized on store supplies and then the market opens, Deadly gets easier for everyone who trades | 55 |
+| 10 | **Tempering pays the difference (23-2) with R16 sized on a hero who pays the difference at every tier** | COMPUTED: otherwise a careful hero pays 0.5 to 0.9 of a band's gold at tiers 4 to 6 where you ruled 1.0 to 1.4 | 47 |
+| 11 | **Jewelry tiers 4 to 7 with gem chips, the 6% share of the gear curve, and the matched-hero cap** | MEASURED: a point a tier to tier 7 would add 5 to 13% Level XP at Level 110, twice the budget. Without chips a tier is finished the day it is outgrown | 54, 47 |
+| 12 | **Perks sized by case with the saved kit a ground** | A perk for one ground is a chore unless the kit changes itself when the party moves. MEASURED: all perks at five times is +9 to +11% XP and 20 to 29% less damage for a four, so five times is the ceiling | 54 |
+| 13 | **Plain Dawnsteel onto the Hold's loot bands with Krell's five weapons** | The five replace the rows so the daily roll does not read empty. Krell's gem stays on the roll because the tier 7 Hallmark is built on it | 54, 47 |
+| 14 | **Call out merged with "a mid-region boss's pieces stay repeatable"** | Otherwise the Roost Mother's five pieces stop counting as a family's first unique and the item plan's grid fails | 47 |
+| 15 | **Risen grounds with one drop rule** | A risen ground drops its own rows at its own rarity, or the Glade becomes the cheapest source of a band 9 body | 47, 53 |
+| 16 | **Signatures with linings, on the harder tiers, after the back row is hit as in real play (V4)** | A signature needs an answer the player can bring, and the harness healer takes 0.5% of the damage where the real one takes 28% | 53 |
+| 17 | **The weakness repair with Rend's share, after the spell floor (R6)** | So each number moves once | 52 |
+| 18 | **Seven Necrotic and Storm spells with leech linings measured together** | Reave, Leech Bolt and Tithe heal from damage and so does a leech lining. They stack | 47 |
+| 19 | **The dummy at half fee with the ruled yard fee. The yard's rate with the fee following it. Both in the same change as closed-form town work** | The dummy at "no fee" pays back in 2.8 days and deletes the one sink that grows forever. A rate that rises without the fee makes the sink cheaper a point of XP. And closed form rewrites how a training hour is paid | 55, 58, 59 |
+| 20 | **The heal price line with heal size on the gear curve, after the store-bill fault closes** | The food ladder stops at 396 hit points. MEASURED: past Level 400 a cheaper shark is just a smaller bill | 44, 55 |
+| 21 | **The three workbench salts leave in the lane that ships linings. The Cellar's food rungs come off sale with the cut of the effect they sell** | Until linings exist, salts are all Crafting makes at 45, 60 and 75 | 47, 58 |
+| 22 | **The Honors page before the Hall of Firsts, and both before visiting** | The Hall reads Honors rows. A wall nobody can visit is seen by nobody | 56, 58 |
+
+### 5.3 The three chains that reach furthest
+
+**The pace chain.** Kill reward, then the Level law, then everything timed in days. Putting the pace right moves Krell from day 16 to day 27, halves every typed sink, doubles the cost of a death, pushes the lone hero's Level 200 from day 136 to day 245, and turns a 14 week shelf of sinks into about 28 weeks. It is the largest single change in the program and five other proposals hang on it.
+
+**The tier chain.** Deadly's dials decide whether roles exist, whether the party table can be simplified, whether a lone hero has a hard tier, what a signature costs, what the store bill is, and therefore what the wage curve and every price in hours read. Nothing about party gold or party survival should be priced until it lands.
+
+**The gear chain.** The gear curve sets the reference hero. The reference hero sets hit chance, the kill-rate reference, the armor line's guard, what a unique may spend, what a jewelry share is worth, what a band is, and so the Luck numbers and Tempering ladders that are keyed by band. Sizing a band at a tier's worth in place of +6.5% changes all of those at once.
+
+---
+
+## 6. Prioritized recommendations: the top 10
+
+Ranked by expected overall benefit, then confidence, then cost. Complexity is S, M or L.
+
+**Not ranked, because nothing below can be judged without it: make the instrument true.** The four harness faults (section 7.2), a band that reads XP after deaths, band rows on the ground axis, and the no-number formula steps of 0.2.144 (44's V1 to V5, R1 to R5, R7, the floor half of R6 and the fold of R8). Layer: tools and identity refactors. All of it fits the beta.
+
+| # | Change | Layer | Evidence | Complexity | Risk | Depends on | When |
+|---|---|---|---|---|---|---|---|
+| 1 | **Server cost to 60 database-seconds.** Town work in closed form for training, gathering and benches. Then the away hunt's flush sized near 6 minutes | Architecture and one formula (the yield rule) | COMPUTED: 645 today, 180 after every planned fix, 147 with closed form, 60 ruled. PENDING 48 for the last step | L | Medium. Both-paths tests and seeded rolls | L12, L13, L19, L24, the platform review | The planned fixes and closed form in the 0.2.144 beta. The flush when 48 lands. **Critical** |
+| 2 | **Make Deadly a fight, and give the lone hero a hard tier.** Deadly sized so a shield and healer four holds it and a hammer front or no healer does not. The tier dial applied once. Dangerous brings five | Coefficient (`tierDanger`, `tierHp`, `tierPull`) and one formula fix (R7) | MEASURED: hammer and three mages fastest at Level 60 with no deaths. Four mages hold Deadly. Dangerous on five holds near 40% health with no deaths | M | Medium. Party survival is read on an uncalibrated harness until V4 | V2 to V4. Lane L16 | **0.2.144 beta** |
+| 3 | **The second hero on the first evening, and the company as one thing.** About 10,000 gold. One Start, one plan, one return card. A starting weapon picked at creation | Content row (a price), client and intents | EVIDENCE, thin, with three lanes converging. HYPOTHESIS that a pair holds a stranger. Playtest: two invite waves, day 7 return | S for the price, M for one Start | High. Reverses a ruling made three times. Doubles early income | Nothing for the price | **0.2.144 beta**, as the beta's own test |
+| 4 | **The gear curve in the game.** Linear in Level, a band a tier's worth, uniques spend it at exchange rates, jewelry and cloaks ride it to tier 7 | Formula (R10, R11) and content rows | COMPUTED: the game ends near Level 300 without it. MEASURED: pace holds 200 to 5,000 with it. The band size is HYPOTHESIS until one band is played | M | Medium. The first formula that reaches every item | V1 | The ruling now. Jewelry tier 4 during the beta. The curve with the Morrow Hills |
+| 5 | **The kill reward follows the pace line.** One tier table. Party grounds keep their type and pay about a third less XP a kill | Formula (R12) | MEASURED for the cause (world-1) and the overpay. The derived factor is new | L. The largest single change | High. Moves XP on every ground at once | V1 to V5, R7, the gear curve | After the beta opens |
+| 6 | **The Level law, Blessings 4 to 7 and sinks as band gold, as one release** | Curve (R13), content rows, coefficient and server (R15, R16) | MEASURED: the law meets the ruled hours at 300 and 400, halves sinks, and brings the Deadly break to Level 100. The ladder holds a death near five hours | M | Medium. Slows every player past Level 50 about twofold. Money surfaces | 5, and Deadly's dials | At the wipe. No live hero's Level may move before it |
+| 7 | **Ground that rises to your Level, free.** Replaces scaled hunts by the hour | Formula (the stat formula at any Level, R22) and one drop rule | EVIDENCE: 0 uses of scaled hunts, day 27. Two lanes converged. HYPOTHESIS that an old ground at your Level feels like content. Playtest: two risen grounds for two weeks | M | Medium. Players settle in one ground. New regions lose pull | 5 for its XP share. A signature a ground for its reason | Before Early Access |
+| 8 | **Bosses pay what grounds never drop.** One boss door. Plain Dawnsteel into the Hold. Krell's five weapons. The three designed pieces and three signature stones | Content rows, one hook (a spell change) | EVIDENCE: 19 keys and no Hall fought. MEASURED: a lone hero is 9% slower through the Hold while he waits | M | Low to medium | Deadly's dials, jewelry tier 4 | **Pulled forward into the beta period**, because a four is at Krell on day 18 with two uniques in the game |
+| 9 | **On-call heroes and standing parties, with a visible Level range on party XP** | A system, and one formula (P23) | EVIDENCE: 0 hours with another person. RULED and unbuilt. HYPOTHESIS that finding your hero came back from a friend's hunt is fun. Playtest: two to four accounts on different schedules for a week | L | Medium. Death and gold on a lent hero. A trade surface for Security | Carry on (L07) | **0.2.144 beta** as its own lane, friends only. Clans after 50 accounts a day |
+| 10 | **The return made readable.** The hunt report (risk and what each bar rule did), the Path, a tally that takes itself, a starting loot plan, a hunt budget, setup slots free | Content rows and screens over counters the engine already writes | MEASURED: the low-health reading separates every death cell from every safe one. EVIDENCE: 3,251 untaken wolves, ten Town lines at Level 1, 0 paid setup slots | S to M each | Low | L16's lowest-health tally, the loot plan by kind | **0.2.144 beta** |
+
+**Just outside the ten, and why.** The idle market (L, needs a population, and must wait for the tiers). Kindlings (a spec and a paper sample now, built after the combat laws). A party job for each weapon (waits for item 2). The wage curve (waits for the store-bill fault). Each is in section 8.
+
+**What I would not spend time on now.** A ninth weapon, the second nine Necrotic and Storm spells, the clan castle, bulk commissions, visiting, regions past the Morrow Hills beyond a sketch, and any daily or seasonal system.
+
+---
+
+## 7. Validation plan
+
+### 7.1 What the matrix proves
+
+The matrix plays a patch on a scratch copy of the real engine and the real data and compares it with the untouched tree on the same dice. Three kinds of proof cover the whole formula roadmap (44 section 6).
+
+| Kind | The claim | The proof |
+|---|---|---|
+| Identity | "This refactor changes no number" | The diff is empty. Pass or fail with no tolerance. Proven tonight for the rested bank and the bench rung swap |
+| Coefficient | "This knob moves these bands and nothing else" | The moved bands equal the patch's targets. Proven tonight for the heal line (0 unintended) and Magic's mana (0 unintended) |
+| Derivation | "This typed number is now derived" | The typed numbers are deleted and the band they held stays in tolerance on every ground. Not yet run for any step |
+
+The representative run is Levels 10, 30, 60, 110, 185, 400, 1,000, 2,000 and 5,000, every weapon way, three gear states, lone and four, Normal and the hardest tier. Levels past 185 are projected and say so.
+
+### 7.2 What calibration must fix first. PENDING `51-baseline.md`
+
+A before-and-after diff is worth what the harness is worth. This is written from 44 section 6.1 and the caveats each review printed. The baseline lane's own page will replace it.
+
+| # | Fault | What it distorts | Done when |
+|---|---|---|---|
+| V1 | The simulator straight-lines skills past the measured career | A Level 400 hero plays with skill 198 where the curve allows about 132. Every cell from 185 up is too kind by about 24% damage taken | Skill at 400 and 1,000 is within 5% of the curve's own answer |
+| V2 | Two cell builders disagree. The grid's four killed 558 an hour at Krell's Deadly where the real four killed 1,251 | Every pace, drop-hours and gold number for a four. The matrix's own builder now reads 1,386, which is 11% high | One builder. The Krell cell within 10% of 1,251 |
+| V3 | Two tools give two death counts for the same cell, and a dead harness hero stands up at once | Every death band. A death count on a failing cell is a retry count | One death rule, the game's. The same cell and seeds give the same deaths in both files |
+| V4 | Harness seats take about 1% of the damage. The real healer takes 28% | Every party survival band and the supply bill. Shooters, signatures and "shooters first" cannot be measured at all | The tank's share within 10 points of 69% |
+
+Four more holes the reviews found in the instrument tonight:
+
+| Hole | Found by | The fix |
+|---|---|---|
+| The party store bill reads 1.9 times real, because the harness buys the Level's own rune tier and real players do not (F5) | 44, 55 | The kit rule reads what real players buy. Until then no party gold number drives a price |
+| No band reads XP after deaths, so a change to the death rule passes silently | 56 | One band: a tier that a kit holds must pay more after deaths than the tier below |
+| The ground axis carries no band rows, so every world patch read 0, 0, 0 | 53 | Band rows a ground: the ladder rule, the party-ground check, the lone hard tier |
+| No pair or three cells, and one lineup for the four | 52, 57, 59 | Pair cells. The four lineups Deadly has to turn from green to red: hammer front, no healer, three mages, four mages |
+
+**What can be judged today, honestly.** A four's pace: yes, within about 5 to 11%. Identity patches: yes. A lone hero's store bill: direction. Party survival, party gold, a pair, a three, anything past Level 185: report only.
+
+### 7.3 What only real players can settle
+
+No simulation result should be offered as an answer to any of these. The first is the one that matters most.
+
+| # | Question | The playtest | Reads as |
+|---|---|---|---|
+| 1 | **Does a stranger with a pair stay?** | 20 to 30 strangers, not friends, 14 days, two groups. Group A plays today's ladder. Group B gets the second hero at about 10,000 gold. Five first sessions recorded with the player talking aloud | Day 2 and day 7 return, share reaching Level 10, 16 and 32. If B is not clearly better, the ruled ladder stands |
+| 2 | Do players wear and trade a named piece, or sell it too? | The three sample pieces and three signature stones in both groups | Worn against sold. Does the player set the stone, sell it or sit on it |
+| 3 | Is finding your hero came back from a friend's hunt fun? | Two to four real accounts on different schedules for a week with on-call live | Hunt hours with another account in them. Ask them |
+| 4 | Does an old ground at your Level feel like content? | Two risen grounds past 110 for the Krell-level accounts, two weeks | Share of frontier hours on them. Hours a day hold |
+| 5 | Does anyone change a setup for a ground? | Two grounds in one band, opposite signatures, equal XP | Ground-specific setups a hunt. Share of hunts started with a saved kit |
+| 6 | Is a broken cast satisfying, or invisible in an idle hunt? | A hammer four on a caster ground for a week | Do players keep the rule on "when a monster is casting" |
+| 7 | Does the slower table past Level 50 feel like progress or a wall? | The two heavy players after a week on the new table | Sessions a day from Level 50 to 60, before and after |
+| 8 | Is a death read on the morning card a quit moment? | Beta telemetry on every death costing over one Level | Did the account press anything within 48 hours. Red if returns drop by a third |
+| 9 | Does the risk reading change the tier a player picks? | Before and after the hunt report | Share of hunted hours by tier. Deaths in 1,000 hours on Deadly |
+| 10 | Do standing orders fill when nobody visits a market? | 30 or more accounts for two weeks with the gauge on | Orders filled a day. Share of refills that bought player stock |
+| 11 | Do players pick Luck over gold when both numbers are shown? | The loot plan's own counts after salvage ships | By item kind |
+| 12 | Are Kindlings a build or a formality? | Five sample rungs on paper, then on heroes | Under 80% of heroes on the same pick |
+| 13 | Is one Rare reveal every 40 minutes a moment? | The same four on the Warrens for three hours before and after the cap | How many reveals they look at |
+| 14 | Does hiding systems until their Level help, or hide depth? | A blind first hour with locked lines shown and with them absent | What the reader expects to unlock |
+| 15 | Is the bar fun to tune, or copied once and never opened? | The bar report live for two weeks | Slots changed a hero a week |
+
+Playtests 1, 2 and 9 fit the Discord playtest as it opens. 3, 10 and 11 need more accounts than the beta has on day one.
 
 ---

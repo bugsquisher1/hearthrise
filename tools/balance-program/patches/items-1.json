@@ -1,0 +1,36 @@
+{
+  "schema": "hearthrise.balance-patch/1",
+  "name": "Items 1: every played jewel perk at five times its built size (the always-on upper bound of sizing a perk by its case)",
+  "why": "54-review-items call 2 and 47 C8. A perk measured about 1% of XP at its built size. Sized for its case it is meant to be 5 to 8% there. The matrix cannot tell a case from an ordinary hunt, so this patch makes every played perk five times as large everywhere: it is what a hero whose every perk matched the ground would gain, and what an always-on perk (Keen, Follow-through, Surge) would do if it were sized like a narrow one. It targets the gear bands. Any pace, survival or gold band it moves is the trace.",
+  "kind": "coefficient",
+  "edits": [
+    {
+      "file": "src/data/jewelry.js",
+      "from": "keen: Object.freeze({ name: 'Keen', pm: Object.freeze({ 2: 40, 3: 60 })",
+      "to": "keen: Object.freeze({ name: 'Keen', pm: Object.freeze({ 2: 200, 3: 300 })"
+    },
+    {
+      "file": "src/data/jewelry.js",
+      "from": "surge: Object.freeze({ name: 'Surge', pm: Object.freeze({ 2: 67, 3: 100 })",
+      "to": "surge: Object.freeze({ name: 'Surge', pm: Object.freeze({ 2: 335, 3: 500 })"
+    },
+    {
+      "file": "src/data/jewelry.js",
+      "from": "follow: Object.freeze({ name: 'Follow-through', pm: Object.freeze({ 2: 40, 3: 60 })",
+      "to": "follow: Object.freeze({ name: 'Follow-through', pm: Object.freeze({ 2: 200, 3: 300 })"
+    },
+    {
+      "file": "src/data/jewelry.js",
+      "from": "steady: Object.freeze({ name: 'Steady', pm: Object.freeze({ 2: 200, 3: 300 })",
+      "to": "steady: Object.freeze({ name: 'Steady', pm: Object.freeze({ 2: 1000, 3: 1000 })"
+    },
+    {
+      "file": "src/data/jewelry.js",
+      "from": "focus: Object.freeze({ name: 'Focus', pm: Object.freeze({ 2: 20, 3: 30 })",
+      "to": "focus: Object.freeze({ name: 'Focus', pm: Object.freeze({ 2: 100, 3: 150 })"
+    }
+  ],
+  "targets": [
+    "gear"
+  ]
+}

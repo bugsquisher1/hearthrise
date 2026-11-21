@@ -8,30 +8,34 @@ Scope: party play (a player's own four and parties across accounts), party XP, c
 
 ## 1. One screen for Tyler
 
+*Updated after phase B (measured on the real engine, section 11). Two of my phase A calls did not survive my own measurements and are withdrawn below.*
+
 **Verdict.** The social half of Hearthrise was built for a different game. We built what an MMO you sit in front of needs: live invites, a live party finder, a Local chat room, a clan castle with five buildings, labour, votes, upkeep and a treasury. Hearthrise players visit for two to five minutes and their heroes play while they are away. So nobody has used any of it. Real players logged 0 hours with another person, 0 finder searches, 0 clans, 1 friend link.
 
-The party itself is in better shape than the old dives said, and it has one clear law hiding in the numbers. A party does not make a hero faster. It lets a hero stand on a tier it could not survive alone. On the same tier, every party size earns about the same Level XP a head. That is a good law. The game should say it out loud and stop fighting it with extra multipliers.
+The party has one clear law in the numbers. A party does not make a hero faster. It lets a hero stand on a tier it could not survive alone. On the same tier every party size earns about the same Level XP a head (measured again in phase B: 0.91 to 1.11 of a lone hero on Deadly at Levels 30, 60 and 110).
 
-If we designed this area from scratch today we would not build it the same way. We would build it around heroes that play while their owner is away. That means standing parties, heroes on call, one chat, a town that shows heroes at work, and one way to build things together at two sizes (the whole server and a clan).
+Phase B found the law is weaker than it should be, in two ways. A lone hero in mid gear held Dangerous with no deaths at Levels 30, 60 and 110 and earned 1.5 to 2.6 times the pace contract there. And four Mages hold Deadly and kill 8 to 15% faster than the mixed four. So today the fight does not ask for a party, and it does not ask for roles. Both are the harder-tier work already planned (L16). Until that lands, the party XP table is the only thing holding the mixed four in place.
+
+If we designed this area from scratch today we would not build it the same way. We would build it around heroes that play while their owner is away. The Game Director's review (46) reached the same conclusion on its own: lent seats first, the castle later.
 
 **The five changes that matter most**
 
-1. **On-call heroes and standing parties go first, ahead of clans.** You already ruled them. They are the only thing in this area that lets two real people's heroes hunt together when the people are never online in the same minute. Split the big lane so this ships in the beta on its own and clans follow when there are people to fill them.
-2. **Keep a Level range on party XP, and show it.** You ruled the hidden cut should go. Once heroes can be lent across accounts, a Level 10 hero carried through Krell's Hold would earn about 21 times its own pace. Every early ground would become something you skip. Keep one visible rule in the Party window instead of a hidden one.
-3. **Make the party XP table read party size only.** Today two friends who both like the starting sword are told they earn 55% less together. The class count in the table is a vocation rule in a game whose pitch is no vocations. Phase B measures the one thing that could sink this (a party of four Mages on Deadly).
-4. **Fix the size ladder.** A pair earns as much a head as a four, or more, at every checkpoint from Level 5 to Level 145. The third and fourth hero add nothing a head. Your ruling says each step should be worth feeling.
-5. **Do not finish the old clan castle. Rebuild it as rows on the Town Works engine.** The castle is 13 tables and 47 functions, half of them dropped, with labour the browser reports. Town Works already does staged building by donation with a plaque, on the server, safely. A clan castle is the same thing at clan size.
+1. **On-call heroes and standing parties go first, ahead of clans.** You already ruled them. They are the only thing in this area that lets two real people's heroes hunt together when the people are never online in the same minute. The Game Director put the same change first without seeing mine.
+2. **Swap the hidden Level cut on party XP for a visible, gentler one in the same step. Do not just delete it.** Measured: with no cut, a Level 5 hero behind a Level 37 party on the Glade survives and earns 6 times its own pace, and a Level 10 earns 4 times. That is your own alts as well as lent heroes, and you ruled alts should take longer. Today's hidden cut is too hard the other way: that Level 5 earns a fifth of what it would alone.
+3. **Keep the party XP class table for now.** I asked to remove it in phase A. My own measurement says no: without it four Mages would out-earn the mixed four by 8 to 15% with no deaths. Ask again after Deadly is a real fight.
+4. **Leave the size row alone until the harder tiers are fixed.** I tried it both ways. Lowering the pair broke the ruled same-tier band on 16 rows. Raising the three and four pushes the four to 3.7 times the contract at Level 60. The two ruled bands pull against each other, and the cause is the tier, not the table.
+5. **Do not finish the old clan castle. Rebuild it later as rows on the Town Works engine.** Not measurable. Unchanged from phase A.
 
 **Actively harming the game today**
 
-- The first thing the game says to two new friends is "about -55% vs solo". It is true, and it is the wrong first sentence.
-- The two measured files this program relies on disagree about whether a lone hero can hold Deadly. One says yes with no deaths. The other says it dies 104 to 219 times in four hours. The red line "parties are slower than a lone hero at Level 15" comes from the first file. No party number should move until that is settled.
+- The first thing the game says to two new friends is "about -55% vs solo". It is true, and it is the wrong first sentence. Since the table stays, the fix is the words: the Party window names the Sewer and the weapon to change (already in lane L04).
+- A lone hero holds Dangerous at the top of a ground's band and earns as much a head as a four on Deadly (Level 110: 1.23M against 1.20M), with far more gold. "Rewarding fours" is not true in those cells today.
 - The Local chat tab holds one of only five live connections a player may have, and the clan tab needs one.
 
 **What I would add**
 
-- The town shows heroes at work whether or not their owner is online. Most heroes in an idle game are playing while the player is away. Show them.
-- A friend link at sign-up. Your real players arrive with friends from Discord. One link makes two accounts friends and sets up their standing party.
+- The town shows heroes at work whether or not their owner is online.
+- A friend link at sign-up, with no reward.
 - Nothing else. This area needs fewer systems, not more.
 
 ## 2. Systems review
@@ -162,16 +166,16 @@ No player, real or test, has ever made a clan row. Everything here is read from 
 
 ## 3. Content rationalization
 
-Verdict counts: KEEP 24, REMOVE 7, MERGE 5, REDESIGN 5, ADD 2, DEFER 4. Total 47.
+Verdict counts after phase B: KEEP 25, REMOVE 6, MERGE 5, REDESIGN 4, ADD 2, DEFER 5. Total 47. (Phase A read KEEP 24, REMOVE 7, MERGE 5, REDESIGN 5, ADD 2, DEFER 4. Section 11.8 lists what changed.)
 
 | # | Item | Verdict | One-line reason |
 |---|---|---|---|
 | P1 | Party cap of four | KEEP | Everything is sized for it |
 | P2 | Own four through hero slots | KEEP | It is the real party system |
-| P3 | Party XP size row | REDESIGN | Pay a head must rise with size (R3). Layer: coefficient |
-| P4 | Party XP class-count term | REMOVE | A vocation rule by another door (R1). Layer: formula |
+| P3 | Party XP size row | DEFER (was REDESIGN) | Pay a head should rise with size, but both patches regress a ruled band until the tiers are fixed (11.4). Layer: coefficient, P21 |
+| P4 | Party XP class-count term | KEEP until L16 (was REMOVE) | Measured: without it four Mages are the best four (11.3). Layer: formula, P21 |
 | P5 | Solo +15% as its own constant | MERGE | Fold into the base so "lone is 1000" is the reference. No player number moves. Layer: coefficient |
-| P6 | Level share cut | REDESIGN | One visible Level range rule, not a hidden ground-keyed one (R2). Layer: formula |
+| P6 | Level share cut | REDESIGN | One visible, gentler Level range rule in place of the hidden ground-keyed one (R2, measured in 11.5). Layer: formula, P23 |
 | P7 | Even gold split, round-robin commons | KEEP | |
 | P8 | Rare Roll | KEEP | |
 | P9 | One drop a kill | KEEP | Trace to items and economy |
@@ -255,11 +259,13 @@ Brief 45 section 5 asks about "player cooperation and social progression" and "f
 | A bonus for parties of more than one account | It pays people to open second accounts. Standards already hold own four and four friends within 10% a head |
 | Lending heroes for a gold fee (mercenaries) | A boosting market with real-money pressure. Revisit only after on-call has a month of real use |
 | A mentor system | On-call heroes, "list for a friend" and a Level range rule already cover what a veteran can do for a newcomer |
-| Weekly clan tasks or tallies | You turned down weekly order lists on 11-18. A clan project and its plaque are the weekly reason |
+| Weekly clan tasks or tallies | A clan project and its plaque are already the weekly reason. (Corrected in phase B: on 11-18 you turned down wanted and unwanted lists on weekly orders, not weekly orders themselves. See 47, C23.) |
 | Public on-call to strangers | It gives every new account a free four and guts the slot ladder. Friends and clan only, as ruled |
 | More chat rooms | One Global is ruled. The clan tab is the only room worth adding |
 
 ## 5. Interaction traces
+
+*These are the phase A hypotheses. Section 11 holds what was measured: R1 was measured against, R2 was resized, R3 was deferred.*
 
 Each is a HYPOTHESIS to measure in phase B unless marked otherwise.
 
@@ -306,6 +312,8 @@ Each is a HYPOTHESIS to measure in phase B unless marked otherwise.
 
 ## 6. Priority list
 
+*Phase B moves three rows: row 3 (the Level range) stays High and is resized, row 4 (size-only party XP) is withdrawn, row 5 (the size ladder) moves to Defer behind L16 and R12. Row 1 is done in part: the caches are one source now, and whether a lone hero holds Dangerous is the open number (11.6).*
+
 | # | Change | Class | Complexity | Risk | Expected benefit | Depends on | Evidence or hypothesis |
 |---|---|---|---|---|---|---|---|
 | 1 | Reconcile the two caches on whether a lone hero holds Deadly, then re-read B9 | Critical | S | Low | Every party number rests on it | The matrix lane | EVIDENCE of the conflict |
@@ -338,17 +346,20 @@ Each is a HYPOTHESIS to measure in phase B unless marked otherwise.
 
 ## 7. Tyler decides
 
-1. **Keep a Level range on party XP, shown in the Party window.** A hero far below the party's top Level keeps a smaller share: under two thirds of the top Level, its share falls with the square of the gap. Reason: your 11-08 ruling removes the hidden cut, and with lent heroes a Level 10 hero carried at Krell's Hold would earn 21 times its own pace, so every early ground becomes skippable. Strongest alternative: cut it as ruled and accept carried leveling as how alts and friends are raised.
-2. **Party XP reads party size only. The class count goes.** Reason: "about -55% vs solo" is the first thing two friends are told, there are no vocations in this game, and on Normal the class cell is the whole difference between a mixed four and a same-style four, which means it is an XP patch for something the fight should decide. Phase B measures same-style fours on Deadly first. If four Mages hold Deadly and out-earn a mixed four, I withdraw this and send the finding to combat. Strongest alternative: keep the table and soften the one-class cells to about 10% under the mixed ones.
-3. **On-call heroes, standing parties and shared supply cost ship in the beta. Clans wait for 50 accounts a day.** Reason: on-call works at 10 online, and a clan at 10 online is a second empty chat room. Lane L40 bundles four things and is the largest social build. Strongest alternative: all of L40 in the beta as ruled on 25-3.
+*Updated after phase B. Call 2 of phase A (party XP by size only) is withdrawn. Call 1 is resized.*
+
+1. **Replace the hidden Level cut on party XP with one visible, gentler rule, in the same step that removes it.** Rule: a hero under two thirds of the party's top Level keeps a share equal to its Level over that line (a straight line, not the square used today, and no ground floor in it). One sentence in the Party window. Reason, measured: with no rule a Level 5 hero behind a Level 37 party survives the Glade on Deadly and earns 6.1 times its own pace, a Level 10 earns 4.1 times, and the carriers lose 12 to 17%. That covers a player's own alts, which you ruled should take longer (11-09). Today's hidden rule pays that Level 5 a fifth of what it earns alone, which is too hard. The straight line pays it about 1.2 times its own pace. Strongest alternative: remove it now as you ruled on 11-08 (the architecture review's pick) and add a rule only when lending ships.
+2. **Keep the party XP class table until Deadly is a real fight, then measure again.** This reverses my phase A call. Reason, measured: four Mages hold Deadly with no deaths at Levels 30, 60 and 110 and kill 8 to 15% faster than the mixed four. Only the one-class cell keeps them under it. Strongest alternative: size-only now (the Game Director's pick, made without a measurement), and accept four Mages as the best four.
+3. **On-call heroes, standing parties and shared supply cost ship in the beta. Clans wait for 50 accounts a day.** Reason: on-call works at 10 online, and a clan at 10 online is a second empty chat room. Strongest alternative: all of L40 in the beta as ruled on 25-3.
 4. **The clan castle is rebuilt later as projects on the Town Works engine. The old castle code is retired.** One project at a time, stages, gifts of gold and goods, a weekly pace, a plaque. No building levels, no labour, no upkeep, no votes. Rations stay, as you ruled. Reason: the old code cannot complete, trusts a number from the browser, and duplicates an engine that already works. Strongest alternative: the 25 re-shape as ruled, which re-finishes the bespoke functions.
 5. **Remove the Local chat tab.** Reason: hunts are instanced, so "here" is your party or a near-empty town, and Local holds the connection the clan tab needs. Strongest alternative: keep Local as town talk and carry the clan tab on a shared social topic.
 6. **Remove the live party finder. Its job moves to the on-call board.** Reason: 0 uses, and a list of who is online this minute is the wrong shape for 2 to 5 minute visits. Strongest alternative: keep it dark until 1,000 players are online.
 7. **The town draws heroes at work whether or not their owner is online.** Reason: the online count already includes them, and the town is empty without them. Strongest alternative: draw only live players and accept an empty town until the game is big.
-8. **A faction side is chosen per hero, and one press joins them all.** This amends 25-10. Reason: you ruled on 31-8 that the skills must matter, and then a four that wants both Bulwark and Reap should be able to have them at the price of slower standing. Strongest alternative: account-wide as ruled, and every four carries one skill.
+8. **A faction side is chosen per hero, and one press joins them all.** This amends 25-10. Reason: you ruled on 31-8 that the skills must matter, and then a four that wants both Bulwark and Reap should be able to have them at the price of slower standing. The Game Director disagrees with 31-8 itself and would ship factions with no power. I keep your ruling. Strongest alternative: account-wide as ruled, and every four carries one skill.
 9. **A friend link at sign-up, with no reward.** Reason: your players arrive as friends, and the game does nothing with that. Strongest alternative: nothing, and rely on Discord.
+10. **New from phase B: the two party bands you ruled cannot both be met today.** P6 (10-25) wants a four at 1.15 to 1.25 of a lone hero on the same tier. P7 (11-16 and 50-8) wants a four at 1.8 to 2.5 of the pace contract. A lone hero on Deadly already reads 1.9 to 2.8 of the contract, so any four that meets P6 breaks P7. Recommendation: keep P7 as the ruling that counts, fix the harder tiers first (L16 and the kill reward step R12) so a lone hero cannot hold them, and only then set the size row as a rising step of about 5% a hero. Strongest alternative: drop P6 and judge parties only against the contract.
 
-Not a call, because it only carries out rulings you made: the size ladder (50-8), shared supply cost (10-25), chat open by default (10-22), striking "maybe 5 later" (25-11).
+Not a call, because it only carries out rulings you made: shared supply cost (10-25), chat open by default (10-22), striking "maybe 5 later" (25-11), folding the solo +15% into the party table (the architecture review's R8, which I agree with).
 
 ## 8. For other areas
 
@@ -399,3 +410,164 @@ Other people cannot matter by being beside you, because nobody is at the screen.
 4. **A shared work.** Something larger than one account gets built from everyone's surplus. This is Town Works for the server and the same engine for a clan.
 
 Everything in this review follows from that list. The systems I would remove or merge are the ones that need two people at the screen in the same minute. The two I would add put more heroes in front of more eyes and connect friends on day one. The test for any future social feature is one question: does it still work when both players are asleep?
+
+## 11. Phase B: layers, measurements, and what changed
+
+Phase B, 2026-11-21, with `set/v0.2.144` (132552fe9) merged into this lane. Read first: `44-formula-architecture.md` (sections 5, 7, 8), `46-from-scratch.md`, `47-itemization-fit.md` (its rows for this area), `52-review-combat.md` section 10.
+
+### 11.1 How it was measured
+
+- **The matrix diff.** `node tools/balance-program/balance-matrix.mjs --diff tools/balance-program/patches/social-<n>.json --blocks parties,ways --only 30,60,110 --seeds 1 --hours 1 --workers 2`. The real engine on a scratch copy, the same dice before and after. The subset has no pair and no three, so I played the full run's `parties` and `ways` blocks at three Levels (324 cells for social-1). social-2 was played on `parties` alone (108 cells) and the tool could not judge it (see 11.4).
+- **Lineups and mixed-Level parties.** The matrix plays one four at one Level. Like the combat review, I played other parties through the matrix's own exports (`loadGridData`, `loadKits`, `buildCell`, `playJobs`, `slimSeed`) from one-off read-only scripts on the tree as it stands: MID gear, Deadly, two seeds, one hour. A mixed-Level party is the harness's own `cell.level` as a list, with the low seat in its own Level's kit and skills. No patch.
+- **Sample.** One seed and one hour for the diff cells, two seeds and one hour for the lineups. That is thin. Read every number here as direction and size. Deaths are rare events and are under-sampled.
+- **Calibration caveats, as printed on every run.** The harness four kills 11% more than the real one. Its tank takes 96% of the damage where the real front takes 69%, and its healer 0.5% where the real one takes 28.5%. Its store bill is 1.9 times the real one. So party gold is a lower bound, and **every survival result for a back-row seat is PROVISIONAL and optimistic**: in real play a low hero in the back row is hit far more than here.
+- `pc-load` read 98 to 100% CPU before every run. I used 2 workers throughout.
+
+### 11.2 Every top proposal, with its layer
+
+Formula and step ids are `44-formula-architecture.md`'s.
+
+| # | Proposal | Layer | Formula id | Roadmap step | Patch or run | Status after phase B |
+|---|---|---|---|---|---|---|
+| R1 | Party XP by size only | formula | P21 | none (44 keeps the table and folds solo into it) | lineups, no patch | **WITHDRAWN.** Measured against it |
+| R2 | A visible Level range in place of the hidden cut | formula | P23, exception P-X06 | R8 | mixed-Level lineups, no patch | **KEPT, resized.** 3 to 6 times, not 21 |
+| R3 | The size ladder | coefficient | P21 (exception P-X08, hand-fitted cells) | after L16 and R12 | social-1, social-2 | **DEFERRED.** Both directions regress a ruled band |
+| P5 | Solo +15% folded into the table | coefficient (identity) | P-X07 | R8 | none needed: 44 proves it with the empty diff | Agreed with 44 |
+| P13 | Shared supply cost | formula | a new line beside E25 (the coin split) | none yet | not measurable: the harness store bill is 1.9x real | HYPOTHESIS, backed by the real Krell hunt |
+| P14 | On-call heroes and standing parties | content and system, no formula | reads P20 to P23 and stamina | L40 | not measurable | HYPOTHESIS. Playtest in section 6 |
+| P15 | The Tower's own party table | formula | P22, exception P-X09 | R8, later | not measured here | 44 folds it into the one table. I agree in principle. The endgame review should measure it, because the Tower's row pays a four 0.325 of a kill a head against 0.425 on a ground |
+| R4 to R8, A1, A2 | Local tab, finder, castle on Town Works, clan order, faction side, town bodies, friend link | content or platform | none | L40, L46, L50, L53, L25 | not measurable | HYPOTHESIS, each with its playtest in section 6 |
+
+### 11.3 R1, measured: same-style fours on Deadly
+
+MEASURED, two seeds, one hour, MID, Deadly, the grid's ground for a four at that Level (the Glade at 30, the Muster Barrows at 60, Krell's Hold at 110).
+
+| Four | Level 30: kills an hour, XP a head | Deaths, lowest HP | Level 60 | Deaths, lowest HP | Level 110 | Deaths, lowest HP |
+|---|---|---|---|---|---|---|
+| tank, healer, bow, mage (mixed, cell 1700) | 2,456, 194,800 | 0, 68% | 923, 796,800 | 0, 64% | 1,500, 1,198,700 | 0, 69% |
+| mage x4 (cell 970) | 2,688, 121,400 | 0, 78% | 1,060, 523,000 | 0, 39% | 1,617, 737,300 | 0, 51% |
+| bow x4 (cell 970) | 2,604, 117,500 | 0, 61% | 1,095, 535,300 | 4 in one seed | 1,552, 706,700 | 0, 25% |
+| tank and three mages (cell 1580) | 2,624, 193,500 | 0, 61% | 1,154, 927,000 | 0, 25% | 1,611, 1,195,800 | 0, 55% |
+| **mage x4 at the mixed cell (COMPUTED, x1700/970)** | 212,800, **+9%** | | 916,600, **+15%** | | 1,292,100, **+8%** | |
+
+Net gold a head: four Mages 5,900, -200 and 8,600 against the mixed four's 5,000, 1,400 and 7,300. The rune bill is not a brake.
+
+What this settles:
+
+1. **My phase A condition is met, so R1 is withdrawn.** I wrote that I would withdraw size-only XP if four Mages held Deadly and out-earned a mixed four. They hold it with no deaths at all three Levels and would out-earn it by 8 to 15%. This agrees with the combat review's one-seed lineups (52 section 10.4) on two seeds, and adds Level 30 and the bows.
+2. **The class table is doing real work today.** It is the only thing between the game and a four-Mage best party. That is a patch over the fight (brief 40 would call it a compensating multiplier), and it should be removed when the fight itself asks for a front and a healer. That is L16 (the tiers bite) and V4 (the harness sends damage to the back row).
+3. **The table already leaks.** A tank and three Mages (two classes, cell 1580) is 16% over the mixed four at Level 60 today. The mix bonus is nearly flat from two classes up, so "bring one of each" is not what the table says. Combat found the same with a hammer and three Mages (+22%).
+4. **Convergence, and what it is worth.** The Game Director (46, section 7 and its challenge 7) and I both proposed size-only XP independently, both on the belief that the fight already pays for roles. 46 marked it lower confidence for want of a measurement. Two separate measurements now say the belief is wrong on today's dials. The convergence was two reviewers sharing one untested assumption.
+5. **The conflict with 52 is resolved for 52.** Keep the class table until L16 lands, then re-run these four lineups. If four Mages then fall behind the mixed four at cell 1700, remove the class term.
+
+The first-hour harm stays (two friends on the starting sword read "-55%"). With the table kept, the fix is text: lane L04 already has the Party window naming the Sewer and the weapon change.
+
+### 11.4 R3, measured: the size ladder, both ways
+
+**Before (the tree as it stands).** One seed, one hour, MID. Level XP a head, and in brackets the same figure over the lone hammer on the same tier (band P6) and over the pace contract (band P7).
+
+| Cell | Lone hammer | Pair (tank, mage) | Three | Four |
+|---|---|---|---|---|
+| Level 30, Normal | 113,600 (contract 1.08) | 96,400 (0.85, 0.91) | 74,200 (0.65, 0.70) | 56,300 (0.50, 0.53) |
+| Level 30, Dangerous | 163,100 (1.55), 0 deaths | 161,000 (0.99, 1.53) | 141,500 (0.87, 1.34) | 132,700 (0.81, 1.26) |
+| Level 30, Deadly | 200,300 (1.90), 0 deaths | 213,100 (1.06, 2.02) | 204,900 (1.02, 1.94) | 194,800 (0.97, 1.85) |
+| Level 60, Dangerous | 666,200 (2.61), 0 deaths | 712,400 (1.07, 2.79) | 706,000 (1.06, 2.77) | 728,800 (1.09, 2.86) |
+| Level 60, Deadly | 718,700 (2.82), 8 deaths in the hour | 783,400 (1.09, 3.07) | 776,400 (1.08, 3.04) | 797,900 (1.11, 3.13) |
+| Level 110, Dangerous | 1,225,000 (2.22), 0 deaths | 1,241,400 (1.01, 2.25) | 1,175,500 (0.96, 2.13) | 1,076,000 (0.88, 1.95) |
+| Level 110, Deadly | 1,324,000 (2.40), 2 deaths in the hour | 1,398,000 (1.06, 2.53) | 1,284,900 (0.97, 2.33) | 1,203,700 (0.91, 2.18) |
+
+Three findings before any patch:
+
+- **The party law holds on the one source of rates.** On one tier a party's pay a head is 0.81 to 1.11 of the lone hero's.
+- **A lone hero holds Dangerous.** No deaths in the hour at Levels 30, 60 and 110, at 1.5 to 2.6 times the contract. At Level 110 a lone hero on Dangerous earns 1.23M an hour and a four on Deadly earns 1.20M a head. The single-source ground rates (2 seeds) show deaths on Dangerous at the low end of a band and none at the top. So solo is more than viable at the top of a band, and the four is not rewarded there.
+- **The four is over its cap at Level 60** (3.13 against a red line of 2.6) and under its same-tier band everywhere (0.91 to 1.11 against 1.15 to 1.25).
+
+**social-1** (`patches/social-1.json`): every pair cell x0.77, every three cell x0.85, the four held. Targets P6 and B9. 324 cells.
+
+| Flags | Count | Rows |
+|---|---|---|
+| IMPROVED | 2 | P6.2 and P6.3 at Level 60 on Normal (1.82 to 1.39, 1.76 to 1.50): both were far over on a party ground |
+| REGRESSED | 16 | P6.2 on 8 rows (for example Level 30 Deadly 1.06 ok to 0.82 off, Level 110 Deadly 1.06 ok to 0.81 off). P6.3 on 8 rows (Level 60 Deadly 1.08 to 0.92) |
+| UNINTENDED | 5 | P7.2 on 3 rows and P7.3 on 2, all TOWARD the band (Level 30 pair 2.02 RED to 1.55, Level 110 three 2.33 RED to 1.99 ok). Traced: P7 is the 50-8 band I meant to hit. I named the wrong band id in the patch's targets. It is the patch's intended effect, not a side effect |
+| Everything else | 0 | Pair XP -23.4%, three -14.7%, hours a Level +30.5% and +17.2%. No lone cell, no four cell, no kill, damage, gold or death number moved: the table is a pure multiplier on Level XP |
+
+**social-2** (`patches/social-2.json`): the pair held, every three cell x1.10, every four cell x1.20. Target P6. 108 cells (`parties` only). **The tool printed 0 flags because P6 needs the lone cells and I left the `ways` block out. That was my mistake in the run, and I did not re-run it at 98% CPU.** The run did measure the effect: three +10.0% XP, four +20.0%, nothing else moved. Applied to the before table (COMPUTED from MEASURED cells):
+
+| Band | Before (Levels 30, 60, 110 on Deadly) | After social-2 | Reading |
+|---|---|---|---|
+| P6.3 (1.10 to 1.20) | 1.02, 1.08, 0.97 | 1.12, 1.19, 1.07 | toward, in band at two of three |
+| P6.4 (1.15 to 1.25) | 0.97, 1.11, 0.91 | 1.16, 1.33, 1.09 | toward at 30 and 110, over at 60 |
+| P7.3 (1.5 to 2.0, red over 2.2) | 1.94, 3.04, 2.33 | 2.13, 3.35, 2.56 | away, red at two of three |
+| P7.4 (1.8 to 2.5, red over 2.6) | 1.85, 3.13, 2.18 | 2.22, 3.75, 2.62 | away, red at two of three |
+
+**What this settles.** Phase A said "lower the pair and three, hold the four". Measured, that regresses the ruled same-tier band on 16 rows. The opposite patch repairs the same-tier band and breaks the contract cap. **The two ruled bands cannot both be met by the size row**, because a lone hero on Deadly already reads 1.9 to 2.8 of the contract: P7's ceiling for a four (2.5) sits below P6's floor for a four (1.15 x 1.9 to 2.8 = 2.2 to 3.2). The cause is at the tier layer (C-TIER and C-PULL: what Dangerous and Deadly pay and how hard they hit), which is L16 and roadmap step R12. R3 is deferred to after them. The shape to set then is the one P6 names: about 5% a head for each added hero.
+
+Phase A's "the ladder is upside down" stands as measured (pair 1.06, three 1.02, four 0.97 at Level 30 on Deadly, and the same order at 110). What was wrong was my fix.
+
+### 11.5 R2, measured: a low hero behind a higher party
+
+MEASURED, two seeds, one hour, MID, Deadly. The mixed four with its Mage seat at a lower Level, in that Level's own kit and skills. "Uncut" is what the seat would be paid with the rule removed, which is the other seats' pay (the rule is a pure multiplier on one seat's share).
+
+| Party, ground | Low seat | Its deaths an hour | Paid today (the hidden cut) | Uncut | Its own pace alone (Normal) | Uncut over its own pace | The carriers' XP against a full-Level four |
+|---|---|---|---|---|---|---|---|
+| Level 37, the Glade | Level 5 | 0, lowest HP 61% | 6,100 | 165,200 | 27,200 | **6.1x** | -17% |
+| Level 37, the Glade | Level 10 | 0 | 27,200 | 173,900 | 42,800 | **4.1x** (3.3x its own Level's four) | -12% |
+| Level 37, the Glade | Level 20 (in the ground's band) | 0 | 187,400 (no cut) | 187,400 | 120,100 | 1.6x | -6% |
+| Level 65, the Slake | Level 20 | 1 in each seed | 130,800 | 619,400 | 120,100 | 5.2x, and it dies | n/a |
+| Level 65, the Slake | Level 35 | 0, lowest HP 48% | 425,200 | 654,100 | about 179,000 (phase A grid) | 3.7x | n/a |
+| Level 110, Krell's Hold | Level 10 | **12.5** | 15,900 | 922,900 | 42,800 | it cannot stay alive | -23% |
+| Level 110, Krell's Hold | Level 60 | 0 | 748,100 | 1,120,500 | 796,800 in its own Level's four | 1.4x its own four | -7% |
+| Level 110, Krell's Hold | Level 75 (over two thirds) | 0 | 1,164,600 (no cut) | 1,164,600 | about 750,000 in its own four | 1.5x | -3% |
+
+What this settles:
+
+1. **My "21 times" was wrong.** I wrote it assuming the Level 10 hero survives Krell's Hold. It dies 12.5 times an hour, on a harness that sends the back row almost nothing. Late in the game the ruled gate (risk and death) does the job.
+2. **The gate does not hold early.** On the Glade a Level 5 hero survives a Level 37 party's Deadly pull and would be paid 6.1 times its own pace. A Level 10 would be paid 4.1 times. This matches the architecture review's own note (a Level 1 behind three Level 37s at 190,000 an hour). Levels 1 to 40 are the weeks when friends and lent heroes matter most, and they are every alt's first weeks.
+3. **Today's hidden cut is too hard.** The Level 5 is paid 6,100 against 27,200 alone, and the Level 10 27,200 against 42,800. Being carried is worse than hunting alone, and nothing on screen says so.
+4. **A straight line fits between them (COMPUTED from the uncut column).** Share = Level over two thirds of the top Level, capped at 1. The Level 5 would be paid about 33,500 (1.2x its own pace), the Level 10 about 70,500 (1.6x), the Level 35 about 527,000, the Level 60 about 917,000. Carried is always a little better than alone and never several times better.
+5. **PROVISIONAL.** Every survival number here is from a fight that sends 0.5% of the damage to the healer's row. With the real spread the low seat dies more, so the early-game window where a carry survives is narrower than this table shows. Re-run these eight cells when V4 lands.
+
+**Against 44.** The architecture review recommends removing the cut now, as ruled, and adding a visible rule when lending ships (its section 8, row 3, and R8). I agree with removing the hidden, ground-keyed rule and with the fold. I disagree with the gap between the two steps: for the weeks in between, a player's own second hero levels at 4 to 6 times its pace behind the first, which is the opposite of "alts take longer". One recommendation: do both in R8.
+
+### 11.6 What the matrix could not measure
+
+| Proposal | Why not | The run or playtest that would settle it |
+|---|---|---|
+| On-call heroes, standing parties | No formula. The question is whether people use it and like it | Two to four real accounts on different schedules for a week. Hunt hours with another account in them |
+| Shared supply cost | The harness store bill is 1.9x real and its damage lands on one seat | The real Krell hunt already shows the gap (tank +20,100, healer +4,800). After V4, read net gold a seat in the matrix four |
+| The party's gold against a lone hero's | The same caveat. Party gold cells are lower bounds | After the store-bill calibration |
+| Heroes at work in town, the Local tab, the finder, the castle on Town Works rows, the friend link, clans at 50 accounts | Platform, UI and population questions | Section 6's playtest table. Platform sizes A1 |
+| Faction side per hero | The skills do not exist yet | Cell G4 when L53 builds them |
+| Whether a lone hero really holds Dangerous | One seed, one hour. Deaths are rare | The nightly full matrix (2 seeds x 2 h) and the deaths run. This is the most important open number in my area |
+
+### 11.7 Where the other docs decided, and whether I agree
+
+| Doc | What it decided | My position |
+|---|---|---|
+| 44, R8 and P-X07 | The solo +15% becomes the first cell of the one party table | Agree. I proposed the same in phase A, and 44 cites it. Convergent |
+| 44, section 8 row 3 | Remove the hidden Level cut now, a visible rule with lending | Agree on the removal, disagree on the gap (11.5) |
+| 44, P-X09 | The Tower takes the one party table | Agree in principle. Hand to endgame to measure |
+| 44, V4 | The harness seats take about 1% of the damage | Agree it must land before any party survival number is trusted. It gates my R1 re-test and R2's table |
+| 44, class-3 list, X-PARTY-FIT | "Built for a party" kept as one encounter type | No position. Note for it: the Level 60 cells here are on a party ground, and a lone hero's Normal there is the weakest lone cell (0.55 of the pair) |
+| 46, change 1 | Lent seats first. The company as one thing | Agree. Convergent with my top change, reached independently |
+| 46, challenge 7 | Party XP by size only | I proposed the same and now withdraw it on measurement (11.3) |
+| 46, challenge 1 | A cheaper second hero | Not my call. On-call heroes do part of the same job without touching the price you ruled |
+| 46, challenge 8 | Factions with no power | I keep ruling 31-8. If the skills ship, the side should be per hero (call 8) |
+| 46, section 3 | Town Works merged into one Great Hearth | Compatible with my R6 as long as the staged-gift engine survives the merge. A clan project is rows on that engine either way |
+| 46, the castle | Later, when ten real clans ask | Agree. Convergent |
+| 47, C23 and M3 | I misread your 11-18 answer: you turned down wanted and unwanted lists on weekly orders, not weekly orders | Accepted and corrected in section 4. My reason against weekly clan tasks is now only that a clan project already is the weekly reason |
+| 47, row 2d and L53 | Equal faction grounds a region | Agree. No conflict |
+| 52, section 10.4 | Keep the class table until L16 | Agree. Measured the same on two seeds (11.3) |
+
+### 11.8 Verdicts that changed since phase A
+
+| Item | Phase A | Now | Why |
+|---|---|---|---|
+| P4, the class-count term | REMOVE | **KEEP until L16, then re-measure** | Four Mages hold Deadly and would out-earn the mixed four by 8 to 15% |
+| P3, the size row | REDESIGN now | **DEFER to after L16 and R12** | social-1 regressed P6 on 16 rows. The opposite patch breaks P7. The cause is the tier |
+| P6, the Level share cut | REDESIGN, "21 times" | **REDESIGN, resized**: 3 to 6 times early, and death gates it late. A straight line, not the square | The Level 10 at Krell's Hold dies 12.5 times an hour. The Level 5 on the Glade survives |
+| Reading "solo is viable on Normal" | Normal only from about Level 45 | **A lone hero holds Dangerous at the top of a band** (one seed, thin) | Before cells at Levels 30, 60, 110 |
+| Reading "the four is 1.06 to 2.53 of a lone hero" | From the old grid | **About 0.97 to 1.20 of a lone hero's best held tier at Levels 30, 60, 110** | The single source of rates plays the tier's pull for a lone hero too |
+| The weekly clan tasks row | "You turned down weekly order lists" | Corrected | 47 C23 |
+
+Verdict counts now: KEEP 25, REMOVE 6, MERGE 5, REDESIGN 4, ADD 2, DEFER 5. Total 47.

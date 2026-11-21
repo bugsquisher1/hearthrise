@@ -1,0 +1,12 @@
+{
+  "schema": "hearthrise.balance-patch/1",
+  "name": "combat-4: a physical strike reads weapon weakness (44 R6, second half), on today's weakness table",
+  "why": "44-formula-architecture section 5.1 judges that a cast with no element reads the weapon weakness of its caster. 52-review-combat found the table is lopsided: hammer 68 of 190, sword 44, axe 0. This plays R6's weakness half on the table as it stands, to see which melee way it lifts. It targets pace.",
+  "kind": "coefficient",
+  "edits": [
+    { "file": "src/core/hunt/abilities.js", "from": "import { landHit } from './damage.js';", "to": "import { landHit, rowOf } from './damage.js';" },
+    { "file": "src/core/hunt/abilities.js", "from": "const dmg = () => roll(sc, hitRange(u.maxHit, row));", "to": "const dmg = (m) => { const hh = inst.heroes && inst.heroes[u.id]; const vs = !el && m && m.side === 'mon' && hh && typeof hh.rollsVs === 'function' ? hh.rollsVs(rowOf(inst, m.kind), m.kind) : null; const wk = vs && vs.weak && vs.weak.matched ? 1.2 : 1; return roll(sc, hitRange(Math.max(1, Math.floor((Number(u.maxHit) || 1) * wk)), row)); };" },
+    { "file": "src/core/hunt/abilities.js", "from": "const r = landHit(inst, sc, u, m, dmg(), el, hitTag, sg);", "to": "const r = landHit(inst, sc, u, m, dmg(m), el, hitTag, sg);" }
+  ],
+  "targets": ["pace"]
+}

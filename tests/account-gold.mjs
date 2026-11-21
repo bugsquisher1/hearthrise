@@ -96,19 +96,24 @@ const SELFCHECK_BLIND = [
 /* hr_state_of is restated last by 2027-01-18-dead-surfaces-cut.sql (v0.2.44; run 40131714242's ANCHOR red), so the
    per-hero read is planted THERE; the column it reads is kept in this file (`also`), where it is dropped. */
 const CUT = '2027-01-18-dead-surfaces-cut.sql';
+/* ...and since L10 (lane/c-approved-cuts) by 1032-approved-cuts.sql, whole, from that image: the per-hero read is planted THERE now
+   (staging run 44870672285's ANCHOR red); its §7 checks its own images, so it is blinded like CUT's §4. */
+const CUTS = '1032-approved-cuts.sql';
 /* A mutant planted in a later file blinds ITS self-check the same way (its §0 pins the pre-images, untouched):
    2026-12-23-tally-tasks.sql's §8, 2027-01-18-dead-surfaces-cut.sql's §4 (it md5-checks its own hr_state_of image). */
 const LATER_BLIND = {
   [TALLY]: [["  v_cell text := 'mill_cellar'; v_pick jsonb; v_first text; v_cap int;\nbegin\n",
     "  v_cell text := 'mill_cellar'; v_pick jsonb; v_first text; v_cap int;\nbegin\n  if true then return; end if;   -- selftest: §8 short-circuited\n"]],
   [CUT]: [['  v_txt  text;\n  v_code text;\nbegin\n', '  v_txt  text;\n  v_code text;\nbegin\n  if true then return; end if;   -- selftest: §4 short-circuited\n']],
+  [CUTS]: [['  v_txt   text;\n  v_code  text;\nbegin\n  -- (a) GONE, AND NOTHING KEPT NAMES THEM.\n',
+    '  v_txt   text;\n  v_code  text;\nbegin\n  if true then return; end if;   -- selftest: §7 short-circuited\n  -- (a) GONE, AND NOTHING KEPT NAMES THEM.\n']],
   /* 2027-03-21-scaled-hunts.sql's §8 (its commit probes would refuse a planted hr_hunt_apply_instance before an arm reads it) */
   [SCALED]: [['  v jsonb; v_src text; v_iid uuid; v_sid uuid; v_g0 bigint; v_role text; v_sig text; v_to timestamptz;\nbegin\n',
     '  v jsonb; v_src text; v_iid uuid; v_sid uuid; v_g0 bigint; v_role text; v_sig text; v_to timestamptz;\nbegin\n  if true then return; end if;   -- selftest: §8 short-circuited\n']],
 };
 const SQL_MUTANTS = {
   per_hero_read: {
-    file: CUT,
+    file: CUTS,
     why: 'the per-hero column stays and hr_state_of reads it: a hero shows its own gold, not the account purse',
     pairs: [["      'slot', v_st.slot, 'gold', coalesce(v_w.gold, 0), 'gold_v'", "      'slot', v_st.slot, 'gold', v_st.gold, 'gold_v'"]],
     /* [file, find, repl] planted with it: the column the read needs is kept where it is dropped */

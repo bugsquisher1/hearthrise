@@ -1602,8 +1602,9 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         await pushEnvelope(page, s);
         await page.waitForTimeout(300);
         const wrong = await why(0);
-        /* slot 0's move is cast by every melee weapon (action-facts.js weaponsFor, d190f3abc: its first discipline alone said Shield) */
-        if (wrong.text !== 'Requires Melee weapon' || !wrong.off || !wrong.glyph) fails.push('HS-20 the wrong-weapon slot reads ' + JSON.stringify(wrong));
+        /* slot 0's Power Strike names EVERY discipline that casts it (action-facts.js weaponsFor, d190f3abc: its first discipline alone
+           said Shield): shield, sword and club since the spell rule (no dual axes). hunt-screen-pure HS-20 reads Turning Cut's label too. */
+        if (wrong.text !== 'Requires Shield, sword, club, hammer or bare hands' || !wrong.off || !wrong.glyph) fails.push('HS-20 the wrong-weapon slot reads ' + JSON.stringify(wrong));
         await sweep('the healer bar');
         /* A SLOT THIS PARTY CAN'T FIRE (lane/a-silent-triggers): wanting more hurt heroes than the party holds never holds. Not struck: it says
            so, and the slot shows what it wants where an item shows its count (slot-waits.js), ahead of the mana it is also short of. */

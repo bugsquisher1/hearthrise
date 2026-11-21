@@ -1,0 +1,7 @@
+{
+  "schema": "hearthrise.balance-patch/1",
+  "name": "Player attack x1.10 (example: Tyler's global attack coefficient at 1.10)",
+  "why": "An example patch for tools/balance-program/balance-matrix.mjs --diff: every hero's blow, and every spell, heal and shield that is a share of it, 10% larger. It targets pace, so a moved pace band reads IMPROVED or REGRESSED and any other moved band UNINTENDED.",
+  "knobs": { "playerAttack": 1.1 },
+  "targets": ["pace"]
+}

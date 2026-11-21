@@ -10,8 +10,8 @@
 //
 // GUARD is a shield's `defB`: the to-hit defence of gear outside the armour
 // weights (src/core/combat.js equipmentStats guardB, ruling K7), so each guard
-// point takes COMBAT_BALANCE.monsterAccuracyPerPoint (2%) off every monster's
-// chance to land (monsterAccuracy). A heavy shield's ATTACK penalty is the
+// point adds one to the hero's defense rating every monster's aim is rolled
+// against (src/data/to-hit.js, monsterAccuracy). A heavy shield's ATTACK penalty is the
 // same number off every style's attack roll (atkB, rangeAtkB, magicAtkB:
 // playerCombatRolls reads the one its weapon's profile names), so the trade
 // holds for a crossbow or a wand behind it too.

@@ -404,9 +404,9 @@ const ARMS = {
       if (at.size !== 1) bad.push('HL-DEATH two instants: ' + [...at].join());
     } finally { X.restore(); }
     /* the limit: a boss nobody can finish, his adds too */
-    X.setRow(BOSS, { hp: 100000000, atk: 1, baseAcc: 0 });
-    X.setRow(NAMED, { hp: 10000000, atk: 1, baseAcc: 0 });
-    X.setRow(ADD, { hp: 10000000, atk: 1, baseAcc: 0 });
+    X.setRow(BOSS, { hp: 100000000, atk: 1, aim: 1 });
+    X.setRow(NAMED, { hp: 10000000, atk: 1, aim: 1 });
+    X.setRow(ADD, { hp: 10000000, atk: 1, aim: 1 });
     try {
       const f = fight(X, ['tank', 'healer'], { cut: 60000 });
       const ends = Object.values(f.ended);
@@ -439,7 +439,7 @@ const ARMS = {
     const up = blow(true), down = blow(false);
     if (!(up < down && Math.abs(up * 1000 - down * ROWS[BOSS].phases.guardPm) <= 1000)) bad.push('HL-NAMED the named add shields him to ' + up + ' of ' + down);
     /* a fight long enough to see his kit: the boss soft on the hit and slow to fall */
-    X.setRow(BOSS, { hp: 9000, atk: 1, baseAcc: 0 });
+    X.setRow(BOSS, { hp: 9000, atk: 1, aim: 1 });
     try {
       const f = fight(X, ['tank', 'healer', 'melee_dps', 'mage']);
       const k = kindsOf(f), ev = eventsOf(f);
@@ -483,9 +483,9 @@ const ARMS = {
     c = cross({ [FLARE]: 18000 }, 300, 280);
     if (c[FLARE] !== 18000) bad.push('HL-HASTE a blow above the line cut the wait to ' + c[FLARE]);
     /* (c) in a fight: the boss lives long under his line, the party lives through his flares */
-    X.setRow(BOSS, { hp: 60000, atk: 1, baseAcc: 0, phases: { ...ROWS[BOSS].phases, addsPm: 950, enragePm: 700 } });
-    X.setRow(NAMED, { hp: 60, atk: 1, baseAcc: 0 });
-    X.setRow(ADD, { hp: 60, atk: 1, baseAcc: 0 });
+    X.setRow(BOSS, { hp: 60000, atk: 1, aim: 1, phases: { ...ROWS[BOSS].phases, addsPm: 950, enragePm: 700 } });
+    X.setRow(NAMED, { hp: 60, atk: 1, aim: 1 });
+    X.setRow(ADD, { hp: 60, atk: 1, aim: 1 });
     try {
       const runs = [10000, 30000, 90000].map((cut) => fight(X, ['tank', 'healer', 'melee_dps', 'mage'], { cut }));
       const flaresOf = (f) => { const k = kindsOf(f); return eventsOf(f).filter((e) => e.type === 'spell' && k[e.u] === BOSS && e.spell === FLARE).map((e) => e.atMs); };

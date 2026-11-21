@@ -12,16 +12,16 @@ export const PRIZE = 'crown_shard';
 
 export const ROWS = Object.freeze({
   [BOSS]: { name: 'Hall Boss', icon: '👑', tier: 3, level: 52, cls: 'humanoid', family: 'Humanoid', formation: true, boss: true,
-    spells: [CONE, FLARE], hp: 3500, atk: 40, baseAcc: -1.3, def: 28, xp: 6603, gp: [122, 366], speed: 2800,
+    spells: [CONE, FLARE], hp: 3500, atk: 40, aim: 6, evasion: 9, def: 28, xp: 6603, gp: [122, 366], speed: 2800,
     /* HIS DAILY PRIZE (src/data/boss-halls.js; lane/c-krell-daily): a hall boss's rows are each hero's ONE roll a day, every row a slice of
        it. One sure slice here (the whole roll), so a hero with the day's prize to take always gets PRIZE and one without never does. */
     drops: [{ id: PRIZE, ch: 1, band: 'rare' }],
     phases: { addsPm: 500, enragePm: 250, enrageAtkPm: 1400, guardPm: 800, hasten: { spell: FLARE, cdPm: 500 } } },
   [NAMED]: { name: 'Hall Captain', icon: '⚔️', tier: 3, level: 48, cls: 'humanoid', family: 'Humanoid', formation: true, boss: true, add: true,
-    spells: [NAMED_SPELL], hp: 600, atk: 40, baseAcc: 0.2, def: 20, xp: 900, gp: [20, 60], speed: 3000,
+    spells: [NAMED_SPELL], hp: 600, atk: 40, aim: 31, evasion: 9, def: 20, xp: 900, gp: [20, 60], speed: 3000,
     drops: [{ id: 'bones', ch: 1, band: 'common' }], phases: { enragePm: 400, enrageAtkPm: 1300 } },
   [ADD]: { name: 'Hall Guard', icon: '🛡️', tier: 3, level: 44, cls: 'humanoid', family: 'Humanoid', formation: true, add: true,
-    hp: 300, atk: 30, baseAcc: 0.2, def: 20, xp: 300, gp: [5, 15], speed: 2600, drops: [{ id: 'bones', ch: 1, band: 'common' }] },
+    hp: 300, atk: 30, aim: 14, evasion: 9, def: 20, xp: 300, gp: [5, 15], speed: 2600, drops: [{ id: 'bones', ch: 1, band: 'common' }] },
 });
 
 /** The room's ground row, built with the packs' own pocket helper (src/data/grounds/shape.js `pocket`). */

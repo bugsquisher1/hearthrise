@@ -286,7 +286,7 @@ const MUTANTS = [
   { name: 'the Bestiary counts the dummy', edits: [['src/data/bestiary.js', '    if (m.dummy === true) continue;\n', '']], want: /CT-ROW/ },
   { name: 'the yard stops past its last hour', edits: [['src/core/hunt/training.js', ' || hours >= TRAINING_RULES.maxHours', '']], want: /CT-STOP/ },
   { name: 'the yard never stops', edits: [['src/core/hunt/training.js', '  return stop > Math.floor(Number(fromMs)) ? stop : Infinity;', '  return Infinity;']], want: /CT-STOP/ },
-  { name: 'coin planted on the dummy', edits: [['src/data/monsters.js', 'hp: 1000, atk: 2, baseAcc: 0.5, def: 0, xp: 0, gp: [0, 0], drops: [] },', 'hp: 1000, atk: 2, baseAcc: 0.5, def: 0, xp: 0, gp: [1, 5], drops: [] },']], want: /CT-ROW/ },
+  { name: 'coin planted on the dummy', edits: [['src/data/monsters.js', 'hp: 1000, atk: 2, aim: 22, evasion: 21, def: 0, xp: 0, gp: [0, 0], drops: [] },', 'hp: 1000, atk: 2, aim: 22, evasion: 21, def: 0, xp: 0, gp: [1, 5], drops: [] },']], want: /CT-ROW/ },
   { name: 'the fee table moves', edits: [['src/data/training.js', '  feePerLevel: 6,', '  feePerLevel: 5,']], want: /CT-ROW/ },
 ];
 

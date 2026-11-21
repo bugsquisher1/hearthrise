@@ -72,11 +72,14 @@ const cases = {
           if (a.accuracy !== b.accuracy || a.maxHit !== b.maxHit) return `${id} at ${skill} ${S} rolls ${a.accuracy}/${a.maxHit}, ${twinId} at ${S + k.skillPlus} rolls ${b.accuracy}/${b.maxHit}`;
           n++;
         }
-        const plain = C.playerCombatRolls({}, { equipment: theirs, items: ITEMS, skills: at(S), profile });
-        const tower = C.playerCombatRolls({}, { equipment: mine, items: ITEMS, skills: at(S), profile });
-        /* a skill level moves the max hit in whole steps (combat.js: 0.35 a level), so +N shows at some levels and not others */
-        if (tower.maxHit > plain.maxHit || tower.accuracy > plain.accuracy) better = true;
-        if (tower.maxHit < plain.maxHit || tower.accuracy < plain.accuracy) return `${id} rolls worse than ${twinId} at ${skill} ${S}`;
+        /* against the ground's monsters (a foe with no evasion is the to-hit rail for both, src/data/to-hit.js): a skill level moves the max hit
+           in whole steps (combat.js: 0.35 a level) and the to-hit by the ratio, so +N shows at some levels and not others */
+        for (const m of foes) {
+          const plain = C.playerCombatRolls(m, { equipment: theirs, items: ITEMS, skills: at(S), profile });
+          const tower = C.playerCombatRolls(m, { equipment: mine, items: ITEMS, skills: at(S), profile });
+          if (tower.maxHit > plain.maxHit || tower.accuracy > plain.accuracy) better = true;
+          if (tower.maxHit < plain.maxHit || tower.accuracy < plain.accuracy) return `${id} rolls worse than ${twinId} at ${skill} ${S}`;
+        }
       }
       if (!better) return `${id} rolls no better than ${twinId} at any sampled ${skill} level`;
     }

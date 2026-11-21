@@ -60,7 +60,9 @@ export class AccountCoach {
 
   async _send(read, taught) {
     let ans;
-    try { ans = await this.server.rpc('hr_account_coach', { p_read: read, p_taught: taught, p_idem: read.length + taught.length ? newKey() : null }); }
+    /* a write rides a fetch that outlives the page (server.js keepalive): a Got it pressed just before a reload still lands */
+    const write = read.length + taught.length > 0;
+    try { ans = await this.server.rpc('hr_account_coach', { p_read: read, p_taught: taught, p_idem: write ? newKey() : null }, write ? { keepalive: true } : undefined); }
     catch { return false; }
     const b = ans && ans.ok ? ans.body : null;
     if (!b || b.ok !== true || !Number.isSafeInteger(b.v) || b.v < this.v) return false;

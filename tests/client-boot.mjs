@@ -847,12 +847,20 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
       const residue = { coach: { read: [] } };
       let version = 1;
       const puts = [];
+      /* the cards read are the ACCOUNT's (1039-account-coach.sql): a union of ids the server keeps, read back on every load */
+      const coach = { read: [], taught: [], v: 0 };
       const api = async (req, res) => {
         const name = (/^\/(?:rest\/v1\/rpc|functions\/v1)\/([a-z_-]+)/.exec(req.url) || [])[1];
         if (!name) return false;
         let raw = ''; for await (const c of req) raw += c;
         const body = JSON.parse(raw || '{}');
         if (name === 'hr_put_client_state') { puts.push(body.p_patch); Object.assign(residue, body.p_patch); }
+        if (name === 'hr_account_coach') {
+          puts.push({ coach: body });
+          for (const k of ['read', 'taught']) for (const id of (body['p_' + k] || [])) if (!coach[k].includes(id)) { coach[k].push(id); coach.v++; }
+          res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify(Object.assign({ ok: true }, coach)));
+          return true;
+        }
         const hero = name === 'hr_load' || name === 'hr-accrue';
         const answer = hero ? withServerLevel(Object.assign({}, fixture, { version: ++version, hunt: null, client_state: residue, state: Object.assign({}, fixture.state, { level_xp: 0, active_kind: null, active_id: null }),
           equipment: Object.assign({}, fixture.equipment, { weapon: 'practice_sword' }), tally: { per_day: 3, held_max: 3, paid_today: 0, held: [], recent: [] } })) : { ok: true };
@@ -899,8 +907,8 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
           if (ms > 1200) fails.push(HARNESS + ' B-18: the reload began ' + ms + ' ms after the press, past the debounce: this run proves nothing');
           await wait(page, () => document.querySelector('.hs-launchers'), null, 15000);
           await page.waitForTimeout(1500);
-          const read = residue.coach && residue.coach.read;
-          if (!Array.isArray(read) || !read.includes(card)) fails.push('B-18 Got it on "' + card + '" just before a reload never reached the server: ' + JSON.stringify(puts.slice(before)));
+          const read = coach.read;
+          if (!read.includes(card)) fails.push('B-18 Got it on "' + card + '" just before a reload never reached the server: ' + JSON.stringify(puts.slice(before)));
           const again = await page.evaluate((id) => !!document.querySelector('[data-tutorial="' + id + '"]'), card);
           if (again) fails.push('B-18 the card "' + card + '" came back after the reload');
         }

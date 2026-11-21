@@ -522,6 +522,17 @@ export const REFUSAL_WORDS = Object.freeze({
   /* One Global with a slow mode (1041-social-clans.sql, 31-1); the Clan tab. */
   slow_mode: 'Global is busy, wait a moment',
   not_in_clan: 'Not in a clan',
+  /* Clans and the friend link (1041-social-clans.sql, 1044-friend-link.sql): the codes no other verb answers. */
+  name_charset: 'Letters, digits and spaces only',
+  name_blocked: 'Pick another name',
+  tag_blocked: 'Pick another tag',
+  tag_taken: 'Tag taken',
+  cannot_invite_self: 'That is you',
+  cannot_rank_self: 'That is you',
+  clan_full: 'Clan full',
+  own_link: 'That is your own link',
+  used: 'Already used',
+  try_again: 'Didn\'t go through, try again',
   /* Chat and the social side. */
   empty: 'Type something first',
   too_long: 'Message too long',

@@ -28,7 +28,9 @@ import { actionMs, jobOf, leftOf, productOf, runsOf, workOf, workRow, yieldOf } 
 const TOWN_STAMP = /^town:(gather|artisan):([A-Za-z0-9_.-]+)$/;
 /* A record settled this recently is the return's answer; an older one waits for the sign-in's settle. */
 const SETTLED_WITHIN_MS = 2 * 60 * 1000;
-const STILL = Object.freeze({ woodcutting: 'Still chopping.', mining: 'Still mining.', fishing: 'Still fishing.', cooking: 'Still cooking.' });
+/* the words live in src/data/text/away.js: what a running job is still doing, and what a gathering hero did, by skill */
+const STILL = Object.freeze({ woodcutting: 'away.work_still_woodcutting', mining: 'away.work_still_mining', fishing: 'away.work_still_fishing', cooking: 'away.work_still_cooking' });
+const DID = Object.freeze({ woodcutting: 'away.work_did_woodcutting', mining: 'away.work_did_mining', fishing: 'away.work_did_fishing' });
 
 const stateOf = (cs) => (typeof cs.read === 'function' ? cs.read('state') : null);
 const huntSection = (cs) => (typeof cs.read === 'function' ? cs.read('hunt') : null);
@@ -68,7 +70,7 @@ export function awayWorkSettled(cs, was, minMs) {
 
 /* What the hero did, as the line says it. */
 function didWords(w) {
-  if (w.kind === 'gather') return (w.skill === 'woodcutting' ? 'chopped the ' : w.skill === 'mining' ? 'mined the ' : 'fished at the ') + w.row.name;
+  if (w.kind === 'gather') return t(DID[w.skill] || DID.fishing, { node: w.row.name });
   const out = productOf(w);
   if (out && w.skill === 'cooking') return 'cooked ' + itemName(Object.keys(recipeInputs(w.row))[0] || out);
   if (out) return 'made ' + itemName(out);
@@ -141,7 +143,7 @@ export function awayWorkLineOf(cs, was, awayWords) {
   const ran = gained > 0 ? Math.ceil(gained / yieldOf(w)) * actionMs(cs, w) : 0;
   const when = ran >= 60000 && ran < now - was.at ? ' about ' + awayWords(ran) + ' in' : '';
   const ended = still ? null : endedWords(cs, w, was);
-  const tail = still ? ' ' + (STILL[w.skill] || 'Still at the bench.') + ' ' + howItEnds(cs, w)
+  const tail = still ? ' ' + t(STILL[w.skill] || 'away.work_still') + ' ' + howItEnds(cs, w)
     : ended ? ' ' + ended : ' It stopped' + when + whyStopped(cs, w) + '.';
   const name = nameOf(cs) || 'Hero';
   const who = name + ' ' + didWords(w), facts = t('away.card_facts', { facts: parts.join(', ') }) + tail;

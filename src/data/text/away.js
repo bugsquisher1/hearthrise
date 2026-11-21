@@ -48,6 +48,17 @@ export const AWAY_TEXT = Object.freeze({
   work_how_left: '{n} more to go. Press Stop in Gathering and crafting to end it sooner.',
   work_how_bench: 'It stops when the materials run out, or press Stop in Gathering and crafting.',
   work_change: 'Stop or change it',
+  /* A JOB'S COUNT AND ITS "THEN" (1026-job-counts.sql, plan L08): the server's count ({done} of {count}) and what the hero does at the end. */
+  work_how_count: '{done} of {count} done. {after}',
+  work_then_wait: 'Then it waits in town.',
+  work_then_hunt: 'Then it goes back to hunting.',
+  /* ...and a job the server ended while you were away: its count, and what came of its "then" ({why}: the hunt's own refusal, said plainly). */
+  work_end_count: 'Done, {done} of {count}.',
+  work_end_stopped: 'It stopped at {done} of {count}',
+  work_end_waited: 'Waiting in town.',
+  work_end_hunting: 'Went back to hunting.',
+  work_end_going: 'Going back to hunting.',
+  work_end_no_hunt: 'It could not go hunting ({why}), so it waits in town.',
   /* THE WHILE YOU WERE AWAY CARD (src/shell/windows/away.js, UI audit 2026-11-18 #2): its head, each hero's labels and the line under the figures. */
   card_gone: 'Away {time}',
   card_best: 'Best find',

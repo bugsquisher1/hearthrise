@@ -2826,7 +2826,7 @@ const DB_ARMS = {
     /* The bar eats the carried Cooked Shrimp under 99% HP (the eat-at is a slot condition, Tyler 2026-10-19). */
     const eat99 = [{ action: { type: 'consume', id: 'cooked_shrimp' }, conditions: [{ metric: 'self_hp_pct', op: 'lt', value: 99 }], join: 'and' }];
     const { sid, from } = await hunter(db, M, { ...WEAK, options: { on_empty: 'end', slots: eat99 }, inv: { cooked_shrimp: 3 },
-      bag: [{ item: 'cooked_shrimp', qty: 3, essential: true }], lastActivity: { kind: 'gather', id: 'shrimp_s' } });
+      bag: [{ item: 'cooked_shrimp', qty: 3, essential: true }], running: { kind: 'gather', id: 'shrimp_s', left: 100000 } });
     await run(db, M, from, ticksOf(90000, SPAN_MS));
     const s = await snapshot(db, sid);
     if (!s.session.ended_at) return [`CONTROL: the hunt did not end (${JSON.stringify(s.session)})`];
@@ -2834,7 +2834,7 @@ const DB_ARMS = {
     if (s.bag.cooked_shrimp[1] !== 0) problems.push('heals_out ended a hunt with food left');
     /* With nothing essential to run out of, the first death ends it: `died`, home at full HP, resuming. */
     await db.query('rollback'); await db.query('begin');
-    const f = await hunter(db, M, { ...DOOMED, lastActivity: { kind: 'gather', id: 'shrimp_s' } });
+    const f = await hunter(db, M, { ...DOOMED, running: { kind: 'gather', id: 'shrimp_s', left: 100000 } });
     await run(db, M, f.from, ticksOf(90000, SPAN_MS));
     const sf = await snapshot(db, f.sid);
     const maxHp = Number(await one(db, `select (public.hr_vitals_of($1::uuid, 0)->>'max_hp')::int`, [UID]));
@@ -3081,7 +3081,7 @@ const DB_ARMS = {
       'the hunt viewed': { mode: 'settle', project: { user: UID, slot: 0 } },
     };
     for (const [path, door] of Object.entries(DOORS)) {
-      const h = await hunter(db, M, { ...WEAK, minutesAgo: 2, lastActivity: { kind: 'gather', id: 'shrimp_s' } });
+      const h = await hunter(db, M, { ...WEAK, minutesAgo: 2, running: { kind: 'gather', id: 'shrimp_s', left: 100000 } });
       let r = null;
       for (let i = 0; i < 6 && !r?.forfeit; i++) {
         const plan = await M.HS.readHuntSettle({ exec, user: UID, slot: 0, grounds: groundsOf(M), atMs: h.from + 30000 }, door.mode);
@@ -3122,7 +3122,7 @@ const DB_ARMS = {
   }),
   RESUME: async (db, M) => inTx(db, async () => {
     const problems = [];
-    const { sid, from } = await hunter(db, M, { ...STRONG, stamina: 10 * 2000, lastActivity: { kind: 'gather', id: 'shrimp_s' } });
+    const { sid, from } = await hunter(db, M, { ...STRONG, stamina: 10 * 2000, running: { kind: 'gather', id: 'shrimp_s', left: 100000 } });
     await run(db, M, from, ticksOf(90000, 120000));
     const s = await snapshot(db, sid);
     if (s.session.end_reason !== 'stamina' || s.active !== 'gather:shrimp_s') problems.push(`an automatic end left the character ${s.active} after ${s.session.end_reason}`);
@@ -3305,12 +3305,12 @@ const DB_ARMS = {
         want: { choice: 'job', state: 'resumed', active: 'artisan:cook_shrimp', left: 7 } },
       { tag: 'never picked, the last collect finished the run', hero: { ...DOOMED, inv: { [IN]: 20 * NEED } }, stop: { count: 2, ago: 30 }, loot: 50,
         want: { choice: 'job', state: 'waited', why: 'no_count', active: 'idle:' }, once: true },
-      { tag: 'never picked, gathering', hero: { ...DOOMED, lastActivity: { kind: 'gather', id: 'shrimp_s' } },
+      { tag: 'never picked, gathering', hero: { ...DOOMED, running: { kind: 'gather', id: 'shrimp_s', left: 100000 } },
         want: { choice: 'job', state: 'resumed', active: 'gather:shrimp_s' } },
-      { tag: 'wait in town', hero: { ...DOOMED, lastActivity: { kind: 'gather', id: 'shrimp_s' } }, pick: ['wait', null],
+      { tag: 'wait in town', hero: { ...DOOMED, running: { kind: 'gather', id: 'shrimp_s', left: 100000 } }, pick: ['wait', null],
         want: { choice: 'wait', state: 'waited', why: 'chose_wait', active: 'idle:' } },
       /* this hero has a gathering job too: the choice is the yard, so the job is not what it goes back to */
-      { tag: 'train, gold for the hour', hero: { ...TEN, gold: 5000, lastActivity: { kind: 'gather', id: 'shrimp_s' } }, pick: ['train', 'melee'],
+      { tag: 'train, gold for the hour', hero: { ...TEN, gold: 5000, running: { kind: 'gather', id: 'shrimp_s', left: 100000 } }, pick: ['train', 'melee'],
         want: { choice: 'train', skill: 'melee', state: 'started', active: 'combat:training_yard_melee' } },
       { tag: 'train, too little gold', hero: { ...TEN, gold: 0 }, pick: ['train', 'melee'],
         want: { choice: 'train', skill: 'melee', state: 'waited', why: 'insufficient_gold', active: 'idle:' } },
@@ -3410,7 +3410,7 @@ const DB_ARMS = {
     /* A HUNT THE PLAYER LEAVES WAITS IN TOWN, whatever was picked: nothing is resumed, nothing is pending, no gold moves. */
     await db.query('rollback'); await db.query('begin');
     {
-      const h = await hunter(db, M, { ...STRONG, lastActivity: { kind: 'gather', id: 'shrimp_s' },
+      const h = await hunter(db, M, { ...STRONG, running: { kind: 'gather', id: 'shrimp_s', left: 100000 },
         beforeEnter: async () => { const r = await pick(UID, 'train', 'melee'); if (!r || r.ok !== true) throw new Error('the pick answered ' + JSON.stringify(r)); } });
       await run(db, M, h.from, () => [h.from + 60000]);
       const g0 = Number((await snapshot(db, h.sid)).gold);
@@ -3455,8 +3455,8 @@ const DB_ARMS = {
   'ITINERARY-PARTY': async (db, M) => inTx(db, async () => {
     const problems = [];
     const FRAIL = { minutesAgo: 25, inv: {}, bag: [], gold: 0, hp: 5, options: { on_empty: 'end' } };
-    const h = await hunter(db, M, { deadly: true, party: [{ ...FRAIL, keepKit: true, lastActivity: { kind: 'gather', id: 'shrimp_s' } },
-      { ...STRONG, level: 60, keepKit: true, lastActivity: { kind: 'gather', id: 'shrimp_s' } }], beforeEnter: async () => {
+    const h = await hunter(db, M, { deadly: true, party: [{ ...FRAIL, keepKit: true, running: { kind: 'gather', id: 'shrimp_s', left: 100000 } },
+      { ...STRONG, level: 60, keepKit: true, running: { kind: 'gather', id: 'shrimp_s', left: 100000 } }], beforeEnter: async () => {
       for (const u of UIDS.slice(0, 2)) await admin(db, u, { equip: { weapon: 'practice_club', shield: null } });
       await asUser(db, UIDS[1]);
       const r = await one(db, 'select public.hr_hunt_after_set(0, $1, null, $2::uuid)', ['wait', idem()]);

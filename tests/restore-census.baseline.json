@@ -565,6 +565,7 @@
    "hr-hunt-after | * * * * * | select public.hr_hunt_after_sweep(50)",
    "hr-hunt-party-sweep | * * * * * | select public.hr_hunt_party_sweep(200)",
    "hr-intents-prune | 17 * * * * | select public.hr_intents_prune()",
+   "hr-job-next | * * * * * | select public.hr_job_next_sweep(50)",
    "hr-kill-credit-prune | 40 4 * * * | select public.hr_kill_credit_prune()",
    "hr-ledger-prune | 2-57/5 * * * * | select public.hr_ledger_prune(20000)",
    "hr-live-events-announce | * * * * * | select public.hr_live_events_announce()",

@@ -230,7 +230,12 @@ const MUTANTS = [
   ['fire resistance at the line\'s armor (over on the capped Ox Road)', 'AL3', (L) => { const r = L.LINE_SAMPLE.burnt_crag_leg_plates.row; r.defB = 73; delete r.strB; }],
   ['a jerkin far past the trade (dodge for a bow that hits much lighter)', 'AL3', (L) => { const r = L.LINE_SAMPLE.haulers_jerkin.row; r.defB = 200; r.rangeStrB = -15; }],
   ['the line read at a lower Level (the scale lies)', 'AL3', (L) => { L.lineScale = () => 1; }],
-  ['the Visor re-sized by the ratio alone, 71 (1.0005 of the line at the Catacombs)', 'AL3', (L) => { L.LINE_SAMPLE.outriders_visor.row.defB = 71; }],
+  ['the Visor re-sized by the ratio alone, 71 (1.0005 of the line at the Catacombs before the to-hit ratio)', 'AL3', (L) => { L.LINE_SAMPLE.outriders_visor.row.defB = 71; }],
+  /* the to-hit ratio re-cut (lane/a-ci-reds-pre-wave): each piece one armor point past its cut reads 100.01 to 100.07% of the line, so the
+     ceiling bites at the edge, not only far past it */
+  ['the Visor one point past its re-cut, 56 (1.0001 of the line at the Catacombs)', 'AL3', (L) => { L.LINE_SAMPLE.outriders_visor.row.defB = 56; }],
+  ['the Breastplate one point past its re-cut, 101 (1.0003 of the line on the Roost)', 'AL3', (L) => { L.LINE_SAMPLE.wagon_guards_breastplate.row.defB = 101; }],
+  ['the Limewashed Plate one point past its re-cut, 129', 'AL3', (L) => { L.LINE_SAMPLE.limewashed_plate.row.defB = 129; }],
   ['a template: the line\'s own armor, Dawnsteel\'s numbers', 'AL4', (L) => { const r = L.LINE_SAMPLE.limewashed_plate.row; r.defB = 135; delete r.atkB; }],
   ['the Visor under tempered Dawnsteel everywhere', 'AL4', (L) => { L.LINE_SAMPLE.outriders_visor.row.defB = 40; }],
   ['a second Vaults helm out-wins the Watchman\'s everywhere', 'AL4', (L) => { L.LINE_SAMPLE.rival_helm = { ...structuredClone(L.LINE_SAMPLE.watchmans_helm), row: { ...L.LINE_SAMPLE.watchmans_helm.row, n: 'Rival Helm', defB: 85 } }; L.LINE_SAMPLE.rival_helm.source = { ...L.LINE_SAMPLE.rival_helm.source, monster: 'bone_wall' }; }],

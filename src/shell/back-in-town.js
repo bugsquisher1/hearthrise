@@ -40,6 +40,7 @@ import { upgradeOf } from './widgets/upgrade-line.js';
 import { nextBuyOf } from './next-buy.js';
 import { bagOf, rulesOf, shopOf, blessingsOf, goldOf, nameOf } from '../session/item-sections.js';
 import { HUNTS } from '../data/hunts.js';
+import { THE_PATH } from '../data/the-path.js';
 import { moveStorageMany } from '../session/storage-intents.js';
 import { huntOf, sessionModeOfHunt, huntBestsOf } from '../session/hunt-sections.js';
 import { homeOf, chestsOf } from '../session/home-sections.js';
@@ -67,6 +68,9 @@ function planned(bag, rules, rule) {
 
 /* A small count in words, as the designer's line says it ("three more heroes"). */
 const inWords = (n) => ['no', 'one', 'two', 'three'][n] || String(n);
+/* THE PATH'S OWN LINE for the first Level 5 (src/data/the-path.js first_level_5, designer D-1): the end card says it word for word when it is
+   that moment, the Mill Cellar outgrown with every other slot still empty; any later outgrown ground with heroes left says the summary's line. */
+const FIRST_LEVEL_5 = THE_PATH.find((r) => r.id === 'first_level_5');
 
 /* The heroes this account still has to make, from the roster the server last read (AccountSession hands it to every hero it opens,
    cs.accountRoster), with the outgrown ground's name: { name, ground, count }, or null when none is left or nothing was read. */
@@ -74,7 +78,9 @@ function partyToMake(cs, h) {
   const rows = cs && typeof cs.accountRoster === 'function' ? cs.accountRoster() : null;
   const empty = Array.isArray(rows) ? rows.filter((r) => r && !r.exists && !r.unnamed).length : 0;
   const ground = h && h.huntId ? (HUNTS.find((x) => x.id === h.huntId) || {}).name : null;
-  return empty && ground ? { name: nameOf(cs) || '', ground, count: empty } : null;
+  /* the first Level 5 of the account: the Mill Cellar outgrown while every slot but this hero's is empty */
+  const first = !!h && h.huntId === 'mill_cellar' && Array.isArray(rows) && rows.filter((r) => r && r.exists).length === 1;
+  return empty && ground ? { name: nameOf(cs) || '', ground, count: empty, first } : null;
 }
 
 /**
@@ -152,7 +158,9 @@ export function townSteps(o) {
      Characters screen, where the empty slots come pre-filled (src/app/hero-create.js companyOf); the next ground stays, "Go on alone" */
   const party = o && o.outgrown && o.party && o.party.count > 0 ? o.party : null;
   if (party) {
-    out.push({ id: 'party', count: 1, done: false, title: t('summary.party_line', { name: party.name, ground: party.ground, count: party.count, n: inWords(party.count) }),
+    const first = FIRST_LEVEL_5 && party.first;
+    out.push({ id: 'party', count: 1, done: false, title: first ? FIRST_LEVEL_5.line.replace('{Name}', party.name)
+      : t('summary.party_line', { name: party.name, ground: party.ground, count: party.count, n: inWords(party.count) }),
       words: '', verb: t('summary.party_go'), icon: null, glyph: null, place: { kind: 'characters' } });
   }
   /* ground: the step up the Hunts list recommends, after the chores and before the buy; it points, so never the gold press */

@@ -22,10 +22,29 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import { isMain } from './_is-main.mjs';
-import { THE_PATH, PATH_FEATURES, PATH_HOLES_FOR_HARDER_TIERS, levelsOf, resolveRef, pathFiles } from '../src/data/the-path.js';
+import { THE_PATH, levelsOf, resolveRef } from '../src/data/the-path.js';
 import { SHELL_WINDOWS } from '../src/data/shell-windows.js';
 
 const ROOT = join(fileURLToPath(new URL('.', import.meta.url)), '..');
+/* Features a row may open that are no window: each is said on a card or a line, not opened by a press. */
+export const PATH_FEATURES = Object.freeze(['action_bar', 'end_card', 'blessings', 'loot_plan', 'hero_strip', 'party_plan', 'rest_plan',
+  'safe_to_close', 'return_card', 'talents', 'talent_point', 'world_boss', 'on_call', 'town_crier', 'weapon_tags', 'iron_gear', 'steel_gear',
+  'hearth_chest', 'weighhouse', 'calendar', 'clan_roster', 'harder_tier', 'way_move']);
+
+/* The FB-5 guard's one named list (D-1 rule 4): the Levels the harder-tier rows are expected to fill once FB-7's tier-risk file
+   lands. A hole here prints and passes; FB-7 deletes the list in the commit that adds its file, with a mutant proving the guard bites. */
+export const PATH_HOLES_FOR_HARDER_TIERS = Object.freeze([16, 25, 26]);
+
+/** Every file a row reads (its opener's and its flag's), for a reader that loads them. Pure. */
+function pathFiles(rows) {
+  const out = new Set();
+  for (const r of rows) {
+    if (r.opener.from) out.add(r.opener.from.file);
+    if (r.flag) out.add(r.flag.file);
+  }
+  return [...out].sort();
+}
+
 /* FB-11's Talent points carry Levels 20 and 25 (D-1 section 1.1: "Talents carry four Levels"); until its file lands these are its
    holes. FB-11 deletes this list in the commit that adds src/data/talents.js, with a mutant proving the guard bites. */
 export const HOLES_FOR_TALENTS = Object.freeze([17, 18, 22, 23, 24]);

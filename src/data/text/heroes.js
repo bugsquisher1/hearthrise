@@ -84,7 +84,6 @@ export const HEROES_TEXT = Object.freeze({
   create_name: 'Name',
   create_name_hint: '3 to 20 letters',
   create_go: 'Enter town',
-  create_how: 'Fighting styles',
   create_more: 'More below',
   /* {outfit} the starting outfit, {parts} the parts the colors change ("hood and tunic") */
   create_start: 'Starting outfit: {outfit}',
@@ -109,5 +108,4 @@ export const HEROES_TEXT = Object.freeze({
   company_copy: 'Same colors as {name}',
   company_go: { one: 'Create 1 hero', other: 'Create {count} heroes' },
   company_one: 'One at a time',
-  company_hero: 'Hero {n}',
 });

@@ -11,8 +11,8 @@
 //            { kind: 'event', event, expectLevel }      a first event on the account; expectLevel is the Level by which the
 //                                                       walked first hour meets it, so the guard can count it. It gates nothing
 //            { kind: 'accounts', from: REF }            a count of active accounts on the server
-//   opens    window ids of src/data/shell-windows.js, or a FEATURE id below
-//   flag     REF: the export in the row's own system that says it is live. Missing or false: the row is off. null: always on.
+//   opens    window ids of src/data/shell-windows.js, or a feature id (tests/the-path.mjs PATH_FEATURES names them)
+//   flag     REF: the export in the row's own system that says it is live (truthy). Missing or false: the row is off. null: always on.
 //            The lane that owns the system adds the export when it lands; no later lane edits this file
 //   scope    'account' (its card shows once for the account), 'hero', or 'way' (read for the hero's weapon; never counts for the guard)
 //   line     the words (Town menu, What next, end card, return card)
@@ -23,11 +23,6 @@
 // reader; tests/the-path.mjs holds every row to it.
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
-
-/* Features a row may open that are no window: each is said on a card or a line, not opened by a press. */
-export const PATH_FEATURES = Object.freeze(['action_bar', 'end_card', 'blessings', 'loot_plan', 'hero_strip', 'party_plan', 'rest_plan',
-  'safe_to_close', 'return_card', 'talents', 'talent_point', 'world_boss', 'on_call', 'town_crier', 'weapon_tags', 'iron_gear', 'steel_gear',
-  'hearth_chest', 'weighhouse', 'calendar', 'clan_roster', 'harder_tier', 'way_move']);
 
 const ref = (file, exp, id, path) => Object.freeze({ file, export: exp, ...(id === undefined ? {} : { id }), ...(path ? { path: Object.freeze(path) } : {}) });
 const level = (from) => Object.freeze({ kind: 'level', from });
@@ -96,10 +91,6 @@ export const THE_PATH = Object.freeze([
   row('hunt_report', event('first_leave', 4), ['hunt-summary'], FB7_REPORT, 'account', 'Rats done. Tamsin has gear for you.'),
 ]);
 
-/* The FB-5 guard's one named list (D-1 rule 4): the Levels the harder-tier rows are expected to fill once FB-7's tier-risk file
-   lands. A hole here prints and passes; FB-7 deletes the list in the commit that adds its file, with a mutant proving the guard bites. */
-export const PATH_HOLES_FOR_HARDER_TIERS = Object.freeze([16, 25, 26]);
-
 /**
  * The value a REF names in `mods` ({ [file]: module namespace }), or undefined when its file, export, row or field is missing.
  * '*' in a path reads every row of an object or array and answers the list of their values (a way's moves). Pure.
@@ -131,17 +122,3 @@ export function levelsOf(rowOf, mods) {
   return list.filter((x) => Number.isInteger(x) && x > 0);
 }
 
-/** Is the row on: no flag, or its flag export there and truthy. Pure. */
-export function rowOn(rowOf, mods) {
-  return rowOf.flag === null || !!resolveRef(rowOf.flag, mods);
-}
-
-/** Every file a row reads (its opener's and its flag's), for a reader that loads them. Pure. */
-export function pathFiles(rows = THE_PATH) {
-  const out = new Set();
-  for (const r of rows) {
-    if (r.opener.from) out.add(r.opener.from.file);
-    if (r.flag) out.add(r.flag.file);
-  }
-  return [...out].sort();
-}

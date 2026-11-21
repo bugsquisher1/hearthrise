@@ -25,6 +25,7 @@
 
 import { HOW_YOU_FIGHT, HOW_YOU_FIGHT_LEAD, STARTER_PICKS, COMPANY_PICKS } from '../data/how-to-play.js';
 import { STARTER_SETS } from '../data/start-kit.js';
+import { HERO_SLOTS } from '../data/shops.js';
 import { escapeHtml as esc } from '../utils/dom.js';
 import { sepHtml } from '../render/format.js';
 import { BASE_REGIONS, BASE_DEFAULT_COLORS, DYE_COUNT, REGION_LABEL, HERO_DYES_SHOWN, OUTFIT_ROWS } from '../data/outfits.js';
@@ -100,7 +101,8 @@ export function howYouFightHtml(slots = '', picked = null) {
 /**
  * The pre-filled party for heroes two to four (chapter 08 section 2.1), or null: the account has no hero yet (the first is made alone),
  * or `slot` is not empty. `slots`: `slot` first, then every other empty slot, at most COMPANY_PICKS.length; `copyFrom`: the first hero's
- * name and base colors, for "Same colors as". Pure: the roster is the server's (AccountSession.roster).
+ * name and base colors, for "Same colors as". At most every slot but the first hero's (shops.js HERO_SLOTS). Pure: the roster is the
+ * server's (AccountSession.roster).
  */
 export function companyOf(roster, slot) {
   const rows = Array.isArray(roster) ? roster : [];
@@ -108,7 +110,7 @@ export function companyOf(roster, slot) {
   const empty = rows.filter((r) => r && !r.exists && !r.unnamed).map((r) => r.slot);
   if (!first || !empty.includes(slot)) return null;
   const base = first.look && first.look.base && typeof first.look.base === 'object' ? first.look.base : null;
-  return { slots: [slot, ...empty.filter((x) => x !== slot)].slice(0, COMPANY_PICKS.length), copyFrom: { name: first.name || '', base } };
+  return { slots: [slot, ...empty.filter((x) => x !== slot)].slice(0, Math.min(COMPANY_PICKS.length, HERO_SLOTS.count - 1)), copyFrom: { name: first.name || '', base } };
 }
 
 /** The party's healer line: how many of `sets` heal (one, as pre-filled, or none). Pure. */

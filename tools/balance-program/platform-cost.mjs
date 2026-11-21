@@ -21,6 +21,9 @@
 //   node tools/balance-program/platform-cost.mjs --selftest                   the ladder's arithmetic and its verdict on planted inputs
 //
 // Reads only. Writes nothing. Not a guard: tests/per-player-cost.mjs is the ratchet; this is the instrument behind 48's ladder.
+// mutant-anchors: none — --selftest plants a rung that triples the closed commit into an in-memory copy of the ladder; no tracked file is patched
+// ci-step: economy-selftests | Platform cost ladder - its account-day is its hand-computed lines, no rung raises the day, a planted rung that does is caught
+// ci-run: node tools/mutant-gate.mjs node tools/balance-program/platform-cost.mjs --selftest
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';

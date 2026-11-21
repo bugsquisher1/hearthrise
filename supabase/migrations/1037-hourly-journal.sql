@@ -418,6 +418,8 @@ begin
   end if;
 
   if not coalesce(c.hourly, false) then return jsonb_build_object('off', true); end if;
+  -- a restore that lost the state row starts here: the hours between keep their detail (more rows, never less value)
+  insert into public.hr_ledger_hours_state (id, from_at, hour) values (true, now(), date_trunc('hour', now())) on conflict (id) do nothing;
   select * into st from public.hr_ledger_hours_state where id for update skip locked;
   if not found then return jsonb_build_object('busy', true); end if;
 

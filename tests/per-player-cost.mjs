@@ -367,7 +367,7 @@ async function hello(db, M, stat, plant, viewer, o) {
 }
 
 /** One fixture's numbers: `door` closed (the world tick's bodies), roster (the tick's town roster) or watched (the hello). */
-async function measure(db, M, fx, door, plant, minSettles = null) {
+export async function measure(db, M, fx, door, plant, minSettles = null) {
   const n = door === 'watched' ? POLLS : WINDOWS;
   const step = door === 'watched' ? POLL_MS : WINDOW_MS;
   const behind = Math.ceil(((n + 2) * step) / 1000);

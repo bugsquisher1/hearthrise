@@ -1,6 +1,6 @@
 # Balance program 61: the cold audit of the game review
 
-Lane `lane/d-review-audit` (cold auditor, 2026-11-21), cut from `set/v0.2.144`. Under audit: `60-game-review.md`. The auditor wrote none of it. No game code, data or migration was changed.
+Lane `lane/d-review-audit` (cold auditor, 2026-11-21), cut from `set/v0.2.144`. Under audit: `60-game-review.md` as it stands on the set at fb146cf0e. `48-platform-cost.md` and `51-baseline.md` had still not landed. The auditor wrote none of it. No game code, data or migration was changed.
 
 Read for this audit: briefs 45 (with the addendum) and 40 in full. 60 in full. The rulings of record (the 11-18 to 11-21 entries in full, older entries by search). `30-decisions.json` (67 calls printed and compared). The phase B sections and call lists of 52, 53, 55, 56, 57 and 59. The summaries and call lists of 44 and 47, with 47's conflicts and MISSED list. 50 sections 2.4, 2.7 and 2.8. `10-real-players.md` and `11-krell-hunt` by search. Not read in full: 41, 43, 46 past its tables, 54 and 58 past the lines the review quotes. Nothing was re-measured. Every "audit arithmetic" line below is a ratio worked from numbers on the page and says so.
 

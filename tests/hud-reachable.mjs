@@ -640,6 +640,7 @@ const MUTANTS = [
   ['the Party panel ignores its room (HR-1)', 'src/styles/hunt.css', '.hp-party { width: 250px; max-height: var(--hs-room, none); }', '.hp-party { width: 250px; }'],
   ['the Party panel does not scroll (HR-2)', 'src/styles/hunt.css', '.hp-party .hh-panel-body { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }', '.hp-party .hh-panel-body { min-height: 0; overflow: hidden; }'],
   ['the room is measured from where a slid bar is (HR-3)', 'src/shell/hud-room.js', 'const bars = phone ? els.filter(isBar).map(rel) : barsAtHome();', 'const bars = [];'],
+  ['Chat at home lies over a panel the player moved (HR-4)', 'src/shell/shell.js', '|| hud.isMoved(id) ||', '||'],
   ['a moved panel lies behind the bar (HR-4)', 'src/shell/hud-room.js', 'if (top !== Math.round(q.top)) e.style.top = top', 'if (false) e.style.top = top'],
   ['a docked window keeps its slot off a smaller window (HR-5)', 'src/shell/window-manager.js', 'return Math.max(DOCK_EDGE, Math.min(r, world().width - width(id) - DOCK_EDGE));', 'return r;'],
   ['a float keeps its place off a smaller window (HR-5)', 'src/shell/window-manager.js', 'return { x: Math.max(0, Math.min(w.width - width(id), f.x)), y: Math.max(0, Math.min(w.height - 48, f.y)) };', 'return { x: f.x, y: f.y };'],

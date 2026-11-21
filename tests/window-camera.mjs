@@ -178,7 +178,7 @@ const settle = (page) => page.waitForTimeout(350);
 const barRect = (page) => page.evaluate(() => { const b = document.querySelector('[data-hs-widget="action-bar"]'); if (!b) return null; const r = b.getBoundingClientRect(); return [r.left, r.top, r.width].map(Math.round).join(','); });
 async function settingsTabs(page, tag, fails, home) {
   /* No window open: the bar at its home. Then Esc (with nothing open) opens Settings. */
-  for (let i = 0; i < 4 && (await page.evaluate(() => !!document.querySelector('[data-hs-win]:not(.is-leaving)'))); i++) { await page.keyboard.press('Escape'); await settle(page); }
+  for (let i = 0; i < 4 && (await page.evaluate(() => !!document.querySelector('[data-hs-win]:not(.is-leaving):not([data-hs-win="chat"])'))); i++) { await page.keyboard.press('Escape'); await settle(page); }
   const b0 = await barRect(page);
   if (!b0) { fails.push('WC-6 [' + tag + '] no action bar'); return; }
   await page.keyboard.press('Escape');
@@ -844,6 +844,7 @@ async function viewerZoom(browser, base) {
 const SHOTS = process.argv.includes('--shots') ? process.argv[process.argv.indexOf('--shots') + 1] : null;
 
 const MUTANTS = [
+  ['the hunt coach card yields its column to Chat at home (WC-11)', 'src/shell/hud-room.js', "querySelectorAll('.hs-win:not(.is-leaving):not(.is-home)')", "querySelectorAll('.hs-win:not(.is-leaving)')"],
   ['a modal never drags (WC-5b)', 'src/shell/shell.js', '    if (!head || e.button !== 0 || phoneMq.matches) return;', '    if (!head || e.button !== 0 || phoneMq.matches || wm.row(id).modal) return;'],
   ['a dragged modal keeps its centring transform (WC-5b)', 'src/styles/shell.css', '.hs-win.is-modal.is-moved { transform: none; }', '.hs-win.is-modal.is-moved { }'],
   ['a modal is clamped by a 48 px head, not its height (WC-5b)', 'src/shell/shell.js', '    const h = wm.row(id).modal ? r.height : undefined;', '    const h = undefined;'],

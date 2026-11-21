@@ -29,6 +29,16 @@
         "runner": "by hand: node tests/away-recap-world.mjs --shots DIR"
       }
     },
+    "end-card-world.mjs": {
+      "reason": "A MANUAL WALK, like `node tools/qa/local-world.mjs smoke`: a fresh account's Mill Cellar ends at Level 5 on the real play.html and hr-accrue engine over the replayed chain; the end card's Sell junk press is checked against the account wallet and the server's bag, Always sell these against player_item_rules, Next buy against the server's own projection, then a reload. The rules are mutation-proven in CI by tests/hunt-summary.mjs T1, T7, T8 and T9.",
+      "owner": "systems-engineer",
+      "disposition": "intentional-tool",
+      "verified": {
+        "asserts": true,
+        "selftest": false,
+        "runner": "by hand: node tests/end-card-world.mjs --shots DIR"
+      }
+    },
     "town-shows-world.mjs": {
       "reason": "A MANUAL WALK, like `node tools/qa/local-world.mjs smoke`: a browser plays the real play.html on the replayed chain: a fresh account throws a powder, stands a round, cries a line and finds itself on Gold Given. The rules are mutation-proven in CI by tests/town-shows.mjs and tests/town-crier.mjs.",
       "owner": "backend-architect",

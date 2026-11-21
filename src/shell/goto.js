@@ -40,7 +40,9 @@ export function targetOf(place) {
   if (!place) return null;
   if (place.kind === 'work') return DOORS.has(place.skill) ? { win: 'skills-trade', tab: place.skill, find: place.row || null } : null;
   if (place.kind === 'shop') return { win: 'shop', tab: 'buy', find: place.item };
-  if (place.kind === 'temper') return { win: 'shop', tab: 'services', find: null };
+  if (place.kind === 'temper' || place.kind === 'services') return { win: 'shop', tab: 'services', find: null };
+  /* the bag's next rung is bought in Storage (its Expand) */
+  if (place.kind === 'storage') return { win: 'storage', tab: null, find: null };
   if (place.kind === 'market') return { win: 'market', tab: 'browse', find: null };
   if (place.kind === 'hunt') return place.hunt ? { win: 'hunts', tab: place.hunt, find: null } : null;
   /* a creature's facts (windows/monster.js factsTarget reads this one row) */

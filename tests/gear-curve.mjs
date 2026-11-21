@@ -22,6 +22,9 @@
 //        the 60% cap against an attacker of its own Level at every Level from the anchor to 5,000, with the set one band back under it, so a
 //        band step of armor always counts (on the old curve the line's set sat on the cap: 603 permille held to 600, a step worth nothing).
 //        Both paths read it: the browser's engine and the server's settle import the same src/core/mitigation.js.
+//   GC8  BOTH PATHS ON THE NEW CURVE: a tank in its full plate set at the Warrens' floor, 20 minutes on the real settle (the hr-accrue
+//        accrual over the one engine), watched (10 s windows) and with the browser closed (one 10 minute window), takes the same blows: the
+//        same kills, falls, store bill, Level XP and hit points left, and it is hurt enough to eat.
 //
 //   node tests/gear-curve.mjs            the guard
 //   node tests/gear-curve.mjs --mutate   each rule driven red by a defect planted on an in-memory copy
@@ -36,6 +39,7 @@ import * as CURVE from '../src/data/gear-curve.js';
 import { WEAPON_FAMILIES, WEAPON_LINES, ARMOUR_CURVE_LINES, GEAR_LADDERS, GEAR_ITEMS, MATERIAL_TIERS } from '../src/data/gear-tiers.js';
 import { ARMOUR_MITIGATION } from '../src/data/core-model.js';
 import { mitigationOf } from '../src/core/mitigation.js';
+import { loadPlay } from './hunt-core/fixtures/play-ground.mjs';
 
 /* D-3 ruling 1: the armor curve's multiple of the 2026-11-04 k's (dodge 0.4, absorb 0.62); x1.6 is the switch rule's other answer */
 const ARMOR_CURVE_WAS = Object.freeze({ dodge: 0.4, absorb: 0.62 });
@@ -45,6 +49,9 @@ const PLATE = Object.freeze(['helmet', 'body', 'pants', 'boots', 'gloves', 'belt
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SOURCE = join(ROOT, 'src', 'data', 'gear-curve.js');
+const PLAY = await loadPlay(ROOT);
+/* GC8: the armored hunt read both ways (20 minutes, so it is the settle's windows that differ, never the hours) */
+const BOTH = Object.freeze({ ground: 'coppercap_warrens', level: 32, spanMs: 1200000, viewedMs: 10000, closedMs: 600000 });
 /* the book's band table at +17% (chapter 03 section 2.2, GR-4) */
 const BOOK_BANDS = Object.freeze([110, 129, 151, 176, 206, 241, 282, 330, 386]);
 /* each knob's line in the source: the registry finds it by this text, so each stands alone, once */
@@ -53,11 +60,11 @@ const FAR = 10000;
 
 /** The world the rules read, swappable whole by a mutant. */
 const world = () => ({ M: { ...CURVE }, lines: WEAPON_LINES, armor: ARMOUR_CURVE_LINES, ladders: GEAR_LADDERS, items: GEAR_ITEMS, families: WEAPON_FAMILIES,
-  tiers: MATERIAL_TIERS, source: readFileSync(SOURCE, 'utf8'), mit: { ARMOUR_MITIGATION, mitigationOf } });
+  tiers: MATERIAL_TIERS, source: readFileSync(SOURCE, 'utf8'), mit: { ARMOUR_MITIGATION, mitigationOf }, run: PLAY.run });
 
 /** Every broken rule, as strings. Empty = sound. */
 export function problems(w = world()) {
-  const out = [], { M, lines, armor, ladders, items, families, tiers, source, mit } = w;
+  const out = [], { M, lines, armor, ladders, items, families, tiers, source, mit, run } = w;
   const C = M.GEAR_CURVE;
   /* GC1 */
   const bands = [];
@@ -160,6 +167,12 @@ export function problems(w = world()) {
     if (!(a < cap)) out.push('GC7 a plate set on the line at Level ' + L + ' (' + top + ' armor) absorbs ' + a + ' permille against its own Level: on the ' + cap + ' cap, so no armor step counts there');
     else if (M.bandAt(L, 1, C) !== null && !(b < a)) out.push('GC7 one band back (' + back + ' armor) absorbs ' + b + ' permille at Level ' + L + ', no less than the band\'s ' + a + ': a band step of armor is worth nothing');
   }
+  /* GC8 */
+  const both = (windowMs) => run(BOTH.ground, BOTH.level, ['tank'], { spanMs: BOTH.spanMs, windowMs, fullSet: true });
+  const seen = both(BOTH.viewedMs), shut = both(BOTH.closedMs);
+  const read = (x) => ({ kills: x.totals.kills, falls: x.totals.falls, store: x.totals.store, levelXp: x.totals.levelXp, hp: x.members.map((m) => m.hp) });
+  if (JSON.stringify(read(seen)) !== JSON.stringify(read(shut))) out.push('GC8 the armored tank at ' + BOTH.ground + ' reads ' + JSON.stringify(read(seen)) + ' watched and ' + JSON.stringify(read(shut)) + ' with the browser closed');
+  if (!(seen.totals.store > 0)) out.push('GC8 the armored tank was never hurt enough to eat (store ' + seen.totals.store + '): the case reads no armor');
   return out;
 }
 
@@ -190,6 +203,12 @@ const MUTANTS = [
     mitigationOf: (v, L) => ({ absorbPm: Math.min(600, Math.floor((750 * v.heavy) / (v.heavy + 0.62 * Math.max(1, L)))) }) } })],
   ['the armor curve at an unruled x2', 'GC7', (w) => ({ ...w, mit: { ...w.mit, ARMOUR_MITIGATION: { ...ARMOUR_MITIGATION, dodge: { maxPm: 650, k: 0.8 }, absorb: { maxPm: 750, k: 1.24 } } } })],
   ['the cap raised to hide the step (700)', 'GC7', (w) => ({ ...w, mit: { ...w.mit, ARMOUR_MITIGATION: { ...ARMOUR_MITIGATION, capPm: 700 } } })],
+  /* a closed browser that settled the long window off another armor curve (the shape of the bug the one-engine rule exists to stop) */
+  ['the closed path reads armor on its own (a long window takes 1% more damage)', 'GC8', (w) => ({ ...w, run: (g, L, party, o) => {
+    const x = PLAY.run(g, L, party, o);
+    return o.windowMs >= 600000 ? { ...x, totals: { ...x.totals, store: Math.round(x.totals.store * 1.01) + 1 } } : x; } })],
+  ['the hunt read with no armor worn and no food bought (nothing to compare)', 'GC8', (w) => ({ ...w, run: (g, L, party, o) => {
+    const x = PLAY.run(g, L, party, o); return { ...x, totals: { ...x.totals, store: 0 } }; } })],
   ['two knobs on one line', 'GC6', (w) => ({ ...w, source: w.source.replace('  anchor: 110,\n  slope: 1,', '  anchor: 110, slope: 1,').replace('  anchor: 110,\r\n  slope: 1,', '  anchor: 110, slope: 1,') })],
   ['the curve imports the engine', 'GC6', (w) => ({ ...w, source: 'import { COMBAT_BALANCE } from \'../core/combat.js\';\n' + w.source })],
 ];

@@ -307,7 +307,7 @@ The market is the Weighhouse. DECIDED, GR-50, Fable 2026-11-21. It is a big bet 
 3. Single commissions (one Hallmark or one reforge on a piece the owner keeps, held by the server throughout) ship with jewelry tiers 5 to 7. DECIDED, GR-44, Fable 2026-11-21.
 4. Bulk orders and craft orders ("I bring materials and a fee, your level 90 smith makes it") come after orders are proven to fill. Built later and hidden until they work. Nothing planned is cut (RULED 2026-11-21).
 
-**Server rule.** A fill is one batched call at loot dispatch or at a refill. Nothing about the market runs on the hunt's settle, and an account that never trades costs nothing (band C6). PENDING study 48 for the measured cost.
+**Server rule.** A fill is one batched call at loot dispatch or at a refill. Nothing about the market runs on the hunt's settle, and an account that never trades costs nothing (band C6). Study 48 did not measure the market, so its cost is OPEN after 48, for the reliability engineer.
 
 ### 2.8 The Crowns engine
 
@@ -522,7 +522,7 @@ This section is new design. No source covered it. The order is DECIDED (CE-4, Fa
 
 ### 2.12 Server cost of this chapter
 
-PENDING study 48 (`48-platform-cost.md` has not landed on the set).
+Study 48 (`docs/design/balance-program/48-platform-cost.md`) has landed. It priced the account-day and did not price this chapter's own parts.
 
 | What is known | Label |
 |---|---|
@@ -532,9 +532,12 @@ PENDING study 48 (`48-platform-cost.md` has not landed on the set).
 | A market fill is one batched call at loot dispatch or at a refill. An account that never trades costs nothing | DECIDED, GR-50, Fable 2026-11-21 |
 | The Crowns book is one wallet row, one ledger row a movement, and one more book | ESTIMATED close to nothing (study 24) |
 | Bought boosts are read with a hero's other modifiers at the settle, so they add no statement | ESTIMATED (study 49) |
-| Town work in closed form, which is what makes 48 rested hours a day affordable | DECIDED, GR-1, Fable 2026-11-21 (chapter 09) |
+| Town work in closed form, which is what makes 48 rested hours a day affordable. It is worth 109 database-seconds an account-day | DECIDED, GR-1, Fable 2026-11-21 (chapter 09). ESTIMATED by study 48 |
+| The target account-day is about 11 database-seconds with the browser closed and about 31 with a tab open 3.5 hours. Both meet 60 at 1,000 accounts. At 10,000 the tab day misses 24 by about a third on the edge | ESTIMATED by study 48 |
+| A press costs 107 ms, and 71 when its answer carries changed sections only. Twenty presses a day are 1.4 database-seconds | REAL for the press, ESTIMATED for the day |
+| Spending by the use writes one journal row a hero an hour an activity, about 3 rows a hunted hero-hour. A save's cost rises 4 ms from 0 to 4,500 journal rows a hero that day | The hourly journal is RULED 2026-11-20 (28-2). The 4 ms is MEASURED |
 
-What 48 must add for this chapter: the measured cost of order matching, of the gauge's daily roll-up, and of the journal rows that four heroes spending by the use write at 12 hours a day.
+What study 48 left open for this chapter: the measured cost of order matching and of the gauge's daily roll-up. Owner: the reliability engineer, with a fixture before the market is built.
 
 ---
 
@@ -550,7 +553,7 @@ What 48 must add for this chapter: the measured cost of order matching, of the g
 | 06, the MMO layer (`docs/design/overhaul/06-mmo-layer.md`) | The modifier table and the buff caps (MM-24, MM-25). Boss and arena gear and materials. The clan castle | Bought boosts as rows in that table, with no drop chance boost. The sizes of `clanWeeklyShare` and `castleStagePerMember`. Gold for castle gifts. Buyers for boss and arena gear. The Crowns engine as the demand side |
 | 07, home and town | The House, its rooms, curing slots and the dummy. The town project and the Great Hearth | Prices of rooms and rungs by band G-8. The dummy's rungs |
 | 08, player experience | The Path and the first hour for four heroes (GR-79). The loot plan and the return card | The order a new account meets each spend (section 2.10). The hunt budget on the picker. "About N hours of hunting" beside every price |
-| 09, platform and measurement | Closed-form town work (GR-1). Server cost (study 48). The matrix and its faults | The gauge. The journal load of per-use spending. The bands of section 6 |
+| 09, platform and measurement | Closed-form town work and the away hunt's save (GR-1, on study 48). The matrix and its faults | The gauge. The journal load of per-use spending. The bands of section 6 |
 
 ---
 
@@ -563,7 +566,7 @@ In decision-book order. Each line is the decision.
 | Id | The call | The decision | Status |
 |---|---|---|---|
 | GR-85 | Formula clean-up steps that move no number | Approve. For this chapter it is the four coin dials folded into one coin line (R9) | DECIDED (Fable 2026-11-21) |
-| GR-1 | How the server reaches its budget | Town work in closed form now. The away hunt's save waits for study 48 | DECIDED (Fable 2026-11-21) |
+| GR-1 | How the server reaches its budget | Town work paid in closed form. A closed hunt saved every 10 minutes or at 1.2 seconds of engine time. The engine server is a later spend for Tyler | DECIDED (Fable 2026-11-21, on study 48) |
 | GR-8 | Sinks that follow the gear, and the hole the slots left | Tempering, Hallmarks and linings cost a share of a band's gold, 1.2 to 1.4 of what the band earns. The slot gold follows the order of CE-4 first, then the castle | DECIDED (reversal, Tyler may veto). Changes the typed prices kept on 2026-11-18 (Fable 2026-11-21) |
 | MM-24 | How rewards are sized | Every buff and bought boost is a row in one modifier table | DECIDED (Fable 2026-11-21) |
 | MM-25 | The buff caps | Damage +5% standing and +10% timed. Protection as Defense rating rows worth about 5% and 5% less damage an hour. Level XP +25% timed only, from the Hearthrise weekend. Material find +10% timed, earned only. Town work +10%. No coin buff | DECIDED (Fable 2026-11-21) |
@@ -636,7 +639,7 @@ Decisions or designs nobody has made yet in this area.
 | 13 | **The daily caps against dear items.** A piece priced over the daily spend cap can never be bought. Either the caps rise with the buyer's Level or no ceiling may pass the cap | The security engineer | Study 24 Q9 |
 | 14 | **The server gold model.** Gold created, destroyed and held a day by server age and population, as a tool. Bands G-11 and X14 have no reader without it | The balance tools lane | Study 50 X14 |
 | 15 | **The player-facing name of the Crowns book** | Closed. MM-35: "Crown Exchange" | A genre-standard label, by the 11-14 rule |
-| 16 | **Server cost of the market, the gauge and per-use spending for four heroes** | Study 48 | PENDING |
+| 16 | **Server cost of the market and the gauge.** Per-use spending is closed: the hourly journal carries it at about 3 rows a hunted hero-hour, and the whole account-day fits at 1,000 accounts (section 2.12) | The reliability engineer, with a fixture | Study 48 priced the account-day and not order matching or the gauge's roll-up |
 | 17 | **A ceiling on gold find.** The stat adds with no cap in its formula. It is safe only while sources are few | The game designer, with the perk lane | Study 43, a HYPOTHESIS |
 | 18 | **The dates for the beta and Early Access**, which set when the Security review of every surface here must be done | Tyler, after the build plan | Decision book |
 
@@ -753,4 +756,4 @@ The documents and sections this chapter replaces.
 | `51-baseline.md` | 2.1, fault F5 | How far a gold number can be trusted |
 | `docs/design/itemization-plan.md` | Section 10, and the commissions part of section 4 | Sinks above a band on purpose, what trades, reference values |
 | Rulings of record | CROWNS MUST GIVE REAL ADVANTAGES (11-21), MMO REWARDS ARE BUFFS AND GEAR (11-21), ALL FOUR HEROES, ONE PREMIUM (11-21), THE FOUR TOGETHER (11-21), SERVER BUDGET 15 CENTS (11-21), STANDARDS CALLS (11-21), MONETIZATION INTENT (11-18), and the dated economy rulings named in the text | Every RULED mark |
-| `48-platform-cost.md` | Not landed | Section 2.12 is PENDING |
+| `48-platform-cost.md` | Landed, read in full | Section 2.12 |

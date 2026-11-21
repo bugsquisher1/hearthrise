@@ -177,14 +177,16 @@
     {
       "id": "GR-1",
       "call": "How the server reaches its budget.",
-      "decision": "Rule closed-form town work now for training, gathering and benches, with every roll seeded at the start. The away hunt's save design waits for study 48 and a measurement at 12 hours.",
+      "decision": "Town work is paid in closed form for training, gathering and benches: at the start, at each paid hour and at stop, with every roll seeded at the start. A closed hunt is saved when its window holds 10 minutes or 1.2 seconds of measured engine time, whichever is less. The settle reads the party once, an open tab sends only its confirm and its heartbeat, and an account's four heroes are saved together. The edge fixes are built in study 48's order. The engine runs on the edge for the beta and for 1,000 accounts. An always-on engine server is a spend and is Tyler's later call, before 10,000 accounts.",
       "outcome": "recommended",
       "reason": "Closed form is needed on every path and changes nothing a player can see, because the yield is the same as an hour settled step by step. The flush is a guess nobody has measured, so it should not be ruled on a guess.",
-      "evidence": "COMPUTED from assumed prices, best case (59, 61). The flush is a HYPOTHESIS. A synthetic load test of 1,000 accounts of four heroes (check A8) overturns it.",
-      "replaces": "None. Builds 28-11 and extends it.",
+      "evidence": "Study 48, read in full. ESTIMATED from REAL and MEASURED mechanism costs: the target account-day is 10.9 database-seconds with the browser closed and 31.2 with a tab open 3.5 hours, against 60 at 1,000 accounts. At 10,000 accounts (24) the closed day meets at 10.0 and the tab day misses at 30.3 on the edge and meets at 9.1 on an engine server. Closed form is worth 109 a day and no design meets 60 without it. MEASURED: end state and journal sums are identical whether a hunt is saved every 100 seconds or every 20 minutes, on four fixtures. Not measured: a load of 1,000 accounts (check A8), the bill's lines that are not the database, and 33.5 seconds of a watched four-hour that are UNATTRIBUTED.",
+      "replaces": "Builds 28-11 and extends it. The closed-form wording against 2026-10-22 is reversal 16 (CE-7). The 10 minute save bends no ruling.",
       "money": false,
-      "depends": "The platform decider owns it from here. Any compute upgrade is Tyler's per-spend call and is not decided here.",
-      "group": "Foundation"
+      "depends": "CE-7 (how town work reads on screen). GR-54 (the yard's rate ships in the same change). Closed form needs a replayed-day equality with tick settles and the Security review at Early Access. The engine server is Tyler's per-spend call and is not decided here.",
+      "group": "Foundation",
+      "wasBeforeStudy48": "Rule closed-form town work now for training, gathering and benches, with every roll seeded at the start. The away hunt's save design waits for study 48 and a measurement at 12 hours.",
+      "revisedBy": "study-48"
     },
     {
       "id": "GR-3",

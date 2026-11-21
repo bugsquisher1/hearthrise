@@ -148,6 +148,11 @@
         "bytes": 3176365,
         "on": "2026-11-21",
         "why": "lane/c-pace (FB-8 stage 1, 44 R10/R11): the gear curve src/data/gear-curve.js (8.8 KB, the formula of record with its rates and their measured provenance) reaches the edge through items.js -> gear-tiers.js, which now reads every weapon row through it (+1.7 KB WEAPON_LINES); no served number moves"
+      },
+      {
+        "bytes": 3178142,
+        "on": "2026-11-21",
+        "why": "lane/c-pace armor half (D-3): core-model.js's armor curve x2.4 and its ruling note (+1.2 KB) and gear-tiers.js ARMOUR_CURVE_LINES, every armor row read through the gear curve (+0.6 KB); the engine reads both"
       }
     ]
   }

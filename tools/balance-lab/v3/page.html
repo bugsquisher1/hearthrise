@@ -86,7 +86,7 @@ details > summary { cursor: pointer; color: var(--ink-2); font-size: 12px; min-h
   <div class="sub">The game the balance program proposes, played on the real engine (src/core and src/data with every recommended proposal planted), against the targets of tools/balance-program/standards.mjs.</div>
   <div class="stamps" id="stamps"></div>
   <div class="legend">
-    <span><span class="tag pre">PRECOMPUTED</span> the matrix on the proposed game, 223 cells, Level 10 to 5,000</span>
+    <span><span class="tag pre">PRECOMPUTED</span> the matrix on the proposed game, 259 cells, Level 10 to 5,000</span>
     <span><span class="tag live">LIVE</span> played in this browser now, on the bundled proposed game, every slider together</span>
     <span><span class="tag proj">PROJECTED</span> Levels past 185 (placeholder grounds and gear line)</span>
     <span><span class="tag lab">MEASURED</span> <span class="tag lab">COMPUTED</span> <span class="tag lab">HYPOTHESIS</span> how sure a proposal's numbers are</span>
@@ -264,7 +264,7 @@ details > summary { cursor: pointer; color: var(--ink-2); font-size: 12px; min-h
     const order = REG.proposals.map((p) => (p.recommended ? p.id : '+' + p.id)).filter((v) => PRE.variants[v]);
     for (const v of order) {
       const x = PRE.variants[v], p = BY[x.id];
-      h += '<tr><td>' + (x.adding ? 'with ' : '') + esc(x.id) + ' ' + esc(p ? p.title : '') + '</td><td>' + esc(p ? p.label : '') + '</td><td>' + esc((x.targets || []).join(', ') || 'none (an identity)') + '</td><td class="f-INTO">' + x.counts.INTO + '</td><td class="f-OUT">' + x.counts.OUT + '</td><td class="f-UNTARGETED">' + x.counts.UNTARGETED + '</td>'
+      h += '<tr><td>' + (x.adding ? 'with ' : '') + esc(x.id) + ' ' + esc(p ? p.title : '') + '</td><td>' + esc(p ? p.label : '') + '</td><td>' + esc((x.targets || []).join(', ') || (p && p.identity ? 'none (an identity)' : 'no band named')) + '</td><td class="f-INTO">' + x.counts.INTO + '</td><td class="f-OUT">' + x.counts.OUT + '</td><td class="f-UNTARGETED">' + x.counts.UNTARGETED + '</td>'
         + '<td><button class="small" data-effect="' + esc(v) + '">' + (state.openEffect === v ? 'Hide' : 'Rows') + '</button></td></tr>';
       if (state.openEffect === v) {
         const ord = { OUT: 0, UNTARGETED: 1, INTO: 2 };
@@ -465,7 +465,7 @@ details > summary { cursor: pointer; color: var(--ink-2); font-size: 12px; min-h
     const flagOf = (r) => (state.targets.has(r[2]) ? (r[8] ? 'INTO' : 'OUT') : 'UNTARGETED');
     h += '<div class="counts">' + ['INTO', 'OUT', 'UNTARGETED'].map((k) => '<span class="f-' + k + '">' + FLAG_WORDS[k] + ' ' + n[k] + '</span>').join('') + '<span class="flat">for ' + esc(KBY[ps.k].label) + ' at x' + ps.s + ', one seed an hour: a small move can be the dice</span></div>';
     const order = { OUT: 0, UNTARGETED: 1, INTO: 2 };
-    const rows = (ps.st.bandRows || []).map((r) => ({ r, flag: flagOf(r) })).sort((a, b) => order[a.flag] - order[b.flag]);
+    const rows = (ps.st.bandMoved || []).map((r) => ({ r, flag: flagOf(r) })).sort((a, b) => order[a.flag] - order[b.flag]);
     h += '<div class="scroll"><table><tr><th>Flag</th><th>Way</th><th>Band</th><th>At</th><th>Proposed game</th><th>With the slider</th></tr>';
     for (const { r, flag } of rows.slice(0, 60)) {
       h += '<tr><td class="f-' + flag + '">' + FLAG_WORDS[flag] + '</td><td>' + esc(r[0]) + '</td><td>' + esc(r[1]) + ' <span class="flat">' + esc(r[2] || '') + '</span></td><td>' + esc(r[3]) + '</td><td>' + num(r[4]) + ' <span class="s-' + r[6] + '">' + (r[6] === 'ok' ? 'in band' : 'out') + '</span></td><td>' + num(r[5]) + ' <span class="s-' + r[7] + '">' + (r[7] === 'ok' ? 'in band' : 'out') + '</span></td></tr>';

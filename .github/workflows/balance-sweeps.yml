@@ -3,7 +3,7 @@
 # ONE JOB A KNOB AND ONE A PROPOSAL TOGGLE.
 #
 # tools/balance-program/balance-matrix.mjs --sweep --base proposed on the
-# representative subset (223 cells on the real engine, Level 10 to 5,000), on
+# representative subset (259 cells on the real engine, Level 10 to 5,000), on
 # the proposed game (every recommended proposal of
 # tools/balance-program/proposals.json, planted on a scratch copy):
 #   k:<knob>    each live knob of tools/balance-program/formulas/knobs.json at

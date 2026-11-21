@@ -144,7 +144,6 @@ const permille = (a, b) => (typeof a === 'number' && typeof b === 'number' && is
 /* the metrics that sit at zero in most cells (a death rate, time under a share of HP): a step keeps their AFTER value, not a change from zero */
 export const ABS_METRICS = Object.freeze(['deathsPer1000h', 'hpUnder30', 'hpUnder10']);
 const sig4 = (v) => (typeof v === 'number' && isFinite(v) ? Number(v.toPrecision(4)) : null);
-const BAND_ROWS = 80;
 /** The page's data. `game`: { base, root } (the proposed game planted on a scratch copy: buildV3 plants it). */
 export async function pageData(root = ROOT, game) {
   const imp = (p) => import(pathToFileURL(join(root, p)).href);
@@ -196,11 +195,12 @@ export async function pageData(root = ROOT, game) {
           d[key] = dk;
           seats[key] = row[nM];
         }
-        /* THE BANDS IT MOVED: per band group how many rows moved toward their range and how many away, and the rows (status changes first) */
+        /* THE BANDS IT MOVED: per band group how many rows moved toward their range and how many away, and every moved row, status changes
+           first (the page lists the first 60 and reads the targets view from all of them) */
         const counts = {};
         for (const b of st.bands) { const g = b[F.group] || 'other', c = counts[g] || (counts[g] = [0, 0]); c[b[F.direction] === 'toward' ? 0 : 1]++; }
         const rank = (b) => (b[F.statusBefore] !== b[F.statusAfter] ? 0 : 1);
-        knobs[id].steps[m] = { d, seats, bandCounts: counts, bandRows: [...st.bands].sort((a, b) => rank(a) - rank(b)).slice(0, BAND_ROWS).map(slim), bandMoved: st.bands.map(slim), bandTotal: st.bands.length, applied: st.applied };
+        knobs[id].steps[m] = { d, seats, bandCounts: counts, bandMoved: [...st.bands].sort((a, b) => rank(a) - rank(b)).map(slim), bandTotal: st.bands.length, applied: st.applied };
       }
     }
     /* THE TOGGLES: each proposal's effect on the proposed game (the game without it, or with an alternative), its flags by its own targets */
@@ -220,7 +220,7 @@ export async function pageData(root = ROOT, game) {
   return {
     stamp: { commit: commitOf(), built: new Date().toISOString().slice(0, 16) + 'Z', matrixHash: BM.matrixHash(root), baseHash: BM.baseHash(game.base) },
     game: { name: game.base.name, proposals: game.base.ids },
-    registry: { rule: reg.rule, frame: reg.frame, proposals: reg.proposals.map((p) => ({ id: p.id, doc: p.doc, title: p.title, label: p.label, layer: p.layer, recommended: !!p.recommended, patch: p.patch || null,
+    registry: { rule: reg.rule, frame: reg.frame, proposals: reg.proposals.map((p) => ({ id: p.id, doc: p.doc, title: p.title, label: p.label, layer: p.layer, recommended: !!p.recommended, identity: !!p.identity, patch: p.patch || null,
       derived: p.derived || null, shipsWith: p.shipsWith || [], after: p.after || [], excludes: p.excludes || [], excludesWhy: p.excludesWhy || '', note: p.note || '' })),
       notModelled: reg.notModelled.map((p) => ({ id: p.id, title: p.title, reason: p.reason })) },
     bands: STD.BANDS.map((b) => ({ id: b.id, group: b.group, on: b.on, lo: b.lo, hi: b.hi, redLo: b.redLo, redHi: b.redHi, label: b.label, why: b.why, ruled: b.ruled || null })),

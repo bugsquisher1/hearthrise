@@ -64,22 +64,22 @@ export const RUNS = Object.freeze({
     LINEUP_BLOCK,
     { id: 'grounds', grounds: true },
   ]) }),
-  /* the representative subset (a --diff in a few minutes): every way, every gear state, lone and four, Normal and the hardest tier, every
+  /* the representative subset (a --diff in a few minutes): every way, every gear state, lone and four, Normal, Dangerous and the hardest tier, every
      slot class's step, early to Level 5,000. One seed an hour: a diff plays the same dice before and after, so a change reads as a pair. */
   subset: Object.freeze({ id: 'subset', levels: Object.freeze([10, 30, 60, 110, 185, 400, ...HIGH_LEVELS]), seeds: 1, hours: 1, blocks: Object.freeze([
     { id: 'ways', comps: WAYS.map(lone), gears: ['mid'], tiers: ['normal'] },
     { id: 'gear', comps: [lone('hammer')], gears: ['low', 'bis'], tiers: ['normal'] },
-    { id: 'tier', comps: [lone('hammer')], gears: ['mid'], tiers: ['hardest'] },
-    { id: 'four', comps: compsOf(4), gears: STD.GEAR_STATE_IDS, tiers: ['normal', 'hardest'] },
+    { id: 'tier', comps: [lone('hammer')], gears: ['mid'], tiers: ['dangerous', 'hardest'] },
+    { id: 'four', comps: compsOf(4), gears: STD.GEAR_STATE_IDS, tiers: ['normal', 'dangerous', 'hardest'] },
     { id: 'steps', comps: [lone('hammer')], steps: true, tiers: ['normal'] },
     LINEUP_BLOCK,
   ]) }),
-  /* Balance Lab v3's LIVE cells (a slider move re-plays them in the browser, on the bundled engine): every way alone and the four on Normal
-     and the hardest tier, MID, early, at the end of open content and PROJECTED, a quarter hour on one seed. tools/balance-lab/build.mjs --v3
+  /* Balance Lab v3's LIVE cells (a slider move re-plays them in the browser, on the bundled engine): every way alone and the four on every tier,
+     MID, early, at the end of open content and PROJECTED, a quarter hour on one seed. tools/balance-lab/build.mjs --v3
      resolves them (cell.mjs resolveOnly) so the page plays the matrix's own seats. */
   live: Object.freeze({ id: 'live', levels: Object.freeze([30, 110, 400]), seeds: 1, hours: 0.25, blocks: Object.freeze([
     { id: 'ways', comps: WAYS.map(lone), gears: ['mid'], tiers: ['normal'] },
-    { id: 'four', comps: compsOf(4), gears: ['mid'], tiers: ['normal', 'hardest'] },
+    { id: 'four', comps: compsOf(4), gears: ['mid'], tiers: ['normal', 'dangerous', 'hardest'] },
   ]) }),
 });
 

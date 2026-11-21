@@ -91,7 +91,7 @@ import * as ACCOUNT_DEPOT_REMOVALS from './chain-removals/2026-11-27-account-dep
 import * as ACCOUNT_GOLD_REMOVALS from './chain-removals/2026-12-15-account-gold.mjs';
 import * as DEAD_SURFACES_REMOVALS from './chain-removals/2027-01-18-dead-surfaces-cut.mjs';
 import * as APPROVED_CUTS_REMOVALS from './chain-removals/1032-approved-cuts.mjs';
-import * as RESTED_CUT_REMOVALS from './chain-removals/1036-rested-bank-cut.mjs';
+import * as RESTED_CUT_REMOVALS from './chain-removals/1040-rested-bank-cut.mjs';
 import { loadApplyOrder } from '../tools/lib/apply-order.mjs';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
@@ -682,7 +682,7 @@ const ALSO_LINTED = [
   '1032-approved-cuts.sql',
   /* THE RESTED BANK CUT (lane/c-formula-steps, 2026-11-21; Tyler S-9 c): HR_APPLY_CHAIN's newest link (the chain end read
      back, minus the bank) and hr_accrue_read restated; its drops are linted here. */
-  '1036-rested-bank-cut.sql',
+  '1040-rested-bank-cut.sql',
 ];
 
 // ── THE hr_apply DERIVATION CHAIN ────────────────────────────────────────
@@ -746,8 +746,8 @@ const HR_APPLY_CHAIN = [
   /* THE RESTED BANK CUT (lane/c-formula-steps, 2026-11-21; Tyler S-9 c). The chain-end body read back with
      pg_get_functiondef (core-bodies plus the 18 anchored splices since, 1026-job-counts' four included), minus the rested
      bank's two delta keys and two SET lines. Chain depth 0 again. Its declared removals are FROZEN in
-     tests/chain-removals/1036-rested-bank-cut.mjs, split there into the splices' replacements and the bank. */
-  '1036-rested-bank-cut.sql',
+     tests/chain-removals/1040-rested-bank-cut.mjs, split there into the splices' replacements and the bank. */
+  '1040-rested-bank-cut.sql',
 ];
 
 // ── THE hr_state_of DERIVATION CHAIN ─────────────────────────────────────
@@ -1164,12 +1164,12 @@ const SQL_MUTANTS = [
     to: "perform public.hr_reject('requirement_met', jsonb_build_object('item_id', v_item));",
     expect: '2026-10-27-core-bodies.sql: its hr_apply DROPS 1 line(s)' },
   { name: 'hr_apply accepts a delta key nobody classified',
-    file: 'supabase/migrations/1036-rested-bank-cut.sql',
+    file: 'supabase/migrations/1040-rested-bank-cut.sql',
     from: "\n    'level_xp',\n",
     to: "\n    'level_xp', 'free_gold',\n",
     expect: 'hr_apply accepts the delta key "free_gold"' },
   { name: 'a classified delta key leaves hr_apply',
-    file: 'supabase/migrations/1036-rested-bank-cut.sql',
+    file: 'supabase/migrations/1040-rested-bank-cut.sql',
     from: "\n    'level_xp',\n",
     to: '\n',
     expect: 'DELTA_KEY_CLASS classifies "level_xp" but hr_apply no longer accepts it' },
@@ -2095,7 +2095,7 @@ say(`── ${SPEC.fn} derivation chain (each body derived from the last, nothin
        module (336 lines: whole features, so too long to inline here). */
     '2026-10-22-hunt-sessions-delete-away.sql': DELETE_AWAY_REMOVALS.HR_APPLY,
     '2026-10-27-core-bodies.sql': CORE_BODIES_REMOVALS.HR_APPLY,
-    '1036-rested-bank-cut.sql': RESTED_CUT_REMOVALS.HR_APPLY,
+    '1040-rested-bank-cut.sql': RESTED_CUT_REMOVALS.HR_APPLY,
     /* hr_assert_grant_hygiene: 2026-09-23-world-tick-shadow-state-chain.sql is
        THE FIRST LINK OF THAT CHAIN THAT REPLACES AN ENGINE ENTRY. It carries
        its predecessor's body verbatim — every check and every other allowlist
@@ -2667,7 +2667,7 @@ say('── every currency delta key has a per-call clamp AND a daily ceiling (S
     deaths: ['metadata', 'rev. 2 N3 — an array of server-derived death records fanned out to one '
       + 'ledger row each. Audit only: the rows carry no gold_in/xp_in/qty_in, so they enter no '
       + 'conservation sum and there is nothing here to clamp, only to refuse'],
-    /* Two keys the splices since core-bodies added, read by this lint from 2026-11-21 (1036-rested-bank-cut.sql restates
+    /* Two keys the splices since core-bodies added, read by this lint from 2026-11-21 (1040-rested-bank-cut.sql restates
        the chain end, so the LAST link is the body production runs again). Neither moves a balance. */
     active_left: ['bounded', '2026-12-01 bench count / 1026 job counts: a stored job\'s count, only ever counted DOWN on an '
       + 'accrual of the hero\'s own gathering or bench pointer (never above the stored value); moves no balance'],

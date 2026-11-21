@@ -1,4 +1,4 @@
-/* DECLARED REMOVALS for 1036-rested-bank-cut.sql (lane/c-formula-steps, 2026-11-21: Tyler's ruling S-9 c, the rested bank cut).
+/* DECLARED REMOVALS for 1040-rested-bank-cut.sql (lane/c-formula-steps, 2026-11-21: Tyler's ruling S-9 c, the rested bank cut).
 
    HR_APPLY: that file restates hr_apply WHOLE from the CHAIN END (pg_get_functiondef after every file in the apply order before
    it; md5 77d94e55, which is 2026-10-27-core-bodies.sql's body plus the 18 anchored splices since: 2026-12-01-bench-count,

@@ -1,7 +1,7 @@
 {
   "schema": "hearthrise.balance-patch/1",
   "name": "Progression 3: the rested bank cut (56-review-progression.md section 2.5; 44 P-X26, roadmap R5). BUILT by lane/c-formula-steps (FB-2 slice 1, 2026-11-21)",
-  "why": "BUILT: the rested bank is gone from the tree (src/core/rested.js, accrue-rested.js, the charge in grantXp, the Library payload, and player_state.rested_xp / rested_at in 1036-rested-bank-cut.sql), so there is nothing left to plant. It was an identity patch (every grant passed a quantum of 0, so the bank filled and paid nothing) and the built game is that identity. Kept as an empty patch so the registry's toggle still plants until FB-3 retires the row in proposals.json.",
+  "why": "BUILT: the rested bank is gone from the tree (src/core/rested.js, accrue-rested.js, the charge in grantXp, the Library payload, and player_state.rested_xp / rested_at in 1040-rested-bank-cut.sql), so there is nothing left to plant. It was an identity patch (every grant passed a quantum of 0, so the bank filled and paid nothing) and the built game is that identity. Kept as an empty patch so the registry's toggle still plants until FB-3 retires the row in proposals.json.",
   "kind": "identity",
   "edits": [],
   "targets": []

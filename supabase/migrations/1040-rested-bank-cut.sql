@@ -1,9 +1,9 @@
 -- ════════════════════════════════════════════════════════════════════════
--- supabase/migrations/1036-rested-bank-cut.sql — THE RESTED BANK, CUT WHOLE: its two player_state columns, its delta keys
+-- supabase/migrations/1040-rested-bank-cut.sql — THE RESTED BANK, CUT WHOLE: its two player_state columns, its delta keys
 --   in hr_apply, its two scalars in the hunter's accrue read, and the clan Tavern's grant (lane/c-formula-steps,
 --   systems-engineer, 2026-11-21).
 --
--- STATUS: supabase/migration-notes/1036-rested-bank-cut.sql.json (STAGED until the Coordinator applies it).
+-- STATUS: supabase/migration-notes/1040-rested-bank-cut.sql.json (STAGED until the Coordinator applies it).
 -- ORDER: the sequence in this file's name (CLAUDE.md rule 12): it runs after every file on its base. It needs
 --   1032-approved-cuts.sql first (its envelope restatement no longer projects the two columns; §0 refuses otherwise) and
 --   1026-job-counts.sql first (its four hr_apply splices are part of the body restated here; §0 pins that body).
@@ -26,7 +26,7 @@
 -- §1 hr_apply restated WHOLE from the chain end (pg_get_functiondef after every file before this one; md5 77d94e55846a60ea5311953c89d22b48),
 --    with three anchored cuts: `rested_xp`, `rested_at` and their comment leave c_delta_keys (the `workers` line before them
 --    becomes the terminator), and their two SET lines leave the state UPDATE. A delta carrying either key now answers
---    unknown_delta_key. Every other line is byte-identical (tests/chain-removals/1036-rested-bank-cut.mjs lists what
+--    unknown_delta_key. Every other line is byte-identical (tests/chain-removals/1040-rested-bank-cut.mjs lists what
 --    PART 1f-ii sees removed against 2026-10-27-core-bodies.sql: the lines the 18 splices since then replaced, and these).
 --    It pays the chain down: 18 anchored splices since the last restatement now exist in a file again.
 -- §2 hr_accrue_read restated from the chain end without its two rested scalars (a hunter's read: five state keys).
@@ -76,10 +76,10 @@ begin
     raise exception 'PRECONDITION: a body this file restates or calls is missing'; end if;
   -- THE PINS. Any other body is a concurrent restatement or splice: refuse, never silently revert it (re-derive this file).
   select md5(replace(prosrc, chr(13), '')) into v_md5 from pg_proc where oid = 'public.hr_apply(uuid,integer,bigint,uuid,jsonb)'::regprocedure;
-  if v_md5 not in ('77d94e55846a60ea5311953c89d22b48', '1b64a3a5ad3d60d5aa58e9765b9b0406') then
+  if v_md5 not in ('77d94e55846a60ea5311953c89d22b48', 'd3f97ea6e0d51d20158554b3e6940072') then
     raise exception 'PIN: hr_apply is neither the chain end this file was derived from nor its own image (md5 %): re-derive', v_md5; end if;
   select md5(replace(prosrc, chr(13), '')) into v_md5 from pg_proc where oid = 'public.hr_accrue_read(uuid,integer)'::regprocedure;
-  if v_md5 not in ('a9e71b5b4ddaa4ba2deb73d664e43cc2', '35292f12b7ccf67b65af160584cb0858') then
+  if v_md5 not in ('a9e71b5b4ddaa4ba2deb73d664e43cc2', '3daa5466fbab524f384e405065002502') then
     raise exception 'PIN: hr_accrue_read is neither the chain end this file was derived from nor its own image (md5 %): re-derive', v_md5; end if;
   -- THE ENVELOPE FIRST: 1032-approved-cuts.sql's restatement takes the two scalars out. Without it hr_state_of would read
   -- a dropped column on every boot.
@@ -107,7 +107,7 @@ CREATE OR REPLACE FUNCTION public.hr_apply(p_user uuid, p_slot integer, p_versio
  SET search_path TO 'public'
 AS $function$
 -- hr_apply restated 2026-09-14 (2026-09-14-hr-apply-restatement.sql) — chain depth 0.
--- Restated again 2026-11-21 (1036-rested-bank-cut.sql): the chain end read back with pg_get_functiondef, minus the
+-- Restated again 2026-11-21 (1040-rested-bank-cut.sql): the chain end read back with pg_get_functiondef, minus the
 -- rested bank (its two delta keys and its two SET lines). Chain depth 0 again: the 18 splices since 2026-10-27 live here.
 -- This body is AUTHORED HERE. Do not add an anchored programmatic patch to it:
 -- tests/patch-chain-guard.mjs refuses a third one, and the two before that are
@@ -2670,7 +2670,7 @@ CREATE OR REPLACE FUNCTION public.hr_accrue_read(p_user uuid, p_slot integer)
  SECURITY DEFINER
  SET search_path TO 'public', 'pg_catalog'
 AS $function$
--- 2027-02-10-settle-reads.sql, restated by 1036-rested-bank-cut.sql without the rested bank: the state term of index.ts's accrue read. With no open hunt: hr_state_of, unchanged.
+-- 2027-02-10-settle-reads.sql, restated by 1040-rested-bank-cut.sql without the rested bank: the state term of index.ts's accrue read. With no open hunt: hr_state_of, unchanged.
 -- With one: the keys the accrue path reads for a hunter (the pointer computeAccrual answers hunt_open on, the version,
 -- the clock), each by hr_state_of's own expression, and nothing else: the hello settles the hunt next
 -- and answers with the commit's projection (hunt-settle.js), so a whole envelope here was built and dropped every hello.
@@ -2709,7 +2709,7 @@ alter table public.player_state drop column if exists rested_at;
 --     without the columns); hunting, the accrue read is exactly five scalars, each hr_state_of's own value.
 do $$
 declare
-  v_u     constant uuid := '00001036-0000-0000-0000-0000ae57ed01';
+  v_u     constant uuid := '00001040-0000-0000-0000-0000ae57ed01';
   v_sig   text;
   v_set   text;
   v_role  text;
@@ -2735,8 +2735,8 @@ begin
     raise exception 'rested-bank-cut §4(a): the client-state stripper no longer strips rested_xp'; end if;
 
   -- (b)
-  if (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = 'public.hr_apply(uuid,integer,bigint,uuid,jsonb)'::regprocedure) <> '1b64a3a5ad3d60d5aa58e9765b9b0406'
-     or (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = 'public.hr_accrue_read(uuid,integer)'::regprocedure) <> '35292f12b7ccf67b65af160584cb0858' then
+  if (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = 'public.hr_apply(uuid,integer,bigint,uuid,jsonb)'::regprocedure) <> 'd3f97ea6e0d51d20158554b3e6940072'
+     or (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = 'public.hr_accrue_read(uuid,integer)'::regprocedure) <> '3daa5466fbab524f384e405065002502' then
     raise exception 'rested-bank-cut §4(b): a restated body is not this file''s image'; end if;
   foreach v_sig in array array['public.hr_apply(uuid,integer,bigint,uuid,jsonb)', 'public.hr_accrue_read(uuid,integer)'] loop
     foreach v_role in array array['anon', 'authenticated', 'service_role'] loop

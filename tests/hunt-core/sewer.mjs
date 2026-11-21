@@ -621,7 +621,7 @@ const cases = {
     if (id(at(5, { visited: new Set(['mill_cellar']), tally: paid, sellable: 0 })) === 'back_down') return 'a Level 5 hero is sent back down';
     /* 5. the second trip: the invitation leads. A hero who never took her rats reads the first trip's words */
     const second = said(at(3, { ...inCellar, tally: paid }));
-    if (!second || second.id !== 'earn_the_thicket' || !second.text.startsWith('Safe to close the game: your hero keeps hunting')) return 'the second trip reads ' + JSON.stringify(second && [second.id, second.text]);
+    if (!second || second.id !== 'earn_the_thicket' || !second.text.startsWith('It is safe to close the game. Your hero keeps hunting')) return 'the second trip reads ' + JSON.stringify(second && [second.id, second.text]);
     const never = said(at(3, inCellar));
     if (!never || never.id !== 'earn_the_thicket' || !never.text.startsWith('Hunt here to Level')) return 'a hero without her rats reads ' + JSON.stringify(never && [never.id, never.text]);
     /* 6. her rats are not her wolves: the Thicket's task is still asked for, and its pay still waited for */

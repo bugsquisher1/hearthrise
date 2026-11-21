@@ -246,6 +246,8 @@
     "node tools/mutant-gate.mjs node tests/preset-names.mjs --mutate": "in-page-19",
     "node tests/top-bar.mjs": "in-page-19",
     "node tools/mutant-gate.mjs node tests/top-bar.mjs --mutate": "in-page-19",
+    "node tests/first-objective.mjs": "in-page-19",
+    "node tools/mutant-gate.mjs node tests/first-objective.mjs --mutate": "in-page-19",
     "node tools/mutant-gate.mjs node tests/alpha-windows-inventory.mjs --mutate --shard=2/2": "in-page-11",
     "node tools/mutant-gate.mjs node tests/alpha-windows-frame.mjs --mutate --shard=2/2": "in-page-11",
     "node tests/hunt-scene-live.mjs": "in-page-11",

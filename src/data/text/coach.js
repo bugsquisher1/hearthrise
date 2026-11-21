@@ -47,7 +47,7 @@ export const COACH_TEXT = Object.freeze({
   first_dangerous_title: 'Try Dangerous',
   first_dangerous: 'Hunts → {ground} → Dangerous → Enter',
   first_dangerous_in: 'Press {ground}, then Dangerous, then Enter',
-  keep_hunting: 'Safe to close the game: your hero keeps hunting to Level {level}',
+  keep_hunting: 'It is safe to close the game. Your hero keeps hunting to Level {level}',
   brook: 'Hunt here to Level {level} for {next}',
   /* Tamsin's wolves */
   tamsins_task: 'Open Tamsin\'s tally → Take {count} {label}',

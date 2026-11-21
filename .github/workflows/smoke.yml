@@ -1955,6 +1955,14 @@ jobs:
           node tests/top-bar.mjs
           node tools/mutant-gate.mjs node tests/top-bar.mjs --mutate
 
+      # THE FIRST OBJECTIVE IS NEVER UNDER CHAT (designer D-1 section 1.3, FB-5): at 1280x720 and 1920x1080 with Chat open at its home,
+      # the coach's card and the control it rings stand clear of Chat, the ring is a screen control, and so in the window it opens.
+      - name: First objective clear of Chat (play.html)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/first-objective.mjs
+          node tools/mutant-gate.mjs node tests/first-objective.mjs --mutate
+
       - name: Upload failure artifacts
         if: failure()
         uses: actions/upload-artifact@v4

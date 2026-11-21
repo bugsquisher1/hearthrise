@@ -366,7 +366,7 @@
    ],
    "title": "The Level law timed on the MID four on Dangerous (the idle seat)",
    "modelled": true,
-   "recommended": false,
+   "recommended": true,
    "label": "COMPUTED",
    "layer": "coefficient (R13's seat multiple)",
    "patch": "patches/bp-level-law-dangerous-seat.json",
@@ -375,8 +375,11 @@
     "GR-6"
    ],
    "before": [],
-   "ruling": "waits on Tyler (12 section 7, item 1)",
-   "note": "OFF until Tyler answers 12 section 7 item 1. The default law is timed on the MID four on the hardest tier it holds with no death; this times it on the MID four on Dangerous after its deaths, fitted at the ruled points of the Level table (proposals.mjs --derive writes both). A four that farms Deadly safely then runs ahead of the table"
+   "ruling": "RULED 2026-11-21 (S-11, option c): the Level table is timed on the four on Dangerous, read again before Early Access from real XP and the calibrated simulator",
+   "note": "ON (S-11 c). R13 writes the law on the MID four on the hardest tier it holds with no death; this one edit times it on the MID four on Dangerous after its deaths, fitted at the ruled points (proposals.mjs --derive writes both; 1.261 on the fixed engine, run 44948522187). It edits R13 text, so it requires GR-6 and goes off with it",
+   "requires": [
+    "GR-6"
+   ]
   },
   {
    "id": "world-1",

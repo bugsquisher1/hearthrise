@@ -66,6 +66,8 @@ export function composePatch(root, ids, o = {}) {
   const want = new Set(ids);
   for (const id of want) if (!reg.byId.has(id)) throw new Error('proposals: no modelled proposal ' + id);
   for (const id of want) for (const x of reg.byId.get(id).excludes || []) if (want.has(x)) throw new Error('proposals: ' + id + ' is an alternative to ' + x + ' (' + reg.byId.get(id).excludesWhy + '): never both');
+  /* `requires`: a proposal whose patch edits what another writes (GR-6-seat edits R13's law) never plays without it */
+  for (const id of want) for (const x of reg.byId.get(id).requires || []) if (!want.has(x)) throw new Error('proposals: ' + id + ' requires ' + x + ' (its patch edits what ' + x + ' writes)');
   const out = { schema: 'hearthrise.balance-patch/1', name: o.name || 'proposals ' + [...want].join('+'), knobs: {}, edits: [], plan: {}, targets: [], derived: [], proposals: [] };
   for (const p of reg.proposals) {
     if (!want.has(p.id)) continue;
@@ -80,13 +82,19 @@ export function composePatch(root, ids, o = {}) {
   return out;
 }
 
-/** A toggle's set: `base` with `id` off, or ('+id') on in place of the proposals it is an alternative to. */
+/** Every proposal that requires `id` (its `requires`), and theirs in turn. */
+export function dependentsOf(reg, id) {
+  const out = new Set(), todo = [id];
+  while (todo.length) { const x = todo.pop(); for (const p of reg.proposals) if ((p.requires || []).includes(x) && !out.has(p.id)) { out.add(p.id); todo.push(p.id); } }
+  return [...out];
+}
+/** A toggle's set: `base` with `id` off (and whatever requires it), or ('+id') on in place of the proposals it is an alternative to (with what it requires). */
 export function toggled(reg, base, v) {
   const id = v.replace(/^\+/, '');
   if (!reg.byId.has(id)) throw new Error('proposals: no modelled proposal ' + id);
-  if (!v.startsWith('+')) return base.filter((x) => x !== id);
-  const ex = reg.byId.get(id).excludes || [];
-  return [...base.filter((x) => !ex.includes(x)), id];
+  if (!v.startsWith('+')) { const off = new Set([id, ...dependentsOf(reg, id)]); return base.filter((x) => !off.has(x)); }
+  const ex = new Set((reg.byId.get(id).excludes || []).flatMap((x) => [x, ...dependentsOf(reg, x)])), need = (reg.byId.get(id).requires || []).filter((x) => !base.includes(x));
+  return [...base.filter((x) => !ex.has(x)), ...need, id];
 }
 
 /** The "ships with" and order flags of a set: [{ id, missing, why }] for every pair the registry ties together that the set breaks. */
@@ -240,7 +248,8 @@ async function derive(o) {
      four on the hardest tier with no death (its Level XP before deaths); the Dangerous four after its deaths is the GR-6-seat toggle (12 section 7,
      item 1, waits on Tyler). A seat at x(L) times the contract spends, from Level 10, hours(L) = m x the sum of the ruled hours a Level / x; m is the
      one number that puts those hours on the ruled points' hours best (least squares on the logs). */
-  const base13 = reg.recommended.filter((id) => id !== 'GR-6');
+  /* without R13 and whatever edits its law (GR-6-seat, ON since S-11 c) */
+  const base13 = toggled(reg, reg.recommended, 'GR-6');
   const run13 = { id: 'derive-r13', levels: MP.RUNS.subset.levels.filter((L) => L >= 10 && L <= 400), seeds: 2, hours: 1, blocks: [{ id: 'four', comps: compsOf(4), gears: ['mid'], tiers: ['dangerous', 'hardest'] }] };
   const r13 = await playOn(base13, run13, 'R13 pace seats');
   const CM = (await import('../../src/data/core-model.js')).LEVEL_PACE;
@@ -319,6 +328,7 @@ async function selftest(o) {
     if (p.patch) { try { const x = readPatch(ROOT, p); if (x.schema !== 'hearthrise.balance-patch/1') bad.push(p.id + ': ' + p.patch + ' schema ' + x.schema); SC.checkPatch(x); } catch (e) { bad.push(p.id + ': ' + e.message); } }
     for (const w of p.excludes || []) if (!ids.includes(w)) bad.push(p.id + ' is an alternative to ' + w + ', which is no modelled proposal');
     for (const w of p.shipsWith || []) if (!ids.includes(w) && !reg.notModelled.some((n) => n.id === w)) bad.push(p.id + ' ships with ' + w + ', which the registry does not hold');
+    for (const w of p.requires || []) if (!ids.includes(w)) bad.push(p.id + ' requires ' + w + ', which is no modelled proposal');
   }
   if (new Set(ids).size !== ids.length) bad.push('an id twice');
   for (const n of reg.notModelled) if (!n.reason) bad.push(n.id + ': not modelled without a reason');
@@ -339,6 +349,12 @@ async function selftest(o) {
   check('an alternative stacked on what it replaces is refused (' + (alt ? alt.id + ' with ' + alt.excludes.join(',') : 'none') + ')', !alt || refused);
   const flags = shipsWithFlags(reg, reg.recommended.filter((id) => id !== 'GR-5b'));
   check('ships-with: the proposed game without GR-5b flags GR-5 (it ships with it)', flags.some((f) => f.id === 'GR-5' && f.missing === 'GR-5b'), JSON.stringify(flags));
+  /* requires (S-11 c put GR-6-seat on, and it edits R13's law): GR-6 off takes it along; on its own it is refused by name */
+  const req = reg.proposals.find((p) => (p.requires || []).length);
+  let reqRefused = false;
+  if (req) { try { composePatch(ROOT, toggled(reg, reg.recommended, req.id).filter((x) => x !== req.requires[0]).concat(req.id), { reg }); } catch (e) { reqRefused = /requires/.test(e.message); } }
+  check('requires: ' + (req ? req.requires[0] + ' off takes ' + req.id + ' along, and ' + req.id + ' without it is refused' : 'no proposal requires another'),
+    !!req && !toggled(reg, reg.recommended, req.requires[0]).includes(req.id) && reqRefused && toggled(reg, toggled(reg, reg.recommended, req.requires[0]), '+' + req.id).includes(req.requires[0]));
   if (o.quick) return done();
   /* 3. EACH PROPOSAL MOVES ITS TARGETS ON THE PROPOSED GAME: its toggle (the game without it, or with an alternative) played on a mini plan
      against the proposed game on the same dice; a non-identity patch must move a metric its targets are judged on, an identity none */

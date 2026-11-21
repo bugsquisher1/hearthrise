@@ -43,8 +43,8 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
    APPLIED March packs' rows folded in) is the file before 2027-05-02-flat-party-xp-ground-tiers (THE ONE PARTY TABLE, lane/d-flat-party-xp), never
    edited in place. MONSTERS A LITTLE HARDER (lane/d-harder-monsters, 2026-11-19) carries 2027-05-02 whole and moves four rows: a gentle ground's harder
    tier is the swing a full ground's tier is worth (balance-sheet.js tierRowFor), and the formula's blows are x1.1, so the scaling that reaches it eases.
-   2027-06-05-harder-monsters-ground-tiers is APPLIED history; THE TO-HIT RATIO (lane/c-tohit-ratio, balance program L15) carries it whole as 1009. */
-export const OUT_NAME = '1009-tohit-ratio-ground-tiers.generated.sql';
+   2027-06-05-harder-monsters-ground-tiers is APPLIED history; THE TO-HIT RATIO (lane/c-tohit-ratio, balance program L15) carries it whole as 1016. */
+export const OUT_NAME = '1016-tohit-ratio-ground-tiers.generated.sql';
 /* THIS FILE'S OWN NOTE (what moved, its order, how to undo it), written into its header: the rest of the header is every file's. */
 const FILE_NOTE = `-- THIS FILE (lane/c-tohit-ratio, balance program build row L15; Tyler ruled 21-1 and 21-2 on 2026-11-20: to-hit as a ratio of two ratings,
 -- monsters written against the measured career hero, src/data/to-hit.js). A tier's dial now raises a monster's aim with its atk (hunt-tiers.js
@@ -54,7 +54,7 @@ const FILE_NOTE = `-- THIS FILE (lane/c-tohit-ratio, balance program build row L
 -- 3377 -> 2685, Wickstead's 2614 -> 2115 and 3295 -> 2685 (smaller blows, surer ones, the same danger). Every other row is
 -- 2027-06-05-harder-monsters-ground-tiers.generated.sql's, carried whole. No body reads dmg_pm (the freeze reads the pull): this file moves
 -- no server behaviour, it keeps the catalogue equal to the engine's rows (tests/hunt-core/hunt-tiers.mjs catalogue).
--- ORDER: 1009 in its name, after every file on its base; no other file writes hr_ground_tiers. Idempotent: the rows are rewritten whole, so
+-- ORDER: 1016 in its name, after every file on its base; no other file writes hr_ground_tiers. Idempotent: the rows are rewritten whole, so
 -- a second apply is byte-identical. No begin/commit (CLAUDE.md §2). EDGE: the hr-accrue carrying this lane's src/core/combat.js,
 -- src/data/to-hit.js, balance-sheet.js and the re-authored monster rows, either side of this apply. REVERSIBLE: re-apply
 -- 2027-06-05-harder-monsters-ground-tiers.generated.sql, with the engine from before this lane.`;

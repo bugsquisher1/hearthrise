@@ -3,7 +3,8 @@
 // tests/new-version-banner.mjs — A TAB LEFT OPEN ACROSS A RELEASE IS TOLD TO RELOAD.
 //
 //   node tests/new-version-banner.mjs           the rules (pure node, a fake page)
-//   node tests/new-version-banner.mjs --mutate  every planted defect must turn a rule RED
+//   node tests/new-version-banner.mjs --mutate  every planted defect must turn a NAMED rule RED; a rule that throws, a copy that cannot
+//                                               load or a line with no NV id is HARNESS, never a catch (tests/_mutant-verdict.mjs)
 //
 // mutant-anchors: src/app/new-version.js src/session/server.js src/app/boot.js
 // mutant-writes-tree: no — mutants are planted into a temp copy of the files below
@@ -28,6 +29,7 @@ import { mkdtempSync, cpSync, readFileSync, writeFileSync, rmSync, mkdirSync } f
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { harnessFail, judge, report, exitOf, cleanControl } from './_mutant-verdict.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const FILES = ['src/app/new-version.js', 'src/app/boot.js', 'src/build-info.js', 'src/session/server.js',
@@ -91,7 +93,8 @@ const tick = () => new Promise((r) => setTimeout(r, 0));
 async function rules(m) {
   const { N, S, B } = m;
   const fails = [];
-  const t = async (id, fn) => { try { const r = await fn(); if (r !== true) fails.push(id + ': ' + r); } catch (e) { fails.push(id + ': threw ' + (e && e.message)); } };
+  /* a rule that THREW never answered: HARNESS, never a catch (tests/_mutant-verdict.mjs, party-ui's t()) */
+  const t = async (id, fn) => { try { const r = await fn(); if (r !== true) fails.push(id + ': ' + r); } catch (e) { fails.push(harnessFail(id, e)); } };
   const mount = (p, extra) => N.mountNewVersion(p.win, Object.assign({ running: '0.2.28', url: 'https://x/src/build-info.js', timers: false, now: () => 1000, fetch: p.win.fetch }, extra));
 
   await t('NV-1', async () => {
@@ -203,28 +206,31 @@ const MUTANTS = [
 
 async function main() {
   const mutate = process.argv.includes('--mutate');
-  const clean = await rules(await load(ROOT));
   if (!mutate) {
+    const clean = await rules(await load(ROOT));
     for (const f of clean) console.log('  ✗ ' + f);
     console.log(clean.length ? 'new-version-banner: ' + clean.length + ' rule(s) RED' : 'new-version-banner: every rule holds (9 rules)');
     process.exit(clean.length ? 1 : 0);
   }
-  if (clean.length) { console.log('  ✗ clean control is RED: ' + clean.join('; ')); process.exit(1); }
-  console.log('  ✓ clean control green');
-  let bad = 0;
+  const clean = await cleanControl(async () => rules(await load(ROOT)));
+  console.log(clean.line);
+  if (clean.code) process.exit(clean.code);
+  /* A mutant is caught only by a NAMED rule (NV-n) that answered; a rule that threw, a copy that cannot load, or a line with no rule id
+     is HARNESS, never a catch (tests/_mutant-verdict.mjs; lane/c-hollow-proofs-browser 2026-11-20: t() filed a throw under its rule id
+     and this loop scored ANY fail line as the catch). */
+  const counts = { caught: 0, harness: 0, escaped: 0 };
   for (const [name, file, from, to] of MUTANTS) {
     const tmp = mkdtempSync(join(tmpdir(), 'hr-newver-'));
     try {
       for (const f of FILES) { mkdirSync(dirname(join(tmp, f)), { recursive: true }); cpSync(join(ROOT, f), join(tmp, f)); }
       const text = readFileSync(join(tmp, file), 'utf8').replace(/\r\n/g, '\n');
-      if (!text.includes(from)) { console.log('  ✗ ' + name + ' — anchor not found in ' + file); bad++; continue; }
+      if (!text.includes(from)) { console.log('  ✗ ' + name + ' — HARNESS: anchor not found in ' + file); counts.harness++; continue; }
       writeFileSync(join(tmp, file), text.replace(from, to));
-      const fails = await rules(await load(tmp));
-      if (fails.length) console.log('  ✓ ' + name + ' — caught (' + fails[0].split(':')[0] + ')');
-      else { console.log('  ✗ ' + name + ' — NOT caught'); bad++; }
+      console.log(report(name, await judge(async () => rules(await load(tmp))), counts));
     } finally { rmSync(tmp, { recursive: true, force: true }); }
   }
-  console.log(bad ? 'new-version-banner --mutate: ' + bad + ' mutant(s) escaped' : 'new-version-banner --mutate: ' + MUTANTS.length + '/' + MUTANTS.length + ' mutants caught');
-  process.exit(bad ? 1 : 0);
+  console.log(exitOf(counts) ? 'new-version-banner --mutate: ' + counts.escaped + ' escaped, ' + counts.harness + ' HARNESS (not catches)'
+    : 'new-version-banner --mutate: ' + MUTANTS.length + '/' + MUTANTS.length + ' mutants caught, each by a named rule');
+  process.exit(exitOf(counts));
 }
 main();

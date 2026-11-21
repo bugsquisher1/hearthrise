@@ -3,7 +3,8 @@
 // tests/hunt-scene.mjs — THE LIVE HUNT PLAYS SMOOTHLY, ONCE, AND FROM THE SERVER.
 //
 //   node tests/hunt-scene.mjs           the rules
-//   node tests/hunt-scene.mjs --mutate  every planted defect must turn a rule RED
+//   node tests/hunt-scene.mjs --mutate  every planted defect must turn a NAMED rule RED; a copy that cannot load, a throw or a line with
+//                                       no SC id is HARNESS, never a catch (tests/_mutant-verdict.mjs)
 //   node tests/hunt-scene.mjs --mutate --only=SC-16   just the mutants whose name holds that text
 //
 // mutant-anchors: src/hunt-view/scene.js src/hunt-view/timeline.js src/data/hunt-vfx.js src/data/hunt-outfits.js src/world/core/compose.js
@@ -76,6 +77,7 @@ import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { sourceQuery } from '../tools/lib/version-stamp.mjs';
+import { judge, report, exitOf, cleanControl } from './_mutant-verdict.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const V = sourceQuery(ROOT);
@@ -759,10 +761,12 @@ async function main() {
     console.log(fails.length ? 'hunt-scene: ' + fails.length + ' rule(s) RED' : 'hunt-scene: no restart on a new envelope, each event once, inside the track, frame-rate independent, every event mapped, drawn from the shipped atlases, toggles kept');
     process.exit(fails.length ? 1 : 0);
   }
-  const clean = await rules(await load(ROOT));
-  if (clean.length) { console.log('  ✗ clean control RED: ' + clean.join('; ')); process.exit(1); }
-  console.log('  ✓ clean control green');
-  let bad = 0;
+  const clean = await cleanControl(async () => rules(await load(ROOT)));
+  console.log(clean.line);
+  if (clean.code) process.exit(clean.code);
+  /* A mutant is caught only by a NAMED rule (SC-n); a copy that cannot load, a run that throws, or a line with no rule id is HARNESS,
+     never a catch (tests/_mutant-verdict.mjs; lane/c-hollow-proofs-browser 2026-11-20: this loop scored ANY fail line as the catch). */
+  const counts = { caught: 0, harness: 0, escaped: 0 };
   /* --only=<text>: just the mutants whose name holds that text */
   const only = (process.argv.find((a) => a.startsWith('--only=')) || '').slice('--only='.length);
   const picked = MUTANTS.filter(([name]) => !only || name.includes(only));
@@ -771,14 +775,13 @@ async function main() {
     try {
       cpSync(join(ROOT, 'src'), join(tmp, 'src'), { recursive: true });
       const text = readFileSync(join(tmp, file), 'utf8');
-      if (!text.includes(from)) { console.log('  ✗ ' + name + ' — anchor not found in ' + file); bad++; continue; }
+      if (!text.includes(from)) { console.log('  ✗ ' + name + ' — HARNESS: anchor not found in ' + file); counts.harness++; continue; }
       writeFileSync(join(tmp, file), text.replace(from, to));
-      const fails = await rules(await load(tmp));
-      if (fails.length) console.log('  ✓ ' + name + ' — caught (' + Array.from(new Set(fails.map((x) => x.split(':')[0]))).join(', ') + ')');
-      else { console.log('  ✗ ' + name + ' — NOT caught'); bad++; }
+      console.log(report(name, await judge(async () => rules(await load(tmp))), counts));
     } finally { rmSync(tmp, { recursive: true, force: true }); }
   }
-  console.log(bad ? 'hunt-scene --mutate: ' + bad + ' escaped' : 'hunt-scene --mutate: ' + picked.length + '/' + picked.length + ' mutants caught');
-  process.exit(bad ? 1 : 0);
+  console.log(exitOf(counts) ? 'hunt-scene --mutate: ' + counts.escaped + ' escaped, ' + counts.harness + ' HARNESS (not catches)'
+    : 'hunt-scene --mutate: ' + picked.length + '/' + picked.length + ' mutants caught, each by a named rule');
+  process.exit(exitOf(counts));
 }
 main();

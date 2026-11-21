@@ -78,12 +78,19 @@ export function ruleOf(line) {
   return m && !/-x$/.test(m[1]) ? m[1] : null;
 }
 
+/* A NAMED LINE THAT NEVER MEASURED (lane/c-hollow-proofs-browser 2026-11-20, the page twin of NOT_A_RULE): a rule id followed (after an
+   optional [tag]) by `threw` (a throw filed under the rule that threw) or `fixture:` (its setup never reached the rule). */
+const UNMEASURED = /^[A-Z][A-Z0-9]*-[A-Za-z0-9-]+:?\s+(?:\[[^\]]*\]\s+)?(?:threw\b|fixture:)/;
+
 /** { kind: 'caught', rule } | { kind: 'harness', why } | { kind: 'escaped' } for one run's fail lines. */
 export function verdict(fails) {
   const lines = Array.isArray(fails) ? fails : [];
-  const named = lines.find((f) => !String(f).startsWith(HARNESS) && ruleOf(f));
+  const named = lines.find((f) => !String(f).startsWith(HARNESS) && !UNMEASURED.test(String(f)) && ruleOf(f));
   if (named) return { kind: 'caught', rule: ruleOf(named) };
-  if (lines.length) return { kind: 'harness', why: String(lines.find((f) => String(f).startsWith(HARNESS)) || 'a fail line with no rule id: ' + lines[0]).slice(0, 300) };
+  if (lines.length) {
+    const why = lines.find((f) => String(f).startsWith(HARNESS)) || lines.find((f) => UNMEASURED.test(String(f)));
+    return { kind: 'harness', why: String(why ? (String(why).startsWith(HARNESS) ? why : 'a rule that never measured: ' + why) : 'a fail line with no rule id: ' + lines[0]).slice(0, 300) };
+  }
   return { kind: 'escaped' };
 }
 
@@ -178,6 +185,11 @@ async function selftest(v = { judge, verdict, cleanControl, harnessFail }) {
     ['a named rule that went red', await v.judge(miniChecks({ ruleFails: true })), 'caught'],
     ['a named rule red beside a later throw', v.verdict(['AW-9 the Use button sent nothing', harnessFail('a page step', new Error('x'))]), 'caught'],
     ['the old catch-all id AW-x', v.verdict(['AW-x a step failed: element is not enabled']), 'harness'],
+    ['a throw filed under the rule that threw', v.verdict(['NV-1: threw w.check is not a function']), 'harness'],
+    ['a tagged throw filed under its rule', v.verdict(['CW-3 [phone] threw: page.click: Timeout 1500ms exceeded.']), 'harness'],
+    ['a rule whose fixture never reached it', v.verdict(['CS-M1 fixture: the mixed set {} does not use every line']), 'harness'],
+    ['a rule that measured, beside one that never did', v.verdict(['CS-M1 fixture: x', 'CS-M1 the sheet shows dodge 0%']), 'caught'],
+    ['a rule whose message says threw later on', v.verdict(['WN-1 a town notice reads Mira threw Cinnabar']), 'caught'],
     ['nothing red', await v.judge(miniChecks()), 'escaped'],
   ];
   const fails = [];
@@ -270,9 +282,9 @@ const EVERY_RUNNER = [
    could not re-prove in its hour. A file leaves by moving onto judge/report/exitOf (tests/tally-window.mjs's 2026-11-20 diff) and a run
    of its --mutate; a file on this list no longer on the shape is red until it is struck from it. */
 export const OWED = Object.freeze([
-  'tests/character-sheet-core.mjs', 'tests/chat-social.mjs', 'tests/death-popup.mjs', 'tests/device-px.mjs', 'tests/faction-window.mjs',
-  'tests/farm-window.mjs', 'tests/honor-window.mjs', 'tests/house-window.mjs', 'tests/hunt-clips.mjs', 'tests/hunt-scene.mjs',
-  'tests/hunt-view-core.mjs', 'tests/instant-press.mjs', 'tests/monster-facts.mjs', 'tests/new-version-banner.mjs', 'tests/observability.mjs',
+  'tests/chat-social.mjs', 'tests/death-popup.mjs', 'tests/device-px.mjs', 'tests/faction-window.mjs',
+  'tests/farm-window.mjs', 'tests/honor-window.mjs', 'tests/house-window.mjs',
+  'tests/instant-press.mjs', 'tests/monster-facts.mjs', 'tests/observability.mjs',
   'tests/phone-touch.mjs', 'tests/report-problem.mjs', 'tests/say-why.mjs', 'tests/services-window.mjs', 'tests/town-walk.mjs', 'tests/wiki-window.mjs',
 ]);
 export function plainProblems(files, owed = OWED) {
@@ -332,6 +344,11 @@ if (isMain(import.meta.url) && process.argv.includes('--selftest')) {
   /* a HARNESS that names no step (runs 42678595702, 42735492394) must fail it */
   const nameless = await selftest({ judge, verdict, cleanControl, harnessFail: (where, e) => `${HARNESS} ${where} threw: ${firstLine(e)}` });
   console.log(nameless.length ? '  caught  planted: a HARNESS that names no step' : '  MISSED  planted: a HARNESS that names no step');
+  /* a rule id over a throw or a fixture line (`NV-1: threw`, `CS-M1 fixture:`) read as a catch must fail it */
+  const anyNamed = (fails) => { const lines = Array.isArray(fails) ? fails : []; const n = lines.find((f) => !String(f).startsWith(HARNESS) && ruleOf(f));
+    return n ? { kind: 'caught', rule: ruleOf(n) } : lines.length ? { kind: 'harness', why: 'x' } : { kind: 'escaped' }; };
+  const unmeasured = await selftest({ judge: async (run) => { try { return anyNamed(await run()); } catch (e) { return { kind: 'harness' }; } }, verdict: anyNamed, cleanControl, harnessFail });
+  console.log(unmeasured.length ? '  caught  planted: a named throw or fixture line is a catch — ' + unmeasured[0] : '  MISSED  planted: a named throw or fixture line is a catch');
   console.log(always.length ? '  caught  planted: every run skips its clean control' : '  MISSED  planted: every run skips its clean control');
   console.log(never.length ? '  caught  planted: no gated shard leans on the plain run' : '  MISSED  planted: no gated shard leans on the plain run');
   console.log(old.length ? `  caught  planted: the old "any fail line is a catch" rule — ${old[0]}` : '  MISSED  planted: the old "any fail line is a catch" rule passed');
@@ -352,7 +369,7 @@ if (isMain(import.meta.url) && process.argv.includes('--selftest')) {
     console.log(f.length ? `  caught  planted: ${label} — ${f[0]}` : `  MISSED  planted: ${label}`);
     if (!f.length) caseMissed++;
   }
-  const bad = real.length + cases.length + caseMissed + (old.length ? 0 : 1) + (always.length ? 0 : 1) + (never.length ? 0 : 1) + (nameless.length ? 0 : 1);
+  const bad = real.length + cases.length + caseMissed + (old.length ? 0 : 1) + (always.length ? 0 : 1) + (never.length ? 0 : 1) + (nameless.length ? 0 : 1) + (unmeasured.length ? 0 : 1);
   console.log(bad ? `_mutant-verdict --selftest: ${bad} FAILED` : '_mutant-verdict --selftest: a throw before the rule, a thrown run, an unnamed fail and AW-x are HARNESS, each naming the guard line that threw; a named rule is a catch; the old any-fail rule is caught; a case runner\'s throwing mutant (a copy that cannot load, a case that throws) and its fixture line read NOT caught, and the old `!!why` score is caught');
   process.exit(bad ? 1 : 0);
 }

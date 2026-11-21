@@ -1,0 +1,98 @@
+# ============================================================================
+# balance-diff — ONE PATCH, OR ONE DEATH SAMPLE, ON THE MATRIX, BY HAND.
+#
+# tools/balance-program/balance-matrix.mjs --diff <patch> on a base (the
+# proposed game, or today's tree), on the cells, seeds and hours you name:
+# the balance pass's death samples (12-balance-pass.md section 1, R2 and R4:
+# 4 seeds of 8 hours on the harder tiers) run here instead of from throwaway
+# branches, so GR-88's gate can be read without one. `patch: none` plays the
+# base alone (a death sample of the game as it stands). The JSON diff and the
+# printed report upload as the run's artifact. A MEASUREMENT, never a gate:
+# MANUAL ONLY (workflow_dispatch), never on a push.
+#
+# Run it:   gh workflow run balance-diff.yml --ref <branch> \
+#             -f patch=tools/balance-program/patches/bp-tiers-2500.json \
+#             -f base=proposed -f seeds=4 -f hours=8 -f levels=60,110,185 -f blocks=four,tier
+#           (GitHub dispatches only a workflow the default branch holds)
+# Read:     gh run download <id> --dir <dir>  (balance-diff.json, balance-diff.txt)
+# ============================================================================
+name: balance-diff
+
+on:
+  workflow_dispatch:
+    inputs:
+      patch:
+        description: 'a patch file in the repo (tools/balance-program/patches/...), or none to play the base alone'
+        required: true
+        default: 'none'
+      base:
+        description: 'proposed (every recommended proposal of proposals.json) or today (the tree)'
+        required: true
+        default: 'proposed'
+      seeds:
+        description: 'seeds a cell (the death sample: 4)'
+        required: true
+        default: '2'
+      hours:
+        description: 'hours a seed (the death sample: 8)'
+        required: true
+        default: '1'
+      levels:
+        description: 'the subset Levels to play, comma-separated (blank: every one)'
+        required: false
+        default: ''
+      blocks:
+        description: 'the subset blocks to play, comma-separated, e.g. four,tier,leave (blank: every one)'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: balance-diff-${{ github.ref }}-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  diff:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    env:
+      PATCH: ${{ github.event.inputs.patch }}
+      BASE: ${{ github.event.inputs.base }}
+      SEEDS: ${{ github.event.inputs.seeds }}
+      HOURS: ${{ github.event.inputs.hours }}
+      LEVELS: ${{ github.event.inputs.levels }}
+      BLOCKS: ${{ github.event.inputs.blocks }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Check the inputs
+        run: |
+          case "$BASE" in proposed|today) ;; *) echo "base is proposed or today, not $BASE"; exit 2 ;; esac
+          [[ "$SEEDS" =~ ^[1-9][0-9]?$ ]] || { echo "seeds is 1 to 99"; exit 2; }
+          [[ "$HOURS" =~ ^[0-9]+(\.[0-9]+)?$ ]] || { echo "hours is a number"; exit 2; }
+          [[ -z "$LEVELS" || "$LEVELS" =~ ^[0-9]+(,[0-9]+)*$ ]] || { echo "levels is a comma-separated list of Levels"; exit 2; }
+          [[ -z "$BLOCKS" || "$BLOCKS" =~ ^[a-z]+(,[a-z]+)*$ ]] || { echo "blocks is a comma-separated list of block ids"; exit 2; }
+          [[ "$PATCH" == "none" || ( "$PATCH" =~ ^tools/balance-program/patches/[A-Za-z0-9._-]+\.json$ && -f "$PATCH" ) ]] || { echo "patch is none or a file under tools/balance-program/patches/"; exit 2; }
+      - name: Play
+        run: |
+          set -- --subset --base "$BASE" --seeds "$SEEDS" --hours "$HOURS" --workers 4 --json balance-diff.json
+          [ -n "$LEVELS" ] && set -- "$@" --only "$LEVELS"
+          [ -n "$BLOCKS" ] && set -- "$@" --blocks "$BLOCKS"
+          if [ "$PATCH" = "none" ]; then
+            node tools/balance-program/balance-matrix.mjs "$@" | tee balance-diff.txt
+          else
+            node tools/balance-program/balance-matrix.mjs --diff "$PATCH" "$@" | tee balance-diff.txt
+          fi
+      - name: Upload the diff
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: balance-diff
+          path: balance-diff.*
+          retention-days: 30

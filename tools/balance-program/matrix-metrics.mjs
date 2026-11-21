@@ -15,7 +15,7 @@
 // ════════════════════════════════════════════════════════════════════════
 import * as STD from './standards.mjs';
 import { cellRates, compsOf, BLESSING_LADDER } from './progression-grid.mjs';
-import { judgeGrid, statusOf, distanceOf } from './grid-derive.mjs';
+import { judgeGrid, statusOf, distanceOf, holds } from './grid-derive.mjs';
 import { ARCHETYPE_AXES } from './matrix-plan.mjs';
 import { STYLE_GROUPS } from './knob-rules.mjs';
 
@@ -241,30 +241,62 @@ export function judgeMatrix(D, K, cells) {
   const rows = [];
   const lone = (way) => frame.filter((c) => c.party === 1 && c.styles[0] === way && (way === 'hammer' || !c.step));
   const ways = [...new Set(frame.filter((c) => c.party === 1).map((c) => c.styles[0]))];
+  /* a band whose `where` names a way (P2: the hammer, 12-balance-pass.md section 5 row 6) prints on every other way and judges nothing there */
+  const reportOn = (row, way) => {
+    const b = STD.bandById(row.band), only = b && b.where && b.where.way;
+    return only && only !== way && ['ok', 'off', 'RED'].includes(row.status) ? { ...row, status: 'report', wouldBe: row.status, why: 'read on the ' + only + ' only' } : row;
+  };
   for (const way of ways.sort((a, b) => (a === 'hammer' ? -1 : b === 'hammer' ? 1 : a.localeCompare(b)))) {
     const j = judgeGrid(D, asGrid([...lone(way), ...parties]), { K });
     for (const row of j.rows) {
       if (row.status === 'n/a' && row.value === null) continue;
       if (way !== 'hammer' && !/ x1 /.test(row.at)) continue;
-      rows.push({ way, ...row });
+      rows.push({ way, ...reportOn(row, way) });
     }
   }
   /* THE GROUND AXIS (the Coordinator 2026-11-21: a ground or tier patch must get flags): each ground's own cells (both band ends, every party,
      every tier, MID) on a frame of their own, so two grounds at one Level never stand in for each other; only the bands a cell reads are
      kept (pace P2, P6, P7, P9, P10; survival S1 to S7; gold G-1 to G-6, the store share G-2 among them), never a pace seat or a gear table
-     built across Levels a ground does not span. way: 'G:<ground>' */
+     built across Levels a ground does not span. way: 'G:<ground>'. A band read at a ground's MEAN (standards.mjs groundMean: P2, 12 section 5
+     row 6, a contract that climbs through the band cannot sit on both ends) is one row a ground, the mean of its two ends */
   const byGround = new Map();
   for (const c of cells) if (c.m && c.block === 'grounds') (byGround.get(c.ground) || byGround.set(c.ground, []).get(c.ground)).push(c);
   for (const [g, cs] of byGround) {
     const j = judgeGrid(D, asGrid(cs), { K });
+    const meanOf = new Map();
     for (const row of j.rows) {
       if (row.status === 'n/a' && row.value === null) continue;
       if (!CELL_AT.test(row.at)) continue;
+      const b = STD.bandById(row.band);
+      if (b && b.groundMean) { if (Number.isFinite(row.value)) (meanOf.get(row.band) || meanOf.set(row.band, []).get(row.band)).push(row); continue; }
       rows.push({ way: 'G:' + g, ...row });
     }
+    for (const [id, rs] of meanOf) {
+      const b = STD.bandById(id), v = rs.reduce((a, r) => a + r.value, 0) / rs.length;
+      rows.push({ way: 'G:' + g, band: id, group: b.group, label: b.label, at: 'the mean of ' + rs.map((r) => r.at).join(' and '), value: r(v, 3), status: statusOf(v, b), dist: distanceOf(v, b) });
+    }
   }
-  rows.push(...talentRows(cells));
+  rows.push(...talentRows(cells), ...checkGRows(cells));
   return rows;
+}
+/* MM-26's CHECK G (standards.mjs MM26.G, report only: it fails by design on a cliff and waits on Tyler, 12-balance-pass.md section 7 item 4): the
+   buffed fours of the buff block that hold their tier where the same four plain does not (grid-derive.mjs holds) */
+export function checkGRows(cells) {
+  const b = STD.bandById('MM26.G');
+  if (!b) return [];
+  const key = (c) => [c.L, c.gear, c.party, c.comp, c.tier].join('|');
+  const plain = new Map(cells.filter((c) => c.m && !c.variant && c.party === 4).map((c) => [key(c), c]));
+  const buffed = cells.filter((c) => c.m && c.block === 'buff' && c.party === 4 && c.tier !== 'normal');
+  const out = [];
+  for (const c of buffed) {
+    const p = plain.get(key(c));
+    if (!p) continue;
+    const g = (x) => ({ tier: x.tier, party: x.party, rates: x.m });
+    const v = holds(g(c)) && !holds(g(p)) ? 1 : 0, st = statusOf(v, b);
+    out.push({ way: 'buff', band: 'MM26.G', group: b.group, label: b.label, at: c.L + ' mid x4 ' + c.tier + ' ' + c.variant, value: v, dist: distanceOf(v, b),
+      status: b.reportOnly ? 'report' : st, ...(b.reportOnly ? { wouldBe: st, why: b.reportOnly } : {}) });
+  }
+  return out;
 }
 /* THE TL BANDS (10-level-choices.md 8.4, PROPOSED, PROVISIONAL), read off the talent block (way 'talents'): TL1 the fastest build over the
    suggested one, TL2 the empty build over it, TL3 a four on all safety's deaths on the hardest tier (thin under X26's sample), TL4 how many

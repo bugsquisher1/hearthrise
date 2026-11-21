@@ -1,0 +1,11 @@
+{
+  "lane": "lane/c-first-hour (FB-5), backend-architect, 2026-11-21",
+  "ruling": "Tyler 2026-11-21, executive decision: all four hero slots from the start (rulings-of-record). It REPLACES the slot prices of 2026-11-09, 2026-11-20 and call 24-9 (staged 1015-hero-slots-dearer.sql, withdrawn by this lane).",
+  "what_moved": "src/data/shops.js sells no character_slot row (HERO_SLOTS = { count: 4, free: true }); public.hr_hero_slots holds slots 1-3 as free starter rows (1036-four-starter-slots.sql); hr_buy_hero_slot is dropped.",
+  "request_for_FB3": [
+    "Retire gates G9 (the first slot within a lone hero's bank) and G20 (weeks to the fourth hero) and their standard X1 rows in tools/balance-program/standards.mjs: no slot has a price. tests/balance-guard.mjs reads the free ladder (price 0) until then and names this file.",
+    "Remove the hero-slot rows from tools/balance-program/gold-model.mjs (the sink table's 'Hero slot 2/3/4' rows at L30 and L50, the 'Hero slot N' lines at line 169, SLOT_LADDERS): offer('character_slot.N') now reads no offer.",
+    "Reopen gold sink sizing for Levels 30 to 50 without the slots: about 6.9 M gold of ladder A leaves the sink plan (COMPUTED from the withdrawn 1015 prices)."
+  ],
+  "tests_retired_by_FB5": "tests/slot-price-guard.mjs (SP-1 the shop sells three priced slots, SP-2 the first within the played bank): both subjects left with the prices; the free ladder is bound by tests/hero-slot-buy.mjs (shops.js HERO_SLOTS to hr_hero_slots) and by 1036's own self-check."
+}

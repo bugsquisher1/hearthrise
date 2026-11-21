@@ -138,6 +138,11 @@
         "bytes": 3164777,
         "on": "2026-11-21",
         "why": "cut locked in (6328 bytes)"
+      },
+      {
+        "bytes": 3184226,
+        "on": "2026-11-21",
+        "why": "Luck v3.1 (lane/d-luck-build, targets 0.2.144) on the merged set: the engine reads Magic Find in drops.js/hunt-rewards.js, so data/luck.js and core/luck.js ride the edge, plus jewelry.js's Lucky perk and rows, drops.js luckMult and the lucky draw, items.js's Lucky Rivet and eight Lucky rings, loot-bands' very_rare, and the cut notes (+20,213 B over the set)"
       }
     ]
   }

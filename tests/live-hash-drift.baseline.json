@@ -25,10 +25,10 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-11-20",
- "replay_ms": 9223,
+ "replay_ms": 4659,
  "counts": {
   "tracked_names": 999,
-  "entries": 850
+  "entries": 837
  },
  "functions": [
   {
@@ -1481,6 +1481,7 @@
    ],
    "touched_by": [
     "1004-tick-pack-heroes.sql",
+    "1032-approved-cuts.sql",
     "2026-08-11-grant-hygiene.sql",
     "2026-08-16-client-write-grant-sweep-5.sql",
     "2026-08-16-client-write-grant-sweep.sql",
@@ -1516,11 +1517,12 @@
     "source": "measured-live"
    },
    "replay": {
-    "md5": "97b9d4ebbe1af77b29b8b1c384ea541f",
-    "norm_len": 53463,
+    "md5": "5783599fd024b037a4cfbe1ba340e07c",
+    "norm_len": 50875,
     "source": "computed-from-replay"
    },
-   "agree": true
+   "agree": false,
+   "why": "REVIEW 2026-11-21: live and replay disagree and nobody has said why. Strip comments from both bodies and diff them; write what actually differs here. The guard is RED until this sentence is real."
   },
   {
    "sig": "hr_backfill_lifetime_facts(p_user uuid)",
@@ -2932,52 +2934,6 @@
    "agree": true
   },
   {
-   "sig": "hr_buy_gem_unlock(p_unlock_id text, p_slot integer, p_idem uuid)",
-   "name": "hr_buy_gem_unlock",
-   "tracked_by": [
-    "restate"
-   ],
-   "touched_by": [
-    "2026-09-14-gem-unlock-buy.sql"
-   ],
-   "live": {
-    "md5": "44cee0b2532b42a1695e58dd704918b5",
-    "norm_len": 494,
-    "measured": "2026-11-20",
-    "source": "measured-live"
-   },
-   "replay": {
-    "md5": "44cee0b2532b42a1695e58dd704918b5",
-    "norm_len": 494,
-    "source": "computed-from-replay"
-   },
-   "agree": true
-  },
-  {
-   "sig": "hr_buy_gem_unlock__ungated(p_unlock_id text, p_slot integer, p_idem uuid)",
-   "name": "hr_buy_gem_unlock__ungated",
-   "tracked_by": [
-    "pin",
-    "restate"
-   ],
-   "touched_by": [
-    "2026-09-14-gem-unlock-buy.sql",
-    "2026-10-19-account-wallet.sql"
-   ],
-   "live": {
-    "md5": "da760f3bbaa87bf4b3f82631607f3969",
-    "norm_len": 9753,
-    "measured": "2026-11-20",
-    "source": "measured-live"
-   },
-   "replay": {
-    "md5": "da760f3bbaa87bf4b3f82631607f3969",
-    "norm_len": 9753,
-    "source": "computed-from-replay"
-   },
-   "agree": true
-  },
-  {
    "sig": "hr_buy_hero_slot(p_slot_id integer, p_slot integer, p_idem uuid)",
    "name": "hr_buy_hero_slot",
    "tracked_by": [
@@ -4099,50 +4055,6 @@
    "agree": true
   },
   {
-   "sig": "hr_claim_discord_gift(p_slot integer, p_code text)",
-   "name": "hr_claim_discord_gift",
-   "tracked_by": [
-    "restate"
-   ],
-   "touched_by": [
-    "2026-10-18-discord-gift.sql"
-   ],
-   "live": {
-    "md5": "6456a32b80f792624e88de2d0a851f66",
-    "norm_len": 401,
-    "measured": "2026-11-20",
-    "source": "measured-live"
-   },
-   "replay": {
-    "md5": "6456a32b80f792624e88de2d0a851f66",
-    "norm_len": 401,
-    "source": "computed-from-replay"
-   },
-   "agree": true
-  },
-  {
-   "sig": "hr_claim_discord_gift__ungated(p_slot integer, p_code text)",
-   "name": "hr_claim_discord_gift__ungated",
-   "tracked_by": [
-    "restate"
-   ],
-   "touched_by": [
-    "2026-10-18-discord-gift.sql"
-   ],
-   "live": {
-    "md5": "120f06caa21221383193b390f523f709",
-    "norm_len": 4229,
-    "measured": "2026-11-20",
-    "source": "measured-live"
-   },
-   "replay": {
-    "md5": "120f06caa21221383193b390f523f709",
-    "norm_len": 4229,
-    "source": "computed-from-replay"
-   },
-   "agree": true
-  },
-  {
    "sig": "hr_clan_browser(p_limit integer)",
    "name": "hr_clan_browser",
    "tracked_by": [
@@ -4975,50 +4887,6 @@
    "agree": true
   },
   {
-   "sig": "hr_discord_code_current()",
-   "name": "hr_discord_code_current",
-   "tracked_by": [
-    "restate"
-   ],
-   "touched_by": [
-    "2026-10-18-discord-gift.sql"
-   ],
-   "live": {
-    "md5": "728d0dad66fc006e8f010e472af21c89",
-    "norm_len": 685,
-    "measured": "2026-11-20",
-    "source": "measured-live"
-   },
-   "replay": {
-    "md5": "728d0dad66fc006e8f010e472af21c89",
-    "norm_len": 685,
-    "source": "computed-from-replay"
-   },
-   "agree": true
-  },
-  {
-   "sig": "hr_discord_code_for(p_week text)",
-   "name": "hr_discord_code_for",
-   "tracked_by": [
-    "restate"
-   ],
-   "touched_by": [
-    "2026-10-18-discord-gift.sql"
-   ],
-   "live": {
-    "md5": "45f564c02b6ebee4fa1c6657f88dd148",
-    "norm_len": 1171,
-    "measured": "2026-11-20",
-    "source": "measured-live"
-   },
-   "replay": {
-    "md5": "45f564c02b6ebee4fa1c6657f88dd148",
-    "norm_len": 1171,
-    "source": "computed-from-replay"
-   },
-   "agree": true
-  },
-  {
    "sig": "hr_display_name_available(p_name text)",
    "name": "hr_display_name_available",
    "tracked_by": [
@@ -5080,98 +4948,6 @@
    "replay": {
     "md5": "77dfcfcdd8362613e258c31d78208343",
     "norm_len": 261,
-    "source": "computed-from-replay"
-   },
-   "agree": true
-  },
-  {
-   "sig": "hr_dungeon_cooldown_divisor(p_mode text)",
-   "name": "hr_dungeon_cooldown_divisor",
-   "tracked_by": [
-    "restate"
-   ],
-   "touched_by": [
-    "2026-09-12-dungeon-cooldown.sql"
-   ],
-   "live": {
-    "md5": "310a69fdc04eb80b1e2b80413f5e7584",
-    "norm_len": 223,
-    "measured": "2026-11-20",
-    "source": "measured-live"
-   },
-   "replay": {
-    "md5": "310a69fdc04eb80b1e2b80413f5e7584",
-    "norm_len": 223,
-    "source": "computed-from-replay"
-   },
-   "agree": true
-  },
-  {
-   "sig": "hr_dungeon_cooldown_modes()",
-   "name": "hr_dungeon_cooldown_modes",
-   "tracked_by": [
-    "restate"
-   ],
-   "touched_by": [
-    "2026-09-12-dungeon-cooldown.sql"
-   ],
-   "live": {
-    "md5": "0c438a1cc3075892cb9788628f276a4c",
-    "norm_len": 204,
-    "measured": "2026-11-20",
-    "source": "measured-live"
-   },
-   "replay": {
-    "md5": "0c438a1cc3075892cb9788628f276a4c",
-    "norm_len": 204,
-    "source": "computed-from-replay"
-   },
-   "agree": true
-  },
-  {
-   "sig": "hr_dungeon_cooldowns(p_user uuid, p_slot integer)",
-   "name": "hr_dungeon_cooldowns",
-   "tracked_by": [
-    "restate"
-   ],
-   "touched_by": [
-    "2026-09-12-dungeon-cooldown.sql",
-    "2027-02-10-settle-plan-cache.generated.sql"
-   ],
-   "live": {
-    "md5": "a9ccdbbbfbc6c6feb8a0b9fed83dd514",
-    "norm_len": 1731,
-    "measured": "2026-11-20",
-    "source": "measured-live"
-   },
-   "replay": {
-    "md5": "a9ccdbbbfbc6c6feb8a0b9fed83dd514",
-    "norm_len": 1731,
-    "source": "computed-from-replay"
-   },
-   "agree": true
-  },
-  {
-   "sig": "hr_dungeon_settle(p_user uuid, p_slot integer, p_version bigint, p_intent_id uuid, p_dungeon_id text, p_mode text, p_quality numeric)",
-   "name": "hr_dungeon_settle",
-   "tracked_by": [
-    "pin",
-    "restate"
-   ],
-   "touched_by": [
-    "2026-09-10-dungeon-settle.sql",
-    "2026-09-12-dungeon-cooldown.sql",
-    "2026-09-28-settle-before-mutate.sql"
-   ],
-   "live": {
-    "md5": "9d133e3bcea570172f17ea4ce1e98136",
-    "norm_len": 16826,
-    "measured": "2026-11-20",
-    "source": "measured-live"
-   },
-   "replay": {
-    "md5": "9d133e3bcea570172f17ea4ce1e98136",
-    "norm_len": 16826,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -6155,29 +5931,6 @@
    "replay": {
     "md5": "608beb0eed523d7767f95fd9ad2758e6",
     "norm_len": 3166,
-    "source": "computed-from-replay"
-   },
-   "agree": true
-  },
-  {
-   "sig": "hr_gem_unlocks_of(p_user uuid, p_slot integer)",
-   "name": "hr_gem_unlocks_of",
-   "tracked_by": [
-    "restate"
-   ],
-   "touched_by": [
-    "2026-09-14-gem-unlock-buy.sql",
-    "2027-02-10-settle-plan-cache.generated.sql"
-   ],
-   "live": {
-    "md5": "cbaa4f37f1b63ddec783c075244e5d4b",
-    "norm_len": 987,
-    "measured": "2026-11-20",
-    "source": "measured-live"
-   },
-   "replay": {
-    "md5": "cbaa4f37f1b63ddec783c075244e5d4b",
-    "norm_len": 987,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -8719,7 +8472,7 @@
     "source": "measured-live"
    },
    "replay": {
-    "md5": "7773881e9610cc30e8d15b33c926b52b",
+    "md5": "28a165e8579433e4dc08d1110224b0f1",
     "norm_len": 3474,
     "source": "computed-from-replay"
    },
@@ -11739,7 +11492,7 @@
     "source": "measured-live"
    },
    "replay": {
-    "md5": "12bbc241badc9682cf1ba3524e424018",
+    "md5": "2f4fb33bbfa8b8189f9cdd7591f1f2b6",
     "norm_len": 14127,
     "source": "computed-from-replay"
    },
@@ -11786,7 +11539,7 @@
     "source": "measured-live"
    },
    "replay": {
-    "md5": "88ab012b152500ff48afc9eb376f479c",
+    "md5": "31201db0ddece7557d8174ee266257bf",
     "norm_len": 1412,
     "source": "computed-from-replay"
    },
@@ -11813,7 +11566,7 @@
     "source": "measured-live"
    },
    "replay": {
-    "md5": "f647a04e10be1ce310b5b3714ae47a18",
+    "md5": "53fb72583c8b5e96752339f8ae69c93e",
     "norm_len": 3161,
     "source": "computed-from-replay"
    },
@@ -11832,7 +11585,7 @@
    ],
    "live": null,
    "replay": {
-    "md5": "53f5a814ae5a3f80005457306340a5fd",
+    "md5": "242823dd14885bc339681da8fdc91292",
     "norm_len": 1024,
     "source": "computed-from-replay"
    },
@@ -11851,7 +11604,7 @@
    ],
    "live": null,
    "replay": {
-    "md5": "f9efa402e08808c0802e7e42d3e03419",
+    "md5": "d55f2a00a20ad2eab63748c55b2f0a1a",
     "norm_len": 4243,
     "source": "computed-from-replay"
    },
@@ -11870,7 +11623,7 @@
    ],
    "live": null,
    "replay": {
-    "md5": "20f1be3e78dff024f7d0ae901ef15966",
+    "md5": "337d6f97d1fdd30b60781271309f2058",
     "norm_len": 399,
     "source": "computed-from-replay"
    },
@@ -11889,7 +11642,7 @@
    ],
    "live": null,
    "replay": {
-    "md5": "47543d9ca9020421d5b90c75c1a32de7",
+    "md5": "e27e5b1a16c8ec764ad6ab9dfeee8ea4",
     "norm_len": 570,
     "source": "computed-from-replay"
    },
@@ -11908,7 +11661,7 @@
    ],
    "live": null,
    "replay": {
-    "md5": "c5763260ee93b6dcfc704d246861ef7e",
+    "md5": "dcf6fb7d58a4ab42b7d72304c1089d95",
     "norm_len": 674,
     "source": "computed-from-replay"
    },
@@ -11927,7 +11680,7 @@
    ],
    "live": null,
    "replay": {
-    "md5": "e3f165c9154ec52c83f823c4a03d1bbd",
+    "md5": "2da2563e88f0b4fda8ae6d2c04cf53e5",
     "norm_len": 2713,
     "source": "computed-from-replay"
    },
@@ -11946,7 +11699,7 @@
    ],
    "live": null,
    "replay": {
-    "md5": "bdd42ecd217d3d2c8e075dcada37b511",
+    "md5": "fd8651545f89679b0775d7f355f62fc0",
     "norm_len": 523,
     "source": "computed-from-replay"
    },
@@ -11965,7 +11718,7 @@
    ],
    "live": null,
    "replay": {
-    "md5": "ff442497cc41df71c6701d066221ba94",
+    "md5": "92eb6f250645f3af3e2e7a704f7658ca",
     "norm_len": 4673,
     "source": "computed-from-replay"
    },
@@ -11984,7 +11737,7 @@
    ],
    "live": null,
    "replay": {
-    "md5": "ffc09a4c1b70bf7eedec7d0b43ef13f8",
+    "md5": "17c3e0b88ea013e08912e6482e8d4ace",
     "norm_len": 731,
     "source": "computed-from-replay"
    },
@@ -12687,28 +12440,6 @@
    "replay": {
     "md5": "1f30b29fcecaf9b266d9a1800d1cc0e5",
     "norm_len": 501,
-    "source": "computed-from-replay"
-   },
-   "agree": true
-  },
-  {
-   "sig": "hr_muster_window(p_at timestamp with time zone)",
-   "name": "hr_muster_window",
-   "tracked_by": [
-    "restate"
-   ],
-   "touched_by": [
-    "2026-08-08-muster.sql"
-   ],
-   "live": {
-    "md5": "c5cbc384faf2f257012ea784c75b5019",
-    "norm_len": 623,
-    "measured": "2026-11-20",
-    "source": "measured-live"
-   },
-   "replay": {
-    "md5": "c5cbc384faf2f257012ea784c75b5019",
-    "norm_len": 623,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -14541,30 +14272,6 @@
    "agree": true
   },
   {
-   "sig": "hr_quartermaster_buy(p_user uuid, p_slot integer, p_version bigint, p_intent_id uuid, p_offer_id text)",
-   "name": "hr_quartermaster_buy",
-   "tracked_by": [
-    "pin",
-    "restate"
-   ],
-   "touched_by": [
-    "2026-09-11-quartermaster-buy.sql",
-    "2026-09-28-settle-before-mutate.sql"
-   ],
-   "live": {
-    "md5": "fce9340cc733e6a9b7547eb49dd7f9c1",
-    "norm_len": 9531,
-    "measured": "2026-11-20",
-    "source": "measured-live"
-   },
-   "replay": {
-    "md5": "fce9340cc733e6a9b7547eb49dd7f9c1",
-    "norm_len": 9531,
-    "source": "computed-from-replay"
-   },
-   "agree": true
-  },
-  {
    "sig": "hr_rate_gate(p_user uuid, p_slot integer, p_bucket text)",
    "name": "hr_rate_gate",
    "tracked_by": [
@@ -15436,9 +15143,12 @@
    "sig": "hr_server_now()",
    "name": "hr_server_now",
    "tracked_by": [
+    "chain",
+    "pin",
     "restate"
    ],
    "touched_by": [
+    "1032-approved-cuts.sql",
     "2026-08-08-muster.sql",
     "2026-08-11-authenticated-surface-lockdown.sql"
    ],
@@ -15449,11 +15159,12 @@
     "source": "measured-live"
    },
    "replay": {
-    "md5": "2e7470d87e1b1a551e83b6915c704c35",
-    "norm_len": 498,
+    "md5": "e3b0c2562438e2ebd4bbb005da0b23cc",
+    "norm_len": 429,
     "source": "computed-from-replay"
    },
-   "agree": true
+   "agree": false,
+   "why": "REVIEW 2026-11-21: live and replay disagree and nobody has said why. Strip comments from both bodies and diff them; write what actually differs here. The guard is RED until this sentence is real."
   },
   {
    "sig": "hr_session_mode_of(p_hunt text)",
@@ -16527,6 +16238,7 @@
     "restate"
    ],
    "touched_by": [
+    "1032-approved-cuts.sql",
     "2026-08-11-apply-engine.sql",
     "2026-08-15-auto-eat.sql",
     "2026-08-15-tool-carry.sql",
@@ -16586,11 +16298,12 @@
     "source": "measured-live"
    },
    "replay": {
-    "md5": "e06577815a6965b771bf399854fb6868",
-    "norm_len": 28130,
+    "md5": "13f74aeeb97489019276a1860e8af6fc",
+    "norm_len": 26020,
     "source": "computed-from-replay"
    },
-   "agree": true
+   "agree": false,
+   "why": "REVIEW 2026-11-21: live and replay disagree and nobody has said why. Strip comments from both bodies and diff them; write what actually differs here. The guard is RED until this sentence is real."
   },
   {
    "sig": "hr_state_sections_of(p_user uuid, p_slot integer)",
@@ -16822,7 +16535,7 @@
     "source": "measured-live"
    },
    "replay": {
-    "md5": "d173395e0f0cde1bae57896531f62002",
+    "md5": "950c78cc6f788924d235794966b1996a",
     "norm_len": 2531,
     "source": "computed-from-replay"
    },

@@ -95,10 +95,8 @@
     "src/world/home-scene.js lintLayout"
   ],
   "orphans": [
-    "src/core/charms.js",
     "src/core/companion-xp.js",
     "src/core/trophies.js",
-    "src/data/bestiary-charms.js",
     "src/data/bestiary.js",
     "src/data/glyphs-extra.js",
     "src/data/hero-rename.js",

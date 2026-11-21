@@ -10,7 +10,7 @@
 // death, net gold at or over zero). A way inside reads "Good alone"; outside, the card's tag is the designer's call (D-1). A READING, never
 // a gate: it prints and exits 0, and the designer writes the tag into the data row FB-5 fills.
 //
-//   node tools/balance-program/start-cards.mjs [--base proposed|today] [--seeds 4] [--json <file>]
+//   node tools/balance-program/start-cards.mjs [--base proposed|today] [--without GR-5,S-10] [--seeds 4] [--json <file>]
 //   node tools/balance-program/start-cards.mjs --selftest     the band rule on planted lives (no play)
 //
 // Exit: 0 ran · 1 a selftest proof failed · 2 harness.
@@ -83,7 +83,7 @@ async function main() {
   if (spec !== 'today') {
     const { baseOf } = await import('./balance-matrix.mjs');
     const { plantScratch } = await import('./matrix-scratch.mjs');
-    const base = await baseOf(spec, []);
+    const base = await baseOf(spec, arg('without') ? arg('without').split(',') : []);
     const s = await plantScratch(base.patch);
     root = s.root; done = s.done; name = base.name + ' (' + base.ids.join(', ') + ')';
   }

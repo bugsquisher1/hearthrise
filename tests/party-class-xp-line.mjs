@@ -1,6 +1,10 @@
 #!/usr/bin/env node
 // tests/party-class-xp-line.mjs — A SAME-CLASS PARTY NEVER BEATS SOLO, PER HEAD (Tyler 2026-10-31).
 //
+// RETIRED AS A CI GUARD 2026-11-22 (T-03; docs/design/redesign/12-targets.md 2.6): the redesign drops the 10-31 rule (a four earns
+// more because it holds deeper on the Danger scale). V4 holds the lineup rule now: tests/lineup-v4.mjs. This file stays as the
+// measuring tool for the party table the tier grounds still read (--table --mixed --write); tests/guards-unregistered.json says so.
+//
 // "Party exp should only be better if there are different classes in the party." The table that pays it is
 // src/data/party-class-xp.js, on the room as built for every group (Tyler 2026-11-11 retired a party's own Normal pull); this plays the line itself on
 // the REAL engine, through tools/balance-sim's cell runner (the settle the world tick runs): every ground (HUNT_GROUNDS,

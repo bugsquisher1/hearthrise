@@ -44,7 +44,8 @@ You lead a small company of heroes in a shared pixel world. You don't swing the 
 | Keep the arenas and the full castle | Section 7b. In the design, budgets set aside now, built in the last wave |
 | The best of Tibia, Path of Exile and Diablo | Section 2c. Mechanics only. Sets, rerolls and a passive web are cut, with reasons |
 | A skilling and crafting model in the spirit of OSRS, made our own | `09-crafting.md` |
-| Stamina stays at 10 hours, 12 with Premium. Hunting and labor can be bought, scaling and pricey | Package 9, with the price in `04-math-strategy.md` section 11 |
+| Stamina stays at 10 hours, 12 with Premium. Hunting and labor can be bought, scaling and pricey, hunting at most 2 blocks a day | Package 9, with the price in `04-math-strategy.md` section 11 |
+| What makes Premium and Crowns worth buying, tools that wear out, Talent resets and saved builds, mounts | `10-premium.md`, `09-crafting.md` section 3.7, section 1b |
 
 ## His answers
 
@@ -53,7 +54,7 @@ Page picks win over chat where they differ.
 | # | The question | Answer | What it means in the design |
 |---|---|---|---|
 | RD-Q1 | Can gold buy luck? | **b** | Bought remains burn too. The flame's Level caps how tall it stands, and fuel burns only while the company hunts, so gold buys the top of the curve and never past it. Remains get a market, and the tax on it is a sink. Crowns sold for gold now reach drop luck, flagged for the pre-launch Security review |
-| RD-Q2 | A cap on hunted hours a day? | **a**, plus new rules | The hunting day stays: 10 hours, 12 with Premium. More hunting and more town work can be bought in blocks, by one rule: hours of wage at the hero's Level, twice what the hours earn back, dearer with each block that day. One money surface for the Security review |
+| RD-Q2 | A cap on hunted hours a day? | **a**, plus new rules | The hunting day stays: 10 hours, 12 with Premium. More hunting and more town work can be bought in blocks, by one rule: hours of wage at the hero's Level, twice what the hours earn back, dearer with each block that day. Hunting is capped at 2 blocks a day, so 14 hours at most, 16 with Premium (his cap, 2026-11-22). Town work up to 4 blocks. One money surface for the Security review |
 | RD-Q3 | Should most players almost never die? | **a** | Careful and Steady fall back and don't die. Only Bold can die |
 | RD-Q4 | Is this what "every Level" meant? | **a** | A point every Level deepens a move. A branch pick every few Levels |
 | RD-Q5 | The build aimed at the end of December? | **a** | Pause the number lanes, keep what is true under any design, run the climb test first. No new date until it reads. Built as fast as that allows |

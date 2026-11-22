@@ -1,6 +1,6 @@
 # 09. The crafting ecosystem, from first principles
 
-Written 2026-11-21 on `lane/rd-crafting`, from `set/v0.2.144`. Docs only. It answers the owner's crafting brief of 2026-11-21, point by point. Read `01-identity.md`, `02-architecture.md` (package 5, package 2, sections 2b and 2c) and `04-math-strategy.md` first. **Approved.** The owner said go to this design on 2026-11-22 and answered its first four questions (section 7.3). Nothing here is built, and every number is a starting value for the Balance Lab to settle.
+Written 2026-11-21 on `lane/rd-crafting`, from `set/v0.2.144`. Docs only. It answers the owner's crafting brief of 2026-11-21, point by point. Read `01-identity.md`, `02-architecture.md` (package 5, package 2, sections 2b and 2c) and `04-math-strategy.md` first. **Approved.** The owner said go to this design on 2026-11-22 and answered its first four questions (section 7.3). Nothing here is built, and every number is a starting value for the Balance Lab to settle. Tools that wear out (section 3.7) were added on 2026-11-22 on `lane/rd-premium`, from the owner's idea of that day.
 
 **Labels.** SOURCE is a public page or a file in this repo, with its link or path. COMPUTED is arithmetic on inputs named beside it. MEASURED is real play or a real engine run, with its file. JUDGMENT is a design opinion of mine. SPECULATIVE is a guess worth a test. I ran no engine cell for this page, so every MEASURED line is somebody else's reading and says whose.
 
@@ -25,8 +25,8 @@ Written 2026-11-21 on `lane/rd-crafting`, from `set/v0.2.144`. Docs only. It ans
 | Fishing | Gather | Fish | Cooking |
 | Farming | Gather, on plots | Grain and herbs | Cooking and Alchemy |
 | **Cooking** | Make | Meals and drinks. The sustain that sets how deep a company can hold | Every hero, every hunted minute. The largest burn in the game |
-| **Smithing** | Make | Honing stones, arrowheads, Temper kits, fittings | Melee heroes every hour. Every arrow. Every piece of gear at every tier |
-| **Woodcrafting** | Make | Arrows and bolts, ward charms, timber and furniture | Ranged heroes every shot. Front heroes every hour. The hall and the castle every week |
+| **Smithing** | Make | Honing stones, arrowheads, Temper kits, fittings, and every trade's tools | Melee heroes every hour. Every arrow. Every piece of gear at every tier. Every working hero, a tool every 12 work-hours |
+| **Woodcrafting** | Make | Arrows and bolts, ward charms, timber and furniture, tool hafts | Ranged heroes every shot. Front heroes every hour. The hall and the castle every week. Every tool |
 | **Runecutting** (new name for the rune trade) | Make | Runes for damage and healing spells | Casters and healers, every cast |
 | **Alchemy** (new) | Make | Draughts. One per hero, picked for the ground. Never a heal | Every hero who wants the ground's answer, every hunted hour |
 | **Artificing** (replaces the old Crafting bench) | Make | Imbuements, crafted jewelry and cloaks that roll Traits, carry-over, salvage | Every 20 hunted hours for each imbued piece. Every Trait worth keeping |
@@ -51,7 +51,7 @@ Written 2026-11-21 on `lane/rd-crafting`, from `set/v0.2.144`. Docs only. It ans
 | **Crafting cannot close the gold ledger alone.** Its recurring sinks destroy about 19 to 34% of the coin a company earns, against a wanted 85 to 100%. And the better the player economy works, the less the store takes. The rest must come from wealth sinks priced in hours of wage | Section 5.6 | COMPUTED on assumed levers |
 | Crafted supplies cannot be one row for every Level, as `04` section 3 has it. A traded good must carry the step of its materials. Otherwise a new account's hour of work sells at a far player's wage, 33 times its own | Section 4.2 | COMPUTED |
 
-**What the owner ruled, 2026-11-22.** Company-owned trades with a cap of three Masteries (section 2.6). Alchemy never heals, so only food restores health and mana (2.2). Remains trade and bought remains burn, so gold can buy luck (7.3, and `02` section 2b). Each hero's town work has a daily cap, Premium makes it longer, and more can be bought at a pricey rate (5.3). The hunting day is 10 hours, 12 with Premium, and more can be bought the same way (`04` section 11). Still open: whether Temper costs a share again at each new tier (2.4).
+**What the owner ruled, 2026-11-22.** Company-owned trades with a cap of three Masteries (section 2.6). Alchemy never heals, so only food restores health and mana (2.2). Remains trade and bought remains burn, so gold can buy luck (7.3, and `02` section 2b). Each hero's town work has a daily cap, Premium makes it longer, and more can be bought at a pricey rate (5.3). Tools break after 12 hours of use, and the Crowns store sells tools that never break (3.7). The hunting day is 10 hours, 12 with Premium, and more can be bought the same way (`04` section 11). Still open: whether Temper costs a share again at each new tier (2.4).
 
 ---
 
@@ -85,7 +85,7 @@ The owner's direction is to take this model and make it ours. I do, in section 4
 | Fast costly XP against slow profitable XP | The player chooses between a Level sooner and gold now | **Yes, from the curve alone.** The newest recipe gives the most XP and wastes the most material |
 | The alchemy price floor: any item can be destroyed for a fixed share of a catalogue value. SOURCE: 60% of the item's value, <https://oldschool.runescape.wiki/w/High_Level_Alchemy> | Nothing falls to zero, so every drop is worth picking up | **Yes, with a cap.** A catalogue value for every item and a store bid under it. But a floor paid in gold is a faucet, so ours has a daily budget, and the flame and the Weighhouse take surplus with no gold minted (section 5.5) |
 | The exchange: a tax on sales, part of it used to buy and delete items, and buy limits that reset every 4 hours. SOURCE: a 2% tax capped for each item, <https://oldschool.runescape.wiki/w/Grand_Exchange>, and limits by 4 hour window, <https://oldschool.runescape.wiki/w/Grand_Exchange/Buying_limits> | The tax is a sink that grows with trade. The limits stop one rich buyer cornering a good | **Yes.** A fee and a cut, both burned. Buy limits stated in hunted hours of supply. The 4 hour window matches how often our players return |
-| Production chains with level and tool gates | An item's price holds the work of several skills | **Chains yes, at most three stages. Tools no.** A tool with no durability is bought once and then is not an economy. The bench in the hall takes that job (section 2.9) |
+| Production chains with level and tool gates | An item's price holds the work of several skills | **Chains yes, at most three stages. Tools yes, because they wear out.** A tool with no wear is bought once and then is not an economy. One that wears by the work-hour is bought again (section 3.7). The hall's bench rung keeps the yield bonus |
 
 ### 0.3 EVE Online
 
@@ -209,7 +209,7 @@ Why consumables lead: only a flow can be sized against a flow. Why enhancement c
 
 ### 2.4 Relevance with no durability
 
-Five standing demands, none of which destroys a piece a player wants to keep. (JUDGMENT)
+Six standing demands, none of which destroys a piece a player wants to keep. (JUDGMENT)
 
 | Demand | What is used up | How often | Why it never ends |
 |---|---|---|---|
@@ -218,10 +218,11 @@ Five standing demands, none of which destroys a piece a player wants to keep. (J
 | **The tier treadmill** | Temper kits, scrap, a fee | Every gear tier, about every 20 Levels, for every slot | Levels have no cap, so tiers have no end |
 | **Trait work** | The old piece, matching parts, a fee | Each time a kept Trait moves to a new base | The same: a new base every tier |
 | **Upkeep of benefits** | Timber, fittings, wax | Weekly, for the hall's bench bonuses and the castle | A lapsed room stops helping. It is never lost |
+| **Tools** | A tool for each working hero's trade | Every 12 work-hours (`toolHours`) | Heroes work every day. Wear counts work, never the clock (section 3.7) |
 
 **The treadmill, and the one change it needs.** `02-architecture.md` says Temper carries up when a piece is replaced. If it carries for free, Temper is paid once and then never again. I recommend that the Temper rank carries, so the choice is remembered, and that seating it on the new base costs a share of its full price (`temperCarry`, start 0.35) in materials of the new band. COMPUTED: 14 slots, a full Temper of 3 hours of wage a piece, a carry of 0.35, and a tier about every 320 hunted hours (20 Levels at the 16 hour ceiling of `04` section 5) is 0.046 hours of wage for each hunted hour, about 4.6% of a hero's coin, forever.
 
-**What I refuse.** Durability, repair bills, and gear lost on death. They work in games built on loss. Here they would tax the one thing the redesign makes exciting, a rare drop that stays with a hero for life.
+**What I refuse.** Durability, repair bills, and gear lost on death. They work in games built on loss. Here they would tax the one thing the redesign makes exciting, a rare drop that stays with a hero for life. Tools are the one thing that wears, because a tool is the kit of town work and not a keepsake.
 
 **One small option.** A death could spill part of the carried kit (`deathSpill`, a share of the supplies in the hunt bag). It is our gentle form of loss: it costs crafted goods, never gear, and only where the player chose risk. (SPECULATIVE. Deaths are meant to be rare once a company falls back first, so this is a small sink.)
 
@@ -297,7 +298,7 @@ Judged against today's game. (SOURCE for what exists: `src/data/recipes.js`, `ga
 | Typed XP, time and price on every gather and bench row, and the hand corrections for each skill | **Remove.** Generated from hours of work | Section 4 |
 | Good batch, burnt food, and the 15% yield cap as three rules | **Merge** into the one yield curve | One formula |
 | The bench tax as a share of the shop bid, waived by owning a room | **Redesign** as the job fee on catalogue value, paid by everyone | A sink that a room removes is not a sink. The room gives yield in its place |
-| Hand tools as items (axes, pickaxes) | **Remove.** The hall's bench rung does the tool's job | With no durability a tool is bought once |
+| Hand tools as items (axes, pickaxes) | **Redesign.** One tool for each trade, worn out by 12 work-hours, made by Smithing with a cut haft (section 3.7) | With no wear a tool is bought once. With wear it is a steady buyer |
 | Mining and Woodcutting between pulls on a hunt | **Remove.** Work parties in town hours | Rule 4 of section 2.7 |
 | Linings, curing slots and tempering salts as three loops | **Merge.** Linings and curing become imbuements. Salts become Temper kits | Two systems where there were five |
 | Hallmarks, gem jobs, chest reforging, the Lucky ring job, Luck rivets | **Remove** | Folded into Traits, Temper and the flame by `02-architecture.md` |
@@ -401,6 +402,7 @@ The first principle applied to the bench. (JUDGMENT)
 - **The server plans the work.** From the targets it builds the job list back through the chain: make meals, and if fish is short, fish first. Resting heroes take jobs from that list.
 - **The player decides once.** Which trades, which targets, which Masteries, what to sell. The return card shows what was made, what ran short and what it cost.
 - **A job is hours.** One press, or one rule, covers a whole work day. Nobody presses "make 50" again tomorrow.
+- **Tools too.** The same plan keeps spares for each trade the company works, and the server swaps one in at a break (section 3.7).
 
 ### 3.5 How crafting plugs into the rest
 
@@ -417,6 +419,24 @@ The first principle applied to the bench. (JUDGMENT)
 ### 3.6 The Weighhouse orders
 
 Each week the town posts orders for goods the server has too much of, sized by the count of active accounts. The server already counts weekly actives for the Weighhouse's goal (SOURCE: `src/data/town-works.js`, `perActive`). Filling an order pays standing: looks for the hall, a plaque, patterns. It pays no gold and no power. It turns idle labor and surplus stock into something worth having without minting a coin. (JUDGMENT. It is the collectable idea of section 0.5, pointed at whatever is in surplus.)
+
+### 3.7 Tools that wear out
+
+The owner's idea of 2026-11-22: a tool breaks after 12 hours of use, and the Crowns store sells tools that never break, with their own look and work animation. Taken, with three choices of mine: wear counts work, quality sets life and not speed, and the Crowns tool is bound. (JUDGMENT unless a line says otherwise.)
+
+- **One tool for each trade.** Pick, axe, rod, hoe, knife, hammer, saw, chisel, mortar and graver, for Mining, Woodcutting, Fishing, Farming, Cooking, Smithing, Woodcrafting, Runecutting, Alchemy and Artificing. Working names. A hero working a trade holds its tool. Salvage is an Artificing job, so the graver is the salvage tool. Gear never wears. Tools are not gear: they are the kit of town work, as meals are the kit of a hunt.
+- **It wears by the work-hour, never by the clock.** A Plain tool lasts `toolHours` work-hours (12, the owner's number). Bought work wears it like any work. Being away costs nothing.
+- **Smithing makes it, with a cut haft.** Every tool is a smithed head on a haft from Woodcrafting. It is the arrow turned around: the arrow is Woodcrafting's with a smithed head, the tool is Smithing's with a cut haft. Each trade needs the other, so accounts trade.
+- **The band sets where it works. Quality sets how long.** A tool carries the band of its materials, like every made good. At or above the job's band it works at full speed. Behind it, the job slows by the contest curve of section 4.2: 93% speed 20 steps behind, 71% at 100. So a far company gets nothing from a new player's cheap tools. Quality adds life and never speed: Fine lasts 15 work-hours and Master 18 (`toolLifeRung` 0.25). Every tool at the job's band works the same, and a Master smith sells a tool that is cheaper by the hour.
+- **The plan swaps it.** A stock rule, set once: keep this many spares for each trade the company works, made or bought at no more than this price. At a break the server puts a spare in the hero's hand inside the same write. With none in stock the hero rents the store's tool by the work-hour, Plain, `storeLag` behind and at `storeCeiling`, as with store basics: about 7% slower and 40% dearer an hour. Work never stops for a tool. The return card says in one line what broke and what is left.
+
+**What it costs.** A tool holds `toolWork` work-hours (start 1.0) on the stage shares of section 4.3, so a Plain tool's catalogue value is 0.25 hours of wage at its band. That is 0.021 hours of wage for each work-hour, a twelfth of what the hour makes. An account on the mix works about 21 hours a day and wears about 1.75 tools: 0.44 hours of wage a day, 1.8% of the coin it mints. Small and steady, on purpose. (COMPUTED.)
+
+**What it gives Smithing and Woodcrafting.** Tools ask for one work-hour in every twelve, half of it in Mining and Woodcutting and half at the two benches. Every working hero is a buyer, whatever their fighting style, so the two trades no longer lean only on melee and ranged heroes (the style risk of section 7.1). It also lifts the labor ratio by 12/11: on the mix from 0.75 to 0.82, and in `04` section 11's what-if with Premium and bought blocks from 0.84 to 0.92. Both sit inside the 0.8 to 1.0 this page wants. (COMPUTED: tool labor is all labor x `toolWork` / `toolHours`, so it is an eleventh of kit labor.)
+
+**The Crowns tool.** It never breaks. It has its own look and work animation in our pixel style, seen by everyone in town while the hero works. On any job of its trade it works exactly like a crafted tool at the job's band: never faster, never a better yield. The plan hands it to whichever hero works its trade, so a company working Mining on two heroes at once wants two. It is bound to the account and never trades. A tradeable one would be a second road from money to gold, outside the Crowns book's weekly cap, price band and hold, and it would add no demand the book does not carry already: a player with gold who wants one buys Crowns on the book. It saves about 0.17 hours of wage a working day for one hero (COMPUTED: 8 work-hours / 12 x 0.25), so it sells a look and never thinking about spares, not gold. Each one takes one hero's tools off the market, and the Lab reads Crowns tools as a share of tool demand. `10-premium.md` section 4 ranks it among the Crowns sinks.
+
+**Refused.** Wear by the clock, which punishes being away. Quality as speed, which would make the Crowns tool weaker than the best crafted tool or better than most. Wear on gear (section 2.4).
 
 ---
 
@@ -491,6 +511,8 @@ Temper carry   temperCarry x the full Temper price at the new tier
 carry-over     the old piece + matching rare parts + carryHours hours of wage
 Mastery change masteryHours hours of wage
 hall upkeep    a weekly basket of timber and fittings worth hallUpkeep hours of wage
+tool           toolWork work-hours of goods, lasting toolHours x (1 + toolLifeRung x rung) work-hours
+tool speed     1 at or above the job's band, powerStep ^ (tool band step - job band step) below it
 ```
 
 ### 4.4 Yield, quality and speed: one curve from the OSRS model
@@ -559,8 +581,10 @@ store bid   = floorShare x V, falling a fixed step for each unit the store alrea
 | `jobFee` | 0.25 of V | 0.10 to 0.35 | The crafting sink that grows with the player economy |
 | `partCover`, `flameCover`, `scrapCover` | 1.25, 1.5, 1.2 | 1.0 to 2.0 | The cover of each hunting stream |
 | `imbueHours`, `temperHours`, `temperCarry`, `carryHours` | 20, 3, 0.35, 10 | | The enhancement prices |
+| `toolHours`, `toolLifeRung` | 12 h, 0.25 | 8 to 24, 0.15 to 0.35 | How long a Plain tool lasts, and the life each quality rung adds. 12 is the owner's number |
+| `toolWork` | 1.0 | 0.5 to 1.5 | Work-hours in a tool. Its price, and the share of labor tools ask for |
 
-About sixteen global levers, counting pairs as one. `04`'s `supplyShare` becomes derived, so the net is about fifteen. Content tables beside them: the line shares, the stage shares, and the kind rows. A balance number keyed by a recipe, an item or a ground has nowhere to live, the same rule as `04` section 12.
+About eighteen global levers, counting pairs as one. `04`'s `supplyShare` becomes derived, so the net is about fifteen. Content tables beside them: the line shares, the stage shares, and the kind rows. A balance number keyed by a recipe, an item or a ground has nowhere to live, the same rule as `04` section 12.
 
 ---
 
@@ -648,7 +672,7 @@ Under 1, labor is in surplus and crafted prices sink toward the floor. Over 1, l
 | **Faster, never higher** | Bought work trains a trade sooner. The cap at 99 and the three Masteries hold |
 | **One clock** | A hero cannot hunt and work at once, so hunted, worked and bought hours fit inside one server day |
 
-**What bought labor does to the labor ratio and market depth.** It adds supply, so it lowers the ratio and leans crafted prices toward the floor. At its price nobody buys labor to sell the goods, since they fetch less than the labor cost even at the ceiling. It is bought where a stock rule cannot be met, a band's market is thin, or a player wants trade XP sooner. That is where it helps: it deepens thin band markets at small population, one of the risks in section 7.1. If a tenth of heroes buy one block a day, labor rises about 3% and the ratio on the mix moves by about 0.02. With bought hunting and Premium in as well, `04` section 11's what-if puts the ratio near 0.84. The Lab reads all three together (section 5.8). (COMPUTED. SPECULATIVE on who buys.)
+**What bought labor does to the labor ratio and market depth.** It adds supply, so it lowers the ratio and leans crafted prices toward the floor. At its price nobody buys labor to sell the goods, since they fetch less than the labor cost even at the ceiling. It is bought where a stock rule cannot be met, a band's market is thin, or a player wants trade XP sooner. That is where it helps: it deepens thin band markets at small population, one of the risks in section 7.1. If a tenth of heroes buy one block a day, labor rises about 3% and the ratio on the mix moves by about 0.02. With bought hunting and Premium in as well, `04` section 11's what-if puts the ratio near 0.84. The owner's cap of 2 hunting blocks a day does not move that, since the what-if already bought two. Tools add a twelfth to the labor asked for, near 0.92 (section 3.7). The Lab reads all three together (section 5.8). (COMPUTED. SPECULATIVE on who buys.)
 
 **The steady state for crafted prices.** Two things bend toward balance. As the price falls, more heroes switch from store basics to crafted goods, which raises demand. As it rises, more accounts put idle heroes to work, which raises supply. The price is held inside the band from `floorShare` to `storeCeiling`, 0.4 to 1.5 times reference at the starting values. Where it rests inside that band depends on how players behave, and a model of people is the only thing that can estimate it (section 5.8).
 
@@ -709,7 +733,7 @@ Two findings.
 | **Return rates** | Yes | The yield curve. Yield over 1 is a return |
 | **Soft caps** | Yes | The work day, the store's daily budget and falling bid, buy limits by 4 hour window, Farming's plots, three Masteries |
 | **Binding** | Almost none | Store basics are never items. Everything a player makes or finds trades, in line with the owner's "no bound gear" (the rulings record, 2026-10-23) |
-| **Decay** | No | Spoilage punishes being away, in a game built on being away. Timed effects count hunted hours only |
+| **Decay** | No | Spoilage punishes being away, in a game built on being away. Timed effects count hunted hours only. Tools wear by the work-hour, never by the clock (section 3.7) |
 | **A valve that mints nothing** | Yes | The flame and the Weighhouse |
 
 ### 5.8 What the Balance Lab must simulate
@@ -748,6 +772,7 @@ Every craft is a request the server answers. The client never names an output, a
 | **The journal** | Every movement is a ledger row with a reason: inputs debited, outputs credited, XP, each fee, each store sale, each burn. The gold ledger of section 5.6 is a query, not an estimate |
 | **Clamps** | Each request has a limit for the call and for the day. Recipes are sized in hunted hours of effect, so a full work day moves small numbers and sits far under the per-item clamp that the old arrow rows broke (section 0.7) |
 | **One roller** | Yield and quality dice live in one pure function in `src/core`, called by the server and by the Lab. A second copy would be a second engine |
+| **Tools** | A tool is a stack row with a band, a quality and the work-hours left. The closed-form job counts wear from the work it settles and swaps a spare from stock inside its own write, so wear adds no statement. A Crowns tool is a catalogue row the count skips, bound to the account. The client never names a tool's life |
 | **Both paths** | A job gives the same result with the page open or the browser closed. The screen may show a moving bar as a prediction. Nothing can spend a predicted item |
 
 Every piece here touches inventory, gold or trade, so the whole surface is inside the one adversarial security review before Early Access. The points I would hand that review first: seeded dice that cannot be re-rolled by stopping a job, the band on an item that cannot be raised by any request, catalogue value as the only anchor for a fee, and the Mastery count.
@@ -768,6 +793,7 @@ Every piece here touches inventory, gold or trade, so the whole surface is insid
 | **A style falls out of favor and takes a trade with it** | Charges follow styles | Every maker has a second burner (section 2.1). Bill parity removes the price reason to avoid a style |
 | **Gold piles up** | Crafting covers a fifth to a third of the faucet | Named plainly in section 5.6. It needs the wealth sinks, in hours of wage |
 | **The store ceiling is wrong** | Too low and nobody crafts. Too high and a thin market punishes new players | One lever. The Lab reads the store's share of all supplies used as its health check |
+| **Tool wear reads as upkeep** | One more thing that runs out, in ten trades | The plan swaps tools and the store rents one when stock is out, so work never stops and nobody presses anything. If a played week shows players watching tool counts, raise `toolHours` first |
 | **Company trades remove a hero's identity** | A hero is no longer "the smith" | Any hero can be shown at the bench the player assigns. The owner chose company trades (CR-Q1 a), so a hero has no best trade of its own |
 
 ### 7.2 Alternatives considered
@@ -787,6 +813,8 @@ Every piece here touches inventory, gold or trade, so the whole surface is insid
 | A floor paid in gold with no cap | Simple, familiar | An open faucet under automated labor | Rejected. Capped, with the flame and Weighhouse beside it |
 | A crafting minigame | Crafting as play | It needs the player's hands every time | Rejected. Its result, quality, is kept |
 | Hunters gather between pulls | Already built | It ties gathered supply to hunted hours and floods with them | Rejected |
+| Tools that never wear (this page's first draft) | Nothing to restock | Bought once, so no economy, and the Crowns tool would have nothing to spare the player | Replaced by section 3.7 |
+| Tool quality as speed | A reason to buy Master tools | The Crowns tool would be weaker than the best crafted tool or better than most | Rejected. Quality is life |
 
 ### 7.3 Questions for the direction review, and the owner's answers
 
@@ -812,4 +840,4 @@ The first four are answered (2026-11-22). The rest stay open.
 - Albion's focus and gear loss, EVE's research limits, and Wakfu's replanting and player-run regions are from memory. I read the pages linked in section 0 today and nothing else. Two wiki pages refused an automated read.
 - Whether Runecutting or Artificing collides with another game's name.
 - The server cost of job rows and banded stacks against the monthly budget. Closed form keeps a job at three writes, but nobody has counted the rows.
-- How Crowns and the paid edge meet any of this beyond the owner's answers: Premium adds 2 hunting hours and lengthens the work day (section 5.3), Crowns sold for gold can buy remains for the flame, and gold buys hunting and work blocks. All go to the pre-launch Security review.
+- How Crowns and the paid edge meet any of this beyond the owner's answers: Premium adds 2 hunting hours and lengthens the work day (section 5.3), Crowns sold for gold can buy remains for the flame, and gold buys hunting and work blocks. `10-premium.md` has Premium's contents, the Crowns store and the Crowns tool. All go to the pre-launch Security review.

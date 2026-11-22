@@ -198,6 +198,11 @@
         "bytes": 3224764,
         "on": "2026-11-22",
         "why": "the hunt report's blow reading takes isHero(target) from sides.js (the side seam's one test), after the merge of lane/c-hunt-report onto the seam (+120 B)"
+      },
+      {
+        "bytes": 3224967,
+        "on": "2026-11-22",
+        "why": "lane/a-ci-reds-144: company-wear.js binds the company's slots as an int[] literal from text ($2::text::int[]), since postgres.js with fetch_types off sends a JS array as '0,1' and the live Start's wear would refuse 22P02 (delta-transport T10c); +203 B, its one-line note included"
       }
     ]
   }

@@ -8,7 +8,32 @@ Lane BL-4 (systems engineer, 2026-11-21 and 22). Deliverable 5 of Tyler's direct
 
 **Labels.** MEASURED (run, seeds, hours), COMPUTED, JUDGMENT, UNKNOWN.
 
-<<FILL:SUMMARY>>
+## 0. One screen
+
+**What was run.** Nine structured experiments, full grids over two or three levers at large steps: 129 points, each 68 scenarios and 4 seeds on the real engine, the same dice as the base. Runs 44969087150, 44972398698 and 44976040886.
+
+**The answer in one line.** Every reward lever is clean and can be tuned alone. Every lever on the fight is tangled with at least four others, and one-at-a-time readings of those are wrong by 13% to 54% at the steps a designer would take.
+
+| Coupled set | What the grid found | How far one-at-a-time is off |
+|---|---|---|
+| Monster health with respawn (section 2) | Three caps in a row hold kills: the fight, the dead time and the respawn. Only the slowest counts, and it differs by seat | 36% on kills |
+| Spell cost with mana regeneration (section 3) | A rotation is never unsustainable here. A hero drinks and casts on. The two levers set a drink bill, not a cast rate | 54% on drinks |
+| The attack clock with the stair clock (section 4) | The engine refuses a slower attack unless the Tower's stair clock moves too | cannot be played apart |
+| Hero damage with monster health (section 5) | One lever on the fight. Moved together they change nothing but XP, which doubles or halves | 24% on kills and XP |
+| Party XP with tier XP (section 6) | No interaction at all. A four's tier choice has one answer, the hardest, with a factor of 1.3 to 2.8 to spare | none |
+| The armor curve with the tier dial and coin (section 7) | On the lone melee hero the curve and the tier dial are one lever. On the four neither can cause a death | deaths 15,400 against 4,300 predicted |
+| The Level curve with the death price and monster damage (section 8) | The seat the pace is timed on never dies, so the death price does not reach it | none on the seat |
+| Hero damage with healing and its cost (section 9) | There is no life leech in the engine. Damage still cuts healing bought, by shortening fights | 24% on net gold |
+| Monster damage with hero health (section 10) | Hero health is a monster damage knob. The four's first deaths appear only when both double | deaths 78 against 0 predicted |
+
+**The feedback loops (section 11).**
+
+- Progression, gear, tier, death, XP is a positive loop with a gate. The gate is a wall of deaths. It is open on every tier for the four and the lone Mage, and shut one tier up for the lone melee hero. A tier step is worth x1.6 to x3.5 XP and a gear step 4% to 10%.
+- Gold, supplies, survival, gold is two loops. For a caster it is a tax that grows with success: best gear costs the Mage gold at every Level. For a melee hero it is nothing, then a cliff: the lone hammer on Dangerous eats three and a half times what it earns.
+- Monster health pays XP, so every "harder monsters" change has also been a pace change.
+- Four pairs of numbers are defined by each other, and that is where one-lever fixes have cascaded.
+
+**What is not known.** Whether best gear carries a lone melee hero over the wall (not played). What an empty purse does (the harness never runs out of gold). Anything a player changes in response (every cell plays the default bar and the advised ground).
 
 ---
 
@@ -17,6 +42,8 @@ Lane BL-4 (systems engineer, 2026-11-21 and 22). Deliverable 5 of Tyler's direct
 An experiment is a full grid over two or three levers, each at two or three levels, large ones included. Every point plays the 68 cells on the base's dice.
 
 For a point that moves several levers, the one-at-a-time reading is what you would predict from the points that move each lever alone: for a rate, the product of the single ratios. The GAP is the measured joint ratio over that product, less one. A gap of zero means the levers can be tuned one at a time. A resolved gap means they cannot: the single readings mislead by that much. The gap is computed seed by seed, so it carries its own error, and it is called resolved by the same rule as an effect (3.18 standard errors at four seeds, and more than 1%).
+
+Each table shows the groups and outcomes its text reads. `node tools/balance-program/sensitivity/analyze.mjs --exp <id>` prints the largest gaps for every outcome and group, and every table between `<!-- GEN -->` marks is written by `--write-docs` from the committed data. In a table, `~` marks a reading not resolved from noise, and "single" marks a point that moves one lever.
 
 ---
 
@@ -368,7 +395,7 @@ armor-tier-coin, takenPerH, the hammer alone on dangerous (MID, Levels 30 to 110
 | x2.4 | x1 | x1 | x1.180 | single |  |
 | x2.4 | x1.25 | x1 | x1.705 | x1.623 | within noise |
 
-armor-tier-coin, deathsPer1000h, the hammer alone on dangerous (MID, Levels 30 to 110) (deaths in 1,000 hours; base 94.09)
+armor-tier-coin, deathsPer1000h, the hammer alone on dangerous (MID, Levels 30 to 110) (deaths in 1,000 hours, base 94.09)
 
 | armorCurve | tierDanger | coinPerKill | measured | singles predict | gap |
 |---|---|---|---|---|---|
@@ -407,7 +434,7 @@ armor-tier-coin, takenPerH, the four on deadly (ratio to the base)
 | x2.4 | x1 | x1 | x1.289 | single |  |
 | x2.4 | x1.25 | x1 | x2.169 | x2.081 | +4.2% +/- 0.7% |
 
-armor-tier-coin, deathsPer1000h, the four on deadly (deaths in 1,000 hours; base 0)
+armor-tier-coin, deathsPer1000h, the four on deadly (deaths in 1,000 hours, base 0)
 
 | armorCurve | tierDanger | coinPerKill | measured | singles predict | gap |
 |---|---|---|---|---|---|
@@ -460,7 +487,7 @@ level-death, netLevelXpPerH, the four on dangerous (ratio to the base)
 | x1 | x2 | x1.25 | x1.001~ | x1.001 | within noise |
 | x1 | x2 | x1.5 | x1.001~ | x1.001 | within noise |
 
-level-death, deathsPer1000h, the four on dangerous (deaths in 1,000 hours; base 0)
+level-death, deathsPer1000h, the four on dangerous (deaths in 1,000 hours, base 0)
 
 | levelCurve | deathLoss | monsterDamage | measured | singles predict | gap |
 |---|---|---|---|---|---|
@@ -486,7 +513,7 @@ level-death, netLevelXpPerH, the hammer alone on dangerous (MID, Levels 30 to 11
 | x1 | x2 | x1.25 | x-0.359 | no single reading to compare (a lever alone was refused, or its base is zero here) | |
 | x1 | x2 | x1.5 | x-0.552 | no single reading to compare (a lever alone was refused, or its base is zero here) | |
 
-level-death, deathsPer1000h, the hammer alone on dangerous (MID, Levels 30 to 110) (deaths in 1,000 hours; base 94.09)
+level-death, deathsPer1000h, the hammer alone on dangerous (MID, Levels 30 to 110) (deaths in 1,000 hours, base 94.09)
 
 | levelCurve | deathLoss | monsterDamage | measured | singles predict | gap |
 |---|---|---|---|---|---|
@@ -645,7 +672,7 @@ danger-hp, takenPerH, lone heroes (MID, Normal) (ratio to the base)
 | x2 | x1 | x2.101 | single |  |
 | x2 | x2 | x4.887 | x4.542 | +7.6% +/- 0.5% |
 
-danger-hp, deathsPer1000h, lone heroes (MID, Normal) (deaths in 1,000 hours; base 0)
+danger-hp, deathsPer1000h, lone heroes (MID, Normal) (deaths in 1,000 hours, base 0)
 
 | monsterDamage | heroHp | measured | singles predict | gap |
 |---|---|---|---|---|
@@ -671,7 +698,7 @@ danger-hp, takenPerH, the four on deadly (ratio to the base)
 | x2 | x1 | x2.285 | single |  |
 | x2 | x2 | x5.104 | x5.351 | -4.6% +/- 0.6% |
 
-danger-hp, deathsPer1000h, the four on deadly (deaths in 1,000 hours; base 0)
+danger-hp, deathsPer1000h, the four on deadly (deaths in 1,000 hours, base 0)
 
 | monsterDamage | heroHp | measured | singles predict | gap |
 |---|---|---|---|---|
@@ -697,7 +724,7 @@ danger-hp, takenPerH, the hammer alone on dangerous (MID, Levels 30 to 110) (rat
 | x2 | x1 | n/a | single |  |
 | x2 | x2 | n/a | no single reading to compare (a lever alone was refused, or its base is zero here) | |
 
-danger-hp, deathsPer1000h, the hammer alone on dangerous (MID, Levels 30 to 110) (deaths in 1,000 hours; base 94.09)
+danger-hp, deathsPer1000h, the hammer alone on dangerous (MID, Levels 30 to 110) (deaths in 1,000 hours, base 94.09)
 
 | monsterDamage | heroHp | measured | singles predict | gap |
 |---|---|---|---|---|

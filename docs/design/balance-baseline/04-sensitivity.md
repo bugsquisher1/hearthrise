@@ -8,7 +8,28 @@ Lane BL-4 (systems engineer, 2026-11-21 and 22). Deliverable 4 of Tyler's direct
 
 **Labels.** MEASURED means played on the real engine, with its run, seeds and hours. COMPUTED means arithmetic on named inputs. JUDGMENT marks a call of mine. UNKNOWN means not measured, with the reason.
 
-<<FILL:SUMMARY>>
+## 0. One screen
+
+**What was run.** 51 levers, each at 3 to 8 steps from x0.5 to x2, one at a time: 339 points. 68 scenarios a point, 4 seeds each, on the real engine. About 1.2 million hero-hours over four GitHub runs (44969087150, 44971044252, 44972398698, 44976040886). The nine joint experiments are in `05-interactions.md`.
+
+**How good the reading is.** A rate (kills, XP, gold) is known to about a sixth of a percent a cell. Deaths are thin: one seat dies, and the pass holds at most four deaths a cell.
+
+**The eight things to know.**
+
+| # | Finding | The number |
+|---|---|---|
+| 1 | Power barely buys pace. Kills are capped by dead time and respawn | Hero damage x2: +28% kills alone, +10% for the four on Normal. The four sits at 84% to 97% of the spawn ceiling |
+| 2 | XP is paid for monster health, so harder monsters level heroes faster | Monster health x2: +33% XP alone, +63% for the four on Normal |
+| 3 | The levers that move pace one for one are all reward multipliers, and all clean | XP a kill 1.00, XP by Level 1.48, party XP 1.01, tier XP 1.00 |
+| 4 | Death is a wall, on one seat | Lone hammer on Dangerous: 0, 94, 1,120 deaths in 1,000 hours at monster damage x0.9, x1, x1.25. The four on Deadly: none at x2 |
+| 5 | Hero health works backwards | Hero health x2: +128% damage taken, deaths from 7 to 19 in 1,000 hours |
+| 6 | Armor stops at the 60% cap, so armor points do nothing for a geared hero at home | Armor points x2: 0.1% less damage taken. The cap x1.1: 14% less |
+| 7 | The store bill is a tax on three ways, and it is where most side effects land | Bow, Mage and Healer pay 35% to 90% of their gold in. The rest pay 0% to 13% |
+| 8 | A quarter of the levers are weak or dead | Crit size x2: +1% damage. Weapon accuracy x2: under 0.5%. Spell leech, Necrotic, Storm: nothing |
+
+**The six lists Tyler asked for** are section 6. The structural findings (what caps kills, where the wall comes from, what dominates) are section 7. What the pass does not cover is section 9.
+
+**On the three knobs the Lab read as dead.** `xpPerKill`, `xpByLevel` and `levelCurve` are live on this baseline: elasticities of 1.00 and 1.48 on XP, and 0.90 on hours a Level. They read dead on the proposed game because two proposals replace the code that reads them and leave the numbers written. The sweep now refuses such a knob (`matrix-scratch.mjs knobReach`, with planted-fault proofs in `balance-matrix.mjs --selftest`).
 
 ---
 
@@ -31,6 +52,85 @@ Each cell is on the ground the game advises for its Level and party size. That i
 
 - The 35 live knobs of `tools/balance-program/formulas/knobs.json`.
 - 16 families of written numbers no knob covers: respawn time, spell mana cost, spell cooldown, spell damage share, heal size, shield size, spell leech, store food price, store drink price, weapon damage, weapon accuracy, armor points, store rune price, what dropped gear sells for, the wait between pulls, and the Blessings' cut of a death. A family scales every number of its kind by one multiplier. These are not new knobs for the game. They are how the simulator moves parameters that already exist.
+
+<!-- GEN: list name=levers -->
+| Lever id | What it is | Kind | Steps played |
+|---|---|---|---|
+| playerAttack | Player attack | knob, Player combat | x0.5, x0.75, x0.9, x1.1, x1.25, x1.5, x2 |
+| critMult | Critical hit size | knob, Player combat | x0.5, x0.75, x0.9, x1.1, x1.25, x1.5, x2 |
+| weaknessDamage | Weakness bonus | knob, Player combat | x0.5, x0.75, x0.9, x1.1, x1.25, x1.5, x2 |
+| toHitBase | To-hit base | knob, Player combat | x0.8, x0.9, x0.95, x1.05, x1.1, x1.2 |
+| heroAccuracy | Player to-hit | knob, Player combat | x0.8, x0.9, x0.95, x1.05, x1.1, x1.2 |
+| attackInterval | Attack interval | knob, Player combat | x0.5, x0.75, x0.9 |
+| spellRollLow | Spell roll floor | knob, Player combat | x0.5, x0.75, x0.9, x1.1, x1.25, x1.5, x2 |
+| manaRegen | Mana regeneration | knob, Player combat | x0.5, x0.75, x0.9, x1.1, x1.25, x1.5, x2 |
+| storeSupplyShare | Store supply strength | knob, Player combat | x0.5, x0.75, x0.9, x1.1, x1.25, x1.5, x2 |
+| monsterDamage | Monster damage | knob, Monsters | x0.5, x0.75, x0.9, x1.1, x1.25, x1.5, x2 |
+| monsterHp | Monster HP | knob, Monsters | x0.5, x0.75, x0.9, x1.1, x1.25, x1.5, x2 |
+| monsterDefense | Monster defense | knob, Monsters | x0.5, x0.75, x0.9, x1.1, x1.25, x1.5, x2 |
+| monsterDefenseCut | Defense cut a point | knob, Monsters | x0.5, x0.75, x0.9, x1.1, x1.25, x1.5, x2 |
+| partyGroundHp | Party ground HP | knob, Monsters | x0.5, x0.75, x0.9, x1.1, x1.25, x1.5, x2 |
+| partyGroundBlow | Party ground blow | knob, Monsters | x0.5, x0.75, x0.9, x1.1, x1.25, x1.5, x2 |
+| tierDanger | Harder-tier blows | knob, Tiers | x0.5, x0.75, x0.9, x1.1, x1.25, x1.5, x2 |
+| tierHp | Harder-tier HP | knob, Tiers | x0.5, x0.75, x0.9, x1.1, x1.25, x1.5, x2 |
+| tierXp | Harder-tier XP | knob, Tiers | x0.5, x0.75, x0.9, x1.1, x1.25, x1.5, x2 |
+| tierPull | Harder-tier pull | knob, Tiers | x0.5, x0.75, x1.25, x1.5, x2 |
+| heroHp | Hero HP | knob, Survival | x0.5, x0.75, x0.9, x1.1, x1.25, x1.5, x2 |
+| heroMana | Hero mana | knob, Survival | x0.5, x0.75, x0.9, x1.1, x1.25, x1.5, x2 |
+| armorMitigation | Armor mitigation | knob, Survival | x0.5, x0.75, x0.9, x1.1, x1.25, x1.5, x2 |
+| armorCurve | Armor against Level | knob, Survival | x0.5, x0.75, x0.9, x1.1, x1.25, x1.5, x2, x2.4 |
+| mitigationCap | Mitigation cap | knob, Survival | x0.5, x0.75, x0.9, x1.1, x1.25, x1.5 |
+| regen | Regeneration | knob, Survival | x0.5, x0.75, x0.9, x1.1, x1.25, x1.5, x2 |
+| xpPerKill | XP a kill | knob, Rewards | x0.5, x0.75, x0.9, x1.1, x1.25, x1.5, x2 |
+| xpByLevel | XP a kill by Level | knob, Rewards | x0.8, x0.9, x0.95, x1.05, x1.1, x1.2 |
+| soloXp | Solo XP bonus | knob, Parties | x0.5, x0.75, x0.9, x1.1, x1.25, x1.5, x2 |
+| partyXp | Party XP table | knob, Parties | x0.5, x0.75, x0.9, x1.1, x1.25, x1.5, x2 |
+| levelCurve | Level XP curve | knob, Progression | x0.5, x0.75, x0.9, x1.1, x1.25, x1.5, x2 |
+| deathLoss | Death cost | knob, Progression | x0.5, x0.75, x0.9, x1.1, x1.25, x1.5, x2 |
+| necroticCut | Necrotic's heal cut | knob, Survival | x0.5, x0.75, x0.9, x1.1, x1.25, x1.5, x2 |
+| stormDrain | Storm's mana burn | knob, Survival | x0.5, x0.75, x0.9, x1.1, x1.25, x1.5, x2 |
+| respawn | Respawn time | family, Spawns | x0.5, x0.75, x0.9, x1.1, x1.25, x1.5, x2 |
+| spellCost | Spell mana cost | family, Spells | x0.5, x0.75, x0.9, x1.1, x1.25, x1.5, x2 |
+| spellCooldown | Spell cooldown | family, Spells | x0.5, x0.75, x0.9, x1.1, x1.25, x1.5, x2 |
+| spellPower | Spell damage share | family, Spells | x0.5, x0.75, x0.9, x1.1, x1.25, x1.5, x2 |
+| healPower | Heal spell size | family, Spells | x0.5, x0.75, x0.9, x1.1, x1.25, x1.5, x2 |
+| shieldPower | Shield spell size | family, Spells | x0.5, x0.75, x0.9, x1.1, x1.25, x1.5, x2 |
+| spellLeech | Life leech (spells) | family, Spells | x0.25, x0.5, x2, x3 |
+| foodPrice | Store food price | family, Supplies | x0.5, x0.75, x0.9, x1.1, x1.25, x1.5, x2 |
+| drinkPrice | Store mana drink price | family, Supplies | x0.5, x0.75, x0.9, x1.1, x1.25, x1.5, x2 |
+| weaponDamage | Weapon damage by tier | family, Equipment | x0.5, x0.75, x0.9, x1.1, x1.25, x1.5, x2 |
+| weaponAccuracy | Weapon accuracy by tier | family, Equipment | x0.5, x0.75, x0.9, x1.1, x1.25, x1.5, x2 |
+| armorValue | Armor points by slot and tier | family, Equipment | x0.5, x0.75, x0.9, x1.1, x1.25, x1.5, x2 |
+| runePrice | Store rune price | family, Supplies | x0.5, x0.75, x0.9, x1.1, x1.25, x1.5, x2 |
+| gearSaleRate | What dropped gear sells for | family, Rewards | x0.5, x0.75, x1.25, x1.5, x2 |
+| regroup | Wait between pulls | family, Spawns | x0.2, x0.5, x2, x4 |
+| blessingCut | Blessings' cut of a death | family, Progression | x0.5, x0.75, x1.25 |
+<!-- /GEN -->
+
+The outcomes the tables name.
+
+<!-- GEN: list name=outcomes -->
+| Outcome id | What it is | Read as |
+|---|---|---|
+| dps | Party damage a hunted second (walks and rests inside it) | relative change |
+| killsPerH | Kills a party-hour | relative change |
+| ttkS | Seconds to kill, median | relative change |
+| takenPerH | Damage taken a hero-hour | relative change |
+| healInPerH | Healing received a hero-hour (food, own and ally spells) | relative change |
+| deathsPer1000h | Deaths in 1,000 hunted hero-hours | pooled rate |
+| lowHpP10 | Lowest health of a fight, the worst tenth (worst seat) | absolute change |
+| huntedShare | Share of the offered time hunted (a death, a bar or a purse ends a hunt) | absolute change |
+| levelXpPerH | Level XP a hunted hero-hour | relative change |
+| netLevelXpPerH | Level XP after deaths (Blessings cut) an offered hero-hour | relative change |
+| hoursPerLevel | Hours for the next Level (offered hours, after deaths) | relative change |
+| mainSkillXpPerH | Main weapon skill XP a hero-hour | relative change |
+| incomePerH | Gold in a hero-hour (coin and loot) | relative change |
+| storePerH | Gold out on store supplies a hero-hour | relative change |
+| netPerH | Net gold a hero-hour (in less store and Blessings, no home-made share) | absolute change |
+| suppliesPerH | Store supplies used a hero-hour (units) | relative change |
+| castsPerH | Spells cast a hero-hour | relative change |
+| manaPotionsPerH | Mana drinks a hero-hour (own and store) | relative change |
+<!-- /GEN -->
 
 **The steps.** Multipliers on today's value. The usual ladder is x0.5, x0.75, x0.9, x1.1, x1.25, x1.5 and x2. A chance, a cap or an exponent takes a narrower ladder (x0.8 to x1.2), because doubling it leaves the range its formula can read. The armor curve also plays x2.4, the value the last balance pass proposed.
 
@@ -186,6 +286,7 @@ For the outcomes read as absolute changes the number is the change for one unit 
 | spellCooldown | -0.20 | -0.20 | 0.21 | 14.24 (9.85 / 5.71) | -0.07 | -0.20 | -0.59 (-0.78 / -0.33) | -0.21 | -0.30 (-0.26 / -0.10) | -15070.00 (-10030.00 / -9924.00) |
 | runePrice | . | . | . | . | . | . | . | . | 0.44 (0.33 / 0.67) | -5219.00 (-3582.00 / -7345.00) |
 | spellPower | 0.28 | 0.28 | -0.22 | -6.21 | 0.08 | 0.30 | 0.33 (0.38 / 0.67) | 0.31 | -0.33 | 16830.00 (9963.00 / 15860.00) |
+| respawn | -0.13 (-0.02 / -0.49) | -0.13 (-0.02 / -0.49) | -0.15 (-0.02 / -0.50) | . | 0 | -0.13 (-0.02 / -0.49) | -0.13 (-0.02 / -0.49) | -0.13 (-0.02 / -0.50) | -0.17 (-0.03 / -0.60) | -591.20 (-112.90 / -3990.00) |
 | tierHp | 0.07 | -0.12 | 0.10 | . | -0.03 | -0.12 | -0.54 (-0.49 / -0.21) | -0.12 | 0.14 | -13810.00 |
 | weaponDamage | 0.14 | 0.14 | -0.15 | . | 0.04 | 0.14 | 0.38 (0.19 / 0.48) | 0.14 | -0.14 | 7601.00 |
 | heroAccuracy | 0.19 | 0.19 | -0.17 | . | 0.06 | 0.20 | 0.40 (0.45 / -0.05) | 0.20 | . | 6072.00 |
@@ -232,6 +333,7 @@ For the outcomes read as absolute changes the number is the change for one unit 
 | soloXp | . | 1.00 | . | 0 | . | -0.01 | 13.18 (3.42 / 17.17) |
 | spellCost | . | . | . | . | . | 0.68 (0.31 / 0.90) | -792.30 (-380.20 / -1402.00) |
 | mitigationCap | . | . | -0.81 (-0.71 / -0.29) | 0.15 | . | -0.08 (-0.41 / -0.03) | 447.70 (643.00 / 249.60) |
+| respawn | -0.05 (0 / -0.58) | -0.05 (0 / -0.58) | -0.05 (0 / -0.59) | . | -0.05 (0 / -0.59) | -0.10 (0 / -0.77) | -263.80 (-50.21 / -5077.00) |
 | runePrice | . | . | . | . | . | 0.33 (0.22 / 0.73) | -2384.00 (-1549.00 / -3386.00) |
 | spellCooldown | -0.13 | -0.13 | 0.08 | -0.03 | -0.14 | -0.70 (-0.44 / -0.65) | -1177.00 |
 | monsterHp | -0.48 | 0.53 | 0.42 | -0.11 | 0.22 | 0.24 | 1955.00 |
@@ -284,6 +386,7 @@ For the outcomes read as absolute changes the number is the change for one unit 
 | heroHp | . | . | 1.15 | 0.01 | . | 0.02 | . |
 | partyXp | . | 1.01 | -0.01 | . | . | . | . |
 | xpPerKill | . | 1.00 | -0.01 | . | . | . | . |
+| respawn | -0.64 (-0.20 / -0.85) | -0.64 (-0.20 / -0.86) | -0.74 (-0.21 / -0.85) | . | -0.66 (-0.21 / -0.86) | -0.66 (-0.22 / -0.93) | -3321.00 (-1042.00 / -2979.00) |
 | playerAttack | 0.20 | 0.20 | -0.82 | 0.08 | 0.20 | -0.68 | 3911.00 |
 | monsterHp | -0.20 | 0.79 | 0.39 | -0.04 | 0.50 | 0.64 | 1962.00 (1331.00 / 1626.00) |
 | monsterDamage | . | . | 0.55 (0.54 / 0.83) | -0.06 | . | 0.08 | -138.40 (-125.40 / -311.00) |
@@ -351,6 +454,7 @@ For the outcomes read as absolute changes the number is the change for one unit 
 | spellCooldown | -0.21 | -0.21 | 0.72 (0.38 / 0.55) | -0.12 | -0.21 | -0.30 (-0.17 / -0.49) | -1091.00 |
 | tierPull | 0.27 (0.34 / 0) | 0.20 (0.30 / 0) | 0.17 (0.70 / 0) | 0.02 | 0.21 (0.33 / 0) | 0.30 (0.28 / 0) | 1298.00 (2802.00 / 0) |
 | runePrice | . | . | . | . | . | 0.63 | -4892.00 (-3406.00 / -6936.00) |
+| respawn | -0.28 (-0.02 / -0.56) | -0.28 (-0.02 / -0.56) | -0.40 (-0.01 / -0.61) | 0.03 | -0.27 (-0.02 / -0.56) | -0.29 (-0.02 / -0.64) | -3336.00 (-269.10 / -4811.00) |
 | shieldPower | . | . | -0.43 (-0.29 / -0.63) | 0.05 | . | -0.03 | 241.00 (151.30 / 254.30) |
 | tierHp | -0.33 | -0.33 | 0.63 | -0.07 | -0.33 | 0.28 | -9710.00 |
 | attackInterval | -0.20 | -0.20 | -0.55 | 0.04 | -0.22 | 0.16 (-0.02 / 0.16) | -4827.00 |
@@ -394,27 +498,33 @@ The strongest levers on each outcome, over every cell. The number is the largest
 <!-- GEN: list name=rank -->
 | Outcome | Strongest levers (largest elasticity of low, local, high) |
 |---|---|
-| dps | monsterHp +0.62, playerAttack +0.58, spellPower +0.29, attackInterval -0.26, spellCooldown -0.20, heroAccuracy +0.19, regroup -0.16 |
-| killsPerH | monsterHp -0.60, playerAttack +0.60, spellPower +0.30, attackInterval -0.25, spellCooldown -0.20, heroAccuracy +0.20, regroup -0.16 |
+| dps | monsterHp +0.62, playerAttack +0.58, respawn -0.49, spellPower +0.29, attackInterval -0.26, spellCooldown -0.20, heroAccuracy +0.19 |
+| killsPerH | monsterHp -0.60, playerAttack +0.60, respawn -0.49, spellPower +0.30, attackInterval -0.25, spellCooldown -0.20, heroAccuracy +0.20 |
 | ttkS | playerAttack -1.88, monsterHp +1.76, spellPower -1.09, attackInterval +0.64, storeSupplyShare -0.61, weaponDamage -0.48, heroAccuracy -0.47 |
 | takenPerH | heroHp +1.23, monsterDamage +1.10, mitigationCap -0.89, playerAttack -0.68, armorMitigation -0.59, tierDanger +0.53, monsterHp +0.52 |
 | healInPerH | monsterDamage +6.64, mitigationCap -6.14, armorMitigation -5.28, playerAttack -4.98, monsterHp +4.93, heroAccuracy -3.67, heroHp -3.17 |
 | deathsPer1000h (deaths in 1,000 h a unit of ln) | tierDanger +64, monsterDamage +39, mitigationCap -29, heroHp +21, attackInterval -21, armorValue -17, armorMitigation -14 |
 | lowHpP10 (absolute a unit of ln) | monsterDamage -0.29, mitigationCap +0.20, playerAttack +0.18, tierDanger -0.17, monsterHp -0.15, armorMitigation +0.14, spellPower +0.09 |
 | huntedShare (absolute a unit of ln) | tierDanger -0.35, monsterDamage -0.29, mitigationCap +0.28, attackInterval +0.20, heroHp -0.15, monsterHp -0.13, armorMitigation +0.12 |
-| levelXpPerH | xpByLevel +1.63, xpPerKill +1.00, soloXp +0.87, monsterHp +0.62, playerAttack +0.61, tierXp +0.34, spellPower +0.30 |
+| levelXpPerH | xpByLevel +1.63, xpPerKill +1.00, soloXp +0.87, monsterHp +0.62, playerAttack +0.61, respawn -0.49, tierXp +0.34 |
 | netLevelXpPerH | xpByLevel +1.69, tierDanger -1.66, monsterDamage -1.42, mitigationCap +1.38, xpPerKill +1.03, playerAttack +0.91, soloXp +0.90 |
 | hoursPerLevel | monsterHp +2.11, playerAttack -1.83, xpByLevel -1.70, armorValue -1.40, xpPerKill -1.08, levelCurve +0.90, soloXp -0.89 |
-| mainSkillXpPerH | monsterHp +0.55, spellCost +0.42, spellCooldown -0.27, playerAttack +0.20, attackInterval -0.18, regroup -0.16, spellPower +0.13 |
-| incomePerH | playerAttack +0.62, spellPower +0.31, attackInterval -0.24, monsterHp +0.23, heroAccuracy +0.21, spellCooldown -0.21, gearSaleRate +0.20 |
+| mainSkillXpPerH | monsterHp +0.55, respawn -0.49, spellCost +0.42, spellCooldown -0.27, playerAttack +0.20, attackInterval -0.18, regroup -0.16 |
+| incomePerH | playerAttack +0.62, respawn -0.50, spellPower +0.31, attackInterval -0.24, monsterHp +0.23, heroAccuracy +0.21, spellCooldown -0.21 |
 | storePerH | monsterDamage +2.74, spellCost +1.52, armorMitigation -1.34, mitigationCap -1.21, heroMana -0.90, monsterHp +0.88, manaRegen -0.82 |
 | netPerH (absolute a unit of ln) | mitigationCap +35990, tierDanger -35400, monsterDamage -30690, playerAttack +24700, spellPower +16830, spellCooldown -15070, tierHp -13810 |
 | suppliesPerH | monsterDamage +2.40, spellCost +1.88, heroMana -1.22, armorMitigation -1.16, manaRegen -1.10, mitigationCap -0.96, monsterHp +0.71 |
-| castsPerH | spellCooldown -0.48, playerAttack -0.33, monsterHp +0.31, spellPower -0.20, regroup -0.16, storeSupplyShare -0.15, attackInterval +0.14 |
+| castsPerH | respawn -0.49, spellCooldown -0.48, playerAttack -0.33, monsterHp +0.31, spellPower -0.20, regroup -0.16, storeSupplyShare -0.15 |
 | manaPotionsPerH | spellCost +10.24, heroMana -8.15, manaRegen -7.15, spellCooldown -6.08, playerAttack -2.81, monsterHp +1.42, spellPower -1.37 |
 <!-- /GEN -->
 
-<<FILL:RANKNOTES>>
+How to read the ranking.
+
+- **Kills and XP: nothing a hero owns has an elasticity near 1.** The strongest are hero damage and monster health, at 0.5 to 0.6, and on kills those two are one lever (`05-interactions.md`, section 5). Every lever with an elasticity of 1 or more on XP is a reward multiplier: XP by Level, XP a kill, lone XP, party XP, tier XP.
+- **Damage taken: the top two are the same thing.** Hero health (+1.23) and monster damage (+1.10) lead, because a blow is written as a share of hero health. Then the mitigation cap, then hero damage.
+- **Deaths: one seat.** The tier blow dial, monster damage, the mitigation cap and hero health lead, and every one of those readings is the lone hammer on a harder tier.
+- **Gold: the store bill is ruled by danger and by spell cost.** Monster damage reaches 2.7 at its high step and spell cost 1.5. Gold in simply follows kills.
+- **Do not read the healing row.** Healing received ranks its levers at 3 to 7 because the base is a handful of meals a seed (section 2).
 
 ---
 
@@ -450,16 +560,23 @@ Rule: an elasticity of 0.5 or more on an outcome outside the lever's purpose. Da
 | playerAttack | takenPerH | -0.52 / -0.60 / -0.68 |
 | spellPower | netLevelXpPerH | +0.38 / +0.33 / +0.67 |
 | playerAttack | suppliesPerH | -0.60 / -0.57 / -0.54 |
+| respawn | storePerH | -0.03 / -0.17 / -0.60 |
 | monsterDamage | netLevelXpPerH | -0.55 / -1.42 / -0.42 |
 | tierDanger | netLevelXpPerH | -0.55 / -1.66 / -0.42 |
+| respawn | suppliesPerH | -0.03 / -0.16 / -0.53 |
 | monsterHp | takenPerH | +0.52 / +0.43 / +0.40 |
+| respawn | takenPerH | -0.02 / -0.15 / -0.50 |
 | tierHp | netLevelXpPerH | -0.49 / -0.54 / -0.21 |
 | mitigationCap | netLevelXpPerH | +0.28 / +1.38 / +0.44 |
 | heroHp | netLevelXpPerH | -0.40 / -0.61 / -0.28 |
 | tierDanger | storePerH | +0.12 / +0.51 / +0.18 |
 <!-- /GEN -->
 
-<<FILL:SIDENOTES>>
+- **The store bill is where side effects land.** More than half of the rows are the store bill or supplies used. Almost any change to danger, damage, mana or cooldowns shows up first as gold spent at the store, and it shows up on the three ways that pay it.
+- **Hero health raises damage taken, with an elasticity of 1.2.** It is listed here because it was meant to protect. Section 6.2 and `05-interactions.md` section 10 take it further.
+- **Hero damage has the largest good side effects.** It cuts damage taken (minus 0.6) and the store bill (minus 0.7) as it raises kills.
+- **Monster health raises damage taken and the store bill** (0.4 to 0.9), as a longer fight would. It also raises XP, which is its largest effect and not a side effect anyone planned (section 7.2).
+- **Every row on XP after deaths is the wall.** Monster damage, the tier dial, tier health, the mitigation cap, hero health and spell cooldown all reach it through the lone hammer dying or not.
 
 ### 6.2 Levers that do not move what they are for
 
@@ -500,7 +617,16 @@ And the steps the engine or the game's own validators refused.
 | attackInterval | x1.1, x1.25, x1.5, x2 | the engine refuses it: src/core/hunt/tower.js throws "stairMs is under two engine swings" (the Tower's and the Catacombs' stair clock is 4,000 ms, exactly two attack intervals). The slow side is read in the `clock` experiment, where both move |
 <!-- /GEN -->
 
-<<FILL:MISSNOTES>>
+Of 51 levers, 4 moved nothing at all and the rule names 9 more that do not move what they are for. What each one is.
+
+- **Crit size.** Doubling a critical blow's multiple adds 1% to damage (1.3% for the bows, nothing for the Mage). MEASURED. JUDGMENT on the cause: the kits carry little crit chance, so its size has nothing to multiply.
+- **Weapon accuracy.** Doubling every weapon's accuracy row moves damage by under half a percent, on every way. The to-hit ratio adds it to a base and a skill term that dwarf it.
+- **The to-hit base.** Nothing resolved. It sits on both sides of the ratio.
+- **Weakness damage.** An elasticity of 0.04. Few fights in these cells match a weapon to a weakness.
+- **Monster defense and its cut.** Nothing resolved on damage. Defense takes whole points off a blow, and the blows are large.
+- **Mana pool, mana regeneration and spell cost against casts.** Casts do not move. A hero drinks and casts on (`05-interactions.md`, section 3). All three move the drink bill instead.
+- **Health regeneration.** Its largest reading is 0.08 on the store bill.
+- **Armor points and the armor ceilings, for a geared hero at home.** Not in this list, because across all cells they resolve. Section 7.3 shows that for a MID hero on Normal they do nothing.
 
 ### 6.3 Levers whose effect changes sharply with Level
 
@@ -520,6 +646,7 @@ Rule: for a rate, the high-step elasticity differs between two Levels by more th
 | heroMana | storePerH | x2 | Level 10: -0.87, Level 30: -0.19, Level 60: -0.06, Level 110: -0.01 |  |
 | armorCurve | storePerH | x2.4 | Level 30: +1.02, Level 60: +0.03, Level 110: +0.08 |  |
 | mitigationCap | takenPerH | x1.5 | Level 10: -0.05, Level 30: -0.30, Level 60: -0.36, Level 110: -0.45 |  |
+| respawn | storePerH | x2 | Level 10: -1.12, Level 30: -0.66, Level 60: -0.43, Level 110: -0.49 |  |
 | spellCost | storePerH | x2 | Level 10: +1.17, Level 30: +2.69, Level 60: +0.47, Level 110: +0.12 |  |
 | spellCooldown | netLevelXpPerH | x2 | Level 10: -0.12, Level 30: -0.28, Level 60: -0.36, Level 110: -0.46 |  |
 | spellCooldown | storePerH | x2 | Level 10: -0.89, Level 30: +0.34, Level 60: -0.28, Level 110: -0.12 | changes sign |
@@ -529,7 +656,12 @@ Rule: for a rate, the high-step elasticity differs between two Levels by more th
 | runePrice | storePerH | x2 | Level 10: +0.38, Level 30: +0.66, Level 60: +0.75, Level 110: +0.76 |  |
 <!-- /GEN -->
 
-<<FILL:LEVELNOTES>>
+Read these with the caveat of section 9: each Level is also a different ground.
+
+- **Hero power matters more as Levels rise.** Hero damage x2 is worth an elasticity of 0.31 on XP after deaths at Level 10 and about 1.0 to 1.2 at Levels 60 and 110. Spell damage climbs from 0.22 to 0.88. Early grounds are held by the walk between pulls. Later ones are held by the fight.
+- **Mana levers are early-game levers.** Mana pool and regeneration move the store bill with an elasticity of minus 0.87 at Level 10 and minus 0.01 at Level 110. The drink price falls the same way, 0.67 to 0.01, while the rune price rises from 0.38 to 0.76. A caster's bill moves from drinks to runes as it levels, and the levers on it change with it.
+- **Danger reaches the store hardest at Level 30.** Monster damage x2 has an elasticity of 4.3 on the store bill at Level 30 and 0.4 at Level 110. The armor curve at x2.4 reads 1.0 at Level 30 and under 0.1 above it. Mosslight Glade is where a lone hero first eats.
+- **The mitigation cap bites harder with Level** (minus 0.05 at Level 10, minus 0.45 at 110), because armor reaches the cap only once the gear tiers fill in.
 
 ### 6.4 Levers that pull opposite ways across combat styles
 
@@ -549,7 +681,20 @@ Rule: at one step the outcome rises for one lone way and falls for another, both
 | spellPower | storePerH | x1.5 | hammer +17.3% | tank -2.8%, axes -5.1%, bow -6.1%, crossbow -7.3%, mage -14.7% |
 <!-- /GEN -->
 
-<<FILL:STYLENOTES>>
+- **Most hammer rows are a small number doubling.** The lone hammer buys nothing on Normal from Level 30 and almost nothing at Level 10, so a few more meals read as a large rise. Treat the hammer's store rows as "it starts to eat", not as a split in direction.
+- **Spell cooldown is a real split.** Doubling every cooldown gains the Mage 876 gold an hour and the Healer 704, because they cast and buy less, and costs every weapon way 329 to 1,471, because they kill slower. The same lever is a gold buff for casters and an XP cut for everyone.
+- **Hero health splits the Healer from the archers** on gold, by 480 to 770 an hour each way.
+- **The larger style fact is in size, not in sign,** so the rule above does not list it. MEASURED, Level XP an hour, alone, at x2:
+
+| Lever at x2 | Tank | Sword | Hammer | Axes | Bow | Crossbow | Mage | Healer |
+|---|---|---|---|---|---|---|---|---|
+| Hero damage | +39% | +31% | +29% | +38% | +22% | +23% | +10% | +35% |
+| Spell damage share | +25% | +24% | +24% | +25% | +16% | +17% | +9% | +14% |
+| Weapon damage rows | +5% | +5% | +15% | +12% | +8% | +9% | +4% | +11% |
+| Store supply power | +16% | +8% | 0% | +7% | +12% | +12% | +9% | +14% |
+| Crit size | +0.5% | +0.6% | 0% | 0% | +1.3% | +1.4% | 0% | 0% |
+
+The Mage gains least from every damage lever, because it already kills at 80% to 85% of the spawn ceiling. Halve its damage and it loses 29%. Double it and it gains 10%. No global damage lever can be read as "the same for every style": it is worth four times as much to a tank as to a Mage.
 
 ### 6.5 Redundant levers
 
@@ -563,7 +708,20 @@ Rule: two levers whose effect vectors (every cell, every core rate outcome, at t
 | xpPerKill | soloXp | 0.915 | 0.484 / 0.443 |
 <!-- /GEN -->
 
-<<FILL:REDUNDANTNOTES>>
+The cosine rule finds only full twins. Three exist.
+
+- **Monster defense and the defense cut** have identical effect vectors, to the last digit. They are one product written as two numbers.
+- **XP a kill, XP by Level and lone XP** all scale XP and nothing else.
+
+The more dangerous kind is the partial twin: two levers that agree on one outcome and part on another. The rule misses these, and the experiments find them.
+
+| Pair | Same on | Different on | Evidence |
+|---|---|---|---|
+| Hero health, monster damage | Damage taken (1.23 and 1.10) | Share of health lost, deaths | `05` section 10 |
+| Hero damage, monster health | Kills (0.51 and minus 0.50) | XP (0.52 and plus 0.50, the same sign) | `05` section 5 |
+| Mana pool, mana regeneration | The store bill, equal at every Level to two digits | Nothing found | section 6.3 |
+| The armor curve, the tier blow dial | Damage taken by a lone melee hero on a harder tier | Every other seat | `05` section 7 |
+| The tier blow dial, monster damage | Everything on a harder tier | Normal, where the tier dial does nothing | section 4 |
 
 ### 6.6 Levers that cannot be tuned independently
 
@@ -573,7 +731,201 @@ This is the subject of `05-interactions.md`, section 12, which measures it with 
 
 ## 7. The structural findings
 
-<<FILL:STRUCTURE>>
+Five findings about the shape of the build. Each is drawn from the matrix and the base, and each matters more to a new design than any single number above.
+
+### 7.1 Kills are capped three ways, and the caps differ by seat
+
+The elasticity of kills an hour, by seat. MEASURED, sections 4.2 to 4.4 and `fx:hp-spawn`.
+
+| Lever | Lone heroes | The four, Normal | The four, Deadly |
+|---|---|---|---|
+| Hero damage | 0.50 | 0.20 | 0.45 |
+| Monster health | minus 0.48 | minus 0.20 | minus 0.44 |
+| Spell damage share | 0.23 | 0.09 | 0.28 |
+| The attack interval | minus 0.27 | minus 0.10 | minus 0.20 |
+| The wait between pulls | minus 0.09 | minus 0.02 | minus 0.07 |
+| Respawn x0.5, kills become | x1.00 | x1.15 | x1.01 |
+| Respawn x2, kills become | x0.67 | x0.55 | x0.68 |
+
+<!-- GEN: lever id=respawn groups=party:1,party:4,four:deadly outcomes=killsPerH,levelXpPerH -->
+respawn, lone heroes (MID, Normal)
+
+| Outcome | x0.5 | x0.75 | x0.9 | x1.1 | x1.25 | x1.5 | x2 |
+|---|---|---|---|---|---|---|---|
+| killsPerH | +0.2%~ | +0.2%~ | +0.2%~ | -0.8% | -3.9% | -13.9% | -33.1% |
+| levelXpPerH | +0.2%~ | +0.2%~ | +0.2%~ | -0.8% | -3.9% | -14.0% | -33.1% |
+
+respawn, the four (MID, Normal)
+
+| Outcome | x0.5 | x0.75 | x0.9 | x1.1 | x1.25 | x1.5 | x2 |
+|---|---|---|---|---|---|---|---|
+| killsPerH | +15.1% | +14.1% | +6.8% | -6.1% | -15.7% | -28.3% | -44.6% |
+| levelXpPerH | +15.1% | +14.1% | +6.8% | -6.1% | -15.7% | -28.3% | -44.7% |
+
+respawn, the four on deadly
+
+| Outcome | x0.5 | x0.75 | x0.9 | x1.1 | x1.25 | x1.5 | x2 |
+|---|---|---|---|---|---|---|---|
+| killsPerH | +1.3% | +1.3% | +1.3% | -4.2% | -10.8% | -19.2% | -32.3% |
+| levelXpPerH | +1.3% | +1.3% | +1.3% | -4.2% | -10.8% | -19.2% | -32.3% |
+<!-- /GEN -->
+
+<!-- GEN: lever id=regroup groups=party:1,party:4 outcomes=killsPerH -->
+regroup, lone heroes (MID, Normal)
+
+| Outcome | x0.2 | x0.5 | x2 | x4 |
+|---|---|---|---|---|
+| killsPerH | +7.2% | +4.3% | -8.5% | -22.4% |
+
+regroup, the four (MID, Normal)
+
+| Outcome | x0.2 | x0.5 | x2 | x4 |
+|---|---|---|---|---|
+| killsPerH | +1.6% | +0.9% | -2.3% | -15.8% |
+<!-- /GEN -->
+
+- A hunt is a cycle of killing, walking and regrouping, and waiting for the pack. A lever on the fight can only shorten the killing. COMPUTED: if kills an hour go as one over (kill time plus dead time), the elasticity of kills to hero damage is the share of the cycle spent killing. So a lone hero spends about half its hunt killing, and the four on Normal a fifth.
+- That is why power does not buy pace. Doubling hero damage gives a lone hero 28% more kills and the four on Normal 10%.
+- The three caps bind different seats. Respawn holds the four on Normal and is slack for everyone else: halving it gives a lone hero nothing. Dead time holds the lone hero. The fight holds the four on Deadly, where eight monsters a pull make the killing long again.
+- The regroup wait is small but it is a floor nothing else can move: cutting it to a fifth gives a lone hero 7% more kills.
+- What this means for a new formula. Any model where damage sets pace needs fights to fill the hunt. Here they fill a fifth to a half of it. The pace of this build is set by map numbers: pocket sizes, respawn clocks and walking distance.
+
+### 7.2 Experience is paid for monster health, so "harder" means "faster"
+
+MEASURED, `oat:monsterHp` and `fx:hp-spawn`.
+
+<!-- GEN: lever id=monsterHp groups=party:1,party:4,four:deadly outcomes=killsPerH,levelXpPerH,takenPerH -->
+monsterHp, lone heroes (MID, Normal)
+
+| Outcome | x0.5 | x0.75 | x0.9 | x1.1 | x1.25 | x1.5 | x2 |
+|---|---|---|---|---|---|---|---|
+| killsPerH | +28.1% | +13.8% | +5.3% | -4.4% | -10.9% | -19.9% | -33.3% |
+| levelXpPerH | -36.6% | -14.9% | -5.6% | +4.9% | +11.7% | +20.2% | +33.2% |
+| takenPerH | -29.4% | -12.1% | -4.7% | +3.7% | +8.5% | +16.6% | +28.2% |
+
+monsterHp, the four (MID, Normal)
+
+| Outcome | x0.5 | x0.75 | x0.9 | x1.1 | x1.25 | x1.5 | x2 |
+|---|---|---|---|---|---|---|---|
+| killsPerH | +9.5% | +5.4% | +2.1% | -2.0% | -5.1% | -10.6% | -18.8% |
+| levelXpPerH | -45.2% | -21.0% | -7.9% | +7.8% | +18.8% | +34.4% | +62.8% |
+| takenPerH | -30.4% | -11.9% | -3.8% | +4.0% | +11.7% | +23.1% | +43.9% |
+
+monsterHp, the four on deadly
+
+| Outcome | x0.5 | x0.75 | x0.9 | x1.1 | x1.25 | x1.5 | x2 |
+|---|---|---|---|---|---|---|---|
+| killsPerH | +28.6% | +12.2% | +4.2% | -4.6% | -11.6% | -22.3% | -36.8% |
+| levelXpPerH | -35.7% | -15.8% | -6.1% | +5.1% | +10.5% | +16.9% | +26.6% |
+| takenPerH | -48.2% | -24.6% | -8.8% | +9.5% | +22.4% | +41.6% | +75.5% |
+<!-- /GEN -->
+
+- Over all cells monster health has an elasticity of minus 0.50 on kills and plus 0.50 on XP. XP a kill follows health in full, and kills fall by only half as much because of the caps above.
+- For the four on Normal the XP elasticity is 0.79. Doubling monster health gives it 63% more XP.
+- So monster health is the second strongest pace lever in the build after the reward multipliers, with the sign nobody expects. It cannot be used to make the game harder without also making it faster, and by a different amount for each seat.
+
+### 7.3 Armor stops at the cap, so the cap is the armor
+
+MEASURED, damage taken by the lone hammer, MID gear, Normal, Levels 30 to 110.
+
+<!-- GEN: lever id=armorValue groups=hammer:normal outcomes=takenPerH -->
+armorValue, the hammer alone on normal (MID, Levels 30 to 110)
+
+| Outcome | x0.5 | x0.75 | x0.9 | x1.1 | x1.25 | x1.5 | x2 |
+|---|---|---|---|---|---|---|---|
+| takenPerH | +1.8% | +0.0%~ | +0.1%~ | -0.0%~ | -0.0%~ | +0.1%~ | +0.1%~ |
+<!-- /GEN -->
+
+<!-- GEN: lever id=armorMitigation groups=hammer:normal outcomes=takenPerH -->
+armorMitigation, the hammer alone on normal (MID, Levels 30 to 110)
+
+| Outcome | x0.5 | x0.75 | x0.9 | x1.1 | x1.25 | x1.5 | x2 |
+|---|---|---|---|---|---|---|---|
+| takenPerH | +54.2% | +20.2% | +1.2% | -0.0%~ | -0.0%~ | -0.0%~ | -0.0%~ |
+<!-- /GEN -->
+
+<!-- GEN: lever id=mitigationCap groups=hammer:normal outcomes=takenPerH -->
+mitigationCap, the hammer alone on normal (MID, Levels 30 to 110)
+
+| Outcome | x0.5 | x0.75 | x0.9 | x1.1 | x1.25 | x1.5 |
+|---|---|---|---|---|---|---|
+| takenPerH | +75.6% | +37.7% | +14.8% | -13.6% | -14.4% | -14.4% |
+<!-- /GEN -->
+
+<!-- GEN: lever id=armorCurve groups=hammer:normal outcomes=takenPerH -->
+armorCurve, the hammer alone on normal (MID, Levels 30 to 110)
+
+| Outcome | x0.5 | x0.75 | x0.9 | x1.1 | x1.25 | x1.5 | x2 | x2.4 |
+|---|---|---|---|---|---|---|---|---|
+| takenPerH | -0.0%~ | -0.0%~ | -0.0%~ | +0.2%~ | +0.1%~ | +0.7% | +6.5% | +12.6% |
+<!-- /GEN -->
+
+- A MID hero in heavy armor on its own ground is at the 60% cap. Doubling every armor point changes its damage taken by nothing the pass can resolve (0.1%). Taking a quarter off changes it by nothing. Raising the armor ceilings changes it by nothing.
+- Raising the cap by a tenth cuts damage taken by 14%, and raising it further does no more. COMPUTED from those two readings: this hero's armor is worth about 66% and the cap takes the rest away.
+- The armor curve only reaches this hero at x1.5 and above, where a same-Level attacker is finally enough to pull the armor back under the cap.
+- The cap also explains the death wall's position. On the lone hammer on Dangerous, the cap at x1.1 takes deaths from 94 in 1,000 hours to none.
+- For the Mage the cap never stops binding: at x1.5 it is still cutting damage taken (minus 22%), because light armor's ward is a flat amount.
+- What this means. Armor gear above MID buys nothing at home. Its value appears only one tier up, where the attacker out-levels the hero. That is the same place the death wall stands, which is why gear, the tier dial, the curve and the cap all read as one lever there.
+
+### 7.4 The death wall
+
+MEASURED, `oat:monsterDamage`. The step x1 is the base.
+
+<!-- GEN: lever id=monsterDamage groups=hammer:dangerous,mage:deadly,four:deadly outcomes=takenPerH,lowHpP10,deathsPer1000h,netLevelXpPerH -->
+monsterDamage, the hammer alone on dangerous (MID, Levels 30 to 110)
+
+| Outcome | x0.5 | x0.75 | x0.9 | x1.1 | x1.25 | x1.5 | x2 |
+|---|---|---|---|---|---|---|---|
+| takenPerH | -48.2% | -25.2% | -11.0% | +8.9% | +34.6% | +54.2% | n/a |
+| lowHpP10 | +0.176 | +0.111 | +0.058 | -0.050 | -0.161 | -0.234 | -0.310 |
+| deathsPer1000h | 94.09->0 | 94.09->0 | 94.09->0 | 94.09->145.6~ | 94.09->1120 | 94.09->13330 | 94.09->92310 |
+| netLevelXpPerH | +184.9% | +184.6% | +183.9% | -48.3%~ | -107.9% | -126.7% | -128.3% |
+
+monsterDamage, the Mage alone on deadly (MID, Levels 30 to 110)
+
+| Outcome | x0.5 | x0.75 | x0.9 | x1.1 | x1.25 | x1.5 | x2 |
+|---|---|---|---|---|---|---|---|
+| takenPerH | -56.7% | -35.8% | -16.6% | +16.2% | +57.7% | +138.1% | n/a |
+| lowHpP10 | +0.333 | +0.155 | +0.049 | -0.045 | -0.157 | -0.288 | -0.371 |
+| deathsPer1000h | 12.88->0~ | 12.88->0~ | 12.88->0~ | 12.88->152.3 | 12.88->1589 | 12.88->15580 | 12.88->50000 |
+| netLevelXpPerH | +7.1%~ | +7.0%~ | +6.7%~ | -34.3% | -97.7% | -107.0% | -107.8% |
+
+monsterDamage, the four on deadly
+
+| Outcome | x0.5 | x0.75 | x0.9 | x1.1 | x1.25 | x1.5 | x2 |
+|---|---|---|---|---|---|---|---|
+| takenPerH | -58.0% | -32.4% | -12.8% | +13.0% | +32.3% | +65.9% | +128.5% |
+| lowHpP10 | +0.096 | +0.060 | +0.022 | -0.019 | -0.051 | -0.113 | -0.232 |
+| deathsPer1000h | 0->0~ | 0->0~ | 0->0~ | 0->0~ | 0->0~ | 0->0~ | 0->0~ |
+| netLevelXpPerH | +0.0%~ | +0.0%~ | +0.0%~ | +0.0%~ | +0.0%~ | +0.0%~ | -0.0%~ |
+<!-- /GEN -->
+
+- Damage taken and the worst low points move smoothly, with an elasticity of 1.0 to 1.3. Deaths do not. The lone hammer on Dangerous goes from no deaths at x0.9, to 94 in 1,000 hours at x1, to 1,120 at x1.25, to dead inside the hour at x1.5.
+- The Mage alone on Deadly stands a step behind it: 13 at x1, 152 at x1.1, 1,589 at x1.25.
+- The four on Deadly takes 2.3 times the damage at x2 and does not die. Its wall is past x2 (`05-interactions.md`, section 10).
+- **The wall can be seen before anyone dies.** COMPUTED from the base: every cell whose worst tenth of fights bottoms out above 0.40 of health had no death. Of the five cells between 0.30 and 0.40, three had none and two had one death, in 14 and 29 hours. The four cells under 0.20 died in every seed. The low point falls by 0.17 to 0.31 for each doubling of monster damage. So the distance to the wall is readable from the low point long before a death rate is, and it is a quiet number (section 2) where deaths are a noisy one.
+- JUDGMENT on the cause: healing in this build is a fixed supply. One meal a use and one self heal on a cooldown give a ceiling on health back a second. Under it a hero is always full. Over it health only falls, and a long hunt always ends in a death. A death rate that rises gently needs healing that rises with danger, or danger that comes in bursts and not as a steady rate.
+
+### 7.5 What dominates
+
+Counting what the matrix says about the 51 levers.
+
+| Kind | Levers | What they are |
+|---|---|---|
+| Clean multipliers, elasticity 1 on one outcome and nothing else | 9 | XP a kill, XP by Level, lone XP, party XP, tier XP, the Level curve, the death price, coin a kill, what gear sells for |
+| Prices, move the store bill only | 3 | Food, drink and rune prices |
+| Strong and tangled, elasticity over 0.4 on several outcomes | 6 | Hero damage, monster health, monster damage, hero health, the mitigation cap, the tier blow dial |
+| Moderate, 0.1 to 0.4 | 13 | Spell damage, spell cooldown, the attack interval, hero accuracy, weapon damage, store supply power, armor ceilings, armor points, shield size, tier health, tier pull (downward only), respawn (upward only), the wait between pulls |
+| Weak, under 0.1 over all cells | 8 | Crit size, weapon accuracy, weakness damage, the to-hit base, monster defense, the defense cut, health regeneration, the low end of a spell's roll |
+| The supply bill only | 4 | Mana pool, mana regeneration, spell cost, heal size |
+| Dead here | 4 | Spell leech, the Necrotic cut, the Storm drain (dark), the Blessings' cut (harness) |
+| One-sided or seat-bound | 4 | The armor curve, monster accuracy, the two party ground dials |
+
+Three things follow.
+
+- **Pace is set by reward multipliers and by map numbers, not by combat.** The clean multipliers move XP one for one. The strongest combat lever moves it by half, and by a fifth for the four on Normal.
+- **Survival is set by a handful of tangled levers that all act at one point,** the lone melee hero one tier up. For every other seat in this pass survival is not in play.
+- **A quarter of the levers are weak or dead.** Crit, accuracy, weakness, defense and regeneration are all present in the code and the gear, and none of them moves an outcome by a tenth of what it moves in name.
 
 ---
 
@@ -594,6 +946,13 @@ Rule: the low-step and high-step elasticities differ by 0.25 or more and by 30% 
 | armorMitigation | storePerH | x0.5: -1.34 | -0.36 | x2: -0.06 |
 | mitigationCap | takenPerH | x0.5: -0.73 | -0.89 | x1.5: -0.33 |
 | mitigationCap | storePerH | x0.5: -1.21 | -0.45 | x1.5: -0.11 |
+| respawn | dps | x0.5: -0.02 | -0.13 | x2: -0.49 |
+| respawn | killsPerH | x0.5: -0.02 | -0.13 | x2: -0.49 |
+| respawn | takenPerH | x0.5: -0.02 | -0.15 | x2: -0.50 |
+| respawn | levelXpPerH | x0.5: -0.02 | -0.13 | x2: -0.49 |
+| respawn | netLevelXpPerH | x0.5: -0.02 | -0.13 | x2: -0.49 |
+| respawn | incomePerH | x0.5: -0.02 | -0.13 | x2: -0.50 |
+| respawn | storePerH | x0.5: -0.03 | -0.17 | x2: -0.60 |
 | spellCost | storePerH | x0.5: +0.20 | +0.42 | x2: +1.52 |
 | spellCooldown | netLevelXpPerH | x0.5: -0.78 | -0.59 | x2: -0.33 |
 | spellPower | netLevelXpPerH | x0.5: +0.38 | +0.33 | x2: +0.67 |
@@ -601,7 +960,15 @@ Rule: the low-step and high-step elasticities differ by 0.25 or more and by 30% 
 | runePrice | storePerH | x0.5: +0.33 | +0.44 | x2: +0.67 |
 <!-- /GEN -->
 
-<<FILL:NONLINEARNOTES>>
+Tyler's warning holds: "Do not assume local sensitivity measurements remain accurate for large changes." The list above is what the fixed rule catches. The shapes behind it.
+
+- **Ceilings.** The mitigation cap is flat past x1.1 for heavy armor. The armor ceilings are flat above x1. Tier pull is exactly zero above x1, because a pull is cut off at a box of 8 monsters. Hero damage flattens for the Mage (minus 29% at x0.5, plus 10% at x2).
+- **Floors.** The tier blow dial at x0.75 and x0.5 reads the same: a tier cannot hit softer than Normal. Respawn is slack below x1 for a lone hero and binding above it.
+- **Walls.** Deaths (section 7.4). The store bill against monster damage: an elasticity of 0.25 at x0.5 and 2.7 at x2. The drink bill against mana: a doubling of cost is 6.6 times the drinks.
+- **Refusals.** The attack interval cannot rise at all without the stair clock.
+- **Straight lines.** The nine clean multipliers and the three prices have the same slope at x0.5 and x2, to two digits.
+
+A local slope at x1 is a fair guide for the clean levers and for none of the combat ones. For those, a change of more than a quarter needs its own played point, on every seat.
 
 ---
 

@@ -514,7 +514,7 @@ function mdExp(M, id, out, o = {}) {
     const rel = kindOf(o) === 'rel', dth = kindOf(o) === 'deaths';
     const show = (v) => (!finite(v) ? 'n/a' : rel ? 'x' + v.toFixed(3) : dth ? v.toFixed(1) : num(v, 3));
     const eff = (p) => { const e = p.effects[g] && p.effects[g][o]; return !e ? 'n/a' : e.k === 'd' ? e.a + (e.r ? '' : '~') : e.k === 'r' ? 'x' + (1 + e.e).toFixed(3) + (e.r ? '' : '~') : num(e.e, 3) + (e.r ? '' : '~'); };
-    out('\n' + id + ', ' + o + ', ' + ((M.groups.find((q) => q.id === g) || {}).label || g) + (dth ? ' (deaths in 1,000 hours; base ' + (((x.points[0].effects[g] || {})[o] || {}).b) + ')' : rel ? ' (ratio to the base)' : ' (change from the base)') + '\n');
+    out('\n' + id + ', ' + o + ', ' + ((M.groups.find((q) => q.id === g) || {}).label || g) + (dth ? ' (deaths in 1,000 hours, base ' + (((x.points[0].effects[g] || {})[o] || {}).b) + ')' : rel ? ' (ratio to the base)' : ' (change from the base)') + '\n');
     out('| ' + names.join(' | ') + ' | measured | singles predict | gap |');
     out('|' + names.map(() => '---').join('|') + '|---|---|---|');
     const key = (p) => names.map((n) => p.levers[n].toFixed(3).padStart(8)).join('');
@@ -550,6 +550,15 @@ function listTable(M, name) {
   else if (name === 'byLevel') { L.push('| Lever | Outcome | Step | Elasticity by Level | |', '|---|---|---|---|---|'); for (const x of F.byLevel) L.push('| ' + x.lever + ' | ' + x.outcome + ' | x' + x.at + ' | ' + Object.entries(x.byLevel).map(([g, v]) => gl(g) + ': ' + f2(v)).join(', ') + ' | ' + (x.flip ? 'changes sign' : '') + ' |'); }
   else if (name === 'byStyle') { const pc = (v, o) => (kindOf(o) === 'rel' ? pct(v) : num(v, 0)); L.push('| Lever | Outcome | Step | Rises for | Falls for |', '|---|---|---|---|---|'); for (const x of F.byStyle) L.push('| ' + x.lever + ' | ' + x.outcome + ' | x' + x.m + ' | ' + Object.entries(x.up).map(([g, v]) => gl(g) + ' ' + pc(v, x.outcome)).join(', ') + ' | ' + Object.entries(x.down).map(([g, v]) => gl(g) + ' ' + pc(v, x.outcome)).join(', ') + ' |'); }
   else if (name === 'redundant') { L.push('| Lever | Lever | Cosine of the effect vectors | Size of each |', '|---|---|---|---|'); for (const x of F.redundant) L.push('| ' + x.a + ' | ' + x.b + ' | ' + x.cos + ' | ' + x.normA + ' / ' + x.normB + ' |'); }
+  else if (name === 'levers') {
+    /* every lever of the pass: its id in the tables, its plain name, where it lives, the steps played */
+    L.push('| Lever id | What it is | Kind | Steps played |', '|---|---|---|---|');
+    for (const [id, lv] of Object.entries(M.oat)) L.push('| ' + id + ' | ' + lv.label + ' | ' + (lv.kind === 'knob' ? 'knob' : 'family') + ', ' + lv.group + ' | ' + Object.keys(lv.steps).map(Number).sort((a, b) => a - b).map((m) => 'x' + m).join(', ') + ' |');
+  }
+  else if (name === 'outcomes') {
+    L.push('| Outcome id | What it is | Read as |', '|---|---|---|');
+    for (const o of CORE) { const d = OUTCOMES.find((x) => x[0] === o); L.push('| ' + o + ' | ' + (d ? d[1].replace(/;/g, ',') : o) + ' | ' + (kindOf(o) === 'rel' ? 'relative change' : kindOf(o) === 'deaths' ? 'pooled rate' : 'absolute change') + ' |'); }
+  }
   else if (name === 'rank') {
     /* each core outcome's strongest levers over all cells: the largest of the three elasticities, resolved ones only */
     L.push('| Outcome | Strongest levers (largest elasticity of low, local, high) |', '|---|---|');

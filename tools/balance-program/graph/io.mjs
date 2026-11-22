@@ -200,6 +200,10 @@ export const OUTCOME_READERS = Object.freeze({
   'O-NETXP': o(['+levelXpPerH', '-deathsPer1000h', '-death.xpLoss', '+huntedShare'], ['netLevelXpPerH'], 'Level XP after deaths: what was earned, less what deaths took, over the time offered'),
   'O-HOURS': o(['-levelXpPerH', '+level.cost'], ['hoursPerLevel'], 'Hours for the next Level: what the Level costs over Level XP an hour'),
   'O-CONTRACT': o(['+levelXpPerH', '-pace.contract'], ['xContract'], 'Level XP an hour over the pace contract at that Level'),
+  /* THE SUSTAIN COUNTERS (Balance Lab phase 2: the engine's tally, src/core/hunt/tally.js, read by matrix-metrics.mjs) */
+  'O-SUSTAIN': o(['+hero.healCast', '+hero.regen', '+hero.leech', '+supplies.used', '-deathsPer1000h'], ['sustainRatio'], 'Healing received over damage taken. Every heal is capped at missing HP, so it sits near 1 while heroes live: what a death takes is never healed back'),
+  'O-REGENSHARE': o(['+hero.regen', '-hero.healCast', '-hero.leech', '-supplies.used'], ['regenShare'], 'Regeneration over everything that came back: more from spells, leech or food leaves less missing HP for regeneration to fill'),
+  'O-MANAWAIT': o(['+hero.manaCost', '-hero.manaRegen', '-hero.maxMana', '-supplies.used'], ['manaWaitsPerH'], 'A rule waits for mana when a cast costs more than the pool holds: dearer casts, slower regeneration, a smaller pool and fewer draughts each make it wait more'),
 });
 /** Where the harness reads each outcome (the readers cite it). */
 export const OUTCOME_SOURCE = 'tools/balance-program/matrix-metrics.mjs';

@@ -45,12 +45,12 @@ No fact is copied. The formulas and their edges stay in `formulas-architecture.j
 <!-- graph:counts -->
 | What | Count |
 |---|---|
-| Quantities on the closed list | 130 |
+| Quantities on the closed list | 133 |
 | Formulas with typed reads and writes | 107 of 107 |
-| Outcome readers (hand-declared, they stand where E14 stands) | 17 |
-| Reads declared, and how many the code shows (cited file:line) | 238, 97 derived |
-| Writes declared, and how many the code shows | 176, 130 derived |
-| Typed edges (one writes what another reads) | 318 |
+| Outcome readers (hand-declared, they stand where E14 stands) | 20 |
+| Reads declared, and how many the code shows (cited file:line) | 251, 97 derived |
+| Writes declared, and how many the code shows | 179, 130 derived |
+| Typed edges (one writes what another reads) | 339 |
 | Edges the formula register declares | 197 |
 | Calls between formula homes, read from the code | 44 |
 | Levers joined, and knobs | 164, 35 |
@@ -319,7 +319,7 @@ A ghost edge is a pair of mechanics that share a quantity or a call with no decl
 <!-- graph:findings -->
 | Kind | What it is | Count |
 |---|---|---|
-| `feeds` | ghost edge: one writes what the other reads, no declared edge | 115 |
+| `feeds` | ghost edge: one writes what the other reads, no declared edge | 132 |
 | `writers` | ghost edge: two mechanics write one quantity, no declared edge | 62 |
 | `carrier` | ghost edge: a declared edge with no shared quantity | 48 |
 | `call` | ghost edge: the code calls it, no declared read | 15 |
@@ -381,11 +381,11 @@ The rank is the number of levers on the pair: the more numbers an agent can tune
 | 35 | `GF-b03c80a2` | feeds | C-JEWEL-PERKS / C-MON-SPELL | 7 | C-JEWEL-PERKS writes gear.guard and C-MON-SPELL reads it. The register holds no edge between them |
 | 36 | `GF-e714037e` | feeds | C-GEAR-ARMOR / C-TEMPER | 7 | C-GEAR-ARMOR writes gear.armor and C-TEMPER reads it. The register holds no edge between them |
 | 37 | `GF-0048ae12` | feeds | C-JEWEL-PERKS / C-MON-TOHIT | 6 | C-JEWEL-PERKS writes hero.skill, gear.guard and C-MON-TOHIT reads it. The register holds no edge between them |
-| 38 | `GF-08b6e1b8` | writers | E01 / E52 | 6 | E01 and E52 both write kill.xp. The register holds no edge between them |
-| 39 | `GF-27240a11` | feeds | C-HURT / E18 | 6 | C-HURT writes dmg.toHero and E18 reads it. The register holds no edge between them |
-| 40 | `GF-35a8107e` | feeds | C-JEWEL-PERKS / P07 | 6 | C-JEWEL-PERKS writes gear.guard and P07 reads it. The register holds no edge between them |
+| 38 | `GF-057157d5` | feeds | E18 / O-MANAWAIT | 6 | E18 writes supplies.used and O-MANAWAIT reads it. The register holds no edge between them |
+| 39 | `GF-08b6e1b8` | writers | E01 / E52 | 6 | E01 and E52 both write kill.xp. The register holds no edge between them |
+| 40 | `GF-27240a11` | feeds | C-HURT / E18 | 6 | C-HURT writes dmg.toHero and E18 reads it. The register holds no edge between them |
 
-240 ghost edges in all. The rest: `node tools/balance-program/graph.mjs --findings`.
+257 ghost edges in all. The rest: `node tools/balance-program/graph.mjs --findings`.
 <!-- /graph:ghosts -->
 
 **Six the owners should look at first.** JUDGED, and each is a question, not a verdict.

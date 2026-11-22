@@ -1,0 +1,1 @@
+oat:weaponDamage,oat:weaponAccuracy,oat:armorValue,oat:runePrice,oat:gearSaleRate,oat:regroup,oat:blessingCut

@@ -32,6 +32,7 @@ import { LOG_TEXT } from './log.js';
 import { PARTY_TEXT } from './party.js';
 import { PEOPLE_TEXT } from './people.js';
 import { PREP_TEXT } from './prep.js';
+import { REPORT_TEXT } from './report.js';
 import { SHOP_TEXT } from './shop.js';
 import { SLOTS_TEXT } from './slots.js';
 import { SUMMARY_TEXT } from './summary.js';
@@ -68,6 +69,7 @@ export const TEXT = Object.freeze({
   party: PARTY_TEXT,
   people: PEOPLE_TEXT,
   prep: PREP_TEXT,
+  report: REPORT_TEXT,
   shop: SHOP_TEXT,
   slots: SLOTS_TEXT,
   summary: SUMMARY_TEXT,

@@ -188,6 +188,11 @@
         "bytes": 3210727,
         "on": "2026-11-22",
         "why": "lane/c-recruits: src/data/hunt-after.js gains the recruits NEEDS_YOU row (+77 B on its own base)"
+      },
+      {
+        "bytes": 3224644,
+        "on": "2026-11-22",
+        "why": "lane/c-hunt-report: a blow at a hero carries hp and max, the settle sends analyzer.report (src/core/hunt/report.js, tally.js); +13,867 B on its own base"
       }
     ]
   }

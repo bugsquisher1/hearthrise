@@ -52,6 +52,7 @@ import { climbEnd } from '../tower-words.js';
 import { climbCardHtml, patchClimbCard } from '../tower-end-card.js';
 import { targetOf, gotoKey } from '../goto.js';
 import { sideName, spanWords as standingWords } from '../faction-words.js';
+import { riskHtml, rulesHtml, patchReport } from '../hunt-report.js';
 
 /* Why Hunt again has nothing to send: a called room has one door, its paid press (src/data/boss-calls.js), a keyed hall its key on the ground's
    page (src/data/boss-halls.js), and an old hunt that kept no settings. */
@@ -144,6 +145,8 @@ export function renderHuntSummary() {
        figures, then why it ended (../result-block.js, the away card's block too) */
     + resultHtml() + '<p class="hsum-reason"></p><p class="hsum-series" hidden></p><p class="hsum-loss" hidden></p>'
     + climbCardHtml()
+    /* THE HUNT REPORT'S RISK BLOCK (GR-66, FB-7; ../hunt-report.js): how close it came, right under why it ended */
+    + riskHtml()
     /* TOP LOOT next (first-30 play 2026-11-12: the first gear drop sat under the sticky foot, out of sight) */
     + '<h4 class="hw-ledger-head hsum-h-loot">Top loot</h4><ul class="hsum-list hsum-loot"></ul>'
     /* BACK IN TOWN (UX flow audit 2026-11-11, flow C): the trip home as steps, each one press with its count and value (../back-in-town.js);
@@ -168,6 +171,8 @@ export function renderHuntSummary() {
     /* a full bag (the server's cap, hr_bag_expand_view) links to Storage's Expand */
     + '<button type="button" class="hh-tool" data-hs-act="expand" hidden>' + t('controls.expand_bag') + '</button></div>'
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div>'
+    /* ...and its rules block, with the details under the presses */
+    + rulesHtml()
     + '<h4 class="hw-ledger-head hsum-h-sup">Supplies used</h4><ul class="hsum-list hsum-sup"></ul>'
     + '<h4 class="hw-ledger-head hsum-h-deaths">What happened</h4><ul class="hsum-falls hsum-deaths"></ul>'
     + '</section>'
@@ -248,6 +253,8 @@ renderHuntSummary.patch = function patchHuntSummary(body, ctx) {
     text(root.querySelector('.hsum-loss'), cur.loss || '');
     prop(root.querySelector('.hsum-loss'), 'hidden', !cur.loss);
     patchResult(root.querySelector('.hres'), resultOf(cur));
+    /* the hunt report, and the hunt before this one on the same ground for its change line (the list runs newest first) */
+    patchReport(root, ctx.doc, cur, list.slice(list.indexOf(cur) + 1).find((x) => x.hunt === cur.hunt && x.report) || null);
     /* the details: each only when the server sent it, and none on a training card */
     for (const [k, , fmt] of STATS) {
       const dd = root.querySelector('[data-stat="' + k + '"]');

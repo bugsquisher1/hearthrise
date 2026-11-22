@@ -201,6 +201,8 @@ export const REASONS = Object.freeze({
      out, when the page's line says Sending… (runIntent's busy words) */
   'src/shell/windows/company-pane.js': [
     { cond: '!co || o.pending', words: "t('heroes.sending')", where: 'Go here at the next Start: hidden until the company section has come; off while a press is out, the page\'s line says Sending…' },
+    /* the Risk pick (R1 / R7, 12-targets 3.1): off for a member (its leader's Risk) and until the server's `danger` section has come */
+    { cond: '!d || o.pending || o.follower', words: "o.follower ? t('hunts.stance_leader') : !d ? t('hunts.stance_reading')", where: 'Careful / Steady / Bold: the line under the pick says a member\'s Risk is set by the party leader, or that the Risk is being read; Sending… on the page\'s line while a press is out' },
   ],
   /* the recruit press (1053-recruits.sql, Tyler RD-Q6 a): off until the first hero reaches the press's Level, when the line above it says when they come */
   'src/shell/windows/recruits-pane.js': [
@@ -292,7 +294,9 @@ export const REASONS = Object.freeze({
     { cond: 'sc.pending || off', words: "text(root.querySelector('.hw-store-note'), away ? storeAwayWords(cs)", where: 'Deposit all materials (audit 2026-11-18 A8): off only while a hunt runs or Storage loads, which the store note says; with no material in the bag it is not drawn' },
   ],
   'src/shell/windows/services.js': [
-    { cond: '!canStam', words: "', need ' + gold(q.price - purse) + ' more'", where: 'the stamina quote line: full, all bought today, or how much more gold' },
+    /* a bought hunting block (1058-hunting-blocks.sql): the quote line's words live in the text home (shop.block_full, block_used, block_quote_short) */
+    { cond: '!canStam', words: "q.why === 'stamina_full' ? t('shop.block_full') : t('shop.block_used', { max: whole(q.perDay) })", where: 'the stamina quote line: a full day banked, all of today\'s blocks bought, or how much more gold (shop.block_quote_short), else no price yet' },
+    { cond: '!canStam', words: "t(purse !== null && purse < q.price ? 'shop.block_quote_short' : 'shop.block_quote'", where: 'the stamina quote line: how much more gold the next block needs' },
     { cond: 'r.held || !next', words: "', need ' + gold(short) + ' more'", where: 'each blessing row: Owned, Needs I, or how much more gold' },
     { cond: 'missing < 2 || sc.pending || allShort', words: "!missing ? t('shop.bless_all_on') : missing < 2 ? '' : sc.pending ? t('shop.bless_all_busy') : allShort ? t('shop.bless_all_short')", where: 'Bless all: the line under it says all are on, a purchase is under way, or the gold is short for the next one; with one missing it is hidden and that row\'s own button says why' },
   ],

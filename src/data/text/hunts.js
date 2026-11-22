@@ -151,6 +151,8 @@ export const HUNTS_TEXT = Object.freeze({
   stance_saved: 'Risk saved: {stance} from your next hunt',
   stance_next: 'Plays from your next hunt',
   stance_leader: 'Risk: set by the party leader',
+  /* the pick is off until the server's `danger` section has come (say-why SW-2) */
+  stance_reading: 'Reading your Risk…',
   depth_held: 'Held depth: Depth {depth} of {of}',
   depth_new: 'First time here. The party starts at Depth 1 and works its way deeper.',
   tier_set_by: 'Set by {leader}: {tier}',

@@ -81,13 +81,38 @@ export const DANGER = Object.freeze({
   startMargin: 20,
 });
 
-export const PAY = Object.freeze({ refKillsHead: 120, payStepXp: 0.007, payStepCoin: 0.007, gapMax: 120 });
+// THE PAY FLOOR (lane/r9-power-step, 2026-11-22; 12-targets.md 2.1: "pay a kill is never below a floor of the hours table ... if Careful
+// misses, the floor moves, not the stances"): under the reference step the depth ratio falls to PAY.floor and no further, for XP and coin
+// alike, so a shallower stance's cost is its kills an hour, not twice. The floor raises only what a kill pays UNDER the reference step:
+// the most a kill can pay (the gap ceiling, hr_danger_level_xp_max) is unchanged.
+//   floor 0.5   MEASURED (v1-climb.mjs from a held start, lane/r9): see the lever row danger.pay-floor. 12-targets' starting 0.85 put
+//               Careful OVER Steady (a Careful pull is smaller and dies faster, so it kills ~1.2x Steady's reference rate an hour)
+export const PAY = Object.freeze({ refKillsHead: 120, payStepXp: 0.007, payStepCoin: 0.007, gapMax: 120, floor: 0.5 });
+
+// THE POWER STEP ON THE SCALE (lane/r9-power-step, 2026-11-22; 04-math-strategy.md section 1 "what a hero's rating is made of" and
+// section 10 "a base is an item Level"; R4's Lab variant hero-power/step, measured in tools/balance-program/redesign/r4). On a ground the
+// scale opens on, a hero's GEAR is counted in power steps against the ground's own gear Level (DANGER_GROUNDS gearLv, the item Level the
+// reference company wore when its refStep was measured):
+//   offense steps = gearStepsPm / 1000 x (the weapon's item Level - gearLv)            a blow at a monster x (1 + powerStep) ^ steps
+//   defense steps = gearStepsPm / 1000 x (the six armor slots' mean item Level - gearLv)  a blow at the hero / (1 + powerStep) ^ steps
+// each rounded to a whole step (the ratio is then multiplications only, the same last bit on every engine). An empty armor slot counts as
+// item Level 0, so one good piece never stands for a set. The step is the step contest's own (04 section 2: "no cap"): it lands AFTER the
+// armor chain and its 60% cap, so the defense half is never eaten by a cap the old chain already reached (R4: 60% of the power showed, the
+// cap took the rest). Heals are not stepped: health is not, so a stepped heal would count the defense step twice.
+// At the reference kit both are 0 and the hunt plays exactly as before, so refStep and the band hold. Off the scale nothing here is read.
+//   gearStepsPm 1333   04 section 1's "20 steps (one gear tier)" over today's 15 item Levels a tier: MEASURED in band, see the lever row
+//                      danger.power-gear (lane/r9, v1-climb.mjs on the engine)
+// NOT HERE: the skill part (04's weightSkill). Skills already move a hero through its shipped rolls (+3 Levels: +7 to +15 steps, V1); a
+// second count waits for wave 3's rating, which replaces the rolls.
+export const POWER = Object.freeze({ gearStepsPm: 1200 });
 
 export const DANGER_GROUNDS = Object.freeze({
   /* floorStep / topStep: the ground's band of DEPTHS depths (docs/design/redesign/12-targets.md section 3.1, starting values the Lab
      tunes): depth 1 at the floor, depth 20 at the top. The player sees only "Depth N of 20", never a step (12-targets section 2.6).
-     Display only for now: the server's catalogue (tools/gen-danger.mjs) reads refStep alone. */
-  muster_barrows: Object.freeze({ refStep: 590, floorStep: 480, topStep: 710 }),
+     Display only for now: the server's catalogue (tools/gen-danger.mjs) reads refStep alone.
+     gearLv: the item Level the reference company wore when refStep was measured (the MID kit at Level 60: every weapon and armor piece
+     item Level 60); a hero's gear is counted in power steps against it (POWER). Engine only: the server bounds read neither. */
+  muster_barrows: Object.freeze({ refStep: 590, floorStep: 480, topStep: 710, gearLv: 60 }),
 });
 
 /* The depths a ground's band is cut into (12-targets.md 3.1). */

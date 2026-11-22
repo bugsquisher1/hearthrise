@@ -330,7 +330,7 @@ export const WORLD = [
     perturb: NP('player-policy', 'the stance is the player\'s risk choice; the V1 and V2 probes play each'),
     ev: 'MEASURED (V1.1, v2-stance.mjs)' }),
   L('danger.pay', 'monster-rewards', 'global', 'Pay by depth', {
-    at: [at(DZ, 'export const PAY = Object.freeze({ refKillsHead: 120, payStepXp: 0.007, payStepCoin: 0.007, gapMax: 120 });')],
+    at: [at(DZ, 'export const PAY = Object.freeze({ refKillsHead: 120, payStepXp: 0.007, payStepCoin: 0.007, gapMax: 120,')],
     def: 'a kill on the scale pays each hero (XP to its next Level / the hours that Level takes in the hours table) / (refKillsHead x heroes at the kill) x (1 + payStepXp)^gap, the gap the step over the ground\'s reference step held to gapMax; coin is the roll x the pull\'s share x (1 + payStepCoin)^gap',
     range: 'payStep = powerStep x a premium (04 section 7: 0.7% is a premium of two); refKillsHead the reference company\'s kills an hour a head at its reference step; gapMax 120 = at most 2.31x the table',
     touches: 'Level XP and coin an hour on the scale. MEASURED 2026-11-22 (2 seeds x 6 h, Muster): Steady at Level 60 0.72x the hours table over the hunt (the climb included), Bold 0.88x, Careful 0.28x; V1\'s row pay read ~22x',
@@ -347,6 +347,22 @@ export const WORLD = [
     perturb: NP('not-in-runs', 'played by the V1 probe only'),
     flags: [flag('redundant', 'A per-ground number that stands in for one absolute step unit (LR-1: no per-ground dial); it retires when grounds carry absolute bands', '02 package 3 cost; JUDGMENT')],
     ev: 'MEASURED (the Steady four at Level 60 held 589.5 +- 14, 2 seeds x 6 h)' }),
+  L('danger.pay-floor', 'monster-rewards', 'global', 'Pay floor under the reference step', {
+    at: [at(DZ, 'gapMax: 120, floor: 0.5 });')],
+    def: 'under a ground\'s reference step the depth ratio a kill pays (XP and coin) falls to floor and no further, so a shallower stance pays in kills an hour, not twice (12-targets 2.1)',
+    range: '0 to 1 of the hours table. 12-targets 2.1 starts it at 0.85 and rules "if Careful misses 0.55x to 0.70x of Steady, the floor moves, not the stances"',
+    touches: 'Careful\'s pay an hour against Steady\'s (C-5); Steady and Bold hold near or over the reference, so it barely touches them', out: [...PACE, ...GOLD], f: ['P01', 'P02'],
+    tests: [['tests/hunt-core/danger.mjs', 'pay: under the reference a kill pays the floor, never less']], testReads: ['PAY'],
+    perturb: NP('not-in-runs', 'played by the V1 probe from a held start (lane/r9 tools/balance-program/redesign/r9); the server bounds only the most a kill pays (hr_danger_level_xp_max), which the floor never raises'),
+    ev: 'MEASURED (lane/r9, v1-climb.mjs from a held start: tools/balance-program/redesign/r9/stance-held-L60.txt)' }),
+  L('danger.power-gear', 'monster-stats', 'global', 'The power step on gear', {
+    at: [at(DZ, 'export const POWER = Object.freeze({ gearStepsPm: 1200 });'), at(DZ, 'topStep: 710, gearLv: 60 })')],
+    def: 'on the scale a hero\'s blows at a monster x (1 + powerStep)^(gearStepsPm/1000 x (weapon item Level - the ground\'s gearLv)) and blows at it / (1 + powerStep)^(gearStepsPm/1000 x (mean item Level of the six armor slots - gearLv)), whole steps, after the armor chain\'s cap; at the reference kit nothing moves',
+    range: '04 section 1: 20 steps a gear tier (15 item Levels today) is 1333; R4 measured 57-77% of the step showing as held depth when it sat under the cap; the brief\'s band is 15 to 26 held steps a tier',
+    touches: 'how far one gear tier moves the held step on the scale (C-2), on top of the shipped stats\' own move', out: [...KILL, ...SURVIVE], f: ['C-TIER', 'C-TEMPER'],
+    tests: [['tests/hunt-core/danger.mjs', 'power: a tier of gear is a tier of steps, after the cap, never off the scale']], testReads: ['POWER', 'DANGER_GROUNDS'],
+    perturb: NP('not-in-runs', 'played by the V1 probe (candidate power-tier-back moves gearLv one tier); no matrix run plans a stance'),
+    ev: 'MEASURED (lane/r9, v1-climb.mjs: tools/balance-program/redesign/r9/own-tier-L60.txt)' }),
   /* ── 14. MONSTER XP AND LOOT VALUES ────────────────────────────────────────────────────────────────────────────────────────── */
   L('reward.xp-line', 'monster-rewards', 'global', 'Level XP a kill', {
     at: [at(BS, 'xp: Object.freeze({ a: 1.436')],

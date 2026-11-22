@@ -213,6 +213,11 @@
         "bytes": 3255984,
         "on": "2026-11-22",
         "why": "lane/v1-climb wave 1 fixes: the Danger margin read in src/core/hunt/damage.js is its own statement instead of an else-if on the fight-clock line (+17 B, behaviour unchanged)"
+      },
+      {
+        "bytes": 3263418,
+        "on": "2026-11-22",
+        "why": "lane/r2-danger-falls +7,434 B: a fall back names its hero seat and monster (danger.js lowHero/lowBy, combat-sim syncUnit seat), the report's deep and falls fold and proposal (report.js), HUNT_REPORT.fallsMax and DEFAULT_RISK (src/data)"
       }
     ]
   }

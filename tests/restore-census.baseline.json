@@ -1644,7 +1644,7 @@
   },
   "hr_hunt_limits": {
    "class": "seeded",
-   "replay": 47,
+   "replay": 48,
    "note": "Generated catalogue (2026-10-21-hunt-sessions-catalogue.generated.sql (tools/gen-hunt-sessions.mjs --check from src/data)): the session limits (presets, slots, conditions, bag lines, falls and hours ranges, cooldowns, vigour_low threshold, sessions kept). Every RPC reads them; a missing key fails the RPC closed. Rebuilt from repo, never restored; nothing player-owned."
   },
   "hr_hunt_resumable_kinds": {

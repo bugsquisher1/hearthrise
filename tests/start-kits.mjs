@@ -110,7 +110,10 @@ const BLIND_COACH = ["    -- (a) an account with nothing reads empty at version 
 const MUTANTS = [
   ['the account kit pays every hero (K-ONCE)', KITS, [BLIND_KITS, ['  v_acct := v_n = 1;', '  v_acct := true;']], 'K-ONCE'],
   ['the hero kit pays a remade hero (K-REMADE)', KITS, [BLIND_KITS, ['  v_hero := v_n = 1;', '  v_hero := true;']], 'K-REMADE'],
-  ['the pick is ignored, every hero wears the default set (K-PICK)', KITS, [BLIND_KITS, ["     where l.kit = 'practice' and l.set_id = v_set and l.worn;", "     where l.kit = 'practice' and l.default_set and l.worn;"]], 'K-PICK'],
+  /* PLANTED LIVE at the chain end, not in 1038's text: on a replayed chain 1053-recruits.sql's own VERIFY(b) refuses a hero that wears
+     the default set over its pick (a Club first hero is offered the wrong recruits), so the patched replay died before this arm ran. */
+  ['the pick is ignored, every hero wears the default set (K-PICK)', null, { fn: 'public.hr_create_character__as(integer,text)',
+    find: "     where l.kit = 'practice' and l.set_id = v_set and l.worn;", repl: "     where l.kit = 'practice' and l.default_set and l.worn;" }, 'K-PICK'],
   ['the live accounts are not marked paid (K-SEED)', KITS, [BLIND_KITS, [' group by ps.user_id\n', ' group by ps.user_id having false\n'],
     ['  if v_bad > 0 then\n    raise exception \'start-kits §2:', '  if false then\n    raise exception \'start-kits §2:']], 'K-SEED'],
   ['the coach seed reads one hero only (K-COACH)', COACH, [BLIND_COACH, ['               where p2.user_id = ps.user_id and r.id', '               where p2.user_id = ps.user_id and p2.slot = 0 and r.id'],
@@ -135,7 +138,17 @@ async function main() {
     let missed = 0;
     for (const [name, file, patch, expect] of MUTANTS) {
       let fails;
-      try { fails = await rules(await boot(file, patch)); } catch (e) { if (e && e.harness) throw e; fails = ['replay: ' + String(e && e.message).split('\n')[0]]; }
+      try {
+        let db;
+        if (patch && patch.fn) {
+          /* a live plant: the clean chain, then the one body re-created with its one change (anchor held exactly once) */
+          db = await boot();
+          const def = String((await db.query("select replace(pg_get_functiondef($1::regprocedure), chr(13), '') d", [patch.fn])).rows[0].d);
+          if (def.split(patch.find).length !== 2) throw Object.assign(new Error('start-kits: ' + patch.fn + ' does not hold the ' + expect + ' anchor once'), { harness: true });
+          await db.exec(def.replace(patch.find, () => patch.repl));
+        } else db = await boot(file, patch);
+        fails = await rules(db);
+      } catch (e) { if (e && e.harness) throw e; fails = ['replay: ' + String(e && e.message).split('\n')[0]]; }
       await closeReplays();
       const caught = fails.some((f) => f.startsWith(expect));
       console.log((caught ? '  ✓ ' : '  ✗ MISSED ') + name + (caught ? '' : ' (' + fails.join(' | ') + ')'));

@@ -1,0 +1,12 @@
+{
+ "schema": "hearthrise.balance-candidate/1",
+ "id": "hero-power-step",
+ "why": "The power step on gear (04-math-strategy.md sections 1 and 2): does one gear tier move the held Danger step by about 20 (15 to 26 in band) at every Level, played as two per-hero ratios with no combat code changed? (lane/r4, 11-build-audit.md R4 and risk 2)",
+ "base": "tree",
+ "variants": [{ "slot": "hero-power", "family": "step" }],
+ "assumptions": [
+  "weightGear 1.0 is a measuring value: the step's own move is linear in it, so the weight that lands about 20 a tier is read off the measured move",
+  "Gear's shipped stats still play beside the step; the step's own move is the difference to C0 on the same seeds",
+  "The skill part (weightSkill) is not in this family: temper.js never sees the skills (member.js, R9)"
+ ]
+}

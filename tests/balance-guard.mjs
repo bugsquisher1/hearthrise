@@ -23,19 +23,19 @@
 //
 // WHAT IT IS. One guard the simulator re-runs every release so the balance cannot drift between patches (30-plan section E). Every
 // number comes from the REAL engine (tools/balance-sim/cell.mjs -> the hr-accrue settle -> src/core/combat-sim.js) or the REAL data
-// (src/data/*): the reference cells are measure.mjs's own (refCell, rowOf), the slot and bank are gold-model.mjs's, the lever scan is
+// (src/data/*): the reference cells are measure.mjs's own (refCell, rowOf), the lever scan is
 // tools/balance-program/lever-scan.mjs, the cost is measure.mjs accountCost on tests/per-player-cost.baseline.json's fixtures. The
 // lines, their bands, their modes and the cells are tools/balance-program/guard-cells.mjs. Nothing measured is copied here.
 //
 // MODES (section E). A line starts as REPORT: it is printed, its out-of-band rows listed, and the run exits 0. It turns RED in the
 // lane that lands the change it guards (that lane flips `mode` in guard-cells.mjs) and never goes back. G14 is this lane's own and is red.
-// K1 GATES the lines read on the harness's party (G3, G4, G5, G8, G19, D1, D2, and G20's and G22's party rows): while the harness four
+// K1 GATES the lines read on the harness's party (G3, G4, G5, G8, G19, D1, D2, and G22's party rows): while the harness four
 // reads the real Krell four outside 0.9-1.1 on Level XP and kills, or 0.8-1.2 on net gold (guard-cells.mjs K1_GATE, 30-plan E as
 // re-issued; today 0.83 and 0.51), they print their numbers as "uncalibrated" and are neither red nor green (31-plan-audit M3). The fix
 // is in the harness's four, not in the line.
 //
 // RUNTIME. Section E: 3 minutes at most. 126 cells run on worker processes (tools/balance-sim/worker.mjs, one engine each, at most
-// four); two played lives (life.mjs: the start kit to Level 10, and the advised lone hero to 34 for the bank G9 and G20 read) and the
+// four); two played lives (life.mjs: the start kit to Level 10,) and the
 // lever scan run beside them; G17's two timing cells run alone after them. MEASURED 2026-11-20 with 4 workers: plain 105 s at 68% CPU
 // from other lanes (146 s for 114 cells at 100%), --selftest about the plain run + 20 s, --nightly + about 4 min (the six twin cells are
 // 128 hero-hours each, about 150 s apiece; G21's climbs ride with them). A cell read only for sums settles in 60 s windows
@@ -66,7 +66,6 @@ const GC = await import(u('tools/balance-program/guard-cells.mjs'));
 const MODEL = await import(u('tools/balance-program/model.mjs'));
 const MEASURE = await import(u('tools/balance-program/measure.mjs'));
 const GOLD = await import(u('tools/balance-program/gold-model.mjs'));
-const { HERO_SLOTS } = await import(u('src/data/shops.js'));
 const SCAN = await import(u('tools/balance-program/lever-scan.mjs'));
 const SL = await import(u('tools/balance-sim/skill-lines.mjs'));
 const tiers = await import(u('src/data/hunt-tiers.js'));
@@ -169,23 +168,7 @@ function lifeIdleOf(j) {
   for (let q = 2; q <= 10; q++) if (at(q) !== undefined) steps.push([q, Math.round((at(q) - (q === 2 ? 0 : at(q - 1))) * 100) / 100]);
   return { level10: at(10) ?? null, reached: j.reached[0], hours: j.hours, steps };
 }
-/* G9 and G20: the PLAYED lone hero (life.mjs --policy rec: where the game advises, the played profile, every drop sold, nothing bought
-   but its supplies; the audit's M4 run): hunted hours and the gold it holds (coin + sold loot - store) at each Level it reaches. */
-const BANK_LIFE = Object.freeze({ policy: 'rec', to: 34, max: 110 });
-function lifeBankOf(j) {
-  const byLevel = {};
-  for (const [k, m] of Object.entries(j.miles)) { const q = Number(k.split(':')[1]); byLevel[q] = { h: m.h, net: m.bank.coin + m.bank.loot - m.bank.store }; }
-  return { byLevel, reached: j.reached[0], hours: j.hours };
-}
-/** Hunted hours until the played lone hero holds `gold` (interpolated; past the life's last Level, on its last five Levels' rate). */
-function hoursToBank(bank, gold) {
-  const qs = Object.keys(bank.byLevel).map(Number).sort((a, b) => a - b);
-  let prev = { h: 0, net: 0 };
-  for (const q of qs) { const c = bank.byLevel[q]; if (c.net >= gold) return prev.h + (c.h - prev.h) * (gold - prev.net) / Math.max(1, c.net - prev.net); prev = c; }
-  const last = bank.byLevel[qs.at(-1)], back = bank.byLevel[qs.at(-6)] || bank.byLevel[qs[0]];
-  const rate = (last.net - back.net) / Math.max(1e-9, last.h - back.h);
-  return rate > 0 ? last.h + (gold - last.net) / rate : Infinity;
-}
+/* (G9 and G20, the hero slot against a played lone bank, retired 2026-11-21 with the slot prices: patches/fb5-free-hero-slots.json) */
 
 /* ── the data half: read once, planted by --selftest ────────────────────────────────────────────────────────────────────────────── */
 function costInputs() {
@@ -207,13 +190,7 @@ function costOf(ci) {
   return out;
 }
 function dataInputs() {
-  const ruled = GOLD.SLOT_LADDERS.find(([name]) => /^A\b/.test(name))[1];
   return {
-    /* ALL FOUR HERO SLOTS ARE FREE (Tyler 2026-11-21; src/data/shops.js HERO_SLOTS, 1036-four-starter-slots.sql): the shop sells none, so the
-       slot the gates read costs 0. G9 and G20 judge a price that no longer exists; FB-3 retires them in standards.mjs (the request:
-       tools/balance-program/patches/fb5-free-hero-slots.json). Until then they read the free ladder, never a made-up price. */
-    slot: { price: HERO_SLOTS.free ? 0 : NaN, at: 32, ruled: ruled[0] },
-    ladders: { shop: [1, 2, 3].map(() => (HERO_SLOTS.free ? 0 : NaN)), ruled: [...ruled] },
     refill: { ...STAMINA_REFILL },
     bar: { lanes: { ...ABIL.ABILITY_LANES }, rows: Object.values(ABIL.ABILITIES).map((r) => ({ id: r.id, lane: r.lane, cdMs: r.cdMs, disciplines: [...r.disciplines], replaces: r.replaces || null })), budget: { ...GC.BAR_BUDGET } },
     temper: TEMPER_TIERS, training: { rules: TRAINING.TRAINING_RULES, gear: TRAINING.TRAINING_GEAR, fee: TRAINING.trainingFee },
@@ -228,7 +205,7 @@ async function measure({ nightly = false, workers, quiet = false }) {
   const t0 = Date.now();
   const jobs = GC.plainCells(CTX).filter((j) => !j.id.startsWith('time-'));
   const twin = nightly ? GC.nightlyCells(CTX) : [];
-  const lifeP = playLife(LEVEL_PACE.newPlayer.policy, 10, 14, LEVEL_PACE.newPlayer.party), bankP = playLife(BANK_LIFE.policy, BANK_LIFE.to, BANK_LIFE.max);
+  const lifeP = playLife(LEVEL_PACE.newPlayer.policy, 10, 14, LEVEL_PACE.newPlayer.party);
   const scanP = SCAN.scanLevers(ROOT);
   const progress = quiet ? () => {} : (() => { let k = 0; const total = jobs.length + twin.length; return () => { k++; if (process.stderr.isTTY) process.stderr.write('\r  cells ' + k + '/' + total + '   '); }; })();
   const { results, errors } = await playAll([...jobs, ...twin], workers, progress);
@@ -236,7 +213,7 @@ async function measure({ nightly = false, workers, quiet = false }) {
   const timing = GC.plainCells(CTX).filter((j) => j.id.startsWith('time-'));
   const timed = await playAll([...timing, ...timing.map((j) => ({ ...j, id: j.id + ':warm' }))], 1);
   if (process.stderr.isTTY && !quiet) process.stderr.write('\r');
-  const idle = await lifeP, banked = await bankP;
+  const idle = await lifeP;
   const scan = await scanP;
   const rows = {}, ms = {};
   for (const [id, r] of Object.entries({ ...results, ...timed.results })) {
@@ -247,8 +224,8 @@ async function measure({ nightly = false, workers, quiet = false }) {
       ...(r.result.party.tower ? { towerTop: r.result.party.tower.top === null ? r.result.party.tower.from - 1 : r.result.party.tower.top } : {}) };
     ms[id] = r.ms;
   }
-  const life = idle.json ? lifeIdleOf(idle.json) : null, bank = banked.json ? lifeBankOf(banked.json) : null;
-  return { rows, ms, life, bank, scan, data: dataInputs(), errors: [...errors, ...timed.errors, ...[idle, banked].filter((x) => x.error).map((x) => ({ id: 'life', error: x.error }))],
+  const life = idle.json ? lifeIdleOf(idle.json) : null;
+  return { rows, ms, life, scan, data: dataInputs(), errors: [...errors, ...timed.errors, ...[idle].filter((x) => x.error).map((x) => ({ id: 'life', error: x.error }))],
     nightly, wallMs: Date.now() - t0, workers, cells: jobs.length + twin.length + timing.length * 2 };
 }
 
@@ -327,12 +304,6 @@ function judge(I) {
   }
   line('G8', GC.DEADLY_POINTS.map((p) => { const r = R('four-real:' + p.id); return row(p.id, r ? r.incomePerH - r.storePerH * (1 - GC.G8_OWN_SHARE) : NaN, band('G8'), kG); }),
     'store x' + (1 - GC.G8_OWN_SHARE) + ' (a quarter own); linings not built (L32)');
-  {
-    const at = I.bank && I.bank.byLevel[I.data.slot.at], bank = at ? at.net : NaN;
-    line('G9', at ? [row('slot 2', I.data.slot.price / bank, band('G9'), f2, ' (' + kG(I.data.slot.price) + ' / ' + kG(bank) + ' banked at ' + I.data.slot.at + ', ' + at.h.toFixed(0) + ' h)'),
-      row('ruled 400k', I.data.slot.ruled / bank, band('G9'), f2, ' (L06 pending)')] : [{ at: 'life', value: NaN, status: 'ERR', shown: 'no played bank at ' + I.data.slot.at }],
-    'the bank of a played lone hammer (life.mjs --policy ' + BANK_LIFE.policy + '): every drop sold, nothing bought but supplies');
-  }
   {
     const rows = [];
     for (const p of GC.POOL_POINTS) for (const seat of ['lone', 'four']) {
@@ -427,24 +398,6 @@ function judge(I) {
     }
     line('G19', rows, 'pair ' + GC.SMALL_PARTIES.pair.join(' + ') + ', three ' + GC.SMALL_PARTIES.three.join(' + ') + '; the pace of record assumes 1.2 and 2.0 x the lone table');
   }
-  {
-    /* the Own four (model.mjs): its hunted hours a hero a day, and its stock, a third home-made (the store bill x 2/3, as measure.mjs price reads it) */
-    const pl = MODEL.REFERENCE_PLAYERS.find((p) => p.id === 'ownfour'), share = 2 / 3;
-    const wk = (h) => h / (pl.huntHoursADay * 7), wkS = (v) => (Number.isFinite(v) ? v.toFixed(1) + ' wk' : 'never');
-    const net = (s) => { const r = R('small:' + s.party + ':' + s.point); return r ? r.incomePerH - r.storePerH * share : NaN; };
-    const rows = [];
-    for (const [name, prices] of [['shop', I.data.ladders.shop], ['ruled', I.data.ladders.ruled]]) {
-      if (!I.bank) { rows.push({ at: name, value: NaN, status: 'ERR', shown: 'no played bank' }); continue; }
-      const n3 = net(GC.G20_SLOT_AT[3]), n4 = net(GC.G20_SLOT_AT[4]);
-      const w2 = wk(hoursToBank(I.bank, prices[0]));
-      const w3 = n3 > 0 ? prices[1] / (2 * pl.huntHoursADay * 7 * n3) : Infinity;
-      const w4 = n4 > 0 ? prices[2] / (3 * pl.huntHoursADay * 7 * n4) : Infinity;
-      rows.push(row(name + ' slot 2 ' + kG(prices[0]), w2, band('G20', 'info'), wkS));
-      rows.push({ ...row(name + ' slot 3 ' + kG(prices[1]), w2 + w3, band('G20', 'info'), wkS), gate: 'gold' });
-      rows.push({ ...row(name + ' four heroes ' + kG(prices[2]), w2 + w3 + w4, band('G20', 'four'), wkS), gate: 'gold' });
-    }
-    line('G20', rows, 'cumulative weeks, every coin to the slot, ' + pl.huntHoursADay + ' h a hero a day; the Own four spends ' + Math.round(pl.spends * 100) + '% of what it earns');
-  }
   line('G21', I.nightly ? [
     ...GC.TOWER_FOURS.map((p) => { const r = R('tower-four:' + p.id); return row('four ' + p.level, r && Number.isFinite(r.towerTop) ? r.towerTop - p.level : NaN, band('G21', 'top'), (v) => (v >= 0 ? '+' : '') + v + ' floors'); }),
     ...GC.TOWER_LONE.flatMap((p) => ['hammer', 'mage'].map((s) => {
@@ -527,8 +480,8 @@ function movedSinceBaseline(I, lines) {
 const readBaseline = () => (existsSync(BASELINE) ? JSON.parse(readFileSync(BASELINE, 'utf8')) : null);
 
 /* ── --selftest ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────── */
-const clone = (I) => ({ ...I, rows: JSON.parse(JSON.stringify(I.rows)), ms: { ...I.ms }, bank: I.bank && JSON.parse(JSON.stringify(I.bank)),
-  data: { ...I.data, slot: { ...I.data.slot }, ladders: JSON.parse(JSON.stringify(I.data.ladders)), refill: { ...I.data.refill }, bar: JSON.parse(JSON.stringify(I.data.bar)),
+const clone = (I) => ({ ...I, rows: JSON.parse(JSON.stringify(I.rows)), ms: { ...I.ms },
+  data: { ...I.data, refill: { ...I.data.refill }, bar: JSON.parse(JSON.stringify(I.data.bar)),
     costIn: JSON.parse(JSON.stringify(I.data.costIn)), stamina: { ...I.data.stamina } },
   life: I.life && { ...I.life, steps: I.life.steps.map((s) => [...s]) } });
 const redSet = (lines) => new Set(lines.flatMap((l) => l.rows.filter((r) => r.status === 'RED').map((r) => l.id + ' ' + r.at)));
@@ -583,7 +536,6 @@ async function selftest(workers) {
   const plant = (name, pick, apply, extra = {}) => P.push({ name, pick, apply, pre: 'none', ...extra });
   const cal = { pre: 'cal' };
   plant('a pace over the 2.5x cap: the four on Deadly x1.6 Level XP', (c) => firstClean(c, 'G3'), (J, r) => { J.rows['ref:' + pointOf(r.at) + ':four'].levelXpPerH *= 1.6; }, cal);
-  plant('a gold sink that never pays back: hero slot 2 at 20x its price', (c) => firstClean(c, 'G9', (r) => r.at === 'slot 2'), (J) => { J.data.slot.price *= 20; });
   plant('a stack over its cap: the gear pool +25% Level XP', (c) => firstClean(c, 'G10', (r) => /xp$/.test(r.at)), (J, r) => { const [p, seat] = r.at.split(' '); J.rows[seat + '-pool:' + p].levelXpPerH *= 1.25; });
   plant('a cost over the allowance: one more statement on every settle', (c) => firstClean(c, 'G16', (r) => r.at === 'ownfour'), (J) => { for (const f of Object.values(J.data.costIn.fixtures)) f.statements_a_settle += 1; }, { also: (c) => c.find((l) => l.id === 'G16').rows.filter((r) => r.status !== 'RED').map((r) => 'G16 ' + r.at) });
   plant('Deadly loses gold: the Krell-kit four\'s store bill x4', (c) => firstClean(c, 'G8'), (J, r) => { J.rows['four-real:' + r.at].storePerH *= 4; }, cal);
@@ -602,10 +554,6 @@ async function selftest(workers) {
   plant('a lever-named field in a new place (a planted goldBonusPm)', (c) => firstClean(c, 'G14', (r) => r.at === 'strangers'), async (J) => { J.scan = await plantScan('party.js', (m) => ({ ...m, PLANTED: { goldBonusPm: 1200 } })); }, { redMode: true });
   /* the plan audit's lines */
   plant('the pair runs away on Deadly: x1.6 Level XP', (c) => firstClean(c, 'G19'), (J, r) => { const [p, k] = r.at.split(' '); J.rows['small:' + k + ':' + p].levelXpPerH *= 1.6; }, cal);
-  plant('the fourth hero never comes: the three loses gold (store x10)', (c) => firstClean(c, 'G20', (r) => /four heroes/.test(r.at)), (J) => { const s = GC.G20_SLOT_AT[4]; J.rows['small:' + s.party + ':' + s.point].storePerH *= 10; },
-    { ...cal, also: (c) => c.find((l) => l.id === 'G20').rows.filter((r) => /four heroes/.test(r.at) && r.status !== 'RED').map((r) => 'G20 ' + r.at) });
-  plant('a played bank a quarter as deep: slot 2 at Level 32 over the bank', (c) => firstClean(c, 'G9', (r) => r.at === 'slot 2'), (J) => { for (const v of Object.values(J.bank.byLevel)) v.net /= 4; },
-    { also: (c) => (firstClean(c, 'G9', (r) => r.at === 'ruled 400k') ? ['G9 ruled 400k'] : []) });
   plant('the Tower runs past the cap: a four tops out 60 floors over its Level', (c) => firstClean(c, 'G21', (r) => /^four/.test(r.at)), (J, r) => { const L = Number(r.at.split(' ')[1]); J.rows['tower-four:' + GC.TOWER_FOURS.find((p) => p.level === L).id].towerTop = L + 60; }, { pre: 'nightly' });
   plant('the Tower pays a lone hero more than hunting: x1.5', (c) => firstClean(c, 'G21', (r) => /^(hammer|mage)/.test(r.at)), (J, r) => { const [s, L] = r.at.split(' '); const p = GC.ALL_POINTS.find((q) => q.level === Number(L)); J.rows['tower-lone:' + p.id + ':' + s].levelXpPerH = 1.5 * J.rows['ref:' + p.id + ':' + (s === 'hammer' ? 'lone' : 'mage')].levelXpPerH; }, { pre: 'nightly' });
   plant('Deadly kills a four in band: 20 deaths in 128 hero-hours', (c) => firstClean(c, 'D1'), (J, r) => { J.rows['twin-band:' + r.at].deaths = 20; }, { pre: 'nightly' });

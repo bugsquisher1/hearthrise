@@ -5,8 +5,8 @@
 # tools/balance-program/baseline.mjs (lane/bl-baseline; docs/design/balance-
 # baseline/01-baseline.md and 08-regression.md). A game commit (the pin
 # baseline/overhaul-start, a set tip, a lane) is exported with this branch's
-# harness laid over it, and the baseline's scenarios (1,281 cells, 4 seeds,
-# 1 to 8 hours a seed by Level) play in 16 shards; a determinism job plays
+# harness laid over it, and the baseline's scenarios (1,281 cells, 8 seeds,
+# 1 to 8 hours a seed by Level) play in 24 shards; a determinism job plays
 # 16 cells twice; the join writes one results file (the manifest, every
 # seed's outcomes, the band rows judged on that tree, the views, the
 # calibration) and, for a candidate, the side-by-side report against the
@@ -90,11 +90,11 @@ jobs:
   shard:
     needs: target
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 180
     strategy:
       fail-fast: false
       matrix:
-        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23]
     env:
       SHARD: ${{ matrix.shard }}
       GAME: ${{ needs.target.outputs.game }}
@@ -111,13 +111,13 @@ jobs:
           node-version: '20'
       - name: The game commit with this harness laid over it
         run: node tools/balance-program/baseline.mjs --materialize "$GAME" --into "$RUNNER_TEMP/tree" --label "$LABEL"
-      - name: Play shard ${{ matrix.shard }} of 16 of the baseline scenarios
+      - name: Play shard ${{ matrix.shard }} of 24 of the baseline scenarios
         run: |
           set -o pipefail
           EXTRA=()
           if [ -n "$PATCH" ]; then EXTRA+=(--patch "$PATCH"); fi
           if [ -n "$BASE" ] && [ "$BASE" != "today" ]; then EXTRA+=(--base "$BASE"); fi
-          node "$RUNNER_TEMP/tree/tools/balance-program/baseline.mjs" --shard "$SHARD/16" --spec "$GITHUB_WORKSPACE/$SPEC" --workers 4 --out "$GITHUB_WORKSPACE/shard-$SHARD.json.gz" "${EXTRA[@]}"
+          node "$RUNNER_TEMP/tree/tools/balance-program/baseline.mjs" --shard "$SHARD/24" --spec "$GITHUB_WORKSPACE/$SPEC" --workers 4 --out "$GITHUB_WORKSPACE/shard-$SHARD.json.gz" "${EXTRA[@]}"
       - name: Upload the shard
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4

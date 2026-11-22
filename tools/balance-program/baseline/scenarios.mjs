@@ -24,7 +24,7 @@
 //   c2        calibration C-2: the matrix four on each ground and tier real fours played, at the rows' middle Level and C-1's gear
 // The spine is standards.mjs GUARD_CHECKPOINTS inside live content (the release guard's Levels), so no Level list is typed here.
 //
-// SEEDS AND HOURS. Four seeds a cell (seed k plays seedBase k: the same key and seed play the same dice on any tree). Hours by Level
+// SEEDS AND HOURS. Eight seeds a cell (the brief's floor is four; usage allowed the full size, and eight halves a mean's variance) (seed k plays seedBase k: the same key and seed play the same dice on any tree). Hours by Level
 // (HOURS_BY_LEVEL): a cell plays one continuous hunt under the real death rule, and the hero levels inside it, so a low Level plays short
 // enough to stay near its Level and a high Level long enough for deaths to read. What each sample size resolves: 01-baseline.md section 4.
 // ════════════════════════════════════════════════════════════════════════
@@ -38,7 +38,7 @@ import { compsOf, buildCell } from '../progression-grid.mjs';
 
 export const SCENARIO_ID = 'baseline-1';
 export const SPEC_SCHEMA = 'hearthrise.balance-baseline-spec/1';
-export const SEEDS = 4;
+export const SEEDS = 8;
 /* [from Level, hours a seed]: a cell at Level L plays the hours of the last row at or under L */
 export const HOURS_BY_LEVEL = Object.freeze([[1, 1], [10, 2], [30, 4], [60, 8]].map((x) => Object.freeze(x)));
 /* a block that keeps its own hours: check C3 is ruled on 4 seeds x 8 hours (the death sample's) */

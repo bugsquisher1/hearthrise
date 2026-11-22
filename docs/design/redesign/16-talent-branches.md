@@ -6,7 +6,8 @@ Pick the ones you like. Every move is a real row in `src/data/abilities.js`. Not
 
 - **A point every Level.** Spend it on any move you know to raise its rank by 1.
 - **Ranks have no top.** Each rank makes the move a little stronger.
-- **Branches at rank 5, 15 and 30.** Pick 1 of 2 or 3. A branch changes how the move plays. Branches at one rank are the same size: each is best on some grounds and on none of them all.
+- **Branches at rank 5, 15 and 30.** Pick 1 of 2 or 3. A branch changes how the move plays. Branches at one rank are the same strength. Each is best on some grounds, and none is best everywhere.
+- **Stacking.** Branches follow the stacking keys in `15-signature-candidates.md`. No Signature repeats a branch.
 - **Resets cost gold by Level.** Drafting is free. You pay once when you apply it. A new hero's first reset is free.
 - **"Spend as suggested"** spends every point and picks every branch for you, and can stay on.
 
@@ -30,7 +31,7 @@ Moves that more than one weapon uses are listed once, under the first. Brand, Re
   Best for: packs that stay on you
 - **B. Pinning Frost**: Hits your target only, +50% chill
   Best for: bosses
-- **C. Numbing Frost**: Chill slows spell wind-ups 2× as much and attacks 50% less
+- **C. Slowing Frost**: Chill slows spell wind-ups 2× as much and attacks 50% less
   Best for: casters
 
 **Shelter** (Shield, party only)
@@ -58,7 +59,7 @@ Moves that more than one weapon uses are listed once, under the first. Brand, Re
   Note: Armor comes off each hit once, so bigger hits lose less to it.
 - **B. Quick Strike**: −2 s cooldown, −30% damage
   Best for: low-armor enemies
-  Note: More mana per minute.
+  Note: Costs more mana per minute.
 - **C. Guard Strike**: −20% damage, −10% damage taken for 3 s
   Best for: holding the front vs bosses
 
@@ -69,7 +70,7 @@ Moves that more than one weapon uses are listed once, under the first. Brand, Re
   Best for: pairs, small packs
 - **C. Bleeding Turn**: Applies 1 Bleed stack to each target, −30% damage
   Best for: dual axes, long fights
-  Note: Stacks with Rend's Bleed up to 5.
+  Note: Shares Rend's Bleed stacks, up to 5 on a target.
 
 ## Dual Axe
 
@@ -84,9 +85,9 @@ Moves that more than one weapon uses are listed once, under the first. Brand, Re
 ## Club
 
 **Quarry Blow** (Club)
-- **A. Breaking Blow** (Suggested): Target takes 10% more damage from all sources for 4 s, −30% damage
+- **A. Breaking Blow** (Suggested): Applies Sickness (target takes 10% more damage for 6 s), −30% damage
   Best for: parties, bosses
-  Note: Doesn't stack with Green Sickness.
+  Note: The same Sickness as Green Sickness. Doesn't stack with it.
 - **B. Rockfall**: Hits the 3×3 area around the target, −50% damage
   Best for: tight packs
 - **C. Cold Stone**: +40% damage vs chilled targets
@@ -100,7 +101,7 @@ Moves that more than one weapon uses are listed once, under the first. Brand, Re
   Best for: bosses, long fights
 - **B. Pack Mark**: Marks the target and 2 nearby enemies, +10% damage taken (from 20%)
   Best for: big packs
-- **C. Hunter's Call**: Marked target deals 10% less damage, +10% damage taken (from 20%)
+- **C. Crippling Mark**: Marked target deals 10% less damage, +10% damage taken (from 20%)
   Best for: protecting the tank vs bosses
 
 **Flame Volley** (Ranged)
@@ -171,7 +172,7 @@ Moves that more than one weapon uses are listed once, under the first. Brand, Re
   Best for: steady damage
 - **B. Deep Mending**: Only casts on allies below 40% health, +60% healing
   Best for: big single hits
-- **C. Shared Mending** (Suggested): 30% of the heal also lands on the next lowest-health ally
+- **C. Split Mending** (Suggested): 30% of the heal also lands on the next lowest-health ally
   Best for: casters, area damage
 
 **Circle of Renewal** (Restoration)
@@ -195,6 +196,7 @@ Moves that more than one weapon uses are listed once, under the first. Brand, Re
   Best for: parties, long fights
 - **B. Single Dose**: Hits the target only, Sickness 20% (from 10%)
   Best for: bosses
+  Note: Replaces a weaker Sickness on the target. Doesn't add to it.
 - **C. Draining Sickness**: Heals the lowest-health ally for 20% of damage dealt
   Best for: solo, small parties
 
@@ -236,6 +238,22 @@ Rank 15 branches build on the rank 5 pick, so each rank 5 option gets its own pa
 - After **Guarding Challenge**: The ally it protected takes 15% less damage for 3 s / −3 s cooldown
 
 **Rend at rank 15**
-- After **Deep Cuts**: +20% damage vs targets with 5 Bleed stacks / Bleed ticks 20% faster
+- After **Deep Cuts**: +20% damage vs targets with 5 or more Bleed stacks / Bleed ticks 20% faster
 - After **Spread**: Bleed jumps to 2 nearby enemies / The jumped Bleed keeps all its stacks
 - After **Quick Rend**: Each Rend hit refreshes all Bleed stacks / −2 mana
+
+---
+
+## Changes from the cross-check
+
+Checked 2026-11-22 against `14-trait-candidates.md`, `15-signature-candidates.md`, `02-architecture.md` (1b and 2), `abilities.js` and `statuses.js`. Signatures that repeated a branch were changed in 15, not here.
+
+- How Talents work: the "same size" line rewritten in plain words. Added a pointer to the stacking keys in 15.
+- Frost Slam C: Numbing Frost renamed Slowing Frost (clashed with Trait #25 Numbed).
+- Power Strike B: note now says it costs more mana per minute.
+- Turning Cut C: note says it shares Rend's Bleed stacks, cap 5 on a target.
+- Quarry Blow A: Breaking Blow now applies Sickness itself (6 s), so it can't stack with Green Sickness by rule. It was a second copy of the same effect.
+- Hunter's Mark C: Hunter's Call renamed Crippling Mark (too close to Hunter's Mark).
+- Greater Mend C: Shared Mending renamed Split Mending (too close to Mend's Shared Mend).
+- Green Sickness B: note that a stronger Sickness replaces a weaker one.
+- Rend rank 15: "5 Bleed stacks" now "5 or more", since #29 raises the cap to 6.

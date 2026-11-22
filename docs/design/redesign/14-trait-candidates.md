@@ -176,8 +176,8 @@ Best for: Healer, Mage
 
 **30. Lime Pit** · Flooded Wing
 +1.4 / 2.5 / 3.6% damage vs poisoned targets
-Best for: Mage (poison)
-Note: Poison users keep it nearly always on.
+Best for: Any, with a Healer using Green Sickness
+Note: Sickness counts as poisoned, so a Healer keeps it nearly always on.
 
 **31. Dunn's Warning** · Bone Wing
 +1.4 / 2.5 / 3.6% healing while an enemy is casting
@@ -230,7 +230,7 @@ Note: Similar to #14.
 **40. Sour Vault** · Flooded Wing
 −1.4 / 2.5 / 3.6% damage taken from poisoned enemies
 Best for: Tank
-Note: Needs a poison user in the party.
+Note: Needs Green Sickness or a Poison user in the party.
 
 ---
 

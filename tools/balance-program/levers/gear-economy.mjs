@@ -127,12 +127,12 @@ export const GEAR_ECONOMY = [
     perturb: NP('not-built', 'hidden: nothing rolls or plays them'),
     ev: 'STATED (a sample of five, CLAUDE.md section 10)' }),
   L('gear.ground-tier', 'equipment', 'archetype', 'The base tier a scale ground drops', {
-    at: [at('src/data/danger.js', 'gearLevel: tierLevel(3)')],
+    at: [at('src/data/danger.js', "ladderTier: 5, traits: traitPool('muster_barrows')")],
     def: 'a scale ground drops ONE base item Level at every depth (Muster Barrows tier 3, item Level 60); depth raises only the Rare odds and the Trait rank',
     range: 'a whole tier (GS-5); the next ground\'s base is a tier up',
     touches: 'why a company moves on: the next ground\'s plain piece beats this ground\'s Rare base (12-targets 3.3)', out: [...KILL, ...SURVIVE], f: [],
     tests: [['tests/gear-steps.mjs', 'GS-5 a whole tier and its pool']], testReads: ['DANGER_GROUNDS'],
-    perturb: NP('not-built', 'no drop table reads it yet (R10)'),
+    perturb: NP('not-built', 'read as the item Level of every scale drop (danger.js scaleItemLevels, lane/r10) and the base of the power step; no matrix RUN names a scale ground'),
     ev: 'STATED (Muster Barrows is a Level 55-75 ground)' }),
 
   /* ── 16. IMBUEMENT EFFECTS ─────────────────────────────────────────────────────────────────────────────────────────────────── */

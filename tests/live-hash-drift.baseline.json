@@ -25,10 +25,10 @@
   },
   "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
   "live_measured": "2026-11-20",
-  "replay_ms": 3932,
+  "replay_ms": 18716,
   "counts": {
-    "tracked_names": 1037,
-    "entries": 870
+    "tracked_names": 1040,
+    "entries": 873
   },
   "functions": [
     {
@@ -15131,6 +15131,60 @@
         "source": "computed-from-replay"
       },
       "agree": true
+    },
+    {
+      "sig": "hr_recruit_company(p_names text[], p_idem uuid)",
+      "name": "hr_recruit_company",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1053-recruits.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "705f9dc65811f3cf6c31039ae6da8c46",
+        "norm_len": 8170,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1053-recruits.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1053-recruits.sql."
+    },
+    {
+      "sig": "hr_recruit_offer(p_uid uuid)",
+      "name": "hr_recruit_offer",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1053-recruits.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "c17e8854e726cb10f651a27b681c3c83",
+        "norm_len": 2555,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1053-recruits.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1053-recruits.sql."
+    },
+    {
+      "sig": "hr_recruits_view(p_user uuid, p_slot integer)",
+      "name": "hr_recruits_view",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1053-recruits.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "b2c393a838d6d862743becb47f9240c8",
+        "norm_len": 252,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1053-recruits.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1053-recruits.sql."
     },
     {
       "sig": "hr_regen_permille(p_flame integer)",

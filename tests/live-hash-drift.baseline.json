@@ -25,7 +25,7 @@
   },
   "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
   "live_measured": "2026-11-20",
-  "replay_ms": 2226,
+  "replay_ms": 2475,
   "counts": {
     "tracked_names": 1037,
     "entries": 870
@@ -8900,6 +8900,7 @@
         "restate"
       ],
       "touched_by": [
+        "1052-settle-flush.sql",
         "2026-10-31-live-horizon.sql"
       ],
       "live": {
@@ -8909,11 +8910,12 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "2871ff3bb2161e4e9e99a23e5c41e5c3",
-        "norm_len": 395,
+        "md5": "40a53b4bcd05700f7b8dae3c852bb783",
+        "norm_len": 592,
         "source": "computed-from-replay"
       },
-      "agree": true
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1052-settle-flush.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body from 1052-settle-flush.sql."
     },
     {
       "sig": "hr_hunt_lock(p_user uuid, p_slot integer)",
@@ -10150,7 +10152,8 @@
         "restate"
       ],
       "touched_by": [
-        "1005-lever-horizon.sql"
+        "1005-lever-horizon.sql",
+        "1052-settle-flush.sql"
       ],
       "live": {
         "md5": "3892dca54971edab21a6b598f5773819",
@@ -10159,11 +10162,12 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "3892dca54971edab21a6b598f5773819",
-        "norm_len": 803,
+        "md5": "a8e0e88792adc0fc1535f857d8cb699c",
+        "norm_len": 1121,
         "source": "computed-from-replay"
       },
-      "agree": true
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1005-lever-horizon.sql, 1052-settle-flush.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body from 1052-settle-flush.sql."
     },
     {
       "sig": "hr_hunt_set_preset(p_slot integer, p_preset integer, p_idem uuid)",

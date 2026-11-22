@@ -50,7 +50,7 @@ import { dummyBlow, dummyStands, trainingBasic } from './training.js';
 import { reaches } from './shooters.js';
 import { elementOnHeroOf } from '../../data/elements.js';
 import { applyStatus, statusRow } from './status.js';
-import { noteHurt } from './danger.js';
+import { noteHurt, breaksOff } from './danger.js';
 
 /* A store shot's share of its partner's ammo bonus, permille. */
 const BASIC_SHOT_PM = Math.round(BASIC_EFFECT_SHARE * 1000);
@@ -250,6 +250,9 @@ export function resolveAttacks(inst, sc) {
     if (u.side === 'mon') {
       /* beside its target, or a SHOOTER within its range in sight (shooters.js reaches) */
       if (!reaches(inst, u, t) || !atRest(u)) continue;
+      /* THE DANGER SCALE'S FALL BACK (danger.js breaksOff): once a hero is under the stance's line, no monster swings again in this pull;
+         the party breaks off at the next sub-step (pull-cycle.js breakOff). Off the scale it never holds. */
+      if (breaksOff(inst.world)) continue;
       const row = atTier(rowOf(inst, u.kind), inst.tier);
       /* A called boss under his enrage line swings that row raised (boss-phases.js). */
       const blowRow = swingRow(u, row);

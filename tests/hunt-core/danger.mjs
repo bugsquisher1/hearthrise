@@ -163,6 +163,19 @@ const CASES = {
     if (!under.sc.events.some((e) => e.type === 'danger' && e.why === 'fall') || !under.sc.events.some((e) => e.type === 'pack_reset')) return 'the break-off told nobody: ' + JSON.stringify(under.sc.events.map((e) => e.type));
     const dead = run('steady', 0);
     if (dead.w.phase !== 'regroup' || dead.w.danger !== Math.max(0, 200 - CLIMB.deathSteps)) return 'a death in the pull left phase ' + dead.w.phase + ' and step ' + dead.w.danger;
+    /* no monster swings once a hero is under the line, even in the sub-step before the break-off */
+    const swings = (low) => {
+      const h = hero(M, 1, 12, 3, { hp: 20, maxHp: 30 }), m = M.hunt['world-state'].makeUnit({ id: 2, side: 'mon', kind: 'rat', pocket: 0, alive: true,
+        hp: 10, maxHp: 10, target: 1, x: 13, y: 3, fx: 13, fy: 3, home: [13, 3], speed: 2400, swingLeftMs: 0 });
+      const w = world(M, [h, m], { leader: 1, phase: 'fight', packs: [{ aggro: true, holder: 1, alive: true }, { aggro: false, holder: null, alive: true }, { aggro: false, holder: null, alive: true }] });
+      M.danger.openDanger(w, 'steady', 200);
+      w.low = low;
+      const sc = { ...subStep(0), rng: M.rng.createRng(7) };
+      M.damage.resolveAttacks(instOf(M, w), sc);
+      return sc.events.filter((e) => (e.type === 'dmg' || e.type === 'miss') && e.u === 2).length;
+    };
+    if (swings(1000) === 0) return 'CONTROL: the rat beside the hero did not swing';
+    if (swings(st.fallPm - 1) !== 0) return 'a monster swung at a party with a hero under the line';
     return null;
   },
   scale(M) {
@@ -209,6 +222,7 @@ const MUTANTS = [
   { name: 'the regroup never waits for readiness', case: 'ready', edits: [['src/core/hunt/danger.js', 'return heroes.every((h) => !h.alive || h.hp * 1000 >= DANGER.readyPm * h.maxHp);', 'return heroes.length >= 0;']] },
   { name: 'readiness is read off the scale too', case: 'ready', edits: [['src/core/hunt/danger.js', '  if (!dangerOn(inst.world)) return true;\n  return heroes.every', '  return heroes.every']] },
   { name: 'a death leaves the stance as it was', case: 'rule', edits: [['src/core/hunt/danger.js', "  if (why === 'death' && own(RISKS, st.afterDeath)) w.risk = st.afterDeath;\n", '']] },
+  { name: 'monsters swing on after a hero is under the line', case: 'breakoff', edits: [['src/core/hunt/damage.js', '      if (breaksOff(inst.world)) continue;\n', '']] },
   { name: 'a pull is never broken off', case: 'breakoff', edits: [['src/core/hunt/pull-cycle.js', '    } else if (breaksOff(w)) breakOff(inst, sc);\n', '    }\n']] },
   { name: 'the broken-off pack stays on the party', case: 'breakoff', edits: [['src/core/hunt/pull-cycle.js', '  for (let p = 0; p < w.packs.length; p++) if (w.packs[p].aggro) resetPack(inst, p, sc);\n  for (const h of heroes(inst)) h.target = null;\n', '  for (const h of heroes(inst)) h.target = null;\n']] },
   { name: 'a break-off moves on to the next pocket', case: 'breakoff', edits: [['src/core/hunt/pull-cycle.js', 'w.phase = PHASE.REGROUP; w.phaseMs = HUNT_TUNING.regroupMs; w.regroupNext = false;\n}', 'w.phase = PHASE.REGROUP; w.phaseMs = HUNT_TUNING.regroupMs; w.regroupNext = true;\n}']] },

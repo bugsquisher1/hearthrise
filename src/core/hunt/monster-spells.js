@@ -54,6 +54,7 @@ import { castShape } from './marks.js';
 import { landHit, restart, slowed, rowOf } from './damage.js';
 import { swingRow, spellCdOf } from './boss-phases.js';
 import { healTaken } from './heal-cut.js';
+import { breaksOff } from './danger.js';
 
 /* spellCds: { spell id: ms until it may start } while the monster is in a fight, a spell it does not name being ready ({} = every
    spell ready); null = not in a fight, its first casts not drawn yet. cast: its live cast (marks.js), or null. */
@@ -186,7 +187,8 @@ export function castSpells(inst, sc) {
     }
     if (u.cast) {
       u.cast.left = Math.max(0, u.cast.left - sc.dtMs);
-      if (u.cast.left === 0) land(inst, sc, u, spellRow(u.cast.s));
+      /* (a spell due to land after a hero went under the Danger scale's line waits: the break-off resets its caster first, danger.js breaksOff) */
+      if (u.cast.left === 0 && !breaksOff(inst.world)) land(inst, sc, u, spellRow(u.cast.s));
       continue;
     }
     for (const id of list) {

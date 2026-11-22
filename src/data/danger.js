@@ -23,15 +23,15 @@
 // permille of a hero's max HP, read on the lowest HP any hero reached in a pull (04 section 9: the margin signal is the tail):
 //   fallPm   a pull whose lowest HP went under it falls back (its trigger)
 //   cleanPm  a pull whose lowest HP stayed at or over it is clean (its climb threshold); between the two the step holds
-// THE CLIMB (one rule for every stance), in two parts:
-//   the opening  until the hunt's first fall back, `cleanRun` clean pulls in a row climb, each climb twice the last up to `climbMax` steps
-//                (a company far under its edge finds it within the first hours); a pull that is not clean puts the next climb back to one
-//   the creep    after a fall back, a climb takes a window of `settleRun` clean pulls in a row and is ONE step, so the company sits
-//                under its edge and stops re-testing it
-// A fall back is `fallSteps` down, a pull in which a hero died `deathSteps` down; after either nothing climbs for `coolPulls` pulls.
-// (Probe V1, lane/v1-climb 2026-11-22: the first rule, 2 clean pulls and doubling for good with a 6-step fall back, left Steady dying out of
-// a typical low near its climb threshold, 15 deaths and 3 wipes in 8 days; the 18-step fall back with a 10-pull cool-down, variant A, 5 and
-// none; this creep, variant B, is the rule the probe kept. Its numbers are in the lane's report.)
+// THE CLIMB (one rule for every stance): `cleanRun` clean pulls in a row climb `climb` steps, and the next climb is twice as far up to
+// `climbMax` (a company far under its edge finds it within the first hours); any pull that is not clean puts the climb back to one step.
+// A fall back is `fallSteps` down, a pull in which a hero died `deathSteps` down; after either, clean pulls count for nothing for
+// `coolPulls` pulls (the party steadies), then the climb starts again at one step.
+// PROBE V1 (lane/v1-climb, 2026-11-22, a mixed four at Muster Barrows, 8 seeds x 12 h a cell): the first rule (a 6-step fall back, no
+// cool-down) let Steady die, 15 deaths and 3 wipes in its 8 base days; this one (variant A) 3 deaths and none, held step 606 +- 4 across
+// seeds; variant B (after the first fall back, one step a window of 6 clean pulls) crept so slowly the held step read +- 30 across seeds and
+// killed the same seeds at the same hour, so it was dropped. Every Steady death in the sample came out of a pull whose margin had sat near
+// the stance's climb threshold, not out of a fall back too late: the stance's climb threshold places the company, and it sets the death rate.
 // READINESS (04 section 9, 02 section 11): the party leaves its regroup for the next pull only when every standing hero is at or over
 // `readyPm` of max HP. One threshold for every stance here, so a stance differs only in its trigger and its climb threshold.
 //
@@ -50,7 +50,7 @@ export const DANGER = Object.freeze({
   readyPm: 800,
 });
 
-export const CLIMB = Object.freeze({ cleanRun: 2, climbMax: 8, settleRun: 6, fallSteps: 18, deathSteps: 36, coolPulls: 10 });
+export const CLIMB = Object.freeze({ cleanRun: 2, climbMax: 8, fallSteps: 18, deathSteps: 36, coolPulls: 10 });
 
 /* The risk stances, safest first. 'steady' is the default a plan starts on (02 package 3). */
 export const RISKS = Object.freeze({

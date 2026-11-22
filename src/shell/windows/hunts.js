@@ -72,7 +72,8 @@ import { patchParts } from '../goto.js';
 import { t } from '../../render/player-text.js';
 import { trainingPhrase } from '../../session/training-sections.js';
 import { patchAfter, actAfter } from './hunt-after-pane.js';
-import { planHtml, patchPlan, actPlan, goAsOf } from './company-pane.js';
+import { planHtml, patchPlan, actPlan, goAsOf, stanceHtml, patchStance } from './company-pane.js';
+import { onScale } from '../../session/danger-sections.js';
 import { patchScale, actScale, scaleTag, scalesNow } from './scale-pane.js';
 
 const SCRATCH = new WeakMap();
@@ -204,7 +205,7 @@ export function renderHunts(ctx) {
     + '<span class="hw-tiers" role="group" aria-label="' + t('hunts.head_tiers') + '"><span class="hh-segs">'
     + TIER_IDS.map((id) => '<button type="button" class="hh-seg" data-hs-act="tier" data-tier="' + id + '">' + TIER_NAME[id] + '</button>').join('')
     + '</span><output class="hw-tier-read"></output></span></div>'
-    + '<p class="hw-tier-note"></p>'
+    + '<p class="hw-tier-note"></p>' + stanceHtml()
     + '<p class="hw-hunt-pack"></p>' + goHtml() + callHtml() + hallHtml() + '</div>'
     + '<div class="hw-hd-foot"><p class="hh-intent-msg" role="status" aria-live="polite"></p>'
     + '<p class="hw-enter-why"></p>' + planHtml() + '<button type="button" class="hh-tool" data-hs-act="leave-party" hidden>' + t('controls.leave_party') + '</button>'
@@ -350,6 +351,9 @@ function patchPage(det, ctx, sc, v) {
   /* WHEN THE HUNT ENDS: each hero's own choice, a party member's too (the leader picks the hunt, never where a friend goes after it). */
   patchAfter(det, ctx, { off: sc.pending, now: !!now });
   patchPlan(det, ctx, { hunt: r.hunt, pending: sc.pending });
+  /* A GROUND ON THE DANGER SCALE has no tier: the stance and the depth held stand in the tier row's place (company-pane.js). */
+  const scale = onScale(r.hunt);
+  patchStance(det, ctx, { hunt: r.hunt, follower, pending: sc.pending });
   patchCall(det, ctx, { hunt: r.hunt, party, now, pending: sc.pending });
   patchHall(det, ctx, { hunt: r.hunt, party, now, pending: sc.pending, other: !!other });
   patchScale(det, ctx, { hunt: r.hunt, party, pending: sc.pending });
@@ -367,7 +371,7 @@ function patchPage(det, ctx, sc, v) {
   if (off) prop(enter, 'disabled', true);
   /* A HARDER HUNT SAYS SO AT THE PRESS: a pick kept from last time isn't on screen above a scrolled page. */
   const pressing = huntTierOf(cs);
-  const choosing = now || off || follower ? '' : tierChoiceWords(r, shownTier(sc, pressing ? pressing.picks : null, r.hunt, party) || DEFAULT_TIER, size);
+  const choosing = now || off || follower || scale ? '' : tierChoiceWords(r, shownTier(sc, pressing ? pressing.picks : null, r.hunt, party) || DEFAULT_TIER, size);
   text(det.querySelector('.hw-enter-why'), off || choosing);
   prop(det.querySelector('[data-hs-act="leave-party"]'), 'hidden', now || !follower);
   /* This hero's tier picked per ground (hunt_tier); null = the server sent none, no choice shows. */
@@ -377,8 +381,9 @@ function patchPage(det, ctx, sc, v) {
   text(det.querySelector('.hw-hunt-facts'), packWords(r, tier ? tierPull(r, tier, size) : null));
   const offered = tiersOf(groundOf(r.hunt).id);
   /* A ground that offers only Normal has no choice to show. */
-  const choice = !!tier && offered.length > 1;
-  cls(det.querySelector('.hw-tiers'), 'is-on', choice);
+  const choice = !scale && !!tier && offered.length > 1;
+  cls(det.querySelector('.hw-pull .hw-tiers'), 'is-on', choice);
+  prop(det.querySelector('.hw-pull .hw-tiers'), 'hidden', scale);
   for (const b of det.querySelectorAll('.hw-tiers [data-tier]')) {
     const id = b.getAttribute('data-tier');
     prop(b, 'hidden', follower || !offered.includes(id));
@@ -386,7 +391,7 @@ function patchPage(det, ctx, sc, v) {
     attr(b, 'aria-pressed', String(id === tier));
     attr(b, 'data-pending', String(id === tier && !!(sc.draft || sc.saving)));
   }
-  text(det.querySelector('.hw-tier-read'), follower && tier ? t('hunts.tier_set_by', { leader: party.leaderName || t('hunts.your_leader'), tier: TIER_NAME[tier] }) : '');
+  text(det.querySelector('.hw-tier-read'), follower && tier && !scale ? t('hunts.tier_set_by', { leader: party.leaderName || t('hunts.your_leader'), tier: TIER_NAME[tier] }) : '');
   /* Normal says it is safe only where it is: under the ground's floor the warning above says what the hero risks, and with store food
      too weak for the ground Before you go says the fix (hunt-go.js weakFoodLine: the hand play died twice under "Safe at your level"). */
   const safe = rangeWords(r, level) || (before || []).some((l) => l.id === FOOD_WEAK_ID) ? '' : TIER_LINES.normal + '\n';

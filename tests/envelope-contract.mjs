@@ -269,6 +269,12 @@ function contract(R, cs, body, tl) {
   const dg = R.DG.dangerOf(cs);
   need('danger', !!dg && dg.risk === null && dg.playing === null && typeof dg.held === 'object',
     'dangerOf yields ' + JSON.stringify(dg) + ' from ' + JSON.stringify(body.danger));
+  // the Hunts window's gold line (1060-gold-estimate-catalogue.generated.sql `gold_estimate`, gold-estimate-sections.js goldEstimateOf): every
+  // scale ground at every Risk, the server's number or null under the band floor; the reader hands back exactly what the server sent
+  const ge = body.gold_estimate, geg = ge && ge.grounds && ge.grounds.muster_barrows;
+  need('gold_estimate', !!geg && isNum(ge.level) && ['careful', 'steady', 'bold'].every((r) => r in geg && R.GE.goldEstimateOf(cs, 'muster_barrows', r) === geg[r])
+    && R.GE.goldEstimateOf(cs, 'mill_cellar', 'steady') === null,
+    'goldEstimateOf yields ' + JSON.stringify(['careful', 'steady', 'bold'].map((r) => R.GE.goldEstimateOf(cs, 'muster_barrows', r))) + ' from ' + JSON.stringify(ge));
   // the company's plan (1051-company-start.sql): a new account's lines read the defaults (Wear upgrades on, the rest hunt on), no plan ground, no seat
   const co = R.CO.companyPlanOf(cs);
   need('company', !!co && co.wearOn === true && co.falls === 'hunt_on' && co.planHunt === null && co.joins === null && co.leadPinned === false && co.heroes >= 1,
@@ -430,7 +436,7 @@ export const CONTRACT_KEYS = Object.freeze(['hunt', 'hunt_track', 'hunt_events',
   'character_sheet', 'outfit', 'death_log', 'vitals', 'hunt_bests', 'hunt_tier', 'hunt_target_kind', 'depot', 'home', 'now', 'farm_land', 'farm_tend', 'bench_run', 'rename', 'tally',
   'skill_inputs', 'bench_tax', 'setup_slots', 'titles', 'temper', 'bag_expand', 'gm', 'hallmark', 'level', 'skill_levels', 'live_events', 'training', 'factions', 'hunt_after', 'scaled_hunts', 'boss_halls',
   'tower', 'key_ring', 'entry_gates', 'catacomb', 'features', 'unlocked_recipes', 'hearth_fire', 'presence', 'company', 'hunt_setup', 'recruits', 'danger',
-  'work_day', 'watched']);
+  'work_day', 'gold_estimate', 'watched']);
 
 /* What lane S2's sections are seeded with before the settle (each verb through the real RPC). */
 const SEED = Object.freeze({ name: 'Contract Hero', inviter: 'Contract Inviter', lock: 'cooked_shrimp', loot: 'normal_log',
@@ -492,6 +498,7 @@ async function readers(root) {
     TR: await import(u('src/session/training-sections.js')), FX: await import(u('src/session/faction-sections.js')),
     TWR: await import(u('src/session/tower-sections.js')), CAT: await import(u('src/session/catacomb-sections.js')),
     HA: await import(u('src/session/hunt-after-sections.js')), CO: await import(u('src/session/company-sections.js')), DG: await import(u('src/session/danger-sections.js')),
+    GE: await import(u('src/session/gold-estimate-sections.js')),
     RC: await import(u('src/session/recruit-sections.js')),
     SH: await import(u('src/session/scaled-hunts.js')),
     BQ: await import(u('src/session/boss-quote.js')), BHL: await import(u('src/data/boss-halls.js')),
@@ -643,6 +650,8 @@ const DB_MUTANTS = [
   ['bench_tax', 'public.hr_bench_tax_view(uuid,integer)', "'carry_mg', v_st.carry,", "'carry', v_st.carry,"],
   /* lane/r12-company-trades: the Work window's work-day line reads cap_ms and left_ms (src/session/bench-sections.js workDayOf) */
   ['work_day', 'public.hr_work_day_view(uuid,integer)', "'left_ms', greatest(0, v_cap - v_t),", "'left', greatest(0, v_cap - v_t),"],
+  /* lane/gold-per-hour: the Hunts window's gold line reads grounds (src/session/gold-estimate-sections.js goldEstimateOf) */
+  ['gold_estimate', 'public.hr_gold_estimate_view(uuid,integer)', "jsonb_build_object('level', v_lv, 'grounds', v_out)", "jsonb_build_object('level', v_lv, 'ground', v_out)"],
   /* lane/d-rivets-learn: a gated bench opens off this key (src/session/bench-sections.js learnedRecipesOf) */
   ['unlocked_recipes', 'public.hr_state_of(uuid,integer)', "'unlocked_recipes', public.hr_recipes_of(p_user, v_st.slot),", "'unlockedRecipes', public.hr_recipes_of(p_user, v_st.slot),"],
   ['temper', 'public.hr_temper_view(uuid,integer)', "'rung', coalesce(pp.value, 0),", "'level', coalesce(pp.value, 0),"],

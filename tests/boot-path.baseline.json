@@ -124,6 +124,12 @@
         "gzipBytes": 911585,
         "on": "2026-11-22",
         "why": "R9 power step: +0.4 KB gzip at town, the browser's frozen peer row and member snapshot now carry gearPm (src/core/member.js, hunt/danger.js) for display parity"
+      },
+      {
+        "modules": 21,
+        "gzipBytes": 912044,
+        "on": "2026-11-22",
+        "why": "gold an hour: the Hunts window's estimate line (gold-estimate-sections.js) and the report's earned line (+0.5 KB gzip)"
       }
     ]
   }

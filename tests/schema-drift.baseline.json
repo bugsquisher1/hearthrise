@@ -7,10 +7,10 @@
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
  "generated": "2026-11-22",
- "digest": "0181e53a685bc46bf43586e5cdadcc79821161349cdd1486d248bc9201cb0cd5",
+ "digest": "77d4709f061e380bc7b309d195af62c9e566e3e74516ffae1eb9bede4e2eb5ce",
  "counts": {
   "relations": 340,
-  "functions": 894,
+  "functions": 896,
   "policies": 119,
   "indexes": 481,
   "triggers": 120,
@@ -666,6 +666,8 @@
    "hr_gm_wall_session()",
    "hr_gm_walled(p_user uuid)",
    "hr_goal_week_days(p_at timestamp with time zone)",
+   "hr_gold_estimate(p_hunt text, p_risk text, p_level integer)",
+   "hr_gold_estimate_view(p_user uuid, p_slot integer)",
    "hr_gold_given_add(p_user uuid, p_slot integer, p_gold bigint)",
    "hr_gold_kind(p_kind text, p_intent text, p_session uuid)",
    "hr_grant_baseline_sync(p_note text)",

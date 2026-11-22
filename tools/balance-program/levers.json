@@ -7351,20 +7351,20 @@
    "sites": [
     {
      "file": "src/data/monster-roles.js",
-     "line": 59,
+     "line": 61,
      "text": "shooter: Object.freeze({ name: 'Shooter', reach: 'back', range: 5, targets: 'Targets: back row (ranged)', answer: 'Countered by: Challenge, back-row armor' }),",
      "binding": "MONSTER_ROLES"
     },
     {
      "file": "src/data/monster-roles.js",
-     "line": 60,
+     "line": 62,
      "text": "caster: Object.freeze({ name: 'Caster', reach: 'back', range: 4, splash: Object.freeze({ r: 1, pm: 500 }),",
      "binding": "MONSTER_ROLES"
     },
     {
      "file": "src/data/monster-roles.js",
-     "line": 63,
-     "text": "stalker: Object.freeze({ name: 'Stalker', reach: 'weakest', range: 0, heldPm: 500, blowPm: 500, targets: 'Targets: lowest max health', answer: 'Countered by: Challenge, healing' }),",
+     "line": 65,
+     "text": "stalker: Object.freeze({ name: 'Stalker', reach: 'weakest', range: 0, heldPm: 500, blowPm: 400, targets: 'Targets: lowest max health', answer: 'Countered by: Challenge, healing' }),",
      "binding": "MONSTER_ROLES"
     }
    ],

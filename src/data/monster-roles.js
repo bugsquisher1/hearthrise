@@ -29,7 +29,9 @@
 //   blowPm    and how hard: its largest blow is this share of its row's at the step (absent: all of it). A role that reaches the back
 //             row is sized against the back row: a Wight's full blow, written for a front in heavy armor, took a medium-armored bow
 //             from over the Steady line to dead in one blow (4 deaths in 32 Steady days, every one a Wight on the bow; RD-Q3 a: Careful
-//             and Steady never die), so a stalker lands half (MEASURED: w2/summary.txt).
+//             and Steady never die). At step 580 a Wight's largest blow is 386 against a Level 60 back-row hero's 740 HP; at 500 permille
+//             one death was left in 32 days, so a stalker lands 400 (MEASURED: tools/balance-program/redesign/w2/summary.txt). The rule
+//             under it: a single blow at the back row must stay under the Steady line's 25%.
 //   targets, answer  the tooltip labels ("Targets: front row", "Countered by: shields, armor"): short genre labels, never sentences
 //             (Tyler's voice rule for text outside lore). The engine never reads them.
 // tests/hunt-core/monster-roles.mjs `data` holds every row to these rules (a reach the engine plays, a range inside MONSTER_RANGE, a
@@ -60,7 +62,7 @@ export const MONSTER_ROLES = Object.freeze({
   caster: Object.freeze({ name: 'Caster', reach: 'back', range: 4, splash: Object.freeze({ r: 1, pm: 500 }),
     targets: 'Targets: back row (ranged, area)', answer: 'Countered by: focus fire, healing' }),
   swarm: Object.freeze({ name: 'Swarm', reach: 'spread', range: 0, targets: 'Targets: front row (spreads out)', answer: 'Countered by: area damage, armor' }),
-  stalker: Object.freeze({ name: 'Stalker', reach: 'weakest', range: 0, heldPm: 500, blowPm: 500, targets: 'Targets: lowest max health', answer: 'Countered by: Challenge, healing' }),
+  stalker: Object.freeze({ name: 'Stalker', reach: 'weakest', range: 0, heldPm: 500, blowPm: 400, targets: 'Targets: lowest max health', answer: 'Countered by: Challenge, healing' }),
   /* its shield or its heal is its own spell row (monster-spells.js `mend`); the role says only whom it fights */
   warder: Object.freeze({ name: 'Warder', reach: 'front', range: 0, targets: 'Targets: front row', answer: 'Countered by: focus fire' }),
 });

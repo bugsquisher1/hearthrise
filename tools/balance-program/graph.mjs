@@ -87,7 +87,9 @@ export function rowsJson(v, depth = 0) {
 }
 
 /* a graph with every file:line cite reduced to its file: what --check compares, so a moved line is never a failure */
-const unlined = (v) => (typeof v === 'string' ? v.replace(/(\.(?:js|mjs|ts|sql)):\d+(?:-\d+)?/g, '$1') : Array.isArray(v) ? v.map(unlined) : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, unlined(x)])) : v);
+/* `line` is a lever site's line number. `unhomed` is a report on rule code outside every home: a new ground pack must never turn this file stale */
+const NOT_SHAPE = new Set(['line', 'unhomed']);
+const unlined = (v) => (typeof v === 'string' ? v.replace(/(\.(?:js|mjs|ts|sql)):\d+(?:-\d+)?/g, '$1') : Array.isArray(v) ? v.map(unlined) : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).filter(([k]) => !NOT_SHAPE.has(k)).map(([k, x]) => [k, unlined(x)])) : v);
 export const shapeOf = (graph) => JSON.stringify(unlined(graph));
 
 /**
@@ -327,6 +329,10 @@ function selftest() {
   /* a moved line is no failure, a baseline finding that is gone is */
   const moved = run({ files: { 'src/core/fight.js': '// a new first line\n' + plantedCtx().read('src/core/fight.js') } });
   ok(moved.graph.formulas.find((x) => x.id === 'A').reads[0].at[0] === 'src/core/fight.js:4' && judge(moved, base, shapeOf(clean.graph)).length === 0, 'a moved line re-cites and fails nothing');
+  const grown = buildGraph({ ...plantedCtx({ files: { 'src/data/pack.js': 'export const PACK = { wolf: { hp: 50, def: 6 } };\n' } }), ruleFiles: ['src/core/fight.js', 'src/data/sheet.js', 'src/data/pack.js'] });
+  ok(grown.graph.unhomed.bindings === 1 && grown.graph.unhomed.top[0].at === 'src/data/pack.js#PACK' && judge(grown, base, shapeOf(clean.graph)).length === 0, 'rule code outside every home is counted and fails nothing: a new content file never turns the graph stale');
+  const relined = plantedCtx(); relined.levers = relined.levers.map((L) => ({ ...L, sites: L.sites.map((s) => ({ ...s, line: s.line + 40 })) }));
+  ok(judge(buildGraph(relined), base, shapeOf(clean.graph)).length === 0, 'a lever whose line moved fails nothing');
   ok(judge(clean, { ...base, 'GF-00000000': { kind: 'feeds', key: 'Q>Z' } }).some((f) => f.kind === 'stale' && f.what.includes('GF-00000000')), 'a baseline finding that is gone is stale');
   ok(judge(p6, base, shapeOf(clean.graph)).some((f) => f.kind === 'stale' && f.what.includes('graph.json')), 'a graph.json the tree does not build is stale');
 

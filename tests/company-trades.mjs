@@ -7,8 +7,9 @@
 //   node tests/company-trades.mjs            the guard (the whole replayed chain, the shipped edge modules)
 //   node tests/company-trades.mjs --mutate   the proof: each planted defect (SQL in the live body, JS in a temp copy of the edge) turns its arm red
 //
-// mutant-anchors: supabase/functions/hr-accrue/accrual.js, supabase/functions/hr-accrue/tick-shadow.js — the JS mutants patch a temp
-//   copy; the SQL mutants are planted in live bodies read from the replayed chain (pg_get_functiondef) and restored after their arm
+// mutant-anchors: supabase/functions/hr-accrue/accrual.js, supabase/functions/hr-accrue/tick-shadow.js
+//   (the JS mutants patch a temporary copy of the edge; the SQL mutants are planted in live bodies read from the replayed chain with
+//   pg_get_functiondef and restored after their arm)
 //
 // Every hero is made with hr_create_hero and set to work through the REAL set_activity intent (runSetActivity), as hr_engine.
 //   CT-DATA    src/data/work-day.js is valid; the server's hr_work_day row is the data's; a skill is a company trade on the server

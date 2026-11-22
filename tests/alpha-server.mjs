@@ -475,7 +475,7 @@ export const MEMBER_LAST = '1005-lever-horizon.sql';   // (restated whole there,
 /* ...and its last author once a PATCH counts (staleAnchors `patches`): 2027-05-17-scaled-best.sql and then 2027-05-17-scaled-loot.sql
    splice it in place after tower-climb's restatement (the scaled mark on the member's own row, then the scaled item bound). The memberPlant
    mutants never read this (they plant into the live body), the anchor selftest does. */
-const MEMBER_PATCH_LAST = '1053-hunt-report.sql';   // (1005-lever-horizon.sql's store re-check, then 1053-hunt-report.sql splices the report's fold)
+const MEMBER_PATCH_LAST = '1056-danger-scale.sql';   // (1005-lever-horizon.sql's store re-check, 1053-hunt-report.sql's report fold, then 1056-danger-scale.sql's scale bound)
 /* A PATCH IS AN AUTHOR: hr_hunt_section_view is restated last by READ_RESTATE_LAST and then spliced in place (anchored replaces of
    pg_get_functiondef) by READ_PATCH_LAST, so its last author is a patch. (Re-aimed 2026-11-14, lane/c-target-kind: the probe was
    hr_hunt_instance_read, which 2027-04-22-target-kind.sql restates WHOLE after its two splices, so it has no patch on top any more.) */
@@ -485,6 +485,9 @@ const READ_PATCH_LAST = '2027-01-25-town-defaults.sql';
    (2027-04-24-tower-climb.sql §5: 2027-04-25-boss-daily.sql's splice of 2027-04-23-session-modes.sql's text plus the
    instance's tower_floor; it applies after boss-daily). */
 const READ_LAST = '1053-lever-gates.sql';   // (restated whole there: the hold seat the window's own; patch-chain PATCH-1 after 1046's two fences)
+/* ...and its last author once a PATCH counts: 1056-danger-scale.sql splices the frozen stance into the overlay after it (A-PARTY plants live, so
+   the kick line it changes runs through the splice). */
+const READ_PATCH_LAST_INSTANCE = '1056-danger-scale.sql';
 export function memberPlant(find, repl) {
   return { file: MEMBER_LAST, fn: 'hr_hunt_apply_member', find, repl };
 }
@@ -661,12 +664,15 @@ async function main() {
   if (!patched.some((s) => s.endsWith(`restated last by ${READ_PATCH_LAST}; plant it there`))) { console.error('✗ ANCHOR selftest: a plant in hunt-world-state\'s patched hr_hunt_section_view was not flagged as ' + READ_PATCH_LAST + '\'s: ' + JSON.stringify(patched)); process.exit(1); }
   const unpatched = staleAnchors([{ arm: 'SELFTEST', file: '2026-10-23-hunt-world-state.sql', find: SECTION }]);
   if (!unpatched.some((s) => s.endsWith(`restated last by ${READ_RESTATE_LAST}; plant it there`))) { console.error('✗ ANCHOR selftest: without patches, hunt-world-state\'s hr_hunt_section_view was not named as restated by ' + READ_RESTATE_LAST + ': ' + JSON.stringify(unpatched)); process.exit(1); }
-  /* ...and the A-PARTY kick line names hr_hunt_instance_read's last author, READ_LAST, with no author after it either way. */
+  /* ...and the A-PARTY kick line names hr_hunt_instance_read's last restatement, READ_LAST, without patches (no author after it), and its last
+     patch, READ_PATCH_LAST_INSTANCE, with them. */
   const KICKED = "                 'kicked', exists (select 1 from public.hunt_parties p where p.id = v_i.id)\n";
   for (const patches of [true, false]) {
+    const want = patches ? READ_PATCH_LAST_INSTANCE : READ_LAST;
     const read = staleAnchors([{ arm: 'SELFTEST', file: READ_LAST, find: KICKED }], { patches });
     const old = staleAnchors([{ arm: 'SELFTEST', file: '2027-02-02-settle-cost.sql', find: KICKED }], { patches });
-    if (read.length || !old.some((s) => s.endsWith(`restated last by ${READ_LAST}; plant it there`))) { console.error('✗ ANCHOR selftest: hr_hunt_instance_read\'s last author is not ' + READ_LAST + ' (patches ' + patches + '): ' + JSON.stringify({ read, old })); process.exit(1); }
+    const readOk = patches ? read.some((s) => s.endsWith(`restated last by ${want}; plant it there`)) : !read.length;
+    if (!readOk || !old.some((s) => s.endsWith(`restated last by ${want}; plant it there`))) { console.error('✗ ANCHOR selftest: hr_hunt_instance_read\'s last author is not ' + want + ' (patches ' + patches + '): ' + JSON.stringify({ read, old })); process.exit(1); }
   }
   /* ...and 12-15's hr_hunt_apply_member names its last restatement, MEMBER_LAST, without patches, and its last anchored patch,
      MEMBER_PATCH_LAST, with them (a patch is an author; a file that only READS the body, 2027-05-18-arm-scaled-hunts.sql's §0, is not). */

@@ -322,16 +322,14 @@ export function readAll(doc, ctx) {
   return { rows, findings };
 }
 
-/* ── --check: every target has a reader or a reason ──────────────────────────────────────────────────────────────────────────────── */
+/* ── --check: every target has a reader or a reason ──────────────────────────────────────────────────────────────────────────────────
+   The spec's own shape (a MISSING names its gap and `until`, a reader:ID resolves) is targets.mjs validate's, which --check runs first.
+   This adds the two directions only the Lab knows: a target's Lab reader says it reads that target, and every reader reads a target. */
 export function checkTargets(doc) {
   const out = [];
   const used = new Set();
   for (const t of doc.targets) {
     for (const r of t.readers || []) if (r.startsWith('reader:')) { const id = r.slice(7); used.add(id); const R = readerById(id); if (!R) out.push(t.id + ': names reader ' + id + ', which readers.mjs does not hold'); else if (!R.targets.includes(t.id)) out.push(t.id + ': reader ' + id + ' does not say it reads ' + t.id); }
-    if (t.readerState === 'missing') {
-      if (!(typeof t.gap === 'string' && t.gap.trim())) out.push(t.id + ': MISSING with no gap');
-      if (!(typeof t.until === 'string' && t.until.trim())) out.push(t.id + ': MISSING with no `until` (what must exist before it can have a reader)');
-    }
   }
   for (const R of READERS) {
     if (!used.has(R.id)) out.push(R.id + ': reads ' + R.targets.join(', ') + ', and no target names it');
@@ -487,9 +485,9 @@ function selftest() {
   const moved = honestWorld(); plants[0][1](moved); plants[1][1](moved); plants[2][1](moved); each(moved, 'n4', (h) => { h.sustain.healIn.regen = 300; });
   expect('a finding whose value moved keeps its id (unchanged, never new and gone)', diffFindings(now, readAll(docOf(moved), ctx).findings).unchanged.some((f) => f.check === 'RD-REGEN'));
   /* --check: a target naming a reader that does not exist, a reader no target names, a MISSING with no `until` */
-  const bad = checkTargets({ targets: [{ id: 'A-1', readers: ['reader:RD-NOPE'], readerState: 'lab' }, { id: 'A-2', readers: ['MISSING'], readerState: 'missing', gap: 'x' }] });
+  const bad = checkTargets({ targets: [{ id: 'A-1', readers: ['reader:RD-NOPE'], readerState: 'lab' }] });
   expect('--check misses a reader that does not exist', bad.some((s) => /RD-NOPE/.test(s)));
-  expect('--check misses a MISSING with no until', bad.some((s) => /A-2: MISSING with no `until`/.test(s)));
+  expect('--check misses a reader that does not say it reads its target', checkTargets({ targets: [{ id: 'SUST-2', readers: ['reader:RD-SUSTAIN'] }] }).some((s) => /does not say it reads SUST-2/.test(s)));
   expect('--check misses a reader no target names', bad.some((s) => /RD-SUSTAIN: reads SUST-1, and no target names it/.test(s)));
   /* the assumptions block: a report states every field, or says which it did not */
   expect('an assumptions block with nothing stated reads complete', checkAssumptions(assumptionsOf({})).length > 5);
@@ -507,7 +505,9 @@ async function main() {
   if (has('selftest')) return selftest();
   if (has('list')) { for (const R of READERS) console.log(R.id.padEnd(18) + R.targets.join(',').padEnd(9) + R.on.padEnd(9) + R.label.padEnd(9) + R.reads); return 0; }
   if (has('check')) {
-    const bad = checkTargets(JSON.parse(readFileSync(TARGETS_FILE, 'utf8')));
+    /* the spec's own shape first (targets.mjs: a MISSING names its gap and until), then the Lab's two directions */
+    const doc = JSON.parse(readFileSync(TARGETS_FILE, 'utf8'));
+    const bad = [...(await import('./targets.mjs')).validate(doc), ...checkTargets(doc)];
     for (const b of bad) console.error('BAD  ' + b);
     console.log('readers: ' + READERS.length + ' readers, ' + bad.length + ' problem(s)');
     return bad.length ? 1 : 0;

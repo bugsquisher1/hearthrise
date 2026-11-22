@@ -5,7 +5,7 @@
 //   node tests/party-flow.mjs            the guard (every arm)
 //   node tests/party-flow.mjs --mutate   every planted defect must be CAUGHT by its arm
 //
-// mutant-anchors: supabase/migrations/2027-05-11-party-alone.sql supabase/migrations/2027-04-26-party-stamina-truth.sql supabase/migrations/2027-04-09-own-hunt-nudge.sql supabase/migrations/2027-02-20-party-leader-starts.sql supabase/migrations/2027-02-18-party-truth.sql supabase/migrations/2027-02-11-party-nudge.sql supabase/migrations/2026-10-28-party-flow.sql supabase/migrations/2026-10-29-party-security.sql supabase/migrations/2026-10-30-party-invite-player.sql supabase/migrations/2026-10-30-town-activity-yields.sql supabase/migrations/2026-12-05-hunt-setup-per-ground.sql supabase/migrations/2026-12-07-party-finder.sql supabase/migrations/2027-01-19-play-cap.sql supabase/migrations/2027-02-10-party-instance-reset.sql src/shell/menu-providers.js
+// mutant-anchors: supabase/migrations/2027-05-11-party-alone.sql supabase/migrations/2027-04-26-party-stamina-truth.sql supabase/migrations/2027-04-09-own-hunt-nudge.sql supabase/migrations/2027-02-20-party-leader-starts.sql supabase/migrations/2027-02-18-party-truth.sql supabase/migrations/2027-02-11-party-nudge.sql supabase/migrations/2026-10-28-party-flow.sql supabase/migrations/2026-10-29-party-security.sql supabase/migrations/2026-10-30-party-invite-player.sql supabase/migrations/2026-10-30-town-activity-yields.sql supabase/migrations/2026-12-05-hunt-setup-per-ground.sql supabase/migrations/2026-12-07-party-finder.sql supabase/migrations/2027-01-19-play-cap.sql supabase/migrations/2027-02-10-party-instance-reset.sql src/shell/menu-providers.js supabase/migrations/1059-no-party-finder.sql
 // mutant-writes-tree: no — each mutant is ONE statement of its migration, patched in memory and run on the chain end inside a rolled-back transaction
 //
 // Ships with supabase/migrations/2026-10-28-party-flow.sql (PARTY_SPEC.md,
@@ -107,6 +107,8 @@ const TRUTH = '2027-02-18-party-truth.sql';
 const LEAD = '2027-02-20-party-leader-starts.sql';
 /* 2027-05-11-party-alone.sql restates the kick, leave and sweep bodies last (and hr_hunt_after_start): their mutants plant there. */
 const ALONE = '2027-05-11-party-alone.sql';
+/* 1059-no-party-finder.sql restates hr_party_join_for last (no listing argument): the join mutants plant there. */
+const NOFINDER = '1059-no-party-finder.sql';
 const SRC = (f = FILE) => readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8').replace(/\r\n/g, '\n');
 const U = ['000000c0-0000-4000-8000-0000000f1001', '000000c0-0000-4000-8000-0000000f1002', '000000c0-0000-4000-8000-0000000f1003'];
 const [A, B, C] = U;
@@ -1071,8 +1073,8 @@ MUTANTS.push(
   { arm: 'PF-TOWN', fn: 'hr_hunt_enter_check', why: 'a gathering member refuses the start',
     find: "  if v_st.active_kind not in ('gather', 'artisan', 'training') and v_st.active_kind <> 'idle' then",
     repl: "  if v_st.active_kind <> 'idle' then" },
-  /* hr_party_join_for is 1059-no-party-finder.sql's 3-argument splice of TRUTH's body: planted in the chain end's live body. */
-  { arm: 'PF-BLOCK', fn: 'hr_party_join_for', why: 'an accept ignores a member’s block',
+  /* hr_party_join_for is restated last by 1059-no-party-finder.sql (no listing argument): planted there. */
+  { arm: 'PF-BLOCK', file: NOFINDER, why: 'an accept ignores a member’s block',
     find: "  if exists (select 1 from public.hunt_party_members m where m.party_id = p_party and m.user_id <> p_uid\n               and public.hr_social_blocked(p_uid, m.user_id)) then",
     repl: '  if false then' },
   { arm: 'PF-BLOCK', file: INV, why: 'an invite ignores a member’s block',
@@ -1099,10 +1101,10 @@ MUTANTS.push(
     find: "      if tg_op = 'UPDATE' and new.item_id is not distinct from old.item_id then return null; end if;\n", repl: '' },
   { arm: 'PF-ROLE', file: OWN, why: 'any worn slot nudges',
     find: "      if new.equip_slot not in ('weapon', 'shield') then return null; end if;\n", repl: '' },
-  { arm: 'PF-CROSS', file: TRUTH, why: 'a party of one refuses a Join: the crossing invite is a dead end again',
+  { arm: 'PF-CROSS', file: NOFINDER, why: 'a party of one refuses a Join: the crossing invite is a dead end again',
     find: "(v_own = p_party or exists (select 1 from public.hunt_party_members m where m.party_id = v_own\n                                                         and (m.user_id, m.slot) is distinct from (p_uid, p_slot)))",
     repl: '(true)' },
-  { arm: 'PF-CROSS', file: TRUTH, why: 'a hero with company walks out on it for an invite',
+  { arm: 'PF-CROSS', file: NOFINDER, why: 'a hero with company walks out on it for an invite',
     find: "(v_own = p_party or exists (select 1 from public.hunt_party_members m where m.party_id = v_own\n                                                         and (m.user_id, m.slot) is distinct from (p_uid, p_slot)))",
     repl: '(v_own = p_party)' },
   { arm: 'PF-NOTICE', file: TRUTH, why: 'a refused invite tells nobody',

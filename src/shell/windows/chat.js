@@ -25,7 +25,7 @@
 // Enter while it is open: window-manager.js takeCaret); Chat open at start
 // (src/shell/start-open.js) leaves the caret in the World.
 // ════════════════════════════════════════════════════════════════════════
-import { CHAT_TABS, WHISPER } from '../../data/chat-channels.js';
+import { CHAT_TABS, WHISPER, SLOW_MODE_WORDS } from '../../data/chat-channels.js';
 import { refusalWords } from '../intent-words.js';
 import { ROLE_GLYPH } from '../../data/hunt-hud.js';
 import { HUNT_ROLES } from '../../data/hunt-roles.js';
@@ -206,7 +206,7 @@ async function doSend(ctx, body, st) {
   const r = await store.send(st.tab, textNow, social.chat.draft.links);
   st.sending = false;
   if (r.ok) { social.chat.draft = { text: '', links: [], rev: social.chat.draft.rev + 1 }; st.jump = true; }
-  else st.msg = refusalWords(r.error);
+  else st.msg = r.error === 'slow_mode' && Number.isSafeInteger(r.waitS) ? SLOW_MODE_WORDS.wait(r.waitS) : refusalWords(r.error);
   renderChat.patch(body, ctx);
 }
 

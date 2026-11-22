@@ -194,7 +194,23 @@ ARMS['NY-RECRUITS'] = async (X) => {
   return out;
 };
 
+/* NY-HELD (R7 art pass 2026-11-22, the away card read "Go to Meadowbrook Thicket" twice: the outgrown row's press and the hero's own gold
+   one): a row whose move the card already carries for that hero keeps its words and drops its press; another hero's, another move, or
+   nothing held keeps it. The return card hands patchNeeds the moves its hero blocks carry. */
+ARMS['NY-HELD'] = async (X) => {
+  const out = [];
+  const row = X.N.needsRowsOf({ peers: () => [hero(0, 'Tess', 'outgrown')], plan: null, wearOn: true }).find((r) => r.kind === 'outgrown');
+  if (!row || row.go !== 'ground' || row.slot !== 0) { out.push('the outgrown row reads ' + JSON.stringify(row)); return out; }
+  if (!X.N.pressHeld(row, ['ground:0'])) out.push('the row keeps a press the card already carries for Tess');
+  if (X.N.pressHeld(row, ['ground:1']) || X.N.pressHeld(row, ['again:0']) || X.N.pressHeld(row, []) || X.N.pressHeld(row, undefined)) out.push('a press the card does not carry is dropped');
+  const away = readFileSync(join(ROOT, 'src/shell/windows/away.js'), 'utf8');
+  if (!/needStateOf\(ctx\), \{ held \}/.test(away)) out.push('the return card does not hand patchNeeds the moves its hero blocks carry');
+  return out;
+};
+
 const MUTANTS = [
+  ['a press the card carries is kept on its row', 'NY-HELD', 'src/shell/needs-you.js', "&& held.includes(row.go + ':' + row.slot)", '&& false'],
+  ['any held move drops the press', 'NY-HELD', 'src/shell/needs-you.js', "&& held.includes(row.go + ':' + row.slot)", '&& held.length > 0'],
   ['the recruits row shows before the press is ready', 'NY-RECRUITS', 'src/shell/needs-you/recruits.js', '      if (!o || !o.ready) continue;\n', '      if (!o) continue;\n'],
   ['the recruits row opens nothing', 'NY-RECRUITS', 'src/shell/needs-you/recruits.js', "go: 'recruits', slot: cs.slot", 'slot: cs.slot'],
   ['the visiting press is offered for a boss room', 'NY-REGEAR', 'src/shell/needs-you/gear-choice.js', '!!hunt && !roomOfHunt(hunt) && ', '!!hunt && '],

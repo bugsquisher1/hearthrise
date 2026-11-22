@@ -72,7 +72,7 @@ import { patchParts } from '../goto.js';
 import { t } from '../../render/player-text.js';
 import { trainingPhrase } from '../../session/training-sections.js';
 import { patchAfter, actAfter } from './hunt-after-pane.js';
-import { planHtml, patchPlan, actPlan, goAsOf, stanceHtml, patchStance } from './company-pane.js';
+import { planHtml, patchPlan, actPlan, PLAN_ACTS, goAsOf, stanceHtml, patchStance } from './company-pane.js';
 import { onScale } from '../../session/danger-sections.js';
 import { patchScale, actScale, scaleTag, scalesNow } from './scale-pane.js';
 
@@ -449,8 +449,8 @@ renderHunts.act = function actHunts(ctx, body, action, ev, el) {
   if (action === 'back') { sc.paged = false; repage(); return true; }
   /* "+N more" under a ground's loot: the rest of its rows (display scratch, this ground's only) */
   if (action === 'loot-more') { sc.allLoot = sc.pick; repaint(); return true; }
-  /* Go as is the ground's Setup, and "Go here at the next Start" the plan's ground (company-pane.js): one intent each. */
-  if (action === 'go-as' || action === 'plan-here') return actPlan(ctx, sc, repaint, action, el);
+  /* Go as is the ground's Setup, "Go here at the next Start" the plan's ground, and the Risk on a Danger scale ground (company-pane.js): one intent each. */
+  if (PLAN_ACTS.includes(action)) return actPlan(ctx, sc, repaint, action, el);
   /* Find a party: the Party window's finder, on this ground and this hero's weapon (B #3). */
   if (action === 'find-party') { if (sc.pick) openFinderOn(ctx, cs, sc.pick); return true; }
   /* Hunt prep (the door under Go as), opened from here so its Back comes back to this ground (window-manager.js from) */

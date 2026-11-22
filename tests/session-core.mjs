@@ -1919,6 +1919,26 @@ async function rules(M) {
     const short = Object.entries(ASKVIA_SITES).filter(([f, c]) => c.rule && (driven[f] ? driven[f].size : 0) !== c.rule);
     return !short.length || 'rule sites the rule calls do not drive: ' + short.map(([f, c]) => f + ' ' + (driven[f] ? driven[f].size : 0) + ' of ' + c.rule).join('; ');
   });
+  /* QUIET-CARRIES (rule 11, 1045-ground-presence.sql): the account's quiet switch names the hero on screen and TAKES the envelope its
+     answer carries, like a load: the Friends window's switch reads back from `presence` with no second hr_load. */
+  await t('QUIET-CARRIES', async () => {
+    const FL = await import(pathToFileURL(join(M.BASE, 'src/social/friend-link.js')).href);
+    const srv = fakeServer({ 1: env(1, { presence: { quiet: false } }) });
+    const base = srv.rpc;
+    srv.rpc = async (name, a) => (name === 'hr_presence_quiet_set'
+      ? (srv.calls.push([name, a]), { ok: true, status: 200, closed: false, body: { ok: true, quiet: true, changed: true, envelope: env(2, { presence: { quiet: true } }) } })
+      : base(name, a));
+    const cs = new C.CharacterSession({ slot: 1, uid: UID, server: srv, channel: fakeHub().channel, ...timers });
+    await cs.load();
+    const loads = () => srv.calls.filter((c) => c[0] === 'hr_load').length;
+    const l0 = loads();
+    const r = await FL.setQuiet({ server: srv }, cs, true);
+    const sent = srv.calls.filter((c) => c[0] === 'hr_presence_quiet_set');
+    if (!r || r.ok !== true || r.quiet !== true || sent.length !== 1 || sent[0][1].p_slot !== 1 || sent[0][1].p_quiet !== true) return 'the switch sent ' + JSON.stringify(sent) + ', answered ' + JSON.stringify(r);
+    const p = cs.read('presence');
+    if (loads() !== l0 || cs.record.version !== 2 || !p || p.quiet !== true) return 'after the switch: ' + (loads() - l0) + ' hr_load(s), the record at version ' + cs.record.version + ', presence ' + JSON.stringify(p) + ' (want 0, 2, quiet)';
+    return true;
+  });
   /* ONE ACCOUNT DEPOT on a fake server (hr_bank_move / hr_state_of keep one for every slot): each envelope states it
      with the server's clock (`now`, hr_state_of's transaction instant); `spend` is a town skill on some hero drawing
      on it (2027-01-24-skills-from-storage.sql); `loads(slot)` counts the full reads sent. */

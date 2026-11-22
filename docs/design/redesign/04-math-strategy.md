@@ -2,7 +2,7 @@
 
 Written 2026-11-21 on `lane/rd-math`, on `set/v0.2.144` at 0ddcd6448. This is deliverable 6 of the reset request of 2026-11-21, and it answers the request's sections 3, 4 and 6. Read `01-identity.md` and `02-architecture.md` first (branch `lane/rd-vision`). Docs, six small probe patches and one script that plays them. No game code or data was changed.
 
-The owner approved the redesign's directions on 2026-11-22 (`08-for-tyler.md`, "His answers"), and section 11 now carries his one new rule, the price of bought hunting. The strategy here is the approved direction. No number is a ruling. Every number is a starting value or a range to search, and section 14 says how each one gets settled.
+The owner approved the redesign's directions on 2026-11-22 (`08-for-tyler.md`, "His answers"), and section 11 now carries his new rules: the hunting day of 10 hours, 12 with Premium, and one price rule for bought hunting and bought town work. The strategy here is the approved direction. No number is a ruling. Every number is a starting value or a range to search, and section 14 says how each one gets settled.
 
 **Labels.** MEASURED is a run on the real engine, with its run. COMPUTED is arithmetic on named inputs. JUDGMENT is a design opinion of mine. SPECULATIVE is a guess worth a test. SURVEY is a formula family from a public source, quoted as an idea only (`public-formula-survey.md`, 2026-11-21, licences as marked there, none of it copied). EVIDENCE is a reading from an earlier document, with its place.
 
@@ -395,42 +395,67 @@ Levers: slot weights (a table), `tierSteps`, `wearAhead`, `traitSteps` (three ra
 - **Loot is authored in hours.** A row says "one in about N hunted hours for a hero at this step", and its chance is N times the reference kill rate, inverted. Nobody types a chance. Composable groups (SURVEY: one roll that walks a group, with shared templates) keep the tables small.
 - **The health check is a ratio, not a price:** gold destroyed over gold created for a server at day 30 and day 180 (`sinkOverFaucet`, a soft target near 0.85 to 1.0).
 
-**Bought hunting.** The owner's rule of 2026-11-22 (RD-Q2): the hunting day stays, and a hero can buy more of it. The price scales with the hero's Level and with how many blocks that hero has bought that day. It is priced like every other repeating price, in hours of the wage, so it is felt the same at Level 20 and Level 2,000.
+**The hunting day.** The owner's ruling of 2026-11-22: "Premium should also buy 2 hours of stamina, so 10 without premium 12 with." So the day is a set number, 10 hunted hours a hero without Premium and 12 with. It is no longer a lever.
+
+**Bought time: hunting and town work, one rule.** The owner's rules of 2026-11-22. The hunting day stays and a hero can buy more of it (RD-Q2). Then: "Let's do the same thing with stamina that we are for labor, it can be bought, but it scales and pretty pricey." So town work past the daily cap can be bought too, the same way. Both are bought in blocks, both are priced in hours of the wage at the hero's Level so they are felt the same at Level 20 and Level 2,000, and both get dearer with each block of that kind bought that day.
 
 ```
-price of a block (gold) = staminaBlock x staminaPrice x wage(L) x staminaGrowth ^ n
+price of a block (gold) = block hours[kind] x price per hour[kind] x wage(L) x growth[kind] ^ n
+kind                    = hunting (stamina) or work (town labor)
 wage(L)                 = wageBase x payStepCoin ^ L      the wage above, at the hero's Level
-n                       = blocks this hero has bought this server day, 0 for the first
-                          refused once n reaches staminaBuysMax, reset at the server's day
+n                       = blocks of THAT kind this hero has bought this server day, 0 for the first
+                          refused once n reaches the clamp for that kind, reset at the server's day
 ```
 
-| Lever | Start | Band | What it sets |
-|---|---|---|---|
-| `staminaBlock` | 2 h | 1 to 3 h | Hunted time one purchase adds |
-| `staminaPrice` | 1.0 | 0.8 to 1.25 | Hours of wage for each hunted hour in the first block of the day |
-| `staminaGrowth` | 1.5 | 1.3 to 1.8 | The price multiple for each later block that day |
-| `staminaBuysMax` | 4 | 3 to 6 | The server's clamp on blocks for a hero in a day |
-
-**Why the band's floor is 0.8.** A reference hour on Steady pays one hour of wage before supplies, and the kit takes 0.2 to 0.3 of it (`09-crafting.md` section 2.5). So a hunted hour nets about 0.75 hours of wage in coin. At a price of 0.8 or more, the first block costs at least what it returns in coin, so a purchase trades gold for XP, drops and remains and never gold for more gold. Below that, a rich hero prints coin by buying hours and the sink becomes a faucet. (COMPUTED. JUDGMENT for the floor.)
-
-**At the starting values** (COMPUTED, hours of wage at the hero's own Level, net coin of 0.75 a hunted hour, an example day of 8 hunted hours that nets 6):
-
-| Block that day | Its price | Total paid | Hours added | Net gold cost of the block | Running cost as a share of the day's net coin |
+| Kind | Block hours | Price per hour, in hours of wage | Growth for each block that day | Clamp a day | What one hour earns back at the hero's Level |
 |---|---|---|---|---|---|
-| 1st | 2.0 | 2.0 | 2 | 0.5 | 8% |
-| 2nd | 3.0 | 5.0 | 4 | 1.5 | 33% |
-| 3rd | 4.5 | 9.5 | 6 | 3.0 | 83% |
-| 4th | 6.75 | 16.25 | 8 | 5.25 | 171% |
+| **Hunting** | 2 h (band 1 to 3) | 2.0 (band 1.5 to 2.5) | 1.5 (band 1.3 to 1.8) | 2, fixed (the owner's ruling) | About 0.75 hours of wage in coin |
+| **Work** | 2 h (band 1 to 3) | 0.5 (band 0.4 to 0.6) | 1.5 (band 1.3 to 1.8) | 4 (band 3 to 6) | 0.25 hours of wage in goods |
 
-So the first block is cheap, the second is a real choice, and past the third a hero spends more than a day's coin to hunt on. At the band's ends the four blocks cost 12.4 hours of wage in total (`staminaGrowth` 1.3) or 23.7 (1.8). Most players should stop at one or two. A drop chaser with gold to burn goes to the clamp, and pays for it. That is the gold sink that grows with wealth which `09-crafting.md` section 5.6 says crafting alone cannot supply.
+**The hunting cap.** The owner's ruling of 2026-11-22: "Actually yeah let's cap it." A hero buys at most 2 hunting blocks a day, 4 hours, so the most any hero hunts is 14 hours a day, or 16 with Premium. The cap is not a lever. Bought town work keeps its clamp of 4.
 
-**What it moves elsewhere.** Bought hours are hunted hours, so they raise the coin minted, the kit burned and the labor ratio. If the fifth of heroes who hunt the longest each buy two blocks, the mean hunted day on the mix rises from 6.0 to 6.8 hours and the labor ratio from 0.75 to 0.85 (COMPUTED on `09-crafting.md` section 5.3). That is inside the 0.8 to 1.0 the crafting design wants, so bought hunting soaks up idle town labor rather than breaking it.
+**What an hour earns back, and why "pretty pricey" means at least the first block loses coin.** A reference hunted hour on Steady pays one hour of wage, and its kit takes 0.2 to 0.3 of that (`09-crafting.md` section 2.5), so it nets about 0.75. A work-hour makes 1 over `kitWork` hunted hours of kit (1.25 at 0.8), and the kit for one hunted hour is worth `kitWork` x `townWageShare` hours of wage (0.2). So a work-hour makes goods worth `townWageShare` x wage(L), 0.25 hours of wage, at reference prices (`09` section 4.3). Both starting prices are twice what their hour earns at reference, so the first block of either kind already costs more coin than it returns. A player buys XP, drops, remains, trade XP or a full stock, and never more gold. (COMPUTED. JUDGMENT for "twice".)
 
-**The server shape.** Paid in gold. The client sends one intent, "buy a block for this hero". The server reads the hero's Level and the count from its own rows, prices the block on its own clock, refuses past the clamp, debits the gold, adds the time and writes a ledger row. A plan may hold a standing limit, in blocks and in price, and the same call honors it when the day runs out. Crowns reach it only through gold bought from players, the same channel as the flame's bought fuel. It is a money surface for the pre-launch Security review.
+**Why the bands' floors sit where they do.** Hunting's floor of 1.5 sits above the gross coin a hunted hour pays (1.0 at reference), with room for a company that holds deeper than the reference on Bold. If the Lab finds a company whose coin an hour passes 1.5 times the wage at its Level, the floor rises. Work's floor of 0.4 sits above what a work-hour's goods fetch even at the store's ceiling (`storeCeiling` 1.5 x 0.25 = 0.375), so bought labor cannot print gold even when labor is short and prices are at their top. (COMPUTED.)
 
-**Proves it wrong:** a block after the first that returns more coin than it costs for the reference company on Steady, at any Level. Or a purchase count most players reach that pushes the labor ratio on the mix past 1.0.
+**At the starting values** (COMPUTED, hours of wage at the hero's own Level. The yardstick for both kinds is a full hunting day's net coin: 10 hours netting 7.5 without Premium, 12 hours netting 9.0 with it):
 
-Levers: `wageBase`, `payStepCoin`, `supplyShare`, the tax pair, and price rows in hours (content). Five global, and the four of bought hunting above.
+| Block that day | Hunting: price | Hunting: net cost | Hunting: running net cost | Share of a 10 h day | Share of a 12 h day | Work: price | Work: net cost | Work: running net cost | Share of a 10 h day | Share of a 12 h day |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 1st | 4.0 | 2.5 | 2.5 | 33% | 28% | 1.0 | 0.5 | 0.5 | 7% | 6% |
+| 2nd | 6.0 | 4.5 | 7.0 | 93% | 78% | 1.5 | 1.0 | 1.5 | 20% | 17% |
+| 3rd | Refused | | | | | 2.25 | 1.75 | 3.25 | 43% | 36% |
+| 4th | Refused | | | | | 3.38 | 2.88 | 6.13 | 82% | 68% |
+
+Net cost is the price less what the block's 2 hours earn back (1.5 for hunting, 0.5 for work). A third or fourth hunting block in a day is refused by the cap. Two hunting blocks cost 10.0 hours of wage in all, 7.0 net (9.2 at growth 1.3, 11.2 at 1.8), and four work blocks 8.1. Both are equally pricey for what they buy, twice its worth at the start. Work only looks cheaper as a share of the day because a work-hour is worth a quarter of a hunted hour. So the first hunting block costs a third of a day's net coin and the second nearly a whole day's, which is where the cap stops it. A free hero who buys one hunting block hunts as long as a Premium hero's own day, for 4.0 hours of wage (2.5 net). That is the gold sink that grows with wealth which `09-crafting.md` section 5.6 says crafting alone cannot supply.
+
+**Bounds both kinds share.** The per-kind clamp and the growth factor. One clock: bought time is real time on the server, a hero cannot hunt and work at once, so a hero's hunted, worked and bought hours never pass the hours in a server day. A Premium hero's own day is already 12 hunted and 10 worked at the starting values, so it has about 2 hours left to buy into. No power: a bought hunting hour gives what any hunted hour gives, and a bought work-hour makes goods at the same yield, quality and speed as any other, inside the kit spread limit. Faster, never higher: bought work trains trades sooner, and the cap at 99 and the three Masteries hold.
+
+**What it moves elsewhere.** Bought hunting raises the coin minted, the kit burned and the labor ratio. Bought work lowers the labor ratio and deepens the band markets. Premium does both and they cancel: 2 more hunted hours ask for 1.6 work-hours of kit (2 x `kitWork`), and 2 more work hours give 1.6 (2 x 0.8 used). As a what-if on `09-crafting.md` section 5.3: the fifth of heroes who hunt the longest buy two hunting blocks, a third of heroes are on Premium and use both its extras, and a tenth buy one work block. The ratio on the mix moves from 0.75 to about 0.84, inside the 0.8 to 1.0 the crafting design wants. Re-checked under the hunting cap of 2: the what-if already bought two blocks, so 0.84 stands (COMPUTED: mean hunted 6.0 + 0.8 + 0.67 = 7.47 hours over a mean work day of 8 + 0.67 + 0.2 = 8.87). Tools that wear out add a twelfth to the labor asked for, which puts it near 0.92 (`09-crafting.md` section 3.7). At these prices fewer will buy than that, so the real moves are smaller. (COMPUTED. SPECULATIVE on who buys.)
+
+**The server shape.** One rule and one call for both, paid in gold. The client sends one intent, "buy a block of hunting (or work) for this hero". The server reads the hero's Level and that kind's count from its own rows, prices the block on its own clock, refuses past the clamp, debits the gold, adds the time and writes a ledger row. A plan may hold a standing limit for each kind, in blocks and in price, and the same call honors it, so nobody buys by hand every day. Crowns reach it only through gold bought from players, the same channel as the flame's bought fuel. It is one money surface, flagged once for the pre-launch Security review.
+
+**Proves it wrong:** any block, the first included, that returns more coin than it costs for any company the Lab finds, at any Level. Or a purchase pattern most players reach that moves the labor ratio on the mix by more than 0.1 either way.
+
+**Talent resets.** The rule of `02-architecture.md` section 1b, in the same units. A hero drafts changes for free and pays once when the draft or a saved build is applied.
+
+```
+price of a reset (gold) = resetHours x wage(L) x resetGrowth ^ n
+n                       = resets this hero has paid for this server day, 0 for the first
+```
+
+| Reset that day | Price, hours of wage | Share of a 10 h day's net coin (7.5) |
+|---|---|---|
+| 1st | 0.5 | 7% |
+| 2nd | 1.0 | 13% |
+| 3rd | 2.0 | 27% |
+| 4th | 4.0 | 53% |
+
+`resetHours` starts at 0.5 (band 0.25 to 1) and `resetGrowth` at 2 (band 1.5 to 3). It grows with Level through the wage and with each reset that day through the growth, so a plan that switches builds once a day for its ground pays a small steady price and one that thrashes pays a lot. A new hero's first reset is free. With Premium each hero's first reset of the server day is free and is not counted, so the next is priced as a free hero's first. A reset moves points and never adds one, and the gold is burned, so it is a sink that grows with Level. (COMPUTED.)
+
+**The Crowns book as a sink.** The book moves gold between players and mints none. Its fee, 1% to list and 4% of the gold on a sale (band 3 to 10%), is burned, so every Crown sold for gold is a gold sink that grows with the money players bring. A seller at the weekly cap moves about one account-week of wage, 280 hours of wage on a 10 hour day, and burns about 14 of them. It counts in `sinkOverFaucet` like the market tax. The Crown's gold value is anchored by Premium's hours: the same hours bought as first blocks cost 20 hours of wage an account-day, about 600 a month (`10-premium.md` section 4). (COMPUTED.)
+
+Levers: `wageBase`, `payStepCoin`, `supplyShare`, the tax pair, and price rows in hours (content). Five global, the levers of bought time (four for work and three for hunting, whose cap of 2 is ruled, so seven), `resetHours` and `resetGrowth`, and the book's fee pair.
 
 **4. Coupling.** Supplies link combat to gold (section 3). Personal loot multiplies drops by seats, so odds are per hero. Trait pieces and carry-over are the top of demand. The market is players' prices, which no formula sets, so the model treats it as a range.
 
@@ -481,6 +506,8 @@ Beside them sit content tables the designer owns and the optimizer never moves: 
 | Event and arena rewards | Conditional | A reserved slice |
 
 The slices are levers and their sum is the ceiling. The ceiling times `payStep` is the most any company can be ahead of a plain one at the same Level, and the slices a player can buy with gold give the size of the paid edge the same way. A new source of power takes its steps from a slice or is refused. The flame of section 2b moves how often a Rare drops and its rank. It is luck and not steps, so it sits in section 10 under `kitSpreadMax`.
+
+**Premium has no row.** Nothing Premium sells adds a step. Its hours change how many hours a day a hero hunts and works, never what an hour holds, and bought blocks are the same. So they are read in days, not steps. The Lab reads the days the reference company takes to cross a band four ways: free (10 hunted hours a day), Premium (12), free with two bought blocks (14), and Premium with two (16). As plain division that is 1.0, 0.83, 0.71 and 0.63 of the free days (COMPUTED). The Lab replaces it with runs, since a longer day also burns more kit and reaches the flame's room sooner. Ladders read inside Level bands, so these days move a company's band and never its rank inside one (`02-architecture.md` package 7).
 
 **How they become a lever set the optimizer can move.** The registry of `lane/bl-levers` (`tools/balance-program/levers.mjs`) already holds each lever's site, range, class and how the simulator perturbs it. Three additions:
 
@@ -625,9 +652,9 @@ The owner's direction of 2026-11-21: build the best combination of formulas from
 
 **JUDGMENT, argued on this page:** the step as the unit. The contest. Targets as times and shares. Pay as a ratio for each step. Hours for a Level that level off. Progress stored as a Level and a share. One hit contest and not two.
 
-**Settled by the owner, 2026-11-22:** the hunting day stays, the same for every hero, and more of it can be bought with gold at the price of section 11. Careful and Steady do not die, so their death rate target is zero. A lone hero has no earning floor.
+**Settled by the owner, 2026-11-22:** the hunting day stays, at 10 hours a hero, 12 with Premium. More hunting and more town work can both be bought with gold, at the one price rule of section 11, hunting at most 2 blocks a day (14 hours at most, 16 with Premium). Careful and Steady do not die, so their death rate target is zero. A lone hero has no earning floor.
 
-**Open, and the designer's to decide:** whether blows can miss. How many hours a Level should take. The length of the hunting day, and the four levers of bought hunting inside their bands. Whether the early Levels get a bonus. The role rows. Whether `payStepCoin` should be below the XP ratio and by how much.
+**Open, and the designer's to decide:** whether blows can miss. How many hours a Level should take. The seven levers of bought time inside their bands (the hunting cap of 2 is ruled). Whether the early Levels get a bonus. The role rows. Whether `payStepCoin` should be below the XP ratio and by how much.
 
 **SPECULATIVE until played:** every starting value on this page. That a four holds deep enough to out-earn its heroes with no party bonus. That the edge is wider than a gear tier once pulls wait for readiness and monsters reach the party. Today it is about one tier wide for a lone hero (section 9). That a constant step feels good in the first hour.
 

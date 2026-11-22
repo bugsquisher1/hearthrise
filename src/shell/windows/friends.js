@@ -154,7 +154,7 @@ renderFriends.act = function actFriends(ctx, body, action, ev, el) {
   if (action === 'unblock' && ev.type === 'click') { settle(ctx, body, st, actBlocks(ctx, body, el), ''); return true; }
   if (action === 'quiet' && ev.type === 'click') {
     const on = !!el.checked;
-    settle(ctx, body, st, setQuiet(ctx.account, on).then(async (r) => { if (ctx.character && typeof ctx.character.load === 'function') await ctx.character.load(); return r; }), '');
+    settle(ctx, body, st, setQuiet(ctx.account, ctx.character, on), '');   // the answer is the hero's envelope (rule 11): no second read
     return true;
   }
   if (action === 'copy-link' && ev.type === 'click') {

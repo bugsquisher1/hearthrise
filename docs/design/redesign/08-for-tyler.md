@@ -44,7 +44,8 @@ You lead a small company of heroes in a shared pixel world. You don't swing the 
 | Keep the arenas and the full castle | Section 7b. In the design, budgets set aside now, built in the last wave |
 | The best of Tibia, Path of Exile and Diablo | Section 2c. Mechanics only. Sets, rerolls and a passive web are cut, with reasons |
 | A skilling and crafting model in the spirit of OSRS, made our own | `09-crafting.md` |
-| Stamina stays, and a hero can buy more | Package 9, with the price in `04-math-strategy.md` section 11 |
+| Stamina stays at 10 hours, 12 with Premium. Hunting and labor can be bought, scaling and pricey, hunting at most 2 blocks a day | Package 9, with the price in `04-math-strategy.md` section 11 |
+| What makes Premium and Crowns worth buying, tools that wear out, Talent resets and saved builds, mounts | `10-premium.md`, `09-crafting.md` section 3.7, section 1b |
 
 ## His answers
 
@@ -53,7 +54,7 @@ Page picks win over chat where they differ.
 | # | The question | Answer | What it means in the design |
 |---|---|---|---|
 | RD-Q1 | Can gold buy luck? | **b** | Bought remains burn too. The flame's Level caps how tall it stands, and fuel burns only while the company hunts, so gold buys the top of the curve and never past it. Remains get a market, and the tax on it is a sink. Crowns sold for gold now reach drop luck, flagged for the pre-launch Security review |
-| RD-Q2 | A cap on hunted hours a day? | **a**, plus a new rule | The hunting day stays, the same for every hero. A hero can buy a block of more hunting with gold. The price is hours of the wage at the hero's Level, times a growth factor for each block bought that day, reset at the server's day. A money surface for the Security review |
+| RD-Q2 | A cap on hunted hours a day? | **a**, plus new rules | The hunting day stays: 10 hours, 12 with Premium. More hunting and more town work can be bought in blocks, by one rule: hours of wage at the hero's Level, twice what the hours earn back, dearer with each block that day. Hunting is capped at 2 blocks a day, so 14 hours at most, 16 with Premium (his cap, 2026-11-22). Town work up to 4 blocks. One money surface for the Security review |
 | RD-Q3 | Should most players almost never die? | **a** | Careful and Steady fall back and don't die. Only Bold can die |
 | RD-Q4 | Is this what "every Level" meant? | **a** | A point every Level deepens a move. A branch pick every few Levels |
 | RD-Q5 | The build aimed at the end of December? | **a** | Pause the number lanes, keep what is true under any design, run the climb test first. No new date until it reads. Built as fast as that allows |
@@ -61,7 +62,7 @@ Page picks win over chat where they differ.
 | RD-Q7 | Does a lone hero need its own target? | **a** | Slower and fair. No number set |
 | CR-Q1 | Trades on the company or on each hero? | **a** | On the company, with three Masteries |
 | CR-Q2 | Can Alchemy heal? | **a** | No. Only food heals |
-| CR-Q3 | A daily cap on town work? | **b** | Each hero's town work has a daily cap, and Premium makes it longer. Hours only, never a better rate, about 7% of an account's coin at most. Premium does not lengthen hunting |
+| CR-Q3 | A daily cap on town work? | **b** | Each hero's town work has a daily cap, and Premium makes it longer. With Premium's 2 hunting hours, a payer who uses every hour gets about a fifth more a day, and nothing more per hour |
 
 ## What is proven, measured and unplayed
 
@@ -77,3 +78,5 @@ Page picks win over chat where they differ.
 3. The number lanes stay paused. Lanes that hold under any design keep going (`05-roadmap.md` section 3).
 4. The day V1 reads, targets are written as experiences you can read, and the build waves start.
 5. The rest is tuned together on the one engine in the Balance Lab (`07-balance-lab.md`). You see the results and a build plan with dates.
+
+**Business model (ruled 2026-11-22).** Early Access is a one-time price of $15 with 30 days of Premium in the box. Premium and Crowns are in `10-premium.md`.

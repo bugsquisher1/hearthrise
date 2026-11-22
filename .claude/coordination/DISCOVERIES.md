@@ -4,6 +4,16 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+## 2026-11-22 · qa-engineer (lane/a-ci-reds-social) · the social layer's reds on set/v0.2.144
+
+| # | Found | Sev | Affected | Action |
+|---|---|---|---|---|
+| 1 | A dynamic `import()` of a module the game half already holds is not free: boot.js's `import('../social/friend-link.js')` made it a bundle entry, and esbuild re-split every chunk whose entry set changed (sign-in 12 to 13 modules, town 21 to 24). Reach game-half code through `G` once it is loaded | P2 | src/app/boot.js, SITE-10 | Fixed (G.arriveByLink); 12 / 21 again |
+| 2 | An account-wide write still answers with ONE hero's envelope (rule 11): name the hero on screen as p_slot and carry `hr_state_of(uid, p_slot)`, as 1017 hr_farm_tend does. The Friends window had paid a second hr_load for every quiet press | P2 | 1045 hr_presence_quiet_set, friend-link.js, friends.js | Fixed; session-core QUIET-CARRIES. live-hash baseline wants a Coordinator `--write --no-live` (the signature moved) |
+| 3 | apply-order-honesty's last-toucher rule mis-fires on a generated catalogue: every forward file restates its trigger body byte for byte, so live = replay says nothing about the newest file. Evidence now walks back over identical literal restatements (comments inside the body count, as the md5 does) | P2 | tests/apply-order-honesty.mjs | Fixed; 5 planted cases, 3 mutants each red |
+| 4 | say-why SW-2 is red on four lane/c-social controls with no visible reason: clan.js:117 (Join a full clan), clan.js:125 (Found with no quoted price), friends.js:119 (Copy link before the code), friends.js:123 (Quiet presence with no `presence` section). Pre-existing on 020f01ac4, not fixed here: it needs the window's words (or hidden, not off, which needs `.hf-add[hidden]` / `.hf-quiet[hidden]` CSS) | P2 | src/shell/windows/clan.js, friends.js, tests/say-why.mjs | Route: lane/c-social's owner (backend-architect) with the art director for the words |
+| 5 | chat-social CW-8 is red at 1440x900 on the set's own source (my six src files put back to 27ad7f5c2's: same red): the folded hunt-bar tips `[data-hs-widget="hunt-topbar"] .hs-pointer.is-min [data-hs-act="coach-open"]` exists but is not visible, so the press times out. Not bisected; the hunt coach moved in lane/c-first-hour (ed6a4a0e4 held the row back) | P2 | tests/chat-social.mjs CW-8, the hunt coach card | Route: lane/c-first-hour's owner; bisect 45e08b217..27ad7f5c2 |
+
 ## 2026-11-21 · qa-engineer (lane/a-ci-reds-pre-wave) · the four unowned next reds (04c T-04..T-07)
 
 | # | Found | Sev | Affected | Action |

@@ -27,6 +27,34 @@
 // A `status_tick` credits nothing: the tick's damage is the `dmg` event its
 // hurt() emits, so bleed is counted once, as physical (ST-05).
 //
+// SUSTAIN (Balance Lab phase 2, docs/design/redesign/07-balance-lab.md 3.4: the
+// counters the Lab and the player's report read from one source). Counted only
+// when the caller asks (`roster.sustain: true`); otherwise every hero and party
+// tally is exactly what it was, `sustain` at zero. What kept a hero standing and
+// what it cost, credited to the hero it happened to:
+//   heal at hero t   sustain.healIn.{food (an `item`), self (u is t: its own
+//                    spell or leech), ally (another hero's)} += amount
+//   dmg at hero t    sustain.takenBy.{status (a `dot` tick), swing (a monster's
+//                    'basic'), spell (any other ability: a monster's spell)}
+//   cast by hero u   sustain.mana.spent += mana (the NET the cast kept: what
+//                    Magic XP is paid on), sustain.mana.back += back
+//   shot by hero u   sustain.mana.spent += mana (a staff's mana shot)
+//   rule_wait why 'mana' by hero u   sustain.mana.waits += 1, waitsBy[label] += 1
+//                    (conditions.js noteWait: once per change, never per step)
+//   regeneration     no event (pull-cycle.js tickHeroes: natural regen and a
+//                    worn own heal). With `roster.hp` { unit: [hp at the
+//                    window's start, hp at its end or 0 at a death] } it is the
+//                    one number that closes the window: end - start - healIn +
+//                    takenBy (every other HP move on a hero is a `dmg` or a
+//                    `heal` of the HP it moved: damage.js hurt, abilities.js
+//                    healOne/leechBack, consumables.js raise). A window that
+//                    does not close (a negative remainder) is refused. Without
+//                    anchors it is not counted (the server's settle passes none).
+// The settle's analyzer (hr-accrue accrue-hunt.js analyzerOf) asks for none: it
+// keeps dealt, taken and healed, so the server's settle is byte for byte as it
+// was. Storing `sustain` for the player's report is a fourth analyzer section in
+// the settle's commit (hunt_session_tally): a database change, not made here.
+//
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
@@ -38,6 +66,7 @@ export function emptyTally() {
     dealt: { total: 0, byAbility: {}, byElement: {} },
     taken: { total: 0, byMonster: {}, byElement: {} },
     healed: { total: 0, bySource: {} },
+    sustain: { healIn: { food: 0, self: 0, ally: 0, regen: 0 }, takenBy: { swing: 0, spell: 0, status: 0 }, mana: { spent: 0, back: 0, waits: 0 }, waitsBy: {} },
   };
 }
 
@@ -68,7 +97,8 @@ export function rosterOf(world) {
 
 /**
  * The tally delta of one window's events, per hero and party. `roster` =
- * { heroes: [unit ids], kinds: { unit id: monster kind } } (rosterOf(world));
+ * { heroes: [unit ids], kinds: { unit id: monster kind }, sustain?: true, hp?: { unit id: [from, to] } }
+ * (rosterOf(world); `sustain` counts the sustain block, `hp` its regeneration anchors: see the header);
  * a window with events and no roster is refused, never guessed.
  */
 export function tallyEvents(events, roster = null) {
@@ -77,6 +107,7 @@ export function tallyEvents(events, roster = null) {
   if (events.length && !(roster && Array.isArray(roster.heroes))) throw new Error('tally: events with no roster are refused');
   const ids = new Set(roster ? roster.heroes : []);
   const kinds = (roster && roster.kinds) || {};
+  const sus = !!(roster && roster.sustain === true);
   const heroOf = (id, ev) => {
     if (!ids.has(id)) throw new Error('tally: ' + ev.type + ' at ' + ev.atMs + ' credits unit ' + id + ', who is not a hero of this hunt');
     if (!heroes[id]) heroes[id] = emptyTally();
@@ -139,8 +170,49 @@ export function tallyEvents(events, roster = null) {
       }
       default: break;
     }
+    if (sus) sustainOf(ev, ids, heroOf);
   }
+  if (sus && roster.hp) regenOf(roster.hp, ids, heroOf);
   const party = emptyTally();
   for (const id of Object.keys(heroes).sort((a, b) => a - b)) addTally(party, heroes[id]);
   return { heroes, party };
+}
+
+/* A sustain number off an event: a whole number at or above zero, else nothing (a field the event does not carry). */
+const nat0 = (v) => (Number.isSafeInteger(v) && v > 0 ? v : 0);
+
+/* THE SUSTAIN BLOCK of one event (the header's table). Only heroes of the roster are credited; an event about anyone else counts nothing. */
+function sustainOf(ev, ids, heroOf) {
+  switch (ev.type) {
+    case 'dmg':
+      if (ids.has(ev.t) && !ids.has(ev.u)) bump(heroOf(ev.t, ev).sustain.takenBy, ev.dot ? 'status' : (ev.ability || 'basic') === 'basic' ? 'swing' : 'spell', int(ev.amount, 'dmg amount'));
+      break;
+    case 'heal':
+      if (ids.has(ev.t)) bump(heroOf(ev.t, ev).sustain.healIn, ev.item ? 'food' : ev.u === ev.t ? 'self' : 'ally', int(ev.amount, 'heal amount'));
+      break;
+    case 'cast':
+      if (ids.has(ev.u)) { const m = heroOf(ev.u, ev).sustain.mana; m.spent += nat0(ev.mana); m.back += nat0(ev.back); }
+      break;
+    case 'shot':
+      if (ids.has(ev.u)) heroOf(ev.u, ev).sustain.mana.spent += nat0(ev.mana);
+      break;
+    case 'rule_wait':
+      if (ev.why === 'mana' && ids.has(ev.u)) { const s = heroOf(ev.u, ev).sustain; s.mana.waits += 1; bump(s.waitsBy, String(ev.rule_label || ev.rule), 1); }
+      break;
+    default: break;
+  }
+}
+
+/* REGENERATION, the HP no event moved: for each anchored hero, its window's end HP less its start, less every heal it took, plus every
+   blow it lost. A window that does not close is an HP move with no event: refused, so the counter is never a guess. */
+function regenOf(hp, ids, heroOf) {
+  for (const [id, pair] of Object.entries(hp)) {
+    const unit = Number(id);
+    if (!ids.has(unit) || !Array.isArray(pair) || !pair.every((x) => Number.isSafeInteger(x) && x >= 0)) continue;
+    const s = heroOf(unit, { type: 'regen', atMs: null }).sustain;
+    const healIn = s.healIn.food + s.healIn.self + s.healIn.ally, lost = s.takenBy.swing + s.takenBy.spell + s.takenBy.status;
+    const regen = pair[1] - pair[0] - healIn + lost;
+    if (regen < 0) throw new Error('tally: hero ' + unit + ' went ' + pair[0] + ' -> ' + pair[1] + ' HP with ' + healIn + ' healed and ' + lost + ' lost: ' + (-regen) + ' HP moved with no event');
+    s.healIn.regen += regen;
+  }
 }

@@ -49,7 +49,9 @@ const CATCH = 'src/session/catch-up.js';
    (have: a selector the server compares with its own row to leave out a copy of the caller's own character; never a value,
    request.js readHave). One builder, pinned to exactly its two shapes; only CharacterSession sends what it builds. */
 const ASK = 'src/session/hunt-ask.js';
-const ASK_BUILDER = 'exportfunctionaskBody(slot,huntOpen,wholeAt){returnhuntOpen&&Number.isSafeInteger(wholeAt)&&wholeAt>=0?{slot,have:wholeAt}:{slot};}';
+/* ...and, for the viewed poll of a running prediction, `confirm: true` (lane/c-settle-flush): a selector too (request.js readConfirm,
+   exactly true) that lets the settle answer the check and save at the flush; it never reaches a value. */
+const ASK_BUILDER = 'exportfunctionaskBody(slot,huntOpen,wholeAt,confirm){constb=huntOpen&&Number.isSafeInteger(wholeAt)&&wholeAt>=0?{slot,have:wholeAt}:{slot};returnhuntOpen&&confirm===true?{...b,confirm:true}:b;}';
 
 /* The client's whole RPC surface, each with what it is for. */
 export const CLIENT_RPCS = Object.freeze({
@@ -336,7 +338,7 @@ export function check(files) {
       const forwarded = f === CATCH && (arg === 'body'
         || (arg === 'next' && /constnext=\{\.\.\.body,intentId:newIdem\(\)\};returnserver\.accrue\(next\)/.test(code.replace(/\s+/g, ''))));
       const asked = arg === 'askBody(this.slot,this._huntOpen(' && f === 'src/session/character-session.js'
-        && code.replace(/\s+/g, '').includes('this._server.accrue(askBody(this.slot,this._huntOpen(),this._wholeAt))')
+        && code.replace(/\s+/g, '').includes('this._server.accrue(askBody(this.slot,this._huntOpen(),this._wholeAt,confirm))')
         && strip(files[ASK] || '').replace(/\s+/g, '').includes(ASK_BUILDER);
       if (arg !== '{slot:this.slot}' && !built && !forwarded && !asked) problems.push(`IS-2 ${f} sends the edge ${m[1].trim()} — the client may name its slot, or an edgeBody-built item intent, and nothing else`);
     }
@@ -387,8 +389,10 @@ if (process.argv.includes('--selftest')) {
     ['the edge sent an amount', plant('src/session/character-session.js', 'this._server.accrue({ slot: this.slot, gold: 500 });'), 'IS-2'],
     ['the edge sent a hand-built body outside the builder', plant('src/app/boot.js', 'server.accrue(body);'), 'IS-2'],
     ["the hunter's ask grew a value", { ...real, [ASK]: real[ASK].replace('{ slot, have: wholeAt }', '{ slot, have: wholeAt, gold: 500 }') }, 'IS-2'],
+    ['the confirm carries a value', { ...real, [ASK]: real[ASK].replace('{ ...b, confirm: true }', '{ ...b, confirm: wholeAt }') }, 'IS-2'],
+    ['the confirm rides an ask with no hunt', { ...real, [ASK]: real[ASK].replace('huntOpen && confirm === true ?', 'confirm === true ?') }, 'IS-2'],
     ["the hunter's ask built from another argument", plant('src/session/character-session.js', 'this._server.accrue(askBody(this.slot, true, 500));'), 'IS-2'],
-    ["the hunter's ask sent from outside the session", plant('src/app/boot.js', 'server.accrue(askBody(this.slot, this._huntOpen(), this._wholeAt));'), 'IS-2'],
+    ["the hunter's ask sent from outside the session", plant('src/app/boot.js', 'server.accrue(askBody(this.slot, this._huntOpen(), this._wholeAt, confirm));'), 'IS-2'],
     ['the catch-up layer adds a field to the body it forwards', { ...real, [CATCH]: real[CATCH].replace('const next = { ...body, intentId: newIdem() };', 'const next = { ...body, intentId: newIdem(), gold: 500 };') }, 'IS-2'],
     ['a body forwarded under a new key outside the catch-up layer', plant('src/app/boot.js', 'const next = { ...body, intentId: newIdem() }; server.accrue(next);'), 'IS-2'],
     ['an engine intent the pin does not name', plant('src/shell/windows/inventory/actions.js', "cs.edgeIntent('grant_gold', { qty: 5 });"), 'IS-5'],

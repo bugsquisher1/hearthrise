@@ -221,6 +221,14 @@ export class LiveLink {
   /** What differed at the last correction, once (telemetry); `lastDiff` keeps it for a bug report. Null when none is new. */
   takeDiff() { const d = this._diffOut ? this.lastDiff : null; this._diffOut = false; return d; }
 
+  /**
+   * Does the next poll only CONFIRM the prediction (lane/c-settle-flush; src/session/hunt-ask.js)? While it runs on its seeds and
+   * wants no start point, the server need not save at every poll: it answers the check and saves at the flush. A view joining, a
+   * prediction off the server's world, one that failed, or a start point wanted: the ask saves now (the floor then answers the
+   * start point from the saved world).
+   */
+  confirming() { return this.failure === null && !this.want && !this._joining && this.engine.running(); }
+
   /** A setup intent the server took mid-hunt: ask for a start point at once (it carries the new setup). */
   ask() { if (this.engine.running() || this.engine.stalled()) { this.want = true; this._tries = 0; } }
 

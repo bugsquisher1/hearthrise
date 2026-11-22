@@ -55,8 +55,9 @@ export function refusedByServer(ans) {
 }
 
 /* A settle that paid nothing is NOT a refusal when it says why it waits: the window is under the town floor
-   (below_min_span), under one action (nothing_accrued), already paid (replayed), or nothing runs (idle). */
-const SETTLE_WAITS = Object.freeze(['below_min_span', 'nothing_accrued', 'replayed', 'idle']);
+   (below_min_span), under one action (nothing_accrued), already paid (replayed), nothing runs (idle), or a viewed hunt's
+   confirm answered its check and saves at the flush (confirmed: hunt-settle.js flushDue). */
+const SETTLE_WAITS = Object.freeze(['below_min_span', 'nothing_accrued', 'replayed', 'idle', 'confirmed']);
 
 /**
  * The engine's word that it would not settle this character's activity (hr-accrue's {accrued:false} with any other

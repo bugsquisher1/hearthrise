@@ -1,0 +1,10 @@
+{
+  "schema": "hearthrise.balance-patch/1",
+  "name": "A planted heal cut: every heal a hero takes lands at half (Balance Lab phase 2's proof, experiment EX-0002)",
+  "why": "Every way HP comes back to a hero passes through one cut (src/core/hunt/heal-cut.js healTaken: spells, leech, food, a worn own heal). Planting a standing 50% cut on every hero moves the quantity heal.cut up and nothing else. Natural regeneration is no heal and is not cut. A proof, never a proposal",
+  "kind": "coefficient",
+  "targets": ["survival", "metric:sustainRatio", "metric:regenShare"],
+  "edits": [
+    { "file": "src/core/hunt/heal-cut.js", "from": "export function healCutPmOf(u) {", "to": "export function healCutPmOf(u) {\n  if (u && u.side === 'hero') return 500;" }
+  ]
+}

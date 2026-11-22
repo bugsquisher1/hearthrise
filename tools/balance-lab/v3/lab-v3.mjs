@@ -22,6 +22,8 @@ import { SUPPLY } from '../../balance-program/standards.mjs';
 import { PROJECTED, placeholderWhatIf } from '../../balance-program/grid-project.mjs';
 import { KNOB_LIST } from '../virtual/knobs.mjs';
 import { runCell, ENGINE_VERSION } from '../lab-core.mjs';
+/* the sustain metrics (Balance Lab phase 2), one source with the matrix (matrix-metrics.mjs cellMetrics) */
+import { sustainMetrics } from '../../balance-sim/sustain-reads.mjs';
 /* the knob rule the bundle's instrumented numbers call (build.mjs __hrK): one rounding for the scratch copy and the browser */
 export { knobValue } from '../../balance-program/knob-rules.mjs';
 
@@ -108,6 +110,7 @@ export function liveMetrics(run, L) {
   const lows = hs.map((h) => h.encMinHpPct.p50).filter((x) => x !== null), lows10 = hs.map((h) => h.encMinHpPct.p10).filter((x) => x !== null);
   const seatTaken = hs.map((h) => h.takenPerH);
   const allTaken = seatTaken.reduce((a, b) => a + b, 0);
+  const sus = sustainMetrics([run]);
   return {
     dps: dealt / (ph * 3600), dpsHero: dealt / (ph * 3600) / n, takenPerH: taken / hh, healPerH: (healed + regen) / hh, levelXpPerH: gross / hh,
     netPerH: (income - store * (1 - own) - blessGold) / hh, netLevelXpPerH: net, huntedShare: hh / wall, storePerH: store / hh, suppliesPerH: sum((h) => Object.values(h.buysPerH || {}).reduce((a, b) => a + b, 0) * h.hours) / hh,
@@ -115,6 +118,7 @@ export function liveMetrics(run, L) {
     lowHpTypical: lows.length ? Math.max(0, Math.min(...lows)) / 100 : null, lowHpP10: lows10.length ? Math.max(0, Math.min(...lows10)) / 100 : null,
     hpUnder30: Math.max(...hs.map((h) => (h.hpUnder || {}).p30 || 0)), hpUnder10: Math.max(...hs.map((h) => (h.hpUnder || {}).p10 || 0)),
     hoursPerLevel: net > 0 ? (charXpForLevel(L + 1) - charXpForLevel(L)) / net : null, xContract: gross / hh / contractXpPerH(L),
+    sustainRatio: sus ? sus.sustainRatio : null, regenShare: sus ? sus.regenShare : null, manaWaitsPerH: sus ? sus.manaWaitsPerH : null,
     seats: hs.map((h, i) => [h.style, allTaken > 0 ? seatTaken[i] / allTaken : null]),
   };
 }

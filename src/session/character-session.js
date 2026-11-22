@@ -49,7 +49,7 @@ import { refusalOf, settleRefusalOf } from './refusal.js';
 import { afterRefusal } from './quoted-ask.js';
 import { catchUpLink, newIdem } from './catch-up.js';
 import { pageAway } from './page-away.js';
-import { askBody, slimFloor, takeSlim } from './hunt-ask.js';
+import { askBody, slimFloor, confirmedAnswer, takeSlim } from './hunt-ask.js';
 import { SERVER_ONLY_EVENTS } from '../core/hunt/events.js';
 import { observeSessions, announceSession } from './session-observers.js';
 
@@ -92,7 +92,7 @@ export class CharacterSession {
     this._listeners = new Set();
     this._leave = null; this._attempt = 0; this._retry = null;
     this._residueTimer = null;
-    this._leaveAsk = null; this._asking = null; this._wholeAt = -1; this._wholeMs = -Infinity; this._fed = false;   // the hello in flight; the version known whole and when the server gave it (display clock); re-read last armed by a frame
+    this._leaveAsk = null; this._asking = null; this._confirming = false; this._wholeAt = -1; this._wholeMs = -Infinity; this._fed = false;   // the hello in flight (a confirm?); the version known whole and when the server gave it (display clock); re-read last armed by a frame
     this._pending = {}; this._sent = {}; this._putAt = -Infinity;   // residue to put; put and not yet seen back (residue.js unconfirmedResidue); the last put
     this._closed = false; this._viewed = o.viewed !== false; this._away = false;   // shown (AccountSession.view): only it streams live (setViewed); away: setAway
     this.lastVerdict = null;
@@ -194,7 +194,7 @@ export class CharacterSession {
     const engine = this._viewed || this.leaveAt() !== null;   // unviewed: a plain read (hr_load's budget, not the engine's)
     if (engine && this._pace.waitMs() > 0) { this._poll.arm(this._pace.waitMs()); return; }   // over budget: asked when it fits, not a miss
     let took = false;
-    try { took = await (engine ? this.hello() : this.load()); } catch (e) { /* the next ask retries */ }
+    try { took = await (engine ? this.hello(this._viewed && this.liveLink.confirming()) : this.load()); } catch (e) { /* the next ask retries */ }   // a running prediction confirms (hunt-ask.js)
     /* no answer (blocked, refused, offline) backs the live ask off too, never every liveAskMs */
     if (!took && engine) this.liveLink.missed();
     this._armHuntPoll();
@@ -490,17 +490,17 @@ export class CharacterSession {
   /** One hr-accrue round trip: the server settles and restates the whole character. ONE in flight (every caller
       rides on it); over the character's budget (ask-pacer.js) none is sent: the hunt re-read asks when it fits,
       else ONE catch-up then. */
-  hello() {
+  hello(confirm) {
     if (this._closed) return Promise.resolve(false);
-    if (this._asking) { this._again = true; return this._asking; }   // asked while one is out: ONE more after it
+    if (this._asking) { if (confirm !== true && this._confirming) return this._asking.then(() => this.hello()); this._again = true; return this._asking; }   // one out: ONE more after it; a save behind a confirm asks its own
     if (this._pace.waitMs() > 0) { if (!this._huntOpen()) this._pace.owe(() => this.hello()); return Promise.resolve(false); }
     this._pace.sent();
-    this._askedAt = this._now();
-    return (this._asking = this._helloOnce().finally(() => { this._asking = null; if (this._again) { this._again = false; this.hello(); } }));
+    this._askedAt = this._now(); this._confirming = confirm === true;
+    return (this._asking = this._helloOnce(this._confirming).finally(() => { this._asking = null; if (this._again) { this._again = false; this.hello(); } }));
   }
 
-  async _helloOnce() {
-    const ans = await this._server.accrue(askBody(this.slot, this._huntOpen(), this._wholeAt));
+  async _helloOnce(confirm) {
+    const ans = await this._server.accrue(askBody(this.slot, this._huntOpen(), this._wholeAt, confirm));
     if (this._closed) return false;
     if (ans.status > 0 && ans.status !== 429) this._answeredAt = this._now();   // the server's word (a 429 or a lost network is not)
     /* the account's budget is spent: hold a look-ahead margin, then ONE catch-up (a hunt's own re-read retries it) */
@@ -509,7 +509,7 @@ export class CharacterSession {
        is, with the live start point (take it). A refusal to settle (refusal.js) stands until the next answer (town ticker). */
     if (ans.ok) this.settleRefusal = settleRefusalOf(ans);
     if (ans.ok && ans.body && ans.body.accrued !== true && ans.body.hunt_live && ans.body.state && this._take(ans.body, 'hello')) return true;
-    if (ans.ok && this._record && this._huntOpen() && slimFloor(ans.body, this._wholeAt)) return takeSlim(this, ans.body);   // the floor without the character (hunt-ask.js)
+    if (ans.ok && this._record && this._huntOpen() && (slimFloor(ans.body, this._wholeAt) || confirmedAnswer(ans.body, this._wholeAt))) return takeSlim(this, ans.body);   // the floor or a confirm without a new character (hunt-ask.js)
     /* An idle answer at a version held WHOLE is not re-read: a hunter's (its next ask restates it), and a copy the server gave under
        wholeFreshMs before this ask left (the join right after the roster's read). Older in town it is always read: a party invite moves no version. */
     const v = ans.ok && ans.body ? ans.body.version : null, held = this._huntOpen() || this._askedAt - this._wholeMs <= SESSION_CONFIG.wholeFreshMs;

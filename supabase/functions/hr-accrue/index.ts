@@ -133,6 +133,9 @@ const DB_URL = Deno.env.get('HR_ENGINE_DB_URL') ?? '';
    before any of this runs. Conflating the two is the whole exploit. */
 const TICK_SECRET = Deno.env.get('HR_TICK_SHARED_SECRET') ?? '';
 
+/* THE FLUSH'S OFF SWITCH: secret HR_HUNT_FLUSH=off and every viewed poll saves again (hunt-settle.js flushDue). */
+const HUNT_FLUSH = (Deno.env.get('HR_HUNT_FLUSH') ?? '') !== 'off';
+
 /* Constraint 2, enforced at MODULE LOAD rather than per request. A copy-pasted
    session-mode connection string is the single most likely way the pooler rule
    gets broken, and the damage it does is invisible until the project is busy
@@ -1027,7 +1030,8 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
       const huntOpenHere = out.reason === SKIP.HUNT_OPEN;
       const respond = async (auxOut: Record<string, any>): Promise<Response> => {
         if (!huntOpenHere) return json(auxOut);
-        const hv = await settleHunt({ exec, user, slot, mode: 'settle', bucket: null, project: true, live: true, have: intent.have });
+        const hv = await settleHunt({ exec, user, slot, mode: 'settle', bucket: null, project: true, live: true, have: intent.have,
+          confirm: HUNT_FLUSH && intent.confirm === true });
         if (hv.status !== 200) {
           return json({ ...auxOut, hunt: { outcome: hv.outcome, reason: hv.reason ?? null } });
         }

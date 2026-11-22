@@ -75,7 +75,7 @@ import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { ROOT, WORKFLOW, parseWorkflow, flatSteps, buildPlan, SKIP } from './run-ci-local.mjs';
 import { isGated, isProofCommand, GATE_PREFIX } from '../tools/lib/guard-deps.mjs';
-import { readHeaders, generate, regionSteps } from '../tools/lib/ci-register.mjs';
+import { readHeaders, generate, regionSteps, headerSteps } from '../tools/lib/ci-register.mjs';
 
 const BASELINE_PATH = join(ROOT, 'tests', 'ci-shape.baseline.json');
 
@@ -529,6 +529,11 @@ async function selftest() {
     }],
     ['a header line that is not "<job> | <step name>"', 'CI-SHAPE-13', () => withHeaders({ ...headers,
       errors: [...headers.errors, { file: 'tests/zz-planted.mjs', line: 2, message: '"// ci-step: client-guards" is not "// ci-step: <job> | <step name>"' }] })],
+    ['a step name with ": " in it, which GitHub reads as invalid YAML and refuses the whole workflow (2026-11-22)', 'CI-SHAPE-13', () => {
+      const h = headerSteps('tests/zz-planted.mjs', ['// ci-step: client-guards | Planted: a colon and a space', '// ci-run: node tests/zz-planted.mjs', ''].join('\n'));
+      if (!h.errors.length) throw harness('--selftest: the header reader took a step name with ": " (tools/lib/ci-register.mjs headerSteps)');
+      return withHeaders({ ...headers, errors: [...headers.errors, ...h.errors] });
+    }],
   );
 
   const controls = [

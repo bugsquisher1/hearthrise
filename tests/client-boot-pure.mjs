@@ -28,6 +28,7 @@
 //
 //   B-11 FOUR HERO SLOTS (Tyler 2026-11-21; 1036-four-starter-slots.sql): the line over the roster says how many play at once and
 //        how many heroes are still to make, from the server's limit and roster; no slot is for sale, so the account holds no offer
+//   B-9r ONE HERO FIRST (Tyler RD-Q6 a): the characters screen lists the heroes and no empty slot beside them; no hero: its first slot alone
 //   B-7  ADMISSION: the door's answer is the server's word, in, closed, or unanswered: a failed read is never a no
 //   B-17 THE AWAY STAMP OUTLIVES THE PAGE: a put asked to outlive it goes on a keepalive fetch (one under the browser's 64 KB cap)
 //   B-20 THE LEGAL PAGES: the reader draws only what its rules allow (every character escaped, https and mailto links, the
@@ -116,6 +117,23 @@ async function pure(base) {
     if (M.SO.playLineOf(null, 4, rows) !== '') fails.push('B-11 the line speaks before the server has stated its limit');
   }
 
+  { // B-9r ONE HERO FIRST (Tyler RD-Q6 a, 2026-11-22): the screen lists the heroes and no empty slot beside them; an account with no hero sees its
+    // first slot alone; a hero the server holds unnamed is listed with them (its press names it)
+    const shown = async (heroes, unnamed) => {
+      const acct = accountOf(M, { heroes, slots: [0, 1, 2, 3], purse: 0, goldV: 0, ladder: {} });
+      const rows = await acct.roster();
+      return M.SO.rowsShown(rows.map((r) => (unnamed && unnamed.includes(r.slot) ? Object.assign({}, r, { unnamed: true }) : r))).map((r) => r.slot);
+    };
+    const one = await shown({ 0: 'Tester' });
+    if (JSON.stringify(one) !== '[0]') fails.push('B-9r one hero lists slots ' + JSON.stringify(one) + ', want the hero alone');
+    const none = await shown({});
+    if (JSON.stringify(none) !== '[0]') fails.push('B-9r an account with no hero lists slots ' + JSON.stringify(none) + ', want its first slot alone');
+    const later = await shown({ 2: 'Wren' });
+    if (JSON.stringify(later) !== '[2]') fails.push('B-9r a hero in slot 2 lists slots ' + JSON.stringify(later));
+    const named = await shown({ 0: 'Tester' }, [1]);
+    if (JSON.stringify(named) !== '[0,1]') fails.push('B-9r a hero and an unnamed one list slots ' + JSON.stringify(named));
+  }
+
   { // B-7 Check again is the server's word: in, closed, or unanswered (a failed read is not a no)
     const said = async (ans) => {
       const a = accountOf(M, { heroes: { 0: 'Tester' }, slots: [0], purse: 0, goldV: 0, ladder: {} });
@@ -137,6 +155,9 @@ async function pure(base) {
 const MUTANTS = [
   ['the line forgets the heroes still to make (B-11)', 'src/app/slot-offer.js', "  return empty ? t('slots.play_to_make', { most, count: empty }) : t('slots.play_up_to', { most });", "  return t('slots.play_up_to', { most });"],
   ['the line counts a made hero as one to make (B-11)', 'src/app/slot-offer.js', '.filter((r) => r && !r.exists).length', '.length'],
+  /* one hero first (Tyler RD-Q6 a): no empty slot beside a hero, the first one alone before any */
+  ['the empty slots stand beside the first hero again (B-9r)', 'src/app/slot-offer.js', '  return held.length ? held : all.slice(0, 1);', '  return all;'],
+  ['an account with no hero sees no slot to make one in (B-9r)', 'src/app/slot-offer.js', '  return held.length ? held : all.slice(0, 1);', '  return held;'],
   /* the closed notice's Check again: a failed read is not a no (B-7) */
   ['a failed read reads as a no (B-7)', 'src/session/account-session.js', "return ans.closed ? 'closed' : ans.ok ? 'in' : 'unanswered';", "return ans.ok ? 'in' : 'closed';"],
   /* the away stamp outlives the page (B-17) */

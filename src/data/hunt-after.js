@@ -116,6 +116,7 @@ export const NEEDS_YOU = Object.freeze([
   Object.freeze({ kind: 'ground_opened', band: 'gains' }),
   Object.freeze({ kind: 'talent_points', band: 'gains' }),
   Object.freeze({ kind: 'can_build', band: 'gains' }),
+  Object.freeze({ kind: 'recruits', band: 'gains' }),   // 1053-recruits.sql
 ]);
 /** How many rows the card shows; the rest is one "{n} more" line. */
 export const NEEDS_SHOWN = 3;

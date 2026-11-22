@@ -259,6 +259,12 @@ function contract(R, cs, body, tl) {
   const co = R.CO.companyPlanOf(cs);
   need('company', !!co && co.wearOn === true && co.falls === 'hunt_on' && co.planHunt === null && co.joins === null && co.leadPinned === false && co.heroes >= 1,
     'companyPlanOf yields ' + JSON.stringify(co) + ' from ' + JSON.stringify(body.company));
+  // the recruit press (1053-recruits.sql, Tyler RD-Q6 a): this account's one hero, past the press's Level, is offered it: three recruits in
+  // the empty slots at a Level no higher than the hero's, each a job the company lacks
+  const rc = R.RC.recruitsOf(cs);
+  need('recruits', !!rc && rc.ready === true && Number.isInteger(rc.at) && rc.at > 1 && Number.isInteger(rc.level) && rc.level >= rc.at && rc.slots.length === 3
+    && !rc.slots.includes(rc.first) && rc.sets.length === 3 && new Set(rc.sets).size === 3,
+    'recruitsOf yields ' + JSON.stringify(rc) + ' from ' + JSON.stringify(body.recruits));
   // the bag's next rung (2027-04-15-bag-expand-view.sql): the cap and bank.0 at the server's price, the Storage window's Expand
   const be = R.IS.bagExpandOf(cs);
   need('bag_expand', !!be && be.cap === 100 && be.rung === 0 && !!be.next && be.next.offer === 'bank.0' && be.next.gold === 3000 && be.next.adds === 20,
@@ -409,7 +415,7 @@ export const CONTRACT_KEYS = Object.freeze(['hunt', 'hunt_track', 'hunt_events',
   'name', 'bag_rules', 'shop', 'hunt_presets', 'role', 'party_invites', 'party_notices', 'stamina_refill', 'blessings',
   'character_sheet', 'outfit', 'death_log', 'vitals', 'hunt_bests', 'hunt_tier', 'hunt_target_kind', 'depot', 'home', 'now', 'farm_land', 'farm_tend', 'bench_run', 'rename', 'tally',
   'skill_inputs', 'bench_tax', 'setup_slots', 'titles', 'temper', 'bag_expand', 'gm', 'hallmark', 'level', 'skill_levels', 'live_events', 'training', 'factions', 'hunt_after', 'scaled_hunts', 'boss_halls',
-  'tower', 'key_ring', 'entry_gates', 'catacomb', 'features', 'unlocked_recipes', 'hearth_fire', 'presence', 'company', 'hunt_setup']);
+  'tower', 'key_ring', 'entry_gates', 'catacomb', 'features', 'unlocked_recipes', 'hearth_fire', 'presence', 'company', 'hunt_setup', 'recruits']);
 
 /* What lane S2's sections are seeded with before the settle (each verb through the real RPC). */
 const SEED = Object.freeze({ name: 'Contract Hero', inviter: 'Contract Inviter', lock: 'cooked_shrimp', loot: 'normal_log',
@@ -471,6 +477,7 @@ async function readers(root) {
     TR: await import(u('src/session/training-sections.js')), FX: await import(u('src/session/faction-sections.js')),
     TWR: await import(u('src/session/tower-sections.js')), CAT: await import(u('src/session/catacomb-sections.js')),
     HA: await import(u('src/session/hunt-after-sections.js')), CO: await import(u('src/session/company-sections.js')),
+    RC: await import(u('src/session/recruit-sections.js')),
     SH: await import(u('src/session/scaled-hunts.js')),
     BQ: await import(u('src/session/boss-quote.js')), BHL: await import(u('src/data/boss-halls.js')),
     GT: await import(u('src/session/gate-sections.js')), BC: await import(u('src/data/boss-calls.js')),
@@ -652,6 +659,9 @@ const DB_MUTANTS = [
   /* lane/c-hunt-itinerary: the hunt page's control and the analyzer's line read the grace and the running hunt's own choice */
   ['hunt_after', 'public.hr_hunt_after_section(uuid,integer)', "'grace_s', v_grace,", "'grace', v_grace,"],
   ['company', 'public.hr_company_view(uuid,integer)', "'wear_upgrades', coalesce(", "'wear', coalesce("],
+  /* lane/c-recruits: the recruit pane, the Needs you row and the coach read whether the press is ready and the recruits' slots */
+  ['recruits', 'public.hr_recruit_offer(uuid)', "    'ready', v_lv >= r.at_level,", "    'is_ready', v_lv >= r.at_level,"],
+  ['recruits', 'public.hr_recruit_offer(uuid)', "    'slots', to_jsonb(v_free[1:r.recruit_count]),", "    'free', to_jsonb(v_free[1:r.recruit_count]),"],
   ['hunt_after', 'public.hr_hunt_after_section(uuid,integer)', "'job', public.hr_hunt_after_job(p_user, p_slot), 'now', v_now,", "'job', public.hr_hunt_after_job(p_user, p_slot), 'running', v_now,"],
 ];
 const EDGE_MUTANTS = [

@@ -46,6 +46,7 @@ import { huntOf, sessionModeOfHunt, huntBestsOf } from '../session/hunt-sections
 import { homeOf, chestsOf } from '../session/home-sections.js';
 import { levelOf } from '../session/character-sections.js';
 import { partyMembershipOf } from '../session/party-sections.js';
+import { recruitsOf } from '../session/recruit-sections.js';
 import { nextGroundFrom, adviceLevels } from './hunt-list.js';
 import { itemName } from './widgets/bits.js';
 import { gold, listWords } from '../render/format.js';
@@ -66,21 +67,18 @@ function planned(bag, rules, rule) {
 /** @typedef {Map<string, number>} Bids  item id to the shop's bid (gold per unit) */
 
 
-/* A small count in words, as the designer's line says it ("three more heroes"). */
-const inWords = (n) => ['no', 'one', 'two', 'three'][n] || String(n);
 /* THE PATH'S OWN LINE for the first Level 5 (src/data/the-path.js first_level_5, designer D-1): the end card says it word for word when it is
-   that moment, the Mill Cellar outgrown with every other slot still empty; any later outgrown ground with heroes left says the summary's line. */
+   that moment, the Mill Cellar outgrown with the recruits ready; any later outgrown ground with the press still waiting says the summary's line. */
 const FIRST_LEVEL_5 = THE_PATH.find((r) => r.id === 'first_level_5');
 
-/* The heroes this account still has to make, from the roster the server last read (AccountSession hands it to every hero it opens,
-   cs.accountRoster), with the outgrown ground's name: { name, ground, count }, or null when none is left or nothing was read. */
+/* THE RECRUITS this account's one hero has earned (Tyler RD-Q6 a; the server's `recruits` section, recruit-sections.js), with the outgrown
+   ground's name: { name, ground, count, level, first }, or null when the server offers no press ready now. */
 function partyToMake(cs, h) {
-  const rows = cs && typeof cs.accountRoster === 'function' ? cs.accountRoster() : null;
-  const empty = Array.isArray(rows) ? rows.filter((r) => r && !r.exists && !r.unnamed).length : 0;
+  const o = recruitsOf(cs);
   const ground = h && h.huntId ? (HUNTS.find((x) => x.id === h.huntId) || {}).name : null;
-  /* the first Level 5 of the account: the Mill Cellar outgrown while every slot but this hero's is empty */
-  const first = !!h && h.huntId === 'mill_cellar' && Array.isArray(rows) && rows.filter((r) => r && r.exists).length === 1;
-  return empty && ground ? { name: nameOf(cs) || '', ground, count: empty, first } : null;
+  if (!o || !o.ready || !ground) return null;
+  /* the first Level 5 of the account: the Mill Cellar outgrown */
+  return { name: nameOf(cs) || '', ground, count: o.slots.length, level: o.level, first: h.huntId === 'mill_cellar' };
 }
 
 /**
@@ -89,7 +87,7 @@ function partyToMake(cs, h) {
  *           blessings: {tiers:{tier:number,price:number,held:boolean,permille?:number}[], freeUntil:number|null}|null, purse: number|null, did: Map<string,string>,
  *           buy?: {title:string, words:string, icon:string|null, glyph?:string|null, place:object}|null, free?: boolean,
  *           ground?: {row:{hunt:string,name:string,band:number[]}, levels:number[]}|null, outgrown?: boolean, needs?: Set<string>|null, sold?: string[],
- *           party?: {name:string, ground:string, count:number, first?:boolean}|null }} o
+ *           party?: {name:string, ground:string, count:number, level?:number, first?:boolean}|null }} o
  *        plan: upgradePlan's answer (upgrade-line.js upgradeOf); bids: the shop's (shopOf); purse: goldOf; did: the steps pressed on this
  *        card, each with its title as it was pressed (a done row keeps saying what it did: "Sell 17 stacks for 5,407 gp · Done"); buy: next-buy.js nextBuy's answer;
  *        needs: what the House's next steps name (bag-model.js upgradeNeeds), which no junk sale takes; sold: the junk this card's sale took with no plan;
@@ -154,16 +152,17 @@ export function townSteps(o) {
   add({ id: 'bless', count: offer ? missing.length : 0, title: t('summary.bless_n', { names: listWords(missing.map((x) => ROMAN[x.tier] || String(x.tier))) }),
     words: !offer ? '' : [does, price].filter(Boolean).join(' · '),
     verb: t('summary.bless'), icon: null, tiers: missing.map((x) => x.tier) });
-  /* BUILD YOUR PARTY (designer D-1, the Path's first_level_5): a ground outgrown while the account has heroes still to make. The press opens the
-     Characters screen, where the empty slots come pre-filled (src/app/hero-create.js companyOf); the next ground stays, "Go on alone" */
+  /* RECRUIT YOUR PARTY (designer D-1, the Path's first_level_5; Tyler RD-Q6 a): a ground outgrown while the server offers the recruit press.
+     The press opens All characters, where ONE press makes the recruits (windows/recruits-pane.js); the next ground stays, "Go on alone" */
   const party = o && o.outgrown && o.party && o.party.count > 0 ? o.party : null;
   if (party) {
     const first = FIRST_LEVEL_5 && party.first;
     /* a short title and the line as its words, so the gold press never squeezes a two-sentence title (art review 2026-11-21 #5); the
        Characters press's own glyph, never the Bless shield a step without one borrows (#6) */
     out.push({ id: 'party', count: party.count, done: false, title: t('summary.party_title', { count: party.count }),
-      words: first ? FIRST_LEVEL_5.line.replace('{Name}', party.name) : t('summary.party_line', { name: party.name, ground: party.ground, count: party.count, n: inWords(party.count) }),
-      verb: t('summary.party_go'), icon: null, glyph: 'navProfile', place: { kind: 'characters' } });
+      words: first ? FIRST_LEVEL_5.line.replace('{Name}', party.name)
+        : t('summary.party_line', { name: party.name, ground: party.ground, count: party.count, level: party.level }),
+      verb: t('summary.party_go'), icon: null, glyph: 'navProfile', place: { kind: 'recruits' } });
   }
   /* ground: the step up the Hunts list recommends, after the chores and before the buy; it points, so never the gold press */
   const g = o && o.ground;

@@ -73,7 +73,7 @@ export const COACH_TEXT = Object.freeze({
   food_order_both: 'Press {slot}, lower it to {pct}%, then Later',
   first_spell: 'Press {slot} → {tab} → {spell} → {rune}',
   leave_cellar: 'Leave the hunt to go back to town',
-  more_heroes: 'Character list → Create hero',
+  more_heroes: { one: 'All characters → Recruit 1 hero', other: 'All characters → Recruit {count} heroes' },
   leave_party: 'Tell your party, then leave the hunt',
   bless: 'Shop → Services → Bless all {n}',
   first_eat: 'Cook more {item} before it runs out',
@@ -95,7 +95,7 @@ export const COACH_TEXT = Object.freeze({
   purse_goal: 'Buy a House deed',
   /* WHAT NEXT: one goal a line (hunt-tutorial.js nextGoal) */
   goal_armor: 'Shop → Buy gloves or a belt to train Defense',
-  goal_free_hero: 'Create your free {nth} hero in Characters',
+  goal_recruits: { one: 'Open All characters and recruit 1 hero', other: 'Open All characters and recruit {count} heroes' },
   goal_slot: 'Buy a {nth} hero slot for {gold}',
   goal_top_up: 'Press + beside stamina: {hours} h for {gold}',
   goal_step_up: 'Next step up: {ground}, Level {level}',

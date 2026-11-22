@@ -6,7 +6,7 @@
 //   node tests/needs-you.mjs            the guard (pure Node: the real modules over the alpha envelope, no browser, no database)
 //   node tests/needs-you.mjs --mutate   every planted defect must turn its arm red
 //
-// mutant-anchors: src/shell/needs-you.js src/shell/needs-you/gear-choice.js src/shell/needs-you/death.js src/data/hunt-after.js
+// mutant-anchors: src/shell/needs-you.js src/shell/needs-you/gear-choice.js src/shell/needs-you/death.js src/data/hunt-after.js src/shell/needs-you/recruits.js
 // ci-step: client-guards | Needs you on the return card - three at most, ranked, one row a kind, providers by kind
 // ci-run: node tests/needs-you.mjs
 // ci-run: node tools/mutant-gate.mjs node tests/needs-you.mjs --mutate
@@ -20,6 +20,8 @@
 //   NY-HEROES  the real providers over four heroes' envelopes (one outgrown, one died with no Blessing on, one with better gear in its bag,
 //              one the server's plan refuses for a full bag): the card shows outgrown, cannot start, death, in that order, and one more;
 //              with the company's "Wear upgrades" line on, plain gear is not a decision and the count drops
+//   NY-RECRUITS the account's one hero with the server's recruit press ready: "3 recruits are ready to join {Name} at Level 5." with
+//              Recruit (opens All characters); a press not ready, or no offer, is no row (Tyler RD-Q6 a, 1053-recruits.sql)
 // Exit: 0 green · 1 red · 2 harness.
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync, mkdtempSync, rmSync, writeFileSync, cpSync } from 'node:fs';
@@ -138,7 +140,26 @@ ARMS['NY-REGEAR'] = async (X) => {
   return out;
 };
 
+/* NY-RECRUITS (Tyler RD-Q6 a, 1053-recruits.sql): the account's one hero whose server section says the recruit press is ready reads
+   "3 recruits are ready to join {Name} at Level 5." with Recruit, which opens All characters (go 'recruits'); a press not ready yet, or no
+   section (a company of two or more, the press made), is no row. */
+ARMS['NY-RECRUITS'] = async (X) => {
+  const out = [];
+  const offer = (ready) => ({ recruits: { ready, at: 5, level: 5, first: 0, slots: [1, 2, 3], sets: ['tank', 'healer', 'ranger'] } });
+  const row = (peers) => X.N.needsRowsOf({ peers: () => peers, plan: null, wearOn: true }).find((r) => r.kind === 'recruits');
+  const r1 = row([hero(0, 'Tess', 'stamina', offer(true))]);
+  if (!r1 || r1.text !== '3 recruits are ready to join Tess at Level 5.' || r1.label !== 'Recruit' || r1.go !== 'recruits' || r1.slot !== 0) out.push('a ready press reads ' + JSON.stringify(r1));
+  const r2 = row([hero(0, 'Tess', 'stamina', offer(false))]);
+  if (r2) out.push('a press not ready yet is a row: ' + JSON.stringify(r2));
+  const r3 = row([hero(0, 'Tess', 'stamina', { recruits: null }), hero(1, 'Bryn', 'stamina', { recruits: null })]);
+  if (r3) out.push('a company with no offer is a row: ' + JSON.stringify(r3));
+  if (r1 && /[;—–]/.test(r1.text)) out.push('the recruits row has a semicolon or a dash');
+  return out;
+};
+
 const MUTANTS = [
+  ['the recruits row shows before the press is ready', 'NY-RECRUITS', 'src/shell/needs-you/recruits.js', '      if (!o || !o.ready) continue;\n', '      if (!o) continue;\n'],
+  ['the recruits row opens nothing', 'NY-RECRUITS', 'src/shell/needs-you/recruits.js', "go: 'recruits', slot: cs.slot", 'slot: cs.slot'],
   ['the visiting press is offered for a boss room', 'NY-REGEAR', 'src/shell/needs-you/gear-choice.js', '!!hunt && !roomOfHunt(hunt) && ', '!!hunt && '],
   ['a hero out hunting is never offered the press', 'NY-REGEAR', 'src/shell/needs-you/gear-choice.js', 'if (plan.picks.length && regearable(h.huntId)) hunting.push(cs);', 'void regearable;'],
   ['the rows lose the data\'s order', 'NY-RANK', 'src/shell/needs-you.js', '  const all = [...byKind.values()].sort((a, b) => RANK.get(a.kind) - RANK.get(b.kind));', '  const all = [...byKind.values()];'],

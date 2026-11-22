@@ -364,6 +364,11 @@ export const REFUSAL_WORDS = Object.freeze({
   /* not a server code: the words for bad_name with reason reserved / blocked (intent-words.js refusalText) */
   bad_name_rule: 'Name not allowed',
   already_created: 'Slot already has a hero',
+  /* The recruits (1053-recruits.sql): one press, once an account, when the first hero reaches the press's Level. */
+  recruits_not_ready: 'Your first hero needs a few more Levels',
+  recruits_taken: 'Your company already has its heroes',
+  name_needed: 'Type a name for this recruit',
+  bad_names: 'One name for each recruit',
   slot_not_owned: 'Hero slot not owned',
   slot_cap: 'Every hero slot owned',
   requires_previous_slot: 'Buy the previous slot first',

@@ -5269,6 +5269,12 @@ jobs:
         run: |
           node tests/carry-on.mjs
           node tools/mutant-gate.mjs node tests/carry-on.mjs --mutate
+      # tests/recruits.mjs
+      - name: The recruit press, one hero first then three recruits in one press at Level 5, once an account (1053-recruits.sql)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/recruits.mjs
+          node tools/mutant-gate.mjs node tests/recruits.mjs --mutate
       # tools/balance-program/inventory.mjs
       - name: The balance program's inventory still catches an unclaimed system
         if: ${{ !cancelled() }}

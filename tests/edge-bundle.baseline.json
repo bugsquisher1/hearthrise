@@ -183,6 +183,11 @@
         "bytes": 3210650,
         "on": "2026-11-22",
         "why": "lane/w1-side-seam: src/core/hunt/sides.js and relational decisions by side across 25 engine modules (wave 1 engine batch 1, identity for PvE; +11,842 B on its own base)"
+      },
+      {
+        "bytes": 3210727,
+        "on": "2026-11-22",
+        "why": "lane/c-recruits: src/data/hunt-after.js gains the recruits NEEDS_YOU row (+77 B on its own base)"
       }
     ]
   }

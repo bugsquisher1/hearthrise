@@ -1,0 +1,145 @@
+// ════════════════════════════════════════════════════════════════════════
+// tools/balance-program/graph/moves.mjs — WHAT EACH KNOB AND EACH LEVER MOVES WHEN IT IS RAISED (Balance Lab phase 1). The join of
+// tools/balance-program/levers.json and formulas/knobs.json to the quantities of graph/quantities.mjs. Nothing here repeats a lever's
+// site, range, class or tests: those stay in the lever registry.
+//
+//   '+q'  raising the number raises q · '-q' lowers it · '~q' moves it, the direction depends on the case
+//   ['+q', 'the reason'] when q is not a quantity the lever's own formulas write (the check demands the reason)
+//
+// DERIVED WHERE IT CAN BE. A lever needs no row here when
+//   it is played through a knob: it moves what its first knob moves (KNOB_MOVES), or
+//   its formulas write exactly one quantity: it moves that one, upward.
+// Every other lever is declared by hand in LEVER_MOVES, and the check fails a lever that has neither.
+// A row in LEVER_MOVES overrides both derivations (a lever that shares a knob with two others and moves one term of it).
+// ════════════════════════════════════════════════════════════════════════
+
+/* one row a knob of tools/balance-program/formulas/knobs.json */
+export const KNOB_MOVES = Object.freeze({
+  playerAttack: ['+hero.maxHit'],
+  critMult: ['+hero.crit'],
+  weaknessDamage: ['+hero.weakFactor'],
+  toHitBase: [['~hero.hitChance', 'the base stands on both sides of both to-hit ratios, and the monster rows are re-written from it'], ['~mon.hitChance', 'the same base, the monster\'s side']],
+  heroAccuracy: ['-mon.evasion'],
+  attackInterval: ['+clock.swing'],
+  spellRollLow: [['+hero.castAmount', 'the low end of a cast\'s roll is ABILITY_RULES in src/data/abilities.js, read by hitRange']],
+  manaRegen: ['+hero.manaRegen'],
+  storeSupplyShare: ['+hero.castPower'],
+  monsterDamage: ['+mon.atk'],
+  monsterHp: ['+mon.hp'],
+  monsterAccuracy: ['+mon.aim'],
+  monsterDefense: [['+mon.def', 'the def line is STAT_FORMULA in src/data/balance-sheet.js, which C-MON-STATS writes and C-MON-DEF reads']],
+  monsterDefenseCut: ['+mon.defCut'],
+  partyGroundHp: ['+mon.hp'],
+  partyGroundBlow: ['+mon.atk'],
+  tierDanger: ['+tier.dmg'],
+  tierHp: ['+tier.hp'],
+  tierXp: ['+tier.xp'],
+  tierPull: [['+tier.pull', 'the pull is a column of TIER_DIALS, which C-TIER writes and C-PULL reads']],
+  heroHp: ['+hero.maxHp'],
+  heroMana: ['+hero.maxMana'],
+  armorMitigation: ['+hero.mitigation'],
+  armorCurve: ['-hero.mitigation'],
+  mitigationCap: ['+hero.mitigation'],
+  regen: ['+hero.regen'],
+  xpPerKill: ['+kill.xp'],
+  xpByLevel: ['+kill.xp'],
+  coinPerKill: ['+kill.coin'],
+  soloXp: ['+xp.share'],
+  partyXp: ['+xp.share'],
+  levelCurve: ['+level.cost'],
+  deathLoss: ['+death.xpLoss'],
+  necroticCut: ['+heal.cut'],
+  stormDrain: [['+hero.manaCost', 'a Storm hit burns mana for half the HP it took (C-RESIST-HERO lands it, the drain is spent mana)']],
+});
+
+/* levers the two derivations cannot answer, or answer wrongly */
+export const LEVER_MOVES = Object.freeze({
+  // ── the hero's blow ──
+  'blow.weakness-accuracy': ['+hero.hitChance'],
+  'damage.element-cap': ['+hero.weakFactor'],
+  'damage.total-cap': ['+hero.weakFactor'],
+  'damage.bane-cap': ['+hero.weakFactor'],
+  'damage.combined-cap-unused': ['+hero.weakFactor'],
+  'resist.weapon-resist-unread': ['+hero.weakFactor'],
+  'damage.permanent-cap': ['+hero.buff', '+perk.permanent'],
+  'weapon.ammo': ['+hero.maxHit'],
+  'crit.leather': ['+hero.crit'],
+  // ── skills and Levels ──
+  'skill.curve': ['+skill.cost', '-hero.skill'],
+  'skill.reference-career': ['+ref.hero'],
+  'level.mode-share': ['+xp.share', '~death.mode'],
+  'level.blessing-cut': ['+blessing.cut'],
+  // ── clocks and casts ──
+  'attack.cast-lanes': ['+clock.cast'],
+  'spell.cooldowns': ['+clock.cast'],
+  'spell.floor': ['+hero.castAmount', '+hero.healCast'],
+  'spell.mana-cost': ['+hero.manaCost'],
+  'spell.default-bar': ['~hero.manaCost'],
+  'spell.bleed': ['+status.tick'],
+  'spell.chill': ['+unit.slow'],
+  'heal.shares': ['+hero.healCast', '+hero.shell'],
+  'leech.on-kill-perks': ['+hero.leech'],
+  // ── armor and resistance ──
+  'armor.weights': ['~gear.armor', '~hero.maxHp', '~hero.maxMana'],
+  'armor.shield-brace': ['-mon.spell'],
+  'resist.hero-caps': ['+hero.resist'],
+  'resist.storm-necrotic': ['+heal.cut', '+status.wither'],
+  'resist.monster-profile': ['~mon.element'],
+  'resist.class-elements': ['~mon.element'],
+  // ── monsters ──
+  'mon.danger-ramp': ['+mon.atk'],
+  'mon.roles': ['~mon.hp', '~mon.atk', '~mon.aim', '~mon.evasion', '~mon.def'],
+  'mon.rows': ['~mon.hp', '~mon.atk', '~mon.aim', '~mon.evasion', '~mon.def'],
+  'mon.level-by-tier': [['+mon.level', 'MONSTER_LEVEL_BY_TIER sets the Level a row is written at, which C-MON-STATS reads']],
+  'mon.behavior': ['~aggro', '~pull.gap'],
+  'mon.boss-phases': ['+mon.guard', '+mon.atk', '+mon.aim'],
+  'mon.leash': ['~aggro'],
+  'mon.tier-overrides': ['~tier.dmg', '~tier.hp', '~tier.xp', '~tier.pull'],
+  'mon.scaled-danger': ['+mon.atk', '+mon.aim'],
+  'mon.run-rooms': ['+mon.level', '+mon.atk'],
+  'mon.spell-warning': ['~mon.spell'],
+  // ── spawns ──
+  'spawn.composition': ['~pull.rows'],
+  'spawn.density': [['+pull.size', 'density is how many a pocket holds, which the pull rows are filled up to']],
+  'spawn.tier-pull-floor': ['~pull.size'],
+  'spawn.gather-nodes': [['~town.skill', 'gather nodes feed the town skills, outside a hunt']],
+  'weapon.role-reach': ['~aggro', '~pull.gap'],
+  'party.positioning': ['~aggro', '~pull.gap'],
+  'party.tank-rules': ['~aggro'],
+  'party.size': ['~xp.share'],
+  // ── rewards ──
+  'reward.ground-gp-fit': ['+kill.coin', '+sale.rate'],
+  'reward.row-xp-gp': ['~kill.xp', '~kill.coin'],
+  'reward.common-drops': ['+drop.chance'],
+  'rare.band-rows': ['+drop.base'],
+  // ── gear ──
+  'gear.material-tiers': ['+gear.weapon', '+gear.armor'],
+  'gear.accessories': ['~gear.perk', '~hero.crit', '~hero.skill'],
+  'gear.jewel-perks': ['+gear.perk'],
+  'gear.uniques': ['+gear.armor', '+gear.special'],
+  'gear.item-stats': ['~gear.armor', '~gear.weapon'],
+  'gear.temper-effect': ['+temper.blows', '+temper.armor'],
+  // ── supplies ──
+  'cons.store-supplies': ['+shop.price'],
+  'cons.food-buffs': ['+hero.buff', '+hero.coin'],
+  'cons.use-rules': ['~supplies.used'],
+  'cons.food-heal-scale': ['-supplies.used'],
+  'cons.rune-price': ['+supplies.cost'],
+  'cons.bag-guide': ['~supplies.used'],
+  'cons.gold-floor': ['~supplies.cost'],
+  'econ.shop-prices': ['+shop.price'],
+  // ── the economy outside a hunt ──
+  'econ.sale-rates': ['+sale.rate'],
+  'econ.blessing-price': ['+blessing.price'],
+  'econ.temper-price': ['+sink.temper'],
+  'econ.house': ['+sink.house', '~perk.permanent'],
+  'econ.training': ['+hero.skillXp', '+sink.other'],
+  'econ.scaled-hunts': ['~kill.xp', '~kill.coin', '~drop.rolls', '~xp.share'],
+  'econ.town-work': ['~town.skill', '~hero.skillXp'],
+  'econ.jewelry-crafting': ['+sink.other', '~gear.perk'],
+  'econ.companions': ['+perk.xp', '+perk.permanent', '+perk.goldFind'],
+  'econ.start-gold': [['+gold.day', 'a new hero\'s first purse is gold in, and no formula in the register writes it']],
+  'econ.tally': [['+gold.day', 'a tally\'s reward is gold in, and no formula in the register writes it']],
+  'econ.clans': [['~gold.day', 'clan fees and gifts move gold between accounts, and no formula in the register writes it']],
+  'econ.offline-cap': [['+stamina', 'the cap on the hours a hunt runs unwatched, and no formula in the register writes it']],
+});

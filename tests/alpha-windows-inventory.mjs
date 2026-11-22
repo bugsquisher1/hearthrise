@@ -12,7 +12,7 @@
 //   node tests/alpha-windows-inventory.mjs --shard-plan   no browser: smoke.yml's shards cover every mutant once, each in budget
 //   node tests/alpha-windows-inventory.mjs --shots <dir>  also write the visual-gate screenshots (1440x900 and 922x423)
 //
-// mutant-anchors: src/session/character-session.js src/shell/windows/float-menu.js src/shell/bag-model.js src/session/item-sections.js src/shell/windows/inventory/grid.js src/shell/windows/inventory/actions.js src/shell/windows/shop.js src/shell/windows/inventory/doll.js src/shell/windows/storage.js src/shell/upgrade-plan.js src/shell/widgets/upgrade-line.js src/data/refusal-words.js src/styles/windows.css src/shell/shell.js src/shell/windows/item-tip.js src/data/armour-weights.js src/data/how-to-play.js src/shell/windows/inventory/index.js src/shell/windows/inventory/elsewhere.js src/shell/windows/inventory/selection.js src/data/text/bag.js
+// mutant-anchors: src/session/character-session.js src/shell/windows/float-menu.js src/shell/bag-model.js src/session/item-sections.js src/shell/windows/inventory/grid.js src/shell/windows/inventory/actions.js src/shell/windows/shop.js src/shell/windows/inventory/doll.js src/shell/windows/storage.js src/shell/upgrade-plan.js src/core/upgrade-pick.js src/shell/widgets/upgrade-line.js src/data/refusal-words.js src/styles/windows.css src/shell/shell.js src/shell/windows/item-tip.js src/data/armour-weights.js src/data/how-to-play.js src/shell/windows/inventory/index.js src/shell/windows/inventory/elsewhere.js src/shell/windows/inventory/selection.js src/data/text/bag.js
 // mutant-writes-tree: no — page mutants are served overrides (tests/_alpha-windows.mjs pageRun), pure ones planted into a temp copy of src (tickerMutant)
 //
 // One of the alpha windows' guards, split from tests/alpha-windows.mjs (2026-11-19, arch audit item 7): tests/_alpha-windows.mjs
@@ -1006,7 +1006,7 @@ const MUTANTS = [
   ['a pocket is rebuilt whenever its count changes', 'src/shell/windows/inventory/grid.js', "    key: (r) => (r.space === undefined ? r.id : ' space:' + r.space),", "    key: (r) => (r.space === undefined ? r.id + ':' + r.qty : ' space:' + r.space),"],
   ['a sale is sent without the confirmation', 'src/shell/windows/inventory/actions.js', '  st.sc.confirm = confirmFor(st, ids, label);\n  repaint();', '  st.sc.confirm = confirmFor(st, ids, label);\n  repaint();\n  doSell(st, repaint);'],
   ['an equip in flight is not marked', 'src/shell/windows/inventory/actions.js', '  sc.wearing = { slots: [slot], items: id ? [id] : [] };\n', ''],
-  ['Equip upgrades wears what the hero cannot use yet', 'src/shell/upgrade-plan.js', '  return have !== null && have >= it.reqLv;', '  return true;'],
+  ['Equip upgrades wears what the hero cannot use yet', 'src/core/upgrade-pick.js', '  return have !== null && have >= it.reqLv;', '  return true;'],
   ['AW-21 the tip\'s "vs" line and its list are two blocks again (a short screen\'s columns split them)', 'src/shell/windows/item-tip.js', "h += '<div class=\"hw-tip-vs\"><p class=\"hw-tip-cmp\">'", "h += '<p class=\"hw-tip-cmp\">'"],
   ['AW-34 an item tooltip outlives its window', 'src/shell/shell.js', '    hideTipIfGone(doc);\n', ''],
   ['Equip upgrades marks nothing in flight', 'src/shell/widgets/upgrade-line.js', '  sc.wearing = { slots, items: slots.map((s) => plan.ops[s]) };\n', ''],

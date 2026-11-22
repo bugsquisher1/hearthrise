@@ -246,7 +246,7 @@ export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f
     which is the direction that matters. */
 export const INTENT_KEYS = Object.freeze(
   ['slot', 'verb', 'intentId', 'activity', 'offer', 'item', 'qty',
-    'equip', 'auto', 'trophy', 'lines', 'market', 'gmStop', 'have'],
+    'equip', 'auto', 'trophy', 'lines', 'market', 'gmStop', 'have', 'confirm'],
 );
 
 /** The `market` object's own vocabulary (readMarket), exported so a test reads it instead of restating it. */
@@ -328,7 +328,17 @@ export function parseIntent(body) {
   out.market = readMarket(body);
   out.gmStop = readGmStop(body);
   out.have = readHave(body);
+  out.confirm = readConfirm(body);
   return out;
+}
+
+/**
+ * A VIEWED HUNT'S CONFIRM: `confirm: true` (lane/c-settle-flush). A selector, never a value: it only lets the hunter's settle answer the
+ * check without saving until the flush (hunt-settle.js flushDue). Any outcome is the same either way (the engine is cut-invariant and
+ * every lever counts from the seed horizon); a false claim costs only its own caller a save. Exactly `true`, else false.
+ */
+export function readConfirm(body) {
+  return !!body && typeof body === 'object' && !Array.isArray(body) && body.confirm === true;
 }
 
 /**

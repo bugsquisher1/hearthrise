@@ -422,7 +422,7 @@ const refusal = (status, error, extra) => ({ status, body: { ok: false, error, .
  * @param o.session   the session the caller expects (tick roster), or null
  * @param o.project   answer with the caller's post-settle envelope (player doors)
  * @param o.live      a viewed ask: its read marks what the player watched (HUNT_READ_WATCHED_SQL; `o.watch: false`: not again)
- * @param o.confirm  a viewed hunt's poll whose browser runs a prediction: save only when flushDue says so (HUNT_FLUSH_MS)
+ * @param o.confirm   a viewed hunt's poll whose browser runs a prediction: save only when flushDue says so (HUNT_FLUSH_MS)
  * @param o.minWindowMs  the floor below which nothing is settled
  * @param o.grounds   test seam: { [huntId]: { ground, grid } } instead of huntGroundOf
  * @param o.atMs     test seam: end the window here instead of at the server's now

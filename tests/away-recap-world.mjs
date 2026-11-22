@@ -224,8 +224,13 @@ try {
     await p.page.waitForTimeout(62000);
     const before = await xpOf(p.page);
     /* THE GOODBYE NEVER LEAVES: every residue put is dropped from here, so the page's last stamp is its first in-view one, from before
-       the thirty skipped minutes it watched. Only the server's watched mark (1060-watched-stamp.sql) knows the player watched them. */
-    await p.page.context().route((u) => /\/rpc\/hr_put_client_state/.test(u.pathname), (r) => r.abort());
+       the thirty skipped minutes it watched. Only the server's watched mark (1060-watched-stamp.sql) knows the player watched them.
+       Dropped in the page (server.js fetches through globalThis.fetch at the call): a route never sees a keepalive sent in the
+       page's teardown (played 2026-11-22: the goodbye landed through a context route). */
+    await p.page.evaluate(() => {
+      const f = window.fetch;
+      window.fetch = (u, i) => (/\/rpc\/hr_put_client_state/.test(String(u)) ? Promise.reject(new TypeError('dropped: the tab crashed')) : f(u, i));
+    });
     const closedAt = Date.now();
     await p.page.close({ runBeforeUnload: true });
     await new Promise((ok) => setTimeout(ok, 800));

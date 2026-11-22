@@ -38,23 +38,25 @@ export const HOW_YOU_FIGHT_LEAD = 'No classes. Every weapon is yours. The one in
 
 /* ── THE WEAPON PICK AT CREATION (GR-24; designer ruling D-1, review/05-designer-rulings.md sections 1.2 and 1.5) ──
    One card for each STARTER_SETS row (a new way to fight is one more row there and here). `does` and `uses` say what the way
-   does and what it spends. `mark`: the Club is the "Good first hero". `tag`: the honest line from the start-kit cell of check C1;
-   a STUB until FB-3's C1 reads on the fixed engine: Sword and shield and Staff carry it (the tank's slow lone pace is RULED
-   2026-11-19), the other four none. `cost`: the D-1 cost line. The wand's {gold} is C1's net gold to Level 5, rounded to 25,
-   100 until C1 reads (PLAYED once: 251 gold spent on runes and drinks against 146 earned), and {purse} the account kit's gold. */
-const SLOW_ALONE = 'Best in a party. Slow alone.';
+   does and what it spends. `mark`: the Club is the "Good first hero". `tag`: the honest line from the start-kit cell of check C1
+   (D-1 1.5: Level 5 in 15 to 20 minutes alone, no death, net gold at or over zero; a way that fails on time reads "Slow alone",
+   one that fails on gold gets a cost line, never a worse tag). C1 on the fixed engine (FB-3, run 44957840040, the kill reward
+   under Level 5 at exponent 1.1) read every card at Level 5 in 16.2 to 19.2 minutes: all six are "Good alone". `cost`: the D-1
+   cost line in D-3's words (review/08-designer-d3.md 2.5). The wand's {N} is C1's net gold to Level 5, rounded to 25: 100. */
+const GOOD_ALONE = 'Good alone';
 const RUNE_STORE = 'Uses runes. The store sells them for 1 gold each as you cast.';
 export const WAND_FIRST_HUNT_GOLD = 100;
+/** @param {string} set @param {string} name @param {string} does @param {string} uses @param {{ tag?: string, mark?: string, cost?: string }} [more] */
 const pick = (set, name, does, uses, more = {}) => Object.freeze({ set, name, does, uses, tag: more.tag || null, mark: more.mark || null, cost: more.cost || null });
 export const STARTER_PICKS = Object.freeze([
-  pick('tank', 'Sword and shield', 'Holds monsters off the party', 'Uses food', { tag: SLOW_ALONE }),
-  pick('dual_axes', 'Hatchets', 'Hits hardest, up close', 'Uses food', { cost: RUNE_STORE }),
-  pick('club', 'Club', 'Hits hardest, up close', 'Uses food', { mark: 'Good first hero' }),
-  pick('ranger', 'Bow and crossbow', 'Shoots from range', 'Free Bronze Arrows, uses food'),
-  pick('mage', 'Wand and spellbook', 'Casts spells', 'Uses mana and drinks', {
-    cost: 'Casting costs gold. Each Fireball uses 1 rune and some mana. The store sells both as you go. Your first hunt will cost about '
-      + WAND_FIRST_HUNT_GOLD + ' gold more than it earns. You start with ' + START_CURRENCY.gold + '.' }),
-  pick('healer', 'Staff', 'Heals the party', 'Uses mana and drinks', { tag: SLOW_ALONE, cost: RUNE_STORE }),
+  pick('tank', 'Sword and shield', 'Holds monsters off the party', 'Uses food', { tag: GOOD_ALONE }),
+  pick('dual_axes', 'Hatchets', 'Hits hardest, up close', 'Uses food', { tag: GOOD_ALONE, cost: RUNE_STORE }),
+  pick('club', 'Club', 'Hits hardest, up close', 'Uses food', { tag: GOOD_ALONE, mark: 'Good first hero' }),
+  pick('ranger', 'Bow and crossbow', 'Shoots from range', 'Free Bronze Arrows, uses food', { tag: GOOD_ALONE }),
+  pick('mage', 'Wand and spellbook', 'Casts spells', 'Uses mana and drinks', { tag: GOOD_ALONE,
+    cost: 'Casting costs gold. Each Fireball uses 1 rune and some mana. The store sells both as you go. Your first hunt spends about '
+      + WAND_FIRST_HUNT_GOLD + ' gold more than it picks up in coins, and its loot sells for more than that. You start with ' + START_CURRENCY.gold + '.' }),
+  pick('healer', 'Staff', 'Heals the party', 'Uses mana and drinks', { tag: GOOD_ALONE, cost: RUNE_STORE }),
 ]);
 /* Heroes two to four come pre-filled (chapter 08 section 2.1): a shield, a healer and a bow, so the party holds one healer. */
 export const COMPANY_PICKS = Object.freeze(['tank', 'healer', 'ranger']);

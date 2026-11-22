@@ -43,7 +43,7 @@ const HUNTS = (id) => ref('src/data/hunts.js', 'HUNTS', id, ['band', 0]);
 
 export const THE_PATH = Object.freeze([
   row('start', event('start', 1), ['hunts', 'inventory', 'character', 'wiki', 'shop', 'tally', 'chat'], null, 'account',
-    'Open Hunts and pick the Mill Cellar.'),
+    'Open Hunts and pick the Mill Cellar.', 'to_the_cellar'),
   row('first_kill', event('first_kill', 1), ['action_bar'], null, 'account',
     'Your hero fights by itself. Open a slot on the bar to change how.'),
   row('first_leave', event('first_leave', 4), ['end_card', 'hunt-summary', 'blessings', 'loot_plan'], null, 'account',
@@ -57,7 +57,7 @@ export const THE_PATH = Object.freeze([
   row('rest_plan', event('party_hunt_10min', 6), ['skills-trade', 'rest_plan', 'farm', 'house'], FB6_REST, 'account',
     'When stamina runs out your heroes go to work. Here is their plan.'),
   row('safe_to_close', event('party_hunt_15min', 6), ['safe_to_close'], null, 'account',
-    'It is safe to close the game. Your party hunts for about {hours} more hours, then goes to work. Come back in about {back} hours.'),
+    'It is safe to close the game. Your party hunts for about {hours} more hours, then goes to work. Come back in about {back} hours.', 'safe_to_close'),
   row('wickstead', level(HUNTS('wickstead')), ['hunts'], null, 'hero', 'Level 8. Wickstead'),
   row('graypelt_cloak', level(ref('src/data/slot-ladders.js', 'SLOT_ITEMS', 'graypelt_cloak', ['reqLv'])), ['skills-trade'], null, 'hero',
     'Level 8. Graypelt Cloak. Stitch it from 6 Wolf Pelts.'),
@@ -86,7 +86,8 @@ export const THE_PATH = Object.freeze([
   row('on_call', level(ref('src/data/on-call.js', 'ON_CALL_RULES', undefined, ['opensAt'])), ['on_call'], FB14_ON_CALL, 'account', 'On call'),
   row('town_crier', Object.freeze({ kind: 'accounts', from: ref('src/data/social-open.js', 'SOCIAL_OPEN', undefined, ['crierAccounts']) }),
     ['town_crier'], FB12_SOCIAL, 'account', 'The Town Crier'),
-  row('weapon_tags', event('weapon_tags', null), ['weapon_tags'], null, 'account', 'Good alone, or best in a party'),
+  /* filled from check C1 (D-1 1.5; FB-3, run 44957840040): read on the creation step, before Level 1's first hunt */
+  row('weapon_tags', event('weapon_tags', 1), ['weapon_tags'], null, 'account', 'Good alone, or best in a party'),
   row('weighhouse', event('first_stamina_end', 10), ['market'], FB9_MARKET, 'account', 'The Weighhouse'),
   row('hunt_report', event('first_leave', 4), ['hunt-summary'], FB7_REPORT, 'account', 'Rats done. Tamsin has gear for you.'),
 ]);

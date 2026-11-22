@@ -203,7 +203,7 @@ const MUTATIONS = {
         + 'create table if not exists public.hr_client_write_baseline (',
   },
   detector_still_narrow: {
-    migration: '1004-tick-pack-heroes.sql',   // the detector's last restatement (derived by tools/derive-grant-hygiene.mjs, link 24)
+    migration: '1032-approved-cuts.sql',   // the detector's last restatement (1032 restates 1004's, link 24's tools/derive-grant-hygiene.mjs body)
     why: 'C3 — check (4) goes back to TRUNCATE/REFERENCES/TRIGGER only, so a client write grant on '
        + 'a table with RLS on and no write policy is invisible again',
     /* Anchored on the BASELINE JOINS inside the LIVE detector body (the last
@@ -378,7 +378,7 @@ async function boot(mutate) {
     if (!m) { const e = new Error(`unknown mutation "${mutate}"`); e.harness = true; throw e; }
     if (m.migration) {
       sqlPatches = new Map([[m.migration, migrationEdits(m)]]);
-      /* A file past REPLAY_UPTO (the detector's last restatement, 1004-tick-pack-heroes.sql) replays up to ITSELF: stopped at
+      /* A file past REPLAY_UPTO (the detector's last restatement, 1032-approved-cuts.sql) replays up to ITSELF: stopped at
          REPLAY_UPTO the plant never applies, and the mutant reads "caught" on the catalogue's distance from that point (U1, U8). */
       const order = (await chainFiles()).map(([n]) => n);
       replayTo = m.migration === BUY_FILE ? BUY_FILE

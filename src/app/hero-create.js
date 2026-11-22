@@ -63,8 +63,8 @@ export function refusalText(r) {
 
 /**
  * The picks as the renderer wants them: per BASE_REGIONS index, the dye token's colour. Pure.
- * @param colors  { head, body, legs, feet } dye indices
- * @param colorOf (tokenName) -> '#rrggbb'  (a --dye-N token's value)
+ * @param {{ head: number, body: number, legs: number, feet: number }} colors  the dye indices
+ * @param {(token: string) => string} colorOf  a --dye-N token's value, '#rrggbb'
  */
 export function previewDyes(colors, colorOf) {
   return BASE_REGIONS.map((g) => String(colorOf('dye-' + colors[g]) || '').trim() || null);
@@ -158,10 +158,10 @@ function previewer(card, colors, colorOf, pickedOf) {
 /**
  * Render the creation step into `card` (the characters card).
  * @param card  the .auth-card element
- * @param o { slot, colorOf (token) -> '#rrggbb', create (name, colors, key, set, slot?) -> Promise<{ ok, reason, nameReason }>,
- *            done () (the hero exists: play it), back () (return to the characters), dyes (the strips and preview: outfits.js HERO_DYES_SHOWN),
- *            company (companyOf: heroes two to four pre-filled, made with one press; null: one hero, picked from nothing) }
- * @returns { colors () the picked indices, destroy () }
+ * @param o  the step's hooks: slot; colorOf (token) -> '#rrggbb'; create (name, colors, key, set, slot?) -> Promise of ok, reason, nameReason;
+ *            done () (the hero exists: play it); back () (return to the characters); dyes (the strips and preview: outfits.js HERO_DYES_SHOWN);
+ *            company (companyOf: heroes two to four pre-filled, made with one press; null: one hero, picked from nothing)
+ * @returns an object with colors () (the picked indices) and destroy ()
  */
 export function renderHeroCreate(card, o) {
   if (!o.company) return renderOne(card, o);

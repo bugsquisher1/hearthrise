@@ -25,10 +25,7 @@ export const COACH_TEXT = Object.freeze({
   more: 'More',
   less: 'Less',
   no_tips: 'Don\'t show tips',
-  /* Tamsin's rats, the first ten minutes (designer 2026-11-10) */
-  tamsins_rats_title: 'Tamsin\'s rats',
-  tamsins_rats: 'Open Tamsin\'s tally → Take {label}',
-  tamsins_rats_in: 'Press Take on {label}',
+  /* Tamsin's rats, the first ten minutes (designer 2026-11-10), taken on entry (GR-78) */
   rats_count_title: 'Tamsin\'s count',
   rats_count: 'Kill {count} {label} to finish Tamsin\'s task',
   /* THE BURNING TOWER, once at its Level while the server offers it (hunt-tutorial.js burning_tower) */
@@ -42,11 +39,10 @@ export const COACH_TEXT = Object.freeze({
   back_down_title: 'Back for Level {level}',
   back_down: 'Hunts → {ground} → Enter',
   back_down_in: 'Press the {ground}, then Enter',
-  /* THE FIRST DANGEROUS RUN (board 2026-11-15 F5: Normal costs no food to Level 15, Dangerous does and gives more XP); {ground} a ground in the
-     hero's range with a Dangerous tier */
-  first_dangerous_title: 'Try Dangerous',
-  first_dangerous: 'Hunts → {ground} → Dangerous → Enter',
-  first_dangerous_in: 'Press {ground}, then Dangerous, then Enter',
+  /* SAFE TO CLOSE (hunt-tutorial.js safe_to_close; the Path's safe_to_close row, designer D-1): the hours are the server's stamina. The row's
+     "then goes to work. Come back in about {back} hours" joins once FB-6's rest plan sends heroes to work (D-11); until then it would not be true. */
+  safe_to_close_title: 'Safe to close',
+  safe_to_close: { one: 'It is safe to close the game. Your party hunts for about {count} more hour.', other: 'It is safe to close the game. Your party hunts for about {count} more hours.' },
   keep_hunting: 'It is safe to close the game. Your hero keeps hunting to Level {level}',
   brook: 'Hunt here to Level {level} for {next}',
   /* Tamsin's wolves */
@@ -92,18 +88,15 @@ export const COACH_TEXT = Object.freeze({
   /* ...once stamina has run out (plan L08): the job is set for the count still short, and the hero waits in town when it is done. */
   home_job: '{verb} {n} {item} while stamina refills',
   home_buy: 'House → Buy the {deed}',
-  purse_goal: 'Buy a House deed',
   /* WHAT NEXT: one goal a line (hunt-tutorial.js nextGoal) */
   goal_armor: 'Shop → Buy gloves or a belt to train Defense',
   goal_free_hero: 'Create your free {nth} hero in Characters',
-  goal_slot: 'Buy a {nth} hero slot for {gold}',
   goal_top_up: 'Press + beside stamina: {hours} h for {gold}',
   goal_step_up: 'Next step up: {ground}, Level {level}',
   goal_harvest: 'Harvest {crops} on the Farm (J)',
   goal_tally: 'Take a task on Tamsin\'s tally (Q)',
   goal_deed: 'Buy the {deed} in the House',
   goal_temper: 'Temper your {piece} for {gold}: Shop → Services',
-  goal_saving: 'Next goal: a {nth} hero slot, {gold}',
   goal_party: 'Find a party for {ground}',
   goal_party_how: 'Invite a friend or create a second hero',
   goal_party_how_own: 'Right-click your other hero\'s tab → Invite to party',

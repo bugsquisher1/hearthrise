@@ -383,10 +383,9 @@ export class AccountSession {
     /* ...and so is the Storage: every hero reads the newest copy any of them was told (item-sections.js bankOf). */
     cs.accountStorage = () => this._storage;
     cs.subscribe((s) => this._noteStorage(s));
-    /* ...and so is what the coach has taught (account-coach.js): read once a login, shared by every hero. */
-    cs.accountCoach = this.coach;
-    /* ...and the roster the server last read, so a hero's end card knows the heroes still to make (back-in-town.js partyToMake). */
-    cs.accountRoster = () => this._roster;
+    /* ...and so is what the coach has taught (account-coach.js): read once a login, shared by every hero; and the roster the server last
+       read, so a hero's end card knows the heroes still to make (back-in-town.js partyToMake). */
+    Object.assign(cs, { accountCoach: this.coach, accountRoster: () => this._roster });
     this._chars.set(slot, cs);
     cs.subscribe((s, why) => { if (why === 'closed-game') this._noteClosed({ closed: true }); });
     /* THE BURNING TOWER'S BOARD (2027-04-30-tower-board.sql) is every hero's: a climb that ends moves the others' rank and rivals, which

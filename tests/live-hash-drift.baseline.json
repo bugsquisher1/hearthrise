@@ -25,10 +25,10 @@
   },
   "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
   "live_measured": "2026-11-20",
-  "replay_ms": 18716,
+  "replay_ms": 10396,
   "counts": {
-    "tracked_names": 1040,
-    "entries": 873
+    "tracked_names": 1045,
+    "entries": 878
   },
   "functions": [
     {
@@ -7913,6 +7913,7 @@
         "restate"
       ],
       "touched_by": [
+        "1053-hunt-report.sql",
         "2026-10-26-hunt-analyzer-basic.sql",
         "2026-11-04-hunt-bests.sql",
         "2027-02-11-settle-plan-cache-2.generated.sql"
@@ -7924,11 +7925,12 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "32fa7660f3127a0ff674509b04f31a8b",
-        "norm_len": 1485,
+        "md5": "7c58ef96c0bdccd0b932f3d4892231b2",
+        "norm_len": 1626,
         "source": "computed-from-replay"
       },
-      "agree": true
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1053-hunt-report.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body, replay is the staged body from 1053-hunt-report.sql."
     },
     {
       "sig": "hr_hunt_analyzer_of(p_user uuid, p_slot integer, p_session uuid)",
@@ -8021,6 +8023,7 @@
       ],
       "touched_by": [
         "1005-lever-horizon.sql",
+        "1053-hunt-report.sql",
         "2026-10-23-hunt-world-state.sql",
         "2026-10-25-settle-hooks.sql",
         "2026-10-27-core-bodies.sql",
@@ -8050,11 +8053,12 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "a54f76b93cc3541abb9c5a57f46c9294",
-        "norm_len": 41205,
+        "md5": "e62a7cc8cd7034cae66d0d184e82c5cf",
+        "norm_len": 42183,
         "source": "computed-from-replay"
       },
-      "agree": true
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1005-lever-horizon.sql, 1053-hunt-report.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body, replay is the staged body from 1053-hunt-report.sql."
     },
     {
       "sig": "hr_hunt_bag_fuse()",
@@ -8699,6 +8703,7 @@
         "1005-lever-horizon.sql",
         "1025-own-heroes-apart.sql",
         "1046-settle-plans.sql",
+        "1053-lever-gates.sql",
         "2026-10-23-hunt-world-state.sql",
         "2026-11-01-party-leader-density.sql",
         "2026-11-16-hunt-density-bounds.sql",
@@ -8721,12 +8726,12 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "6615a1c94829ae67dbdab022fea51fb6",
-        "norm_len": 7283,
+        "md5": "bc33e8dd5ddbb7b6e285f5b2847c0127",
+        "norm_len": 7318,
         "source": "computed-from-replay"
       },
       "agree": false,
-      "why": "STAGED for the v0.2.144 release by 1005-lever-horizon.sql, 1025-own-heroes-apart.sql, 1046-settle-plans.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body from 1046-settle-plans.sql."
+      "why": "STAGED for the v0.2.144 release by 1005-lever-horizon.sql, 1025-own-heroes-apart.sql, 1046-settle-plans.sql, 1053-lever-gates.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body, replay is the staged body from 1053-lever-gates.sql."
     },
     {
       "sig": "hr_hunt_instance_solo()",
@@ -9778,6 +9783,44 @@
       "agree": true
     },
     {
+      "sig": "hr_hunt_report_add(p_a jsonb, p_b jsonb)",
+      "name": "hr_hunt_report_add",
+      "tracked_by": [
+        "pin",
+        "restate"
+      ],
+      "touched_by": [
+        "1053-hunt-report.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "28a5ef42a170b66c447cc4200368d50a",
+        "norm_len": 2911,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1053-hunt-report.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1053-hunt-report.sql."
+    },
+    {
+      "sig": "hr_hunt_report_ok(p jsonb)",
+      "name": "hr_hunt_report_ok",
+      "tracked_by": [
+        "pin",
+        "restate"
+      ],
+      "touched_by": [
+        "1053-hunt-report.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "3709f1d621198c07d4982221b3474a18",
+        "norm_len": 3148,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1053-hunt-report.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1053-hunt-report.sql."
+    },
+    {
       "sig": "hr_hunt_restart(p_slot integer, p_session uuid, p_idem uuid)",
       "name": "hr_hunt_restart",
       "tracked_by": [
@@ -10608,6 +10651,7 @@
       "sig": "hr_hunt_tally_ok(p jsonb, p_maps text[])",
       "name": "hr_hunt_tally_ok",
       "tracked_by": [
+        "pin",
         "restate"
       ],
       "touched_by": [
@@ -10795,6 +10839,7 @@
         "restate"
       ],
       "touched_by": [
+        "1053-hunt-report.sql",
         "2026-10-21-hunt-sessions.sql",
         "2026-10-22-hunt-sessions-settle.sql",
         "2026-10-23-hunt-world-state.sql",
@@ -10817,11 +10862,12 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "4ce1bb904a56ab72d91d330a52fbdab0",
-        "norm_len": 4140,
+        "md5": "50e1fccc854c0545522e1a04f0fe720e",
+        "norm_len": 4588,
         "source": "computed-from-replay"
       },
-      "agree": true
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1053-hunt-report.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body, replay is the staged body from 1053-hunt-report.sql."
     },
     {
       "sig": "hr_hunt_weapon_of(p_user uuid, p_slot integer)",
@@ -13414,9 +13460,11 @@
       "sig": "hr_party_hold_clear()",
       "name": "hr_party_hold_clear",
       "tracked_by": [
+        "pin",
         "restate"
       ],
       "touched_by": [
+        "1053-lever-gates.sql",
         "2026-12-08-party-hold.sql"
       ],
       "live": {
@@ -13426,19 +13474,60 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "a9f8abb9405027754b06050561ee213a",
-        "norm_len": 413,
+        "md5": "a92a2ff6767cc9369599710ec21435d7",
+        "norm_len": 611,
         "source": "computed-from-replay"
       },
-      "agree": true
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1053-lever-gates.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body, replay is the staged body from 1053-lever-gates.sql."
+    },
+    {
+      "sig": "hr_party_hold_played(p hunt_parties, p_at timestamp with time zone)",
+      "name": "hr_party_hold_played",
+      "tracked_by": [
+        "pin",
+        "restate"
+      ],
+      "touched_by": [
+        "1053-lever-gates.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "398754650113abce3dc4587a5d001523",
+        "norm_len": 453,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1053-lever-gates.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1053-lever-gates.sql."
+    },
+    {
+      "sig": "hr_party_hold_put(p_party uuid, p_seat integer)",
+      "name": "hr_party_hold_put",
+      "tracked_by": [
+        "pin",
+        "restate"
+      ],
+      "touched_by": [
+        "1053-lever-gates.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "dfda75ade7f5f5dfd160f00c9aa99d80",
+        "norm_len": 1352,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1053-lever-gates.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1053-lever-gates.sql."
     },
     {
       "sig": "hr_party_hold_set(p_slot integer, p_seat integer, p_idem uuid)",
       "name": "hr_party_hold_set",
       "tracked_by": [
+        "pin",
         "restate"
       ],
       "touched_by": [
+        "1053-lever-gates.sql",
         "2026-12-08-party-hold.sql"
       ],
       "live": {
@@ -13448,11 +13537,12 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "87c0bf47e81ca561abcc35a99e033bf0",
-        "norm_len": 2626,
+        "md5": "aac3dbe8a1167a1240ba397ed451d791",
+        "norm_len": 2686,
         "source": "computed-from-replay"
       },
-      "agree": true
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1053-lever-gates.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body, replay is the staged body from 1053-lever-gates.sql."
     },
     {
       "sig": "hr_party_hunt_live(p_party uuid)",
@@ -15669,6 +15759,25 @@
       "agree": true
     },
     {
+      "sig": "hr_scaled_hours_hold()",
+      "name": "hr_scaled_hours_hold",
+      "tracked_by": [
+        "pin",
+        "restate"
+      ],
+      "touched_by": [
+        "1053-lever-gates.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "7a91bbc33565a36e324e14b093104e5c",
+        "norm_len": 2221,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1053-lever-gates.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1053-lever-gates.sql."
+    },
+    {
       "sig": "hr_scaled_hours_today(p_user uuid, p_slot integer)",
       "name": "hr_scaled_hours_today",
       "tracked_by": [
@@ -15723,6 +15832,7 @@
         "restate"
       ],
       "touched_by": [
+        "1053-lever-gates.sql",
         "2027-03-21-scaled-hunts.sql"
       ],
       "live": {
@@ -15732,11 +15842,12 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "54a04356df8b489ef10ea955a1ca455d",
-        "norm_len": 1791,
+        "md5": "5c9ecada1a54807c2425578bc96edf86",
+        "norm_len": 2841,
         "source": "computed-from-replay"
       },
-      "agree": true
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1053-lever-gates.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body, replay is the staged body from 1053-lever-gates.sql."
     },
     {
       "sig": "hr_scaled_hunt_switch(p_slot integer, p_hunt text, p_on boolean, p_idem uuid)",

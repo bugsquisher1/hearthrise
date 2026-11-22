@@ -528,7 +528,7 @@ level-death, deathsPer1000h, the hammer alone on dangerous (MID, Levels 30 to 11
 <!-- /GEN -->
 
 - **The seat does not feel death at all.** The four on Dangerous has no deaths at monster damage x1.5, so its XP after deaths is the base to a tenth of a percent at every point of the grid, at any death price. On the seat the pace is timed on, the death price is a dead lever and monster damage is nearly one. The refits were not caused by death. They follow kills an hour, which on this seat follows the pull and the respawn (section 2).
-- **The Level curve is exactly what it says.** Hours for a Level move in proportion to it for every seat that does not die, with no interaction with the other two.
+- **The Level curve does what it says and nothing else.** Hours for a Level follow it with an elasticity of 0.8 to 0.9 for every seat that does not die: the knob at x1.5 is x1.40 on the hours, because it scales each bracket's rise and not the cost the bracket starts from. It has no interaction with the other two.
 - **Where there are deaths, the death price is a multiplier on a loss that monster damage has already decided.** For the lone hammer on Dangerous at today's damage, the death price at x0.5 lifts XP after deaths by 11% and x2 cuts it by 21%. At monster damage x1.25 the hero dies about every hour, and XP after deaths is 0.06 of the base at half price, below zero at full price, and further below at double. Past the cliff the death price only chooses how negative.
 - **So the death rate and the death price are not a pair that trade off smoothly.** There is a narrow band of monster damage, about 10% wide for this seat, where a hero dies now and then and the price matters as a tax. Under it the price is unread. Over it the hero cannot progress at any price. JUDGMENT: a design that wants death to be a tax needs the death rate to rise gently with danger. Today it rises as a wall.
 
@@ -834,7 +834,7 @@ And the ones that can.
 | Lever | Why it is safe alone |
 |---|---|
 | Party XP, tier XP, lone XP, XP a kill | Exact multipliers on XP for the cells they touch. No gap in any grid |
-| The Level curve | Moves hours for a Level in proportion and nothing else |
+| The Level curve | Moves hours for a Level (elasticity 0.8 to 0.9) and nothing else |
 | Coin a kill, what dropped gear sells for | Move gold in and nothing else |
 | Store prices (food, drinks, runes) | Move the store bill and nothing else, because the harness buys what it needs at any price. UNKNOWN for a real purse |
 | The death price | Moves XP after deaths in proportion to the deaths already there |

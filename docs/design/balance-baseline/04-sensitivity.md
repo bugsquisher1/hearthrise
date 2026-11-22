@@ -23,7 +23,7 @@ Lane BL-4 (systems engineer, 2026-11-21 and 22). Deliverable 4 of Tyler's direct
 | 3 | The levers that move pace one for one are all reward multipliers, and all clean | XP a kill 1.00, XP by Level 1.48, party XP 1.01, tier XP 1.00 |
 | 4 | Death is a wall, on one seat | Lone hammer on Dangerous: 0, 94, 1,120 deaths in 1,000 hours at monster damage x0.9, x1, x1.25. The four on Deadly: none at x2 |
 | 5 | Hero health works backwards | Hero health x2: +128% damage taken, deaths from 7 to 19 in 1,000 hours |
-| 6 | Armor stops at the 60% cap, so armor points do nothing for a geared hero at home | Armor points x2: 0.1% less damage taken. The cap x1.1: 14% less |
+| 6 | Armor stops at the 60% cap, so armor points do nothing for a geared hero at home | Armor points x2: no change in damage taken. The cap x1.1: 14% less |
 | 7 | The store bill is a tax on three ways, and it is where most side effects land | Bow, Mage and Healer pay 35% to 90% of their gold in. The rest pay 0% to 13% |
 | 8 | A quarter of the levers are weak or dead | Crit size x2: +1% damage. Weapon accuracy x2: under 0.5%. Spell leech, Necrotic, Storm: nothing |
 
@@ -912,7 +912,7 @@ Counting what the matrix says about the 51 levers.
 
 | Kind | Levers | What they are |
 |---|---|---|
-| Clean multipliers, elasticity 1 on one outcome and nothing else | 9 | XP a kill, XP by Level, lone XP, party XP, tier XP, the Level curve, the death price, coin a kill, what gear sells for |
+| Clean multipliers, an elasticity of 0.8 to 1.5 on one outcome and nothing else | 9 | XP a kill, XP by Level, lone XP, party XP, tier XP, the Level curve, the death price, coin a kill, what gear sells for |
 | Prices, move the store bill only | 3 | Food, drink and rune prices |
 | Strong and tangled, elasticity over 0.4 on several outcomes | 6 | Hero damage, monster health, monster damage, hero health, the mitigation cap, the tier blow dial |
 | Moderate, 0.1 to 0.4 | 13 | Spell damage, spell cooldown, the attack interval, hero accuracy, weapon damage, store supply power, armor ceilings, armor points, shield size, tier health, tier pull (downward only), respawn (upward only), the wait between pulls |

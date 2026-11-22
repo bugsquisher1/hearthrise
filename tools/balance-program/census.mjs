@@ -20,6 +20,10 @@
 //   NAMED         the function's name appears as a whole word in a register file (REGISTER_FILES). A short common name can match
 //                 by accident, so NAMED errs toward covered: the unnamed list is a floor, never an overcount.
 //
+// BINDINGS (lane BL-2, the balance lever registry): bindingsOf lists every top-level binding that holds a typed number, VALUES as well as
+// functions, with the property each number sits under. tools/balance-program/levers.mjs --check reads it to fail a typed number that no
+// registry row claims. The census report itself still counts functions only.
+//
 // READ-ONLY. It stores nothing: no registry file, no baseline, no cache. It is a REPORT, not a guard: it exits 0 whatever it counts
 // (1 only when a selftest proof fails, 2 on a bad argument). Deterministic for one tree: files and rows are sorted.
 //
@@ -87,6 +91,69 @@ export function functionsOf(file, text) {
   return rows;
 }
 
+/* THE PROPERTY A NUMBER SITS UNDER: the name of the nearest enclosing `key: value` inside the binding, or BARE ('·') when none. A
+   number that is itself a key (`{ 3: 4.0 }`) is KEY_NUMBER. The balance lever registry pins these per binding (tools/balance-program/levers.mjs). */
+export const BARE = '·';
+export const KEY_NUMBER = '#key';
+const propName = (n) => (n && (ts.isIdentifier(n) || ts.isStringLiteral(n) || ts.isNumericLiteral(n) || ts.isPrivateIdentifier(n)) ? n.text : '[]');
+
+/**
+ * EVERY TOP-LEVEL BINDING OF ONE SOURCE TEXT THAT HOLDS A TYPED NUMBER, functions AND values (the balance lever registry's unit, lane
+ * BL-2): { file, name, line, kind: 'function' | 'value' | 'statements', exported, typed: [numbers], keys: [sorted unique property names
+ * the numbers sit under, BARE for none, KEY_NUMBER for a numeric key], bare: how many sit under no property }. A function is what
+ * functionsOf lists. A value is a top-level `const`/`let`/`var` with any other initializer, and `export default` (named 'default'). Every
+ * other top-level statement that holds a typed number (a call, a destructuring, a class) is folded into ONE row a file named
+ * '<statements>', at the first one's line. Pure.
+ */
+export function bindingsOf(file, text) {
+  const sf = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true, file.endsWith('.ts') ? ts.ScriptKind.TS : ts.ScriptKind.JS);
+  const rows = [];
+  let rest = null;
+  const measure = (node) => {
+    const typed = [], keys = new Set();
+    let bare = 0;
+    const visit = (x, owner) => {
+      if (x.kind === ts.SyntaxKind.NumericLiteral && !PLAIN_NUMBERS.includes(x.text)) {
+        typed.push(x.text);
+        const isKey = x.parent && ts.isPropertyAssignment(x.parent) && x.parent.name === x;
+        const k = isKey ? KEY_NUMBER : owner;
+        keys.add(k);
+        if (k === BARE) bare++;
+      }
+      const next = ts.isPropertyAssignment(x) ? propName(x.name) : owner;
+      ts.forEachChild(x, (c) => visit(c, c === x.name && ts.isPropertyAssignment(x) ? owner : next));
+    };
+    visit(node, BARE);
+    return { typed, keys: [...keys].sort(), bare };
+  };
+  const lineOf = (node) => sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1;
+  for (const st of sf.statements) {
+    const exported = !!(st.modifiers && st.modifiers.some((m) => m.kind === ts.SyntaxKind.ExportKeyword));
+    const found = [];
+    if (ts.isFunctionDeclaration(st) && st.name) found.push([st.name.text, st, 'function']);
+    else if (ts.isVariableStatement(st)) {
+      for (const d of st.declarationList.declarations) {
+        if (!d.initializer) continue;
+        if (!ts.isIdentifier(d.name)) { found.push([null, d, 'statements']); continue; }
+        found.push([d.name.text, d.initializer, ts.isArrowFunction(d.initializer) || ts.isFunctionExpression(d.initializer) ? 'function' : 'value']);
+      }
+    } else if (ts.isExportAssignment(st)) found.push(['default', st.expression, 'value']);
+    else found.push([null, st, 'statements']);
+    for (const [name, node, kind] of found) {
+      const m = measure(node);
+      if (!m.typed.length) continue;
+      if (kind === 'statements') {
+        if (!rest) { rest = { file, name: '<statements>', line: lineOf(node), kind, exported: false, typed: [], keys: new Set(), bare: 0 }; rows.push(rest); }
+        rest.typed.push(...m.typed); m.keys.forEach((k) => rest.keys.add(k)); rest.bare += m.bare;
+        continue;
+      }
+      rows.push({ file, name, line: lineOf(node), kind, exported: exported || name === 'default', ...m });
+    }
+  }
+  if (rest) rest.keys = [...rest.keys].sort();
+  return rows;
+}
+
 const wordIn = (name, text) => new RegExp('(?<![\\w$])' + name.replace(/[$]/g, '\\$') + '(?![\\w$])').test(text);
 
 /**
@@ -130,6 +197,8 @@ export function gapFiles(rows) {
 }
 
 const readFolder = (root, folder) => walk(join(root, folder)).map((p) => [slash(relative(root, p)), readFileSync(p, 'utf8')]);
+/** Every rule-code source file under `root`: [[path, text]], sorted (the lever registry reads the same files the census counts). */
+export const readRuleFiles = (root) => RULE_FOLDERS.flatMap((f) => readFolder(root, f));
 const readRegisters = (root) => REGISTER_FILES.map((f) => (existsSync(join(root, f)) ? readFileSync(join(root, f), 'utf8') : '')).join('\n');
 
 function report(root, { list = false, json = false } = {}) {
@@ -210,8 +279,27 @@ function selftest() {
   ok(!!r5 && r5.typed.slice().sort().join() === '0.25,7' && !one(p5, 'inner'), 'a nested function and a default parameter count into the top-level function');
   ok(folderNumbers(p5, 'supabase/functions/hr-accrue').functions === 1, 'the row lands in its own folder\'s numbers');
 
+  /* PLANT 6: bindingsOf (the lever registry's unit) lists VALUES too, with the property each number sits under */
+  const b6 = bindingsOf('src/data/planted.js', [
+    'export const TABLE = Object.freeze({ wolf: { hp: 40, atk: 7 }, rat: { hp: 12, atk: 3, drops: [{ id: "x", ch: 0.05 }] } });',
+    'export const SCALE = { 3: 4.5 };',
+    'const LIST = [[5, 210], [10, 400]];',
+    'export const PLAIN = { a: 1, b: 100 };',
+    'export function blow(x) { return x * 0.35 + 7; }',
+    'export default define({ respawnMs: 60000 });',
+    'register(42); const { a, b } = pick(17);',
+  ].join('\n'));
+  const bOf = (n) => b6.find((r) => r.name === n);
+  ok(bOf('TABLE') && bOf('TABLE').kind === 'value' && bOf('TABLE').keys.join() === 'atk,ch,hp' && bOf('TABLE').bare === 0, 'a table lists the keys its numbers sit under (hp, atk, a nested ch), none bare');
+  ok(bOf('SCALE') && bOf('SCALE').keys.join() === KEY_NUMBER + ',3' && bOf('SCALE').typed.length === 2, 'a numeric key is a typed number under KEY_NUMBER, its value sits under the key');
+  ok(bOf('LIST') && bOf('LIST').bare === 4 && !bOf('LIST').exported, 'an array of arrays is four bare numbers, not exported');
+  ok(!bOf('PLAIN'), 'a binding of plain numbers is not listed');
+  ok(bOf('blow') && bOf('blow').kind === 'function' && bOf('blow').bare === 2, 'a function is a binding with its bare numbers');
+  ok(bOf('default') && bOf('default').keys.join() === 'respawnMs' && bOf('default').exported, 'export default is the binding "default"');
+  ok(bOf('<statements>') && bOf('<statements>').typed.slice().sort().join() === '17,42' && bOf('<statements>').line === 7, 'other top-level statements fold into one <statements> row at the first one\'s line');
+
   for (const f of fails) console.error('  ✗ ' + f);
-  console.log(fails.length ? `census --selftest: ${fails.length} proof(s) FAILED` : `census --selftest: ${proofs} proofs hold (an uncited function, a typed number in a private function and in an arrow, a named function, the plain numbers)`);
+  console.log(fails.length ? `census --selftest: ${fails.length} proof(s) FAILED` : `census --selftest: ${proofs} proofs hold (an uncited function, a typed number in a private function and in an arrow, a named function, the plain numbers, bindingsOf's values, keys and folded statements)`);
   return fails.length ? 1 : 0;
 }
 

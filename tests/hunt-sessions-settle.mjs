@@ -2104,6 +2104,7 @@ const DB_ARMS = {
       await asUser(db, UIDS[0]);
       try { return await one(db, sql, args); } finally { await db.query("select set_config('request.jwt.claim.sub', '', true)"); }
     };
+    await db.query('savepoint fh_arm');
     const h = await hunter(db, M, { ...DOOMED, deadly: false, row: rowWith('wolf'), hp: null, fromMs: BASE, beforeEnter: async () => {
       for (const [what, sql] of [['saving setup 0', `select public.hr_hunt_preset_save(0, 0, 'Brawl', $1::uuid)`],
         ['saving setup 1', `select public.hr_hunt_preset_save(0, 1, 'Guard', $1::uuid)`],
@@ -2182,6 +2183,65 @@ const DB_ARMS = {
         if (lever === 'blessing' && late.held !== 1) problems.push(`blessing (${path}): the Blessing bought after the confirm was ${late.held === 0 ? 'used on the foreseen death' : `held ${late.held} times`}`);
       }
     }
+    /* THE PARTY'S HOLD SEAT AND A SCALED HUNT'S SWITCH (1053-lever-gates.sql): each lands at once as a setting, and the engine plays it
+       from the first window starting past the seed horizon (the lever's now + 34 s), never over the saved past or the seeds shown. The
+       same shape on both paths: the hunt saved at F, an unsaved confirm at F + 19 s, the lever at F + 19.5 s, then the window the next
+       save plays (it starts at the saved clock) reads the old value; THE HUNT VIEWED saves at F + 35 s (forced) and F + 56 s, THE BROWSER
+       CLOSED at F + 90 s (the tick), and the window after a save past the horizon reads the new one. */
+    const BF = BASE + 60000, BC = BF + 19000, BL = BF + 19500;
+    const gate = async (label, build, pull, readOf, before, after) => {
+      for (const path of ['viewed', 'closed']) {
+        await db.query('rollback to savepoint fh_arm');
+        await pinNow(BASE);
+        await rewindDice(db);   // both paths hunt the same instance id, so the same dice
+        const g = await build();
+        await run(db, M, g.from, (f) => [...ticksOf(10000, 120000)(f).filter((t) => t < BF), BF], onClock);
+        const c = await confirm(BC);
+        if (!c || c.outcome !== 'confirmed') { problems.push(`CONTROL ${label} (${path}): the confirm at F + 19 s ${c && c.outcome}/${c && c.reason}`); continue; }
+        await pinNow(BL);
+        const r = await pull();
+        if (!r || r.ok !== true) { problems.push(`${label} (${path}): the lever was refused ${JSON.stringify(r)}`); continue; }
+        const read = async (atMs) => {
+          await pinNow(atMs);
+          const plan = await M.HS.readHuntSettle({ exec: makeExec(db), user: UIDS[0], slot: 0, grounds: groundsOf(M), atMs }, 'tick');
+          return plan.answer ? { answer: plan.answer.reason } : readOf(plan);
+        };
+        const inside = await read(BF + 51000);
+        if (JSON.stringify(inside) !== JSON.stringify(before)) problems.push(`${label} (${path}): the window from the saved clock plays ${JSON.stringify(inside)}, want ${JSON.stringify(before)} (the lever acted on swings already shown)`);
+        for (const t of path === 'viewed' ? [BF + 35000, BF + 56000] : [BF + 90000]) await settleTo(db, M, t, onClock);
+        const past = await read(BF + 150000);
+        const ended = past.answer ? await one(db, "select coalesce(end_reason, '') || ' at ' || coalesce(ended_at::text, '') from public.hunt_sessions where id = $1", [g.sid]) : null;
+        if (JSON.stringify(past) !== JSON.stringify(after)) problems.push(`${label} (${path}): the window past the horizon plays ${JSON.stringify(past)}${ended ? ' (the hunt ended ' + ended + ')' : ''}, want ${JSON.stringify(after)} (CONTROL: the deferral is not a drop)`);
+      }
+    };
+    /* tests/scaled-hunts-server.mjs's Level 20 melee: its kit (tools/balance-sim/gear.mjs kitOf('tank', 20)), the shield making each a tank */
+    const TANK = { ...STRONG, level: 20, inv: { cooked_shrimp: 60 }, bag: [{ item: 'cooked_shrimp', qty: 50 }], beforeEnter: undefined };
+    const KIT = [['weapon', 'iron_sword'], ['shield', 'ironbound_shield'], ['helmet', 'iron_helm'], ['body', 'iron_platebody'], ['pants', 'iron_platelegs'],
+      ['boots', 'iron_boots'], ['gloves', 'iron_gauntlets'], ['belt', 'iron_belt']];
+    const shields = async (uids) => { for (const uid of uids) for (const [slot, item] of KIT) {
+      await db.query('insert into public.player_equipment (user_id, slot, equip_slot, item_id) values ($1, 0, $2, $3) on conflict (user_id, slot, equip_slot) do update set item_id = excluded.item_id', [uid, slot, item]);
+    } };
+    await gate('the hold seat',
+      () => hunter(db, M, { party: [TANK, TANK], fromMs: BASE, beforeEnter: () => shields(UIDS.slice(0, 2)) }),
+      async () => {
+        const seat = await one(db, 'select m.seat from public.hunt_party_members m join public.hunt_parties p on p.id = m.party_id where m.user_id = $1', [UIDS[1]]);
+        const r = await as('select public.hr_party_hold_set(0, $2::int, $1::uuid)', [idem(), seat]);
+        return r && r.ok === true && r.hold_seat === seat ? { ok: true } : r;
+      },
+      (plan) => ({ hold: plan.inst.hold_seat ?? null }), { hold: null }, { hold: 1 });
+    await gate('the scaled switch',
+      async () => {
+        await db.query("update public.hr_feature_switches set scope = 'everyone' where switch_id = 'scaled_hunts'");
+        return hunter(db, M, { ...TANK, realGround: true, hunt: 'mill_cellar', fromMs: BASE, beforeEnter: async () => {
+          await shields([UIDS[0]]);
+          const price = Number(await one(db, `select r.price_per_level * public.hr_scaled_level('mill_cellar', public.hr_level_of($1::uuid, 0)) from public.hr_scaled_hunt_rule r where r.id`, [UIDS[0]]));
+          const b = await as('select public.hr_scaled_hunt_buy(0, $2, 1, $3::bigint, $1::uuid)', [idem(), 'mill_cellar', price]);
+          if (!b || b.ok !== true) throw new Error('harness: the hour buy answered ' + JSON.stringify(b));
+        } });
+      },
+      () => as('select public.hr_scaled_hunt_switch(0, $2, false, $1::uuid)', [idem(), 'mill_cellar']),
+      (plan) => ({ level: plan.inst.play ? plan.inst.play.level : null }), { level: 20 }, { level: null });
+    fixtureRow = groundRow;
     return problems;
   }),
   PARITY: async (db, M) => inTx(db, async () => {
@@ -5625,6 +5685,13 @@ const DB_MUTANTS = [
   /* 1052-settle-flush.sql: each horizon back on the saved clock alone (an unsaved confirm's seeds forgotten) */
   { arm: 'FLUSH-HORIZON', name: '[settle-flush] the seed horizon is the saved clock\'s alone (a Blessing, a bar or setup change under the flush)', fn: 'public.hr_hunt_seed_horizon(uuid)',
     find: ', now() + make_interval(secs => 2000 / 1000.0))', replace: ')' },
+  /* 1053-lever-gates.sql: the hold seat and the scale back on the live tables at once */
+  { arm: 'FLUSH-HORIZON', name: '[lever-gates] the engine reads the leader\'s latest hold pick at once', fn: 'public.hr_hunt_instance_read(uuid,integer)',
+    find: "'hold_seat', (select public.hr_party_hold_played(p, v_i.settled_to) from public.hunt_parties p", replace: "'hold_seat', (select p.hold_seat from public.hunt_parties p" },
+  { arm: 'FLUSH-HORIZON', name: '[lever-gates] a hold pick mid-hunt is written to play at once', fn: 'public.hr_party_hold_put(uuid,integer)',
+    find: '  if v_until is null then\n', replace: '  if true then\n' },
+  { arm: 'FLUSH-HORIZON', name: '[lever-gates] a scaled switch mid-hunt plays at once (no scale hold read)', fn: 'public.hr_scaled_hunt_of(uuid)',
+    find: 'where h.instance_id = p_instance and h.until >= v_i.settled_to;', replace: 'where false;' },
   { arm: 'FLUSH-HORIZON', name: '[settle-flush] the live horizon is the saved clock\'s alone (a leave under the flush)', fn: 'public.hr_hunt_live_horizon_at(timestamp with time zone)',
     find: 'greatest(now() + make_interval(secs => 2000 / 1000.0), p_settled_to) + make_interval(secs => 32000 / 1000.0)',
     replace: 'greatest(now(), p_settled_to + make_interval(secs => 32000 / 1000.0))' },

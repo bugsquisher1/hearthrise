@@ -187,7 +187,9 @@ export function pointPatch(root, levers, name) {
 /* THE REGISTRY (tools/balance-program/levers.json, lane/bl-levers): which of its levers each lever of this pass moves. A knob moves the
    registry levers that name it (`perturb.knob`, `perturb.also`); a family is mapped by hand to the registry row its numbers sit in. */
 export const FAMILY_REGISTRY = Object.freeze({ respawn: ['spawn.respawn'], spellCost: ['spell.mana-cost'], spellCooldown: ['spell.cooldowns'], spellPower: ['spell.shares'],
-  healPower: ['heal.shares'], shieldPower: ['heal.shares'], spellLeech: ['leech.rows'], foodPrice: ['cons.store-supplies'], drinkPrice: ['cons.store-supplies'] });
+  healPower: ['heal.shares'], shieldPower: ['heal.shares'], spellLeech: ['leech.rows'], foodPrice: ['cons.store-supplies'], drinkPrice: ['cons.store-supplies'],
+  weaponDamage: ['weapon.family-tables'], weaponAccuracy: ['weapon.family-tables'], armorValue: ['gear.armor-table'], runePrice: ['cons.rune-price'], gearSaleRate: ['econ.sale-rates'],
+  regroup: ['spawn.between-pulls'], blessingCut: ['level.blessing-cut'] });
 /** Coverage of the registry by this pass: { rows: [{ id, category, kind, sweptBy: [lever ids] }], counts }. Null when the registry is not on this tree. */
 export function registryCoverage(root) {
   let doc;

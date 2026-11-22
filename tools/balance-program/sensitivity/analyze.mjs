@@ -284,11 +284,12 @@ export function interaction(P, joint, singles, groups, outIds) {
 }
 
 /* ── THE STRUCTURE OF THE BASE: what the unpatched tree itself says about caps and axes (no lever moved) ─────────────────────────── */
-/** Per cell: the mean of each core outcome, and on Normal the SPAWN CEILING (every monster of the ground killed the instant its pack
-    returns: monsters x 3600 s / respawn, COMPUTED from src/data/hunt-grounds.js) and the share of it the cell's kills reach. */
+/** Per cell: the mean of each core outcome, and the SPAWN CEILING (every monster of a lap killed the instant its pack returns: the monsters a
+    lap brings on the cell's tier x 3600 s / respawn, COMPUTED from src/data/hunt-grounds.js and hunt-tiers.js) and the share of it the cell's kills reach. */
 export async function structure(P, root = ROOT) {
   const { pathToFileURL } = await import('node:url');
-  const G = (await import(pathToFileURL(join(root, 'src/data/hunt-grounds.js')).href)).HUNT_GROUNDS;
+  const GM = await import(pathToFileURL(join(root, 'src/data/hunt-grounds.js')).href), G = GM.HUNT_GROUNDS;
+  const TI = await import(pathToFileURL(join(root, 'src/data/hunt-tiers.js')).href);
   const col = (id) => P.ids.indexOf(id);
   const rows = [];
   for (const c of P.meta) {
@@ -298,9 +299,12 @@ export async function structure(P, root = ROOT) {
     const sd = (id) => { const v = seeds.map((r) => r[col(id)]).filter(finite); return v.length > 1 ? sig(sdOf(v)) : null; };
     const g = G[c.ground];
     const monsters = g ? g.pockets.reduce((a, p) => a + p.spawns.length, 0) : null;
-    const ceiling = g && c.tier === 'normal' ? Math.round((monsters * 3600000) / g.respawnMs) : null;
+    /* the pull a tier brings (hunt-tiers.js: the same for every party size), each pocket filled to it (hunt-grounds.js pullRows) */
+    const row = g ? TI.tierRowOf(c.ground, c.tier) : null, pull = row ? TI.pullOfTier(row, c.party) : 0;
+    const perLap = g ? g.pockets.reduce((a, _p, i) => a + GM.pullRows(g, i, pull).length, 0) : null;
+    const ceiling = g ? Math.round((perLap * 3600000) / g.respawnMs) : null;
     const deaths = seeds.reduce((a, r) => a + (r[col('deaths')] || 0), 0), hh = seeds.reduce((a, r) => a + (r[col('_hh')] || 0), 0);
-    rows.push({ key: c.key, L: c.L, gear: c.gear, party: c.party, comp: c.comp, tier: c.tier, ground: c.ground, respawnMs: g ? g.respawnMs : null, monsters, ceiling,
+    rows.push({ key: c.key, L: c.L, gear: c.gear, party: c.party, comp: c.comp, tier: c.tier, ground: c.ground, respawnMs: g ? g.respawnMs : null, monsters, pull, perLap, ceiling,
       ceilingShare: ceiling ? sig(m('killsPerH') / ceiling, 3) : null, deaths, heroHours: Math.round(hh), deathsPer1000h: hh > 0 ? sig((1000 * deaths) / hh, 3) : null,
       cv: Object.fromEntries(['killsPerH', 'levelXpPerH', 'takenPerH', 'storePerH', 'netPerH'].map((id) => [id, m(id) ? sig(sd(id) / Math.abs(m(id)), 2) : null])),
       ...Object.fromEntries(CORE.filter((o) => o !== 'deathsPer1000h').map((o) => [o, m(o)])), pullsPerH: m('pullsPerH'), coinPerH: m('coinPerH'), foodPerH: m('foodPerH'), regenPerH: m('regenPerH'), deathTax: m('deathTax') });

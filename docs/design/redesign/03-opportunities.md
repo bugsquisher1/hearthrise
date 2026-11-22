@@ -17,7 +17,7 @@ Written 2026-11-21 on `lane/rd-vision`. Docs only. This is deliverable 5 of the 
 | 5 | Monsters that wind up, and bars that answer | High | L | Packages 1 and 3 | Partly. 18 monster spell rows wind up and one bar condition sees it. Not yet the main test of a bar, and not on bosses |
 | 6 | Trades owned by the company | High | L | Package 5 | No |
 | 7 | The drop moment | High | M | Package 2 | Partly. A starter alert was planned |
-| 7b | The flame as Luck (the owner's idea, under evaluation) | High | M | Section 2b | No. Luck was a bar that filled with hours, and the hearth skill set regeneration |
+| 7b | The flame as Luck (the owner's idea, approved) | High | M | Section 2b | No. Luck was a bar that filled with hours, and the hearth skill set regeneration |
 | 8 | The hire board as the party finder | High | L | Packages 4 and 7 | Yes. On-call heroes are designed (chapter 11). The board as the social front door is new |
 | 9 | Levels or gold as a standing choice | High | S | Package 5 | No. Profit was left for players to find |
 | 10 | Events as ground rules | Medium | S to M | Package 7 | Partly. XP weekends only |
@@ -45,7 +45,7 @@ Written 2026-11-21 on `lane/rd-vision`. Docs only. This is deliverable 5 of the 
 
 **7. The drop moment.** Low rates are only half of a rare drop. The other half is being seen. A reveal on the return card, a line in the town, a mark on the hall wall, a card to share outside the game. The square's fire already changes color for a named fuel (EVIDENCE: `docs/SYSTEMS_MAP.md`, the Great Hearth), and that could mark a Signature drop for everyone in town. (HISTORICAL: asked for on 2026-08-18. Never built past an alert.)
 
-**7b. The flame as Luck.** The owner's idea of 2026-11-21, under evaluation. Inner Flame becomes Luck. The company feeds one flame with bones and other remains, and a taller flame raises the chance and rank of rare drops. It ranks beside the drop moment because it is the same job seen from the other side: the moment is what a drop looks like, and the flame is what the player did to earn it. Most of it is built, since fuels, the burn call and the colored fire exist. It gives remains a use, the hearth a system and a drop chaser a lever. Risk: a flame that is always worth keeping full is upkeep, not a choice. `02-architecture.md` section 2b has the eight fields.
+**7b. The flame as Luck.** The owner's idea of 2026-11-21, approved on 2026-11-22. Inner Flame becomes Luck. The company feeds one flame with bones and other remains, hunted or bought, and a taller flame raises the chance and rank of rare drops. It ranks beside the drop moment because it is the same job seen from the other side: the moment is what a drop looks like, and the flame is what the player did to earn it. Most of it is built, since fuels, the burn call and the colored fire exist. It gives remains a use, the hearth a system and a drop chaser a lever. Risk: a flame that is always worth keeping full is upkeep, not a choice. `02-architecture.md` section 2b has the eight fields.
 
 **8. The hire board as the party finder.** In an idle game few players are free at the same minute, so live grouping fails. Hiring a resting hero is grouping across time. A board in town that lists heroes for hire by job and Level is the social front door: it is how a new player meets a clan, and how a strong player helps without being online. The on-call design exists. What is missing is treating it as the main way players play together. Risk: second accounts farming hire cuts. The cut and the daily limit are the levers.
 

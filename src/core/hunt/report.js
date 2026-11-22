@@ -23,6 +23,18 @@
 //   waits  why a rule whose conditions held could not act: { rule id:
 //          { why: n } } off `rule_wait` (conditions.js noteWait: once per
 //          change, persisted on the unit, so a cut never repeats one).
+//   deep   ON THE DANGER SCALE (danger.js pullEnds' `danger` events; R2,
+//          lane/r2-danger-falls): the deepest step the company stood at, a
+//          pull made or a step reached. Absent off the scale.
+//   falls  ON THE DANGER SCALE: each fall back and each death, [{ at (the
+//          pull's end, server instant), from, to (the steps), hero (the
+//          seat of the hero that broke the pull off; absent when it had
+//          none), pm (its HP permille then, 0: it died), monster (the kind
+//          whose blow took it there, 'unknown' for none) }], oldest first,
+//          the last HUNT_REPORT.fallsMax kept. One entry an instant, so the
+//          party's fold of its heroes (each credited the company's falls)
+//          and any cut of the windows keep the same list. Absent with none.
+//   Both are the company's: every hero of the hunt is credited them alike.
 // The edge adds what the events do not hold (hr-accrue accrue-hunt.js): the
 // bar as played (`bar`) and the gear worn (`gear`); the database adds when an
 // own stack ran dry (`dry`, its own hunt_session_events rows).
@@ -79,8 +91,39 @@ export function reportEvent(ev, ids, kinds, reportOf) {
       bump(w[ev.rule], ev.why, 1);
       return;
     }
+    case 'danger': {
+      /* a pull on the Danger scale ended: the company's deepest step, and a fall back or a death with its cause, for every hero */
+      const step = nat(ev.step), to = nat(ev.to);
+      if (step === null || to === null) return;
+      const fall = (ev.why === 'fall' || ev.why === 'death') ? fallOf(ev) : null;
+      for (const id of [...ids].sort((a, b) => a - b)) {
+        const r = reportOf(id, ev);
+        r.deep = Math.max(nat(r.deep) === null ? 0 : r.deep, step, to);
+        if (fall) r.falls = foldFalls(r.falls, [fall]);
+      }
+      return;
+    }
     default:
   }
+}
+
+/* One fall back off its `danger` event (the header's `falls` entry), or null when the event cannot say one. */
+function fallOf(ev) {
+  const at = nat(ev.atMs), from = nat(ev.step), to = nat(ev.to), pm = nat(ev.low);
+  if (at === null || from === null || to === null || pm === null) return null;
+  return { at, from, to, ...(nat(ev.hero) !== null ? { hero: ev.hero } : {}), pm: Math.min(1000, pm),
+    monster: typeof ev.monster === 'string' && ID64.test(ev.monster) ? ev.monster : 'unknown' };
+}
+
+/* Two fall lists folded into a NEW one: one entry an instant (the first kept), oldest first, the last HUNT_REPORT.fallsMax. Associative
+   and order-stable, so it is the same however the windows are cut and however many heroes carry the same list. The database's
+   hr_hunt_report_add (1057-danger-falls.sql) is the same fold. */
+function foldFalls(a, b) {
+  const byAt = new Map();
+  for (const f of [...(Array.isArray(a) ? a : []), ...(Array.isArray(b) ? b : [])]) {
+    if (isMap(f) && nat(f.at) !== null && !byAt.has(f.at)) byAt.set(f.at, Object.assign({}, f));
+  }
+  return [...byAt.values()].sort((x, y) => x.at - y.at).slice(-HUNT_REPORT.fallsMax);
 }
 
 /* Count maps added key by key (two levels for `waits`). */

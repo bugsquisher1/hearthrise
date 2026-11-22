@@ -58,7 +58,11 @@ jobs:
           node-version: '20'
       - id: jobs
         name: The jobs to play (validated against the lever list and the experiments)
-        run: echo "jobs=$(node tools/balance-program/sensitivity/sensitivity.mjs --jobs "$WHICH" --only "$ONLY")" >> "$GITHUB_OUTPUT"
+        # a push cannot carry inputs: a measurement branch may commit the job names it wants, one line, comma-separated,
+        # as tools/balance-program/sensitivity/only.txt (never committed on a lane branch)
+        run: |
+          if [ -z "$ONLY" ] && [ -f tools/balance-program/sensitivity/only.txt ]; then ONLY="$(tr -d ' \r\n' < tools/balance-program/sensitivity/only.txt)"; fi
+          echo "jobs=$(node tools/balance-program/sensitivity/sensitivity.mjs --jobs "$WHICH" --only "$ONLY")" >> "$GITHUB_OUTPUT"
 
   play:
     needs: plan

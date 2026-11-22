@@ -1,0 +1,16 @@
+{
+ "schema": "hearthrise.balance-experiment/1",
+ "id": "EX-0004",
+ "title": "The model, taught by EX-0002, declares every movement of the heal cut",
+ "author": "lane/lab-p2-readers",
+ "question": "Once the model graph reads what EX-0002 measured (O-HEAL reads the heal cut, O-DPS and O-KILLS read the hunted share), does the heal cut move anything it does not declare, and do the sweeps still agree with its signs?",
+ "hypothesis": "No outcome moves undeclared under the heal cut (the sustain readers move as the trace says: sustainRatio down, regenShare measured up where the trace reads it mixed), and the sign match on the balance sweeps (run 44923615395) does not fall: no new sign miss",
+ "hypothesisAt": "2026-11-22T05:35:03.198Z",
+ "candidate": "tools/balance-program/experiments/heal-cut.patch.json",
+ "scenario": null,
+ "results": [],
+ "conclusion": null,
+ "concludedAt": null,
+ "reviewedBy": null,
+ "status": "open"
+}

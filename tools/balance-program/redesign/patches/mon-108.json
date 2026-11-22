@@ -1,0 +1,7 @@
+{
+  "schema": "hearthrise.balance-patch/1",
+  "name": "Redesign edge probe: monster blows x1.08",
+  "why": "The width of the edge between safe and dying, read with mon-116 and mon-125 (docs/design/redesign/04-math-strategy.md section 9). Played with --subset --only 30,110 --seeds 2 --hours 1",
+  "knobs": { "monsterDamage": 1.08 },
+  "targets": ["survival"]
+}

@@ -1,0 +1,1093 @@
+{
+ "schema": "hearthrise.redesign-model-probes/1",
+ "run": {
+  "only": "30,60,110",
+  "seeds": 2,
+  "hours": 1,
+  "cells": "the matrix subset"
+ },
+ "rows": [
+  {
+   "key": "30|mid|4:hbmh|dangerous",
+   "L": 30,
+   "party": "four",
+   "tier": "dangerous",
+   "ground": "mosslight_glade",
+   "today": {
+    "killsPerH": 1909,
+    "ttkS": 1,
+    "fightShare": null,
+    "lowHpTypical": 0.903,
+    "deathsPer1000h": 0,
+    "storePerH": 2588,
+    "takenPerH": 4256
+   },
+   "A": {
+    "pace": 1.044,
+    "elasticity": 0.192,
+    "taken": 0.844
+   },
+   "B": {
+    "pace": 1.002,
+    "store": 1.039,
+    "net": 0.999,
+    "lowHp": [
+     0.903,
+     0.874
+    ],
+    "deaths": [
+     0,
+     0
+    ]
+   },
+   "C": {
+    "pace": 0.998,
+    "store": 1.049,
+    "lowHp": [
+     0.903,
+     0.879
+    ],
+    "deaths": [
+     0,
+     0
+    ]
+   },
+   "DoverC": {
+    "pace": 1.004,
+    "store": 1.052,
+    "lowHp": [
+     0.879,
+     0.838
+    ],
+    "deaths": [
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "key": "30|mid|4:hbmh|deadly",
+   "L": 30,
+   "party": "four",
+   "tier": "deadly",
+   "ground": "mosslight_glade",
+   "today": {
+    "killsPerH": 2464,
+    "ttkS": 1.8,
+    "fightShare": null,
+    "lowHpTypical": 0.875,
+    "deathsPer1000h": 0,
+    "storePerH": 3965,
+    "takenPerH": 6872
+   },
+   "A": {
+    "pace": 1.068,
+    "elasticity": 0.294,
+    "taken": 0.618
+   },
+   "B": {
+    "pace": 1.003,
+    "store": 1.03,
+    "net": 0.996,
+    "lowHp": [
+     0.875,
+     0.838
+    ],
+    "deaths": [
+     0,
+     0
+    ]
+   },
+   "C": {
+    "pace": 1.002,
+    "store": 1.026,
+    "lowHp": [
+     0.875,
+     0.831
+    ],
+    "deaths": [
+     0,
+     0
+    ]
+   },
+   "DoverC": {
+    "pace": 1,
+    "store": 1.043,
+    "lowHp": [
+     0.831,
+     0.789
+    ],
+    "deaths": [
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "key": "30|mid|4:hbmh|normal",
+   "L": 30,
+   "party": "four",
+   "tier": "normal",
+   "ground": "mosslight_glade",
+   "today": {
+    "killsPerH": 755,
+    "ttkS": 0.14,
+    "fightShare": null,
+    "lowHpTypical": 0.985,
+    "deathsPer1000h": 0,
+    "storePerH": 817,
+    "takenPerH": 718
+   },
+   "A": {
+    "pace": 1.001,
+    "elasticity": 0.003,
+    "taken": 0.961
+   },
+   "B": {
+    "pace": 1,
+    "store": 1.034,
+    "net": 0.993,
+    "lowHp": [
+     0.985,
+     0.987
+    ],
+    "deaths": [
+     0,
+     0
+    ]
+   },
+   "C": {
+    "pace": 1,
+    "store": 1.001,
+    "lowHp": [
+     0.985,
+     0.982
+    ],
+    "deaths": [
+     0,
+     0
+    ]
+   },
+   "DoverC": {
+    "pace": 1,
+    "store": 1.034,
+    "lowHp": [
+     0.982,
+     0.979
+    ],
+    "deaths": [
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "key": "30|mid|1:h|dangerous",
+   "L": 30,
+   "party": "lone hammer",
+   "tier": "dangerous",
+   "ground": "mosslight_glade",
+   "today": {
+    "killsPerH": 826,
+    "ttkS": 11.13,
+    "fightShare": 2.554,
+    "lowHpTypical": 0.415,
+    "deathsPer1000h": 0,
+    "storePerH": 7891,
+    "takenPerH": 70259
+   },
+   "A": {
+    "pace": 1.203,
+    "elasticity": 0.829,
+    "taken": 0.931
+   },
+   "B": {
+    "pace": 0.998,
+    "store": 1.788,
+    "net": 0.489,
+    "lowHp": [
+     0.415,
+     0.357
+    ],
+    "deaths": [
+     0,
+     746.3
+    ]
+   },
+   "C": {
+    "pace": 1.007,
+    "store": 2.084,
+    "lowHp": [
+     0.415,
+     0.368
+    ],
+    "deaths": [
+     0,
+     0
+    ]
+   },
+   "DoverC": {
+    "pace": 0.998,
+    "store": 1.473,
+    "lowHp": [
+     0.368,
+     0.315
+    ],
+    "deaths": [
+     0,
+     613.5
+    ]
+   }
+  },
+  {
+   "key": "30|mid|1:h|deadly",
+   "L": 30,
+   "party": "lone hammer",
+   "tier": "deadly",
+   "ground": "mosslight_glade",
+   "today": {
+    "killsPerH": 935,
+    "ttkS": 11.35,
+    "fightShare": 2.948,
+    "lowHpTypical": 0.311,
+    "deathsPer1000h": 0,
+    "storePerH": 25620,
+    "takenPerH": 109029
+   },
+   "A": {
+    "pace": 1.135,
+    "elasticity": 0.566,
+    "taken": 0.902
+   },
+   "B": {
+    "pace": 0.854,
+    "store": 1.539,
+    "net": 12.544,
+    "lowHp": [
+     0.311,
+     0.082
+    ],
+    "deaths": [
+     0,
+     28571.4
+    ]
+   },
+   "C": {
+    "pace": 0.947,
+    "store": 1.362,
+    "lowHp": [
+     0.311,
+     0.226
+    ],
+    "deaths": [
+     0,
+     7407.4
+    ]
+   },
+   "DoverC": {
+    "pace": 0.945,
+    "store": 1.159,
+    "lowHp": [
+     0.226,
+     0.172
+    ],
+    "deaths": [
+     7407.4,
+     25000
+    ]
+   }
+  },
+  {
+   "key": "30|mid|1:h|normal",
+   "L": 30,
+   "party": "lone hammer",
+   "tier": "normal",
+   "ground": "mosslight_glade",
+   "today": {
+    "killsPerH": 557,
+    "ttkS": 3.75,
+    "fightShare": 0.58,
+    "lowHpTypical": 0.923,
+    "deathsPer1000h": 0,
+    "storePerH": 0,
+    "takenPerH": 16110
+   },
+   "A": {
+    "pace": 1.125,
+    "elasticity": 0.527,
+    "taken": 0.896
+   },
+   "B": {
+    "pace": 1,
+    "store": null,
+    "net": 1,
+    "lowHp": [
+     0.923,
+     0.9
+    ],
+    "deaths": [
+     0,
+     0
+    ]
+   },
+   "C": {
+    "pace": 1.002,
+    "store": null,
+    "lowHp": [
+     0.923,
+     0.527
+    ],
+    "deaths": [
+     0,
+     0
+    ]
+   },
+   "DoverC": {
+    "pace": 1.008,
+    "store": 5.89,
+    "lowHp": [
+     0.527,
+     0.525
+    ],
+    "deaths": [
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "key": "60|mid|4:hbmh|dangerous",
+   "L": 60,
+   "party": "four",
+   "tier": "dangerous",
+   "ground": "muster_barrows",
+   "today": {
+    "killsPerH": 1042,
+    "ttkS": 11.01,
+    "fightShare": null,
+    "lowHpTypical": 0.796,
+    "deathsPer1000h": 0,
+    "storePerH": 7746,
+    "takenPerH": 10901
+   },
+   "A": {
+    "pace": 1.189,
+    "elasticity": 0.774,
+    "taken": 0.815
+   },
+   "B": {
+    "pace": 0.999,
+    "store": 1.018,
+    "net": 1.023,
+    "lowHp": [
+     0.796,
+     0.776
+    ],
+    "deaths": [
+     0,
+     0
+    ]
+   },
+   "C": {
+    "pace": 0.996,
+    "store": 1.002,
+    "lowHp": [
+     0.796,
+     0.782
+    ],
+    "deaths": [
+     0,
+     0
+    ]
+   },
+   "DoverC": {
+    "pace": 0.997,
+    "store": 1.028,
+    "lowHp": [
+     0.782,
+     0.761
+    ],
+    "deaths": [
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "key": "60|mid|4:hbmh|deadly",
+   "L": 60,
+   "party": "four",
+   "tier": "deadly",
+   "ground": "muster_barrows",
+   "today": {
+    "killsPerH": 1007,
+    "ttkS": 11.54,
+    "fightShare": null,
+    "lowHpTypical": 0.767,
+    "deathsPer1000h": 0,
+    "storePerH": 7884,
+    "takenPerH": 16026
+   },
+   "A": {
+    "pace": 1.185,
+    "elasticity": 0.76,
+    "taken": 0.883
+   },
+   "B": {
+    "pace": 0.998,
+    "store": 1.042,
+    "net": 0.961,
+    "lowHp": [
+     0.767,
+     0.741
+    ],
+    "deaths": [
+     0,
+     0
+    ]
+   },
+   "C": {
+    "pace": 0.994,
+    "store": 1.022,
+    "lowHp": [
+     0.767,
+     0.76
+    ],
+    "deaths": [
+     0,
+     0
+    ]
+   },
+   "DoverC": {
+    "pace": 1.001,
+    "store": 1.031,
+    "lowHp": [
+     0.76,
+     0.731
+    ],
+    "deaths": [
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "key": "60|mid|4:hbmh|normal",
+   "L": 60,
+   "party": "four",
+   "tier": "normal",
+   "ground": "muster_barrows",
+   "today": {
+    "killsPerH": 708,
+    "ttkS": 5.81,
+    "fightShare": null,
+    "lowHpTypical": 0.96,
+    "deathsPer1000h": 0,
+    "storePerH": 5626,
+    "takenPerH": 3488
+   },
+   "A": {
+    "pace": 1.057,
+    "elasticity": 0.248,
+    "taken": 0.774
+   },
+   "B": {
+    "pace": 1.004,
+    "store": 1.019,
+    "net": 0.901,
+    "lowHp": [
+     0.96,
+     0.952
+    ],
+    "deaths": [
+     0,
+     0
+    ]
+   },
+   "C": {
+    "pace": 1,
+    "store": 1.005,
+    "lowHp": [
+     0.96,
+     0.957
+    ],
+    "deaths": [
+     0,
+     0
+    ]
+   },
+   "DoverC": {
+    "pace": 1.004,
+    "store": 1.018,
+    "lowHp": [
+     0.957,
+     0.945
+    ],
+    "deaths": [
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "key": "60|mid|1:h|dangerous",
+   "L": 60,
+   "party": "lone hammer",
+   "tier": "dangerous",
+   "ground": "the_slake",
+   "today": {
+    "killsPerH": 824,
+    "ttkS": 12.94,
+    "fightShare": 2.962,
+    "lowHpTypical": 0.324,
+    "deathsPer1000h": 0,
+    "storePerH": 105750,
+    "takenPerH": 179785
+   },
+   "A": {
+    "pace": 1.152,
+    "elasticity": 0.634,
+    "taken": 0.914
+   },
+   "B": {
+    "pace": 0.934,
+    "store": 1.498,
+    "net": 2.397,
+    "lowHp": [
+     0.324,
+     0.059
+    ],
+    "deaths": [
+     0,
+     13333.3
+    ]
+   },
+   "C": {
+    "pace": 0.994,
+    "store": 1.267,
+    "lowHp": [
+     0.324,
+     0.299
+    ],
+    "deaths": [
+     0,
+     2105.3
+    ]
+   },
+   "DoverC": {
+    "pace": 0.909,
+    "store": 1.343,
+    "lowHp": [
+     0.299,
+     0.039
+    ],
+    "deaths": [
+     2105.3,
+     33333.3
+    ]
+   }
+  },
+  {
+   "key": "60|mid|1:h|deadly",
+   "L": 60,
+   "party": "lone hammer",
+   "tier": "deadly",
+   "ground": "the_slake",
+   "today": {
+    "killsPerH": 748,
+    "ttkS": 13.14,
+    "fightShare": 2.73,
+    "lowHpTypical": 0.098,
+    "deathsPer1000h": 18181.8,
+    "storePerH": 157091,
+    "takenPerH": 230849
+   },
+   "A": {
+    "pace": 1.208,
+    "elasticity": 0.845,
+    "taken": 0.905
+   },
+   "B": {
+    "pace": 2957862.44,
+    "store": 9166661.362,
+    "net": 37158999.193,
+    "lowHp": [
+     0.098,
+     0
+    ],
+    "deaths": [
+     18181.8,
+     2000000000000
+    ]
+   },
+   "C": {
+    "pace": 0.927,
+    "store": 1.008,
+    "lowHp": [
+     0.098,
+     0.189
+    ],
+    "deaths": [
+     18181.8,
+     40000
+    ]
+   },
+   "DoverC": {
+    "pace": 3190889.439,
+    "store": 9090909.091,
+    "lowHp": [
+     0.189,
+     0
+    ],
+    "deaths": [
+     40000,
+     2000000000000
+    ]
+   }
+  },
+  {
+   "key": "60|mid|1:h|normal",
+   "L": 60,
+   "party": "lone hammer",
+   "tier": "normal",
+   "ground": "the_slake",
+   "today": {
+    "killsPerH": 479,
+    "ttkS": 4.65,
+    "fightShare": 0.619,
+    "lowHpTypical": 0.914,
+    "deathsPer1000h": 0,
+    "storePerH": 0,
+    "takenPerH": 29262
+   },
+   "A": {
+    "pace": 1.121,
+    "elasticity": 0.513,
+    "taken": 0.922
+   },
+   "B": {
+    "pace": 1.003,
+    "store": null,
+    "net": 1.012,
+    "lowHp": [
+     0.914,
+     0.888
+    ],
+    "deaths": [
+     0,
+     0
+    ]
+   },
+   "C": {
+    "pace": 0.988,
+    "store": null,
+    "lowHp": [
+     0.914,
+     0.518
+    ],
+    "deaths": [
+     0,
+     0
+    ]
+   },
+   "DoverC": {
+    "pace": 1.002,
+    "store": 3.111,
+    "lowHp": [
+     0.518,
+     0.494
+    ],
+    "deaths": [
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "key": "110|mid|4:hbmh|dangerous",
+   "L": 110,
+   "party": "four",
+   "tier": "dangerous",
+   "ground": "krells_hold",
+   "today": {
+    "killsPerH": 1563,
+    "ttkS": 1.85,
+    "fightShare": null,
+    "lowHpTypical": 0.906,
+    "deathsPer1000h": 0,
+    "storePerH": 11604,
+    "takenPerH": 14647
+   },
+   "A": {
+    "pace": 1.037,
+    "elasticity": 0.163,
+    "taken": 0.675
+   },
+   "B": {
+    "pace": 1.001,
+    "store": 0.996,
+    "net": 1.02,
+    "lowHp": [
+     0.906,
+     0.883
+    ],
+    "deaths": [
+     0,
+     0
+    ]
+   },
+   "C": {
+    "pace": 1.001,
+    "store": 1.012,
+    "lowHp": [
+     0.906,
+     0.889
+    ],
+    "deaths": [
+     0,
+     0
+    ]
+   },
+   "DoverC": {
+    "pace": 1.001,
+    "store": 1.012,
+    "lowHp": [
+     0.889,
+     0.854
+    ],
+    "deaths": [
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "key": "110|mid|4:hbmh|deadly",
+   "L": 110,
+   "party": "four",
+   "tier": "deadly",
+   "ground": "krells_hold",
+   "today": {
+    "killsPerH": 1557,
+    "ttkS": 2.02,
+    "fightShare": null,
+    "lowHpTypical": 0.876,
+    "deathsPer1000h": 0,
+    "storePerH": 11917,
+    "takenPerH": 20014
+   },
+   "A": {
+    "pace": 1.037,
+    "elasticity": 0.162,
+    "taken": 0.684
+   },
+   "B": {
+    "pace": 1.002,
+    "store": 1,
+    "net": 0.992,
+    "lowHp": [
+     0.876,
+     0.847
+    ],
+    "deaths": [
+     0,
+     0
+    ]
+   },
+   "C": {
+    "pace": 1.002,
+    "store": 1.029,
+    "lowHp": [
+     0.876,
+     0.849
+    ],
+    "deaths": [
+     0,
+     0
+    ]
+   },
+   "DoverC": {
+    "pace": 1,
+    "store": 1.019,
+    "lowHp": [
+     0.849,
+     0.806
+    ],
+    "deaths": [
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "key": "110|mid|4:hbmh|normal",
+   "L": 110,
+   "party": "four",
+   "tier": "normal",
+   "ground": "krells_hold",
+   "today": {
+    "killsPerH": 574,
+    "ttkS": 0.44,
+    "fightShare": null,
+    "lowHpTypical": 0.984,
+    "deathsPer1000h": 0,
+    "storePerH": 4835,
+    "takenPerH": 1912
+   },
+   "A": {
+    "pace": 1.013,
+    "elasticity": 0.056,
+    "taken": 0.939
+   },
+   "B": {
+    "pace": 0.999,
+    "store": 0.999,
+    "net": 1.082,
+    "lowHp": [
+     0.984,
+     0.983
+    ],
+    "deaths": [
+     0,
+     0
+    ]
+   },
+   "C": {
+    "pace": 1,
+    "store": 1.001,
+    "lowHp": [
+     0.984,
+     0.983
+    ],
+    "deaths": [
+     0,
+     0
+    ]
+   },
+   "DoverC": {
+    "pace": 0.999,
+    "store": 1.005,
+    "lowHp": [
+     0.983,
+     0.983
+    ],
+    "deaths": [
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "key": "110|mid|1:h|dangerous",
+   "L": 110,
+   "party": "lone hammer",
+   "tier": "dangerous",
+   "ground": "krells_hold",
+   "today": {
+    "killsPerH": 646,
+    "ttkS": 15.86,
+    "fightShare": 2.846,
+    "lowHpTypical": 0.387,
+    "deathsPer1000h": 0,
+    "storePerH": 58230,
+    "takenPerH": 198424
+   },
+   "A": {
+    "pace": 1.192,
+    "elasticity": 0.787,
+    "taken": 0.933
+   },
+   "B": {
+    "pace": 0.994,
+    "store": 1.687,
+    "net": -86.757,
+    "lowHp": [
+     0.387,
+     0.334
+    ],
+    "deaths": [
+     0,
+     1694.9
+    ]
+   },
+   "C": {
+    "pace": 0.995,
+    "store": 1.866,
+    "lowHp": [
+     0.387,
+     0.345
+    ],
+    "deaths": [
+     0,
+     0
+    ]
+   },
+   "DoverC": {
+    "pace": 0.998,
+    "store": 1.431,
+    "lowHp": [
+     0.345,
+     0.298
+    ],
+    "deaths": [
+     0,
+     3636.4
+    ]
+   }
+  },
+  {
+   "key": "110|mid|1:h|deadly",
+   "L": 110,
+   "party": "lone hammer",
+   "tier": "deadly",
+   "ground": "krells_hold",
+   "today": {
+    "killsPerH": 617,
+    "ttkS": 17.11,
+    "fightShare": 2.932,
+    "lowHpTypical": 0.341,
+    "deathsPer1000h": 885,
+    "storePerH": 104973,
+    "takenPerH": 243462
+   },
+   "A": {
+    "pace": 1.201,
+    "elasticity": 0.82,
+    "taken": 0.93
+   },
+   "B": {
+    "pace": 0.936,
+    "store": 1.406,
+    "net": 3.807,
+    "lowHp": [
+     0.341,
+     0.247
+    ],
+    "deaths": [
+     885,
+     20000
+    ]
+   },
+   "C": {
+    "pace": 0.974,
+    "store": 1.543,
+    "lowHp": [
+     0.341,
+     0.264
+    ],
+    "deaths": [
+     885,
+     7407.4
+    ]
+   },
+   "DoverC": {
+    "pace": 0.992,
+    "store": 1.206,
+    "lowHp": [
+     0.264,
+     0.188
+    ],
+    "deaths": [
+     7407.4,
+     28571.4
+    ]
+   }
+  },
+  {
+   "key": "110|mid|1:h|normal",
+   "L": 110,
+   "party": "lone hammer",
+   "tier": "normal",
+   "ground": "krells_hold",
+   "today": {
+    "killsPerH": 408,
+    "ttkS": 6.69,
+    "fightShare": 0.758,
+    "lowHpTypical": 0.901,
+    "deathsPer1000h": 0,
+    "storePerH": 0,
+    "takenPerH": 49114
+   },
+   "A": {
+    "pace": 1.137,
+    "elasticity": 0.577,
+    "taken": 0.897
+   },
+   "B": {
+    "pace": 0.998,
+    "store": null,
+    "net": 0.941,
+    "lowHp": [
+     0.901,
+     0.875
+    ],
+    "deaths": [
+     0,
+     0
+    ]
+   },
+   "C": {
+    "pace": 0.984,
+    "store": null,
+    "lowHp": [
+     0.901,
+     0.499
+    ],
+    "deaths": [
+     0,
+     0
+    ]
+   },
+   "DoverC": {
+    "pace": 1.024,
+    "store": 2.125,
+    "lowHp": [
+     0.499,
+     0.494
+    ],
+    "deaths": [
+     0,
+     0
+    ]
+   }
+  }
+ ],
+ "armorSteps": [
+  {
+   "L": 30,
+   "tree": "today",
+   "armorStepPace": 1,
+   "armorStepTaken": 0.952
+  },
+  {
+   "L": 30,
+   "tree": "rest-slow",
+   "armorStepPace": 0.994,
+   "armorStepTaken": 1
+  },
+  {
+   "L": 60,
+   "tree": "today",
+   "armorStepPace": 1.003,
+   "armorStepTaken": 1.002
+  },
+  {
+   "L": 60,
+   "tree": "rest-slow",
+   "armorStepPace": 0.998,
+   "armorStepTaken": 0.991
+  },
+  {
+   "L": 110,
+   "tree": "today",
+   "armorStepPace": 1.004,
+   "armorStepTaken": 0.974
+  },
+  {
+   "L": 110,
+   "tree": "rest-slow",
+   "armorStepPace": 0.985,
+   "armorStepTaken": 0.971
+  }
+ ]
+}

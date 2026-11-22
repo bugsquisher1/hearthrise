@@ -122,12 +122,10 @@ export function checkClient({ cells = previewDyes, text = refusalText, shop = sh
   if (/aria-pressed="true"/.test(how)) out.push('H-C4 a way to fight is picked for the player before they pick');
   if (!/data-hero-set="club"[^>]*>.*?Good first hero/.test(how)) out.push('H-C4 the Club does not carry the Good first hero mark');
   /* H-C5 (QA audit 2026-11-18 N8): "Switch any time in town Hero slots: 1, buy 3 more, all 4 play at once" ran two lines together, and its numbers were
-     typed in the copy. The lead ends its last sentence; the slots are their own line, the server's words handed in, and nothing at all while unsaid. */
+     typed in the copy. The lead ends its last sentence, and the step says nothing of slots: that is the Characters screen's line (art review 2026-11-21 #4). */
   const lead = (/<p class="hero-how-lead">([^<]*)<\/p>/.exec(how) || [])[1] || '';
   if (!lead || !/\.$/.test(lead.trim())) out.push('H-C5 the lead runs on, no sentence end: ' + JSON.stringify(lead));
   if (/Hero slots|slot/i.test(how)) out.push('H-C5 the step types a hero-slot count of its own: ' + JSON.stringify(how.slice(0, 200)));
-  const said = howHtml('Hero slots: 2 (up to 4 play at once)');
-  if (!/<p class="hero-how-slots">Hero slots: 2 \(up to 4 play at once\)<\/p>/.test(said)) out.push('H-C5 the server\'s slot line is not its own line: ' + JSON.stringify(said.slice(0, 300)));
   for (const p of howValidate()) out.push('H-C4 ' + p);
   /* H-C6 (audit 2026-11-18 A14): what a way does and what it uses stand apart, a separator between them, read aloud as
      "Holds monsters off the party · Uses food", then its mark, its honest tag and its cost line, each its own words */
@@ -247,13 +245,13 @@ const DATA_MUTANTS = {
   shop_sells_food: { why: 'the session keeps a food offer a server still sends', run: () => checkClient({ shop: (cs) => ({ offers: cs.read('shop').offers, bids: new Map() }) }) },
   summary_restock: { why: 'the hunt summary offers Restock again', run: () => checkClient({ windows: { ...WINDOWS, summary: () => renderHuntSummary() + '<button data-hs-act="restock">Restock</button>' } }) },
   creation_silent_on_styles: { why: 'the creation step says nothing about how you fight', run: () => checkClient({ howHtml: () => '' }) },
-  styles_read_as_a_menu: { why: 'the lead no longer says there is nothing to choose', run: () => checkClient({ howHtml: () => howYouFightHtml().replace('nothing to pick', 'a choice to make') }) },
-  style_row_dropped: { why: 'the staff (Healer) row leaves the how-you-fight list', run: () => checkClient({ howHtml: () => howYouFightHtml().replace(/<li data-style="heal">.*?<\/li>/, '') }) },
+  styles_read_as_a_menu: { why: 'the lead says there is nothing to pick again (M-02)', run: () => checkClient({ howHtml: () => howYouFightHtml().replace('No classes.', 'No classes, nothing to pick.') }) },
+  style_row_dropped: { why: 'the Staff (Healer) card leaves the pick', run: () => checkClient({ howHtml: () => howYouFightHtml().replace(/<button[^>]*data-hero-set="healer"[^>]*>.*?<\/button>/, '') }) },
+  way_picked_for_the_player: { why: 'a way is picked before the player picks (GR-24)', run: () => checkClient({ howHtml: () => howYouFightHtml('club') }) },
   /* N8 (QA audit 2026-11-18) */
-  slots_run_on: { why: 'the slot line runs on at the end of the lead with typed numbers', run: () => checkClient({ howHtml: (s) => howYouFightHtml(s).replace(/town\.<\/p>/, 'town Hero slots: 1, buy 3 more, all 4 play at once</p>') }) },
-  slots_dropped: { why: 'the server\'s slot line is not drawn', run: () => checkClient({ howHtml: () => howYouFightHtml('') }) },
+  slots_run_on: { why: 'the step types a slot count of its own at the end of the lead', run: () => checkClient({ howHtml: () => howYouFightHtml().replace(/town\.<\/p>/, 'town. Hero slots: 4, all 4 play at once</p>') }) },
   /* A14 (audit 2026-11-18) */
-  style_uses_run_on: { why: 'a style\'s use runs on after what it does', run: () => checkClient({ howHtml: (s) => howYouFightHtml(s).replace(/<span class="hh-sep">.*?<\/span> <\/span>/g, ' ') }) },};
+  style_uses_run_on: { why: 'a style\'s use runs on after what it does', run: () => checkClient({ howHtml: () => howYouFightHtml().replace(/<span class="hh-sep">.*?<\/span> <\/span>/g, ' ') }) },};
 
 if (isMain(import.meta.url)) {
   const sql = (await readFile(join(ROOT, 'supabase', 'migrations', MIG), 'utf8')).replace(/\r\n/g, '\n');

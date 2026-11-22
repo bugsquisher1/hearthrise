@@ -93,6 +93,7 @@ export const SUMMARY_TEXT = Object.freeze({
      {name} the hero, {ground} the ground outgrown, {n} the heroes still to make in words */
   party_line: { one: '{name} has outgrown the {ground}. You have {n} more hero to make, and the Sewer wants a full party.',
     other: '{name} has outgrown the {ground}. You have {n} more heroes to make, and the Sewer wants a full party.' },
+  party_title: { one: '{count} hero to make', other: '{count} heroes to make' },
   party_go: 'Build your party',
   alone_to: 'Go on alone to {ground}',
   /* The answers. */

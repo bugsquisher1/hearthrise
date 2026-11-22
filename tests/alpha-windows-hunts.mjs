@@ -1133,7 +1133,7 @@ const MUTANTS = [
   ['AW-8 the readiness checklist\'s head slides under the foot', 'src/styles/windows.css', '.hpb-foot:has(~ .hpb-ready-head.is-on) { margin-bottom: 0; }\n', ''],
   ['AW-28b nobody to bring tells heroes already playing to play one (audit F23)', 'src/shell/windows/hunt-detail.js', '  if (away.length) {\n', '  if (false) {\n'],
   ['AW-25 a creature card\'s dot can end its line','src/shell/windows/hunt-detail.js', "text(how.querySelector('.hw-hd-mon-lv'), lv);", "text(how.querySelector('.hw-hd-mon-lv'), lv && lv + ' ·');"],
-  ['AW-25 the dot outlives the break that took its space', 'src/styles/hunt.css', '.hh-sep-t { font-size: 0; word-spacing: 0; }', '.hh-sep-t { word-spacing: 0; }'],
+  ['AW-25 the dot outlives the break that took its space', 'src/styles/hunt.css', '.hh-sep-t { font-size: 0; font-size-adjust: none; word-spacing: 0; }', '.hh-sep-t { font-size-adjust: none; word-spacing: 0; }'],
   ['AW-25 a list line\'s band and its fit run together in text', 'src/shell/windows/hunts.js', "prop(band.previousElementSibling, 'hidden', !fit || !fit.words);", "prop(band.previousElementSibling, 'hidden', true);"],
   ['AW-25 a list line\'s tag and best run together in text', 'src/shell/windows/hunts.js', "prop(li.querySelector('.hw-hunt-sub .hw-hunt-sep'), 'hidden', !tag || !best);", "prop(li.querySelector('.hw-hunt-sub .hw-hunt-sep'), 'hidden', true);"],
   ['AW-25 the page\'s band and its fit run together in text', 'src/shell/windows/hunt-detail.js', "prop(band.querySelector('.hw-hunt-sep'), 'hidden', !fitWordsShown);", "prop(band.querySelector('.hw-hunt-sep'), 'hidden', true);"],

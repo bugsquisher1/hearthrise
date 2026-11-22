@@ -1,10 +1,10 @@
 # 02. Fresh system architecture
 
-Written 2026-11-21 on `lane/rd-vision`. Docs only. This is deliverable 3 of the reset request of 2026-11-21: how the major systems would be designed if we started today. Read `01-identity.md` first. Every package is a proposal for review. Nothing here is final, and every number is a hypothesis for the math lane to test.
+Written 2026-11-21 on `lane/rd-vision`. Docs only. This is deliverable 3 of the reset request of 2026-11-21: how the major systems would be designed if we started today. Read `01-identity.md` first. **Approved.** The owner said go to all nine packages and to sections 1b, 2b, 2c and 7b on 2026-11-21 and 2026-11-22, and answered the open questions (`08-for-tyler.md`, "His answers"). The packages are the design. Every number is still a hypothesis for the math lane to test.
 
 **Labels.** EVIDENCE (seen in play or code, with its source). MEASURED (an engine run, with its run). JUDGMENT (a design opinion). SPECULATIVE (a guess worth testing). HISTORICAL (an older decision, a record and not a rule). Unless a line says otherwise, a recommended design is JUDGMENT.
 
-**Names.** Danger, stance, Careful, Steady, Bold, Trait, Signature, carry-over, company and hall are working names. They go through the naming and voice pass before any player sees them.
+**Names.** Danger, stance, Careful, Steady, Bold, Trait, Signature, carry-over, company and hall are working names. They go through the naming and voice pass before any player sees them. The game already has fight stances (Offensive, Balanced, Defensive). The risk choice in package 3 is a different thing and needs its own word. This file says "stance" for it until that word is picked.
 
 **Cost sizes.** S is a data or screen change. M is one lane. L is several lanes or an engine batch. XL is a new server surface with its own review. All are JUDGMENT.
 
@@ -15,6 +15,7 @@ Nine packages, four added sections (1b on Talents, 2b on the flame, 2c on where 
 | Shared part | What it is | Who uses it |
 |---|---|---|
 | **The power step** | One unit of power on one scale. A Level, a gear tier, a Danger step and a price all count in steps | Every package. The math lane defines it |
+| **The step ledger** | One table of every source of a hero's power, counted in steps, that must add up: Level, skill and gear, Talent points, Traits, imbuements and food, clan buffs, event and arena rewards. A new source takes its steps from a slice or is refused | Every package that gives power. The table is `04-math-strategy.md` section 12, and this file has no second copy of it |
 | **The rule table** | One table of rows that say what changes, by how much, and when. The "when" uses the action bar's own conditions | Moves, Traits, Signatures, imbuements, monster rules, ground rules, events |
 | **The company plan** | One server object for the account: heroes, rows, bars, ground, stance, supply rules, loot rules, town work. One Start runs it | The first hour, every hunt, the return card, hiring, copying a build |
 
@@ -22,10 +23,10 @@ Nine packages, four added sections (1b on Talents, 2b on the flame, 2c on where 
 |---|---|---|
 | 1 | Combat and skills | Styles differ by job. The bar is the build, and Talents feed it. Two defenses, no immunities, healing and mana are counted |
 | 2 | Equipment and progression | Plain gear is the floor. Rare gear rolls one Trait and Very Rare gear two, each a rule and not a number. The rarest has a Signature |
-| 2b | The flame as Luck (the owner's idea, under evaluation) | Inner Flame is Luck. The company feeds one flame with what hunts leave behind |
+| 2b | The flame as Luck (the owner's idea, approved) | Inner Flame is Luck. The company feeds one flame with remains, hunted or bought |
 | 3 | Hunting and monsters | One Danger scale. The party climbs it by itself inside a stance, and falls back before it dies |
 | 4 | Party | Monsters reach the whole party. Loot is personal. A good four beats its heroes apart in XP and gold |
-| 5 | Economy and crafting | Eight trades owned by the company, each with a hunting buyer. Drops give the item, trades improve it and keep it running |
+| 5 | Economy and crafting | Professions make what hunting burns, on a skilling model in the spirit of the genre's classic, made our own. Drops give the item, professions improve it and keep it running. `09-crafting.md` has the structure |
 | 6 | Long-term progression | A Level is one step forever. Depth has no top. Records, bestiary, trades, hall |
 | 7 | Social and endgame | A town worth standing in, a hire board, clans and the full castle, halls, world boss, the Tower, two arenas |
 | 8 | The first hour | One hero, hunting inside two minutes, the company arrives as one step at Level 5 |
@@ -35,14 +36,15 @@ Nine packages, four added sections (1b on Talents, 2b on the flame, 2c on where 
 
 **1. Recommended design.**
 
-- **Four combat skills trained by use, plus Level.** Melee, Ranged, Magic and Defense. A hero is what they use. Level gives health, mana and carrying room. A skill gives accuracy and damage with that style. (HISTORICAL shape, kept as core)
+- **Four combat skills trained by use, plus Level.** Melee, Ranged, Magic and Defense. A hero is what they use. Level gives health, mana and carrying room. A skill gives steps of rating with that style. (HISTORICAL shape, kept as core)
 - **Six jobs, one for each weapon family.** A weapon family is best at one problem. Hold the front (sword and shield). Break a wind-up or a shield (hammer). Cut a crowd (axe or two-hander). Pick a target in the back row (bow). Burst an area (wand). Mend and shield (staff). The exact families are a sample to play, not a list to lock.
 - **The bar is the build.** A hero knows more moves than the bar holds. Bar slots open with Level. The choice of which moves to slot, in which order and on which condition is the hero's build.
 - **Talents are move evolutions, with a point every Level.** Each Level gives one point to raise a move's rank. At rank marks the move evolves, and the player picks a branch that changes how it plays. Section 1b has the design.
 - **Two defenses.** Armor against physical blows and ward against magic, on heroes and on monsters alike. Both work on a ratio, so a point of defense is worth something at every Level and never reaches a wall. A small set of damage types with resistances as percents. No immunity.
 - **Healing and mana are counted.** Every hunt records healing by source, damage taken by hero, mana spent and supplies used. Sustain is a budget the player can read.
-- **Monsters wind up.** A dangerous blow has a short wind-up state that a bar condition can see. A hero can answer with a guard, a stagger or a heal held for it. This is the main way a good bar beats a lazy one.
-- **Death costs Level XP and skill progress, and Blessings cut the cost.** But a fall back comes first (package 3), so a death is the price of a risk the player took.
+- **Monsters wind up, and more of them.** The game already has this in a small form: 18 monster spell rows carry a wind-up, a bar condition can see a monster casting, and one move fires on it (EVIDENCE: `06-comparison.md` section 0, read in `src/data`). The design makes it the main way a good bar beats a lazy one: more wind-up kinds, on blows as well as spells, and more moves that answer with a guard, a stagger or a held heal.
+- **A blow lands.** There is no second contest for hit chance. Dodge and block are moves, Traits and monster rules in the rule table. If misses are wanted for feel, it is one small base chance that a role or a Trait can move. This takes the recommendation of `04-math-strategy.md` section 2.
+- **Death costs Level XP and skill progress, and Blessings cut the cost.** But a fall back comes first (package 3), and only the Bold stance can die, so a death is the price of a risk the player took.
 
 **2. Why it is better.** The target is a game where each style has a reason to be in the party and each stat can be felt. EVIDENCE that the pieces it replaces fail that target: armor past Level 30 was worth nothing at any band size (`12-balance-pass.md` section 0). A shield front and a hammer front held alike once both hit the armor cap (section 4.1). The fastest Talent build was at most 2.2% faster than the suggested one (section 0). One playtester reported one style ahead on damage on every ground, and best supplies as the only sane pick (2026-11-16). Nothing reads healing or mana today (`03-targets.md` section 0).
 
@@ -67,8 +69,8 @@ Nine packages, four added sections (1b on Talents, 2b on the flame, 2c on where 
 **1. Recommended design.**
 
 - **Every Level gives one point.** A point is spent on one move the hero knows. It raises that move's rank by one.
-- **A rank makes the move a little better at its own job.** More healing for the mana, a longer hold, a shorter wait. Ranks are the steady part.
-- **Branches open at rank marks.** At rank 5, 15 and 30 the move evolves, and the player picks one of two or three branches. A branch changes how the move plays: its area, its condition, an added effect, cost against power, or who in the party it serves. Branches are the exciting part, and they are why two heroes of one weapon end up different.
+- **A rank is a share of the Level, aimed.** A rank is not a percent added on top. It is part of the Level's own step of power, and the player chooses which move it goes to. It is counted in the step ledger. Ranks are the steady part.
+- **Branches open at rank marks.** At rank 5, 15 and 30 the move evolves, and the player picks one of two or three branches. A branch changes how the move plays: its area, its condition, an added effect, cost against power, or who in the party it serves. Branches are the exciting part, and they are why two heroes of one weapon end up different. The first sample has one mark, at rank 5. The marks at 15 and 30 are added once that one has been played.
 - **It lives on the bar.** An evolved move sits in the same slot as before. No slot is added. A branch can add a new word the bar's conditions can use. The bar is still the build, and evolutions change what the things on it do.
 - **Points bank.** An unspent point waits, with no limit. A player who was away comes back to a few points, shown as one line on the return card.
 - **One card, a few options.** The card shows the moves on the hero's bar, the next rank of each, and which one is a rank away from a branch. One option is marked as suggested. It fits a phone.
@@ -102,7 +104,7 @@ Honest limit: far past the last hand-made branch, the choice at each Level is wh
 
 | Rank mark | Branch | What changes | Good against |
 |---|---|---|---|
-| Ranks 1 to 4 | none | Each rank holds the pull about 3% longer | Everything |
+| Ranks 1 to 4 | none | Each rank adds its share of a step to the pull's hold | Everything |
 | 5 | Wide Challenge | Pulls every monster in the pull, for half as long | Swarms |
 | 5 | Hard Challenge | Pulls one monster, and it hits you 15% softer while held | Brutes and bosses |
 | 5 | Guarding Challenge | Fires by itself when a monster goes for a back-row hero, and pulls that one | Stalkers and Shooters |
@@ -113,12 +115,14 @@ Honest limit: far past the last hand-made branch, the choice at each Level is wh
 
 | Rank mark | Branch | What changes | Good against |
 |---|---|---|---|
-| Ranks 1 to 4 | none | Each rank heals about 2% more for the same mana | Everything |
+| Ranks 1 to 4 | none | Each rank adds its share of a step to the heal | Everything |
 | 5 | Quick Mend | Half the heal, half the wait | Steady chip damage |
 | 5 | Deep Mend | Only casts on a hero under 40% health, and heals 60% more | Big single blows |
 | 5 | Shared Mend | 30% of the heal also lands on the next most hurt hero | Casters and area damage |
 | 15 | Lasting | Healing past full health stays as a small shield | Wind-ups |
 | 15 | Thrifty | Returns half the mana if the target was under 25% health | Long hunts |
+
+**The count, kept honest.** The comparison counted what can change one move: its rank, up to three branch picks, Traits, a Signature, an imbuement and the stance. That is too many to read at once, and it is the same trap this redesign set out to close. Three limits hold it. A move's card shows at most four lines: its rank, its one active branch, and at most two things from gear. The first build has one branch mark and one Trait a piece. And each added layer must pass a played read on a phone before the next one is written. The comparison is also right that with "spend as suggested" switched on, the every-Level choice is small and the real choices are the branch picks. That is said plainly here, and the owner confirmed it is what he meant: a point every Level deepens a move, and a branch pick comes every few Levels (RD-Q4 a, 2026-11-22). Rune versions of a spell are a supply, the thing the move burns. Ranks are the hero's own. They are two ladders, and `09-crafting.md` and this section must keep them from doing one job. (JUDGMENT, taking `06-comparison.md` section 4 rows 2, 14 and 15)
 
 **5. How it meets gear, Traits and the flame.**
 
@@ -152,15 +156,15 @@ This package carries the owner's confirmed requirement of 2026-11-21: gear may u
 | Part | Where it comes from | Random? | Its job |
 |---|---|---|---|
 | **Base** | Drops, with a home the player can learn | No. Fixed by type and tier | The floor. A plain upgrade is better in every way and is worn without asking |
-| **Trait** | Rolled by the server when a Rare piece drops, or when a crafter makes jewelry or a cloak | Yes. Which Trait, and a rank of 1 to 3. A Rare has one and a Very Rare has two (section 2c) | A rule that suits some heroes and grounds and not others. This is the decision |
+| **Trait** | Rolled by the server when a Rare piece drops, or when a crafter makes jewelry or a cloak | Yes. Which Trait, and a rank of 1 to 3. A Rare has one. A Very Rare has two, as a second step, once one Trait a piece has been played (section 2c) | A rule that suits some heroes and grounds and not others. This is the decision |
 | **Signature** | Hand-made, on a small set of named pieces, each with one home | No | Changes how one move works. This is the story |
 | **Temper** | A smith, for materials and gold | No | The steady upgrade. It carries up when the piece is replaced |
 | **Imbuement** | Made from monster parts, lasts a set number of hunted hours | No | The piece of the kit you change for the ground |
 
-- **A Trait is a rule, not a number.** It is one row of the rule table, in words the bar already uses. Examples of the kind, not a final list: your first hit on a full-health target hits harder. After you block, your next strike staggers. Your heals leave a small shield. Your area spells reach one more target but cost more. While nobody in the party is under half health, you gain mana faster.
+- **A Trait is a rule, not a number.** It is one row of the rule table, in words the bar already uses. Examples of the kind, not a final list: your first hit on a full-health target hits harder. After you block, your next strike staggers. Your heals leave a small shield. Your area spells reach one more target but cost more. While nobody in the party is under half health, you gain mana faster. The first Traits are seeded from what exists: crafted jewelry already rolls from a pool of 23 perks, and one of them is the first example above (EVIDENCE: `06-comparison.md` section 0).
 - **Why there is no one best roll.** Six rules hold it. (1) Every Trait of a rank has the same power budget, measured on the ground and seat that suit it best. (2) Traits answer monster roles, so the best Trait changes with the ground. (3) Traits are tied to a job, so a front hero's best roll is nothing to a healer. (4) Party-wide Traits do not stack, so a four wants four different ones. (5) Some Traits are trades, with a gain and a cost. (6) Rank is a small range, so which Trait matters more than how high. The math lane holds a target for it: no Trait is the top pick in more than a set share of ground and seat cells.
 - **Where a Trait can roll is knowledge.** A monster family has its own Trait pool, and the bestiary shows it once the page is far enough along. Chasing a Trait means choosing a ground.
-- **Carry-over.** A smith can move one Trait from an old piece to a new base of the same slot. The old piece is destroyed. A great roll can stay with a hero for life, old gear always has a buyer, and Smithing always has work.
+- **Carry-over.** A crafter can move one Trait from an old piece to a new base of the same slot. The old piece is destroyed. A great roll can stay with a hero for life, old gear always has a buyer, and the profession that does it always has work. Package 5 proposes Artificing.
 - **No reroll for gold.** A reroll button turns every Trait into a slot machine with one right answer. Trading and carry-over are the ways to fix a bad roll.
 - **Gear trades.** Every piece can be sold to another player. A piece with a Trait is listed as itself, not as a stack.
 - **The moment.** A Trait drop gets its own line on the return card. A Signature drop gets a reveal, a line in the town, a mark on the hall, and a card the player can share.
@@ -169,7 +173,7 @@ This package carries the owner's confirmed requirement of 2026-11-21: gear may u
 
 **3. What it replaces.** "Gear has fixed stats and gets better only through upgrades" (2026-10-14), superseded by the owner on 2026-11-21. GR-4's +17% band as the main reason to want a piece. Special attributes (2026-11-14), jewelry perks (23-5), and glyphs as separate systems, all folded into Traits. The Luck bar becomes the flame of section 2b. GR-38's fixed jewelry share. Kept: gear drops and a bench makes none (2026-11-18), every piece trades (2026-10-23), Tempering carries up (23-2), a unique keeps its property up a band (31-4), Rare and Very Rare as truly rare (2026-10-14), gear gated by hero Level only (2026-10-24).
 
-**4. How it interacts.** Traits use the bar's conditions, so combat needs no new math (package 1). Trait pools belong to monster families (package 3) and show in the bestiary (package 6). Carry-over and Tempering are Smithing's standing work, and crafted jewelry and cloaks roll Traits, so crafters share the excitement (package 5). Loot rules keep every Trait piece and the return card shows them (package 9). On the server a Trait piece is one row: its base, its Trait and rank, and the kill that made it. The server rolls it inside the hunt's settle, owns it and journals it. The client never sends or changes a roll. Plain gear stays a stack, so storage grows only with rare drops.
+**4. How it interacts.** Traits use the bar's conditions, so combat needs no new math (package 1). Trait pools belong to monster families (package 3) and show in the bestiary (package 6). Tempering and carry-over are standing work for the professions (package 5), and crafted jewelry and cloaks roll Traits, so crafters share the excitement (package 5). Loot rules keep every Trait piece and the return card shows them (package 9). On the server a Trait piece is one row: its base, its Trait and rank, and the kill that made it. The server rolls it inside the hunt's settle, owns it and journals it. The client never sends or changes a roll. Plain gear stays a stack, so storage grows only with rare drops.
 
 **5. Alternatives considered.**
 
@@ -189,17 +193,21 @@ This package carries the owner's confirmed requirement of 2026-11-21: gear may u
 
 ## 2b. The flame as Luck
 
-**Status.** This is the owner's idea of 2026-11-21, under evaluation. It is not final. His words: "Could we move luck to 'inner flame' and inner flame is explained as luck? works the same? Burning bones/creature remains in the hearth?" The first draft of this file removed Inner Flame and folded Luck into the bestiary. This section weighs his idea against that and recommends it, in the shape below.
+**Status.** Approved. This is the owner's idea of 2026-11-21. His words: "Could we move luck to 'inner flame' and inner flame is explained as luck? works the same? Burning bones/creature remains in the hearth?" He said go on 2026-11-22 and answered its one question: bought remains burn too, so gold can buy luck (RD-Q1 b). The first draft of this file removed Inner Flame and folded Luck into the bestiary. This section replaced that, in the shape below.
 
 **1. Recommended design.** One system. Inner Flame is Luck, and it is fed at the hearth.
 
 - **The company has one flame.** It belongs to the account, like the trades. Every hero's drop rolls read it.
-- **Two parts, with one job each.** The flame's Level is permanent. It rises with everything the company has ever burned, to 99. The flame's height is fuel. It rises when remains are burned and burns down only while the company hunts.
+- **Two parts, with one job each.** The flame's Level is permanent. It rises with the fuel the flame has burned down, to 99. The flame's height is fuel. It rises when remains are burned and burns down only while the company hunts. So the Level, like the luck, is earned only in hunted hours, whoever paid for the fuel.
 - **Height is the luck.** A higher flame raises the chance of a Rare drop and the chance that a Trait rolls at rank 2 or 3. It never changes which Trait rolls. The first fuel adds the most and each bit more adds less, up to a cap.
-- **Level is the room.** A higher Flame Level lets the flame stand taller and burn down slower. So a long-time player gets more from the same bones, but nobody has luck without feeding it.
+- **Level is the room.** A higher Flame Level lets the flame stand taller and burn down slower. Fuel past the room does not go on the fire. So a long-time player gets more from the same bones, but nobody has luck without feeding it.
 - **Fuel is what hunts leave behind.** Bones, husks, hides and the other remains. Stronger monsters leave better fuel. A named fuel from a boss or a ground is a rare drop of its own and gives a burst.
-- **Stoking is a rule, set once.** The plan holds it: which remains to burn, which to sell, and how high to keep the flame. A full flame is costly on purpose, so "tonight we chase drops" is a different plan from "tonight we level" or "tonight we earn".
-- **The flame remembers a dry run.** While it is lit, a long run with no Rare warms it a little more, up to a small cap, and a Rare resets that. It only builds while the flame is fed. The player sees it as the flame's color, never as a number to do sums on.
+- **Any remains burn, hunted or bought, so gold can buy luck.** The owner's answer of 2026-11-22 (RD-Q1 b). Remains go to the fire straight from the company's own hunt by the plan's rule, and remains bought on the market burn the same way. The server keeps no record of where a bone came from. Two bounds keep it from becoming pay-to-win. The room caps the height, so gold can keep a flame full but never taller than its Level allows. And the Level grows only from fuel burned down, which happens only while the company hunts, so bought fuel still needs hunted hours to become luck or room. The first fuel adds the most, so a company that burns everything it drops already has most of the luck. Gold buys the top of the curve, the part that adds least. (COMPUTED on `flameCover` 1.5, `09-crafting.md` section 5.4: a company's own drops feed about two thirds of a full flame. JUDGMENT that the last third is the smallest share of the luck.)
+- **The new sink and the new demand.** Every drop chaser is now a buyer of remains. A company that levels or earns sells its remains, and a company that chases drops buys them, so every hunter has something to sell every hunted hour and remains have a market price. Each sale pays the market tax, which destroys gold, and each burn destroys the goods. The flame is a gold sink through the tax and a goods sink through the fire.
+- **Crowns now reach drop luck.** Crowns sold for gold can buy remains, so real money can move how often a Rare drops. The room cap is what keeps that fair: no amount of gold lifts a flame past its Level, and the Level is earned in hunted hours. Flagged once for the pre-launch Security review: the burn call accepts any remains the account owns, and only the server sets the room, the clamp for each call and each day, the fuel's worth from its catalogue, and the ledger row.
+- **What Luck never moves.** Which Trait rolls. Coin. Keys and chest prizes. Hall and world boss prizes. And there is a floor on how often the rarest piece can come at any flame. Each percent of luck costs more fuel than the last. These guard rails are taken from the existing overhaul's Luck. A death never takes anything from the flame.
+- **Stoking is a rule, set once.** The plan holds it: which remains to burn, which to sell, how high to keep the flame, and how much fuel to buy at what price at most, so buying is a standing order and never a daily chore. A full flame is costly on purpose, so "tonight we chase drops" is a different plan from "tonight we level" or "tonight we earn".
+- **No dry-run memory in the first sample.** An earlier draft had the flame warm a little on a long run with no Rare. It is held out. It makes rare drops feel scheduled, and it is a third job for one system. It can be tried later if drop droughts turn out to be a real complaint.
 - **It can be seen.** The company's flame shows on the return card and in the hall. A named fuel still colors the square's fire for everyone in town, and a Signature drop does the same.
 - **It gives no regeneration.** Health and mana return come from Level, gear and supplies. The flame has one job.
 
@@ -207,7 +215,7 @@ This package carries the owner's confirmed requirement of 2026-11-21: gear may u
 
 **3. What it replaces.** Inner Flame as the regeneration skill (2026-10-25). The Luck bar by hours, +16% at 500 hours and +39% at 5,000, and its two feeds of rivets and bestiary stages (2026-11-20 and 2026-11-21). The first draft's removal of Inner Flame, and its small rare-chance boost on a finished bestiary page. Kept: fuels as data rows, a bone's worth paid by boneless creatures' remains, named fuels and the colored fire, one base drop chance a kill for everyone (2026-11-09), Rare and Very Rare as truly rare (2026-10-14).
 
-**4. How it interacts.** Package 2: the flame moves how often a Trait piece drops and its rank, and the drop moment shows on the fire. Package 5: remains become a three-way choice of burn, sell or craft, which removes goods every hunted hour and gives hunters something crafters and drop chasers both buy. Package 6: Flame Level is a long chase with no combat power in it, and the bestiary goes back to pure knowledge. Package 9: the stoke rule lives in the plan, and the report says how much the flame burned and what it was worth. Party: each hero's personal loot reads their own company's flame. On the server the burn is one RPC with a server catalogue of fuels, a clamp for each call and a ledger row. The flame's Level, height and dry run are one row on the account. The settle reads that row when it rolls a drop and lowers the height by hunted time. The client sends only "burn this many of that" and draws what comes back.
+**4. How it interacts.** Package 2: the flame moves how often a Trait piece drops and its rank, and the drop moment shows on the fire. Package 5: remains become a three-way choice of burn, sell or craft, which removes goods every hunted hour and gives hunters something crafters and drop chasers both buy. Package 6: Flame Level is a long chase with no combat power in it, and the bestiary goes back to pure knowledge. Package 9: the stoke rule lives in the plan, and the report says how much the flame burned and what it was worth. Party: each hero's personal loot reads their own company's flame. On the server the burn is one RPC with a server catalogue of fuels, a clamp for each call and a ledger row. The flame's Level and height are one row on the account. The settle reads that row when it rolls a drop and lowers the height by hunted time. The client sends only "burn this many of that" and draws what comes back.
 
 **5. Alternatives considered.**
 
@@ -220,11 +228,11 @@ This package carries the owner's confirmed requirement of 2026-11-21: gear may u
 | No luck at all, only base rates | Fewest parts. Nothing to tune | Bones have no use, the hearth has no system, and a drop chaser has no lever | The first draft. Weaker |
 | **Level as room, height as fuel, one for the company** | A decision, a sink, a long chase and a look, from parts already built | Needs care so a full flame is not simply always right | **Recommended** |
 
-**6. Balance implications.** The size of the luck is a hypothesis for the math lane. The old plan's range, up to about +39%, is a place to start and not a target. Four checks matter. A full flame must cost more than it returns for a company that is leveling, or it is a tax and not a choice. The flame must not make an unfed company's drops feel broken, so base rates stand without it. The dry-run warmth must stay small, so rare stays rare. And since remains trade, gold can buy luck, which makes any real-money path to gold a question for the owner. Rare drops need pooled samples to read at all (HC-4), so this is sized on simulated kills before anyone plays it.
+**6. Balance implications.** The size of the luck is a hypothesis for the math lane. The old plan's range, up to about +39%, is a place to start and not a target. Four checks matter. A full flame must cost more than it returns for a company that is leveling, or it is a tax and not a choice. The flame must not make an unfed company's drops feel broken, so base rates stand without it. The guard rails above must hold at every flame height. And since bought remains burn, the edge a full bought flame gives over a company that burns only its own drops must stay inside the kit spread limit at the room of every Flame Level. If it does not, the fix is the room curve or the falling return of each bit of fuel, never a rule on where the fuel came from. The flame is luck and not steps, so it sits outside the step ledger and under the kit spread limit of `04-math-strategy.md` section 10. Rare drops need pooled samples to read at all (HC-4), so this is sized on simulated kills before anyone plays it.
 
 **7. Cost.** M. Built already: fuels, the burn call, the colored fire. New: the flame row on the account, the height and its burn-down in the settle, the drop roll reading it, the stoke rule in the plan, the flame on the return card. Removed: the regeneration link, the Luck bar, the rivets. It touches drop tables, so it carries a security review.
 
-**8. Open questions.** Does a flame that burns down feel like a choice or like upkeep? A played week answers that. Should the height hold while the company is in town, as proposed, or fade by the clock? Is a dry-run warmth wanted at all, or does it make drops feel scheduled? Should Flame Level 99 give anything to show, such as a fire color for the hall? Does a hired hero roll on the hirer's flame or their owner's?
+**8. Open questions.** Does a flame that burns down feel like a choice or like upkeep? A played week answers that. Should the height hold while the company is in town, as proposed, or fade by the clock? Should Flame Level 99 give anything to show, such as a fire color for the hall? Does a hired hero roll on the hirer's flame or their owner's?
 
 ## 2c. Where the ideas come from
 
@@ -245,13 +253,13 @@ This package carries the owner's confirmed requirement of 2026-11-21: gear may u
 
 | The idea | Where it lives here | What it adds that the first design lacked | Verdict |
 |---|---|---|---|
-| Rarity steps on a drop | Four steps: Plain (no Trait), Rare (one Trait), Very Rare (two Traits), Signature (a fixed, named rule) | A second Trait on the rarest rolled pieces. Two rules on one piece can work together, which makes far more distinct items from the same pool and gives the market pieces worth arguing over | **Adopt**, with two as the cap. This changes package 2, which had one Trait a piece |
+| Rarity steps on a drop | Four steps: Plain (no Trait), Rare (one Trait), Very Rare (two Traits), Signature (a fixed, named rule) | A second Trait on the rarest rolled pieces. Two rules on one piece can work together, which makes far more distinct items from the same pool and gives the market pieces worth arguing over | **Adopt** in two steps. One Trait a piece is proven first on a sample of five. The second Trait on a Very Rare follows only if a player can read it and the Lab's check on pairs finds no best pair. Two is the cap |
 | Pools of properties with weights | Each monster family's Trait pool gives each Trait a weight, so some are common finds and some are scarce | Rarity inside rarity, with no new system. A scarce Trait on a Plain-looking drop is its own small moment | **Adopt** |
 | Properties gated by how deep they drop | A Trait's rank 3, and some whole Traits, roll only from a set Danger step up | Depth pays in kinds of loot and not only in amounts. A deeper step can drop a rule a shallow one never will | **Adopt**. It uses the Danger scale that already exists |
 | Named pieces that change how a skill plays | Signatures | Nothing new. It confirms the Signature is the right top step | Already the design |
 | Number ranges on every property | A Trait's rank of 1 to 3 | Nothing more. Wide ranges make one best roll, the top of each range | **Cut** beyond three ranks |
 | Many properties on one piece, split into kinds | Not used | More to read on every drop and a solved best set. The decision does not grow with the count | **Cut**. Two Traits is the most |
-| Spending currency to reroll or build a piece | Carry-over at the smith | A reroll bench makes every piece a slot machine with one right answer. Carry-over keeps a found Trait alive and burns old gear, which is the part worth having | **Cut** rerolls. Keep carry-over |
+| Spending currency to reroll or build a piece | Carry-over at a bench | A reroll bench makes every piece a slot machine with one right answer. Carry-over keeps a found Trait alive and burns old gear, which is the part worth having | **Cut** rerolls. Keep carry-over |
 | Sets: wear several named pieces for a bonus | Not used | A set decides every slot at once, so the per-piece choice this design is built on goes away | **Cut** |
 | Combinations: certain things together make a new result | Possible later as pairs: two named Traits worn together wake a third rule | Discovery, and a reason to trade for a matching piece. But it is another layer to learn before the first layer is proven | **Hold**. Look again once five Traits have been played (SPECULATIVE) |
 
@@ -283,9 +291,9 @@ Everything else was either already in packages 1 and 2 or is cut above. (JUDGMEN
 
 - **One Danger scale.** A Danger step is one power step of monster strength and pay. Step 40 means the same strength on any ground. A ground covers a band of steps, and bands overlap so a company always has at least three grounds that fit.
 - **The party climbs by itself.** A hunt starts at a step the company has held before. After a run of clean pulls it goes one deeper. When the plan is failing it falls back one step and steadies. The player does not pick a difficulty by hand and does not re-pick it every few Levels.
-- **The stance is the risk choice.** Careful falls back early and should never die. Steady is the default. Bold holds on until a hero is nearly down, earns the most, and deaths happen. The stance is set once in the plan.
+- **The stance is the risk choice.** Careful falls back early. Steady is the default and falls back in time. On both, a company does not die: the fall back comes before a death, and a death there is a bug in the triggers, not a price. Bold holds on until a hero is nearly down, earns the most, and is the only stance where deaths happen. The stance is set once in the plan. (The owner's answer, RD-Q3 a, 2026-11-22. It removes the cliff, and with it some of the bite and some of what Blessings sell, on purpose.)
 - **Depth pays, in everything.** Level XP, coin and loot quality all rise with the step, and they rise faster than monster health does. So pushing deeper is worth it, and damage, defense and sustain each move the result.
-- **Kills are not capped by the room.** The next pull comes when the party is ready. Pace is set by the company, not by a respawn timer.
+- **Pulls come on readiness.** The next pull waits until the party is ready, and a hurt party takes longer to be ready. So damage taken costs time before it costs a life, and pace is set by the company and not by a respawn timer. This is a rule in the engine, not a number: slowing rest tenfold moved pace by under 2%, because today the next pull starts whether the party has recovered or not (MEASURED: `04-math-strategy.md` section 9, probes C and D). One global ceiling on kills an hour guards against a degenerate plan.
 - **Six monster roles.** Brute hits the front. Shooter picks the back row. Caster hits an area. Swarm comes in numbers. Stalker dives the weakest hero. Warder shields or heals its side. A ground is a mix of roles, and the mix is the question the ground asks.
 - **A ground has one cast, one mix, one rule at most, and its own drops.** A ground rule is a row in the rule table from a short shared list. No ground has its own math.
 - **A boss is a bar check.** It has phases, wind-ups and helpers, and it is beaten by answering them. It is never a health bar against a clock.
@@ -298,9 +306,9 @@ Everything else was either already in packages 1 and 2 or is cut above. (JUDGMEN
 
 **5. Alternatives considered.** (a) Keep three tiers and add a party-wide damage pulse. It softens the cliff but leaves the hand-picked dial and the respawn cap. (b) Many tiers picked by hand. A slope, but the player re-picks it every few Levels, which is a repeated decision. (c) Auto-climb with no stance. Removes the risk choice, which is one of the few real ones. (d) No death at all. Simpler, but death as a price for greed is part of the tone.
 
-**6. Balance implications.** This package changes what balance means. The main output of a hunt is the step held and the pace at that step, not a kill count against a respawn. The math lane needs: how much pay grows per step against how much health and threat grow, the fall back triggers for each stance, a target front-hero share of damage, a death rate for each stance, and a check that Bold is not always best when left alone. Gold targets can be set on the same curve as XP.
+**6. Balance implications.** This package changes what balance means. The main output of a hunt is the step held and the pace at that step, not a kill count against a respawn. The math lane needs: how much pay grows per step against how much health and threat grow, the fall back triggers for each stance, a target front-hero share of damage, a death rate of zero on Careful and Steady and a set rate on Bold, and a check that Bold is not always best when left alone. Gold targets can be set on the same curve as XP.
 
-**7. Cost.** L, in one engine batch. The tier table already scales pull, blow, health and pay. New: steps in place of three rows, the climb and fall back inside the sim, pulls on readiness, role targeting, wind-ups. Monster data gains a role and loses most hand-set stats, which the step supplies. Grounds are re-cut as bands.
+**7. Cost.** L, in one engine batch. The tier table already scales pull, blow, health and pay. New: steps in place of three rows, the climb and fall back inside the sim, pulls on readiness as an engine rule, role targeting, wind-ups. Monster data gains a role and loses most hand-set stats, which the step supplies. Grounds are re-cut as bands.
 
 **8. Open questions.** How big is one step so that a climb feels steady and not jumpy? How fast should a hunt climb back after a fall? Does a company park at its best step, or re-find it each hunt? Does pulling on readiness raise server load for strong parties? Is "Danger 40" clearer to a new player than a named tier? Each needs the simulator and then a played ground.
 
@@ -311,7 +319,7 @@ Everything else was either already in packages 1 and 2 or is cut above. (JUDGMEN
 - **Up to four heroes in a hunt, in two rows.** Front and back are set in the plan. Brutes go for the front. Shooters, Casters and Stalkers reach the back.
 - **Own heroes party with no invite.** One plan and one Start for the company.
 - **Loot is personal.** Each hero rolls their own drops from the kills they took part in. Nothing is split by a roll and nobody waits a turn for a Rare.
-- **XP and coin use one rule.** A kill pays by its step. The party shares it evenly. Because a good four holds a much deeper step than its heroes apart, each hero earns more in the four, in XP and in gold.
+- **XP and coin use one rule.** A kill pays by its step. The party shares it evenly. Because a good four holds a much deeper step than its heroes apart, each hero earns more in the four, in XP and in gold. An encounter grows with the party, so a lone hero and a four have the same time budget, and a lone hero is slower and never punished (`04-math-strategy.md` sections 7 and 8). There is no party table. A lone hero is slower and fair, and no number is set for what it earns against a four: no floor, no share of a seat (the owner's answer, RD-Q7 a, 2026-11-22).
 - **A lower hero catches up.** A hero below the party's top Level earns faster until close. A new recruit or a retrained hero is not a second grind.
 - **Mixed parties.** Heroes from different accounts fill one four on the same rules. A shared supply bill is agreed once and remembered.
 - **Hired heroes.** A player can put a resting hero out for hire. Another player adds them to a hunt. The hero's owner gets a cut and risks nothing.
@@ -336,14 +344,31 @@ Everything else was either already in packages 1 and 2 or is cut above. (JUDGMEN
 **1. Recommended design.**
 
 - **One law.** Drops give the item. Trades improve it and keep it running.
-- **Eight trades, owned by the company, capped at 99.** Any resting hero works a trade, and the XP goes to the company's one Level in it. Four gather: Mining, Woodcutting, Fishing, Farming. Four make: Cooking (food and drinks), Runecrafting (runes and imbuements), Smithing (ammunition, Tempering, carry-over), Crafting (jewelry and cloaks, which roll Traits).
-- **Every trade has a hunting buyer that keeps needing it.** Food and drinks are eaten. Runes and arrows are spent. Imbuements run out. Tempering and carry-over burn materials and old gear.
+- **Direction: professions make what hunting burns.** The owner's direction of 2026-11-21. Demand never ends because every hunted hour uses things up, so crafting is the supply chain and the gold sink at once. The structure, the chains and the math are being designed in their own lane and land in `09-crafting.md`. This package stays at the level of direction and does not compete with that file.
+- **Direction: a skilling model in the spirit of the genre's classic, made our own.** XP for each action. A gathering success chance that climbs with Level. Production chains with Level and tool gates. A standing choice between the cheap fast method and the profitable slow one. A store price floor that doubles as a gold sink. Mechanics only, with our own names, items and text. The formulas follow from the economy reference study and `09-crafting.md`.
+- **The owner's profession set, as the starting point.** Six that make: Smithing, Woodcrafting, Alchemy, Runecrafting, Artificing and Cooking. The table below was this file's input to `09-crafting.md`. The owner approved `09-crafting.md` on 2026-11-22, and where the two differ, 09 wins. Two answers of his change this table: only food heals, so Alchemy makes draughts that answer a ground and never a heal (CR-Q2 a), and the trades belong to the company with three Masteries (CR-Q1 a).
+
+| Profession | What burns its output | How fast | Remains and the flame |
+|---|---|---|---|
+| Smithing | Ranged seats burn arrowheads. Every hero burns honing stones when a base is Tempered | Every shot. Every upgrade | Uses ore, not remains. It does not compete with the flame |
+| Woodcrafting | Ranged seats burn shafts. The hall takes furniture and benches | Every shot. Every hall step | Uses wood. It does not compete with the flame |
+| Alchemy | Every seat drinks a draught that answers the ground. Never a heal | One a hunted hour while its rule is wanted | Uses herbs and some creature parts. Those parts are a choice against burning |
+| Runecrafting | Magic seats spend runes on damage and healing | Every cast | Uses essence. A possible tie: burning leaves ash, and ash is a rune input (SPECULATIVE) |
+| Artificing | Every hero's gear: imbuements run out, and Traits are carried over when gear changes | By hunted hours. Every gear change | The largest user of creature parts, so the main rival to the flame for remains |
+| Cooking | Every seat eats between pulls | Every pull | Uses meat and fish. Meat is a choice against burning |
+
+- **Where two overlap, a proposed line.** Smithing owns the base: Tempering, honing and metal parts. Artificing owns what is rolled and what is timed: Traits, carry-over, imbuements, and the jewelry and cloaks that roll Traits. An earlier draft of this file gave carry-over to Smithing. Oils and protective charms would be a second and third way to prepare for a ground beside imbuements, so they wait until one way is proven.
+- **Cooking gets a real job from the readiness rule.** With pulls on readiness, time spent recovering is time not hunting. Food is what makes recovery fast, and food is the only supply that restores health or mana (CR-Q2 a). That gives Cooking the steadiest demand of the six.
+- **Names.** "Runecrafting" is another game's skill name. Proposed: **Binding**, since "bind" is already the verb on the game's rune recipes. "Woodcrafting" sits too close to Woodcutting on a small screen. Proposed: **Carpentry**. Smithing, Alchemy and Cooking are plain genre words and pass. Artificing passes, and a plainer word would be welcome. All are for the naming pass.
+- **Owned by the company, with three Masteries.** The owner's answer (CR-Q1 a, 2026-11-22). One Level in each profession for the account removes four copies of one grind. It also cuts that grind by up to three quarters, and `09-crafting.md` sizes it on purpose with the Mastery cap, so no account is best at everything.
+- **Town work has a daily cap, and Premium makes it longer.** The owner's answer (CR-Q3 b, 2026-11-22). `09-crafting.md` section 5.3 has the cap, the Premium hours and what bounds the payer gap.
+- **Every profession has a hunting buyer that keeps needing it.** That is the test each one must pass, and the table above is the first reading of it.
 - **Supplies are a real choice.** Better supplies let a company hold deeper and cost more. Prices sit so that the best gold per hour and the best XP per hour are at different depths. "Levels or gold tonight?" is a standing choice.
 - **The store sells the basics only, at a ceiling price.** Anything better is made by players. The store is the price anchor, not the supplier.
 - **Monster parts cross grounds.** Parts from one ground make imbuements wanted on another.
 - **A market for everything that trades.** Stacks sell as stacks, Trait pieces sell as single listings, with a tax as a sink.
 - **Sinks scale with wealth.** Tempering, carry-over, the hall, Blessings, the market tax.
-- **Crowns and anything about real money are the owner's calls.** This design assumes nothing about them and marks them open.
+- **Crowns and anything about real money are the owner's calls.** He made three on 2026-11-22, and each is a money surface for the pre-launch Security review: bought remains burn (section 2b), a hero can buy more hunting with gold (package 9), and Premium lengthens the town-work day (`09-crafting.md` section 5.3). Nothing else about Crowns is assumed here.
 
 **2. Why it is better.** The target is an economy where gold and goods leave as fast as they arrive, and making things is a path of its own. EVIDENCE: real heroes spent 1.57 town hours per hunted hour, 1,649 gathering and 526 crafting against 1,382 hunting, so half of play is here already (`calibration/c4.json`). The same file shows Runecrafting at 37 hero-hours and Inner Flame at 16 while the runes it would make were the strongest supply in the game, which suggests the store, not players, was the supplier (JUDGMENT on those hours). A new mage lost 105 gold in the first 16 minutes while the others gained (`02-four-hero-hour.md`). Best runes paid for themselves, so they were never a choice (playtest, 2026-11-16). Gold in the tool is still only an upper bound until a wage formula exists (HC-5).
 
@@ -351,13 +376,13 @@ Everything else was either already in packages 1 and 2 or is cut above. (JUDGMEN
 
 **4. How it interacts.** Depth-scaled coin is the faucet (package 3). Traits and carry-over are the top-end demand (package 2). The hall is where trades are worked and stored (package 6). The plan holds the supply and loot rules so nothing is re-chosen (package 9). On the server every faucet and sink is an RPC with a server catalogue and a ledger row, as today.
 
-**5. Alternatives considered.** (a) Trades on each hero. Four times the grind for the same decision, and the first principle forbids it. (b) Crafted gear as the main source. It makes crafters central but takes the drop out of the hunt. (c) Fewer trades. Tempting, but each of the eight has a clear buyer once Inner Flame is gone, and trades to 99 are a long chase players know. (d) No store. Purer, but a new player with no market needs a floor.
+**5. Alternatives considered.** (a) Trades on each hero. Four times the grind for the same decision, and the first principle forbids it. (b) Crafted gear as the main source. It makes crafters central but takes the drop out of the hunt. (c) Fewer trades. Tempting, but each profession must show a buyer that keeps needing it, and skills to 99 are a long chase players know. (d) No store. Purer, but a new player with no market needs a floor.
 
 **6. Balance implications.** The wage formula becomes the anchor: what an hour of a hero's time is worth at a step, hunting or working. Every price reads from it. Targets for the math lane: supply cost as a share of income at each stance, gold per hour for a trade hour against a hunt hour, upgrade prices as a share of what a band earns, and total sinks against total faucets at the account level. All are hypotheses until the wage exists.
 
 **7. Cost.** L. Company-owned trades change where skill XP is stored and how the town screens read. Cutting store tiers is S. Market listings for single pieces come with package 2. Prices are regenerated from the wage, not typed.
 
-**8. Open questions.** Is eight trades too many for a new player to meet in the first week? Should a hero have a best trade, or is a worker a worker? How long should an imbuement last? What tax keeps the market healthy? Bones and other remains are fuel for the flame in section 2b.
+**8. Open questions.** Six that make and four that gather is ten professions. Is that too many for a new player to meet in the first week? How long should an imbuement last? What tax keeps the market healthy? Bones and other remains are fuel for the flame in section 2b.
 
 ## 6. Long-term progression
 
@@ -368,7 +393,7 @@ Everything else was either already in packages 1 and 2 or is cut above. (JUDGMEN
 - **Something to choose at every Level.** Each Level gives one point for a move's evolution, and branch picks open at rank marks (section 1b). Levels also open grounds and bar slots. Level 200 opens a final form for one move.
 - **Company records.** The deepest step held on each ground, by stance. They are kept, shown in the hall and ranked.
 - **The bestiary, for the account.** Kills fill a page. Stages reveal the monster's role, its drops with rates, and its Trait pool. The last stage gives a trophy for the hall. It gives no damage and no luck. Luck has one source, the flame of section 2b.
-- **The flame.** The company's Inner Flame is Luck, fed by burning what hunts leave behind. Its Level is a long chase to 99 with no combat power in it. Section 2b has the design. It is the owner's idea under evaluation.
+- **The flame.** The company's Inner Flame is Luck, fed by burning what hunts leave behind. Its Level is a long chase to 99 with no combat power in it. Section 2b has the design. It is the owner's idea, approved.
 - **The hall.** The company's home: storage, benches for the trades, farm plots, a trophy wall, and a door other players can walk through. It gives no combat power.
 - **Blessings.** One simple price that grows with Level. Safety is a gold sink, not a puzzle.
 - **Game modes later.** Ironman and Hardcore rules as server flags, after launch.
@@ -424,7 +449,7 @@ Everything else was either already in packages 1 and 2 or is cut above. (JUDGMEN
 
 - **What is wrong today.** The engine assumes heroes are one side and monsters the other. The balance lane's check found that assumption in 93 places across 22 modules. (MEASURED: `tools/balance-program/engine-checks.mjs --mm41`)
 - **The fix.** Every unit carries a side. "Enemy" means "not my side" and "ally" means "my side", in targeting, in area effects, in the rule table's "when" conditions, in threat, in healing and in what a kill pays. A hunt is side A against side B where B happens to be monsters. An arena is the same fight with heroes on both sides.
-- **When.** In the first engine batch, with the Danger scale and monster roles (roadmap wave 1). That batch already rewrites how units pick targets, so doing the seam there costs one pass. Doing it later means rewriting the new targeting a second time.
+- **When.** In roadmap wave 1, as its own engine batch, before the climb. It lands as a change that moves no hunt: a replay of hunts must come out the same. Then the Danger scale and the roles are built on top of it. The comparison argued against putting the seam in the same batch as the climb, and that is taken: two large changes in one batch cannot be told apart when a number moves. Doing it first still means the new targeting is written once.
 - **How it is proven.** One mirrored fight in the simulator: a company against a copy of itself should win about half the time. Then a hunt replay to show that hunts did not change.
 - **Why it fits the rest.** An arena opponent is another company's saved plan, so nobody has to be online. The evened-out arena uses the power step to set both sides to one strength, which makes it a clean test of bars and Talents. The gear arena lets Traits and Signatures show.
 
@@ -459,7 +484,7 @@ Everything else was either already in packages 1 and 2 or is cut above. (JUDGMEN
 
 ## 8. The first hour
 
-**1. Recommended design.** One hero first, then the company as one step.
+**1. Recommended design.** One hero first, then the company as one step. The owner chose this over four slots on the first screen (RD-Q6 a, 2026-11-22): three recruits arrive in one press at Level 5, near the first hero's Level, and that is a grant. This is the existing first hour after the designer's ruling D-1, which already starts with one hero and forms the party at Level 5 in one press, and which was walked against real data. This package takes that path and tests two changes on it: the three empty slots are not shown on the first screen, and recruits join near the first hero's Level.
 
 | Beat | What happens | What it teaches |
 |---|---|---|
@@ -492,9 +517,11 @@ The tutorial runs once for the account. No tip ever points at something hidden. 
 
 **1. Recommended design.**
 
-- **The company plan.** One saved object on the server: who hunts, in which row, on which ground and stance, with which bars, supplies and loot rules, and what each hero works at in town after. Plans are free, named, and can be copied from another hero, another company or a ladder entry.
+- **The company plan.** One saved object on the server: who hunts, in which row, on which ground and stance, with which bars, supplies and loot rules, and what each hero works at in town after. Plans are free, named, and can be copied from another hero, another company or a ladder entry. The plan, the one Start and the return card are the existing overhaul's design and are taken as they are. This package adds two things: plans are free and can be copied, and the report names the cause.
 - **One Start.** It runs the plan for the whole company. No hunt starts without the player's press.
-- **The hunting day.** Each hero has a day's hunting in them. When it is spent, or the hunt ends for another reason, the hero walks to their town work by the plan.
+- **The hunting day.** Each hero has a day's hunting in them, and the day is the same length for every hero. When it is spent, or the hunt ends for another reason, the hero walks to their town work by the plan. Stamina stays, as this day (the owner's answer, RD-Q2 a, 2026-11-22).
+- **More hunting can be bought with gold.** The owner's new rule of 2026-11-22. A hero can buy a block of hunting time. The price is hours of the wage at the hero's Level, and it grows with each block that hero has bought that day, resetting at the server's day. So the first block is a fair trade of gold for XP, drops and remains, and each later one costs more, which makes "how much more tonight" a real choice and a gold sink that grows with wealth. The formula and its starting band are in `04-math-strategy.md` section 11. The plan can hold a standing limit ("buy up to two blocks a day for this hero, at no more than this price"), so nobody buys by hand every day. The server prices each block on its own clock and catalogue, clamps the count for the day, and journals every purchase. The client sends only "buy a block for this hero". It is a money surface for the pre-launch Security review.
+- **Premium lengthens town work, not hunting.** Premium makes each hero's town-work day longer (CR-Q3 b, `09-crafting.md` section 5.3). The hunting day and the price of a bought block are the same for every hero, paying or not. JUDGMENT: a longer paid hunting day would be a paid XP boost, since hunted hours are where Level, drops and luck come from. A town-work hour is worth a quarter of a hunted hour and gives no combat power, so that is where a payer's edge can sit and stay small.
 - **Rules do the chores.** Sell junk, bank the rest, restock from storage and then the store, wear plain upgrades, fall back before dying.
 - **The report.** Every hunt ends with: the deepest step held, pace, gold in and out, and the reason it stopped. If the party fell back, it names the cause in plain words and the one change most likely to help.
 - **One return card for the account.** Totals first. Then at most three things that need a decision, such as a Trait piece to look at, a hero ready for a new ground, or supplies that ran dry. Then Carry on, which starts the next day with one press.
@@ -508,11 +535,11 @@ The tutorial runs once for the account. No tip ever points at something hidden. 
 
 **5. Alternatives considered.** (a) Hunts that restart by themselves forever. It is the purest idle game and it removes the reason to come back. It also breaks the mission line that a hunt needs a server-authorized start. (b) No hunting day, hunt until supplies or the bag run out. It turns the day into pure logistics and leaves no time for trades, and half of real play is trades. (c) A return screen per hero. Played, and it was four copies of one card.
 
-**6. Balance implications.** The length of the hunting day sets every time number in the game, so it is the first thing the math lane fixes. The "12 hours a day" behind today's time numbers is HISTORICAL and should be re-argued, not assumed. The report's advice must be true, so it reads the same counters the simulator reads.
+**6. Balance implications.** The length of the hunting day sets every time number in the game, so it is the first thing the math lane fixes. The "12 hours a day" behind today's time numbers is HISTORICAL and should be re-argued, not assumed. Bought blocks move the same numbers: they raise mean hunted hours, which raises the coin minted, the kit burned and the labor ratio of `09-crafting.md` section 5.3. So the math lane reads hunted hours with bought blocks in, at the purchase counts the price curve allows. Two checks: a bought block after the first never returns more coin than it costs for the reference company on Steady, and the blocks most players buy do not push the labor ratio past 1.0 on the mix. The report's advice must be true, so it reads the same counters the simulator reads.
 
 **7. Cost.** M. The plan, one Start and the return card are already in the first build. New: free plans and copying, the cause line in the report, wearing plain upgrades mid-hunt at a safe moment.
 
-**8. Open questions.** How long is a hunting day, and is it the same for every hero? Should a company be able to bank an unused day? How much advice can the report give before it plays the game for the player? Does copying a top company's plan make everyone the same, or does gear keep them apart?
+**8. Open questions.** How long is a hunting day? That is a lever for the math lane, now that the day itself is settled and the same for every hero. Should a company be able to bank an unused day? How much advice can the report give before it plays the game for the player? Does copying a top company's plan make everyone the same, or does gear keep them apart?
 
 ## 10. Every system in the review list
 
@@ -526,8 +553,8 @@ One verdict each. The reason is in the package named.
 | Equipment classes | Keep the slots. Redesign what a piece is | Base, Trait, Signature, Temper, Imbuement | 2 |
 | Item progression | Redesign | One tier is one share of depth at every Level | 2, 6 |
 | Imbuements | Keep, slim, and merge linings and salts into it | The part of the kit you change for the ground | 2, 5 |
-| Crafting professions | Redesign | Eight trades, owned by the company, each with a hunting buyer | 5 |
-| Consumables | Redesign | Three jobs: food, drinks, charges. Better ones are player-made | 5 |
+| Crafting professions | Redesign, in progress in `09-crafting.md` | Professions make what hunting burns, on a skilling model made our own. The owner's set of six is the starting point | 5 |
+| Consumables | Redesign | Food is the only heal. Draughts answer a ground and never heal. Charges for moves. Better ones are player-made | 5 |
 | Hunting ground mechanics | Redesign | One Danger scale, climbed inside a stance | 3 |
 | Monster mechanics | Redesign | Six roles, wind-ups, bosses as bar checks | 3 |
 | Party systems | Redesign | Rows, personal loot, one pay rule, catch-up, hiring | 4 |
@@ -538,15 +565,15 @@ One verdict each. The reason is in the package named.
 | Social systems | Keep the cheap layer. Introduce the hire board | A shared world for people rarely online together | 7 |
 | Endgame features | Keep all, staged | Tower, halls, world boss and ladders on one scale. Arenas and the full castle stay in and ship later, accounted for now | 7, 7b |
 | Special attributes, jewelry perks, glyphs | Merge into Traits | Three layers doing one job | 2 |
-| Luck | Merge into Inner Flame, under evaluation | One flame for the company, fed with remains | 2b |
+| Luck | Merge into Inner Flame (approved) | One flame for the company, fed with remains, hunted or bought | 2b |
 | Companions | Remove from combat. Open whether they stay as looks | A fifth body in a four adds numbers and no decision | 2 |
-| Stamina | Keep, as the hunting day | It gives the day its shape and gives trades their time | 9 |
+| Stamina | Keep, as the hunting day, and let a hero buy more with gold | It gives the day its shape and gives trades their time. A bought block costs hours of wage at the hero's Level, and more for each block bought that day | 9 |
 | Blessings | Keep, simplify | One price that grows with Level | 6 |
 | Training yard | Merge into town work | One more thing a resting hero can do | 5 |
 | Factions | Pause | No decision and no plug today | 6 |
 | Titles, chronicle, honor roll | Merge into records | One place for what a company has done | 6 |
 
-Every cut and pause in this table is a proposal. Cuts are the owner's to approve.
+The owner approved the packages behind this table on 2026-11-22, so its verdicts stand. A cut of anything not named here is still his to approve.
 
 ## 11. The server and engine shape
 
@@ -555,15 +582,44 @@ The client never authors anything, so each package says what the server must hol
 | Need | Shape | New or changed |
 |---|---|---|
 | Danger steps | The step is read for each pull inside the one settle. Climb and fall back are engine states, viewed or not | Changed. Steps replace three tier rows |
+| Pulls on readiness | The settle starts a pull only when the party meets the readiness rule. It is hunt state in the engine and plays the same viewed or closed | New engine rule, with the climb |
 | Monster roles and wind-ups | A role is a targeting rule in monster data. A wind-up is a unit state that conditions can read | New engine batch |
 | The rule table | One table of rows: key, size, when. Loaded by the engine for moves, Traits, Signatures, imbuements, monster rules, ground rules, events | Extends the modifier table already planned |
 | Sustain and cause counters | Healing by source, damage taken by hero, mana, supplies, end reason, deepest step, fall back causes, kept in the session row | New counters, no new statement if they fit the row |
 | Trait pieces | One row for each piece: base, Trait, rank, the kill that made it. Rolled in the settle with the server's dice, journalled | New table, a money surface |
 | Company trades | Trade Levels on the account, not the hero. Town work stays in closed form | Changed storage |
 | The company plan | One row for each plan. The Start intent names a plan | Mostly planned already |
+| Bought hunting | One RPC prices a block from the wage at the hero's Level and that hero's count for the server's day, clamps the count, debits the gold, adds the hunting time and writes a ledger row. A plan's standing limit is read by the same call | New. A money surface |
 | Hire board, ladders, records | Shared surfaces, each written only by an RPC with a ledger row | New |
 | Heroes against heroes | Every unit carries a side, and "enemy" means "not my side" everywhere the engine picks a target, applies a rule or pays a kill | Changed in 93 places across 22 modules, in the first engine batch |
 | The castle | A clan row with buildings, a treasury and a labor ledger. Every gift, vote and upkeep charge is an RPC with a ledger row | New, later |
 | Cost | A climbing hunt costs what a hunt costs now. Trait rows grow with rare drops only. Town work in closed form stays the main saving | To be measured |
 
 Hunts must read the same viewed or closed, and every reading must come from the one engine (HC-2, HC-3).
+
+
+## 12. Reconciled with the math strategy, the comparison and the Lab
+
+The final pass, 2026-11-21. Where `04-math-strategy.md`, `06-comparison.md` or `07-balance-lab.md` disagreed with this file, each point is taken or kept here, with the reason. The packages above already carry the result. (JUDGMENT throughout)
+
+| Point | From | Decision | Reason |
+|---|---|---|---|
+| The separate hit chance contest | 04 section 2 | **Taken.** A blow lands. Dodge and block are rules | Two contests read the same skill and gear and count it twice. Nothing on a bar answers a dice roll |
+| The readiness rule | 04 section 9 | **Taken.** It is an engine rule, built with the climb, and not a lever | Measured: a slower rest rate alone moves pace by under 2% |
+| No party table | 04 section 7 | **Taken.** One pay rule, an even share, encounters that grow with the party | A four earns more a head because it holds deeper. One lever is kept at 1.0 in case it does not |
+| The power budget | 04 section 12, 07 section 1 | **Taken.** The step ledger is the one table, and it lives in 04 | One table that must add up. A second copy here would drift |
+| Gold can buy luck | 06 section 2.10 | **Answered by the owner: yes** (RD-Q1 b). Bought remains burn too. The room and the burn only while hunting bound it | A money question, and he settled it. Section 2b has the bounds and the Security flag |
+| Luck's guard rails, and the dry-run memory | 06 section 2.10 | **Taken.** The rails are back. The memory is held out | The rails cost nothing. One system should not do three jobs |
+| The second Trait | 06 section 4 row 16 | **Taken.** One Trait a piece first. Two on a Very Rare is a second step with its own test | This file answered its own open question before its sample ran |
+| Ranks as stat lines | 06 section 4 row 2 | **Kept, and said more plainly.** A rank is a share of the Level's own step, aimed by the player. The every-Level choice is small with the suggested path on, and the owner confirmed that is what he meant (RD-Q4 a) | It is the owner's confirmed requirement. Under depth pay a step is felt, which a stat line on the old structure was not. That last part is unproven until probe V1 |
+| The count of things on one move | 06 section 4 row 15 | **Taken.** Three limits in section 1b | It is this redesign's own principle 10 |
+| The side seam in the same batch as the climb | 06 section 4 row 6 | **Taken.** Same wave, its own batch, first, proven by an unchanged replay | Two large engine changes in one batch cannot be told apart |
+| What this file oversold | 06 section 0 | **Taken.** Wind-ups, rolled perks and the first hour after D-1 are credited as existing. The word "stance" is flagged | They are in the game or the existing overhaul today |
+| Take the existing first hour and return loop | 06 sections 2.8 and 2.9 | **Taken.** Packages 8 and 9 say so | They are the only packages that were played |
+| Nothing else detailed until the climb probe has a result | 06 section 0 | **Taken.** `05-roadmap.md` stage 4 | Packages 1, 2, 4 and 6 lean on it |
+| Company-owned professions | 06 section 4 row 4 | **Answered by the owner: company trades with three Masteries** (CR-Q1 a) | `09-crafting.md` sizes the Mastery cap so no account is best at everything |
+| Sets and rune-style combinations | 04 section 15 | **Agreed.** A candidate only, played as two Traits that are stronger together | Both files say the same thing |
+| Death | 06 section 4 row 8 | **Settled** (RD-Q3 a). Careful and Steady fall back and do not die. Only Bold can die | Package 3. The cliff goes, and so does some bite and some Blessing gold |
+| The hunting day | 06 section 4 row 9 | **Settled** (RD-Q2 a, plus a new rule). Stamina stays as the day, the same for every hero. A hero can buy more with gold at a price that grows with Level and with each block that day. Premium lengthens town work, not hunting (CR-Q3 b) | Package 9, and `04-math-strategy.md` section 11 for the price |
+| "Solo" | 06 section 4 row 10 | **Settled** (RD-Q7 a). A lone hero is slower and fair. No number is set | Package 4 |
+| Dates | 06 section 4 row 13 | **Settled** (RD-Q5 a). Pause the number lanes, keep what is true under any design, run the climb test first. No new date until it reads, then build as fast as it allows | `05-roadmap.md` |

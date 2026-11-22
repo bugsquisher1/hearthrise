@@ -1,8 +1,19 @@
 # 05. Revised overhaul roadmap
 
-Written 2026-11-21 on `lane/rd-vision`. Docs only. This is deliverable 7 of the reset request of 2026-11-21: the proper order of design, validation, approval and implementation. Read `01-identity.md` and `02-architecture.md` first. Nothing here is final. No gameplay change is built until the owner has approved the direction.
+Written 2026-11-21 on `lane/rd-vision`. Docs only. This is deliverable 7 of the reset request of 2026-11-21: the proper order of design, validation, approval and implementation. Read `01-identity.md` and `02-architecture.md` first.
 
 **Labels.** EVIDENCE, MEASURED, JUDGMENT, SPECULATIVE and HISTORICAL, as in `01-identity.md`. The order and the gates are JUDGMENT unless a line says otherwise.
+
+## Approval status, 2026-11-22
+
+| Approval | Status |
+|---|---|
+| **A.** Identity, principles, hard lines | **Given.** The owner said go to the whole direction |
+| **B.** The packages | **Given.** Go on all ten directions: the nine packages and the crafting design of `09-crafting.md`. His answers to the open questions are in `08-for-tyler.md` |
+| **C.** Targets as experiences | Next. Written from the approved packages once V1 reads |
+| **D.** The build plan | After stages 4 and 5. Waves start as soon as each one's probes read |
+
+**The schedule answer** (RD-Q5 a, 2026-11-22). Pause the number lanes, keep what is true under any design, and run the climb test first. No new date until it reads. He also said "obviously I want to build this as quickly as we can", so nothing waits that does not have to: the old design is not shipped first, the climb probe V1 is running now (lane `lane/v1-climb`, started 2026-11-22), and the side seam, the first engine batch of wave 1, started beside it because it is true under any design. Build waves start the moment V1 reads.
 
 ## 1. The order on one screen
 
@@ -74,12 +85,12 @@ Targets are written from the approved packages, not carried over. Each target na
 
 ### Stage 4. Validate in simulation
 
-One engine decides everything, so every probe runs on it (HC-3). The order goes from the mechanic most others depend on to the ones that depend on it. Each probe is small: one ground, a few seats, a few seeds.
+One engine decides everything, so every probe runs on it (HC-3). The order goes from the mechanic most others depend on to the ones that depend on it. Each probe is small: one ground, a few seats, a few seeds. **V1 comes first and alone, and it is running** (lane `lane/v1-climb`, started 2026-11-22). Packages 1, 2, 4 and 6 lean on the climb, so nothing else is detailed until V1 has a result. If the climb does not settle at a step, the existing tier table is the fallback and those packages are re-thought. (Taken from `06-comparison.md` section 0)
 
 | Probe | The question | Passes when |
 |---|---|---|
 | V1. The climb | Do steps and a fall back turn the cliff into a slope? | A four settles at a step. A small change in power moves that step. A fall back comes before a wipe on Careful and Steady |
-| V2. The stance | Is the stance a real choice? | Bold does not beat Steady when left alone for a full day. Careful has no deaths |
+| V2. The stance | Is the stance a real choice? | Bold does not beat Steady when left alone for a full day. Careful and Steady have no deaths (RD-Q3 a) |
 | V3. Reach | Do monster roles spread damage? | The front hero's share falls to a target range, and back-row armor moves the step held |
 | V4. Jobs | Does each style earn a seat? | No lineup is best on every ground mix. Four of one style loses to a mixed four |
 | V5. Sustain | Can healing and mana be read and tuned? | The new counters explain every fall back in the sample |
@@ -98,19 +109,21 @@ Once the mechanics hold, all levers are tuned together in one pass: the step rat
 
 ### Stage 6. Implement
 
-Build waves in dependency order, each ending in a build someone plays. A first cut, as a proposal:
+Build waves in dependency order, each ending in a build someone plays. They start the moment V1 reads, and wave 1's first batch, the side seam, is already under way beside V1 (RD-Q5, 2026-11-22). The plan:
 
 | Wave | What | Why first |
 |---|---|---|
-| 1 | The power step and the Danger scale in the engine, the climb and fall back, the sustain counters, a side on every unit so heroes can fight heroes later, the report with its cause line | Everything else is measured through them |
+| 1 | First, as its own engine batch: a side on every unit, proven by an unchanged hunt replay. Then the power step, the Danger scale, pulls on readiness, the climb and fall back, the sustain counters and the report with its cause line | Everything else is measured through them |
 | 2 | Monster roles, rows, depth-scaled pay, personal loot, the company plan with free copying | The party and the economy's faucet |
 | 3 | Jobs and the wider move list, wind-ups, ratio defenses, Talents as move evolutions, Inner Flame as Luck | Combat with something to answer |
 | 4 | Trait pieces, carry-over, single listings on the market, the drop moment. With its security review | The largest new server surface |
-| 5 | Company trades, the store cut to basics, prices from the wage, the hall without combat perks | The other half of the day |
+| 5 | Professions as designed in `09-crafting.md`, the store cut to basics, prices from the wage, the hall without combat perks | The other half of the day |
 | 6 | The hire board, halls as bar checks, ladders, events as rules, clans with the castle's first building | The shared world on top of a game that holds |
 | 7 | The two arenas, then the rest of the castle a building at a time. May ship after launch | They need the side seam from wave 1, settled builds from waves 3 and 4, and clans that are seen to form. Their share of power and sinks is set aside in stages 3 and 5, so they arrive with no rebalance |
 
 Every wave keeps the standing rules for how work is done: the server authors everything, migrations carry their self-checks, money surfaces get their review, and a blind play follows each big patch. **Approval D** is the owner's go on this plan before wave 1.
+
+**Dates.** None until V1 reads, by the owner's answer (RD-Q5 a). The existing first build was aimed at the end of December with about 15 lanes, and it is not shipped first. The packages are approved, so the estimate needs only V1's result, and it is owed the day V1 reads.
 
 ## 3. What happens to the existing first build
 
@@ -122,8 +135,8 @@ The existing plan is `docs/design/overhaul/13-build-plan.md`, lanes FB-1 to FB-1
 | FB-3 | The matrix lane and the replay on the fixed engine | **Continue**, re-aimed | It is the tool stages 3 to 5 run on. It stops grading old bands and starts building the missing readers and probes V1 to V9 |
 | FB-4 | Settle cost, read once, the save | **Continue** | Server cost is true under any design |
 | FB-10 | Town work in closed form | **Continue**, with one check | The cost saving holds. Check that it does not hard-wire trades to a hero before package 5 is answered |
-| FB-5 | Four heroes and the first hour | **Continue the fixes, pause the shape** | The hidden first tip, the tutorial repeating, the weapon pick and gear that is never worn are bugs under any design. Whether four slots show on the first screen waits on package 8 |
-| FB-6 | The company: one plan, one Start, one return card | **Continue** | It is package 9's base. Hold priced Setup slots out of it until package 9 is answered |
+| FB-5 | Four heroes and the first hour | **Continue the fixes, re-aim the shape** | The hidden first tip, the tutorial repeating, the weapon pick and gear that is never worn are bugs under any design. The shape is answered: one hero, then three recruits in one press at Level 5 (RD-Q6 a) |
+| FB-6 | The company: one plan, one Start, one return card | **Continue** | It is package 9's base. Package 9 is approved, so plans are free and priced Setup slots stay out |
 | FB-7 | The hunt report | **Continue**, extend later | It is package 9's report. The cause line is added once the sustain counters exist |
 | FB-12 | The cheap social layer | **Continue** | Chat, roster, presence and the calendar fit package 7 as they are |
 | FB-2 | Formula steps that move no number | **Pause** | The modifier table (R20) is worth keeping as the seed of the rule table. The rest reshapes formulas the math strategy may replace |
@@ -132,17 +145,17 @@ The existing plan is `docs/design/overhaul/13-build-plan.md`, lanes FB-1 to FB-1
 | FB-11 | Talents | **Pause, then redesign** | The build choice is kept, as move evolutions with a point every Level (`02-architecture.md` section 1b, the owner's confirmed requirements of 2026-11-21). Stat tracks go. Plans, the suggested path and reset are worth keeping |
 | FB-13 | One world boss as a sample | **Pause** | Its "bars broken" shape may fit. It waits on package 3's bosses |
 | FB-14 | On-call heroes | **Pause**, likely keep | The design fits package 4. It waits on party pay and the hire board |
-| FB-15 | Premium for the account | The owner's call | A money surface. Not judged here |
+| FB-15 | Premium for the account | The owner's call, one part made | A money surface. He ruled that Premium lengthens each hero's town-work day (CR-Q3 b, `09-crafting.md` section 5.3). The rest of what Premium sells is still his |
 | Chapter 14, FR-1 to FR-18 | Everything planned for later | **Pause as a whole, keep in the design** | Each is re-sorted after Approval B. The arenas (FR-10) and the full castle (FR-11) stay in the design by the owner's confirmed requirement of 2026-11-21. They are accounted for from stage 2 and built in wave 7 |
 
-**What the measuring work already running keeps doing.** The baseline lanes keep measuring the engine as it is, because that is evidence about what the architecture does and where it fights itself. They do not grade it against old bands as if those were the goal. Three jobs matter most for this roadmap: keep the simulator true against real hunts (the calibration files), build the readers that are missing, and be ready to run V1 the day package 3 is approved.
+**What the measuring work already running keeps doing.** The baseline lanes keep measuring the engine as it is, because that is evidence about what the architecture does and where it fights itself. They do not grade it against old bands as if those were the goal. Three jobs matter most for this roadmap: keep the simulator true against real hunts (the calibration files), build the readers that are missing, and run V1, which package 3's approval started on 2026-11-22.
 
 ## 4. What the owner is asked, and when
 
 | Approval | When | What is on the page |
 |---|---|---|
-| A | Now, with deliverables 1 to 7 | The identity, the principles, the hard lines |
-| B | After A | Nine packages, each go, change or drop. The cuts and pauses. Read in the order of section 2 |
+| A | Given, 2026-11-22 | The identity, the principles, the hard lines |
+| B | Given, 2026-11-22 | Nine packages and the crafting design, all go. The cuts and pauses. His answers are in `08-for-tyler.md` |
 | C | After the math lane writes targets from the approved packages | Targets as experiences, each with a range and a reader |
 | D | After stages 4 and 5 | The validation readout, what is still a hypothesis, and the build plan |
 | Any time | As they come up | Real-money calls, grants and cuts. These are never decided by a lane |

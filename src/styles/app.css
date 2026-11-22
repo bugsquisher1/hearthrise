@@ -107,7 +107,7 @@
 .auth-lead { margin: 0; font-size: var(--t-small); color: var(--ink-2); line-height: 1.4; }
 .auth-field { display: flex; flex-direction: column; gap: 4px; font-family: var(--f-label); font-weight: 700; font-size: var(--t-micro); letter-spacing: .04em; color: var(--ink-2); }
 /* A sunk field: a well one art px deep (--steel-well), never a hairline box. */
-.auth-field input {
+.auth-field input, .hero-member .hero-name {
   font-family: var(--f-ui); font-weight: 400; font-size: var(--t-body); letter-spacing: 0;
   min-height: 40px; box-sizing: border-box;
   color: var(--ink);
@@ -118,8 +118,8 @@
   padding: 0 10px;
   cursor: text;
 }
-.auth-field input::placeholder { color: var(--ink-3); }
-.auth-field input:focus-visible { outline: 2px solid var(--gold); outline-offset: 0; }
+.auth-field input::placeholder, .hero-member .hero-name::placeholder { color: var(--ink-3); }
+.auth-field input:focus-visible, .hero-member .hero-name:focus-visible { outline: 2px solid var(--gold); outline-offset: 0; }
 .auth-message { margin: 0; min-height: 1.3em; font-size: var(--t-small); color: var(--red); line-height: 1.3; }
 .auth-message:empty { min-height: 0; }
 .auth-message.is-good { color: var(--green); }
@@ -359,7 +359,7 @@
 .hero-region { margin: 0; padding: 0; border: 0; min-width: 0; }
 .hero-region legend { padding: 0 0 3px; font-family: var(--f-label); font-weight: 700; font-size: var(--t-micro); letter-spacing: .04em; color: var(--ink-2); }
 /* A colour strip: the swatches sunk in one well (a slot row is sunk, never framed), the picked one ringed in gold. */
-.hero-dyes { display: grid; grid-template-columns: repeat(16, 18px); gap: 2px; width: max-content; padding: 4px; background: var(--bg-0); box-shadow: var(--steel-well); }
+.hero-dyes { display: grid; grid-template-columns: repeat(8, 18px); gap: 2px; width: max-content; padding: 4px; background: var(--bg-0); box-shadow: var(--steel-well); }
 .hero-dye { width: 18px; height: 18px; padding: 0; border: 0; border-radius: 0; background: var(--hero-dye); cursor: pointer; }
 .hero-dye[aria-pressed="true"] { outline: 2px solid var(--gold-2); outline-offset: 1px; }
 .hero-dye:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: 1px; }
@@ -368,8 +368,6 @@
 .hero-how { flex: 1; min-width: 14rem; border-left: 2px solid var(--steel-sep); padding-left: 16px; max-height: calc(100vh - 230px); overflow-y: auto; }
 .hero-how-title { margin: 0 0 6px; }
 .hero-how-lead { margin: 0 0 8px; font-size: var(--t-micro); color: var(--ink); line-height: 1.4; }
-/* the account's hero slots, its own line under the lead (hero-create.js): the server's numbers, never run into the rule */
-.hero-how-slots { margin: 0 0 8px; font-size: var(--t-micro); color: var(--ink-2); line-height: 1.4; }
 /* THE WAYS TO FIGHT (hero-create.js pickCardsHtml): one press each, none lit for a first hero. A picked way is the gold edge, as a
    pressed tool is; the mark, the honest tag and the cost line are each their own line in their own ink. */
 /* two columns on a desktop, so the six ways and Enter town fit a laptop's 1366x768 with no scroll (client-boot B-9); one on a phone (below) */
@@ -381,14 +379,16 @@
 .hero-way:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: 1px; }
 .hero-way-mark { color: var(--gold-2); font-weight: 700; }
 .hero-way-tag { color: var(--ink-2); }
-.hero-way-cost { color: var(--ink-3); }
+.hero-way-cost { color: var(--ink-2); }
 /* "Same colors as" the first hero: one press over the strips (heroes two to four). */
 .hero-copy { align-self: flex-start; min-height: 32px; padding: 0 10px; font-size: var(--t-micro); }
 /* BUILD YOUR PARTY (hero-create.js renderCompany): a name and a way to fight a row, the healer line and the copy tick under them. */
 .hero-party { list-style: none; margin: 0 0 8px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .hero-member { display: flex; gap: 8px; align-items: center; }
 .hero-member .hero-name { flex: 1; min-width: 0; }
-.hero-member-way { flex: none; min-height: 32px; font: inherit; font-size: var(--t-small); color: var(--ink); background: var(--bg-0); border: 0; box-shadow: var(--steel-well); }
+/* the party step is three short rows: its card is no wider than they need (art review #15); the way's select is the one select (hh-select) at the field's height */
+.auth-card.is-create:has(.hero-party) { width: min(36rem, 100%); }
+.hero-member-way { flex: none; min-height: 40px; font-size: var(--t-small); }
 .hero-party-healer { margin: 0 0 6px; font-size: var(--t-small); color: var(--ink); }
 .hero-party-copy { display: flex; gap: 6px; align-items: center; font-size: var(--t-small); color: var(--ink-2); }
 .hero-how-more { display: none; }
@@ -412,7 +412,8 @@
   .hero-form .auth-field { flex-direction: row; align-items: center; gap: 8px; }
   .hero-form .hero-name { flex: 1; min-width: 0; }
   .hero-how-lead { position: absolute; left: 0; top: 42px; width: 200px; margin: 0; line-height: 1.3; }
-  .hero-how-slots { display: none; }
+  /* the copy press ("Same colors as") stands where the lead sat: the lead goes under it (art review 2026-11-21 #3) */
+  .auth-card:has(.hero-copy) .hero-how-lead { top: 84px; }
   .hero-ways { display: flex; flex-direction: column; gap: 3px; }
   .hero-how-lead, .hero-way { font-size-adjust: var(--f-ui-aspect); }
   .hero-member { flex-wrap: wrap; }

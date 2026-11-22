@@ -170,6 +170,7 @@ export const START_EQUIPMENT = Object.freeze({
 
 /* What a new account's first hero holds in the bag with no pick: both kits and every practice item it does not
    wear. Derived, never typed: the readers that price, sell or list a kit item read this whole set. */
+/** @type {Set<string>} */
 const WORN = new Set(Object.values(START_EQUIPMENT));
 export const START_INVENTORY = Object.freeze(Object.assign({}, ACCOUNT_KIT, HERO_KIT,
   Object.fromEntries(Object.values(STARTER_SETS).flat().filter((id) => !WORN.has(id)).map((id) => [id, 1]))));

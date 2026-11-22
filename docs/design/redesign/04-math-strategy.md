@@ -445,7 +445,7 @@ Beside them sit content tables the designer owns and the optimizer never moves: 
 | Clan buffs | Conditional | A reserved slice |
 | Event and arena rewards | Conditional | A reserved slice |
 
-The slices are levers and their sum is the ceiling. The ceiling times `payStep` is the most any company can be ahead of a plain one at the same Level, and the slices a player can buy with gold give the size of the paid edge the same way. A new source of power takes its steps from a slice or is refused. The flame of package 2c moves how often a Rare drops and its rank. It is luck and not steps, so it sits in section 10 under `kitSpreadMax`.
+The slices are levers and their sum is the ceiling. The ceiling times `payStep` is the most any company can be ahead of a plain one at the same Level, and the slices a player can buy with gold give the size of the paid edge the same way. A new source of power takes its steps from a slice or is refused. The flame of section 2b moves how often a Rare drops and its rank. It is luck and not steps, so it sits in section 10 under `kitSpreadMax`.
 
 **How they become a lever set the optimizer can move.** The registry of `lane/bl-levers` (`tools/balance-program/levers.mjs`) already holds each lever's site, range, class and how the simulator perturbs it. Three additions:
 

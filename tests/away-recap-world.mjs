@@ -15,6 +15,8 @@
 //   AR-4  a hunt that ended before the player left, then nothing: no line at all
 //   AR-5  a job stopped in view, then away: no line at all
 //   AR-6  a hunt still running: only what the absence earned, not the whole hunt (the goodbye stamps the numbers on the way out)
+//   AR-6b the same with the goodbye LOST (every residue put dropped at the close, a crash's case): the server's watched mark
+//         (1060-watched-stamp.sql) is the baseline, so the thirty watched minutes before the close are not counted as away
 //   AR-7  a page left open is not an absence: no line through a long skip
 //   AR-8  nothing left the machine, and no console error but the harness's
 //   AR-9  THE CARD, PLAYED (UI audit 2026-11-18 #2): a hunt that ran out of stamina with the page closed comes back as ONE card, the result
@@ -207,6 +209,37 @@ try {
     const gained = Number(((line || '').match(/Level XP \+([\d,]+)/) || [])[1]?.replace(/,/g, ''));
     const after = await xpOf(q.page);
     step('AR-6 the line reports the absence, not the whole hunt', !!line && before > 0 && gained > 0 && gained <= after - before + 200 && gained < after, JSON.stringify({ line, before, after, gained }));
+    await q.close();
+  }
+
+  if (want('AR-6b')) { // AR-6b the goodbye lost (a crash, an OS kill): the card still reports only the absence
+    const xpOf = (page) => page.evaluate(() => { const t = document.querySelector('.ha-analyzer'); return t ? Number(((t.innerText.match(/Level XP\s+([\d,]+)/) || [])[1] || '').replace(/,/g, '')) : null; });
+    const p = await open('crasher');
+    await p.createHero('Crasher');
+    await levelTo(p, 6, 20000);
+    await p.enterHunt('meadowbrook_thicket');
+    await p.page.waitForSelector('.ha-stats dd[data-stat="kills"]');
+    await world.skip(30);
+    await p.page.waitForTimeout(3000);
+    await p.page.waitForTimeout(62000);
+    const before = await xpOf(p.page);
+    /* THE GOODBYE NEVER LEAVES: every residue put is dropped from here, so the page's last stamp is its first in-view one, from before
+       the thirty skipped minutes it watched. Only the server's watched mark (1060-watched-stamp.sql) knows the player watched them. */
+    await p.page.context().route((u) => /\/rpc\/hr_put_client_state/.test(u.pathname), (r) => r.abort());
+    const closedAt = Date.now();
+    await p.page.close({ runBeforeUnload: true });
+    await new Promise((ok) => setTimeout(ok, 800));
+    const r = await world.db.query(`select (s.client_state->'awaySeen'->>'at')::bigint as at from public.player_state s join auth.users u on u.id = s.user_id
+      where u.email = $1`, [p.email]);
+    step('CONTROL the goodbye did not land (the page\'s stamp is older than the close)', r.rows.length === 1 && Number(r.rows[0].at) < closedAt - 30000, JSON.stringify({ rows: r.rows, closedAt }));
+    await world.wait(62, { away: true });
+    const q = await enter('crasher');
+    const line = await cardOf(q, 30000);
+    await q.page.click('[data-hs-win="away"] [data-hs-act="away-ok"]').catch(() => {});
+    await q.page.waitForTimeout(1000);
+    const gained = Number(((line || '').match(/Level XP \+([\d,]+)/) || [])[1]?.replace(/,/g, ''));
+    const after = await xpOf(q.page);
+    step('AR-6b a lost goodbye: the line reports the absence, not the watched skip', !!line && before > 0 && gained > 0 && gained <= after - before + 200 && gained < after, JSON.stringify({ line, before, after, gained }));
     await q.close();
   }
 

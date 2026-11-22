@@ -308,19 +308,19 @@ export const HUNT_READ_SQL = `
     from r`;
 
 /* THE WATCHED STAMP (1060-watched-stamp.sql, AR-6). A viewed ask (a player door's `live` settle) marks the hero's numbers in its read
-   (hr_hunt_watch_note), so a lost goodbye never counts watched hunting as away. HUNT_READ_SQL plus one term: no statement more. */
+   and, when it saves, in its commit (hr_hunt_watch_note: the record it answers with), so a lost goodbye never counts watched hunting
+   as away. Each is its statement plus one term: no statement more. */
 export const HUNT_READ_WATCHED_SQL = HUNT_READ_SQL.replace(/\r?\n {4}from r$/, `,
          case when r.allowed then public.hr_hunt_watch_note($1::uuid, $2::int) end   as watched
     from r`);
 if (HUNT_READ_WATCHED_SQL === HUNT_READ_SQL) throw new Error('hunt-settle.js: HUNT_READ_SQL no longer ends in its `from r` (the watched term has no place)');
-/* A database before 1060 answers 42883 (no such function): the ask reads as before. 42883 and only it. */
-async function readOf(exec, user, slot, bucket, watched) {
-  if (!watched) return exec(HUNT_READ_SQL, [user, slot, bucket]);
+/* A database before 1060 answers 42883 (no such function) at parse, nothing ran: the statement goes as before. 42883 and only it. */
+async function orPlain(exec, text, plain, params, plainParams) {
   try {
-    return await exec(HUNT_READ_WATCHED_SQL, [user, slot, bucket]);
+    return await exec(text, params);
   } catch (e) {
     if (String((e && e.code) ?? '') !== '42883') throw e;
-    return exec(HUNT_READ_SQL, [user, slot, bucket]);
+    return exec(plain, plainParams);
   }
 }
 
@@ -355,6 +355,11 @@ function envReader(o) {
 export const HUNT_APPLY_SQL = `
   select public.hr_hunt_apply_instance($1::uuid, $2::bigint, $3::text::jsonb, $4::text::jsonb,
                                        $5::uuid, $6::int) as res`;
+/* ...a viewed ask's commit: the apply first (materialized), then the mark of the viewer ($7, $8) once it landed */
+export const HUNT_APPLY_WATCHED_SQL = `
+  with a as materialized (select public.hr_hunt_apply_instance($1::uuid, $2::bigint, $3::text::jsonb, $4::text::jsonb,
+                                                               $5::uuid, $6::int) as res)
+  select a.res as res, case when a.res->>'ok' = 'true' then public.hr_hunt_watch_note($7::uuid, $8::int) end as watched from a`;
 
 /* "Is a hunt open?" — the cheap read the accrue and collect paths make so the
    old pricing never runs for a hunter. 42883 (no such function) reads "no". */
@@ -539,7 +544,8 @@ async function settleOnce(o, mode, budget) {
     /* A player door's slice the span cap cut short is not its answer (the catch-up takes the next): it builds no
        envelope (settle-cost's rule); the answer reads the caller's once, after the last (caughtUp). */
     const projected = o.project === true && !(mode === 'settle' && plan.toMs < plan.endMs);
-    const res = await commitHuntSettle(o.exec, { ...p.commit, project: projected ? { user, slot } : null });
+    const res = await commitHuntSettle(o.exec, { ...p.commit, project: projected ? { user, slot } : null,
+      watch: mode === 'settle' && o.live === true ? { user, slot } : null });
     if (res && res.ok === true) {
       const own = (res.members || []).find((x) => String(x.user) === String(user) && Number(x.slot) === Number(slot)) || {};
       const ended = own.hunt_settle && own.hunt_settle.ended ? String(own.hunt_settle.ended) : null;
@@ -593,8 +599,9 @@ async function settleOnce(o, mode, budget) {
        and only for a player door). */
 export async function readHuntSettle(o, mode) {
   const { exec, user, slot } = o;
-  const watched = mode === 'settle' && o.live === true && o.watch !== false;
-  const [read] = await readOf(exec, user, slot, mode === 'tick' ? null : (o.bucket || null), watched);
+  const args = [user, slot, mode === 'tick' ? null : (o.bucket || null)];
+  const [read] = await (mode === 'settle' && o.live === true && o.watch !== false
+    ? orPlain(exec, HUNT_READ_WATCHED_SQL, HUNT_READ_SQL, args, args) : exec(HUNT_READ_SQL, args));
   if (!read || read.allowed !== true) {
     return { answer: { outcome: 'limited', reason: 'rate_limited', ...refusal(429, 'rate_limited') } };
   }
@@ -800,8 +807,11 @@ export function huntWatermarkLabel(inst, m) {
        propagates. */
 export async function commitHuntSettle(exec, c) {
   try {
-    const [r] = await exec(HUNT_APPLY_SQL, [c.instanceId, c.worldSwingFrom, JSON.stringify(c.settle),
-      JSON.stringify(c.members), c.project ? c.project.user : null, c.project ? c.project.slot : null]);
+    const args = [c.instanceId, c.worldSwingFrom, JSON.stringify(c.settle),
+      JSON.stringify(c.members), c.project ? c.project.user : null, c.project ? c.project.slot : null];
+    /* `c.watch` ({ user, slot }): a viewed ask's commit, which marks what it answers with (HUNT_APPLY_WATCHED_SQL) */
+    const [r] = await (c.watch ? orPlain(exec, HUNT_APPLY_WATCHED_SQL, HUNT_APPLY_SQL, [...args, c.watch.user, c.watch.slot], args)
+      : exec(HUNT_APPLY_SQL, args));
     return r && r.res;
   } catch (e) {
     if (String((e && e.code) ?? '') !== 'HR000') throw e;

@@ -245,9 +245,9 @@
         "why": "R9 power step: danger.js gearPartPm/powerPm, damage.js stepped blows, member.js gearPm (+7,071 B on top of lane G)"
       },
       {
-        "bytes": 3296543,
+        "bytes": 3297441,
         "on": "2026-11-22",
-        "why": "lane/watched-stamp: hunt-settle.js +1.3 KB, the viewed ask's watched read (HUNT_READ_WATCHED_SQL, readOf with its 42883 fallback, 1060-watched-stamp.sql)"
+        "why": "lane/watched-stamp: hunt-settle.js +2.2 KB, the viewed ask's watched read and commit (HUNT_READ_WATCHED_SQL, HUNT_APPLY_WATCHED_SQL, their 42883 fallback; 1060-watched-stamp.sql)"
       }
     ]
   }

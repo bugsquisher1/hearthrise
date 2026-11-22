@@ -2260,8 +2260,8 @@ const DB_ARMS = {
   }),
   /* WATCHED (lane/watched-stamp, 1060-watched-stamp.sql; AR-6 follow-up): the server marks what the player watched. THE HUNT VIEWED:
      every viewed ask through the shipped door (`live`; a start point, then the confirm door every 16 s, saved or not) marks the
-     hero's numbers as the record says them at its read (the Level XP before that ask's own save) at its own instant; while the hero
-     is watched the `watched` section is null. THE BROWSER CLOSED, THE GOODBYE LOST: the tick's 90 s windows settle 20 minutes on and
+     hero's numbers as the record it answered with says them (a saving ask's commit marks again, after its save) at its own instant;
+     while the hero is watched the `watched` section is null. THE BROWSER CLOSED, THE GOODBYE LOST: the tick's 90 s windows settle 20 minutes on and
      move no mark; the return's first read names the last viewed ask's mark, so the card counts what the closed windows earned, never
      the watched minutes; the return's first viewed ask moves the mark and still names the absence's; a hero watched since a return
      over the gap old has no section. CONTROL: the watched minutes earned Level XP (else the arm proves nothing). */
@@ -2282,22 +2282,23 @@ const DB_ARMS = {
     };
     /* THE HUNT VIEWED: a start point at 16 s, then the confirm door every 16 s for four minutes */
     const xp0 = await xp();
-    let last = null; let unsaved = 0;
+    let last = null; let unsaved = 0; let saved = 0;
     for (let t = BASE + 16000, i = 0; t <= BASE + 4 * 60000; t += 16000, i++) {
-      const before = await xp();
       const v = await ask(t, i > 0);
-      if (v.outcome === 'confirmed') unsaved++;
+      if (v.outcome === 'confirmed') unsaved++; else if (v.outcome === 'paid') saved++;
+      /* the record the ask answered with: the saved Level XP after it (an unsaved confirm moved none) */
+      const after = await xp();
       const r = await row();
-      if (!r || r.mark.s !== h.sid || Number(r.mark.at) !== t || Number(r.at_ms) !== t || Number(r.mark.xp) !== before || r.mark.h !== 'mill_cellar'
+      if (!r || r.mark.s !== h.sid || Number(r.mark.at) !== t || Number(r.at_ms) !== t || Number(r.mark.xp) !== after || r.mark.h !== 'mill_cellar'
           || !Number.isSafeInteger(r.mark.lv) || !Number.isSafeInteger(r.mark.kills) || !Number.isSafeInteger(r.mark.gold)) {
-        problems.push(`viewed ask at +${(t - BASE) / 1000} s (${v.outcome}) marked ${JSON.stringify(r)}, want the session, its instant and the Level XP ${before} its read saw`); break;
+        problems.push(`viewed ask at +${(t - BASE) / 1000} s (${v.outcome}) marked ${JSON.stringify(r)}, want the session, its instant and the Level XP ${after} it answered with`); break;
       }
       if (r.away !== null) { problems.push(`continuous watching recorded an absence: ${JSON.stringify(r.away)}`); break; }
       if ((await section(t)) !== null) { problems.push(`a hero being watched has a section at +${(t - BASE) / 1000} s`); break; }
       last = r;
     }
     if (!last) return problems.length ? problems : ['harness: no viewed ask landed'];
-    if (!unsaved) problems.push('CONTROL: no confirm stayed unsaved, so the arm never marked an unsaved ask');
+    if (!unsaved || !saved) problems.push(`CONTROL: ${unsaved} unsaved and ${saved} saving asks; the arm needs both kinds of viewed ask`);
     const tLast = Number(last.at_ms);
     if (!(Number(last.mark.xp) > xp0)) return [...problems, `CONTROL: four watched minutes earned no Level XP (${xp0} -> ${last.mark.xp})`];
     /* THE BROWSER CLOSED: the tick's windows, no goodbye; no mark moves */
@@ -4619,7 +4620,7 @@ const DB_ARMS = {
     };
     /* THE RACE, on the commit statement itself: B's bones leave the bag after the read, come back after the commit */
     const grief = async (text, params) => {
-      if (text !== M.HS.HUNT_APPLY_SQL) return exec(text, params);
+      if (text !== M.HS.HUNT_APPLY_SQL && text !== M.HS.HUNT_APPLY_WATCHED_SQL) return exec(text, params);   // a viewed ask's commit too
       const held = Number(await one(db, "select coalesce((select qty from public.player_inventory where user_id = $1 and slot = 0 and item_id = 'bones'), 0)", [B]));
       if (held > 0) await bank('deposit', held);
       try { return await exec(text, params); } finally { if (held > 0) await bank('withdraw', held); }
@@ -5038,7 +5039,7 @@ const DB_ARMS = {
     /* THE ENGINE BEFORE THE DEPLOY: the real engine writing field list OLD and reading OLD as its own. It predates
        the edge's shape check, so the read's world_shape never reaches it. */
     const oldEngine = async (text, params) => {
-      if (text === M.HS.HUNT_APPLY_SQL) {
+      if (text === M.HS.HUNT_APPLY_SQL || text === M.HS.HUNT_APPLY_WATCHED_SQL) {   // a viewed ask's commit too
         const st = JSON.parse(params[2]);
         st.world = swapS(st.world, NEW, OLD);
         params = [params[0], params[1], JSON.stringify(st), ...params.slice(3)];
@@ -5371,7 +5372,9 @@ const MUTANTS = [
   /* THE FLUSH (lane/c-settle-flush): the confirm door, and each reason it saves at once, planted away */
   /* THE WATCHED STAMP (lane/watched-stamp): a viewed ask that marks nothing leaves the return counting from a stale stamp */
   { arm: 'WATCHED', name: '[watched-stamp] a viewed ask reads without the mark', file: join(FN, 'hunt-settle.js'),
-    from: "  const watched = mode === 'settle' && o.live === true && o.watch !== false;", to: '  const watched = false;' },
+    from: "  const [read] = await (mode === 'settle' && o.live === true && o.watch !== false", to: '  const [read] = await (false' },
+  { arm: 'WATCHED', name: '[watched-stamp] a viewed ask\'s save marks nothing (the mark lags the record it answered)', file: join(FN, 'hunt-settle.js'),
+    from: "      watch: mode === 'settle' && o.live === true ? { user, slot } : null });", to: '      watch: null });' },
   { arm: 'FLUSH-HORIZON', name: '[settle-flush] a confirm always saves (no flush)', file: join(FN, 'hunt-settle.js'),
     from: "if (o.confirm === true && mode === 'settle' && !degraded && flushDue(plan, p.out) === null) {", to: 'if (false) {' },
   { arm: 'FLUSH-HORIZON', name: '[settle-flush] the flush never comes due', file: join(FN, 'hunt-settle.js'),

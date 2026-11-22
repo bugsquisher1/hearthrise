@@ -28,9 +28,11 @@
 --   away  jsonb        the mark that closed the last ABSENCE: the old mark a viewed ask found at least hr_hunt_watch_gap() old
 --   back  timestamptz  when that ask came (the visit's first)
 -- hr_hunt_watch_note(p_user, p_slot) -> boolean   NEW. SECURITY DEFINER, VOLATILE, EXECUTE for hr_engine only, every client role
---   and hr_tick refused by its body too. Called ONLY from the viewed ask's read (hunt-settle.js HUNT_READ_WATCHED_SQL), with the
---   engine's verified subject. No open hunt: false, nothing written. Else one upsert of the caller's own row: a mark at least the gap
---   old moves to `away` (with `back` = now()) before the new mark lands. Moves no value; reads only this hero's own rows.
+--   and hr_tick refused by its body too. Called ONLY by a viewed ask, with the engine's verified subject: a term of its read
+--   (hunt-settle.js HUNT_READ_WATCHED_SQL) and, when the ask saves, of its commit after the apply landed (HUNT_APPLY_WATCHED_SQL), so
+--   the mark is the record that ask answered with. No open hunt: false, nothing written. Else one upsert of the caller's own row: a
+--   mark at least the gap old moves to `away` (with `back` = now()) before the new mark lands. Moves no value; reads only this hero's
+--   own rows. The world tick never calls it.
 -- hr_hunt_watch_view(p_user, p_slot) -> jsonb      NEW. The section `watched` (hr_state_sections): the mark a RETURN is judged
 --   from, or null. A mark at least the gap old (no viewed ask since the absence began: this read is the return's first) is the
 --   mark; a mark fresher than that whose `back` is too (the return's first ask already marked) is `away`; anything else is a hero
@@ -44,7 +46,8 @@
 -- ── CONCURRENCY / IDEMPOTENCY ────────────────────────────────────────────────
 -- The upsert locks only this hero's own watch row; two tabs asking at once serialise on it and each sees the other's mark (ON
 -- CONFLICT re-reads the latest row), so `away` moves only past a real gap. It reads player_state, hunt_sessions and the tally
--- without a lock: it never waits on, nor holds up, a settle's commit (the hero lock, hr_hunt_lock, is never taken). A replayed ask
+-- without a lock and takes no hero lock (hr_hunt_lock) of its own: on a read it never waits on, nor holds up, a settle's commit; on
+-- a commit it runs after the apply, inside the apply's transaction, and reads the rows that apply wrote. A replayed ask
 -- is a fresh mark at its own now(): marks are a clock, not a ledger. A second apply restates the same bodies, grants and row.
 --
 -- ── EXPLOIT SURFACE DELTA ────────────────────────────────────────────────────
@@ -54,13 +57,16 @@
 -- own live view, and the mark only ever makes their own away card say LESS. Nothing crosses to another player.
 --
 -- ── COST (measured: tests/per-player-cost.mjs, tests/settle-budget.mjs) ──────
--- No request, no statement and no round trip: the note is a term of the viewed ask's one read. One upsert of one narrow row a
--- viewed ask (a HOT update: no indexed column moves) and four primary-key reads. At 100x players (~800 heroes, a quarter viewed):
--- 800 rows of ~300 bytes; ~13 updates a second, each one row's WAL. The section is one primary-key read an envelope.
+-- No request, no statement and no round trip: the note is a term of statements the viewed ask already sends. One upsert of one
+-- narrow row a viewed ask (two on a saving one; a HOT update: no indexed column moves) and four primary-key reads. MEASURED on the
+-- heavy watched four (24 polls + 14 early asks, 4 of them saving): 42 hunt_watch writes (1 insert, 41 updates, 40 HOT), ~98 a
+-- hero-hour, 3.9% of the fixture's row writes; statements and round trips a hero-hour unchanged (724.2, 2730.5); every closed
+-- fixture 0. At 100x players (~800 heroes, a quarter viewed): 800 rows of ~300 bytes; ~14 updates a second, each one row's WAL. The
+-- section is one primary-key read an envelope.
 --
--- EDGE: hunt-settle.js reads with HUNT_READ_WATCHED_SQL on a viewed ask; a database without this file answers 42883 and the ask reads
---   with HUNT_READ_SQL, as before (EDGE-ORDER: either). CLIENT: away-recap.js reads the section; a page without it reads only its own
---   stamp, as before.
+-- EDGE: hunt-settle.js reads and commits a viewed ask with the watched statements; a database without this file answers 42883 at
+--   parse (nothing ran) and the ask goes with HUNT_READ_SQL / HUNT_APPLY_SQL, as before (EDGE-ORDER: either). CLIENT: away-recap.js
+--   reads the section; a page without it reads only its own stamp, as before.
 -- REVERSIBLE: drop the section row, the three functions and the table (the client then reads no section: its own stamp, as before).
 -- ════════════════════════════════════════════════════════════════════════
 

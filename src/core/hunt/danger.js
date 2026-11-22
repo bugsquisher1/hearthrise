@@ -21,20 +21,25 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random: nothing here draws a die.
 // ============================================================
 
-import { DANGER, CLIMB, RISKS } from '../../data/danger.js';
+import { DANGER, CLIMB, RISKS, PAY, DANGER_GROUNDS } from '../../data/danger.js';
+import { LEVEL_PACE } from '../../data/core-model.js';
+import { charXpForLevel } from '../xp.js';
 import { makeEvent } from './events.js';
 import { isHero } from './sides.js';
 
+/* down (a pack): its monsters killed since it last stood up whole (spawnPack). A broken-off pack is re-pulled as it stands, its dead
+   still down until its normal respawn (fitPull): never re-formed whole, so kill, break off, re-kill pays nothing twice (wave 1). */
 export const PERSISTED = Object.freeze({
   unit: Object.freeze([]),
   world: Object.freeze([['risk', 'str'], ['danger', 'int'], ['climb', 'int'], ['clean', 'int'], ['low', 'int'], ['cool', 'int']]),
-  pack: Object.freeze([]),
+  pack: Object.freeze([['down', 'int']]),
 });
 
 const own = (o, k) => !!o && Object.prototype.hasOwnProperty.call(o, k);
 const clampStep = (s) => Math.max(0, Math.min(DANGER.stepMax, Number.isInteger(s) ? s : 0));
 
-/** True when this world plays the Danger scale (its plan named a stance). */
+/** True when this world plays the Danger scale (its plan named a stance). The server freezes a stance only on a ground of
+    DANGER_GROUNDS (hr_danger_grounds); the engine plays what it was handed. */
 export const dangerOn = (world) => !!world && typeof world.risk === 'string' && own(RISKS, world.risk);
 
 /** A plan's stance and starting step from a hero (the party leader's), or null when it names none. */
@@ -60,7 +65,8 @@ function basePull(ground) {
  *   hpPm   each monster's health, permille of its row: the step's ratio over the pull, times the as-built mean over this pull's size
  *   dmgPm  each monster's blow, the same share
  *   aimPm, lvPm  1000: its aim and its Level stay the row's, so the step's growth is the ratio exactly, once on health and once on blow
- *   xpPm   a kill's Level XP: the pay ratio over the pull, shared the same way, so a pull of any size pays the step's whole pull
+ *   xpPm   1000: a kill's Level XP on the scale is a share of each killer's own Level (levelShareXp, xp-share.js), never its row's
+ *   coinPm a kill's coin: the pull's share x the depth ratio (hunt-rewards.js payKill), so a pull of any size pays the as-built pull's coin
  */
 export function dangerDial(ground, step) {
   const s = clampStep(step);
@@ -69,7 +75,7 @@ export function dangerDial(ground, step) {
   const share = n0 / pull;
   const each = 1000 * powStep(1 + DANGER.powerStep, s) * share;
   return { id: 'danger', step: s, pull: [pull, pull, pull, pull], hpPm: each, dmgPm: each, aimPm: 1000, lvPm: 1000,
-    xpPm: 1000 * powStep(1 + DANGER.payStepXp, s) * share };
+    xpPm: 1000, coinPm: share * depthRatio(ground, s, PAY.payStepCoin) * 1000 };
 }
 
 /* A RATIO TO A WHOLE STEP by squaring: multiplications only, each exactly rounded on every JS engine, so a browser's live view and the
@@ -78,6 +84,47 @@ function powStep(r, n) {
   let out = 1, b = r, k = n;
   while (k > 0) { if (k % 2 === 1) out *= b; b *= b; k = Math.floor(k / 2); }
   return out;
+}
+
+/* THE GAP THAT PAYS: the step over the ground's reference step (DANGER_GROUNDS; 0 on a ground with none, which the server never opens),
+   held to PAY.gapMax above; under the reference it is never held (a shallower hold earns less a kill, so depth always pays). */
+export function gapOf(ground, step) {
+  const row = ground && Object.prototype.hasOwnProperty.call(DANGER_GROUNDS, ground.id) ? DANGER_GROUNDS[ground.id] : null;
+  return Math.min(PAY.gapMax, clampStep(step) - (row ? row.refStep : 0));
+}
+/* (1 + rate) ^ gap, by squaring both ways (a negative gap divides): multiplications and one division, exact on every engine */
+function depthRatio(ground, step, rate) {
+  const g = gapOf(ground, step);
+  return g >= 0 ? powStep(1 + rate, g) : 1 / powStep(1 + rate, -g);
+}
+
+/* THE HOURS A LEVEL TAKES (LEVEL_PACE.targets, Tyler's ruling 2026-10-25 section 2: [Level, cumulative hunting hours]). Each span of the
+   table is its hours over its Levels; the hours for Level L are read straight between the spans' middles (flat before the first and
+   after the last), so the pay a kill makes never jumps at a target Level. Rationals only: the browser and the edge agree to the bit. */
+const SPANS = (() => {
+  const t = [[0, 0], ...LEVEL_PACE.targets];
+  const out = [];
+  for (let i = 1; i < t.length; i++) out.push([(t[i - 1][0] + t[i][0]) / 2, (t[i][1] - t[i - 1][1]) / (t[i][0] - t[i - 1][0])]);
+  return Object.freeze(out.map((p) => Object.freeze(p)));
+})();
+export function hoursForLevel(level) {
+  const L = Number.isInteger(level) && level >= 1 ? level : 1;
+  if (L <= SPANS[0][0]) return SPANS[0][1];
+  for (let i = 1; i < SPANS.length; i++) {
+    const [a, ha] = SPANS[i - 1], [b, hb] = SPANS[i];
+    if (L <= b) return ha + ((L - a) * (hb - ha)) / (b - a);
+  }
+  return SPANS[SPANS.length - 1][1];
+}
+
+/**
+ * ONE HERO'S LEVEL XP FOR ONE KILL, ALONE (xp-share.js divides it by the heroes at the kill): the share of its own Level the hours
+ * table gives one kill at the reference rate, times the depth ratio. 04 section 5: "a kill pays a share of the killer's own Level".
+ */
+export function levelShareXp(level, step, ground) {
+  const L = Number.isInteger(level) && level >= 1 ? level : 1;
+  const toNext = charXpForLevel(L + 1) - charXpForLevel(L);
+  return (toNext / (hoursForLevel(L) * PAY.refKillsHead)) * depthRatio(ground, step, PAY.payStepXp);
 }
 
 /** A world opening on the scale: its stance and the step its plan starts at, nothing climbed yet. */
@@ -109,6 +156,14 @@ export function noteHurt(inst, u) {
 /** THE FALL BACK INSIDE A PULL (pull-cycle.js runPhase, breakOff): on the scale, a hero under the stance's trigger, or dead, breaks the
     pull off at once, so the fall back comes before the blow that would kill (RD-Q3 a). Never off the scale. */
 export const breaksOff = (world) => dangerOn(world) && world.low < RISKS[world.risk].fallPm;
+
+/** A pack monster falls on the scale (pull-cycle.js fallen): its pack counts it down until it stands up whole again (spawnPack). */
+export function packDown(world, pocket) {
+  const pk = dangerOn(world) && Array.isArray(world.packs) ? world.packs[pocket] : null;
+  if (pk) pk.down = (Number.isInteger(pk.down) ? pk.down : 0) + 1;
+}
+/** May pack `pk` be re-formed at another size (fitPull)? Only whole: none of it is down. */
+export const packWhole = (pk) => !pk || !(Number.isInteger(pk.down) && pk.down > 0);
 
 /** A pull begins (pull-cycle.js startPull): its margin starts whole. */
 export function pullBegins(world) {

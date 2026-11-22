@@ -12,8 +12,14 @@
 //           pull with a death falls CLIMB.deathSteps, and no fall goes under step 0.
 //   ready   the regroup's exit waits for every standing hero at DANGER.readyPm of its max HP, and leaves at the sub-step the last one
 //           gets there; off the scale a hurt party leaves at once.
-//   scale   the dial: a pull's total health and blow grow by exactly (1 + powerStep) a step and its Level XP by (1 + payStepXp),
-//           across every size change (no jump), and the aim and Level stay the row's.
+//   scale   the dial: a pull's total health and blow grow by exactly (1 + powerStep) a step and its coin by (1 + payStepCoin) up to the
+//           gap ceiling, across every size change (no jump); a kill's row XP, the aim and the Level stay the row's.
+//   pay     (wave 1) PAY BY DEPTH FROM THE HOURS TABLE: hoursForLevel is each span of LEVEL_PACE.targets at its middle and straight between
+//           (continuous, never falling); one kill alone at the ground's reference step pays XP to the next Level / (its hours x
+//           refKillsHead); a step deeper pays (1 + payStepXp) more, held at PAY.gapMax; and in play every kill's xp event on the scale
+//           is that share at the kill's step over the heroes there (no row XP, no party table).
+//   down    (wave 1) KILLED STAYS DEAD: a pack row that falls on the scale counts its pack down; a pack broken off with one down is
+//           re-pulled as it stands (never re-formed whole), a whole one is re-formed at the step's size, and a respawn stands it up whole.
 //   mutants each rule planted back, each caught by its own case.
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -28,6 +34,8 @@ const load = async (root) => {
   M.danger = await imp('src/core/hunt/danger.js');
   M.dangerData = await imp('src/data/danger.js');
   M.tiers = await imp('src/data/hunt-tiers.js');
+  M.coreModel = await imp('src/data/core-model.js');
+  M.xp = await imp('src/core/xp.js');
   return M;
 };
 
@@ -184,13 +192,15 @@ const CASES = {
       { room: [10, 1, 18, 6], spawns: [{ monster: 'rat', x: 14, y: 3 }, { monster: 'rat', x: 15, y: 4 }, { monster: 'rat', x: 16, y: 4 }] },
       { room: [1, 1, 8, 6], spawns: [{ monster: 'slime', x: 4, y: 3 }, { monster: 'slime', x: 5, y: 3 }] },
       { room: [1, 8, 18, 8], spawns: [{ monster: 'rat', x: 9, y: 8 }, { monster: 'rat', x: 10, y: 8 }, { monster: 'rat', x: 11, y: 8 }] }] });
-    const r = 1 + DANGER.powerStep, p = 1 + DANGER.payStepXp;
+    const { PAY } = M.dangerData;
+    const r = 1 + DANGER.powerStep, p = (s) => (s < PAY.gapMax ? 1 + PAY.payStepCoin : 1);
     const total = (s, k) => { const d = M.danger.dangerDial(g, s); return d.pull[0] * d[k]; };
     let sizes = 0;
     for (let s = 0; s < 900; s++) {
       const a = M.danger.dangerDial(g, s), b = M.danger.dangerDial(g, s + 1);
       if (b.pull[0] !== a.pull[0]) sizes++;
-      for (const [k, ratio] of [['hpPm', r], ['dmgPm', r], ['xpPm', p]]) {
+      if (b.xpPm !== 1000) return 'step ' + (s + 1) + ' moves a kill\'s row XP (' + b.xpPm + '): the scale pays a share of the killer\'s Level';
+      for (const [k, ratio] of [['hpPm', r], ['dmgPm', r], ['coinPm', p(s)]]) {
         const got = total(s + 1, k) / total(s, k);
         if (Math.abs(got - ratio) > 1e-9) return 'step ' + s + ' to ' + (s + 1) + ': the pull\'s ' + k + ' grew by ' + got + ', not ' + ratio + ' (pull ' + a.pull[0] + ' to ' + b.pull[0] + ')';
       }
@@ -201,6 +211,73 @@ const CASES = {
     if (Math.abs(at.atk - ((row.atk || 1) * d.dmgPm) / 1000) > 1e-9) return 'atTier read the blow as ' + at.atk;
     if (Number.isFinite(row.aim) && at.aim !== row.aim) return 'atTier moved the aim to ' + at.aim;
     if (M.tiers.levelAtTier(40, d) !== 40) return 'levelAtTier moved the Level to ' + M.tiers.levelAtTier(40, d);
+    return null;
+  },
+  pay(M) {
+    const { PAY, DANGER_GROUNDS } = M.dangerData;
+    const { LEVEL_PACE } = M.coreModel;
+    const t = [[0, 0], ...LEVEL_PACE.targets];
+    for (let i = 1; i < t.length; i++) {
+      const mid = (t[i - 1][0] + t[i][0]) / 2, per = (t[i][1] - t[i - 1][1]) / (t[i][0] - t[i - 1][0]);
+      if (Number.isInteger(mid) && Math.abs(M.danger.hoursForLevel(mid) - per) > 1e-9) return 'Level ' + mid + ' takes ' + M.danger.hoursForLevel(mid) + ' h, its span ' + per;
+    }
+    for (let L = 1; L < 1200; L++) {
+      const a = M.danger.hoursForLevel(L), b = M.danger.hoursForLevel(L + 1);
+      if (!(b >= a) || b - a > 2) return 'the hours a Level takes jump or fall at Level ' + L + ': ' + a + ' -> ' + b;
+    }
+    const g = { id: 'muster_barrows' }, ref = DANGER_GROUNDS.muster_barrows.refStep;
+    for (const L of [1, 9, 40, 60, 75, 300]) {
+      const toNext = M.xp.charXpForLevel(L + 1) - M.xp.charXpForLevel(L);
+      const perHour = M.danger.levelShareXp(L, ref, g) * PAY.refKillsHead;
+      if (Math.abs(perHour * M.danger.hoursForLevel(L) / toNext - 1) > 1e-9) return 'Level ' + L + ' at the reference step earns ' + perHour + ' an hour, the table ' + (toNext / M.danger.hoursForLevel(L));
+      const deeper = M.danger.levelShareXp(L, ref + 1, g) / M.danger.levelShareXp(L, ref, g);
+      if (Math.abs(deeper - (1 + PAY.payStepXp)) > 1e-9) return 'a step deeper pays x' + deeper;
+      if (M.danger.levelShareXp(L, ref + PAY.gapMax + 9, g) !== M.danger.levelShareXp(L, ref + PAY.gapMax, g)) return 'depth pays past the gap ceiling';
+      if (!(M.danger.levelShareXp(L, ref - 40, g) < M.danger.levelShareXp(L, ref, g))) return 'a shallower hold pays as much a kill';
+    }
+    /* in play: every kill on the scale pays its share at a step the trace walked, over one or two heroes */
+    const run = play(M, { risk: 'steady', danger: 0 }, 6 * 60000, []);
+    const steps = new Set([0, ...run.danger.map((e) => e.step), ...run.danger.map((e) => e.to)]);
+    const xps = run.events.filter((e) => e.type === 'xp');
+    if (xps.length < 4) return 'CONTROL: ' + xps.length + ' xp events in six minutes on the scale';
+    const ground = groundRow();
+    for (const e of xps) {
+      const fits = [...steps].some((s) => [1, 2].some((n) => Math.floor(M.danger.levelShareXp(1, s, ground) / n + 1e-9) === e.amount));
+      if (!fits) return 'a kill on the scale paid ' + e.amount + ', no share of the Level at any step walked (' + [...steps].slice(0, 6) + ')';
+    }
+    return null;
+  },
+  down(M) {
+    const run = (down, risk) => {
+      const h = hero(M, 1, 14, 4, { hp: 30, maxHp: 30 });
+      const m = M.hunt['world-state'].makeUnit({ id: 2, side: 'mon', kind: 'rat', pocket: 0, alive: true, hp: 10, maxHp: 10, target: null,
+        x: 14, y: 3, fx: 14, fy: 3, home: [14, 3], speed: 2400 });
+      const w = world(M, [h, m], { leader: 1, phase: 'travel', routeIdx: 0, nextId: 10,
+        packs: [{ aggro: false, holder: null, alive: true, down }, { aggro: false, holder: null, alive: true }, { aggro: false, holder: null, alive: true }] });
+      if (risk) M.danger.openDanger(w, risk, 0);
+      w.density = 3;
+      const inst = { ...instOf(M, w), makeUnit: M.worldstate.makeUnit };
+      const sc = subStep(0);
+      M.pullcycle.runPhase(inst, sc);
+      return { w, inst, sc, living: w.units.filter((u) => u.side !== 'hero' && u.alive && u.pocket === 0).length };
+    };
+    const whole = run(0, 'steady');
+    if (whole.w.phase !== 'fight') return 'CONTROL: the leader beside the pack did not pull it (' + whole.w.phase + ')';
+    if (whole.living !== 3) return 'CONTROL: a whole pack was not re-formed at the step\'s size (' + whole.living + ' of 3)';
+    const broken = run(1, 'steady');
+    if (broken.w.phase !== 'fight') return 'CONTROL: the broken-off pack was not pulled again';
+    if (broken.living !== 1) return 'a pack broken off with a monster down came back with ' + broken.living + ' standing: the dead stood up again';
+    /* the count: a pack row that falls on the scale counts down, off the scale nothing is counted */
+    const k = run(0, 'steady'), mon = k.w.units.find((u) => u.side !== 'hero' && u.alive);
+    M.pullcycle.fallen(k.inst, mon, k.sc);
+    if (k.w.packs[0].down !== 1) return 'a pack row fell on the scale and its pack counts ' + k.w.packs[0].down + ' down';
+    const off = run(0, null), om = off.w.units.find((u) => u.side !== 'hero' && u.alive && u.pocket === 0);
+    M.pullcycle.fallen(off.inst, om, off.sc);
+    if (off.w.packs[0].down) return 'off the scale a fallen monster was counted down';
+    /* a respawn stands the pack up whole */
+    k.w.packs[0].alive = false;
+    M.pullcycle.spawnPack(k.inst, 0, k.sc);
+    if (k.w.packs[0].down) return 'a respawned pack still counts ' + k.w.packs[0].down + ' down';
     return null;
   },
 };
@@ -229,6 +306,14 @@ const MUTANTS = [
   { name: 'the break-off waits for the climb threshold', case: 'breakoff', edits: [['src/core/hunt/danger.js', 'world.low < RISKS[world.risk].fallPm;', 'world.low < RISKS[world.risk].cleanPm;']] },
   { name: 'a size change puts a jump in the curve', case: 'scale', edits: [['src/core/hunt/danger.js', 'const share = n0 / pull;', 'const share = 1;']] },
   { name: 'the step raises the aim too', case: 'scale', edits: [['src/core/hunt/danger.js', 'aimPm: 1000, lvPm: 1000,', 'lvPm: 1000,']] },
+  { name: 'the scale pays the row XP again', case: 'pay', edits: [['src/core/hunt/xp-share.js', '  if (world && dangerOn(world)) return depthSplit(heroes, sc, ground, world.danger);\n', '']] },
+  { name: 'the hours jump at a target Level', case: 'pay', edits: [['src/core/hunt/danger.js', '    if (L <= b) return ha + ((L - a) * (hb - ha)) / (b - a);', '    if (L <= b) return ha;']] },
+  { name: 'depth pays past the gap ceiling', case: 'pay', edits: [['src/core/hunt/danger.js', '  return Math.min(PAY.gapMax, clampStep(step) - (row ? row.refStep : 0));', '  return clampStep(step) - (row ? row.refStep : 0);']] },
+  { name: 'depth does not pay', case: 'pay', edits: [['src/core/hunt/danger.js', '  return (toNext / (hoursForLevel(L) * PAY.refKillsHead)) * depthRatio(ground, step, PAY.payStepXp);', '  return toNext / (hoursForLevel(L) * PAY.refKillsHead);']] },
+  { name: 'coin does not follow the step', case: 'scale', edits: [['src/core/hunt/danger.js', 'coinPm: share * depthRatio(ground, s, PAY.payStepCoin) * 1000 };', 'coinPm: share * 1000 };']] },
+  { name: 'a broken-off pack is re-formed whole', case: 'down', edits: [['src/core/hunt/pull-cycle.js', '  if (mons.length !== size && packWhole(w.packs[p])) {', '  if (mons.length !== size) {']] },
+  { name: 'a fallen pack row is never counted', case: 'down', edits: [['src/core/hunt/pull-cycle.js', '    if (Number.isInteger(u.pocket) && !isAdd(inst, u)) packDown(inst.world, u.pocket);\n', '']] },
+  { name: 'a respawn keeps the count', case: 'down', edits: [['src/core/hunt/pull-cycle.js', '  if (w.packs[p].down) w.packs[p].down = 0;\n', '']] },
 ];
 
 const R = makeReport('hunt-core/danger');

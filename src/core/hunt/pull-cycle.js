@@ -32,7 +32,7 @@ import { HUNT_INDEX } from '../../data/hunts.js';
 import { monsterMaxHit } from '../combat.js';
 import { castsOf, spellHit, spellRow, mends } from '../../data/monster-spells.js';
 import { cheb, dist2, freeNear, tileKey, walkable } from './grid.js';
-import { inArea, resetPack } from './leash.js';
+import { inArea, resetPack, isAdd } from './leash.js';
 import { atRest, unitById, leaderOf, setGoal, clearGoal, occupancy, reachable, goToNearest } from './movement.js';
 import { makeEvent, trackStep } from './events.js';
 import { staleIndex } from './unit-index.js';
@@ -41,7 +41,7 @@ import { holderTank, turnTanks, pickInForce } from './targeting.js';
 import { aimOf } from './shooters.js';
 import { towerOf, towerPull, towerCleared } from './tower.js';
 import { healTaken } from './heal-cut.js';
-import { dangerOn, pullBegins, pullEnds, readyToPull, respawnMsOf, breaksOff } from './danger.js';
+import { dangerOn, pullBegins, pullEnds, readyToPull, respawnMsOf, breaksOff, packDown, packWhole } from './danger.js';
 import { SIDE, sideOf, isHero, isMonster } from './sides.js';
 
 /* deadMs: a corpse's age. hpMilli: out-of-combat regen carried below one HP.
@@ -126,6 +126,8 @@ export function spawnPack(inst, p, sc) {
   w.packs[p].alive = true;
   w.packs[p].aggro = false;
   w.packs[p].holder = null;
+  /* (the Danger scale's count of its fallen: a pack that stands up stands up whole, danger.js packDown) */
+  if (w.packs[p].down) w.packs[p].down = 0;
   if (sc) sc.emit(makeEvent('respawn', sc.atMs, { pocket: p }));
 }
 
@@ -158,7 +160,12 @@ export function fallen(inst, u, sc) {
   u.target = null;
   staleIndex(inst);
   clearGoal(u);
-  if (isMonster(u)) { u.deadMs = 0; return; }
+  if (isMonster(u)) {
+    u.deadMs = 0;
+    /* ON THE DANGER SCALE a pack row that falls stays down until its pack's own respawn (danger.js packDown; fitPull): a boss's add is no row */
+    if (Number.isInteger(u.pocket) && !isAdd(inst, u)) packDown(inst.world, u.pocket);
+    return;
+  }
   u.spot = null;
   if (inst.world.leader !== u.id) return;
   /* THE DANGER SCALE (danger.js): the leader's death ends the pull here, so the step falls before the packs go home */
@@ -204,13 +211,15 @@ export function respawnPacks(inst, sc) {
 
 /* THE PULL ON THE DANGER SCALE (danger.js): the pack is made at the step in force as the pull starts, whenever it stood up. One
    re-formed at another step's size stands again at this one's (the same rows and spots, deterministic); every monster's health
-   moves to this step's dial, its share of a full bar kept. Off the scale nothing here runs. */
+   moves to this step's dial, its share of a full bar kept. Off the scale nothing here runs.
+   A PACK BROKEN OFF WITH MONSTERS DOWN (wave 1's exploit ruling: kill, break off, re-kill) is never re-formed: the ones it lost stay
+   dead until the pack is cleared and its normal respawn stands it up whole (spawnPack), and the living are re-pulled at this step. */
 function fitPull(inst, sc, p) {
   const w = inst.world;
   if (!dangerOn(w)) return;
   let mons = packMonsters(inst, p);
   const size = pullRows(inst.ground, p, inst.world.density).length;
-  if (mons.length !== size) {
+  if (mons.length !== size && packWhole(w.packs[p])) {
     const gone = new Set(mons.map((m) => m.id));
     w.units = w.units.filter((u) => !gone.has(u.id));
     staleIndex(inst);

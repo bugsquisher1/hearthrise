@@ -128,7 +128,11 @@ function payKill(present, ids, killer, kind, ctx, world, atMs, monId) {
   const row = !pay || (pay.coin && pay.drops) ? row0 : { ...row0, ...(pay.coin ? {} : { gp: null }), ...(pay.drops ? {} : { drops: [] }) };
   const rng = ctx.rng;
   /* THE ROW'S WHOLE KILL for every party size (Tyler 2026-11-08: one difficulty for every group), shared by who was there. */
-  const gp = Array.isArray(row.gp) ? rng.int(row.gp[0], row.gp[1]) : 0;
+  const rolled = Array.isArray(row.gp) ? rng.int(row.gp[0], row.gp[1]) : 0;
+  /* ON THE DANGER SCALE (src/core/hunt/danger.js dangerDial coinPm, the swing's dial): the roll x the pull's share x the depth ratio, the
+     same die drawn (wave 1: coin follows the step as Level XP does). Off it the dial carries no coinPm and the roll is the kill's. */
+  const coinPm = ctx.tier && Number.isFinite(ctx.tier.coinPm) ? ctx.tier.coinPm : null;
+  const gp = coinPm === null ? rolled : Math.round((rolled * coinPm) / 1000);
   /* The remainder's first seat moves with the kill: the dead monster's unit and the swing, both on the stored world, so
      any cut of the windows pays the same shares, and no die is drawn (the loot stream below stays where it was). */
   const shares = splitEven(Math.max(0, gp), present.length, (Number(monId) || 0) + (Number(world.swing) || 0));

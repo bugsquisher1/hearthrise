@@ -46,7 +46,8 @@ import { isMain } from '../../tests/_is-main.mjs';
 import { playRun, playJobs, baseOf, combinePatches, printToolReds } from './balance-matrix.mjs';
 import { loadGridData } from './progression-grid.mjs';
 import { loadKits } from './grid-kit.mjs';
-import { METRIC_IDS, toolReds } from './matrix-metrics.mjs';
+import { METRIC_IDS, toolReds, judgeMatrix } from './matrix-metrics.mjs';
+import * as STD from './standards.mjs';
 import { plantScratch, checkPatch } from './matrix-scratch.mjs';
 import { dataView } from './balance-matrix.mjs';
 import { printCalibration } from './matrix-calibration.mjs';
@@ -97,7 +98,9 @@ async function changeOf(patchList, baseSpec) {
 }
 const listArg = (k) => (arg(k) ? arg(k).split(',').map((s) => s.trim()).filter(Boolean) : []);
 /* BL-3's new-game targets (compare.mjs TARGET_SCHEMA): --targets <file>; none given, every change reads as plain movement */
-const targetsOf = () => (arg('targets') ? loadTargets(JSON.parse(readFileSync(resolve(arg('targets')), 'utf8'))) : []);
+/* BL-3's target file (tools/balance-program/targets.json, the inventory) unless --targets names another or --no-targets */
+export const TARGETS_FILE = join(HERE, 'targets.json');
+const targetsOf = () => { const f = has('no-targets') ? null : arg('targets') ? resolve(arg('targets')) : existsSync(TARGETS_FILE) ? TARGETS_FILE : null; return f ? loadTargets(JSON.parse(readFileSync(f, 'utf8')), new Set(STD.BANDS.map((b) => b.id))) : []; };
 
 /* ── ONE SHARD: plays its cells on this tree (or its patched copy), keeps every seed's outcomes and the matrix's metrics ──────── */
 export async function playShard(spec, o = {}) {
@@ -181,6 +184,9 @@ export async function joinRun(dir, spec, o = {}) {
   const doc0 = { outcomeIds: OUTCOME_IDS, cells: j.cells.map((c) => (c.error ? c : { ...c, m: slimM(c.m) })) };
   const hy = hydrate(doc0);
   const views = computeViews(hy.cells, { spec, toNext: (L) => V.XP.charXpForLevel(L + 1) - V.XP.charXpForLevel(L) });
+  /* THE READER ROWS: the matrix judge's VALUE for each band id on this tree (its status, a current-game ruling, is dropped), so a target file
+     that names a reader (BL-3's inventory) is judged on the tree that played it */
+  const readers = judgeMatrix(V, K, ok.filter((c) => c.block !== 'c2' && c.block !== 'c3')).filter((x) => finite(x.value)).map((x) => [x.band, x.way, String(x.at), Number(x.value.toPrecision(6))]);
   const c2 = (spec.c2 || []).map((r) => {
     const c = ok.find((x) => x.key === 'C2|' + r.ground + '|' + r.tier + '|' + r.L);
     if (!c) return { ground: r.ground, tier: r.tier, L: r.L, error: 'not played' };
@@ -197,9 +203,9 @@ export async function joinRun(dir, spec, o = {}) {
   const heroHours = Math.round(ok.reduce((a, c) => a + (c.seeds || []).reduce((s, row) => s + (row[OUTCOME_IDS.length] || 0), 0), 0));
   const man = await manifest(ROOT);
   return { schema: RESULT_SCHEMA, label: o.label || (man.tree.game.label || man.tree.game.ref), at: new Date().toISOString().slice(0, 16) + 'Z',
-    scenario: { id: spec.id, hash: j.first.scenarioHash, spec }, manifest: { ...man, change: j.first.change || null, slice: j.first.slice || null },
+    scenario: { id: spec.id, hash: j.first.scenarioHash, spec }, manifest: { ...man, change: j.first.change || null, slice: j.first.slice || null, ...(o.playedBy ? { playedBy: o.playedBy } : {}) },
     runtime: { ...j.runtime, heroHours, run: o.runId || null, errors: j.cells.filter((c) => c.error).length },
-    outcomeIds: OUTCOME_IDS, cells: doc0.cells, views, calibration: { krell: j.calibration, c2 }, determinism: detCheck };
+    outcomeIds: OUTCOME_IDS, cells: doc0.cells, views, readers, calibration: { krell: j.calibration, c2 }, determinism: detCheck };
 }
 
 /* ── THE COMMANDS ─────────────────────────────────────────────────────────────────────────────────────────────────────────────── */
@@ -258,8 +264,23 @@ async function main() {
     console.log('DETERMINISM: ' + d.cells + ' cells, seed 0, played twice (fresh workers, opposite orders): ' + (d.identical ? 'byte-identical' : 'DIFFERENT: ' + d.diff.join('; ')) + ' (' + d.wallS + ' s)');
     return d.identical ? 0 : 1;
   }
+  /* --add-readers <results> --join <shards>: a results file joined before reader rows were stored gains them from its own run's shards, judged
+     on this (materialized) tree; nothing else in the file changes, and the shards must be the very cells it holds */
+  if (arg('add-readers') && arg('join')) {
+    const file = resolve(arg('add-readers')), doc = readDoc(file);
+    const j = joinShardDocs(shardDocs(resolve(arg('join'))));
+    const keys = (cs) => cs.map((c) => c.key).join('\n');
+    if (keys(j.cells) !== keys(doc.cells) || j.first.scenarioHash !== doc.scenario.hash) { console.error('add-readers: the shards are not the run that made ' + file); return 2; }
+    const D = await loadGridData(ROOT), K = await loadKits(ROOT);
+    const ok = j.cells.filter((c) => !c.error && c.m && c.block !== 'c2' && c.block !== 'c3');
+    doc.readers = judgeMatrix(D, K, ok).filter((x) => finite(x.value)).map((x) => [x.band, x.way, String(x.at), Number(x.value.toPrecision(6))]);
+    doc.manifest.readersAddedBy = treeRecord(ROOT).harness.sha;
+    writeDoc(file, doc);
+    console.log('add-readers: ' + doc.readers.length + ' reader rows -> ' + file);
+    return 0;
+  }
   if (arg('join')) {
-    const doc = await joinRun(resolve(arg('join')), spec, { label: arg('label'), runId: arg('run-id'), determinism: arg('determinism-file') ? resolve(arg('determinism-file')) : null });
+    const doc = await joinRun(resolve(arg('join')), spec, { label: arg('label'), runId: arg('run-id'), playedBy: arg('played-by'), determinism: arg('determinism-file') ? resolve(arg('determinism-file')) : null });
     writeDoc(resolve(arg('out', 'results.json.gz')), doc);
     printBaseline(hydrate(doc));
     const reds = toolReds(doc.cells.filter((c) => !c.error).map((c) => ({ key: c.key, m: { ended: c.m.ended } })));
@@ -336,6 +357,24 @@ async function selftest() {
     c.progression.verdict === 'IMPROVEMENT' && c.economy.verdict === 'REGRESSION' && c.economy.newlyOut === 1 && c.economy.unexpected && c.survival.verdict === 'TRADEOFF' && !c.survival.unexpected
     && c.combat.verdict === 'MOVED (no target)' && c.combat.unexpected && cr.targets.some((x) => x.unread && x.target.id === 'T5') && Object.values(same).every((x) => x.verdict === 'WITHIN NOISE')
     && refusedT({ id: 'x', kind: 'soft', category: 'progression', on: 'levelXpPerH' }) && refusedT({ id: 'x', kind: 'soft', category: 'nowhere', on: 'levelXpPerH', lo: 1 }) && !refusedT({ id: 'x', kind: 'hard', category: 'survival', on: 'deathsPer1000h', hi: 5 }));
+  /* 3b. BL-3's INVENTORY FORM (tools/balance-program/targets.json): a row with a matrix reader and a number is judged on the reader rows each
+     tree stored at join (toward or away from BL-3's range, never the old band's); a row another tool reads, or whose band has no number, is
+     UNREAD with its reason; results joined without reader rows leave every reader target UNREAD */
+  {
+    const inv = { schema: TARGET_SCHEMA, targets: [
+      { id: 'PACE-x', area: 'pace', class: 'HYPOTHESIS', metric: 'm', band: { lo: 0.9, hi: 1.1 }, readers: ['P1'] },
+      { id: 'SURV-x', area: 'survival', class: 'HYPOTHESIS', metric: 'm', band: { lo: null, hi: 1 }, readers: ['S2.mid'] },
+      { id: 'GOLD-x', area: 'gold', class: 'HYPOTHESIS', metric: 'm', band: { lo: 0, hi: null }, readers: ['guard:G8'] },
+      { id: 'LONG-x', area: 'long', class: 'HYPOTHESIS', metric: 'm', band: { text: 'a sentence' }, readers: ['P1'] }] };
+    const T2 = loadTargets(inv, new Set(['P1', 'S2.mid']));
+    const A2 = { ...A, readers: [['P1', 'hammer', 'Level 100', 1.3], ['S2.mid', 'hammer', '60 mid x1 deadly', 0.8]] };
+    const B2 = { ...hydrate(pdoc('B', { levelXpPerH: 1000 }, {})), readers: [['P1', 'hammer', 'Level 100', 1.05], ['S2.mid', 'hammer', '60 mid x1 deadly', 1.4]] };
+    const c2 = compareDocs(A2, B2, { targets: T2 }), un = (id) => c2.targets.find((x) => x.target.id === id && x.unread);
+    const bare = compareDocs(A, B2, { targets: T2 }).targets.find((x) => x.target.id === 'PACE-x');
+    check('BL-3\'s inventory: a reader row toward its range IMPROVEMENT (' + c2.categories.progression.verdict + '), away REGRESSION (' + c2.categories.survival.verdict + '), another tool\'s reader and a band with no number UNREAD with why, results with no reader rows UNREAD',
+      c2.categories.progression.verdict === 'IMPROVEMENT' && c2.categories.survival.verdict === 'REGRESSION' && un('GOLD-x') && /no matrix reader/.test(un('GOLD-x').why)
+      && un('LONG-x') && /no number/.test(un('LONG-x').why) && bare && bare.unread && /no reader rows/.test(bare.why) && T2[0].category === 'progression' && T2[1].category === 'survival');
+  }
   /* 4. time to the top on a flat planted rate is the curve's own sum */
   {
     const spec = { levels: [1, 5, 10], spine: [1, 5, 10], liveTop: 10 };

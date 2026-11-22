@@ -117,7 +117,71 @@ JUDGMENT: the reviewer should be someone who did not author the candidate, as fo
 
 ## 7. The first candidate: FB-8 stage 1
 
-{{DEMO}}
+**What was played.** `lane/c-pace` at `90ad526dd` (its STAGE 1 DONE), on the baseline's 1,353 cells, 8 seeds each, with the pin's harness: MEASURED, GitHub run 44985095603 against the pin run 44985081080. The two harness commits differ only in the run's `target.json`, so the report prints no harness warning. Its game tree differs from the pin's (COMPUTED from `git diff 861ae52e3 90ad526dd`; the engine `src/core` and the edge settle are identical) in:
+
+- the armor curve x2.4 (`src/data/core-model.js`: dodge k 0.4 to 0.96, absorb k 0.62 to 1.488),
+- the gear curve and its exchange rates (`src/data/gear-curve.js`, `gear-tiers.js`),
+- Krell's Hold's card food (`src/data/grounds/krells_hold/pack.js`, Salted Shark),
+- the designer's staged weapon and armor lines (`tools/balance-sim/staged`, each tree's own),
+- and the social and calendar data its older base lacks (clans, chat, live events, text), which no cell reads.
+
+The armor curve sits in the tree, and no knob is laid on it, so `armorCurve` cannot apply twice.
+
+**The command.** `node tools/balance-program/baseline.mjs --compare tools/balance-program/baseline/candidates/fb8-stage1-90ad526dd.json.gz --intent equipment,survival`. The full printout is `tools/balance-program/baseline/candidates/fb8-stage1-90ad526dd.compare.txt`. BL-3's targets do not exist yet, so every change below is plain movement against its noise. The intent names equipment and survival, because that is what an armor curve is for.
+
+**Verdicts.** 1,092 of 1,353 cells moved in at least one outcome beyond noise. The 261 that did not include all three C3 cells.
+
+| Category | Verdict | Moved beyond noise |
+|---|---|---|
+| Combat performance | MOVED (no target), UNEXPECTED | 1,055 cell outcomes, no view |
+| Survivability | MOVED (no target) | 8,422 cell outcomes, 15 views |
+| Resource economy | MOVED (no target), UNEXPECTED | 4,778 cell outcomes, 29 views |
+| Progression | MOVED (no target), UNEXPECTED | 1,648 cell outcomes, no view |
+| Equipment value | MOVED (no target) | 94 views |
+| Hunting ground viability | MOVED (no target), UNEXPECTED | 118 views |
+| Solo and party performance | MOVED (no target), UNEXPECTED | 77 views |
+| Long-term scaling | MOVED (no target), UNEXPECTED | 47 views, all of them deaths or rates past 110 on Deadly |
+
+**Side by side** (before is the pin, after is FB-8 stage 1, a move counts beyond noise by section 3):
+
+| Reading | Before | After | Change | |
+|---|---:|---:|---:|---|
+| Damage taken a hero-hour, lone hammer, MID, Normal, Level 10 | 3,880 | 5,077 | +30.9% | moved |
+| same, Level 30 | 15,600 | 17,500 | +12.1% | moved |
+| same, Level 60 | 28,700 | 32,100 | +12.0% | moved |
+| same, Level 110 | 47,000 | 53,600 | +14.0% | moved |
+| Damage taken a head, the four, MID, Normal, Level 60 | 3,531 | 4,319 | +22.3% | moved |
+| Damage taken, every lone live Normal cell (294) | | | median +17.0%, 0 to +33.1% | |
+| Level XP a hero-hour, every lone live Normal cell (294) | | | none moved | within noise |
+| Hours from Level 1 to 110, every way alone and the four | 425 to 738 | the same | 0.0% | within noise |
+| Deaths in 1,000 hero-hours, alone, Dangerous, LOW / MID / BIS | 545 / 107 / 43 | 776 / 194 / 126 | +42% / +80% / +191% | moved |
+| same, alone, Deadly, LOW / MID / BIS | 1,705 / 321 / 176 | 1,808 / 427 / 299 | +6% / +33% / +70% | LOW within noise |
+| same, the pairs, Deadly, MID | 6.8 | 55.9 | +715% | moved |
+| same, the four, Deadly, LOW | 0.8 | 11.3 | +1,231% | moved |
+| same, the four on Deadly in MID or BIS, the three anywhere, anyone on Normal | 0 | 0 | | within noise |
+| Damage taken, MID over LOW gear, lone hammer, Level 10 | 0.41 | 0.54 | +30.9% | moved |
+| same, Level 30 / 60 / 110 | 0.72 / 0.79 / 0.91 | 0.61 / 0.67 / 0.80 | -15% / -16% / -12% | moved |
+| The armor step alone, LOW to MID, lone hammer, Level 30 / 60 | 0.95 / 1.00 | 0.83 / 0.89 | -14% / -12% | moved |
+| The armor step alone, MID to BIS, lone hammer, Level 110 | 0.99 | 0.95 | -4.0% | moved |
+| Net gold a hero-hour, lone ways, Levels 60 to 110, Dangerous / Deadly | -38k / -90k | -85k / -170k | -121% / -88% | moved |
+| Net gold a head, the four, Levels 60 to 110, Normal / Dangerous | 6,386 / 14k | 6,331 / 14k | -1% / -1% | within noise |
+| The four's Level XP a head over the lone hammer, Deadly, Level 30 | 0.99 | 1.16 | +16.4% | moved |
+| Hours a Level past live content (145 to 400), MID, Normal, every way and the four | | | none moved | within noise |
+| The Krell four's damage taken in front, over the one real four's (calibration) | 0.65 | 0.89 | +37% | |
+| The Krell four's front share of the damage, over real | 0.96 | 1.05 | | |
+
+**What it says.** JUDGMENT, because no target judges it yet:
+
+1. **In play, FB-8 stage 1 is its armor curve.** It raises the damage a lone hero takes on Normal by a median of 17% (up to 33%) and moves no Level XP on Normal anywhere. From Level 30 up it makes armor worth something: LOW to MID armor now saves 17% of the damage at 30 and 11% at 60, where it saved 5% and nothing. At Level 10 the MID set saves less than before.
+2. **The cost lands on survival on the harder tiers,** and on the parties least protected by a healer and a front. Lone deaths on Dangerous rise 42 to 191% by gear state. The pairs on Deadly go from 7 to 56 in 1,000 hours, and the four in LOW gear from 1 to 11. The four in MID and BIS and the three still never die.
+3. **Those deaths reach gold and XP,** which the intent did not name, so the report marks economy, progression, grounds, party and scaling UNEXPECTED. A lone hero on Dangerous or Deadly from Level 60 loses about twice as much gold an hour (Blessings bought again, shorter hunts). A party's gold and pace barely move.
+4. **The gear curve and its exchange rates move nothing measurable.** No item a cell wears reads them yet. Under Level 110 the curve is its own samples, and past 110 the kits come from the staged rows and the harness's projected line (`06-coverage.md` section 2). The matrix plays the curve only through its R10 plan step, a harness stand-in.
+5. **Krell's card food** is a 1 to 2% store move on the Krell's Hold four.
+6. **The calibration moved toward real play.** The harness four's front seat took 0.65 of the one real four's damage on the pin and 0.89 on the candidate. That is evidence for the curve's survival numbers, on one real hunt.
+
+The first coordinated calibration (a later lane) sets the gold and tier dials with this curve, and BL-3's targets say which of these moves are improvements. This report is the evidence it starts from, not a recommendation.
+
+**The adversarial review, for this candidate** (section 6): it touches no EXCLUDED mechanic. The calibration moved toward real play (point 6). The gear curve itself is unmeasured by any cell (point 4), so the curve is NOT validated by this report. Only the armor half is.
 
 ---
 

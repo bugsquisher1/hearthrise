@@ -81,7 +81,7 @@ INCLUDED means the game's own code runs in the cell. APPROXIMATED means the cell
 | Companions | `companion-perk.js` | EXCLUDED | | same |
 | The rested bank | removed on the pin (GR-63) | not applicable | | removed |
 | Death and its cost | `combat-sim.js`, `action-rules.js` | INCLUDED | a death ends the hunt and the hero stays home. The audit's "dead hero stands up" fault is fixed | fixed |
-| Blessings | `src/data/blessings.js`, applied in the database | APPROXIMATED by arithmetic | three held, the cut applied to the engine's own XP loss, bought again after each death | partly |
+| Blessings | `src/data/blessings.js`, applied in the database | APPROXIMATED by arithmetic | three held at every death, the tree's own cut (`BLESSING_CUT_PERMILLE`) applied to the engine's own XP loss, bought again after each death. The matrix's S-5 ladder (past Level 100 each ladder Level halves a blessed death) is a proposal and is stripped from every baseline job | the ladder was in the first pin runs, see 01 section 1 |
 | Stamina and refills | `action-rules.js`, `src/data/stamina-refill.js` | APPROXIMATED, a 12 hour bar that never binds | the day is a separate model, `stamina-day.mjs` | same |
 | Levels past live content | the matrix's STAGED and PROJECTED stretches | APPROXIMATED, the `beyond` block only | staged grounds with the staged rows opened from 110 to 185, a placeholder ground and a projected gear line past 185. Labelled "not live" in every report | new block |
 | The Tower, the Catacombs, boss halls, boss calls, scaled hunts, training | `hunt/tower.js`, `hunt/boss-room.js`, `boss-phases.js`, `src/data/scaled-hunts.js`, `hunt/training.js` | EXCLUDED | the cell runner can play a climb, but no baseline block asks | same |
@@ -181,6 +181,8 @@ All real numbers are aggregates already in the repo (`tools/balance-program/cali
 
 | Point | Risk | Guard |
 |---|---|---|
+| A death priced by the harness | the matrix's metrics and the grid judge typed the death price (`standards.mjs` DEATH_COST) a second time, so a death-cost change the engine played moved no reader | fixed in this lane: both read the tree's `src/core/action-rules.js` and `src/data/blessings.js` and refuse a data view without them (`balance-matrix.mjs --selftest` 9m, both typed readers caught as mutants) |
+| A proposal inside the cell builder | the grid's `buildCell` lays proposals on every cell (the S-5 Blessing ladder), which a measurement of the game as it stands must not play | the baseline's plan hook strips the ladder (`baseline.mjs --selftest` 5b). Any further proposal the builder gains must be stripped the same way, or the baseline measures a game nobody plays |
 | A `no_fight` end or the tally's "credits unit null" | an engine stall or fault read as a safe, slow cell | both engine fixes are in the pin. Every shard prints a TOOL RED and exits 1 on either |
 | `armorCurve` as a knob | multiplies on top of a tree whose armor k already moved (FB-8 stage 1) | the baseline plays branches as they are and never lays that knob on a candidate |
 | The jewelry stand-in (`patches/items-2.json`) | tier 7 jewelry leaks under Level 110 without its plan step | the baseline plays no proposal base unless asked. A base played through `--base` carries the plan steps the matrix gives it |

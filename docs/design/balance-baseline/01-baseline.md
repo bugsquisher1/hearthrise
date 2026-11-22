@@ -11,8 +11,8 @@ Labels. MEASURED names the GitHub run. COMPUTED is arithmetic on named inputs. C
 ## 0. One screen
 
 1. **Pinned.** The overhaul's starting game, `set/v0.2.144` at `861ae52e3` (branch `baseline/overhaul-start`), measured on its own real engine with one harness laid over it. Every hash is in section 1.
-2. **Played.** 1,353 cells (every way, gear state, tier, open ground and party shape in live content, plus 72 cells past it), 8 seeds each, 10,856 seed jobs, 89,777 hunted hero-hours, 124,000 worker-seconds on 24 GitHub shards. Zero errors, zero tool reds. MEASURED, GitHub run 44968825479.
-3. **Reproducible.** One push re-runs it. Sixteen cells played twice in fresh workers in opposite orders came out byte-identical, and identical to the same seeds the shards played on other runners. {{REPRO}}
+2. **Played.** 1,353 cells (every way, gear state, tier, open ground and party shape in live content, plus 72 cells past it), 8 seeds each, 10,856 seed jobs, 89,777 hunted hero-hours, 120,729 worker-seconds on 24 GitHub shards. Zero errors, zero tool reds. MEASURED, GitHub run 44985081080 (the pin).
+3. **Reproducible.** One push re-runs it. Sixteen cells played twice in fresh workers in opposite orders came out byte-identical, and identical to the same seeds the shards played on other runners. And the whole run reproduces: two full runs of the pinned game three and a half hours apart on different runners (44968825479 and 44971284989) agree in all 1,353 cells, every one of 573,672 seed values, every view and the calibration.
 4. **Noisy where it should be, quiet where it should be.** A cell's Level XP, kills, DPS and coin carry a median relative error of 0.1 to 0.3%, so one cell against another resolves a 1% move. Gold net of the store resolves 4%, rare drops about 47%, and deaths are read only as pooled Poisson counts.
 5. **What the measurements say** (MEASURED, not an endorsement):
    - Alone, MID, Normal, Level 1 to 110 takes 425 hours as a mage and 597 as a shield tank (the hammer 510). The standard four takes 738 hours from Level 5.
@@ -30,10 +30,10 @@ Labels. MEASURED names the GitHub run. COMPUTED is arithmetic on named inputs. C
 
 **The game.** Branch `baseline/overhaul-start`, which is `set/v0.2.144` frozen at `861ae52e39d777e5c21abbbd8a8d2104e47089c0` (Tyler, 2026-11-21: "the starter baseline we are going to use for the overhaul"). It holds both engine fixes that blocked measurement (FB-1's stall fix 02364f03a and the null-kill fix 15c0a550c), the staged 0.2.144 work, the rested bank's removal, four heroes from the start and the social layer. It does not hold FB-8's gear and armor candidate. It is played as it stands, with no proposal base (`--base today`).
 
-| What | Value (MEASURED, the results manifest of run 44968825479) |
+| What | Value (MEASURED, the results manifest of run 44985081080) |
 |---|---|
 | Game commit | `861ae52e39d777e5c21abbbd8a8d2104e47089c0` (its build stamp still reads 0.2.143: the set's version bump comes at release) |
-| Harness commit | `lane/bl-baseline`, the commit named in the results (`manifest.tree.harness.sha`) |
+| Harness commit (the instrument) | `3656bad01` on `lane/bl-baseline` (section below) |
 | `src/data/**` | 213 files, sha256 `cb93aa72248c3f6c...` |
 | Engine (`src/core/**`) | 63 files, `b513e6bd0f73416d...` |
 | Edge settle (`supabase/functions/hr-accrue/**`) | 40 files, `1d347aa59cae0fd0...` |
@@ -45,6 +45,13 @@ Labels. MEASURED names the GitHub run. COMPUTED is arithmetic on named inputs. C
 | Node on the runners | v20.20.2 |
 
 Full hashes are in the results file (`node tools/balance-program/baseline.mjs --report` prints them). Hashes are over LF-normalised bytes, so a Windows checkout and a Linux runner agree.
+
+**The instrument, and how it changed while the pin was cut.** The pinned results (GitHub run 44985081080) were measured with the harness of `lane/bl-baseline` at `3656bad01`. Two earlier full runs measured the same game commit with an earlier harness: run 44968825479 (harness `311db8f61`) and run 44971284989 (harness `29cb0aba8`, identical in every measuring file). The pinned harness corrects two faults those runs carried, and is the instrument every candidate must be measured with:
+
+1. **A proposal inside the cell builder.** The grid's `buildCell` lays the sitting's S-5 Blessing ladder on every cell, so from Level 100 a blessed death cost half (or less) of what the game charges (the game has three Blessings, cutting a death to a quarter). The baseline now strips it from every job (`baseline/scenarios.mjs` `planHook`). This moved only cells with deaths at Level 100 and past: lone heroes on Dangerous and Deadly at 110, and the `beyond` block.
+2. **A death priced by the harness** (the Lab's death-cost slot, CONFLICTS 2026-11-21). The matrix's cell metrics and the grid judge typed the death price (`standards.mjs` DEATH_COST) a second time. Both now read the tree's own `src/core/action-rules.js` `levelDeathLoss` and `src/data/blessings.js`, and refuse a data view without them. No stored baseline outcome reads those two values (the outcomes take each death's loss from the engine's own death log), but they are part of the instrument. MEASURED proof: `balance-matrix.mjs --selftest` 9m, with both typed readers caught as mutants.
+
+The two early runs are kept as the reproduction proof (section 2). They are not the pin.
 
 **The bands.** `tools/balance-program/standards.mjs` is recorded above because the request asks for it. By Tyler's ruling of 2026-11-21 its bands (rulings about the current game) are neither constraints nor targets for the overhaul, and nothing in this baseline is judged against them. BL-3's target specification replaces them (`08-regression.md` section 4).
 
@@ -67,7 +74,9 @@ node tools/balance-program/baseline.mjs --report <dir>/results.json.gz
 
 The committed results are `tools/balance-program/baseline/overhaul-start/results.json.gz` (`node tools/balance-program/baseline.mjs --report` prints them). The spec every run plays is `tools/balance-program/baseline/overhaul-start/spec.json`.
 
-**Determinism.** MEASURED, run 44968825479: the determinism job played 16 cells spread across every block (seed 0, at their full hours) twice, in fresh worker pools and in opposite orders: byte-identical. The join then checked those 16 seed-0 outcome rows against the rows the shards played for the same cells on other runners: 16 of 16 identical. {{REPRO2}}
+**Determinism.** MEASURED, run 44985081080 (and the same in runs 44968825479 and 44971284989): the determinism job played 16 cells spread across every block (seed 0, at their full hours) twice, in fresh worker pools and in opposite orders: byte-identical. The join then checked those 16 seed-0 outcome rows against the rows the shards played for the same cells on other runners: 16 of 16 identical. 
+
+**The whole run, twice.** MEASURED: runs 44968825479 and 44971284989 played the pinned game three and a half hours apart, on different runners, with two harness commits that differ in no measuring file. All 1,353 cells, all 573,672 stored seed values, every view and both calibrations are identical (a byte compare of the two results files, cell by cell). Those two runs carried the earlier instrument (section 1), so they prove the run reproduces, and the pinned results below are the corrected instrument's.
 
 **A harness change re-pins.** The results record the harness hash. A later harness that changes any measuring file is a new instrument: re-run the push above before comparing a candidate against it, and the compare report warns when the two hashes differ.
 
@@ -122,7 +131,7 @@ A death ends that hero's hunt (the real rule), so a cell where heroes die early 
 
 ## 5. Run-to-run noise by outcome
 
-Each cell's outcome is the mean of eight seeds, and its relative standard error is the seeds' spread over the square root of eight, over the mean. The table gives, over every cell, the median and the 90th percentile of that error, and the smallest change one cell against one cell can tell from noise at that median (twice the combined error of two such cells, never under 1%). MEASURED, GitHub run 44968825479.
+Each cell's outcome is the mean of eight seeds, and its relative standard error is the seeds' spread over the square root of eight, over the mean. The table gives, over every cell, the median and the 90th percentile of that error, and the smallest change one cell against one cell can tell from noise at that median (twice the combined error of two such cells, never under 1%). MEASURED, GitHub run 44985081080.
 
 | Outcome | Category | Median error | 90th percentile | One cell against one resolves | Cells identical across seeds |
 |---|---|---:|---:|---:|---:|
@@ -167,16 +176,16 @@ Each cell's outcome is the mean of eight seeds, and its relative standard error 
 | `rareItemsPerH` | economy | 16.49% | 48.80% | 46.7% | 131 |
 | `rareRollsPerPartyH` | economy | 10.85% | 23.90% | 30.7% | 828 |
 | `levelXpPerH` | progression | 0.13% | 2.12% | 1.0% | 13 |
-| `netLevelXpPerH` | progression | 0.13% | 16.52% | 1.0% | 13 |
-| `hoursPerLevel` | progression | 0.12% | 22.77% | 1.0% | 6 |
+| `netLevelXpPerH` | progression | 0.13% | 15.81% | 1.0% | 13 |
+| `hoursPerLevel` | progression | 0.12% | 21.00% | 1.0% | 6 |
 | `xContract` | progression | 0.13% | 2.12% | 1.0% | 9 |
 | `mainSkillXpPerH` | progression | 0.18% | 1.69% | 1.0% | 0 |
 | `defenseXpPerH` | progression | 0.25% | 2.30% | 1.0% | 44 |
 | `meleeXpPerH` | progression | 0.21% | 1.42% | 1.0% | 464 |
 | `rangedXpPerH` | progression | 0.23% | 1.47% | 1.0% | 858 |
 | `magicXpPerH` | progression | 0.33% | 5.74% | 1.0% | 87 |
-| `levelXpLostPerH` | progression | 0.46% | 66.30% | 1.3% | 1046 |
-| `deathTax` | progression | 41.11% | 100.00% | 116.3% | 1055 |
+| `levelXpLostPerH` | progression | 0.46% | 66.30% | 1.3% | 1050 |
+| `deathTax` | progression | 41.11% | 100.00% | 116.3% | 1053 |
 
 How to read it. A median error of 0.13% means half the cells hold that outcome to within 0.13% of its true mean, so one cell against another tells a 1% move from noise. Death counts, time under 30% or 10% health, close calls, rare drops and Blessing gold are rare events: most cells see none (the last column), so a cell cannot read them. Read them pooled (the deaths views of section 6, Poisson counts over thousands of hero-hours). The 90th percentile is high for Level XP after deaths and hours a Level because a few cells (lone heroes on Deadly) lose seeds to deaths early.
 
@@ -184,7 +193,7 @@ How to read it. A median error of 0.13% means half the cells hold that outcome t
 
 ## 6. The measurements, by category
 
-All MEASURED on GitHub run 44968825479 unless marked. Every value is a mean of eight seeds. A rate is a hunted hero-hour unless it says party-hour. Gold is the engine's vendor value (an upper bound, `06-coverage.md` 2.3).
+All MEASURED on GitHub run 44985081080 unless marked. Every value is a mean of eight seeds. A rate is a hunted hero-hour unless it says party-hour. Gold is the engine's vendor value (an upper bound, `06-coverage.md` 2.3).
 
 ### 6.1 Combat performance
 
@@ -433,7 +442,7 @@ Levels a lone MID hammer gains inside its own cell (COMPUTED: hours played over 
 
 ## 7. Calibration against production
 
-**The one real four at Krell's Hold** (one player, one day, Deadly, Level 79, 39 hero-hours, docs/design/balance-program/11-krell-hunt-2026-11-20.md), against the matrix's four at Level 85 on this pin. MEASURED, run 44968825479, 8 seeds of 2 hours:
+**The one real four at Krell's Hold** (one player, one day, Deadly, Level 79, 39 hero-hours, docs/design/balance-program/11-krell-hunt-2026-11-20.md), against the matrix's four at Level 85 on this pin. MEASURED, run 44985081080, 8 seeds of 2 hours:
 
 | Reading | Real | The harness four | Four over real |
 |---|---:|---:|---:|

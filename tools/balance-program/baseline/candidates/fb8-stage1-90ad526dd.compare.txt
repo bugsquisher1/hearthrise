@@ -1,0 +1,195 @@
+BALANCE REGRESSION: fb8-stage1 against overhaul-start (the same scenarios, seeds and harness)
+  baseline  game overhaul-start 861ae52e3, harness 3656bad01, 1353 cells, scenario f69b19b4db54c731
+  candidate game fb8-stage1 90ad526dd, harness 85c298651, 1353 cells, scenario f69b19b4db54c731
+  shared cells 1353, only in the baseline 0, only in the candidate 0
+  the noise rule: a move counts when |change| >= 2 x its combined standard error and >= 1% (deaths: Poisson z >= 2)
+  the target rule: no target file given: every change is plain movement, its size against its noise; the change means to move equipment, survival (a move elsewhere is UNEXPECTED)
+
+VERDICTS
+  Combat performance          MOVED (no target), UNEXPECTED         cell outcomes moved 1055, view rows moved 0
+  Survivability               MOVED (no target)                     cell outcomes moved 8422, view rows moved 15
+  Resource economy            MOVED (no target), UNEXPECTED         cell outcomes moved 4778, view rows moved 29
+  Progression                 MOVED (no target), UNEXPECTED         cell outcomes moved 1648, view rows moved 0
+  Equipment value             MOVED (no target)                     cell outcomes moved 0, view rows moved 94
+  Hunting ground viability    MOVED (no target), UNEXPECTED         cell outcomes moved 0, view rows moved 118
+  Solo and party performance  MOVED (no target), UNEXPECTED         cell outcomes moved 0, view rows moved 77
+  Long-term scaling           MOVED (no target), UNEXPECTED         cell outcomes moved 0, view rows moved 47
+
+== COMBAT PERFORMANCE (MOVED (no target), UNEXPECTED)
+  TARGETS: none in this category: plain movement
+  OUTCOMES over 1353 shared cells: moved up / moved down / within noise | median change of the moved | the largest moves
+    dps                   27 /  27 / 1279     -1.1%   pyre_field L70 x2 deadly 30.74->22.88 (-25.6%); mosslight_glade L16 x2 dangerous 12.76->9.51 (-25.5%)
+    dealtPerH             40 /  12 / 1281     +9.2%   tm L88 mid deadly 89.4k->125.3k (+40.2%); krells_hold L85 x2 deadly 84.1k->114.2k (+35.8%)
+    killsPerH              9 /  63 / 1281    -13.2%   axes L300 mid deadly 79.63->0.000 (-100.0%); tank L400 mid deadly 75.63->0.000 (-100.0%)
+    ttkS                  16 /  75 / 1255    -23.0%   tm L88 mid deadly 6.00->10.55 (+75.8%); h L45 low deadly 8.00->2.00 (-75.0%)
+    ttkP90S               19 /  91 / 1236    -31.8%   sword L45 low dangerous 21.33->4.00 (-81.3%); hasks_ford L45 x2 deadly 23.01->41.51 (+80.4%)
+    pullsPerH            132 /  17 / 1204    +30.0%   tank L45 mid deadly 78.59->240 (+205.3%); muster_barrows L55 x1 deadly 38.94->114 (+193.2%)
+    castsPerH            520 /   7 /  806     +3.0%   the_slake L50 x1 deadly 1284->1600 (+24.6%); crossbow L88 low deadly 1221->1480 (+21.2%)
+  VIEWS: 192 rows, 0 moved beyond noise. Side by side (before | after | change | z):
+  LARGE MOVES (beyond noise and over 10%): 423 cell outcomes, e.g. pullsPerH tank L45 mid deadly +205.3%; pullsPerH muster_barrows L55 x1 deadly +193.2%; pullsPerH tank L45 bis deadly +171.3%; pullsPerH tank L88 low deadly +151.8%
+
+== SURVIVABILITY (MOVED (no target))
+  TARGETS: none in this category: plain movement
+  OUTCOMES over 1353 shared cells: moved up / moved down / within noise | median change of the moved | the largest moves
+    takenPerH           1032 /   1 /  300    +25.0%   tank L45 bis deadly 149.0k->301.9k (+102.6%); bow L88 low dangerous 157.6k->319.1k (+102.5%)
+    frontTakenShare      195 /  18 /  316     +2.1%   tm L88 mid deadly 0.947->0.384 (-59.5%); mosslight_glade L16 x2 dangerous 0.685->0.297 (-56.7%)
+    monsterLandedPct     369 /  15 /  949     +7.3%   muster_barrows L55 x2 deadly 22.36->59.90 (+168.0%); hbmh L45 low deadly 17.73->40.18 (+126.6%)
+    dmgPerMonsterSwing   960 /   4 /  369    +19.5%   muster_barrows L55 x2 deadly 9.02->28.58 (+216.9%); hbmh L45 low deadly 7.80->24.70 (+216.8%)
+    healInPerH           735 /   1 /  597    +65.7%   lu-hammer-mage-mage-mage L110 mid deadly 2.06->102 (+4833.3%); h L110 mid normal mid-step:jewelry 2.75->127 (+4509.1%)
+    healOutPerH          279 /   0 / 1054    +63.3%   hbmh L15 mid dangerous 0.969->22.38 (+2209.7%); mosslight_glade L16 x4 normal 2.41->45.75 (+1801.3%)
+    shieldInPerH         379 /   0 /  954    +15.7%   tm L45 mid deadly 45.42->5008 (+10924.4%); hasks_ford L45 x2 deadly 45.42->5008 (+10924.4%)
+    regenPerH            830 /  79 /  424    +13.3%   mosslight_glade L16 x1 deadly 10.8k->1260 (-88.4%); h L145 mid deadly 50.9k->5993 (-88.2%)
+    sustainRatio           0 / 122 / 1211    -12.1%   bow L88 low deadly 0.826->0.407 (-50.7%); crossbow L88 low deadly 0.801->0.405 (-49.5%)
+    deaths                 0 /   0 /    0   within noise everywhere
+    deathsPer1000h       158 /   0 / 1175   +1183.3%   axes L45 bis dangerous 65.55->11.3k (+17088.7%); tank L45 mid dangerous 75.27->11.4k (+15082.9%)
+    huntedShare            0 / 176 / 1177    -87.5%   sword L45 low dangerous 0.003->0.000 (-100.0%); sword L185 mid deadly 0.001->0.000 (-100.0%)
+    lowHpP50               1 / 770 /  582     -5.3%   mosslight_glade L16 x1 deadly 0.000->-0.017 (-13400.0%); the_slake L50 x1 deadly 0.076->-0.018 (-123.2%)
+    lowHpP10               7 / 874 /  472     -7.4%   axes L60 mid deadly 0.010->-0.020 (-303.9%); tank L88 mid deadly 0.019->-0.023 (-219.3%)
+    lowHpP01               9 / 854 /  490    -10.1%   tank L60 bis deadly -0.000->-0.015 (-12100.0%); mosslight_glade L16 x2 dangerous 0.068->-0.359 (-627.6%)
+    hpUnder30            207 /   3 / 1143   +429.4%   coppercap_warrens L32 x1 dangerous 0.000->0.014 (+14012.5%); muster_barrows L55 x1 dangerous 0.001->0.071 (+9152.5%)
+    hpUnder10             69 /   2 / 1282   +971.8%   muster_barrows L55 x2 deadly 0.000->0.005 (+37700.0%); tm L88 mid deadly 0.000->0.008 (+21833.3%)
+    closeCallsPer12h     271 /   2 / 1060   +234.8%   hbmh L88 low deadly 0.047->3.38 (+7100.0%); the_slake L50 x2 dangerous 25.69->858 (+3241.1%)
+  VIEWS: 60 rows, 15 moved beyond noise. Side by side (before | after | change | z):
+    * deaths in 1,000 hero-hours, party of 4, deadly, LOW, every Level                           0.850 |     11.25 | +1230.8% | 3.2
+    * deaths in 1,000 hero-hours, party of 2, deadly, Levels 60+, every gear                      3.95 |     46.23 | +1071.5% | 4.7
+    * deaths in 1,000 hero-hours, party of 2, deadly, MID, every Level                            6.85 |     55.88 | +715.3% | 6.1
+    * deaths in 1,000 hero-hours, party of 2, deadly, Levels 30-59, every gear                   20.24 |       137 | +575.5% | 4.0
+    * deaths in 1,000 hero-hours, party of 1, dangerous, BIS, every Level                        43.19 |       126 | +191.3% | 7.8
+    * deaths in 1,000 hero-hours, party of 1, dangerous, Levels 60+, every gear                    149 |       320 | +114.0% | 9.9
+    * deaths in 1,000 hero-hours, party of 1, deadly, Levels 30-59, every gear                     550 |      1019 |  +85.5% | 7.2
+    * deaths in 1,000 hero-hours, party of 1, dangerous, MID, every Level                          107 |       194 |  +80.1% | 5.4
+      deaths in 1,000 hero-hours, party of 1, normal, LOW, every Level                           0.000 |      1.70 |       - | 1.9
+      deaths in 1,000 hero-hours, party of 1, normal, MID, every Level                           0.000 |     0.000 |       - | 0.0
+      deaths in 1,000 hero-hours, party of 1, normal, BIS, every Level                           0.000 |     0.000 |       - | 0.0
+      deaths in 1,000 hero-hours, party of 1, deadly, LOW, every Level                            1705 |      1808 |   +6.0% | 0.9
+      deaths in 1,000 hero-hours, party of 2, normal, MID, every Level                           0.000 |     0.000 |       - | 0.0
+      deaths in 1,000 hero-hours, party of 2, dangerous, MID, every Level                        0.000 |     0.000 |       - | 0.0
+      deaths in 1,000 hero-hours, party of 3, normal, MID, every Level                           0.000 |     0.000 |       - | 0.0
+      deaths in 1,000 hero-hours, party of 3, dangerous, MID, every Level                        0.000 |     0.000 |       - | 0.0
+  LARGE MOVES (beyond noise and over 10%): 5726 cell outcomes, e.g. hpUnder10 muster_barrows L55 x2 deadly +37700.0%; hpUnder10 tm L88 mid deadly +21833.3%; deathsPer1000h axes L45 bis dangerous +17088.7%; deathsPer1000h tank L45 mid dangerous +15082.9%
+
+== RESOURCE ECONOMY (MOVED (no target), UNEXPECTED)
+  TARGETS: none in this category: plain movement
+  OUTCOMES over 1353 shared cells: moved up / moved down / within noise | median change of the moved | the largest moves
+    coinPerH              16 /  45 / 1272     -8.7%   tank L45 low dangerous 3960->0.000 (-100.0%); tank L45 mid deadly 9816->1433 (-85.4%)
+    lootPerH              20 /  48 / 1265     -7.1%   tank L45 low dangerous 1106->0.000 (-100.0%); tank L45 mid deadly 4904->66.67 (-98.6%)
+    incomePerH            23 /  50 / 1260     -3.0%   tank L45 low dangerous 5065->0.000 (-100.0%); tank L45 mid deadly 14.7k->1500 (-89.8%)
+    raresValuePerH         8 /  33 / 1292    -59.9%   sword L15 bis deadly 16.06->37.94 (+136.2%); wickstead L18 x2 deadly 7.06->16.63 (+135.4%)
+    storePerH            713 /  14 /  606     +8.3%   h L60 low normal 2.81->186 (+6500.0%); coppercap_warrens L50 x1 normal 5.63->270 (+4700.0%)
+    blessingGoldPerH     135 /   0 / 1198   +382.5%   axes L45 bis dangerous 86.41->26.3k (+30316.5%); tank L30 mid deadly 102->11.8k (+11446.8%)
+    netPerH                2 / 461 /  870    -23.5%   sword L30 bis deadly 123->-10.2k (-8376.4%); mosslight_glade L16 x2 dangerous 72.53->-5686 (-7938.8%)
+    netWithRaresPerH       3 / 446 /  884    -24.8%   sword L30 bis deadly 238->-10.1k (-4360.8%); mosslight_glade L16 x2 dangerous 145->-5620 (-3976.7%)
+    storeShare           624 /   3 /  719    +14.6%   h L60 low normal 0.000->0.014 (+6378.3%); coppercap_warrens L50 x1 normal 0.000->0.023 (+4661.6%)
+    suppliesPerH         594 /   1 /  738     +6.0%   h L60 low normal 0.013->1.02 (+8100.0%); h L185 mid normal 0.013->0.675 (+5300.0%)
+    foodPerH             482 /   2 /  849   +100.1%   C-2 pyre_field L66 deadly 0.003->1.27 (+40599.8%); hbmh L300 mid deadly 0.019->5.52 (+29333.3%)
+    manaPotionsPerH      336 /  30 /  967    +12.9%   hbmh L88 bis deadly 0.013->2.07 (+16450.0%); coppercap_warrens L32 x1 normal 0.163->3.15 (+1838.5%)
+    manaSpentPerH        614 /   6 /  713     +4.2%   tm L88 mid deadly 19.1k->32.1k (+68.0%); krells_hold L85 x2 deadly 20.6k->32.4k (+57.3%)
+    rareItemsPerH          9 /  35 / 1289    -56.6%   sword L15 bis deadly 0.438->0.875 (+100.0%); tank L30 low dangerous 0.423->0.000 (-100.0%)
+    rareRollsPerPartyH     6 /  19 / 1308    -16.3%   the_slake L50 x2 deadly 3.54->0.000 (-100.0%); krells_hold L85 x2 deadly 3.12->0.408 (-86.9%)
+  VIEWS: 54 rows, 29 moved beyond noise. Side by side (before | after | change | z):
+    * lone ways netPerH, dangerous, Levels 30-59 (mean of cells)                                -18.1k |    -52.5k | -189.5% | -10.9
+    * lone ways storeShare, dangerous, Levels 30-59 (mean of cells)                               1.57 |      4.12 | +163.3% | 3.1
+    * lone ways storeShare, deadly, Levels 30-59 (mean of cells)                                  3.17 |      7.07 | +123.2% | 4.1
+    * lone ways netPerH, dangerous, Levels 60+ (mean of cells)                                  -38.4k |    -84.9k | -121.4% | -14.7
+    * lone ways netPerH, deadly, Levels 60+ (mean of cells)                                     -90.1k |   -169.6k |  -88.3% | -12.2
+    * lone ways storeShare, deadly, Levels 60+ (mean of cells)                                    3.47 |      5.82 |  +67.9% | 6.7
+    * lone ways storeShare, dangerous, Levels 60+ (mean of cells)                                 2.07 |      3.26 |  +57.3% | 7.7
+    * lone ways netPerH, deadly, Levels 30-59 (mean of cells)                                   -46.8k |    -71.8k |  -53.4% | -6.5
+  LARGE MOVES (beyond noise and over 10%): 2640 cell outcomes, e.g. foodPerH C-2 pyre_field L66 deadly +40599.8%; blessingGoldPerH axes L45 bis dangerous +30316.5%; foodPerH hbmh L300 mid deadly +29333.3%; foodPerH pyre_field L70 x3 deadly +26600.0%
+
+== PROGRESSION (MOVED (no target), UNEXPECTED)
+  TARGETS: none in this category: plain movement
+  OUTCOMES over 1353 shared cells: moved up / moved down / within noise | median change of the moved | the largest moves
+    levelXpPerH           10 /  54 / 1269    -12.1%   tank L45 low dangerous 121.7k->0.000 (-100.0%); tank L45 mid deadly 355.9k->62.9k (-82.3%)
+    netLevelXpPerH         0 / 159 / 1194    -82.0%   tank L110 low dangerous 1724->-438.1k (-25519.1%); sword L110 bis deadly 68.3k->-408.9k (-698.9%)
+    hoursPerLevel         31 /   1 / 1128   +712.6%   muster_barrows L55 x2 deadly 2.40->3174 (+132358.0%); tank L88 bis dangerous 5.53->267 (+4732.8%)
+    xContract             10 /  54 / 1269    -12.1%   tank L45 low dangerous 0.688->0.000 (-100.0%); tank L45 mid deadly 2.01->0.356 (-82.3%)
+    mainSkillXpPerH      334 /  34 /  965     +2.9%   tank L60 low deadly 59.9k->29.1k (-51.4%); axes L88 low deadly 108.9k->164.2k (+50.8%)
+    defenseXpPerH         17 /  31 / 1285     -7.7%   axes L88 low deadly 134.3k->203.8k (+51.7%); hasks_ford L45 x2 deadly 14.6k->21.4k (+46.0%)
+    meleeXpPerH            9 /  44 / 1280    -22.7%   tm L88 mid deadly 33.9k->13.4k (-60.5%); tank L60 low deadly 59.9k->29.1k (-51.4%)
+    rangedXpPerH           2 /  10 / 1321    -30.5%   pyre_field L70 x2 deadly 52.2k->29.7k (-43.1%); mosslight_glade L16 x2 dangerous 21.7k->12.3k (-43.0%)
+    magicXpPerH          618 /  21 /  694     +6.8%   h L110 mid normal mid-step:jewelry 0.078->3.52 (+4400.0%); h L100 mid normal 0.078->2.81 (+3500.0%)
+    levelXpLostPerH       56 /  24 / 1273    +97.9%   tank L88 bis dangerous 28.0k->223.5k (+697.1%); axes L110 mid dangerous 56.3k->443.1k (+686.6%)
+    deathTax             129 /   0 / 1217   +863.4%   axes L45 bis dangerous 0.027->7.02 (+26136.5%); axes L45 mid dangerous 0.392->99.79 (+25360.0%)
+  VIEWS: 17 rows, 0 moved beyond noise. Side by side (before | after | change | z):
+      Hours from Level 1 to 110, axes alone, MID, Normal                                           577 |       577 |   -0.0% | -0.8
+      Hours from Level 1 to 110, bow alone, MID, Normal                                            493 |       493 |   +0.0% | 0.1
+      Hours from Level 1 to 110, crossbow alone, MID, Normal                                       511 |       511 |   +0.0% | 0.1
+      Hours from Level 1 to 110, hammer alone, MID, Normal                                         510 |       510 |   +0.0% | -0.1
+      Hours from Level 1 to 110, healer alone, MID, Normal                                         592 |       592 |   +0.0% | 0.0
+      Hours from Level 1 to 110, mage alone, MID, Normal                                           425 |       425 |   +0.0% | 0.0
+      Hours from Level 1 to 110, sword alone, MID, Normal                                          542 |       542 |   -0.1% | -1.1
+      Hours from Level 1 to 110, tank alone, MID, Normal                                           597 |       597 |   +0.0% | 0.3
+  LARGE MOVES (beyond noise and over 10%): 751 cell outcomes, e.g. hoursPerLevel muster_barrows L55 x2 deadly +132358.0%; deathTax axes L45 bis dangerous +26136.5%; netLevelXpPerH tank L110 low dangerous -25519.1%; deathTax axes L45 mid dangerous +25360.0%
+
+== EQUIPMENT VALUE (MOVED (no target))
+  TARGETS: none in this category: plain movement
+  VIEWS: 684 rows, 94 moved beyond noise. Side by side (before | after | change | z):
+    * four takenPerH, MID over LOW at 5                                                          0.360 |     0.489 |  +35.9% | 12.1
+    * four takenPerH, MID over LOW at 10                                                         0.379 |     0.502 |  +32.5% | 12.8
+    * the armor step low->mid, takenPerH full set over one class back, hbmh at 10                0.423 |     0.561 |  +32.5% | 11.3
+    * axes takenPerH, MID over LOW at 10                                                         0.448 |     0.587 |  +31.1% | 15.1
+    * sword takenPerH, MID over LOW at 10                                                        0.436 |     0.571 |  +30.9% | 15.9
+    * hammer takenPerH, MID over LOW at 10                                                       0.415 |     0.543 |  +30.9% | 12.2
+    * the armor step low->mid, takenPerH full set over one class back, h at 10                   0.477 |     0.624 |  +30.9% | 16.7
+    * tank takenPerH, MID over LOW at 10                                                         0.440 |     0.576 |  +30.7% | 17.2
+
+== HUNTING GROUND VIABILITY (MOVED (no target), UNEXPECTED)
+  TARGETS: none in this category: plain movement
+  VIEWS: 484 rows, 118 moved beyond noise. Side by side (before | after | change | z):
+    * the_slake dangerous, lone: deaths in 1,000 hero-hours (pooled)                               256 |      9040 | +3428.4% | 3.9
+    * hasks_ford deadly, lone: deaths in 1,000 hero-hours (pooled)                                 357 |     12.1k | +3294.8% | 3.9
+    * krells_hold deadly, lone: deaths in 1,000 hero-hours (pooled)                               1040 |     29.1k | +2696.4% | 3.9
+    * pyre_field deadly, lone: deaths in 1,000 hero-hours (pooled)                                 566 |      9467 | +1572.0% | 3.8
+    * krells_hold dangerous, lone: deaths in 1,000 hero-hours (pooled)                             140 |      1923 | +1268.8% | 3.7
+    * the_slake deadly, lone: deaths in 1,000 hero-hours (pooled)                                 9581 |    123.1k | +1184.6% | 3.7
+    * coppercap_warrens dangerous, party of 2: net gold a hero-hour                                512 |     -4945 | -1065.0% | -57.2
+    * hasks_ford deadly, party of 2: deaths in 1,000 hero-hours (pooled)                         10.66 |       114 | +970.4% | 3.5
+      coppercap_warrens normal, lone: Level XP over the contract, mean of the band ends           1.67 |      1.66 |   -0.2% | -0.9
+      coppercap_warrens normal, party of 2: Level XP over the contract, mean of the band end      2.06 |      2.06 |   +0.0% | 0.2
+      coppercap_warrens normal, party of 3: Level XP over the contract, mean of the band end      1.95 |      1.95 |   +0.0% | 0.2
+      coppercap_warrens normal, party of 4: Level XP over the contract, mean of the band end      1.73 |      1.73 |   +0.0% | 0.8
+      coppercap_warrens dangerous, party of 2: Level XP over the contract, mean of the band       2.63 |      2.64 |   +0.1% | 1.4
+      coppercap_warrens dangerous, party of 3: Level XP over the contract, mean of the band       2.63 |      2.63 |   -0.0% | -0.2
+      coppercap_warrens dangerous, party of 4: Level XP over the contract, mean of the band       2.91 |      2.91 |   +0.0% | 0.1
+      coppercap_warrens deadly, lone: Level XP over the contract, mean of the band ends           2.56 |      2.31 |   -9.8% | -1.6
+
+== SOLO AND PARTY PERFORMANCE (MOVED (no target), UNEXPECTED)
+  TARGETS: none in this category: plain movement
+  VIEWS: 216 rows, 77 moved beyond noise. Side by side (before | after | change | z):
+    * tank,mage netPerH a head over the lone hammer at 88 deadly                                -0.014 |     0.084 | +697.4% | 11.0
+    * bow,healer netPerH a head over the lone hammer at 5 deadly                                 0.736 |     -1.39 | -288.8% | -2.1
+    * tank,mage netPerH a head over the lone hammer at 60 deadly                                 0.018 |     0.048 | +161.5% | 10.8
+    * tank,mage netPerH a head over the lone hammer at 45 deadly                                 0.056 |     0.127 | +127.6% | 4.0
+    * tank,mage netPerH a head over the lone hammer at 45 dangerous                             -0.093 |     0.024 | +125.5% | 21.9
+    * tank,mage netPerH a head over the lone hammer at 60 dangerous                             -0.072 |     0.007 | +109.6% | 32.1
+    * tank,mage netPerH a head over the lone hammer at 110 deadly                               -0.164 |    -0.021 |  +87.1% | 3.7
+    * tank,mage netPerH a head over the lone hammer at 110 dangerous                             -1.37 |    -0.209 |  +84.8% | 18.5
+      hammer,bow,mage,healer levelXpPerH a head over the lone hammer at 5 normal                  1.94 |      1.94 |   -0.2% | -0.3
+      tank,mage levelXpPerH a head over the lone hammer at 5 normal                               2.19 |      2.19 |   +0.0% | 0.0
+      bow,healer levelXpPerH a head over the lone hammer at 5 normal                              1.87 |      1.86 |   -0.4% | -0.9
+      tank,healer,mage levelXpPerH a head over the lone hammer at 5 normal                        2.01 |      2.03 |   +0.6% | 1.3
+      hammer,bow,mage,healer levelXpPerH a head over the lone hammer at 5 dangerous               1.88 |      1.88 |   -0.1% | -0.1
+      tank,mage levelXpPerH a head over the lone hammer at 5 dangerous                            2.06 |      2.06 |   +0.0% | 0.0
+      bow,healer levelXpPerH a head over the lone hammer at 5 dangerous                           1.75 |      1.76 |   +0.3% | 0.4
+      tank,healer,mage levelXpPerH a head over the lone hammer at 5 dangerous                     1.91 |      1.91 |   +0.0% | 0.1
+
+== LONG-TERM SCALING (MOVED (no target), UNEXPECTED)
+  TARGETS: none in this category: plain movement
+  VIEWS: 486 rows, 47 moved beyond noise. Side by side (before | after | change | z):
+    * Deaths in 1,000 hero-hours at 145 (STAGED, not live), sword, deadly                        44.4k |    400.0k | +800.0% | 2.5
+    * Deaths in 1,000 hero-hours at 185 (STAGED, not live), axes, deadly                        100.0k |    800.0k | +700.0% | 2.5
+    * Deaths in 1,000 hero-hours at 145 (STAGED, not live), axes, deadly                         50.0k |    400.0k | +700.0% | 2.5
+    * Deaths in 1,000 hero-hours at 145 (STAGED, not live), tank, deadly                         34.8k |    266.7k | +666.7% | 2.4
+    * Deaths in 1,000 hero-hours at 145 (STAGED, not live), hammer, deadly                       44.4k |    266.7k | +500.0% | 2.3
+    * Deaths in 1,000 hero-hours at 185 (STAGED, not live), tank, deadly                         88.9k |    400.0k | +350.0% | 2.1
+    * levelXpPerH at 145 (STAGED, not live), hammer, deadly, over the same at 110                0.735 |     0.322 |  -56.2% | -3.2
+    * levelXpPerH at 185 (STAGED, not live), axes, deadly, over the same at 110                  0.842 |     0.570 |  -32.3% | -
+      Hours a Level at 110 over at 30, axes                                                       3.16 |      3.16 |   +0.0% | 0.0
+      Hours a Level at 110 over at 30, bow                                                        3.11 |      3.11 |   +0.0% | 0.0
+      Hours a Level at 110 over at 30, crossbow                                                   3.25 |      3.25 |   -0.0% | -0.1
+      Hours a Level at 110 over at 30, hammer                                                     2.89 |      2.89 |   +0.0% | 0.1
+      Hours a Level at 110 over at 30, healer                                                     2.93 |      2.93 |   +0.0% | 0.0
+      Hours a Level at 110 over at 30, mage                                                       2.90 |      2.90 |   +0.0% | 0.0
+      Hours a Level at 110 over at 30, sword                                                      3.13 |      3.12 |   -0.1% | -0.5
+      Hours a Level at 110 over at 30, tank                                                       3.09 |      3.09 |   +0.1% | 0.5

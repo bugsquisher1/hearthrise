@@ -26,6 +26,8 @@ export const Z_NOISE = 2;
 export const MIN_REL = 0.01;
 /* a move at least this large (beyond noise) is listed by name in a category's attention list */
 export const LARGE_REL = 0.10;
+/* a reader row (the matrix judge's value, stored at join) has no seed error of its own: a move under this is held as noise */
+export const READER_MIN_REL = 0.02;
 const finite = (x) => typeof x === 'number' && Number.isFinite(x);
 const r = (x, d = 4) => (finite(x) ? Math.round(x * 10 ** d) / 10 ** d : null);
 const sum = (xs) => xs.reduce((a, b) => a + (finite(b) ? b : 0), 0);
@@ -260,9 +262,27 @@ export function distOut(v, t) {
   if (finite(t.hi) && v > t.hi) return (v - t.hi) / Math.max(Math.abs(t.hi), 1e-9);
   return 0;
 }
-export function loadTargets(doc) {
+/* BL-3'S OWN FILE (tools/balance-program/targets.json, lane/bl-targets: the target inventory, every row a DESIGN HYPOTHESIS until the target
+   work picks). A row names an area, a class, a band { lo, hi } and its readers: standards.mjs band ids whose VALUE the matrix's judge computes
+   (their old lo / hi are never read here). Each row becomes a reader target ('reader:<ids>'). A row whose readers are another tool's or
+   missing, or whose band has no number, stays listed as UNREAD with its reason. */
+export const AREA_CATEGORY = Object.freeze({ pace: 'progression', party: 'party', style: 'combat', survival: 'survival', gear: 'equipment', sustain: 'survival', supply: 'economy', gold: 'economy', drops: 'economy', long: 'scaling' });
+const KIND_OF_CLASS = Object.freeze({ HARD: 'hard', SOFT: 'soft', HYPOTHESIS: 'hypothesis' });
+export function fromInventory(row, bandIds) {
+  const readers = (row.readers || []).filter((x) => bandIds.has(x));
+  const lo = row.band && finite(row.band.lo) ? row.band.lo : null, hi = row.band && finite(row.band.hi) ? row.band.hi : null;
+  const why = !readers.length ? 'no matrix reader (' + ((row.readers || []).join(', ') || row.readerState || 'none') + ')'
+    : lo === null && hi === null ? 'no number in its band (' + String((row.band && row.band.text) || '').slice(0, 80) + ')' : null;
+  return { id: row.id, kind: KIND_OF_CLASS[row.class] || 'hypothesis', category: AREA_CATEGORY[row.area] || 'other', on: 'reader:' + readers.join('+'), lo, hi, label: row.metric, ...(why ? { unreadWhy: why } : {}) };
+}
+/** Target rows from a targets file: this report's own form (rows with `on`), or BL-3's inventory (rows with `area` and `readers`). */
+export function loadTargets(doc, bandIds = null) {
   if (!doc) return [];
   if (doc.schema !== TARGET_SCHEMA) throw new Error('targets: ' + (doc.schema || 'no schema') + ' is not ' + TARGET_SCHEMA);
+  if (doc.targets.some((x) => x.area && Array.isArray(x.readers))) {
+    if (!bandIds) throw new Error('targets: an inventory file needs the band ids its readers name (standards.mjs BANDS)');
+    return doc.targets.map((x) => fromInventory(x, bandIds));
+  }
   for (const t of doc.targets) if (!t.id || !t.on || !CATEGORY_IDS.includes(t.category) || !['hard', 'soft', 'hypothesis'].includes(t.kind) || (!finite(t.lo) && !finite(t.hi))) throw new Error('targets: row ' + JSON.stringify(t).slice(0, 160) + ' needs id, on, a category of ' + CATEGORY_IDS.join('/') + ', a kind (hard, soft, hypothesis) and lo or hi');
   return doc.targets;
 }
@@ -270,10 +290,13 @@ export function loadTargets(doc) {
 export function judgeTargets(cmp, targets) {
   const rows = [];
   for (const t of targets) {
-    const items = String(t.on).startsWith('view:')
-      ? cmp.views.filter((v) => v.id === t.on.slice(5) && (!t.where || !t.where.key || new RegExp(t.where.key).test(v.key))).map((v) => ({ item: v.key, before: v.before, after: v.after, flag: v.flag }))
-      : cmp.cells.filter((c) => c.outs[t.on] && cellMatches(c, t.where)).map((c) => ({ item: c.key, before: c.outs[t.on].before, after: c.outs[t.on].after, flag: c.outs[t.on].flag }));
-    if (!items.length) { rows.push({ target: t, item: null, unread: true }); continue; }
+    if (t.unreadWhy) { rows.push({ target: t, item: null, unread: true, why: t.unreadWhy }); continue; }
+    const readerIds = String(t.on).startsWith('reader:') ? t.on.slice(7).split('+') : null;
+    const items = readerIds ? (cmp.readers || []).filter((x) => readerIds.includes(x.band)).map((x) => ({ item: x.band + ' ' + x.way + ' ' + x.at, before: x.before, after: x.after, flag: x.flag }))
+      : String(t.on).startsWith('view:')
+        ? cmp.views.filter((v) => v.id === t.on.slice(5) && (!t.where || !t.where.key || new RegExp(t.where.key).test(v.key))).map((v) => ({ item: v.key, before: v.before, after: v.after, flag: v.flag }))
+        : cmp.cells.filter((c) => c.outs[t.on] && cellMatches(c, t.where)).map((c) => ({ item: c.key, before: c.outs[t.on].before, after: c.outs[t.on].after, flag: c.outs[t.on].flag }));
+    if (!items.length) { rows.push({ target: t, item: null, unread: true, why: readerIds && !cmp.readers ? 'the results carry no reader rows' : 'nothing on these cells reads it' }); continue; }
     for (const x of items) {
       const db = distOut(x.before, t), da = distOut(x.after, t);
       const direction = x.flag !== 'moved' || !finite(db) || !finite(da) ? 'noise' : da < db ? 'toward' : da > db ? 'away' : 'held';
@@ -312,7 +335,18 @@ export function compareDocs(A, B, o = {}) {
     const j = finite(v.k) ? judgeRates({ k: v.k, t: v.t }, { k: w.k, t: w.t }) : judgeMove({ mean: v.value, se: v.se }, { mean: w.value, se: w.se });
     views.push({ key: v.key, id: v.id, category: v.category, label: v.label, before: finite(v.k) ? j.before : v.value, after: finite(v.k) ? j.after : w.value, ...j, ...(finite(v.k) ? { before: j.before, after: j.after } : {}) });
   }
-  const cmp = { cells, views };
+  /* THE READER ROWS (the matrix judge's values on each tree, stored at join): paired by band, way and place. They carry no seed error of their
+     own, so a move under READER_MIN_REL is held as noise */
+  let readers = null;
+  if (A.readers && B.readers) {
+    const RB = new Map(B.readers.map(([band, way, at, value]) => [band + '|' + way + '|' + at, value]));
+    readers = A.readers.filter(([band, way, at]) => RB.has(band + '|' + way + '|' + at)).map(([band, way, at, before]) => {
+      const after = RB.get(band + '|' + way + '|' + at), rel = finite(before) && finite(after) && before !== 0 ? (after - before) / Math.abs(before) : null;
+      const flag = finite(before) && finite(after) ? (Math.abs(rel === null ? after - before : rel) >= READER_MIN_REL ? 'moved' : 'noise') : 'unread';
+      return { band, way, at, before, after, rel: r(rel, 4), flag };
+    });
+  }
+  const cmp = { cells, views, readers };
   const trows = judgeTargets(cmp, o.targets || []);
   const intent = o.intent && o.intent.length ? o.intent : null;
   const categories = {};
@@ -350,11 +384,15 @@ export function printCompare(cmp, A, B, o = {}, out = console.log) {
   out('  shared cells ' + cmp.cells.length + ', only in the baseline ' + cmp.onlyA.length + ', only in the candidate ' + cmp.onlyB.length + (cmp.groundMoved.length ? ', cells whose advised ground changed ' + cmp.groundMoved.length + ' (e.g. ' + cmp.groundMoved.slice(0, 3).join('; ') + ')' : ''));
   out('  the noise rule: a move counts when |change| >= ' + Z_NOISE + ' x its combined standard error and >= ' + (MIN_REL * 100) + '% (deaths: Poisson z >= ' + Z_NOISE + ')');
   const nT = new Set(cmp.targets.map((x) => x.target.id)).size;
-  out('  the target rule: ' + (nT ? nT + ' new-game targets (BL-3): a move toward a target\'s range is an improvement, away a regression, a hard target left is named' : 'no target file given: every change is plain movement, its size against its noise') + (cmp.intent ? '; the change means to move ' + cmp.intent.join(', ') + ' (a move elsewhere is UNEXPECTED)' : ''));
+  out('  the target rule: ' + (nT ? nT + ' targets from BL-3\'s file (the inventory\'s rows are design hypotheses until the target work picks): a move toward a target\'s range is an improvement, away a regression, a hard target left is named' : 'no target file given: every change is plain movement, its size against its noise') + (cmp.intent ? '; the change means to move ' + cmp.intent.join(', ') + ' (a move elsewhere is UNEXPECTED)' : ''));
   out('\nVERDICTS');
   for (const [id, label] of CATEGORIES) { const v = cmp.categories[id]; out('  ' + label.padEnd(28) + (v.verdict + (v.unexpected ? ', UNEXPECTED' : '')).padEnd(38) + (v.targets ? 'targets ' + v.targets + ': toward ' + v.toward + ', away ' + v.away + (v.hardOut ? ', hard out ' + v.hardOut + ' (' + v.newlyOut + ' new)' : '') + '; ' : '') + 'cell outcomes moved ' + v.movedCells + ', view rows moved ' + v.movedViews); }
   const unread = cmp.targets.filter((x) => x.unread);
-  if (unread.length) out('  UNREAD targets (no matching cell or view): ' + unread.map((x) => x.target.id).join(', '));
+  if (unread.length) {
+    const why = {};
+    for (const x of unread) { const k = String(x.why || 'nothing reads it').replace(/ \(.*$/, ''); (why[k] || (why[k] = [])).push(x.target.id); }
+    out('  UNREAD targets: ' + unread.length + ' of ' + nT + ' (' + Object.entries(why).map(([k, ids]) => k + ': ' + ids.length + ', e.g. ' + ids.slice(0, 4).join(' ')).join('; ') + ')');
+  }
   for (const [id, label] of CATEGORIES) {
     const v = cmp.categories[id];
     out('\n== ' + label.toUpperCase() + ' (' + v.verdict + (v.unexpected ? ', UNEXPECTED' : '') + ')');
@@ -391,7 +429,7 @@ export function printCompare(cmp, A, B, o = {}, out = console.log) {
 /* the view rows printed even when they did not move: the headline readings of each category */
 const HEADLINE = new Set(['timeToTop', 'hplGrowth', 'deathsPooled', 'ground.xContract', 'partyOverSolo.levelXpPerH']);
 const short = (d) => (d.manifest && d.manifest.tree ? (d.manifest.tree.game.label || d.manifest.tree.game.ref) + ' ' + String(d.manifest.tree.game.sha).slice(0, 9) : '?');
-const shortH = (d) => (d.manifest && d.manifest.tree ? String(d.manifest.tree.harness.sha).slice(0, 9) + (d.manifest.tree.harness.dirty ? '+dirty' : '') : '?');
+const shortH = (d) => (d.manifest && d.manifest.tree ? (d.manifest.playedBy ? 'played by ' + String(d.manifest.playedBy).slice(0, 9) + ', joined by ' : '') + String(d.manifest.tree.harness.sha).slice(0, 9) + (d.manifest.tree.harness.dirty ? '+dirty' : '') : '?');
 
 /** The baseline itself: the pin, the sample, the noise, the views by category, the calibration. */
 export function printBaseline(doc, o = {}, out = console.log) {

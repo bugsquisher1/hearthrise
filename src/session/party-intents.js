@@ -3,7 +3,7 @@
 //
 // PARTY_SPEC.md (2026-10-19) and supabase/migrations/2026-10-28-party-flow.sql.
 // The verbs CharacterSession already carries (invite by name, accept / decline,
-// leave, kick, join, the finder) stay there; these are the ones the new flow
+// leave, kick) stay there; these are the ones the new flow
 // adds, each ONE intent naming only this character's slot and a hunt id or an
 // own slot (never a user id, never a number of the server's):
 //   startPartyHunt(account, cs, hunt)   the leader picks the ground at Start;
@@ -16,8 +16,6 @@
 //                                       joins at once (no accept step)
 //   invitePlayer(account, cs, id, slot) a player by the account id the menu target
 //                                       carries (a name may be the "Adventurer" fallback)
-//   listParty(account, cs, on)          the leader shows the party in the
-//                                       finder or hides it (private = invite only)
 //   setHoldSeat(account, cs, seat)      the leader picks who holds the pack: a
 //                                       tank's seat, or null (take turns)
 //   setLeaveTogether(account, cs, on)   this hero's own "Leave if anyone leaves the
@@ -137,13 +135,6 @@ export async function invitePlayer(account, cs, userId, slot) {
   }
   const peers = partyPeersOf(account, cs);
   return askVia(cs, 'hunt_party_invite_player', async () => settled(cs, await account.server.rpc('hr_hunt_party_invite_player', { p_slot: cs.slot, p_target: String(userId), p_target_slot: Number.isInteger(slot) ? slot : null, p_idem: newIdem() }), peers));
-}
-
-/** The leader shows its party in the finder (`on`) or hides it; until listed, a party is joined by invite only. */
-export async function listParty(account, cs, on) {
-  if (!usable(account, cs) || typeof on !== 'boolean') return { ok: false, error: 'bad_intent', seats: [] };
-  const peers = partyPeersOf(account, cs);
-  return askVia(cs, 'hunt_party_list', async () => settled(cs, await account.server.rpc('hr_hunt_party_list', { p_slot: cs.slot, p_listed: on, p_idem: newIdem() }), peers));
 }
 
 /**

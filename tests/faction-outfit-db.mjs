@@ -101,16 +101,15 @@ async function ctx(db) {
   return { rule: { swap_ms: Number(rule.swap_ms), cooldown_ms: Number(rule.cooldown_ms) }, sides, pieces, looks, need };
 }
 
-/* The party: B named, A invites B by name (the first invite makes the party), lists it, B joins. */
+/* The party: B named, A invites B by name (the first invite makes the party), B accepts. */
 async function party(db) {
   const inv = await as(db, A, 'select public.hr_hunt_party_invite(0, $1, $2::uuid)', ['Outfit Second', idem()]);
   if (!inv || inv.ok !== true) throw harness('the invite was refused: ' + JSON.stringify(inv));
   const pid = await one(db, 'select public.hr_hunt_party_of($1::uuid, 0)', [A]);
   await db.query("update public.hunt_parties set hunt_id = 'mill_cellar' where id = $1", [pid]);
-  const listed = await as(db, A, 'select public.hr_hunt_party_list(0, true, $1::uuid)', [idem()]);
-  if (!listed || listed.ok !== true) throw harness('the listing was refused: ' + JSON.stringify(listed));
-  const j = await as(db, B, 'select public.hr_hunt_party_join(0, $1::uuid, $2::uuid)', [pid, idem()]);
-  if (!j || j.ok !== true) throw harness('the join was refused: ' + JSON.stringify(j));
+  const inviteId = await one(db, 'select id from public.hunt_party_invites where to_user = $1::uuid and to_slot = 0 and party_id = $2::uuid', [B, pid]);
+  const j = await as(db, B, 'select public.hr_hunt_party_accept(0, $1::uuid, $2::uuid)', [inviteId, idem()]);
+  if (!j || j.ok !== true) throw harness('the accept was refused: ' + JSON.stringify(j));
 }
 /* What B's party view shows of A: the look the server names for A's seat. */
 async function seenByMate(db) {

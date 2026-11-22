@@ -1685,13 +1685,17 @@ async function hunter(db, M, o) {
     /* The ground is the leader's pick at Start (hr_hunt_party_start); these arms enter member by member, so the
        fixture binds it as the retired create did. */
     await db.query('update public.hunt_parties set hunt_id = $2 where id = $1', [party, HUNT]);
-    /* A party is joined only by invite or once its leader LISTS it (2026-10-29-party-security.sql). */
-    const listed = await one(db, 'select public.hr_hunt_party_list(0, true, $1::uuid)', [idem()]);
-    if (!listed || listed.ok !== true) throw new Error('party list refused: ' + JSON.stringify(listed));
+    /* A party is joined only by invite (1059-no-party-finder.sql): the rest are invited by account, and each accepts. */
     for (let i = 1; i < who.length; i++) {
+      if (i > 1) {
+        await asUser(db, UIDS[0]);
+        const more = await one(db, 'select public.hr_hunt_party_invite_player(0, $1::uuid, 0, $2::uuid)', [UIDS[i], idem()]);
+        if (!more || more.ok !== true) throw new Error('party invite refused: ' + JSON.stringify(more));
+      }
       await asUser(db, UIDS[i]);
-      const j = await one(db, 'select public.hr_hunt_party_join(0, $1::uuid, $2::uuid)', [party, idem()]);
-      if (!j || j.ok !== true) throw new Error('party join refused: ' + JSON.stringify(j));
+      const inviteId = await one(db, 'select id from public.hunt_party_invites where to_user = $1::uuid and to_slot = 0 and party_id = $2::uuid', [UIDS[i], party]);
+      const j = await one(db, 'select public.hr_hunt_party_accept(0, $1::uuid, $2::uuid)', [inviteId, idem()]);
+      if (!j || j.ok !== true) throw new Error('party accept refused: ' + JSON.stringify(j));
     }
   }
   /* A caller's town-only seeding (a setup is saved in town: 2026-11-15-preset-names.sql), before anyone enters. */

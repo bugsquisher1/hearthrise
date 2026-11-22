@@ -287,12 +287,17 @@ async function accountsParty(db, M, size, hunt, kit, base) {
     if (!inv || inv.ok !== true) throw new Error('invite refused: ' + JSON.stringify(inv));
     const pid = await one(db, 'select public.hr_hunt_party_of($1::uuid, 0)', [uids[0]]);
     await db.query('update public.hunt_parties set hunt_id = $2 where id = $1', [pid, hunt]);
-    const listed = await one(db, 'select public.hr_hunt_party_list(0, true, $1::uuid)', [idem()]);
-    if (!listed || listed.ok !== true) throw new Error('list refused: ' + JSON.stringify(listed));
+    /* No party finder (1059-no-party-finder.sql): the rest are invited by account, and each accepts. */
     for (let i = 1; i < size; i++) {
+      if (i > 1) {
+        await asUser(db, uids[0]);
+        const more = await one(db, 'select public.hr_hunt_party_invite_player(0, $1::uuid, 0, $2::uuid)', [uids[i], idem()]);
+        if (!more || more.ok !== true) throw new Error('invite refused: ' + JSON.stringify(more));
+      }
       await asUser(db, uids[i]);
-      const j = await one(db, 'select public.hr_hunt_party_join(0, $1::uuid, $2::uuid)', [pid, idem()]);
-      if (!j || j.ok !== true) throw new Error('join refused: ' + JSON.stringify(j));
+      const inviteId = await one(db, 'select id from public.hunt_party_invites where to_user = $1::uuid and to_slot = 0 and party_id = $2::uuid', [uids[i], pid]);
+      const j = await one(db, 'select public.hr_hunt_party_accept(0, $1::uuid, $2::uuid)', [inviteId, idem()]);
+      if (!j || j.ok !== true) throw new Error('accept refused: ' + JSON.stringify(j));
     }
   }
   const sids = [];

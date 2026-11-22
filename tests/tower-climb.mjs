@@ -550,9 +550,9 @@ async function checkpointArm(db, M) {
     const inv = await as(db, UID, 'select public.hr_hunt_party_invite(0, $1, $2::uuid)', ['Climb Second', idem()]);
     if (!inv || inv.ok !== true) return { err: 'invite refused: ' + JSON.stringify(inv) };
     const pid = await one(db, 'select public.hr_hunt_party_of($1::uuid, 0)', [UID]);
-    const listed = await as(db, UID, 'select public.hr_hunt_party_list(0, true, $1::uuid)', [idem()]);
-    const joined = await as(db, UID2, 'select public.hr_hunt_party_join(0, $1::uuid, $2::uuid)', [pid, idem()]);
-    if (!listed || listed.ok !== true || !joined || joined.ok !== true) return { err: 'list/join refused: ' + JSON.stringify([listed, joined]) };
+    const inviteId = await one(db, 'select id from public.hunt_party_invites where to_user = $1::uuid and to_slot = 0 and party_id = $2::uuid', [UID2, pid]);
+    const joined = await as(db, UID2, 'select public.hr_hunt_party_accept(0, $1::uuid, $2::uuid)', [inviteId, idem()]);
+    if (!joined || joined.ok !== true) return { err: 'accept refused: ' + JSON.stringify(joined) };
     const out = {};
     out.notLeader = await as(db, UID2, 'select public.hr_tower_start(0, 0, $1::uuid)', [idem()]);
     out.thirty = await as(db, UID, 'select public.hr_tower_start(0, 30, $1::uuid)', [idem()]);

@@ -4685,10 +4685,16 @@ const DB_ARMS = {
       /* The server froze the pick on the instance when the hunt opened (2026-11-16-hunt-density-bounds.sql). */
       const frozen = await one(db, 'select density from public.hunt_instances where id = $1', [h.inst]);
       if (frozen !== 8) problems.push(`the instance froze density ${frozen} at hunt start, want 8`);
-      /* A density key left on the action set (the hero has no row until a setup is saved): what an engine read before 2026-11-17. */
-      const staleKey = (n) => db.query(`insert into public.player_action_sets as a (user_id, slot, preset, name, slots, options)
-        values ($1, 0, 0, 'Preset 1', '[]'::jsonb, jsonb_build_object('density', $2::int))
-        on conflict (user_id, slot, preset) do update set options = a.options || excluded.options`, [UID, n]);
+      /* A density key left on the action set (the hero has no row until a setup is saved): what an engine read before 2026-11-17. It is
+         the hunt's own from its start, never a lever pulled mid-hunt: written here 22 minutes into a backlog, 1005's trigger holds the
+         setup as it stood for every window starting before the seed horizon (since 1049-settle-flush.sql the clock's + 34 s, so the
+         whole backlog), which an engine of that day never had; the hold goes with it. */
+      const staleKey = async (n) => {
+        await db.query(`insert into public.player_action_sets as a (user_id, slot, preset, name, slots, options)
+          values ($1, 0, 0, 'Preset 1', '[]'::jsonb, jsonb_build_object('density', $2::int))
+          on conflict (user_id, slot, preset) do update set options = a.options || excluded.options`, [UID, n]);
+        await db.query('delete from public.hunt_setup_holds where session_id = $1', [h.sid]);
+      };
       await db.query('savepoint density');
       for (const [variant, door] of [['frozen', 'tick'], ['frozen', 'settle'], ['opened before the freeze', 'tick'], ['opened before the freeze', 'settle']]) {
         if (variant === 'frozen') {
@@ -5023,16 +5029,17 @@ const DB_ARMS = {
     const ch = await one(db, 'select public.hr_action_set_options(0, 0, $1::jsonb, $2::uuid)', [JSON.stringify({ stance: 'offensive', distance: 4 }), idem()]);
     await db.query(`select set_config('request.jwt.claim.sub', '', true)`);
     if (!ch || ch.ok !== true) return [...problems, `CONTROL: the options change was refused: ${JSON.stringify(ch)}`];
-    /* LEVER-HORIZON (1005-lever-horizon.sql): a fight lever plays from the first window past the seed horizon (the settled
-       point + 32 s). The window inside it keeps the unit as it stood; the server clock then moves on (pinned) and the next
-       settle, past the horizon, writes the change onto the unit already standing in the world. */
+    /* LEVER-HORIZON (1005-lever-horizon.sql): a fight lever plays from the first window past the seed horizon (since
+       1049-settle-flush.sql the later of the settled point and the clock + one 2 s swing, + 32 s: here nowMs + 34 s). The window
+       inside it keeps the unit as it stood; the server clock then moves on (pinned) and the next settle, past the horizon, writes
+       the change onto the unit already standing in the world. */
     await settleTo(db, M, nowMs);
     const unitNow = async () => M.WS.decode(JSON.parse(await one(db, 'select world from public.hunt_instances where id = $1', [inst]))).units.find((x) => x.side === 'hero');
     const u1 = await unitNow();
     if (!u1 || u1.stance !== 'defensive' || u1.dist !== 1) problems.push(`the window inside the seed horizon already played the change: ${JSON.stringify(u1 && { stance: u1.stance, dist: u1.dist })}`);
     await db.query(`select set_config('hr.test_now', $1, true)`, [new Date(nowMs + 60000).toISOString()]);
     /* (a window STARTING past the horizon plays the change: the one from nowMs still starts inside it) */
-    await settleTo(db, M, nowMs + 30000);
+    await settleTo(db, M, nowMs + 36000);
     await settleTo(db, M, nowMs + 60000);
     const u2 = await unitNow();
     if (!u2 || u2.stance !== 'offensive' || u2.dist !== 4) problems.push(`a mid-hunt change left the unit at ${JSON.stringify(u2 && { stance: u2.stance, dist: u2.dist })} past its horizon`);

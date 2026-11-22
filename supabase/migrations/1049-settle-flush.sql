@@ -49,6 +49,13 @@
 --   gold the unsaved window spent or sold for   never sent (the confirm answers no number, hunt-settle.js confirmed), so nothing a
 --                                         purchase, a gate or another player reads comes from it; a purse another hero moved is
 --                                         re-read by the save (gold_short), as before.
+--   LEFT OPEN, NAMED (no horizon and no slack gate, so each acts from the SAVED clock: under the flush up to ~90 s back over swings
+--     the prediction already played, where it was up to 16 s): the leader's hold seat (hr_party_hold_set, 1005's named item) and the
+--     scaled-hunt switch and hour buy (hr_scaled_hunt_switch / _buy: the world restarts at the saved clock). The fix is the slack gate
+--     (settle_first past 20 s) with their client calls (src/session/party-intents.js, scaled-hunts.js) routed through the catch-up
+--     link; for the Early Access review. Leave-together moves no past swing (every end saves at once).
+-- A BACKLOG IS NOT REPLAYED UNDER A NEW SETUP. A lever on a hunt the tick left minutes behind used to hold the old setup only to the
+--   saved clock + 32 s and play the new one over the rest of the backlog (time already past); it now holds to the clock's horizon.
 --
 -- ── CONCURRENCY / IDEMPOTENCY ────────────────────────────────────────────────
 -- Two STABLE SQL helpers, restated whole; every caller already reads them under the character lock. A second apply finds both at
@@ -61,8 +68,9 @@
 -- ── COST (rows and bytes at 100x players) ────────────────────────────────────
 -- None stored. Each lever reads now() once more. The flush itself (the edge) saves a viewed hunt about every 90 s instead of every
 --   16 s: tests/per-player-cost.mjs krell4_L80_deadly_watched measures it.
--- EDGE: hunt-settle.js flushDue / confirmed, request.js readConfirm, index.ts (the hunter's accrue passes `confirm`). Apply this file
---   BEFORE the edge deploy: an edge that confirms without saving over the old horizon is the hole above. CLIENT: hunt-ask.js
+-- EDGE: hunt-settle.js flushDue / confirmed, request.js readConfirm, index.ts (the hunter's accrue passes `confirm`; the secret
+--   HR_HUNT_FLUSH=off turns the flush off without a deploy). Apply this file BEFORE the edge deploy: an edge that confirms without
+--   saving over the old horizon is the hole above. CLIENT: hunt-ask.js
 --   (askBody's `confirm`), character-session.js, live-link.js confirming(); a client before them never says `confirm` and saves as before.
 -- REVERSIBLE: restate both helpers from 1005-lever-horizon.sql §1 and 2026-10-31-live-horizon.sql §1 (§0 pins the pre images), and
 --   only after the edge stops honouring `confirm` (else the hole above opens).

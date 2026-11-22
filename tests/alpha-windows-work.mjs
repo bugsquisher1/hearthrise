@@ -169,7 +169,7 @@ async function tickerRules(base) {
 
   /* TK-7: a settle the engine REFUSED (it will not pay this pointer) clears it at once, until a newer record. */
   const no = settleRefusalOf({ ok: true, body: { ok: true, accrued: false, reason: 'unknown_node', version: 1 } });
-  const waits = ['below_min_span', 'nothing_accrued', 'replayed', 'idle'].filter((r) => settleRefusalOf({ ok: true, body: { ok: true, accrued: false, reason: r, version: 1 } }));
+  const waits = ['below_min_span', 'nothing_accrued', 'replayed', 'idle', 'confirmed'].filter((r) => settleRefusalOf({ ok: true, body: { ok: true, accrued: false, reason: r, version: 1 } }));
   const cs7 = hero(envOf('gather', 'normal_tree', { normal_log: 40 }));
   cs7.clock = T0 + 2 * step + 100;
   cs7.settleRefusal = no;

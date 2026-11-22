@@ -100,11 +100,11 @@ export function reaimOf(inst, m) {
   return p.maxHp < cur.maxHp ? pick : null;
 }
 
-/** The largest blow monster `m` lands on the scale: `maxHit` (its row's, at the step) x its role's `blowPm` (absent: all of it). A role
+/** The largest blow monster `m` lands on the scale: `maxHit` (its row's, at the step) x its role's `maxHitPm` (absent: all of it). A role
     that reaches the back is sized against the back row, whose armor is not a front's. Off the scale `maxHit` as it is. */
 export function roleMaxHit(inst, m, maxHit) {
   const role = roleOf(inst, m);
-  return role && Number.isInteger(role.blowPm) ? Math.max(1, Math.floor((maxHit * role.blowPm) / 1000)) : maxHit;
+  return role && Number.isInteger(role.maxHitPm) ? Math.max(1, Math.floor((maxHit * role.maxHitPm) / 1000)) : maxHit;
 }
 
 /** The other living heroes a blow by monster `m` at hero `t` also lands on (its role's splash: within `r` tiles of `t`), in id order,

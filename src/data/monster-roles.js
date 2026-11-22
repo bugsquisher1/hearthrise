@@ -26,7 +26,7 @@
 //             (monsters.js monsterRangeOf); a role's range plays only on a row with none. Inside MONSTER_RANGE.
 //   splash    and on whom: a blow that also lands on every other hero within `splash.r` tiles of its target (Chebyshev) at `splash.pm`
 //             permille of the blow, each its own roll against that hero (damage.js resolveAttacks). Absent: one target.
-//   blowPm    and how hard: its largest blow is this share of its row's at the step (absent: all of it). A role that reaches the back
+//   maxHitPm    and how hard: its largest blow is this share of its row's at the step (absent: all of it). A role that reaches the back
 //             row is sized against the back row: a Wight's full blow, written for a front in heavy armor, took a medium-armored bow
 //             from over the Steady line to dead in one blow (4 deaths in 32 Steady days, every one a Wight on the bow; RD-Q3 a: Careful
 //             and Steady never die). At step 580 a Wight's largest blow is 386 against a Level 60 back-row hero's 740 HP; at 500 permille
@@ -62,7 +62,7 @@ export const MONSTER_ROLES = Object.freeze({
   caster: Object.freeze({ name: 'Caster', reach: 'back', range: 4, splash: Object.freeze({ r: 1, pm: 500 }),
     targets: 'Targets: back row (ranged, area)', answer: 'Countered by: focus fire, healing' }),
   swarm: Object.freeze({ name: 'Swarm', reach: 'spread', range: 0, targets: 'Targets: front row (spreads out)', answer: 'Countered by: area damage, armor' }),
-  stalker: Object.freeze({ name: 'Stalker', reach: 'weakest', range: 0, heldPm: 500, blowPm: 400, targets: 'Targets: lowest max health', answer: 'Countered by: Challenge, healing' }),
+  stalker: Object.freeze({ name: 'Stalker', reach: 'weakest', range: 0, heldPm: 500, maxHitPm: 400, targets: 'Targets: lowest max health', answer: 'Countered by: Challenge, healing' }),
   /* its shield or its heal is its own spell row (monster-spells.js `mend`); the role says only whom it fights */
   warder: Object.freeze({ name: 'Warder', reach: 'front', range: 0, targets: 'Targets: front row', answer: 'Countered by: focus fire' }),
 });

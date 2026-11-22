@@ -258,6 +258,11 @@
         "bytes": 3312853,
         "on": "2026-11-22",
         "why": "wave 2 roles (lane/w2-roles-rows): the stalker blow-share comment on the role table"
+      },
+      {
+        "bytes": 3312863,
+        "on": "2026-11-22",
+        "why": "wave 2 roles: blowPm renamed maxHitPm (it collided with statuses.js blowPm, caught by effect-readers), +10 bytes"
       }
     ]
   }

@@ -1,0 +1,95 @@
+# ============================================================================
+# balance-sensitivity — THE SENSITIVITY PASS AND THE INTERACTION EXPERIMENTS
+# ON THE BASELINE, ONE JOB A LEVER AND ONE A CHUNK OF AN EXPERIMENT.
+#
+# tools/balance-program/sensitivity/sensitivity.mjs on the real engine:
+#   base              the unpatched tree, the pass's 68 cells, four seeds
+#   oat:<lever>       one lever at each of its steps (x0.5 to x2), the same
+#                     cells and the same dice as the base
+#   fx:<exp>:<i>/<n>  a share of one structured experiment's points
+# Every cell keeps one row of outcomes a seed. A MEASUREMENT, never a gate,
+# and never on a push of a lane, set, release or main: only a branch under
+# balance-sensitivity/ starts it.
+#
+# Run it:   git push origin HEAD:refs/heads/balance-sensitivity/<lane>
+#           (or gh workflow run balance-sensitivity.yml --ref <branch>
+#           -f which=oat|fx|all -f only=a,b once main holds this file)
+# Read it:  gh run download <id> --dir <dir> --pattern 'sens-*', then
+#           node tools/balance-program/sensitivity/analyze.mjs --parts <dir>
+# ============================================================================
+name: balance-sensitivity
+
+on:
+  push:
+    branches: ['balance-sensitivity/**']
+  workflow_dispatch:
+    inputs:
+      which:
+        description: 'oat (the one-at-a-time pass), fx (the experiments) or all'
+        required: false
+        default: 'all'
+      only:
+        description: 'job names, comma-separated (blank: every job of `which`)'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: balance-sensitivity-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      jobs: ${{ steps.jobs.outputs.jobs }}
+    env:
+      WHICH: ${{ github.event.inputs.which || 'all' }}
+      ONLY: ${{ github.event.inputs.only || '' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - id: jobs
+        name: The jobs to play (validated against the lever list and the experiments)
+        # a push cannot carry inputs: a measurement branch may commit the job names it wants, one line, comma-separated,
+        # as tools/balance-program/sensitivity/only.txt (never committed on a lane branch)
+        run: |
+          if [ -z "$ONLY" ] && [ -f tools/balance-program/sensitivity/only.txt ]; then ONLY="$(tr -d ' \r\n' < tools/balance-program/sensitivity/only.txt)"; fi
+          echo "jobs=$(node tools/balance-program/sensitivity/sensitivity.mjs --jobs "$WHICH" --only "$ONLY")" >> "$GITHUB_OUTPUT"
+
+  play:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      matrix:
+        job: ${{ fromJSON(needs.plan.outputs.jobs) }}
+    env:
+      JOB: ${{ matrix.job }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Play ${{ matrix.job }}
+        run: |
+          NAME="$(printf '%s' "$JOB" | tr ':/' '--')"
+          echo "NAME=$NAME" >> "$GITHUB_ENV"
+          node tools/balance-program/sensitivity/sensitivity.mjs --play "$JOB" --workers 4 --out "sens-$NAME.json.gz"
+      - name: Upload the part
+        if: ${{ !cancelled() && env.NAME != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: sens-${{ env.NAME }}
+          path: sens-*.json.gz
+          retention-days: 90

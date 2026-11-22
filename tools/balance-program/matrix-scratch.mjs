@@ -27,7 +27,7 @@
 // beside it (the hr-accrue settle, the play fixture, src/shell and src/render for the advice), plus the formula's writer and a package.json.
 // The matrix forks tools/balance-sim/worker.mjs with the copy as its root, so every module the engine loads is the copy's.
 // ════════════════════════════════════════════════════════════════════════
-import { readFileSync, cpSync, existsSync } from 'node:fs';
+import { readFileSync, cpSync, existsSync, readdirSync } from 'node:fs';
 import { join, resolve, dirname, relative, isAbsolute } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { execFileSync } from 'node:child_process';
@@ -223,7 +223,8 @@ export async function plantScratch(patch, o = {}) {
   try {
     for (const f of SCRATCH_FILES) if (existsSync(join(ROOT, f))) cpSync(join(ROOT, f), join(p.root, f));
     let regen = null;
-    if (needsRegen(patch, list) && o.regen !== false) {
+    /* o.forceRegen: re-write the rows even when the patch moves no formula source (knobReach compares two copies the same writer wrote) */
+    if ((needsRegen(patch, list) || o.forceRegen) && o.regen !== false) {
       /* matrix-regen.mjs in its own process (every row in the file that holds it), then the copy's own --check must read green */
       const wrote = execFileSync(process.execPath, [join(HERE, 'matrix-regen.mjs'), p.root], { cwd: p.root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
       let check;
@@ -233,6 +234,43 @@ export async function plantScratch(patch, o = {}) {
     }
     return { root: p.root, applied, regen, done: p.done };
   } catch (e) { p.done(); throw e; }
+}
+
+/**
+ * DOES A KNOB REACH THE ENGINE ON THIS GAME? (Balance Lab phase 1, run 44923615395: xpPerKill, xpByLevel and levelCurve "moved nothing in
+ * 442 cells" on the proposed game. Cause: proposals GR-5 and GR-6 replace the code that READS those numbers (the kill reward and the Level
+ * table become derived laws) and leave the typed numbers in place. locateKnob still finds them, patchEdits still scales them, and KnobGone
+ * never fires because the knob's own line was not rewritten. The sweep then played a knob nothing reads and stored a row of zeros.)
+ *
+ * The check moves the knob on a scratch copy of `base` (a patch, or null for the tree) and compares what the engine would read:
+ *   a `regen` knob (a formula source)   the monster rows the formula writes: src/data/monsters.js and every ground pack
+ *   a knob with `reach` in knobs.json   { module, call, args: [[...], ...], steps? }: that export called with each argument list, in its own
+ *                                       process. `steps`: the argument lists come in pairs and the read is each pair's difference (the XP one
+ *                                       Level costs, not the total to reach it: a law that starts at Level 10 still adds the first ten
+ *                                       Levels of the typed curve to every total)
+ * Answers { checked, reaches, how }. `checked` false: the knob names no read to compare (it is not a formula source and has no `reach`).
+ * A knob that is checked and does not reach is `KnobGone` to the sweep: said once, never played.
+ */
+export async function knobReach(knob, base = null, m = 1.25) {
+  if (!knob.regen && !knob.reach) return { checked: false, reaches: null, how: 'the knob names no read to compare (no `regen`, no `reach` in ' + KNOB_FILE + ')' };
+  const signature = (root) => {
+    if (knob.reach) {
+      const code = 'import(' + JSON.stringify(pathToFileURL(join(root, knob.reach.module)).href) + ').then((M) => process.stdout.write(JSON.stringify(' + JSON.stringify(knob.reach.args) + '.map((a) => M[' + JSON.stringify(knob.reach.call) + '](...a))' + (knob.reach.steps ? '.map((v, i, all) => (i % 2 ? v - all[i - 1] : null)).filter((v) => v !== null)' : '') + ')))';
+      return execFileSync(process.execPath, ['--input-type=module', '-e', code], { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+    }
+    const packs = existsSync(join(root, 'src/data/grounds')) ? readdirSync(join(root, 'src/data/grounds')).sort().map((d) => join(root, 'src/data/grounds', d, 'pack.js')).filter((f) => existsSync(f)) : [];
+    return [join(root, 'src/data/monsters.js'), ...packs].map((f) => readFileSync(f, 'utf8').replace(/\r\n/g, '\n')).join('\0');
+  };
+  const withKnob = { ...(base || { schema: PATCH_SCHEMA, name: 'reach', edits: [], targets: [] }), knobs: { ...((base && base.knobs) || {}), [knob.id]: (((base && base.knobs) || {})[knob.id] || 1) * m } };
+  /* the side without the knob is planted too, even on the tree, so both sides hold rows the same writer wrote */
+  const without = { ...withKnob, knobs: { ...((base && base.knobs) || {}) } };
+  const a = await plantScratch(without, { forceRegen: !!knob.regen });
+  let before;
+  try { before = signature(a.root); } finally { a.done(); }
+  const b = await plantScratch(withKnob);
+  let after;
+  try { after = signature(b.root); } finally { b.done(); }
+  return { checked: true, reaches: before !== after, how: knob.reach ? knob.reach.module + ' ' + knob.reach.call + '(' + knob.reach.args.map((x) => x.join(', ')).join(' | ') + ')' : 'the monster rows the formula writes' };
 }
 
 /** Every live knob located on the tree at `root` (the --knobs listing and the selftest), with today's numbers against the list's `value`. */

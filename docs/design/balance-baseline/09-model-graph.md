@@ -204,16 +204,16 @@ CAREER      over many hunts, through earned XP becoming Levels and skill, it als
 <!-- graph:match -->
 | What | Count |
 |---|---|
-| Measured movements with a direction (knob and outcome pairs) | 290 |
-| The trace called a direction | 268 (92% of them) |
-| The call matched the measurement | 262 |
-| The call was wrong | 6 |
-| The trace said mixed, unknown or nothing | 22 |
-| **Sign-match rate** (matched over called) | **98%** |
+| Measured movements with a direction (knob and outcome pairs) | 244 |
+| The trace called a direction | 205 (84% of them) |
+| The call matched the measurement | 197 |
+| The call was wrong | 8 |
+| The trace said mixed, unknown or nothing | 39 |
+| **Sign-match rate** (matched over called) | **96%** |
 <!-- /graph:match -->
 
 <!-- graph:source -->
-Measured data: balance-sweeps, GitHub run 44923615395, tree 14a8984a, base `proposed`, 442 cells, 2 seeds, 1 h a cell. Rule: a cell moved at 2% between the lowest and highest step. An outcome is up or down at 8 or more moved cells, 70% one way, 3 standard deviations from an even split. Under 8 moved cells is flat.
+Measured data: sensitivity-matrix, GitHub run 44969087150,44971044252,44972398698,44976040886, tree 0,1,2,3, 68 cells, 0+4 seeds. Rule: the sensitivity lane's own rule: an effect is resolved beyond Student's t times its standard error over the seeds, and beyond half a percent.
 
 Not played in that data: none. Levers with no measured knob (they wait on the sensitivity lane): 133 of 164.
 <!-- /graph:source -->
@@ -236,12 +236,14 @@ The first two rows are errors in this lane's typed rows. None is an error in the
 <!-- graph:misses -->
 | Id | Miss |
 |---|---|
-| `GF-7956b48e` | attackInterval on netLevelXpPerH: the trace predicts up (depth 3, via O-LOWHP > O-DEATHS > O-NETXP), measured down (149 cells moved, 13 up) |
-| `GF-47164d66` | heroHp on deathsPer1000h: the trace predicts down (depth 2, via O-LOWHP > O-DEATHS), measured up (12 cells moved, 12 up) |
-| `GF-2f265fed` | heroHp on hpUnder10: the trace predicts down (depth 2, via O-LOWHP > O-UNDER), measured up (19 cells moved, 17 up) |
-| `GF-a63777f3` | heroHp on hpUnder30: the trace predicts down (depth 2, via O-LOWHP > O-UNDER), measured up (34 cells moved, 31 up) |
-| `GF-4cde9193` | heroHp on lowHpP10: the trace predicts up (depth 1, via O-LOWHP), measured down (194 cells moved, 55 up) |
-| `GF-9de09995` | heroHp on lowHpTypical: the trace predicts up (depth 1, via O-LOWHP), measured down (112 cells moved, 4 up) |
+| `GF-47164d66` | heroHp on deathsPer1000h: the trace predicts down (depth 2, via O-LOWHP > O-DEATHS), measured up (null cells moved, null up) |
+| `GF-14a17710` | heroHp on hoursPerLevel: the trace predicts down (depth 6, via O-LOWHP > O-DEATHS > O-HUNTED > O-KILLS > O-XP > O-HOURS), measured up (null cells moved, null up) |
+| `GF-a63777f3` | heroHp on hpUnder30: the trace predicts down (depth 2, via O-LOWHP > O-UNDER), measured up (null cells moved, null up) |
+| `GF-4fd24b84` | heroHp on huntedShare: the trace predicts up (depth 3, via O-LOWHP > O-DEATHS > O-HUNTED), measured down (null cells moved, null up) |
+| `GF-c67f2d20` | heroHp on levelXpPerH: the trace predicts up (depth 5, via O-LOWHP > O-DEATHS > O-HUNTED > O-KILLS > O-XP), measured down (null cells moved, null up) |
+| `GF-4cde9193` | heroHp on lowHpP10: the trace predicts up (depth 1, via O-LOWHP), measured down (null cells moved, null up) |
+| `GF-c0e8fbd9` | heroHp on netLevelXpPerH: the trace predicts up (depth 3, via O-LOWHP > O-DEATHS > O-NETXP), measured down (null cells moved, null up) |
+| `GF-69bdef84` | tierPull on netPerH: the trace predicts up (depth 3, via C-PULL > O-KILLS > O-NET), measured down (null cells moved, null up) |
 <!-- /graph:misses -->
 
 The sixth is the swing clock on Level XP after deaths: slower swings are fewer deaths (three mechanics away) and fewer kills (four away), and the kills win.
@@ -257,29 +259,52 @@ Five of the six are the hero HP knob. The two numbers it scales (`VITALS` base H
 <!-- graph:dead -->
 | Id | Kind | Finding |
 |---|---|---|
-| `GF-9c49fb93` | dead | levelCurve moved no measured outcome between x0.75 and x1.25 on 442 cells. It declares hoursPerLevel, netLevelXpPerH. The levers behind it: level.curve |
-| `GF-66a6e58f` | dead | xpByLevel moved no measured outcome between x0.9 and x1.1 on 442 cells. It declares levelXpPerH, netLevelXpPerH, hoursPerLevel, xContract. The levers behind it: reward.xp-line |
-| `GF-fbe82975` | dead | xpPerKill moved no measured outcome between x0.75 and x1.25 on 442 cells. It declares levelXpPerH, netLevelXpPerH, hoursPerLevel, xContract. The levers behind it: reward.xp-line |
-| `GF-314b1fcf` | dead-outcome | coinPerKill declares storePerH and it did not move (1 of 442 cells past 2%) |
-| `GF-4365aa01` | dead-outcome | deathLoss declares deathsPer1000h and it did not move (0 of 442 cells past 2%) |
-| `GF-df2e55a9` | dead-outcome | heroMana declares dps and it did not move (1 of 442 cells past 2%) |
-| `GF-465d8e39` | dead-outcome | manaRegen declares dps and it did not move (0 of 442 cells past 2%) |
-| `GF-6e62ce75` | dead-outcome | manaRegen declares dpsHero and it did not move (0 of 442 cells past 2%) |
-| `GF-5636bf35` | dead-outcome | manaRegen declares hoursPerLevel and it did not move (1 of 424 cells past 2%) |
-| `GF-6a18ad1d` | dead-outcome | manaRegen declares killsPerH and it did not move (0 of 442 cells past 2%) |
-| `GF-31347184` | dead-outcome | manaRegen declares levelXpPerH and it did not move (1 of 442 cells past 2%) |
-| `GF-79270c9b` | dead-outcome | manaRegen declares ttkS and it did not move (1 of 438 cells past 2%) |
-| `GF-676f7529` | dead-outcome | manaRegen declares xContract and it did not move (1 of 442 cells past 2%) |
-| `GF-6e5aa584` | dead-outcome | partyGroundBlow declares deathsPer1000h and it did not move (1 of 442 cells past 2%) |
-| `GF-8c0607f7` | dead-outcome | partyGroundBlow declares hpUnder10 and it did not move (1 of 442 cells past 2%) |
-| `GF-aabeae02` | dead-outcome | partyGroundBlow declares hpUnder30 and it did not move (2 of 442 cells past 2%) |
-| `GF-27bd6cbc` | dead-outcome | partyGroundBlow declares ttkS and it did not move (3 of 438 cells past 2%) |
-| `GF-73d41aae` | dead-outcome | partyGroundHp declares deathsPer1000h and it did not move (1 of 442 cells past 2%) |
-| `GF-7e92664b` | dead-outcome | partyGroundHp declares hpUnder10 and it did not move (1 of 442 cells past 2%) |
-| `GF-a8a97b01` | dead-outcome | partyGroundHp declares hpUnder30 and it did not move (5 of 442 cells past 2%) |
-| `GF-1acffd04` | dead-outcome | storeSupplyShare declares hpUnder10 and it did not move (7 of 442 cells past 2%) |
-| `GF-3eeac43d` | dead-outcome | tierPull declares deathsPer1000h and it did not move (4 of 442 cells past 2%) |
-| `GF-4de5bf77` | dead-outcome | tierPull declares hpUnder10 and it did not move (4 of 442 cells past 2%) |
+| `GF-9472920b` | dead | monsterDefense moved no measured outcome between x0.5 and x2 on 68 cells. It declares dps, dpsHero, ttkS, killsPerH, levelXpPerH, netPerH, hoursPerLevel, xContract. The levers behind it: mon.def |
+| `GF-a5cad13c` | dead | monsterDefenseCut moved no measured outcome between x0.5 and x2 on 68 cells. It declares dps, dpsHero, ttkS, killsPerH, levelXpPerH, netPerH, hoursPerLevel, xContract. The levers behind it: mon.def |
+| `GF-3704b046` | dead | necroticCut moved no measured outcome between x0.5 and x2 on 68 cells. It declares nothing. The levers behind it:  |
+| `GF-18aaa24b` | dead | stormDrain moved no measured outcome between x0.5 and x2 on 68 cells. It declares nothing. The levers behind it:  |
+| `GF-5da2b39d` | dead-outcome | armorCurve declares deathsPer1000h and it did not move (null of null cells past 2%) |
+| `GF-e1f06781` | dead-outcome | attackInterval declares hoursPerLevel and it did not move (null of null cells past 2%) |
+| `GF-d3d8fb3a` | dead-outcome | attackInterval declares netLevelXpPerH and it did not move (null of null cells past 2%) |
+| `GF-de2a7420` | dead-outcome | attackInterval declares netPerH and it did not move (null of null cells past 2%) |
+| `GF-314b1fcf` | dead-outcome | coinPerKill declares storePerH and it did not move (null of null cells past 2%) |
+| `GF-5029f387` | dead-outcome | critMult declares hoursPerLevel and it did not move (null of null cells past 2%) |
+| `GF-976dd972` | dead-outcome | critMult declares netPerH and it did not move (null of null cells past 2%) |
+| `GF-4365aa01` | dead-outcome | deathLoss declares deathsPer1000h and it did not move (null of null cells past 2%) |
+| `GF-df2e55a9` | dead-outcome | heroMana declares dps and it did not move (null of null cells past 2%) |
+| `GF-465d8e39` | dead-outcome | manaRegen declares dps and it did not move (null of null cells past 2%) |
+| `GF-5636bf35` | dead-outcome | manaRegen declares hoursPerLevel and it did not move (null of null cells past 2%) |
+| `GF-6a18ad1d` | dead-outcome | manaRegen declares killsPerH and it did not move (null of null cells past 2%) |
+| `GF-31347184` | dead-outcome | manaRegen declares levelXpPerH and it did not move (null of null cells past 2%) |
+| `GF-79270c9b` | dead-outcome | manaRegen declares ttkS and it did not move (null of null cells past 2%) |
+| `GF-f583355e` | dead-outcome | monsterAccuracy declares dps and it did not move (null of null cells past 2%) |
+| `GF-2b790feb` | dead-outcome | monsterAccuracy declares hoursPerLevel and it did not move (null of null cells past 2%) |
+| `GF-a2abc8ed` | dead-outcome | monsterAccuracy declares killsPerH and it did not move (null of null cells past 2%) |
+| `GF-22bfb57a` | dead-outcome | monsterAccuracy declares levelXpPerH and it did not move (null of null cells past 2%) |
+| `GF-7290dc14` | dead-outcome | monsterAccuracy declares ttkS and it did not move (null of null cells past 2%) |
+| `GF-6e5aa584` | dead-outcome | partyGroundBlow declares deathsPer1000h and it did not move (null of null cells past 2%) |
+| `GF-5b5e064c` | dead-outcome | partyGroundBlow declares dps and it did not move (null of null cells past 2%) |
+| `GF-38d4c982` | dead-outcome | partyGroundBlow declares hoursPerLevel and it did not move (null of null cells past 2%) |
+| `GF-aabeae02` | dead-outcome | partyGroundBlow declares hpUnder30 and it did not move (null of null cells past 2%) |
+| `GF-3d148fc8` | dead-outcome | partyGroundBlow declares huntedShare and it did not move (null of null cells past 2%) |
+| `GF-872c9287` | dead-outcome | partyGroundBlow declares killsPerH and it did not move (null of null cells past 2%) |
+| `GF-b355fbaa` | dead-outcome | partyGroundBlow declares levelXpPerH and it did not move (null of null cells past 2%) |
+| `GF-49fad2aa` | dead-outcome | partyGroundBlow declares netLevelXpPerH and it did not move (null of null cells past 2%) |
+| `GF-27bd6cbc` | dead-outcome | partyGroundBlow declares ttkS and it did not move (null of null cells past 2%) |
+| `GF-73d41aae` | dead-outcome | partyGroundHp declares deathsPer1000h and it did not move (null of null cells past 2%) |
+| `GF-a8a97b01` | dead-outcome | partyGroundHp declares hpUnder30 and it did not move (null of null cells past 2%) |
+| `GF-4e1a89d7` | dead-outcome | partyGroundHp declares huntedShare and it did not move (null of null cells past 2%) |
+| `GF-e7cd82d6` | dead-outcome | regen declares deathsPer1000h and it did not move (null of null cells past 2%) |
+| `GF-d5208d21` | dead-outcome | regen declares hpUnder30 and it did not move (null of null cells past 2%) |
+| `GF-6fe3699f` | dead-outcome | regen declares killsPerH and it did not move (null of null cells past 2%) |
+| `GF-b44c5b01` | dead-outcome | storeSupplyShare declares deathsPer1000h and it did not move (null of null cells past 2%) |
+| `GF-bf6c8728` | dead-outcome | tierPull declares hoursPerLevel and it did not move (null of null cells past 2%) |
+| `GF-4564d30a` | dead-outcome | toHitBase declares dps and it did not move (null of null cells past 2%) |
+| `GF-2f01e7df` | dead-outcome | toHitBase declares hoursPerLevel and it did not move (null of null cells past 2%) |
+| `GF-7ad773ac` | dead-outcome | toHitBase declares killsPerH and it did not move (null of null cells past 2%) |
+| `GF-ff60c3bb` | dead-outcome | toHitBase declares levelXpPerH and it did not move (null of null cells past 2%) |
+| `GF-e8458b2a` | dead-outcome | toHitBase declares netPerH and it did not move (null of null cells past 2%) |
+| `GF-ead927f0` | dead-outcome | toHitBase declares ttkS and it did not move (null of null cells past 2%) |
 <!-- /graph:dead -->
 
 `xpPerKill`, `xpByLevel` and `levelCurve` each have a knob, each knob applied its edit (the sweep records the lines), and not one of 19 outcomes moved in one of 442 cells. Either the harness does not read these numbers where the knob writes them, or the proposed base the sweep stood on overrides them. This lane did not chase the cause. Until someone does, a balance change that leans on one of these three knobs is measuring nothing.
@@ -289,21 +314,29 @@ Five of the six are the hero HP knob. The two numbers it scales (`VITALS` base H
 <!-- graph:undeclared -->
 | Knob | Outcomes it moved that no lever behind it declares |
 |---|---|
-| `critMult` | healPerH, lowHpP10, lowHpTypical, netLevelXpPerH, storePerH, suppliesPerH, takenPerH |
-| `heroAccuracy` | healPerH, lowHpP10, lowHpTypical, netLevelXpPerH, storePerH, suppliesPerH |
-| `heroHp` | netPerH |
+| `armorCurve` | netPerH |
+| `armorMitigation` | netPerH, ttkS |
+| `critMult` | takenPerH |
+| `heroAccuracy` | lowHpP10, netLevelXpPerH |
+| `heroHp` | hoursPerLevel, levelXpPerH, netPerH |
 | `heroMana` | netPerH |
-| `mitigationCap` | dps, dpsHero, killsPerH, levelXpPerH, netPerH, xContract |
-| `monsterAccuracy` | deathsPer1000h, healPerH, hpUnder10, hpUnder30, huntedShare, lowHpP10, lowHpTypical, netLevelXpPerH, storePerH, suppliesPerH |
-| `monsterDamage` | killsPerH, netPerH |
-| `monsterHp` | deathsPer1000h, healPerH, hpUnder10, hpUnder30, huntedShare, lowHpP10, lowHpTypical, netLevelXpPerH, storePerH, suppliesPerH |
-| `playerAttack` | deathsPer1000h, hpUnder10, hpUnder30, huntedShare, lowHpP10, lowHpTypical, netLevelXpPerH, storePerH, suppliesPerH, takenPerH |
-| `regen` | levelXpPerH, netPerH, xContract |
-| `spellRollLow` | healPerH, lowHpP10, lowHpTypical, netLevelXpPerH, storePerH, suppliesPerH, takenPerH |
-| `storeSupplyShare` | dps, dpsHero, hoursPerLevel, killsPerH, levelXpPerH, ttkS, xContract |
-| `tierDanger` | killsPerH, levelXpPerH, netPerH, xContract |
-| `tierHp` | deathsPer1000h, healPerH, lowHpP10, lowHpTypical, netLevelXpPerH, storePerH, suppliesPerH, takenPerH |
-| `weaknessDamage` | deathsPer1000h, healPerH, lowHpP10, lowHpTypical, netLevelXpPerH, suppliesPerH, takenPerH |
+| `levelCurve` | lowHpP10, netPerH, storePerH |
+| `mitigationCap` | killsPerH, netPerH |
+| `monsterAccuracy` | hpUnder30, lowHpP10, netLevelXpPerH, storePerH, suppliesPerH |
+| `monsterDamage` | netPerH, ttkS |
+| `monsterHp` | deathsPer1000h, hpUnder30, huntedShare, lowHpP10, netLevelXpPerH, storePerH, suppliesPerH |
+| `partyXp` | lowHpP10 |
+| `playerAttack` | deathsPer1000h, hpUnder30, huntedShare, lowHpP10, netLevelXpPerH, storePerH, suppliesPerH, takenPerH |
+| `regen` | netPerH |
+| `soloXp` | lowHpP10, netPerH, storePerH |
+| `spellRollLow` | lowHpP10, netLevelXpPerH, storePerH, suppliesPerH, takenPerH |
+| `storeSupplyShare` | dps, hoursPerLevel, killsPerH, levelXpPerH, ttkS |
+| `tierDanger` | dps, hoursPerLevel, killsPerH, levelXpPerH, netPerH, ttkS |
+| `tierHp` | hpUnder30, huntedShare, lowHpP10, netLevelXpPerH, storePerH, suppliesPerH, takenPerH |
+| `tierXp` | lowHpP10 |
+| `weaknessDamage` | lowHpP10, netLevelXpPerH, storePerH, suppliesPerH, takenPerH |
+| `xpByLevel` | lowHpP10 |
+| `xpPerKill` | lowHpP10, netPerH, storePerH |
 <!-- /graph:undeclared -->
 
 Most of these are the same shape: a damage lever declares the kill outcomes and also moves survival and the supply bill, because a faster kill is less time under blows. They are true effects the lever rows do not name. The fix is in the lever rows' outcome lists, which the lever lane owns.
@@ -324,10 +357,10 @@ A ghost edge is a pair of mechanics that share a quantity or a call with no decl
 | `carrier` | ghost edge: a declared edge with no shared quantity | 48 |
 | `call` | ghost edge: the code calls it, no declared read | 15 |
 | `lever-reader` | a lever's number is read by a formula the lever does not name | 9 |
-| `sign` | the trace's predicted direction disagrees with the measured one | 6 |
-| `undeclared-move` | a measured movement no lever declared | 89 |
-| `dead` | a played lever that moved nothing | 3 |
-| `dead-outcome` | a declared outcome that did not move | 20 |
+| `sign` | the trace's predicted direction disagrees with the measured one | 8 |
+| `undeclared-move` | a measured movement no lever declared | 75 |
+| `dead` | a played lever that moved nothing | 4 |
+| `dead-outcome` | a declared outcome that did not move | 42 |
 <!-- /graph:findings -->
 
 | Kind | What it means | How to answer it |
@@ -364,20 +397,20 @@ The rank is the number of levers on the pair: the more numbers an agent can tune
 | 18 | `GF-c6a7d6ac` | feeds | C-JEWEL-PERKS / C-HERO-POWER | 9 | C-JEWEL-PERKS writes hero.skill, hero.buff and C-HERO-POWER reads it. The register holds no edge between them |
 | 19 | `GF-09df4953` | carrier | C-MON-BLOW / E18 | 8 | The register says C-MON-BLOW feeds E18, and C-MON-BLOW writes nothing E18 reads (C-MON-BLOW writes mon.maxHit) |
 | 20 | `GF-125608ba` | writers | C-SCALED / E01 | 8 | C-SCALED and E01 both write kill.xp. The register holds no edge between them |
-| 21 | `GF-167b8a1b` | call | C-REGEN / E12 | 8 | E12 reaches `tickHeroes` in the home of C-REGEN (src/core/hunt/pull-cycle.js:343), and no quantity is declared between them (C-REGEN writes hero.regen) |
+| 21 | `GF-167b8a1b` | call | C-REGEN / E12 | 8 | E12 reaches `tickHeroes` in the home of C-REGEN (src/core/hunt/pull-cycle.js:345), and no quantity is declared between them (C-REGEN writes hero.regen) |
 | 22 | `GF-5b325892` | carrier | C-BASIC-BLOW / E18 | 8 | The register says C-BASIC-BLOW feeds E18, and C-BASIC-BLOW writes nothing E18 reads (C-BASIC-BLOW writes hero.blow) |
 | 23 | `GF-78e71beb` | feeds | C-SCALED / E01 | 8 | C-SCALED writes mon.level, mon.hp and E01 reads it. The register holds no edge between them |
 | 24 | `GF-c0593096` | writers | C-WEAKNESS / E51 | 8 | C-WEAKNESS and E51 both write drop.chance. The register holds no edge between them |
 | 25 | `GF-53404b2e` | carrier | C-GEAR-ARMOR / C-MON-TOHIT | 8 | The register says C-GEAR-ARMOR feeds C-MON-TOHIT, and C-GEAR-ARMOR writes nothing C-MON-TOHIT reads (C-GEAR-ARMOR writes gear.armor) |
 | 26 | `GF-788b15e5` | writers | C-JEWEL-PERKS / C-REGEN | 8 | C-JEWEL-PERKS and C-REGEN both write hero.regen. The register holds no edge between them |
-| 27 | `GF-843e9c9d` | call | E20 / E18 | 8 | E18 reaches `consumeOrder` in the home of E20 (src/core/hunt/consumables.js:180), and no quantity is declared between them (E20 writes supplies.used) |
+| 27 | `GF-843e9c9d` | call | E20 / E18 | 8 | E18 reaches `consumeOrder` in the home of E20 (src/core/hunt/consumables.js:181), and no quantity is declared between them (E20 writes supplies.used) |
 | 28 | `GF-de2b29ea` | carrier | E20 / E18 | 8 | The register says E20 feeds E18, and E20 writes nothing E18 reads (E20 writes supplies.used) |
 | 29 | `GF-095e2551` | carrier | P11 / C-SPELL-HIT | 7 | The register says P11 feeds C-SPELL-HIT, and P11 writes nothing C-SPELL-HIT reads (P11 writes hero.maxHp, hero.maxMana) |
 | 30 | `GF-2bcdd401` | feeds | C-SPELL-SHELL / E18 | 7 | C-SPELL-SHELL writes hero.manaCost and E18 reads it. The register holds no edge between them |
 | 31 | `GF-3597f539` | writers | C-WEAKNESS / E52 | 7 | C-WEAKNESS and E52 both write drop.chance. The register holds no edge between them |
 | 32 | `GF-6bf67018` | writers | C-WEAKNESS / E54 | 7 | C-WEAKNESS and E54 both write drop.chance. The register holds no edge between them |
 | 33 | `GF-713bfe35` | feeds | C-RUN-ROOM / E01 | 7 | C-RUN-ROOM writes mon.level and E01 reads it. The register holds no edge between them |
-| 34 | `GF-8ef79389` | call | C-PULL / E12 | 7 | E12 reaches `startPull` in the home of C-PULL (src/core/hunt/pull-cycle.js:247), and no quantity is declared between them (C-PULL writes mon.fightHp, pull.size) |
+| 34 | `GF-8ef79389` | call | C-PULL / E12 | 7 | E12 reaches `startPull` in the home of C-PULL (src/core/hunt/pull-cycle.js:249), and no quantity is declared between them (C-PULL writes mon.fightHp, pull.size) |
 | 35 | `GF-b03c80a2` | feeds | C-JEWEL-PERKS / C-MON-SPELL | 7 | C-JEWEL-PERKS writes gear.guard and C-MON-SPELL reads it. The register holds no edge between them |
 | 36 | `GF-e714037e` | feeds | C-GEAR-ARMOR / C-TEMPER | 7 | C-GEAR-ARMOR writes gear.armor and C-TEMPER reads it. The register holds no edge between them |
 | 37 | `GF-0048ae12` | feeds | C-JEWEL-PERKS / C-MON-TOHIT | 6 | C-JEWEL-PERKS writes hero.skill, gear.guard and C-MON-TOHIT reads it. The register holds no edge between them |
@@ -417,7 +450,7 @@ The rank is the number of levers on the pair: the more numbers an agent can tune
 - **Rule code outside every formula's home.**
 
 <!-- graph:unhomed -->
-212 top-level bindings in 108 files of the rule code write a field that is a quantity's token and sit in no formula's home. The largest: `src/data/grounds/krells_hold/pack.js#default` (pull, respawnMs, level, ch, hp, ...), `src/data/grounds/carters_rest/pack.js#default` (pull, respawnMs, level, ch, hp, ...), `src/data/grounds/ox_road/pack.js#default` (pull, respawnMs, level, ch, hp, ...), `src/data/grounds/pyre_field/pack.js#default` (pull, respawnMs, level, ch, hp, ...), `src/data/grounds/the_slake/pack.js#default` (pull, respawnMs, level, ch, hp, ...), `src/data/grounds/unmarked_catacombs/pack.js#default` (pull, respawnMs, level, ch, hp, ...), `src/data/grounds/wyvern_roost/pack.js#default` (pull, respawnMs, level, ch, hp, ...), `src/data/grounds/hasks_ford/pack.js#default` (pull, respawnMs, level, ch, hp, ...), `src/data/grounds/muster_barrows/pack.js#default` (pull, respawnMs, level, ch, hp, ...), `src/data/abilities.js#ABILITIES` (cdMs, mana, maxHits, magicXpMult, shieldPm, ...), `src/data/monsters.js#MONSTERS` (level, dropBonus, hp, atk, aim, ...), `src/core/combat-sim.js#syncUnit` (maxHit, def, heroLv, blowsPm, armorPm, ...).
+218 top-level bindings in 110 files of the rule code write a field that is a quantity's token and sit in no formula's home. The largest: `src/data/grounds/krells_hold/pack.js#default` (pull, respawnMs, level, ch, hp, ...), `src/data/grounds/carters_rest/pack.js#default` (pull, respawnMs, level, ch, hp, ...), `src/data/grounds/ox_road/pack.js#default` (pull, respawnMs, level, ch, hp, ...), `src/data/grounds/pyre_field/pack.js#default` (pull, respawnMs, level, ch, hp, ...), `src/data/grounds/the_slake/pack.js#default` (pull, respawnMs, level, ch, hp, ...), `src/data/grounds/unmarked_catacombs/pack.js#default` (pull, respawnMs, level, ch, hp, ...), `src/data/grounds/wyvern_roost/pack.js#default` (pull, respawnMs, level, ch, hp, ...), `src/data/grounds/hasks_ford/pack.js#default` (pull, respawnMs, level, ch, hp, ...), `src/data/grounds/muster_barrows/pack.js#default` (pull, respawnMs, level, ch, hp, ...), `src/data/abilities.js#ABILITIES` (cdMs, mana, maxHits, magicXpMult, shieldPm, ...), `src/data/monsters.js#MONSTERS` (level, dropBonus, hp, atk, aim, ...), `src/core/combat-sim.js#syncUnit` (maxHit, def, heroLv, blowsPm, armorPm, ...).
 <!-- /graph:unhomed -->
 
   These are mostly content tables (ground packs, the ability rows, the monster rows) and the plumbing that carries a hero's stats onto a unit. The check does not read them. A number added there is caught by the lever registry's check, not by this one.

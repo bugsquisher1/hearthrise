@@ -4,6 +4,14 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+## 2026-11-22 · systems-engineer (lane/ar6-goodbye-stamp) · AR-6, the lost goodbye stamp
+
+| # | Found | Sev | Affected | Action |
+|---|---|---|---|---|
+| 1 | AR-6's cause: the goodbye put (alerts.js leaving, flushResidue keepalive) only reached `fetch` after `await o.token()`, so after the pagehide handler and its microtasks. A page being closed can be torn down right after pagehide, so on a starved CPU the stamp never left and the card counted the watched hunt. Reproduced in headless Chromium with CDP CPU throttling at the close: 30x, old code 0/5 landed (card +33,583 Level XP for 1 h, the reported symptom), 10x 3/3. A real close on a slow or busy device loses it too | P2 | src/session/server.js post, src/net/auth.js tokensFor, src/app/boot.js | Fixed: a keepalive call sends with the token in hand (`held`), inside the caller's turn; a hidden page sends a pending stamp even inside the residue debounce. session-core RES-BYE (3 mutants). 30x: 3/6 landed after the fix |
+| 2 | No client change can make the goodbye certain (a crash, an OS kill, a starved tab). The return still counts from the last stamp that landed: in view that is at most STAMP_EVERY_MS (10 min, 3 for a new hero) of watched hunting. A strict "never overstate" needs a server-known boundary: the engine marking the viewed character's numbers at its viewed polls (a server awaySeen), or the in-view stamp renewed every LEAVE_EVERY_MS (+1 put a minute per viewed hero, against the 2026-11-01 cost cut) | P3 | src/shell/away-recap.js, hr-accrue, hr_state_of | Coordinator: pick one (lane C + engine, or a cost call); not built here |
+| 3 | AR-6's CONTROL counted any account's stamp of any age. It now reads this account's row and, for AR-6, requires the goodbye's own time (at the close, not the hunt's first stamp). Mutant (leaving writes no stamp): CONTROL red, where the old check passed | P3 | tests/away-recap-world.mjs | Done; `--only AR-6[,..]` runs sections alone |
+
 ## 2026-11-22 · qa-engineer (lane/set144-reds) · the manual-walk reds on set/v0.2.144
 
 | # | Found | Sev | Affected | Action |

@@ -277,7 +277,9 @@ export function createAuth(o) {
         server link sends nothing (a session another tab swapped in is another account's: see adopt). */
     tokensFor(uid) {
       const mine = (t) => (t && uid && userOf(session) === uid && tokenOf(session) === t ? t : null);
-      return { fresh: async () => mine(await freshToken()), renew: async (bad) => mine(await renewToken(bad)) };
+      /* `held`: the token in hand NOW, not expired, with no refresh and no wait (a page being left has no time for one: server.js keepalive) */
+      const held = () => { const t = tokenOf(session); return t && (!session.expires_at || session.expires_at * 1000 > now()) ? mine(t) : null; };
+      return { fresh: async () => mine(await freshToken()), renew: async (bad) => mine(await renewToken(bad)), held };
     },
 
     async signIn(email, password) {

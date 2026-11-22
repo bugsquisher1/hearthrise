@@ -140,7 +140,9 @@ export function pullEnds(inst, sc) {
   } else { w.clean = 0; w.climb = 1; }
   w.danger = clampStep(to);
   w.low = 1000;
-  sc.emit(makeEvent('danger', sc.atMs, { step: from, to: w.danger, low, why }));
+  /* A DEATH SETTLES THE STANCE (RISKS afterDeath): the rest of the hunt plays the stance one notch safer, from the next pull */
+  if (why === 'death' && own(RISKS, st.afterDeath)) w.risk = st.afterDeath;
+  sc.emit(makeEvent('danger', sc.atMs, { step: from, to: w.danger, low, why, risk: w.risk }));
   return w.danger !== from ? applyStep(inst) : null;
 }
 

@@ -54,8 +54,11 @@ export const DANGER = Object.freeze({
 export const CLIMB = Object.freeze({ cleanRun: 2, climbMax: 8, fallSteps: 18, deathSteps: 120, coolPulls: 10 });
 
 /* The risk stances, safest first. 'steady' is the default a plan starts on (02 package 3). */
+/* `afterDeath`: the stance the rest of the hunt plays once a hero has died (V1.1: the company stops pushing, so the heroes left are not
+   led back to the edge that killed the first; under Bold's own thresholds a three without its front re-climbed and died, a wipe in 2 to 5
+   of 8 days) */
 export const RISKS = Object.freeze({
-  careful: Object.freeze({ fallPm: 450, cleanPm: 650 }),
-  steady: Object.freeze({ fallPm: 250, cleanPm: 450 }),
-  bold: Object.freeze({ fallPm: 80, cleanPm: 250 }),
+  careful: Object.freeze({ fallPm: 450, cleanPm: 650, afterDeath: 'careful' }),
+  steady: Object.freeze({ fallPm: 300, cleanPm: 550, afterDeath: 'careful' }),
+  bold: Object.freeze({ fallPm: 150, cleanPm: 350, afterDeath: 'steady' }),
 });

@@ -123,7 +123,10 @@ const RESTATED_AFTER = Object.freeze({ hr_hunt_view: '2027-02-18-party-truth.sql
   /* each setup says what it fights as and whether its gear is on (a setup switches mid-hunt, bar only): the plan cache's pre-image says neither */
   hr_hunt_presets_view: '2027-05-04-setup-swap-mid-hunt.sql',
   /* the job's section says its whole count, its THEN and its end (plan L08): the plan cache's pre-image says only what is left */
-  hr_bench_run_view: '1026-job-counts.sql' });
+  hr_bench_run_view: '1026-job-counts.sql',
+  /* the analyzer carries the hunt report's counters and the rules' shares when a session has a report (GR-66): the plan cache's
+     pre-image carries neither */
+  hr_hunt_analyzer_basic: '1053-hunt-report.sql' });
 /* Bodies a LATER file DROPPED with the system they served (the approved cuts, Tyler 2026-11-20, plan L10: the old dungeons'
    cooldown read and the gem rows' entitlement read). No settle calls them at the chain end, and their SQL pre-images read tables
    that file drops too, so there is nothing to restore and nothing to compare: SB-4 plants the other pre-images. */

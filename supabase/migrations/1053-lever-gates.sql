@@ -79,10 +79,13 @@ comment on column public.hunt_parties.hold_seat_from is
   'added 1053-lever-gates.sql: the seed horizon the leader''s latest hold pick (hold_seat) plays from; a window starting before it plays hold_seat_was. NULL: hold_seat plays.';
 
 create or replace function public.hr_party_hold_played(p public.hunt_parties, p_at timestamptz)
-returns integer language sql stable set search_path = public, pg_catalog as $fn$
+returns integer language plpgsql stable set search_path = public, pg_catalog as $fn$
+begin
   -- LEVER-GATES (1053-lever-gates.sql): the seat whose tank holds for a window starting at p_at: the pick played before its horizon.
-  select case when p.hold_seat_from is not null and p_at < p.hold_seat_from then p.hold_seat_was else p.hold_seat end
-$fn$;
+  -- plpgsql, not sql: PostgreSQL 17 plans a SET-clause SQL body again on every call, and every settle's instance read calls this one
+  -- (tests/settle-budget.mjs SB-3).
+  return case when p.hold_seat_from is not null and p_at < p.hold_seat_from then p.hold_seat_was else p.hold_seat end;
+end $fn$;
 revoke execute on function public.hr_party_hold_played(public.hunt_parties, timestamptz) from public, anon, authenticated, service_role;
 
 create or replace function public.hr_party_hold_put(p_party uuid, p_seat integer)

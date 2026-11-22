@@ -25,12 +25,12 @@
 // Exit: 0 ran · 1 a selftest proof failed · 2 harness.
 // mutant-anchors: none — the selftest reads planted rows in memory; no tracked file is patched
 // ════════════════════════════════════════════════════════════════════════
-import { readFileSync, writeFileSync, existsSync, readdirSync, statSync, mkdirSync, copyFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, readdirSync, statSync, mkdirSync } from 'node:fs';
 import { join, resolve, dirname, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isMain } from '../../../tests/_is-main.mjs';
 import { OUTCOMES } from '../baseline/outcomes.mjs';
-import { readDoc, EXPERIMENTS, PART_SCHEMA } from './sensitivity.mjs';
+import { readDoc, writeDoc, EXPERIMENTS, PART_SCHEMA } from './sensitivity.mjs';
 import { leverList } from './levers.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -125,6 +125,20 @@ export function elasticity(e, m) {
   if (!e || !finite(e.est) || m === 1) return null;
   const x = e.kind === 'rel' ? lnr(e) : e.est;
   return x === null ? null : sig(x / Math.log(m));
+}
+
+/* ── THE COMMITTED COPY OF A PART: the seed rows of the outcomes the analysis reads, five significant digits ──────────────────── */
+export const KEEP = Object.freeze(['dps', 'killsPerH', 'ttkS', 'pullsPerH', 'castsPerH', 'takenPerH', 'healInPerH', 'healOutPerH', 'shieldInPerH', 'regenPerH', 'deaths', 'huntedShare',
+  'lowHpP50', 'lowHpP10', 'hpUnder30', 'coinPerH', 'lootPerH', 'incomePerH', 'storePerH', 'blessingGoldPerH', 'netPerH', 'storeShare', 'suppliesPerH', 'foodPerH', 'manaPotionsPerH',
+  'manaSpentPerH', 'levelXpPerH', 'netLevelXpPerH', 'hoursPerLevel', 'mainSkillXpPerH', 'defenseXpPerH', 'deathTax', '_hh', '_wall']);
+/** A played part as it is committed: KEEP's columns, each number at five significant digits (an artifact keeps every column at six). */
+export function packPart(d) {
+  if (JSON.stringify(d.outcomeIds) === JSON.stringify(KEEP)) return d;
+  const idx = KEEP.map((k) => d.outcomeIds.indexOf(k));
+  if (idx.some((i) => i < 0)) throw new Error('analyze: the part lacks a column the committed copy keeps: ' + KEEP.filter((_, i) => idx[i] < 0).join(', '));
+  const row = (r) => idx.map((i) => (finite(r[i]) ? Number(r[i].toPrecision(5)) : r[i] ?? null));
+  return { ...d, outcomeIds: [...KEEP], packed: 'the columns the analysis reads, five significant digits',
+    points: d.points.map((p) => (p.cells ? { ...p, cells: Object.fromEntries(Object.entries(p.cells).map(([k, rows]) => [k, rows.map(row)])) } : p)) };
 }
 
 /* ── READING THE PARTS ──────────────────────────────────────────────────────────────────────────────────────────────────────────── */
@@ -524,7 +538,7 @@ async function main() {
   const save = has('save') || !arg('parts');
   if (arg('parts') && has('save')) {
     mkdirSync(PARTS_DIR, { recursive: true });
-    for (const f of partFiles(src)) copyFileSync(f, join(PARTS_DIR, basename(f)));
+    for (const f of partFiles(src)) writeDoc(join(PARTS_DIR, basename(f)), packPart(readDoc(f)));
   }
   const P = loadParts(src);
   const M = { ...buildMatrix(P), structure: await structure(P) };

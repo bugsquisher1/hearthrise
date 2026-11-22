@@ -48,9 +48,9 @@ No fact is copied. The formulas and their edges stay in `formulas-architecture.j
 | Quantities on the closed list | 133 |
 | Formulas with typed reads and writes | 107 of 107 |
 | Outcome readers (hand-declared, they stand where E14 stands) | 20 |
-| Reads declared, and how many the code shows (cited file:line) | 251, 97 derived |
+| Reads declared, and how many the code shows (cited file:line) | 254, 97 derived |
 | Writes declared, and how many the code shows | 179, 130 derived |
-| Typed edges (one writes what another reads) | 339 |
+| Typed edges (one writes what another reads) | 342 |
 | Edges the formula register declares | 197 |
 | Calls between formula homes, read from the code | 44 |
 | Levers joined, and knobs | 164, 35 |
@@ -205,10 +205,10 @@ CAREER      over many hunts, through earned XP becoming Levels and skill, it als
 | What | Count |
 |---|---|
 | Measured movements with a direction (knob and outcome pairs) | 290 |
-| The trace called a direction | 257 (89% of them) |
-| The call matched the measurement | 251 |
+| The trace called a direction | 268 (92% of them) |
+| The call matched the measurement | 262 |
 | The call was wrong | 6 |
-| The trace said mixed, unknown or nothing | 33 |
+| The trace said mixed, unknown or nothing | 22 |
 | **Sign-match rate** (matched over called) | **98%** |
 <!-- /graph:match -->
 
@@ -319,7 +319,7 @@ A ghost edge is a pair of mechanics that share a quantity or a call with no decl
 <!-- graph:findings -->
 | Kind | What it is | Count |
 |---|---|---|
-| `feeds` | ghost edge: one writes what the other reads, no declared edge | 132 |
+| `feeds` | ghost edge: one writes what the other reads, no declared edge | 133 |
 | `writers` | ghost edge: two mechanics write one quantity, no declared edge | 62 |
 | `carrier` | ghost edge: a declared edge with no shared quantity | 48 |
 | `call` | ghost edge: the code calls it, no declared read | 15 |
@@ -385,7 +385,7 @@ The rank is the number of levers on the pair: the more numbers an agent can tune
 | 39 | `GF-08b6e1b8` | writers | E01 / E52 | 6 | E01 and E52 both write kill.xp. The register holds no edge between them |
 | 40 | `GF-27240a11` | feeds | C-HURT / E18 | 6 | C-HURT writes dmg.toHero and E18 reads it. The register holds no edge between them |
 
-257 ghost edges in all. The rest: `node tools/balance-program/graph.mjs --findings`.
+258 ghost edges in all. The rest: `node tools/balance-program/graph.mjs --findings`.
 <!-- /graph:ghosts -->
 
 **Six the owners should look at first.** JUDGED, and each is a question, not a verdict.

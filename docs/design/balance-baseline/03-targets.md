@@ -15,8 +15,9 @@ Deliverable 3 of the balance baseline, written 2026-11-21 on `lane/bl-targets`, 
 | What the source asked: a rule / a range / a proposal | 29 / 31 / 40 |
 | With a graded matrix reader | 35 |
 | Read by another tool (atlas, paths, balance guard, start cards, talent block) | 21 |
-| Report only, a stand-in, a printed table, or a named standard with no band | 13 |
-| With no reader at all (MISSING, a coverage gap) | 31 |
+| Read by a Balance Lab reader (`tools/balance-program/readers.mjs`, Lab phase 2, 2026-11-21) | 13 |
+| Report only, a stand-in (one of them a Lab reader's proxy, SURV-14), a printed table, or a named standard with no band | 14 |
+| With no reader at all (MISSING, a coverage gap). Each names what must exist first (`until`) | 17 (31 before Lab phase 2) |
 | Tensions between candidates | 22 (16 open, 6 reader mismatches) |
 | Hard constraints | 5 (mission lines and technical limits only) |
 

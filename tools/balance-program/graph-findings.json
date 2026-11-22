@@ -934,6 +934,10 @@
    "kind": "feeds",
    "key": "C-BOSS-PHASE>O-LOWHP"
   },
+  "GF-917c5b98": {
+   "kind": "feeds",
+   "key": "C-HEAL-CUT>O-HEAL"
+  },
   "GF-928b926d": {
    "kind": "undeclared-move",
    "key": "tierHp|healPerH"

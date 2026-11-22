@@ -457,6 +457,18 @@ async function selftest() {
     finally { rmSync(dir, { recursive: true, force: true }); }
     check('the overlay: the folder holds the commit\'s ' + 'src/core/combat.js and this checkout\'s harness, and records both', ok, why);
   }
+  /* 10. THE COMMITTED RESULTS ARE BYTES: git keeps *.gz binary (the tools/** text rule once rewrote a results file's CR LF pairs and broke the
+     gzip), and the pin decompresses to its own schema */
+  {
+    let ok = false, why = '';
+    try {
+      const attr = execFileSync('git', ['check-attr', 'text', '--', relative(ROOT, PIN_RESULTS).split('\\').join('/')], { cwd: ROOT, encoding: 'utf8' });
+      const doc = existsSync(PIN_RESULTS) ? readDoc(PIN_RESULTS) : null;
+      ok = /: text: unset/.test(attr) && (!doc || (doc.schema === RESULT_SCHEMA && doc.cells.length > 0));
+      if (!ok) why = attr.trim();
+    } catch (e) { why = String(e.message).split('\n')[0]; }
+    check('the committed results are bytes: git keeps *.gz binary and the pin decompresses to its schema', ok, why);
+  }
   console.log('baseline selftest: ' + (fails.length ? fails.length + ' FAILED' : 'green') + ' in ' + Math.round((Date.now() - t0) / 1000) + ' s');
   return fails.length ? 1 : 0;
 }

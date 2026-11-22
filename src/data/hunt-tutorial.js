@@ -20,7 +20,7 @@
 // ROW SHAPE
 //   { id, title, text, anchor, done, when?, ring?, hooks?, inWindow?, party?, reactive?, knowledge?, gotIt? }
 //     anchor     the surface the card points at (TUTORIAL_ANCHORS); the shell rings the real control there
-//                (src/shell/launcher.js ringPlan) and, when the anchor is a window, shows the card inside it
+//                (src/shell/launcher-coach.js ringPlan) and, when the anchor is a window, shows the card inside it
 //     ring       what on that surface: { item } the bar slot holding it, { crop } the seed to plant,
 //                { skill, work } the skill and its recipe, { task } Tamsin's task
 //     hooks      the ring hooks the card's way needs that the client does not carry yet (lane 2 adds them); the
@@ -48,8 +48,8 @@
 //   name, slots (the bar the server SHOWS: [{ type, id, store, conditions, enabled, usable, count } | null]),
 //   stored (the bar it STORED: [{ type, id, conditions } | null]), discipline, role, stance, store (the server's
 //   store rows), carried { item: n } (the hunt bag in a hunt, else the bag), bag { item: n }, stacks, bagCap,
-//   bankStacks, lootRules { item: deposit|sell|ignore }, weapon (worn), armoured (wears armor or a shield), armourWorn [slot] (the armor slots wearing a
-//   piece with an armor weight), lastHunt (the latest hunt, open or ended), tierTaken (a harder tier picked, running or last hunted), blessings { held, of, freeUntil, prices },
+//   bankStacks, lootRules { item: deposit|sell|ignore }, weapon (worn), armoured (wears armor or a shield),
+//   tierTaken (a harder tier picked, running or last hunted), blessings { held, of, freeUntil, prices },
 //   endReason (the latest hunt's, once ended), freeDeath (that hunt's mode takes nothing for a death: the Tower), towerBest (the Burning
 //   Tower's best floor while the server sends its section, else null), death { xp, saved } (the newest death_log row), supplies [{ item,
 //   source, count }] (this hunt's analyzer), huntMs, hpMax, presets (saved setups), landPlanted, land { ready, empty },
@@ -57,7 +57,7 @@
 //   interface, src/session/tutorial-sections.js pointerCardOf's second argument): read (Set of read card ids), hid (Set of the
 //   cards a server fact finishes that the player hid with Got it: passed by, see WHICH CARD IS UP),
 //   roster [{ slot, level, name, open, hunting }], slotsOwned, playLimit, sellable (stacks Sell all loot sells
-//   now), upgrades ([item] Equip upgrades would put on), back (the hunt the player came back to after an absence), slotCost (the next hero slot's price).
+//   now), upgrades ([item] Equip upgrades would put on), back (the hunt the player came back to after an absence).
 //
 // No number is restated here: floors are read from hunts.js, pockets from hunt-grounds.js, the turnip's hours from
 // gathering.js, Tamsin's task from tally-tasks.js, prices from the server's store rows, Blessings from the server's
@@ -97,7 +97,7 @@ import { t } from './player-text.js';
 
 /* The surfaces a card may point at: `window` the shell window (src/data/shell-windows.js) its controls live in (the
    card shows INSIDE it while it is open), `icon` its way starts at that window's icon, and what the coach rings
-   (src/shell/launcher.js ringPlan). */
+   (src/shell/launcher-coach.js ringPlan). */
 const anchor = (about, window, icon, tab) => Object.freeze({ about, window: window || null, icon: !!icon, tab: tab || null });
 export const TUTORIAL_ANCHORS = Object.freeze({
   hunt_picker: anchor('Hunts (src/shell/windows/hunts.js), its icon, then the ground\'s line, then Enter', 'hunts', true),

@@ -33,7 +33,7 @@
 //
 // Exit: 0 ran · 1 a selftest proof failed, a tool red, a determinism difference or an error cell · 2 harness.
 // mutant-anchors: none — the selftest plants answers and docs in memory and plays on this tree or a temporary export; no tracked file is patched
-// ci-step: economy-selftests | The balance baseline reads every outcome, its noise rule and band verdicts bite, its scenarios hold open grounds only, and a replay is byte-identical
+// ci-step: economy-selftests | The balance baseline reads every outcome, its noise rule and target verdicts bite, its scenarios hold open grounds only, and a replay is byte-identical
 // ci-run: node tools/mutant-gate.mjs node tools/balance-program/baseline.mjs --selftest
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync, writeFileSync, existsSync, readdirSync, statSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';

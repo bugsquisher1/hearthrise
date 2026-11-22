@@ -13,7 +13,11 @@
 //                                       there, the monster rows re-written from the formula when the patch moves it; never the real tree
 //
 // A PATCH (schema hearthrise.balance-patch/1): { name, why, kind, knobs: { id: multiplier }, edits: [{ file, from, to }], targets: [band id,
-// band id prefix, band group ('pace', 'survival', 'gold', 'gear', ...) or 'metric:<name>'] }. `knobs` scale the numbers knobs.json names;
+// band id prefix, band group ('pace', 'survival', 'gold', 'gear', ...) or 'metric:<name>'], overlays: [{ file, from, slot?, family? }] }.
+// `overlays` (Balance Lab phase 3, 07-balance-lab.md section 3.2: depth 2 rows and depth 3 formulas) replace a WHOLE planted file with
+// the repo file `from` (a shelf file under tools/balance-program/variants, candidates.mjs); the file they replace stays beside them in the
+// copy as <name>.shipped.js, so a variant can `export * from` it and change only its rule. They are laid FIRST: the patch's edits and its
+// knobs are then found on the overlaid text (line edits stay for numbers). `knobs` scale the numbers knobs.json names;
 // `edits` replace one exact text in one planted file (exactly one occurrence, or the plant throws). `targets` is what the patch means to
 // move: the diff calls any other band it moves UNTARGETED. `kind` (44 section 6.2): 'identity' (no number may move), 'coefficient' (no
 // band outside the targets may move) or 'derivation' (no targeted band may end worse than it started); balance-matrix.mjs --diff exits 1
@@ -28,6 +32,7 @@ import { join, resolve, dirname, relative, isAbsolute } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { execFileSync } from 'node:child_process';
 import { KNOB_SCHEMA, KNOB_FILE, knobValue, composeMultipliers } from './knob-rules.mjs';
+import { writeFileSync } from 'node:fs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..', '..');
@@ -100,6 +105,7 @@ export function checkPatch(patch, list = readKnobs()) {
     const inTree = ['src/core/', 'src/data/', ...SCRATCH_TREES.map((t) => t + '/')].some((t) => e.file.startsWith(t));
     if (!inTree) throw new Error('patch: edit ' + e.file + ' is outside the planted trees (src/core, src/data, ' + SCRATCH_TREES.join(', ') + ')');
   }
+  checkOverlays(patch.overlays);
   if (patch.targets !== undefined && !Array.isArray(patch.targets)) throw new Error('patch: targets must be a list');
   return patch;
 }
@@ -115,6 +121,9 @@ export class KnobGone extends Error {}
 export function patchEdits(root, patch, list = readKnobs(root)) {
   checkPatch(patch, list);
   const texts = new Map();
+  /* the overlays first: every edit and knob below reads the overlaid text of a file one replaces */
+  const overlays = (patch.overlays || []).map((o) => ({ ...o, text: readFileSync(join(root, o.from), 'utf8') }));
+  for (const o of overlays) texts.set(o.file, o.text);
   const read = (f) => (texts.has(f) ? texts.get(f) : readFileSync(join(root, f), 'utf8'));
   for (const x of patch.edits || []) {
     const s = read(x.file), n = s.split(x.from).length - 1;
@@ -126,7 +135,7 @@ export function patchEdits(root, patch, list = readKnobs(root)) {
     if (m === 1) continue;
     let sites;
     try { sites = locateKnob(root, list.byId.get(id), read); }
-    catch (e) { if ((patch.edits || []).length) throw new KnobGone('knob ' + id + ' is not on this game: ' + e.message); throw e; }
+    catch (e) { if ((patch.edits || []).length || overlays.length) throw new KnobGone('knob ' + id + ' is not on this game: ' + e.message); throw e; }
     for (const site of sites) {
       const key = site.file + ':' + site.line;
       const e = byLine.get(key) || byLine.set(key, { file: site.file, line: site.line, text: site.text, picks: new Map() }).get(key);
@@ -137,7 +146,7 @@ export function patchEdits(root, patch, list = readKnobs(root)) {
       }
     }
   }
-  const edits = [], applied = [];
+  const edits = [], applied = overlays.map((o) => ({ overlay: true, file: o.file, from: o.from, ...(o.slot ? { slot: o.slot, family: o.family } : {}) }));
   for (const x of patch.edits || []) { edits.push([x.file, x.from, x.to]); applied.push({ edit: true, file: x.file, from: [x.from.slice(0, 80)], to: [x.to.slice(0, 80)] }); }
   for (const e of byLine.values()) {
     let text = e.text;
@@ -155,12 +164,49 @@ export function patchEdits(root, patch, list = readKnobs(root)) {
         ...(knobs.length > 1 ? { sharedWith: knobs.filter((k) => k !== id) } : {}) });
     }
   }
-  return { edits, applied };
+  return { edits, applied, overlays };
 }
 
 /** Does this patch move the numbers the monster rows are written from? */
 export function needsRegen(patch, list = readKnobs()) {
-  return Object.entries(patch.knobs || {}).some(([id, m]) => m !== 1 && list.byId.get(id).regen) || (patch.edits || []).some((e) => FORMULA_SOURCES.includes(e.file));
+  return Object.entries(patch.knobs || {}).some(([id, m]) => m !== 1 && list.byId.get(id).regen) || [...(patch.edits || []), ...(patch.overlays || [])].some((e) => FORMULA_SOURCES.includes(e.file));
+}
+
+/* ── FILE OVERLAYS (Balance Lab phase 3) ─────────────────────────────────────────────────────────────────────────────────────────── */
+/** The side name a replaced file keeps in the copy: src/core/mitigation.js -> src/core/mitigation.shipped.js (tools/pack-edge.mjs refuses it). */
+export const shippedNameOf = (file) => file.replace(/\.js$/, '.shipped.js');
+/** An overlay list checked: each { file, from } a repo path, `file` a planted .js file, `from` a file that exists, one overlay a file. */
+export function checkOverlays(overlays) {
+  if (overlays === undefined) return;
+  if (!Array.isArray(overlays)) throw new Error('patch: overlays must be a list');
+  const seen = new Set();
+  for (const o of overlays) {
+    if (!o || typeof o.file !== 'string' || typeof o.from !== 'string') throw new Error('patch: an overlay needs { file, from }');
+    for (const p of [o.file, o.from]) if (isAbsolute(p) || p.split(/[\\/]/).includes('..')) throw new Error('patch: overlay path ' + p + ' must be a repo path');
+    const inTree = ['src/core/', 'src/data/', ...SCRATCH_TREES.map((t) => t + '/')].some((t) => o.file.startsWith(t));
+    if (!inTree || !o.file.endsWith('.js')) throw new Error('patch: overlay ' + o.file + ' is not a .js file in the planted trees (src/core, src/data, ' + SCRATCH_TREES.join(', ') + ')');
+    if (!existsSync(join(ROOT, o.file))) throw new Error('patch: overlay ' + o.file + ' replaces no file (an overlay replaces a whole file; it never adds one)');
+    if (!existsSync(join(ROOT, o.from))) throw new Error('patch: overlay ' + o.file + ' names a source ' + o.from + ' that does not exist');
+    if (seen.has(o.file)) throw new Error('patch: two overlays replace ' + o.file + ' (one file, one overlay)');
+    seen.add(o.file);
+  }
+}
+/* the copy with its overlays: planted bare, each replaced file kept as <name>.shipped.js and the overlay written in its place, then the edits
+   (found on the overlaid text) applied with the plant's exactly-once rule; a replacement is a function, so no `$` in a source is a pattern */
+function plantOverlaid(plant, overlays, edits) {
+  const p = plant([], [...SCRATCH_TREES]);
+  try {
+    for (const o of overlays) {
+      cpSync(join(ROOT, o.file), join(p.root, shippedNameOf(o.file)));
+      writeFileSync(join(p.root, o.file), o.text);
+    }
+    for (const [file, from, to] of edits) {
+      const f = join(p.root, file), src = readFileSync(f, 'utf8'), n = src.split(from).length - 1;
+      if (n !== 1) throw new Error('plant: ' + file + ' has ' + n + ' copies of the anchor ' + JSON.stringify(from.slice(0, 60)));
+      writeFileSync(f, src.replace(from, () => to));
+    }
+    return p;
+  } catch (e) { p.done(); throw e; }
 }
 
 /**
@@ -169,9 +215,9 @@ export function needsRegen(patch, list = readKnobs()) {
  */
 export async function plantScratch(patch, o = {}) {
   const list = readKnobs(ROOT);
-  const { edits, applied } = patchEdits(ROOT, patch, list);
+  const { edits, applied, overlays } = patchEdits(ROOT, patch, list);
   const { plant } = await import(pathToFileURL(join(ROOT, 'tests/hunt-core/fixtures/h1.js')).href);
-  const p = plant(edits, [...SCRATCH_TREES]);
+  const p = overlays.length ? plantOverlaid(plant, overlays, edits) : plant(edits, [...SCRATCH_TREES]);
   const rel = relative(ROOT, p.root);
   if (!rel.startsWith('..') && !isAbsolute(rel)) { p.done(); throw new Error('matrix-scratch: the copy ' + p.root + ' is inside the repo; refused'); }
   try {

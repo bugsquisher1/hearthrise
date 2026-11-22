@@ -1,0 +1,11 @@
+{
+ "schema": "hearthrise.balance-candidate/1",
+ "id": "armor-hit-ratio",
+ "why": "Armor against hit size, uncapped, in place of armor against the attacker's Level with a 60% cap (04-math-strategy.md section 2 and section 15 'Defense'): where does each family protect more, and which reads the targets better?",
+ "base": "tree",
+ "variants": [{ "slot": "armor", "family": "hit-ratio" }],
+ "assumptions": [
+  "HIT_K 0.5 makes the two families agree on a median regular's mean blow at its own Level (the family file's header): the comparison is the SHAPE by blow size, not an amount of armor",
+  "Dodge and ward keep their shipped lines with the total cap taken off; only heavy armor's absorb changes form"
+ ]
+}

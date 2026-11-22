@@ -85,47 +85,52 @@ Every ruling below is the designer's and final. None is a money call.
 
 ### 2.7 The 33 staged files missing from the apply order
 
-**How it plays:** players never see these. Retiring old-design files now means the release ships no number the redesign throws away the next week.
+**How it plays:** players never see these. They all ship in this release. Old-design numbers are then replaced by new files as each redesign wave lands, not pulled out now.
 
-The rule: keep a file if it holds under the redesign. Retire it if the redesign replaces what it sizes. Re-cut it if the idea stays but its shape changes. Retiring uses `node tools/chain-retire.mjs --retire` (end state proven identical). Some files carry an earlier file whole: R6 re-generates any kept forward file that carries a retired one.
+**Re-fated 2026-11-22 (lane/r3c-fates), after `tools/release-plan.mjs`.** The first table (15 retire, 2 re-cut) could not ship. Today's `src/data` and `src/core` already hold the engine half of nearly every one of these files (`gen-hunt-sessions --check` matches 1012, 1021 and 1028), and the release's one hr-accrue deploy is packed from today's `src/`. Retiring a staged file would leave the database and the engine on two designs, or mean reverting `src` first. That is a lane of churn for numbers the redesign replaces within weeks anyway. A staged file also can't leave by `chain-retire` (it takes applied catalogues only). And the whole Danger scale (1054-1058) is built on these files: 1054 carries 1028 whole, 1055 reads 1016's curve, and 1048 and 1051 need 1032.
 
-| File | Fate | Why |
-|---|---|---|
-| 1009 approved-rows alpha catalogue | Retire | Sized for three tiers and the old gear curve (FB-8, replaced) |
-| 1010 approved-rows gold ladders | Retire | Gold now scales with depth (package 5) |
-| 1011 approved-rows unlock offers | Retire | Old unlock prices. Prices come from `wage(L)` |
-| 1012 approved-rows hunt-sessions catalogue | Retire | Tier-era hunt rows. 1054 is the current catalogue; R6 checks it doesn't depend on 1012 |
-| 1013 approved-rows town-works catalogue | Retire | Town work is re-cut as company trades (FB-10, `09-crafting.md`) |
-| 1014 works-goal-sized | Retire | Same as 1013. Also drops one Security-list item |
-| 1016 level-curve new player | **Re-cut** | Keep the goal (Level 5 inside the first hour, so recruits arrive on time). Re-derive it on the hours table. Drop its edge-first rule |
-| 1017 tend the field | Keep | Farming in one press is the first principle at work. True under any design |
-| 1020 to-hit ratio ground tiers | **Retire** | Wave 3 removes the roll to hit. Tiers leave too |
-| 1021 to-hit ratio hunt-sessions catalogue | Retire | Same |
-| 1022 to-hit ratio hearthfind catalogue | Retire | Same |
-| 1023 to-hit ratio scaled-hunts catalogue | **Retire** | Same, and scaled hunts are replaced by the Danger scale |
-| 1026 job counts | **Re-cut** in R12 (done 2026-11-22) | "A job takes a count and a then" stays: it saves repeated decisions. The THEN of hunt, its sweep and cron job are withdrawn (D-11). Its XP is the company's through 1059-company-trades. 1040-rested-bank-cut restates `hr_apply` including 1026's changes: R12 re-derived it (both pins re-measured) |
-| 1027 spell-rule default bar | Retire | Wave 3 rewrites the move list (jobs, evolutions) |
-| 1028 spell-rule hunt-sessions catalogue | Retire | Same |
-| 1029 spell-rule rune spells | Retire | Same |
-| 1030 spell-rule hearthfind catalogue | Retire | Boss rates re-measured under a rule that is going away |
-| 1031 spell-rule scaled-hunts catalogue | **Retire** | Scaled hunts are dark and replaced by the scale. It waited on FB-8, which is gone |
-| 1032 approved cuts | Keep | Cutting the old dungeons and the scrip holds under any design |
-| 1033 approved-cuts items catalogue | Keep | Same cut |
-| 1034 approved-cuts tally | Keep | Same cut |
-| 1035 approved-cuts unlocks | Keep | Same cut |
-| 1036 four starter slots | Keep | The slots must exist for the Level 5 recruits. The first screen still shows one hero (RD-Q6 a); that is the client's job |
-| 1037 first-hour kit lines | Keep | The starting kit |
-| 1038 start kits | Keep | Security list (a grant) |
-| 1039 account coach | Keep | Lessons taught once an account |
-| 1040 rested bank cut | Keep, re-derived after 1026 (R12, done 2026-11-22) | Removes a small bonus nobody feels, as the redesign asks |
-| 1040 social catalogue | Keep | FB-12, continue |
-| 1041 social clans | Keep | Security list (100,000 gold founding) |
-| 1042 live-events catalogue | Keep | The Coordinator sets the calendar anchor at apply |
-| 1043 the Great Hearth | Keep | FB-12 |
-| 1044 friend link | Keep | FB-12 |
-| 1045 ground presence | Keep | FB-12. Will need R11's finder removal to land first or alongside |
+**So the rule is now:** ship what `src` already plays, and let the redesign replace numbers through new forward files in its own wave. The "Replaced in" column below is that plan. The edge collision is cut out of the notes, not the SQL:
+- **1016 is re-cut to "either order"**, so it no longer needs the edge first. Between its apply and the one deploy, a Level 8-20 death can be refused once and then settles on the next tick, with nothing lost. Once 1054 is in, every settle waits for the world shape anyway.
+- **1023 is re-cut to "either order"**, because scaled hunts are dark, so no scaled window can settle in between.
+- **1028 goes "before" the edge**, by the Coordinator's ruling: 1054 carries it whole, the two apply back to back, and the single deploy follows 1054.
 
-Totals: 16 keep, 15 retire, 2 re-cut.
+| File | Fate | Replaced in | Why it ships now |
+|---|---|---|---|
+| 1009 approved-rows alpha catalogue | Keep | Wave 2 (depth pay, bands) | The engine's rows already match it |
+| 1010 approved-rows gold ladders | Keep | Wave 5 (prices from `wage(L)`) | Same |
+| 1011 approved-rows unlock offers | Keep | Wave 5 | Same |
+| 1012 approved-rows hunt-sessions catalogue | Keep | Wave 2 | Carried by 1021 and 1032; `src/data` matches it |
+| 1013 approved-rows town-works catalogue | Keep | Wave 5 (company trades) | The engine's rows already match it |
+| 1014 works-goal-sized | Keep | Wave 5 | 1043 (the Great Hearth) needs it. Stays on the Security list |
+| 1016 level-curve new player | Keep, edge re-cut to either order | Wave 1 finish (the hours table) | 1055 reads this curve (Level 9: 625 in the engine) |
+| 1017 tend the field | Keep | Not replaced | Farming in one press is the first principle at work |
+| 1020 to-hit ratio ground tiers | Keep | Wave 3 (no roll to hit) | The engine already plays it |
+| 1021 to-hit ratio hunt-sessions catalogue | Keep | Wave 3 | Carried by 1028, so by 1054 |
+| 1022 to-hit ratio hearthfind catalogue | Keep | Wave 3 | Carried by 1030 |
+| 1023 to-hit ratio scaled-hunts catalogue | Keep, edge re-cut to either order | Wave 2 (scaled hunts leave for the scale) | Carried by 1031; scaled hunts are dark |
+| 1026 job counts | Keep, re-cut in R12 (2026-11-22) | Wave 5 (company trades: 1059-company-trades) | Its engine half is in `src`, and 1040 restates `hr_apply` with it. "A job takes a count" saves repeated decisions, so it stays. R12 withdrew the THEN of hunt, its sweep and cron job (D-11) and re-derived 1040 |
+| 1027 spell-rule default bar | Keep | Wave 3 (move list) | The engine's bar already plays it |
+| 1028 spell-rule hunt-sessions catalogue | Keep, edge before, with 1054 | Wave 3 | 1054 carries it whole |
+| 1029 spell-rule rune spells | Keep | Wave 3 | Same deploy as 1028 |
+| 1030 spell-rule hearthfind catalogue | Keep | Wave 3 | Same deploy as 1028 |
+| 1031 spell-rule scaled-hunts catalogue | Keep | Wave 2 | Same deploy as 1028 |
+| 1032 approved cuts | Keep | Not replaced | Cutting the old dungeons and the scrip holds under any design. 1048 and 1051 need it |
+| 1033 approved-cuts items catalogue | Keep | Not replaced | Same cut |
+| 1034 approved-cuts tally | Keep | Not replaced | Same cut |
+| 1035 approved-cuts unlocks | Keep | Not replaced | Same cut |
+| 1036 four starter slots | Keep | Not replaced | The Level 5 recruits need the slots. The first screen still shows one hero (RD-Q6 a) |
+| 1037 first-hour kit lines | Keep | Not replaced | The starting kit |
+| 1038 start kits | Keep | Not replaced | Security list (a grant) |
+| 1039 account coach | Keep | Not replaced | Lessons taught once an account |
+| 1040 rested bank cut | Keep, re-derived in R12 after 1026 | Not replaced | Removes a small bonus nobody feels |
+| 1040 social catalogue | Keep | Not replaced | FB-12 |
+| 1041 social clans | Keep | Not replaced | Security list (100,000 gold founding) |
+| 1042 live-events catalogue | Keep | Not replaced | The Coordinator sets the calendar anchor at apply |
+| 1043 the Great Hearth | Keep | Not replaced | FB-12 |
+| 1044 friend link | Keep | Not replaced | FB-12 |
+| 1045 ground presence | Keep | Not replaced | FB-12 |
+
+Totals: 33 keep (3 with an edge re-cut in their notes), 0 retire. `node tools/release-plan.mjs --strict` reads this table.
 
 ### 2.8 The naming pass
 
@@ -168,9 +173,9 @@ Totals: 16 keep, 15 retire, 2 re-cut.
 - **Confirmed:** the base tier (the item's base numbers) is fixed by the ground.
 - **Depth raises two things only:**
   - **Rare odds:** ×1 at depth 1, rising to ×3 at depth 20 (a starting value).
-  - **Trait rank:** depths 1 to 4 roll rank I, 5 to 8 rank II, up to 17 to 20 rank V.
+  - **Trait rank:** depths 1 to 7 roll rank I, 8 to 14 rank II, 15 to 20 rank III (section 8: three ranks, not five).
 - **Never the base numbers.** If depth raised them, one ground would hold the best gear forever, and moving on would be pointless. That was Tyler's worry, and this rule answers it.
-- **Why move on, then?** The next ground's base tier is higher. A plain item there beats a rank V Rare's base here, while the Trait still makes a good Rare worth keeping for a while. Both feel good: the old Rare had a life, then you outgrew it.
+- **Why move on, then?** The next ground's base tier is higher. A whole kit from there beats a whole kit from here, Traits and all (section 8: every Trait on a hero together is held to one tier). A single good Rare still outlives a few bases, and carry-over moves its Trait onto a new one. Both feel good: the old Rare had a life, then you outgrew it.
 
 ### 3.4 What the player sees
 
@@ -217,7 +222,7 @@ The rule for every batch (CLAUDE.md section 10): write a sample of about 5, play
 | 1 | **Ground bands and drop tables** | Muster plus the next 4 grounds: floor, middle, top, base tier, Rare odds, a drop table each | Every hunting ground | Wave 1 finish (R10) | The band is the answer to "why move on". Everything else reads it |
 | 2 | **Monster roles per ground** | 5 roles (Brute, Skirmisher, Caster, Shield, Swarm) on Muster's four monsters plus one more ground | Every monster | Wave 2 | Roles make every seat matter. V3 needs them |
 | 3 | **Move evolution branches** | 5 moves × about 8 rows (rank points, 2 branch picks, a final form) | Every move | Wave 3 | A point every Level needs somewhere to go (RD-Q4) |
-| 4 | **Traits** | 5 rule Traits, each with ranks I to V, on different slots | About 40, in batches of 20 | Wave 4 (V7 on the sample in wave 3) | No Trait may be top on every seat and ground |
+| 4 | **Traits** | 5 rule Traits, each with ranks I to III, on different slots (written: section 8) | About 40, in batches of 20 | Wave 4 (V7 on the sample in wave 3) | No Trait may be top on every seat and ground |
 | 5 | **Signatures** | 5, each changing one sample move from row 3 | 1 or 2 per major move | Wave 4 | They depend on the evolutions |
 | 6 | **Recipes and tool rows** | One trade's ladder: 5 recipes and its tool (breaks after 12 h of use) | Ten trades | Wave 5 (R12 earlier) | Trades make what hunting burns. Recipes need the drop tables first |
 | 7 | **Premium and Crowns store items** | 5 Crown items: one mount look, one wardrobe set, one never-breaking tool, extra save slots, Premium time | The store | Wave 5. **Prices are Tyler's** | Cosmetic and time only. No power, no XP boosts |
@@ -257,3 +262,47 @@ Each sample goes through the Lab before it grows: rows 1 and 2 through V1 and V3
 **Why not halls?** Halls are short party boss checks. The Catacombs are a place to farm, and a boss room would throw away the map and the armor's reason to exist. **Why not cut them?** Armor has no home of its own, and the Tower already holds weapons. This gives a clean split, weapons up top and armor down below, at almost no new build cost.
 
 **When:** wave 2, alongside R10's next grounds on the scale. Their bands sit high (the old Level 165 to 185 range) and are measured like every other ground. The Tower stays in wave 7, unchanged.
+
+---
+
+## 8. Plain gear in steps and the first five Traits (2026-11-22, lane/g-gear-steps; Tyler: "we aren't using the old tier item levels")
+
+**How it plays:** on a scale ground a piece of gear is one number, its item Level. A whole kit at item Level 60 makes a hero's gear count as Level 60. Muster Barrows drops item Level 60 at every depth, worn from Level 50. A Rare from Muster can also carry a Trait, a rule like "when your target is a boss, your hits land harder", and the deeper you hold, the higher its rank. A plain piece from the next ground still beats it, so you keep a good Rare for a while and then move on.
+
+**The table** (`src/data/gear-steps.js`; levers `gear.step-tier`, `gear.slot-weights`, `gear.trait-budget`, `gear.traits`, `gear.ground-tier`):
+
+- A tier is `tierSteps` = 20 item Levels. Tier 0 is the starting kit. Muster Barrows is tier 3 (`DANGER_GROUNDS.muster_barrows.gearLevel` 60).
+- A worn piece adds its item Level times its slot's weight to the gear part. The 13 weights sum to one: weapon 20%, body 12%, pants 9%, shield 8%, helmet and necklace 7%, boots, gloves and cape 6%, belt and each ring 5%, earrings 4%. A two-handed weapon carries the shield's 8% too. The engine's `weightGear` (R9) then sets how much of the hero the gear part is.
+- `wearAhead` = 10: a piece is worn from its item Level minus 10.
+- **Ranks are three, not five** (this replaces section 3.3's I to V). 04 section 10 caps rank 1 to rank 3 at under a third of a tier, so five ranks would sit about 1.5 steps apart, too close to feel. Ranks are worth 4, 7 and 10 steps on the cell that suits them best, rolled at depths 1, 8 and 15 and up. A Trait's steps are steps of the gear part, the same unit as a whole kit's item Level, and are not weighted by slot, so a rank is worth the same on a ring as on a weapon.
+- All conditional steps on one hero at once: at most 20, one tier. So a whole kit a tier up always beats a whole kit a tier down, Traits and all (60 + at most 20 against 80 + its own). One piece is different on purpose: a rank III Trait is worth more than its slot's next base (a weapon's tier is 20 x 20% = 4 gear steps), so a good Rare lives several tiers. A Trait's average over every ground: at most half its best case. No Trait in the best kit on more than 40% of cells. Pity on the Rare roll: on.
+
+**The piece, as the market reads it** (`13-market.md` section 2.3; the server's table is wave 4). Plain gear is a stack. A piece with a Trait is one account-owned row with indexed criteria: slot (each Trait belongs to one slot), base (the item), tier (a whole number, the ground's `gearLevel` over `tierSteps`), its Traits and their ranks (I to III), rarity (`traitsByRarity`: a Rare carries one Trait, a Very Rare two, never two of one stacking key), the find line (ground and depth) and an escrow state. Carry-over, Temper and imbuing are refused while a piece is escrowed. Temper belongs to the hero's slot and never travels with a sold piece, so a piece's worth in steps is its base and its Traits only. Listing a piece removes its imbuement. With one Trait a slot in the sample, no Very Rare can roll yet: it needs two Traits on one slot, which the first batch of 20 must provide.
+
+**The five sample Traits.** Hidden: nothing rolls, drops, plays or shows them until wave 4, and `tests/gear-steps.mjs` holds their shape and that they stay hidden. Each "when" is one of the bar's own conditions (`src/data/condition-metrics.js`), so a player who can read a slot can read a Trait.
+
+| Trait | Slot | When | Raises | Rolls on | How it plays |
+|---|---|---|---|---|---|
+| File Breaker | Weapon | an area attack would hit 3 or more monsters | that attack | Muster Barrows | The area hero's weapon for packed pulls like the Barrow Pikemen's files. Dead weight on a boss or a thin ground |
+| Captain's Due | Cape | your target is a boss | your hits | Muster Barrows | Built for Captain Hask and the halls. Off for almost every kill on a ground, which is why it may be strong there |
+| Last File | Shield | your HP is at 40% or less | defense | Muster Barrows | The front hero's last stand. Barely fires on Steady, earns its place on Bold |
+| Keeper's Carry | Helmet | the hero you heal is at half HP or less | your heal | Catacombs, Bone Wing | The healer's helmet for saves, not for topping up |
+| Floodmark | Boots | a monster is casting at you | defense | Catacombs, Flooded Wing | For grounds with casters. Worth nothing where nobody casts |
+
+**The five guards on the sample:**
+
+1. **Equal budget at best case:** one step table for every Trait (`traitSteps`). Each row names the seat and ground it is sized on (`best`), so V7 measures it there.
+2. **Conditional by construction:** no row may use the always-true condition (`in_fight`). Each "when" is false on most kills: a boss, a crowd of three, a low hero, a caster.
+3. **No stacking:** each row has a stacking key, and two Traits with one key count the larger. Every sample key and slot is its own.
+4. **Dominance check:** planned for V7 (wave 3). With one Trait a slot the sample can only ask whether each Trait is ever worth its slot, so the full check runs when the pool reaches 20.
+5. **Pity:** `pity.rare` on. The roller (wave 4) owns its curve.
+
+**Walk-through (Muster's gear, today's data only):**
+
+| Step | What the player holds or can reach | Doable? |
+|---|---|---|
+| 1. A company of Level 55 enters Muster Barrows on the scale | Muster is the one scale ground (`DANGER_GROUNDS`), Levels 55 to 75 (its pack) | Yes, once R1's client half ships |
+| 2. A drop of item Level 60 is worn at once | `wearAhead` 10: worn from Level 50 | Owed: no drop table reads `gearLevel` yet (R10) |
+| 3. The piece moves the held step | The gear part, read by the power step | Owed: R9 |
+| 4. A Rare drops with File Breaker, Captain's Due or Last File | `traitPool('muster_barrows')` | Owed: the roller, wave 4 |
+| 5. A Catacomb Trait drops | Needs the Bone Wing and Flooded Wing as grounds (section 7) | Owed: wave 2 |

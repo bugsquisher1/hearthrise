@@ -1,0 +1,16 @@
+
+V1 on mosslight_glade (4 seeds x 6 h, held step read from hour 1; step 0 = the ground as built, one step = +0.35000000000000003% health and blow)
+levers: CLIMB {"cleanRun":2,"climbMax":8,"fallSteps":18,"deathSteps":120,"coolPulls":10} RISKS {"careful":{"fallPm":450,"cleanPm":650,"afterDeath":"careful"},"steady":{"fallPm":250,"cleanPm":450,"afterDeath":"careful"},"bold":{"fallPm":120,"cleanPm":300,"afterDeath":"steady"}} readyPm 800
+held = the time-weighted step while all four hunt (to the first death), from hour 1; fourH = those hours a seed
+cell              held (mean +- sd)  drift  +-10  +-20  chg/h falls/h reach h  pulls/h  deaths wipes near(death/warned/fellAfter)  fourH  whys
+base:steady       542.4 +- 2.6     15.4    42  70.3   54.1      7     0.1      212      0     0  0 (0/0/0)                       5  {"hold":3764,"climb":1145,"fall":175}
+
+pay from a held start (hour 1 to the four's end), Level XP a hunted hero-hour as a multiple of the hours table
+  base:steady        5.57x  sd 0.07  n 4  window 5 h  seeds 5.61 5.62 5.47 5.6
+
+gold a hunted hero-hour over the whole hunt (coin; coin + loot at the store's price, no Rares; the store bill), mean +- sd over seeds
+  base:steady       L20  coin 3225 +- 21  income 4994 +- 80  store 5191  loot by band: common 586, uncommon 111, scarce 1071, other 0  n 4
+
+power moves (paired seeds): the held step at the changed power minus at base
+
+wall 23 s

@@ -4,6 +4,7 @@ import { L, at, K, P, V, NP, flag, rows, home, field, fields } from './dsl.mjs';
 import { KILL, SURVIVE, PACE, GOLD } from './combat.mjs';
 
 const GEAR = 'src/data/gear-tiers.js';
+const GS = 'src/data/gear-steps.js';
 const ITEMS = 'src/data/items.js';
 const ITEM_ROWS = home(ITEMS + '#ITEMS', 'keys');
 const MIG = 'supabase/migrations/';
@@ -90,6 +91,49 @@ export const GEAR_ECONOMY = [
     flags: [flag('ineffective', 'The Armor track works inside the 60% cap, so a capped front hero gains nothing from it', 'COMPUTED from the cap rule and 12-balance-pass 3.6 (MEASURED for armor points)'),
       flag('contradictory', 'Past Level 110 a ladder is keyed on the piece\'s Level band, not its tier, because every piece past Dawnsteel is still tier 7; the unique bands are shut (open: false)', '44 P-X34, CONFIRMED')],
     ev: 'CONFIRMED (read)' }),
+  /* PLAIN GEAR IN STEPS AND THE TRAITS (lane/g-gear-steps, 04 section 10, 12-targets 3.3 and 8). The scale grounds' gear: a piece is its
+     item Level, a tier is tierSteps of it, a Trait is a rule worth its rank's steps while its `when` holds. Read by the engine's power
+     step (R9) once it lands; nothing reads them today, so every row is not-built. */
+  L('gear.step-tier', 'equipment', 'global', 'A gear tier in steps, and how far ahead gear is worn', {
+    at: [at(GS, 'tierSteps: 20,'), at(GS, 'wearAhead: 10,')],
+    def: 'a base tier is exactly tierSteps item Levels (tierLevel(t) = t x tierSteps, tier 0 the starting kit); a piece of item Level iL is worn from hero Level iL - wearAhead',
+    range: 'tierSteps whole, about 20 (04 section 1: a tier +5.1% to +10.5% of power across powerStep\'s search range); wearAhead 0 to one tier',
+    touches: 'how much a base upgrade moves the held step (R9 done when a tier moves it about 20) and how early a ground\'s drops can be worn', out: [...KILL, ...SURVIVE], f: [],
+    tests: [['tests/gear-steps.mjs', 'GS-2 the tier and wear ahead']], testReads: ['GEAR_STEPS', 'tierLevel'],
+    perturb: NP('not-built', 'the power step (R9) reads it; no engine path does yet'),
+    ev: 'STATED (04 section 1 worked value; wearAhead JUDGMENT, half a tier)' }),
+  L('gear.slot-weights', 'equipment', 'archetype', 'Gear slot weights', {
+    at: [at(GS, 'weapon: 200, shield: 80, body: 120')],
+    def: 'a worn piece of item Level iL adds iL x slotPm / 1000 steps to the gear part; the weights sum to 1000 so a whole kit at X is X; a two-handed weapon carries the shield\'s weight too',
+    range: 'whole permille, every slot above 0, summing to exactly 1000 (GS-1)',
+    touches: 'what an empty or old slot costs a hero, so which drop is the upgrade that matters', out: [...KILL, ...SURVIVE], f: [],
+    tests: [['tests/gear-steps.mjs', 'GS-1 the slot weights']], testReads: ['GEAR_STEPS'],
+    perturb: NP('not-built', 'the power step (R9) reads it'),
+    ev: 'STATED (JUDGMENT: the weapon a fifth, jewelry small)' }),
+  L('gear.trait-budget', 'equipment', 'global', 'Trait steps by rank and the Trait guards', {
+    at: [at(GS, 'traitSteps: Object.freeze([4, 7, 10]),'), at(GS, 'conditionalStepsMax: 20,'), at(GS, 'traitAverageSharePm: 500,'), at(GS, 'dominanceMaxPm: 400,'), at(GS, 'rankDepths: Object.freeze([1, 8, 15]),')],
+    def: 'a Trait of rank 1, 2, 3 is worth traitSteps on its best cell; all conditional steps on a hero at once at most conditionalStepsMax; a Trait\'s average over every ground at most traitAverageSharePm of its best; no Trait in the best kit on more than dominanceMaxPm of cells; rank by depth from rankDepths',
+    range: 'rank 1 to rank 3 under a third of a tier; the cap at least rank 3 and at most a tier; shares inside (0, 1000) (GS-3)',
+    touches: 'how much a Rare is worth over a plain piece, and how far a lucky kit can run from an unlucky one', out: [...KILL, ...SURVIVE], f: [],
+    tests: [['tests/gear-steps.mjs', 'GS-3 the Trait budget']], testReads: ['GEAR_STEPS'],
+    perturb: NP('not-built', 'no roller or fight reads Traits until wave 4 (V7 sizes them on the engine)'),
+    ev: 'STATED (04 section 10: 6 steps of spread on a 20-step tier)' }),
+  L('gear.traits', 'equipment', 'content', 'Traits: the rule, its condition and its source', {
+    rows: rows('the sample Traits (when values, slot, source)', [home(GS + '#TRAITS', 'keys')]),
+    def: 'each Trait raises offense, defense or heal by its rank\'s steps while its `when` (a bar condition) holds; it rolls on its source ground',
+    range: 'a `when` value inside its condition\'s picker (GS-4); never the always-true condition',
+    touches: 'which hero wants which Rare on which ground (hidden until wave 4)', out: [...KILL, ...SURVIVE], f: [],
+    tests: [['tests/gear-steps.mjs', 'GS-4 and GS-5 the rows']], testReads: ['TRAITS'],
+    perturb: NP('not-built', 'hidden: nothing rolls or plays them'),
+    ev: 'STATED (a sample of five, CLAUDE.md section 10)' }),
+  L('gear.ground-tier', 'equipment', 'archetype', 'The base tier a scale ground drops', {
+    at: [at('src/data/danger.js', 'gearLevel: tierLevel(3)')],
+    def: 'a scale ground drops ONE base item Level at every depth (Muster Barrows tier 3, item Level 60); depth raises only the Rare odds and the Trait rank',
+    range: 'a whole tier (GS-5); the next ground\'s base is a tier up',
+    touches: 'why a company moves on: the next ground\'s plain piece beats this ground\'s Rare base (12-targets 3.3)', out: [...KILL, ...SURVIVE], f: [],
+    tests: [['tests/gear-steps.mjs', 'GS-5 a whole tier and its pool']], testReads: ['DANGER_GROUNDS'],
+    perturb: NP('not-built', 'no drop table reads it yet (R10)'),
+    ev: 'STATED (Muster Barrows is a Level 55-75 ground)' }),
 
   /* ── 16. IMBUEMENT EFFECTS ─────────────────────────────────────────────────────────────────────────────────────────────────── */
   L('imbue.parts', 'imbuements', 'content', 'Imbuement parts', {
@@ -273,14 +317,30 @@ export const GEAR_ECONOMY = [
     perturb: NP('outside-hunt', 'retired from play; tools/balance-program/stamina-day.mjs models the day'),
     ev: 'CONFIRMED (read)' }),
   L('econ.hunt-block', 'economy', 'global', 'Bought hunting block price', {
-    at: [at('src/data/time-blocks.js', 'base: 500,'), at('src/data/time-blocks.js', 'perLevel: 125,')],
-    def: 'block n of the UTC day costs ceil((500 + 125 x L) x 1.5^(n - 1)); each adds 2 h of stamina, 2 a day, banked to the cap + a day\'s blocks',
-    range: 'A LEVER UNTIL wage(L) EXISTS: base and perLevel are today\'s refill base (1,000 + 250 a Level for 4 h) pro rata to 2 h; the target is 2 h x 2.0 hours of wage x wage(L) x 1.5^n (04 section 11, band 1.5 to 2.5 a block hour). RULED (Tyler 2026-11-22), not levers: 2 h a block, x1.5 a block, 2 a day. SQL twin hr_time_block_price (1058, generated)',
+    at: [at('src/data/time-blocks.js', 'priceHourPm: 2000,')],
+    def: 'block n of the UTC day costs ceil(2 h x priceHourPm / 1000 x wage(levelStep(L)) x 1.5^(n - 1)) (src/core/wage.js blockPrice): 4 then 6 hours of the hero\'s wage; each adds 2 h of stamina, 2 a day, banked to the cap + a day\'s blocks',
+    range: '04 section 11: 2.0 hours of wage a block hour (band 1.5 to 2.5); validate refuses 1.0 or less (a block hour would sell for what it pays). RULED (Tyler 2026-11-22), not levers: 2 h a block, x1.5 a block, 2 a day; a per-hero cost reads the hero\'s Level (Tyler 2026-11-22). SQL twin hr_time_block_price (1058, generated)',
     touches: 'a gold sink and the hours past the 10 h day (14 h at most, 16 h with Premium)', out: [], f: [],
-    tests: [['tests/hunting-blocks.mjs', 'the day, two blocks at x1.5, the third refused']], testReads: ['TIME_BLOCKS', 'blockPrice'],
+    tests: [['tests/hunting-blocks.mjs', 'the wage twin at every step, the day, two blocks at x1.5 priced on the wage, the third refused']], testReads: ['TIME_BLOCKS', 'blockPrice'],
     perturb: NP('outside-hunt', 'a block is bought in town or mid-hunt, never by a cell; tools/balance-program/stamina-day.mjs models the day'),
-    flags: [flag('ineffective', 'On today\'s refill base the first block costs about a third of the coin its 2 h earn at Levels 13 to 25, short of 04 section 11\'s "pretty pricey" (the first block costs more than its hours earn back) until wage(L) prices it', 'stamina-refill.js WHY THIS PRICE; JUDGMENT')],
-    ev: 'STATED (Tyler 2026-11-22: 2 h, x1.5, cap 2; the price is today\'s base until wage(L))' }),
+    ev: 'MEASURED (lane/w-wage 2026-11-22, tools/balance-program/redesign/w/fit.mjs: the first block costs 2.0x the gross gold its 2 h pay on Steady at Levels 60, 63 and 70)' }),
+  L('econ.wage-base', 'economy', 'global', 'The wage at step 0', {
+    at: [at('src/data/wage.js', 'wageBase: 3800,')],
+    def: 'wage(step) = floor(wageBase x (1 + payStepCoin)^step) (src/core/wage.js): gold one reference hunted hero-hour pays (coin + loot at the store\'s price, no Rares)',
+    range: 'set so wage(60/63/70) meets the Steady four\'s pay on the Danger scale (pay / wage 0.99 to 1.01). SQL twin hr_wage (1058, generated)',
+    touches: 'every price written in hours of wage: bought hunting and work blocks (at the hero\'s Level), 13-market V and fees (at depth, wave 4)', out: [], f: [],
+    tests: [['tests/hunting-blocks.mjs', 'HB-WAGE: the server\'s wage is the JS wage at every step']], testReads: ['WAGE', 'wage'],
+    perturb: NP('outside-hunt', 'a price, never read by a cell; tools/balance-program/redesign/w/fit.mjs reads it against the measured pay'),
+    ev: 'MEASURED (v1-climb.mjs, Muster Barrows, Steady, held start, 6 seeds x 8 h: 4,797 / 4,906 / 5,055 gold an hour at Levels 60 / 63 / 70)' }),
+  L('econ.wage-step', 'economy', 'global', 'The wage\'s growth a step', {
+    at: [at('src/data/wage.js', 'payStepCoin: 0.004,')],
+    def: 'the wage grows (1 + payStepCoin) a step; a hero\'s Level is its step (levelStep), a good\'s band or item step is its depth',
+    range: '04 section 11: 0.2% to 0.5%. Not the engine\'s PAY.payStepCoin (0.7%, coin a Danger step deeper inside one ground); one number once bands are absolute (wave 2)',
+    touches: 'how prices in hours of wage grow with Level and depth', out: [], f: [],
+    tests: [['tests/hunting-blocks.mjs', 'HB-WAGE: never falling, held at the last step']], testReads: ['WAGE', 'wage'],
+    perturb: NP('outside-hunt', 'a price, never read by a cell; fit.mjs fits it'),
+    flags: [flag('contradictory', 'Two coin ratios a step: this one across grounds (0.4%) and the engine\'s depth pay inside one ground (0.7%); 04 means one', 'src/data/wage.js; 04 section 11')],
+    ev: 'MEASURED (the Lab\'s pinned baseline, four on Normal on its own ground, Levels 20-400, fitted in logs weighted by the Level hours table: 0.39%)' }),
   L('econ.work-day', 'economy', 'global', 'A hero\'s daily town work', {
     at: [at('src/data/work-day.js', 'freeMin: 480,')],
     def: 'a hero\'s town work (a gathering job or a bench run) stops for the UTC day after freeMin minutes of it; the next day opens a fresh cap',

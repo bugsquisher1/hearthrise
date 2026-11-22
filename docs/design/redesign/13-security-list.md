@@ -1,0 +1,79 @@
+# 13. The pre-EA Security list
+
+2026-11-22, `lane/r6-release-plan`, QA. Tyler wants one home for this list. This is it. It folds in every Security flag a sidecar carries, the surfaces the handoff named, and the live `hr_stamina_refill`. CLAUDE.md section 2 and 3.7 hold the gate: one thorough adversarial review of every new or changed server surface before Steam Early Access, with its changes landed. Nothing here has been reviewed yet.
+
+**How this list was built.** Every sidecar in `supabase/migration-notes/` whose note leads with STAGED was read for a Security flag ("ON THE EA SECURITY LIST", "pre-EA Security list", "Security review REQUIRED", "MONEY"). Each row below names the file or the system, what it moves, the lever an attacker would pull, what the server is supposed to hold, and the check the reviewer must run. "Status" says whether it is live, staged or not built. 1056 had no flag; this lane added one to its sidecar.
+
+**Keep it current.** A new migration that touches gold, Crowns, items, XP or Level credit, drops, prices, purchases or trade writes "ON THE EA SECURITY LIST" in its sidecar and adds a row here in the same commit. `node tools/release-plan.mjs` lists the release's files. A file the release holds back (retired, re-cut or blocked) keeps its row until it leaves the chain.
+
+---
+
+## 1. Live today
+
+| # | Surface | What it moves | The lever | What must hold | Check |
+|---|---|---|---|---|---|
+| L-1 | `hr_stamina_refill(p_slot, p_price, p_idem)` (`2026-10-25-stamina-refill.sql`, restated by `2027-04-19-key-under-lock.sql`) | Gold out, stamina in. The only live way to buy time | A forged price, a replayed key, two presses at once, a refill priced off a stale pool, more than the day's limit | The server prices from `hr_stamina_refill_rule` under the hero lock. A shown price that differs is refused (`quote_changed`), never charged. One `hr_apply` journalled `shop`. The day count reads the append-only ledger. The pool never passes the cap | Two parallel presses with one key and with two keys. A press with a lower `p_price`. The seventh press of a UTC day. A refill while a settle is in flight (`bad_stamina` once, then a clean settle). `key-under-lock` calls it "the house pattern every new money verb copies", so review it first and hold every row below to it |
+| L-2 | The live refill steps (4 h a refill, 6 a day) | The price curve of L-1 | None new. This is a ruling gap: Tyler's 11-22 rule is 2 h blocks, x1.5, cap 2 | Replaced by the bought blocks (N-1) when R8 lands. Until then L-1 is the only bought time | Confirm R8 retires L-1's verb or wraps it. Two live ways to buy time is a second surface to defend |
+
+## 2. Staged, in this release's plan
+
+From `node tools/release-plan.mjs` on 2026-11-22. All are STAGED and not applied.
+
+| # | File | What it moves | The lever | What must hold | Check |
+|---|---|---|---|---|---|
+| S-1 | `1017-tend-the-field.sql` | Gold out (seeds bought at the Shop's price), crops and Farming XP in | `p_gold` forged, a tend pressed twice, seeds bought past the purse | `p_gold` is only compared with the server's own plan (`quote_changed`). Seeds come from bag, then Storage, then the Shop through `hr_farm_purse_pay`, journalled `farm_tend_seed`. Harvest, plant and water stay the pinned server bodies | A tend with a low `p_gold`. Two tends on one key. A tend with 0 gold and no seeds. XP equals the three single verbs' sum |
+| S-2 | `1036-four-starter-slots.sql` | Hero slots 1 to 3 become free. `hr_buy_hero_slot` is dropped | A slot made twice, a fifth slot, the dropped verb still callable | Every account owns slots 0 to 3 from the start and nothing is for sale. The 9 slots bought live stay owned. No refund is written | `hr_buy_hero_slot` answers PGRST202. `hr_account_view.offer` is null. A fifth slot is refused |
+| S-3 | `1038-start-kits.sql` | A grant: 500 gold, seeds and food once an account, a hero kit once a slot, a practice set worn | Delete and recreate a hero to farm the hero kit. Several accounts to farm the account kit. Sell the kit | `account_kits` is append-only and server-only, keyed once an account and once a slot. Kit items are low value | Create, delete and recreate in one slot: one hero kit. The sale value of a full kit against the cost of a new account |
+| S-4 | `1041-social-clans.sql` | 100,000 gold to found a clan, journalled `clan`. Clan verbs become client-executable | A found pressed twice, a found refunded by a leave, a kick or rank abuse, a clan name or tag that reaches other players | The fee goes through `hr_apply`. Castle, feast, upkeep, vote and work-order verbs stay hidden. Names cross to other players, so they are server-checked | Two founds on one key and on two keys with 100,000 gold. Found then leave: no gold back. The roster, the invite by name and the chat for stored XSS |
+| S-5 | `1047-hourly-journal.sql` | Folds detail ledger rows into one row a hero an hour | A fold that changes a sum, a fold that deletes rows it should keep, the kill switch | The fold's own proof rolls back any hour whose rows do not sum. Only the fold may delete detail inside retention. Deaths, finds and presses keep their detail. Kill switch: `hr_ledger_config.hourly = false` | The day budget, store cap and meta sums before and after a fold across a UTC midnight (`tests/ledger-hours.mjs`). The flush kill switch is untested (11-build-audit section 2); test it here too |
+| S-6 | `1053-recruits.sql` | A grant: three heroes at the first hero's Level less `levels_under`, once an account | The press twice, a recruit above the first hero, a first hero deleted and remade to press again, a forged count or Level | All or nothing. Idempotent by key (`player_intents`) and once an account (`account_kits recruits`). Level XP never above `max_level`. One ledger row a recruit (`admin`, `recruit`) | Two presses, two keys. Delete every hero and make one again: no second offer. A first hero at Level 4 and at the cap. `hr_recruits_view` null for an account with two heroes |
+
+## 3. Staged, held out of this release
+
+These files carry a flag but `tools/release-plan.mjs` holds them (12-targets 2.7 retires or re-cuts them, or they need a held file). They are reviewed when they come back, or leave the list when they leave the chain.
+
+| # | File | Why held | What it moves | What must hold when it returns |
+|---|---|---|---|---|
+| H-1 | `1014-works-goal-sized.sql` | Retired (Town Works becomes company trades) | A shared money surface: the Town Works goal sized to weekly active accounts | `hr_town_works_goals` server-only, sized once a UTC day. Retiring it removes this row |
+| H-2 | `1043-hearthrise.sql` | Blocked: it needs 1014 | An XP multiplier on a ranked board (the Great Hearth's fire sizes a live XP window) | Each account-day capped at four shares. The fire's size is read once before the window. A forged fuel row cannot move the size |
+| H-3 | `1051-company-start.sql` | Blocked: it needs 1032's grant detector (link 25), found by `--replay` | The engine's wear moves items between own heroes through Storage (`hr_company_wear_apply`, engine-only) | The server picks (`src/core/upgrade-pick.js`). In town and idle only. Through `hr_apply`'s equip gate. Never across accounts. Nothing is minted: a move is a remove and an add in one transaction |
+| H-4 | `1056-danger-scale.sql` (flag added by this lane) | Blocked: it needs 1054, which carries the retired 1028 | A new client verb `hr_hunt_risk_set(slot, risk, idem)`. The stance sets the depth, and the depth scales the Level XP and coin of every kill (`PAY.payStepXp`, up to 2.31x at `gapMax`) | Keyed, rate-gated, refused never clamped, the party leader's only. The stance and step are frozen at the instance's first session by `hr_danger_freeze`. The stored step is re-proved each settle: never bolder, a rise held to `climb_max x (window / (clean_run x regroup_ms) + 1)`, the value bound follows the step (`hr_danger_bound`). Check: a client that sets Bold mid-hunt, a step forged in the world JSON, a climb faster than the bound, a party member who is not the leader. Review `1057-danger-falls.sql` with it (no flag of its own): it restates `hr_danger_freeze` (a default stance when the plan names none) and the report's checks (`hr_hunt_report_ok`, `report_falls_max`) |
+
+## 4. Not built yet, flagged now
+
+No code exists. Each row is the requirement the building lane must meet, so Security reviews a design that already holds it.
+
+| # | Surface | Ruling | What it will move | What must hold |
+|---|---|---|---|---|
+| N-1 | Buyable hunting blocks: NOW STAGED as `1058-hunting-blocks.sql` (R8, flagged in its sidecar), with its two 1058 catalogues. Blocked in today's plan: its hunt-sessions catalogue carries 1054 | Tyler 11-22: a 10 h free day, 2 h blocks, x1.5, cap 2 | Gold (later `wage(L)`) for hunting time. `hr_time_buy(kind, slot, price, idem)` replaces L-1 for every client; the refill's body and rule stay owner-only until 1009 leaves the chain | L-1's pattern, which the note says it follows: keyed before and under `hr_hunt_lock`, re-quoted under the lock, `quote_changed` / `block_limit` / `stamina_full` / `stamina_ahead` refused, one `hr_apply` journalled `shop`, intent `time_buy:<kind>:<price>`. Check: a third block in a UTC day, two presses one key, a forged price, `hr_stamina_refill` refused to every request role after the apply, the bank never past the cap plus a day's blocks. Work blocks are not built yet |
+| N-2 | The Crowns book and store | Section 3 of 11-build-audit. Prices are Tyler's | Crowns (real money) for cosmetics, never-breaking tools, save slots, Premium time | Crowns move only through server RPCs with server catalogues and an append-only ledger. A purchase is idempotent by key. No Crown item adds power or XP. The $15 box's 30 days of Premium need an entitlement surface first. Payment-provider webhooks are verified server-side. Real money is the highest-value surface in the game |
+| N-3 | Bought remains (the Inner Flame's remains market) | Tied to the remains market | Remains for gold or Crowns, between players | Player trade: never trust a client price, quantity or name. Every listing and sale journalled. The CLAUDE.md section 1 rule on anything tradeable applies in full |
+| N-4 | Premium contents, talent resets and saved builds | Section 3 of 11-build-audit | Entitlements | The server reads an entitlement row, never a client flag (CLAUDE.md section 6, residue-ahead) |
+
+## 5. History sidecars that still lead with STAGED and carry a flag
+
+These older files lead with STAGED and ask for a Security review. Most are almost certainly applied long ago with a stale note; `tests/apply-order-honesty.mjs` has no verdict on them because their bodies are not tracked or not last. Before EA, settle each one: flip it with evidence (`node tools/migration-note.mjs applied`) or review it.
+
+| File | Its flag |
+|---|---|
+| `2026-08-16-client-write-grant-sweep.sql` | Security condition C3 (dead anon write grants) |
+| `2026-08-17-fight-carry.sql` | Security review REQUIRED (F3) |
+| `2026-08-18-equip-release-codes.sql` | Security review REQUIRED |
+| `2026-08-20-goal-reward-rpc-credit.sql` | MONEY SURFACE: daily-task and quest gold |
+| `2026-08-20-renown.sql` | Renown is rankable |
+| `2026-08-20-live-progress-engine-allow.sql` | It restates the grant detector |
+| `2026-08-21-streak-state.sql` | It modifies `hr_apply` and `hr_state_of` |
+| `2026-08-22-collection-claim.sql` | MONEY SURFACE: Collection-Log gold and gems |
+| `2026-08-22-renown-claim.sql` | Highest-value money surface (up to 1,000,000 gold a claim) |
+| `2026-08-24-inventory-complete.sql` | Gates a data-loss-critical flip |
+| `2026-09-10-attended-loot-credit.sql` | Applies after a Security GO (F4, F5, C6) |
+| `2026-09-22-pg-net-queue-lockdown.sql` | A ruling on T-5 pending |
+| `2027-05-27-arm-factions.sql` | A cosmetic surface others see (with `2027-04-22-faction-standing`) |
+
+## 6. Cross-cutting checks for the one review
+
+- Every client verb in `hr_client_rpc_baseline` added since the last review (`hr_assert_grant_hygiene` detects drift). S-1, S-4, S-6 and H-4 add verbs.
+- Every name a player types that another player sees (clans, recruits, heroes) is escaped wherever it renders (stored XSS via `innerHTML`).
+- Every value movement lands in `player_ledger`. Grep the release's files for `hr_apply` calls without a journal kind.
+- The edge engine is part of the surface: `hr-accrue` verbs `company_wear` (H-3) and the Danger scale's settle (H-4). The deploy's `payload_sha256` must match `pack-edge --hash`.
+- Section 3.7's other gates: the full mutation sweep green with no waivers, census re-pins after every apply, the combat replay for any engine deploy.

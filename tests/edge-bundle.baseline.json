@@ -225,9 +225,19 @@
         "why": "lane/r2-danger-falls +6,947 B on the set after R8: a fall back names its hero seat and monster (danger.js lowHero/lowBy, combat-sim syncUnit seat), the report's deep and falls fold and proposal (report.js), HUNT_REPORT.fallsMax and DEFAULT_RISK (src/data)"
       },
       {
-        "bytes": 3277870,
+        "bytes": 3273091,
         "on": "2026-11-22",
-        "why": "lane/r12-company-trades: the work day reaches the engine (src/core/work-day.js, src/data/work-day.js; the stop in accrual.js, work_to in both accruers, the day carried in tick-shadow.js, the work_day input in envelope.js)"
+        "why": "src/data/gear-steps.js (lane/g-gear-steps): the scale grounds' gear table and the five sample Traits, reached through src/data/danger.js DANGER_GROUNDS (gearLevel, traits); the power step (R9) reads it on the edge"
+      },
+      {
+        "bytes": 3273649,
+        "on": "2026-11-22",
+        "why": "src/data/gear-steps.js traitsByRarity and the piece note (lane/g-gear-steps, fitted to 13-market.md)"
+      },
+      {
+        "bytes": 3288194,
+        "on": "2026-11-22",
+        "why": "lane/r12-company-trades (merged over lane/g-gear-steps and lane/w-wage): the work day reaches the engine (src/core/work-day.js, src/data/work-day.js; the stop in accrual.js, work_to in both accruers, the day carried in tick-shadow.js, the work_day input in envelope.js)"
       }
     ]
   }

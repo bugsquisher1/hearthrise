@@ -43,8 +43,10 @@
 // READINESS (04 section 9, 02 section 11): the party leaves its regroup for the next pull only when every standing hero is at or over
 // `readyPm` of max HP. One threshold for every stance here, so a stance differs only in its trigger and its climb threshold.
 //
-// PURE ESM. Data only.
+// PURE ESM. Data only (the gear a ground drops is src/data/gear-steps.js).
 // ════════════════════════════════════════════════════════════════════════
+
+import { tierLevel, traitPool } from './gear-steps.js';
 
 // WAVE 1 (lane/v1-climb, backend, 2026-11-22): THE PAY, THE START AND THE GROUNDS.
 // PAY BY DEPTH FROM THE HOURS TABLE (04 sections 5 and 7). V1 paid a kill its row's Level XP x (1 + 0.7%)^step, so a four holding step
@@ -86,8 +88,10 @@ export const PAY = Object.freeze({ refKillsHead: 120, payStepXp: 0.007, payStepC
 export const DANGER_GROUNDS = Object.freeze({
   /* floorStep / topStep: the ground's band of DEPTHS depths (docs/design/redesign/12-targets.md section 3.1, starting values the Lab
      tunes): depth 1 at the floor, depth 20 at the top. The player sees only "Depth N of 20", never a step (12-targets section 2.6).
-     Display only for now: the server's catalogue (tools/gen-danger.mjs) reads refStep alone. */
-  muster_barrows: Object.freeze({ refStep: 590, floorStep: 480, topStep: 710 }),
+     Display only for now: the server's catalogue (tools/gen-danger.mjs) reads refStep alone.
+     gearLevel / traits: the ONE base item Level the ground drops at every depth and the Traits that roll on it (12-targets 3.3 and 8,
+     src/data/gear-steps.js). Muster Barrows (Levels 55-75) drops tier 3, item Level 60. Data only: no drop table or fight reads them yet. */
+  muster_barrows: Object.freeze({ refStep: 590, floorStep: 480, topStep: 710, gearLevel: tierLevel(3), traits: traitPool('muster_barrows') }),
 });
 
 /* The depths a ground's band is cut into (12-targets.md 3.1). */

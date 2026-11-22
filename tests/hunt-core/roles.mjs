@@ -376,7 +376,7 @@ const mutants = [
     edits: [[R, '  const s = defaultSettings(role, partyRoles.length ? partyRoles : [role]);', '  const s = defaultSettings(role, partyRoles);']] },
   { name: 'heroSetup bakes a default in (KNOWN-F1: the party a read saw)', case: 'settings-read-the-party-standing',
     edits: [['src/core/hunt-spawn.js', "  const own = (k, as) => (opt[k] === undefined || opt[k] === null ? {} : { [as]: opt[k] });", "  const own = (k, as) => ({ [as]: pick(k, as === 'chase') });"]] },
-  { name: 'the leader is the first hero by id', case: 'pull-leader-order', edits: [[R, "    const r = u.side === 'hero' ? ROLE_ORDER.indexOf(u.role) : -1;", "    const r = u.side === 'hero' && ROLE_ORDER.includes(u.role) ? 0 : -1;"]] },
+  { name: 'the leader is the first hero by id', case: 'pull-leader-order', edits: [[R, "    const r = isHero(u) ? ROLE_ORDER.indexOf(u.role) : -1;", "    const r = isHero(u) && ROLE_ORDER.includes(u.role) ? 0 : -1;"]] },
   { name: 'a staff offers the Mage too', case: 'role-from-weapon', edits: [['src/data/hunt-roles.js', "  staff: key(['healer'], 'restoration'),", "  staff: key(['mage', 'healer'], 'restoration'),"]] },
   { name: 'a wand plays the Healer', case: 'role-from-weapon', edits: [['src/data/hunt-roles.js', "  wand: key(['mage'], 'destruction'),", "  wand: key(['healer'], 'destruction'),"]] },
   { name: 'a sword alone plays the tank again (audit c02)', case: 'role-from-weapon', edits: [['src/data/hunt-roles.js', "  sword: key(['melee_dps'], 'sword'),", "  sword: key(['tank'], 'shield'),"]] },

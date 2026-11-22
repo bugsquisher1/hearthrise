@@ -28,11 +28,12 @@ import { SURROUND } from '../../data/hunt-roles.js';
 import { cheb, dist2, los } from './grid.js';
 import { inArea } from './leash.js';
 import { clearGoal, goToNearest } from './movement.js';
+import { isEnemy, isMonster } from './sides.js';
 
 /** The tiles monster unit `m` shoots from, or 0: a hero, or a monster that fights beside its target. Its row through the
     instance's one door (world-step.js inst.monsters: a scaled hunt's table), the catalogue for a bare caller. */
 export function rangeOf(inst, m) {
-  return m && m.side === 'mon' ? monsterRangeOf((inst.monsters || MONSTERS)[m.kind]) : 0;
+  return isMonster(m) ? monsterRangeOf((inst.monsters || MONSTERS)[m.kind]) : 0;
 }
 
 /* Can a shot of `r` tiles from (x, y) reach unit `t`: within r in a straight line, nothing opaque between (targeting.js inRange). */
@@ -52,7 +53,7 @@ export function aimOf(inst, m, fallback) {
   if (!rangeOf(inst, m)) return fallback;
   let best = null;
   for (const h of inst.world.units) {
-    if (h.side !== 'hero' || !h.alive || !inArea(inst, m.pocket, h.x, h.y)) continue;
+    if (!isEnemy(m, h) || !h.alive || !inArea(inst, m.pocket, h.x, h.y)) continue;
     if (!best || dist2(h, m) > dist2(best, m) || (dist2(h, m) === dist2(best, m) && h.id < best.id)) best = h;
   }
   return best ? best.id : fallback;

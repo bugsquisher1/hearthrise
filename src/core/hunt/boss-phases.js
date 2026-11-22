@@ -30,6 +30,7 @@ import { makeEvent } from './events.js';
 import { spawnAdds } from './pull-cycle.js';
 import { spellRow } from '../../data/monster-spells.js';
 import { isAdd } from './leash.js';
+import { isMonster } from './sides.js';
 
 const atOrUnder = (hp, maxHp, pm) => hp * 1000 <= maxHp * pm;
 
@@ -45,9 +46,9 @@ export function swingRow(u, row) {
 /** The permille of a blow monster `t` takes: a boss's `phases.guardPm` while an add of his pocket (leash.js isAdd: one his line
     brought) stands, else all of it. Read at each blow from the world, the same on every cut of the windows. */
 export function guardPmOf(inst, t) {
-  const ph = t.side === 'mon' ? (MONSTERS[t.kind] || {}).phases : null;
+  const ph = isMonster(t) ? (MONSTERS[t.kind] || {}).phases : null;
   if (!ph || !Number.isInteger(ph.guardPm)) return 1000;
-  return inst.world.units.some((u) => u.alive && u.side === 'mon' && u !== t && u.pocket === t.pocket && isAdd(inst, u)) ? ph.guardPm : 1000;
+  return inst.world.units.some((u) => u.alive && isMonster(u) && u !== t && u.pocket === t.pocket && isAdd(inst, u)) ? ph.guardPm : 1000;
 }
 
 /** The blow that took monster `t` from `before` HP to where it stands: each line it crossed happens now, once. Not on the blow that felled him. */

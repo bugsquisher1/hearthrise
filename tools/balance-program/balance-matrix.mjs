@@ -772,7 +772,7 @@ async function selftest() {
     check('a planted cell that ended no_fight, or an error naming a kill credited to no hero, is a tool red and the run exits 1; a death, an outgrown end or another error is not one (' + tr.map((x) => x.key).join() + ')',
       tr.length === 2 && tr[0].key === 'b' && tr[1].key === 'd' && printToolReds(planted, (s) => lines.push(s)) === 1 && lines.length >= 2 && printToolReds([planted[0], planted[2]], () => {}) === 0);
     const NOFIGHT = { id: 'selftest-nofight', levels: [], seeds: 1, hours: 0.25, blocks: [{ id: 'a', levels: [30], comps: [lone('hammer')], gears: ['mid'], tiers: ['normal'] }] };
-    const stall = { edits: [{ file: 'src/core/hunt/damage.js', from: "  if (target.side === 'mon') inst.world.fightAt = sc.atMs;", to: "  if (false) inst.world.fightAt = sc.atMs; /* MUTANT: the no-fight clock never moves */" }] };
+    const stall = { edits: [{ file: 'src/core/hunt/damage.js', from: "  if (isMonster(target)) inst.world.fightAt = sc.atMs;", to: "  if (false) inst.world.fightAt = sc.atMs; /* MUTANT: the no-fight clock never moves */" }] };
     let mut = null, why = '';
     try { const s = await plantScratch(stall); try { mut = await playRun(D, K, NOFIGHT, s.root, o); } finally { s.done(); } } catch (e) { why = e.message; }
     const mr = mut ? toolReds(mut.cells) : [], fall = mut && mut.cells[0] && mut.cells[0].m ? mut.cells[0].m.falls[0] : null;

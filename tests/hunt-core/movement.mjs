@@ -142,15 +142,15 @@ const cases = {
 const MV = 'src/core/hunt/movement.js';
 const mutants = [
   { name: 'heroes block heroes', case: 'heroes-pass-through',
-    edits: [[MV, "  return u.side === 'mon' && (inst.occ.hero.get(k) || 0) > 0;", '  return (inst.occ.hero.get(k) || 0) > 0;']] },
+    edits: [[MV, "  return isMonster(u) && (inst.occ.hero.get(k) || 0) > 0;", '  return (inst.occ.hero.get(k) || 0) > 0;']] },
   { name: 'heroes do not block monsters', case: 'monsters-block',
-    edits: [[MV, "  return u.side === 'mon' && (inst.occ.hero.get(k) || 0) > 0;", '  return false;']] },
+    edits: [[MV, "  return isMonster(u) && (inst.occ.hero.get(k) || 0) > 0;", '  return false;']] },
   { name: 'a unit stops at every tile centre', case: 'continuous-roll-between-tiles',
     edits: [[MV, '      if (u.prog >= len) { u.fx = u.x; u.fy = u.y; u.prog = 0; }\n      continue;', '      if (u.prog >= len) { u.fx = u.x; u.fy = u.y; u.prog = 0; break; }\n      continue;']] },
   { name: 'followers ignore their own target', case: 'follow-trail-until-target',
     edits: [[MV, '    if (!u.alive || Number.isInteger(u.target)) continue;', '    if (!u.alive) continue;']] },
   { name: 'a claimed spot is not reserved', case: 'spot-claimed-once',
-    edits: [[MV, "  return inst.world.units.some((v) => v !== hero && v.alive && v.side === 'hero' && v.spot && v.spot[0] === x && v.spot[1] === y);", '  return false;']] },
+    edits: [[MV, "  return inst.world.units.some((v) => v !== hero && v.alive && isHero(v) && v.spot && v.spot[0] === x && v.spot[1] === y);", '  return false;']] },
   { name: 'no hysteresis', case: 'hysteresis-holds-spot',
     edits: [[MV, 'pick.bestScore + pick.hysteresis > pick.curScore', 'pick.bestScore > pick.curScore']] },
   { name: 're-pick en route', case: 'hysteresis-holds-spot',

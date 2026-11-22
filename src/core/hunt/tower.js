@@ -39,6 +39,7 @@ import { OPEN_HUNTS } from '../../data/hunts.js';
 import { COMBAT_BALANCE } from '../combat.js';
 import { hashSeed } from '../rng.js';
 import { makeEvent } from './events.js';
+import { isHero } from './sides.js';
 
 /* The Tower's run row: the default for a reader that only means the Tower. */
 const TOWER = RUN_GROUNDS[TOWER_RULES.hunt];
@@ -209,7 +210,7 @@ export function towerPull(inst, p) {
 export function towerCleared(inst, sc) {
   const w = inst.world;
   const by = {};
-  for (const u of w.units) if (u.side === 'hero' && u.alive) by[u.id] = true;
+  for (const u of w.units) if (isHero(u) && u.alive) by[u.id] = true;
   sc.emit(makeEvent('floor', sc.atMs, { floor: w.towerFloor, by }));
   w.towerFloor += 1;
 }

@@ -17,6 +17,7 @@
 import { leashMarginOf } from '../../data/hunt-grounds.js';
 import { makeEvent } from './events.js';
 import { staleIndex } from './unit-index.js';
+import { isMonster } from './sides.js';
 
 /** Is (x, y) inside pocket `pocket`'s pack area (its room plus the ground's margin)? */
 export function inArea(inst, pocket, x, y) {
@@ -39,7 +40,7 @@ const heldPocket = (inst, hero) => (inst.world.phase === 'fight' ? inst.world.pa
  * hero goes anywhere walkable.
  */
 export function leashAllows(inst, unit, x, y) {
-  if (unit.side !== 'mon') {
+  if (!isMonster(unit)) {
     const held = heldPocket(inst, unit);
     return held < 0 || inArea(inst, held, x, y);
   }
@@ -64,7 +65,7 @@ export function holderOutside(inst, pocket) {
  */
 export function isAdd(inst, u) {
   const p = Number.isInteger(u.pocket) && inst.ground ? inst.ground.pockets[u.pocket] : null;
-  return u.side === 'mon' && !u.home && !!p && Array.isArray(p.adds) && p.adds.length > 0;
+  return isMonster(u) && !u.home && !!p && Array.isArray(p.adds) && p.adds.length > 0;
 }
 
 /**
@@ -85,7 +86,7 @@ export function resetPack(inst, pocket, sc) {
   pack.holder = null;
   const gone = new Set();
   for (const u of inst.world.units) {
-    if (u.side !== 'mon' || u.pocket !== pocket || !u.alive) continue;
+    if (!isMonster(u) || u.pocket !== pocket || !u.alive) continue;
     u.target = null;
     u.path = [];
     /* off the world below; not alive now, so a loop still walking this swing's list passes it by */

@@ -64,6 +64,7 @@ import { trainOf, trainingTick, TRAINING_SLOTS } from './hunt/training.js';
 import { towerOf, towerMonsters, towerEndsAt } from './hunt/tower.js';
 import { runRulesOf } from '../data/tower.js';
 import { sessionPayOf } from '../data/session-modes.js';
+import { isHero } from './hunt/sides.js';
 
 /* The engine's front door: `combatSim`. */
 export { stepSwing } from './hunt/world-step.js';
@@ -361,7 +362,7 @@ export function simulateHuntInstance(inst, ctx) {
      left its unit standing, and an unowned hero would earn kills nobody is paid for. */
   if (world) {
     const owned = new Set(inWorld(members).map((m) => m.unitId));
-    for (const u of world.units.slice()) if (u.side === 'hero' && !owned.has(u.id)) leaveHero(world, u.id);
+    for (const u of world.units.slice()) if (isHero(u) && !owned.has(u.id)) leaveHero(world, u.id);
   }
 
   /* WHAT EVERY END CHECK AT A BOUNDARY READS: the no-fight clock (the world's own; a hero not yet in it has none), the Level as the
@@ -456,7 +457,7 @@ export function simulateHuntInstance(inst, ctx) {
       }
       /* MONSTER DENSITY for the packs that spawn from here: the party leader's pick (Tyler 2026-10-20),
          clamped to the ground for the party's size (hunt-grounds.js partyPick, densityFor). */
-      world.density = densityFor(ctx.ground, world.units.filter((u) => u.side === 'hero').length,
+      world.density = densityFor(ctx.ground, world.units.filter((u) => isHero(u)).length,
         pickOf(members.filter((m) => !m.left && m.unitId !== null)));
       /* THE LEADER'S HOLD PICK, read every swing; it takes force at the next lap boundary (pull-cycle.js), or at once
          in a world just made (every member that enters with it has joined by now). */

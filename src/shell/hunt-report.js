@@ -72,8 +72,10 @@ export function causeLine(d) {
   else {
     const [name, pm, monster] = d.last;
     const v = { count: d.n, name: name || t('report.fell_hero'), pct: pct(pm), monster: monster === 'unknown' ? t('report.fell_monster') : monsterName(monster) };
-    const key = d.n === 1 ? 'report.fell_one' : d.n >= HUNT_REPORT.fallsMax ? 'report.fell_many_more' : 'report.fell_many';
-    parts.push(t(pm === 0 ? key + '_died' : key, v));
+    /* [hurt, died]: a fall at some health, and one where the hero died (pm 0) */
+    const keys = d.n === 1 ? ['report.fell_one', 'report.fell_one_died'] : d.n >= HUNT_REPORT.fallsMax ? ['report.fell_many_more', 'report.fell_many_more_died']
+      : ['report.fell_many', 'report.fell_many_died'];
+    parts.push(t(keys[pm === 0 ? 1 : 0], v));
   }
   return parts.join(' ');
 }

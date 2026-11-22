@@ -158,7 +158,8 @@ for (const c of cells) {
   const near = seeds.flatMap((x) => x.near);
   report.cells[c.id] = {
     ...c, seedsRead: seeds.length,
-    held: { mean: r1(mean(held)), sd: r1(sd(held)), se: r1(sd(held) / Math.sqrt(Math.max(1, held.length))), perSeed: held.map(r0) },
+    /* perSeed keeps a seed's place (null: no settled four-hour of its own), so the power moves below pair the same dice */
+    held: { mean: r1(mean(held)), sd: r1(sd(held)), se: r1(sd(held) / Math.sqrt(Math.max(1, held.length))), perSeed: seeds.map((x) => (x.held === null ? null : r0(x.held))) },
     drift: r1(mean(seeds.map((x) => (x.halves[1] !== null && x.halves[0] !== null ? x.halves[1] - x.halves[0] : 0)))),
     within10: r1(100 * within(10)), within20: r1(100 * within(20)),
     changesPerH: r1(mean(seeds.map((x) => x.changesPerH || 0))), fallsPerH: r1(mean(seeds.map((x) => x.fallsPerH || 0))),

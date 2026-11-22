@@ -157,14 +157,28 @@ export function barPlayedOf(rows) {
   return out;
 }
 
-/** A window's report as the settle proposes it: only what holds something (an empty map or a nothing low is left out). */
+/* The shape the database accepts (1053-hunt-report.sql hr_hunt_report_ok), so the engine never proposes a report the window would be
+   refused for: ids [a-z0-9_] (a rule's 24 long, conditions.js RULE_ID), reasons [a-z_], at most 32 rules and 8 reasons a rule. */
+const ID64 = /^[a-z0-9_]{1,64}$/, RULE = /^[a-z0-9_]{1,24}$/, WHY = /^[a-z_]{1,16}$/;
+const capped = (m, key, max) => Object.fromEntries(Object.entries(isMap(m) ? m : {}).filter(([k, n]) => key.test(k) && nat(n) !== null && n <= 999999999)
+  .sort((a, b) => (a[0] < b[0] ? -1 : 1)).slice(0, max));
+
+/** A window's report as the settle proposes it, in the database's shape: only what holds something (an empty map or no low is left out). */
 export function reportProposal(r, bar, gear) {
   const out = {};
-  if (isMap(r) && isMap(r.low)) out.low = r.low;
-  if (isMap(r) && r.close > 0) out.close = r.close;
-  if (isMap(r) && Object.keys(r.fired || {}).length) out.fired = r.fired;
-  if (isMap(r) && Object.keys(r.waits || {}).length) out.waits = r.waits;
+  if (!isMap(r)) r = emptyReport();
+  const l = r.low;
+  if (isMap(l) && nat(l.pm) !== null && l.pm <= 1000 && ID64.test(l.by) && ID64.test(l.blow) && nat(l.at) !== null) out.low = { pm: l.pm, by: l.by, blow: l.blow, at: l.at };
+  if (nat(r.close) > 0) out.close = Math.min(r.close, 999999999);
+  const fired = capped(r.fired, RULE, 32);
+  if (Object.keys(fired).length) out.fired = fired;
+  const waits = {};
+  for (const rule of Object.keys(isMap(r.waits) ? r.waits : {}).filter((k) => RULE.test(k)).sort().slice(0, 32)) {
+    const why = capped(r.waits[rule], WHY, 8);
+    if (Object.keys(why).length) waits[rule] = why;
+  }
+  if (Object.keys(waits).length) out.waits = waits;
   if (Array.isArray(bar)) out.bar = bar;
-  if (isMap(gear)) out.gear = gear;
+  if (isMap(gear)) out.gear = { w: Math.min(nat(gear.w) || 0, 9999), a: Math.min(nat(gear.a) || 0, 9999), n: Math.min(nat(gear.n) || 0, 9999) };
   return out;
 }

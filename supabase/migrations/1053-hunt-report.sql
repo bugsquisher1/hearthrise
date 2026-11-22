@@ -16,7 +16,7 @@
 -- counts them in the analyzer tally (src/core/hunt/tally.js + report.js); this file stores them and shows them.
 --
 -- ── THE CONTRACT ─────────────────────────────────────────────────────────────
--- hunt_session_tally.report jsonb NOT NULL DEFAULT '{}' (CHECK: an object of at most 16 KB). One row a session, as every tally column:
+-- hunt_session_tally.report jsonb NOT NULL DEFAULT '{}' (CHECK: an object of at most 32 KB; the widest report the fold can keep is 19,879 bytes, §5 c). One row a session, as every tally column:
 --   low    { pm, by, blow, at }   the lowest health the hero reached (permille of max HP after the blow), the monster kind and the
 --                                 blow (an ability id, 'basic' for a swing), the blow's instant (epoch ms). The lowest wins, a tie
 --                                 keeps the earlier blow.
@@ -76,7 +76,7 @@ begin
      or to_regclass('public.hunt_session_events') is null then
     raise exception 'PRECONDITION: the hunt tally (2026-10-23-hunt-analyzer-v2.sql) is missing'; end if;
   for v_r in select * from (values
-    ('public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)', '0e0e304013e75ea2535dbb483c04d570', '4983f53282a302169d62d856631f674a'),
+    ('public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)', '0e0e304013e75ea2535dbb483c04d570', '309c695dc4dfc41d7cf0effe5f9b1dd1'),
     ('public.hr_hunt_view(uuid)', 'fb665623c7255cbf62c96d00cfc2da86', 'cd3f12fac63713be3c9d853b40106784'),
     ('public.hr_hunt_analyzer_basic(jsonb)', '5dd08adae4922c52ed813399c93da73b', '039309e15bfe6d18c2314216f7075b26')) t(fn, pre, post) loop
     select md5(replace(prosrc, chr(13), '')) into v_md5 from pg_proc where oid = to_regprocedure(v_r.fn);
@@ -94,7 +94,7 @@ begin
   if not exists (select 1 from pg_constraint where conname = 'hunt_session_tally_report_ck'
                    and conrelid = 'public.hunt_session_tally'::regclass) then
     alter table public.hunt_session_tally add constraint hunt_session_tally_report_ck
-      check (jsonb_typeof(report) = 'object' and octet_length(report::text) <= 16384);
+      check (jsonb_typeof(report) = 'object' and octet_length(report::text) <= 32768);
   end if;
 end $mig$;
 comment on column public.hunt_session_tally.report is
@@ -111,7 +111,9 @@ begin
   for v_k, v_v in select key, value from jsonb_each(p) loop
     case v_k
       when 'low' then
-        if jsonb_typeof(v_v) <> 'object' or (select count(*) from jsonb_object_keys(v_v)) <> 4
+        -- (each type is proved by its own statement before anything reads inside it: an OR's order is the planner's, never ours)
+        if jsonb_typeof(v_v) <> 'object' then return false; end if;
+        if (select count(*) from jsonb_object_keys(v_v)) <> 4
            or jsonb_typeof(v_v->'pm') is distinct from 'number' or (v_v->>'pm') !~ '^[0-9]{1,4}$'
            or jsonb_typeof(v_v->'by') is distinct from 'string' or (v_v->>'by') !~ '^[a-z0-9_]{1,64}$'
            or jsonb_typeof(v_v->'blow') is distinct from 'string' or (v_v->>'blow') !~ '^[a-z0-9_]{1,64}$'
@@ -121,22 +123,32 @@ begin
       when 'close' then
         if jsonb_typeof(v_v) <> 'number' or (v_v #>> '{}') !~ '^[0-9]{1,9}$' then return false; end if;
       when 'fired' then
-        if not public.hr_hunt_tally_ok(jsonb_build_object('m', v_v), array['m']) then return false; end if;
+        -- { rule id (conditions.js RULE_ID): uses }, at most 32 rules
+        if jsonb_typeof(v_v) <> 'object' then return false; end if;
+        if (select count(*) from jsonb_object_keys(v_v)) > 32
+           or exists (select 1 from jsonb_each(v_v) f where f.key !~ '^[a-z0-9_]{1,24}$' or jsonb_typeof(f.value) <> 'number'
+                        or (f.value #>> '{}') !~ '^[0-9]{1,9}$') then return false; end if;
       when 'waits' then
-        if jsonb_typeof(v_v) <> 'object' or (select count(*) from jsonb_object_keys(v_v)) > 32 then return false; end if;
-        if exists (select 1 from jsonb_each(v_v) w where w.key !~ '^[a-z0-9_]{1,64}$' or jsonb_typeof(w.value) <> 'object'
-                      or (select count(*) from jsonb_object_keys(w.value)) > 8
-                      or not public.hr_hunt_tally_ok(jsonb_build_object('m', w.value), array['m'])) then return false; end if;
+        -- { rule id: { why (events.js rule_wait): n } }, at most 32 rules and 8 reasons a rule
+        if jsonb_typeof(v_v) <> 'object' then return false; end if;
+        if (select count(*) from jsonb_object_keys(v_v)) > 32
+           or exists (select 1 from jsonb_each(v_v) w where w.key !~ '^[a-z0-9_]{1,24}$' or jsonb_typeof(w.value) <> 'object') then return false; end if;
+        if exists (select 1 from jsonb_each(v_v) w where (select count(*) from jsonb_object_keys(w.value)) > 8
+                      or exists (select 1 from jsonb_each(w.value) x where x.key !~ '^[a-z_]{1,16}$' or jsonb_typeof(x.value) <> 'number'
+                                   or (x.value #>> '{}') !~ '^[0-9]{1,9}$')) then return false; end if;
       when 'bar' then
-        if jsonb_typeof(v_v) <> 'array' or jsonb_array_length(v_v) > 16 then return false; end if;
+        if jsonb_typeof(v_v) <> 'array' then return false; end if;
+        if jsonb_array_length(v_v) > 16 then return false; end if;
         for v_e in select value from jsonb_array_elements(v_v) loop
-          if jsonb_typeof(v_e) <> 'array' or jsonb_array_length(v_e) <> 3
+          if jsonb_typeof(v_e) <> 'array' then return false; end if;
+          if jsonb_array_length(v_e) <> 3
              or jsonb_typeof(v_e->0) <> 'string' or (v_e->>0) !~ '^[a-z0-9_]{1,24}$'
              or jsonb_typeof(v_e->1) <> 'string' or (v_e->>1) !~ '^[a-z0-9_]{1,64}$'
              or jsonb_typeof(v_e->2) <> 'number' or (v_e->>2) !~ '^[0-9]{1,3}$' then return false; end if;
         end loop;
       when 'gear' then
-        if jsonb_typeof(v_v) <> 'object' or (select count(*) from jsonb_object_keys(v_v)) <> 3
+        if jsonb_typeof(v_v) <> 'object' then return false; end if;
+        if (select count(*) from jsonb_object_keys(v_v)) <> 3
            or exists (select 1 from jsonb_each(v_v) g where g.key not in ('w', 'a', 'n') or jsonb_typeof(g.value) <> 'number'
                         or (g.value #>> '{}') !~ '^[0-9]{1,4}$') then return false; end if;
       else return false;
@@ -215,9 +227,11 @@ begin
            -- the server's own instants), folded in this same write: the lowest health, counts added, the bar and gear as last played
            report = public.hr_hunt_report_add(t.report,
              coalesce(case when jsonb_typeof(p_analyzer->'report') = 'object' then p_analyzer->'report' end, '{}'::jsonb)
-             || coalesce((select jsonb_build_object('dry', jsonb_object_agg(e.data->>'item', floor(extract(epoch from e.at) * 1000)::bigint))
-                            from public.hunt_session_events e
-                           where e.session_id = p_session and e.id > v_ev0 and e.type = 'slot_dry' and e.data->>'item' ~ '^[a-z0-9_]{1,64}$'
+             || coalesce((select jsonb_build_object('dry', jsonb_object_agg(x.item, x.at))
+                            from (select e.data->>'item' as item, min(floor(extract(epoch from e.at) * 1000))::bigint as at
+                                    from public.hunt_session_events e
+                                   where e.session_id = p_session and e.id > v_ev0 and e.type = 'slot_dry' and e.data->>'item' ~ '^[a-z0-9_]{1,64}$'
+                                   group by 1) x
                           having count(*) > 0), '{}'::jsonb)),
            fight = case when p_analyzer ? 'fight' then jsonb_build_object('boss_pm', p_analyzer->'fight'->'boss_pm',$a$;
     v_n := (length(v_def) - length(replace(v_def, v_old, ''))) / length(v_old);
@@ -358,6 +372,8 @@ begin
       c_full || '{"fired": {"e1": -3}}', c_full || '{"waits": {"e1": {"mana": "x"}}}',
       c_full || '{"bar": [["e1", "rend", 0, 9]]}', c_full || '{"bar": [["E1", "rend", 0]]}',
       c_full || '{"gear": {"w": 1, "a": 2, "n": 3, "x": 4}}', c_full || '{"gear": {"w": 1, "a": 2}}',
+      c_full || '{"waits": {"e1": 5}}', c_full || '{"low": 5}', c_full || '{"fired": []}', c_full || '{"waits": {"e1": {"Mana": 1}}}',
+      c_full || '{"fired": {"e123456789012345678901234": 1}}', c_full || '{"bar": [5]}', c_full || '{"gear": 7}',
       '[]'::jsonb]::jsonb[] loop
     if public.hr_hunt_report_ok(v_bad) then raise exception 'VERIFY(b): a bad report passed: %', v_bad; end if;
   end loop;
@@ -384,6 +400,22 @@ begin
   end loop;
   if (select count(*) from jsonb_object_keys(v_x->'fired')) <> 48 or not (v_x->'fired' ? 'r0101') then
     raise exception 'VERIFY(c): the rules map is not capped at 48 keeping the first: % keys', (select count(*) from jsonb_object_keys(v_x->'fired')); end if;
+  --     THE WORST REPORT THE FOLD CAN KEEP fits its CHECK: windows of the widest shape hr_hunt_report_ok passes (32 rules of 24
+  --     characters, 8 reasons of 16 a rule, 16 bar slots of the longest ids) folded with 40 dry items, each window a new set of rules.
+  v_x := '{}'::jsonb;
+  for i in 1..4 loop
+    v_bad := (select jsonb_build_object(
+      'low', jsonb_build_object('pm', 0, 'by', repeat('m', 64), 'blow', repeat('b', 64), 'at', 999999999999999), 'close', 999999999,
+      'fired', jsonb_object_agg(lpad(i::text || g::text, 24, 'r'), 999999999),
+      'waits', jsonb_object_agg(lpad(i::text || g::text, 24, 'w'), (select jsonb_object_agg(lpad(chr(96 + h), 16, 'y'), 999999999) from generate_series(1, 8) h)),
+      'bar', (select jsonb_agg(jsonb_build_array(lpad(k::text, 24, 'r'), repeat('u', 64), 999)) from generate_series(1, 16) k),
+      'gear', jsonb_build_object('w', 9999, 'a', 9999, 'n', 9999)) from generate_series(1, 32) g);
+    if not public.hr_hunt_report_ok(v_bad) then raise exception 'VERIFY(c): the widest good window was refused'; end if;
+    v_x := public.hr_hunt_report_add(v_x, v_bad || jsonb_build_object('dry',
+             (select jsonb_object_agg(lpad(i::text || d::text, 64, 'd'), 999999999999999) from generate_series(1, 40) d)));
+  end loop;
+  if octet_length(v_x::text) > 32768 then raise exception 'VERIFY(c): the widest folded report is % bytes, past its 32 KB CHECK', octet_length(v_x::text); end if;
+  raise notice '1053-hunt-report: the widest folded report is % bytes of its 32768', octet_length(v_x::text);
   -- (d) THE WRITER: both anchors spliced, and the tally's writes are the two the body had (the analyzer's one write a member and the
   --     store cover's; 2027-04-08-member-write-once.sql): no added statement a settle. The fold sits inside the analyzer's write.
   v_def := replace(pg_get_functiondef('public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)'::regprocedure), chr(13), '');

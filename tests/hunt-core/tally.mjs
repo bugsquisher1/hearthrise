@@ -196,6 +196,22 @@ const cases = {
     const t = M.tally.tallyEvents(sc.events, M.tally.rosterOf(w));
     return t.heroes[1] && t.heroes[1].report.low && t.heroes[1].report.low.pm === Math.floor((hero.hp * 1000) / 400) ? null : 'the tally read ' + JSON.stringify(t.heroes[1] && t.heroes[1].report);
   },
+  /* AN-11 THE PROPOSAL IS IN THE DATABASE'S SHAPE (1053-hunt-report.sql hr_hunt_report_ok refuses any other, and a refused window counts
+     toward a forfeit): ids [a-z0-9_] (a rule's 24 long), reasons [a-z_], at most 32 rules and 8 reasons a rule; a good report goes through
+     whole, empty parts left out. */
+  'report-proposal-shape': async (M) => {
+    const R = await import(pathToFileURL(join(M.root, 'src/core/hunt/report.js')).href + M.V);
+    const good = { low: { pm: 40, by: 'rat', blow: 'basic', at: 5 }, close: 1, fired: { e1: 2 }, waits: { e2: { mana: 1 } } };
+    const p = R.reportProposal(good, [['e1', 'rend', 0]], { w: 2, a: 6, n: 3 });
+    if (JSON.stringify(p) !== JSON.stringify(Object.assign({}, good, { bar: [['e1', 'rend', 0]], gear: { w: 2, a: 6, n: 3 } }))) return 'a good report moved: ' + JSON.stringify(p);
+    if (JSON.stringify(R.reportProposal(R.emptyReport(), null, null)) !== '{}') return 'an empty report proposed ' + JSON.stringify(R.reportProposal(R.emptyReport(), null, null));
+    const fired = Object.fromEntries(Array.from({ length: 40 }, (_, i) => ['r' + String(i).padStart(2, '0'), 1]).concat([['Bad Rule', 1], ['x'.repeat(25), 1]]));
+    const waits = { e3: Object.fromEntries(['mana', 'cooldown', 'no_stock', 'no_target', 'out_of_range', 'gold_short', 'level', 'aa', 'bb', 'Odd1'].map((w) => [w, 1])) };
+    const bad = R.reportProposal({ low: { pm: 10, by: 'Rat King', blow: 'basic', at: 1 }, close: 0, fired, waits }, null, null);
+    const ok = (o, re, max) => Object.keys(o).length <= max && Object.keys(o).every((k) => re.test(k));
+    if ('low' in bad || !ok(bad.fired, /^[a-z0-9_]{1,24}$/, 32) || Object.keys(bad.fired).length !== 32 || !ok(bad.waits.e3, /^[a-z_]{1,16}$/, 8)) return 'a report past the shape was proposed: ' + JSON.stringify(bad).slice(0, 300);
+    return null;
+  },
   /* rosterOf reads heroes and monster kinds off the world. */
   'roster-from-world': (M) => {
     const w = M.worldstate.makeWorld({ units: [{ id: 1, side: 'hero', kind: 'hero' }, { id: 8, side: 'mon', kind: 'rat' }] });
@@ -364,6 +380,10 @@ const mutants = [
     edits: [['src/data/hunt-report.js', 'nearCalls: 3,', 'nearCalls: 4,']] },
   { name: 'Close starts at a quarter, not a half', case: 'report-word',
     edits: [['src/core/hunt/report.js', 'if (pm < HUNT_REPORT.closePm) return', 'if (pm < HUNT_REPORT.closeCallPm) return']] },
+  { name: 'the proposal keeps every rule', case: 'report-proposal-shape',
+    edits: [['src/core/hunt/report.js', "  const fired = capped(r.fired, RULE, 32);", "  const fired = capped(r.fired, /./, 99);"]] },
+  { name: 'the proposal keeps a low the database refuses', case: 'report-proposal-shape',
+    edits: [['src/core/hunt/report.js', '&& ID64.test(l.by) && ID64.test(l.blow) &&', '&&']] },
   { name: 'a blow at a hero carries no reading', case: 'report-blow-reading',
     edits: [['src/core/hunt/damage.js', "const vit = target.side === 'hero' ? {", "const vit = false ? {"]] },
   { name: 'the reading is the HP before the blow', case: 'report-blow-reading',

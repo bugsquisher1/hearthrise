@@ -2255,6 +2255,11 @@
    "wiped_at_cutover": false,
    "note": "THE SETUP AN OPEN HUNT PLAYS UNTIL ITS SEED HORIZON — created 1005-lever-horizon.sql, ships EMPTY. One row per lever pulled mid-hunt (a bar, option, setup or First target change), written only by trigger hr_hunt_setup_hold before the lever's write lands, read by hr_hunt_setup_of, pruned at the next lever once no window can start under it (a few hundred rows at 100x players). No player value: it only holds a change back for at most 32 s plus one window. Coming back EMPTY costs that: a lever pulled in the last half minute before the backup lands at the next window instead of past its horizon. RLS enabled, zero policies, zero grants."
   },
+  "hunt_scale_holds": {
+   "class": "operational",
+   "wiped_at_cutover": false,
+   "note": "THE SCALE AN OPEN HUNT PLAYS UNTIL ITS SEED HORIZON — created 1053-lever-gates.sql, ships EMPTY. One row per open instance whose hero turned a scaled switch or raised its bank mid-hunt, written only by trigger hr_scaled_hours_hold before that write lands, read by hr_scaled_hunt_of, pruned at the next such write once no window can start under it (a few hundred rows at 100x players at most). No player value: the hours themselves live in player_scaled_hours; this only holds the change back to the horizon. Coming back EMPTY costs that: a switch or buy in the last half minute before the backup plays from the next window instead of past its horizon. RLS enabled, zero policies, zero grants."
+  },
   "hunt_tick_lease": {
    "class": "operational",
    "wiped_at_cutover": false,

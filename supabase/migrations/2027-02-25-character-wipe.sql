@@ -81,6 +81,8 @@ declare
     'hunt_session_events', 'hunt_session_tally', 'hunt_sessions', 'hunt_tick_lease',
     /* an open hunt session's held setup to its seed horizon (1005-lever-horizon.sql): goes with the sessions it holds for */
     'hunt_setup_holds',
+    /* an open hunt instance's held scale to its seed horizon (1053-lever-gates.sql): goes with the instances it holds for */
+    'hunt_scale_holds',
     'account_gold_given', 'player_titles', 'town_shows', 'town_works_gifts', 'town_works_totals',
     /* the Works' day's goals, sized from the accounts the wipe clears (1014-works-goal-sized.sql): the first read after re-sizes them */
     'hr_town_works_goals',

@@ -310,6 +310,8 @@ const trainingOf = (m) => (isObj(m) ? Object.entries(m).filter(([k]) => k !== 'l
 const etaMs = (r) => { const h = isObj(r) ? num(r.eta_h) : null; return h !== null && h > 0 ? Math.round(h * 3600000) : null; };
 
 /* The prices a character's envelope states: the store's a use (`hunt_settings.store`), the shop's bid (`shop.bids`). */
+/** The shop's bid for an item (the analyzer's loot prices), or null: the HUD prediction prices kills' drops by it (src/shell/hud-predict.js). */
+export const bidOf = (cs) => pricesOf(cs).bid;
 function pricesOf(cs) {
   const shop = section(cs, 'shop');
   const bids = shop && isObj(shop.bids) ? shop.bids : {};

@@ -220,8 +220,13 @@ ARMS['NY-TOP'] = async (X) => {
   const at = (held) => hero(0, 'Tess', 'stamina', { danger: { risk: 'steady', held: { [FORD]: held }, playing: { hunt: FORD, from: 'steady', risk: 'steady', start: 0, step: held, cool: 0 } } });
   const rowAt = (held) => X.N.needsRowsOf({ peers: () => [at(held)], plan: null, wearOn: true }).find((r) => r.kind === 'outgrown') || null;
   const row = rowAt(top);
-  if (!row || row.go !== 'ground' || row.slot !== 0 || row.hunt !== MUSTER || !/Tess has outgrown Hask/.test(row.text) || !/Muster Barrows/.test(row.label)) out.push('a hero held at the top reads ' + JSON.stringify(row));
+  if (!row || row.go !== 'ground' || row.slot !== 0 || row.hunt !== MUSTER || !/^Ready for: (The )?Muster Barrows$/.test(row.text) || row.label !== 'Go') out.push('a hero held at the top reads ' + JSON.stringify(row));
   if (rowAt(top - 1)) out.push('a hero one step under the top was told it outgrew the ground');
+  /* Muster's top: the next ground up the scale (the Catacomb wings) is staged, so the end of the open road */
+  const mTop = DANGER_GROUNDS[MUSTER].topStep;
+  const mt = X.N.needsRowsOf({ peers: () => [hero(0, 'Tess', 'stamina', { danger: { risk: 'steady', held: { [MUSTER]: mTop },
+    playing: { hunt: MUSTER, from: 'steady', risk: 'steady', start: 0, step: mTop, cool: 0 } } })], plan: null, wearOn: true }).find((r) => r.kind === 'outgrown');
+  if (!mt || mt.text !== 'Max depth reached' || mt.label !== '' || mt.hunt !== null) out.push('Muster held at its top reads ' + JSON.stringify(mt));
   const none = X.N.needsRowsOf({ peers: () => [hero(0, 'Tess', 'stamina', { danger: { risk: 'steady', held: {}, playing: null } })], plan: null, wearOn: true });
   if (none.some((r) => r.kind === 'outgrown')) out.push('a hero with nothing held was told it outgrew a ground');
   return out;
@@ -230,8 +235,8 @@ ARMS['NY-TOP'] = async (X) => {
 const MUTANTS = [
   ['the top is never outgrown', 'NY-TOP', 'src/session/danger-sections.js', 'd.held[hunt] >= DANGER_GROUNDS[hunt].topStep', 'd.held[hunt] > DANGER_GROUNDS[hunt].topStep'],
   ['outgrown a step under the top', 'NY-TOP', 'src/session/danger-sections.js', 'd.held[hunt] >= DANGER_GROUNDS[hunt].topStep', 'd.held[hunt] >= DANGER_GROUNDS[hunt].topStep - 1'],
-  ['the next ground is the last one on the road', 'NY-TOP', 'src/session/danger-sections.js', 'if (!best || h.band[0] < best.band[0]', 'if (!best || h.band[0] > best.band[0]'],
-  ['the top row names no next ground', 'NY-TOP', 'src/shell/needs-you/outgrown.js', 'return rowFor(cs, ground, nextScaleGround(ground));', 'return rowFor(cs, ground, null);'],
+  ['a staged ground is the next one', 'NY-TOP', 'src/session/danger-sections.js', 'if (!h || h.staged === true || ', 'if (!h || '],
+  ['the top row names no next ground', 'NY-TOP', 'src/shell/needs-you/outgrown.js', '      const next = nextScaleGround(ground);', '      const next = null;'],
   ['a press the card carries is kept on its row', 'NY-HELD', 'src/shell/needs-you.js', "&& held.includes(row.go + ':' + row.slot)", '&& false'],
   ['any held move drops the press', 'NY-HELD', 'src/shell/needs-you.js', "&& held.includes(row.go + ':' + row.slot)", '&& held.length > 0'],
   ['the recruits row shows before the press is ready', 'NY-RECRUITS', 'src/shell/needs-you/recruits.js', '      if (!o || !o.ready) continue;\n', '      if (!o) continue;\n'],

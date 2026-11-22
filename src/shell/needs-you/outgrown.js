@@ -4,7 +4,8 @@
 //   the server ended the hero's last hunt `outgrown` and refuses that ground (GR-81: no hunt starts by itself); the next ground is
 //   back-in-town.js outgrownGroundOf's, read for the server's Levels;
 //   ON THE DANGER SCALE (12-targets.md 3.2, lane/r10-more-grounds): the hero's held step on its ground (the server's `danger` section) is the
-//   band's top, depth 20, where it climbs and earns no more; the next ground is the next open one on the scale (danger-sections.js).
+//   band's top, depth 20, where it climbs and earns no more. A label, not a sentence (Tyler's UI voice): "Ready for: {next}" with Go, the
+//   next open ground on the scale (danger-sections.js), or "Max depth reached" at the end of the road.
 // Staying is allowed: the row is a nudge, and the button opens the next ground's card.
 // ════════════════════════════════════════════════════════════════════════
 import { t } from '../../render/player-text.js';
@@ -29,7 +30,10 @@ export default Object.freeze({
     for (const cs of ctx.peers()) {
       const d = dangerOf(cs), h = huntOf(cs);
       const ground = (d && d.playing && d.playing.hunt) || (h && h.huntId) || null;
-      if (ground && heldAtTop(d, ground)) return rowFor(cs, ground, nextScaleGround(ground));
+      if (!ground || !heldAtTop(d, ground)) continue;
+      const next = nextScaleGround(ground);
+      return { text: next ? t('away.needs_top_next', { ground: next.name }) : t('away.needs_top_max'), label: next ? t('away.needs_top_go') : '',
+        go: 'ground', slot: cs.slot, hunt: next ? next.hunt : null };
     }
     return null;
   },

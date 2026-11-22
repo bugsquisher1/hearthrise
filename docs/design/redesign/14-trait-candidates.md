@@ -1,6 +1,6 @@
 # Trait candidates (40)
 
-Tyler picked all 40 (2026-11-22). They are hidden data in `src/data/traits.js`. Nothing rolls or shows yet.
+Pick the ones you like. 5 already exist in the data (marked ✓). Nothing is live yet.
 
 ## How Traits work
 
@@ -176,8 +176,8 @@ Best for: Healer, Mage
 
 **30. Lime Pit** · Flooded Wing
 +1.5 / 2.5 / 3.5% damage vs poisoned targets
-Best for: Mage (poison)
-Note: Poison users keep it nearly always on.
+Best for: Any, with a Healer using Green Sickness
+Note: Sickness counts as poisoned, so a Healer keeps it nearly always on.
 
 **31. Dunn's Warning** · Bone Wing
 +1.5 / 2.5 / 3.5% healing while an enemy is casting
@@ -206,14 +206,14 @@ Best for: Healer
 Note: Could be always on. Needs testing.
 
 **36. Bottom of the Quiver** · Wyvern Roost
-+1.5 / 2.5 / 3.5% ranged damage with 50 or fewer arrows left, if you started the hunt with 100+
++1.5 / 2.5 / 3.5% ranged damage with 50 or fewer arrows left
 Best for: Ranger
-Note: Kept. Only counts on a hunt started with 100+ arrows, so carrying 50 never keeps it on.
+Note: Recommend cutting. Carry 50 arrows and it's always on.
 
 **37. Hask's Bargain** · Muster Barrows
 +2.5 / 4.5 / 6.5% damage above 90% health, but +1.5 / 2.5 / 3.5% damage taken
 Best for: Melee
-Note: Kept. A risk/reward Trait. The gain and the cost both apply above 90% health.
+Note: A risk/reward Trait. Needs new code. Yes or no on this type?
 
 ## Earrings
 
@@ -230,7 +230,7 @@ Note: Similar to #14.
 **40. Sour Vault** · Flooded Wing
 −1.5 / 2.5 / 3.5% damage taken from poisoned enemies
 Best for: Tank
-Note: Needs a poison user in the party.
+Note: Needs Green Sickness or a Poison user in the party.
 
 ---
 

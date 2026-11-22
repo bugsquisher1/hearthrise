@@ -6,15 +6,19 @@ Pick the ones you like. Nothing is built. Every number is a starting value for t
 
 - **What it is:** a named piece with one fixed rule nothing else gives. No roll, no ranks. Every move and every rune family has one. 16 more are procs, auras, low-health effects, loot hooks, utility, unique stats and one pair.
 - **How rare:** rarer than any Very Rare. Target: one given Signature in about 30 to 60 hunted hours of farming its home.
-- **Where it drops:** each has one home. A boss, a named monster on a deep ground, or the Tower's Hearth Chest. The bestiary shows it once the page is far enough along.
-- **Trading:** yes. It's sold as a single piece and keeps its rule. Every Signature sale is told in town (`13-market.md`).
+- **Where it drops:** each has one home. A boss, a named monster on a deep ground, or the Tower's Hearth Chest. The bestiary shows it once you've filled enough of that monster's page.
+- **Trading:** yes. It's sold as a single piece and keeps its rule. Every Signature sale is announced in town (`13-market.md`).
 
 **Proposed rules:**
 
 - One Signature per hero. A second one can be worn, but only the first one equipped works.
 - A Signature doesn't stack with itself. Two party members wearing the same aura count once.
 - The pair (#45 and #46) works across two heroes in one party, so it never breaks the one-per-hero rule.
-- A move Signature never does a Talent branch's job. Branches change a move's area, targets, cost or condition (`16-talent-branches.md`). A Signature adds a proc, a status or a link to another move.
+- A move Signature never repeats one of that move's branches, and never removes something a branch needs (`16-talent-branches.md`). It adds a proc, a link to another move, or an effect none of that move's branches have.
+- A Signature works with every branch of its move. It can be best with one, but it's never worth wearing with only one.
+- Size: about one gear tier on the grounds that suit it, the same as a hero's full Trait cap. With a Signature worn, the best branch picks still beat the suggested path by no more than 5 to 10% (`02-architecture.md` section 1b).
+- A free cast, a reset or an explosion from a Signature can't set off another one.
+- Everything here follows the stacking keys at the end of this doc.
 
 ---
 
@@ -25,48 +29,48 @@ Pick the ones you like. Nothing is built. Every number is a starting value for t
 **1. Bannerman's Pavise** · Shield · Drops from: Hask's Ford, Bannerman
 Challenge: the taunted monster is Chilled for 3s
 Best for: Tank
-Note: Slows the hit you just pulled onto yourself.
+Note: Slows the monster you just pulled onto yourself. Adds little if Frost Slam already keeps it Chilled.
 
 **2. Ossuary Helm** · Helmet · Drops from: Unmarked Catacombs, Bone Wall
-Frost Slam: chilled monsters deal 10% less damage
+Frost Slam: you gain a shield of 3% of your max health for each monster it Chills (up to 15%)
 Best for: Tank
-Note: Turns Frost Slam into the tank's main defense. Party only, like Frost Slam.
+Note: Party only, like Frost Slam. Weaker with Pinning Frost, which hits one monster.
 
 **3. Grave Guard's Mail** · Body · Drops from: Krell's Hold, Grave Guard
-Shelter: when a hero's shell breaks, the monster that broke it is taunted onto you
+Shelter: when a hero's shield breaks, Challenge is ready again
 Best for: Tank
-Note: Keeps loose monsters off the healer.
+Note: Works with every Challenge branch.
 
 ## Sword
 
 **4. Charred Sabre** · Weapon (sword) · Drops from: Pyre Field, Charred Pikeman
 Flame Strike on a kill: casts again on the nearest monster at no cost
 Best for: Melee, sword. Also Tank.
-Note: Strong on packs of weak monsters.
+Note: Strong on packs of weak monsters. The free cast can't trigger another one.
 
 **5. Pikeman's Gauntlets** · Gloves · Drops from: Muster Barrows, Barrow Pikeman
-Power Strike vs a target at full health: always crits
-Best for: Melee, sword or hammer
-Note: A first-hit build. Weak vs bosses after the opener.
+Flame Strike or Quarry Blow: Power Strike is ready again
+Best for: Melee, sword or hammer. Also Tank.
+Note: Works with every Power Strike branch.
 
 **6. Barrow Knight's Blade** · Weapon (sword) · Drops from: Muster Barrows, Barrow Knight
-Turning Cut: a kill resets its cooldown
+Turning Cut: each kill takes 1s off its cooldown (up to 4s a cast)
 Best for: Melee, sword
 Note: Clears big pulls fast. Does nothing extra vs a lone boss.
 
 ## Dual axe
 
 **7. Floodwater Hatchets** · Weapon (axes) · Drops from: Unmarked Catacombs, Flooded Wing
-Rend: also applies Poison (40% of Rend's damage over 6s)
+Rend: also applies Poison (20% of Rend's damage over 6s)
 Best for: Melee, axes
 Note: Bleed and Poison tick at the same time. Needs a Poison status (new).
 
 ## Club
 
 **8. Stable Troll's Maul** · Weapon (hammer) · Drops from: Carter's Rest, Stable Troll
-Quarry Blow: also applies Sickness (target takes 10% more damage for 6s)
+Quarry Blow: you gain a shield of 50% of the damage it deals
 Best for: Melee, hammer
-Note: Helps the whole party. Doesn't stack with Green Sickness.
+Note: Earth rune shield, so #26 works with it.
 
 ## Ranged
 
@@ -76,63 +80,63 @@ Best for: Ranger
 Note: Never wastes a mark on a kill.
 
 **10. Coal Runner's Bow** · Weapon (bow) · Drops from: Ox Road, Coal Runner
-Flame Volley: leaves the ground burning for 4s (20% of its damage a second)
+Flame Volley: leaves the ground burning for 4s (10% of its damage a second)
 Best for: Ranger
 Note: Best when the tank holds the pack in one place. Needs a burning ground effect (new).
 
 **11. Provost's Longbow** · Weapon (bow) · Drops from: Pyre Field, Provost
-Precision Shot vs a target with Hunter's Mark: always crits
+Precision Shot: takes 1s off Flame Volley's and Raking Shot's cooldowns
 Best for: Ranger
-Note: Mark, then shoot. Strong vs bosses.
+Note: More area shots in a long pull.
 
 **12. Wyvern Barb Crossbow** · Weapon (crossbow) · Drops from: Wyvern Roost, Crag Wyvern
-Raking Shot: applies Bleed to every monster hit
+Raking Shot: applies 1 Bleed stack to every monster hit
 Best for: Ranger
-Note: A bleed build for the bow. Works with #33.
+Note: A bleed build for the bow. Shares the 5-stack Bleed cap with an axe user.
 
 ## Destruction
 
 **13. Hall Fire Wand** · Weapon (wand) · Drops from: Lord Krell
 Fireball on a kill: the monster explodes for 30% of its max health to every monster next to it
 Best for: Mage
-Note: One kill can set off the whole pack.
+Note: Only Fireball's own kills explode. An explosion can't set off another.
 
 **14. The Wood Book** · Spellbook · Drops from: Keeper Dunn
-Frost Lance vs a chilled target: also hits every monster next to it for 50% damage
+Frost Lance vs a chilled target: Hoarfrost is ready again
 Best for: Mage
-Note: Hoarfrost first, then Frost Lance. Makes a frost build.
+Note: Hoarfrost, then Frost Lance, then Hoarfrost again. Makes a frost build. Mana is the limit.
 
-**15. Pauper's Shroud** · Body · Drops from: Unmarked Catacombs, Shrouded Pauper
-Hoarfrost: monsters it hits can't cast for 3s
+**15. Catacomb Shroud** · Body · Drops from: Unmarked Catacombs, Shrouded Pauper
+Hoarfrost: monsters it Chills can't start a spell for 3s
 Best for: Mage
-Note: Shuts down casters. Needs a no-cast status (new).
+Note: Shuts down casters. A wind-up already started still lands. Turns off Wind-up Shot and the "while an enemy is casting" Traits for the party. Needs a no-cast status (new).
 
 **16. Lamplighter's Robe** · Body · Drops from: The Tower, Hearth Chest (Bronze lock)
-While your Arcane Barrier holds: your spells cost 20% less mana
+When your Arcane Barrier breaks: your next Fireball or Frost Lance deals 30% more damage
 Best for: Mage
-Note: Keep the barrier up and cast more.
+Note: The opposite of Charged Barrier, which wants the shield to hold.
 
 ## Restoration
 
 **17. Bargeman's Pole** · Weapon (staff) · Drops from: The Slake, Bargeman
 Greater Mend on a target below 30% health: also gives 20% damage reduction for 4s
 Best for: Healer
-Note: For saves, not top-ups. Best on Bold.
+Note: For saves, not top-ups. Best on Bold. Best with Deep Mending, still useful with the others.
 
 **18. Brewer's Apron** · Body · Drops from: Carter's Rest, Troll Brewer
-Circle of Renewal: each hero it heals deals 10% more damage for 4s
+Circle of Renewal: each hero it heals deals 10% more damage for 4s (once per cast)
 Best for: Healer
-Note: A healer that adds damage. Doesn't stack with itself.
+Note: A healer that adds damage. With Lasting Circle it starts on the first tick.
 
 **19. Passing Bell** · Necklace · Drops from: The Tower, Hearth Chest (Gold lock)
-Spring Tide: also restores 20% mana to every hero it heals
+Spring Tide: also restores 20% mana to every hero it heals (once a minute)
 Best for: Healer
-Note: One cast a minute that also refills the casters.
+Note: Refills the casters. Ebb Tide casts more often but doesn't refill more.
 
 **20. Greened Bracers** · Gloves · Drops from: The Slake, Greened Pikeman
-Green Sickness: monsters with Sickness deal 10% less damage
+Green Sickness: restores 2 mana to you for each monster it hits
 Best for: Healer
-Note: Offense that also protects. Good with no tank.
+Note: Offense that pays for heals. Weaker with Single Dose, which hits one monster.
 
 **21. Drover's Hat** · Helmet · Drops from: Ox Road, Drover
 Protective Ward: returns 50% of the damage it absorbs to the attacker
@@ -140,33 +144,33 @@ Best for: Healer
 Note: Puts the ward on the tank and it hits back.
 
 **22. Slake Waders** · Boots · Drops from: The Slake, Mudlark
-Undertow: heals you for 100% of the damage it deals
+Undertow vs a target with Sickness: +40% damage
 Best for: Healer (alone)
-Note: Only for a Healer hunting alone, like Undertow itself.
+Note: Only for a Healer hunting alone, like Undertow itself. Green Sickness first, then Undertow.
 
 ## Every weapon
 
 **23. Ferry Pennies** · Earrings · Drops from: Hask's Ford, Fordsunk
 Mend below 20% health: also Chills every monster next to you for 3s
 Best for: Any
-Note: A last-second escape for any hero.
+Note: A last-second escape for any hero. Best with Second Wind.
 
 ## Runes
 
 **24. Stoker's Ring** · Ring · Drops from: Pyre Field, Stoker
-Fire rune spells vs a chilled target: +30% damage, and the Chill ends
+Fire rune spells vs a chilled target: +20% damage
 Best for: Mage, Ranger, Melee (sword)
 Note: Ice then fire. Makes a party want both.
 
-**25. Dunn's Last Candle** · Necklace · Drops from: Keeper Dunn
-Ice rune spells: Chill lasts 2s longer
+**25. The Cold Candle** · Necklace · Drops from: Keeper Dunn
+Ice rune spells: 30% chance to use no rune
 Best for: Mage, Tank
-Note: Fights #24. Pick fire or ice.
+Note: Fewer runes to buy for a frost build. Sized with the market.
 
-**26. Slate Ring** · Ring · Drops from: Carter's Rest, Slate Thrower
+**26. Thrower's Ring** · Ring · Drops from: Carter's Rest, Slate Thrower
 Earth rune shields: when one breaks, its wearer is healed for 30% of the shield
 Best for: Tank, Healer, Mage
-Note: Works on Shelter, Protective Ward and Arcane Barrier.
+Note: Works on Shelter, Protective Ward, Arcane Barrier and #2 and #8.
 
 **27. Riverstone Earrings** · Earrings · Drops from: Hask's Ford, Banded Pikeman
 Water rune heals: also restore mana to the target equal to 10% of the healing
@@ -174,12 +178,12 @@ Best for: Healer
 Note: Keeps the Mage and the healer going on long hunts.
 
 **28. Vault Leech Ring** · Ring · Drops from: Unmarked Catacombs, Vault Leech
-Poison rune spells: when a monster with Sickness dies, Sickness spreads to the nearest monster
+Poison rune spells: when a monster with their Sickness dies, the Sickness moves to the nearest monster
 Best for: Healer
-Note: Today only Green Sickness spends a Poison rune.
+Note: Today only Green Sickness spends a Poison rune. Best with Single Dose.
 
 **29. Fledgling Claw** · Necklace · Drops from: Wyvern Roost, Wyvern Fledgling
-Rupture rune spells: Bleed stacks up to 8 instead of 5
+Rupture rune spells: Bleed on the target can stack to 6 instead of 5
 Best for: Melee, axes
 Note: Today only Rend spends a Rupture rune.
 
@@ -202,12 +206,12 @@ Note: Best on grounds with big pulls.
 **32. Ledger Ring** · Ring · Drops from: Hask's Ford, Ledger Wight
 On crit: your next spell costs no mana (10s cooldown)
 Best for: Mage
-Note: Wants crit on the rest of the kit.
+Note: Wants crit on the rest of the kit. Only weapon hits crit today.
 
 **33. Teamster's Mitts** · Gloves · Drops from: Ox Road, Dead Teamster
-On kill: the target's Bleed stacks move to the nearest monster
-Best for: Melee, axes
-Note: Bleed never drops off in a long pull.
+On kill: restore 4 mana
+Best for: Melee
+Note: Fewer drinks on big pulls.
 
 ## Auras
 
@@ -233,7 +237,7 @@ Below 30% mana: your heals cost no mana for 5s (90s cooldown)
 Best for: Healer
 Note: Lets a healer run low on purpose.
 
-**38. Hask's Price** · Ring · Drops from: Captain Hask
+**38. Drowned Signet** · Ring · Drops from: Captain Hask
 Target boss below 25% health: +15% damage for you and your party for 10s (once per boss)
 Best for: Melee, Ranger
 Note: Hask hits harder below a quarter. This ends him first.
@@ -263,14 +267,14 @@ Best for: Tank, any
 Note: The tank gets set up before the first swing.
 
 **43. Bull's Tooth** · Earrings · Drops from: Wyvern Roost, Bull Wyvern
-Overkill damage carries over to the nearest monster
+Single-target hits: overkill damage carries over to the nearest monster
 Best for: Ranger, Mage
-Note: Big hits stop wasting damage on weak monsters.
+Note: Big hits stop wasting damage on weak monsters. Area hits don't carry.
 
 **44. Pyre Priest's Hood** · Helmet · Drops from: Krell's Hold, Pyre Priest
 Above 70% health: spells cost health instead of mana (1 health per mana)
 Best for: Mage
-Note: Risky. Needs a healer or Mend.
+Note: Risky. Needs a healer or Mend. Keeps Full Wick nearly always on, so the Lab checks the pair.
 
 ## Pair
 
@@ -289,10 +293,10 @@ Note: A healer and a tank who hunt together. Each piece also trades alone.
 
 | Way or seat | Move and rune Signatures | Other Signatures |
 |---|---|---|
-| Tank (sword and shield) | 1, 2, 3, 4, 25, 26 | 35, 36, 42, 46 |
-| Sword alone | 4, 5, 6, 24, 30 | 38 |
+| Tank (sword and shield) | 1, 2, 3, 4, 5, 25, 26 | 35, 36, 42, 46 |
+| Sword alone | 4, 5, 6, 24, 30 | 33, 38 |
 | Axes | 7, 29 | 33 |
-| Hammer | 5, 8 | 36 |
+| Hammer | 5, 8 | 33, 36 |
 | Bow or crossbow | 9, 10, 11, 12 | 41, 43 |
 | Wand (Mage) | 13, 14, 15, 16, 24, 25 | 32, 34, 44 |
 | Staff (Healer) | 17, 18, 19, 20, 21, 22, 27, 28 | 31, 37, 45 |
@@ -314,14 +318,82 @@ Note: A healer and a tank who hunt together. Each piece also trades alone.
 - **Unmarked Catacombs:** 2, 7, 15, 28, 42
 - **The Tower, Hearth Chest:** 16 (Bronze), 30 (Silver), 19 and 37 (Gold), 40 (Platinum)
 
+## Stacking keys
+
+One table for Traits (`14-trait-candidates.md`), Signatures (this doc) and Talent branches (`16-talent-branches.md`).
+
+| Key | What's in it | Rule |
+|---|---|---|
+| Monster deals less damage | Hard Challenge and its rank 15, Wide Challenge's rank 15, Crippling Mark, Heavy Undertow, #35 | Doesn't stack. The largest on a monster counts |
+| Monster takes more damage | Sickness (Green Sickness, Single Dose, Breaking Blow) | One Sickness on a monster. The stronger one replaces the weaker |
+| Hunter's Mark | All Hunter's Mark branches | Its own key. Adds to Sickness, as today. One Mark per monster |
+| Fire damage taken | Burning Volley | Its own key. Fire damage only |
+| Chill | Frost Slam, Hoarfrost, Chilling Lance, #1, #23, #42 | One Chill on a monster. A new one restarts the time and keeps the stronger slow |
+| Can't cast | #15 | One at a time. Restarts the time |
+| Bleed | Rend, Bleeding Turn, #12 | One count of stacks per monster, from every source. Cap 5, or 6 on a target hit by #29's wearer |
+| Poisoned | Poison (#7) and Sickness | What Traits #30 and #40 read |
+| Damage taken by a hero | Traits that lower damage taken, Guard Strike, Guarding Challenge's rank 15, #17, #46 | Different sources add. The Lab sets one cap for the total. The same party Trait counts once |
+| Shields | Shelter, Protective Ward, Arcane Barrier, High Tide, #2, #8, #36 | One shield per hero. A new one replaces it only if bigger |
+| Hero deals more damage | Charged Barrier, #16, #18, #38, damage Traits | Different sources add. The same Signature or party Trait counts once in a party |
+| Healing done | Healing Traits, #45, healing branches | Add |
+| Mana back | #19, #20, #27, #33, #34, Lasting Ward, Arcane Barrier's refund | Add |
+| Free casts and cooldown resets | #3, #4, #5, #6, #11, #14, #32 | A free cast or reset can't set off another one |
+
 ## New engine pieces needed
 
-- New statuses: Poison (#7), burning ground (#10), can't cast (#15).
-- Auras (#34, #35), the pair check (#45, #46), overkill carry (#43), health as a spell cost (#44), arrow return (#41), a second drop roll (#39) and extra remains (#40).
-- #39 and #40 touch drops and the market, so they go through Security before they're built.
+Each listed once, for this doc and `16-talent-branches.md` together.
+
+- New statuses: Poison (#7), burning ground (#10), can't start a spell (#15), fire damage taken (Burning Volley), monster deals less damage (Hard Challenge, Crippling Mark, Heavy Undertow, #35), hero takes less damage for a few seconds (Guard Strike, #17), hero deals more damage for a few seconds (#16, #18, #38).
+- Status strength set by a branch: a stronger Chill (Pinning Frost, Hard Freeze), a stronger Sickness (Single Dose), a longer Chill or Sickness (Long Frost, Deep Hoarfrost, Lingering Sickness), a Bleed cap above 5 on one target (#29), Chill that slows attacks and wind-ups by different amounts (Slowing Frost).
+- Heals over time (Lasting Circle, Steady Mend), healing past full health kept as a shield (High Tide), a second hit a few seconds later (Slow Burn).
+- Moves that cast on their own when something happens (Guarding Challenge), taunt or Mark on more than one monster (Wide Challenge, Pack Mark), a heal that also lands on a second hero (Split Mending, Shared Mend, Draining Sickness).
+- Cooldown resets and reductions from another move (#3, #5, #6, #11, #14), a free recast (#4), an explosion on a kill (#13), overkill carry (#43), a status moving on a death (Spread, #28).
+- Shields from gear and from damage dealt (#2, #8, #36), a heal when a shield breaks (#26), damage returned to the attacker (#21).
+- Mana back from gear: on kill (#33), on hit (#20), on heal (#19, #27), when a spell crits (#32), and heals that cost no mana for a time (#37).
+- Auras (#34, #35), the pair check (#45, #46), health as a spell cost (#44), triggers on low health, low mana, boss health and pull start (#23, #36, #37, #38, #42), a party heal on a kill (#31).
+- A chance to use no rune (#25), arrow return (#41), a second drop roll (#39) and extra remains (#40).
+- Bleed on a sword, a club and a bow (Bleeding Turn, #12) and Sickness from a hammer (Breaking Blow) only need the existing statuses on new moves.
+- #25, #39, #40 and #41 touch drops, supplies and the market, so they go through Security before they're built.
 - Summons are left out. The hunt engine has no hero summons.
 - Build in batches (CLAUDE.md section 10): a sample of 5 first, played, then the rest in batches of 20 or fewer.
 
 ## Checked against the data
 
 Every move, rune family, status, monster and place above was looked up in `src/data` on 2026-11-22: the 23 live moves in `abilities.js` (Brand, Reave, Updraft and Blight are switched off, so they have none), the families in `runes.js`, the statuses in `statuses.js` (Bleed, Chill, Sickness), the monsters in `src/data/grounds/*/pack.js`, and the Tower's locks in `tower-weapons.js`. Every item name was checked against existing items and Traits so nothing repeats.
+
+## Changes from the cross-check
+
+Checked 2026-11-22 against `14-trait-candidates.md`, `16-talent-branches.md`, `02-architecture.md` (1b and 2), `abilities.js` and `statuses.js`.
+
+- Rules: a move Signature never repeats or empties a branch, works with every branch, is sized to one gear tier, and can't chain. Stacking keys added.
+- #1 Bannerman's Pavise: note that Frost Slam's Chill already covers it.
+- #2 Ossuary Helm: was "chilled monsters deal 10% less damage", the same as Trait #25 Numbed. Now a shield for each monster Frost Slam Chills.
+- #3 Grave Guard's Mail: was "taunt the monster that broke a shield", the same job as Guarding Challenge. Now makes Challenge ready again.
+- #4 Charred Sabre: the free cast can't chain.
+- #5 Pikeman's Gauntlets: was "always crits vs full health", the same as Opening Strike and needing spell crits. Now Flame Strike or Quarry Blow makes Power Strike ready again.
+- #6 Barrow Knight's Blade: was a full reset on any kill, which loops on weak packs. Now 1s per kill, up to 4s.
+- #7 Floodwater Hatchets: Poison 40% down to 20% of Rend's damage.
+- #8 Stable Troll's Maul: was Sickness on Quarry Blow, the same as Breaking Blow. Now a shield from the damage it deals.
+- #10 Coal Runner's Bow: burning ground 20% down to 10% a second.
+- #11 Provost's Longbow: was "always crits vs a Marked target", the same as Aimed Shot. Now cuts Flame Volley's and Raking Shot's cooldowns.
+- #12 Wyvern Barb Crossbow: 1 stack a hit, shares the Bleed cap. #33 link removed.
+- #13 Hall Fire Wand: explosions can't chain.
+- #14 The Wood Book: was a splash on chilled targets, an area change that belongs to branches (Piercing Lance). Now makes Hoarfrost ready again.
+- #15 Pauper's Shroud renamed Catacomb Shroud (clashed with Trait #17 Pauper's Share). Reads "monsters it Chills" so it works with Hard Freeze. Notes the casting Traits and Wind-up Shot it turns off.
+- #16 Lamplighter's Robe: was "while the barrier holds", the same condition as Charged Barrier. Now pays off when the barrier breaks.
+- #17 Bargeman's Pole: noted as best with Deep Mending.
+- #18 Brewer's Apron: once per cast, so Lasting Circle's ticks don't keep it up.
+- #19 Passing Bell: once a minute, so Ebb Tide doesn't double it.
+- #20 Greened Bracers: was "Sickness monsters deal 10% less", the same as Trait #40 Sour Vault. Now mana back for each monster hit.
+- #22 Slake Waders: was 100% of Undertow's damage as healing, the same as Drowning Pull (130% together). Now +40% vs targets with Sickness.
+- #24 Stoker's Ring: no longer ends Chill, which emptied Shatter, Cold Stone, Frost Slam, #14 and Traits #5 and #25. +30% down to +20%.
+- #25 Dunn's Last Candle renamed The Cold Candle (clashed with Trait #31 Dunn's Warning). Was "Chill lasts 2s longer", the same as Long Frost and Deep Hoarfrost. Now a chance to use no rune.
+- #26 Slate Ring renamed Thrower's Ring (clashed with Trait #22 Slate Hand). Covers #2 and #8.
+- #28 Vault Leech Ring: noted as best with Single Dose.
+- #29 Fledgling Claw: Bleed cap 8 down to 6.
+- #32 Ledger Ring: notes that spells don't crit.
+- #33 Teamster's Mitts: was "Bleed moves on a kill", the same as Rend's Spread. Now 4 mana on a kill, for any melee.
+- #38 Hask's Price renamed Drowned Signet (clashed with Trait #37 Hask's Bargain).
+- #43 Bull's Tooth: single-target hits only.
+- #44 Pyre Priest's Hood: flagged with Trait #16 Full Wick for the Lab.
+- Wording: "told in town" and "far enough along" rewritten.

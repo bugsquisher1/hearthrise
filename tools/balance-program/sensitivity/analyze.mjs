@@ -361,6 +361,13 @@ export function noiseTable(P) {
 
 /* ── THE NAMED FINDINGS (Phase 4's six lists), read off the matrix by fixed rules so a re-run names the same things ───────────── */
 const KEY_OUTS = Object.freeze(['dps', 'killsPerH', 'takenPerH', 'levelXpPerH', 'netLevelXpPerH', 'incomePerH', 'storePerH', 'netPerH']);
+/* why a lever moved nothing, where the cause was read in the code (CONFIRMED) */
+const DEAD_NOTES = Object.freeze({
+  necroticCut: 'dark by design: every Necrotic row sits behind NECROTIC_STORM.live = false (src/data/necrotic-storm.js) and no default bar casts one',
+  stormDrain: 'dark by design: every Storm row sits behind NECROTIC_STORM.live = false (src/data/necrotic-storm.js) and no default bar casts one',
+  spellLeech: 'dark by design: the only life leech the engine reads is leechPm on the Necrotic drain spells, which sit behind NECROTIC_STORM.live = false. The life leech and mana leech imbuement rows (src/data/imbuements.js) are data no engine code reads',
+  blessingCut: 'not played, a harness limit: a cell is handed its Blessings\' share by the harness (standards.mjs blessedShareAt through progression-grid.mjs buildCell), so the data row never reaches the fight',
+});
 const THROUGHPUT = Object.freeze(['dps', 'killsPerH', 'levelXpPerH', 'incomePerH', 'netLevelXpPerH']);
 const SIDE_OUTS = Object.freeze(['dps', 'killsPerH', 'takenPerH', 'levelXpPerH', 'netLevelXpPerH', 'incomePerH', 'storePerH', 'suppliesPerH']);
 export const FINDING_RULES = Object.freeze({
@@ -378,7 +385,7 @@ export function findings(M) {
   for (const [id, lv] of Object.entries(M.oat)) {
     const E = M.elast[id];
     const anyRes = M.groups.some((g) => CORE.some((o) => E[g.id] && E[g.id][o] && E[g.id][o].anyResolved));
-    if (!anyRes) { out.dead.push({ lever: id }); continue; }
+    if (!anyRes) { out.dead.push({ lever: id, why: DEAD_NOTES[id] || 'UNKNOWN: the planted data holds the scaled numbers and no outcome moved' }); continue; }
     const best = (r) => (r ? Math.max(0, ...[r.lo, r.local, r.hi].filter(finite).map(Math.abs)) : 0);
     for (const o of lv.intends) { const r = E.all[o]; if (!r || !r.anyResolved || best(r) < 0.05) out.intendedMiss.push({ lever: id, outcome: o, lo: r ? r.lo : null, local: r ? r.local : null, hi: r ? r.hi : null, resolved: r ? r.anyResolved : 0 }); }
     for (const o of CORE) {
@@ -595,7 +602,7 @@ async function main() {
   }
   if (has('findings')) {
     const F = M.findings, j = (o) => JSON.stringify(o);
-    out('DEAD (' + FINDING_RULES.dead + '): ' + F.dead.map((x) => x.lever).join(', '));
+    out('DEAD (' + FINDING_RULES.dead + '):'); for (const x of F.dead) out('  ' + x.lever.padEnd(20) + x.why);
     out('INTENDED OUTCOME NOT MOVED: ' + F.intendedMiss.length); for (const x of F.intendedMiss) out('  ' + x.lever.padEnd(20) + x.outcome.padEnd(18) + [x.lo, x.local, x.hi].map((v) => num(v)).join(' / ') + (x.resolved ? '' : '  nothing resolved'));
     out('SIDE EFFECTS OF 0.5 OR MORE: ' + F.sideEffect.length); for (const x of F.sideEffect) out('  ' + x.lever.padEnd(20) + x.outcome.padEnd(18) + [x.lo, x.local, x.hi].map((v) => num(v)).join(' / '));
     out('CHANGES WITH LEVEL: ' + F.byLevel.length); for (const x of F.byLevel) out('  ' + x.lever.padEnd(20) + x.outcome.padEnd(18) + 'x' + x.at + ' ' + j(x.byLevel) + (x.flip ? '  SIGN FLIP' : ''));

@@ -52,10 +52,17 @@ export function renderNeeds() {
     + '<p class="haway-needs-more" hidden></p><p class="hh-intent-msg haway-needs-msg" role="status" aria-live="polite"></p></section>';
 }
 
+/** A row's press is already on the card: the card names the same move for the same hero (`held`: 'go:slot' keys, away.js), so the row
+    keeps its words and drops its press (R7 art pass: "Go to Meadowbrook Thicket" twice on one card, the row's and the hero's gold one). Pure. */
+export function pressHeld(row, held) {
+  return !!row && !!row.go && Number.isInteger(row.slot) && Array.isArray(held) && held.includes(row.go + ':' + row.slot);
+}
+
 /** The block as the providers read now. Returns how many rows show. */
 export function patchNeeds(el, ctx, st) {
   const { shown, more } = rankNeeds(needsRowsOf(ctx));
   const pending = !!(st && st.pending);
+  const held = st && Array.isArray(st.held) ? st.held : [];
   prop(el, 'hidden', !shown.length && !pending && !(st && st.msg));
   rows(el.querySelector('.haway-needs-list'), shown, {
     key: (r) => r.kind,
@@ -65,7 +72,7 @@ export function patchNeeds(el, ctx, st) {
       text(li.querySelector('.haway-need-text'), r.text);
       const b = li.querySelector('[data-hs-act="away-need"]');
       text(b, pending ? t('heroes.sending') : r.label || '');
-      prop(b, 'hidden', !r.label);
+      prop(b, 'hidden', !r.label || pressHeld(r, held));
       prop(b, 'disabled', pending);
       attr(b, 'data-go', r.go || null);
       attr(b, 'data-slot', Number.isInteger(r.slot) ? String(r.slot) : null);

@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "c0bbe6515d11c021",
+ "authored": "732b7ea06fdb9ea8",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -63,7 +63,7 @@
   "dead": "nothing on the hunt path reads it: a perturbation changes no outcome"
  },
  "counts": {
-  "levers": 173,
+  "levers": 174,
   "byCategory": {
    "base-damage": 12,
    "skill-scaling": 9,
@@ -84,10 +84,10 @@
    "imbuements": 1,
    "consumables": 9,
    "party": 7,
-   "economy": 27
+   "economy": 28
   },
   "byClass": {
-   "global": 75,
+   "global": 76,
    "archetype": 24,
    "content": 46,
    "exception-intentional": 17,
@@ -98,7 +98,7 @@
    "not-playable:dead": 8,
    "patch": 75,
    "not-playable:player-policy": 2,
-   "not-playable:outside-hunt": 19,
+   "not-playable:outside-hunt": 20,
    "not-playable:harness-fixed": 6,
    "not-playable:not-in-runs": 16,
    "variant": 5,
@@ -106,22 +106,22 @@
    "not-playable:sql-only": 6
   },
   "byTest": {
-   "asserted": 62,
+   "asserted": 63,
    "mentioned only": 91,
    "none": 20
   },
   "flags": {
    "redundant": 41,
-   "ineffective": 35,
+   "ineffective": 36,
    "contradictory": 40
   }
  },
  "census": {
-  "bindings": 652,
-  "typed": 15649,
-  "files": 219,
-  "lever": 279,
-  "notLever": 373,
+  "bindings": 655,
+  "typed": 15661,
+  "files": 220,
+  "lever": 280,
+  "notLever": 375,
   "unclaimed": 0
  },
  "problems": [],
@@ -6678,10 +6678,12 @@
     "mentions": [
      "tests/boss-call-db.mjs",
      "tests/boss-call-window.mjs",
+     "tests/danger-client.mjs",
      "tests/danger-db.mjs",
-     "tests/hunt-core/danger.mjs"
+     "tests/hunt-core/danger.mjs",
+     "tests/hunt-core/tally.mjs"
     ],
-    "mentionCount": 4,
+    "mentionCount": 6,
     "verdict": "asserted"
    },
    "perturb": {
@@ -6753,10 +6755,12 @@
     "mentions": [
      "tests/boss-call-db.mjs",
      "tests/boss-call-window.mjs",
+     "tests/danger-client.mjs",
      "tests/danger-db.mjs",
-     "tests/hunt-core/danger.mjs"
+     "tests/hunt-core/danger.mjs",
+     "tests/hunt-core/tally.mjs"
     ],
-    "mentionCount": 4,
+    "mentionCount": 6,
     "verdict": "asserted"
    },
    "perturb": {
@@ -6825,10 +6829,12 @@
     "mentions": [
      "tests/boss-call-db.mjs",
      "tests/boss-call-window.mjs",
+     "tests/danger-client.mjs",
      "tests/danger-db.mjs",
-     "tests/hunt-core/danger.mjs"
+     "tests/hunt-core/danger.mjs",
+     "tests/hunt-core/tally.mjs"
     ],
-    "mentionCount": 4,
+    "mentionCount": 6,
     "verdict": "asserted"
    },
    "perturb": {
@@ -6890,10 +6896,12 @@
     "mentions": [
      "tests/boss-call-db.mjs",
      "tests/boss-call-window.mjs",
+     "tests/danger-client.mjs",
      "tests/danger-db.mjs",
-     "tests/hunt-core/danger.mjs"
+     "tests/hunt-core/danger.mjs",
+     "tests/hunt-core/tally.mjs"
     ],
-    "mentionCount": 4,
+    "mentionCount": 6,
     "verdict": "asserted"
    },
    "perturb": {
@@ -6912,7 +6920,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 90,
+     "line": 96,
      "text": "export const CLIMB = Object.freeze({ cleanRun: 2, climbMax: 8, fallSteps: 18, deathSteps: 120, coolPulls: 10 });",
      "binding": "CLIMB"
     }
@@ -6981,19 +6989,19 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 97,
+     "line": 103,
      "text": "careful: Object.freeze({ fallPm: 450, cleanPm: 650, afterDeath: 'careful' }),",
      "binding": "RISKS"
     },
     {
      "file": "src/data/danger.js",
-     "line": 98,
+     "line": 104,
      "text": "steady: Object.freeze({ fallPm: 250, cleanPm: 450, afterDeath: 'careful' }),",
      "binding": "RISKS"
     },
     {
      "file": "src/data/danger.js",
-     "line": 99,
+     "line": 105,
      "text": "bold: Object.freeze({ fallPm: 120, cleanPm: 300, afterDeath: 'steady' }),",
      "binding": "RISKS"
     }
@@ -7123,12 +7131,12 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 87,
-     "text": "muster_barrows: Object.freeze({ refStep: 590 }),",
+     "line": 90,
+     "text": "muster_barrows: Object.freeze({ refStep: 590, floorStep: 480, topStep: 710 }),",
      "binding": "DANGER_GROUNDS"
     }
    ],
-   "definition": "the step the reference company holds on a ground, where its pay is the hours table; a ground with no row does not open the scale (the server's hr_danger_grounds, 1055)",
+   "definition": "the step the reference company holds on a ground, where its pay is the hours table; a ground with no row does not open the scale (the server's hr_danger_grounds, 1055). The same row's floorStep / topStep (480 / 710 on Muster, 12-targets 3.1) cut the ground's band into DEPTHS for the player's \"Depth N of 20\": display only, the server reads refStep alone",
    "range": "whole steps. A bridge, not a per-ground dial: a step is of the ground's own rows until the bands are re-cut in one unit (wave 2), then it goes",
    "touches": "the absolute pay on that ground (each step off it is payStepXp)",
    "outcomes": [
@@ -7157,9 +7165,10 @@
      }
     ],
     "mentions": [
+     "tests/danger-client.mjs",
      "tests/hunt-core/danger.mjs"
     ],
-    "mentionCount": 1,
+    "mentionCount": 2,
     "verdict": "asserted"
    },
    "perturb": {
@@ -10365,12 +10374,12 @@
     {
      "file": "src/data/hunt-sessions.js",
      "line": 175,
-     "text": "export const STAMINA_MAX_MS = Object.freeze({ free: 8 * 3600000, premium: 12 * 3600000 });",
+     "text": "export const STAMINA_MAX_MS = Object.freeze({ free: 10 * 3600000, premium: 12 * 3600000 });",
      "binding": "STAMINA_MAX_MS"
     }
    ],
-   "definition": "8 hunted hours free, 12 with Premium; one ms of stamina a ms hunted",
-   "range": "ms. Tyler 2026-11-21: the reference player hunts 12 h a hero a day; Premium for all in the playtest",
+   "definition": "10 hunted hours free, 12 with Premium; one ms of stamina a ms hunted",
+   "range": "ms. RULED (Tyler 2026-11-22): the hunting day is 10 h, 12 h with Premium; it is no longer a lever (04 section 11). Premium for all in the playtest",
    "touches": "hours hunted a day, refills bought",
    "outcomes": [
     "huntedShare"
@@ -10389,9 +10398,10 @@
     "mentions": [
      "tests/balance-guard.mjs",
      "tests/core-loop.mjs",
-     "tests/hunt-sessions-settle.mjs"
+     "tests/hunt-sessions-settle.mjs",
+     "tests/hunting-blocks.mjs"
     ],
-    "mentionCount": 3,
+    "mentionCount": 4,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -10410,26 +10420,26 @@
    "sites": [
     {
      "file": "src/data/stamina-refill.js",
-     "line": 60,
+     "line": 65,
      "text": "perLevel: 250,",
      "binding": "STAMINA_REFILL"
     },
     {
      "file": "src/data/stamina-refill.js",
-     "line": 62,
+     "line": 67,
      "text": "maxMinPerBuy: 240,",
      "binding": "STAMINA_REFILL"
     },
     {
      "file": "src/data/stamina-refill.js",
-     "line": 64,
+     "line": 69,
      "text": "perDay: 6,",
      "binding": "STAMINA_REFILL"
     }
    ],
    "definition": "ceil((1000 + 250 x L) x (2 + (n - 1)) x minutes / (2 x 240)): x1, 1.5, 2 ... a buy, six a day, 4 h each at most",
-   "range": "RULED steps x1/1.5/2/2.5/3/3.5 (2026-11-20, call 24-1); 4 h a buy (2026-10-18). SQL twin hr_stamina_refill_quote",
-   "touches": "a gold sink and hours past the bar",
+   "range": "RETIRED FROM PLAY by 1058-hunting-blocks.sql (Tyler 2026-11-22: blocks replace it): no client reaches hr_stamina_refill; the row stands only for 1009's catalogue and leaves with it (R6). Was: steps x1/1.5/2/2.5/3/3.5 (2026-11-20, call 24-1); 4 h a buy (2026-10-18)",
+   "touches": "nothing in play (econ.hunt-block replaced it)",
    "outcomes": [],
    "formulas": [
     "E17"
@@ -10459,11 +10469,72 @@
    "perturb": {
     "kind": "not-playable",
     "gap": "outside-hunt",
-    "note": "a refill is bought in town; tools/balance-program/stamina-day.mjs models the day",
+    "note": "retired from play; tools/balance-program/stamina-day.mjs models the day",
     "existingPatches": []
    },
    "flags": [],
    "evidence": "CONFIRMED (read)"
+  },
+  {
+   "id": "econ.hunt-block",
+   "category": "economy",
+   "name": "Bought hunting block price",
+   "sites": [
+    {
+     "file": "src/data/time-blocks.js",
+     "line": 37,
+     "text": "base: 500,",
+     "binding": "TIME_BLOCKS"
+    },
+    {
+     "file": "src/data/time-blocks.js",
+     "line": 39,
+     "text": "perLevel: 125,",
+     "binding": "TIME_BLOCKS"
+    }
+   ],
+   "definition": "block n of the UTC day costs ceil((500 + 125 x L) x 1.5^(n - 1)); each adds 2 h of stamina, 2 a day, banked to the cap + a day's blocks",
+   "range": "A LEVER UNTIL wage(L) EXISTS: base and perLevel are today's refill base (1,000 + 250 a Level for 4 h) pro rata to 2 h; the target is 2 h x 2.0 hours of wage x wage(L) x 1.5^n (04 section 11, band 1.5 to 2.5 a block hour). RULED (Tyler 2026-11-22), not levers: 2 h a block, x1.5 a block, 2 a day. SQL twin hr_time_block_price (1058, generated)",
+   "touches": "a gold sink and the hours past the 10 h day (14 h at most, 16 h with Premium)",
+   "outcomes": [],
+   "formulas": [],
+   "reach": {
+    "feeds": 0,
+    "closure": 0
+   },
+   "class": "global",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/hunting-blocks.mjs",
+      "what": "the day, two blocks at x1.5, the third refused",
+      "reads": [
+       "TIME_BLOCKS",
+       "blockPrice"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/hunting-blocks.mjs"
+    ],
+    "mentionCount": 1,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "outside-hunt",
+    "note": "a block is bought in town or mid-hunt, never by a cell; tools/balance-program/stamina-day.mjs models the day",
+    "existingPatches": []
+   },
+   "flags": [
+    {
+     "kind": "ineffective",
+     "why": "On today's refill base the first block costs about a third of the coin its 2 h earn at Levels 13 to 25, short of 04 section 11's \"pretty pricey\" (the first block costs more than its hours earn back) until wage(L) prices it",
+     "ev": "stamina-refill.js WHY THIS PRICE; JUDGMENT"
+    }
+   ],
+   "evidence": "STATED (Tyler 2026-11-22: 2 h, x1.5, cap 2; the price is today's base until wage(L))"
   },
   {
    "id": "econ.blessing-price",
@@ -12018,7 +12089,7 @@
   },
   {
    "at": "src/data/hunt-report.js#HUNT_REPORT",
-   "why": "the hunt report's reading thresholds (a close call under 25% HP, near death, the bar's length, the rules shown): src/core/hunt/report.js words the fight with them, no fight, purse or clock reads them"
+   "why": "the hunt report's reading thresholds (a close call under 25% HP, near death, the bar's length, the rules shown, the Danger scale's falls one report keeps): src/core/hunt/report.js words the fight with them, no fight, purse or clock reads them"
   },
   {
    "at": "src/data/condition-metrics.js#*",
@@ -12075,6 +12146,14 @@
   {
    "at": "src/data/clans.js#*",
    "why": "clan names, tags and invite days (the founding gold is econ.clans)"
+  },
+  {
+   "at": "src/data/danger.js#DEPTHS",
+   "why": "how many depths a ground's band is cut into for the player's \"Depth N of 20\" words (12-targets 3.1): display, the server and the engine read steps"
+  },
+  {
+   "at": "src/data/time-blocks.js#RULED",
+   "why": "Tyler's ruled block rule of 2026-11-22 (2 h blocks, 2 a day, x1.5): time-blocks.js validate refuses a TIME_BLOCKS row that moves them; the price is the lever (econ.hunt-block)"
   },
   {
    "at": "src/data/hunt-sessions.js#SESSION_LIMITS",
@@ -14184,9 +14263,11 @@
   "src/data/danger.js#DANGER_GROUNDS": {
    "pin": "count",
    "keys": [
-    "refStep"
+    "floorStep",
+    "refStep",
+    "topStep"
    ],
-   "typed": 1,
+   "typed": 3,
    "bindings": 1
   },
   "src/data/balance-sheet.js#GROUND_XP_FIT": {
@@ -14636,6 +14717,17 @@
     "perLevel"
    ],
    "typed": 3,
+   "bindings": 1
+  },
+  "src/data/time-blocks.js#TIME_BLOCKS": {
+   "pin": "count",
+   "keys": [
+    "base",
+    "blockMin",
+    "growthNum",
+    "perLevel"
+   ],
+   "typed": 4,
    "bindings": 1
   },
   "src/data/blessings.js#BLESSING_RULES": {

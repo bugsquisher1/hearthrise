@@ -8,8 +8,8 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: 1a427f93df0acbc37c75f65ae2265f955b0c3c9c4920ffe3124116bbf7edd5f4
---   79 supplies, 168 hunts (named + training), 47 limits, 18 end reasons,
+--   digest: 339c29b7ba95d8cbb2b48a496f6c89e6d17cac55f86cb13dec61c6a6f362bd03
+--   79 supplies, 168 hunts (named + training), 48 limits, 18 end reasons,
 --   665 vendor values, 49 store supplies paid per use, 5 target modes,
 --   4 lanes, 23 abilities, 10 action-set options, 25 hunt grounds
 --
@@ -18,6 +18,10 @@
 --   clean, low, cool) and every pack its down count (src/core/hunt/danger.js PERSISTED). No ground, spawn, kill bound, limit, bid or end reason moves (the
 --   scale's own bounds are 1055's catalogue and 1056's). ORDER: the sequence in its name, before 1055 and 1056. EDGE: the hr-accrue carrying this lane's
 --   src/core right after this apply (until both land every settle holds world_shape_pending: nothing proposed, refused or counted).
+--   FOLDED IN (lane/r2-danger-falls, backend-architect, 2026-11-22, while this file was STAGED): the world also carries lowHero and lowBy (the seat
+--   and the monster a fall back names, danger.js PERSISTED), and hr_hunt_limits gains report_falls_max (hunt-report.js HUNT_REPORT.fallsMax: the
+--   Danger scale's falls one hunt report keeps, read by 1057-danger-falls.sql). The EDGE rule is unchanged: the hr-accrue deployed right after
+--   this apply carries R2's src/core too (one engine, one shape).
 -- CARRIED FROM 1028-spell-rule-hunt-sessions-catalogue (lane/c-spell-rule, systems-engineer, 2026-11-21; balance program L17, Tyler's spell calls of 2026-11-21: 21-5 every cast a share of
 --   its caster's blow, 21-6 the bar budget, 32-2 Cleave merges into Turning Cut, 32-3 the axes lose Power Strike, 32-5 the hammer's Earth rune strike).
 --   It carries 1021-tohit-ratio-hunt-sessions-catalogue (STAGED) whole. Only hr_hunt_abilities moves: cleave leaves, quarry_blow (the club's, an Earth rune
@@ -1331,7 +1335,7 @@ insert into public.hr_hunt_shields (item_id) values
   ('steelgrate');
 delete from public.hr_hunt_roles;
 delete from public.hr_hunt_world_shape;
-insert into public.hr_hunt_world_shape (id, version, shape, fields) values (true, 1, 177850009, '{"unit":{"id":0,"side":1,"kind":2,"pocket":3,"alive":4,"hp":5,"maxHp":6,"target":7,"home":8,"x":9,"y":10,"fx":11,"fy":12,"prog":13,"speed":14,"dir":15,"goal":16,"path":17,"waitMs":18,"repathMs":19,"spot":20,"holdMs":21,"role":22,"dist":23,"chase":24,"tmode":25,"queued":26,"aiMs":27,"deadMs":28,"hpMilli":29,"stance":30,"acc":31,"maxHit":32,"def":33,"element":34,"swingLeftMs":35,"spellCds":36,"cast":37,"mana":38,"maxMana":39,"manaMilli":40,"regenPm":41,"lanes":42,"cds":43,"shield":44,"shieldBy":45,"markPm":46,"markUntil":47,"statuses":48,"laneAt":49,"otHp":50,"otMana":51,"ruleHold":52,"ruleWait":53},"world":{"ground":0,"swing":1,"leader":2,"trail":3,"leaderLast":4,"hold":5,"holdNext":6,"phase":7,"routeIdx":8,"phaseMs":9,"regroupNext":10,"runs":11,"nextId":12,"density":13,"fightAt":14,"xpGroup":15,"rareWon":16,"risk":17,"danger":18,"climb":19,"clean":20,"low":21,"cool":22}}'::jsonb);
+insert into public.hr_hunt_world_shape (id, version, shape, fields) values (true, 1, 2158801959, '{"unit":{"id":0,"side":1,"kind":2,"pocket":3,"alive":4,"hp":5,"maxHp":6,"target":7,"home":8,"x":9,"y":10,"fx":11,"fy":12,"prog":13,"speed":14,"dir":15,"goal":16,"path":17,"waitMs":18,"repathMs":19,"spot":20,"holdMs":21,"role":22,"dist":23,"chase":24,"tmode":25,"queued":26,"aiMs":27,"deadMs":28,"hpMilli":29,"stance":30,"acc":31,"maxHit":32,"def":33,"element":34,"swingLeftMs":35,"spellCds":36,"cast":37,"mana":38,"maxMana":39,"manaMilli":40,"regenPm":41,"lanes":42,"cds":43,"shield":44,"shieldBy":45,"markPm":46,"markUntil":47,"statuses":48,"laneAt":49,"otHp":50,"otMana":51,"ruleHold":52,"ruleWait":53},"world":{"ground":0,"swing":1,"leader":2,"trail":3,"leaderLast":4,"hold":5,"holdNext":6,"phase":7,"routeIdx":8,"phaseMs":9,"regroupNext":10,"runs":11,"nextId":12,"density":13,"fightAt":14,"xpGroup":15,"rareWon":16,"risk":17,"danger":18,"climb":19,"clean":20,"low":21,"cool":22,"lowHero":23,"lowBy":24}}'::jsonb);
 delete from public.hr_premium_login_reward;
 insert into public.hr_premium_login_reward (id, item_id, qty) values (true, 'oak_practice_blade', 1);
 delete from public.hr_hunt_travel;
@@ -1542,6 +1546,7 @@ insert into public.hr_hunt_limits (key, value) values
   ('ooc_regen_permille_s', 60),
   ('party_max', 4),
   ('presets', 5),
+  ('report_falls_max', 12),
   ('sessions_kept', 20),
   ('skill_base', 15),
   ('skill_growth_permille', 40),
@@ -2326,7 +2331,7 @@ declare v_role text; v_t text;
 begin
   if (select count(*) from public.hr_hunt_supplies) <> 79
      or (select count(*) from public.hr_hunt_travel) <> 168
-     or (select count(*) from public.hr_hunt_limits) <> 47
+     or (select count(*) from public.hr_hunt_limits) <> 48
      or (select count(*) from public.hr_hunt_end_reasons) <> 18
      or (select count(*) from public.hr_hunt_vendor_value) <> 665
      or (select count(*) from public.hr_hunt_basic_supplies) <> 49
@@ -2373,7 +2378,7 @@ begin
                (('coppercap_warrens', 6, 18), ('coppercap_warrens_called', 1, 4), ('hasks_ford', 6, 12), ('krells_hold', 5, 10), ('krells_hold_hall', 1, 4), ('meadowbrook_thicket', 6, 13), ('mill_cellar', 2, 5), ('millrace_sewer', 6, 19), ('millrace_sewer_called', 1, 4), ('mosslight_glade', 6, 13), ('muster_barrows', 7, 23), ('pyre_field', 6, 12), ('the_burning_tower', 1, 5), ('the_slake', 6, 12), ('training_house_defense', 1, 1), ('training_house_magic', 1, 1), ('training_house_melee', 1, 1), ('training_house_ranged', 1, 1), ('training_yard_defense', 1, 1), ('training_yard_magic', 1, 1), ('training_yard_melee', 1, 1), ('training_yard_ranged', 1, 1), ('unmarked_bone_wing', 1, 5), ('unmarked_flooded_wing', 1, 5), ('wickstead', 6, 12))) then
     raise exception 'a hunt ground''s spawns is not its rows as built (no party pull on Normal)'; end if;
   -- The world fields the party section reads by name are all there, at the generator's positions.
-  if (select fields from public.hr_hunt_world_shape) is distinct from '{"unit":{"id":0,"side":1,"kind":2,"pocket":3,"alive":4,"hp":5,"maxHp":6,"target":7,"home":8,"x":9,"y":10,"fx":11,"fy":12,"prog":13,"speed":14,"dir":15,"goal":16,"path":17,"waitMs":18,"repathMs":19,"spot":20,"holdMs":21,"role":22,"dist":23,"chase":24,"tmode":25,"queued":26,"aiMs":27,"deadMs":28,"hpMilli":29,"stance":30,"acc":31,"maxHit":32,"def":33,"element":34,"swingLeftMs":35,"spellCds":36,"cast":37,"mana":38,"maxMana":39,"manaMilli":40,"regenPm":41,"lanes":42,"cds":43,"shield":44,"shieldBy":45,"markPm":46,"markUntil":47,"statuses":48,"laneAt":49,"otHp":50,"otMana":51,"ruleHold":52,"ruleWait":53},"world":{"ground":0,"swing":1,"leader":2,"trail":3,"leaderLast":4,"hold":5,"holdNext":6,"phase":7,"routeIdx":8,"phaseMs":9,"regroupNext":10,"runs":11,"nextId":12,"density":13,"fightAt":14,"xpGroup":15,"rareWon":16,"risk":17,"danger":18,"climb":19,"clean":20,"low":21,"cool":22}}'::jsonb
+  if (select fields from public.hr_hunt_world_shape) is distinct from '{"unit":{"id":0,"side":1,"kind":2,"pocket":3,"alive":4,"hp":5,"maxHp":6,"target":7,"home":8,"x":9,"y":10,"fx":11,"fy":12,"prog":13,"speed":14,"dir":15,"goal":16,"path":17,"waitMs":18,"repathMs":19,"spot":20,"holdMs":21,"role":22,"dist":23,"chase":24,"tmode":25,"queued":26,"aiMs":27,"deadMs":28,"hpMilli":29,"stance":30,"acc":31,"maxHit":32,"def":33,"element":34,"swingLeftMs":35,"spellCds":36,"cast":37,"mana":38,"maxMana":39,"manaMilli":40,"regenPm":41,"lanes":42,"cds":43,"shield":44,"shieldBy":45,"markPm":46,"markUntil":47,"statuses":48,"laneAt":49,"otHp":50,"otMana":51,"ruleHold":52,"ruleWait":53},"world":{"ground":0,"swing":1,"leader":2,"trail":3,"leaderLast":4,"hold":5,"holdNext":6,"phase":7,"routeIdx":8,"phaseMs":9,"regroupNext":10,"runs":11,"nextId":12,"density":13,"fightAt":14,"xpGroup":15,"rareWon":16,"risk":17,"danger":18,"climb":19,"clean":20,"low":21,"cool":22,"lowHero":23,"lowBy":24}}'::jsonb
      or exists (select 1 from unnest(array['id', 'side', 'kind', 'alive', 'x', 'y', 'hp', 'maxHp', 'target', 'mana', 'maxMana', 'shield', 'otHp', 'otMana', 'role', 'dist', 'chase', 'tmode', 'stance']) n
                  where not ((select fields->'unit' from public.hr_hunt_world_shape) ? n)) then
     raise exception 'hr_hunt_world_shape.fields is not world-state.js FIELDS'; end if;

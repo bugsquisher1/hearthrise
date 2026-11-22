@@ -83,8 +83,12 @@ begin
     if v_md5 is null then raise exception 'PIN: % is missing', v_r.fn; end if;
     -- A RETRY AFTER 1056-danger-scale.sql (staged after this file) finds hr_hunt_apply_member at 1056's image: this file's two
     -- HUNT-REPORT lines already in it, plus the scale's bound. The splice below then finds its marker and moves nothing.
+    -- A RETRY AFTER 1057-danger-falls.sql finds hr_hunt_view and hr_hunt_analyzer_basic at 1057's images (restated whole, the Danger
+    -- scale's falls and end stance added): this file restates its own, and 1057's retry restates them back.
     if v_md5 is distinct from v_r.pre and v_md5 is distinct from v_r.post
-       and not (v_r.fn = 'public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)' and v_md5 = 'bdf1e6f5d5bf7266b64b82b2b9f7e5c1') then
+       and not (v_r.fn = 'public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)' and v_md5 = 'bdf1e6f5d5bf7266b64b82b2b9f7e5c1')
+       and not (v_r.fn = 'public.hr_hunt_view(uuid)' and v_md5 = 'a4b298b03086e0e318b238c67360434a')
+       and not (v_r.fn = 'public.hr_hunt_analyzer_basic(jsonb)' and v_md5 = '8d5fe398a14f4b44e0133e477b1ff2a4') then
       raise exception 'PIN: % is neither the image this file was written against (%) nor its own (%): md5 % - another file moved it; re-pin', v_r.fn, v_r.pre, v_r.post, v_md5;
     end if;
   end loop;

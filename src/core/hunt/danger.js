@@ -14,9 +14,14 @@
 //   clean   clean pulls in a row since the last climb
 //   low     the lowest HP any hero reached in the pull under way, permille of its max (1000 at each pull's start; 0 = a hero died)
 //   cool    pulls left before the party may climb again after a fall back
+//   lowHero the seat of the hero that reached `low` (null: none yet, or a hero with no seat), and lowBy the kind of the monster whose
+//           blow took it there ('' for none): what a fall back names (R2, lane/r2-danger-falls). Persisted with `low` because the blow
+//           and the break-off can sit either side of a settle cut, and a hero that died has left the world by the next window.
 // The step changes only where a pull ends (pullEnds), and from that instant every reader sees it: the swing's dial (inst.tier) and the
 // pull size (world.density) are set here, and the next pull's pack is re-formed and re-sized to it (pull-cycle.js startPull).
-// Each pull's end is a `danger` event (step, to, low, why): what the hunt report and the probe read.
+// Each pull's end is a `danger` event (step, to, low, why): what the hunt report and the probe read. A fall back or a death also names
+// its cause: `hero` (the seat of the hero that broke the pull off, when it has one) and `monster` (the kind whose blow took it under the
+// line, 'unknown' for none). The analyzer tally keeps the deepest step and the last falls (src/core/hunt/report.js).
 //
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random: nothing here draws a die.
 // ============================================================
@@ -25,13 +30,14 @@ import { DANGER, CLIMB, RISKS, PAY, DANGER_GROUNDS } from '../../data/danger.js'
 import { LEVEL_PACE } from '../../data/core-model.js';
 import { charXpForLevel } from '../xp.js';
 import { makeEvent } from './events.js';
-import { isHero } from './sides.js';
+import { isHero, isMonster } from './sides.js';
 
 /* down (a pack): its monsters killed since it last stood up whole (spawnPack). A broken-off pack is re-pulled as it stands, its dead
    still down until its normal respawn (fitPull): never re-formed whole, so kill, break off, re-kill pays nothing twice (wave 1). */
 export const PERSISTED = Object.freeze({
   unit: Object.freeze([]),
-  world: Object.freeze([['risk', 'str'], ['danger', 'int'], ['climb', 'int'], ['clean', 'int'], ['low', 'int'], ['cool', 'int']]),
+  world: Object.freeze([['risk', 'str'], ['danger', 'int'], ['climb', 'int'], ['clean', 'int'], ['low', 'int'], ['cool', 'int'],
+    ['lowHero', 'int?'], ['lowBy', 'str']]),
   pack: Object.freeze([['down', 'int']]),
 });
 
@@ -135,6 +141,8 @@ export function openDanger(world, risk, step) {
   world.clean = 0;
   world.low = 1000;
   world.cool = 0;
+  world.lowHero = null;
+  world.lowBy = '';
 }
 
 /* The step's dial and pull size on the instance from now (the swing's other readers see it at once). */
@@ -145,12 +153,17 @@ function applyStep(inst) {
   return dial;
 }
 
-/** THE MARGIN (damage.js landHit, after every blow that lands on a hero): the lowest HP any hero reached in this pull. */
-export function noteHurt(inst, u) {
+/** THE MARGIN (damage.js landHit, after every blow that lands on a hero): the lowest HP any hero reached in this pull, and who reached
+    it by whose blow (`source`, the dealer: a monster names its kind; none, or not a monster, names nothing). The hero is named by its
+    seat (combat-sim.js syncUnit writes it at every boundary, never persisted), the identity the server keeps after the hero has gone. */
+export function noteHurt(inst, u, source) {
   const w = inst.world;
   if (!dangerOn(w) || !isHero(u)) return;
   const pm = u.maxHp > 0 ? Math.floor((Math.max(0, u.hp) * 1000) / u.maxHp) : 0;
-  if (pm < w.low) w.low = pm;
+  if (pm >= w.low) return;
+  w.low = pm;
+  w.lowHero = Number.isSafeInteger(u.seat) && u.seat >= 0 ? u.seat : null;
+  w.lowBy = isMonster(source) && typeof source.kind === 'string' ? source.kind : '';
 }
 
 /** THE FALL BACK INSIDE A PULL (pull-cycle.js runPhase, breakOff): on the scale, a hero under the stance's trigger, or dead, breaks the
@@ -165,9 +178,16 @@ export function packDown(world, pocket) {
 /** May pack `pk` be re-formed at another size (fitPull)? Only whole: none of it is down. */
 export const packWhole = (pk) => !pk || !(Number.isInteger(pk.down) && pk.down > 0);
 
+/* The margin made whole for the next pull, with nobody named. */
+function wholeMargin(w) {
+  w.low = 1000;
+  w.lowHero = null;
+  w.lowBy = '';
+}
+
 /** A pull begins (pull-cycle.js startPull): its margin starts whole. */
 export function pullBegins(world) {
-  if (dangerOn(world)) world.low = 1000;
+  if (dangerOn(world)) wholeMargin(world);
 }
 
 /**
@@ -198,10 +218,13 @@ export function pullEnds(inst, sc, cleared = false) {
     }
   } else { w.clean = 0; w.climb = 1; }
   w.danger = clampStep(to);
-  w.low = 1000;
+  /* A FALL BACK NAMES ITS CAUSE (R2): the hero that broke the pull off (its seat, when it has one) and the monster whose blow did it */
+  const cause = why === 'fall' || why === 'death'
+    ? { ...(Number.isSafeInteger(w.lowHero) ? { hero: w.lowHero } : {}), monster: w.lowBy || 'unknown' } : null;
+  wholeMargin(w);
   /* A DEATH SETTLES THE STANCE (RISKS afterDeath): the rest of the hunt plays the stance one notch safer, from the next pull */
   if (why === 'death' && own(RISKS, st.afterDeath)) w.risk = st.afterDeath;
-  sc.emit(makeEvent('danger', sc.atMs, { step: from, to: w.danger, low, why, risk: w.risk }));
+  sc.emit(makeEvent('danger', sc.atMs, { step: from, to: w.danger, low, why, risk: w.risk, ...cause }));
   return w.danger !== from ? applyStep(inst) : null;
 }
 

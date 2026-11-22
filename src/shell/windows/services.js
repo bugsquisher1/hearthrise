@@ -4,10 +4,10 @@
 // Tyler 2026-10-25 ("Lets move services to the 'shop' menu"): no window of its own any more; the Shop
 // (shop.js) shows this pane as its third tab, and R opens the Shop on it (src/data/shell-windows.js tabKeys).
 // Three services the town sells, every number the SERVER's (Tempering, the smith's rungs, is temper-pane.js):
-//   Stamina    the next refill as the server prices it (`stamina_refill`): how
-//              long it restores, its gold, and which purchase of today it is.
-//              Buy opens a confirmation with that price; one press sends ONE
-//              hr_stamina_refill carrying the quoted price, which the server
+//   Stamina    the next hunting block as the server prices it (`time_blocks`,
+//              1058-hunting-blocks.sql): the 2 h it adds, its gold, and how many
+//              of today's are bought. Buy opens a confirmation with that price; one
+//              press sends ONE hr_time_buy carrying the quoted price, which the server
 //              refuses if its own price has changed. Never automatic.
 //   Blessings  the three tiers (`blessings`): owned or not, each tier's price
 //              at this character's level ("free until 30"), and that a death
@@ -18,7 +18,7 @@
 // Every control is off while an intent is in flight; nothing changes on
 // screen until the re-read envelope says so.
 // ════════════════════════════════════════════════════════════════════════
-import { staminaRefillOf, blessingsOf, goldOf } from '../../session/item-sections.js';
+import { huntBlockOf, blessingsOf, goldOf } from '../../session/item-sections.js';
 import { staminaOf } from '../../session/hunt-sections.js';
 import { staminaAskWords } from '../widgets/stamina-buy.js';
 import { text, cls, prop, rows, element } from '../../render/paint.js';
@@ -59,18 +59,18 @@ export function patchServicesPane(body, ctx) {
   const purse = goldOf(cs);
   /* STAMINA */
   const st = staminaOf(cs);
-  const q = staminaRefillOf(cs);
+  const q = huntBlockOf(cs);
   text(root.querySelector('.hw-stam-now'), st ? 'Stamina ' + hoursText(st.msLeft) + ' of ' + hoursText(st.capMs) + '.' : 'Stamina loads from the server.');
   const quote = root.querySelector('.hw-stam-quote');
   const ask = root.querySelector('[data-hs-act="stam-ask"]');
-  if (!q) { text(quote, 'No refill price yet'); text(ask, 'Buy stamina'); }
+  if (!q) { text(quote, t('hud.stam_unpriced')); text(ask, t('hud.stam_buy')); }
   else if (!q.available) {
-    text(quote, q.why === 'stamina_full' ? 'Stamina full' : 'Daily refills used: ' + whole(q.perDay) + ' of ' + whole(q.perDay));
-    text(ask, 'Buy stamina');
+    text(quote, q.why === 'stamina_full' ? t('shop.block_full') : t('shop.block_used', { max: whole(q.perDay) }));
+    text(ask, t('hud.stam_buy'));
   } else {
-    text(quote, 'Restores ' + hoursText(q.restoreMs) + ' for ' + gold(q.price) + '. Bought today: ' + whole(q.boughtToday) + ' of ' + whole(q.perDay) + '. Each one costs more.'
-      + (purse !== null && purse < q.price ? ', need ' + gold(q.price - purse) + ' more' : ''));
-    text(ask, 'Buy ' + hoursText(q.restoreMs) + ' for ' + gold(q.price));
+    text(quote, t(purse !== null && purse < q.price ? 'shop.block_quote_short' : 'shop.block_quote', { hours: hoursText(q.blockMs), price: gold(q.price),
+      n: whole(q.boughtToday), max: whole(q.perDay), short: gold(Math.max(0, q.price - (purse || 0))) }));
+    text(ask, t('hud.stam_go_plus', { hours: hoursText(q.blockMs), price: gold(q.price) }));
   }
   const canStam = !!q && q.available && !sc.pending && (purse === null || purse >= q.price);
   prop(ask, 'disabled', !canStam || sc.confirm);
@@ -127,14 +127,14 @@ export function actServicesPane(ctx, body, action, ev, el) {
   const sc = scratchOf(cs);
   const repaint = () => patchServicesPane(body, ctx);
   if (actTemperPane(ctx, action, el, sc, repaint)) return true;
-  if (action === 'stam-ask') { const q = staminaRefillOf(cs); if (q && q.available) { sc.confirm = true; sc.msg = ''; repaint(); } return true; }
+  if (action === 'stam-ask') { const q = huntBlockOf(cs); if (q && q.available) { sc.confirm = true; sc.msg = ''; repaint(); } return true; }
   if (action === 'stam-no') { sc.confirm = false; repaint(); return true; }
   if (action === 'stam-yes' && sc.confirm) {
-    const q = staminaRefillOf(cs);
+    const q = huntBlockOf(cs);
     sc.confirm = false;
     if (!q || !q.available) { repaint(); return true; }
     sc.msgAt = null;
-    runIntent(sc, repaint, () => cs.buyStamina(q.price), 'Buying stamina…', () => 'Stamina restored.');
+    runIntent(sc, repaint, () => cs.buyTime('hunt', q.price), t('hud.stam_buying'), () => t('hud.stam_done'));
     return true;
   }
   if (action === 'bless') {

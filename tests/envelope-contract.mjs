@@ -324,9 +324,9 @@ function contract(R, cs, body, tl) {
   need('party_notices', Array.isArray(pn) && pn.length === 1 && pn[0].kind === 'left' && pn[0].who === SEED.inviter,
     'noticesOf yields ' + JSON.stringify(pn) + ' from ' + JSON.stringify(body.party_notices));
   /* The Services window's readers (src/session/item-sections.js). */
-  const sr = R.IS.staminaRefillOf(cs);
-  need('stamina_refill', !!sr && isNum(sr.n) && isNum(sr.perDay) && (sr.available ? isNum(sr.price) && isNum(sr.restoreMs) : typeof sr.why === 'string'),
-    'staminaRefillOf yields ' + JSON.stringify(sr) + ' from ' + JSON.stringify(body.stamina_refill));
+  const tb = R.IS.huntBlockOf(cs);
+  need('time_blocks', !!tb && isNum(tb.boughtToday) && isNum(tb.perDay) && isNum(tb.blockMs) && (tb.available ? isNum(tb.price) : typeof tb.why === 'string'),
+    'huntBlockOf yields ' + JSON.stringify(tb) + ' from ' + JSON.stringify(body.time_blocks));
   /* The Game Master's section (2027-03-13-gm-tools.sql): the key stands on every envelope, and a real hero reads false. */
   need('gm', 'gm' in body && body.gm === null && R.CS.gmOf(cs) === false, 'gmOf yields ' + JSON.stringify(R.CS.gmOf(cs)) + ' from ' + JSON.stringify(body.gm));
   /* The server switches on for this account (2027-03-21-feature-switches.sql): a list of ids, read by featureOn (the bench's dark jobs,
@@ -416,7 +416,7 @@ function sheetContract(R, cs, body) {
 /* The envelope keys CONTRACT covers (with the settle-response keys). */
 export const CONTRACT_KEYS = Object.freeze(['hunt', 'hunt_track', 'hunt_events', 'hunt_server_now_ms', 'hunt_settings', 'hunt_analyzer',
   'party', 'party_people', 'stamina', 'premium', 'account', 'inventory', 'equipment', 'skills', 'state', 'bank', 'buffs', 'hero_slots',
-  'name', 'bag_rules', 'shop', 'hunt_presets', 'role', 'party_invites', 'party_notices', 'stamina_refill', 'blessings',
+  'name', 'bag_rules', 'shop', 'hunt_presets', 'role', 'party_invites', 'party_notices', 'time_blocks', 'blessings',
   'character_sheet', 'outfit', 'death_log', 'vitals', 'hunt_bests', 'hunt_tier', 'hunt_target_kind', 'depot', 'home', 'now', 'farm_land', 'farm_tend', 'bench_run', 'rename', 'tally',
   'skill_inputs', 'bench_tax', 'setup_slots', 'titles', 'temper', 'bag_expand', 'gm', 'hallmark', 'level', 'skill_levels', 'live_events', 'training', 'factions', 'hunt_after', 'scaled_hunts', 'boss_halls',
   'tower', 'key_ring', 'entry_gates', 'catacomb', 'features', 'unlocked_recipes', 'hearth_fire', 'presence', 'company', 'hunt_setup', 'recruits', 'danger']);
@@ -609,7 +609,7 @@ const DB_MUTANTS = [
   ['titles', 'public.hr_titles_view(uuid,integer)', "'have', public.hr_title_kills(", "'count', public.hr_title_kills("],
   ['party_invites', 'public.hr_party_invites_view(uuid,integer)', "'from', public.hr_character_name(", "'sender', public.hr_character_name("],
   ['party_notices', 'public.hr_party_notices_view(uuid,integer)', "'who', left(public.hr_character_name(", "'actor', left(public.hr_character_name("],
-  ['stamina_refill', 'public.hr_stamina_refill_quote(uuid,integer)', "'restore_ms', v_min * 60000,", "'restore', v_min * 60000,"],
+  ['time_blocks', 'public.hr_time_quote(uuid,integer,text)', "'ceiling_ms', v_ceil, 'block_ms', v_block,", "'ceiling_ms', v_ceil, 'block', v_block,"],
   ['blessings', 'public.hr_blessings_view(uuid,integer)', "'tiers', coalesce(", "'tier_list', coalesce("],
   ['character_sheet', 'public.hr_character_sheet_view(uuid,integer)', "'slain', (select", "'killed', (select"],
   ['character_sheet', 'public.hr_character_sheet_view(uuid,integer)', "'combat', case when v_fresh", "'sheet', case when v_fresh"],

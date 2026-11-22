@@ -1800,14 +1800,15 @@ async function rules(M) {
      refused until a reload): a priced press the SERVER refused re-reads the hero before it resolves, so the section's price is the server's;
      a dropped network reads nothing. Every CharacterSession service that sends a quoted price. */
   await t('QUOTE-1', async () => {
-    const quote = (price) => ({ stamina_refill: { available: true, why: null, price, restore_ms: 14400000, n: 1, per_day: 6 } });
-    const FULL = { available: false, why: 'stamina_full', n: 1, per_day: 6 };   // live play gate 11-14: 11:59 h shown, the server says full
-    for (const [verb, press, error] of [['hr_stamina_refill', (cs) => cs.buyStamina(197)], ['hr_blessing_buy', (cs) => cs.buyBlessing(2, 197)],
+    /* the hunting block (1058-hunting-blocks.sql) is the stamina purchase now: the `time_blocks` section, { hunt: quote } */
+    const quote = (price) => ({ time_blocks: { hunt: { kind: 'hunt', available: true, why: null, price, block_ms: 7200000, n: 1, bought: 0, per_day: 2 } } });
+    const FULL = { hunt: { kind: 'hunt', available: false, why: 'stamina_full', block_ms: 7200000, n: 1, bought: 0, per_day: 2 } };   // live play gate 11-14: the server says full
+    for (const [verb, press, error] of [['hr_time_buy', (cs) => cs.buyTime('hunt', 197)], ['hr_blessing_buy', (cs) => cs.buyBlessing(2, 197)],
       ['hr_bestiary_activate', (cs) => cs.activateBestiaryStage('rat', 1, 197)], ['hr_hero_rename', (cs) => cs.renameHero('Fennick', 197)],
       ['hr_training_start', (cs, srv) => TI.startTraining({ server: srv }, cs, { skill: 'melee', where: 'yard', feeSeen: 197 })],
       ['hr_house_dummy_unlock', (cs, srv) => TI.unlockDummy({ server: srv, characters: () => [cs] }, cs, 'melee', 197)],
       ['hr_storage_chest_build', (cs, srv) => HI.buildChest({ server: srv, characters: () => [cs] }, cs, 'chest_1', 197)],
-      ['hr_stamina_refill', (cs) => cs.buyStamina(197), 'stamina_full']]) {
+      ['hr_time_buy', (cs) => cs.buyTime('hunt', 197), 'stamina_full']]) {
       const bySlot = { 0: env(1, quote(197)) };
       const srv = fakeServer(bySlot);
       const base = srv.rpc;
@@ -1817,8 +1818,8 @@ async function rules(M) {
         srv.calls.push([name, args]);
         if (drop) return { ok: false, status: 503, body: { ok: false, error: 'unavailable' }, error: 'http_503', closed: false };   // no answer to the quote
         /* town rest moved the price on the server, or filled the bar */
-        bySlot[0] = env(2, error ? { stamina_refill: FULL } : quote(169));
-        return { ok: true, status: 200, body: { ok: false, error: error || 'quote_changed', stamina_refill: error ? FULL : quote(169).stamina_refill }, closed: false };
+        bySlot[0] = env(2, error ? { time_blocks: FULL } : quote(169));
+        return { ok: true, status: 200, body: { ok: false, error: error || 'quote_changed', time_blocks: error ? FULL : quote(169).time_blocks }, closed: false };
       };
       const cs = new C.CharacterSession({ slot: 0, uid: UID, server: srv, channel: fakeHub().channel, ...timers });
       await cs.load();
@@ -1828,7 +1829,7 @@ async function rules(M) {
       drop = false;
       const r = await press(cs, srv);
       if (r.ok || r.error !== (error || 'quote_changed')) return verb + ' answered ' + JSON.stringify(r);
-      const q = I.staminaRefillOf(cs);
+      const q = I.huntBlockOf(cs);
       if (error ? !(q && q.available === false && q.why === error) : !(q && q.price === 169)) {
         return verb + ' refused ' + r.error + ' and the hero still offers ' + JSON.stringify(q) + ' (the server: ' + (error || '169 gp') + ')';
       }

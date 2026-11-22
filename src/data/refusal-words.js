@@ -346,9 +346,9 @@ export const REFUSAL_WORDS = Object.freeze({
   wrong_slot: 'Wrong slot',
   two_handed: 'Two-handed weapon: unequip the off-hand first',
   would_confiscate: 'Hero busy, stop it first',
-  /* Services. */
+  /* Services. A bought hunting block (1058-hunting-blocks.sql hr_time_buy): stamina_full = a full day of blocks is already banked. */
   stamina_full: 'Stamina full',
-  refill_limit: 'Daily refill limit reached',
+  block_limit: 'Today\'s blocks are bought. More after midnight UTC',
   stamina_ahead: 'Stamina full',
   already_blessed: 'Already blessed',
   needs_previous: 'Buy the previous Blessing first',

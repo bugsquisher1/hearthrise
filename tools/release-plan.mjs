@@ -203,7 +203,14 @@ export function planOf({ chain, notes, fateRows, from = 1009, keep = [] }, rules
   const pos = new Map(chain.map((f, i) => [f, i]));
   const staged = chain.filter((f) => { const q = seqOfName(f); return q !== null && q >= from && claimOf(noteText(notes[f])).kind === 'staged'; });
   const stagedSet = new Set(staged);
-  const bySeq = (n) => chain.filter((f) => (n.seq === null || seqOfName(f) === n.seq) && (!n.name || f.startsWith(n.name + '.') || f.startsWith(n.name + '-') || f.replace(/\.generated\.sql$|\.sql$/, '') === n.name));
+  /* a name that is a whole file names that file only ("1058-hunting-blocks" is not 1058-hunting-blocks-catalogue); a shorter one
+     ("1012-approved-rows") names every file it begins */
+  const stem = (f) => f.replace(/\.generated\.sql$|\.sql$/, '');
+  const bySeq = (n) => {
+    const hits = chain.filter((f) => (n.seq === null || seqOfName(f) === n.seq) && (!n.name || f.startsWith(n.name + '.') || f.startsWith(n.name + '-') || stem(f) === n.name));
+    const exact = n.name ? hits.filter((f) => stem(f) === n.name) : [];
+    return exact.length ? exact : hits;
+  };
 
   /* fates */
   const fate = new Map(staged.map((f) => [f, { fate: 'keep', why: 'not in 12-targets 2.7 (the handoff order, or newer)', derive: null }]));
@@ -398,6 +405,9 @@ export const CASES = [
   ['"folded into" makes the cut wait on the files that hold its half', () => planOf({ chain: ['1009-a.sql', '1010-b.sql'],
     notes: { '1009-a.sql': N('EDGE: none.'), '1010-b.sql': N('The other half is folded into the STAGED 1009-a. EDGE: none.') }, fateRows: fatesFrom(FATES([['1009 a', 'Retire']])) }, RULES),
   (p) => p.blocked.some((b) => b.file === '1010-b.sql' && b.kind === 'folded into')],
+  ['a whole file name names that file, not every file it begins', () => planOf({ chain: ['1009-x-catalogue.sql', '1009-x-sessions.sql', '1009-x.sql'],
+    notes: { '1009-x-catalogue.sql': N('EDGE: none.'), '1009-x-sessions.sql': N('ORDER: 1009 in its name, before 1009-x.sql. EDGE: none.'), '1009-x.sql': N('EDGE: none.') }, fateRows: [] }, RULES),
+  (p) => !p.refusals.length && p.plan.length === 3],
   ['a file pinned on a held file\'s image is blocked', () => planOf({ chain: ['1009-a.sql', '1010-b.sql'],
     notes: { '1009-a.sql': N('EDGE: none.'), '1010-b.sql': N('One insertion, pinned pre (1009\'s image) and post. EDGE: none.') }, fateRows: fatesFrom(FATES([['1009 a', 'Retire']])) }, RULES),
   (p) => p.blocked.some((b) => b.file === '1010-b.sql' && b.kind === 'pinned on its body')],

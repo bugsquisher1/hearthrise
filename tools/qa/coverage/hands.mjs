@@ -76,7 +76,7 @@ export async function openAccount(world, name, onAnswer = () => {}) {
     leaveHunt: () => rpc('hr_hunt_leave', { p_slot: slot, p_idem: idem() }),
     setTier: (hunt, tier) => rpc('hr_hunt_tier_set', { p_slot: slot, p_hunt: hunt, p_tier: tier, p_idem: idem() }),
     bank: (item, qty, dir) => rpc('hr_bank_move', { p_slot: slot, p_item: item, p_qty: qty, p_dir: dir, p_idem: idem() }),
-    staminaRefill: (price) => rpc('hr_stamina_refill', { p_slot: slot, p_price: price, p_idem: idem() }),
+    huntBlock: (price) => rpc('hr_time_buy', { p_kind: 'hunt', p_slot: slot, p_price: price, p_idem: idem() }),
     blessing: (tier, price) => rpc('hr_blessing_buy', { p_slot: slot, p_tier: tier, p_price: price, p_idem: idem() }),
     bestiary: (monster, stage, fee) => rpc('hr_bestiary_activate', { p_slot: slot, p_monster: monster, p_stage: stage, p_price: fee, p_idem: idem() }),
     /* src/session/farm-intents.js */

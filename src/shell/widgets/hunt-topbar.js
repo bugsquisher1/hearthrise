@@ -46,7 +46,7 @@ export function renderHuntTopbar() {
     /* A TRAINING SESSION (../training-now.js; lane/a-training-display) says what it does and where ("Training Melee", and on a wide bar
        "at the Training Yard"), its time left and the hour's fee, every figure the server's; Hunt details reads Details and Leave hunt
        Stop training. */
-    + '<b class="ht-ground"><span class="ht-name"></span><span class="ht-wide ht-at"></span></b><span class="ht-clock" title="' + t('hud.top_clock') + '"></span>'
+    + '<b class="ht-ground"><span class="ht-name"></span><span class="ht-mark"></span><span class="ht-wide ht-at"></span></b><span class="ht-clock" title="' + t('hud.top_clock') + '"></span>'
     + '<span class="ht-wide ht-fee" hidden></span>'
     /* THE BURNING TOWER: the floor standing and its time left (./tower-bar.js), quiet off the Tower */
     + '<span class="ht-tower" role="timer" hidden><b class="ht-floor"></b><span class="ht-floor-left"></span></span>'
@@ -75,10 +75,12 @@ renderHuntTopbar.patch = function patchHuntTopbar(el, ctx) {
   const tiers = h && !h.ended ? huntTierOf(ctx.character) : null;
   const marks = [tiers && tiers.playing && tiers.playing !== DEFAULT_TIER ? TIER_NAME[tiers.playing] : '',
     h && !h.ended && h.huntId ? scalePlaying(ctx.character, h.huntId) : '', h && !h.ended ? depthMark(ctx.character, h.huntId) : ''].filter(Boolean);
-  const hard = marks.length ? ' (' + marks.join(', ') + ')' : '';
   const now = serverNowOf(ctx.character);
   const train = trainingNowOf(ctx.character, now);
-  text(el.querySelector('.ht-name'), train ? train.doing : h && h.ended && ground ? t('hud.last_hunt', { ground: gname }) : gname + hard);
+  text(el.querySelector('.ht-name'), train ? train.doing : h && h.ended && ground ? t('hud.last_hunt', { ground: gname }) : gname);
+  /* ...in the body face beside the name, never in the name's Cinzel capitals (R7 art pass: "THE MUSTER BARROWS (STEADY, DEPTH 1 OF 20)"
+     read as one shouted title; ART_DIRECTION section 10, Cinzel is for names, never numbers) */
+  text(el.querySelector('.ht-mark'), !train && h && !h.ended && marks.length ? ' ' + marks.join(', ') : '');
   text(el.querySelector('.ht-at'), train ? ' ' + train.at : '');
   const ms = sessionClockMs(a, now);
   const left = !!train && train.leftMs !== null;

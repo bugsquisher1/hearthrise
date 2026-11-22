@@ -24,7 +24,8 @@
 //                          party.js PARTY.maxSize (`party_max`), session/config.js
 //                          maxConcurrentCharacters (`max_concurrent`), hunt-tuning.js
 //                          worldMaxBytes (`world_max_bytes`), abilities.js' largest
-//                          per-cast ammo (`ability_ammo_max`)
+//                          per-cast ammo (`ability_ammo_max`), hunt-report.js HUNT_REPORT.fallsMax
+//                          (`report_falls_max`: the Danger scale's falls one report keeps)
 //   hr_hunt_lanes          the cooldown lanes, ONE source each: consumables.js
 //                          CONSUMABLE_RULES.laneMs (food and drink, `consumable`)
 //                          and abilities.js ABILITY_LANES (`offense`, `heal`)
@@ -148,6 +149,7 @@ import { HUNT_XP } from '../src/data/hunt-xp.js';
 import { OPEN_GROUNDS, DENSITY_PICK, MAX_HEROES, densityFor, reachableOf } from '../src/data/hunt-grounds.js';
 import { CALLED_GROUNDS, HALL_GROUNDS, OPEN_HALL_GROUNDS, TRAINING_GROUNDS, TOWER_GROUNDS } from '../src/data/hunt-grounds.js';
 import { HUNT_TUNING } from '../src/data/hunt-tuning.js';
+import { HUNT_REPORT } from '../src/data/hunt-report.js';
 import { PARTY } from '../src/data/party.js';
 import { SESSION_CONFIG } from '../src/session/config.js';
 import { PREMIUM_LOGIN_REWARD } from '../src/data/premium.js';
@@ -376,8 +378,13 @@ export const WORLD_FIELDS_READ = Object.freeze({
    pieces, which the approved-cuts items catalogue takes out of hr_items AFTER this file. A forward file after that catalogue could not be
    re-applied before it (tests/schema-drift.mjs's second apply of the staged tail: its bids would name items hr_items no longer holds). */
 /* 1054-danger-scale-hunt-sessions-catalogue (lane/v1-climb wave 1, 2026-11-22; 02 package 3): hr_hunt_world_shape moves (the world's six Danger
-   fields and a pack's down count, src/core/hunt/danger.js PERSISTED); 1028 (STAGED) is carried whole. */
-export const OUT_NAME = '1054-danger-scale-hunt-sessions-catalogue.generated.sql';
+   fields and a pack's down count, src/core/hunt/danger.js PERSISTED); 1028 (STAGED) is carried whole. ...AND lane/r2-danger-falls FOLDED INTO it
+   (2026-11-22, still STAGED, ONE forward file per generator): the world's lowHero and lowBy (what a fall back names) and hr_hunt_limits'
+   report_falls_max (hunt-report.js HUNT_REPORT.fallsMax), read by 1057-danger-falls.sql. */
+/* 1058-hunting-blocks-hunt-sessions-catalogue (lane/r8-hunting-day, 2026-11-22; Tyler: the hunting day is 10 h, 12 h with Premium): hr_hunt_limits'
+   stamina_free_min moves 480 -> 600 (STAMINA_MAX_MS.free); 1054 (STAGED, with R2's fold: regenerated when lane/r2-danger-falls merged) is
+   carried whole. */
+export const OUT_NAME = '1058-hunting-blocks-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -492,7 +499,8 @@ export function catalogueRows(src = {}) {
     loginReward: PREMIUM_LOGIN_REWARD, worldVersion: WORLD_VERSION, worldShape: SHAPE, worldFields: WORLD_FIELDS,
     roles: HUNT_ROLES, roleKeys: ROLE_KEYS, shieldArm: SHIELD_ARM, manaRegenPct: ABILITY_RULES.manaRegenPctPerMin, magicXpPermille: HUNT_XP.magicXpPermillePerMana,
     /* the monsters' spells: the least windup any row may take (SPELL_BOUNDS), the rows, and the block multiple the Defense bound prices every blow at */
-    spellWindupMinMs: SPELL_BOUNDS.windupMs[0], spells: MONSTER_SPELLS, blockMult: COMBAT_XP.blockMult, ...src,
+    spellWindupMinMs: SPELL_BOUNDS.windupMs[0], spells: MONSTER_SPELLS, blockMult: COMBAT_XP.blockMult,
+    reportFallsMax: HUNT_REPORT.fallsMax, ...src,
   };
   /* THE CALLED ROOMS (boss-calls.js) stand beside the open grounds in every row the settle reads; the roster below leaves them out. */
   S.hunts = [...S.hunts, ...S.calledHunts];
@@ -634,7 +642,13 @@ export function catalogueRows(src = {}) {
     defense_xp_level_permille: COMBAT_XP.defenseXpPerLevelPermille, block_mult: S.blockMult,
     /* THE LEAST WINDUP OF A MONSTER'S SPELL (monster-spells.js SPELL_BOUNDS): what the Defense bound leans on (below). */
     spell_windup_min_ms: S.spellWindupMinMs,
+    /* THE DANGER SCALE'S FALLS A REPORT KEEPS (hunt-report.js HUNT_REPORT.fallsMax): 1057-danger-falls.sql's hr_hunt_report_ok and
+       hr_hunt_report_add bound the shape and the fold by it, so the report's 32 KB CHECK holds (its self-check proves the widest) */
+    report_falls_max: S.reportFallsMax,
   };
+  if (!(Number.isInteger(lim.report_falls_max) && lim.report_falls_max >= 1 && lim.report_falls_max <= 32)) {
+    throw new Error(`HUNT_REPORT.fallsMax ${lim.report_falls_max} is not a whole 1..32 (the report's 32 KB CHECK is proved at 32 at most)`);
+  }
   /* THE DEFENSE BOUND HOLDS A SPELL (hr_hunt_apply_member's v_def: every foe, every swing interval, a block's multiple). A spell's landing is
      one blow taken at the PLAIN rate (hunt-rewards.js defenseXp: a `dmg`, never a shield's block, braced or not), it takes the caster a whole
      windup in which it makes no swing, and it restarts the swing clock (monster-spells.js land). So a caster's Defense XP a millisecond is at
@@ -1132,11 +1146,21 @@ export function render(src) {
 --   ${r.vendor.length} vendor values, ${r.basics.length} store supplies paid per use, ${r.targets.length} target modes,
 --   ${r.lanes.length} lanes, ${r.abilities.length} abilities, ${r.setOptions.length} action-set options, ${r.grounds.length} hunt grounds
 --
--- NEW IN THIS FILE (lane/v1-climb wave 1, backend-architect, 2026-11-22; 02 package 3, 05 stage 6 wave 1: the Danger scale on the server). It carries
+-- NEW IN THIS FILE (lane/r8-hunting-day, backend-architect, 2026-11-22; Tyler 2026-11-22: "10 without premium 12 with"). It carries
+--   1054-danger-scale-hunt-sessions-catalogue (STAGED) whole. Only hr_hunt_limits' stamina_free_min moves, 480 -> 600 (src/data/hunt-sessions.js
+--   STAMINA_MAX_MS.free: the free hunting day is 10 h; stamina_premium_min stays 720). hr_stamina_cap and hr_stamina_of read the row, so the pool
+--   rests to 10 h and a full one hunts 10 h. No ground, spawn, kill bound, bid, end reason or world shape moves. ORDER: the sequence in its name,
+--   after 1056 and before 1058-hunting-blocks.sql (its self-check hunts the 10 h day). EDGE: none (the engine reads the pool and its cap from
+--   the server, never STAMINA_MAX_MS; hunt-sessions.js is in the hr-accrue payload, so its bytes move: deploy either side of the apply).
+-- CARRIED FROM 1054-danger-scale-hunt-sessions-catalogue (lane/v1-climb wave 1, backend-architect, 2026-11-22; 02 package 3, 05 stage 6 wave 1: the Danger scale on the server). It carries
 --   1028-spell-rule-hunt-sessions-catalogue (STAGED) whole. Only hr_hunt_world_shape moves: the world carries the scale's six fields (risk, danger, climb,
 --   clean, low, cool) and every pack its down count (src/core/hunt/danger.js PERSISTED). No ground, spawn, kill bound, limit, bid or end reason moves (the
 --   scale's own bounds are 1055's catalogue and 1056's). ORDER: the sequence in its name, before 1055 and 1056. EDGE: the hr-accrue carrying this lane's
 --   src/core right after this apply (until both land every settle holds world_shape_pending: nothing proposed, refused or counted).
+--   FOLDED IN (lane/r2-danger-falls, backend-architect, 2026-11-22, while this file was STAGED): the world also carries lowHero and lowBy (the seat
+--   and the monster a fall back names, danger.js PERSISTED), and hr_hunt_limits gains report_falls_max (hunt-report.js HUNT_REPORT.fallsMax: the
+--   Danger scale's falls one hunt report keeps, read by 1057-danger-falls.sql). The EDGE rule is unchanged: the hr-accrue deployed right after
+--   this apply carries R2's src/core too (one engine, one shape).
 -- CARRIED FROM 1028-spell-rule-hunt-sessions-catalogue (lane/c-spell-rule, systems-engineer, 2026-11-21; balance program L17, Tyler's spell calls of 2026-11-21: 21-5 every cast a share of
 --   its caster's blow, 21-6 the bar budget, 32-2 Cleave merges into Turning Cut, 32-3 the axes lose Power Strike, 32-5 the hammer's Earth rune strike).
 --   It carries 1021-tohit-ratio-hunt-sessions-catalogue (STAGED) whole. Only hr_hunt_abilities moves: cleave leaves, quarry_blow (the club's, an Earth rune
@@ -2228,6 +2252,8 @@ function selftest() {
     'no shield arm (no worn set plays the tank)': () => ({ shieldArm: {} }),
     /* THE DEFENSE BOUND AND A MONSTER'S SPELL: the least windup x block_mult covers the swing interval, and no row winds up faster than the least */
     'a least spell windup the Defense bound does not cover': () => ({ spellWindupMinMs: Math.ceil(COMBAT_BALANCE.tickMs / COMBAT_XP.blockMult) - 100 }),
+    'a falls cap past the one the report\'s CHECK is proved at': () => ({ reportFallsMax: 33 }),
+    'a falls cap of none': () => ({ reportFallsMax: 0 }),
     'a block multiple that no longer covers a spell\'s windup': () => ({ blockMult: 1 }),
     'a monster spell under the least windup': () => ({ spells: { ...MONSTER_SPELLS, squeal: { ...MONSTER_SPELLS.squeal, windupMs: SPELL_BOUNDS.windupMs[0] - 100 } } }),
     /* COMBAT TRAINING (training.js): the dummy pays nothing and stands only on a training ground; a training ground is one seat and the dummy */

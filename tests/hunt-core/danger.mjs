@@ -21,6 +21,9 @@
 //           is that share at the kill's step over the heroes there (no row XP, no party table).
 //   down    (wave 1) KILLED STAYS DEAD: a pack row that falls on the scale counts its pack down; a pack broken off with one down is
 //           re-pulled as it stands (never re-formed whole), a whole one is re-formed at the step's size, and a respawn stands it up whole.
+//   falls   (R2) A FALL BACK NAMES ITS CAUSE: a Bold party far too deep falls back and dies; each fall and death names the seat of the
+//           hero that broke the pull off and the monster kind whose blow did it, the same in one window, every 2 s swing and odd cuts,
+//           and the analyzer reports folded window by window hold the same falls and deepest step for every hero.
 //   mutants each rule planted back, each caught by its own case.
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -37,6 +40,7 @@ const load = async (root) => {
   M.tiers = await imp('src/data/hunt-tiers.js');
   M.coreModel = await imp('src/data/core-model.js');
   M.xp = await imp('src/core/xp.js');
+  M.huntReport = await imp('src/data/hunt-report.js');
   return M;
 };
 
@@ -53,14 +57,17 @@ function play(M, plan, spanMs, cuts) {
   const ctx = { tickMs: 2000, seed: (d, i) => M.rng.hashSeed('danger', 7, d, i), monsters: M.MONSTERS, ground, grid };
   const edges = [T0, ...cuts.filter((c) => c > T0 && c < T0 + spanMs).sort((a, b) => a - b), T0 + spanMs];
   let w = null, next = T0;
-  const events = [];
+  const events = [], windows = [];
   for (let i = 1; i < edges.length; i++) {
     w = w ? M.worldstate.decode(JSON.parse(JSON.stringify(M.worldstate.encode(w)))) : null;
     const r = M.cs.simulateHuntInstance({ world: w, nextSwingAtMs: next, members }, { ...ctx, toMs: edges[i] });
     w = r.world; next = r.nextSwingAtMs;
     events.push(...r.events);
+    /* each window as the settle's analyzer reads it (hr-accrue accrue-hunt.js: the heroes ever in it, the kinds it met) */
+    windows.push({ events: r.events, kinds: r.kinds, heroes: [...new Set(Object.values(r.members).map((m) => m.unitIdEver).filter(Number.isInteger))] });
+    if (!w) break;
   }
-  return { danger: events.filter((e) => e.type === 'danger'), events, world: w };
+  return { danger: events.filter((e) => e.type === 'danger'), events, world: w, windows };
 }
 
 const SPAN = 12 * 60000;
@@ -260,6 +267,64 @@ const CASES = {
     }
     return null;
   },
+  /* (R2, lane/r2-danger-falls) A FALL BACK NAMES ITS CAUSE, HOWEVER THE SETTLE IS CUT: a two-hero party planned on Bold far deeper than it
+     can hold falls back and dies. Every fall and death's `danger` event names the seat of the hero that broke the pull off (the party's
+     seats: syncUnit writes them, never persisted) and the kind of the monster whose blow did it, with the margin it read; cut into one
+     window, into every 2 s swing (a blow and its break-off, a death and the next window's break-off, on either side of a cut: lowHero and
+     lowBy ride the world) and at odd instants, the events are the same, and each cut's analyzer reports, folded window by window
+     (report.js addReport), hold the same falls and deepest step, each hero the company's. */
+  falls(M) {
+    const plan = { risk: 'bold', danger: 700 };
+    const span = 2 * 60000;
+    const cuts = [[], Array.from({ length: span / 2000 }, (_, i) => T0 + (i + 1) * 2000), [T0 + 9300, T0 + 11650, T0 + 20000, T0 + 41700, T0 + 63000]];
+    const runs = cuts.map((c) => play(M, plan, span, c));
+    const causes = (r) => r.danger.filter((e) => e.why === 'fall' || e.why === 'death');
+    const one = causes(runs[0]);
+    if (!one.some((e) => e.why === 'fall') || !one.some((e) => e.why === 'death')) return 'CONTROL: the deep Bold party ' + JSON.stringify(one.map((e) => e.why)) + ', not a fall back and a death';
+    for (const e of one) {
+      if (![0, 1].includes(e.hero)) return 'a ' + e.why + ' at ' + e.atMs + ' names hero ' + JSON.stringify(e.hero) + ', no seat of the party';
+      if (!Object.prototype.hasOwnProperty.call(M.MONSTERS, e.monster)) return 'a ' + e.why + ' at ' + e.atMs + ' names monster ' + JSON.stringify(e.monster);
+      if ((e.why === 'death') !== (e.low === 0)) return 'a ' + e.why + ' read a margin of ' + e.low;
+    }
+    if (new Set(one.map((e) => e.hero)).size < 2) return 'CONTROL: every fall named the same seat (' + one[0].hero + ')';
+    for (const [i, r] of runs.entries()) if (JSON.stringify(causes(r)) !== JSON.stringify(one)) return 'cut ' + i + ' names the falls ' + JSON.stringify(causes(r)).slice(0, 240) + ' vs ' + JSON.stringify(one).slice(0, 240);
+    const folded = runs.map((r) => {
+      const acc = {};
+      for (const win of r.windows) {
+        const t = M.tally.tallyEvents(win.events, { heroes: win.heroes, kinds: win.kinds });
+        for (const [id, h] of Object.entries(t.heroes)) acc[id] = M.tally.addTally(acc[id] || M.tally.emptyTally(), h);
+      }
+      return Object.values(acc).map((h) => JSON.stringify({ deep: h.report.deep, falls: h.report.falls }));
+    });
+    const want = JSON.stringify({ deep: plan.danger, falls: one.slice(-M.huntReport.HUNT_REPORT.fallsMax).map((e) => ({ at: e.atMs, from: e.step, to: e.to, hero: e.hero, pm: e.low, monster: e.monster })) });
+    for (const [i, f] of folded.entries()) {
+      if (!f.length || f.some((x) => x !== want)) return 'cut ' + i + '\'s reports fold to ' + f.join(' | ').slice(0, 300) + ', the falls ' + want.slice(0, 300);
+    }
+    /* THE BLOW IN ONE WINDOW, ITS BREAK-OFF IN THE NEXT (a swing's last sub-step, so rare in play that the cuts above need not meet it): two
+       heroes struck in the pull, the second lower; the world through its encoding (seats are never persisted); the break-off names the
+       LOWEST, by the monster that took it there */
+    const mk = M.hunt['world-state'].makeUnit;
+    /* blows: [[hero index, its HP after the blow (of 30), the dealer's index or null]]; answers the break-off's `danger` event */
+    const split = (blows) => {
+      const hs = [hero(M, 1, 12, 3, { hp: 30, maxHp: 30 }), hero(M, 3, 11, 3, { hp: 30, maxHp: 30 })];
+      const ms = [mk({ id: 2, side: 'mon', kind: 'rat', pocket: 0, alive: true, hp: 10, maxHp: 10, target: 1, x: 13, y: 3, fx: 13, fy: 3, home: [13, 3], speed: 2400 }),
+        mk({ id: 4, side: 'mon', kind: 'slime', pocket: 0, alive: true, hp: 10, maxHp: 10, target: 3, x: 10, y: 3, fx: 10, fy: 3, home: [10, 3], speed: 2400 })];
+      const w0 = world(M, [...hs, ...ms], { leader: 1, phase: 'fight', routeIdx: 0,
+        packs: [{ aggro: true, holder: 1, alive: true }, { aggro: false, holder: null, alive: true }, { aggro: false, holder: null, alive: true }] });
+      M.danger.openDanger(w0, 'steady', 200);
+      hs.forEach((h, i) => { h.seat = i; });
+      for (const [i, hp, by] of blows) { hs[i].hp = hp; M.danger.noteHurt(instOf(M, w0), hs[i], by === null ? null : ms[by]); }
+      const w1 = M.worldstate.decode(JSON.parse(JSON.stringify(M.worldstate.encode(w0))));
+      const sc = subStep(0);
+      M.pullcycle.runPhase(instOf(M, w1), sc);
+      return sc.events.find((x) => x.type === 'danger') || null;
+    };
+    const lower = split([[0, 12, 0], [1, 3, 1]]);
+    if (!lower || lower.why !== 'fall' || lower.low !== 100 || lower.hero !== 1 || lower.monster !== 'slime') return 'across a cut the break-off read ' + JSON.stringify(lower) + ', not seat 1 at 100 by the slime';
+    const bare = split([[0, 12, 0], [1, 3, 1], [0, 2, null]]);
+    if (!bare || bare.low !== 66 || bare.hero !== 0 || bare.monster !== 'unknown') return 'a blow with no dealer read ' + JSON.stringify(bare) + ', not seat 0 at 66 by no monster';
+    return null;
+  },
   down(M) {
     const run = (down, risk) => {
       const h = hero(M, 1, 14, 4, { hp: 30, maxHp: 30 });
@@ -305,7 +370,7 @@ const MUTANTS = [
   { name: 'a death falls no further than a fall back', case: 'rule', edits: [['src/core/hunt/danger.js', 'to = from - (low <= 0 ? CLIMB.deathSteps : CLIMB.fallSteps);', 'to = from - CLIMB.fallSteps;']] },
   { name: 'the clean run does not survive a settle cut', case: 'trace', edits: [['src/core/hunt/danger.js', "['climb', 'int'], ['clean', 'int'], ['low', 'int'],", "['climb', 'int'], ['low', 'int'],"]] },
   { name: 'the climb does not survive a settle cut', case: 'trace', edits: [['src/core/hunt/danger.js', "['danger', 'int'], ['climb', 'int'], ['clean', 'int'],", "['danger', 'int'], ['clean', 'int'],"]] },
-  { name: 'the margin is never read where HP falls', case: 'trace', edits: [['src/core/hunt/damage.js', '  if (!isMonster(target) && r.dmg > 0) noteHurt(inst, target);\n', '']] },
+  { name: 'the margin is never read where HP falls', case: 'trace', edits: [['src/core/hunt/damage.js', '  if (!isMonster(target) && r.dmg > 0) noteHurt(inst, target, source);\n', '']] },
   { name: 'the engine never opens the plan', case: 'trace', edits: [['src/core/combat-sim.js', '          if (plan) openDanger(world, plan.risk, plan.step);\n', '']] },
   { name: 'a hunt with no stance opens on one', case: 'off', edits: [['src/core/combat-sim.js', 'const riskPick = (ms) => { const lead = ms.find((x) => x.hero.lead === true) || ms[0]; return riskOf(lead && lead.hero); };',
     "const riskPick = (ms) => { const lead = ms.find((x) => x.hero.lead === true) || ms[0]; return riskOf(lead && lead.hero) || { risk: 'steady', step: 0 }; };"]] },
@@ -329,6 +394,13 @@ const MUTANTS = [
   { name: 'a pull the leash took home counts clean', case: 'rule', edits: [['src/core/hunt/danger.js', '    if (!cooling && cleared) {', '    if (!cooling) {']] },
   { name: 'a cleared pull is never told so', case: 'trace', edits: [['src/core/hunt/pull-cycle.js', '      pullEnds(inst, sc, true);', '      pullEnds(inst, sc);']] },
   { name: 'a respawn keeps the count', case: 'down', edits: [['src/core/hunt/pull-cycle.js', '  if (w.packs[p].down) w.packs[p].down = 0;\n', '']] },
+  /* R2: a fall back names its cause */
+  { name: 'a fall names no hero', case: 'falls', edits: [['src/core/hunt/danger.js', '  w.lowHero = Number.isSafeInteger(u.seat) && u.seat >= 0 ? u.seat : null;', '  w.lowHero = null;']] },
+  { name: 'a fall names no monster', case: 'falls', edits: [['src/core/hunt/danger.js', "  w.lowBy = isMonster(source) && typeof source.kind === 'string' ? source.kind : '';", "  w.lowBy = '';"]] },
+  { name: 'the fall\'s hero does not survive a settle cut', case: 'falls', edits: [['src/core/hunt/danger.js', "    ['lowHero', 'int?'], ['lowBy', 'str']]),", "    ['lowBy', 'str']]),"]] },
+  { name: 'the fall\'s monster does not survive a settle cut', case: 'falls', edits: [['src/core/hunt/danger.js', "    ['lowHero', 'int?'], ['lowBy', 'str']]),", "    ['lowHero', 'int?']]),"]] },
+  { name: 'a hero carries no seat', case: 'falls', edits: [['src/core/combat-sim.js', '  if (Number.isSafeInteger(m.seat) && m.seat >= 0) u.seat = m.seat; else if (u.seat !== undefined) delete u.seat;\n', '']] },
+  { name: 'the margin names the first blow, not the lowest', case: 'falls', edits: [['src/core/hunt/danger.js', '  if (pm >= w.low) return;\n  w.low = pm;\n  w.lowHero', '  if (pm >= w.low) return;\n  w.low = pm;\n  if (w.lowHero !== null) return;\n  w.lowHero']] },
 ];
 
 const R = makeReport('hunt-core/danger');

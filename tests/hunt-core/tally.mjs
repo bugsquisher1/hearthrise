@@ -196,6 +196,56 @@ const cases = {
     const t = M.tally.tallyEvents(sc.events, M.tally.rosterOf(w));
     return t.heroes[1] && t.heroes[1].report.low && t.heroes[1].report.low.pm === Math.floor((hero.hp * 1000) / 400) ? null : 'the tally read ' + JSON.stringify(t.heroes[1] && t.heroes[1].report);
   },
+  /* AN-12 THE DANGER SCALE'S DEPTH AND FALLS (R2, lane/r2-danger-falls; danger.js pullEnds' `danger` events): every hero of the hunt is
+     credited the company's deepest step and each fall back or death with its cause ({ at, from, to, hero (a seat), pm, monster }); the
+     party's fold of its heroes keeps each fall once; every cut of the window folds to the whole; the list keeps the last fallsMax; and the
+     proposal is the database's shape (1057-danger-falls.sql hr_hunt_report_ok: a fall never climbs, reads under a stance's trigger, names a
+     one-digit seat and an id). */
+  'report-danger': async (M) => {
+    const R = await import(pathToFileURL(join(M.root, 'src/core/hunt/report.js')).href + M.V);
+    const { HUNT_REPORT } = await import(pathToFileURL(join(M.root, 'src/data/hunt-report.js')).href + M.V);
+    const w = [
+      ev('danger', 1000, { step: 10, to: 11, low: 600, why: 'climb', risk: 'steady' }),
+      ev('dmg', 1500, { u: 8, t: 1, amount: 50, hp: 80, max: 400 }),
+      ev('danger', 2000, { step: 11, to: 0, low: 200, why: 'fall', risk: 'steady', hero: 1, monster: 'rat' }),
+      ev('danger', 3000, { step: 0, to: 0, low: 0, why: 'death', risk: 'careful', hero: 0, monster: 'slime' }),
+      ev('danger', 4000, { step: 0, to: 1, low: 900, why: 'climb', risk: 'careful' }),
+      ev('danger', 5000, { step: 1, to: 1, low: 300, why: 'fall', risk: 'careful' }),
+    ];
+    const want = [{ at: 2000, from: 11, to: 0, hero: 1, pm: 200, monster: 'rat' }, { at: 3000, from: 0, to: 0, hero: 0, pm: 0, monster: 'slime' },
+      { at: 5000, from: 1, to: 1, pm: 300, monster: 'unknown' }];
+    const whole = M.tally.tallyEvents(w, ROSTER);
+    for (const id of [1, 2]) {
+      const r = whole.heroes[id] && whole.heroes[id].report;
+      if (!r || r.deep !== 11 || JSON.stringify(r.falls) !== JSON.stringify(want)) return 'hero ' + id + ' reads ' + JSON.stringify(r && { deep: r.deep, falls: r.falls });
+    }
+    if (JSON.stringify(whole.party.report.falls) !== JSON.stringify(want) || whole.party.report.deep !== 11) return 'the party reads ' + JSON.stringify(whole.party.report.falls);
+    for (let i = 1; i < w.length; i++) {
+      const acc = { 1: M.tally.emptyTally(), 2: M.tally.emptyTally() };
+      for (const part of [w.slice(0, i), w.slice(i)]) {
+        const t = M.tally.tallyEvents(part, ROSTER);
+        for (const id of [1, 2]) if (t.heroes[id]) M.tally.addTally(acc[id], t.heroes[id]);
+      }
+      for (const id of [1, 2]) {
+        const a = acc[id].report;
+        if (a.deep !== 11 || JSON.stringify(a.falls) !== JSON.stringify(want)) return 'cut at ' + i + ', hero ' + id + ' folds to ' + JSON.stringify({ deep: a.deep, falls: a.falls });
+      }
+    }
+    /* the last fallsMax, oldest dropped */
+    const many = Array.from({ length: HUNT_REPORT.fallsMax + 3 }, (_, i) => ev('danger', 100 * (i + 1), { step: 50, to: 32, low: 100, why: 'fall', risk: 'steady', hero: 0, monster: 'rat' }));
+    const kept = M.tally.tallyEvents(many, ROSTER).heroes[1].report.falls;
+    if (kept.length !== HUNT_REPORT.fallsMax || kept[0].at !== 400) return 'the falls kept ' + kept.length + ' from ' + (kept[0] && kept[0].at) + ', not the last ' + HUNT_REPORT.fallsMax;
+    /* the proposal: the deep step and the falls the database accepts; a fall that climbs, reads over every trigger, names a seat of two digits
+       or a monster that is no id is dropped; no deep step past the scale (and so no falls) */
+    const good = whole.heroes[1].report;
+    const p = R.reportProposal(Object.assign({}, good, { falls: [...good.falls, { at: 6000, from: 1, to: 9, pm: 10, monster: 'rat' },
+      { at: 6100, from: 1, to: 0, pm: 999, monster: 'rat' }, { at: 6200, from: 1, to: 0, hero: 12, pm: 10, monster: 'rat' }, { at: 6300, from: 1, to: 0, pm: 10, monster: 'Rat' }] }), null, null);
+    if (p.deep !== 11 || JSON.stringify(p.falls) !== JSON.stringify(want)) return 'the proposal reads ' + JSON.stringify({ deep: p.deep, falls: p.falls });
+    const past = R.reportProposal(Object.assign({}, good, { deep: 1e6 }), null, null);
+    if ('deep' in past || 'falls' in past) return 'a step past the scale was proposed: ' + JSON.stringify(past).slice(0, 200);
+    if ('falls' in R.reportProposal(R.emptyReport(), null, null) || 'deep' in M.tally.tallyEvents(WINDOW, ROSTER).heroes[1].report) return 'a hunt off the scale reads a depth';
+    return null;
+  },
   /* AN-11 THE PROPOSAL IS IN THE DATABASE'S SHAPE (1053-hunt-report.sql hr_hunt_report_ok refuses any other, and a refused window counts
      toward a forfeit): ids [a-z0-9_] (a rule's 24 long), reasons [a-z_], at most 32 rules and 8 reasons a rule; a good report goes through
      whole, empty parts left out. */
@@ -388,6 +438,19 @@ const mutants = [
     edits: [['src/core/hunt/damage.js', "const vit = isHero(target) ? {", "const vit = false ? {"]] },
   { name: 'the reading is the HP before the blow', case: 'report-blow-reading',
     edits: [['src/core/hunt/damage.js', 'hp: Math.max(0, Math.floor(Number(target.hp) || 0))', 'hp: Math.max(0, Math.floor(Number(target.hp + r.dmg) || 0))']] },
+  /* THE DANGER SCALE'S DEPTH AND FALLS (R2) */
+  { name: 'the deepest step is the last pull\'s', case: 'report-danger',
+    edits: [['src/core/hunt/report.js', 'r.deep = Math.max(nat(r.deep) === null ? 0 : r.deep, step, to);', 'r.deep = Math.max(step, to);']] },
+  { name: 'the falls keep every one', case: 'report-danger',
+    edits: [['src/core/hunt/report.js', 'return [...byAt.values()].sort((x, y) => x.at - y.at).slice(-HUNT_REPORT.fallsMax);', 'return [...byAt.values()].sort((x, y) => x.at - y.at);']] },
+  { name: 'the party keeps a fall once a hero', case: 'report-danger',
+    edits: [['src/core/hunt/report.js', 'byAt.set(f.at, Object.assign({}, f));', 'byAt.set(f.at + \':\' + byAt.size, Object.assign({}, f));']] },
+  { name: 'the fold drops the earlier window\'s falls', case: 'report-danger',
+    edits: [['src/core/hunt/report.js', 'out.falls = foldFalls(x.falls, y.falls);', 'out.falls = foldFalls([], y.falls);']] },
+  { name: 'a fall back names no cause', case: 'report-danger',
+    edits: [['src/core/hunt/report.js', "...(nat(ev.hero) !== null ? { hero: ev.hero } : {}), pm", 'pm']] },
+  { name: 'the proposal keeps a fall that climbs', case: 'report-danger',
+    edits: [['src/core/hunt/report.js', '&& f.to <= f.from &&', '&&']] },
   { name: 'a window that does not close is let through', case: 'regen-closes-the-window',
     edits: [['src/core/hunt/tally.js', "    if (regen < 0) throw new Error(", "    if (false) throw new Error("]] },
 ];

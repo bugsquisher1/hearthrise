@@ -141,7 +141,7 @@ export function loadParts(dir) {
   const first = docs[0].d;
   const points = new Map();
   let base = null, meta = null;
-  const commits = new Set(), seedSets = new Set();
+  const commits = new Set(), seedSets = new Set(), seen = new Map();
   for (const { f, d } of docs.sort((a, b) => (a.d.seedFrom || 0) - (b.d.seedFrom || 0))) {
     if (d.schema !== PART_SCHEMA) throw new Error('analyze: ' + f + ' is ' + d.schema);
     if (d.scenarioHash !== first.scenarioHash || JSON.stringify(d.outcomeIds) !== JSON.stringify(first.outcomeIds)) throw new Error('analyze: ' + basename(f) + ' played scenario ' + d.scenarioHash + ', not ' + first.scenarioHash);
@@ -149,6 +149,11 @@ export function loadParts(dir) {
     seedSets.add((d.seedFrom || 0) + '+' + d.seeds);
     if (d.meta && !meta) meta = d.meta;
     for (const p of d.points) {
+      /* the same point on the same seeds twice is two plays of one thing (a re-run after a fix beside the run it replaces): refused,
+         never read as more seeds */
+      const once = p.id + '|' + (d.seedFrom || 0);
+      if (seen.has(once)) throw new Error('analyze: point ' + p.id + ' (seeds from ' + (d.seedFrom || 0) + ') is in two parts: ' + basename(seen.get(once)) + ' and ' + basename(f) + '. Remove the one that was replaced');
+      seen.set(once, f);
       if (p.id === 'base') { base = base || {}; for (const [k, rows] of Object.entries(p.cells || {})) base[k] = [...(base[k] || []), ...rows]; continue; }
       const q = points.get(p.id);
       if (!q) { points.set(p.id, { ...p, job: d.job, cells: { ...(p.cells || {}) } }); continue; }

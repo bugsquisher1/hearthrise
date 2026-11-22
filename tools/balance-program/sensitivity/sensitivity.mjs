@@ -242,18 +242,51 @@ async function selftest() {
   const strip = (s) => s.replace(/respawnMs: \d+, pullDist/g, 'respawnMs: N, pullDist');
   ok(strip(r.text) === strip(text), 'respawn x2 moves nothing else in the file');
   /* every family's scaled file still parses and holds as many numbers as it did (a slip in a pick's index would glue two numbers) */
-  const { familyEdits } = await import('./levers.mjs');
-  const { Script } = await import('node:vm');
+  const { familyEdits, familyParts } = await import('./levers.mjs');
   const badFam = [];
-  for (const f of FAMILIES) for (const m of [0.5, 2]) {
-    const src = readFileSync(resolve(ROOT, f.file), 'utf8'), outText = familyEdits(f, m, src).text;
-    const nums = (x) => (x.match(/d+(.d+)?/g) || []).length;
-    let parses = true;
-    try { new Script(outText.replace(/^s*import .*$/gm, '').replace(/^export /gm, '')); } catch (e) { parses = !(e instanceof SyntaxError); }
-    if (!parses || nums(outText) !== nums(src)) badFam.push(f.id + ' x' + m);
+  let files = 0;
+  for (const f of FAMILIES) for (const m of [0.5, 2]) for (const part of familyParts(ROOT, f)) {
+    const src = readFileSync(resolve(ROOT, part.file), 'utf8'), outText = familyEdits(part, m, src).text;
+    const nums = (x) => (x.match(/\d+(\.\d+)?/g) || []).length;
+    files++;
+    if (nums(outText) !== nums(src) || outText.split('\n').length !== src.split('\n').length) badFam.push(f.id + ' x' + m + ' ' + part.file);
   }
-  ok(!badFam.length, 'every family leaves its file parsing with the same count of numbers (' + (badFam.join(', ') || FAMILIES.length + ' families at x0.5 and x2') + ')');
+  ok(!badFam.length, 'every family leaves each file with the same count of numbers and lines (' + (badFam.join(', ') || FAMILIES.length + ' families, ' + files + ' file edits at x0.5 and x2') + ')');
+  /* END TO END: the planted tree's own data, as the engine imports it. Every open ground's respawn is doubled (a ground pack keeps
+     its respawn in its own file: a family that wrote hunt-grounds.js alone left every pack ground unmoved, and its cells read as
+     "respawn does nothing"), and every ability's mana and cooldown, every store heal's and drink's price. */
   const ctx = await context();
+  {
+    const { pathToFileURL } = await import('node:url');
+    const imp = (root, p) => import(pathToFileURL(resolve(root, p)).href);
+    const s = await plantScratch(pointPatch(ROOT, { respawn: 2, spellCost: 2, spellCooldown: 2, foodPrice: 2, drinkPrice: 2 }).patch);
+    try {
+      const here = (await imp(ROOT, 'src/data/hunt-grounds.js')).HUNT_GROUNDS, there = (await imp(s.root, 'src/data/hunt-grounds.js')).HUNT_GROUNDS;
+      const miss = ctx.spec.openGrounds.filter((g) => there[g].respawnMs !== here[g].respawnMs * 2);
+      ok(!miss.length, 'respawn x2 doubles the respawn of every open ground in the planted tree (' + (miss.join(', ') || ctx.spec.openGrounds.length + ' grounds') + ')');
+      const A0 = (await imp(ROOT, 'src/data/abilities.js')).ABILITIES, A1 = (await imp(s.root, 'src/data/abilities.js')).ABILITIES;
+      const rows = (A) => (Array.isArray(A) ? A : Object.values(A));
+      const by = new Map(rows(A1).map((a) => [a.id, a]));
+      const badAb = rows(A0).filter((a) => { const b = by.get(a.id); return !b || b.mana !== a.mana * 2 || b.cdMs !== a.cdMs * 2 || JSON.stringify(b.versions || []) !== JSON.stringify((a.versions || []).map((v) => v * 2)); }).map((a) => a.id);
+      ok(rows(A0).length > 20 && !badAb.length, 'spellCost x2 and spellCooldown x2 double every ability\'s mana, versions and cooldown (' + (badAb.join(', ') || rows(A0).length + ' abilities') + ')');
+      const S0 = (await imp(ROOT, 'src/data/supply-basics.js')).BASIC_SUPPLIES, S1 = (await imp(s.root, 'src/data/supply-basics.js')).BASIC_SUPPLIES;
+      const badS = S0.filter((x) => x.kind === 'heal' || x.kind === 'mana').filter((x) => (S1.find((y) => y.id === x.id) || {}).price !== x.price * 2).map((x) => x.id);
+      ok(!badS.length, 'foodPrice x2 and drinkPrice x2 double every store heal\'s and drink\'s price (' + (badS.join(', ') || 'all') + ')');
+    } finally { s.done(); }
+    /* the same for the families that scale a field wherever it is written: every value under that key, anywhere in the module's data */
+    const under = (o, keys, out = []) => { if (o && typeof o === 'object') for (const [k, v] of Object.entries(o)) { if (keys.includes(k)) out.push(JSON.stringify(v)); else under(v, keys, out); } return out; };
+    const dbl = (j) => JSON.stringify(JSON.parse(j, (_k, v) => (typeof v === 'number' ? v * 2 : v)));
+    const s2 = await plantScratch(pointPatch(ROOT, { spellPower: 2, healPower: 2, shieldPower: 2, weaponDamage: 2, weaponAccuracy: 2, armorValue: 2, runePrice: 2, regroup: 2 }).patch);
+    try {
+      const checks = [['src/data/abilities.js', 'ABILITIES', ['hitPm', 'healPm', 'healHpPm', 'shieldPm'], 20], ['src/data/gear-tiers.js', 'WEAPON_FAMILIES', ['atk', 'str'], 10],
+        ['src/data/gear-tiers.js', 'ARMOUR_SLOTS', ['def'], 6], ['src/data/supply-basics.js', 'STORE_RUNE_PRICE', null, 1], ['src/data/hunt-tuning.js', 'HUNT_TUNING', ['regroupMs'], 1]];
+      for (const [file, name, keys, least] of checks) {
+        const a = (await imp(ROOT, file))[name], b = (await imp(s2.root, file))[name];
+        const va = keys ? under(a, keys) : [JSON.stringify(a)], vb = keys ? under(b, keys) : [JSON.stringify(b)];
+        ok(va.length >= least && va.length === vb.length && va.every((v, i) => dbl(v) === vb[i]), 'x2 doubles every ' + (keys ? keys.join(', ') : 'number') + ' of ' + name + ' in the planted tree (' + va.length + ' values)');
+      }
+    } finally { s2.done(); }
+  }
   const { planMatrix } = await import('../matrix-plan.mjs');
   const p = scenarioHook(ctx.spec)(ctx.D, ctx.K, planMatrix(ctx.D, ctx.K, baselineRun(ctx.spec), {}));
   ok(p.cells.length > 40 && p.cells.every((c) => ctx.spec.openGrounds.includes(c.ground)), 'the scenario holds ' + p.cells.length + ' cells, every one on an open ground');
@@ -294,7 +327,7 @@ async function main() {
     const pp = pointPatch(ROOT, { [arg('sites')]: Number(arg('at', 2)) });
     const { patchEdits } = await import('../matrix-scratch.mjs');
     for (const a of patchEdits(ROOT, pp.patch).applied.filter((x) => x.knob)) console.log(a.file + ':' + a.line + '  ' + a.from.join(', ') + ' -> ' + a.to.join(', '));
-    for (const [id, ss] of Object.entries(pp.sites)) for (const s of ss) console.log(FAMILIES.find((f) => f.id === id).file + ':' + s.line + '  ' + s.from.join(', ') + ' -> ' + s.to.join(', '));
+    for (const ss of Object.values(pp.sites)) for (const s of ss) console.log(s.file + ':' + s.line + '  ' + s.from.join(', ') + ' -> ' + s.to.join(', '));
     return 0;
   }
   if (arg('play')) return play(arg('play'), resolve(arg('out', 'part.json.gz')), { workers: Number(arg('workers', 4)), seeds: arg('seeds') ? Number(arg('seeds')) : null, seedFrom: Number(arg('seed-from', 0)) });

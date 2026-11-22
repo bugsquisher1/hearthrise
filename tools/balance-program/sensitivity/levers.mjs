@@ -18,7 +18,7 @@
 //
 // PURE ESM. Reads files. Plays nothing.
 // ════════════════════════════════════════════════════════════════════════
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { readKnobs, PATCH_SCHEMA } from '../matrix-scratch.mjs';
 
@@ -53,10 +53,13 @@ const both = (...fs) => (line) => fs.flatMap((f) => f(line));
 /* THE FAMILIES. `lines`: which lines of `file` belong to the family; `pick`: the numbers on a line; `round`: the grid a scaled number
    must sit on (the engine's 100 ms sub-step for a clock); `min`: the least value the data's own validator takes. */
 export const FAMILIES = Object.freeze([
-  { id: 'respawn', group: 'Spawns', label: 'Respawn time', what: 'How long a cleared pack takes to come back, every ground row with a written respawnMs (src/data/hunt-grounds.js). Kill throughput where a party clears faster than packs return',
-    file: 'src/data/hunt-grounds.js', lines: (l) => /^\s*(route: .*)?respawnMs: \d+, pullDist/.test(l), pick: after(/respawnMs: (\d+)/g), round: 100, min: 100, steps: WIDE, intends: ['killsPerH', 'pullsPerH'] },
+  { id: 'respawn', group: 'Spawns', label: 'Respawn time', what: 'How long a cleared pack takes to come back, every ground row with a written respawnMs (src/data/hunt-grounds.js and each ground pack, src/data/grounds/*/pack.js). Kill throughput where a party clears faster than packs return',
+    file: 'src/data/hunt-grounds.js', lines: (l) => /^\s*(route: .*)?respawnMs: \d+, pullDist/.test(l), pick: after(/respawnMs: (\d+)/g), round: 100, min: 100, steps: WIDE, intends: ['killsPerH', 'pullsPerH'],
+    /* a ground pack writes its respawn twice (the hunt row and the ground row): both move, so the pack never disagrees with itself */
+    also: [{ files: (root) => readdirSync(join(root, 'src/data/grounds')).filter((d) => existsSync(join(root, 'src/data/grounds', d, 'pack.js'))).sort().map((d) => 'src/data/grounds/' + d + '/pack.js'),
+      lines: (l) => /\brespawnMs: \d+/.test(l) && !/^\s*(\/\/|\*|\/\*)/.test(l) }] },
   { id: 'spellCost', group: 'Spells', label: 'Spell mana cost', what: 'The mana of every ability row, each rune version included (src/data/abilities.js mana and versions). Casts before a drink, and the drink bill',
-    file: 'src/data/abilities.js', lines: (l) => /^\s*ab\(\{ id: /.test(l) || /^\s+.*\bversions: \[/.test(l), pick: both(after(/\bmana: (\d+)/g), listAfter(/\bversions: \[([\d, ]+)\]/)), min: 1, steps: WIDE, intends: ['manaSpentPerH', 'manaPotionsPerH', 'castsPerH'] },
+    file: 'src/data/abilities.js', lines: (l) => (/\bmana: \d+/.test(l) || /\bversions: \[/.test(l)) && !/^\s*(\/\/|\*|\/\*)/.test(l), pick: both(after(/\bmana: (\d+)/g), listAfter(/\bversions: \[([\d, ]+)\]/)), min: 1, steps: WIDE, intends: ['manaSpentPerH', 'manaPotionsPerH', 'castsPerH'] },
   { id: 'spellCooldown', group: 'Spells', label: 'Spell cooldown', what: 'The cooldown of every ability row (src/data/abilities.js cdMs). Casts an hour, so spell damage, healing and mana spent',
     file: 'src/data/abilities.js', lines: (l) => /\bcdMs: \d+/.test(l) && !/^\s*(\/\/|\*|\/\*)/.test(l), pick: after(/\bcdMs: (\d+)/g), round: 100, min: 100, steps: WIDE, intends: ['castsPerH', 'dps'] },
   { id: 'spellPower', group: 'Spells', label: 'Spell damage share', what: 'The share of the hero\'s blow every damaging ability lands (src/data/abilities.js hitPm). Spell damage, apart from basic attacks',
@@ -143,6 +146,13 @@ export function familyEdits(f, m, text) {
   return { edits, sites, text: cur };
 }
 
+/** The files a family writes in: its own, then every file of `also` (a ground pack keeps its own respawn beside hunt-grounds.js). */
+export function familyParts(root, f) {
+  const out = [f];
+  for (const a of f.also || []) for (const file of a.files(root)) out.push({ ...f, file, lines: a.lines, pick: a.pick || f.pick });
+  return out;
+}
+
 /**
  * The patch of one POINT: `levers` { id: multiplier } (one lever for a one-at-a-time step, several for an experiment's point).
  * Answers { patch (hearthrise.balance-patch/1), sites: { family id: [{ line, from, to }] } }.
@@ -157,11 +167,14 @@ export function pointPatch(root, levers, name) {
     if (knobs.byId.has(id)) { patch.knobs[id] = m; continue; }
     const f = FAMILIES.find((x) => x.id === id);
     if (!f) throw new Error('sensitivity: no lever ' + id + ' (a knob of knobs.json or a family of sensitivity/levers.mjs)');
-    const text = texts.has(f.file) ? texts.get(f.file) : readFileSync(join(root, f.file), 'utf8');
-    const r = familyEdits(f, m, text);
-    texts.set(f.file, r.text);
-    patch.edits.push(...r.edits);
-    sites[id] = r.sites;
+    sites[id] = [];
+    for (const part of familyParts(root, f)) {
+      const text = texts.has(part.file) ? texts.get(part.file) : readFileSync(join(root, part.file), 'utf8');
+      const r = familyEdits(part, m, text);
+      texts.set(part.file, r.text);
+      patch.edits.push(...r.edits);
+      sites[id].push(...r.sites.map((s) => ({ file: part.file, ...s })));
+    }
   }
   return { patch, sites };
 }

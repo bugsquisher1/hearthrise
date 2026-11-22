@@ -28,8 +28,8 @@
 //   hunt.loot     [{ item, count }]  what this hunt has picked up (not premium-gated)
 //   hunt_presets  [{ preset, name, action_set, gear: { slot: item } }]
 //   role          { id, weapon }      the hunt role the worn weapon gives
-// The Services window's (lane S2, 2026-10-25-stamina-refill.sql / -blessings.sql):
-//   stamina_refill { available, why, restore_ms, price, n, per_day }  the next refill, priced
+// The Services window's (lane S2, 2026-10-25-blessings.sql; 1058-hunting-blocks.sql):
+//   time_blocks    { hunt: { available, why, block_ms, price, n, bought, per_day } }  the next bought hunting block, priced
 //   blessings      { held: [tier], permille, free_until, tiers: [{ tier, permille, price, held }] }
 // The Characters window's (2026-12-04-hero-rename.sql):
 //   rename         { price, level, per_day, today, available, why }  what a new name costs, and whether it may
@@ -325,17 +325,19 @@ export function imbuementsOf(cs) {
   return Object.keys(out).length ? out : null;
 }
 
-const WHY = Object.freeze(['stamina_full', 'refill_limit']);
+const WHY = Object.freeze(['stamina_full', 'block_limit']);
 
-/** `stamina_refill`: the next stamina purchase as the server prices it, or null (control off). */
-export function staminaRefillOf(cs) {
-  const q = read(cs, 'stamina_refill');
-  if (!isObj(q) || typeof q.available !== 'boolean' || count(q.n) === null || count(q.per_day) === null) return null;
-  if (q.available && (!count(q.price) || !count(q.restore_ms))) return null;
+/** `time_blocks.hunt`: the next bought hunting block as the server prices it (1058-hunting-blocks.sql), or null (control off).
+    `blockMs` is what one block adds; `boughtToday` of `perDay` is the server's count of this UTC day. */
+export function huntBlockOf(cs) {
+  const all = read(cs, 'time_blocks');
+  const q = isObj(all) ? all.hunt : null;
+  if (!isObj(q) || typeof q.available !== 'boolean' || count(q.bought) === null || count(q.per_day) === null || !count(q.block_ms)) return null;
+  if (q.available && !count(q.price)) return null;
   return {
     available: q.available, why: q.available ? null : (WHY.includes(q.why) ? q.why : 'unavailable'),
-    price: q.available ? q.price : null, restoreMs: q.available ? q.restore_ms : null,
-    n: q.n, perDay: q.per_day, boughtToday: Math.max(0, q.n - 1),
+    price: q.available ? q.price : null, blockMs: q.block_ms,
+    perDay: q.per_day, boughtToday: q.bought,
   };
 }
 

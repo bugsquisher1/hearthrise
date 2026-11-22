@@ -402,10 +402,10 @@ export class CharacterSession {
   /* ── Services (lane S2): each sends the QUOTE the player was shown (the server's section price, never one of the client's own); the server
      refuses `quote_changed` rather than charge another sum, and any refusal re-reads the hero first (_settled): the next press is at its price. ── */
 
-  /** Buy the next stamina refill at the server's quoted price. */
-  async buyStamina(quotedPrice) {
-    if (this._closed || !Number.isSafeInteger(quotedPrice) || quotedPrice < 1) return { ok: false, error: 'bad_intent' };
-    return this._ask('stamina_refill', () => this._server.rpc('hr_stamina_refill', { p_slot: this.slot, p_price: quotedPrice, p_idem: newIdem() }));
+  /** Buy the next block of bought time (`hunt`: 2 h of stamina) at the server's quoted price (1058-hunting-blocks.sql hr_time_buy). */
+  async buyTime(kind, quotedPrice) {
+    if (this._closed || kind !== 'hunt' || !Number.isSafeInteger(quotedPrice) || quotedPrice < 1) return { ok: false, error: 'bad_intent' };
+    return this._ask('time_buy', () => this._server.rpc('hr_time_buy', { p_kind: kind, p_slot: this.slot, p_price: quotedPrice, p_idem: newIdem() }));
   }
 
   /** Buy one blessing tier at the server's quoted price (0 under the free level). */

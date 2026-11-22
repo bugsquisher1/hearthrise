@@ -29,7 +29,7 @@
 import { currentCard, cardFor, nextGoal, ROLE_SKILL } from '../data/hunt-tutorial.js';
 import { levelOf, heroVitalsOf, deathLogOf } from './character-sections.js';
 import { huntOf, settingsOf, huntBestsOf, analyzerOf, staminaOf, groundsSeenOf, huntTierOf, sessionModeOfHunt } from './hunt-sections.js';
-import { skillsOf, carriedOf, bagOf, bagCapOf, bankOf, rulesOf, equipmentOf, blessingsOf, presetsOf, nameOf, goldOf, staminaRefillOf } from './item-sections.js';
+import { skillsOf, carriedOf, bagOf, bagCapOf, bankOf, rulesOf, equipmentOf, blessingsOf, presetsOf, nameOf, goldOf, huntBlockOf } from './item-sections.js';
 import { farmFieldOf } from './farm-sections.js';
 import { homeOf, chestsOf } from './home-sections.js';
 import { tallyOf } from './tally-sections.js';
@@ -228,7 +228,7 @@ export function pointerCardOf(cs, sh) {
   return nextGoal({ charLevel: f.charLevel, role, skillLevel: sk && skill && sk[skill] ? sk[skill].level : null,
     defenseXp: sk && sk.defense ? sk.defense.xp : null, land: landOf(cs), inParty: f.inParty,
     gold: f.gold, slotsOwned: f.slotsOwned, home: f.home,
-    roster: f.roster, visited: f.visited, staminaMs: f.staminaMs, refill: staminaRefillOf(cs), tally: f.tally, temper: f.temper, recruits: f.recruits,
+    roster: f.roster, visited: f.visited, staminaMs: f.staminaMs, refill: huntBlockOf(cs), tally: f.tally, temper: f.temper, recruits: f.recruits,
     training: trainingRunOf(cs), partyGround: f.partyGround });
 }
 

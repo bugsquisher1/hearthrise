@@ -34,7 +34,7 @@ import { wherePlaces, toolEffect } from './item-lore.js';
 import { itemName } from './widgets/bits.js';
 import { gold, hoursWords, listWords } from '../render/format.js';
 import { t } from '../render/player-text.js';
-import { shopOf, bagOf, bankOf, goldOf, equipmentOf, skillsOf, bagExpandOf, staminaRefillOf } from '../session/item-sections.js';
+import { shopOf, bagOf, bankOf, goldOf, equipmentOf, skillsOf, bagExpandOf, huntBlockOf } from '../session/item-sections.js';
 import { levelOf } from '../session/character-sections.js';
 import { tallyOf } from '../session/tally-sections.js';
 import { settingsOf, huntOf } from '../session/hunt-sections.js';
@@ -191,11 +191,11 @@ function toolRows(o) {
       icon: x.item, place: { kind: 'shop', item: x.item } }));
 }
 
-/* A stamina refill, only after a hunt that ran out of it (the caller passes the server's quote then, item-sections.js staminaRefillOf). */
+/* A bought hunting block, only after a hunt that ran out of stamina (the caller passes the server's quote then, item-sections.js huntBlockOf). */
 function refillRows(o) {
   const q = o.refill;
   return q && q.available && Number.isSafeInteger(q.price) ? [{ kind: 'refill', gold: q.price, title: t('summary.buy_refill', { price: gold(q.price) }),
-    words: t('summary.buy_refill_words', { time: hoursWords(q.restoreMs) }), icon: null, glyph: 'uiHourglass', place: { kind: 'services' } }] : [];
+    words: t('summary.buy_refill_words', { time: hoursWords(q.blockMs) }), icon: null, glyph: 'uiHourglass', place: { kind: 'services' } }] : [];
 }
 
 /* Every shelf, in the order a tie of one price goes. */
@@ -211,7 +211,7 @@ const SHELF = Object.freeze([temperRows, roomRows, deedRows, chestRows, bagRows,
  *           chests?: object|null, bagGrow?: object|null, refill?: object|null }} o
  *        `equipment`: the worn set with the bag's own Equip upgrades already on (so a piece the bag holds is never bought);
  *        `chosen`: the weight picked at Tamsin's and `prefer`: preferredWeight's, as upgradePlan reads them; `chests`: home-sections.js chestsOf;
- *        `bagGrow`: item-sections.js bagExpandOf; `refill`: staminaRefillOf, given only after a hunt out of stamina
+ *        `bagGrow`: item-sections.js bagExpandOf; `refill`: huntBlockOf, given only after a hunt out of stamina
  * @returns {{ kind: string, title: string, words: string, icon: string|null, glyph?: string, place: object, short?: number }|null}  `icon` an item's, else `glyph` (data/glyphs.js);
  *        `short`: the gold still needed, on a buy the purse does not cover yet
  */
@@ -240,5 +240,5 @@ export function nextBuyOf(cs, plan) {
   return nextBuy({ purse: goldOf(cs), equipment: Object.assign({}, eq, plan && plan.ops ? plan.ops : {}), skills: skillsOf(cs), level: lv ? lv.level : null,
     chosen: tally ? tally.weight : null, prefer: preferredWeight(tally ? tally.weight : null, eq, s ? s.role : null), shop: shopOf(cs), temper: temperRowsOf(cs), dummy: tr ? tr.dummy : null,
     home: homeOf(cs), bag: bagOf(cs), bank: bankOf(cs), chests: chestsOf(cs), bagGrow: bagExpandOf(cs),
-    refill: h && h.ended && h.endReason === 'stamina' ? staminaRefillOf(cs) : null });
+    refill: h && h.ended && h.endReason === 'stamina' ? huntBlockOf(cs) : null });
 }

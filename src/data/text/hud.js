@@ -33,20 +33,20 @@ export const HUD_TEXT = Object.freeze({
   food_store_title: 'No food in {where}. Bar buys {item} ({price} each)',
   food_none_title: 'No food in {where}, no store food on the bar',
 
-  /* THE STAMINA REFILL (the "+" after the timer, and the Shop's Services tab asks the same). {hours} "4 h", {price} "1,600 gp". */
+  /* A BOUGHT HUNTING BLOCK (the "+" after the timer, and the Shop's Services tab asks the same). {hours} "2 h", {price} "1,750 gp". */
   stam_ask: 'Buy {hours} of stamina for {price}?',
   stam_buy: 'Buy stamina',
   stam_head: 'Stamina',
   stam_now: '{left} of {cap}',
   stam_premium: 'Premium: +{hours} h stamina cap',
-  stam_unpriced: 'No refill price yet',
-  stam_quote: 'One refill: +{hours} for {price}',
-  stam_day: 'Bought today: {n} of {max}. Each refill costs more',
+  stam_unpriced: 'No block price yet',
+  stam_quote: 'One block: +{hours} for {price}',
+  stam_day: 'Blocks today: {n} of {max}. Each one costs more',
   stam_go: 'Buy',
   stam_go_for: 'Buy for {price}',
   stam_go_plus: 'Buy +{hours} for {price}',
   stam_buying: 'Buying stamina…',
-  stam_done: 'Stamina restored',
+  stam_done: 'Stamina added',
 
   /* PLAYERS ONLINE (src/shell/widgets/online.js, src/social/players-online.js; Tyler 2026-11-18). The server's total, every hero
      playing in a browser or still active with the game closed; on hover or focus, its lines by what they are doing. {n} a whole

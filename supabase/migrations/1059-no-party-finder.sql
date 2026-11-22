@@ -162,6 +162,9 @@ drop trigger if exists hr_gm_wall_list on public.hunt_parties;
 drop trigger if exists hr_gm_wall_relist on public.hunt_parties;
 drop function if exists public.hr_hunt_party_finder(integer, text, text);
 drop function if exists public.hr_hunt_party_list(integer, boolean, uuid, text);
+-- every overload, by name: the 3-argument one went in 2026-12-07-party-finder.sql, but files after it still pin it
+-- (tests/live-hash-drift.mjs counts a pin as a build), so the chain says here that no hr_hunt_party_list remains.
+drop function if exists public.hr_hunt_party_list(integer, boolean, uuid);
 drop function if exists public.hr_hunt_party_join(integer, uuid, uuid);
 drop function if exists public.hr_party_seek(integer, text, boolean, uuid);
 drop function if exists public.hr_party_seek_end();

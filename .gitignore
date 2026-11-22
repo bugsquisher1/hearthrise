@@ -141,3 +141,4 @@ tools/qa/coverage/out/
 
 # Review screenshots: evidence for a visual gate, read from the lane worktree, never published (Pages serves the repo root; 251 MB of these timed the deploy out on 2026-11-10).
 art/review/
+tools/balance-program/balance-matrix-*-*.json

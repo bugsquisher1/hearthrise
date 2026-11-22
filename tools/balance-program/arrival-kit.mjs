@@ -78,7 +78,9 @@ async function playJob(jobId, workers, o = {}) {
   const BM = await import('./balance-matrix.mjs'), SC = await import('./matrix-scratch.mjs');
   const { loadGridData } = await import('./progression-grid.mjs'), { loadKits } = await import('./grid-kit.mjs');
   const base = await BM.baseOf('proposed', []);
-  const now = (base.patch.knobs || {}).armorCurve || 1;
+  /* the curve the base plays: the tree's own k (FB-8 stage 1 built x2.4 into core-model.js: absorb.k over the old 0.62) times any knob on top */
+  const treeK = Number((/absorb: Object\.freeze\(\{ maxPm: \d+, k: ([0-9.]+)/.exec(readFileSync(join(ROOT, 'src/data/core-model.js'), 'utf8')) || [])[1]) || 0.62;
+  const now = ((base.patch.knobs || {}).armorCurve || 1) * Math.round((treeK / 0.62) * 1000) / 1000;
   const patch = Math.abs(c.armor - now) > 1e-9 ? BM.combinePatches(base.patch, { name: 'armor curve x' + c.armor, knobs: { armorCurve: c.armor / now } }) : base.patch;
   const s = await SC.plantScratch(patch);
   try {

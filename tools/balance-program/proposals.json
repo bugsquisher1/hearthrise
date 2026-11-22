@@ -144,24 +144,6 @@
    "note": "Edits R12's line, so it requires GR-5 and goes off with it. Every starting card at Level 5 in 16.2 to 19.2 minutes (start-cards.mjs, check C1)"
   },
   {
-   "id": "D3-armor",
-   "doc": [
-    "08-designer-d3.md ruling 1",
-    "CORE-4"
-   ],
-   "title": "The armor curve: armor fades 2.4 times as fast against the attacker's Level",
-   "modelled": true,
-   "recommended": true,
-   "label": "COMPUTED",
-   "layer": "coefficient",
-   "patch": "patches/bp-armor-curve-240.json",
-   "shipsWith": [],
-   "after": [],
-   "before": [],
-   "ruling": "RULED by the designer 2026-11-21 (D-3 ruling 1): x2.4 (absorb.k 1.488, dodge.k 0.96); switches to x1.6 only if x1.6 holds both the 3 to 5% band step and S5.bis",
-   "note": "The only setting played where an armor step lands inside the ruled 3 to 5% past Level 45. The mid kit takes 18 to 32% more damage on Normal, so it goes into CB-2's single sizing pass with the tier dial"
-  },
-  {
    "id": "GR-6",
    "doc": [
     "G-6",
@@ -1611,6 +1593,17 @@
    "ruling": "RULED 2026-11-21 (the sitting S-9, option C: the rested bank is cut)",
    "modelled": false,
    "reason": "BUILT 2026-11-21 by FB-2 (lane/c-formula-steps, 1040-rested-bank-cut.sql): the rested bank is gone from the tree, so patches/progression-3-rested-off.json is empty and the proposed game has nothing to plant. It was an identity on every cell"
+  },
+  {
+   "id": "D3-armor",
+   "doc": [
+    "08-designer-d3.md ruling 1",
+    "CORE-4"
+   ],
+   "title": "The armor curve: armor fades 2.4 times as fast against the attacker's Level",
+   "ruling": "RULED by the designer 2026-11-21 (D-3 ruling 1): x2.4 (absorb.k 1.488, dodge.k 0.96); switches to x1.6 only if x1.6 holds both the 3 to 5% band step and S5.bis",
+   "modelled": false,
+   "reason": "BUILT 2026-11-21 by FB-8 stage 1 (lane/c-pace): src/data/core-model.js ARMOUR_MITIGATION absorb.k 1.488, dodge.k 0.96, so the tree holds x2.4 and the knob would play x5.76 on top. patches/bp-armor-curve-240.json stays as the record; a curve other than the tree's is a multiple of it (arrival-kit.mjs reads the tree's k)"
   }
  ]
 }

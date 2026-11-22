@@ -738,6 +738,18 @@ jobs:
           node tools/mutant-gate.mjs node tools/gen-ground-tiers.mjs --selftest
           node tests/hunt-tiers-db.mjs
           node tools/mutant-gate.mjs node tests/hunt-tiers-db.mjs --mutate
+      # THE DANGER SCALE IS THE SERVER'S (1056-danger-scale.sql, lane/v1-climb wave 1): the plan's stance frozen with its start a margin under the
+      # lowest step the party last held, browser closed and hunt viewed storing one world and paying one Level XP (the share of each hero's own
+      # Level, never the row's), the section and the end stamp the server's. The catalogue is GENERATED (tools/gen-danger.mjs --check holds it
+      # to src/data/danger.js, --selftest proves each refusal). --mutate (7): the margin, the overlay, the climb bound, the end stamp, the section,
+      # the party's lowest held step, a stance with none.
+      - name: Danger scale — the server freezes the stance and bounds the climb, both paths (7 mutants)
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/gen-danger.mjs --check
+          node tools/mutant-gate.mjs node tools/gen-danger.mjs --selftest
+          node tests/danger-db.mjs
+          node tools/mutant-gate.mjs node tests/danger-db.mjs --mutate
       # THE FIRST TARGET IS THE SERVER'S (2027-04-22-target-kind.sql): a hero names a healer first on a ground and is on it, browser closed and
       # hunt viewed storing one world; refused not clamped; read afresh every settle; each hero its own; the bar offers only what the server takes.
       # --mutate: the engine never reads it, a member plays the leader's, another ground's kind taken, a kind off the ground served, None drops the row.

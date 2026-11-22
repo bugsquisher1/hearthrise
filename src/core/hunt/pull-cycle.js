@@ -32,7 +32,7 @@ import { HUNT_INDEX } from '../../data/hunts.js';
 import { monsterMaxHit } from '../combat.js';
 import { castsOf, spellHit, spellRow, mends } from '../../data/monster-spells.js';
 import { cheb, dist2, freeNear, tileKey, walkable } from './grid.js';
-import { inArea, resetPack } from './leash.js';
+import { inArea, resetPack, isAdd } from './leash.js';
 import { atRest, unitById, leaderOf, setGoal, clearGoal, occupancy, reachable, goToNearest } from './movement.js';
 import { makeEvent, trackStep } from './events.js';
 import { staleIndex } from './unit-index.js';
@@ -41,6 +41,7 @@ import { holderTank, turnTanks, pickInForce } from './targeting.js';
 import { aimOf } from './shooters.js';
 import { towerOf, towerPull, towerCleared } from './tower.js';
 import { healTaken } from './heal-cut.js';
+import { dangerOn, pullBegins, pullEnds, readyToPull, respawnMsOf, breaksOff, packDown, packWhole } from './danger.js';
 import { SIDE, sideOf, isHero, isMonster } from './sides.js';
 
 /* deadMs: a corpse's age. hpMilli: out-of-combat regen carried below one HP.
@@ -125,6 +126,8 @@ export function spawnPack(inst, p, sc) {
   w.packs[p].alive = true;
   w.packs[p].aggro = false;
   w.packs[p].holder = null;
+  /* (the Danger scale's count of its fallen: a pack that stands up stands up whole, danger.js packDown) */
+  if (w.packs[p].down) w.packs[p].down = 0;
   if (sc) sc.emit(makeEvent('respawn', sc.atMs, { pocket: p }));
 }
 
@@ -157,9 +160,16 @@ export function fallen(inst, u, sc) {
   u.target = null;
   staleIndex(inst);
   clearGoal(u);
-  if (isMonster(u)) { u.deadMs = 0; return; }
+  if (isMonster(u)) {
+    u.deadMs = 0;
+    /* ON THE DANGER SCALE a pack row that falls stays down until its pack's own respawn (danger.js packDown; fitPull): a boss's add is no row */
+    if (Number.isInteger(u.pocket) && !isAdd(inst, u)) packDown(inst.world, u.pocket);
+    return;
+  }
   u.spot = null;
   if (inst.world.leader !== u.id) return;
+  /* THE DANGER SCALE (danger.js): the leader's death ends the pull here, so the step falls before the packs go home */
+  if (cycling(inst) && inst.world.phase === PHASE.FIGHT) pullEnds(inst, sc);
   for (let p = 0; p < inst.world.packs.length; p++) if (inst.world.packs[p].aggro) resetPack(inst, p, sc);
   sc.emit(makeEvent('wipe', sc.atMs, {}));
   if (!cycling(inst)) return;
@@ -192,11 +202,39 @@ export function respawnPacks(inst, sc) {
     /* Not the route's next pull: it waits for a hero on or beside its tiles, else it can ring him with nothing to pull it (a no-fight
        stall). The route's own pocket never waits: a ring on its leader is pulled where it stands (travel's walled rule). */
     if (pocketNow(inst) !== p && heroAtPack(inst, p)) continue;
+    /* ON THE DANGER SCALE a pack is down only a moment (danger.js respawnMsOf), so it also waits while the party rests on its own pocket:
+       the route moves on when the regroup ends, and nobody is pulling it until then */
+    if (w.phase === PHASE.REGROUP && dangerOn(w) && heroAtPack(inst, p)) continue;
     spawnPack(inst, p, sc);
   }
 }
 
+/* THE PULL ON THE DANGER SCALE (danger.js): the pack is made at the step in force as the pull starts, whenever it stood up. One
+   re-formed at another step's size stands again at this one's (the same rows and spots, deterministic); every monster's health
+   moves to this step's dial, its share of a full bar kept. Off the scale nothing here runs.
+   A PACK BROKEN OFF WITH MONSTERS DOWN (wave 1's exploit ruling: kill, break off, re-kill) is never re-formed: the ones it lost stay
+   dead until the pack is cleared and its normal respawn stands it up whole (spawnPack), and the living are re-pulled at this step. */
+function fitPull(inst, sc, p) {
+  const w = inst.world;
+  if (!dangerOn(w)) return;
+  let mons = packMonsters(inst, p);
+  const size = pullRows(inst.ground, p, inst.world.density).length;
+  if (mons.length !== size && packWhole(w.packs[p])) {
+    const gone = new Set(mons.map((m) => m.id));
+    w.units = w.units.filter((u) => !gone.has(u.id));
+    staleIndex(inst);
+    spawnPack(inst, p, sc);
+    mons = packMonsters(inst, p);
+  }
+  for (const m of mons) {
+    const max = Math.max(1, atTier((inst.monsters || MONSTERS)[m.kind], inst.tier).hp || 1);
+    if (max !== m.maxHp) { m.hp = Math.max(1, Math.round((max * m.hp) / Math.max(1, m.maxHp))); m.maxHp = max; }
+  }
+  pullBegins(w);
+}
+
 function startPull(inst, sc, k, p) {
+  fitPull(inst, sc, p);
   const pack = inst.world.packs[p];
   pack.aggro = true;
   pack.holder = k.id;
@@ -337,6 +375,19 @@ function tickHeroes(inst, sc) {
   }
 }
 
+/* THE FALL BACK INSIDE A PULL (danger.js breaksOff; redesign 02 package 3, Tyler's RD-Q3 a: Careful and Steady fall back and do not die).
+   On the Danger scale a hero under the stance's trigger, or dead, ends the pull where it stands: the step falls (pullEnds), every pack on
+   the party drops its targets, heals and walks home (leash.js resetPack, as the leash and a leader's death do), the heroes drop theirs, and
+   the party rests where it stands until it is ready; then it pulls the same pocket again, made at the lower step (fitPull). What a player
+   sees: the party breaks off, the monsters turn and walk back to their spots whole, the party catches its breath and goes again. */
+function breakOff(inst, sc) {
+  const w = inst.world;
+  pullEnds(inst, sc);
+  for (let p = 0; p < w.packs.length; p++) if (w.packs[p].aggro) resetPack(inst, p, sc);
+  for (const h of heroes(inst)) h.target = null;
+  w.phase = PHASE.REGROUP; w.phaseMs = HUNT_TUNING.regroupMs; w.regroupNext = false;
+}
+
 /** Phase-AI hook: travel, pull, fight, regroup; the pocket route (PC-03..13). */
 export function runPhase(inst, sc) {
   if (!cycling(inst)) return;
@@ -354,17 +405,23 @@ export function runPhase(inst, sc) {
       w.packs[p].alive = false;
       w.packs[p].aggro = false;
       w.packs[p].holder = null;
-      w.packs[p].respawnAtMs = sc.atMs + inst.ground.respawnMs;
+      /* THE DANGER SCALE (danger.js): the pull's end moves the step (a CLEARED pull, the only kind that can count clean), and the pack is
+         down only a moment (the pace is the party's) */
+      pullEnds(inst, sc, true);
+      w.packs[p].respawnAtMs = sc.atMs + respawnMsOf(inst);
       w.phase = PHASE.REGROUP; w.phaseMs = HUNT_TUNING.regroupMs; w.regroupNext = true;
     } else if (!w.packs[p].aggro) {
+      /* (a pull the leash took home ends too: its margin is read like any pull's) */
+      pullEnds(inst, sc);
       w.phase = PHASE.TRAVEL;
-    }
+    } else if (breaksOff(w)) breakOff(inst, sc);
     return;
   }
   if (w.phase === PHASE.REGROUP) {
     w.phaseMs = Math.max(0, w.phaseMs - sc.dtMs);
     const together = heroes(inst).every((h) => h.alive && cheb(h, k) <= HUNT_TUNING.regroupRadius);
-    if (w.phaseMs === 0 && together) {
+    /* PULLS ON READINESS (danger.js readyToPull): on the Danger scale the next pull waits for the party's HP; off it, always ready */
+    if (w.phaseMs === 0 && together && readyToPull(inst, heroes(inst))) {
       if (w.regroupNext) nextPocket(inst, k); else w.phase = PHASE.TRAVEL;
     }
   }

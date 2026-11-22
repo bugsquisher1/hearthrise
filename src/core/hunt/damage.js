@@ -50,6 +50,7 @@ import { dummyBlow, dummyStands, trainingBasic } from './training.js';
 import { reaches } from './shooters.js';
 import { elementOnHeroOf } from '../../data/elements.js';
 import { applyStatus, statusRow } from './status.js';
+import { noteHurt, breaksOff } from './danger.js';
 import { isEnemy, isHero, isMonster } from './sides.js';
 
 /* A store shot's share of its partner's ammo bonus, permille. */
@@ -172,6 +173,8 @@ export function landHit(inst, sc, source, target, amount, element, ability, crit
   /* A status tick whose source has left the world lands with no dealer (u null). */
   const u = source ? source.id : null;
   if (isMonster(target)) inst.world.fightAt = sc.atMs;
+  /* THE DANGER SCALE'S MARGIN (danger.js): the lowest HP a hero reached in this pull, read where HP falls (a hunt off the scale reads nothing) */
+  else if (r.dmg > 0) noteHurt(inst, target);
   /* AN ELEMENT'S FIXED RULE ON A HERO (data/elements.js ELEMENT_ON_HERO, itemization plan Appendix B1), when the blow took HP: a storm
      blow also burns half the HP it took from the hero's mana (`burn` on the dmg event, never past what it holds), a necrotic one
      Withers the hero (statuses.js: every heal it takes is cut for 6 s; status.js applyStatus emits it). Nothing else has a rule, so
@@ -251,6 +254,9 @@ export function resolveAttacks(inst, sc) {
     if (isMonster(u)) {
       /* beside its target, or a SHOOTER within its range in sight (shooters.js reaches) */
       if (!reaches(inst, u, t) || !atRest(u)) continue;
+      /* THE DANGER SCALE'S FALL BACK (danger.js breaksOff): once a hero is under the stance's line, no monster swings again in this pull;
+         the party breaks off at the next sub-step (pull-cycle.js breakOff). Off the scale it never holds. */
+      if (breaksOff(inst.world)) continue;
       const row = atTier(rowOf(inst, u.kind), inst.tier);
       /* A called boss under his enrage line swings that row raised (boss-phases.js). */
       const blowRow = swingRow(u, row);

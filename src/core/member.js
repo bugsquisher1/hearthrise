@@ -362,6 +362,8 @@ export function memberSide(mi, ctx) {
       snapshot: (st) => heroSnapshot(st, snapCtx),
       hero: { role: h.role, element: h.element || '', settings: h.settings || null,
         slots: h.slots || [], stopRules: h.stopRules || [], density: h.density || 0, tier: h.tier || null, lead: h.lead === true,
+        /* the Danger scale's plan (src/core/hunt/danger.js riskOf), only on a hero whose plan names one: every tier hunt's hero reads as before */
+        ...(typeof h.risk === 'string' && h.risk ? { risk: h.risk, danger: Number.isInteger(h.danger) ? h.danger : 0 } : {}),
         hold: Number.isInteger(h.hold) ? h.hold : null,
         leaveTogether: h.leaveTogether === true,
         actionSet: h.actionSet || 'hunt', range: h.range || 1, ammo: equipment.ammo || null },

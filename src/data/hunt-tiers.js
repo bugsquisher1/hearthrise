@@ -116,17 +116,22 @@ export const pullOfTier = (row, size) => row.pull[Math.min(row.pull.length, Math
 /* THE DIAL READER: one dial's permille of one stat, 1000 (the row as written) when the dial is absent or silent on it. A dial is
    any object carrying DIALS: a tier row today. A second source (a scaled hunt's own row, later) multiplies into ONE dial before
    the engine reads it, so every reader below stays one call and the engine never learns where a number came from. */
-const pmOf = (dial, k) => (dial && Number.isInteger(dial[k]) ? dial[k] : 1000);
+const pmOf = (dial, k) => (dial && Number.isFinite(dial[k]) ? dial[k] : 1000);
+/* A DIAL THAT SPLITS THE BLOW FROM ITS AIM AND LEVEL (the Danger scale's, src/core/hunt/danger.js dangerDial: a step's growth is its ratio
+   once, on the blow, never again through the to-hit or the armor chain): `aimPm` and `lvPm` when it names them, else the blow's dial, as
+   every tier row reads. A tier row names neither, so it plays digit for digit as before. */
+const splitPm = (dial, k) => (dial && Number.isFinite(dial[k]) ? dial[k] : pmOf(dial, 'dmgPm'));
 
 /** A monster row's Level on a dial: the armor's read and Defense's training. */
-export const levelAtTier = (level, dial) => { const pm = pmOf(dial, 'dmgPm'); return pm !== 1000 ? Math.round((level * pm) / 1000) : level; };
+export const levelAtTier = (level, dial) => { const pm = splitPm(dial, 'lvPm'); return pm !== 1000 ? Math.round((level * pm) / 1000) : level; };
 
 /** A monster row as it fights on a dial: its blow, its HP and its kill's Level XP. The row itself when every dial reads 1000,
     so Normal is the row digit for digit. Coin and drops are always the row's: no dial reaches them. */
 export function atTier(row, dial) {
-  const dmg = pmOf(dial, 'dmgPm'), hp = pmOf(dial, 'hpPm'), xp = pmOf(dial, 'xpPm');
-  if (!row || (dmg === 1000 && hp === 1000 && xp === 1000)) return row;
-  /* a harder blow is a surer one: the aim takes the atk's dial (src/data/to-hit.js; 21-combat.md B2 "a tier's harder blow raises the aim exactly as it raises atk") */
-  return { ...row, atk: ((row.atk || 1) * dmg) / 1000, ...(Number.isFinite(row.aim) ? { aim: (row.aim * dmg) / 1000 } : {}),
+  const dmg = pmOf(dial, 'dmgPm'), hp = pmOf(dial, 'hpPm'), xp = pmOf(dial, 'xpPm'), aim = splitPm(dial, 'aimPm');
+  if (!row || (dmg === 1000 && hp === 1000 && xp === 1000 && aim === 1000)) return row;
+  /* a harder blow is a surer one: the aim takes the atk's dial (src/data/to-hit.js; 21-combat.md B2 "a tier's harder blow raises the aim exactly as it
+     raises atk"), unless the dial names the aim's own (splitPm) */
+  return { ...row, atk: ((row.atk || 1) * dmg) / 1000, ...(Number.isFinite(row.aim) ? { aim: (row.aim * aim) / 1000 } : {}),
     hp: hp === 1000 ? row.hp : Math.max(1, Math.round(((row.hp || 1) * hp) / 1000)), xp: ((row.xp || 0) * xp) / 1000 };
 }

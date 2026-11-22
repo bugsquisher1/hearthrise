@@ -8,6 +8,8 @@
 //   carries it from damage.js); a hero alone is never thinned
 //   in a SESSION MODE that pays part of a kill (src/data/session-modes.js xpPm; the Burning Tower's 375) the monster XP is that share
 //   of the row's before anything else (inst.xpPm, world-step.js; absent, the whole kill, exactly as before)
+// ON THE DANGER SCALE (src/core/hunt/danger.js levelShareXp, wave 1) a kill pays each hero a share of its OWN Level from the hours
+//   table, x the depth ratio, / the heroes at the kill, x its multiplier: no party table, no under-floor share (04 section 7)
 // THE PARTY FACTOR (Tyler 2026-10-31: better only with different classes) is
 // src/data/party-class-xp.js, ONE table for every ground and tier (Tyler 2026-11-16), read from the
 // living heroes at each kill, never latched: a death or a leave changes the next kill.
@@ -40,6 +42,7 @@ import { underFloorSharePm } from '../../data/hunt-grounds.js';
 import { skillLevelFromXp, charLevelFromXp } from '../xp.js';
 import { makeEvent } from './events.js';
 import { isEnemy, isHero } from './sides.js';
+import { dangerOn, levelShareXp } from './danger.js';
 
 export const PERSISTED = Object.freeze({ unit: Object.freeze([]), world: Object.freeze([['xpGroup', 'json']]), pack: Object.freeze([]) });
 
@@ -63,9 +66,10 @@ const xpOf = (kill) => {
  * Answers { [id]: { xp, raw, ev } }; nobody alive is nobody paid. `ev`: the part of `xp` the hero's multiplier added (a live event's, its
  * only user), so a personal best can leave it out (hunt_session_tally.xp_event); 0 when the multiplier is 1.
  */
-function splitKillXp(xp, heroes, sc, ground, partyPm = 1000, xpPm = 1000) {
+function splitKillXp(xp, heroes, sc, ground, partyPm = 1000, xpPm = 1000, world = null) {
   const out = {};
   if (!heroes.length || xp <= 0) return out;
+  if (world && dangerOn(world)) return depthSplit(heroes, sc, ground, world.danger);
   /* THE MODE'S SHARE of the kill, first (never multiplied at 1000: a hunt's split is the same arithmetic it always was) */
   const raw = (xpPm === 1000 ? xp : (xp * xpPm) / 1000) / heroes.length;
   const cell = partyClassXp(heroes.map((h) => h.role)).permille;
@@ -84,6 +88,18 @@ function splitKillXp(xp, heroes, sc, ground, partyPm = 1000, xpPm = 1000) {
   return out;
 }
 
+/* THE DANGER SCALE'S SPLIT: each hero's own Level share at the step the kill fell at, the kill shared evenly (danger.js levelShareXp). */
+function depthSplit(heroes, sc, ground, step) {
+  const out = {};
+  for (const h of heroes) {
+    const plain = levelShareXp(h.heroLv, step, ground) / heroes.length;
+    const paid = plain * multOf(sc, h);
+    const amount = Math.floor(paid + 1e-9), base = Math.floor(plain + 1e-9);
+    out[h.id] = { xp: amount, raw: base, ev: paid === plain ? 0 : Math.max(0, amount - base) };
+  }
+  return out;
+}
+
 /**
  * Per-hero XP for one kill: base share x that hero's own multiplier.
  * `kill` = { t: the dead monster's unit id, u: the killer, xp: the monster
@@ -98,7 +114,7 @@ export function shareKillXp(inst, kill, sc) {
   const dead = units.find((u) => u.id === kill.t) || null;
   const living = units.filter((u) => isHero(u) && u.alive === true && (!dead || isEnemy(dead, u)));
   const paid = splitKillXp(xp, living, sc, inst && inst.ground ? inst.ground : null, kill && Number.isInteger(kill.partyPm) ? kill.partyPm : 1000,
-    inst && Number.isInteger(inst.xpPm) ? inst.xpPm : 1000);
+    inst && Number.isInteger(inst.xpPm) ? inst.xpPm : 1000, inst && inst.world ? inst.world : null);
   const ids = Object.keys(paid);
   const answer = {};
   if (!ids.length) return answer;

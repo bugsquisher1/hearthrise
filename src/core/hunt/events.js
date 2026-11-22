@@ -16,7 +16,7 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-export const EVENT_VERSION = 7;
+export const EVENT_VERSION = 8;
 
 /* type → its required fields. `u` acts, `t` is acted on (unit ids). */
 export const EVENT_TYPES = Object.freeze({
@@ -33,6 +33,9 @@ export const EVENT_TYPES = Object.freeze({
   pull: Object.freeze(['pocket']),
   respawn: Object.freeze(['pocket']),
   wipe: Object.freeze([]),
+  /* danger.js: a pull on the Danger scale ended. step: the step it was made at; to: the step the next is made at; low: the lowest HP any
+     hero reached in it, permille of its max (0: a hero died); why: climb | hold | fall | death. */
+  danger: Object.freeze(['step', 'to', 'low', 'why']),
   /* tower.js: the Burning Tower's room cleared (floor: its number; by: { heroUnitId: true } for every hero standing in it, each
      clearing it). The stair opens; the next room stands TOWER_RULES.stairMs later. */
   floor: Object.freeze(['floor', 'by']),

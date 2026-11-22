@@ -81,7 +81,7 @@ const mutants = [
   { name: 'the ratio halves the wrong side (1 - D / 3A)', case: 'monsters-land-the-ratio',
     edits: [['src/data/to-hit.js', 'return a >= d ? 1 - d / (2 * a) : a / (2 * d);', 'return a >= d ? 1 - d / (3 * a) : a / (2 * d);']] },
   { name: 'a tier raises the blow and not the aim', case: 'monsters-land-the-ratio',
-    edits: [['src/data/hunt-tiers.js', '...(Number.isFinite(row.aim) ? { aim: (row.aim * dmg) / 1000 } : {}),', '']] },
+    edits: [['src/data/hunt-tiers.js', '...(Number.isFinite(row.aim) ? { aim: (row.aim * aim) / 1000 } : {}),', '']] },
   { name: 'an enrage raises the blow and not the aim', case: 'monsters-land-the-ratio',
     edits: [['src/core/hunt/boss-phases.js', 'Number.isFinite(row.aim) ? { aim: (row.aim * ph.enrageAtkPm) / 1000 } : {});', '{});']] },
   { name: 'the old straight line comes back (0.50 + 2% an attack point over Defense)', case: 'monsters-land-the-ratio',

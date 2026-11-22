@@ -110,7 +110,17 @@ const SEED = '-4611686018427387904';
    left and the hero's max (src/core/hunt/damage.js landHit `hp`, `max`), which the timeline hashes, and the settle's analyzer proposes the hunt report's
    counters (accrue-hunt.js analyzerOf `report`: lowest health, close calls, rule uses and waits, the bar and gear), which the tally hashes.
    Re-pinned again the same day, THE TALLY ONLY (world and timeline held): report.js reportProposal writes the report in the database's shape,
-   its maps in key order. */
+   its maps in key order.
+   RE-PINNED 2026-11-21 (lane/v1-climb, the Danger scale), THE STORED WORLD STRING ONLY: every scenario's world chain moves from settle 1 because the
+   world carries six more fields (src/core/hunt/danger.js PERSISTED: risk, danger, climb, clean, low, cool), blank on every tier hunt. Every timeline
+   and tally chain holds, kills as pinned (207 / 486 / 139 / 104): proof, the four scenarios played on this tree with the world string set aside, both
+   other chains compared to the 11-21 pin (all HOLD, and no tier hunt wrote a danger field). No scenario plans a stance.
+   RE-PINNED 2026-11-22 (lane/v1-climb merged with set/v0.2.144), THE WORLD STRING ONLY again: against the set's pin, timeline and tally hold at
+   every settle and kills as pinned; only the six blank Danger fields move the world chain.
+   RE-PINNED 2026-11-22 (lane/v1-climb wave 1), THE STORED WORLD STRING ONLY: every pack carries its Danger count of the fallen (danger.js
+   PERSISTED pack `down`, 0 on every tier hunt: only a pack row falling on the scale counts). Timeline, tally and kills hold at every
+   settle of the four scenarios (207 / 486 / 139 / 104), compared to the pin before; the scale's pay, coin and cleared-pull rule run only
+   on a world with a stance, and no scenario plans one. */
 const SCENARIOS = Object.freeze({
   'warrens-4': { hunt: 'coppercap_warrens', L: 40, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },
   'glade-4': { hunt: 'mosslight_glade', L: 24, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },
@@ -224,6 +234,9 @@ const WRITERS = [
   ['src/core/hunt/pull-cycle.js', 'for (const m of packMonsters(inst, p)) m.target = aimOf(inst, m, k.id);', 'startPull drops the index'],
   ['src/core/hunt/pull-cycle.js', 'w.packs[p].alive = false;', 'a pack\'s alive, not a unit\'s'],
   ['src/core/hunt/pull-cycle.js', "if (gone) { w.units = w.units.filter((u) => !isMonster(u) || u.alive || u.deadMs < HUNT_TUNING.corpseMs); staleIndex(inst); }", 'clearCorpses drops the index'],
+  /* the Danger scale's pull re-formed at its step's size (lane/v1-climb): the next line drops the index */
+  ['src/core/hunt/pull-cycle.js', 'w.units = w.units.filter((u) => !gone.has(u.id));', 'fitPull drops the index'],
+  ['src/core/hunt/pull-cycle.js', 'for (const h of heroes(inst)) h.target = null;', 'a hero\'s target, in no kept list (breakOff; its resetPack drops the index)'],
   ['src/core/hunt/roles.js', 'if (m) h.target = m.id;', 'a hero\'s target, in no kept list'],
   ['src/core/hunt/targeting.js', 'm.target = id;', 'retarget drops the index'],
   ['src/core/hunt/targeting.js', 'if (!u.alive || !fighting) { u.target = null; continue; }', 'a hero\'s target, in no kept list'],

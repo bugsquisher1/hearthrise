@@ -1,0 +1,3 @@
+{
+  "note": "STAGED, NOT APPLIED (lane/v1-climb wave 1, backend-architect, 2026-11-22; 02 package 3, 05 stage 6 wave 1). hr_hunt_world_shape MOVES: the world carries the Danger scale's six fields (risk, danger, climb, clean, low, cool) and every pack its down count (src/core/hunt/danger.js PERSISTED). 1028 (STAGED) carried whole; no other row moves. ORDER: 1054 in its name, BEFORE 1055 and 1056 (the scale's catalogue and verbs). EDGE: the hr-accrue carrying this lane's src/core deploys right after this apply (until both land every settle holds world_shape_pending, no refusal, no forfeit)."
+}

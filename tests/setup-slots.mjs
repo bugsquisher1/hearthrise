@@ -317,13 +317,14 @@ async function swapThrough(db, door) {
       || row('Tank').wearing !== true || row('Guard').wearing !== false || row('Bow').wearing !== false) {
     out.push(door.name + ': the envelope reads setup ' + env.hunt_settings.preset + ' and rows ' + JSON.stringify((env.hunt_presets || []).map((p) => [p.name, p.fights_as, p.discipline, p.wearing])));
   }
-  /* (4) LEVER-HORIZON (1005-lever-horizon.sql): the swap plays from the first window STARTING past the seed horizon (the settled point
-     + 32 s), never over swings the browser was already shown. The window inside it keeps Tank's bar; then the server clock moves on
+  /* (4) LEVER-HORIZON (1005-lever-horizon.sql): the swap plays from the first window STARTING past the seed horizon (since
+     1049-settle-flush.sql the later of the settled point and the clock + one 2 s swing, + 32 s: under the swap's now() + 34 s, so the
+     window inside it runs to 36 s on), never over swings the browser was already shown. The window inside it keeps Tank's bar; then the server clock moves on
      (pinned, main) and THE ENGINE'S NEXT SETTLE PAST IT PLAYS GUARD'S BAR: the door's read hands it Guard's stance, and its commit
      stores the hero on it */
   const later = horizonPassed();
   await later.pin(db);
-  const inside = await settleVia(H, M, db, uid, later.at(30000), door);
+  const inside = await settleVia(H, M, db, uid, later.at(36000), door);
   const kept = inside.last && inside.last.plan.members[0] && inside.last.plan.members[0].hero;
   if (!kept || kept.settings.stance !== 'offensive') out.push(door.name + ': the window inside the seed horizon read ' + JSON.stringify(kept && kept.settings) + ' (want Tank\'s offensive: a swap never plays inside the look-ahead)');
   const next = await settleVia(H, M, db, uid, later.at(60000), door);
@@ -748,7 +749,7 @@ const ARMS = {
     /* LEVER-HORIZON: inside the seed horizon the seat keeps Tank's bar; past it, Guard's */
     const later = horizonPassed();
     await later.pin(db);
-    const inside = await settleVia(H, M, db, seat, later.at(30000), door);
+    const inside = await settleVia(H, M, db, seat, later.at(36000), door);
     if (!heroOf(inside, seat) || heroOf(inside, seat).settings.stance !== 'offensive') out.push('the seat\'s window inside the seed horizon reads ' + JSON.stringify(heroOf(inside, seat) && heroOf(inside, seat).settings));
     const next = await settleVia(H, M, db, seat, later.at(60000), door);
     if (!heroOf(next, seat) || heroOf(next, seat).settings.stance !== 'defensive') out.push('the seat\'s next settle reads ' + JSON.stringify(heroOf(next, seat) && heroOf(next, seat).settings));

@@ -6,8 +6,8 @@
 //   Also prints the server's pulse (tools/lib/server-pulse.mjs): disk, connections, the tick, its edge answers, retention, frames.
 //
 // SELECT-only through the Management API with ~/.supabase-token (read as bytes, never printed),
-// inside a READ ONLY transaction. Lag verdicts: tools/lib/hunt-lag.mjs (FREEZING = a WATCHED hunt past the
-// 32 s look-ahead; STALLED = past the tick's own flush; an unwatched hunt's 0-100 s sawtooth is by design).
+// inside a READ ONLY transaction. Lag verdicts: tools/lib/hunt-lag.mjs (FREEZING = a WATCHED hunt past its flush by more
+// than a poll; STALLED = past the tick's own flush; the 0-100 s sawtooth is by design, watched or not, since the flush).
 // Local tool, not in CI.
 import { readFileSync } from 'node:fs';
 import { homedir } from 'node:os';

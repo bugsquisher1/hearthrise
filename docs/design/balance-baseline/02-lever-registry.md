@@ -39,16 +39,16 @@ Labels. CONFIRMED means read in the code at the baseline. MEASURED means a playe
 | Consumable costs and effectiveness | 9 | 4 | 3 | 2 | 0 | 1 | 1 | 2 |
 | Party bonuses and interactions | 7 | 1 | 3 | 0 | 3 | 2 | 3 | 3 |
 | Rare-drop probabilities | 6 | 2 | 0 | 3 | 1 | 0 | 4 | 3 |
-| Economy sources and sinks | 26 | 12 | 3 | 10 | 1 | 0 | 23 | 13 |
-| **All** | **164** | 68 | 23 | 46 | 27 | 31 | 53 | 53 |
+| Economy sources and sinks | 27 | 13 | 3 | 10 | 1 | 0 | 24 | 14 |
+| **All** | **165** | 69 | 23 | 46 | 27 | 31 | 54 | 54 |
 <!-- END GENERATED:COUNTS -->
 
 <!-- GENERATED:CENSUS (tools/balance-program/levers.mjs --write) -->
 | | Count |
 |---|---|
-| Top-level bindings in the rule code that hold a typed number | 642 (in 215 files, 15610 typed numbers) |
-| Claimed by a lever | 273 |
-| Claimed by a not-a-lever reason | 369 |
+| Top-level bindings in the rule code that hold a typed number | 646 (in 218 files, 15625 typed numbers) |
+| Claimed by a lever | 274 |
+| Claimed by a not-a-lever reason | 372 |
 | Unclaimed | 0 |
 | Exceptions, intentional and accidental | 16 and 11 |
 | Values read at | 861ae52e3 (origin/baseline/overhaul-start). Rule code and migrations the same as the baseline: NO |
@@ -243,6 +243,7 @@ These are coverage gaps for BL-1 and the sensitivity lane. Each gap's reason is 
 | dead | `rare.bestiary-mults` Bestiary drop and damage multipliers | Rare-drop probabilities | the charm damage ladder has no caller, trophy damage returns 1 while TROPHY_DAMAGE_ARM_ENABLED is false, relicMult is projected and never read |
 | dead | `resist.weapon-resist-unread` Authored weapon resistances | Resistances | no engine code reads weaponResist |
 | harness-fixed | `econ.companions` Companions | Economy sources and sinks | a cell carries no companion |
+| harness-fixed | `econ.recruits` Recruits: three heroes in one press | Economy sources and sinks | a cell names its own party and Levels |
 | harness-fixed | `econ.start-gold` Starting gold and kit | Economy sources and sinks | a cell sets its own purse |
 | harness-fixed | `party.size` Party size | Party bonuses and interactions | the matrix plays parties 1 to 4 by design |
 | harness-fixed | `regen.inner-flame` Inner Flame regeneration rate | Regeneration | a cell's Inner Flame level is the harness's, not trained in the cell |

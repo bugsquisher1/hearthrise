@@ -69,7 +69,7 @@ export function applyEnvelope(current, env) {
   if (!isObj(env.state)) return keep('incomplete');
   if (current && env.version < current.version) return keep('stale');
   const data = {};
-  for (const k of Object.keys(env)) if  (!META.includes(k) && !TIMELINE_KEYS.includes(k) && k !== 'client_state') data[k] = copy(env[k]);
+  for (const k of Object.keys(env)) if (!META.includes(k) && !TIMELINE_KEYS.includes(k) && k !== 'client_state') data[k] = copy(env[k]);
   return { applied: true, verdict: 'replaced', record: record(env.version, data, residueOf(env.client_state)) };
 }
 

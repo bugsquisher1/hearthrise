@@ -31,7 +31,9 @@ import { wearInputOf, companyWearLines } from '../../../src/core/upgrade-pick.js
 
 export const VERB = 'company_wear';
 
-const WEAR_SQL = 'select public.hr_company_wear_apply($1::uuid, $2::int[], $3::text::jsonb, $4::uuid) as res';
+/* slots as an array literal from text: postgres.js (fetch_types off) sends a JS array as `0,1` (delta-transport T10c) */
+const WEAR_SQL = 'select public.hr_company_wear_apply($1::uuid, $2::text::int[], $3::text::jsonb, $4::uuid) as res';
+const slotsLiteral = (slots) => '{' + slots.join(',') + '}';
 
 /** The named heroes' wear lines from their envelopes ([{ slot, env }], slot order): the core's pick. Pure. */
 export function wearLinesFor(heroes) {
@@ -61,7 +63,7 @@ export async function runCompanyWear(o) {
     heroes.push({ slot: s, env: row && row.state && row.state.ok === true ? row.state : null });
   }
   const lines = wearLinesFor(heroes);
-  const [row] = await exec(WEAR_SQL, [user, slots, JSON.stringify(lines), intentId]);
+  const [row] = await exec(WEAR_SQL, [user, slotsLiteral(slots), JSON.stringify(lines), intentId]);
   const res = (row && row.res) || null;
   if (!res || res.ok !== true) {
     return { status: 409, body: { ok: false, verb: VERB, error: (res && res.error) || 'wear_refused', stage: 'wear', state: read.env } };

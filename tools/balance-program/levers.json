@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "ca323fd9d988162b",
+ "authored": "e224de20f35bb86c",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -63,7 +63,7 @@
   "dead": "nothing on the hunt path reads it: a perturbation changes no outcome"
  },
  "counts": {
-  "levers": 164,
+  "levers": 165,
   "byCategory": {
    "base-damage": 12,
    "skill-scaling": 9,
@@ -84,10 +84,10 @@
    "imbuements": 1,
    "consumables": 9,
    "party": 7,
-   "economy": 26
+   "economy": 27
   },
   "byClass": {
-   "global": 68,
+   "global": 69,
    "archetype": 23,
    "content": 46,
    "exception-intentional": 16,
@@ -99,14 +99,14 @@
    "patch": 75,
    "not-playable:player-policy": 1,
    "not-playable:outside-hunt": 19,
-   "not-playable:harness-fixed": 5,
+   "not-playable:harness-fixed": 6,
    "not-playable:not-in-runs": 10,
    "variant": 5,
    "not-playable:not-built": 5,
    "not-playable:sql-only": 5
   },
   "byTest": {
-   "asserted": 53,
+   "asserted": 54,
    "mentioned only": 91,
    "none": 20
   },
@@ -117,11 +117,11 @@
   }
  },
  "census": {
-  "bindings": 642,
-  "typed": 15610,
-  "files": 215,
-  "lever": 273,
-  "notLever": 369,
+  "bindings": 646,
+  "typed": 15625,
+  "files": 218,
+  "lever": 274,
+  "notLever": 372,
   "unclaimed": 0
  },
  "problems": [],
@@ -7740,7 +7740,7 @@
      "tests/balance-grade.mjs",
      "tests/boss-call-window.mjs"
     ],
-    "mentionCount": 58,
+    "mentionCount": 57,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -9634,7 +9634,7 @@
      "tests/balance-grade.mjs",
      "tests/boss-call-window.mjs"
     ],
-    "mentionCount": 58,
+    "mentionCount": 57,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -10145,6 +10145,57 @@
    "perturb": {
     "kind": "not-playable",
     "gap": "outside-hunt",
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "CONFIRMED (read)"
+  },
+  {
+   "id": "econ.recruits",
+   "category": "economy",
+   "name": "Recruits: three heroes in one press",
+   "sites": [
+    {
+     "file": "src/data/recruits.js",
+     "line": 32,
+     "text": "export const RECRUITS = Object.freeze({",
+     "binding": "RECRUITS"
+    }
+   ],
+   "definition": "one hero, then three recruits in one press when it reaches Level 5, at its Level (levelsUnder 0), never above Level 10, the kit and the practice set worn (Tyler RD-Q6 a, 2026-11-22; 1053-recruits.sql grants it)",
+   "range": "whole; atLevel <= maxLevel; count = the hero slots but the first",
+   "touches": "the account's heroes from the first hour (hunted hours x4) and three heroes' Levels 1 to 5 skipped",
+   "outcomes": [],
+   "formulas": [],
+   "reach": {
+    "feeds": 0,
+    "closure": 0
+   },
+   "class": "global",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/recruits.mjs",
+      "what": "the press, the Level, the grant once",
+      "reads": [
+       "RECRUITS"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/hunt-core/sewer.mjs",
+     "tests/needs-you.mjs",
+     "tests/recruits-world.mjs",
+     "tests/recruits.mjs"
+    ],
+    "mentionCount": 4,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "harness-fixed",
+    "note": "a cell names its own party and Levels",
     "existingPatches": []
    },
    "flags": [],
@@ -11402,6 +11453,14 @@
   {
    "at": "src/data/the-path.js#*",
    "why": "the new-player path's steps"
+  },
+  {
+   "at": "src/core/hunt/report.js#*",
+   "why": "the hunt report's counters and the shape the database accepts (32 rules, 8 reasons a rule, counts under 999,999,999, gear under 9,999): display counters, no value moves on them (its header)"
+  },
+  {
+   "at": "src/data/hunt-report.js#HUNT_REPORT",
+   "why": "the hunt report's reading thresholds (a close call under 25% HP, near death, the bar's length, the rules shown): src/core/hunt/report.js words the fight with them, no fight, purse or clock reads them"
   },
   {
    "at": "src/data/condition-metrics.js#*",
@@ -14032,6 +14091,16 @@
     "count"
    ],
    "typed": 1,
+   "bindings": 1
+  },
+  "src/data/recruits.js#RECRUITS": {
+   "pin": "count",
+   "keys": [
+    "atLevel",
+    "count",
+    "maxLevel"
+   ],
+   "typed": 3,
    "bindings": 1
   },
   "src/data/shops.js#SHOP_OFFERS": {

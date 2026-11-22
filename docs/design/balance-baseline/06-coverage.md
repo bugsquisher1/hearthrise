@@ -19,7 +19,7 @@ This report builds on the framework audit (`docs/design/overhaul/review/F-framew
 5. **What the baseline can claim.** Which outcomes a change moves, in which direction, and by how much against measured run-to-run noise, across every way, gear state, tier, open ground and party shape in live content. Kills, XP and coin an hour for a four on Deadly to about 5 to 20% of real play.
 6. **What it cannot claim.** Absolute gold (an upper bound, see 3.3), absolute survival on Normal and Dangerous (no real data), anything about a real player's day, and anything past Level 110, which is not live content (the `beyond` block measures it on staged and placeholder grounds and labels it so).
 
-My count (JUDGMENT, my own grouping): of 58 mechanics in section 2, 27 run for real in a cell, 13 are approximated or pinned to a constant, and 18 are absent.
+My count (JUDGMENT, my own grouping): of 52 mechanics in section 2, 20 run for real in a cell (two of them with a harness-approximated reading), 9 are approximated or pinned to a constant, 22 are absent, and one (the rested bank) no longer exists.
 
 ---
 

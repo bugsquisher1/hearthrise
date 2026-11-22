@@ -58,11 +58,14 @@ export function hashFiles(root, files) {
   return { files: files.length, sha256: h.digest('hex') };
 }
 export const hashPaths = (root, paths) => hashFiles(root, paths.flatMap((p) => filesUnder(root, p)));
-/** The harness's own files (HARNESS less TREE_OWN): one hash, equal on both sides of a fair comparison. */
 /* the harness paths' files less the tree's own (TREE_OWN) */
 const notTreeOwn = (f) => !TREE_OWN.some((o) => f === o || f.startsWith(o + '/'));
 export const hashOwnPaths = (root, paths) => hashFiles(root, paths.flatMap((p) => filesUnder(root, p)).filter(notTreeOwn));
-export const hashHarness = (root) => hashOwnPaths(root, HARNESS);
+/* what a measurement says, not how it measures: the run's target, the committed pins and candidates (their scenario is its own hash) */
+export const NOT_INSTRUMENT = Object.freeze(['tools/balance-program/baseline/target.json', 'tools/balance-program/baseline/overhaul-start', 'tools/balance-program/baseline/candidates']);
+const instrument = (f) => notTreeOwn(f) && !NOT_INSTRUMENT.some((o) => f === o || f.startsWith(o + '/'));
+/** The INSTRUMENT: the harness's files less the tree's own and less the measurement's own records. Equal on both sides of a fair comparison. */
+export const hashHarness = (root) => hashFiles(root, HARNESS.flatMap((p) => filesUnder(root, p)).filter(instrument));
 
 /** Export `game` into `into` and lay the harness over it. Answers the folder's tree record. */
 export function materialize({ game, into, label = null, harnessRoot, patches = [] }) {

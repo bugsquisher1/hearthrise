@@ -28,6 +28,7 @@ import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { isMain } from './_is-main.mjs';
+import { harnessFail, verdict } from './_mutant-verdict.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -136,7 +137,8 @@ async function runAll(X, only) {
   for (const [id, arm] of Object.entries(ARMS)) {
     if (only && id !== only) continue;
     let got;
-    try { got = await arm(X); } catch (e) { got = ['threw: ' + String(e && e.stack || e).split('\n').slice(0, 3).join(' | ')]; }
+    /* a throw is HARNESS, never its arm's red (tests/_mutant-verdict.mjs): a crash cannot score a mutant */
+    try { got = await arm(X); } catch (e) { fails.push(harnessFail(id, e)); continue; }
     for (const g of got) fails.push(id + ' ' + g);
   }
   return fails;
@@ -151,7 +153,7 @@ async function main() {
   }
   const clean = await runAll(await load(ROOT));
   if (clean.length) { console.error('hunt-report --mutate: the clean tree is red: ' + clean.join(' | ')); process.exit(2); }
-  let escaped = 0;
+  let escaped = 0, harness = 0;
   for (const [name, arm, file, find, repl] of MUTANTS) {
     const dir = mkdtempSync(join(tmpdir(), 'hr-rep-'));
     try {
@@ -160,13 +162,16 @@ async function main() {
       const src = readFileSync(f, 'utf8').split(String.fromCharCode(13)).join('');
       if (src.split(find).length !== 2) { console.error(`HARNESS: ${file} has no single ${JSON.stringify(find.slice(0, 60))}`); process.exit(2); }
       writeFileSync(f, src.replace(find, () => repl));
-      const got = await runAll(await load(dir), arm);
-      if (got.length) console.log(`  caught  ${name} (${arm}): ${got[0].slice(0, 140)}`);
+      /* caught only by a line its arm named; a throw is HARNESS (exit 2), nothing at all an escape */
+      const v = verdict(await runAll(await load(dir), arm));
+      if (v.kind === 'caught') console.log(`  caught  ${name} (${v.rule}): ${v.line.slice(0, 140)}`);
+      else if (v.kind === 'harness') { console.log(`  HARNESS ${name} (${arm}): ${v.why.slice(0, 140)}`); harness++; }
       else { console.log(`  ESCAPED ${name} (${arm})`); escaped++; }
     } finally { rmSync(dir, { recursive: true, force: true }); }
   }
-  console.log(escaped ? `hunt-report --mutate: ${escaped} ESCAPED` : `hunt-report --mutate: ${MUTANTS.length}/${MUTANTS.length} caught`);
-  process.exit(escaped ? 1 : 0);
+  console.log(escaped || harness ? `hunt-report --mutate: ${escaped} ESCAPED, ${harness} HARNESS`
+    : `hunt-report --mutate: ${MUTANTS.length}/${MUTANTS.length} caught, each by its named arm`);
+  process.exit(escaped ? 1 : harness ? 2 : 0);
 }
 
 if (isMain(import.meta.url)) main().catch((e) => { console.error(e && e.stack ? e.stack : e); process.exit(2); });

@@ -260,12 +260,13 @@ export function buildMatrix(P, root = ROOT) {
     const idOf = (lv) => exp.id + ':' + names.map((n) => n + '=' + lv[n]).join(',');
     const pts = [];
     for (const [pid, p] of P.points) {
-      if (!pid.startsWith(exp.id + ':') || p.refused) continue;
+      if (!pid.startsWith(exp.id + ':')) continue;
+      if (p.refused || !Object.keys(p.cells || {}).length) { pts.push({ id: pid, levers: p.levers, moved: names.filter((n) => p.levers[n] !== 1), effects: {}, inter: null, refused: p.refused || 'no cell started: the game\'s own validators refused the patched data' }); continue; }
       const moved = names.filter((n) => p.levers[n] !== 1);
       const row = { id: pid, levers: p.levers, moved, effects: pointEffects(P, p.cells, groups, CORE), inter: null };
       if (moved.length > 1) {
         const singles = moved.map((n) => P.points.get(idOf({ ...Object.fromEntries(names.map((x) => [x, 1])), [n]: p.levers[n] })));
-        if (singles.every((s) => s && !s.refused)) row.inter = interaction(P, p.cells, singles.map((s) => s.cells), groups, CORE);
+        if (singles.every((s) => s && !s.refused && Object.keys(s.cells || {}).length)) row.inter = interaction(P, p.cells, singles.map((s) => s.cells), groups, CORE);
       }
       pts.push(row);
     }
@@ -508,7 +509,8 @@ function mdExp(M, id, out) {
     const key = (p) => names.map((n) => String(p.levers[n]).padStart(6)).join('');
     for (const p of [...x.points].sort((a, b) => key(a).localeCompare(key(b)))) {
       const i = p.inter && p.inter[g] && p.inter[g][o];
-      if (p.moved.length > 1 && !i) continue;
+      if (!Object.keys(p.effects[g] || {}).length) { out('| ' + names.map((n) => 'x' + p.levers[n]).join(' | ') + ' | refused by the engine | | |'); continue; }
+      if (p.moved.length > 1 && !i) { out('| ' + names.map((n) => 'x' + p.levers[n]).join(' | ') + ' | ' + eff(p) + ' | no single reading (a lever alone was refused) | |'); continue; }
       if (p.moved.length > 1 && !i.resolved && !has('all')) { out('| ' + names.map((n) => 'x' + p.levers[n]).join(' | ') + ' | ' + eff(p) + ' | ' + show(i.predicted) + ' | within noise |'); continue; }
       out('| ' + names.map((n) => 'x' + p.levers[n]).join(' | ') + ' | ' + eff(p) + ' | ' + (i ? show(i.predicted) : 'single') + ' | ' + (i ? (rel ? pct(Math.exp(i.inter) - 1) : num(i.inter, dth ? 1 : 3)) + ' +/- ' + (rel ? (100 * i.se).toFixed(1) + '%' : i.se) : '') + ' |');
     }

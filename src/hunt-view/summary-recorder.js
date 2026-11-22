@@ -49,6 +49,16 @@ export function depthFactsOf(cs, session) {
   return f ? f.depth || null : null;
 }
 
+/** THE GOLD AN HOUR ONE SESSION EARNED for the return card (lane/gold-per-hour): { goldH, wasteH }, the server's per-hour coins and loot and
+    store supplies (the analyzer's per_hour.gold and per_hour.waste), the stored card's when it has one, else the analyzer's while it reads
+    this session. Null when neither holds a rated hour of it. */
+export function earnRatesOf(cs, session) {
+  const card = summariesOf(cs).find((x) => x.id === session);
+  if (card) return Number.isFinite(card.goldH) ? { goldH: card.goldH, wasteH: card.wasteH } : null;
+  const an = analyzerOf(cs), ph = an && an.session && an.session.id === session && an.hero.rated ? an.hero.perHour : null;
+  return ph && Number.isFinite(ph.goldAndLoot) ? { goldH: ph.goldAndLoot, wasteH: ph.waste } : null;
+}
+
 /** Who a unit is, off the sections the character holds right now (the log's rule: heroes by party, monsters by pose kind). */
 function namerOf(cs) {
   return {

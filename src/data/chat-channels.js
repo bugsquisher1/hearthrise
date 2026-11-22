@@ -19,6 +19,18 @@
 // criers speak in Global (GR-69, Tyler 2026-11-21; 1041-social-clans.sql).
 // ════════════════════════════════════════════════════════════════════════
 
+/**
+ * One fixed tab of the chat window (the fields above).
+ * @typedef {object} ChatTab
+ * @property {string} id
+ * @property {string} label
+ * @property {'global'|'party'|'clan'|null} send
+ * @property {string} placeholder
+ * @property {'party'|'clan'} [needs]
+ * @property {false} [unread]
+ */
+
+/** @type {ReadonlyArray<Readonly<ChatTab>>} */
 export const CHAT_TABS = Object.freeze([
   Object.freeze({ id: 'global', label: 'Global', send: 'global', placeholder: 'Message everyone online…' }),
   Object.freeze({ id: 'party', label: 'Party', send: 'party', placeholder: 'Message the party…', needs: 'party' }),

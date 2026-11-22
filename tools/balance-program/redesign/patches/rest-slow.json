@@ -1,0 +1,9 @@
+{
+  "schema": "hearthrise.balance-patch/1",
+  "name": "Redesign probe C: rest heals 0.6% of health a second, not 6%",
+  "why": "A model probe: damage taken is paid back in time between fights (docs/design/redesign/04-math-strategy.md)",
+  "edits": [
+    { "file": "src/data/hunt-tuning.js", "from": "oocRegenPermillePerS: 60,", "to": "oocRegenPermillePerS: 6," }
+  ],
+  "targets": ["pace", "survival"]
+}

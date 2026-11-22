@@ -51,7 +51,7 @@ Written 2026-11-21 on `lane/rd-crafting`, from `set/v0.2.144`. Docs only. It ans
 | **Crafting cannot close the gold ledger alone.** Its recurring sinks destroy about 19 to 34% of the coin a company earns, against a wanted 85 to 100%. And the better the player economy works, the less the store takes. The rest must come from wealth sinks priced in hours of wage | Section 5.6 | COMPUTED on assumed levers |
 | Crafted supplies cannot be one row for every Level, as `04` section 3 has it. A traded good must carry the step of its materials. Otherwise a new account's hour of work sells at a far player's wage, 33 times its own | Section 4.2 | COMPUTED |
 
-**What the owner ruled, 2026-11-22.** Company-owned trades with a cap of three Masteries (section 2.6). Alchemy never heals, so only food restores health and mana (2.2). Remains trade and bought remains burn, so gold can buy luck (7.3, and `02` section 2b). Each hero's town work has a daily cap, and Premium makes it longer (5.3). Still open: whether Temper costs a share again at each new tier (2.4).
+**What the owner ruled, 2026-11-22.** Company-owned trades with a cap of three Masteries (section 2.6). Alchemy never heals, so only food restores health and mana (2.2). Remains trade and bought remains burn, so gold can buy luck (7.3, and `02` section 2b). Each hero's town work has a daily cap, Premium makes it longer, and more can be bought at a pricey rate (5.3). The hunting day is 10 hours, 12 with Premium, and more can be bought the same way (`04` section 11). Still open: whether Temper costs a share again at each new tier (2.4).
 
 ---
 
@@ -268,7 +268,7 @@ Six rules, in the order they bite. (JUDGMENT for the rules. COMPUTED for the siz
 2. **Every burn is authored in the same hours.** The kit is sized as one hunted hour of effect. So supply and demand are two constants times the same count of hours, and population cancels out.
 3. **The cover rule.** For each stream that hunting drops, a hero who uses its sinks fully must burn more than that hero drops. The ratio is the stream's cover, and it is at least 1. Users then buy from non-users, and the price cannot rest at zero.
 4. **Hunters do not gather.** Fish, ore, logs and herbs come only from town labor. Creature parts, remains and gear come only from hunting. So more hunting never floods gathered goods, and labor never floods creature goods. Every recipe needs both kinds.
-5. **Labor has a daily cap.** A hero can work `workDay` hours a day, and Premium adds `premiumWorkExtra` (section 5.3). Automated work with no cap would be free and endless, and the price of everything made would fall to nothing.
+5. **Labor has a daily cap.** A hero can work `workDay` hours a day, Premium adds `premiumWorkExtra`, and more can be bought in pricey blocks (section 5.3). Automated work with no cap would be free and endless, and the price of everything made would fall to nothing.
 6. **Surplus has somewhere to go that mints no gold.** The flame burns remains, hunted or bought. The Weighhouse takes surplus goods for standing. The store buys at a low floor, inside a daily budget.
 
 No decay and no spoilage. A meal that rots while its owner sleeps is a chore, and the first principle forbids it.
@@ -544,7 +544,8 @@ store bid   = floorShare x V, falling a fixed step for each unit the store alrea
 |---|---|---|---|
 | `kitWork` | 0.8 | 0.5 to 1.2 | Town work behind a hunted hour. The size of the crafting economy |
 | `workDay` | 8 h | 6 to 12 | A hero's daily town work. The size of the labor supply |
-| `premiumWorkExtra` | 2 h | 1 to 2, at most a quarter of `workDay` | What Premium adds to the work day. The size of the payer gap (section 5.3) |
+| `premiumWorkExtra` | 2 h | 1 to 2, at most a quarter of `workDay` | What Premium adds to the work day. Half of the payer gap (section 5.3) |
+| Bought work: block, price, growth, clamp | 2 h, 0.5, 1.5, 4 | 1 to 3, 0.4 to 0.6, 1.3 to 1.8, 3 to 6 | Town work bought past the cap. The one price rule of `04` section 11 |
 | `townWageShare` | 0.25 | 0.15 to 0.35 | What a work-hour is worth beside a hunted hour |
 | `kitWeight` | 0.15 | 0.10 to 0.25 | The kit's share of a hero's rating. Taken from the other weights of `04` section 1 |
 | `storeLag` | 20 steps | 10 to 30 | How far the store's basics sit behind |
@@ -572,7 +573,7 @@ About sixteen global levers, counting pairs as one. `04`'s `supplyShare` becomes
 | Input | Value | Label |
 |---|---|---|
 | Heroes for each account | 4 | SOURCE: `CLAUDE.md` section 6 |
-| Player mix | 20% hunt 12 hours a hero each day, 50% hunt 6, 30% hunt 2. The mean is 6.0 | SPECULATIVE. No reading exists for a healthy server |
+| Player mix | 20% hunt 12 hours a hero each day, 50% hunt 6, 30% hunt 2. The mean is 6.0. Under the 10 hour day, 12 hours means Premium or a bought block | SPECULATIVE. No reading exists for a healthy server |
 | Work day, and the share of it used | 8 hours, 0.8 | Lever, and SPECULATIVE |
 | `kitWork`, `townWageShare`, `storeCeiling`, `jobFee` | 0.8, 0.25, 1.5, 0.25 | Levers at their starting values |
 | Gold unit | Hours of wage, so the tables hold at every Level | From `04` section 11 |
@@ -622,17 +623,32 @@ Under 1, labor is in surplus and crafted prices sink toward the floor. Over 1, l
 
 (COMPUTED.) The account that hunts all day cannot feed itself, and the account that barely hunts has three quarters of its labor free. Gold flows from the first to the second. That is the player-to-player economy, and it comes from the cap on the work day.
 
-**The work day, and what Premium sells.** The owner's answer of 2026-11-22 (CR-Q3 b): each hero's town work has a daily cap, `workDay`, and Premium makes it longer by `premiumWorkExtra` (start 2 hours, band 1 to 2, never more than a quarter of `workDay`). Premium sells town-work time, not hunting time. The hunting day and the price of a bought block of hunting are the same for every hero (`02` package 9, `04` section 11). Five things keep the payer gap small.
+**The work day, and what Premium sells.** The owner's rulings of 2026-11-22. Each hero's town work has a daily cap, `workDay`, and Premium makes it longer by `premiumWorkExtra` (start 2 hours, band 1 to 2, never more than a quarter of `workDay`) (CR-Q3 b). Premium also adds 2 hours to the hunting day: "so 10 without premium 12 with". So Premium sells time of both kinds, and the payer gap now covers hunting hours too.
+
+**The payer gap, said plainly.** For a hero who uses every hour of the day, Premium is 20% more hunting time: 12 hours against 10. That is 20% more XP, coin, drops and remains a day. In coin it is 2 more hours of wage before the kit and 1.5 after it, for each hero. With the town-work hours, a full-day account of four earns about 44 hours of wage a day on Premium against about 36 without, about a fifth more. A Level comes in about 17% fewer days. (COMPUTED: 4 heroes x (10 or 12 hunted hours x 0.75 net, plus 8 or 10 work-hours x 0.8 used x 0.25).) That is a paid edge in XP a day, and it is the owner's money call. What keeps it small:
 
 | Bound | What it holds |
 |---|---|
-| **Hours, never rate** | Yield, quality, speed, XP for each work-hour, the recipes a trade opens and the Mastery cap are the same for every hero. A payer's work-hour is worth exactly a free hero's |
-| **Small in gold** | 2 extra hours, 4 heroes, 0.8 used, at `townWageShare` 0.25, is 1.6 hours of wage a day against the 24 an account on the mix mints by hunting: about 7%, or 3% at 1 extra hour. Less when labor is in surplus, because then a work-hour sells under its reference (COMPUTED) |
-| **No power** | Town work makes the kit, which counts at `kitWeight` inside the kit spread limit. A free account can already make its own kit, since an account hunting 6 hours has 6.4 work-hours spare. Premium buys goods to sell, not a stronger hero |
-| **No new gold** | The store floor's daily budget, `storeBudget`, is for the account and Premium does not raise it. Extra labor reaches gold only by selling to players, which moves gold and mints none |
-| **Faster, never higher** | Trade XP comes about 25% faster at 2 extra hours: one trade to 99 in about 31 days of full work in place of 39 (COMPUTED). The cap at 99 and the three Masteries are the same, so a payer gets there sooner and holds nothing a free account cannot |
+| **Hours, never rate** | Nothing per hour changes. The depth a company holds, the XP and coin of a hunted hour, the drop chance, the flame, the yield, quality and speed of a work-hour, the recipes a trade opens and the Mastery cap are the same for every hero. A payer's hour is worth exactly a free hero's |
+| **Only a full day sees it** | A hero who hunts under 10 hours a day gets nothing from Premium's hunting hours. On the mix, with a mean of 6 hunted hours, most heroes never reach the free cap |
+| **Gold can match it** | A free hero who buys one hunting block hunts what a Premium hero hunts, for 4.0 hours of wage (2.5 net), a third of a full day's net coin (`04` section 11). So the hunting half of Premium is worth that much a day, and no more |
+| **No power** | Town work makes the kit, which counts at `kitWeight` inside the kit spread limit. A free account can already make its own kit, since an account hunting 6 hours has 6.4 work-hours spare. Premium buys more of everything a day, not a stronger hero at any hour |
+| **No new gold from the store** | The store floor's daily budget, `storeBudget`, is for the account and Premium does not raise it. Extra labor reaches gold only by selling to players, which moves gold and mints none |
+| **Faster, never higher** | Trade XP comes about 25% faster at 2 extra work hours: one trade to 99 in about 31 days of full work in place of 39 (COMPUTED). The cap at 99 and the three Masteries are the same, so a payer gets there sooner and holds nothing a free account cannot |
 
-On the server: if a third of heroes pay, labor rises about 8% and the labor ratio on the mix falls from 0.75 to about 0.69. Bought hunting pulls it the other way, to about 0.85 (`04` section 11), and both together sit near 0.78. The Lab reads them together (section 5.8). (COMPUTED. SPECULATIVE on who pays and who buys.) Premium is a money surface and goes to the pre-launch Security review with the work-day clamp: the server alone reads Premium from its own column and sets each hero's cap.
+**Premium and the labor ratio.** Its two halves cancel. 2 more hunted hours ask for 1.6 work-hours of kit (2 x `kitWork`), and 2 more work hours give 1.6 (2 x 0.8 used). If a third of heroes pay and use both, the ratio on the mix moves from 0.75 to about 0.77. (COMPUTED. SPECULATIVE on who pays.) Premium is a money surface and goes to the pre-launch Security review with both caps: the server alone reads Premium from its own column and sets each hero's hunting day and work day.
+
+**Labor can be bought past the cap.** The owner's ruling of 2026-11-22: "Let's do the same thing with stamina that we are for labor, it can be bought, but it scales and pretty pricey." A hero buys town work in blocks on top of `workDay` and Premium's hours, by the one price rule of `04` section 11: 2 hours a block, 0.5 hours of wage an hour to start (band 0.4 to 0.6), 1.5 times dearer for each block that day, at most 4 blocks. What bounds it:
+
+| Bound | What it holds |
+|---|---|
+| **The clamp and the growth** | At most 4 blocks a day. Four cost 8.1 hours of wage, 6.1 net of the goods they make, 82% of a free hero's full day of net coin |
+| **Pricey from the first block** | A work-hour makes goods worth 0.25 hours of wage at reference, so the starting price is twice that. The floor of 0.4 sits above what a work-hour's goods fetch even at the store's ceiling (0.375), so bought labor never prints gold, even when labor is short |
+| **No power** | A bought work-hour makes goods at the same yield, quality and speed as any other |
+| **Faster, never higher** | Bought work trains a trade sooner. The cap at 99 and the three Masteries hold |
+| **One clock** | A hero cannot hunt and work at once, so hunted, worked and bought hours fit inside one server day |
+
+**What bought labor does to the labor ratio and market depth.** It adds supply, so it lowers the ratio and leans crafted prices toward the floor. At its price nobody buys labor to sell the goods, since they fetch less than the labor cost even at the ceiling. It is bought where a stock rule cannot be met, a band's market is thin, or a player wants trade XP sooner. That is where it helps: it deepens thin band markets at small population, one of the risks in section 7.1. If a tenth of heroes buy one block a day, labor rises about 3% and the ratio on the mix moves by about 0.02. With bought hunting and Premium in as well, `04` section 11's what-if puts the ratio near 0.84. The Lab reads all three together (section 5.8). (COMPUTED. SPECULATIVE on who buys.)
 
 **The steady state for crafted prices.** Two things bend toward balance. As the price falls, more heroes switch from store basics to crafted goods, which raises demand. As it rises, more accounts put idle heroes to work, which raises supply. The price is held inside the band from `floorShare` to `storeCeiling`, 0.4 to 1.5 times reference at the starting values. Where it rests inside that band depends on how players behave, and a model of people is the only thing that can estimate it (section 5.8).
 
@@ -682,7 +698,7 @@ One account on the mix, 24 hunted hero-hours a day, in hours of wage. The share 
 
 Two findings.
 
-1. **Crafting's sinks are 19 to 34% of the faucet.** `04` section 11 wants gold destroyed over gold created near 0.85 to 1.0. Crafting does not get there, at any lever value I would call sane. At least half of the faucet has to be destroyed by wealth sinks outside this page: the hall's rooms, the castle, hero slots, the first climb up the Temper ladder, Blessings, bought hunting (`04` section 11, the owner's rule of 2026-11-22), the market tax on remains bought for the flame, and whatever the owner decides about Crowns. Each must be priced in hours of wage or it fades.
+1. **Crafting's sinks are 19 to 34% of the faucet.** `04` section 11 wants gold destroyed over gold created near 0.85 to 1.0. Crafting does not get there, at any lever value I would call sane. At least half of the faucet has to be destroyed by wealth sinks outside this page: the hall's rooms, the castle, hero slots, the first climb up the Temper ladder, Blessings, bought hunting and bought town work (`04` section 11, the owner's rules of 2026-11-22), the market tax on remains bought for the flame, and whatever the owner decides about Crowns. Each must be priced in hours of wage or it fades.
 2. **The sinks fall as the economy improves.** At 20% on crafted the store burns 5.76. At 100% it burns nothing. A fee on the job is the only crafting sink that grows as players supply each other, which is why `jobFee` starts as high as a quarter of a good's value.
 
 ### 5.7 The controls, judged
@@ -705,7 +721,7 @@ This belongs to the economy phase of `07-balance-lab.md` (phase 6, the account d
 | 1 | **Kit burn on the engine.** Meals, drinks and charges used for each hunted hour, by seat, style and stance, on the new sustain model | The real size of a kit-hour, and whether the bill can be the same for every style | Burn differs between styles by more than a stated tolerance after the line is sized. Then parity needs a different unit than "the hour" |
 | 2 | **The kit's worth in depth.** The reference company on store basics, on Plain crafted and on Master crafted | `kitWeight`, `storeLag`, `qualitySteps`. Whether the gap can be felt | A store-fed company cannot hold its ground on Careful. Or the best kit is worth under 4% of pace at any allowed value |
 | 3 | **The account day with town work.** Engine cells for the hunt, the closed form for town jobs, the stock rules | The labor an account's kits need against what it has, for the three account kinds | The composed day and the same day played on `tools/qa/local-world.mjs` disagree past the tolerance |
-| 4 | **The server day.** Account days of a few kinds, summed, with the mix, the bought hunting blocks and the share on Premium as swept inputs | The labor ratio and each stream's surplus across mean hunted hours of 3 to 12 | No value of `kitWork` and `workDay` keeps the ratio inside 0.6 to 1.2 across that range. Then the labor cap needs to follow hunting, not the clock |
+| 4 | **The server day.** Account days of a few kinds, summed, with the mix, the bought hunting and work blocks and the share on Premium as swept inputs | The labor ratio and each stream's surplus across mean hunted hours of 3 to 12 | No value of `kitWork` and `workDay` keeps the ratio inside 0.6 to 1.2 across that range. Then the labor cap needs to follow hunting, not the clock |
 | 5 | **The cover sweep.** Each hunting stream at use shares of 20 to 100% | `partCover`, `flameCover`, `scrapCover`, and the size of Weighhouse orders | A stream's surplus exceeds what the floor budget and the orders take at a 40% use share |
 | 6 | **The gold ledger.** Faucets and sinks for a server at day 30 and day 180, with every wealth sink in hours of wage | Whether sinks over faucets reaches 0.85 to 1.0, and how much of that crafting carries | Gold held for each account grows without limit in days of income |
 | 7 | **The band markets.** Accounts in each band at 300, 1,000 and 10,000 accounts, on a Level spread from career runs | Whether a band's market is deep enough, and so how wide a band must be | Fewer than a stated number of sellers in most bands at 1,000 accounts. Then bands widen or orders match across neighbors |
@@ -779,7 +795,7 @@ The first four are answered (2026-11-22). The rest stay open.
 1. **Company trades with three Masteries, or trades on each hero?** Answered: company trades with three Masteries (CR-Q1 a). Section 2.6.
 2. **Alchemy never heals.** Answered: yes, only food heals (CR-Q2 a). Section 2.2.
 3. **May gold buy luck?** Answered: yes. Remains trade and bought remains burn (RD-Q1 b). The flame's room and its burn only while hunting bound it (`02` section 2b).
-4. **A work day for town labor.** Answered: each hero has a daily cap, and Premium makes it longer (CR-Q3 b). Section 5.3 has the hours and what bounds the payer gap. Whether 8 hours is right stays a lever.
+4. **A work day for town labor.** Answered: each hero has a daily cap, Premium makes it longer (CR-Q3 b), and more can be bought in pricey blocks (2026-11-22). Section 5.3 has the hours and what bounds the payer gap. Whether 8 hours is right stays a lever.
 5. **Temper costs a share again at each tier.** Section 2.4. It is what makes the Level treadmill a crafting demand. The cost is that "it carries up" becomes "it carries up for a price".
 6. **Hunters no longer gather.** Mining and Woodcutting between pulls was an owner ruling of 2026-10-14. Section 2.7 removes it.
 7. **Runecutting.** The name, or Graving, or another.
@@ -787,7 +803,7 @@ The first four are answered (2026-11-22). The rest stay open.
 9. **Hall upkeep.** `02` asks whether the hall needs upkeep or only build costs. I recommend upkeep for bench bonuses only, with nothing ever lost.
 10. **Who feeds a hired hero?** The hirer, the owner, or the store. Not designed here.
 11. **How many trades should a new player meet in the first week?** I would open Cooking, Fishing, Mining and Smithing on day one and the rest by the company's first depth records. That is a first-hour question for `02` package 8.
-12. **The size of the mix.** How many hours a day should a hero be able to hunt? Every number in section 5 turns on it. The owner settled the shape on 2026-11-22: the hunting day stays, and a hero can buy more with gold (`04` section 11). Its length is a lever the Lab sets.
+12. **The size of the mix.** How many hours a day should a hero be able to hunt? Every number in section 5 turns on it. The owner settled it on 2026-11-22: the hunting day is 10 hours, 12 with Premium, and a hero can buy more with gold (`04` section 11). How long players really hunt inside that is still the mix, and only live play reads it.
 
 ### 7.4 What I did not check
 
@@ -796,4 +812,4 @@ The first four are answered (2026-11-22). The rest stay open.
 - Albion's focus and gear loss, EVE's research limits, and Wakfu's replanting and player-run regions are from memory. I read the pages linked in section 0 today and nothing else. Two wiki pages refused an automated read.
 - Whether Runecutting or Artificing collides with another game's name.
 - The server cost of job rows and banded stacks against the monthly budget. Closed form keeps a job at three writes, but nobody has counted the rows.
-- How Crowns and the paid edge meet any of this beyond the owner's two answers: Premium lengthens the work day (section 5.3), and Crowns sold for gold can buy remains for the flame. Both go to the pre-launch Security review.
+- How Crowns and the paid edge meet any of this beyond the owner's answers: Premium adds 2 hunting hours and lengthens the work day (section 5.3), Crowns sold for gold can buy remains for the flame, and gold buys hunting and work blocks. All go to the pre-launch Security review.

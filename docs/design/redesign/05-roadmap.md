@@ -105,7 +105,7 @@ Some things only players can answer, and they wait for a played build: whether a
 
 ### Stage 5. Calibrate globally
 
-Once the mechanics hold, all levers are tuned together in one pass: the step ratio, pay per step, fall back triggers, move costs and cooldowns, role mixes, Trait budgets, supply prices, the hunting day. Sensitivity runs say which levers matter. The rule from the baseline stands: content data first, then a coefficient, then a curve, and never a dial for one ground (LR-1). Calibration ends with a table of every target, read from the engine, and a list of what is still a hypothesis.
+Once the mechanics hold, all levers are tuned together in one pass: the step ratio, pay per step, fall back triggers, move costs and cooldowns, role mixes, Trait budgets, supply prices, and the prices of bought hunting and town work. The hunting day itself is no longer a lever: the owner set it at 10 hours, 12 with Premium (2026-11-22). Sensitivity runs say which levers matter. The rule from the baseline stands: content data first, then a coefficient, then a curve, and never a dial for one ground (LR-1). Calibration ends with a table of every target, read from the engine, and a list of what is still a hypothesis.
 
 ### Stage 6. Implement
 

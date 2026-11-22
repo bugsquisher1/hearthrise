@@ -66,6 +66,34 @@ Not one of Tyler's examples. It was found because the pass tried it. The one bas
 - A coupling held by a validator is the safest kind, because it cannot be broken by accident. It is also invisible in every list of levers. The registry lists the attack interval as one global knob. It is really one knob on the fast side and two on the slow side.
 - The attack interval is far from proportional. Halving it (twice the swings, for heroes and monsters alike) raises a lone hero's kills by 19% and its damage taken by 26%. Doubling it cuts kills by 15% and damage taken by 27%. Most of an hour is not swinging.
 
+---
+
+## 5. Hero damage with monster health: one lever for difficulty, and a hidden one for XP
+
+Kill time is damage over health, so the two should be one lever. The grid is each at x0.5, x1, x2. MEASURED, run 44969087150, 8 points, 4 seeds.
+
+<!-- GEN: exp id=damage-hp groups=party:1,party:4,four:deadly outcomes=killsPerH,levelXpPerH,takenPerH -->
+<!-- /GEN -->
+
+- **On kills they are one lever.** Double both and kills an hour come back to 1.01 times the base, alone, in the four and on Deadly. Halve both and they come back to 1.02. Whatever the ratio is, the fight is the same fight.
+- **On XP they are not.** The same two points pay 2.02 times and 0.50 times the XP, because XP follows monster health. "Scale damage and health together" is a pure XP multiplier that changes nothing about the fight. It is the cleanest pace lever in the build, and nothing names it as one.
+- **The single readings are wrong by 13% to 24% at these points,** and by sign as well as size. Read one at a time, damage x2 is worth +28% kills alone and health x2 costs 33%, so together they "should" cost 14%. They cost nothing. This is the dead time again: one-at-a-time readings of a kill time lever are taken against a hunt that is mostly not killing.
+- **Damage taken does not come back.** With both doubled a lone hero takes 0.93 of the base, the four 0.70, the four on Deadly 0.65. Fights are the same length, but spells and area damage clear a pull differently when every blow is twice as large against twice the health.
+
+---
+
+## 6. Party XP with tier XP, and the tier a four chooses
+
+The grid is party XP at x0.8, x1, x1.2 against tier XP at x0.8, x1, x1.2. MEASURED, run 44969087150, 8 points, 4 seeds.
+
+<!-- GEN: exp id=party-tier groups=party:1,four:normal,four:dangerous,four:deadly outcomes=netLevelXpPerH -->
+<!-- /GEN -->
+
+- **Inside the engine these two do not interact at all.** Every joint point is the product of its two single readings, within noise. Each has an elasticity of exactly 1 on the cells it touches and exactly 0 on the rest: party XP does nothing for a lone hero, and tier XP does nothing on Normal. They are the two cleanest levers in the pass.
+- **So the coupling is all in the player's choice, and that choice has enormous slack.** COMPUTED from section 3.3 of the sensitivity page: a four earns 1.6 to 3.5 times as much on Deadly as on Normal and does not die there. Tier XP is worth 25% of that step. Take it away whole and Deadly still pays 1.3 to 2.8 times Normal. No value of tier XP inside this grid, and none down to zero bonus, moves the four off the hardest tier. The four's tier is decided by the pull size and by the fact that it cannot die, not by the XP dial.
+- **The same slack means party XP cannot fix the four on Normal.** At Levels 30 and 110 the four earns 0.48 and 0.51 of what its heroes earn alone. Party XP would need x2 to close that, and x2 would also double the four on Deadly, where a head already earns 3.3 to 3.5 times what it earns on Normal. The gap is a spawn ceiling, and an XP multiplier is the wrong shape to close it.
+- JUDGMENT: "which four runs which tier" is not a balance question in this build. It has one answer. It becomes a question only if the four can die on the hardest tier, and section 7 shows how far away that is.
+
 <<FILL:EXPERIMENTS>>
 
 <<FILL:LOOPS>>

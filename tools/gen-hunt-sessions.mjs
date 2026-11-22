@@ -375,7 +375,9 @@ export const WORLD_FIELDS_READ = Object.freeze({
    the last; ONE forward file per generator): hr_hunt_vendor_value loses the Shop's bids on the Hearth Token and the three boss-forged body
    pieces, which the approved-cuts items catalogue takes out of hr_items AFTER this file. A forward file after that catalogue could not be
    re-applied before it (tests/schema-drift.mjs's second apply of the staged tail: its bids would name items hr_items no longer holds). */
-export const OUT_NAME = '1028-spell-rule-hunt-sessions-catalogue.generated.sql';
+/* 1054-danger-scale-hunt-sessions-catalogue (lane/v1-climb wave 1, 2026-11-22; 02 package 3): hr_hunt_world_shape moves (the world's six Danger
+   fields and a pack's down count, src/core/hunt/danger.js PERSISTED); 1028 (STAGED) is carried whole. */
+export const OUT_NAME = '1054-danger-scale-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -1130,7 +1132,12 @@ export function render(src) {
 --   ${r.vendor.length} vendor values, ${r.basics.length} store supplies paid per use, ${r.targets.length} target modes,
 --   ${r.lanes.length} lanes, ${r.abilities.length} abilities, ${r.setOptions.length} action-set options, ${r.grounds.length} hunt grounds
 --
--- NEW IN THIS FILE (lane/c-spell-rule, systems-engineer, 2026-11-21; balance program L17, Tyler's spell calls of 2026-11-21: 21-5 every cast a share of
+-- NEW IN THIS FILE (lane/v1-climb wave 1, backend-architect, 2026-11-22; 02 package 3, 05 stage 6 wave 1: the Danger scale on the server). It carries
+--   1028-spell-rule-hunt-sessions-catalogue (STAGED) whole. Only hr_hunt_world_shape moves: the world carries the scale's six fields (risk, danger, climb,
+--   clean, low, cool) and every pack its down count (src/core/hunt/danger.js PERSISTED). No ground, spawn, kill bound, limit, bid or end reason moves (the
+--   scale's own bounds are 1055's catalogue and 1056's). ORDER: the sequence in its name, before 1055 and 1056. EDGE: the hr-accrue carrying this lane's
+--   src/core right after this apply (until both land every settle holds world_shape_pending: nothing proposed, refused or counted).
+-- CARRIED FROM 1028-spell-rule-hunt-sessions-catalogue (lane/c-spell-rule, systems-engineer, 2026-11-21; balance program L17, Tyler's spell calls of 2026-11-21: 21-5 every cast a share of
 --   its caster's blow, 21-6 the bar budget, 32-2 Cleave merges into Turning Cut, 32-3 the axes lose Power Strike, 32-5 the hammer's Earth rune strike).
 --   It carries 1021-tohit-ratio-hunt-sessions-catalogue (STAGED) whole. Only hr_hunt_abilities moves: cleave leaves, quarry_blow (the club's, an Earth rune
 --   spell, offense, 8 s, 10 mana) joins, and power_strike's disciplines lose dual_axe. A cast's numbers are the engine's (no column carries them), so the

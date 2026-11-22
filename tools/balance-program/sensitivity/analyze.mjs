@@ -283,6 +283,31 @@ export function interaction(P, joint, singles, groups, outIds) {
   return out;
 }
 
+/* ── THE STRUCTURE OF THE BASE: what the unpatched tree itself says about caps and axes (no lever moved) ─────────────────────────── */
+/** Per cell: the mean of each core outcome, and on Normal the SPAWN CEILING (every monster of the ground killed the instant its pack
+    returns: monsters x 3600 s / respawn, COMPUTED from src/data/hunt-grounds.js) and the share of it the cell's kills reach. */
+export async function structure(P, root = ROOT) {
+  const { pathToFileURL } = await import('node:url');
+  const G = (await import(pathToFileURL(join(root, 'src/data/hunt-grounds.js')).href)).HUNT_GROUNDS;
+  const col = (id) => P.ids.indexOf(id);
+  const rows = [];
+  for (const c of P.meta) {
+    const seeds = P.base[c.key];
+    if (!seeds) continue;
+    const m = (id) => { const v = seeds.map((r) => r[col(id)]).filter(finite); return v.length ? sig(mean(v)) : null; };
+    const sd = (id) => { const v = seeds.map((r) => r[col(id)]).filter(finite); return v.length > 1 ? sig(sdOf(v)) : null; };
+    const g = G[c.ground];
+    const monsters = g ? g.pockets.reduce((a, p) => a + p.spawns.length, 0) : null;
+    const ceiling = g && c.tier === 'normal' ? Math.round((monsters * 3600000) / g.respawnMs) : null;
+    const deaths = seeds.reduce((a, r) => a + (r[col('deaths')] || 0), 0), hh = seeds.reduce((a, r) => a + (r[col('_hh')] || 0), 0);
+    rows.push({ key: c.key, L: c.L, gear: c.gear, party: c.party, comp: c.comp, tier: c.tier, ground: c.ground, respawnMs: g ? g.respawnMs : null, monsters, ceiling,
+      ceilingShare: ceiling ? sig(m('killsPerH') / ceiling, 3) : null, deaths, heroHours: Math.round(hh), deathsPer1000h: hh > 0 ? sig((1000 * deaths) / hh, 3) : null,
+      cv: Object.fromEntries(['killsPerH', 'levelXpPerH', 'takenPerH', 'storePerH', 'netPerH'].map((id) => [id, m(id) ? sig(sd(id) / Math.abs(m(id)), 2) : null])),
+      ...Object.fromEntries(CORE.filter((o) => o !== 'deathsPer1000h').map((o) => [o, m(o)])), pullsPerH: m('pullsPerH'), coinPerH: m('coinPerH'), foodPerH: m('foodPerH'), regenPerH: m('regenPerH'), deathTax: m('deathTax') });
+  }
+  return rows;
+}
+
 /* ── THE REPORT ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────── */
 const pct = (x, d = 1) => (finite(x) ? (x >= 0 ? '+' : '') + (100 * x).toFixed(d) + '%' : '  n/a');
 const num = (x, d = 2) => (finite(x) ? (x >= 0 ? '+' : '') + x.toFixed(d) : ' n/a');
@@ -361,20 +386,28 @@ async function selftest() {
 async function main() {
   if (has('selftest')) return selftest();
   const src = arg('parts') ? resolve(arg('parts')) : PARTS_DIR;
-  if (arg('parts')) {
+  /* --save: the parts read from --parts become the committed data (data/parts/); without --parts the committed data is read and
+     the matrix written beside it. A bare --parts reads and prints, and writes nothing. */
+  const save = has('save') || !arg('parts');
+  if (arg('parts') && has('save')) {
     mkdirSync(PARTS_DIR, { recursive: true });
-    for (const f of partFiles(src)) copyFileSync(f, join(PARTS_DIR, (arg('tag') ? arg('tag') + '-' : '') + basename(f)));
+    for (const f of partFiles(src)) copyFileSync(f, join(PARTS_DIR, basename(f)));
   }
-  const P = loadParts(arg('parts') ? PARTS_DIR : src);
-  const M = buildMatrix(P);
+  const P = loadParts(src);
+  const M = { ...buildMatrix(P), structure: await structure(P) };
   const prev = existsSync(MATRIX_FILE) ? JSON.parse(readFileSync(MATRIX_FILE, 'utf8')) : {};
   const doc = { schema: 'hearthrise.balance-sensitivity-matrix/1', scenarioHash: P.scenarioHash, commits: P.commits, githubRuns: arg('run') ? arg('run').split(',') : prev.githubRuns || [], seedSets: P.seedSets,
     cells: P.meta, outcomes: OUTCOMES.map(([id, label, category, unit]) => ({ id, label, category, unit, kind: kindOf(id) })), core: CORE, ...M };
-  writeFileSync(MATRIX_FILE, JSON.stringify(doc) + '\n');
+  if (save) { mkdirSync(DATA_DIR, { recursive: true }); writeFileSync(MATRIX_FILE, JSON.stringify(doc) + '\n'); }
   const out = console.log;
   out('SENSITIVITY: ' + P.points.size + ' points over ' + P.meta.length + ' cells, scenario ' + P.scenarioHash + ', seeds ' + P.seedSets.join(' ') + ', ' + Object.keys(M.oat).length + ' levers, ' + Object.keys(M.fx).length + ' experiments');
   if (M.refused.length) { out('REFUSED: ' + M.refused.length); for (const r of M.refused) out('  ' + r.lever + ' x' + r.m + ': ' + r.why); }
   if (M.problems.length) { out('POINTS WITH AN ERROR CELL OR A TOOL RED: ' + M.problems.length); for (const r of M.problems.slice(0, 30)) out('  ' + r.point + ': ' + r.errors + ' errors, ' + r.reds + ' reds, ' + JSON.stringify(r.first).slice(0, 160)); }
+  if (has('structure')) {
+    out('THE BASE, cell by cell (kills an hour against the spawn ceiling on Normal; deaths pooled over the seeds)');
+    for (const r of M.structure) out('  ' + r.key.padEnd(30) + String(r.ground).padEnd(17) + ' kills ' + String(r.killsPerH).padStart(6) + (r.ceiling ? ' / ' + String(r.ceiling).padStart(4) + ' = ' + (100 * r.ceilingShare).toFixed(0).padStart(3) + '%' : '              ') + '  xp ' + String(r.levelXpPerH).padStart(8) + ' net xp ' + String(r.netLevelXpPerH).padStart(8) + '  taken ' + String(r.takenPerH).padStart(7) + '  store ' + String(r.storePerH).padStart(7) + '  net ' + String(r.netPerH).padStart(7) + '  deaths ' + r.deaths + ' in ' + r.heroHours + ' h  lowP10 ' + r.lowHpP10 + '  cv(kills,xp) ' + r.cv.killsPerH + ' ' + r.cv.levelXpPerH);
+    return 0;
+  }
   const which = arg('report', 'all');
   if (arg('lever')) { reportLever(M, arg('lever'), out); return 0; }
   if (arg('exp')) { reportFx(M, arg('exp'), out); return 0; }

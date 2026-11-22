@@ -107,7 +107,7 @@ If it fails, merge it, simplify it or cut it. Having code or a design chapter is
 | Keep as core | Change | Drop |
 |---|---|---|
 | Server-run hunts that continue while away | Three hand-picked tiers become one Danger scale the party climbs by itself inside a stance | Percent layers that cannot be felt |
-| A company of up to four heroes on one account | The four arrives inside the first hour as one step, not as four creations | Talent trees of stat lines |
+| A company of up to four heroes on one account | The four arrives inside the first hour as one step, not as four creations | Talents as stat lines. They become move evolutions, with a point every Level |
 | Classless heroes, skills trained by use, a Level with no cap | Trades belong to the company, not to each hero | Skills repeated on every hero |
 | The action bar with conditions | Gear gains Traits and Signatures | Gear that is only a bigger number |
 | Drops with a known home, rare drops that are rare | Monsters gain roles and reach the back row | A party that is one health bar |

@@ -175,12 +175,12 @@ const cases = {
      three close calls; never struck reads Safe. The party reads its lowest hero and every hero's close calls. */
   'report-word': async (M) => {
     const R = await import(pathToFileURL(join(M.root, 'src/core/hunt/report.js')).href + M.V);
-    const D = await import(pathToFileURL(join(M.root, 'src/data/hunt-report.js')).href + M.V);
-    if (D.validateReport().length) return 'the table: ' + D.validateReport().join('; ');
     const cases = [[null, 0, 'safe'], [500, 0, 'safe'], [499, 0, 'close'], [100, 2, 'close'], [99, 0, 'near'], [700, 3, 'near'], [0, 0, 'near']];
     for (const [pm, close, want] of cases) if (R.riskWord(pm, close) !== want) return 'riskWord(' + pm + ', ' + close + ') = ' + R.riskWord(pm, close) + ', not ' + want;
-    const p = R.partyRisk([{ low: { pm: 600, at: 1 }, close: 1 }, { low: { pm: 450, at: 2 }, close: 2 }, null]);
-    return p.low.pm === 450 && p.close === 3 && p.word === 'near' ? null : 'the party ' + JSON.stringify(p);
+    /* the party: its heroes' reports folded as the tally folds them (tally.js addTally) */
+    const hero = (pm, at, close) => ({ report: { low: { pm, by: 'rat', blow: 'basic', at }, close, fired: {}, waits: {} } });
+    const p = M.tally.addTally(M.tally.addTally(M.tally.emptyTally(), hero(600, 1, 1)), hero(450, 2, 2)).report;
+    return p.low.pm === 450 && p.close === 3 && R.riskWord(p.low.pm, p.close) === 'near' ? null : 'the party ' + JSON.stringify(p);
   },
   /* AN-10 THE ENGINE SAYS IT: a blow at a hero carries the HP it left and the hero's max (damage.js landHit), the reading the report folds;
      a blow at a monster carries neither. */
@@ -348,6 +348,10 @@ const mutants = [
     edits: [['src/core/hunt/report.js', 'if ((hp + amount) * 1000 >= max * line && hp * 1000 < max * line)', 'if (hp * 1000 < max * line)']] },
   { name: 'a close call is a fall under half', case: 'report-risk',
     edits: [['src/data/hunt-report.js', 'closeCallPm: 250,', 'closeCallPm: 499,']] },
+  { name: 'Close starts under a third', case: 'report-word',
+    edits: [['src/data/hunt-report.js', 'closePm: 500,', 'closePm: 333,']] },
+  { name: 'Near death starts under a twentieth', case: 'report-word',
+    edits: [['src/data/hunt-report.js', 'nearPm: 100,', 'nearPm: 50,']] },
   { name: 'a wait is booked as a use', case: 'report-rules',
     edits: [['src/core/hunt/report.js', 'const w = reportOf(ev.u, ev).waits;', 'const w = reportOf(ev.u, ev).fired;']] },
   { name: 'a cast no rule picked is counted', case: 'report-rules',

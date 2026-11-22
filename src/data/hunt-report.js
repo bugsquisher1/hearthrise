@@ -14,7 +14,7 @@
 //   barMax       the bar's slots one report keeps (the rules block's lines)
 //   rulesShown   the rules block's lines on the end card (fired first, then never fired)
 //
-// PURE ESM. Data only, and its validator.
+// PURE ESM. Data only (tests/hunt-core/tally.mjs report-word reads every threshold through the one word).
 // ════════════════════════════════════════════════════════════════════════
 
 export const HUNT_REPORT = Object.freeze({
@@ -26,21 +26,7 @@ export const HUNT_REPORT = Object.freeze({
   rulesShown: 6,
 });
 
-/** The one word for a hunt, safest first (the end card reads `report.word_<id>`). */
-export const RISK_WORDS = Object.freeze(['safe', 'close', 'near']);
-
 /** Why a slot whose conditions held could not fire (src/core/hunt/events.js rule_wait `why`), and the never-fired reason a slot with
     no wait at all reads (its condition was never true). The end card reads `report.why_<id>`. */
 export const WAIT_REASONS = Object.freeze(['mana', 'cooldown', 'no_stock', 'no_target', 'out_of_range', 'gold_short', 'level']);
 export const NEVER_TRUE = 'never_true';
-
-/** Every problem with the table, as strings. Empty = valid. */
-export function validateReport(T = HUNT_REPORT) {
-  const out = [];
-  const pm = (k) => { if (!Number.isInteger(T[k]) || T[k] <= 0 || T[k] >= 1000) out.push(k + ' must be a permille between 1 and 999, got ' + T[k]); };
-  for (const k of ['closeCallPm', 'closePm', 'nearPm']) pm(k);
-  if (!(T.nearPm < T.closeCallPm && T.closeCallPm < T.closePm)) out.push('nearPm < closeCallPm < closePm must hold (a tenth, a quarter, a half)');
-  for (const k of ['nearCalls', 'barMax', 'rulesShown']) if (!Number.isInteger(T[k]) || T[k] < 1) out.push(k + ' must be a whole number of at least 1');
-  if (T.rulesShown > T.barMax) out.push('rulesShown is more than the bar a report keeps');
-  return out;
-}

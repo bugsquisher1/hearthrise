@@ -26,6 +26,6 @@ export default Object.freeze({
     if (!near.length) return null;
     near.sort((a, b) => a.low.pm - b.low.pm || a.cs.slot - b.cs.slot);
     const { cs, low } = near[0];
-    return { text: blowLine('report.needs_near', low, { name: nameOf(cs) || t('away.your_hero') }), label: t('away.needs_change_plan'), go: 'prep', slot: cs.slot };
+    return { text: blowLine('report.needs_near', 'report.needs_near_spell', low, { name: nameOf(cs) || t('away.your_hero') }), label: t('away.needs_change_plan'), go: 'prep', slot: cs.slot };
   },
 });

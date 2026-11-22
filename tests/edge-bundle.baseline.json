@@ -183,6 +183,11 @@
         "bytes": 3212801,
         "on": "2026-11-22",
         "why": "lane/c-hunt-report FB-7: the hunt report's counters reach the settle (src/core/hunt/report.js and src/data/hunt-report.js, new; tally.js folds the report; damage.js reads a blow's HP at a hero; accrue-hunt.js proposes analyzer.report)"
+      },
+      {
+        "bytes": 3211553,
+        "on": "2026-11-22",
+        "why": "cut locked in (1248 bytes)"
       }
     ]
   }

@@ -28,18 +28,18 @@ import { changedSlot, CAUSE_SLOT } from '../hunt-view/hunt-report.js';
 /* A share in permille as a whole percent; a hero still standing never reads 0% (6 permille is "1%"). */
 const pct = (pm) => (pm > 0 ? Math.max(1, Math.floor(pm / 10)) : 0);
 const what = (uses) => (ABILITIES[uses] ? abilityName(uses) : itemName(uses));
-/** The lowest-health words in the house's voice: "from a Rat" for a swing, "from Barn Spider's Venom Spray" for a spell. `key` the
-    swing's text key, its spell twin `key + '_spell'`; `o` the line's other values. */
-export function blowLine(key, low, o) {
+/** The lowest-health words in the house's voice: "from a Rat" for a swing (`swing`, a text key), "from Barn Spider's Venom Spray" for a
+    spell (`spell`); `low` { pm, by, blow }, `o` the line's other values. */
+export function blowLine(swing, spell, low, o) {
   const v = Object.assign({ pct: pct(low.pm), monster: monsterName(low.by) }, o);
-  return low.blow === 'basic' ? t(key, v) : t(key + '_spell', Object.assign(v, { blow: abilityName(low.blow) }));
+  return low.blow === 'basic' ? t(swing, v) : t(spell, Object.assign(v, { blow: abilityName(low.blow) }));
 }
 
 /** The risk block's lines, the word first. `xpH`: the hunt's Level XP an hour (the server's), for a death's hunting time. */
 export function riskLines(r, xpH) {
   if (!r) return [];
   const out = [{ word: true, text: t('report.word_' + r.word) }];
-  out.push({ text: r.low ? blowLine('report.low', { pm: r.low[0], by: r.low[1], blow: r.low[2] }) : t('report.low_none') });
+  out.push({ text: r.low ? blowLine('report.low', 'report.low_spell', { pm: r.low[0], by: r.low[1], blow: r.low[2] }) : t('report.low_none') });
   out.push({ text: r.close > 0 ? t('report.close', { count: r.close }) : t('report.close_none') });
   for (const [item, ms] of r.dry) out.push({ text: ms >= 0 ? t('report.dry', { item: itemName(item), time: spanWords(ms) }) : t('report.dry_some', { item: itemName(item) }) });
   if (r.ranOut) out.push({ text: t('report.ran_' + r.ranOut) });

@@ -168,14 +168,3 @@ export function reportProposal(r, bar, gear) {
   if (isMap(gear)) out.gear = gear;
   return out;
 }
-
-/** A party's reading from its heroes' reports: the lowest health of any hero, and every hero's close calls. */
-export function partyRisk(reports) {
-  let low = null, close = 0;
-  for (const r of Array.isArray(reports) ? reports : []) {
-    if (!isMap(r)) continue;
-    low = lower(low, r.low);
-    close += nat(r.close) || 0;
-  }
-  return { low, close, word: riskWord(low ? low.pm : null, close) };
-}

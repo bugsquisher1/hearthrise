@@ -441,9 +441,9 @@ function reportOat(M, out) {
 }
 /* the matrix as a markdown table: a row a lever, a column a core outcome, the local elasticity, then (low / high) where either end
    differs from it by 0.15 or more. `.` is a cell where nothing resolved. --group picks the cells (default all). */
-function mdMatrix(M, out) {
-  const g = arg('group', 'all');
-  const cols = arg('outcomes') ? arg('outcomes').split(',') : CORE;
+function mdMatrix(M, out, o = {}) {
+  const g = o.group || arg('group', 'all');
+  const cols = o.outcomes || (arg('outcomes') ? arg('outcomes').split(',') : CORE);
   const f = (x) => (finite(x) ? (Math.abs(x) < 0.005 ? '0' : x.toFixed(2)) : '?');
   out('| Lever | ' + cols.join(' | ') + ' |');
   out('|---|' + cols.map(() => '---').join('|') + '|');
@@ -486,12 +486,12 @@ function reportFx(M, id, out) {
 }
 
 /* one lever's curve as a markdown table: a row an outcome, a column a step (--groups a,b: one table a group) */
-function mdLever(M, id, out) {
+function mdLever(M, id, out, o = {}) {
   const lv = M.oat[id];
   if (!lv) { out('no lever ' + id); return; }
   const ms = Object.keys(lv.steps).map(Number).sort((a, b) => a - b);
-  const outs = arg('outcomes') ? arg('outcomes').split(',') : CORE;
-  for (const g of (arg('groups') || 'all').split(',')) {
+  const outs = o.outcomes || (arg('outcomes') ? arg('outcomes').split(',') : CORE);
+  for (const g of o.groups || (arg('groups') || 'all').split(',')) {
     if (!lv.steps[ms[0]][g]) continue;
     out('\n' + id + ', ' + ((M.groups.find((x) => x.id === g) || {}).label || g) + '\n');
     out('| Outcome | ' + ms.map((m) => 'x' + m).join(' | ') + ' |');
@@ -501,12 +501,12 @@ function mdLever(M, id, out) {
 }
 /* one experiment as markdown: for each outcome and group, every multi-factor point: the joint reading, what the single readings
    say, and the gap. --all prints unresolved gaps too. */
-function mdExp(M, id, out) {
+function mdExp(M, id, out, o = {}) {
   const x = M.fx[id];
   if (!x) { out('no experiment ' + id); return; }
   const names = Object.keys(x.factors);
-  const outs = arg('outcomes') ? arg('outcomes').split(',') : CORE;
-  for (const g of (arg('groups') || 'all').split(',')) for (const o of outs) {
+  const outs = o.outcomes || (arg('outcomes') ? arg('outcomes').split(',') : CORE);
+  for (const g of o.groups || (arg('groups') || 'all').split(',')) for (const o of outs) {
     const rel = kindOf(o) === 'rel', dth = kindOf(o) === 'deaths';
     const show = (v) => (!finite(v) ? 'n/a' : rel ? 'x' + v.toFixed(3) : dth ? v.toFixed(1) : num(v, 3));
     const eff = (p) => { const e = p.effects[g] && p.effects[g][o]; return !e ? 'n/a' : e.k === 'd' ? e.a + (e.r ? '' : '~') : e.k === 'r' ? 'x' + (1 + e.e).toFixed(3) + (e.r ? '' : '~') : num(e.e, 3) + (e.r ? '' : '~'); };
@@ -522,6 +522,60 @@ function mdExp(M, id, out) {
       out('| ' + names.map((n) => 'x' + p.levers[n]).join(' | ') + ' | ' + eff(p) + ' | ' + (i ? show(i.predicted) : 'single') + ' | ' + (i ? (rel ? pct(Math.exp(i.inter) - 1) : num(i.inter, dth ? 1 : 3)) + ' +/- ' + (rel ? (100 * i.se).toFixed(1) + '%' : i.se) : '') + ' |');
     }
   }
+}
+
+/* ── THE DOCUMENTS' GENERATED TABLES ────────────────────────────────────────────────────────────────────────────────────────────────
+   A block in 04-sensitivity.md or 05-interactions.md that opens with <!-- GEN: kind key=value ... --> and closes with <!-- /GEN -->
+   is re-written by --write-docs from the parts, so no table in the two documents is typed. Kinds:
+     matrix group=<g> outcomes=a,b            the levers by outcomes table of elasticities
+     lever id=<lever> groups=a,b outcomes=a,b one lever's curve
+     exp id=<experiment> groups=a,b outcomes=a,b   one experiment's joint readings against its single readings
+     list name=dead|intendedMiss|sideEffect|byLevel|byStyle|redundant|nonlinear|refused   one of the named lists */
+export const DOCS = Object.freeze(['docs/design/balance-baseline/04-sensitivity.md', 'docs/design/balance-baseline/05-interactions.md']);
+const f2 = (x) => (finite(x) ? (Math.abs(x) < 0.005 ? '0' : (x > 0 ? '+' : '') + x.toFixed(2)) : 'n/a');
+function listTable(M, name) {
+  const F = M.findings, L = [];
+  const gl = (id) => id.replace(/^L:/, 'Level ').replace(/^way:/, '');
+  if (name === 'dead') { L.push('| Lever | Why it moves nothing |', '|---|---|'); for (const x of F.dead) L.push('| ' + x.lever + ' | ' + x.why + ' |'); }
+  else if (name === 'refused') { L.push('| Lever | Step | Why |', '|---|---|---|'); const by = new Map(); for (const x of M.refused) by.set(x.lever + '|' + x.why, [...(by.get(x.lever + '|' + x.why) || []), x.m]); for (const [k, ms] of by) { const [lever, why] = k.split('|'); L.push('| ' + lever + ' | ' + ms.map((m) => 'x' + m).join(', ') + ' | ' + why + ' |'); } }
+  else if (name === 'intendedMiss') { L.push('| Lever | Meant to move | Elasticity low / local / high | Read |', '|---|---|---|---|'); for (const x of F.intendedMiss) L.push('| ' + x.lever + ' | ' + x.outcome + ' | ' + [x.lo, x.local, x.hi].map(f2).join(' / ') + ' | ' + (x.resolved ? 'resolved, and under 0.05' : 'nothing resolved') + ' |'); }
+  else if (name === 'sideEffect') { L.push('| Lever | Outcome it is not for | Elasticity low / local / high |', '|---|---|---|'); for (const x of F.sideEffect) L.push('| ' + x.lever + ' | ' + x.outcome + ' | ' + [x.lo, x.local, x.hi].map(f2).join(' / ') + ' |'); }
+  else if (name === 'nonlinear') { L.push('| Lever | Outcome | Low step | Local | High step |', '|---|---|---|---|---|'); for (const x of F.nonlinear) L.push('| ' + x.lever + ' | ' + x.outcome + ' | x' + x.steps[0] + ': ' + f2(x.lo) + ' | ' + f2(x.local) + ' | x' + x.steps[1] + ': ' + f2(x.hi) + ' |'); }
+  else if (name === 'byLevel') { L.push('| Lever | Outcome | Step | Elasticity by Level | |', '|---|---|---|---|---|'); for (const x of F.byLevel) L.push('| ' + x.lever + ' | ' + x.outcome + ' | x' + x.at + ' | ' + Object.entries(x.byLevel).map(([g, v]) => gl(g) + ': ' + f2(v)).join(', ') + ' | ' + (x.flip ? 'changes sign' : '') + ' |'); }
+  else if (name === 'byStyle') { const pc = (v, o) => (kindOf(o) === 'rel' ? pct(v) : num(v, 0)); L.push('| Lever | Outcome | Step | Rises for | Falls for |', '|---|---|---|---|---|'); for (const x of F.byStyle) L.push('| ' + x.lever + ' | ' + x.outcome + ' | x' + x.m + ' | ' + Object.entries(x.up).map(([g, v]) => gl(g) + ' ' + pc(v, x.outcome)).join(', ') + ' | ' + Object.entries(x.down).map(([g, v]) => gl(g) + ' ' + pc(v, x.outcome)).join(', ') + ' |'); }
+  else if (name === 'redundant') { L.push('| Lever | Lever | Cosine of the effect vectors | Size of each |', '|---|---|---|---|'); for (const x of F.redundant) L.push('| ' + x.a + ' | ' + x.b + ' | ' + x.cos + ' | ' + x.normA + ' / ' + x.normB + ' |'); }
+  else throw new Error('analyze: no list ' + name);
+  if (L.length === 2) L.push('| none | ' + L[0].split('|').slice(2, -1).map(() => '').join(' | ') + ' |');
+  return L;
+}
+export function genBlock(M, spec) {
+  const [kind, ...rest] = spec.trim().split(/\s+/);
+  const o = Object.fromEntries(rest.map((kv) => { const i = kv.indexOf('='); return [kv.slice(0, i), kv.slice(i + 1)]; }));
+  const L = [], out = (x) => L.push(...String(x).split('\n'));
+  const lists = { groups: o.groups ? o.groups.split(',') : undefined, outcomes: o.outcomes ? o.outcomes.split(',') : undefined, group: o.group };
+  if (kind === 'matrix') mdMatrix(M, out, lists);
+  else if (kind === 'lever') mdLever(M, o.id, out, lists);
+  else if (kind === 'exp') mdExp(M, o.id, out, lists);
+  else if (kind === 'list') L.push(...listTable(M, o.name));
+  else throw new Error('analyze: no generated block kind ' + kind);
+  while (L.length && !L[0].trim()) L.shift();
+  return L;
+}
+/** Re-write every generated block of the two documents; answers how many were written and which specs failed. */
+export function writeDocs(M, root = ROOT, check = false) {
+  let n = 0, stale = 0;
+  const bad = [];
+  for (const rel of DOCS) {
+    const file = join(root, rel);
+    if (!existsSync(file)) continue;
+    const text = readFileSync(file, 'utf8').replace(/\r\n/g, '\n');
+    const next = text.replace(/<!-- GEN: ([^>]*?) -->\n[\s\S]*?<!-- \/GEN -->/g, (all, spec) => {
+      n++;
+      try { return '<!-- GEN: ' + spec + ' -->\n' + genBlock(M, spec).join('\n') + '\n<!-- /GEN -->'; } catch (e) { bad.push(spec + ': ' + e.message); return all; }
+    });
+    if (next !== text) { stale++; if (!check) writeFileSync(file, next); }
+  }
+  return { blocks: n, stale, bad };
 }
 
 async function selftest() {
@@ -610,6 +664,11 @@ async function main() {
     out('REDUNDANT PAIRS: ' + F.redundant.length); for (const x of F.redundant) out('  ' + (x.a + ' ~ ' + x.b).padEnd(44) + 'cos ' + x.cos + '  size ' + x.normA + ' / ' + x.normB);
     out('NONLINEAR: ' + F.nonlinear.length); for (const x of F.nonlinear) out('  ' + x.lever.padEnd(20) + x.outcome.padEnd(18) + 'x' + x.steps[0] + ' ' + num(x.lo) + '  local ' + num(x.local) + '  x' + x.steps[1] + ' ' + num(x.hi));
     return 0;
+  }
+  if (has('write-docs') || has('check-docs')) {
+    const w = writeDocs(M, ROOT, has('check-docs'));
+    out((has('check-docs') ? 'check-docs: ' : 'write-docs: ') + w.blocks + ' generated block(s), ' + w.stale + ' document(s) ' + (has('check-docs') ? 'would change' : 're-written') + (w.bad.length ? ', FAILED: ' + w.bad.join(' | ') : ''));
+    return w.bad.length || (has('check-docs') && w.stale) ? 1 : 0;
   }
   if (has('md')) { mdMatrix(M, out); return 0; }
   if (arg('md-lever')) { for (const id of arg('md-lever').split(',')) mdLever(M, id, out); return 0; }

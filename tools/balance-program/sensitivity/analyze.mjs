@@ -189,6 +189,10 @@ export function pointEffects(P, cells, groups, outIds = OUT_IDS) {
 }
 const cosine = (a, b) => { let ab = 0, aa = 0, bb = 0; for (let i = 0; i < a.length; i++) { ab += a[i] * b[i]; aa += a[i] * a[i]; bb += b[i] * b[i]; } return aa > 0 && bb > 0 ? ab / Math.sqrt(aa * bb) : null; };
 
+/* why the engine refused a lever's step, where the reason was read (reproduced on one cell, the worker's own error text) */
+const REFUSAL_NOTES = Object.freeze({
+  attackInterval: 'the engine refuses it: src/core/hunt/tower.js throws "stairMs is under two engine swings" (the Tower\'s and the Catacombs\' stair clock is 4,000 ms, exactly two attack intervals). The slow side is read in the `clock` experiment, where both move',
+});
 export function buildMatrix(P, root = ROOT) {
   const groups = groupsOf(P.meta);
   const levers = leverList(root);
@@ -199,6 +203,8 @@ export function buildMatrix(P, root = ROOT) {
       const p = P.points.get(lv.id + '=' + m);
       if (!p) continue;
       if (p.refused) { refused.push({ lever: lv.id, m, why: p.refused }); continue; }
+      /* no cell started: the patched data did not pass the game's own validators (the worker exits on import; its reason is in the job's log) */
+      if (!Object.keys(p.cells || {}).length) { refused.push({ lever: lv.id, m, why: REFUSAL_NOTES[lv.id] || 'no cell started: the game\'s own validators refused the patched data (the reason is in the job log)' }); continue; }
       if ((p.errors || []).length || (p.reds || []).length) problems.push({ point: p.id, errors: (p.errors || []).length, reds: (p.reds || []).length, first: (p.errors || [])[0] || (p.reds || [])[0] });
       steps[m] = pointEffects(P, p.cells, groups);
     }

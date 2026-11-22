@@ -91,6 +91,8 @@ export const EXPERIMENTS = Object.freeze([
     factors: { playerAttack: [0.5, 1, 2], monsterHp: [0.5, 1, 2] } },
   { id: 'danger-hp', what: 'Monster damage with hero health: monster blows are written as a share of hero HP, so do the two cancel',
     factors: { monsterDamage: [0.5, 1, 2], heroHp: [0.5, 1, 2] } },
+  { id: 'clock', what: 'The attack clock with the run stair clock: the engine refuses a slower attack alone (the stair must stay two swings long), so the slow side of the attack interval is read here',
+    factors: { attackInterval: [1, 1.5, 2], stairClock: [1, 2] } },
 ]);
 /** A factorial's points, the all-ones point left out (it is the base): [{ id, levers }]. */
 export function pointsOf(exp) {

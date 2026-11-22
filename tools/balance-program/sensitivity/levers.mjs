@@ -89,6 +89,11 @@ export const FAMILIES = Object.freeze([
     file: 'src/data/hunt-tuning.js', lines: (l) => /^\s*regroupMs: \d+,/.test(l), pick: after(/regroupMs: (\d+)/g), round: 100, min: 100, steps: [0.2, 0.5, 2, 4], intends: ['killsPerH', 'pullsPerH'] },
   { id: 'blessingCut', group: 'Progression', label: 'Blessings\' cut of a death', what: 'The share of a death\'s Level XP loss each Blessing takes off (src/data/blessings.js BLESSING_CUT_PERMILLE)',
     file: 'src/data/blessings.js', lines: (l) => /^export const BLESSING_CUT_PERMILLE = /.test(l), pick: listAfter(/freeze\(\[([\d, ]+)\]\)/), min: 1, max: 1000, steps: [0.5, 0.75, 1.25], intends: ['deathTax', 'netLevelXpPerH'] },
+  /* NOT A LEVER OF THE PASS (`experimentOnly`): the Tower's and the Catacombs' stair clock. The engine refuses an attack interval over
+     half of it (src/core/hunt/tower.js: "stairMs is under two engine swings"), so the attack clock cannot be slowed alone. The `clock`
+     experiment moves the two together. No cell of the pass plays a run ground, so the stair alone moves nothing here. */
+  { id: 'stairClock', group: 'Spawns', label: 'Run stair clock', what: 'The time between a cleared floor and the next (src/data/tower.js stairMs, the Tower and the Catacombs)', experimentOnly: true,
+    file: 'src/data/tower.js', lines: (l) => /^\s*stairMs: \d+,/.test(l), pick: after(/stairMs: (\d+)/g), round: 100, min: 100, steps: [2], intends: [] },
 ]);
 
 /** Every lever of the pass: { id, kind, group, label, what, steps, intends }. */
@@ -99,7 +104,7 @@ export function leverList(root) {
     const [steps, intends] = KNOB_PLAN[k.id] || [WIDE, []];
     out.push({ id: k.id, kind: 'knob', group: k.group, label: k.label, what: k.what, steps: [...steps], intends, planned: !!KNOB_PLAN[k.id] });
   }
-  for (const f of FAMILIES) out.push({ id: f.id, kind: 'family', group: f.group, label: f.label, what: f.what, steps: [...f.steps], intends: f.intends, planned: true });
+  for (const f of FAMILIES.filter((x) => !x.experimentOnly)) out.push({ id: f.id, kind: 'family', group: f.group, label: f.label, what: f.what, steps: [...f.steps], intends: f.intends, planned: true });
   return out;
 }
 

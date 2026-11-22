@@ -48,6 +48,8 @@ export function targetOf(place) {
   /* a creature's facts (windows/monster.js factsTarget reads this one row) */
   if (place.kind === 'monster') return place.id ? { win: 'monster', tab: place.id, find: null } : null;
   if (place.kind === 'farm' || place.kind === 'house') return { win: place.kind, tab: null, find: null };
+  /* the recruit press lives in All characters (windows/recruits-pane.js) */
+  if (place.kind === 'recruits') return { win: 'characters', tab: null, find: null };
   return null;
 }
 

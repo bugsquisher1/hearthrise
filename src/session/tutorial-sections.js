@@ -41,6 +41,7 @@ import { ITEMS } from '../data/items.js';
 import { ARMOUR_WEIGHT, ARMOUR_SLOTS } from '../data/core-model.js';
 import { DEFAULT_TIER } from '../data/hunt-tiers.js';
 import { towerOf } from './tower-sections.js';
+import { recruitsOf } from './recruit-sections.js';
 import { SKILLS_DEF } from '../data/skills.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -101,6 +102,12 @@ function deathFacts(cs) {
 function towerFact(cs) {
   const tw = towerOf(cs);
   return tw ? tw.bestFloor : null;
+}
+
+/* The recruit press the server offers this account (recruit-sections.js): { ready, count, level }, or null with none. */
+function recruitFact(cs) {
+  const o = recruitsOf(cs);
+  return o ? { ready: o.ready, count: o.slots.length, level: o.level } : null;
 }
 
 /* The house's next tier to buy, the server's prices: { owned, next: { name, gold, items } | null }, or null. */
@@ -198,6 +205,8 @@ export function tutorialFactsOf(cs, sh) {
       tasks: Object.fromEntries(tally.held.map((h) => [h.task, { kills: h.kills, target: h.target, done: h.done }])),
       paidTasks: Array.from(new Set(tally.recent.map((p) => p.task))) } : null,
     temper: temperFirstRungOf(cs),
+    /* THE RECRUIT PRESS (1053-recruits.sql, Tyler RD-Q6 a): the server's offer ({ ready, count, level }), or null when there is none */
+    recruits: recruitFact(cs),
     inParty: !!party && party.seats.length >= 2,
     partied: !!bests && Object.values(bests.grounds).some((g) => !!g.party),
     ...shellFacts(sh),

@@ -48,9 +48,10 @@ export const THE_PATH = Object.freeze([
     'Your hero fights by itself. Open a slot on the bar to change how.'),
   row('first_leave', event('first_leave', 4), ['end_card', 'hunt-summary', 'blessings', 'loot_plan'], null, 'account',
     'Rats done. Tamsin has gear for you.'),
+  /* the recruit press (Tyler RD-Q6 a, 2026-11-22; src/data/recruits.js, 1053-recruits.sql): the company comes in one press at Level 5 */
   row('first_level_5', event('first_level_5', 5), ['characters', 'hero_strip', 'party_plan', 'storage'],
-    ref('src/data/shops.js', 'HERO_SLOTS', undefined, ['free']), 'account',
-    '{Name} has outgrown the Mill Cellar. You have three more heroes to make, and the Sewer wants a full party.'),
+    ref('src/data/recruits.js', 'RECRUITS', undefined, ['live']), 'account',
+    '{Name} has outgrown the Mill Cellar. Three recruits are ready to join, and the Sewer wants a full party.'),
   row('thicket', level(HUNTS('meadowbrook_thicket')), ['hunts'], null, 'hero', 'Level 5. Meadowbrook Thicket'),
   row('sewer', level(HUNTS('millrace_sewer')), ['hunts'], null, 'hero', 'Level 5. The Sewer, for a party'),
   row('party_ready', event('party_ready', 5), ['hunt-party'], FB6_PARTY, 'account', 'Your party is ready for the Sewer.'),

@@ -11,5 +11,6 @@ import outgrown from './outgrown.js';
 import cannotStart from './cannot-start.js';
 import death from './death.js';
 import gearChoice from './gear-choice.js';
+import recruits from './recruits.js';
 
-export const PROVIDERS = Object.freeze([outgrown, cannotStart, death, gearChoice]);
+export const PROVIDERS = Object.freeze([outgrown, cannotStart, death, gearChoice, recruits]);

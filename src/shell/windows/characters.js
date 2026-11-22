@@ -35,6 +35,7 @@ import { entriesFor } from '../context-menu.js';
 import { menuProvidersOf } from '../menu-providers.js';
 import { t } from '../../render/player-text.js';
 import { rowOffered } from '../launcher.js';
+import { recruitsHtml, patchRecruits, actRecruits } from './recruits-pane.js';
 
 /* The rename panel's scratch, per viewed character: which hero, the typed name, the confirm step. */
 const SCRATCH = new WeakMap();
@@ -66,6 +67,8 @@ function inviteEntry(ctx, x) {
 /** The skeleton (built once per opening). */
 export function renderCharacters(ctx) {
   return '<div class="hw-command">'
+    /* the recruit press (Tyler RD-Q6 a): one hero first, the rest of the company in one press at Level 5 (./recruits-pane.js) */
+    + recruitsHtml()
     + '<ul class="hw-chars"></ul>'
     + '<div class="hw-rename"><h3 class="hs-sub hw-rename-head"></h3>'
     + '<p class="hs-note hw-rename-quote"></p>'
@@ -182,6 +185,7 @@ renderCharacters.patch = function patchCharacters(body, ctx) {
     + ' ' + (ctx.isPhone && ctx.isPhone() ? t('heroes.parties_how_phone') : t('heroes.parties_how')));
   text(root.querySelector('.hw-parties-msg'), scratchOf(ctx.character).partyMsg);
   patchRename(root, ctx, peers);
+  patchRecruits(root, ctx);
   text(root.querySelector('.hw-alerts-head'), t('heroes.alerts_from', { name: summaryOf(ctx.character).name }));
   for (const box of root.querySelectorAll('[data-hs-act="alert-kind"]')) prop(box, 'checked', alertShown(ctx.character, box.getAttribute('data-kind')));
 };
@@ -192,6 +196,7 @@ renderCharacters.act = function actCharacters(ctx, body, action, ev, el) {
   if (action === 'show') { if (ctx.goTo) ctx.goTo(Number(el.getAttribute('data-slot'))); return true; }
   const sc = scratchOf(ctx.character);
   const repaint = () => renderCharacters.patch(body, ctx);
+  if (actRecruits(ctx, body, action, repaint)) return true;
   if (action === 'invite') {
     const x = ctx.peers().map((cs) => summaryOf(cs, ctx.alerts)).find((p) => p.slot === Number(el.getAttribute('data-slot')));
     const can = x && inviteEntry(ctx, x);

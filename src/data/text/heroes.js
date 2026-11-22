@@ -100,12 +100,16 @@ export const HEROES_TEXT = Object.freeze({
   create_pick: 'How this hero fights',
   pick_needed: 'Pick how this hero fights first',
   bad_set: 'Pick how this hero fights first',
-  /* HEROES TWO TO FOUR, pre-filled (chapter 08 section 2.1; designer D-1: the end card's press reads Build your party) */
-  company_title: 'Build your party',
-  company_lead: 'Your other heroes are ready to make. Change any of them, then press once.',
-  company_healer_one: 'Your party has one healer.',
-  company_healer_none: 'Your party has no healer.',
-  company_copy: 'Same colors as {name}',
-  company_go: { one: 'Create 1 hero', other: 'Create {count} heroes' },
-  company_one: 'One at a time',
+  /* THE RECRUITS (1053-recruits.sql; Tyler RD-Q6 a 2026-11-22): one hero first, then ONE press makes the rest of the company at the first hero's
+     Level, each in a job the company lacks (src/shell/windows/recruits-pane.js, in All characters). {name} the first hero, {count} the recruits,
+     {level} the Level they arrive at, {at} the Level the press opens at, {names} the recruits made */
+  recruits_head: 'Your recruits',
+  recruits_wait: { one: '{count} recruit joins your company when {name} reaches Level {at}.',
+    other: '{count} recruits join your company when {name} reaches Level {at}.' },
+  recruits_lead: { one: '{count} recruit is ready to join {name} at Level {level}. Type a name, or leave it empty for a name from town.',
+    other: '{count} recruits are ready to join {name} at Level {level}. Type their names, or leave one empty for a name from town.' },
+  recruits_name: 'Name (optional)',
+  recruits_go: { one: 'Recruit 1 hero', other: 'Recruit {count} heroes' },
+  recruiting: 'Recruiting…',
+  recruits_done: '{names} joined your company. They stand in town, ready to hunt.',
 });

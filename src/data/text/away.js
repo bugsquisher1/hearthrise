@@ -199,4 +199,7 @@ export const AWAY_TEXT = Object.freeze({
   needs_gear_choose: 'Choose',
   needs_gear_hunting: { one: '{count} hero out hunting holds better gear.', other: '{count} heroes out hunting hold better gear.' },
   needs_regear: 'Equip upgrades and go back in',
+  /* the recruit press (src/shell/needs-you/recruits.js, 1053-recruits.sql): {count} the recruits, {name} the first hero, {level} their Level */
+  needs_recruits: { one: '{count} recruit is ready to join {name} at Level {level}.', other: '{count} recruits are ready to join {name} at Level {level}.' },
+  needs_recruits_go: 'Recruit',
 });

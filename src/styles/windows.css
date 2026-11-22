@@ -1009,6 +1009,15 @@
 .hw-rename { display: none; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line-soft); }
 .hw-rename.is-on { display: block; }
 .hw-rename .hw-add .hh-num { flex: 1; min-width: 0; }
+/* The recruit press (recruits-pane.js, Tyler RD-Q6 a): above the heroes while the server offers it; a row a recruit, its job then its name. */
+.hw-recruits { margin: 0 0 8px; }
+.hw-recruits[hidden], .hw-recruits-do[hidden] { display: none; }
+.hw-recruits-list { display: flex; flex-direction: column; gap: 6px; margin: 0 0 8px; padding: 0; list-style: none; }
+.hw-recruit { display: flex; align-items: center; gap: 8px; }
+.hw-recruit-job { flex: 1; min-width: 0; color: var(--ink); }
+.hw-recruit-job small { font-size: var(--t-micro); color: var(--ink-2); }
+.hw-recruit .hw-recruit-name { flex: 0 1 11rem; min-width: 0; text-align: left; }
+.hw-recruits-do { display: flex; justify-content: flex-end; }
 .hw-alert-kinds { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 12px; margin: 0; padding: 0; list-style: none; }
 .hw-alert-kinds .hs-glyph { width: 16px; height: 16px; vertical-align: -3px; }
 

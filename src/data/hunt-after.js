@@ -116,6 +116,8 @@ export const NEEDS_YOU = Object.freeze([
   Object.freeze({ kind: 'ground_opened', band: 'gains' }),
   Object.freeze({ kind: 'talent_points', band: 'gains' }),
   Object.freeze({ kind: 'can_build', band: 'gains' }),
+  /* the recruit press (1053-recruits.sql, Tyler RD-Q6 a): the account's one hero reached the Level that brings the rest of the company */
+  Object.freeze({ kind: 'recruits', band: 'gains' }),
 ]);
 /** How many rows the card shows; the rest is one "{n} more" line. */
 export const NEEDS_SHOWN = 3;

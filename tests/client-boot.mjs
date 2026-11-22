@@ -83,9 +83,9 @@
 //   B-8  a hunting character (tests/fixtures/hunt-envelope.json) mounts the hunt
 //        screen's panels (top bar, party, analyzer, bottom bar) with zero console
 //        errors; the rules of each panel are tests/hunt-screen.mjs
-//   B-9  ONE HERO, TWO SLOTS (Tyler live 10-18: no way to create a character; ruling
-//        10-17: every account starts with two): the screen names the hero and its
-//        Level, the empty owned slot offers Create hero, which opens the creation
+//   B-9  ONE HERO FIRST (Tyler RD-Q6 a, 2026-11-22): an account with a hero lists it
+//        and no empty slot (the rest come as recruits at Level 5). The screen names the hero and its
+//        Level; a hero the server holds unnamed is listed beside it with Name hero, which opens the creation
 //        step (Tyler 2026-10-20: a name and four colours, the hero enters town only
 //        on Confirm; GR-24: a way to fight, none picked for the player): nothing is
 //        sent until a way is picked and Enter town pressed, then ONE hr_create_hero for
@@ -101,9 +101,8 @@
 //        play-at-once limit Fennick has no Play, and a press says why in one plain
 //        line (12 px or more, on screen) and asks the server nothing
 //   B-11b each hero row shows the hero's own figure at a whole 2x or more, at 1440x900, 922x423 and 667x375 (UI audit 2026-11-18)
-//   B-11 FOUR HERO SLOTS FROM THE START (Tyler 2026-11-21): the line over the roster says the heroes still to make, nothing is for
-//        sale, and an empty slot opens BUILD YOUR PARTY: every empty slot pre-filled (a shield, then a healer, said so), one press
-//        sends one hr_create_hero a slot, each with its name and its set
+//   B-11 FOUR HERO SLOTS FROM THE START (Tyler 2026-11-21), TWO HEROES IN THEM: the line over the roster says how many play at once,
+//        nothing is for sale, and no empty slot is listed (Tyler RD-Q6 a: the company comes in one recruit press, in the game)
 //   B-10 A SESSION THAT ENDS UNDER THE GAME (live 2026-10-20: a dead token sent 805 times):
 //        every call answers 401 and the refresh is refused -> the sign-in screen with
 //        "You were signed out. Sign in again.", no session copy left, and the dead
@@ -222,11 +221,12 @@ async function stubServer(page, o) {
     if (o.puts && url.endsWith('/rpc/hr_put_client_state')) { o.puts.push(body); return r.fulfill({ contentType: 'application/json', body: '{"ok":true}' }); }
     if (o.revoked) { o.dead++; return r.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify({ code: 'UNAUTHORIZED_ASYMMETRIC_JWT' }) }); }
     if (o.closed) return r.fulfill({ status: 403, contentType: 'application/json', body: JSON.stringify({ code: 'hr_closed', message: 'closed' }) });
-    if (o.heroes) {   // a stateful account: { slot: name } heroes; hr_create_hero adds one, named
+    if (o.heroes) {   // a stateful account: { slot: name } heroes; hr_create_hero adds one, named (or names an `unnamed` one)
       const name = url.split('?')[0].split('/').pop();
       if (name === 'hr_create_hero') {
         o.created.push({ slot: body.p_slot, name: body.p_name, colors: body.p_colors, set: body.p_set });
         o.heroes[body.p_slot] = body.p_name;
+        if (o.unnamed) delete o.unnamed[body.p_slot];
         return r.fulfill({ contentType: 'application/json', body: JSON.stringify({ ok: true, slot: body.p_slot, name: body.p_name, created: true }) });
       }
       if (o.slowReread) await new Promise((res) => setTimeout(res, o.slowReread));
@@ -245,6 +245,8 @@ async function stubServer(page, o) {
              without it every load writes that start, a put the first hide then falls inside the debounce of (CharacterSession.flushResidue) */
           ...(o.stamped ? { client_state: { awaySeen: { s: '5d1c0f2e-0000-4000-8000-00000000000' + slot, at: Date.parse('2026-10-17T00:00:00Z') - (o.stampedMin || 5) * 60000, xp: LEVEL_10_XP },
             huntStart: { s: '5d1c0f2e-0000-4000-8000-00000000000' + slot, lv: 10, sk: {} } } } : {}) })
+          /* B-9: a hero the server holds with no claimed name (hr_load needs_name): the roster lists it, its press names it */
+          : o.unnamed && o.unnamed[slot] ? { ok: false, error: 'needs_name', slot, hero_slots: slots, account }
           : { ok: false, error: 'no_character', hero_slots: slots };
         return r.fulfill({ contentType: 'application/json', body: JSON.stringify(name === 'hr-accrue' ? Object.assign({ accrued: true }, b) : b) });
       }
@@ -1291,10 +1293,11 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
         const { renderHeroCreate } = await import(location.origin + '/src/app/hero-create.js');
         const card = document.createElement('div'); document.body.append(card);
         const keys = []; let dones = 0, answer, went;
-        const step = renderHeroCreate(card, { slot: 1, colorOf: () => '#000000', dyes: false, back() {}, picked: 'club',
+        const step = renderHeroCreate(card, { slot: 1, colorOf: () => '#000000', dyes: false, back() {},
           create: (n, c, k) => { keys.push(k); return new Promise((r) => { answer = r; }); }, done: () => { dones++; return new Promise((r) => { went = r; }); } });
         const b = card.querySelector('.hero-confirm'), tick = () => new Promise((r) => setTimeout(r, 0));
         card.querySelector('.hero-name').value = 'Fennick';
+        card.querySelector('.hero-way[data-hero-set="club"]').click();
         b.click();
         const out = { working: [b.disabled, b.textContent] };
         b.click();
@@ -1333,13 +1336,19 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
       await page.fill('input[name=password]', 'not-a-real-password');
       await page.click('.auth-submit');
       await wait(page, () => document.querySelector('[data-app="play"][data-slot="0"]'));
+      /* ONE HERO FIRST (Tyler RD-Q6 a, 2026-11-22): an account with a hero lists that hero and no empty slot (the rest come as recruits at Level 5) */
+      const one = await page.evaluate(() => ({ rows: Array.from(document.querySelectorAll('.char-row')).map((li) => li.textContent.replace(/\s+/g, ' ').trim()),
+        create: document.querySelectorAll('[data-app="create"]').length }));
+      if (one.rows.length !== 1 || !/^Tester Level 10 ?Play$/.test(one.rows[0]) || one.create) fails.push('B-9 one hero lists as ' + JSON.stringify(one));
+      /* ...and a hero the server holds with no name yet is listed beside it, its press the creation step (hr_load needs_name) */
+      o.unnamed = { 1: true };
+      await page.reload({ waitUntil: 'load' });
+      await wait(page, () => document.querySelector('[data-app="play"][data-slot="0"]') && document.querySelector('[data-app="create"][data-slot="1"]'));
       const rows = await page.evaluate(() => Array.from(document.querySelectorAll('.char-row')).map((li) => li.textContent.replace(/\s+/g, ' ').trim()));
-      if (rows.length !== 2 || !/^Tester Level 10 ?Play$/.test(rows[0]) || !/Create hero$/.test(rows[1]) || !(await page.$('[data-app="create"][data-slot="1"]')))
-        fails.push('B-9 one hero and an empty owned slot list as ' + JSON.stringify(rows));
+      if (rows.length !== 2 || !/^Tester Level 10 ?Play$/.test(rows[0]) || !/Name hero$/.test(rows[1]) || !(await page.$('[data-app="create"][data-slot="1"]')))
+        fails.push('B-9 one hero and an unnamed one list as ' + JSON.stringify(rows));
       else {
         await page.click('[data-app="create"][data-slot="1"]');
-        /* one hero already: the party step opens pre-filled (B-11); One at a time is the single step, its way carried over */
-        if (await wait(page, () => document.querySelector('.hero-alone'), null, 5000)) await page.click('.hero-alone');
         /* The creation step: a name and how you fight; nothing is sent before Enter town. The four color strips and the real hero show beside them
            (outfits.js HERO_DYES_SHOWN, lane/c-hero-colors), and Enter town shows with no scrolling at a laptop's 1366x768. */
         await page.setViewportSize({ width: 1366, height: 768 });
@@ -1364,6 +1373,7 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
           const short = await page.evaluate(() => document.querySelector('.auth-message').textContent);
           if (o.created.length || !/3 letters/.test(short)) fails.push('B-9 the creation step sent ' + JSON.stringify(o.created) + ' / said "' + short + '" for an empty name');
           await page.fill('.hero-name', 'Fennick');
+          await page.click('.hero-way[data-hero-set="tank"]');
           await page.click('.hero-confirm');
         }
         const played = await wait(page, () => document.querySelector('#panel-world[data-slot="1"]'));
@@ -1413,7 +1423,7 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
         /* The server no longer holds Fennick: the reload falls back to the characters screen. */
         delete o.heroes[1];
         await page.reload({ waitUntil: 'load' });
-        const safe = await wait(page, () => document.querySelector('[data-app="play"][data-slot="0"]') && document.querySelector('[data-app="create"][data-slot="1"]'));
+        const safe = await wait(page, () => document.querySelector('[data-app="play"][data-slot="0"]') && document.querySelectorAll('.char-row').length === 1);
         if (!safe || await page.$('#panel-world')) fails.push('B-9 a reload whose shown hero the server no longer holds did not fall back to the characters screen');
         /* THE PLAY-AT-ONCE LIMIT (four; here the server says one): Fennick, past it, stays in the strip with no Play, and a press on
            Fennick says why in one plain line on the screen, 12 px or more, and opens nothing and asks the server nothing. */
@@ -1439,7 +1449,7 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
       await ctx.close();
     }
 
-    { // B-11 four hero slots from the start: nothing for sale; an empty slot opens the party pre-filled, one press makes it
+    { // B-11 four hero slots from the start, two heroes in them: nothing for sale, the two heroes listed and no empty slot (Tyler RD-Q6 a)
       const o = { heroes: { 0: 'Tester', 1: 'Fennick' }, created: [], slots: [0, 1, 2, 3], purse: 14100, goldV: 7 };
       const { ctx, page, errors } = await fresh(o);
       await page.goto(base + '/play.html', { waitUntil: 'load' });
@@ -1447,10 +1457,11 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
       await page.fill('input[name=email]', 'qa@example.test');
       await page.fill('input[name=password]', 'not-a-real-password');
       await page.click('.auth-submit');
-      await wait(page, () => document.querySelectorAll('.char-row').length === 4);
+      await wait(page, () => document.querySelectorAll('.char-row').length === 2);
       const lead = await page.evaluate(() => Array.from(document.querySelectorAll('.auth-lead')).map((p) => p.textContent).join(' | '));
-      if (!/\| Heroes at once: up to 4\. 2 more heroes to make\.( \||$)/.test(lead) || await page.$('[data-app="buy-slot"]') || await page.$('.slot-offer'))
-        fails.push('B-11 the line over two heroes of four reads ' + JSON.stringify(lead) + ', or a slot is still for sale');
+      if (!/\| Heroes at once: up to 4( \||$)/.test(lead) || await page.$('[data-app="buy-slot"]') || await page.$('.slot-offer')
+        || await page.$('.char-row.is-empty') || await page.$('[data-app="create"]'))
+        fails.push('B-11 the line over two heroes of four reads ' + JSON.stringify(lead) + ', or a slot is still for sale or shown empty');
       /* B-11b (UI audit 2026-11-18): each hero's row shows its own figure, drawn, at a whole 2x or more, at the desktop and the phone widths */
       for (const vp of [[1440, 900], [922, 423], [667, 375]]) {
         await page.setViewportSize({ width: vp[0], height: vp[1] });
@@ -1460,23 +1471,6 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
         if (!drawn || faces.length !== 2 || faces.some((f) => !f)) fails.push('B-11b at ' + vp.join('x') + ' the hero figures read ' + JSON.stringify({ drawn: !!drawn, faces }));
       }
       await page.setViewportSize({ width: 1280, height: 720 });
-      /* an empty slot opens BUILD YOUR PARTY: both empty slots, a shield and a healer pre-filled, the healer said; one press makes both, each with its set */
-      await page.click('.char-row.is-empty [data-app="create"]');
-      const party = await wait(page, () => document.querySelectorAll('.hero-member').length === 2);
-      /* the name fields are the sunk game field at 14.5 px or more, never the browser's white box (art review 2026-11-21 #1) */
-      const field = party ? await page.evaluate(() => { const c = getComputedStyle(document.querySelector('.hero-member .hero-name')); return { px: parseFloat(c.fontSize), well: c.boxShadow !== 'none', bg: c.backgroundColor }; }) : null;
-      if (!field || field.px < 14.5 || !field.well || field.bg === 'rgb(255, 255, 255)') fails.push('B-11 the party step\'s name field reads ' + JSON.stringify(field) + ', want the sunk field at 14.5 px or more');
-      const view = party ? await page.evaluate(() => ({ ways: Array.from(document.querySelectorAll('.hero-member-way')).map((s) => s.value),
-        healer: (document.querySelector('.hero-party-healer') || {}).textContent || '' })) : null;
-      if (!view || view.ways.join() !== 'tank,healer' || view.healer !== 'Your party has one healer.') fails.push('B-11 the party step reads ' + JSON.stringify(view));
-      else {
-        await page.fill('.hero-name[data-member="0"]', 'Wren');
-        await page.fill('.hero-name[data-member="1"]', 'Moss');
-        await page.click('.hero-confirm');
-        await wait(page, () => false, null, 1500);
-        const sent = o.created.map((c) => c.slot + ':' + c.name + ':' + c.set).join();
-        if (sent !== '2:Wren:tank,3:Moss:healer') fails.push('B-11 one press sent ' + JSON.stringify(o.created));
-      }
       if (errors.length) fails.push('B-11 console errors: ' + errors.slice(0, 3).join(' | '));
       await ctx.close();
     }
@@ -1637,9 +1631,7 @@ const MUTANTS = [
   ['a made hero\'s press asks the server again', 'src/app/hero-create.js', "    if (made) { enter(); return; }\n", ''],
   ['Enter town comes back live under a slow town', 'src/app/hero-create.js', "    hold(t('heroes.entering'));\n", ''],
   ['a lost answer\'s retry gets a new key', 'src/app/hero-create.js', "    if (!tried || tried.name !== name || tried.set !== picked) tried =", '    tried ='],
-  ['a first hero comes with a way picked for the player (GR-24)', 'src/app/hero-create.js', "  let picked = typeof o.picked === 'string' && STARTER_SETS[o.picked] ? o.picked : null;", "  let picked = 'tank';"],
-  ['the party\'s name fields are the browser\'s white box again (B-11, art review #1)', 'src/styles/app.css', '.auth-field input, .hero-member .hero-name {\n', '.auth-field input {\n'],
-  ['the party sends the first hero\'s set for every hero (B-11)', 'src/app/hero-create.js', 'const r = await o.create(name, colorsNow(), tried[i].key, sets[i], c.slots[i]);', 'const r = await o.create(name, colorsNow(), tried[i].key, sets[0], c.slots[i]);'],
+  ['a first hero comes with a way picked for the player (GR-24)', 'src/app/hero-create.js', '  let picked = null;\n', "  let picked = 'tank';\n"],
   ['no Hearth behind the sign-in (B-23)', 'src/app/boot.js', "renderAuthScreen(box, auth, mode, { signedIn: () => startAccount(false) });\n    raiseBackdrop(root, win);", "renderAuthScreen(box, auth, mode, { signedIn: () => startAccount(false) });"],
   ['the Hearth is asked for before the crest is in (B-23)', 'src/app/auth-backdrop.js', '  if (!crest || crest.complete) after();\n', '  ask();\n  if (!crest || crest.complete) after();\n'],
   ['the Hearth picture is let go after its load (B-23, a GC between load and draw asks again)', 'src/app/auth-backdrop.js', '      held = img;\n', ''],

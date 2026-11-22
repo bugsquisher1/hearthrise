@@ -10,7 +10,7 @@ Written 2026-11-21 on `lane/rd-vision`. Docs only. This is deliverable 3 of the 
 
 ## 0. The shape in one screen
 
-Nine packages, three added sections (1b on Talents, 2b on the flame, 7b on arenas and the castle), and three shared parts that hold them together.
+Nine packages, four added sections (1b on Talents, 2b on the flame, 2c on where the ideas come from, 7b on arenas and the castle), and three shared parts that hold them together.
 
 | Shared part | What it is | Who uses it |
 |---|---|---|
@@ -21,7 +21,7 @@ Nine packages, three added sections (1b on Talents, 2b on the flame, 7b on arena
 | # | Package | The one-line design |
 |---|---|---|
 | 1 | Combat and skills | Styles differ by job. The bar is the build, and Talents feed it. Two defenses, no immunities, healing and mana are counted |
-| 2 | Equipment and progression | Plain gear is the floor. Rare gear rolls a Trait, a rule and not a number. The rarest has a Signature |
+| 2 | Equipment and progression | Plain gear is the floor. Rare gear rolls one Trait and Very Rare gear two, each a rule and not a number. The rarest has a Signature |
 | 2b | The flame as Luck (the owner's idea, under evaluation) | Inner Flame is Luck. The company feeds one flame with what hunts leave behind |
 | 3 | Hunting and monsters | One Danger scale. The party climbs it by itself inside a stance, and falls back before it dies |
 | 4 | Party | Monsters reach the whole party. Loot is personal. A good four beats its heroes apart in XP and gold |
@@ -152,7 +152,7 @@ This package carries the owner's confirmed requirement of 2026-11-21: gear may u
 | Part | Where it comes from | Random? | Its job |
 |---|---|---|---|
 | **Base** | Drops, with a home the player can learn | No. Fixed by type and tier | The floor. A plain upgrade is better in every way and is worn without asking |
-| **Trait** | Rolled by the server when a Rare piece drops, or when a crafter makes jewelry or a cloak | Yes. Which Trait, and a rank of 1 to 3 | A rule that suits some heroes and grounds and not others. This is the decision |
+| **Trait** | Rolled by the server when a Rare piece drops, or when a crafter makes jewelry or a cloak | Yes. Which Trait, and a rank of 1 to 3. A Rare has one and a Very Rare has two (section 2c) | A rule that suits some heroes and grounds and not others. This is the decision |
 | **Signature** | Hand-made, on a small set of named pieces, each with one home | No | Changes how one move works. This is the story |
 | **Temper** | A smith, for materials and gold | No | The steady upgrade. It carries up when the piece is replaced |
 | **Imbuement** | Made from monster parts, lasts a set number of hunted hours | No | The piece of the kit you change for the ground |
@@ -225,6 +225,57 @@ This package carries the owner's confirmed requirement of 2026-11-21: gear may u
 **7. Cost.** M. Built already: fuels, the burn call, the colored fire. New: the flame row on the account, the height and its burn-down in the settle, the drop roll reading it, the stoke rule in the plan, the flame on the return card. Removed: the regeneration link, the Luck bar, the rivets. It touches drop tables, so it carries a security review.
 
 **8. Open questions.** Does a flame that burns down feel like a choice or like upkeep? A played week answers that. Should the height hold while the company is in town, as proposed, or fade by the clock? Is a dry-run warmth wanted at all, or does it make drops feel scheduled? Should Flame Level 99 give anything to show, such as a fire color for the hall? Does a hired hero roll on the hirer's flame or their owner's?
+
+## 2c. Where the ideas come from
+
+**Status.** A direction from the owner, 2026-11-21: drops in the spirit of Tibia, items in the spirit of Path of Exile and Diablo, and a build system that draws on all three. This section maps each part of packages 1 and 2 to the mechanic that inspires it, says what the idea adds to Base, Trait and Signature, and cuts what adds complexity without decisions. It is a proposal. Every number is a hypothesis.
+
+**The rule.** We take how a mechanic works and nothing else. No names, text, art, data, numbers or screen layouts from any of the three. Every name here is our own working name.
+
+**1. Drops, in the spirit of Tibia.**
+
+| The idea | Where it lives here | What it adds | Verdict |
+|---|---|---|---|
+| Every creature has its own loot list, with a chance for each item | Each monster's drop rows. The bestiary shows the list, then the chances, as its page fills | A player can say "that drops there" and plan a hunt around it. Chasing is a decision and not only luck | Already the design. Kept as its center |
+| A rare drop is an event people talk about | The drop moment in package 2: a reveal, a line in town, a mark on the hall, a card to share | Being seen is half the value of a rare | Already the design |
+| Luck you can see | The company flame of section 2b | The player does something for their luck and can watch it | Added by section 2b |
+| Creature parts as trade goods | Monster parts make imbuements, and remains feed the flame | Every kill leaves something a player wants | Already the design |
+
+**2. Items, in the spirit of Path of Exile and Diablo.**
+
+| The idea | Where it lives here | What it adds that the first design lacked | Verdict |
+|---|---|---|---|
+| Rarity steps on a drop | Four steps: Plain (no Trait), Rare (one Trait), Very Rare (two Traits), Signature (a fixed, named rule) | A second Trait on the rarest rolled pieces. Two rules on one piece can work together, which makes far more distinct items from the same pool and gives the market pieces worth arguing over | **Adopt**, with two as the cap. This changes package 2, which had one Trait a piece |
+| Pools of properties with weights | Each monster family's Trait pool gives each Trait a weight, so some are common finds and some are scarce | Rarity inside rarity, with no new system. A scarce Trait on a Plain-looking drop is its own small moment | **Adopt** |
+| Properties gated by how deep they drop | A Trait's rank 3, and some whole Traits, roll only from a set Danger step up | Depth pays in kinds of loot and not only in amounts. A deeper step can drop a rule a shallow one never will | **Adopt**. It uses the Danger scale that already exists |
+| Named pieces that change how a skill plays | Signatures | Nothing new. It confirms the Signature is the right top step | Already the design |
+| Number ranges on every property | A Trait's rank of 1 to 3 | Nothing more. Wide ranges make one best roll, the top of each range | **Cut** beyond three ranks |
+| Many properties on one piece, split into kinds | Not used | More to read on every drop and a solved best set. The decision does not grow with the count | **Cut**. Two Traits is the most |
+| Spending currency to reroll or build a piece | Carry-over at the smith | A reroll bench makes every piece a slot machine with one right answer. Carry-over keeps a found Trait alive and burns old gear, which is the part worth having | **Cut** rerolls. Keep carry-over |
+| Sets: wear several named pieces for a bonus | Not used | A set decides every slot at once, so the per-piece choice this design is built on goes away | **Cut** |
+| Combinations: certain things together make a new result | Possible later as pairs: two named Traits worn together wake a third rule | Discovery, and a reason to trade for a matching piece. But it is another layer to learn before the first layer is proven | **Hold**. Look again once five Traits have been played (SPECULATIVE) |
+
+**3. Evolutions, drawing on all three.**
+
+| The idea | Where it lives here | What it adds | Verdict |
+|---|---|---|---|
+| A known spell grows into a stronger version as the hero grows | Ranks on a move, a point every Level (section 1b) | The steady part. Your own moves get better, so progress is on the bar you built | Already the design, by the owner's requirement |
+| One modifier picked for each skill, which changes how it plays | Branches at rank marks 5, 15 and 30 | The exciting part. Two heroes of one weapon diverge | Already the design |
+| A large web of small passive nodes | Not used | Hundreds of small percents on a second screen. Stat lines were measured as too small to feel, and a web is a second place for a build to live | **Cut** the web |
+| Rare nodes that trade one strength for a real weakness | The final form at Level 200, and some branches before it | A choice with a cost, which is the kind a player remembers. For example a heal that is much stronger and can no longer be cast on yourself | **Adopt** as a kind of branch. This sharpens section 1b |
+| Committing to a path, with a price to change | Points spent in ranks, and gold to move them | A build is yours and is not swapped for free before every hunt | Already the design |
+| Gear that changes a skill | Signatures, and Traits written against kinds of move | The build is what you learned plus what you found, so a drop can send a hero down a new branch | Already the design |
+
+**4. What the three together give that the first design lacked.**
+
+1. **Very Rare pieces with two Traits.** The biggest change. It is where rolled gear gets deep.
+2. **Weights and depth gates on Trait pools.** Scarce Traits and deep-only Traits, from data alone.
+3. **Trade-off branches.** Evolutions that give something up.
+
+Everything else was either already in packages 1 and 2 or is cut above. (JUDGMENT)
+
+**5. What it costs, and what to check.** Two Traits on a piece raise the number of possible items sharply, so the dominance check in the Lab must read pairs and not only single Traits. Weights and gates are data and cost almost nothing. Trade-off branches need careful words so a player sees the cost before they pick. Open questions: Does a second Trait make a drop exciting or hard to read on a phone? Should carry-over move one Trait of a Very Rare or both? How scarce can a Trait be before nobody ever sees it?
+
 
 ## 3. Hunting and monsters
 

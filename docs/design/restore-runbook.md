@@ -1718,3 +1718,54 @@ So a future reader can tell drift from noise. Green = all of:
   rollup drill, and (2) a design decision about the tick's ledger granularity. Neither is
   DDL.
 * **PITR remains off and no backup has ever been restored** (§12, unchanged).
+
+---
+
+## 15. The big release drill — the Danger-scale release (R6, 2026-11-22)
+
+*Added by lane/r6-release-plan (QA). 11-build-audit risk 1: "a big-bang release with no restore". The release is every
+STAGED file from 1009 on that `tools/release-plan.mjs` plans, one hr-accrue deploy at the point it derives, and the
+client half after. There is still no point-in-time restore (§0, §8): the only way back is the newest daily backup
+(~10:28 UTC), so the data-loss window of a bad release is everything written since that backup.*
+
+### 15a. The procedure
+
+| Step | Who | What | Touches |
+|---|---|---|---|
+| 0 | Coordinator | `node tools/release-plan.mjs --strict`. Exit 0 means nothing is held or blocked. Exit 1 lists what is owed: rule on each (re-fate, regenerate, or ship without it) and run it again. Never hand-edit the order: it is replay order by construction. | repo |
+| 1 | Coordinator | `node tools/release-plan.mjs --replay` (about 1 min): the whole chain on PGlite with every held and blocked file blanked. 0 failures is required. A failure is a dependency the notes do not state: write it into the failing file's sidecar ("after NNNN", "NNNN's image") so step 0 sees it next time. | PGlite, no secrets |
+| 2 | CI | `tests/schema-drift.mjs` (the chain, a second apply byte-identical), `tests/restore-census.mjs` and `tests/release-plan.mjs` green on the release SHA. | GitHub |
+| 3 | any lane | `node tools/qa/local-world.mjs smoke`: a new account plays the real client and engine on the replayed chain. | local, no secrets |
+| 4 | Coordinator | Wait for that day's daily backup to read COMPLETED (§1), then start at once: the release's RPO is the minutes between that backup and the first apply. Or Tyler buys PITR-7 for the release week (§8, his spend), and §9b's drill runs first. | read-only |
+| 5 | Coordinator | Apply in plan order, one file a call, with the apply tool (CLAUDE.md §2). Each file's §4 self-check runs inside its apply and rolls that file back on failure. On a failure, STOP: the database sits at a clean prefix (below). | production |
+| 6 | Coordinator | At the `>>> EDGE DEPLOY <<<` line: `node tools/deploy-edge.local.mjs --deploy`, and the live `payload_sha256` must equal `pack-edge --hash`. Then the files after the line. | production edge |
+| 7 | Coordinator | `live-hash-drift --live --write`, every applied sidecar flipped (`node tools/migration-note.mjs applied`), restore-census re-pinned, in one commit (CLAUDE.md §3.3 lane C). Then the client release. | repo |
+
+**Why stopping at a failure is safe.** The plan never reorders the replay, so every prefix it can stop at is a
+state the replay itself passed through. Before the edge line every applied file is "before" or "either" (its note
+says the old edge runs safely over it); after the line, every file still owed is "after" or "either" (the new edge
+runs safely without it). A stop leaves the game running and the fix ships forward. **A restore (§4c, in place,
+destructive, Tyler's explicit yes) is only for a file that wrote bad rows**, because nothing else undoes a row.
+
+### 15b. Rehearsed on 2026-11-22, with no production access
+
+| What | Result |
+|---|---|
+| `node tools/release-plan.mjs` on `set/v0.2.144` + R6 | 19 files planned, the edge right after `1053-hunt-report.sql`; 17 held by 12-targets 2.7, 13 blocked. Exit 0 (no refusal); `--strict` exits 1 |
+| `--replay` under 12-targets' fates (26 files blanked) | 849 applied, **2 failed**: `1048-narrow-town-read` and `1051-company-start` refuse without `1032-approved-cuts`' grant detector (link 25). Their notes say so in words the reader did not know ("1032's image", "rides 1032's link 25"); it does now, and both are BLOCKED statically |
+| `--replay --keep 1012,1020,1021,1027,1028` | 2 failed: `1055` refuses without `1016`'s Level curve (its VERIFY(c): 1534 in SQL against 625 in the engine at Level 9). Now written into 1055's sidecar |
+| `--replay --keep 1012,1016,1020,1021,1027,1028` | **851 applied, 0 failed.** The static plan still refuses that set: two edge collisions (1016 is edge-first; 1028 and 1054 each want the edge right after them) |
+| `tools/pitr-drill.local.mjs --selftest` | green |
+| `tests/restore-census.mjs` (offline) | exit 0; durability unchanged: daily backups, PITR off, up to 24 h at risk |
+| `node tools/qa/local-world.mjs smoke` on the full replayed chain (every STAGED file, held ones too) | exit 1: 8 steps green (the chain replays and opens, a new account signs up from the real screens, makes a hero, hunts the Mill Cellar, a 10-minute skip settles on the real engine, the hunt ends itself at Level 5), then 3 red at the outgrown end card. The smoke still expects "Next ground: Meadowbrook Thicket" and its Go to press; since the recruits lane (1053, RD-Q6 a) a first hero's Level 5 card leads with "Recruit your party", so this reads as a stale smoke step, not a broken chain. Not proven: routed in the lane report. R6 changed no client file |
+
+### 15c. NOT rehearsed — the honest register
+
+- **No restore was run.** No clone and no copy of production: both need the token and a spend, outside any lane.
+  §9's click and §9b's PITR drill remain the only path, and remain unrun.
+- **No apply ran against anything but PGlite.** PGlite is PG18, production PG17 (§2a).
+- **Rows were not rehearsed.** The replay proves the schema and the catalogues; a file that rewrites player rows
+  (1036's slots, 1038's kits, 1047's fold) is proven only on its own fixture rows.
+- **The edge order was not run live.** "The old edge is safe over this file" and "the new edge is safe without that
+  one" come from each file's note, which no test executes.
+- **The flush kill switch (1052) and the journal kill switch (1047) are untested** (11-build-audit section 2).

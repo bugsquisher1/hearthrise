@@ -8,9 +8,34 @@
  "hypothesisAt": "2026-11-22T05:35:03.198Z",
  "candidate": "tools/balance-program/experiments/heal-cut.patch.json",
  "scenario": null,
- "results": [],
- "conclusion": null,
- "concludedAt": null,
+ "results": [
+  {
+   "file": null,
+   "name": "EX-0004-declared.json",
+   "sha256": "c22a587dfcc1e27238379c55e06f10195566696dc7051799cfed5887f5ce9791",
+   "at": "2026-11-22T05:39:47.755Z",
+   "what": "readers.mjs --declared on EX-0002's two runs with the model as fixed (c51da94ce)",
+   "summary": {
+    "plan": "the runs of EX-0002 (plan 26ce5570e063)",
+    "model": "the tree at c51da94ce: O-HEAL reads -heal.cut, O-DPS and O-KILLS read +huntedShare",
+    "undeclaredMoves": 0,
+    "signedAndCalled": "every outcome measured up or down was declared with the same sign (dps, dpsHero, killsPerH, healPerH, lowHpTypical, lowHpP10, hpUnder30, hpUnder10, deathsPer1000h, huntedShare, suppliesPerH, storePerH, netPerH, netLevelXpPerH, sustainRatio)",
+    "notCalled": "regenShare (the trace reads it mixed at depth 2, measured up)",
+    "deadOutcomes": [
+     "hoursPerLevel (0 of 156 cells: the cells whose net Level XP moved fell to none and drop out)",
+     "manaWaitsPerH (2 of 177: the reference bars almost never wait for mana)"
+    ],
+    "sweepsSignMatch": {
+     "before": "251 of 257 (98%)",
+     "after": "262 of 268 (98%), no new sign miss",
+     "note": "read during the fix, before this record was written: a reading, not a test"
+    },
+    "exit": 0
+   }
+  }
+ ],
+ "conclusion": "Held for the heal cut: no outcome moved undeclared, and every outcome measured up or down was declared with the same sign. regenShare stays the trace's one uncalled outcome (mixed at depth 2, measured up). Two declared outcomes did not move: hoursPerLevel, whose moved cells fell to no net Level XP and drop out, and manaWaitsPerH, which today's bars almost never raise. The sweeps' sign match went from 251 of 257 to 262 of 268 with no new miss, read during the fix and before this record, so that part is a reading and not a test",
+ "concludedAt": "2026-11-22T05:40:39.505Z",
  "reviewedBy": null,
- "status": "open"
+ "status": "closed"
 }

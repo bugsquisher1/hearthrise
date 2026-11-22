@@ -1,0 +1,385 @@
+#!/usr/bin/env node
+// ════════════════════════════════════════════════════════════════════════
+// tools/balance-program/sensitivity/analyze.mjs — THE SENSITIVITY MATRIX AND THE INTERACTION TABLES, READ FROM THE PLAYED PARTS
+// (lane/bl-sensitivity, Tyler 2026-11-21, Phases 4 and 5). It plays nothing: every number is arithmetic on the seed rows the engine
+// answered (sensitivity.mjs parts).
+//
+//   node tools/balance-program/sensitivity/analyze.mjs --parts <dir> [--run <github run id>,...]   read every sens-*.json.gz under <dir>,
+//                                       write data/parts/ (the raw rows), data/matrix.json (the derived matrix) and print the report
+//   node tools/balance-program/sensitivity/analyze.mjs                                              the same from the committed data/parts/
+//   --report oat|fx|all (default all)   --lever <id> (one lever's whole curve)   --exp <id>   --selftest
+//
+// HOW AN EFFECT IS READ. A point plays the same cells on the same dice as the base, so every cell and seed is a pair.
+//   rate outcomes (damage, kills, XP, gold in, supplies ...):  per seed, the mean over a group's cells of (after - base) / the cell's base
+//       mean. The estimate is the mean over seeds; its standard error is the seeds' spread over root n. Shown as a relative change.
+//   share outcomes (low health, hunted share, net gold ...):   per seed, the mean over the cells of (after - base). Absolute.
+//   deaths:  pooled over the group's cells and seeds, a rate in 1,000 hunted hero-hours before and after (a Poisson count).
+// RESOLVED means the estimate is further from zero than T x its standard error (T is Student's t for the seed count: 3.18 at four
+// seeds) and more than half a percent. Anything else is printed as noise, never as a small effect.
+// ELASTICITY is ln(outcome ratio) / ln(lever multiplier): 1 means the outcome moves in proportion, 0 not at all, negative the other
+// way. LOCAL is read between x0.9 and x1.1; LOW and HIGH at the ends of the lever's ladder. A lever whose three differ is nonlinear.
+//
+// SELFTEST: planted seed rows read back the planted effect with its sign, a copy reads as exactly zero and unresolved, noise alone
+// is not resolved, a planted interaction is found and a pure product of two single effects reads as no interaction.
+//
+// Exit: 0 ran · 1 a selftest proof failed · 2 harness.
+// mutant-anchors: none — the selftest reads planted rows in memory; no tracked file is patched
+// ════════════════════════════════════════════════════════════════════════
+import { readFileSync, writeFileSync, existsSync, readdirSync, statSync, mkdirSync, copyFileSync } from 'node:fs';
+import { join, resolve, dirname, basename } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { isMain } from '../../../tests/_is-main.mjs';
+import { OUTCOMES } from '../baseline/outcomes.mjs';
+import { readDoc, EXPERIMENTS, PART_SCHEMA } from './sensitivity.mjs';
+import { leverList } from './levers.mjs';
+
+const HERE = dirname(fileURLToPath(import.meta.url));
+const ROOT = resolve(HERE, '..', '..', '..');
+export const DATA_DIR = join(HERE, 'data');
+export const PARTS_DIR = join(DATA_DIR, 'parts');
+export const MATRIX_FILE = join(DATA_DIR, 'matrix.json');
+const argv = process.argv.slice(2);
+const has = (f) => argv.includes('--' + f);
+const arg = (k, d = null) => { const i = argv.indexOf('--' + k); return i >= 0 && argv[i + 1] && !argv[i + 1].startsWith('--') ? argv[i + 1] : d; };
+const finite = (x) => typeof x === 'number' && Number.isFinite(x);
+const mean = (xs) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
+const sdOf = (xs) => { if (xs.length < 2) return null; const m = mean(xs); return Math.sqrt(xs.reduce((a, b) => a + (b - m) ** 2, 0) / (xs.length - 1)); };
+const sig = (x, n = 4) => (finite(x) ? Number(x.toPrecision(n)) : null);
+/* Student's t, two-sided 95%, by degrees of freedom */
+const T95 = [null, 12.71, 4.30, 3.18, 2.78, 2.57, 2.45, 2.36, 2.31, 2.26, 2.23, 2.20, 2.18, 2.16, 2.14, 2.13];
+const tOf = (n) => T95[Math.min(15, Math.max(1, n - 1))];
+
+/* which outcomes read as a relative change; the rest are absolute. Deaths are pooled counts. */
+const SHARE = new Set(['frontTakenShare', 'sustainRatio', 'huntedShare', 'lowHpP50', 'lowHpP10', 'lowHpP01', 'hpUnder30', 'hpUnder10', 'closeCallsPer12h', 'netPerH', 'netWithRaresPerH',
+  'storeShare', 'deathTax', 'levelXpLostPerH', 'blessingGoldPerH', 'raresValuePerH', 'rareItemsPerH', 'rareRollsPerPartyH', 'monsterLandedPct']);
+const POOLED = new Set(['deaths', 'deathsPer1000h']);
+export const kindOf = (id) => (POOLED.has(id) ? 'deaths' : SHARE.has(id) ? 'abs' : 'rel');
+/* the outcomes the matrix ranks and the effect vectors are built from */
+export const CORE = Object.freeze(['dps', 'killsPerH', 'ttkS', 'takenPerH', 'healInPerH', 'deathsPer1000h', 'lowHpP10', 'huntedShare', 'levelXpPerH', 'netLevelXpPerH', 'hoursPerLevel',
+  'mainSkillXpPerH', 'incomePerH', 'storePerH', 'netPerH', 'suppliesPerH', 'castsPerH', 'manaPotionsPerH']);
+const STYLE_GROUP = { tank: 'melee', sword: 'melee', hammer: 'melee', axes: 'melee', bow: 'ranged', crossbow: 'ranged', mage: 'magic', healer: 'magic' };
+
+/* ── THE GROUPS: [id, label, cell predicate]. A group is a set of cells an effect is averaged over. ─────────────────────────────── */
+export function groupsOf(meta) {
+  const loneRef = (c) => c.party === 1 && c.gear === 'mid' && c.tier === 'normal';
+  const fourStd = (c) => c.party === 4;
+  const g = [['all', 'every cell', () => true]];
+  for (const L of [...new Set(meta.map((c) => c.L))].sort((a, b) => a - b)) g.push(['L:' + L, 'Level ' + L, (c) => c.L === L]);
+  for (const w of [...new Set(meta.filter(loneRef).map((c) => c.styles[0]))]) g.push(['way:' + w, w + ' alone', (c) => loneRef(c) && c.styles[0] === w]);
+  for (const s of ['melee', 'ranged', 'magic']) g.push(['style:' + s, s + ' alone', (c) => loneRef(c) && STYLE_GROUP[c.styles[0]] === s]);
+  g.push(['party:1', 'lone heroes (MID, Normal)', loneRef], ['party:4', 'the four (MID, Normal)', (c) => fourStd(c) && c.gear === 'mid' && c.tier === 'normal']);
+  /* the gear axis: the same seats at the same Levels on each gear state (Normal) */
+  const gearSeats = new Set(meta.filter((c) => c.gear === 'low' && c.tier === 'normal').map((c) => c.L + '|' + c.comp));
+  for (const s of ['low', 'mid', 'bis']) g.push(['gear:' + s, s.toUpperCase() + ' gear', (c) => c.gear === s && c.tier === 'normal' && gearSeats.has(c.L + '|' + c.comp)]);
+  /* the tier axis: the same seats at the same Levels on each tier (MID) */
+  const tierSeats = new Set(meta.filter((c) => c.tier === 'deadly' && c.gear === 'mid').map((c) => c.L + '|' + c.comp));
+  for (const t of ['normal', 'dangerous', 'deadly']) g.push(['tier:' + t, t, (c) => c.tier === t && c.gear === 'mid' && tierSeats.has(c.L + '|' + c.comp)]);
+  for (const t of ['normal', 'dangerous', 'deadly']) g.push(['four:' + t, 'the four on ' + t, (c) => fourStd(c) && c.gear === 'mid' && c.tier === t && c.L >= 30]);
+  for (const L of [30, 60, 110]) g.push(['four@' + L, 'the four at Level ' + L + ' (MID, every tier)', (c) => fourStd(c) && c.gear === 'mid' && c.L === L]);
+  return g.map(([id, label, pick]) => ({ id, label, keys: meta.filter(pick).map((c) => c.key) })).filter((x) => x.keys.length);
+}
+
+/* ── ONE EFFECT ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────── */
+/**
+ * The effect of `after` against `base` on one outcome over one group of cells. base / after: { key: seed rows }, `col` the outcome's
+ * column. Answers { kind, est, se, n, cells, resolved, perSeed } (rel: a relative change; abs: an absolute one) or, for deaths,
+ * { kind, before, after, est, se, deathsB, deathsA, hoursB, hoursA, resolved }.
+ */
+export function effect(ids, base, after, keys, id) {
+  const col = ids.indexOf(id), kind = kindOf(id);
+  if (kind === 'deaths') {
+    const dc = ids.indexOf('deaths'), hc = ids.indexOf('_hh');
+    let dB = 0, dA = 0, hB = 0, hA = 0;
+    for (const k of keys) { if (!base[k] || !after[k]) continue; for (const r of base[k]) { dB += r[dc] || 0; hB += r[hc] || 0; } for (const r of after[k]) { dA += r[dc] || 0; hA += r[hc] || 0; } }
+    if (!(hB > 0 && hA > 0)) return null;
+    const rB = (1000 * dB) / hB, rA = (1000 * dA) / hA;
+    /* a Poisson count's variance is its mean; a count of zero is given half a death so a silent cell is not a certain one */
+    const se = 1000 * Math.sqrt(Math.max(dB, 0.5) / hB ** 2 + Math.max(dA, 0.5) / hA ** 2);
+    return { kind, before: sig(rB), after: sig(rA), est: sig(rA - rB), se: sig(se), deathsB: dB, deathsA: dA, hoursB: Math.round(hB), hoursA: Math.round(hA), resolved: Math.abs(rA - rB) > 2 * se };
+  }
+  const usable = [];
+  let n = Infinity;
+  for (const k of keys) {
+    const b = base[k], a = after[k];
+    if (!b || !a) continue;
+    const m = Math.min(b.length, a.length);
+    const bv = b.slice(0, m).map((r) => r[col]), av = a.slice(0, m).map((r) => r[col]);
+    if (!bv.every(finite) || !av.every(finite)) continue;
+    const B = mean(bv);
+    if (kind === 'rel' && !(Math.abs(B) > 1e-9)) continue;
+    usable.push({ bv, av, B });
+    n = Math.min(n, m);
+  }
+  if (!usable.length || !(n >= 1)) return null;
+  const perSeed = [];
+  for (let s = 0; s < n; s++) perSeed.push(mean(usable.map((u) => (kind === 'rel' ? (u.av[s] - u.bv[s]) / Math.abs(u.B) : u.av[s] - u.bv[s]))));
+  const est = mean(perSeed), sd = sdOf(perSeed), se = sd === null ? null : sd / Math.sqrt(n);
+  const floor = kind === 'rel' ? 0.005 : 0;
+  const resolved = se === null ? false : se === 0 ? Math.abs(est) > floor : Math.abs(est) > tOf(n) * se && Math.abs(est) > floor;
+  return { kind, est: sig(est), se: sig(se), n, cells: usable.length, resolved, base: sig(mean(usable.map((u) => u.B))), perSeed };
+}
+/** ln of the outcome ratio a relative effect stands for (null when it cannot be read). */
+const lnr = (e) => (e && e.kind === 'rel' && finite(e.est) && e.est > -0.999 ? Math.log(1 + e.est) : null);
+/** The elasticity of an effect at multiplier m: rel -> ln r / ln m; abs and deaths -> the change a unit of ln m. */
+export function elasticity(e, m) {
+  if (!e || !finite(e.est) || m === 1) return null;
+  const x = e.kind === 'rel' ? lnr(e) : e.est;
+  return x === null ? null : sig(x / Math.log(m));
+}
+
+/* ── READING THE PARTS ──────────────────────────────────────────────────────────────────────────────────────────────────────────── */
+function partFiles(dir) {
+  const out = [];
+  const walk = (d) => { for (const f of readdirSync(d)) { const p = join(d, f); if (statSync(p).isDirectory()) walk(p); else if (/^sens-.*\.json\.gz$/.test(f)) out.push(p); } };
+  if (existsSync(dir)) walk(dir);
+  return out.sort();
+}
+/** Every point of every part: { ids, meta, scenarioHash, commits, base: { key: rows }, points: Map(id -> { levers, cells, refused, errors, reds, job }) }. */
+export function loadParts(dir) {
+  const docs = partFiles(dir).map((f) => ({ f, d: readDoc(f) }));
+  if (!docs.length) throw new Error('analyze: no sens-*.json.gz under ' + dir);
+  const first = docs[0].d;
+  const points = new Map();
+  let base = null, meta = null;
+  const commits = new Set(), seedSets = new Set();
+  for (const { f, d } of docs.sort((a, b) => (a.d.seedFrom || 0) - (b.d.seedFrom || 0))) {
+    if (d.schema !== PART_SCHEMA) throw new Error('analyze: ' + f + ' is ' + d.schema);
+    if (d.scenarioHash !== first.scenarioHash || JSON.stringify(d.outcomeIds) !== JSON.stringify(first.outcomeIds)) throw new Error('analyze: ' + basename(f) + ' played scenario ' + d.scenarioHash + ', not ' + first.scenarioHash);
+    commits.add(d.commit);
+    seedSets.add((d.seedFrom || 0) + '+' + d.seeds);
+    if (d.meta && !meta) meta = d.meta;
+    for (const p of d.points) {
+      if (p.id === 'base') { base = base || {}; for (const [k, rows] of Object.entries(p.cells || {})) base[k] = [...(base[k] || []), ...rows]; continue; }
+      const q = points.get(p.id);
+      if (!q) { points.set(p.id, { ...p, job: d.job, cells: { ...(p.cells || {}) } }); continue; }
+      for (const [k, rows] of Object.entries(p.cells || {})) q.cells[k] = [...(q.cells[k] || []), ...rows];
+    }
+  }
+  if (!base) throw new Error('analyze: no base part under ' + dir);
+  return { ids: first.outcomeIds, meta, scenarioHash: first.scenarioHash, commits: [...commits], seedSets: [...seedSets], base, points, files: docs.map((x) => x.f) };
+}
+
+/* ── THE MATRIX ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────── */
+const OUT_IDS = OUTCOMES.map((o) => o[0]).filter((id) => id !== 'deaths');
+const slim = (e) => (e ? (e.kind === 'deaths' ? { k: 'd', b: e.before, a: e.after, e: e.est, s: e.se, r: e.resolved ? 1 : 0, n: [e.deathsB, e.deathsA] } : { k: e.kind === 'rel' ? 'r' : 'a', e: e.est, s: e.se, r: e.resolved ? 1 : 0, b: e.base }) : null);
+/** One point against the base: { group id: { outcome id: slim effect } }. */
+export function pointEffects(P, cells, groups, outIds = OUT_IDS) {
+  const out = {};
+  for (const g of groups) { const row = {}; for (const id of outIds) { const e = effect(P.ids, P.base, cells, g.keys, id); if (e) row[id] = slim(e); } out[g.id] = row; }
+  return out;
+}
+const cosine = (a, b) => { let ab = 0, aa = 0, bb = 0; for (let i = 0; i < a.length; i++) { ab += a[i] * b[i]; aa += a[i] * a[i]; bb += b[i] * b[i]; } return aa > 0 && bb > 0 ? ab / Math.sqrt(aa * bb) : null; };
+
+export function buildMatrix(P, root = ROOT) {
+  const groups = groupsOf(P.meta);
+  const levers = leverList(root);
+  const oat = {}, refused = [], problems = [];
+  for (const lv of levers) {
+    const steps = {};
+    for (const m of lv.steps) {
+      const p = P.points.get(lv.id + '=' + m);
+      if (!p) continue;
+      if (p.refused) { refused.push({ lever: lv.id, m, why: p.refused }); continue; }
+      if ((p.errors || []).length || (p.reds || []).length) problems.push({ point: p.id, errors: (p.errors || []).length, reds: (p.reds || []).length, first: (p.errors || [])[0] || (p.reds || [])[0] });
+      steps[m] = pointEffects(P, p.cells, groups);
+    }
+    if (Object.keys(steps).length) oat[lv.id] = { kind: lv.kind, group: lv.group, label: lv.label, intends: lv.intends, steps };
+  }
+  /* ELASTICITIES: per lever, outcome and group: local (x0.9 to x1.1, or the two steps nearest 1), low (the least step), high (the greatest) */
+  const elast = {};
+  for (const [id, lv] of Object.entries(oat)) {
+    const ms = Object.keys(lv.steps).map(Number).sort((a, b) => a - b);
+    const lo = ms[0], hi = ms[ms.length - 1];
+    const below = ms.filter((m) => m < 1).pop(), above = ms.find((m) => m > 1);
+    elast[id] = {};
+    for (const g of groups) {
+      const row = {};
+      for (const o of OUT_IDS) {
+        const at = (m) => (m === undefined ? null : lv.steps[m][g.id][o] || null);
+        const full = (e) => (e ? { kind: e.k === 'r' ? 'rel' : e.k === 'a' ? 'abs' : 'deaths', est: e.e, se: e.s } : null);
+        const eLo = at(lo), eHi = at(hi), eB = at(below), eA = at(above);
+        if (!eLo && !eHi) continue;
+        const xOf = (e) => (e ? (e.k === 'r' ? (e.e > -0.999 ? Math.log(1 + e.e) : null) : e.e) : null);
+        const local = eB && eA && xOf(eB) !== null && xOf(eA) !== null ? sig((xOf(eA) - xOf(eB)) / (Math.log(above) - Math.log(below))) : null;
+        row[o] = { lo: elasticity(full(eLo), lo), local, hi: elasticity(full(eHi), hi), rLo: eLo ? eLo.r : 0, rHi: eHi ? eHi.r : 0, rLocal: (eB && eB.r) || (eA && eA.r) ? 1 : 0,
+          anyResolved: ms.some((m) => (at(m) || {}).r) ? 1 : 0 };
+      }
+      elast[id][g.id] = row;
+    }
+    elast[id]._steps = { lo, hi, below, above };
+  }
+  /* THE EFFECT VECTORS (redundancy): each lever's elasticity on every cell and rate outcome, at its highest and its lowest step */
+  const vecOuts = CORE.filter((o) => kindOf(o) === 'rel');
+  const vectors = {};
+  for (const [id] of Object.entries(oat)) {
+    const { lo, hi } = elast[id]._steps;
+    const v = [];
+    for (const m of [lo, hi]) {
+      const p = P.points.get(id + '=' + m);
+      for (const c of P.meta) for (const o of vecOuts) { const e = effect(P.ids, P.base, p.cells, [c.key], o); const x = lnr(e); v.push(x === null ? 0 : x / Math.log(m)); }
+    }
+    vectors[id] = v;
+  }
+  const pairs = [];
+  const idsL = Object.keys(vectors);
+  const norm = (v) => Math.sqrt(v.reduce((a, b) => a + b * b, 0) / v.length);
+  for (let i = 0; i < idsL.length; i++) for (let j = i + 1; j < idsL.length; j++) {
+    const c = cosine(vectors[idsL[i]], vectors[idsL[j]]);
+    if (c !== null) pairs.push({ a: idsL[i], b: idsL[j], cos: sig(c, 3), normA: sig(norm(vectors[idsL[i]]), 3), normB: sig(norm(vectors[idsL[j]]), 3) });
+  }
+  pairs.sort((x, y) => Math.abs(y.cos) - Math.abs(x.cos));
+  /* THE EXPERIMENTS: every point's effects, and each multi-factor point's interaction against its single-factor points */
+  const fx = {};
+  for (const exp of EXPERIMENTS) {
+    const names = Object.keys(exp.factors);
+    const idOf = (lv) => exp.id + ':' + names.map((n) => n + '=' + lv[n]).join(',');
+    const pts = [];
+    for (const [pid, p] of P.points) {
+      if (!pid.startsWith(exp.id + ':') || p.refused) continue;
+      const moved = names.filter((n) => p.levers[n] !== 1);
+      const row = { id: pid, levers: p.levers, moved, effects: pointEffects(P, p.cells, groups, CORE), inter: null };
+      if (moved.length > 1) {
+        const singles = moved.map((n) => P.points.get(idOf({ ...Object.fromEntries(names.map((x) => [x, 1])), [n]: p.levers[n] })));
+        if (singles.every((s) => s && !s.refused)) row.inter = interaction(P, p.cells, singles.map((s) => s.cells), groups, CORE);
+      }
+      pts.push(row);
+    }
+    if (pts.length) fx[exp.id] = { what: exp.what, factors: exp.factors, points: pts };
+  }
+  return { groups: groups.map((g) => ({ id: g.id, label: g.label, cells: g.keys.length })), oat, elast, pairs: pairs.slice(0, 120), fx, refused, problems };
+}
+
+/**
+ * The interaction of a multi-factor point: per seed, x(joint) - sum of x(single), where x is ln(1 + relative change) for a rate
+ * outcome and the absolute change for a share. Zero means the single readings multiply (or add) to the joint one. Answers
+ * { group: { outcome: { joint, predicted, inter, se, resolved } } }: for a rate outcome joint and predicted are RATIOS to the base.
+ */
+export function interaction(P, joint, singles, groups, outIds) {
+  const out = {};
+  for (const g of groups) {
+    const row = {};
+    for (const o of outIds) {
+      if (kindOf(o) === 'deaths') {
+        const ej = effect(P.ids, P.base, joint, g.keys, o), es = singles.map((s) => effect(P.ids, P.base, s, g.keys, o));
+        if (!ej || es.some((e) => !e)) continue;
+        const pred = ej.before + es.reduce((a, e) => a + e.est, 0), inter = ej.after - pred, se = Math.sqrt(ej.se ** 2 + es.reduce((a, e) => a + e.se ** 2, 0));
+        row[o] = { joint: ej.after, predicted: sig(pred), base: ej.before, inter: sig(inter), se: sig(se), resolved: Math.abs(inter) > 2 * se ? 1 : 0 };
+        continue;
+      }
+      const ej = effect(P.ids, P.base, joint, g.keys, o), es = singles.map((s) => effect(P.ids, P.base, s, g.keys, o));
+      if (!ej || es.some((e) => !e)) continue;
+      const n = Math.min(ej.n, ...es.map((e) => e.n)), rel = ej.kind === 'rel';
+      const x = (v) => (rel ? (v > -0.999 ? Math.log(1 + v) : null) : v);
+      const per = [];
+      for (let s = 0; s < n; s++) { const j = x(ej.perSeed[s]), ss = es.map((e) => x(e.perSeed[s])); if (j === null || ss.some((v) => v === null)) { per.length = 0; break; } per.push(j - ss.reduce((a, b) => a + b, 0)); }
+      if (!per.length) continue;
+      const inter = mean(per), sd = sdOf(per), se = sd === null ? null : sd / Math.sqrt(per.length);
+      const jx = x(ej.est), px = es.reduce((a, e) => a + x(e.est), 0);
+      row[o] = { joint: sig(rel ? Math.exp(jx) : jx), predicted: sig(rel ? Math.exp(px) : px), inter: sig(inter), se: sig(se), base: ej.base,
+        resolved: se !== null && (se === 0 ? Math.abs(inter) > 0.005 : Math.abs(inter) > tOf(per.length) * se && Math.abs(inter) > 0.01) ? 1 : 0 };
+    }
+    out[g.id] = row;
+  }
+  return out;
+}
+
+/* ── THE REPORT ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────── */
+const pct = (x, d = 1) => (finite(x) ? (x >= 0 ? '+' : '') + (100 * x).toFixed(d) + '%' : '  n/a');
+const num = (x, d = 2) => (finite(x) ? (x >= 0 ? '+' : '') + x.toFixed(d) : ' n/a');
+const showE = (e) => (!e ? 'n/a' : e.k === 'd' ? e.b + '->' + e.a + (e.r ? '' : '~') : (e.k === 'r' ? pct(e.e) : num(e.e, 3)) + (e.r ? '' : '~'));
+function reportOat(M, out) {
+  out('ONE-AT-A-TIME. A value marked ~ is not resolved from noise. Elasticity: ln(outcome ratio) / ln(lever multiplier).');
+  const rank = {};
+  for (const o of CORE) {
+    rank[o] = Object.entries(M.elast).map(([id, e]) => { const r = e.all[o]; if (!r) return null; const best = Math.max(...[r.lo, r.local, r.hi].filter(finite).map(Math.abs), 0); return { id, lo: r.lo, local: r.local, hi: r.hi, best, res: r.anyResolved }; })
+      .filter((x) => x && x.res).sort((a, b) => b.best - a.best);
+  }
+  for (const o of CORE) {
+    out('\n' + o + ' (' + kindOf(o) + '): levers by influence, all cells [elasticity low / local / high]');
+    for (const r of rank[o].slice(0, 12)) out('  ' + r.id.padEnd(20) + num(r.lo).padStart(8) + num(r.local).padStart(8) + num(r.hi).padStart(8));
+  }
+  return rank;
+}
+function reportLever(M, id, out) {
+  const lv = M.oat[id];
+  if (!lv) { out('no lever ' + id + ' in the data'); return; }
+  const ms = Object.keys(lv.steps).map(Number).sort((a, b) => a - b);
+  out('\n' + id + ' (' + lv.label + ', intends ' + lv.intends.join(', ') + ')');
+  for (const g of ['all', 'party:1', 'party:4', 'L:10', 'L:30', 'L:60', 'L:110', 'style:melee', 'style:ranged', 'style:magic', 'tier:normal', 'tier:dangerous', 'tier:deadly', 'gear:low', 'gear:mid', 'gear:bis']) {
+    if (!lv.steps[ms[0]][g]) continue;
+    out('  ' + g);
+    out('    ' + 'outcome'.padEnd(18) + ms.map((m) => ('x' + m).padStart(12)).join(''));
+    for (const o of CORE) out('    ' + o.padEnd(18) + ms.map((m) => showE(lv.steps[m][g][o]).padStart(12)).join(''));
+  }
+}
+function reportFx(M, id, out) {
+  const x = M.fx[id];
+  if (!x) { out('no experiment ' + id + ' in the data'); return; }
+  out('\n' + id + ': ' + x.what);
+  const names = Object.keys(x.factors);
+  for (const g of ['all', 'party:1', 'party:4', 'four:normal', 'four:dangerous', 'four:deadly', 'style:magic', 'style:melee']) {
+    out('  ' + g);
+    for (const o of CORE) {
+      const rows = x.points.filter((p) => p.inter && p.inter[g] && p.inter[g][o] && p.inter[g][o].resolved).sort((a, b) => Math.abs(b.inter[g][o].inter) - Math.abs(a.inter[g][o].inter)).slice(0, 4);
+      for (const p of rows) { const i = p.inter[g][o]; out('    ' + o.padEnd(16) + names.map((n) => n + ' x' + p.levers[n]).join(', ').padEnd(58) + ' joint ' + String(i.joint).padStart(8) + '  singles say ' + String(i.predicted).padStart(8) + '  gap ' + num(i.inter, 3) + ' +/- ' + i.se); }
+    }
+  }
+}
+
+async function selftest() {
+  const fails = [];
+  const ok = (c, w) => { if (!c) fails.push(w); console.log((c ? '  ok   ' : '  FAIL ') + w); };
+  const ids = ['x', 'lowHpP10', 'deaths', '_hh', '_wall'];
+  let seed = 7;
+  const rnd = () => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648 - 0.5; };
+  const mk = (f) => Object.fromEntries(['a', 'b', 'c'].map((k, ci) => [k, [0, 1, 2, 3].map((s) => f(ci, s))]));
+  const b0 = mk((c, s) => [100 * (c + 1) + s, 0.5, c === 0 && s === 0 ? 1 : 0, 10, 10]);
+  const up = Object.fromEntries(Object.entries(b0).map(([k, rows]) => [k, rows.map((r) => [r[0] * 1.2 * (1 + 0.004 * rnd()), r[1] - 0.1, r[2] * 3 + (k === 'b' ? 2 : 0), r[3], r[4]])]));
+  const e1 = effect(ids, b0, up, ['a', 'b', 'c'], 'x');
+  ok(e1 && Math.abs(e1.est - 0.2) < 0.01 && e1.resolved, 'a planted +20% reads +20% and resolved (' + (e1 && e1.est) + ')');
+  const e2 = effect(ids, b0, b0, ['a', 'b', 'c'], 'x');
+  ok(e2 && e2.est === 0 && !e2.resolved, 'a copy reads exactly zero and is not resolved');
+  const noisy = Object.fromEntries(Object.entries(b0).map(([k, rows]) => [k, rows.map((r) => [r[0] * (1 + 0.2 * rnd()), r[1], r[2], r[3], r[4]])]));
+  const e3 = effect(ids, b0, noisy, ['a', 'b', 'c'], 'x');
+  ok(e3 && !e3.resolved, 'noise alone is not resolved (' + (e3 && e3.est) + ' +/- ' + (e3 && e3.se) + ')');
+  const e4 = effect(ids, b0, up, ['a', 'b', 'c'], 'lowHpP10');
+  ok(e4 && e4.kind === 'abs' && Math.abs(e4.est + 0.1) < 1e-9 && e4.resolved, 'a share outcome reads as an absolute change (-0.1)');
+  const e5 = effect(ids, b0, up, ['a', 'b', 'c'], 'deathsPer1000h');
+  ok(e5 && e5.deathsB === 1 && e5.deathsA === 11 && e5.resolved, 'deaths pool over cells and seeds (1 -> 11 in 120 hours)');
+  ok(Math.abs(elasticity({ kind: 'rel', est: 1 }, 2) - 1) < 1e-9 && Math.abs(elasticity({ kind: 'rel', est: -0.5 }, 2) + 1) < 1e-9, 'elasticity: doubled by x2 is 1, halved by x2 is -1');
+  const times = (f) => Object.fromEntries(Object.entries(b0).map(([k, rows]) => [k, rows.map((r) => [r[0] * f, r[1], r[2], r[3], r[4]])]));
+  const P = { ids, base: b0 };
+  const g = [{ id: 'all', keys: ['a', 'b', 'c'] }];
+  const pure = interaction(P, times(1.5 * 0.8), [times(1.5), times(0.8)], g, ['x']).all.x;
+  ok(pure && Math.abs(pure.inter) < 1e-3 && !pure.resolved, 'two single effects that multiply read as no interaction');
+  const coupled = interaction(P, times(1.5), [times(1.5), times(0.8)], g, ['x']).all.x;
+  ok(coupled && coupled.resolved && Math.abs(coupled.inter - Math.log(1 / 0.8)) < 2e-3, 'a planted interaction is found (' + (coupled && coupled.inter) + ')');
+  console.log(fails.length ? 'SELFTEST FAILED: ' + fails.length : 'selftest: all proofs hold');
+  return fails.length ? 1 : 0;
+}
+
+async function main() {
+  if (has('selftest')) return selftest();
+  const src = arg('parts') ? resolve(arg('parts')) : PARTS_DIR;
+  if (arg('parts')) {
+    mkdirSync(PARTS_DIR, { recursive: true });
+    for (const f of partFiles(src)) copyFileSync(f, join(PARTS_DIR, (arg('tag') ? arg('tag') + '-' : '') + basename(f)));
+  }
+  const P = loadParts(arg('parts') ? PARTS_DIR : src);
+  const M = buildMatrix(P);
+  const prev = existsSync(MATRIX_FILE) ? JSON.parse(readFileSync(MATRIX_FILE, 'utf8')) : {};
+  const doc = { schema: 'hearthrise.balance-sensitivity-matrix/1', scenarioHash: P.scenarioHash, commits: P.commits, githubRuns: arg('run') ? arg('run').split(',') : prev.githubRuns || [], seedSets: P.seedSets,
+    cells: P.meta, outcomes: OUTCOMES.map(([id, label, category, unit]) => ({ id, label, category, unit, kind: kindOf(id) })), core: CORE, ...M };
+  writeFileSync(MATRIX_FILE, JSON.stringify(doc) + '\n');
+  const out = console.log;
+  out('SENSITIVITY: ' + P.points.size + ' points over ' + P.meta.length + ' cells, scenario ' + P.scenarioHash + ', seeds ' + P.seedSets.join(' ') + ', ' + Object.keys(M.oat).length + ' levers, ' + Object.keys(M.fx).length + ' experiments');
+  if (M.refused.length) { out('REFUSED: ' + M.refused.length); for (const r of M.refused) out('  ' + r.lever + ' x' + r.m + ': ' + r.why); }
+  if (M.problems.length) { out('POINTS WITH AN ERROR CELL OR A TOOL RED: ' + M.problems.length); for (const r of M.problems.slice(0, 30)) out('  ' + r.point + ': ' + r.errors + ' errors, ' + r.reds + ' reds, ' + JSON.stringify(r.first).slice(0, 160)); }
+  const which = arg('report', 'all');
+  if (arg('lever')) { reportLever(M, arg('lever'), out); return 0; }
+  if (arg('exp')) { reportFx(M, arg('exp'), out); return 0; }
+  if (which === 'oat' || which === 'all') reportOat(M, out);
+  if (which === 'fx' || which === 'all') for (const id of Object.keys(M.fx)) reportFx(M, id, out);
+  return 0;
+}
+if (isMain(import.meta.url)) main().then((c) => process.exit(c), (e) => { console.error(e); process.exit(2); });

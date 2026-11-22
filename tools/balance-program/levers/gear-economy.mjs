@@ -5,6 +5,7 @@ import { KILL, SURVIVE, PACE, GOLD } from './combat.mjs';
 
 const GEAR = 'src/data/gear-tiers.js';
 const GS = 'src/data/gear-steps.js';
+const TR = 'src/data/traits.js';
 const ITEMS = 'src/data/items.js';
 const ITEM_ROWS = home(ITEMS + '#ITEMS', 'keys');
 const MIG = 'supabase/migrations/';
@@ -119,13 +120,21 @@ export const GEAR_ECONOMY = [
     perturb: NP('not-built', 'no roller or fight reads Traits until wave 4 (V7 sizes them on the engine)'),
     ev: 'STATED (04 section 10: 6 steps of spread on a 20-step tier)' }),
   L('gear.traits', 'equipment', 'content', 'Traits: the rule, its condition and its source', {
-    rows: rows('the sample Traits (when values, slot, source)', [home(GS + '#TRAITS', 'keys')]),
+    rows: rows('the 40 Traits (when values, slot, source, key; lane/traits-20)', [home(TR + '#TRAITS', 'keys')]),
     def: 'each Trait raises offense, defense or heal by its rank\'s steps while its `when` (a bar condition) holds; it rolls on its source ground',
     range: 'a `when` value inside its condition\'s picker (GS-4); never the always-true condition',
     touches: 'which hero wants which Rare on which ground (hidden until wave 4)', out: [...KILL, ...SURVIVE], f: [],
     tests: [['tests/gear-steps.mjs', 'GS-4 and GS-5 the rows']], testReads: ['TRAITS'],
     perturb: NP('not-built', 'hidden: nothing rolls or plays them'),
-    ev: 'STATED (a sample of five, CLAUDE.md section 10)' }),
+    ev: 'STATED (Tyler picked all 40 of 14-trait-candidates.md, 2026-11-22)' }),
+  L('gear.trait-trade', 'equipment', 'global', 'A trade Trait\'s gain, and the percents a Trait card shows', {
+    at: [at(GS, 'tradeSteps: Object.freeze([7, 13, 18]),'), at(GS, 'shownPct: Object.freeze({ rank: Object.freeze([1.5, 2.5, 3.5]), tradeGain: Object.freeze([2.5, 4.5, 6.5]) }),')],
+    def: 'a trade Trait (Hask\'s Bargain) raises offense by tradeSteps and lowers defense by traitSteps of the same rank while its when holds; a card shows shownPct, rounded from the steps',
+    range: 'gain over its cost, net at most one rank, rank 3 gain at most conditionalStepsMax; a shown percent within 0.25 of its steps at powerStep (GS-3)',
+    touches: 'how much a risk/reward Trait pays against what it costs, and what the card says', out: [...KILL, ...SURVIVE], f: [],
+    tests: [['tests/gear-steps.mjs', 'GS-3 the trade and the shown percents']], testReads: ['GEAR_STEPS'],
+    perturb: NP('not-built', 'hidden: nothing rolls or plays Traits until wave 4'),
+    ev: 'STATED (the Coordinator 2026-11-22: +2.5 / 4.5 / 6.5% gain, clean percents on the card)' }),
   L('gear.ground-tier', 'equipment', 'archetype', 'The base tier a scale ground drops', {
     at: [at('src/data/danger.js', 'gearLevel: tierLevel(3)')],
     def: 'a scale ground drops ONE base item Level at every depth (Muster Barrows tier 3, item Level 60); depth raises only the Rare odds and the Trait rank',

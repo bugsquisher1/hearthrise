@@ -136,6 +136,12 @@
         "gzipBytes": 913001,
         "on": "2026-11-22",
         "why": "wave 2 monster roles: +0.9 KB gzip at town, the role labels (Targets / Countered by) the hunt view and bestiary read"
+      },
+      {
+        "modules": 21,
+        "gzipBytes": 914554,
+        "on": "2026-11-22",
+        "why": "40 hidden Trait rows reach town through danger.js -> gear-steps.js (re-export of traits.js); data only, nothing shown until wave 4 wires drops"
       }
     ]
   }

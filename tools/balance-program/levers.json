@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "205ae17c378504fb",
+ "authored": "63a16b7f20138862",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -63,7 +63,7 @@
   "dead": "nothing on the hunt path reads it: a perturbation changes no outcome"
  },
  "counts": {
-  "levers": 187,
+  "levers": 188,
   "byCategory": {
    "base-damage": 12,
    "skill-scaling": 9,
@@ -80,14 +80,14 @@
    "spawn": 11,
    "monster-rewards": 14,
    "rare-drops": 6,
-   "equipment": 14,
+   "equipment": 15,
    "imbuements": 1,
    "consumables": 9,
    "party": 7,
    "economy": 33
   },
   "byClass": {
-   "global": 85,
+   "global": 86,
    "archetype": 27,
    "content": 47,
    "exception-intentional": 17,
@@ -102,11 +102,11 @@
    "not-playable:harness-fixed": 6,
    "not-playable:not-in-runs": 19,
    "variant": 5,
-   "not-playable:not-built": 10,
+   "not-playable:not-built": 11,
    "not-playable:sql-only": 6
   },
   "byTest": {
-   "asserted": 76,
+   "asserted": 77,
    "mentioned only": 91,
    "none": 20
   },
@@ -118,8 +118,8 @@
  },
  "census": {
   "bindings": 668,
-  "typed": 15714,
-  "files": 228,
+  "typed": 15779,
+  "files": 229,
   "lever": 286,
   "notLever": 382,
   "unclaimed": 0
@@ -6682,12 +6682,12 @@
      "tests/boss-call-window.mjs",
      "tests/danger-client.mjs",
      "tests/danger-db.mjs",
+     "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs",
      "tests/hunt-core/tally.mjs",
-     "tests/hunt-report.mjs",
-     "tests/hunting-blocks.mjs"
+     "tests/hunt-report.mjs"
     ],
-    "mentionCount": 8,
+    "mentionCount": 9,
     "verdict": "asserted"
    },
    "perturb": {
@@ -6761,12 +6761,12 @@
      "tests/boss-call-window.mjs",
      "tests/danger-client.mjs",
      "tests/danger-db.mjs",
+     "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs",
      "tests/hunt-core/tally.mjs",
-     "tests/hunt-report.mjs",
-     "tests/hunting-blocks.mjs"
+     "tests/hunt-report.mjs"
     ],
-    "mentionCount": 8,
+    "mentionCount": 9,
     "verdict": "asserted"
    },
    "perturb": {
@@ -6837,12 +6837,12 @@
      "tests/boss-call-window.mjs",
      "tests/danger-client.mjs",
      "tests/danger-db.mjs",
+     "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs",
      "tests/hunt-core/tally.mjs",
-     "tests/hunt-report.mjs",
-     "tests/hunting-blocks.mjs"
+     "tests/hunt-report.mjs"
     ],
-    "mentionCount": 8,
+    "mentionCount": 9,
     "verdict": "asserted"
    },
    "perturb": {
@@ -6906,12 +6906,12 @@
      "tests/boss-call-window.mjs",
      "tests/danger-client.mjs",
      "tests/danger-db.mjs",
+     "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs",
      "tests/hunt-core/tally.mjs",
-     "tests/hunt-report.mjs",
-     "tests/hunting-blocks.mjs"
+     "tests/hunt-report.mjs"
     ],
-    "mentionCount": 8,
+    "mentionCount": 9,
     "verdict": "asserted"
    },
    "perturb": {
@@ -9344,13 +9344,13 @@
    "sites": [
     {
      "file": "src/data/gear-steps.js",
-     "line": 46,
+     "line": 45,
      "text": "tierSteps: 20,",
      "binding": "GEAR_STEPS"
     },
     {
      "file": "src/data/gear-steps.js",
-     "line": 47,
+     "line": 46,
      "text": "wearAhead: 10,",
      "binding": "GEAR_STEPS"
     }
@@ -9420,7 +9420,7 @@
    "sites": [
     {
      "file": "src/data/gear-steps.js",
-     "line": 50,
+     "line": 49,
      "text": "weapon: 200, shield: 80, body: 120, pants: 90, helmet: 70, boots: 60, gloves: 60, belt: 50, cape: 60,",
      "binding": "GEAR_STEPS"
     }
@@ -9489,31 +9489,31 @@
    "sites": [
     {
      "file": "src/data/gear-steps.js",
-     "line": 56,
+     "line": 55,
      "text": "traitSteps: Object.freeze([4, 7, 10]),",
      "binding": "GEAR_STEPS"
     },
     {
      "file": "src/data/gear-steps.js",
-     "line": 57,
+     "line": 71,
      "text": "conditionalStepsMax: 20,",
      "binding": "GEAR_STEPS"
     },
     {
      "file": "src/data/gear-steps.js",
-     "line": 58,
+     "line": 72,
      "text": "traitAverageSharePm: 500,",
      "binding": "GEAR_STEPS"
     },
     {
      "file": "src/data/gear-steps.js",
-     "line": 59,
+     "line": 73,
      "text": "dominanceMaxPm: 400,",
      "binding": "GEAR_STEPS"
     },
     {
      "file": "src/data/gear-steps.js",
-     "line": 60,
+     "line": 74,
      "text": "rankDepths: Object.freeze([1, 8, 15]),",
      "binding": "GEAR_STEPS"
     }
@@ -9632,13 +9632,88 @@
     "existingPatches": []
    },
    "rows": {
-    "what": "the sample Traits (when values, slot, source)",
+    "what": "the 40 Traits (when values, slot, source, key; lane/traits-20)",
     "homes": [
-     "src/data/gear-steps.js#TRAITS"
+     "src/data/traits.js#TRAITS"
     ]
    },
    "flags": [],
-   "evidence": "STATED (a sample of five, CLAUDE.md section 10)"
+   "evidence": "STATED (Tyler picked all 40 of 14-trait-candidates.md, 2026-11-22)"
+  },
+  {
+   "id": "gear.trait-trade",
+   "category": "equipment",
+   "name": "A trade Trait's gain, and the percents a Trait card shows",
+   "sites": [
+    {
+     "file": "src/data/gear-steps.js",
+     "line": 58,
+     "text": "tradeSteps: Object.freeze([7, 13, 18]),",
+     "binding": "GEAR_STEPS"
+    },
+    {
+     "file": "src/data/gear-steps.js",
+     "line": 61,
+     "text": "shownPct: Object.freeze({ rank: Object.freeze([1.5, 2.5, 3.5]), tradeGain: Object.freeze([2.5, 4.5, 6.5]) }),",
+     "binding": "GEAR_STEPS"
+    }
+   ],
+   "definition": "a trade Trait (Hask's Bargain) raises offense by tradeSteps and lowers defense by traitSteps of the same rank while its when holds; a card shows shownPct, rounded from the steps",
+   "range": "gain over its cost, net at most one rank, rank 3 gain at most conditionalStepsMax; a shown percent within 0.25 of its steps at powerStep (GS-3)",
+   "touches": "how much a risk/reward Trait pays against what it costs, and what the card says",
+   "outcomes": [
+    "dps",
+    "dpsHero",
+    "ttkS",
+    "killsPerH",
+    "levelXpPerH",
+    "netPerH",
+    "hoursPerLevel",
+    "xContract",
+    "takenPerH",
+    "healPerH",
+    "deathsPer1000h",
+    "lowHpTypical",
+    "lowHpP10",
+    "hpUnder30",
+    "hpUnder10",
+    "netLevelXpPerH",
+    "storePerH",
+    "suppliesPerH",
+    "huntedShare"
+   ],
+   "formulas": [],
+   "reach": {
+    "feeds": 0,
+    "closure": 0
+   },
+   "class": "global",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/gear-steps.mjs",
+      "what": "GS-3 the trade and the shown percents",
+      "reads": [
+       "GEAR_STEPS"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/gear-steps.mjs",
+     "tests/hunt-core/danger.mjs"
+    ],
+    "mentionCount": 2,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "not-built",
+    "note": "hidden: nothing rolls or plays Traits until wave 4",
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "STATED (the Coordinator 2026-11-22: +2.5 / 4.5 / 6.5% gain, clean percents on the card)"
   },
   {
    "id": "gear.ground-tier",
@@ -13849,10 +13924,11 @@
    "typed": 1,
    "bindings": 1
   },
-  "src/data/gear-steps.js#TRAITS": {
+  "src/data/traits.js#TRAITS": {
    "pin": "keys",
    "keys": [
-    "value"
+    "n",
+    "when"
    ],
    "bindings": 1
   },
@@ -15412,17 +15488,20 @@
     "helmet",
     "necklace",
     "pants",
+    "rank",
     "rankDepths",
     "ring1",
     "ring2",
     "shield",
     "tierSteps",
+    "tradeGain",
+    "tradeSteps",
     "traitAverageSharePm",
     "traitSteps",
     "weapon",
     "wearAhead"
    ],
-   "typed": 23,
+   "typed": 32,
    "bindings": 1
   },
   "src/data/imbuements.js#IMBUE_TIER_FLOORS": {

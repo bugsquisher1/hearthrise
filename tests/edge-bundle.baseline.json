@@ -263,6 +263,11 @@
         "bytes": 3312863,
         "on": "2026-11-22",
         "why": "wave 2 roles: blowPm renamed maxHitPm (it collided with statuses.js blowPm, caught by effect-readers), +10 bytes"
+      },
+      {
+        "bytes": 3324005,
+        "on": "2026-11-22",
+        "why": "40 hidden Traits (src/data/traits.js via gear-steps.js), +11,149 B, ships with the release edge deploy"
       }
     ]
   }

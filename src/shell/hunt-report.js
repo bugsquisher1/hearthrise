@@ -38,6 +38,7 @@ export function blowLine(swing, spell, low, o) {
 /** The risk block's lines, the word first. `xpH`: the hunt's Level XP an hour (the server's), for a death's hunting time. */
 export function riskLines(r, xpH) {
   if (!r) return [];
+  /** @type {{ word?: boolean, text: string }[]} */
   const out = [{ word: true, text: t('report.word_' + r.word) }];
   out.push({ text: r.low ? blowLine('report.low', 'report.low_spell', { pm: r.low[0], by: r.low[1], blow: r.low[2] }) : t('report.low_none') });
   out.push({ text: r.close > 0 ? t('report.close', { count: r.close }) : t('report.close_none') });

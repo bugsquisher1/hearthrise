@@ -104,6 +104,7 @@ function addCounts(a, b, deep) {
  */
 export function addReport(a, b) {
   const x = isMap(a) ? a : emptyReport(), y = isMap(b) ? b : emptyReport();
+  /** @type {{ low: any, close: number, fired: object, waits: object, bar?: any, gear?: any, dry?: Record<string, number> }} */
   const out = { low: lower(x.low, y.low), close: (nat(x.close) || 0) + (nat(y.close) || 0),
     fired: addCounts(x.fired, y.fired, false), waits: addCounts(x.waits, y.waits, true) };
   for (const k of ['bar', 'gear']) { const v = k in y ? y[k] : x[k]; if (v !== undefined) out[k] = v; }

@@ -181,7 +181,7 @@ export function landHit(inst, sc, source, target, amount, element, ability, crit
   if (burn > 0) target.mana = Math.floor(Number(target.mana)) - burn;
   /* A BLOW AT A HERO says the HP it left and the hero's max (the hunt report's lowest health and close calls, src/core/hunt/report.js):
      a reading of the unit, never a played number. */
-  const vit = target.side === 'hero' ? { hp: Math.max(0, Math.floor(Number(target.hp) || 0)), max: Math.max(0, Math.floor(Number(target.maxHp) || 0)) } : null;
+  const vit = isHero(target) ? { hp: Math.max(0, Math.floor(Number(target.hp) || 0)), max: Math.max(0, Math.floor(Number(target.maxHp) || 0)) } : null;
   sc.emit(makeEvent('dmg', sc.atMs, { u, t: target.id, amount: r.dmg,
     ability: (ability && ability.id) || 'basic', element: element || null, ...(crit ? { crit: true } : {}), ...(ability && ability.follow ? { follow: true } : {}),
     ...(ability && ability.dot ? { dot: true } : {}), ...(burn > 0 ? { burn } : {}), ...(vit || {}) }));

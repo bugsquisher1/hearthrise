@@ -1743,6 +1743,12 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tools/mutant-gate.mjs node tools/balance-program/formulas/combat-register.mjs --selftest
+      # tools/balance-program/levers.mjs
+      - name: Balance lever registry - an unclaimed typed number, a new key in a pinned table, a lost anchor and a bad knob are each caught
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tools/balance-program/levers.mjs --selftest
+          node tools/balance-program/levers.mjs --check
       # tools/balance-program/paths.mjs
       - name: Best-path solver - a planted dominant recipe reads DOMINANT, a planted slow one NEGLECTED
         if: ${{ !cancelled() }}
@@ -1773,6 +1779,12 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tools/mutant-gate.mjs node tools/balance-program/start-cards.mjs --selftest
+      # tools/balance-program/targets.mjs
+      - name: Balance targets - a reader that does not exist, a malformed target and a planted fault are each caught
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tools/balance-program/targets.mjs --selftest
+          node tools/balance-program/targets.mjs --check
       # ── END SELF-REGISTERED GUARDS ──
 
   # db-replay-15: the last steps of db-replay-7, from "Party flow" on, split out 2026-11-18 (lane/ci-speed). db-replay-7 took up to 44.5 min
@@ -7696,6 +7708,17 @@ jobs:
           node tools/mutant-gate.mjs node tools/gen-live-events.mjs --selftest
           node tests/live-events.mjs
           node tools/mutant-gate.mjs node tests/live-events.mjs --mutate
+
+      # THE SOCIAL LAYER (1036 to 1039, lane/c-social FB-12): the clan, chat, friend link and presence rules the server reads are GENERATED
+      # from src/data/clans.js and chat-channels.js (tools/gen-social-catalogue.mjs); the clans, the clan chat with the castle hidden, the
+      # friend link from both sides and the strip are tests/social-layer.mjs, on the replayed chain.
+      - name: Social layer — the generated rules, clans, the friend link from both sides, the presence strip
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/gen-social-catalogue.mjs --check
+          node tools/mutant-gate.mjs node tools/gen-social-catalogue.mjs --selftest
+          node tests/social-layer.mjs
+          node tools/mutant-gate.mjs node tests/social-layer.mjs --mutate
 
       # THE ARMED FEATURES, PLAYED BY A STRANGER (2027-05-14-arm-switches.sql, lane/c-arm-switches): on the live calendar a stranger buys a
       # scaled hour and hunts the Cellar at its Level, earns the Bonus XP weekend's +25% and calls the Rat King for no gold in Open Halls;

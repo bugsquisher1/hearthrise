@@ -52,7 +52,7 @@
   "class4Left": [
    "E-X36"
   ],
-  "edges": 198,
+  "edges": 197,
   "crossEdges": 67,
   "inCycle": 59,
   "knobs": 35,
@@ -615,7 +615,7 @@
     "progression"
    ],
    "owner": null,
-   "what": "Skill XP grant: credited XP = floor(carry + base x (1 + allXP + combatXP)), base = amount x 0.39 unless the skill is exempt; plus a rested quantum outside the multiplier",
+   "what": "Skill XP grant: credited XP = floor(carry + base x (1 + allXP + combatXP)), base = amount x 0.39 unless the skill is exempt (the rested quantum is gone: P30 cut 2026-11-21)",
    "where": "src/core/progression.js:110-152",
    "state": "live"
   },
@@ -795,8 +795,8 @@
     "progression"
    ],
    "owner": null,
-   "what": "Rested bank: one charge every 6 minutes to a cap of 80 (120 with the Library); a spent charge adds a flat quantum of at most 1,600 XP",
-   "where": "src/core/rested.js:20-72",
+   "what": "Rested bank: CUT 2026-11-21 (FB-2, 1040-rested-bank-cut.sql; the sitting S-9 C): no rested bank. It was one charge every 6 minutes to a cap of 80 (120 with the Library), a spent charge a flat quantum of at most 1,600 XP",
+   "where": "",
    "state": "live"
   },
   {
@@ -2404,7 +2404,7 @@
    "class": 4,
    "status": "CONFIRMED",
    "what": "The rested bank fills on the server and pays nothing. All four grant callers pass a quantum of 0",
-   "where": "src/core/rested.js; supabase/functions/hr-accrue/accrue-rested.js; src/core/member.js:220,230; supabase/functions/hr-accrue/accrue-gather.js:135; accrue-artisan.js:184",
+   "where": "removed 2026-11-21 by FB-2 (1040-rested-bank-cut.sql): the rested files are deleted and the grant callers pass no quantum",
    "fix": "",
    "decided": null
   },
@@ -3634,10 +3634,6 @@
   },
   {
    "from": "P31",
-   "to": "P05"
-  },
-  {
-   "from": "P30",
    "to": "P05"
   },
   {

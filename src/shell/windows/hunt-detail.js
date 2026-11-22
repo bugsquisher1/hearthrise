@@ -5,7 +5,8 @@
 // mechanics only): the Hunts list is lines, and the picked ground gets ONE page,
 // read top to bottom the way the decision is made:
 //   the ground      name, its band against the hero's Level, who may come, a live
-//                   event that reaches it (the server's, src/shell/live-events-view.js),
+//                   event that reaches it (the server's, src/shell/live-events-view.js), the
+//                   other parties hunting it (src/shell/presence-strip.js, MM-20),
 //                   the level warning (the floor is a warning: the server decides)
 //   its theme
 //   who lives here  each creature as the world draws it (style-1 idle frame at ×2,
@@ -37,6 +38,7 @@ import { gotoAttr, patchParts } from '../goto.js';
 import { factsTarget } from './monster.js';
 import { t } from '../../render/player-text.js';
 import { groundLines } from '../live-events-view.js';
+import { stripHtml, patchStrip } from '../presence-strip.js';
 import { afterHtml } from './hunt-after-pane.js';
 import { scaleHtml } from './scale-pane.js';
 import { SHELL_WINDOWS } from '../../data/shell-windows.js';
@@ -60,7 +62,7 @@ export function detailHtml() {
   return '<header class="hw-hd-head">'
     + '<h3 class="hw-hd-name"></h3><p class="hw-hd-band"><span class="hw-hd-levels"></span>' + sepHtml('hw-hunt-sep', true) + '<span class="hw-hunt-fit"></span></p>'
     + '<p class="hw-hd-who"></p><p class="hw-hd-side" hidden><span class="hw-fx-mark" aria-hidden="true"></span><span class="hw-hd-side-name"></span></p>'
-    + '<div class="hw-hd-events"></div><p class="hw-hunt-warn"></p></header>'
+    + '<div class="hw-hd-events"></div>' + stripHtml() + '<p class="hw-hunt-warn"></p></header>'
     + '<h4 class="hw-hd-h">' + t('hunts.head_lives') + '</h4><ul class="hw-hd-lineup" aria-label="' + t('hunts.head_lives') + '"></ul><p class="hs-note hw-hd-casts" hidden></p><p class="hs-note hw-hd-bigpull" hidden></p>'
     /* the ground's words under who lives there: on a short screen the first row of creatures shows whole (Tyler 2026-11-11) */
     + '<p class="hw-hd-theme"></p>'
@@ -214,6 +216,8 @@ export function patchGround(det, ctx, r, o) {
     build: () => element(ctx.doc, '<p class="hw-hd-event"><b></b> <span></span></p>'),
     patch: (p, l) => { text(p.querySelector('b'), l.head); text(p.querySelector('span'), l.tail); cls(p, 'is-plain', l.plain); },
   });
+  /* who else hunts here (MM-20), the server's, asked once a minute at most while the page is up */
+  patchStrip(det, ctx, r.hunt, repaint);
   text(det.querySelector('.hw-hd-theme'), (HUNT_INDEX[r.hunt] && HUNT_INDEX[r.hunt].theme) || r.theme);
   const residents = residentsOf(r.hunt);
   wantArt(ctx.doc, residents.map((m) => m.id), repaint);

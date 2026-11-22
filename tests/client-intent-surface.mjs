@@ -87,18 +87,18 @@ export const CLIENT_RPCS = Object.freeze({
   /* Tyler's first playtest (10-18): going hunting and the home storage, both live, reviewed server verbs. */
   hr_hunt_enter: 'go hunting with names and counts of own supplies; band, stamina and stock are the server’s (CharacterSession.enterHunt; CharacterSession.huntAgain, the Hunt again card)',
   hr_bank_move: 'move a stack between the bag and the home storage, value-neutral (CharacterSession.moveStorage)',
-  /* The UX flow audit 2026-11-11 (2027-04-13-bank-move-many.sql): ids and a direction, WHOLE stacks at the server's own count, all or nothing. */
+  /* The UX flow audit 2026-11-11 (2027-04-13-bank-move-many.sql): ids and a direction, WHOLE stacks at the server’s own count, all or nothing. */
   /* CARRY ON (1024-carry-on.sql, Tyler RULED 27-1): the plan is a read; the press names slots, the gold figure the player was shown and a key */
   hr_carry_on_plan: 'what one Carry on press would do for each of the caller\'s own heroes: the slots, nothing else; a read, nothing moves (carry-on-intents.js carryOnPlan)',
   hr_carry_on: 'ONE press sends the caller\'s own heroes back to their last hunt through the existing doors: the slots (or none for the account), the Blessings gold the plan showed (it only refuses: quote_changed) and a key; no ground, count, item or price (carry-on-intents.js carryOn)',
   hr_bank_move_many: 'move many whole stacks between the bag and the home storage in one call, value-neutral, all or nothing (storage-intents.js moveStorageMany)',
-  /* Tyler 2026-11-02 "Yes, add a press" (2027-02-21-hunt-carry-in.sql): an item id and a count; catalogue, stock and the open hunt are the server's. */
+  /* Tyler 2026-11-02 "Yes, add a press" (2027-02-21-hunt-carry-in.sql): an item id and a count; catalogue, stock and the open hunt are the server’s. */
   hr_hunt_restock: 'carry a hunt supply from this hero\'s bag into its running hunt, value-neutral, one key moves once (carry-intents.js carryIntoHunt)',
   /* The alpha windows (2026-10-18; CONFLICTS.md): staged for the server lane, refused as http_404 until it lands. */
   hr_item_lock: 'lock or unlock an item so no bulk sale can name it (CharacterSession.lockItem)',
   hr_item_lock_many: 'lock or unlock many items in one call, all or nothing; moves no value (storage-intents.js lockItems)',
   hr_loot_rule_set: "an item's loot plan (keep in bag / deposit in storage / sell) or its pickup filter (do not pick up); a name and a word, the server validates it (CharacterSession.setLootRule)",
-  /* Tyler 2026-10-25 (2027-01-23-loot-dispatch.sql): a slot and a key; the plans, bag, bid and Storage room are the server's. */
+  /* Tyler 2026-10-25 (2027-01-23-loot-dispatch.sql): a slot and a key; the plans, bag, bid and Storage room are the server’s. */
   hr_loot_plan_copy: "this hero takes the loot plan of another hero of the same account: two slots, no item, count or price; the server reads both heroes under the caller's own account (loot-intents.js copyLootPlan; 2027-04-24-loot-plan-copy.sql)",
   hr_loot_dispatch: "run this hero's loot plans in town: deposit and sell the planned stacks; names no item, count or price (loot-intents.js dispatchLoot)",
   hr_hunt_preset_save: 'snapshot the action set and gear as a setup (CharacterSession.savePreset)',
@@ -110,7 +110,7 @@ export const CLIENT_RPCS = Object.freeze({
   hr_hunt_preset_delete: 'remove one of this character’s saved setups (preset-intents.js deleteSetup)',
   hr_action_set_rename: 'name the action set the bar shows (preset-intents.js renameActionSet)',
   hr_account_items: 'where an item is across this account, a read (AccountSession.findItems)',
-  /* The Roll of Honor (2027-02-12-leaderboard-heroes.sql): a board id and a row count; places, names and numbers are the server's. */
+  /* The Roll of Honor (2027-02-12-leaderboard-heroes.sql): a board id and a row count; places, names and numbers are the server’s. */
   hr_leaderboard: 'one board of the Roll of Honor: its top heroes and this account\'s own heroes on it, a read (honor-roll.js readBoard)',
   /* The party (S1, 2026-10-23-hunt-party.sql): slot + party id or seat only; no user id crosses. */
   hr_hunt_party_join: 'take a free seat in an open party by its id (CharacterSession.joinParty)',
@@ -127,7 +127,7 @@ export const CLIENT_RPCS = Object.freeze({
   hr_hunt_party_disband: 'the leader closes its party in town (party-intents.js disbandParty)',
   hr_hunt_party_invite_player: 'invite the player a menu targets by the server account id it carries (+ slot); same checks as the named invite (party-intents.js invitePlayer)',
   hr_hunt_party_list: 'the leader shows or hides its party in the finder, a yes/no (party-intents.js listParty)',
-  /* Call out (2027-03-12-boss-call.sql): a slot, a catalogue id and the price shown; the fee, the count and the party are the server's. */
+  /* Call out (2027-03-12-boss-call.sql): a slot, a catalogue id and the price shown; the fee, the count and the party are the server’s. */
   hr_boss_call: 'a series of called fights (the count bounded by the server, bad_fights): every seat pays the first fight, its own stamina and the server\'s fee, and enters the room, every member or none; a stale price is quote_changed (boss-intents.js callOut)',
   hr_boss_call_view: 'the call as the server prices it (one fight\'s stamina and fee, the slider\'s top, each count\'s total), read while the ground\'s page is open (boss-quote.js readCall)',
   hr_boss_hall_enter: 'a hero alone, or a party\'s leader with every member, spends one of the hall\'s keys and enters its room; the server names the key (boss-intents.js openHall)',
@@ -135,7 +135,7 @@ export const CLIENT_RPCS = Object.freeze({
   hr_party_hold_set: 'the leader picks who holds the pack, a seat or null for take turns; the server checks leader, seat and tank (party-intents.js setHoldSeat; 2026-12-08-party-hold.sql)',
   hr_party_leave_together_set: 'this hero\'s own "Leave if anyone leaves the hunt or dies", a yes/no; no other hero is named (party-intents.js setLeaveTogether; 2026-12-18-party-leave-together.sql)',
   hr_hunt_restart: 'go back to the hunt that just ended on that session’s own setup (CharacterSession.restartHunt)',
-  /* Lane S2's Services window: each sends the server's own QUOTE (refused quote_changed otherwise), never a price of its own. */
+  /* Lane S2's Services window: each sends the server’s own QUOTE (refused quote_changed otherwise), never a price of its own. */
   hr_stamina_refill: 'buy the next stamina refill at the quoted price (CharacterSession.buyStamina)',
   /* The gold sinks (Tyler 2026-11-04): a slot, a catalogue id and the QUOTE the player saw; the server counts, prices and refuses quote_changed. */
   hr_setup_slot_buy: 'buy this hero\'s next setup slot at the quoted price (preset-intents.js buySetupSlot; 2027-02-28-setup-slots.sql)',
@@ -186,14 +186,14 @@ export const CLIENT_RPCS = Object.freeze({
   hr_crier_send: 'a paid line to Global, at the price the player saw, with a fresh key; the server names the sender and checks every word first (ChatStore.cry)',
   hr_tally_view: 'Tamsin\'s board for this hero: the tasks, what each pays and her pick now; a read (tally-intents.js tallyBoard)',
   hr_tally_accept: 'take a kill task by id at her board in town, with the armour weight the first time; no count, no price (tally-intents.js takeTask)',
-  /* The Great Hearth (2027-01-31-inner-flame.sql): a slot, a catalogue id and a key; the XP, colour, time and clamps are the server's. */
+  /* The Great Hearth (2027-01-31-inner-flame.sql): a slot, a catalogue id and a key; the XP, colour, time and clamps are the server’s. */
   hr_hearth_burn: 'burn ONE named fuel from the bag in the Great Hearth by its catalogue id and a fresh key; never an amount, an XP figure or a colour (hearth-intents.js burnNamedFuel)',
   hr_tally_drop: 'give up a held kill task by id; its count is lost (tally-intents.js dropTask)',
   hr_tally_set: 'keep a task, the armour weight she picks for or her slot order, ids only (tally-intents.js setTally)',
   hr_tally_collect: 'in town, be paid for done kill tasks; the server decides what is due, its gold and her pick (tally-intents.js collectTally)',
   /* The social side (2026-10-25-chat-channels.sql, 2026-10-25-social.sql): a slot, a channel KIND, a body,
      a target (a user id or a claimed name) and a yes/no — never a name, level, zone or role of the sender. */
-  hr_chat_send: 'post a line to global / local / party; the server names the sender and the channel (ChatStore.send)',
+  hr_chat_send: 'post a line to global / party / clan; the server names the sender and the channel, and holds Global’s slow mode (ChatStore.send; 1041-social-clans.sql)',
   hr_chat_recent: 'the chat history and the channels to listen to, a read (ChatStore.refresh)',
   hr_whisper_send: 'a private line to one player; refused across a block (WhisperStore.send)',
   hr_whispers_recent: 'the recent whispers to and from this account, a read (WhisperStore.load)',
@@ -203,6 +203,22 @@ export const CLIENT_RPCS = Object.freeze({
   hr_friend_remove: 'end a friendship or withdraw an ask (FriendStore.remove)',
   hr_social_state: 'friends, asks and blocks, and this account’s presence stamp, a read (SocialSession.reread)',
   hr_inspect: 'another player’s worn items, a read (inspectOf)',
+  /* Clans (1041-social-clans.sql, FB-12): an id, a typed name or tag, a policy, a rank and, to found one, the price the server quoted and a fresh key. */
+  hr_clan_roster: 'the account’s clan and its members, or the invites waiting for it, a read (clan-intents.js readRoster)',
+  hr_clan_browser: 'the clans by name or tag, members first, a read (clan-intents.js browse)',
+  hr_clan_found: 'found a clan at the server’s quoted price from the account’s purse; a name, a tag, open or invite only, the slot and a fresh key (clan-intents.js found)',
+  clan_join: 'join an open clan or one that invited this account, by id (clan-intents.js join)',
+  clan_leave: 'leave the clan (clan-intents.js leave)',
+  hr_clan_invite: 'invite a hero by name, a leader or an officer (clan-intents.js invite)',
+  clan_kick: 'remove a member by id, no ban (clan-intents.js kick)',
+  clan_invite_revoke: 'withdraw an invite by id (clan-intents.js revoke)',
+  hr_clan_rank: 'set a member’s rank or hand the clan on, the leader (clan-intents.js rank)',
+  clan_join_policy_set: 'open or invite only (clan-intents.js setPolicy)',
+  /* The friend link (1044-friend-link.sql) and presence (1045-ground-presence.sql): a code, a yes/no, a slot and a ground id. */
+  hr_friend_link: 'this account’s friend link code, made by the server on first ask (friend-link.js linkOf)',
+  hr_friend_link_redeem: 'a new account arriving by a friend’s link becomes that account’s friend, once, nothing else moving (friend-link.js redeem)',
+  hr_presence_quiet_set: 'quiet presence for every hero of the account (friend-link.js setQuiet)',
+  hr_ground_presence: 'the other parties hunting a ground, by leader, clan tag and size, a read (ground-presence.js presenceOf)',
   hr_social_poll: 'the social read plus stamping this account’s own open characters present (slots only) and how many characters are playing, with their lines by activity, counts only, in one request (SocialSession._presence; 2027-02-17-social-poll.sql, 2027-05-05-players-online-by-activity.sql)',
   /* Report #78 (2027-03-26-signout-presence.sql): no argument at all; the server reads the account from the token. */
   hr_presence_leave: 'sign-out says this account’s client is gone, so the players-online count and the friends’ dot drop it at once; names no slot, player or time (AccountSession._leavePresence)',
@@ -255,7 +271,7 @@ export const CLIENT_MARKET_FIELDS = Object.freeze({
   market_item: ['item'],
 });
 /* THE ONE PRICE A CLIENT MAY SEND: the seller's own ask for their own goods. hr_market_list bounds it between
-   the shop's bid and the ceiling; the buyer is charged the server's listing row, and market_buy carries no
+   the shop's bid and the ceiling; the buyer is charged the server’s listing row, and market_buy carries no
    ask (its max_each can only refuse). Any other value-named subfield is IS-5 red. */
 export const CLIENT_PRICE_DECLARATIONS = Object.freeze({ market_list: ['ask_each'] });
 const EDGE = 'src/session/edge-intents.js';

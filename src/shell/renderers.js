@@ -17,6 +17,7 @@ import { renderActionBar } from './widgets/action-bar.js';
 import { renderConfigureAction } from './windows/configure-action.js';
 import { renderChat } from './windows/chat.js';
 import { renderFriends } from './windows/friends.js';
+import { renderClan } from './windows/clan.js';
 import { renderInspect } from './windows/inspect.js';
 import { renderSettings } from './windows/settings.js';
 import { renderInventory } from './windows/inventory/index.js';
@@ -78,6 +79,7 @@ export const WINDOW_RENDERERS = Object.freeze({
   'faction-join': renderFactionJoin,
   chat: renderChat,
   friends: renderFriends,
+  clan: renderClan,
   inspect: renderInspect,
   settings: renderSettings,
   report: renderReport,

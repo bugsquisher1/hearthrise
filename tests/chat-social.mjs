@@ -23,7 +23,8 @@
 //   CL-2  SEND IS ONE INTENT: hr_chat_send names the slot, the channel KIND and the
 //         body, nothing about the sender; the line shows only from the answer
 //   CL-3  CHANNELS ARE THE SERVER'S: the client listens to exactly global, system and
-//         the zone and party hr_chat_recent named; Party shows only in a party
+//         the party and clan hr_chat_recent named; Party shows only in a party, Clan only
+//         in a clan; there is no Local tab (GR-69, 1041-social-clans.sql)
 //   CL-4  HISTORY IS THE SERVER'S WINDOW (2026-11-19-chat-stream-safe.sql): every
 //         re-read REPLACES the server tabs with exactly the lines hr_chat_recent
 //         returned (a line older than the server's floor leaves the window), and a
@@ -85,6 +86,8 @@
 //         under that player's name (the server's party_people id: Message, Add friend,
 //         Block), a monster opens Look, the ground opens nothing, the viewed hero no menu
 //   RT-1  the realtime joins one client holds are capped by CHAT_LIMITS.realtimeBindingsMax (the inbox counts once)
+//   RT-3  GLOBAL IN BATCHES (31-1, 1041-social-clans.sql hr_chat_global_flush): one 'lines' message hands on each of its rows in order
+//   RB-2  ONE GLOBAL'S RULES (31-1): the slow mode's refusal reads the server's whole seconds, and a busy room tightens (the data's steps rise)
 //   RT-2  every chat join is a PRIVATE broadcast topic (2026-12-26-chat-broadcast.sql): chat:<channel> for a public
 //         channel, the account's own chat:inbox:<uid> for its party's lines and its whispers; no postgres_changes
 //   RC-1  A RECONNECT CATCHES UP: every (re)join re-reads the history once per burst and ADDS what the socket
@@ -134,7 +137,7 @@ const NOTICE_SQL = await readFile(join(ROOT, 'supabase/migrations/2026-11-24-rar
 const clone = (o) => JSON.parse(JSON.stringify(o));
 const OTHER = 'aaaaaaaa-0000-4000-8000-0000000000b1';
 const PARTY = 'party:dddddddd-0000-4000-8000-0000000000c1';
-const ZONE = 'local:mill_cellar';
+const CLAN = 'clan:eeeeeeee-0000-4000-8000-0000000000e1';
 let seq = 0;
 const row = (o) => Object.assign({ id: '00000000-0000-4000-8000-' + String(++seq).padStart(12, '0'), channel: 'global', from_id: OTHER,
   /* from_weapon is the server's ROLE KEY (hr_hunt_weapon_of): a sword and a shield send 'shield' since 2026-10-23 */
@@ -193,11 +196,13 @@ async function pureRules(M) {
     const words = n && n.parts.map((x) => (x.item ? '<' + x.item + '>' : x.text)).join('');
     if (!n || n.system !== true || n.fromId !== OTHER || n.level !== null || n.role !== null || words !== 'Mira found <bronze_sword> in ' + HUNT_INDEX.mill_cellar.name + '.')
       fail('WN-1 a world notice reads ' + JSON.stringify(n && { system: n.system, words, level: n.level }));
-    if (M.lines.tabOfChannel('system', ZONE, PARTY) !== 'system') fail('WN-1 a System row is not on the System tab');
-    /* A town notice in Local (a powder on the Hearth): one sentence too, on its own channel; a player's line never reads as one, because hr_chat_send always stamps a Level */
-    const tn = lineOf(row({ channel: 'local:town', from_name: 'Mira', from_level: null, from_weapon: null, from_role: 'notice', body: 'threw Cinnabar on the Great Hearth.' }));
-    if (!tn || tn.system !== true || tn.channel !== 'local:town' || tn.parts.map((x) => x.text).join('') !== 'Mira threw Cinnabar on the Great Hearth.') fail('WN-1 a town notice reads ' + JSON.stringify(tn && { system: tn.system, channel: tn.channel, parts: tn.parts }));
-    const spoof = lineOf(row({ channel: 'local:town', from_level: 12, from_role: 'notice', body: 'threw Cinnabar on the Great Hearth.' }));
+    if (M.lines.tabOfChannel('system', PARTY, CLAN) !== 'system') fail('WN-1 a System row is not on the System tab');
+    if (M.lines.tabOfChannel('local:town', PARTY, CLAN) !== null) fail('CL-3 a Local line still has a tab');
+    /* A town notice (a powder on the Hearth) is the System tab's since there is no Local (1041-social-clans.sql hr_chat_zone_of): one sentence;
+       a player's line never reads as one, because hr_chat_send always stamps a Level */
+    const tn = lineOf(row({ channel: 'system', from_name: 'Mira', from_level: null, from_weapon: null, from_role: 'notice', body: 'threw Cinnabar on the Great Hearth.' }));
+    if (!tn || tn.system !== true || tn.channel !== 'system' || tn.parts.map((x) => x.text).join('') !== 'Mira threw Cinnabar on the Great Hearth.') fail('WN-1 a town notice reads ' + JSON.stringify(tn && { system: tn.system, channel: tn.channel, parts: tn.parts }));
+    const spoof = lineOf(row({ channel: CLAN, from_level: 12, from_role: 'notice', body: 'threw Cinnabar on the Great Hearth.' }));
     if (!spoof || spoof.system) fail('WN-1 a player\'s line with the notice\'s role reads as a notice');
     const said = lineOf(row({ body: 'meet in [[hunt:mill_cellar]]' }));
     if (!said || said.system || said.parts.map((x) => x.text || '').join('') !== 'meet in [[hunt:mill_cellar]]') fail('WN-1 a player\'s hunt marker became ' + JSON.stringify(said && said.parts));
@@ -207,6 +212,11 @@ async function pureRules(M) {
     const check = /if v_cap is distinct from (\d+) then/.exec(NOTICE_SQL);
     if (!rule || !seed || !check || seed[1] !== rule.channel || Number(seed[2]) !== rule.perCharacterPerDay || Number(check[1]) !== rule.perCharacterPerDay)
       fail('RB-1 WORLD_NOTICES.rare_drop ' + JSON.stringify(rule) + ' is not 2026-11-24-rare-broadcast.sql\'s seeded row ' + JSON.stringify(seed && seed.slice(1)));
+    /* RB-2: the slow mode's words read the server's seconds, and its steps tighten as the room grows (the server's copy is generated, gen-social-catalogue --check) */
+    const steps = M.chans.SLOW_MODE || [];
+    if (!steps.length || steps.some((x, i) => i && (x.linesPerMin <= steps[i - 1].linesPerMin || x.gapS <= steps[i - 1].gapS))) fail('RB-2 the slow mode does not tighten: ' + JSON.stringify(steps));
+    if (!M.chans.SLOW_MODE_WORDS || M.chans.SLOW_MODE_WORDS.wait(7) !== 'Global is busy. You can send again in 7 seconds.' || M.chans.SLOW_MODE_WORDS.wait(1) !== 'Global is busy. You can send again in 1 second.')
+      fail('RB-2 the slow mode reads ' + JSON.stringify(M.chans.SLOW_MODE_WORDS && M.chans.SLOW_MODE_WORDS.wait(7)));
   }
 
   // CL-2, CL-3, UN-1 over a ChatStore
@@ -214,7 +224,7 @@ async function pureRules(M) {
     let release;
     const gate = new Promise((ok) => { release = ok; });
     const answers = {
-      hr_chat_recent: { ok: true, zone: 'local:town', party: null, lines: [row({ body: 'old' })] },
+      hr_chat_recent: { ok: true, party: null, clan: null, lines: [row({ body: 'old' })] },
       hr_chat_send: (a) => gate.then(() => ({ ok: true, line: row({ from_id: UID, from_name: 'Me', body: a.p_body }) })),
     };
     const { acct, calls, rec } = fakeAccount(answers);
@@ -225,8 +235,8 @@ async function pureRules(M) {
     const chat = soc.chat;
     if (chat.lines('global').length !== 1) fail('CL-3 the history did not land in Global');
     const last = rt.chats[rt.chats.length - 1] || [];
-    if (last.join(',') !== 'global,system,local:town') fail('CL-3 listening to ' + JSON.stringify(last));
-    if (chat.shows('party')) fail('CL-3 the Party tab shows out of a party');
+    if (last.join(',') !== 'global,system') fail('CL-3 listening to ' + JSON.stringify(last));
+    if (chat.shows('party') || chat.shows('clan') || chat.shows('local')) fail('CL-3 a Party, Clan or Local tab shows out of a party and a clan');
     const sending = chat.send('global', 'hi [Bronze Sword]', ['bronze_sword']);
     await tick();
     const sent = calls.filter((c) => c.name === 'hr_chat_send');
@@ -238,21 +248,22 @@ async function pureRules(M) {
     if (!r.ok || chat.lines('global').length !== 2) fail('CL-2 the answered line did not show');
     // party → re-read → listen
     rec.party = { id: 'dddddddd-0000-4000-8000-0000000000c1', self_seat: 0, leader_seat: 0, members: [{ seat: 0, name: 'Me', weapon: 'sword' }] };
-    answers.hr_chat_recent = { ok: true, zone: 'local:town', party: PARTY, lines: [row({ body: 'what the ***** happened [[item:bronze_sword]]' })] };
+    answers.hr_chat_recent = { ok: true, party: PARTY, clan: CLAN, lines: [row({ body: 'what the ***** happened [[item:bronze_sword]]' })] };
     await chat.refresh();
     // CL-4
     const win = chat.lines('global');
     if (win.length !== 1 || win[0].parts.map((x) => x.text || '[' + x.item + ']').join('') !== 'what the ***** happened [bronze_sword]')
       fail('CL-4 the window after a re-read is not the server lines: ' + JSON.stringify(win.map((x) => x.parts)));
-    if (!chat.shows('party') || (rt.chats[rt.chats.length - 1] || []).join(',') !== 'global,system,local:town,' + PARTY) fail('CL-3 a party did not add the party channel: ' + JSON.stringify(rt.chats[rt.chats.length - 1]));
+    if (!chat.shows('party') || !chat.shows('clan') || (rt.chats[rt.chats.length - 1] || []).join(',') !== 'global,system,' + PARTY + ',' + CLAN) fail('CL-3 a party and a clan did not add their channels: ' + JSON.stringify(rt.chats[rt.chats.length - 1]));
     // UN-1
     chat.view('global', true);
     rt.push(row({ body: 'seen' }));
     if (chat.unread('global') !== 0) fail('UN-1 a line on the tab on screen counted unread');
-    rt.push(row({ channel: 'local:town', body: 'here' }));
-    if (chat.unread('local') !== 1) fail('UN-1 a line on a tab off screen did not count (' + chat.unread('local') + ')');
-    rt.push(row({ channel: 'local:somewhere_else', body: 'not mine' }));
-    if (chat.lines('local').some((x) => x.parts[0].text === 'not mine')) fail('CL-3 a line from another zone landed in Local');
+    rt.push(row({ channel: CLAN, body: 'here' }));
+    if (chat.unread('clan') !== 1) fail('UN-1 a line on a tab off screen did not count (' + chat.unread('clan') + ')');
+    rt.push(row({ channel: 'clan:eeeeeeee-0000-4000-8000-0000000000e2', body: 'not mine' }));
+    rt.push(row({ channel: 'local:town', body: 'not here' }));
+    if (chat.lines('clan').some((x) => x.parts[0].text === 'not mine') || chat.lines('global').some((x) => x.parts[0].text === 'not here')) fail('CL-3 another clan\'s or a Local line landed');
     chat._screen.at -= 5000;
     rt.push(row({ body: 'after close' }));
     if (chat.unread('global') !== 1) fail('UN-1 a window that stopped painting still counted as on screen');
@@ -302,9 +313,9 @@ async function pureRules(M) {
     if (claims.length) fail('MN-2 Look claims a resistance the engine never applies on ' + claims.length + ' of ' + ids.length + ' monsters, e.g. '
       + JSON.stringify(claims[0][1]) + ' (' + ids.filter((id) => (MONSTERS[id].weaponResist || []).length).length + ' rows carry weaponResist)');
   }
-  // RT-1: the realtime joins per client are capped by the data value, across chat and whispers (the inbox counts once)
+  // RT-1: the realtime joins per client stay under the data value, across chat and whispers (the inbox counts once): Global, System, the inbox
   // RT-2: every join is a PRIVATE broadcast topic the server sends on (2026-12-26-chat-broadcast.sql): chat:<channel>
-  //       for a public channel, the account's own chat:inbox:<uid> for its party's lines and its whispers; nothing
+  //       for a public channel, the account's own chat:inbox:<uid> for its party's and its clan's lines and its whispers; nothing
   //       is a postgres_changes subscription; a pushed message hands on its `line`, and every (re)join tells onJoin
   {
     const chans = [];
@@ -316,29 +327,33 @@ async function pureRules(M) {
     const cap = M.chans.CHAT_LIMITS.realtimeBindingsMax;
     const got = [];
     let joins = 0;
-    const leave = r.chat(UID, ['global', 'system', 'local:town', PARTY, 'local:a', 'local:b', 'local:c'], (row) => got.push(row), () => joins++);
-    if (live() !== cap || r.bindings() !== cap) fail('RT-1 seven channels took ' + live() + ' joins (cap ' + cap + ')');
+    const leave = r.chat(UID, ['global', 'system', 'global', PARTY, CLAN, 'local:town', 'system'], (row) => got.push(row), () => joins++);
+    if (live() !== 3 || r.bindings() !== 3 || cap < 3) fail('RT-1 Global and System (each named twice), a party, a clan and a Local name took ' + live() + ' joins (want 3, cap ' + cap + ')');
     const topics = chans.map((c) => c.topic).join(',');
-    if (topics !== 'chat:global,chat:system,chat:local:town,chat:inbox:' + UID + ',chat:local:a') fail('RT-2 the joins are ' + topics);
+    if (topics !== 'chat:global,chat:system,chat:inbox:' + UID) fail('RT-2 the joins are ' + topics);
     if (chans.some((c) => !c.opts || !c.opts.config || c.opts.config.private !== true)) fail('RT-2 a chat topic was joined as a PUBLIC channel');
-    if (chans.some((c) => Object.keys(c.events).some((k) => !/^broadcast:(line|whisper)$/.test(k)))) fail('RT-2 a join listens to something other than broadcast line/whisper: ' + JSON.stringify(chans.map((c) => Object.keys(c.events))));
+    if (chans.some((c) => Object.keys(c.events).some((k) => !/^broadcast:(line|lines|whisper)$/.test(k)))) fail('RT-2 a join listens to something other than broadcast line/lines/whisper: ' + JSON.stringify(chans.map((c) => Object.keys(c.events))));
     const on = (topic, event) => { const c = chans.find((x) => x.topic === topic && !x.gone); return (c && c.events['broadcast:' + event]) || (() => {}); };
     const inboxCh = chans.find((x) => x.topic === 'chat:inbox:' + UID && !x.gone);
     on('chat:global', 'line')({ payload: { t: 'line', line: { id: 'g1' } } });
     on('chat:inbox:' + UID, 'line')({ payload: { t: 'line', line: { id: 'p1' } } });
     if (got.map((x) => x && x.id).join(',') !== 'g1,p1') fail('RT-2 the pushed lines (global, the party through the inbox) handed on ' + JSON.stringify(got));
+    on('chat:global', 'lines')({ payload: { t: 'lines', lines: [{ id: 'g2' }, { id: 'g3' }] } });
+    on('chat:global', 'lines')({ payload: { t: 'lines', lines: 'not a list' } });
+    if (got.map((x) => x && x.id).join(',') !== 'g1,p1,g2,g3') fail('RT-3 a Global batch handed on ' + JSON.stringify(got));
+    got.splice(2);
     if (inboxCh && chans[0].status) { chans[0].status('SUBSCRIBED'); inboxCh.status('SUBSCRIBED'); chans[0].status('CHANNEL_ERROR'); }
     if (joins !== 2) fail('RT-2 two (re)joins told onJoin ' + joins + ' times');
     const wgot = [];
     r.whispers(UID, (row) => wgot.push(row));
-    if (live() !== cap) fail('RT-1 a whisper subscription past the cap took a join (' + live() + ')');
+    if (live() !== 3) fail('RT-1 a whisper subscription took a second inbox join (' + live() + ')');
     on('chat:inbox:' + UID, 'whisper')({ payload: { t: 'whisper', line: { id: 'w1' } } });
     if (wgot.map((x) => x && x.id).join(',') !== 'w1' || got.length !== 2) fail('RT-2 a whisper reached ' + JSON.stringify({ wgot, got }));
     leave();
     if (live() !== 1 || r.bindings() !== 1 || chans.filter((c) => !c.gone)[0].topic !== 'chat:inbox:' + UID) fail('RT-1 after leaving the chat, the inbox did not stay alone for the whispers (' + live() + ')');
     r.whispers(UID, () => {});
     if (live() !== 1) fail('RT-1 a second whispers listener took a second join');
-    if (cap < 4) fail('RT-1 the cap ' + cap + ' cannot hold global, system, zone and the inbox');
+    if (cap < 3) fail('RT-1 the cap ' + cap + ' cannot hold global, system and the inbox');
   }
   // RC-1: A RECONNECT CATCHES UP. Every (re)join re-reads the history once per burst and ADDS what the socket
   //       missed, keeping what is shown; a whisper inbox (re)join does the same with hr_whispers_recent
@@ -347,7 +362,7 @@ async function pureRules(M) {
   {
     const later = [];
     const answers = {
-      hr_chat_recent: { ok: true, zone: 'local:town', party: null, lines: [row({ body: 'old' })] },
+      hr_chat_recent: { ok: true, party: null, clan: null, lines: [row({ body: 'old' })] },
       hr_whispers_recent: { ok: true, lines: [] },
     };
     const { acct, calls } = fakeAccount(answers);
@@ -359,7 +374,7 @@ async function pureRules(M) {
     if (rt.chatUid !== UID) fail('RC-1 the chat subscription does not name the account (its inbox carries the party lines): ' + rt.chatUid);
     rt.push(row({ body: 'live before the drop' }));
     const missed = row({ body: 'missed while down' });
-    answers.hr_chat_recent = { ok: true, zone: 'local:town', party: null, lines: [row({ body: 'old' }), missed] };
+    answers.hr_chat_recent = { ok: true, party: null, clan: null, lines: [row({ body: 'old' }), missed] };
     const reads = () => calls.filter((c) => c.name === 'hr_chat_recent').length;
     const r0 = reads();
     rt.joinChat(); rt.joinChat(); rt.joinChat();
@@ -564,7 +579,7 @@ async function stub(page, s) {
     if (name === 'hr_put_client_state') { s.residue = Object.assign({}, s.residue, body.p_patch); return json({ ok: true }); }
     if (name === 'hr_load') return json(Object.assign(env(s.seats), kept(), { version: ++s.version }));
     if (name === 'hr-accrue') return json(Object.assign({ accrued: true }, env(s.seats), kept(), { version: ++s.version }));
-    if (name === 'hr_chat_recent') return json({ ok: true, zone: ZONE, party: null, lines: s.recent || [row({ body: 'welcome back', created_at: '2026-10-18T08:00:00Z' })] });
+    if (name === 'hr_chat_recent') return json({ ok: true, party: null, clan: CLAN, lines: s.recent || [row({ body: 'welcome back', created_at: '2026-10-18T08:00:00Z' })] });
     if (name === 'hr_town_sinks_view') return json({ ok: true, hunting: false, level: 12, powder: { n: 0, per_day: 5, price: 2000, seconds: 30, book_s: 300, booked_s: 0, last: null }, round: { n: 0, per_day: 3, price: 5000, seconds: 45, book_s: 180, booked_s: 0, last: null },
       crier: { n: s.cried || 0, per_day: 5, price: (s.cried || 0) ? 2000 : 1000, min_level: 10, max_letters: 120, gap_s: 30, wait_s: 0, on: true, last_line: s.lastCry || null } });
     if (name === 'hr_crier_send') {
@@ -1011,17 +1026,19 @@ async function pageRules(overrides, shots, { stopAtFirst = false } = {}) {
         await crierBtn.click();
       }
       // CW-2
-      await page.evaluate(() => window.__hub.send('chat:local:mill_cellar', { t: 'line', line: { id: '00000000-0000-4000-8000-00000000f002', channel: 'local:mill_cellar',
+      /* a clan mate's line arrives in this account's own inbox (1041-social-clans.sql hr_chat_broadcast) */
+      await page.evaluate((clan) => window.__hub.send('chat:inbox:11111111-2222-3333-4444-555555555555', { t: 'line', line: { id: '00000000-0000-4000-8000-00000000f002', channel: clan,
         from_id: 'aaaaaaaa-0000-4000-8000-0000000000b1', from_name: 'Bramble', from_slot: 0, from_level: 34, from_weapon: 'shield', from_role: null,
-        body: 'down here', created_at: new Date().toISOString() } }, 'line'));
-      const dot = await wait(page, () => { const b = document.querySelector('[data-hs-win="chat"] [data-tab="local"]'); return b && b.classList.contains('is-unread'); }, null, 2000);
-      if (!dot) fails.push('CW-2 [' + tag + '] no unread dot on Local');
-      await page.click('[data-hs-win="chat"] [data-tab="local"]');
+        body: 'down here', created_at: new Date().toISOString() } }, 'line'), CLAN);
+      const dot = await wait(page, () => { const b = document.querySelector('[data-hs-win="chat"] [data-tab="clan"]'); return b && b.classList.contains('is-unread'); }, null, 2000);
+      if (!dot) fails.push('CW-2 [' + tag + '] no unread dot on Clan');
+      if (await page.evaluate(() => !!document.querySelector('[data-hs-win="chat"] [data-tab="local"]'))) fails.push('CW-2 [' + tag + '] a Local tab is drawn');
+      await page.click('[data-hs-win="chat"] [data-tab="clan"]');
       await page.waitForTimeout(400);
       if (await page.evaluate(() => { const b = document.querySelector('[data-hs-win="chat"] .hc-crier-open'); return !!b && !b.hidden; })) fails.push('CW-CRIER [' + tag + '] the Town Crier button shows off Global');
-      if (await page.evaluate(() => document.querySelector('[data-hs-win="chat"] [data-tab="local"]').classList.contains('is-unread'))) fails.push('CW-2 [' + tag + '] the dot stayed on the tab on screen');
+      if (await page.evaluate(() => document.querySelector('[data-hs-win="chat"] [data-tab="clan"]').classList.contains('is-unread'))) fails.push('CW-2 [' + tag + '] the dot stayed on the tab on screen');
       const place = await page.evaluate(() => document.querySelector('.hc-field').placeholder);
-      if (!/here/.test(place)) fails.push('CW-2 [' + tag + '] Local\'s field says "' + place + '"');
+      if (!/clan/.test(place)) fails.push('CW-2 [' + tag + '] Clan\'s field says "' + place + '"');
       await page.click('[data-hs-win="chat"] [data-tab="global"]');
       if (shots) await page.screenshot({ path: join(shots, 'chat-' + tag + '.png') });
       // CW-3
@@ -1264,14 +1281,14 @@ const PURE_MUTANTS = [
   ['a line shows before the server answers', 'src/social/chat-store.js', "    const ans = await askVia(this._account, 'chat_send',", "    this._push(tab, Object.assign({}, this.lines(tab)[0], { id: 'optimistic' }), false);\n    const ans = await askVia(this._account, 'chat_send',"],
   ['an off-screen line never counts unread', 'src/social/chat-store.js', "    if (live && !this._onScreen(tab)) this._unread.set(tab, this.unread(tab) + 1);", ''],
   ['a closed window still counts as on screen', 'src/social/chat-store.js', " && this._now() - s.at < 1000; }", "; }"],
-  ['the party channel is not listened to', 'src/social/chat-store.js', "['global', 'system', this.zone, this.party]", "['global', 'system', this.zone]"],
+  ['the party channel is not listened to', 'src/social/chat-store.js', "['global', 'system', this.party, this.clan]", "['global', 'system', this.clan]"],
+  ['the clan channel is not listened to', 'src/social/chat-store.js', "['global', 'system', this.party, this.clan]", "['global', 'system', this.party]"],
+  ['a Global batch is dropped', 'src/social/realtime.js', 'lines: (m) => { for (const row of linesOf(m)) onRow(row); }', 'lines: () => {}'],
   ['an incoming whisper counts nothing', 'src/social/whispers.js', "&& this._now() - s.at < 1000)) c.unread++;", "&& this._now() - s.at < 1000)) c.unread += 0;"],
   ['a block leaves the lines up', 'src/social/blocks.js', "    if (on === true && who) this._onBlocked(who.id);\n", ''],
   ['an unknown id becomes a link', 'src/social/chat-lines.js', "else out.push(ITEMS[m[2]] ? { item: m[2] } : { text: m[2].replace(/_/g, ' ') });", "else out.push({ item: m[2] });"],
   ['a player\'s hunt marker names the hunt', 'src/social/chat-lines.js', "    if (m[1] === 'hunt' && !notice) continue;\n", ''],
-  ['a town notice reads as a player line', 'src/social/chat-lines.js', "(row.channel === 'system' || (row.from_role === 'notice' && !Number.isInteger(row.from_level)))", "(row.channel === 'system')"],
-  ['a player can write a notice', 'src/social/chat-lines.js', "(row.from_role === 'notice' && !Number.isInteger(row.from_level))", "(row.from_role === 'notice')"],
-  ['a System row reads as a player line', 'src/social/chat-lines.js', "if (!whisper && (row.channel === 'system' || (row.from_role === 'notice' && !Number.isInteger(row.from_level)))) {", 'if (false) {'],
+  ['a System row reads as a player line', 'src/social/chat-lines.js', "if (!whisper && row.channel === 'system') {", 'if (false) {'],
   ['the notice drops the hero', 'src/social/chat-lines.js', "parts: [{ text: name + ' ' }, ...partsOf(body, true)]", 'parts: partsOf(body, true)'],
   ['the notice data row drifts from the migration', 'src/data/chat-channels.js', "rare_drop: Object.freeze({ channel: 'system', perCharacterPerDay: 3 })", "rare_drop: Object.freeze({ channel: 'system', perCharacterPerDay: 4 })"],
   ['a hidden page never stamps its presence (ON-3: the limit it reads, gone)', 'src/data/chat-channels.js', "  friendsPollAwayMs: 55000,\n", ''],
@@ -1281,7 +1298,7 @@ const PURE_MUTANTS = [
   ['a hidden row is listed', 'src/shell/context-menu.js', "if (row.hidden || !row.targets.includes(target.kind)) continue;", "if (!row.targets.includes(target.kind)) continue;"],
   ['you can block yourself', 'src/social/social-session.js', "const other = (t) => t.kind === 'player' && !!t.id && !this.isSelf(t);", "const other = (t) => t.kind === 'player' && !!t.id;"],
   ['a friend reads online when offline', 'src/social/friends.js', "online: f.online === true,", "online: true,"],
-  ['the realtime bindings are not capped', 'src/social/realtime.js', "        if (held() >= CHAT_LIMITS.realtimeBindingsMax) break;\n", ''],
+  ['a channel named twice joins twice', 'src/social/realtime.js', "        if (named.has(c)) continue;   // a channel named twice joins once: Global and System are the only public joins\n", ''],
   ['a chat topic is joined as a public channel', 'src/social/realtime.js', "client.channel(topic, { config: { private: true } })", 'client.channel(topic)'],
   ['the inbox is a shared party topic', 'src/social/realtime.js', "if (typeof uid === 'string' && UUID.test(uid)) leaves.push(onInbox(uid, 'line', onRow, joined));\n          continue;",
     "const ch = join('chat:' + c, { line: (m) => onRow(lineOf(m)) }, joined); leaves.push(() => leave(ch));\n          continue;"],

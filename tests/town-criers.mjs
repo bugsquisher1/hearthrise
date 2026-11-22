@@ -12,7 +12,8 @@
 // a setting in options to turn it back on", and "a 'town crier' who yells out tips in local chat periodically".
 //   TC-1  THE ROWS: every crier stands at a real station, every line keys on a known fact and has its two text rows,
 //         and its link opens a window the shell has
-//   TC-2  A FRESH HERO HEARS A CRIER: standing in town, after the first gap, one Local line from a named crier, its
+//   TC-2  A FRESH HERO HEARS A CRIER: standing in town, after the first gap, one Global line from a named crier (there is no Local tab,
+//         GR-69: criers speak in Global and in the town itself), its
 //         words the text home's and its link the stand's window; it counts unread while Chat is closed; it is never
 //         sent (no rpc but the chat's own read)
 //   TC-3  THE CLOCK: no second line inside the gap; the next line comes from ANOTHER crier; a hero with nothing left
@@ -99,7 +100,7 @@ function account(M, heroes) {
   const acct = {
     userId: UID, viewed: 0, character: (s) => heroes.find((h) => h.slot === s) || null, characters: () => heroes.slice(),
     subscribe: () => () => {},
-    server: { rpc: async (name, args) => { calls.push({ name, args }); return { ok: true, body: name === 'hr_chat_recent' ? { ok: true, zone: 'local:town', party: null, lines: [] } : { ok: true } }; } },
+    server: { rpc: async (name, args) => { calls.push({ name, args }); return { ok: true, body: name === 'hr_chat_recent' ? { ok: true, party: null, clan: null, lines: [] } : { ok: true } }; } },
   };
   acct.social = { chat: new M.store.ChatStore({ account: acct, now: () => 1_800_000_000_000 }) };
   return { acct, calls };
@@ -113,9 +114,9 @@ function mounted(M, acct, o = {}) {
   const m = M.shell.mountTownCriers({}, acct, { timers, now: () => now, hidden: () => hidden });
   const chat = acct.social.chat;
   return {
-    at(ms) { now = ms; m.tick(); return chat.lines('local').filter((l) => l.npc); },
+    at(ms) { now = ms; m.tick(); return chat.lines('global').filter((l) => l.npc); },
     hide(on) { hidden = on; },
-    lines: () => chat.lines('local').filter((l) => l.npc),
+    lines: () => chat.lines('global').filter((l) => l.npc),
   };
 }
 
@@ -174,7 +175,7 @@ async function pureRules(M) {
       if (!link || !want || link.goto.win !== want.win || link.text !== t('criers.go_' + line.id)) fail('TC-2 the line carries no link to the stand\'s window: ' + JSON.stringify(link));
       if (l.npc !== true || l.system || l.fromId || l.level !== null) fail('TC-2 a crier line reads as a player\'s or the server\'s: ' + JSON.stringify({ npc: l.npc, system: l.system, fromId: l.fromId, level: l.level }));
     }
-    if (acct.social.chat.unread('local') !== 1) fail('TC-2 a crier line while Chat is closed counts unread: ' + acct.social.chat.unread('local'));
+    if (acct.social.chat.unread('global') !== 1) fail('TC-2 a crier line while Chat is closed counts unread: ' + acct.social.chat.unread('global'));
     if (calls.some((c) => c.name !== 'hr_chat_recent')) fail('TC-2 a crier sent something to the server: ' + calls.map((c) => c.name).join(','));
   }
 

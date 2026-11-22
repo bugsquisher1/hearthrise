@@ -8,15 +8,16 @@
 //   node tests/live-events.mjs            the guard
 //   node tests/live-events.mjs --mutate   every planted defect must turn its arm red
 //
-// mutant-anchors: supabase/migrations/2027-03-22-live-events.sql supabase/migrations/2027-04-24-boss-call-series.sql
+// mutant-anchors: supabase/migrations/2027-03-22-live-events.sql supabase/migrations/2027-04-24-boss-call-series.sql supabase/migrations/1043-hearthrise.sql
 //
 // ARMS (no database)
 //   LE-PMAT    pmAt: a window holds [from, to): its start in, its end out; a malformed window is no window; no hook when nobody has one
 //   LE-KILL    a kill pays the dial of ITS OWN time, to the hero whose account holds the window only: inside, Level XP x1.25 with the
 //              added part as `ev`; at the end instant and before the start, the row as written and no `ev`
 // ARMS (the real replayed chain, PGlite, as hr_engine; the real Mill Cellar; a Level 20 hero; an event row +25% from minute 3)
-//   LE-CAT     the server's two catalogues are tools/gen-live-events.mjs catalogueOf(the data), row for row; both switches are off, as
-//              every guard boots them (tests/schema-replay.mjs quietCalendar; the chain arms them, tests/arm-switches.mjs AS-ROWS)
+//   LE-CAT     the server's catalogues are tools/gen-live-events.mjs catalogueOf(the data), row for row (with the fire's sizing and a world
+//              boss's row, D-7, and the fire rule); every type's switch is off, as every guard boots them (tests/schema-replay.mjs
+//              quietCalendar; the chain arms them, tests/arm-switches.mjs AS-ROWS)
 //   LE-CLOSED  BROWSER CLOSED (the tick's slices): the hero's Level XP is the switch-off run's plus exactly the tally's xp_event (> 0, less
 //              than a quarter of the run: the first minutes are outside); coin, items, skill XP, kills, deaths, the bag and the hunt
 //              ledger are the switch-off run's to the unit; the closed session's personal best is the switch-off run's (the event's
@@ -27,12 +28,16 @@
 //   LE-BOUND   the commit re-proves the claim: the Level XP bound grows by the account's own dial and nothing else (kills x the
 //              ground's best kill x headroom x 1.25 lands, one more is refused; the same without the event is refused); an event
 //              part with no event live, or more than the dial could add, is refused (bad_xp_event)
-//   LE-FEE     OPEN HALLS WAIVES GOLD ONLY (2027-04-24-boss-call-series.sql: a series of fights, each costing stamina and a fee): the
+//   LE-FIRE    THE HEARTHRISE ON A CLOSED HUNT BY THE SERVER CLOCK (D-7, 1043-hearthrise.sql): a fire-sized row lit at +25% pays the hunt
+//              exactly what a typed +25% row pays (Level XP and the event's part to the unit); unlit, it pays exactly the floor (+10%)
+//   LE-FEE     A FEE DIAL WAIVES GOLD ONLY (2027-04-24-boss-call-series.sql: a series of fights, each costing stamina and a fee; Open Halls,
+//              its only row, is retired by D-7, so the arm plants its own fee type): the
 //              quote is 0 gold for the account the switch holds while the window holds now; its call seats the party, moves none of
 //              ITS gold, journals its row (fee_pm 0, the event) and still spends a fight's stamina; a member whose account the switch
 //              does not hold pays its own full fee (the dial is each account's own); the same 0 with the switch off is a stale price
 //              (quote_changed) that moves nothing
-//   LE-SECTION the envelope's `live_events` lists what is on or starts within 7 days for this account's switches; a stranger's is null
+//   LE-SECTION the envelope's `live_events` lists the next window of each event within one cycle (28 days) for this account's switches;
+//              a stranger's is null
 //   LE-ANNOUNCE one System line a window edge, once, its words filled in UTC; a testers' event says nothing to everyone
 //
 // Exit: 0 green · 1 red · 2 harness.
@@ -48,7 +53,7 @@ const MUTATE = process.argv.includes('--mutate');
 const V = sourceQuery(ROOT);
 const { HARNESS: H } = await import('./hunt-sessions-settle.mjs');
 const MIN = 60000;
-const ARMS = ['LE-PMAT', 'LE-KILL', 'LE-CAT', 'LE-CLOSED', 'LE-VIEWED', 'LE-SWITCH', 'LE-PARTY', 'LE-BOUND', 'LE-FEE', 'LE-SECTION', 'LE-ANNOUNCE'];
+const ARMS = ['LE-PMAT', 'LE-KILL', 'LE-CAT', 'LE-CLOSED', 'LE-FIRE', 'LE-VIEWED', 'LE-SWITCH', 'LE-PARTY', 'LE-BOUND', 'LE-FEE', 'LE-SECTION', 'LE-ANNOUNCE'];
 
 // ═══════════════════════════════════════════════════════════════════════
 // ENGINE ARMS
@@ -113,9 +118,14 @@ const HERO = { level: 20, inv: { cooked_shrimp: 60 }, bag: [{ item: 'cooked_shri
 const flip = (db, sw, scope, accounts = []) => db.query('update public.hr_feature_switches set scope = $2, accounts = $3::uuid[], updated_at = now() where switch_id = $1', [sw, scope, accounts]);
 /* An event row of the arm's own (the catalogue's two cleared first, so a real weekend on the clock never joins in) */
 async function event(db, id, type, pm, scope, firstMs, hours, o = {}) {
-  await db.query(`insert into public.hr_live_events (event_id, type_id, pm, scope, first_at, hours, every_days, until_at, name, start_words, end_words)
-                  values ($1, $2, $3, $4::text[], to_timestamp($5::bigint / 1000.0), $6, $7, null, 'Probe', $8, $9)`,
-  [id, type, pm, scope, Math.floor(firstMs), hours, o.everyDays ?? null, o.start || 'The probe started.', o.end || 'The probe ended.']);
+  await db.query(`insert into public.hr_live_events (event_id, type_id, pm, scope, first_at, hours, every_days, until_at, name, start_words, end_words, sized_by)
+                  values ($1, $2, $3, $4::text[], to_timestamp($5::bigint / 1000.0), $6, $7, null, 'Probe', $8, $9, $10)`,
+  [id, type, pm, scope, Math.floor(firstMs), hours, o.everyDays ?? null, o.start || 'The probe started.', o.end || 'The probe ended.', o.sized || null]);
+}
+/* A FEE TYPE of the arm's own (Open Halls, the catalogue's only fee row, is retired by D-7): the generic fee dial is still the server's. */
+async function feeType(db) {
+  await db.query(`insert into public.hr_feature_switches (switch_id, scope, note) values ('event_zz_le_fee', 'off', 'live-events LE probe') on conflict (switch_id) do nothing`);
+  await db.query(`insert into public.hr_live_event_types (type_id, switch_id, dial, lo, hi, stack, scope_kind) values ('zz_le_fee', 'event_zz_le_fee', 'feePm', 0, 1000, 'min', 'calls')`);
 }
 const nowMs = async (db) => Number(await one(db, 'select floor(extract(epoch from now()) * 1000)::bigint::text'));
 /* the session's end, then its fold now (hr_hunt_best_on_end is a deferred constraint trigger: it folds at COMMIT, and an arm rolls back) */
@@ -140,13 +150,17 @@ const DB_ARMS = {
     const G = await import(pathToFileURL(join(M.root, 'tools/gen-live-events.mjs')).href);
     const c = G.catalogueOf(await G.loadData(M.root));
     const types = await q(db, 'select type_id, switch_id, dial, lo, hi, stack, scope_kind from public.hr_live_event_types order by type_id');
+    const fire = (await q(db, 'select share_pm, day_cap_shares, marks, floor_pm, step_pm, max_days, named_fuel, ref_day::int, per_active_day::int from public.hr_hearth_fire_rule'))[0];
+    const wantF = [c.fire.sharePm, c.fire.dayCapShares, c.fire.marks, c.fire.floorPm, c.fire.stepPm, c.fire.maxDays, c.fire.namedFuel, c.fire.refDay, c.fire.perActiveDay].join(',');
+    const haveF = fire ? [fire.share_pm, fire.day_cap_shares, fire.marks, fire.floor_pm, fire.step_pm, fire.max_days, fire.named_fuel, fire.ref_day, fire.per_active_day].join(',') : 'none';
+    if (wantF !== haveF) bad.push('the fire rule is ' + haveF + ', the data ' + wantF);
     const wantT = c.types.map((t) => [t.id, t.switchId, t.dial, t.lo, t.hi, t.stack, t.scopeKind].join(','));
     const haveT = types.map((t) => [t.type_id, t.switch_id, t.dial, t.lo, t.hi, t.stack, t.scope_kind].join(','));
     if (wantT.join(';') !== haveT.join(';')) bad.push('the types are ' + haveT.join(';') + ', the data ' + wantT.join(';'));
-    const evs = await q(db, `select event_id, type_id, pm, scope, to_char(first_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') f, hours, every_days,
+    const evs = await q(db, `select event_id, type_id, pm, sized_by, boss, scope, to_char(first_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') f, hours, every_days,
                                to_char(until_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') u, name, start_words, end_words from public.hr_live_events order by event_id`);
-    const wantE = c.events.map((e) => JSON.stringify([e.id, e.type, e.pm, e.scope, e.first, e.hours, e.everyDays, e.until, e.name, e.start, e.end]));
-    const haveE = evs.map((e) => JSON.stringify([e.event_id, e.type_id, e.pm, e.scope, e.f, e.hours, e.every_days, e.u, e.name, e.start_words, e.end_words]));
+    const wantE = c.events.map((e) => JSON.stringify([e.id, e.type, e.pm, e.sizedBy, e.boss, e.scope, e.first, e.hours, e.everyDays, e.until, e.name, e.start, e.end]));
+    const haveE = evs.map((e) => JSON.stringify([e.event_id, e.type_id, e.pm, e.sized_by, e.boss, e.scope, e.f, e.hours, e.every_days, e.u, e.name, e.start_words, e.end_words]));
     if (wantE.join('\n') !== haveE.join('\n')) bad.push('the events differ from the data: ' + firstDiff(haveE.join('\n'), wantE.join('\n')));
     const sw = await q(db, `select switch_id, scope from public.hr_feature_switches where switch_id in (select switch_id from public.hr_live_event_types) order by 1`);
     if (sw.length !== c.types.length || sw.some((s) => s.scope !== 'off')) bad.push('the event switches read ' + JSON.stringify(sw) + ' (want every type\'s, off)');
@@ -177,6 +191,35 @@ const DB_ARMS = {
     if (!bestOn || !bestOff || Math.abs(Number(bestOn.x) - Number(bestOff.x)) > 1) bad.push('the personal best reads ' + JSON.stringify(bestOn) + ' with the event, ' + JSON.stringify(bestOff) + ' without');
     console.log('  LE-CLOSED Cellar at Level 20, 11 min, +25% from minute 3: ' + gained + ' Level XP without, ' + (lx(on) - lx0) + ' with (' + ev
       + ' the event\'s); the best ' + (bestOn && bestOn.x) + ' an hour with it, ' + (bestOff && bestOff.x) + ' without');
+    return bad;
+  },
+
+  'LE-FIRE': async (db, M) => {
+    const bad = [];
+    const h = await H.hunter(db, M, { ...HERO, minutesAgo: 9 });
+    const start = h.from + 2 * MIN;
+    await flip(db, 'event_xp_bonus', 'everyone');
+    /* one run a row: a typed row at pm, then the fire's row lit at pm, then the fire's row unlit; one set of dice each */
+    const run = async (setup) => {
+      await db.query('savepoint le_fire');
+      await setup();
+      await cuts(db, M, [h.from + 8 * MIN]);
+      const snap = await H.snapshot(db, h.sid, UID);
+      await db.query('rollback to savepoint le_fire');
+      return snap;
+    };
+    const typed = (pm) => () => event(db, 'zz_le_typed', 'xp_bonus', pm, ['world'], start, 1);
+    const lit = (pm) => async () => {
+      await event(db, 'zz_le_fire', 'xp_bonus', 1100, ['world'], start, 1, { sized: 'fire' });
+      await db.query(`insert into public.hr_hearthrise_lit (event_id, starts, ends, pm, marks, fuel_marks, boss_marks, fuel, goal, actives)
+                      values ('zz_le_fire', to_timestamp($1::bigint / 1000.0), to_timestamp($1::bigint / 1000.0) + interval '1 hour', $2, 5, 5, 0, 1, 1, 1)`, [Math.floor(start), pm]);
+    };
+    const unlit = () => event(db, 'zz_le_fire', 'xp_bonus', 1100, ['world'], start, 1, { sized: 'fire' });
+    const t25 = await run(typed(1250)), f25 = await run(lit(1250)), t10 = await run(typed(1100)), u10 = await run(unlit);
+    if (!(xpEventOf(f25) > 0) || lx(f25) !== lx(t25) || xpEventOf(f25) !== xpEventOf(t25)) bad.push('the fire lit at +25% paid ' + lx(f25) + ' (' + xpEventOf(f25) + ' the event\'s), a typed +25% ' + lx(t25) + ' (' + xpEventOf(t25) + ')');
+    if (lx(u10) !== lx(t10) || xpEventOf(u10) !== xpEventOf(t10) || !(xpEventOf(u10) > 0) || !(xpEventOf(u10) < xpEventOf(f25))) bad.push('the fire unlit paid ' + lx(u10) + ' (' + xpEventOf(u10) + '), the floor typed ' + lx(t10) + ' (' + xpEventOf(t10) + ')');
+    if (others(f25) !== others(t25)) bad.push('the fire\'s row moved something besides Level XP: ' + firstDiff(others(f25), others(t25)));
+    console.log('  LE-FIRE closed hunt, 8 min, the window from minute 2: lit +25% ' + xpEventOf(f25) + ' (typed ' + xpEventOf(t25) + '), unlit ' + xpEventOf(u10) + ' (the floor typed ' + xpEventOf(t10) + ')');
     return bad;
   },
 
@@ -287,7 +330,8 @@ const DB_ARMS = {
     const fee = Number(await one(db, `select fight_fee::text from public.hr_boss_calls where call_id = 'rat_king'`));
     const stam = Number(await one(db, `select fight_stamina_ms::text from public.hr_boss_calls where call_id = 'rat_king'`));
     const pool0 = Number(await one(db, 'select public.hr_stamina_of($1::uuid, 0, now())::text', [a]));
-    await event(db, 'zz_le_halls', 'open_halls', 0, ['world'], (await nowMs(db)) - 60 * MIN, 12);
+    await feeType(db);
+    await event(db, 'zz_le_halls', 'zz_le_fee', 0, ['world'], (await nowMs(db)) - 60 * MIN, 12);
     const quote = () => one(db, `select public.hr_boss_call_quote($1::uuid, 0, 'rat_king')`, [a]);
     const call = async (price) => {
       await db.query('delete from public.hr_rate_counters where user_id = $1', [a]);
@@ -303,7 +347,7 @@ const DB_ARMS = {
     if (Number(v.price) !== fee || v.fee_pm !== 1000 || v.event !== null) bad.push('off: the quote reads ' + JSON.stringify(v));
     v = await call(0);
     if (!v || v.error !== 'quote_changed' || await purse() !== 100000 || (await rows()).length || await seated()) bad.push('off: a free call answered ' + JSON.stringify(v));
-    await flip(db, 'event_open_halls', 'accounts', [a]);
+    await flip(db, 'event_zz_le_fee', 'accounts', [a]);
     v = await quote();
     if (Number(v.price) !== 0 || v.fee_pm !== 0 || v.event !== 'zz_le_halls') bad.push('on: the quote reads ' + JSON.stringify(v));
     v = await call(0);
@@ -330,17 +374,18 @@ const DB_ARMS = {
     for (const uid of [a, b]) await H.character(db, M, uid, { level: 5 });
     const t = await nowMs(db);
     await event(db, 'zz_le_soon', 'xp_bonus', 1250, ['world'], t + 2 * 24 * 60 * MIN, 3);
-    await event(db, 'zz_le_late', 'xp_bonus', 1250, ['world'], t + 9 * 24 * 60 * MIN, 3);
-    await event(db, 'zz_le_halls', 'open_halls', 0, ['world'], t - MIN, 3);
+    await event(db, 'zz_le_late', 'xp_bonus', 1250, ['world'], t + 30 * 24 * 60 * MIN, 3);
+    await feeType(db);
+    await event(db, 'zz_le_halls', 'zz_le_fee', 0, ['world'], t - MIN, 3);
     await flip(db, 'event_xp_bonus', 'accounts', [a]);
     const sa = await one(db, `select public.hr_state_of($1::uuid, 0)->'live_events'`, [a]);
     const sb = await one(db, `select public.hr_state_of($1::uuid, 0)->'live_events'`, [b]);
     const ids = (sa || []).map((x) => x.id + ':' + x.live);
-    if (ids.join(',') !== 'zz_le_soon:false') bad.push('the account\'s section lists ' + JSON.stringify(sa) + ' (want the bonus in 2 days, not on yet; not the one in 9 days; not Open Halls, its switch off)');
+    if (ids.join(',') !== 'zz_le_soon:false') bad.push('the account\'s section lists ' + JSON.stringify(sa) + ' (want the bonus in 2 days, not on yet; not the one in 30 days, past the cycle; not the fee row, its switch off)');
     if (sb !== null && sb !== undefined) bad.push('a stranger\'s section reads ' + JSON.stringify(sb));
-    await flip(db, 'event_open_halls', 'everyone');
+    await flip(db, 'event_zz_le_fee', 'everyone');
     const sc = await one(db, `select public.hr_state_of($1::uuid, 0)->'live_events'`, [b]);
-    if (!sc || sc.map((x) => x.id + ':' + x.live).join(',') !== 'zz_le_halls:true') bad.push('Open Halls on for everyone reads ' + JSON.stringify(sc) + ' for the stranger');
+    if (!sc || sc.map((x) => x.id + ':' + x.live).join(',') !== 'zz_le_halls:true') bad.push('the fee row on for everyone reads ' + JSON.stringify(sc) + ' for the stranger');
     return bad;
   },
 
@@ -409,6 +454,10 @@ const DB_MUTANTS = [
   { arm: 'LE-FEE', name: 'a waived fee waives the stamina too', fn: SIG.verb, find: 'set stamina_ms = v_stam - v_c.fight_stamina_ms, stamina_at = v_m.hunt_from,', replace: 'set stamina_ms = v_stam - (case when v_fee = 0 then 0 else v_c.fight_stamina_ms end), stamina_at = v_m.hunt_from,' },
   { arm: 'LE-FEE', name: 'a member rides the leader\'s dial', fn: SIG.verb, find: "v_pm := (public.hr_live_fee_of(v_m.user_id, v_c.call_id, now())->>'pm')::int;", replace: "v_pm := (public.hr_live_fee_of(v_uid, v_c.call_id, now())->>'pm')::int;" },
   { arm: 'LE-SECTION', name: 'the section lists every event, switch or not', fn: SIG.view, find: '           where public.hr_feature_on(t.switch_id, p_user)) x;', replace: '           ) x;' },
+  { arm: 'LE-FIRE', name: 'a fire-sized window pays its typed floor, not its lit size', fn: SIG.windows,
+    find: "case when ev.sized_by = 'fire' then public.hr_hearthrise_pm(ev.event_id, x.starts) else ev.pm end", replace: 'ev.pm' },
+  { arm: 'LE-FIRE', name: 'an unlit window pays the ceiling', fn: 'public.hr_hearthrise_pm(text,timestamp with time zone)',
+    find: '(select r.floor_pm from public.hr_hearth_fire_rule r where r.id)', replace: '1250' },
   { arm: 'LE-ANNOUNCE', name: 'a testers\' event is announced to everyone', fn: SIG.announce, find: "and f.scope = 'everyone');", replace: "and f.scope <> 'off');" },
   { arm: 'LE-ANNOUNCE', name: 'an edge is announced at every run', fn: SIG.announce, find: 'continue when v_ins = 0 or not v_on;', replace: 'continue when not v_on;' },
 ];
@@ -424,7 +473,7 @@ const JS_MUTANTS = [
   { arm: 'LE-CLOSED', name: 'the proposal never sends the event\'s part', file: 'supabase/functions/hr-accrue/accrue-hunt.js',
     from: '...(xpEvent > 0 ? { xp_event: xpEvent } : {}),', to: '' },
   { arm: 'LE-CAT', name: 'the server\'s events drift from the data (the generator moved, the file not regenerated)', file: 'tools/gen-live-events.mjs',
-    from: 'events.push({ id, type: e.type, pm: e.pm, scope,', to: 'events.push({ id, type: e.type, pm: e.pm + 1, scope,' },
+    from: 'events.push({ id, type: e.type, pm, sizedBy, boss, scope,', to: 'events.push({ id, type: e.type, pm: pm + 1, sizedBy, boss, scope,' },
 ];
 
 async function main() {

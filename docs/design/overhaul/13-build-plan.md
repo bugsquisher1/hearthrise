@@ -210,6 +210,7 @@ A file has one writer at a time. "Then" means in that order inside the wave, the
 | T-02 Level hours | `tests/level-curve.mjs`, job db-replay-8 | FB-8 stage 3 | Red by design until the Level law lands |
 | T-03 Party class XP | `tests/party-class-xp-line.mjs`, job economy-selftests | FB-2, which rewrites it to the size-alone table with M-01 | Red by design until FB-2 merges, then green |
 | T-04 Armor line, T-05 dead exports, T-06 boot path, T-07 Chat | `tests/armor-line.mjs`, `tests/dead-exports.mjs`, `tools/build-site.mjs`, `tests/chat-social.mjs` | The pre-wave lane, `lane/a-ci-reds-pre-wave` | Cleared before wave 1 |
+| T-13 First-week bands, drop tables (big pull), and the two Glade Deadly pair lines in T-03 | `tests/first-week-bands.mjs`, `tests/drop-tables.mjs` big-pull case, `tests/party-class-xp-line.mjs` | FB-8 stage 2, which sets the tier blow dial and the coin line together from FB-3's lever table | Red by design from FB-8 stage 1 (the armor curve ×2.4, which measures right on armor) until the dials land. A lone hero's supply bill against its coin is a gold dial question, not a reason to hold the curve (Tyler 2026-11-21) |
 
 **How the gate reads a known red.** A red step counts as known only if three things hold. The step is named in the table above. Every failure line it prints matches the known cause: for T-02 only the Level-hours contract rows C2, C3 and C5 of `tests/level-curve.mjs`, and for T-03 only the two harder-tier mixes on Carter's Rest and the Ox Road. Its owner has not merged yet. Any other red, or any new line in a known step, blocks the batch. No guard is loosened, skipped or re-pinned to get green (CLAUDE.md 2).
 
@@ -221,7 +222,7 @@ A file has one writer at a time. "Then" means in that order inside the wave, the
 
 | Batch | Waves | Holders in order | Ends with |
 |---|---|---|---|
-| CB-1 | 1 | FB-1 (done at 02364f03a), FB-2 | The first run on `next` after FB-2 merges whose only red is T-02 with its known text. Identity diffs for R1 to R4 and the R8 fold. Coefficient diffs for R6, R7, the two-thirds line and party XP by size alone |
+| CB-1 | 1 | FB-1 (done at 02364f03a), FB-2 | The first run on `next` after FB-2 merges whose only reds are the known reds of the table above, each with its known text (T-02, and T-13 until FB-8 stage 2). Identity diffs for R1 to R4 and the R8 fold. Coefficient diffs for R6, R7, the two-thirds line and party XP by size alone |
 | CB-2 | 2 and 3 | FB-8 (gear, coin, kill reward, tier table, the two group casters of D-10 and no tier row), then FB-11 (R20, stat lines, unlocks, the to-hit floor) | One death sample, 4 seeds of 8 hours on 14 grounds, with everything that moves survival in. The tier dial moves one step if it must. This is the one sizing pass the Talents ruling asks for. The sample also carries the full-game block of `14-the-rest.md` section 1, and the measures D-4 and D-10 ask of FB-3 |
 | CB-3 | 4 | FB-13 (the boss room), then FB-14 (the guest seat in the settle) | The plain four's diff is empty. Neither mode moves it |
 

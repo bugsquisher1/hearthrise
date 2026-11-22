@@ -43,6 +43,9 @@ const SELL = 'src/shell/windows/market/sell.js';
 
 async function load(base) {
   const u = (p) => pathToFileURL(join(base, p)).href;
+  /* W4's probe: the bond item was cut (lane/c-approved-cuts), so no catalogue row is premium today. One premium row is planted in this
+     run's catalogue, before anything reads it, so the rule that keeps a premium item out of a search still has something to keep out. */
+  (await import(u('src/data/items.js'))).ITEMS.w4_premium_probe = { n: 'Hearth Token', v: 100, premium: true };
   await import(u(WORDS));   // parsed even when intent-words.js is the only caller
   return { M: await import(u(MODEL)), I: await import(u(INTENTS)), G: await import(u(GESTURE)), C: await import(u(CATCH)),
     F: await import(u(REFUSAL)), R: await import(u('src/session/residue.js')), T: await import(u('src/shell/intent-words.js')), S: await import(u(SELL)),
@@ -87,7 +90,7 @@ async function runTests({ M, I, G, C, F, R, T, S, W, base }) {
 
   /* W4 search */
   ok('W4', M.searchIds('coal', 50).includes('coal'), 'a search finds an item that may not be listed');
-  ok('W4', M.searchIds('hearth token', 50).length === 0, 'the premium bond is not searchable');
+  ok('W4', M.searchIds('hearth token', 50).length === 0, 'a premium item (the planted probe) is not searchable');
   ok('W4', M.searchIds('c', 50).length === 0, 'one letter is not a search');
   ok('W4', M.searchIds('a', 50).length === 0 && M.searchIds('ore', 5).length <= 5, 'a search is bounded');
 

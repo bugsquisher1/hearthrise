@@ -122,11 +122,13 @@ begin
 end $fn$;
 
 create or replace function public.hr_presence_view(p_user uuid, p_slot int)
-returns jsonb language sql stable security definer set search_path = public, pg_catalog as $fn$
-  -- GROUND-PRESENCE (1045-ground-presence.sql): quiet only when every hero of the account is.
-  select jsonb_build_object('quiet', coalesce(bool_and(coalesce(ps.presence_quiet, false)), false))
-    from public.player_state ps where ps.user_id = p_user
-$fn$;
+returns jsonb language plpgsql stable security definer set search_path = public, pg_catalog as $fn$
+begin
+  -- GROUND-PRESENCE (1045-ground-presence.sql): quiet only when every hero of the account is. plpgsql, not sql: PostgreSQL 17 plans a
+  -- SET-clause SQL body again on every call, and hr_state_of reads this section every envelope (tests/settle-budget.mjs SB-3).
+  return (select jsonb_build_object('quiet', coalesce(bool_and(coalesce(ps.presence_quiet, false)), false))
+            from public.player_state ps where ps.user_id = p_user);
+end $fn$;
 insert into public.hr_state_sections (key, fn, note) values
   ('presence', 'hr_presence_view', '1045-ground-presence.sql: quiet presence for the account (every hero quiet), MM-20')
   on conflict (key) do update set fn = excluded.fn, note = excluded.note;

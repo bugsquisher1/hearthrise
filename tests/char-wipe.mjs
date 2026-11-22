@@ -20,7 +20,8 @@
 //   CW-APPLY    the procedure in order: 39+ relations named the account before; after, only the rows meant to stay do, read as text from
 //               every row of every relation in every schema; every wiped table is empty, for everyone
 //   CW-WORKS    the Town Works' totals and plaque are cleared and the Weighhouse reads stage 0, with its project row still there to fund
-//   CW-KEPT     auth, the allowlist, friends, blocks, bug reports, signup log, catalogues and config all stand; the profile is a fresh signup's
+//   CW-FIRE     the Great Hearth's fire reads unlit with its row in place; its day counts, boss marks and the company's plans are gone
+//   CW-KEPT     auth, the allowlist, friends and the friend link, blocks, bug reports, signup log, catalogues and config all stand; the profile is a fresh signup's
 //   CW-SLOTS    a bought slot goes (its purchase flag): the account owns the catalogue's starters (all four since 1036) and no more
 //   CW-STALE    a settle computed before the wipe, a stale tab's residue and verbs: refused, no ghost row
 //   CW-JOBS     every scheduled job's own command answers on the empty world and brings nothing back
@@ -53,7 +54,8 @@ const listOf = (name, sql = SRC.wipe) => {
   return [...m[1].matchAll(/'([a-z_0-9]+)'/g)].map((x) => x[1]);
 };
 /* What a player leaves in place, by design: their account and the choices that aren't progress. */
-const MAY_NAME = new Set(['auth.users', 'public.profiles', 'public.hr_access_allowlist', 'public.friend_links', 'public.friend_requests', 'public.chat_blocks', 'public.bug_reports', 'public.beta_signup_log', 'public.beta_invites', 'public.hr_lb_hidden']);
+const MAY_NAME = new Set(['auth.users', 'public.profiles', 'public.hr_access_allowlist', 'public.friend_links', 'public.friend_requests', 'public.chat_blocks', 'public.bug_reports', 'public.beta_signup_log', 'public.beta_invites', 'public.hr_lb_hidden',
+  'public.friend_link_codes', 'public.friend_link_redeemed']);
 
 async function namesIn(db, id) {
   const rels = (await db.query(`select n.nspname s, c.relname t from pg_class c join pg_namespace n on n.oid = c.relnamespace
@@ -157,6 +159,16 @@ async function scenario(db, wipeSql) {
     await db.query(`insert into public.chat_whispers (from_id, from_name, to_id, to_name, body) values ($1, 'Marlow', $2, 'Tamsel', 'psst')`, [A, B]);
     const [lo, hi] = [A, B].sort();
     await db.query('insert into public.friend_links (user_lo, user_hi) values ($1, $2)', [lo, hi]);
+    /* the friend link (1044): A's link, and B arrived by it. Both stay with the friend graph. */
+    await db.query(`insert into public.friend_link_codes (user_id, code) values ($1, 'cw0link0a1')`, [A]);
+    await db.query('insert into public.friend_link_redeemed (user_id, from_user) values ($1, $2)', [B, A]);
+    /* the company's plans (1051): they go, and the account starts on the defaults */
+    await db.query('insert into public.company_plans (user_id, wear_upgrades) values ($1, false)', [A]);
+    await db.query(`insert into public.hero_plans (user_id, slot, hunt_id) values ($1, 0, $2)`, [A, hunt]);
+    /* the Great Hearth (1043): A's fuel today, a boss's mark and the fire's count, all earned by heroes the wipe clears */
+    await db.query(`insert into public.hr_hearth_fire_day (user_id, day, fuel) values ($1, (now() at time zone 'UTC')::date, 40)`, [A]);
+    await db.query(`insert into public.hr_hearth_fire_boss (window_start, boss) values (date_trunc('hour', now()), 'cw_boss')`);
+    await db.query('update public.hr_hearth_fire set fuel = 40, boss_marks = 1 where id');
     await db.query('insert into public.chat_blocks (blocker_id, blocked_id) values ($1, $2)', [A, C]);
     await db.query(`insert into public.bug_reports (user_id, summary, source, status) values ($1, 'a report', 'client', 'new')`, [A]);
     await db.query(`insert into public.character_presence (user_id, slot, seen_at) values ($1, 0, now()) on conflict do nothing`, [A]);
@@ -265,18 +277,27 @@ async function scenario(db, wipeSql) {
     arm('CW-WORKS', worksAfter.totals === 0 && worksAfter.gifts === 0 && worksAfter.project === 1 && worksAfter.extras.works.weighhouse === 0 && worksAfter.plaque.length === 0,
       'the totals and the plaque are cleared, the Weighhouse reads stage 0, the project row stays', js(worksAfter));
 
+    /* CW-FIRE: the Great Hearth's count starts again (fuel and boss marks were earned by heroes the wipe clears), its row still there for
+       the fold to read; the account's day rows, the boss's mark and the company's plans are gone with everything else. */
+    const fireAfter = { fire: (await db.query('select fuel::int fuel, boss_marks from public.hr_hearth_fire where id')).rows,
+      days: await one('select count(*)::int from public.hr_hearth_fire_day'), bosses: await one('select count(*)::int from public.hr_hearth_fire_boss'),
+      plans: (await one('select count(*)::int from public.company_plans')) + (await one('select count(*)::int from public.hero_plans')) };
+    arm('CW-FIRE', fireAfter.fire.length === 1 && fireAfter.fire[0].fuel === 0 && fireAfter.fire[0].boss_marks === 0 && fireAfter.days === 0 && fireAfter.bosses === 0 && fireAfter.plans === 0,
+      'the Great Hearth\'s fire reads unlit with its row in place, its day counts and boss marks gone, and the company\'s plans gone', js(fireAfter));
+
     /* CW-KEPT */
     const profile = (await db.query('select display_name, clan_id, name_state, must_rename from public.profiles where id = $1', [A])).rows[0];
     const cfgCursor = (await db.query('select cursor_user from public.hr_tick_config where id')).rows;
     const shardCursor = await one('select count(*)::int from public.hr_tick_shard_cursor where cursor_user is not null');
     const kept = { allow: await one('select count(*)::int from public.hr_access_allowlist'), users: await one('select count(*)::int from auth.users'), items: await one('select count(*)::int from public.hr_items'),
       friends: await one('select count(*)::int from public.friend_links where user_lo = $1 and user_hi = $2', [lo, hi]), blocks: await one('select count(*)::int from public.chat_blocks where blocker_id = $1', [A]),
-      reports: await one('select count(*)::int from public.bug_reports where user_id = $1', [A]), hold: (await db.query(`select user_id from public.hr_name_holds where fold = public.hr_name_fold('Gutterbane')`)).rows[0],
+      reports: await one('select count(*)::int from public.bug_reports where user_id = $1', [A]),
+      links: (await one('select count(*)::int from public.friend_link_codes where user_id = $1', [A])) + (await one('select count(*)::int from public.friend_link_redeemed where user_id = $1 and from_user = $2', [B, A])), hold: (await db.query(`select user_id from public.hr_name_holds where fold = public.hr_name_fold('Gutterbane')`)).rows[0],
       closed: await one(`select enabled from public.hr_flags where key = 'closed_mode'`) };
     const social = await ask(A, 'select public.hr_social_state(0)');
-    arm('CW-KEPT', kept.allow === allowBefore && kept.users === usersBefore && kept.items === itemsBefore && kept.friends === 1 && kept.blocks === 1 && kept.reports === 1 && kept.hold && kept.hold.user_id === null && kept.closed === true
+    arm('CW-KEPT', kept.allow === allowBefore && kept.users === usersBefore && kept.items === itemsBefore && kept.friends === 1 && kept.links === 2 && kept.blocks === 1 && kept.reports === 1 && kept.hold && kept.hold.user_id === null && kept.closed === true
         && profile.display_name === null && profile.clan_id === null && cfgCursor.length === 1 && cfgCursor[0].cursor_user === null && shardCursor === 0 && social && !social.raised,
-      'auth, allowlist, friends, blocks, reports, catalogues and the tick config stand; the profile is a fresh signup\'s; the friends list still reads', js({ kept, profile, cfgCursor, shardCursor, social }));
+      'auth, allowlist, friends, the friend link, blocks, reports, catalogues and the tick config stand; the profile is a fresh signup\'s; the friends list still reads', js({ kept, profile, cfgCursor, shardCursor, social }));
 
     /* CW-SLOTS */
     const slotsA = await one('select public.hr_hero_slots_of($1::uuid)', [A]);
@@ -374,6 +395,9 @@ const MUTANTS = [
   { id: 'kept_count_needs_every_table', arm: 'CW-APPLY-SELF', why: 'a no-player table that does not exist yet stops the wipe', edits: [["    if to_regclass('public.' || t) is not null then\n      execute format('select count(*) from public.%I', t) into v_n;\n      v_kept", "    if true then\n      execute format('select count(*) from public.%I', t) into v_n;\n      v_kept"]] },
   { id: 'open_game', arm: 'CW-REFUSE', why: 'the wipe runs in an open game', edits: [["  if not coalesce((select enabled from public.hr_flags where key = 'closed_mode'), false) then\n    raise exception 'PRECONDITION: closed_mode", "  if false then\n    raise exception 'PRECONDITION: closed_mode"]] },
   { id: 'market_on', arm: 'CW-REFUSE', why: 'the wipe runs with the market on', edits: [["  if (select enabled from public.hr_market_config) is distinct from false then\n    raise exception 'PRECONDITION: the market is ON", "  if false then\n    raise exception 'PRECONDITION: the market is ON"]] },
+  { id: 'hearth_fire_kept', arm: 'CW-FIRE', why: 'the Great Hearth keeps the fuel of heroes who no longer exist', edits: [["    update public.hr_hearth_fire set fuel = 0, boss_marks = 0, since = now(), folded_to = greatest(folded_to, now()) where id;\n", ''], ["    if exists (select 1 from public.hr_hearth_fire where fuel <> 0 or boss_marks <> 0) then\n      raise exception 'wipe k5: the Great Hearth''s fire still counts fuel or boss marks from before'; end if;\n", '']] },
+  { id: 'hearth_fire_row_wiped', arm: 'CW-FIRE', why: 'the fire\'s one row goes, and its fold reads nothing until a re-apply', edits: [["    'hr_hearth_fire', 'hr_hearthrise_lit'];", "    'hr_hearthrise_lit'];"], ["    'hr_hearth_fire_day', 'hr_hearth_fire_boss',", "    'hr_hearth_fire_day', 'hr_hearth_fire_boss', 'hr_hearth_fire',"]] },
+  { id: 'friend_link_wiped', arm: 'CW-KEPT', why: 'the wipe takes an account\'s friend link', edits: [["    'friend_link_codes', 'friend_link_redeemed',\n", ''], ["    'company_plans', 'hero_plans',", "    'company_plans', 'hero_plans', 'friend_link_codes', 'friend_link_redeemed',"]] },
   { id: 'market_full', arm: 'CW-REFUSE', why: 'the escrow is ignored', edits: [["    if v_n <> 0 then raise exception 'PRECONDITION: public.% holds", "    if false then raise exception 'PRECONDITION: public.% holds"]] },
   { id: 'sweep_on', arm: 'CW-REFUSE', why: 'the sweep runs through the wipe', edits: [["  if exists (select 1 from cron.job where jobname = 'hr-market-expire') then\n    raise exception 'PRECONDITION: the expiry", "  if false then\n    raise exception 'PRECONDITION: the expiry"]] },
   { id: 'unknown_table_passes', arm: 'CW-UNKNOWN', why: 'a table nobody classified is left with its rows', edits: [["    raise exception 'wipe §0: table(s) on no list: % — decide each (goes, stays, or names no player), then apply', v_bad; end if;", "    null; end if;"]] },

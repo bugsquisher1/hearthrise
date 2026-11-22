@@ -135,6 +135,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
     const ctx = await browser.newContext({ viewport, hasTouch: !!touch, isMobile: false });
     const page = await ctx.newPage();
     page.setDefaultTimeout(6000);
+    page.setDefaultNavigationTimeout(30000);   // a page load is the machine's, not a rule (a cold load on a busy runner passed 6 s: run 44979114749 in-page-39)
     const errors = [];
     page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
     page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));

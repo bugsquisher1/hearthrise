@@ -55,8 +55,10 @@ export const LEVER_CARRIERS = Object.freeze([
     read: (m) => rowsOf(m.SESSION_MODES).filter(([, r]) => r.xpPm !== 1000).map(([id]) => ['session-mode:' + id, id]) },
   { file: 'scaled-hunts.js', what: 'a scaled hunt\'s dials (SCALED_HUNTS)', claims: [pat('SCALED_HUNTS.(xpPm|coinPm|dropsPm|lootPm)')],
     read: (m) => (m.SCALED_HUNTS ? [['scaled-hunt', 'SCALED_HUNTS']] : []) },
+  /* a type with a dial moves a number and answers event:<type>; a type with none (`dial: null`, the world boss's window) only opens
+     something and answers event-window, which NOT_LEVERS explains. A dial-less type that gains a dial reads as event:<type>, a stranger. */
   { file: 'live-events.js', what: 'a live event type (LIVE_EVENT_TYPES)', claims: [pat('LIVE_EVENT_TYPES.*'), pat('LIVE_EVENT_TYPES.*.*')],
-    read: (m) => Object.keys(m.LIVE_EVENT_TYPES).map((k) => ['event:' + k, k]) },
+    read: (m) => Object.entries(m.LIVE_EVENT_TYPES).map(([k, t]) => [t && t.dial ? 'event:' + k : 'event-window', k]) },
   { file: 'abilities.js', what: 'an ability\'s skill XP multiplier (ABILITIES.*.magicXpMult)', claims: [pat('ABILITIES.*.magicXpMult')],
     read: (m) => rowsOf(m.ABILITIES).filter(([, r]) => Number.isFinite(r.magicXpMult)).map(([id]) => ['skill-xp:ability', id]) },
   { file: 'hunt-roles.js', what: 'a role\'s basic attack skill XP multiplier (HUNT_ROLES.*.basic.magicXpMult)', claims: [pat('HUNT_ROLES.*.basic.magicXpMult')],
@@ -82,6 +84,7 @@ export const NOT_LEVERS = Object.freeze({
   'room-perk:trophyMounts': 'how many trophies the room hangs: display, no power, gold or time',
   'premium:analyzer': 'the hunt analyzer: a screen, no power',
   'premium:outfits': 'outfits: cosmetic',
+  'event-window': 'a live event type with no dial (live-events.js `dial: null`, the world boss\'s window): it opens something on its window and moves no number; what the boss pays is his own',
 });
 
 /* SWEEP PATHS that read like a lever and are not one, each with its reason (file -> [regex on "<export>.<path>", why]). */

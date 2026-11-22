@@ -274,11 +274,12 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
   const { server, port } = await serve(overrides);
   const browser = await leaseBrowser(chromium);
   const W = '[data-hs-win="tally"] ';
-  const open = async (sections, answers, board, weighted) => {
+  const open = async (sections, answers, board, weighted, init) => {
     const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
     const page = await ctx.newPage();
     page.setDefaultTimeout(6000);
     page.setDefaultNavigationTimeout(60000);   // a load on a busy machine is no rule of this test
+    if (init) await page.addInitScript(init);
     const errors = [];
     page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
     page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
@@ -443,7 +444,9 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
     }
     { // TW-8 BESIDE A DOCKED WINDOW (v0.2.130 visual gate D1, 1440x900: the bag open in a hunt slid the Tally left under the analyzer,
       // squeezed to 51 px, its list 7 px for a 31 px row, "Giant Rats 0/25" cut through the letters; and the shell's observer looped)
-      const { ctx, page, errors, up } = await open({ tally: Object.assign(clone(TALLY), { held: [TALLY.held[1]] }) });
+      /* the init script tags every element the page's ResizeObservers watch (read for Chat below); it changes no behaviour */
+      const tagWatched = () => { const o = ResizeObserver.prototype.observe; ResizeObserver.prototype.observe = function (el, opts) { (window.__roWatched = window.__roWatched || new Set()).add(el); return o.call(this, el, opts); }; };
+      const { ctx, page, errors, up } = await open({ tally: Object.assign(clone(TALLY), { held: [TALLY.held[1]] }) }, undefined, undefined, undefined, tagWatched);
       const shown = up && await wait(page, () => document.querySelectorAll('[data-hs-widget="tally"] .hs-tally-row').length === 1);
       if (!shown) fails.push('TW-8 docked: the held tally never showed while hunting');
       else {
@@ -464,6 +467,13 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           await page.keyboard.press(key);
           await page.waitForTimeout(400);
         }
+        /* Chat at its home is sized by capDock inside the observer's own pass (shell.js), so the observer must not watch it: watched, any
+           pass that moves its cap loops. Read from the page's own observer (the init script below tags what it watches), since nothing in
+           this hunt moves Chat's cap any more (lane/c-first-hour: Chat never moves for the coach card). */
+        const chat = await page.evaluate(() => { const w = document.querySelector('.hs-win.is-home[data-hs-win="chat"]'); return w ? { watched: !!(window.__roWatched && window.__roWatched.has(w)), any: window.__roWatched ? window.__roWatched.size : 0 } : null; });
+        if (!chat) fails.push('TW-8 docked: Chat never stood at its home, so its place in the layout pass is not proven');
+        else if (!chat.any) fails.push('TW-8 docked: the page\'s layout observer watched nothing, so the watch on Chat is not read');
+        else if (chat.watched) fails.push('TW-8 docked: Chat at its home is watched by the layout observer, which sizes it in its own pass (a loop)');
         const loop = errors.filter((e) => /ResizeObserver/.test(e));
         const roLoop = await page.evaluate(() => window.__roLoop);
         if (roLoop) loop.push(roLoop + ' window error(s): ResizeObserver loop completed with undelivered notifications');

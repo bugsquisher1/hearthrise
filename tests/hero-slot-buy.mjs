@@ -106,6 +106,9 @@ const MUTANTS = [
   /* a starter that keeps its price: every account still owns it (so no other file refuses), and only the binding sees the price */
   ['a free slot keeps its old price (HS-BIND)', [NO_SELF_CHECK, ['     set starter = true, cost_gold = 0', '     set starter = true']], 'HS-BIND'],
   ['the purchase stays on the client surface (HS-GONE)', [NO_SELF_CHECK, ["delete from public.hr_client_rpc_baseline where proname = 'hr_buy_hero_slot';\n", '']], 'HS-GONE'],
+  /* the catch envelope-contract.mjs gave up when its two hr_account_view rename mutants retired (run 44959863591): no client reads the
+     offer any more, and the server saying "nothing for sale" is this guard's subject, read strictly (=== null) */
+  ['the account view renames its slot offer (HS-OWN)', [NO_SELF_CHECK, ['-- ── §2 THE PURCHASE LEAVES ─', "do $zz$ begin execute replace(replace(pg_get_functiondef('public.hr_account_view(uuid,integer)'::regprocedure), chr(13), ''), '''hero_slot_offer'', (', '''slot_offer'', ('); end $zz$;\n-- ── §2 THE PURCHASE LEAVES ─"]], 'HS-OWN'],
   ['the free slots refund the gold paid (HS-LIVE)', [NO_SELF_CHECK, ['-- ── §2 THE PURCHASE LEAVES ─', "update public.account_wallet set gold = gold + 300000 where user_id in (select user_id from public.player_progress where key like 'character_slot:%');\n-- ── §2 THE PURCHASE LEAVES ─"]], 'HS-LIVE'],
 ];
 

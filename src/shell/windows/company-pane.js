@@ -52,7 +52,9 @@ export function patchStance(det, ctx, o) {
     prop(b, 'disabled', !d || o.pending || o.follower);
   }
   const later = !!d && !!d.playing && d.playing.hunt === o.hunt && d.risk !== d.playing.from;
-  text(box.querySelector('.hw-stance-note'), o.follower ? t('hunts.stance_leader') : !d ? '' : d.risk
+  /* every reason the pick is off is said on the line under it (say-why SW-2): a member's Risk is its leader's, and before the server's
+     section comes the pick is being read; a press out says Sending… on the page's line */
+  text(box.querySelector('.hw-stance-note'), o.follower ? t('hunts.stance_leader') : !d ? t('hunts.stance_reading') : d.risk
     ? t('hunts.stance_line_' + d.risk) + (later ? ' ' + t('hunts.stance_next') : '') : t('hunts.stance_none'));
   const held = d ? depthOf(o.hunt, d.held[o.hunt]) : null;
   text(box.querySelector('.hw-stance-depth'), !d ? '' : held ? t('hunts.depth_held', held) : t('hunts.depth_new'));

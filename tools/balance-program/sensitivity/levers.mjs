@@ -150,3 +150,22 @@ export function pointPatch(root, levers, name) {
   }
   return { patch, sites };
 }
+
+/* THE REGISTRY (tools/balance-program/levers.json, lane/bl-levers): which of its levers each lever of this pass moves. A knob moves the
+   registry levers that name it (`perturb.knob`, `perturb.also`); a family is mapped by hand to the registry row its numbers sit in. */
+export const FAMILY_REGISTRY = Object.freeze({ respawn: ['spawn.respawn'], spellCost: ['spell.mana-cost'], spellCooldown: ['spell.cooldowns'], spellPower: ['spell.shares'],
+  healPower: ['heal.shares'], shieldPower: ['heal.shares'], spellLeech: ['leech.rows'], foodPrice: ['cons.store-supplies'], drinkPrice: ['cons.store-supplies'] });
+/** Coverage of the registry by this pass: { rows: [{ id, category, kind, sweptBy: [lever ids] }], counts }. Null when the registry is not on this tree. */
+export function registryCoverage(root) {
+  let doc;
+  try { doc = JSON.parse(readFileSync(join(root, 'tools/balance-program/levers.json'), 'utf8')); } catch { return null; }
+  const mine = leverList(root).map((l) => l.id);
+  const rows = doc.levers.map((l) => {
+    const p = l.perturb || {};
+    const by = mine.filter((id) => p.knob === id || (p.also || []).includes(id) || (FAMILY_REGISTRY[id] || []).includes(l.id));
+    return { id: l.id, category: l.category, name: l.name, kind: p.kind, gap: p.gap || null, sweptBy: by };
+  });
+  const playable = rows.filter((r) => r.kind !== 'not-playable');
+  return { rows, counts: { registry: rows.length, playable: playable.length, swept: rows.filter((r) => r.sweptBy.length).length, playableSwept: playable.filter((r) => r.sweptBy.length).length,
+    notPlayable: rows.length - playable.length, passLevers: mine.length } };
+}

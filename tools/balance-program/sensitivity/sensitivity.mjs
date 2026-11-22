@@ -279,6 +279,17 @@ async function main() {
     return 0;
   }
   if (has('plan')) return plan();
+  /* --coverage: NO PLAY, the lever registry (tools/balance-program/levers.json) against the levers of this pass */
+  if (has('coverage')) {
+    const { registryCoverage } = await import('./levers.mjs');
+    const c = registryCoverage(ROOT);
+    if (!c) { console.error('sensitivity: no tools/balance-program/levers.json on this tree'); return 2; }
+    console.log('REGISTRY COVERAGE: ' + c.counts.registry + ' levers, ' + c.counts.playable + ' the simulator can move, ' + c.counts.playableSwept + ' of those swept by the ' + c.counts.passLevers + ' levers of this pass (' + c.counts.notPlayable + ' cannot be played)');
+    const cat = {};
+    for (const r of c.rows) { const x = cat[r.category] || (cat[r.category] = { all: 0, playable: 0, swept: 0, left: [] }); x.all++; if (r.kind !== 'not-playable') { x.playable++; if (r.sweptBy.length) x.swept++; else x.left.push(r.id); } }
+    for (const [k, x] of Object.entries(cat)) console.log('  ' + k.padEnd(20) + String(x.swept).padStart(3) + ' of ' + String(x.playable).padStart(3) + ' playable swept (' + x.all + ' in the registry)' + (x.left.length ? '  not swept: ' + x.left.join(', ') : ''));
+    return 0;
+  }
   if (arg('sites')) {
     const pp = pointPatch(ROOT, { [arg('sites')]: Number(arg('at', 2)) });
     const { patchEdits } = await import('../matrix-scratch.mjs');

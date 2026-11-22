@@ -85,47 +85,52 @@ Every ruling below is the designer's and final. None is a money call.
 
 ### 2.7 The 33 staged files missing from the apply order
 
-**How it plays:** players never see these. Retiring old-design files now means the release ships no number the redesign throws away the next week.
+**How it plays:** players never see these. They all ship in this release. Old-design numbers are then replaced by new files as each redesign wave lands, not pulled out now.
 
-The rule: keep a file if it holds under the redesign. Retire it if the redesign replaces what it sizes. Re-cut it if the idea stays but its shape changes. Retiring uses `node tools/chain-retire.mjs --retire` (end state proven identical). Some files carry an earlier file whole: R6 re-generates any kept forward file that carries a retired one.
+**Re-fated 2026-11-22 (lane/r3c-fates), after `tools/release-plan.mjs`.** The first table (15 retire, 2 re-cut) could not ship. Today's `src/data` and `src/core` already hold the engine half of nearly every one of these files (`gen-hunt-sessions --check` matches 1012, 1021 and 1028), and the release's one hr-accrue deploy is packed from today's `src/`. Retiring a staged file would leave the database and the engine on two designs, or mean reverting `src` first. That is a lane of churn for numbers the redesign replaces within weeks anyway. A staged file also can't leave by `chain-retire` (it takes applied catalogues only). And the whole Danger scale (1054-1058) is built on these files: 1054 carries 1028 whole, 1055 reads 1016's curve, and 1048 and 1051 need 1032.
 
-| File | Fate | Why |
-|---|---|---|
-| 1009 approved-rows alpha catalogue | Retire | Sized for three tiers and the old gear curve (FB-8, replaced) |
-| 1010 approved-rows gold ladders | Retire | Gold now scales with depth (package 5) |
-| 1011 approved-rows unlock offers | Retire | Old unlock prices. Prices come from `wage(L)` |
-| 1012 approved-rows hunt-sessions catalogue | Retire | Tier-era hunt rows. 1054 is the current catalogue; R6 checks it doesn't depend on 1012 |
-| 1013 approved-rows town-works catalogue | Retire | Town work is re-cut as company trades (FB-10, `09-crafting.md`) |
-| 1014 works-goal-sized | Retire | Same as 1013. Also drops one Security-list item |
-| 1016 level-curve new player | **Re-cut** | Keep the goal (Level 5 inside the first hour, so recruits arrive on time). Re-derive it on the hours table. Drop its edge-first rule |
-| 1017 tend the field | Keep | Farming in one press is the first principle at work. True under any design |
-| 1020 to-hit ratio ground tiers | **Retire** | Wave 3 removes the roll to hit. Tiers leave too |
-| 1021 to-hit ratio hunt-sessions catalogue | Retire | Same |
-| 1022 to-hit ratio hearthfind catalogue | Retire | Same |
-| 1023 to-hit ratio scaled-hunts catalogue | **Retire** | Same, and scaled hunts are replaced by the Danger scale |
-| 1026 job counts | **Re-cut** in R12 | "A job takes a count and a then" stays: it saves repeated decisions. It moves to company-owned trades. 1040-rested-bank-cut restates `hr_apply` including 1026's changes, so R6 re-derives 1040 after the re-cut |
-| 1027 spell-rule default bar | Retire | Wave 3 rewrites the move list (jobs, evolutions) |
-| 1028 spell-rule hunt-sessions catalogue | Retire | Same |
-| 1029 spell-rule rune spells | Retire | Same |
-| 1030 spell-rule hearthfind catalogue | Retire | Boss rates re-measured under a rule that is going away |
-| 1031 spell-rule scaled-hunts catalogue | **Retire** | Scaled hunts are dark and replaced by the scale. It waited on FB-8, which is gone |
-| 1032 approved cuts | Keep | Cutting the old dungeons and the scrip holds under any design |
-| 1033 approved-cuts items catalogue | Keep | Same cut |
-| 1034 approved-cuts tally | Keep | Same cut |
-| 1035 approved-cuts unlocks | Keep | Same cut |
-| 1036 four starter slots | Keep | The slots must exist for the Level 5 recruits. The first screen still shows one hero (RD-Q6 a); that is the client's job |
-| 1037 first-hour kit lines | Keep | The starting kit |
-| 1038 start kits | Keep | Security list (a grant) |
-| 1039 account coach | Keep | Lessons taught once an account |
-| 1040 rested bank cut | Keep, re-derived after 1026 | Removes a small bonus nobody feels, as the redesign asks |
-| 1040 social catalogue | Keep | FB-12, continue |
-| 1041 social clans | Keep | Security list (100,000 gold founding) |
-| 1042 live-events catalogue | Keep | The Coordinator sets the calendar anchor at apply |
-| 1043 the Great Hearth | Keep | FB-12 |
-| 1044 friend link | Keep | FB-12 |
-| 1045 ground presence | Keep | FB-12. Will need R11's finder removal to land first or alongside |
+**So the rule is now:** ship what `src` already plays, and let the redesign replace numbers through new forward files in its own wave. The "Replaced in" column below is that plan. The edge collision is cut out of the notes, not the SQL:
+- **1016 is re-cut to "either order"**, so it no longer needs the edge first. Between its apply and the one deploy, a Level 8-20 death can be refused once and then settles on the next tick, with nothing lost. Once 1054 is in, every settle waits for the world shape anyway.
+- **1023 is re-cut to "either order"**, because scaled hunts are dark, so no scaled window can settle in between.
+- **1028 goes "before" the edge**, by the Coordinator's ruling: 1054 carries it whole, the two apply back to back, and the single deploy follows 1054.
 
-Totals: 16 keep, 15 retire, 2 re-cut.
+| File | Fate | Replaced in | Why it ships now |
+|---|---|---|---|
+| 1009 approved-rows alpha catalogue | Keep | Wave 2 (depth pay, bands) | The engine's rows already match it |
+| 1010 approved-rows gold ladders | Keep | Wave 5 (prices from `wage(L)`) | Same |
+| 1011 approved-rows unlock offers | Keep | Wave 5 | Same |
+| 1012 approved-rows hunt-sessions catalogue | Keep | Wave 2 | Carried by 1021 and 1032; `src/data` matches it |
+| 1013 approved-rows town-works catalogue | Keep | Wave 5 (company trades) | The engine's rows already match it |
+| 1014 works-goal-sized | Keep | Wave 5 | 1043 (the Great Hearth) needs it. Stays on the Security list |
+| 1016 level-curve new player | Keep, edge re-cut to either order | Wave 1 finish (the hours table) | 1055 reads this curve (Level 9: 625 in the engine) |
+| 1017 tend the field | Keep | Not replaced | Farming in one press is the first principle at work |
+| 1020 to-hit ratio ground tiers | Keep | Wave 3 (no roll to hit) | The engine already plays it |
+| 1021 to-hit ratio hunt-sessions catalogue | Keep | Wave 3 | Carried by 1028, so by 1054 |
+| 1022 to-hit ratio hearthfind catalogue | Keep | Wave 3 | Carried by 1030 |
+| 1023 to-hit ratio scaled-hunts catalogue | Keep, edge re-cut to either order | Wave 2 (scaled hunts leave for the scale) | Carried by 1031; scaled hunts are dark |
+| 1026 job counts | Keep | Wave 5 (R12, company trades) | Its engine half is in `src`, and 1040 restates `hr_apply` with it. "A job takes a count" saves repeated decisions, so it stays in spirit |
+| 1027 spell-rule default bar | Keep | Wave 3 (move list) | The engine's bar already plays it |
+| 1028 spell-rule hunt-sessions catalogue | Keep, edge before, with 1054 | Wave 3 | 1054 carries it whole |
+| 1029 spell-rule rune spells | Keep | Wave 3 | Same deploy as 1028 |
+| 1030 spell-rule hearthfind catalogue | Keep | Wave 3 | Same deploy as 1028 |
+| 1031 spell-rule scaled-hunts catalogue | Keep | Wave 2 | Same deploy as 1028 |
+| 1032 approved cuts | Keep | Not replaced | Cutting the old dungeons and the scrip holds under any design. 1048 and 1051 need it |
+| 1033 approved-cuts items catalogue | Keep | Not replaced | Same cut |
+| 1034 approved-cuts tally | Keep | Not replaced | Same cut |
+| 1035 approved-cuts unlocks | Keep | Not replaced | Same cut |
+| 1036 four starter slots | Keep | Not replaced | The Level 5 recruits need the slots. The first screen still shows one hero (RD-Q6 a) |
+| 1037 first-hour kit lines | Keep | Not replaced | The starting kit |
+| 1038 start kits | Keep | Not replaced | Security list (a grant) |
+| 1039 account coach | Keep | Not replaced | Lessons taught once an account |
+| 1040 rested bank cut | Keep | Not replaced | Removes a small bonus nobody feels |
+| 1040 social catalogue | Keep | Not replaced | FB-12 |
+| 1041 social clans | Keep | Not replaced | Security list (100,000 gold founding) |
+| 1042 live-events catalogue | Keep | Not replaced | The Coordinator sets the calendar anchor at apply |
+| 1043 the Great Hearth | Keep | Not replaced | FB-12 |
+| 1044 friend link | Keep | Not replaced | FB-12 |
+| 1045 ground presence | Keep | Not replaced | FB-12 |
+
+Totals: 33 keep (3 with an edge re-cut in their notes), 0 retire. `node tools/release-plan.mjs --strict` reads this table.
 
 ### 2.8 The naming pass
 

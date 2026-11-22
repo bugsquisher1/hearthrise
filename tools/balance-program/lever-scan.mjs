@@ -97,6 +97,10 @@ export const SWEEP_NOT_LEVERS = Object.freeze({
   /* "dominanceMaxPm" reads as xp to the sweep (Ma-xP-m): it is a Trait guard, the share of cells a Trait may be best on, checked by
      tests/gear-steps.mjs GS-3 and registered as lever gear.trait-budget; no fight, purse or clock reads it */
   'gear-steps.js': [[/^GEAR_STEPS\.dominanceMaxPm$/, 'a Trait guard (GS-3, lever gear.trait-budget), not XP: the sweep reads "MaxPm" as xp']],
+  /* the Danger scale's coin level (lane/econ-levers): one global dial on the scale's own pay, registered as lever danger.coin-level and read
+     only by src/core/hunt/danger.js dangerDial beside the depth ratio, which the classed carriers of a ground's or a tier's coin never reach */
+  'danger.js': [[/^PAY\.coinPm$/, 'the scale\'s coin level (lever danger.coin-level, levers.mjs), read by danger.js dangerDial, not a ground or tier coin dial'],
+    [/^GEAR_STEPS\.dominanceMaxPm$/, 'gear-steps.js GEAR_STEPS re-exported by danger.js (lane/r9), the same Trait guard as in gear-steps.js']],
 });
 
 /* Modules a node scan cannot load, each with its reason. */

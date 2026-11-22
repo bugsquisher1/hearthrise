@@ -372,8 +372,7 @@ const mutants = [
   { name: 'the Glade\'s crows and vines bite no harder than Wickstead\'s rats, and the words still say stronger', case: 'above-your-level-words',
     edits: GLADE_SOFT },
   { name: 'store food at the Glade costs next to nothing, and the words still say expect to spend more', case: 'above-your-level-words',
-    edits: [['src/data/supply-basics.js', "heal('salted_shrimp', 'Salted Shrimp', 'cooked_shrimp', 72, 14)", "heal('salted_shrimp', 'Salted Shrimp', 'cooked_shrimp', 72, 1)"],
-      ['src/data/supply-basics.js', "heal('salted_trout', 'Salted Trout', 'cooked_trout', 120, 40)", "heal('salted_trout', 'Salted Trout', 'cooked_trout', 120, 1)"]] },
+    edits: [['src/data/supply-basics.js', "const heal = (id, n, partner, heals) => Object.freeze({ id, kind: 'heal', n, partner, heals, price: restorePrice(partner, heals, 'heals') });", "const heal = (id, n, partner, heals) => Object.freeze({ id, kind: 'heal', n, partner, heals, price: 1 });"]] },
   /* RE-AIMED (NO PROFIT MOLDS, Tyler 2026-11-13): def 60 was caught only by the retired +25% bar (the kills slowed, the bill stood); twenty times
      the health is a Cellar a fresh hero cannot clear at pace */
   { name: 'the Cellar\'s rats, slimes and wasps with twenty times their health: a fresh hero cannot clear it', case: 'solo-mill_cellar',

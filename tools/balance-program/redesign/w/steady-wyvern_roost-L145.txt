@@ -13,4 +13,4 @@ gold a hunted hero-hour over the whole hunt (coin; coin + loot at the store's pr
 
 power moves (paired seeds): the held step at the changed power minus at base
 
-wall 10 s
+wall 16 s

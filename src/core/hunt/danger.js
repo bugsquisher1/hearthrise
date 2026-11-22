@@ -132,10 +132,12 @@ export function gearPartPm(equipment, items) {
   return sum;
 }
 const groundRow = (ground) => (ground && own(DANGER_GROUNDS, ground.id) ? DANGER_GROUNDS[ground.id] : null);
-/* A gear part's power steps against the ground's base item Level at weightGear: whole steps, held inside the scale (a safe float). */
+/* A gear part's power steps against the ground's base item Level at weightGear (under the base at weightGearBelow, one-sided: lane/econ-levers):
+   whole steps, held inside the scale (a safe float). */
 function gearSteps(partPm, row) {
   if (!row || !Number.isInteger(row.gearLevel) || !Number.isInteger(partPm)) return 0;
-  const s = Math.round(((partPm - 1000 * row.gearLevel) * POWER.weightGearPm) / (1000 * 1000));
+  const gap = partPm - 1000 * row.gearLevel;
+  const s = Math.round((gap * (gap < 0 ? POWER.weightGearBelowPm : POWER.weightGearPm)) / (1000 * 1000));
   return Math.max(-DANGER.stepMax, Math.min(DANGER.stepMax, s));
 }
 /* (1 + powerStep) ^ steps, either sign, once per whole step (a hunt's heroes wear a handful of kits) */

@@ -31,7 +31,7 @@ Labels. CONFIRMED means read in the code at the baseline. MEASURED means a playe
 | Critical chance and damage | 3 | 1 | 1 | 0 | 1 | 1 | 0 | 0 |
 | Life and mana leech | 2 | 0 | 0 | 2 | 0 | 0 | 1 | 0 |
 | Regeneration | 4 | 3 | 0 | 0 | 1 | 2 | 2 | 0 |
-| Monster HP, damage, armor, resistances and behavior | 24 | 8 | 4 | 4 | 8 | 7 | 6 | 10 |
+| Monster HP, damage, armor, resistances and behavior | 25 | 9 | 4 | 4 | 8 | 7 | 7 | 11 |
 | Spawn pacing and encounter composition | 11 | 6 | 1 | 3 | 1 | 1 | 5 | 4 |
 | Monster XP and loot values | 15 | 6 | 1 | 2 | 6 | 3 | 4 | 7 |
 | Equipment stats and progression | 14 | 3 | 3 | 8 | 0 | 0 | 5 | 8 |
@@ -40,14 +40,14 @@ Labels. CONFIRMED means read in the code at the baseline. MEASURED means a playe
 | Party bonuses and interactions | 7 | 1 | 3 | 0 | 3 | 2 | 3 | 3 |
 | Rare-drop probabilities | 6 | 2 | 0 | 3 | 1 | 0 | 4 | 3 |
 | Economy sources and sinks | 34 | 20 | 3 | 10 | 1 | 0 | 29 | 21 |
-| **All** | **188** | 87 | 26 | 47 | 28 | 31 | 75 | 77 |
+| **All** | **189** | 88 | 26 | 47 | 28 | 31 | 76 | 78 |
 <!-- END GENERATED:COUNTS -->
 
 <!-- GENERATED:CENSUS (tools/balance-program/levers.mjs --write) -->
 | | Count |
 |---|---|
-| Top-level bindings in the rule code that hold a typed number | 666 (in 226 files, 15681 typed numbers) |
-| Claimed by a lever | 285 |
+| Top-level bindings in the rule code that hold a typed number | 667 (in 226 files, 15682 typed numbers) |
+| Claimed by a lever | 286 |
 | Claimed by a not-a-lever reason | 381 |
 | Unclaimed | 0 |
 | Exceptions, intentional and accidental | 17 and 11 |
@@ -264,6 +264,7 @@ These are coverage gaps for BL-1 and the sensitivity lane. Each gap's reason is 
 | not-in-runs | `danger.pay` Pay by depth | Monster XP and loot values | played by the V1 probe only. The server bounds it (hr_danger_level_xp_max, 1055) |
 | not-in-runs | `danger.pay-floor` Pay floor under the reference step | Monster XP and loot values | played by the V1 probe from a held start (lane/r9 tools/balance-program/redesign/r9). The server bounds only the most a kill pays (hr_danger_level_xp_max), which the floor never raises |
 | not-in-runs | `danger.power-gear` The power step on gear | Monster HP, damage, armor, resistances and behavior | played by the V1 probe (candidates power-tier-back / -ahead / -offense-back / -defense-back / -tier-back-under-cap). No matrix run plans a stance |
+| not-in-runs | `danger.power-gear-below` The power step under the ground's gear Level | Monster HP, damage, armor, resistances and behavior | played by the V1 probe (candidates power-tier-back / power-tier-ahead) |
 | not-in-runs | `danger.power-step` Danger power step | Monster HP, damage, armor, resistances and behavior | the V1 probe plays it (a patch of this line moves its held step). No matrix run plans a stance |
 | not-in-runs | `danger.pull` Danger pull growth | Spawn pacing and encounter composition | played by the V1 probe only |
 | not-in-runs | `danger.readiness` Pulls on readiness | Spawn pacing and encounter composition | played by the V1 probe only |
@@ -343,11 +344,11 @@ Ranked by the formulas a lever's own formulas feed directly (COMPUTED from the 1
 | `weapon.family-tables` Weapon accuracy and damage by family and tier | 9 | 8 | 78 | patch | content |
 | `reward.tier-xp` Harder-tier XP | 9 | 4 | 77 | knob `tierXp` | archetype |
 | `skill.curve` Combat skill curve | 9 | 0 | 78 | NOT PLAYABLE (harness-fixed) | global |
+| `danger.power-gear-below` The power step under the ground's gear Level | 8 | 19 | 78 | NOT PLAYABLE (not-in-runs) | global |
 | `mon.tier-overrides` Per-ground tier dials | 8 | 19 | 78 | patch | exception-accidental |
 | `danger.climb` The climb and the fall back | 8 | 11 | 78 | NOT PLAYABLE (not-in-runs) | global |
 | `danger.stances` Risk stance thresholds | 8 | 11 | 78 | NOT PLAYABLE (player-policy) | archetype |
 | `danger.start` Danger start margin | 8 | 11 | 78 | NOT PLAYABLE (sql-only) | global |
-| `mon.tier-danger` Harder-tier blows | 8 | 11 | 78 | knob `tierDanger` | archetype |
 <!-- END GENERATED:REACH -->
 
 ## 6. Keeping it true

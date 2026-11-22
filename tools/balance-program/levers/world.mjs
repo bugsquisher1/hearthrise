@@ -364,13 +364,21 @@ export const WORLD = [
     perturb: NP('not-in-runs', 'played by the V1 probe from a held start (lane/r9 tools/balance-program/redesign/r9); the server bounds only the most a kill pays (hr_danger_level_xp_max), which the floor never raises'),
     ev: 'MEASURED (lane/r9, v1-climb.mjs from a held start: tools/balance-program/redesign/r9/stance-held-L60.txt; lane/econ-levers re-measured with the coin level: tools/balance-program/redesign/econ/after-muster-L60.json)' }),
   L('danger.power-gear', 'monster-stats', 'global', 'The power step on gear', {
-    at: [at(DZ, 'export const POWER = Object.freeze({ weightGearPm: 1000 });')],
+    at: [at(DZ, 'export const POWER = Object.freeze({ weightGearPm: 1000,')],
     def: 'on the scale a hero gear part (src/data/gear-steps.js: item Level x slot weight, a whole kit at X is X) counts weightGearPm / 1000 steps a gear step over the ground gearLevel: a blow at a monster x (1 + powerStep)^steps, a blow at the hero / (1 + powerStep)^steps, after the armor cap; heals are not stepped',
     range: '0 to 1000 permille (04 section 1: a weighted mean with weightSkill). 1000 makes a tier of base on a whole kit tierSteps steps of power by construction',
     touches: 'how far one gear tier moves the held step on the scale (C-2), on top of the own move of the shipped stats', out: [...KILL, ...SURVIVE], f: ['C-TIER', 'C-TEMPER'],
     tests: [['tests/hunt-core/danger.mjs', 'power: a tier of gear is a tier of steps, after the cap, never off the scale']], testReads: ['POWER', 'GEAR_STEPS', 'DANGER_GROUNDS'],
     perturb: NP('not-in-runs', 'played by the V1 probe (candidates power-tier-back / -ahead / -offense-back / -defense-back / -tier-back-under-cap); no matrix run plans a stance'),
     ev: 'MEASURED (lane/r9, v1-climb.mjs: tools/balance-program/redesign/r9/summary.txt)' }),
+  L('danger.power-gear-below', 'monster-stats', 'global', 'The power step under the ground\'s gear Level', {
+    at: [at(DZ, 'export const POWER = Object.freeze({ weightGearPm: 1000, weightGearBelowPm: 500 });')],
+    def: 'one-sided: a gear part UNDER the ground\'s base item Level counts weightGearBelowPm / 1000 steps a gear step (over it, weightGearPm); src/core/hunt/danger.js gearSteps',
+    range: '0 to weightGearPm. 12-targets C-2: one gear tier moves the hold 1 to 3 depths (about 11 to 33 steps) either way. Depth answers convexly to the gap under the base, and every company arrives a tier under the ground it moves to',
+    touches: 'how far a company under the ground\'s gear holds (the arrival on a new ground), and the reference MID four (10 item Levels under Muster\'s base)', out: [...KILL, ...SURVIVE], f: ['C-TIER'],
+    tests: [['tests/hunt-core/danger.mjs', 'power: a tier back moves the blow by the weight under the base, one-sided']], testReads: ['POWER'],
+    perturb: NP('not-in-runs', 'played by the V1 probe (candidates power-tier-back / power-tier-ahead)'),
+    ev: 'MEASURED (lane/econ-levers 2026-11-22, v1-climb.mjs Muster Barrows, Steady at Level 60 from a held start, 6 seeds x 12 h, held read from hour 6, paired against the tree: tools/balance-program/redesign/econ/gear-*-L60.json): a tier back -13.2 (se 3.5), a tier ahead +20.3 (se 5.3); at 1000 R9 read -65.2 / +20.8' }),
   /* ── 14. MONSTER XP AND LOOT VALUES ────────────────────────────────────────────────────────────────────────────────────────── */
   L('reward.xp-line', 'monster-rewards', 'global', 'Level XP a kill', {
     at: [at(BS, 'xp: Object.freeze({ a: 1.436')],

@@ -111,7 +111,12 @@ export const PAY = Object.freeze({ refKillsHead: 120, payStepXp: 0.007, gapMax: 
 //   weightGearPm 1000   the whole gear part counts, so one tier of base on a whole kit (GEAR_STEPS.tierSteps item Levels) is that many
 //                       steps of power by construction (the Coordinator's R9 brief; 04's weighted mean with weightSkill waits for wave 3)
 // A piece's item Level is its row's `iL` once R10 writes it on scale drops; until then its `reqLv` STANDS IN (danger.js itemLevelOf).
-export const POWER = Object.freeze({ weightGearPm: 1000 });
+//   weightGearBelowPm 500  ONE-SIDED (lane/econ-levers, the designer's call on R9's cliff, 2026-11-22; CONFLICTS 11-22): UNDER the ground's
+//                       base item Level a gear step counts this much. Depth answers convexly to the gap below (R9: a tier back -65 steps
+//                       against +21 a tier ahead), and every company meets that gap on arrival (a ground drops the tier above the last
+//                       one's), so at 1000 the step into a new ground read three tiers of depth lost. C-2 asks one gear tier to move the hold
+//                       1 to 3 depths either way; evidence in tools/balance-program/redesign/econ/.
+export const POWER = Object.freeze({ weightGearPm: 1000, weightGearBelowPm: 500 });
 export { GEAR_STEPS } from './gear-steps.js';
 
 export const DANGER_GROUNDS = Object.freeze({

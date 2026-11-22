@@ -151,6 +151,8 @@ export const LEVER_MOVES = Object.freeze({
   /* THE POWER STEP ON GEAR (lane/r9; declared by lane/econ-levers on the merge, the base's graph --check named it) */
   'danger.power-gear': [['-tier.dmg', 'on the scale a blow at the hero is divided by (1 + powerStep)^steps of the gear part over the ground\'s base (danger.js powerPm)'],
     ['-tier.hp', 'a blow at a monster is multiplied by the same ratio, the same as less health to take']],
+  'danger.power-gear-below': [['-tier.dmg', 'under the ground\'s base a gear step counts weightGearBelowPm: a smaller cut on a blow at the hero (danger.js gearSteps)'],
+    ['-tier.hp', 'and a smaller cut on the hero\'s own blow']],
   /* THE ECONOMY LEVERS (lane/econ-levers): the pay floor, the scale's coin level and the store's basics, set together with the wage */
   'danger.pay-floor': [['+kill.xp', 'under the reference a kill pays at least PAY.floor of the table (danger.js depthRatio, read by levelShareXp)'],
     ['+kill.coin', 'the same floor on the coin depth ratio (dangerDial coinPm)']],

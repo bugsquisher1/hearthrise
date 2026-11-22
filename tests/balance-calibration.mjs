@@ -112,6 +112,13 @@ export const DECLARED_SHIFTS = Object.freeze([
     mult: Object.freeze({ killsPerH: 0.924, levelXpPerH: 0.925, coinPerH: 0.97, dealtPerH: 0.925, takenPerH: 1.014, healedPerH: 1.131, storePerH: 0.867 }) }),
   Object.freeze({ after: '2026-11-21', grounds: Object.freeze(['krells_hold']), why: 'the spell rule: every cast a share of the caster\'s blow (Tyler 21-5, 32-x)',
     mult: Object.freeze({ killsPerH: 1.131, levelXpPerH: 1.131, coinPerH: 1.135, dealtPerH: 1.125, takenPerH: 0.882, healedPerH: 0.908, storePerH: 0.796 }) }),
+  /* (3) THE STORE PRICED IN HOURS OF WAGE (lane/econ-levers, 2026-11-22; src/data/store-kit.js): every store price is derived, so a recorded
+     hunt's store bill moves with the prices and nothing else does. MEASURED by tools/balance-program/redesign/econ/calibration-shift.mjs (this
+     guard's replay, 2 h x 2 seeds, origin/set/v0.2.144 at 447acb3c3 against the lane, sim over sim): every other metric x1.000. */
+  Object.freeze({ after: '2026-11-22', grounds: Object.freeze(['coppercap_warrens']), why: 'the store priced in hours of wage (lane/econ-levers)',
+    mult: Object.freeze({ storePerH: 0.294 }) }),
+  Object.freeze({ after: '2026-11-22', grounds: Object.freeze(['krells_hold']), why: 'the store priced in hours of wage (lane/econ-levers)',
+    mult: Object.freeze({ storePerH: 0.517 }) }),
 ]);
 
 const judgedOf = (fx) => fx.samples.filter((s) => s.kit === 'held' && s.hours >= 1);

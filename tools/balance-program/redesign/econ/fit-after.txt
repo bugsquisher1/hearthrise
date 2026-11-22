@@ -1,13 +1,13 @@
 THE WAGE (src/data/wage.js): wageBase 12880, payStepCoin 0.4%; band 0.75 to 1.33 of the wage
 slope fitted on the Lab (Normal, own ground, 20-400, hours-weighted): 0.39% a step, base 7203
 slope fitted on the scale ground runs (20-400, hours-weighted):        -0.01% a step, base 39268
-the anchor (Muster Barrows on the scale, L60/63/70): pay / wage, geometric mean 1.000
+the anchor (Muster Barrows on the scale, L60/63/70): pay / wage, geometric mean 0.982
 
 THE ANCHOR: the scale as played (Muster Barrows, refStep 590), 6 seeds x 8 h, held start
   Level  ground                held    pay/h   coin/h  store/h   wage(levelStep(L))  pay / wage
-  60    muster_barrows          581    16276    13324     4168               16365  0.99
-  63    muster_barrows          590    16562    13596     4126               16563  1.00
-  70    muster_barrows          619    17143    14305     4746               17032  1.01
+  60    muster_barrows          576    16058    13168     4183               16365  0.98
+  63    muster_barrows          589    16200    13362     4198               16563  0.98
+  70    muster_barrows          609    16789    14064     4825               17032  0.99
 
 THE SCALE ON EACH LEVEL'S GROUND (what-if: no refStep row; coin read back from the gap cap), 4 seeds x 6 h, held start
   Level  ground                held    pay/h   coin/h  store/h   wage(levelStep(L))  pay / wage
@@ -38,6 +38,6 @@ THE LAB: the baseline matrix four on Normal on its own ground (8 seeds a cell). 
   400   unmarked_catacombs             31413    29833    11898               63591  1.07
 
 THE FIRST HUNTING BLOCK (src/core/wage.js blockPrice) against what its 2 h pay at the anchor:
-  L60: block 65460 gold for 2 h that pay 32552 gross (2.01x) and 24216 net of the store
-  L63: block 66252 gold for 2 h that pay 33124 gross (2x) and 24872 net of the store
-  L70: block 68128 gold for 2 h that pay 34286 gross (1.99x) and 24794 net of the store
+  L60: block 65460 gold for 2 h that pay 32116 gross (2.04x) and 23750 net of the store
+  L63: block 66252 gold for 2 h that pay 32400 gross (2.04x) and 24004 net of the store
+  L70: block 68128 gold for 2 h that pay 33578 gross (2.03x) and 23928 net of the store

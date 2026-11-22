@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "b0697eb975cc4c1d",
+ "authored": "b71cfb83f42d82fb",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -63,7 +63,7 @@
   "dead": "nothing on the hunt path reads it: a perturbation changes no outcome"
  },
  "counts": {
-  "levers": 188,
+  "levers": 189,
   "byCategory": {
    "base-damage": 12,
    "skill-scaling": 9,
@@ -76,7 +76,7 @@
    "crit": 3,
    "leech": 2,
    "regen": 4,
-   "monster-stats": 24,
+   "monster-stats": 25,
    "spawn": 11,
    "monster-rewards": 15,
    "rare-drops": 6,
@@ -87,7 +87,7 @@
    "economy": 34
   },
   "byClass": {
-   "global": 87,
+   "global": 88,
    "archetype": 26,
    "content": 47,
    "exception-intentional": 17,
@@ -100,13 +100,13 @@
    "not-playable:player-policy": 2,
    "not-playable:outside-hunt": 24,
    "not-playable:harness-fixed": 6,
-   "not-playable:not-in-runs": 19,
+   "not-playable:not-in-runs": 20,
    "variant": 5,
    "not-playable:not-built": 10,
    "not-playable:sql-only": 6
   },
   "byTest": {
-   "asserted": 77,
+   "asserted": 78,
    "mentioned only": 91,
    "none": 20
   },
@@ -117,10 +117,10 @@
   }
  },
  "census": {
-  "bindings": 666,
-  "typed": 15681,
+  "bindings": 667,
+  "typed": 15682,
   "files": 226,
-  "lever": 285,
+  "lever": 286,
   "notLever": 381,
   "unclaimed": 0
  },
@@ -6929,7 +6929,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 131,
+     "line": 136,
      "text": "export const CLIMB = Object.freeze({ cleanRun: 2, climbMax: 8, fallSteps: 18, deathSteps: 120, coolPulls: 10 });",
      "binding": "CLIMB"
     }
@@ -6998,19 +6998,19 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 138,
+     "line": 143,
      "text": "careful: Object.freeze({ fallPm: 450, cleanPm: 650, afterDeath: 'careful' }),",
      "binding": "RISKS"
     },
     {
      "file": "src/data/danger.js",
-     "line": 139,
+     "line": 144,
      "text": "steady: Object.freeze({ fallPm: 250, cleanPm: 450, afterDeath: 'careful' }),",
      "binding": "RISKS"
     },
     {
      "file": "src/data/danger.js",
-     "line": 140,
+     "line": 145,
      "text": "bold: Object.freeze({ fallPm: 120, cleanPm: 300, afterDeath: 'steady' }),",
      "binding": "RISKS"
     }
@@ -7207,7 +7207,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 125,
+     "line": 130,
      "text": "muster_barrows: Object.freeze({ refStep: 590, floorStep: 480, topStep: 710, gearLevel: tierLevel(3), traits: traitPool('muster_barrows') }),",
      "binding": "DANGER_GROUNDS"
     }
@@ -7344,9 +7344,9 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 114,
-     "text": "export const POWER = Object.freeze({ weightGearPm: 1000 });",
-     "binding": "PAY"
+     "line": 119,
+     "text": "export const POWER = Object.freeze({ weightGearPm: 1000, weightGearBelowPm: 500 });",
+     "binding": "POWER"
     }
    ],
    "definition": "on the scale a hero gear part (src/data/gear-steps.js: item Level x slot weight, a whole kit at X is X) counts weightGearPm / 1000 steps a gear step over the ground gearLevel: a blow at a monster x (1 + powerStep)^steps, a blow at the hero / (1 + powerStep)^steps, after the armor cap; heals are not stepped",
@@ -7396,16 +7396,15 @@
      }
     ],
     "mentions": [
-     "tests/accrual-engine.mjs",
-     "tests/activity-intent.mjs",
-     "tests/activity-seam.mjs",
-     "tests/artisan-accrual.mjs",
-     "tests/boss-call.mjs",
-     "tests/boss-hall.mjs",
-     "tests/cadence-recovery-floor.mjs",
-     "tests/character-window.mjs"
+     "tests/bestiary-trophy.mjs",
+     "tests/hunt-core/danger.mjs",
+     "tests/hunt-summary.mjs",
+     "tests/leaderboard-server-source.mjs",
+     "tests/mutation-safety.mjs",
+     "tests/recipe-yield-guard.mjs",
+     "tests/town-works.mjs"
     ],
-    "mentionCount": 23,
+    "mentionCount": 7,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7416,6 +7415,82 @@
    },
    "flags": [],
    "evidence": "MEASURED (lane/r9, v1-climb.mjs: tools/balance-program/redesign/r9/summary.txt)"
+  },
+  {
+   "id": "danger.power-gear-below",
+   "category": "monster-stats",
+   "name": "The power step under the ground's gear Level",
+   "sites": [
+    {
+     "file": "src/data/danger.js",
+     "line": 119,
+     "text": "export const POWER = Object.freeze({ weightGearPm: 1000, weightGearBelowPm: 500 });",
+     "binding": "POWER"
+    }
+   ],
+   "definition": "one-sided: a gear part UNDER the ground's base item Level counts weightGearBelowPm / 1000 steps a gear step (over it, weightGearPm); src/core/hunt/danger.js gearSteps",
+   "range": "0 to weightGearPm. 12-targets C-2: one gear tier moves the hold 1 to 3 depths (about 11 to 33 steps) either way. Depth answers convexly to the gap under the base, and every company arrives a tier under the ground it moves to",
+   "touches": "how far a company under the ground's gear holds (the arrival on a new ground), and the reference MID four (10 item Levels under Muster's base)",
+   "outcomes": [
+    "dps",
+    "dpsHero",
+    "ttkS",
+    "killsPerH",
+    "levelXpPerH",
+    "netPerH",
+    "hoursPerLevel",
+    "xContract",
+    "takenPerH",
+    "healPerH",
+    "deathsPer1000h",
+    "lowHpTypical",
+    "lowHpP10",
+    "hpUnder30",
+    "hpUnder10",
+    "netLevelXpPerH",
+    "storePerH",
+    "suppliesPerH",
+    "huntedShare"
+   ],
+   "formulas": [
+    "C-TIER"
+   ],
+   "reach": {
+    "feeds": 8,
+    "closure": 78
+   },
+   "class": "global",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/hunt-core/danger.mjs",
+      "what": "power: a tier back moves the blow by the weight under the base, one-sided",
+      "reads": [
+       "POWER"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/bestiary-trophy.mjs",
+     "tests/hunt-core/danger.mjs",
+     "tests/hunt-summary.mjs",
+     "tests/leaderboard-server-source.mjs",
+     "tests/mutation-safety.mjs",
+     "tests/recipe-yield-guard.mjs",
+     "tests/town-works.mjs"
+    ],
+    "mentionCount": 7,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "not-in-runs",
+    "note": "played by the V1 probe (candidates power-tier-back / power-tier-ahead)",
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "MEASURED (lane/econ-levers 2026-11-22, v1-climb.mjs Muster Barrows, Steady at Level 60 from a held start, 6 seeds x 12 h, held read from hour 6, paired against the tree: tools/balance-program/redesign/econ/gear-*-L60.json): a tier back -13.2 (se 3.5), a tier ahead +20.3 (se 5.3); at 1000 R9 read -65.2 / +20.8"
   },
   {
    "id": "reward.xp-line",
@@ -9637,7 +9712,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 125,
+     "line": 130,
      "text": "muster_barrows: Object.freeze({ refStep: 590, floorStep: 480, topStep: 710, gearLevel: tierLevel(3), traits: traitPool('muster_barrows') }),",
      "binding": "DANGER_GROUNDS"
     }
@@ -15276,6 +15351,14 @@
     "topStep"
    ],
    "typed": 4,
+   "bindings": 1
+  },
+  "src/data/danger.js#POWER": {
+   "pin": "count",
+   "keys": [
+    "weightGearBelowPm"
+   ],
+   "typed": 1,
    "bindings": 1
   },
   "src/data/balance-sheet.js#GROUND_XP_FIT": {

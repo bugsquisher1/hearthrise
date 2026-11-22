@@ -1128,7 +1128,7 @@ const mutants = [
   { name: '[rune ladder] the bar lets a spell name another family\'s store rune', case: 'store-rune-is-the-one-the-slot-names',
     edits: [['src/core/hunt/conditions.js', '  return !!family && !!ITEMS[b.partner] && ITEMS[b.partner].family === family;', '  return !!family && !!ITEMS[b.partner] && !!ITEMS[b.partner].family;']] },
   { name: '[rune ladder] a deeper store row priced off the ladder', case: 'store-rune-is-the-one-the-slot-names',
-    edits: [['src/data/supply-basics.js', "  t.tier === 1 ? 'Plain ' + RUNE_FAMILIES[family].label + ' Rune' : runeName(family, t.tier), runeId(family, t.tier), STORE_RUNE_PRICE[t.tier - 1]);", "  t.tier === 1 ? 'Plain ' + RUNE_FAMILIES[family].label + ' Rune' : runeName(family, t.tier), runeId(family, t.tier), 1);"]] },
+    edits: [['src/data/supply-basics.js', "export const STORE_RUNE_PRICE = Object.freeze(RUNE_TIERS.map((t) => chargePrice(runeId(CRAFTED_RUNE_FAMILIES[0], t.tier))));", 'export const STORE_RUNE_PRICE = Object.freeze(RUNE_TIERS.map(() => 7));']] },
   { name: 'a hit ignores its power', case: 'spell-casts-the-spent-runes-version',
     edits: [['src/core/hunt/abilities.js', '  const hitTag = pm === 1000 ? { id: row.id } : { id: row.id, mult: pm };', '  const hitTag = { id: row.id };']] },
   { name: 'a heal and a shield ignore their version', case: 'version-output-scales-numbers',

@@ -339,7 +339,10 @@ const CASES = {
     const up = blow(instOn('steady', 'muster_barrows'), heroAt(up1), rat, N) / base;
     if (Math.abs(up - ratio) > 6e-4) return 'a tier of gear on the scale moved the blow x' + up + ', not x' + ratio;
     const back = blow(instOn('steady', 'muster_barrows'), heroAt(dn1), rat, N) / base;
-    if (Math.abs(back - 1 / ratio) > 6e-4) return 'a tier back moved the blow x' + back + ', not x' + 1 / ratio;
+    /* ONE-SIDED (lane/econ-levers): under the ground's base a gear step counts weightGearBelowPm */
+    const below = Math.pow(1 + DANGER.powerStep, Math.round((tier * POWER.weightGearBelowPm) / 1000));
+    if (!(POWER.weightGearBelowPm > 0 && POWER.weightGearBelowPm < POWER.weightGearPm)) return 'CONTROL: the weight under the base is ' + POWER.weightGearBelowPm + ', not under the weight over it';
+    if (Math.abs(back - 1 / below) > 6e-4) return 'a tier back moved the blow x' + back + ', not x' + 1 / below + ' (weightGearBelowPm)';
     /* at the hero, past the cap: a Tempering cut that alone reaches the 60% cap, then the gear's steps under it */
     const atHero = (g) => blow(instOn('steady', 'muster_barrows'), rat, { ...heroAt(g), armorPm: 999 }, N);
     const capped = blow(instOn('', 'muster_barrows'), rat, { ...heroAt(up1), armorPm: 999 }, N);
@@ -508,7 +511,8 @@ const MUTANTS = [
     ['src/core/hunt/damage.js', '  if (pm) n = Math.max(1, temperedAmount(n, pm, rng));', '  if (pm && isMonster(target)) n = Math.max(1, temperedAmount(n, pm, rng));']] },
   { name: 'the slot weights are dropped', case: 'power', edits: [['src/core/hunt/danger.js', '    sum += W[slot] * itemLevelOf(at(slot));', '    sum += 100 * itemLevelOf(at(slot));']] },
   { name: 'a two-handed weapon leaves the off-hand weight empty', case: 'power', edits: [['src/core/hunt/danger.js', "const carried = weapon && weapon.twoHanded === true ? GEAR_STEPS.twoHand : null;", 'const carried = null;']] },
-  { name: 'the ground reads no gear Level', case: 'power', edits: [['src/core/hunt/danger.js', '((partPm - 1000 * row.gearLevel) * POWER.weightGearPm)', '(partPm * POWER.weightGearPm)']] },
+  { name: 'the ground reads no gear Level', case: 'power', edits: [['src/core/hunt/danger.js', '  const gap = partPm - 1000 * row.gearLevel;', '  const gap = partPm;']] },
+  { name: 'the weight under the base is the weight over it', case: 'power', edits: [['src/core/hunt/danger.js', '(gap < 0 ? POWER.weightGearBelowPm : POWER.weightGearPm)', 'POWER.weightGearPm']] },
   { name: 'the snapshot carries no gear part', case: 'power', edits: [['src/core/member.js', '    gearPm,\n', '\n']] },
   { name: 'the frozen row drops the gear part', case: 'power', edits: [['src/core/member.js', '...jewelSnap(snap), gearPm: snap.gearPm || 0,\n', '...jewelSnap(snap),\n']] },
   { name: 'the unit never carries the gear part', case: 'power', edits: [['src/core/combat-sim.js', '  u.gearPm = Number.isInteger(snap.gearPm) ? snap.gearPm : 0;\n', '']] },

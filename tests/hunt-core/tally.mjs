@@ -385,7 +385,7 @@ const mutants = [
   { name: 'the proposal keeps a low the database refuses', case: 'report-proposal-shape',
     edits: [['src/core/hunt/report.js', '&& ID64.test(l.by) && ID64.test(l.blow) &&', '&&']] },
   { name: 'a blow at a hero carries no reading', case: 'report-blow-reading',
-    edits: [['src/core/hunt/damage.js', "const vit = target.side === 'hero' ? {", "const vit = false ? {"]] },
+    edits: [['src/core/hunt/damage.js', "const vit = isHero(target) ? {", "const vit = false ? {"]] },
   { name: 'the reading is the HP before the blow', case: 'report-blow-reading',
     edits: [['src/core/hunt/damage.js', 'hp: Math.max(0, Math.floor(Number(target.hp) || 0))', 'hp: Math.max(0, Math.floor(Number(target.hp + r.dmg) || 0))']] },
   { name: 'a window that does not close is let through', case: 'regen-closes-the-window',

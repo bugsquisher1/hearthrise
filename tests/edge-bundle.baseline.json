@@ -193,6 +193,11 @@
         "bytes": 3224644,
         "on": "2026-11-22",
         "why": "lane/c-hunt-report: a blow at a hero carries hp and max, the settle sends analyzer.report (src/core/hunt/report.js, tally.js); +13,867 B on its own base"
+      },
+      {
+        "bytes": 3224764,
+        "on": "2026-11-22",
+        "why": "the hunt report's blow reading takes isHero(target) from sides.js (the side seam's one test), after the merge of lane/c-hunt-report onto the seam (+120 B)"
       }
     ]
   }

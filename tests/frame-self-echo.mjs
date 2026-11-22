@@ -91,7 +91,8 @@ export function checkEdge(ts) {
       say('a player-path transaction at offset ' + m.index + ' does not mark itself right after its role');
     }
   }
-  if (player < 5) say('only ' + player + ' player-path transactions found (expected >= 5: exec, read, seed, two applies)');
+  /* 4 since 2026-11-21: the rested bank's own apply left with the bank (S-9 c), so the pointer's apply is the one. */
+  if (player < 4) say('only ' + player + ' player-path transactions found (expected >= 4: exec, read, seed, the apply)');
   if (!/const selfMarker = frameSelfMarker\(user, slot\);/.test(code)) {
     say('the marker is not built from the verified `user` and the parsed `slot`');
   }

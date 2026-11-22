@@ -16,6 +16,10 @@
 //
 //   node tools/balance-program/real-players.local.mjs            (first: the read)
 //   node tools/balance-program/calibrate.mjs --c1 [--json tools/balance-program/calibration/c1.json]
+//   node tools/balance-program/calibrate.mjs --c2 [--seeds 2] [--hours 2] [--json <file>]   C-2: the real fours' recorded tiers against the matrix four on
+//                                                                 the tree (a few cells, local: the real side never leaves this machine)
+//   node tools/balance-program/calibrate.mjs --c4 [--json <file>]  C-4: town work beside hunting, by skill
+//   C-3 (who takes the blows) waits on FB-7's tally by seat; C-5 is C-1 to C-4 again on the first build's own hunts (FB-7 keeps one row a hunt)
 //   node tools/balance-program/calibrate.mjs --selftest           planted heroes: the band reading, the pass rule, the anonymity check
 //
 // Exit: 0 ran · 1 a selftest proof failed, or an aggregate that names a player · 2 harness (no raw read).
@@ -148,6 +152,63 @@ async function c1() {
   return 0;
 }
 
+/* ── C-2, RATES AN HOUR LIKE FOR LIKE ─────────────────────────────────────────────────────────────────────────────────────────────
+   The real fours' hours on a ground and tier the journal recorded (real-players.local.mjs aggregate.xp_by_ground: party mode, the tier recorded, at
+   least C2_MIN_HOURS hero-hours), against the matrix's standard four on the same ground and tier at the rows' middle Level, on the rules that ran
+   (base today: the tree), in the gear C-1 places real heroes in at that Level (the arrival kit's state from 45 to 64, MID otherwise). Kills an hour
+   (the party), Level XP and coin a hero-hour within 10%, deaths inside their count's interval (14 section 2). The real rows are aggregates already. */
+export const C2_MIN_HOURS = 10;
+export const C2_PASS = Object.freeze({ kills: 0.10, xp: 0.10, coin: 0.10 });
+/** C-2's reading of one row: { ground, tier, L, real, sim, ratio, pass } from a real row and the matrix cell's metrics. */
+export function readC2(row, m) {
+  const real = { kills: row.kills_h, xp: row.xp_h, coin: row.coin_h, deathsPer100h: row.deaths_per_100h };
+  const sim = { kills: m.killsPerH, xp: m.levelXpPerH, coin: m.coinPerH, deathsPer100h: Number.isFinite(m.deathsPer1000h) ? m.deathsPer1000h / 10 : null };
+  const ratio = Object.fromEntries(['kills', 'xp', 'coin'].map((k) => [k, real[k] > 0 && Number.isFinite(sim[k]) ? Math.round((sim[k] / real[k]) * 1000) / 1000 : null]));
+  const pass = Object.fromEntries(Object.entries(C2_PASS).map(([k, tol]) => [k, ratio[k] !== null && Math.abs(ratio[k] - 1) <= tol]));
+  return { ground: row.ground, tier: row.tier, levels: row.levels, heroHours: row.hero_hours, L: Math.round((row.levels[0] + row.levels[1]) / 2), real, sim, ratio, pass };
+}
+async function c2() {
+  const AGG = join(ROOT, '.scratch', 'real-players', 'aggregate.json');
+  if (!existsSync(AGG)) { console.error('calibrate: no aggregate on this machine: run node tools/balance-program/real-players.local.mjs first'); return 2; }
+  const agg = JSON.parse(readFileSync(AGG, 'utf8'));
+  const rows = agg.xp_by_ground.filter((r) => r.mode === 'party' && r.tier !== 'not recorded' && r.hero_hours >= C2_MIN_HOURS);
+  const { loadGridData, buildCell, compsOf } = await import('./progression-grid.mjs');
+  const { loadKits } = await import('./grid-kit.mjs');
+  const BM = await import('./balance-matrix.mjs'), MM = await import('./matrix-metrics.mjs');
+  const D = await loadGridData(ROOT), K = await loadKits(ROOT);
+  const styles = compsOf(4)[0][0], seeds = Number(arg('seeds', 2)), hours = Number(arg('hours', 2));
+  const metas = rows.map((r) => { const L = Math.round((r.levels[0] + r.levels[1]) / 2); return { r, L, gear: L >= 45 && L <= 64 ? 'low' : 'mid', key: 'C2|' + r.ground + '|' + r.tier + '|' + L }; });
+  const jobs = [];
+  for (const x of metas) { const b = buildCell(D, K, { L: x.L, gear: x.gear, styles, tier: x.r.tier, ground: x.r.ground }); for (let k = 0; k < seeds; k++) jobs.push({ id: x.key + '#' + k, key: x.key, whatIf: b.whatIf, cell: { ...b.cell, id: 'C2:' + x.key, hours, seeds: 1, seedBase: k } }); }
+  const { results } = await BM.playJobs(jobs, ROOT, Math.min(4, Number(arg('workers', 4))));
+  const out = metas.map((x) => { const sd = jobs.filter((j) => j.key === x.key).map((j) => results[j.id]).filter(Boolean).map(MM.slimSeed);
+    const m = sd.length ? MM.cellMetrics(D, { key: x.key, L: x.L, gear: x.gear, party: 4, styles, tier: x.r.tier, ground: x.r.ground }, sd, {}) : null;
+    return m ? { ...readC2(x.r, m), gear: x.gear } : { ground: x.r.ground, error: 'no seed played' }; });
+  const J = { check: 'C-2', source: '14-the-rest.md section 2', base: 'today (the rules that ran)', four: styles.join(','), seeds, hours, rows: out };
+  console.log('C-2, RATES AN HOUR LIKE FOR LIKE (the real fours on a recorded tier, ' + C2_MIN_HOURS + '+ hero-hours, against the matrix four ' + styles.join(',') + ', ' + seeds + ' seeds x ' + hours + ' h, the tree): sim / real');
+  for (const x of out) console.log('  ' + (x.ground + ' ' + x.tier + ' L' + x.L + ' (' + x.gear + ', ' + x.heroHours + ' real hero-h)').padEnd(46) + ['kills', 'xp', 'coin'].map((k) => k + ' ' + x.ratio[k] + (x.pass[k] ? '' : ' OUT')).join('   ') + '   deaths/100h real ' + x.real.deathsPer100h + ', sim ' + (x.sim.deathsPer100h === null ? '-' : Math.round(x.sim.deathsPer100h * 10) / 10));
+  if (arg('json')) { const p = resolve(arg('json')); mkdirSync(dirname(p), { recursive: true }); writeFileSync(p, JSON.stringify(J, null, 1) + '\n'); console.log('wrote ' + p); }
+  return 0;
+}
+
+/* ── C-4, TOWN WORK ─────────────────────────────────────────────────────────────────────────────────────────────────────────────
+   Real gathering and bench hours by skill (aggregate.town_hours_by_skill), the share of a real hero's life they take beside hunting; the sims'
+   rates (skill-sim.js, artisan-sim.js) are compared once the reader splits XP and items an hour by skill band, which the journal's town rows carry */
+async function c4() {
+  const AGG = join(ROOT, '.scratch', 'real-players', 'aggregate.json');
+  if (!existsSync(AGG)) { console.error('calibrate: no aggregate on this machine: run node tools/balance-program/real-players.local.mjs first'); return 2; }
+  const agg = JSON.parse(readFileSync(AGG, 'utf8'));
+  const real = (agg.heroes || []).filter((h) => h.cls === 'real' && h.hunted_h > 0);
+  const sum = (k) => real.reduce((a, h) => a + (Number(h[k]) || 0), 0);
+  const J = { check: 'C-4', source: '14-the-rest.md section 2', real_heroes: real.length, hunted_h: Math.round(sum('hunted_h')), gathering_h: Math.round(sum('gathering_h')), crafting_h: Math.round(sum('crafting_h')),
+    by_skill: agg.town_hours_by_skill || null };
+  J.town_over_hunt = J.hunted_h ? Math.round(((J.gathering_h + J.crafting_h) / J.hunted_h) * 100) / 100 : null;
+  console.log('C-4, TOWN WORK (' + J.real_heroes + ' real heroes): hunted ' + J.hunted_h + ' h, gathering ' + J.gathering_h + ' h, benches ' + J.crafting_h + ' h; town work / hunting ' + J.town_over_hunt);
+  console.log('  by skill: ' + JSON.stringify(J.by_skill).slice(0, 400));
+  if (arg('json')) { const p = resolve(arg('json')); mkdirSync(dirname(p), { recursive: true }); writeFileSync(p, JSON.stringify(J, null, 1) + '\n'); console.log('wrote ' + p); }
+  return 0;
+}
+
 function selftest() {
   const fails = [];
   const check = (name, ok, why = '') => { console.log((ok ? '  ok    ' : '  FAIL  ') + name + (ok ? '' : ': ' + why)); if (!ok) fails.push(name); };
@@ -164,6 +225,8 @@ function selftest() {
     && J.bands.find((x) => x.band === '85-110').reading);
   const two = readC1(heroes.slice(0, 2).map((h) => ({ ...h, L: 50 })), model).bands.find((x) => x.band === '45-64');
   check('a band of fewer than ' + MIN_HEROES + ' real heroes is counted and never shown (' + (two && two.reading) + ')', two && !two.real && /not shown/.test(two.reading));
+  const c2 = readC2({ ground: 'g', tier: 'deadly', levels: [60, 70], hero_hours: 50, kills_h: 1000, xp_h: 100, coin_h: 10, deaths_per_100h: 0 }, { killsPerH: 1080, levelXpPerH: 120, coinPerH: 10, deathsPer1000h: 0 });
+  check('C-2 reads sim over real and passes within 10% only (' + JSON.stringify(c2.ratio) + ', ' + JSON.stringify(c2.pass) + ')', c2.L === 65 && c2.pass.kills && !c2.pass.xp && c2.pass.coin && c2.ratio.xp === 1.2);
   check('an aggregate that repeats an account id or names a player is refused', anonymityProblems({ a: 'x-123' }, ['x-123']).length === 1 && anonymityProblems({ u: 'H1' }, []).length === 1 && anonymityProblems(J, ['x-123']).length === 0);
   console.log('calibrate selftest: ' + (fails.length ? fails.length + ' FAILED' : 'green'));
   return fails.length ? 1 : 0;
@@ -172,6 +235,8 @@ function selftest() {
 async function main() {
   if (argv.includes('--selftest')) return selftest();
   if (argv.includes('--c1')) return c1();
+  if (argv.includes('--c2')) return c2();
+  if (argv.includes('--c4')) return c4();
   console.error('calibrate: --c1 [--json <file>] | --selftest');
   return 2;
 }

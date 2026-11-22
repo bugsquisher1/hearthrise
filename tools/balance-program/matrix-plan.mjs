@@ -82,6 +82,14 @@ export const TALENT_BLOCK = Object.freeze({ id: 'talents', talents: true, levels
   Object.freeze({ styles: ['hammer', 'mage', 'mage', 'mage'], comp: lineupComp(['hammer', 'mage', 'mage', 'mage']), tier: 'hardest', builds: ['S', 'B'] }),
 ]) });
 
+/* CHECK C3, A STANDING CELL (patches/fb5-c3-default-company.json, FB-5; 08-player-experience.md sections 2.1 and 6): the default company a new account
+   makes in the first hour, the Club first (the "Good first hero") and the pre-filled three (src/data/how-to-play.js COMPANY_PICKS: tank, healer,
+   ranger), on the Millrace Sewer at its floor, Level 5, Normal, in the start kit (the arrival kit under Level 15), 4 seeds x 8 hours. C3 passes with
+   no death. Printed beside it, never gated: the same four with no healer (the Staff swapped for a Club) and the four with the wand first (the
+   played first hour picked the wand). If it fails, the four's first hunt together is Meadowbrook Thicket (chapter 08) */
+export const C3_BLOCK = Object.freeze({ id: 'c3', levels: Object.freeze([5]), comps: Object.freeze([[['hammer', 'tank', 'healer', 'bow'], 'c3-club'], [['hammer', 'tank', 'hammer', 'bow'], 'c3-no-healer'], [['mage', 'tank', 'healer', 'bow'], 'c3-wand']]),
+  gears: ['low'], tiers: ['normal'] });
+
 /* THE DEATH SAMPLE (12-balance-pass.md section 1, R2 and R4; replayed by FB-3 on the fixed engine, audit A-0): what the harder tiers do to a
    four, read where a death count can be read, 4 seeds of 8 hours (X26: 32 hours a seat). The mid four's every gear state on Dangerous and the
    hardest tier; the lineups on Deadly; the buffed fours; the four's Talents builds; both party defaults (the leave block); and the 14 grounds
@@ -93,6 +101,7 @@ const DEATHS = Object.freeze({ id: 'deaths', levels: Object.freeze([10, 30, 60, 
   { ...TALENT_BLOCK, minSize: 4, levels: [60, 110, 185] },
   LEAVE_BLOCK,
   { id: 'grounds', grounds: true, sizes: [4], firstComp: true, tiers: ['dangerous', 'hardest'] },
+  C3_BLOCK,
 ]) });
 
 /* CHAPTER 14'S FULL-GAME BLOCK (14-the-rest.md section 1, FB-3 in CB-2's single pass): what the tool can already play of chapter 14, as one more
@@ -145,6 +154,13 @@ export const RUNS = Object.freeze({
   deaths: DEATHS,
   /* `--run deaths-full`: the death sample with chapter 14's full-game block (CH14 above); `patch` plays on top of the run's base */
   'deaths-full': Object.freeze({ ...DEATHS, id: 'deaths-full', patch: 'patches/ch14-full-game.json', ch14: true, blocks: Object.freeze([...DEATHS.blocks, CH14_CAPS]) }),
+  /* ONE TALENTS UNLOCK IN A CELL (13-build-plan.md D-9; 10-level-choices.md section 4): Force's rank 3 unlock, Focus fire (+6% on a monster another
+     hero of the party is attacking), on every seat of the MID four beside the same four without it, at Levels 30, 60 and 110 on Normal and the hardest
+     tier. The engine has no seam for it (the modifier table's when column, R20), so the run plays patches/tal-focus-fire.json on its scratch copy */
+  unlock: Object.freeze({ id: 'unlock', levels: Object.freeze([30, 60, 110]), seeds: 2, hours: 2, patch: 'patches/tal-focus-fire.json', blocks: Object.freeze([
+    { id: 'four', comps: compsOf(4), gears: ['mid'], tiers: ['normal', 'hardest'] },
+    { id: 'unlock', comps: compsOf(4), gears: ['mid'], tiers: ['normal', 'hardest'], variants: [{ tag: 'unlock:focusFire', unlocks: { focusFire: 60 } }] },
+  ]) }),
   /* Balance Lab v3's LIVE cells (a slider move re-plays them in the browser, on the bundled engine): every way alone and the four on every tier,
      MID, early, at the end of open content and PROJECTED, a quarter hour on one seed. tools/balance-lab/build.mjs --v3
      resolves them (cell.mjs resolveOnly) so the page plays the matrix's own seats. */

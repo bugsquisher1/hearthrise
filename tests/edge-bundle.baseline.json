@@ -148,6 +148,11 @@
         "bytes": 3166835,
         "on": "2026-11-21",
         "why": "+952 B ceiling: +180 B src/core/hunt/tally.js (lane/a-kill-credit-null: a kill with no dealer credits no hero, the settle no longer throws) and +772 B already on set/v0.2.144 from lane/c-first-hour's data (src/data/the-path.js, start-kit.js, how-to-play.js, text/*), measured with tally.js at base"
+      },
+      {
+        "bytes": 3150368,
+        "on": "2026-11-21",
+        "why": "cut locked in (16467 bytes)"
       }
     ]
   }

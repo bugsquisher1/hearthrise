@@ -155,10 +155,14 @@ export function trackBuffs(track, L) {
  * what its Magic allows, a Healer heals on the cheapest water rune; BiS casts what its Magic allows). Options: `buffs` (timed buff rows kept
  * up all hunt), `track` (a build-tracks.json track), `staminaH`, `purse` and `goldFloor` (a bar and a purse that bind).
  */
-export function buildCell(D, K, { L, gear, styles, tier, ground, step = null, buffs = null, track = null, endTogether = false, staminaH = null, purse = null, goldFloor = null, blessings = 3, build = 'S' }) {
+export function buildCell(D, K, { L, gear, styles, tier, ground, step = null, buffs = null, track = null, endTogether = false, staminaH = null, purse = null, goldFloor = null, blessings = 3, build = 'S', unlocks = null }) {
   const size = styles.length, line = size > 1 ? 'party' : 'alone';
-  const skills = styles.map((style) => {
+  const skills = styles.map((style, i) => {
     const lv = { ...D.skillsAt(D.lines, line, style, L) }, d = K.skillDeltaOf(gear, L), m = MAIN[style] || 'melee';
+    /* THE FRONT SEAT'S DEFENSE (standards.mjs SEAT_DEFENSE, calibration C-1): the hero in front of a party takes the blows and trains Defense as
+       the party career's front did, whatever its way; the back seats keep their own line */
+    const F = STD.SEAT_DEFENSE && STD.SEAT_DEFENSE.front;
+    if (F && size > 1 && i === 0) lv.defense = Math.max(lv.defense || 1, D.skillsAt(D.lines, F.line, F.style, L).defense || 1);
     for (const k of [m, 'defense']) lv[k] = Math.max(1, (lv[k] || 1) + d);
     return lv;
   });
@@ -180,7 +184,8 @@ export function buildCell(D, K, { L, gear, styles, tier, ground, step = null, bu
   const rows = [...(buffs || []), ...(track ? trackBuffs(track, L) : [])];
   /* TALENTS ARE BASELINE (10-level-choices.md 5.1): every seat carries its way's suggested build (`build` 'S'), a contrast build is a variant;
      the stat lines bite only where the tree has the seam (the Talents proposal's scratch hook) */
-  const talentsBySeat = styles.map((st) => talentsOf(st, L, build).pm);
+  /* `unlocks` { name: permille }: a Talents unlock every seat holds (matrix-plan.mjs RUNS.unlock, D-9; its engine seam is a scratch patch) */
+  const talentsBySeat = styles.map((st) => ({ ...talentsOf(st, L, build).pm, ...(unlocks || {}) }));
   const cell = { ground, party: [...styles], level: L, profile: 'played', supply: 'store', skillsBySeat: skills, gearBySeat: plans.map((p) => p.gear),
     talentsBySeat, build, deathRule: 'real', blessings, ...(Number.isFinite(blessedShareAt(L, blessings)) ? { blessedShare: blessedShareAt(L, blessings) } : {}), shopping: gear === 'bis' ? 'allowed' : 'real', ...(endTogether ? { endTogether: true } : {}),
     ...(rows.length ? { buffs: rows } : {}), ...(Number.isFinite(staminaH) ? { staminaH } : {}), ...(Number.isFinite(purse) ? { purse } : {}), ...(Number.isInteger(goldFloor) ? { goldFloor } : {}),
@@ -335,7 +340,7 @@ const HASHED = ['src/core', 'src/data', 'supabase/functions/hr-accrue', 'src/she
 const cellCode = () => [buildCell, trackBuffs, talentsOf, blessedShareAt, planCells, cellRates, compsOf, cellKey, ownShareAt, slimResult, slimPlan].map((f) => f.toString()).join('\n')
   /* of standards.mjs only what shapes a cell (the gear rules, the stretches, the parties, the supply share, the checkpoints), never a band: a
      ruling that moves a target leaves the cells as they were. A run's file path is the machine's, so it is left out. */
-  + JSON.stringify([COMPS, MAIN, ...[RUNS.full, RUNS.quick].map(({ file, ...r }) => (void file, r)), STD.SUPPLY, STD.GEAR_STATES, STD.STRETCHES, STD.PARTIES, STD.POWER_SOURCES, STD.CHECKPOINTS, STD.GUARD_CHECKPOINTS, STD.TIERS]);
+  + JSON.stringify([COMPS, MAIN, ...[RUNS.full, RUNS.quick].map(({ file, ...r }) => (void file, r)), STD.SUPPLY, STD.GEAR_STATES, STD.SEAT_DEFENSE, STD.STRETCHES, STD.PARTIES, STD.POWER_SOURCES, STD.CHECKPOINTS, STD.GUARD_CHECKPOINTS, STD.TIERS]);
 export function inputHash(root = ROOT) {
   const h = createHash('sha256');
   let files;

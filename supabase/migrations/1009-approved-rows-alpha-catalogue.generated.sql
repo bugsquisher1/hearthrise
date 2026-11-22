@@ -6,7 +6,7 @@
 --   hr_stamina_refill_rule  src/data/stamina-refill.js STAMINA_REFILL
 --   hr_blessing_rule        src/data/blessings.js BLESSING_RULES
 --   hr_blessing_tiers       src/data/blessings.js BLESSING_TIERS
---   digest 1f040450bdb0f5594381af32c61ee042978acc9448020c77d38b4219dd1d6d2b
+--   digest 467f18fed2f035ff999e59c08057ea45c04c0e54958ef798c7954fbf1d40a31f
 --
 -- Server-only: RLS on, NO policy, no client grant (the client reads src/data and
 -- the envelope's quotes). Idempotent: delete + insert; nothing references these
@@ -84,24 +84,54 @@ revoke all on public.hr_shop_supply_offers, public.hr_stamina_refill_rule, publi
 
 delete from public.hr_shop_supply_offers;
 insert into public.hr_shop_supply_offers (offer_id, item_id, kind, price) values
-  ('supply.cooked_shrimp', 'cooked_shrimp', 'food', 19),
-  ('supply.cooked_trout', 'cooked_trout', 'food', 56),
-  ('supply.cooked_lobster', 'cooked_lobster', 'food', 250),
-  ('supply.cooked_swordfish', 'cooked_swordfish', 'food', 576),
-  ('supply.cooked_shark', 'cooked_shark', 'food', 924),
-  ('supply.turnip_juice', 'turnip_juice', 'drink', 14),
-  ('supply.carrot_juice', 'carrot_juice', 'drink', 26),
-  ('supply.tomato_juice', 'tomato_juice', 'drink', 63),
-  ('supply.pumpkin_cider', 'pumpkin_cider', 'drink', 107),
-  ('supply.goldenroot_tea', 'goldenroot_tea', 'drink', 184),
-  ('supply.emberfruit_cordial', 'emberfruit_cordial', 'drink', 315),
+  ('supply.cooked_shrimp', 'cooked_shrimp', 'food', 11),
+  ('supply.cooked_trout', 'cooked_trout', 'food', 20),
+  ('supply.cooked_lobster', 'cooked_lobster', 'food', 37),
+  ('supply.cooked_swordfish', 'cooked_swordfish', 'food', 50),
+  ('supply.cooked_shark', 'cooked_shark', 'food', 96),
+  ('supply.turnip_juice', 'turnip_juice', 'drink', 12),
+  ('supply.carrot_juice', 'carrot_juice', 'drink', 23),
+  ('supply.tomato_juice', 'tomato_juice', 'drink', 62),
+  ('supply.pumpkin_cider', 'pumpkin_cider', 'drink', 100),
+  ('supply.goldenroot_tea', 'goldenroot_tea', 'drink', 172),
+  ('supply.emberfruit_cordial', 'emberfruit_cordial', 'drink', 322),
   ('supply.barbed_arrows', 'barbed_arrows', 'ammo', 1),
   ('supply.iron_bolts', 'iron_bolts', 'ammo', 1),
   ('supply.steel_arrows', 'steel_arrows', 'ammo', 1),
-  ('supply.mithril_arrows', 'mithril_arrows', 'ammo', 4),
-  ('supply.rune_arrows', 'rune_arrows', 'ammo', 6),
-  ('supply.emberhead_arrows', 'emberhead_arrows', 'ammo', 9),
-  ('supply.dawnpoint_arrows', 'dawnpoint_arrows', 'ammo', 12),
+  ('supply.mithril_arrows', 'mithril_arrows', 'ammo', 2),
+  ('supply.rune_arrows', 'rune_arrows', 'ammo', 3),
+  ('supply.emberhead_arrows', 'emberhead_arrows', 'ammo', 5),
+  ('supply.dawnpoint_arrows', 'dawnpoint_arrows', 'ammo', 6),
+  ('supply.chalked_earth_rune', 'chalked_earth_rune', 'ammo', 1),
+  ('supply.scored_earth_rune', 'scored_earth_rune', 'ammo', 2),
+  ('supply.etched_earth_rune', 'etched_earth_rune', 'ammo', 2),
+  ('supply.carved_earth_rune', 'carved_earth_rune', 'ammo', 3),
+  ('supply.graven_earth_rune', 'graven_earth_rune', 'ammo', 5),
+  ('supply.chalked_water_rune', 'chalked_water_rune', 'ammo', 1),
+  ('supply.scored_water_rune', 'scored_water_rune', 'ammo', 2),
+  ('supply.etched_water_rune', 'etched_water_rune', 'ammo', 2),
+  ('supply.carved_water_rune', 'carved_water_rune', 'ammo', 3),
+  ('supply.graven_water_rune', 'graven_water_rune', 'ammo', 5),
+  ('supply.chalked_fire_rune', 'chalked_fire_rune', 'ammo', 1),
+  ('supply.scored_fire_rune', 'scored_fire_rune', 'ammo', 2),
+  ('supply.etched_fire_rune', 'etched_fire_rune', 'ammo', 2),
+  ('supply.carved_fire_rune', 'carved_fire_rune', 'ammo', 3),
+  ('supply.graven_fire_rune', 'graven_fire_rune', 'ammo', 5),
+  ('supply.chalked_ice_rune', 'chalked_ice_rune', 'ammo', 1),
+  ('supply.scored_ice_rune', 'scored_ice_rune', 'ammo', 2),
+  ('supply.etched_ice_rune', 'etched_ice_rune', 'ammo', 2),
+  ('supply.carved_ice_rune', 'carved_ice_rune', 'ammo', 3),
+  ('supply.graven_ice_rune', 'graven_ice_rune', 'ammo', 5),
+  ('supply.chalked_poison_rune', 'chalked_poison_rune', 'ammo', 1),
+  ('supply.scored_poison_rune', 'scored_poison_rune', 'ammo', 2),
+  ('supply.etched_poison_rune', 'etched_poison_rune', 'ammo', 2),
+  ('supply.carved_poison_rune', 'carved_poison_rune', 'ammo', 3),
+  ('supply.graven_poison_rune', 'graven_poison_rune', 'ammo', 5),
+  ('supply.chalked_rupture_rune', 'chalked_rupture_rune', 'ammo', 1),
+  ('supply.scored_rupture_rune', 'scored_rupture_rune', 'ammo', 2),
+  ('supply.etched_rupture_rune', 'etched_rupture_rune', 'ammo', 2),
+  ('supply.carved_rupture_rune', 'carved_rupture_rune', 'ammo', 3),
+  ('supply.graven_rupture_rune', 'graven_rupture_rune', 'ammo', 5),
   ('supply.bronze_axe', 'bronze_axe', 'tool', 120),
   ('supply.bronze_pickaxe', 'bronze_pickaxe', 'tool', 120),
   ('supply.leather_gloves', 'leather_gloves', 'gear', 160),
@@ -142,12 +172,12 @@ insert into public.hr_blessing_tiers (tier, permille, base, per_level) values
 do $chk$
 declare v_role text;
 begin
-  if (select count(*) from public.hr_shop_supply_offers) <> 40
+  if (select count(*) from public.hr_shop_supply_offers) <> 70
      or (select count(*) from public.hr_blessing_tiers) <> 3
      or (select count(*) from public.hr_stamina_refill_rule) <> 1 or (select count(*) from public.hr_blessing_rule) <> 1 then
     raise exception 'VERIFY: the alpha catalogue row counts are not the data''s'; end if;
   if (select md5(string_agg(offer_id || ':' || item_id || ':' || kind || ':' || price, ',' order by offer_id collate "C"))
-        from public.hr_shop_supply_offers) is distinct from 'cc93ad03cbfb47c8d8c9b275202735a2' then
+        from public.hr_shop_supply_offers) is distinct from '8588f495b84364fb813510409cafe9c4' then
     raise exception 'VERIFY: the supply offers are not the data''s rows and prices'; end if;
   if exists (select 1 from public.hr_shop_supply_offers o
               where not exists (select 1 from public.hr_items i where i.item_id = o.item_id)
@@ -176,7 +206,7 @@ begin
   if (select base || ':' || per_level || ':' || max_min || ':' || per_day || ':' || step_num || ':' || step_den from public.hr_stamina_refill_rule)
        is distinct from '1000:250:240:6:1:2' then
     raise exception 'VERIFY: the refill rule is not the data''s row (src/data/stamina-refill.js)'; end if;
-  raise notice 'alpha catalogue: % supply offers, the refill rule, % blessing tiers; all green', 40, 3;
+  raise notice 'alpha catalogue: % supply offers, the refill rule, % blessing tiers; all green', 70, 3;
 end $chk$;
 
 -- §4 SELF-CHECK, THE REFILL AS A BUYER MEETS IT (EXECUTED, rolled back): a probe hero on an empty pool buys all 6 of the day through the

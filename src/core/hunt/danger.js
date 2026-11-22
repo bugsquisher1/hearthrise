@@ -27,6 +27,7 @@
 // ============================================================
 
 import { DANGER, CLIMB, RISKS, PAY, DANGER_GROUNDS } from '../../data/danger.js';
+import { WAGE } from '../../data/wage.js';
 import { LEVEL_PACE } from '../../data/core-model.js';
 import { charXpForLevel } from '../xp.js';
 import { makeEvent } from './events.js';
@@ -72,7 +73,8 @@ function basePull(ground) {
  *   dmgPm  each monster's blow, the same share
  *   aimPm, lvPm  1000: its aim and its Level stay the row's, so the step's growth is the ratio exactly, once on health and once on blow
  *   xpPm   1000: a kill's Level XP on the scale is a share of each killer's own Level (levelShareXp, xp-share.js), never its row's
- *   coinPm a kill's coin: the pull's share x the depth ratio (hunt-rewards.js payKill), so a pull of any size pays the as-built pull's coin
+ *   coinPm a kill's coin: PAY.coinPm x the pull's share x the depth ratio at the wage's coin ratio (hunt-rewards.js payKill), so a pull of
+ *          any size pays the as-built pull's coin times the scale's gold level (lane/econ-levers: one coin ratio a step, src/data/wage.js)
  */
 export function dangerDial(ground, step) {
   const s = clampStep(step);
@@ -81,7 +83,7 @@ export function dangerDial(ground, step) {
   const share = n0 / pull;
   const each = 1000 * powStep(1 + DANGER.powerStep, s) * share;
   return { id: 'danger', step: s, pull: [pull, pull, pull, pull], hpPm: each, dmgPm: each, aimPm: 1000, lvPm: 1000,
-    xpPm: 1000, coinPm: share * depthRatio(ground, s, PAY.payStepCoin) * 1000 };
+    xpPm: 1000, coinPm: share * depthRatio(ground, s, WAGE.payStepCoin) * PAY.coinPm };
 }
 
 /* A RATIO TO A WHOLE STEP by squaring: multiplications only, each exactly rounded on every JS engine, so a browser's live view and the
@@ -98,10 +100,12 @@ function gapOf(ground, step) {
   const row = ground && Object.prototype.hasOwnProperty.call(DANGER_GROUNDS, ground.id) ? DANGER_GROUNDS[ground.id] : null;
   return Math.min(PAY.gapMax, clampStep(step) - (row ? row.refStep : 0));
 }
-/* (1 + rate) ^ gap, by squaring both ways (a negative gap divides): multiplications and one division, exact on every engine */
+/* (1 + rate) ^ gap, by squaring both ways (a negative gap divides): multiplications and one division, exact on every engine. THE PAY FLOOR
+   (12-targets.md 2.1, lane/econ-levers): under the reference a kill never pays less than PAY.floorPm permille of the table, XP and coin
+   alike, so a shallower stance costs fewer kills an hour and not a second, compounding cut a kill. */
 function depthRatio(ground, step, rate) {
   const g = gapOf(ground, step);
-  return g >= 0 ? powStep(1 + rate, g) : 1 / powStep(1 + rate, -g);
+  return g >= 0 ? powStep(1 + rate, g) : Math.max(PAY.floorPm / 1000, 1 / powStep(1 + rate, -g));
 }
 
 /* THE HOURS A LEVEL TAKES (LEVEL_PACE.targets, Tyler's ruling 2026-10-25 section 2: [Level, cumulative hunting hours]). Each span of the

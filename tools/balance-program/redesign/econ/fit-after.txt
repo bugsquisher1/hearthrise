@@ -1,0 +1,43 @@
+THE WAGE (src/data/wage.js): wageBase 12880, payStepCoin 0.4%; band 0.75 to 1.33 of the wage
+slope fitted on the Lab (Normal, own ground, 20-400, hours-weighted): 0.39% a step, base 7203
+slope fitted on the scale ground runs (20-400, hours-weighted):        -0.01% a step, base 39268
+the anchor (Muster Barrows on the scale, L60/63/70): pay / wage, geometric mean 1.000
+
+THE ANCHOR: the scale as played (Muster Barrows, refStep 590), 6 seeds x 8 h, held start
+  Level  ground                held    pay/h   coin/h  store/h   wage(levelStep(L))  pay / wage
+  60    muster_barrows          581    16276    13324     4168               16365  0.99
+  63    muster_barrows          590    16562    13596     4126               16563  1.00
+  70    muster_barrows          619    17143    14305     4746               17032  1.01
+
+THE SCALE ON EACH LEVEL'S GROUND (what-if: no refStep row; coin read back from the gap cap), 4 seeds x 6 h, held start
+  Level  ground                held    pay/h   coin/h  store/h   wage(levelStep(L))  pay / wage
+  20    mosslight_glade         542    11511     9742     3112               13950  0.83
+  45    hasks_ford              574    16396    13605     3084               15414  1.06
+  88    krells_hold             522    40567    35646     4015               18301  2.22  OUT OF BAND  (3 deaths, four 2.3 h)
+  145   wyvern_roost            508    51523    49207     2372               22977  2.24  OUT OF BAND  (4 deaths, four 0.2 h)
+  185   unmarked_catacombs      493    43499    41752     5308               26955  1.61  OUT OF BAND
+  400   unmarked_catacombs      625    34706    32967     5832               63591  0.55  OUT OF BAND
+
+THE LAB: the baseline matrix four on Normal on its own ground (8 seeds a cell). The old tier pays 0.46x the scale on the whole, so its SHAPE is read: pay / wage over that mean
+  Level  ground                held    pay/h   coin/h  store/h   wage(levelStep(L))  pay / wage / 0.46
+  20    mosslight_glade                 3761     2555     1179               13950  0.58  OUT OF BAND
+  25    mosslight_glade                 3769     2565     1081               14231  0.57  OUT OF BAND
+  30    mosslight_glade                 3794     2592      801               14518  0.57  OUT OF BAND
+  35    coppercap_warrens               7269     5291     2719               14811  1.06
+  40    coppercap_warrens               7329     5353     4736               15109  1.05
+  45    hasks_ford                      5446     3795     2082               15414  0.76
+  50    the_slake                       5727     4315     2329               15725  0.79
+  60    muster_barrows                 12776     8898     5648               16365  1.69  OUT OF BAND
+  75    pyre_field                     11637     7139     4945               17375  1.45  OUT OF BAND
+  88    krells_hold                    10342     7036     4024               18301  1.22
+  100   krells_hold                    10368     7062     4176               19199  1.17
+  110   krells_hold                    10356     7068     4758               19981  1.12
+  145   wyvern_roost                   13237    11342     7477               22977  1.25
+  185   unmarked_catacombs             15077    13430     9366               26955  1.21
+  300   unmarked_catacombs             24466    22848    10367               42660  1.24
+  400   unmarked_catacombs             31413    29833    11898               63591  1.07
+
+THE FIRST HUNTING BLOCK (src/core/wage.js blockPrice) against what its 2 h pay at the anchor:
+  L60: block 65460 gold for 2 h that pay 32552 gross (2.01x) and 24216 net of the store
+  L63: block 66252 gold for 2 h that pay 33124 gross (2x) and 24872 net of the store
+  L70: block 68128 gold for 2 h that pay 34286 gross (1.99x) and 24794 net of the store

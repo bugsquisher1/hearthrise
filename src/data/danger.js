@@ -58,10 +58,13 @@ import { tierLevel, traitPool } from './gear-steps.js';
 // A company holding its ground's reference step earns the hours table; one step deeper earns payStepXp more (04 section 7: power is paid
 // out as depth). No party table and no under-floor share on the scale (04 section 7: the gap does catch-up; a carried hero is paid its
 // OWN Level's table rate, never more). Coin a kill is the row's roll x the pull's share (so a pull pays the as-built pull's coin at any
-// size) x (1 + payStepCoin) ^ gap: one ratio for both (04: "under one rule a party's gold follows its XP").
+// size) x PAY.coinPm / 1000 x (1 + payStepCoin) ^ gap, payStepCoin the WAGE's (src/data/wage.js): one coin ratio a step across grounds and
+// inside one, smaller than the XP ratio (04 section 11; lane/econ-levers 2026-11-22 retired the engine's own 0.7% coin ratio).
 //   refKillsHead 120   MEASURED 2026-11-22 (v1-climb.mjs, base:steady, 2 seeds x 6 h): the Steady mixed four at Level 60 on Muster
 //                      Barrows kills 481 an hour at its held step (589.5 +- 14), 120 a head. Kills an hour hold there with Level (477 at 70)
 //   gapMax 120         STATED: depth pays at most (1.007)^120 = 2.31x the table; past it a deeper hold earns no more a kill (04 payGapMax)
+//   floorPm, coinPm    THE ECONOMY LEVERS (lane/econ-levers, 2026-11-22), set together with the wage (src/data/wage.js) and the store's
+//                      basics (src/data/store-kit.js); their evidence is there and in tools/balance-program/redesign/econ/
 // THE START (02 package 3: "a hunt starts at a step the company has held before"; V1's "above" cell: a weaker company started at a stronger
 // one's step lost heroes in its first minutes): a hunt opens DANGER.startMargin steps under the LOWEST step any of its heroes last held on
 // that ground (hunt_density.danger_held, written by the server as each hunt ends), 0 for a hero who never held one. STATED 20, the probe's
@@ -83,7 +86,15 @@ export const DANGER = Object.freeze({
   startMargin: 20,
 });
 
-export const PAY = Object.freeze({ refKillsHead: 120, payStepXp: 0.007, payStepCoin: 0.007, gapMax: 120 });
+export const PAY = Object.freeze({
+  refKillsHead: 120, payStepXp: 0.007, gapMax: 120,
+  /* LEVER (danger.pay-floor; 12-targets.md 2.1): under the reference a kill pays at least this permille of the table, XP and coin. The ruling's
+     starting 0.85 paid Careful MORE than Steady an hour (its shallow pulls die fast); 2.1 says the floor moves, not the stances */
+  floorPm: 500,
+  /* LEVER (danger.coin-level): a scale kill's coin, permille of its row's roll, before the pull's share and the depth ratio. The gold level of
+     the scale, set so a whole-gold store use can price the kit at its share of the wage (src/data/store-kit.js) */
+  coinPm: 7000,
+});
 
 export const DANGER_GROUNDS = Object.freeze({
   /* floorStep / topStep: the ground's band of DEPTHS depths (docs/design/redesign/12-targets.md section 3.1, starting values the Lab

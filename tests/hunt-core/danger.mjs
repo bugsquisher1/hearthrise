@@ -39,6 +39,7 @@ const load = async (root) => {
   M.dangerData = await imp('src/data/danger.js');
   M.tiers = await imp('src/data/hunt-tiers.js');
   M.coreModel = await imp('src/data/core-model.js');
+  M.wageData = await imp('src/data/wage.js');
   M.xp = await imp('src/core/xp.js');
   M.huntReport = await imp('src/data/hunt-report.js');
   return M;
@@ -213,7 +214,8 @@ const CASES = {
       { room: [1, 1, 8, 6], spawns: [{ monster: 'slime', x: 4, y: 3 }, { monster: 'slime', x: 5, y: 3 }] },
       { room: [1, 8, 18, 8], spawns: [{ monster: 'rat', x: 9, y: 8 }, { monster: 'rat', x: 10, y: 8 }, { monster: 'rat', x: 11, y: 8 }] }] });
     const { PAY } = M.dangerData;
-    const r = 1 + DANGER.powerStep, p = (s) => (s < PAY.gapMax ? 1 + PAY.payStepCoin : 1);
+    /* one coin ratio a step (lane/econ-levers): the wage's, inside a ground as across grounds */
+    const r = 1 + DANGER.powerStep, p = (s) => (s < PAY.gapMax ? 1 + M.wageData.WAGE.payStepCoin : 1);
     const total = (s, k) => { const d = M.danger.dangerDial(g, s); return d.pull[0] * d[k]; };
     let sizes = 0;
     for (let s = 0; s < 900; s++) {
@@ -254,7 +256,19 @@ const CASES = {
       if (Math.abs(deeper - (1 + PAY.payStepXp)) > 1e-9) return 'a step deeper pays x' + deeper;
       if (M.danger.levelShareXp(L, ref + PAY.gapMax + 9, g) !== M.danger.levelShareXp(L, ref + PAY.gapMax, g)) return 'depth pays past the gap ceiling';
       if (!(M.danger.levelShareXp(L, ref - 40, g) < M.danger.levelShareXp(L, ref, g))) return 'a shallower hold pays as much a kill';
+      /* THE PAY FLOOR (12-targets 2.1, lane/econ-levers): far under the reference a kill pays PAY.floorPm of the table, never less */
+      const floor = M.danger.levelShareXp(L, ref - 400, g) / M.danger.levelShareXp(L, ref, g);
+      if (Math.abs(floor - PAY.floorPm / 1000) > 1e-9) return 'Level ' + L + ' 400 steps under the reference earns x' + floor + ' of the table a kill, the floor says ' + PAY.floorPm / 1000;
+      if (!(M.danger.levelShareXp(L, ref - 400, g) === M.danger.levelShareXp(L, ref - 900, g))) return 'the floor does not hold: deeper under it a kill pays less again';
     }
+    /* the coin a kill follows the same floor, at the wage's coin ratio, times the scale's coin level (PAY.coinPm) */
+    const g2 = groundRow({ id: 'muster_barrows' });
+    const pullCoin = (s) => { const d = M.danger.dangerDial(g2, s); return d.coinPm * d.pull[0]; };
+    const ratio = pullCoin(ref + 1) / pullCoin(ref);
+    if (Math.abs(ratio - (1 + M.wageData.WAGE.payStepCoin)) > 1e-9) return 'a step deeper pays coin x' + ratio + ', not the wage ratio ' + (1 + M.wageData.WAGE.payStepCoin);
+    const coinFloor = pullCoin(0) / pullCoin(ref);
+    if (Math.abs(coinFloor - PAY.floorPm / 1000) > 1e-9) return 'at step 0 a pull pays coin x' + coinFloor + ' of the reference pull, the floor says ' + PAY.floorPm / 1000;
+    if (!(pullCoin(ref) > 0)) return 'CONTROL: no coin at the reference';
     /* in play: every kill on the scale pays its share at a step the trace walked, over one or two heroes */
     const run = play(M, { risk: 'steady', danger: 0 }, 6 * 60000, []);
     const steps = new Set([0, ...run.danger.map((e) => e.step), ...run.danger.map((e) => e.to)]);
@@ -388,7 +402,11 @@ const MUTANTS = [
   { name: 'the hours jump at a target Level', case: 'pay', edits: [['src/core/hunt/danger.js', '    if (L <= b) return ha + ((L - a) * (hb - ha)) / (b - a);', '    if (L <= b) return ha;']] },
   { name: 'depth pays past the gap ceiling', case: 'pay', edits: [['src/core/hunt/danger.js', '  return Math.min(PAY.gapMax, clampStep(step) - (row ? row.refStep : 0));', '  return clampStep(step) - (row ? row.refStep : 0);']] },
   { name: 'depth does not pay', case: 'pay', edits: [['src/core/hunt/danger.js', '  return (toNext / (hoursForLevel(L) * PAY.refKillsHead)) * depthRatio(ground, step, PAY.payStepXp);', '  return toNext / (hoursForLevel(L) * PAY.refKillsHead);']] },
-  { name: 'coin does not follow the step', case: 'scale', edits: [['src/core/hunt/danger.js', 'coinPm: share * depthRatio(ground, s, PAY.payStepCoin) * 1000 };', 'coinPm: share * 1000 };']] },
+  { name: 'coin does not follow the step', case: 'scale', edits: [['src/core/hunt/danger.js', 'coinPm: share * depthRatio(ground, s, WAGE.payStepCoin) * PAY.coinPm };', 'coinPm: share * PAY.coinPm };']] },
+  /* lane/econ-levers: one coin ratio a step, and the pay floor */
+  { name: 'coin climbs at the XP ratio again', case: 'scale', edits: [['src/core/hunt/danger.js', 'coinPm: share * depthRatio(ground, s, WAGE.payStepCoin) * PAY.coinPm };', 'coinPm: share * depthRatio(ground, s, PAY.payStepXp) * PAY.coinPm };']] },
+  { name: 'no pay floor under the reference', case: 'pay', edits: [['src/core/hunt/danger.js', '  return g >= 0 ? powStep(1 + rate, g) : Math.max(PAY.floorPm / 1000, 1 / powStep(1 + rate, -g));', '  return g >= 0 ? powStep(1 + rate, g) : 1 / powStep(1 + rate, -g);']] },
+  { name: 'the floor pays XP only', case: 'pay', edits: [['src/core/hunt/danger.js', 'coinPm: share * depthRatio(ground, s, WAGE.payStepCoin) * PAY.coinPm };', 'coinPm: share * (gapOf(ground, s) >= 0 ? powStep(1 + WAGE.payStepCoin, gapOf(ground, s)) : 1 / powStep(1 + WAGE.payStepCoin, -gapOf(ground, s))) * PAY.coinPm };']] },
   { name: 'a broken-off pack is re-formed whole', case: 'down', edits: [['src/core/hunt/pull-cycle.js', '  if (mons.length !== size && packWhole(w.packs[p])) {', '  if (mons.length !== size) {']] },
   { name: 'a fallen pack row is never counted', case: 'down', edits: [['src/core/hunt/pull-cycle.js', '    if (Number.isInteger(u.pocket) && !isAdd(inst, u)) packDown(inst.world, u.pocket);\n', '']] },
   { name: 'a pull the leash took home counts clean', case: 'rule', edits: [['src/core/hunt/danger.js', '    if (!cooling && cleared) {', '    if (!cooling) {']] },

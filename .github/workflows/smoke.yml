@@ -1747,6 +1747,12 @@ jobs:
         run: |
           node tests/balance-guard.mjs
           node tools/mutant-gate.mjs node tests/balance-guard.mjs --selftest
+      # tests/econ-levers.mjs
+      - name: Economy levers set together - a typed store price, a second coin ratio, the kit out of 0.2-0.3 of pay, the wage off the pay, Careful off C-5
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/econ-levers.mjs
+          node tools/mutant-gate.mjs node tests/econ-levers.mjs --mutate
       # tests/release-plan.mjs
       - name: Release plan - every STAGED sidecar places itself, the edge point derives, no collision
         if: ${{ !cancelled() }}

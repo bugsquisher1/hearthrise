@@ -29,21 +29,11 @@
 // the store rune its slot names, of any tier of its family, and only that one. The game
 // never picks: there are no per-hunt-tier store rows (the old `tiers` column is gone).
 //
-// PRICES (designer 2026-10-18, the economy rule: gold + common drops pay the
-// supplies). A basic heal costs just above its cooked partner's book value a
-// point (2.3 g at tier 1 to 21 g at tier 6; B1 is the floor). Was 15-24 g a
-// point: a solo Melee in the Millrace Sewer bought 240 heals an hour, 21,600 g
-// (tests/hunt-core/sewer.mjs --report), now 3,360 g.
-//
-// DRINKS ARE PRICED FOR THE ABILITY BAR (designer, 2026-10-17, measured on the
-// S1 instance engine). A drink is not a danger cost like food: every hero's bar
-// spends mana all hunt, so the store sells it at about 1.2-1.4x the crafted
-// drink's book value a point (1.0 g at tier 1 rising to 3.5 g at tier 6; B1 and
-// B3 hold). Measured, a fresh melee hero (Bronze Sword, 0 gold, the kit's 20
-// cooked shrimp, mill_cellar fixture, 1 h): it drinks 101 Thin Turnip Juice an
-// hour against 691 g of coins and 793 g of common drops. At the old 90 g (15 g a
-// point, the heal's rate) that was 9,090 g an hour and the hunt ended gold_out
-// at 1:54; at 6 g it is 606 g an hour and the hunt runs the full hour.
+// PRICES ARE DERIVED, NEVER TYPED (lane/econ-levers, game designer, 2026-11-22; 04 section 11, 09 sections 2.5 and 4.6). Every
+// row's gold a use is src/data/store-kit.js storePrice: the store's share of an hour's wage at the row's own step (the Level its
+// crafted partner is made at), over what one reference hour burns of that line, never under the crafted partner's book (B1) and never
+// under a whole gold. The old hand-typed ladder (Salted Shark 693, Graven runes 44) sat at about twice what a Steady hour on the
+// Danger scale paid (lane W: a Level 60 four burned 9,804 gold of store kit an hour against 4,797 of pay).
 //
 // The server catalogue (lane C) is generated from BASIC_SUPPLIES; the client
 // shows `price` on the slot. tests/supplies-catalogue.mjs proves every rule
@@ -53,7 +43,11 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { RUNE_TIERS, RUNE_FAMILIES, runeId, runeName } from './runes.js';
+import { RUNE_TIERS, RUNE_FAMILIES, runeId, runeName, isRune, runeTierOf, versionLevel } from './runes.js';
+import { ITEMS } from './items.js';
+import { ARTISAN_RECIPES } from './recipes.js';
+import { DRINK_ITEMS, DRINK_RECIPES } from './drinks.js';
+import { storePrice } from './store-kit.js';
 import { CRAFTED_RUNE_FAMILIES } from './stonecraft.js';
 import { JEWEL_SHOP_PRICE } from './jewelry.js';
 
@@ -61,62 +55,70 @@ import { JEWEL_SHOP_PRICE } from './jewelry.js';
    basic arrow gives this share of its partner's ammo bonus. */
 export const BASIC_EFFECT_SHARE = 0.75;
 
-/* A basic shot costs at least this many times its partner's book value. ONE (designer 2026-10-23; re-reasoned 2026-11-13 under
-   NO PROFIT MOLDS): a store shot is 1 g at tiers 1-3, then mithril 4, rune 6, emberhead 9, dawnpoint 12, each its partner's book.
-   The reason is the bow and crossbow staying a way to fight: every shot is a bought supply, the only style that pays for its
-   basic attack. At 2 g a store-fed crossbow spent 90-180% of its whole coin share on shots, so a Ranger hunted for its arrows
-   and nothing else; at 1 g the shots are about half its coin (48% at the Sewer L20, 59% at the Warrens L50), a real cost
-   that a crafted arrow beats (its whole bonus, the store's is BASIC_EFFECT_SHARE of it). Profit is printed, never a target. */
-export const BASIC_AMMO_PREMIUM = 1;
+/* LEVER (econ.ammo-floor): a basic shot or cast costs at least this many times its crafted partner's book value. ONE HALF (lane/econ-levers,
+   2026-11-22; was 1): the store's charge prices are wage-derived and a whole gold at most tiers, and a mithril arrow's book of 4 a shot
+   was the bow's whole bill (a store-fed bow at Level 60 looses about 3,000 shots an hour, 12,000 gold at 4 g against a four's 4,800 a
+   head of pay). Half its book still keeps the store dearer than the crafted arrow sells to the shop (the buy-back is capped at half
+   the store's list), so buying basics and selling crafted never prints gold, and a crafted charge still wins on strength. */
+export const BASIC_AMMO_PREMIUM = 0.5;
 
-const heal = (id, n, partner, heals, price) => Object.freeze({ id, kind: 'heal', n, partner, heals, price });
-const mana = (id, n, partner, restores, price) => Object.freeze({ id, kind: 'mana', n, partner, mana: restores, price });
-const shot = (id, n, partner, price) => Object.freeze({ id, kind: 'ammo', n, partner, price });
+/* THE PRICE OF A ROW (store-kit.js storePrice), from its crafted partner: the Level it is made at (a cooked food's Cooking recipe, a drink's
+   press, an arrow's Ranged need, a rune's tier), its own heal or mana and its book. */
+const COOK_STEP = Object.freeze(Object.fromEntries(Object.values(ARTISAN_RECIPES.cooking || {}).map((r) => [r.output, r.req])));
+const DRINK_STEP = Object.freeze(Object.fromEntries(DRINK_RECIPES.map((r) => [r.output, r.req])));
+const restorePrice = (partner, amount, key) => {
+  const p = ITEMS[partner] || DRINK_ITEMS[partner];
+  const step = key === 'heals' ? COOK_STEP[partner] : DRINK_STEP[partner];
+  if (!p || !Number.isInteger(step)) throw new Error('supply-basics: ' + partner + ' has no made-at Level to price its store row');
+  return storePrice({ line: 'meal', step, amount, partnerAmount: Number(p[key]), book: Number(p.v) || 0 });
+};
+const chargePrice = (partner) => {
+  const p = ITEMS[partner];
+  if (!p) throw new Error('supply-basics: ' + partner + ' is no item to price its store row');
+  const rune = isRune(p);
+  const step = rune ? versionLevel(runeTierOf(p)) : Number(p.reqLv) || 1;
+  return storePrice({ line: 'charge', step, book: Number(p.v) || 0, rune, ammoPremium: BASIC_AMMO_PREMIUM });
+};
+const heal = (id, n, partner, heals) => Object.freeze({ id, kind: 'heal', n, partner, heals, price: restorePrice(partner, heals, 'heals') });
+const mana = (id, n, partner, restores) => Object.freeze({ id, kind: 'mana', n, partner, mana: restores, price: restorePrice(partner, restores, 'mana') });
+const shot = (id, n, partner) => Object.freeze({ id, kind: 'ammo', n, partner, price: chargePrice(partner) });
 
-/* THE RUNE LADDER (Tyler 2026-11-05, "let start with your calls"; designer, lane/d-crafted-jewelry, "Runes"). Gold a cast by rune
-   tier, Chalked's store partner to Graven's, one row of the catalogue per family per tier. Change a price here and regenerate.
-   PLAIN STAYS 1 G because of the first grounds, not because it is right (Tyler: "runes being 1 gold each is wildly cheap"): every
-   +1 g costs the Sewer floor party 119 g/h and it clears the Thicket by 5.5 (tests/hunt-core/forest-cave.mjs first-grounds-net-chain),
-   so Plain can move only with a coin change. Each deeper price stands above what a crafter can list at (tests/craft-wages.mjs W-RUNE).
-   A deeper rune is the player's own pick on a slot: no default bar names one, and nothing rewrites a saved bar.
-   CARVED 16 -> 28 AND GRAVEN 24 -> 44 (designer 2026-11-16, lane/d-andy-march-feedback; Andy: "Right now you're inting if you're not
-   going BIS runes"). Measured on the real settle (the board, "2026-11-16 Andy's March feedback"): at 16 / 24, on Deadly every deeper rune
-   paid for itself, because a faster kill is less time taking hits, so less food. Andy's four (hammer, bow, mage, a Healer five under)
-   on Carved earned 7-12% more XP AND 6-13k more gold a head an hour than on Plain, and a lone Mage on the Slake's Deadly at 60 on Graven
-   +44% XP and +20k gold. Price can't take that back below Carved without punishing Normal (Carved breaks even in his four at about
-   52-71 g). So Plain, Scored and Etched keep Tyler's numbers (Etched 12, 2026-11-05) and stay the sensible Deadly kit, and the top two
-   become a real trade on every tier: the Carved step in his four on Deadly now reads -0.7k to +0.5k a head for +2-4% XP, and on Normal
-   the top rune costs a lone Mage 23-48% of its gold for 12-22% more XP. */
-export const STORE_RUNE_PRICE = Object.freeze([1, 8, 12, 28, 44]);
+/* THE RUNE LADDER: gold a cast by rune tier, Chalked's store partner to Graven's, one row of the catalogue per family per tier. DERIVED
+   (lane/econ-levers, 2026-11-22): each tier is chargePrice of its crafted rune (every family's rune of a tier is made at the same Level
+   with the same book), so it never falls with the tier and each deeper price stands above what the shop bids for the crafted rune
+   (tests/craft-wages.mjs W-RUNE). The hand-typed ladder (1 / 8 / 12 / 28 / 44, Andy's "inting if you're not going BIS runes" call of
+   2026-11-16) priced a deeper rune as a trade on the old tiers; on the Danger scale depth pays for power, so the store's deeper rune is
+   a basic like any other and the crafted one wins on strength. A deeper rune is still the player's own pick on a slot. */
+export const STORE_RUNE_PRICE = Object.freeze(RUNE_TIERS.map((t) => chargePrice(runeId(CRAFTED_RUNE_FAMILIES[0], t.tier))));
 /* A deeper store rune is called by its tier's own name, "Scored Fire Rune" (Tyler 2026-11-08: "Plain Scored Fire Rune" read wrong
    beside "the store's"); Plain names only the tier-1 row, the store's own cheap rune. The ids keep their `plain_` prefix. */
 const storeRune = (family, t) => shot(t.tier === 1 ? 'plain_' + family + '_rune' : 'plain_' + runeId(family, t.tier),
-  t.tier === 1 ? 'Plain ' + RUNE_FAMILIES[family].label + ' Rune' : runeName(family, t.tier), runeId(family, t.tier), STORE_RUNE_PRICE[t.tier - 1]);
+  t.tier === 1 ? 'Plain ' + RUNE_FAMILIES[family].label + ' Rune' : runeName(family, t.tier), runeId(family, t.tier));
 
 /* id -> row. `price` is gold per use (per shot for ammo, per cast for a rune). */
 export const BASIC_SUPPLIES = Object.freeze([
-  heal('salted_shrimp', 'Salted Shrimp', 'cooked_shrimp', 72, 14),
-  heal('salted_trout', 'Salted Trout', 'cooked_trout', 120, 40),
-  heal('salted_lobster', 'Salted Lobster', 'cooked_lobster', 216, 180),
-  heal('salted_swordfish', 'Salted Swordfish', 'cooked_swordfish', 288, 432),
-  heal('salted_shark', 'Salted Shark', 'cooked_shark', 396, 693),
-  mana('thin_turnip_juice', 'Thin Turnip Juice', 'turnip_juice', 72, 10),
-  mana('thin_carrot_juice', 'Thin Carrot Juice', 'carrot_juice', 120, 18),
-  mana('thin_tomato_juice', 'Thin Tomato Juice', 'tomato_juice', 216, 45),
-  mana('thin_pumpkin_cider', 'Thin Pumpkin Cider', 'pumpkin_cider', 288, 80),
-  mana('thin_goldenroot_tea', 'Thin Goldenroot Tea', 'goldenroot_tea', 396, 138),
-  mana('thin_emberfruit_cordial', 'Thin Emberfruit Cordial', 'emberfruit_cordial', 480, 233),
+  heal('salted_shrimp', 'Salted Shrimp', 'cooked_shrimp', 72),
+  heal('salted_trout', 'Salted Trout', 'cooked_trout', 120),
+  heal('salted_lobster', 'Salted Lobster', 'cooked_lobster', 216),
+  heal('salted_swordfish', 'Salted Swordfish', 'cooked_swordfish', 288),
+  heal('salted_shark', 'Salted Shark', 'cooked_shark', 396),
+  mana('thin_turnip_juice', 'Thin Turnip Juice', 'turnip_juice', 72),
+  mana('thin_carrot_juice', 'Thin Carrot Juice', 'carrot_juice', 120),
+  mana('thin_tomato_juice', 'Thin Tomato Juice', 'tomato_juice', 216),
+  mana('thin_pumpkin_cider', 'Thin Pumpkin Cider', 'pumpkin_cider', 288),
+  mana('thin_goldenroot_tea', 'Thin Goldenroot Tea', 'goldenroot_tea', 396),
+  mana('thin_emberfruit_cordial', 'Thin Emberfruit Cordial', 'emberfruit_cordial', 480),
   /* (Tyler 2026-10-23: "like anything else the arrows should then be bought from the store".) Iron Arrows ran out
      with no store row and the Ranger hunted on with no basic attack; priced by the rule, BASIC_AMMO_PREMIUM x its
      partner's book value (1 g). */
-  shot('plain_iron_arrows', 'Plain Iron Arrows', 'iron_arrows', 1),
-  shot('plain_barbed_arrows', 'Plain Barbed Arrows', 'barbed_arrows', 1),
-  shot('plain_iron_bolts', 'Plain Iron Bolts', 'iron_bolts', 1),
-  shot('plain_steel_arrows', 'Plain Steel Arrows', 'steel_arrows', 1),
-  shot('plain_mithril_arrows', 'Plain Mithril Arrows', 'mithril_arrows', 4),
-  shot('plain_rune_arrows', 'Plain Rune Arrows', 'rune_arrows', 6),
-  shot('plain_emberhead_arrows', 'Plain Emberhead Arrows', 'emberhead_arrows', 9),
-  shot('plain_dawnpoint_arrows', 'Plain Dawnpoint Arrows', 'dawnpoint_arrows', 12),
+  shot('plain_iron_arrows', 'Plain Iron Arrows', 'iron_arrows'),
+  shot('plain_barbed_arrows', 'Plain Barbed Arrows', 'barbed_arrows'),
+  shot('plain_iron_bolts', 'Plain Iron Bolts', 'iron_bolts'),
+  shot('plain_steel_arrows', 'Plain Steel Arrows', 'steel_arrows'),
+  shot('plain_mithril_arrows', 'Plain Mithril Arrows', 'mithril_arrows'),
+  shot('plain_rune_arrows', 'Plain Rune Arrows', 'rune_arrows'),
+  shot('plain_emberhead_arrows', 'Plain Emberhead Arrows', 'emberhead_arrows'),
+  shot('plain_dawnpoint_arrows', 'Plain Dawnpoint Arrows', 'dawnpoint_arrows'),
   /* THE STORE RUNES: one a family a tier, each the store's version of the crafted rune it partners. A cast on one lands that tier's
      version at BASIC_EFFECT_SHARE and needs that tier's level in the spell's skill (src/core/hunt/abilities.js runeFor), bought per
      cast only when the spell's slot names it. Priced STORE_RUNE_PRICE above. */
@@ -203,26 +205,40 @@ export const SHOP_SOLD_KINDS = Object.freeze(['tool', 'gear', 'seed']);
    Grayjaw's Ruff, may share a slot with a Shop basic: tests/hunt-core/forest-cave.mjs shop-outfits-defense). */
 export const SHOP_GEAR_SLOTS = Object.freeze(['gloves', 'belt', 'cape', 'earrings', 'ring', 'necklace', 'shield']);
 const sell = (item, kind, basic, price) => Object.freeze({ offer: 'supply.' + item, item, kind, basic, price });
+/* A CRAFTED PARTNER'S LIST PRICE is its store row's, never typed (lane/econ-levers): the basic's price a point times the item's own heal or
+   mana, rounded up; an arrow's is its shot's. */
+const listOf = (item, basicId) => {
+  const b = BASIC_SUPPLIES.find((x) => x.id === basicId);
+  const it = ITEMS[item] || DRINK_ITEMS[item];
+  if (!b || !it) throw new Error('supply-basics: no store row ' + basicId + ' behind ' + item);
+  if (b.kind === 'ammo') return b.price;
+  const key = b.kind === 'heal' ? 'heals' : 'mana';
+  return Math.ceil((b.price * Number(it[key])) / b[key === 'heals' ? 'heals' : 'mana']);
+};
+const sellSupply = (item, kind, basic) => sell(item, kind, basic, listOf(item, basic));
 
 export const SUPPLY_SHOP_OFFERS = Object.freeze([
-  sell('cooked_shrimp', 'food', 'salted_shrimp', 19),
-  sell('cooked_trout', 'food', 'salted_trout', 56),
-  sell('cooked_lobster', 'food', 'salted_lobster', 250),
-  sell('cooked_swordfish', 'food', 'salted_swordfish', 576),
-  sell('cooked_shark', 'food', 'salted_shark', 924),
-  sell('turnip_juice', 'drink', 'thin_turnip_juice', 14),
-  sell('carrot_juice', 'drink', 'thin_carrot_juice', 26),
-  sell('tomato_juice', 'drink', 'thin_tomato_juice', 63),
-  sell('pumpkin_cider', 'drink', 'thin_pumpkin_cider', 107),
-  sell('goldenroot_tea', 'drink', 'thin_goldenroot_tea', 184),
-  sell('emberfruit_cordial', 'drink', 'thin_emberfruit_cordial', 315),
-  sell('barbed_arrows', 'ammo', 'plain_barbed_arrows', 1),
-  sell('iron_bolts', 'ammo', 'plain_iron_bolts', 1),
-  sell('steel_arrows', 'ammo', 'plain_steel_arrows', 1),
-  sell('mithril_arrows', 'ammo', 'plain_mithril_arrows', 4),
-  sell('rune_arrows', 'ammo', 'plain_rune_arrows', 6),
-  sell('emberhead_arrows', 'ammo', 'plain_emberhead_arrows', 9),
-  sell('dawnpoint_arrows', 'ammo', 'plain_dawnpoint_arrows', 12),
+  sellSupply('cooked_shrimp', 'food', 'salted_shrimp'),
+  sellSupply('cooked_trout', 'food', 'salted_trout'),
+  sellSupply('cooked_lobster', 'food', 'salted_lobster'),
+  sellSupply('cooked_swordfish', 'food', 'salted_swordfish'),
+  sellSupply('cooked_shark', 'food', 'salted_shark'),
+  sellSupply('turnip_juice', 'drink', 'thin_turnip_juice'),
+  sellSupply('carrot_juice', 'drink', 'thin_carrot_juice'),
+  sellSupply('tomato_juice', 'drink', 'thin_tomato_juice'),
+  sellSupply('pumpkin_cider', 'drink', 'thin_pumpkin_cider'),
+  sellSupply('goldenroot_tea', 'drink', 'thin_goldenroot_tea'),
+  sellSupply('emberfruit_cordial', 'drink', 'thin_emberfruit_cordial'),
+  sellSupply('barbed_arrows', 'ammo', 'plain_barbed_arrows'),
+  sellSupply('iron_bolts', 'ammo', 'plain_iron_bolts'),
+  sellSupply('steel_arrows', 'ammo', 'plain_steel_arrows'),
+  sellSupply('mithril_arrows', 'ammo', 'plain_mithril_arrows'),
+  sellSupply('rune_arrows', 'ammo', 'plain_rune_arrows'),
+  sellSupply('emberhead_arrows', 'ammo', 'plain_emberhead_arrows'),
+  sellSupply('dawnpoint_arrows', 'ammo', 'plain_dawnpoint_arrows'),
+  /* every store rune's crafted partner, so the shop's bid for a crafted rune is capped at half the store's list like an arrow's
+     (lane/econ-levers: the store's rune ladder is derived, and the cap keeps it above the bid, tests/craft-wages.mjs W-RUNE) */
+  ...BASIC_SUPPLIES.filter((b) => b.kind === 'ammo' && /_rune$/.test(b.id)).map((b) => sellSupply(b.partner, 'ammo', b.id)),
   sell('bronze_axe', 'tool', null, 120),
   sell('bronze_pickaxe', 'tool', null, 120),
   /* The outfitter: the two armour pieces first (medium gloves for anyone, a heavy belt), then the rest. */

@@ -571,9 +571,10 @@ export class CharacterSession {
   }
 
   /** Send the pending residue now (one put). `keepalive`: the put outlives the page (it is being left). `hidden`: the page is
-      only hidden, and one flickering in and out of view writes no oftener than the debounce: inside it, the armed timer sends. */
+      only hidden, and one flickering in and out of view writes no oftener than the debounce: inside it, the armed timer sends. EXCEPT a
+      last-seen stamp (`awaySeen`): a phone's hidden tab may never run that timer, and the stamp keeps its own pace (away-recap.js LEAVE_EVERY_MS). */
   async flushResidue({ keepalive = false, hidden = false } = {}) {
-    if (hidden && this._now() - this._putAt < SESSION_CONFIG.residueDebounceMs) return false;
+    if (hidden && !('awaySeen' in this._pending) && this._now() - this._putAt < SESSION_CONFIG.residueDebounceMs) return false;
     if (this._residueTimer) { this._clearTimer(this._residueTimer); this._residueTimer = null; }
     const patch = this._pending;
     if (this._closed || !Object.keys(patch).length) return false;

@@ -5,23 +5,19 @@
 //                         sent none. `risk` is the plan's stance (null: none, the tier path); `playing.from` the stance the open hunt froze,
 //                         `playing.risk` the stance it stands at now (a death settles it one notch safer).
 //   onScale(hunt)         the ground plays the scale (src/data/danger.js DANGER_GROUNDS); everywhere else the tier path is unchanged
-//   depthOf(hunt, step)   { depth, of }: the step shown against the ground's own band, never the raw step (Tyler 2026-11-22: "is it going
+//   depthOf(hunt, step)   { depth, of }: the step as "Depth N of 20" on the ground's band (data/danger.js floorStep..topStep, 12-targets.md 3.1), never the raw step (Tyler 2026-11-22: "is it going
 //                         to be easy for players to understand?"); null off the scale or for a step that is not a number
 //
 // A read of the envelope only, REPLACED by each envelope (CLAUDE.md §6): nothing here is a gate the server trusts, and a missing section
 // reads as unknown (null), never a default.
 // ════════════════════════════════════════════════════════════════════════
-import { DANGER_GROUNDS, RISKS, PAY } from '../data/danger.js';
+import { DANGER_GROUNDS, RISKS, DEPTHS } from '../data/danger.js';
 
 const ID = /^[a-z0-9_]{1,64}$/;
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const step = (v) => (Number.isSafeInteger(v) && v >= 0 ? v : null);
 const stance = (v) => (typeof v === 'string' && Object.prototype.hasOwnProperty.call(RISKS, v) ? v : null);
 const SEEN = new WeakMap();
-
-/* The depth bar's notches. The band's top is where depth stops paying more (the ground's reference step + PAY.gapMax), so a company
-   holding the ground's reference reads about 17 of 20 and the deepest that still pays reads 20. Display only. */
-export const DEPTH_NOTCHES = 20;
 
 /** The stances, safest first (the picker's order). */
 export const STANCE_IDS = Object.freeze(Object.keys(RISKS));
@@ -31,11 +27,11 @@ export function onScale(hunt) {
   return typeof hunt === 'string' && Object.prototype.hasOwnProperty.call(DANGER_GROUNDS, hunt);
 }
 
-/** A step as depth on its ground's band: { depth, of }, depth held to 0..of. */
+/** A step as depth on its ground's band: { depth, of }, depth held to 1..of (a step under the floor reads Depth 1). */
 export function depthOf(hunt, s) {
   if (!onScale(hunt) || step(s) === null) return null;
-  const top = DANGER_GROUNDS[hunt].refStep + PAY.gapMax;
-  return { depth: Math.max(0, Math.min(DEPTH_NOTCHES, Math.round((s / top) * DEPTH_NOTCHES))), of: DEPTH_NOTCHES };
+  const g = DANGER_GROUNDS[hunt], span = Math.max(1, g.topStep - g.floorStep);
+  return { depth: Math.max(1, Math.min(DEPTHS, 1 + Math.round(((s - g.floorStep) / span) * (DEPTHS - 1)))), of: DEPTHS };
 }
 
 /** The `danger` section, bounded; null when the server sent none. */

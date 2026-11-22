@@ -91,8 +91,7 @@ export const HUD_TEXT = Object.freeze({
   hunting: 'Hunting',
   last_hunt: 'Last hunt: {ground}',
   /* the Danger scale's live depth beside the ground's name (hunt-topbar.js; danger-sections.js depthOf): {stance} Careful, Steady or Bold */
-  depth_now: '{stance}, depth {depth} of {of}',
-  depth_title: 'How deep the party is pushing. It goes deeper while the fights stay clean and backs off when they get close.',
+  depth_now: '{stance}, Depth {depth} of {of}',
   leave_failed: 'Hunt not ended. {why}',
 
   /* THE HUNT ANALYZER (src/shell/widgets/analyzer.js). {min} minutes. */

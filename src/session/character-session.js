@@ -14,9 +14,7 @@
 //                      commit (envelope.js E2): it replaces the record like a load, never asks the engine
 //   setResidue(f, v)   a display preference: the residue changes at once, one hr_put_client_state per burst
 //   setHuntOptions(p, o) the hunt settings INTENT (hr_action_set_options); the new settings arrive only in the re-read
-//   setHuntTier(h, t)    the tier picked on one ground (hr_hunt_tier_set), re-read
-//                      (a ground on the Danger scale has no tier: its stance is danger-intents.js setRisk, hr_hunt_risk_set, sent before
-//                      Start; the `danger` section it answers with is read by danger-sections.js dangerOf, like any section, via read())
+//   setHuntTier(h, t)    the tier picked on one ground (hr_hunt_tier_set), re-read; a Danger scale ground's Risk: danger-intents.js / -sections.js
 //   enterHunt(h, b, p) the go-hunting INTENT (hr_hunt_enter), re-read the same way
 //   leaveHunt()        the leave INTENT (hr_hunt_leave), re-read the same way
 //   moveStorage(i,n,d) the ACCOUNT storage INTENT (hr_bank_move), re-read (every hero shows it: bankOf); refused: resync(); many whole stacks at once: storage-intents.js

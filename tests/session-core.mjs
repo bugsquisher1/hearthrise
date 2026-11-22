@@ -222,6 +222,7 @@ const ASKVIA_SITES = Object.freeze({
   'src/session/carry-on-intents.js': { rule: 2, read: 1, own: 1 },
   'src/session/recruit-intents.js': { rule: 1 },
   'src/session/company-intents.js': { rule: 1 },
+  'src/session/danger-intents.js': { rule: 1 },
   'src/session/farm-intents.js': { rule: 6 },
   'src/session/farm-tend.js': { rule: 1 },
   'src/session/hearth-intents.js': { rule: 1 },

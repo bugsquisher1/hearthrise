@@ -106,6 +106,12 @@
         "gzipBytes": 907952,
         "on": "2026-11-22",
         "why": "lane/v1-climb wave 1 (+1.8 KB gzip, town stage): the hunt engine the live view runs carries the Danger scale's pay by depth (danger.js hoursForLevel and levelShareXp, the depth ratio, the pack's down count, xp-share.js's Level-share split, hunt-rewards.js's coin ratio) so the browser computes the server's numbers; static imports of the one engine, not loadable on need"
+      },
+      {
+        "modules": 21,
+        "gzipBytes": 910026,
+        "on": "2026-11-22",
+        "why": "set/v0.2.144 redesign wave 1: town stage +2.0 KB gzip from the Danger scale client (danger-intents/sections, Risk pick, depth line), bought hunting blocks, the company work day and gear-steps data the town reads; all needed at town"
       }
     ]
   }

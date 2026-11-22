@@ -1739,6 +1739,12 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tools/mutant-gate.mjs node tools/balance-program/census.mjs --selftest
+      # tools/balance-program/experiments.mjs
+      - name: Balance Lab experiment records - a missing hypothesis, a result older than its hypothesis, a closed record with no conclusion and a moved result file are each refused
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tools/balance-program/experiments.mjs --selftest
+          node tools/balance-program/experiments.mjs --check
       # tools/balance-program/formulas/architecture-register.mjs
       - name: Formula architecture register - a bad merge, a class 3 row with no recommendation, a stale knob and a CRLF checkout are each caught
         if: ${{ !cancelled() }}
@@ -1786,6 +1792,12 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tools/mutant-gate.mjs node tools/balance-program/proposals.mjs --selftest --quick
+      # tools/balance-program/readers.mjs
+      - name: Balance Lab readers - every target has a reader or a reason, each reader judges its planted cells, the headroom reader fails a 5% step near 750, findings diff new/gone/unchanged
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tools/balance-program/readers.mjs --selftest
+          node tools/balance-program/readers.mjs --check
       # tools/balance-program/sources.mjs
       - name: Source atlas - an item with no source, a source nothing uses, a drop nobody can reach are each listed
         if: ${{ !cancelled() }}

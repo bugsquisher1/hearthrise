@@ -1,0 +1,353 @@
+// ════════════════════════════════════════════════════════════════════════
+// tools/balance-program/baseline/compare.mjs — A RESULT, ITS NOISE, ITS VIEWS, AND A CANDIDATE SIDE BY SIDE WITH THE BASELINE
+// (Tyler 2026-11-21, Phase 7 and deliverable 8; lane/bl-baseline).
+//
+//   hydrate(doc)            a results file -> cells with each outcome's seeds and stats ([n, mean, sd]) and the pooled deaths and hours
+//   computeViews(cells, x)  the readings across cells (equipment value, ground viability, solo and party, long-term scaling, pooled deaths,
+//                           way parity, time to the top of live content): rows { id, category, key, value, se } or a Poisson count
+//   noiseTable(doc)         each outcome's run-to-run noise over the cells: the median and 90th percentile relative standard error, and
+//                           the smallest move a comparison of two such cells can tell from noise
+//   compareDocs(A, B)       every shared cell's every outcome and every view row, before and after: the change, its noise and a flag; the band
+//                           rows of standards.mjs (judged inside each tree at join) diffed with the matrix's own diffMatrices; a verdict a
+//                           category: IMPROVEMENT, REGRESSION, TRADEOFF, MOVED (no band judges it) or WITHIN NOISE
+//   printCompare / printBaseline   the reports, grouped by Tyler's eight categories
+//
+// THE NOISE RULE. A cell's outcome is the mean of its seeds; its standard error is sd / sqrt(n). Two cells differ beyond noise when
+// |after - before| >= Z_NOISE x sqrt(se_before^2 + se_after^2) AND the move is at least MIN_REL of the before value. Deaths are counts: two
+// pooled rates are compared as Poisson rates (z on the counts over their hours). A seed's dice are the same on both trees (seedBase k), so the
+// unpaired rule is CONSERVATIVE: a real paired move reads as noise before noise reads as a move.
+// ════════════════════════════════════════════════════════════════════════
+import { OUTCOMES, OUTCOME_IDS, CATEGORIES, CATEGORY_IDS, cellStats, bandCategory, moments } from './outcomes.mjs';
+import { diffMatrices } from '../matrix-metrics.mjs';
+
+export const RESULT_SCHEMA = 'hearthrise.balance-baseline/1';
+export const Z_NOISE = 2;
+export const MIN_REL = 0.01;
+/* a move at least this large (beyond noise) is listed by name in a category's attention list */
+export const LARGE_REL = 0.10;
+const finite = (x) => typeof x === 'number' && Number.isFinite(x);
+const r = (x, d = 4) => (finite(x) ? Math.round(x * 10 ** d) / 10 ** d : null);
+const sum = (xs) => xs.reduce((a, b) => a + (finite(b) ? b : 0), 0);
+const median = (xs) => { const s = xs.filter(finite).sort((a, b) => a - b); return s.length ? s[Math.floor((s.length - 1) / 2)] : null; };
+const quant = (xs, p) => { const s = xs.filter(finite).sort((a, b) => a - b); return s.length ? s[Math.min(s.length - 1, Math.round(p * (s.length - 1)))] : null; };
+const CAT_LABEL = Object.fromEntries(CATEGORIES);
+
+/* ── A RESULTS FILE ───────────────────────────────────────────────────────────────────────────────────────────────────────────── */
+/** Seeds as stored (rows in doc.outcomeIds order, then _hh and _wall) -> objects; each cell gets its stats. */
+export function hydrate(doc) {
+  const ids = doc.outcomeIds;
+  const cells = doc.cells.map((c) => {
+    if (c.error) return c;
+    const seeds = c.seeds.map((row) => { const o = {}; ids.forEach((id, i) => { o[id] = row[i]; }); o._hh = row[ids.length]; o._wall = row[ids.length + 1]; return o; });
+    return { ...c, seedRows: seeds, ...cellStats(seeds) };
+  });
+  return { ...doc, cells };
+}
+/** One cell's outcome: { mean, se, n } (se null under two seeds). */
+export function stat(c, id) {
+  const s = c && c.stats && c.stats[id];
+  if (!s || !s[0]) return { n: 0, mean: null, se: null };
+  return { n: s[0], mean: s[1], se: finite(s[2]) ? s[2] / Math.sqrt(s[0]) : null };
+}
+const relSe = (s) => (finite(s.mean) && s.mean !== 0 && finite(s.se) ? Math.abs(s.se / s.mean) : null);
+const ratioOf = (a, b) => (finite(a.mean) && finite(b.mean) && b.mean !== 0 ? { mean: a.mean / b.mean, se: finite(relSe(a)) && finite(relSe(b)) ? Math.abs(a.mean / b.mean) * Math.sqrt(relSe(a) ** 2 + relSe(b) ** 2) : null } : { mean: null, se: null });
+
+/* ── THE VIEWS ────────────────────────────────────────────────────────────────────────────────────────────────────────────────── */
+const isFrame = (c) => c && !c.error && !c.step && !c.variant && c.block !== 'grounds' && c.block !== 'lineups';
+const standardFour = (c) => c.party === 4 && (c.block === 'four' || c.block === 'pace4');
+const levelBandOf = (L) => (L < 30 ? '1-29' : L < 60 ? '30-59' : '60+');
+
+/**
+ * Rows across cells. `x.toNext(L)`: Level XP from L to L+1 on the tree's curve (the join holds it); `x.spec`: the scenario spec.
+ * A row: { id, category, key, label, value, se } (a ratio's se by the delta method) or { ..., k, t } (a Poisson count k over t hero-hours).
+ */
+export function computeViews(cells, x) {
+  const ok = cells.filter((c) => !c.error && c.stats);
+  const rows = [];
+  const add = (id, category, key, label, v, better = null) => { if (v && (finite(v.mean) || finite(v.k))) rows.push({ id, category, key: id + '|' + key, label, value: finite(v.mean) ? r(v.mean, 6) : null, se: finite(v.se) ? r(v.se, 6) : null, ...(finite(v.k) ? { k: v.k, t: r(v.t, 3) } : {}), better }); };
+  const find = (pred) => ok.find(pred);
+  const ways = [...new Set(ok.filter((c) => c.party === 1 && isFrame(c)).map((c) => c.styles[0]))].sort();
+  const spine = x.spec.spine, levels = x.spec.levels, top = x.spec.liveTop;
+  const loneAt = (way, L, gear = 'mid', tier = 'normal') => find((c) => isFrame(c) && c.party === 1 && c.styles[0] === way && c.L === L && c.gear === gear && c.tier === tier);
+  const fourAt = (L, gear = 'mid', tier = 'normal') => find((c) => isFrame(c) && standardFour(c) && c.L === L && c.gear === gear && c.tier === tier);
+
+  /* PROGRESSION: hours from the first checkpoint to the top of live content, each way alone and the four, MID, Normal. A Level's hours are
+     its XP to the next over the after-deaths rate, the rate log-linear between checkpoints; the error carries each checkpoint's share */
+  const timeTo = (cellAt, from, to) => {
+    const pts = levels.map((L) => [L, cellAt(L)]).filter(([, c]) => c && stat(c, 'netLevelXpPerH').mean > 0).map(([L, c]) => [L, stat(c, 'netLevelXpPerH')]);
+    if (pts.length < 2 || !x.toNext) return null;
+    const share = new Map(pts.map(([L]) => [L, 0]));
+    let hours = 0;
+    for (let l = Math.max(from, pts[0][0]); l < to; l++) {
+      /* the checkpoints either side of l (past the last: its rate held flat) */
+      let ia = 0;
+      for (let k = 0; k < pts.length; k++) if (pts[k][0] <= l) ia = k;
+      const ib = Math.min(ia + 1, pts.length - 1);
+      const [La, a] = pts[ia], [Lb, b] = pts[ib];
+      const w = Lb === La ? 0 : Math.min(1, Math.max(0, (l - La) / (Lb - La)));
+      const rate = Math.exp((1 - w) * Math.log(a.mean) + w * Math.log(b.mean));
+      const h = x.toNext(l) / rate;
+      hours += h;
+      share.set(La, share.get(La) + h * (1 - w));
+      if (Lb !== La) share.set(Lb, share.get(Lb) + h * w);
+    }
+    const se = Math.sqrt(pts.reduce((s, [L, v]) => s + (share.get(L) * (relSe(v) || 0)) ** 2, 0));
+    return { mean: hours, se };
+  };
+  for (const way of ways) add('timeToTop', 'progression', 'lone ' + way, 'Hours from Level ' + levels[0] + ' to ' + top + ', ' + way + ' alone, MID, Normal', timeTo((L) => loneAt(way, L), levels[0], top), 'down');
+  const four0 = levels.find((L) => fourAt(L));
+  if (four0) add('timeToTop', 'progression', 'four', 'Hours from Level ' + four0 + ' to ' + top + ', the standard four, MID, Normal', timeTo((L) => fourAt(L), four0, top), 'down');
+  for (const L of spine) { const t = timeTo((l) => loneAt('hammer', l), levels[0], L); if (t && L > levels[0]) add('timeTo', 'progression', 'lone hammer|' + L, 'Hours from Level ' + levels[0] + ' to ' + L + ', the lone hammer', t, 'down'); }
+
+  /* LONG-TERM SCALING: the hours a Level takes along the Level line, and how the last spine Level compares with Level 30 */
+  for (const way of [...ways, 'four']) for (const L of levels) {
+    const c = way === 'four' ? fourAt(L) : loneAt(way, L);
+    if (c) add('hoursPerLevel', 'scaling', way + '|' + L, 'Hours for the next Level at ' + L + ', ' + way, stat(c, 'hoursPerLevel'), 'down');
+  }
+  const mid = spine.includes(30) ? 30 : spine[Math.floor(spine.length / 2)];
+  for (const way of [...ways, 'four']) {
+    const at = (L) => (way === 'four' ? fourAt(L) : loneAt(way, L));
+    const a = at(top), b = at(mid);
+    if (a && b) {
+      add('hplGrowth', 'scaling', way, 'Hours a Level at ' + top + ' over at ' + mid + ', ' + way, ratioOf(stat(a, 'hoursPerLevel'), stat(b, 'hoursPerLevel')), null);
+      add('netGoldGrowth', 'scaling', way, 'Net gold an hour at ' + top + ' over at ' + mid + ', ' + way, ratioOf(stat(a, 'netPerH'), stat(b, 'netPerH')), null);
+      add('takenGrowth', 'scaling', way, 'Damage taken an hour at ' + top + ' over at ' + mid + ', ' + way, ratioOf(stat(a, 'takenPerH'), stat(b, 'takenPerH')), null);
+    }
+  }
+
+  /* COMBAT: each way's damage, kills and Level XP over the median way at the same Level (MID, Normal): the spread of the ways */
+  for (const L of spine) {
+    const cs = ways.map((w) => [w, loneAt(w, L)]).filter(([, c]) => c);
+    for (const id of ['dps', 'killsPerH', 'levelXpPerH']) {
+      const med = median(cs.map(([, c]) => stat(c, id).mean));
+      if (!finite(med) || med === 0) continue;
+      for (const [w, c] of cs) { const s = stat(c, id); add('wayParity.' + id, 'combat', w + '|' + L, w + ' ' + id + ' over the median way at ' + L, { mean: s.mean / med, se: finite(s.se) ? s.se / med : null }, null); }
+    }
+  }
+
+  /* EQUIPMENT VALUE: each gear state over the one below (lone ways and the four, Normal), and each slot class's step */
+  for (const who of [...ways, 'four']) for (const L of spine) {
+    const at = (g) => (who === 'four' ? fourAt(L, g) : loneAt(who, L, g));
+    for (const [hi, lo] of [['mid', 'low'], ['bis', 'mid']]) {
+      const a = at(hi), b = at(lo);
+      if (!a || !b) continue;
+      for (const id of ['levelXpPerH', 'dps', 'takenPerH']) add('gearRatio.' + id, 'equipment', who + '|' + L + '|' + hi + '/' + lo, who + ' ' + id + ', ' + hi.toUpperCase() + ' over ' + lo.toUpperCase() + ' at ' + L, ratioOf(stat(a, id), stat(b, id)), id === 'takenPerH' ? 'down' : 'up');
+    }
+  }
+  for (const c of ok.filter((s) => s.block === 'steps' && s.step)) {
+    const full = find((f) => isFrame(f) && f.L === c.L && f.gear === c.gear && f.party === c.party && f.comp === c.comp && f.tier === c.tier);
+    if (!full) continue;
+    for (const id of ['levelXpPerH', 'dps', 'takenPerH']) add('stepValue.' + id, 'equipment', c.comp + '|' + c.L + '|' + c.step, 'the ' + (c.stepClass || c.step) + ' step ' + (c.stepFrom || '') + '->' + c.gear + ', ' + id + ' full set over one class back, ' + c.comp + ' at ' + c.L, ratioOf(stat(full, id), stat(c, id)), id === 'takenPerH' ? 'down' : 'up');
+  }
+
+  /* HUNTING GROUND VIABILITY: each open ground and tier, both band ends, the lone hammer and the four: XP over the contract, net gold, deaths */
+  const gcells = ok.filter((c) => c.block === 'grounds');
+  for (const g of [...new Set(gcells.map((c) => c.ground))].sort()) for (const tier of ['normal', 'dangerous', 'deadly']) for (const size of [1, 2, 3, 4]) {
+    const cs = gcells.filter((c) => c.ground === g && c.tier === tier && c.party === size && (c.compIndex || 0) === 0);
+    if (!cs.length) continue;
+    const mean = (id) => { const ss = cs.map((c) => stat(c, id)).filter((s) => finite(s.mean)); return ss.length ? { mean: sum(ss.map((s) => s.mean)) / ss.length, se: ss.every((s) => finite(s.se)) ? Math.sqrt(sum(ss.map((s) => s.se ** 2))) / ss.length : null } : null; };
+    const who = size === 1 ? 'lone' : 'party of ' + size;
+    add('ground.xContract', 'grounds', g + '|' + tier + '|' + size, g + ' ' + tier + ', ' + who + ': Level XP over the contract, mean of the band ends', mean('xContract'), null);
+    add('ground.netPerH', 'grounds', g + '|' + tier + '|' + size, g + ' ' + tier + ', ' + who + ': net gold a hero-hour', mean('netPerH'), 'up');
+    add('ground.killsPerH', 'grounds', g + '|' + tier + '|' + size, g + ' ' + tier + ', ' + who + ': kills a party-hour', mean('killsPerH'), 'up');
+    add('ground.deaths', 'grounds', g + '|' + tier + '|' + size, g + ' ' + tier + ', ' + who + ': deaths in 1,000 hero-hours (pooled)', { k: sum(cs.map((c) => c.deaths)), t: sum(cs.map((c) => c.hh)), mean: null }, 'down');
+  }
+
+  /* SOLO AND PARTY: a four's, a pair's and the three's Level XP a head over the lone hammer at the same Level, gear and tier */
+  for (const L of spine) for (const tier of ['normal', 'dangerous', 'deadly']) {
+    const solo = loneAt('hammer', L, 'mid', tier);
+    if (!solo) continue;
+    for (const p of ok.filter((c) => isFrame(c) && c.party > 1 && c.L === L && c.gear === 'mid' && c.tier === tier)) {
+      for (const id of ['levelXpPerH', 'netPerH']) add('partyOverSolo.' + id, 'party', p.comp + '|' + L + '|' + tier, p.styles.join(',') + ' ' + id + ' a head over the lone hammer at ' + L + ' ' + tier, ratioOf(stat(p, id), stat(solo, id)), null);
+      if (p.party === 4) add('frontShare', 'party', p.comp + '|' + L + '|' + tier, 'the front seat\'s share of the damage, ' + p.styles.join(',') + ' at ' + L + ' ' + tier, stat(p, 'frontTakenShare'), null);
+    }
+  }
+
+  /* SURVIVABILITY: deaths pooled over Levels, by party size, tier and gear (the frame), and by Level band */
+  const frame = ok.filter(isFrame);
+  for (const size of [...new Set(frame.map((c) => c.party))].sort()) for (const tier of ['normal', 'dangerous', 'deadly']) {
+    for (const gear of ['low', 'mid', 'bis']) {
+      const cs = frame.filter((c) => c.party === size && c.tier === tier && c.gear === gear);
+      if (cs.length) add('deathsPooled', 'survival', size + '|' + tier + '|' + gear, 'deaths in 1,000 hero-hours, party of ' + size + ', ' + tier + ', ' + gear.toUpperCase() + ', every Level', { k: sum(cs.map((c) => c.deaths)), t: sum(cs.map((c) => c.hh)), mean: null }, 'down');
+    }
+    for (const band of ['1-29', '30-59', '60+']) {
+      const cs = frame.filter((c) => c.party === size && c.tier === tier && levelBandOf(c.L) === band);
+      if (cs.length) add('deathsByBand', 'survival', size + '|' + tier + '|' + band, 'deaths in 1,000 hero-hours, party of ' + size + ', ' + tier + ', Levels ' + band + ', every gear', { k: sum(cs.map((c) => c.deaths)), t: sum(cs.map((c) => c.hh)), mean: null }, 'down');
+    }
+  }
+
+  /* RESOURCE ECONOMY: net gold and the store's share by Level band, lone and the four, MID, each tier */
+  for (const size of [1, 4]) for (const tier of ['normal', 'dangerous', 'deadly']) for (const band of ['1-29', '30-59', '60+']) {
+    const cs = frame.filter((c) => c.party === size && c.gear === 'mid' && c.tier === tier && levelBandOf(c.L) === band && (size === 1 || standardFour(c)));
+    for (const id of ['netPerH', 'storeShare', 'incomePerH']) {
+      const ss = cs.map((c) => stat(c, id)).filter((s) => finite(s.mean));
+      if (ss.length) add('econByBand.' + id, 'economy', size + '|' + tier + '|' + band, (size === 1 ? 'lone ways' : 'the four') + ' ' + id + ', ' + tier + ', Levels ' + band + ' (mean of cells)', { mean: sum(ss.map((s) => s.mean)) / ss.length, se: ss.every((s) => finite(s.se)) ? Math.sqrt(sum(ss.map((s) => s.se ** 2))) / ss.length : null }, id === 'storeShare' ? 'down' : 'up');
+    }
+  }
+  return rows;
+}
+
+/* ── NOISE ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── */
+/** Each outcome over the cells: the median and p90 relative standard error, and the smallest move a two-cell comparison resolves. */
+export function noiseTable(doc) {
+  const cells = doc.cells.filter((c) => !c.error && c.stats);
+  return OUTCOMES.map(([id, label, category]) => {
+    const rel = cells.map((c) => relSe(stat(c, id))).filter(finite);
+    const zero = cells.filter((c) => { const s = stat(c, id); return s.n > 1 && s.se === 0; }).length;
+    const m = median(rel), p90 = quant(rel, 0.9);
+    return { id, label, category, cells: rel.length, medianRelSe: r(m, 6), p90RelSe: r(p90, 6), resolvesMedian: finite(m) ? r(Math.max(MIN_REL, Z_NOISE * Math.SQRT2 * m), 4) : null, resolvesP90: finite(p90) ? r(Math.max(MIN_REL, Z_NOISE * Math.SQRT2 * p90), 4) : null, identicalSeeds: zero };
+  });
+}
+
+/* ── ONE COMPARISON ───────────────────────────────────────────────────────────────────────────────────────────────────────────── */
+/** Two normal readings: [delta, rel, z, flag]; flag 'moved' | 'noise' | 'unread'. */
+export function judgeMove(a, b) {
+  if (!finite(a.mean) || !finite(b.mean)) return { delta: null, rel: null, z: null, flag: 'unread' };
+  const delta = b.mean - a.mean, rel = a.mean !== 0 ? delta / Math.abs(a.mean) : (delta === 0 ? 0 : null);
+  const se = finite(a.se) && finite(b.se) ? Math.sqrt(a.se ** 2 + b.se ** 2) : null;
+  const z = se > 0 ? delta / se : delta === 0 ? 0 : se === 0 ? Infinity * Math.sign(delta) : null;
+  const big = rel === null ? delta !== 0 : Math.abs(rel) >= MIN_REL;
+  const flag = delta === 0 ? 'noise' : z === null ? (big && Math.abs(rel || 1) >= 0.05 ? 'moved' : 'noise') : Math.abs(z) >= Z_NOISE && big ? 'moved' : 'noise';
+  return { delta: r(delta, 6), rel: r(rel, 4), z: finite(z) ? r(z, 2) : z, flag };
+}
+/** Two Poisson counts over their hours: the rates in 1,000 hours, and z on the difference (a half-count floor so zero against zero reads). */
+export function judgeRates(a, b) {
+  if (!(a.t > 0) || !(b.t > 0)) return { before: null, after: null, rel: null, z: null, flag: 'unread' };
+  const ra = a.k / a.t, rb = b.k / b.t;
+  const se = Math.sqrt(Math.max(a.k, 0.5) / a.t ** 2 + Math.max(b.k, 0.5) / b.t ** 2);
+  const z = (rb - ra) / se;
+  return { before: r(1000 * ra, 2), after: r(1000 * rb, 2), rel: ra > 0 ? r((rb - ra) / ra, 4) : null, z: r(z, 2), flag: Math.abs(z) >= Z_NOISE ? 'moved' : 'noise' };
+}
+
+/**
+ * The candidate B against the baseline A (both hydrated). `patch` names targets (a patch's `targets`): a band it moves that it does not
+ * target is UNTARGETED. Answers { cells, views, bands, categories, onlyA, onlyB, groundMoved, scenarioSame }.
+ */
+export function compareDocs(A, B, patch = { targets: [] }) {
+  const BC = new Map(B.cells.filter((c) => !c.error).map((c) => [c.key, c]));
+  const AC = new Map(A.cells.filter((c) => !c.error).map((c) => [c.key, c]));
+  const cells = [];
+  for (const [key, a] of AC) {
+    const b = BC.get(key);
+    if (!b) continue;
+    const outs = {};
+    for (const [id] of OUTCOMES) {
+      if (id === 'deaths') continue;
+      if (id === 'deathsPer1000h') { const j = judgeRates({ k: a.deaths, t: a.hh }, { k: b.deaths, t: b.hh }); outs[id] = { before: j.before, after: j.after, ...j }; continue; }
+      const sa = stat(a, id), sb = stat(b, id);
+      if (!finite(sa.mean) && !finite(sb.mean)) continue;
+      outs[id] = { before: r(sa.mean, 6), after: r(sb.mean, 6), ...judgeMove(sa, sb) };
+    }
+    cells.push({ key, block: a.block, L: a.L, gear: a.gear, party: a.party, comp: a.comp, tier: a.tier, ground: a.ground, groundAfter: b.ground, step: a.step || null, variant: a.variant || null, outs });
+  }
+  /* the views */
+  const VB = new Map((B.views || []).map((v) => [v.key, v]));
+  const views = [];
+  for (const v of A.views || []) {
+    const w = VB.get(v.key);
+    if (!w) continue;
+    const j = finite(v.k) ? judgeRates({ k: v.k, t: v.t }, { k: w.k, t: w.t }) : judgeMove({ mean: v.value, se: v.se }, { mean: w.value, se: w.se });
+    views.push({ key: v.key, id: v.id, category: v.category, label: v.label, better: v.better, before: finite(v.k) ? j.before : v.value, after: finite(v.k) ? j.after : w.value, ...j });
+  }
+  /* the bands: standards.mjs rows judged inside each tree, diffed by the matrix's own rule */
+  const bands = diffMatrices({ rows: A.bands || [], cells: [] }, { rows: B.bands || [], cells: [] }, patch || { targets: [] }).bands.map((b) => ({ ...b, category: bandCategory(b) }));
+  /* a verdict a category */
+  const categories = {};
+  for (const id of CATEGORY_IDS) {
+    const bs = bands.filter((b) => b.category === id);
+    const toward = bs.filter((b) => b.direction === 'toward').length, away = bs.filter((b) => b.direction === 'away').length;
+    const outIds = OUTCOMES.filter((o) => o[2] === id).map((o) => o[0]);
+    const movedCells = cells.reduce((n, c) => n + outIds.filter((o) => c.outs[o] && c.outs[o].flag === 'moved').length, 0);
+    const movedViews = views.filter((v) => v.category === id && v.flag === 'moved').length;
+    const verdict = toward && away ? 'TRADEOFF' : toward ? 'IMPROVEMENT' : away ? 'REGRESSION' : movedCells || movedViews ? 'MOVED, NO BAND JUDGES IT' : 'WITHIN NOISE';
+    categories[id] = { verdict, bandsToward: toward, bandsAway: away, untargeted: bs.filter((b) => b.flag === 'UNTARGETED').length, movedCells, movedViews };
+  }
+  const onlyA = [...AC.keys()].filter((k) => !BC.has(k)), onlyB = [...BC.keys()].filter((k) => !AC.has(k));
+  const groundMoved = cells.filter((c) => c.ground !== c.groundAfter).map((c) => c.key + ': ' + c.ground + ' -> ' + c.groundAfter);
+  return { cells, views, bands, categories, onlyA, onlyB, groundMoved, scenarioSame: A.scenario && B.scenario && A.scenario.hash === B.scenario.hash };
+}
+
+/* ── PRINTING ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────── */
+const fmt = (v, d = 0) => (!finite(v) ? '-' : Math.abs(v) >= 1e6 ? (v / 1e6).toFixed(2) + 'M' : Math.abs(v) >= 1e4 ? (v / 1e3).toFixed(1) + 'k' : d ? v.toFixed(d) : String(Math.round(v)));
+const smart = (v) => (!finite(v) ? '-' : Math.abs(v) >= 100 ? fmt(v) : Math.abs(v) >= 1 ? v.toFixed(2) : v.toFixed(3));
+const pct = (v) => (!finite(v) ? '-' : (v >= 0 ? '+' : '') + (v * 100).toFixed(1) + '%');
+const cellLabel = (c) => (c.block === 'grounds' ? c.ground + ' L' + c.L + ' x' + c.party + ' ' + c.tier : c.block === 'c2' ? 'C-2 ' + c.ground + ' L' + c.L + ' ' + c.tier : (c.party === 1 ? c.comp : c.comp) + ' L' + c.L + ' ' + c.gear + ' ' + c.tier + (c.step ? ' ' + c.step : ''));
+
+/** The side-by-side report, by Tyler's eight categories. */
+export function printCompare(cmp, A, B, o = {}, out = console.log) {
+  const top = o.top || 8;
+  out('BALANCE REGRESSION: ' + (B.label || 'candidate') + ' against ' + (A.label || 'baseline') + ' (the same scenarios, seeds and harness)');
+  out('  baseline  game ' + short(A) + ', harness ' + shortH(A) + ', ' + A.cells.length + ' cells, ' + (A.scenario || {}).hash);
+  out('  candidate game ' + short(B) + ', harness ' + shortH(B) + ', ' + B.cells.length + ' cells, ' + (B.scenario || {}).hash + ((B.manifest && B.manifest.tree && B.manifest.tree.patches || []).length ? ', patches ' + B.manifest.tree.patches.join(', ') : ''));
+  if (!cmp.scenarioSame) out('  WARNING: the scenario hashes differ: the two played different cells or outcome rules; only shared cells are compared');
+  if (A.manifest && B.manifest && A.manifest.hashes.harness.sha256 !== B.manifest.hashes.harness.sha256) out('  WARNING: the harness differs between the two runs (' + A.manifest.hashes.harness.sha256.slice(0, 12) + ' vs ' + B.manifest.hashes.harness.sha256.slice(0, 12) + '): a move may be the harness, not the game');
+  out('  shared cells ' + cmp.cells.length + ', only in the baseline ' + cmp.onlyA.length + ', only in the candidate ' + cmp.onlyB.length + (cmp.groundMoved.length ? ', cells whose advised ground changed ' + cmp.groundMoved.length + ' (e.g. ' + cmp.groundMoved.slice(0, 3).join('; ') + ')' : ''));
+  out('  the noise rule: a move counts when |change| >= ' + Z_NOISE + ' x its combined standard error and >= ' + (MIN_REL * 100) + '% (deaths: Poisson z >= ' + Z_NOISE + '); the band rule: standards.mjs rows, a move toward a band is an improvement, away a regression');
+  out('\nVERDICTS');
+  for (const [id, label] of CATEGORIES) { const v = cmp.categories[id]; out('  ' + label.padEnd(28) + v.verdict.padEnd(26) + 'bands toward ' + v.bandsToward + ', away ' + v.bandsAway + (v.untargeted ? ' (' + v.untargeted + ' untargeted)' : '') + '; cell outcomes moved ' + v.movedCells + ', view rows moved ' + v.movedViews); }
+  for (const [id, label] of CATEGORIES) {
+    out('\n== ' + label.toUpperCase() + ' (' + cmp.categories[id].verdict + ')');
+    /* the bands */
+    const bs = cmp.bands.filter((b) => b.category === id);
+    if (bs.length) {
+      out('  BANDS (standards.mjs) moved: ' + bs.length + '; before -> after (status)');
+      for (const b of [...bs].sort((x, y) => (x.direction === y.direction ? 0 : x.direction === 'away' ? -1 : 1)).slice(0, top)) out('    ' + (b.direction === 'toward' ? 'IMPROVED  ' : 'REGRESSED ') + (b.flag === 'UNTARGETED' ? 'untargeted ' : b.flag.padEnd(11)) + (b.way + ' ' + b.band).padEnd(24) + String(b.at).slice(0, 30).padEnd(31) + smart(b.before).padStart(9) + ' ' + b.statusBefore.padEnd(4) + '-> ' + smart(b.after).padStart(9) + ' ' + b.statusAfter);
+      if (bs.length > top) out('    ... ' + (bs.length - top) + ' more (--json)');
+    } else out('  BANDS: none moved' + (id === 'combat' || id === 'scaling' ? ' (standards.mjs has few or no bands here)' : ''));
+    /* the outcomes of this category over every shared cell */
+    const outIds = OUTCOMES.filter((x) => x[2] === id);
+    if (outIds.length) {
+      out('  OUTCOMES over ' + cmp.cells.length + ' shared cells: moved up / moved down / within noise | median change of the moved | the largest moves');
+      for (const [oid, label] of outIds) {
+        const xs = cmp.cells.filter((c) => c.outs[oid]).map((c) => [c, c.outs[oid]]);
+        const up = xs.filter(([, m]) => m.flag === 'moved' && (m.rel > 0 || (m.rel === null && m.after > m.before))), down = xs.filter(([, m]) => m.flag === 'moved' && !(m.rel > 0 || (m.rel === null && m.after > m.before)));
+        const still = xs.filter(([, m]) => m.flag === 'noise').length;
+        if (!up.length && !down.length) { out('    ' + oid.padEnd(20) + '   0 /   0 / ' + String(still).padStart(4) + '   within noise everywhere'); continue; }
+        const big = [...up, ...down].sort((p, q) => Math.abs(q[1].rel || 0) - Math.abs(p[1].rel || 0)).slice(0, 2).map(([c, m]) => cellLabel(c) + ' ' + smart(m.before) + '->' + smart(m.after) + ' (' + pct(m.rel) + ')');
+        out('    ' + oid.padEnd(20) + String(up.length).padStart(4) + ' / ' + String(down.length).padStart(3) + ' / ' + String(still).padStart(4) + '   ' + pct(median([...up, ...down].map(([, m]) => m.rel))).padStart(7) + '   ' + big.join('; '));
+      }
+    }
+    /* the views of this category, side by side */
+    const vs = cmp.views.filter((v) => v.category === id);
+    if (vs.length) {
+      const moved = vs.filter((v) => v.flag === 'moved');
+      out('  VIEWS: ' + vs.length + ' rows, ' + moved.length + ' moved beyond noise. Side by side (before | after | change | z):');
+      const show = (o.allViews ? vs : [...moved.sort((p, q) => Math.abs(q.rel || 0) - Math.abs(p.rel || 0)).slice(0, top), ...vs.filter((v) => v.flag !== 'moved' && HEADLINE.has(v.id)).slice(0, top)]);
+      for (const v of show) out('    ' + (v.flag === 'moved' ? '* ' : '  ') + v.label.slice(0, 86).padEnd(87) + smart(v.before).padStart(9) + ' | ' + smart(v.after).padStart(9) + ' | ' + pct(v.rel).padStart(7) + ' | ' + (finite(v.z) ? v.z.toFixed(1) : '-'));
+    }
+    /* the attention list: large moves beyond noise */
+    const large = cmp.cells.flatMap((c) => outIds.map(([oid]) => [c, oid, c.outs[oid]])).filter(([, , m]) => m && m.flag === 'moved' && Math.abs(m.rel || 0) >= LARGE_REL);
+    if (large.length) out('  LARGE MOVES (beyond noise and over ' + LARGE_REL * 100 + '%): ' + large.length + ' cell outcomes, e.g. ' + large.sort((p, q) => Math.abs(q[2].rel) - Math.abs(p[2].rel)).slice(0, 4).map(([c, oid, m]) => oid + ' ' + cellLabel(c) + ' ' + pct(m.rel)).join('; '));
+  }
+}
+/* the view rows printed even when they did not move: the headline readings of each category */
+const HEADLINE = new Set(['timeToTop', 'hplGrowth', 'deathsPooled', 'ground.xContract', 'partyOverSolo.levelXpPerH']);
+const short = (d) => (d.manifest && d.manifest.tree ? (d.manifest.tree.game.label || d.manifest.tree.game.ref) + ' ' + String(d.manifest.tree.game.sha).slice(0, 9) : '?');
+const shortH = (d) => (d.manifest && d.manifest.tree ? String(d.manifest.tree.harness.sha).slice(0, 9) + (d.manifest.tree.harness.dirty ? '+dirty' : '') : '?');
+
+/** The baseline itself: the pin, the sample, the noise, the views by category, the calibration. */
+export function printBaseline(doc, o = {}, out = console.log) {
+  const m = doc.manifest || {};
+  out('BALANCE BASELINE ' + (doc.label || '') + ': ' + doc.cells.length + ' cells (' + doc.cells.filter((c) => c.error).length + ' errors), scenario ' + (doc.scenario || {}).id + ' ' + (doc.scenario || {}).hash);
+  if (m.tree) out('  game ' + m.tree.game.ref + ' ' + m.tree.game.sha + ' | harness ' + m.tree.harness.sha + (m.tree.harness.dirty ? ' (dirty)' : '') + ' | standards.mjs ' + (m.hashes ? m.hashes.standards.sha256.slice(0, 16) : '?') + (m.tree.harness.standardsCommit ? ' (commit ' + m.tree.harness.standardsCommit.slice(0, 9) + ')' : ''));
+  if (m.hashes) out('  src/data ' + m.hashes.srcData.sha256.slice(0, 16) + ' (' + m.hashes.srcData.files + ' files) | engine ' + m.hashes.engine.sha256.slice(0, 16) + ' | edge settle ' + m.hashes.edgeSettle.sha256.slice(0, 16) + ' | catalogues ' + m.hashes.catalogues.sha256.slice(0, 16) + ' (' + m.hashes.catalogues.files + ') | config ' + m.hashes.config.sha256.slice(0, 16) + ' | build ' + (m.config ? m.config.build.version : '?'));
+  if (doc.runtime) out('  played: ' + doc.runtime.jobs + ' seed jobs, ' + doc.runtime.heroHours + ' hero-hours, ' + doc.runtime.workerS + ' worker-s on ' + doc.runtime.shards + ' shards' + (doc.runtime.run ? ', GitHub run ' + doc.runtime.run : ''));
+  const blocks = {};
+  for (const c of doc.cells) { const b = blocks[c.block] || (blocks[c.block] = { cells: 0, hh: 0 }); b.cells++; b.hh += c.hh || 0; }
+  out('  blocks: ' + Object.entries(blocks).map(([k, b]) => k + ' ' + b.cells + ' (' + Math.round(b.hh) + ' hero-h)').join(', '));
+  out('\nNOISE (four seeds a cell; relative standard error of a cell\'s mean, over the cells; the smallest change one cell against one cell resolves)');
+  for (const n of noiseTable(doc)) out('  ' + n.id.padEnd(20) + ' median ' + pct(n.medianRelSe).replace('+', '').padStart(6) + '  p90 ' + pct(n.p90RelSe).replace('+', '').padStart(6) + '  resolves ' + pct(n.resolvesMedian).replace('+', '').padStart(6) + ' (p90 cell ' + pct(n.resolvesP90).replace('+', '') + ')' + (n.identicalSeeds ? '  ' + n.identicalSeeds + ' cells identical across seeds' : ''));
+  for (const [id, label] of CATEGORIES) {
+    const vs = (doc.views || []).filter((v) => v.category === id && (o.allViews || HEADLINE.has(v.id) || v.id === 'hoursPerLevel' && /\|(10|30|60|88|110)$/.test(v.key) && /^hoursPerLevel\|(hammer|four)/.test(v.key)));
+    if (!vs.length) continue;
+    out('\n== ' + label.toUpperCase());
+    for (const v of vs) out('  ' + v.label.slice(0, 90).padEnd(91) + (finite(v.k) ? (fmt((1000 * v.k) / v.t, 1) + ' (' + v.k + ' in ' + Math.round(v.t) + ' h)') : smart(v.value) + (finite(v.se) ? ' +- ' + smart(v.se) : '')));
+  }
+  if (doc.calibration && doc.calibration.c2 && doc.calibration.c2.length) {
+    out('\nCALIBRATION C-2 on this tree (the matrix four against real fours\' recorded hunts on the same ground and tier; sim / real)');
+    for (const x of doc.calibration.c2) out('  ' + (x.ground + ' ' + x.tier + ' L' + x.L + ' (' + x.gear + ', ' + x.heroHours + ' real hero-h)').padEnd(46) + ['kills', 'xp', 'coin'].map((k) => k + ' ' + (x.ratio ? x.ratio[k] : '-') + (x.pass && x.pass[k] ? '' : ' OUT')).join('   '));
+  }
+  if (doc.determinism) out('\nDETERMINISM: ' + doc.determinism.cells + ' cells x seed 0 played twice in fresh workers, in opposite orders: ' + (doc.determinism.identical ? 'byte-identical' : 'DIFFERENT: ' + doc.determinism.diff.join('; ')));
+}
+
+export { moments };

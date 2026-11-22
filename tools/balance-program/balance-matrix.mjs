@@ -115,7 +115,9 @@ const progress = (label) => (process.stderr.isTTY ? (k, total, id, ms) => proces
 export async function playRun(D, K, run, root, o = {}) {
   const t0 = Date.now();
   const V = await dataView(D, root);
-  const plan0 = planMatrix(V, K, run, { only: o.only, blocks: o.blocks, seeds: o.seeds, hours: o.hours, quick: o.quick, plan: o.plan });
+  const planned = planMatrix(V, K, run, { only: o.only, blocks: o.blocks, seeds: o.seeds, hours: o.hours, quick: o.quick, plan: o.plan });
+  /* o.planHook (V, K, plan) -> plan: a caller's own cells beside the run's and each job's hours (tools/balance-program/baseline/scenarios.mjs) */
+  const plan0 = o.planHook ? o.planHook(V, K, planned) : planned;
   /* o.shard [i, n]: every n-th cell from the i-th (a GitHub job's share of the full run; the simulator check plays in shard 0 only) */
   const plan = o.shard ? shardOf(plan0, o.shard) : plan0;
   const cal = o.calibrate === false || (o.shard && o.shard[0] !== 0) ? { jobs: [], cols: [], samples: [] } : await calibrationJobs(V, K, ROOT, { seeds: o.seeds || run.seeds, hours: o.hours || run.hours });
@@ -131,7 +133,8 @@ export async function playRun(D, K, run, root, o = {}) {
     const seeds = (byKey[c.key] || []).map(slimSeed);
     const want = c.seeds || o.seeds || run.seeds;
     if (seeds.length < want) return { ...c, error: (errors.find((e) => e.id.startsWith(c.key + '#')) || {}).error || 'a seed is missing' };
-    return { ...c, m: cellMetrics(V, c, seeds, arch) };
+    /* o.perSeed (V, cell, answers) -> any: a caller's read of each seed's FULL answer, in seed order (the baseline keeps one outcome row a seed) */
+    return { ...c, m: cellMetrics(V, c, seeds, arch), ...(o.perSeed ? { perSeed: o.perSeed(V, c, byKey[c.key]) } : {}) };
   });
   const calibration = cal.cols.length ? calibrationTable(byKey, cal.cols, cal.samples) : null;
   return { run: run.id, seeds: o.seeds || run.seeds, hours: o.hours || run.hours, cells, calibration, V,

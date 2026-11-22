@@ -1,0 +1,398 @@
+#!/usr/bin/env node
+// ════════════════════════════════════════════════════════════════════════
+// tools/balance-program/baseline.mjs — THE BALANCE BASELINE AND THE GLOBAL REGRESSION (Tyler 2026-11-21: "freeze and measure the current
+// game ... every candidate change should be evaluated across the entire representative baseline"; lane/bl-baseline, deliverables 1, 6, 8).
+//
+// One engine, one harness, two game trees. A measurement plays baseline/scenarios.mjs's cells (the matrix's own planMatrix and buildCell,
+// the real engine through the settle) on a game tree with THIS checkout's harness laid over it (baseline/tree.mjs), four seeds a cell, and
+// keeps every outcome of baseline/outcomes.mjs one value a seed, so every number carries its own noise.
+//
+// FROM THIS CHECKOUT (git):
+//   node tools/balance-program/baseline.mjs --materialize <ref> --into <dir> [--label L]    the game commit + this harness, in a folder
+//   node tools/balance-program/baseline.mjs --report [<results.json.gz>]                      the baseline (default: the committed pin), by category
+//   node tools/balance-program/baseline.mjs --compare <candidate.json.gz> [--baseline <f>] [--targets a,b] [--json f] [--all-views]
+//                                                                         the candidate side by side with the baseline, Tyler's eight groups
+//   node tools/balance-program/baseline.mjs --local <ref> [--patch a.json,b.json] [--base proposed] --only 30,60 | --blocks four,ways
+//                                                                         the whole loop on this PC for a SMALL slice (refused unsliced:
+//                                                                         the full scenario list plays on GitHub, balance-baseline.yml)
+// INSIDE A MATERIALIZED FOLDER (node <dir>/tools/balance-program/baseline.mjs ...):
+//   --derive-spec --out <spec.json> [--label L]   the scenario spec, read once from the pinned tree
+//   --plan --spec <f>                              cells, seed jobs and hours by block (no play)
+//   --shard i/n --spec <f> --out <f> [--patch a.json,b.json] [--base <proposals>] [--workers N]   one GitHub job's share
+//   --determinism --spec <f> --out <f> [--cells N] the same cells, seed 0, played twice in fresh workers in opposite orders: byte-identical
+//   --join <dir> --spec <f> --out <results.json.gz> [--label L] [--run-id N]   the shards as one results file: the manifest, the
+//                                                  standards.mjs band rows judged on this tree, the views, the calibration (Krell, C-2)
+//   --selftest                                     the proofs (below)
+//
+// SELFTEST: the outcome reader on a planted seed; the noise rule and the Poisson rule bite both ways; a planted band toward, away and both
+// reads IMPROVEMENT, REGRESSION and TRADEOFF, an unbanded move MOVED, a copy WITHIN NOISE; time to the top on a planted flat rate is the
+// curve's sum; the spec of this tree holds no staged ground and every planned cell stands on an open one with its Level's hours; a join of
+// shards from two scenarios or two trees is refused; one real cell played twice is byte-identical and the comparator sees a planted change;
+// the overlay exports the commit's game and lays this checkout's harness over it.
+//
+// Exit: 0 ran · 1 a selftest proof failed, a tool red, a determinism difference or an error cell · 2 harness.
+// mutant-anchors: none — the selftest plants answers and docs in memory and plays on this tree or a temporary export; no tracked file is patched
+// ci-step: economy-selftests | The balance baseline reads every outcome, its noise rule and band verdicts bite, its scenarios hold open grounds only, and a replay is byte-identical
+// ci-run: node tools/mutant-gate.mjs node tools/balance-program/baseline.mjs --selftest
+// ════════════════════════════════════════════════════════════════════════
+import { readFileSync, writeFileSync, existsSync, readdirSync, statSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { gzipSync, gunzipSync } from 'node:zlib';
+import { join, resolve, dirname, relative } from 'node:path';
+import { tmpdir } from 'node:os';
+import { execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+import { isMain } from '../../tests/_is-main.mjs';
+import { playRun, playJobs, baseOf, combinePatches, printToolReds } from './balance-matrix.mjs';
+import { loadGridData } from './progression-grid.mjs';
+import { loadKits } from './grid-kit.mjs';
+import { judgeMatrix, METRIC_IDS, toolReds } from './matrix-metrics.mjs';
+import { plantScratch, checkPatch } from './matrix-scratch.mjs';
+import { dataView } from './balance-matrix.mjs';
+import { printCalibration } from './matrix-calibration.mjs';
+import { readC2 } from './calibrate.mjs';
+import { OUTCOME_IDS, seedOutcomes, cellStats, moments } from './baseline/outcomes.mjs';
+import { deriveSpec, baselineRun, planHook, scenarioHash, hoursOfCell, SPEC_SCHEMA } from './baseline/scenarios.mjs';
+import { materialize, manifest, treeRecord, TREE_FILE, HARNESS } from './baseline/tree.mjs';
+import { RESULT_SCHEMA, hydrate, computeViews, compareDocs, printCompare, printBaseline, judgeMove, judgeRates, noiseTable } from './baseline/compare.mjs';
+import { planMatrix } from './matrix-plan.mjs';
+
+const HERE = dirname(fileURLToPath(import.meta.url));
+const ROOT = resolve(HERE, '..', '..');
+/* the committed pin: its spec and its results (01-baseline.md) */
+export const PIN_DIR = join(HERE, 'baseline', 'v0.2.143');
+export const PIN_SPEC = join(PIN_DIR, 'spec.json');
+export const PIN_RESULTS = join(PIN_DIR, 'results.json.gz');
+export const SHARD_SCHEMA = 'hearthrise.balance-baseline-shard/1';
+const argv = process.argv.slice(2);
+const has = (f) => argv.includes('--' + f);
+const arg = (k, d = null) => { const i = argv.indexOf('--' + k); return i >= 0 && argv[i + 1] && !argv[i + 1].startsWith('--') ? argv[i + 1] : d; };
+const finite = (x) => typeof x === 'number' && Number.isFinite(x);
+const say = (s) => console.error(s);
+
+/* ── FILES ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── */
+export function readDoc(file) {
+  const buf = readFileSync(file);
+  return JSON.parse((file.endsWith('.gz') ? gunzipSync(buf) : buf).toString('utf8'));
+}
+export function writeDoc(file, doc) {
+  mkdirSync(dirname(file), { recursive: true });
+  const text = JSON.stringify(doc) + '\n';
+  writeFileSync(file, file.endsWith('.gz') ? gzipSync(Buffer.from(text, 'utf8'), { level: 9 }) : text);
+}
+const readSpec = (f) => { const s = JSON.parse(readFileSync(resolve(f || PIN_SPEC), 'utf8')); if (s.schema !== SPEC_SCHEMA) throw new Error('baseline: ' + f + ' is not a ' + SPEC_SCHEMA); return s; };
+
+/* ── A CANDIDATE'S CHANGE ON TOP OF ITS TREE: patch files and a proposal base (balance-matrix.mjs baseOf) ─────────────────────── */
+async function changeOf(patchList, baseSpec) {
+  const base = baseSpec && baseSpec !== 'today' ? await baseOf(baseSpec, []) : null;
+  let patch = base ? base.patch : null;
+  for (const f of patchList) {
+    const p = [resolve(f), join(HERE, 'patches', f), join(ROOT, f)].find((x) => existsSync(x));
+    if (!p) throw new Error('baseline: no patch file ' + f);
+    const doc = JSON.parse(readFileSync(p, 'utf8'));
+    checkPatch(doc);
+    patch = combinePatches(patch, doc);
+  }
+  return { patch, names: [...(base ? ['base ' + base.name] : []), ...patchList] };
+}
+const listArg = (k) => (arg(k) ? arg(k).split(',').map((s) => s.trim()).filter(Boolean) : []);
+
+/* ── ONE SHARD: plays its cells on this tree (or its patched copy), keeps every seed's outcomes and the matrix's metrics ──────── */
+export async function playShard(spec, o = {}) {
+  const D = await loadGridData(ROOT), K = await loadKits(ROOT);
+  const run = baselineRun(spec);
+  const ch = await changeOf(o.patches || [], o.base);
+  const perSeed = (V, c, answers) => {
+    const toNext = V.XP.charXpForLevel(c.L + 1) - V.XP.charXpForLevel(c.L);
+    const contract = V.BS.contractXpPerH ? V.BS.contractXpPerH(c.L) : null;
+    return answers.map((a) => { const s = seedOutcomes(a, { toNext, contract }); return [...OUTCOME_IDS.map((id) => s[id]), s._hh, s._wall]; });
+  };
+  const opts = { workers: o.workers, shard: o.shard || null, only: o.only || null, blocks: o.blocks || null, planHook: planHook(spec), perSeed, quiet: !!o.quiet, say, label: 'baseline' + (o.shard ? ' shard ' + o.shard.join('/') : '') };
+  if (!ch.patch) return { res: await playRun(D, K, run, ROOT, opts), change: ch };
+  const s = await plantScratch(ch.patch);
+  try { return { res: await playRun(D, K, run, s.root, { ...opts, plan: ch.patch.plan }), change: ch, applied: s.applied }; } finally { s.done(); }
+}
+const shardCell = (c) => (c.error ? { key: c.key, block: c.block, L: c.L, gear: c.gear, party: c.party, comp: c.comp, tier: c.tier, ground: c.ground, styles: c.styles, error: c.error }
+  : (({ kits, perSeed, ...rest }) => (void kits, { ...rest, seeds: perSeed }))(c));
+
+/* ── DETERMINISM: the same cells, seed 0, twice, in fresh worker pools and opposite orders ─────────────────────────────────────── */
+export function sampleCells(cells, n) {
+  const ok = cells.filter((c) => !c.error);
+  const step = Math.max(1, Math.floor(ok.length / n));
+  return ok.filter((_, i) => i % step === 0).slice(0, n);
+}
+export function sameAnswers(a, b) {
+  const diff = [];
+  for (const id of Object.keys(a)) if (JSON.stringify(a[id]) !== JSON.stringify(b[id])) diff.push(id);
+  for (const id of Object.keys(b)) if (!(id in a)) diff.push(id + ' (only in the second play)');
+  return diff;
+}
+async function determinism(spec, n, workers) {
+  const D = await loadGridData(ROOT), K = await loadKits(ROOT);
+  const plan0 = planMatrix(D, K, baselineRun(spec), {});
+  const plan = planHook(spec)(D, K, plan0);
+  const pick = sampleCells(plan.cells, n);
+  const jobs = pick.map((c) => plan.jobs.find((j) => j.key === c.key && j.cell.seedBase === 0));
+  const first = await playJobs(jobs, ROOT, Math.min(workers, jobs.length));
+  const second = await playJobs([...jobs].reverse(), ROOT, Math.max(1, Math.min(2, workers)));
+  const diff = sameAnswers(first.results, second.results);
+  const errors = [...first.errors, ...second.errors].map((e) => e.id + ' ' + e.error);
+  /* each cell's seed-0 outcomes, for the join to check against the shard that played the same seed on another runner */
+  const outcomes = Object.fromEntries(pick.map((c, i) => { const a = first.results[jobs[i].id]; if (!a) return [c.key, null]; const toNext = D.XP.charXpForLevel(c.L + 1) - D.XP.charXpForLevel(c.L); const s = seedOutcomes(a, { toNext, contract: D.BS.contractXpPerH ? D.BS.contractXpPerH(c.L) : null }); return [c.key, [...OUTCOME_IDS.map((id) => s[id]), s._hh, s._wall]]; }));
+  return { schema: 'hearthrise.balance-baseline-determinism/1', cells: pick.length, keys: pick.map((c) => c.key), identical: !diff.length && !errors.length, diff: [...diff, ...errors].slice(0, 20), seed0: outcomes, wallS: Math.round((first.wallMs + second.wallMs) / 1000) };
+}
+
+/* ── THE JOIN ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────── */
+function shardDocs(dir) {
+  const out = [];
+  const walk = (d) => { for (const f of readdirSync(d)) { const p = join(d, f); if (statSync(p).isDirectory()) walk(p); else if (/^shard-\d+\.json(\.gz)?$/.test(f)) out.push(readDoc(p)); } };
+  walk(dir);
+  return out;
+}
+export function joinShardDocs(docs) {
+  if (!docs.length) throw new Error('join: no shard files');
+  const f = docs[0], n = f.shard[1], seen = new Set();
+  for (const d of docs) {
+    if (d.schema !== SHARD_SCHEMA) throw new Error('join: ' + (d.schema || 'no schema') + ' is not ' + SHARD_SCHEMA);
+    if (d.scenarioHash !== f.scenarioHash) throw new Error('join: shard ' + d.shard.join('/') + ' played scenario ' + d.scenarioHash + ', shard ' + f.shard.join('/') + ' ' + f.scenarioHash);
+    if (d.game !== f.game || JSON.stringify(d.change) !== JSON.stringify(f.change)) throw new Error('join: shard ' + d.shard.join('/') + ' played game ' + d.game + ' ' + JSON.stringify(d.change) + ', not ' + f.game + ' ' + JSON.stringify(f.change));
+    if (d.shard[1] !== n) throw new Error('join: a shard of ' + d.shard[1] + ' beside shards of ' + n);
+    if (seen.has(d.shard[0])) throw new Error('join: shard ' + d.shard[0] + ' twice');
+    seen.add(d.shard[0]);
+  }
+  const missing = Array.from({ length: n }, (_, i) => i).filter((i) => !seen.has(i));
+  if (missing.length) throw new Error('join: shards missing: ' + missing.join(', '));
+  return { cells: docs.sort((a, b) => a.shard[0] - b.shard[0]).flatMap((d) => d.cells), calibration: (docs.find((d) => d.shard[0] === 0) || {}).calibration || null,
+    runtime: { shards: n, jobs: docs.reduce((a, d) => a + d.runtime.jobs, 0), workerS: docs.reduce((a, d) => a + d.runtime.workerS, 0), wallS: Math.max(...docs.map((d) => d.runtime.wallS)) }, first: f };
+}
+const SLIM_M = [...METRIC_IDS, 'coinPerH', 'incomePerH', 'storePerH', 'netADay', 'revealsPerPartyH', 'revealEveryHeroH', 'rarestRevealEveryHeroH', 'endedEarlyShare', 'ended', 'sample', 'deathTax', 'mainSkillXpPerH'];
+const slimM = (m) => ({ ...Object.fromEntries(SLIM_M.filter((k) => m[k] !== undefined).map((k) => [k, m[k]])), seats: (m.seatsM || []).map((s) => [s.style, s.takenShare, s.takenPerH, s.dealtPerH, s.deaths]) });
+export async function joinRun(dir, spec, o = {}) {
+  const j = joinShardDocs(shardDocs(dir));
+  const det = o.determinism && existsSync(o.determinism) ? readDoc(o.determinism) : null;
+  const D = await loadGridData(ROOT), K = await loadKits(ROOT);
+  const ch = j.first.change && j.first.change.names && j.first.change.names.length ? await changeOf(j.first.change.patches || [], j.first.change.base) : { patch: null };
+  let V = D;
+  if (ch.patch) { const s = await plantScratch(ch.patch); try { V = await dataView(D, s.root); } finally { s.done(); } }
+  const ok = j.cells.filter((c) => !c.error && c.m);
+  const bands = judgeMatrix(V, K, ok.filter((c) => c.block !== 'c2' && c.block !== 'c3'));
+  const doc0 = { outcomeIds: OUTCOME_IDS, cells: j.cells.map((c) => (c.error ? c : { ...c, m: slimM(c.m) })) };
+  const hy = hydrate(doc0);
+  const views = computeViews(hy.cells, { spec, toNext: (L) => V.XP.charXpForLevel(L + 1) - V.XP.charXpForLevel(L) });
+  const c2 = (spec.c2 || []).map((r) => {
+    const c = ok.find((x) => x.key === 'C2|' + r.ground + '|' + r.tier + '|' + r.L);
+    if (!c) return { ground: r.ground, tier: r.tier, L: r.L, error: 'not played' };
+    const row = { ground: r.ground, tier: r.tier, levels: r.levels, hero_hours: r.heroHours, kills_h: r.real.kills, xp_h: r.real.xp, coin_h: r.real.coin, deaths_per_100h: r.real.deathsPer100h };
+    return { ...readC2(row, c.m), gear: r.gear };
+  });
+  /* the determinism job's seed 0 against the shard that played the same seed: a third play, another runner */
+  let detCheck = null;
+  if (det) {
+    const mism = [];
+    for (const [key, row] of Object.entries(det.seed0 || {})) { const c = j.cells.find((x) => x.key === key); if (c && c.seeds && JSON.stringify(c.seeds[0]) !== JSON.stringify(row)) mism.push(key); }
+    detCheck = { cells: det.cells, identical: det.identical, diff: det.diff, againstShards: { cells: Object.keys(det.seed0 || {}).length, mismatched: mism } };
+  }
+  const heroHours = Math.round(ok.reduce((a, c) => a + (c.seeds || []).reduce((s, row) => s + (row[OUTCOME_IDS.length] || 0), 0), 0));
+  const man = await manifest(ROOT);
+  return { schema: RESULT_SCHEMA, label: o.label || (man.tree.game.label || man.tree.game.ref), at: new Date().toISOString().slice(0, 16) + 'Z',
+    scenario: { id: spec.id, hash: j.first.scenarioHash, spec }, manifest: { ...man, change: j.first.change || null },
+    runtime: { ...j.runtime, heroHours, run: o.runId || null, errors: j.cells.filter((c) => c.error).length },
+    outcomeIds: OUTCOME_IDS, cells: doc0.cells, bands, views, calibration: { krell: j.calibration, c2 }, determinism: detCheck };
+}
+
+/* ── THE COMMANDS ─────────────────────────────────────────────────────────────────────────────────────────────────────────────── */
+async function main() {
+  if (has('selftest')) return selftest();
+  if (arg('materialize')) {
+    const rec = materialize({ game: arg('materialize'), into: resolve(arg('into')), label: arg('label', arg('materialize')), harnessRoot: ROOT, patches: listArg('patch') });
+    console.log('materialized ' + rec.game.ref + ' (' + rec.game.sha + ') with harness ' + rec.harness.sha + (rec.harness.dirty ? ' (dirty)' : '') + ' -> ' + resolve(arg('into')));
+    for (const [p, x] of Object.entries(rec.replaced)) if (!x.same) console.log('  overlaid ' + p + ' (the tree\'s own ' + (x.tree || 'absent') + ', the harness ' + x.harness + ')');
+    return 0;
+  }
+  if (has('derive-spec')) {
+    const spec = await deriveSpec(ROOT, arg('label'));
+    writeFileSync(resolve(arg('out', 'spec.json')), JSON.stringify(spec, null, 1) + '\n');
+    console.log('spec: live content to Level ' + spec.liveTop + ', ' + spec.openGrounds.length + ' open grounds (staged, not played: ' + spec.stagedGrounds.join(', ') + '), ' + spec.levels.length + ' Levels, spine ' + spec.spine.join(', ') + ', ' + spec.c2.length + ' C-2 rows');
+    return 0;
+  }
+  if (has('report') || arg('compare')) {
+    const base = hydrate(readDoc(resolve(arg('baseline', arg('report') || PIN_RESULTS))));
+    if (!arg('compare')) { printBaseline(base, { allViews: has('all-views') }); if (base.calibration && base.calibration.krell) { console.log(''); printCalibration(base.calibration.krell, console.log); } return 0; }
+    const cand = hydrate(readDoc(resolve(arg('compare'))));
+    const cmp = compareDocs(base, cand, { targets: listArg('targets') });
+    printCompare(cmp, base, cand, { allViews: has('all-views'), top: Number(arg('top', 8)) });
+    if (arg('json')) writeFileSync(resolve(arg('json')), JSON.stringify({ baseline: base.label, candidate: cand.label, categories: cmp.categories, bands: cmp.bands, views: cmp.views, cells: cmp.cells, onlyA: cmp.onlyA, onlyB: cmp.onlyB, groundMoved: cmp.groundMoved }) + '\n');
+    return 0;
+  }
+  if (arg('local')) return local();
+  const spec = readSpec(arg('spec'));
+  const sh = scenarioHash(spec, ROOT);
+  if (has('plan')) {
+    const D = await loadGridData(ROOT), K = await loadKits(ROOT);
+    const plan = planHook(spec)(D, K, planMatrix(D, K, baselineRun(spec), {}));
+    const by = {};
+    for (const c of plan.cells) { const b = by[c.block] || (by[c.block] = { cells: 0, jobs: 0, partyH: 0, heroH: 0 }); b.cells++; b.jobs += spec.seeds; b.partyH += spec.seeds * c.hours; b.heroH += spec.seeds * c.hours * c.party; }
+    console.log('BASELINE PLAN (scenario ' + spec.id + ' ' + sh + '): ' + plan.cells.length + ' cells, ' + plan.jobs.length + ' seed jobs');
+    for (const [k, b] of Object.entries(by)) console.log('  ' + k.padEnd(10) + String(b.cells).padStart(6) + ' cells ' + String(b.jobs).padStart(6) + ' jobs ' + String(Math.round(b.partyH)).padStart(7) + ' party-h ' + String(Math.round(b.heroH)).padStart(7) + ' hero-h');
+    const staged = plan.cells.filter((c) => !spec.openGrounds.includes(c.ground));
+    console.log('  cells on a ground that is not open on the pinned tree: ' + staged.length + (staged.length ? ' (' + staged.slice(0, 5).map((c) => c.key + ' ' + c.ground).join('; ') + ')' : ''));
+    return staged.length ? 1 : 0;
+  }
+  if (arg('shard')) {
+    const [i, n] = arg('shard').split('/').map(Number);
+    const { res, change } = await playShard(spec, { shard: [i, n], workers: Number(arg('workers', 4)), patches: listArg('patch'), base: arg('base'), only: arg('only') ? arg('only').split(',').map(Number) : null, blocks: arg('blocks') ? arg('blocks').split(',') : null });
+    const tree = treeRecord(ROOT);
+    const doc = { schema: SHARD_SCHEMA, shard: [i, n], scenarioHash: sh, game: tree.game.sha, change: { names: change.names, patches: listArg('patch'), base: arg('base') || null }, runtime: res.runtime, calibration: res.calibration || null, cells: res.cells.map(shardCell) };
+    writeDoc(resolve(arg('out', 'shard-' + i + '.json')), doc);
+    const bad = doc.cells.filter((c) => c.error);
+    console.log('shard ' + i + '/' + n + ': ' + doc.cells.length + ' cells (' + bad.length + ' errors), ' + res.runtime.jobs + ' jobs, ' + res.runtime.workerS + ' worker-s in ' + res.runtime.wallS + ' s');
+    for (const c of bad.slice(0, 5)) console.log('  ERROR ' + c.key + ': ' + c.error);
+    return Math.max(bad.length ? 1 : 0, printToolReds(res.cells, (s) => console.error(s)));
+  }
+  if (has('determinism')) {
+    const d = await determinism(spec, Number(arg('cells', 12)), Number(arg('workers', 4)));
+    writeDoc(resolve(arg('out', 'determinism.json')), d);
+    console.log('DETERMINISM: ' + d.cells + ' cells, seed 0, played twice (fresh workers, opposite orders): ' + (d.identical ? 'byte-identical' : 'DIFFERENT: ' + d.diff.join('; ')) + ' (' + d.wallS + ' s)');
+    return d.identical ? 0 : 1;
+  }
+  if (arg('join')) {
+    const doc = await joinRun(resolve(arg('join')), spec, { label: arg('label'), runId: arg('run-id'), determinism: arg('determinism-file') ? resolve(arg('determinism-file')) : null });
+    writeDoc(resolve(arg('out', 'results.json.gz')), doc);
+    printBaseline(hydrate(doc));
+    const reds = toolReds(doc.cells.filter((c) => !c.error).map((c) => ({ key: c.key, m: { ended: c.m.ended } })));
+    console.log('\njoined ' + doc.runtime.shards + ' shards, ' + doc.cells.length + ' cells, ' + doc.runtime.errors + ' errors, ' + reds.length + ' tool reds -> ' + resolve(arg('out', 'results.json.gz')));
+    const detBad = doc.determinism && (!doc.determinism.identical || doc.determinism.againstShards.mismatched.length);
+    if (detBad) console.log('DETERMINISM RED: ' + JSON.stringify(doc.determinism));
+    return doc.runtime.errors || reds.length || detBad ? 1 : 0;
+  }
+  console.error('baseline: name a command (see the header)');
+  return 2;
+}
+
+/* THE WHOLE LOOP ON THIS PC, a slice only: materialize, play every shard as one, join, compare with the committed pin */
+async function local() {
+  if (!arg('only') && !arg('blocks')) { console.error('baseline --local: the full scenario list is a GitHub run (.github/workflows/balance-baseline.yml); name a slice with --only or --blocks'); return 2; }
+  const dir = mkdtempSync(join(tmpdir(), 'hr-baseline-'));
+  try {
+    const tree = join(dir, 'tree'), shards = join(dir, 'shards');
+    materialize({ game: arg('local'), into: tree, label: arg('label', arg('local')), harnessRoot: ROOT, patches: listArg('patch') });
+    mkdirSync(shards);
+    const node = (args) => execFileSync(process.execPath, [join(tree, 'tools/balance-program/baseline.mjs'), ...args], { stdio: 'inherit', cwd: tree });
+    const spec = resolve(arg('spec', PIN_SPEC)), out = resolve(arg('out', join(dir, 'candidate.json.gz')));
+    const slice = [...(arg('only') ? ['--only', arg('only')] : []), ...(arg('blocks') ? ['--blocks', arg('blocks')] : []), ...(arg('patch') ? ['--patch', arg('patch')] : []), ...(arg('base') ? ['--base', arg('base')] : [])];
+    node(['--shard', '0/1', '--spec', spec, '--out', join(shards, 'shard-0.json'), '--workers', String(arg('workers', 4)), ...slice]);
+    node(['--join', shards, '--spec', spec, '--out', out, '--label', arg('label', arg('local'))]);
+    if (existsSync(PIN_RESULTS) && !has('no-compare')) {
+      const cmp = compareDocs(hydrate(readDoc(PIN_RESULTS)), hydrate(readDoc(out)), { targets: listArg('targets') });
+      printCompare(cmp, hydrate(readDoc(PIN_RESULTS)), hydrate(readDoc(out)), { top: Number(arg('top', 8)) });
+    }
+    console.log('\nresults: ' + out);
+    return 0;
+  } finally { if (!has('keep')) rmSync(dir, { recursive: true, force: true }); }
+}
+
+/* ── THE SELFTEST ─────────────────────────────────────────────────────────────────────────────────────────────────────────────── */
+async function selftest() {
+  const fails = [];
+  const check = (name, ok, why = '') => { console.log((ok ? '  ok    ' : '  FAIL  ') + name + (ok ? '' : ': ' + why)); if (!ok) fails.push(name); };
+  const t0 = Date.now();
+  /* 1. the outcome reader on a planted seed: two heroes, one died */
+  const hero = (o) => ({ style: 'hammer', hours: 2, wallHours: 2, dealtPerH: 3600, takenPerH: 1000, healInPerH: { total: 400 }, healOutPerH: 0, regenPerH: 100, shieldInPerH: 0, deaths: 0, landedPct: 50, dmgPerMonsterSwing: 10,
+    encMinHpPct: { p50: 60, p10: 30, p01: 10 }, hpUnder: { p30: 0.1, p10: 0.01 }, closeCallsPer12h: { k: 1 }, buysPerH: { a: 2 }, eatsPerH: { own: 1, store: 1 }, drinksPerH: { own: 0, store: 3 }, castsPerH: { x: 5 }, castManaPerH: { x: 50 }, rareItems: 1,
+    raw: { levelXp: 2000, skillXp: { melee: 400, defense: 200 }, coin: 1000, income: 1600, store: 400, rares: 100, xpLostLevelBlessed: 0, blessingGold: 0 }, ...o });
+  const seed = { party: { hours: 2, killsPerH: 100, ttkS: { p50: 5, p90: 9 }, pullsPerH: 20, rareRolls: 4 },
+    heroes: [hero({}), hero({ style: 'mage', hours: 1, deaths: 1, raw: { levelXp: 1000, skillXp: { magic: 300 }, coin: 500, income: 800, store: 200, rares: 0, xpLostLevelBlessed: 300, blessingGold: 100 } })] };
+  const s = seedOutcomes(seed, { toNext: 1700, contract: 1000 });
+  check('the outcome reader: DPS, deaths a 1,000 hours, hunted share, net gold, XP after deaths and hours a Level off a planted seed ('
+    + ['dps', 'deathsPer1000h', 'huntedShare', 'netPerH', 'netLevelXpPerH', 'hoursPerLevel', 'frontTakenShare', 'lowHpP10'].map((k) => k + ' ' + s[k]).join(', ') + ')',
+    s.dps === (3600 * 2 + 3600 * 1) / (2 * 3600) && Math.abs(s.deathsPer1000h - 1000 / 3) < 0.01 && Math.abs(s.huntedShare - 0.75) < 1e-9 && Math.abs(s.netPerH - (2400 - 600 - 100) / 3) < 0.01
+    && Math.abs(s.netLevelXpPerH - 2700 / 4) < 0.01 && Math.abs(s.hoursPerLevel - 1700 / 675) < 0.001 && Math.abs(s.frontTakenShare - 2 / 3) < 1e-4 && s.lowHpP10 === 0.3 && s._hh === 3 && s._wall === 4);
+  /* 2. the noise rule and the Poisson rule, both ways */
+  check('the noise rule: 3% with a 0.5% error is a move, 3% with a 5% error is noise, 0.5% with no error is under the floor, a copy is noise',
+    judgeMove({ mean: 100, se: 0.5 }, { mean: 103, se: 0.5 }).flag === 'moved' && judgeMove({ mean: 100, se: 5 }, { mean: 103, se: 5 }).flag === 'noise'
+    && judgeMove({ mean: 100, se: 0 }, { mean: 100.5, se: 0 }).flag === 'noise' && judgeMove({ mean: 7, se: 1 }, { mean: 7, se: 1 }).flag === 'noise');
+  check('the Poisson rule: 0 against 0 deaths is noise, 0 against 12 in 100 hours is a move, 3 against 4 in 100 hours is noise',
+    judgeRates({ k: 0, t: 100 }, { k: 0, t: 100 }).flag === 'noise' && judgeRates({ k: 0, t: 100 }, { k: 12, t: 100 }).flag === 'moved' && judgeRates({ k: 3, t: 100 }, { k: 4, t: 100 }).flag === 'noise');
+  /* 3. the verdicts on planted docs */
+  const row = (vals) => [...OUTCOME_IDS.map((id) => (id in vals ? vals[id] : 1)), 1, 1];
+  const pdoc = (label, bands, xp) => ({ schema: RESULT_SCHEMA, label, scenario: { hash: 'h' }, outcomeIds: OUTCOME_IDS, bands, views: [],
+    cells: [{ key: 'k1', block: 'pace', L: 30, gear: 'mid', party: 1, comp: 'h', tier: 'normal', ground: 'g', styles: ['hammer'], seeds: [row({ levelXpPerH: xp }), row({ levelXpPerH: xp * 1.001 }), row({ levelXpPerH: xp * 0.999 }), row({ levelXpPerH: xp })] }] });
+  const band = (id, group, status, dist, way = 'hammer') => ({ way, band: id, group, at: 'a', value: dist, status, dist });
+  const A = hydrate(pdoc('A', [band('S1.mid', 'survival', 'off', 0.2), band('G-1', 'gold', 'ok', 0), band('P2', 'pace', 'ok', 0)], 1000));
+  const verdict = (bands, xp) => compareDocs(A, hydrate(pdoc('B', bands, xp))).categories;
+  const v1 = verdict([band('S1.mid', 'survival', 'ok', 0), band('G-1', 'gold', 'RED', 1), band('P2', 'pace', 'ok', 0)], 1000);
+  const v2 = verdict([band('S1.mid', 'survival', 'ok', 0), band('G-1', 'gold', 'ok', 0), band('P2', 'pace', 'ok', 0), band('S2.mid', 'survival', 'ok', 0)], 1000);
+  const both = compareDocs(hydrate(pdoc('A', [band('S1.mid', 'survival', 'off', 0.2), band('S2.mid', 'survival', 'ok', 0)], 1000)), hydrate(pdoc('B', [band('S1.mid', 'survival', 'ok', 0), band('S2.mid', 'survival', 'RED', 0.5)], 1000))).categories;
+  const xpMoved = verdict([band('S1.mid', 'survival', 'off', 0.2), band('G-1', 'gold', 'ok', 0), band('P2', 'pace', 'ok', 0)], 1100);
+  const same = verdict([band('S1.mid', 'survival', 'off', 0.2), band('G-1', 'gold', 'ok', 0), band('P2', 'pace', 'ok', 0)], 1000);
+  check('verdicts: a band toward its range IMPROVEMENT, away REGRESSION, both TRADEOFF, an unbanded move beyond noise MOVED, a copy WITHIN NOISE ('
+    + [v1.survival.verdict, v1.economy.verdict, both.survival.verdict, xpMoved.progression.verdict, same.progression.verdict].join(', ') + ')',
+    v1.survival.verdict === 'IMPROVEMENT' && v1.economy.verdict === 'REGRESSION' && both.survival.verdict === 'TRADEOFF' && xpMoved.progression.verdict === 'MOVED, NO BAND JUDGES IT'
+    && same.progression.verdict === 'WITHIN NOISE' && Object.values(same).every((c) => c.verdict === 'WITHIN NOISE') && v2.survival.verdict === 'IMPROVEMENT');
+  /* 4. time to the top on a flat planted rate is the curve's own sum */
+  {
+    const spec = { levels: [1, 5, 10], spine: [1, 5, 10], liveTop: 10 };
+    const mk = (L, rate) => ({ key: 'p' + L, block: 'pace', L, gear: 'mid', party: 1, comp: 'h', tier: 'normal', styles: ['hammer'], stats: { netLevelXpPerH: [4, rate, 0], hoursPerLevel: [4, 1, 0] }, deaths: 0, hh: 4 });
+    const toNext = (L) => 100 * L;
+    const v = computeViews([mk(1, 500), mk(5, 500), mk(10, 500)], { spec, toNext }).find((x) => x.key === 'timeToTop|lone hammer');
+    const want = [1, 2, 3, 4, 5, 6, 7, 8, 9].reduce((a, L) => a + (100 * L) / 500, 0);
+    const v2r = computeViews([mk(1, 500), mk(5, 1000), mk(10, 1000)], { spec, toNext }).find((x) => x.key === 'timeToTop|lone hammer');
+    check('time to the top: a flat rate gives the XP curve\'s sum (' + (v && v.value) + ' = ' + want + '), and a faster checkpoint shortens it (' + (v2r && v2r.value) + ')', v && Math.abs(v.value - want) < 1e-6 && v2r && v2r.value < want && v2r.value > want / 2);
+  }
+  /* 5. the scenario on this tree: no staged ground, every planned cell on an open ground with its Level's hours, check C3 at 8 h */
+  {
+    const D = await loadGridData(ROOT), K = await loadKits(ROOT);
+    const spec = await deriveSpec(ROOT, 'selftest');
+    const plan = planHook(spec)(D, K, planMatrix(D, K, baselineRun(spec), {}));
+    const stray = plan.cells.filter((c) => !spec.openGrounds.includes(c.ground));
+    const hoursOk = plan.jobs.every((j) => { const c = plan.cells.find((x) => x.key === j.key); return j.cell.hours === hoursOfCell(c); });
+    const c3 = plan.cells.filter((c) => c.block === 'c3');
+    check('the scenario on this tree: ' + plan.cells.length + ' cells, live to Level ' + spec.liveTop + ', no staged ground among ' + spec.openGrounds.length + ' open ones, every cell on an open ground (' + stray.length + ' stray), every job at its Level\'s hours, check C3 at 8 h',
+      spec.openGrounds.length > 0 && spec.openGrounds.every((g) => !spec.stagedGrounds.includes(g)) && !stray.length && hoursOk && c3.length === 3 && c3.every((c) => c.hours === 8) && spec.levels.every((L) => L <= spec.liveTop) && spec.spine.every((L) => spec.levels.includes(L)), stray.slice(0, 3).map((c) => c.key + ' ' + c.ground).join('; '));
+    /* a planted staged ground would be a stray (the bite: the check reads the plan, not the spec's word) */
+    const planted = { ...spec, openGrounds: spec.openGrounds.slice(1) };
+    const stray2 = planHook(planted)(D, K, planMatrix(D, K, baselineRun(planted), {})).cells.filter((c) => !planted.openGrounds.includes(c.ground));
+    check('MUTANT a spec that leaves out one open ground: its cells read as strays (' + stray2.length + ')', stray2.length > 0);
+    /* 6. one real cell, seed 0, twice: byte-identical; the comparator sees a planted change */
+    const pick = plan.jobs.find((j) => j.cell.party.length === 1 && j.cell.level === 10 && j.cell.seedBase === 0) || plan.jobs[0];
+    const job = { ...pick, id: 'det', cell: { ...pick.cell, hours: 0.05 } };
+    const a = await playJobs([job], ROOT, 1), b = await playJobs([job], ROOT, 1);
+    const d0 = sameAnswers(a.results, b.results);
+    const planted2 = JSON.parse(JSON.stringify(b.results));
+    if (planted2.det) planted2.det.heroes[0].levelXpPerH += 1;
+    check('a real cell (' + pick.key + ', 0.05 h) played twice is byte-identical, and a planted one-XP change is seen', !a.errors.length && !!a.results.det && d0.length === 0 && sameAnswers(a.results, planted2).length === 1, JSON.stringify(a.errors).slice(0, 200) + d0.join());
+  }
+  /* 7. the join refuses shards of two scenarios or two trees */
+  {
+    const sd = (i, hash, game) => ({ schema: SHARD_SCHEMA, shard: [i, 2], scenarioHash: hash, game, change: { names: [] }, runtime: { jobs: 1, workerS: 1, wallS: 1 }, cells: [] });
+    const refused = (docs) => { try { joinShardDocs(docs); return false; } catch { return true; } };
+    check('the join: two shards of one scenario on one tree join; another scenario, another tree, a shard twice or a missing shard are refused',
+      !refused([sd(0, 'h', 'g'), sd(1, 'h', 'g')]) && refused([sd(0, 'h', 'g'), sd(1, 'h2', 'g')]) && refused([sd(0, 'h', 'g'), sd(1, 'h', 'g2')]) && refused([sd(0, 'h', 'g'), sd(0, 'h', 'g')]) && refused([sd(0, 'h', 'g')]));
+  }
+  /* 8. the noise table reads a planted doc */
+  {
+    const nt = noiseTable(A);
+    const lx = nt.find((n) => n.id === 'levelXpPerH');
+    const [, , sd] = moments([1000, 1001, 999, 1000]);
+    check('the noise table: a cell\'s relative error is its sd over sqrt(n) over the mean (' + lx.medianRelSe + ')', Math.abs(lx.medianRelSe - sd / 2 / 1000) < 1e-6);
+  }
+  /* 9. the overlay: the commit's game, this checkout's harness, the record (skipped where git cannot export, said out loud) */
+  {
+    let ok = false, why = '';
+    const dir = mkdtempSync(join(tmpdir(), 'hr-baseline-selftest-'));
+    try {
+      const into = join(dir, 'tree');
+      const rec = materialize({ game: 'HEAD', into, label: 'selftest', harnessRoot: ROOT });
+      const gameFile = 'src/core/combat.js', harnessFile = 'tools/balance-program/baseline/outcomes.mjs';
+      const fromCommit = execFileSync('git', ['show', 'HEAD:' + gameFile], { cwd: ROOT, encoding: 'utf8', maxBuffer: 1 << 26 }).replace(/\r\n/g, '\n');
+      ok = readFileSync(join(into, gameFile), 'utf8').replace(/\r\n/g, '\n') === fromCommit && readFileSync(join(into, harnessFile), 'utf8') === readFileSync(join(ROOT, harnessFile), 'utf8')
+        && existsSync(join(into, TREE_FILE)) && rec.game.sha.length === 40 && HARNESS.every((p) => p in rec.replaced);
+      if (!ok) why = 'the folder does not hold the commit\'s game and this harness';
+    } catch (e) { why = 'git archive or tar failed here: ' + String(e.message).split('\n')[0]; }
+    finally { rmSync(dir, { recursive: true, force: true }); }
+    check('the overlay: the folder holds the commit\'s ' + 'src/core/combat.js and this checkout\'s harness, and records both', ok, why);
+  }
+  console.log('baseline selftest: ' + (fails.length ? fails.length + ' FAILED' : 'green') + ' in ' + Math.round((Date.now() - t0) / 1000) + ' s');
+  return fails.length ? 1 : 0;
+}
+
+if (isMain(import.meta.url)) main().then((c) => process.exit(c), (e) => { console.error(e); process.exit(2); });

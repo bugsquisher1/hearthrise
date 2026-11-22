@@ -434,6 +434,19 @@ Rounded once, at the end. A blow, a spell, a tick, a heal, a shield and a monste
 
 Beside them sit content tables the designer owns and the optimizer never moves: six role rows, slot weights, move and Trait rows, price rows in hours, rarity hours.
 
+**The step ledger.** `02-architecture.md` asks the math lane to reserve slices of the power step before any target is written. Because every source of power is counted in steps, the ledger is one table that must add up.
+
+| Where a hero's steps come from | Kind | Lever |
+|---|---|---|
+| Level, skill and gear | Always on. The rating | The weights. They sum to one |
+| Talent points spent on moves (package 1b) | Always on once spent. A share of each Level's step arrives through the point, so a spent point puts a hero on the curve and not above it | `pointShare`, taken out of the Level's weight. The designer's starting guess is a third |
+| Traits, one on a Rare piece and two on a Very Rare | Conditional | A slice of `conditionalStepsMax` |
+| Move ranks and branches, imbuements, food | Conditional | A slice each |
+| Clan buffs | Conditional | A reserved slice |
+| Event and arena rewards | Conditional | A reserved slice |
+
+The slices are levers and their sum is the ceiling. The ceiling times `payStep` is the most any company can be ahead of a plain one at the same Level, and the slices a player can buy with gold give the size of the paid edge the same way. A new source of power takes its steps from a slice or is refused. The flame of package 2c moves how often a Rare drops and its rank. It is luck and not steps, so it sits in section 10 under `kitSpreadMax`.
+
 **How they become a lever set the optimizer can move.** The registry of `lane/bl-levers` (`tools/balance-program/levers.mjs`) already holds each lever's site, range, class and how the simulator perturbs it. Three additions:
 
 1. Each new coefficient lives in one data module with a named binding, so the registry's check claims it and a second copy is a red.
@@ -489,6 +502,8 @@ The order of work is fixed. First check whether the style trails everywhere or o
 ## 14. Validation and calibration
 
 **One engine.** Every reading comes from `src/core/combat-sim.js` through the settle, the way `tools/balance-sim/cell.mjs` plays it today. Three things sit beside it and none is a second engine: a search method that only chooses lever values, a statistical surface that only proposes where to look next, and the account and market model of section 11 that turns engine rates into stocks. No number is reported or shipped from a surface. It proposes, and the engine decides.
+
+The tool that runs this method is designed in `07-balance-lab.md`, which waits on this page for its formula families. Sections 2 to 11 and 15 name them. This section is the method, and that page is the machine.
 
 **What exists and what is missing.** The measuring program gives a pinned baseline with scenarios and per-seed outcomes (`lane/bl-baseline`), the lever registry (`lane/bl-levers`), a sensitivity lane, and 100 candidate targets (`targets.json`). That baseline describes the starting build. It is evidence and a regression harness. The new model gets its own pinned baseline the day its engine batch lands.
 
@@ -563,7 +578,7 @@ The owner's direction of 2026-11-21: build the best combination of formulas from
 | Sets and rune combinations | Diablo-style sets and recipes | A long chase made of many small finds | Sets push every hero to the same kit | Candidate only. Play a small set as "two Traits that are stronger together" under `conditionalStepsMax`. If it wins the dominance check it ships. If it flattens kits it does not |
 | Magic find | Diablo-style find chance as a stat | A reason to trade power for luck, which is a real decision | Becomes a must-have if it scales the best drops | **Find as steps given up.** A find Trait spends the same budget as a combat Trait. Join it with pity so luck narrows, and with Tibia's homes so find only helps on the ground you chose |
 | Imbuements and spell upgrades | The OpenTibia servers' timed imbuements and upgraded spells | A consumable layer of power made from monster parts, which ties hunting to crafting | Flat percent sizes | Keep the mechanic and size it in steps against one damage type for a set number of hunted hours |
-| The build layer | The ARPG passive tree, and Diablo-style skill trees | Long-term choices with a cost to undo. Thousands of hours of planning | `02-architecture.md` drops Talent trees because stat nodes measured as too small to feel | **A tree of rules, not of percents.** If a tree returns, its nodes are rule rows with step budgets under the same ceiling, and the travel between them is the cost. Candidate for the designer. It competes with "the bar is the build" and should be played against it, not added to it |
+| The build layer | The ARPG passive tree, and Diablo-style skill trees | Long-term choices with a cost to undo. Thousands of hours of planning | Stat nodes measured as too small to feel, and a tree on its own screen is a second place for a build to live (`02-architecture.md` section 1b rejects it) | **Their commitment, on our moves.** Package 1b keeps Talents as ranks and branches on the moves a hero slots, a point every Level. The idea worth taking from the trees is that a choice closes others. A branch is a rule row with a step budget from the ledger of section 12. The Lab plays five allocations a way, as 1b says, and the tree shape stays a rejected candidate unless that reads flat |
 | Offline play | The idle games' capped-tick catch-up | Cheap server time for long absences | Larger steps change outcomes, which breaks "the same viewed or closed" | Not for combat. Our settle already walks the same swings at any cut. Keep the idea for town work only, which is closed form today |
 | The market | The agent market with price beliefs | A way to test whether a price settles before players arrive | A model of people, not of the game | Use it as the range finder of section 11, on engine rates |
 
@@ -582,6 +597,6 @@ The owner's direction of 2026-11-21: build the best combination of formulas from
 **Not checked.**
 - I ran no part of the new model. The engine does not have it. The probes of section 9 test two of its claims on today's engine and nothing more.
 - I did not read the survey's sources. Its formulas are quoted from the survey, and its licence notes are its own.
-- I read `02-architecture.md` once. Where this page and that one differ, the difference is named in sections 2 and 7.
+- I read `02-architecture.md` once in full, and its later additions (move evolutions, two Traits on a Very Rare, the flame, the reserved slices) only as a diff at a80833f64. Where this page and that one differ, the difference is named in sections 2 and 7. I did not read `06-comparison.md` or `07-balance-lab.md`, which landed as this page was finished.
 - The lever counts are my grouping. The registry of `lane/bl-levers` will count them properly once the levers have homes.
 - The engine sizes are opinion. Nobody has scoped the batches.

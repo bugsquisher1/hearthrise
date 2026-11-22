@@ -31,12 +31,16 @@
 //   SWITCH          hourly = false: the cron's fold answers off and moves nothing
 // ════════════════════════════════════════════════════════════════════════
 import { HARNESS } from './hunt-sessions-settle.mjs';
-import { bootReplay, LAST_PATCHED } from './schema-replay.mjs';
+import { bootReplay } from './schema-replay.mjs';
 import { FIXTURES, measure } from './per-player-cost.mjs';
 import { isMain } from './_is-main.mjs';
 
 const { loadEdge, pinDice, one, q, makeExec, groundsOf } = HARNESS;
 const MIG = '1047-hourly-journal.sql';
+/* A mutant's replay ends at the newest file its arms STAND ON (tests/schema-replay.mjs REPLAY SCOPE), not at MIG: the arms play the
+   shipped edge, whose settle sends the hunt report's analyzer, which the database refuses `bad_analyzer` before 1053-hunt-report.sql
+   (and the flush's horizon, 1052-settle-flush.sql, before it). Ending at MIG, no fixture settled and two mutants escaped. */
+const STANDS_ON = '1053-hunt-report.sql';
 const PLAY = Object.freeze(['lone_L10_meadowbrook_thicket', 'supply4_L50_hasks_ford_deadly', 'krell4_L80_deadly_watched', 'town_hour_bench']);
 const SPREAD_S = 15;
 
@@ -217,7 +221,7 @@ async function cronArms(db) {
 }
 
 async function runAll(patches) {
-  const { db } = await bootReplay(patches ? { patches, upTo: LAST_PATCHED } : {});
+  const { db } = await bootReplay(patches ? { patches, upTo: STANDS_ON } : {});
   await pinDice(db);
   const M = await loadEdge(HARNESS.ROOT);
   const red = []; const lines = [];

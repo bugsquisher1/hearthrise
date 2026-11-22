@@ -50,6 +50,7 @@ import { dummyBlow, dummyStands, trainingBasic } from './training.js';
 import { reaches } from './shooters.js';
 import { elementOnHeroOf } from '../../data/elements.js';
 import { applyStatus, statusRow } from './status.js';
+import { noteHurt } from './danger.js';
 
 /* A store shot's share of its partner's ammo bonus, permille. */
 const BASIC_SHOT_PM = Math.round(BASIC_EFFECT_SHARE * 1000);
@@ -171,6 +172,8 @@ export function landHit(inst, sc, source, target, amount, element, ability, crit
   /* A status tick whose source has left the world lands with no dealer (u null). */
   const u = source ? source.id : null;
   if (target.side === 'mon') inst.world.fightAt = sc.atMs;
+  /* THE DANGER SCALE'S MARGIN (danger.js): the lowest HP a hero reached in this pull, read where HP falls (a hunt off the scale reads nothing) */
+  else if (r.dmg > 0) noteHurt(inst, target);
   /* AN ELEMENT'S FIXED RULE ON A HERO (data/elements.js ELEMENT_ON_HERO, itemization plan Appendix B1), when the blow took HP: a storm
      blow also burns half the HP it took from the hero's mana (`burn` on the dmg event, never past what it holds), a necrotic one
      Withers the hero (statuses.js: every heal it takes is cut for 6 s; status.js applyStatus emits it). Nothing else has a rule, so

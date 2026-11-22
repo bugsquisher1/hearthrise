@@ -41,6 +41,7 @@ import { holderTank, turnTanks, pickInForce } from './targeting.js';
 import { aimOf } from './shooters.js';
 import { towerOf, towerPull, towerCleared } from './tower.js';
 import { healTaken } from './heal-cut.js';
+import { dangerOn, pullBegins, pullEnds, readyToPull, respawnMsOf } from './danger.js';
 
 /* deadMs: a corpse's age. hpMilli: out-of-combat regen carried below one HP.
    phase / routeIdx / phaseMs / regroupNext / runs / nextId: the cycle. alive / respawnAtMs: a pack. */
@@ -158,6 +159,8 @@ export function fallen(inst, u, sc) {
   if (u.side === 'mon') { u.deadMs = 0; return; }
   u.spot = null;
   if (inst.world.leader !== u.id) return;
+  /* THE DANGER SCALE (danger.js): the leader's death ends the pull here, so the step falls before the packs go home */
+  if (cycling(inst) && inst.world.phase === PHASE.FIGHT) pullEnds(inst, sc);
   for (let p = 0; p < inst.world.packs.length; p++) if (inst.world.packs[p].aggro) resetPack(inst, p, sc);
   sc.emit(makeEvent('wipe', sc.atMs, {}));
   if (!cycling(inst)) return;
@@ -190,11 +193,37 @@ export function respawnPacks(inst, sc) {
     /* Not the route's next pull: it waits for a hero on or beside its tiles, else it can ring him with nothing to pull it (a no-fight
        stall). The route's own pocket never waits: a ring on its leader is pulled where it stands (travel's walled rule). */
     if (pocketNow(inst) !== p && heroAtPack(inst, p)) continue;
+    /* ON THE DANGER SCALE a pack is down only a moment (danger.js respawnMsOf), so it also waits while the party rests on its own pocket:
+       the route moves on when the regroup ends, and nobody is pulling it until then */
+    if (w.phase === PHASE.REGROUP && dangerOn(w) && heroAtPack(inst, p)) continue;
     spawnPack(inst, p, sc);
   }
 }
 
+/* THE PULL ON THE DANGER SCALE (danger.js): the pack is made at the step in force as the pull starts, whenever it stood up. One
+   re-formed at another step's size stands again at this one's (the same rows and spots, deterministic); every monster's health
+   moves to this step's dial, its share of a full bar kept. Off the scale nothing here runs. */
+function fitPull(inst, sc, p) {
+  const w = inst.world;
+  if (!dangerOn(w)) return;
+  let mons = packMonsters(inst, p);
+  const size = pullRows(inst.ground, p, inst.world.density).length;
+  if (mons.length !== size) {
+    const gone = new Set(mons.map((m) => m.id));
+    w.units = w.units.filter((u) => !gone.has(u.id));
+    staleIndex(inst);
+    spawnPack(inst, p, sc);
+    mons = packMonsters(inst, p);
+  }
+  for (const m of mons) {
+    const max = Math.max(1, atTier((inst.monsters || MONSTERS)[m.kind], inst.tier).hp || 1);
+    if (max !== m.maxHp) { m.hp = Math.max(1, Math.round((max * m.hp) / Math.max(1, m.maxHp))); m.maxHp = max; }
+  }
+  pullBegins(w);
+}
+
 function startPull(inst, sc, k, p) {
+  fitPull(inst, sc, p);
   const pack = inst.world.packs[p];
   pack.aggro = true;
   pack.holder = k.id;
@@ -352,9 +381,13 @@ export function runPhase(inst, sc) {
       w.packs[p].alive = false;
       w.packs[p].aggro = false;
       w.packs[p].holder = null;
-      w.packs[p].respawnAtMs = sc.atMs + inst.ground.respawnMs;
+      /* THE DANGER SCALE (danger.js): the pull's end moves the step, and the pack is down only a moment (the pace is the party's) */
+      pullEnds(inst, sc);
+      w.packs[p].respawnAtMs = sc.atMs + respawnMsOf(inst);
       w.phase = PHASE.REGROUP; w.phaseMs = HUNT_TUNING.regroupMs; w.regroupNext = true;
     } else if (!w.packs[p].aggro) {
+      /* (a pull the leash took home ends too: its margin is read like any pull's) */
+      pullEnds(inst, sc);
       w.phase = PHASE.TRAVEL;
     }
     return;
@@ -362,7 +395,8 @@ export function runPhase(inst, sc) {
   if (w.phase === PHASE.REGROUP) {
     w.phaseMs = Math.max(0, w.phaseMs - sc.dtMs);
     const together = heroes(inst).every((h) => h.alive && cheb(h, k) <= HUNT_TUNING.regroupRadius);
-    if (w.phaseMs === 0 && together) {
+    /* PULLS ON READINESS (danger.js readyToPull): on the Danger scale the next pull waits for the party's HP; off it, always ready */
+    if (w.phaseMs === 0 && together && readyToPull(inst, heroes(inst))) {
       if (w.regroupNext) nextPocket(inst, k); else w.phase = PHASE.TRAVEL;
     }
   }

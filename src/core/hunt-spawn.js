@@ -57,6 +57,9 @@ export function heroSetup(o) {
     density: Number.isInteger(opt.density) ? opt.density : 0,
     /* THE TIER (hunt-tiers.js): the one the server froze on the instance, overlaid on every member's options; an unknown id plays Normal (tierRowOf). */
     tier: typeof opt.tier === 'string' ? opt.tier : null,
+    /* THE DANGER SCALE'S PLAN (src/core/hunt/danger.js riskOf, lane/v1-climb): a risk stance and the step the hunt starts at; a stance the
+       engine does not know plays the tier. Only the party leader's counts, as for the tier. Absent on a hero whose plan names none. */
+    ...(typeof opt.risk === 'string' && opt.risk ? { risk: opt.risk, danger: Number.isInteger(opt.danger) && opt.danger >= 0 ? opt.danger : 0 } : {}),
     lead: o.lead === true,
     /* WHO HOLDS THE PACK (Tyler 2026-10-22): the seat whose tank holds every lap, the leader's pick (only a
        leading hero carries it; combat-sim.js holdPick); null = the tanks take turns. */

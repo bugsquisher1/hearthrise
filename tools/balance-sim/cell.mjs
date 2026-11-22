@@ -303,6 +303,9 @@ export async function loadCellRunner(root) {
           const hp = [];
           for (const e of out.events || []) {
             if (e.type === 'pull') { P.pulls++; hp.push([e.atMs, null, 0]); continue; }
+            /* THE DANGER SCALE (src/core/hunt/danger.js, a cell whose options name a `risk`): each pull's end, as the engine read it:
+               [seed, ms from the start, the step it was made at, the step after, its lowest HP permille, why] */
+            if (e.type === 'danger') { (P.danger || (P.danger = [])).push([seed, e.atMs - T0, e.step, e.to, e.low, e.why]); continue; }
             /* a run's floor cleared (tower.js towerCleared): the stair, kept in time order with the HP moves so a pull after it opens the next floor */
             if (e.type === 'floor' && run) { hp.push([e.atMs, 'floor', e.floor]); P.tower.cleared.push([e.floor, e.atMs - T0]); P.tower.top = Math.max(P.tower.top ?? 0, e.floor); continue; }
             const tk = unitKey[e.t], uk = unitKey[e.u];
@@ -578,6 +581,8 @@ export async function loadCellRunner(root) {
         createdPerH: round(heroes.reduce((s, h) => s + h.incomePerH + h.raresPerH, 0), 0),
         destroyedPerH: round(heroes.reduce((s, h) => s + h.storePerH, 0), 0),
         ...(P.tower ? { tower: P.tower } : {}),
+        /* the Danger scale's pull log (absent off the scale) */
+        ...(P.danger ? { danger: P.danger } : {}),
         /* time to kill by monster kind: [ms summed, kills timed] (seeds merge by adding) */
         ttkBy: P.ttkBy },
       heroes,

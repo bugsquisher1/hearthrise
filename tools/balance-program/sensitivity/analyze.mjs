@@ -317,6 +317,27 @@ export async function structure(P, root = ROOT) {
   return rows;
 }
 
+/** THE NOISE OF THE BASE, by outcome: over the cells, the seeds' spread as a share of the cell's mean (rate outcomes) or as it stands
+    (share outcomes): the median cell and the worst cell. What a single cell can and cannot see before any lever moves. */
+export function noiseTable(P) {
+  const rows = [];
+  for (const [id] of OUTCOMES) {
+    if (kindOf(id) === 'deaths') continue;
+    const col = P.ids.indexOf(id), rel = kindOf(id) === 'rel', xs = [];
+    for (const c of P.meta) {
+      const v = (P.base[c.key] || []).map((r) => r[col]).filter(finite);
+      if (v.length < 2) continue;
+      const m = mean(v), sd = sdOf(v);
+      if (rel && !(Math.abs(m) > 1e-9)) continue;
+      xs.push({ key: c.key, x: rel ? sd / Math.abs(m) : sd });
+    }
+    if (!xs.length) continue;
+    xs.sort((a, b) => a.x - b.x);
+    rows.push({ id, kind: rel ? 'rel' : 'abs', cells: xs.length, median: sig(xs[Math.floor(xs.length / 2)].x, 3), p90: sig(xs[Math.floor(xs.length * 0.9)].x, 3), worst: sig(xs[xs.length - 1].x, 3), worstCell: xs[xs.length - 1].key });
+  }
+  return rows;
+}
+
 /* ── THE NAMED FINDINGS (Phase 4's six lists), read off the matrix by fixed rules so a re-run names the same things ───────────── */
 const KEY_OUTS = Object.freeze(['dps', 'killsPerH', 'takenPerH', 'levelXpPerH', 'netLevelXpPerH', 'incomePerH', 'storePerH', 'netPerH']);
 export const FINDING_RULES = Object.freeze({
@@ -507,6 +528,12 @@ async function main() {
   }
   const P = loadParts(src);
   const M = { ...buildMatrix(P), structure: await structure(P) };
+  M.noise = noiseTable(P);
+  if (has('noise')) {
+    console.log('THE NOISE OF THE BASE (seed to seed, ' + P.seedSets.join(' ') + ' seeds): rate outcomes as a share of the mean, share outcomes as they stand');
+    for (const r of M.noise) console.log('  ' + r.id.padEnd(22) + r.kind.padEnd(5) + ' median ' + String(r.median).padStart(9) + '  nine in ten under ' + String(r.p90).padStart(9) + '  worst ' + String(r.worst).padStart(9) + '  ' + r.worstCell);
+    return 0;
+  }
   M.findings = findings(M);
   M.findingRules = FINDING_RULES;
   const prev = existsSync(MATRIX_FILE) ? JSON.parse(readFileSync(MATRIX_FILE, 'utf8')) : {};

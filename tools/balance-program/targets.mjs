@@ -10,6 +10,10 @@
 // A READER is one of: a standing band id of standards.mjs BANDS (never a dropped or retired one), an OTHER_STANDARDS id (X2..X28,
 // never a retired one), table:NAME (a named non-function export of standards.mjs), guard:ID (a line of guard-cells.mjs LINES),
 // or MISSING alone (a coverage gap, which must name its gap). Nothing here judges a cell: this file checks the spec, the matrix reads it.
+// mutant-anchors: none — --selftest plants faults on in-memory targets; no tracked file is patched
+// ci-step: economy-selftests | Balance targets - a reader that does not exist, a malformed target and a planted fault are each caught
+// ci-run: node tools/mutant-gate.mjs node tools/balance-program/targets.mjs --selftest
+// ci-run: node tools/balance-program/targets.mjs --check
 //
 // PURE ESM. Reads targets.json, imports standards.mjs and guard-cells.mjs. Writes nothing.
 // ════════════════════════════════════════════════════════════════════════

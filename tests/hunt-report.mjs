@@ -8,7 +8,7 @@
 //   node tests/hunt-report.mjs --mutate   every planted defect must turn its arm red
 //
 // mutant-anchors: src/hunt-view/hunt-report.js src/shell/hunt-report.js src/session/report-sections.js src/session/hunt-summaries.js
-// ci-step: client-guards | The hunt report: the server's counters, the same card viewed and closed, plain words, bounded in the residue
+// ci-step: client-guards | The hunt report reads the server's counters, the same card viewed and closed, plain words, bounded in the residue
 // ci-run: node tests/hunt-report.mjs
 // ci-run: node tools/mutant-gate.mjs node tests/hunt-report.mjs --mutate
 //

@@ -7,7 +7,7 @@
 //   node tests/needs-you.mjs --mutate   every planted defect must turn its arm red
 //
 // mutant-anchors: src/shell/needs-you.js src/shell/needs-you/gear-choice.js src/shell/needs-you/death.js src/shell/needs-you/near-death.js src/data/hunt-after.js
-// ci-step: client-guards | Needs you on the return card: three at most, ranked, one row a kind, providers by kind
+// ci-step: client-guards | Needs you on the return card - three at most, ranked, one row a kind, providers by kind
 // ci-run: node tests/needs-you.mjs
 // ci-run: node tools/mutant-gate.mjs node tests/needs-you.mjs --mutate
 //

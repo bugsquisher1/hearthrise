@@ -1729,6 +1729,11 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tools/mutant-gate.mjs node tools/balance-program/balance-matrix.mjs --selftest
+      # tools/balance-program/baseline.mjs
+      - name: The balance baseline reads every outcome, its noise rule and target verdicts bite, its scenarios hold open grounds only, and a replay is byte-identical
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tools/balance-program/baseline.mjs --selftest
       # tools/balance-program/calibrate.mjs
       - name: Calibration C-1 reads real heroes' kits and skills by band, the pass rule bites, and nothing names a player
         if: ${{ !cancelled() }}
@@ -6758,7 +6763,7 @@ jobs:
           node tests/client-boot-pure.mjs
           node tools/mutant-gate.mjs node tests/client-boot-pure.mjs --mutate
       # tests/hunt-report.mjs
-      - name: The hunt report: the server's counters, the same card viewed and closed, plain words, bounded in the residue
+      - name: The hunt report reads the server's counters, the same card viewed and closed, plain words, bounded in the residue
         if: ${{ !cancelled() }}
         run: |
           node tests/hunt-report.mjs
@@ -6770,7 +6775,7 @@ jobs:
           node tests/hunt-screen-pure.mjs
           node tools/mutant-gate.mjs node tests/hunt-screen-pure.mjs --mutate
       # tests/needs-you.mjs
-      - name: Needs you on the return card: three at most, ranked, one row a kind, providers by kind
+      - name: Needs you on the return card - three at most, ranked, one row a kind, providers by kind
         if: ${{ !cancelled() }}
         run: |
           node tests/needs-you.mjs

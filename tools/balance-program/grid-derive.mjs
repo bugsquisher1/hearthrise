@@ -16,6 +16,7 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import * as STD from './standards.mjs';
 import { projectedFloor } from './grid-project.mjs';
+import { deathXpAt, blessedShareOf } from './progression-grid.mjs';
 
 /* THE DAY: the hunted hours a free hero hunts in 24 h of server time as the stamina day PLAYED it (stamina-day.mjs, the grid's `clock`), the
    ruled 12 when the cache carries no played day */
@@ -131,8 +132,9 @@ export function derive(D, grid, K = null) {
   const DOORS = [[45, 'the Barrow March'], [88, 'Krell\'s Hold'], [110, 'end of open content'], [175, 'the Catacombs'], [185, 'end of staged content'], [240, 'Region 5'], [295, 'Region 6'], [350, 'Region 7'], [400, 'Level 400']];
   const H12 = hoursADayOf(grid);
   const dayAt = (seat, L) => (SEATS[seat] ? SEATS[seat].cum[L] / H12 : null);
-  /* DEATH COST (standards.mjs DEATH_COST: 6% of all Level XP, flat, no cap) and XP an hour after deaths at the RULED counts (DEATH_COST.watch) */
-  const deathXp = (L) => STD.DEATH_COST.share * xpAt(L);
+  /* DEATH COST, priced by the TREE (progression-grid.mjs deathXpAt: src/core/action-rules.js levelDeathLoss; the Blessings' share from
+     src/data/blessings.js), never standards.mjs DEATH_COST typed again, and XP an hour after deaths at the RULED counts (DEATH_COST.watch) */
+  const deathXp = (L) => deathXpAt(D, L), blessed3 = blessedShareOf(D);
   const watch = [];
   for (const L of levels) for (const party of [1, 4]) for (const gear of STD.GEAR_STATE_IDS) {
     const n = get(L, gear, party, 'normal');
@@ -146,7 +148,7 @@ export function derive(D, grid, K = null) {
       const cost = (count, share) => (count / 1000) * deathXp(L) * share;
       row[tier] = { gross: c.rates.levelXpPerH, afterMeasured: deathOf(c).net, deathsPer1000h: deathOf(c).per1000h, seatHours: deathOf(c).seatHours,
         ruledCount: ruled, afterRuledUnblessed: finite(ruled) ? Math.round(c.rates.levelXpPerH - cost(ruled, 1)) : null,
-        afterRuledBlessed: finite(ruled) ? Math.round(c.rates.levelXpPerH - cost(ruled, STD.DEATH_COST.blessedShare)) : null,
+        afterRuledBlessed: finite(ruled) ? Math.round(c.rates.levelXpPerH - cost(ruled, blessed3)) : null,
         /* 12-balance-pass.md section 5 row 7: the Blessing ladder (S-5) at the MEASURED death count, and the same unblessed */
         afterMeasuredLadder: finite(deathOf(c).per1000h) ? Math.round(c.rates.levelXpPerH - cost(deathOf(c).per1000h, STD.blessedShareAt(L))) : null,
         afterMeasuredUnblessed: finite(deathOf(c).per1000h) ? Math.round(c.rates.levelXpPerH - cost(deathOf(c).per1000h, 1)) : null };
@@ -312,7 +314,7 @@ export function judgeGrid(D, grid, o = {}) {
       for (const L of levels.filter((x) => x >= w.levels[0])) {
         const c = get(L, 'mid', 1, 'normal');
         if (!c) continue;
-        const price = [1, 2, 3].reduce((s, t) => s + (D.BL.blessingPrice(t, L) || 0), 0), saved = (T.deathXp(L) * (1 - STD.DEATH_COST.blessedShare)) / c.rates.levelXpPerH;
+        const price = [1, 2, 3].reduce((s, t) => s + (D.BL.blessingPrice(t, L) || 0), 0), saved = (T.deathXp(L) * (1 - blessedShareOf(D))) / c.rates.levelXpPerH;
         add(band, 'Level ' + L, c.rates.netPerH > 0 ? price / c.rates.netPerH / saved : null, { shown: Math.round(price) + ' gold, saves ' + saved.toFixed(1) + ' h' });
       }
       continue;

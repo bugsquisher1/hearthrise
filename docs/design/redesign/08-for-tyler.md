@@ -78,3 +78,5 @@ Page picks win over chat where they differ.
 3. The number lanes stay paused. Lanes that hold under any design keep going (`05-roadmap.md` section 3).
 4. The day V1 reads, targets are written as experiences you can read, and the build waves start.
 5. The rest is tuned together on the one engine in the Balance Lab (`07-balance-lab.md`). You see the results and a build plan with dates.
+
+**Business model (ruled 2026-11-22).** Early Access is a one-time price of $15 with 30 days of Premium in the box. Premium and Crowns are in `10-premium.md`.

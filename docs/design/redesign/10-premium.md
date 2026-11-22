@@ -10,6 +10,7 @@
 - **Revenue is what Crowns are spent on.** Every Crown a payer sells ends in a sink a gold-rich player chose. So Crowns need sinks a rich player wants every week: Premium time, looks and mounts, and tools that never break.
 - **Premium is the cheapest hours in the game.** Its hours would cost 20 hours of wage an account-day in bought blocks. That gives a Crown its gold value.
 - **Pay-to-win, straight.** Nothing is sold per hour. Per day, money turned into gold buys up to 60% more hunting. Ranked boards read inside Level bands, so that buys pace and never a rank.
+- **The business model (ruled 2026-11-22).** A one-time Early Access price of $15 with 30 days of Premium in the box.
 - **Money, roughly.** Free to play, middle case, after Valve and servers: about $1,100 a month at 1,000 accounts and $11,000 at 10,000. A one-time price earns about three times that per active account, on fewer accounts.
 
 ## 1. What sells in games like this
@@ -137,7 +138,7 @@ These are the overhaul's clamps (`docs/design/overhaul/04-economy-and-crowns.md`
 | Bots | Every hero runs unattended, so behavior cannot tell a bot from a player. Free accounts farm gold for Crowns, and outside gold sellers undercut the book | Each banned bot costs a box, the main defense in a game like this |
 | Steam reviews | A free game with a Crowns-for-gold book draws "pay to win" more often (EVIDENCE, one launch in study 49) | A price beside a subscription and a shop draws "paying three times" (UNVERIFIED) |
 
-**My lean, and it is the owner's call:** a one-time price for Early Access near $15, with 30 days of Premium and a founder look in the box, then a fresh look at free to play for full release on Early Access data. The bot argument decides it for me. Either way, at 1,000 accounts the game pays its servers and little more. The biggest lever is how many accounts stay, then the Premium share. The price inside $8 to $12 moves revenue a fifth either way. Every share is a guess until test Crowns run in a playtest. The first real numbers are the Premium share in week four and the Crown's gold price.
+**Ruled (the owner, 2026-11-22): "Yes 15 with a month of premium".** Early Access is a one-time price of $15 with 30 days of Premium in the box (a founder look is the designer's suggestion beside it). Free to play gets a fresh look for full release on Early Access data. The bot argument decides it for me. Either way, at 1,000 accounts the game pays its servers and little more. The biggest lever is how many accounts stay, then the Premium share. The price inside $8 to $12 moves revenue a fifth either way. Every share is a guess until test Crowns run in a playtest. The first real numbers are the Premium share in week four and the Crown's gold price.
 
 ## 6. Top three recommendations
 

@@ -1,5 +1,5 @@
 // ════════════════════════════════════════════════════════════════════════
-// src/data/gear-steps.js — PLAIN GEAR COUNTED IN STEPS, AND THE FIRST FIVE TRAITS (designer, lane/g-gear-steps, 2026-11-22).
+// src/data/gear-steps.js — PLAIN GEAR COUNTED IN STEPS, AND THE TRAIT BUDGET (designer, lane/g-gear-steps and lane/traits-20, 2026-11-22).
 //
 // docs/design/redesign/04-math-strategy.md sections 1 and 10, 02-architecture.md package 2, 12-targets.md sections 3.3, 7 and 8.
 // Tyler 2026-11-22: "we aren't using the old tier item levels". On a ground the Danger scale opens on (src/data/danger.js
@@ -21,7 +21,7 @@
 //                       held step by about 20 (11-build-audit R9)
 //   wearAhead 10        JUDGMENT: half a tier. Muster Barrows opens at Level 55 and drops item Level 60, worn from 50
 //   slotPm              JUDGMENT: the weapon a fifth, the body the largest armor share, jewelry small. Sums to 1000
-//   traitSteps 4/7/10   04 section 10: rank 1 to rank 3 spans 6 steps, under a third of a tier, so which Trait matters more than how
+//   traitSteps 4/7/10   (shown as 1.5 / 2.5 / 3.5%, traits.js TRAIT_SHOWN) 04 section 10: rank 1 to rank 3 spans 6 steps, under a third of a tier, so which Trait matters more than how
 //                       high. A Trait's steps are steps of the hero's GEAR PART (the unit of a whole kit's item Level) and are NOT
 //                       weighted by slot, so a rank is worth the same on a ring as on a weapon (04 guard 1)
 //   conditionalStepsMax 20   every conditional step on one hero at once, at most one tier (04 guard 3, and the kit spread limit). So a
@@ -35,11 +35,10 @@
 // THE PIECE: one account-owned row (slot, base, tier, Traits and ranks, rarity, find line, escrow state) and its market rules, in
 // docs/design/redesign/12-targets.md section 8 and 13-market.md section 2.3. Temper stays with the hero's slot, never the piece.
 //
-// TRAITS ARE HIDDEN. Five sample rows (CLAUDE.md section 10: a sample of about 5 before any pool). Nothing rolls them, no drop table
-// names them, no fight reads them and no screen shows them: half-built features stay hidden. tests/gear-steps.mjs holds the rows'
-// shape and that only src/data/danger.js imports this file.
+// TRAITS ARE HIDDEN. The 40 rows are src/data/traits.js (lane/traits-20). Nothing rolls them, no drop table names them, no fight reads them
+// and no screen shows them: half-built features stay hidden. tests/gear-steps.mjs holds the rows' shape and who may import either file.
 //
-// PURE ESM. Data only. Imports nothing.
+// PURE ESM. Data only. Imports only src/data/traits.js (re-exported below).
 // ════════════════════════════════════════════════════════════════════════
 
 export const GEAR_STEPS = Object.freeze({
@@ -54,6 +53,21 @@ export const GEAR_STEPS = Object.freeze({
   twoHand: Object.freeze(['weapon', 'shield']),
   /* a Trait of rank 1, 2, 3 is worth this many steps on the cell that suits it best (04 guard 1: one budget a rank, every Trait) */
   traitSteps: Object.freeze([4, 7, 10]),
+  /* a TRADE Trait (traits.js trade, Hask's Bargain): its offense rises by tradeSteps while its defense falls by traitSteps of the same
+     rank, so its net (7-4, 13-7, 18-10) stays under one rank's budget, and its gain under conditionalStepsMax (GS-3) */
+  tradeSteps: Object.freeze([7, 13, 18]),
+  /* THE PERCENT A TRAIT CARD SHOWS (the Coordinator 2026-11-22: clean numbers). The steps above are the source: traitSteps at powerStep
+     0.35% are 1.41 / 2.48 / 3.55%, tradeSteps 2.48 / 4.65 / 6.49%. These round them, each within a quarter of a point (GS-3) */
+  shownPct: Object.freeze({ rank: Object.freeze([1.5, 2.5, 3.5]), tradeGain: Object.freeze([2.5, 4.5, 6.5]) }),
+  /* a Trait's slot (src/data/traits.js) and the equip slots it sits in: a ring Trait fits either ring */
+  traitSlots: Object.freeze({
+    weapon: Object.freeze(['weapon']), shield: Object.freeze(['shield']), body: Object.freeze(['body']), pants: Object.freeze(['pants']),
+    helmet: Object.freeze(['helmet']), boots: Object.freeze(['boots']), gloves: Object.freeze(['gloves']), belt: Object.freeze(['belt']),
+    cape: Object.freeze(['cape']), necklace: Object.freeze(['necklace']), ring: Object.freeze(['ring1', 'ring2']), earrings: Object.freeze(['earrings']),
+  }),
+  /* THE VERY RARE PAIR RULE (12-targets 8.1): the first Trait from the ground's pool for the slot, the second any other Trait of the
+     slot, never two of one key, never a pair listed here (ids sorted, joined by '+'). Empty until the dominance check (V7) plays the 40 */
+  veryRareBanned: Object.freeze([]),
   conditionalStepsMax: 20,
   traitAverageSharePm: 500,
   dominanceMaxPm: 400,
@@ -68,54 +82,6 @@ export const GEAR_STEPS = Object.freeze({
 /** The item Level of base tier `tier` (tier 0 is the starting kit). */
 export const tierLevel = (tier) => tier * GEAR_STEPS.tierSteps;
 
-/* THE TRAITS. A Trait is a RULE: while its `when` holds, the steps of its rank (GEAR_STEPS.traitSteps) raise one thing:
-     offense  what the hero's blows and spells land          defense  what reaches the hero is lighter
-     heal     what the hero's heals restore
-   `when` is written in the bar's own conditions (src/data/condition-metrics.js METRICS, OPERATORS), so a player who can read a slot
-   can read a Trait, and combat needs no new math (02 package 2). `slotOnly` metrics read the action that is landing.
-   `key`     no stacking: two Traits of one key on a hero count the larger (04 guard 3). Every sample key is its own
-   `scope`   'self' only in the sample. A party-wide Trait never stacks with another of its key across the party
-   `source`  where it rolls: a hunting ground's id. The two Catacomb wings are the grounds 12-targets section 7 makes of the Catacombs
-             in wave 2 (catacomb_bone_wing, catacomb_flooded_wing)
-   `best`    the cell where it is sized (04 guard 1): the seat (src/data/hunt-roles.js HUNT_ROLES) and the ground
-   `rule`    the player's words ({steps} is its rank's steps as the card will say it), `story` why the dead of that ground carry it */
-export const TRAITS = Object.freeze({
-  file_breaker: Object.freeze({
-    name: 'File Breaker', slot: 'weapon', raises: 'offense', key: 'crowd', scope: 'self', source: 'muster_barrows',
-    when: Object.freeze({ metric: 'enemies_in_aoe', op: 'gte', value: 3 }),
-    best: Object.freeze({ seat: 'mage', ground: 'muster_barrows' }),
-    rule: 'When an area attack would hit 3 or more monsters, it lands {steps} steps harder.',
-    story: 'The Banded Company\'s pikemen were buried the way they stood, in files. A weapon that came up out of those barrows learned to swing at a line.',
-  }),
-  captains_due: Object.freeze({
-    name: 'Captain\'s Due', slot: 'cape', raises: 'offense', key: 'boss', scope: 'self', source: 'muster_barrows',
-    when: Object.freeze({ metric: 'target_is_boss', op: 'eq', value: true }),
-    best: Object.freeze({ seat: 'melee_dps', ground: 'muster_barrows' }),
-    rule: 'When your target is a boss, your hits land {steps} steps harder.',
-    story: 'The officers Krell buried around Hask kept their cloaks. Every one of them is still waiting to settle up with the captain who sold them.',
-  }),
-  last_file: Object.freeze({
-    name: 'Last File', slot: 'shield', raises: 'defense', key: 'low_hp', scope: 'self', source: 'muster_barrows',
-    when: Object.freeze({ metric: 'self_hp_pct', op: 'lte', value: 40 }),
-    best: Object.freeze({ seat: 'tank', ground: 'muster_barrows' }),
-    rule: 'When your HP is at 40% or less, blows reach you {steps} steps lighter.',
-    story: 'Krell\'s men cut the company down where it stood. The last file stood longest, and their shields went into the barrows still dented from it.',
-  }),
-  keepers_carry: Object.freeze({
-    name: 'Keeper\'s Carry', slot: 'helmet', raises: 'heal', key: 'rescue', scope: 'self', source: 'catacomb_bone_wing',
-    when: Object.freeze({ metric: 'ally_hp_pct', subject: 'lowest', op: 'lte', value: 50 }),
-    best: Object.freeze({ seat: 'healer', ground: 'catacomb_bone_wing' }),
-    rule: 'When the hero you heal is at half HP or less, your heal restores {steps} steps more.',
-    story: 'The Keepers carried every pauper down the bone stairs on their backs. The ones who did it longest learned to lift a body that had nearly let go.',
-  }),
-  floodmark: Object.freeze({
-    name: 'Floodmark', slot: 'boots', raises: 'defense', key: 'casting', scope: 'self', source: 'catacomb_flooded_wing',
-    when: Object.freeze({ metric: 'enemy_casting', subject: 'self', op: 'gte', value: 1 }),
-    best: Object.freeze({ seat: 'ranger', ground: 'catacomb_flooded_wing' }),
-    rule: 'While a monster is casting at you, blows reach you {steps} steps lighter.',
-    story: 'The river comes into the Flooded Wing every spring and leaves a line on the vault walls. Whoever stood above the line lived.',
-  }),
-});
-
-/** The Traits that roll on `source` (a ground's pool, 02 package 2: "chasing a Trait means choosing a ground"). */
-export const traitPool = (source) => Object.freeze(Object.keys(TRAITS).filter((id) => TRAITS[id].source === source));
+/* THE TRAITS live in src/data/traits.js (lane/traits-20: the 40 Tyler picked). Re-exported here so a scale ground row reads its pool
+   from the gear table it already imports (danger.js DANGER_GROUNDS traits). */
+export { TRAITS, traitPool } from './traits.js';

@@ -11,9 +11,8 @@
 // WHAT A WIN EARNS AND WHAT THE ROOM RISKS, BEFORE THE PRESS (audit F24, 2026-11-15): the section lists what a win can drop, his table with
 // each row's odds as the quote hands them (`drops`; this file never reads monsters.js for it), and one line for each danger the server read
 // of the room (`danger`: a hero under his Level, no tank, no healer, a bar with no food). Food, a healer, a tank: never Challenge.
-// A LIVE EVENT (Open Halls, 2027-03-22-live-events.sql §4) moves only the server's quote: a fight that costs no gold reads the
-// no-gold labels, with the event's line before them (live-events-view.js callEventWords). It waives gold only: stamina stays.
-// The event coming on or going off on the server's clock reads the quote again (feeKey).
+// A fight that costs no gold reads the no-gold labels (Call out costs no gold since 2026-11-20, src/data/boss-calls.js; Open Halls, the
+// event that once waived the fee, is retired by the calendar's ruling D-7, 1043-hearthrise.sql).
 // NATURAL WINS BEFORE THE CALL (2027-05-05-entry-gates.sql, Tyler 2026-11-18): "Rat King wins: 2/10" and each seat still short, from the quote's
 // `wins`, or before a quote and after a reload from the envelope's `entry_gates` section; a gate the server says is shut holds the press off.
 // ════════════════════════════════════════════════════════════════════════
@@ -25,7 +24,6 @@ import { MONSTERS } from '../../data/monsters.js';
 import { callOut } from '../../session/boss-intents.js';
 import { readCall } from '../../session/boss-quote.js';
 import { callGateOf } from '../../session/gate-sections.js';
-import { callEventWords, feeKey } from '../live-events-view.js';
 import { partyNote } from '../hunt-list.js';
 
 const SCRATCH = new WeakMap();
@@ -145,8 +143,8 @@ export function patchCall(det, ctx, v) {
   if (!call) return;
   const cs = ctx.character;
   const sc = scratchOf(cs);
-  /* A fee event coming on or going off moves the price: the key changes with it, so the quote is read again at once. */
-  const key = call.id + ':' + (v.party ? v.party.id + ':' + v.party.seats.length : '') + ':' + feeKey(cs, call);
+  /* A seat taken or left moves the quote: the key changes with it, so the quote is read again at once. */
+  const key = call.id + ':' + (v.party ? v.party.id + ':' + v.party.seats.length : '');
   if (sc.key !== key) { sc.key = key; sc.quote = null; sc.at = 0; sc.warned = false; sc.fights = 1; }
   sc.call = call;
   const now = Date.now();
@@ -164,12 +162,10 @@ export function patchCall(det, ctx, v) {
   const open = !!q && q.available && !v.now && !v.pending && !(gate && !gate.ok);
   const one = fightOf(q);
   const free = !!q && q.price === 0;
-  /* The quote's event, when it set the price (null: today's words). Its line goes first; what a fight costs still follows it. */
-  const ev = v.now ? null : callEventWords(cs, call, q);
   const said = v.now ? BOSS_CALL_WORDS.hunting : !q ? BOSS_CALL_WORDS.noQuote
     : q.available ? callWords(free ? S.eachFree : S.each, call, one) : (cantWords(q, call) || BOSS_CALL_WORDS.noQuote);
   /* No quote yet: the press names him, off, until the server has said; off, it always says why, beside it. */
-  text(box.querySelector('.hw-call-line'), ev && ev.line ? ev.line + ' ' + said : said);
+  text(box.querySelector('.hw-call-line'), said);
   /* the natural wins still owed, one red line a hero, under the line that says why the press is off */
   rows(box.querySelector('.hw-call-wins'), v.now ? [] : winsLines(q, gate, call).map((line, i) => ({ k: i + ':' + line, line })), { key: (x) => x.k,
     build: () => element(box.ownerDocument, '<li class="hw-before-line is-short"></li>'), patch: (li, x) => text(li, x.line) });

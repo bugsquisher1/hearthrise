@@ -6,30 +6,34 @@
 // the topics allowed to hear it (supabase/migrations/2026-12-26-chat-broadcast.sql
 // hr_chat_broadcast / hr_whisper_broadcast), and realtime.messages RLS lets a
 // player join only the public chat topics and its own inbox:
-//   chat:global · chat:system · chat:local:<zone>   one join per public channel shown
+//   chat:global · chat:system                       one join per public channel shown
 //   chat:inbox:<uid>                                ONE join per account: the whispers
-//                                                   TO it (event 'whisper') and the party
-//                                                   lines of its party (event 'line')
+//                                                   TO it (event 'whisper'), the lines of
+//                                                   its party and of its clan (event 'line')
 // A message is { t, line } with `line` the server's row (hr_chat_row /
-// hr_whisper_row), handed on as the server wrote it. Nothing is a postgres_changes
+// hr_whisper_row), handed on as the server wrote it. GLOBAL COMES IN SMALL
+// BATCHES (31-1, supabase/migrations/1041-social-clans.sql hr_chat_global_flush):
+// event 'lines', { t, lines: [row, ...] }, each row handed on in order. Nothing is a postgres_changes
 // subscription any more: the WAL poller those cost (38.6 % of database time,
 // 2026-10-23) has nothing to decode (tests/realtime-cost.mjs).
 // createSocialRealtime(client, token) answers { chat(uid, channels, onRow, onJoin),
 // whispers(uid, onRow, onJoin), bindings() }, each subscription returning leave().
 // onJoin() runs after EVERY (re)join of a topic the subscription listens on, so
 // its store re-reads the history it may have missed while the socket was down:
-// a blip loses nothing. ONE CLIENT HOLDS AT MOST CHAT_LIMITS.realtimeBindingsMax
-// joins: a chat subscription past the ceiling keeps the first channels it was
-// given (global, system, zone, party, in that order); the inbox is shared by the
-// party and the whispers and counts once.
+// a blip loses nothing. ONE CLIENT HOLDS AT MOST THREE CHAT JOINS, under
+// CHAT_LIMITS.realtimeBindingsMax: Global and System (a channel named twice joins
+// once), and the inbox, shared by the party, the clan and the whispers, which counts
+// once and is refused past the ceiling. There is no Local channel (GR-69).
 // ════════════════════════════════════════════════════════════════════════
 
 import { CHAT_LIMITS } from '../data/chat-channels.js';
 
-const PUBLIC = /^(global|system|local:[a-z0-9_]{1,64})$/;
-const PARTY = /^party:[0-9a-f-]{36}$/;
+const PUBLIC = /^(global|system)$/;
+/* a party's or a clan's lines: each member's copy arrives in its own inbox */
+const INBOX = /^(party|clan):[0-9a-f-]{36}$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const lineOf = (m) => (m && m.payload && m.payload.line) || null;
+const linesOf = (m) => (m && m.payload && Array.isArray(m.payload.lines) ? m.payload.lines : []);
 
 /**
  * @param {object} client          the supabase-js client
@@ -74,17 +78,23 @@ export function createSocialRealtime(client, token) {
   }
   return {
     /** Lines on these channels (each a server channel string), as they are written: a public channel on its own
-        topic, the party channel through the account's inbox (the server sends it each member's copy). */
+        topic (Global as the server's batches), the party and clan channels through the account's inbox (the server
+        sends each member its copy). */
     chat(uid, channels, onRow, onJoin) {
       const joined = () => { if (onJoin) onJoin(); };
       const leaves = [];
-      for (const c of (channels || []).filter((x) => typeof x === 'string' && (PUBLIC.test(x) || PARTY.test(x)))) {
-        if (PARTY.test(c)) {
+      let viaInbox = false;
+      const named = new Set();
+      for (const c of (channels || []).filter((x) => typeof x === 'string' && (PUBLIC.test(x) || INBOX.test(x)))) {
+        if (named.has(c)) continue;   // a channel named twice joins once: Global and System are the only public joins
+        named.add(c);
+        if (INBOX.test(c)) {
+          if (viaInbox) continue;   // one inbox listener carries the party's and the clan's lines
+          viaInbox = true;
           if (typeof uid === 'string' && UUID.test(uid)) leaves.push(onInbox(uid, 'line', onRow, joined));
           continue;
         }
-        if (held() >= CHAT_LIMITS.realtimeBindingsMax) break;
-        const ch = join('chat:' + c, { line: (m) => onRow(lineOf(m)) }, joined);
+        const ch = join('chat:' + c, { line: (m) => onRow(lineOf(m)), lines: (m) => { for (const row of linesOf(m)) onRow(row); } }, joined);
         leaves.push(() => leave(ch));
       }
       return () => { for (const off of leaves.splice(0)) off(); };

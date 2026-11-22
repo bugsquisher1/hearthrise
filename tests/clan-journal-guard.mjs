@@ -59,6 +59,7 @@
 // ════════════════════════════════════════════════════════════════════════
 
 import { bootChain } from './pglite-chain.mjs';
+import { hiddenProblems } from './_clan-hidden.mjs';
 
 const argv = process.argv.slice(2);
 const argOf = (n, d) => {
@@ -406,6 +407,10 @@ async function run(mutationId) {
       + '(if this fails, F8 was fixed — update the KNOWN-OPEN list)',
     Number(ko.feast_journalled_total) > 600,
     `feast journalled in 20 calls: ${ko.feast_journalled_total}`);
+
+  // ── T-12 · the castle's calls this guard journals are hidden from every client and never dropped ──
+  const hid = hiddenProblems(['clan_contribute', 'clan_work_supply', 'clan_feast_deposit', 'clan_deposit']);
+  check('J15 contribute, supply, feast and deposit are hidden from every client, never dropped (1041-social-clans.sql, X-04)', hid.length === 0, hid.join('; '));
 
   return out;
 }

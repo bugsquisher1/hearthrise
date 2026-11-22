@@ -17,7 +17,7 @@
   "the change was intended. Never edit a hash by hand to make a build green —",
   "a red hash is the check working."
  ],
- "generated": "2026-11-21",
+ "generated": "2026-11-22",
  "project": "nezapsylztqbbwuwembx",
  "postgres": {
   "production": "17.x",
@@ -25,10 +25,10 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-11-20",
- "replay_ms": 3319,
+ "replay_ms": 3051,
  "counts": {
-  "tracked_names": 993,
-  "entries": 828
+  "tracked_names": 1014,
+  "entries": 849
  },
  "functions": [
   {
@@ -458,6 +458,7 @@
    "sig": "clan_invite_revoke(p_user_id uuid)",
    "name": "clan_invite_revoke",
    "tracked_by": [
+    "pin",
     "restate"
    ],
    "touched_by": [
@@ -502,6 +503,7 @@
    "sig": "clan_join(p_clan_id uuid)",
    "name": "clan_join",
    "tracked_by": [
+    "pin",
     "restate"
    ],
    "touched_by": [
@@ -525,6 +527,7 @@
    "sig": "clan_join_policy_set(p_policy text)",
    "name": "clan_join_policy_set",
    "tracked_by": [
+    "pin",
     "restate"
    ],
    "touched_by": [
@@ -547,6 +550,7 @@
    "sig": "clan_kick(p_user_id uuid, p_ban_hours integer)",
    "name": "clan_kick",
    "tracked_by": [
+    "pin",
     "restate"
    ],
    "touched_by": [
@@ -569,6 +573,7 @@
    "sig": "clan_leave()",
    "name": "clan_leave",
    "tracked_by": [
+    "pin",
     "restate"
    ],
    "touched_by": [
@@ -3324,9 +3329,11 @@
    "sig": "hr_chat_broadcast()",
    "name": "hr_chat_broadcast",
    "tracked_by": [
+    "pin",
     "restate"
    ],
    "touched_by": [
+    "1041-social-clans.sql",
     "2026-12-26-chat-broadcast.sql"
    ],
    "live": {
@@ -3336,11 +3343,12 @@
     "source": "measured-live"
    },
    "replay": {
-    "md5": "7181202283c7e8ed0b29a8abcff8aa22",
-    "norm_len": 1390,
+    "md5": "5a8c1955d3a239a825591ff4b69c67ee",
+    "norm_len": 2089,
     "source": "computed-from-replay"
    },
-   "agree": true
+   "agree": false,
+   "why": "STAGED for the v0.2.144 release by 1041-social-clans.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21 after lane/c-social merged."
   },
   {
    "sig": "hr_chat_clean(p_body text)",
@@ -3385,6 +3393,24 @@
     "source": "computed-from-replay"
    },
    "agree": true
+  },
+  {
+   "sig": "hr_chat_global_flush()",
+   "name": "hr_chat_global_flush",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "1041-social-clans.sql"
+   ],
+   "live": null,
+   "replay": {
+    "md5": "1e4298d1963efa9c48267d5d0b8369df",
+    "norm_len": 1742,
+    "source": "computed-from-replay"
+   },
+   "agree": false,
+   "why": "STAGED for the v0.2.144 release by 1041-social-clans.sql (new function, absent on production) (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21 after lane/c-social merged."
   },
   {
    "sig": "hr_chat_history_floor()",
@@ -3435,6 +3461,7 @@
    "sig": "hr_chat_inbox_topic(p_user uuid)",
    "name": "hr_chat_inbox_topic",
    "tracked_by": [
+    "pin",
     "restate"
    ],
    "touched_by": [
@@ -3457,6 +3484,7 @@
    "sig": "hr_chat_mask(p_body text)",
    "name": "hr_chat_mask",
    "tracked_by": [
+    "pin",
     "restate"
    ],
    "touched_by": [
@@ -3528,10 +3556,12 @@
    "sig": "hr_chat_recent(p_slot integer)",
    "name": "hr_chat_recent",
    "tracked_by": [
+    "chain",
     "pin",
     "restate"
    ],
    "touched_by": [
+    "1041-social-clans.sql",
     "2026-10-25-chat-channels.sql",
     "2026-11-19-chat-stream-safe.sql"
    ],
@@ -3542,11 +3572,12 @@
     "source": "measured-live"
    },
    "replay": {
-    "md5": "18f8c572d31b07a561c212556e6a5877",
-    "norm_len": 2123,
+    "md5": "afad7a2defa26f9f8885891816dbda3a",
+    "norm_len": 2318,
     "source": "computed-from-replay"
    },
-   "agree": true
+   "agree": false,
+   "why": "STAGED for the v0.2.144 release by 1041-social-clans.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21 after lane/c-social merged."
   },
   {
    "sig": "hr_chat_role_pick(p_user uuid, p_slot integer)",
@@ -3605,6 +3636,7 @@
     "restate"
    ],
    "touched_by": [
+    "1041-social-clans.sql",
     "2026-10-25-chat-channels.sql",
     "2026-10-27-core-bodies.sql",
     "2027-03-13-gm-tools.sql"
@@ -3616,19 +3648,22 @@
     "source": "measured-live"
    },
    "replay": {
-    "md5": "bb01f726ababc0d970db3a80741a39ef",
-    "norm_len": 2594,
+    "md5": "c106a0266be48ad6297fe22b6f9ab600",
+    "norm_len": 3717,
     "source": "computed-from-replay"
    },
-   "agree": true
+   "agree": false,
+   "why": "STAGED for the v0.2.144 release by 1041-social-clans.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21 after lane/c-social merged."
   },
   {
    "sig": "hr_chat_topic(p_channel text)",
    "name": "hr_chat_topic",
    "tracked_by": [
+    "pin",
     "restate"
    ],
    "touched_by": [
+    "1041-social-clans.sql",
     "2026-12-26-chat-broadcast.sql"
    ],
    "live": {
@@ -3638,11 +3673,12 @@
     "source": "measured-live"
    },
    "replay": {
-    "md5": "8b4ab32f504d3925150baddd8d4ddec5",
-    "norm_len": 275,
+    "md5": "02131c0973f513162241f57e5bb13119",
+    "norm_len": 365,
     "source": "computed-from-replay"
    },
-   "agree": true
+   "agree": false,
+   "why": "STAGED for the v0.2.144 release by 1041-social-clans.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21 after lane/c-social merged."
   },
   {
    "sig": "hr_chat_word_filter()",
@@ -3693,9 +3729,11 @@
    "sig": "hr_chat_zone_of(p_user uuid, p_slot integer)",
    "name": "hr_chat_zone_of",
    "tracked_by": [
+    "pin",
     "restate"
    ],
    "touched_by": [
+    "1041-social-clans.sql",
     "2026-10-25-chat-channels.sql"
    ],
    "live": {
@@ -3705,11 +3743,12 @@
     "source": "measured-live"
    },
    "replay": {
-    "md5": "46d40d8d663da418006698a0b2888d71",
-    "norm_len": 366,
+    "md5": "3f474e1306ab6c47439a741fe2b4c1b1",
+    "norm_len": 295,
     "source": "computed-from-replay"
    },
-   "agree": true
+   "agree": false,
+   "why": "STAGED for the v0.2.144 release by 1041-social-clans.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21 after lane/c-social merged."
   },
   {
    "sig": "hr_chest_chance_ppm(p_base_pm integer, p_dry integer, p_stokes integer)",
@@ -3984,29 +4023,63 @@
    "agree": true
   },
   {
-   "sig": "hr_clan_browser(p_limit integer)",
+   "sig": "hr_clan_account_lock(p_user uuid)",
+   "name": "hr_clan_account_lock",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "1041-social-clans.sql"
+   ],
+   "live": null,
+   "replay": {
+    "md5": "9bb6c8a575eaeb2b17c98a9731ef2ca9",
+    "norm_len": 264,
+    "source": "computed-from-replay"
+   },
+   "agree": false,
+   "why": "STAGED for the v0.2.144 release by 1041-social-clans.sql (new function, absent on production) (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21 after lane/c-social merged."
+  },
+  {
+   "sig": "hr_clan_browser(p_query text, p_limit integer)",
    "name": "hr_clan_browser",
    "tracked_by": [
     "pin",
     "restate"
    ],
    "touched_by": [
+    "1041-social-clans.sql",
     "2026-08-14-leaderboard-view-lockdown.sql",
     "2026-10-22-closed-mode-ungated-rpcs.sql"
    ],
-   "live": {
-    "md5": "4de2d1ab665b7346db266da9e82756f5",
-    "norm_len": 2037,
-    "measured": "2026-11-20",
-    "source": "measured-live"
-   },
+   "live": null,
    "replay": {
-    "md5": "2e8828115bdfe3a323867452bf32afdd",
-    "norm_len": 3790,
+    "md5": "7b4c664032211be7cf6798a43091be1a",
+    "norm_len": 1828,
     "source": "computed-from-replay"
    },
    "agree": false,
-   "why": "2026-10-15 (Coordinator, --codediff): CODE-IDENTICAL — the whole delta is comments/whitespace; production runs the same executable text the repo rebuilds. (Clans are retired; M1 drops this function.)"
+   "why": "STAGED for the v0.2.144 release by 1041-social-clans.sql (new function, absent on production) (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21 after lane/c-social merged."
+  },
+  {
+   "sig": "hr_clan_card(p_clan uuid)",
+   "name": "hr_clan_card",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "1041-social-clans.sql"
+   ],
+   "live": null,
+   "replay": {
+    "md5": "d4a595b25208815e32eb0d35c5f13802",
+    "norm_len": 798,
+    "source": "computed-from-replay"
+   },
+   "agree": false,
+   "why": "STAGED for the v0.2.144 release by 1041-social-clans.sql (new function, absent on production) (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21 after lane/c-social merged."
   },
   {
    "sig": "hr_clan_decay_cp(p_clan_id uuid, p_user_id uuid)",
@@ -4029,6 +4102,44 @@
     "source": "computed-from-replay"
    },
    "agree": true
+  },
+  {
+   "sig": "hr_clan_found(p_slot integer, p_name text, p_tag text, p_policy text, p_price bigint, p_idem uuid)",
+   "name": "hr_clan_found",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "1041-social-clans.sql"
+   ],
+   "live": null,
+   "replay": {
+    "md5": "69d8987d5a3bf06ce9826ab463b2e298",
+    "norm_len": 5758,
+    "source": "computed-from-replay"
+   },
+   "agree": false,
+   "why": "STAGED for the v0.2.144 release by 1041-social-clans.sql (new function, absent on production) (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21 after lane/c-social merged."
+  },
+  {
+   "sig": "hr_clan_invite(p_target text)",
+   "name": "hr_clan_invite",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "1041-social-clans.sql"
+   ],
+   "live": null,
+   "replay": {
+    "md5": "f7422a9aefa27084bdb022d42ddfd958",
+    "norm_len": 2742,
+    "source": "computed-from-replay"
+   },
+   "agree": false,
+   "why": "STAGED for the v0.2.144 release by 1041-social-clans.sql (new function, absent on production) (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21 after lane/c-social merged."
   },
   {
    "sig": "hr_clan_may_admit(p_clan_id uuid, p_user uuid)",
@@ -4118,6 +4229,44 @@
     "source": "computed-from-replay"
    },
    "agree": true
+  },
+  {
+   "sig": "hr_clan_rank(p_target uuid, p_rank text)",
+   "name": "hr_clan_rank",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "1041-social-clans.sql"
+   ],
+   "live": null,
+   "replay": {
+    "md5": "c33b487b33ab8145881a9bec00430258",
+    "norm_len": 2261,
+    "source": "computed-from-replay"
+   },
+   "agree": false,
+   "why": "STAGED for the v0.2.144 release by 1041-social-clans.sql (new function, absent on production) (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21 after lane/c-social merged."
+  },
+  {
+   "sig": "hr_clan_roster()",
+   "name": "hr_clan_roster",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "1041-social-clans.sql"
+   ],
+   "live": null,
+   "replay": {
+    "md5": "e862fb017a08b5acc6965f503787a9f9",
+    "norm_len": 2813,
+    "source": "computed-from-replay"
+   },
+   "agree": false,
+   "why": "STAGED for the v0.2.144 release by 1041-social-clans.sql (new function, absent on production) (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21 after lane/c-social merged."
   },
   {
    "sig": "hr_clan_vote_settle(p_clan_id uuid)",
@@ -5852,6 +6001,42 @@
    "agree": true
   },
   {
+   "sig": "hr_friend_link()",
+   "name": "hr_friend_link",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "1044-friend-link.sql"
+   ],
+   "live": null,
+   "replay": {
+    "md5": "b32547e583b220a67ea865dfa597c126",
+    "norm_len": 1237,
+    "source": "computed-from-replay"
+   },
+   "agree": false,
+   "why": "STAGED for the v0.2.144 release by 1044-friend-link.sql (new function, absent on production) (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21 after lane/c-social merged."
+  },
+  {
+   "sig": "hr_friend_link_redeem(p_code text)",
+   "name": "hr_friend_link_redeem",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "1044-friend-link.sql"
+   ],
+   "live": null,
+   "replay": {
+    "md5": "bfb6125dde81c558ee8e6cd935689147",
+    "norm_len": 2807,
+    "source": "computed-from-replay"
+   },
+   "agree": false,
+   "why": "STAGED for the v0.2.144 release by 1044-friend-link.sql (new function, absent on production) (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21 after lane/c-social merged."
+  },
+  {
    "sig": "hr_friend_remove(p_target text)",
    "name": "hr_friend_remove",
    "tracked_by": [
@@ -6610,6 +6795,24 @@
    "agree": true
   },
   {
+   "sig": "hr_ground_presence(p_slot integer, p_hunt text)",
+   "name": "hr_ground_presence",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "1045-ground-presence.sql"
+   ],
+   "live": null,
+   "replay": {
+    "md5": "63b8b94192407e1e4c2d55b66c68ad69",
+    "norm_len": 3344,
+    "source": "computed-from-replay"
+   },
+   "agree": false,
+   "why": "STAGED for the v0.2.144 release by 1045-ground-presence.sql (new function, absent on production) (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21 after lane/c-social merged."
+  },
+  {
    "sig": "hr_guard_game_save()",
    "name": "hr_guard_game_save",
    "tracked_by": [
@@ -6794,6 +6997,101 @@
    "agree": true
   },
   {
+   "sig": "hr_hearth_fire_boss_mark(p_window_start timestamp with time zone, p_boss text)",
+   "name": "hr_hearth_fire_boss_mark",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "1043-hearthrise.sql"
+   ],
+   "live": null,
+   "replay": {
+    "md5": "c0592234b8c5cc343a5b1875f1804d68",
+    "norm_len": 797,
+    "source": "computed-from-replay"
+   },
+   "agree": false,
+   "why": "STAGED for the v0.2.144 release by 1043-hearthrise.sql (new function, absent on production) (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21 after lane/c-social merged."
+  },
+  {
+   "sig": "hr_hearth_fire_fold(p_upto timestamp with time zone)",
+   "name": "hr_hearth_fire_fold",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "1043-hearthrise.sql"
+   ],
+   "live": null,
+   "replay": {
+    "md5": "7857f5e22dba8a933c841b86ec0dd1af",
+    "norm_len": 2536,
+    "source": "computed-from-replay"
+   },
+   "agree": false,
+   "why": "STAGED for the v0.2.144 release by 1043-hearthrise.sql (new function, absent on production) (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21 after lane/c-social merged."
+  },
+  {
+   "sig": "hr_hearth_fire_goal(p_since timestamp with time zone, p_at timestamp with time zone, p_actives integer)",
+   "name": "hr_hearth_fire_goal",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "1043-hearthrise.sql"
+   ],
+   "live": null,
+   "replay": {
+    "md5": "c2681ab99662f7bdd1b49bd6434401f7",
+    "norm_len": 477,
+    "source": "computed-from-replay"
+   },
+   "agree": false,
+   "why": "STAGED for the v0.2.144 release by 1043-hearthrise.sql (new function, absent on production) (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21 after lane/c-social merged."
+  },
+  {
+   "sig": "hr_hearth_fire_size(p_fuel bigint, p_goal bigint, p_boss integer)",
+   "name": "hr_hearth_fire_size",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "1043-hearthrise.sql"
+   ],
+   "live": null,
+   "replay": {
+    "md5": "5c8f080ab90fd4b6b86f8db34d2be297",
+    "norm_len": 612,
+    "source": "computed-from-replay"
+   },
+   "agree": false,
+   "why": "STAGED for the v0.2.144 release by 1043-hearthrise.sql (new function, absent on production) (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21 after lane/c-social merged."
+  },
+  {
+   "sig": "hr_hearth_fire_view(p_user uuid, p_slot integer)",
+   "name": "hr_hearth_fire_view",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "1043-hearthrise.sql"
+   ],
+   "live": null,
+   "replay": {
+    "md5": "cfae53c042a77919d781214ec5b4d567",
+    "norm_len": 1854,
+    "source": "computed-from-replay"
+   },
+   "agree": false,
+   "why": "STAGED for the v0.2.144 release by 1043-hearthrise.sql (new function, absent on production) (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21 after lane/c-social merged."
+  },
+  {
    "sig": "hr_hearth_flame_of(p_map text)",
    "name": "hr_hearth_flame_of",
    "tracked_by": [
@@ -6864,6 +7162,82 @@
     "source": "computed-from-replay"
    },
    "agree": true
+  },
+  {
+   "sig": "hr_hearthrise_light(p_at timestamp with time zone)",
+   "name": "hr_hearthrise_light",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "1043-hearthrise.sql"
+   ],
+   "live": null,
+   "replay": {
+    "md5": "ead1d9cec812293ddc4a5ea7c26efaca",
+    "norm_len": 1829,
+    "source": "computed-from-replay"
+   },
+   "agree": false,
+   "why": "STAGED for the v0.2.144 release by 1043-hearthrise.sql (new function, absent on production) (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21 after lane/c-social merged."
+  },
+  {
+   "sig": "hr_hearthrise_next(p_at timestamp with time zone)",
+   "name": "hr_hearthrise_next",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "1043-hearthrise.sql"
+   ],
+   "live": null,
+   "replay": {
+    "md5": "aff24d21c149dbcd3ec12d3a1978ccc5",
+    "norm_len": 526,
+    "source": "computed-from-replay"
+   },
+   "agree": false,
+   "why": "STAGED for the v0.2.144 release by 1043-hearthrise.sql (new function, absent on production) (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21 after lane/c-social merged."
+  },
+  {
+   "sig": "hr_hearthrise_pm(p_event text, p_starts timestamp with time zone)",
+   "name": "hr_hearthrise_pm",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "1043-hearthrise.sql"
+   ],
+   "live": null,
+   "replay": {
+    "md5": "1b72f9d19e63a43598ff0fe857ce8776",
+    "norm_len": 406,
+    "source": "computed-from-replay"
+   },
+   "agree": false,
+   "why": "STAGED for the v0.2.144 release by 1043-hearthrise.sql (new function, absent on production) (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21 after lane/c-social merged."
+  },
+  {
+   "sig": "hr_hearthrise_tick()",
+   "name": "hr_hearthrise_tick",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "1043-hearthrise.sql"
+   ],
+   "live": null,
+   "replay": {
+    "md5": "21f1b006b51abba85184fcaed57b8af4",
+    "norm_len": 870,
+    "source": "computed-from-replay"
+   },
+   "agree": false,
+   "why": "STAGED for the v0.2.144 release by 1043-hearthrise.sql (new function, absent on production) (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21 after lane/c-social merged."
   },
   {
    "sig": "hr_hero_colors_price(p_user uuid, p_slot integer)",
@@ -11177,6 +11551,7 @@
     "restate"
    ],
    "touched_by": [
+    "1043-hearthrise.sql",
     "2027-03-22-live-events.sql"
    ],
    "live": {
@@ -11186,11 +11561,12 @@
     "source": "measured-live"
    },
    "replay": {
-    "md5": "0b3512bf3d7a2962ad1a6b3e08ef4150",
-    "norm_len": 2449,
+    "md5": "8dfac226e7d099bee4a2690ca2f1c372",
+    "norm_len": 2678,
     "source": "computed-from-replay"
    },
-   "agree": true
+   "agree": false,
+   "why": "STAGED for the v0.2.144 release by 1043-hearthrise.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21 after lane/c-social merged."
   },
   {
    "sig": "hr_live_events_at(p_at timestamp with time zone)",
@@ -11223,6 +11599,7 @@
     "restate"
    ],
    "touched_by": [
+    "1042-hearthrise-live-events-catalogue.generated.sql",
     "2027-03-22-live-events-catalogue.generated.sql",
     "2027-05-01-v0135-live-events-catalogue.generated.sql",
     "2027-05-07-open-halls-words-live-events-catalogue.generated.sql"
@@ -11248,6 +11625,7 @@
     "restate"
    ],
    "touched_by": [
+    "1043-hearthrise.sql",
     "2027-03-22-live-events.sql"
    ],
    "live": {
@@ -11257,11 +11635,12 @@
     "source": "measured-live"
    },
    "replay": {
-    "md5": "979dca775f9dc1f2b826564cabec1bd2",
-    "norm_len": 1006,
+    "md5": "2c7062bc9667e71f33b82f2067b0d573",
+    "norm_len": 1767,
     "source": "computed-from-replay"
    },
-   "agree": true
+   "agree": false,
+   "why": "STAGED for the v0.2.144 release by 1043-hearthrise.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21 after lane/c-social merged."
   },
   {
    "sig": "hr_live_fee_of(p_user uuid, p_call text, p_at timestamp with time zone)",
@@ -11340,6 +11719,7 @@
     "restate"
    ],
    "touched_by": [
+    "1043-hearthrise.sql",
     "2027-03-22-live-events.sql"
    ],
    "live": {
@@ -11349,11 +11729,12 @@
     "source": "measured-live"
    },
    "replay": {
-    "md5": "79d22c279b275b99d8c630e4ba9f0858",
-    "norm_len": 1646,
+    "md5": "e76181fa84ae2e75fcb8c02d63221c60",
+    "norm_len": 1866,
     "source": "computed-from-replay"
    },
-   "agree": true
+   "agree": false,
+   "why": "STAGED for the v0.2.144 release by 1043-hearthrise.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21 after lane/c-social merged."
   },
   {
    "sig": "hr_load(p_slot integer)",
@@ -12249,6 +12630,7 @@
    "sig": "hr_name_blocked(p_text text)",
    "name": "hr_name_blocked",
    "tracked_by": [
+    "pin",
     "restate"
    ],
    "touched_by": [
@@ -13931,6 +14313,42 @@
    "agree": true
   },
   {
+   "sig": "hr_presence_quiet_set(p_quiet boolean)",
+   "name": "hr_presence_quiet_set",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "1045-ground-presence.sql"
+   ],
+   "live": null,
+   "replay": {
+    "md5": "27eea4f81ccc28f9ba9c589bdabfbf22",
+    "norm_len": 1238,
+    "source": "computed-from-replay"
+   },
+   "agree": false,
+   "why": "STAGED for the v0.2.144 release by 1045-ground-presence.sql (new function, absent on production) (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21 after lane/c-social merged."
+  },
+  {
+   "sig": "hr_presence_view(p_user uuid, p_slot integer)",
+   "name": "hr_presence_view",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "1045-ground-presence.sql"
+   ],
+   "live": null,
+   "replay": {
+    "md5": "742cd73a316e5b8fb2d15b6a52c70e8f",
+    "norm_len": 443,
+    "source": "computed-from-replay"
+   },
+   "agree": false,
+   "why": "STAGED for the v0.2.144 release by 1045-ground-presence.sql (new function, absent on production) (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21 after lane/c-social merged."
+  },
+  {
    "sig": "hr_progress_prune(p_older interval)",
    "name": "hr_progress_prune",
    "tracked_by": [
@@ -14196,10 +14614,12 @@
    "sig": "hr_realtime_policies()",
    "name": "hr_realtime_policies",
    "tracked_by": [
+    "chain",
     "pin",
     "restate"
    ],
    "touched_by": [
+    "1041-social-clans.sql",
     "2026-12-25-frame-push-revive.sql",
     "2026-12-26-chat-broadcast.sql"
    ],
@@ -14210,11 +14630,12 @@
     "source": "measured-live"
    },
    "replay": {
-    "md5": "2e767bd04f4813070648e4604d99260c",
-    "norm_len": 1629,
+    "md5": "2e530a11188e4d0ba00f7d96ecc8f6a1",
+    "norm_len": 1667,
     "source": "computed-from-replay"
    },
-   "agree": true
+   "agree": false,
+   "why": "STAGED for the v0.2.144 release by 1041-social-clans.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21 after lane/c-social merged."
   },
   {
    "sig": "hr_recipe_learn(p_item text, p_slot integer, p_idem uuid)",
@@ -15650,6 +16071,7 @@
    "sig": "hr_social_blocked(p_a uuid, p_b uuid)",
    "name": "hr_social_blocked",
    "tracked_by": [
+    "pin",
     "restate"
    ],
    "touched_by": [

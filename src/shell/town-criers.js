@@ -1,15 +1,15 @@
 // ════════════════════════════════════════════════════════════════════════
 // src/shell/town-criers.js — THE TOWN CRIERS' CLOCK: WHO CALLS OUT WHAT, AND WHEN.
 //
-// Tyler 2026-11-11: NPCs that yell tips in Local chat periodically. The rows are
+// Tyler 2026-11-11: NPCs that yell tips in chat periodically (in Global since there is no Local tab, GR-69). The rows are
 // src/data/town-criers.js; the facts a line keys on are the server's projection
 // (src/session/crier-facts.js). While the viewed hero stands in town and the
 // page is showing, the clock looks every tickMs and, once the gaps have passed
-// (CRIER_CLOCK and the crier's own everyMs), puts ONE line into the chat's Local
+// (CRIER_CLOCK and the crier's own everyMs), puts ONE line into the chat's Global
 // tab as a named speaker with a link that opens the place (src/shell/goto.js).
 // Never two in a row from the same crier; the line said the fewest times goes
 // first. Quiet while a hunt is viewed, and quiet when "Show tips" is off
-// (src/data/tips.js, the player's switch for every hero). A line is local and
+// (src/data/tips.js, the player's switch for every hero). A line is this client's and
 // display-only: it is never sent to the server and no other player sees it
 // (ChatStore.tell), and nothing here gates or spends anything.
 //   pickCry(criers, facts, clock, now)   the pure pick: { crier, line } or null
@@ -102,7 +102,7 @@ export function mountTownCriers(win, account, o = {}) {
     clock.saidAt[pick.crier.id] = at;
     const key = pick.crier.id + '/' + pick.line.id;
     clock.said[key] = (clock.said[key] || 0) + 1;
-    social.chat.tell('local', cryLine(pick, at, ++n));
+    social.chat.tell('global', cryLine(pick, at, ++n));
   }
   const timer = set(tick, CRIER_CLOCK.tickMs);
   return { destroy() { clear(timer); }, tick };

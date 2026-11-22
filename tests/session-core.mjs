@@ -249,6 +249,10 @@ const ASKVIA_SITES = Object.freeze({
   'src/social/chat-store.js': { account: 2 },
   'src/social/friends.js': { account: 1 },
   'src/social/whispers.js': { account: 1 },
+  /* lane/c-social (FB-12): one askVia each, in a shared helper. The clan's verbs and the friend link are the ACCOUNT's (25-7, GR-72);
+     the one hero intent among them, founding a clan, re-reads the founding hero after every answer (clan-intents.js found). */
+  'src/session/clan-intents.js': { account: 1 },
+  'src/social/friend-link.js': { account: 1 },
 });
 /* [file, export, the RPC it sends, its arguments after (account, cs), or a function of the hero making them]: one row per distinct
    RPC of every `rule` site. */

@@ -13,6 +13,7 @@ import { BAG_TEXT } from './bag.js';
 import { BAR_TEXT } from './bar.js';
 import { CATACOMB_TEXT } from './catacomb.js';
 import { CHRONICLE_TEXT } from './chronicle.js';
+import { CLAN_TEXT } from './clan.js';
 import { COACH_TEXT } from './coach.js';
 import { CONTROLS_TEXT } from './controls.js';
 import { CRIERS_TEXT } from './criers.js';
@@ -48,6 +49,7 @@ export const TEXT = Object.freeze({
   bar: BAR_TEXT,
   catacomb: CATACOMB_TEXT,
   chronicle: CHRONICLE_TEXT,
+  clan: CLAN_TEXT,
   coach: COACH_TEXT,
   controls: CONTROLS_TEXT,
   criers: CRIERS_TEXT,

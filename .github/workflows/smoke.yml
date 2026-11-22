@@ -522,6 +522,11 @@ jobs:
       # site in the shell shows its refusal, every control off for a rule says
       # why on screen (not a title), the words carry the server's numbers, and
       # play.html shows Cook all, a short Shop buy and a locked hunt saying why.
+      # THE DANGER SCALE'S CLIENT HALF (1056-danger-scale.sql): the Risk pick is one intent, the depth reads
+      # "Depth N of 20" on the ground's band and never the raw step.
+      - name: Danger client - Risk pick and depth on the band
+        if: ${{ !cancelled() }}
+        run: node tests/danger-client.mjs
       - name: Say why - every refused or disabled action says why (play.html)
         if: ${{ !cancelled() }}
         run: |

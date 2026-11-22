@@ -23,6 +23,7 @@ import { t } from '../../render/player-text.js';
 import { trainingNowOf } from '../training-now.js';
 import { patchTowerBar } from './tower-bar.js';
 import { scalePlaying } from '../windows/scale-pane.js';
+import { dangerOf, depthOf } from '../../session/danger-sections.js';
 
 /* The pending leave's line, per CharacterSession.leaveCountdown phase (null: the press is still out). */
 const LEAVING = Object.freeze({ asked: 'hud.leaving', now: 'hud.leaving_now', late: 'hud.leaving_late' });
@@ -73,7 +74,7 @@ renderHuntTopbar.patch = function patchHuntTopbar(el, ctx) {
      and a scaled hunt's Level as the server proved it (scale-pane.js scalePlaying): "Mill Cellar (Scaled: Level 9)". */
   const tiers = h && !h.ended ? huntTierOf(ctx.character) : null;
   const marks = [tiers && tiers.playing && tiers.playing !== DEFAULT_TIER ? TIER_NAME[tiers.playing] : '',
-    h && !h.ended && h.huntId ? scalePlaying(ctx.character, h.huntId) : ''].filter(Boolean);
+    h && !h.ended && h.huntId ? scalePlaying(ctx.character, h.huntId) : '', h && !h.ended ? depthMark(ctx.character, h.huntId) : ''].filter(Boolean);
   const hard = marks.length ? ' (' + marks.join(', ') + ')' : '';
   const now = serverNowOf(ctx.character);
   const train = trainingNowOf(ctx.character, now);
@@ -125,6 +126,14 @@ renderHuntTopbar.patch = function patchHuntTopbar(el, ctx) {
   /* ...nor over a boss room's fight (a call or a hall): the card hung across his boss bar (played 2026-11-05). */
   placeCoach(el, roomOfHunt(h && h.huntId) && !over ? '' : html);
 };
+
+/** THE DANGER SCALE'S LIVE DEPTH (danger-sections.js): the Risk the hunt stands at now and its depth on the ground's band, every figure the
+    server's `danger` section ("Steady, Depth 7 of 20"), never the raw step; '' off the scale. */
+export function depthMark(cs, hunt) {
+  const d = dangerOf(cs), p = d && d.playing && d.playing.hunt === hunt ? d.playing : null;
+  const at = p ? depthOf(hunt, p.step) : null;
+  return at ? t('hud.depth_now', { stance: t('hunts.stance_' + p.risk), depth: at.depth, of: at.of }) : '';
+}
 
 /** Hunt details is pressed while the analyzer shows open: shown, and not folded to its title. */
 function analyzerOpen(ctx) {

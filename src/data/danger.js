@@ -84,8 +84,14 @@ export const DANGER = Object.freeze({
 export const PAY = Object.freeze({ refKillsHead: 120, payStepXp: 0.007, payStepCoin: 0.007, gapMax: 120 });
 
 export const DANGER_GROUNDS = Object.freeze({
-  muster_barrows: Object.freeze({ refStep: 590 }),
+  /* floorStep / topStep: the ground's band of DEPTHS depths (docs/design/redesign/12-targets.md section 3.1, starting values the Lab
+     tunes): depth 1 at the floor, depth 20 at the top. The player sees only "Depth N of 20", never a step (12-targets section 2.6).
+     Display only for now: the server's catalogue (tools/gen-danger.mjs) reads refStep alone. */
+  muster_barrows: Object.freeze({ refStep: 590, floorStep: 480, topStep: 710 }),
 });
+
+/* The depths a ground's band is cut into (12-targets.md 3.1). */
+export const DEPTHS = 20;
 
 export const CLIMB = Object.freeze({ cleanRun: 2, climbMax: 8, fallSteps: 18, deathSteps: 120, coolPulls: 10 });
 

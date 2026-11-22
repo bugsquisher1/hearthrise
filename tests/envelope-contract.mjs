@@ -255,6 +255,10 @@ function contract(R, cs, body, tl) {
   need('hunt_setup', !!hs && typeof hs === 'object' && !Array.isArray(hs) && hk.every((k) => R.CO.groundSetupOf(cs, k) === hs[k] && Number.isInteger(hs[k]))
     && R.CO.groundSetupOf(cs, 'no_such_ground') === null,
     'groundSetupOf over ' + JSON.stringify(hs));
+  // the Danger scale (1056-danger-scale.sql `danger`, danger-sections.js dangerOf): a hero that never picked a Risk, hunting a tier ground
+  const dg = R.DG.dangerOf(cs);
+  need('danger', !!dg && dg.risk === null && dg.playing === null && typeof dg.held === 'object',
+    'dangerOf yields ' + JSON.stringify(dg) + ' from ' + JSON.stringify(body.danger));
   // the company's plan (1051-company-start.sql): a new account's lines read the defaults (Wear upgrades on, the rest hunt on), no plan ground, no seat
   const co = R.CO.companyPlanOf(cs);
   need('company', !!co && co.wearOn === true && co.falls === 'hunt_on' && co.planHunt === null && co.joins === null && co.leadPinned === false && co.heroes >= 1,
@@ -415,7 +419,7 @@ export const CONTRACT_KEYS = Object.freeze(['hunt', 'hunt_track', 'hunt_events',
   'name', 'bag_rules', 'shop', 'hunt_presets', 'role', 'party_invites', 'party_notices', 'stamina_refill', 'blessings',
   'character_sheet', 'outfit', 'death_log', 'vitals', 'hunt_bests', 'hunt_tier', 'hunt_target_kind', 'depot', 'home', 'now', 'farm_land', 'farm_tend', 'bench_run', 'rename', 'tally',
   'skill_inputs', 'bench_tax', 'setup_slots', 'titles', 'temper', 'bag_expand', 'gm', 'hallmark', 'level', 'skill_levels', 'live_events', 'training', 'factions', 'hunt_after', 'scaled_hunts', 'boss_halls',
-  'tower', 'key_ring', 'entry_gates', 'catacomb', 'features', 'unlocked_recipes', 'hearth_fire', 'presence', 'company', 'hunt_setup', 'recruits']);
+  'tower', 'key_ring', 'entry_gates', 'catacomb', 'features', 'unlocked_recipes', 'hearth_fire', 'presence', 'company', 'hunt_setup', 'recruits', 'danger']);
 
 /* What lane S2's sections are seeded with before the settle (each verb through the real RPC). */
 const SEED = Object.freeze({ name: 'Contract Hero', inviter: 'Contract Inviter', lock: 'cooked_shrimp', loot: 'normal_log',
@@ -476,7 +480,7 @@ async function readers(root) {
     JW: await import(u('src/session/jewelry-sections.js')), LE: await import(u('src/session/live-event-sections.js')),
     TR: await import(u('src/session/training-sections.js')), FX: await import(u('src/session/faction-sections.js')),
     TWR: await import(u('src/session/tower-sections.js')), CAT: await import(u('src/session/catacomb-sections.js')),
-    HA: await import(u('src/session/hunt-after-sections.js')), CO: await import(u('src/session/company-sections.js')),
+    HA: await import(u('src/session/hunt-after-sections.js')), CO: await import(u('src/session/company-sections.js')), DG: await import(u('src/session/danger-sections.js')),
     RC: await import(u('src/session/recruit-sections.js')),
     SH: await import(u('src/session/scaled-hunts.js')),
     BQ: await import(u('src/session/boss-quote.js')), BHL: await import(u('src/data/boss-halls.js')),

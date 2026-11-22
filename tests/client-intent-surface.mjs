@@ -93,7 +93,8 @@ export const CLIENT_RPCS = Object.freeze({
   /* CARRY ON (1024-carry-on.sql, Tyler RULED 27-1): the plan is a read; the press names slots, the gold figure the player was shown and a key */
   hr_carry_on_plan: 'what one Carry on press would do for each of the caller\'s own heroes: the slots, nothing else; a read, nothing moves (carry-on-intents.js carryOnPlan)',
   hr_hero_plan_set: 'this hero\'s plan ground, a ground id or null; the server checks it against its catalogue and edits an own party\'s ground in town (company-intents.js setHeroPlan; 1051-company-start.sql)',
-  hr_ground_setup_set: 'this ground points at one of this hero\'s saved Setups: a ground id and a Setup number the server checks against its rows (company-intents.js setGroundSetup)',
+  hr_hunt_risk_set: 'this hero\'s plan stance on the Danger scale, a catalogue word or none; refused not clamped, the party leader\'s only, plays from the next hunt (danger-intents.js setRisk; 1056-danger-scale.sql)',
+  hr_ground_setup_set:'this ground points at one of this hero\'s saved Setups: a ground id and a Setup number the server checks against its rows (company-intents.js setGroundSetup)',
   hr_party_lead_set: 'pin (or unpin) the leader of a party of this account\'s own heroes: an own hero\'s slot or null; the server refuses any other party (company-intents.js setPartyLead)',
   hr_company_line_set: 'one plan line for the caller\'s whole company: wear_upgrades on or off, if_one_falls hunt_on or all_home; a line and a word, no slot, value or price (carry-on-intents.js setCompanyLine; 1051-company-start.sql)',
   hr_carry_on: 'ONE press sends the caller\'s own heroes back to their last hunt through the existing doors: the slots (or none for the account), the Blessings gold the plan showed (it only refuses: quote_changed) and a key; no ground, count, item or price (carry-on-intents.js carryOn)',

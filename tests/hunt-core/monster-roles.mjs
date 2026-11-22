@@ -45,11 +45,20 @@ function trio(M) {
   return [hero(M, 1, 11, 2, { role: 'tank', maxHp: 60, hp: 60 }), hero(M, 2, 17, 5, { role: 'mage', maxHp: 30, hp: 30 }),
     hero(M, 3, 11, 6, { role: 'healer', maxHp: 40, hp: 40 })];
 }
+/* The reaches the engine plays (monster-roles.js BEFORE). */
+const REACHES = ['front', 'back', 'weakest', 'spread'];
 const onScale = (M, w) => { M.danger.openDanger(w, 'steady', 0); return w; };
 
 const CASES = {
   data(M) {
-    const bad = M.roleData.monsterRoleProblems(M.MONSTERS, M.monsterData.MONSTER_RANGE);
+    const B = M.monsterData.MONSTER_RANGE, ROLES = M.roleData.MONSTER_ROLES, bad = [];
+    for (const [id, r] of Object.entries(ROLES)) {
+      if (!REACHES.includes(r.reach)) bad.push('role ' + id + ' reach ' + r.reach + ' is none the engine plays (' + REACHES.join(', ') + ')');
+      if (!(Number.isInteger(r.range) && (r.range === 0 || (r.range >= B.min && r.range <= B.max)))) bad.push('role ' + id + ' range ' + r.range + ' is not 0 or ' + B.min + '..' + B.max);
+      if (r.splash !== undefined && !(Number.isInteger(r.splash.r) && r.splash.r >= 1 && Number.isInteger(r.splash.pm) && r.splash.pm > 0 && r.splash.pm <= 1000)) bad.push('role ' + id + ' splash is not { r >= 1, pm 1..1000 }');
+      if (typeof r.answer !== 'string' || !r.answer) bad.push('role ' + id + ' says nothing of what answers it');
+    }
+    for (const [id, m] of Object.entries(M.MONSTERS)) if (m && m.role !== undefined && !Object.prototype.hasOwnProperty.call(ROLES, m.role)) bad.push('monster ' + id + ' names no role row: ' + m.role);
     if (bad.length) return bad.join('; ');
     const want = { barrow_pikeman: 'swarm', cairn_wight: 'stalker', muster_knight: 'brute', captain_hask: 'brute', hasks_lookout: 'shooter' };
     for (const [id, r] of Object.entries(want)) if (M.MONSTERS[id].role !== r) return id + ' plays ' + M.MONSTERS[id].role + ', the sample says ' + r;
@@ -82,14 +91,15 @@ const CASES = {
     if (aim('hasks_lookout', front, true) !== 3) return 'with no back row a shooter took ' + aim('hasks_lookout', front, true) + ', not the farthest';
     const tankBack = trio(M); tankBack[0].row = 'back'; tankBack[1].row = 'front'; tankBack[2].row = 'front';
     if (aim('hasks_lookout', tankBack, true) !== 1) return 'a shooter took ' + aim('hasks_lookout', tankBack, true) + ', not the tank set to the back row';
-    /* the swarm spreads: each aimed in turn, the fewest-on first, the front on a tie, then the nearest */
-    const units = trio(M).concat([mon(M, 10, 0, 14, 3, { kind: 'barrow_pikeman' }), mon(M, 11, 0, 14, 4, { kind: 'barrow_pikeman' }), mon(M, 12, 0, 15, 3, { kind: 'barrow_pikeman' }),
-      mon(M, 13, 0, 15, 4, { kind: 'barrow_pikeman' })]);
+    /* the swarm spreads over the FRONT row: each aimed in turn, the front hero the fewest are on, then the nearest; the back row never.
+       The trio and a second front hero (a Melee hero at 13, 2): the four go 4, 1, 4, 1 */
+    const units = trio(M).concat([hero(M, 4, 13, 2, { role: 'melee_dps', maxHp: 60, hp: 60 }), mon(M, 10, 0, 14, 3, { kind: 'barrow_pikeman' }),
+      mon(M, 11, 0, 14, 4, { kind: 'barrow_pikeman' }), mon(M, 12, 0, 15, 3, { kind: 'barrow_pikeman' }), mon(M, 13, 0, 15, 4, { kind: 'barrow_pikeman' })]);
     const w = onScale(M, world(M, units));
     const inst = instOf(M, w);
     const got = [];
-    for (const m of units.slice(3)) { m.target = M.shooters.aimOf(inst, m, 99); got.push(m.target); }
-    if (JSON.stringify(got) !== '[1,2,3,1]') return 'a swarm of four aimed ' + JSON.stringify(got) + ', not spread front first [1,2,3,1]';
+    for (const m of units.slice(4)) { m.target = M.shooters.aimOf(inst, m, 99); got.push(m.target); }
+    if (JSON.stringify(got) !== '[4,1,4,1]') return 'a swarm of four aimed ' + JSON.stringify(got) + ', not spread over the front row [4,1,4,1]';
     /* off the scale every role aims as before: a melee row at the caller's pick, a shooter at the farthest */
     for (const k of ['muster_knight', 'cairn_wight', 'barrow_pikeman']) if (aim(k, trio(M), false) !== 99) return 'off the scale a ' + k + ' took ' + aim(k, trio(M), false);
     if (aim('hasks_lookout', trio(M), false) !== 3) return 'off the scale the Lookout took ' + aim('hasks_lookout', trio(M), false);
@@ -106,7 +116,11 @@ const CASES = {
       return M.roles2.reaimOf(instOf(M, w), m);
     };
     if (one('cairn_wight', 1) !== 4) return 'an unheld stalker on the tank turned to ' + one('cairn_wight', 1) + ', not the weakest';
-    if (one('cairn_wight', 1, { hold: 500 }) !== null) return 'a stalker held by a Challenge turned away';
+    /* a Challenge's hold (CHALLENGE.holdMs, counting down): a stalker is held its role's heldPm of it, a brute all of it */
+    const H = M.huntRoles.CHALLENGE.holdMs, half = (H * M.roleData.MONSTER_ROLES.stalker.heldPm) / 1000;
+    if (one('cairn_wight', 1, { hold: H - half + 500 }) !== null) return 'a stalker held by a fresh Challenge turned away';
+    if (one('cairn_wight', 1, { hold: H - half - 500 }) !== 4) return 'a stalker past its share of the hold stayed on the tank';
+    if (one('muster_knight', 3, { hold: H - half - 500 }) !== null) return 'a brute broke a Challenge\'s hold early';
     if (one('cairn_wight', 2) !== null) return 'a stalker on a hero of the least max HP turned to ' + one('cairn_wight', 2) + ' on a tie';
     if (one('cairn_wight', 3) !== 4) return 'a stalker on the healer (40) kept it over a hero of 30';
     if (one('muster_knight', 3) !== 4) return 'a brute on a back-row hero turned to ' + one('muster_knight', 3) + ', not the nearest front';
@@ -208,7 +222,9 @@ const MUTANTS = [
   { name: 'the row setting is ignored', case: 'rows', edits: [['src/core/hunt/monster-roles.js', '  if (u && ROWS.includes(u.row)) return u.row;\n', '']] },
   { name: 'the row setting never reaches the unit', case: 'play', edits: [['src/core/combat-sim.js', "  if (row === 'front' || row === 'back') u.row = row; else if (u.row !== undefined) delete u.row;\n", '']] },
   { name: 'a role never re-aims', case: 'redive', edits: [['src/core/hunt/targeting.js', '  for (const m of engagedMonstersOf(inst)) { const id = reaimOf(inst, m); if (id !== null) retarget(inst, m, id, sc); }\n', '']] },
-  { name: 'a Challenge\'s hold is ignored', case: 'redive', edits: [['src/core/hunt/monster-roles.js', " || role.reach === 'spread' || m.holdMs > 0) return null;", " || role.reach === 'spread') return null;"]] },
+  { name: 'a Challenge\'s hold is ignored', case: 'redive', edits: [['src/core/hunt/monster-roles.js', " || role.reach === 'spread' || held(role, m)) return null;", " || role.reach === 'spread') return null;"]] },
+  { name: 'a stalker is held the whole hold', case: 'redive', edits: [['src/core/hunt/monster-roles.js', '(Number.isInteger(role.heldPm) ? role.heldPm : 1000)', '1000']] },
+  { name: 'every role breaks a hold early', case: 'redive', edits: [['src/core/hunt/monster-roles.js', '(Number.isInteger(role.heldPm) ? role.heldPm : 1000)', '(Number.isInteger(role.heldPm) ? role.heldPm : 500)']] },
   { name: 'a brute leaves a front hero for a nearer one', case: 'redive', edits: [['src/core/hunt/monster-roles.js', '  if (keep) return rowOf(cur) === keep ? null : pick;', '  if (keep) return pick;']] },
   { name: 'a stalker thrashes on ties', case: 'redive', edits: [['src/core/hunt/monster-roles.js', '  return p.maxHp < cur.maxHp ? pick : null;', '  return pick;']] },
   { name: 'a role gives no range', case: 'range', edits: [['src/core/hunt/shooters.js', ' || roleRange(inst, m) : 0;', ' : 0;']] },

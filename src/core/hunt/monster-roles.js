@@ -15,7 +15,7 @@
 
 import { MONSTERS } from '../../data/monsters.js';
 import { MONSTER_ROLES, ROWS } from '../../data/monster-roles.js';
-import { HUNT_ROLES } from '../../data/hunt-roles.js';
+import { HUNT_ROLES, CHALLENGE } from '../../data/hunt-roles.js';
 import { dangerOn } from './danger.js';
 import { inArea } from './leash.js';
 import { cheb, dist2 } from './grid.js';
@@ -50,11 +50,15 @@ const BEFORE = Object.freeze({
   front: (inst, m) => (a, b) => dist2(a, m) - dist2(b, m) || a.id - b.id,
   back: (inst, m) => (a, b) => dist2(b, m) - dist2(a, m) || a.id - b.id,
   weakest: () => (a, b) => a.maxHp - b.maxHp || a.hp - b.hp || a.id - b.id,
-  spread: (inst, m) => (a, b) => onHero(inst, a) - onHero(inst, b) || (rowOf(a) === 'front' ? 0 : 1) - (rowOf(b) === 'front' ? 0 : 1)
-    || dist2(a, m) - dist2(b, m) || a.id - b.id,
+  spread: (inst, m) => (a, b) => onHero(inst, a) - onHero(inst, b) || dist2(a, m) - dist2(b, m) || a.id - b.id,
 });
-/* The row a reach keeps to (null: every hero). */
-const ROW_OF_REACH = Object.freeze({ front: 'front', back: 'back' });
+/* The row a reach keeps to (null: every hero). A swarm spreads over the FRONT row (02 package 4: only Shooters, Casters and Stalkers
+   reach the back), so a second front hero shares it and a lone front takes it all. */
+const ROW_OF_REACH = Object.freeze({ front: 'front', back: 'back', spread: 'front' });
+
+/* Is `m` still held by a Challenge for its role? A role holds for `heldPm` of the Challenge's hold (absent: all of it): a stalker at 500
+   breaks off once half the hold has run and dives again, until the tank's next Challenge (which waits for the hold to run out). */
+const held = (role, m) => m.holdMs > 0 && m.holdMs * 1000 > CHALLENGE.holdMs * (1000 - (Number.isInteger(role.heldPm) ? role.heldPm : 1000));
 
 /**
  * WHOM ROLE `role`'S REACH TAKES for monster `m`: the first living enemy hero inside its pack's area by the reach's order (BEFORE),
@@ -76,13 +80,14 @@ export function reachPick(inst, m, role) {
 /**
  * A ROLE KEEPS TO ITS REACH (targeting.js chooseTargets, every sub-step): the hero monster `m` turns on now, or null to keep its target.
  * At its aim (aimOf) the hero its reach wants may still be walking in, outside the pack's area, and a Challenge takes it for a while;
- * so while it is not held (holdMs) a monster whose target is not what its reach asks turns to the hero that is, once one stands in its
- * area: a front or back reach when its target is out of that row, a stalker when a hero with less max HP than its target is there. A
- * swarm keeps whom it was given (its count would turn it back and forth). Off the scale, held, or nothing better: null. Pure.
+ * so while it is not held (`held`: its role's share of a Challenge's hold) a monster whose target is not what its reach asks turns to
+ * the hero that is, once one stands in its area: a front or back reach when its target is out of that row, a stalker when a hero with
+ * less max HP than its target is there. A swarm keeps whom it was given (its count would turn it back and forth). Off the scale, held,
+ * or nothing better: null. Pure.
  */
 export function reaimOf(inst, m) {
   const role = roleOf(inst, m);
-  if (!role || role.reach === 'spread' || m.holdMs > 0) return null;
+  if (!role || role.reach === 'spread' || held(role, m)) return null;
   const pick = reachPick(inst, m, role);
   if (pick === null || pick === m.target) return null;
   const cur = inst.world.units.find((u) => u.id === m.target && u.alive && isHero(u));

@@ -13,15 +13,22 @@
 //               front    the nearest hero in the front row
 //               back     the farthest hero in the back row (a shooter's old rule, kept to the back row)
 //               weakest  the hero with the least max HP (ties: the least HP now, then the lower id)
-//               spread   the hero the fewest monsters are on (ties: the front row first, then the nearest, then the lower id)
+//               spread   the front-row hero the fewest monsters are on (ties: the nearest, then the lower id): a second front hero
+//                        shares a swarm, a lone front takes it all (02 package 4: only Shooters, Casters and Stalkers reach the back)
 //             Only heroes standing inside the monster's pack area count (the shooter's rule, so nothing is led off its leash). With no
 //             hero to match it aims as before: a shooter at the farthest hero, anything else at the hero the pull leader names.
-//             A tank's Challenge still takes every role (targeting.js challengeFrom): that is the front's answer to a reach.
+//             While it is not held it keeps to its reach (monster-roles.js reaimOf): a hero it wanted that walks into its area later, or
+//             the end of a Challenge's hold, turns it back (a swarm keeps whom it was given).
+//   heldPm    WHAT A CHALLENGE BUYS: a tank's Challenge takes every role (targeting.js challengeFrom), and holds it this share of the
+//             hold (absent: all of it, so a tank that keeps challenging keeps it). A stalker at 500 breaks off halfway and dives again
+//             until the next Challenge, so a tank answers it in part and the back row's armor and the healer do the rest.
 //   range     HOW IT HITS, from where: whole tiles it shoots from (0 = beside its target). A monster row's own `range` wins
 //             (monsters.js monsterRangeOf); a role's range plays only on a row with none. Inside MONSTER_RANGE.
 //   splash    and on whom: a blow that also lands on every other hero within `splash.r` tiles of its target (Chebyshev) at `splash.pm`
 //             permille of the blow, each its own roll against that hero (damage.js resolveAttacks). Absent: one target.
 //   answer    what beats it, in words (the bestiary's and the hunt report's line when they read it); the engine never reads it.
+// tests/hunt-core/monster-roles.mjs `data` holds every row to these rules (a reach the engine plays, a range inside MONSTER_RANGE, a
+// splash of r >= 1 and pm 1..1000, an answer) and every monster row's `role` to a row here.
 //
 // THE TWO ROWS: a hero stands in the front row or the back row. The plan sets it (the hero's `row` setting, 'front' or 'back',
 // hunt-spawn.js heroSetup); with none set, a hero that fights beside its target (hunt-roles.js `melee`) is in the front and every other in
@@ -39,9 +46,6 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-/* The reaches a role may name, the one list (the engine's switch and the audit below read it). */
-export const REACHES = Object.freeze(['front', 'back', 'weakest', 'spread']);
-
 /* The two rows, front first. */
 export const ROWS = Object.freeze(['front', 'back']);
 
@@ -51,27 +55,7 @@ export const MONSTER_ROLES = Object.freeze({
   caster: Object.freeze({ name: 'Caster', reach: 'back', range: 4, splash: Object.freeze({ r: 1, pm: 500 }),
     answer: 'Kill it first, and a healer for the back row' }),
   swarm: Object.freeze({ name: 'Swarm', reach: 'spread', range: 0, answer: 'Blows that hit a crowd, and armor on every hero' }),
-  stalker: Object.freeze({ name: 'Stalker', reach: 'weakest', range: 0, answer: 'A Challenge turns it, and a healer' }),
+  stalker: Object.freeze({ name: 'Stalker', reach: 'weakest', range: 0, heldPm: 500, answer: 'A Challenge turns it for a while, and a healer' }),
   /* its shield or its heal is its own spell row (monster-spells.js `mend`); the role says only whom it fights */
   warder: Object.freeze({ name: 'Warder', reach: 'front', range: 0, answer: 'Kill it first' }),
 });
-
-/** Every problem with the role table and with the `role` a monster row names, as strings (empty = valid). `range` is held to
-    `rangeBounds` ({ min, max }: monsters.js MONSTER_RANGE), passed in so this file imports nothing. */
-export function monsterRoleProblems(monsters, rangeBounds) {
-  const out = [];
-  for (const [id, r] of Object.entries(MONSTER_ROLES)) {
-    if (!REACHES.includes(r.reach)) out.push('role ' + id + ' reach must be one of ' + REACHES.join(', ') + ', got ' + r.reach);
-    if (!(Number.isInteger(r.range) && (r.range === 0 || (r.range >= rangeBounds.min && r.range <= rangeBounds.max)))) {
-      out.push('role ' + id + ' range must be 0 or a whole number ' + rangeBounds.min + '..' + rangeBounds.max + ', got ' + r.range);
-    }
-    if (r.splash !== undefined && !(Number.isInteger(r.splash.r) && r.splash.r >= 1 && Number.isInteger(r.splash.pm) && r.splash.pm > 0 && r.splash.pm <= 1000)) {
-      out.push('role ' + id + ' splash must be { r >= 1, pm 1..1000 }');
-    }
-    if (typeof r.answer !== 'string' || !r.answer) out.push('role ' + id + ' says nothing of what answers it');
-  }
-  for (const [id, m] of Object.entries(monsters || {})) {
-    if (m && m.role !== undefined && !Object.prototype.hasOwnProperty.call(MONSTER_ROLES, m.role)) out.push('monster ' + id + ' names no role row: ' + m.role);
-  }
-  return out;
-}

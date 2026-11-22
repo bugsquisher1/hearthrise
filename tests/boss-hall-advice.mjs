@@ -218,16 +218,11 @@ const MUTANTS = [
   /* THE FOOD IS THE FLOOR (HA-FLOOR, lane/c-engine-reds): the card before the spell rule, Swordfish, where every party wins on Lobster. This
      was the "Salted Lobster" mutant that ESCAPED HA-WIN (staging run 44870672285); its twin "the first fix's card (Salted Lobster, two heroes
      from 88)" is retired with it: on the Lobster card it is the "two heroes from Level 88" mutant above. */
-  /* On the x2.4 armor curve (D-3, lane/c-pace) the floor is Shark, the store's dearest food, so no card can ask for a food one step dearer than
-     the floor. The arm is proved the other way round: Krell's blow cut a fifth while the card still asks for Shark, so every party also wins on
-     Swordfish and the card bills for food nobody needs. */
-  { name: 'Krell\'s blow cut a fifth and the card still asks for Shark (one step dearer than every party needs)', edits: [[PACK, 'hp: 18000, atk: 247,', 'hp: 18000, atk: 198,']], want: /HA-FLOOR krells_hold's card asks for Salted Shark, and every party it names also wins on Salted Swordfish/ },
-  /* the card before the x2.4 armor curve: 21 of the 36 parties fall under three in four on Lobster */
-  { name: 'the card\'s food is Salted Lobster (the floor before the x2.4 armor curve)', edits: [[PACK, "storeFloor: 'salted_shark',", "storeFloor: 'salted_lobster',"]], want: /HA-WIN krells_hold's card says "Party: a tank, a healer and two more"/ },
-  /* under the floor: deaths under his enrage */
-  { name: 'the card\'s food is Salted Trout', edits: [[PACK, "storeFloor: 'salted_shark',", "storeFloor: 'salted_trout',"]], want: /HA-WIN krells_hold's card says "Party: a tank, a healer and two more"/ },
+  { name: 'the card\'s food is Salted Swordfish (one step dearer than every party needs)', edits: [[PACK, "storeFloor: 'salted_lobster',", "storeFloor: 'salted_swordfish',"]], want: /HA-FLOOR krells_hold's card asks for Salted Swordfish, and every party it names also wins on Salted Lobster/ },
+  /* one step under the floor: deaths under his enrage */
+  { name: 'the card\'s food is Salted Trout', edits: [[PACK, "storeFloor: 'salted_lobster',", "storeFloor: 'salted_trout',"]], want: /HA-WIN krells_hold's card says "Party: a tank, a healer and two more"/ },
   { name: 'everyone eats at 40%', edits: [[PACK, "bars: ['Everyone: Eat under 75%',", "bars: ['Everyone: Eat under 40%',"]], want: /HA-WIN/ },
-  { name: 'the card\'s food is the start bar\'s Salted Shrimp', edits: [[PACK, "storeFloor: 'salted_shark',", "storeFloor: 'salted_shrimp',"]], want: /HA-WIN/ },
+  { name: 'the card\'s food is the start bar\'s Salted Shrimp', edits: [[PACK, "storeFloor: 'salted_lobster',", "storeFloor: 'salted_shrimp',"]], want: /HA-WIN/ },
   { name: 'Krell at 30,000 HP', edits: [[PACK, 'hp: 18000, atk: 247,', 'hp: 30000, atk: 247,']], want: /HA-WIN/ },
   { name: 'a healer line naming no spell', edits: [[PACK, "'Healer: Greater Mend under 85%'", "'Healer: Great Mend under 85%'"]], want: /HA-READ .*no spell named Great Mend/ },
 ];

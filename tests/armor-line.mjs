@@ -17,8 +17,7 @@
 //        numbers (an attribute on top or not) is a template, not a unique: the first sample's twins.
 //   AL5  THE ROW: every field but its words, numbers, Level, book and rarity is its Dawnsteel base's; it is worn from its home's
 //        floor (staged/morrow-grid.js homeOf); its book is the base's times the line; a caster's damage (magicStrB, rangeStrB) is never
-//        over its base's, so the line can't re-open the Mage gap (lane/d-mage-110); and its weight's own to-hit (plate Melee, leather
-//        Ranged, cloth Magic) is never under its base's: a heavy piece pays in lighter blows, never in to-hit (the designer's D-3 section 4).
+//        over its base's, so the line can't re-open the Mage gap (lane/d-mage-110).
 //   AL6  AT MOST ONE ATTRIBUTE, AT TIER 7's SIZE: from special-attributes.js, on a slot it allows, a key it knows, on the field the
 //        catalogue names for that key (a + skill is the engine's `<skill>Plus`, the designer 2026-11-18 row 1c), one the engine reads
 //        today (no hook owed), so the measure sees what the player gets.
@@ -60,8 +59,6 @@ const OWN = new Set(['n', 'icon', 'v', 'reqLv', 'rarity', 'defB', 'atkB', 'strB'
 /* the item field attribute `def` writes for `key`: its one field, or the one its key names */
 const fieldOf = (def, key) => (typeof def.field === 'string' ? def.field : (def.field || {})[key]);
 const CASTER_DAMAGE = ['magicStrB', 'rangeStrB'];
-/* each weight's own to-hit: the style its wearer fights in (plate Melee, leather Ranged, cloth Magic); a piece never pays with it (D-3) */
-const OWN_HIT = Object.freeze({ plate: 'atkB', leather: 'rangeAtkB', cloth: 'magicAtkB' });
 const ATTR_TIER = 7;
 /* a piece's style numbers: what it does to the hero's own blow */
 const STYLE = Object.freeze(['atkB', 'strB', 'rangeAtkB', 'rangeStrB', 'magicAtkB', 'magicStrB', 'critB']);
@@ -153,9 +150,6 @@ export function problems(line = LINE, A = SPECIAL_ATTRIBUTES, open = {}) {
       if (JSON.stringify(base[k]) !== JSON.stringify(row[k])) out.push('AL5 ' + id + '.' + k + ' = ' + JSON.stringify(row[k]) + ', its base ' + s.base + ' has ' + JSON.stringify(base[k]));
     }
     for (const k of CASTER_DAMAGE) if ((Number(row[k]) || 0) > (Number(base[k]) || 0)) out.push('AL5 ' + id + '.' + k + ' = ' + row[k] + ' over its base\'s ' + (base[k] || 0) + ': a caster\'s damage never climbs with the line (the Mage gap)');
-    /* the weight's own to-hit is never the price (D-3 section 4): a heavy piece pays in lighter blows, and to-hit on the ratio buys no armor */
-    const hitField = OWN_HIT[row.armourClass];
-    if (hitField && (Number(row[hitField]) || 0) < (Number(base[hitField]) || 0)) out.push('AL5 ' + id + '.' + hitField + ' = ' + row[hitField] + ' under its base\'s ' + (base[hitField] || 0) + ': a piece pays for armor in its blows (strength), never its own to-hit');
     const src = s.source || {}, home = homeFor(src);
     if (home.floor === null) out.push('AL5 ' + id + ': ' + (src.place || src.ground) + ' has no band');
     else if (row.reqLv !== home.floor) out.push('AL5 ' + id + ': worn from ' + row.reqLv + ', its home ' + (src.place || src.ground) + ' opens at ' + home.floor);
@@ -231,28 +225,23 @@ const MUTANTS = [
   ['an importer appears', 'AL2', (L, A, o) => { o.importers = ['/src/data/items.js']; }],
   ['a sample takes an item\'s name', 'AL2', (L) => { L.LINE_SAMPLE.watchmans_helm.row.n = 'Dawnsteel Helm'; }],
   ['a sample takes the weapon line\'s name', 'AL2', (L) => { L.LINE_SAMPLE.watchmans_helm.row.n = 'Watchman\'s Sword'; }],
-  ['the heavy helm sheds its strength cost (safety over, pace even)', 'AL3', (L) => { delete L.LINE_SAMPLE.watchmans_helm.row.strB; }],
+  ['the heavy helm sheds its Melee cost (safety over, pace even)', 'AL3', (L) => { delete L.LINE_SAMPLE.watchmans_helm.row.atkB; }],
   ['poison at the line\'s armor (the first sample\'s twin)', 'AL3', (L) => { L.LINE_SAMPLE.limewashed_plate.row.defB = 135; }],
   ['fire resistance at the line\'s armor (over on the capped Ox Road)', 'AL3', (L) => { const r = L.LINE_SAMPLE.burnt_crag_leg_plates.row; r.defB = 73; delete r.strB; }],
   ['a jerkin far past the trade (dodge for a bow that hits much lighter)', 'AL3', (L) => { const r = L.LINE_SAMPLE.haulers_jerkin.row; r.defB = 200; r.rangeStrB = -15; }],
   ['the line read at a lower Level (the scale lies)', 'AL3', (L) => { L.lineScale = () => 1; }],
   ['the Visor re-sized by the ratio alone, 71 (1.0005 of the line at the Catacombs before the to-hit ratio)', 'AL3', (L) => { L.LINE_SAMPLE.outriders_visor.row.defB = 71; }],
-  /* the x2.4 re-cut (lane/c-pace, D-3): each piece one armor point past its cut reads over the line on a late ground, so the ceiling bites
-     at the edge, not only far past it */
-  ['the Visor one point past its re-cut, 69', 'AL3', (L) => { L.LINE_SAMPLE.outriders_visor.row.defB = 69; }],
-  ['the Breastplate one point past its re-cut, 113', 'AL3', (L) => { L.LINE_SAMPLE.wagon_guards_breastplate.row.defB = 113; }],
-  ['the Limewashed Plate one point past its re-cut, 130', 'AL3', (L) => { L.LINE_SAMPLE.limewashed_plate.row.defB = 130; }],
-  /* D-3 section 4: a heavy piece pays in lighter blows; its old to-hit cost bought no armor on the ratio */
-  ['the Breastplate pays in to-hit again (atkB -2 for its 12 over the line)', 'AL3', (L) => { const r = L.LINE_SAMPLE.wagon_guards_breastplate.row; delete r.strB; r.atkB = -2; }],
+  /* the to-hit ratio re-cut (lane/a-ci-reds-pre-wave): each piece one armor point past its cut reads 100.01 to 100.07% of the line, so the
+     ceiling bites at the edge, not only far past it */
+  ['the Visor one point past its re-cut, 56 (1.0001 of the line at the Catacombs)', 'AL3', (L) => { L.LINE_SAMPLE.outriders_visor.row.defB = 56; }],
+  ['the Breastplate one point past its re-cut, 101 (1.0003 of the line on the Roost)', 'AL3', (L) => { L.LINE_SAMPLE.wagon_guards_breastplate.row.defB = 101; }],
+  ['the Limewashed Plate one point past its re-cut, 129', 'AL3', (L) => { L.LINE_SAMPLE.limewashed_plate.row.defB = 129; }],
   ['a template: the line\'s own armor, Dawnsteel\'s numbers', 'AL4', (L) => { const r = L.LINE_SAMPLE.limewashed_plate.row; r.defB = 135; delete r.atkB; }],
   ['the Visor under tempered Dawnsteel everywhere', 'AL4', (L) => { L.LINE_SAMPLE.outriders_visor.row.defB = 40; }],
   ['a second Vaults helm out-wins the Watchman\'s everywhere', 'AL4', (L) => { L.LINE_SAMPLE.rival_helm = { ...structuredClone(L.LINE_SAMPLE.watchmans_helm), row: { ...L.LINE_SAMPLE.watchmans_helm.row, n: 'Rival Helm', defB: 85 } }; L.LINE_SAMPLE.rival_helm.source = { ...L.LINE_SAMPLE.rival_helm.source, monster: 'bone_wall' }; }],
-  /* the clause for a piece under its weight's first Level: on the x2.4 curve plate's first Level is 117 and no sample piece is under it,
-     and the Leg Plates now win on every ground a Level 125 hero is sent to (MEASURED: at 75 armor they won on the Roost alone, at 76 on
-     all three). So the mutant writes plate's first Level over their 125 and drops them where they win nowhere, the Catacombs */
-  ['a plate piece under its first Level wins only off its own ground', 'AL4', (L) => { L.LINE_FIRST_LEVEL.plate = 130; L.LINE_SAMPLE.burnt_crag_leg_plates.source = { monster: 'bone_wall', ground: 'unmarked_catacombs', how: 'rare', ch: 0.002 }; }],
+  /* the Leg Plates at 125 (under plate's 129) win on the Roost alone (1.004 measured): dropped on the Ox Road, they win only off their own ground */
+  ['a plate piece under its first Level wins only off its own ground', 'AL4', (L) => { L.LINE_SAMPLE.burnt_crag_leg_plates.source = { monster: 'dead_teamster', ground: 'ox_road', how: 'rare', ch: 0.002 }; }],
   ['the jerkin changes weight', 'AL5', (L) => { L.LINE_SAMPLE.haulers_jerkin.row.armourClass = 'plate'; }],
-  ['the Visor pays a point of Melee to-hit at the line\'s armor (under the line, so AL3 cannot see it)', 'AL5', (L) => { const r = L.LINE_SAMPLE.outriders_visor.row; r.defB = 55; delete r.strB; r.atkB = -1; }],
   ['worn under its ground\'s floor', 'AL5', (L) => { L.LINE_SAMPLE.haulers_jerkin.row.reqLv = 150; }],
   ['the Breastplate kept at the Roost\'s 125 on the Night Shift (122)', 'AL5', (L) => { L.LINE_SAMPLE.wagon_guards_breastplate.row.reqLv = 125; }],
   ['a book under the base', 'AL5', (L) => { L.LINE_SAMPLE.limewashed_plate.row.v = 108000; }],

@@ -137,13 +137,11 @@ const cases = {
     /* The same hero, the same Level, the same pull: the tier's stats are the only change. */
     const cell = cellOn(T);
     const row = T.tierRowOf(GLADE, 'deadly');
-    /* A kill's XP is read on a hero that lives the hour. At 31 on the to-hit ratio (2026-11-20) the lone tank under the full box died six times an
-       hour and the reading fell to 1.198 (1.253 at 44, the last Level a lone hero is sent to the Glade, with no death). On the x2.4 armor curve
-       (the designer's D-3, lane/c-pace) the lone tank at 44 dies 8 times an hour on Deadly and reads 1.161; MEASURED at 48, 52 and 56: no death,
-       1.250, 1.248 and 1.250. So the case reads at 48, the first Level it lives. The tier's dials are this case's subject, the danger is the tier
-       sizing's (CB-2, with the armor curve in). */
-    const flat = R.runCell({ ...cell(GLADE, ['tank'], 48, null), density: T.pullOfTier(row, 1) });
-    const dead = R.runCell(cell(GLADE, ['tank'], 48, 'deadly'));
+    /* Level 44, the last a lone hero is sent to the Glade (balance-sheet.js GROUND_GP_FIT's note): a kill's XP is read on a hero that lives the
+       hour. At 31 on the to-hit ratio (2026-11-20) the lone tank under the full box dies six times an hour and the reading falls to 1.198 (1.253
+       at 44 with no death); the tier's dials are this case's subject, the danger is the tier sizing's (plan L16). */
+    const flat = R.runCell({ ...cell(GLADE, ['tank'], 44, null), density: T.pullOfTier(row, 1) });
+    const dead = R.runCell(cell(GLADE, ['tank'], 44, 'deadly'));
     const f = flat.heroes[0], d = dead.heroes[0];
     if (!(flat.party.killsPerH > 100 && dead.party.killsPerH > 100)) return 'fixture: killed ' + flat.party.killsPerH + ' and ' + dead.party.killsPerH + ' an hour';
     if (!(d.storePerH > f.storePerH * 1.3)) return 'a Deadly store bill of ' + d.storePerH + ' against ' + f.storePerH + ': it hits no harder';
@@ -161,10 +159,8 @@ const cases = {
     /* NEVER GOLD, EXACTLY (Tyler 2026-11-07: "BUT NOT GOLD"): the Glade's Deadly pull with only its XP dial (damage and HP at the row's), a
        what-if put back after, against the same pull with no tier, on the same dice. The fight is Normal's blow for blow, so every coin and
        every drop must be Normal's to the unit, and only the Level XP moves. 10 minutes: no Level is gained, so no hero's stats move. */
-    /* Level 36 (was 31): on the x2.4 armor curve (the designer's D-3, lane/c-pace) the lone tank at 31 under this pull killed 17 in the 10
-       minutes, under the 20 the case needs to say anything; MEASURED at 36: 75. */
     const rows = T.GROUND_TIERS[GLADE], was = rows.deadly, pull = T.pullOfTier(was, 1);
-    const play = (tier) => P.run(GLADE, 36, ['tank'], { spanMs: 600000, windowMs: 120000, density: pull, options: () => (tier ? { tier } : {}) });
+    const play = (tier) => P.run(GLADE, 31, ['tank'], { spanMs: 600000, windowMs: 120000, density: pull, options: () => (tier ? { tier } : {}) });
     rows.deadly = { ...was, pull: [...was.pull], dmgPm: 1000, hpPm: 1000 };
     try {
       const flat = play(null), dial = play('deadly');

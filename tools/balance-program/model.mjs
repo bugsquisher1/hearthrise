@@ -215,10 +215,6 @@ export const REAL_KRELL_FOUR_SHIFTS = Object.freeze([
      22,386, store 14,278 -> 12,133 */
   Object.freeze({ why: 'the spell rule: every cast a share of the caster\'s blow (Tyler 21-5, 32-x)',
     mult: Object.freeze({ levelXp: 1.1997, kills: 1.1998, income: 1.1556, store: 0.8498 }) }),
-  /* the armor curve x2.4 (the designer's D-3 ruling 1; lane/c-pace), b522afa97 -> the curve merged: Level XP 1,153,899 -> 1,158,126, kills
-     1,443 -> 1,449, income 25,460 -> 24,973, store 12,013 -> 12,784 */
-  Object.freeze({ why: 'the armor curve x2.4: ARMOUR_MITIGATION k x2.4 (the designer\'s D-3 ruling 1)',
-    mult: Object.freeze({ levelXp: 1.0037, kills: 1.0042, income: 0.9809, store: 1.0642 }) }),
 ]);
 
 /* WHERE THE HARNESS IS KNOWN TO DISAGREE WITH REAL PLAYERS (10-real-players.md section 1). A dive quotes these beside any number they touch. */

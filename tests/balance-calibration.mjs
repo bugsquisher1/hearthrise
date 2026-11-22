@@ -112,15 +112,6 @@ export const DECLARED_SHIFTS = Object.freeze([
     mult: Object.freeze({ killsPerH: 0.924, levelXpPerH: 0.925, coinPerH: 0.97, dealtPerH: 0.925, takenPerH: 1.014, healedPerH: 1.131, storePerH: 0.867 }) }),
   Object.freeze({ after: '2026-11-21', grounds: Object.freeze(['krells_hold']), why: 'the spell rule: every cast a share of the caster\'s blow (Tyler 21-5, 32-x)',
     mult: Object.freeze({ killsPerH: 1.131, levelXpPerH: 1.131, coinPerH: 1.135, dealtPerH: 1.125, takenPerH: 0.882, healedPerH: 0.908, storePerH: 0.796 }) }),
-  /* (3) THE ARMOR CURVE x2.4 (the designer's D-3 ruling 1; lane/c-pace, FB-8 stage 1's armor half; src/data/core-model.js ARMOUR_MITIGATION
-     absorb.k 0.62 -> 1.488, dodge.k 0.4 -> 0.96): armor fades 2.4 times as fast against the attacker's Level, so every hero takes more and
-     heals and eats more; kills and XP do not move. MEASURED as the rows above (this guard's replay, 2 h x 2 seeds, calibrate.mjs --run --json),
-     b522afa97 (lane/c-pace before the armor half) -> the curve merged, sim over sim, geometric mean within each ground. D-3 read the mid kit
-     18 to 32% more damage on Normal; these recorded kits read +39% (the lone Warrens hero) and +23% (Krell's fours). */
-  Object.freeze({ after: '2026-11-21', grounds: Object.freeze(['coppercap_warrens']), why: 'the armor curve x2.4: ARMOUR_MITIGATION k x2.4 (the designer\'s D-3 ruling 1)',
-    mult: Object.freeze({ killsPerH: 1, levelXpPerH: 0.999, coinPerH: 0.983, dealtPerH: 0.999, takenPerH: 1.391, healedPerH: 1.516, storePerH: 1.198 }) }),
-  Object.freeze({ after: '2026-11-21', grounds: Object.freeze(['krells_hold']), why: 'the armor curve x2.4: ARMOUR_MITIGATION k x2.4 (the designer\'s D-3 ruling 1)',
-    mult: Object.freeze({ killsPerH: 0.999, levelXpPerH: 0.999, coinPerH: 0.997, dealtPerH: 0.999, takenPerH: 1.233, healedPerH: 1.286, storePerH: 1.528 }) }),
 ]);
 
 const judgedOf = (fx) => fx.samples.filter((s) => s.kit === 'held' && s.hours >= 1);

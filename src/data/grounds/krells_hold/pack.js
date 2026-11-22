@@ -268,13 +268,8 @@ export default definePack({
        cheapest store food every party it names wins on). Two formulas moved the fight, not this room: on the to-hit ratio alone (src/data/to-hit.js)
        a third and fourth tank won 2 of 40 at 85, out of time; with the spell rule (every cast a share of the caster's blow) every one of the 36
        parties wins 40 of 40 on Swordfish and 38 to 40 of 40 on Salted Lobster, and on Salted Trout 23 to 31 of 40 in 19 of them (deaths). So
-       the card asked for Lobster, at 180 gold a bite against Swordfish's 432.
-       THE FLOOR IS SHARK ON THE x2.4 ARMOR CURVE (the designer's D-3 ruling 1, lane/c-pace, 2026-11-21): armor fades 2.4 times as fast against
-       the attacker's Level, so every hero takes more and the hall did not move. MEASURED, 40 tries a cell at 85: on Lobster 21 of the 36 parties
-       fall under 75% (a tank, a healer and a bow and a second tank 15 of 40); on Swordfish 4 still do (27 to 28 of 40: a second tank and a bow, two
-       swords, axes and a bow, two mages); on Salted Shark every party wins 75% or more, and Swordfish is the step that loses. So the card asks for
-       Shark, 693 gold a bite. If the switch rule's x1.6 is taken (D-3), re-read the floor. */
-    storeFloor: 'salted_shark',
+       the card asks for Lobster, at 180 gold a bite against Swordfish's 432. */
+    storeFloor: 'salted_lobster',
     words: { boss: 'Lord Krell', Boss: 'Lord Krell',
       bars: ['Everyone: Eat under 75%', 'Healer: Circle of Renewal when 2 are under 80%', 'Healer: Greater Mend under 85%', 'Party: a tank, a healer and two more'] },
     hunt: { name: 'Krell\'s Hall', theme: 'Krell sits by the long fire at the back of his hall, holding the list of every soldier his men killed.',

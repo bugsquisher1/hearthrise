@@ -216,8 +216,9 @@ JUDGMENT: one later step is worth doing when BL-3's targets land. Teach `balance
 
 ## 9. Known limitations
 
-1. Section 6 of `06-coverage.md`: everything EXCLUDED there is invisible to this report.
+1. Section 2 of `06-coverage.md`: everything EXCLUDED there is invisible to this report.
 2. The noise rule is unpaired. A paired rule (seed k against seed k) would resolve smaller moves, but only while the two trees' dice stay in step, which a real engine change breaks within minutes of play.
 3. A view's error assumes its cells are independent. Cells share seeds, so the true error of a pooled view is somewhat larger than printed.
 4. The scenarios are fixed at the pin. A candidate that adds content past Level 110 is measured only through the `beyond` block until a new pin re-derives the spec.
-5. BL-3's rows are read through band readers only. A row another tool reads (the atlas, the paths, a guard line, the start cards) stays UNREAD here until that reader stores its value in the results, and 23 rows wait for a number in their band.
+5. A read that depends on the tree (06 section 6): a candidate whose tally carries the engine's sustain block reads regeneration and the low-health outcomes the new way, and the pin infers them. Until the pin is cut on a tree with the block, a move in those outcomes against such a candidate may be the read.
+6. BL-3's rows are read through band readers only. A row another tool reads (the atlas, the paths, a guard line, the start cards) stays UNREAD here until that reader stores its value in the results, and 23 rows wait for a number in their band.

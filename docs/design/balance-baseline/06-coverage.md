@@ -136,7 +136,7 @@ INCLUDED means the game's own code runs in the cell. APPROXIMATED means the cell
 | Anything else `cell.mjs` emits | kept in the outcome list or in the slim matrix metrics | close calls, monster hit rate, damage a monster swing, healing in and out, shields, sustain ratio, store share, the hunted share, the death tax |
 
 **Gaps the harness cannot fill today.** UNKNOWN in every real-data sense, and not faked here:
-1. Mana starvation (time near empty, casts skipped).
+1. Mana starvation (time near empty, casts skipped). The Balance Lab's sustain reads (`tools/balance-sim/sustain-reads.mjs`, on the set since this pin) take it from the engine's own sustain block, which the pinned tree's tally does not carry: every baseline cell reads `sustain: null`. A later pin on a tree with the block can read it.
 2. A supply or purse running out mid-hunt in the baseline scenarios (the matrix's `binds` variants can).
 3. Overhealing and healing efficiency (heals given are counted, heals wasted are not).
 4. Threat and aggro distribution beyond the share of damage taken.
@@ -190,3 +190,4 @@ All real numbers are aggregates already in the repo (`tools/balance-program/cali
 | The harness overlay | the measuring code differs between the two sides of a comparison | the overlay is one checkout's harness on both trees, its hash is in each results file, and the report warns when the two differ |
 | The designer's staged item lines in `tools/balance-sim/staged` | they are game data that sits in a tools folder | the overlay keeps each tree's own copy (`TREE_OWN` in `baseline/tree.mjs`) |
 | The hero levels inside a cell | a long cell drifts a Level or two from its label | the hours rule keeps low Levels short. A reader comparing two trees sees the same drift on both sides |
+| Reads that depend on the tree | the cell runner now asks the played tree's tally for a sustain block (regeneration anchored on the engine, mana waits). The pin has none, so it infers regeneration. A candidate whose tree carries the block reads regeneration, time under 30% and 10% and the lowest-health figures the new way | compare those outcomes only between two trees that both carry the block, or both lack it. Where one does and one does not, a move in them may be the read, not the game, and the review says so |

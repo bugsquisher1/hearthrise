@@ -157,7 +157,8 @@ async function arms(db) {
       if (!r || r.ok !== true || r.preset !== i) problems.push('HPR-5 number ' + i + ' answered ' + J(r).slice(0, 160));
     }
     const last = await read(db, 0, ACTION_SET_LIMITS.presets - 1);
-    if (!last || last.locked !== true) problems.push('HPR-5 the last number, new and past the free count, does not read locked: ' + J(last && last.locked));
+    /* saving a setup is free (1049-setups-free.sql, redesign direction 9): every number under the limit, the last one new, opens */
+    if (!last || last.locked !== false) problems.push('HPR-5 the last number, new, reads locked (saving a setup is free): ' + J(last && last.locked));
     for (const [slot, n, want] of [[0, ACTION_SET_LIMITS.presets, 'bad_preset'], [0, -1, 'bad_preset'], [0, null, 'bad_preset'], [6, 0, 'bad_slot'], [null, 0, 'bad_slot']]) {
       const r = await read(db, slot, n);
       if (!r || r.error !== want) problems.push('HPR-5 slot ' + slot + ' number ' + n + ' answered ' + J(r) + ', want ' + want);
@@ -225,6 +226,8 @@ const MUTANTS = [
   { name: 'a read moves the setup row', fn: 'public.hr_hunt_preset_read(integer,integer)',
     find: 'v := public.hr_hunt_preset_project(v_uid, p_slot, p_preset);',
     repl: 'update public.player_action_sets set updated_at = now() where user_id = v_uid and slot = p_slot and preset = p_preset; v := public.hr_hunt_preset_project(v_uid, p_slot, p_preset);', want: /HPR-8/ },
+  { name: 'setups are priced again: a new number past three reads locked (2027-02-28-setup-slots.sql\'s rule)', fn: 'public.hr_setup_locked(uuid,integer,integer)',
+    find: 'if p_preset < v_count', repl: 'if p_preset < 3', want: /HPR-5/ },
   { name: 'anon may ask', sql: 'grant execute on function public.hr_hunt_preset_read(integer, integer) to anon;', want: /HPR-7/ },
   { name: 'the door is declared STABLE', sql: 'alter function public.hr_hunt_preset_read(integer, integer) stable;', want: /HPR-7/ },
   { name: 'an overload that names a player', sql: 'create function public.hr_hunt_preset_read(p_user uuid, p_slot integer, p_preset integer) returns jsonb language sql security definer as $m$ select public.hr_hunt_preset_project(p_user, p_slot, p_preset) $m$; grant execute on function public.hr_hunt_preset_read(uuid, integer, integer) to authenticated;', want: /HPR-4/ },

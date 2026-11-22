@@ -1,0 +1,16 @@
+{
+ "schema": "hearthrise.balance-candidate/1",
+ "base": "tree",
+ "id": "power-defense-back",
+ "why": "The defense half alone (lane/r9): every hero's defense rating one tier under the ground's, after the cap as in the tree, its offense at the ground's. Paired against the tree",
+ "edits": [
+  {
+   "file": "src/core/hunt/danger.js",
+   "from": "steps = -gearSteps(target.gearPm, row);",
+   "to": "steps = -(gearSteps(target.gearPm, row) - GEAR_STEPS.tierSteps);"
+  }
+ ],
+ "assumptions": [
+  "One tier is GEAR_STEPS.tierSteps (src/data/gear-steps.js) steps of power at weightGear 1000"
+ ]
+}

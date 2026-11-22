@@ -112,6 +112,18 @@
         "gzipBytes": 910026,
         "on": "2026-11-22",
         "why": "set/v0.2.144 redesign wave 1: town stage +2.0 KB gzip from the Danger scale client (danger-intents/sections, Risk pick, depth line), bought hunting blocks, the company work day and gear-steps data the town reads; all needed at town"
+      },
+      {
+        "modules": 21,
+        "gzipBytes": 911126,
+        "on": "2026-11-22",
+        "why": "R5 report cause line: +1.1 KB gzip in the town stage for the Depth/fall-back cause line on the end and return cards (report-sections, hunt-summaries, away.js); the return card is read at town"
+      },
+      {
+        "modules": 21,
+        "gzipBytes": 911585,
+        "on": "2026-11-22",
+        "why": "R9 power step: +0.4 KB gzip at town, the browser's frozen peer row and member snapshot now carry gearPm (src/core/member.js, hunt/danger.js) for display parity"
       }
     ]
   }

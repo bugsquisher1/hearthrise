@@ -9,22 +9,38 @@
 //
 //   reportFacts(rep, o)   the compact facts one summary keeps (the residue's `report`, bounded by src/session/hunt-summaries.js):
 //                         { word, low [pm, monster, blow] | null, close, dry [[item, ms into the hunt]], ranOut reason | null,
-//                           deaths [[xp, saved, blessings]], rules [[rule, uses, place, fired, why, kind, sharePm]] }
+//                           deaths [[xp, saved, blessings]], rules [[rule, uses, place, fired, why, kind, sharePm]], depth | null }
+//   depthFacts(rep, o)    THE CAUSE LINE'S FACTS on the Danger scale (lane R5, 12-targets.md 2.6 and 3.4: "Held depth 14 of 20 on
+//                         Steady"): { risk, held, deep, of, n, last [name, pm, monster] | null }, every depth on the ground's band
+//                         (danger-sections.js depthOf), never a raw step. `held` the depth the hunt stood at (an ended one's
+//                         risk_end / danger_end, an open one's `danger` section), `deep` the deepest the report counted, `n` the
+//                         falls back the report keeps (the last HUNT_REPORT.fallsMax), `last` the newest one's hero, HP permille (0:
+//                         it died) and monster. Null off the scale.
 //   changedSlot(cur, prev) the change line's facts: the first bar slot of `cur` whose rule the last hunt on this ground did not play,
 //                         with its share now and then (when the old hunt had one for the same thing), or null
-//   CAUSE_SLOT            where the cause line goes (package 9: "names the cause in plain words and the one change most likely to
-//                         help"). It needs the sustain counters in the server tally, which this lane does not store: null until then.
 // ════════════════════════════════════════════════════════════════════════
 import { riskWord } from '../core/hunt/report.js';
 import { NEVER_TRUE, WAIT_REASONS } from '../data/hunt-report.js';
+import { onScale, depthOf, STANCE_IDS } from '../session/danger-sections.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const nat = (v) => (Number.isSafeInteger(v) && v >= 0 ? v : null);
 /* The END_ORDER reasons that mean a thing ran out (src/data/hunt-sessions.js), said beside the stacks that ran dry. */
 const RAN_OUT = Object.freeze(['gold_out', 'heals_out', 'ammo_out', 'runes_out']);
 
-/** The cause line's slot (see the header): filled once the server stores the sustain counters. */
-export const CAUSE_SLOT = null;
+/**
+ * The cause line's facts (see the header).
+ * @param {ReturnType<typeof import('../session/report-sections.js').reportFrom>} rep
+ * @param {{ hunt?: string|null, risk?: string|null, step?: number|null }} o  the ground, and the Risk and step the hunt stood at
+ */
+export function depthFacts(rep, o = {}) {
+  if (!onScale(o.hunt)) return null;
+  const held = depthOf(o.hunt, o.step), deep = rep ? depthOf(o.hunt, rep.deep) : null;
+  if (!held && !deep) return null;
+  const falls = rep && Array.isArray(rep.falls) ? rep.falls : [], f = falls.length ? falls[falls.length - 1] : null;
+  return { risk: STANCE_IDS.includes(o.risk) ? o.risk : null, held: held ? held.depth : null, deep: deep ? deep.depth : null,
+    of: (held || deep).of, n: falls.length, last: f ? [f.name || '', f.pm, f.monster] : null };
+}
 
 /* The reason a rule that never fired waited most (a tie to the first in WAIT_REASONS), else its condition was never true. */
 function whyNever(w) {
@@ -44,8 +60,9 @@ function shareOf(uses, dealt, healed) {
 /**
  * The facts one summary keeps.
  * @param {ReturnType<typeof import('../session/report-sections.js').reportFrom>} rep  the session's report, or null
- * @param {{ deaths?: object[], reason?: string|null, enteredMs?: number|null }} o
- *   deaths: the death log's rows of this session (character-sections.js deathLogOf), reason: the session's end, enteredMs: its start
+ * @param {{ deaths?: object[], reason?: string|null, enteredMs?: number|null, hunt?: string|null, risk?: string|null, step?: number|null }} o
+ *   deaths: the death log's rows of this session (character-sections.js deathLogOf), reason: the session's end, enteredMs: its start,
+ *   hunt / risk / step: the ground and the Risk and Danger step it stood at (depthFacts)
  * @returns {object|null}
  */
 export function reportFacts(rep, o = {}) {
@@ -62,7 +79,7 @@ export function reportFacts(rep, o = {}) {
   });
   const low = rep.low ? [rep.low.pm, rep.low.by, rep.low.blow] : null;
   return { word: riskWord(rep.low ? rep.low.pm : null, rep.close), low, close: rep.close, dry,
-    ranOut: RAN_OUT.includes(o.reason) ? o.reason : null, deaths, rules };
+    ranOut: RAN_OUT.includes(o.reason) ? o.reason : null, deaths, rules, depth: depthFacts(rep, o) };
 }
 
 /**

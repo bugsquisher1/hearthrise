@@ -63,7 +63,7 @@ import { tierLevel, traitPool } from './gear-steps.js';
 //   refKillsHead 120   MEASURED 2026-11-22 (v1-climb.mjs, base:steady, 2 seeds x 6 h): the Steady mixed four at Level 60 on Muster
 //                      Barrows kills 481 an hour at its held step (589.5 +- 14), 120 a head. Kills an hour hold there with Level (477 at 70)
 //   gapMax 120         STATED: depth pays at most (1.007)^120 = 2.31x the table; past it a deeper hold earns no more a kill (04 payGapMax)
-//   floorPm, coinPm    THE ECONOMY LEVERS (lane/econ-levers, 2026-11-22), set together with the wage (src/data/wage.js) and the store's
+//   floor, coinPm      THE ECONOMY LEVERS (lane/econ-levers, 2026-11-22), set together with the wage (src/data/wage.js) and the store's
 //                      basics (src/data/store-kit.js); their evidence is there and in tools/balance-program/redesign/econ/
 // THE START (02 package 3: "a hunt starts at a step the company has held before"; V1's "above" cell: a weaker company started at a stronger
 // one's step lost heroes in its first minutes): a hunt opens DANGER.startMargin steps under the LOWEST step any of its heroes last held on
@@ -86,22 +86,42 @@ export const DANGER = Object.freeze({
   startMargin: 20,
 });
 
-export const PAY = Object.freeze({
-  refKillsHead: 120, payStepXp: 0.007, gapMax: 120,
-  /* LEVER (danger.pay-floor; 12-targets.md 2.1): under the reference a kill pays at least this permille of the table, XP and coin. The ruling's
-     starting 0.85 paid Careful MORE than Steady an hour (its shallow pulls die fast); 2.1 says the floor moves, not the stances */
-  floorPm: 500,
-  /* LEVER (danger.coin-level): a scale kill's coin, permille of its row's roll, before the pull's share and the depth ratio. The gold level of
-     the scale, set so a whole-gold store use can price the kit at its share of the wage (src/data/store-kit.js) */
-  coinPm: 7000,
-});
+// THE PAY FLOOR (lane/r9-power-step, 2026-11-22; 12-targets.md 2.1, the designer's ruling: a kill never pays under a floor of the hours
+// table, and if Careful misses 0.55x to 0.70x of Steady the floor moves, not the stances): under the reference step the depth ratio falls
+// to PAY.floor and no further, for XP and coin alike, so a shallower stance's cost is its kills an hour, not twice. The floor raises only
+// what a kill pays UNDER the reference step: the most a kill can pay (the gap ceiling, hr_danger_level_xp_max) is unchanged.
+//   floor 0.5   MEASURED (v1-climb.mjs from a held start, lane/r9): see the lever row danger.pay-floor. 12-targets' starting 0.85 would put
+//               Careful OVER Steady (a Careful pull is smaller and falls faster: R4 read Careful at ~1.1x the reference kills an hour)
+//   coinPm 7000  THE SCALE'S COIN LEVEL (lane/econ-levers, 2026-11-22): a scale kill's coin is its row's roll x coinPm / 1000, before the
+//               pull's share and the depth ratio, set TOGETHER with the wage (src/data/wage.js) and the store's basics (src/data/store-kit.js) so a
+//               whole-gold store use can price a Steady four's kit at 0.2 to 0.3 of its pay. The coin ratio a step is the wage's payStepCoin
+//               (0.4%): the engine's own 0.7% coin ratio is retired, one coin ratio a step (04 section 11). Evidence:
+//               tools/balance-program/redesign/econ/.
+export const PAY = Object.freeze({ refKillsHead: 120, payStepXp: 0.007, gapMax: 120, floor: 0.5, coinPm: 7000 });
+
+// THE POWER STEP ON THE SCALE (lane/r9-power-step, 2026-11-22; 04-math-strategy.md sections 1, 2 and 10; 02 package 2; 12-targets 3.3).
+// A hero's GEAR PART is the gear table's (src/data/gear-steps.js, lane/g-gear-steps): each worn piece adds its item Level x its slot's
+// weight (GEAR_STEPS.slotPm, summing to 1000; a two-handed weapon carries GEAR_STEPS.twoHand's), so a whole kit at item Level X is X. The
+// engine (src/core/hunt/danger.js powerPm) reads it against the ground's base item Level (DANGER_GROUNDS gearLevel) at weightGear:
+//   steps = weightGearPm / 1000 x (gear part - gearLevel), whole steps (multiplications only, the same last bit on every engine)
+//   a blow at a monster x (1 + powerStep) ^ steps,  a blow at the hero / (1 + powerStep) ^ steps
+// one gear part feeds both ratings (the table has one). The defense half lands AFTER the armor chain and its 60% cap (04 section 2: the
+// step contest has no cap); played under the cap it showed a fifth of its steps (tools/balance-program/redesign/r9). Heals are not
+// stepped (health is not). Off the scale nothing here is read. The old itemization's stats still play beside it until wave 3.
+//   weightGearPm 1000   the whole gear part counts, so one tier of base on a whole kit (GEAR_STEPS.tierSteps item Levels) is that many
+//                       steps of power by construction (the Coordinator's R9 brief; 04's weighted mean with weightSkill waits for wave 3)
+// A piece's item Level is its row's `iL` once R10 writes it on scale drops; until then its `reqLv` STANDS IN (danger.js itemLevelOf).
+export const POWER = Object.freeze({ weightGearPm: 1000 });
+export { GEAR_STEPS } from './gear-steps.js';
 
 export const DANGER_GROUNDS = Object.freeze({
   /* floorStep / topStep: the ground's band of DEPTHS depths (docs/design/redesign/12-targets.md section 3.1, starting values the Lab
      tunes): depth 1 at the floor, depth 20 at the top. The player sees only "Depth N of 20", never a step (12-targets section 2.6).
      Display only for now: the server's catalogue (tools/gen-danger.mjs) reads refStep alone.
      gearLevel / traits: the ONE base item Level the ground drops at every depth and the Traits that roll on it (12-targets 3.3 and 8,
-     src/data/gear-steps.js). Muster Barrows (Levels 55-75) drops tier 3, item Level 60. Data only: no drop table or fight reads them yet. */
+     src/data/gear-steps.js). Muster Barrows (Levels 55-75) drops tier 3, item Level 60. gearLevel is also the gear part of the reference
+     company that measured refStep (the MID kit at Level 60, every piece item Level 60), so the power step (POWER) is 0 at it. Drop tables
+     do not read them yet; the engine's power step reads gearLevel. */
   muster_barrows: Object.freeze({ refStep: 590, floorStep: 480, topStep: 710, gearLevel: tierLevel(3), traits: traitPool('muster_barrows') }),
 });
 

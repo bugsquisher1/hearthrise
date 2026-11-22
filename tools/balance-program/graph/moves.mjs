@@ -148,8 +148,11 @@ export const LEVER_MOVES = Object.freeze({
   'danger.stances': ['~tier.hp', '~tier.dmg'],
   'danger.pay': [['+kill.xp', 'on a stance a kill pays a share of the killer\'s own Level from the hours table (danger.js levelShareXp, read by xp-share.js), x the depth ratio'],
     ['+kill.coin', 'on a stance a kill\'s coin is the roll x the pull\'s share x the depth ratio at the wage\'s coin ratio (dangerDial coinPm, read by hunt-rewards.js payKill)']],
+  /* THE POWER STEP ON GEAR (lane/r9; declared by lane/econ-levers on the merge, the base's graph --check named it) */
+  'danger.power-gear': [['-tier.dmg', 'on the scale a blow at the hero is divided by (1 + powerStep)^steps of the gear part over the ground\'s base (danger.js powerPm)'],
+    ['-tier.hp', 'a blow at a monster is multiplied by the same ratio, the same as less health to take']],
   /* THE ECONOMY LEVERS (lane/econ-levers): the pay floor, the scale's coin level and the store's basics, set together with the wage */
-  'danger.pay-floor': [['+kill.xp', 'under the reference a kill pays at least floorPm of the table (danger.js depthRatio, read by levelShareXp)'],
+  'danger.pay-floor': [['+kill.xp', 'under the reference a kill pays at least PAY.floor of the table (danger.js depthRatio, read by levelShareXp)'],
     ['+kill.coin', 'the same floor on the coin depth ratio (dangerDial coinPm)']],
   'danger.coin-level': [['+kill.coin', 'a scale kill\'s coin is its roll x coinPm / 1000 (dangerDial coinPm, read by hunt-rewards.js payKill)']],
   'econ.store-kit': [['+shop.price', 'every store row\'s price is store-kit.js storePrice: its share of the wage at the row\'s step over the reference hour\'s use, floored by the crafted partner']],

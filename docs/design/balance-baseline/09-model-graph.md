@@ -53,7 +53,7 @@ No fact is copied. The formulas and their edges stay in `formulas-architecture.j
 | Typed edges (one writes what another reads) | 342 |
 | Edges the formula register declares | 197 |
 | Calls between formula homes, read from the code | 44 |
-| Levers joined, and knobs | 187, 35 |
+| Levers joined, and knobs | 188, 35 |
 | Targets joined, and how many reach a measured outcome | 100, 37 |
 <!-- /graph:counts -->
 
@@ -215,7 +215,7 @@ CAREER      over many hunts, through earned XP becoming Levels and skill, it als
 <!-- graph:source -->
 Measured data: sensitivity-matrix, GitHub run 44969087150,44971044252,44972398698,44976040886, tree 0,1,2,3, 68 cells, 0+4 seeds. Rule: the sensitivity lane's own rule: an effect is resolved beyond Student's t times its standard error over the seeds, and beyond half a percent.
 
-Not played in that data: none. Levers with no measured knob (they wait on the sensitivity lane): 156 of 187.
+Not played in that data: none. Levers with no measured knob (they wait on the sensitivity lane): 157 of 188.
 <!-- /graph:source -->
 
 **How a direction is predicted.** A quantity's depth is the fewest mechanics between the lever and it. Its predicted direction is the direction of its shortest paths. If two shortest paths disagree the answer is "mixed" and the graph does not call it. A longer path that disagrees is kept and printed as the counter-path. This is a reading of a graph. It knows directions, never sizes.
@@ -412,11 +412,11 @@ The rank is the number of levers on the pair: the more numbers an agent can tune
 | 33 | `GF-8ef79389` | call | C-PULL / E12 | 8 | E12 reaches `startPull` in the home of C-PULL (src/core/hunt/pull-cycle.js:287), and no quantity is declared between them (C-PULL writes mon.fightHp, pull.size) |
 | 34 | `GF-c0593096` | writers | C-WEAKNESS / E51 | 8 | C-WEAKNESS and E51 both write drop.chance. The register holds no edge between them |
 | 35 | `GF-d078483b` | feeds | E18 / O-SUPPLIES | 8 | E18 writes supplies.used and O-SUPPLIES reads it. The register holds no edge between them |
-| 36 | `GF-53404b2e` | carrier | C-GEAR-ARMOR / C-MON-TOHIT | 8 | The register says C-GEAR-ARMOR feeds C-MON-TOHIT, and C-GEAR-ARMOR writes nothing C-MON-TOHIT reads (C-GEAR-ARMOR writes gear.armor) |
-| 37 | `GF-73583d64` | feeds | E55 / E18 | 8 | E55 writes hero.leech and E18 reads it. The register holds no edge between them |
-| 38 | `GF-788b15e5` | writers | C-JEWEL-PERKS / C-REGEN | 8 | C-JEWEL-PERKS and C-REGEN both write hero.regen. The register holds no edge between them |
-| 39 | `GF-095e2551` | carrier | P11 / C-SPELL-HIT | 7 | The register says P11 feeds C-SPELL-HIT, and P11 writes nothing C-SPELL-HIT reads (P11 writes hero.maxHp, hero.maxMana) |
-| 40 | `GF-3597f539` | writers | C-WEAKNESS / E52 | 7 | C-WEAKNESS and E52 both write drop.chance. The register holds no edge between them |
+| 36 | `GF-e714037e` | feeds | C-GEAR-ARMOR / C-TEMPER | 8 | C-GEAR-ARMOR writes gear.armor and C-TEMPER reads it. The register holds no edge between them |
+| 37 | `GF-53404b2e` | carrier | C-GEAR-ARMOR / C-MON-TOHIT | 8 | The register says C-GEAR-ARMOR feeds C-MON-TOHIT, and C-GEAR-ARMOR writes nothing C-MON-TOHIT reads (C-GEAR-ARMOR writes gear.armor) |
+| 38 | `GF-73583d64` | feeds | E55 / E18 | 8 | E55 writes hero.leech and E18 reads it. The register holds no edge between them |
+| 39 | `GF-788b15e5` | writers | C-JEWEL-PERKS / C-REGEN | 8 | C-JEWEL-PERKS and C-REGEN both write hero.regen. The register holds no edge between them |
+| 40 | `GF-095e2551` | carrier | P11 / C-SPELL-HIT | 7 | The register says P11 feeds C-SPELL-HIT, and P11 writes nothing C-SPELL-HIT reads (P11 writes hero.maxHp, hero.maxMana) |
 
 258 ghost edges in all. The rest: `node tools/balance-program/graph.mjs --findings`.
 <!-- /graph:ghosts -->

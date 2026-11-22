@@ -238,6 +238,11 @@
         "bytes": 3288194,
         "on": "2026-11-22",
         "why": "lane/r12-company-trades (merged over lane/g-gear-steps and lane/w-wage): the work day reaches the engine (src/core/work-day.js, src/data/work-day.js; the stop in accrual.js, work_to in both accruers, the day carried in tick-shadow.js, the work_day input in envelope.js)"
+      },
+      {
+        "bytes": 3295265,
+        "on": "2026-11-22",
+        "why": "R9 power step: danger.js gearPartPm/powerPm, damage.js stepped blows, member.js gearPm (+7,071 B on top of lane G)"
       }
     ]
   }

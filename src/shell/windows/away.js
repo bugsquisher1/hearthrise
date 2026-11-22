@@ -30,7 +30,8 @@ import { huntOf } from '../../session/hunt-sections.js';
 import { spanWords, staminaFreeOf, staminaShort } from '../after-hunt.js';
 import { outgrownGroundOf } from '../back-in-town.js';
 import { refusalWords, playCapOf } from '../intent-words.js';
-import { summariesOf } from '../../hunt-view/summary-recorder.js';
+import { summariesOf, depthFactsOf } from '../../hunt-view/summary-recorder.js';
+import { causeLine } from '../hunt-report.js';
 import { roomOfHunt } from '../../data/boss-halls.js';
 import { trainingOf as trainedBy } from '../../data/training.js';
 import { runRulesOf } from '../../data/tower.js';
@@ -100,7 +101,10 @@ export function awayBlockOf(cs, a) {
       if (loops.length) rest = { head: now.freeSaid ? '' : t('away.rest_head'), loops: loops.map((l) => ({ go: l.go, label: l.label })) };
     }
   } else if (now) why = now.stamina ? t('away.card_still_stamina', { time: now.stamina }) : t('away.card_still');
-  return { name: f.name || '', place: a.work ? '' : f.place || '', result, best: hunt && f.best ? f.best : null, why, when, stamina, go, label,
+  /* THE CAUSE LINE (lane R5, ../hunt-report.js causeLine): on a Danger scale ground, where the hunt held and why it fell back, the hunt's
+     own card's facts or the open hunt's read now (summary-recorder.js depthFactsOf); '' off the scale */
+  const cause = hunt && cs && a.session ? causeLine(depthFactsOf(cs, a.session)) : '';
+  return { name: f.name || '', place: a.work ? '' : f.place || '', result, best: hunt && f.best ? f.best : null, why, cause, when, stamina, go, label,
     ground: ground ? ground.hunt : null, rest,
     /* the card's foot offers the viewed hero's Hunt summary once its hunt has ended (the loot, the trip home) */
     summary: go === 'again' || go === 'ground', bless: blessOf(cs, f) };
@@ -129,7 +133,7 @@ function heroRow(ctx) {
   return element(ctx.doc, '<li class="haway-hero"><header class="haway-head"><h3 class="haway-name"></h3><span class="haway-place"></span></header>'
     + resultHtml()
     + '<p class="haway-best"><span class="hsum-ico"></span><span class="haway-best-name"><small>' + t('away.card_best') + '</small><b></b></span></p>'
-    + '<p class="haway-why"></p><p class="haway-when"></p>'
+    + '<p class="haway-why"></p><p class="haway-cause"></p><p class="haway-when"></p>'
     + '<div class="haway-acts"><button type="button" class="hh-tool" data-hs-act="away-go"></button>'
     + '<button type="button" class="hh-tool" data-hs-act="away-bless" hidden></button><span class="haway-stamina"></span></div>'
     /* stamina short: the loops that use none, each a press (awayBlockOf `rest`) */
@@ -169,6 +173,7 @@ renderAway.patch = function patchAway(body, ctx) {
       if (ico.getAttribute('data-ico') !== (b.best || '')) { ico.setAttribute('data-ico', b.best || ''); ico.innerHTML = b.best ? itemIconHtml(ctx.glyphs, b.best) : ''; }
       text(best.querySelector('b'), b.best ? itemName(b.best) : '');
       text(li.querySelector('.haway-why'), b.why);
+      text(li.querySelector('.haway-cause'), b.cause);
       text(li.querySelector('.haway-when'), b.when);
       text(li.querySelector('.haway-stamina'), b.stamina);
       const go = li.querySelector('[data-hs-act="away-go"]');

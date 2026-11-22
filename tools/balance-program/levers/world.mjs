@@ -330,7 +330,7 @@ export const WORLD = [
     perturb: NP('player-policy', 'the stance is the player\'s risk choice; the V1 and V2 probes play each'),
     ev: 'MEASURED (V1.1, v2-stance.mjs)' }),
   L('danger.pay', 'monster-rewards', 'global', 'Pay by depth', {
-    at: [at(DZ, 'refKillsHead: 120, payStepXp: 0.007, gapMax: 120,')],
+    at: [at(DZ, 'export const PAY = Object.freeze({ refKillsHead: 120, payStepXp: 0.007, gapMax: 120,')],
     def: 'a kill on the scale pays each hero (XP to its next Level / the hours that Level takes in the hours table) / (refKillsHead x heroes at the kill) x (1 + payStepXp)^gap, the gap the step over the ground\'s reference step held to gapMax; coin is the roll x the pull\'s share x PAY.coinPm / 1000 x (1 + WAGE.payStepCoin)^gap (one coin ratio, econ.wage-step); under the reference both read the pay floor',
     range: 'payStep = powerStep x a premium (04 section 7: 0.7% is a premium of two); refKillsHead the reference company\'s kills an hour a head at its reference step; gapMax 120 = at most 2.31x the table',
     touches: 'Level XP and coin an hour on the scale. MEASURED 2026-11-22 (2 seeds x 6 h, Muster): Steady at Level 60 0.72x the hours table over the hunt (the climb included), Bold 0.88x, Careful 0.28x; V1\'s row pay read ~22x',
@@ -338,16 +338,8 @@ export const WORLD = [
     tests: [['tests/hunt-core/danger.mjs', 'pay: one kill at the reference step pays the hours table, a step deeper (1 + payStepXp) more, held at gapMax']], testReads: ['PAY'],
     perturb: NP('not-in-runs', 'played by the V1 probe only; the server bounds it (hr_danger_level_xp_max, 1055)'),
     ev: 'MEASURED (refKillsHead: v1-climb.mjs base:steady 481 kills an hour), STATED (gapMax)' }),
-  L('danger.pay-floor', 'monster-rewards', 'global', 'The pay floor under the reference', {
-    at: [at(DZ, 'floorPm: 500,')],
-    def: 'under the ground\'s reference step a kill pays at least floorPm permille of the table, XP and coin alike (src/core/hunt/danger.js depthRatio)',
-    range: '12-targets.md 2.1 ruled a floor and its check: Careful earns 0.55x to 0.70x of Steady (C-5), and if it does not, the floor moves, not the stances. Its starting 0.85 paid Careful 1.07x of Steady (its shallow pulls die fast); 0.5 lands it at 0.62x',
-    touches: 'Careful\'s pay (XP and coin) and any hold far under the reference', out: [...PACE, ...GOLD], f: ['P02', 'C-TIER'],
-    tests: [['tests/hunt-core/danger.mjs', 'pay: 400 and 900 steps under the reference a kill pays the floor, XP and coin'], ['tests/econ-levers.mjs', 'EL-STANCE: Careful 0.55 to 0.70 of Steady']], testReads: ['PAY'],
-    perturb: NP('not-in-runs', 'played by the V1 probe only'),
-    ev: 'MEASURED (lane/econ-levers 2026-11-22, v1-climb.mjs Muster Barrows from a held start, 6 seeds x 8 h, seeds 1000-1005: tools/balance-program/redesign/econ/after-muster-L60.json): Careful 0.55x the hours table against Steady 0.89x (0.62); with no floor 0.32x (0.36)' }),
   L('danger.coin-level', 'monster-rewards', 'global', 'The scale\'s coin level', {
-    at: [at(DZ, 'coinPm: 7000,')],
+    at: [at(DZ, 'floor: 0.5, coinPm: 7000 });')],
     def: 'a scale kill\'s coin is its row\'s roll x coinPm / 1000, before the pull\'s share and the depth ratio (src/core/hunt/danger.js dangerDial)',
     range: 'set TOGETHER with the store (econ.store-kit) and the wage (econ.wage-base): a whole-gold store use can price a Steady four\'s kit at 0.2 to 0.3 of its pay only where an hour pays about 16,000 gold at Level 60 (the old tier paid 12,776 there, the scale at 1000 paid 4,797). The server\'s coin bound reads it (hr_danger_grounds.coin_pm_max, 1055)',
     touches: 'every coin a scale kill pays, and through the wage every price in hours of wage', out: GOLD, f: ['C-TIER'],
@@ -363,6 +355,22 @@ export const WORLD = [
     perturb: NP('not-in-runs', 'played by the V1 probe only'),
     flags: [flag('redundant', 'A per-ground number that stands in for one absolute step unit (LR-1: no per-ground dial); it retires when grounds carry absolute bands', '02 package 3 cost; JUDGMENT')],
     ev: 'MEASURED (the Steady four at Level 60 held 589.5 +- 14, 2 seeds x 6 h)' }),
+  L('danger.pay-floor', 'monster-rewards', 'global', 'Pay floor under the reference step', {
+    at: [at(DZ, 'refKillsHead: 120, payStepXp: 0.007, gapMax: 120, floor: 0.5,')],
+    def: 'under a ground\'s reference step the depth ratio a kill pays (XP and coin) falls to floor and no further, so a shallower stance pays in kills an hour, not twice (12-targets 2.1)',
+    range: '0 to 1 of the hours table. 12-targets 2.1 starts it at 0.85 and rules "if Careful misses 0.55x to 0.70x of Steady, the floor moves, not the stances"',
+    touches: 'Careful\'s pay an hour against Steady\'s (C-5); Steady and Bold hold near or over the reference, so it barely touches them', out: [...PACE, ...GOLD], f: ['P01', 'P02'],
+    tests: [['tests/hunt-core/danger.mjs', 'pay: under the reference a kill pays the floor, never less, XP and coin'], ['tests/econ-levers.mjs', 'EL-STANCE: Careful 0.55 to 0.70 of Steady']], testReads: ['PAY'],
+    perturb: NP('not-in-runs', 'played by the V1 probe from a held start (lane/r9 tools/balance-program/redesign/r9); the server bounds only the most a kill pays (hr_danger_level_xp_max), which the floor never raises'),
+    ev: 'MEASURED (lane/r9, v1-climb.mjs from a held start: tools/balance-program/redesign/r9/stance-held-L60.txt; lane/econ-levers re-measured with the coin level: tools/balance-program/redesign/econ/after-muster-L60.json)' }),
+  L('danger.power-gear', 'monster-stats', 'global', 'The power step on gear', {
+    at: [at(DZ, 'export const POWER = Object.freeze({ weightGearPm: 1000 });')],
+    def: 'on the scale a hero gear part (src/data/gear-steps.js: item Level x slot weight, a whole kit at X is X) counts weightGearPm / 1000 steps a gear step over the ground gearLevel: a blow at a monster x (1 + powerStep)^steps, a blow at the hero / (1 + powerStep)^steps, after the armor cap; heals are not stepped',
+    range: '0 to 1000 permille (04 section 1: a weighted mean with weightSkill). 1000 makes a tier of base on a whole kit tierSteps steps of power by construction',
+    touches: 'how far one gear tier moves the held step on the scale (C-2), on top of the own move of the shipped stats', out: [...KILL, ...SURVIVE], f: ['C-TIER', 'C-TEMPER'],
+    tests: [['tests/hunt-core/danger.mjs', 'power: a tier of gear is a tier of steps, after the cap, never off the scale']], testReads: ['POWER', 'GEAR_STEPS', 'DANGER_GROUNDS'],
+    perturb: NP('not-in-runs', 'played by the V1 probe (candidates power-tier-back / -ahead / -offense-back / -defense-back / -tier-back-under-cap); no matrix run plans a stance'),
+    ev: 'MEASURED (lane/r9, v1-climb.mjs: tools/balance-program/redesign/r9/summary.txt)' }),
   /* ── 14. MONSTER XP AND LOOT VALUES ────────────────────────────────────────────────────────────────────────────────────────── */
   L('reward.xp-line', 'monster-rewards', 'global', 'Level XP a kill', {
     at: [at(BS, 'xp: Object.freeze({ a: 1.436')],

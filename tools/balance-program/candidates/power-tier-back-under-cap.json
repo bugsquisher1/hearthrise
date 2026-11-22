@@ -1,0 +1,21 @@
+{
+ "schema": "hearthrise.balance-candidate/1",
+ "base": "tree",
+ "id": "power-tier-back-under-cap",
+ "why": "Where the power step is absorbed (lane/r9, the Coordinator's question): power-tier-back with the defense half of the step played UNDER the armor chain's 60% cap (as Tempering's armorPm is), the offense half as in the tree. Paired against the tree, its move over power-tier-back's is what the cap eats",
+ "edits": [
+  {
+   "file": "src/data/danger.js",
+   "from": "gearLevel: tierLevel(3),",
+   "to": "gearLevel: tierLevel(4),"
+  },
+  {
+   "file": "src/core/hunt/damage.js",
+   "from": "  n = isHero(target) ? mitigate(n, el, armourVs(inst, target, source), target.armorPm, rng) : Math.max(1, n);\n  /* TEMPERING: a hero's rung raises what lands on a monster, last, so +1% is +1% of the damage whatever the monster's defence (src/core/temper.js: the part of a point is one draw, made only by a hero with a rung).\n     THE POWER STEP (danger.js powerPm, on the scale only): the hero's gear in steps, folded into the same draw for a blow at a monster, and\n     for a blow at a hero after the armor chain's cap (the step contest has none). Off the scale both are what they were, nothing drawn. */\n  const pm = powerPm(inst, source, target, source && source.blowsPm > 0 && isMonster(target) ? source.blowsPm : 0);\n  if (pm) n = Math.max(1, temperedAmount(n, pm, rng));",
+   "to": "  n = isHero(target) ? mitigate(n, el, armourVs(inst, target, source), (target.armorPm || 0) - (isHero(target) ? powerPm(inst, source, target, 0) : 0), rng) : Math.max(1, n);\n  /* TEMPERING: a hero's rung raises what lands on a monster, last, so +1% is +1% of the damage whatever the monster's defence (src/core/temper.js: the part of a point is one draw, made only by a hero with a rung).\n     THE POWER STEP (danger.js powerPm, on the scale only): the hero's gear in steps, folded into the same draw for a blow at a monster, and\n     for a blow at a hero after the armor chain's cap (the step contest has none). Off the scale both are what they were, nothing drawn. */\n  const pm = powerPm(inst, source, target, source && source.blowsPm > 0 && isMonster(target) ? source.blowsPm : 0);\n  if (pm && isMonster(target)) n = Math.max(1, temperedAmount(n, pm, rng));"
+  }
+ ],
+ "assumptions": [
+  "The defense step under the cap is a permille cut summed with Tempering inside mitigate, so a hero at the cap gains nothing from it"
+ ]
+}

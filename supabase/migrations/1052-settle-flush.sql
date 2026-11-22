@@ -1,9 +1,9 @@
 -- ════════════════════════════════════════════════════════════════════════
--- supabase/migrations/1049-settle-flush.sql — EVERY LEVER COUNTS FROM WHAT AN UNSAVED CONFIRM CAN HAVE SHOWN
+-- supabase/migrations/1052-settle-flush.sql — EVERY LEVER COUNTS FROM WHAT AN UNSAVED CONFIRM CAN HAVE SHOWN
 --   (lane/c-settle-flush FB-4 second half, reliability-engineer, 2026-11-22; 30-plan L12 "confirm in the edge, save at the flush",
 --   study 48 section 3; build plan 13 FB-4).
 --
--- STATUS: supabase/migration-notes/1049-settle-flush.sql.json (STAGED until the Coordinator applies it).
+-- STATUS: supabase/migration-notes/1052-settle-flush.sql.json (STAGED until the Coordinator applies it).
 -- ORDER: the sequence in this file's name (CLAUDE.md rule 12): it runs after every file on its base (after 1005-lever-horizon.sql,
 --   whose hr_hunt_seed_horizon it restates, and 2026-10-31-live-horizon.sql, whose hr_hunt_live_horizon_at it restates).
 --   Applied as ONE transaction by the apply tool; never begin/commit here. Ends with its §4 self-check.
@@ -86,8 +86,8 @@ begin
      or to_regprocedure('public.hr_hunt_setup_hold()') is null then
     raise exception 'PRECONDITION: a lever-horizon reader this file serves is missing (1005-lever-horizon.sql, 2027-05-20-yard-stop.sql)'; end if;
   for v_r in select * from (values
-    ('public.hr_hunt_seed_horizon(uuid)', 'd5f7e5bff631a9fca1845be4739d36c2', '9ac9212234343e5f5e6d53bfa37fbcf3'),
-    ('public.hr_hunt_live_horizon_at(timestamp with time zone)', 'a857fba35a9e8a97139c7d79c5afe4a1', '78d553a8b5ea78d1420d9c875ac2a360')) t(fn, pre, post) loop
+    ('public.hr_hunt_seed_horizon(uuid)', 'd5f7e5bff631a9fca1845be4739d36c2', '034c7495d8c1c37bcbc4c5b586cb0c90'),
+    ('public.hr_hunt_live_horizon_at(timestamp with time zone)', 'a857fba35a9e8a97139c7d79c5afe4a1', '309ffe2363ea054f91972e93dced12d6')) t(fn, pre, post) loop
     select md5(replace(prosrc, chr(13), '')) into v_md5 from pg_proc where oid = to_regprocedure(v_r.fn);
     if v_md5 is null then raise exception 'PIN: % is missing', v_r.fn; end if;
     if v_md5 is distinct from v_r.pre and v_md5 is distinct from v_r.post then
@@ -99,7 +99,7 @@ end $mig$;
 -- ── §1 THE TWO HORIZONS, BOUNDED BY THE CLOCK AS WELL AS THE SAVE ─────────────
 create or replace function public.hr_hunt_seed_horizon(p_session uuid)
 returns timestamptz language sql stable set search_path = public, pg_catalog as $fn$
-  -- SETTLE-FLUSH (1049-settle-flush.sql) over LEVER-HORIZON (1005): the instant past every combat swing an answer can have shown for
+  -- SETTLE-FLUSH (1052-settle-flush.sql) over LEVER-HORIZON (1005): the instant past every combat swing an answer can have shown for
   -- this session's hunt. A saved answer shows the 16 seeds past the instance's (or the session's) settled point and next swing; an
   -- unsaved confirm (hunt-settle.js flushDue) shows them past the world it reached, whose next swing is under its read's now() + one
   -- 2 s swing, and reached the player before any lever it informs was sent. So: the later of the saved points and now() + one swing,
@@ -113,7 +113,7 @@ revoke execute on function public.hr_hunt_seed_horizon(uuid) from public, anon, 
 
 create or replace function public.hr_hunt_live_horizon_at(p_settled_to timestamptz)
 returns timestamptz language sql stable set search_path = public, pg_catalog as $$
-  -- SETTLE-FLUSH (1049-settle-flush.sql): the last combat swing an answer can show, the saved clock's or an unsaved confirm's (its
+  -- SETTLE-FLUSH (1052-settle-flush.sql): the last combat swing an answer can show, the saved clock's or an unsaved confirm's (its
   -- read's now() + one 2 s swing), plus the look-ahead, liveSeeds (16) x the 2 s swing. A leave, change or kick lands no earlier.
   select greatest(now() + make_interval(secs => 2000 / 1000.0), p_settled_to) + make_interval(secs => 32000 / 1000.0)
 $$;
@@ -212,8 +212,8 @@ begin
         raise exception 'VERIFY(g): % may execute a horizon helper', v_role; end if;
     end if;
   end loop;
-  if (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = 'public.hr_hunt_seed_horizon(uuid)'::regprocedure) is distinct from '9ac9212234343e5f5e6d53bfa37fbcf3'
-     or (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = 'public.hr_hunt_live_horizon_at(timestamp with time zone)'::regprocedure) is distinct from '78d553a8b5ea78d1420d9c875ac2a360' then
+  if (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = 'public.hr_hunt_seed_horizon(uuid)'::regprocedure) is distinct from '034c7495d8c1c37bcbc4c5b586cb0c90'
+     or (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = 'public.hr_hunt_live_horizon_at(timestamp with time zone)'::regprocedure) is distinct from '309ffe2363ea054f91972e93dced12d6' then
     raise exception 'VERIFY(g): a horizon landed off its post pin: seed %, live %',
       (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = 'public.hr_hunt_seed_horizon(uuid)'::regprocedure),
       (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = 'public.hr_hunt_live_horizon_at(timestamp with time zone)'::regprocedure); end if;

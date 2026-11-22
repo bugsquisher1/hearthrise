@@ -291,7 +291,7 @@ async function swapThrough(db, door) {
     out.push(door.name + ': the envelope reads setup ' + env.hunt_settings.preset + ' and rows ' + JSON.stringify((env.hunt_presets || []).map((p) => [p.name, p.fights_as, p.discipline, p.wearing])));
   }
   /* (4) LEVER-HORIZON (1005-lever-horizon.sql): the swap plays from the first window STARTING past the seed horizon (since
-     1049-settle-flush.sql the later of the settled point and the clock + one 2 s swing, + 32 s: under the swap's now() + 34 s, so the
+     1052-settle-flush.sql the later of the settled point and the clock + one 2 s swing, + 32 s: under the swap's now() + 34 s, so the
      window inside it runs to 36 s on), never over swings the browser was already shown. The window inside it keeps Tank's bar; then the server clock moves on
      (pinned, main) and THE ENGINE'S NEXT SETTLE PAST IT PLAYS GUARD'S BAR: the door's read hands it Guard's stance, and its commit
      stores the hero on it */

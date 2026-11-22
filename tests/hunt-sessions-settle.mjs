@@ -114,7 +114,7 @@
 //              death the viewer's seeds showed each leave that death exactly as it was, with the hunt viewed and with
 //              the browser closed (the Blessing stays held, unused). CONTROL: each lever pulled a minute earlier lands
 //              after its horizon and moves the death (the deferral is not a drop).
-//   FLUSH-HORIZON  the flush (lane/c-settle-flush, 1049-settle-flush.sql): a viewed poll that CONFIRMS through the shipped edge saves
+//   FLUSH-HORIZON  the flush (lane/c-settle-flush, 1052-settle-flush.sql): a viewed poll that CONFIRMS through the shipped edge saves
 //              only at the 90 s flush or at once on a death, Level, end, pending leave or rare drop (flushDue, each reason pure), and
 //              its unsaved check moves no row and sends no track; a Blessing, a leave, the stance and a setup switch pulled after it
 //              (seeds past the death shown, the save 19.5 s old) each leave the death as it was, the hunt viewed (a forced save
@@ -2073,7 +2073,7 @@ const DB_ARMS = {
     }
     return problems;
   }),
-  /* FLUSH-HORIZON (lane/c-settle-flush, 1049-settle-flush.sql, 30-plan L12): under the flush a viewed hunt's poll CONFIRMS through the
+  /* FLUSH-HORIZON (lane/c-settle-flush, 1052-settle-flush.sql, 30-plan L12): under the flush a viewed hunt's poll CONFIRMS through the
      shipped edge (settleHunt `confirm`) and saves only at the 90 s flush or at once on a death, so the browser holds seeds well past
      the last save. On a pinned clock: the hunt saved at F = 49 s before the death the control run shows; an unsaved confirm at F + 19 s
      writes no row and hands the browser seeds past that death; at F + 19.5 s (inside the bar edits' 20 s slack) a Blessing is bought,
@@ -4687,7 +4687,7 @@ const DB_ARMS = {
       if (frozen !== 8) problems.push(`the instance froze density ${frozen} at hunt start, want 8`);
       /* A density key left on the action set (the hero has no row until a setup is saved): what an engine read before 2026-11-17. It is
          the hunt's own from its start, never a lever pulled mid-hunt: written here 22 minutes into a backlog, 1005's trigger holds the
-         setup as it stood for every window starting before the seed horizon (since 1049-settle-flush.sql the clock's + 34 s, so the
+         setup as it stood for every window starting before the seed horizon (since 1052-settle-flush.sql the clock's + 34 s, so the
          whole backlog), which an engine of that day never had; the hold goes with it. */
       const staleKey = async (n) => {
         await db.query(`insert into public.player_action_sets as a (user_id, slot, preset, name, slots, options)
@@ -5030,7 +5030,7 @@ const DB_ARMS = {
     await db.query(`select set_config('request.jwt.claim.sub', '', true)`);
     if (!ch || ch.ok !== true) return [...problems, `CONTROL: the options change was refused: ${JSON.stringify(ch)}`];
     /* LEVER-HORIZON (1005-lever-horizon.sql): a fight lever plays from the first window past the seed horizon (since
-       1049-settle-flush.sql the later of the settled point and the clock + one 2 s swing, + 32 s: here nowMs + 34 s). The window
+       1052-settle-flush.sql the later of the settled point and the clock + one 2 s swing, + 32 s: here nowMs + 34 s). The window
        inside it keeps the unit as it stood; the server clock then moves on (pinned) and the next settle, past the horizon, writes
        the change onto the unit already standing in the world. */
     await settleTo(db, M, nowMs);
@@ -5622,7 +5622,7 @@ const DB_MUTANTS = [
     find: 'where h.session_id = p_s.id and h.until >= p_s.settled_to', replace: 'where false' },
   { arm: 'NO-DODGE-LEVERS', name: '[lever-horizon] the horizon is the settled point (no look-ahead held)', fn: 'public.hr_hunt_seed_horizon(uuid)',
     find: ' + make_interval(secs => 32000 / 1000.0)', replace: '' },
-  /* 1049-settle-flush.sql: each horizon back on the saved clock alone (an unsaved confirm's seeds forgotten) */
+  /* 1052-settle-flush.sql: each horizon back on the saved clock alone (an unsaved confirm's seeds forgotten) */
   { arm: 'FLUSH-HORIZON', name: '[settle-flush] the seed horizon is the saved clock\'s alone (a Blessing, a bar or setup change under the flush)', fn: 'public.hr_hunt_seed_horizon(uuid)',
     find: ', now() + make_interval(secs => 2000 / 1000.0))', replace: ')' },
   { arm: 'FLUSH-HORIZON', name: '[settle-flush] the live horizon is the saved clock\'s alone (a leave under the flush)', fn: 'public.hr_hunt_live_horizon_at(timestamp with time zone)',

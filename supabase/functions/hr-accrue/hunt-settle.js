@@ -198,7 +198,7 @@ function kindsOf(inst, worldText, tower) {
    held back. */
 export const HUNT_SETTLE_MIN_MS = 15000;
 
-/* THE FLUSH (30-plan L12; 1049-settle-flush.sql). A viewed poll that says `confirm` (src/session/hunt-ask.js) runs the engine,
+/* THE FLUSH (30-plan L12; 1052-settle-flush.sql). A viewed poll that says `confirm` (src/session/hunt-ask.js) runs the engine,
    answers the check and saves only when flushDue names a reason: the tick's 90 s flush, a cut window, a pending leave, an end, a
    death, a Level, a rare drop or roll, a find, a prize, a Tower floor. The engine is deterministic from the last save, so the next
    save writes exactly the frames shown. The answer holds no number, loot or event (CLAUDE.md §6); purchases save first, and every

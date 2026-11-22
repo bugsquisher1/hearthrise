@@ -63,3 +63,7 @@ art/world/factionwear-masks/*.json text eol=lf
 *.mp3 binary
 *.ogg binary
 *.wav binary
+
+# Compressed data is bytes (tools/balance-program/sensitivity/data/parts/*.json.gz, the baseline's results.json.gz). Under tools/** text eol=lf
+# above, a commit rewrote every CR LF pair inside a gzip stream and the file no longer opened. Later rules win.
+*.gz binary

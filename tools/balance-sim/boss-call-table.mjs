@@ -6,6 +6,9 @@
 //                                          --first: every kit without the boss's own prize (the party reading his card for the first time)
 //   node tools/balance-sim/boss-call-table.mjs [--seeds 12] [--only rat|chief] [--json OUT] [--hp 1500 --atk 21 --acc 40 --lvl 25 --rage 1400 --addhp 260 --addatk 30 --addacc 20 --addlvl 40 --adds 5 --guard 500] [--cliff] [--ship] [--focus] [--rows REGEX] [--stats]
 //
+//   node tools/balance-sim/boss-call-table.mjs --hall krells_hold --level L --formula-at L --hall-number h [--add-roles id=role,...] [--rows 'Mid four']
+//                                          THE HALL CHECK (01 GR-30): the room rewritten from the monster formula at Level L, the boss role with the hall
+//                                          number on its health only; the 'Mid four' row is the matrix's standard four
 //   node tools/balance-sim/boss-call-table.mjs --selftest
 //                                          the money line bites: planted payouts (skill XP, Level XP, coin, an item on a loss or off his table) each throw
 //
@@ -387,6 +390,8 @@ const HUNT_BAND = (call) => (await_hunts.HUNT_INDEX[call.hunt] || await_hunts.HU
 const hallRows = (L) => [
   ...shipRows(L),
   ['Optimized: tank + healer + bow, L' + L, { level: L, party: ['tank', 'healer', 'bow'] }],
+  /* the hall check's party (01 GR-30): the matrix's standard four, mid-geared, in band */
+  ['Mid four: hammer + bow + mage + healer, L' + L, { level: L, party: ['hammer', 'bow', 'mage', 'healer'] }],
   ['Careless: four dps, no tank or healer, L' + L, { level: L, party: ['hammer', 'axes', 'bow', 'mage'] }],
   ['Careless: tank + dps, no healer, L' + L, { level: L, party: ['tank', 'hammer'] }],
   ['Alone: tank, good bar, L' + L, { level: L, party: ['tank'], bar: 'good' }],
@@ -426,6 +431,19 @@ for (const call of (HALL ? [hallRoom(HALL)] : Object.values(BOSS_CALLS))) {
     if (rage) inst.phases.enrageAtkPm = Number(rage);
     if (arg('guard', null)) inst.phases.guardPm = Number(arg('guard', null));
   }
+  /* --formula-at L [--hall-number h] [--add-roles id=role,...]: THE HALL CHECK (01 GR-30; 13-build-plan.md item 18): the room rewritten from the
+     monster formula at Level L (balance-sheet.js formulaStats), the boss as the boss role with the hall number on its health only, never its
+     blows; each add as its role (a room's first add type elite, the rest regular, unless --add-roles names them). Scratch rows, nothing written */
+  if (arg('formula-at', null)) {
+    const BS = await import(u('src/data/balance-sheet.js') + v);
+    const FL = Number(arg('formula-at', null)), hn = Number(arg('hall-number', '1'));
+    const named = Object.fromEntries((arg('add-roles', '') || '').split(',').filter(Boolean).map((x) => x.split('=')));
+    const stats = (role) => BS.formulaStats({ level: FL, role, tier: ENGINE_MONSTERS[call.monster].tier || 6, floor: FL, fit: 'party', ground: call.id });
+    const addIds = [...new Set(roomGround(call).pockets[0].adds.map((a) => a.monster))];
+    const set = (id, role, hpMult = 1) => { const s = stats(role); for (const inst of [ENGINE_MONSTERS[id], play.MONSTERS[id]]) { if (!inst) continue; inst.level = FL; inst.hp = Math.max(1, Math.round(s.hp * hpMult)); inst.atk = s.atk; inst.aim = s.aim; inst.evasion = s.evasion; inst.def = s.def; } };
+    set(call.monster, 'boss', hn);
+    addIds.forEach((id, i) => set(id, named[id] || (i === 0 ? 'elite' : 'regular')));
+  }
   for (const m of [addOf(call, ENGINE_MONSTERS), addOf(call, play.MONSTERS)]) {
     if (addhp) m.hp = Number(addhp);
     if (addatk) m.atk = Number(addatk);
@@ -433,7 +451,7 @@ for (const call of (HALL ? [hallRoom(HALL)] : Object.values(BOSS_CALLS))) {
     if (addlvl) m.level = Number(addlvl);
   }
   const row = ENGINE_MONSTERS[call.monster];
-  console.log('\n' + call.id + ' (HP ' + row.hp + ', atk ' + row.atk + ', Level ' + row.level + ', a fight ' + call.fight.fee + ' gp and ' + call.fight.staminaMs / 60000 + ' min of stamina)');
+  console.log('\n' + call.id + ' (HP ' + row.hp + ', atk ' + row.atk + ', Level ' + row.level + (call.fight ? ', a fight ' + call.fight.fee + ' gp and ' + call.fight.staminaMs / 60000 + ' min of stamina' : ', a keyed hall') + ')');
   console.log('win%  kill(s)  dead time  food/head  low HP%   party');
   for (const [label, c] of (RUNS[call.id] || hallRows(Number(arg('level', String(Math.round((HUNT_BAND(call)[0] + HUNT_BAND(call)[1]) / 2))))))) {
     if (process.argv.includes('--cliff') && !CLIFF.test(label)) continue;

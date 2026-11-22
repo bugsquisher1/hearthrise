@@ -10,7 +10,8 @@
 //   linkOf(account)           hr_friend_link: { ok, code } (made on first ask)
 //   linkUrl(base, code)       the address a player shares
 //   redeem(account, code)     hr_friend_link_redeem: { ok, person } or { ok:false, error, verb: 'friend_link' }
-//   setQuiet(account, on)     hr_presence_quiet_set: every hero of the account off (or back on) every list other players see
+//   setQuiet(account, cs, on) hr_presence_quiet_set: every hero of the account off (or back on) every list other players see; the
+//                             answer carries the envelope of cs, the hero on screen
 // ════════════════════════════════════════════════════════════════════════
 import { askVia } from '../session/intent-ledger.js';
 
@@ -74,8 +75,13 @@ export async function arriveByLink(win, account) {
   return redeem(account, code);
 }
 
-/** Quiet presence for every hero of the account; the setting reads back from the server's `presence` section. */
-export async function setQuiet(account, on) {
-  const r = await ask(account, 'presence_quiet', (server) => server.rpc('hr_presence_quiet_set', { p_quiet: !!on }), 'presence');
+/**
+ * Quiet presence for every hero of the account; the setting reads back from the server's `presence` section. The answer carries the
+ * envelope of `cs`, the hero on screen (rule 11): taken like a load, read only when it does not land.
+ */
+export async function setQuiet(account, cs, on) {
+  if (!cs || !Number.isInteger(cs.slot)) return { ok: false, error: 'bad_intent', verb: 'presence' };
+  const r = await ask(account, 'presence_quiet', (server) => server.rpc('hr_presence_quiet_set', { p_slot: cs.slot, p_quiet: !!on }), 'presence');
+  if (r.ok && typeof cs.load === 'function') await cs.load(obj(r.body.envelope));
   return r.ok ? { ok: true, quiet: r.body.quiet === true } : r;
 }

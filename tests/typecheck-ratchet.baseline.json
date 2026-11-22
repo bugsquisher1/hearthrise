@@ -1,6 +1,6 @@
 {
   "note": "Ceilings, not targets: per file and error kind, counts may only fall. Written by node tests/typecheck-ratchet.mjs --write, which refuses a rise. Regenerate, never hand-merge.",
-  "total": 332,
+  "total": 328,
   "files": {
     "src/app/boot.js": {"TS2367":1,"TS2554":5},
     "src/app/world-pane.js": {"TS2322":1},
@@ -71,12 +71,10 @@
     "src/shell/widgets/action-bar.js": {"TS2554":2},
     "src/shell/window-manager.js": {"TS2339":3},
     "src/shell/windows/character/sheet.js": {"TS2339":1,"TS2345":3},
-    "src/shell/windows/chat.js": {"TS2339":1,"TS2353":1},
     "src/shell/windows/farm.js": {"TS2339":2},
     "src/shell/windows/house.js": {"TS2353":1},
     "src/shell/windows/shop.js": {"TS2362":1,"TS2363":1},
     "src/shell/windows/work.js": {"TS2339":1},
-    "src/social/chat-store.js": {"TS2339":1,"TS2345":1},
     "src/world/atlas.js": {"TS2345":4},
     "src/world/core/compose.js": {"TS2339":6,"TS2365":2,"TS2707":1},
     "src/world/hearth-burn.js": {"TS2739":1},

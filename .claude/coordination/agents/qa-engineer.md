@@ -481,3 +481,6 @@ A page runner's crash has more disguises than a node runner's: a plant that does
 
 ### 2026-11-20 · lane/c-hollow-proofs
 A proof is only as honest as its verdict: read WHY each mutant was caught, never the count. The planted-copy shape ("a copy missing one import throws, the throw is filed as the answer, `!!why` reads it as a catch") bit three times in three weeks; the shared judge (`tests/_mutant-verdict.mjs` caseVerdict/caughtBy) plus its tree-wide scan is the class kill. A mutant that cannot LOAD (a data file that refuses at import) is no proof either: plant the reader half with it so the behaviour runs, then show the rule line.
+
+### 2026-11-22 · lane/a-ci-reds-social
+A red that names a note is not always a lying note: read the evidence before rewriting prose. 1042's STAGED note was true (live was measured the day before the file existed); the guard's last-toucher rule had no answer for a byte-identical restatement. Fix the verdict, keep the note. esbuild missing in a fresh worktree: `NODE_PATH=<a checkout that has it>/node_modules` lets build-site's createRequire find it, nothing written or downloaded. A dynamic import() of a module the game half already holds re-splits the bundle's chunks (SITE-10 counts them): reach it through the loaded game half.

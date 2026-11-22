@@ -307,17 +307,13 @@ export const HUNT_READ_SQL = `
                                            then r.inst->'members' else '[]'::jsonb end) m) as perks
     from r`;
 
-/* THE WATCHED STAMP (1060-watched-stamp.sql; the away card's baseline, AR-6). A VIEWED ASK (a player door's `live` settle: the live
-   view's poll, its start point, a view switch) is the one moment the server knows the player is watching this hero, so its read marks
-   the hero's numbers then (hr_hunt_watch_note: the open hunt's Level XP, tally and trained skill, the server clock), and the return's
-   card counts from the later of that mark and the page's own stamp: a crash or an OS kill that loses the goodbye can no longer count
-   a renewal (10 min) of watched hunting as earned away. The SAME statement as HUNT_READ_SQL plus one term, evaluated after the gate
-   allowed: no request, statement or round trip more (tests/per-player-cost.mjs). The tick and every other door read HUNT_READ_SQL. */
+/* THE WATCHED STAMP (1060-watched-stamp.sql, AR-6). A viewed ask (a player door's `live` settle) marks the hero's numbers in its read
+   (hr_hunt_watch_note), so a lost goodbye never counts watched hunting as away. HUNT_READ_SQL plus one term: no statement more. */
 export const HUNT_READ_WATCHED_SQL = HUNT_READ_SQL.replace(/\r?\n {4}from r$/, `,
          case when r.allowed then public.hr_hunt_watch_note($1::uuid, $2::int) end   as watched
     from r`);
 if (HUNT_READ_WATCHED_SQL === HUNT_READ_SQL) throw new Error('hunt-settle.js: HUNT_READ_SQL no longer ends in its `from r` (the watched term has no place)');
-/* A database before 1060-watched-stamp.sql answers the watched read 42883 (no such function): the ask reads as before. 42883 and only it. */
+/* A database before 1060 answers 42883 (no such function): the ask reads as before. 42883 and only it. */
 async function readOf(exec, user, slot, bucket, watched) {
   if (!watched) return exec(HUNT_READ_SQL, [user, slot, bucket]);
   try {
@@ -420,8 +416,7 @@ const refusal = (status, error, extra) => ({ status, body: { ok: false, error, .
  * @param o.bucket    the rate bucket (player doors), null on the tick
  * @param o.session   the session the caller expects (tick roster), or null
  * @param o.project   answer with the caller's post-settle envelope (player doors)
- * @param o.live      a viewed ask (the live view): its answer carries the start point and the check, and its read marks what the
- *                    player watched (HUNT_READ_WATCHED_SQL); `o.watch: false` reads without the mark (a catch-up's later slice)
+ * @param o.live      a viewed ask: its read marks what the player watched (HUNT_READ_WATCHED_SQL; `o.watch: false`: not again)
  * @param o.confirm  a viewed hunt's poll whose browser runs a prediction: save only when flushDue says so (HUNT_FLUSH_MS)
  * @param o.minWindowMs  the floor below which nothing is settled
  * @param o.grounds   test seam: { [huntId]: { ground, grid } } instead of huntGroundOf
@@ -598,7 +593,6 @@ async function settleOnce(o, mode, budget) {
        and only for a player door). */
 export async function readHuntSettle(o, mode) {
   const { exec, user, slot } = o;
-  /* a viewed ask marks what the player watched (HUNT_READ_WATCHED_SQL); a catch-up's later slice (`watch: false`) has marked already */
   const watched = mode === 'settle' && o.live === true && o.watch !== false;
   const [read] = await readOf(exec, user, slot, mode === 'tick' ? null : (o.bucket || null), watched);
   if (!read || read.allowed !== true) {

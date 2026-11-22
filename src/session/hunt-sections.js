@@ -478,7 +478,10 @@ const word = (v) => (typeof v === 'string' && WORD.test(v) ? v : null);
 const when = (v) => { const at = str(v) ? Date.parse(v) : NaN; return Number.isFinite(at) ? at : null; };
 function sessionFacts(s) {
   return { id: str(s.id), hunt: word(s.hunt) || word(s.hunt_id), enteredMs: when(s.entered_at), endedMs: when(s.ended_at), reason: word(s.end_reason),
-    preset: int(s.preset), hoursLimit: int(s.hours_limit), tier: word(s.tier) };
+    preset: int(s.preset), hoursLimit: int(s.hours_limit), tier: word(s.tier),
+    /* the session's hunt report (1053-hunt-report.sql): the basic block's `report`, the premium one's whole view's tally; raw, typed by
+       report-sections.js reportFrom */
+    report: isObj(s.report) ? s.report : isObj(s.tally) && isObj(s.tally.report) ? s.tally.report : null };
 }
 
 /** A character's server clock now (ms), or null before it has one or for a reader without one. */

@@ -19,12 +19,18 @@ import { factionOf } from '../session/faction-sections.js';
 import { trainingOf } from '../session/training-sections.js';
 import { huntAfterOf } from '../session/hunt-after-sections.js';
 import { trainingOf as trainedBy } from '../data/training.js';
-import { levelOf } from '../session/character-sections.js';
+import { levelOf, deathLogOf } from '../session/character-sections.js';
 import { skillLevelsOf } from '../session/item-sections.js';
 import { runRulesOf } from '../data/tower.js';
 import { t } from '../render/player-text.js';
+import { reportFrom, huntReportOf } from '../session/report-sections.js';
+import { reportFacts } from './hunt-report.js';
 
 const ATTACHED = new WeakMap();
+
+/* THE HUNT REPORT'S FACTS for session `s` (./hunt-report.js): the server's report counters `rep` (report-sections.js), the death log's rows
+   for this session, its end and its start. The same for a hunt viewed and closed: every input is a server number. */
+const factsOf = (cs, rep, s) => reportFacts(rep, { deaths: (deathLogOf(cs) || []).filter((d) => d.session === s.id), reason: s.reason, enteredMs: s.enteredMs });
 
 /** Who a unit is, off the sections the character holds right now (the log's rule: heroes by party, monsters by pose kind). */
 function namerOf(cs) {
@@ -136,7 +142,7 @@ export function attach(cs) {
     const f = factionOf(cs);
     const line = Object.assign(levelLine(s.id, startOf(cs), levelOf(cs), skillLevelsOf(cs), trainedIn(s, an)),
       { standing: standingLine(s.id, startOf(cs), f ? f.standing : null) });
-    cs.setResidue('huntSummaries', withSummary(summariesOf(cs), buildSummary(s, an, deaths, roleIdOf(cs), stop, line)));
+    cs.setResidue('huntSummaries', withSummary(summariesOf(cs), buildSummary(s, an, deaths, roleIdOf(cs), stop, line, factsOf(cs, huntReportOf(cs), s))));
   });
   return a;
 }
@@ -171,7 +177,7 @@ export function recordPast(cs, id, an) {
   if (!f || f.id !== id || !an.ended || !f.hunt || trainedBy(f.hunt) || summariesOf(cs).some((x) => x.id === id) || typeof cs.setResidue !== 'function') return false;
   const s = { id, ended: true, hunt: f.hunt, reason: f.reason, forfeit: false, by: null, why: null, preset: f.preset, hoursLimit: f.hoursLimit,
     enteredMs: f.enteredMs, endedMs: f.endedMs, bag: [], tally: null, died: null, tier: f.tier, fight: null, call: null };
-  const card = buildSummary(s, an, [], roleIdOf(cs), null, null);
+  const card = buildSummary(s, an, [], roleIdOf(cs), null, null, factsOf(cs, reportFrom(f.report), s));
   return !!card && cs.setResidue('huntSummaries', withPastSummary(summariesOf(cs), card)) === true;
 }
 
@@ -186,7 +192,7 @@ export function liveSummaryOf(cs) {
   if (!s || s.ended) return null;
   const an = analyzerOf(cs);
   const line = levelLine(s.id, startOf(cs), levelOf(cs), skillLevelsOf(cs), trainedIn(s, an));
-  const card = buildSummary(s, an, [], roleIdOf(cs), null, line);
+  const card = buildSummary(s, an, [], roleIdOf(cs), null, line, factsOf(cs, huntReportOf(cs), s));
   return card ? Object.assign(card, { live: true, since: s.enteredMs }) : null;
 }
 

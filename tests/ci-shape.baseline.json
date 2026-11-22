@@ -714,6 +714,8 @@
     "node tools/mutant-gate.mjs node tests/button-system.mjs --selftest": "client-guards",
     "node tests/client-boot-pure.mjs": "client-guards",
     "node tools/mutant-gate.mjs node tests/client-boot-pure.mjs --mutate": "client-guards",
+    "node tests/hunt-report.mjs": "client-guards",
+    "node tools/mutant-gate.mjs node tests/hunt-report.mjs --mutate": "client-guards",
     "node tests/hunt-screen-pure.mjs": "client-guards",
     "node tools/mutant-gate.mjs node tests/hunt-screen-pure.mjs --mutate": "client-guards",
     "node tests/needs-you.mjs": "client-guards",

@@ -88,7 +88,7 @@ function powStep(r, n) {
 
 /* THE GAP THAT PAYS: the step over the ground's reference step (DANGER_GROUNDS; 0 on a ground with none, which the server never opens),
    held to PAY.gapMax above; under the reference it is never held (a shallower hold earns less a kill, so depth always pays). */
-export function gapOf(ground, step) {
+function gapOf(ground, step) {
   const row = ground && Object.prototype.hasOwnProperty.call(DANGER_GROUNDS, ground.id) ? DANGER_GROUNDS[ground.id] : null;
   return Math.min(PAY.gapMax, clampStep(step) - (row ? row.refStep : 0));
 }

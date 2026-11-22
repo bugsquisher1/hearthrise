@@ -174,7 +174,7 @@ export function landHit(inst, sc, source, target, amount, element, ability, crit
   const u = source ? source.id : null;
   if (isMonster(target)) inst.world.fightAt = sc.atMs;
   /* THE DANGER SCALE'S MARGIN (danger.js): the lowest HP a hero reached in this pull, read where HP falls (a hunt off the scale reads nothing) */
-  else if (r.dmg > 0) noteHurt(inst, target);
+  if (!isMonster(target) && r.dmg > 0) noteHurt(inst, target);
   /* AN ELEMENT'S FIXED RULE ON A HERO (data/elements.js ELEMENT_ON_HERO, itemization plan Appendix B1), when the blow took HP: a storm
      blow also burns half the HP it took from the hero's mana (`burn` on the dmg event, never past what it holds), a necrotic one
      Withers the hero (statuses.js: every heal it takes is cut for 6 s; status.js applyStatus emits it). Nothing else has a rule, so

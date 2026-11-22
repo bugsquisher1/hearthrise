@@ -25,12 +25,29 @@ import { runRulesOf } from '../data/tower.js';
 import { t } from '../render/player-text.js';
 import { reportFrom, huntReportOf } from '../session/report-sections.js';
 import { reportFacts } from './hunt-report.js';
+import { dangerOf } from '../session/danger-sections.js';
 
 const ATTACHED = new WeakMap();
 
 /* THE HUNT REPORT'S FACTS for session `s` (./hunt-report.js): the server's report counters `rep` (report-sections.js), the death log's rows
-   for this session, its end and its start. The same for a hunt viewed and closed: every input is a server number. */
-const factsOf = (cs, rep, s) => reportFacts(rep, { deaths: (deathLogOf(cs) || []).filter((d) => d.session === s.id), reason: s.reason, enteredMs: s.enteredMs });
+   for this session, its end and its start, and on the Danger scale the Risk and step it stood at: an ended session's own (risk_end /
+   danger_end), an open one's the `danger` section's playing hunt. The same for a hunt viewed and closed: every input is a server number. */
+function factsOf(cs, rep, s) {
+  const p = !s.ended ? (dangerOf(cs) || {}).playing : null, live = p && p.hunt === s.hunt ? p : null;
+  return reportFacts(rep, { deaths: (deathLogOf(cs) || []).filter((d) => d.session === s.id), reason: s.reason, enteredMs: s.enteredMs,
+    hunt: s.hunt, risk: live ? live.risk : s.riskEnd, step: live ? live.step : s.dangerEnd });
+}
+
+/** THE DEPTH AND CAUSE FACTS OF ONE SESSION for the return card (../shell/windows/away.js): the stored card's when it has one, else the open
+    hunt's own read now (the server's report and `danger` section). Null off the scale or for a session this hero's section no longer holds. */
+export function depthFactsOf(cs, session) {
+  const card = summariesOf(cs).find((x) => x.id === session);
+  if (card) return card.report ? card.report.depth || null : null;
+  const s = endedSessionOf(cs);
+  if (!s || s.id !== session) return null;
+  const f = factsOf(cs, huntReportOf(cs), s);
+  return f ? f.depth || null : null;
+}
 
 /** Who a unit is, off the sections the character holds right now (the log's rule: heroes by party, monsters by pose kind). */
 function namerOf(cs) {
@@ -176,7 +193,8 @@ export function recordPast(cs, id, an) {
   const f = an && an.session;
   if (!f || f.id !== id || !an.ended || !f.hunt || trainedBy(f.hunt) || summariesOf(cs).some((x) => x.id === id) || typeof cs.setResidue !== 'function') return false;
   const s = { id, ended: true, hunt: f.hunt, reason: f.reason, forfeit: false, by: null, why: null, preset: f.preset, hoursLimit: f.hoursLimit,
-    enteredMs: f.enteredMs, endedMs: f.endedMs, bag: [], tally: null, died: null, tier: f.tier, fight: null, call: null };
+    enteredMs: f.enteredMs, endedMs: f.endedMs, bag: [], tally: null, died: null, tier: f.tier, riskEnd: f.riskEnd, dangerEnd: f.dangerEnd,
+    fight: null, call: null };
   const card = buildSummary(s, an, [], roleIdOf(cs), null, null, factsOf(cs, reportFrom(f.report), s));
   return !!card && cs.setResidue('huntSummaries', withPastSummary(summariesOf(cs), card)) === true;
 }

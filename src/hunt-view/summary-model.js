@@ -194,6 +194,8 @@ export function endedSessionOf(cs) {
     died: int(isObj(s.tally) ? s.tally.deaths : null),
     /* The tier it ran at, the server's (hr_hunt_view `tier`, stamped as it ended), or null. */
     tier: typeof s.tier === 'string' ? s.tier : null,
+    /* ON THE DANGER SCALE (1057-danger-falls.sql hr_hunt_view): the Risk and step the hunt stood at as it ended, or null (open, or a tier hunt) */
+    riskEnd: id(s.risk_end), dangerEnd: int(s.danger_end),
     /* A called fight's record, the server's (hunt_session_tally.fight): the losing line reads it. */
     fight: isObj(s.tally) && isObj(s.tally.fight) ? s.tally.fight : null,
     /* A Call out series, the server's count and bill (hr_hunt_view `call`), or null. */

@@ -25,9 +25,14 @@ import { companyPlanOf, groundSetupOf } from '../../session/company-sections.js'
 import { setHeroPlan, setGroundSetup } from '../../session/company-intents.js';
 import { dangerOf, onScale, depthOf, STANCE_IDS } from '../../session/danger-sections.js';
 import { setRisk } from '../../session/danger-intents.js';
+import { DEFAULT_RISK } from '../../data/danger.js';
 
 /** The stance's plain word (Careful, Steady, Bold). */
 export const stanceName = (id) => t('hunts.stance_' + id);
+
+/** The Risk the plan plays on a scale ground: the server's stance, or where the plan names none the server's default (data/danger.js
+    DEFAULT_RISK, Steady: 1057-danger-falls.sql hr_danger_freeze plays it with no verb first). Null until the section has come. */
+const planRisk = (d) => (!d ? null : d.risk || DEFAULT_RISK);
 
 /** The stance pick (built once, beside the tier row; hidden off the scale). */
 export function stanceHtml() {
@@ -46,16 +51,16 @@ export function patchStance(det, ctx, o) {
   const on = onScale(o.hunt);
   prop(box, 'hidden', !on);
   if (!on) return;
-  const d = dangerOf(ctx.character);
+  const d = dangerOf(ctx.character), risk = planRisk(d);
   for (const b of box.querySelectorAll('[data-risk]')) {
-    attr(b, 'aria-pressed', String(!!d && d.risk === b.getAttribute('data-risk')));
+    attr(b, 'aria-pressed', String(!!risk && risk === b.getAttribute('data-risk')));
     prop(b, 'disabled', !d || o.pending || o.follower);
   }
-  const later = !!d && !!d.playing && d.playing.hunt === o.hunt && d.risk !== d.playing.from;
+  const later = !!d && !!d.playing && d.playing.hunt === o.hunt && risk !== d.playing.from;
   /* every reason the pick is off is said on the line under it (say-why SW-2): a member's Risk is its leader's, and before the server's
-     section comes the pick is being read; a press out says Sending… on the page's line */
-  text(box.querySelector('.hw-stance-note'), o.follower ? t('hunts.stance_leader') : !d ? t('hunts.stance_reading') : d.risk
-    ? t('hunts.stance_line_' + d.risk) + (later ? ' ' + t('hunts.stance_next') : '') : t('hunts.stance_none'));
+     section comes the pick is being read; a press out says Sending… on the page's line. A plan with no Risk reads the default's line (R5). */
+  text(box.querySelector('.hw-stance-note'), o.follower ? t('hunts.stance_leader') : !d ? t('hunts.stance_reading')
+    : t('hunts.stance_line_' + risk) + (later ? ' ' + t('hunts.stance_next') : ''));
   const held = d ? depthOf(o.hunt, d.held[o.hunt]) : null;
   text(box.querySelector('.hw-stance-depth'), !d ? '' : held ? t('hunts.depth_held', held) : t('hunts.depth_new'));
 }

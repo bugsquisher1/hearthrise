@@ -30,6 +30,20 @@ export const REPORT_TEXT = Object.freeze({
   death_hours: 'Died and lost {xp} Level XP, about {time} of hunting.',
   death_saved: 'Blessings saved {xp} Level XP.',
   death_unblessed: 'No Blessing was on.',
+  /* THE CAUSE LINE on the Danger scale (src/shell/hunt-report.js causeLine, lane R5): depth on the ground's band, never a step.
+     {stance} Careful, Steady or Bold, {name} the hero, {pct} its health when the party fell back, {monster} what struck. */
+  depth_held: 'Held Depth {depth} of {of} on {stance}.',
+  depth_held_top: 'Held Depth {depth} of {of} on {stance}, the deepest it went.',
+  depth_deep: 'The deepest it went was Depth {deep} of {of}.',
+  fell_none: 'Never fell back.',
+  fell_one: 'Fell back once, with {name} down to {pct}% from a {monster}.',
+  fell_one_died: 'Fell back once, when {name} died to a {monster}.',
+  fell_many: 'Fell back {count} times. Last time {name} was down to {pct}% from a {monster}.',
+  fell_many_died: 'Fell back {count} times. Last time {name} died to a {monster}.',
+  fell_many_more: 'Fell back {count} times or more. Last time {name} was down to {pct}% from a {monster}.',
+  fell_many_more_died: 'Fell back {count} times or more. Last time {name} died to a {monster}.',
+  fell_hero: 'a hero',
+  fell_monster: 'monster',
 
   /* THE RULES BLOCK */
   rules_head: 'What the bar did',

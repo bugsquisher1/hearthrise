@@ -121,7 +121,8 @@
 .haway-best-name b { font-size: var(--t-small); font-weight: 700; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .haway-why { margin: 0 2px 2px; font-size: var(--t-small); line-height: 1.4; color: var(--ink); }
 .haway-when { margin: 0 2px 8px; font-size: var(--t-micro); line-height: 1.4; color: var(--ink-2); }
-.haway-why:empty, .haway-when:empty { display: none; }
+.haway-cause { margin: 0 2px 2px; font-size: var(--t-micro); line-height: 1.4; color: var(--ink); }
+.haway-why:empty, .haway-cause:empty, .haway-when:empty { display: none; }
 .haway-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 6px 2px 0; }
 .haway-acts .hh-tool { min-height: 36px; }
 .haway-acts .hh-tool.is-primary { min-height: 40px; }

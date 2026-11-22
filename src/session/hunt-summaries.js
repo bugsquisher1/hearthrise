@@ -80,7 +80,22 @@ function reportOf(v) {
     rules: pairs(v.rules, (p) => (Array.isArray(p) && id(p[0]) && id(p[1]) && nat(p[2]) !== null && nat(p[3]) !== null && typeof p[4] === 'string'
       && WHY.test(p[4]) && (p[5] === 'd' || p[5] === 'h' || p[5] === '') && Number.isSafeInteger(p[6]) && p[6] >= -1 && p[6] <= 1000
       ? [p[0], p[1], p[2], p[3], p[4], p[5], p[6]] : null), 16),
+    depth: depthOf(v.depth),
   };
+}
+
+/* THE CAUSE LINE'S FACTS on the Danger scale (hunt-report.js depthFacts): { risk, held, deep, of, n, last [name, pm, monster] | null }, depths
+   only (1..of, never a step), the falls counted up to the report's cap; null when it is not one. */
+const DEPTHS_MAX = 100, FALLS_MAX = 32;
+const depthNo = (n, of) => (Number.isSafeInteger(n) && n >= 1 && n <= of ? n : null);
+function depthOf(v) {
+  if (!isObj(v) || !Number.isSafeInteger(v.of) || v.of < 1 || v.of > DEPTHS_MAX) return null;
+  const held = depthNo(v.held, v.of), deep = depthNo(v.deep, v.of);
+  if (held === null && deep === null) return null;
+  const l = v.last;
+  const last = Array.isArray(l) && typeof l[0] === 'string' && nat(l[1]) !== null && l[1] <= 1000 && id(l[2]) ? [l[0].slice(0, 40), l[1], l[2]] : null;
+  const n = nat(v.n) !== null && v.n <= FALLS_MAX ? v.n : 0;
+  return { risk: typeof v.risk === 'string' && REASON.test(v.risk) ? v.risk : null, held, deep, of: v.of, n, last: n > 0 ? last : null };
 }
 
 /* A TRAINING SESSION'S CARD (summary-model.js trainingCard): the skill, its XP from the session's tally, and from the server's

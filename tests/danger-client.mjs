@@ -11,11 +11,12 @@
 //   DC-7 the Risk pick answers: every press the pane draws is routed to it by the Hunts window, a press sends its one intent, and the
 //        pick names itself Risk on screen
 //   DC-8 the top bar's depth sits in its own quiet mark (.ht-mark, the body face), never inside the ground's Cinzel name
+//   DC-9 a plan with no Risk shows the server's default (Steady) pressed with its line, never "Pick a Risk"; the server's own stance wins
 // ════════════════════════════════════════════════════════════════════════
 import { dangerOf, parseDanger, depthOf, onScale, STANCE_IDS } from '../src/session/danger-sections.js';
 import { setRisk, riskOk } from '../src/session/danger-intents.js';
 import { depthMark } from '../src/shell/widgets/hunt-topbar.js';
-import { DANGER_GROUNDS, DEPTHS } from '../src/data/danger.js';
+import { DANGER_GROUNDS, DEPTHS, DEFAULT_RISK } from '../src/data/danger.js';
 import { REFUSAL_WORDS } from '../src/data/refusal-words.js';
 import { HUNTS_TEXT } from '../src/data/text/hunts.js';
 import { HUD_TEXT } from '../src/data/text/hud.js';
@@ -91,6 +92,23 @@ const nameLine = barSrc.split('\n').find((l) => l.includes("text(el.querySelecto
 check('DC-8', /<span class="ht-name"><\/span><span class="ht-mark"><\/span>/.test(barSrc) && /text\(el\.querySelector\('\.ht-mark'\), [^\n]*marks\.join/.test(barSrc)
   && !/marks|hard/.test(nameLine), 'the depth is written to .ht-mark, the name line holds the name only: ' + nameLine.trim().slice(0, 120));
 check('DC-8', /\.ht-mark \{[^}]*font-family: var\(--f-ui\)/.test(huntCss), 'the mark is in the body face');
+
+// DC-9 (lane R5): a plan with no Risk plays the server's default on a scale ground (1057-danger-falls.sql hr_danger_freeze, DEFAULT_RISK),
+// so the pick shows Steady pressed with Steady's line, never "Pick a Risk"; the server's own stance still wins
+const el = (a = {}) => ({ a: Object.assign({}, a), textContent: '', hidden: false, disabled: false,
+  getAttribute(k) { return k in this.a ? this.a[k] : null; }, setAttribute(k, v) { this.a[k] = String(v); }, hasAttribute(k) { return k in this.a; }, removeAttribute(k) { delete this.a[k]; } });
+const pickOf = (danger) => {
+  const btns = STANCE_IDS.map((id) => el({ 'data-risk': id })), note = el(), depth = el();
+  const box = Object.assign(el(), { querySelectorAll: () => btns, querySelector: (q) => (q === '.hw-stance-note' ? note : q === '.hw-stance-depth' ? depth : null) });
+  pane.patchStance({ querySelector: () => box }, { character: csOf(danger) }, { hunt: M, pending: false, follower: false });
+  return { pressed: btns.filter((b) => b.a['aria-pressed'] === 'true').map((b) => b.a['data-risk']), note: note.textContent };
+};
+const none = pickOf({ risk: null, held: {}, playing: null });
+check('DC-9', none.pressed.join() === DEFAULT_RISK && DEFAULT_RISK === 'steady' && none.note === HUNTS_TEXT.stance_line_steady && !/Pick a Risk/.test(none.note),
+  'no stance shows the default pressed: ' + JSON.stringify(none));
+const bold = pickOf({ risk: 'bold', held: {}, playing: null });
+check('DC-9', bold.pressed.join() === 'bold' && bold.note === HUNTS_TEXT.stance_line_bold, 'the server\'s stance wins: ' + JSON.stringify(bold));
+check('DC-9', pickOf(undefined).pressed.length === 0, 'no section, nothing pressed');
 
 console.log(fails ? 'danger-client: ' + fails + ' RED' : 'danger-client: all green');
 process.exit(fails ? 1 : 0);

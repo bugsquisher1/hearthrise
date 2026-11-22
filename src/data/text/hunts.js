@@ -147,7 +147,6 @@ export const HUNTS_TEXT = Object.freeze({
   stance_line_careful: 'Careful: backs off early. Slower, and rarely loses anyone.',
   stance_line_steady: 'Steady: goes as deep as the party holds well. A death now and then.',
   stance_line_bold: 'Bold: pushes close to the edge for better pay. Expect deaths.',
-  stance_none: 'Pick a Risk. The party goes deeper by itself while the fights stay clean, and backs off when they get close.',
   stance_saved: 'Risk saved: {stance} from your next hunt',
   stance_next: 'Plays from your next hunt',
   stance_leader: 'Risk: set by the party leader',

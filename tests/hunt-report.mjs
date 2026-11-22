@@ -7,7 +7,7 @@
 //   node tests/hunt-report.mjs            the guard (pure Node: the real modules, no browser, no database)
 //   node tests/hunt-report.mjs --mutate   every planted defect must turn its arm red
 //
-// mutant-anchors: src/hunt-view/hunt-report.js src/shell/hunt-report.js src/session/report-sections.js src/session/hunt-summaries.js
+// mutant-anchors: src/hunt-view/hunt-report.js src/shell/hunt-report.js src/session/report-sections.js src/session/hunt-summaries.js src/hunt-view/summary-model.js src/session/hunt-sections.js src/hunt-view/summary-recorder.js src/shell/windows/away.js
 // ci-step: client-guards | The hunt report reads the server's counters, the same card viewed and closed, plain words, bounded in the residue
 // ci-run: node tests/hunt-report.mjs
 // ci-run: node tools/mutant-gate.mjs node tests/hunt-report.mjs --mutate
@@ -20,6 +20,11 @@
 //                same facts and the same lines; an old hunt with no report shows no block
 //   HR-WORDS     the lines in plain English (no semicolon, dash or colon), the word first, the swing and the spell in the house's
 //                voice, a death's hunting time from the hunt's own Level XP an hour, the change line with what the slot did before
+//   HR-CAUSE     THE CAUSE LINE on the Danger scale (lane R5): from a fixture hunt section with the report's `deep` and two `falls` and the
+//                session's risk_end / danger_end, "Held Depth 14 of 20 on Steady. The deepest it went was Depth 15 of 20. Fell back 2
+//                times. Last time Bran was down to 23% from a Giant Rat.", the same off the free analyzer (browser closed), off the
+//                stored card and on the return card, the open hunt's from the `danger` section; a death, a nameless fall, none, the
+//                cap's "or more"; nothing off the scale; depths only (a forged step-sized depth is dropped by the residue)
 //   HR-RESIDUE   the card keeps the facts through the residue's bound, and a forged or oversized report is cut to its bound or dropped
 // Exit: 0 green · 1 red · 2 harness.
 // ════════════════════════════════════════════════════════════════════════
@@ -35,7 +40,8 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 async function load(root) {
   const u = (p) => import(pathToFileURL(join(root, p)).href);
   return { RS: await u('src/session/report-sections.js'), HR: await u('src/hunt-view/hunt-report.js'), HSUM: await u('src/session/hunt-summaries.js'),
-    W: await u('src/shell/hunt-report.js'), HSEC: await u('src/session/hunt-sections.js') };
+    W: await u('src/shell/hunt-report.js'), HSEC: await u('src/session/hunt-sections.js'), SM: await u('src/hunt-view/summary-model.js'),
+    REC: await u('src/hunt-view/summary-recorder.js'), AWAY: await u('src/shell/windows/away.js') };
 }
 
 const START = Date.UTC(2026, 10, 22, 8, 0, 0);
@@ -48,6 +54,16 @@ const SERVER = Object.freeze({
   dealt: { basic: 600, power_strike: 400 }, healed: { cooked_shrimp: 300, mend: 0 },
 });
 const DEATHS = [{ id: 9, session: 's1', xp: 5000, saved: { level: 1250 }, blessings: 1 }];
+/* ON THE DANGER SCALE (1057-danger-falls.sql): the same report on Muster Barrows with its deepest step and two falls back, as hr_hunt_view
+   projects them (each fall's seat named), and the session's end stance. Muster's band is 480..710 (src/data/danger.js): step 650 is Depth 15,
+   632 Depth 14. */
+const MUSTER = 'muster_barrows';
+const SCALE = Object.freeze(Object.assign({}, SERVER, { deep: 650, falls: [
+  { at: START + 600000, from: 640, to: 622, hero: 1, pm: 300, monster: 'rat', name: 'Ash' },
+  { at: START + 900000, from: 650, to: 632, hero: 0, pm: 230, monster: 'rat', name: 'Bran' }] }));
+const HUNT_VIEW = Object.freeze({ session_id: 's7', ended: true, session: { id: 's7', hunt_id: MUSTER, ended_at: new Date(START + 7200000).toISOString(),
+  end_reason: 'stamina', risk_end: 'steady', danger_end: 632, tally: { kills: 50, report: SCALE } } });
+const CAUSE = 'Held Depth 14 of 20 on Steady. The deepest it went was Depth 15 of 20. Fell back 2 times. Last time Bran was down to 23% from a Giant Rat.';
 
 const ARMS = {
   'HR-FACTS': async (X) => {
@@ -57,6 +73,7 @@ const ARMS = {
       word: 'near', low: [63, 'rat', 'basic'], close: 2, dry: [['cooked_shrimp', 4500000]], ranOut: 'heals_out', deaths: [[5000, 1250, 1]],
       rules: [['e0001aa01', 'power_strike', 0, 40, '', 'd', 400], ['e0001bb02', 'mend', 1, 0, 'cooldown', '', -1],
         ['d_food', 'cooked_shrimp', 2, 6, '', 'h', 1000], ['d_drink', 'thin_turnip_juice', 3, 0, 'never_true', '', -1]],
+      depth: null,
     };
     if (JSON.stringify(f) !== JSON.stringify(want)) out.push('the facts read ' + JSON.stringify(f) + '\n      want ' + JSON.stringify(want));
     if (X.HR.reportFacts(null, {}) !== null || X.RS.reportFrom({}) !== null) out.push('no report made facts');
@@ -103,6 +120,56 @@ const ARMS = {
     if (all.some((s) => /[;—–:]/.test(s))) out.push('a line has a semicolon, a dash or a colon: ' + all.find((s) => /[;—–:]/.test(s)));
     return out;
   },
+  'HR-CAUSE': async (X) => {
+    const out = [];
+    /* the ended hunt's card, from the `hunt` section (hr_hunt_view: its report's deep and falls, its risk_end and danger_end) */
+    const csOf = (sections, cards) => ({ slot: 0, read: (k) => sections[k], record: { residue: { huntSummaries: cards || [] } } });
+    const cs = csOf({ hunt: HUNT_VIEW });
+    const s = X.SM.endedSessionOf(cs);
+    if (!s || s.riskEnd !== 'steady' || s.dangerEnd !== 632 || s.hunt !== MUSTER) out.push('the ended session reads ' + JSON.stringify(s && { riskEnd: s.riskEnd, dangerEnd: s.dangerEnd, hunt: s.hunt }));
+    const viewed = X.REC.depthFactsOf(cs, 's7');
+    const want = { risk: 'steady', held: 14, deep: 15, of: 20, n: 2, last: ['Bran', 230, 'rat'] };
+    if (JSON.stringify(viewed) !== JSON.stringify(want)) out.push('the depth facts read ' + JSON.stringify(viewed) + '\n      want ' + JSON.stringify(want));
+    if (X.W.causeLine(viewed) !== CAUSE) out.push('the cause line reads ' + JSON.stringify(X.W.causeLine(viewed)) + '\n      want ' + JSON.stringify(CAUSE));
+    /* the browser closed: the free analyzer's session block (risk_end / danger_end beside the report) gives the same facts */
+    const an = X.HSEC.analyzerFrom({ read: () => null }, { tier: 'basic', session: { id: 's7', hunt: MUSTER, report: SCALE, risk_end: 'steady', danger_end: 632 }, hero: { kills: 50, xp: { level: 100 } } });
+    const closed = an && an.session ? X.HR.reportFacts(X.RS.reportFrom(an.session.report), { hunt: an.session.hunt, risk: an.session.riskEnd, step: an.session.dangerEnd }) : null;
+    if (!closed || JSON.stringify(closed.depth) !== JSON.stringify(want)) out.push('the closed door reads ' + JSON.stringify(closed && closed.depth));
+    /* the risk block ends on the cause line, and the card keeps it through the residue */
+    const f = X.HR.reportFacts(X.RS.reportFrom(SCALE), { hunt: MUSTER, risk: 'steady', step: 632 });
+    const lines = X.W.riskLines(f, null).map((l) => l.text);
+    if (lines[lines.length - 1] !== CAUSE) out.push('the risk block ends on ' + JSON.stringify(lines[lines.length - 1]));
+    const card = X.HSUM.sanitizeSummary({ id: 's7', hunt: MUSTER, report: f });
+    if (JSON.stringify(card.report.depth) !== JSON.stringify(want)) out.push('the residue changed the depth facts: ' + JSON.stringify(card.report.depth));
+    const stored = X.REC.depthFactsOf(csOf({}, [card]), 's7');
+    if (X.W.causeLine(stored) !== CAUSE) out.push('the card\'s stored facts read ' + JSON.stringify(X.W.causeLine(stored)));
+    /* the return card's hero row says it (src/shell/windows/away.js awayBlockOf `cause`); a work line has none */
+    const back = X.AWAY.awayBlockOf(csOf({}, [card]), { session: 's7', facts: { hunt: MUSTER } });
+    if (back.cause !== CAUSE) out.push('the return card reads ' + JSON.stringify(back.cause));
+    if (X.AWAY.awayBlockOf(csOf({}, [card]), { session: 's7', work: 'w1', facts: {} }).cause !== '') out.push('a work line on the return card has a cause line');
+    /* the open hunt (the return card while it still runs): the `danger` section's playing Risk and step */
+    const open = csOf({ hunt: { session_id: 's8', session: { id: 's8', hunt_id: MUSTER, tally: { report: SCALE } } },
+      danger: { risk: 'bold', held: {}, playing: { hunt: MUSTER, from: 'bold', risk: 'steady', start: 600, step: 650, cool: 0 } } });
+    const live = X.W.causeLine(X.REC.depthFactsOf(open, 's8'));
+    if (!/^Held Depth 15 of 20 on Steady, the deepest it went\. Fell back 2 times\./.test(live)) out.push('the open hunt reads ' + JSON.stringify(live));
+    /* one fall that was a death, a fall with no name and an unknown monster, none at all */
+    const one = (fall) => X.W.causeLine(X.HR.depthFacts(X.RS.reportFrom({ deep: 650, falls: [fall] }), { hunt: MUSTER, risk: 'careful', step: 650 }));
+    if (one({ at: 1, from: 650, to: 530, hero: 2, pm: 0, monster: 'rat', name: 'Cole' }) !== 'Held Depth 15 of 20 on Careful, the deepest it went. Fell back once, when Cole died to a Giant Rat.') out.push('a death reads ' + JSON.stringify(one({ at: 1, from: 650, to: 530, pm: 0, monster: 'rat', name: 'Cole' })));
+    if (!/Fell back once, with a hero down to 9% from a monster\.$/.test(one({ at: 1, from: 650, to: 632, pm: 95, monster: 'unknown' }))) out.push('a nameless fall reads ' + JSON.stringify(one({ at: 1, from: 650, to: 632, pm: 95, monster: 'unknown' })));
+    if (!/Never fell back\.$/.test(X.W.causeLine(X.HR.depthFacts(X.RS.reportFrom({ deep: 650 }), { hunt: MUSTER, risk: 'steady', step: 640 })))) out.push('no falls says nothing of them');
+    /* the cap: the server keeps the last 12, so 12 reads as "or more" */
+    const twelve = Array.from({ length: 12 }, (_, i) => ({ at: i + 1, from: 650, to: 632, pm: 200, monster: 'rat', name: 'Bran' }));
+    if (!/^.*Fell back 12 times or more\./.test(X.W.causeLine(X.HR.depthFacts(X.RS.reportFrom({ deep: 650, falls: twelve }), { hunt: MUSTER, risk: 'steady', step: 640 })))) out.push('the cap is not said');
+    /* off the scale, or a forged step-sized depth in the residue: no line */
+    if (X.HR.reportFacts(X.RS.reportFrom(SCALE), { hunt: 'mill_cellar', risk: 'steady', step: 632 }).depth !== null) out.push('a tier ground has depth facts');
+    if (X.W.causeLine(null) !== '') out.push('no facts make a line');
+    const forged = X.HSUM.sanitizeSummary({ id: 's7', report: Object.assign({}, f, { depth: Object.assign({}, want, { held: 632, deep: 650 }) }) });
+    if (forged.report.depth !== null) out.push('the residue kept a raw step as a depth: ' + JSON.stringify(forged.report.depth));
+    /* depths only, plain words */
+    const all = [CAUSE, live];
+    if (all.some((x) => /[;—–:]/.test(x) || /\b6[0-9]{2}\b/.test(x))) out.push('a cause line has a step, a semicolon, a dash or a colon: ' + JSON.stringify(all));
+    return out;
+  },
   'HR-RESIDUE': async (X) => {
     const out = [];
     const f = X.HR.reportFacts(X.RS.reportFrom(SERVER), { deaths: DEATHS, reason: 'heals_out', enteredMs: START });
@@ -129,7 +196,16 @@ const MUTANTS = [
   ['the change line forgets the old share', 'HR-WORDS', 'src/hunt-view/hunt-report.js', 'wasPm: then ? then[6] : -1', 'wasPm: -1'],
   ['the residue keeps a forged word', 'HR-RESIDUE', 'src/session/hunt-summaries.js', "if (!isObj(v) || !WORDS.includes(v.word)) return null;", 'if (!isObj(v)) return null;'],
   ['the residue keeps every rule', 'HR-RESIDUE', 'src/session/hunt-summaries.js', "? [p[0], p[1], p[2], p[3], p[4], p[5], p[6]] : null), 16),", "? [p[0], p[1], p[2], p[3], p[4], p[5], p[6]] : null), 99),"],
-  ['a report with only a low reads as none', 'HR-FACTS', 'src/session/report-sections.js', "if (!isObj(raw) || !Object.keys(raw).length) return null;", "if (!isObj(raw) || !raw.fired) return null;"],
+  ['the cause line names the oldest fall, not the newest', 'HR-CAUSE', 'src/hunt-view/hunt-report.js', 'falls.length ? falls[falls.length - 1] : null', 'falls.length ? falls[0] : null'],
+  ['the held depth is the raw step', 'HR-CAUSE', 'src/hunt-view/hunt-report.js', 'held: held ? held.depth : null', 'held: held ? o.step : null'],
+  ['the server\'s falls are not read', 'HR-CAUSE', 'src/session/report-sections.js', 'falls: fallsOf(raw.falls)', 'falls: []'],
+  ['the ended session\'s stance is not read', 'HR-CAUSE', 'src/hunt-view/summary-model.js', 'riskEnd: id(s.risk_end)', 'riskEnd: null'],
+  ['the closed door\'s stance is not read', 'HR-CAUSE', 'src/session/hunt-sections.js', 'riskEnd: word(s.risk_end)', 'riskEnd: null'],
+  ['the open hunt ignores the danger section', 'HR-CAUSE', 'src/hunt-view/summary-recorder.js', 'live = p && p.hunt === s.hunt ? p : null', 'live = null'],
+  ['the cap is not said', 'HR-CAUSE', 'src/shell/hunt-report.js', 'd.n >= HUNT_REPORT.fallsMax', 'd.n > HUNT_REPORT.fallsMax'],
+  ['the residue keeps a step as a depth', 'HR-CAUSE', 'src/session/hunt-summaries.js', 'n >= 1 && n <= of ? n : null', 'n >= 1 ? n : null'],
+  ['the return card drops the cause line', 'HR-CAUSE', 'src/shell/windows/away.js', "const cause = hunt && cs && a.session ? causeLine(depthFactsOf(cs, a.session)) : '';", "const cause = '';"],
+  ['a report with only a low reads as none','HR-FACTS', 'src/session/report-sections.js', "if (!isObj(raw) || !Object.keys(raw).length) return null;", "if (!isObj(raw) || !raw.fired) return null;"],
 ];
 
 async function runAll(X, only) {

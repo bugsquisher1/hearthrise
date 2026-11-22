@@ -37,7 +37,13 @@ const WINDOWS = 3;
 const MUSTER = 'muster_barrows';
 /* the step the hero last held there: shallow enough that a Level 60 climbs inside the guard's windows (the section and the climb bound read a moved step) */
 const HELD = 20;
+/* Item Level 30 steel under Muster's gearLevel 60 (src/data/danger.js): the power step (lane/r9, the gear table's gear part) is live, well
+   under the ground (half its slots empty), so DZ-1 to DZ-5's both-path checks hold with it in play. */
 const GEAR = Object.freeze({ helmet: 'steel_helm', body: 'steel_platebody', pants: 'steel_platelegs', boots: 'steel_boots', weapon: 'steel_sword', shield: 'coppercap_shield' });
+/* (lane/r9) A STRONGER KIT for DZ-6: every weapon and armor piece item Level 60 (no jewelry, so a gear part near 40). In steel,
+   at 740 (far past its edge) died in its first pull before it could fall back, and the falls are what DZ-6 reads. */
+const REF_KIT = Object.freeze({ helmet: 'rune_helm', body: 'rune_platebody', pants: 'rune_platelegs', boots: 'rune_boots', gloves: 'rune_gauntlets', belt: 'rune_belt',
+  weapon: 'rune_sword', shield: 'coppercap_shield' });
 const idem = () => crypto.randomUUID();
 const one = async (db, sql, params) => { const r = await db.query(sql, params); const row = r.rows[0]; return row ? row[Object.keys(row)[0]] : null; };
 
@@ -57,7 +63,7 @@ const planWith = (risk, held) => async ({ db, uids, asUser, one: q, idem: id }) 
 
 async function door(db, which, o = {}) {
   const windows = o.windows || WINDOWS;
-  const run = await prepare({ heroes: o.heroes || 1, windows, ...(o.windowMs ? { windowMs: o.windowMs } : {}), hunt: MUSTER, door: which, db, level: 60, anchorMs: ANCHOR, gear: GEAR,
+  const run = await prepare({ heroes: o.heroes || 1, windows, ...(o.windowMs ? { windowMs: o.windowMs } : {}), hunt: MUSTER, door: which, db, level: 60, anchorMs: ANCHOR, gear: o.gear || GEAR,
     beforeEnter: planWith(o.risk === undefined ? 'steady' : o.risk, o.held || [HELD]) });
   await run.warm();
   for (let w = 2; w <= windows + 1; w++) await run.step(w);
@@ -132,8 +138,8 @@ async function fallsOf(db) {
 async function fallsBothPaths(boot) {
   const problems = [];
   const DEEP = 760, START = DEEP - DANGER.startMargin;
-  const closed = await door((await boot()).db, 'fire', { heroes: 4, risk: null, held: [DEEP, DEEP, DEEP, DEEP], windows: 3, windowMs: 90000 });
-  const viewed = await door((await boot()).db, 'viewed', { heroes: 4, risk: null, held: [DEEP, DEEP, DEEP, DEEP], windows: 7, windowMs: 45000 });
+  const closed = await door((await boot()).db, 'fire', { heroes: 4, risk: null, held: [DEEP, DEEP, DEEP, DEEP], gear: REF_KIT, windows: 3, windowMs: 90000 });
+  const viewed = await door((await boot()).db, 'viewed', { heroes: 4, risk: null, held: [DEEP, DEEP, DEEP, DEEP], gear: REF_KIT, windows: 7, windowMs: 45000 });
   for (const [name, r] of [['browser closed', closed], ['hunt viewed', viewed]]) if (Number(r.refusals) !== 0) problems.push('DZ-6 ' + name + ': ' + r.refusals + ' window(s) refused');
   const a = await fallsOf(closed.db), b = await fallsOf(viewed.db);
   const canon = (rows) => JSON.stringify(rows.map((x) => [x.seat, x.falls, x.deep]));

@@ -31,24 +31,24 @@ Labels. CONFIRMED means read in the code at the baseline. MEASURED means a playe
 | Critical chance and damage | 3 | 1 | 1 | 0 | 1 | 1 | 0 | 0 |
 | Life and mana leech | 2 | 0 | 0 | 2 | 0 | 0 | 1 | 0 |
 | Regeneration | 4 | 3 | 0 | 0 | 1 | 2 | 2 | 0 |
-| Monster HP, damage, armor, resistances and behavior | 23 | 7 | 4 | 4 | 8 | 7 | 5 | 9 |
+| Monster HP, damage, armor, resistances and behavior | 24 | 8 | 4 | 4 | 8 | 7 | 6 | 10 |
 | Spawn pacing and encounter composition | 11 | 6 | 1 | 3 | 1 | 1 | 5 | 4 |
-| Monster XP and loot values | 13 | 4 | 1 | 2 | 6 | 3 | 2 | 5 |
+| Monster XP and loot values | 14 | 5 | 1 | 2 | 6 | 3 | 3 | 6 |
 | Equipment stats and progression | 14 | 3 | 3 | 8 | 0 | 0 | 5 | 8 |
 | Imbuement effects | 1 | 0 | 0 | 1 | 0 | 0 | 1 | 0 |
 | Consumable costs and effectiveness | 9 | 4 | 3 | 2 | 0 | 1 | 1 | 2 |
 | Party bonuses and interactions | 7 | 1 | 3 | 0 | 3 | 2 | 3 | 3 |
 | Rare-drop probabilities | 6 | 2 | 0 | 3 | 1 | 0 | 4 | 3 |
 | Economy sources and sinks | 32 | 18 | 3 | 10 | 1 | 0 | 29 | 19 |
-| **All** | **183** | 82 | 26 | 47 | 28 | 31 | 72 | 72 |
+| **All** | **185** | 84 | 26 | 47 | 28 | 31 | 74 | 74 |
 <!-- END GENERATED:COUNTS -->
 
 <!-- GENERATED:CENSUS (tools/balance-program/levers.mjs --write) -->
 | | Count |
 |---|---|
-| Top-level bindings in the rule code that hold a typed number | 664 (in 224 files, 15704 typed numbers) |
+| Top-level bindings in the rule code that hold a typed number | 665 (in 225 files, 15706 typed numbers) |
 | Claimed by a lever | 284 |
-| Claimed by a not-a-lever reason | 380 |
+| Claimed by a not-a-lever reason | 381 |
 | Unclaimed | 0 |
 | Exceptions, intentional and accidental | 17 and 11 |
 | Values read at | 861ae52e3 (origin/baseline/overhaul-start). Rule code and migrations the same as the baseline: NO |
@@ -262,6 +262,8 @@ These are coverage gaps for BL-1 and the sensitivity lane. Each gap's reason is 
 | not-built | `spawn.gather-nodes` Gather nodes on hunting grounds | Spawn pacing and encounter composition | the hunt-gathering engine is not built |
 | not-in-runs | `danger.climb` The climb and the fall back | Spawn pacing and encounter composition | played by the V1 probe only |
 | not-in-runs | `danger.pay` Pay by depth | Monster XP and loot values | played by the V1 probe only. The server bounds it (hr_danger_level_xp_max, 1055) |
+| not-in-runs | `danger.pay-floor` Pay floor under the reference step | Monster XP and loot values | played by the V1 probe from a held start (lane/r9 tools/balance-program/redesign/r9). The server bounds only the most a kill pays (hr_danger_level_xp_max), which the floor never raises |
+| not-in-runs | `danger.power-gear` The power step on gear | Monster HP, damage, armor, resistances and behavior | played by the V1 probe (candidates power-tier-back / -ahead / -offense-back / -defense-back / -tier-back-under-cap). No matrix run plans a stance |
 | not-in-runs | `danger.power-step` Danger power step | Monster HP, damage, armor, resistances and behavior | the V1 probe plays it (a patch of this line moves its held step). No matrix run plans a stance |
 | not-in-runs | `danger.pull` Danger pull growth | Spawn pacing and encounter composition | played by the V1 probe only |
 | not-in-runs | `danger.readiness` Pulls on readiness | Spawn pacing and encounter composition | played by the V1 probe only |
@@ -336,6 +338,7 @@ Ranked by the formulas a lever's own formulas feed directly (COMPUTED from the 1
 | `mon.blow-line` Monster blow line and the gentle cap | 12 | 11 | 78 | knob `monsterDamage` | global |
 | `mon.danger-ramp` The gentle-ground ramp | 12 | 11 | 78 | patch | exception-intentional |
 | `skill.reference-career` The reference hero monsters are written against | 12 | 9 | 77 | patch | content |
+| `danger.power-gear` The power step on gear | 11 | 19 | 77 | NOT PLAYABLE (not-in-runs) | global |
 | `armor.weights` Armor weights: points, HP and mana | 9 | 11 | 77 | patch | archetype |
 | `weapon.family-tables` Weapon accuracy and damage by family and tier | 9 | 8 | 78 | patch | content |
 | `reward.tier-xp` Harder-tier XP | 9 | 4 | 77 | knob `tierXp` | archetype |
@@ -345,7 +348,6 @@ Ranked by the formulas a lever's own formulas feed directly (COMPUTED from the 1
 | `danger.stances` Risk stance thresholds | 8 | 11 | 78 | NOT PLAYABLE (player-policy) | archetype |
 | `danger.start` Danger start margin | 8 | 11 | 78 | NOT PLAYABLE (sql-only) | global |
 | `mon.tier-danger` Harder-tier blows | 8 | 11 | 78 | knob `tierDanger` | archetype |
-| `mon.tier-hp` Harder-tier HP | 8 | 8 | 78 | knob `tierHp` | archetype |
 <!-- END GENERATED:REACH -->
 
 ## 6. Keeping it true

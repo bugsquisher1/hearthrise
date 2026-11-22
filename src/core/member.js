@@ -29,6 +29,7 @@ import { isRune } from '../data/runes.js';
 import { ABILITIES, abilitySkill } from '../data/abilities.js';
 import { BASIC_EFFECT_SHARE } from '../data/supply-basics.js';
 import { LANE_OF } from './hunt/conditions.js';
+import { gearPartPm } from './hunt/danger.js';
 import { blowsPmOf, armorPmOf } from './temper.js';
 import { resistProfile } from './elements.js';
 
@@ -133,7 +134,10 @@ export function heroSnapshot(state, c) {
   const skillPlus = (c.eq && c.eq.skillPlus) || null;
   /* THE OWN HEAL (combat.js equipmentStats selfHealPm, the fist line's), the same: a number on the unit, only on a hero that wears one. */
   const selfHealPm = c.eq && c.eq.selfHealPm > 0 ? c.eq.selfHealPm : 0;
+  /* THE GEAR PART (src/core/hunt/danger.js gearPartPm, the gear table's): what the power step reads on the Danger scale, only there. */
+  const gearPm = gearPartPm(c.equipment, c.items);
   return { acc: Math.round(roll.accuracy * 1000), maxHit: Math.max(1, Math.floor(roll.maxHit)), def, armour: armourValues(c.equipment, c.items), level: charLevelFromXp(state.levelXp),
+    gearPm,
     ...(blowsPm ? { blowsPm } : {}), ...(armorPm ? { armorPm } : {}), ...(followPm ? { followPm } : {}), ...(surgePm ? { surgePm } : {}), ...(focusPm ? { focusPm } : {}), ...(resistPm ? { resistPm } : {}),
     ...(skillPlus ? { skillPlus } : {}), ...(selfHealPm ? { selfHealPm } : {}) };
 }
@@ -506,7 +510,8 @@ export function frozenOf(side, kinds, atMs, monsters) {
   const session = {};
   for (const k of FROZEN_SESSION_KEYS) if (hs[k] !== undefined) session[k] = hs[k];
   return { hp: m.state.playerHp, maxHp: m.state.playerMaxHp, maxMana: m.state.playerMaxMana, regenPm: m.state.regenPm,
-    snap: { ...(snap.blowsPm ? { blowsPm: snap.blowsPm } : {}), ...(snap.armorPm ? { armorPm: snap.armorPm } : {}), ...jewelSnap(snap), acc: snap.acc, maxHit: snap.maxHit, def: snap.def, armour: snap.armour || null, level: snap.level }, vs, family: m.family, armoured: m.armoured === true,
+    snap: { ...(snap.blowsPm ? { blowsPm: snap.blowsPm } : {}), ...(snap.armorPm ? { armorPm: snap.armorPm } : {}), ...jewelSnap(snap), gearPm: snap.gearPm || 0,
+      acc: snap.acc, maxHit: snap.maxHit, def: snap.def, armour: snap.armour || null, level: snap.level }, vs, family: m.family, armoured: m.armoured === true,
     shield: m.shield === true, hero: m.hero, session, lv, shots };
 }
 

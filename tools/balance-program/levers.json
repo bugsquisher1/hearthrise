@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "f506202729ce75ee",
+ "authored": "2ba8579b21c0d383",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -63,7 +63,7 @@
   "dead": "nothing on the hunt path reads it: a perturbation changes no outcome"
  },
  "counts": {
-  "levers": 183,
+  "levers": 185,
   "byCategory": {
    "base-damage": 12,
    "skill-scaling": 9,
@@ -76,9 +76,9 @@
    "crit": 3,
    "leech": 2,
    "regen": 4,
-   "monster-stats": 23,
+   "monster-stats": 24,
    "spawn": 11,
-   "monster-rewards": 13,
+   "monster-rewards": 14,
    "rare-drops": 6,
    "equipment": 14,
    "imbuements": 1,
@@ -87,7 +87,7 @@
    "economy": 32
   },
   "byClass": {
-   "global": 82,
+   "global": 84,
    "archetype": 26,
    "content": 47,
    "exception-intentional": 17,
@@ -100,13 +100,13 @@
    "not-playable:player-policy": 2,
    "not-playable:outside-hunt": 24,
    "not-playable:harness-fixed": 6,
-   "not-playable:not-in-runs": 16,
+   "not-playable:not-in-runs": 18,
    "variant": 5,
    "not-playable:not-built": 10,
    "not-playable:sql-only": 6
   },
   "byTest": {
-   "asserted": 72,
+   "asserted": 74,
    "mentioned only": 91,
    "none": 20
   },
@@ -117,11 +117,11 @@
   }
  },
  "census": {
-  "bindings": 664,
-  "typed": 15704,
-  "files": 224,
+  "bindings": 665,
+  "typed": 15706,
+  "files": 225,
   "lever": 284,
-  "notLever": 380,
+  "notLever": 381,
   "unclaimed": 0
  },
  "problems": [],
@@ -6682,9 +6682,10 @@
      "tests/danger-db.mjs",
      "tests/hunt-core/danger.mjs",
      "tests/hunt-core/tally.mjs",
+     "tests/hunt-report.mjs",
      "tests/hunting-blocks.mjs"
     ],
-    "mentionCount": 7,
+    "mentionCount": 8,
     "verdict": "asserted"
    },
    "perturb": {
@@ -6760,9 +6761,10 @@
      "tests/danger-db.mjs",
      "tests/hunt-core/danger.mjs",
      "tests/hunt-core/tally.mjs",
+     "tests/hunt-report.mjs",
      "tests/hunting-blocks.mjs"
     ],
-    "mentionCount": 7,
+    "mentionCount": 8,
     "verdict": "asserted"
    },
    "perturb": {
@@ -6835,9 +6837,10 @@
      "tests/danger-db.mjs",
      "tests/hunt-core/danger.mjs",
      "tests/hunt-core/tally.mjs",
+     "tests/hunt-report.mjs",
      "tests/hunting-blocks.mjs"
     ],
-    "mentionCount": 7,
+    "mentionCount": 8,
     "verdict": "asserted"
    },
    "perturb": {
@@ -6903,9 +6906,10 @@
      "tests/danger-db.mjs",
      "tests/hunt-core/danger.mjs",
      "tests/hunt-core/tally.mjs",
+     "tests/hunt-report.mjs",
      "tests/hunting-blocks.mjs"
     ],
-    "mentionCount": 7,
+    "mentionCount": 8,
     "verdict": "asserted"
    },
    "perturb": {
@@ -6924,7 +6928,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 100,
+     "line": 123,
      "text": "export const CLIMB = Object.freeze({ cleanRun: 2, climbMax: 8, fallSteps: 18, deathSteps: 120, coolPulls: 10 });",
      "binding": "CLIMB"
     }
@@ -6993,19 +6997,19 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 107,
+     "line": 130,
      "text": "careful: Object.freeze({ fallPm: 450, cleanPm: 650, afterDeath: 'careful' }),",
      "binding": "RISKS"
     },
     {
      "file": "src/data/danger.js",
-     "line": 108,
+     "line": 131,
      "text": "steady: Object.freeze({ fallPm: 250, cleanPm: 450, afterDeath: 'careful' }),",
      "binding": "RISKS"
     },
     {
      "file": "src/data/danger.js",
-     "line": 109,
+     "line": 132,
      "text": "bold: Object.freeze({ fallPm: 120, cleanPm: 300, afterDeath: 'steady' }),",
      "binding": "RISKS"
     }
@@ -7069,8 +7073,8 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 86,
-     "text": "export const PAY = Object.freeze({ refKillsHead: 120, payStepXp: 0.007, payStepCoin: 0.007, gapMax: 120 });",
+     "line": 92,
+     "text": "export const PAY = Object.freeze({ refKillsHead: 120, payStepXp: 0.007, payStepCoin: 0.007, gapMax: 120, floor: 0.5 });",
      "binding": "PAY"
     }
    ],
@@ -7135,7 +7139,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 94,
+     "line": 117,
      "text": "muster_barrows: Object.freeze({ refStep: 590, floorStep: 480, topStep: 710, gearLevel: tierLevel(3), traits: traitPool('muster_barrows') }),",
      "binding": "DANGER_GROUNDS"
     }
@@ -7192,6 +7196,151 @@
     }
    ],
    "evidence": "MEASURED (the Steady four at Level 60 held 589.5 +- 14, 2 seeds x 6 h)"
+  },
+  {
+   "id": "danger.pay-floor",
+   "category": "monster-rewards",
+   "name": "Pay floor under the reference step",
+   "sites": [
+    {
+     "file": "src/data/danger.js",
+     "line": 92,
+     "text": "export const PAY = Object.freeze({ refKillsHead: 120, payStepXp: 0.007, payStepCoin: 0.007, gapMax: 120, floor: 0.5 });",
+     "binding": "PAY"
+    }
+   ],
+   "definition": "under a ground's reference step the depth ratio a kill pays (XP and coin) falls to floor and no further, so a shallower stance pays in kills an hour, not twice (12-targets 2.1)",
+   "range": "0 to 1 of the hours table. 12-targets 2.1 starts it at 0.85 and rules \"if Careful misses 0.55x to 0.70x of Steady, the floor moves, not the stances\"",
+   "touches": "Careful's pay an hour against Steady's (C-5); Steady and Bold hold near or over the reference, so it barely touches them",
+   "outcomes": [
+    "levelXpPerH",
+    "netLevelXpPerH",
+    "hoursPerLevel",
+    "xContract",
+    "netPerH",
+    "storePerH"
+   ],
+   "formulas": [
+    "P01",
+    "P02"
+   ],
+   "reach": {
+    "feeds": 7,
+    "closure": 77
+   },
+   "class": "global",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/hunt-core/danger.mjs",
+      "what": "pay: under the reference a kill pays the floor, never less",
+      "reads": [
+       "PAY"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/accrual-engine.mjs",
+     "tests/activity-intent.mjs",
+     "tests/activity-seam.mjs",
+     "tests/artisan-accrual.mjs",
+     "tests/boss-call.mjs",
+     "tests/boss-hall.mjs",
+     "tests/cadence-recovery-floor.mjs",
+     "tests/character-window.mjs"
+    ],
+    "mentionCount": 22,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "not-in-runs",
+    "note": "played by the V1 probe from a held start (lane/r9 tools/balance-program/redesign/r9); the server bounds only the most a kill pays (hr_danger_level_xp_max), which the floor never raises",
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "MEASURED (lane/r9, v1-climb.mjs from a held start: tools/balance-program/redesign/r9/stance-held-L60.txt)"
+  },
+  {
+   "id": "danger.power-gear",
+   "category": "monster-stats",
+   "name": "The power step on gear",
+   "sites": [
+    {
+     "file": "src/data/danger.js",
+     "line": 106,
+     "text": "export const POWER = Object.freeze({ weightGearPm: 1000 });",
+     "binding": "PAY"
+    }
+   ],
+   "definition": "on the scale a hero gear part (src/data/gear-steps.js: item Level x slot weight, a whole kit at X is X) counts weightGearPm / 1000 steps a gear step over the ground gearLevel: a blow at a monster x (1 + powerStep)^steps, a blow at the hero / (1 + powerStep)^steps, after the armor cap; heals are not stepped",
+   "range": "0 to 1000 permille (04 section 1: a weighted mean with weightSkill). 1000 makes a tier of base on a whole kit tierSteps steps of power by construction",
+   "touches": "how far one gear tier moves the held step on the scale (C-2), on top of the own move of the shipped stats",
+   "outcomes": [
+    "dps",
+    "dpsHero",
+    "ttkS",
+    "killsPerH",
+    "levelXpPerH",
+    "netPerH",
+    "hoursPerLevel",
+    "xContract",
+    "takenPerH",
+    "healPerH",
+    "deathsPer1000h",
+    "lowHpTypical",
+    "lowHpP10",
+    "hpUnder30",
+    "hpUnder10",
+    "netLevelXpPerH",
+    "storePerH",
+    "suppliesPerH",
+    "huntedShare"
+   ],
+   "formulas": [
+    "C-TIER",
+    "C-TEMPER"
+   ],
+   "reach": {
+    "feeds": 11,
+    "closure": 77
+   },
+   "class": "global",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/hunt-core/danger.mjs",
+      "what": "power: a tier of gear is a tier of steps, after the cap, never off the scale",
+      "reads": [
+       "POWER",
+       "GEAR_STEPS",
+       "DANGER_GROUNDS"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/accrual-engine.mjs",
+     "tests/activity-intent.mjs",
+     "tests/activity-seam.mjs",
+     "tests/artisan-accrual.mjs",
+     "tests/boss-call.mjs",
+     "tests/boss-hall.mjs",
+     "tests/cadence-recovery-floor.mjs",
+     "tests/character-window.mjs"
+    ],
+    "mentionCount": 22,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "not-in-runs",
+    "note": "played by the V1 probe (candidates power-tier-back / -ahead / -offense-back / -defense-back / -tier-back-under-cap); no matrix run plans a stance",
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "MEASURED (lane/r9, v1-climb.mjs: tools/balance-program/redesign/r9/summary.txt)"
   },
   {
    "id": "reward.xp-line",
@@ -8221,7 +8370,7 @@
     },
     {
      "file": "src/core/member.js",
-     "line": 58,
+     "line": 59,
      "text": "const RELIC_MULT_MAX = 1.25;",
      "binding": "RELIC_MULT_MAX"
     }
@@ -8844,7 +8993,7 @@
      "tests/alpha-windows-storage.mjs",
      "tests/alpha-windows-work.mjs"
     ],
-    "mentionCount": 113,
+    "mentionCount": 114,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -8942,7 +9091,7 @@
      "tests/alpha-windows-storage.mjs",
      "tests/alpha-windows-work.mjs"
     ],
-    "mentionCount": 113,
+    "mentionCount": 114,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -9164,9 +9313,10 @@
      }
     ],
     "mentions": [
-     "tests/gear-steps.mjs"
+     "tests/gear-steps.mjs",
+     "tests/hunt-core/danger.mjs"
     ],
-    "mentionCount": 1,
+    "mentionCount": 2,
     "verdict": "asserted"
    },
    "perturb": {
@@ -9232,9 +9382,10 @@
      }
     ],
     "mentions": [
-     "tests/gear-steps.mjs"
+     "tests/gear-steps.mjs",
+     "tests/hunt-core/danger.mjs"
     ],
-    "mentionCount": 1,
+    "mentionCount": 2,
     "verdict": "asserted"
    },
    "perturb": {
@@ -9324,9 +9475,10 @@
      }
     ],
     "mentions": [
-     "tests/gear-steps.mjs"
+     "tests/gear-steps.mjs",
+     "tests/hunt-core/danger.mjs"
     ],
-    "mentionCount": 1,
+    "mentionCount": 2,
     "verdict": "asserted"
    },
    "perturb": {
@@ -9410,7 +9562,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 94,
+     "line": 117,
      "text": "muster_barrows: Object.freeze({ refStep: 590, floorStep: 480, topStep: 710, gearLevel: tierLevel(3), traits: traitPool('muster_barrows') }),",
      "binding": "DANGER_GROUNDS"
     }
@@ -9983,7 +10135,7 @@
      "tests/alpha-windows-storage.mjs",
      "tests/alpha-windows-work.mjs"
     ],
-    "mentionCount": 113,
+    "mentionCount": 114,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -12722,6 +12874,10 @@
    "why": "how many depths a ground's band is cut into for the player's \"Depth N of 20\" words (12-targets 3.1): display, the server and the engine read steps"
   },
   {
+   "at": "src/core/hunt/danger.js#stepRatio",
+   "why": "a memo bound (4096 power-step ratios kept): a cache size, no outcome reads it"
+  },
+  {
    "at": "src/data/time-blocks.js#RULED",
    "why": "Tyler's ruled block rule of 2026-11-22 (2 h blocks, 2 a day, x1.5): time-blocks.js validate refuses a TIME_BLOCKS row that moves them; the price is the lever (econ.hunt-block)"
   },
@@ -14837,12 +14993,13 @@
   "src/data/danger.js#PAY": {
    "pin": "count",
    "keys": [
+    "floor",
     "gapMax",
     "payStepCoin",
     "payStepXp",
     "refKillsHead"
    ],
-   "typed": 4,
+   "typed": 5,
    "bindings": 1
   },
   "src/data/danger.js#DANGER_GROUNDS": {

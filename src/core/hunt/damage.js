@@ -50,7 +50,7 @@ import { dummyBlow, dummyStands, trainingBasic } from './training.js';
 import { reaches } from './shooters.js';
 import { elementOnHeroOf } from '../../data/elements.js';
 import { applyStatus, statusRow } from './status.js';
-import { noteHurt, breaksOff } from './danger.js';
+import { noteHurt, breaksOff, powerPm } from './danger.js';
 import { isEnemy, isHero, isMonster } from './sides.js';
 
 /* A store shot's share of its partner's ammo bonus, permille. */
@@ -135,8 +135,11 @@ export function hurt(inst, target, amount, source, element, ability, rng) {
      ward, never past the total cap (src/core/mitigation.js), then the shield below and HP.
      Every landed blow deals at least 1. */
   n = isHero(target) ? mitigate(n, el, armourVs(inst, target, source), target.armorPm, rng) : Math.max(1, n);
-  /* TEMPERING: a hero's rung raises what lands on a monster, last, so +1% is +1% of the damage whatever the monster's defence (src/core/temper.js: the part of a point is one draw, made only by a hero with a rung). */
-  if (source && source.blowsPm > 0 && isMonster(target)) n = temperedAmount(n, source.blowsPm, rng);
+  /* TEMPERING: a hero's rung raises what lands on a monster, last, so +1% is +1% of the damage whatever the monster's defence (src/core/temper.js: the part of a point is one draw, made only by a hero with a rung).
+     THE POWER STEP (danger.js powerPm, on the scale only): the hero's gear in steps, folded into the same draw for a blow at a monster, and
+     for a blow at a hero after the armor chain's cap (the step contest has none). Off the scale both are what they were, nothing drawn. */
+  const pm = powerPm(inst, source, target, source && source.blowsPm > 0 && isMonster(target) ? source.blowsPm : 0);
+  if (pm) n = Math.max(1, temperedAmount(n, pm, rng));
   const absorbed = Number.isInteger(target.shield) && target.shield > 0 ? Math.min(target.shield, n) : 0;
   if (absorbed) target.shield -= absorbed;
   /* A TRAINING DUMMY (src/core/hunt/training.js): its blow never takes a hero under the floor, and it never falls (whole again before anyone reads a kill). */

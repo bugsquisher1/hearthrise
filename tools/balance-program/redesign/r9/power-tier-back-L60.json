@@ -1,0 +1,173 @@
+{
+ "ground": "muster_barrows",
+ "levels": [
+  60,
+  63,
+  70
+ ],
+ "seeds": 12,
+ "hours": 12,
+ "settleFromH": 6,
+ "levers": {
+  "DANGER": {
+   "powerStep": 0.0035,
+   "pullStep": 0.00175,
+   "pullMax": 8,
+   "respawnMs": 15000,
+   "stepMax": 4000,
+   "readyPm": 800,
+   "startMargin": 20
+  },
+  "CLIMB": {
+   "cleanRun": 2,
+   "climbMax": 8,
+   "fallSteps": 18,
+   "deathSteps": 120,
+   "coolPulls": 10
+  },
+  "RISKS": {
+   "careful": {
+    "fallPm": 450,
+    "cleanPm": 650,
+    "afterDeath": "careful"
+   },
+   "steady": {
+    "fallPm": 250,
+    "cleanPm": 450,
+    "afterDeath": "careful"
+   },
+   "bold": {
+    "fallPm": 120,
+    "cleanPm": 300,
+    "afterDeath": "steady"
+   }
+  }
+ },
+ "cells": {
+  "base:steady": {
+   "id": "base:steady",
+   "variant": "base",
+   "risk": "steady",
+   "L": 60,
+   "start": 0,
+   "seedsRead": 12,
+   "payX": {
+    "mean": 0.57,
+    "sd": 0.09,
+    "n": 12,
+    "perSeed": [
+     0.51,
+     0.74,
+     0.75,
+     0.59,
+     0.51,
+     0.65,
+     0.51,
+     0.51,
+     0.51,
+     0.51,
+     0.51,
+     0.51
+    ],
+    "fromH": 6,
+    "windowH": 6
+   },
+   "held": {
+    "mean": 508.8,
+    "sd": 27.5,
+    "se": 7.9,
+    "perSeed": [
+     493,
+     558,
+     563,
+     514,
+     489,
+     533,
+     491,
+     492,
+     488,
+     493,
+     493,
+     498
+    ]
+   },
+   "drift": 7.1,
+   "within10": 49.1,
+   "within20": 78,
+   "changesPerH": 15.4,
+   "fallsPerH": 1.5,
+   "reachH": 2.3,
+   "pullsPerH": 69,
+   "killsPerH": 475,
+   "xpPerHeroH": 146171,
+   "gold": {
+    "coinPerHeroH": {
+     "mean": 1394,
+     "sd": 80,
+     "n": 12
+    },
+    "incomePerHeroH": {
+     "mean": 4416,
+     "sd": 92,
+     "n": 12
+    },
+    "storePerHeroH": {
+     "mean": 9451,
+     "sd": 90,
+     "n": 12
+    },
+    "commonPerHeroH": {
+     "mean": 259,
+     "sd": 8,
+     "n": 12
+    },
+    "uncommonPerHeroH": {
+     "mean": 157,
+     "sd": 4,
+     "n": 12
+    },
+    "scarcePerHeroH": {
+     "mean": 2606,
+     "sd": 85,
+     "n": 12
+    },
+    "otherPerHeroH": {
+     "mean": 0,
+     "sd": 0,
+     "n": 12
+    }
+   },
+   "deaths": 0,
+   "wipes": 0,
+   "seedsWithADeath": 0,
+   "huntedH": 12,
+   "fourH": 6,
+   "firstDeathH": [],
+   "nearWipes": 1,
+   "nearWithDeath": 0,
+   "nearWarned": 0,
+   "nearFellAfter": 1,
+   "whys": {
+    "hold": 7049,
+    "climb": 2676,
+    "fall": 203
+   }
+  }
+ },
+ "wallS": 102,
+ "candidate": "tools/balance-program/candidates/power-tier-back.json",
+ "moves": {
+  "levels:careful": null,
+  "weapon:careful": null,
+  "armor:careful": null,
+  "high:careful": null,
+  "levels:steady": null,
+  "weapon:steady": null,
+  "armor:steady": null,
+  "high:steady": null,
+  "levels:bold": null,
+  "weapon:bold": null,
+  "armor:bold": null,
+  "high:bold": null
+ }
+}

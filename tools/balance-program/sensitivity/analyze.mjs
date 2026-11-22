@@ -420,6 +420,44 @@ function reportFx(M, id, out) {
   }
 }
 
+/* one lever's curve as a markdown table: a row an outcome, a column a step (--groups a,b: one table a group) */
+function mdLever(M, id, out) {
+  const lv = M.oat[id];
+  if (!lv) { out('no lever ' + id); return; }
+  const ms = Object.keys(lv.steps).map(Number).sort((a, b) => a - b);
+  const outs = arg('outcomes') ? arg('outcomes').split(',') : CORE;
+  for (const g of (arg('groups') || 'all').split(',')) {
+    if (!lv.steps[ms[0]][g]) continue;
+    out('\n' + id + ', ' + ((M.groups.find((x) => x.id === g) || {}).label || g) + '\n');
+    out('| Outcome | ' + ms.map((m) => 'x' + m).join(' | ') + ' |');
+    out('|---|' + ms.map(() => '---').join('|') + '|');
+    for (const o of outs) out('| ' + o + ' | ' + ms.map((m) => showE(lv.steps[m][g][o]).trim()).join(' | ') + ' |');
+  }
+}
+/* one experiment as markdown: for each outcome and group, every multi-factor point: the joint reading, what the single readings
+   say, and the gap. --all prints unresolved gaps too. */
+function mdExp(M, id, out) {
+  const x = M.fx[id];
+  if (!x) { out('no experiment ' + id); return; }
+  const names = Object.keys(x.factors);
+  const outs = arg('outcomes') ? arg('outcomes').split(',') : CORE;
+  for (const g of (arg('groups') || 'all').split(',')) for (const o of outs) {
+    const rel = kindOf(o) === 'rel', dth = kindOf(o) === 'deaths';
+    const show = (v) => (!finite(v) ? 'n/a' : rel ? 'x' + v.toFixed(3) : dth ? v.toFixed(1) : num(v, 3));
+    const eff = (p) => { const e = p.effects[g] && p.effects[g][o]; return !e ? 'n/a' : e.k === 'd' ? e.a + (e.r ? '' : '~') : e.k === 'r' ? 'x' + (1 + e.e).toFixed(3) + (e.r ? '' : '~') : num(e.e, 3) + (e.r ? '' : '~'); };
+    out('\n' + id + ', ' + o + ', ' + ((M.groups.find((q) => q.id === g) || {}).label || g) + (dth ? ' (deaths in 1,000 hours; base ' + (((x.points[0].effects[g] || {})[o] || {}).b) + ')' : rel ? ' (ratio to the base)' : ' (change from the base)') + '\n');
+    out('| ' + names.join(' | ') + ' | measured | singles predict | gap |');
+    out('|' + names.map(() => '---').join('|') + '|---|---|---|');
+    const key = (p) => names.map((n) => String(p.levers[n]).padStart(6)).join('');
+    for (const p of [...x.points].sort((a, b) => key(a).localeCompare(key(b)))) {
+      const i = p.inter && p.inter[g] && p.inter[g][o];
+      if (p.moved.length > 1 && !i) continue;
+      if (p.moved.length > 1 && !i.resolved && !has('all')) { out('| ' + names.map((n) => 'x' + p.levers[n]).join(' | ') + ' | ' + eff(p) + ' | ' + show(i.predicted) + ' | within noise |'); continue; }
+      out('| ' + names.map((n) => 'x' + p.levers[n]).join(' | ') + ' | ' + eff(p) + ' | ' + (i ? show(i.predicted) : 'single') + ' | ' + (i ? (rel ? pct(Math.exp(i.inter) - 1) : num(i.inter, dth ? 1 : 3)) + ' +/- ' + (rel ? (100 * i.se).toFixed(1) + '%' : i.se) : '') + ' |');
+    }
+  }
+}
+
 async function selftest() {
   const fails = [];
   const ok = (c, w) => { if (!c) fails.push(w); console.log((c ? '  ok   ' : '  FAIL ') + w); };
@@ -491,6 +529,8 @@ async function main() {
     return 0;
   }
   if (has('md')) { mdMatrix(M, out); return 0; }
+  if (arg('md-lever')) { for (const id of arg('md-lever').split(',')) mdLever(M, id, out); return 0; }
+  if (arg('md-exp')) { mdExp(M, arg('md-exp'), out); return 0; }
   const which = arg('report', 'all');
   if (arg('lever')) { reportLever(M, arg('lever'), out); return 0; }
   if (arg('exp')) { reportFx(M, arg('exp'), out); return 0; }

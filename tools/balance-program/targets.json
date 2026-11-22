@@ -3444,7 +3444,7 @@
         "SURV-5"
       ],
       "status": "open",
-      "needs": "the designer decides when the new design is defined. Was: the matrix lane: read S6 at band floors, pooled over grounds",
+      "needs": "the designer decides when the new design is defined",
       "what": "Call 5 asked for a flat count at every Level. The engine gives a cliff: a four is safe or it wipes, and the count is the thin line between. S-12 a moved the count to a four arriving in a band. Even there one table of blow and pull cannot hold every ground inside 50 to 100, and LR-1 forbids a dial per ground",
       "evidence": "MEASURED R2: of 56 Deadly ground cells, one read inside 50 to 100, forty had no death and six wiped. The replay read 44 for all Deadly cells together (run 44948522187)",
       "tradeoff": "A single dial can aim at the pooled count over band floors. A ground that sits far off can be moved only through content data (D-10 group casters), never its own dial"
@@ -3457,7 +3457,7 @@
         "SURV-6"
       ],
       "status": "open",
-      "needs": "the designer decides when the new design is defined. Was: the matrix lane: S6.dangerous.mid still grades a floor of 10",
+      "needs": "the designer decides when the new design is defined",
       "what": "Dangerous is ruled at 10 to 30 deaths. With one blow number for both tiers it reads about 5. Reaching 10 needs Dangerous to hit harder than Deadly, which turns the tiers upside down on grounds with shooters",
       "evidence": "MEASURED: Dangerous at 2.5 pooled 4 to 5 (R4, replay). At 3.0 it pooled 29 but was deadlier than Deadly on two grounds (R2, the Coppercap Warrens 657 against 138)",
       "tradeoff": "S-12 a was ruled with this cost shown: \"Dangerous rarely kills a mid four inside its band\". The band's floor of 10 is older than that answer"
@@ -3469,7 +3469,7 @@
         "SURV-5"
       ],
       "status": "open",
-      "needs": "the designer decides when the new design is defined. Was: nothing: S3 and S4 are report only",
+      "needs": "the designer decides when the new design is defined",
       "what": "The Hard and Extreme rows of 2026-10-25 ask a typical low point of 35 to 60% and 15 to 40%. At the death counts of 2026-11-21 the low point reads 36 to 66%, and a four whose low point sits under 0.36 wipes",
       "evidence": "MEASURED R2: near the ruled count the median low point is 48%. Every cell under 0.36 wiped",
       "tradeoff": "The newer ruling wins. The health rows stay as readings and the death sample judges a tier"
@@ -3481,7 +3481,7 @@
         "GEAR-2"
       ],
       "status": "open",
-      "needs": "the designer decides when the new design is defined. Was: Tyler: keep D3-1 or veto it",
+      "needs": "the designer decides when the new design is defined",
       "what": "An armor upgrade is ruled at 3 to 5% less damage. The built ladder tiers 1 to 7 give about 9 to 18% each. Resampling them on the curve would leave Bronze with about 3 points of plate a set and make the Bronze to Iron step about fifteen times",
       "evidence": "COMPUTED at armor x2.4 (D-3 section 1.3): about 18% at Level 20, 17% at 30, 13% at 45, 12% at 60 and 9% at 88. The band step past Level 110 reads 3.6 to 4.1% (MEASURED)",
       "tradeoff": "Keep the early hook (D3-1, graded from Level 110) or meet 3 to 5% everywhere and lose the felt early upgrade"
@@ -3494,7 +3494,7 @@
         "GEAR-14"
       ],
       "status": "open",
-      "needs": "the designer decides when the new design is defined. Was: GR-38's lane derives the rows from the curve",
+      "needs": "the designer decides when the new design is defined",
       "what": "GR-38 sizes the crafted class at 6% of a kit at every Level. The shipped rows are typed per tier, so their share falls with Level",
       "evidence": "Local (D-3 ruling 6): 13.9% of a lone MID hero's pace at Level 20, 11.0% at 60, 5.4% at 110, 2.2% at 400. For a four, 3.5% or less from Level 20",
       "tradeoff": "A flat share means early rows come down and late rows go up. D-3 kept the rows for the first build because a four feels 3.5% or less and crafting should pay early"
@@ -3507,7 +3507,7 @@
         "GEAR-10"
       ],
       "status": "open",
-      "needs": "the designer decides when the new design is defined. Was: Tyler: S-19",
+      "needs": "the designer decides when the new design is defined",
       "what": "On 2026-11-18 Tyler kept the typed prices and also ruled that standing upgrades cost more than a band earns. With four heroes from the start the typed prices fall to a fifth of a band's gold, so GEAR-9's rule fails",
       "evidence": "MEASURED R0: full best gear costs 0.18 of a band's net gold for a lone hero, against 1.2 to 1.4. All 22 rows red",
       "tradeoff": "Keep the typed numbers and lose \"choose what matters\", or price upgrades as a share of band gold (GR-8) and drop the typed numbers"
@@ -3519,7 +3519,7 @@
         "PACE-1"
       ],
       "status": "open",
-      "needs": "the designer decides when the new design is defined. Was: nothing while both points stay in band",
+      "needs": "the designer decides when the new design is defined",
       "what": "One multiple can be exact at one Level only, because a seat's own reading drifts with Level. It holds both points in band while the seat's reading at 400 over its reading at 100 stays within 1.10 / 0.90, about 1.22",
       "evidence": "MEASURED R4 at 1.266: 1.005 at Level 100 and 1.115 at 400, a ratio of 1.11. The matrix lane reports 100 to 400 in band at 1.327",
       "tradeoff": "In band is enough (2026-11-21). If a dial pushes the ratio past 1.22, the curve's shape is wrong and the fix is at the curve, never a second multiple"
@@ -3532,7 +3532,7 @@
         "PARTY-2"
       ],
       "status": "open",
-      "needs": "the designer decides when the new design is defined. Was: Tyler: does the gold half stand",
+      "needs": "the designer decides when the new design is defined",
       "what": "The ruling says more XP and gold a head. A four shares one kill stream four ways, coin per kill never scales with a tier (LR-3) and party pay is XP only (LR-5). So the four out-earns its heroes alone in gold only if its kills an hour reach four times a lone hero's",
       "evidence": "MEASURED R0: a four on Dangerous nets 0.53 to 0.77 of a lone MID hammer a head. XP a head is 1.4 to 2.6 times at 28 of 29 checkpoints",
       "tradeoff": "Read the rule on XP only, as the 10:40 refinement and 2026-11-13 suggest, or add a gold share by party size (a new party buff), or raise the harder tiers' pull, which moves the death sample and the Level clock"
@@ -3545,7 +3545,7 @@
         "GEAR-3"
       ],
       "status": "open",
-      "needs": "the designer decides when the new design is defined. Was: Tyler: which holds past about Level 150",
+      "needs": "the designer decides when the new design is defined",
       "what": "GR-4 opens a band each time the linear gear curve grows 17%, so the gap is about 0.17 times the Level. It is under 25 Levels only to about Level 147 and under 30 only to about 176. A smaller step keeps the gap but the weapon step already reads under 5% at Level 185",
       "evidence": "COMPUTED: band edges 110, 129, 151, 176, 206, 241, 282, 330 and 386. MEASURED L: the +17% step is 4.4% at Level 185",
       "tradeoff": "Past about Level 150 keep 5 to 8% a step with wider gaps, or keep 15 to 25 Levels with smaller steps, or count reforged uniques and Tempering as the major upgrades in between"
@@ -3557,7 +3557,7 @@
         "GEAR-4"
       ],
       "status": "open",
-      "needs": "the designer decides when the new design is defined. Was: the designer: P4 stays a lone reading",
+      "needs": "the designer decides when the new design is defined",
       "what": "Call 3 asks best gear to be about 15% faster. A four kills about as fast as the ground respawns, so no gear moves its pace much on Normal. The paid-edge reading of 1.65 multiplied 15% into a four's pace",
       "evidence": "MEASURED R0: best gear is 2% faster for a four on Normal and 5 to 7% on the harder tiers. Every cap full reads 1.29 to 1.48, not 1.65",
       "tradeoff": "P4 reads a lone hero, where 15% is reachable. For a four, gear is sized as how many Levels sooner it holds the next tier (balance pass section 4.2)"
@@ -3571,7 +3571,7 @@
         "DROP-7"
       ],
       "status": "open",
-      "needs": "the designer decides when the new design is defined. Was: designer reading, Tyler may veto: B1's full BiS leaves out weekly-capped pieces to Krell",
+      "needs": "the designer decides when the new design is defined",
       "what": "Call 14 puts full BiS at about a band's length to Krell. Call 6 keeps the weekly chest limits. Bands to Krell last about 3 to 11 days at 12 h, and a specific top chest piece takes weeks. The BiS kit includes chest pieces",
       "evidence": "COMPUTED: gap 17 of 50-standards (bands of 3 to 11 days). Ruling 2026-11-16: a specific Platinum piece in about 13.5 weeks",
       "tradeoff": "Call 6's own words, \"fast players skip early chest pieces\", read B1 as BiS without weekly-capped pieces to Krell. Otherwise B1 is red by construction"
@@ -3584,7 +3584,7 @@
         "SURV-8"
       ],
       "status": "open",
-      "needs": "the designer decides when the new design is defined. Was: nothing: ruled with the cost shown",
+      "needs": "the designer decides when the new design is defined",
       "what": "The Level table is timed on the four on Dangerous (S-11 c), and a four moves to Deadly once it grows past the edge (S-12 a). That four runs ahead of the table",
       "evidence": "COMPUTED (balance pass section 7, item 1): a four that farms Deadly safely runs about 18% ahead",
       "tradeoff": "Accepted at the sitting. The runway is read on the fastest seat held all the time (GR-6a)"
@@ -3596,7 +3596,7 @@
         "SURV-5"
       ],
       "status": "open",
-      "needs": "the designer decides when the new design is defined. Was: nothing: ruled with the cost shown",
+      "needs": "the designer decides when the new design is defined",
       "what": "When the front hero falls the other three die in the same hunt, so one wipe is four deaths",
       "evidence": "MEASURED run 44948522187: 121 of 129 front-first hunts",
       "tradeoff": "Accepted at S-14 a. The ruled counts count every hero, so 50 to 100 is one wipe in 10 to 20 party-hours"
@@ -3608,7 +3608,7 @@
         "LONG-4"
       ],
       "status": "reader-mismatch",
-      "needs": "the matrix lane, if the new design keeps the candidate: the matrix lane",
+      "needs": "the matrix lane, if the new design keeps the candidate",
       "what": "Call 7 says each region opens 30 days before the first fours arrive, read on the fastest seat held all the time. R1 asks 14 days, on the pace four",
       "evidence": "standards.mjs R1: lo 14, red 0, \"the four MID player\"",
       "tradeoff": "None. The band is softer than the ruling and reads another seat"
@@ -3620,7 +3620,7 @@
         "GOLD-3"
       ],
       "status": "reader-mismatch",
-      "needs": "the matrix lane, if the new design keeps the candidate: the matrix lane",
+      "needs": "the matrix lane, if the new design keeps the candidate",
       "what": "G-5 grades \"an arrival four on Deadly nets at or under zero\" as RULED. The 2026-11-19 ruling was given as a direction, not a hard rule, and 2026-11-13 says profit is never graded",
       "evidence": "standards.mjs G-5: hi 0, red 0, label RULED",
       "tradeoff": "None. It should print, not grade"
@@ -3632,7 +3632,7 @@
         "GOLD-4"
       ],
       "status": "reader-mismatch",
-      "needs": "the matrix lane, if the new design keeps the candidate: the matrix lane",
+      "needs": "the matrix lane, if the new design keeps the candidate",
       "what": "Band change 5 made G-1 report only, citing the 2026-11-13 profit ruling. Call 24-2 came later and rules that a new ground never pays a lone hero on Normal less than the one before",
       "evidence": "standards.mjs G-1 reportOnly. 30-decisions.json 24-2, ruled 2026-11-20",
       "tradeoff": "By newest wins, G-1 grades from Level 88 at least"
@@ -3644,7 +3644,7 @@
         "PACE-10"
       ],
       "status": "reader-mismatch",
-      "needs": "the matrix lane, if the new design keeps the candidate: the matrix lane or the designer: derive P9 again or retire it",
+      "needs": "the matrix lane, if the new design keeps the candidate",
       "what": "P9 assumes the per-kill XP alone. The 2026-11-07 ruling keeps the bigger pulls and accepts that the rate an hour rises with them",
       "evidence": "MEASURED R0: Dangerous pays 2.1 to 3.0 times Normal for a four, so P9.dangerous is off in 646 rows",
       "tradeoff": "None. The band does not describe the ruled mechanics"
@@ -3654,7 +3654,7 @@
       "title": "P8 still standing after its twin was dropped",
       "targets": [],
       "status": "reader-mismatch",
-      "needs": "the matrix lane, if the new design keeps the candidate: the matrix lane",
+      "needs": "the matrix lane, if the new design keeps the candidate",
       "what": "GR-67 dropped P7.4, the mid four's cap against the contract, because no party size is a target against a lone hero (2026-11-21). P8, the best-gear four's cap of 2.75 from call 30-2, is the same kind of target and still stands",
       "evidence": "standards.mjs P8 and P7.4 (dropped)",
       "tradeoff": "Report only, or keep it as the runway's guard and say so"
@@ -3666,7 +3666,7 @@
         "PACE-6"
       ],
       "status": "open",
-      "needs": "the designer decides when the new design is defined. Was: nothing: never quote day 18",
+      "needs": "the designer decides when the new design is defined",
       "what": "The 2026-11-21 morning ruling quoted day 18 for a four. The table timed on the four on Dangerous (S-11 c, later that day) puts Level 88 on about day 33",
       "evidence": "COMPUTED in the balance pass: day 33 at seat 1.266. Reversal 2 (GR-6b) let stand on the page",
       "tradeoff": "The operative ruling is \"weeks, not months\". Day 33 is about 4.7 weeks"
@@ -3678,7 +3678,7 @@
         "SURV-8"
       ],
       "status": "open",
-      "needs": "the designer decides when the new design is defined. Was: nothing: the rule is written in its narrow form",
+      "needs": "the designer decides when the new design is defined",
       "what": "By the top of a band Deadly is safe for a mid four and pays 20 to 29% over Dangerous, so an idle four should take it there. S-12 a says so",
       "evidence": "MEASURED run 44948522187: Deadly pays 20 to 29% over Dangerous in the upper part of each band",
       "tradeoff": "SURV-8 holds on arrival only"
@@ -3690,7 +3690,7 @@
         "PACE-2"
       ],
       "status": "reader-mismatch",
-      "needs": "the matrix lane, if the new design keeps the candidate: the matrix lane",
+      "needs": "the matrix lane, if the new design keeps the candidate",
       "what": "Call 27-2 says no Level under 10 takes over 2 hours. P11.early reads 2 to 2.5 hours as off, not red",
       "evidence": "standards.mjs P11.early: hi 2, red 2.5",
       "tradeoff": "None. A breach of a ruled cap should read red"
@@ -3703,7 +3703,7 @@
         "SURV-16"
       ],
       "status": "open",
-      "needs": "the designer decides when the new design is defined. Was: D9-1",
+      "needs": "the designer decides when the new design is defined",
       "what": "The 2026-11-05 ship bar asks about 85% on a good bar and about 30% on a bad one. D-9 makes the hall a Dangerous room, where a good bar wins about every fight from the band's middle and a bad bar about half, so it reads 85% as a floor (at least 80%) and grades the bad bar at 50% or under",
       "evidence": "Probe C (8 fights a row): the good bar 8 of 8 at Levels 98 and 110, the bad bar 4 of 8 at 98. Probe B: the bad bar 3 and 7 of 8 at Levels 25 and 75",
       "tradeoff": "Losing 15% to the dice on a good bar needs the clock or blows near the party's sustain, both cliffs in Level and gear. The other road is the hall at Deadly with its doubled wave, which presses the card's party harder and keeps 85% and 30% as the aim"

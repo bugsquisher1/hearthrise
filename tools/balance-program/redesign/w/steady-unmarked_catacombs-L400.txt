@@ -1,0 +1,16 @@
+
+V1 on unmarked_catacombs (4 seeds x 6 h, held step read from hour 1; step 0 = the ground as built, one step = +0.35000000000000003% health and blow)
+levers: CLIMB {"cleanRun":2,"climbMax":8,"fallSteps":18,"deathSteps":120,"coolPulls":10} RISKS {"careful":{"fallPm":450,"cleanPm":650,"afterDeath":"careful"},"steady":{"fallPm":250,"cleanPm":450,"afterDeath":"careful"},"bold":{"fallPm":120,"cleanPm":300,"afterDeath":"steady"}} readyPm 800
+held = the time-weighted step while all four hunt (to the first death), from hour 1; fourH = those hours a seed
+cell              held (mean +- sd)  drift  +-10  +-20  chg/h falls/h reach h  pulls/h  deaths wipes near(death/warned/fellAfter)  fourH  whys
+base:steady       625.2 +- 3.4      1.9  61.7  92.7   23.4    2.3     0.1    118.5      0     0  0 (0/0/0)                       5  {"hold":2275,"climb":515,"fall":50}
+
+pay from a held start (hour 1 to the four's end), Level XP a hunted hero-hour as a multiple of the hours table
+  base:steady        3.36x  sd 0.03  n 4  window 5 h  seeds 3.33 3.36 3.36 3.4
+
+gold a hunted hero-hour over the whole hunt (coin; coin + loot at the store's price, no Rares; the store bill), mean +- sd over seeds
+  base:steady       L400  coin 10878 +- 58  income 12617 +- 55  store 21631  loot by band: common 1094, uncommon 645, scarce 0, other 0  n 4
+
+power moves (paired seeds): the held step at the changed power minus at base
+
+wall 30 s

@@ -11,8 +11,12 @@
 //
 // THE MEASURE: the replayed chain (PGlite), the real engine (tests/hunt-sessions-settle.mjs HARNESS), a free hero (the beta Premium
 // switch off) at Level 25 on the settle fixture's ground, and a real CharacterSession for the press.
+//   HB-WAGE     THE WAGE (lane/w-wage; src/core/wage.js): the server's hr_wage is the JS wage at every step from 1 to past the last,
+//               never falling and held at DANGER.stepMax; hr_time_block_price is the JS block price at every Level for every block of
+//               the day and the first past it; the work hook prices 04's town-work row at 1.0 / 1.5 / 2.25 / 3.375 hours of wage
 //   HB-DAY      THE DONE LINE, BROWSER CLOSED: a rested free hero holds 10 h and the server's tick hunts it to the `stamina` end at
-//               exactly 10 h; back in town the viewed client reads the `time_blocks` quote (the data's price, 2 h, 0 of 2), buys a block
+//               exactly 10 h; back in town the viewed client reads the `time_blocks` quote (04's price: 2 h x 2.0 hours of the hero's
+//               wage, 0 of 2, the server's wage the JS one), buys a block
 //               through CharacterSession.buyTime, then the second at x1.5; the third is quoted block_limit and a forged press of it is
 //               refused block_limit: two shop rows, the purse down by exactly the two prices, the pool up by exactly 4 h
 //   HB-BOTH     BOTH PATHS: the same hero buys two blocks an hour into its hunt (the pool written at the session's settled_to) and the
@@ -43,7 +47,10 @@ const mod = (f) => import(pathToFileURL(join(ROOT, f)).href);
 const { HARNESS: H } = await import('./hunt-sessions-settle.mjs');
 const { CharacterSession } = await mod('src/session/character-session.js');
 const { huntBlockOf } = await mod('src/session/item-sections.js');
-const { TIME_BLOCKS, blockPrice } = await mod('src/data/time-blocks.js');
+const { TIME_BLOCKS } = await mod('src/data/time-blocks.js');
+const { wage, blockPrice, blockPriceOf } = await mod('src/core/wage.js');
+const { WAGE } = await mod('src/data/wage.js');
+const { DANGER } = await mod('src/data/danger.js');
 const { STAMINA_MAX_MS } = await mod('src/data/hunt-sessions.js');
 const UID = H.UIDS[0];
 const LEVEL = 25;
@@ -117,7 +124,41 @@ function viewedClient(db) {
   return new CharacterSession({ slot: 0, uid: UID, server, viewed: true, setTimer: () => 0, clearTimer: () => {}, now: () => Date.now() });
 }
 
+/* 04's starting row for bought town work (src/core/wage.js, the R12 hook): 2 h at 0.5 hours of wage an hour, x1.5, four a day */
+const WORK_ROW = Object.freeze({ blockMin: 120, priceHourPm: 500, growthNum: 3, growthDen: 2, perDay: 4 });
+
 const ARMS = {
+  'HB-WAGE': async (db) => {
+    const p = [];
+    /* the server's wage is the JS wage at EVERY step to past the last (one query), never falling, flat past DANGER.stepMax */
+    const top = DANGER.stepMax + 5;
+    const rows = await q(db, 'select s, public.hr_wage(s)::text as w from generate_series(1, $1::int) s order by s', [top]);
+    let prev = 0, bad = 0;
+    for (const r of rows) {
+      const js = wage(r.s);
+      if (Number(r.w) !== js && bad++ < 3) p.push('the wage at step ' + r.s + ' is ' + r.w + ' on the server, ' + js + ' in src/core/wage.js');
+      if (js < prev && bad++ < 3) p.push('the wage falls at step ' + r.s);
+      prev = js;
+    }
+    if (rows.length !== top) p.push('the server answered ' + rows.length + ' steps of ' + top);
+    if (wage(DANGER.stepMax + 1) !== wage(DANGER.stepMax) || wage(0) !== wage(1) || wage(1) !== Math.floor(WAGE.wageBase * (1 + WAGE.payStepCoin))) {
+      p.push('the wage is not held to [1, ' + DANGER.stepMax + ']');
+    }
+    /* the block price's twin is the JS price at every Level, every block of the day and the first past it */
+    const prices = await q(db, `select l, n, public.hr_time_block_price('hunt', l, n)::text as g
+      from generate_series(1, $1::int) l cross join generate_series(1, $2::int) n order by l, n`, [top, TIME_BLOCKS.hunt.perDay + 1]);
+    for (const r of prices) {
+      const js = blockPrice({ kind: 'hunt', level: r.l, n: r.n });
+      if ((r.g === null ? null : Number(r.g)) !== js && bad++ < 6) p.push('hunt block ' + r.n + ' at Level ' + r.l + ' costs ' + r.g + ' on the server, ' + js + ' in src/core/wage.js');
+    }
+    /* THE WORK HOOK prices 04's town-work row: 1.0, 1.5, 2.25 and 3.375 hours of wage, refused at the fifth */
+    for (const L of [1, 20, 60, 400]) {
+      const w = wage(L), got = [1, 2, 3, 4, 5].map((n) => blockPriceOf(WORK_ROW, L, n)), want = [1, 1.5, 2.25, 3.375].map((h) => Math.ceil(h * w));
+      if (JSON.stringify(got) !== JSON.stringify([...want, null])) p.push('the work hook at Level ' + L + ' prices ' + JSON.stringify(got) + ', want ' + JSON.stringify([...want, null]));
+    }
+    return p;
+  },
+
   'HB-DAY': async (db, M) => {
     const p = [];
     const h = await freeHunter(db, M, 10 * 60 + 20);
@@ -137,6 +178,15 @@ const ARMS = {
     if (cs.status !== 'ready') return ['harness: the viewed hero did not load: ' + cs.status];
     const q1 = huntBlockOf(cs);
     const want1 = blockPrice({ kind: 'hunt', level: LEVEL, n: 1 }), want2 = blockPrice({ kind: 'hunt', level: LEVEL, n: 2 });
+    /* THE 04 FORMULA (04 section 11): block hours x price an hour (in hours of wage) x wage(L), then x1.5. At the starting row (2 h at 2.0)
+       the day's first is 4 hours of the hero's wage and its second 6; the server's wage is the JS wage at this Level */
+    const R = TIME_BLOCKS.hunt, hours1 = (R.blockMin / 60) * (R.priceHourPm / 1000);
+    const w = wage(LEVEL), sw = Number(await one(db, 'select public.hr_wage($1)', [LEVEL]));
+    if (want1 !== Math.ceil(hours1 * w) || want2 !== Math.ceil(hours1 * 1.5 * w) || sw !== w) {
+      p.push('at Level ' + LEVEL + ' the blocks price ' + want1 + ' and ' + want2 + ' on a wage of ' + w + ' (the server\'s ' + sw + '), want '
+        + hours1 + ' and ' + hours1 * 1.5 + ' hours of it');
+      return p;
+    }
     if (!q1 || !q1.available || q1.price !== want1 || q1.blockMs !== TIME_BLOCKS.hunt.blockMin * 60000 || q1.boughtToday !== 0 || q1.perDay !== 2) {
       p.push('the first quote reads ' + JSON.stringify(q1) + ', want ' + want1 + ' gold for 2 h, 0 of 2');
       return p;
@@ -269,7 +319,13 @@ const MUTANTS = [
   { arm: 'HB-DAY', name: 'the day\'s cap off by one (a third block sold)', fn: 'public.hr_time_quote(uuid,integer,text)',
     find: "when v_bought >= r.per_day then 'block_limit'", repl: "when v_bought > r.per_day then 'block_limit'" },
   { arm: 'HB-DAY', name: 'every block of the day at the first one\'s price (no x1.5)', fn: 'public.hr_time_block_price(text,integer,integer)',
-    find: '* power(r.growth_num::numeric, p_n - 1))', repl: '* 1)' },
+    find: '* public.hr_wage(p_level) * power(r.growth_num::numeric, p_n - 1);', repl: '* public.hr_wage(p_level);' },
+  { arm: 'HB-DAY', name: 'the block priced at the Level 1 wage, not the hero\'s', fn: 'public.hr_time_block_price(text,integer,integer)',
+    find: 'public.hr_wage(p_level)', repl: 'public.hr_wage(1)' },
+  { arm: 'HB-WAGE', name: 'the server\'s wage drifts off the JS by a hair a squaring', fn: 'public.hr_wage(integer)',
+    find: 'v_b := v_b * v_b;', repl: 'v_b := v_b * v_b * 1.000001::float8;' },
+  { arm: 'HB-WAGE', name: 'the server\'s wage never held at the last step', fn: 'public.hr_wage(integer)',
+    find: 'least(' + DANGER.stepMax + ', greatest(1, coalesce(p_step, 1)))', repl: 'greatest(1, coalesce(p_step, 1))' },
   { arm: 'HB-BOTH', name: 'the block charges and never writes the pool', fn: 'public.hr_time_buy(text,integer,bigint,uuid)',
     find: "   where user_id = v_uid and slot = p_slot;\n  return jsonb_build_object('ok', true, 'version', v_a->'version', 'kind', p_kind,",
     repl: "   where false;\n  return jsonb_build_object('ok', true, 'version', v_a->'version', 'kind', p_kind," },

@@ -2,7 +2,7 @@
 // ════════════════════════════════════════════════════════════════════════
 // tests/away-recap-world.mjs — "WHILE YOU WERE AWAY", PLAYED: REAL ABSENCES, THE REAL GAME, NO PRODUCTION.
 //
-//   node tests/away-recap-world.mjs [--shots DIR]     exit 0 green, 1 red, 2 harness
+//   node tests/away-recap-world.mjs [--shots DIR] [--only AR-6,AR-9]     exit 0 green, 1 red, 2 harness
 //
 // tools/qa/local-world.mjs: the real play.html and engine on the replayed chain, a real closed tab (with its goodbye), and
 // world.wait(n, { away: true }) for the absence. Needs Node 23.6+ and, on a machine's first run, about 6 min to replay the chain;
@@ -33,6 +33,9 @@ import { resolve as resolvePath } from 'node:path';
 import { openWorld } from '../tools/qa/local-world.mjs';
 
 const args = process.argv.slice(2);
+/* --only AR-6[,AR-9]: run those sections alone (AR-8 always), e.g. to repeat one */
+const only = args.includes('--only') ? String(args[args.indexOf('--only') + 1] || '').split(',') : null;
+const want = (id) => !only || only.includes(id);
 const shots = args.includes('--shots') ? resolvePath(args[args.indexOf('--shots') + 1]) : null;
 const fails = [];
 const t0 = Date.now();
@@ -69,13 +72,19 @@ const startWork = async (p, skill, row) => {
   await p.page.waitForFunction(() => !document.querySelector('[data-hs-win="skills-trade"]'));
 };
 /* A real goodbye: the tab closes, the stamp and the debounce go on the way out. A minute after the last stamp, as a real close is. */
-const leave = async (p, stampKey) => {
+/* `goodbye`: the stamp must be the one written on the way out (AR-6, 2026-11-22: "some stamp exists" passed on the hunt's first in-view stamp
+   while the goodbye was lost, and the card then counted the watched hunt). This account's own row, dated at the close, not a minute before. */
+const leave = async (p, stampKey, { goodbye = false } = {}) => {
   await p.page.waitForTimeout(2500);
+  const closedAt = Date.now();
   await p.page.close({ runBeforeUnload: true });
   await new Promise((ok) => setTimeout(ok, 800));
   if (stampKey) {
-    const r = await world.db.query(`select count(*)::int as n from public.player_state where client_state->'awaySeen'->>'s' like $1`, [stampKey]);
-    step('CONTROL the stamp ' + stampKey + ' landed on the server', r.rows[0].n > 0, JSON.stringify(r.rows));
+    const r = await world.db.query(`select (s.client_state->'awaySeen'->>'at')::bigint as at from public.player_state s join auth.users u on u.id = s.user_id
+      where u.email = $1 and s.client_state->'awaySeen'->>'s' like $2`, [p.email, stampKey]);
+    const at = r.rows.length ? Number(r.rows[0].at) : NaN;
+    step('CONTROL the ' + (goodbye ? 'goodbye ' : '') + 'stamp ' + stampKey + ' landed on the server', r.rows.length === 1 && (!goodbye || at >= closedAt - 5000),
+      JSON.stringify({ rows: r.rows, closedAt }));
   }
 };
 const cardOf = async (p, ms = 15000) => {
@@ -95,7 +104,7 @@ const levelTo = async (p, L, gold) => {
 };
 
 try {
-  { // AR-1 a hero who has only ever gathered
+  if (want('AR-1')) { // AR-1 a hero who has only ever gathered
     const p = await open('gatherer');
     await p.createHero('Tessel');
     await startWork(p, 'mining', 'copper_rock');
@@ -111,7 +120,7 @@ try {
     await q.close();
   }
 
-  { // AR-2 a hunt that ended before the player left, then a job
+  if (want('AR-2')) { // AR-2 a hunt that ended before the player left, then a job
     const p = await open('mixer');
     await p.createHero('Mixer');
     await p.enterHunt('mill_cellar');
@@ -128,7 +137,7 @@ try {
     await q.close();
   }
 
-  { // AR-3 a bench run that runs out while away
+  if (want('AR-3')) { // AR-3 a bench run that runs out while away
     const p = await open('benchhand');
     await p.createHero('Benchy');
     await startWork(p, 'woodcutting', 'normal_tree');
@@ -144,7 +153,7 @@ try {
     await q.close();
   }
 
-  { // AR-4 a hunt over before the player left, then nothing
+  if (want('AR-4')) { // AR-4 a hunt over before the player left, then nothing
     const p = await open('homebody');
     await p.createHero('Homer');
     await p.enterHunt('mill_cellar');
@@ -160,7 +169,7 @@ try {
     await q.close();
   }
 
-  { // AR-5 a job stopped in view, then away
+  if (want('AR-5')) { // AR-5 a job stopped in view, then away
     const p = await open('stopper');
     await p.createHero('Stopper');
     await startWork(p, 'mining', 'copper_rock');
@@ -176,7 +185,7 @@ try {
     await q.close();
   }
 
-  { // AR-6 a hunt still running: only the absence's earnings
+  if (want('AR-6')) { // AR-6 a hunt still running: only the absence's earnings
     const xpOf = (page) => page.evaluate(() => { const t = document.querySelector('.ha-analyzer'); return t ? Number(((t.innerText.match(/Level XP\s+([\d,]+)/) || [])[1] || '').replace(/,/g, '')) : null; });
     const p = await open('hunter');
     await p.createHero('Hunter');
@@ -188,7 +197,7 @@ try {
     /* the goodbye writes at most one stamp a minute: leave after that minute, as any real hunt is left */
     await p.page.waitForTimeout(62000);
     const before = await xpOf(p.page);
-    await leave(p, '%-%-%-%-%');
+    await leave(p, '%-%-%-%-%', { goodbye: true });
     await world.wait(62, { away: true });
     const q = await enter('hunter');
     const line = await cardOf(q, 30000);
@@ -201,7 +210,7 @@ try {
     await q.close();
   }
 
-  { // AR-7 a page left open is not an absence
+  if (want('AR-7')) { // AR-7 a page left open is not an absence
     const p = await open('watcher');
     await p.createHero('Watcher');
     await p.enterHunt('mill_cellar');
@@ -212,7 +221,7 @@ try {
     step('AR-7 a page left open raises no line', line === null, line);
     await p.close();
   }
-  { // AR-9 the card, played: a hunt that ran out of stamina with the page closed
+  if (want('AR-9')) { // AR-9 the card, played: a hunt that ran out of stamina with the page closed
     const p = await open('cardplay');
     await p.createHero('Cardy');
     await levelTo(p, 6, 20000);
@@ -242,7 +251,7 @@ try {
     step('AR-9 Hunt again: the server starts the hunt, the card goes', went && open1 >= 1, JSON.stringify({ went, open1 }));
     await q.close();
   }
-  { // AR-10 THE YARD TOOK OVER (full-game audit 2026-11-18 A2): a hunt that dies with the page closed and goes on to the yard keeps its card
+  if (want('AR-10')) { // AR-10 THE YARD TOOK OVER (full-game audit 2026-11-18 A2): a hunt that dies with the page closed and goes on to the yard keeps its card
     const p = await open('yardroll');
     await p.createHero('Yardley');
     /* the setup a player reaches in hours, as this world's own rows: Level 12 (the yard opens at 10), gold for its fee, three Blessings, and
@@ -276,7 +285,7 @@ try {
       && /3 Blessings saved [\d,]+ Level XP[^.]*, used up\./.test(line) && /Then Yardley went to the yard to train Melee\. Still training\./.test(line) && /Open Training/.test(line), line);
     await q.close();
   }
-  { // AR-11 the Cellar outgrown with the page closed
+  if (want('AR-11')) { // AR-11 the Cellar outgrown with the page closed
     const p = await open('outgrow');
     await p.createHero('Sprout');
     await p.enterHunt('mill_cellar');

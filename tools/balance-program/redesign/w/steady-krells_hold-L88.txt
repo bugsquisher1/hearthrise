@@ -1,0 +1,16 @@
+
+V1 on krells_hold (4 seeds x 6 h, held step read from hour 1; step 0 = the ground as built, one step = +0.35000000000000003% health and blow)
+levers: CLIMB {"cleanRun":2,"climbMax":8,"fallSteps":18,"deathSteps":120,"coolPulls":10} RISKS {"careful":{"fallPm":450,"cleanPm":650,"afterDeath":"careful"},"steady":{"fallPm":250,"cleanPm":450,"afterDeath":"careful"},"bold":{"fallPm":120,"cleanPm":300,"afterDeath":"steady"}} readyPm 800
+held = the time-weighted step while all four hunt (to the first death), from hour 1; fourH = those hours a seed
+cell              held (mean +- sd)  drift  +-10  +-20  chg/h falls/h reach h  pulls/h  deaths wipes near(death/warned/fellAfter)  fourH  whys
+base:steady       521.7 +- 2.1     -0.2    38  62.9   36.5    5.4       0    188.8      3     0  15 (3/2/15)                   2.3  {"hold":3344,"climb":1021,"fall":162,"death":3} first deaths at h 0.5,2.9,3.2
+
+pay from a held start (hour 1 to the four's end), Level XP a hunted hero-hour as a multiple of the hours table
+  base:steady        4.21x  sd 0.04  n 3  window 2.3 h  seeds 4.23 4.24 4.16
+
+gold a hunted hero-hour over the whole hunt (coin; coin + loot at the store's price, no Rares; the store bill), mean +- sd over seeds
+  base:steady       L88  coin 11761 +- 1541  income 16682 +- 1723  store 12443  loot by band: common 940, uncommon 464, scarce 3257, other 261  n 4
+
+power moves (paired seeds): the held step at the changed power minus at base
+
+wall 22 s

@@ -25,10 +25,10 @@
   },
   "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
   "live_measured": "2026-11-20",
-  "replay_ms": 2917,
+  "replay_ms": 4079,
   "counts": {
-    "tracked_names": 1058,
-    "entries": 883
+    "tracked_names": 1059,
+    "entries": 884
   },
   "functions": [
     {
@@ -18050,8 +18050,8 @@
       ],
       "live": null,
       "replay": {
-        "md5": "a3e29595bf0447ca442dd233c04807b6",
-        "norm_len": 763,
+        "md5": "c9a127ea0d09a2069be2ba347225b3fc",
+        "norm_len": 1064,
         "source": "computed-from-replay"
       },
       "agree": false,
@@ -20294,6 +20294,24 @@
         "source": "computed-from-replay"
       },
       "agree": true
+    },
+    {
+      "sig": "hr_wage(p_step integer)",
+      "name": "hr_wage",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1058-hunting-blocks-catalogue.generated.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "50e8fc02866d791cec92f6af2b48c446",
+        "norm_len": 731,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1058-hunting-blocks-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1058-hunting-blocks-catalogue.generated.sql."
     },
     {
       "sig": "hr_wallet_credit(p_uid uuid, p_slot integer, p_gems bigint, p_key text, p_expires_at timestamp with time zone)",

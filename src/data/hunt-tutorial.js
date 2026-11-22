@@ -1199,8 +1199,8 @@ function temperLine(f) {
   if (!r || !Number.isSafeInteger(r.gold) || !Number.isSafeInteger(f.gold) || f.gold < r.gold * 2) return null;
   return t('coach.goal_temper', { piece: r.piece, gold: gp(r.gold) });
 }
-/* OUT OF STAMINA WITH GOLD IN HAND: a bought hunting block (time-blocks.js: 2 h, two a day), named at the moment it can be used, at the server's quote. Priced on today's base
-   gold until wage(L) exists, the day's first costs about a third of what its hours earn, so it speaks ahead of saving. Nearly out: under half an hour. */
+/* OUT OF STAMINA WITH GOLD IN HAND: a bought hunting block (time-blocks.js: 2 h, two a day), named at the moment it can be used, at the server's quote. Priced in hours of
+   the hero's wage (src/core/wage.js), the day's first costs about twice what its hours earn, so it is named only to a hero whose purse holds it. Nearly out: under half an hour. */
 const TOP_UP_UNDER_MS = 1800000;
 function topUpLine(f) {
   const q = f.refill;

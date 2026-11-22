@@ -20,7 +20,7 @@
 //   node tests/recruits.mjs --mutate   every planted defect must turn its own arm red (the migration's self-check blinded)
 //
 // mutant-anchors: supabase/migrations/1053-recruits.sql
-// ci-step: db-replay | The recruit press: one hero first, three recruits in one press at Level 5, once an account (1053-recruits.sql)
+// ci-step: db-replay | The recruit press, one hero first then three recruits in one press at Level 5, once an account (1053-recruits.sql)
 // ci-run: node tests/recruits.mjs
 // ci-run: node tools/mutant-gate.mjs node tests/recruits.mjs --mutate
 // Exit: 0 green · 1 red · 2 harness.

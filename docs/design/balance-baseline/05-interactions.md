@@ -150,10 +150,104 @@ A monster's blow is written as a share of a same-Level hero's health. So hero he
 <!-- /GEN -->
 
 - **Hero health is a monster damage knob.** Alone on Normal, hero health x2 raises damage taken to 2.16 times the base, and monster damage x2 raises it to 2.10. Health x2 with monster damage x0.5 lands at 1.08. In absolute damage the two are the same lever, because the blow is derived from the health.
-- **In share of health they are not the same, and health is the worse one.** On Normal, twice the health leaves the worst low points where they were (minus 0.003). On Dangerous, twice the health takes the lone hammer's low point down by 0.11 and its deaths from 94 to 539 in 1,000 hours. The blows grew with the health, and the food and the self heal did not. More health makes a hero easier to kill.
-- **The four's cliff exists, and it is far.** Monster damage x2 alone: no deaths in 320 hero-hours. Hero health x2 alone: none. Both together, 5.1 times the damage taken: 78 deaths in 1,000 hours, the first deaths of the four anywhere in this pass, and a store bill 1.5 times the base where the singles predict 1.15. Nothing one-at-a-time finds this edge, because neither single step reaches it.
+- **In share of health they are not the same, and health is the worse one.** On Normal, twice the health leaves the worst low points where they were (minus 0.003). On Dangerous, twice the health takes the lone hammer's low point down by 0.11 and its deaths from 94 to 539 in 1,000 hours. The blows grew with the health, and a piece of food heals what it always healed. More health makes a hero easier to kill.
+- **The four's cliff exists, and it is far.** Monster damage x2 alone: no deaths in 320 hero-hours. Hero health x2 alone: none. Both together, 5.1 times the damage taken: 78 deaths in 1,000 hours, and a store bill 1.5 times the base where the singles predict 1.15. Neither single step reaches this edge. One at a time, only the tier blow dial at x2 kills the four at all.
 - **Lower health with lower damage is not a way back either.** Halve both and a lone hero takes 0.29 of the damage, not the 0.24 the singles predict, and the lone hammer on Dangerous stops dying.
 
-<<FILL:EXPERIMENTS>>
+---
 
-<<FILL:LOOPS>>
+## 11. The feedback loops
+
+Each loop is drawn from measured links. The base numbers are sections 3.2 to 3.4 of the sensitivity page. A link no cell plays is marked UNKNOWN.
+
+### 11.1 Progression, gear, tier, death, XP
+
+```
+ hours hunted -> Level and gear -> can the seat stand a harder tier? -> XP an hour -> hours to the next Level
+                                         |
+                                         no -> it dies there -> XP after deaths at or under zero
+```
+
+| Link | Size | Evidence |
+|---|---|---|
+| A gear state up | Best gear over MID: +4% to +10% XP. MID over LOW: +4% to +27%, largest at Level 30 | MEASURED, base, gear axis |
+| A tier up, for a seat that lives | x1.6 to x3.5 XP | MEASURED, base, tier axis |
+| A tier up, for the lone hammer | XP before deaths x2.2. XP after deaths x0.33 on Dangerous at Level 60, below zero on Deadly | MEASURED, base |
+| Does the seat live | A wall. Lone hammer on Dangerous: 0, 94, 1,120 deaths in 1,000 hours at monster damage x0.9, x1, x1.25 | MEASURED, `oat:monsterDamage` |
+| What carries a seat over the wall | Hero damage x1.25: deaths 94 to 13. Mitigation cap x1.1: 94 to 0. Self heal x2: 94 to 14 | MEASURED, `oat:playerAttack`, `oat:mitigationCap`, `fx:damage-heal` |
+| Does best gear carry it over | UNKNOWN. The gear axis was played on Normal only | |
+| The death price | Scales a loss the wall has already decided (section 8) | MEASURED, `fx:level-death` |
+
+The loop is a positive one with a gate. Power buys a tier, a tier multiplies XP, XP buys power. The gate is the wall, and it stands in a different place for each seat.
+
+- For the four and for the lone Mage the gate is open on every tier today. They run straight to the hardest tier and stay. Their pace is then set by the spawn ceiling and by XP a point of monster health, which are content numbers, not by anything the player owns. Hero damage x2 gives the four on Normal 10% more XP.
+- For the lone melee hero the gate is shut one tier up, and the things that open it are small: a tenth more mitigation, a quarter more damage. JUDGMENT: this is where gear ought to matter most, and it is the one place the pass did not play gear. It is the first cell to add.
+- The loop has no brake between the gate and the ceiling. Nothing makes the second tier step harder to hold than the first for a seat that holds the first. That is why the four's tier choice has one answer (section 6).
+
+### 11.2 Gold, supplies, survival, gold
+
+```
+ gold in (coin and loot a kill) -> supplies bought (food, drinks, runes, arrows) -> the seat survives and casts -> kills -> gold in
+            ^                                                                                |
+            +------------------------- the store bill comes out here <---------------------+
+```
+
+| Link | Size | Evidence |
+|---|---|---|
+| Who pays | Bow, Mage and Healer pay 35% to 90% of their gold in. The other five ways pay 0% to 13% | MEASURED, base |
+| Kills to gold in | In proportion: every lever that moves kills moves gold in by the same share | MEASURED, the matrix |
+| Kills to the bill, casters | The bill grows faster than the gold. Best gear costs the Mage gold at every Level: 6,868 to minus 1,569 an hour at Level 30 | MEASURED, base, gear axis |
+| Danger to the bill, melee | A wall again. Monster damage x2 raises the lone heroes' store bill by 97%, where x1.1 raises it by under 1% | MEASURED, `oat:monsterDamage` |
+| The bill on a harder tier, lone hammer | 104,400 gold an hour of food against about 29,000 of gold in, on Dangerous at Level 60 | MEASURED, base |
+| An empty purse ends the hunt | UNKNOWN. The harness never runs out of gold, so this brake is not played | |
+| Mana to casts | None. Casts do not move with cost, regeneration or pool (section 3) | MEASURED, `fx:cost-regen`, `oat:heroMana` |
+
+Two different loops share this picture.
+
+- **For a caster it is a tax that grows with success.** More power means more casts, more drinks and runes, and less gold. The sign is the wrong way round for a reward: the Mage is the fastest leveller and the poorest seat, and every upgrade makes both more true. Mana is not the limit on its rotation. Gold is.
+- **For a melee hero it is nothing, then a cliff.** On Normal the bill is zero to 13% of gold in. One tier up, the lone hammer eats three and a half times what it earns. In the real game that purse empties and the hunt ends, which is a brake. The simulator does not play that brake, so every net gold number for a seat on the wrong side of the wall is a floor that the real game would not reach. UNKNOWN how soon.
+- **The two loops meet at one seat.** The lone melee hero on a harder tier is where the death wall and the gold wall stand, a few percent of monster damage apart. Every lever that touched it in this pass (the armor curve, the tier dial, monster damage, hero health, the mitigation cap) moved deaths and gold together.
+
+### 11.3 Monster health and the pace
+
+Not a loop a player drives. It is one the designers have driven. Monsters were made harder through health. XP is paid per point of health, and kills are held by dead time and respawn, so XP an hour rose (section 2: health x2 is x1.33 to x1.63 XP). The pace then ran ahead of its line and XP a point was cut to give it back. COMPUTED from the source: the comment on `STAT_FORMULA.xp` in `src/data/balance-sheet.js` records that step (health x1.1, levels 4% to 6% faster, XP a point x0.96). The measured elasticity says it will happen again on every health change, in both directions, and by different amounts for a lone hero and a four.
+
+### 11.4 Numbers defined by each other
+
+Four pairs in this build are written so that one is derived from the other. Moving one silently moves, cancels or disables its partner.
+
+| Pair | What happens | Evidence |
+|---|---|---|
+| Hero health and monster blows | The blow is a share of hero health, so health x2 is damage taken x2.2 | MEASURED, section 10 |
+| Armor points, the armor curve and the 60% cap | At home on Normal a MID hero is at the cap, so points and curve do nothing until the cap moves or the attacker out-levels the hero | MEASURED, sensitivity page section 7.3 |
+| Hero damage and monster health | One lever on the fight, two on XP | MEASURED, section 5 |
+| The attack interval and the stair clock | The engine refuses one without the other | MEASURED, section 4 |
+
+JUDGMENT: these four are the main reason one-lever fixes have cascaded. A lever was moved for its name, and its partner answered.
+
+---
+
+## 12. Which levers cannot be tuned alone
+
+Drawn from sections 2 to 10. "Read together" means the joint reading differs from the single readings by more than noise at steps a designer might take.
+
+| Set | Why | Largest gap measured |
+|---|---|---|
+| Monster health, respawn, the wait between pulls, hero damage, the attack interval | They are caps in a row on kills an hour. Only the slowest binds, and which one binds differs by seat | 36% on kills |
+| Hero damage, monster health | One lever on the fight. Together they are a pure XP multiplier | 24% on kills and XP |
+| Hero health, monster damage, the tier blow dial, the armor curve, the mitigation cap | All five move damage taken on the one seat that stands at the death wall | Deaths: 15,400 measured against 4,300 predicted |
+| Spell cost, mana regeneration, mana pool | Three dials on the drink bill, which is a difference cut off at zero | 54% on drinks |
+| Hero damage, heal size | Their savings overlap | 24% on net gold |
+| The attack interval, the stair clock | Refused by the engine | cannot be played apart |
+
+And the ones that can.
+
+| Lever | Why it is safe alone |
+|---|---|
+| Party XP, tier XP, lone XP, XP a kill | Exact multipliers on XP for the cells they touch. No gap in any grid |
+| The Level curve | Moves hours for a Level in proportion and nothing else |
+| Coin a kill, what dropped gear sells for | Move gold in and nothing else |
+| Store prices (food, drinks, runes) | Move the store bill and nothing else, because the harness buys what it needs at any price. UNKNOWN for a real purse |
+| The death price | Moves XP after deaths in proportion to the deaths already there |
+
+The pattern is plain. Every reward lever is clean. Every lever on the fight is tangled with at least four others.

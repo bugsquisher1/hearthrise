@@ -123,6 +123,37 @@ The seat the Level pace is timed on is the MID four on Dangerous, after its deat
 - **Where there are deaths, the death price is a multiplier on a loss that monster damage has already decided.** For the lone hammer on Dangerous at today's damage, the death price at x0.5 lifts XP after deaths by 11% and x2 cuts it by 21%. At monster damage x1.25 the hero dies about every hour, and XP after deaths is 0.06 of the base at half price, below zero at full price, and further below at double. Past the cliff the death price only chooses how negative.
 - **So the death rate and the death price are not a pair that trade off smoothly.** There is a narrow band of monster damage, about 10% wide for this seat, where a hero dies now and then and the price matters as a tax. Under it the price is unread. Over it the hero cannot progress at any price. JUDGMENT: a design that wants death to be a tax needs the death rate to rise gently with danger. Today it rises as a wall.
 
+---
+
+## 9. Hero damage with healing and its cost
+
+Tyler's example: "increased damage may also increase life leech, which increases survivability and reduces healing costs." The grid is hero damage at x0.75, x1, x1.5 against heal spell size at x0.5, x1, x2 and store food price at x0.5, x1, x2. MEASURED, run 44969087150, 26 points, 4 seeds. The slices below hold the food price at x1.
+
+**First, the leech itself.** There is no life leech to increase. The only leech the engine reads is on the Necrotic drain spells, which sit behind a switch that is off (`src/data/necrotic-storm.js`). The life leech and mana leech imbuement rows are data that no engine code reads. One at a time, spell leech at x0.25 to x3 moved no outcome in any cell (MEASURED, `oat:spellLeech`). So the experiment plays the path that does exist: damage shortens fights, shorter fights mean less damage taken, and less damage taken means less healing bought.
+
+<!-- GEN: exp id=damage-heal fix=foodPrice:1 groups=four:deadly,hammer:dangerous outcomes=takenPerH,healInPerH,storePerH,deathsPer1000h,netPerH -->
+<!-- /GEN -->
+
+- **The loop Tyler describes is real and strong, without leech.** For the four on Deadly, damage x1.5 cuts damage taken to 0.52, healing received to 0.28 and the store bill to 0.74, and adds 5,170 gold an hour a hero. Damage x0.75 raises damage taken to 1.42 and healing to 1.86. Hero damage is as strong a survival lever as the mitigation cap, the strongest armor lever (sensitivity page, section 4), and unlike the cap it also pays. A dead monster deals nothing.
+- **Heal size is the weak lever of the pair.** For the four, heal spells at x2 change damage taken by 3% and the store bill by 1%. Healing received follows the damage that needs healing. A bigger heal means fewer casts, not more health.
+- **For a hero with no Healer, heal size is a gold lever.** For the lone hammer on Dangerous, the one self heal at x2 halves the store bill (0.51) and is worth 27,400 gold an hour, close to what damage x1.5 is worth (36,750).
+- **The two savings overlap.** Damage x1.5 with heals x2 is worth 51,800 to the lone hammer where the single readings add to 64,200. Each saves food the other would have saved. One-at-a-time overstates the pair by a quarter.
+- **Food price only scales the result.** It moves the store bill and net gold and nothing else, so it is the one lever of the three that can be read alone.
+
+---
+
+## 10. Monster damage with hero health: two names for one number, and where the four finally dies
+
+A monster's blow is written as a share of a same-Level hero's health. So hero health and monster damage should cancel. The grid is each at x0.5, x1, x2. MEASURED, run 44969087150, 8 points, 4 seeds.
+
+<!-- GEN: exp id=danger-hp groups=party:1,four:deadly,hammer:dangerous outcomes=takenPerH,lowHpP10,deathsPer1000h,storePerH -->
+<!-- /GEN -->
+
+- **Hero health is a monster damage knob.** Alone on Normal, hero health x2 raises damage taken to 2.16 times the base, and monster damage x2 raises it to 2.10. Health x2 with monster damage x0.5 lands at 1.08. In absolute damage the two are the same lever, because the blow is derived from the health.
+- **In share of health they are not the same, and health is the worse one.** On Normal, twice the health leaves the worst low points where they were (minus 0.003). On Dangerous, twice the health takes the lone hammer's low point down by 0.11 and its deaths from 94 to 539 in 1,000 hours. The blows grew with the health, and the food and the self heal did not. More health makes a hero easier to kill.
+- **The four's cliff exists, and it is far.** Monster damage x2 alone: no deaths in 320 hero-hours. Hero health x2 alone: none. Both together, 5.1 times the damage taken: 78 deaths in 1,000 hours, the first deaths of the four anywhere in this pass, and a store bill 1.5 times the base where the singles predict 1.15. Nothing one-at-a-time finds this edge, because neither single step reaches it.
+- **Lower health with lower damage is not a way back either.** Halve both and a lone hero takes 0.29 of the damage, not the 0.24 the singles predict, and the lone hammer on Dangerous stops dying.
+
 <<FILL:EXPERIMENTS>>
 
 <<FILL:LOOPS>>

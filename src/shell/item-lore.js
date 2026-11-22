@@ -21,6 +21,7 @@
 //                   the kinds and the spells on that ground, or null when it does nothing special there (a bane's own number is on the
 //                   card's stat lines: bag-model.js statLines)
 // ════════════════════════════════════════════════════════════════════════
+import { reqHave } from '../core/upgrade-pick.js';
 import { ITEMS } from '../data/items.js';
 import { toolSpeed, toolXpB, toolDouble } from '../core/tools.js';
 import { listWords, whole } from '../render/format.js';
@@ -332,11 +333,7 @@ export function needWords(req, lv, have) {
  * (LEVEL_REQ), else that skill's level from the server's skills section. The ONE reader of "what do I have"
  * for a requirement (the tooltip, the gear gate, the refusal words and Equip upgrades all ask it).
  */
-export function reqHave(req, skills, level) {
-  if (req === LEVEL_REQ) return Number.isInteger(level) ? level : null;
-  const s = skills && typeof req === 'string' ? skills[req] : null;
-  return s && Number.isInteger(s.level) ? s.level : null;
-}
+export { reqHave };
 
 /**
  * The item's requirement in words, against the server's numbers when they are known (`skills`: the server's skills

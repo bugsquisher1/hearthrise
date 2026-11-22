@@ -28,7 +28,7 @@ import { t } from '../../render/player-text.js';
 import { linkOf, linkUrl, setQuiet } from '../../social/friend-link.js';
 
 const STATE = new WeakMap();
-const stateOf = (body) => { let s = STATE.get(body); if (!s) { s = { pending: false, msg: '', asked: false, link: null, linkAsked: false, copied: false }; STATE.set(body, s); } return s; };
+const stateOf = (body) => { let s = STATE.get(body); if (!s) { s = { pending: false, msg: '', asked: false, link: null, linkAsked: false, linkFailed: false, copied: false }; STATE.set(body, s); } return s; };
 
 /** What a friend is doing, in words. Pure. */
 export function doingWords(f) {
@@ -47,7 +47,7 @@ export function renderFriends() {
     + '<h3 class="hs-sub">' + esc(t('clan.link_head')) + '</h3><p class="hf-explain">' + esc(t('clan.link_explain')) + '</p>'
     + '<div class="hf-add"><input type="text" class="hf-link" readonly aria-label="' + esc(t('clan.link_head')) + '">'
     + '<button type="button" class="hh-tool" data-hs-act="copy-link"></button></div>'
-    + '<label class="hf-quiet"><input type="checkbox" data-hs-act="quiet"> ' + esc(t('clan.quiet_label')) + '</label><p class="hf-explain">' + esc(t('clan.quiet_hint')) + '</p></div>';
+    + '<label class="hf-quiet"><input type="checkbox" data-hs-act="quiet"> ' + esc(t('clan.quiet_label')) + '</label><p class="hf-explain hf-quiet-why">' + esc(t('clan.quiet_hint')) + '</p></div>';
 }
 
 /* A row names ONE hero (the server's person: the account's current character and its slot). The name, the menu's
@@ -110,16 +110,24 @@ function patchLink(body, ctx, st) {
   if (!st.linkAsked && ctx.account) {
     st.linkAsked = true;
     const view = ctx.doc && ctx.doc.defaultView;
-    linkOf(ctx.account).then((r) => { if (r.ok && view) { st.link = linkUrl(view.location.origin + view.location.pathname, r.code); renderFriends.patch(body, ctx); } });
+    linkOf(ctx.account).then((r) => {
+      if (r.ok && view) st.link = linkUrl(view.location.origin + view.location.pathname, r.code);
+      else st.linkFailed = true;   // refused or no answer: the field says so, never an empty box with a dead press
+      renderFriends.patch(body, ctx);
+    });
   }
+  /* Copy link is off until the server's code is in: the empty field says why (waiting, or none this time) */
   const field = body.querySelector('.hf-link');
   if (field.value !== (st.link || '')) field.value = st.link || '';
+  prop(field, 'placeholder', st.link ? '' : t(st.linkFailed ? 'clan.link_none' : 'clan.link_wait'));
   const copy = body.querySelector('[data-hs-act="copy-link"]');
   text(copy, t(st.copied ? 'clan.link_copied' : 'clan.link_copy'));
   prop(copy, 'disabled', !st.link);
+  /* the switch reads the server's `presence` section: until one has come, the line under it says the window waits for it */
   const p = ctx.character && typeof ctx.character.read === 'function' ? ctx.character.read('presence') : null;
   const box = body.querySelector('[data-hs-act="quiet"]');
   prop(box, 'checked', !!(p && p.quiet === true));
+  text(body.querySelector('.hf-quiet-why'), p ? t('clan.quiet_hint') : t('clan.quiet_wait'));
   prop(box, 'disabled', st.pending || !p);
 };
 

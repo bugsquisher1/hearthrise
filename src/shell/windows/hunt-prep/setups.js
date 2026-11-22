@@ -5,21 +5,21 @@
 // gear count, a one-press Use (ONE hr_hunt_preset_apply) and, on the picked row, Delete (asks once,
 // then ONE hr_hunt_preset_delete). Under them: New (the name field, then ONE hr_hunt_preset_save on
 // the first free number), Use equipped (ONE hr_hunt_preset_save over the picked setup, asked once),
-// the count line, and past the server's count the Buy line (ONE hr_setup_slot_buy at the quote).
+// the count line, and when every slot is used, the line that says so. Saving a setup is free: nothing here sells a slot
+// (redesign direction 9, 1049-setups-free.sql).
 // Picking a row is display only: the builder (builder.js) loads that setup's copy.
 // IN A HUNT (Tyler 2026-11-17, "Bar only, keep gear"): Use swaps the BAR only, and only to a setup that
 // fights as the worn weapon type (midHuntUse: the server's discipline for each setup against the worn
 // set's); any other row keeps Use off and says "Town only: needs ..." on its line. New and Use equipped
 // stay town-only (they take the worn gear). The server refuses the same (2027-05-04-setup-swap-mid-hunt.sql).
 // ════════════════════════════════════════════════════════════════════════
-import { presetsOf, setupSlotsOf, goldOf } from '../../../session/item-sections.js';
+import { presetsOf, setupSlotsOf } from '../../../session/item-sections.js';
 import { settingsOf, huntOf } from '../../../session/hunt-sections.js';
 import { rows, text, cls, prop, attr, element } from '../../../render/paint.js';
 import { runIntent } from '../../intent-words.js';
-import { gold } from '../../../render/format.js';
 import { ACTION_SET_LIMITS } from '../../../data/rule-subjects.js';
-import { renameSetup, deleteSetup, buySetupSlot } from '../../../session/preset-intents.js';
-import { setupBuyWords, setupFullWords } from '../../setup-words.js';
+import { renameSetup, deleteSetup } from '../../../session/preset-intents.js';
+import { setupFullWords } from '../../setup-words.js';
 import { nameEditorHtml, openNameEditor, nameKey } from '../../inline-name.js';
 import { settleTownActivity } from '../../../session/party-intents.js';
 import { t, hasText } from '../../../render/player-text.js';
@@ -60,7 +60,6 @@ export function setupsHtml(more = '') {
     + more
     + '<p class="hpb-count"></p></div>'
     + '<p class="hs-note hw-town-only">' + t('prep.town_only') + '</p>'
-    + '<button type="button" class="hh-tool hw-slot-buy" data-hs-act="buy-slot" hidden></button>'
     + '<p class="hs-note hw-slot-why" hidden></p>';
 }
 
@@ -134,17 +133,9 @@ export function patchSetups(root, ctx, sc, hunting) {
   prop(root.querySelector('.hpb-keep'), 'hidden', !sc.armingEquipped);
   text(root.querySelector('.hpb-count'), presets ? t('prep.count_line', { n: presets.length, max: count || MAX_PRESETS }) : '');
   cls(root.querySelector('.hw-town-only'), 'is-on', hunting);
-  /* Past the count the next slot is for sale (a hunting hero may buy it too: nothing about the hunt moves). */
-  const price = full && slots ? slots.price : null;
-  const purse = goldOf(cs);
-  const short = price !== null && purse !== null && purse < price ? price - purse : 0;
-  const buy = root.querySelector('.hw-slot-buy');
-  prop(buy, 'hidden', price === null);
-  text(buy, price === null ? '' : setupBuyWords(count, price));
-  prop(buy, 'disabled', sc.pending || short > 0);
-  /* Saving a new setup is off when every slot is used: said, not only greyed (say-why), on a line of its own so an answer's news never hides it. */
-  const why = hunting || !presets ? '' : !slots ? t('prep.slots_reading')
-    : full ? setupFullWords(count, price) + (short ? ' ' + t('prep.need_more', { gold: gold(short) }) : '') : '';
+  /* Saving a new setup is off when every slot is used: said, not only greyed (say-why), on a line of its own so an answer's news never hides it.
+     Nothing is for sale: a full column asks for a Delete. */
+  const why = hunting || !presets ? '' : !slots ? t('prep.slots_reading') : full ? setupFullWords(count) : '';
   const whyEl = root.querySelector('.hw-slot-why');
   prop(whyEl, 'hidden', !why);
   text(whyEl, why);
@@ -200,11 +191,6 @@ export function actSetups(ctx, body, sc, repaint, action, ev, el) {
     if (!sc.armingEquipped) { sc.armingEquipped = true; repaint(); return true; }
     sc.armingEquipped = false;
     runIntent(sc, repaint, () => cs.savePreset(picked.preset, picked.name), t('prep.saving'), () => { dropDraft(sc); return t('prep.replaced', { name: picked.name }); }, cs);
-    return true;
-  }
-  if (action === 'buy-slot') {
-    const q = setupSlotsOf(cs);
-    if (q && q.price !== null) runIntent(sc, repaint, () => buySetupSlot(ctx.account, cs, q.price), t('prep.buying'), () => t('prep.bought', { n: q.count + 1 }), cs);
     return true;
   }
   if (action === 'new') {

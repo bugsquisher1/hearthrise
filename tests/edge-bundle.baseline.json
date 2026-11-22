@@ -155,9 +155,24 @@
         "why": "cut locked in (16467 bytes)"
       },
       {
-        "bytes": 3153618,
+        "bytes": 3155390,
         "on": "2026-11-22",
-        "why": "lane/c-settle-flush: the flush (hunt-settle.js flushDue + confirmed, request.js readConfirm, index.ts HR_HUNT_FLUSH off switch), +3250 B"
+        "why": "lane/c-company FB-6: src/data/hunt-after.js (bundled through set-activity.js) gains the rest plan's ending rows (D-11: REST_ENDINGS, STANDING_MAX_HOURS, validateRest, FB-10's server half reads them) and the return card's Needs you rows (D-2: NEEDS_YOU, NEEDS_SHOWN, validateNeeds), about 5 KB with their comments"
+      },
+      {
+        "bytes": 3190461,
+        "on": "2026-11-22",
+        "why": "lane/c-company FB-6 follow-up: the upgrade pick moved to src/core/upgrade-pick.js (designer D-2: the server makes it) and the engine verb company-wear.js wears it at the company's Start; both files are new to the bundle, every file they import was already vendored"
+      },
+      {
+        "bytes": 3190470,
+        "on": "2026-11-22",
+        "why": "lane/c-company FB-6 follow-up: two comment lines of src/core/upgrade-pick.js reworded so pack-edge reads no import in them (+9 bytes)"
+      },
+      {
+        "bytes": 3193735,
+        "on": "2026-11-22",
+        "why": "lane/c-settle-flush: the flush (hunt-settle.js flushDue + confirmed, request.js readConfirm, index.ts HR_HUNT_FLUSH off switch), +3265 B on the merged set"
       }
     ]
   }

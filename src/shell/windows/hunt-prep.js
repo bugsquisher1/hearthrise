@@ -10,8 +10,8 @@
 //              number, named first. Use equipped = ONE hr_hunt_preset_save over the picked setup (what the
 //              hero has on, gear and bar), asked once. The name renames in place (inline-name.js: ONE
 //              hr_hunt_preset_rename); Delete asks once, then ONE hr_hunt_preset_delete. Use, New and Use
-//              equipped are town-only (the server refuses hunt_open). Past the server's count (`setup_slots`)
-//              Buy sends ONE hr_setup_slot_buy with the quoted price.
+//              equipped are town-only (the server refuses hunt_open). Saving a setup is free: every hero holds
+//              the server's limit (`setup_slots`, 1049-setups-free.sql) and nothing sells another.
 //   Builder    (hunt-prep/builder.js, hunt-prep/grid.js) Fights as (read only: the worn weapon decides it),
 //              stance, target, chase and distance, the gold to keep, and the 2 x 10 slot grid at the HUD's
 //              own tiles: drag to move, drop on a filled slot to swap, a press opens Configure action on

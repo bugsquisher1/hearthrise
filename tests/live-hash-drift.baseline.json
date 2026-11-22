@@ -25,10 +25,10 @@
   },
   "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
   "live_measured": "2026-11-20",
-  "replay_ms": 21680,
+  "replay_ms": 2226,
   "counts": {
-    "tracked_names": 1022,
-    "entries": 857
+    "tracked_names": 1037,
+    "entries": 870
   },
   "functions": [
     {
@@ -1501,8 +1501,8 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "03b7acc6e24d51ac4192ab9d5ac956af",
-        "norm_len": 51446,
+        "md5": "2fe73422b767f80ebb597d62fa817410",
+        "norm_len": 52242,
         "source": "computed-from-replay"
       },
       "agree": false,
@@ -2946,16 +2946,17 @@
         "restate"
       ],
       "touched_by": [
-        "1024-carry-on.sql"
+        "1024-carry-on.sql",
+        "1051-company-start.sql"
       ],
       "live": null,
       "replay": {
-        "md5": "0bf767b548c5b7ae999be9af12e216a8",
-        "norm_len": 6878,
+        "md5": "050ff02bd3e65ac93f31b23efcc844fb",
+        "norm_len": 9798,
         "source": "computed-from-replay"
       },
       "agree": false,
-      "why": "STAGED for the v0.2.144 release by 1024-carry-on.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21. The release apply re-measures with --live --write."
+      "why": "STAGED for the v0.2.144 release by 1024-carry-on.sql, 1051-company-start.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body (absent on production), replay is the staged body from 1051-company-start.sql."
     },
     {
       "sig": "hr_carry_on_plan(p_slots integer[])",
@@ -2979,19 +2980,21 @@
       "sig": "hr_carry_on_plan_of(p_uid uuid, p_slots integer[])",
       "name": "hr_carry_on_plan_of",
       "tracked_by": [
+        "pin",
         "restate"
       ],
       "touched_by": [
-        "1024-carry-on.sql"
+        "1024-carry-on.sql",
+        "1051-company-start.sql"
       ],
       "live": null,
       "replay": {
-        "md5": "360fda1a84d34e38d5ff6dae34fa1f91",
-        "norm_len": 8300,
+        "md5": "7978159fa73f820d20b8bacca1cd9071",
+        "norm_len": 10121,
         "source": "computed-from-replay"
       },
       "agree": false,
-      "why": "STAGED for the v0.2.144 release by 1024-carry-on.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21. The release apply re-measures with --live --write."
+      "why": "STAGED for the v0.2.144 release by 1024-carry-on.sql, 1051-company-start.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body (absent on production), replay is the staged body from 1051-company-start.sql."
     },
     {
       "sig": "hr_carry_on_scope_ok(p_slots integer[])",
@@ -3010,6 +3013,24 @@
       },
       "agree": false,
       "why": "STAGED for the v0.2.144 release by 1024-carry-on.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21. The release apply re-measures with --live --write."
+    },
+    {
+      "sig": "hr_carry_on_wear_ok(p_wear jsonb)",
+      "name": "hr_carry_on_wear_ok",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1051-company-start.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "9c3126fd49e30cafe2938aa31ce245fc",
+        "norm_len": 818,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1051-company-start.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body (absent on production), replay is the staged body from 1051-company-start.sql."
     },
     {
       "sig": "hr_catacomb_section(p_user uuid, p_slot integer)",
@@ -4486,6 +4507,96 @@
         "source": "computed-from-replay"
       },
       "agree": true
+    },
+    {
+      "sig": "hr_company_falls_of(p_uid uuid)",
+      "name": "hr_company_falls_of",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1051-company-start.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "b4716a374c02d53b32b89f1e499adadb",
+        "norm_len": 394,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1051-company-start.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body (absent on production), replay is the staged body from 1051-company-start.sql."
+    },
+    {
+      "sig": "hr_company_line_set(p_line text, p_value text, p_idem uuid)",
+      "name": "hr_company_line_set",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1051-company-start.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "459e1acdf730105b0fec12762d924f19",
+        "norm_len": 2653,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1051-company-start.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body (absent on production), replay is the staged body from 1051-company-start.sql."
+    },
+    {
+      "sig": "hr_company_seat_pending(p_uid uuid, p_slot integer)",
+      "name": "hr_company_seat_pending",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1051-company-start.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "c911b9edf8a77771ae10a611d4249a0c",
+        "norm_len": 1744,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1051-company-start.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body (absent on production), replay is the staged body from 1051-company-start.sql."
+    },
+    {
+      "sig": "hr_company_view(p_user uuid, p_slot integer)",
+      "name": "hr_company_view",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1051-company-start.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "de62b61c676e8a323f0782ba3d04996a",
+        "norm_len": 1480,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1051-company-start.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body (absent on production), replay is the staged body from 1051-company-start.sql."
+    },
+    {
+      "sig": "hr_company_wear_apply(p_uid uuid, p_slots integer[], p_lines jsonb, p_idem uuid)",
+      "name": "hr_company_wear_apply",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1051-company-start.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "45cfae4619d54d4c134e07c59250c4a6",
+        "norm_len": 5102,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1051-company-start.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body (absent on production), replay is the staged body from 1051-company-start.sql."
     },
     {
       "sig": "hr_create_character(p_slot integer)",
@@ -6815,6 +6926,42 @@
       "why": "STAGED for the v0.2.144 release by 1045-ground-presence.sql (new function, absent on production) (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21 after lane/c-social merged."
     },
     {
+      "sig": "hr_ground_setup_of(p_uid uuid, p_slot integer, p_hunt text)",
+      "name": "hr_ground_setup_of",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1051-company-start.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "074996045e6d26151dcee6f7af4bf9fe",
+        "norm_len": 479,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1051-company-start.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body (absent on production), replay is the staged body from 1051-company-start.sql."
+    },
+    {
+      "sig": "hr_ground_setup_set(p_slot integer, p_hunt text, p_preset integer, p_idem uuid)",
+      "name": "hr_ground_setup_set",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1051-company-start.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "7a8dc9b316df792fcd9d35f070d48051",
+        "norm_len": 2780,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1051-company-start.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body (absent on production), replay is the staged body from 1051-company-start.sql."
+    },
+    {
       "sig": "hr_guard_game_save()",
       "name": "hr_guard_game_save",
       "tracked_by": [
@@ -7334,6 +7481,24 @@
       "agree": true
     },
     {
+      "sig": "hr_hero_ground_of(p_uid uuid, p_slot integer)",
+      "name": "hr_hero_ground_of",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1051-company-start.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "6f4b7b1fe7e76c391d874532ebb12576",
+        "norm_len": 680,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1051-company-start.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body (absent on production), replay is the staged body from 1051-company-start.sql."
+    },
+    {
       "sig": "hr_hero_nudge(p_user uuid, p_slot integer)",
       "name": "hr_hero_nudge",
       "tracked_by": [
@@ -7355,6 +7520,24 @@
         "source": "computed-from-replay"
       },
       "agree": true
+    },
+    {
+      "sig": "hr_hero_plan_set(p_slot integer, p_hunt text, p_idem uuid)",
+      "name": "hr_hero_plan_set",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1051-company-start.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "d9941c577f4f7e6188cac07f11673388",
+        "norm_len": 2875,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1051-company-start.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body (absent on production), replay is the staged body from 1051-company-start.sql."
     },
     {
       "sig": "hr_hero_rename(p_slot integer, p_name text, p_price bigint, p_idem uuid)",
@@ -9094,9 +9277,11 @@
       "sig": "hr_hunt_party_invite_own(p_slot integer, p_other_slot integer, p_idem uuid)",
       "name": "hr_hunt_party_invite_own",
       "tracked_by": [
+        "pin",
         "restate"
       ],
       "touched_by": [
+        "1051-company-start.sql",
         "2026-10-28-party-flow.sql"
       ],
       "live": {
@@ -9106,11 +9291,12 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "f73c4ca7d5b60bba6e069fe2433d5471",
-        "norm_len": 1554,
+        "md5": "5cde0b531554b981a413cf301d99be66",
+        "norm_len": 1709,
         "source": "computed-from-replay"
       },
-      "agree": true
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1051-company-start.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body from 1051-company-start.sql."
     },
     {
       "sig": "hr_hunt_party_invite_player(p_slot integer, p_target uuid, p_target_slot integer, p_idem uuid)",
@@ -13380,6 +13566,24 @@
       "agree": true
     },
     {
+      "sig": "hr_party_is_own(p_party uuid, p_uid uuid)",
+      "name": "hr_party_is_own",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1051-company-start.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "124b05165b56c186cbd7fae5bb3901dc",
+        "norm_len": 373,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1051-company-start.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body (absent on production), replay is the staged body from 1051-company-start.sql."
+    },
+    {
       "sig": "hr_party_join_for(p_uid uuid, p_slot integer, p_party uuid, p_need_listed boolean)",
       "name": "hr_party_join_for",
       "tracked_by": [
@@ -13424,6 +13628,42 @@
         "source": "computed-from-replay"
       },
       "agree": true
+    },
+    {
+      "sig": "hr_party_lead_of(p_party uuid)",
+      "name": "hr_party_lead_of",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1051-company-start.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "e492a1f803ab649501b16de67260253e",
+        "norm_len": 866,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1051-company-start.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body (absent on production), replay is the staged body from 1051-company-start.sql."
+    },
+    {
+      "sig": "hr_party_lead_set(p_slot integer, p_lead integer, p_idem uuid)",
+      "name": "hr_party_lead_set",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1051-company-start.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "e4c26523e9f7a6ed79ca167c92699091",
+        "norm_len": 2871,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1051-company-start.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body (absent on production), replay is the staged body from 1051-company-start.sql."
     },
     {
       "sig": "hr_party_leave_together_of(p_user uuid, p_slot integer, p_party uuid)",
@@ -13799,9 +14039,11 @@
       "sig": "hr_party_seat_own(p_user uuid, p_slot integer, p_other integer)",
       "name": "hr_party_seat_own",
       "tracked_by": [
+        "pin",
         "restate"
       ],
       "touched_by": [
+        "1051-company-start.sql",
         "2026-10-28-party-flow.sql"
       ],
       "live": {
@@ -13811,11 +14053,12 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "9258f2f7078bd48dd3ac80d1ad6e8ee4",
-        "norm_len": 2068,
+        "md5": "b1609de4dc1320df55d21a8a6ec486c6",
+        "norm_len": 2959,
         "source": "computed-from-replay"
       },
-      "agree": true
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1051-company-start.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body from 1051-company-start.sql."
     },
     {
       "sig": "hr_party_seat_ready(p_party uuid, p_user uuid, p_slot integer, p_hunt text, p_leader uuid, p_joined timestamp with time zone)",
@@ -15201,6 +15444,24 @@
       "agree": true
     },
     {
+      "sig": "hr_role_rank(p_role text)",
+      "name": "hr_role_rank",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1051-company-start.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "6c377010f9d968fa4df74334008289ff",
+        "norm_len": 274,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1051-company-start.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body (absent on production), replay is the staged body from 1051-company-start.sql."
+    },
+    {
       "sig": "hr_role_view(p_user uuid, p_slot integer)",
       "name": "hr_role_view",
       "tracked_by": [
@@ -15758,6 +16019,7 @@
         "restate"
       ],
       "touched_by": [
+        "1049-setups-free.sql",
         "2027-02-28-setup-slots.sql"
       ],
       "live": {
@@ -15767,11 +16029,12 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "cc91389f6150b4edf542d14af1919233",
-        "norm_len": 753,
+        "md5": "dcf1e5b774fb444e5a22231696853487",
+        "norm_len": 870,
         "source": "computed-from-replay"
       },
-      "agree": true
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1049-setups-free.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body from 1049-setups-free.sql."
     },
     {
       "sig": "hr_setup_name(p_name text)",
@@ -15796,36 +16059,15 @@
       "agree": true
     },
     {
-      "sig": "hr_setup_slot_buy(p_slot integer, p_price bigint, p_idem uuid)",
-      "name": "hr_setup_slot_buy",
-      "tracked_by": [
-        "pin",
-        "restate"
-      ],
-      "touched_by": [
-        "2027-02-28-setup-slots.sql"
-      ],
-      "live": {
-        "md5": "36a302e1942887be2c0f873f16f5b335",
-        "norm_len": 3187,
-        "measured": "2026-11-20",
-        "source": "measured-live"
-      },
-      "replay": {
-        "md5": "36a302e1942887be2c0f873f16f5b335",
-        "norm_len": 3187,
-        "source": "computed-from-replay"
-      },
-      "agree": true
-    },
-    {
       "sig": "hr_setup_slots_view(p_user uuid, p_slot integer)",
       "name": "hr_setup_slots_view",
       "tracked_by": [
+        "chain",
         "pin",
         "restate"
       ],
       "touched_by": [
+        "1049-setups-free.sql",
         "2027-02-28-setup-slots.sql",
         "2027-02-28-sink-price-plan.sql"
       ],
@@ -15836,34 +16078,12 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "b7a8ed034b203a10f3e498f5942c0e05",
-        "norm_len": 841,
+        "md5": "d0daeeaba7427ddfc166229032e44328",
+        "norm_len": 532,
         "source": "computed-from-replay"
       },
-      "agree": true
-    },
-    {
-      "sig": "hr_setups_bought(p_user uuid, p_slot integer)",
-      "name": "hr_setups_bought",
-      "tracked_by": [
-        "pin",
-        "restate"
-      ],
-      "touched_by": [
-        "2027-02-28-setup-slots.sql"
-      ],
-      "live": {
-        "md5": "e88794c84cdae7e952cb86e090f0559e",
-        "norm_len": 420,
-        "measured": "2026-11-20",
-        "source": "measured-live"
-      },
-      "replay": {
-        "md5": "e88794c84cdae7e952cb86e090f0559e",
-        "norm_len": 420,
-        "source": "computed-from-replay"
-      },
-      "agree": true
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1049-setups-free.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body from 1049-setups-free.sql."
     },
     {
       "sig": "hr_setups_of(p_user uuid, p_slot integer)",
@@ -15873,6 +16093,7 @@
         "restate"
       ],
       "touched_by": [
+        "1049-setups-free.sql",
         "2027-02-28-setup-slots.sql"
       ],
       "live": {
@@ -15882,11 +16103,12 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "44b7ae6a4fe762e93ebe162d705b5426",
-        "norm_len": 478,
+        "md5": "1491b9f787aa07e02c9af2484ba44e5d",
+        "norm_len": 380,
         "source": "computed-from-replay"
       },
-      "agree": true
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1049-setups-free.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body from 1049-setups-free.sql."
     },
     {
       "sig": "hr_shard_of(p_user uuid)",
@@ -17035,6 +17257,24 @@
         "source": "computed-from-replay"
       },
       "agree": true
+    },
+    {
+      "sig": "hr_tally_take_on_entry(p_uid uuid, p_slot integer, p_hunt text)",
+      "name": "hr_tally_take_on_entry",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1051-company-start.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "d08edc4a6776e6a3e5a2bdf5397724d2",
+        "norm_len": 1434,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1051-company-start.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body (absent on production), replay is the staged body from 1051-company-start.sql."
     },
     {
       "sig": "hr_tally_view(p_slot integer)",

@@ -68,6 +68,7 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
+import { WEIGHT_FOR_ROLE } from './hunt-roles.js';
 import { HUNT_INDEX } from './hunts.js';
 import { HUNT_GROUNDS, OPEN_GROUNDS } from './hunt-grounds.js';
 import { tiersOf } from './hunt-tiers.js';
@@ -899,7 +900,8 @@ const slotOf = (f, test) => (Array.isArray(f.slots) ? f.slots.findIndex((s) => o
 export const wasteAt = (amount, pct, max) => amount - Math.round((max * (100 - pct)) / 100);
 /* The armor weight that costs a role's style nothing (wornByRole: plate costs a caster and a Ranger accuracy, cloth a
    Melee): what Tamsin's card advises. */
-export const WEIGHT_FOR_ROLE = Object.freeze({ tank: 'heavy', melee_dps: 'heavy', ranger: 'medium', mage: 'light', healer: 'light' });
+/* The armor weight a role's first card calls right: src/data/hunt-roles.js WEIGHT_FOR_ROLE (moved there with the upgrade pick, src/core/upgrade-pick.js). */
+export { WEIGHT_FOR_ROLE };
 export const ROLE_WORDS = Object.freeze({ tank: 'a shield tank', melee_dps: 'a Melee hero', ranger: 'a Ranger', mage: 'a Mage', healer: 'a Healer' });
 /* THE CARDS STATED FROM THE FACTS (Tyler 2026-11-16: a coach card is a short title and ONE line that names the press, tests/copy-lint.mjs coach-card).
    A builder fills its coach.js row from the facts (the slot, the item, the rune), rings what it names, and answers null when it cannot be stated truly. */

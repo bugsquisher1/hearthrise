@@ -33,6 +33,7 @@
 //   (combat.js weaknessInfo, what the settle hands the roller: hunt-rewards.js payKill), the same for every party size (Tyler 2026-11-08:
 //   one difficulty for every group), before any hero's bonus. Never a number typed here (ART_DIRECTION §8).
 // ════════════════════════════════════════════════════════════════════════
+import { wornWeightOf } from '../core/upgrade-pick.js';
 import { HUNT_GROUNDS, OPEN_GROUNDS, OPEN_HALL_GROUNDS, DENSITY_PICK, pullRows } from '../data/hunt-grounds.js';
 import { hallOfHunt, hallBossOf } from '../data/boss-halls.js';
 import { HUNT_INDEX } from '../data/hunts.js';
@@ -170,16 +171,7 @@ const WEIGHTS = Object.freeze(['heavy', 'medium', 'light']);
 const SLOT_WORDS = Object.freeze({ helmet: 'helmets', body: 'bodies', pants: 'legs', boots: 'boots' });
 
 /** The armour weight an equipment map (slot -> item id) wears most among helmet, body, legs and boots; the heavier on a tie; null for none. */
-export function wornWeightOf(eq) {
-  const n = { heavy: 0, medium: 0, light: 0 };
-  for (const slot of Object.keys(SLOT_WORDS)) {
-    const it = eq && ITEMS[eq[slot]];
-    const w = it && ARMOUR_WEIGHT[it.armourClass];
-    if (w) n[w]++;
-  }
-  const best = WEIGHTS.reduce((a, w) => (n[w] > n[a] ? w : a), 'heavy');
-  return n[best] ? best : null;
-}
+export { wornWeightOf };
 
 /* One row's chance on ONE kill of `monster` (its id): the roller's own, at the monster's own drop bonus and before any hero's (2026-11-10: the page left
    the bonus out, so the Cellar's Slime read its Slime Gel 13% under what the server rolls). */

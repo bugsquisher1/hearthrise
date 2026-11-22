@@ -142,6 +142,23 @@
 .haway-carry > .haway-acts { margin: 6px 0 0; }
 .haway-carry-msg { margin: 6px 0 0; }
 .haway-carry-msg:empty { display: none; }
+/* THE COMPANY'S PLAN LINES (../shell/carry-on.js): a name and its two answers, the server's one pressed */
+.haway-lines { margin: 0 0 8px; }
+.haway-line { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin: 0 0 4px; }
+.haway-line-name { min-width: 96px; font-size: var(--t-small); color: var(--ink-2); }
+.haway-line .hh-seg { min-height: 32px; }
+.haway-line-note { margin: 0; font-size: var(--t-micro); color: var(--ink-2); }
+.haway-line-note[hidden] { display: none; }
+/* NEEDS YOU (../shell/needs-you.js): at most three decisions above Carry on, each its line and its one press */
+.haway-needs { margin: 0 2px 10px; }
+.haway-needs[hidden] { display: none; }
+.haway-needs-head { margin: 0 0 6px; font-size: var(--t-small); color: var(--ink-2); }
+.haway-needs-list { margin: 0; padding: 0; list-style: none; }
+.haway-need { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin: 0 0 6px; font-size: var(--t-small); line-height: 1.4; color: var(--ink); }
+.haway-need .hh-tool { min-height: 32px; }
+.haway-need [hidden] { display: none; }
+.haway-needs-more { margin: 0; font-size: var(--t-micro); color: var(--ink-2); }
+.haway-needs-more[hidden] { display: none; }
 /* the first hero's press in the foot is a phone's (away.js renderAway): on a desktop the hero's own row holds it */
 .haway-foot > .haway-foot-go { display: none; }
 

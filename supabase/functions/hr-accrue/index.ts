@@ -88,6 +88,7 @@ import { runShopBuy } from './shop-buy.js';
 import { runVendorSell, runVendorSellMany } from './vendor-sell.js';
 import { runUnlockBuy } from './unlock-buy.js';
 import { runTrophyClaim } from './trophy-claim.js';
+import { runCompanyWear } from './company-wear.js';
 import { runSheet } from './character-sheet.js';
 import { runEquip } from './equip.js';
 import { runEat } from './eat.js';
@@ -562,6 +563,20 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
     /* ── THE CHARACTER SHEET (./character-sheet.js) ─────────────────────────
        The slot and nothing else. The engine's own snapshot over server state,
        stored compare-and-set against the SQL fingerprint of its inputs. */
+    /* ── "WEAR UPGRADES" AT THE COMPANY'S START (lane/c-company, ./company-wear.js) ──────────────────────
+       The slots and nothing else: the pieces are the server's own pick (src/core/upgrade-pick.js) over each
+       hero's hr_state_of, and hr_company_wear_apply decides whether each may go on. */
+    if (intent.verb === 'company_wear') {
+      const out = await runCompanyWear({
+        exec,
+        user,                       // the VERIFIED subject, never a body field
+        slot,
+        intentId: intent.intentId,
+        slots: intent.slots,
+      });
+      return await reply(out.body, out.status);
+    }
+
     if (intent.verb === 'sheet') {
       const out = await runSheet({
         exec,

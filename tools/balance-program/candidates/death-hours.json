@@ -1,0 +1,8 @@
+{
+ "schema": "hearthrise.balance-candidate/1",
+ "id": "death-hours",
+ "why": "A death costs 7.5 hours of the pace contract at the hero's Level (04-math-strategy.md section 5, deathHours; parity with 6% at Level 60), in place of 6% of all Level XP",
+ "base": "tree",
+ "variants": [{ "slot": "death-cost", "family": "hours" }],
+ "assumptions": ["Deaths and every die are the same on both sides (the price is read after the fight); only the XP a death takes differs"]
+}

@@ -116,8 +116,7 @@ const GOLD_KEYS = Object.freeze({
   'hero_slot:hero_slot_buy': sink('hero slots'),
 });
 /* Each gold-sinks.js row's journal key (the selftest fails when a row has none, so a new sink cannot ship unwatched). */
-const SINK_RULE_KEYS = Object.freeze({ powder: 'shop:town_show.powder', round: 'shop:town_show.round', crier: 'shop:crier',
-  setup_slot: 'shop:setup_slot_buy', hero_colors: 'shop:hero_colors_set', house_dummy: 'shop:house_dummy' });
+const SINK_RULE_KEYS = Object.freeze({ powder: 'shop:town_show.powder', round: 'shop:town_show.round', crier: 'shop:crier', hero_colors: 'shop:hero_colors_set', house_dummy: 'shop:house_dummy' });
 
 /* WHAT A COIN BRINGS WITH IT, as the most the sheet's loot and tasks add to monster coin an hour:
      commons 1.15  src/data/supply-basics.js: a measured hour, 691 g of coins against 793 g of common drops

@@ -243,7 +243,7 @@ export function saveDraft(ctx, sc, repaint, andUse) {
 
 /** THE BAR IN USE WITH NO SETUP ROW: { name } when Save should also keep setup `preset` as one, else null. Only the setup in use (the server's
     hunt_settings.preset, named by its own row there), only with no saved row (hunt_presets), only in town (the server refuses hunt_open), and
-    only on a number under this hero's count (setup_slots; unknown is no, §6 fail safe): past it the column's Buy line says why. Pure. */
+    only on a number under this hero's count (setup_slots; unknown is no, §6 fail safe): past it the column's full line says why. Pure. */
 export function keepAsSetup(cs, preset) {
   const live = settingsOf(cs), saved = presetsOf(cs), slots = setupSlotsOf(cs), h = huntOf(cs);
   if (!live || live.preset !== preset || !saved || saved.some((p) => p.preset === preset) || (h && !h.ended) || !slots || preset >= slots.count) return null;

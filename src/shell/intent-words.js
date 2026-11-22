@@ -122,9 +122,9 @@ export function refusalText(r, cs) {
   if (r && r.error === 'hearth_busy' && Number.isInteger(r.waitS)) {
     return 'Great Hearth busy, try again in ' + Math.max(1, Math.ceil(r.waitS / 60)) + ' min';
   }
-  /* A new setup past this hero's count (hr_setup_locked sends both numbers): "This hero's 3 setup slots are full. Delete one, or buy a fourth for 15,000 gp." */
+  /* A new setup past this hero's limit (hr_setup_locked sends the count; nothing is for sale): "This hero's 5 setup slots are full. Delete one to save a new setup." */
   if (r && r.error === 'setup_locked' && r.figures && Number.isInteger(r.figures.slots)) {
-    return setupFullWords(r.figures.slots, Number.isInteger(r.figures.price) ? r.figures.price : null);
+    return setupFullWords(r.figures.slots);
   }
   /* A hero's colors past the row's cap (hr_hero_colors_set sends the number). */
   if (r && r.error === 'colors_limit' && r.figures && Number.isInteger(r.figures.per_day)) {

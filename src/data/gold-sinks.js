@@ -19,8 +19,9 @@
 //   gapS           the server-wide gap between two lines; minLevel  the Level a line takes; maxLetters  a line's length
 //   perMinute      the verb's own rate bucket
 //
-// SETUP SLOTS: "a free couple" (Tyler). The designer would give 3: that is this one row, free: 3, prices: [15000, 40000]. The
-// generator refuses a row whose free + prices is not the hero's setup limit (rule-subjects ACTION_SET_LIMITS.presets).
+// SETUP SLOTS ARE NOT SOLD: saving a setup is free, every hero holds the whole setup limit (redesign direction 9, Tyler approved
+// 2026-11-22: "a price on remembering a choice works against the first principle"; lane/c-company, 1049-setups-free.sql). The
+// generator refuses a `setup_slot` row, so the 15,000 and 40,000 gold rungs cannot come back by a data edit.
 //
 // BOUGHT FLAMES STAY OUT OF src/data/hearth.js: recipes.js pulls that file into the hr-accrue bundle, so a row there moves the
 // edge hash. This file reaches no edge import.
@@ -71,10 +72,6 @@ export const SINK_RULES = Object.freeze({
   crier: Object.freeze({
     scope: 'account', offers: Object.freeze([]),
     prices: Object.freeze([1000, 2000, 4000, 8000, 16000]), perDay: 5, gapS: 30, minLevel: 10, maxLetters: 120, perMinute: 3,
-  }),
-  setup_slot: Object.freeze({
-    scope: 'hero', offers: Object.freeze([]),
-    free: 3, prices: Object.freeze([15000, 40000]),
   }),
   hero_colors: Object.freeze({
     scope: 'hero', offers: Object.freeze([]),

@@ -92,6 +92,10 @@ export const CLIENT_RPCS = Object.freeze({
   /* The UX flow audit 2026-11-11 (2027-04-13-bank-move-many.sql): ids and a direction, WHOLE stacks at the server’s own count, all or nothing. */
   /* CARRY ON (1024-carry-on.sql, Tyler RULED 27-1): the plan is a read; the press names slots, the gold figure the player was shown and a key */
   hr_carry_on_plan: 'what one Carry on press would do for each of the caller\'s own heroes: the slots, nothing else; a read, nothing moves (carry-on-intents.js carryOnPlan)',
+  hr_hero_plan_set: 'this hero\'s plan ground, a ground id or null; the server checks it against its catalogue and edits an own party\'s ground in town (company-intents.js setHeroPlan; 1051-company-start.sql)',
+  hr_ground_setup_set: 'this ground points at one of this hero\'s saved Setups: a ground id and a Setup number the server checks against its rows (company-intents.js setGroundSetup)',
+  hr_party_lead_set: 'pin (or unpin) the leader of a party of this account\'s own heroes: an own hero\'s slot or null; the server refuses any other party (company-intents.js setPartyLead)',
+  hr_company_line_set: 'one plan line for the caller\'s whole company: wear_upgrades on or off, if_one_falls hunt_on or all_home; a line and a word, no slot, value or price (carry-on-intents.js setCompanyLine; 1051-company-start.sql)',
   hr_carry_on: 'ONE press sends the caller\'s own heroes back to their last hunt through the existing doors: the slots (or none for the account), the Blessings gold the plan showed (it only refuses: quote_changed) and a key; no ground, count, item or price (carry-on-intents.js carryOn)',
   hr_bank_move_many: 'move many whole stacks between the bag and the home storage in one call, value-neutral, all or nothing (storage-intents.js moveStorageMany)',
   /* Tyler 2026-11-02 "Yes, add a press" (2027-02-21-hunt-carry-in.sql): an item id and a count; catalogue, stock and the open hunt are the server’s. */
@@ -140,7 +144,6 @@ export const CLIENT_RPCS = Object.freeze({
   /* Lane S2's Services window: each sends the server’s own QUOTE (refused quote_changed otherwise), never a price of its own. */
   hr_stamina_refill: 'buy the next stamina refill at the quoted price (CharacterSession.buyStamina)',
   /* The gold sinks (Tyler 2026-11-04): a slot, a catalogue id and the QUOTE the player saw; the server counts, prices and refuses quote_changed. */
-  hr_setup_slot_buy: 'buy this hero\'s next setup slot at the quoted price (preset-intents.js buySetupSlot; 2027-02-28-setup-slots.sql)',
   hr_title_buy: 'claim a catalogue title at the quoted price; the server counts this hero\'s kills (title-intents.js buyTitle; 2027-02-28-titles.sql)',
   hr_hallmark: 'Hallmark one Fine jewelry piece into the catalogue\'s pair at the quoted price; the server checks the piece\'s own bench skill and takes the piece and the gem (hallmark-intents.js hallmarkPiece; 2027-03-14-jewelry-hallmark.sql)',
   hr_jewel_reforge: 'reforge one Hallmarked piece into the next tier\'s catalogue pair at the quoted fee difference; the server checks the new piece\'s bench skill and takes the piece, the bars and the gem (hallmark-intents.js reforgePiece; 2027-05-09-jewel-reforge.sql)',
@@ -262,6 +265,8 @@ export const CLIENT_EDGE_INTENTS = Object.freeze({
   market_mine: [],
   /* the Game Master's stop (hr-accrue gm-stop.js): refused to everyone without the server-written row */
   gm_stop: ['gm'],
+  /* "Wear upgrades" at the company's Start (hr-accrue company-wear.js): the heroes going out by slot; the server picks every piece. */
+  company_wear: ['slots'],
 });
 
 /* The `market` object's subfields per verb (edge-intents.js MARKET_FIELDS = hr-accrue request.js readMarket). */

@@ -145,7 +145,7 @@ export const CLIENT_RPCS = Object.freeze({
   hr_party_leave_together_set: 'this hero\'s own "Leave if anyone leaves the hunt or dies", a yes/no; no other hero is named (party-intents.js setLeaveTogether; 2026-12-18-party-leave-together.sql)',
   hr_hunt_restart: 'go back to the hunt that just ended on that session’s own setup (CharacterSession.restartHunt)',
   /* Lane S2's Services window: each sends the server’s own QUOTE (refused quote_changed otherwise), never a price of its own. */
-  hr_stamina_refill: 'buy the next stamina refill at the quoted price (CharacterSession.buyStamina)',
+  hr_time_buy: 'buy the next 2 h hunting block (kind `hunt`) at the quoted price; the server counts the day\'s blocks, prices x1.5 each and refuses past two (CharacterSession.buyTime; 1058-hunting-blocks.sql)',
   /* The gold sinks (Tyler 2026-11-04): a slot, a catalogue id and the QUOTE the player saw; the server counts, prices and refuses quote_changed. */
   hr_title_buy: 'claim a catalogue title at the quoted price; the server counts this hero\'s kills (title-intents.js buyTitle; 2027-02-28-titles.sql)',
   hr_hallmark: 'Hallmark one Fine jewelry piece into the catalogue\'s pair at the quoted price; the server checks the piece\'s own bench skill and takes the piece and the gem (hallmark-intents.js hallmarkPiece; 2027-03-14-jewelry-hallmark.sql)',

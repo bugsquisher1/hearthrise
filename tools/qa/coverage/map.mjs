@@ -108,7 +108,7 @@ export function coverageMap() {
   for (const [id, b] of Object.entries(BOSS_CALLS)) sinks.push({ id: 'boss_call.' + id, table: 'boss_call', name: 'Call out ' + b.boss, gold: b.fight.fee, items: [], verb: 'hr_boss_call', from: b.from });
   for (const id of Object.keys(TOWN_WORKS)) sinks.push({ id: 'town_works.' + id, table: 'town_works', name: TOWN_WORKS[id].name, gold: TOWN_WORKS[id].minGift, items: [], verb: 'hr_town_works_give' });
   for (const [kind, r] of Object.entries(SINK_RULES)) sinks.push({ id: 'sink.' + kind, table: 'sink', name: kind, gold: (r.prices || [r.priceBase || 0])[0], items: [], verb: 'hr_' + kind });
-  sinks.push({ id: 'stamina_refill', table: 'stamina', name: 'Stamina refill', gold: null, items: [], verb: 'hr_stamina_refill' });
+  sinks.push({ id: 'time_block.hunt', table: 'stamina', name: 'Hunting block', gold: null, items: [], verb: 'hr_time_buy' });
   for (const s of TROPHY_STAGES) sinks.push({ id: 'bestiary.' + s.id, table: 'bestiary', name: 'Bestiary stage ' + s.stage + ' (' + s.at + ' kills)', gold: null, items: [], verb: 'hr_bestiary_activate', kills: s.at });
   for (const id of Object.keys(NAMED_FUELS)) sinks.push({ id: 'hearth.' + id, table: 'hearth', name: 'Burn ' + id, gold: 0, items: [{ id, qty: 1 }], verb: 'hr_hearth_burn' });
 

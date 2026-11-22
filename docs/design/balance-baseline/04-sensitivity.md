@@ -44,4 +44,117 @@ Each cell is on the ground the game advises for its Level and party size. That i
 
 **The proofs.** `sensitivity.mjs --selftest` plants a patch and imports the planted tree's own data: every open ground's respawn, every ability's mana and cooldown, every store price and every gear table row must hold the scaled value. `analyze.mjs --selftest` plants effects, noise and interactions in memory and reads them back.
 
+---
+
+## 2. Signal and noise
+
+MEASURED on the base job of run 44969087150 (68 cells, 4 seeds, 2,592 hero-hours). The same job played on Tyler's PC (Windows, Node 26) and on GitHub (Linux, Node 20) answered all 68 cells byte for byte the same.
+
+The seed to seed spread of one cell, as a share of its mean:
+
+| Outcome | Median cell | Nine cells in ten under | Worst cell |
+|---|---|---|---|
+| Kills an hour, damage, Level XP an hour | 0.3% | 0.7% to 0.9% | 2.5% to 9.7% |
+| Damage taken an hour | 1.4% | 3.9% | 9.3% |
+| Gold in an hour | 1.5% | 3.1% | 11% |
+| Store gold an hour | 0.6% | 4.4% | 115% |
+| Supplies an hour | 0.5% | 3.4% | 115% |
+| Lowest health, worst tenth of fights (absolute) | 0.004 | 0.010 | 0.14 |
+| Net gold an hour (absolute) | 225 | 682 | 32,200 |
+
+What this means for the pass:
+
+- **Rates are quiet.** With four seeds a cell, a rate is known to about a sixth of a percent. A 1% effect on kills or XP is resolved in one cell. Four seeds were more than a rate needs.
+- **The worst cell is always the same kind.** It is the lone hammer on Dangerous or Deadly, where the hero dies and the hunt stops. The hours hunted then swing from seed to seed, and everything read per hour swings with them.
+- **Deaths are the weak reading.** A cell holds 16 to 128 hero-hours a point. The whole pass holds 2,592. So a death rate is only read on pooled groups, and a change is only called when the pooled counts differ by two Poisson errors. A cell of 128 hero-hours with no death cannot rule out a rate under about 23 in 1,000 hours (hard constraint HC-4 in `03-targets.md`), and most cells are smaller. Where this page says deaths did not move, read it as "not by enough for this sample".
+- **Healing received is not a usable outcome alone.** In most lone cells a hero eats a handful of times a seed, so the spread is 10% at the median and 200% at the worst. It is printed, and never ranked.
+
+---
+
+## 3. What the base says before any lever moves
+
+MEASURED, the same base job. These are not sensitivities. They are the shape of the ground the levers act on, and three of them explain most of the matrix.
+
+### 3.1 The spawn ceiling
+
+COMPUTED from `src/data/hunt-grounds.js` and `hunt-tiers.js`: a ground cannot give more kills an hour than the monsters one lap brings, times 3,600 seconds, over its respawn time. A tier's pull fills each pocket to its number, so the ceiling rises on the harder tiers.
+
+| Cell (MID gear) | Ground | Kills an hour | Ceiling | Share |
+|---|---|---|---|---|
+| The four, Level 30, Normal | Mosslight Glade | 754 | 780 | 97% |
+| The four, Level 30, Dangerous | Mosslight Glade | 1,916 | 2,160 | 89% |
+| The four, Level 30, Deadly | Mosslight Glade | 2,469 | 2,880 | 86% |
+| The four, Level 110, Normal | Krell's Hold | 571 | 600 | 95% |
+| The four, Level 110, Dangerous | Krell's Hold | 1,562 | 1,800 | 87% |
+| The four, Level 110, Deadly | Krell's Hold | 1,553 | 1,800 | 86% |
+| The four, Level 60, Normal | Muster Barrows | 706 | 840 | 84% |
+| The four, Level 60, Dangerous | Muster Barrows | 1,037 | 2,240 | 46% |
+| The four, Level 10, Normal | Millrace Sewer | 548 | 760 | 72% |
+| Mage alone, Levels 10 to 110, Normal | four grounds | 481 to 666 | 600 to 780 | 80% to 85% |
+| Hammer alone, Levels 10 to 110, Normal | four grounds | 406 to 560 | 600 to 780 | 66% to 78% |
+| Healer alone, Levels 10 to 110, Normal | four grounds | 347 to 485 | 600 to 780 | 58% to 63% |
+| Hammer alone, harder tiers | three grounds | 619 to 929 | 1,800 to 2,880 | 26% to 39% |
+
+The four sits at 84% to 97% of the ceiling on Normal, and at 86% to 89% on the harder tiers of the Glade and Krell's Hold. On those cells the seed to seed spread of kills is zero to 0.1%, which is what a hard cap looks like. Only the Muster Barrows on the harder tiers, a ground built for a party, leaves the four room.
+
+### 3.2 Who dies
+
+| Seat (MID gear) | Normal | Dangerous | Deadly |
+|---|---|---|---|
+| The four, Levels 30, 60, 110 | 0 deaths in 320 hero-hours | 0 in 320 | 0 in 320 |
+| Mage alone, Levels 30, 60, 110 | 0 in 80 | 0 in 80 | 1 in 78 |
+| Hammer alone, Level 30 | 0 in 16 | 0 in 16 | 4 in 4 (dead in every seed) |
+| Hammer alone, Level 60 | 0 in 32 | 4 in 8 (dead in every seed) | 4 in under 1 hour |
+| Hammer alone, Level 110 | 0 in 32 | 1 in 29 | 4 in 9 (dead in every seed) |
+
+Death in this build is one seat's problem. The lone melee hero falls off a cliff one tier up. The Mage alone and the four do not die at all in this sample, on any tier. Every death reading in the matrix is therefore the lone hammer's.
+
+### 3.3 The three axes a player climbs
+
+Level XP an hour, a hero.
+
+| Seat | LOW gear | MID | BIS | MID over LOW | BIS over MID |
+|---|---|---|---|---|---|
+| Hammer alone, Level 30 | 90,682 | 113,517 | 124,700 | +25% | +10% |
+| Hammer alone, Level 60 | 265,670 | 322,351 | 350,046 | +21% | +9% |
+| Hammer alone, Level 110 | 685,640 | 732,251 | 797,271 | +7% | +9% |
+| Mage alone, Level 30 | 106,839 | 135,291 | 141,943 | +27% | +5% |
+| Mage alone, Level 60 | 339,284 | 416,424 | 435,927 | +23% | +5% |
+| Mage alone, Level 110 | 830,425 | 866,700 | 918,668 | +4% | +6% |
+| The four, Level 60 | 440,815 | 526,886 | 549,999 | +20% | +4% |
+
+| Seat (MID) | Normal | Dangerous | Deadly | Deadly over Normal |
+|---|---|---|---|---|
+| Mage alone, Level 60 | 416,424 | 986,290 | 1,087,045 | x2.6 |
+| Mage alone, Level 110 | 866,700 | 1,548,548 | 1,692,348 | x2.0 |
+| The four, Level 30 | 56,249 | 140,918 | 195,984 | x3.5 |
+| The four, Level 60 | 526,886 | 791,632 | 869,244 | x1.6 |
+| The four, Level 110 | 380,541 | 1,099,848 | 1,241,730 | x3.3 |
+| Hammer alone, Level 60, before deaths | 322,351 | 670,808 | 718,141 | x2.2 |
+| Hammer alone, Level 60, after deaths | 322,351 | 105,721 | below zero | |
+
+| Level | The four, a head | Its four ways alone, mean | Four over alone, XP | Four over alone, net gold |
+|---|---|---|---|---|
+| 10 | 51,561 | 37,142 | 1.39 | 0.96 |
+| 30 | 56,249 | 117,462 | 0.48 | 0.35 |
+| 60 | 526,886 | 345,764 | 1.52 | 1.05 |
+| 110 | 380,541 | 739,155 | 0.51 | 0.31 |
+
+Three readings.
+
+- **A tier step is worth far more than a gear step.** The best gear adds 4% to 10% over MID. One tier up multiplies XP by 1.6 to 3.5 for any seat that survives it. Gear matters mostly as the ticket to the tier.
+- **The four on Normal is a trap on two of four grounds.** At Levels 30 and 110 it earns half of what its heroes earn alone, because it is at the spawn ceiling of a ground built for one hero's pace. On the Muster Barrows, built for a party, it earns 1.5 times.
+- **Gold does not follow XP.** A harder tier pays the Mage more XP and less gold (Level 110: 16,873 on Normal, 7,988 on Deadly). Better gear costs a caster gold: the Mage at Level 30 nets 6,868 an hour in MID and loses 1,569 an hour in BIS, because faster kills mean more casts and a bigger store bill.
+
+### 3.4 Who pays the store
+
+Store gold as a share of gold in, alone, MID, Normal.
+
+| Level | Tank | Sword | Hammer | Axes | Bow | Crossbow | Mage | Healer |
+|---|---|---|---|---|---|---|---|---|
+| 60 | 2% | 2% | 0% | 3% | 71% | 2% | 90% | 67% |
+| 110 | 13% | 10% | 0% | 2% | 70% | 7% | 52% | 35% |
+
+The supply bill is a tax on three ways (bow, Mage, Healer) and close to nothing for the rest. Any lever that moves casts, arrows or prices is a lever on those three and no one else. The harness sells every drop at once and never runs out of gold, so gold here is an upper bound (hard constraint HC-5 in `03-targets.md`).
+
 <<FILL:REST>>

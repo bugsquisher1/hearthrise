@@ -11,6 +11,15 @@
 const ITEM = /^[a-z0-9_]{1,64}$/;
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 
+/** THE SETUP A GROUND POINTS AT for this hero (`hunt_setup`, 2026-12-05-hunt-setup-per-ground.sql: { hunt_id: preset }, only Setups that still
+    exist): its number, or null when the ground has none or the server sent no section. Enter's Go as starts on it; the Start uses it. */
+export function groundSetupOf(cs, hunt) {
+  const m = cs && typeof cs.read === 'function' ? cs.read('hunt_setup') : null;
+  if (!isObj(m) || typeof hunt !== 'string' || !Object.prototype.hasOwnProperty.call(m, hunt)) return null;
+  const n = m[hunt];
+  return Number.isInteger(n) && n >= 0 && n <= 7 ? n : null;
+}
+
 /** The `company` section, bounded; null when the server sent none. */
 export function companyPlanOf(cs) {
   const c = cs && typeof cs.read === 'function' ? cs.read('company') : null;

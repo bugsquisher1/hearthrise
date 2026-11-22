@@ -36,6 +36,7 @@ import { trainingOf as trainedBy } from '../../data/training.js';
 import { runRulesOf } from '../../data/tower.js';
 import { renderCarry, patchCarry, followCarry, pressCarry, pressLine, carryPlanFor } from '../carry-on.js';
 import { renderNeeds, patchNeeds } from '../needs-you.js';
+import { regear } from '../../session/carry-on-intents.js';
 
 /* The away lines the centre holds now, oldest hero slot first. */
 const linesOf = (ctx) => (ctx.alerts ? ctx.alerts.list().filter((a) => a.kind === 'away') : []).sort((a, b) => a.slot - b.slot);
@@ -143,7 +144,8 @@ renderAway.patch = function patchAway(body, ctx) {
   const carry = patchCarry(root.querySelector('.haway-carry'), ctx);
   cls(root, 'is-carry', carry);
   /* what needs a decision, from the server's projection: the heroes' envelopes and the server's Carry on plan */
-  patchNeeds(root.querySelector('.haway-needs'), { doc: ctx.doc, peers: () => ctx.peers(), plan: carryPlanFor(ctx), wearOn: !!(carryPlanFor(ctx) || {}).wearOn });
+  patchNeeds(root.querySelector('.haway-needs'), { doc: ctx.doc, peers: () => ctx.peers(), plan: carryPlanFor(ctx), wearOn: !!(carryPlanFor(ctx) || {}).wearOn },
+    needStateOf(ctx));
   const longest = list.reduce((m, a) => Math.max(m, a.facts && Number.isFinite(a.facts.gone) ? a.facts.gone : 0), 0);
   text(root.querySelector('.haway-gone'), longest > 0 ? t('away.card_gone', { time: spanWords(longest) }) : '');
   const mine = ctx.character ? list.find((a) => a.slot === ctx.character.slot && awayBlockOf(ctx.character, a).summary) : null;
@@ -198,6 +200,21 @@ renderAway.patch = function patchAway(body, ctx) {
   prop(footGo, 'disabled', pending);
 };
 
+/* THE NEEDS YOU PRESS THAT STAYS ON THE CARD (regear): its state for this card, and the press. */
+const NEED = new WeakMap();
+const needStateOf = (ctx) => { let s = NEED.get(ctx); if (!s) { s = { pending: false, msg: '' }; NEED.set(ctx, s); } return s; };
+async function regearPress(ctx, body, slots) {
+  const st = needStateOf(ctx), cs = ctx.character || ctx.peers()[0];
+  if (st.pending || !cs || !ctx.account || !slots.length) return;
+  st.pending = true; st.msg = '';
+  renderAway.patch(body, ctx);
+  let r;
+  try { r = await regear(ctx.account, cs, slots); } catch (e) { r = { ok: false, error: 'network' }; }
+  st.pending = false;
+  st.msg = r && r.ok ? (r.plan.went > 0 ? t('away.carry_went', { count: r.plan.went }) : t('away.carry_went_none')) : refusalWords(r && r.error);
+  if (ctx.wm.isOpen('away')) renderAway.patch(body, ctx);
+}
+
 /* The window a Needs you press opens for another hero than the one on screen (the hero is shown first). */
 const NEEDS_OPENS = Object.freeze({ ground: 'hunts', bless: 'shop', prep: 'hunt-prep', bag: 'inventory' });
 
@@ -223,6 +240,8 @@ renderAway.act = function actAway(ctx, body, action, ev, el) {
   /* a Needs you row's press: the window that decides it, the hero it names first (another hero's is shown first, as the hero rows do) */
   if (action === 'away-need') {
     const slot = Number(el.getAttribute('data-slot')), go = el.getAttribute('data-go'), hunt = el.getAttribute('data-hunt');
+    /* "Equip upgrades and go back in" (D-2 rule 8): the card stays while the heroes come home, are dressed and go back; off until then */
+    if (go === 'regear') { regearPress(ctx, body, (el.getAttribute('data-slots') || '').split(',').filter(Boolean).map(Number)); return true; }
     const own = ctx.character && ctx.character.slot === slot;
     ctx.wm.close('away');
     if (go === 'ground' && own && hunt) ctx.wm.goTo('hunts', { tab: hunt, find: null });

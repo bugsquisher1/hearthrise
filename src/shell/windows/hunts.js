@@ -72,6 +72,7 @@ import { patchParts } from '../goto.js';
 import { t } from '../../render/player-text.js';
 import { trainingPhrase } from '../../session/training-sections.js';
 import { patchAfter, actAfter } from './hunt-after-pane.js';
+import { planHtml, patchPlan, actPlan, goAsOf } from './company-pane.js';
 import { patchScale, actScale, scaleTag, scalesNow } from './scale-pane.js';
 
 const SCRATCH = new WeakMap();
@@ -159,10 +160,11 @@ function afterTier(cs, sc, repaint, go) {
   return saveTier(cs, sc, repaint).then((r) => (r && r.ok === false ? r : go()));
 }
 
-/* The setup Enter goes as: the one picked under Go as while the server still lists it, else the one in use. */
-function chosenOf(sc, setups) {
+/* The setup Enter goes as: the one picked under Go as while the server still lists it, else the ground's own (the server's pointer,
+   company-pane.js), else the one in use. */
+function chosenOf(sc, setups, pointer) {
   if (!setups || !setups.length) return null;
-  const p = setups.find((x) => x.preset === sc.goAs) || setups.find((x) => x.inUse) || setups[0];
+  const p = setups.find((x) => x.preset === sc.goAs) || setups.find((x) => x.preset === pointer) || setups.find((x) => x.inUse) || setups[0];
   return p.preset;
 }
 
@@ -174,7 +176,7 @@ function chosenOf(sc, setups) {
 async function asChosen(cs, sc, go) {
   await settleTownActivity(cs);
   const s = settingsOf(cs);
-  const want = chosenOf(sc, setupsOf(cs));
+  const want = chosenOf(sc, setupsOf(cs), goAsOf(cs, sc.pick));
   if (s && Number.isInteger(want) && want !== s.preset) {
     const a = await cs.applyPreset(want);
     if (!a || !a.ok) return a || { ok: false, error: 'network' };
@@ -205,7 +207,7 @@ export function renderHunts(ctx) {
     + '<p class="hw-tier-note"></p>'
     + '<p class="hw-hunt-pack"></p>' + goHtml() + callHtml() + hallHtml() + '</div>'
     + '<div class="hw-hd-foot"><p class="hh-intent-msg" role="status" aria-live="polite"></p>'
-    + '<p class="hw-enter-why"></p><button type="button" class="hh-tool" data-hs-act="leave-party" hidden>' + t('controls.leave_party') + '</button>'
+    + '<p class="hw-enter-why"></p>' + planHtml() + '<button type="button" class="hh-tool" data-hs-act="leave-party" hidden>' + t('controls.leave_party') + '</button>'
     + '<button type="button" class="hw-primary is-on hw-hunt-enter" data-hs-act="enter">' + t('controls.enter') + '</button></div>'
     + '</section></div></div>';
 }
@@ -333,7 +335,7 @@ function patchPage(det, ctx, sc, v) {
   text(det.querySelector('.hw-hunt-pack'), now && now.huntId === r.hunt && carried ? carriedWords(carried) : '');
   /* GO AS, BEFORE YOU GO, WITH A PARTY: the server's setups, bar, stamina and gold, and this account's open heroes. */
   const setups = setupsOf(cs);
-  const chosen = chosenOf(sc, setups);
+  const chosen = chosenOf(sc, setups, goAsOf(cs, r.hunt));
   const other = (setups || []).find((p) => p.preset === chosen && !p.inUse);
   const before = now ? [] : beforeLines(cs, { hunt: r.hunt, other: other ? other.name : null });
   patchGo(det, ctx, {
@@ -347,6 +349,7 @@ function patchPage(det, ctx, sc, v) {
   });
   /* WHEN THE HUNT ENDS: each hero's own choice, a party member's too (the leader picks the hunt, never where a friend goes after it). */
   patchAfter(det, ctx, { off: sc.pending, now: !!now });
+  patchPlan(det, ctx, { hunt: r.hunt, pending: sc.pending });
   patchCall(det, ctx, { hunt: r.hunt, party, now, pending: sc.pending });
   patchHall(det, ctx, { hunt: r.hunt, party, now, pending: sc.pending, other: !!other });
   patchScale(det, ctx, { hunt: r.hunt, party, pending: sc.pending });
@@ -441,8 +444,8 @@ renderHunts.act = function actHunts(ctx, body, action, ev, el) {
   if (action === 'back') { sc.paged = false; repage(); return true; }
   /* "+N more" under a ground's loot: the rest of its rows (display scratch, this ground's only) */
   if (action === 'loot-more') { sc.allLoot = sc.pick; repaint(); return true; }
-  /* Go as: display scratch only, until Enter sends it (nothing else reads or spends it). */
-  if (action === 'go-as') { if (!sc.pending) { sc.goAs = Number(el.getAttribute('data-preset')); sc.msg = ''; repaint(); } return true; }
+  /* Go as is the ground's Setup, and "Go here at the next Start" the plan's ground (company-pane.js): one intent each. */
+  if (action === 'go-as' || action === 'plan-here') return actPlan(ctx, sc, repaint, action, el);
   /* Find a party: the Party window's finder, on this ground and this hero's weapon (B #3). */
   if (action === 'find-party') { if (sc.pick) openFinderOn(ctx, cs, sc.pick); return true; }
   /* Hunt prep (the door under Go as), opened from here so its Back comes back to this ground (window-manager.js from) */

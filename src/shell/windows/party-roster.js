@@ -15,6 +15,10 @@
 // board shows. Leave and Disband are the board's own leaveOrDisband (one path,
 // one intent each), off from the press until the server answered; the tab
 // changes only from the re-read envelope.
+// THE LEADER (designer D-2 section 2.2, 1051-company-start.sql): a party of the account's own heroes is led by the hero the engine sends in
+// front (ROLE_ORDER), worked out at every Start; "Lead" on a seat pins that hero (hr_party_lead_set) and "Let the front lead" unpins it, in
+// town only, off until the server answers. The words under the seats are the ruling's: "{Name} leads. {Name} walks in front and picks the
+// hunt for the party."
 // ════════════════════════════════════════════════════════════════════════
 import { HUNT_ROLES, roleForWeapon } from '../../data/hunt-roles.js';
 import { HUNT_GROUNDS } from '../../data/hunt-grounds.js';
@@ -25,13 +29,18 @@ import { huntName } from '../../session/party-sections.js';
 import { rosterOf, stateWords, leaveOrDisband, disbandWord } from '../widgets/party-panel.js';
 import { patchRoleGlyph } from '../widgets/bits.js';
 import { glyphSvg } from '../launcher.js';
-import { rows, text, cls, prop, element } from '../../render/paint.js';
+import { rows, text, cls, prop, attr, element } from '../../render/paint.js';
 import { t } from '../../render/player-text.js';
+import { partyMembershipOf } from '../../session/party-sections.js';
+import { companyPlanOf } from '../../session/company-sections.js';
+import { setPartyLead } from '../../session/company-intents.js';
+import { runIntent } from '../intent-words.js';
 
 /** The tab's skeleton (built once with the window). */
 export function rosterHtml() {
   return '<ul class="hw-ledger hw-seats"></ul>'
     + '<p class="hs-note hw-party-next"></p>'
+    + '<p class="hs-note hw-party-lead" hidden></p><button type="button" class="hh-tool hw-lead-unpin" data-hs-act="lead-unpin" hidden>' + t('party.lead_unpin') + '</button>'
     + '<p class="hs-note hw-party-class" hidden></p>'
     + '<div class="hw-add hw-party-acts">'
     + '<button type="button" class="hw-primary is-on" data-hs-act="party-hunts" hidden>' + t('controls.pick_hunt') + '</button>'
@@ -43,7 +52,7 @@ function seatHtml(glyphs) {
   return '<li class="hw-line hw-seat"><span class="hw-ico hw-roleglyph" aria-hidden="true"></span>'
     + '<span class="hw-line-name"><b><span class="hw-seat-name"></span>'
     + '<span class="hw-seat-lead" title="Party leader" hidden>' + glyphSvg(glyphs, 'uiCrown') + '</span></b><small></small></span>'
-    + '<span class="hw-seat-state"></span></li>';
+    + '<span class="hw-seat-state"></span><button type="button" class="hh-tool hw-seat-leadpin" data-hs-act="lead-pin" hidden>' + t('party.lead_pin') + '</button></li>';
 }
 
 /** One seat's second line: "Lv 12 · Melee (shield)" (no weapon worn: "No weapon"). */
@@ -105,10 +114,22 @@ export function classLineOf(p, r) {
   return hunt ? classXpLine(r.members.map((m) => m.role), hunt, tier) : '';
 }
 
+/* THE ACCOUNT'S OWN SEATS of this party: seat -> the own hero's slot (each own hero's party section names its own seat). A party with a seat
+   not in it seats another account's hero: the company never re-leads it (the server refuses not_own_party). */
+function ownSeatsOf(ctx, p) {
+  const out = new Map();
+  const all = ctx.account && typeof ctx.account.characters === 'function' ? ctx.account.characters() : [ctx.character];
+  for (const o of all) { const m = partyMembershipOf(o); if (m && m.id === p.id && Number.isInteger(m.me)) out.set(m.me, o.slot); }
+  return out;
+}
+
 /** Patch the tab from the server's party; `p` partyMembershipOf (null: the tab is hidden by the window). */
 export function patchRoster(root, ctx, sc, p) {
   if (!p) return;
   const r = rosterOf(ctx.character);
+  const own = ownSeatsOf(ctx, p);
+  const company = own.size === r.members.length && r.members.length > 1;
+  const pinned = !!(companyPlanOf(ctx.character) || {}).leadPinned;
   rows(root.querySelector('.hw-seats'), r.members, {
     key: (m) => String(m.seat),
     build: () => element(ctx.doc, seatHtml(ctx.glyphs)),
@@ -119,9 +140,19 @@ export function patchRoster(root, ctx, sc, p) {
       text(li.querySelector('small'), seatFacts(m));
       text(li.querySelector('.hw-seat-state'), seatWhere(m));
       cls(li, 'is-away', m.away);
+      const pin = li.querySelector('[data-hs-act="lead-pin"]');
+      prop(pin, 'hidden', !company || r.anyHunting || m.seat === r.leaderSeat);
+      attr(pin, 'data-slot', own.has(m.seat) ? String(own.get(m.seat)) : null);
+      prop(pin, 'disabled', sc.pending);
     },
   });
   text(root.querySelector('.hw-party-next'), nextStep(p, r));
+  const lead = r.members.find((m) => m.seat === r.leaderSeat);
+  text(root.querySelector('.hw-party-lead'), company && lead ? t('party.lead_words', { name: lead.name }) : '');
+  prop(root.querySelector('.hw-party-lead'), 'hidden', !(company && lead));
+  const unpin = root.querySelector('[data-hs-act="lead-unpin"]');
+  prop(unpin, 'hidden', !company || !pinned || r.anyHunting);
+  prop(unpin, 'disabled', sc.pending);
   const classLine = classLineOf(p, r);
   text(root.querySelector('.hw-party-class'), classLine);
   prop(root.querySelector('.hw-party-class'), 'hidden', !classLine);
@@ -133,7 +164,14 @@ export function patchRoster(root, ctx, sc, p) {
 }
 
 /** The tab's controls. True when the action was the tab's. */
-export function actRoster(ctx, action, repaint, sc) {
+export function actRoster(ctx, action, repaint, sc, el) {
   if (action === 'party-hunts') { ctx.show('hunts'); return true; }
+  if (action === 'lead-pin' || action === 'lead-unpin') {
+    const slot = action === 'lead-pin' && el ? Number(el.getAttribute('data-slot')) : null;
+    if (action === 'lead-pin' && !Number.isInteger(slot)) return true;
+    runIntent(sc, repaint, () => setPartyLead(ctx.account, ctx.character, slot), t('heroes.sending'),
+      () => (slot === null ? t('party.lead_unpinned') : t('party.lead_pinned')), ctx.character);
+    return true;
+  }
   return leaveOrDisband(ctx, ctx.character, sc, repaint, action);
 }

@@ -18,6 +18,10 @@
 //                                            (src/core/upgrade-pick.js over its own hr_state_of) and puts it on through hr_apply's gate;
 //                                            every named hero takes the envelope the answer carries for it. { ok, heroes: [{ slot, wore |
 //                                            refused | why }] }. Names slots only: the client never says which piece.
+//   regear(account, cs, slots, o)            "EQUIP UPGRADES AND GO BACK IN" (D-2 rule 8), a visiting player's ONE press for heroes out
+//                                            hunting with upgrades waiting: each leaves (hr_hunt_leave: the server ends the hunt at its next
+//                                            lap), the press waits for the server to say every one is home, then ONE Start that the server
+//                                            dresses first sends them back where they were (the named heroes' own ground, tier and party).
 //   setCompanyLine(account, cs, line, value) hr_company_line_set: a plan line set once for every hero; every hero is read again.
 //
 // The client names slots, the shown gold figure and a key: never a ground, a count, a price or an item. `cs` is the hero the press was
@@ -27,6 +31,7 @@ import { askVia } from './intent-ledger.js';
 import { afterRefusal } from './quoted-ask.js';
 import { settleTownActivity } from './party-intents.js';
 import { edgeBody, edgeRead } from './edge-intents.js';
+import { huntOf } from './hunt-sections.js';
 
 const VERB = 'carry_on';
 const PLAN = 'carry_on_plan';
@@ -176,4 +181,34 @@ export function setCompanyLine(account, cs, line, value) {
     await Promise.all(all.filter((o) => o && o.status !== 'closed' && typeof o.load === 'function').map((o) => o.load(isObj(envs[o.slot]) ? envs[o.slot] : null)));
     return { ok: true };
   });
+}
+
+/**
+ * "EQUIP UPGRADES AND GO BACK IN" (designer D-2 rule 8): leave, equip, go back in, for the named heroes out hunting. Every step is the
+ * server's: each leave ends at the hunt's next lap (hr_hunt_leave), home is what the server's envelope says (read again, `o.pause`
+ * between reads, at most `o.tries` reads), the pieces are the server's pick (companyWear) and the way back is the Start (carryOn) on the server's
+ * plan for exactly these heroes, so a hero the player left by hand goes too. A boss room, a training session or a Tower run is never
+ * offered this press (needs-you/gear-choice.js): their one door is their own.
+ */
+export async function regear(account, cs, slots, o = {}) {
+  const scope = scopeOf(slots);
+  if (!usable(account, cs) || !scope || typeof account.character !== 'function') return { ok: false, error: 'bad_intent', verb: 'regear', plan: null };
+  const heroes = scope.map((s) => account.character(s)).filter((h) => h && h.status !== 'closed' && typeof h.load === 'function');
+  if (heroes.length !== scope.length) return { ok: false, error: 'bad_intent', verb: 'regear', plan: null };
+  const out = (h) => { const x = huntOf(h); return !!x && !x.ended; };
+  for (const h of heroes) {
+    if (!out(h)) continue;
+    const r = await h.leaveHunt();
+    if (!r || r.ok !== true) return { ok: false, error: (r && r.error) || 'refused', verb: 'regear', plan: null };
+  }
+  const pause = typeof o.pause === 'function' ? o.pause : () => new Promise((res) => setTimeout(res, 2000));
+  const tries = Number.isInteger(o.tries) && o.tries > 0 ? o.tries : 45;
+  for (let i = 0; heroes.some(out); i++) {
+    if (i >= tries) return { ok: false, error: 'still_hunting', verb: 'regear', plan: null };
+    await pause();
+    await Promise.all(heroes.map((h) => h.load()));
+  }
+  const read = await carryOnPlan(account, cs, scope);
+  if (!read.ok) return read;
+  return carryOn(account, cs, read.plan.gold, scope, [], scope);
 }

@@ -97,8 +97,9 @@ const linesHtml = () => '<div class="haway-lines">' + LINES.map((l) => '<div cla
   + l.values.map(([v, w]) => '<button type="button" class="hh-seg" data-hs-act="away-line" data-line="' + l.line + '" data-value="' + v + '">' + t(w) + '</button>').join('')
   + '</div>').join('') + '<p class="haway-line-note" hidden></p></div>';
 
-/** The server's Carry on plan this card holds (null before it has come): the Needs you providers read it (../needs-you.js). */
-export const carryPlanFor = (ctx) => stateOf(ctx).plan;
+/** The server's Carry on plan this card shows (its last press's answer once one went, else the plan; null before it has come): the Needs you
+    providers read it (../needs-you.js). */
+export const carryPlanFor = (ctx) => stateOf(ctx).said || stateOf(ctx).plan;
 
 /** The block (built once). */
 export function renderCarry() {
@@ -181,7 +182,7 @@ export async function pressCarry(ctx, refresh, dismissSlots) {
   /* a refusal says why (quote_changed / nothing_to_carry_on bring the server's plan as it stands now); an answer says who went */
   s.msg = !(r && r.ok) ? refusalWords(r && r.error) : r.plan.went > 0 ? t('away.carry_went', { count: r.plan.went }) : t('away.carry_went_none');
   if (r && r.ok) {
-    s.said = withWore(r.plan, r.wore);
+    s.said = Object.assign(withWore(r.plan, r.wore), { wearOn: plan.wearOn });   // the line as it stood for this press
     dismissSlots(r.plan.heroes.filter((h) => h.state === 'went').map((h) => h.slot));
   } else if (r && r.plan) s.plan = r.plan;
   s.key = null;   // the next step reads the plan again

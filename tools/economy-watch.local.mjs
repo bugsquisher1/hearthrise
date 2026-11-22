@@ -304,7 +304,7 @@ select (x.at at time zone 'UTC')::date::text as day, x.kind, split_part(coalesce
        case when split_part(coalesce(x.intent, ''), ':', 1) in (${FAMILY_VERBS.map((v) => `'${v}'`).join(', ')})
             then split_part(split_part(x.intent, ':', 2), '.', 1) else '' end as fam,
        coalesce(x.meta ->> 'transfer', '') = 'true' as xfer,
-       count(*) as n,
+       sum(coalesce(x.folded, 1)) as n,
        coalesce(sum(x.gold) filter (where x.gold > 0), 0) as g_in,
        coalesce(sum(-x.gold) filter (where x.gold < 0), 0) as g_out
   from public.player_ledger x

@@ -64,10 +64,10 @@ led as (
          count(*) filter (where l.kind = 'farm'   and l.intent = 'farm_plant')             as plants,
          count(*) filter (where l.kind = 'farm'   and l.intent = 'farm_water')             as waters,
          count(*) filter (where l.kind = 'farm'   and l.intent = 'farm_harvest')           as harvests,
-         count(*) filter (where l.kind = 'combat' and l.intent in ('xp_credit','accrue'))  as fights,
+         sum(coalesce(l.folded, 1)) filter (where l.kind = 'combat' and l.intent in ('xp_credit','accrue')) as fights,
          count(*) filter (where l.kind = 'combat' and l.intent = 'death')                  as deaths,
-         count(*) filter (where l.kind = 'gather')                                         as gathers,
-         count(*) filter (where l.kind = 'craft')                                          as crafts,
+         sum(coalesce(l.folded, 1)) filter (where l.kind = 'gather')                       as gathers,
+         sum(coalesce(l.folded, 1)) filter (where l.kind = 'craft')                        as crafts,
          count(*) filter (where l.kind = 'shop'   and l.intent like 'shop_buy:%')          as buys,
          count(*) filter (where l.kind = 'shop'   and l.intent like 'unlock_buy:room.%')   as rooms,
          count(*) filter (where l.kind = 'shop'   and l.intent like 'setup\\_slot\\_buy:%')  as setup_slots,
@@ -412,12 +412,30 @@ function capacityLine(row) {
   const pct = (v) => (v === null || v === undefined ? 'n/a' : `${Number(v)}%`);
   // A null wall (unreadable) is Number(null) = 0, under any alarm line (capacity_config's check keeps it above 0).
   const over = ['db', 'tick', 'edge', 'ledger'].filter((w) => Number(row[`${w}_pct`]) >= Number(row.alarm_pct ?? 70));
+  /* THE SETTLE READ (1046-settle-plans.sql): its mean beside db, red over settle_read_alarm_ms (40); null (no read, or before 1046) never is */
+  const readMs = row.settle_read_ms === null || row.settle_read_ms === undefined ? null : Number(row.settle_read_ms);
+  if (readMs !== null && readMs > Number(row.settle_read_alarm_ms ?? 40)) over.push('settle-read');
   const stale = Number(row.age_s) > 180 ? ` STALE (${row.age_s} s old: is the job running?)` : '';
-  return `capacity: ${over.length ? `AT THE WALL ${over.join(' ')}` : 'OK'} — db ${pct(row.db_pct)}, tick ${pct(row.tick_pct)} `
+  return `capacity: ${over.length ? `AT THE WALL ${over.join(' ')}` : 'OK'} — db ${pct(row.db_pct)} (settle read ${readMs === null ? 'n/a' : `${readMs} ms`}), tick ${pct(row.tick_pct)} `
     + `(${row.tick_open ?? '?'}/${row.tick_capacity ?? '?'} open, worst lag ${row.worst_lag_s ?? '?'} s), edge ${pct(row.edge_pct)}`
     + `${Number(row.edge_deferred) ? ` (${row.edge_deferred} deferred)` : ''}, ledger ${pct(row.ledger_pct)}`
     + ` (${row.ledger_rows_day ?? '?'} rows/day); alarm at ${row.alarm_pct ?? 70}%`
     + `${(row.open_walls || []).length ? `, open episodes ${row.open_walls.join(' ')}` : ''}${stale}`;
+}
+/** THE HOURLY JOURNAL'S FOLD (1047-hourly-journal.sql), one line from its state row and the ledger config (pure: --selftest feeds it).
+    BEHIND when the hour it has reached is more than detail_minutes + 2 h old (the cron stopped, or a run cannot finish an hour);
+    FAILING when its last run kept a hero-hour's detail on an error. Switched off reads OFF, never OK. */
+function journalFoldLine(row) {
+  if (!row || !row.s) return 'journal fold: NO STATE (1047-hourly-journal.sql not applied, or its state row was lost: the next run recreates it)';
+  const s = row.s; const c = row.c || {}; const last = s.last || {};
+  if (c.hourly === false || String(c.hourly) === 'false') return 'journal fold: OFF (hr_ledger_config.hourly = false: every new row keeps its detail)';
+  const lagH = (Date.parse(row.now) - Date.parse(s.hour)) / 3600000;
+  const lineH = Number(c.detail_minutes ?? 180) / 60 + 2;
+  const bad = [];
+  if (!(lagH <= lineH)) bad.push(`BEHIND ${Number.isFinite(lagH) ? lagH.toFixed(1) : '?'} h (line ${lineH} h)`);
+  if (Number(last.errors) > 0) bad.push(`FAILING ${last.errors} hero-hour(s): ${String(last.error || '').slice(0, 120)}`);
+  return `journal fold: ${bad.length ? bad.join('; ') : 'OK'} — at ${String(s.hour).slice(0, 16)}, last run ${last.rows_in ?? 0} rows -> ${last.rows_out ?? 0} hour rows`
+    + `${Number(last.left) ? `, ${last.left} kept for a key the model lacks` : ''}; all time ${s.rows_in ?? 0} -> ${s.rows_out ?? 0}`;
 }
 // ── STALL RULE END ───────────────────────────────────────────────────────────
 const STALL_RULE = { hours: 2, minRowsPerHour: 30 };
@@ -445,9 +463,14 @@ const ALERT_RELAY = `select exists (select 1 from vault.secrets where name = 'hr
 const CAPACITY = `select s.at, round(extract(epoch from now() - s.at)) as age_s, s.db_pct, s.tick_pct, s.edge_pct, s.ledger_pct,
     s.detail->>'tick_open' as tick_open, s.detail->>'tick_capacity' as tick_capacity, s.detail->>'tick_worst_lag_s' as worst_lag_s,
     s.detail->>'ledger_rows_day' as ledger_rows_day, s.detail->>'edge_deferred' as edge_deferred,
+    to_jsonb(s)->>'settle_read_ms' as settle_read_ms,
+    (select to_jsonb(c)->>'settle_read_alarm_ms' from hr_ops.capacity_config c where c.id) as settle_read_alarm_ms,
     (select alarm_pct from hr_ops.capacity_config where id) as alarm_pct,
     (select coalesce(jsonb_agg(code), '[]'::jsonb) from hr_ops.watch_state where code like 'capacity-%') as open_walls
   from hr_ops.capacity_samples s order by s.at desc, s.id desc limit 1`;
+/* THE HOURLY JOURNAL'S FOLD (1047-hourly-journal.sql): its one state row and the ledger dials, as JSON (journalFoldLine). */
+const JOURNAL_FOLD = `select to_jsonb(s) as s, (select to_jsonb(c) from public.hr_ledger_config c limit 1) as c, now() as now
+  from public.hr_ledger_hours_state s`;
 /* CLOSED MODE'S PRE-REQUEST HOOK (closedGateVerdict). A missing flag row reads
    CLOSED, exactly as hr_admitted reads it. */
 const CLOSED_GATE = `
@@ -556,7 +579,7 @@ s as (
 select c.ch as channel, h.i, coalesce(c.enabled, false) as enabled,
        (select count(*) from public.hr_tick_cron_log l
          where l.at >= h.lo and l.at < h.hi and l.outcome = 'posted' and l.rostered >= 1) as rost_fires,
-       (select count(*) from public.player_ledger pl
+       (select coalesce(sum(coalesce(pl.folded, 1)), 0) from public.player_ledger pl
          where pl.at >= h.lo and pl.at < h.hi
            and pl.kind = (case c.ch when 'artisan' then 'craft' else c.ch end)
            and pl.meta ->> 'src' = 'tick') as tick_rows,
@@ -664,7 +687,7 @@ async function selftest() {
   const b = SRC.indexOf('// ── STALL RULE END');
   if (a < 0 || b < 0) { console.error('vitals --selftest: the STALL RULE markers are gone'); return 2; }
   const RULE_SRC = SRC.slice(a, b);
-  const lift = (src) => new Function(`${src}\nreturn { tickStallVerdict, tickDayRollup, armedStallVerdict, partyStaleVerdict, armedLagVerdict, closedGateVerdict, capacityLine };`)();
+  const lift = (src) => new Function(`${src}\nreturn { tickStallVerdict, tickDayRollup, armedStallVerdict, partyStaleVerdict, armedLagVerdict, closedGateVerdict, capacityLine, journalFoldLine };`)();
 
   const hour = (o) => ({ day: '2026-09-28', fires: 360, rost_fires: 360, rostered: 1, shadow_rows: 0, refused: 0, ...o });
   const checks = (L) => {
@@ -752,6 +775,16 @@ async function selftest() {
     t('K3 an unreadable wall (null) is never AT THE WALL', head(K({ db_pct: null })), 'capacity: OK');
     t('K4 a sample over 3 minutes old says STALE', /STALE/.test(K({ age_s: 400 })), true);
     t('K5 no sample -> NO SAMPLE, never OK', /NO SAMPLE/.test(K(null)), true);
+    t('K6 the settle read over 40 ms (a string) -> AT THE WALL settle-read', head(K({ settle_read_ms: '41.5', settle_read_alarm_ms: '40' })), 'capacity: AT THE WALL settle-read');
+    t('K7 the settle read unread (null, before 1046) is never AT THE WALL', head(K({ settle_read_ms: null })), 'capacity: OK');
+    t('K8 the settle read at 40 ms is OK (red OVER the line)', head(K({ settle_read_ms: 40, settle_read_alarm_ms: 40 })), 'capacity: OK');
+    const J = (s, c = { hourly: true, detail_minutes: 180 }) => L.journalFoldLine(s === null ? null
+      : { now: '2026-11-21T12:00:00Z', c, s: { hour: '2026-11-21T08:00:00Z', rows_in: 900, rows_out: 30, last: { rows_in: 90, rows_out: 3, errors: 0 }, ...s } });
+    t('J1 the fold at its line (4 h behind, detail 3 h) -> OK', head(J({})), 'journal fold: OK');
+    t('J2 the fold 6 h behind -> BEHIND', /^journal fold: BEHIND/.test(J({ hour: '2026-11-21T06:00:00Z' })), true);
+    t('J3 a hero-hour kept on an error (a string count) -> FAILING', /FAILING 1 hero-hour/.test(J({ last: { errors: '1', error: 'boom' } })), true);
+    t('J4 switched off -> OFF, never OK', head(J({}, { hourly: false })), 'journal fold: OFF (hr_ledger_config.hourly = false: every new row keeps its detail)');
+    t('J5 no state -> NO STATE, never OK', /^journal fold: NO STATE/.test(J(null)), true);
     return out;
   };
 
@@ -796,6 +829,11 @@ async function selftest() {
     { name: 'closedUnreadIsOk', find: "if (!row || row.closed === undefined || row.hook === undefined) return { verdict: 'UNREAD', why: 'no reading' };", repl: '' },
     { name: 'capacityWallIgnored', find: '=> Number(row[`${w}_pct`]) >= Number(row.alarm_pct ?? 70));', repl: '=> Number(row[`${w}_pct`]) > 100);' },
     { name: 'capacityStaleIgnored', find: 'Number(row.age_s) > 180', repl: 'false' },
+    { name: 'journalBehindIgnored', find: 'if (!(lagH <= lineH)) bad.push(', repl: 'if (false) bad.push(' },
+    { name: 'journalErrorsIgnored', find: 'if (Number(last.errors) > 0) bad.push(', repl: 'if (false) bad.push(' },
+    { name: 'journalOffIsOk', find: "if (c.hourly === false || String(c.hourly) === 'false') return", repl: 'if (false) return' },
+    { name: 'settleReadIgnored', find: "if (readMs !== null && readMs > Number(row.settle_read_alarm_ms ?? 40)) over.push('settle-read');", repl: '' },
+    { name: 'settleReadNullFires', find: 'const readMs = row.settle_read_ms === null || row.settle_read_ms === undefined ? null : Number(row.settle_read_ms);', repl: 'const readMs = Number(row.settle_read_ms ?? 1e9);' },
     { name: 'lagUnreadIsOk', find:"if (!Number.isFinite(judged) || !Number.isFinite(stuck)) return { verdict: 'UNREAD', why: 'no count' };", repl: '' },
   ];
   let missed = 0;
@@ -951,6 +989,12 @@ if (selftestMode) {
       console.log(capacityLine((await ask(CAPACITY, { soft: true }))[0]));
     } catch (e) {
       console.log(`capacity: UNREAD — ${e.message}; is 1002-ops-capacity-sample.sql applied?`);
+    }
+    // THE HOURLY JOURNAL'S FOLD (1047-hourly-journal.sql): its cursor, its last run.
+    try {
+      console.log(journalFoldLine((await ask(JOURNAL_FOLD, { soft: true }))[0]));
+    } catch (e) {
+      console.log(`journal fold: UNREAD — ${e.message}; is 1047-hourly-journal.sql applied?`);
     }
   }
 }

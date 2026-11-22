@@ -59,7 +59,9 @@
 //        flickering in and out of view writes no more; a page closed with no hide event (pagehide alone) still gets it out;
 //        a hunt this page has not stamped yet is stamped at once, so a tab killed with no goodbye still has an answer
 //   B-18 RESIDUE IN THE DEBOUNCE SURVIVES A RELOAD (coach's Got it, lost for 1.5 s after every press): Got it, reload at once, over a real
-//        server (a real page's way out; Playwright's routes never see it): the server holds the read and the card stays dismissed
+//        server (a real page's way out; Playwright's routes never see it): the server holds the read and the card stays dismissed. Since
+//        the reads are the account's (1039, sent at once), the press a reload can lose is a HIDE (residue coach.hid): Got it on the card
+//        that teaches, then Got it on the next, a server fact's, and the reload
 //   B-23 THE HEARTH BEHIND THE ACCOUNT SCREENS (art audit 2026-11-19 §5: the sign-in stood on a black void): at Windows' 125 % the sign-in
 //        and the characters screens stand on Hearth Square (assets/brand/hearth-square.png, 1024x640 art px) drawn at a whole number of
 //        device px an art px, pixelated, fixed, under the scrim; it is asked for once, only after the crest has arrived, and Play leaves it
@@ -842,9 +844,7 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
     }
 
     if (leaving) { // B-18 a Got it pressed just before a reload stays pressed
-      /* a fresh hero in town (phone-touch PH-6): its first card, the Cellar's (it rings Hunts since FB-5), has a Got it inside Hunts. A card a
-         server fact finishes is HIDDEN by Got it (residue `coach.hid`, flushed on the way out); one that teaches is READ (the account's
-         hr_account_coach, sent at once): either way the press must outlive the reload */
+      /* a fresh hero in town (phone-touch PH-6): its first card, Tamsin's rats, has a Got it in her tally */
       const fixture = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/alpha-envelope.json'), 'utf8'));
       const residue = { coach: { read: [] } };
       let version = 1;
@@ -893,26 +893,36 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
           }).filter((x) => x.lines > 1));
           if (wrapped.length) fails.push('B-18b a card button wraps at 1280 px: ' + JSON.stringify(wrapped));
         }
-        /* the way to Hunts is read off the bar (a real rule); a press on a control that is there and still throws is the harness's */
+        /* the way to her tally is read off the bar (a real rule); a press on a control that is there and still throws is the harness's */
         if (!(await wait(page, () => document.querySelector('.hs-launchers .hs-launch'), null, 15000))) fails.push('B-18 the game screen never showed its launchers');
-        else if (!(await page.$(rowIcon('hunts')))) fails.push('B-18 the top bar has no way to Hunts');
-        else await pressBar(page, 'hunts').catch((e) => fails.push(harnessFail('B-18 the press on Hunts', e)));
+        else if (!(await page.$(rowIcon('tally')))) fails.push('B-18 the top bar has no way to her tally');
+        else await pressBar(page, 'tally').catch((e) => fails.push(harnessFail('B-18 the press on her tally', e)));
         if (!(await wait(page, (q) => document.querySelector(q), got, 15000))) fails.push('B-18 CONTROL: a fresh hero shows no card with Got it');
         else {
           await page.waitForTimeout(2000);   // what the first paint wrote has landed: only the press is left to lose
           const card = await page.evaluate((q) => document.querySelector(q).closest('[data-tutorial]').getAttribute('data-tutorial'), got);
           const before = puts.length;
-          const t0 = Date.now();
+          /* TWO GOT ITS, ONE PER STORE (1039-account-coach.sql moved the reads off the residue): her card TEACHES, so its Got it is the account's
+             read, sent at once; the card after it (the Cellar's) is finished by a server fact, so its Got it HIDES it in the residue, which waits in
+             the debounce and must be flushed on the way out (src/shell/alerts.js). The second press is the one a reload can lose. */
           await page.evaluate((q) => document.querySelector(q).click(), got);
-          await page.reload({ waitUntil: 'commit' });
-          const ms = Date.now() - t0;
-          if (ms > 1200) fails.push(HARNESS + ' B-18: the reload began ' + ms + ' ms after the press, past the debounce: this run proves nothing');
-          await wait(page, () => document.querySelector('.hs-launchers'), null, 15000);
-          await page.waitForTimeout(1500);
-          const hid = residue.coach && Array.isArray(residue.coach.hid) ? residue.coach.hid : [];
-          if (!coach.read.includes(card) && !hid.includes(card)) fails.push('B-18 Got it on "' + card + '" just before a reload never reached the server: ' + JSON.stringify(puts.slice(before)));
-          const again = await page.evaluate((id) => !!document.querySelector('[data-tutorial="' + id + '"]'), card);
-          if (again) fails.push('B-18 the card "' + card + '" came back after the reload');
+          const town = '.hs-pointer[data-tutorial]:not([data-tutorial="' + card + '"]) .hs-coach-got';
+          if (!(await wait(page, (q) => [...document.querySelectorAll(q)].some((b) => b.offsetParent), town, 8000))) fails.push('B-18 CONTROL: no next card with a Got it after "' + card + '"');
+          else {
+            const next = await page.evaluate((q) => [...document.querySelectorAll(q)].find((b) => b.offsetParent).closest('[data-tutorial]').getAttribute('data-tutorial'), town);
+            const t0 = Date.now();
+            await page.evaluate((q) => [...document.querySelectorAll(q)].find((b) => b.offsetParent).click(), town);
+            await page.reload({ waitUntil: 'commit' });
+            const ms = Date.now() - t0;
+            if (ms > 1200) fails.push(HARNESS + ' B-18: the reload began ' + ms + ' ms after the press, past the debounce: this run proves nothing');
+            await wait(page, () => document.querySelector('.hs-launchers'), null, 15000);
+            await page.waitForTimeout(1500);
+            if (!coach.read.includes(card)) fails.push('B-18 Got it on "' + card + '" never reached the server: ' + JSON.stringify(puts.slice(before)));
+            const hid = residue.coach && Array.isArray(residue.coach.hid) ? residue.coach.hid : [];
+            if (!hid.includes(next)) fails.push('B-18 Got it on "' + next + '" just before a reload never reached the server: ' + JSON.stringify(puts.slice(before)));
+            const again = await page.evaluate((ids) => ids.filter((id) => !!document.querySelector('[data-tutorial="' + id + '"]')), [card, next]);
+            if (again.length) fails.push('B-18 the card ' + JSON.stringify(again) + ' came back after the reload');
+          }
         }
         if (errors.length) fails.push('B-18 console errors: ' + errors.slice(0, 3).join(' | '));
       } catch (e) {   // a step that throws is HARNESS (tests/_mutant-verdict.mjs), never B-18's catch and never the end of the run

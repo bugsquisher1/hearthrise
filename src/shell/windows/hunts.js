@@ -53,11 +53,12 @@ import { whole, sepHtml, withSeps } from '../../render/format.js';
 import { escapeHtml as esc } from '../../utils/dom.js';
 import { itemNameFor, revealInWindow } from '../widgets/bits.js';
 import { glyphSvg } from '../launcher.js';
+import { markCoachRead } from '../launcher-coach.js';
 import { runIntent, refusalText } from '../intent-words.js';
 import { HUNT_GROUNDS } from '../../data/hunt-grounds.js';
 import { TIER_IDS, TIER_NAME, TIER_LINES, DEFAULT_TIER, tiersOf } from '../../data/hunt-tiers.js';
 import { huntRows, packWords, tierPull, tierWords, tierChoiceWords, rangeWords, heroWords, packFor, bestLine, fitWords, ABOVE_LEVEL_WORDS, recommendation, adviceLevels, openingPick, adviceTag, seatsUnder, underWords, shareWords, seatsOutgrown, outgrownWords } from '../hunt-list.js';
-import { nextStepUp } from '../../data/hunt-tutorial.js';
+import { nextStepUp, FIRST_DANGEROUS } from '../../data/hunt-tutorial.js';
 import { detailHtml, patchGround, goHtml, patchGo } from './hunt-detail.js';
 import { setupsOf, beforeLines, freeHeroes, FOOD_WEAK_ID, partiedHeroes, openOthers } from '../hunt-go.js';
 import { openFinderOn } from './party-finder.js';
@@ -142,6 +143,8 @@ function saveTier(cs, sc, repaint) {
     try { r = await cs.setHuntTier(d.hunt, d.tier); } catch (e) { r = null; }
     if (!r) r = { ok: false, error: 'network' };
     if (sc.draft === d) { sc.draft = null; sc.msg = r.ok ? '' : refusalText(r); }
+    /* A HARDER TIER TAKEN IS THE COACH'S OFFER TAKEN (hunt-tutorial.js FIRST_DANGEROUS): recorded as its read, so going back to Normal never brings it back */
+    if (r.ok && d.tier !== DEFAULT_TIER) markCoachRead(cs, { id: FIRST_DANGEROUS });
     if (sc.saving === p) sc.saving = null;
     repaint();
     return r;

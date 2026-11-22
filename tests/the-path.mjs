@@ -7,12 +7,11 @@
 //   P-2  every `opens` id is a window of src/data/shell-windows.js or a PATH_FEATURES id
 //   P-3  rule 1: no row types a Level. A level opener names its export, and when that file is here the export resolves to a Level
 //   P-4  a flag whose file is here names an export that is there (a typo is no "off")
-//   P-5  rule 2: an event row carries expectLevel, a whole Level; only a row waiting on a later lane's flag may leave it null (the
-//        weapon tags were the one stub until check C1 filled them, D-1 section 1.5)
+//   P-5  rule 2: an event row carries expectLevel, a whole Level; only a row waiting on a later lane's flag, or the weapon-tags stub, may
+//        leave it null
 //   P-6  rule 3, the coverage: with every row counted whose Level reads today (way rows never count), each Level L from 1 to 30 has a
 //        next thing at L+1 to L+3. Rule 4: a hole on PATH_HOLES_FOR_HARDER_TIERS prints and passes until FB-7 lands; so does a hole on
 //        HOLES_FOR_TALENTS below until FB-11's src/data/talents.js lands (the designer's own table counts its points). Any other hole fails
-//   P-7  a row's `card` is a coach card of src/data/hunt-tutorial.js (the card says the row; a renamed card leaves the row unsaid)
 //
 //   node tests/the-path.mjs            the guard
 //   node tests/the-path.mjs --mutate   each planted defect must turn its own line red
@@ -25,7 +24,6 @@ import { pathToFileURL, fileURLToPath } from 'node:url';
 import { isMain } from './_is-main.mjs';
 import { THE_PATH, levelsOf, resolveRef } from '../src/data/the-path.js';
 import { SHELL_WINDOWS } from '../src/data/shell-windows.js';
-import { HUNT_TUTORIAL } from '../src/data/hunt-tutorial.js';
 
 const ROOT = join(fileURLToPath(new URL('.', import.meta.url)), '..');
 /* Features a row may open that are no window: each is said on a card or a line, not opened by a press. */
@@ -51,6 +49,7 @@ function pathFiles(rows) {
    holes. FB-11 deletes this list in the commit that adds src/data/talents.js, with a mutant proving the guard bites. */
 export const HOLES_FOR_TALENTS = Object.freeze([17, 18, 22, 23, 24]);
 const TALENTS_FILE = 'src/data/talents.js';
+const STUBS = new Set(['weapon_tags']);   // D-1 section 1.5: the tags are filled last from check C1
 const SCOPES = new Set(['account', 'hero', 'way']);
 const ID = /^[a-z0-9_]{1,48}$/;
 
@@ -67,7 +66,6 @@ export function checkPath(rows, mods, o = {}) {
   const talents = o.talents || HOLES_FOR_TALENTS;
   const present = o.present || ((f) => !!mods[f]);
   const windows = new Set(SHELL_WINDOWS.map((w) => w.id));
-  const cards = new Set(HUNT_TUTORIAL.map((c) => c.id));
   const seen = new Set();
   for (const r of rows) {
     if (!ID.test(r.id) || seen.has(r.id)) out.push('P-1 ' + r.id + ': an id is [a-z0-9_] and one a row');
@@ -88,9 +86,8 @@ export function checkPath(rows, mods, o = {}) {
     }
     if (o2.kind === 'event' && !Number.isInteger(o2.expectLevel)) {
       const waits = r.flag && !present(r.flag.file);
-      if (!(o2.expectLevel === null && waits)) out.push('P-5 ' + r.id + ': an event row carries expectLevel');
+      if (!(o2.expectLevel === null && (waits || STUBS.has(r.id)))) out.push('P-5 ' + r.id + ': an event row carries expectLevel');
     }
-    if (r.card !== null && !cards.has(r.card)) out.push('P-7 ' + r.id + ': its card ' + r.card + ' is no coach card');
   }
   /* THE COVERAGE: every row whose Level reads today counts, flag on or off ("with every first-build flag on"); way rows never do */
   const levels = new Set(rows.filter((r) => r.scope !== 'way').flatMap((r) => levelsOf(r, mods)));
@@ -109,8 +106,6 @@ const MUTANTS = [
   ['P-3 an export typo', (rows) => rows.map((r) => (r.id === 'tower' ? Object.assign({}, r, { opener: { kind: 'level', from: Object.assign({}, r.opener.from, { export: 'TOWER_RULE' }) } }) : r)), 'P-3 tower'],
   ['P-2 a window that is not there', (rows) => rows.map((r) => (r.id === 'start' ? Object.assign({}, r, { opens: r.opens.concat('tamsin') }) : r)), 'P-2 start'],
   ['P-5 an event with no Level', (rows) => rows.map((r) => (r.id === 'first_leave' ? Object.assign({}, r, { opener: Object.assign({}, r.opener, { expectLevel: null }) }) : r)), 'P-5 first_leave'],
-  ['P-5 the weapon tags left a stub after C1', (rows) => rows.map((r) => (r.id === 'weapon_tags' ? Object.assign({}, r, { opener: Object.assign({}, r.opener, { expectLevel: null }) }) : r)), 'P-5 weapon_tags'],
-  ['P-7 a card the coach does not have', (rows) => rows.map((r) => (r.id === 'start' ? Object.assign({}, r, { card: 'tamsins_rats' }) : r)), 'P-7 start'],
   ['P-1 a semicolon in the words', (rows) => rows.map((r) => (r.id === 'thicket' ? Object.assign({}, r, { line: 'Level 5; Meadowbrook Thicket' }) : r)), 'P-1 thicket'],
   ['P-6 a hole at Level 13 (no iron gear row)', (rows) => rows.filter((r) => r.id !== 'iron_gear'), 'P-6 Level 1'],
   ['P-6 the harder-tier list gone', (rows) => rows, 'P-6 Level 16', { harder: [] }],

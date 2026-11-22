@@ -241,9 +241,8 @@ async function checks(overrides, shots, opts) {
       }
     }
 
-    { // AW-99 NO HARDER TIER IS OFFERED BY LEVEL (designer D-1 1.4; FB-5 retired the Level 8 card that lane/a-next-steps built): a Level 8 hero home in a
-      /* helmet and a body piece, every card read, meets no card naming a tier on the real page, and in Hunts no tier press is ringed. The first offer is
-         the tier-risk rule's (FB-7). */
+    { // AW-99 THE FIRST DANGEROUS RUN (lane/a-next-steps; board 2026-11-15 F5): a Level 8 hero home in a helmet and a body piece, every other card read, meets the one
+      /* offer on the real page; in Hunts its ring stands on the Thicket's line, then on that page's Dangerous press. */
       const TUT = (await import(pathToFileURL(join(ROOT, 'src/data/hunt-tutorial.js')).href)).HUNT_TUTORIAL;
       const L8 = (await import(pathToFileURL(join(ROOT, 'src/core/xp.js')).href)).charXpForLevel(8);
       const dressed = (e) => {
@@ -254,24 +253,27 @@ async function checks(overrides, shots, opts) {
         /* one hero on the account: a second past the first hour would already know (the card is `knowledge`, and the stub answers every slot with this hero) */
         e.hero_slots = [0];
       };
-      const { ctx, page, errors, up } = await open({ mutateEnv: dressed, residue: { coach: { read: TUT.map((r) => r.id) } } });
+      const { ctx, page, errors, up } = await open({ mutateEnv: dressed, residue: { coach: { read: TUT.map((r) => r.id).filter((id) => id !== 'first_dangerous') } } });
       if (!up) fails.push('AW-99 the page did not mount');
       else {
         for (let i = 0; i < 4 && await page.evaluate(() => document.querySelectorAll('[data-hs-win]:not(.is-leaving):not([data-hs-win="chat"])').length > 0); i++) { await page.keyboard.press('Escape'); await page.waitForTimeout(160); }
         await page.waitForTimeout(300);
         const card = await page.evaluate(() => { const p = document.querySelector('.hs-pointer[data-tutorial]'); return p ? { id: p.getAttribute('data-tutorial'), text: (p.querySelector('.hs-coach-text') || {}).textContent || null } : null; });
-        if (card && /Dangerous|Deadly/.test(card.text || '')) fails.push('AW-99 in town the coach offers a tier by Level: ' + JSON.stringify(card));
-        if (shots) await shot(page, 'alpha-1440x900-no-tier-offer');
+        if (!card || card.id !== 'first_dangerous' || card.text !== 'Hunts → Meadowbrook Thicket → Dangerous → Enter') fails.push('AW-99 in town the coach shows ' + JSON.stringify(card));
+        if (shots) await shot(page, 'alpha-1440x900-first-dangerous');
         if (!(await openWin(page, 'h', 'hunts'))) fails.push('AW-99 Hunts did not open');
         else {
           await page.waitForTimeout(300);
           const ringed = () => page.evaluate(() => Array.from(document.querySelectorAll('[data-hs-win="hunts"] [data-coach-ring]'))
             .map((e) => (e.getAttribute('data-hunt') || '') + ':' + (e.getAttribute('data-tier') || '')));
+          const onLine = await ringed();
+          if (JSON.stringify(onLine) !== '["meadowbrook_thicket:"]') fails.push('AW-99 in Hunts the ring stands on ' + JSON.stringify(onLine) + ', want the Thicket\'s line');
+          if (shots) await shot(page, 'alpha-1440x900-first-dangerous-hunts');
           await page.click('[data-hs-win="hunts"] .hw-hunt[data-hunt="meadowbrook_thicket"]');
           await page.waitForTimeout(400);
-          const onTier = (await ringed()).filter((x) => !x.endsWith(':'));
-          if (onTier.length) fails.push('AW-99 on the Thicket\'s page the coach rings a tier: ' + JSON.stringify(onTier));
-          if (shots) await shot(page, 'alpha-1440x900-no-tier-ring');
+          const onTier = await ringed();
+          if (JSON.stringify(onTier) !== '["meadowbrook_thicket:dangerous"]') fails.push('AW-99 on the Thicket\'s page the ring stands on ' + JSON.stringify(onTier) + ', want its Dangerous press');
+          if (shots) await shot(page, 'alpha-1440x900-first-dangerous-tier');
         }
         if (errors.length) fails.push('AW-99 console errors: ' + errors.join(' | ').slice(0, 300));
       }

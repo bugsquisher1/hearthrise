@@ -153,6 +153,11 @@
         "bytes": 3150368,
         "on": "2026-11-21",
         "why": "cut locked in (16467 bytes)"
+      },
+      {
+        "bytes": 3162195,
+        "on": "2026-11-22",
+        "why": "lane/w1-side-seam (+11,842 B): src/core/hunt/sides.js, the one enemy/ally and kind test (3.6 KB with its contract), and unit-index.js's side groups (foes, allies by id, the placed-unit scan, +6.2 KB); every engine module imports the seam"
       }
     ]
   }

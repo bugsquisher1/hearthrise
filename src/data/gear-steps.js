@@ -21,7 +21,7 @@
 //                       held step by about 20 (11-build-audit R9)
 //   wearAhead 10        JUDGMENT: half a tier. Muster Barrows opens at Level 55 and drops item Level 60, worn from 50
 //   slotPm              JUDGMENT: the weapon a fifth, the body the largest armor share, jewelry small. Sums to 1000
-//   traitSteps 4/7/10   (shown as 1.5 / 2.5 / 3.5%, traits.js TRAIT_SHOWN) 04 section 10: rank 1 to rank 3 spans 6 steps, under a third of a tier, so which Trait matters more than how
+//   traitSteps 4/7/10   (shown as 1.5 / 2.5 / 3.5%, shownPct below) 04 section 10: rank 1 to rank 3 spans 6 steps, under a third of a tier, so which Trait matters more than how
 //                       high. A Trait's steps are steps of the hero's GEAR PART (the unit of a whole kit's item Level) and are NOT
 //                       weighted by slot, so a rank is worth the same on a ring as on a weapon (04 guard 1)
 //   conditionalStepsMax 20   every conditional step on one hero at once, at most one tier (04 guard 3, and the kit spread limit). So a

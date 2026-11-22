@@ -243,6 +243,11 @@
         "bytes": 3295265,
         "on": "2026-11-22",
         "why": "R9 power step: danger.js gearPartPm/powerPm, damage.js stepped blows, member.js gearPm (+7,071 B on top of lane G)"
+      },
+      {
+        "bytes": 3306414,
+        "on": "2026-11-22",
+        "why": "lane/traits-20: src/data/traits.js, the 40 hidden Traits (+11,149 B), reached through gear-steps.js re-export into danger.js DANGER_GROUNDS traits; the wave 4 roller reads them in the settle"
       }
     ]
   }

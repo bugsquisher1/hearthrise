@@ -53,6 +53,8 @@
 .ht-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 2px 4px 2px 8px; background: var(--hud-fill); border: var(--art-3) solid transparent; border-image: url('../../assets/ui/steel-frame-thin.png') 3 / var(--art-3) stretch; image-rendering: pixelated; }
 /* The ground is named as a place is (ART_DIRECTION §10): Cinzel in gold. */
 .ht-ground { font-family: var(--f-display); font-weight: 700; font-size: var(--t-small); letter-spacing: .08em; color: var(--gold-2); white-space: nowrap; }
+/* ...and what the hunt froze beside it (a tier, a scaled Level, the Risk and its depth) is a status in the body face, never the name's capitals */
+.ht-mark { font-family: var(--f-ui); font-size: var(--t-micro); letter-spacing: 0; color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
 .ht-clock, .ht-fee { font-variant-numeric: lining-nums tabular-nums; color: var(--ink-2); font-size: var(--t-micro); white-space: nowrap; padding-right: 6px; margin-right: 2px; border-right: 2px solid var(--steel-sep); }
 /* A training session's hour fee follows its time left (hunt-topbar.js): the rule before the buttons moves to the fee. */
 .ht-bar:has(.ht-fee:not([hidden])) .ht-clock { padding-right: 0; margin-right: 0; border-right: 0; }

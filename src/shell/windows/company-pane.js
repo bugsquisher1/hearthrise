@@ -9,7 +9,7 @@
 //                       it hunted last. Pressed again it is undone. The server's `company` section says which ground the plan holds.
 //   planHtml()                        the press (built once, in the page's foot)
 //   patchPlan(det, ctx, o)            { hunt, pending }: its words and whether it is on
-//   actPlan(ctx, sc, repaint, action, el)  the page's presses for both lines; true when the action was this pane's
+//   actPlan(ctx, sc, repaint, action, el)  the page's presses (PLAN_ACTS: both lines and the Risk); true when the action was this pane's
 //   goAsOf(cs, hunt)                  the ground's own Setup (null: none), Go as's starting row
 //   THE STANCE  on a ground of the Danger scale (danger-sections.js onScale; Muster Barrows for now) the stance pick and the depth this hero
 //               last held there stand where the tier row stands elsewhere: Careful / Steady / Bold, ONE hr_hunt_risk_set each
@@ -31,7 +31,9 @@ export const stanceName = (id) => t('hunts.stance_' + id);
 
 /** The stance pick (built once, beside the tier row; hidden off the scale). */
 export function stanceHtml() {
-  return '<div class="hw-stance" hidden><span class="hw-tiers is-on" role="group" aria-label="' + t('hunts.head_stance') + '"><span class="hh-segs">'
+  return '<div class="hw-stance" hidden><span class="hw-tiers is-on" role="group" aria-label="' + t('hunts.head_stance') + '">'
+    /* its name in view (R7 art pass: three bare words under The packs, and the line under them said "Pick a Risk" with no Risk on screen) */
+    + '<span class="hw-stance-k" aria-hidden="true">' + t('hunts.head_stance') + '</span><span class="hh-segs">'
     + STANCE_IDS.map((id) => '<button type="button" class="hh-seg" data-hs-act="stance" data-risk="' + id + '">' + stanceName(id) + '</button>').join('')
     + '</span></span><p class="hw-stance-note"></p><p class="hw-stance-depth"></p></div>';
 }
@@ -80,7 +82,11 @@ export function patchPlan(det, ctx, o) {
   prop(b, 'disabled', !co || o.pending);
 }
 
-/** The page's presses for the plan's two lines. */
+/** Every press this pane draws on a ground's page: the window routes each of them to actPlan (R7: the Risk's press was drawn here and
+    never routed, so Careful, Steady and Bold did nothing in the Hunts window). */
+export const PLAN_ACTS = Object.freeze(['go-as', 'plan-here', 'stance']);
+
+/** The page's presses for the plan's two lines and the Risk. */
 export function actPlan(ctx, sc, repaint, action, el) {
   const cs = ctx.character;
   if (action === 'plan-here') {

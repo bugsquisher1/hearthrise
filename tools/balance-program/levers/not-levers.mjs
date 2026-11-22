@@ -1,0 +1,73 @@
+// tools/balance-program/levers/not-levers.mjs — EVERY BINDING THAT HOLDS A TYPED NUMBER AND IS NOT A BALANCE LEVER, with its reason
+// (lane BL-2). `at` is a pattern on "file#binding" (`*` one segment or a part of a name, `**` any depth). A lever row's site or row
+// table always claims first; a reason here only covers what no lever claims. --check fails a reason that matches nothing.
+//
+// A TARGET is not a lever: it is what a lever is judged against (BL-3's target spec reads them). A VALIDATOR's bounds are quoted as a
+// lever's valid range (field 3), not listed as levers.
+
+export const NOT_LEVERS = Object.freeze([
+  /* targets */
+  { at: 'src/data/balance-sheet.js#BALANCE_SHEET', why: 'balance TARGETS the guards judge against (close calls, typical low HP, XP against the contract, the fresh hero, harder-tier XP, blow shares): BL-3\'s target spec, not a gameplay number' },
+  { at: 'src/data/core-model.js#LEVEL_PACE', why: 'the pace TARGET (contract 1385 x L^1.274, the benchmark Levels, the new player\'s steps): read by judges and tools, never by the engine (planned knob paceContract, R12)' },
+  { at: 'src/data/loot-bands.js#BAND_TARGETS', why: 'drop band TARGETS (hours a piece); the rows\' ch are the lever (rare.band-rows). trophy.boostMax 1.25 is promised and read by nothing (44 E-X26)' },
+  { at: 'src/data/loot-bands.js#hours', why: 'the band target table\'s row builder (oddsMax 0.05)' },
+  { at: 'src/data/party-class-xp.js#BASE_VS_ALONE', why: 'the MEASURED party lines the Hunts window prints, written by tests/party-class-xp-line.mjs --write; no fight or purse reads them' },
+  { at: 'src/data/party-class-xp.js#ONE_ROLE_VS_ALONE', why: 'a measured line the Hunts window prints (one-role fours on the Thicket); display' },
+  { at: 'src/data/party-class-xp.js#said', why: 'a builder of the printed lines' },
+  { at: 'src/data/party-class-xp.js#lines', why: 'a builder of the printed lines' },
+  { at: 'src/data/party-class-xp.js#row', why: 'the PARTY_CLASS_XP row builder: its numbers are the party sizes 3 and 4 as keys' },
+  /* validators and audit bands: quoted as ranges */
+  { at: 'src/**#validate*', why: 'a validator: its bounds are the valid range (field 3) of the lever it checks' },
+  { at: 'src/data/monster-classes.js#TIER_BANDS', why: 'audit bands every hand monster row must land inside (auditRoster): the valid range of mon.rows' },
+  { at: 'src/data/monster-classes.js#FORMATION_BANDS', why: 'audit bands of the formation rows: the valid range of mon.rows' },
+  { at: 'src/data/monster-classes.js#TIERS', why: 'the art tiers 1..6: a shape' },
+  { at: 'src/data/monster-classes.js#MIN_CLASSES_PER_TIER', why: 'a coverage rule of the class roster (eight classes a tier)' },
+  { at: 'src/data/monster-classes.js#HALF_OF_EVERY', why: 'an audit rule of the class profiles' },
+  { at: 'src/data/monster-spells.js#SPELL_BOUNDS', why: 'the valid range of the MONSTER_SPELLS rows (mon.spells field 3)' },
+  { at: 'src/data/shape-kinds.js#SHAPE_BOUNDS', why: 'the valid range of an area shape\'s size' },
+  { at: 'src/data/catalogue-coherence.js#UNREACHABLE_CEILING', why: 'a coherence guard\'s ceiling on unreachable items' },
+  { at: 'src/data/balance-sheet.js#TIER_SIZES', why: 'the party sizes a tier row answers for (1..4): a shape' },
+  { at: 'src/data/balance-sheet.js#tierRowFor', why: 'a solver\'s search bounds (lo 1, hi 10, 60 halvings) for a gentle ground\'s tier lift' },
+  /* display, words, art, UI */
+  { at: 'src/data/world/**', why: 'the pixel world: layout, palettes, art budgets, ambient life, house layouts (no fight, purse or clock reads them)' },
+  { at: 'src/data/grounds/*/map.js#default', why: 'a ground\'s tile map (pathing and art); its rooms\' monsters are the pack\'s' },
+  { at: 'src/data/grounds/shape.js#*', why: 'the pack builders\' defaults (a box\'s full density 8, the gather slider\'s shares): structure, the levers are the packs\' rows' },
+  { at: 'src/data/alerts.js#*', why: 'UI alerts' }, { at: 'src/data/hud-widgets.js#*', why: 'HUD layout' }, { at: 'src/data/shell-windows.js#*', why: 'window layout' },
+  { at: 'src/data/hunt-hud.js#*', why: 'the hunt HUD' }, { at: 'src/data/hunt-vfx.js#*', why: 'effects timing (display)' }, { at: 'src/data/fx-alpha.js#*', why: 'effects alpha' },
+  { at: 'src/data/panel-alpha.js#*', why: 'panel alpha' }, { at: 'src/data/combat-text.js#*', why: 'combat log length' }, { at: 'src/data/outfits.js#*', why: 'cosmetic outfits and dyes' },
+  { at: 'src/data/tower-art.js#*', why: 'Tower art' }, { at: 'src/data/titles.js#*', why: 'cosmetic titles' }, { at: 'src/data/honor-roll.js#*', why: 'the honor roll\'s length' },
+  { at: 'src/data/chat-channels.js#*', why: 'chat limits' }, { at: 'src/data/town-criers.js#*', why: 'town crier timing (words)' }, { at: 'src/data/town-presence.js#*', why: 'who shows in town' },
+  { at: 'src/data/account-rules.js#*', why: 'account rules (password length)' }, { at: 'src/data/hunt-tutorial.js#*', why: 'the tutorial\'s triggers' }, { at: 'src/data/the-path.js#*', why: 'the new-player path\'s steps' },
+  { at: 'src/data/condition-metrics.js#*', why: 'the rule editor\'s limits' }, { at: 'src/data/party-words.js#*', why: 'party words' }, { at: 'src/data/skill-unlocks.js#*', why: 'the skills window\'s unlock list (display)' },
+  { at: 'src/data/jewelry.js#fmtPct', why: 'a percent formatter' }, { at: 'src/data/jewelry.js#guaranteeJobs', why: 'a words builder' },
+  { at: 'src/data/jewelry.js#ODDS_SCALE', why: 'the odds unit (a 10,000)' }, { at: 'src/data/armour-weights.js#pct', why: 'a percent formatter' }, { at: 'src/data/chests.js#CHEST_ITEM_DESC', why: 'item words' },
+  { at: 'src/data/live-events.js#LIVE_EVENT_SHOWN', why: 'when the event banner shows' }, { at: 'src/data/gold-sinks.js#ROUND_SHOW', why: 'the round\'s show (art timing)' }, { at: 'src/data/hearth.js#BURN_SHOW', why: 'the burn\'s show (art timing)' },
+  { at: 'src/data/factions.js#*', why: 'faction swap timing and outfit hours: no power, gold or XP in these rows' },
+  { at: 'src/data/boss-halls.js#namedWaveOf', why: 'a words builder' }, { at: 'src/data/clans.js#*', why: 'clan names, tags and invite days (the founding gold is econ.clans)' },
+  /* player choice bounds and history */
+  { at: 'src/data/hunt-sessions.js#SESSION_LIMITS', why: 'the hours a player may set a hunt to (1..24) and the bag lines shown' },
+  { at: 'src/data/hunt-sessions.js#STAMINA_LOW_MIN', why: 'a low-stamina warning' }, { at: 'src/data/hunt-sessions.js#SESSIONS_KEPT', why: 'hunt history kept' },
+  { at: 'src/data/hunt-sessions.js#ANALYZER_RATE_AFTER_MS', why: 'when the analyzer shows a rate' }, { at: 'src/data/hunt-sessions.js#NO_FIGHT_END_MIN', why: 'a stall stop (a hunt with no fight for 10 minutes ends): a safety rule, and the matrix\'s TOOL RED' },
+  { at: 'src/data/hunt-sessions.js#VALUE_HEADROOM', why: 'a server bound\'s headroom on a hunt\'s value' },
+  { at: 'src/data/hunt-after.js#*', why: 'what a hero does after a hunt: the player\'s job counts and a grace' },
+  { at: 'src/data/rule-subjects.js#ACTION_SET_LIMITS', why: 'how many presets and slots the bar editor holds' },
+  { at: 'src/data/hunt-grounds.js#MAX_SEATS', why: 'seats on an instance (4): a shape' }, { at: 'src/data/hunt-grounds.js#inRect', why: 'geometry' },
+  { at: 'src/data/statuses.js#slowAt', why: 'rounding (+500 / 1000)' }, { at: 'src/data/gear-tiers.js#round5', why: 'rounding to fives' },
+  /* engine plumbing: units, rounding, randomness, hashing, geometry, budgets */
+  { at: 'src/core/rng.js#*', why: 'the seeded random stream' }, { at: 'src/core/combat-sim.js#seedOf', why: 'a seed' }, { at: 'src/core/member.js#frozenKey', why: 'a hash' },
+  { at: 'src/core/hunt-track.js#*', why: 'the hunt track\'s size limits and hash' }, { at: 'src/core/hunt/world-state.js#*', why: 'world state codec' }, { at: 'src/core/hunt/events.js#*', why: 'the event format version' },
+  { at: 'src/core/hunt/grid.js#*', why: 'path grid sealing' }, { at: 'src/core/hunt/movement.js#*', why: 'movement geometry (direction vectors)' }, { at: 'src/core/hunt/conditions.js#*', why: 'the rule engine\'s parser' },
+  { at: 'src/core/hunt/consumables.js#tickOverTime', why: 'an array index' }, { at: 'src/core/hunt/pull-cycle.js#placeRow', why: 'a free-tile search radius when placing a pack' },
+  { at: 'src/core/hunt/pull-cycle.js#tickHeroes', why: 'a unit conversion (milli-HP a microsecond)' }, { at: 'src/core/hunt/leash.js#inArea', why: 'geometry' },
+  { at: 'src/core/hunt/status.js#tickAmount', why: 'rounding (+500 / 1000)' }, { at: 'src/core/hunt/tower.js#KEEP', why: 'how many floor records a climb keeps' },
+  { at: 'src/core/hunt/xp-share.js#*', why: 'the seat cap 4 and float epsilons of the split; the split\'s numbers are its tables\' (party.class-xp, party.run-xp)' },
+  { at: 'src/core/hunt/abilities.js#effect', why: 'a percent to permille conversion (x10) for the mark' }, { at: 'src/core/hunt/abilities.js#regenMana', why: 'unit conversions of the mana regen (its number is regen.mana)' },
+  { at: 'src/core/elements.js#elementPermille', why: 'a percent to permille conversion (x10)' }, { at: 'src/core/action-rules.js#*', why: 'hunt end checks in ms and the death share\'s unit (its number is level.death-loss)' },
+  { at: 'src/core/ammo.js#honeWornAt', why: 'float epsilon' }, { at: 'src/core/tools.js#advanceToolCarry', why: 'float epsilon' }, { at: 'src/core/progression.js#XP_FRAC_SCALE', why: 'XP carry precision' },
+  { at: 'src/core/live-events.js#pmAt', why: 'a window\'s tuple length' }, { at: 'src/core/goals.js#*', why: 'the goal tracker\'s cap' }, { at: 'src/core/away.js#*', why: 'a day in ms' },
+  { at: 'src/core/xp.js#sumK2', why: 'a closed form (/ 6)' }, { at: 'src/core/xp.js#charLevelFromXp', why: 'a search bound (1e7)' }, { at: 'src/core/xp.js#MAX_LEVEL', why: 'the capped table\'s top (99): its shape' },
+  { at: 'src/core/hearthfind.js#actionsPerHour', why: 'an hour in ms' }, { at: 'src/core/farm.js#growthHours', why: 'an hour in ms' }, { at: 'src/core/farm.js#readyInMs', why: 'an hour in ms' },
+  { at: 'src/core/farm.js#MAX_WATERINGS', why: 'a defensive array cap' }, { at: 'src/core/skill-sim.js#MAX_SLICES', why: 'a simulation budget' }, { at: 'src/core/skill-sim.js#emptySummary', why: 'a summary shape' },
+  { at: 'src/core/artisan-sim.js#emptySummary', why: 'a summary shape' }, { at: 'src/core/artisan-sim.js#simulateArtisanSpan', why: 'a simulation budget' },
+  { at: 'supabase/functions/hr-accrue/**', why: 'server plumbing: HTTP status codes, request and body bounds, settle cadences and engine budgets, accrual fuses, hashing. The edge\'s two economy numbers are levers (econ.sale-rates)' },
+]);

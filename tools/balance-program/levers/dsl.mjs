@@ -31,5 +31,12 @@ export const field = (file, name, path, where = null) => async (load) => {
   const sorted = nums.slice().sort((a, b) => a - b);
   return { table: file + ' ' + name, rows: all.length, carrying: nums.length, distinct: new Set(nums).size, low: sorted[0] ?? null, high: sorted[sorted.length - 1] ?? null };
 };
+/** how many rows of `file`'s export `name` carry anything at `path` (a word or a list as well as a number), and how many values */
+export const present = (file, name, path) => async (load) => {
+  const m = await load(file);
+  const all = tableRows(m[name]);
+  const vals = all.map((r) => valuesAt(r, path).filter((v) => v !== undefined && v !== null));
+  return { table: file + ' ' + name, rows: all.length, carrying: vals.filter((v) => v.length).length, values: vals.reduce((a, v) => a + v.length, 0) };
+};
 /** several `field` measures in one */
 export const fields = (...ms) => async (load) => { const out = []; for (const m of ms) out.push(await m(load)); return out; };

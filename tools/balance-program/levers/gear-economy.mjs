@@ -23,7 +23,6 @@ export const GEAR_ECONOMY = [
     def: 'a hand table per slot (plate): helm 3..44, platebody 6..90, platelegs 4..64, boots and belt 2..30, gauntlets 1..23, times the line\'s defMul',
     range: 'rising by tier',
     touches: 'damage taken by gear state', out: SURVIVE, f: ['C-GEAR-ARMOR'],
-    tests: [['tests/armor-line.mjs', 'the armor line\'s pace and safety read']], testReads: ['ARMOUR_SLOTS', 'gear-tiers', 'ARMOUR_LINES'],
     perturb: P('the kits read the table'),
     flags: [flag('ineffective', 'A tier of armor is worth 23 to 58% early and nothing once a set is at the 60% cap', '12-balance-pass item 6, MEASURED')],
     ev: 'CONFIRMED (read)' }),
@@ -82,6 +81,7 @@ export const GEAR_ECONOMY = [
     ev: 'CONFIRMED (read)' }),
   L('gear.temper-effect', 'equipment', 'global', 'Tempering a rung', {
     at: [at('src/data/temper.js', 'export const TEMPER_RUNG_PM = 10'), at('src/data/temper.js', 'export const TEMPER_TIER_RUNG_PM = '), at('src/data/temper.js', 'export const TEMPER_UNIQUE_RUNG_PM = 5'), at('src/data/temper.js', 'export const TEMPER_RUNGS = 5')],
+    rows: rows('the unique bands\' start and the tier reader', [home('src/data/temper.js#TEMPER_UNIQUE_FROM', 'count'), home('src/data/temper.js#temperTierOf', 'count')]),
     def: 'five rungs a track (Blows, Armor); each 1% (0.4% on tier 7, 0.5% on a unique band); Blows raises what lands on a monster and every heal, Armor lowers what reaches the hero, never past the cap; tier 1 has no ladder',
     range: 'permille; rungs whole. The part of a point is a chance (X-TEMPER-ROUNDING)',
     touches: 'damage and damage taken of a tempered kit (MID holds 2 rungs, BiS 5)', out: [...KILL, ...SURVIVE], f: ['C-TEMPER'],
@@ -111,6 +111,14 @@ export const GEAR_ECONOMY = [
     tests: [['tests/supplies-catalogue.mjs', 'the basics and their partners']], testReads: ['BASIC_SUPPLIES', 'BASIC_EFFECT_SHARE'],
     perturb: P('the cells buy store food (storePerH)', 'healPrice'),
     flags: [flag('redundant', 'Five hand prices, 0.19 to 1.75 gold a hit point, nine times apart, while coin a kill is a formula', '44 S-X02, CONFIRMED')],
+    ev: 'CONFIRMED (read)' }),
+  L('cons.food-heal-scale', 'consumables', 'global', 'The food heal scale', {
+    at: [at('src/data/core-model.js', 'export const FOOD_HEAL_SCALE = 12')],
+    def: 'x12: the grain every food heal and drink was moved by when monster damage moved x12 (CORE_NUMBERS Q3). The rows are already scaled',
+    range: 'n/a',
+    touches: 'nothing in a fight (tests/supplies-catalogue.mjs B1 reads it as the grain of the three-quarters rule)', out: [], f: ['E18'],
+    perturb: NP('dead', 'no fight reads it: the heals in items.js, drinks.js and supply-basics.js are already multiplied'),
+    flags: [flag('redundant', 'A scale already folded into every heal row', 'CONFIRMED (read: core-model.js comment and readers)')],
     ev: 'CONFIRMED (read)' }),
   L('cons.store-share', 'consumables', 'global', 'Store supply strength', {
     at: [at('src/data/supply-basics.js', 'export const BASIC_EFFECT_SHARE = 0.75')],
@@ -144,7 +152,7 @@ export const GEAR_ECONOMY = [
     perturb: V('bar', 'cell.mjs takes eatPct / drinkPct / storeFood on a cell; the startBar cells read START_BAR as shipped'),
     ev: 'CONFIRMED (read)' }),
   L('cons.food-buffs', 'consumables', 'content', 'Food and drink buffs', {
-    rows: rows('buff type, magnitude and durationMs on ITEMS rows', [ITEM_ROWS], fields(field(ITEMS, 'ITEMS', 'buff.magnitude'), field(ITEMS, 'ITEMS', 'buff.durationMs')), ['ITEMS', 'BUFFS_DEF']),
+    rows: rows('buff type, magnitude and durationMs on ITEMS rows', [ITEM_ROWS, home('src/core/buffs.js#BUFF_MAX_UNTIL_MS', 'count')], fields(field(ITEMS, 'ITEMS', 'buff.magnitude'), field(ITEMS, 'ITEMS', 'buff.durationMs')), ['ITEMS', 'BUFFS_DEF']),
     def: 'a meal\'s timed buff: damage, defense (a damage cut on the steady cap), damage_crit, all_xp, combat_xp, gold_find, drop_rate, gather_speed, by magnitude percent; a row lasts at most an hour (BUFF_MAX_UNTIL_MS)',
     range: 'percent; one row an hour',
     touches: 'damage, damage taken, XP, gold and drops of a fed hero', out: [...KILL, ...SURVIVE], f: ['C-BUFF-BONUS', 'E24'],
@@ -154,7 +162,7 @@ export const GEAR_ECONOMY = [
       flag('contradictory', 'Luck v3.1 (Tyler 2026-11-20) cuts the four foods\' drop buffs; the rows remain', 'rulings-of-record LUCK v3.1')],
     ev: 'CONFIRMED (read), MEASURED (12)' }),
   L('cons.bag-guide', 'consumables', 'archetype', 'How much to carry', {
-    at: [at('src/data/supplies.js', 'export const BAG_TARGET_HOURS = 3'), at('src/data/supplies.js', 'export const BASE_BAG_GUIDES')],
+    at: [at('src/data/supplies.js', 'export const BAG_TARGET_HOURS = 3'), at('src/data/supplies.js', 'const BASE_BAG_GUIDES = ')],
     rows: rows('the guide bags by ground and tier', [home('src/data/supplies.js#BAG_GUIDE_BY_TIER', 'count')]),
     def: 'the guide food and drink a ground asks for, sized for 3 hours',
     range: 'whole',
@@ -213,6 +221,14 @@ export const GEAR_ECONOMY = [
     perturb: P(),
     flags: [flag('ineffective', 'A party is close to one health bar: back heroes\' armor, Defense and weight do nothing on nine grounds', '12-balance-pass section 4.1, MEASURED (R0)')],
     ev: 'CONFIRMED (read)' }),
+  L('party.positioning', 'party', 'archetype', 'Where heroes stand and how they move', {
+    at: [at('src/data/rule-subjects.js', 'export const HERO_DISTANCE = '), at('src/data/hunt-roles.js', 'export const KITE = ')],
+    rows: rows('the role AI\'s geometry', [home('src/data/rule-subjects.js#ROLE_DEFAULTS', 'count'), home('src/data/hunt-roles.js#SPOT', 'count'), home('src/data/hunt-roles.js#SURROUND', 'count'), home('src/data/hunt-roles.js#OPEN_GROUND', 'count'), home('src/data/hunt-roles.js#AI_REPATH_MS', 'count'), home('src/core/hunt/roles.js#BOX_ROOM', 'count'), home('src/core/hunt/roles.js#ROOM_MAX', 'count'), home('src/core/hunt/roles.js#tankPos', 'count'), home('src/core/hunt/roles.js#plantOpen', 'count'), home('src/core/hunt/roles.js#inBand', 'count')]),
+    def: 'a back hero keeps 3 (ranger), 5 (healer) or 6 (mage) tiles behind, 1..8 allowed; a kiter looks 5 tiles for a spot; the tank holds a room\'s box; repaths every 0.5 to 1.5 s',
+    range: 'tiles and ms; HERO_DISTANCE 1..8',
+    touches: 'who a pack and a shooter reach, so who takes damage', out: SURVIVE, f: ['C-TARGET', 'E12'],
+    perturb: P('the cells play each way\'s default distance; a player may set another (player policy)'),
+    ev: 'CONFIRMED (read)' }),
   L('party.size', 'party', 'global', 'Party size', {
     at: [at('src/data/party.js', 'maxSize: 4,')],
     def: 'at most 4 heroes a party',
@@ -238,7 +254,7 @@ export const GEAR_ECONOMY = [
     def: '500 gold, 20 cooked shrimp, 50 bronze arrows, 10 whetstones a hero; 10 shrimp and 8 turnip seeds an account',
     range: 'whole',
     touches: 'the first hour', out: [], f: [],
-    tests: [['tests/start-kit-pace.mjs', 'a new player\'s first Levels']], testReads: ['START_CURRENCY', 'HERO_KIT', 'START_BAR'],
+    tests: [['tests/start-kit-pace.mjs', 'a new player\'s first Levels']], testReads: ['start-kit', 'START_CURRENCY'],
     perturb: NP('harness-fixed', 'a cell sets its own purse'),
     ev: 'CONFIRMED (read)' }),
   L('econ.stamina', 'economy', 'archetype', 'Stamina bar', {
@@ -277,6 +293,7 @@ export const GEAR_ECONOMY = [
     ev: 'CONFIRMED (read)' }),
   L('econ.town-sinks', 'economy', 'content', 'Town sinks (powder, rounds, criers, setup slots, colors, the House dummy)', {
     at: [at('src/data/gold-sinks.js', 'export const SINK_RULES')],
+    rows: rows('the rename price', [home('src/data/hero-rename.js#HERO_RENAME', 'count')]),
     def: 'price ladders: powder 2k..10k, rounds 5k..20k, criers 1k..16k, three free setup slots then 15,000 and 40,000, hero colors 1,500 + 50 a Level, the House dummy 150k..600k',
     range: 'whole; per-day caps. S-3 a: setup slots priced as ruled 11-05',
     touches: 'gold out', out: [], f: ['E36'],
@@ -290,7 +307,7 @@ export const GEAR_ECONOMY = [
     range: 'n/a',
     touches: 'the account\'s heroes and the slot gold sink (~5.5M of 5.9M gone)', out: [], f: ['E39'],
     perturb: NP('outside-hunt'),
-    ev: 'CONFIRMED (read). DIFFERS ON MAIN: see the live column' }),
+    ev: 'CONFIRMED (read)' }),
   L('econ.shop-prices', 'economy', 'content', 'Shop offers', {
     at: [at('src/data/shops.js', 'export const SHOP_OFFERS')],
     rows: rows('gold costs on shop offers', [home('src/data/shops.js#DERIVED_PRICES', 'count'), home('src/data/jewelry.js#JEWEL_SHOP_PRICE', 'count'), home('src/data/jewelry.js#JEWEL_SHOP_PREMIUM', 'count'), home('src/data/companion-unlocks.js#COMPANION_OFFERS', 'keys')]),
@@ -311,6 +328,7 @@ export const GEAR_ECONOMY = [
     ev: 'CONFIRMED (read)' }),
   L('econ.bank', 'economy', 'global', 'Bank and key ring', {
     at: [at('src/data/gold-ladders.js', 'export const BANK_BASE = 3000'), at('src/data/gold-ladders.js', 'export const BANK_GROWTH = 1.32'), at('src/data/gold-ladders.js', 'export const BANK_RUNGS = 10'), at('src/data/gold-ladders.js', 'export const KEY_RING_GOLD = 25000')],
+    rows: rows('stacks a rung', [home('src/data/gold-ladders.js#BANK_STACKS_PER_RUNG', 'count')]),
     def: 'round(3000 x 1.32^k), ten rungs of 20 stacks; a key ring 25,000',
     range: 'whole',
     touches: 'gold out (storage)', out: [], f: ['E34'],
@@ -319,6 +337,7 @@ export const GEAR_ECONOMY = [
     ev: 'CONFIRMED (read)' }),
   L('econ.training', 'economy', 'global', 'Training yard pay and fee', {
     at: [at('src/data/training.js', 'xpPerHour: 30000,'), at('src/data/training.js', 'feeBase: 50,'), at('src/data/training.js', 'feePerLevel: 6,')],
+    rows: rows('the yard\'s grounds and hunts', [home('src/data/hunt-grounds.js#TRAINING_SPOTS', 'count'), home('src/data/hunt-grounds.js#TRAINING_GROUNDS', 'count'), home('src/data/hunts.js#TRAINING_HUNTS', 'count'), home('src/data/hunts.js#TRAINING_TRAVEL_S', 'count'), home('src/data/hunts.js#TRAINING_RESPAWN_MS', 'count'), home('src/data/hunts.js#trainingHunt', 'count')]),
     def: '30,000 skill XP a settled hour for any skill at any level (x2 while a training item lasts), from Level 10, 12 h at most; the yard fee 50 + 6 a skill level an hour',
     range: 'whole. SQL twins hr_training_rules, hr_training_fee',
     touches: 'skills of idle heroes; a gold sink', out: [], f: ['P09', 'E42'],
@@ -338,6 +357,7 @@ export const GEAR_ECONOMY = [
     ev: 'CONFIRMED (read)' }),
   L('econ.scaled-hunts', 'economy', 'exception-intentional', 'Scaled hunts: pay and price', {
     at: [at('src/data/scaled-hunts.js', 'xpPm: 730,'), at('src/data/scaled-hunts.js', 'partyPm: 700,'), at('src/data/scaled-hunts.js', 'coinPm: Object.freeze({ solo: 500'), at('src/data/scaled-hunts.js', 'price: Object.freeze({ perLevel: 40 })')],
+    rows: rows('the scaled hour\'s loot reader', [home('src/data/scaled-hunts.js#lootPmFor', 'count')]),
     def: 'a scaled hour pays XP x0.73, a party x0.70, coin x0.5 of the rise, and costs 40 gold a Level an hour; 24 h at most, 48 h bought a day',
     range: 'permille. Mode approved 2026-11-07',
     touches: 'old grounds raised to the leader\'s Level', out: [], f: ['C-SCALED', 'P26', 'E07'],
@@ -362,7 +382,7 @@ export const GEAR_ECONOMY = [
     ev: 'CONFIRMED (read)' }),
   L('econ.town-work', 'economy', 'content', 'Gathering, cooking and crafting rates', {
     at: [at('src/core/pacing.js', 'export const SPEED_FUSE = 0.70'), at('src/core/pacing.js', 'export const MIN_ACTION_MS = 500'), at('src/core/artisan.js', 'export const BURN_BASE = 0.25')],
-    rows: rows('ms, xp, req, qty on gathering nodes and recipes', [home('src/data/gathering.js#TREES', 'keys'), home('src/data/gathering.js#ROCKS', 'keys'), home('src/data/gathering.js#FISH_SPOTS', 'keys'), home('src/data/gathering.js#CROPS', 'keys'), home('src/data/recipes.js#BASE_RECIPES', 'open'), home('src/data/drinks.js#DRINK_RECIPES', 'keys'), home('src/data/drinks.js#DRINK_ITEMS', 'keys'), home('src/data/stonecraft.js#STONECRAFT_RECIPES', 'open'), home('src/data/stonecraft.js#BIND', 'keys'), home('src/data/stonecraft.js#RUNE_VALUE', 'count'), home('src/data/shields.js#SHIELD_RECIPES', 'open'), home('src/data/style-gear.js#STYLE_GEAR_RECIPES', 'open'), home('src/data/slot-ladders.js#SLOT_RECIPES', 'open'), home('src/data/jewelry.js#JEWEL_PIECES', 'open'), home('src/data/library2-items.js#SUPPLY_CHAINS', 'count'), home('src/core/artisan.js#BURN_PER_LEVEL_RELIEF', 'count'), home('src/core/artisan.js#BURN_XP_SHARE', 'count'), home('src/core/artisan.js#KITCHEN_NO_BURN', 'count'), home('src/core/pacing.js#actionIntervalMs', 'count'), home('src/core/tools.js#toolXpB', 'count'), home('src/core/tools.js#toolDouble', 'count'), home('src/core/farm.js#PLOT_TIER_PRICES', 'count'), home('src/core/farm.js#REGROW_LIMITS', 'count'), home('src/core/farm.js#WATER_WINDOW_MS', 'count'), home('src/core/hunt/../hunt-track.js#__none__', 'open')].filter((h) => !h.at.includes('__none__'))),
+    rows: rows('ms, xp, req, qty on gathering nodes and recipes', [home('src/data/gathering.js#TREES', 'keys'), home('src/data/gathering.js#ROCKS', 'keys'), home('src/data/gathering.js#FISH_SPOTS', 'keys'), home('src/data/gathering.js#CROPS', 'keys'), home('src/data/recipes.js#BASE_RECIPES', 'open'), home('src/data/drinks.js#DRINK_RECIPES', 'keys'), home('src/data/drinks.js#DRINK_ITEMS', 'keys'), home('src/data/stonecraft.js#STONECRAFT_RECIPES', 'open'), home('src/data/stonecraft.js#BIND', 'keys'), home('src/data/stonecraft.js#RUNE_VALUE', 'count'), home('src/data/shields.js#SHIELD_RECIPES', 'open'), home('src/data/style-gear.js#STYLE_GEAR_RECIPES', 'open'), home('src/data/slot-ladders.js#SLOT_RECIPES', 'open'), home('src/data/jewelry.js#JEWEL_PIECES', 'open'), home('src/data/library2-items.js#SUPPLY_CHAINS', 'count'), home('src/core/artisan.js#BURN_PER_LEVEL_RELIEF', 'count'), home('src/core/artisan.js#BURN_XP_SHARE', 'count'), home('src/core/artisan.js#KITCHEN_NO_BURN', 'count'), home('src/core/pacing.js#actionIntervalMs', 'count'), home('src/core/tools.js#toolXpB', 'count'), home('src/core/tools.js#toolDouble', 'count'), home('src/core/farm.js#PLOT_TIER_PRICES', 'count'), home('src/core/farm.js#REGROW_LIMITS', 'count'), home('src/core/farm.js#WATER_WINDOW_MS', 'count'), home('src/core/artisan-sim.js#artisanIntervalMs', 'count'), home('src/core/skill-sim.js#gatherIntervalMs', 'count')]),
     def: 'every node\'s and recipe\'s time, XP, level and output; a speed bonus never past x0.7 time, never under 0.5 s; a burn chance 25% at the recipe\'s level, -1 point a level; tools +2% XP and double a tier; farm plots 500..100,000 gold',
     range: 'whole and permille',
     touches: 'materials and crafted supplies an hour, town skill Levels, the farm', out: [], f: ['P04', 'P05'],
@@ -378,6 +398,7 @@ export const GEAR_ECONOMY = [
     ev: 'CONFIRMED (read)' }),
   L('econ.tally', 'economy', 'content', 'Tally task rewards', {
     at: [at('src/data/tally-tasks.js', 'export const TALLY_TASKS')],
+    rows: rows('the task limits', [home('src/data/tally-tasks.js#TALLY_RULES', 'count')]),
     def: 'a kill count and gold a task (25 rats for 25 gold ...), three held, three paid a day',
     range: 'whole',
     touches: 'early gold and pieces', out: [], f: [],
@@ -400,6 +421,14 @@ export const GEAR_ECONOMY = [
     touches: 'Inner Flame, so regeneration', out: [], f: ['P12'],
     perturb: NP('outside-hunt'),
     ev: 'CONFIRMED (read)' }),
+  L('econ.clans', 'economy', 'global', 'Founding a clan', {
+    at: [at('src/data/clans.js', 'foundGold: 100000,')],
+    names: ['CLAN_RULES'],
+    def: 'a clan costs 100,000 gold to found; names 3..24 letters, tags 2..4, invites last 7 days',
+    range: 'whole',
+    touches: 'a one-off gold sink', out: [], f: [],
+    perturb: NP('outside-hunt'),
+    ev: 'CONFIRMED (read on the baseline 861ae52e3)' }),
   L('econ.market', 'economy', 'global', 'Market fee, cut and ceiling', {
     at: [at(MIG + '2027-01-12-market-account.sql', 'add column list_fee_bp          int     not null default 100'), at(MIG + '2027-01-12-market-account.sql', 'update public.hr_market_config set house_tax_bp = 400'), at(MIG + '2027-01-12-market-account.sql', 'add column ceiling_mult         int     not null default 100'), at(MIG + '2027-03-03-market-bench-gate.sql', 'add column if not exists min_skill_level int not null default 30')],
     def: 'listing fee 1% (at least fee_min), the Weighhouse\'s cut 4% (house_tax_bp 400), a ceiling of 100 x book, a seller needs a bench skill at 30',

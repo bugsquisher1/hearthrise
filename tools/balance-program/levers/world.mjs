@@ -1,6 +1,6 @@
 // tools/balance-program/levers/world.mjs — levers of Tyler's categories 12 (monsters), 13 (spawn pacing and encounters), 14 (monster XP
 // and loot values) and 19 (rare drops). Labels as in combat.mjs.
-import { L, at, K, P, V, NP, flag, rows, home, field, fields } from './dsl.mjs';
+import { L, at, K, P, V, NP, flag, rows, home, field, fields, present } from './dsl.mjs';
 import { KILL, SURVIVE, PACE, GOLD } from './combat.mjs';
 
 const BS = 'src/data/balance-sheet.js';
@@ -181,7 +181,7 @@ export const WORLD = [
     perturb: K('tierHp'),
     ev: 'CONFIRMED (read)' }),
   L('mon.tier-overrides', 'monster-stats', 'exception-accidental', 'Per-ground tier dials', {
-    at: [at(BS, 'export const BASE_TIER_OVERRIDES')],
+    at: [at(BS, 'const BASE_TIER_OVERRIDES = ')],
     rows: rows('tierOverride in the packs', [PACKS], packField('tierOverride')),
     def: 'four base grounds carry their own tier dials (the Glade pulls 6 and HP 1400/1450, the Warrens HP 1150/1250, the Thicket XP 1050/1080, the Sewer HP 1150/1250 and XP 1220); packs carry tierOverride',
     range: 'permille',
@@ -199,6 +199,7 @@ export const WORLD = [
     ev: 'CONFIRMED (read)' }),
   L('mon.run-rooms', 'monster-stats', 'exception-intentional', 'Tower and Catacomb rooms', {
     at: [at('src/data/tower.js', 'export const TOWER_RULES'), at('src/data/tower.js', 'export const CATACOMB_RULES')],
+    rows: rows('the run grounds\' rooms and hunts', [home('src/data/hunt-grounds.js#TOWER_GROUNDS', 'open'), home('src/data/hunts.js#TOWER_HUNTS', 'keys')]),
     def: '5 monsters a floor at the formula\'s Level F, a Keeper every 10th; floor 3 min, landing 10 min; minLevel 10; the Tower\'s last row is floor 300',
     range: 'roomSize 2..8, heat 0..50 permille (validateTower)',
     touches: 'the run grounds', out: [], f: ['C-RUN-ROOM'],
@@ -209,6 +210,7 @@ export const WORLD = [
     ev: 'CONFIRMED (read)' }),
   L('mon.boss-rooms', 'monster-stats', 'exception-intentional', 'Boss room clocks (halls and called bosses)', {
     at: [at('src/data/boss-halls.js', 'limitMs: 10 * 60000'), at('src/data/boss-calls.js', 'limitMs: 10 * 60000')],
+    rows: rows('the called bosses, their call items and hunts', [home('src/data/boss-calls.js#BOSS_CALLS', 'count'), home('src/data/boss-calls.js#CALL_ITEMS', 'open'), home('src/data/hunts.js#CALLED_HUNTS', 'keys')]),
     def: 'one fight, 10 minutes from the first swing, his kill ends it; a called room pays nothing, a keyed hall pays as a ground. GR-30 (PROVISIONAL, not built): the boss role times ONE hall number on health and so on this clock',
     range: 'ms above 0',
     touches: 'whether a party wins a hall', out: [], f: ['C-BOSS-ROOM'],
@@ -227,7 +229,7 @@ export const WORLD = [
       flag('redundant', 'Written on the hunt row and on the ground row; the engine reads the ground\'s', 'CONFIRMED (pull-cycle.js reads inst.ground.respawnMs only)')],
     ev: 'CONFIRMED (read)' }),
   L('spawn.composition', 'spawn', 'content', 'Pockets, rosters and spawn weights', {
-    rows: rows('pockets, spawns and their weights, densityMax, route, pullDist on grounds and packs', [GROUNDS, PACKS, HUNTS, home('src/data/hunt-grounds.js#CALLED_GROUNDS', 'keys')], field('src/data/hunt-grounds.js', 'HUNT_GROUNDS', 'pockets.*.spawns.*.w'), ['HUNT_GROUNDS', 'pullRows']),
+    rows: rows('pockets, spawns and their weights, densityMax, route, pullDist on grounds and packs', [GROUNDS, PACKS, HUNTS, home('src/data/hunt-grounds.js#CALLED_GROUNDS', 'keys')], fields(present('src/data/hunt-grounds.js', 'HUNT_GROUNDS', 'pockets.*.spawns.*.monster'), field('src/data/hunts.js', 'HUNTS', 'spawns.*.w')), ['HUNT_GROUNDS', 'pullRows']),
     def: 'a pull spawns its pocket\'s authored rows, then its non-boss fill rows again up to the density; packs on a route',
     range: 'densityMax 0..16 (DENSITY_PICK), a full box 8',
     touches: 'what a pull holds: roles, shooters, casters, bosses', out: [...KILL, ...SURVIVE], f: ['E10', 'C-PULL'],
@@ -361,7 +363,7 @@ export const WORLD = [
 
   /* ── 19. RARE-DROP PROBABILITIES ───────────────────────────────────────────────────────────────────────────────────────────── */
   L('rare.band-rows', 'rare-drops', 'content', 'Scarce, Rare, Key and Trophy drop chances', {
-    rows: rows('ch on scarce, rare, key and trophy rows', [MON_ROWS, PACKS], dropsByBand(['scarce', 'rare', 'key', 'trophy'])),
+    rows: rows('ch on scarce, rare, key and trophy rows, and the reforge patterns\' boss drops', [MON_ROWS, PACKS, home('src/data/patterns.js#PATTERNS', 'open')], dropsByBand(['scarce', 'rare', 'key', 'trophy'])),
     names: ['MONSTERS', 'BAND_TARGETS'],
     def: 'each row\'s chance typed by hand until a test measures its hours inside its band (Scarce 0.75 to 1.5 h, Rare 10 to 20 h, Key 1.5 to 3 h, Trophy 100 to 150 h a hero at the floor)',
     range: 'BAND_TARGETS (a target table) and the 0.95 cap. Ruled 2026-11-20: generous to Krell, rarer after',
@@ -382,6 +384,7 @@ export const WORLD = [
     ev: 'CONFIRMED (read)' }),
   L('rare.chest-luck', 'rare-drops', 'global', 'Chest weapon chance: warmth and stokes', {
     at: [at('src/data/chests.js', 'warmthStepPm: 40'), at('src/data/chests.js', 'warmthCapPm: 3000')],
+    rows: rows('the chance reader', [home('src/data/chests.js#chestChancePpm', 'count')]),
     def: 'min(1, weaponPm x warmth x stoke): warmth +4% a dry key up to x3; stokes x1.7 / 2.5 / 3.3 for 3 / 7 / 12 keys of Cinders',
     range: 'permille; stokes 1..9 rows (validateChests)',
     touches: 'the Hearth Chest\'s weapon chase', out: [], f: ['E49'],

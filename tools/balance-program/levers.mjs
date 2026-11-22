@@ -4,8 +4,9 @@
 //
 //   node tools/balance-program/levers.mjs              the counts, the problems, and how many lines and values moved since --write
 //   node tools/balance-program/levers.mjs --write      writes tools/balance-program/levers.json (every lever, its 8 fields, the binding pins)
-//                                                      and the generated tables in docs/design/balance-baseline/02-lever-registry.md. Reads
-//                                                      origin/main through git for the live column (BL-1's baseline is the live game)
+//                                                      and the generated tables in docs/design/balance-baseline/02-lever-registry.md. Stamps
+//                                                      the baseline commit (the overhaul's starting build, 861ae52e3) and whether this
+//                                                      tree's rule code is still the baseline's
 //   node tools/balance-program/levers.mjs --check      exit 1 on a STRUCTURAL problem: a top-level binding in the rule code that holds a typed
 //                                                      number and no lever row or not-a-lever reason claims; a NEW typed number or a new key in
 //                                                      a pinned binding; a lever site whose anchor is gone; a knob, patch or test a row names
@@ -93,13 +94,28 @@ export function buildModel(ctx) {
     if (h.pin !== pin) bad('home', pattern + ' is pinned two ways (' + h.pin + ' and ' + pin + ' by ' + id + ')');
     h.levers.add(id); homes.set(pattern, h);
   };
-  /* reach: every formula downstream of a formula in the architecture graph */
+  /* reach in the architecture graph (formulas-architecture.json, 197 edges): `feeds`, the formulas its own formulas feed directly;
+     `closure`, every formula downstream. 59 formulas sit on a circle, so the closure is near 79 for most levers and does not rank:
+     the registry ranks by the matrix outcomes a lever moves, then by feeds */
   const out = new Map();
   for (const [a, b] of ctx.edges || []) { if (!out.has(a)) out.set(a, new Set()); out.get(a).add(b); }
-  const reachOf = (ids) => { const seen = new Set(); const stack = [...ids]; while (stack.length) { const x = stack.pop(); for (const y of out.get(x) || []) if (!seen.has(y)) { seen.add(y); stack.push(y); } } for (const i of ids) seen.delete(i); return seen.size; };
+  const reachOf = (ids) => {
+    const feeds = new Set(ids.flatMap((i) => [...(out.get(i) || [])]).filter((x) => !ids.includes(x)));
+    const seen = new Set(); const stack = [...ids];
+    while (stack.length) { const x = stack.pop(); for (const y of out.get(x) || []) if (!seen.has(y)) { seen.add(y); stack.push(y); } }
+    for (const i of ids) seen.delete(i);
+    return { feeds: feeds.size, closure: seen.size };
+  };
   const patchesOf = (sites) => (ctx.patches || []).filter(([, p]) => (p.edits || []).some((e) => sites.some((s) => s.text && e.from.includes(s.text.trim())))).map(([n]) => n);
   const knobPatches = (knob) => (ctx.patches || []).filter(([, p]) => p.knobs && Object.prototype.hasOwnProperty.call(p.knobs, knob)).map(([n]) => n);
 
+  /* a row table's own pin wins over a site's default: collect the explicit homes first */
+  for (const L of ctx.levers) for (const h of (L.rows && L.rows.homes) || []) addHome(h.at, h.pin || 'keys', L.id);
+  const explicit = [...homes.keys()].map((p) => [p, patternRe(p)]);
+  const homeOfSite = (k, id, pin) => {
+    const hit = explicit.find(([, re]) => re.test(k));
+    if (hit && !pin) homes.get(hit[0]).levers.add(id); else addHome(k, pin || 'count', id);
+  };
   const ids = new Set();
   const levers = [];
   for (const L of ctx.levers) {
@@ -119,11 +135,13 @@ export function buildModel(ctx) {
       const occ = countOf(lf(text), s.anchor);
       for (const line of hits) {
         const b = ruleFile(s.file) ? bindings.find((x) => x.file === s.file && x.line <= line && line <= x.end && x.kind !== 'statements') : null;
-        sites.push({ file: s.file, line, text: lines[line - 1].trim(), binding: b ? b.name : null, patchable: want === 1 && occ === 1 && inTrees(s.file, PATCHABLE) });
-        if (b) addHome(key(b), s.pin || (b.kind === 'function' ? 'count' : 'count'), L.id);
+        /* a patch edit replaces ONE exact text: an anchor written once is that text; an anchor on several lines (count > 1) is
+           patchable by a longer text of the line meant, and the row says so */
+        sites.push({ file: s.file, line, text: lines[line - 1].trim(), binding: b ? b.name : null, patchable: inTrees(s.file, PATCHABLE) && (want > 1 || occ === 1) });
+        if (b) homeOfSite(key(b), L.id, s.pin);
       }
     }
-    for (const h of (L.rows && L.rows.homes) || []) addHome(h.at, h.pin || 'keys', L.id);
+    const rowFiles = ((L.rows && L.rows.homes) || []).map((h) => h.at.split('#')[0]);
     /* the eighth field */
     const p = L.perturb || {};
     if (!PERTURB_KINDS.includes(p.kind)) bad('perturb', L.id + ': perturb kind ' + p.kind + ' is not one of ' + PERTURB_KINDS.join(', '));
@@ -132,7 +150,9 @@ export function buildModel(ctx) {
       else if (sites.length && !sites.some((s) => knobFiles.get(p.knob).has(s.file))) bad('perturb', L.id + ': knob ' + p.knob + ' moves no file this lever sits in');
     }
     if (p.kind === 'patch') {
-      if (!sites.length) bad('perturb', L.id + ': a patch needs a site to edit');
+      /* a content lever with no site is patched on a row's own line: every row table must sit in a planted tree */
+      if (!sites.length && !rowFiles.length) bad('perturb', L.id + ': a patch needs a site or a row table to edit');
+      for (const f of rowFiles) if (!inTrees(f.replace(/\/\*.*$/, ''), PATCHABLE) && !PATCHABLE.some((t) => f.startsWith(t + '/'))) bad('perturb', L.id + ': its rows in ' + f + ' are not in a planted tree');
       for (const s of sites) if (!s.patchable) bad('perturb', L.id + ': ' + s.file + ':' + s.line + ' cannot be a patch edit (the anchor is not one exact text in a planted file)');
     }
     if (p.kind === 'not-playable' && !GAPS[p.gap]) bad('perturb', L.id + ': gap ' + p.gap + ' is not one of ' + Object.keys(GAPS).join(', '));
@@ -226,27 +246,18 @@ async function measureRows(root, levers, src) {
   }
 }
 
-/* LIVE: the same anchor on origin/main (BL-1's baseline is the live game) */
-function liveColumn(root, levers) {
+/* THE BASELINE (Tyler 2026-11-21, via the Coordinator): the overhaul's starting build, set/v0.2.144 at 861ae52e3, pushed as
+   baseline/overhaul-start, not the live game. --write stamps which commit the values were read at and whether the rule code and the
+   migrations of this tree are byte for byte the baseline's (a lane that moved a value after it says so here). */
+export const BASELINE = Object.freeze({ ref: 'origin/baseline/overhaul-start', commit: '861ae52e3' });
+const BASELINE_TREES = ['src/core', 'src/data', 'supabase/functions/hr-accrue', 'supabase/migrations'];
+function baselineStamp(root) {
   const git = (args) => execFileSync('git', args, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
-  let commit;
-  try { commit = git(['rev-parse', 'origin/main']).trim(); } catch { return { ref: 'origin/main', commit: null }; }
-  const files = new Map();
-  const show = (f) => { if (!files.has(f)) { try { files.set(f, lf(git(['show', 'origin/main:' + f]))); } catch { files.set(f, null); } } return files.get(f); };
-  for (const L of levers) {
-    const src = LEVERS.find((x) => x.id === L.id);
-    const main = [];
-    for (const s of src.at || []) {
-      const text = show(s.file);
-      if (text === null) { main.push({ file: s.file, text: null, note: 'not on main' }); continue; }
-      const hits = text.split('\n').filter((t) => t.includes(s.anchor)).map((t) => t.trim());
-      main.push({ file: s.file, text: hits.length ? hits.join(' | ') : null, note: hits.length ? null : 'the anchor is not on main' });
-    }
-    const here = L.sites.map((s) => s.text).join(' | ');
-    const there = main.map((m) => m.text).join(' | ');
-    L.live = { same: here === there, ...(here === there ? {} : { main }) };
-  }
-  return { ref: 'origin/main', commit };
+  let commit = null;
+  try { commit = git(['rev-parse', BASELINE.ref]).trim(); } catch { try { commit = git(['rev-parse', BASELINE.commit]).trim(); } catch { return { ...BASELINE, found: false }; } }
+  let same = null;
+  try { git(['diff', '--quiet', commit, '--', ...BASELINE_TREES]); same = true; } catch { same = false; }
+  return { ref: BASELINE.ref, commit, ruleCodeSameAsBaseline: same };
 }
 
 /* the fields a person writes: the registry is stale when they move and --write was not run */
@@ -256,11 +267,9 @@ async function write(root) {
   const ctx = treeCtx(root, null);
   const m = buildModel(ctx);
   await measureRows(root, m.levers, LEVERS);
-  const live = liveColumn(root, m.levers);
-  let head = null;
-  try { head = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(); } catch { /* a copy with no git */ }
+  const baseline = baselineStamp(root);
   const doc = {
-    schema: SCHEMA, generatedBy: 'tools/balance-program/levers.mjs --write', tree: head, live,
+    schema: SCHEMA, generatedBy: 'tools/balance-program/levers.mjs --write', baseline,
     authored: authoredHash(LEVERS, NOT_LEVERS),
     fields: FIELDS, categories: CATEGORIES, classes: CLASSES, perturbKinds: PERTURB_KINDS, gaps: GAPS,
     counts: countsOf(m), census: m.census, problems: m.problems,
@@ -307,17 +316,15 @@ export function docTables(doc) {
   t.CENSUS = ['| | Count |', '|---|---|', '| Top-level bindings in the rule code that hold a typed number | ' + doc.census.bindings + ' (in ' + doc.census.files + ' files, ' + doc.census.typed + ' typed numbers) |',
     '| Claimed by a lever | ' + doc.census.lever + ' |', '| Claimed by a not-a-lever reason | ' + doc.census.notLever + ' |', '| Unclaimed | ' + doc.census.unclaimed + ' |',
     '| Exceptions, intentional and accidental | ' + (c.byClass['exception-intentional'] || 0) + ' and ' + (c.byClass['exception-accidental'] || 0) + ' |',
-    '| Levers whose line on the live game (origin/main ' + String(doc.live.commit || '').slice(0, 9) + ') differs | ' + doc.levers.filter((L) => L.live && !L.live.same).length + ' |'].join('\n');
+    '| Values read at | ' + String(doc.baseline.commit || 'unknown').slice(0, 9) + ' (' + doc.baseline.ref + '); rule code and migrations the same as the baseline: ' + (doc.baseline.ruleCodeSameAsBaseline ? 'yes' : 'NO') + ' |'].join('\n');
   const flagRows = [];
   for (const kind of ['redundant', 'ineffective', 'contradictory']) for (const L of doc.levers) for (const f of L.flags.filter((x) => x.kind === kind)) flagRows.push('| ' + kind + ' | `' + L.id + '` ' + cell(L.name) + ' | ' + cell(f.why) + ' | ' + cell(f.ev) + ' |');
   t.FLAGS = ['| Kind | Lever | What | Evidence |', '|---|---|---|---|', ...flagRows].join('\n');
   const np = doc.levers.filter((L) => L.perturb.kind === 'not-playable').sort((a, b) => (a.perturb.gap < b.perturb.gap ? -1 : a.perturb.gap > b.perturb.gap ? 1 : a.id < b.id ? -1 : 1));
   t.NOT_PLAYABLE = ['| Gap | Lever | Category | Why |', '|---|---|---|---|', ...np.map((L) => '| ' + L.perturb.gap + ' | `' + L.id + '` ' + cell(L.name) + ' | ' + cell(doc.categories[L.category]) + ' | ' + cell(L.perturb.note || doc.gaps[L.perturb.gap]) + ' |')].join('\n');
-  const top = doc.levers.slice().sort((a, b) => (b.reach - a.reach) || (b.outcomes.length - a.outcomes.length) || (a.id < b.id ? -1 : 1)).slice(0, 25);
-  t.REACH = ['| Lever | Reach (formulas downstream) | Matrix outcomes it moves | Perturbed by | Class |', '|---|---|---|---|---|',
-    ...top.map((L) => '| `' + L.id + '` ' + cell(L.name) + ' | ' + L.reach + ' | ' + L.outcomes.length + ' | ' + (L.perturb.kind === 'knob' ? 'knob `' + L.perturb.knob + '`' : L.perturb.kind === 'not-playable' ? 'NOT PLAYABLE (' + L.perturb.gap + ')' : L.perturb.kind) + ' | ' + L.class + ' |')].join('\n');
-  const live = doc.levers.filter((L) => L.live && !L.live.same);
-  t.LIVE = ['| Lever | On set (this registry) | On main (the live game) |', '|---|---|---|', ...live.map((L) => '| `' + L.id + '` | ' + cell(L.sites.map((s) => s.text).join(' / ').slice(0, 160)) + ' | ' + cell((L.live.main || []).map((x) => x.text || x.note).join(' / ').slice(0, 160)) + ' |')].join('\n');
+  const top = doc.levers.slice().sort((a, b) => (b.reach.feeds - a.reach.feeds) || (b.outcomes.length - a.outcomes.length) || (b.reach.closure - a.reach.closure) || (a.id < b.id ? -1 : 1)).slice(0, 25);
+  t.REACH = ['| Lever | Formulas it feeds directly (COMPUTED) | Matrix outcomes it moves (JUDGED) | Formulas downstream (COMPUTED) | Perturbed by | Class |', '|---|---|---|---|---|---|',
+    ...top.map((L) => '| `' + L.id + '` ' + cell(L.name) + ' | ' + L.reach.feeds + ' | ' + L.outcomes.length + ' | ' + L.reach.closure + ' | ' + (L.perturb.kind === 'knob' ? 'knob `' + L.perturb.knob + '`' : L.perturb.kind === 'not-playable' ? 'NOT PLAYABLE (' + L.perturb.gap + ')' : L.perturb.kind) + ' | ' + L.class + ' |')].join('\n');
   return t;
 }
 function writeDoc(root, doc) {
@@ -406,7 +413,7 @@ function selftest() {
   /* PLANT 6: a bad knob, a planned knob, a patch on an anchor that is not one exact text, a bad gap */
   ok(has(run({}, { levers: base().map((L) => (L.id === 'mon.hp' ? { ...L, perturb: { kind: 'knob', knob: 'nope' } } : L)) }), 'perturb', 'knob nope'), 'an unknown knob is caught');
   ok(has(run({}, { levers: base().map((L) => (L.id === 'mon.hp' ? { ...L, perturb: { kind: 'knob', knob: 'skillPower' } } : L)) }), 'perturb', 'PLANNED'), 'a planned knob is caught as not playable');
-  ok(has(run({ 'src/core/fight.js': 'export function blow(s) { return Math.floor(s * 0.35 + 7); }\n// s * 0.35 again\n' }, { levers: base().map((L) => (L.id === 'blow.skill' ? { ...L, at: [{ file: 'src/core/fight.js', anchor: 's * 0.35', count: 2 }] } : L)) }), 'perturb', 'cannot be a patch'), 'a patch on a twice-written text is caught');
+  ok(has(run({ 'src/core/fight.js': 'export function blow(s) { return Math.floor(s * 0.35 + 7) + s * 0.35; }\n' }), 'perturb', 'cannot be a patch'), 'a patch on a text written twice on its line is caught');
   ok(has(run({}, { levers: base().map((L) => (L.id === 'econ.fee' ? { ...L, perturb: { kind: 'not-playable', gap: 'later' } } : L)) }), 'perturb', 'gap later'), 'an unknown gap is caught');
   /* PLANT 7: a test that does not read the lever, a test that is not there */
   ok(has(run({}, { levers: base().map((L) => (L.id === 'mon.rows' ? { ...L, tests: [['tests/sheet.mjs', 'x']] } : L)) }), 'test', 'reads none of'), 'an authored test that reads none of the lever is caught');

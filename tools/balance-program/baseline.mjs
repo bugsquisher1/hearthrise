@@ -360,6 +360,25 @@ async function selftest() {
     const planted = { ...spec, openGrounds: spec.openGrounds.slice(1) };
     const stray2 = planHook(planted)(D, K, planMatrix(D, K, baselineRun(planted), {})).cells.filter(strayCell(planted));
     check('MUTANT a spec that leaves out one open ground: its cells read as strays (' + stray2.length + ')', stray2.length > 0);
+    /* 5b. THE GAME'S OWN BLESSINGS: no baseline job carries the matrix's S-5 ladder (a proposal), so a death past Level 100 is cut by the tree's
+       table (three Blessings leave a quarter), where the matrix's own job of the same cell halves it again. A lone hammer on Deadly past live
+       content dies within minutes (01-baseline.md section 6.8): both plays must see a death, or the check says so */
+    {
+      const ladder = plan.jobs.filter((j) => 'blessedShare' in j.cell).length;
+      const job = plan.jobs.find((j) => j.key.startsWith('145|mid|1:h|deadly') && j.cell.seedBase === 0);
+      const matrixJob = job && planMatrix(D, K, baselineRun(spec), { blocks: ['beyond'] }).jobs.find((j) => j.key === job.key && j.cell.seedBase === 0);
+      const cut = (r) => (r && r.heroes[0].raw.xpLostLevel > 0 ? r.heroes[0].raw.xpLostLevelBlessed / r.heroes[0].raw.xpLostLevel : null);
+      let game = null, matrix = null, why = '';
+      if (!job || !matrixJob) why = 'no beyond job at 145 on this tree';
+      else {
+        const p = await playJobs([{ ...job, id: 'g', cell: { ...job.cell, hours: 0.25 } }, { ...matrixJob, id: 'm', cell: { ...matrixJob.cell, hours: 0.25 } }], ROOT, 2);
+        game = cut(p.results.g); matrix = cut(p.results.m);
+        if (game === null || matrix === null) why = 'no death in 0.25 h: the check read nothing';
+      }
+      const share = 1 - D.BL.BLESSING_CUT_PERMILLE[2] / 1000;
+      check('the baseline plays the game\'s own Blessings: ' + ladder + ' jobs carry the S-5 ladder, a death at 145 keeps ' + game + ' of its loss (the tree\'s table: ' + share + '), where the matrix\'s job keeps ' + matrix,
+        ladder === 0 && game !== null && Math.abs(game - share) < 1e-9 && matrix !== null && matrix < game, why);
+    }
     /* 6. one real cell, seed 0, twice: byte-identical; the comparator sees a planted change */
     const pick = plan.jobs.find((j) => j.cell.party.length === 1 && j.cell.level === 10 && j.cell.seedBase === 0) || plan.jobs[0];
     const job = { ...pick, id: 'det', cell: { ...pick.cell, hours: 0.05 } };

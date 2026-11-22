@@ -101,13 +101,22 @@ export function c2Cells(D, K, spec) {
   return { cells, jobs };
 }
 
-/** balance-matrix.mjs playRun's planHook: the C-2 cells beside the run's, every job's hours from its cell, and each cell's hours on it. */
+/**
+ * balance-matrix.mjs playRun's planHook: the C-2 cells beside the run's, every job's hours from its cell, and each cell's hours on it.
+ * THE GAME'S OWN BLESSINGS. The grid's cell builder lays the sitting's S-5 Blessing ladder on every cell (`blessedShare`: past Level 100 each
+ * ladder Level halves what a blessed death takes), a PROPOSAL the matrix plays for the overhaul. The baseline measures the game as it stands,
+ * so its jobs carry no `blessedShare` and the cell runner prices each death with the tree's own table (src/data/blessings.js, three Blessings).
+ */
 export function planHook(spec) {
   return (D, K, plan) => {
     const extra = c2Cells(D, K, spec);
     const cells = [...plan.cells, ...extra.cells].map((c) => ({ ...c, hours: hoursOfCell(c) }));
     const hoursByKey = new Map(cells.map((c) => [c.key, c.hours]));
-    const jobs = [...plan.jobs, ...extra.jobs].map((j) => ({ ...j, cell: { ...j.cell, hours: hoursByKey.get(j.key) } }));
+    const jobs = [...plan.jobs, ...extra.jobs].map((j) => {
+      const { blessedShare, ...cell } = j.cell;
+      void blessedShare;
+      return { ...j, cell: { ...cell, hours: hoursByKey.get(j.key) } };
+    });
     return { cells, jobs };
   };
 }

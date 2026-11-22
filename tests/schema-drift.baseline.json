@@ -7,7 +7,7 @@
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
  "generated": "2026-11-22",
- "digest": "1352b9a234a4496e6b40035adf467a6770a03eb975d7b4506b273bd58d893cf0",
+ "digest": "62333b4d1584c76a138d09273aebfc21b89a4ed3ca4fec17b8f23a93e85c2fa3",
  "counts": {
   "relations": 327,
   "functions": 849,
@@ -958,7 +958,7 @@
    "hr_premium_until(p_user uuid, p_slot integer)",
    "hr_premium_view(p_user uuid, p_slot integer)",
    "hr_presence_leave()",
-   "hr_presence_quiet_set(p_quiet boolean)",
+   "hr_presence_quiet_set(p_slot integer, p_quiet boolean)",
    "hr_presence_view(p_user uuid, p_slot integer)",
    "hr_progress_prune(p_older interval)",
    "hr_purse_lock(p_user uuid)",

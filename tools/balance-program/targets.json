@@ -349,10 +349,9 @@
         ]
       },
       "readers": [
-        "MISSING"
+        "reader:RD-PACE-DAYS"
       ],
-      "readerState": "missing",
-      "gap": "No band reads the day the pace seat reaches Level 88. grid-derive.mjs has dayAt(PACE, L), and R2 already uses it at Level 185",
+      "readerState": "lab",
       "source": "Ruling 2026-11-21 (Krell is weeks, not months). Reversal 2 (GR-6b) let stand on the page the same day",
       "date": "2026-11-21",
       "basis": "ruled",
@@ -589,6 +588,7 @@
       ],
       "readerState": "missing",
       "gap": "The boss room cells of FB-13 are not built",
+      "until": "The boss room cells of FB-13 exist in the matrix plan",
       "source": "MM-5 PROVISIONAL. D-6 amended by D-9 (review/10 sections 3.3 and 3.4): one bar is the boss role times 13 times the tier's health",
       "date": "2026-11-21",
       "basis": "designer",
@@ -669,10 +669,9 @@
         ]
       },
       "readers": [
-        "MISSING"
+        "reader:RD-FOUR-GOLD"
       ],
-      "readerState": "missing",
-      "gap": "S11 reads Level XP and B9 reads days to goals. No band reads gold a head against the heroes alone",
+      "readerState": "lab",
       "source": "Ruling 2026-11-21, about 10:30 UTC: more XP and gold a head. Refined ten minutes later: no solo or group targets",
       "date": "2026-11-21",
       "basis": "ruled",
@@ -872,10 +871,9 @@
         ]
       },
       "readers": [
-        "MISSING"
+        "reader:RD-LINEUP-WINS"
       ],
-      "readerState": "missing",
-      "gap": "The four lineup cells print and judge nothing (GR-88). No band counts the grounds a lineup wins",
+      "readerState": "lab",
       "source": "Ruling 2026-10-25 section 5 (no composition dominates every ground). Sitting S-10 c (2026-11-21): if one damage type wins everywhere, the classes rule may come back as one row of the table",
       "date": "2026-11-21",
       "basis": "ruled-sitting",
@@ -980,6 +978,7 @@
       ],
       "readerState": "missing",
       "gap": "FIST_LINE.live is false. tools/balance-sim/fist-table.mjs plays a planted copy outside the matrix",
+      "until": "The fist line is live (FIST_LINE.live), so a matrix cell can wear it",
       "source": "Ruling 2026-11-18 (the fist identity and its promise, itemization plan section 13, answer 7)",
       "date": "2026-11-18",
       "basis": "ruled",
@@ -1005,10 +1004,9 @@
         "text": "Every caster spell and basic attack"
       },
       "readers": [
-        "MISSING"
+        "reader:RD-MAGIC-MANA"
       ],
-      "readerState": "missing",
-      "gap": "No matrix band reads it, and this lane did not find the unit guard the ruling's note names",
+      "readerState": "lab",
       "source": "Ruling 2026-11-05",
       "date": "2026-11-05",
       "basis": "ruled",
@@ -1072,6 +1070,7 @@
       ],
       "readerState": "missing",
       "gap": "TL5 is named for FB-3 to write and is not in standards.mjs at 861ae52e3",
+      "until": "Lab phase 4. Talents become spell evolutions (owner, 2026-11-21) and the build policy readers take the place of TL5",
       "plannedReaders": [
         "TL5"
       ],
@@ -1111,6 +1110,7 @@
       ],
       "readerState": "missing",
       "gap": "TL6 is named for FB-3 to write and is not in standards.mjs at 861ae52e3. No cell plays an unlock yet",
+      "until": "Lab phase 4. Talents become spell evolutions (owner, 2026-11-21) and the build policy readers take the place of TL6",
       "plannedReaders": [
         "TL6"
       ],
@@ -1148,6 +1148,7 @@
       ],
       "readerState": "missing",
       "gap": "TL7 is named for FB-3 to write and is not in standards.mjs at 861ae52e3",
+      "until": "Lab phase 4. Talents become spell evolutions (owner, 2026-11-21) and the build policy readers take the place of TL7",
       "plannedReaders": [
         "TL7"
       ],
@@ -1177,6 +1178,7 @@
       ],
       "readerState": "missing",
       "gap": "tools/balance-sim/boss-call-table.mjs probes halls outside the matrix, and the boss room cells of FB-13 are not built",
+      "until": "The boss room and hall cells of FB-13 exist in the matrix plan. Until then boss-call-table.mjs probes halls outside it",
       "source": "D-9 (designer, review/10 sections 2.4 and 3.4). GR-30 PROVISIONAL. D-6 amended. Ruling 2026-11-14 (Challenge on or off is a fair choice)",
       "date": "2026-11-21",
       "basis": "designer",
@@ -1276,10 +1278,9 @@
         ]
       },
       "readers": [
-        "MISSING"
+        "reader:RD-CLOSE-CALLS"
       ],
-      "readerState": "missing",
-      "gap": "Cells record typical low health and its tenth percentile, not a dip count",
+      "readerState": "lab",
       "source": "Ruling 2026-10-25 section 3",
       "date": "2026-10-25",
       "basis": "ruled",
@@ -1388,10 +1389,9 @@
         ]
       },
       "readers": [
-        "MISSING"
+        "reader:RD-TIER-DEATHS"
       ],
-      "readerState": "missing",
-      "gap": "No band compares two tiers' death rates on one ground",
+      "readerState": "lab",
       "source": "Ruling 2026-10-25 section 3 (danger rises predictably into harder grounds). Rulings 2026-11-05 and 2026-11-07 (three ordered tiers)",
       "date": "2026-11-07",
       "basis": "ruled",
@@ -1663,10 +1663,9 @@
         ]
       },
       "readers": [
-        "MISSING"
+        "reader:RD-SPELL-SHARE"
       ],
-      "readerState": "missing",
-      "gap": "No band reads the group share. The balance pass counted it by hand",
+      "readerState": "proxy",
       "source": "Ruling 2026-11-08 (monster area spells so the whole party takes damage). D-10 (designer, 2026-11-21): under 5% calls for a group caster on that ground",
       "date": "2026-11-21",
       "basis": "designer",
@@ -1694,6 +1693,7 @@
       ],
       "readerState": "missing",
       "gap": "No band reads a hall's win rate. boss-call-table.mjs probes it outside the matrix",
+      "until": "Hall cells in the matrix plan (FB-13), played on two bar policies (07-balance-lab.md 3.3, the good and the lazy bar)",
       "source": "Ruling 2026-11-05 (the boss fight gets phases before it ships, and its ship bar)",
       "date": "2026-11-05",
       "basis": "ruled",
@@ -1726,6 +1726,7 @@
       ],
       "readerState": "missing",
       "gap": "No band reads a hall's win rate. boss-call-table.mjs probes it outside the matrix",
+      "until": "Hall cells in the matrix plan (FB-13), played on the card's party",
       "source": "D-9 (designer, review/10 sections 2.2, 2.4 and 2.5). GR-30 PROVISIONAL. On the veto list as D9-1",
       "date": "2026-11-21",
       "basis": "designer",
@@ -1761,6 +1762,7 @@
       ],
       "readerState": "missing",
       "gap": "The boss room cells of FB-13 are not built. FB-3 plays the room as a looping cell, 4 seeds of 8 hours",
+      "until": "The boss room cells of FB-13 exist in the matrix plan",
       "source": "D-6 (designer), amended by D-9 (review/10 sections 3.3 and 3.4)",
       "date": "2026-11-21",
       "basis": "designer",
@@ -2238,6 +2240,7 @@
       ],
       "readerState": "missing",
       "gap": "No band reads the jewelry share. D-3 measured it by hand with every jewelry number at zero",
+      "until": "A gear state with and without crafted jewelry in the kit rules (standards.mjs GEAR_STATES), so the share can be played",
       "source": "GR-38, PROVISIONAL. The 6% is a TARGET until the tier 4 sample is played",
       "date": "2026-11-21",
       "basis": "proposed",
@@ -2265,6 +2268,7 @@
       ],
       "readerState": "missing",
       "gap": "18 of 23 perks have no engine hook, and no cell plays a perk in and out of its case (GR-39)",
+      "until": "The perks have engine hooks (18 of 23 have none) and rolled gear lands (Lab phase 4, the option tables)",
       "source": "Call 23-5 (perks sized at 4%). GR-39 reads the 4% as the always-on total, reversal 10 let stand on the page 2026-11-21",
       "date": "2026-11-21",
       "basis": "ruled-call",
@@ -2311,6 +2315,7 @@
       ],
       "readerState": "missing",
       "gap": "No band compares a chest piece with the next tier's drop",
+      "until": "A chest piece is a gear state in the kit rules. No cell wears one today",
       "source": "Ruling 2026-11-18 (chest pieces may be stronger than the next tier's drop, about as far as they should go, not a hard rule)",
       "date": "2026-11-18",
       "basis": "ruled",
@@ -2334,6 +2339,7 @@
       ],
       "readerState": "missing",
       "gap": "No band reads a chest weapon's worth",
+      "until": "The Tower's chest weapons are a gear state in the kit rules. No cell wears one today",
       "source": "Ruling 2026-11-18",
       "date": "2026-11-18",
       "basis": "ruled",
@@ -2445,10 +2451,9 @@
         "text": "Every gear state, party size and tier"
       },
       "readers": [
-        "MISSING"
+        "reader:RD-SUSTAIN"
       ],
-      "readerState": "missing",
-      "gap": "No reader compares healing throughput with incoming damage, and no cell searches for a tier a kit cannot lose",
+      "readerState": "lab",
       "source": "Ruling 2026-10-25 section 3 (no infinite sustain or invulnerability loops)",
       "date": "2026-10-25",
       "basis": "ruled",
@@ -2469,10 +2474,9 @@
         "text": "Every hero in band, every tier"
       },
       "readers": [
-        "MISSING"
+        "reader:RD-REGEN"
       ],
-      "readerState": "missing",
-      "gap": "Cells record healing in total, not by source",
+      "readerState": "lab",
       "source": "Ruling 2026-10-14 (regeneration on a diminishing curve, so food and drink stay necessary)",
       "date": "2026-10-14",
       "basis": "ruled",
@@ -2503,10 +2507,9 @@
         ]
       },
       "readers": [
-        "MISSING"
+        "reader:RD-ENDS"
       ],
-      "readerState": "missing",
-      "gap": "S7 counts deaths only, and no band reads why a hunt ended",
+      "readerState": "lab",
       "source": "Ruling 2026-10-25 section 3 (sustainable healing and consumables). Rulings 2026-10-16 and 2026-10-23 (a hunt never stops for stock)",
       "date": "2026-10-25",
       "basis": "ruled",
@@ -2541,10 +2544,9 @@
         ]
       },
       "readers": [
-        "MISSING"
+        "reader:RD-MANA-DEATHS"
       ],
-      "readerState": "missing",
-      "gap": "No death cause is recorded by resource",
+      "readerState": "lab",
       "source": "Ruling 2026-10-25 section 3 (measure healing throughput, incoming damage, resource use and indefinite survival before any change). The band is JUDGMENT",
       "date": "2026-10-25",
       "basis": "proposed",
@@ -2979,10 +2981,9 @@
         "text": "Every ground's named Rares"
       },
       "readers": [
-        "MISSING"
+        "reader:RD-RARE-HOURS"
       ],
-      "readerState": "missing",
-      "gap": "Cells carry rareRows, and no band reads them",
+      "readerState": "lab",
       "source": "Rulings 2026-10-14 and 2026-10-23 (a Rare every 10 to 20 hours). Luck v3.1 (2026-11-20)",
       "date": "2026-11-20",
       "basis": "ruled",
@@ -3036,6 +3037,7 @@
       ],
       "readerState": "missing",
       "gap": "Luck is not built and no band reads it",
+      "until": "The luck flame is designed and built (07-balance-lab.md section 6, unknown 9)",
       "source": "Luck v3.1 (2026-11-20). Call 9 (keep the hours)",
       "date": "2026-11-21",
       "basis": "ruled-call",
@@ -3055,10 +3057,9 @@
         "text": "Every party, every Rare"
       },
       "readers": [
-        "MISSING"
+        "reader:RD-RARE-SHARE"
       ],
-      "readerState": "missing",
-      "gap": "An engine rule tested outside the matrix. The matrix reads no allocation fairness",
+      "readerState": "lab",
       "source": "Ruling 2026-10-14. Ruling 2026-10-25 section 7",
       "date": "2026-10-25",
       "basis": "ruled",
@@ -3106,6 +3107,7 @@
       ],
       "readerState": "missing",
       "gap": "E5 leaves weekly-capped sources out, and nothing else reads them",
+      "until": "Lab phase 6, the account day: weekly-capped sources live in the account's week, never in one hunt cell",
       "source": "Ruling 2026-11-16 (Catacomb odds 16, 8, 4.5 and 2%, a specific Platinum piece in about 13.5 weeks). Ruling 2026-11-14 (Tower odds lowered so base, warmth and stokes land near the intended pace)",
       "date": "2026-11-16",
       "basis": "ruled",
@@ -3136,6 +3138,7 @@
       ],
       "readerState": "missing",
       "gap": "P1 reads to Level 400 and no checkpoint passes it. PACE_TABLE holds the Level 500 row and no reader uses it. 750 and 1,000 are in no table",
+      "until": "Lab phase 4, log-spaced Levels on projected grounds (07-balance-lab.md 3.3). The subset plays Levels 400, 1000, 2000 and 5000, too far apart to time Levels 500 and 750",
       "source": "Ruling 2026-10-25 section 2",
       "date": "2026-10-25",
       "basis": "ruled",
@@ -3165,10 +3168,10 @@
         ]
       },
       "readers": [
-        "MISSING"
+        "reader:RD-HOLD-PAST-400",
+        "reader:RD-HEADROOM"
       ],
-      "readerState": "missing",
-      "gap": "Checkpoints stop at 400. The balance pass probed past it by hand",
+      "readerState": "lab",
       "source": "The formula brief, section 7 (unlimited Levels, test far past 400), 2026-11-21. Ruling 2026-11-14 (no Level cap, always better gear)",
       "date": "2026-11-21",
       "basis": "ruled",
@@ -3193,6 +3196,7 @@
       ],
       "readerState": "missing",
       "gap": "No band reads skill's share of a hit",
+      "until": "Lab phase 4, the stat weights reader (07-balance-lab.md 3.5 item 6): skill's share of a hit as a finite difference by skill points",
       "source": "GR-23, PROVISIONAL. Combat skill scaling against Level and gear is not approved (ruling 2026-10-25 section 13, item 2)",
       "date": "2026-11-21",
       "basis": "proposed",

@@ -27,8 +27,10 @@
 
 import { listWords } from '../render/format.js';
 import { spellRow } from '../data/monster-spells.js';
+import { HUNT_TUNING } from '../data/hunt-tuning.js';
 
-export const EXPLAIN_WINDOW_MS = 10000;
+/* the window's one home is src/data/hunt-tuning.js (the Balance Lab reads the same window) */
+export const EXPLAIN_WINDOW_MS = HUNT_TUNING.explainWindowMs;
 /* A fall on a ground whose death costs (every hunt): "Knight died: ...", "The killing blow was ...". */
 const DIED = Object.freeze({ fell: (name) => name + ' died', blow: 'The killing blow' });
 const MAX_HITS_LISTED = 4;

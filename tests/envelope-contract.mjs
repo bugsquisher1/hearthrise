@@ -383,7 +383,7 @@ function sheetContract(R, cs, body) {
     && c.critPct !== null && !!c.role,
     'after the sheet verb characterSheetOf yields ' + JSON.stringify(sh) + ' from ' + JSON.stringify(body.character_sheet));
   const ss = R.IS.setupSlotsOf(cs);
-  need('setup_slots', !!ss && isNum(ss.count) && isNum(ss.max) && ss.count <= ss.max && (ss.price === null || isNum(ss.price)),
+  need('setup_slots', !!ss && isNum(ss.count) && isNum(ss.max) && ss.count === ss.max,
     'setupSlotsOf yields ' + JSON.stringify(ss) + ' from ' + JSON.stringify(body.setup_slots));
   const tt = R.CS.titlesOf(cs);
   need('titles', !!tt && tt.rows.length > 0 && tt.rows.every((r) => isNum(r.price) && isNum(r.kills) && isNum(r.have)),
@@ -583,7 +583,7 @@ const DB_MUTANTS = [
   ['shop', 'public.hr_shop_view(uuid,integer)', "'offers', coalesce(", "'offer_list', coalesce("],
   ['hunt_presets', 'public.hr_hunt_presets_view(uuid,integer)', "'action_set', p.action_set,", "'set', p.action_set,"],
   ['role', 'public.hr_role_view(uuid,integer)', "'weapon', w.weapon_type)", "'weapon_type', w.weapon_type)"],
-  ['setup_slots', 'public.hr_setup_slots_view(uuid,integer)', "jsonb_build_object('count', least(r.free + b.n,", "jsonb_build_object('slots', least(r.free + b.n,"],
+  ['setup_slots', 'public.hr_setup_slots_view(uuid,integer)', "jsonb_build_object('count', v_lim,", "jsonb_build_object('slots', v_lim,"],
   ['titles', 'public.hr_titles_view(uuid,integer)', "'rows', coalesce(jsonb_agg(", "'list', coalesce(jsonb_agg("],
   ['titles', 'public.hr_titles_view(uuid,integer)', "'have', public.hr_title_kills(", "'count', public.hr_title_kills("],
   ['party_invites', 'public.hr_party_invites_view(uuid,integer)', "'from', public.hr_character_name(", "'sender', public.hr_character_name("],

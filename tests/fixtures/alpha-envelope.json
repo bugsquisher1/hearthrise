@@ -722,10 +722,7 @@
   ],
   "setup_slots": {
     "count": 5,
-    "free": 3,
-    "bought": 2,
-    "max": 5,
-    "price": null
+    "max": 5
   },
   "role": {
     "id": "melee_dps",

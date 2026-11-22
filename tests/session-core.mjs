@@ -291,7 +291,7 @@ const ASKVIA_RULE_CALLS = Object.freeze([
   ['src/session/hero-color-intents.js', 'saveHeroColors', 'hr_hero_colors_set', [{ head: 1, body: 2, legs: 1, feet: 2 }, 2400]],
   ['src/session/outfit-intents.js', 'useOutfitBundle', 'hr_outfit_bundle_use', ['sweeps_coat_bundle']],
   ['src/session/recipe-intents.js', 'learnRecipe', 'hr_recipe_learn', ['kingsgrate_rivets']],
-  ['src/session/preset-intents.js', 'buySetupSlot', 'hr_setup_slot_buy', [100]],
+  ['src/session/preset-intents.js', 'renameSetup', 'hr_hunt_preset_rename', [0, 'Mill run']],
   ['src/session/title-intents.js', 'buyTitle', 'hr_title_buy', ['ratcatcher', 1500]],
   ['src/session/party-intents.js', 'startPartyHunt', 'hr_hunt_party_start', ['millrace_sewer']],
   ['src/session/party-intents.js', 'warnPartyGround', 'hr_hunt_party_warn', ['millrace_sewer']],

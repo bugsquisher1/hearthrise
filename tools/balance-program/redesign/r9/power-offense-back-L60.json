@@ -52,54 +52,91 @@
    "start": 0,
    "seedsRead": 12,
    "payX": {
-    "mean": 0.86,
-    "sd": 0.04,
+    "mean": 0.76,
+    "sd": 0.05,
     "n": 12,
     "perSeed": [
-     0.92,
-     0.95,
-     0.89,
-     0.83,
-     0.84,
+     0.77,
+     0.63,
+     0.77,
+     0.74,
+     0.76,
+     0.77,
      0.79,
-     0.84,
-     0.86,
-     0.84,
-     0.84,
-     0.84,
-     0.87
+     0.78,
+     0.78,
+     0.77,
+     0.79,
+     0.8
     ],
     "fromH": 6,
     "windowH": 6
    },
    "held": {
-    "mean": 583.5,
-    "sd": 7.6,
-    "se": 2.2,
+    "mean": 566,
+    "sd": 12.4,
+    "se": 3.6,
     "perSeed": [
-     591,
-     597,
-     588,
-     577,
-     583,
+     568,
+     530,
      567,
-     581,
-     584,
-     582,
-     580,
-     584,
-     589
+     559,
+     564,
+     571,
+     573,
+     571,
+     570,
+     568,
+     576,
+     576
     ]
    },
-   "drift": 2.5,
-   "within10": 64.7,
-   "within20": 96.2,
-   "changesPerH": 9.3,
-   "fallsPerH": 0.7,
-   "reachH": 3.2,
-   "pullsPerH": 60.1,
-   "killsPerH": 449,
-   "xpPerHeroH": 207260,
+   "drift": 7.1,
+   "within10": 55.3,
+   "within20": 88.1,
+   "changesPerH": 10.2,
+   "fallsPerH": 0.9,
+   "reachH": 3.8,
+   "pullsPerH": 60.7,
+   "killsPerH": 448,
+   "xpPerHeroH": 185030,
+   "gold": {
+    "coinPerHeroH": {
+     "mean": 1606,
+     "sd": 54,
+     "n": 12
+    },
+    "incomePerHeroH": {
+     "mean": 4483,
+     "sd": 111,
+     "n": 12
+    },
+    "storePerHeroH": {
+     "mean": 9487,
+     "sd": 98,
+     "n": 12
+    },
+    "commonPerHeroH": {
+     "mean": 245,
+     "sd": 6,
+     "n": 12
+    },
+    "uncommonPerHeroH": {
+     "mean": 145,
+     "sd": 9,
+     "n": 12
+    },
+    "scarcePerHeroH": {
+     "mean": 2487,
+     "sd": 92,
+     "n": 12
+    },
+    "otherPerHeroH": {
+     "mean": 0,
+     "sd": 0,
+     "n": 12
+    }
+   },
    "deaths": 0,
    "wipes": 0,
    "seedsWithADeath": 0,
@@ -111,13 +148,13 @@
    "nearWarned": 0,
    "nearFellAfter": 0,
    "whys": {
-    "hold": 6364,
-    "climb": 2187,
-    "fall": 92
+    "hold": 6368,
+    "climb": 2252,
+    "fall": 108
    }
   }
  },
- "wallS": 133,
+ "wallS": 104,
  "candidate": "tools/balance-program/candidates/power-offense-back.json",
  "moves": {
   "levels:careful": null,

@@ -52,54 +52,91 @@
    "start": 0,
    "seedsRead": 12,
    "payX": {
-    "mean": 1.04,
-    "sd": 0.05,
+    "mean": 0.96,
+    "sd": 0.04,
     "n": 12,
     "perSeed": [
-     1.06,
-     1.02,
-     1.02,
-     1.01,
-     1.02,
-     1.02,
-     1.12,
-     1.04,
-     1.03,
-     1,
-     0.99,
-     1.14
+     0.94,
+     0.94,
+     0.96,
+     0.96,
+     0.93,
+     0.92,
+     0.97,
+     1.09,
+     0.95,
+     0.96,
+     0.92,
+     0.96
     ],
     "fromH": 6,
     "windowH": 6
    },
    "held": {
-    "mean": 605,
-    "sd": 5.4,
-    "se": 1.5,
+    "mean": 594.8,
+    "sd": 6.4,
+    "se": 1.9,
     "perSeed": [
-     613,
-     605,
-     606,
-     600,
-     600,
-     604,
-     609,
-     611,
-     607,
-     599,
+     591,
+     593,
      596,
-     611
+     598,
+     589,
+     587,
+     601,
+     609,
+     593,
+     597,
+     586,
+     598
     ]
    },
-   "drift": 2.6,
-   "within10": 64.1,
-   "within20": 93.9,
-   "changesPerH": 10.6,
-   "fallsPerH": 0.8,
-   "reachH": 2.1,
-   "pullsPerH": 63,
-   "killsPerH": 476,
-   "xpPerHeroH": 262672,
+   "drift": 1.1,
+   "within10": 63.1,
+   "within20": 92,
+   "changesPerH": 10.3,
+   "fallsPerH": 0.9,
+   "reachH": 2.2,
+   "pullsPerH": 62.1,
+   "killsPerH": 470,
+   "xpPerHeroH": 245035,
+   "gold": {
+    "coinPerHeroH": {
+     "mean": 2032,
+     "sd": 16,
+     "n": 12
+    },
+    "incomePerHeroH": {
+     "mean": 5026,
+     "sd": 114,
+     "n": 12
+    },
+    "storePerHeroH": {
+     "mean": 9547,
+     "sd": 127,
+     "n": 12
+    },
+    "commonPerHeroH": {
+     "mean": 254,
+     "sd": 4,
+     "n": 12
+    },
+    "uncommonPerHeroH": {
+     "mean": 157,
+     "sd": 8,
+     "n": 12
+    },
+    "scarcePerHeroH": {
+     "mean": 2583,
+     "sd": 115,
+     "n": 12
+    },
+    "otherPerHeroH": {
+     "mean": 0,
+     "sd": 0,
+     "n": 12
+    }
+   },
    "deaths": 0,
    "wipes": 0,
    "seedsWithADeath": 0,
@@ -111,13 +148,13 @@
    "nearWarned": 0,
    "nearFellAfter": 0,
    "whys": {
-    "hold": 6662,
-    "climb": 2286,
-    "fall": 107
+    "hold": 6641,
+    "climb": 2200,
+    "fall": 93
    }
   }
  },
- "wallS": 132,
+ "wallS": 106,
  "candidate": "tools/balance-program/candidates/power-tier-ahead.json",
  "moves": {
   "levels:careful": null,

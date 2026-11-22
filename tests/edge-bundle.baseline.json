@@ -225,14 +225,19 @@
         "why": "lane/r2-danger-falls +6,947 B on the set after R8: a fall back names its hero seat and monster (danger.js lowHero/lowBy, combat-sim syncUnit seat), the report's deep and falls fold and proposal (report.js), HUNT_REPORT.fallsMax and DEFAULT_RISK (src/data)"
       },
       {
-        "bytes": 3270560,
+        "bytes": 3273091,
         "on": "2026-11-22",
-        "why": "lane/r9-power-step: the power step on gear in the engine on scale grounds (src/core/hunt/danger.js gearLevelsOf, powerPm; damage.js hurt; member.js snapshot and frozen row carry offLv/defLv; src/data/danger.js POWER, gearLv, PAY.floor) with their comments"
+        "why": "src/data/gear-steps.js (lane/g-gear-steps): the scale grounds' gear table and the five sample Traits, reached through src/data/danger.js DANGER_GROUNDS (gearLevel, traits); the power step (R9) reads it on the edge"
       },
       {
-        "bytes": 3272684,
+        "bytes": 3273649,
         "on": "2026-11-22",
-        "why": "lane/r9-power-step: the power step on scale grounds (src/core/gear-steps.js the stand-in for lane G's gear table in steps; hunt/danger.js powerPm and the pay floor; damage.js hurt; member.js snapshot and frozen row carry offSteps/defSteps)"
+        "why": "src/data/gear-steps.js traitsByRarity and the piece note (lane/g-gear-steps, fitted to 13-market.md)"
+      },
+      {
+        "bytes": 3280720,
+        "on": "2026-11-22",
+        "why": "lane/r9-power-step (own delta over lane G's raise): the power step on scale grounds reading G's gear part (src/core/hunt/danger.js gearPartPm, powerPm, the pay floor; damage.js hurt; member.js snapshot and frozen row carry gearPm; src/data/danger.js POWER)"
       }
     ]
   }

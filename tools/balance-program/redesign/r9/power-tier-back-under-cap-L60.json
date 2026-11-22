@@ -52,72 +52,109 @@
    "start": 0,
    "seedsRead": 12,
    "payX": {
-    "mean": 0.85,
+    "mean": 0.83,
     "sd": 0.05,
     "n": 12,
     "perSeed": [
+     0.78,
      0.83,
-     0.83,
+     0.8,
+     0.8,
+     0.93,
+     0.79,
+     0.8,
+     0.79,
+     0.88,
+     0.87,
      0.81,
-     0.82,
-     0.92,
-     0.81,
-     0.94,
-     0.83,
-     0.94,
-     0.84,
-     0.82,
-     0.82
+     0.9
     ],
     "fromH": 6,
     "windowH": 6
    },
    "held": {
-    "mean": 579.9,
-    "sd": 8.2,
-    "se": 2.4,
+    "mean": 580.4,
+    "sd": 6.3,
+    "se": 1.8,
     "perSeed": [
-     576,
-     577,
-     572,
-     573,
-     591,
-     572,
-     592,
-     578,
-     595,
+     571,
+     581,
      580,
+     579,
+     594,
+     575,
+     577,
      576,
-     576
+     581,
+     581,
+     580,
+     590
     ]
    },
-   "drift": 2.6,
-   "within10": 57,
-   "within20": 92.6,
-   "changesPerH": 9.9,
-   "fallsPerH": 0.8,
-   "reachH": 3.1,
-   "pullsPerH": 61,
-   "killsPerH": 454,
-   "xpPerHeroH": 206895,
+   "drift": 4.5,
+   "within10": 65.2,
+   "within20": 95.3,
+   "changesPerH": 9.2,
+   "fallsPerH": 0.7,
+   "reachH": 4,
+   "pullsPerH": 60.1,
+   "killsPerH": 443,
+   "xpPerHeroH": 195767,
+   "gold": {
+    "coinPerHeroH": {
+     "mean": 1649,
+     "sd": 36,
+     "n": 12
+    },
+    "incomePerHeroH": {
+     "mean": 4535,
+     "sd": 82,
+     "n": 12
+    },
+    "storePerHeroH": {
+     "mean": 9503,
+     "sd": 121,
+     "n": 12
+    },
+    "commonPerHeroH": {
+     "mean": 239,
+     "sd": 5,
+     "n": 12
+    },
+    "uncommonPerHeroH": {
+     "mean": 145,
+     "sd": 6,
+     "n": 12
+    },
+    "scarcePerHeroH": {
+     "mean": 2502,
+     "sd": 85,
+     "n": 12
+    },
+    "otherPerHeroH": {
+     "mean": 0,
+     "sd": 0,
+     "n": 12
+    }
+   },
    "deaths": 0,
    "wipes": 0,
    "seedsWithADeath": 0,
    "huntedH": 12,
    "fourH": 6,
    "firstDeathH": [],
-   "nearWipes": 0,
+   "nearWipes": 2,
    "nearWithDeath": 0,
    "nearWarned": 0,
-   "nearFellAfter": 0,
+   "nearFellAfter": 2,
    "whys": {
-    "hold": 6439,
-    "climb": 2237,
-    "fall": 101
+    "hold": 6371,
+    "climb": 2180,
+    "fall": 92
    }
   }
  },
- "wallS": 154,
+ "wallS": 99,
  "candidate": "tools/balance-program/candidates/power-tier-back-under-cap.json",
  "moves": {
   "levels:careful": null,

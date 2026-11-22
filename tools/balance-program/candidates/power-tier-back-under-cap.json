@@ -6,8 +6,8 @@
  "edits": [
   {
    "file": "src/data/danger.js",
-   "from": "topStep: 710, baseTier: 5 })",
-   "to": "topStep: 710, baseTier: 6 })"
+   "from": "gearLevel: tierLevel(3),",
+   "to": "gearLevel: tierLevel(4),"
   },
   {
    "file": "src/core/hunt/damage.js",

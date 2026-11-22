@@ -31,26 +31,26 @@ Labels. CONFIRMED means read in the code at the baseline. MEASURED means a playe
 | Critical chance and damage | 3 | 1 | 1 | 0 | 1 | 1 | 0 | 0 |
 | Life and mana leech | 2 | 0 | 0 | 2 | 0 | 0 | 1 | 0 |
 | Regeneration | 4 | 3 | 0 | 0 | 1 | 2 | 2 | 0 |
-| Monster HP, damage, armor, resistances and behavior | 24 | 7 | 4 | 4 | 9 | 7 | 6 | 10 |
+| Monster HP, damage, armor, resistances and behavior | 24 | 8 | 4 | 4 | 8 | 7 | 6 | 10 |
 | Spawn pacing and encounter composition | 11 | 6 | 1 | 3 | 1 | 1 | 5 | 4 |
 | Monster XP and loot values | 14 | 5 | 1 | 2 | 6 | 3 | 3 | 6 |
-| Equipment stats and progression | 9 | 1 | 1 | 7 | 0 | 0 | 0 | 3 |
+| Equipment stats and progression | 14 | 3 | 3 | 8 | 0 | 0 | 5 | 8 |
 | Imbuement effects | 1 | 0 | 0 | 1 | 0 | 0 | 1 | 0 |
 | Consumable costs and effectiveness | 9 | 4 | 3 | 2 | 0 | 1 | 1 | 2 |
 | Party bonuses and interactions | 7 | 1 | 3 | 0 | 3 | 2 | 3 | 3 |
 | Rare-drop probabilities | 6 | 2 | 0 | 3 | 1 | 0 | 4 | 3 |
 | Economy sources and sinks | 30 | 16 | 3 | 10 | 1 | 0 | 27 | 17 |
-| **All** | **178** | 79 | 24 | 46 | 29 | 31 | 67 | 67 |
+| **All** | **183** | 82 | 26 | 47 | 28 | 31 | 72 | 72 |
 <!-- END GENERATED:COUNTS -->
 
 <!-- GENERATED:CENSUS (tools/balance-program/levers.mjs --write) -->
 | | Count |
 |---|---|
-| Top-level bindings in the rule code that hold a typed number | 658 (in 223 files, 15672 typed numbers) |
-| Claimed by a lever | 281 |
-| Claimed by a not-a-lever reason | 377 |
+| Top-level bindings in the rule code that hold a typed number | 659 (in 223 files, 15691 typed numbers) |
+| Claimed by a lever | 283 |
+| Claimed by a not-a-lever reason | 376 |
 | Unclaimed | 0 |
-| Exceptions, intentional and accidental | 18 and 11 |
+| Exceptions, intentional and accidental | 17 and 11 |
 | Values read at | 861ae52e3 (origin/baseline/overhaul-start). Rule code and migrations the same as the baseline: NO |
 <!-- END GENERATED:CENSUS -->
 
@@ -114,7 +114,6 @@ Each row below is a flag on a lever, with its evidence label. The sources are th
 | redundant | `mon.scaled-danger` Scaled-hunt exceptions | A per-ground combat number. The cause is the bow against a melee pack | 44 X-SCALED-THICKET and E-X12, CONFIRMED / HYPOTHESIS |
 | redundant | `spawn.respawn` Pack respawn time | Written on the hunt row and on the ground row. The engine reads the ground's | CONFIRMED (pull-cycle.js reads inst.ground.respawnMs only) |
 | redundant | `danger.ref-step` A ground's reference step | A per-ground number that stands in for one absolute step unit (LR-1: no per-ground dial). It retires when grounds carry absolute bands | 02 package 3 cost. JUDGMENT |
-| redundant | `danger.base-tier` A ground base gear tier | A per-ground bridge like refStep. It retires when grounds carry absolute bands | 02 package 3 cost. JUDGMENT |
 | redundant | `reward.xp-floor-fit` Early-ground XP fit | Falls away with the ground-fit fix (a kill reward that follows kills an hour) | 44 E-X04, CONFIRMED |
 | redundant | `reward.ground-xp-fit` Per-ground XP fit | Outputs of the missing kill-rate term, hand-fitted (re-fitted 11-08, 11-11, 11-19). Knobs.json lists it under notKnobs | 44 E-X01, CONFIRMED |
 | redundant | `reward.ground-gp-fit` Per-ground gold fit | One x0.7 typed 11 times and patched 3 more times in the shop's prices (the sale dial) | 44 E-X02 and E-X19, CONFIRMED |
@@ -251,15 +250,20 @@ These are coverage gaps for BL-1 and the sensitivity lane. Each gap's reason is 
 | harness-fixed | `party.size` Party size | Party bonuses and interactions | the matrix plays parties 1 to 4 by design |
 | harness-fixed | `regen.inner-flame` Inner Flame regeneration rate | Regeneration | a cell's Inner Flame level is the harness's, not trained in the cell |
 | harness-fixed | `skill.curve` Combat skill curve | Skill scaling | cells take skills from tools/balance-sim/skill-lines.mjs, not from the curve (planned knob skillCurve, V1) |
+| not-built | `gear.ground-tier` The base tier a scale ground drops | Equipment stats and progression | no drop table reads it yet (R10) |
+| not-built | `gear.slot-weights` Gear slot weights | Equipment stats and progression | the power step (R9) reads it |
+| not-built | `gear.step-tier` A gear tier in steps, and how far ahead gear is worn | Equipment stats and progression | the power step (R9) reads it. No engine path does yet |
+| not-built | `gear.trait-budget` Trait steps by rank and the Trait guards | Equipment stats and progression | no roller or fight reads Traits until wave 4 (V7 sizes them on the engine) |
+| not-built | `gear.traits` Traits: the rule, its condition and its source | Equipment stats and progression | hidden: nothing rolls or plays them |
 | not-built | `imbue.parts` Imbuement parts | Imbuement effects | linings (Tyler's imbuement, ruled 2026-11-18: one part + gold, cured 4 h, 12 hunted hours, 48 h a socket) are not built. The effect each part names is read by nothing |
 | not-built | `leech.rows` Spell leech and mana back | Life and mana leech | every leech row sits behind NECROTIC_STORM.live (false), and no default bar casts them |
 | not-built | `regen.fist-wraps` The fist wraps' own heal | Regeneration | fists are a hidden two-row sample with no way in the engine's style list |
 | not-built | `resist.storm-necrotic` Storm mana burn and Necrotic heal cut | Resistances | dark behind src/data/necrotic-storm.js live: false. The knobs stormDrain and necroticCut move numbers no cell reads until a patch switches it on |
 | not-built | `spawn.gather-nodes` Gather nodes on hunting grounds | Spawn pacing and encounter composition | the hunt-gathering engine is not built |
-| not-in-runs | `danger.base-tier` A ground base gear tier | Monster HP, damage, armor, resistances and behavior | played by the V1 probe (candidates power-tier-back / power-tier-ahead move it one tier). No matrix run plans a stance |
 | not-in-runs | `danger.climb` The climb and the fall back | Spawn pacing and encounter composition | played by the V1 probe only |
 | not-in-runs | `danger.pay` Pay by depth | Monster XP and loot values | played by the V1 probe only. The server bounds it (hr_danger_level_xp_max, 1055) |
 | not-in-runs | `danger.pay-floor` Pay floor under the reference step | Monster XP and loot values | played by the V1 probe from a held start (lane/r9 tools/balance-program/redesign/r9). The server bounds only the most a kill pays (hr_danger_level_xp_max), which the floor never raises |
+| not-in-runs | `danger.power-gear` The power step on gear | Monster HP, damage, armor, resistances and behavior | played by the V1 probe (candidates power-tier-back / -ahead / -offense-back / -defense-back / -tier-back-under-cap). No matrix run plans a stance |
 | not-in-runs | `danger.power-step` Danger power step | Monster HP, damage, armor, resistances and behavior | the V1 probe plays it (a patch of this line moves its held step). No matrix run plans a stance |
 | not-in-runs | `danger.pull` Danger pull growth | Spawn pacing and encounter composition | played by the V1 probe only |
 | not-in-runs | `danger.readiness` Pulls on readiness | Spawn pacing and encounter composition | played by the V1 probe only |
@@ -332,7 +336,7 @@ Ranked by the formulas a lever's own formulas feed directly (COMPUTED from the 1
 | `mon.blow-line` Monster blow line and the gentle cap | 12 | 11 | 78 | knob `monsterDamage` | global |
 | `mon.danger-ramp` The gentle-ground ramp | 12 | 11 | 78 | patch | exception-intentional |
 | `skill.reference-career` The reference hero monsters are written against | 12 | 9 | 77 | patch | content |
-| `danger.base-tier` A ground base gear tier | 11 | 19 | 77 | NOT PLAYABLE (not-in-runs) | exception-intentional |
+| `danger.power-gear` The power step on gear | 11 | 19 | 77 | NOT PLAYABLE (not-in-runs) | global |
 | `armor.weights` Armor weights: points, HP and mana | 9 | 11 | 77 | patch | archetype |
 | `weapon.family-tables` Weapon accuracy and damage by family and tier | 9 | 8 | 78 | patch | content |
 | `reward.tier-xp` Harder-tier XP | 9 | 4 | 77 | knob `tierXp` | archetype |

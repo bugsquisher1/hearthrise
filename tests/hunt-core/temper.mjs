@@ -283,8 +283,8 @@ const cases = {
     const shape = (s) => Object.keys(s).sort().join();
     for (const t of [undefined, null, {}, { 'temper:blows:3': 5, 'temper:armor:3': 5 }]) {
       const snap = M.member.heroSnapshot(state, ctx(t));
-      /* (lane/r9: offSteps and defSteps, the gear in steps the power step reads on the Danger scale, ride every snapshot) */
-      if (shape(snap) !== 'acc,armour,def,defSteps,level,maxHit,offSteps') return JSON.stringify(t) + ' changed the snapshot: ' + shape(snap);
+      /* (lane/r9: gearPm, the gear part the power step reads on the Danger scale, ride every snapshot) */
+      if (shape(snap) !== 'acc,armour,def,gearPm,level,maxHit') return JSON.stringify(t) + ' changed the snapshot: ' + shape(snap);
     }
     const snap = M.member.heroSnapshot(state, ctx({ 'temper:blows:2': 2, 'temper:armor:2': 5 }));
     if (snap.blowsPm !== 20 || snap.armorPm !== 50) return 'rungs 2 and 5 snap to ' + snap.blowsPm + ' and ' + snap.armorPm;

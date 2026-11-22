@@ -25,9 +25,9 @@
 //           hero that broke the pull off and the monster kind whose blow did it, the same in one window, every 2 s swing and odd cuts,
 //           and the analyzer reports folded window by window hold the same falls and deepest step for every hero.
 //   floor   (lane/r9) THE PAY FLOOR: under the reference step a kill pays down to PAY.floor of the table and never less, XP and coin.
-//   power   (lane/r9) THE POWER STEP: the snapshot's gear in steps (gear-steps.js: weighted slots, an empty one 0) ride the unit; on the scale a
-//           tier of gear moves a blow at a monster by (1 + powerStep)^steps and a blow at the hero the other way, after the armor cap,
-//           to within half a permille (the move is a whole permille); never off the scale, at the reference kit, or between two heroes.
+//   power   (lane/r9) THE POWER STEP: the snapshot's gear part (the gear table: item Level x slot weight) rides the unit and the frozen
+//           peer; on the scale a tier of gear moves a blow at a monster by (1 + powerStep)^steps and a blow at the hero the other way,
+//           after the armor cap, to within half a permille; never off the scale, at the ground's gear Level, or between two heroes.
 //   mutants each rule planted back, each caught by its own case.
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -45,7 +45,6 @@ const load = async (root) => {
   M.coreModel = await imp('src/data/core-model.js');
   M.xp = await imp('src/core/xp.js');
   M.huntReport = await imp('src/data/hunt-report.js');
-  M.gearSteps = await imp('src/core/gear-steps.js');
   return M;
 };
 
@@ -295,59 +294,62 @@ const CASES = {
     if (Math.abs(d1.coinPm / (1000 * share(d1)) - 1) > 1e-9) return 'the reference step pays coin x' + d1.coinPm / (1000 * share(d1));
     return null;
   },
-  /* (lane/r9) THE POWER STEP: a hero's gear in steps rides its snapshot (src/core/gear-steps.js: each rating's slots at their weight, an
-     empty slot 0) and its unit; on the scale, on a ground with a base tier, a blow at a monster grows by (1 + powerStep)^(offense - the
-     ground's) and a blow at the hero shrinks by the defense gap, AFTER the armor chain's cap; off the scale, on a ground with no row, or at
-     the reference kit, the blow is what it was. One tier of base on every slot of a rating is gear-steps.js tierStepsOf(1) steps. */
+  /* (lane/r9) THE POWER STEP: a hero's gear part rides its snapshot (danger.js gearPartPm on the gear table, src/data/gear-steps.js: item
+     Level x slot weight, a whole kit at X is X, an empty slot 0, a two-handed weapon carrying the off-hand's weight) and its unit and the
+     browser's frozen peer; on the scale, on a ground with a gearLevel, a blow at a monster grows by (1 + powerStep)^steps and a blow at the
+     hero shrinks by the same, AFTER the armor chain's cap; off the scale, on a ground with no row, at the ground's level, or between two
+     heroes, the blow is what it was. One tier on a whole kit is GEAR_STEPS.tierSteps steps (weightGear 1000), within half a permille. */
   power(M) {
-    const { DANGER, DANGER_GROUNDS } = M.dangerData;
-    const baseTier = DANGER_GROUNDS.muster_barrows.baseTier;
-    if (!Number.isInteger(baseTier)) return 'CONTROL: Muster carries no base tier';
-    const ref = M.gearSteps.tierStepsOf(baseTier);
+    const { DANGER, DANGER_GROUNDS, GEAR_STEPS, POWER } = M.dangerData;
+    const gl = DANGER_GROUNDS.muster_barrows.gearLevel;
+    if (!Number.isInteger(gl)) return 'CONTROL: Muster carries no gearLevel';
     const IRON = { weapon: 'iron_sword', helmet: 'iron_helm', body: 'iron_platebody', pants: 'iron_platelegs', boots: 'iron_boots' };
     const { eq, setBonus, profile } = M.member.loadoutOf(IRON, M.ITEMS);
     const snap = M.member.heroSnapshot({ skills: { melee: 0, defense: 0 }, levelXp: 0 }, { eq, equipment: IRON, items: M.ITEMS, bonus: () => 0, setBonus, profile });
-    const ps = (id) => M.gearSteps.pieceSteps(M.ITEMS[id], M.ITEMS);
-    if (!(ps('iron_sword') > 0)) return 'CONTROL: an iron sword is worth ' + ps('iron_sword') + ' steps';
-    if (snap.offSteps !== ps('iron_sword')) return 'the snapshot reads the weapon at ' + snap.offSteps + ' steps, not ' + ps('iron_sword');
-    const full = M.gearSteps.gearSteps({ ...IRON, gloves: 'iron_helm', belt: 'iron_helm' }, M.ITEMS).def;
-    if (full !== ps('iron_helm')) return 'six iron-tier pieces read ' + full + ' defense steps, not one piece\'s ' + ps('iron_helm') + ' (the weights do not sum to one)';
-    if (!(snap.defSteps > 0 && snap.defSteps < full)) return 'four pieces in six slots read ' + snap.defSteps + ' defense steps, a full set ' + full + ' (an empty slot counts 0)';
-    if (M.gearSteps.gearSteps({ helmet: 'iron_sword' }, M.ITEMS).def !== 0) return 'a weapon in the helmet slot counts as armor';
+    const W = GEAR_STEPS.slotPm, lv = (id) => M.ITEMS[id].reqLv;
+    const want = Object.entries(IRON).reduce((a, [s, id]) => a + W[s] * lv(id), 0);
+    if (snap.gearPm !== want) return 'the snapshot carries a gear part of ' + snap.gearPm + ', the table ' + want + ' (an empty slot adds 0)';
+    const kit = Object.fromEntries(Object.keys(W).map((s) => [s, 'iron_helm']));
+    if (M.danger.gearPartPm(kit, M.ITEMS) !== 1000 * lv('iron_helm')) return 'a whole kit at one item Level reads ' + M.danger.gearPartPm(kit, M.ITEMS) + ', not 1000 x ' + lv('iron_helm');
+    const two = Object.keys(M.ITEMS).find((id) => M.ITEMS[id].twoHanded === true && M.ITEMS[id].slot === 'weapon' && M.ITEMS[id].reqLv > 1);
+    if (!two) return 'CONTROL: no two-handed weapon in the catalogue';
+    const carried = GEAR_STEPS.twoHand.reduce((a, s) => a + W[s], 0) * lv(two);
+    if (M.danger.gearPartPm({ weapon: two }, M.ITEMS) !== carried) return 'a two-handed weapon carries ' + M.danger.gearPartPm({ weapon: two }, M.ITEMS) + ', not the off-hand\'s weight too (' + carried + ')';
     /* the blow, through hurt */
-    const tier = M.gearSteps.tierStepsOf(1), ratio = Math.pow(1 + DANGER.powerStep, tier);
-    if (tier < 10) return 'CONTROL: a tier is ' + tier + ' power steps';
+    const tier = GEAR_STEPS.tierSteps, steps = Math.round((tier * POWER.weightGearPm) / 1000), ratio = Math.pow(1 + DANGER.powerStep, steps);
+    if (steps < 10) return 'CONTROL: a tier is ' + steps + ' power steps';
+    const ref = 1000 * gl, up1 = 1000 * (gl + tier), dn1 = 1000 * (gl - tier);
     const rng = { chance: () => false, int: (a) => a };
     const instOn = (risk, id) => ({ world: { risk, units: [] }, ground: { id }, monsters: M.MONSTERS, tier: null });
     const blow = (inst, from, to, n) => M.hunt.damage.hurt(inst, { ...to, alive: true, hp: 1e9, maxHp: 1e9 }, n, from, null, null, rng).dmg;
-    const heroAt = (o, d) => ({ side: 'hero', id: 1, offSteps: o, defSteps: d });
+    const heroAt = (g) => ({ side: 'hero', id: 1, gearPm: g });
     const rat = { side: 'mon', id: 2, kind: 'rat' };
     const N = 100000;
-    const base = blow(instOn('', 'muster_barrows'), heroAt(ref + tier, ref + tier), rat, N);
-    if (blow(instOn('steady', 'muster_barrows'), heroAt(ref, ref), rat, N) !== base) return 'at the reference kit the blow moved on the scale';
-    if (blow(instOn('steady', 'h1_fixture'), heroAt(ref + tier, ref + tier), rat, N) !== base) return 'a ground with no reference kit stepped the blow';
-    const up = blow(instOn('steady', 'muster_barrows'), heroAt(ref + tier, ref), rat, N) / base;
-    if (Math.abs(up - ratio) > 6e-4) return 'a tier of weapon on the scale moved the blow x' + up + ', not x' + ratio;
-    const back = blow(instOn('steady', 'muster_barrows'), heroAt(ref - tier, ref), rat, N) / base;
+    const base = blow(instOn('', 'muster_barrows'), heroAt(up1), rat, N);
+    if (blow(instOn('steady', 'muster_barrows'), heroAt(ref), rat, N) !== base) return 'at the ground\'s gear Level the blow moved on the scale';
+    if (blow(instOn('steady', 'h1_fixture'), heroAt(up1), rat, N) !== base) return 'a ground with no gearLevel stepped the blow';
+    const up = blow(instOn('steady', 'muster_barrows'), heroAt(up1), rat, N) / base;
+    if (Math.abs(up - ratio) > 6e-4) return 'a tier of gear on the scale moved the blow x' + up + ', not x' + ratio;
+    const back = blow(instOn('steady', 'muster_barrows'), heroAt(dn1), rat, N) / base;
     if (Math.abs(back - 1 / ratio) > 6e-4) return 'a tier back moved the blow x' + back + ', not x' + 1 / ratio;
-    /* at the hero, past the cap: a Tempering cut that alone reaches the 60% cap, then the defense steps under it */
-    const atHero = (d) => blow(instOn('steady', 'muster_barrows'), rat, { ...heroAt(ref, d), armorPm: 999 }, N);
-    const capped = blow(instOn('', 'muster_barrows'), rat, { ...heroAt(ref, ref + tier), armorPm: 999 }, N);
-    if (atHero(ref) !== capped) return 'at the reference kit the blow at the hero moved';
-    if (Math.abs(atHero(ref + tier) / capped - 1 / ratio) > 6e-4) return 'a tier of armor moved the capped blow x' + atHero(ref + tier) / capped + ', not x' + 1 / ratio + ' (the cap ate the step)';
-    if (blow(instOn('steady', 'muster_barrows'), heroAt(ref + tier, ref + tier), heroAt(ref, ref), N) !== blow(instOn('', 'muster_barrows'), heroAt(ref + tier, ref + tier), heroAt(ref, ref), N)) return 'a blow between two heroes was stepped';
-    /* in play: the unit carries the snapshot's gear steps at every boundary */
-    const ms = party(M, { risk: 'steady', danger: 0 }).map((m) => ({ ...m, snapshot: () => ({ acc: 900, maxHit: 12, def: 1, offSteps: ref + tier, defSteps: ref - tier }) }));
+    /* at the hero, past the cap: a Tempering cut that alone reaches the 60% cap, then the gear's steps under it */
+    const atHero = (g) => blow(instOn('steady', 'muster_barrows'), rat, { ...heroAt(g), armorPm: 999 }, N);
+    const capped = blow(instOn('', 'muster_barrows'), rat, { ...heroAt(up1), armorPm: 999 }, N);
+    if (atHero(ref) !== capped) return 'at the ground\'s gear Level the blow at the hero moved';
+    if (Math.abs(atHero(up1) / capped - 1 / ratio) > 6e-4) return 'a tier of gear moved the capped blow at the hero x' + atHero(up1) / capped + ', not x' + 1 / ratio + ' (the cap ate the step)';
+    if (blow(instOn('steady', 'muster_barrows'), heroAt(up1), heroAt(ref), N) !== blow(instOn('', 'muster_barrows'), heroAt(up1), heroAt(ref), N)) return 'a blow between two heroes was stepped';
+    /* in play: the unit carries the snapshot's gear part at every boundary */
+    const ms = party(M, { risk: 'steady', danger: 0 }).map((m) => ({ ...m, snapshot: () => ({ acc: 900, maxHit: 12, def: 1, gearPm: up1 }) }));
     const ground = groundRow(), grid = gridOf(M);
     const r = M.cs.simulateHuntInstance({ world: null, nextSwingAtMs: T0, members: ms },
       { tickMs: 2000, seed: (d, i) => M.rng.hashSeed('power', 1, d, i), monsters: M.MONSTERS, ground, grid, toMs: T0 + 30000 });
     const hs = (r.world && r.world.units || []).filter((u) => u.side === 'hero');
     if (!hs.length) return 'CONTROL: no hero in the world';
-    if (!hs.every((u) => u.offSteps === ref + tier && u.defSteps === ref - tier)) return 'a hero unit carries gear steps ' + hs.map((u) => u.offSteps + '/' + u.defSteps);
-    /* the browser's peer: the frozen row the server hands it carries the same gear steps (member.js frozenOf -> frozenSide) */
+    if (!hs.every((u) => u.gearPm === up1)) return 'a hero unit carries a gear part of ' + hs.map((u) => u.gearPm);
+    /* the browser's peer: the frozen row the server hands it carries the same gear part (member.js frozenOf -> frozenSide) */
     const side = M.member.memberSide({ key: 'a', seat: 0, equipment: IRON, skills: {}, levelXp: 0, hp: 100, gold: 0, hero: { role: 'melee_dps', slots: [] } }, { items: M.ITEMS });
     const fr = M.member.frozenOf(side, [], 0, M.MONSTERS), peer = M.member.frozenSide({ key: 'a', seat: 0, unitId: 1, frozen: fr }).member.snapshot();
-    if (peer.offSteps !== snap.offSteps || peer.defSteps !== snap.defSteps) return 'the browser\'s peer fights at gear steps ' + peer.offSteps + '/' + peer.defSteps + ', the server\'s ' + snap.offSteps + '/' + snap.defSteps;
+    if (peer.gearPm !== snap.gearPm) return 'the browser\'s peer fights at a gear part of ' + peer.gearPm + ', the server\'s ' + snap.gearPm;
     return null;
   },
   /* (R2, lane/r2-danger-falls) A FALL BACK NAMES ITS CAUSE, HOWEVER THE SETTLE IS CUT: a two-hero party planned on Bold far deeper than it
@@ -489,17 +491,16 @@ const MUTANTS = [
   { name: 'the floor lifts the pay over the reference too', case: 'floor', edits: [['src/core/hunt/danger.js', 'return g >= 0 ? powStep(1 + rate, g) : Math.max', 'return g >= 0 ? Math.max(PAY.floor * 2.5, powStep(1 + rate, g)) : Math.max']] },
   { name: 'the power step is never read', case: 'power', edits: [['src/core/hunt/danger.js', '  if (!inst || !dangerOn(inst.world)) return base;\n', '  return base;\n']] },
   { name: 'the power step plays off the scale', case: 'power', edits: [['src/core/hunt/danger.js', '  if (!inst || !dangerOn(inst.world)) return base;\n', '  if (!inst) return base;\n']] },
-  { name: 'armor raises the blows at its wearer', case: 'power', edits: [['src/core/hunt/danger.js', 'steps = -gapSteps(target.defSteps, row);', 'steps = gapSteps(target.defSteps, row);']] },
+  { name: 'armor raises the blows at its wearer', case: 'power', edits: [['src/core/hunt/danger.js', 'steps = -gearSteps(target.gearPm, row);', 'steps = gearSteps(target.gearPm, row);']] },
   { name: 'the defense step sits under the armor cap', case: 'power', edits: [
     ['src/core/hunt/damage.js', 'mitigate(n, el, armourVs(inst, target, source), target.armorPm, rng)', 'mitigate(n, el, armourVs(inst, target, source), isHero(target) ? (target.armorPm || 0) - powerPm(inst, source, target, 0) : target.armorPm, rng)'],
     ['src/core/hunt/damage.js', '  if (pm) n = Math.max(1, temperedAmount(n, pm, rng));', '  if (pm && isMonster(target)) n = Math.max(1, temperedAmount(n, pm, rng));']] },
-  { name: 'an empty slot is left out of the mean, so one good piece stands for the set', case: 'power', edits: [['src/core/gear-steps.js', '    return Math.round(sum / 1000);', '    return Math.round(sum / Math.max(1, Object.entries(weights).filter(([k]) => at(k)).reduce((a, [, w]) => a + w, 0)));']] },
-  { name: 'the slot weights are dropped', case: 'power', edits: [['src/core/gear-steps.js', 'sum += w * pieceSteps(it, items);', 'sum += 1000 * pieceSteps(it, items);']] },
-  { name: 'a weapon counts as armor', case: 'power', edits: [['src/core/gear-steps.js', 'if (it && (!armor || ARMOUR_WEIGHT[it.armourClass]))', 'if (it)']] },
-  { name: 'the ground reads no base tier', case: 'power', edits: [['src/core/hunt/danger.js', 'rating - tierStepsOf(row.baseTier)', 'rating']] },
-  { name: 'the snapshot carries no gear steps', case: 'power', edits: [['src/core/member.js', '    offSteps: gear.off, defSteps: gear.def,\n', '\n']] },
-  { name: 'the frozen row drops the gear steps', case: 'power', edits: [['src/core/member.js', '...jewelSnap(snap), offSteps: snap.offSteps || 0, defSteps: snap.defSteps || 0,\n', '...jewelSnap(snap),\n']] },
-  { name: 'the unit never carries the gear steps', case: 'power', edits: [['src/core/combat-sim.js', '  u.offSteps = Number.isInteger(snap.offSteps) ? snap.offSteps : 0; u.defSteps = Number.isInteger(snap.defSteps) ? snap.defSteps : 0;\n', '']] },
+  { name: 'the slot weights are dropped', case: 'power', edits: [['src/core/hunt/danger.js', '    sum += W[slot] * itemLevelOf(at(slot));', '    sum += 100 * itemLevelOf(at(slot));']] },
+  { name: 'a two-handed weapon leaves the off-hand weight empty', case: 'power', edits: [['src/core/hunt/danger.js', "const carried = weapon && weapon.twoHanded === true ? GEAR_STEPS.twoHand : null;", 'const carried = null;']] },
+  { name: 'the ground reads no gear Level', case: 'power', edits: [['src/core/hunt/danger.js', '((partPm - 1000 * row.gearLevel) * POWER.weightGearPm)', '(partPm * POWER.weightGearPm)']] },
+  { name: 'the snapshot carries no gear part', case: 'power', edits: [['src/core/member.js', '    gearPm,\n', '\n']] },
+  { name: 'the frozen row drops the gear part', case: 'power', edits: [['src/core/member.js', '...jewelSnap(snap), gearPm: snap.gearPm || 0,\n', '...jewelSnap(snap),\n']] },
+  { name: 'the unit never carries the gear part', case: 'power', edits: [['src/core/combat-sim.js', '  u.gearPm = Number.isInteger(snap.gearPm) ? snap.gearPm : 0;\n', '']] },
 ];
 
 const R = makeReport('hunt-core/danger');

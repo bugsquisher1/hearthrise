@@ -28,7 +28,7 @@ export const GAME_MODULES = Object.freeze([
   'src/data/chests.js', 'src/data/clans.js', 'src/data/combat-text.js', 'src/data/companions.js',
   'src/data/condition-metrics.js', 'src/data/consumables.js', 'src/data/core-model.js', 'src/data/danger.js',
   'src/data/drinks.js', 'src/data/elements.js', 'src/data/fists.js', 'src/data/fx-alpha.js', 'src/data/gathering.js',
-  'src/data/gear-tiers.js', 'src/data/gold-sinks.js', 'src/data/grounds/carters_rest/map.js',
+  'src/data/gear-steps.js', 'src/data/gear-tiers.js', 'src/data/gold-sinks.js', 'src/data/grounds/carters_rest/map.js',
   'src/data/grounds/carters_rest/pack.js', 'src/data/grounds/hasks_ford/map.js', 'src/data/grounds/hasks_ford/pack.js',
   'src/data/grounds/index.js', 'src/data/grounds/krells_hold/map.js', 'src/data/grounds/krells_hold/pack.js',
   'src/data/grounds/muster_barrows/map.js', 'src/data/grounds/muster_barrows/pack.js',

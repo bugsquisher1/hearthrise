@@ -6,11 +6,11 @@
  "edits": [
   {
    "file": "src/core/hunt/danger.js",
-   "from": "steps = gapSteps(source.offSteps, row);",
-   "to": "steps = gapSteps(source.offSteps - tierStepsOf(1), row);"
+   "from": "steps = gearSteps(source.gearPm, row);",
+   "to": "steps = gearSteps(source.gearPm, row) - GEAR_STEPS.tierSteps;"
   }
  ],
  "assumptions": [
-  "One tier is tierStepsOf(1) (src/core/gear-steps.js, the stand-in for lane/g-gear-steps)"
+  "One tier is GEAR_STEPS.tierSteps (src/data/gear-steps.js) steps of power at weightGear 1000"
  ]
 }

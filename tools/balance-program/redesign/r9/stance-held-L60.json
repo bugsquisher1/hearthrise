@@ -52,42 +52,79 @@
    "start": 392,
    "seedsRead": 6,
    "payX": {
-    "mean": 0.56,
-    "sd": 0.02,
+    "mean": 0.55,
+    "sd": 0.01,
     "n": 6,
     "perSeed": [
-     0.55,
-     0.59,
      0.54,
      0.55,
      0.56,
+     0.55,
+     0.55,
      0.55
     ],
     "fromH": 1,
     "windowH": 7
    },
    "held": {
-    "mean": 409.9,
-    "sd": 9.6,
-    "se": 3.9,
+    "mean": 397.8,
+    "sd": 3.1,
+    "se": 1.3,
     "perSeed": [
-     405,
-     427,
-     414,
-     406,
      401,
-     405
+     401,
+     395,
+     397,
+     394,
+     398
     ]
    },
-   "drift": 10.9,
-   "within10": 46.4,
-   "within20": 75.6,
-   "changesPerH": 21.6,
+   "drift": -0.5,
+   "within10": 45.2,
+   "within20": 79.2,
+   "changesPerH": 21.8,
    "fallsPerH": 2.1,
-   "reachH": 0.1,
-   "pullsPerH": 87.3,
-   "killsPerH": 538,
-   "xpPerHeroH": 148361,
+   "reachH": 0,
+   "pullsPerH": 86.4,
+   "killsPerH": 530,
+   "xpPerHeroH": 146188,
+   "gold": {
+    "coinPerHeroH": {
+     "mean": 1664,
+     "sd": 14,
+     "n": 6
+    },
+    "incomePerHeroH": {
+     "mean": 5313,
+     "sd": 68,
+     "n": 6
+    },
+    "storePerHeroH": {
+     "mean": 8057,
+     "sd": 49,
+     "n": 6
+    },
+    "commonPerHeroH": {
+     "mean": 294,
+     "sd": 9,
+     "n": 6
+    },
+    "uncommonPerHeroH": {
+     "mean": 181,
+     "sd": 7,
+     "n": 6
+    },
+    "scarcePerHeroH": {
+     "mean": 3174,
+     "sd": 55,
+     "n": 6
+    },
+    "otherPerHeroH": {
+     "mean": 0,
+     "sd": 0,
+     "n": 6
+    }
+   },
    "deaths": 0,
    "wipes": 0,
    "seedsWithADeath": 0,
@@ -99,9 +136,9 @@
    "nearWarned": 0,
    "nearFellAfter": 0,
    "whys": {
-    "hold": 3129,
-    "climb": 957,
-    "fall": 97
+    "hold": 3091,
+    "climb": 952,
+    "fall": 102
    }
   },
   "base:steady": {
@@ -112,42 +149,79 @@
    "start": 561,
    "seedsRead": 6,
    "payX": {
-    "mean": 0.89,
-    "sd": 0.04,
+    "mean": 0.81,
+    "sd": 0.02,
     "n": 6,
     "perSeed": [
-     0.86,
-     0.85,
-     0.95,
-     0.87,
-     0.88,
-     0.92
+     0.82,
+     0.79,
+     0.83,
+     0.8,
+     0.8,
+     0.82
     ],
     "fromH": 1,
     "windowH": 7
    },
    "held": {
-    "mean": 580.8,
-    "sd": 7.2,
-    "se": 3,
+    "mean": 568.6,
+    "sd": 5.5,
+    "se": 2.2,
     "perSeed": [
-     575,
      573,
-     586,
-     578,
-     581,
-     592
+     560,
+     575,
+     566,
+     565,
+     573
     ]
    },
-   "drift": 3.9,
-   "within10": 58.8,
-   "within20": 91.9,
-   "changesPerH": 10.6,
-   "fallsPerH": 0.9,
-   "reachH": 0.2,
-   "pullsPerH": 56.1,
-   "killsPerH": 455,
-   "xpPerHeroH": 233550,
+   "drift": -2.2,
+   "within10": 66.9,
+   "within20": 94.3,
+   "changesPerH": 10.1,
+   "fallsPerH": 0.8,
+   "reachH": 0,
+   "pullsPerH": 55.6,
+   "killsPerH": 453,
+   "xpPerHeroH": 214912,
+   "gold": {
+    "coinPerHeroH": {
+     "mean": 1725,
+     "sd": 35,
+     "n": 6
+    },
+    "incomePerHeroH": {
+     "mean": 4681,
+     "sd": 124,
+     "n": 6
+    },
+    "storePerHeroH": {
+     "mean": 9773,
+     "sd": 152,
+     "n": 6
+    },
+    "commonPerHeroH": {
+     "mean": 243,
+     "sd": 6,
+     "n": 6
+    },
+    "uncommonPerHeroH": {
+     "mean": 152,
+     "sd": 10,
+     "n": 6
+    },
+    "scarcePerHeroH": {
+     "mean": 2560,
+     "sd": 132,
+     "n": 6
+    },
+    "otherPerHeroH": {
+     "mean": 0,
+     "sd": 0,
+     "n": 6
+    }
+   },
    "deaths": 0,
    "wipes": 0,
    "seedsWithADeath": 0,
@@ -159,9 +233,9 @@
    "nearWarned": 0,
    "nearFellAfter": 0,
    "whys": {
-    "hold": 2156,
-    "climb": 487,
-    "fall": 41
+    "hold": 2158,
+    "climb": 464,
+    "fall": 39
    }
   },
   "base:bold": {
@@ -172,61 +246,98 @@
    "start": 615,
    "seedsRead": 6,
    "payX": {
-    "mean": 1.05,
-    "sd": 0.02,
+    "mean": 0.99,
+    "sd": 0.06,
     "n": 6,
     "perSeed": [
-     1.06,
-     1.05,
-     1.08,
-     1.04,
-     1.06,
-     1.03
+     1.11,
+     0.98,
+     0.96,
+     0.96,
+     0.97,
+     0.93
     ],
     "fromH": 1,
-    "windowH": 5.6
+    "windowH": 4.9
    },
    "held": {
-    "mean": 630.4,
-    "sd": 4.3,
-    "se": 1.8,
+    "mean": 617.6,
+    "sd": 8.1,
+    "se": 3.3,
     "perSeed": [
-     634,
-     629,
-     637,
-     626,
-     631,
-     626
+     632,
+     620,
+     615,
+     615,
+     618,
+     607
     ]
    },
-   "drift": 4.8,
-   "within10": 51.4,
-   "within20": 88,
-   "changesPerH": 12.6,
-   "fallsPerH": 1.4,
+   "drift": 2.4,
+   "within10": 50,
+   "within20": 90.1,
+   "changesPerH": 13.7,
+   "fallsPerH": 1.8,
    "reachH": 0,
-   "pullsPerH": 53.7,
-   "killsPerH": 399,
-   "xpPerHeroH": 266850,
-   "deaths": 3,
+   "pullsPerH": 56.8,
+   "killsPerH": 403,
+   "xpPerHeroH": 248059,
+   "gold": {
+    "coinPerHeroH": {
+     "mean": 2083,
+     "sd": 66,
+     "n": 6
+    },
+    "incomePerHeroH": {
+     "mean": 5025,
+     "sd": 486,
+     "n": 6
+    },
+    "storePerHeroH": {
+     "mean": 12499,
+     "sd": 454,
+     "n": 6
+    },
+    "commonPerHeroH": {
+     "mean": 240,
+     "sd": 38,
+     "n": 6
+    },
+    "uncommonPerHeroH": {
+     "mean": 149,
+     "sd": 29,
+     "n": 6
+    },
+    "scarcePerHeroH": {
+     "mean": 2552,
+     "sd": 412,
+     "n": 6
+    },
+    "otherPerHeroH": {
+     "mean": 0,
+     "sd": 0,
+     "n": 6
+    }
+   },
+   "deaths": 4,
    "wipes": 0,
    "seedsWithADeath": 3,
    "huntedH": 8,
-   "fourH": 5.6,
+   "fourH": 4.9,
    "firstDeathH": [
-    2.2,
-    6.4,
-    7.2
+    5.2,
+    4,
+    2.2
    ],
-   "nearWipes": 46,
-   "nearWithDeath": 3,
-   "nearWarned": 4,
-   "nearFellAfter": 46,
+   "nearWipes": 49,
+   "nearWithDeath": 4,
+   "nearWarned": 5,
+   "nearFellAfter": 49,
    "whys": {
-    "hold": 1900,
-    "climb": 567,
-    "fall": 103,
-    "death": 3
+    "hold": 1987,
+    "climb": 618,
+    "fall": 112,
+    "death": 4
    }
   },
   "levels:careful": {
@@ -238,41 +349,78 @@
    "seedsRead": 6,
    "payX": {
     "mean": 0.55,
-    "sd": 0.01,
+    "sd": 0.02,
     "n": 6,
     "perSeed": [
+     0.53,
+     0.54,
+     0.54,
+     0.59,
      0.55,
-     0.55,
-     0.55,
-     0.55,
-     0.56,
      0.54
     ],
     "fromH": 1,
     "windowH": 7
    },
    "held": {
-    "mean": 421.4,
-    "sd": 5.8,
-    "se": 2.4,
+    "mean": 416,
+    "sd": 18.3,
+    "se": 7.5,
     "perSeed": [
-     413,
-     423,
-     423,
-     427,
-     427,
-     415
+     408,
+     412,
+     410,
+     453,
+     407,
+     406
     ]
    },
-   "drift": 8.6,
-   "within10": 42,
-   "within20": 72.7,
-   "changesPerH": 20.2,
-   "fallsPerH": 1.8,
-   "reachH": 0,
-   "pullsPerH": 84.2,
-   "killsPerH": 528,
-   "xpPerHeroH": 158387,
+   "drift": 0.7,
+   "within10": 44.6,
+   "within20": 76,
+   "changesPerH": 20.3,
+   "fallsPerH": 2,
+   "reachH": 0.2,
+   "pullsPerH": 85,
+   "killsPerH": 527,
+   "xpPerHeroH": 157952,
+   "gold": {
+    "coinPerHeroH": {
+     "mean": 1578,
+     "sd": 93,
+     "n": 6
+    },
+    "incomePerHeroH": {
+     "mean": 5143,
+     "sd": 155,
+     "n": 6
+    },
+    "storePerHeroH": {
+     "mean": 8019,
+     "sd": 106,
+     "n": 6
+    },
+    "commonPerHeroH": {
+     "mean": 290,
+     "sd": 5,
+     "n": 6
+    },
+    "uncommonPerHeroH": {
+     "mean": 178,
+     "sd": 11,
+     "n": 6
+    },
+    "scarcePerHeroH": {
+     "mean": 3097,
+     "sd": 216,
+     "n": 6
+    },
+    "otherPerHeroH": {
+     "mean": 0,
+     "sd": 0,
+     "n": 6
+    }
+   },
    "deaths": 0,
    "wipes": 0,
    "seedsWithADeath": 0,
@@ -284,9 +432,9 @@
    "nearWarned": 0,
    "nearFellAfter": 0,
    "whys": {
-    "hold": 3065,
-    "climb": 889,
-    "fall": 83
+    "hold": 3089,
+    "climb": 887,
+    "fall": 96
    }
   },
   "levels:steady": {
@@ -297,42 +445,79 @@
    "start": 568,
    "seedsRead": 6,
    "payX": {
-    "mean": 0.97,
-    "sd": 0.05,
+    "mean": 0.87,
+    "sd": 0.03,
     "n": 6,
     "perSeed": [
-     0.91,
-     0.98,
-     1.05,
-     0.96,
-     1.01,
-     0.93
+     0.93,
+     0.88,
+     0.86,
+     0.85,
+     0.84,
+     0.84
     ],
     "fromH": 1,
     "windowH": 7
    },
    "held": {
-    "mean": 595.6,
-    "sd": 6.8,
-    "se": 2.8,
+    "mean": 580.1,
+    "sd": 5.5,
+    "se": 2.2,
     "perSeed": [
-     586,
-     597,
-     605,
-     592,
-     601,
-     594
+     589,
+     584,
+     581,
+     576,
+     577,
+     574
     ]
    },
-   "drift": 5.4,
-   "within10": 66.7,
-   "within20": 93.8,
-   "changesPerH": 10.6,
-   "fallsPerH": 0.7,
-   "reachH": 0.5,
-   "pullsPerH": 56,
-   "killsPerH": 452,
-   "xpPerHeroH": 276563,
+   "drift": 4.9,
+   "within10": 55,
+   "within20": 90.7,
+   "changesPerH": 11,
+   "fallsPerH": 0.9,
+   "reachH": 0.1,
+   "pullsPerH": 55,
+   "killsPerH": 447,
+   "xpPerHeroH": 248661,
+   "gold": {
+    "coinPerHeroH": {
+     "mean": 1805,
+     "sd": 25,
+     "n": 6
+    },
+    "incomePerHeroH": {
+     "mean": 4667,
+     "sd": 130,
+     "n": 6
+    },
+    "storePerHeroH": {
+     "mean": 9677,
+     "sd": 56,
+     "n": 6
+    },
+    "commonPerHeroH": {
+     "mean": 241,
+     "sd": 3,
+     "n": 6
+    },
+    "uncommonPerHeroH": {
+     "mean": 144,
+     "sd": 10,
+     "n": 6
+    },
+    "scarcePerHeroH": {
+     "mean": 2476,
+     "sd": 148,
+     "n": 6
+    },
+    "otherPerHeroH": {
+     "mean": 0,
+     "sd": 0,
+     "n": 6
+    }
+   },
    "deaths": 0,
    "wipes": 0,
    "seedsWithADeath": 0,
@@ -344,9 +529,9 @@
    "nearWarned": 0,
    "nearFellAfter": 0,
    "whys": {
-    "hold": 2149,
-    "climb": 497,
-    "fall": 36
+    "hold": 2095,
+    "fall": 40,
+    "climb": 496
    }
   },
   "levels:bold": {
@@ -357,62 +542,98 @@
    "start": 622,
    "seedsRead": 6,
    "payX": {
-    "mean": 1.1,
-    "sd": 0.03,
+    "mean": 1.2,
+    "sd": 0.4,
     "n": 5,
     "perSeed": [
-     1.06,
-     1.08,
-     1.1,
-     1.12,
-     1.14
+     1,
+     1.01,
+     1.07,
+     1.93,
+     1.01
     ],
     "fromH": 1,
-    "windowH": 3.3
+    "windowH": 2.7
    },
    "held": {
-    "mean": 640.5,
-    "sd": 6.1,
-    "se": 2.7,
+    "mean": 635.4,
+    "sd": 14,
+    "se": 6.3,
     "perSeed": [
-     632,
-     639,
+     626,
+     627,
+     644,
      null,
-     641,
-     643,
-     648
+     656,
+     623
     ]
    },
-   "drift": 3.5,
-   "within10": 46.5,
-   "within20": 70.9,
-   "changesPerH": 9.7,
-   "fallsPerH": 1.1,
-   "reachH": 0,
-   "pullsPerH": 60.2,
-   "killsPerH": 415,
-   "xpPerHeroH": 277576,
+   "drift": -0.6,
+   "within10": 50,
+   "within20": 71.8,
+   "changesPerH": 18.9,
+   "fallsPerH": 0.9,
+   "reachH": 0.1,
+   "pullsPerH": 64.3,
+   "killsPerH": 416,
+   "xpPerHeroH": 256203,
+   "gold": {
+    "coinPerHeroH": {
+     "mean": 2144,
+     "sd": 132,
+     "n": 6
+    },
+    "incomePerHeroH": {
+     "mean": 5464,
+     "sd": 715,
+     "n": 6
+    },
+    "storePerHeroH": {
+     "mean": 12953,
+     "sd": 259,
+     "n": 6
+    },
+    "commonPerHeroH": {
+     "mean": 276,
+     "sd": 51,
+     "n": 6
+    },
+    "uncommonPerHeroH": {
+     "mean": 174,
+     "sd": 41,
+     "n": 6
+    },
+    "scarcePerHeroH": {
+     "mean": 2871,
+     "sd": 641,
+     "n": 6
+    },
+    "otherPerHeroH": {
+     "mean": 0,
+     "sd": 0,
+     "n": 6
+    }
+   },
    "deaths": 6,
    "wipes": 0,
-   "seedsWithADeath": 6,
+   "seedsWithADeath": 5,
    "huntedH": 8,
-   "fourH": 3.3,
+   "fourH": 2.7,
    "firstDeathH": [
-    4.1,
-    2.8,
-    0.1,
-    4.6,
-    7.4,
-    5.7
+    4.8,
+    4.4,
+    2.7,
+    0.7,
+    1
    ],
-   "nearWipes": 37,
+   "nearWipes": 34,
    "nearWithDeath": 6,
-   "nearWarned": 1,
-   "nearFellAfter": 37,
+   "nearWarned": 5,
+   "nearFellAfter": 34,
    "whys": {
-    "hold": 2127,
-    "climb": 631,
-    "fall": 120,
+    "hold": 2259,
+    "climb": 677,
+    "fall": 137,
     "death": 6
    }
   },
@@ -424,42 +645,79 @@
    "start": 451,
    "seedsRead": 6,
    "payX": {
-    "mean": 0.59,
+    "mean": 0.57,
     "sd": 0.01,
     "n": 6,
     "perSeed": [
+     0.56,
+     0.58,
      0.59,
-     0.6,
-     0.59,
-     0.6,
-     0.59,
+     0.56,
+     0.56,
      0.58
     ],
     "fromH": 1,
     "windowH": 7
    },
    "held": {
-    "mean": 466.4,
-    "sd": 7.8,
-    "se": 3.2,
+    "mean": 454.6,
+    "sd": 11,
+    "se": 4.5,
     "perSeed": [
-     470,
-     464,
-     459,
-     466,
-     460,
-     480
+     447,
+     465,
+     462,
+     438,
+     451,
+     465
     ]
    },
-   "drift": -2.3,
-   "within10": 49.2,
-   "within20": 82.3,
-   "changesPerH": 19.4,
+   "drift": 10.5,
+   "within10": 41.8,
+   "within20": 75.9,
+   "changesPerH": 19.3,
    "fallsPerH": 1.8,
    "reachH": 0,
-   "pullsPerH": 80.7,
-   "killsPerH": 567,
-   "xpPerHeroH": 199791,
+   "pullsPerH": 80,
+   "killsPerH": 552,
+   "xpPerHeroH": 194301,
+   "gold": {
+    "coinPerHeroH": {
+     "mean": 1476,
+     "sd": 40,
+     "n": 6
+    },
+    "incomePerHeroH": {
+     "mean": 5074,
+     "sd": 124,
+     "n": 6
+    },
+    "storePerHeroH": {
+     "mean": 9670,
+     "sd": 79,
+     "n": 6
+    },
+    "commonPerHeroH": {
+     "mean": 305,
+     "sd": 9,
+     "n": 6
+    },
+    "uncommonPerHeroH": {
+     "mean": 176,
+     "sd": 9,
+     "n": 6
+    },
+    "scarcePerHeroH": {
+     "mean": 3116,
+     "sd": 131,
+     "n": 6
+    },
+    "otherPerHeroH": {
+     "mean": 0,
+     "sd": 0,
+     "n": 6
+    }
+   },
    "deaths": 0,
    "wipes": 0,
    "seedsWithADeath": 0,
@@ -471,9 +729,9 @@
    "nearWarned": 0,
    "nearFellAfter": 0,
    "whys": {
-    "hold": 2931,
-    "climb": 850,
-    "fall": 88
+    "hold": 2906,
+    "climb": 845,
+    "fall": 82
    }
   },
   "high:steady": {
@@ -484,42 +742,79 @@
    "start": 596,
    "seedsRead": 6,
    "payX": {
-    "mean": 1.07,
-    "sd": 0.05,
+    "mean": 0.99,
+    "sd": 0.04,
     "n": 6,
     "perSeed": [
-     1.18,
-     1.05,
-     1.04,
      1.06,
-     1.04,
-     1.07
+     0.98,
+     0.94,
+     0.96,
+     1.02,
+     0.98
     ],
     "fromH": 1,
     "windowH": 7
    },
    "held": {
-    "mean": 618.1,
-    "sd": 4.4,
-    "se": 1.8,
+    "mean": 605.1,
+    "sd": 5.9,
+    "se": 2.4,
     "perSeed": [
-     625,
-     615,
-     615,
-     618,
-     614,
-     622
+     611,
+     606,
+     596,
+     600,
+     610,
+     608
     ]
    },
-   "drift": -7.1,
-   "within10": 62.2,
-   "within20": 92.4,
-   "changesPerH": 9.3,
-   "fallsPerH": 0.8,
-   "reachH": 0.1,
-   "pullsPerH": 52.3,
-   "killsPerH": 424,
-   "xpPerHeroH": 360746,
+   "drift": -2,
+   "within10": 56.6,
+   "within20": 89.6,
+   "changesPerH": 9.7,
+   "fallsPerH": 0.9,
+   "reachH": 0,
+   "pullsPerH": 52.7,
+   "killsPerH": 427,
+   "xpPerHeroH": 333865,
+   "gold": {
+    "coinPerHeroH": {
+     "mean": 2054,
+     "sd": 39,
+     "n": 6
+    },
+    "incomePerHeroH": {
+     "mean": 4856,
+     "sd": 100,
+     "n": 6
+    },
+    "storePerHeroH": {
+     "mean": 11211,
+     "sd": 86,
+     "n": 6
+    },
+    "commonPerHeroH": {
+     "mean": 227,
+     "sd": 6,
+     "n": 6
+    },
+    "uncommonPerHeroH": {
+     "mean": 142,
+     "sd": 5,
+     "n": 6
+    },
+    "scarcePerHeroH": {
+     "mean": 2432,
+     "sd": 84,
+     "n": 6
+    },
+    "otherPerHeroH": {
+     "mean": 0,
+     "sd": 0,
+     "n": 6
+    }
+   },
    "deaths": 0,
    "wipes": 0,
    "seedsWithADeath": 0,
@@ -531,9 +826,9 @@
    "nearWarned": 0,
    "nearFellAfter": 0,
    "whys": {
-    "hold": 2033,
-    "climb": 437,
-    "fall": 35
+    "hold": 2053,
+    "climb": 432,
+    "fall": 39
    }
   },
   "high:bold": {
@@ -544,75 +839,112 @@
    "start": 641,
    "seedsRead": 6,
    "payX": {
-    "mean": 1.24,
-    "sd": 0.05,
-    "n": 5,
+    "mean": 1.2,
+    "sd": 0.08,
+    "n": 6,
     "perSeed": [
-     1.3,
-     1.23,
+     1.34,
      1.24,
-     1.16,
-     1.25
+     1.15,
+     1.17,
+     1.12,
+     1.17
     ],
     "fromH": 1,
-    "windowH": 2.3
+    "windowH": 4.4
    },
    "held": {
-    "mean": 656.4,
-    "sd": 8.1,
-    "se": 3.6,
+    "mean": 655.5,
+    "sd": 7.5,
+    "se": 3.1,
     "perSeed": [
-     null,
-     662,
-     660,
-     664,
-     644,
-     652
+     669,
+     654,
+     652,
+     657,
+     646,
+     656
     ]
    },
-   "drift": 0.4,
-   "within10": 46.9,
-   "within20": 71.5,
-   "changesPerH": 8.6,
-   "fallsPerH": 1.1,
-   "reachH": 0,
-   "pullsPerH": 64,
-   "killsPerH": 411,
-   "xpPerHeroH": 338400,
-   "deaths": 8,
+   "drift": -2.7,
+   "within10": 54.6,
+   "within20": 89.1,
+   "changesPerH": 12.4,
+   "fallsPerH": 1.5,
+   "reachH": 0.1,
+   "pullsPerH": 55.4,
+   "killsPerH": 397,
+   "xpPerHeroH": 365536,
+   "gold": {
+    "coinPerHeroH": {
+     "mean": 2318,
+     "sd": 103,
+     "n": 6
+    },
+    "incomePerHeroH": {
+     "mean": 5147,
+     "sd": 466,
+     "n": 6
+    },
+    "storePerHeroH": {
+     "mean": 13794,
+     "sd": 1169,
+     "n": 6
+    },
+    "commonPerHeroH": {
+     "mean": 239,
+     "sd": 35,
+     "n": 6
+    },
+    "uncommonPerHeroH": {
+     "mean": 142,
+     "sd": 19,
+     "n": 6
+    },
+    "scarcePerHeroH": {
+     "mean": 2448,
+     "sd": 441,
+     "n": 6
+    },
+    "otherPerHeroH": {
+     "mean": 0,
+     "sd": 0,
+     "n": 6
+    }
+   },
+   "deaths": 5,
    "wipes": 0,
-   "seedsWithADeath": 6,
+   "seedsWithADeath": 5,
    "huntedH": 8,
-   "fourH": 2.3,
+   "fourH": 4.4,
    "firstDeathH": [
-    0.4,
-    5.6,
-    6.7,
-    2.9,
-    2.6,
-    1.1
+    4.3,
+    6.8,
+    3.2,
+    4.1,
+    5.9
    ],
-   "nearWipes": 34,
-   "nearWithDeath": 8,
-   "nearWarned": 6,
-   "nearFellAfter": 34,
+   "nearWipes": 46,
+   "nearWithDeath": 5,
+   "nearWarned": 8,
+   "nearFellAfter": 46,
    "whys": {
-    "hold": 2249,
-    "climb": 672,
-    "death": 8,
-    "fall": 138
+    "hold": 1952,
+    "climb": 586,
+    "fall": 112,
+    "death": 5
    }
   }
  },
- "wallS": 246,
+ "wallS": 252,
  "candidate": "C0",
  "moves": {
   "levels:careful": {
    "from": "base:careful",
    "to": "levels:careful",
-   "mean": 11.7,
-   "sd": 10.6,
-   "se": 4.3,
+   "mean": 18.3,
+   "sd": 18.7,
+   "se": 7.6,
    "n": 6
   },
   "weapon:careful": null,
@@ -620,17 +952,17 @@
   "high:careful": {
    "from": "base:careful",
    "to": "high:careful",
-   "mean": 56.8,
-   "sd": 13.7,
-   "se": 5.6,
+   "mean": 57,
+   "sd": 11.2,
+   "se": 4.6,
    "n": 6
   },
   "levels:steady": {
    "from": "base:steady",
    "to": "levels:steady",
-   "mean": 15,
-   "sd": 7.8,
-   "se": 3.2,
+   "mean": 11.5,
+   "sd": 8,
+   "se": 3.3,
    "n": 6
   },
   "weapon:steady": null,
@@ -638,17 +970,17 @@
   "high:steady": {
    "from": "base:steady",
    "to": "high:steady",
-   "mean": 37.3,
-   "sd": 8.1,
-   "se": 3.3,
+   "mean": 36.5,
+   "sd": 9.1,
+   "se": 3.7,
    "n": 6
   },
   "levels:bold": {
    "from": "base:bold",
    "to": "levels:bold",
-   "mean": 11.4,
-   "sd": 8.8,
-   "se": 3.9,
+   "mean": 16.8,
+   "sd": 17.4,
+   "se": 7.8,
    "n": 5
   },
   "weapon:bold": null,
@@ -656,10 +988,10 @@
   "high:bold": {
    "from": "base:bold",
    "to": "high:bold",
-   "mean": 26.6,
-   "sd": 9.6,
-   "se": 4.3,
-   "n": 5
+   "mean": 37.8,
+   "sd": 7.1,
+   "se": 2.9,
+   "n": 6
   }
  }
 }

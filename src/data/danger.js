@@ -43,8 +43,10 @@
 // READINESS (04 section 9, 02 section 11): the party leaves its regroup for the next pull only when every standing hero is at or over
 // `readyPm` of max HP. One threshold for every stance here, so a stance differs only in its trigger and its climb threshold.
 //
-// PURE ESM. Data only.
+// PURE ESM. Data only (the gear a ground drops is src/data/gear-steps.js).
 // ════════════════════════════════════════════════════════════════════════
+
+import { tierLevel, traitPool } from './gear-steps.js';
 
 // WAVE 1 (lane/v1-climb, backend, 2026-11-22): THE PAY, THE START AND THE GROUNDS.
 // PAY BY DEPTH FROM THE HOURS TABLE (04 sections 5 and 7). V1 paid a kill its row's Level XP x (1 + 0.7%)^step, so a four holding step
@@ -90,21 +92,29 @@ export const DANGER = Object.freeze({
 export const PAY = Object.freeze({ refKillsHead: 120, payStepXp: 0.007, payStepCoin: 0.007, gapMax: 120, floor: 0.5 });
 
 // THE POWER STEP ON THE SCALE (lane/r9-power-step, 2026-11-22; 04-math-strategy.md sections 1, 2 and 10; 02 package 2; 12-targets 3.3).
-// The gear's power in steps is the gear table's (lane/g-gear-steps; until it lands, src/core/gear-steps.js stands in): a hero's offense
-// and defense ratings in steps, each a weighted sum of its slots' base power. The engine (src/core/hunt/danger.js powerPm) reads them
-// against the rating of the ground's base tier (DANGER_GROUNDS baseTier: 12-targets 3.3, "the base tier is fixed by the ground"):
-//   a blow at a monster x (1 + powerStep) ^ (offense - the ground's),  a blow at the hero / (1 + powerStep) ^ (defense - the ground's)
-// whole steps (multiplications only, the same last bit on every engine), AFTER the armor chain and its 60% cap (04 section 2: the step
-// contest has no cap). Heals are not stepped (health is not). At the reference kit both gaps are 0 and the hunt plays as before, so
-// refStep and the band hold. Off the scale nothing here is read. The old itemization's stats still play beside it until wave 3.
+// A hero's GEAR PART is the gear table's (src/data/gear-steps.js, lane/g-gear-steps): each worn piece adds its item Level x its slot's
+// weight (GEAR_STEPS.slotPm, summing to 1000; a two-handed weapon carries GEAR_STEPS.twoHand's), so a whole kit at item Level X is X. The
+// engine (src/core/hunt/danger.js powerPm) reads it against the ground's base item Level (DANGER_GROUNDS gearLevel) at weightGear:
+//   steps = weightGearPm / 1000 x (gear part - gearLevel), whole steps (multiplications only, the same last bit on every engine)
+//   a blow at a monster x (1 + powerStep) ^ steps,  a blow at the hero / (1 + powerStep) ^ steps
+// one gear part feeds both ratings (the table has one). The defense half lands AFTER the armor chain and its 60% cap (04 section 2: the
+// step contest has no cap); played under the cap it showed a fifth of its steps (tools/balance-program/redesign/r9). Heals are not
+// stepped (health is not). Off the scale nothing here is read. The old itemization's stats still play beside it until wave 3.
+//   weightGearPm 1000   the whole gear part counts, so one tier of base on a whole kit (GEAR_STEPS.tierSteps item Levels) is that many
+//                       steps of power by construction (the Coordinator's R9 brief; 04's weighted mean with weightSkill waits for wave 3)
+// A piece's item Level is its row's `iL` once R10 writes it on scale drops; until then its `reqLv` STANDS IN (danger.js itemLevelOf).
+export const POWER = Object.freeze({ weightGearPm: 1000 });
+export { GEAR_STEPS } from './gear-steps.js';
 
 export const DANGER_GROUNDS = Object.freeze({
   /* floorStep / topStep: the ground's band of DEPTHS depths (docs/design/redesign/12-targets.md section 3.1, starting values the Lab
      tunes): depth 1 at the floor, depth 20 at the top. The player sees only "Depth N of 20", never a step (12-targets section 2.6).
      Display only for now: the server's catalogue (tools/gen-danger.mjs) reads refStep alone.
-     baseTier: the gear tier the reference company wore when refStep was measured (the MID kit at Level 60: every weapon and armor piece
-     tier 5); a hero's gear is counted in power steps against it (TIER_STEPS). Engine only: the server bounds read neither. */
-  muster_barrows: Object.freeze({ refStep: 590, floorStep: 480, topStep: 710, baseTier: 5 }),
+     gearLevel / traits: the ONE base item Level the ground drops at every depth and the Traits that roll on it (12-targets 3.3 and 8,
+     src/data/gear-steps.js). Muster Barrows (Levels 55-75) drops tier 3, item Level 60. gearLevel is also the gear part of the reference
+     company that measured refStep (the MID kit at Level 60, every piece item Level 60), so the power step (POWER) is 0 at it. Drop tables
+     do not read them yet; the engine's power step reads gearLevel. */
+  muster_barrows: Object.freeze({ refStep: 590, floorStep: 480, topStep: 710, gearLevel: tierLevel(3), traits: traitPool('muster_barrows') }),
 });
 
 /* The depths a ground's band is cut into (12-targets.md 3.1). */

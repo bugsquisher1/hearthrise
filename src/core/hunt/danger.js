@@ -26,9 +26,8 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random: nothing here draws a die.
 // ============================================================
 
-import { DANGER, CLIMB, RISKS, PAY, DANGER_GROUNDS } from '../../data/danger.js';
+import { DANGER, CLIMB, RISKS, PAY, DANGER_GROUNDS, POWER, GEAR_STEPS } from '../../data/danger.js';
 import { LEVEL_PACE } from '../../data/core-model.js';
-import { tierStepsOf } from '../gear-steps.js';
 import { charXpForLevel } from '../xp.js';
 import { makeEvent } from './events.js';
 import { isHero, isMonster } from './sides.js';
@@ -106,12 +105,36 @@ function depthRatio(ground, step, rate) {
   return g >= 0 ? powStep(1 + rate, g) : Math.max(PAY.floor, 1 / powStep(1 + rate, -g));
 }
 
-/* ── THE POWER STEP (lane/r9-power-step; src/data/danger.js, the gear's steps through src/core/gear-steps.js) ── */
+/* ── THE POWER STEP (lane/r9-power-step; src/data/danger.js POWER, the gear table src/data/gear-steps.js through it) ── */
+/* A piece's item Level: its row's `iL`; until R10 writes one on scale drops, its `reqLv` STANDS IN (src/data/danger.js POWER note). */
+const itemLevelOf = (it) => {
+  const n = Math.floor(Number(it && (Number.isInteger(it.iL) ? it.iL : it.reqLv)));
+  return Number.isFinite(n) && n > 0 ? n : 0;
+};
+/**
+ * A HERO'S GEAR PART, in thousandths of a step (member.js heroSnapshot, from the server's gear and the catalogue): each worn piece's item
+ * Level x its slot's weight (GEAR_STEPS.slotPm; a two-handed weapon also carries GEAR_STEPS.twoHand's other slots). A whole kit at item
+ * Level X is 1000 X; an empty slot adds 0; ammo has no weight (a supply). Whole numbers. Read only on the scale (powerPm).
+ */
+export function gearPartPm(equipment, items) {
+  const eq = equipment || {}, W = GEAR_STEPS.slotPm;
+  const at = (slot) => (eq[slot] && items ? items[eq[slot]] : null);
+  const weapon = at('weapon');
+  const carried = weapon && weapon.twoHanded === true ? GEAR_STEPS.twoHand : null;
+  let sum = 0;
+  for (const slot of Object.keys(W)) {
+    if (carried && carried.includes(slot)) continue;
+    sum += W[slot] * itemLevelOf(at(slot));
+  }
+  if (carried) sum += carried.reduce((a, s) => a + (W[s] || 0), 0) * itemLevelOf(weapon);
+  return sum;
+}
 const groundRow = (ground) => (ground && own(DANGER_GROUNDS, ground.id) ? DANGER_GROUNDS[ground.id] : null);
-/* A rating's gap to the ground's base tier, in whole steps, held inside the scale (every ratio stays a safe float). */
-function gapSteps(rating, row) {
-  if (!row || !Number.isInteger(row.baseTier) || !Number.isInteger(rating)) return 0;
-  return Math.max(-DANGER.stepMax, Math.min(DANGER.stepMax, rating - tierStepsOf(row.baseTier)));
+/* A gear part's power steps against the ground's base item Level at weightGear: whole steps, held inside the scale (a safe float). */
+function gearSteps(partPm, row) {
+  if (!row || !Number.isInteger(row.gearLevel) || !Number.isInteger(partPm)) return 0;
+  const s = Math.round(((partPm - 1000 * row.gearLevel) * POWER.weightGearPm) / (1000 * 1000));
+  return Math.max(-DANGER.stepMax, Math.min(DANGER.stepMax, s));
 }
 /* (1 + powerStep) ^ steps, either sign, once per whole step (a hunt's heroes wear a handful of kits) */
 const RATIO = new Map();
@@ -125,19 +148,19 @@ function stepRatio(steps) {
 }
 
 /**
- * THE POWER STEP ON A BLOW (damage.js hurt, after the armor chain and the shield's share is still to come): on the scale, a hero's blow at a
- * monster grows by its offense rating's gap to the ground's base tier and a blow at a hero shrinks by its defense rating's (the unit's
- * `offSteps` / `defSteps`, member.js heroSnapshot through gear-steps.js). Answers the permille the blow moves by (temper.js temperedAmount, the part of a point one draw), 0 off the scale, at the
- * reference kit, or for any other pair (a heal is never here). `pm` is the move the blow already carries (Tempering), folded in so the
- * blow draws once.
+ * THE POWER STEP ON A BLOW (damage.js hurt, after the armor chain; the shield's share is still to come): on the scale, a hero's blow at a
+ * monster grows by its gear's steps over the ground's base item Level, and a blow at a hero shrinks by the same (the unit's `gearPm`,
+ * member.js heroSnapshot). Answers the permille the blow moves by (temper.js temperedAmount, the part of a point one draw): `pm` as given
+ * off the scale, at the ground's base, or for any other pair (a heal is never here). `pm` is the move the blow already carries (Tempering),
+ * folded in so the blow draws once.
  */
 export function powerPm(inst, source, target, pm) {
   const base = Number.isFinite(pm) ? pm : 0;
   if (!inst || !dangerOn(inst.world)) return base;
   const row = groundRow(inst.ground);
   let steps = 0;
-  if (isHero(source) && isMonster(target)) steps = gapSteps(source.offSteps, row);
-  else if (isMonster(source) && isHero(target)) steps = -gapSteps(target.defSteps, row);
+  if (isHero(source) && isMonster(target)) steps = gearSteps(source.gearPm, row);
+  else if (isMonster(source) && isHero(target)) steps = -gearSteps(target.gearPm, row);
   if (!steps) return base;
   return Math.round((1000 + base) * stepRatio(steps)) - 1000;
 }

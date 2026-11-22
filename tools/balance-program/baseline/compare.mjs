@@ -345,7 +345,8 @@ export function printCompare(cmp, A, B, o = {}, out = console.log) {
   out('  baseline  game ' + short(A) + ', harness ' + shortH(A) + ', ' + A.cells.length + ' cells, scenario ' + (A.scenario || {}).hash);
   out('  candidate game ' + short(B) + ', harness ' + shortH(B) + ', ' + B.cells.length + ' cells, scenario ' + (B.scenario || {}).hash + (B.manifest && B.manifest.change && (B.manifest.change.names || []).length ? ', with ' + B.manifest.change.names.join(', ') : ''));
   if (!cmp.scenarioSame) out('  WARNING: the scenario hashes differ: the two played different cells or outcome rules; only shared cells are compared');
-  if (A.manifest && B.manifest && A.manifest.hashes.harness.sha256 !== B.manifest.hashes.harness.sha256) out('  WARNING: the harness differs between the two runs (' + A.manifest.hashes.harness.sha256.slice(0, 12) + ' vs ' + B.manifest.hashes.harness.sha256.slice(0, 12) + '): a move may be the harness, not the game');
+  if (A.manifest && B.manifest && A.manifest.hashes.harness.sha256 !== B.manifest.hashes.harness.sha256) out('  WARNING: the harness differs between the two runs (' + A.manifest.hashes.harness.sha256.slice(0, 12) + ' vs ' + B.manifest.hashes.harness.sha256.slice(0, 12) + '): a move may be the harness, not the game'
+    + (o.harnessFiles ? '. Instrument files that differ between the two harness commits: ' + (o.harnessFiles.length ? o.harnessFiles.join(', ') : 'none tracked (the run target or a record differs, not the code)') : ''));
   out('  shared cells ' + cmp.cells.length + ', only in the baseline ' + cmp.onlyA.length + ', only in the candidate ' + cmp.onlyB.length + (cmp.groundMoved.length ? ', cells whose advised ground changed ' + cmp.groundMoved.length + ' (e.g. ' + cmp.groundMoved.slice(0, 3).join('; ') + ')' : ''));
   out('  the noise rule: a move counts when |change| >= ' + Z_NOISE + ' x its combined standard error and >= ' + (MIN_REL * 100) + '% (deaths: Poisson z >= ' + Z_NOISE + ')');
   const nT = new Set(cmp.targets.map((x) => x.target.id)).size;
@@ -402,13 +403,13 @@ export function printBaseline(doc, o = {}, out = console.log) {
   const blocks = {};
   for (const c of doc.cells) { const b = blocks[c.block] || (blocks[c.block] = { cells: 0, hh: 0 }); b.cells++; b.hh += c.hh || 0; }
   out('  blocks: ' + Object.entries(blocks).map(([k, b]) => k + ' ' + b.cells + ' (' + Math.round(b.hh) + ' hero-h)').join(', '));
-  out('\nNOISE (four seeds a cell; relative standard error of a cell\'s mean, over the cells; the smallest change one cell against one cell resolves)');
+  out('\nNOISE (' + (((doc.scenario || {}).spec || {}).seeds || '?') + ' seeds a cell; relative standard error of a cell\'s mean, over the cells; the smallest change one cell against one cell resolves)');
   for (const n of noiseTable(doc)) out('  ' + n.id.padEnd(20) + ' median ' + pct(n.medianRelSe).replace('+', '').padStart(6) + '  p90 ' + pct(n.p90RelSe).replace('+', '').padStart(6) + '  resolves ' + pct(n.resolvesMedian).replace('+', '').padStart(6) + ' (p90 cell ' + pct(n.resolvesP90).replace('+', '') + ')' + (n.identicalSeeds ? '  ' + n.identicalSeeds + ' cells identical across seeds' : ''));
   for (const [id, label] of CATEGORIES) {
     const vs = (doc.views || []).filter((v) => v.category === id && (o.allViews || HEADLINE.has(v.id) || v.id === 'hoursPerLevel' && /\|(10|30|60|88|110)$/.test(v.key) && /^hoursPerLevel\|(hammer|four)/.test(v.key)));
     if (!vs.length) continue;
     out('\n== ' + label.toUpperCase());
-    for (const v of vs) out('  ' + v.label.slice(0, 90).padEnd(91) + (finite(v.k) ? (fmt((1000 * v.k) / v.t, 1) + ' (' + v.k + ' in ' + Math.round(v.t) + ' h)') : smart(v.value) + (finite(v.se) ? ' +- ' + smart(v.se) : '')));
+    for (const v of vs) out('  ' + v.label.slice(0, 90).padEnd(91) + (finite(v.k) ? (fmt((1000 * v.k) / v.t, 1) + ' (' + v.k + ' in ' + smart(v.t) + ' h)') : smart(v.value) + (finite(v.se) ? ' +- ' + smart(v.se) : '')));
   }
   if (doc.calibration && doc.calibration.c2 && doc.calibration.c2.length) {
     out('\nCALIBRATION C-2 on this tree (the matrix four against real fours\' recorded hunts on the same ground and tier; sim / real)');

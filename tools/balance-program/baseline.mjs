@@ -53,7 +53,7 @@ import { printCalibration } from './matrix-calibration.mjs';
 import { readC2 } from './calibrate.mjs';
 import { OUTCOME_IDS, seedOutcomes, cellStats, moments } from './baseline/outcomes.mjs';
 import { deriveSpec, baselineRun, planHook, scenarioHash, hoursOfCell, strayCell, SPEC_SCHEMA } from './baseline/scenarios.mjs';
-import { materialize, manifest, treeRecord, TREE_FILE, HARNESS } from './baseline/tree.mjs';
+import { materialize, manifest, treeRecord, instrumentDiff, TREE_FILE, HARNESS } from './baseline/tree.mjs';
 import { RESULT_SCHEMA, TARGET_SCHEMA, hydrate, computeViews, compareDocs, printCompare, printBaseline, judgeMove, judgeRates, noiseTable, loadTargets } from './baseline/compare.mjs';
 import { planMatrix } from './matrix-plan.mjs';
 
@@ -222,7 +222,8 @@ async function main() {
     if (!arg('compare')) { printBaseline(base, { allViews: has('all-views') }); if (base.calibration && base.calibration.krell) { console.log(''); printCalibration(base.calibration.krell, console.log); } return 0; }
     const cand = hydrate(readDoc(resolve(arg('compare'))));
     const cmp = compareDocs(base, cand, { targets: targetsOf(), intent: listArg('intent') });
-    printCompare(cmp, base, cand, { allViews: has('all-views'), top: Number(arg('top', 8)) });
+    const sha = (d) => d.manifest && d.manifest.tree && d.manifest.tree.harness ? d.manifest.tree.harness.sha : null;
+    printCompare(cmp, base, cand, { allViews: has('all-views'), top: Number(arg('top', 8)), harnessFiles: instrumentDiff(ROOT, sha(base), sha(cand)) });
     if (arg('json')) writeFileSync(resolve(arg('json')), JSON.stringify({ baseline: base.label, candidate: cand.label, categories: cmp.categories, targets: cmp.targets, views: cmp.views, cells: cmp.cells, onlyA: cmp.onlyA, onlyB: cmp.onlyB, groundMoved: cmp.groundMoved }) + '\n');
     return 0;
   }

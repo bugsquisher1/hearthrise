@@ -67,6 +67,12 @@ const instrument = (f) => notTreeOwn(f) && !NOT_INSTRUMENT.some((o) => f === o |
 /** The INSTRUMENT: the harness's files less the tree's own and less the measurement's own records. Equal on both sides of a fair comparison. */
 export const hashHarness = (root) => hashFiles(root, HARNESS.flatMap((p) => filesUnder(root, p)).filter(instrument));
 
+/** The instrument files that differ between two harness commits (git, in `repo`), or null when either commit is not here. */
+export function instrumentDiff(repo, a, b) {
+  if (!a || !b || a === b) return a && a === b ? [] : null;
+  try { return git(repo, ['diff', '--name-only', a, b, '--', ...HARNESS]).split('\n').map((s) => s.trim()).filter(Boolean).filter(instrument); } catch { return null; }
+}
+
 /** Export `game` into `into` and lay the harness over it. Answers the folder's tree record. */
 export function materialize({ game, into, label = null, harnessRoot, patches = [] }) {
   const sha = resolveCommit(harnessRoot, game);

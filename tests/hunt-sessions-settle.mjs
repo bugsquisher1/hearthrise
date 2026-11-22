@@ -5765,7 +5765,7 @@ const DB_MUTANTS = [
     find: '  v_kmax := v_pass * (greatest(v_win, 0) / v_ground.respawn_ms + 2);',
     replace: '  v_kmax := v_ground.spawns::bigint * (greatest(v_win, 0) / v_ground.respawn_ms + 2);' },
   { arm: 'DENSITY', name: '[#57] the engine plays today\'s action-set density, not the frozen one', fn: 'public.hr_hunt_instance_read(uuid,integer)',
-    find: "|| jsonb_build_object('density', v_i.density, 'tier', coalesce(v_i.tier, 'normal'))) end,", replace: "|| '{}'::jsonb) end," },
+    find: "|| jsonb_build_object('density', v_i.density, 'tier', coalesce(v_i.tier, 'normal'))\n", replace: "|| '{}'::jsonb\n" },
   { arm: 'DENSITY', name: '[#57] the density is never frozen at hunt start', fn: 'public.hr_hunt_density_freeze()',
     find: '   where i.id = new.instance_id and i.density is null;', replace: '   where false;' },
   { arm: 'FORFEIT', name: '[#57] a refused window is never forfeited (the hero is trapped)', fn: SR,

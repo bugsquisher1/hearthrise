@@ -76,6 +76,9 @@ export function groupsOf(meta) {
   for (const t of ['normal', 'dangerous', 'deadly']) g.push(['tier:' + t, t, (c) => c.tier === t && c.gear === 'mid' && tierSeats.has(c.L + '|' + c.comp)]);
   for (const t of ['normal', 'dangerous', 'deadly']) g.push(['four:' + t, 'the four on ' + t, (c) => fourStd(c) && c.gear === 'mid' && c.tier === t && c.L >= 30]);
   for (const L of [30, 60, 110]) g.push(['four@' + L, 'the four at Level ' + L + ' (MID, every tier)', (c) => fourStd(c) && c.gear === 'mid' && c.L === L]);
+  /* the two lone seats that carry the tier axis, tier by tier (the hammer is the seat that dies) */
+  for (const [w, name] of [['hammer', 'the hammer alone'], ['mage', 'the Mage alone']]) for (const t of ['normal', 'dangerous', 'deadly'])
+    g.push([w + ':' + t, name + ' on ' + t + ' (MID, Levels 30 to 110)', (c) => c.party === 1 && c.styles[0] === w && c.gear === 'mid' && c.tier === t && c.L >= 30]);
   return g.map(([id, label, pick]) => ({ id, label, keys: meta.filter(pick).map((c) => c.key) })).filter((x) => x.keys.length);
 }
 

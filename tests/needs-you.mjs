@@ -1,0 +1,163 @@
+#!/usr/bin/env node
+// ════════════════════════════════════════════════════════════════════════
+// tests/needs-you.mjs — "NEEDS YOU" ON THE RETURN CARD: AT MOST THREE DECISIONS, RANKED, ONE ROW A KIND (designer D-2 section 2.3; lane/c-company FB-6).
+//   src/shell/needs-you.js (the card's ranking and block), src/shell/needs-you/*.js (the line providers), src/data/hunt-after.js NEEDS_YOU.
+//
+//   node tests/needs-you.mjs            the guard (pure Node: the real modules over the alpha envelope, no browser, no database)
+//   node tests/needs-you.mjs --mutate   every planted defect must turn its arm red
+//
+// mutant-anchors: src/shell/needs-you.js src/shell/needs-you/gear-choice.js src/shell/needs-you/death.js src/data/hunt-after.js
+// ci-step: client-guards | Needs you on the return card: three at most, ranked, one row a kind, providers by kind
+// ci-run: node tests/needs-you.mjs
+// ci-run: node tools/mutant-gate.mjs node tests/needs-you.mjs --mutate
+//
+//   NY-DATA    NEEDS_YOU is valid (bands in order, no kind twice), NEEDS_SHOWN is 3, and the rest plan's ending rows are valid (D-11: no
+//              ending runs a hunt); every provider's kind is a NEEDS_YOU row and no two providers share one
+//   NY-RANK    rows from every kind, scrambled, with a kind twice, a kind the data does not list and a row with no words: three show, in the
+//              data's order, one a kind (the provider's first), and "{n} more" counts the rest
+//   NY-HEROES  the real providers over four heroes' envelopes (one outgrown, one died with no Blessing on, one with better gear in its bag,
+//              one the server's plan refuses for a full bag): the card shows outgrown, cannot start, death, in that order, and one more;
+//              with the company's "Wear upgrades" line on, plain gear is not a decision and the count drops
+// Exit: 0 green · 1 red · 2 harness.
+// ════════════════════════════════════════════════════════════════════════
+import { readFileSync, mkdtempSync, rmSync, writeFileSync, cpSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { tmpdir } from 'node:os';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { isMain } from './_is-main.mjs';
+
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
+const FIXTURE = JSON.parse(readFileSync(join(ROOT, 'tests/fixtures/alpha-envelope.json'), 'utf8'));
+const clone = (o) => JSON.parse(JSON.stringify(o));
+
+async function load(root) {
+  const u = (p) => pathToFileURL(join(root, p)).href;
+  return { N: await import(u('src/shell/needs-you.js')), P: await import(u('src/shell/needs-you/providers.js')), D: await import(u('src/data/hunt-after.js')) };
+}
+
+/* A hero as the session reads it: the alpha envelope with its hunt ended for `reason`, its name, and any extra sections. */
+function hero(slot, name, reason, extra = {}) {
+  const env = clone(FIXTURE);
+  env.name = name;
+  env.hunt = Object.assign({}, env.hunt, { ended: true, session: Object.assign({}, env.hunt.session || {}, { end_reason: reason, ended_at: '2026-11-21T10:00:00Z' }) });
+  Object.assign(env, extra);
+  return { slot, status: 'open', read: (k) => env[k] };
+}
+
+const ARMS = {
+  'NY-DATA': async (X) => {
+    const out = [];
+    const probs = [...X.D.validateNeeds(), ...X.D.validateRest()];
+    if (probs.length) out.push('the rows have problems: ' + probs.join('; '));
+    if (X.D.NEEDS_SHOWN !== 3) out.push('NEEDS_SHOWN is ' + X.D.NEEDS_SHOWN + ', D-2 shows three');
+    const kinds = X.P.PROVIDERS.map((p) => p.kind);
+    const data = X.D.NEEDS_YOU.map((r) => r.kind);
+    for (const k of kinds) if (!data.includes(k)) out.push('a provider supplies ' + k + ', which no NEEDS_YOU row lists');
+    if (new Set(kinds).size !== kinds.length) out.push('two providers supply one kind: ' + kinds.join(', '));
+    /* D-11: no ending runs a hunt, said as its own refusal (the unknown-kind refusal alone would let a `hunt` kind in once REST_RUNS listed it) */
+    if (!X.D.validateRest([...X.D.REST_ENDINGS, { id: 'again', runs: 'hunt' }]).includes('again: an ending may not start a hunt')) out.push('an ending that runs a hunt is not refused by name');
+    return out;
+  },
+
+  'NY-RANK': async (X) => {
+    const out = [];
+    const rows = [
+      { kind: 'ground_opened', text: 'A ground opened.' },
+      { kind: 'death', text: 'Wren died.' },
+      { kind: 'gear_choice', text: 'Better gear is waiting for 2 heroes.' },
+      { kind: 'death', text: 'Bryn died too.' },
+      { kind: 'cannot_start', text: '' },
+      { kind: 'no_such_kind', text: 'Not a row.' },
+      { kind: 'outgrown', text: 'Tess has outgrown Mill Cellar.' },
+      { kind: 'tier_offer', text: 'That hunt was Safe.' },
+    ];
+    const r = X.N.rankNeeds(rows);
+    const got = r.shown.map((x) => x.kind + ':' + x.text);
+    if (JSON.stringify(got) !== JSON.stringify(['outgrown:Tess has outgrown Mill Cellar.', 'death:Wren died.', 'gear_choice:Better gear is waiting for 2 heroes.'])) out.push('three shown read ' + JSON.stringify(got));
+    if (r.more !== 2) out.push('"more" counts ' + r.more + ', want 2 (tier_offer, ground_opened)');
+    const few = X.N.rankNeeds([{ kind: 'can_build', text: 'You can build.' }]);
+    if (few.shown.length !== 1 || few.more !== 0) out.push('one row reads ' + JSON.stringify(few));
+    if (X.N.rankNeeds(null).shown.length !== 0) out.push('no rows shows a row');
+    return out;
+  },
+
+  'NY-HEROES': async (X) => {
+    const out = [];
+    const tiers = [1, 2, 3].map((tier) => ({ tier, permille: 250, price: 100, held: false }));
+    const peers = [
+      hero(0, 'Tess', 'outgrown'),
+      hero(1, 'Wren', 'died', { blessings: { tiers, permille: 0 },
+        death_log: [{ id: 7, at: '2026-11-21T09:00:00Z', hunt: 'mill_cellar', session: FIXTURE.hunt.session_id, monster: 'rat', xp: 4200, xp_lost: { level: 4200 } }] }),
+      hero(2, 'Bryn', 'stamina', { equipment: {}, inventory: Object.assign({}, FIXTURE.inventory, { bronze_helm: 1 }) }),
+      hero(3, 'Dorn', 'stamina'),
+    ];
+    const plan = { heroes: [{ slot: 3, state: 'no', why: 'bag_full', name: 'Dorn' }] };
+    const off = X.N.rankNeeds(X.N.needsRowsOf({ peers: () => peers, plan, wearOn: false }));
+    const kinds = off.shown.map((r) => r.kind);
+    if (JSON.stringify(kinds) !== '["outgrown","cannot_start","death"]' || off.more !== 1) out.push('with the line off the card reads ' + JSON.stringify(off));
+    const say = Object.fromEntries(off.shown.map((r) => [r.kind, r.text]));
+    if (say.outgrown !== 'Tess has outgrown Mill Cellar.') out.push('the outgrown row reads ' + JSON.stringify(say.outgrown));
+    if (say.cannot_start !== 'Dorn\'s bag is full.') out.push('the cannot start row reads ' + JSON.stringify(say.cannot_start));
+    if (say.death !== 'Wren died and lost 4,200 Level XP. No Blessing is on.') out.push('the death row reads ' + JSON.stringify(say.death));
+    if (off.shown.some((r) => /[;—–]/.test(r.text))) out.push('a row has a semicolon or a dash');
+    const all = X.N.needsRowsOf({ peers: () => peers, plan, wearOn: false });
+    const gear = all.find((r) => r.kind === 'gear_choice');
+    if (!gear || !/^Better gear is waiting for \d+ heroe?s?\.$/.test(gear.text)) out.push('the gear row reads ' + JSON.stringify(gear));
+    /* with the company's line on, plain gear goes on at the next Start by itself: no decision */
+    const on = X.N.rankNeeds(X.N.needsRowsOf({ peers: () => peers.map((p) => (p.slot === 2 ? p : p)), plan, wearOn: true }));
+    const onGear = X.N.needsRowsOf({ peers: () => [peers[2]], plan: null, wearOn: true }).find((r) => r.kind === 'gear_choice');
+    if (onGear) out.push('with the line on, plain gear is still a decision: ' + JSON.stringify(onGear));
+    if (on.more > off.more) out.push('the line on made more rows: ' + JSON.stringify(on));
+    return out;
+  },
+};
+
+const MUTANTS = [
+  ['the rows lose the data\'s order', 'NY-RANK', 'src/shell/needs-you.js', '  const all = [...byKind.values()].sort((a, b) => RANK.get(a.kind) - RANK.get(b.kind));', '  const all = [...byKind.values()];'],
+  ['four rows show', 'NY-RANK', 'src/shell/needs-you.js', 'return { shown: all.slice(0, shown), more: Math.max(0, all.length - shown) };', 'return { shown: all.slice(0, shown + 1), more: Math.max(0, all.length - shown - 1) };'],
+  ['a kind shows twice', 'NY-RANK', 'src/shell/needs-you.js', " || byKind.has(r.kind)) continue;\n    byKind.set(r.kind, r);", ") continue;\n    byKind.set(r.kind + byKind.size, Object.assign({}, r));"],
+  ['plain gear is a decision with the line on', 'NY-HEROES', 'src/shell/needs-you/gear-choice.js', 'if ((!ctx.wearOn && plan.picks.length) || plan.choices.length)', 'if (plan.picks.length || plan.choices.length)'],
+  ['a death with a Blessing missing is not a row', 'NY-HEROES', 'src/shell/needs-you/death.js', "h.endReason !== 'died' || blessingsMissing(cs) !== true", "h.endReason !== 'died' || blessingsMissing(cs) !== false"],
+  ['an ending may run a hunt', 'NY-DATA', 'src/data/hunt-after.js', "    if (/hunt/.test(c.runs)) out.push(c.id + ': an ending may not start a hunt');\n", ''],
+  ['four shown by the data', 'NY-DATA', 'src/data/hunt-after.js', 'export const NEEDS_SHOWN = 3;', 'export const NEEDS_SHOWN = 4;'],
+];
+
+async function runAll(X, only) {
+  const fails = [];
+  for (const [id, arm] of Object.entries(ARMS)) {
+    if (only && id !== only) continue;
+    let got;
+    try { got = await arm(X); } catch (e) { got = ['threw: ' + String(e && e.stack || e).split('\n').slice(0, 3).join(' | ')]; }
+    for (const g of got) fails.push(id + ' ' + g);
+  }
+  return fails;
+}
+
+async function main() {
+  if (!process.argv.includes('--mutate')) {
+    const fails = await runAll(await load(ROOT));
+    for (const f of fails) console.log('✗ ' + f);
+    console.log(fails.length ? `needs-you: ${fails.length} RED` : `needs-you: green (${Object.keys(ARMS).join(', ')})`);
+    process.exit(fails.length ? 1 : 0);
+  }
+  const clean = await runAll(await load(ROOT));
+  if (clean.length) { console.error('needs-you --mutate: the clean tree is red: ' + clean.join(' | ')); process.exit(2); }
+  let escaped = 0;
+  for (const [name, arm, file, find, repl] of MUTANTS) {
+    const dir = mkdtempSync(join(tmpdir(), 'hr-ny-'));
+    try {
+      cpSync(join(ROOT, 'src'), join(dir, 'src'), { recursive: true, filter: (s) => !/\.(png|webp|jpg|ogg|mp3)$/.test(s) });
+      const f = join(dir, file);
+      const src = readFileSync(f, 'utf8').split(String.fromCharCode(13)).join('');
+      if (src.split(find).length !== 2) { console.error(`HARNESS: ${file} has no single ${JSON.stringify(find.slice(0, 60))}`); process.exit(2); }
+      writeFileSync(f, src.replace(find, () => repl));
+      const got = await runAll(await load(dir), arm);
+      if (got.length) console.log(`  caught  ${name} (${arm}): ${got[0].slice(0, 140)}`);
+      else { console.log(`  ESCAPED ${name} (${arm})`); escaped++; }
+    } finally { rmSync(dir, { recursive: true, force: true }); }
+  }
+  console.log(escaped ? `needs-you --mutate: ${escaped} ESCAPED` : `needs-you --mutate: ${MUTANTS.length}/${MUTANTS.length} caught`);
+  process.exit(escaped ? 1 : 0);
+}
+
+if (isMain(import.meta.url)) main().catch((e) => { console.error(e && e.stack ? e.stack : e); process.exit(2); });

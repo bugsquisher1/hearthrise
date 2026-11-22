@@ -710,6 +710,8 @@
     "node tools/mutant-gate.mjs node tests/client-boot-pure.mjs --mutate": "client-guards",
     "node tests/hunt-screen-pure.mjs": "client-guards",
     "node tools/mutant-gate.mjs node tests/hunt-screen-pure.mjs --mutate": "client-guards",
+    "node tests/needs-you.mjs": "client-guards",
+    "node tools/mutant-gate.mjs node tests/needs-you.mjs --mutate": "client-guards",
     "node tests/tally-window-pure.mjs": "client-guards",
     "node tools/mutant-gate.mjs node tests/tally-window-pure.mjs --mutate": "client-guards",
     "node tools/mutant-gate.mjs --nightly-gate": "client-guards",

@@ -109,6 +109,20 @@ The last balance pass proposed the armor curve at x2.4 and found the first-week 
 - **Why the curve reaches so little at home.** On Normal at its own Level a MID hero's armor already sits at the 60% mitigation cap (sensitivity page, section 7.3), so the curve has nothing to cut until the attacker is well above the hero's Level. A harder tier raises the attacker's Level, which is why the curve only bites there.
 - **Coin does not interact with either.** Coin a kill moves gold in and nothing else, at every point of the grid. The joint readings are the sums of the singles to within half a percent. It can pay for the supply bill the curve creates, but only on average: the bill lands on the lone melee hero on a harder tier (minus 37,600 gold an hour at x2.4), and a coin line pays every seat the same.
 
+---
+
+## 8. The Level curve with the death price and monster damage
+
+The seat the Level pace is timed on is the MID four on Dangerous, after its deaths (candidate PACE-1 in `03-targets.md`). The worry was that the seat moves whenever a death dial moves, since it was refitted twice. The grid is the Level curve at x0.75, x1, x1.5 against the death price at x0.5, x1, x2 and monster damage at x1, x1.25, x1.5. MEASURED, run 44969087150, 26 points, 4 seeds. The slices below hold the Level curve at x1.
+
+<!-- GEN: exp id=level-death fix=levelCurve:1 groups=four:dangerous,hammer:dangerous outcomes=netLevelXpPerH,deathsPer1000h -->
+<!-- /GEN -->
+
+- **The seat does not feel death at all.** The four on Dangerous has no deaths at monster damage x1.5, so its XP after deaths is the base to a tenth of a percent at every point of the grid, at any death price. On the seat the pace is timed on, the death price is a dead lever and monster damage is nearly one. The refits were not caused by death. They follow kills an hour, which on this seat follows the pull and the respawn (section 2).
+- **The Level curve is exactly what it says.** Hours for a Level move in proportion to it for every seat that does not die, with no interaction with the other two.
+- **Where there are deaths, the death price is a multiplier on a loss that monster damage has already decided.** For the lone hammer on Dangerous at today's damage, the death price at x0.5 lifts XP after deaths by 11% and x2 cuts it by 21%. At monster damage x1.25 the hero dies about every hour, and XP after deaths is 0.06 of the base at half price, below zero at full price, and further below at double. Past the cliff the death price only chooses how negative.
+- **So the death rate and the death price are not a pair that trade off smoothly.** There is a narrow band of monster damage, about 10% wide for this seat, where a hero dies now and then and the price matters as a tax. Under it the price is unread. Over it the hero cannot progress at any price. JUDGMENT: a design that wants death to be a tax needs the death rate to rise gently with danger. Today it rises as a wall.
+
 <<FILL:EXPERIMENTS>>
 
 <<FILL:LOOPS>>

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // ════════════════════════════════════════════════════════════════════════
 // tests/town-read.mjs — THE WORLD TICK'S NARROW TOWN READ GIVES THE ENGINE EXACTLY WHAT THE WHOLE HERO GIVES IT
-//   (supabase/migrations/1043-narrow-town-read.sql; lane/c-settle-cost FB-4, build plan 13 section 2.6, study 48 section 9)
+//   (supabase/migrations/1048-narrow-town-read.sql; lane/c-settle-cost FB-4, build plan 13 section 2.6, study 48 section 9)
 //
 //   node tests/town-read.mjs            the guard (replays the chain)
 //   node tests/town-read.mjs --mutate   each planted defect in the read turns its hero red

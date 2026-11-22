@@ -426,9 +426,9 @@ export const LINKS = [
      removals in tests/run-sql-tests.mjs PART 1f-ii are exactly the replaced block. Its base is link 24's TARGET. It is the new
      last toucher. */
   /* ...and (lane/c-settle-cost FB-4, 2026-11-21) ONE INSERTION in the same link: the narrow town read's engine entry
-     (hr_tick_town_state, created and granted to hr_engine by 1043-narrow-town-read.sql) at the HEAD of c_engine_allow. It rides
+     (hr_tick_town_state, created and granted to hr_engine by 1048-narrow-town-read.sql) at the HEAD of c_engine_allow. It rides
      link 25 because ONE staged file restates the detector (link 24's rule: the staged tail is re-applied in order, and a staged
-     link re-applied over a later one would put the later's entries out). Until 1043 applies, the entry names a function hr_engine
+     link re-applied over a later one would put the later's entries out). Until 1048 applies, the entry names a function hr_engine
      cannot execute, which check (7) never reads as a finding. An insertion: link 25's declared removals do not move. */
   {
     base: '1004-tick-pack-heroes.sql',
@@ -475,7 +475,7 @@ export const PATCHES = [
     find: '  c_engine_allow constant text[] := array[\n',
     add: `    -- ── ADDED 2026-11-21 — THE NARROW TOWN READ (lane/c-settle-cost FB-4) ──
     -- At the HEAD, an INSERTION: it removes nothing, so link 25's declared
-    -- removals do not move. The function is 1043-narrow-town-read.sql's.
+    -- removals do not move. The function is 1048-narrow-town-read.sql's.
     --
     -- READ-ONLY: a STABLE projection of ONE character the caller names, each field
     -- by hr_state_of's own definition (which hr_engine already reads whole for the

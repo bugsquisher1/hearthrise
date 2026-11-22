@@ -1,9 +1,9 @@
 -- ════════════════════════════════════════════════════════════════════════
--- supabase/migrations/1041-settle-plans.sql — THE SETTLE'S PLANS READ EACH THING ONCE, AND AN ALARM ON THE SETTLE READ
+-- supabase/migrations/1046-settle-plans.sql — THE SETTLE'S PLANS READ EACH THING ONCE, AND AN ALARM ON THE SETTLE READ
 --   (lane/c-settle-cost FB-4, reliability-engineer, 2026-11-21; docs/design/balance-program/48-platform-cost.md sections 8 and
 --   10.5, build plan 13 section 2.6 FB-4 "the plan fixes" and "an alarm").
 --
--- STATUS: supabase/migration-notes/1041-settle-plans.sql.json (STAGED until the Coordinator applies it).
+-- STATUS: supabase/migration-notes/1046-settle-plans.sql.json (STAGED until the Coordinator applies it).
 -- ORDER: the sequence in this file's name (CLAUDE.md rule 12): it runs after every file on its base.
 -- Applied as ONE transaction by the apply tool; never begin/commit here. Ends with its §4 self-check.
 --
@@ -31,7 +31,7 @@
 --
 -- NOT IN THIS FILE, and why: the hunt limits' remaining reads (about 259 a four's settle after (1)) are in hr_hunt_apply_member
 --   and the vitals helpers, one each a member, read at plan-cached cost; moving them is a restatement of the apply that eleven
---   guards plant in (tests/alpha-server.mjs MEMBER_LAST). The journal's day reads shrink with the hourly journal (1042), which
+--   guards plant in (tests/alpha-server.mjs MEMBER_LAST). The journal's day reads shrink with the hourly journal (1047), which
 --   is where "the journal by user and day" is fixed.
 --
 -- ── CONCURRENCY / IDEMPOTENCY ────────────────────────────────────────────────

@@ -51,9 +51,9 @@
 //   party_reads_a_settle      hr_hunt_instance_read calls a landed settle (median; track_functions = all): exact, 0%. READ ONCE
 //                             (study 48 section 8): the settle read's `r` CTE is materialized, so the party is read once a settle,
 //                             not once a reference (3 a closed save inlined). 0 on the town fixture, which reads no party
-//   member_reads_a_settle     hr_hunt_member_read calls a landed settle (median): exact, 0%. One a member (1041-settle-plans.sql's
+//   member_reads_a_settle     hr_hunt_member_read calls a landed settle (median): exact, 0%. One a member (1046-settle-plans.sql's
 //                             offset-0 fences: unfenced, the instance read made 6 a member)
-//   state_reads_a_settle      hr_state_of calls a landed settle (median): exact, 0%. THE NARROW TOWN READ (1043-narrow-town-read.sql):
+//   state_reads_a_settle      hr_state_of calls a landed settle (median): exact, 0%. THE NARROW TOWN READ (1048-narrow-town-read.sql):
 //                             the world tick reads a town hero's engine inputs (hr_tick_town_state), never the whole hero, so the
 //                             town fixture reads 0 (it read 1 a settle); a watched save's commit still answers with the asker's
 //                             envelope
@@ -149,7 +149,7 @@ const partyReads = async (db) => {
 };
 /** The edge's exec as index.ts runs it (one pooled transaction a statement), counted: payload statements and round trips.
     THE PLANT `read_inlined` (--selftest): the settle read as it was before read once, its `r` CTE inlined into each reference.
-    THE PLANT `town_whole_read`: the world tick reading a town hero whole again (hr_state_of for 1043's hr_tick_town_state). */
+    THE PLANT `town_whole_read`: the world tick reading a town hero whole again (hr_state_of for 1048's hr_tick_town_state). */
 function countedExec(db, mode, stat, plant = null) {
   const base = makeExec(db);
   return async (text, params) => {
@@ -470,7 +470,7 @@ const UNIT_ROW = `
   create trigger hr_planted_unit_tally after insert or update on public.hunt_session_tally for each row execute function public.hr_planted_unit_rows();
   create trigger hr_planted_unit_bag after insert or update or delete on public.player_inventory for each row execute function public.hr_planted_unit_rows();`;
 
-/* THE PLANT `member_unfenced`: the instance read and the member read without 1041-settle-plans.sql's offset-0 fences (rolled back). */
+/* THE PLANT `member_unfenced`: the instance read and the member read without 1046-settle-plans.sql's offset-0 fences (rolled back). */
 async function unfence(db) {
   for (const fn of ['public.hr_hunt_instance_read(uuid,integer)', 'public.hr_hunt_member_read(public.hunt_sessions)']) {
     const def = String(await one(db, 'select pg_get_functiondef($1::regprocedure)', [fn]));

@@ -841,7 +841,7 @@ async function tickOne(exec, holder, sel, body, maxWindows = 1) {
   const nowIso = new Date(read0[0].now).toISOString();
 
   /* (1) THE STATE, FROM THE DATABASE, IN THIS REQUEST. Not one field of it
-         comes from the body: `hr_tick_town_state` (1043-narrow-town-read.sql)
+         comes from the body: `hr_tick_town_state` (1048-narrow-town-read.sql)
          is the town engine's inputs, each by `hr_state_of`'s own definition,
          and `version` is the number `hr_apply` refuses a stale copy of.
 
@@ -852,7 +852,7 @@ async function tickOne(exec, holder, sel, body, maxWindows = 1) {
            the only server-side answer to that is `active_kind` on this
            read. `hr_engine` is revoked from `player_state`. The cost is one
            read for a character that turns out to be unleased, bounded by
-           MAX_ROSTER behind the tick bearer. A database before 1043 (read0's
+           MAX_ROSTER behind the tick bearer. A database before 1048 (read0's
            `narrow`) is read whole, as before: either deploy order is safe. */
   const [row] = await exec(
     `select public.${read0[0].narrow === true ? 'hr_tick_town_state' : 'hr_state_of'}($1::uuid, $2::int) as state,`

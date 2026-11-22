@@ -1,9 +1,9 @@
 -- ════════════════════════════════════════════════════════════════════════
--- supabase/migrations/1043-narrow-town-read.sql — THE WORLD TICK READS A TOWN HERO'S ENGINE INPUTS, NOT THE WHOLE HERO
+-- supabase/migrations/1048-narrow-town-read.sql — THE WORLD TICK READS A TOWN HERO'S ENGINE INPUTS, NOT THE WHOLE HERO
 --   (lane/c-settle-cost FB-4, reliability-engineer, 2026-11-21; study 48 section 3 "the settle read" row of town work and
 --   section 9 "the narrow town read", build plan 13 section 2.6 FB-4).
 --
--- STATUS: supabase/migration-notes/1043-narrow-town-read.sql.json (STAGED until the Coordinator applies it).
+-- STATUS: supabase/migration-notes/1048-narrow-town-read.sql.json (STAGED until the Coordinator applies it).
 -- ORDER: the sequence in this file's name (CLAUDE.md rule 12): it runs after every file on its base (after FB-2's 1040, whose
 --   hr_state_of image (1032's) this read mirrors). Applied as ONE transaction by the apply tool; never begin/commit here.
 --
@@ -61,7 +61,7 @@ end $mig$;
 -- ── §1 THE READ ──────────────────────────────────────────────────────────────
 create or replace function public.hr_tick_town_state(p_user uuid, p_slot integer)
 returns jsonb language plpgsql stable security definer set search_path = public, pg_catalog as $fn$
--- NARROW-TOWN-READ (1043-narrow-town-read.sql): the world tick's read of a town hero (tick.js tickOne (1)). The engine inputs
+-- NARROW-TOWN-READ (1048-narrow-town-read.sql): the world tick's read of a town hero (tick.js tickOne (1)). The engine inputs
 -- envelope.js engineInputsFromEnvelope builds a town session from and the pointer and version tick.js reads, each by
 -- hr_state_of's own definition, and none of the envelope's other sections.
 declare

@@ -2654,7 +2654,7 @@ jobs:
           node tests/ledger-rollup.mjs
           node tools/mutant-gate.mjs node tests/ledger-rollup.mjs --mutate
 
-      # THE HOURLY JOURNAL (1042-hourly-journal.sql, FB-4). Plays four fixtures through their own doors, spreads their journal
+      # THE HOURLY JOURNAL (1047-hourly-journal.sql, FB-4). Plays four fixtures through their own doors, spreads their journal
       # across a UTC midnight, folds it into hour rows and reads every day read before and after (day budget, the store's day
       # cap, meta sums, journal rows, the monthly rollup by running the prune): all the same. Both doors save on after a fold;
       # the cron's cursor keeps rows before the release and inside detail_minutes; the fence and the switch. --mutate: 10 defects.
@@ -2665,7 +2665,7 @@ jobs:
           node tests/ledger-hours.mjs
           node tools/mutant-gate.mjs node tests/ledger-hours.mjs --mutate
 
-      # THE NARROW TOWN READ (1043-narrow-town-read.sql, FB-4). The world tick reads a town hero through hr_tick_town_state, not
+      # THE NARROW TOWN READ (1048-narrow-town-read.sql, FB-4). The world tick reads a town hero through hr_tick_town_state, not
       # hr_state_of: for an artisan on a counted run with Storage, buffs and a tool carry, a Game Master gatherer with a carried
       # fight, and an idle hero over its HP cap, the town engine's inputs and the tick's keys are identical from both reads.
       # --mutate: 7 planted omissions in the read, each red on its hero. MEASURED locally on a cached chain: 4 s plain, 6 s --mutate.

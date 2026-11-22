@@ -1752,7 +1752,7 @@
   },
   "hr_ledger_hours_state": {
    "class": "operational",
-   "note": "1042-hourly-journal.sql: the hourly journal fold's one row: from_at (rows written before it keep their detail), the hour and hero it has reached, and running counts. Server-only, RLS on, no grant. Lost, hr_ledger_hours_fold recreates it at the restore's hour: the hours between keep their detail rows (more rows, never less value) until the 90-day prune. No player value: the hour rows themselves are player_ledger rows."
+   "note": "1047-hourly-journal.sql: the hourly journal fold's one row: from_at (rows written before it keep their detail), the hour and hero it has reached, and running counts. Server-only, RLS on, no grant. Lost, hr_ledger_hours_fold recreates it at the restore's hour: the hours between keep their detail rows (more rows, never less value) until the 90-day prune. No player value: the hour rows themselves are player_ledger rows."
   },
   "hr_level_curve": {
    "class": "seeded",

@@ -1,0 +1,7 @@
+{
+ "about": "What a push to balance-baseline/** measures (.github/workflows/balance-baseline.yml). game: a commit or branch; label: a name; patch: patch files, comma-separated, laid on it; base: a proposal base or today. The pin is baseline/overhaul-start (set/v0.2.144 at 861ae52e3).",
+ "game": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
+ "label": "overhaul-start",
+ "patch": "",
+ "base": "today"
+}

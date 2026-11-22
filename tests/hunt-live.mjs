@@ -2313,7 +2313,7 @@ const MUTANTS = [
   ['the browser drops the hold pick of a peer (LV-HOLD)', 'src/core/member.js', '    hero: f.hero || {},', '    hero: Object.assign({}, f.hero, { hold: null }),', /^LV-HOLD/],
   ['the settle drops hr_hunt_instance_read hold_seat (LV-HOLD)', 'supabase/functions/hr-accrue/hunt-settle.js', 'lead: m._leads, hold: m._hold });', 'lead: m._leads });', /^LV-HOLD/],
   ["Follow reads only the leader's last blow (LV-TGT, Andy a08)", 'src/core/hunt/targeting.js',
-    "return on && on.alive && on.side === 'mon' ? on.id : inst.world.leaderLast;", 'return inst.world.leaderLast;', /^LV-TGT: closed: "Follow"/],
+    "return on && on.alive && isEnemy(u, on) ? on.id : inst.world.leaderLast;", 'return inst.world.leaderLast;', /^LV-TGT: closed: "Follow"/],
   ['a melee follower keeps the monster it fights (LV-TGT, Andy a08)', 'src/core/hunt/targeting.js',
     "const STEADY_MODES = Object.freeze(['strongest', 'follow']);", 'const STEADY_MODES = Object.freeze([]);', /^LV-TGT: closed: "Follow"/],
   ['"Strongest" ranks nothing (LV-TGT)', 'src/core/hunt/targeting.js', '  strongest: () => (a, b) => b.maxHp - a.maxHp,', '  strongest: () => () => 0,', /^LV-TGT: closed: "Strongest"/],

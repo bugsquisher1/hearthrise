@@ -160,14 +160,14 @@ export function tankTurnsOf(world) {
 
 /**
  * DOES TANK `unit` HOLD THE PACK (display only; bug #61, Andy 10-22: "Challenge never procs")? Every engaged
- * monster of `world` is on it, so its Challenge has nothing to take (the engine's own challengeable, the
+ * foe of it (targeting.js engaged: in a hunt, every engaged monster) of `world` is on it, so its Challenge has nothing to take (the engine's own challengeable, the
  * reach the auto-cast and the bar slot share). False with nothing engaged, or for a hero that is no tank.
  */
 export function holdsPackOf(world, unit) {
   const inst = { world };
   const u = world && Array.isArray(world.units) ? world.units.find((x) => x.id === unit) : null;
   if (!u || !u.alive || !roleOf(u) || !roleOf(u).tank) return false;
-  const on = engaged(inst);
+  const on = engaged(inst, u);
   return on.length > 0 && on.every((m) => m.target === unit) && challengeable(inst, u).length === 0;
 }
 
@@ -181,7 +181,7 @@ export function holdsPackOf(world, unit) {
 export function slotTesterOf(world, grid, member, items) {
   const u = world && Array.isArray(world.units) ? world.units.find((x) => x.id === member.unitId) : null;
   const inst = { world, grid };
-  if (!u || !u.alive || !engaged(inst).length) return null;
+  if (!u || !u.alive || !engaged(inst, u).length) return null;
   const h = { hs: member.hs, range: member.hero.range, ammo: member.hero.ammo, items };
   const target = world.units.find((x) => x.id === u.target) || null;
   return (slot) => {

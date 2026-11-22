@@ -13,6 +13,7 @@ import { makeUnit, makeWorld } from './hunt/world-state.js';
 import { spawnPack, pullLeader, PHASE } from './hunt/pull-cycle.js';
 import { pickLeader, settingsOf } from './hunt/roles.js';
 import { heroSlots, heroStopRules, stopRulesProblem } from './hunt/conditions.js';
+import { isHero } from './hunt/sides.js';
 
 /** The named hunt a combat pointer names, or null (a monster id / unknown). */
 export function huntFor(activeId) {
@@ -138,7 +139,7 @@ export function newHuntWorld(ground, grid, party, o) {
  * (pull-cycle.js pullLeader). Answers the new unit id.
  */
 export function joinHero(world, ground, hero, seat) {
-  const roles = world.units.filter((u) => u.side === 'hero').map((u) => u.role).concat([hero.role]);
+  const roles = world.units.filter((u) => isHero(u)).map((u) => u.role).concat([hero.role]);
   const id = world.nextId;
   world.nextId += 1;
   world.units.push(heroUnit(id, hero, roles, ground.start[Math.max(0, seat) % ground.start.length]));

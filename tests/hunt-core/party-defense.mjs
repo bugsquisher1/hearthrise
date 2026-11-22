@@ -106,10 +106,10 @@ R.ok(!why2, 'lone-tank-holds: ' + why2);
    free monster, every swing) */
 const LONE_MUTANTS = [
   { name: 'the Challenge takes nothing back: a monster the peel drew stays on the Healer',
-    edits: [['src/core/hunt/targeting.js', 'return engaged(inst).filter((m) => m.target !== k.id && !(m.holdMs > 0) && cheb(m, k) <= CHALLENGE.radius && (holds || onNonTank(m)));', 'return [];']] },
+    edits: [['src/core/hunt/targeting.js', 'return engaged(inst, k).filter((m) => m.target !== k.id && !(m.holdMs > 0) && cheb(m, k) <= CHALLENGE.radius && (holds || onNonTank(m)));', 'return [];']] },
   { name: 'the Healer\'s peel draws any unheld monster, every swing',
-    edits: [['src/core/hunt/targeting.js', 'const free = engaged(inst).filter((m) => m.target === k.id && m.queued && !(m.holdMs > 0) && cheb(m, k) > 1);\n  if (!free.length || sc.rng.int(1, 1000) > row.peel) return null;',
-      'const free = engaged(inst).filter((m) => m.target === k.id && !(m.holdMs > 0));\n  if (!free.length) return null;']] },
+    edits: [['src/core/hunt/targeting.js', 'const free = engaged(inst, hero).filter((m) => m.target === k.id && m.queued && !(m.holdMs > 0) && cheb(m, k) > 1);\n  if (!free.length || sc.rng.int(1, 1000) > row.peel) return null;',
+      'const free = engaged(inst, hero).filter((m) => m.target === k.id && !(m.holdMs > 0));\n  if (!free.length) return null;']] },
 ];
 for (const mu of LONE_MUTANTS) {
   const p = plant(mu.edits, PLAY_TREES);
@@ -126,7 +126,7 @@ const MUTANTS = [
   { name: 'the holder never rotates (the second tank never trains)',
     edits: [['src/core/hunt/targeting.js', 'return tanks[runs % tanks.length];', 'return tanks[0];']] },
   { name: 'a monster blow at an armoured hero pays no Defense',
-    edits: [['src/core/hunt-rewards.js', "  if (!m || m.armoured !== true || !attacker || attacker.side !== 'mon') return 0;", '  return 0;']] },
+    edits: [['src/core/hunt-rewards.js', "  if (!m || m.armoured !== true || !isMonster(attacker)) return 0;", '  return 0;']] },
 ];
 for (const mu of MUTANTS) {
   const p = plant(mu.edits, PLAY_TREES);

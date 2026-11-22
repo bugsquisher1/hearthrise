@@ -80,9 +80,9 @@ export const ownShareAt = (L) => (L >= STD.SUPPLY.ownFromLevel ? STD.SUPPLY.ownS
 /* ── the data the plan and the tables read (no engine) ─────────────────────────────────────────────────────────────────────────── */
 export async function loadGridData(root = ROOT) {
   const imp = (p) => import(pathToFileURL(join(root, p)).href);
-  const [G, H, TI, BS, MON, XP, HS, BL, SB, HL, PCX, SL, LB] = await Promise.all(['src/data/hunt-grounds.js', 'src/data/hunts.js', 'src/data/hunt-tiers.js',
+  const [G, H, TI, BS, MON, XP, HS, BL, SB, HL, PCX, SL, LB, AR] = await Promise.all(['src/data/hunt-grounds.js', 'src/data/hunts.js', 'src/data/hunt-tiers.js',
     'src/data/balance-sheet.js', 'src/data/monsters.js', 'src/core/xp.js', 'src/data/hunt-sessions.js', 'src/data/blessings.js', 'src/data/supply-basics.js',
-    'src/shell/hunt-list.js', 'src/data/party-class-xp.js', 'tools/balance-sim/skill-lines.mjs', 'src/data/loot-bands.js'].map(imp));
+    'src/shell/hunt-list.js', 'src/data/party-class-xp.js', 'tools/balance-sim/skill-lines.mjs', 'src/data/loot-bands.js', 'src/core/action-rules.js'].map(imp));
   const S = await imp('tools/gen-ground-stats.mjs');
   const floorOf = (g) => H.HUNT_INDEX[G.HUNT_GROUNDS[g].hunt].band[0];
   const bandOfGround = (g) => H.HUNT_INDEX[G.HUNT_GROUNDS[g].hunt].band;
@@ -99,7 +99,7 @@ export async function loadGridData(root = ROOT) {
   const model = await imp('tools/balance-program/model.mjs'), measure = await imp('tools/balance-program/measure.mjs');
   return {
     model, accountCost: measure.accountCost,
-    G, HUNT_INDEX: H.HUNT_INDEX, TI, BS, MONSTERS: MON.MONSTERS, XP, HS, BL, SB, lines, skillsAt: SL.skillsAt, REVEAL_BANDS: LB.REVEAL_BANDS,
+    G, HUNT_INDEX: H.HUNT_INDEX, TI, BS, MONSTERS: MON.MONSTERS, XP, HS, BL, SB, AR, lines, skillsAt: SL.skillsAt, REVEAL_BANDS: LB.REVEAL_BANDS,
     floorOf, bandOfGround, fitOf,
     /** the ground the game advises at Level L for a party of n (its own recommendation; the staged grounds join from 110; past 185 the placeholder) */
     groundAt(L, n) {
@@ -135,6 +135,20 @@ export function readTracks(root = ROOT) {
    blessed death would cost over about five hunted hours. MEASURED there: Levels 100, 185, 275 and 400; each halves what a blessed death still takes */
 /* the ladder's one home is standards.mjs (DEATH_COST beside it) */
 export const { BLESSING_LADDER, blessedShareAt } = STD;
+/* A DEATH, PRICED BY THE GAME (the Lab's death-cost slot, CONFLICTS 2026-11-21 "the harness prices a death itself"; lane/bl-baseline). The Level
+   XP one unblessed death takes from a hero standing at Level L is the TREE's own rule (src/core/action-rules.js levelDeathLoss on the tree's XP
+   curve), and the share three held Blessings leave is the tree's own table (src/data/blessings.js BLESSING_CUT_PERMILLE). Never standards.mjs
+   DEATH_COST typed a second time: a death-cost change the engine plays must move every reader too. A data view without the tree's rules is
+   refused by name, never priced by a fallback. */
+export function deathXpAt(D, L) {
+  if (!D || !D.AR || typeof D.AR.levelDeathLoss !== 'function') throw new Error('grid: the data view has no src/core/action-rules.js (AR): a death is priced by the game, never by the harness');
+  return D.AR.levelDeathLoss(D.XP.charXpForLevel(L));
+}
+export function blessedShareOf(D, held = 3) {
+  const cut = D && D.BL && D.BL.BLESSING_CUT_PERMILLE;
+  if (!Array.isArray(cut) || !Number.isFinite(cut[held - 1])) throw new Error('grid: the data view has no src/data/blessings.js BLESSING_CUT_PERMILLE row for ' + held + ' Blessings');
+  return 1 - cut[held - 1] / 1000;
+}
 export const TRACK_EFFECTS = Object.freeze(['damage', 'defense', 'damage_crit', 'drop_rate', 'gold_find', 'combat_xp', 'all_xp']);
 export function trackBuffs(track, L) {
   const sumBy = {};

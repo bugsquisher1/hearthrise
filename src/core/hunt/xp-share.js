@@ -39,6 +39,7 @@ import { TOWER_PARTY_XP, runRulesOf } from '../../data/tower.js';
 import { underFloorSharePm } from '../../data/hunt-grounds.js';
 import { skillLevelFromXp, charLevelFromXp } from '../xp.js';
 import { makeEvent } from './events.js';
+import { isEnemy, isHero } from './sides.js';
 
 export const PERSISTED = Object.freeze({ unit: Object.freeze([]), world: Object.freeze([['xpGroup', 'json']]), pack: Object.freeze([]) });
 
@@ -92,7 +93,10 @@ function splitKillXp(xp, heroes, sc, ground, partyPm = 1000, xpPm = 1000) {
 export function shareKillXp(inst, kill, sc) {
   const xp = xpOf(kill);
   const units = (inst && inst.world && inst.world.units) || [];
-  const living = units.filter((u) => u.side === 'hero' && u.alive === true);
+  /* (a kill pays the side that won it: the living heroes not on the fallen's side, sides.js; a bare caller naming no unit of
+     the world pays every living hero) */
+  const dead = units.find((u) => u.id === kill.t) || null;
+  const living = units.filter((u) => isHero(u) && u.alive === true && (!dead || isEnemy(dead, u)));
   const paid = splitKillXp(xp, living, sc, inst && inst.ground ? inst.ground : null, kill && Number.isInteger(kill.partyPm) ? kill.partyPm : 1000,
     inst && Number.isInteger(inst.xpPm) ? inst.xpPm : 1000);
   const ids = Object.keys(paid);
@@ -104,7 +108,6 @@ export function shareKillXp(inst, kill, sc) {
     sc.emit(makeEvent('xp', sc.atMs, { u: Number(id), amount: paid[id].xp, raw: paid[id].raw, ...(paid[id].ev > 0 ? { ev: paid[id].ev } : {}) }));
   }
   if (inst && inst.world) {
-    const dead = units.find((u) => u.id === kill.t) || null;
     /* kills = every kill in the group; n / sx / sy = the ones with a tile, for the centre. */
     const g = inst.world.xpGroup || { at: sc.atMs, kills: 0, n: 0, sx: 0, sy: 0, by: {} };
     g.kills += 1;

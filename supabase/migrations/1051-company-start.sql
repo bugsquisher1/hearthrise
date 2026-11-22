@@ -257,11 +257,14 @@ $fn$;
 
 -- "If one falls" as the account reads it: every hero's box true = all come home; none true = the rest hunt on; else mixed.
 create or replace function public.hr_company_falls_of(p_uid uuid)
-returns text language sql stable set search_path = public, pg_catalog as $fn$
-  select case when bool_and(coalesce(ps.party_leave_together, false)) then 'all_home'
-              when not bool_or(coalesce(ps.party_leave_together, false)) then 'hunt_on' else 'mixed' end
-    from public.player_state ps where ps.user_id = p_uid
-$fn$;
+returns text language plpgsql stable set search_path = public, pg_catalog as $fn$
+begin
+  -- plpgsql, not sql: PostgreSQL 17 plans a SET-clause SQL body again on every call, and the `company` section reads this one every
+  -- envelope (tests/settle-budget.mjs SB-3). One row always (an aggregate), so the answer is the SQL body's.
+  return (select case when bool_and(coalesce(ps.party_leave_together, false)) then 'all_home'
+                      when not bool_or(coalesce(ps.party_leave_together, false)) then 'hunt_on' else 'mixed' end
+            from public.player_state ps where ps.user_id = p_uid);
+end $fn$;
 
 -- THE SECTION `company`, this hero's view of its company's plan.
 create or replace function public.hr_company_view(p_user uuid, p_slot int)

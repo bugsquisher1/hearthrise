@@ -40,6 +40,7 @@ import { tickStatuses } from './status.js';
 import { consume } from './consumables.js';
 import { flushXpGroup } from './xp-share.js';
 import { checkStopRules } from './conditions.js';
+import { isHero } from './sides.js';
 
 /** How many sub-steps one swing of `swingMs` is; refuses a swing that is not a whole number of them. */
 export function substepsOf(swingMs) {
@@ -91,7 +92,7 @@ function stepWorld(world, swingCtx, track, events) {
      for the rest of the swing (live v0.2.23, Andy: "2nd char starts to run away after death") nor dies a
      second death the first one already ended. An unticked survivor waits out the rest of that one swing
      (at most one swing interval) and hunts on from the next. */
-  const heroes = world.units.filter((u) => u.side === 'hero' && u.alive);
+  const heroes = world.units.filter((u) => isHero(u) && u.alive);
   for (let i = 0; i < n; i++) {
     sc.atMs = atMs + i * HUNT_TUNING.stepMs;
     inst.ix = null;

@@ -8,8 +8,11 @@
 //                    saved.
 //   THE RULES BLOCK  each bar slot that fired, how often and its share of the damage or healing; each that never fired and why; and
 //                    the change line when the bar changed since the last hunt on this ground.
-// The cause line (package 9: why the party fell back, and the one change most likely to help) has its slot here (CAUSE_SLOT) and
-// fills once the server stores the sustain counters. Nothing here counts, prices or predicts: the lines say what the server counted.
+// THE CAUSE LINE (lane R5, package 9) closes the risk block on a Danger scale ground: where the hunt held and on which Risk, the deepest
+// it went, and why it fell back ("Held Depth 12 of 20 on Steady. Fell back once: Bran at 23% to a Brute."), from the server's report
+// (`deep`, `falls`, 1057-danger-falls.sql) and the session's end stance; the return card (./windows/away.js) shows the same line.
+// Nothing here counts, prices or predicts: the lines say what the server counted.
+//   causeLine(d)               the cause line from the report's depth facts, '' off the scale
 //
 //   riskLines(r, xpH)          the risk block's lines (strings), the word first. Pure but for the words.
 //   rulesLines(r, prev)        the rules block's lines, the change line last. Pure but for the words.
@@ -23,7 +26,8 @@ import { itemName, monsterName, abilityName } from './widgets/bits.js';
 import { spanWords } from './after-hunt.js';
 import { ABILITIES } from '../data/abilities.js';
 import { HUNT_REPORT } from '../data/hunt-report.js';
-import { changedSlot, CAUSE_SLOT } from '../hunt-view/hunt-report.js';
+import { changedSlot } from '../hunt-view/hunt-report.js';
+import { STANCE_IDS } from '../session/danger-sections.js';
 
 /* A share in permille as a whole percent; a hero still standing never reads 0% (6 permille is "1%"). */
 const pct = (pm) => (pm > 0 ? Math.max(1, Math.floor(pm / 10)) : 0);
@@ -50,8 +54,28 @@ export function riskLines(r, xpH) {
     if (saved > 0) out.push({ text: t('report.death_saved', { xp: whole(saved) }) });
     else if (blessings === 0) out.push({ text: t('report.death_unblessed') });
   }
-  if (CAUSE_SLOT) out.push({ text: CAUSE_SLOT });
+  const cause = causeLine(r.depth);
+  if (cause) out.push({ text: cause });
   return out;
+}
+
+/** THE CAUSE LINE (lane R5) from the report's depth facts (src/hunt-view/hunt-report.js depthFacts): where the hunt held and on which Risk,
+    the deepest it went, and why it fell back: "Held Depth 12 of 20 on Steady. Fell back once: Bran at 23% to a Brute." Depths only, never a
+    step. '' off the scale. */
+export function causeLine(d) {
+  if (!d) return '';
+  const parts = [];
+  const stance = d.risk && STANCE_IDS.includes(d.risk) ? t('hunts.stance_' + d.risk) : null;
+  if (d.held !== null && stance) parts.push(t(d.deep !== null && d.deep <= d.held ?'report.depth_held_top' : 'report.depth_held', { depth: d.held, of: d.of, stance }));
+  if (d.deep !== null && (d.held === null || !stance || d.deep > d.held)) parts.push(t('report.depth_deep', { deep: d.deep, of: d.of }));
+  if (!d.n || !d.last) parts.push(t('report.fell_none'));
+  else {
+    const [name, pm, monster] = d.last;
+    const v = { count: d.n, name: name || t('report.fell_hero'), pct: pct(pm), monster: monster === 'unknown' ? t('report.fell_monster') : monsterName(monster) };
+    const key = d.n === 1 ? 'report.fell_one' : d.n >= HUNT_REPORT.fallsMax ? 'report.fell_many_more' : 'report.fell_many';
+    parts.push(t(pm === 0 ? key + '_died' : key, v));
+  }
+  return parts.join(' ');
 }
 
 /** The rules block's lines: slots that fired (bar order), then those that never fired, at most HUNT_REPORT.rulesShown, the change line last. */

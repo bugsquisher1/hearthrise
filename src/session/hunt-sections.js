@@ -500,6 +500,7 @@ export const serverNowOf = (cs) => (cs && typeof cs.serverNow === 'function' ? c
 export function watchedOf(cs) {
   const w = section(cs, 'watched');
   if (!w || !str(w.s) || int(w.at) === null || int(w.xp) === null || w.xp < 0) return null;
+  /** @type {{s: string, at: number, xp: number, lv?: number, h?: string, k?: string, sx?: number, sl?: number} & Record<string, number|string>} */
   const out = { s: w.s, at: w.at, xp: w.xp };
   if (int(w.lv) !== null && w.lv >= 1) out.lv = w.lv;
   if (word(w.h)) out.h = w.h;

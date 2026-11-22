@@ -44,6 +44,12 @@
 
 import { HUNT_REPORT } from '../../data/hunt-report.js';
 import { ARMOUR_SLOTS } from '../../data/gear-tiers.js';
+import { DANGER, RISKS } from '../../data/danger.js';
+
+/* The Danger scale's bounds a fall is read against (the server's own, hr_danger_rules.step_max and hr_danger_stances.fall_pm): no step
+   past the scale's last, and a fall back reads under some stance's trigger (a death reads 0). */
+const STEP_MAX = DANGER.stepMax;
+const FALL_PM_MAX = Math.max(...Object.values(RISKS).map((s) => s.fallPm));
 
 /** A report with nothing in it. */
 export function emptyReport() {
@@ -156,6 +162,10 @@ export function addReport(a, b) {
     for (const [item, at] of Object.entries(isMap(y.dry) ? y.dry : {})) if (!(item in dry) || at < dry[item]) dry[item] = at;
     out.dry = dry;
   }
+  /* the Danger scale's (absent off it): the deeper step, the falls folded one an instant */
+  if (Array.isArray(x.falls) || Array.isArray(y.falls)) out.falls = foldFalls(x.falls, y.falls);
+  const deep = [x.deep, y.deep].filter((v) => nat(v) !== null);
+  if (deep.length) out.deep = Math.max(...deep);
   return out;
 }
 
@@ -224,5 +234,17 @@ export function reportProposal(r, bar, gear) {
   if (Object.keys(waits).length) out.waits = waits;
   if (Array.isArray(bar)) out.bar = bar;
   if (isMap(gear)) out.gear = { w: Math.min(nat(gear.w) || 0, 9999), a: Math.min(nat(gear.a) || 0, 9999), n: Math.min(nat(gear.n) || 0, 9999) };
+  /* THE DANGER SCALE'S (1057-danger-falls.sql hr_hunt_report_ok): the deepest step, and the last falls each at or under it, never
+     climbing, read under a stance's trigger, a seat of one digit */
+  const deep = nat(r.deep);
+  if (deep !== null && deep <= STEP_MAX) {
+    out.deep = deep;
+    const falls = (Array.isArray(r.falls) ? r.falls : []).filter((f) => isMap(f) && nat(f.at) !== null && f.at <= 999999999999999
+      && nat(f.from) !== null && f.from <= deep && nat(f.to) !== null && f.to <= f.from && nat(f.pm) !== null && f.pm < FALL_PM_MAX
+      && (!('hero' in f) || (nat(f.hero) !== null && f.hero <= 9)) && ID64.test(f.monster)).slice(-HUNT_REPORT.fallsMax);
+    if (falls.length) {
+      out.falls = falls.map((f) => ({ at: f.at, from: f.from, to: f.to, ...('hero' in f ? { hero: f.hero } : {}), pm: f.pm, monster: f.monster }));
+    }
+  }
   return out;
 }

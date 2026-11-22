@@ -7,7 +7,8 @@
 // these tables when it freezes a hunt's stance and start step (1056-danger-scale.sql hr_danger_freeze) and when it bounds a window
 // played on the scale (hr_danger_bound). This writes them whole, with the SQL twins of the two pay functions and a self-check.
 //   hr_danger_rules     one row: step_max, pull_max, respawn_ms, start_margin, climb_max, clean_run, regroup_ms (hunt-tuning.js: every
-//                       cleared pull rests at least this long, so a window's climb is bounded by its time), the pay levers (ppm), the hours spans
+//                       cleared pull rests at least this long, so a window's climb is bounded by its time), the pay levers (ppm), the hours spans,
+//                       default_risk (DEFAULT_RISK: the stance a hunt on the scale plays when its plan names none; 1057-danger-falls.sql)
 //   hr_danger_stances   per stance: rank (0 the safest), fall_pm, clean_pm, after_death (the stance a death settles to, never bolder)
 //   hr_danger_grounds   per ground the scale opens on: ref_step, share_pm_max (the most of a row's health one monster carries at any step),
 //                       coin_pm_max (the most of a row's coin one kill pays: that share x the depth ratio at the gap ceiling)
@@ -21,7 +22,7 @@
 //   node tools/gen-danger.mjs --selftest every refusal bites
 //
 // REFUSES (throws, nothing written): a stance list not ordered safest first with each death settling to the same or a safer stance and
-// fall_pm < clean_pm; a ground row that is no open hunting ground (its hunt id = its ground id; not the Tower, a yard, a hall or a call);
+// fall_pm < clean_pm; a default stance that is no stance; a ground row that is no open hunting ground (its hunt id = its ground id; not the Tower, a yard, a hall or a call);
 // a reference step outside 0..stepMax; a non-whole pay step in ppm; an hours table whose spans fall.
 // ════════════════════════════════════════════════════════════════════════
 import { readFile, writeFile } from 'node:fs/promises';
@@ -60,6 +61,7 @@ export function rowsOf({ data, core, model, grounds, tuning }) {
     if (rank > 0 && !(st.fallPm < RISKS[ids[rank - 1]].fallPm)) throw new Error('gen-danger: stance ' + id + ' is not bolder than ' + ids[rank - 1]);
   });
   const stances = ids.map((id, rank) => ({ id, rank, fall: RISKS[id].fallPm, clean: RISKS[id].cleanPm, after: RISKS[id].afterDeath }));
+  if (typeof data.DEFAULT_RISK !== 'string' || !own(RISKS, data.DEFAULT_RISK)) throw new Error('gen-danger: the default stance ' + data.DEFAULT_RISK + ' is no stance');
   const t = [[0, 0], ...model.LEVEL_PACE.targets];
   const spans = [];
   for (let i = 1; i < t.length; i++) spans.push([(t[i - 1][0] + t[i][0]) / 2, (t[i][1] - t[i - 1][1]) / (t[i][0] - t[i - 1][0])]);
@@ -68,7 +70,7 @@ export function rowsOf({ data, core, model, grounds, tuning }) {
     step_max: DANGER.stepMax, pull_max: DANGER.pullMax, respawn_ms: DANGER.respawnMs, start_margin: DANGER.startMargin,
     climb_max: CLIMB.climbMax, clean_run: CLIMB.cleanRun, regroup_ms: tuning.HUNT_TUNING.regroupMs, power_step_ppm: ppm(DANGER.powerStep, 'powerStep'),
     pay_step_xp_ppm: ppm(PAY.payStepXp, 'payStepXp'), pay_step_coin_ppm: ppm(PAY.payStepCoin, 'payStepCoin'), gap_max: PAY.gapMax,
-    ref_kills_head: PAY.refKillsHead, hours_at: spans.map((s) => s[0]), hours_per: spans.map((s) => s[1]),
+    ref_kills_head: PAY.refKillsHead, hours_at: spans.map((s) => s[0]), hours_per: spans.map((s) => s[1]), default_risk: data.DEFAULT_RISK,
   };
   for (const k of ['step_max', 'pull_max', 'respawn_ms', 'start_margin', 'climb_max', 'clean_run', 'regroup_ms', 'gap_max', 'ref_kills_head']) {
     if (!Number.isInteger(rules[k]) || rules[k] < 0) throw new Error('gen-danger: ' + k + ' ' + rules[k] + ' is not a whole number');
@@ -120,6 +122,9 @@ export function buildSql(r) {
 -- rewritten whole, the functions restated, so a second apply is byte-identical. No begin/commit (CLAUDE.md §2).
 -- EXPLOIT SURFACE: none added. Catalogue tables, RLS on, no policy, no grant to any client role; two internal functions revoked from
 -- every client role. No value moves here.
+-- DEFAULT (lane/r2-danger-falls, backend-architect, 2026-11-22; 02 package 8, "the first party ground runs on Steady"): hr_danger_rules.default_risk,
+-- the stance a hunt on the scale plays when its leader's plan names none (src/data/danger.js DEFAULT_RISK), read by 1057-danger-falls.sql's
+-- hr_danger_freeze. The column is made if missing (an older apply of this file), so a second apply is byte-identical.
 -- REVERSIBLE: drop the two functions and the three tables (after 1056's readers are gone).
 -- ════════════════════════════════════════════════════════════════════════
 
@@ -148,8 +153,10 @@ create table if not exists public.hr_danger_rules (
   gap_max           int not null check (gap_max >= 0),
   ref_kills_head    int not null check (ref_kills_head >= 1),
   hours_at          numeric[] not null check (cardinality(hours_at) >= 1),
-  hours_per         numeric[] not null check (cardinality(hours_per) >= 1 and 0 < all (hours_per))
+  hours_per         numeric[] not null check (cardinality(hours_per) >= 1 and 0 < all (hours_per)),
+  default_risk      text not null check (default_risk ~ '^[a-z0-9_]{1,64}$')
 );
+alter table public.hr_danger_rules add column if not exists default_risk text;
 create table if not exists public.hr_danger_stances (
   risk        text primary key check (risk ~ '^[a-z0-9_]{1,64}$'),
   rank        int  not null unique check (rank >= 0),
@@ -175,9 +182,9 @@ comment on table public.hr_danger_grounds is '${OUT_NAME}: the grounds the Dange
 -- ── §2 THE ROWS ──────────────────────────────────────────────────────────────
 delete from public.hr_danger_rules;
 insert into public.hr_danger_rules (id, step_max, pull_max, respawn_ms, start_margin, climb_max, clean_run, regroup_ms, power_step_ppm, pay_step_xp_ppm,
-  pay_step_coin_ppm, gap_max, ref_kills_head, hours_at, hours_per) values
+  pay_step_coin_ppm, gap_max, ref_kills_head, hours_at, hours_per, default_risk) values
   (true, ${R.step_max}, ${R.pull_max}, ${R.respawn_ms}, ${R.start_margin}, ${R.climb_max}, ${R.clean_run}, ${R.regroup_ms}, ${R.power_step_ppm}, ${R.pay_step_xp_ppm},
-   ${R.pay_step_coin_ppm}, ${R.gap_max}, ${R.ref_kills_head}, '{${R.hours_at.map(lit).join(',')}}'::numeric[], '{${R.hours_per.map(lit).join(',')}}'::numeric[]);
+   ${R.pay_step_coin_ppm}, ${R.gap_max}, ${R.ref_kills_head}, '{${R.hours_at.map(lit).join(',')}}'::numeric[], '{${R.hours_per.map(lit).join(',')}}'::numeric[], '${R.default_risk}');
 delete from public.hr_danger_stances;
 insert into public.hr_danger_stances (risk, rank, fall_pm, clean_pm, after_death) values
 ${stanceValues};
@@ -239,6 +246,8 @@ begin
     raise exception 'VERIFY(a): a Danger ground is no hunt ground'; end if;
   if exists (select 1 from public.hr_danger_stances s left join public.hr_danger_stances a on a.risk = s.after_death where a.risk is null or a.rank > s.rank) then
     raise exception 'VERIFY(a): a death settles a stance to a bolder one or none'; end if;
+  if not exists (select 1 from public.hr_danger_rules r join public.hr_danger_stances s on s.risk = r.default_risk where r.id) then
+    raise exception 'VERIFY(a): the default stance is no stance'; end if;
   if exists (select 1 from unnest(array['anon', 'authenticated']) g(r)
               where has_table_privilege(g.r, 'public.hr_danger_rules', 'select') or has_table_privilege(g.r, 'public.hr_danger_stances', 'select')
                  or has_table_privilege(g.r, 'public.hr_danger_grounds', 'select')
@@ -273,11 +282,12 @@ async function selftest() {
   tryRows('a ground unknown', (d) => ({ DANGER_GROUNDS: { ...d.DANGER_GROUNDS, nowhere: { refStep: 10 } } }));
   tryRows('a reference step past the scale', (d) => ({ DANGER_GROUNDS: { muster_barrows: { refStep: d.DANGER.stepMax + 1 } } }));
   tryRows('a pay step no whole ppm', (d) => ({ PAY: { ...d.PAY, payStepXp: 0.0070001 } }));
+  tryRows('a default stance that is no stance', () => ({ DEFAULT_RISK: 'reckless' }));
   /* the twin's pin is the engine's: a hand edit of the file's pins or the data is caught by --check, and the SQL twin by its self-check */
   const sql = buildSql(rowsOf(base));
   if (!/VERIFY\(c\)/.test(sql) || !/hr_danger_level_xp_max/.test(sql)) bites.push('the twins are not pinned');
   if (bites.length) { console.error('gen-danger --selftest FAILED:\n  ' + bites.join('\n  ')); process.exit(1); }
-  console.log('gen-danger --selftest: 8 refusals bite');
+  console.log('gen-danger --selftest: 9 refusals bite');
 }
 
 if (isMain(import.meta.url)) {

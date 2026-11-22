@@ -13,6 +13,8 @@
 //   nearCalls    ... or the hunt held this many close calls or more
 //   barMax       the bar's slots one report keeps (the rules block's lines)
 //   rulesShown   the rules block's lines on the end card (fired first, then never fired)
+//   fallsMax     the Danger scale's fall backs one report keeps, the last ones (src/core/hunt/report.js `falls`); the server's
+//                hr_hunt_limits.report_falls_max is generated from this row and bounds the shape and the fold (1057-danger-falls.sql)
 //
 // PURE ESM. Data only (tests/hunt-core/tally.mjs report-word reads every threshold through the one word).
 // ════════════════════════════════════════════════════════════════════════
@@ -24,6 +26,7 @@ export const HUNT_REPORT = Object.freeze({
   nearCalls: 3,
   barMax: 16,
   rulesShown: 6,
+  fallsMax: 12,
 });
 
 /** Why a slot whose conditions held could not fire (src/core/hunt/events.js rule_wait `why`), and the never-fired reason a slot with

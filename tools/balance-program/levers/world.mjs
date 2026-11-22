@@ -339,8 +339,8 @@ export const WORLD = [
     perturb: NP('not-in-runs', 'played by the V1 probe only; the server bounds it (hr_danger_level_xp_max, 1055)'),
     ev: 'MEASURED (refKillsHead: v1-climb.mjs base:steady 481 kills an hour), STATED (gapMax)' }),
   L('danger.ref-step', 'monster-rewards', 'exception-intentional', 'A ground\'s reference step', {
-    at: [at(DZ, 'muster_barrows: Object.freeze({ refStep: 590 }),')],
-    def: 'the step the reference company holds on a ground, where its pay is the hours table; a ground with no row does not open the scale (the server\'s hr_danger_grounds, 1055)',
+    at: [at(DZ, 'muster_barrows: Object.freeze({ refStep: 590')],
+    def: 'the step the reference company holds on a ground, where its pay is the hours table; a ground with no row does not open the scale (the server\'s hr_danger_grounds, 1055). The row\'s floorStep / topStep beside it are the band the client shows as "Depth N of 20" (12-targets.md 3.1, lane R1): display only, the server reads refStep alone',
     range: 'whole steps. A bridge, not a per-ground dial: a step is of the ground\'s own rows until the bands are re-cut in one unit (wave 2), then it goes',
     touches: 'the absolute pay on that ground (each step off it is payStepXp)', out: PACE, f: ['P02'],
     tests: [['tests/hunt-core/danger.mjs', 'pay: Muster\'s reference step pays the table']], testReads: ['DANGER_GROUNDS'],

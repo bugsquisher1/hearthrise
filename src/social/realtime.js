@@ -20,10 +20,10 @@
 // whispers(uid, onRow, onJoin), bindings() }, each subscription returning leave().
 // onJoin() runs after EVERY (re)join of a topic the subscription listens on, so
 // its store re-reads the history it may have missed while the socket was down:
-// a blip loses nothing. ONE CLIENT HOLDS AT MOST CHAT_LIMITS.realtimeBindingsMax
-// joins: a chat subscription past the ceiling keeps the first channels it was
-// given (global, system, party, clan, in that order); the inbox is shared by the
-// party, the clan and the whispers and counts once. There is no Local channel (GR-69).
+// a blip loses nothing. ONE CLIENT HOLDS AT MOST THREE CHAT JOINS, under
+// CHAT_LIMITS.realtimeBindingsMax: Global and System (a channel named twice joins
+// once), and the inbox, shared by the party, the clan and the whispers, which counts
+// once and is refused past the ceiling. There is no Local channel (GR-69).
 // ════════════════════════════════════════════════════════════════════════
 
 import { CHAT_LIMITS } from '../data/chat-channels.js';
@@ -84,14 +84,16 @@ export function createSocialRealtime(client, token) {
       const joined = () => { if (onJoin) onJoin(); };
       const leaves = [];
       let viaInbox = false;
+      const named = new Set();
       for (const c of (channels || []).filter((x) => typeof x === 'string' && (PUBLIC.test(x) || INBOX.test(x)))) {
+        if (named.has(c)) continue;   // a channel named twice joins once: Global and System are the only public joins
+        named.add(c);
         if (INBOX.test(c)) {
           if (viaInbox) continue;   // one inbox listener carries the party's and the clan's lines
           viaInbox = true;
           if (typeof uid === 'string' && UUID.test(uid)) leaves.push(onInbox(uid, 'line', onRow, joined));
           continue;
         }
-        if (held() >= CHAT_LIMITS.realtimeBindingsMax) break;
         const ch = join('chat:' + c, { line: (m) => onRow(lineOf(m)), lines: (m) => { for (const row of linesOf(m)) onRow(row); } }, joined);
         leaves.push(() => leave(ch));
       }

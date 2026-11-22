@@ -327,8 +327,8 @@ async function pureRules(M) {
     const cap = M.chans.CHAT_LIMITS.realtimeBindingsMax;
     const got = [];
     let joins = 0;
-    const leave = r.chat(UID, ['global', 'system', PARTY, CLAN, 'local:town', 'local:a'], (row) => got.push(row), () => joins++);
-    if (live() !== 3 || r.bindings() !== 3 || cap < 3) fail('RT-1 Global, System, a party, a clan and two Local names took ' + live() + ' joins (want 3, cap ' + cap + ')');
+    const leave = r.chat(UID, ['global', 'system', 'global', PARTY, CLAN, 'local:town', 'system'], (row) => got.push(row), () => joins++);
+    if (live() !== 3 || r.bindings() !== 3 || cap < 3) fail('RT-1 Global and System (each named twice), a party, a clan and a Local name took ' + live() + ' joins (want 3, cap ' + cap + ')');
     const topics = chans.map((c) => c.topic).join(',');
     if (topics !== 'chat:global,chat:system,chat:inbox:' + UID) fail('RT-2 the joins are ' + topics);
     if (chans.some((c) => !c.opts || !c.opts.config || c.opts.config.private !== true)) fail('RT-2 a chat topic was joined as a PUBLIC channel');
@@ -1298,7 +1298,7 @@ const PURE_MUTANTS = [
   ['a hidden row is listed', 'src/shell/context-menu.js', "if (row.hidden || !row.targets.includes(target.kind)) continue;", "if (!row.targets.includes(target.kind)) continue;"],
   ['you can block yourself', 'src/social/social-session.js', "const other = (t) => t.kind === 'player' && !!t.id && !this.isSelf(t);", "const other = (t) => t.kind === 'player' && !!t.id;"],
   ['a friend reads online when offline', 'src/social/friends.js', "online: f.online === true,", "online: true,"],
-  ['the realtime bindings are not capped', 'src/social/realtime.js', "        if (held() >= CHAT_LIMITS.realtimeBindingsMax) break;\n", ''],
+  ['a channel named twice joins twice', 'src/social/realtime.js', "        if (named.has(c)) continue;   // a channel named twice joins once: Global and System are the only public joins\n", ''],
   ['a chat topic is joined as a public channel', 'src/social/realtime.js', "client.channel(topic, { config: { private: true } })", 'client.channel(topic)'],
   ['the inbox is a shared party topic', 'src/social/realtime.js', "if (typeof uid === 'string' && UUID.test(uid)) leaves.push(onInbox(uid, 'line', onRow, joined));\n          continue;",
     "const ch = join('chat:' + c, { line: (m) => onRow(lineOf(m)) }, joined); leaves.push(() => leave(ch));\n          continue;"],

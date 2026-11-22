@@ -53,7 +53,7 @@ So the real gap between the candidates is smaller than B's text suggests on pack
 2. Clans, events and bosses stop paying combat power in B. You typed the opposite that morning, and a castle with buff rooms cannot live under that rule.
 3. "Solo" is redefined to mean one player with four heroes. Your words set solo beside four-hero parties.
 4. Death leaves the default game. On two of three stances a party falls back and should never die.
-5. The first build that was ready for the end of December is paused, and B gives no dates.
+5. The first build that was aimed at the end of December is paused, and B gives no dates.
 
 ## 1. How I judged
 

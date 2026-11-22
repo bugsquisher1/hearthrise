@@ -22,6 +22,9 @@
 //   grounds   every OPEN ground at both ends of its band, every party of standards.mjs PARTIES, every tier it has, MID
 //   c3        check C3, the default company on the Millrace Sewer at Level 5 (matrix-plan.mjs C3_BLOCK), 8 hours a seed
 //   c2        calibration C-2: the matrix four on each ground and tier real fours played, at the rows' middle Level and C-1's gear
+//   beyond    PAST LIVE CONTENT, never live: every way alone and the four, MID, Normal and Deadly, at the guard Levels above the top of live
+//             content, on the matrix's STAGED grounds (110 to 185, the staged rows opened) and PROJECTED placeholder grounds (past 185). The only
+//             cells off an open ground, labelled so in every report: long-term scaling, and a change that acts past the top (a gear curve)
 // The spine is standards.mjs GUARD_CHECKPOINTS inside live content (the release guard's Levels), so no Level list is typed here.
 //
 // SEEDS AND HOURS. Eight seeds a cell (the brief's floor is four; usage allowed the full size, and eight halves a mean's variance) (seed k plays seedBase k: the same key and seed play the same dice on any tree). Hours by Level
@@ -59,11 +62,12 @@ export async function deriveSpec(root, label) {
   const liveTop = Math.max(...openGrounds.map((id) => bandOf(id)[1]));
   const levels = STD.CHECKPOINTS.filter((L) => L <= liveTop);
   const spine = STD.GUARD_CHECKPOINTS.filter((L) => L <= liveTop);
+  const beyond = STD.GUARD_CHECKPOINTS.filter((L) => L > liveTop);
   /* calibration C-2's real rows (aggregates of real fours' recorded hunts: read-only production reads, real-players.local.mjs) */
   const c2File = join(root, 'tools/balance-program/calibration/c2.json');
   const c2 = existsSync(c2File) ? JSON.parse(readFileSync(c2File, 'utf8')).rows.filter((r) => r.real && open.has((G.HUNT_GROUNDS[r.ground] || {}).hunt))
     .map((r) => ({ ground: r.ground, tier: r.tier, levels: r.levels, L: r.L, gear: r.gear, heroHours: r.heroHours, real: r.real })) : [];
-  return { schema: SPEC_SCHEMA, id: SCENARIO_ID, label: label || null, liveTop, levels, spine, openGrounds, stagedGrounds,
+  return { schema: SPEC_SCHEMA, id: SCENARIO_ID, label: label || null, liveTop, levels, spine, beyond, openGrounds, stagedGrounds,
     openGroundBands: Object.fromEntries(openGrounds.map((id) => [id, bandOf(id)])), c2, seeds: SEEDS, hoursByLevel: HOURS_BY_LEVEL, blockHours: BLOCK_HOURS };
 }
 
@@ -80,6 +84,7 @@ export function baselineRun(spec) {
     { id: 'steps', comps: [lone('hammer'), ...four], steps: true, tiers: ['normal'], levels: spec.spine.filter((L) => L >= 10) },
     { id: 'grounds', grounds: true, only: spec.openGrounds },
     C3_BLOCK,
+    ...((spec.beyond || []).length ? [{ id: 'beyond', comps: [...WAYS.map(lone), ...four], gears: ['mid'], tiers: ['normal', 'deadly'], levels: spec.beyond }] : []),
   ] };
 }
 
@@ -118,3 +123,6 @@ export function scenarioHash(spec, harnessRoot) {
   }
   return h.digest('hex').slice(0, 16);
 }
+
+/** A planned cell that stands where the spec says no live cell may: off an open ground and not in the beyond block. */
+export const strayCell = (spec) => (c) => c.block !== 'beyond' && !spec.openGrounds.includes(c.ground);

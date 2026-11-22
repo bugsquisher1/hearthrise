@@ -52,7 +52,7 @@ import { dataView } from './balance-matrix.mjs';
 import { printCalibration } from './matrix-calibration.mjs';
 import { readC2 } from './calibrate.mjs';
 import { OUTCOME_IDS, seedOutcomes, cellStats, moments } from './baseline/outcomes.mjs';
-import { deriveSpec, baselineRun, planHook, scenarioHash, hoursOfCell, SPEC_SCHEMA } from './baseline/scenarios.mjs';
+import { deriveSpec, baselineRun, planHook, scenarioHash, hoursOfCell, strayCell, SPEC_SCHEMA } from './baseline/scenarios.mjs';
 import { materialize, manifest, treeRecord, TREE_FILE, HARNESS } from './baseline/tree.mjs';
 import { RESULT_SCHEMA, TARGET_SCHEMA, hydrate, computeViews, compareDocs, printCompare, printBaseline, judgeMove, judgeRates, noiseTable, loadTargets } from './baseline/compare.mjs';
 import { planMatrix } from './matrix-plan.mjs';
@@ -235,8 +235,8 @@ async function main() {
     for (const c of plan.cells) { const b = by[c.block] || (by[c.block] = { cells: 0, jobs: 0, partyH: 0, heroH: 0 }); b.cells++; b.jobs += spec.seeds; b.partyH += spec.seeds * c.hours; b.heroH += spec.seeds * c.hours * c.party; }
     console.log('BASELINE PLAN (scenario ' + spec.id + ' ' + sh + '): ' + plan.cells.length + ' cells, ' + plan.jobs.length + ' seed jobs');
     for (const [k, b] of Object.entries(by)) console.log('  ' + k.padEnd(10) + String(b.cells).padStart(6) + ' cells ' + String(b.jobs).padStart(6) + ' jobs ' + String(Math.round(b.partyH)).padStart(7) + ' party-h ' + String(Math.round(b.heroH)).padStart(7) + ' hero-h');
-    const staged = plan.cells.filter((c) => !spec.openGrounds.includes(c.ground));
-    console.log('  cells on a ground that is not open on the pinned tree: ' + staged.length + (staged.length ? ' (' + staged.slice(0, 5).map((c) => c.key + ' ' + c.ground).join('; ') + ')' : ''));
+    const staged = plan.cells.filter(strayCell(spec));
+    console.log('  cells off an open ground outside the beyond block: ' + staged.length + ' (the beyond block: ' + plan.cells.filter((c) => c.block === 'beyond').length + ' cells past live content, ' + [...new Set(plan.cells.filter((c) => c.block === 'beyond').map((c) => c.ground))].join(', ') + ')' + (staged.length ? ' (' + staged.slice(0, 5).map((c) => c.key + ' ' + c.ground).join('; ') + ')' : ''));
     return staged.length ? 1 : 0;
   }
   if (arg('shard')) {
@@ -349,14 +349,14 @@ async function selftest() {
     const D = await loadGridData(ROOT), K = await loadKits(ROOT);
     const spec = await deriveSpec(ROOT, 'selftest');
     const plan = planHook(spec)(D, K, planMatrix(D, K, baselineRun(spec), {}));
-    const stray = plan.cells.filter((c) => !spec.openGrounds.includes(c.ground));
+    const stray = plan.cells.filter(strayCell(spec));
     const hoursOk = plan.jobs.every((j) => { const c = plan.cells.find((x) => x.key === j.key); return j.cell.hours === hoursOfCell(c); });
     const c3 = plan.cells.filter((c) => c.block === 'c3');
-    check('the scenario on this tree: ' + plan.cells.length + ' cells, live to Level ' + spec.liveTop + ', no staged ground among ' + spec.openGrounds.length + ' open ones, every cell on an open ground (' + stray.length + ' stray), every job at its Level\'s hours, check C3 at 8 h',
-      spec.openGrounds.length > 0 && spec.openGrounds.every((g) => !spec.stagedGrounds.includes(g)) && !stray.length && hoursOk && c3.length === 3 && c3.every((c) => c.hours === 8) && spec.levels.every((L) => L <= spec.liveTop) && spec.spine.every((L) => spec.levels.includes(L)), stray.slice(0, 3).map((c) => c.key + ' ' + c.ground).join('; '));
+    check('the scenario on this tree: ' + plan.cells.length + ' cells, live to Level ' + spec.liveTop + ', no staged ground among ' + spec.openGrounds.length + ' open ones, every cell on an open ground but the beyond block (' + stray.length + ' stray), the beyond block past the top only and never OPEN (' + plan.cells.filter((c) => c.block === 'beyond').length + ' cells), every job at its Level\'s hours, check C3 at 8 h',
+      spec.openGrounds.length > 0 && spec.openGrounds.every((g) => !spec.stagedGrounds.includes(g)) && !stray.length && hoursOk && plan.cells.some((c) => c.block === 'beyond') && plan.cells.filter((c) => c.block === 'beyond').every((c) => c.L > spec.liveTop && c.stretch !== 'OPEN') && c3.length === 3 && c3.every((c) => c.hours === 8) && spec.levels.every((L) => L <= spec.liveTop) && spec.spine.every((L) => spec.levels.includes(L)), stray.slice(0, 3).map((c) => c.key + ' ' + c.ground).join('; '));
     /* a planted staged ground would be a stray (the bite: the check reads the plan, not the spec's word) */
     const planted = { ...spec, openGrounds: spec.openGrounds.slice(1) };
-    const stray2 = planHook(planted)(D, K, planMatrix(D, K, baselineRun(planted), {})).cells.filter((c) => !planted.openGrounds.includes(c.ground));
+    const stray2 = planHook(planted)(D, K, planMatrix(D, K, baselineRun(planted), {})).cells.filter(strayCell(planted));
     check('MUTANT a spec that leaves out one open ground: its cells read as strays (' + stray2.length + ')', stray2.length > 0);
     /* 6. one real cell, seed 0, twice: byte-identical; the comparator sees a planted change */
     const pick = plan.jobs.find((j) => j.cell.party.length === 1 && j.cell.level === 10 && j.cell.seedBase === 0) || plan.jobs[0];

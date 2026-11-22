@@ -54,7 +54,7 @@ const relSe = (s) => (finite(s.mean) && s.mean !== 0 && finite(s.se) ? Math.abs(
 const ratioOf = (a, b) => (finite(a.mean) && finite(b.mean) && b.mean !== 0 ? { mean: a.mean / b.mean, se: finite(relSe(a)) && finite(relSe(b)) ? Math.abs(a.mean / b.mean) * Math.sqrt(relSe(a) ** 2 + relSe(b) ** 2) : null } : { mean: null, se: null });
 
 /* ── THE VIEWS ────────────────────────────────────────────────────────────────────────────────────────────────────────────────── */
-const isFrame = (c) => c && !c.error && !c.step && !c.variant && c.block !== 'grounds' && c.block !== 'lineups';
+const isFrame = (c) => c && !c.error && !c.step && !c.variant && c.block !== 'grounds' && c.block !== 'lineups' && c.block !== 'beyond';
 const standardFour = (c) => c.party === 4 && (c.block === 'four' || c.block === 'pace4');
 const levelBandOf = (L) => (L < 30 ? '1-29' : L < 60 ? '30-59' : '60+');
 
@@ -175,6 +175,17 @@ export function computeViews(cells, x) {
       const cs = frame.filter((c) => c.party === size && c.tier === tier && levelBandOf(c.L) === band);
       if (cs.length) add('deathsByBand', 'survival', size + '|' + tier + '|' + band, 'deaths in 1,000 hero-hours, party of ' + size + ', ' + tier + ', Levels ' + band + ', every gear', { k: sum(cs.map((c) => c.deaths)), t: sum(cs.map((c) => c.hh)), mean: null }, 'down');
     }
+  }
+
+  /* PAST LIVE CONTENT (the beyond block: STAGED and PROJECTED grounds, never live): hours a Level, deaths, and Level XP, DPS and damage taken
+     over the same seat at the top of live content and the same tier */
+  for (const c of ok.filter((s) => s.block === 'beyond')) {
+    const who = c.party === 1 ? c.styles[0] : 'four';
+    const tag = ' at ' + c.L + ' (' + (c.stretch || 'past live') + ', not live), ' + who + ', ' + c.tier;
+    add('beyond.hoursPerLevel', 'scaling', who + '|' + c.L + '|' + c.tier, 'Hours for the next Level' + tag, stat(c, 'hoursPerLevel'), 'down');
+    add('beyond.deaths', 'scaling', who + '|' + c.L + '|' + c.tier, 'Deaths in 1,000 hero-hours' + tag, { k: c.deaths, t: c.hh, mean: null }, 'down');
+    const at = who === 'four' ? fourAt(top, 'mid', c.tier) : loneAt(who, top, 'mid', c.tier);
+    if (at) for (const id of ['levelXpPerH', 'dps', 'takenPerH']) add('beyond.overTop.' + id, 'scaling', who + '|' + c.L + '|' + c.tier, id + tag + ', over the same at ' + top, ratioOf(stat(c, id), stat(at, id)), null);
   }
 
   /* RESOURCE ECONOMY: net gold and the store's share by Level band, lone and the four, MID, each tier */

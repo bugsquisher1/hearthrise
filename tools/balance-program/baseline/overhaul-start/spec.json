@@ -33,6 +33,12 @@
   88,
   110
  ],
+ "beyond": [
+  145,
+  185,
+  300,
+  400
+ ],
  "openGrounds": [
   "coppercap_warrens",
   "hasks_ford",

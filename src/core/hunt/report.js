@@ -31,6 +31,7 @@
 // ============================================================
 
 import { HUNT_REPORT } from '../../data/hunt-report.js';
+import { ARMOUR_SLOTS } from '../../data/gear-tiers.js';
 
 /** A report with nothing in it. */
 export function emptyReport() {
@@ -124,6 +125,48 @@ export function riskWord(lowPm, close) {
   if (pm < HUNT_REPORT.nearPm || (Number(close) || 0) >= HUNT_REPORT.nearCalls) return 'near';
   if (pm < HUNT_REPORT.closePm) return 'close';
   return 'safe';
+}
+
+/**
+ * THE GEAR WORN, as survival is calibrated by it (09-platform-and-measurement.md section 5 item 11, calibrate.mjs C-1): the worn
+ * weapon's tier (`w`, 0 with none or an untiered one), the armor pieces worn (`n`, ARMOUR_SLOTS) and their tiers added (`a`, so the
+ * mean is a / n). `items` the catalogue the engine read. A reading, never a played number.
+ */
+export function gearWornOf(equipment, items) {
+  const eq = isMap(equipment) ? equipment : {};
+  const tierOf = (id) => { const row = typeof id === 'string' && items ? items[id] : null; return row && Number.isSafeInteger(row.tier) && row.tier > 0 ? row.tier : 0; };
+  let a = 0, n = 0;
+  for (const s of ARMOUR_SLOTS) if (typeof eq[s.slot] === 'string' && eq[s.slot]) { n += 1; a += tierOf(eq[s.slot]); }
+  return { w: tierOf(eq.weapon), a, n };
+}
+
+/**
+ * THE BAR AS PLAYED: the hero's bar rows the engine read (conditions.js heroSlots: enabled slots in bar order, each with its stable rule
+ * id and its place `at`), as [rule, what it uses, place], the default attack left out, at most HUNT_REPORT.barMax. The report's rules
+ * block names a slot that never fired from this.
+ */
+export function barPlayedOf(rows) {
+  const out = [];
+  for (const r of Array.isArray(rows) ? rows : []) {
+    if (!r || typeof r.rule !== 'string' || !/^[a-z0-9_]{1,24}$/.test(r.rule) || !r.slot || !r.slot.action || r.rule === 'd_attack') continue;
+    const id = String(r.slot.action.id || '');
+    if (!/^[a-z0-9_]{1,64}$/.test(id)) continue;
+    out.push([r.rule, id, Number.isSafeInteger(r.at) && r.at >= 0 ? r.at : out.length]);
+    if (out.length >= HUNT_REPORT.barMax) break;
+  }
+  return out;
+}
+
+/** A window's report as the settle proposes it: only what holds something (an empty map or a nothing low is left out). */
+export function reportProposal(r, bar, gear) {
+  const out = {};
+  if (isMap(r) && isMap(r.low)) out.low = r.low;
+  if (isMap(r) && r.close > 0) out.close = r.close;
+  if (isMap(r) && Object.keys(r.fired || {}).length) out.fired = r.fired;
+  if (isMap(r) && Object.keys(r.waits || {}).length) out.waits = r.waits;
+  if (Array.isArray(bar)) out.bar = bar;
+  if (isMap(gear)) out.gear = gear;
+  return out;
 }
 
 /** A party's reading from its heroes' reports: the lowest health of any hero, and every hero's close calls. */

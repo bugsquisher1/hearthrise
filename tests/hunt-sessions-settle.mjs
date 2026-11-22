@@ -190,6 +190,12 @@
 //   TALLY      tally = Σ ledger rows stamped with the session.
 //   ANALYZER   dealt / taken / healed persisted per session from the engine's
 //              tally; a free character reads no analyzer, a premium one does.
+//   REPORT     the hunt report's counters (FB-7, GR-66; 1053-hunt-report.sql): a dying
+//              hero and an eating one each write the SAME report with the browser
+//              closed and the hunt viewed; the death is a lowest health of 0 by its
+//              monster at its instant and a close call; each meal is a use of its
+//              food rule; the bar and gear are there; the hunt section and the free
+//              analyzer carry it.
 //   ANALYZER-COVER  the analyzer's coins are every coin the hunt put in the purse
 //              (2027-05-15-analyzer-cover-coins.sql): after a sell-to-cover, coins
 //              less waste is the purse's move and the loot value is the loot still
@@ -3722,6 +3728,52 @@ const DB_ARMS = {
     }
     return problems;
   }),
+  /* REPORT (lane/c-hunt-report FB-7, GR-66; 1053-hunt-report.sql): THE SAME BLOCK FOR A HUNT VIEWED AND CLOSED. A hero that dies
+     (DOOMED) and one that eats its way through (STRONG, its bar's food rule) each hunt twice, the tick's 90 s windows (browser closed)
+     and a player's irregular instants (viewed): both write the same report, byte for byte. The dying hero's lowest health is 0, struck
+     by the monster its death row names, at the death's own instant, and it counts a close call; the eating hero's food rule fired as
+     often as it ate, and the report holds the bar as played and the gear worn. The `hunt` section (every character) carries the stored
+     report with the rules block's shares, and the free analyzer's session block carries it too. */
+  REPORT: async (db, M) => {
+    const problems = [];
+    for (const [who, fx] of [['the dying hero', DOOMED], ['the eating hero', STRONG]]) {
+      const { a, b } = await compareRuns(db, M, fx, ticksOf(90000, SPAN_MS), attendedCuts);
+      const ra = a[0].tally && a[0].tally.report, rb = b[0].tally && b[0].tally.report;
+      if (!ra || !Object.keys(ra).length) { problems.push(`${who}: CONTROL: no report was written (${JSON.stringify(a[0].tally).slice(0, 200)})`); continue; }
+      if (canon(ra) !== canon(rb)) problems.push(`${who}: the browser closed wrote ${canon(ra).slice(0, 300)}, the hunt viewed ${canon(rb).slice(0, 300)} ${firstDiff(canon(ra), canon(rb))}`);
+      if (!Array.isArray(ra.bar) || !ra.gear || !Number.isInteger(ra.gear.n)) problems.push(`${who}: the report holds no bar or gear: ${canon(ra).slice(0, 300)}`);
+      if (fx === DOOMED) {
+        const death = (a[0].events || []).find((e) => e[0] === 'death');
+        if (!death) { problems.push(`${who}: CONTROL: it did not die`); continue; }
+        if (!ra.low || ra.low.pm !== 0 || ra.low.at !== Date.parse(death[1])) problems.push(`${who}: its lowest health ${JSON.stringify(ra.low)} is not 0 at its death ${death[1]}`);
+        if (ra.low && ra.low.by !== (death[2] && death[2].monster)) problems.push(`${who}: its lowest health names ${ra.low && ra.low.by}, the death row ${JSON.stringify(death[2])}`);
+        if (!(ra.close >= 1)) problems.push(`${who}: a death counted no close call (${ra.close})`);
+      } else {
+        /* every meal is one use of the bar rule that names that food (the ledger's own and store counts, against the report's uses) */
+        const eaten = {};
+        for (const src of [a[0].tally.supplies, a[0].tally.bought]) for (const [k, n] of Object.entries(src || {})) eaten[k] = (eaten[k] || 0) + Number(n);
+        const ate = Object.values(eaten).reduce((n, x) => n + x, 0);
+        const fired = ra.bar.filter(([, uses]) => uses in eaten).reduce((n, [rule]) => n + Number((ra.fired || {})[rule] || 0), 0);
+        if (!(ate > 0)) problems.push(`${who}: CONTROL: it ate nothing`);
+        else if (fired !== ate) problems.push(`${who}: its food rules fired ${fired} times, it ate ${ate} (${JSON.stringify(eaten)}, ${JSON.stringify(ra.fired)})`);
+        if (!(ra.low && ra.low.pm > 0 && ra.low.pm < 1000)) problems.push(`${who}: CONTROL: its lowest health ${JSON.stringify(ra.low)} is no reading`);
+      }
+    }
+    /* the readers, in one transaction (the hunt section, the free analyzer block) */
+    await inTx(db, async () => {
+      const h = await hunter(db, M, DOOMED);
+      await run(db, M, h.from, ticksOf(90000, SPAN_MS));
+      const stored = await one(db, 'select report from public.hunt_session_tally where session_id = $1', [h.sid]);
+      const view = await one(db, `select public.hr_hunt_view($1::uuid)->'tally'->'report'`, [h.sid]);
+      const dealt = await one(db, `select dealt->'byAbility' from public.hunt_session_tally where session_id = $1`, [h.sid]);
+      if (!view || canon(view.low) !== canon(stored.low) || canon(view.bar) !== canon(stored.bar) || canon(view.dealt) !== canon(dealt)) {
+        problems.push(`the hunt section's report ${JSON.stringify(view).slice(0, 300)} is not the stored one with its shares`);
+      }
+      const basic = await one(db, 'select public.hr_hunt_analyzer_basic(public.hr_hunt_analyzer_of($1::uuid, 0, $2::uuid))', [UID, h.sid]);
+      if (!basic || !basic.session || canon(basic.session.report) !== canon(view)) problems.push(`the free analyzer's session carries ${JSON.stringify(basic && basic.session).slice(0, 200)}`);
+    });
+    return problems;
+  },
   /* ANALYZER-COVER (lane/a-analyzer-coins 2026-11-18, 2027-05-15-analyzer-cover-coins.sql), BOTH PATHS: the analyzer's coins
      are every coin the hunt put in the purse. A thin-purse hero eats store food and sells its looted bones to pay for it (bones
      made coverable at a meal's price, as PARTY-GRIEF does). After the cover sales the analyzer's coins less its waste are the
@@ -5458,8 +5510,12 @@ const MUTANTS = [
     from: '    const roles = rolesOf(inWorld(members));', to: '    const roles = rolesOf(members);' },
   { arm: 'OWN', name: '[probe-bar noAutoEat] the hero never eats', file: 'src/core/hunt/consumables.js',
     from: '    if (got) use(u, hero, got.pick.kind, got.pick.line, sc, got);', to: '    if (false) use(u, hero, got.pick.kind, got.pick.line, sc, got);' },
+  { arm: 'REPORT', name: 'the settle proposes none of the tally\'s report counters', file: join(FN, 'accrue-hunt.js'),
+    from: 'report: reportProposal(t.report, ', to: 'report: reportProposal(null, ' },
+  { arm: 'REPORT', name: 'the bar as played is never sent', file: join(FN, 'accrue-hunt.js'),
+    from: 'barPlayedOf(hero ? hero.slots : null)', to: 'barPlayedOf(null)' },
   { arm: 'ANALYZER', name: 'the analyzer tally is never proposed', file: join(FN, 'accrue-hunt.js'),
-    from: '      analyzer: analyzerOf(sim, unitIds, summary.unitIdEver) });', to: '      analyzer: null });' },
+    from: '      analyzer: analyzerOf(sim, unitIds, summary.unitIdEver, s) });', to: '      analyzer: null });' },
   { arm: 'SLOT', name: '[edge-tick-gate M17] the settle reads slot 0\'s perks for every slot', file: join(FN, 'hunt-settle.js'),
     from: '  for (const m of r.members) members.push(memberInput(m, inst, perksOf(read.perks, m.user, m.slot)));', to: '  for (const m of r.members) members.push(memberInput(m, inst, perksOf(read.perks, m.user, 0)));' },
   { arm: 'TICK-0', name: 'the world tick drops its hunt cohort', file: join(FN, 'tick.js'),
@@ -5745,6 +5801,8 @@ const DB_MUTANTS = [
   { arm: 'TALLY', name: 'the fold drops the own-supply rows', fn: SS,
     find: 'supplies = public.hr_jsonb_add(t.supplies, v_sup)', replace: 'supplies = t.supplies' },
   /* the tally's one write a member (2027-04-08-member-write-once.sql folds the store bill into it; each column keeps its own condition) */
+  { arm: 'REPORT', name: 'the report keeps only the last window (never folded)', fn: AM,
+    find: '           report = public.hr_hunt_report_add(t.report,', replace: "           report = public.hr_hunt_report_add('{}'::jsonb," },
   { arm: 'ANALYZER', name: 'the analyzer tally is not folded', fn: AM,
     find: 'then public.hr_hunt_tally_add(t.dealt, coalesce(p_analyzer->\'dealt\', \'{}\'::jsonb)) else t.dealt end,', replace: 'then t.dealt else t.dealt end,' },
   /* 'a free character reads the analyzer' RETIRED 2026-10-19: 2026-10-26-hunt-analyzer-basic.sql gives every

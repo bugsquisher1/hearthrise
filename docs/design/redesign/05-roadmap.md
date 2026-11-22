@@ -74,7 +74,7 @@ Targets are written from the approved packages, not carried over. Each target na
 
 ### Stage 4. Validate in simulation
 
-One engine decides everything, so every probe runs on it (HC-3). The order goes from the mechanic most others depend on to the ones that depend on it. Each probe is small: one ground, a few seats, a few seeds.
+One engine decides everything, so every probe runs on it (HC-3). The order goes from the mechanic most others depend on to the ones that depend on it. Each probe is small: one ground, a few seats, a few seeds. **V1 comes first and alone.** Packages 1, 2, 4 and 6 lean on the climb, so nothing else is detailed until V1 has a result. If the climb does not settle at a step, the existing tier table is the fallback and those packages are re-thought. (Taken from `06-comparison.md` section 0)
 
 | Probe | The question | Passes when |
 |---|---|---|
@@ -102,15 +102,17 @@ Build waves in dependency order, each ending in a build someone plays. A first c
 
 | Wave | What | Why first |
 |---|---|---|
-| 1 | The power step and the Danger scale in the engine, the climb and fall back, the sustain counters, a side on every unit so heroes can fight heroes later, the report with its cause line | Everything else is measured through them |
+| 1 | First, as its own engine batch: a side on every unit, proven by an unchanged hunt replay. Then the power step, the Danger scale, pulls on readiness, the climb and fall back, the sustain counters and the report with its cause line | Everything else is measured through them |
 | 2 | Monster roles, rows, depth-scaled pay, personal loot, the company plan with free copying | The party and the economy's faucet |
 | 3 | Jobs and the wider move list, wind-ups, ratio defenses, Talents as move evolutions, Inner Flame as Luck | Combat with something to answer |
 | 4 | Trait pieces, carry-over, single listings on the market, the drop moment. With its security review | The largest new server surface |
-| 5 | Company trades, the store cut to basics, prices from the wage, the hall without combat perks | The other half of the day |
+| 5 | Professions as designed in `09-crafting.md`, the store cut to basics, prices from the wage, the hall without combat perks | The other half of the day |
 | 6 | The hire board, halls as bar checks, ladders, events as rules, clans with the castle's first building | The shared world on top of a game that holds |
 | 7 | The two arenas, then the rest of the castle a building at a time. May ship after launch | They need the side seam from wave 1, settled builds from waves 3 and 4, and clans that are seen to form. Their share of power and sinks is set aside in stages 3 and 5, so they arrive with no rebalance |
 
 Every wave keeps the standing rules for how work is done: the server authors everything, migrations carry their self-checks, money surfaces get their review, and a blind play follows each big patch. **Approval D** is the owner's go on this plan before wave 1.
+
+**Dates.** This roadmap has none, and that is a gap. The existing first build was aimed at the end of December with about 15 lanes. This plan has seven waves and four approvals. An honest estimate needs V1's result and the approved packages, and it is owed with Approval B. (JUDGMENT)
 
 ## 3. What happens to the existing first build
 

@@ -12,9 +12,9 @@ Written 2026-11-21 on `lane/rd-vision`. Docs only. This is deliverable 5 of the 
 |---|---|---|---|---|---|
 | 1 | The report as coach | Very high | S to M | Package 9 | Partly. The overhaul has a report with a risk reading (GR-66). It does not say why a hunt ended |
 | 2 | The party climbs by itself inside a stance | Very high | L | Package 3 | No. Every older design has the player pick a tier |
-| 3 | Traits as rules, with carry-over | Very high | XL | Package 2 | Partly. Special attributes were one extra stat on some pieces |
+| 3 | Traits as rules, with carry-over | Very high | XL | Package 2 | Partly. Special attributes were one extra stat on some pieces, and crafted jewelry already rolls from a pool of 23 perks |
 | 4 | Plans and bars you can copy and share | High | S to M | Packages 7 and 9 | No |
-| 5 | Monsters that wind up, and bars that answer | High | L | Packages 1 and 3 | No. Bosses were sized by health and a clock |
+| 5 | Monsters that wind up, and bars that answer | High | L | Packages 1 and 3 | Partly. 18 monster spell rows wind up and one bar condition sees it. Not yet the main test of a bar, and not on bosses |
 | 6 | Trades owned by the company | High | L | Package 5 | No |
 | 7 | The drop moment | High | M | Package 2 | Partly. A starter alert was planned |
 | 7b | The flame as Luck (the owner's idea, under evaluation) | High | M | Section 2b | No. Luck was a bar that filled with hours, and the hearth skill set regeneration |
@@ -35,7 +35,7 @@ Written 2026-11-21 on `lane/rd-vision`. Docs only. This is deliverable 5 of the 
 
 **2. The party climbs by itself inside a stance.** The player picks how much risk to take, not a difficulty. The party finds the deepest step it can hold. This removes a decision players repeat every few Levels, makes every bit of power show, and turns the cliff into a slope. It is the center of package 3. (MEASURED problem: a planted +100% damage moved a four's easy-tier pace 0.8 to 8.7%, `review/10-designer-d9-halls.md` row FB-3.) Risk: if Bold is always best when left alone, the stance is a fake choice. The simulator can check that before anything is built.
 
-**3. Traits as rules, with carry-over.** The owner's confirmed requirement of 2026-11-21. A rare drop carries a rule that changes what a hero is good at, and a smith can move that rule to a new piece by burning the old one. Package 2 has the design and the five shapes weighed. What makes it an opportunity beyond gear: it gives the market single pieces worth arguing over, gives Smithing a job that never ends, and gives old grounds a reason to be hunted for their Trait pool. Risk: text load and one dominant Trait. Start with five on one ground.
+**3. Traits as rules, with carry-over.** The owner's confirmed requirement of 2026-11-21. A rare drop carries a rule that changes what a hero is good at, and a crafter can move that rule to a new piece by burning the old one. Package 2 has the design and the five shapes weighed. What makes it an opportunity beyond gear: it gives the market single pieces worth arguing over, gives a profession a job that never ends, and gives old grounds a reason to be hunted for their Trait pool. Risk: text load and one dominant Trait. Start with five on one ground.
 
 **4. Plans and bars you can copy and share.** The first principle says every choice is copyable. Take it past the account. A plan or a bar exports as a short code. A ladder entry shows the bars that set it. A clan mate can hand a new player a working healer bar. New players get a way in, experts get an audience, and the community does our teaching for us. (JUDGMENT. EVIDENCE for the need: in the played hour the slowest moments were setting up each hero by hand, `02-four-hero-hour.md`.) Risk: everyone runs the same bar. Gear with Traits is what keeps two companies different.
 

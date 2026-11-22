@@ -164,10 +164,16 @@ export const ARMOUR_SLOTS = Object.freeze(['helmet', 'body', 'pants', 'boots', '
      capPm                  THE TOTAL CAP: dodge, absorb and ward together never take more than
                             this permille of the damage coming at you
    The to-hit roll before the chain reads the Defense skill and the defence of gear outside the
-   armour weights (a shield): combat.js equipmentStats guardB. */
+   armour weights (a shield): combat.js equipmentStats guardB.
+   THE ARMOR CURVE x2.4 (the designer's D-3, docs/design/overhaul/review/08-designer-d3.md ruling 1; knob `armorCurve`; lane/c-pace):
+   both k's are 2.4 times the 2026-11-04 ones (dodge 0.4, absorb 0.62). At those a full mid set sat at the 60% cap from about Level 45, one
+   band back too, so every armor step past 45 was worth nothing (chapter 12 section 3.6: -0.8 to +1%); at x2.4 a band step reads 3.6% at
+   Level 60 and 4.1% at 400, inside the ruled 3 to 5% (2026-10-25). The cost, MEASURED in D-3: the mid kit takes 18 to 32% more damage on
+   Normal with its pace unmoved, and the harder tiers' dial is sized with it in (CB-2). Ward (light armor) is flat and does not take the
+   curve. If the confirm run shows x1.6 holds the same steps, the k's are 0.64 and 0.992 (D-3's switch rule). */
 export const ARMOUR_MITIGATION = Object.freeze({
-  dodge: Object.freeze({ maxPm: 650, k: 0.4 }),
-  absorb: Object.freeze({ maxPm: 750, k: 0.62 }),
+  dodge: Object.freeze({ maxPm: 650, k: 0.96 }),
+  absorb: Object.freeze({ maxPm: 750, k: 1.488 }),
   ward: Object.freeze({ perPointPm: 1500 }),
   capPm: 600,
 });

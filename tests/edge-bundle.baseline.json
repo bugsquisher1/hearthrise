@@ -178,6 +178,11 @@
         "bytes": 3198808,
         "on": "2026-11-22",
         "why": "lane/lab-p2-readers: src/core/hunt/tally.js sustain counters (healing by source, damage by kind, mana spent/refunded/waits), counted only when the harness asks; the server settle never asks, stored result unchanged (+5,073 B on its own base)"
+      },
+      {
+        "bytes": 3212801,
+        "on": "2026-11-22",
+        "why": "lane/c-hunt-report FB-7: the hunt report's counters reach the settle (src/core/hunt/report.js and src/data/hunt-report.js, new; tally.js folds the report; damage.js reads a blow's HP at a hero; accrue-hunt.js proposes analyzer.report)"
       }
     ]
   }

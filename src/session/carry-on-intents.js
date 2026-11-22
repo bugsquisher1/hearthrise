@@ -12,9 +12,12 @@
 //                                            back). `jobs`: the heroes the plan says will stop a town job, settled first through
 //                                            the engine so the stretch they earned is paid (party-intents.js settleTownActivity,
 //                                            the party Start's own rule). On ok every hero it touched is RE-READ: the screen shows
-//                                            the server's hunts and bags, never this answer's. `wear`: the "Wear upgrades" line's picks
-//                                            ({ slot, equip_slot, item, from? }, carry-on.js wearListOf), each put on by the server through
-//                                            hr_apply's equip gate; a line it refuses is named and the hero still goes.
+//                                            the server's hunts and bags, never this answer's. `wear`: the heroes to dress first (the company's "Wear
+//                                            upgrades" line, or the "Equip upgrades" press): companyWear for them, then the press.
+//   companyWear(account, cs, slots)          the hr-accrue verb `company_wear`: the SERVER picks what each named hero puts on
+//                                            (src/core/upgrade-pick.js over its own hr_state_of) and puts it on through hr_apply's gate;
+//                                            every named hero takes the envelope the answer carries for it. { ok, heroes: [{ slot, wore |
+//                                            refused | why }] }. Names slots only: the client never says which piece.
 //   setCompanyLine(account, cs, line, value) hr_company_line_set: a plan line set once for every hero; every hero is read again.
 //
 // The client names slots, the shown gold figure and a key: never a ground, a count, a price or an item. `cs` is the hero the press was
@@ -23,6 +26,7 @@
 import { askVia } from './intent-ledger.js';
 import { afterRefusal } from './quoted-ask.js';
 import { settleTownActivity } from './party-intents.js';
+import { edgeBody, edgeRead } from './edge-intents.js';
 
 const VERB = 'carry_on';
 const PLAN = 'carry_on_plan';
@@ -68,10 +72,7 @@ function heroOf(h) {
     job: typeof h.job === 'string' && CODE.test(h.job) ? h.job : null,
     after: typeof h.after === 'string' && CODE.test(h.after) ? h.after : null,
     joins: typeof h.joins === 'string' && h.joins.trim() ? h.joins.trim().slice(0, 40) : null,
-    /* the press's answer: what the wear put on (its items), or that the gate refused it; the task Tamsin's board gave on entry; a pending seat */
-    wore: isObj(h.wore) && typeof h.wore.refused !== 'string'
-      ? Object.entries(h.wore).filter(([k, v]) => EQUIP.test(k) && typeof v === 'string' && ITEM.test(v)).map(([, v]) => v).slice(0, 12) : [],
-    wearRefused: isObj(h.wore) && typeof h.wore.refused === 'string',
+    /* the press's answer: the task Tamsin's board gave on entry; a pending seat */
     task: typeof h.task === 'string' && CODE.test(h.task) ? h.task : null,
     seat: h.seat === 'seated' || h.seat === 'waits' || h.seat === 'full' ? h.seat : null,
   };
@@ -103,30 +104,47 @@ export function carryOnPlan(account, cs, slots) {
   });
 }
 
-/** The wear list as sent: at most 48 well-formed lines naming own slots; null when there is none, undefined when it is not one. */
-export function wearOf(lines) {
-  if (lines === null || lines === undefined || (Array.isArray(lines) && !lines.length)) return null;
-  if (!Array.isArray(lines) || lines.length > 48) return undefined;
-  const out = [];
-  for (const l of lines) {
-    if (!isObj(l) || !Number.isInteger(l.slot) || l.slot < 0 || l.slot > MAX_SLOT || !EQUIP.test(String(l.equip_slot)) || !ITEM.test(String(l.item))) return undefined;
-    const line = { slot: l.slot, equip_slot: l.equip_slot, item: l.item };
-    if (l.from !== undefined && l.from !== null) {
-      if (!Number.isInteger(l.from) || l.from < 0 || l.from > MAX_SLOT || l.from === l.slot) return undefined;
-      line.from = l.from;
-    }
-    out.push(line);
-  }
-  return out;
+/** What the server's wear answer said for each hero: { slot, wore: [items] } | { slot, refused } | { slot, why }. */
+function woreOf(heroes) {
+  return (Array.isArray(heroes) ? heroes.slice(0, MAX_SLOT + 1) : []).filter((h) => isObj(h) && Number.isInteger(h.slot)).map((h) => ({
+    slot: h.slot,
+    wore: isObj(h.wore) ? Object.entries(h.wore).filter(([k, v]) => EQUIP.test(k) && typeof v === 'string' && ITEM.test(v)).map(([, v]) => v).slice(0, 12) : [],
+    refused: typeof h.refused === 'string',
+    busy: h.why === 'busy',
+  }));
 }
 
-/** THE ONE PRESS. `gold`: the plan's Blessings gold the player was shown. `jobs`: the heroes whose town job the hunt stops. `wear`: wearOf's lines. */
-export function carryOn(account, cs, gold, slots, jobs, wear) {
-  const scope = scopeOf(slots), lines = wearOf(wear);
-  if (!usable(account, cs) || scope === undefined || whole(gold) === null || lines === undefined) return Promise.resolve({ ok: false, error: 'bad_intent', verb: VERB, plan: null });
+/** "WEAR UPGRADES": the server picks and wears for the named heroes (hr-accrue company_wear). Names slots only. */
+export function companyWear(account, cs, slots) {
+  const scope = scopeOf(slots);
+  if (!usable(account, cs) || !scope || typeof account.server.accrue !== 'function') return Promise.resolve({ ok: false, error: 'bad_intent', verb: 'company_wear', heroes: [] });
+  return askVia(cs, 'company_wear', async () => {
+    const body = edgeBody(cs.slot, 'company_wear', { slots: scope }, newIdem());
+    if (!body) return { ok: false, error: 'bad_intent', verb: 'company_wear', heroes: [] };
+    const r = edgeRead(await account.server.accrue(body));
+    if (!r.ok) { await afterRefusal(cs, { ok: true, body: { ok: false, error: r.error } }); return { ok: false, error: r.error || 'refused', verb: 'company_wear', heroes: [] }; }
+    /* every named hero as the wear left it (`envelopes` by slot, rule 11) */
+    const envs = isObj(r.body.envelopes) ? r.body.envelopes : {};
+    const all = typeof account.characters === 'function' ? account.characters() : [cs];
+    await Promise.all(all.filter((o) => o && o.status !== 'closed' && typeof o.load === 'function' && isObj(envs[o.slot])).map((o) => o.load(envs[o.slot])));
+    return { ok: true, heroes: woreOf(r.body.heroes) };
+  });
+}
+
+/** THE ONE PRESS. `gold`: the plan's Blessings gold the player was shown. `jobs`: the heroes whose town job the hunt stops. `wear`: the
+    heroes to dress first (companyWear, the server's pick); its answer rides the press's as `wore` (a refusal there never stops the press). */
+export async function carryOn(account, cs, gold, slots, jobs, wear) {
+  const scope = scopeOf(slots);
+  if (!usable(account, cs) || scope === undefined || whole(gold) === null) return { ok: false, error: 'bad_intent', verb: VERB, plan: null };
+  for (const o of Array.isArray(jobs) ? jobs : []) await settleTownActivity(o);
+  const dressed = Array.isArray(wear) && wear.length ? await companyWear(account, cs, wear) : null;
+  const r = await press(account, cs, gold, scope);
+  return dressed && dressed.ok ? Object.assign(r, { wore: dressed.heroes }) : r;
+}
+
+function press(account, cs, gold, scope) {
   return askVia(cs, VERB, async () => {
-    for (const o of Array.isArray(jobs) ? jobs : []) await settleTownActivity(o);
-    const ans = await account.server.rpc('hr_carry_on', { p_slots: scope, p_gold: gold, p_wear: lines, p_idem: newIdem() });
+    const ans = await account.server.rpc('hr_carry_on', { p_slots: scope, p_gold: gold, p_idem: newIdem() });
     const b = ans && isObj(ans.body) ? ans.body : null;
     if (!(ans && ans.ok && b && b.ok === true)) {
       await afterRefusal(cs, ans);   // the screen was behind the server: re-read once (A20)

@@ -433,7 +433,7 @@ export const LINKS = [
   {
     base: '1004-tick-pack-heroes.sql',
     target: '1032-approved-cuts.sql',
-    patchIds: ['old_dungeons_cut', 'narrow_town_read'],
+    patchIds: ['old_dungeons_cut', 'narrow_town_read', 'company_wear'],
   },
 ];
 
@@ -482,6 +482,25 @@ export const PATCHES = [
     -- same character): the town engine's inputs, the pointer and the version. It
     -- writes nothing and refuses every client role and hr_tick by its body too.
     'hr_tick_town_state(uuid,integer)',
+`,
+    where: 'after',
+  },
+  {
+    id: 'company_wear',
+    name: 'the c_engine_allow array head (link 25, the company\'s wear)',
+    find: '  c_engine_allow constant text[] := array[\n',
+    add: `    -- ── ADDED 2026-11-22 — "WEAR UPGRADES", THE SERVER'S PICK (lane/c-company FB-6) ──
+    -- At the HEAD, an INSERTION: it removes nothing, so link 25's declared
+    -- removals do not move. The function is 1051-company-start.sql's.
+    --
+    -- SELF-VALIDATING, NO NEW TARGET: p_uid is the engine's VERIFIED subject, the
+    -- same parameter it already passes to hr_apply, and every line names one of
+    -- that account's own heroes. Each hero's lines go on as ONE hr_apply equip
+    -- delta (ownership, slot, requirement, two hands, under the hero's lock),
+    -- only in town and idle; a pass between two of the account's own idle heroes
+    -- goes through its Storage (hr_bank_move_stack, journalled). It mints
+    -- nothing: a piece only moves from one own bag to an own body.
+    'hr_company_wear_apply(uuid,integer[],jsonb,uuid)',
 `,
     where: 'after',
   },

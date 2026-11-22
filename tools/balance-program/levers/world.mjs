@@ -5,6 +5,7 @@ import { KILL, SURVIVE, PACE, GOLD } from './combat.mjs';
 
 const BS = 'src/data/balance-sheet.js';
 const DZ = 'src/data/danger.js';
+const MR = 'src/data/monster-roles.js';
 const MON = 'src/data/monsters.js';
 const MON_ROWS = home(MON + '#MONSTERS', 'keys');
 const PACKS = home('src/data/grounds/*/pack.js#default', 'keys');
@@ -363,6 +364,15 @@ export const WORLD = [
     tests: [['tests/hunt-core/danger.mjs', 'power: a tier of gear is a tier of steps, after the cap, never off the scale']], testReads: ['POWER', 'GEAR_STEPS', 'DANGER_GROUNDS'],
     perturb: NP('not-in-runs', 'played by the V1 probe (candidates power-tier-back / -ahead / -offense-back / -defense-back / -tier-back-under-cap); no matrix run plans a stance'),
     ev: 'MEASURED (lane/r9, v1-climb.mjs: tools/balance-program/redesign/r9/summary.txt)' }),
+  /* MONSTER ROLES AND THE TWO ROWS (wave 2, lane/w2-roles-rows; 02 packages 3 and 4, 04 section 6). The Danger scale only. */
+  L('roles.table', 'monster-stats', 'archetype', 'Monster roles (reach, range, splash)', {
+    at: [at(MR, "shooter: Object.freeze({ name: 'Shooter', reach: 'back', range: 5,"), at(MR, "caster: Object.freeze({ name: 'Caster', reach: 'back', range: 4, splash: Object.freeze({ r: 1, pm: 500 }),")],
+    def: 'a monster row names a role; on the scale its reach picks whom it aims at (front row nearest, back row farthest, the least max HP, the least crowded) and keeps to it while no Challenge holds it; a role with a range shoots from that many tiles on a row with none of its own; a splash lands pm permille of the blow on each hero within r tiles of the target',
+    range: 'range 0 or MONSTER_RANGE (2 to 6); splash r 1 or more, pm 1 to 1000. Content the designer owns (04 section 6: "six role rows"); the optimizer never moves it',
+    touches: 'who takes the damage (V3: the front seat\'s share) and so which lineup holds deepest on a mix; MEASURED tools/balance-program/redesign/w2/summary.txt', out: [...SURVIVE, ...KILL], f: ['C-TIER'],
+    tests: [['tests/hunt-core/monster-roles.mjs', 'reach, redive, range, splash, play']], testReads: ['MONSTER_ROLES'],
+    perturb: NP('not-in-runs', 'played by the V1 probe with --styles (lineups) against the roles-off candidate; no matrix run plans a stance'),
+    ev: 'MEASURED (lane/w2-roles-rows, v1-climb.mjs 8 seeds x 12 h a lineup, roles on and off)' }),
   /* ── 14. MONSTER XP AND LOOT VALUES ────────────────────────────────────────────────────────────────────────────────────────── */
   L('reward.xp-line', 'monster-rewards', 'global', 'Level XP a kill', {
     at: [at(BS, 'xp: Object.freeze({ a: 1.436')],

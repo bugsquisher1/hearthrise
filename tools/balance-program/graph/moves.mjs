@@ -148,6 +148,12 @@ export const LEVER_MOVES = Object.freeze({
   'danger.stances': ['~tier.hp', '~tier.dmg'],
   'danger.pay': [['+kill.xp', 'on a stance a kill pays a share of the killer\'s own Level from the hours table (danger.js levelShareXp, read by xp-share.js), x the depth ratio'],
     ['+kill.coin', 'on a stance a kill\'s coin is the roll x the pull\'s share x the same depth ratio (dangerDial coinPm, read by hunt-rewards.js payKill)']],
+  /* lane/r9 (declared by lane/w2-roles-rows, which found graph --check red on them) */
+  'danger.pay-floor': [['+kill.xp', 'under the reference step a kill pays at least floor x the hours table share (danger.js depthRatio), XP and coin'],
+    ['+kill.coin', 'the same floor on the coin ratio (dangerDial coinPm)']],
+  'danger.power-gear': [['~tier.dmg', 'a gear part over the ground\'s gear Level steps a blow at a monster up and a blow at the hero down (danger.js powerPm), so the held step moves']],
+  /* MONSTER ROLES (src/data/monster-roles.js, lane/w2-roles-rows): who takes the blows, not how many */
+  'roles.table': [['~tier.dmg', 'a role moves which hero a monster\'s blow lands on (reach) and adds a share of it on heroes beside the target (splash): the damage a seat takes, so the held step']],
   'econ.start-gold': [['+gold.day', 'a new hero\'s first purse is gold in, and no formula in the register writes it']],
   'econ.tally': [['+gold.day', 'a tally\'s reward is gold in, and no formula in the register writes it']],
   'econ.clans': [['~gold.day', 'clan fees and gifts move gold between accounts, and no formula in the register writes it']],

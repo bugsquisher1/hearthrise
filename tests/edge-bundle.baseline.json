@@ -243,6 +243,11 @@
         "bytes": 3295265,
         "on": "2026-11-22",
         "why": "R9 power step: danger.js gearPartPm/powerPm, damage.js stepped blows, member.js gearPm (+7,071 B on top of lane G)"
+      },
+      {
+        "bytes": 3310961,
+        "on": "2026-11-22",
+        "why": "wave 2 monster roles and rows (lane/w2-roles-rows): src/data/monster-roles.js and src/core/hunt/monster-roles.js join the engine (the settle aims, shoots and splashes by role on the Danger scale), ~15.7 KB"
       }
     ]
   }

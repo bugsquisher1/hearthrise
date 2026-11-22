@@ -192,7 +192,7 @@ const MUTANTS = [
   ['armor', 'static', 'const HIT_K = 0.5;', 'const HIT_K = 0.5; const BY_LEVEL = [0, 1]; const pick = (level) => BY_LEVEL[level];'],
   ['armor', 'static', 'const HIT_K = 0.5;', 'const HIT_K = 0.5 + Math.random() * 0;'],
   ['armor', 'static', "from '../data/core-model.js';", "from '../data/core-model.js?v=9.9.9';"],
-  ['armor', 'inherited', 'const HIT_K = 0.5;', 'const HIT_K = 0.5;\nexport function armourValues() { return { heavy: 0, medium: 0, light: 0 }; }'],
+  ['armor', 'inherited', 'const HIT_K = 0.5;', 'const HIT_K = 0.5;\nexport const steadyPmOf = () => 0;'],
   ['armor', 'surface', "export * from './mitigation.shipped.js';", "export { steadyPmOf, NO_MITIGATION } from './mitigation.shipped.js';"],
   ['party-xp', 'orderFree', 'return { permille: PARTY_PAY,', "return { permille: PARTY_PAY + (roles[0] === 'tank' ? 1 : 0),"],
   ['party-xp', 'classesShared', 'classes: shippedReading(roles).classes };', 'classes: shippedReading(roles).classes.slice(1) };'],
@@ -231,7 +231,8 @@ async function selftest() {
       }
       if (src === null) continue;
       writeFileSync(join(base.root, base.slot.module), src);
-      const M = await importFrom(base.root, base.slot.module, '?mutant=' + (++n));
+      let M;
+      try { M = await importFrom(base.root, base.slot.module, '?mutant=' + (++n)); } catch (e) { check(slot + ' mutant for ' + line + ' loads', false, e.message); continue; }
       const probs = await familyProblems({ ...base, M, src });
       const hit = probs.find((x) => x.id === line);
       check(slot + ': a family that breaks ' + line + ' is caught by it', !!(hit && hit.problem), hit ? 'it read clean' : 'no line ' + line);
@@ -318,12 +319,13 @@ async function selftest() {
   check('pack-edge passes the same scratch copy with nothing laid over it', without.files > 0 && without.problems.length === 0, without.problems.join('; '));
 
   /* 7. THE REPORT'S ARITHMETIC (variants.mjs) */
-  check('pairs: every pair moved +1 is a difference beyond noise (B higher); equal pairs are the same; two of four seeds are thin, one is too',
+  check('pairs: every pair moved +1 is a difference beyond noise (B higher); equal pairs are the same; one valid pair, or one seed, is thin',
     paired([1, 2, 3], [2, 3, 4]).verdict === 'B' && paired([5, 5], [5, 5]).verdict === 'same' && paired([1], [2]).verdict === 'thin' && paired([1, NaN, null], [2, 3, 4]).verdict === 'thin');
   check('pairs: a difference that wanders across zero is noise; a steady one beyond its interval is not',
     paired([10, 12, 9, 11], [10.5, 11.6, 9.4, 10.8]).verdict === 'noise' && paired([10, 12, 9, 11], [11, 13.2, 9.9, 12.1]).verdict === 'B' && paired([10, 12, 9, 11], [9, 11.1, 8, 9.9]).verdict === 'A');
   check('ahead follows the read\'s direction (less damage is ahead, more XP is ahead)', aheadOf({ verdict: 'A' }, 'lower') === 'B' && aheadOf({ verdict: 'A' }, 'higher') === 'A' && aheadOf({ verdict: 'noise' }, 'lower') === null);
-  check('the chance count: 1 of 1 cell, 3 of 20, more of 100, never under 1', chanceCount(1) === 1 && chanceCount(20) === 3 && chanceCount(100) >= 5 && chanceCount(100) <= 7 && chanceCount(0) === 1, [chanceCount(1), chanceCount(20), chanceCount(100), chanceCount(0)].join(','));
+  /* the exact binomial tails at 2.5% a cell: of 20, P(3 or more) is 1.29% and P(4 or more) 0.13%; of 100, P(7+) 1.4% and P(8+) under 1% */
+  check('the chance count: one cell never leads alone (2 of 1), 4 of 20, 8 of 100', chanceCount(1) === 2 && chanceCount(20) === 4 && chanceCount(100) === 8 && chanceCount(0) === 1, [chanceCount(1), chanceCount(20), chanceCount(100), chanceCount(0)].join(','));
   const cellsOf = (aheadB, aheadA, n) => Array.from({ length: n }, (_, i) => ({ reads: { x: i < aheadB ? { verdict: 'B', a: 1, b: 2 } : i < aheadB + aheadA ? { verdict: 'A', a: 2, b: 1 } : { verdict: 'noise', a: 1, b: 1 } } }));
   check('a group leads only past its chance count: 2 of 20 cells is chance, 6 of 20 leads',
     groupRead(cellsOf(2, 0, 20), 'x', 'higher').lead === null && groupRead(cellsOf(6, 1, 20), 'x', 'higher').lead === 'B' && groupRead(cellsOf(1, 6, 20), 'x', 'lower').lead === 'B');

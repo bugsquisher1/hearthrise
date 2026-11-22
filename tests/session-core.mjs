@@ -219,7 +219,8 @@ const timers = { setTimer: () => 0, clearTimer: () => {} };
 const ASKVIA_SITES = Object.freeze({
   'src/session/boss-intents.js': { rule: 2 },
   'src/session/carry-intents.js': { rule: 1 },
-  'src/session/carry-on-intents.js': { rule: 1, read: 1 },
+  'src/session/carry-on-intents.js': { rule: 2, read: 1, own: 1 },
+  'src/session/company-intents.js': { rule: 1 },
   'src/session/farm-intents.js': { rule: 6 },
   'src/session/farm-tend.js': { rule: 1 },
   'src/session/hearth-intents.js': { rule: 1 },
@@ -261,6 +262,8 @@ const ASKVIA_RULE_CALLS = Object.freeze([
   ['src/session/boss-intents.js', 'openHall', 'hr_boss_hall_enter', ['krells_hall']],
   ['src/session/carry-intents.js', 'carryIntoHunt', 'hr_hunt_restock', ['cooked_shrimp', 5]],
   ['src/session/carry-on-intents.js', 'carryOn', 'hr_carry_on', [0, null, []]],
+  ['src/session/carry-on-intents.js', 'setCompanyLine', 'hr_company_line_set', ['wear_upgrades', 'off']],
+  ['src/session/company-intents.js', 'setHeroPlan', 'hr_hero_plan_set', ['mill_cellar']],
   ['src/session/farm-intents.js', 'plantCrop', 'hr_farm_plant', [0, 'turnip']],
   ['src/session/farm-intents.js', 'waterPlot', 'hr_farm_water', [0]],
   ['src/session/farm-intents.js', 'harvestPlot', 'hr_farm_harvest_replant', [0, true]],
@@ -291,7 +294,7 @@ const ASKVIA_RULE_CALLS = Object.freeze([
   ['src/session/hero-color-intents.js', 'saveHeroColors', 'hr_hero_colors_set', [{ head: 1, body: 2, legs: 1, feet: 2 }, 2400]],
   ['src/session/outfit-intents.js', 'useOutfitBundle', 'hr_outfit_bundle_use', ['sweeps_coat_bundle']],
   ['src/session/recipe-intents.js', 'learnRecipe', 'hr_recipe_learn', ['kingsgrate_rivets']],
-  ['src/session/preset-intents.js', 'buySetupSlot', 'hr_setup_slot_buy', [100]],
+  ['src/session/preset-intents.js', 'renameSetup', 'hr_hunt_preset_rename', [0, 'Mill run']],
   ['src/session/title-intents.js', 'buyTitle', 'hr_title_buy', ['ratcatcher', 1500]],
   ['src/session/party-intents.js', 'startPartyHunt', 'hr_hunt_party_start', ['millrace_sewer']],
   ['src/session/party-intents.js', 'warnPartyGround', 'hr_hunt_party_warn', ['millrace_sewer']],
@@ -858,6 +861,57 @@ async function rules(M) {
     ver = 12; slim = null;
     if ((await ask()) !== 'accrue' || cs.record.version !== 12) return 'a full floor answer was not applied as the character: ' + calls.join(',') + ' at ' + cs.record.version;
     return asked[asked.length - 1].have === 11 || 'the ask after a full read named version ' + asked[asked.length - 1].have;
+  });
+  /* ASK-5 (lane/c-settle-flush, 30-plan L12): THE CONFIRM. The viewed poll of a running prediction says `confirm` (hunt-ask.js) and the
+     server answers its check without saving (hunt-settle.js flushDue). That answer, slim at the held version, plays the check with the
+     record's own hunt and re-reads nothing; one carrying the character whole (its version moved) is applied as it stands. Every other
+     ask SAVES: a poll whose prediction wants a start point, a plain hello (the catch-up a settle_first refusal runs: catch-up.js), and a
+     hello asked while a confirm is out, which waits for it and then asks its own (riding the confirm, the refused verb would be refused
+     again). */
+  await t('ASK-5', async () => {
+    const calls = [], asked = [], played = [];
+    let ver = 10, whole = false, gate = null, saveVer = null;
+    const hunt = { session_id: 'h1', hunt_id: 'mill_cellar', ended: false, pose: { units: [] } };
+    const check = { world_swing: 40, world_hash: 'w', settled_to_ms: 9000, seeds: { domain: 's', from: 40, list: [] } };
+    const srv = {
+      rpc: async (name) => { calls.push(name); return { ok: true, status: 200, body: env(ver, { hunt }), closed: false }; },
+      accrue: async (b) => {
+        calls.push(b.confirm === true ? 'confirm' : 'save'); asked.push(b);
+        if (gate) await gate;
+        if (b.confirm !== true) await new Promise((r) => setImmediate(r));   // a save answers a turn later than a confirm
+        const a = b.confirm !== true ? Object.assign(env(saveVer === null ? ver : saveVer, { hunt }), { accrued: true, settled: true })
+          : whole ? Object.assign(env(ver, { hunt }), { accrued: false, settled: false, reason: 'confirmed', hunt_check: check })
+            : { ok: true, accrued: false, settled: false, reason: 'confirmed', hunt_slim: true, version: ver, now: new Date(5000).toISOString(), hunt_check: check };
+        return { ok: true, status: 200, body: a, closed: false };
+      },
+    };
+    const cs = new C.CharacterSession({ slot: 0, uid: UID, server: srv, ...timers });
+    cs.liveLink.from = (b) => { played.push(b); };   // the live view's intake (live-link.js from), observed
+    let predicting = true;
+    cs.liveLink.confirming = () => predicting;
+    await cs.load();
+    const settle = () => new Promise((r) => setImmediate(r));
+    calls.length = 0; played.length = 0;
+    await cs._huntPoll(); await settle();
+    if (calls.join(',') !== 'confirm') return 'the viewed poll of a running prediction did not confirm alone: ' + calls.join(',');
+    if (asked[asked.length - 1].have !== 10) return 'the confirm did not say which version the record holds whole: ' + JSON.stringify(asked[asked.length - 1]);
+    if (cs.record.version !== 10 || played.length !== 1 || played[0].hunt_check !== check || !played[0].hunt || played[0].hunt.session_id !== 'h1' || played[0].state) {
+      return 'the confirm\'s check was not played with the record\'s own hunt: ' + JSON.stringify(played).slice(0, 200);
+    }
+    predicting = false; calls.length = 0;
+    await cs._huntPoll(); await settle();
+    if (calls.join(',') !== 'save') return 'a poll whose prediction wants a start point did not save: ' + calls.join(',');
+    calls.length = 0;
+    await cs.hello(); await settle();
+    if (calls.join(',') !== 'save') return 'a plain hello (the catch-up) did not save: ' + calls.join(',');
+    let open; gate = new Promise((r) => { open = r; }); calls.length = 0; saveVer = 12;
+    const out = cs.hello(true); const behind = cs.hello(); gate = null; open();
+    await out; await behind;
+    if (calls.join(',') !== 'confirm,save' || cs.record.version !== 12) return 'a save asked while a confirm was out rode it (answered before its own save landed): ' + calls.join(',') + ' at ' + cs.record.version;
+    await settle();
+    whole = true; ver = 13; saveVer = null; calls.length = 0;
+    await cs.hello(true); await settle();
+    return (calls.join(',') === 'confirm' && cs.record.version === 13) || 'a confirm carrying the character whole was not applied: ' + calls.join(',') + ' at ' + cs.record.version;
   });
   await t('HELLO-1', async () => {
     const calls = [];
@@ -2805,8 +2859,8 @@ const MUTANTS = [
   ['a hello is sent over the budget', 'src/session/character-session.js', "    if (this._pace.waitMs() > 0) { if (!this._huntOpen()) this._pace.owe(() => this.hello()); return Promise.resolve(false); }\n", ''],
   ['an ask spends no budget', 'src/session/ask-pacer.js', '  sent() { this._fill(); this._tokens -= 1; }', '  sent() { this._fill(); }'],
   ['an ask over the budget is dropped, never owed', 'src/session/ask-pacer.js', '    this._owed = this._set(() => { this._owed = null; fn(); }, this.waitMs());', '    void fn;'],
-  ['two hellos in flight', 'src/session/character-session.js', '    if (this._asking) { this._again = true; return this._asking; }', ''],
-  ['an ask made while one is out is lost', 'src/session/character-session.js', '{ this._again = true; return this._asking; }', '{ return this._asking; }'],
+  ['two hellos in flight', 'src/session/character-session.js', '    if (this._asking) { if (confirm !== true && this._confirming) return this._asking.then(() => this.hello()); this._again = true; return this._asking; }', ''],
+  ['an ask made while one is out is lost', 'src/session/character-session.js', ' this._again = true; return this._asking; }', ' return this._asking; }'],
   ['a refusal is asked again at once', 'src/session/character-session.js', '{ this._pace.hold(SESSION_CONFIG.liveRefillMs); if (!this._huntOpen())', '{ if (!this._huntOpen())'],
   ['a refused gap in town is never caught up', 'src/session/character-session.js', 'if (!this._huntOpen()) this._pace.owe(() => this.hello()); }', '}'],
   /* NUDGE (2027-02-11-party-nudge.sql) */
@@ -2841,8 +2895,15 @@ const MUTANTS = [
   ['the session drops the age the account handed it', 'src/session/character-session.js', '_heldFor(ms) { this._wholeMs -= ms > 0 ? ms : 0; return', '_heldFor(ms) { return'],
   /* ASK-4 (lane/c-watched-settle-cost: the floor's answer without the character) */
   ['a slim floor answer is taken at any version', 'src/session/hunt-ask.js', ' && !body.state && body.version === wholeAt;', ' && !body.state;'],
-  ['the ask never says which version it holds', 'src/session/hunt-ask.js', 'return huntOpen && Number.isSafeInteger(wholeAt) && wholeAt >= 0 ? { slot, have: wholeAt } : { slot }; }', 'return { slot }; }'],
+  ['the ask never says which version it holds', 'src/session/hunt-ask.js', 'const b = huntOpen && Number.isSafeInteger(wholeAt) && wholeAt >= 0 ? { slot, have: wholeAt } : { slot };', 'const b = { slot };'],
   ['a slim floor answer\'s start point is dropped', 'src/session/hunt-ask.js', "  cs._play(Object.assign({}, body, { hunt: cs.read('hunt') }));\n", ''],
+  /* ASK-5 (lane/c-settle-flush): the confirm, each half planted away */
+  ['the ask never confirms (every viewed poll saves)', 'src/session/hunt-ask.js', 'return huntOpen && confirm === true ? { ...b, confirm: true } : b;', 'return b;'],
+  ['every hunter\'s ask confirms (the catch-up saves nothing)', 'src/session/hunt-ask.js', 'return huntOpen && confirm === true ? { ...b, confirm: true } : b;', 'return huntOpen ? { ...b, confirm: true } : b;'],
+  ['the viewed poll never confirms', 'src/session/character-session.js', 'this.hello(this._viewed && this.liveLink.confirming())', 'this.hello()'],
+  ['a save asked behind a confirm rides it', 'src/session/character-session.js', 'if (confirm !== true && this._confirming) return this._asking.then(() => this.hello()); ', ''],
+  ['a confirm\'s answer is re-read in full', 'src/session/character-session.js', ' || confirmedAnswer(ans.body, this._wholeAt)', ''],
+  ['a confirm carrying the character whole is played slim', 'src/session/hunt-ask.js', "  if (body.state) return cs._take(body, 'hello');\n", ''],
   ['the close is asked every 2 s past leave_at', 'src/session/hunt-leave.js', 'Math.max(SESSION_CONFIG.leaveRetryMs, Math.ceil(-left))', 'SESSION_CONFIG.leaveRetryMs'],
   ['an ended hunt keeps re-reading', 'src/session/character-session.js', "typeof h.session_id === 'string' && h.ended !== true;", "typeof h.session_id === 'string';"],
   ['a pending leave waits for the world tick', 'src/session/character-session.js', "      if (!(await this.hello()) && !this._closed) await this.load();", "      await this.load();"],

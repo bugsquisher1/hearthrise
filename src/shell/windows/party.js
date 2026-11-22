@@ -127,5 +127,5 @@ renderParty.act = function actParty(ctx, body, action, ev, el) {
       () => (yes ? 'Joined the party' : 'Invite declined'));
     return true;
   }
-  return actRoster(ctx, action, repaint, sc) || actFinder(ctx, body, action, el, repaint);
+  return actRoster(ctx, action, repaint, sc, el) || actFinder(ctx, body, action, el, repaint);
 };

@@ -38,6 +38,9 @@ import { BLESSING_CUT_PERMILLE, blessingPrice } from '../../src/data/blessings.j
 import { BUFF_MAX_UNTIL_MS } from '../../src/core/buffs.js';
 import { STYLES } from '../balance-sim/styles.mjs';
 import { rateCI, quantile, round, gini, underInto } from '../balance-sim/stats.mjs';
+/* the sustain reads of a settled window (Balance Lab phase 2): the engine's tally, through the helper cell.mjs reads it with */
+import * as TALLY from '../../src/core/hunt/tally.js';
+import { sustainTotals, noteSustainEvent, readSustainWindow, sustainSummary } from '../balance-sim/sustain-reads.mjs';
 
 export { STYLES };
 export const ENGINE_VERSION = BUILD.version;
@@ -234,7 +237,7 @@ function heroTotals(key, style, level, kit) {
     deaths: 0, killers: {}, xpLostLevel: 0, deathLevelXpLost: [], xpLostSkill: {}, dealt: 0, dealtBy: {}, taken: 0, takenBy: {}, spellsIn: {},
     healIn: { food: 0, self: 0, ally: 0 }, healOut: 0, shieldIn: 0, blowsLanded: 0, blowsMissed: 0, dodged: 0, eats: { own: 0, store: 0 },
     drinks: { own: 0, store: 0 }, casts: {}, castGold: 0, castMana: {}, castBack: {}, manaShots: 0, enc: [], close: 0, dips: 0, ttdClose: [], ended: {},
-    regen: 0, under: { p30: 0, p10: 0 }, dealtTo: {} };
+    regen: 0, under: { p30: 0, p10: 0 }, dealtTo: {}, ...sustainTotals(TALLY) };
 }
 
 /**
@@ -369,8 +372,12 @@ export function playCell(cell, seeds, hooks = {}) {
             case 'eat': case 'drink':
               if (uk) { const h = byKey[uk]; (e.type === 'eat' ? h.eats : h.drinks)[e.source === 'store' ? 'store' : 'own']++; }
               break;
+            case 'rule_wait':
+              if (uk) noteSustainEvent(live[uk], e);
+              break;
             case 'cast':
               if (uk) {
+                noteSustainEvent(live[uk], e);
                 const h = byKey[uk]; h.casts[e.ability] = (h.casts[e.ability] || 0) + 1; h.castGold += e.gold || 0;
                 /* the mana each spell KEPT (the cast's `mana`, net of a refund or mana back) and what came back (`back`, the Storm spells): cell.mjs, the same lines */
                 h.castMana[e.ability] = (h.castMana[e.ability] || 0) + (e.mana || 0);
@@ -386,6 +393,8 @@ export function playCell(cell, seeds, hooks = {}) {
             default: break;
           }
         }
+        /* the sustain counters (cell.mjs, the same call) */
+        readSustainWindow(TALLY, out, { heroes: H, byKey, live, unitKey, winFrom });
         const winTo = Number.isInteger(out.settledTo) ? out.settledTo : winFrom + windowOf(cell);
         const endHp = {};
         for (const p of out.members) {
@@ -498,6 +507,8 @@ export function mergeTotals(parts) {
       for (const k of ['skillXp', 'loot', 'gear', 'buys', 'uses', 'killers', 'xpLostSkill', 'dealtBy', 'takenBy', 'healIn', 'eats', 'drinks', 'casts', 'castMana', 'castBack', 'ended', 'under', 'dealtTo']) addInto(h[k], g[k]);
       for (const k of ['rareItems', 'deathLevelXpLost', 'enc', 'ttdClose']) h[k].push(...g[k]);
       for (const [id, s] of Object.entries(g.spellsIn || {})) { const t = h.spellsIn[id] || (h.spellsIn[id] = { hits: 0, dmg: 0 }); t.hits += s.hits; t.dmg += s.dmg; }
+      if (h.sus && g.sus) TALLY.addTally(h.sus, g.sus);
+      h.regenUnreadMs += g.regenUnreadMs; addInto(h.shortAt, g.shortAt);
     });
   }
   return first;
@@ -574,6 +585,8 @@ export function summarise(cell, totals) {
       /* cell.mjs, the same fields: regeneration, the share of hunted time under 30% and 10% of max HP, damage dealt by target kind */
       regenPerH: per(h.regen), hpUnder: Object.fromEntries(Object.entries(h.under).map(([k, ms]) => [k, round(ms / (hr * 3600000), 4)])),
       dealtToPerH: Object.fromEntries(Object.entries(h.dealtTo).map(([k, n]) => [k, per(n)])),
+      /* cell.mjs, the same field: the engine's sustain block as totals */
+      sustain: sustainSummary(h, h.close, h.enc.length),
       /* the lab's own reads (not in cell.mjs): the lowest HP any pull left (0 at a death: the tracked HP runs past it), the next Level's distance and pace */
       lab: { lowestHpPct: h.enc.length ? Math.max(0, Math.min(...h.enc)) : null, xpToNextLevel: toNext, hoursToNextLevel: xph > 0 ? round(toNext / xph, 2) : null,
         lootValuePerH: per(h.loot.common + h.loot.uncommon + h.loot.scarce + h.loot.other + rares) },

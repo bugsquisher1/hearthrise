@@ -134,7 +134,7 @@ const SETTLE = {
   rest_db_ms_per_player_s: 6.3,      // `authenticated` PostgREST time, one active player, same window
   cron_db_ms_per_s: 10.2,            // every postgres-role statement over 606 s, 10-31 03:59 UTC, nothing hunting
   poll_ms: 16000,                    // src/session/config.js huntPollMs (the player door's floor is 15 s)
-  look_ahead_ms: 32000,              // tools/lib/hunt-lag.mjs LOOK_AHEAD_S: past it a watched hunt FREEZES
+  look_ahead_ms: 32000,              // liveSeeds x 2 s (src/data/hunt-tuning.js); a save every poll, the pre-flush shape (conservative since lane/c-settle-flush)
   edge_wall_ms: { p50: 643, p95: 1287, max: 6460 },
   edge_cpu_ms: { p50: 154, p99: 1104, max: 1439 },
   edge_cpu_limit_ms: 2000,           // Supabase Edge Functions, per request

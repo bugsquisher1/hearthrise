@@ -4,23 +4,26 @@
 // Measured 2026-10-21 (lane a-settle-lag): an UNWATCHED hunt is settled only by the world tick, which
 // rosters a session once it is hr_tick_config.flush_seconds (90 s) behind, so its lag is a sawtooth
 // 0 -> flush + cadence (~100 s) by design (7529fc8e: 0 -> 95 s every 100 s, world_swing +50 per settle,
-// no backlog, fire cost flat ~1.0 s over 6 h). A WATCHED hunt's browser settles it every huntPollMs
-// (16 s); only there does a lag past the look-ahead (liveSeeds x 2 s = 32 s) freeze a screen.
-//   FREEZING  watched and lag > look-ahead: the viewer's prediction runs out of seeds
-//   STALLED   lag > flush + 2 x cadence + slack: the tick itself is not keeping up (watched or not)
+// no backlog, fire cost flat ~1.0 s over 6 h). THE FLUSH (lane/c-settle-flush, 30-plan L12): a WATCHED hunt's browser
+// CONFIRMS every huntPollMs (16 s) and the edge answers its seeds without saving, so the hunt is saved at the flush like
+// an unwatched one (by its own door or the tick) and its lag is the same sawtooth. Its screen freezes only when the door
+// stops answering, which leaves the hunt past the flush by more than a poll (once the lag passed the 32 s look-ahead).
+//   FREEZING  watched and lag > flush + one poll + slack: neither the confirm door nor the tick saved at the flush
+//   STALLED   lag > flush + 2 x cadence + slack: the tick itself is not keeping up (unwatched)
 //   ok        anything else, labelled watched / unwatched
 //
 //   node tools/lib/hunt-lag.mjs --selftest   the verdict table, each alarm proved to fire and to stay quiet
-const LOOK_AHEAD_S = 32;
+const POLL_S = 16;   // src/session/config.js huntPollMs
 const STALL_SLACK_S = 15;
 
 /** @returns {{ code: 'ok'|'FREEZING'|'STALLED', note: string }} */
 export function lagVerdict({ lagS, watched, flushS = 90, cadenceS = 10 }) {
   const lag = Number(lagS);
   const stallAt = Number(flushS) + 2 * Number(cadenceS) + STALL_SLACK_S;
+  const freezeAt = Number(flushS) + POLL_S + STALL_SLACK_S;
+  if (watched && lag > freezeAt) return { code: 'FREEZING', note: `FREEZING: watched, server ${lag}s behind (its door saves at the ${flushS}s flush)` };
   if (lag > stallAt) return { code: 'STALLED', note: `STALLED: server ${lag}s behind, the tick should flush by ${stallAt}s` };
-  if (watched && lag > LOOK_AHEAD_S) return { code: 'FREEZING', note: `FREEZING: watched, server ${lag}s behind (look-ahead ${LOOK_AHEAD_S}s)` };
-  return { code: 'ok', note: watched ? 'watched' : `unwatched (tick flushes every ${flushS}s)` };
+  return { code: 'ok', note: watched ? `watched (saved at the ${flushS}s flush)` : `unwatched (tick flushes every ${flushS}s)` };
 }
 
 /* A hunt is WATCHED when a browser asked the `accrue` bucket for one of its heroes in the last 2 minutes (a viewed
@@ -41,9 +44,11 @@ function selftest() {
     [{ lagS: 57, watched: false }, 'ok'],        // 7529fc8e 2026-10-21: the flush sawtooth, not a freeze
     [{ lagS: 95, watched: false }, 'ok'],
     [{ lagS: 12, watched: true }, 'ok'],         // a viewed solo hunt between polls
-    [{ lagS: 40, watched: true }, 'FREEZING'],
+    [{ lagS: 95, watched: true }, 'ok'],         // the flush: a viewed hunt saved at 90 s, its confirms between
+    [{ lagS: 122, watched: true }, 'FREEZING'],  // past the flush by more than a poll: its door is not saving
+    [{ lagS: 122, watched: false }, 'ok'],
     [{ lagS: 126, watched: false }, 'STALLED'],
-    [{ lagS: 126, watched: true }, 'STALLED'],
+    [{ lagS: 126, watched: true }, 'FREEZING'],
     [{ lagS: 200, watched: false, flushS: 180 }, 'ok'],
   ];
   let bad = 0;

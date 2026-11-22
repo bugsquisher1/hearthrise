@@ -38,10 +38,10 @@
 //         current setup sends ONE hr_hunt_preset_save on the first free number
 //   PN-9  FIVE AT MOST: with ACTION_SET_LIMITS.presets setups, New setup is off, also when the server's
 //         setup_slots counts past that limit (the window then says the limit's number)
-//   PN-11 THE SLOT IS BOUGHT (Tyler 2026-11-04; every number from the row, src/data/gold-sinks.js): past the server's count Save is off, the
-//         window says so in the design's words, and Buy sends ONE hr_setup_slot_buy with the QUOTE; the next slot opens only from the re-read,
-//         and the save lands on the bought number; a short purse says how much more; past the top there is no button; A SETUP ALREADY SAVED
-//         past the count keeps every control; a save the server refuses says the server's numbers
+//   PN-11 SAVING A SETUP IS FREE (redesign direction 9, 1049-setups-free.sql): a hero with no gold and three setups saves a fourth
+//         with ONE hr_hunt_preset_save and nothing else; the column has no Buy control and names no price or purchase; a save the server
+//         refuses past its limit says the server's number and nothing to buy; Use equipped asks once then saves over the picked setup;
+//         with every number used Save is off and the window says "Delete one to save a new setup."
 //   PN-12 NO COUNT, NO FREE SLOT (audit 11-09 F5, §6 fail safe): with no setup_slots section and one setup saved, Save current setup
 //         is off, nothing is for sale and the window says "Loading setup slots…"; with no hunt_presets the none line says
 //         "Loading setups…" (both are projected: never "switch on when the server starts keeping them")
@@ -60,9 +60,8 @@ import { pinFonts } from './_test-fonts.mjs';
 
 const FIXTURE = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/alpha-envelope.json'), 'utf8'));
 const { BAR_ANSWER_MS } = await import(pathToFileURL(join(ROOT, 'src/data/hunt-hud.js')).href);
-const { SINK_RULES } = await import(pathToFileURL(join(ROOT, 'src/data/gold-sinks.js')).href);
 const { ACTION_SET_LIMITS } = await import(pathToFileURL(join(ROOT, 'src/data/rule-subjects.js')).href);
-const RPCS = ['hr_hunt_preset_rename', 'hr_hunt_preset_delete', 'hr_action_set_rename', 'hr_setup_slot_buy'];
+const RPCS = ['hr_hunt_preset_rename', 'hr_hunt_preset_delete', 'hr_action_set_rename'];
 const clone = (o) => JSON.parse(JSON.stringify(o));
 const wait = (page, fn, arg, ms = 8000) => page.waitForFunction(fn, arg, { timeout: ms }).then(() => true, () => false);
 
@@ -81,10 +80,6 @@ function scripted() {
     if (name === 'hr_hunt_preset_rename') s.env.hunt_presets.find((p) => p.preset === b.p_preset).name = b.p_name;
     if (name === 'hr_hunt_preset_delete') s.env.hunt_presets = s.env.hunt_presets.filter((p) => p.preset !== b.p_preset);
     if (name === 'hr_action_set_rename') s.env.hunt_settings.presets.find((p) => p.preset === b.p_preset).name = b.p_name;
-    if (name === 'hr_setup_slot_buy') {
-      const R = SINK_RULES.setup_slot, was = s.env.setup_slots;
-      s.env.setup_slots = { ...was, count: was.count + 1, bought: was.bought + 1, price: R.prices[was.bought + 1] === undefined ? null : R.prices[was.bought + 1] };
-    }
     return { ok: true };
   };
   return s;
@@ -287,7 +282,7 @@ async function checks(overrides) {
     /* The data's limit holds even where the server's count says more (the fixture's count is the limit, so only this reaches it). */
     {
       const lim = ACTION_SET_LIMITS.presets, was = s.env.setup_slots;
-      s.env.setup_slots = { count: lim + 1, free: lim + 1, bought: 0, max: lim + 1, price: null };
+      s.env.setup_slots = { count: lim + 1, max: lim + 1 };
       await reload(page);
       await openPrep(page);
       await page.waitForTimeout(300);
@@ -298,60 +293,50 @@ async function checks(overrides) {
     }
     // PN-11
     {
-      const R = SINK_RULES.setup_slot, max = ACTION_SET_LIMITS.presets;
-      const ORD = ['first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh'];
-      const gp = (n) => n.toLocaleString('en-US') + ' gp';
+      const max = ACTION_SET_LIMITS.presets;
       const setups = (nums) => nums.map((n) => Object.assign(clone(FIXTURE.hunt_presets[0]), { preset: n, name: 'Setup ' + (n + 1) }));
       const upTo = (n) => Array.from({ length: n }, (_, i) => i);
-      const prep = () => page.evaluate(() => { const w = document.querySelector('[data-hs-win="hunt-prep"]'), b = w.querySelector('.hw-slot-buy');
-        return { save: w.querySelector('[data-hs-act="save-new"]').disabled, buy: b.getBoundingClientRect().width > 0 ? b.textContent : null, off: b.disabled, why: w.querySelector('.hw-slot-why').hidden ? '' : w.querySelector('.hw-slot-why').textContent, msg: w.querySelector('.hh-intent-msg').textContent }; });
+      const prep = () => page.evaluate(() => { const w = document.querySelector('[data-hs-win="hunt-prep"]');
+        return { save: w.querySelector('[data-hs-act="save-new"]').disabled, buy: !!w.querySelector('[data-hs-act="buy-slot"]'), why: w.querySelector('.hw-slot-why').hidden ? '' : w.querySelector('.hw-slot-why').textContent, msg: w.querySelector('.hh-intent-msg').textContent,
+          /* the setups column only (its rows, New / Use equipped / the count, its notes): the builder beside it prices supplies */
+          text: ['.hpb-sets', '.hpb-leftrow', '.hw-town-only', '.hw-slot-why'].map((sel) => (w.querySelector(sel) || {}).textContent || '').join(' ') }; });
       const at = async () => { await reload(page); await openPrep(page); await page.waitForTimeout(300); };
-      s.env.state = Object.assign({}, s.env.state, { gold: 10000000, gold_v: 1 });
-      s.env.setup_slots = { count: R.free, free: R.free, bought: 0, max, price: R.prices[0] };
-      s.env.hunt_presets = setups(upTo(R.free));
+      /* SAVING IS FREE: a hero with no gold and three setups saves a fourth and a fifth, and no gold is ever named. */
+      s.env.state = Object.assign({}, s.env.state, { gold: 0, gold_v: 1 });
+      s.env.setup_slots = { count: max, max };
+      s.env.hunt_presets = setups(upTo(3));
       await at();
       let p = await prep();
-      const third = `Buy a ${ORD[R.free]} setup: ${gp(R.prices[0])}`;
-      if (!p.save) fails.push('PN-11 Save is on with every slot used');
-      if (p.buy !== third || p.off) fails.push('PN-11 the button reads ' + JSON.stringify(p));
-      if (p.why !== `This hero's ${R.free} setup slots are full. Delete one, or buy a ${ORD[R.free]} for ${gp(R.prices[0])}.`) fails.push('PN-11 the window says ' + JSON.stringify(p.why));
-      const before = sent(s, 'hr_setup_slot_buy').length;
-      await page.click('[data-hs-win="hunt-prep"] .hw-slot-buy');
-      await page.waitForTimeout(100);
-      p = await prep();
-      if (!p.off || p.buy !== third) fails.push('PN-11 while the purchase is in flight: ' + JSON.stringify(p));
-      await page.waitForTimeout(900);
-      const bought = sent(s, 'hr_setup_slot_buy').slice(before);
-      if (bought.length !== 1 || bought[0].body.p_slot !== 0 || bought[0].body.p_price !== R.prices[0] || !bought[0].body.p_idem) fails.push('PN-11 Buy sent ' + JSON.stringify(bought.map((c) => c.body)));
-      p = await prep();
-      if (p.save) fails.push('PN-11 after the re-read Save is still off');
-      if (p.buy !== null) fails.push('PN-11 with a slot open the button still shows: ' + p.buy);
+      if (p.save) fails.push('PN-11 with no gold and a free number, Save is off');
+      if (p.buy) fails.push('PN-11 the window still has a Buy control');
+      if (p.why) fails.push('PN-11 the window says ' + JSON.stringify(p.why));
+      if (/\d gp\b|\bbuy\b/i.test(p.text)) fails.push('PN-11 the setups column names a price or a purchase: ' + JSON.stringify(p.text.match(/.{0,40}(\d gp|\bbuy\b).{0,20}/i)[0]));
       const savesBefore = sent(s, 'hr_hunt_preset_save').length;
       await page.click('[data-hs-win="hunt-prep"] [data-hs-act="new"]');
       await page.waitForTimeout(120);
-      await page.fill('[data-hs-win="hunt-prep"] .hw-preset-name', 'Bought one');
+      await page.fill('[data-hs-win="hunt-prep"] .hw-preset-name', 'Fourth');
       await page.click('[data-hs-win="hunt-prep"] [data-hs-act="save-new"]');
       await page.waitForTimeout(500);
       const sv11 = sent(s, 'hr_hunt_preset_save').slice(savesBefore);
-      if (sv11.length !== 1 || sv11[0].body.p_preset !== R.free) fails.push('PN-11 the save on the bought slot sent ' + JSON.stringify(sv11.map((c) => c.body)));
-      /* a save the server refuses (this window's numbers behind the server's): the refusal's own numbers */
-      s.refuseSave = { ok: false, error: 'setup_locked', slots: R.free, price: R.prices[0] };
+      if (sv11.length !== 1 || sv11[0].body.p_preset !== 3) fails.push('PN-11 the fourth setup sent ' + JSON.stringify(sv11.map((c) => c.body)));
+      if (s.calls.some((c) => /slot_buy/.test(c.name))) fails.push('PN-11 a slot purchase was sent');
+      /* a save the server refuses past its limit: the refusal's own number, and nothing to buy */
+      s.refuseSave = { ok: false, error: 'setup_locked', slots: max };
       await page.click('[data-hs-win="hunt-prep"] [data-hs-act="new"]');
       await page.waitForTimeout(120);
       await page.fill('[data-hs-win="hunt-prep"] .hw-preset-name', 'Refused');
       await page.click('[data-hs-win="hunt-prep"] [data-hs-act="save-new"]');
       await page.waitForTimeout(500);
       p = await prep();
-      if (!p.msg.startsWith(`This hero's ${R.free} setup slots are full.`)) fails.push('PN-11 a refused save says ' + JSON.stringify(p.msg));
+      if (p.msg !== `This hero's ${max} setup slots are full. Delete one to save a new setup.`) fails.push('PN-11 a refused save says ' + JSON.stringify(p.msg));
       s.refuseSave = null;
-      /* a short purse: off, and says how much more; an answer's news on the line below doesn't hide it */
-      s.env.state = Object.assign({}, s.env.state, { gold: R.prices[0] - 1, gold_v: 2 });
-      s.env.setup_slots = { count: R.free, free: R.free, bought: 0, max, price: R.prices[0] };
-      s.env.hunt_presets = setups(upTo(R.free));
+      /* every number used: Save is off and the window says the only way left, with no price */
+      s.env.hunt_presets = setups(upTo(max));
       await at();
       p = await prep();
-      if (!p.off || !p.why.endsWith(' Need 1 gp more')) fails.push('PN-11 a short purse reads ' + JSON.stringify(p));
-      /* Use equipped asks once (nothing sent), then ONE hr_hunt_preset_save over the picked setup (the one in use, 0) */
+      if (p.buy || !p.save || p.why !== `This hero's ${max} setup slots are full. Delete one to save a new setup.`) fails.push('PN-11 at the limit: ' + JSON.stringify({ save: p.save, buy: p.buy, why: p.why }));
+      /* Use equipped asks once (nothing sent), then ONE hr_hunt_preset_save over the picked setup (the one in use, 0); its answer never
+         hides why Save is off (the full line stands beside the news) */
       const overBefore = sent(s, 'hr_hunt_preset_save').length;
       await page.click('[data-hs-win="hunt-prep"] [data-hs-act="use-equipped"]');
       await page.waitForTimeout(120);
@@ -361,28 +346,21 @@ async function checks(overrides) {
       const over = sent(s, 'hr_hunt_preset_save').slice(overBefore);
       if (over.length !== 1 || over[0].body.p_preset !== 0) fails.push('PN-11 Use equipped sent ' + JSON.stringify(over.map((c) => c.body)));
       p = await prep();
-      if (!/^Replaced/.test(p.msg) || !p.why.endsWith(' Need 1 gp more')) fails.push('PN-11 an answer hid why Save is off: ' + JSON.stringify(p));
-      /* A SETUP ALREADY SAVED past the count: every control stays, and the first free number is still under the count */
-      s.env.state = Object.assign({}, s.env.state, { gold: 10000000, gold_v: 3 });
-      s.env.hunt_presets = setups([0, max - 1]);
+      if (!/^Replaced/.test(p.msg) || p.why !== `This hero's ${max} setup slots are full. Delete one to save a new setup.`) fails.push('PN-11 an answer hid why Save is off: ' + JSON.stringify({ msg: p.msg, why: p.why }));
+      /* A SETUP SAVED BEFORE THE ONE-SETUP MODEL, on a number past the limit (5 to 7): it keeps every control */
+      s.env.hunt_presets = setups([0, max]);
       await at();
-      await page.click(ROW(max - 1) + ' small');
+      await page.click(ROW(max) + ' small');
       await page.waitForTimeout(120);
-      const kept = await page.evaluate((sel) => { const li = document.querySelector(sel); return li && { use: li.querySelector('.hw-use').disabled, over: document.querySelector('[data-hs-win="hunt-prep"] [data-hs-act="use-equipped"]').disabled }; }, ROW(max - 1));
-      if (!kept || kept.use || kept.over) fails.push('PN-11 a setup past the count reads ' + JSON.stringify(kept));
-      if (!(await page.isVisible(ROW(max - 1) + ' .hw-del'))) fails.push('PN-11 a setup past the count has no Delete');
-      /* past the top: no button, and the window says the only way left */
-      s.env.setup_slots = { count: max, free: R.free, bought: R.prices.length, max, price: null };
-      s.env.hunt_presets = setups(upTo(max));
-      await at();
-      p = await prep();
-      if (p.buy !== null || !p.save || p.why !== `This hero's ${max} setup slots are full. Delete one to save a new setup.`) fails.push('PN-11 at the top: ' + JSON.stringify(p));
+      const kept = await page.evaluate((sel) => { const li = document.querySelector(sel); return li && { use: li.querySelector('.hw-use').disabled, over: document.querySelector('[data-hs-win="hunt-prep"] [data-hs-act="use-equipped"]').disabled }; }, ROW(max));
+      if (!kept || kept.use || kept.over) fails.push('PN-11 a setup past the limit reads ' + JSON.stringify(kept));
+      if (!(await page.isVisible(ROW(max) + ' .hw-del'))) fails.push('PN-11 a setup past the limit has no Delete');
       // PN-12
       delete s.env.setup_slots;
       s.env.hunt_presets = setups([0]);
       await at();
       p = await prep();
-      if (!p.save || p.buy !== null || p.why !== 'Loading setup slots…') fails.push('PN-12 with no setup_slots section the window reads ' + JSON.stringify(p));
+      if (!p.save || p.buy || p.why !== 'Loading setup slots…') fails.push('PN-12 with no setup_slots section the window reads ' + JSON.stringify({ save: p.save, buy: p.buy, why: p.why }));
       delete s.env.hunt_presets;
       await at();
       const none = await page.evaluate(() => document.querySelector('[data-hs-win="hunt-prep"] .hw-presets-none.is-on')?.textContent || '');
@@ -416,15 +394,14 @@ const MUTANTS = [
   ['a sixth setup can be saved', 'src/shell/windows/hunt-prep/setups.js', 'const MAX_PRESETS = ACTION_SET_LIMITS.presets;', 'const MAX_PRESETS = 8;'],
   ['the count is the limit again', 'src/shell/windows/hunt-prep/setups.js', 'const count = Math.min(slots ? slots.count : 0, MAX_PRESETS);', 'const count = MAX_PRESETS;'],
   ['with no server count every slot is free (PN-12)', 'src/shell/windows/hunt-prep/setups.js', 'const count = Math.min(slots ? slots.count : 0, MAX_PRESETS);', 'const count = Math.min(slots ? slots.count : MAX_PRESETS, MAX_PRESETS);'],
-  ['Buy sends a price of its own', 'src/shell/windows/hunt-prep/setups.js', 'buySetupSlot(ctx.account, cs, q.price)', 'buySetupSlot(ctx.account, cs, 1)'],
-  ['Buy stays on with a short purse', 'src/shell/windows/hunt-prep/setups.js', "prop(buy, 'disabled', sc.pending || short > 0);", "prop(buy, 'disabled', sc.pending);"],
-  ['Buy stays on while it is in flight', 'src/shell/windows/hunt-prep/setups.js', "prop(buy, 'disabled', sc.pending || short > 0);", "prop(buy, 'disabled', short > 0);"],
+  /* SAVING IS FREE (1049-setups-free.sql): the full line offers a purchase again, and a free number stays shut (PN-11). */
+  ['the full line offers a slot for sale', 'src/shell/setup-words.js', "return held + ' Delete one to save a new setup.';", "return held + ' Delete one, or buy a sixth for 15,000 gp.';"],
+  ['a free number stays shut with no gold', 'src/shell/windows/hunt-prep/setups.js', 'const full = presets && firstFree(presets) >= count;', 'const full = presets && firstFree(presets) >= 3;'],
   /* SETUPS SWAP MID-HUNT, BAR ONLY (Tyler 2026-11-17): the old town-only rule back, and a setup of another weapon type let through */
   ['Use stays off for every setup in a hunt', 'src/shell/windows/hunt-prep/setups.js', "  if (p.discipline === set.discipline) return { ok: true, why: '' };", "  if (false) return { ok: true, why: '' };"],
   ['a setup of another weapon type swaps in a hunt', 'src/shell/windows/hunt-prep/setups.js', "  if (p.discipline === set.discipline) return { ok: true, why: '' };", "  if (p.discipline) return { ok: true, why: '' };"],
   ['a setup past the count loses its controls', 'src/shell/windows/hunt-prep/setups.js', "prop(li.querySelector('.hw-use'), 'disabled', sc.pending || (hunting && !swap.ok));", "prop(li.querySelector('.hw-use'), 'disabled', sc.pending || (hunting && !swap.ok) || p.preset >= count0(cs));", 'const MAX_PRESETS = ACTION_SET_LIMITS.presets;', 'const MAX_PRESETS = ACTION_SET_LIMITS.presets;\nconst count0 = (cs) => { const q = setupSlotsOf(cs); return q ? q.count : 99; };'],
-  ['the button hides past the free count', 'src/shell/windows/hunt-prep/setups.js', "prop(buy, 'hidden', price === null);", "prop(buy, 'hidden', true);"],
-  ['the window says the old full line', 'src/shell/windows/hunt-prep/setups.js', ": full ? setupFullWords(count, price) + ", ": full ? 'All ' + MAX_PRESETS + ' setup slots are used.' + "],
+  ['the window says the old full line', 'src/shell/windows/hunt-prep/setups.js', ": full ? setupFullWords(count) : ''", ": full ? 'All ' + MAX_PRESETS + ' setup slots are used.' : ''"],
   ['an answer hides why Save is off', 'src/shell/windows/hunt-prep/setups.js', "const why = hunting || !presets ? ''", "const why = sc.msg || hunting || !presets ? ''"],
   ['a bar rename that times out throws (PN-10)', 'src/shell/widgets/action-bar.js', "    text(msg, r.ok ? '' : refusalWords(r.error));", "    text(msg, r.ok ? '' : r.error === 'timeout' ? barRefusalWords(r.error) : refusalWords(r.error));"],
   ['the plaque renames another set','src/shell/widgets/action-bar.js', 'renameActionSet(ctx.account, ctx.character, s.preset, name)', 'renameActionSet(ctx.account, ctx.character, s.preset + 1, name)'],

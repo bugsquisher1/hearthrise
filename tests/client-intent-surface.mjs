@@ -49,7 +49,9 @@ const CATCH = 'src/session/catch-up.js';
    (have: a selector the server compares with its own row to leave out a copy of the caller's own character; never a value,
    request.js readHave). One builder, pinned to exactly its two shapes; only CharacterSession sends what it builds. */
 const ASK = 'src/session/hunt-ask.js';
-const ASK_BUILDER = 'exportfunctionaskBody(slot,huntOpen,wholeAt){returnhuntOpen&&Number.isSafeInteger(wholeAt)&&wholeAt>=0?{slot,have:wholeAt}:{slot};}';
+/* ...and, for the viewed poll of a running prediction, `confirm: true` (lane/c-settle-flush): a selector too (request.js readConfirm,
+   exactly true) that lets the settle answer the check and save at the flush; it never reaches a value. */
+const ASK_BUILDER = 'exportfunctionaskBody(slot,huntOpen,wholeAt,confirm){constb=huntOpen&&Number.isSafeInteger(wholeAt)&&wholeAt>=0?{slot,have:wholeAt}:{slot};returnhuntOpen&&confirm===true?{...b,confirm:true}:b;}';
 
 /* The client's whole RPC surface, each with what it is for. */
 export const CLIENT_RPCS = Object.freeze({
@@ -90,6 +92,10 @@ export const CLIENT_RPCS = Object.freeze({
   /* The UX flow audit 2026-11-11 (2027-04-13-bank-move-many.sql): ids and a direction, WHOLE stacks at the server’s own count, all or nothing. */
   /* CARRY ON (1024-carry-on.sql, Tyler RULED 27-1): the plan is a read; the press names slots, the gold figure the player was shown and a key */
   hr_carry_on_plan: 'what one Carry on press would do for each of the caller\'s own heroes: the slots, nothing else; a read, nothing moves (carry-on-intents.js carryOnPlan)',
+  hr_hero_plan_set: 'this hero\'s plan ground, a ground id or null; the server checks it against its catalogue and edits an own party\'s ground in town (company-intents.js setHeroPlan; 1051-company-start.sql)',
+  hr_ground_setup_set: 'this ground points at one of this hero\'s saved Setups: a ground id and a Setup number the server checks against its rows (company-intents.js setGroundSetup)',
+  hr_party_lead_set: 'pin (or unpin) the leader of a party of this account\'s own heroes: an own hero\'s slot or null; the server refuses any other party (company-intents.js setPartyLead)',
+  hr_company_line_set: 'one plan line for the caller\'s whole company: wear_upgrades on or off, if_one_falls hunt_on or all_home; a line and a word, no slot, value or price (carry-on-intents.js setCompanyLine; 1051-company-start.sql)',
   hr_carry_on: 'ONE press sends the caller\'s own heroes back to their last hunt through the existing doors: the slots (or none for the account), the Blessings gold the plan showed (it only refuses: quote_changed) and a key; no ground, count, item or price (carry-on-intents.js carryOn)',
   hr_bank_move_many: 'move many whole stacks between the bag and the home storage in one call, value-neutral, all or nothing (storage-intents.js moveStorageMany)',
   /* Tyler 2026-11-02 "Yes, add a press" (2027-02-21-hunt-carry-in.sql): an item id and a count; catalogue, stock and the open hunt are the server’s. */
@@ -138,7 +144,6 @@ export const CLIENT_RPCS = Object.freeze({
   /* Lane S2's Services window: each sends the server’s own QUOTE (refused quote_changed otherwise), never a price of its own. */
   hr_stamina_refill: 'buy the next stamina refill at the quoted price (CharacterSession.buyStamina)',
   /* The gold sinks (Tyler 2026-11-04): a slot, a catalogue id and the QUOTE the player saw; the server counts, prices and refuses quote_changed. */
-  hr_setup_slot_buy: 'buy this hero\'s next setup slot at the quoted price (preset-intents.js buySetupSlot; 2027-02-28-setup-slots.sql)',
   hr_title_buy: 'claim a catalogue title at the quoted price; the server counts this hero\'s kills (title-intents.js buyTitle; 2027-02-28-titles.sql)',
   hr_hallmark: 'Hallmark one Fine jewelry piece into the catalogue\'s pair at the quoted price; the server checks the piece\'s own bench skill and takes the piece and the gem (hallmark-intents.js hallmarkPiece; 2027-03-14-jewelry-hallmark.sql)',
   hr_jewel_reforge: 'reforge one Hallmarked piece into the next tier\'s catalogue pair at the quoted fee difference; the server checks the new piece\'s bench skill and takes the piece, the bars and the gem (hallmark-intents.js reforgePiece; 2027-05-09-jewel-reforge.sql)',
@@ -260,6 +265,8 @@ export const CLIENT_EDGE_INTENTS = Object.freeze({
   market_mine: [],
   /* the Game Master's stop (hr-accrue gm-stop.js): refused to everyone without the server-written row */
   gm_stop: ['gm'],
+  /* "Wear upgrades" at the company's Start (hr-accrue company-wear.js): the heroes going out by slot; the server picks every piece. */
+  company_wear: ['slots'],
 });
 
 /* The `market` object's subfields per verb (edge-intents.js MARKET_FIELDS = hr-accrue request.js readMarket). */
@@ -329,7 +336,7 @@ export function check(files) {
       const forwarded = f === CATCH && (arg === 'body'
         || (arg === 'next' && /constnext=\{\.\.\.body,intentId:newIdem\(\)\};returnserver\.accrue\(next\)/.test(code.replace(/\s+/g, ''))));
       const asked = arg === 'askBody(this.slot,this._huntOpen(' && f === 'src/session/character-session.js'
-        && code.replace(/\s+/g, '').includes('this._server.accrue(askBody(this.slot,this._huntOpen(),this._wholeAt))')
+        && code.replace(/\s+/g, '').includes('this._server.accrue(askBody(this.slot,this._huntOpen(),this._wholeAt,confirm))')
         && strip(files[ASK] || '').replace(/\s+/g, '').includes(ASK_BUILDER);
       if (arg !== '{slot:this.slot}' && !built && !forwarded && !asked) problems.push(`IS-2 ${f} sends the edge ${m[1].trim()} — the client may name its slot, or an edgeBody-built item intent, and nothing else`);
     }
@@ -380,8 +387,10 @@ if (process.argv.includes('--selftest')) {
     ['the edge sent an amount', plant('src/session/character-session.js', 'this._server.accrue({ slot: this.slot, gold: 500 });'), 'IS-2'],
     ['the edge sent a hand-built body outside the builder', plant('src/app/boot.js', 'server.accrue(body);'), 'IS-2'],
     ["the hunter's ask grew a value", { ...real, [ASK]: real[ASK].replace('{ slot, have: wholeAt }', '{ slot, have: wholeAt, gold: 500 }') }, 'IS-2'],
+    ['the confirm carries a value', { ...real, [ASK]: real[ASK].replace('{ ...b, confirm: true }', '{ ...b, confirm: wholeAt }') }, 'IS-2'],
+    ['the confirm rides an ask with no hunt', { ...real, [ASK]: real[ASK].replace('huntOpen && confirm === true ?', 'confirm === true ?') }, 'IS-2'],
     ["the hunter's ask built from another argument", plant('src/session/character-session.js', 'this._server.accrue(askBody(this.slot, true, 500));'), 'IS-2'],
-    ["the hunter's ask sent from outside the session", plant('src/app/boot.js', 'server.accrue(askBody(this.slot, this._huntOpen(), this._wholeAt));'), 'IS-2'],
+    ["the hunter's ask sent from outside the session", plant('src/app/boot.js', 'server.accrue(askBody(this.slot, this._huntOpen(), this._wholeAt, confirm));'), 'IS-2'],
     ['the catch-up layer adds a field to the body it forwards', { ...real, [CATCH]: real[CATCH].replace('const next = { ...body, intentId: newIdem() };', 'const next = { ...body, intentId: newIdem(), gold: 500 };') }, 'IS-2'],
     ['a body forwarded under a new key outside the catch-up layer', plant('src/app/boot.js', 'const next = { ...body, intentId: newIdem() }; server.accrue(next);'), 'IS-2'],
     ['an engine intent the pin does not name', plant('src/shell/windows/inventory/actions.js', "cs.edgeIntent('grant_gold', { qty: 5 });"), 'IS-5'],

@@ -88,6 +88,7 @@ import { runShopBuy } from './shop-buy.js';
 import { runVendorSell, runVendorSellMany } from './vendor-sell.js';
 import { runUnlockBuy } from './unlock-buy.js';
 import { runTrophyClaim } from './trophy-claim.js';
+import { runCompanyWear } from './company-wear.js';
 import { runSheet } from './character-sheet.js';
 import { runEquip } from './equip.js';
 import { runEat } from './eat.js';
@@ -131,6 +132,9 @@ const DB_URL = Deno.env.get('HR_ENGINE_DB_URL') ?? '';
    key: `verify_jwt = true` stays on and Supabase checks `Authorization`
    before any of this runs. Conflating the two is the whole exploit. */
 const TICK_SECRET = Deno.env.get('HR_TICK_SHARED_SECRET') ?? '';
+
+/* THE FLUSH'S OFF SWITCH: secret HR_HUNT_FLUSH=off and every viewed poll saves again (hunt-settle.js flushDue). */
+const HUNT_FLUSH = (Deno.env.get('HR_HUNT_FLUSH') ?? '') !== 'off';
 
 /* Constraint 2, enforced at MODULE LOAD rather than per request. A copy-pasted
    session-mode connection string is the single most likely way the pooler rule
@@ -559,6 +563,20 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
     /* ── THE CHARACTER SHEET (./character-sheet.js) ─────────────────────────
        The slot and nothing else. The engine's own snapshot over server state,
        stored compare-and-set against the SQL fingerprint of its inputs. */
+    /* ── "WEAR UPGRADES" AT THE COMPANY'S START (lane/c-company, ./company-wear.js) ──────────────────────
+       The slots and nothing else: the pieces are the server's own pick (src/core/upgrade-pick.js) over each
+       hero's hr_state_of, and hr_company_wear_apply decides whether each may go on. */
+    if (intent.verb === 'company_wear') {
+      const out = await runCompanyWear({
+        exec,
+        user,                       // the VERIFIED subject, never a body field
+        slot,
+        intentId: intent.intentId,
+        slots: intent.slots,
+      });
+      return await reply(out.body, out.status);
+    }
+
     if (intent.verb === 'sheet') {
       const out = await runSheet({
         exec,
@@ -1012,7 +1030,8 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
       const huntOpenHere = out.reason === SKIP.HUNT_OPEN;
       const respond = async (auxOut: Record<string, any>): Promise<Response> => {
         if (!huntOpenHere) return json(auxOut);
-        const hv = await settleHunt({ exec, user, slot, mode: 'settle', bucket: null, project: true, live: true, have: intent.have });
+        const hv = await settleHunt({ exec, user, slot, mode: 'settle', bucket: null, project: true, live: true, have: intent.have,
+          confirm: HUNT_FLUSH && intent.confirm === true });
         if (hv.status !== 200) {
           return json({ ...auxOut, hunt: { outcome: hv.outcome, reason: hv.reason ?? null } });
         }

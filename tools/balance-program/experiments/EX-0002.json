@@ -1,0 +1,56 @@
+{
+ "schema": "hearthrise.balance-experiment/1",
+ "id": "EX-0002",
+ "title": "A planted heal cut, declared against measured",
+ "author": "lane/lab-p2-readers",
+ "question": "Does a planted heal cut move the sustain readers, and does it move anything the model graph does not declare?",
+ "hypothesis": "Every heal a hero takes landing at half (tools/balance-program/experiments/heal-cut.patch.json, the quantity heal.cut up) moves regenShare up and sustainRatio down on most cells, beyond the sweeps' rule (graph/measured.mjs). Every outcome that moves is one the graph's trace from heal.cut reaches, so the compare names no undeclared-move finding",
+ "hypothesisAt": "2026-11-22T05:31:46.428Z",
+ "candidate": "tools/balance-program/experiments/heal-cut.patch.json",
+ "scenario": null,
+ "results": [
+  {
+   "file": null,
+   "name": "EX-0002-base.json",
+   "sha256": "faf312155e90d2c19117f720e18cd07261472653f6086b8b7faf2bb2f23f8af4",
+   "at": "2026-11-22T05:36:30.347Z",
+   "what": "The base run: readers.mjs --play on the tree, subset blocks ways, tier, four and lineups, 2 seeds of 1 h",
+   "summary": null
+  },
+  {
+   "file": null,
+   "name": "EX-0002-healcut.json",
+   "sha256": "3bb03cd4c972cb92534023ac9e41c8b0cab5c9085030f9d62ceee770f41d3742",
+   "at": "2026-11-22T05:38:35.687Z",
+   "what": "The planted run: the same plan and dice on a scratch copy with heal-cut.patch.json",
+   "summary": null
+  },
+  {
+   "file": null,
+   "name": "EX-0002-declared-at-hypothesis.json",
+   "sha256": "e7705913d3beea6120c95e104032dc410b5d96e44a7e1ff076a3bc75f6fe0f8b",
+   "at": "2026-11-22T05:39:40.165Z",
+   "what": "readers.mjs --declared base planted --moves heal.cut=+1, run by the tree as it stood at the hypothesis (9cd6983ea)",
+   "summary": {
+    "plan": "subset blocks ways, tier, four and lineups: 187 cells, 2 seeds of 1 h, plan 26ce5570e063, the same plan and dice on both sides",
+    "model": "the tree at 9cd6983ea, where the hypothesis was written",
+    "sustain": {
+     "sustainRatio": "declared down, measured down: 24 of 187 cells moved, 0 up, median -35.1%",
+     "regenShare": "declared mixed, measured up: 106 of 187 cells moved, 104 up, median +16.4%",
+     "manaWaitsPerH": "declared down, measured flat: 2 of 177 cells moved"
+    },
+    "undeclaredMoves": [
+     "dps down (13 cells, median -28.2%)",
+     "dpsHero down (13 cells)",
+     "killsPerH down (16 cells, median -32.7%)",
+     "healPerH down (31 cells, 30 down, median -5.5%)"
+    ],
+    "exit": 1
+   }
+  }
+ ],
+ "conclusion": "Refuted as written. The sustain readers moved as the trace declared: sustainRatio down on 24 cells with none up, and regenShare up on 104 of 106 moved cells where the trace read it mixed. manaWaitsPerH did not move: the reference bars almost never wait for mana, so this plant cannot test it. But the cut also moved four outcomes no path declared: dps and dpsHero down on 13 cells, killsPerH down on 16 and healPerH down on 30 of 31. Each is a gap in the model, not in the engine: a hero whose hunt ended deals and kills no more while the party hunts on, and a cut on what a heal lands lowers healing received. The model was taught both (EX-0004)",
+ "concludedAt": "2026-11-22T05:40:38.744Z",
+ "reviewedBy": null,
+ "status": "closed"
+}

@@ -198,6 +198,39 @@ function kindsOf(inst, worldText, tower) {
    held back. */
 export const HUNT_SETTLE_MIN_MS = 15000;
 
+/* THE FLUSH (30-plan L12; 1052-settle-flush.sql). A viewed poll that says `confirm` (src/session/hunt-ask.js) runs the engine,
+   answers the check and saves only when flushDue names a reason: the tick's 90 s flush, a cut window, a pending leave, an end, a
+   death, a Level, a rare drop or roll, a find, a prize, a Tower floor. The engine is deterministic from the last save, so the next
+   save writes exactly the frames shown. The answer holds no number, loot or event (CLAUDE.md §6); purchases save first, and every
+   lever counts from 1049's seed horizon. */
+export const HUNT_FLUSH_MS = 90000;
+const SAVE_NOW_EVENTS = Object.freeze(['death', 'ended', 'level', 'rare_drop', 'rare_roll', 'floor']);
+/** Why an unsaved confirm must save now (a reason), or null: it may answer the check alone. Pure. */
+export function flushDue(plan, out) {
+  if (plan.pending) return 'pending';
+  if (plan.toMs < plan.endMs) return 'cut';
+  if (plan.endMs - plan.fromMs >= HUNT_FLUSH_MS) return 'flush';
+  for (const p of out.members || []) {
+    const h = p.hunt || {}; const d = p.delta || {};
+    if (h.ended) return 'ended';
+    if (Array.isArray(d.deaths) && d.deaths.length) return 'death';
+    if (Array.isArray(p.levelUps) && p.levelUps.length) return 'level';
+    if (h.hints && Array.isArray(h.hints.rare_drop) && h.hints.rare_drop.length) return 'rare';
+    if (d.hearthfind) return 'find';
+    if (d.journal && d.journal.meta && d.journal.meta.prize) return 'prize';
+    if (h.tower && Array.isArray(h.tower.floors) && h.tower.floors.length) return 'floor';
+  }
+  const ev = (out.events || []).find((e) => e && SAVE_NOW_EVENTS.includes(e.type));
+  return ev ? ev.type : null;
+}
+/* The unsaved confirm's answer: the check and the clock, and the caller's SAVED character (none when it holds that version whole). */
+async function confirmed(o, plan, out, peers) {
+  const held = Number.isSafeInteger(o.have) && o.have === plan.version;
+  const env = held ? { hunt_slim: true, version: o.have, now: new Date(plan.nowMs).toISOString() } : await plan.envOf();
+  return { outcome: 'confirmed', reason: 'confirmed', status: 200,
+    body: { ok: true, settled: false, reason: 'confirmed', ...env, hunt_server_now_ms: plan.nowMs, hunt_check: huntCheckOf(plan.inst, out, peers) } };
+}
+
 /* hr_apply clamps the degrade ladder can escape by asking for less. A hunt
    halves its WINDOW (fewer swings), never its rates. */
 export const HUNT_DEGRADABLE = Object.freeze([
@@ -366,6 +399,7 @@ const refusal = (status, error, extra) => ({ status, body: { ok: false, error, .
  * @param o.bucket    the rate bucket (player doors), null on the tick
  * @param o.session   the session the caller expects (tick roster), or null
  * @param o.project   answer with the caller's post-settle envelope (player doors)
+ * @param o.confirm   a viewed hunt's poll whose browser runs a prediction: save only when flushDue says so (HUNT_FLUSH_MS)
  * @param o.minWindowMs  the floor below which nothing is settled
  * @param o.grounds   test seam: { [huntId]: { ground, grid } } instead of huntGroundOf
  * @param o.atMs     test seam: end the window here instead of at the server's now
@@ -479,6 +513,10 @@ async function settleOnce(o, mode, budget) {
     if (!p.out.accrued) {
       return { outcome: 'nothing', reason: String(p.out.reason || 'nothing'), status: 200,
         body: { ok: true, settled: false, reason: String(p.out.reason || 'nothing'), ...(await envOf()) } };
+    }
+    /* THE FLUSH: a viewed hunt's confirm that nothing makes due answers the check and saves nothing (flushDue). */
+    if (o.confirm === true && mode === 'settle' && !degraded && flushDue(plan, p.out) === null) {
+      return confirmed(o, plan, p.out, peers);
     }
     /* A player door's slice the span cap cut short is not its answer (the catch-up takes the next): it builds no
        envelope (settle-cost's rule); the answer reads the caller's once, after the last (caughtUp). */
@@ -617,7 +655,7 @@ export async function readHuntSettle(o, mode) {
   /* A YARD SESSION STOPS AT ITS NEXT UNPAID HOUR (src/core/hunt/training.js trainingStopMs): the commit that lands there pays it or ends the session `gold_out`. */
   const paidTo = Math.min(toMs, trainingStopMs(where.ground, mine.session, fromMs));
   if (!(paidTo > fromMs)) return notDue();
-  return { envOf, inst, members, where, fromMs, toMs: paidTo, endMs, nowMs, worldMaxBytes: o.worldMaxBytes };
+  return { envOf, inst, members, where, fromMs, toMs: paidTo, endMs, nowMs, pending, version: Number(mine.state.version), worldMaxBytes: o.worldMaxBytes };
 }
 
 /**

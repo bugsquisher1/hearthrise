@@ -18,6 +18,8 @@ import { cellRates, compsOf, BLESSING_LADDER, deathXpAt, blessedShareOf } from '
 import { judgeGrid, statusOf, distanceOf, holds } from './grid-derive.mjs';
 import { ARCHETYPE_AXES } from './matrix-plan.mjs';
 import { STYLE_GROUPS } from './knob-rules.mjs';
+/* the sustain metrics, one source with the browser Lab (lab-v3.mjs liveMetrics) */
+import { sustainMetrics } from '../balance-sim/sustain-reads.mjs';
 
 /* the standard four's seats (progression-grid.mjs compsOf, standards.mjs PARTIES): the lineups read every four against it */
 const STANDARD_FOUR = compsOf(4)[0][0].join();
@@ -48,6 +50,10 @@ export const METRICS = Object.freeze([
   ['hpUnder10', 'Time under 10% HP (worst seat)', 'share of hunted time'],
   ['hoursPerLevel', 'Hours for the next Level', 'hours'],
   ['xContract', 'Level XP / the pace contract', 'ratio'],
+  /* THE SUSTAIN COUNTERS (Balance Lab phase 2: the engine's tally, src/core/hunt/tally.js; readers.mjs reads them seed by seed) */
+  ['sustainRatio', 'Healing received (food, spells, regeneration) over damage taken', 'ratio'],
+  ['regenShare', 'Share of the healing received that is regeneration', 'share'],
+  ['manaWaitsPerH', 'Times a rule of the bar waited for mana', 'hero-hour'],
 ]);
 export const METRIC_IDS = Object.freeze(METRICS.map((m) => m[0]));
 
@@ -55,10 +61,14 @@ export const METRIC_IDS = Object.freeze(METRICS.map((m) => m[0]));
 export function slimSeed(res) {
   const p = res.party;
   return {
-    party: { hours: p.hours, killsPerH: p.killsPerH, killsByPerH: p.killsByPerH, ttkS: p.ttkS, pullsPerH: p.pullsPerH, ttkBy: p.ttkBy || {} },
+    party: { hours: p.hours, killsPerH: p.killsPerH, killsByPerH: p.killsByPerH, ttkS: p.ttkS, pullsPerH: p.pullsPerH, ttkBy: p.ttkBy || {},
+      /* the Lab's readers (readers.mjs): who won the party's rare rolls */
+      rareRolls: p.rareRolls || 0, rareWins: p.rareWins || {} },
     heroes: res.heroes.map((h) => ({ style: h.style, level: h.level, hours: h.hours, raw: h.raw, takenPerH: h.takenPerH, takenBy: h.takenBy, healInPerH: h.healInPerH,
       healOutPerH: h.healOutPerH, regenPerH: h.regenPerH || 0, deaths: h.deaths, encMinHpPct: h.encMinHpPct, buysPerH: h.buysPerH, skillXpPerH: h.skillXpPerH, ended: h.ended,
-      maxHp: h.maxHp, dealtPerH: h.dealtPerH, dealtToPerH: h.dealtToPerH || {}, hpUnder: h.hpUnder || {}, toHit: h.toHit || null })),
+      maxHp: h.maxHp, dealtPerH: h.dealtPerH, dealtToPerH: h.dealtToPerH || {}, hpUnder: h.hpUnder || {}, toHit: h.toHit || null,
+      /* the Lab's readers (readers.mjs): the engine's sustain block as totals (cell.mjs), the Rares it found and its hunt's key in the cell */
+      sustain: h.sustain || null, rareItems: h.rareItems || 0, key: h.key })),
   };
 }
 /* the shape progression-grid.mjs cellRates reads (its slimResult's) */
@@ -91,6 +101,8 @@ export function cellMetrics(D, meta, seeds, arch = {}) {
   for (const s of seeds) for (const [ms, n] of Object.values(s.party.ttkBy || {})) { ttkAll[0] += ms; ttkAll[1] += n; }
   const xpAt = (l) => D.XP.charXpForLevel(l);
   const toNext = xpAt(meta.L + 1) - xpAt(meta.L);
+  /* THE SUSTAIN COUNTERS over the cell's seeds (null on a seed cached before the engine's tally carried them) */
+  const sus = sustainMetrics(seeds);
   /* THE FIGHTS BY ARCHETYPE (matrix-plan.mjs rule): kills a party-hour, damage taken and dealt a hero-hour, seconds to kill */
   const byArch = {};
   const into = (axis, kind, k, v) => { const a = byArch[axis] || (byArch[axis] = {}); const g = a[kind] || (a[kind] = { killsPerH: 0, takenPerH: 0, dealtPerH: 0, ttkMs: 0, ttkN: 0 }); g[k] += v; };
@@ -114,6 +126,7 @@ export function cellMetrics(D, meta, seeds, arch = {}) {
     suppliesPerH: r(buys / hh, 1), ttkS: ttkAll[1] ? r(ttkAll[0] / ttkAll[1] / 1000, 2) : null,
     hpUnder30: seats.length ? Math.max(...seats.map((s) => s.hpUnder30 || 0)) : null, hpUnder10: seats.length ? Math.max(...seats.map((s) => s.hpUnder10 || 0)) : null,
     hoursPerLevel: rates.netLevelXpPerH > 0 ? r(toNext / rates.netLevelXpPerH, 3) : null,
+    sustainRatio: sus ? sus.sustainRatio : null, regenShare: sus ? sus.regenShare : null, manaWaitsPerH: sus ? sus.manaWaitsPerH : null,
     seatsM: seats, byArch, buysPerPartyH,
     /* each seat's Defense rating and the monsters' chance to land on it, before and with its Footing (cell.mjs toHit; the floor CORE-4 owes) */
     toHit: meta.styles.map((_, i) => (seeds[0] && seeds[0].heroes[i] && seeds[0].heroes[i].toHit) || null),

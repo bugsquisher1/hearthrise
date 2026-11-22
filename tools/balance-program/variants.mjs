@@ -39,6 +39,8 @@ import { loadKits } from './grid-kit.mjs';
 import { RUNS, planMatrix, archetypeTable } from './matrix-plan.mjs';
 import { cellMetrics, slimSeed, judgeMatrix, levelBand, wayOf } from './matrix-metrics.mjs';
 import { dataView, playJobs } from './balance-matrix.mjs';
+/* the assumptions block every Lab report carries (Balance Lab phase 2, lab-report.mjs) */
+import { assumptionsOf, printAssumptions } from './lab-report.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..', '..');
@@ -312,9 +314,13 @@ async function compareCmd(specA, specBs) {
       applied: { a: A.applied, b: B.applied }, runtime: { a: A.runtime, b: B.runtime }, errors: A.errors.length + B.errors.length,
       noise: 'pairs by seed: mean ± t(n-1) sd / sqrt(n), 95%; a group leads with at least its chance count of cells ahead (binomial, 2.5% a cell, under 1%)',
       reads: READS.map(([id, dir, what]) => ({ id, dir, what })), ...cmp };
+    rep.assumptions = assumptionsOf({ candidate: ca.id + ' (A) against ' + cb.id + ' (B)', tree: { commit: rep.commit, dirty: false },
+      scenario: { run: 'subset', blocks: rep.plan.blocks, cells: rep.plan.cells, planHash: 'jobs ' + rep.plan.jobs, seeds: rep.plan.seeds, hours: rep.plan.hours },
+      deathRule: 'real (buildCell: a death ends that hero\'s hunt)', bar: 'the played reference bars of buildCell', supply: 'the store fallback (buildCell)', gear: 'standards.mjs GEAR_STATES rules' });
     rep.headline = headline(rep);
     console.log(rep.a + ' (A) against ' + rep.b + ' (B), ' + rep.plan.cells + ' cells x ' + rep.plan.seeds + ' seeds x ' + rep.plan.hours + ' h, the same dice on both sides');
     for (const l of rep.headline) console.log('  ' + l);
+    for (const l of printAssumptions(rep.assumptions)) console.log('  ' + l);
     if (has('write')) {
       mkdirSync(REPORT_DIR, { recursive: true });
       const f = join(REPORT_DIR, rep.a + '--' + rep.b + '.json');
@@ -330,6 +336,7 @@ function report(file) {
   if (rep.schema !== REPORT_SCHEMA) throw new Error('report: ' + file + ' is ' + rep.schema);
   console.log(rep.a + ' (A) against ' + rep.b + ' (B), ' + rep.plan.cells + ' cells x ' + rep.plan.seeds + ' seeds, at ' + rep.commit + ' ' + rep.at);
   for (const l of rep.headline) console.log('  ' + l);
+  for (const l of rep.assumptions ? printAssumptions(rep.assumptions) : ['ASSUMPTIONS: none (a report kept before the block)']) console.log('  ' + l);
   return 0;
 }
 

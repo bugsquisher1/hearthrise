@@ -143,7 +143,10 @@ export const VERBS = Object.freeze(
        does is a typo away from a different intent. */
     'market_list', 'market_cancel', 'market_buy', 'market_browse', 'market_item', 'market_mine',
     /* THE GAME MASTER'S STOP (2027-03-13-gm-tools.sql; ./gm-stop.js). The gate refuses everyone but a row only a migration writes. */
-    'gm_stop']);
+    'gm_stop',
+    /* "WEAR UPGRADES" AT THE COMPANY'S START (lane/c-company, ./company-wear.js). The wire carries `slots` (the account's own heroes
+       going out) and NOTHING ELSE: no item, no equip slot. The pieces are the server's own pick over hr_state_of. */
+    'company_wear']);
 export const DEFAULT_VERB = 'accrue';
 
 /* THE BODY CAP (Security, reopen review 2026-10-19). A player intent is read through the ONE bounded
@@ -246,7 +249,7 @@ export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f
     which is the direction that matters. */
 export const INTENT_KEYS = Object.freeze(
   ['slot', 'verb', 'intentId', 'activity', 'offer', 'item', 'qty',
-    'equip', 'auto', 'trophy', 'lines', 'market', 'gmStop', 'have'],
+    'equip', 'auto', 'trophy', 'lines', 'market', 'gmStop', 'have', 'slots', 'confirm'],
 );
 
 /** The `market` object's own vocabulary (readMarket), exported so a test reads it instead of restating it. */
@@ -328,7 +331,14 @@ export function parseIntent(body) {
   out.market = readMarket(body);
   out.gmStop = readGmStop(body);
   out.have = readHave(body);
+  out.slots = readSlots(body);
+  out.confirm = readConfirm(body);
   return out;
+}
+
+/** A VIEWED HUNT'S CONFIRM, `confirm: true` (hunt-settle.js flushDue): a selector, never a value; exactly `true`, else false. */
+export function readConfirm(body) {
+  return !!body && typeof body === 'object' && !Array.isArray(body) && body.confirm === true;
 }
 
 /**
@@ -724,6 +734,20 @@ export function readQty(body) {
  * must never do is let a non-integer or an out-of-range value reach a `::int`
  * cast in Postgres.
  */
+/**
+ * THE HEROES A COMPANY VERB NAMES (company_wear): 1 to 6 distinct whole slots 0..5, sorted; else null. A list of SELECTORS, each a row the
+ * caller already owns (the function reads them under auth's verified subject); never a value.
+ */
+export function readSlots(body) {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return null;
+  if (!Object.prototype.hasOwnProperty.call(body, 'slots')) return null;
+  const a = body.slots;
+  if (!Array.isArray(a) || a.length < 1 || a.length > 6) return null;
+  if (!a.every((s) => typeof s === 'number' && Number.isInteger(s) && s >= 0 && s <= 5)) return null;
+  if (new Set(a).size !== a.length) return null;
+  return a.slice().sort((x, y) => x - y);
+}
+
 export function readSlot(body) {
   /* `typeof body === 'object'` excludes strings — `'abc'.slot` is undefined but
      `'abc'[0]` is not, and a future field read by index would then be reachable

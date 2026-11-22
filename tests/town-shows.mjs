@@ -11,7 +11,8 @@
 // mutant-anchors: supabase/migrations/2027-02-27-gold-sinks-seams.sql, supabase/migrations/2027-02-27-town-shows.sql, supabase/migrations/2027-02-27-gold-given.sql, supabase/migrations/2027-03-23-town-visit-hold.sql
 //
 // The real chain replayed (PGlite), the real client modules; production untouched:
-//   TS-RULES   hr_sink_rules holds exactly the data file's rows; setup slots are one row: free + prices = the hero's setup limit
+//   TS-RULES   hr_sink_rules holds exactly the data file's rows; no row sells a setup slot and no verb that sold one is left (saving a
+//              setup is free, 1049-setups-free.sql)
 //   TS-PRICE   hr_sink_price climbs, ends in null, reads a Level; every helper here is the owner's: no client role can call one
 //   TS-TITLE   replacing ONLY hr_title_of's body (what lane/c-hero-sinks does) reaches the chat row through hr_chat_send, the hero's
 //              look and a stranger's town read, and a forged from_title on an insert never survives
@@ -72,9 +73,13 @@ const ADD = 'public.hr_gold_given_add(uuid,integer,bigint)';
 /* in chain order: 2027-02-28-sink-price-plan.sql restates the seams' hr_sink_price */
 /* Every file that writes one of TS-AGAIN's bodies, in apply order: a later file's splice (2027-03-16-crier-muted.sql: hr_crier_send, the Crier's quote) is undone by
    re-applying the file it splices, so it is re-applied after it, as a replay does. */
-/* (2027-04-16-combat-training-gold-sinks-catalogue.generated.sql is the newest full replace of hr_sink_rules: re-applied last, as a replay does, so the house dummy's row stands) */
+/* (1050-setups-free-gold-sinks-catalogue.generated.sql is the newest full replace of hr_sink_rules: re-applied last, as a replay does, so the house dummy's row stands and no setup slot is sold) */
 const CHAIN = [CATALOGUE, SEAMS, '2027-02-27-gold-given.sql', '2027-02-27-town-crier.sql', '2027-02-27-town-shows.sql', '2027-02-28-sink-price-plan.sql', '2027-03-07-gold-sinks-catalogue.generated.sql',
-  '2027-03-16-crier-muted.sql', '2027-04-16-combat-training-gold-sinks-catalogue.generated.sql', '2027-04-19-key-under-lock.sql', '2027-05-05-hearth-moods.sql'];
+  '2027-03-16-crier-muted.sql', '2027-04-16-combat-training-gold-sinks-catalogue.generated.sql', '2027-04-19-key-under-lock.sql', '2027-05-05-hearth-moods.sql',
+  '1050-setups-free-gold-sinks-catalogue.generated.sql'];
+/* A FILE OF WHICH ONLY SOME BODIES STILL STAND at the chain end: 1049-setups-free.sql restated 2027-02-28-sink-price-plan.sql's section
+   (setup slots are free), so only its hr_sink_price is that file's to re-apply; the whole file would refuse its own setup-slot self-check. */
+const PARTS = Object.freeze({ '2027-02-28-sink-price-plan.sql': ['hr_sink_price'] });
 /* A LATER FILE RESTATED A BODY ONE OF THESE FILES PINS (2027-04-19-key-under-lock.sql: hr_hearth_burn over 2027-02-27-town-shows.sql's image;
    2027-05-05-hearth-moods.sql: hr_hearth_flame_of, the chest's window first).
    The pin refuses any other image, so the file's own body goes back first, as the chain held it when the file ran, and the later file is
@@ -98,7 +103,8 @@ export const MUTANTS = {
     db: [PRICE, 'r.price_base + r.price_per_level * greatest(coalesce(p_level, 1), 1)', 'r.price_base + r.price_per_level'] },
   helper_open_to_clients: { arm: 'TS-PRICE', why: 'a client role can call a helper', ddl: `grant execute on function public.hr_title_of(uuid, integer) to authenticated` },
   rules_drift: { arm: 'TS-RULES', why: 'the table no longer says what the data file says', ddl: `update public.hr_sink_rules set prices = array[1, 2, 3]::bigint[] where sink_id = 'round'` },
-  setups_past_limit: { arm: 'TS-RULES', why: 'free + prices is more than a hero can hold', ddl: `update public.hr_sink_rules set free = 4 where sink_id = 'setup_slot'` },
+  setup_slot_sold: { arm: 'TS-RULES', why: 'a setup slot is for sale again (saving a setup is free, 1049-setups-free.sql)',
+    ddl: `insert into public.hr_sink_rules (sink_id, scope, prices, free) values ('setup_slot', 'hero', array[15000, 40000]::bigint[], 3)` },
   title_not_stamped: { arm: 'TS-TITLE', why: 'the trigger stops stamping the title',
     db: [NAME_TRIGGER, "  new.from_title := case when new.from_id is null then null\n                         else left(public.hr_title_of(new.from_id, coalesce(new.from_slot, 0)), 40) end;\n", ''] },
   title_from_client: { arm: 'TS-TITLE', why: 'a forged title survives the insert',
@@ -297,9 +303,9 @@ const ARMS = {
       }
       if (!same(r.offers, d.offers)) out.push(`${r.sink_id}.offers: ${r.offers} against ${d.offers}`);
     }
-    const setup = rows.find((r) => r.sink_id === 'setup_slot');
-    const limit = Number(await one(db, `select public.hr_hunt_limit('presets')`));
-    if (!setup || setup.free + setup.prices.length !== limit) out.push(`setup_slot's free + prices is not the hero's limit of ${limit}`);
+    /* SAVING A SETUP IS FREE (redesign direction 9, 1049-setups-free.sql): no row sells a slot, and no verb that sold one is left. */
+    if (rows.some((r) => r.sink_id === 'setup_slot')) out.push('a setup slot is for sale: saving a setup is free');
+    if (await one(db, `select to_regprocedure('public.hr_setup_slot_buy(integer,bigint,uuid)') is not null`)) out.push('hr_setup_slot_buy still sells a setup slot');
     if (rows.some((r) => /boss|call/.test(r.sink_id))) out.push('a boss call row landed: that lane is not approved');
     return out;
   },
@@ -310,7 +316,7 @@ const ARMS = {
     const seen = [];
     for (let n = 0; n <= 5; n++) seen.push(await price('powder', n));
     if (seen.map((v) => (v === null ? 'null' : Number(v))).join() !== '2000,4000,6000,8000,10000,null') out.push(`the powder ladder reads ${seen}`);
-    if (Number(await price('setup_slot', 0)) !== 15000 || Number(await price('setup_slot', 1)) !== 40000 || (await price('setup_slot', 2)) !== null) out.push('the setup ladder reads wrong');
+    if ((await price('setup_slot', 0)) !== null) out.push('a setup slot has a price');
     if (Number(await price('hero_colors', 0, 18)) !== 2400 || Number(await price('hero_colors', 0, 45)) !== 3750) out.push(`a Level price reads ${await price('hero_colors', 0, 18)} at 18`);
     if ((await price('no_such_sink', 0)) !== null) out.push('an unknown sink has a price');
     for (const fn of [PRICE, 'public.hr_sink_lock(uuid)', 'public.hr_title_of(uuid,integer)', 'public.hr_town_extras(text)', 'public.hr_town_shows_of(text)', CHAT_ROW, LOOK]) {
@@ -406,7 +412,7 @@ const ARMS = {
     try {
       /* gold-given's own self-check makes a second hero unpaid: re-applied on the ladder it was written against (tests/_slots.mjs) */
       for (const [file, fn] of PINNED_LATER) await db.exec(ownBody(MIG(file), fn));
-      await asOldLadder((sql) => db.exec(sql), async () => { for (const f of CHAIN) await db.exec(plantIn(f)); });
+      await asOldLadder((sql) => db.exec(sql), async () => { for (const f of CHAIN) await db.exec(PARTS[f] ? PARTS[f].map((fn) => ownBody(plantIn(f), fn)).join(String.fromCharCode(10)) : plantIn(f)); });
     } catch (e) {
       out.push('the second apply refused: ' + String(e.message).split('\n')[0].slice(0, 180));
       await db.exec('rollback to savepoint again');

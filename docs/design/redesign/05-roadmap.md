@@ -68,6 +68,8 @@ Targets are written from the approved packages, not carried over. Each target na
 | K-6, K-11 | Upgrade prices and chest limits against band length | Package 5. Prices read from the wage on the step scale |
 | K-22 | The hall ship bar against a room that a good bar always wins | Packages 1 and 3. A hall is a bar check with wind-ups |
 
+**Budgets set aside in stage 3.** A fixed slice of the power step for castle buffs and for arena rewards, and a share of the sink budget and of town hours for the castle. Every target is read with the slice on and with it off. This is what "accounted for now" means in numbers. (`02-architecture.md` section 7b)
+
 **New readers stage 3 must ask for.** Healing against incoming damage, by source. Why a hunt ended. The step a company holds, by stance. No lineup wins every ground. No Trait is top pick everywhere. Gold a head for a four against the same heroes apart. Progress past Level 400. Rare drop timing. Halls. Most of these are today's largest gaps. (EVIDENCE: `03-targets.md` section 0)
 
 ### Stage 4. Validate in simulation
@@ -85,6 +87,8 @@ One engine decides everything, so every probe runs on it (HC-3). The order goes 
 | V7. Five Traits | Does a rule Trait make a choice? | No one Trait is top on every seat and ground in the sample |
 | V8. The step curve | Does one unit hold to very high Levels? | A tier is worth the same share of depth at Level 20, 400 and well past it |
 | V9. A bar check | Can a boss be lost to a bad bar and not to the clock? | A good bar wins most fights, a lazy bar loses most, at the same damage |
+| V10. The mirrored fight | Can heroes fight heroes on the one engine? | A company against a copy of itself wins about half the time, and a hunt replay is unchanged |
+| V11. Evolutions | Does a point every Level make a felt choice with no best path? | On the sample moves, each branch is best on some ground and none on all. The best allocation found beats the suggested path by a small, set margin at the edge |
 
 Some things only players can answer, and they wait for a played build: whether a first hour with one hero and a recruit step feels right, whether the report reads clearly, whether Traits are fun to read, what people charge on the market. (JUDGMENT. HISTORICAL and kept: anything the engine decides is sized in the simulator, and only a player's choice is read live, 2026-11-21.)
 
@@ -98,12 +102,13 @@ Build waves in dependency order, each ending in a build someone plays. A first c
 
 | Wave | What | Why first |
 |---|---|---|
-| 1 | The power step and the Danger scale in the engine, the climb and fall back, the sustain counters, the report with its cause line | Everything else is measured through them |
+| 1 | The power step and the Danger scale in the engine, the climb and fall back, the sustain counters, a side on every unit so heroes can fight heroes later, the report with its cause line | Everything else is measured through them |
 | 2 | Monster roles, rows, depth-scaled pay, personal loot, the company plan with free copying | The party and the economy's faucet |
-| 3 | Jobs and the wider move list, wind-ups, ratio defenses, Talents and Inner Flame removed | Combat with something to answer |
+| 3 | Jobs and the wider move list, wind-ups, ratio defenses, Talents as move evolutions, Inner Flame as Luck | Combat with something to answer |
 | 4 | Trait pieces, carry-over, single listings on the market, the drop moment. With its security review | The largest new server surface |
 | 5 | Company trades, the store cut to basics, prices from the wage, the hall without combat perks | The other half of the day |
-| 6 | The hire board, halls as bar checks, ladders, events as rules | The shared world on top of a game that holds |
+| 6 | The hire board, halls as bar checks, ladders, events as rules, clans with the castle's first building | The shared world on top of a game that holds |
+| 7 | The two arenas, then the rest of the castle a building at a time. May ship after launch | They need the side seam from wave 1, settled builds from waves 3 and 4, and clans that are seen to form. Their share of power and sinks is set aside in stages 3 and 5, so they arrive with no rebalance |
 
 Every wave keeps the standing rules for how work is done: the server authors everything, migrations carry their self-checks, money surfaces get their review, and a blind play follows each big patch. **Approval D** is the owner's go on this plan before wave 1.
 
@@ -124,11 +129,11 @@ The existing plan is `docs/design/overhaul/13-build-plan.md`, lanes FB-1 to FB-1
 | FB-2 | Formula steps that move no number | **Pause** | The modifier table (R20) is worth keeping as the seed of the rule table. The rest reshapes formulas the math strategy may replace |
 | FB-8 | The gear curve, kill reward, tier table, Level law, Blessing ladder | **Replace** | These are the numbers of three tiers, a +17% band and a fitted Level table. Packages 2, 3 and 6 change what is being sized |
 | FB-9 | The wage and prices | **Pause** | The wage formula is right and is kept as the anchor. Prices wait for depth-scaled pay |
-| FB-11 | Talents | **Replace** | Package 1 puts the build in the bar. Measured as too small to feel away from the edge |
+| FB-11 | Talents | **Pause, then redesign** | The build choice is kept, as move evolutions with a point every Level (`02-architecture.md` section 1b, the owner's confirmed requirements of 2026-11-21). Stat tracks go. Plans, the suggested path and reset are worth keeping |
 | FB-13 | One world boss as a sample | **Pause** | Its "bars broken" shape may fit. It waits on package 3's bosses |
 | FB-14 | On-call heroes | **Pause**, likely keep | The design fits package 4. It waits on party pay and the hire board |
 | FB-15 | Premium for the account | The owner's call | A money surface. Not judged here |
-| Chapter 14, FR-1 to FR-18 | Everything planned for later | **Pause as a whole** | Each is re-sorted after Approval B. Arenas and the full castle move to `03-opportunities.md` and package 7's alternatives |
+| Chapter 14, FR-1 to FR-18 | Everything planned for later | **Pause as a whole, keep in the design** | Each is re-sorted after Approval B. The arenas (FR-10) and the full castle (FR-11) stay in the design by the owner's confirmed requirement of 2026-11-21. They are accounted for from stage 2 and built in wave 7 |
 
 **What the measuring work already running keeps doing.** The baseline lanes keep measuring the engine as it is, because that is evidence about what the architecture does and where it fights itself. They do not grade it against old bands as if those were the goal. Three jobs matter most for this roadmap: keep the simulator true against real hunts (the calibration files), build the readers that are missing, and be ready to run V1 the day package 3 is approved.
 

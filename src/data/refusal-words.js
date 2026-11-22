@@ -481,6 +481,8 @@ export const REFUSAL_WORDS = Object.freeze({
   /* The tier picked per ground (hr_hunt_tier_set). */
   bad_hunt: 'No monsters to set a number for',
   bad_tier: 'Tier not open on this hunt',
+  /* The stance on the Danger scale (hr_hunt_risk_set, 1056-danger-scale.sql). */
+  bad_risk: 'Pick Careful, Steady or Bold',
   unknown_supply: 'Not a hunt supply',
   bad_bag: 'Invalid supplies, nothing sent',
   too_many_lines: 'Too many supply kinds',

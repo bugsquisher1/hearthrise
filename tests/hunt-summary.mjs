@@ -983,8 +983,9 @@ async function runTests(M) {
     eq(pick && [pick.kind, pick.title, pick.place, /^Mining \d+% faster/.test(pick.words)], ['tool', 'Next buy: Bronze Pickaxe (120 gp)', { kind: 'shop', item: 'bronze_pickaxe' }, true], 'a miner\'s pickaxe');
     eq(shelf({ shop: tools, skills: miner, bag: [{ id: 'bronze_pickaxe', qty: 1 }] }), null, 'one in the bag already: nothing');
     /* A REFILL, when the caller gives the server's quote (only after a hunt that ran out of stamina, nextBuyOf) */
-    const refill = { available: true, why: null, price: 1600, restoreMs: 4 * 3600000, n: 1, perDay: 6, boughtToday: 0 };
-    eq(see(shelf({ refill })), ['refill', 'Next buy: Stamina refill (1,600 gp)', '+4 h of stamina', { kind: 'services' }], 'a refill, its hours the server\'s');
+    /* a bought hunting block (1058-hunting-blocks.sql): item-sections.js huntBlockOf's shape */
+    const refill = { available: true, why: null, price: 1600, blockMs: 2 * 3600000, perDay: 2, boughtToday: 0 };
+    eq(see(shelf({ refill })), ['refill', 'Next buy: Hunting block (1,600 gp)', '+2 h of stamina', { kind: 'services' }], 'a hunting block, its hours the server\'s');
     eq(targetOf({ kind: 'services' }), { win: 'shop', tab: 'services', find: null }, 'Show opens the Shop\'s Services');
     eq(shelf({ refill: { ...refill, available: false, price: null } }), null, 'none to buy: nothing');
     /* POWER FIRST: a Shop piece Equip upgrades would put on stays ahead of the whole shelf (the designer's order) */
@@ -1002,7 +1003,7 @@ async function runTests(M) {
       e.inventory = {};
       e.equipment = tank;
       e.account = { hero_slot_offer: { slot_id: 1, cost_gold: 400000 }, hero_slots_max: 4 };
-      e.stamina_refill = { available: true, price: 1600, restore_ms: 4 * 3600000, n: 1, per_day: 6 };
+      e.time_blocks = { hunt: { kind: 'hunt', available: true, price: 1600, block_ms: 2 * 3600000, n: 1, bought: 0, per_day: 2 } };
       return e;
     };
     const csOf = async (reason) => { const c = sessionOn([], () => at(reason)); ok(await c.load(), 'the envelope applied'); return c; };
@@ -1129,7 +1130,7 @@ const MUTANTS = [
   { test: 'T9', file: NEXT, from: "if (!c || !c.canBuild || !holds(c.items, o.bag, o.bank)) return [];", to: 'if (!c) return [];' },
   { test: 'T9', file: NEXT, from: "if (!sk || !(sk.xp > 0)) return false;", to: 'if (!it) return false;' },
   { test: 'T9', file: NEXT, from: "return (it.toolTier || 0) > ((best && best.toolTier) || 0);", to: 'return true;' },
-  { test: 'T9', file: NEXT, from: "refill: h && h.ended && h.endReason === 'stamina' ? staminaRefillOf(cs) : null });", to: 'refill: staminaRefillOf(cs) });' },
+  { test: 'T9', file: NEXT, from: "refill: h && h.ended && h.endReason === 'stamina' ? huntBlockOf(cs) : null });", to: 'refill: huntBlockOf(cs) });' },
   { test: 'T9', file: NEXT, from: "words: opens.length ? t('summary.buy_deed_words', { rooms: listWords(opens) }) : '',", to: "words: ''," },
   { test: 'T9', file: 'src/shell/goto.js', from: "  if (place.kind === 'storage') return { win: 'storage', tab: null, find: null };\n", to: '' },
   /* T7 the end card's junk sale: none of it, the House's needs swept, a planned Deposit sold too, a mixed sale called junk, a key swept, nothing fresh */

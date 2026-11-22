@@ -13,7 +13,7 @@
 //   SV-1  R opens the Shop on its Services tab (Tyler 2026-10-25: Services moved into the Shop) with zero console errors
 //   SV-2  STAMINA, TOTAL FIRST: the server's quote (hours, price, today's count)
 //         is shown; Buy only opens a confirmation (nothing sent); confirming sends
-//         exactly ONE hr_stamina_refill carrying the QUOTED price, and every
+//         exactly ONE hr_time_buy (kind hunt) carrying the QUOTED price, and every
 //         control is off until the server answers
 //   SV-3  BLESSINGS IN ORDER: an owned tier reads Owned, only the next missing tier
 //         can be bought (at its quoted price), a later one says what it needs; the
@@ -22,7 +22,7 @@
 //   SV-4  NO FREE NAME: the window has no name box and never sends
 //         hr_character_name_set (Tyler 10-22: a new name costs gold; it is the
 //         Characters window's Rename, tests/hero-rename-client.mjs)
-//   SV-5  FAIL SAFE: with no stamina_refill / blessings sections the purchase
+//   SV-5  FAIL SAFE: with no time_blocks / blessings sections the purchase
 //         controls stay off and the window says the server has not priced them
 //   SV-6  THE ANSWER STAYS: the tab's words ("Blessing II is yours.") survive the
 //         Shop's next repaint (the Shop writes only its own line)
@@ -55,12 +55,12 @@ const { ARTISAN_RECIPES } = await import(pathToFileURL(join(ROOT, 'src/data/reci
 const BASE_ENV = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/alpha-envelope.json'), 'utf8'));
 const clone = (o) => JSON.parse(JSON.stringify(o));
 const SECTIONS = {
-  stamina_refill: { available: true, why: null, ms: 0, max_ms: 28800000, restore_ms: 14400000, price: 1400, n: 2, per_day: 6, level: 10 },
+  time_blocks: { hunt: { kind: 'hunt', available: true, why: null, ms: 0, max_ms: 36000000, ceiling_ms: 50400000, block_ms: 7200000, price: 1400, n: 2, bought: 1, per_day: 2, level: 10 } },
   blessings: { held: [1], permille: 320, free_until: 30, tiers: [
     { tier: 1, permille: 320, price: 110, held: true }, { tier: 2, permille: 630, price: 165, held: false },
     { tier: 3, permille: 950, price: 220, held: false }] },
 };
-const RPCS = ['hr_stamina_refill', 'hr_blessing_buy'];
+const RPCS = ['hr_time_buy', 'hr_blessing_buy'];
 /* Tempering, as hr_temper_view states it: Blows rung 1 at a price the fixture's 5,200 gp can pay, Armor at the top, and the next tier's ladders never begun. */
 const TEMPER = { equipment: { weapon: 'iron_sword', helmet: 'iron_helm', body: 'iron_platebody', pants: 'iron_platelegs', boots: 'iron_boots' },
   inventory: Object.assign({}, BASE_ENV.inventory, { temper_salts: 15 }), bank: { temper_salts: 5 }, temper: [
@@ -138,17 +138,17 @@ async function checks(overrides, { stopAtFirst = false } = {}) {
         if (errors.length) fails.push('SV-1 console errors: ' + errors.join(' | ').slice(0, 300));
         // SV-2
         const quote = await txt(page, '.hw-stam-quote');
-        if (!/Restores 4 h for 1,400/.test(quote || '') || !/Bought today: 1 of 6/.test(quote || '')) fails.push('SV-2 the quote line reads ' + JSON.stringify(quote));
+        if (!/Adds 2 h for 1,400/.test(quote || '') || !/Blocks today: 1 of 2/.test(quote || '')) fails.push('SV-2 the quote line reads ' + JSON.stringify(quote));
         await press(page, '[data-hs-win="shop"] [data-pane="services"] [data-hs-act="stam-ask"]', 'SV-2');
         await page.waitForTimeout(150);
-        if (sent(s, 'hr_stamina_refill').length) fails.push('SV-2 Buy sent a purchase before the confirmation');
+        if (sent(s, 'hr_time_buy').length) fails.push('SV-2 Buy sent a purchase before the confirmation');
         if (!/1,400/.test(await txt(page, '.hw-confirm-q') || '')) fails.push('SV-2 the confirmation does not state the price');
         await press(page, '[data-hs-win="shop"] [data-pane="services"] [data-hs-act="stam-yes"]', 'SV-2');
         await page.waitForTimeout(60);
         if (!(await off(page, '[data-hs-act="bless"][data-tier="2"]'))) fails.push('SV-2 a control stayed on while the purchase was in flight');
         await wait(page, () => !document.querySelector('[data-hs-win="shop"] [data-pane="services"] .hw-services.is-pending'), null, 4000);
-        const st = sent(s, 'hr_stamina_refill');
-        if (st.length !== 1 || st[0].body.p_price !== 1400) fails.push('SV-2 the confirm sent ' + JSON.stringify(st.map((c) => c.body)));
+        const st = sent(s, 'hr_time_buy');
+        if (st.length !== 1 || st[0].body.p_price !== 1400 || st[0].body.p_kind !== 'hunt') fails.push('SV-2 the confirm sent ' + JSON.stringify(st.map((c) => c.body)));
         // SV-3
         const rows = await page.evaluate(() => [...document.querySelectorAll('[data-hs-win="shop"] [data-pane="services"] .hw-bless li')].map((li) => ({ t: li.textContent, off: li.querySelector('button').disabled })));
         if (rows.length !== 3 || !/Owned/.test(rows[0].t) || !rows[0].off || rows[1].off || !/165/.test(rows[1].t) || !rows[2].off || !/Needs II/.test(rows[2].t)) {
@@ -360,7 +360,7 @@ async function checks(overrides, { stopAtFirst = false } = {}) {
       if (!opened) fails.push('SV-5 the Services tab did not open without the sections');
       else {
         if (!(await off(page, '[data-hs-act="stam-ask"]'))) fails.push('SV-5 Buy stamina is on with no quote');
-        if ((await txt(page, '.hw-stam-quote')) !== 'No refill price yet') fails.push('SV-5 the stamina line does not say it is unpriced');
+        if ((await txt(page, '.hw-stam-quote')) !== 'No block price yet') fails.push('SV-5 the stamina line does not say it is unpriced');
         if (await page.evaluate(() => document.querySelectorAll('[data-hs-win="shop"] [data-pane="services"] .hw-bless li').length) !== 0) fails.push('SV-5 blessing rows were invented');
         if (await page.evaluate(() => document.querySelectorAll('[data-hs-win="shop"] [data-pane="services"] .hw-temper li').length) !== 0) fails.push('SV-5 Tempering rows were invented');
       }
@@ -392,16 +392,16 @@ const MUTANTS = [
   ['the answer lands out of sight on a short sheet (SV-9)', 'src/shell/windows/temper-pane.js', ".then(() => {\n      if (line && line.isConnected && line.textContent && line.scrollIntoView) line.scrollIntoView({ block: 'nearest' });\n    });", ';'],
   ['the question opens out of sight (SV-7)', 'src/shell/windows/temper-pane.js', "    if (cf && cf.scrollIntoView) cf.scrollIntoView({ block: 'nearest' });\n", ''],
   ['the reader invents a ladder (SV-5)', 'src/session/temper-sections.js', "  if (!Array.isArray(s)) return null;\n", "  if (!Array.isArray(s)) return [{ track: 'blows', tier: 2, rung: 0, max: 5, offer: 'temper.blows.2.1', gold: 1 }];\n"],
-  ['the confirm sends a price of its own', 'src/shell/windows/services.js', 'cs.buyStamina(q.price)', 'cs.buyStamina(q.price - 1)'],
+  ['the confirm sends a price of its own', 'src/shell/windows/services.js', "cs.buyTime('hunt', q.price)", "cs.buyTime('hunt', q.price - 1)"],
   ['Buy sends without a confirmation', 'src/shell/windows/services.js',
     "if (q && q.available) { sc.confirm = true; sc.msg = ''; repaint(); } return true; }",
-    "if (q && q.available) runIntent(sc, repaint, () => cs.buyStamina(q.price), 'x'); return true; }"],
+    "if (q && q.available) runIntent(sc, repaint, () => cs.buyTime('hunt', q.price), 'x'); return true; }"],
   ['any missing tier can be bought', 'src/shell/windows/services.js', "prop(btn, 'disabled', r.held || !next || next.tier !== r.tier || sc.pending", "prop(btn, 'disabled', r.held || sc.pending"],
   ['Bless all buys one tier (SV-11)', 'src/shell/bless-all.js', '    r = got;\n', '    return got;\n'],
   ['the stamina control is on with no quote', 'src/shell/windows/services.js', 'const canStam = !!q && q.available && !sc.pending', 'const canStam = !sc.pending'],
   ['the Shop writes its own line over the Services answer (IP-3, v0.2.46)', 'src/shell/windows/shop.js',
     "text(root.querySelector(':scope > .hh-intent-msg'), st.sc.msgAt", "text(root.querySelector('.hh-intent-msg'), st.sc.msgAt"],
-  ['the reader invents a quote', 'src/session/item-sections.js', "  const q = read(cs, 'stamina_refill');\n", "  const q = read(cs, 'stamina_refill') || { available: true, n: 1, per_day: 6, price: 1, restore_ms: 60000 };\n"],
+  ['the reader invents a quote', 'src/session/item-sections.js', '  const q = isObj(all) ? all.hunt : null;\n', "  const q = isObj(all) ? all.hunt : { available: true, bought: 0, per_day: 2, price: 1, block_ms: 60000 };\n"],
 ];
 
 async function main() {

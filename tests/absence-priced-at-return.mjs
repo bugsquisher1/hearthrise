@@ -241,10 +241,14 @@ async function run(mutate) {
     await q(`delete from public.player_inventory where user_id=$1 and slot=$2 and item_id like '%pickaxe'`,
       [uid, slot]);
     await setGold(q, uid, slot, 100000);   // the ACCOUNT purse (2026-12-15-account-gold.sql)
+    /* A FRESH ABSENCE, so a FRESH WORK DAY (1059-company-trades.sql): the fixture rewinds the watermarks for each arm on one real
+       day, and the work an earlier arm's absence spent would otherwise count against this one's (8 h a day: the second absence
+       would pay nothing). */
     await q(`update public.player_state set buffs = '[]'::jsonb,
                active_kind = 'gather', active_id = $3,
                active_since = now() - make_interval(secs => $4),
-               accrued_to   = now() - make_interval(secs => $4)
+               accrued_to   = now() - make_interval(secs => $4),
+               work_day = null, work_ms = 0
              where user_id=$1 and slot=$2`, [uid, slot, NODE, HOURS * 3600]);
   };
 

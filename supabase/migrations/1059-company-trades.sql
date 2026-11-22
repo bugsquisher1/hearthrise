@@ -55,7 +55,10 @@
 --   writer takes (after its hero, the farm, the depot and the purse); after it a writer touches only trade rows, the company row and its
 --   own hero's rows, which no other holder of the key wants. The fan-out UPDATEs other heroes' rows in place (no key column moves, so no
 --   foreign-key lock on their player_state rows, which their own settles may hold). A plain `update ... set xp` on a trade row (no
---   production writer does one) takes the row before the key: safe alone, and named in §8.
+--   production writer does one) takes the row before the key: safe alone, but two of them racing on one account could deadlock (test
+--   fixtures only). The one lock hr_apply can take after the key is the purse for a `gems` credit, which no town-work delta carries;
+--   a delta that ever did, racing a sibling's purse-then-trade write, would be a deadlock Postgres detects and rolls back (no value
+--   moves; the next settle re-proposes the window).
 -- THE WORK DAY is written only inside hr_apply under the hero's lock and row (`for update`), from the server's own watermark and
 --   clock. A replayed settle key returns before the UPDATE, so a window is spent once.
 --

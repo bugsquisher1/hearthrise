@@ -101,7 +101,7 @@ export const ABSOLUTE = Object.freeze([
   /* the work bench tax's count (2027-02-19-bench-tax.sql): an artisan window is one engine call and is never folded (tick-artisan.js). */
   'bench_tax',
   /* where a window's work ended (1059-company-trades.sql): polls are contiguous, so the folded window's work ends where its last
-     poll's did, and hr_apply spends [the fence's mark, it] of the hero's day. */
+     poll's did, and hr_apply spends the hero's day from the fence's mark up to it. */
   'work_to',
 ]);
 export const APPEND = Object.freeze(['deaths', 'progress', 'hearthfind']);

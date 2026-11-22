@@ -135,9 +135,11 @@ async function pure() {
   if (Object.keys(blind.ops).length) fails.push('AW-21 with no server Level Equip upgrades would put on ' + ops(blind));
   /* AW-22: town work. The client may declare a gathering node (never a fight); a skill shows what its server level opens,
      then the next two; a row refuses in words from the server's level and bag. */
-  if (!edgeBody(0, 'set_activity', { activity: { kind: 'gather', id: 'copper_rock', count: 20, next: 'hunt' } }, 'x')) fails.push('AW-22 edgeBody refused a gathering node');
-  /* ...and every job has an end (1026-job-counts.sql): a gathering node with no count, a THEN with no count, or no such THEN, is refused here. */
-  for (const a of [{ kind: 'gather', id: 'copper_rock' }, { kind: 'artisan', id: 'smelt_bronze', next: 'wait' }, { kind: 'gather', id: 'copper_rock', count: 20, next: 'constructor' }]) {
+  if (!edgeBody(0, 'set_activity', { activity: { kind: 'gather', id: 'copper_rock', count: 20, next: 'wait' } }, 'x')) fails.push('AW-22 edgeBody refused a gathering node');
+  /* ...and every job has an end (1026-job-counts.sql): a gathering node with no count, a THEN with no count, or no such THEN, is refused here
+     (a THEN of hunt too, since FB-10's re-cut of 1026: no job's end starts a hunt). */
+  for (const a of [{ kind: 'gather', id: 'copper_rock' }, { kind: 'artisan', id: 'smelt_bronze', next: 'wait' }, { kind: 'gather', id: 'copper_rock', count: 20, next: 'constructor' },
+    { kind: 'gather', id: 'copper_rock', count: 20, next: 'hunt' }]) {
     if (edgeBody(0, 'set_activity', { activity: a }, 'x')) fails.push('AW-22 edgeBody let through ' + JSON.stringify(a));
   }
   const { rowsFor } = await imp('src/shell/windows/work.js');

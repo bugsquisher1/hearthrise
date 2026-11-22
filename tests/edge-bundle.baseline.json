@@ -178,6 +178,11 @@
         "bytes": 3198808,
         "on": "2026-11-22",
         "why": "lane/lab-p2-readers: src/core/hunt/tally.js sustain counters (healing by source, damage by kind, mana spent/refunded/waits), counted only when the harness asks; the server settle never asks, stored result unchanged (+5,073 B on its own base)"
+      },
+      {
+        "bytes": 3198885,
+        "on": "2026-11-22",
+        "why": "lane/c-recruits: src/data/hunt-after.js NEEDS_YOU gains the recruits row (1053-recruits.sql, Tyler RD-Q6 a), +77 B on the merged set"
       }
     ]
   }

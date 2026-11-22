@@ -1,7 +1,7 @@
 /* DECLARED REMOVALS for 1040-rested-bank-cut.sql (lane/c-formula-steps, 2026-11-21: Tyler's ruling S-9 c, the rested bank cut).
 
    HR_APPLY: that file restates hr_apply WHOLE from the CHAIN END (pg_get_functiondef after every file in the apply order before
-   it; md5 77d94e55, which is 2026-10-27-core-bodies.sql's body plus the 18 anchored splices since: 2026-12-01-bench-count,
+   it; md5 993d484e (re-derived 2026-11-22 after the 1026 re-cut; was 77d94e55), which is 2026-10-27-core-bodies.sql's body plus the 18 anchored splices since: 2026-12-01-bench-count,
    2026-12-14-shared-farm, 2026-12-15-account-gold, 2027-01-14-gear-by-level, 2027-01-24-skills-from-storage,
    2027-01-31-inner-flame, 2027-02-02-settle-cost, 2027-02-11-bag-over-cap, 2027-02-11-hunt-loot-past-bag-cap,
    2027-02-19-bench-tax, 2027-03-30-dead-writes and 1026-job-counts) and cuts the rested bank at three anchors.

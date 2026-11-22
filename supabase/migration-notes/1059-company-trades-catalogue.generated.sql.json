@@ -1,0 +1,3 @@
+{
+  "note": "STAGED, NOT APPLIED (lane/r12-company-trades, backend-architect, 2026-11-22; FB-10 slice 1, Tyler CR-Q1 a and CR-Q3 b). NEW table hr_work_day (one row: the free work day and Premium's extra, minutes; the trade categories and the town-work kinds), generated from src/data/work-day.js (tools/gen-work-day.mjs --check holds it equal). No grant, no client verb, no value moves. ORDER: 1059 in its name, before 1059-company-trades.sql (which reads it). EDGE: none."
+}

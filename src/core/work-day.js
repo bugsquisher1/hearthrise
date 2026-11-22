@@ -1,0 +1,94 @@
+// ════════════════════════════════════════════════════════════════════════
+// src/core/work-day.js — THE HERO'S WORK DAY: WHEN TOWN WORK MUST STOP, AND WHAT A WINDOW OF IT SPENT
+//   (FB-10 slice 1; Tyler 2026-11-22 CR-Q3 b; the numbers are src/data/work-day.js).
+//
+// ONE RULE, TWO RUNTIMES. The edge (supabase/functions/hr-accrue/accrual.js) stops a gathering job or a bench run at
+// workStopMs, and the world tick carries the counter between its polls with foldWork (tick-shadow.js). Postgres re-checks
+// every window with the SQL twin hr_work_fold (1059-company-trades.sql) and refuses `work_cap` past the day; the twin is
+// pinned to this file by tests/company-trades.mjs CT-TWIN. Day arithmetic is whole UTC days on the server clock.
+//
+// THE STATE (player_state.work_day, work_ms; the envelope's `work_day` section): the last UTC day the hero worked and the
+// ms of town work it did that day. A window [from, to] of work spends, day by day, its overlap with each UTC day; a day's
+// spend may not pass that day's cap. The cap is the hero's base day (free, or free + Premium's extra) plus, on the server's
+// today only, the work blocks bought today (`extraMs`: 0 until the later slice sells them).
+//
+// THE STOP. From a window's start the hero works until the day's work is used up. If midnight comes first, the new UTC day
+// opens a fresh cap and the hero works on until that cap is used up (the day is under 24 h, src/data/work-day.js validate,
+// so a stop crosses at most one midnight).
+//
+// PURE ESM, Node + Deno. Integers in, integers out. No clock: every instant is an argument.
+// ════════════════════════════════════════════════════════════════════════
+
+import { WORK_DAY, WORK_KINDS } from '../data/work-day.js';
+
+export const DAY_MS = 86400000;
+const MIN_MS = 60000;
+/* How far past the cap a window may close and still read as the cap (one action's step, at most): the end reason, never a
+   number the cap is checked against. */
+export const WORK_END_SLACK_MS = 60000;
+
+/** The UTC day an instant falls in, as its first ms. */
+export function utcDayStart(ms) { return Math.floor(ms / DAY_MS) * DAY_MS; }
+
+/** 'YYYY-MM-DD' (the server's date) as its first ms, or null. */
+export function dayMsOf(s) {
+  if (typeof s !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return null;
+  const ms = Date.UTC(Number(s.slice(0, 4)), Number(s.slice(5, 7)) - 1, Number(s.slice(8, 10)));
+  return Number.isFinite(ms) ? ms : null;
+}
+
+/** A hero's base work day in ms: the free day, or the free day and Premium's extra. */
+export function baseCapMs(premium, day = WORK_DAY) {
+  return (day.freeMin + (premium ? day.premiumExtraMin : 0)) * MIN_MS;
+}
+
+/** Is this pointer kind town work? */
+export function isWorkKind(kind) { return WORK_KINDS.includes(kind); }
+
+const nat = (v) => (Number.isSafeInteger(v) && v >= 0 ? v : 0);
+
+/** The cap of the UTC day `dayMs` for a hero whose state is `w` ({ baseMs, extraMs, todayMs }). */
+export function capOfDay(w, dayMs) {
+  return nat(w.baseMs) + (dayMs === w.todayMs ? nat(w.extraMs) : 0);
+}
+
+/** The instant work that starts at `fromMs` must stop (>= fromMs). `w`: { dayMs, usedMs, baseMs, extraMs, todayMs }. */
+export function workStopMs(w, fromMs) {
+  const d0 = utcDayStart(fromMs);
+  const used0 = d0 === w.dayMs ? nat(w.usedMs) : 0;
+  const left0 = Math.max(0, capOfDay(w, d0) - used0);
+  const mid = d0 + DAY_MS;
+  if (fromMs + left0 < mid) return fromMs + left0;
+  return mid + capOfDay(w, mid);
+}
+
+/**
+ * What a window of work [fromMs, toMs] spends: { ok, dayMs, usedMs, overMs }. `ok` false when any UTC day it touches would
+ * pass that day's cap (overMs: by how much, the largest). dayMs/usedMs: the state after it (the day `toMs` falls in).
+ */
+export function foldWork(w, fromMs, toMs) {
+  const to = Math.max(fromMs, toMs);
+  let over = 0;
+  let dayMs = utcDayStart(fromMs);
+  let usedMs = 0;
+  /* at most a few days: a window longer than that is over the cap on its middle days anyway */
+  for (let d = dayMs, i = 0; d <= utcDayStart(to) && i < 8; d += DAY_MS, i++) {
+    const overlap = Math.max(0, Math.min(to, d + DAY_MS) - Math.max(fromMs, d));
+    const used = (d === w.dayMs ? nat(w.usedMs) : 0) + overlap;
+    over = Math.max(over, used - capOfDay(w, d));
+    dayMs = d; usedMs = used;
+  }
+  if (utcDayStart(to) - utcDayStart(fromMs) >= 8 * DAY_MS) over = Math.max(over, DAY_MS);
+  return { ok: over <= 0, dayMs, usedMs, overMs: Math.max(0, over) };
+}
+
+/** The work state the engine reads, from the envelope's `work_day` section, or null (a database without the work day). */
+export function workStateOf(section) {
+  const s = section;
+  if (!s || typeof s !== 'object' || Array.isArray(s)) return null;
+  const todayMs = dayMsOf(s.today);
+  if (todayMs === null || !Number.isSafeInteger(s.base_ms) || s.base_ms < 0) return null;
+  const dayMs = dayMsOf(s.day);
+  return { dayMs: dayMs === null ? todayMs : dayMs, usedMs: dayMs === null ? 0 : nat(s.used_ms), baseMs: s.base_ms,
+    extraMs: nat(s.extra_ms), todayMs };
+}

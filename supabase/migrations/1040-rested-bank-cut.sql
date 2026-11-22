@@ -23,12 +23,14 @@
 -- ── WHAT ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 -- §0 preconditions and the pins: hr_apply and hr_accrue_read are the chain end's bodies or this file's images, nothing else;
 --    hr_state_of no longer names the columns (1032's image); no other live body reads them.
--- §1 hr_apply restated WHOLE from the chain end (pg_get_functiondef after every file before this one; md5 77d94e55846a60ea5311953c89d22b48),
+-- §1 hr_apply restated WHOLE from the chain end (pg_get_functiondef after every file before this one; md5 993d484e09f51bc31a96f3a24330af32),
 --    with three anchored cuts: `rested_xp`, `rested_at` and their comment leave c_delta_keys (the `workers` line before them
 --    becomes the terminator), and their two SET lines leave the state UPDATE. A delta carrying either key now answers
 --    unknown_delta_key. Every other line is byte-identical (tests/chain-removals/1040-rested-bank-cut.mjs lists what
 --    PART 1f-ii sees removed against 2026-10-27-core-bodies.sql: the lines the 18 splices since then replaced, and these).
 --    It pays the chain down: 18 anchored splices since the last restatement now exist in a file again.
+--    RE-DERIVED 2026-11-22 (lane/r12-company-trades) after the 1026 re-cut: its JOB-COUNTS lines take a THEN of wait only and
+--    mark nothing pending (the sweep is withdrawn, D-11); the same four texts here, both pins re-measured on the replayed chain.
 -- §2 hr_accrue_read restated from the chain end without its two rested scalars (a hunter's read: five state keys).
 -- §3 clan_rested_grant and clan_rested_grant__ungated dropped (EXECUTE was revoked from every client 2027-01-18; the clan
 --    Tavern's grant was cut 2026-11-20). The two columns dropped.
@@ -76,7 +78,9 @@ begin
     raise exception 'PRECONDITION: a body this file restates or calls is missing'; end if;
   -- THE PINS. Any other body is a concurrent restatement or splice: refuse, never silently revert it (re-derive this file).
   select md5(replace(prosrc, chr(13), '')) into v_md5 from pg_proc where oid = 'public.hr_apply(uuid,integer,bigint,uuid,jsonb)'::regprocedure;
-  if v_md5 not in ('77d94e55846a60ea5311953c89d22b48', 'd3f97ea6e0d51d20158554b3e6940072') then
+  -- A RETRY AFTER 1059-company-trades.sql (staged after this file) finds hr_apply at 1059's image (this file's plus four WORK-DAY
+  -- edits): this file restates its own, and 1059's retry finds no WORK-DAY marker and makes the four edits again.
+  if v_md5 not in ('993d484e09f51bc31a96f3a24330af32', 'dd5c083803e9a54ebe8b7765ab5c2983', '4aed8c0769fc55f6deeb4eac97840c00') then
     raise exception 'PIN: hr_apply is neither the chain end this file was derived from nor its own image (md5 %): re-derive', v_md5; end if;
   select md5(replace(prosrc, chr(13), '')) into v_md5 from pg_proc where oid = 'public.hr_accrue_read(uuid,integer)'::regprocedure;
   if v_md5 not in ('a9e71b5b4ddaa4ba2deb73d664e43cc2', '3daa5466fbab524f384e405065002502') then
@@ -1371,11 +1375,11 @@ begin
     end if;
 
     -- ── JOB-COUNTS (1026-job-counts.sql; "make N" 2026-12-01-bench-count.sql) ─────────────────
-    -- `count` rides a gathering job or a bench run's statement (a whole number 1..100000), `next` (wait | hunt) only beside
-    -- a count; a statement without them clears the job's count and THEN. `active_left` is the engine's countdown, only on
+    -- `count` rides a gathering job or a bench run's statement (a whole number 1..100000), `next` (wait) only beside
+    -- a count; a statement without them clears the job's count and THEN. No THEN starts a hunt (D-11: 27b). `active_left` is the engine's countdown, only on
     -- an accrual (accrued_to), of a stored gathering job or bench run that has a count: alone, a whole number at least 1
     -- and below the stored one (it can only shorten a job); BESIDE an `activity: idle` (the engine ending the job), what
-    -- the job left, 0 .. the stored count, where 0 is the count reached: the job's end, and its THEN when it has one.
+    -- the job left, 0 .. the stored count, where 0 is the count reached: the job's end.
     if p_delta ? 'activity' and v_act ? 'count' then
       if coalesce(v_act->>'kind', '') not in ('artisan', 'gather') or jsonb_typeof(v_act->'count') <> 'number'
          or (v_act->>'count')::numeric <> trunc((v_act->>'count')::numeric)
@@ -1387,8 +1391,8 @@ begin
       v_job_count := v_bench_left;
     end if;
     if p_delta ? 'activity' and v_act ? 'next' then
-      if not (v_act ? 'count') or jsonb_typeof(v_act->'next') <> 'string' or coalesce(v_act->>'next', '') not in ('wait', 'hunt') then
-        perform public.hr_reject('bad_activity', jsonb_build_object('why', 'next is wait or hunt, beside a count'));
+      if not (v_act ? 'count') or jsonb_typeof(v_act->'next') <> 'string' or coalesce(v_act->>'next', '') not in ('wait') then
+        perform public.hr_reject('bad_activity', jsonb_build_object('why', 'next is wait, beside a count'));
       end if;
       v_job_next := v_act->>'next';
     end if;
@@ -1414,9 +1418,7 @@ begin
                          'done', greatest(coalesce(v_st.active_count, v_st.active_left), v_st.active_left) - v_job_left,
                          'next', coalesce(v_st.active_next, 'wait'),
                          'end', case when v_job_left = 0 then 'count' else 'stopped' end, 'at', now())
-            || case when v_job_left > 0 then '{}'::jsonb
-                    when v_st.active_next = 'hunt' then jsonb_build_object('next_state', 'pending')
-                    else jsonb_build_object('next_state', 'waited') end;
+            || case when v_job_left > 0 then '{}'::jsonb else jsonb_build_object('next_state', 'waited') end;
         end if;
       else
         v_bench_left := (p_delta->>'active_left')::int;
@@ -2735,7 +2737,7 @@ begin
     raise exception 'rested-bank-cut §4(a): the client-state stripper no longer strips rested_xp'; end if;
 
   -- (b)
-  if (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = 'public.hr_apply(uuid,integer,bigint,uuid,jsonb)'::regprocedure) <> 'd3f97ea6e0d51d20158554b3e6940072'
+  if (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = 'public.hr_apply(uuid,integer,bigint,uuid,jsonb)'::regprocedure) <> 'dd5c083803e9a54ebe8b7765ab5c2983'
      or (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = 'public.hr_accrue_read(uuid,integer)'::regprocedure) <> '3daa5466fbab524f384e405065002502' then
     raise exception 'rested-bank-cut §4(b): a restated body is not this file''s image'; end if;
   foreach v_sig in array array['public.hr_apply(uuid,integer,bigint,uuid,jsonb)', 'public.hr_accrue_read(uuid,integer)'] loop

@@ -44,14 +44,13 @@ export const AFTER_INDEX = Object.freeze(Object.fromEntries(AFTER_CHOICES.map((c
    A gathering job or a bench run takes a COUNT (actions, 1..JOB_COUNT_MAX) and a THEN, both set when it starts. The server
    stops the job on the action that reaches the count and then does the THEN, with the browser open or closed:
      wait   the hero waits in town
-     hunt   the hero goes back to its latest hunt (the same ground, tier, setup and bag lines, through the same door as a
-            manual restart), ONCE: a job resumed after a hunt ends waiting, so a plan never loops (ruling C8, 27-1)
+   Nothing a job ends in starts a hunt (designer D-11, Tyler let 27b stand 2026-11-21: the THEN of hunt and its sweep were
+   withdrawn with FB-10's re-cut of staged 1026). A later queue step may add a THEN; its row goes here and in 1026's CHECK.
    A gathering job ALWAYS takes a count (6,001 ore for a 20-ore errand, retention dive 2026-11-20); a bench may run on "All"
    (until its inputs run out), which takes no THEN. JOB_NEXTS rows are the server's CHECK on player_state.active_next. */
-export const JOB_NEXT_RUNS = Object.freeze(['nothing', 'hunt']);
+export const JOB_NEXT_RUNS = Object.freeze(['nothing']);
 export const JOB_NEXTS = Object.freeze([
   Object.freeze({ id: 'wait', runs: 'nothing' }),
-  Object.freeze({ id: 'hunt', runs: 'hunt' }),
 ]);
 export const JOB_NEXT_DEFAULT = 'wait';
 export const JOB_NEXT_INDEX = Object.freeze(Object.fromEntries(JOB_NEXTS.map((c) => [c.id, c])));
@@ -69,7 +68,7 @@ export const GATHER_COUNT_DEFAULT = 100;
      standing   one job with no count: "Gather the best I can", the highest node of one gathering skill the hero's level opens
      train      paid yard time by the hour (never the default: it spends gold); open from the yard's own Level (training.js)
      wait       the hero waits in town
-   JOB_NEXTS' `hunt` row goes with FB-10's re-cut of staged 1026 (its CHECK and its sweep move together; D-11 section 3.4). */
+   JOB_NEXTS' `hunt` row went with FB-10's re-cut of staged 1026 (its CHECK and its sweep moved together; D-11 section 3.4). */
 export const REST_RUNS = Object.freeze(['standing', 'training', 'nothing']);
 export const REST_ENDINGS = Object.freeze([
   Object.freeze({ id: 'standing', runs: 'standing' }),

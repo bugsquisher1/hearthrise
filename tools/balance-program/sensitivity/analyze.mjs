@@ -24,6 +24,9 @@
 //
 // Exit: 0 ran · 1 a selftest proof failed · 2 harness.
 // mutant-anchors: none — the selftest reads planted rows in memory; no tracked file is patched
+// ci-step: economy-selftests | Sensitivity matrix - a planted effect reads back with its sign, noise is not called an effect, and a planted interaction is found
+// ci-run: node tools/mutant-gate.mjs node tools/balance-program/sensitivity/analyze.mjs --selftest
+// ci-run: node tools/balance-program/sensitivity/analyze.mjs --check-docs
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync, writeFileSync, existsSync, readdirSync, statSync, mkdirSync } from 'node:fs';
 import { join, resolve, dirname, basename } from 'node:path';

@@ -24,6 +24,8 @@
 //
 // Exit: 0 ran · 1 a selftest proof failed, a tool red or an error cell · 2 harness.
 // mutant-anchors: none — the selftest plays on this tree and on scratch copies; no tracked file is patched
+// ci-step: economy-selftests | Sensitivity pass - every lever's scaled numbers reach the planted tree's own data, an empty point plays as the tree, and a harder monster slows the kills
+// ci-run: node tools/mutant-gate.mjs node tools/balance-program/sensitivity/sensitivity.mjs --selftest
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { gzipSync, gunzipSync } from 'node:zlib';

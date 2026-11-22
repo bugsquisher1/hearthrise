@@ -681,7 +681,7 @@ Rule: at one step the outcome rises for one lone way and falls for another, both
 | spellPower | storePerH | x1.5 | hammer +17.3% | tank -2.8%, axes -5.1%, bow -6.1%, crossbow -7.3%, mage -14.7% |
 <!-- /GEN -->
 
-- **Most hammer rows are a small number doubling.** The lone hammer buys nothing on Normal from Level 30 and almost nothing at Level 10, so a few more meals read as a large rise. Treat the hammer's store rows as "it starts to eat", not as a split in direction.
+- **Most hammer rows are a small number doubling.** The lone hammer buys nothing on Normal from Level 30 and almost nothing at Level 10, so a few more purchases read as a large rise. Treat the hammer's store rows as "it starts to eat", not as a split in direction.
 - **Spell cooldown is a real split.** Doubling every cooldown gains the Mage 876 gold an hour and the Healer 704, because they cast and buy less, and costs every weapon way 329 to 1,471, because they kill slower. The same lever is a gold buff for casters and an XP cut for everyone.
 - **Hero health splits the Healer from the archers** on gold, by 480 to 770 an hour each way.
 - **The larger style fact is in size, not in sign,** so the rule above does not list it. MEASURED, Level XP an hour, alone, at x2:

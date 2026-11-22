@@ -1723,6 +1723,11 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tools/mutant-gate.mjs node tools/balance-program/balance-matrix.mjs --selftest
+      # tools/balance-program/baseline.mjs
+      - name: The balance baseline reads every outcome, its noise rule and band verdicts bite, its scenarios hold open grounds only, and a replay is byte-identical
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tools/balance-program/baseline.mjs --selftest
       # tools/balance-program/calibrate.mjs
       - name: Calibration C-1 reads real heroes' kits and skills by band, the pass rule bites, and nothing names a player
         if: ${{ !cancelled() }}
@@ -1780,6 +1785,17 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tools/mutant-gate.mjs node tools/balance-program/proposals.mjs --selftest --quick
+      # tools/balance-program/sensitivity/analyze.mjs
+      - name: Sensitivity matrix - a planted effect reads back with its sign, noise is not called an effect, and a planted interaction is found
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tools/balance-program/sensitivity/analyze.mjs --selftest
+          node tools/balance-program/sensitivity/analyze.mjs --check-docs
+      # tools/balance-program/sensitivity/sensitivity.mjs
+      - name: Sensitivity pass - every lever's scaled numbers reach the planted tree's own data, an empty point plays as the tree, and a harder monster slows the kills
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tools/balance-program/sensitivity/sensitivity.mjs --selftest
       # tools/balance-program/sources.mjs
       - name: Source atlas - an item with no source, a source nothing uses, a drop nobody can reach are each listed
         if: ${{ !cancelled() }}

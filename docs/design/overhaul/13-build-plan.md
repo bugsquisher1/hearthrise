@@ -222,7 +222,7 @@ A file has one writer at a time. "Then" means in that order inside the wave, the
 
 | Batch | Waves | Holders in order | Ends with |
 |---|---|---|---|
-| CB-1 | 1 | FB-1 (done at 02364f03a), FB-2 | The first run on `next` after FB-2 merges whose only red is T-02 with its known text. Identity diffs for R1 to R4 and the R8 fold. Coefficient diffs for R6, R7, the two-thirds line and party XP by size alone |
+| CB-1 | 1 | FB-1 (done at 02364f03a), FB-2 | The first run on `next` after FB-2 merges whose only reds are the known reds of the table above, each with its known text (T-02, and T-13 until FB-8 stage 2). Identity diffs for R1 to R4 and the R8 fold. Coefficient diffs for R6, R7, the two-thirds line and party XP by size alone |
 | CB-2 | 2 and 3 | FB-8 (gear, coin, kill reward, tier table, the two group casters of D-10 and no tier row), then FB-11 (R20, stat lines, unlocks, the to-hit floor) | One death sample, 4 seeds of 8 hours on 14 grounds, with everything that moves survival in. The tier dial moves one step if it must. This is the one sizing pass the Talents ruling asks for. The sample also carries the full-game block of `14-the-rest.md` section 1, and the measures D-4 and D-10 ask of FB-3 |
 | CB-3 | 4 | FB-13 (the boss room), then FB-14 (the guest seat in the settle) | The plain four's diff is empty. Neither mode moves it |
 

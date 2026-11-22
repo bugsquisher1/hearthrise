@@ -138,6 +138,16 @@ export const LEVER_MOVES = Object.freeze({
   'econ.town-work': ['~town.skill', '~hero.skillXp'],
   'econ.jewelry-crafting': ['+sink.other', '~gear.perk'],
   'econ.companions': ['+perk.xp', '+perk.permanent', '+perk.goldFind'],
+  'econ.recruits': [['~party.size', 'three recruits make a company of four own heroes from Level 5 (RD-Q6 a); whether they hunt together is the player\'s']],
+  /* THE DANGER SCALE (src/data/danger.js, lane/v1-climb): on a stance the step writes the dial the tier row writes off it (danger.js dangerDial
+     in inst.tier), so its levers move C-TIER's quantities; the pay is the scale's own and is named with its reason */
+  'danger.power-step': ['+tier.hp', '+tier.dmg'],
+  'danger.pull': ['+pull.size'],
+  'danger.start': ['-tier.hp', '-tier.dmg'],
+  'danger.climb': ['~tier.hp', '~tier.dmg'],
+  'danger.stances': ['~tier.hp', '~tier.dmg'],
+  'danger.pay': [['+kill.xp', 'on a stance a kill pays a share of the killer\'s own Level from the hours table (danger.js levelShareXp, read by xp-share.js), x the depth ratio'],
+    ['+kill.coin', 'on a stance a kill\'s coin is the roll x the pull\'s share x the same depth ratio (dangerDial coinPm, read by hunt-rewards.js payKill)']],
   'econ.start-gold': [['+gold.day', 'a new hero\'s first purse is gold in, and no formula in the register writes it']],
   'econ.tally': [['+gold.day', 'a tally\'s reward is gold in, and no formula in the register writes it']],
   'econ.clans': [['~gold.day', 'clan fees and gifts move gold between accounts, and no formula in the register writes it']],

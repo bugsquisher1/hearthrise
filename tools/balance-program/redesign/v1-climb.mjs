@@ -33,7 +33,8 @@ const arg = (k, d = null) => { const i = argv.indexOf('--' + k); return i >= 0 &
 const SEEDS = Number(arg('seeds', 8)), HOURS = Number(arg('hours', 12)), WORKERS = Number(arg('workers', 8)), SETTLE_H = Number(arg('settle', 4));
 const GROUND = arg('ground', 'muster_barrows'), L = Number(arg('level', 60)), L2 = Number(arg('level2', 70)), ABOVE = Number(arg('above', 680));
 const ONLY = arg('only') ? arg('only').split(',') : null;
-const STYLES = ['hammer', 'bow', 'mage', 'healer'];
+/* --styles a,b,c,d (lane/w2-roles-rows): the four's styles, seat by seat (progression-grid.mjs MAIN), in place of the matrix's mixed four */
+const STYLES = arg('styles') ? arg('styles').split(',') : ['hammer', 'bow', 'mage', 'healer'];
 const RISKS = arg('risks') ? arg('risks').split(',') : ['careful', 'steady', 'bold'];
 
 const imp = (p) => import(pathToFileURL(join(ROOT, p)).href);
@@ -166,6 +167,8 @@ function readSeed(res, start) {
     reach: firstNear, xpPerH: res.party.levelXpPerHeroPerH, killsPerH: res.party.killsPerH, pullsPerH: res.party.pullsPerH,
     payX: pays.length ? pays.reduce((s, x) => s + x, 0) / pays.length : null, payH: Math.max(0, payEnd - payFrom) / H,
     heroesLost: res.heroes.filter((h) => h.deaths > 0).length, fourH: wt / H, firstDeathH: firstDeath ? firstDeath.ms / H : null,
+    /* lane/w2-roles-rows: each seat's share of the damage the four took over the hunt (cell.mjs takenPerH x hours), seat order */
+    takenShare: (() => { const t = res.heroes.map((h) => (h.takenPerH || 0) * (h.hours || 0)), s = t.reduce((a, b) => a + b, 0); return s > 0 ? t.map((x) => x / s) : null; })(),
   };
 }
 
@@ -208,6 +211,7 @@ for (const c of cells) {
     nearWipes: near.length, nearWithDeath: near.filter((x) => x.death).length, nearWarned: near.filter((x) => x.warned).length,
     nearFellAfter: near.filter((x) => x.fellAfter).length,
     whys: seeds.reduce((o, x) => { for (const [k, n] of Object.entries(x.whys)) o[k] = (o[k] || 0) + n; return o; }, {}),
+    takenShare: STYLES.map((s, i) => { const v = seeds.map((x) => x.takenShare && x.takenShare[i]).filter((x) => Number.isFinite(x)); return { style: s, mean: v.length ? Math.round(mean(v) * 1000) / 1000 : null }; }),
   };
 }
 /* the power changes, seed by seed on the same dice (paired): the held step's move */
@@ -243,6 +247,8 @@ for (const [id, c] of Object.entries(report.cells)) console.log('  ' + id.padEnd
   + '  loot by band: common ' + c.gold.commonPerHeroH.mean + ', uncommon ' + c.gold.uncommonPerHeroH.mean + ', scarce ' + c.gold.scarcePerHeroH.mean + ', other ' + c.gold.otherPerHeroH.mean + '  n ' + c.gold.coinPerHeroH.n);
 console.log('\npower moves (paired seeds): the held step at the changed power minus at base');
 for (const [k, m] of Object.entries(report.moves)) if (m) console.log('  ' + k.padEnd(16) + ' ' + String(m.mean).padStart(7) + ' steps (sd ' + m.sd + ', se ' + m.se + ', n ' + m.n + ')');
+console.log('\nthe damage the four took, each seat\'s share over the hunt (lane/w2-roles-rows), styles ' + STYLES.join(', '));
+for (const [id, c] of Object.entries(report.cells)) console.log('  ' + id.padEnd(17) + ' ' + c.takenShare.map((t) => t.style + ' ' + t.mean).join('  '));
 console.log('\nwall ' + report.wallS + ' s');
 const jf = arg('json');
 if (jf) writeFileSync(jf, JSON.stringify(report, null, 1) + '\n');

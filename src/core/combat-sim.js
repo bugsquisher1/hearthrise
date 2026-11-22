@@ -183,6 +183,9 @@ function syncUnit(u, m, roles) {
   /* THE KIND FIRST (targeting.js kindOf): never persisted, so written here at every boundary like the gear values above, absent with none */
   const k = m.hero.settings && m.hero.settings.tkind;
   if (typeof k === 'string' && k) u.tkind = k; else if (u.tkind !== undefined) delete u.tkind;
+  /* THE ROW the plan set (monster-roles.js rowOf: absent, the hero's role decides), the same: never persisted */
+  const row = m.hero.settings && m.hero.settings.row;
+  if (row === 'front' || row === 'back') u.row = row; else if (u.row !== undefined) delete u.row;
   /* THE SEAT (the server's hunt_sessions.seat), the same: what a fall back on the Danger scale names its hero by (danger.js noteHurt) */
   if (Number.isSafeInteger(m.seat) && m.seat >= 0) u.seat = m.seat; else if (u.seat !== undefined) delete u.seat;
 }

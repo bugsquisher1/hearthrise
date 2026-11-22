@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "0214217c253e55d6",
+ "authored": "205ae17c378504fb",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -63,7 +63,7 @@
   "dead": "nothing on the hunt path reads it: a perturbation changes no outcome"
  },
  "counts": {
-  "levers": 186,
+  "levers": 187,
   "byCategory": {
    "base-damage": 12,
    "skill-scaling": 9,
@@ -76,7 +76,7 @@
    "crit": 3,
    "leech": 2,
    "regen": 4,
-   "monster-stats": 24,
+   "monster-stats": 25,
    "spawn": 11,
    "monster-rewards": 14,
    "rare-drops": 6,
@@ -88,7 +88,7 @@
   },
   "byClass": {
    "global": 85,
-   "archetype": 26,
+   "archetype": 27,
    "content": 47,
    "exception-intentional": 17,
    "exception-accidental": 11
@@ -100,13 +100,13 @@
    "not-playable:player-policy": 2,
    "not-playable:outside-hunt": 25,
    "not-playable:harness-fixed": 6,
-   "not-playable:not-in-runs": 18,
+   "not-playable:not-in-runs": 19,
    "variant": 5,
    "not-playable:not-built": 10,
    "not-playable:sql-only": 6
   },
   "byTest": {
-   "asserted": 75,
+   "asserted": 76,
    "mentioned only": 91,
    "none": 20
   },
@@ -117,10 +117,10 @@
   }
  },
  "census": {
-  "bindings": 667,
-  "typed": 15709,
-  "files": 227,
-  "lever": 285,
+  "bindings": 668,
+  "typed": 15714,
+  "files": 228,
+  "lever": 286,
   "notLever": 382,
   "unclaimed": 0
  },
@@ -4949,9 +4949,10 @@
      }
     ],
     "mentions": [
-     "tests/balance-sheet.mjs"
+     "tests/balance-sheet.mjs",
+     "tests/hunt-core/monster-roles.mjs"
     ],
-    "mentionCount": 1,
+    "mentionCount": 2,
     "verdict": "asserted"
    },
    "perturb": {
@@ -5219,7 +5220,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 107,
+    "mentionCount": 108,
     "verdict": "asserted"
    },
    "perturb": {
@@ -5353,9 +5354,10 @@
    "tests": {
     "asserts": [],
     "mentions": [
-     "tests/hunt-core/monster-kinds.mjs"
+     "tests/hunt-core/monster-kinds.mjs",
+     "tests/hunt-core/monster-roles.mjs"
     ],
-    "mentionCount": 1,
+    "mentionCount": 2,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -5604,7 +5606,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 107,
+    "mentionCount": 108,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -7343,6 +7345,89 @@
    "evidence": "MEASURED (lane/r9, v1-climb.mjs: tools/balance-program/redesign/r9/summary.txt)"
   },
   {
+   "id": "roles.table",
+   "category": "monster-stats",
+   "name": "Monster roles (reach, range, splash, held, blow)",
+   "sites": [
+    {
+     "file": "src/data/monster-roles.js",
+     "line": 61,
+     "text": "shooter: Object.freeze({ name: 'Shooter', reach: 'back', range: 5, targets: 'Targets: back row (ranged)', answer: 'Countered by: Challenge, back-row armor' }),",
+     "binding": "MONSTER_ROLES"
+    },
+    {
+     "file": "src/data/monster-roles.js",
+     "line": 62,
+     "text": "caster: Object.freeze({ name: 'Caster', reach: 'back', range: 4, splash: Object.freeze({ r: 1, pm: 500 }),",
+     "binding": "MONSTER_ROLES"
+    },
+    {
+     "file": "src/data/monster-roles.js",
+     "line": 65,
+     "text": "stalker: Object.freeze({ name: 'Stalker', reach: 'weakest', range: 0, heldPm: 500, maxHitPm: 400, targets: 'Targets: lowest max health', answer: 'Countered by: Challenge, healing' }),",
+     "binding": "MONSTER_ROLES"
+    }
+   ],
+   "definition": "a monster row names a role; on the scale its reach picks whom it aims at (front row nearest, back row farthest, the least max HP, the least crowded front hero) and keeps to it while no Challenge holds it; a Challenge holds it heldPm of its hold (absent: all); its largest blow is maxHitPm of its row (absent: all); a role with a range shoots from that many tiles on a row with none of its own; a splash lands pm permille of the blow on each hero within r tiles of the target",
+   "range": "range 0 or MONSTER_RANGE (2 to 6); splash r 1 or more, pm 1 to 1000; heldPm and maxHitPm 0 to 1000. Content the designer owns (04 section 6: \"six role rows\"); the optimizer never moves it",
+   "touches": "who takes the damage (V3: the front seat's share) and so which lineup holds deepest on a mix; MEASURED tools/balance-program/redesign/w2/summary.txt",
+   "outcomes": [
+    "takenPerH",
+    "healPerH",
+    "deathsPer1000h",
+    "lowHpTypical",
+    "lowHpP10",
+    "hpUnder30",
+    "hpUnder10",
+    "netLevelXpPerH",
+    "storePerH",
+    "suppliesPerH",
+    "huntedShare",
+    "dps",
+    "dpsHero",
+    "ttkS",
+    "killsPerH",
+    "levelXpPerH",
+    "netPerH",
+    "hoursPerLevel",
+    "xContract"
+   ],
+   "formulas": [
+    "C-TIER"
+   ],
+   "reach": {
+    "feeds": 8,
+    "closure": 78
+   },
+   "class": "archetype",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/hunt-core/monster-roles.mjs",
+      "what": "reach, redive, range, splash, play",
+      "reads": [
+       "MONSTER_ROLES"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/balance-sheet.mjs",
+     "tests/hunt-core/monster-roles.mjs"
+    ],
+    "mentionCount": 2,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "not-in-runs",
+    "note": "played by the V1 probe with --styles (lineups) against the roles-off candidate; no matrix run plans a stance",
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "MEASURED (lane/w2-roles-rows, v1-climb.mjs 8 seeds x 12 h a lineup, roles on and off)"
+  },
+  {
    "id": "reward.xp-line",
    "category": "monster-rewards",
    "name": "Level XP a kill",
@@ -7804,7 +7889,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 107,
+    "mentionCount": 108,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -7874,7 +7959,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 107,
+    "mentionCount": 108,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -7995,7 +8080,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 107,
+    "mentionCount": 108,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -8114,7 +8199,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 107,
+    "mentionCount": 108,
     "verdict": "asserted"
    },
    "perturb": {
@@ -8463,7 +8548,7 @@
      "tests/balance-grade.mjs",
      "tests/boss-call-window.mjs"
     ],
-    "mentionCount": 57,
+    "mentionCount": 58,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -10591,10 +10676,10 @@
      "tests/hunt-core/abilities.mjs",
      "tests/hunt-core/conditions.mjs",
      "tests/hunt-core/damage.mjs",
-     "tests/hunt-core/party-defense.mjs",
-     "tests/hunt-core/roles.mjs"
+     "tests/hunt-core/monster-roles.mjs",
+     "tests/hunt-core/party-defense.mjs"
     ],
-    "mentionCount": 13,
+    "mentionCount": 14,
     "verdict": "asserted"
    },
    "perturb": {
@@ -10732,7 +10817,7 @@
      "tests/balance-grade.mjs",
      "tests/boss-call-window.mjs"
     ],
-    "mentionCount": 57,
+    "mentionCount": 58,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -15064,6 +15149,17 @@
     "topStep"
    ],
    "typed": 4,
+   "bindings": 1
+  },
+  "src/data/monster-roles.js#MONSTER_ROLES": {
+   "pin": "count",
+   "keys": [
+    "heldPm",
+    "maxHitPm",
+    "pm",
+    "range"
+   ],
+   "typed": 5,
    "bindings": 1
   },
   "src/data/balance-sheet.js#GROUND_XP_FIT": {

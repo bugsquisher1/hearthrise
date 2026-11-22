@@ -313,8 +313,8 @@ export async function loadCellRunner(root) {
           for (const e of out.events || []) {
             if (e.type === 'pull') { P.pulls++; hp.push([e.atMs, null, 0]); continue; }
             /* THE DANGER SCALE (src/core/hunt/danger.js, a cell whose options name a `risk`): each pull's end, as the engine read it:
-               [seed, ms from the start, the step it was made at, the step after, its lowest HP permille, why] */
-            if (e.type === 'danger') { (P.danger || (P.danger = [])).push([seed, e.atMs - T0, e.step, e.to, e.low, e.why]); continue; }
+               [seed, ms from the start, the step it was made at, the step after, its lowest HP permille, why, and on a fall or a death the seat and the monster kind that caused it (R2's cause)] */
+            if (e.type === 'danger') { (P.danger || (P.danger = [])).push([seed, e.atMs - T0, e.step, e.to, e.low, e.why, ...(e.why === 'fall' || e.why === 'death' ? [e.hero ?? null, e.monster || null] : [])]); continue; }
             /* a run's floor cleared (tower.js towerCleared): the stair, kept in time order with the HP moves so a pull after it opens the next floor */
             if (e.type === 'floor' && run) { hp.push([e.atMs, 'floor', e.floor]); P.tower.cleared.push([e.floor, e.atMs - T0]); P.tower.top = Math.max(P.tower.top ?? 0, e.floor); continue; }
             const tk = unitKey[e.t], uk = unitKey[e.u];

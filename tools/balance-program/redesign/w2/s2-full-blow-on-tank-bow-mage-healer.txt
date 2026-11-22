@@ -1,0 +1,19 @@
+
+V1 on muster_barrows (8 seeds x 12 h, held step read from hour 6; step 0 = the ground as built, one step = +0.35000000000000003% health and blow)
+levers: CLIMB {"cleanRun":2,"climbMax":8,"fallSteps":18,"deathSteps":120,"coolPulls":10} RISKS {"careful":{"fallPm":450,"cleanPm":650,"afterDeath":"careful"},"steady":{"fallPm":250,"cleanPm":450,"afterDeath":"careful"},"bold":{"fallPm":120,"cleanPm":300,"afterDeath":"steady"}} readyPm 800
+held = the time-weighted step while all four hunt (to the first death), from hour 6; fourH = those hours a seed
+cell              held (mean +- sd)  drift  +-10  +-20  chg/h falls/h reach h  pulls/h  deaths wipes near(death/warned/fellAfter)  fourH  whys
+base:steady       544.2 +- 16.9    15.5  22.6  48.6   13.3    1.7     2.2       64      1     0  20 (1/2/20)                   5.3  {"hold":4220,"climb":1746,"fall":170,"death":1} first deaths at h 2.1
+
+pay from a held start (hour 6 to the four's end), Level XP a hunted hero-hour as a multiple of the hours table
+  base:steady        0.66x  sd 0.06  n 7  window 5.3 h  seeds 0.68 0.74 0.73 0.58 0.69 0.61 0.62
+
+gold a hunted hero-hour over the whole hunt (coin; coin + loot at the store's price, no Rares; the store bill), mean +- sd over seeds
+  base:steady       L60  coin 1509 +- 94  income 4476 +- 266  store 9773  loot by band: common 249, uncommon 153, scarce 2565, other 0  n 8
+
+power moves (paired seeds): the held step at the changed power minus at base
+
+the damage the four took, each seat's share over the hunt (lane/w2-roles-rows), styles tank, bow, mage, healer
+  base:steady       tank 0.778  bow 0.192  mage 0.03  healer 0.001
+
+wall 49 s

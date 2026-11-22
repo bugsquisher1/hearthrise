@@ -243,6 +243,26 @@
         "bytes": 3295265,
         "on": "2026-11-22",
         "why": "R9 power step: danger.js gearPartPm/powerPm, damage.js stepped blows, member.js gearPm (+7,071 B on top of lane G)"
+      },
+      {
+        "bytes": 3310961,
+        "on": "2026-11-22",
+        "why": "wave 2 monster roles and rows (lane/w2-roles-rows): src/data/monster-roles.js and src/core/hunt/monster-roles.js join the engine (the settle aims, shoots and splashes by role on the Danger scale), ~15.7 KB"
+      },
+      {
+        "bytes": 3312573,
+        "on": "2026-11-22",
+        "why": "wave 2 roles (lane/w2-roles-rows): heldPm, blowPm and the tooltip labels on the role rows, the re-aim and blow-share readers"
+      },
+      {
+        "bytes": 3312853,
+        "on": "2026-11-22",
+        "why": "wave 2 roles (lane/w2-roles-rows): the stalker blow-share comment on the role table"
+      },
+      {
+        "bytes": 3312863,
+        "on": "2026-11-22",
+        "why": "wave 2 roles: blowPm renamed maxHitPm (it collided with statuses.js blowPm, caught by effect-readers), +10 bytes"
       }
     ]
   }

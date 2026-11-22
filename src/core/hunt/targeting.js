@@ -31,6 +31,7 @@ import { makeEvent } from './events.js';
 import { engagedFoesOf, engagedMonstersOf, livingMonstersOf, livingHeroesOf, heroUnitsOf, staleIndex } from './unit-index.js';
 import { sideOf, isEnemy, isAlly, isHero, isMonster } from './sides.js';
 import { rangeOf, aimOf } from './shooters.js';
+import { reaimOf } from './monster-roles.js';
 
 /* holdMs: ms a Challenged monster stays on its challenger (no other Challenge takes it meanwhile).
    The Challenge's cooldown is the ability's own clock (abilities.js `cds`). leaderLast: the leader's last target (TG-04).
@@ -290,6 +291,8 @@ export function chooseTargets(inst, sc) {
     if (Number.isInteger(m.target) || !(inst.world.packs[m.pocket] && inst.world.packs[m.pocket].aggro)) continue;
     retarget(inst, m, aimOf(inst, m, k ? k.id : null), sc); m.holdMs = 0;
   }
+  /* A ROLE KEEPS TO ITS REACH (monster-roles.js reaimOf; the Danger scale only, nothing off it): unheld, it turns to the hero its reach asks for */
+  for (const m of engagedMonstersOf(inst)) { const id = reaimOf(inst, m); if (id !== null) retarget(inst, m, id, sc); }
   const fighting = inst.world.phase === 'fight';
   const leaderMoving = !!k && k.path.length > 0;
   /* (only a hero has a role: the hero units, unit-index.js, in list order; nothing below changes who is one) */

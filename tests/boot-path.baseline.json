@@ -130,6 +130,12 @@
         "gzipBytes": 912044,
         "on": "2026-11-22",
         "why": "gold an hour: the Hunts window's estimate line (gold-estimate-sections.js) and the report's earned line (+0.5 KB gzip)"
+      },
+      {
+        "modules": 21,
+        "gzipBytes": 913001,
+        "on": "2026-11-22",
+        "why": "wave 2 monster roles: +0.9 KB gzip at town, the role labels (Targets / Countered by) the hunt view and bestiary read"
       }
     ]
   }

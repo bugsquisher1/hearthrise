@@ -198,6 +198,11 @@
         "bytes": 3224764,
         "on": "2026-11-22",
         "why": "the hunt report's blow reading takes isHero(target) from sides.js (the side seam's one test), after the merge of lane/c-hunt-report onto the seam (+120 B)"
+      },
+      {
+        "bytes": 3255771,
+        "on": "2026-11-22",
+        "why": "lane/v1-climb (probe V1, V1.1 and wave 1), +31,007 B, all src/core and src/data the settle runs: src/core/hunt/danger.js (the Danger scale: step, climb, fall back, readiness, pay by depth from the hours table, a pack's down count), src/data/danger.js (its numbers, PAY, DANGER_GROUNDS), pull-cycle.js (break-off, cleared pulls, killed stays dead), xp-share.js (the Level share split), hunt-rewards.js (coin at the depth ratio), combat-sim.js / hunt-spawn.js / damage.js / events.js wiring"
       }
     ]
   }

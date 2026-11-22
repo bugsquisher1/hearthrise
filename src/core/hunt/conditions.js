@@ -68,7 +68,8 @@ import { footprint, inFootprint, place, covers, tilesMax } from './shapes.js';
 import { castsCovering } from './marks.js';
 import { elementPermille } from '../elements.js';
 import { RUNE_ON_EMPTY, isRune, runeTierOf } from '../../data/runes.js';
-import { engagedOf, heroesByIdOf, livingOf } from './unit-index.js';
+import { engagedFoesOf, alliesByIdOf, livingHeroesOf } from './unit-index.js';
+import { sideOf, isHero, isMonster } from './sides.js';
 
 /* ruleHold: ms each stop rule has held, by its stable rule id (null = none held).
    ruleWait: the last `rule_wait` reported, per lane ('ruleId:why'), so it is reported once.
@@ -112,7 +113,7 @@ export function normalizeSlot(s) {
 }
 
 /** Does slot `slot` ignore monster unit `m` (its kind is on the slot's ignore list)? */
-export const ignores = (slot, m) => !!(slot && Array.isArray(slot.ignore) && slot.ignore.length && m && m.side === 'mon' && slot.ignore.includes(m.kind));
+export const ignores = (slot, m) => !!(slot && Array.isArray(slot.ignore) && slot.ignore.length && isMonster(m) && slot.ignore.includes(m.kind));
 
 /* The ability targets that are MONSTERS (abilities.js TARGETS): the only ones an ignore list can mean. */
 const MONSTER_TARGETS = Object.freeze(['taunt', 'mark', 'enemy', 'area', 'line', 'ring']);
@@ -416,7 +417,8 @@ export function footprintOf(slot, h) {
 }
 
 /* (unit-index.js: frozen lists, read once a sub-step in a swing) */
-const engagedMons = (inst) => engagedOf(inst);
+/* The foes of `u` in the fight (sides.js): what its slot can aim at. In a hunt, the engaged monsters. */
+const engagedFoes = (inst, u) => engagedFoesOf(inst, sideOf(u));
 /* Can `hero` reach `t` with `range` tiles: adjacent for 1, else range + line of sight. */
 export function reaches(inst, hero, range, t) {
   const r = Math.max(1, int(range) || 1);
@@ -449,7 +451,7 @@ export function areaTopOf(slot, h) {
  */
 export function shapedAim(inst, hero, range, row, slot) {
   const spec = areaSpec(row);
-  const mons = engagedMons(inst);
+  const mons = engagedFoes(inst, hero);
   const own = (a, b) => (Number(b.id === hero.target) - Number(a.id === hero.target)) || a.id - b.id;
   if (spec.shape === 'ring') {
     const s = place(spec, hero, hero);
@@ -470,7 +472,7 @@ export function shapedAim(inst, hero, range, row, slot) {
 /** The best aim for an n-footprint: { aim, count } over every reachable engaged monster, or null. A
     monster `slot` ignores is never the aim (it is still counted when the footprint covers it). */
 export function bestAim(inst, hero, range, n, slot) {
-  const mons = engagedMons(inst);
+  const mons = engagedFoes(inst, hero);
   let best = null; let bc = -1;
   const cand = mons.filter((m) => reaches(inst, hero, range, m) && !ignores(slot, m))
     .sort((a, b) => ((b.id === hero.target) - (a.id === hero.target)) || a.id - b.id);
@@ -485,14 +487,15 @@ export function bestAim(inst, hero, range, n, slot) {
 
 /* A share as a ratio { n, d } (pct of a pool), so a test cross-multiplies: no floats. */
 const share = (v, max) => (int(max) > 0 ? { n: int(v), d: int(max) } : { n: 1, d: 1 });
-const heroesOf = (inst) => heroesByIdOf(inst);
+/* The living units on `u`'s side by id (sides.js): the party a condition about allies reads. In a hunt, the living heroes. */
+const alliesOf = (inst, u) => alliesByIdOf(inst, sideOf(u));
 
 /* "Whose": `lowest` = the lowest share among living heroes the hero can reach (it
    included); `self` = the hero itself (a heal aimed at yourself, roadmap p23); a role
    id = the first living hero of that role. Null = nobody. */
 function allyOf(cx, subject, stat) {
   const max = stat === 'hp' ? 'maxHp' : 'maxMana';
-  const all = heroesOf(cx.inst);
+  const all = alliesOf(cx.inst, cx.u);
   if (subject === 'self') return cx.u.alive ? cx.u : null;
   if (subject && subject !== 'lowest') return all.find((a) => a.role === subject) || null;
   const pool = all.filter((a) => (stat === 'hp' || int(a.maxMana) > 0) && (a === cx.u || reaches(cx.inst, cx.u, cx.h && cx.h.range, a)));
@@ -529,7 +532,7 @@ function elementVs(cx) {
   const el = !a ? null : a.type === 'ability' ? (ABILITIES[a.id] && ABILITIES[a.id].element) || null
     : a.type === 'attack_with_item' ? cx.u.element || null : null;
   const t = cx.aim && cx.aim.alive ? cx.aim : Number.isInteger(cx.u.target) ? cx.inst.world.units.find((x) => x.id === cx.u.target) : null;
-  if (!el || !t || t.side !== 'mon' || !MONSTERS[t.kind]) return null;
+  if (!el || !isMonster(t) || !MONSTERS[t.kind]) return null;
   return elementPermille(MONSTERS[t.kind], el);
 }
 
@@ -551,16 +554,16 @@ const EVAL = Object.freeze({
   },
   target_is_boss: (cx) => {
     const t = Number.isInteger(cx.u.target) ? cx.inst.world.units.find((x) => x.id === cx.u.target) : null;
-    return !!(t && t.side === 'mon' && MONSTERS[t.kind] && MONSTERS[t.kind].boss === true);
+    return !!(isMonster(t) && MONSTERS[t.kind] && MONSTERS[t.kind].boss === true);
   },
   /* THE AREA SPELLS' CONDITIONS (Tyler 2026-11-08: "make sure the conditions are available that make sense"). */
   /* The party's health, pooled: every living hero's HP over every living hero's max HP. */
-  party_hp_pct: (cx) => { const hs = heroesOf(cx.inst); return share(hs.reduce((a, h) => a + int(h.hp), 0), hs.reduce((a, h) => a + int(h.maxHp), 0)); },
+  party_hp_pct: (cx) => { const hs = alliesOf(cx.inst, cx.u); return share(hs.reduce((a, h) => a + int(h.hp), 0), hs.reduce((a, h) => a + int(h.maxHp), 0)); },
   /* How many monsters are winding up a spell whose mark covers this hero (`self`) or any living hero (`any`): the marks
      the screen shows (marks.js), so "eat when a monster is casting at me" reads exactly what the player sees. */
-  enemy_casting: (cx, c) => castsCovering(cx.inst, c.subject === 'any' ? heroesOf(cx.inst) : [cx.u]).length,
+  enemy_casting: (cx, c) => castsCovering(cx.inst, c.subject === 'any' ? alliesOf(cx.inst, cx.u) : [cx.u]).length,
   /* The fight is on: the hunt is in its fight phase and a monster holds one of the party. */
-  in_fight: (cx) => cx.inst.world.phase === 'fight' && engagedMons(cx.inst).length > 0,
+  in_fight: (cx) => cx.inst.world.phase === 'fight' && engagedFoes(cx.inst, cx.u).length > 0,
   /* What the slot's own element does to its aim (an earlier condition's, else the hero's target): weak = it takes more
      from it, resists = it takes less (core/elements.js: never 0). A slot with no element is neither. */
   target_weak: (cx) => { const pm = elementVs(cx); return pm !== null && pm > 1000; },
@@ -574,7 +577,7 @@ const EVAL = Object.freeze({
   },
   allies_below: (cx, c) => {
     const pct = Number(String(c.subject || 'under_50').slice(6)) || 50;
-    return heroesOf(cx.inst).filter((a) => int(a.maxHp) > 0 && int(a.hp) * 100 < pct * int(a.maxHp)).length;
+    return alliesOf(cx.inst, cx.u).filter((a) => int(a.maxHp) > 0 && int(a.hp) * 100 < pct * int(a.maxHp)).length;
   },
   effect_missing: (cx, c) => {
     const s = c.subject || 'target';
@@ -731,8 +734,8 @@ export function checkStopRules(inst, sc) {
   const heroes = inst.heroes || null;
   if (!heroes) return;
   /* (the living heroes, unit-index.js, in list order; a stop rule kills nobody) */
-  for (const u of livingOf(inst, 'hero')) {
-    if (u.side !== 'hero' || !u.alive) continue;
+  for (const u of livingHeroesOf(inst)) {
+    if (!isHero(u) || !u.alive) continue;
     const h = heroes[u.id];
     if (!h) continue;
     rekey(u, h);

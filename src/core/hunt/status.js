@@ -40,6 +40,7 @@ import { STATUSES, validateStatus } from '../../data/statuses.js';
 import { heroElementPermille } from '../elements.js';
 import { makeEvent } from './events.js';
 import { landHit } from './damage.js';
+import { isHero } from './sides.js';
 
 export const PERSISTED = Object.freeze({ unit: Object.freeze([['statuses', 'json']]), world: Object.freeze([]), pack: Object.freeze([]) });
 
@@ -56,7 +57,7 @@ export function statusRow(id) {
     on a HERO `unit` is the share of a blow of its `guard` element the hero takes (its resistance, elements.js heroElementPermille:
     a guard lowers the cut by the same percent, heal-cut.js reads it), 1000 with none and on a monster. */
 export function stackScale(row, source, unit) {
-  if (row.healCutPm) return unit && unit.side === 'hero' && row.guard ? heroElementPermille(unit.resistPm, row.guard) : 1000;
+  if (row.healCutPm) return isHero(unit) && row.guard ? heroElementPermille(unit.resistPm, row.guard) : 1000;
   if (!row.tick && !row.tierPermille) return 1000;
   /* (a source with no blow, a stack a fixture lands: 1, so its tick is the floor of one point) */
   const hit = source && source.maxHit !== undefined && source.maxHit !== null ? source.maxHit : 1;

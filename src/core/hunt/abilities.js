@@ -64,7 +64,8 @@ import { isRune } from '../../data/supplies.js';
 import { slotsFor, pickSlot, bestAim, itemRow, ignores, DEFAULT_ATTACK_ROW, attackOrder, runeSupplyOf, shapedAim } from './conditions.js';
 import { place, covers } from './shapes.js';
 import { shootsItem } from '../../data/hunt-roles.js';
-import { livingOf, targetedOf, heroesByIdOf } from './unit-index.js';
+import { livingOf, targetedFoesOf, heroesByIdOf } from './unit-index.js';
+import { sideOf, isAlly, isHero } from './sides.js';
 import { healTaken } from './heal-cut.js';
 
 export const PERSISTED = Object.freeze({
@@ -77,9 +78,10 @@ export const PERSISTED = Object.freeze({
 const int = (v) => { const n = Math.floor(Number(v)); return Number.isFinite(n) ? n : 0; };
 const readyAt = (o, k) => (o && typeof o === 'object' && Number.isInteger(o[k]) ? o[k] : 0);
 /* (unit-index.js: frozen lists, read once a sub-step in a swing; a caller that reorders one copies it) */
-const living = (inst, side) => livingOf(inst, side);
-/* A monster is in the fight once it holds a target. */
-const engaged = (inst) => targetedOf(inst);
+/* The living units on `u`'s side (sides.js): its allies, itself among them. In a hunt, the living heroes. */
+const allies = (inst, u) => livingOf(inst, sideOf(u));
+/* A foe is in the fight once it holds a target: `u`'s foes that do. In a hunt, the monsters in the fight. */
+const engaged = (inst, u) => targetedFoesOf(inst, sideOf(u));
 
 /** In reach: Melee (range 1) is adjacent; ranged is within `range` tiles with line of sight. */
 export function inReach(inst, hero, range, t) {
@@ -98,7 +100,7 @@ const byPreference = (hero) => (a, b) => ((b.id === hero.target) - (a.id === her
    named (else the lowest wounded one in reach) and an area its best aim. A monster
    the slot IGNORES is never its target or aim. */
 function targetFor(inst, hero, h, row, sc, cx) {
-  const mons = engaged(inst);
+  const mons = engaged(inst, hero);
   const near = mons.filter((m) => inReach(inst, hero, h.range, m) && !ignores(cx && cx.slot, m)).sort(byPreference(hero));
   const pct = (u) => (int(u.maxHp) > 0 ? (int(u.hp) * 100) / int(u.maxHp) : 100);
   switch (row.target) {
@@ -126,17 +128,17 @@ function targetFor(inst, hero, h, row, sc, cx) {
     case 'self': return pct(hero) < 100 ? hero : null;
     case 'ally': {
       /* An ally heal takes a wounded ally; an ally SHIELD (Protective Ward) a wounded one holding no shield. */
-      const ok = (a) => !!a && a.alive && a.side === 'hero' && pct(a) < 100 && (heals(row) || !(int(a.shield) > 0))
+      const ok = (a) => !!a && a.alive && isAlly(hero, a) && pct(a) < 100 && (heals(row) || !(int(a.shield) > 0))
         && (a === hero || inReach(inst, hero, h.range, a));
       if (cx && cx.ally) return ok(cx.ally) ? cx.ally : null;
-      return living(inst, 'hero').filter(ok).sort((a, b) => (pct(a) - pct(b)) || (a.id - b.id))[0] || null;
+      return allies(inst, hero).filter(ok).sort((a, b) => (pct(a) - pct(b)) || (a.id - b.id))[0] || null;
     }
     /* A party HEAL fires while any hero is hurt (it heals those in its radius). A party SHIELD (Shelter) needs a living, wounded hero
        within its radius, the caster too, holding no shell: a party already shelled waits, so no shell is cast for nothing. */
     case 'party': {
-      if (!shells(row)) return living(inst, 'hero').some((a) => pct(a) < 100) ? hero : null;
+      if (!shells(row)) return allies(inst, hero).some((a) => pct(a) < 100) ? hero : null;
       const r2 = row.radius * row.radius;
-      return living(inst, 'hero').some((a) => pct(a) < 100 && !(int(a.shield) > 0) && (a === hero || dist2(a, hero) <= r2)) ? hero : null;
+      return allies(inst, hero).some((a) => pct(a) < 100 && !(int(a.shield) > 0) && (a === hero || dist2(a, hero) <= r2)) ? hero : null;
     }
     default: return null;
   }
@@ -264,11 +266,11 @@ export function gateOf(hero, h, row, atMs) {
 }
 
 /**
- * ALONE (Tyler 2026-11-09, src/data/abilities.js `alone`): no other living hero shares `world` with `hero`. Read at each
+ * ALONE (Tyler 2026-11-09, src/data/abilities.js `alone`): no other living ally (sides.js: in a hunt, a hero) shares `world` with `hero`. Read at each
  * cast, as the kill XP reads the living heroes (xp-share.js): a death or a leave changes the next cast. Pure.
  */
 export function aloneIn(world, hero) {
-  return !!world && Array.isArray(world.units) && !world.units.some((o) => o !== hero && o.side === 'hero' && o.alive === true);
+  return !!world && Array.isArray(world.units) && !world.units.some((o) => o !== hero && isAlly(hero, o) && o.alive === true);
 }
 
 /* The shell `row` lands from caster `u` at `pm` permille (abilities.js castAmount: a share of its own blow), 0 for a row that lays none. */
@@ -423,7 +425,7 @@ function effect(inst, u, row, t, sc, v) {
        through it, a ring round the hero), in id order, up to its maxHits. */
     case 'area': case 'line': case 'ring': {
       const s = place(areaSpec(row), u, t);
-      const hit = engaged(inst).filter((o) => covers(s, o.x, o.y)).sort((a, b) => a.id - b.id);
+      const hit = engaged(inst, u).filter((o) => covers(s, o.x, o.y)).sort((a, b) => a.id - b.id);
       /* A shape that lands only its status (Frost Slam: landsBlow false) strikes no blow: no dmg event, no kill, no weapon XP. */
       const blows = landsBlow(row);
       for (const m of Number.isInteger(row.maxHits) ? hit.slice(0, row.maxHits) : hit) {
@@ -449,7 +451,7 @@ function effect(inst, u, row, t, sc, v) {
        Tempering rung's part of a point is its only draw); a shield (Shelter) draws nothing and lands max(standing, its shell),
        with a `shield` event only where the shell rose. */
     case 'party':
-      for (const a of living(inst, 'hero').slice().sort((x, y) => x.id - y.id)) {
+      for (const a of allies(inst, u).slice().sort((x, y) => x.id - y.id)) {
         if (!(a === u || dist2(a, u) <= row.radius * row.radius)) continue;
         if (heals(row)) { healOne(u, a, amount().heal, sc, sg); continue; }
         const n = amount().shield;
@@ -609,9 +611,9 @@ function castOrder(inst) {
 /** Attack hook: each hero fires its first usable ability; between pulls, its first usable heal or shield (`mends`). */
 export function castAbilities(inst, sc) {
   for (const u of castOrder(inst)) {
-    if (u.side !== 'hero' || !u.alive) continue;
+    if (!isHero(u) || !u.alive) continue;
     regenMana(u, sc.dtMs);
-    const pick = firstUsable(inst, u, sc, engaged(inst).length ? null : mends);
+    const pick = firstUsable(inst, u, sc, engaged(inst, u).length ? null : mends);
     if (pick) fire(inst, u, pick, sc);
   }
 }

@@ -50,6 +50,7 @@ import { magicXpFor } from './hunt/xp-share.js';
 import { splitEven, itemOwner, rareRoll } from './party-split.js';
 import { makeEvent } from './hunt/events.js';
 import { trainingSwing } from './hunt/training.js';
+import { isHero, isMonster } from './hunt/sides.js';
 
 const call = (fx, name, ...args) => (fx && typeof fx[name] === 'function' ? fx[name](...args) : undefined);
 
@@ -58,7 +59,7 @@ const call = (fx, name, ...args) => (fx && typeof fx[name] === 'function' ? fx[n
    only while the hero wears armour; scaled by the attacker's level; a shield's
    block (a miss on a shield-holder) pays blockMult times more. */
 function defenseXp(m, attacker, missed, ctx) {
-  if (!m || m.armoured !== true || !attacker || attacker.side !== 'mon') return 0;
+  if (!m || m.armoured !== true || !isMonster(attacker)) return 0;
   const lv = levelAtTier(monsterLevelOf((ctx.monsters || MONSTERS)[attacker.kind]), ctx.tier);
   return (lv * COMBAT_XP.defenseXpPerLevelPermille / 1000) * (missed && m.shield === true ? COMBAT_XP.blockMult : 1);
 }
@@ -178,7 +179,7 @@ function payDrops(present, ids, lead, row, ctx, world, atMs) {
    die drawn is the table's, on his kill. SHUT while BOSS_CALL_RULES.dropsLive is false (the live allowlist still refuses an item). One door, so a route added above can't reach it. hr_hunt_apply_member holds a window to the same (tests/boss-call.mjs). */
 /* The heroes alive at kill `i` (its index in the swing's events), in unit-id order: they share its gold, loot and rare roll, as its XP
    (xp-share.js). `world` is AFTER the swing, so a hero who fell later in it (`fell`) was there (Andy's Tower wipe 2026-11-19: XP, no kill). */
-const livingAt = (world, members, fell, i) => world.units.filter((u) => u.side === 'hero' && members.has(u.id) && (u.alive === true || fell.get(u.id) > i)).map((u) => u.id).sort((a, b) => a - b);
+const livingAt = (world, members, fell, i) => world.units.filter((u) => isHero(u) && members.has(u.id) && (u.alive === true || fell.get(u.id) > i)).map((u) => u.id).sort((a, b) => a - b);
 
 /* Each member hero's fall in this swing: its index in `events`. */
 function fallsAt(members, events) {
@@ -194,14 +195,14 @@ function calledSwing(members, events, world, unitOf, boss, ctx) {
     const ev = events[i];
     if (ev.type !== 'kill') continue;
     const t = unitOf(ev.t);
-    if (t && t.side === 'mon' && t.kind === boss) {
+    if (isMonster(t) && t.kind === boss) {
       const ids = livingAt(world, members, fell, i);
       const row = (ctx.monsters || MONSTERS)[boss];
       if (BOSS_CALL_RULES.dropsLive === true && ids.length && row) { const present = ids.map((id) => members.get(id)); payDrops(present, ids, members.get(ev.u) || present[0], row, ctx, world, ev.atMs); }
       for (const m of members.values()) call(m.fx, 'updateQuest', 'kill_monster', 1, { target: t.kind });
     } else if (members.has(ev.t)) {
       const k = unitOf(ev.u);
-      deaths.push({ unit: ev.t, atMs: ev.atMs, monster: k && k.side === 'mon' ? k.kind : '' });
+      deaths.push({ unit: ev.t, atMs: ev.atMs, monster: isMonster(k) ? k.kind : '' });
     }
   }
   return deaths;
@@ -240,7 +241,7 @@ export function rewardSwing(members, events, world, ctx) {
       case 'dmg': {
         const m = members.get(ev.u);
         const t = unitOf(ev.t);
-        if (m && t && t.side === 'mon' && ev.amount > 0) {
+        if (m && isMonster(t) && ev.amount > 0) {
           const skill = hitSkillOf(m.family, ev.ability);
           if (skill) call(m.fx, 'addXp', skill, share(ev.amount * COMBAT_XP.hitXpPerDamage));
         }
@@ -270,12 +271,12 @@ export function rewardSwing(members, events, world, ctx) {
       case 'kill': {
         const t = unitOf(ev.t);
         if (!t) break;
-        if (t.side === 'mon') {
+        if (isMonster(t)) {
           const ids = livingAt(world, members, fell, i);
           if (ids.length) payKill(ids.map((id) => members.get(id)), ids, members.get(ev.u) || null, t.kind, ctx, world, ev.atMs, ev.t);
         } else if (members.has(ev.t)) {
           const k = unitOf(ev.u);
-          deaths.push({ unit: ev.t, atMs: ev.atMs, monster: k && k.side === 'mon' ? k.kind : '' });
+          deaths.push({ unit: ev.t, atMs: ev.atMs, monster: isMonster(k) ? k.kind : '' });
         }
         break;
       }

@@ -28,7 +28,8 @@ import { elementPermille, heroElementPermille } from '../elements.js';
 import { cheb, dist2, los } from './grid.js';
 import { unitById, leaderOf } from './movement.js';
 import { makeEvent } from './events.js';
-import { engagedOf, livingOf, heroUnitsOf, staleIndex } from './unit-index.js';
+import { engagedFoesOf, engagedMonstersOf, livingMonstersOf, livingHeroesOf, heroUnitsOf, staleIndex } from './unit-index.js';
+import { sideOf, isEnemy, isAlly, isHero, isMonster } from './sides.js';
 import { rangeOf, aimOf } from './shooters.js';
 
 /* holdMs: ms a Challenged monster stays on its challenger (no other Challenge takes it meanwhile).
@@ -43,14 +44,15 @@ export const PERSISTED = Object.freeze({
 });
 
 /** The role row a unit plays, or null (a monster, or a hero with no role). */
-export const roleOf = (u) => (u && u.side === 'hero' && HUNT_ROLES[u.role]) || null;
+export const roleOf = (u) => (isHero(u) && HUNT_ROLES[u.role]) || null;
 
-/** The living monsters that hold a target, in list order (unit-index.js: a frozen list, read once a sub-step in a swing). */
-export const engaged = (inst) => engagedOf(inst);
+/** The living FOES of unit `u` that hold a target, in list order: what it can fight now (sides.js; unit-index.js: a frozen list, read
+    once a sub-step in a swing). In a hunt a hero's foes are the monsters. */
+export const engaged = (inst, u) => engagedFoesOf(inst, sideOf(u));
 
 /** What a blow of `element` is worth against `unit`, in permille (core/elements.js; never 0). A hero takes it less by
     its own resistance to it (`resistPm`, from its gear: combat-sim.js syncUnit), in full with none (every hero today). */
-export const elementOn = (unit, element) => (unit.side === 'mon' ? elementPermille(MONSTERS[unit.kind], element) : heroElementPermille(unit.resistPm, element));
+export const elementOn = (unit, element) => (isMonster(unit) ? elementPermille(MONSTERS[unit.kind], element) : heroElementPermille(unit.resistPm, element));
 
 /** Can hero `u` hit monster `m` from where it stands? Melee: adjacent. Ranged: range + line of sight (TG-02). */
 export function inRange(inst, u, m) {
@@ -105,14 +107,14 @@ export function followed(inst, u) {
   if (inst.world.leader === u.id) return null;
   const k = unitById(inst, inst.world.leader);
   const on = k && Number.isInteger(k.target) ? unitById(inst, k.target) : null;
-  return on && on.alive && on.side === 'mon' ? on.id : inst.world.leaderLast;
+  return on && on.alive && isEnemy(u, on) ? on.id : inst.world.leaderLast;
 }
 
 /** Ordered targets for `unit` by its Target setting (TG-01). `settings.tmode` overrides the unit's own. */
 export function pickTargets(inst, unit, settings) {
   if (!unit || !roleOf(unit)) return [];
   const cmp = orderOf(inst, unit, (settings && settings.tmode) || unit.tmode, kindOf(unit, settings));
-  return engaged(inst).slice().sort((a, b) => cmp(a, b) || dist2(a, unit) - dist2(b, unit) || a.id - b.id);
+  return engaged(inst, unit).slice().sort((a, b) => cmp(a, b) || dist2(a, unit) - dist2(b, unit) || a.id - b.id);
 }
 
 /**
@@ -124,10 +126,10 @@ export function pickTargets(inst, unit, settings) {
 function outranked(inst, u, cur) {
   /* the kind first is steady under every mode (a monster's kind never changes): its kind engaged and this one not of it */
   const kind = kindOf(u);
-  if (kind && !(u.aiMs > 0) && cur.kind !== kind && engaged(inst).some((m) => m.kind === kind)) return true;
+  if (kind && !(u.aiMs > 0) && cur.kind !== kind && engaged(inst, u).some((m) => m.kind === kind)) return true;
   if (u.aiMs > 0 || !STEADY_MODES.includes(u.tmode)) return false;
   const cmp = orderOf(inst, u, u.tmode, kind);
-  return engaged(inst).some((m) => m !== cur && cmp(m, cur) < 0);
+  return engaged(inst, u).some((m) => m !== cur && cmp(m, cur) < 0);
 }
 
 /** The basic attack's target: the first in order it can hit. */
@@ -138,7 +140,7 @@ export function basicTarget(inst, u) {
      it aside and take the next. inRange is pure, and no line of sight is traced past the answer. */
   if (!u || !roleOf(u)) return null;
   const cmp = orderOf(inst, u, u.tmode, kindOf(u));
-  const left = engaged(inst).slice();
+  const left = engaged(inst, u).slice();
   while (left.length) {
     let bi = 0;
     for (let i = 1; i < left.length; i++) {
@@ -168,7 +170,7 @@ export function peel(inst, sc, hero) {
   const row = roleOf(hero);
   const k = leaderOf(inst);
   if (!row || !row.peel || !k || k === hero) return null;
-  const free = engaged(inst).filter((m) => m.target === k.id && m.queued && !(m.holdMs > 0) && cheb(m, k) > 1);
+  const free = engaged(inst, hero).filter((m) => m.target === k.id && m.queued && !(m.holdMs > 0) && cheb(m, k) > 1);
   if (!free.length || sc.rng.int(1, 1000) > row.peel) return null;
   retarget(inst, free[0], hero.id, sc);
   return free[0];
@@ -215,8 +217,8 @@ export function pickInForce(inst) {
 
 /** THE TANKS THAT TAKE TURNS: the living tanks in seat (unit id) order, less any under the floor (underHoldFloor). */
 export function turnTanks(inst) {
-  /* (a tank is a hero: the living heroes, unit-index.js, in list order) */
-  const living = livingOf(inst, 'hero').filter(isTank);
+  /* (a tank is a hero: the living heroes, unit-index.js, in list order; the party's own by kind, hunt structure: sides.js) */
+  const living = livingHeroesOf(inst).filter(isTank);
   return living.filter((u) => !underHoldFloor(u, living)).sort((a, b) => a.id - b.id);
 }
 
@@ -241,8 +243,8 @@ export function challengeable(inst, k) {
   if (!isTank(k) || !k.alive) return [];
   const holds = holderTank(inst) === k;
   /* a non-holder takes only what is on a hero that is not a tank */
-  const onNonTank = (m) => { const t = unitById(inst, m.target); return !!t && t.side === 'hero' && !isTank(t); };
-  return engaged(inst).filter((m) => m.target !== k.id && !(m.holdMs > 0) && cheb(m, k) <= CHALLENGE.radius && (holds || onNonTank(m)));
+  const onNonTank = (m) => { const t = unitById(inst, m.target); return !!t && isAlly(k, t) && !isTank(t); };
+  return engaged(inst, k).filter((m) => m.target !== k.id && !(m.holdMs > 0) && cheb(m, k) <= CHALLENGE.radius && (holds || onNonTank(m)));
 }
 
 /**
@@ -260,7 +262,7 @@ export function challengeFrom(inst, sc, k) {
 
 /* Is any engaged monster on hero `u` (it holds them: a tank's hold, a peeled healer)? A SHOOTER on it is not held: it shoots
    from where it stands (shooters.js), so a Melee hero it shoots still walks to its mark. */
-const holding = (inst, u) => engaged(inst).some((m) => m.target === u.id && !rangeOf(inst, m));
+const holding = (inst, u) => engaged(inst, u).some((m) => m.target === u.id && !rangeOf(inst, m));
 
 /**
  * Phase-AI hook, every sub-step: holds run down, monsters whose target fell turn
@@ -276,14 +278,15 @@ const holding = (inst, u) => engaged(inst).some((m) => m.target === u.id && !ran
 export function chooseTargets(inst, sc) {
   const k = leaderOf(inst);
   for (const m of inst.world.units) if (m.holdMs > 0) m.holdMs = Math.max(0, m.holdMs - sc.dtMs);
-  for (const m of engaged(inst)) {
+  /* (the monsters' own AI, by kind: unit-index.js) */
+  for (const m of engagedMonstersOf(inst)) {
     const t = unitById(inst, m.target);
     /* (a SHOOTER turns on the hero farthest from it instead: shooters.js aimOf) */
     if (!t || !t.alive) { retarget(inst, m, aimOf(inst, m, k && k !== t ? k.id : null), sc); m.holdMs = 0; }
   }
   /* A monster whose target walked out (leaveHero clears it; a death stops the swing first, so the turn above never ran) turns the same
      way while its pack is in the fight, else no hero can pick it and the pocket never clears (a no-fight stall). */
-  for (const m of livingOf(inst, 'mon')) {
+  for (const m of livingMonstersOf(inst)) {
     if (Number.isInteger(m.target) || !(inst.world.packs[m.pocket] && inst.world.packs[m.pocket].aggro)) continue;
     retarget(inst, m, aimOf(inst, m, k ? k.id : null), sc); m.holdMs = 0;
   }

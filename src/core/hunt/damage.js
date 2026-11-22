@@ -50,6 +50,7 @@ import { dummyBlow, dummyStands, trainingBasic } from './training.js';
 import { reaches } from './shooters.js';
 import { elementOnHeroOf } from '../../data/elements.js';
 import { applyStatus, statusRow } from './status.js';
+import { isEnemy, isHero, isMonster } from './sides.js';
 
 /* A store shot's share of its partner's ammo bonus, permille. */
 const BASIC_SHOT_PM = Math.round(BASIC_EFFECT_SHARE * 1000);
@@ -105,7 +106,7 @@ export const rowOf = (inst, kind) => (inst.monsters || MONSTERS)[kind];
 
 /* WHAT THE HERO'S ARMOUR DOES TO THIS BLOW (mitigation.js): its values against the attacker's own level, the ground's tier on it (hunt-tiers.js). A status tick whose dealer has left the world has no level to read: 1. */
 const armourVs = (inst, target, source) => (target.armour
-  ? mitigationOf(target.armour, source && source.side === 'mon' ? levelAtTier(monsterLevelOf(rowOf(inst, source.kind)), inst.tier) : 1) : NO_MITIGATION);
+  ? mitigationOf(target.armour, isMonster(source) ? levelAtTier(monsterLevelOf(rowOf(inst, source.kind)), inst.tier) : 1) : NO_MITIGATION);
 
 /* A monster's element permille `el` for a hit tagged `ability`: a weakness (over 1000) at the tag's `weakPm` share, else `el` itself. */
 const weakShare = (el, ability) => (el > 1000 && ability && Number.isInteger(ability.weakPm) ? 1000 + Math.floor(((el - 1000) * ability.weakPm) / 1000) : el);
@@ -123,24 +124,24 @@ export function hurt(inst, target, amount, source, element, ability, rng) {
   let n = Math.max(0, Math.floor(amount));
   /* A HIT THAT LANDS PART OF A WEAKNESS (`weakPm`, abilities.js: the fist line's strikes, half): the monster's bonus over 1000 at that
      share, a resistance in full (a wiki formula: weak = 1000 + floor((el - 1000) x weakPm / 1000) when el > 1000). */
-  if (target.side === 'mon') n = Math.floor((n * weakShare(el, ability)) / 1000) - defenceReduction(rowOf(inst, target.kind));
+  if (isMonster(target)) n = Math.floor((n * weakShare(el, ability)) / 1000) - defenceReduction(rowOf(inst, target.kind));
   if (ability && Number.isInteger(ability.mult)) n = Math.floor((n * ability.mult) / 1000);
   /* A CALLED BOSS BEHIND HIS ADDS takes his guard's share of every blow (boss-phases.js); any other monster all of it. */
-  if (target.side === 'mon') n = Math.floor((n * guardPmOf(inst, target)) / 1000);
+  if (isMonster(target)) n = Math.floor((n * guardPmOf(inst, target)) / 1000);
   n = Math.floor((n * stanceOf(source).dealt) / 1000);
   n = Math.floor((n * stanceOf(target).taken) / 1000);
   /* THE HERO'S ARMOUR, in the fixed order (dodge was rolled by landHit): absorb, resistances,
      ward, never past the total cap (src/core/mitigation.js), then the shield below and HP.
      Every landed blow deals at least 1. */
-  n = target.side === 'hero' ? mitigate(n, el, armourVs(inst, target, source), target.armorPm, rng) : Math.max(1, n);
+  n = isHero(target) ? mitigate(n, el, armourVs(inst, target, source), target.armorPm, rng) : Math.max(1, n);
   /* TEMPERING: a hero's rung raises what lands on a monster, last, so +1% is +1% of the damage whatever the monster's defence (src/core/temper.js: the part of a point is one draw, made only by a hero with a rung). */
-  if (source && source.blowsPm > 0 && target.side === 'mon') n = temperedAmount(n, source.blowsPm, rng);
+  if (source && source.blowsPm > 0 && isMonster(target)) n = temperedAmount(n, source.blowsPm, rng);
   const absorbed = Number.isInteger(target.shield) && target.shield > 0 ? Math.min(target.shield, n) : 0;
   if (absorbed) target.shield -= absorbed;
   /* A TRAINING DUMMY (src/core/hunt/training.js): its blow never takes a hero under the floor, and it never falls (whole again before anyone reads a kill). */
-  const dmg = dummyBlow(source && source.side === 'mon' ? rowOf(inst, source.kind) : null, target, Math.min(target.hp, n - absorbed));
+  const dmg = dummyBlow(isMonster(source) ? rowOf(inst, source.kind) : null, target, Math.min(target.hp, n - absorbed));
   target.hp -= dmg;
-  if (target.side === 'mon') dummyStands(rowOf(inst, target.kind), target);
+  if (isMonster(target)) dummyStands(rowOf(inst, target.kind), target);
   return { dmg, absorbed, killed: target.hp <= 0 };
 }
 
@@ -155,7 +156,7 @@ export function landHit(inst, sc, source, target, amount, element, ability, crit
   /* DODGE, the chain's first step (ruling K7): a BLOW at a hero wearing medium armour misses
      outright on its dodge chance — one draw on the `s` stream, made only when the chance is above
      zero, so a hero with no medium armour draws nothing. A status tick is not a blow (`dot`). */
-  const dodgePm = target.side === 'hero' && !(ability && ability.dot) ? armourVs(inst, target, source).dodgePm : 0;
+  const dodgePm = isHero(target) && !(ability && ability.dot) ? armourVs(inst, target, source).dodgePm : 0;
   if (dodgePm > 0 && sc.rng.chance(dodgePm / 1000)) {
     sc.emit(makeEvent('miss', sc.atMs, { u: source ? source.id : null, t: target.id, dodge: true }));
     return { dmg: 0, absorbed: 0, killed: false, dodged: true };
@@ -170,23 +171,23 @@ export function landHit(inst, sc, source, target, amount, element, ability, crit
     markPm ? Object.assign({}, ability, { mult: Math.floor((base * (1000 + markPm)) / 1000) }) : ability, sc.rng);
   /* A status tick whose source has left the world lands with no dealer (u null). */
   const u = source ? source.id : null;
-  if (target.side === 'mon') inst.world.fightAt = sc.atMs;
+  if (isMonster(target)) inst.world.fightAt = sc.atMs;
   /* AN ELEMENT'S FIXED RULE ON A HERO (data/elements.js ELEMENT_ON_HERO, itemization plan Appendix B1), when the blow took HP: a storm
      blow also burns half the HP it took from the hero's mana (`burn` on the dmg event, never past what it holds), a necrotic one
      Withers the hero (statuses.js: every heal it takes is cut for 6 s; status.js applyStatus emits it). Nothing else has a rule, so
      every other blow lands exactly as before. */
-  const rule = target.side === 'hero' && r.dmg > 0 ? elementOnHeroOf(element) : null;
+  const rule = isHero(target) && r.dmg > 0 ? elementOnHeroOf(element) : null;
   const burn = rule && rule.manaBurnPm ? Math.min(Math.max(0, Math.floor(Number(target.mana) || 0)), Math.floor((r.dmg * rule.manaBurnPm) / 1000)) : 0;
   if (burn > 0) target.mana = Math.floor(Number(target.mana)) - burn;
   sc.emit(makeEvent('dmg', sc.atMs, { u, t: target.id, amount: r.dmg,
     ability: (ability && ability.id) || 'basic', element: element || null, ...(crit ? { crit: true } : {}), ...(ability && ability.follow ? { follow: true } : {}),
     ...(ability && ability.dot ? { dot: true } : {}), ...(burn > 0 ? { burn } : {}) }));
   if (rule && rule.withers) applyStatus(inst, target, statusRow(rule.withers), { u }, sc);
-  if (target.side === 'mon') crossLines(inst, sc, target, before);
+  if (isMonster(target)) crossLines(inst, sc, target, before);
   if (r.killed) {
     sc.emit(makeEvent('kill', sc.atMs, { u, t: target.id }));
     fallen(inst, target, sc);
-    if (target.side === 'mon') { const row = rowOf(inst, target.kind); shareKillXp(inst, { t: target.id, u, xp: Math.round(atTier(row, inst.tier).xp), ...(Number.isInteger(row.partyPm) ? { partyPm: row.partyPm } : {}) }, sc); focusBack(source, target); }
+    if (isMonster(target)) { const row = rowOf(inst, target.kind); shareKillXp(inst, { t: target.id, u, xp: Math.round(atTier(row, inst.tier).xp), ...(Number.isInteger(row.partyPm) ? { partyPm: row.partyPm } : {}) }, sc); focusBack(source, target); }
   }
   return r;
 }
@@ -194,7 +195,7 @@ export function landHit(inst, sc, source, target, amount, element, ability, crit
 /* FOCUS (src/data/jewelry.js): the hero whose blow fell a monster gets `focusPm` permille of its max mana back (at least 1), never past
    the max. Only a hero that wears the perk; no draw, so every other kill plays what it played before. A training dummy never falls. */
 function focusBack(u, t) {
-  if (!u || u.side !== 'hero' || !u.alive || !(u.focusPm > 0) || t.side !== 'mon') return;
+  if (!isHero(u) || !u.alive || !(u.focusPm > 0) || !isMonster(t)) return;
   const max = Math.floor(Number(u.maxMana) || 0);
   if (max <= 0) return;
   u.mana = Math.min(max, Math.floor(Number(u.mana) || 0) + Math.max(1, Math.floor((max * u.focusPm) / 1000)));
@@ -217,7 +218,7 @@ function roll(inst, sc, u, t, accuracy, maxHit, critChance) {
   if (amount <= 0) { sc.emit(makeEvent('miss', sc.atMs, { u: u.id, t: t.id })); return null; }
   const crit = critChance > 0 && rollCrit(sc.rng, critChance);
   if (crit) amount = applyCrit(amount, COMBAT_BALANCE.critMult);
-  const r = landHit(inst, sc, u, t, amount, u.side === 'hero' ? u.element : null, null, crit);
+  const r = landHit(inst, sc, u, t, amount, isHero(u) ? u.element : null, null, crit);
   followThrough(inst, sc, u, t, amount, crit);
   return r;
 }
@@ -227,9 +228,9 @@ function roll(inst, sc, u, t, accuracy, maxHit, critChance) {
    only when such a monster stands there, so every other blow draws what it drew before. It never follows through again. */
 const FOLLOW_TAG = Object.freeze({ id: 'basic', follow: true });
 function followThrough(inst, sc, u, t, amount, crit) {
-  if (!(u.followPm > 0) || u.side !== 'hero' || t.side !== 'mon') return;
+  if (!(u.followPm > 0) || !isHero(u) || !isEnemy(u, t)) return;
   let next = null;
-  for (const m of engaged(inst)) if (m !== t && m.alive && cheb(m, t) <= 1 && (!next || m.id < next.id)) next = m;
+  for (const m of engaged(inst, u)) if (m !== t && m.alive && cheb(m, t) <= 1 && (!next || m.id < next.id)) next = m;
   if (next && sc.rng.chance(u.followPm / 1000)) landHit(inst, sc, u, next, amount, u.element, FOLLOW_TAG, crit);
 }
 
@@ -244,7 +245,7 @@ export function resolveAttacks(inst, sc) {
     if (u.swingLeftMs > 0 || !Number.isInteger(u.target)) continue;
     const t = unitById(inst, u.target);
     if (!t || !t.alive) continue;
-    if (u.side === 'mon') {
+    if (isMonster(u)) {
       /* beside its target, or a SHOOTER within its range in sight (shooters.js reaches) */
       if (!reaches(inst, u, t) || !atRest(u)) continue;
       const row = atTier(rowOf(inst, u.kind), inst.tier);
@@ -277,7 +278,7 @@ export function resolveAttacks(inst, sc) {
     /* A STORE SHOT is its crafted partner's BASIC version (supply-basics.js BASIC_EFFECT_SHARE). */
     const sharePm = paid !== true && paid.source === 'store' ? BASIC_SHOT_PM : undefined;
     const aim = shot.pick.aim;
-    const hits = [aim].concat(engaged(inst).filter((m) => m !== aim && inFootprint(aim, shot.pick.size, m)).sort((a, b) => a.id - b.id));
+    const hits = [aim].concat(engaged(inst, u).filter((m) => m !== aim && inFootprint(aim, shot.pick.size, m)).sort((a, b) => a.id - b.id));
     /* The decision event: a player's (or role) slot, and every swing that spent mana (its Magic XP is
        paid from it: hunt-rewards.js), never a free default swing every 2 s. */
     if (shot.rule !== DEFAULT_ATTACK_ROW.rule || shot.pick.mana > 0) {
@@ -304,12 +305,12 @@ export function resolveAttacks(inst, sc) {
    shotRolls and swings on its frozen numbers until the server's commit lands. */
 function blow(inst, sc, u, h, t, price, sharePm) {
   const basic = Number.isInteger(sharePm) && sharePm < 1000;
-  if (h && t.side === 'mon' && price !== undefined && (price !== h.ammo || basic) && typeof h.shotRolls === 'function') {
+  if (h && isMonster(t) && price !== undefined && (price !== h.ammo || basic) && typeof h.shotRolls === 'function') {
     const base = h.shotRolls(null, price, sharePm), spent = h.shotRolls(rowOf(inst, t.kind), price, sharePm, t.kind);
     return roll(inst, sc, u, t, spent.accuracy, Math.max(1, Math.floor(Math.max(1, base.maxHit) * ((spent.weak && spent.weak.damageMult) || 1))),
       Number(spent.critChance) || 0);
   }
-  const vs = h && t.side === 'mon' && typeof h.rollsVs === 'function' ? h.rollsVs(rowOf(inst, t.kind), t.kind) : null;
+  const vs = h && isMonster(t) && typeof h.rollsVs === 'function' ? h.rollsVs(rowOf(inst, t.kind), t.kind) : null;
   return roll(inst, sc, u, t, vs ? vs.accuracy : u.acc / 1000,
     vs ? Math.max(1, Math.floor(Math.max(1, u.maxHit) * ((vs.weak && vs.weak.damageMult) || 1))) : Math.max(1, u.maxHit),
     vs ? Number(vs.critChance) || 0 : 0);

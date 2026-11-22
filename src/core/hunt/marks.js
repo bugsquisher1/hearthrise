@@ -15,6 +15,7 @@
 // ============================================================
 
 import { covers, tilesOf, SHAPE_KINDS } from './shapes.js';
+import { isMonster } from './sides.js';
 
 /** The placed shape of unit `u`'s live cast, or null (none, a caster that has fallen, or a cast that is no shape: a MEND winds
     up on a packmate and strikes no hero, data/monster-spells.js mends, so it marks no ground, casts at no hero and draws no mark). */
@@ -28,7 +29,7 @@ export function castShape(u) {
 export function castsCovering(inst, heroes) {
   const out = [];
   for (const m of inst.world.units) {
-    if (m.side !== 'mon') continue;
+    if (!isMonster(m)) continue;
     const s = castShape(m);
     if (s && heroes.some((h) => h && covers(s, h.x, h.y))) out.push(m);
   }
@@ -42,7 +43,7 @@ const groundOf = (m) => { const s = castShape(m); return s && s.kind !== 'group'
 /** Is tile (x, y) under any living monster's GROUND mark (a group strike marks none)? */
 export function markedAt(inst, x, y) {
   for (const m of inst.world.units) {
-    if (m.side !== 'mon') continue;
+    if (!isMonster(m)) continue;
     const s = groundOf(m);
     if (s && covers(s, x, y)) return true;
   }
@@ -50,7 +51,7 @@ export function markedAt(inst, x, y) {
 }
 
 /** Does a ground mark stand anywhere (a living monster winding up a spell a hero can step off)? */
-export const anyMark = (inst) => inst.world.units.some((m) => m.side === 'mon' && !!groundOf(m));
+export const anyMark = (inst) => inst.world.units.some((m) => isMonster(m) && !!groundOf(m));
 
 /**
  * THE TILES TO DRAW for unit `u`'s live cast (the screen's mark, the server's own tiles): every walkable tile of `grid`

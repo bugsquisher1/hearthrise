@@ -29,6 +29,7 @@ import { HUNT_TUNING } from '../../data/hunt-tuning.js';
 import { walkable, astar, bfsTo, bfsWithin, cheb, stepCost, tileKey } from './grid.js';
 import { leashAllows, inArea } from './leash.js';
 import { trackStep } from './events.js';
+import { isHero, isMonster } from './sides.js';
 
 /* What this module keeps on the persisted world (world-state.js encodes it). */
 export const PERSISTED = Object.freeze({
@@ -61,7 +62,7 @@ export function occupancy(inst) {
   for (const u of inst.world.units) {
     if (!u.alive) continue;
     const k = tileKey(inst.grid, u.x, u.y);
-    if (u.side === 'mon') mon.set(k, u); else hero.set(k, (hero.get(k) || 0) + 1);
+    if (isMonster(u)) mon.set(k, u); else hero.set(k, (hero.get(k) || 0) + 1);
   }
   inst.occ = { mon, hero };
   return inst.occ;
@@ -72,7 +73,7 @@ function blocks(inst, u, x, y) {
   const k = tileKey(inst.grid, x, y);
   const m = inst.occ.mon.get(k);
   if (m && m !== u) return true;
-  return u.side === 'mon' && (inst.occ.hero.get(k) || 0) > 0;
+  return isMonster(u) && (inst.occ.hero.get(k) || 0) > 0;
 }
 
 /** Plan a path for `u`; the leash vetoes every tile a monster may not stand on. */
@@ -143,7 +144,7 @@ function tryNextStep(inst, u, sc) {
   u.waitMs = 0;
   u.path.shift();
   const from = tileKey(inst.grid, u.x, u.y); const to = tileKey(inst.grid, nx, ny);
-  if (u.side === 'mon') {
+  if (isMonster(u)) {
     if (inst.occ.mon.get(from) === u) inst.occ.mon.delete(from);
     inst.occ.mon.set(to, u);
   } else {
@@ -216,7 +217,7 @@ export function followTrail(inst) {
   const t = inst.world.trail;
   let i = 0;
   for (const u of inst.world.units) {
-    if (u.side !== 'hero' || u === k) continue;
+    if (!isHero(u) || u === k) continue;
     i++;
     if (!u.alive || Number.isInteger(u.target)) continue;
     const idx = t.length - 1 - i * HUNT_TUNING.trailSpacing;
@@ -231,7 +232,7 @@ export function followTrail(inst) {
 
 /** Has another living hero claimed (x, y) as its spot? (RO-07) */
 export function spotTaken(inst, hero, x, y) {
-  return inst.world.units.some((v) => v !== hero && v.alive && v.side === 'hero' && v.spot && v.spot[0] === x && v.spot[1] === y);
+  return inst.world.units.some((v) => v !== hero && v.alive && isHero(v) && v.spot && v.spot[0] === x && v.spot[1] === y);
 }
 
 /* THE SPOTS THE OTHER LIVING HEROES HOLD (spotTaken's list), read once for a whole tile search: candidateTiles asks
@@ -239,7 +240,7 @@ export function spotTaken(inst, hero, x, y) {
    a party's engine time). Nothing a search asks moves a spot, so the answer is spotTaken's, tile for tile. */
 function claimsOf(inst, hero) {
   const out = [];
-  for (const v of inst.world.units) if (v !== hero && v.alive && v.side === 'hero' && v.spot) out.push(v.spot);
+  for (const v of inst.world.units) if (v !== hero && v.alive && isHero(v) && v.spot) out.push(v.spot);
   return out;
 }
 const claimed = (claims, x, y) => { for (const s of claims) if (s[0] === x && s[1] === y) return true; return false; };

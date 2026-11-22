@@ -570,7 +570,18 @@ async function main() {
   const prev = existsSync(MATRIX_FILE) ? JSON.parse(readFileSync(MATRIX_FILE, 'utf8')) : {};
   const doc = { schema: 'hearthrise.balance-sensitivity-matrix/1', scenarioHash: P.scenarioHash, commits: P.commits, githubRuns: arg('run') ? arg('run').split(',') : prev.githubRuns || [], seedSets: P.seedSets,
     cells: P.meta, outcomes: OUTCOMES.map(([id, label, category, unit]) => ({ id, label, category, unit, kind: kindOf(id) })), core: CORE, ...M };
-  if (save) { mkdirSync(DATA_DIR, { recursive: true }); writeFileSync(MATRIX_FILE, JSON.stringify(doc) + '\n'); }
+  /* matrix.json is the matrix a reader opens: every lever's effect on every outcome over ALL cells at every step, the elasticities of
+     the core outcomes in every group, the findings, the base's structure and noise. The per-group effects and the experiments' tables
+     are printed from the parts on demand, never stored twice. */
+  if (save) {
+    mkdirSync(DATA_DIR, { recursive: true });
+    const have = new Set(P.ids);
+    const oatAll = Object.fromEntries(Object.entries(M.oat).map(([id, lv]) => [id, { ...lv, steps: Object.fromEntries(Object.entries(lv.steps).map(([m, g]) => [m, { all: g.all }])) }]));
+    const elastCore = Object.fromEntries(Object.entries(M.elast).map(([id, e]) => [id, Object.fromEntries(Object.entries(e).map(([g, row]) => [g, g === '_steps' ? row : Object.fromEntries(Object.entries(row).filter(([o, r]) => CORE.includes(o) && r.anyResolved).map(([o, r]) => [o, [r.lo, r.local, r.hi]]))]))]));
+    const fxSlim = Object.fromEntries(Object.entries(M.fx).map(([id, x]) => [id, { what: x.what, factors: x.factors, points: x.points.length }]));
+    const slimDoc = { ...doc, outcomes: doc.outcomes.filter((o) => have.has(o.id) || o.id === 'deathsPer1000h'), oat: oatAll, elast: elastCore, elastShape: 'elast[lever][group][outcome] = [low, local, high], resolved core outcomes only', fx: fxSlim, detail: 'every group and every experiment table is printed from data/parts (--lever, --exp, --md, --md-lever, --md-exp): it is not stored twice' };
+    writeFileSync(MATRIX_FILE, JSON.stringify(slimDoc) + '\n');
+  }
   const out = console.log;
   out('SENSITIVITY: ' + P.points.size + ' points over ' + P.meta.length + ' cells, scenario ' + P.scenarioHash + ', seeds ' + P.seedSets.join(' ') + ', ' + Object.keys(M.oat).length + ' levers, ' + Object.keys(M.fx).length + ' experiments');
   if (M.refused.length) { out('REFUSED: ' + M.refused.length); for (const r of M.refused) out('  ' + r.lever + ' x' + r.m + ': ' + r.why); }

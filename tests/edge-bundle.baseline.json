@@ -168,6 +168,11 @@
         "bytes": 3190470,
         "on": "2026-11-22",
         "why": "lane/c-company FB-6 follow-up: two comment lines of src/core/upgrade-pick.js reworded so pack-edge reads no import in them (+9 bytes)"
+      },
+      {
+        "bytes": 3193735,
+        "on": "2026-11-22",
+        "why": "lane/c-settle-flush: the flush (hunt-settle.js flushDue + confirmed, request.js readConfirm, index.ts HR_HUNT_FLUSH off switch), +3265 B on the merged set"
       }
     ]
   }

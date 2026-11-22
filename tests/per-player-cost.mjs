@@ -32,7 +32,9 @@
 //                                  one (11-krell §1, §4): a hammer tank in tier-6 plate on his own swordfish and whetstones, a bow on
 //                                  store mithril arrows, a Mage on her own Carved fire runes and store ice, a Healer on her own Chalked
 //                                  water runes; the played bars (tools/balance-sim/played.mjs). Its tab open, as 87% of the real hunt
-//                                  was: a landed settle every 16 s and 0.6 early asks a poll (the client's cadence, tools/beta-load.mjs C)
+//                                  was: a poll every 16 s and 0.6 early asks a poll (the client's cadence, tools/beta-load.mjs C). THE FLUSH
+//                                  (lane/c-settle-flush, 30-plan L12): the poll of a running prediction CONFIRMS (hunt-ask.js confirm)
+//                                  and saves only at the 90 s flush or at once on a death, a Level or a rare drop (hunt-settle.js flushDue)
 //   krell4_L80_deadly_closed       the same four, browser closed (its away hours; with the watched row, the nightly's band, below)
 //   tower4_L80_climb               the same four climbing the Burning Tower from landing 30 (a party climbs as one instance), closed, to
 //                                  its first death or 12 windows (from landing 30, 50 or 70 this four dies 15-22 minutes in)
@@ -40,14 +42,17 @@
 //                                  Deadly, tier-4 kit, every role on its played bar, a third of its supplies carried, closed
 //
 // ── THE NUMBERS (one row a fixture, in tests/per-player-cost.baseline.json) ─────────────────────────────────────────────
-//   statements_a_settle       payload statements the engine sends a settle (median): exact, 0%
+//   statements_a_settle       payload statements the engine sends a settle (median; a SAVE: an unsaved confirm counts in the hour's
+//                             totals only): exact, 0%
 //   statements_a_hero_hour    payload statements a hero-hour at the door's cadence: 2% (a statement more a settle is +7% or more)
 //   round_trips_a_hero_hour   network round trips a hero-hour, modelled from index.ts's transaction shapes (TRIPS, pinned below by
 //                             RT-PIN): a pooled transaction is BEGIN, SET LOCAL ROLE, [the self marker], its statements, COMMIT; the
 //                             hello's read is one transaction of six statements, five in savepoints. 2%
 //   ledger_rows_a_hero_hour   player_ledger rows a hero-hour (wall 4, the journal): 20%, sized from the audit's spread (43-49 over
 //                             36 windows); a row a kill is +200% or more on every hunting fixture (MEASURED by --selftest)
-//   row_writes_a_settle       inserts + updates + deletes a settle (median; WAL, wall 1): 20%
+//   row_writes_a_settle       inserts + updates + deletes a settle (median, a save; WAL, wall 1): 20%
+//   row_writes_a_hero_hour    inserts + updates + deletes a hero-hour, every ask and fire counted (WAL, wall 1): 20%. THE FLUSH's
+//                             number: a watched four wrote a save every 16 s and writes one about every 90 s
 //   party_reads_a_settle      hr_hunt_instance_read calls a landed settle (median; track_functions = all): exact, 0%. READ ONCE
 //                             (study 48 section 8): the settle read's `r` CTE is materialized, so the party is read once a settle,
 //                             not once a reference (3 a closed save inlined). 0 on the town fixture, which reads no party
@@ -87,7 +92,7 @@ const POLLS = 24;            // watched door: landed settles 16 s apart (6.4 min
 const POLL_MS = 16000;       // src/session/config.js's viewed-hunt poll (tools/beta-load.mjs C.huntPollMs)
 const EARLY = [3, 5];        // 0.6 early asks a poll (tools/beta-load.mjs C.earlyAsksPerPoll), spread evenly
 const TOL = Object.freeze({ statements_a_settle: 0, statements_a_hero_hour: 0.02, round_trips_a_hero_hour: 0.02,
-  ledger_rows_a_hero_hour: 0.2, row_writes_a_settle: 0.2, party_reads_a_settle: 0, member_reads_a_settle: 0, state_reads_a_settle: 0,
+  ledger_rows_a_hero_hour: 0.2, row_writes_a_settle: 0.2, row_writes_a_hero_hour: 0.2, party_reads_a_settle: 0, member_reads_a_settle: 0, state_reads_a_settle: 0,
   settle_cpu_ms_a_hero_hour: 1.0 });
 const METRICS = Object.keys(TOL);
 const uidOf = (i) => '00000000-0000-4000-8000-0000003c' + String(i).padStart(4, '0');
@@ -370,7 +375,7 @@ async function hello(db, M, stat, plant, viewer, o) {
   await exec(`select (public.hr_seed($1::uuid, $2::int, $3) & 4294967295)::bigint as seed,
              public.hr_seed($1::uuid, $2::int, $4)::text as salt, public.hr_perks_of($1::uuid, $2::int) as perks`, [u, s, 'accrue:x', 'intent:accrue:x']);
   const v = await M.HS.settleHunt({ exec, user: u, slot: s, mode: 'settle', bucket: null, project: true, live: true, grounds: groundsOf(M), ...o });
-  if (v.outcome === 'paid') await plantExtra(exec, plant);
+  if (v.outcome === 'paid' || v.outcome === 'confirmed') await plantExtra(exec, plant);
   return v;
 }
 
@@ -388,7 +393,8 @@ export async function measure(db, M, fx, door, plant, minSettles = null) {
     || (Array.isArray(b.roster) && b.roster.some((r) => fx.heroes.some(([u, s]) => r.user_id === u && Number(r.slot) === s)));
   const led0 = await ledgerOf(db, fx); const paid0 = await paidMs(db, fx);
   /* cpu: every settle but the first (the engine's JIT and the plans' first touch), scaled back to the hours it covers */
-  const per = []; const rows = []; const reads = []; let cpu = 0; let held = null;
+  const per = []; const rows = []; const reads = []; let cpu = 0; let held = null; let polls = 0; let unsaved = null;
+  const all0 = await tuples(db);
   for (let k = 1; k <= n; k++) {
     let s0 = stat.stmts; let t0 = await tuples(db); let r0 = await partyReads(db);
     if (door === 'watched') {
@@ -403,12 +409,16 @@ export async function measure(db, M, fx, door, plant, minSettles = null) {
       if (k > 1) cpu += cpuMs() - a;
       s0 = stat.stmts; t0 = await tuples(db); r0 = await partyReads(db);
       a = cpuMs();
-      const v = await hello(db, M, stat, plant, viewer, { atMs: start + k * step, ...(held === null ? {} : { have: held }) });
+      /* THE FLUSH (lane/c-settle-flush): the poll of a running prediction CONFIRMS; it saves at the 90 s flush or at once on an event */
+      const v = await hello(db, M, stat, plant, viewer, { atMs: start + k * step, confirm: true, ...(held === null ? {} : { have: held }) });
       plantSlow(plant, a);
       if (k > 1) cpu += cpuMs() - a;
-      if (v.outcome !== 'paid') throw new Error(`poll ${k} did not settle: ${v.outcome}/${v.reason}`);
+      if (v.outcome !== 'paid' && v.outcome !== 'confirmed') throw new Error(`poll ${k} neither saved nor confirmed: ${v.outcome}/${v.reason}`);
+      polls += 1; unsaved = v.outcome === 'confirmed' ? start + k * step : null;
       if (v.body && v.body.state && Number.isSafeInteger(v.body.version)) held = v.body.version;
       if (v.body && v.body.hunt_ended) break;
+      /* a settle's own numbers are a SAVE's: an unsaved confirm is counted in the hour's totals only */
+      if (v.outcome !== 'paid') continue;
     } else {
       /* the fixture's own leases end, so this fire serves it again: the hunts' (hunt_tick_lease) or the bench's (hr_tick_ownership) */
       if (fx.sids.length) await db.query(`update public.hunt_tick_lease set lease_until = now() - interval '1 second' where session_id = any ($1::uuid[])`, [fx.sids]);
@@ -433,7 +443,12 @@ export async function measure(db, M, fx, door, plant, minSettles = null) {
     const rN = await partyReads(db);
     reads.push({ party: rN.party - r0.party, member: rN.member - r0.member, state: rN.state - r0.state });
   }
-  if (per.length < (minSettles || n)) {
+  /* the polls the last flush has not reached yet are SAVED (no statement counted: their next flush is the steady state's), so the hours paid are
+     the hours polled and the rows written and journalled are over the same span */
+  if (unsaved !== null) await M.HS.settleHunt({ exec: makeExec(db), user: fx.heroes[0][0], slot: fx.heroes[0][1], mode: 'settle', bucket: null, grounds: groundsOf(M), atMs: unsaved });
+  const all1 = await tuples(db);
+  const written = Object.keys(all1).reduce((x, t) => x + (all1[t] - (all0[t] || 0)), 0);
+  if (Math.max(per.length, polls) < (minSettles || n)) {
     const why = fx.sids.length ? (await q(db, 'select end_reason as r, count(*)::int as n from public.hunt_sessions where id = any ($1::uuid[]) group by 1', [fx.sids])).map((x) => `${x.r} x${x.n}`).join(', ') : 'the bench stopped';
     throw new Error(`the fixture ended after ${per.length} of ${n} settles (${why}): it no longer lasts a measurement`);
   }
@@ -441,8 +456,10 @@ export async function measure(db, M, fx, door, plant, minSettles = null) {
   if (!(heroHours > 0)) throw new Error('the fixture paid no time');
   const led = await ledgerOf(db, fx) - led0;
   return { statements_a_settle: med(per), statements_a_hero_hour: r1(stat.stmts / heroHours), round_trips_a_hero_hour: r1(stat.trips / heroHours),
-    ledger_rows_a_hero_hour: r1(led / heroHours), row_writes_a_settle: med(rows), party_reads_a_settle: med(reads.map((x) => x.party)),
-    member_reads_a_settle: med(reads.map((x) => x.member)), state_reads_a_settle: med(reads.map((x) => x.state)), settle_cpu_ms_a_hero_hour: Math.round(cpu / (heroHours * (per.length - 1) / per.length)) };
+    ledger_rows_a_hero_hour: r1(led / heroHours), row_writes_a_settle: med(rows), row_writes_a_hero_hour: r1(written / heroHours),
+    party_reads_a_settle: med(reads.map((x) => x.party)),
+    member_reads_a_settle: med(reads.map((x) => x.member)), state_reads_a_settle: med(reads.map((x) => x.state)),
+    settle_cpu_ms_a_hero_hour: Math.round(cpu / (heroHours * (Math.max(per.length, polls) - 1) / Math.max(per.length, polls))) };
 }
 
 /* ── THE PLANTS (--selftest): a journal row a unit of work, game_events' old shape: a kill (the hunt's tally), or a unit a town job

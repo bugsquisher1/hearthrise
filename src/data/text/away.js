@@ -197,4 +197,6 @@ export const AWAY_TEXT = Object.freeze({
   needs_bless: 'Bless',
   needs_gear: { one: 'Better gear is waiting for {count} hero.', other: 'Better gear is waiting for {count} heroes.' },
   needs_gear_choose: 'Choose',
+  needs_gear_hunting: { one: '{count} hero out hunting holds better gear.', other: '{count} heroes out hunting hold better gear.' },
+  needs_regear: 'Equip upgrades and go back in',
 });

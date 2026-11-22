@@ -15,11 +15,10 @@
 //   againAllWords(n)          "Hunt again, both" / "all three" / "all four"
 //   againAll(ctx, cs, sc, repaint, slots)  the end card's press for that party: the plan first, a Blessing bill said once, then the press
 // THE COMPANY (lane/c-company FB-6, 1051-company-start.sql; designer D-2): the press is the ONE Start. When the company's "Wear upgrades"
-// line is on (the server's plan says so), each going hero's plain upgrades go with it (wearListOf: its own bag first, then a piece another
-// going hero holds and does not wear, passed through Storage), and the server puts each on through hr_apply's equip gate, at the Start,
-// before the hero enters: a tank with no armor at the end card is dressed at the next Start with no press. The company's two plan lines
-// ("Wear upgrades", "If one falls") sit in the block, each ONE hr_company_line_set for every hero.
-//   wearListOf(heroes)        the wear list for the heroes going out ([{ slot, cs }], slot order): the picks upgrade-line.js upgradeOf makes. Pure.
+// line is on (the server's plan says so), the press first asks the server to dress the going heroes (carry-on-intents.js companyWear: the
+// SERVER's pick, src/core/upgrade-pick.js over each hero's own hr_state_of, put on through hr_apply's gate; a piece another going hero holds
+// passes through Storage), then the Start: a tank with no armor at the end card is dressed at the next Start with no press, whatever the
+// browser saw. The company's two plan lines ("Wear upgrades", "If one falls") sit in the block, each ONE hr_company_line_set for every hero.
 //   pressLine(ctx, refresh, line, value)  one plan line for the whole company; every hero read again
 // ════════════════════════════════════════════════════════════════════════
 import { rows, text, cls, prop, attr, element } from '../render/paint.js';
@@ -31,9 +30,7 @@ import { huntName, partyMembershipOf } from '../session/party-sections.js';
 import { huntOf } from '../session/hunt-sections.js';
 import { carryOnPlan, carryOn, setCompanyLine } from '../session/carry-on-intents.js';
 import { companyPlanOf } from '../session/company-sections.js';
-import { bagOf, equipmentOf } from '../session/item-sections.js';
 import { TIER_NAME, DEFAULT_TIER } from '../data/hunt-tiers.js';
-import { upgradeOf } from './widgets/upgrade-line.js';
 
 const itemsWords = (lines) => lines.map((l) => whole(l.qty) + ' ' + itemNameFor(l.item, l.qty)).join(', ');   // one Bone, two Bones (TK-8c)
 /* a refusal's line inside a sentence: "stays in town: no stamina left" */
@@ -59,8 +56,9 @@ export function carryLinesOf(plan) {
     if (h.blessGold > 0) parts.push(t('away.carry_bless', { gold: gold(h.blessGold) }));
     if (h.loot) parts.push(t('away.carry_loot'));
     if (h.job && hasText('away.carry_job_' + h.job)) parts.push(t('away.carry_job_' + h.job));
-    /* what the Start did on the way out: the pieces put on, a wear the gate refused, the seat, Tamsin's task (the server's answer) */
-    if (h.wore.length) parts.push(t('away.carry_wore', { name, items: h.wore.map((id) => itemNameFor(id, 1)).join(', ') }));
+    /* what the Start did on the way out: the pieces the server put on, a wear the gate refused (the wear's answer, carryOn `wore`), the
+       seat, Tamsin's task (the press's answer) */
+    if (h.wore && h.wore.length) parts.push(t('away.carry_wore', { name, items: h.wore.map((id) => itemNameFor(id, 1)).join(', ') }));
     if (h.wearRefused) parts.push(t('away.carry_wear_refused', { name }));
     if (h.seat === 'seated' && h.joins) parts.push(t('away.carry_seated', { name, partner: h.joins }));
     if (h.task) parts.push(t('away.carry_task', { name }));
@@ -69,46 +67,13 @@ export function carryLinesOf(plan) {
   return out;
 }
 
-/* ── THE WEAR LIST (D-2: "Wear upgrades", a standing plan line) ────────── */
-/** What the going heroes put on at the Start, from each one's envelope: its own bag's picks first (upgrade-line.js upgradeOf, the Inventory's
-    own Equip upgrades), then, across the company, a piece another going hero holds and does not wear (`from`: the server passes it through
-    Storage). A trade-off is never on it (upgrade-plan.js leaves a tie as a choice: a "Needs you" row). Pure over the envelopes. */
-export function wearListOf(heroes) {
-  const lines = [], left = new Map(), worn = new Map();
-  for (const { slot, cs } of heroes) {
-    left.set(slot, new Map((bagOf(cs) || []).map((r) => [r.id, r.qty])));
-    worn.set(slot, Object.assign({}, equipmentOf(cs) || {}));
-  }
-  const take = (slot, id) => { const m = left.get(slot); m.set(id, (m.get(id) || 0) - 1); };
-  for (const { slot, cs } of heroes) {
-    for (const [eq, id] of Object.entries(upgradeOf(cs).ops)) {
-      if (typeof id !== 'string') continue;
-      lines.push({ slot, equip_slot: eq, item: id });
-      take(slot, id);
-      worn.get(slot)[eq] = id;
-    }
-  }
-  for (const { slot, cs } of heroes) {
-    const pool = new Map();
-    for (const m of left.values()) for (const [id, n] of m) if (n > 0) pool.set(id, (pool.get(id) || 0) + n);
-    const plan = upgradeOf(cs, { bag: [...pool].map(([id, qty]) => ({ id, qty })), equipment: worn.get(slot) });
-    for (const [eq, id] of Object.entries(plan.ops)) {
-      if (typeof id !== 'string' || worn.get(slot)[eq] === id) continue;
-      const own = (left.get(slot).get(id) || 0) > 0;
-      const donor = own ? null : [...left].find(([s2, m]) => s2 !== slot && (m.get(id) || 0) > 0);
-      if (!own && !donor) continue;
-      lines.push(own ? { slot, equip_slot: eq, item: id } : { slot, equip_slot: eq, item: id, from: donor[0] });
-      take(own ? slot : donor[0], id);
-      worn.get(slot)[eq] = id;
-    }
-  }
-  return lines.slice(0, 48);
-}
-/* The going heroes of a plan, with their sessions, slot order. */
-const goingOf = (ctx, plan) => plan.heroes.filter((h) => h.state === 'go')
-  .map((h) => ({ slot: h.slot, cs: ctx.account && typeof ctx.account.character === 'function' ? ctx.account.character(h.slot) : null })).filter((g) => g.cs);
-/* The wear list a press carries: only while the server's plan says the company's line is on. */
-const wearFor = (ctx, plan) => (plan.wearOn ? wearListOf(goingOf(ctx, plan)) : null);
+/* The press's plan with what the server put on each hero first (carryOn `wore`), for the lines. */
+const withWore = (plan, wore) => (Array.isArray(wore) && wore.length ? Object.assign({}, plan, { heroes: plan.heroes.map((h) => {
+  const w = wore.find((x) => x.slot === h.slot);
+  return w ? Object.assign({}, h, { wore: w.wore, wearRefused: w.refused }) : h;
+}) }) : plan);
+/* The heroes the press dresses first: the going ones, only while the server's plan says the company's line is on (the server picks). */
+const wearFor = (ctx, plan) => (plan.wearOn ? plan.heroes.filter((h) => h.state === 'go').map((h) => h.slot) : null);
 
 /* ── THE AWAY CARD'S BLOCK ─────────────────────────────────────────────── */
 /* One state a card's context: the server's plan, whether it is being read, the press in flight, its answer, and the key it was read for. */
@@ -132,8 +97,9 @@ const linesHtml = () => '<div class="haway-lines">' + LINES.map((l) => '<div cla
   + l.values.map(([v, w]) => '<button type="button" class="hh-seg" data-hs-act="away-line" data-line="' + l.line + '" data-value="' + v + '">' + t(w) + '</button>').join('')
   + '</div>').join('') + '<p class="haway-line-note" hidden></p></div>';
 
-/** The server's Carry on plan this card holds (null before it has come): the Needs you providers read it (../needs-you.js). */
-export const carryPlanFor = (ctx) => stateOf(ctx).plan;
+/** The server's Carry on plan this card shows (its last press's answer once one went, else the plan; null before it has come): the Needs you
+    providers read it (../needs-you.js). */
+export const carryPlanFor = (ctx) => stateOf(ctx).said || stateOf(ctx).plan;
 
 /** The block (built once). */
 export function renderCarry() {
@@ -216,7 +182,7 @@ export async function pressCarry(ctx, refresh, dismissSlots) {
   /* a refusal says why (quote_changed / nothing_to_carry_on bring the server's plan as it stands now); an answer says who went */
   s.msg = !(r && r.ok) ? refusalWords(r && r.error) : r.plan.went > 0 ? t('away.carry_went', { count: r.plan.went }) : t('away.carry_went_none');
   if (r && r.ok) {
-    s.said = r.plan;
+    s.said = Object.assign(withWore(r.plan, r.wore), { wearOn: plan.wearOn });   // the line as it stood for this press
     dismissSlots(r.plan.heroes.filter((h) => h.state === 'went').map((h) => h.slot));
   } else if (r && r.plan) s.plan = r.plan;
   s.key = null;   // the next step reads the plan again

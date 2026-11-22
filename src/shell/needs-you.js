@@ -11,7 +11,8 @@
 //   rankNeeds(rows, shown)   the card's rows from what the providers said: one a kind, by the data's rank, at most `shown`; `more`. Pure.
 //   needsRowsOf(ctx)         every provider's row for this card ({ peers, plan, wearOn })
 //   renderNeeds()            the block (built once)
-//   patchNeeds(el, ctx)      the block as the providers read now; returns how many rows show
+//   patchNeeds(el, ctx, st)  the block as the providers read now; `st` { pending, msg }: a press out (every row's press off, "Sending…")
+//                            and its answer in words; returns how many rows show
 //
 // Nothing here counts or prices: every row is the server's state in words, and each press opens the window that decides it.
 // What Carry on does is never a row, and no row offers a refill, a Crown or a boost (D-2 rules 5 and 6).
@@ -48,13 +49,14 @@ export function needsRowsOf(ctx) {
 /** The block (built once). */
 export function renderNeeds() {
   return '<section class="haway-needs" hidden><p class="haway-needs-head">' + t('away.needs_head') + '</p><ul class="haway-needs-list"></ul>'
-    + '<p class="haway-needs-more" hidden></p></section>';
+    + '<p class="haway-needs-more" hidden></p><p class="hh-intent-msg haway-needs-msg" role="status" aria-live="polite"></p></section>';
 }
 
 /** The block as the providers read now. Returns how many rows show. */
-export function patchNeeds(el, ctx) {
+export function patchNeeds(el, ctx, st) {
   const { shown, more } = rankNeeds(needsRowsOf(ctx));
-  prop(el, 'hidden', !shown.length);
+  const pending = !!(st && st.pending);
+  prop(el, 'hidden', !shown.length && !pending && !(st && st.msg));
   rows(el.querySelector('.haway-needs-list'), shown, {
     key: (r) => r.kind,
     build: () => element(ctx.doc, '<li class="haway-need"><span class="haway-need-text"></span>'
@@ -62,15 +64,18 @@ export function patchNeeds(el, ctx) {
     patch: (li, r) => {
       text(li.querySelector('.haway-need-text'), r.text);
       const b = li.querySelector('[data-hs-act="away-need"]');
-      text(b, r.label || '');
+      text(b, pending ? t('heroes.sending') : r.label || '');
       prop(b, 'hidden', !r.label);
+      prop(b, 'disabled', pending);
       attr(b, 'data-go', r.go || null);
       attr(b, 'data-slot', Number.isInteger(r.slot) ? String(r.slot) : null);
       attr(b, 'data-hunt', r.hunt || null);
+      attr(b, 'data-slots', Array.isArray(r.slots) ? r.slots.join(',') : null);
     },
   });
   const m = el.querySelector('.haway-needs-more');
   prop(m, 'hidden', !more);
   text(m, more ? t('away.needs_more', { count: more }) : '');
+  text(el.querySelector('.haway-needs-msg'), (st && st.msg) || '');
   return shown.length;
 }

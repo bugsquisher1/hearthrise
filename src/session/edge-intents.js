@@ -55,6 +55,8 @@ export const EDGE_INTENTS = Object.freeze({
   market_mine: Object.freeze([]),
   /* The Game Master's stop (hr-accrue gm-stop.js): which hero, and why. The server refuses it to everyone without the server-written row. */
   gm_stop: Object.freeze(['gm']),
+  /* "Wear upgrades" at the company's Start (hr-accrue company-wear.js): the heroes going out, by slot; the server picks every piece. */
+  company_wear: Object.freeze(['slots']),
 });
 
 /* The `market` object's subfields per verb (hr-accrue request.js readMarket); a browse's are all optional. */
@@ -129,6 +131,11 @@ const FIELD = Object.freeze({
     return out;
   },
   item: (v) => (typeof v === 'string' && ID.test(v) ? v : null),
+  /* 1 to 6 distinct hero slots (hr-accrue request.js readSlots): selectors of the account's own heroes, sorted. */
+  slots(v) {
+    if (!Array.isArray(v) || !v.length || v.length > 6 || !v.every((s) => Number.isInteger(s) && s >= 0 && s <= 5) || new Set(v).size !== v.length) return null;
+    return v.slice().sort((a, b) => a - b);
+  },
   gm(v) {
     if (!v || typeof v !== 'object' || Array.isArray(v) || typeof v.target !== 'string' || !UUID.test(v.target)
         || !Number.isInteger(v.slot) || typeof v.reason !== 'string') return null;

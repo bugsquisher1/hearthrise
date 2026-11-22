@@ -219,7 +219,8 @@ const timers = { setTimer: () => 0, clearTimer: () => {} };
 const ASKVIA_SITES = Object.freeze({
   'src/session/boss-intents.js': { rule: 2 },
   'src/session/carry-intents.js': { rule: 1 },
-  'src/session/carry-on-intents.js': { rule: 2, read: 1 },
+  'src/session/carry-on-intents.js': { rule: 2, read: 1, own: 1 },
+  'src/session/company-intents.js': { rule: 1 },
   'src/session/farm-intents.js': { rule: 6 },
   'src/session/farm-tend.js': { rule: 1 },
   'src/session/hearth-intents.js': { rule: 1 },
@@ -262,6 +263,7 @@ const ASKVIA_RULE_CALLS = Object.freeze([
   ['src/session/carry-intents.js', 'carryIntoHunt', 'hr_hunt_restock', ['cooked_shrimp', 5]],
   ['src/session/carry-on-intents.js', 'carryOn', 'hr_carry_on', [0, null, []]],
   ['src/session/carry-on-intents.js', 'setCompanyLine', 'hr_company_line_set', ['wear_upgrades', 'off']],
+  ['src/session/company-intents.js', 'setHeroPlan', 'hr_hero_plan_set', ['mill_cellar']],
   ['src/session/farm-intents.js', 'plantCrop', 'hr_farm_plant', [0, 'turnip']],
   ['src/session/farm-intents.js', 'waterPlot', 'hr_farm_water', [0]],
   ['src/session/farm-intents.js', 'harvestPlot', 'hr_farm_harvest_replant', [0, true]],

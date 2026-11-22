@@ -10,7 +10,7 @@
 //                                        the tab closes, the tick ends both hunts, the player signs back in and presses Play; the
 //                                        return card shows Carry on with the server's plan, ONE press sends both back, Storage first
 //
-// mutant-anchors: supabase/migrations/1024-carry-on.sql supabase/migrations/1025-own-heroes-apart.sql supabase/migrations/1051-company-start.sql src/shell/carry-on.js src/session/carry-on-intents.js
+// mutant-anchors: supabase/migrations/1024-carry-on.sql supabase/migrations/1025-own-heroes-apart.sql supabase/migrations/1051-company-start.sql src/shell/carry-on.js src/session/carry-on-intents.js src/core/upgrade-pick.js supabase/functions/hr-accrue/company-wear.js
 // ci-step: db-replay | Carry on - one press for the account, both paths, the refusals, two presses one restart
 // ci-run: node tests/carry-on.mjs
 // ci-run: node tools/mutant-gate.mjs node tests/carry-on.mjs --mutate
@@ -53,6 +53,13 @@
 //              goes in what it wears, and "Needs you" says better gear waits
 //   CO-LINES   the company's lines, set once for all through the client: "If one falls" all come home ticks every hero's box, the rest
 //              hunt on unsays them (S-14 a); "Wear upgrades" off reads off in every hero's section and in the plan
+//   CO-REGEAR  "EQUIP UPGRADES AND GO BACK IN" (D-2 rule 8): two heroes out hunting, a Platebody found mid-hunt in one bag; the card offers
+//              the one press for that hero only; the press leaves (the lap passes with the world tick between the page's reads), the server
+//              dresses it (company_wear) and the Start sends it back to the same ground; the other hero's hunt never moves; the page sends
+//              exactly leave, wear, plan, Start
+//   CO-CONTROLS the three plan controls through the real client (src/session/company-intents.js): the plan's ground (the next Start goes
+//              there), the ground's Setup (Go as starts on it; a Setup never saved is refused), the leader pinned and unpinned (the shield
+//              leads again); each answer's envelope is taken with no second read; a forged slot never goes out
 //   CO-LEAD    THE LEADER (D-2 2.2): hr_role_rank's order is src/data/hunt-roles.js ROLE_ORDER (one row decides both); at the press a
 //              party of own heroes is led by its front hero (the shield), and a pinned leader holds; another account's party is never re-led
 //
@@ -81,7 +88,7 @@ async function as(db, uid, sql, params) {
   try { return await one(db, sql, params); } finally { await asUser(db, ''); }
 }
 const plan = (db, uid, slots = null) => as(db, uid, 'select public.hr_carry_on_plan($1::int[])', [slots]);
-const press = (db, uid, gold, slots = null, key = idem(), wear = null) => as(db, uid, 'select public.hr_carry_on($1::int[], $2::bigint, $3::jsonb, $4::uuid)', [slots, gold, wear === null ? null : JSON.stringify(wear), key]);
+const press = (db, uid, gold, slots = null, key = idem()) => as(db, uid, 'select public.hr_carry_on($1::int[], $2::bigint, $3::uuid)', [slots, gold, key]);
 const openOf = async (db, uid) => (await q(db, `select slot, hunt_id, hours_limit, instance_id, preset from public.hunt_sessions
   where user_id = $1 and ended_at is null order by slot`, [uid]));
 const bankOf = async (db, uid) => Number(await one(db, 'select coalesce((select qty from public.account_bank where user_id = $1 and item_id = $2), 0)::text', [uid, FOOD]));
@@ -383,7 +390,19 @@ function bridge(db, uid) {
     try { return { ok: true, status: 200, closed: false, body: (await q(db, sql, vals))[0].r }; }
     finally { await asUser(db, ''); }
   };
-  return { calls, rpc, accrue: async () => ({ ok: false, status: 0, closed: false, error: 'network' }) };
+  /* THE ENGINE'S VERB the company's Start asks (hr-accrue company_wear): parsed as index.ts parses it and run as hr_engine, as the edge runs
+     it; every other engine call answers as a dropped network (the session's settle is not this test's subject). */
+  const accrue = async (body) => {
+    calls.push(['hr-accrue', body]);
+    const R = await imp('supabase/functions/hr-accrue/request.js');
+    const intent = R.parseIntent(body);
+    if (intent.verb !== 'company_wear') return { ok: false, status: 0, closed: false, error: 'network' };
+    const CW = await imp('supabase/functions/hr-accrue/company-wear.js');
+    await db.query('delete from public.hr_rate_counters where user_id = $1', [uid]);
+    const out = await CW.runCompanyWear({ exec: H.makeExec(db), user: uid, slot: intent.slot, intentId: intent.intentId, slots: intent.slots });
+    return { ok: true, status: out.status, closed: false, body: out.body };
+  };
+  return { calls, rpc, accrue };
 }
 async function viewedArm(db, M) {
   return H.inTx(db, async () => {
@@ -421,7 +440,7 @@ async function viewedArm(db, M) {
     const before = server.calls.length;
     await S.againAll(ctx, cs0, sc, () => {}, own || [0, 1]);
     const sent = server.calls.slice(before).filter(([n]) => n === 'hr_carry_on');
-    if (sent.length !== 1 || JSON.stringify(sent[0][1].p_slots) !== '[0,1]' || sent[0][1].p_gold !== 0 || Object.keys(sent[0][1]).sort().join() !== 'p_gold,p_idem,p_slots,p_wear') bad.push('CO-VIEWED the press sent ' + JSON.stringify(sent));
+    if (sent.length !== 1 || JSON.stringify(sent[0][1].p_slots) !== '[0,1]' || sent[0][1].p_gold !== 0 || Object.keys(sent[0][1]).sort().join() !== 'p_gold,p_idem,p_slots') bad.push('CO-VIEWED the press sent ' + JSON.stringify(sent));
     const h0 = HS.huntOf(cs0), h1 = HS.huntOf(cs1);
     if (!h0 || h0.ended || !h1 || h1.ended || h0.huntId !== CELLAR) bad.push('CO-VIEWED after the press the page shows ' + JSON.stringify([h0 && [h0.huntId, h0.ended], h1 && [h1.huntId, h1.ended]]) + ' (' + sc.msg + ')');
     if ((await openOf(db, A)).length !== 2) bad.push('CO-VIEWED the server holds ' + (await openOf(db, A)).length + ' open hunts, want 2');
@@ -460,7 +479,7 @@ async function applyArm(db) {
       await q(db, `select p.oid::regprocedure::text as f, md5(replace(prosrc, chr(13), '')) as m, coalesce(p.proacl::text, '') as acl from pg_proc p
                     where p.proname in ('hr_carry_on', 'hr_carry_on_plan', 'hr_carry_on_plan_of', 'hr_carry_on_scope_ok', 'hr_carry_on_wear_ok', 'hr_company_line_set',
                       'hr_hero_plan_set', 'hr_ground_setup_set', 'hr_party_lead_set', 'hr_party_seat_own', 'hr_company_view', 'hr_company_seat_pending',
-                      'hr_party_lead_of', 'hr_role_rank', 'hr_hero_ground_of', 'hr_tally_take_on_entry') order by 1`),
+                      'hr_party_lead_of', 'hr_role_rank', 'hr_hero_ground_of', 'hr_tally_take_on_entry', 'hr_company_wear_apply') order by 1`),
       await q(db, `select proname, identity_args, grantee, note from public.hr_client_rpc_baseline
                     where proname like 'hr_carry_on%' or proname in ('hr_company_line_set', 'hr_hero_plan_set', 'hr_ground_setup_set', 'hr_party_lead_set') order by 1`)]);
     const before = await snap();
@@ -661,25 +680,26 @@ async function setupArm(db, M) {
 }
 
 /* ── CO-DRESS: a tank with no armor at the end card is dressed at the next Start with no press (D-2) ── */
+/* THE SERVER PICKS (hr-accrue company_wear, src/core/upgrade-pick.js over hr_state_of; hr_company_wear_apply decides). Three runs:
+     viewed    the hunt ended, the page read the bag (the Platebody in it) and pressed
+     closed    the hunt ended with the browser closed and the Platebody dropped into the bag AFTER the page last read it: the page never saw
+               it, and the server still puts it on (the pick is the server's, not the browser's)
+     off       the company's line is off: nothing is sent, the tank goes in what it wears, and Needs you says better gear waits */
 async function dressArm(db, M) {
   return H.inTx(db, async () => {
     const bad = [];
     const S = await imp('src/shell/carry-on.js');
     const N = await imp('src/shell/needs-you.js');
     const ARMOR = ['helmet', 'body', 'pants', 'boots', 'gloves', 'belt'];
-    const run = async (wearOn) => {
+    const run = async (mode) => {
       await db.query('savepoint co_dress');
       try {
         await heroes(db, M, A, 2);
-        /* the tank: a shield on, no armor at all; its partner wears a Bronze Helm and holds a spare */
-        await db.query('insert into public.player_inventory (user_id, slot, item_id, qty) values ($1, 0, $2, 1)', [A, 'practice_shield']);
-        let r = await equipVia(db, A, 0, { shield: 'practice_shield' });
-        if (!r || r.ok !== true) throw new Error('HARNESS: the shield answered ' + JSON.stringify(r));
+        /* the tank (the starting blade and shield) with no armor at all; its partner wears a Bronze Helm and holds a spare */
         await db.query('delete from public.player_equipment where user_id = $1 and equip_slot = any ($2::text[])', [A, ARMOR]);
         await db.query('insert into public.player_inventory (user_id, slot, item_id, qty) values ($1, 1, $2, 2)', [A, 'bronze_helm']);
-        r = await equipVia(db, A, 1, { helmet: 'bronze_helm' });
+        let r = await equipVia(db, A, 1, { helmet: 'bronze_helm' });
         if (!r || r.ok !== true) throw new Error('HARNESS: the partner\'s helm answered ' + JSON.stringify(r));
-        /* both hunt the Cellar with the browser closed, and come home */
         for (const s of [0, 1]) {
           r = await as(db, A, `select public.hr_hunt_enter($1, $2, $3::jsonb, 0, null, $4::uuid)`, [s, CELLAR, JSON.stringify([{ item: FOOD, qty: 20 }]), idem()]);
           if (!r || r.ok !== true) throw new Error('HARNESS: hero ' + s + ' could not enter: ' + JSON.stringify(r));
@@ -687,29 +707,41 @@ async function dressArm(db, M) {
         await backdate(db, A, 6, 60000);
         await tickUntilHome(db, M, A);
         await ageEnded(db, A);
-        /* a Bronze Platebody dropped into the tank's bag */
-        await db.query('insert into public.player_inventory (user_id, slot, item_id, qty) values ($1, 0, $2, 1) on conflict (user_id, slot, item_id) do update set qty = 1', [A, 'bronze_platebody']);
-        if (!wearOn) { r = await as(db, A, `select public.hr_company_line_set('wear_upgrades', 'off', $1::uuid)`, [idem()]); if (!r || r.ok !== true) throw new Error('HARNESS: the line answered ' + JSON.stringify(r)); }
-        const { list, ctx } = await clientOf(db, A, [0, 1]);
-        const wear = S.wearListOf(list.map((cs) => ({ slot: cs.slot, cs })));
-        const needs = N.rankNeeds(N.needsRowsOf({ peers: () => list, plan: null, wearOn }));
+        if (mode === 'off') { r = await as(db, A, `select public.hr_company_line_set('wear_upgrades', 'off', $1::uuid)`, [idem()]); if (!r || r.ok !== true) throw new Error('HARNESS: the line answered ' + JSON.stringify(r)); }
+        const drop = () => db.query('insert into public.player_inventory (user_id, slot, item_id, qty) values ($1, 0, $2, 1) on conflict (user_id, slot, item_id) do update set qty = 1', [A, 'bronze_platebody']);
+        if (mode !== 'closed') await drop();
+        const { server, list, ctx } = await clientOf(db, A, [0, 1]);
+        /* CLOSED: the Platebody lands after the page's last read; the browser holds a bag without it */
+        if (mode === 'closed') await drop();
+        const seen = Object.keys((list[0].read('inventory') || {}));
+        const needs = N.rankNeeds(N.needsRowsOf({ peers: () => list, plan: null, wearOn: mode !== 'off' }));
         const plan = await cardPlan(S, ctx);
-        if (!plan || plan.go !== 2 || plan.wearOn !== wearOn) throw new Error('HARNESS: the card read the plan ' + JSON.stringify(plan));
+        if (!plan || plan.go !== 2 || plan.wearOn !== (mode !== 'off')) throw new Error('HARNESS: the card read the plan ' + JSON.stringify(plan));
+        const calls0 = server.calls.length;
         await S.pressCarry(ctx, () => {}, () => {});
+        const sent = server.calls.slice(calls0);
         const worn = Object.fromEntries((await q(db, 'select equip_slot, item_id from public.player_equipment where user_id = $1 and slot = 0', [A])).map((x) => [x.equip_slot, x.item_id]));
         const spare = Number(await one(db, `select coalesce((select qty from public.player_inventory where user_id = $1 and slot = 1 and item_id = 'bronze_helm'), 0)::text`, [A]));
         const passed = Number(await one(db, `select count(*)::text from public.player_ledger where user_id = $1 and kind = 'bank' and item_id = 'bronze_helm'`, [A]));
-        return { wear, worn, spare, passed, needs, open: (await openOf(db, A)).length };
+        const wearSent = sent.filter(([n, a]) => n === 'hr-accrue' && a && a.verb === 'company_wear');
+        const pressSent = sent.filter(([n]) => n === 'hr_carry_on');
+        return { worn, spare, passed, needs, seen, wearSent, pressSent, open: (await openOf(db, A)).length, said: S.carryLinesOf(S.carryPlanFor(ctx) || { heroes: [] }) };
       } finally { await db.query('rollback to savepoint co_dress'); }
     };
-    const on = await run(true);
-    const lines = JSON.stringify(on.wear.map((l) => [l.slot, l.equip_slot, l.item, l.from === undefined ? null : l.from]).sort());
-    if (!lines.includes('[0,"body","bronze_platebody",null]') || !lines.includes('[0,"helmet","bronze_helm",1]')) bad.push('CO-DRESS the line\'s picks read ' + lines);
-    if (on.worn.body !== 'bronze_platebody' || on.worn.helmet !== 'bronze_helm' || on.open !== 2) bad.push('CO-DRESS the tank went out in ' + JSON.stringify(on.worn) + ' (' + on.open + ' hunts open)');
-    if (on.spare !== 0 || on.passed !== 2) bad.push('CO-DRESS the spare helm was not passed through Storage: partner keeps ' + on.spare + ', ' + on.passed + ' bank rows');
-    if (on.needs.shown.some((r) => r.kind === 'gear_choice')) bad.push('CO-DRESS with the line on, Needs you still asks: ' + JSON.stringify(on.needs.shown));
-    const off = await run(false);
-    if (off.worn.body || off.worn.helmet || off.open !== 2) bad.push('CO-DRESS with the line off the tank went out in ' + JSON.stringify(off.worn));
+    for (const mode of ['viewed', 'closed']) {
+      const v = await run(mode);
+      if (mode === 'closed' && v.seen.includes('bronze_platebody')) bad.push('CO-DRESS CONTROL: the page saw the Platebody it should not have');
+      if (v.wearSent.length !== 1 || JSON.stringify(v.wearSent[0][1].slots) !== '[0,1]' || Object.keys(v.wearSent[0][1]).sort().join() !== 'intentId,slot,slots,verb') {
+        bad.push('CO-DRESS ' + mode + ': the page sent ' + JSON.stringify(v.wearSent.map((c) => c[1])));
+      }
+      if (v.pressSent.length !== 1 || 'p_wear' in v.pressSent[0][1]) bad.push('CO-DRESS ' + mode + ': the press sent ' + JSON.stringify(v.pressSent.map((c) => c[1])));
+      if (v.worn.body !== 'bronze_platebody' || v.worn.helmet !== 'bronze_helm' || v.open !== 2) bad.push('CO-DRESS ' + mode + ': the tank went out in ' + JSON.stringify(v.worn) + ' (' + v.open + ' hunts open)');
+      if (v.spare !== 0 || v.passed !== 2) bad.push('CO-DRESS ' + mode + ': the spare helm was not passed through Storage: partner keeps ' + v.spare + ', ' + v.passed + ' bank rows');
+      if (!v.said.some((l) => /put on .*Bronze Platebody/.test(l.text))) bad.push('CO-DRESS ' + mode + ': the card does not say what went on: ' + JSON.stringify(v.said.map((l) => l.text)));
+      if (mode === 'viewed' && v.needs.shown.some((r) => r.kind === 'gear_choice')) bad.push('CO-DRESS with the line on, Needs you still asks: ' + JSON.stringify(v.needs.shown));
+    }
+    const off = await run('off');
+    if (off.worn.body || off.worn.helmet || off.open !== 2 || off.wearSent.length) bad.push('CO-DRESS with the line off the tank went out in ' + JSON.stringify(off.worn) + ' after ' + off.wearSent.length + ' wear asks');
     if (!off.needs.shown.some((r) => r.kind === 'gear_choice' && /Better gear is waiting for 1 hero\./.test(r.text))) bad.push('CO-DRESS with the line off Needs you reads ' + JSON.stringify(off.needs));
     return bad;
   });
@@ -789,11 +821,101 @@ async function leadArm(db, M) {
   });
 }
 
+/* ── CO-REGEAR: "Equip upgrades and go back in" (D-2 rule 8), the visiting player's one press ── */
+async function regearArm(db, M) {
+  return H.inTx(db, async () => {
+    const bad = [];
+    const I = await imp('src/session/carry-on-intents.js');
+    const N = await imp('src/shell/needs-you.js');
+    await heroes(db, M, A, 2);
+    await db.query(`delete from public.player_equipment where user_id = $1 and slot = 0 and equip_slot = 'body'`, [A]);
+    for (const s of [0, 1]) {
+      const r = await as(db, A, `select public.hr_hunt_enter($1, $2, $3::jsonb, 0, null, $4::uuid)`, [s, CELLAR, JSON.stringify([{ item: FOOD, qty: 20 }]), idem()]);
+      if (!r || r.ok !== true) return ['CO-REGEAR HARNESS: hero ' + s + ' could not enter: ' + JSON.stringify(r)];
+    }
+    /* two minutes in, an hour of stamina left each: both still hunting after the world tick */
+    await backdate(db, A, 2, 3600000);
+    await tickUntilHome(db, M, A, { toMs: await nowMs(db) });
+    const first = await openOf(db, A);
+    if (first.length !== 2) return ['CO-REGEAR HARNESS: the heroes are not out: ' + JSON.stringify(first)];
+    /* a Bronze Platebody found mid-hunt waits in hero 0's bag: nothing changes inside the hunt (D-2 rule 7) */
+    await db.query(`insert into public.player_inventory (user_id, slot, item_id, qty) values ($1, 0, 'bronze_platebody', 1) on conflict (user_id, slot, item_id) do update set qty = 1`, [A]);
+    const { server, list, account } = await clientOf(db, A, [0, 1]);
+    const needs = N.rankNeeds(N.needsRowsOf({ peers: () => list, plan: null, wearOn: true }));
+    const row = needs.shown.find((r) => r.kind === 'gear_choice');
+    if (!row || row.go !== 'regear' || !Array.isArray(row.slots) || !row.slots.includes(0) || row.label !== 'Equip upgrades and go back in') return bad.concat('CO-REGEAR the card offers ' + JSON.stringify(needs.shown));
+    /* THE PRESS: hero 0 leaves; its hunt ends at the next lap with the browser's pause between reads (here the world tick, the lap passed);
+       then the server dresses it and the Start sends it back. Hero 1 is never touched. */
+    const calls0 = server.calls.length;
+    const pause = async () => {
+      await db.query(`update public.hunt_sessions set leave_at = least(leave_at, now() - interval '1 second') where user_id = $1 and ended_at is null and leave_at is not null`, [A]);
+      await tickUntilHome(db, M, A, { toMs: await nowMs(db) });
+    };
+    /* the press for hero 0 alone (the row names every hero out hunting with plain upgrades; one is enough to prove the other stays) */
+    const r = await I.regear(account, list[0], [0], { tries: 5, pause });
+    /* the intents only: the session's own reads (hr_load, the engine's hello with no verb) are not the press's */
+    const sent = server.calls.slice(calls0).filter(([n, a]) => n !== 'hr_load' && !(n === 'hr-accrue' && !a.verb)).map(([n, a]) => (n === 'hr-accrue' ? 'edge:' + a.verb : n));
+    const open = await openOf(db, A);
+    const s0 = open.find((o) => o.slot === 0), s1 = open.find((o) => o.slot === 1);
+    const body = await one(db, `select item_id from public.player_equipment where user_id = $1 and slot = 0 and equip_slot = 'body'`, [A]);
+    const ended0 = await one(db, `select end_reason from public.hunt_sessions where user_id = $1 and slot = 0 and ended_at is not null order by entered_at desc limit 1`, [A]);
+    if (!r || r.ok !== true || r.plan.went !== 1) bad.push('CO-REGEAR the press answered ' + JSON.stringify(r));
+    if (!s0 || s0.hunt_id !== CELLAR || s0.instance_id === (first.find((o) => o.slot === 0) || {}).instance_id || ended0 !== 'left') bad.push('CO-REGEAR hero 0 is out on ' + JSON.stringify(s0) + ' after a hunt ended ' + ended0);
+    if (body !== 'bronze_platebody') bad.push('CO-REGEAR hero 0 went back in ' + body + ', not the Bronze Platebody');
+    if (!s1 || s1.instance_id !== (first.find((o) => o.slot === 1) || {}).instance_id) bad.push('CO-REGEAR hero 1\'s hunt moved: ' + JSON.stringify(s1));
+    if (JSON.stringify(sent) !== '["hr_hunt_leave","hr_carry_on_plan","edge:company_wear","hr_carry_on"]') bad.push('CO-REGEAR the page sent ' + JSON.stringify(sent));
+    return bad;
+  });
+}
+
+/* ── CO-CONTROLS: the three plan controls through the real client (company-intents.js), each answered by the hero's envelope ── */
+async function controlsArm(db, M) {
+  return H.inTx(db, async () => {
+    const bad = [];
+    const C = await imp('src/session/company-intents.js');
+    const CS = await imp('src/session/company-sections.js');
+    const P = await imp('src/shell/windows/company-pane.js');
+    await heroes(db, M, A, 2);
+    let r = await as(db, A, `select public.hr_hunt_preset_save(0, 1, 'Cellar kit', $1::uuid)`, [idem()]);
+    if (!r || r.ok !== true) return ['CO-CONTROLS HARNESS: the Setup answered ' + JSON.stringify(r)];
+    const { server, list, account } = await clientOf(db, A, [0, 1]);
+    const loads = () => server.calls.filter(([n]) => n === 'hr_load').length;
+    /* THE PLAN'S GROUND: the next Start goes there; the hero's own envelope says so with no second read */
+    let l0 = loads();
+    r = await C.setHeroPlan(account, list[0], CELLAR);
+    if (!r.ok || (CS.companyPlanOf(list[0]) || {}).planHunt !== CELLAR || loads() !== l0) bad.push('CO-CONTROLS the plan ground: ' + JSON.stringify([r, CS.companyPlanOf(list[0]), loads() - l0]));
+    const p = await plan(db, A, [0]);
+    if ((p.heroes[0] || {}).hunt !== CELLAR || (p.heroes[0] || {}).state !== 'go') bad.push('CO-CONTROLS the Start would not go to the plan ground: ' + JSON.stringify(p.heroes));
+    /* THE GROUND'S SETUP: Go as starts on it; a Setup the hero never saved is refused and nothing moves */
+    l0 = loads();
+    r = await C.setGroundSetup(account, list[0], CELLAR, 1);
+    if (!r.ok || CS.groundSetupOf(list[0], CELLAR) !== 1 || P.goAsOf(list[0], CELLAR) !== 1 || loads() !== l0) bad.push('CO-CONTROLS the ground\'s Setup: ' + JSON.stringify([r, CS.groundSetupOf(list[0], CELLAR)]));
+    r = await C.setGroundSetup(account, list[0], CELLAR, 4);
+    if (r.ok || r.error !== 'unknown_preset' || CS.groundSetupOf(list[0], CELLAR) !== 1) bad.push('CO-CONTROLS a pointer to no Setup answered ' + JSON.stringify(r));
+    /* THE LEADER: hero 0 a blade alone, hero 1 the shield; pinned, unpinned; a forged slot never goes out */
+    const e = await equipVia(db, A, 0, { shield: null });
+    if (!e || e.ok !== true) return bad.concat('CO-CONTROLS HARNESS: the shield off answered ' + JSON.stringify(e));
+    r = await as(db, A, 'select public.hr_hunt_party_invite_own(1, 0, $1::uuid)', [idem()]);
+    if (!r || r.ok !== true) return bad.concat('CO-CONTROLS HARNESS: the own invite answered ' + JSON.stringify(r));
+    for (const cs of list) await cs.load();
+    const party = await one(db, 'select public.hr_hunt_party_of($1::uuid, 0)', [A]);
+    const leader = async () => Number(await one(db, 'select leader_slot from public.hunt_parties where id = $1', [party]));
+    r = await C.setPartyLead(account, list[0], 0);
+    if (!r.ok || await leader() !== 0 || !(CS.companyPlanOf(list[1]) || {}).leadPinned) bad.push('CO-CONTROLS the pin: ' + JSON.stringify([r, await leader(), CS.companyPlanOf(list[1])]));
+    r = await C.setPartyLead(account, list[1], null);
+    if (!r.ok || await leader() !== 1 || (CS.companyPlanOf(list[0]) || {}).leadPinned) bad.push('CO-CONTROLS unpinned, the shield does not lead: ' + JSON.stringify([r, await leader()]));
+    const n = server.calls.length;
+    r = await C.setPartyLead(account, list[0], 9);
+    if (r.ok || r.error !== 'bad_intent' || server.calls.length !== n) bad.push('CO-CONTROLS a forged slot went out: ' + JSON.stringify(r));
+    return bad;
+  });
+}
+
 const ARMS = { closed: closedArm, viewed: viewedArm, refuse: refuseArm, idem: idemArm, bless: blessArm, loot: lootArm, apart: apartArm, words: wordsArm, apply: applyArm,
-  four: fourArm, one: oneArm, door: doorArm, setup: setupArm, dress: dressArm, lines: linesArm, lead: leadArm };
+  four: fourArm, one: oneArm, door: doorArm, setup: setupArm, dress: dressArm, lines: linesArm, lead: leadArm, regear: regearArm, controls: controlsArm };
 
 /* ── THE MUTANTS: a defect planted in the booted chain's live body (SQL) or a served copy of a client module ── */
-const FN = { plan: 'public.hr_carry_on_plan_of(uuid,integer[])', press: 'public.hr_carry_on(integer[],bigint,jsonb,uuid)' };
+const FN = { plan: 'public.hr_carry_on_plan_of(uuid,integer[])', press: 'public.hr_carry_on(integer[],bigint,uuid)', wear: 'public.hr_company_wear_apply(uuid,integer[],jsonb,uuid)' };
 const MUTANTS = [
   { name: 'Storage is read whole for every hero (not shared in order)', arm: 'closed', want: /^CO-CLOSED (Storage is not shared|the bags went|Storage kept|the press)/, fn: FN.plan,
     find: 'v_avail := greatest(0, v_b.stored - coalesce((v_drawn->>v_b.item_id)::bigint, 0));', replace: 'v_avail := greatest(0, v_b.stored);' },
@@ -845,12 +967,15 @@ const MUTANTS = [
     find: '  perform public.hr_party_seat_into(v_target, p_uid, p_slot);', replace: "  return 'waits';" },
   { name: 'the ground\'s Setup is not read', arm: 'setup', want: /^CO-SETUP the (plan|press)/, fn: FN.plan,
     find: '    v_preset := coalesce(public.hr_ground_setup_of(p_uid, v_st.slot, v_hunt), 0);', replace: '    v_preset := 0;' },
-  { name: 'the wear list is not put on', arm: 'dress', want: /^CO-DRESS the tank went out/, fn: FN.press,
-    find: '      if jsonb_array_length(v_worn) > 0 then', replace: '      if false then' },
+  { name: 'the server puts nothing on', arm: 'dress', want: /^CO-DRESS (viewed|closed): the tank went out/, fn: FN.wear,
+    find: "    if v_kind = 'idle' and v_s.id is null then v_free := v_free || v_slot; end if;", replace: '    null;' },
   { name: 'the press dresses with the line off', arm: 'dress', want: /^CO-DRESS with the line off/, src: ['src/shell/carry-on.js',
-    'const wearFor = (ctx, plan) => (plan.wearOn ? wearListOf(goingOf(ctx, plan)) : null);', 'const wearFor = (ctx, plan) => wearListOf(goingOf(ctx, plan));'] },
-  { name: 'nothing passes between heroes', arm: 'dress', want: /^CO-DRESS the (line|tank|spare)/, src: ['src/shell/carry-on.js',
+    "const wearFor = (ctx, plan) => (plan.wearOn ? plan.heroes.filter((h) => h.state === 'go').map((h) => h.slot) : null);",
+    "const wearFor = (ctx, plan) => plan.heroes.filter((h) => h.state === 'go').map((h) => h.slot);"] },
+  { name: 'nothing passes between heroes', arm: 'dress', want: /^CO-DRESS (viewed|closed): the (tank|spare)/, src: ['src/core/upgrade-pick.js',
     '      const donor = own ? null : [...left].find(([s2, m]) => s2 !== slot && (m.get(id) || 0) > 0);', '      const donor = null;'] },
+  { name: 'the server picks from the browser\'s view (an empty bag)', arm: 'dress', want: /^CO-DRESS (viewed|closed): the tank went out/, src: ['supabase/functions/hr-accrue/company-wear.js',
+    '    .map((h) => ({ slot: h.slot, input: wearInputOf((k) => h.env[k]) })));', "    .map((h) => ({ slot: h.slot, input: wearInputOf((k) => (k === 'inventory' ? {} : h.env[k])) })));"] },
   { name: '"If one falls" writes no box', arm: 'lines', want: /^CO-LINES all come home/, fn: 'public.hr_company_line_set(text,text,uuid)',
     find: "      update public.player_state set party_leave_together = case when p_value = 'all_home' then true end,", replace: '      update public.player_state set party_leave_together = party_leave_together,' },
   { name: 'the leader is not worked out at the press', arm: 'lead', want: /^CO-LEAD at the press/, fn: FN.press,
@@ -860,6 +985,15 @@ const MUTANTS = [
     find: '  if v_p.lead_pin_user is not null and exists', replace: '  if false and exists' },
   { name: 'the role order drifts from ROLE_ORDER', arm: 'lead', want: /^CO-LEAD hr_role_rank/, fn: 'public.hr_role_rank(text)',
     find: "array['tank', 'melee_dps', 'ranger', 'mage', 'healer']", replace: "array['melee_dps', 'tank', 'ranger', 'mage', 'healer']" },
+  { name: 'the visiting press never leaves (the hunt is never over)', arm: 'regear', want: /^CO-REGEAR/, src: ['src/session/carry-on-intents.js',
+    '    const r = await h.leaveHunt();', '    const r = { ok: true };'] },
+  { name: 'the visiting press goes back in undressed', arm: 'regear', want: /^CO-REGEAR (hero 0 went back|the page sent)/, src: ['src/session/carry-on-intents.js',
+    '  return carryOn(account, cs, read.plan.gold, scope, [], scope);', '  return carryOn(account, cs, read.plan.gold, scope, [], null);'] },
+  { name: 'the plan ground is not kept', arm: 'controls', want: /^CO-CONTROLS the plan ground/, fn: 'public.hr_hero_plan_set(integer,text,uuid)',
+    find: '  insert into public.hero_plans as hp (user_id, slot, hunt_id, updated_at) values (v_uid, p_slot, p_hunt, now())\n    on conflict (user_id, slot) do update set hunt_id = excluded.hunt_id, updated_at = now();\n',
+    replace: '' },
+  { name: 'a ground points at a Setup the hero never saved', arm: 'controls', want: /^CO-CONTROLS a pointer to no Setup/, fn: 'public.hr_ground_setup_set(integer,text,integer,uuid)',
+    find: '  if p_preset <> 0 and not exists', replace: '  if false and not exists' },
   { name: 'another account\'s party is re-led', arm: 'lead', want: /^CO-LEAD another account/, fn: 'public.hr_party_lead_set(integer,integer,uuid)',
     find: '  if not public.hr_party_is_own(v_party, v_uid) then', replace: '  if false then' },
 ];

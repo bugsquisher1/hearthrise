@@ -197,6 +197,11 @@ export const REASONS = Object.freeze({
     /* the company's plan lines (1051-company-start.sql): off until the server's section has come, and while a press is out */
     { cond: '!co || s.pending || s.line', words: "t('away.line_reading')", where: 'Wear upgrades and If one falls: the note under them says the plan is being read, or Sending… while a press is out' },
   ],
+  /* the plan's ground on a ground's page (1051-company-start.sql): hidden until the server's section has come; off only while its own press is
+     out, when the page's line says Sending… (runIntent's busy words) */
+  'src/shell/windows/company-pane.js': [
+    { cond: '!co || o.pending', words: "t('heroes.sending')", where: 'Go here at the next Start: hidden until the company section has come; off while a press is out, the page\'s line says Sending…' },
+  ],
   'src/shell/windows/house-dummy.js': [
     { cond: '!canBuy', words: "text(box.querySelector('.hd-why'), block)", where: 'Unlock on the dummy: the line under the ladder says why (no Homestead, short of the next price); every skill held reads "Every skill is unlocked" and hides the buttons' },
   ],

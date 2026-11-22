@@ -500,6 +500,11 @@ export const INTENT_REGISTRY = Object.freeze({
      froze — so a registry row naming an unknown bucket is a verb that 429s
      forever, not a wider budget. Reuse, do not widen. */
   eat: Object.freeze({ bucket: 'activity', needsKey: true, collectsFirst: true }),
+  /* ── "WEAR UPGRADES" AT THE COMPANY'S START (lane/c-company, ./company-wear.js) ────────────────────────
+     `collectsFirst: FALSE`, and the reason is the commit point's: hr_company_wear_apply dresses only an IDLE
+     hero in town, so no equip it makes can stamp an unpaid window (a hero with a running job is named busy).
+     `bucket: 'activity'`: the heroes' own state, the equip verb's budget. */
+  company_wear: Object.freeze({ bucket: 'activity', needsKey: true, collectsFirst: false }),
   /* ── THE TROPHY CLAIM VERB (docs/design/BESTIARY_LADDER.md §4) ─────────────
      `bucket: 'claim'`, shared with claim_reward and dungeon_settle, and it is
      the same RULING those two made for the same reason: hr_rate_gate's bucket
@@ -696,6 +701,8 @@ export const INTENT_ERRORS = Object.freeze({
   NO_HUNT: 'no_hunt',
   NO_GROUND: 'no_ground',
   NO_ROLE: 'no_role',
+  /* 400 — company_wear: its `slots` is not 1 to 6 distinct hero slots (request.js readSlots). */
+  BAD_SLOTS: 'bad_slots',
 
   /* ── THE GOLD VERBS (b351) ───────────────────────────────────────────────
      Read the pairs. Each one exists because collapsing it into its neighbour

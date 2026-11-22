@@ -938,7 +938,7 @@ const MUTANTS = [
   ['the day count hides its reset', 'src/shell/windows/tally.js', "text(root.querySelector('.ht-day-new'), left ? t('tally.day_resets', { left }) : '');", "text(root.querySelector('.ht-day-new'), '');"],
   ['the day count and its reset run together in text', 'src/shell/windows/tally.js', "prop(root.querySelector('.ht-day-sep'), 'hidden', !tally || !left);", "prop(root.querySelector('.ht-day-sep'), 'hidden', true);"],
   /* TW-18 a dot that lets the line break after it ("Meadowbrook Thicket ·" / "Level 5"), TW-19 a coach body left to end on one word */
-  ['a dot can end a line again', 'src/styles/hunt.css', '.hh-sep-t { font-size: 0; word-spacing: 0; }', '.hh-sep-t { word-spacing: 0; }'],
+  ['a dot can end a line again', 'src/styles/hunt.css', '.hh-sep-t { font-size: 0; font-size-adjust: none; word-spacing: 0; }', '.hh-sep-t { font-size-adjust: none; word-spacing: 0; }'],
   ['a dot can start a line again', 'src/render/format.js', '<span class="hh-sep-t">\\u00a0\\u00b7</span> </span>', '<span class="hh-sep-t"></span> \\u00b7\\u00a0</span>'],
   ['a coach card can end on one word again', 'src/styles/shell.css', ':is(.hs-launchers, .hs-widget) > .hs-pointer { text-wrap: pretty; }', ''],
   /* TW-18: a separator drawn by CSS again (the old .hw-hunt-fit dot) */

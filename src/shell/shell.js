@@ -344,7 +344,7 @@ export function mountShell(root, o) {
        column (a four-seat party panel), never over either: it shrinks, or slides right past them (hud.js homeAt).
        Measured from its home column every time, so it comes back when the panel gets shorter. */
     const homes = layer.querySelectorAll('.hs-win.is-home');
-    const tops = homes.length ? Array.from(worldHud.querySelectorAll('[data-hs-widget], .is-coach-docked > .hs-pointer'))   // + a panel the player moved, the docked coach card (hud-room.js)
+    const tops = homes.length ? Array.from(worldHud.querySelectorAll('[data-hs-widget]'))   // + a panel the player moved; never the coach card, which yields to Chat (hud-room.js, D-1 1.3 rule 5)
       .filter((e) => { const id = e.getAttribute('data-hs-widget'); return !id || hud.isMoved(id) || hud.layoutOf(id).anchor[0] !== 'b'; })
       .map((e) => { const q = e.getBoundingClientRect(); return { left: q.left - b.left, top: q.top - b.top, width: q.width, height: q.height }; }) : [];
     for (const w of homes) {

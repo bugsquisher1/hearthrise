@@ -59,7 +59,9 @@
 //        flickering in and out of view writes no more; a page closed with no hide event (pagehide alone) still gets it out;
 //        a hunt this page has not stamped yet is stamped at once, so a tab killed with no goodbye still has an answer
 //   B-18 RESIDUE IN THE DEBOUNCE SURVIVES A RELOAD (coach's Got it, lost for 1.5 s after every press): Got it, reload at once, over a real
-//        server (a real page's way out; Playwright's routes never see it): the server holds the read and the card stays dismissed
+//        server (a real page's way out; Playwright's routes never see it): the server holds the read and the card stays dismissed. Since
+//        the reads are the account's (1039, sent at once), the press a reload can lose is a HIDE (residue coach.hid): Got it on the card
+//        that teaches, then Got it on the next, a server fact's, and the reload
 //   B-23 THE HEARTH BEHIND THE ACCOUNT SCREENS (art audit 2026-11-19 §5: the sign-in stood on a black void): at Windows' 125 % the sign-in
 //        and the characters screens stand on Hearth Square (assets/brand/hearth-square.png, 1024x640 art px) drawn at a whole number of
 //        device px an art px, pixelated, fixed, under the scrim; it is asked for once, only after the crest has arrived, and Play leaves it
@@ -900,17 +902,31 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
           await page.waitForTimeout(2000);   // what the first paint wrote has landed: only the press is left to lose
           const card = await page.evaluate((q) => document.querySelector(q).closest('[data-tutorial]').getAttribute('data-tutorial'), got);
           const before = puts.length;
-          const t0 = Date.now();
+          /* TWO GOT ITS, ONE PER STORE (1039-account-coach.sql moved the reads off the residue): her card TEACHES, so its Got it is the account's
+             read, sent at once; the card after it (the Cellar's) is finished by a server fact, so its Got it HIDES it in the residue, which waits in
+             the debounce and must be flushed on the way out (src/shell/alerts.js). The second press is the one a reload can lose. */
           await page.evaluate((q) => document.querySelector(q).click(), got);
-          await page.reload({ waitUntil: 'commit' });
-          const ms = Date.now() - t0;
-          if (ms > 1200) fails.push(HARNESS + ' B-18: the reload began ' + ms + ' ms after the press, past the debounce: this run proves nothing');
-          await wait(page, () => document.querySelector('.hs-launchers'), null, 15000);
-          await page.waitForTimeout(1500);
-          const read = coach.read;
-          if (!read.includes(card)) fails.push('B-18 Got it on "' + card + '" just before a reload never reached the server: ' + JSON.stringify(puts.slice(before)));
-          const again = await page.evaluate((id) => !!document.querySelector('[data-tutorial="' + id + '"]'), card);
-          if (again) fails.push('B-18 the card "' + card + '" came back after the reload');
+          await page.keyboard.press('Escape');   // her window shut: the next card stands in town with its Got it
+          const town = '.hs-pointer[data-tutorial]:not([data-tutorial="' + card + '"]) .hs-coach-got';
+          if (!(await wait(page, (q) => [...document.querySelectorAll(q)].some((b) => b.offsetParent), town, 8000))) {
+            fails.push('B-18 CONTROL: no next card with a Got it after "' + card + '"; on screen: ' + JSON.stringify(await page.evaluate(() => [...document.querySelectorAll('.hs-pointer[data-tutorial]')]
+              .map((p) => p.getAttribute('data-tutorial') + (p.classList.contains('is-min') ? ':min' : '') + (p.querySelector('.hs-coach-got') ? ':got' : '') + (p.offsetParent ? '' : ':hidden')))));
+          }
+          else {
+            const next = await page.evaluate((q) => [...document.querySelectorAll(q)].find((b) => b.offsetParent).closest('[data-tutorial]').getAttribute('data-tutorial'), town);
+            const t0 = Date.now();
+            await page.evaluate((q) => [...document.querySelectorAll(q)].find((b) => b.offsetParent).click(), town);
+            await page.reload({ waitUntil: 'commit' });
+            const ms = Date.now() - t0;
+            if (ms > 1200) fails.push(HARNESS + ' B-18: the reload began ' + ms + ' ms after the press, past the debounce: this run proves nothing');
+            await wait(page, () => document.querySelector('.hs-launchers'), null, 15000);
+            await page.waitForTimeout(1500);
+            if (!coach.read.includes(card)) fails.push('B-18 Got it on "' + card + '" never reached the server: ' + JSON.stringify(puts.slice(before)));
+            const hid = residue.coach && Array.isArray(residue.coach.hid) ? residue.coach.hid : [];
+            if (!hid.includes(next)) fails.push('B-18 Got it on "' + next + '" just before a reload never reached the server: ' + JSON.stringify(puts.slice(before)));
+            const again = await page.evaluate((ids) => ids.filter((id) => !!document.querySelector('[data-tutorial="' + id + '"]')), [card, next]);
+            if (again.length) fails.push('B-18 the card ' + JSON.stringify(again) + ' came back after the reload');
+          }
         }
         if (errors.length) fails.push('B-18 console errors: ' + errors.slice(0, 3).join(' | '));
       } catch (e) {   // a step that throws is HARNESS (tests/_mutant-verdict.mjs), never B-18's catch and never the end of the run
@@ -1432,8 +1448,8 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
       await page.fill('input[name=password]', 'not-a-real-password');
       await page.click('.auth-submit');
       await wait(page, () => document.querySelectorAll('.char-row').length === 4);
-      const lead = await page.evaluate(() => (document.querySelector('.auth-lead') || {}).textContent || '');
-      if (!/Heroes at once: up to 4\. 2 more heroes to make/.test(lead) || await page.$('[data-app="buy-slot"]') || await page.$('.slot-offer'))
+      const lead = await page.evaluate(() => Array.from(document.querySelectorAll('.auth-lead')).map((p) => p.textContent).join(' | '));
+      if (!/\| Heroes at once: up to 4\. 2 more heroes to make\.( \||$)/.test(lead) || await page.$('[data-app="buy-slot"]') || await page.$('.slot-offer'))
         fails.push('B-11 the line over two heroes of four reads ' + JSON.stringify(lead) + ', or a slot is still for sale');
       /* B-11b (UI audit 2026-11-18): each hero's row shows its own figure, drawn, at a whole 2x or more, at the desktop and the phone widths */
       for (const vp of [[1440, 900], [922, 423], [667, 375]]) {
@@ -1447,6 +1463,9 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
       /* an empty slot opens BUILD YOUR PARTY: both empty slots, a shield and a healer pre-filled, the healer said; one press makes both, each with its set */
       await page.click('.char-row.is-empty [data-app="create"]');
       const party = await wait(page, () => document.querySelectorAll('.hero-member').length === 2);
+      /* the name fields are the sunk game field at 14.5 px or more, never the browser's white box (art review 2026-11-21 #1) */
+      const field = party ? await page.evaluate(() => { const c = getComputedStyle(document.querySelector('.hero-member .hero-name')); return { px: parseFloat(c.fontSize), well: c.boxShadow !== 'none', bg: c.backgroundColor }; }) : null;
+      if (!field || field.px < 14.5 || !field.well || field.bg === 'rgb(255, 255, 255)') fails.push('B-11 the party step\'s name field reads ' + JSON.stringify(field) + ', want the sunk field at 14.5 px or more');
       const view = party ? await page.evaluate(() => ({ ways: Array.from(document.querySelectorAll('.hero-member-way')).map((s) => s.value),
         healer: (document.querySelector('.hero-party-healer') || {}).textContent || '' })) : null;
       if (!view || view.ways.join() !== 'tank,healer' || view.healer !== 'Your party has one healer.') fails.push('B-11 the party step reads ' + JSON.stringify(view));
@@ -1619,6 +1638,7 @@ const MUTANTS = [
   ['Enter town comes back live under a slow town', 'src/app/hero-create.js', "    hold(t('heroes.entering'));\n", ''],
   ['a lost answer\'s retry gets a new key', 'src/app/hero-create.js', "    if (!tried || tried.name !== name || tried.set !== picked) tried =", '    tried ='],
   ['a first hero comes with a way picked for the player (GR-24)', 'src/app/hero-create.js', "  let picked = typeof o.picked === 'string' && STARTER_SETS[o.picked] ? o.picked : null;", "  let picked = 'tank';"],
+  ['the party\'s name fields are the browser\'s white box again (B-11, art review #1)', 'src/styles/app.css', '.auth-field input, .hero-member .hero-name {\n', '.auth-field input {\n'],
   ['the party sends the first hero\'s set for every hero (B-11)', 'src/app/hero-create.js', 'const r = await o.create(name, colorsNow(), tried[i].key, sets[i], c.slots[i]);', 'const r = await o.create(name, colorsNow(), tried[i].key, sets[0], c.slots[i]);'],
   ['no Hearth behind the sign-in (B-23)', 'src/app/boot.js', "renderAuthScreen(box, auth, mode, { signedIn: () => startAccount(false) });\n    raiseBackdrop(root, win);", "renderAuthScreen(box, auth, mode, { signedIn: () => startAccount(false) });"],
   ['the Hearth is asked for before the crest is in (B-23)', 'src/app/auth-backdrop.js', '  if (!crest || crest.complete) after();\n', '  ask();\n  if (!crest || crest.complete) after();\n'],

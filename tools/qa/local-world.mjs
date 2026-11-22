@@ -707,9 +707,11 @@ async function play(world, { account, viewport = { width: 1280, height: 720 }, t
       await page.screenshot({ path: file });
       return file;
     },
-    async createHero(name, slot = 0) {
+    async createHero(name, slot = 0, set = 'club') {
       await page.click('[data-app="create"][data-slot="' + slot + '"]');
+      if (await page.$('.hero-alone')) await page.click('.hero-alone');   // a later hero: the party step, one at a time (FB-5)
       await page.fill('.hero-name', name);
+      await page.click('.hero-way[data-hero-set="' + set + '"]');   // the pick at creation (GR-24): nothing is picked for the player
       await page.click('.hero-confirm');
       await page.waitForSelector('#panel-world[data-slot="' + slot + '"] .world-stage canvas');
       await page.waitForSelector('.hs-launchers');

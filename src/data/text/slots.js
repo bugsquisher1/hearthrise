@@ -9,5 +9,5 @@ export const SLOTS_TEXT = Object.freeze({
   /* The line over the roster (labels, Tyler 2026-11-14). {most} how many heroes can play at once, {count} the empty slots. */
   play_one: 'Heroes at once: 1',
   play_up_to: 'Heroes at once: up to {most}',
-  play_to_make: { one: 'Heroes at once: up to {most}. {count} more hero to make', other: 'Heroes at once: up to {most}. {count} more heroes to make' },
+  play_to_make: { one: 'Heroes at once: up to {most}. {count} more hero to make.', other: 'Heroes at once: up to {most}. {count} more heroes to make.' },
 });

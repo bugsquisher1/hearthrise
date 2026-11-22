@@ -1,0 +1,7 @@
+{
+  "schema": "hearthrise.balance-patch/1",
+  "name": "Redesign probe B: monster blows x1.25",
+  "why": "Reads what more incoming damage costs a hunt in pace and gold, away from the edge of a tier (docs/design/redesign/04-math-strategy.md)",
+  "knobs": { "monsterDamage": 1.25 },
+  "targets": ["survival"]
+}

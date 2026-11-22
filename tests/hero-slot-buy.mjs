@@ -18,13 +18,17 @@
 //
 // mutant-anchors: supabase/migrations/1036-four-starter-slots.sql
 // ════════════════════════════════════════════════════════════════════════
-import { bootReplay, closeReplays } from './schema-replay.mjs';
+import { bootReplay, closeReplays, chainFiles } from './schema-replay.mjs';
 import { isMain } from './_is-main.mjs';
 import { HERO_SLOTS, SHOP_OFFERS } from '../src/data/shops.js';
 
 const MIG = '1036-four-starter-slots.sql';
+/* FB-5's last file: the live account's heroes are measured right after it, so a later lane's own change to player_state (1040-rested-bank-cut.sql
+   drops columns) is never read as FB-5 moving a hero (run 44959863591's set, 2026-11-21) */
+const FB5_LAST = '1039-account-coach.sql';
 const OLD = '00000000-0000-4000-8000-0000000f5001';
 const NEW = '00000000-0000-4000-8000-0000000f5002';
+const AFTER_FB5 = `create temp table zz_hsb_after as select md5(string_agg(to_jsonb(ps)::text, '|' order by ps.slot)) as heroes from public.player_state ps where ps.user_id = '${OLD}';`;
 /* Each mutant drops 1036's own §3 self-check, so it is this guard that must see the defect. */
 const NO_SELF_CHECK = ['  -- (a) the catalogue: three starter rows at no cost; with slot 0 an account holds exactly as many heroes as may play at once.\n', '  return;\n'];
 
@@ -80,19 +84,24 @@ export async function rules(db, before) {
   arm('HS-GONE', !(await one(db, "select count(*)::int from pg_proc where proname in ('hr_buy_hero_slot', 'hr_buy_hero_slot__ungated')")), 'the purchase body is still in the schema');
   arm('HS-GONE', !(await one(db, "select count(*)::int from public.hr_client_rpc_baseline where proname = 'hr_buy_hero_slot'")), 'the purchase is still on the client surface');
   arm('HS-GONE', !(await one(db, "select count(*)::int from public.hr_unlocks where unlock_id like 'character_slot%'")), 'a character_slot unlock row is still derived');
-  /* HS-LIVE */
-  const after = await one(db, `select md5(string_agg(to_jsonb(ps)::text, '|' order by ps.slot)) from public.player_state ps where ps.user_id = $1`, [OLD]);
-  arm('HS-LIVE', after === before.heroes, 'the live account\'s heroes moved');
+  /* HS-LIVE: the heroes as FB-5's files left them (AFTER_FB5), the purse and the slots at the chain's end */
+  arm('HS-LIVE', before.afterFb5 === before.heroes, 'the live account\'s heroes moved');
   arm('HS-LIVE', Number(await one(db, 'select gold from public.account_wallet where user_id = $1', [OLD])) === 12345, 'the live account\'s purse moved (no refund, no charge)');
   arm('HS-LIVE', JSON.stringify(await one(db, 'select public.hr_hero_slots_of($1)', [OLD])) === all, 'the live account does not own all four slots');
   return fails;
 }
 
 async function boot(patches) {
-  const r = await bootReplay(Object.assign({ seedBefore: new Map([[MIG, PLANT]]) },
+  const order = (await chainFiles()).map(([n]) => n);
+  const next = order[order.indexOf(FB5_LAST) + 1];
+  if (order.indexOf(FB5_LAST) < 0) throw Object.assign(new Error('hero-slot-buy: ' + FB5_LAST + ' is not in the chain'), { harness: true });
+  const seeds = new Map([[MIG, PLANT]]);
+  if (next) seeds.set(next, AFTER_FB5);
+  const r = await bootReplay(Object.assign({ seedBefore: seeds },
     patches ? { patches: new Map([[MIG, patches]]), fullChain: 'the later files of FB-5 (1037-1039) read hr_hero_slots and must still apply' } : {}));
   const db = r.db || r;
-  const before = { heroes: await one(db, 'select heroes from zz_hsb_before') };
+  if (!next) await db.exec(AFTER_FB5);   // FB-5's file is the chain's last
+  const before = { heroes: await one(db, 'select heroes from zz_hsb_before'), afterFb5: await one(db, 'select heroes from zz_hsb_after') };
   return { db, before };
 }
 
@@ -106,6 +115,9 @@ const MUTANTS = [
   /* a starter that keeps its price: every account still owns it (so no other file refuses), and only the binding sees the price */
   ['a free slot keeps its old price (HS-BIND)', [NO_SELF_CHECK, ['     set starter = true, cost_gold = 0', '     set starter = true']], 'HS-BIND'],
   ['the purchase stays on the client surface (HS-GONE)', [NO_SELF_CHECK, ["delete from public.hr_client_rpc_baseline where proname = 'hr_buy_hero_slot';\n", '']], 'HS-GONE'],
+  /* the catch envelope-contract.mjs gave up when its two hr_account_view rename mutants retired (run 44959863591): no client reads the
+     offer any more, and the server saying "nothing for sale" is this guard's subject, read strictly (=== null) */
+  ['the account view renames its slot offer (HS-OWN)', [NO_SELF_CHECK, ['-- ── §2 THE PURCHASE LEAVES ─', "do $zz$ begin execute replace(replace(pg_get_functiondef('public.hr_account_view(uuid,integer)'::regprocedure), chr(13), ''), '''hero_slot_offer'', (', '''slot_offer'', ('); end $zz$;\n-- ── §2 THE PURCHASE LEAVES ─"]], 'HS-OWN'],
   ['the free slots refund the gold paid (HS-LIVE)', [NO_SELF_CHECK, ['-- ── §2 THE PURCHASE LEAVES ─', "update public.account_wallet set gold = gold + 300000 where user_id in (select user_id from public.player_progress where key like 'character_slot:%');\n-- ── §2 THE PURCHASE LEAVES ─"]], 'HS-LIVE'],
 ];
 

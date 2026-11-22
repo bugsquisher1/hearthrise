@@ -559,9 +559,11 @@
   ],
   "expected": [
    "hr-alert-relay | * * * * * | select hr_ops.alert_run()",
+   "hr-chat-global | 5 seconds | select public.hr_chat_global_flush()",
    "hr-combat-xp-credit-prune | 33 4 * * * | select public.hr_combat_xp_credit_prune(interval '1 day')",
    "hr-cron-health | 7 * * * * | select public.hr_cron_health()",
    "hr-grant-hygiene | 50 4 * * * | select public.hr_assert_grant_hygiene(true)",
+   "hr-hearthrise | * * * * * | select public.hr_hearthrise_tick()",
    "hr-hunt-after | * * * * * | select public.hr_hunt_after_sweep(50)",
    "hr-hunt-party-sweep | * * * * * | select public.hr_hunt_party_sweep(200)",
    "hr-intents-prune | 17 * * * * | select public.hr_intents_prune()",
@@ -820,7 +822,10 @@
   "hr_bans": "Moderation state (2027-03-13-gm-tools.sql): which accounts are banned, no value. Losing it lifts every ban, which a restore must carry but costs no player anything.",
   "hr_chat_mutes": "Moderation state (2027-03-13-gm-tools.sql): which accounts are muted until when, no value. Every row expires by itself.",
   "hr_mode_board": "The Burning Tower's board (2027-04-30-tower-board.sql): each hero's best floor and when it was first reached, one row per hero per session mode. Player-scoped by user_id, but DERIVED: tower_progress (restore_only) is the record, and re-running the file's §3 backfill (raise-only) rebuilds every row from it. Lost and not rebuilt, nobody holds a place until each hero's next record.",
-  "hr_mode_board_last": "The last climb's place on the Tower board (2027-04-30-tower-board.sql): its rank when it ended and the heroes it passed, one row per hero per mode, overwritten by the next climb. Player-scoped by user_id, no value: lost, one end card shows no Rank or Passed row."
+  "hr_mode_board_last": "The last climb's place on the Tower board (2027-04-30-tower-board.sql): its rank when it ended and the heroes it passed, one row per hero per mode, overwritten by the next climb. Player-scoped by user_id, no value: lost, one end card shows no Rank or Passed row.",
+  "friend_link_codes": "A server-made code a player shares to bring a friend in. No value: a lost code is re-made on the next ask (a link already shared stops working).",
+  "friend_link_redeemed": "A once-per-account marker for arriving by a friend's link. It carries no value: what it guards is a friendship, and a lost row lets a new account make one more.",
+  "hr_hearth_fire_day": "A day's count toward the shared fire's cap per account. No value: the fire is everyone's weekend bonus, and a lost row only lets an account add to it again that day."
  },
  "tables": {
   "account_bank": {
@@ -1005,6 +1010,18 @@
    "wiped_at_cutover": false,
    "note": "The uniqueness ledger behind 2026-08-08-unique-names.sql, 37 rows. This is IDENTITY, not progression: a wipe of progress does not take a player's name. Losing it frees every claimed name for re-registration by someone else, which is unrecoverable once a stranger takes it. Treat as must-restore."
   },
+  "friend_link_codes": {
+   "class": "restore_only",
+   "wiped_at_cutover": false,
+   "note": "1044-friend-link.sql (FB-12, GR-72): one account's friend link code, made by the server on first ask (hr_friend_link); no client grant. Empty after a restore: the next ask makes a new code, and a link already shared stops working (a newcomer arriving by it is refused bad_code and can still ask by name). No value, no progression.",
+   "replay": 0
+  },
+  "friend_link_redeemed": {
+   "class": "restore_only",
+   "wiped_at_cutover": false,
+   "note": "1044-friend-link.sql (FB-12, GR-72): an account that arrived by a friend's link, once ever (hr_friend_link_redeem). The friendship it made is a friend_links row. Empty after a restore: an account under 24 hours old could use a link once more, which makes a friendship and nothing else.",
+   "replay": 0
+  },
   "friend_links": {
    "class": "restore_only",
    "wiped_at_cutover": true,
@@ -1170,10 +1187,25 @@
    },
    "note": "THE CHAT HISTORY WINDOW (2026-11-19-chat-stream-safe.sql), a singleton seeded on conflict do nothing: history_epoch (no chat or whisper line written before it is ever read; forward-only, never in the future, by trigger) and history_hours (how far back a reader sees, 24). A rebuild re-seeds the epoch at the REBUILD time, hiding every older line: the safe direction (chat is stream-safe, nothing is lost but history that the 60-day trim deletes anyway). No player value, no secret: readable by every role (the RLS floor runs with the reader rights), writable by the owner only."
   },
+  "hr_chat_flush": {
+   "class": "operational",
+   "note": "1041-social-clans.sql (FB-12, 31-1): Global's batch cursor, one row, moved only by hr_chat_global_flush (cron hr-chat-global). A rebuild seeds it at the apply instant: at worst the lines of the last few seconds are not pushed live, and every (re)join re-reads the history.",
+   "replay": 1
+  },
+  "hr_chat_global_rule": {
+   "class": "seeded",
+   "replay": 1,
+   "note": "Generated catalogue (1040-social-catalogue.generated.sql from src/data/chat-channels.js GLOBAL_BATCH, tools/gen-social-catalogue.mjs --check): how Global is sent in batches (31-1). Rebuilt from repo, never restored."
+  },
   "hr_chat_mutes": {
    "class": "restore_only",
    "wiped_at_cutover": false,
    "note": "Muted accounts and until when (2027-03-13-gm-tools.sql). Only a backup has the rows; every one expires by itself."
+  },
+  "hr_chat_slow_mode": {
+   "class": "seeded",
+   "replay": 3,
+   "note": "Generated catalogue (1040-social-catalogue.generated.sql from src/data/chat-channels.js SLOW_MODE): Global's slow mode steps (31-1). Rebuilt from repo, never restored."
   },
   "hr_chest_armor": {
    "class": "seeded",
@@ -1225,9 +1257,14 @@
    "replay": 1,
    "note": "Generated catalogue (2027-04-27-tower-chest-catalogue.generated.sql, tools/gen-chests.mjs from src/data/chests.js): the Hearth Chest (one row today). Empty, every open is refused bad_chest (nothing moves). Rebuilt from repo, never restored."
   },
+  "hr_clan_rules": {
+   "class": "seeded",
+   "replay": 1,
+   "note": "Generated catalogue (1040-social-catalogue.generated.sql from src/data/clans.js CLAN_RULES): the founding price (25-6), name and tag lengths, the browser's size, invite days. Rebuilt from repo, never restored."
+  },
   "hr_client_rpc_baseline": {
    "class": "seeded",
-   "replay": 152,
+   "replay": 166,
    "note": "The approved client-callable RPC list: 51 rows on 2026-08-15, 72 on 2026-08-30, 73 since 2026-09-08-hero-slot-buy.sql §9 registered hr_buy_hero_slot(p_slot_id integer, p_slot integer, p_idem uuid) for `authenticated` with a delete-then-insert, so a re-apply cannot double it; production measured at 73 rows carrying that exact row on 2026-09-04. 74 IN THE REPLAY SINCE 2026-09-06-recovering-until.sql §5b registered hr_rest(p_slot integer, p_intent_id uuid) for `authenticated` — the Recovery Rule's food-for-a-knockout relief valve, granted in §5 of the same file and deliberately revoked from hr_engine. STAGED, NOT APPLIED: this row is a REPLAY-ONLY count today and production is expected to stay one lower until the Coordinator applies that migration, at which point the two converge with no further re-baseline. §5b derives identity_args from pg_proc via to_regprocedure (a retyped signature silences nothing, because check (2) joins on it) and deletes any row bearing a stale signature first, so a re-apply can neither double the row nor leave an approval for a shape that no longer exists. hr_assert_grant_hygiene check (2) raises on any grant not recorded here, nightly on cron. A rebuild that seeded a different set would make that detector wrong in both directions — silently permitting an unreviewed grant, or crying about a reviewed one. 77 IN THE REPLAY SINCE 2026-09-13-town-presence.sql §12 registered the three Week-1 live-system verbs for `authenticated` — hr_heartbeat(p_slot integer), hr_set_presence_quiet(p_slot integer, p_quiet boolean) and hr_town_of(p_zone text) — with the same delete-then-insert, so a re-apply cannot double them. APPLIED 2026-09-13 (town-presence): production and replay converged at 77. 78 IN THE REPLAY SINCE 2026-09-13-world-finds-projection.sql §5 registered hr_world_finds_of(p_limit integer) for `authenticated` — the projected Hearthfind board, which closes the named pre-launch P2 by minting the finder's display name server-side (NULL for a presence_quiet finder) so that world_finds.user_id could be revoked from anon and authenticated — with the same delete-then-insert keyed on (proname, grantee), so a re-apply can neither double the row nor leave an approval for a shape that no longer exists. APPLIED 2026-09-13 08:14 UTC (world-finds-projection): production and replay converged at 78. This row is the APPROVAL for the grant, in the same migration as the grant: hr_assert_grant_hygiene check (2) raises nightly on any client-executable function this table does not list, so a rebuild that seeded a different set would make that detector wrong in both directions — silently permitting an unreviewed grant, or crying about a reviewed one. 80 IN THE REPLAY SINCE 2026-09-14-gem-unlock-buy.sql section 6b and 2026-09-14-recipe-learn.sql section 4d registered hr_buy_gem_unlock(p_unlock_id text, p_slot integer, p_idem uuid) and hr_recipe_learn(p_item text, p_slot integer, p_idem uuid) for `authenticated`, each with the same delete-then-insert keyed on (proname, grantee), so a re-apply can neither double a row nor leave an approval for a shape that no longer exists. STAGED, NOT APPLIED: both rows are REPLAY-ONLY today and production is expected to stay at 78 until the Coordinator applies the two migrations, at which point the counts converge with no further re-baseline. This entry was updated BY HAND rather than with --write, deliberately: --write would also re-pin every other table's row count from this branch's replay, which is not this lane's to certify. 87 since 2026-09-23-m8-parties-s1-3-client-surface.sql registered the six client-callable M8 slice-1 party functions (hr_party_view + the five membership verbs) for `authenticated`, also with a delete-then-insert so a re-apply converges rather than skipping a row whose argued claim has since been rewritten. 89 since 2026-09-24-m8-parties-s4-3-client-surface.sql registered the two M8 slice-4 hunt verbs — hr_party_hunt_start(p_slot integer, p_active_id text, p_stance text, p_stop jsonb, p_idem uuid) and hr_party_hunt_stop(p_slot integer, p_idem uuid) — for `authenticated`, with the same delete-then-insert, and that file's §3(a) asserts each row's identity_args EQUALS the installed pg_get_function_arguments, so a retyped signature is red at apply time rather than an approval for a shape nobody granted. STAGED, NOT APPLIED: both rows are REPLAY-ONLY today and production is expected to stay at 87 until the Coordinator applies the S4 three, at which point the counts converge with no further re-baseline. 90 IN THE REPLAY SINCE 2026-10-15-party-hunt-view.sql §6 registered hr_party_hunt_view(p_slot integer) for authenticated (Game Designer A1, the member-only read of the party hunt) and rewrote the hr_party_view row's note (A2: share_bp/xp/gold retired), both delete-then-insert keyed on (proname, grantee) with identity_args derived from pg_get_function_identity_arguments. STAGED, NOT APPLIED: REPLAY-ONLY until the Coordinator applies it. Updated BY HAND, not --write, for the reason above. 91 IN THE REPLAY SINCE 2026-10-18-discord-gift.sql §7 registered hr_claim_discord_gift(p_slot integer, p_code text) for authenticated (delete-then-insert keyed on (proname, grantee)). STAGED, NOT APPLIED: REPLAY-ONLY until the Coordinator applies it. Updated BY HAND. 98 IN THE REPLAY SINCE 2026-10-22-hunt-sessions-drop-away.sql §3 dropped hr_set_auto_eat and hr_credit_kills and deleted their two `authenticated` rows (hunt sessions retire auto-eat and the attended kill credit; ruling HR-2026-10-14 §3). STAGED, NOT APPLIED: REPLAY-ONLY until the Coordinator applies it. 2026-10-25-town-walk.sql registered hr_town_move and hr_town_walkers for authenticated (delete-then-insert). 123 since 2026-10-31-party-create-retire.sql deleted the hr_hunt_party_create row (the first invite makes the party); APPLIED in v0.2.20, production and replay converged. 112 IN THE REPLAY SINCE 2026-12-04-world-actions-cut.sql deleted the twelve raid_strike / world_event_* / hr_rally_pledge_state / clan_board_* / clan_hunt_declare / clan_tier_up / clan_work_complete rows with their functions. STAGED, NOT APPLIED: REPLAY-ONLY until the Coordinator applies it. 95 IN THE REPLAY SINCE 2027-01-18-dead-surfaces-cut.sql deleted the hr_worker_hire / hr_worker_assign rows with their functions (§1) and the 23 clan-door rows whose EXECUTE it revoked from every client role (§3: clan_* + hr_clan_browser; bodies and clan tables kept). STAGED, NOT APPLIED: REPLAY-ONLY until the Coordinator applies it. 102 IN THE REPLAY SINCE 2027-02-20-players-online-revoke.sql deleted the hr_players_online row with its grant (hr_social_poll answers the count). STAGED, NOT APPLIED: REPLAY-ONLY until the Coordinator applies it. 128 IN THE REPLAY SINCE 2027-03-26-signout-presence.sql registered hr_presence_leave() (no argument) for authenticated, delete-then-insert keyed on (proname, grantee): sign-out says the caller's own client is gone. STAGED, NOT APPLIED: REPLAY-ONLY until the Coordinator applies it. Updated BY HAND, not --write (the count only). 132 IN THE REPLAY SINCE 2027-04-19-key-under-lock.sql §2 deleted the hr_companion_grant row with its EXECUTE (revoked from every request role; no src/ caller). STAGED, NOT APPLIED: REPLAY-ONLY until the Coordinator applies it. Updated BY HAND, not --write (the count only). 133 IN THE REPLAY SINCE 2027-04-20-boss-hall.sql §4 registered hr_boss_hall_enter(p_slot integer, p_hall text, p_idem uuid) for authenticated, delete-then-insert keyed on (proname, grantee): a keyed hall's one door. STAGED, NOT APPLIED: REPLAY-ONLY until the Coordinator applies it. 134 since 2027-04-22-target-kind.sql registered hr_hunt_target_kind_set for authenticated (APPLIED 2026-11-14). 138 IN THE REPLAY SINCE 2027-04-22-faction-standing.sql §4 registered hr_faction_join(p_slot integer, p_faction text, p_idem uuid), hr_faction_swap_start(p_slot integer, p_faction text, p_idem uuid), hr_faction_swap_finish(p_slot integer, p_idem uuid) and hr_faction_outfit_claim(p_slot integer, p_piece text, p_idem uuid) for authenticated, delete-then-insert keyed on (proname, grantee). STAGED, NOT APPLIED: REPLAY-ONLY until the Coordinator applies it. 141 IN THE REPLAY SINCE 2027-04-23-training-gear.sql registered hr_training_gear_buy, hr_training_gear_open and hr_training_gear_switch for authenticated. STAGED, NOT APPLIED: REPLAY-ONLY until the Coordinator applies it. Updated BY HAND, not --write (the count only)."
   },
   "hr_client_write_baseline": {
@@ -1396,6 +1433,11 @@
     "2026-12-17-beta-premium.sql": "adds beta_premium, enabled=true (every hero counts as premium during the closed beta; Tyler 2026-10-23). The replay rebuilds it ON (the replay harness then turns it off for its guards, as it opens the game). Re-measure live_value after the apply; it flips to false at the EA wipe (update public.hr_flags set enabled = false where key = 'beta_premium')."
    }
   },
+  "hr_friend_link_rule": {
+   "class": "seeded",
+   "replay": 1,
+   "note": "Generated catalogue (1040-social-catalogue.generated.sql from src/data/chat-channels.js FRIEND_LINK): how new an account must be to arrive by a friend's link (GR-72). Rebuilt from repo, never restored."
+  },
   "hr_gm_accounts": {
    "class": "restore_only",
    "wiped_at_cutover": false,
@@ -1431,6 +1473,26 @@
    "replay": 1,
    "note": "Generated catalogue (2027-03-14-jewelry-catalogue.generated.sql from src/data/jewelry.js HALLMARK_DAY_LIMIT): the most Hallmarks one account makes in a UTC day. Empty, hr_hallmark refuses hallmark_limit and the section reads null. Rebuilt from repo, never restored."
   },
+  "hr_hearth_fire": {
+   "class": "operational",
+   "note": "1043-hearthrise.sql (FB-12, D-7): the Great Hearth's fire, one row: fuel and boss marks since the last lighting, the fold's watermark, the goal. Written only by the fold, the lighting and the boss mark. A rebuild seeds an empty fire at the apply instant: the next Hearthrise lights at the size the fuel burned since then reads (at least the floor, +10%). The weekend's size is a shared bonus, never one player's value.",
+   "replay": 1
+  },
+  "hr_hearth_fire_boss": {
+   "class": "operational",
+   "note": "1043-hearthrise.sql (FB-12, D-7): the world boss falls that gave the fire a mark, one a window (keyed so a fall gives one mark). Lost, the next Hearthrise reads at most one mark smaller.",
+   "replay": 0
+  },
+  "hr_hearth_fire_day": {
+   "class": "operational",
+   "note": "1043-hearthrise.sql (FB-12, D-7): one account's fuel counted into the fire in one UTC day, held to the day cap; pruned past 35 days by the tick. Lost, an account may count up to its cap again that day: the shared fire grows a little more, nobody's value moves.",
+   "replay": 0
+  },
+  "hr_hearth_fire_rule": {
+   "class": "seeded",
+   "replay": 1,
+   "note": "Generated catalogue (1042-hearthrise-live-events-catalogue.generated.sql from src/data/hearthrise.js HEARTHRISE_FIRE, tools/gen-live-events.mjs --check): the fire's share, day cap, marks, floor, step, days, a named fuel's worth and fuel per active day (D-7). Rebuilt from repo, never restored."
+  },
   "hr_hearth_named": {
    "class": "seeded",
    "replay": 5,
@@ -1455,6 +1517,11 @@
    "class": "seeded",
    "replay": 12,
    "note": "CATALOGUE (seeded). Which activity channels can roll each Hearthfind find (12 rows) from 2026-09-08-hearthfind-catalogue.generated.sql. Repo-authored; a restore rebuilds it."
+  },
+  "hr_hearthrise_lit": {
+   "class": "operational",
+   "note": "1043-hearthrise.sql (FB-12, D-7): each Hearthrise window's size, read once at its lighting. Lost mid-weekend, the window pays the floor (+10%) until it ends (the tick lights only a window that has not started its last minute), a smaller shared bonus, never one player's value.",
+   "replay": 0
   },
   "hr_hero_rename_rule": {
    "class": "seeded",
@@ -1886,7 +1953,7 @@
   },
   "hr_state_sections": {
    "class": "seeded",
-   "replay": 52,
+   "replay": 54,
    "note": "The X7 state-section registry (2026-10-23-character-premium.sql and the S1 files): one row per hr_state_of section and its projector. Seeded by the migrations that register a section; rebuilt from repo, never restored."
   },
   "hr_storage_chests": {

@@ -342,12 +342,20 @@ function contract(R, cs, body, tl) {
   need('level', !!lb && !!lr && isNum(lb.level) && lr.level === lb.level && lr.xp === lb.xp && lr.into === lb.into && lr.need === lb.need
     && tv.level === lb.level && tv.into === lb.into && tv.need === lb.need && body.vitals.level === lb.level && lb.xp === body.state.level_xp,
     'levelOf yields ' + JSON.stringify(lr) + ' from the envelope\'s level block ' + JSON.stringify(lb) + ' (vitals ' + JSON.stringify(body.vitals) + ', state.level_xp ' + JSON.stringify(body.state && body.state.level_xp) + ')');
-  /* the live events (2027-03-22-live-events.sql hr_live_events_view; src/shell/live-events-view.js reads it for the plate, the
-     Hunts lines and Call out): Open Halls, switched on and holding now, as the reader takes it (null when every switch is off) */
+  /* the live events (2027-03-22-live-events.sql, 1043-hearthrise.sql hr_live_events_view; src/shell/live-events-view.js reads it for the
+     plate, the Hunts lines and the ground's page): the Hearthrise, switched on and holding now, not yet lit, so at the size the fire would
+     light at (an empty fire: the floor), as the reader takes it (null when every switch is off) */
   const le = R.LE.liveEventsOf(cs);
-  const oh = le && le.find((e) => e.id === 'open_halls');
-  need('live_events', !!oh && oh.type === 'open_halls' && oh.dial === 'feePm' && oh.pm === 0 && oh.live === true && oh.scope.includes('world')
-    && oh.startsMs < Date.now() && oh.endsMs > Date.now(), 'liveEventsOf yields ' + JSON.stringify(le) + ' from ' + JSON.stringify(body.live_events));
+  const hr = le && le.find((e) => e.id === 'hearthrise');
+  need('live_events', !!hr && hr.type === 'xp_bonus' && hr.dial === 'xpPm' && hr.pm === 1100 && hr.live === true && hr.scope.includes('world')
+    && hr.sized === 'fire' && hr.lit === false && hr.startsMs < Date.now() && hr.endsMs > Date.now(), 'liveEventsOf yields ' + JSON.stringify(le) + ' from ' + JSON.stringify(body.live_events));
+  /* the Great Hearth's fire (1043-hearthrise.sql hr_hearth_fire_view; live-events-view.js fireLines on the Hearth tab): an empty fire's marks,
+     goal, the fuel to its first mark and the size it would light at */
+  const fire = R.LE.fireOf(cs);
+  need('hearth_fire', !!fire && fire.marks === 0 && fire.of === 5 && fire.fuel === 0 && fire.goal > 0 && fire.need > 0 && fire.pm === 1100 && fire.full === false,
+    'fireOf yields ' + JSON.stringify(fire) + ' from ' + JSON.stringify(body.hearth_fire));
+  /* quiet presence for the account (1045-ground-presence.sql hr_presence_view; the Friends window's switch reads it) */
+  need('presence', !!body.presence && body.presence.quiet === false, 'the presence section reads ' + JSON.stringify(body.presence));
   /* the Farm window (2026-11-26-farm-window.sql): a fresh hero's field — room for 2 plots at the Camp, tier 1, the tier-2 price */
   const fl = R.FS.farmLandOf(cs, 0);
   need('farm_land', !!fl && fl.cap >= 2 && fl.plotLevel >= 1 && fl.plots instanceof Map && (fl.plotLevel >= 5 || (!!fl.upgrade && fl.upgrade.gold > 0 && fl.upgrade.farming > 0)),
@@ -391,7 +399,7 @@ export const CONTRACT_KEYS = Object.freeze(['hunt', 'hunt_track', 'hunt_events',
   'name', 'bag_rules', 'shop', 'hunt_presets', 'role', 'party_invites', 'party_notices', 'stamina_refill', 'blessings',
   'character_sheet', 'outfit', 'death_log', 'vitals', 'hunt_bests', 'hunt_tier', 'hunt_target_kind', 'depot', 'home', 'now', 'farm_land', 'farm_tend', 'bench_run', 'rename', 'tally',
   'skill_inputs', 'bench_tax', 'setup_slots', 'titles', 'temper', 'bag_expand', 'gm', 'hallmark', 'level', 'skill_levels', 'live_events', 'training', 'factions', 'hunt_after', 'scaled_hunts', 'boss_halls',
-  'tower', 'key_ring', 'entry_gates', 'catacomb', 'features', 'unlocked_recipes']);
+  'tower', 'key_ring', 'entry_gates', 'catacomb', 'features', 'unlocked_recipes', 'hearth_fire', 'presence']);
 
 /* What lane S2's sections are seeded with before the settle (each verb through the real RPC). */
 const SEED = Object.freeze({ name: 'Contract Hero', inviter: 'Contract Inviter', lock: 'cooked_shrimp', loot: 'normal_log',
@@ -484,12 +492,12 @@ async function realBody(db, M, H) {
     poses.push(await H.one(db, 'select public.hr_hunt_section_view($1::uuid, 0)', [H.UIDS[0]]));
   }
   await seedS2(db, M, H);
-  /* LIVE EVENTS (2027-03-22-live-events.sql §3): Open Halls switched on for everyone and its window holding now (inside this
-     test's transaction only), so the section lists it; a fee dial moves no settle number. */
-  await db.query("update public.hr_feature_switches set scope = 'everyone', updated_at = now() where switch_id = 'event_open_halls'");
+  /* LIVE EVENTS (1043-hearthrise.sql): the XP switch on for everyone and the Hearthrise's window holding now (inside this test's
+     transaction only), so the section lists it and the fire is projected; set AFTER the settle above, so no settle number moves. */
+  await db.query("update public.hr_feature_switches set scope = 'everyone', updated_at = now() where switch_id = 'event_xp_bonus'");
   /* SCALED HUNTS (2027-03-21-scaled-hunts.sql): the switch on for everyone, so the section is projected (off, it is null) */
   await db.query("update public.hr_feature_switches set scope = 'everyone', updated_at = now() where switch_id = 'scaled_hunts'");
-  await db.query("update public.hr_live_events set first_at = now() - interval '1 hour', every_days = null where event_id = 'open_halls'");
+  await db.query("update public.hr_live_events set first_at = now() - interval '1 hour', every_days = null where event_id = 'hearthrise'");
   /* THE FACTIONS (2027-04-23-faction-section.sql): their switch on for everyone, inside this test's transaction only. */
   await db.query("update public.hr_feature_switches set scope = 'everyone', updated_at = now() where switch_id = 'factions'");
   /* THE BURNING TOWER (2027-04-28-tower-section.sql) and THE KEY RING (2027-04-27-tower-chest.sql), whose section rides the Tower's switch:
@@ -608,7 +616,10 @@ const DB_MUTANTS = [
   ['skill_levels', 'public.hr_skill_block(text,bigint)', "'need', public.hr_skill_xp_for_level(p_skill, lv + 1) - lo);", "'needs', public.hr_skill_xp_for_level(p_skill, lv + 1) - lo);"],
   /* lane/b-live-events-client: the plate and the Hunts lines read each event's window and dial from the section */
   ['live_events', 'public.hr_live_events_view(uuid,integer)', "'starts', x.starts,", "'start', x.starts,"],
-  ['live_events', 'public.hr_live_events_view(uuid,integer)', "'dial', x.dial, 'pm', x.pm,", "'dial', x.dial, 'permille', x.pm,"],
+  ['live_events', 'public.hr_live_events_view(uuid,integer)', "'pm', case when x.sized_by = 'fire' then coalesce(x.lit_pm, v_proj) else x.pm end,", "'permille', case when x.sized_by = 'fire' then coalesce(x.lit_pm, v_proj) else x.pm end,"],
+  /* lane/c-social: the Hearth tab reads the fire's marks and the fuel to the next one; the Friends window reads quiet presence */
+  ['hearth_fire', 'public.hr_hearth_fire_view(uuid,integer)', "'fuel', f.fuel, 'goal', f.goal, 'need', v_need,", "'fuel', f.fuel, 'goal', f.goal, 'needed', v_need,"],
+  ['presence', 'public.hr_presence_view(uuid,integer)', "select jsonb_build_object('quiet',", "select jsonb_build_object('is_quiet',"],
   /* lane/c-combat-training: the Training window prices each hour from the quote and the House the next unlock from the dummy */
   ['training', 'public.hr_training_section(uuid,integer)', "'fee_h', public.hr_training_fee(q.lv),", "'fee', public.hr_training_fee(q.lv),"],
   ['training', 'public.hr_training_section(uuid,integer)', "'ladder', coalesce(to_jsonb(", "'prices', coalesce(to_jsonb("],

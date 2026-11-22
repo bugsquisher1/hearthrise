@@ -30,7 +30,8 @@
 //              tick leaves him there, the visit's end walks him back to his tree; the World throws on arrival 40 s on, never at a stand moved on
 //   TS-HUNT    a hunting hero is refused in town words and charged nothing
 //   TS-QUIET   a quiet hero pays and shows with no name and no line
-//   TS-LINES   a powder's line in Local and a round's in System hold only the server's sentence and the stamped name
+//   TS-LINES   a powder's line and a round's, both in System (no Local, GR-69), hold only the server's sentence and the stamped name;
+//              Local takes no line
 //   TS-GIVEN   Gold Given counts only the town's sinks, in the charge's transaction; no client can call the counter; it ranks accounts, shows the lead hero, hides as the
 //              boards hide, resets by UTC month
 //   TS-NO-METER THE STANDING GUARD: nothing but the named functions reads town_shows or the purchase journal: gold into the Hearthrise meter is a paid XP buff (avoid list)
@@ -169,7 +170,7 @@ export const MUTANTS = {
   quiet_posts_line: { arm: 'TS-QUIET', why: 'a quiet hero posts a line', db: [SHOW, "    if not v_quiet then\n", "    if true then\n"] },
   /* THE LINES */
   round_in_global: { arm: 'TS-LINES', why: 'a round goes to Global, not System', db: [SHOW, "values (v_msg, 'system', v_uid, 'Adventurer', p_slot, 'stood a round at the Tavern.');", "values (v_msg, 'global', v_uid, 'Adventurer', p_slot, 'stood a round at the Tavern.');"] },
-  powder_in_system: { arm: 'TS-LINES', why: 'a powder goes to System, not Local', db: [SHOW, "values (v_msg, public.hr_chat_zone_of(v_uid, p_slot), v_uid, 'Adventurer', p_slot, 'notice',", "values (v_msg, 'system', v_uid, 'Adventurer', p_slot, 'notice',"] },
+  powder_in_global: { arm: 'TS-LINES', why: 'a powder goes to Global, not System (1041-social-clans.sql: no Local, a town notice is System)', db: [SHOW, "values (v_msg, public.hr_chat_zone_of(v_uid, p_slot), v_uid, 'Adventurer', p_slot, 'notice',", "values (v_msg, 'global', v_uid, 'Adventurer', p_slot, 'notice',"] },
   /* GOLD GIVEN */
   given_not_counted: { arm: 'TS-GIVEN', why: 'a powder never reaches the board', db: [SHOW, "    perform public.hr_gold_given_add(v_uid, p_slot, v_price);\n", ''] },
   given_open_to_clients: { arm: 'TS-GIVEN', why: 'a client can climb the board for free', ddl: 'grant execute on function public.hr_gold_given_add(uuid, integer, bigint) to authenticated' },
@@ -730,19 +731,22 @@ const ARMS = {
     await rich(db, A);
     await bought(db, A, 0, 'cinnabar', 2000);
     await bought(db, A, 0, 'round', 5000);
-    const lines = await q(db, 'select public.hr_chat_row(m) r, m.channel from public.chat_messages m where m.from_id = $1 order by m.channel', [A]);
-    const local = lines.find((l) => l.channel === 'local:town');
-    const sys = lines.find((l) => l.channel === 'system');
-    if (lines.length !== 2 || !local || !sys) return ['the lines are ' + JSON.stringify(lines)];
+    /* both are the System tab's: there is no Local channel (GR-69), so the powder's notice goes where a named fuel's burn goes
+       (1041-social-clans.sql hr_chat_zone_of) */
+    const lines = await q(db, 'select public.hr_chat_row(m) r, m.channel from public.chat_messages m where m.from_id = $1 order by m.created_at, m.body', [A]);
     const said = (row) => X.CL.lineOf(row, { tz: 'utc' });
-    const lLine = said(local.r), sLine = said(sys.r);
-    if (!lLine || !lLine.system || lLine.parts.map((p) => p.text).join('') !== 'Marlow threw Cinnabar on the Great Hearth.') out.push('the powder reads ' + JSON.stringify(lLine && lLine.parts));
-    if (lLine && lLine.channel !== 'local:town') out.push('the powder is not in Local: ' + lLine.channel);
-    if (!sLine || !sLine.system || sLine.parts.map((p) => p.text).join('') !== 'Marlow stood a round at the Tavern.') out.push('the round reads ' + JSON.stringify(sLine && sLine.parts));
-    /* a player can't write the notice's shape: hr_chat_send always stamps a Level */
-    const sent = await as(db, A, 'select public.hr_chat_send(0, $1, $2)', ['local', 'threw Cinnabar on the Great Hearth.']);
+    const read = lines.map((l) => ({ channel: l.channel, line: said(l.r) }));
+    const powder = read.find((x) => x.line && x.line.parts.map((p) => p.text).join('') === 'Marlow threw Cinnabar on the Great Hearth.');
+    const round = read.find((x) => x.line && x.line.parts.map((p) => p.text).join('') === 'Marlow stood a round at the Tavern.');
+    if (lines.length !== 2 || !powder || !round) return ['the lines are ' + JSON.stringify(lines)];
+    if (powder.channel !== 'system' || !powder.line.system) out.push('the powder is not a System line: ' + powder.channel);
+    if (round.channel !== 'system' || !round.line.system) out.push('the round is not a System line: ' + round.channel);
+    /* a player can't write the notice's shape: a player's line is never System, and Local takes no line at all */
+    const sent = await as(db, A, 'select public.hr_chat_send(0, $1, $2)', ['global', 'threw Cinnabar on the Great Hearth.']);
     const spoof = said({ ...sent.line, from_role: 'notice' });
     if (!sent.ok || spoof.system) out.push('a player\'s line with the notice\'s role reads as a notice: ' + JSON.stringify(spoof));
+    const local = await as(db, A, 'select public.hr_chat_send(0, $1, $2)', ['local', 'threw Cinnabar on the Great Hearth.']);
+    if (!local || local.error !== 'bad_channel') out.push('Local still takes a line: ' + JSON.stringify(local));
     return out;
   },
 

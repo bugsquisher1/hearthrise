@@ -92,11 +92,12 @@ export const WORLD_ACTION_RPCS = ['raid_strike', 'clan_hunt_declare', 'clan_tier
 /* The fourth cut's dropped crew doors, 2027-01-18-dead-surfaces-cut.sql §1. */
 export const CREW_RPCS = ['hr_worker_hire', 'hr_worker_assign'];
 /* The fourth cut's CLOSED clan doors (2027-01-18-dead-surfaces-cut.sql §3): EXECUTE revoked from every client
-   role and the baseline rows deleted; the bodies and the clan tables stay. */
+   role and the baseline rows deleted; the bodies and the clan tables stay. RE-OPENED by 1041-social-clans.sql (lane/c-social,
+   FB-12: the first build's clans, the roster and the browser; its baseline rows re-inserted, its §5 proves the rest still refused):
+   clan_join, clan_leave, clan_kick, clan_invite_revoke, clan_join_policy_set and the browser (hr_clan_browser, now with search). */
 export const CLOSED_RPCS = ['clan_contribute', 'clan_create', 'clan_deposit', 'clan_feast_call', 'clan_feast_deposit',
-  'clan_invite', 'clan_invite_revoke', 'clan_invites_list', 'clan_join', 'clan_join_policy_set', 'clan_kick',
-  'clan_leave', 'clan_rested_grant', 'clan_seat_read', 'clan_vice_set', 'clan_vote_cast', 'clan_vote_close',
-  'clan_vote_open', 'clan_vote_read', 'clan_work_labour', 'clan_work_post', 'clan_work_supply', 'hr_clan_browser'];
+  'clan_invite', 'clan_invites_list', 'clan_rested_grant', 'clan_seat_read', 'clan_vice_set', 'clan_vote_cast', 'clan_vote_close',
+  'clan_vote_open', 'clan_vote_read', 'clan_work_labour', 'clan_work_post', 'clan_work_supply'];
 /* OR-7: the envelope's chain-end body and what it must not project again. */
 export const ENVELOPE_BODY = 'hr_state_of';
 const ENVELOPE_CUT = /\bplayer_workers\b|\bworkers_accrued_to\b|'(?:farm|workers)'/;

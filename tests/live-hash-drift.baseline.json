@@ -25,10 +25,10 @@
   },
   "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
   "live_measured": "2026-11-20",
-  "replay_ms": 4079,
+  "replay_ms": 3204,
   "counts": {
-    "tracked_names": 1059,
-    "entries": 884
+    "tracked_names": 1066,
+    "entries": 891
   },
   "functions": [
     {
@@ -1390,6 +1390,7 @@
       "touched_by": [
         "1026-job-counts.sql",
         "1040-rested-bank-cut.sql",
+        "1059-company-trades.sql",
         "2026-08-11-apply-engine.sql",
         "2026-08-15-gem-daily-budget.sql",
         "2026-08-15-intent-key-hygiene.sql",
@@ -1448,12 +1449,12 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "f7754b03bb85f0b97783971b43a355ae",
-        "norm_len": 139680,
+        "md5": "de96612bd85bba9ce8f39992110a30bf",
+        "norm_len": 142965,
         "source": "computed-from-replay"
       },
       "agree": false,
-      "why": "STAGED for the v0.2.144 release by 1040-rested-bank-cut.sql (hr_apply rewritten in full from the chain end, the rested charge gone, splice depth 0) (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21 after lane/c-formula-steps slice 1 merged."
+      "why": "STAGED for the v0.2.144 release by 1026-job-counts.sql, 1040-rested-bank-cut.sql, 1059-company-trades.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body, replay is the staged body from 1059-company-trades.sql."
     },
     {
       "sig": "hr_assert_grant_hygiene(p_strict boolean)",
@@ -1824,12 +1825,12 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "062a376f13dae9898ae8a6586c5a8021",
-        "norm_len": 1017,
+        "md5": "9ced432c90f035aa7f08228bbb1fa021",
+        "norm_len": 992,
         "source": "computed-from-replay"
       },
       "agree": false,
-      "why": "STAGED for the v0.2.144 release by 1026-job-counts.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21. The release apply re-measures with --live --write."
+      "why": "STAGED for the v0.2.144 release by 1026-job-counts.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body, replay is the staged body from 1026-job-counts.sql."
     },
     {
       "sig": "hr_bench_tax_due_mg(p_user uuid, p_slot integer, p_recipe text)",
@@ -11233,42 +11234,6 @@
       "agree": true
     },
     {
-      "sig": "hr_job_next_start(p_user uuid, p_slot integer)",
-      "name": "hr_job_next_start",
-      "tracked_by": [
-        "restate"
-      ],
-      "touched_by": [
-        "1026-job-counts.sql"
-      ],
-      "live": null,
-      "replay": {
-        "md5": "128bde0ae9c3560d63b841433c0578e4",
-        "norm_len": 3097,
-        "source": "computed-from-replay"
-      },
-      "agree": false,
-      "why": "STAGED for the v0.2.144 release by 1026-job-counts.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21. The release apply re-measures with --live --write."
-    },
-    {
-      "sig": "hr_job_next_sweep(p_limit integer)",
-      "name": "hr_job_next_sweep",
-      "tracked_by": [
-        "restate"
-      ],
-      "touched_by": [
-        "1026-job-counts.sql"
-      ],
-      "live": null,
-      "replay": {
-        "md5": "7ffdaa0ac2aaa1e9704eccd25794137d",
-        "norm_len": 772,
-        "source": "computed-from-replay"
-      },
-      "agree": false,
-      "why": "STAGED for the v0.2.144 release by 1026-job-counts.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21. The release apply re-measures with --live --write."
-    },
-    {
       "sig": "hr_jsonb_add(p_a jsonb, p_b jsonb)",
       "name": "hr_jsonb_add",
       "tracked_by": [
@@ -18002,19 +17967,21 @@
       "sig": "hr_tick_town_state(p_user uuid, p_slot integer)",
       "name": "hr_tick_town_state",
       "tracked_by": [
+        "pin",
         "restate"
       ],
       "touched_by": [
-        "1048-narrow-town-read.sql"
+        "1048-narrow-town-read.sql",
+        "1059-company-trades.sql"
       ],
       "live": null,
       "replay": {
-        "md5": "fc5ccd928c3f2a88316c3b560aaa88bd",
-        "norm_len": 1802,
+        "md5": "0f3cfb562d0bcb9d094a6a6889dc2b3f",
+        "norm_len": 1638,
         "source": "computed-from-replay"
       },
       "agree": false,
-      "why": "STAGED for the v0.2.144 release by 1048-narrow-town-read.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body (absent on production), replay is the staged body from 1048-narrow-town-read.sql."
+      "why": "STAGED for the v0.2.144 release by 1048-narrow-town-read.sql, 1059-company-trades.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1059-company-trades.sql."
     },
     {
       "sig": "hr_tick_unenrol(p_channel text)",
@@ -19667,6 +19634,60 @@
       "agree": true
     },
     {
+      "sig": "hr_trade_is(p_skill text)",
+      "name": "hr_trade_is",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1059-company-trades.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "2ef3b652d8ad78da1936c6cd62d0e6a0",
+        "norm_len": 454,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1059-company-trades.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1059-company-trades.sql."
+    },
+    {
+      "sig": "hr_trade_lock(p_user uuid)",
+      "name": "hr_trade_lock",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1059-company-trades.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "dfc3df4ad590a86726a9a487ff62c35c",
+        "norm_len": 384,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1059-company-trades.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1059-company-trades.sql."
+    },
+    {
+      "sig": "hr_trade_row_sync()",
+      "name": "hr_trade_row_sync",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1059-company-trades.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "fb092cf9dfe9c1ade50496110383d137",
+        "norm_len": 1850,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1059-company-trades.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1059-company-trades.sql."
+    },
+    {
       "sig": "hr_training_fee(p_level integer)",
       "name": "hr_training_fee",
       "tracked_by": [
@@ -20543,6 +20564,78 @@
       "agree": true
     },
     {
+      "sig": "hr_work_base_ms(p_user uuid, p_slot integer)",
+      "name": "hr_work_base_ms",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1059-company-trades.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "28ec38cfe8dc4190478a2f38dc5c8170",
+        "norm_len": 501,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1059-company-trades.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1059-company-trades.sql."
+    },
+    {
+      "sig": "hr_work_day_view(p_user uuid, p_slot integer)",
+      "name": "hr_work_day_view",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1059-company-trades.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "17a06070e090a44645f59204af4c46e1",
+        "norm_len": 1147,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1059-company-trades.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1059-company-trades.sql."
+    },
+    {
+      "sig": "hr_work_extra_ms(p_user uuid, p_slot integer)",
+      "name": "hr_work_extra_ms",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1059-company-trades.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "2a1672f0cc1825d5abefd13e8ed356a8",
+        "norm_len": 938,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1059-company-trades.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1059-company-trades.sql."
+    },
+    {
+      "sig": "hr_work_fold(p_day date, p_used bigint, p_from timestamp with time zone, p_to timestamp with time zone, p_base bigint, p_extra bigint, p_today date)",
+      "name": "hr_work_fold",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1059-company-trades.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "2f37708c62e3364000b198a55d9c907c",
+        "norm_len": 2224,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1059-company-trades.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1059-company-trades.sql."
+    },
+    {
       "sig": "hr_work_job_note()",
       "name": "hr_work_job_note",
       "tracked_by": [
@@ -20559,6 +20652,42 @@
       },
       "agree": false,
       "why": "STAGED for the v0.2.144 release by 1026-job-counts.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21. The release apply re-measures with --live --write."
+    },
+    {
+      "sig": "hr_work_kinds()",
+      "name": "hr_work_kinds",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1059-company-trades.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "b7418b55b780471961bdad086800c098",
+        "norm_len": 387,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1059-company-trades.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1059-company-trades.sql."
+    },
+    {
+      "sig": "hr_work_state(p_user uuid, p_slot integer)",
+      "name": "hr_work_state",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1059-company-trades.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "6f82abf19068fcb1b5e980663bd9435e",
+        "norm_len": 882,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1059-company-trades.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1059-company-trades.sql."
     },
     {
       "sig": "hr_world_finds_of(p_limit integer)",

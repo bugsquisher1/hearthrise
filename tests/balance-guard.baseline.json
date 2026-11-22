@@ -4,9 +4,9 @@
   "pins.cutRows: rows a cut or dark lever carries (G14: a count over its pin is red). cost: a reference account's day (G16: 5% over is red). values: every line's numbers when written (the report prints what moved)."
  ],
  "schema": "hearthrise.balance-guard/1",
- "commit": "7392474f8",
- "at": "2026-11-21",
- "why": "Tyler 2026-11-21: every reference player hunts 12 h a hero a day (was the real 3.3 / 8.4 / 2 h): G16's cost a reference account a day re-pinned at 12 h, G18 and G20 re-banded (12 h, four heroes by week 5); other moves are the set's own since 5aece30d7",
+ "commit": "c5eb0ad1d",
+ "at": "2026-11-22",
+ "why": "G16 ledger rows re-pinned, cause MEASURED (per-player-cost --only, ledger by kind, on archived trees): lane/c-tohit-ratio 2398754cb (to-hit as a ratio, rows re-authored) makes the Level 10 lone Thicket hero use supplies in 7 of 12 windows (was 4) and the Sewer four in 13 of 48 hero-windows (was 11); its parent 2398754cb^ reads 48 / 44.3, the commit 57 / 45.8. The rows are hunt supply_own, already ONE row a hero a save (meta.items batches every item), the journal of supplies destroyed (CLAUDE.md 1); combat accrue is unchanged at one a save. Worth it: no writer journals per item, and 1047-hourly-journal folds both shapes to one row a hero an hour after 180 min, so retained rows do not grow. The cut left is merging supply_own into hr_apply's accrue row (an economy-journal change across hr_apply and every restated apply_member body), not made here. Every other line's value re-read on this tree (set/v0.2.144 c5eb0ad1d + lane/a-ci-reds-144); the moves since 7392474f8 are in run 44979114749's MOVED lines.",
  "pins": {
   "cutRows": {
    "food-xp-buffs": 11,
@@ -20,154 +20,152 @@
  "cost": {
   "new": {
    "statementsADay": 5460,
-   "rowWritesADay": 38223,
-   "ledgerRowsADay": 576,
+   "rowWritesADay": 40954,
+   "ledgerRowsADay": 684,
    "dbSADay": 193,
    "journalRowsADay": 2757
   },
   "ownfour": {
    "statementsADay": 5460,
-   "rowWritesADay": 140607,
-   "ledgerRowsADay": 2126,
+   "rowWritesADay": 133782,
+   "ledgerRowsADay": 2270,
    "dbSADay": 605,
    "journalRowsADay": 11482
   },
   "heavy": {
    "statementsADay": 5460,
-   "rowWritesADay": 140607,
-   "ledgerRowsADay": 2126,
+   "rowWritesADay": 133782,
+   "ledgerRowsADay": 2270,
    "dbSADay": 608,
    "journalRowsADay": 11634
   },
   "premium": {
    "statementsADay": 5460,
-   "rowWritesADay": 140607,
-   "ledgerRowsADay": 2126,
+   "rowWritesADay": 133782,
+   "ledgerRowsADay": 2270,
    "dbSADay": 605,
    "journalRowsADay": 11482
   },
   "ceiling": {
    "statementsADay": 10921,
-   "rowWritesADay": 281215,
-   "ledgerRowsADay": 4253,
+   "rowWritesADay": 267564,
+   "ledgerRowsADay": 4541,
    "dbSADay": 1181,
    "journalRowsADay": 21445
   },
   "whale": {
    "statementsADay": 5460,
-   "rowWritesADay": 140607,
-   "ledgerRowsADay": 2126,
+   "rowWritesADay": 133782,
+   "ledgerRowsADay": 2270,
    "dbSADay": 591,
    "journalRowsADay": 10722
   },
   "friends": {
    "statementsADay": 1365,
-   "rowWritesADay": 35152,
-   "ledgerRowsADay": 532,
+   "rowWritesADay": 33445,
+   "ledgerRowsADay": 568,
    "dbSADay": 193,
    "journalRowsADay": 2795
   }
  },
  "values": {
   "G1": {
-   "thicket": 1.134,
-   "glade": 0.962,
-   "ford": 1.22,
-   "slake": 1.028,
-   "pyre": 1.188,
-   "hold": 1.093,
-   "rest*": 0.972,
-   "catacombs*": 1.044
+   "thicket": 1.065,
+   "glade": 1.07,
+   "ford": 1.375,
+   "slake": 1.257,
+   "pyre": 1.473,
+   "hold": 1.382,
+   "rest*": 1.25,
+   "catacombs*": 1.303
   },
   "G2": {
-   "thicket": 1.215,
-   "glade": 1.379,
-   "ford": 1.288,
-   "slake": 1.49,
-   "pyre": 1.395,
-   "hold": 1.348,
-   "rest*": 1.34,
-   "catacombs*": 1.269
+   "thicket": 1.136,
+   "glade": 1.209,
+   "ford": 1.189,
+   "slake": 1.305,
+   "pyre": 1.318,
+   "hold": 1.271,
+   "rest*": 1.235,
+   "catacombs*": 1.156
   },
   "G3": {
-   "glade": 1.739,
-   "ford": 2.599,
-   "slake": 2.361,
-   "pyre": 1.96,
-   "hold": 1.948,
-   "rest*": 1.812,
-   "catacombs*": 1.64
+   "glade": 1.836,
+   "ford": 2.964,
+   "slake": 2.819,
+   "pyre": 2.244,
+   "hold": 2.298,
+   "rest*": 2.146,
+   "catacombs*": 1.961
   },
   "G4": {
-   "glade": 1.885,
-   "ford": 2.933,
-   "slake": 2.611,
-   "pyre": 2.086,
-   "hold": 2.049,
-   "rest*": 1.901,
-   "catacombs*": 1.724
+   "glade": 1.918,
+   "ford": 3.376,
+   "slake": 3.081,
+   "pyre": 2.391,
+   "hold": 2.38,
+   "rest*": 2.308,
+   "catacombs*": 2.071
   },
   "G5": {
-   "ford": 70.4,
-   "pyre": 68.4,
-   "hold": 68.1,
-   "ford-10": 43.7,
-   "pyre-10": 55.4,
-   "hold-10": 58.5
+   "ford": 72.8,
+   "pyre": 71.3,
+   "hold": 73.5,
+   "ford-10": 49.5,
+   "pyre-10": 58.6,
+   "hold-10": 64.5
   },
   "G6": {
    "Level 10": 5.81,
    "longest under 10": 1.71
   },
   "G7": {
-   "thicket": 4258,
-   "glade": 10595,
-   "ford": 12108,
-   "slake": 13474,
-   "pyre": 23065,
-   "hold": 22577,
-   "rest*": 19110,
-   "catacombs*": 24547
+   "thicket": 4014,
+   "glade": 11215,
+   "ford": 14493,
+   "slake": 15857,
+   "pyre": 28118,
+   "hold": 29767,
+   "rest*": 24465,
+   "catacombs*": 31434
   },
   "G8": {
-   "ford": 7050.75,
-   "pyre": 11517.75,
-   "hold": 10215.75
-  },
-  "G9": {
-   "slot 2": 0.911,
-   "ruled 400k": 0.911
+   "ford": 9562.75,
+   "pyre": 15505,
+   "hold": 16312.5
   },
   "G10": {
-   "glade lone xp": 1.045,
-   "glade lone dmg": 3.633,
-   "glade four xp": 1.084,
-   "glade four dmg": 2.21,
-   "slake lone xp": 1.062,
-   "slake four xp": 1.106,
-   "slake four dmg": 4.014,
-   "hold lone xp": 1.044,
+   "glade lone xp": 1.072,
+   "glade lone dmg": 4.314,
+   "glade four xp": 1.045,
+   "glade four dmg": 1.465,
+   "slake lone xp": 1.068,
+   "slake lone dmg": 23.426,
+   "slake four xp": 1.093,
+   "slake four dmg": 2.599,
+   "hold lone xp": 1.054,
+   "hold lone dmg": 21.402,
    "hold four xp": 1.028,
-   "hold four dmg": 2.867
+   "hold four dmg": 1.005
   },
   "G11": {
-   "glade xp": 1.013,
-   "glade dmg": 0.165,
-   "slake xp": 1.007,
-   "slake dmg": 0.108,
-   "hold xp": 1.017,
-   "hold dmg": 0.062
+   "glade xp": 1.028,
+   "glade dmg": 0.167,
+   "slake xp": 1.019,
+   "slake dmg": 0.082,
+   "hold xp": 1.009,
+   "hold dmg": 0.057
   },
   "G12": {
-   "glade Tempering rung 1": 2.004,
-   "glade yard +10": 2.079,
-   "glade item 12 h": 97.511,
-   "slake Tempering rung 1": 1.457,
-   "slake yard +10": 2.468,
-   "slake item 12 h": 83.126,
-   "hold Tempering rung 1": 2.67,
-   "hold yard +10": 6.129,
-   "hold item 12 h": 168.705
+   "glade Tempering rung 1": 2.438,
+   "glade yard +10": 0.314,
+   "glade item 12 h": 14.737,
+   "slake Tempering rung 1": 1.703,
+   "slake yard +10": 2.082,
+   "slake item 12 h": 70.133,
+   "hold Tempering rung 1": 3.932,
+   "hold yard +10": 5.855,
+   "hold item 12 h": 161.181
   },
   "G13": {
    "staged top": 104
@@ -184,8 +182,8 @@
   "G15": {},
   "G16": {},
   "G17": {
-   "krell": 109,
-   "tower": 131.759
+   "krell": 41.778,
+   "tower": 51.997
   },
   "G18": {
    "new": 12,
@@ -197,52 +195,46 @@
    "friends": 12
   },
   "K1": {
-   "Level XP": 0.883,
-   "kills": 0.884,
-   "net gold": 0.878
+   "Level XP": 0.902,
+   "kills": 0.904,
+   "net gold": 0.923,
+   "last seat dmg share": 1.165,
+   "party dmg": 0.746
   },
   "G19": {
-   "glade pair": 2.39,
-   "glade three": 2.094,
-   "ford pair": 3.825,
-   "ford three": 3.137
-  },
-  "G20": {
-   "shop slot 2 400.0k": 0.593,
-   "shop slot 3 1500.0k": 1.455,
-   "shop four heroes 4000.0k": 3.902,
-   "ruled slot 2 400.0k": 0.593,
-   "ruled slot 3 1500.0k": 1.455,
-   "ruled four heroes 4000.0k": 3.902
+   "glade pair": 2.226,
+   "glade three": 2.23,
+   "ford pair": 3.852,
+   "ford three": 3.595
   },
   "G21": {},
   "G22": {
-   "thicket 2nd": 0.327,
-   "glade 2nd": 0.301,
-   "ford 2nd": 0.418,
-   "slake 2nd": 0.445,
-   "pyre 2nd": 0.343,
-   "hold 2nd": 0.453,
-   "pyre all 6 (four)": 1.026
+   "thicket 2nd": 0.342,
+   "glade 2nd": 0.284,
+   "ford 2nd": 0.349,
+   "slake 2nd": 0.378,
+   "pyre 2nd": 0.28,
+   "hold 2nd": 0.343,
+   "pyre all 6 (four)": 0.762
   },
   "G23": {
    "shield": 0.972,
    "sword": 0.98,
-   "dual_axe": 1.471,
-   "club": 1.078,
+   "club": 0.98,
+   "dual_axe": 0.686,
    "ranged": 0.922,
    "destruction": 0.922,
    "restoration": 1
   },
   "G24": {
-   "coppercap_warrens@pyre hammer": 1.059,
-   "coppercap_warrens@pyre mage": 1.16,
-   "coppercap_warrens@hold hammer": 1.037,
-   "coppercap_warrens@hold mage": 1.123,
-   "mosslight_glade@ford hammer": 0.928,
-   "mosslight_glade@ford mage": 1.138,
-   "meadowbrook_thicket@hold hammer": 0.827,
-   "meadowbrook_thicket@hold mage": 0.901
+   "coppercap_warrens@pyre hammer": 0.934,
+   "coppercap_warrens@pyre mage": 1.204,
+   "coppercap_warrens@hold hammer": 0.946,
+   "coppercap_warrens@hold mage": 1.187,
+   "mosslight_glade@ford hammer": 0.936,
+   "mosslight_glade@ford mage": 1.108,
+   "meadowbrook_thicket@hold hammer": 0.803,
+   "meadowbrook_thicket@hold mage": 0.905
   },
   "D1": {},
   "D2": {}
@@ -277,6 +269,11 @@
    "at": "2026-11-21",
    "commit": "7392474f8",
    "why": "Tyler 2026-11-21: every reference player hunts 12 h a hero a day (was the real 3.3 / 8.4 / 2 h): G16's cost a reference account a day re-pinned at 12 h, G18 and G20 re-banded (12 h, four heroes by week 5); other moves are the set's own since 5aece30d7"
+  },
+  {
+   "at": "2026-11-22",
+   "commit": "c5eb0ad1d",
+   "why": "G16 ledger rows re-pinned, cause MEASURED (per-player-cost --only, ledger by kind, on archived trees): lane/c-tohit-ratio 2398754cb (to-hit as a ratio, rows re-authored) makes the Level 10 lone Thicket hero use supplies in 7 of 12 windows (was 4) and the Sewer four in 13 of 48 hero-windows (was 11); its parent 2398754cb^ reads 48 / 44.3, the commit 57 / 45.8. The rows are hunt supply_own, already ONE row a hero a save (meta.items batches every item), the journal of supplies destroyed (CLAUDE.md 1); combat accrue is unchanged at one a save. Worth it: no writer journals per item, and 1047-hourly-journal folds both shapes to one row a hero an hour after 180 min, so retained rows do not grow. The cut left is merging supply_own into hr_apply's accrue row (an economy-journal change across hr_apply and every restated apply_member body), not made here. Every other line's value re-read on this tree (set/v0.2.144 c5eb0ad1d + lane/a-ci-reds-144); the moves since 7392474f8 are in run 44979114749's MOVED lines."
   }
  ]
 }

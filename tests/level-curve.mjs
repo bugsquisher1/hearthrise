@@ -39,6 +39,12 @@
 //
 //   node tests/level-curve.mjs            run
 //   node tests/level-curve.mjs --selftest each planted defect must turn its claim red
+//
+// A STEP OF ITS OWN: C2, C3 and C5 are known red T-02 (docs/design/overhaul/13-build-plan.md section 2.3) until FB-8 stage 3
+// lands the Level law. Inside the Core model step its red stopped that step at its third command and hid the rest.
+// ci-step: db-replay-8 | Level hours - the Level curve against the ruled pace table (known red T-02 until FB-8 stage 3)
+// ci-run: node tests/level-curve.mjs
+// ci-run: node tools/mutant-gate.mjs node tests/level-curve.mjs --selftest
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';

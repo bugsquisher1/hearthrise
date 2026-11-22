@@ -158,3 +158,41 @@ Store gold as a share of gold in, alone, MID, Normal.
 The supply bill is a tax on three ways (bow, Mage, Healer) and close to nothing for the rest. Any lever that moves casts, arrows or prices is a lever on those three and no one else. The harness sells every drop at once and never runs out of gold, so gold here is an upper bound (hard constraint HC-5 in `03-targets.md`).
 
 <<FILL:REST>>
+
+---
+
+## 9. What this pass does not cover
+
+- **Level and ground move together.** Each Level plays one advised ground, so "changes with Level" also means "changes with ground". The four at Level 60 is on a ground built for a party and behaves unlike the four at 30 and 110. A pass that holds the Level and swaps the ground would split the two. UNKNOWN until it is run.
+- **Live content only.** Levels 10 to 110. Nothing here speaks to Level 185, 400 or beyond, where the base lane's `beyond` block plays projected content.
+- **43 of the registry's 111 playable levers.** `sensitivity.mjs --coverage` prints the rest by category. The largest holes are monster roles and behaviour (11 levers), drop tables (8), spell shape (area, unlocks, statuses, the default bar: 8) and equipment beyond the weapon and armor tables (8). Gear is covered as an axis (LOW, MID, BIS), not as a lever. 53 registry levers cannot be played by this simulator at all: town systems, SQL values, run grounds.
+- **Player choices are fixed.** Every cell plays the default bar, the default stance, the advised ground and the reference eating rule. A lever that works by changing what a sensible player does (swap tier, swap ground, stop casting) shows only its direct effect.
+- **Gold is an upper bound.** The harness sells every drop at once at vendor value, never runs out of gold, and books no crafted supply. A hunt the real game would end `gold_out` plays on here with a negative net. Read gold as direction.
+- **Deaths are thin.** Section 2. The death readings rest on one seat and at most four deaths a cell, because a death ends a seed's hunt.
+- **One standard four.** Hammer, bow, Mage, Healer. A four with no Healer, or a pair, was not played.
+- **Blessings.** The harness hands a cell its Blessings' share, so the Blessing rows never reach a fight. The `blessingCut` family moved nothing for that reason, and the death price was read through `deathLoss` instead.
+
+---
+
+## 10. Regenerate it
+
+Everything on this page is printed from `tools/balance-program/sensitivity/data/` by one tool, and that data is replayed by one workflow.
+
+```
+# the levers, the cells, the experiments (no play)
+node tools/balance-program/sensitivity/sensitivity.mjs --plan
+node tools/balance-program/sensitivity/sensitivity.mjs --coverage
+
+# play it again on GitHub: one job a lever, one a chunk of an experiment (about 190 runner-hours)
+git push origin HEAD:refs/heads/balance-sensitivity/<name>
+gh run download <run id> --dir <dir> --pattern 'sens-*'
+
+# the matrix, the findings and every table of the two documents
+node tools/balance-program/sensitivity/analyze.mjs --parts <dir> --save --run <run id>
+node tools/balance-program/sensitivity/analyze.mjs --write-docs
+node tools/balance-program/sensitivity/analyze.mjs --findings
+node tools/balance-program/sensitivity/analyze.mjs --lever monsterDamage
+node tools/balance-program/sensitivity/analyze.mjs --exp hp-spawn
+```
+
+The tables between `<!-- GEN: ... -->` and `<!-- /GEN -->` are written by `--write-docs`. `--check-docs` exits 1 when one of them no longer matches the data. `data/matrix.json` is the matrix in machine form (schema `hearthrise.balance-sensitivity-matrix/1`), and `tools/balance-program/graph.mjs --measure` reads it as it stands.

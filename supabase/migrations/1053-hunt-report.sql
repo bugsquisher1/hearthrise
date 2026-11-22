@@ -81,7 +81,10 @@ begin
     ('public.hr_hunt_analyzer_basic(jsonb)', '5dd08adae4922c52ed813399c93da73b', '039309e15bfe6d18c2314216f7075b26')) t(fn, pre, post) loop
     select md5(replace(prosrc, chr(13), '')) into v_md5 from pg_proc where oid = to_regprocedure(v_r.fn);
     if v_md5 is null then raise exception 'PIN: % is missing', v_r.fn; end if;
-    if v_md5 is distinct from v_r.pre and v_md5 is distinct from v_r.post then
+    -- A RETRY AFTER 1056-danger-scale.sql (staged after this file) finds hr_hunt_apply_member at 1056's image: this file's two
+    -- HUNT-REPORT lines already in it, plus the scale's bound. The splice below then finds its marker and moves nothing.
+    if v_md5 is distinct from v_r.pre and v_md5 is distinct from v_r.post
+       and not (v_r.fn = 'public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)' and v_md5 = 'bdf1e6f5d5bf7266b64b82b2b9f7e5c1') then
       raise exception 'PIN: % is neither the image this file was written against (%) nor its own (%): md5 % - another file moved it; re-pin', v_r.fn, v_r.pre, v_r.post, v_md5;
     end if;
   end loop;

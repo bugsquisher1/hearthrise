@@ -92,7 +92,7 @@ begin
     raise exception 'PRECONDITION: apply 1054-danger-scale-hunt-sessions-catalogue.generated.sql first (the world shape)'; end if;
   for v_r in select * from (values
     ('public.hr_hunt_instance_read(uuid,integer)', '01b65ee3b44238d75fefb3aaedca260d', '3097347b88e3a5187f2f12cf0d7fbcae'),
-    ('public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)', '309c695dc4dfc41d7cf0effe5f9b1dd1', '3182c2c9e7f09e24af836494e102b08b')) t(fn, pre, post) loop
+    ('public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)', '309c695dc4dfc41d7cf0effe5f9b1dd1', 'bdf1e6f5d5bf7266b64b82b2b9f7e5c1')) t(fn, pre, post) loop
     select md5(replace(prosrc, chr(13), '')) into v_md5 from pg_proc where oid = to_regprocedure(v_r.fn);
     if v_md5 is null then raise exception 'PIN: % is missing', v_r.fn; end if;
     if v_md5 is distinct from v_r.pre and v_md5 is distinct from v_r.post then

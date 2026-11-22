@@ -159,6 +159,7 @@ export function joinShardDocs(docs) {
     if (d.scenarioHash !== f.scenarioHash) throw new Error('join: shard ' + d.shard.join('/') + ' played scenario ' + d.scenarioHash + ', shard ' + f.shard.join('/') + ' ' + f.scenarioHash);
     if (d.game !== f.game || JSON.stringify(d.change) !== JSON.stringify(f.change)) throw new Error('join: shard ' + d.shard.join('/') + ' played game ' + d.game + ' ' + JSON.stringify(d.change) + ', not ' + f.game + ' ' + JSON.stringify(f.change));
     if (d.shard[1] !== n) throw new Error('join: a shard of ' + d.shard[1] + ' beside shards of ' + n);
+    if (JSON.stringify(d.slice || null) !== JSON.stringify(f.slice || null)) throw new Error('join: shard ' + d.shard.join('/') + ' played the slice ' + JSON.stringify(d.slice) + ', not ' + JSON.stringify(f.slice));
     if (seen.has(d.shard[0])) throw new Error('join: shard ' + d.shard[0] + ' twice');
     seen.add(d.shard[0]);
   }
@@ -196,7 +197,7 @@ export async function joinRun(dir, spec, o = {}) {
   const heroHours = Math.round(ok.reduce((a, c) => a + (c.seeds || []).reduce((s, row) => s + (row[OUTCOME_IDS.length] || 0), 0), 0));
   const man = await manifest(ROOT);
   return { schema: RESULT_SCHEMA, label: o.label || (man.tree.game.label || man.tree.game.ref), at: new Date().toISOString().slice(0, 16) + 'Z',
-    scenario: { id: spec.id, hash: j.first.scenarioHash, spec }, manifest: { ...man, change: j.first.change || null },
+    scenario: { id: spec.id, hash: j.first.scenarioHash, spec }, manifest: { ...man, change: j.first.change || null, slice: j.first.slice || null },
     runtime: { ...j.runtime, heroHours, run: o.runId || null, errors: j.cells.filter((c) => c.error).length },
     outcomeIds: OUTCOME_IDS, cells: doc0.cells, views, calibration: { krell: j.calibration, c2 }, determinism: detCheck };
 }
@@ -243,7 +244,7 @@ async function main() {
     const [i, n] = arg('shard').split('/').map(Number);
     const { res, change } = await playShard(spec, { shard: [i, n], workers: Number(arg('workers', 4)), patches: listArg('patch'), base: arg('base'), only: arg('only') ? arg('only').split(',').map(Number) : null, blocks: arg('blocks') ? arg('blocks').split(',') : null });
     const tree = treeRecord(ROOT);
-    const doc = { schema: SHARD_SCHEMA, shard: [i, n], scenarioHash: sh, game: tree.game.sha, change: { names: change.names, patches: listArg('patch'), base: arg('base') || null }, runtime: res.runtime, calibration: res.calibration || null, cells: res.cells.map(shardCell) };
+    const doc = { schema: SHARD_SCHEMA, shard: [i, n], scenarioHash: sh, game: tree.game.sha, change: { names: change.names, patches: listArg('patch'), base: arg('base') || null }, slice: { blocks: listArg('blocks'), only: listArg('only') }, runtime: res.runtime, calibration: res.calibration || null, cells: res.cells.map(shardCell) };
     writeDoc(resolve(arg('out', 'shard-' + i + '.json')), doc);
     const bad = doc.cells.filter((c) => c.error);
     console.log('shard ' + i + '/' + n + ': ' + doc.cells.length + ' cells (' + bad.length + ' errors), ' + res.runtime.jobs + ' jobs, ' + res.runtime.workerS + ' worker-s in ' + res.runtime.wallS + ' s');

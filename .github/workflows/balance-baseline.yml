@@ -45,6 +45,14 @@ on:
         description: 'a proposal base (proposed, or proposal ids) or today'
         required: false
         default: 'today'
+      blocks:
+        description: 'a slice: the scenario blocks to play, comma-separated (blank: every one)'
+        required: false
+        default: ''
+      only:
+        description: 'a slice: the Levels to play, comma-separated (blank: every one)'
+        required: false
+        default: ''
 
 permissions:
   contents: read
@@ -65,6 +73,8 @@ jobs:
       label: ${{ steps.t.outputs.label }}
       patch: ${{ steps.t.outputs.patch }}
       base: ${{ steps.t.outputs.base }}
+      blocks: ${{ steps.t.outputs.blocks }}
+      only: ${{ steps.t.outputs.only }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -75,12 +85,14 @@ jobs:
           IN_LABEL: ${{ github.event.inputs.label }}
           IN_PATCH: ${{ github.event.inputs.patch }}
           IN_BASE: ${{ github.event.inputs.base }}
+          IN_BLOCKS: ${{ github.event.inputs.blocks }}
+          IN_ONLY: ${{ github.event.inputs.only }}
         run: |
           node -e '
             const t = require("./tools/balance-program/baseline/target.json");
             const pick = (k) => (process.env["IN_" + k.toUpperCase()] || t[k] || "").trim();
             const ok = (v) => /^[A-Za-z0-9._\/,+-]*$/.test(v);
-            const out = { game: pick("game"), label: pick("label"), patch: pick("patch"), base: pick("base") || "today" };
+            const out = { game: pick("game"), label: pick("label"), patch: pick("patch"), base: pick("base") || "today", blocks: pick("blocks"), only: pick("only") };
             for (const [k, v] of Object.entries(out)) if (!ok(v)) { console.error("target " + k + " is not a ref, name or list: " + v); process.exit(2); }
             if (!out.game) { console.error("target: no game"); process.exit(2); }
             for (const [k, v] of Object.entries(out)) console.log(k + "=" + v);
@@ -101,6 +113,8 @@ jobs:
       LABEL: ${{ needs.target.outputs.label }}
       PATCH: ${{ needs.target.outputs.patch }}
       BASE: ${{ needs.target.outputs.base }}
+      BLOCKS: ${{ needs.target.outputs.blocks }}
+      ONLY: ${{ needs.target.outputs.only }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -117,6 +131,8 @@ jobs:
           EXTRA=()
           if [ -n "$PATCH" ]; then EXTRA+=(--patch "$PATCH"); fi
           if [ -n "$BASE" ] && [ "$BASE" != "today" ]; then EXTRA+=(--base "$BASE"); fi
+          if [ -n "$BLOCKS" ]; then EXTRA+=(--blocks "$BLOCKS"); fi
+          if [ -n "$ONLY" ]; then EXTRA+=(--only "$ONLY"); fi
           node "$RUNNER_TEMP/tree/tools/balance-program/baseline.mjs" --shard "$SHARD/24" --spec "$GITHUB_WORKSPACE/$SPEC" --workers 4 --out "$GITHUB_WORKSPACE/shard-$SHARD.json.gz" "${EXTRA[@]}"
       - name: Upload the shard
         if: ${{ !cancelled() }}

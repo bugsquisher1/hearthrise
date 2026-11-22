@@ -1,17 +1,20 @@
 // ════════════════════════════════════════════════════════════════════════
 // src/core/wage.js — THE WAGE, AND THE PRICES WRITTEN IN HOURS OF IT (lane/w-wage, backend-architect, 2026-11-22;
-//   docs/design/redesign/04-math-strategy.md section 11, 09-crafting.md sections 2.5 and 4.1).
+//   docs/design/redesign/04-math-strategy.md section 11, 09-crafting.md sections 2.5 and 4.1, 13-market.md section 3.2).
 //
-// THE WAGE is the gold one reference hunted hero-hour pays at a Level: a hero of the reference company (a mixed four, MID gear, the
+// THE WAGE is the gold one reference hunted hero-hour pays at a step: a hero of the reference company (a mixed four, MID gear, the
 // Steady stance) hunting its own ground. It is a formula the server computes, never a simulator output, so a price written in hours of
 // it is felt the same at Level 20 and at Level 2,000 (04: "every repeating price is stored as hours of the wage at the buyer's step"):
 //
-//   wage(L) = floor(wageBase x (1 + payStepCoin) ^ L)        gold an hour, L the hero's Level (1 at least, DANGER.stepMax at most)
+//   wage(step) = floor(wageBase x (1 + payStepCoin) ^ step)    gold an hour; step 1 at least, DANGER.stepMax at most
 //
-// Its two levers live in src/data/wage.js with their evidence. The power is walked by squaring (multiplications only, each exactly
-// rounded in IEEE 754), so this file, the edge, the browser and Postgres's float8 twin (hr_wage, tools/gen-time-blocks.mjs) reach the
-// same last bit; floor then makes it a whole number of gold. Past DANGER.stepMax (the Danger scale's last step, where every number is
-// still a safe float) the wage stops growing, so no price can overflow a bigint.
+// ONE FUNCTION, wage(step). 04 writes wage(L) for a hero and 13-market wage(step) for a band or an item; they are one function because a
+// hero of Level L whose kit is at Level holds step L (04 section 1). A hero's price passes its Level, a stack its band's step, a piece its
+// item's step (src/data/wage.js says why a wave-1 Danger step is not one of these).
+//
+// The power is walked by squaring (multiplications only, each exactly rounded in IEEE 754), so this file, the edge, the browser and
+// Postgres's float8 twin (hr_wage, tools/gen-time-blocks.mjs) reach the same last bit, and floor makes it whole gold. Past DANGER.stepMax
+// (the Danger scale's last step, where every number is still a safe float) the wage stops growing, so no price can overflow a bigint.
 //
 // BOUGHT TIME (04 section 11, one rule for hunting and town work): block n of a kind (1 for the day's first) at Level L costs
 //
@@ -22,7 +25,7 @@
 //
 // THE WORK-BLOCK HOOK (lane R12, FB-10): blockPriceOf prices ANY row of the same shape, so bought town work is one row, not new code.
 // 04's starting row for it is { blockMin: 120, priceHourPm: 500, growthNum: 3, growthDen: 2, perDay: 4 }: 1.0, 1.5, 2.25 and 3.375
-// hours of wage for the day's four. It joins TIME_BLOCKS only with its own verb (time-blocks.js validate says why).
+// hours of wage for the day's four. It joins TIME_BLOCKS only with its own verb (time-blocks.js SOLD_KINDS says why).
 //
 // PURE ESM, dual-runtime (src/core: the edge vendors it). No clock, no randomness.
 // ════════════════════════════════════════════════════════════════════════
@@ -37,22 +40,27 @@ function powSquare(r, n) {
   return out;
 }
 
-/** The Level the wage reads: a whole Level, 1 at least, DANGER.stepMax at most. */
-export function wageLevel(level) {
-  const L = Number.isFinite(level) ? Math.floor(level) : 1;
-  return Math.min(DANGER.stepMax, Math.max(1, L));
+/** The step the wage reads: whole, 1 at least, DANGER.stepMax at most (anything else reads as 1). */
+export function wageStep(step) {
+  const s = Number.isFinite(step) ? Math.floor(step) : 1;
+  return Math.min(DANGER.stepMax, Math.max(1, s));
 }
 
-/** The wage: whole gold one reference hunted hero-hour pays at Level `level`. */
-export function wage(level) {
-  return Math.floor(WAGE.wageBase * powSquare(1 + WAGE.payStepCoin, wageLevel(level)));
+/** The wage at DEPTH: whole gold one reference hunted hero-hour pays at `step` (a band's step, an item's step; 13-market's V). */
+export function wage(step) {
+  return Math.floor(WAGE.wageBase * powSquare(1 + WAGE.payStepCoin, wageStep(step)));
 }
 
-/** The gold block `n` (1 for the day's first) of a bought-time `row` costs at Level `level`, or null past the row's day cap. */
+/** The step a hero's LEVEL is priced at: the reference company of Level L holds step L (04 section 1). Every per-hero cost reads it. */
+export function levelStep(level) {
+  return wageStep(level);
+}
+
+/** The gold block `n` (1 for the day's first) of a bought-time `row` costs a hero of Level `level`, or null past the row's day cap. */
 export function blockPriceOf(row, level, n) {
   const k = Math.floor(n);
   if (!row || !(k >= 1) || k > row.perDay) return null;
-  const num = BigInt(row.blockMin) * BigInt(row.priceHourPm) * BigInt(wage(level)) * BigInt(row.growthNum) ** BigInt(k - 1);
+  const num = BigInt(row.blockMin) * BigInt(row.priceHourPm) * BigInt(wage(levelStep(level))) * BigInt(row.growthNum) ** BigInt(k - 1);
   const den = 60000n * BigInt(row.growthDen) ** BigInt(k - 1);
   return Number((num + den - 1n) / den);
 }

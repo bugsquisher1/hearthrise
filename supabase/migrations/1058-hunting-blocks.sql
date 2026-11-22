@@ -16,7 +16,8 @@
 --   The hunting day is 10 h, 12 h with Premium (the hunt-sessions catalogue's stamina_free_min / stamina_premium_min; Premium is the one
 --   server check hr_premium_active: the hero's premium_until, or every hero while the beta switch is on). Extra hunting is bought in 2 h
 --   blocks; each costs x1.5 the one before it that server day; at most 2 a day. Bought town work (later) is the same rule, capped at 4.
---   The price is today's base gold (a LEVER until wage(L) exists). Blocks REPLACE the live refill path: 1009's refill steps (4 h, six a
+--   The price is hours of the wage at the hero's Level (hr_time_block_price -> hr_wage, the catalogue file; lane/w-wage: the day's first
+--   is 4 hours of wage, about twice what its 2 h pay). Blocks REPLACE the live refill path: 1009's refill steps (4 h, six a
 --   day) are retired (12-targets.md section 2.7); the refill verb and its quote leave here so no client can buy past the cap.
 --
 -- ── THE CONTRACT ─────────────────────────────────────────────────────────────

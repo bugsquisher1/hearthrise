@@ -153,8 +153,11 @@ function readSeed(res, start) {
      hero-hour over the whole hunt (src/core/wage.js is calibrated on these; a held start keeps the opening climb short) */
   const heroH = res.heroes.reduce((a, h) => a + (h.hours || 0), 0);
   const perHeroH = (k) => (heroH > 0 ? res.heroes.reduce((a, h) => a + ((h.raw && h.raw[k]) || 0), 0) / heroH : null);
+  /* the loot by band (src/data/loot-bands.js) at the store's price, a hunted hero-hour (cell.mjs lootPerH, weighted by each hero's hours) */
+  const bandPerHeroH = (b) => (heroH > 0 ? res.heroes.reduce((a, h) => a + ((h.lootPerH && h.lootPerH[b]) || 0) * (h.hours || 0), 0) / heroH : null);
   return {
     coinPerHeroH: perHeroH('coin'), incomePerHeroH: perHeroH('income'), storePerHeroH: perHeroH('store'),
+    commonPerHeroH: bandPerHeroH('common'), uncommonPerHeroH: bandPerHeroH('uncommon'), scarcePerHeroH: bandPerHeroH('scarce'), otherPerHeroH: bandPerHeroH('other'),
     held: wt ? wsum / wt : null, halves: halves.map((x) => (x.t ? x.s / x.t : null)), timeAt, wt,
     changesPerH: wt ? changes / (wt / H) : null, pulls: log.length, settledPulls: settled.length,
     whys: log.reduce((o, e) => ((o[e.why] = (o[e.why] || 0) + 1), o), {}),
@@ -195,7 +198,7 @@ for (const c of cells) {
     changesPerH: r1(mean(seeds.map((x) => x.changesPerH || 0))), fallsPerH: r1(mean(seeds.map((x) => x.fallsPerH || 0))),
     reachH: r1(mean(seeds.map((x) => x.reach(Math.max(0, (x.held || 0) - 20))).filter((x) => x !== null))),
     pullsPerH: r1(mean(seeds.map((x) => x.pullsPerH))), killsPerH: r0(mean(seeds.map((x) => x.killsPerH))), xpPerHeroH: r0(mean(seeds.map((x) => x.xpPerH))),
-    gold: Object.fromEntries(['coinPerHeroH', 'incomePerHeroH', 'storePerHeroH'].map((k) => {
+    gold: Object.fromEntries(['coinPerHeroH', 'incomePerHeroH', 'storePerHeroH', 'commonPerHeroH', 'uncommonPerHeroH', 'scarcePerHeroH', 'otherPerHeroH'].map((k) => {
       const v = seeds.map((x) => x[k]).filter((x) => x !== null);
       return [k, { mean: r0(mean(v)), sd: r0(sd(v)), n: v.length }];
     })),
@@ -236,7 +239,8 @@ for (const [id, c] of Object.entries(report.cells)) {
 console.log('\npay from a held start (hour ' + PAY_FROM_H + ' to the four\'s end), Level XP a hunted hero-hour as a multiple of the hours table');
 for (const [id, c] of Object.entries(report.cells)) console.log('  ' + id.padEnd(17) + ' ' + String(c.payX.mean).padStart(5) + 'x  sd ' + c.payX.sd + '  n ' + c.payX.n + '  window ' + c.payX.windowH + ' h  seeds ' + c.payX.perSeed.join(' '));
 console.log('\ngold a hunted hero-hour over the whole hunt (coin; coin + loot at the store\'s price, no Rares; the store bill), mean +- sd over seeds');
-for (const [id, c] of Object.entries(report.cells)) console.log('  ' + id.padEnd(17) + ' L' + c.L + '  coin ' + c.gold.coinPerHeroH.mean + ' +- ' + c.gold.coinPerHeroH.sd + '  income ' + c.gold.incomePerHeroH.mean + ' +- ' + c.gold.incomePerHeroH.sd + '  store ' + c.gold.storePerHeroH.mean + '  n ' + c.gold.coinPerHeroH.n);
+for (const [id, c] of Object.entries(report.cells)) console.log('  ' + id.padEnd(17) + ' L' + c.L + '  coin ' + c.gold.coinPerHeroH.mean + ' +- ' + c.gold.coinPerHeroH.sd + '  income ' + c.gold.incomePerHeroH.mean + ' +- ' + c.gold.incomePerHeroH.sd + '  store ' + c.gold.storePerHeroH.mean
+  + '  loot by band: common ' + c.gold.commonPerHeroH.mean + ', uncommon ' + c.gold.uncommonPerHeroH.mean + ', scarce ' + c.gold.scarcePerHeroH.mean + ', other ' + c.gold.otherPerHeroH.mean + '  n ' + c.gold.coinPerHeroH.n);
 console.log('\npower moves (paired seeds): the held step at the changed power minus at base');
 for (const [k, m] of Object.entries(report.moves)) if (m) console.log('  ' + k.padEnd(16) + ' ' + String(m.mean).padStart(7) + ' steps (sd ' + m.sd + ', se ' + m.se + ', n ' + m.n + ')');
 console.log('\nwall ' + report.wallS + ' s');

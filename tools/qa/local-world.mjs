@@ -8,7 +8,7 @@
 // a small GoTrue shim (sign-up from the real screen, real ES256 tokens the real jwt.js verifies).
 //
 //   node tools/qa/local-world.mjs smoke [--shots DIR] [--viewport 1280x720] [--touch]
-//        fresh account -> hero -> Mill Cellar -> skip until it ends itself at Level 5 (outgrown) -> its end card -> Next ground -> a 2nd hunt there,
+//        fresh account -> hero -> Mill Cellar -> skip until it ends itself at Level 5 (outgrown) -> its end card (Recruit your party first) -> Go on alone -> a 2nd hunt there,
 //        skipped past the 1st -> leave -> summary -> bag -> reload -> a town wait. Exit 0 green, 1 red, 2 harness, 3 refused.
 //        A machine's first run replays the whole chain (75 s on the dev PC 2026-11-19); after that tests/pglite-template.mjs restores the longest cached prefix, shared by every worktree, so this is a
 //        manual tool, not a CI guard. HR_LOCAL_WORLD_TRACE=1 logs every call over 500 ms. HR_CHROME picks the browser (tests/_chrome.mjs).
@@ -773,14 +773,18 @@ async function smoke({ shots, viewport, touch, site }) {
     await p.shot('summary-outgrown');
     const summary = await p.page.evaluate(() => document.querySelector('.hsum-card')?.innerText.replace(/\s+/g, ' ') || '');
     const againOff = await p.page.evaluate(() => { const b = document.querySelector('[data-hs-win="hunt-summary"] [data-hs-act="again"]'); return !b || b.disabled; });
-    step('the end card opens by itself: why, the next ground, no Hunt again',
-      ended && /Level XP/.test(summary) && /Ground outgrown at Level 5/.test(summary) && /Next ground: Meadowbrook Thicket/.test(summary) && againOff,
-      JSON.stringify({ againOff, summary: summary.slice(0, 400) }));
-    /* the card's one gold press after an outgrown end is the foot's Go to (audit 2026-11-19 L2), the Next ground row's own link */
-    await p.page.click('[data-hs-win="hunt-summary"] [data-hs-act="next-ground"].is-primary');
+    /* A fresh account's lone hero at Level 5 has recruits waiting (Tyler RD-Q6 a, 1052/1053 recruits; back-in-town.js `party`): the card's
+       one gold press is Recruit your party, and the next ground stays as its own row, "Go on alone to Meadowbrook Thicket" */
+    const lead = await p.page.evaluate(() => Array.from(document.querySelectorAll('[data-hs-win="hunt-summary"] button.is-primary')).filter((b) => b.offsetParent !== null).map((b) => b.textContent));
+    step('the end card opens by itself: why, Recruit your party first, the next ground beside it, no Hunt again',
+      ended && /Level XP/.test(summary) && /Ground outgrown at Level 5/.test(summary) && /Go on alone to Meadowbrook Thicket/.test(summary)
+      && JSON.stringify(lead) === '["Recruit your party"]' && againOff,
+      JSON.stringify({ againOff, lead, summary: summary.slice(0, 400) }));
+    /* this walk goes on alone: the Go on alone row's Show opens Hunts on that ground (a link, goto.js), where the second hunt goes */
+    await p.page.click('[data-hs-win="hunt-summary"] .hsum-step[data-step="ground"] [data-hs-act="town"]');
     const shown = await p.page.waitForSelector('.hw-hunt.is-picked[data-hunt="meadowbrook_thicket"]', { timeout: 15000 }).then(() => true, () => false);
     await p.shot('next-ground');
-    step('its Go to press opens Hunts on that ground', shown, await p.page.evaluate(() => Array.from(document.querySelectorAll('.hw-hunt.is-picked')).map((li) => li.dataset.hunt).join()));
+    step('Go on alone opens Hunts on that ground', shown, await p.page.evaluate(() => Array.from(document.querySelectorAll('.hw-hunt.is-picked')).map((li) => li.dataset.hunt).join()));
     /* A second hunt, on that ground, skipped further than the first one lasted: still the newest, so the analyzer reads IT (the skip moves
        ended sessions too; without that the open hunt's entered_at fell behind the ended one's and read "Hunt ended"). */
     await p.page.click('.hw-hunt-enter');

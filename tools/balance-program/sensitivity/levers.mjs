@@ -45,7 +45,7 @@ const listAfter = (re) => (line) => {
   const m = re.exec(line);
   if (!m) return [];
   const start = m.index + m[0].indexOf('[') + 1;
-  return [...m[1].matchAll(/\d+/g)].map((n) => ({ index: start + n.index, value: n[0] }));
+  return [...m[1].matchAll(/\d+(?:\.\d+)?/g)].map((n) => ({ index: start + n.index, value: n[0] }));
 };
 const lastArg = (line) => { const m = /, (\d+)\),\s*$/.exec(line.replace(/\r$/, '')); return m ? [{ index: m.index + 2, value: m[1] }] : []; };
 const both = (...fs) => (line) => fs.flatMap((f) => f(line));
@@ -71,6 +71,21 @@ export const FAMILIES = Object.freeze([
     file: 'src/data/supply-basics.js', lines: (l) => /^\s*heal\('/.test(l), pick: lastArg, min: 1, steps: WIDE, intends: ['storePerH', 'netPerH'] },
   { id: 'drinkPrice', group: 'Supplies', label: 'Store mana drink price', what: 'Gold a use of every store mana drink (src/data/supply-basics.js mana rows). The cost of casting',
     file: 'src/data/supply-basics.js', lines: (l) => /^\s*mana\('/.test(l), pick: lastArg, min: 1, steps: WIDE, intends: ['storePerH', 'netPerH'] },
+  /* THE SECOND PASS: gear tables, the rune price, what gear sells for, the wait between pulls and the Blessings' cut */
+  { id: 'weaponDamage', group: 'Equipment', label: 'Weapon damage by tier', what: 'The damage bonus of every weapon family at every tier (src/data/gear-tiers.js str rows). The gear term of a blow, apart from skill',
+    file: 'src/data/gear-tiers.js', lines: (l) => /^\s*atk: \[[\d, ]+\], str: \[/.test(l), pick: listAfter(/\bstr: \[([\d, ]+)\]/), min: 1, steps: WIDE, intends: ['dps', 'killsPerH'] },
+  { id: 'weaponAccuracy', group: 'Equipment', label: 'Weapon accuracy by tier', what: 'The accuracy bonus of every weapon family at every tier (src/data/gear-tiers.js atk rows). How often a blow lands',
+    file: 'src/data/gear-tiers.js', lines: (l) => /^\s*atk: \[[\d, ]+\], str: \[/.test(l), pick: listAfter(/\batk: \[([\d, ]+)\]/), min: 1, steps: WIDE, intends: ['dps', 'killsPerH'] },
+  { id: 'armorValue', group: 'Equipment', label: 'Armor points by slot and tier', what: 'The armor points of every slot at every tier (src/data/gear-tiers.js ARMOUR_SLOTS def rows). What the mitigation curve is fed',
+    file: 'src/data/gear-tiers.js', lines: (l) => /^\s*\{ key: '\w+',\s+slot: '\w+',.*\bdef: \[/.test(l), pick: listAfter(/\bdef: \[([\d, ]+)\]/), min: 1, steps: WIDE, intends: ['takenPerH'] },
+  { id: 'runePrice', group: 'Supplies', label: 'Store rune price', what: 'Gold a store rune by tier (src/data/supply-basics.js STORE_RUNE_PRICE). The cost of a rune spell',
+    file: 'src/data/supply-basics.js', lines: (l) => /^export const STORE_RUNE_PRICE = /.test(l), pick: listAfter(/freeze\(\[([\d, ]+)\]\)/), min: 1, steps: WIDE, intends: ['storePerH', 'netPerH'] },
+  { id: 'gearSaleRate', group: 'Rewards', label: 'What dropped gear sells for', what: 'The share of book value a dropped piece sells for, by tier (src/data/loot-bands.js VENDOR_GEAR_RATES). Gold in from loot',
+    file: 'src/data/loot-bands.js', lines: (l) => /^export const VENDOR_GEAR_RATES = /.test(l), pick: listAfter(/freeze\(\[([\d., ]+)\]\)/), float: true, max: 1, steps: [0.5, 0.75, 1.25, 1.5, 2], intends: ['incomePerH', 'netPerH'] },
+  { id: 'regroup', group: 'Spawns', label: 'Wait between pulls', what: 'The least time a party regroups before the next pull (src/data/hunt-tuning.js regroupMs). The dead time a kill cannot shorten',
+    file: 'src/data/hunt-tuning.js', lines: (l) => /^\s*regroupMs: \d+,/.test(l), pick: after(/regroupMs: (\d+)/g), round: 100, min: 100, steps: [0.2, 0.5, 2, 4], intends: ['killsPerH', 'pullsPerH'] },
+  { id: 'blessingCut', group: 'Progression', label: 'Blessings\' cut of a death', what: 'The share of a death\'s Level XP loss each Blessing takes off (src/data/blessings.js BLESSING_CUT_PERMILLE)',
+    file: 'src/data/blessings.js', lines: (l) => /^export const BLESSING_CUT_PERMILLE = /.test(l), pick: listAfter(/freeze\(\[([\d, ]+)\]\)/), min: 1, max: 1000, steps: [0.5, 0.75, 1.25], intends: ['deathTax', 'netLevelXpPerH'] },
 ]);
 
 /** Every lever of the pass: { id, kind, group, label, what, steps, intends }. */
@@ -88,7 +103,7 @@ export function leverList(root) {
 const scale = (value, m, f) => {
   if (Number(value) === 0) return String(value);
   let v = Number(value) * m;
-  v = f.round ? Math.round(v / f.round) * f.round : Math.round(v);
+  v = f.float ? Number(v.toPrecision(6)) : f.round ? Math.round(v / f.round) * f.round : Math.round(v);
   if (f.min !== undefined) v = Math.max(f.min, v);
   if (f.max !== undefined) v = Math.min(f.max, v);
   return String(v);

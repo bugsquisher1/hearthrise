@@ -153,6 +153,11 @@
         "bytes": 3150368,
         "on": "2026-11-21",
         "why": "cut locked in (16467 bytes)"
+      },
+      {
+        "bytes": 3153618,
+        "on": "2026-11-22",
+        "why": "lane/c-settle-flush: the flush (hunt-settle.js flushDue + confirmed, request.js readConfirm, index.ts HR_HUNT_FLUSH off switch), +3250 B"
       }
     ]
   }

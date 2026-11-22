@@ -332,11 +332,7 @@ export function parseIntent(body) {
   return out;
 }
 
-/**
- * A VIEWED HUNT'S CONFIRM: `confirm: true` (lane/c-settle-flush). A selector, never a value: it only lets the hunter's settle answer the
- * check without saving until the flush (hunt-settle.js flushDue). Any outcome is the same either way (the engine is cut-invariant and
- * every lever counts from the seed horizon); a false claim costs only its own caller a save. Exactly `true`, else false.
- */
+/** A VIEWED HUNT'S CONFIRM, `confirm: true` (hunt-settle.js flushDue): a selector, never a value; exactly `true`, else false. */
 export function readConfirm(body) {
   return !!body && typeof body === 'object' && !Array.isArray(body) && body.confirm === true;
 }

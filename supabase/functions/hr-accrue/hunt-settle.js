@@ -198,15 +198,11 @@ function kindsOf(inst, worldText, tower) {
    held back. */
 export const HUNT_SETTLE_MIN_MS = 15000;
 
-/* THE FLUSH (FB-4 second half; 30-plan L12; 1049-settle-flush.sql). A viewed hunt's poll that says `confirm` (its browser is running
-   a prediction: src/session/hunt-ask.js) runs the engine, answers the check (the world it reached, its hash, the next seeds) and SAVES
-   NOTHING unless flushDue names a reason: the window reached the world tick's flush (90 s, hr_tick_config.flush_seconds), was cut
-   short, holds a pending leave or change, an end, a death, a Level or skill level, a rare drop or roll, a find, a prize or a Tower
-   floor. The engine is deterministic from the last save, so whichever door saves next writes exactly the frames shown, and an
-   isolate killed between saves loses nothing. What the browser holds of an unsaved window is only what its own prediction already
-   derives (no number, no loot, no event): every value it can spend renders from a save (CLAUDE.md §6). A purchase never reads it
-   (its collect, the catch-up ask and every slack-gated verb save first), and every lever counts from the seed horizon, which
-   1049 bounds by the clock as well as the save. */
+/* THE FLUSH (30-plan L12; 1049-settle-flush.sql). A viewed poll that says `confirm` (src/session/hunt-ask.js) runs the engine,
+   answers the check and saves only when flushDue names a reason: the tick's 90 s flush, a cut window, a pending leave, an end, a
+   death, a Level, a rare drop or roll, a find, a prize, a Tower floor. The engine is deterministic from the last save, so the next
+   save writes exactly the frames shown. The answer holds no number, loot or event (CLAUDE.md §6); purchases save first, and every
+   lever counts from 1049's seed horizon. */
 export const HUNT_FLUSH_MS = 90000;
 const SAVE_NOW_EVENTS = Object.freeze(['death', 'ended', 'level', 'rare_drop', 'rare_roll', 'floor']);
 /** Why an unsaved confirm must save now (a reason), or null: it may answer the check alone. Pure. */

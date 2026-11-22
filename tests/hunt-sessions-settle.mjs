@@ -114,6 +114,11 @@
 //              death the viewer's seeds showed each leave that death exactly as it was, with the hunt viewed and with
 //              the browser closed (the Blessing stays held, unused). CONTROL: each lever pulled a minute earlier lands
 //              after its horizon and moves the death (the deferral is not a drop).
+//   FLUSH-HORIZON  the flush (lane/c-settle-flush, 1049-settle-flush.sql): a viewed poll that CONFIRMS through the shipped edge saves
+//              only at the 90 s flush or at once on a death, Level, end, pending leave or rare drop (flushDue, each reason pure), and
+//              its unsaved check moves no row and sends no track; a Blessing, a leave, the stance and a setup switch pulled after it
+//              (seeds past the death shown, the save 19.5 s old) each leave the death as it was, the hunt viewed (a forced save
+//              between) and with the browser closed. CONTROL: the confirm door alone writes what 10 s saves write.
 //   PARITY     the tick door, the player's door and the composed pieces write
 //              the same rows for one window.
 //   OWN        own food is eaten first: one supply_own row a settle, gold 0, the
@@ -2064,6 +2069,117 @@ const DB_ARMS = {
         if (!late.lever || late.lever.ok !== true) { problems.push(`${lever} (${path}): the lever was refused ${JSON.stringify(late.lever)}`); continue; }
         if (same(late) !== same(control)) problems.push(`${lever} (${path}): a lever 19 s before a foreseen death moved it: ${firstDiff(same(control), same(late))}`);
         if (lever === 'blessing' && late.held !== 1) problems.push(`blessing (${path}): the Blessing bought inside the horizon was ${late.held === 0 ? 'used on the foreseen death' : `held ${late.held} times`}`);
+      }
+    }
+    return problems;
+  }),
+  /* FLUSH-HORIZON (lane/c-settle-flush, 1049-settle-flush.sql, 30-plan L12): under the flush a viewed hunt's poll CONFIRMS through the
+     shipped edge (settleHunt `confirm`) and saves only at the 90 s flush or at once on a death, so the browser holds seeds well past
+     the last save. On a pinned clock: the hunt saved at F = 49 s before the death the control run shows; an unsaved confirm at F + 19 s
+     writes no row and hands the browser seeds past that death; at F + 19.5 s (inside the bar edits' 20 s slack) a Blessing is bought,
+     a leave sent, the stance set or the setup switched. THE HUNT VIEWED: a forced save at F + 35 s (any plain ask: past the saved
+     clock's horizon, before the death), then the confirm door every 16 s; THE BROWSER CLOSED: the tick's 90 s windows. Each lever
+     leaves the death exactly as it was (the Blessing held, unused). Red on the saved clock's horizon (1005 / 2026-10-31). CONTROL: the
+     confirm door alone (no lever) writes what the 10 s saves write, and the unsaved confirm moved no row. */
+  'FLUSH-HORIZON': async (db, M) => inTx(db, async () => {
+    const problems = [];
+    /* WHAT SAVES AT ONCE (hunt-settle.js flushDue, pure): each reason alone, and a quiet window under the flush saves nothing */
+    const quiet = { pending: false, fromMs: 0, toMs: 60000, endMs: 60000 };
+    const m1 = (x) => ({ members: [{ hunt: {}, delta: {}, levelUps: [], ...x }], events: [] });
+    for (const [want, plan, out] of [[null, quiet, m1({})], ['pending', { ...quiet, pending: true }, m1({})],
+      ['cut', { ...quiet, toMs: 50000 }, m1({})], ['flush', { ...quiet, toMs: M.HS.HUNT_FLUSH_MS, endMs: M.HS.HUNT_FLUSH_MS }, m1({})],
+      ['ended', quiet, m1({ hunt: { ended: { reason: 'died' } } })], ['death', quiet, m1({ delta: { deaths: [{ monster: 'wolf' }] } })],
+      ['level', quiet, m1({ levelUps: [{ skill: 'level', from: 5, to: 6 }] })], ['rare', quiet, m1({ hunt: { hints: { rare_drop: [{ item: 'x', at: 1 }] } } })],
+      ['find', quiet, m1({ delta: { hearthfind: { item: 'x' } } })], ['prize', quiet, m1({ delta: { journal: { meta: { prize: true } } } })],
+      ['floor', quiet, m1({ hunt: { tower: { floors: [31] } } })], ['rare_roll', quiet, { members: [], events: [{ type: 'rare_roll', atMs: 1 }] }]]) {
+      const got = M.HS.flushDue(plan, out);
+      if (got !== want) problems.push(`flushDue answered ${got} where ${want === null ? 'nothing is due' : want + ' saves at once'}`);
+    }
+    const BASE = Date.UTC(2026, 9, 15, 12, 0, 0);
+    const pinNow = (ms) => db.query(`select set_config('hr.test_now', $1, true)`, [new Date(ms).toISOString()]);
+    const onClock = { clock: pinNow };
+    await pinNow(BASE);
+    const as = async (sql, args) => {
+      await db.query('delete from public.hr_rate_counters');
+      await asUser(db, UIDS[0]);
+      try { return await one(db, sql, args); } finally { await db.query("select set_config('request.jwt.claim.sub', '', true)"); }
+    };
+    const h = await hunter(db, M, { ...DOOMED, deadly: false, row: rowWith('wolf'), hp: null, fromMs: BASE, beforeEnter: async () => {
+      for (const [what, sql] of [['saving setup 0', `select public.hr_hunt_preset_save(0, 0, 'Brawl', $1::uuid)`],
+        ['saving setup 1', `select public.hr_hunt_preset_save(0, 1, 'Guard', $1::uuid)`],
+        ['setup 1 stands defensive', `select public.hr_action_set_options(0, 1, '{"stance": "defensive"}'::jsonb, $1::uuid)`]]) {
+        const r = await as(sql, [idem()]);
+        if (!r || r.ok !== true) throw new Error(`harness: ${what} answered ${JSON.stringify(r)}`);
+      }
+    } });
+    const look = async () => {
+      const s = await snapshot(db, h.sid, UIDS[0]);
+      s.held = Number(await one(db, 'select count(*) from public.player_blessings where user_id = $1 and slot = 0', [UIDS[0]]));
+      return s;
+    };
+    const deathOf = (s) => Date.parse((((s && s.events) || []).find((e) => e[0] === 'death') || [])[1]);
+    const same = (s) => JSON.stringify([s.events, s.death_xp, s.level_xp, s.session.end_reason, s.session.ended_at]);
+    /* THE VIEWED POLL: the shipped door, `confirm` on, the clock pinned at its instant */
+    const confirm = async (t) => {
+      await pinNow(t);
+      return M.HS.settleHunt({ exec: makeExec(db), user: UIDS[0], slot: 0, mode: 'settle', bucket: null, project: true, live: true,
+        confirm: true, grounds: groundsOf(M), atMs: t });
+    };
+    const LEVERS = {
+      blessing: async () => as('select public.hr_blessing_buy(0, 1, (select public.hr_blessing_price(1, greatest(1, coalesce(public.hr_level_of($2::uuid, 0), 1)))), $1::uuid)', [idem(), UIDS[0]]),
+      leave: async () => as('select public.hr_hunt_leave(0, $1::uuid)', [idem()]),
+      stance: async () => as(`select public.hr_action_set_options(0, 0, '{"stance": "defensive"}'::jsonb, $1::uuid)`, [idem()]),
+      setup: async () => as('select public.hr_hunt_preset_apply(0, 1, $1::uuid)', [idem()]),
+    };
+    const control = await (async () => {
+      await db.query('savepoint flush');
+      try { await run(db, M, h.from, ticksOf(10000, SPAN_MS), onClock); return await look(); } finally { await db.query('rollback to savepoint flush'); }
+    })();
+    const deathAt = deathOf(control);
+    if (!(control.session.end_reason === 'died' && Number.isFinite(deathAt))) return [`CONTROL: the doomed hero did not die (${control.session.end_reason})`];
+    if (!(deathAt - h.from > 120000)) return [`CONTROL: the death came ${deathAt - h.from} ms in; the arm needs two minutes of hunt before it`];
+    const F = deathAt - 49000; const C = F + 19000; const L = F + 19500; const S = F + 35000;
+    /* the hunt saved at F on a 10 s grid; then (viewed) the confirm at C, the lever at L, the forced save at S and the confirm door every
+       16 s; or (closed) the confirm, the lever and the tick's 90 s windows from F */
+    const play = async (lever, path) => {
+      await db.query('savepoint flush');
+      try {
+        await run(db, M, h.from, (f) => [...ticksOf(10000, SPAN_MS)(f).filter((t) => t < F), F], onClock);
+        const before = canon(await look());
+        const c = await confirm(C);
+        const moved = canon(await look()) !== before;
+        let r = null;
+        if (lever) { await pinNow(L); r = await LEVERS[lever](); }
+        if (path === 'viewed') {
+          await settleTo(db, M, S, onClock);
+          for (let t = C + 16000; t <= h.from + SPAN_MS; t += 16000) {
+            const v = await confirm(t);
+            if (v.outcome === 'none') break;
+          }
+        } else {
+          await run(db, M, h.from, () => Array.from({ length: Math.ceil((h.from + SPAN_MS - F) / 90000) }, (_, i) => Math.min(F + (i + 1) * 90000, h.from + SPAN_MS)), onClock);
+        }
+        const s = await look();
+        Object.assign(s, { lever: r, confirmed: c, moved });
+        return s;
+      } finally { await db.query('rollback to savepoint flush'); }
+    };
+    /* CONTROL: the confirm door alone writes what the 10 s saves write, the unsaved confirm moved no row and showed the death's swing */
+    const viewed = await play(null, 'viewed');
+    if (!viewed.confirmed || viewed.confirmed.outcome !== 'confirmed') return [`CONTROL: the confirm at F + 19 s ${viewed.confirmed && viewed.confirmed.outcome}/${viewed.confirmed && viewed.confirmed.reason}, not an unsaved check`];
+    if (viewed.moved) problems.push('the unsaved confirm moved a row');
+    const chk = viewed.confirmed.body && viewed.confirmed.body.hunt_check;
+    if (!chk || !(chk.settled_to_ms + 30000 >= deathAt) || !(chk.seeds && chk.seeds.list && chk.seeds.list.length === M.HS.LIVE_SEEDS)) {
+      problems.push(`CONTROL: the unsaved confirm's seeds stop before the death (${chk && chk.settled_to_ms} + 30 s vs ${deathAt}): the arm shows no foreseen death`);
+    }
+    if (viewed.confirmed.body && (viewed.confirmed.body.hunt_track || viewed.confirmed.body.hunt_events)) problems.push('the unsaved confirm sent the window\'s track or events');
+    if (same(viewed) !== same(control)) problems.push(`the confirm door wrote another hunt than the 10 s saves: ${firstDiff(same(control), same(viewed))}`);
+    for (const lever of Object.keys(LEVERS)) {
+      for (const path of ['viewed', 'closed']) {
+        const late = await play(lever, path);
+        if (!late.lever || late.lever.ok !== true) { problems.push(`${lever} (${path}): the lever was refused ${JSON.stringify(late.lever)}`); continue; }
+        if (same(late) !== same(control)) problems.push(`${lever} (${path}): a lever after an unsaved confirm showed the death moved it: ${firstDiff(same(control), same(late))}`);
+        if (lever === 'blessing' && late.held !== 1) problems.push(`blessing (${path}): the Blessing bought after the confirm was ${late.held === 0 ? 'used on the foreseen death' : `held ${late.held} times`}`);
       }
     }
     return problems;
@@ -5054,6 +5170,21 @@ const MUTANTS = [
     to: "    if (v.outcome === 'nothing' || v.outcome === 'none') {" },
   { arm: 'SPAN', name: '[546 P1] a settle simulates the whole backlog again', file: join(FN, 'hunt-settle.js'),
     from: '  const toMs = Math.min(endMs, fromMs + HUNT_SETTLE_SPAN_MS, inst.play.stopMs);', to: '  const toMs = Math.min(endMs, inst.play.stopMs);' },
+  /* THE FLUSH (lane/c-settle-flush): the confirm door, and each reason it saves at once, planted away */
+  { arm: 'FLUSH-HORIZON', name: '[settle-flush] a confirm always saves (no flush)', file: join(FN, 'hunt-settle.js'),
+    from: "if (o.confirm === true && mode === 'settle' && !degraded && flushDue(plan, p.out) === null) {", to: 'if (false) {' },
+  { arm: 'FLUSH-HORIZON', name: '[settle-flush] the flush never comes due', file: join(FN, 'hunt-settle.js'),
+    from: "  if (plan.endMs - plan.fromMs >= HUNT_FLUSH_MS) return 'flush';\n", to: '' },
+  { arm: 'FLUSH-HORIZON', name: '[settle-flush] a death waits for the flush', file: join(FN, 'hunt-settle.js'),
+    from: "    if (Array.isArray(d.deaths) && d.deaths.length) return 'death';\n", to: '' },
+  { arm: 'FLUSH-HORIZON', name: '[settle-flush] a Level waits for the flush', file: join(FN, 'hunt-settle.js'),
+    from: "    if (Array.isArray(p.levelUps) && p.levelUps.length) return 'level';\n", to: '' },
+  { arm: 'FLUSH-HORIZON', name: '[settle-flush] a rare drop waits for the flush', file: join(FN, 'hunt-settle.js'),
+    from: "    if (h.hints && Array.isArray(h.hints.rare_drop) && h.hints.rare_drop.length) return 'rare';\n", to: '' },
+  { arm: 'FLUSH-HORIZON', name: '[settle-flush] a pending leave waits for the flush', file: join(FN, 'hunt-settle.js'),
+    from: "  if (plan.pending) return 'pending';\n", to: '' },
+  { arm: 'FLUSH-HORIZON', name: '[settle-flush] an unsaved confirm sends the window\'s track and events', file: join(FN, 'hunt-settle.js'),
+    from: "hunt_server_now_ms: plan.nowMs, hunt_check: huntCheckOf(plan.inst, out, peers) } };", to: "hunt_server_now_ms: plan.nowMs, hunt_check: huntCheckOf(plan.inst, out, peers), hunt_track: out.track, hunt_events: out.events } };" },
   { arm: 'SPAN', name: '[tick-span] the settle span is the pre-fix 15 min (a backlog body runs past the edge CPU)', file: join(FN, 'hunt-settle.js'),
     from: 'export const HUNT_SETTLE_SPAN_MS = 2 * 60000;', to: 'export const HUNT_SETTLE_SPAN_MS = 15 * 60000;' },
   { arm: 'SPAN', name: '[tick-span] the engine budget leaves no room for one slice under the edge CPU', file: join(FN, 'hunt-settle.js'),
@@ -5484,6 +5615,12 @@ const DB_MUTANTS = [
     find: 'where h.session_id = p_s.id and h.until >= p_s.settled_to', replace: 'where false' },
   { arm: 'NO-DODGE-LEVERS', name: '[lever-horizon] the horizon is the settled point (no look-ahead held)', fn: 'public.hr_hunt_seed_horizon(uuid)',
     find: ' + make_interval(secs => 32000 / 1000.0)', replace: '' },
+  /* 1049-settle-flush.sql: each horizon back on the saved clock alone (an unsaved confirm's seeds forgotten) */
+  { arm: 'FLUSH-HORIZON', name: '[settle-flush] the seed horizon is the saved clock\'s alone (a Blessing, a bar or setup change under the flush)', fn: 'public.hr_hunt_seed_horizon(uuid)',
+    find: ', now() + make_interval(secs => 2000 / 1000.0))', replace: ')' },
+  { arm: 'FLUSH-HORIZON', name: '[settle-flush] the live horizon is the saved clock\'s alone (a leave under the flush)', fn: 'public.hr_hunt_live_horizon_at(timestamp with time zone)',
+    find: 'greatest(now() + make_interval(secs => 2000 / 1000.0), p_settled_to) + make_interval(secs => 32000 / 1000.0)',
+    replace: 'greatest(now(), p_settled_to + make_interval(secs => 32000 / 1000.0))' },
   { arm: 'NO-DODGE', name: 'a leave closes the hunt at once again (the foreseen death is dodged)', fn: 'public.hr_hunt_leave_pending(uuid,integer)', /* gm-tools moved the pending leave into this helper */
     /* 2027-05-20-yard-stop.sql restated it: leave_at is hr_hunt_close_at (a hunt's horizon, a training session's press) */
     find: '    update public.hunt_sessions set leave_at = public.hr_hunt_close_at(v_s.id), version = version + 1 where id = v_s.id;',

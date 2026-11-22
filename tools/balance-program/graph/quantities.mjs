@@ -158,6 +158,10 @@ export const QUANTITIES = Object.freeze([
   q('netLevelXpPerH', O, 'Level XP after deaths an hour'),
   q('hoursPerLevel', O, 'Hours for the next Level'),
   q('xContract', O, 'Level XP over the pace contract'),
+  /* the sustain counters (Balance Lab phase 2: the engine's tally, src/core/hunt/tally.js) */
+  q('sustainRatio', O, 'Healing received (food, spells, regeneration) over damage taken'),
+  q('regenShare', O, 'Share of the healing received that is regeneration'),
+  q('manaWaitsPerH', O, 'Times a rule of the bar waited for mana an hour'),
 ]);
 
 export const QUANTITY_IDS = Object.freeze(QUANTITIES.map((x) => x.id));

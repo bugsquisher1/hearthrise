@@ -194,6 +194,13 @@ export const REASONS = Object.freeze({
   /* Carry on (1024-carry-on.sql): off while the server's plan has no hero to send; the block is hidden then, except right after a press */
   'src/shell/carry-on.js': [
     { cond: 's.pending || !live', words: "text(el.querySelector('.haway-carry-msg'), s.msg)", where: 'Carry on: hidden while no hero would go; shown off only after a press, when the line under it says who went or why the server refused (a hero that stays reads its own reason in the list above)' },
+    /* the company's plan lines (1051-company-start.sql): off until the server's section has come, and while a press is out */
+    { cond: '!co || s.pending || s.line', words: "t('away.line_reading')", where: 'Wear upgrades and If one falls: the note under them says the plan is being read, or Sending… while a press is out' },
+  ],
+  /* the plan's ground on a ground's page (1051-company-start.sql): hidden until the server's section has come; off only while its own press is
+     out, when the page's line says Sending… (runIntent's busy words) */
+  'src/shell/windows/company-pane.js': [
+    { cond: '!co || o.pending', words: "t('heroes.sending')", where: 'Go here at the next Start: hidden until the company section has come; off while a press is out, the page\'s line says Sending…' },
   ],
   'src/shell/windows/house-dummy.js': [
     { cond: '!canBuy', words: "text(box.querySelector('.hd-why'), block)", where: 'Unlock on the dummy: the line under the ladder says why (no Homestead, short of the next price); every skill held reads "Every skill is unlocked" and hides the buttons' },
@@ -307,9 +314,8 @@ export const REASONS = Object.freeze({
   /* THE HUNT PREP BUILDER (lane/b-hunt-prep-builder, 2026-11-11): the setups column and the builder's copy of one setup. */
   'src/shell/windows/hunt-prep/setups.js': [
     { cond: 'hunting && !swap.ok', words: "(swap && swap.why ? ', ' + swap.why : '')", where: 'Use in a hunt (Tyler 2026-11-17, bar only): a setup of another weapon type says "Town only: needs ..." on its own line; the setup in use reads In use' },
-    { cond: 'noNew', words: "setupFullWords(count, price)", where: 'New and its Save: the window line (full), the town-only note (hunting), the none line (no presets)' },
+    { cond: 'noNew', words: "setupFullWords(count)", where: 'New and its Save: the window line (full: delete one, nothing is for sale), the town-only note (hunting), the none line (no presets)' },
     { cond: 'sc.pending || hunting || !pickedRow', words: "t('prep.town_only')", where: 'Use equipped: the town-only note; with no setup picked there is nothing to replace (the none line)' },
-    { cond: 'short > 0', words: "t('prep.need_more'", where: 'Buy a setup: the window line says how much more gold' },
   ],
   'src/shell/windows/hunt-prep/builder.js': [
     { cond: 'off || !d || d.stance === null', words: "t('prep.reading_setup')", where: 'stance: off until the copy of the setup is read (the read line says so, or the refusal); the server never sent a value' },
@@ -370,6 +376,13 @@ export const REASONS = Object.freeze({
   ],
   'src/shell/windows/friends.js': [
     { cond: '!e || !!e.off', words: 'e.label', where: 'an off entry reads its reason as its label' },
+    /* lane/c-social (GR-72, MM-20); the reasons added on lane/a-ci-reds-social */
+    { cond: '!st.link', words: "t(st.linkFailed ? 'clan.link_none' : 'clan.link_wait')", where: 'Copy link: until the server\'s code is in, the empty link field reads "Getting your link…", or "No link right now. Open this window again later." when the ask was refused' },
+    { cond: 'st.pending || !p', words: "t('clan.quiet_wait')", where: 'Quiet presence: until the server\'s presence section has come, the line under the switch reads "Waiting for the server."' },
+  ],
+  'src/shell/windows/clan.js': [
+    { cond: 'st.pending || full', words: "text(b, full ? t('clan.full')", where: 'Join on a full clan: the press reads "Clan full", beside its row\'s "12 of 12 members"' },
+    { cond: '!quoted', words: "t('clan.found_wait')", where: 'Found a clan before the server quotes the price: the press reads "Waiting for the price"' },
   ],
   'src/shell/widgets/party-hold.js': [],
   'src/shell/widgets/party-leave.js': [

@@ -185,10 +185,10 @@ const o = (reads, writes, why) => Object.freeze({ reads: Object.freeze(reads), w
 export const OUTCOME_READERS = Object.freeze({
   'O-TTK': o(['+mon.fightHp', '-dmg.toMon', '+clock.swing', '+clock.cast', '-fight.targets', '+pull.size'], ['ttkS'], 'A kill takes the monster\'s standing HP over what lands on it a second. More monsters standing share the party\'s damage'),
   'O-FIGHT': o(['+ttkS', '+pull.size', '-pull.gap', '-pack.respawn'], ['fight.share'], 'Hunted time is fights plus the walk and the wait between them. Longer fights, or shorter gaps, raise the share spent fighting'),
-  'O-KILLS': o(['-ttkS', '-pull.gap', '-pack.respawn', '+pull.size'], ['killsPerH'], 'Kills an hour: how fast a monster falls, how many stand, and how long until the next pull'),
-  'O-DPS': o(['+dmg.toMon', '-clock.swing', '-clock.cast', '+fight.targets', '+fight.share'], ['dps', 'dpsHero'], 'Damage a hunted second counts the walks and rests, so it follows the share of time spent in a fight'),
+  'O-KILLS': o(['-ttkS', '-pull.gap', '-pack.respawn', '+pull.size', '+huntedShare'], ['killsPerH'], 'Kills an hour: how fast a monster falls, how many stand, and how long until the next pull. A hero whose hunt ended kills no more while the party hunts on (EX-0002, 2026-11-21)'),
+  'O-DPS': o(['+dmg.toMon', '-clock.swing', '-clock.cast', '+fight.targets', '+fight.share', '+huntedShare'], ['dps', 'dpsHero'], 'Damage a hunted second counts the walks and rests, so it follows the share of time spent in a fight. A hero whose hunt ended deals no more while the party hunts on (EX-0002, 2026-11-21)'),
   'O-TAKEN': o(['+dmg.toHero', '+fight.share', '+pull.size', '-clock.swing', '~aggro'], ['takenPerH'], 'Damage taken an hour: what a blow lands, how many monsters swing, how often, and how much of the hour they are alive'),
-  'O-HEAL': o(['+takenPerH'], ['healPerH'], 'Every heal is capped at missing HP, so healing received follows damage taken. A larger heal does not raise it'),
+  'O-HEAL': o(['+takenPerH', '-heal.cut'], ['healPerH'], 'Every heal is capped at missing HP, so healing received follows damage taken: a larger heal does not raise it (the sweeps read healing down under a stronger hero). A cut on what lands does lower it: a planted heal cut read healing down on 30 of the 31 cells that moved (EX-0002, 2026-11-21)'),
   'O-LOWHP': o(['-dmg.toHero', '-pull.size', '+clock.swing', '+hero.maxHp', '+hero.healCast', '+hero.regen', '+hero.leech', '-ttkS'], ['lowHpTypical', 'lowHpP10'], 'A fight\'s lowest HP share: the burst that lands a second against the pool and what refills it, over the fight\'s length. Slower swings are less burst'),
   'O-UNDER': o(['-lowHpTypical', '-lowHpP10'], ['hpUnder30', 'hpUnder10'], 'Time spent under an HP line follows how low fights go'),
   'O-DEATHS': o(['-lowHpP10'], ['deathsPer1000h'], 'A death is the tail of the low-HP spread reaching zero'),
@@ -200,6 +200,10 @@ export const OUTCOME_READERS = Object.freeze({
   'O-NETXP': o(['+levelXpPerH', '-deathsPer1000h', '-death.xpLoss', '+huntedShare'], ['netLevelXpPerH'], 'Level XP after deaths: what was earned, less what deaths took, over the time offered'),
   'O-HOURS': o(['-levelXpPerH', '+level.cost'], ['hoursPerLevel'], 'Hours for the next Level: what the Level costs over Level XP an hour'),
   'O-CONTRACT': o(['+levelXpPerH', '-pace.contract'], ['xContract'], 'Level XP an hour over the pace contract at that Level'),
+  /* THE SUSTAIN COUNTERS (Balance Lab phase 2: the engine's tally, src/core/hunt/tally.js, read by matrix-metrics.mjs) */
+  'O-SUSTAIN': o(['+hero.healCast', '+hero.regen', '+hero.leech', '+supplies.used', '-deathsPer1000h'], ['sustainRatio'], 'Healing received over damage taken. Every heal is capped at missing HP, so it sits near 1 while heroes live: what a death takes is never healed back'),
+  'O-REGENSHARE': o(['+hero.regen', '-hero.healCast', '-hero.leech', '-supplies.used'], ['regenShare'], 'Regeneration over everything that came back: more from spells, leech or food leaves less missing HP for regeneration to fill'),
+  'O-MANAWAIT': o(['+hero.manaCost', '-hero.manaRegen', '-hero.maxMana', '-supplies.used'], ['manaWaitsPerH'], 'A rule waits for mana when a cast costs more than the pool holds: dearer casts, slower regeneration, a smaller pool and fewer draughts each make it wait more'),
 });
 /** Where the harness reads each outcome (the readers cite it). */
 export const OUTCOME_SOURCE = 'tools/balance-program/matrix-metrics.mjs';

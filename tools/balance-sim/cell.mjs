@@ -35,6 +35,8 @@ import { rateCI, quantile, round, gini, underInto } from './stats.mjs';
 import { playedBar, runeTierAt, shoppingTier, RUNE_TIERS, PLAYED_OPTIONS, PLAYED_RUNES } from './played.mjs';
 import { loadLines, skillsAt } from './skill-lines.mjs';
 import { sourceQuery } from '../lib/version-stamp.mjs';
+/* the sustain reads of a settled window, shared with the browser twin (tools/balance-lab/lab-core.mjs) */
+import { sustainTotals, noteSustainEvent, readSustainWindow, sustainSummary } from './sustain-reads.mjs';
 
 /* the settle's cut: 10 s alone, 30 s for a party (the tracked HP is re-anchored on the engine's at every cut; a
    party pays for every cut: about +40% an hour at 10 s, measured) */
@@ -72,6 +74,9 @@ export async function loadCellRunner(root) {
   const SB = await import(u('src/data/supply-basics.js'));
   const BL = await import(u('src/data/blessings.js'));
   const BUFF = await import(u('src/core/buffs.js') + v);
+  /* THE SUSTAIN COUNTERS (Balance Lab phase 2): the played tree's own tally, asked for its sustain block (src/core/hunt/tally.js header). A
+     tree from before the counters (baseline.mjs --materialize of an older commit) has none: its heroes carry `sustain: null` */
+  const TALLY = await import(u('src/core/hunt/tally.js') + v);
   const COMBAT = ['melee', 'ranged', 'magic', 'defense'];
   /* cell.buffs [{ type, magnitude, hours?, until? }]: the server's timed buff rows (player_state.buffs; src/core/buffs.js BUFFS_DEF names the
      types). A row with its own `until` is passed as written. Otherwise the buff is KEPT UP for `hours` (default: the whole hunt), as a player
@@ -234,7 +239,10 @@ export async function loadCellRunner(root) {
       blowsLanded: 0, blowsMissed: 0, dodged: 0, eats: { own: 0, store: 0 }, drinks: { own: 0, store: 0 }, casts: {}, castGold: 0, castMana: {}, castBack: {},
       manaShots: 0, enc: [], towerEnc: [], close: 0, dips: 0, ttdClose: [], ended: {},
       /* the HP regained with no event (regeneration: the window's gap, below), the hunted ms under 30% / 10% of max HP, damage dealt by target kind */
-      regen: 0, under: { p30: 0, p10: 0 }, dealtTo: {} }));
+      regen: 0, under: { p30: 0, p10: 0 }, dealtTo: {},
+      /* the engine's sustain block summed over the cell (TALLY), the hunted ms whose regeneration the answer cannot close (a hunt that ended
+         another way than a death in that window), and the party deaths this hero was short of mana at: { the waiting rule's action: n } */
+      ...sustainTotals(TALLY) }));
     const P = { kills: 0, killsBy: {}, ttk: [], ttkBy: {}, hours: 0, segments: 0, rareRolls: 0, rareWins: {}, pulls: 0, ...(run ? { tower: { from: run.floor, top: null, cleared: [] } } : {}) };
     const byKey = Object.fromEntries(H.map((h) => [h.key, h]));
     /* THE TO-HIT A HERO STANDS AT (chapter 10's Footing and the floor CORE-4 owes the to-hit formula): its Defense rating as the engine builds it
@@ -267,6 +275,7 @@ export async function loadCellRunner(root) {
         const span = real ? left : Math.min(left, (cell.segmentH || 2) * 3600000);
         /* the live tracking of one hunt (one segment) */
         const live = {};
+        /* waits / casts: this hero's mana waits [at, the rule's action] and cast instants inside the death explanation's window */
         for (const h of H) live[h.key] = { unit: null, cur: null, max: null, enc: null, recent: [], at: T0, rate: 0 };
         let winFrom = T0;
         /* a run's floor standing (or standing next): its start, then one past each floor the room's fall cleared */
@@ -352,8 +361,12 @@ export async function loadCellRunner(root) {
               case 'eat': case 'drink':
                 if (uk) { const h = byKey[uk]; (e.type === 'eat' ? h.eats : h.drinks)[e.source === 'store' ? 'store' : 'own']++; }
                 break;
+              case 'rule_wait':
+                if (uk) noteSustainEvent(live[uk], e);
+                break;
               case 'cast':
                 if (uk) {
+                  noteSustainEvent(live[uk], e);
                   const h = byKey[uk]; h.casts[e.ability] = (h.casts[e.ability] || 0) + 1; h.castGold += e.gold || 0;
                   /* the mana each spell KEPT (the cast's `mana`, net of a refund or mana back) and what came back (`back`, the Storm spells) */
                   h.castMana[e.ability] = (h.castMana[e.ability] || 0) + (e.mana || 0);
@@ -369,6 +382,8 @@ export async function loadCellRunner(root) {
               default: break;
             }
           }
+          /* THE SUSTAIN COUNTERS, the engine's own (sustain-reads.mjs: the tally with each hero's HP anchors, and short of mana at a death) */
+          readSustainWindow(TALLY, out, { heroes: H, byKey, live, unitKey, winFrom });
           /* REGENERATION has no event: each hero's rate this window is what makes its blows and heals end on the
              engine's own HP at the window's end (spread evenly over the window, never past max). Pass one finds it. */
           const winTo = Number.isInteger(out.settledTo) ? out.settledTo : winFrom + windowOf(cell);
@@ -566,6 +581,10 @@ export async function loadCellRunner(root) {
            (regeneration), the share of hunted time under 30% and 10% of max HP, and the damage dealt to each kind of monster */
         regenPerH: per(h.regen), hpUnder: Object.fromEntries(Object.entries(h.under).map(([k, ms]) => [k, round(ms / (hr * 3600000), 4)])),
         dealtToPerH: Object.fromEntries(Object.entries(h.dealtTo).map(([k, n]) => [k, per(n)])),
+        /* THE SUSTAIN COUNTERS (Balance Lab phase 2; tools/balance-program/readers.mjs reads them): the engine's tally block as TOTALS over the
+           cell (so seeds add), the hunted hours whose regeneration could not be closed, the party deaths this hero was short of mana at
+           (by the waiting rule's action), and the close calls (encounters under 25% HP) as a count */
+        sustain: sustainSummary(h, h.close, h.enc.length),
       };
     });
     const hours = P.hours || 1e-9;

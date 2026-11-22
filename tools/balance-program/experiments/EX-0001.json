@@ -1,0 +1,49 @@
+{
+ "schema": "hearthrise.balance-experiment/1",
+ "id": "EX-0001",
+ "title": "The sustain counters change no hunt",
+ "author": "lane/lab-p2-readers",
+ "question": "Do the engine's new sustain counters (src/core/hunt/tally.js, asked for only) change what any hunt plays or what the server's settle writes?",
+ "hypothesis": "No. The settle's analyzer asks for no sustain block, so the engine parity pins (world, timeline and tally of the settle) hold with no re-pin. The subset's 189 core cells, each played once by the base tree (origin/set/v0.2.144 at 22244c0ac, its own harness and engine) and once by this lane's tree, answer byte for byte the same once the new sustain field of each hero is set aside",
+ "hypothesisAt": "2026-11-22T05:31:46.357Z",
+ "candidate": "the lane's tree against origin/set/v0.2.144",
+ "scenario": null,
+ "results": [
+  {
+   "file": null,
+   "name": "EX-0001-identity.json",
+   "sha256": "3898629570e85d0581dede031e9c61b175f46b6596e1d9697c326e4ea2add5c4",
+   "at": "2026-11-22T05:34:23.706Z",
+   "what": "The subset's 189 core cells played by the base tree and by the lane's tree (the identity-subset script, scratch): every seed answer compared as JSON with each hero's new sustain field set aside",
+   "summary": {
+    "jobs": 189,
+    "same": 189,
+    "errors": 0,
+    "wallS": {
+     "base": 33,
+     "lane": 35
+    },
+    "base": "origin/set/v0.2.144 at 22244c0ac, an archived copy played by its own harness and engine",
+    "plan": "the subset core blocks ways, gear, tier and four: 189 cells, 1 seed of 0.5 h"
+   }
+  },
+  {
+   "file": null,
+   "name": "EX-0001-engine-parity.txt",
+   "sha256": "1d2e053942c21ffdee07d72fac1b215bad59e3a820b11108b6462c39d92795a1",
+   "at": "2026-11-22T05:38:30.411Z",
+   "what": "tests/hunt-core/engine-parity.mjs on the lane's tree with no re-pin: the settle's world, timeline and tally hashes (delta, hunt, analyzer) hold their pins",
+   "summary": {
+    "scenarios": 4,
+    "pinsHeld": 4,
+    "mutantsCaught": 10,
+    "rePinned": false,
+    "exit": 0
+   }
+  }
+ ],
+ "conclusion": "Held. The engine parity pins hold with no re-pin (4 scenarios, exit 0), so the server's settle writes byte for byte what it wrote. All 189 of 189 core subset seed answers are byte-identical between the base tree and the lane's once the sustain field is set aside, with no cell error on either side. The lane's harness took 35 s against the base's 33 s on the same 189 jobs",
+ "concludedAt": "2026-11-22T05:38:57.416Z",
+ "reviewedBy": null,
+ "status": "closed"
+}

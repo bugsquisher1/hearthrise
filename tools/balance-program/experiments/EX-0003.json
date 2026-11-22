@@ -1,0 +1,57 @@
+{
+ "schema": "hearthrise.balance-experiment/1",
+ "id": "EX-0003",
+ "title": "A planted patch's report lists new, gone and unchanged findings",
+ "author": "lane/lab-p2-readers",
+ "question": "Against the base run's pinned findings, does the heal cut's report list its new, gone and unchanged findings correctly?",
+ "hypothesis": "A finding id is its reader and its row's scope, so the report's new findings are exactly the rows off under the cut and not off on the base, its gone findings exactly the rows off on the base and not off under the cut, and the rest unchanged. An independent row by row count agrees with the report's diff on every id",
+ "hypothesisAt": "2026-11-22T05:31:46.496Z",
+ "candidate": "tools/balance-program/experiments/heal-cut.patch.json",
+ "scenario": null,
+ "results": [
+  {
+   "file": null,
+   "name": "EX-0003-diff.json",
+   "sha256": "e55d5f5f081d717489c41b838880a6c869b7727e4762c26f6fc88712b92c5177",
+   "at": "2026-11-22T05:39:56.287Z",
+   "what": "The heal cut's findings against the base run's, by readers.mjs and lab-report.mjs diffFindings, and by an independent count of the rows each run read off (verify-diff script, scratch)",
+   "summary": {
+    "plan": "26ce5570e063 on both sides",
+    "findings": {
+     "base": 141,
+     "cut": 147
+    },
+    "diff": {
+     "new": 13,
+     "gone": 7,
+     "unchanged": 134
+    },
+    "newByReader": {
+     "RD-CLOSE-CALLS": 4,
+     "RD-FOUR-GOLD": 4,
+     "RD-REGEN": 3,
+     "RD-SPELL-SHARE": 2
+    },
+    "goneByReader": {
+     "RD-FOUR-GOLD": 2,
+     "RD-SUSTAIN": 5
+    },
+    "independentCountAgrees": true,
+    "idsStable": true,
+    "reportExitAgainstPin": 1
+   }
+  },
+  {
+   "file": null,
+   "name": "EX-0003-report.txt",
+   "sha256": "1b8d01027b1a72cf1b79bb6645f176b6111686171f34af05a132c482dfedb7ac",
+   "at": "2026-11-22T05:40:04.926Z",
+   "what": "readers.mjs --report on the planted run with --pin of the base run's findings (exit 1: new findings, as the cut should make)",
+   "summary": null
+  }
+ ],
+ "conclusion": "Held. Against the base run's 141 findings the heal cut's 147 read 13 new, 7 gone and 134 unchanged, and an independent count of the rows each run read off agrees on every id. The new ones are close calls past Level 400, fours that fall under their heroes' gold apart, hunts regeneration carried and Deadly fours spells barely touched. The gone ones are Deadly fours the cut finally hurt and two lineups whose gold came up to their heroes'. An id is its reader and its row's scope, so a finding whose value moves stays unchanged",
+ "concludedAt": "2026-11-22T05:40:46.174Z",
+ "reviewedBy": null,
+ "status": "closed"
+}

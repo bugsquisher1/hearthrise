@@ -21,7 +21,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { isMain } from '../tests/_is-main.mjs';
-import { AFTER_CHOICES, AFTER_DEFAULT, JOB_GRACE_S, validateAfter, validateJobNexts } from '../src/data/hunt-after.js';
+import { AFTER_CHOICES, AFTER_DEFAULT, JOB_GRACE_S, validateAfter, validateJobNexts, validateRest, validateNeeds } from '../src/data/hunt-after.js';
 import { TRAINING_PLACES } from '../src/data/training.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -32,7 +32,8 @@ const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 /** The catalogue's rows, or a throw naming every problem. Pure. */
 export function catalogueRows({ choices = AFTER_CHOICES, def = AFTER_DEFAULT, graceS = JOB_GRACE_S, places = Object.keys(TRAINING_PLACES) } = {}) {
   /* the same module's job THEN rows too: 1026-job-counts.sql's CHECK on player_state.active_next mirrors them (tests/job-counts J-DATA) */
-  const problems = [...validateAfter(choices, def, graceS, places), ...validateJobNexts()];
+  /* and the rest plan's ending (D-11: no ending runs a hunt) and the return card's Needs you rows (D-2), the same file's rows */
+  const problems = [...validateAfter(choices, def, graceS, places), ...validateJobNexts(), ...validateRest(), ...validateNeeds()];
   if (problems.length) throw new Error('gen-hunt-after: ' + problems.join('; '));
   return { choices: choices.map((c, ord) => ({ id: c.id, ord, runs: c.runs, place: c.place })), def, graceS };
 }

@@ -1,32 +1,31 @@
 #!/usr/bin/env node
 // ════════════════════════════════════════════════════════════════════════
-// tests/setup-slots.mjs — A HERO'S SETUPS: SOME FREE, THEN BOUGHT, UP TO THE SAME LIMIT (Tyler 2026-11-04; the designer's board section
-//   "2026-11-04 Gold sinks"; 2027-02-28-setup-slots.sql; src/data/gold-sinks.js `setup_slot`).
+// tests/setup-slots.mjs — A HERO'S SETUPS: FREE, UP TO THE LIMIT (redesign direction 9, Tyler approved 2026-11-22: "Plans are free";
+//   supabase/migrations/1049-setups-free.sql and 1050-setups-free-gold-sinks-catalogue.generated.sql; lane/c-company FB-6). It replaced the
+//   priced slots of 2027-02-28-setup-slots.sql (three free, then 15,000 and 40,000 gold).
 //
 //   node tests/setup-slots.mjs             the guard
 //   node tests/setup-slots.mjs --list      the mutation catalogue
 //   node tests/setup-slots.mjs --selftest  every planted defect must turn its arm red
 //   node tests/setup-slots.mjs --mutate=<id>
 //
-// mutant-anchors: supabase/migrations/2027-02-28-setup-slots.sql supabase/migrations/2027-02-28-sink-price-plan.sql supabase/migrations/2027-05-04-setup-swap-mid-hunt.sql src/shell/setup-words.js src/session/preset-intents.js src/session/item-sections.js src/session/refusal.js src/shell/intent-words.js src/shell/windows/hunt-prep/setups.js
+// mutant-anchors: supabase/migrations/1049-setups-free.sql supabase/migrations/2027-05-04-setup-swap-mid-hunt.sql src/shell/setup-words.js src/session/item-sections.js src/session/refusal.js src/shell/intent-words.js src/shell/windows/hunt-prep/setups.js
 //
-// EVERY NUMBER HERE IS READ FROM THE ROW. Tyler may say 3 free with one row, and SS-FLIP proves all of it moves with that row.
 // The real chain replayed (PGlite), real client roles, the real client modules; production untouched:
-//   SS-RULE    the section reads the row; a fresh hero holds the free count; the tutorial's one save lands on a hero with no setups
-//   SS-NEW     a new number at or past the count is refused setup_locked, with the numbers the words need, by EVERY verb that can open one, and leaves no row
-//   SS-KEEP    A SETUP ALREADY SAVED IS NEVER BLOCKED OR DELETED: past the count it saves over, puts on, renames and edits; deleted, its number is new again
-//   SS-QUOTE   a stale or forged price is quote_changed; a price of nothing is bad_quote; a short purse is insufficient_gold; refused means not charged and no rung
-//   SS-ONCE    a replayed key charges once; one purchase is exactly one journal row of kind shop; a second press is a re-quote, never a second charge at the same price
-//   SS-TOP     past the top rung: setup_slots_max, the section's price is null, nothing charged
-//   SS-HERO    the rung is the hero's, though the purse is the account's
-//   SS-HUNT    a hunting hero: Save keeps its hunt_open refusal; a purchase lands and the running hunt doesn't move
-//   SS-COPY    copying bars to another hero never opens a number past its count, says how many it left, and keeps the bar of a setup it saved
-//   SS-FLIP    one row moved (one more free, one rung fewer): every number follows it, and a hero who already bought keeps what it paid for
-//   SS-WRITERS every function that can write a new setup number asks hr_setup_locked: a new writer can't slip in free
-//   SS-GRANT   the verb is the client's and baselined; no helper is; the section is registered
-//   SS-AGAIN   a second apply is byte-identical (in chain order: 2027-02-28-sink-price-plan.sql restates this file's section)
-//   SS-PARITY  EVERY ENVELOPE BUILDS THE SECTION, 5.33 A WATCHED SETTLE: it calls no helper, and it tells the same truth as the verbs' helpers at every rung, past the top and on a moved row
-//   SS-CLIENT  the reader, the button and the refusal's words, from the row's numbers; ONE intent with the QUOTE; a stale quote re-reads
+//   SS-FREE    SAVING A SETUP IS FREE: no sink row and no verb sells a slot; a brand-new hero with NO GOLD saves a setup on every number under
+//              the limit through the player's own verb; the purse and the shop journal never move; a second hero holds the same
+//   SS-NEW     past the limit every verb that can open a number refuses it (bad_preset) and leaves no row; the shared check opens every number
+//              under the limit and names the count past it, with no price
+//   SS-KEEP    a saved setup is the player's: used, renamed, deleted, and its number saved again
+//   SS-HUNT    a hunting hero: Save keeps its hunt_open refusal
+//   SS-COPY    copying bars to another hero brings every number and keeps the bar of a setup the target saved
+//   SS-WRITERS every function that can write a new setup number asks hr_setup_locked: a new writer can't slip past the limit
+//   SS-GRANT   no helper is a client's; nothing a client can call sells a slot and the baseline names none; the section is registered
+//   SS-AGAIN   a second apply of 1049-setups-free.sql is byte-identical
+//   SS-PARITY  EVERY ENVELOPE BUILDS THE SECTION: it reads no table, it equals the verbs' count (the limit) for every hero, a rung bought in the
+//              priced days moves nothing, and it carries no price
+//   SS-CLIENT  the reader keeps { count, max } (null with no count), the full line and the refusal say the server's count and offer nothing,
+//              and no client module words or sends a purchase
 // SETUPS SWITCH MID-HUNT, BAR ONLY (Tyler 2026-11-17 "Bar only, keep gear"; 2027-05-04-setup-swap-mid-hunt.sql), on the REAL engine
 // (tests/hunt-sessions-settle.mjs's harness), one hero with Tank (sword and shield, offensive), Guard (sword, shield and boots, defensive)
 // and Bow (a bow), hunting on Tank:
@@ -49,23 +48,19 @@ import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { isMain } from './_is-main.mjs';
-import { ownHeroSlots, asOldLadder } from './_slots.mjs';
+import { ownHeroSlots } from './_slots.mjs';
 import { sourceQuery } from '../tools/lib/version-stamp.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const A = '000000c0-0000-4000-a000-0000901d7b01';
 const idem = () => crypto.randomUUID();
 const MIG = (f) => readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8').replace(/\r\n/g, '\n');
-const FILE = '2027-02-28-setup-slots.sql';
-const PLAN = '2027-02-28-sink-price-plan.sql';
+const FILE = '1049-setups-free.sql';
 const BUY = 'public.hr_setup_slot_buy(integer,bigint,uuid)';
 const LOCKED = 'public.hr_setup_locked(uuid,integer,integer)';
 const OF = 'public.hr_setups_of(uuid,integer)';
 const VIEW = 'public.hr_setup_slots_view(uuid,integer)';
 const SAVE = 'public.hr_hunt_preset_save(integer,integer,text,uuid)';
-const PUT = 'public.hr_action_set_put(integer,integer,text,jsonb,uuid)';
-const OPTIONS = 'public.hr_action_set_options(integer,integer,jsonb,uuid)';
-const RENAME = 'public.hr_action_set_rename(integer,integer,text,uuid)';
 const COPY = 'public.hr_action_set_copy(integer,integer,uuid)';
 const APPLY = 'public.hr_hunt_preset_apply(integer,integer,uuid)';
 const FOLLOW = 'public.hr_setup_gear_follow()';
@@ -75,55 +70,36 @@ const SWAP_FILE = '2027-05-04-setup-swap-mid-hunt.sql';
 /* ── THE PLANTED DEFECTS ─────────────────────────────────────────────────────
    db: a live body edited inside the arm's transaction (fn, find, replace). ddl: a statement in it. sql: an edit of the migration's TEXT
    the arm re-applies. js: a client module, copied and edited. Each names the arm that must go red. */
-const LOCK_CHECK = "  v_lock := public.hr_setup_locked(v_uid, p_slot, p_preset);\n  if v_lock is not null then return public.hr_note_rejection(c_verb, p_slot, v_lock); end if;\n";
 export const MUTANTS = {
-  price_from_client: { arm: 'SS-QUOTE', why: 'the verb charges the client\'s number', db: [BUY, '  if v_price <> p_price then\n', '  if false then\n'] },
-  no_replay: { arm: 'SS-ONCE', why: 'a replayed key is not looked up, so hr_apply answers it and the rung moves again',
-    db: [BUY, '  if v_r is not null then return public.hr_note_rejection(c_verb, p_slot, v_r); end if;\n', ''] },
-  charged_twice: { arm: 'SS-ONCE', why: 'one purchase journals two rows',
-    db: [BUY, "  -- THE RUNG, raise-only: nothing can take a bought slot back.\n", "  perform public.hr_apply(v_uid, p_slot, v_ver + 1, gen_random_uuid(), jsonb_build_object('gold', -1, 'journal', jsonb_build_object('kind', 'shop', 'intent', v_verb)));\n"] },
-  wrong_kind: { arm: 'SS-ONCE', why: 'the journal row is not kind shop', db: [BUY, "jsonb_build_object('kind', 'shop', 'intent', v_verb,", "jsonb_build_object('kind', 'wallet', 'intent', v_verb,"] },
-  rung_not_written: { arm: 'SS-ONCE', why: 'the purchase charges and opens nothing',
-    db: [BUY, "values (v_uid, p_slot, 'stat', 'setup_slots_bought', '', v_bought + 1, now())", "values (v_uid, p_slot, 'stat', 'setup_slots_bought', '', v_bought, now())"] },
-  rung_on_all_heroes: { arm: 'SS-HERO', why: 'the rung is read across the account',
-    db: ['public.hr_setups_bought(uuid,integer)', "where p.user_id = p_user and p.slot = p_slot and p.kind = 'stat'", "where p.user_id = p_user and p.kind = 'stat'"] },
-  past_top_charged: { arm: 'SS-TOP', why: 'past the top rung the last price is charged again',
-    db: [BUY, "  v_price := case when public.hr_setups_of(v_uid, p_slot) < v_lim then public.hr_sink_price('setup_slot', v_bought) end;\n",
-      "  v_price := coalesce(case when public.hr_setups_of(v_uid, p_slot) < v_lim then public.hr_sink_price('setup_slot', v_bought) end, p_price);\n"] },
-  free_hardcoded: { arm: 'SS-FLIP', why: 'the count stops reading the row',
-    db: [OF, "  select r.free into v_free from public.hr_sink_rules r where r.sink_id = 'setup_slot';\n", '  v_free := 2;\n'] },
-  no_cap: { arm: 'SS-PARITY', why: 'the verbs\' count runs past the hero\'s limit', db: [OF, 'return least(v_free + public.hr_setups_bought(p_user, p_slot), v_lim);', 'return v_free + public.hr_setups_bought(p_user, p_slot);'] },
-  saved_blocked: { arm: 'SS-KEEP', why: 'a setup past the count is refused though the hero saved it',
-    db: [LOCKED, "     or exists (select 1 from public.player_hunt_presets p where p.user_id = p_user and p.slot = p_slot and p.preset = p_preset)\n     or exists (select 1 from public.player_action_sets a where a.user_id = p_user and a.slot = p_slot and a.preset = p_preset) then", ' then'] },
-  bar_not_kept: { arm: 'SS-KEEP', why: 'a bar with no setup past the count is refused', db: [LOCKED, "\n     or exists (select 1 from public.player_action_sets a where a.user_id = p_user and a.slot = p_slot and a.preset = p_preset) then", ' then'] },
-  save_unchecked: { arm: 'SS-NEW', why: 'Save opens a new number for free',
-    db: [SAVE, "  v_r := public.hr_setup_locked(v_uid, p_slot, p_preset);\n  if v_r is not null then return public.hr_note_rejection('hunt_preset_save', p_slot, v_r); end if;\n", ''] },
-  put_unchecked: { arm: 'SS-NEW', why: 'the old bar verb opens a new number for free', db: [PUT, LOCK_CHECK, ''] },
-  options_unchecked: { arm: 'SS-NEW', why: 'a bar option opens a new number for free', db: [OPTIONS, LOCK_CHECK, ''] },
-  rename_unchecked: { arm: 'SS-NEW', why: 'naming a bar opens a new number for free',
-    db: [RENAME, "  v_r := public.hr_setup_locked(v_uid, p_slot, p_preset);\n  if v_r is not null then return public.hr_note_rejection('action_set_rename', p_slot, v_r); end if;\n", ''] },
-  locked_no_numbers: { arm: 'SS-NEW', why: 'the refusal drops the numbers its words say', db: [LOCKED, "'slots', v_count,\n", "\n"] },
-  copy_opens_numbers: { arm: 'SS-COPY', why: 'a copy brings numbers past the target\'s count', db: [COPY, ' and a.preset = any (v_open);', ';'] },
+  /* SAVING A SETUP IS FREE (1049-setups-free.sql) */
+  count_reads_row: { arm: 'SS-FREE', why: 'the count is three again, so the fourth save is refused', db: [OF, "  return public.hr_hunt_limit('presets');", '  return 3;'] },
+  row_sold_again: { arm: 'SS-FREE', why: 'a setup slot row is back in the catalogue',
+    ddl: `insert into public.hr_sink_rules (sink_id, scope, prices, free) values ('setup_slot', 'hero', array[15000, 40000]::bigint[], 3)` },
+  save_charges: { arm: 'SS-FREE', why: 'a save takes gold from the purse',
+    db: [SAVE, "  v_r := jsonb_build_object('ok', true, 'preset', p_preset, 'hunt_presets', public.hr_hunt_presets_view(v_uid, p_slot));",
+      "  update public.account_wallet set gold = gold - 1 where user_id = v_uid;\n  v_r := jsonb_build_object('ok', true, 'preset', p_preset, 'hunt_presets', public.hr_hunt_presets_view(v_uid, p_slot));"] },
+  locked_no_numbers: { arm: 'SS-NEW', why: 'the refusal drops the count its words say', db: [LOCKED, "'setup_locked', 'slots', v_count)", "'setup_locked')"] },
+  locked_price_back: { arm: 'SS-NEW', why: 'the refusal quotes a price again', db: [LOCKED, "'setup_locked', 'slots', v_count)", "'setup_locked', 'slots', v_count, 'price', 15000)"] },
   copy_takes_saved_bar: { arm: 'SS-COPY', why: 'a copy deletes the bar of a saved setup',
     db: [COPY, "\n     and (exists (select 1 from public.player_action_sets a where a.user_id = v_uid and a.slot = p_from and a.preset = t.preset)\n          or not exists (select 1 from public.player_hunt_presets p where p.user_id = v_uid and p.slot = p_to and p.preset = t.preset));", ';'] },
-  verb_open_to_anon: { arm: 'SS-GRANT', why: 'anon can buy', ddl: `grant execute on function public.hr_setup_slot_buy(integer, bigint, uuid) to anon` },
+  buy_back: { arm: 'SS-GRANT', why: 'a verb a client can call sells a slot again',
+    ddl: `create function public.hr_setup_slot_buy(p_slot int, p_price bigint, p_idem uuid) returns jsonb language sql security definer set search_path = public, pg_catalog as $fn$ select '{}'::jsonb $fn$; grant execute on function public.hr_setup_slot_buy(int, bigint, uuid) to authenticated` },
   helper_open: { arm: 'SS-GRANT', why: 'a client role can call a helper', ddl: `grant execute on function public.hr_setups_of(uuid, integer) to authenticated` },
-  no_baseline: { arm: 'SS-GRANT', why: 'the verb is not on the client baseline', ddl: `delete from public.hr_client_rpc_baseline where proname = 'hr_setup_slot_buy'` },
-  no_section: { arm: 'SS-RULE', why: 'the section is not registered', ddl: `delete from public.hr_state_sections where key = 'setup_slots'` },
+  no_section: { arm: 'SS-GRANT', why: 'the section is not registered', ddl: `delete from public.hr_state_sections where key = 'setup_slots'` },
   new_writer: { arm: 'SS-WRITERS', why: 'a new verb writes a setup number and never asks',
     ddl: `create function public.hr_zz_writer(p_user uuid, p_slot int, p_n int) returns void language sql as $fn$ insert into public.player_action_sets (user_id, slot, preset, name, slots, options) values (p_user, p_slot, p_n, 'x', '[]'::jsonb, '{}'::jsonb) $fn$` },
-  section_wrong_rung: { arm: 'SS-PARITY', why: 'the section quotes the rung after the verb\'s', db: [VIEW, "'price', r.prices[b.n + 1])", "'price', r.prices[b.n + 2])"] },
-  section_no_cap: { arm: 'SS-PARITY', why: 'the section\'s count runs past the limit', db: [VIEW, "'count', least(r.free + b.n, r.free + cardinality(r.prices)),", "'count', r.free + b.n,"] },
-  section_all_heroes: { arm: 'SS-PARITY', why: 'the section reads the rung across the account', db: [VIEW, "where p.user_id = p_user and p.slot = p_slot and p.kind = 'stat'", "where p.user_id = p_user and p.kind = 'stat' and p.slot <> p_slot"] },
-  section_calls_helper: { arm: 'SS-PARITY', why: 'the section reads through the price helper again, on every settle', db: [VIEW, "'price', r.prices[b.n + 1])", "'price', public.hr_sink_price('setup_slot', b.n))"] },
-  repin_lost: { arm: 'SS-AGAIN', why: 'a second apply refuses because the pin forgot this file\'s own image', sql: [FILE, /('public\.hr_action_set_copy\(integer,integer,uuid\)', 'f1f349d0e3eebcd4441019d8056dc57c', ')[0-9a-f]{32}'/, '$100000000000000000000000000000000\''] },
-  words_two: { arm: 'SS-CLIENT', why: 'the button hardcodes the third slot',
-    js: ['src/shell/setup-words.js', [["return 'Buy ' + aNew(count + 1) + ' setup: ' + gold(price);", "return 'Buy a third setup: ' + gold(price);"]]] },
-  words_full_lost: { arm: 'SS-CLIENT', why: 'the refusal drops its price', js: ['src/shell/intent-words.js', [["return setupFullWords(r.figures.slots, Number.isInteger(r.figures.price) ? r.figures.price : null);", 'return setupFullWords(r.figures.slots, null);']]] },
-  figures_dropped: { arm: 'SS-CLIENT', why: 'the session drops the refusal\'s numbers', js: ['src/session/refusal.js', [["'min_skill_level', 'slots', 'price', 'per_day']", "'min_skill_level', 'per_day']"]]] },
-  reader_invents: { arm: 'SS-CLIENT', why: 'a section with no count reads as the limit', js: ['src/session/item-sections.js', [["if (!isObj(s) || count(s.count) === null || count(s.max) === null) return null;", "if (!isObj(s)) return { count: 5, max: 5, price: null };"]]] },
-  buy_own_price: { arm: 'SS-CLIENT', why: 'the press sends a price of its own', js: ['src/session/preset-intents.js', [["p_slot: cs.slot, p_price: price, p_idem: newIdem()", 'p_slot: cs.slot, p_price: 1, p_idem: newIdem()']]] },
-  stale_not_reread: { arm: 'SS-CLIENT', why: 'a stale quote stays on the button', js: ['src/session/preset-intents.js', [['  await afterRefusal(cs, ans);   // the screen was behind the server: re-read once (A20)\n', '']]] },
+  section_price_back: { arm: 'SS-PARITY', why: 'the section quotes a price again', db: [VIEW, "return jsonb_build_object('count', v_lim, 'max', v_lim);", "return jsonb_build_object('count', v_lim, 'max', v_lim, 'price', 15000);"] },
+  section_reads_rung: { arm: 'SS-PARITY', why: 'the section counts a rung bought in the priced days',
+    db: [VIEW, "return jsonb_build_object('count', v_lim, 'max', v_lim);",
+      "return jsonb_build_object('count', least(v_lim, 3 + coalesce((select p.value::int from public.player_progress p where p.user_id = p_user and p.slot = p_slot and p.key = 'setup_slots_bought'), 0)), 'max', v_lim);"] },
+  pin_forgets_itself: { arm: 'SS-AGAIN', why: 'a second apply refuses because a restated body lost the mark its pin looks for',
+    sql: [FILE, '-- SETUPS-FREE (1049-setups-free.sql): saving a setup is free, so every hero holds the whole limit. Nothing bought, nothing read.',
+      '-- (1049-setups-free.sql): saving a setup is free, so every hero holds the whole limit. Nothing bought, nothing read.'] },
+  words_buy_back: { arm: 'SS-CLIENT', why: 'the full line offers a purchase again',
+    js: ['src/shell/setup-words.js', [["return held + ' Delete one to save a new setup.';", "return held + ' Delete one, or buy a sixth for 15,000 gp.';"]]] },
+  words_full_lost: { arm: 'SS-CLIENT', why: 'the refusal drops the server\'s count', js: ['src/shell/intent-words.js', [['return setupFullWords(r.figures.slots);', 'return setupFullWords(5);']]] },
+  figures_dropped: { arm: 'SS-CLIENT', why: 'the session drops the refusal\'s numbers', js: ['src/session/refusal.js', [["'min_skill_level', 'slots', 'price', 'per_day']", "'min_skill_level', 'price', 'per_day']"]]] },
+  reader_invents: { arm: 'SS-CLIENT', why: 'a section with no count reads as the limit', js: ['src/session/item-sections.js', [["if (!isObj(s) || count(s.count) === null || count(s.max) === null) return null;", "if (!isObj(s)) return { count: 5, max: 5 };"]]] },
   /* SETUPS SWITCH MID-HUNT, BAR ONLY (2027-05-04-setup-swap-mid-hunt.sql) */
   swap_town_only: { arm: 'SS-SWAP-CLOSED', why: 'Use is refused hunt_open again, as before the ruling',
     db: [APPLY, "  if v_s.id is not null then\n    -- THE BAR ONLY, MID-HUNT.", "  if v_s.id is not null then\n    return public.hr_note_rejection('hunt_preset_apply', p_slot, jsonb_build_object('ok', false, 'error', 'hunt_open', 'session', v_s.id));\n    -- THE BAR ONLY, MID-HUNT."] },
@@ -167,7 +143,6 @@ const VERBS = {
   options: (db, slot, n) => as(db, A, `select public.hr_action_set_options($1::int, $2::int, '{"slots": []}'::jsonb, $3::uuid)`, [slot, n, idem()]),
   rename: (db, slot, n) => as(db, A, `select public.hr_action_set_rename($1::int, $2::int, 'Bar', $3::uuid)`, [slot, n, idem()]),
 };
-const buy = (db, slot, price, key) => as(db, A, 'select public.hr_setup_slot_buy($1::int, $2::bigint, $3::uuid)', [slot, price, key || idem()]);
 async function hero(db, slot, name) {
   await db.query('insert into auth.users (id) values ($1) on conflict (id) do nothing', [A]);
   await db.query(`insert into public.hr_access_allowlist (user_id, note) values ($1, 'setup-slots guard') on conflict (user_id) do nothing`, [A]);
@@ -183,8 +158,6 @@ const held = async (db, slot, n) => ({
   setup: await one(db, 'select count(*)::int from public.player_hunt_presets where user_id = $1 and slot = $2 and preset = $3', [A, slot, n]),
   bar: await one(db, 'select count(*)::int from public.player_action_sets where user_id = $1 and slot = $2 and preset = $3', [A, slot, n]),
 });
-const journal = (db, slot) => q(db, `select kind, intent, gold from public.player_ledger where user_id = $1 and slot = $2 and intent like 'setup\\_slot\\_buy:%' order by id`, [A, slot]);
-const rule = async (db) => { const r = (await q(db, `select free, prices from public.hr_sink_rules where sink_id = 'setup_slot'`))[0]; return { free: Number(r.free), prices: r.prices.map(Number) }; };
 const limit = (db) => one(db, `select public.hr_hunt_limit('presets')`).then(Number);
 
 /* ── SETUPS SWITCH MID-HUNT, BAR ONLY: the real engine, from tests/hunt-sessions-settle.mjs's harness ── */
@@ -317,13 +290,14 @@ async function swapThrough(db, door) {
       || row('Tank').wearing !== true || row('Guard').wearing !== false || row('Bow').wearing !== false) {
     out.push(door.name + ': the envelope reads setup ' + env.hunt_settings.preset + ' and rows ' + JSON.stringify((env.hunt_presets || []).map((p) => [p.name, p.fights_as, p.discipline, p.wearing])));
   }
-  /* (4) LEVER-HORIZON (1005-lever-horizon.sql): the swap plays from the first window STARTING past the seed horizon (the settled point
-     + 32 s), never over swings the browser was already shown. The window inside it keeps Tank's bar; then the server clock moves on
+  /* (4) LEVER-HORIZON (1005-lever-horizon.sql): the swap plays from the first window STARTING past the seed horizon (since
+     1052-settle-flush.sql the later of the settled point and the clock + one 2 s swing, + 32 s: under the swap's now() + 34 s, so the
+     window inside it runs to 36 s on), never over swings the browser was already shown. The window inside it keeps Tank's bar; then the server clock moves on
      (pinned, main) and THE ENGINE'S NEXT SETTLE PAST IT PLAYS GUARD'S BAR: the door's read hands it Guard's stance, and its commit
      stores the hero on it */
   const later = horizonPassed();
   await later.pin(db);
-  const inside = await settleVia(H, M, db, uid, later.at(30000), door);
+  const inside = await settleVia(H, M, db, uid, later.at(36000), door);
   const kept = inside.last && inside.last.plan.members[0] && inside.last.plan.members[0].hero;
   if (!kept || kept.settings.stance !== 'offensive') out.push(door.name + ': the window inside the seed horizon read ' + JSON.stringify(kept && kept.settings) + ' (want Tank\'s offensive: a swap never plays inside the look-ahead)');
   const next = await settleVia(H, M, db, uid, later.at(60000), door);
@@ -344,224 +318,98 @@ const closeHunt = async (db, uid, sid) => {
 };
 
 const ARMS = {
-  'SS-RULE': async (db, X) => {
+  /* SAVING A SETUP IS FREE (redesign direction 9, 1049-setups-free.sql): no row and no verb sells a slot; a brand-new hero with NO GOLD
+     saves a setup on every number under the limit, each through the verb a player presses, and the purse and the shop journal never move. */
+  'SS-FREE': async (db, X) => {
     const out = [];
-    const R = await rule(db);
-    const d = X.GS.SINK_RULES.setup_slot;
-    if (R.free !== d.free || JSON.stringify(R.prices) !== JSON.stringify(d.prices)) out.push('the table and the data file disagree');
-    if (R.free + R.prices.length !== await limit(db)) out.push('free + prices is not the limit');
+    if (X.GS.SINK_RULES.setup_slot) out.push('src/data/gold-sinks.js still has a setup_slot row');
+    if (Number(await one(db, `select count(*) from public.hr_sink_rules where sink_id = 'setup_slot'`))) out.push('hr_sink_rules still sells a setup slot');
+    if (await one(db, `select to_regprocedure($1) is not null`, [BUY])) out.push('hr_setup_slot_buy still exists');
+    const lim = await limit(db);
     await hero(db, 0, 'Marlow');
+    await db.query('update public.account_wallet set gold = 0 where user_id = $1', [A]);
     const s = await section(db, 0);
-    if (!s) return ['the envelope has no setup_slots section'];
-    if (s.count !== R.free || s.free !== R.free || s.bought !== 0 || s.max !== await limit(db) || Number(s.price) !== R.prices[0]) out.push('a fresh hero reads ' + JSON.stringify(s));
-    /* THE TUTORIAL'S save_setup: one setup, on a hero with none, on the first free number */
-    const before = await purse(db);
-    const saved = await VERBS.save(db, 0, 0, 'Keep this bar');
-    if (!saved || saved.ok !== true) out.push('the tutorial\'s one save answered ' + JSON.stringify(saved));
+    if (!s || s.count !== lim || s.max !== lim || Object.keys(s).sort().join() !== 'count,max') out.push('a fresh hero reads ' + JSON.stringify(s));
+    for (let n = 0; n < lim; n++) {
+      const r = await VERBS.save(db, 0, n, 'Setup ' + (n + 1));
+      if (!r || r.ok !== true) out.push(`saving setup ${n} with no gold answered ` + JSON.stringify(r));
+    }
+    if ((await q(db, 'select preset from public.player_hunt_presets where user_id = $1 and slot = 0', [A])).length !== lim) out.push(`fewer than ${lim} setups were saved`);
     const after = await one(db, 'select public.hr_state_of($1::uuid, 0)', [A]);
-    if (!X.ITEM.presetsOf({ read: (k) => after[k] }).length) out.push('the tutorial\'s setup_saved fact would not see the save');
-    if (await purse(db) !== before) out.push('the free save cost gold');
+    if (X.ITEM.presetsOf({ read: (k) => after[k] }).length !== lim) out.push('the envelope does not show every saved setup');
+    if (await purse(db) !== 0) out.push('saving setups moved the purse to ' + await purse(db));
+    if (Number(await one(db, `select count(*) from public.player_ledger where user_id = $1 and kind = 'shop'`, [A]))) out.push('saving setups wrote a shop journal row');
+    /* a second hero of the account holds the same, for nothing */
+    await hero(db, 1, 'Tamsel');
+    const t = await section(db, 1);
+    if (!t || t.count !== lim) out.push('the second hero reads ' + JSON.stringify(t));
     return out;
   },
 
+  /* PAST THE LIMIT: every verb that can open a number refuses it (bad_preset, its own range) and leaves no row; the shared check names the
+     count and offers nothing. */
   'SS-NEW': async (db) => {
     const out = [];
-    const R = await rule(db);
+    const lim = await limit(db);
     await hero(db, 0, 'Marlow');
-    const next = R.free;
     for (const [name, verb] of Object.entries(VERBS)) {
-      const r = await verb(db, 0, next);
-      if (!r || r.error !== 'setup_locked') out.push(`${name} at ${next} answered ` + JSON.stringify(r));
-      else if (r.slots !== R.free || Number(r.price) !== R.prices[0]) out.push(`${name}'s refusal carries ` + JSON.stringify(r));
+      const r = await verb(db, 0, lim);
+      if (!r || r.error !== 'bad_preset') out.push(`${name} at ${lim} answered ` + JSON.stringify(r));
     }
-    const h = await held(db, 0, next);
+    const h = await held(db, 0, lim);
     if (h.setup || h.bar) out.push('a refused verb left a row: ' + JSON.stringify(h));
-    /* under the count every verb still works */
-    const under = R.free - 1;
-    if (under > 0) for (const [name, verb] of Object.entries(VERBS)) {
-      const r = await verb(db, 0, under);
-      if (!r || r.ok !== true) out.push(`${name} at ${under} (under the count) answered ` + JSON.stringify(r));
+    const locked = await one(db, `select public.hr_setup_locked($1::uuid, 0, $2::int)`, [A, lim]);
+    if (!locked || locked.error !== 'setup_locked' || locked.slots !== lim || 'price' in locked) out.push('past the limit the check reads ' + JSON.stringify(locked));
+    for (let n = 0; n < lim; n++) {
+      const open = await one(db, `select public.hr_setup_locked($1::uuid, 0, $2::int)`, [A, n]);
+      if (open !== null) out.push(`number ${n} under the limit is refused: ` + JSON.stringify(open));
     }
     return out;
   },
 
+  /* A SAVED SETUP IS THE PLAYER'S: saved, used, renamed, deleted, and its number saved again, with nothing asked for it. */
   'SS-KEEP': async (db) => {
     const out = [];
-    const R = await rule(db);
     const top = await limit(db) - 1;
     await hero(db, 0, 'Marlow');
-    await VERBS.save(db, 0, 0, 'First');
-    /* a hero who already holds setups past the free count (saved while they were free) */
-    await db.query(`insert into public.player_hunt_presets (user_id, slot, preset, name, action_set, gear, restock) values ($1, 0, $2, 'Old', $2, '{}'::jsonb, '{}'::jsonb)`, [A, top]);
-    await db.query(`insert into public.player_action_sets (user_id, slot, preset, name, slots, options) values ($1, 0, $2, 'Old', '[]'::jsonb, '{}'::jsonb)`, [A, top]);
+    const saved = await VERBS.save(db, 0, top, 'Last');
+    if (!saved || saved.ok !== true) return ['saving the last number answered ' + JSON.stringify(saved)];
     for (const [name, verb] of Object.entries(VERBS)) {
       const r = await verb(db, 0, top);
-      if (!r || r.ok !== true) out.push(`${name} on a setup already saved answered ` + JSON.stringify(r));
+      if (!r || r.ok !== true) out.push(`${name} on a saved setup answered ` + JSON.stringify(r));
     }
     const ren = await as(db, A, `select public.hr_hunt_preset_rename(0, $1::int, 'Older', $2::uuid)`, [top, idem()]);
-    if (!ren || ren.ok !== true) out.push('rename on a setup already saved answered ' + JSON.stringify(ren));
+    if (!ren || ren.ok !== true) out.push('rename on a saved setup answered ' + JSON.stringify(ren));
     await db.query('update public.player_hunt_active set action_set = 0 where user_id = $1 and slot = 0', [A]);
     const use = await as(db, A, 'select public.hr_hunt_preset_apply(0, $1::int, $2::uuid)', [top, idem()]);
-    if (!use || use.ok !== true) out.push('Use on a setup already saved answered ' + JSON.stringify(use));
-    /* a bare bar on a number past the count is also not new */
-    const bare = R.free;
-    if (bare !== top) {
-      await db.query(`insert into public.player_action_sets (user_id, slot, preset, name, slots, options) values ($1, 0, $2, 'Bare', '[]'::jsonb, '{}'::jsonb)`, [A, bare]);
-      const r = await VERBS.options(db, 0, bare);
-      if (!r || r.ok !== true) out.push('a bar already on a number past the count answered ' + JSON.stringify(r));
-    }
-    /* the migration deletes nothing: a second apply leaves the row */
-    if ((await held(db, 0, top)).setup !== 1) out.push('the setup past the count is gone');
-    /* deleted, its number is new again */
+    if (!use || use.ok !== true) out.push('Use on a saved setup answered ' + JSON.stringify(use));
     await db.query('update public.player_hunt_active set action_set = 0 where user_id = $1 and slot = 0', [A]);
     const del = await as(db, A, 'select public.hr_hunt_preset_delete(0, $1::int, $2::uuid)', [top, idem()]);
-    if (!del || del.ok !== true) out.push('deleting a setup past the count answered ' + JSON.stringify(del));
-    const again = await VERBS.save(db, 0, top);
-    if (!again || again.error !== 'setup_locked') out.push('a deleted number past the count answered ' + JSON.stringify(again));
+    if (!del || del.ok !== true) out.push('deleting a saved setup answered ' + JSON.stringify(del));
+    const again = await VERBS.save(db, 0, top, 'Again');
+    if (!again || again.ok !== true) out.push('the deleted number saved again answered ' + JSON.stringify(again));
     return out;
   },
 
-  'SS-QUOTE': async (db) => {
-    const out = [];
-    const R = await rule(db);
-    await hero(db, 0, 'Marlow');
-    const was = await purse(db);
-    for (const forged of [R.prices[0] + 1, R.prices[0] - 1, 1]) {
-      const r = await buy(db, 0, forged);
-      if (!r || r.error !== 'quote_changed') out.push(`a price of ${forged} answered ` + JSON.stringify(r));
-    }
-    for (const junk of [0, -5]) {
-      const r = await buy(db, 0, junk);
-      if (!r || r.error !== 'bad_quote') out.push(`a price of ${junk} answered ` + JSON.stringify(r));
-    }
-    /* A PRICE MOVED UNDER THE PLAYER: what was on screen is stale */
-    await db.query(`update public.hr_sink_rules set prices[1] = prices[1] + 500 where sink_id = 'setup_slot'`);
-    const stale = await buy(db, 0, R.prices[0]);
-    if (!stale || stale.error !== 'quote_changed' || !stale.setup_slots || Number(stale.setup_slots.price) !== R.prices[0] + 500) out.push('a stale price answered ' + JSON.stringify(stale));
-    await db.query(`update public.hr_sink_rules set prices[1] = prices[1] - 500 where sink_id = 'setup_slot'`);
-    if (await purse(db) !== was) out.push('a refused price moved gold');
-    if ((await journal(db, 0)).length) out.push('a refused price wrote a journal row');
-    /* A SHORT PURSE: hr_apply's words, no rung */
-    await db.query('update public.account_wallet set gold = $2 where user_id = $1', [A, R.prices[0] - 1]);
-    const short = await buy(db, 0, R.prices[0]);
-    if (!short || short.error !== 'insufficient_gold') out.push('a short purse answered ' + JSON.stringify(short));
-    if (await purse(db) !== R.prices[0] - 1) out.push('a short purse moved gold');
-    if ((await section(db, 0)).count !== R.free) out.push('a short purse opened a slot');
-    return out;
-  },
-
-  'SS-ONCE': async (db) => {
-    const out = [];
-    const R = await rule(db);
-    await hero(db, 0, 'Marlow');
-    const was = await purse(db);
-    const key = idem();
-    const first = await buy(db, 0, R.prices[0], key);
-    if (!first || first.ok !== true) return ['the purchase answered ' + JSON.stringify(first)];
-    const replay = await buy(db, 0, R.prices[0], key);
-    if (!replay || replay.ok !== true) out.push('the replay answered ' + JSON.stringify(replay));
-    if (await purse(db) !== was - R.prices[0]) out.push(`the purse moved ${was - await purse(db)}, not ${R.prices[0]}`);
-    const rows = await journal(db, 0);
-    if (rows.length !== 1) out.push(`${rows.length} journal rows for one purchase`);
-    else if (rows[0].kind !== 'shop' || rows[0].intent !== 'setup_slot_buy:' + R.prices[0] || Number(rows[0].gold) !== -R.prices[0]) out.push('the journal row reads ' + JSON.stringify(rows[0]));
-    const s = await section(db, 0);
-    if (s.count !== R.free + 1 || s.bought !== 1 || Number(s.price) !== R.prices[1]) out.push('after one purchase the section reads ' + JSON.stringify(s));
-    /* the key can't buy the next rung either, and a second press at the old price is a re-quote */
-    const again = await buy(db, 0, R.prices[0]);
-    if (!again || again.error !== 'quote_changed') out.push('a second press at the old price answered ' + JSON.stringify(again));
-    const crossed = await buy(db, 0, R.prices[1], key);
-    if (crossed && crossed.ok === true) out.push('one key bought a second rung');
-    if ((await journal(db, 0)).length !== 1) out.push('a re-press wrote another journal row');
-    /* the bought number opens */
-    const opened = await VERBS.save(db, 0, R.free);
-    if (!opened || opened.ok !== true) out.push('the bought number answered ' + JSON.stringify(opened));
-    return out;
-  },
-
-  'SS-TOP': async (db) => {
-    const out = [];
-    const R = await rule(db);
-    await hero(db, 0, 'Marlow');
-    for (const p of R.prices) {
-      const r = await buy(db, 0, p);
-      if (!r || r.ok !== true) return [`the rung at ${p} answered ` + JSON.stringify(r)];
-    }
-    const s = await section(db, 0);
-    if (s.count !== await limit(db) || s.price !== null) out.push('at the top the section reads ' + JSON.stringify(s));
-    const was = await purse(db);
-    for (const p of [R.prices[R.prices.length - 1], 1]) {
-      const r = await buy(db, 0, p);
-      if (!r || r.error !== 'setup_slots_max') out.push(`past the top, a price of ${p} answered ` + JSON.stringify(r));
-    }
-    if (await purse(db) !== was) out.push('past the top moved gold');
-    if ((await journal(db, 0)).length !== R.prices.length) out.push('past the top wrote a journal row');
-    /* the limit itself is unmoved: every number is a setup */
-    const lim = await limit(db);
-    const beyond = await VERBS.save(db, 0, lim);
-    if (!beyond || beyond.error !== 'bad_preset') out.push('a number past the limit answered ' + JSON.stringify(beyond));
-    return out;
-  },
-
-  'SS-HERO': async (db) => {
-    const out = [];
-    const R = await rule(db);
-    await hero(db, 0, 'Marlow');
-    await hero(db, 1, 'Tamsel');
-    const was = await purse(db);
-    const r = await buy(db, 0, R.prices[0]);
-    if (!r || r.ok !== true) return ['the purchase answered ' + JSON.stringify(r)];
-    const other = await section(db, 1);
-    if (other.count !== R.free || other.bought !== 0 || Number(other.price) !== R.prices[0]) out.push('the other hero reads ' + JSON.stringify(other));
-    const locked = await VERBS.save(db, 1, R.free);
-    if (!locked || locked.error !== 'setup_locked') out.push('the other hero\'s new number answered ' + JSON.stringify(locked));
-    /* the purse is the account's: both heroes read it, and the second pays from it */
-    const env = await one(db, 'select public.hr_state_of($1::uuid, 1)', [A]);
-    if (Number(env.state.gold) !== was - R.prices[0]) out.push('the other hero reads the purse as ' + env.state.gold);
-    const second = await buy(db, 1, R.prices[0]);
-    if (!second || second.ok !== true) out.push('the other hero\'s own first rung answered ' + JSON.stringify(second));
-    if (await purse(db) !== was - 2 * R.prices[0]) out.push('two heroes\' purchases moved the purse by ' + (was - await purse(db)));
-    return out;
-  },
-
+  /* A HUNTING HERO: Save keeps its hunt_open refusal (a hunt runs on the set it entered with). */
   'SS-HUNT': async (db) => {
     const out = [];
-    const R = await rule(db);
     await hero(db, 0, 'Marlow');
     await db.query('update public.hr_hunt_config set enabled = true where id');
-    const GEN = await import(pathToFileURL(join(ROOT, 'tools/gen-hunt-sessions.mjs')).href);
-    const room = { id: 'ss_cellar', hunt: 'mill_cellar', map: 'ss_cellar', start: [[1, 1]], pockets: [{ room: [3, 1, 6, 3], spawns: [{ monster: 'rat', x: 4, y: 2 }] }], route: [0], respawnMs: 60000, pullDist: 1.5 };
-    const { rows, spawns } = GEN.groundRows({ ss_cellar: room });
-    for (const g of rows) await db.query(`insert into public.hr_hunt_grounds (hunt_id, ground_id, pockets, spawns, respawn_ms, seats, density_max) values ($1,$2,$3,$4,$5,$6,$7::int[])
-      on conflict (hunt_id) do update set ground_id = excluded.ground_id, pockets = excluded.pockets, spawns = excluded.spawns, respawn_ms = excluded.respawn_ms, seats = excluded.seats, density_max = excluded.density_max`,
-      [g.hunt, g.ground, g.pockets, g.spawns, g.respawn, g.seats, g.dmax]);
-    await db.query('delete from public.hr_hunt_ground_spawns where hunt_id = $1', ['mill_cellar']);
-    for (const x of spawns) await db.query('insert into public.hr_hunt_ground_spawns (hunt_id, monster_id, n) values ($1,$2,$3) on conflict do nothing', [x.hunt, x.monster, x.n]);
     await db.query(`update public.player_state set stamina_ms = 28800000, stamina_at = now() where user_id = $1 and slot = 0`, [A]);
     const entered = await as(db, A, `select public.hr_hunt_enter(0, 'mill_cellar', '[]'::jsonb, 0, null, $1::uuid)`, [idem()]);
     if (!entered || entered.ok !== true) return ['the hunt would not open: ' + JSON.stringify(entered)];
-    const session = (await q(db, 'select id, preset, settled_to, leave_at, ended_at from public.hunt_sessions where user_id = $1 and slot = 0 and ended_at is null', [A]))[0];
-    if (!session) return ['no open session after the enter'];
-    /* the existing refusal for what a hunt forbids */
     const save = await VERBS.save(db, 0, 1);
     if (!save || save.error !== 'hunt_open') out.push('Save in a hunt answered ' + JSON.stringify(save));
-    /* the purchase lands (the design's pattern names no hunting refusal for a hero sink), once */
-    const was = await purse(db);
-    const r = await buy(db, 0, R.prices[0]);
-    if (!r || r.ok !== true) return out.concat('a hunting hero\'s purchase answered ' + JSON.stringify(r));
-    if (await purse(db) !== was - R.prices[0]) out.push('the hunting purchase moved the purse by ' + (was - await purse(db)));
-    const after = (await q(db, 'select id, preset, settled_to, leave_at, ended_at from public.hunt_sessions where id = $1', [session.id]))[0];
-    if (JSON.stringify(after) !== JSON.stringify(session)) out.push('the running hunt moved: ' + JSON.stringify(after));
     return out;
   },
 
+  /* COPYING BARS TO ANOTHER HERO brings every number the source holds (each is open to every hero) and keeps the bar of a setup the target saved. */
   'SS-COPY': async (db) => {
     const out = [];
-    const R = await rule(db);
     const top = await limit(db) - 1;
     await hero(db, 0, 'Marlow');
     await hero(db, 1, 'Tamsel');
-    /* the source opened every number; the target holds one saved setup past its count */
-    for (const p of R.prices) await buy(db, 0, p);
     for (let n = 0; n <= top; n++) await VERBS.save(db, 0, n, 'Set ' + n);
     await db.query(`delete from public.player_action_sets where user_id = $1 and slot = 0 and preset = $2`, [A, top]);
     await db.query('update public.player_hunt_active set action_set = 0 where user_id = $1 and slot = 0', [A]);
@@ -570,45 +418,11 @@ const ARMS = {
     const r = await as(db, A, 'select public.hr_action_set_copy(0, 1, $1::uuid)', [idem()]);
     if (!r || r.ok !== true) return ['the copy answered ' + JSON.stringify(r)];
     const nums = (await q(db, 'select preset from public.player_action_sets where user_id = $1 and slot = 1 order by preset', [A])).map((x) => x.preset);
-    const want = []; for (let n = 0; n < R.free; n++) want.push(n);
-    want.push(top);
+    const want = []; for (let n = 0; n <= top; n++) want.push(n);
     if (JSON.stringify(nums) !== JSON.stringify(want)) out.push(`the target holds bars ${nums}, it may hold ${want}`);
-    const left = top - R.free;   // the source's numbers from the free count up to, not including, the kept one
-    if (r.locked !== left) out.push(`the copy says it left ${r.locked}, it left ${left}`);
+    if (Number(r.locked || 0) !== 0) out.push(`the copy says it left ${r.locked} behind`);
     const kept = (await q(db, 'select name from public.player_action_sets where user_id = $1 and slot = 1 and preset = $2', [A, top]))[0];
     if (!kept || kept.name !== 'Kept') out.push('the saved setup lost its bar: ' + JSON.stringify(kept));
-    /* and it made no number free: the next one past the count is still refused */
-    if (R.free < top) {
-      const next = await VERBS.save(db, 1, R.free);
-      if (!next || next.error !== 'setup_locked') out.push('after a copy the next number answered ' + JSON.stringify(next));
-    }
-    return out;
-  },
-
-  'SS-FLIP': async (db) => {
-    const out = [];
-    const R = await rule(db);
-    await hero(db, 0, 'Marlow');
-    await hero(db, 1, 'Tamsel');
-    const bought = await buy(db, 1, R.prices[0]);
-    if (!bought || bought.ok !== true) return ['the purchase before the flip answered ' + JSON.stringify(bought)];
-    /* "3 free": one more free, one rung fewer. The designer's own example of the one row. */
-    const flipped = { free: R.free + 1, prices: R.prices.slice(1) };
-    await db.query(`update public.hr_sink_rules set free = $1, prices = $2::bigint[] where sink_id = 'setup_slot'`, [flipped.free, flipped.prices]);
-    const s = await section(db, 0);
-    if (s.count !== flipped.free || Number(s.price) !== flipped.prices[0]) out.push('after the flip a fresh hero reads ' + JSON.stringify(s));
-    const open = await VERBS.save(db, 0, R.free);
-    if (!open || open.ok !== true) out.push('the number the flip made free answered ' + JSON.stringify(open));
-    const stillLocked = flipped.free < await limit(db) ? await VERBS.save(db, 0, flipped.free) : { error: 'setup_locked' };
-    if (!stillLocked || stillLocked.error !== 'setup_locked') out.push('the next number after the flip answered ' + JSON.stringify(stillLocked));
-    /* the hero who already bought keeps it; the count is still capped at the limit */
-    const paid = await section(db, 1);
-    if (paid.count !== flipped.free + 1) out.push('a hero who bought before the flip reads ' + JSON.stringify(paid));
-    const lim = await limit(db);
-    await db.query(`insert into public.player_progress (user_id, slot, kind, key, period_key, value, updated_at) values ($1, 1, 'stat', 'setup_slots_bought', '', 99, now())
-      on conflict (user_id, slot, kind, key, period_key) do update set value = 99`, [A]);
-    const capped = await section(db, 1);
-    if (capped.count !== lim || capped.price !== null) out.push('the count ran past the limit: ' + JSON.stringify(capped));
     return out;
   },
 
@@ -623,12 +437,15 @@ const ARMS = {
 
   'SS-GRANT': async (db) => {
     const out = [];
-    for (const fn of [LOCKED, OF, VIEW, 'public.hr_setups_bought(uuid,integer)']) {
+    for (const fn of [LOCKED, OF, VIEW]) {
       for (const role of ['anon', 'authenticated']) if (await one(db, 'select has_function_privilege($1, $2, $3)', [role, fn, 'execute'])) out.push(`${role} reaches ${fn}`);
     }
-    if (await one(db, 'select has_function_privilege($1, $2, $3)', ['anon', BUY, 'execute'])) out.push('anon can buy');
-    if (!(await one(db, 'select has_function_privilege($1, $2, $3)', ['authenticated', BUY, 'execute']))) out.push('a player cannot buy');
-    if (!(await one(db, `select count(*)::int from public.hr_client_rpc_baseline where proname = 'hr_setup_slot_buy' and grantee = 'authenticated'`))) out.push('the verb is not on the baseline');
+    /* nothing a client can call sells a setup slot, and the baseline names no such verb */
+    const sellers = await q(db, `select p.oid::regprocedure::text fn from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname ~ 'setup_slot'
+      and (has_function_privilege('authenticated', p.oid, 'execute') or has_function_privilege('anon', p.oid, 'execute'))`);
+    if (sellers.length) out.push('a client can call ' + sellers.map((r) => r.fn).join(', '));
+    if (Number(await one(db, `select count(*)::int from public.hr_client_rpc_baseline where proname ~ 'setup_slot'`))) out.push('the client baseline names a setup slot verb');
+    if (!Number(await one(db, `select count(*)::int from public.hr_state_sections where key = 'setup_slots'`))) out.push('the setup_slots section is not registered');
     try { await db.exec('select public.hr_assert_grant_hygiene(true)'); } catch (e) { out.push('grant hygiene: ' + String(e.message).slice(0, 160)); }
     return out;
   },
@@ -636,13 +453,12 @@ const ARMS = {
   'SS-AGAIN': async (db, X, mutant) => {
     const out = [];
     const text = mutant && mutant.sql ? plantSql(MIG(FILE), mutant.sql) : MIG(FILE);
-    const inventory = async () => (await q(db, `select p.oid::regprocedure::text fn, md5(pg_get_functiondef(p.oid)) m from pg_proc p
+    const inventory = async () => (await q(db, `select p.oid::regprocedure::text fn, md5(pg_get_functiondef(p.oid)) || ':' || coalesce(p.proacl::text, '') m from pg_proc p
       where p.pronamespace = 'public'::regnamespace and p.prokind = 'f' and p.proname in ('hr_setups_bought', 'hr_setups_of', 'hr_setup_slots_view', 'hr_setup_locked', 'hr_setup_slot_buy',
         'hr_hunt_preset_save', 'hr_action_set_put', 'hr_action_set_options', 'hr_action_set_rename', 'hr_action_set_copy') order by 1`)).map((r) => r.fn + ':' + r.m).join('\n');
     const was = await inventory();
     await db.exec('savepoint again');
-    /* the file's own self-check makes a second hero unpaid: re-applied on the ladder it was written against (tests/_slots.mjs) */
-    try { await asOldLadder((sql) => db.exec(sql), () => db.exec(text)); await db.exec(MIG(PLAN)); } catch (e) {
+    try { await db.exec(text); } catch (e) {
       out.push('the second apply refused: ' + String(e.message).split('\n')[0].slice(0, 180));
       await db.exec('rollback to savepoint again');
       return out;
@@ -651,78 +467,42 @@ const ARMS = {
     return out;
   },
 
+  /* EVERY ENVELOPE BUILDS THE SECTION: it reads no table, it says what the verbs' check says for every hero, and a bought rung left
+     from the priced days moves nothing. */
   'SS-PARITY': async (db) => {
     const out = [];
     const body = await one(db, `select prosrc from pg_proc where oid = $1::regprocedure`, [VIEW]);
-    if (/hr_sink_price\s*\(|hr_setups_of\s*\(|hr_setups_bought\s*\(|hr_hunt_limit\s*\(/.test(body)) out.push('the section calls a helper, on every settle');
-    const lang = await one(db, `select l.lanname from pg_proc p join pg_language l on l.oid = p.prolang where p.oid = 'public.hr_sink_price(text,integer,integer)'::regprocedure`);
-    if (lang !== 'plpgsql') out.push('hr_sink_price is ' + lang + ': PostgreSQL 17 re-plans it per call');
+    if (/\bfrom\s+public\./i.test(body) || /hr_sink_price\s*\(|hr_setups_of\s*\(/.test(body)) out.push('the section reads a table or a helper, on every envelope');
     await hero(db, 0, 'Marlow');
     await hero(db, 1, 'Tamsel');
-    const check = async (label) => {
-      const R = await rule(db), lim = await limit(db);
-      for (let n = 0; n <= R.prices.length + 2; n++) {
-        await db.query(`insert into public.player_progress (user_id, slot, kind, key, period_key, value, updated_at) values ($1, 0, 'stat', 'setup_slots_bought', '', $2, now())
-          on conflict (user_id, slot, kind, key, period_key) do update set value = excluded.value`, [A, n]);
-        const s = await section(db, 0);
-        const count = Number(await one(db, 'select public.hr_setups_of($1::uuid, 0)', [A]));
-        const quote = count < lim ? await one(db, `select public.hr_sink_price('setup_slot', $1::int)`, [n]) : null;
-        if (s.count !== count || s.bought !== n || s.max !== lim || s.free !== R.free || (s.price === null ? null : Number(s.price)) !== (quote === null ? null : Number(quote))) {
-          out.push(`${label}, rung ${n}: the section reads ${JSON.stringify(s)}, the verbs ${count} and ${quote}`);
-        }
-      }
-    };
-    await check('as shipped');
-    /* the other hero's rung stays the other hero's */
-    const other = await section(db, 1);
-    if (other.bought !== 0) out.push('the other hero reads ' + JSON.stringify(other));
-    /* one row moved: one more free, one rung fewer */
-    const R0 = await rule(db);
-    await db.query(`update public.hr_sink_rules set free = $1, prices = $2::bigint[] where sink_id = 'setup_slot'`, [R0.free + 1, R0.prices.slice(1)]);
-    await check('the row moved');
+    const lim = await limit(db);
+    await db.query(`insert into public.player_progress (user_id, slot, kind, key, period_key, value, updated_at) values ($1, 0, 'stat', 'setup_slots_bought', '', 2, now())
+      on conflict (user_id, slot, kind, key, period_key) do update set value = excluded.value`, [A]);
+    for (const slot of [0, 1]) {
+      const s = await section(db, slot);
+      const count = Number(await one(db, 'select public.hr_setups_of($1::uuid, $2::int)', [A, slot]));
+      if (!s || s.count !== count || s.count !== lim || s.max !== lim || 'price' in s) out.push(`hero ${slot}: the section reads ${JSON.stringify(s)}, the verbs ${count}, the limit ${lim}`);
+    }
     return out;
   },
 
   'SS-CLIENT': async (db, X) => {
     const out = [];
-    const R = X.GS.SINK_RULES.setup_slot;
-    const ordinal = ['first', 'second', 'third', 'fourth', 'fifth'][R.free];
-    const gp = (n) => n.toLocaleString('en-US') + ' gp';
     /* THE READER: what the server sent, or nothing */
     const cs = (sec) => ({ read: (k) => (k === 'setup_slots' ? sec : undefined) });
-    const good = X.ITEM.setupSlotsOf(cs({ count: R.free, free: R.free, bought: 0, max: 5, price: R.prices[0] }));
-    if (!good || good.count !== R.free || good.price !== R.prices[0]) out.push('the reader reads ' + JSON.stringify(good));
-    if (X.ITEM.setupSlotsOf(cs(undefined)) !== null || X.ITEM.setupSlotsOf(cs({ price: 5 })) !== null) out.push('a section with no count is not null');
-    const top = X.ITEM.setupSlotsOf(cs({ count: 5, max: 5, price: null }));
-    if (!top || top.price !== null) out.push('past the top the reader reads ' + JSON.stringify(top));
-    /* THE BUTTON AND THE REFUSAL, in the design's words with the row's numbers */
-    const button = X.WORDS.setupBuyWords(R.free, R.prices[0]);
-    if (button !== `Buy a ${ordinal} setup: ${gp(R.prices[0])}`) out.push('the button reads ' + button);
-    const flipped = X.WORDS.setupBuyWords(R.free + 1, R.prices[1]);
-    if (!flipped.includes(['first', 'second', 'third', 'fourth', 'fifth'][R.free + 1])) out.push('one more free still reads ' + flipped);
-    const full = `This hero's ${R.free} setup slots are full. Delete one, or buy a ${ordinal} for ${gp(R.prices[0])}.`;
-    if (X.WORDS.setupFullWords(R.free, R.prices[0]) !== full) out.push('the refusal\'s words read ' + X.WORDS.setupFullWords(R.free, R.prices[0]));
-    /* the server's refusal, through the session's reader, into the sentence */
-    const refused = X.REF.refusalOf({ ok: true, body: { ok: false, error: 'setup_locked', slots: R.free, price: R.prices[0] } });
+    const good = X.ITEM.setupSlotsOf(cs({ count: 5, max: 5 }));
+    if (!good || good.count !== 5 || good.max !== 5 || 'price' in good) out.push('the reader reads ' + JSON.stringify(good));
+    if (X.ITEM.setupSlotsOf(cs(undefined)) !== null || X.ITEM.setupSlotsOf(cs({ max: 5 })) !== null) out.push('a section with no count is not null');
+    /* THE FULL LINE AND THE REFUSAL: the server's count, nothing to buy */
+    const full = 'This hero\'s 4 setup slots are full. Delete one to save a new setup.';
+    if (X.WORDS.setupFullWords(4) !== full) out.push('the full line reads ' + X.WORDS.setupFullWords(4));
+    if (/\bbuy\b|\bgp\b|\d,\d{3}/i.test(X.WORDS.setupFullWords(4))) out.push('the full line offers a purchase');
+    if (X.WORDS.setupBuyWords !== undefined) out.push('setup-words.js still words a purchase');
+    const refused = X.REF.refusalOf({ ok: true, body: { ok: false, error: 'setup_locked', slots: 4 } });
     const said = X.IW.refusalText(refused);
     if (said !== full) out.push('the refused save says ' + JSON.stringify(said));
     if (!X.IW.refusalWords('setup_locked') || X.IW.refusalWords('setup_locked') === X.RW.REFUSAL_FALLBACK) out.push('setup_locked has no plain line');
-    if (X.IW.refusalWords('setup_slots_max') === X.RW.REFUSAL_FALLBACK) out.push('setup_slots_max has no plain line');
-    /* ONE INTENT WITH THE QUOTE; a stale quote re-reads, so the next press is priced right */
-    const calls = [];
-    let loads = 0;
-    const answers = [{ ok: true, body: { ok: true } }, { ok: true, body: { ok: false, error: 'quote_changed' } }];
-    const account = { server: { rpc: async (name, body) => { calls.push({ name, body }); return answers.shift(); } } };
-    /* a refusal's re-read is the session's bounded resync (quoted-ask.js afterRefusal), counted with the loads */
-    const c = { slot: 2, status: 'open', load: async () => { loads++; return true; }, resync: async () => { loads++; return true; } };
-    const a1 = await X.PI.buySetupSlot(account, c, R.prices[0]);
-    if (!a1.ok || calls.length !== 1 || calls[0].name !== 'hr_setup_slot_buy' || calls[0].body.p_slot !== 2 || calls[0].body.p_price !== R.prices[0] || !calls[0].body.p_idem) out.push('the press sent ' + JSON.stringify(calls));
-    if (loads !== 1) out.push('an accepted purchase re-read ' + loads + ' times');
-    const a2 = await X.PI.buySetupSlot(account, c, R.prices[0]);
-    if (a2.ok || a2.error !== 'quote_changed') out.push('a stale quote answered ' + JSON.stringify(a2));
-    if (loads !== 2) out.push('a stale quote did not re-read');
-    const none = await X.PI.buySetupSlot(account, c, 0);
-    if (none.ok || calls.length !== 2) out.push('a price of 0 went out');
+    if (X.PI.buySetupSlot !== undefined) out.push('preset-intents.js still sends a slot purchase');
     return out;
   },
 
@@ -748,7 +528,7 @@ const ARMS = {
     /* LEVER-HORIZON: inside the seed horizon the seat keeps Tank's bar; past it, Guard's */
     const later = horizonPassed();
     await later.pin(db);
-    const inside = await settleVia(H, M, db, seat, later.at(30000), door);
+    const inside = await settleVia(H, M, db, seat, later.at(36000), door);
     if (!heroOf(inside, seat) || heroOf(inside, seat).settings.stance !== 'offensive') out.push('the seat\'s window inside the seed horizon reads ' + JSON.stringify(heroOf(inside, seat) && heroOf(inside, seat).settings));
     const next = await settleVia(H, M, db, seat, later.at(60000), door);
     if (!heroOf(next, seat) || heroOf(next, seat).settings.stance !== 'defensive') out.push('the seat\'s next settle reads ' + JSON.stringify(heroOf(next, seat) && heroOf(next, seat).settings));

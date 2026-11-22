@@ -395,7 +395,9 @@ do $$ begin
 end $$;
 
 -- ── §3 THE CLIENT SURFACE ────────────────────────────────────────────────────
-delete from public.hr_client_rpc_baseline where grantee = 'authenticated' and proname in ('hr_carry_on', 'hr_carry_on_plan');
+-- Its own two rows only, by their arguments: 1051-company-start.sql's four-argument press keeps its row when an operator retries this file.
+delete from public.hr_client_rpc_baseline where grantee = 'authenticated'
+  and (proname, identity_args) in (('hr_carry_on', 'p_slots integer[], p_gold bigint, p_idem uuid'), ('hr_carry_on_plan', 'p_slots integer[]'));
 insert into public.hr_client_rpc_baseline (proname, identity_args, grantee, note) values
   ('hr_carry_on', 'p_slots integer[], p_gold bigint, p_idem uuid', 'authenticated',
    'added 1024-carry-on (lane/c-carry-on): ONE press sends the caller''s own heroes back to their last hunt through the existing doors (loot dispatch, Tamsin, Blessings at the planned price, Storage first, hr_hunt_enter_for); p_gold only refuses (quote_changed); refuses nothing_to_carry_on'),

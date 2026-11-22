@@ -49,6 +49,7 @@ const socialOf = (ctx) => (ctx.account && ctx.account.social) || null;
 /** The tabs on show now: [{ id, label, unread }]. */
 function tabsOf(social) {
   if (!social) return [{ id: 'combat', label: ROW.combat.label, unread: 0 }];
+  /** @type {Array<{id: string, label: string, unread: number, whisper?: boolean}>} */
   const out = CHAT_TABS.filter((t) => social.chat.shows(t.id))
     .map((t) => ({ id: t.id, label: t.label, unread: t.unread === false ? 0 : social.chat.unread(t.id) }));
   for (const c of social.whispers.conversations()) out.push({ id: c.tab, label: c.name, unread: c.unread, whisper: true });

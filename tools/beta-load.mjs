@@ -160,9 +160,10 @@ async function workerMain() {
     await x(`select (public.hr_seed($1::uuid, $2::int, $3) & 4294967295)::bigint as seed,
              public.hr_seed($1::uuid, $2::int, $4)::text as salt, public.hr_perks_of($1::uuid, $2::int) as perks`, [a.uid, a.viewed, 'accrue:x', 'intent:accrue:x']);
     const t = performance.now();
-    /* the shipped client's ask names the version its record holds whole (character-session.js `have`): the last answer that carried it */
+    /* the shipped client's ask names the version its record holds whole (character-session.js `have`): the last answer that carried it;
+       its landed poll runs a prediction, so it CONFIRMS (hunt-ask.js `confirm`: saved at the flush, hunt-settle.js flushDue) */
     const v = await HS.settleHunt({ exec: x, user: a.uid, slot: a.viewed, mode: 'settle', bucket: null, project: true, live: true,
-      ...(early ? { minWindowMs: 1e15 } : {}), ...(Number.isSafeInteger(a.held) ? { have: a.held } : {}) });
+      ...(early ? { minWindowMs: 1e15 } : { confirm: true }), ...(Number.isSafeInteger(a.held) ? { have: a.held } : {}) });
     if (v && v.body && v.body.state && Number.isSafeInteger(v.body.version)) a.held = v.body.version;
     s.settle = (s.settle || 0) + performance.now() - t;
     s.outcomes = s.outcomes || {}; s.outcomes[v.outcome + (v.reason ? ':' + v.reason : '')] = (s.outcomes[v.outcome + (v.reason ? ':' + v.reason : '')] || 0) + 1;

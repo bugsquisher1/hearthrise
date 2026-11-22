@@ -1,6 +1,9 @@
 // tests/hunt-core/tally.mjs — src/core/hunt/tally.js, the analyzer's pure accumulator (spec §3.6; parity AN-01..05).
 // Run by run-all.mjs.
+import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { suite35 } from './fixtures/h35.js';
+import { ROOT, plant } from './fixtures/h1.js';
 
 /* Heroes 1 and 2; monsters 8 (rat) and 9 (slime). */
 const ROSTER = { heroes: [1, 2], kinds: { 1: 'hero', 2: 'hero', 8: 'rat', 9: 'slime' } };
@@ -106,7 +109,107 @@ const cases = {
     const r = M.tally.rosterOf(w);
     return JSON.stringify(r) === '{"heroes":[1],"kinds":{"1":"hero","8":"rat"}}' ? null : 'roster ' + JSON.stringify(r);
   },
+  /* SUSTAIN IS ASKED FOR (Balance Lab phase 2): the settle asks for none, so its tally is the old one to the byte: the block at zero, and a
+     window whose only news is a rule waiting for mana makes no hero (the analyzer would read zeros where it read null). Asked, it counts. */
+  'sustain-asked-for-only': (M) => {
+    const plain = M.tally.tallyEvents(SUSTAIN_WINDOW, ROSTER);
+    const zero = JSON.stringify(M.tally.emptyTally().sustain);
+    for (const [id, h] of Object.entries(plain.heroes)) if (JSON.stringify(h.sustain) !== zero) return 'hero ' + id + ' counted sustain unasked: ' + JSON.stringify(h.sustain);
+    const wait = [ev('rule_wait', 1, { u: 2, t: 2, rule: 'r1', rule_label: 'mend', why: 'mana' })];
+    if (Object.keys(M.tally.tallyEvents(wait, ROSTER).heroes).length) return 'a mana wait made a hero unasked';
+    const asked = M.tally.tallyEvents(wait, { ...ROSTER, sustain: true }).heroes[2];
+    return asked && asked.sustain.mana.waits === 1 && asked.sustain.waitsBy.mend === 1 ? null : 'asked, a mana wait was not counted: ' + JSON.stringify(asked && asked.sustain);
+  },
+  /* Every source lands in its own line, on the hero it happened to. */
+  'sustain-by-source': (M) => {
+    const { heroes, party } = M.tally.tallyEvents(SUSTAIN_WINDOW, { ...ROSTER, sustain: true });
+    const a = heroes[1].sustain, b = heroes[2].sustain;
+    const checks = [
+      ['hero 1 swing', a.takenBy.swing, 2], ['hero 1 spell', a.takenBy.spell, 7], ['hero 1 status', a.takenBy.status, 3],
+      ['hero 2 swing', b.takenBy.swing, 6], ['hero 1 ally heal', a.healIn.ally, 9], ['hero 1 food', a.healIn.food, 4], ['hero 2 self heal', b.healIn.self, 5],
+      ['hero 2 mana spent', b.mana.spent, 11 + 3], ['hero 2 mana back', b.mana.back, 2], ['hero 1 mana spent', a.mana.spent, 0], ['hero 2 waits', b.mana.waits, 1],
+      ['hero 2 waits by', b.waitsBy.mend, 1], ['hero 1 waits (a cooldown is not mana)', a.mana.waits, 0], ['no regen without anchors', a.healIn.regen + b.healIn.regen, 0],
+      ['the party', party.sustain.takenBy.swing, 8],
+    ];
+    const bad = checks.filter(([, got, want]) => got !== want).map(([w, got, want]) => w + ' ' + got + ' != ' + want);
+    return bad.length ? bad.join('; ') : null;
+  },
+  /* REGENERATION closes the window: start 50, lost 2 + 7 + 3, healed 9 + 4, end 60, so 9 came back with no event. A window that does
+     not close (end 40: 3 HP vanished) is refused, and a hero with no anchor counts none. */
+  'regen-closes-the-window': (M) => {
+    const R = { ...ROSTER, sustain: true };
+    const one = M.tally.tallyEvents(SUSTAIN_WINDOW, { ...R, hp: { 1: [50, 60] } }).heroes[1].sustain.healIn.regen;
+    if (one !== 9) return 'regen ' + one + ', not 9';
+    const still = M.tally.tallyEvents([], { ...R, hp: { 2: [70, 75] } }).heroes[2];
+    if (!still || still.sustain.healIn.regen !== 5) return 'a quiet window\'s regen ' + JSON.stringify(still && still.sustain.healIn);
+    try { M.tally.tallyEvents(SUSTAIN_WINDOW, { ...R, hp: { 1: [50, 40] } }); return 'a window that does not close was counted'; } catch (e) { if (!/moved with no event/.test(e.message)) return 'refused for the wrong reason: ' + e.message; }
+    return null;
+  },
+  /* REGENERATION IS THE ENGINE'S, TO THE HP: a short real hunt (a lone tank at Level 20 who eats from its bar) on the settle the world
+     tick runs, each window tallied with its anchors (the unit book's HP at the window's start, the settle's HP at its end, 0 at a death).
+     On the tree: no window is refused, and HP came back by food and by regeneration. On a copy whose regeneration also counts what it
+     gave (pull-cycle.js tickHeroes, the only place it is given, test-only), every anchored window's regen equals that count exactly. On
+     that copy with food that heals silently the count and the tally part, and on a copy whose blows land silently the tally refuses
+     the window: the anchors are a check on the engine, never a guess. */
+  'regen-is-the-engines': async (M) => {
+    const { loadPlay, PLAY_TREES } = await import(pathToFileURL(join(M.root, 'tests/hunt-core/fixtures/play-ground.mjs')).href);
+    const playOn = async (root) => {
+      const P = await loadPlay(root);
+      const sum = M.tally.emptyTally();
+      let windows = 0, apart = 0, anchored = 0;
+      globalThis.__hrRegen = {};
+      P.run('mosslight_glade', 20, ['tank'], { spanMs: 20 * 60000, windowMs: 30000, dropEnded: true, onWindow: (out) => {
+        const roster = { heroes: [], kinds: {}, sustain: true, hp: {} };
+        for (const [id, u] of Object.entries(out.units || {})) roster.kinds[id] = u[0];
+        for (const p of out.members) {
+          const id = p.summary && p.summary.unitIdEver;
+          if (!Number.isInteger(id)) continue;
+          roster.heroes.push(id);
+          const from = out.units[id] ? out.units[id][2] : null, died = (p.summary.deathLog || []).length > 0;
+          const to = died ? 0 : p.hunt && p.hunt.ended ? null : p.delta.hp;
+          if (Number.isInteger(from) && Number.isInteger(to)) roster.hp[id] = [from, to];
+        }
+        const t = M.tally.tallyEvents(out.events, roster);
+        for (const id of Object.keys(roster.hp)) { anchored++; if (t.heroes[id].sustain.healIn.regen !== (globalThis.__hrRegen[id] || 0)) apart++; }
+        globalThis.__hrRegen = {};
+        M.tally.addTally(sum, t.party);
+        windows++;
+      } });
+      return { sum, windows, apart, anchored };
+    };
+    const real = await playOn(M.root);
+    const s = real.sum.sustain;
+    if (real.windows < 10) return 'CONTROL: the hunt played ' + real.windows + ' windows';
+    if (!(s.takenBy.swing > 0 && s.healIn.regen > 0 && s.healIn.food > 0)) return 'CONTROL: the hunt did not lose HP, eat and regenerate: ' + JSON.stringify(s);
+    if (M.root !== ROOT) return null;
+    const COUNT = ['src/core/hunt/pull-cycle.js', '    h.hp = Math.min(h.maxHp, h.hp + whole);',
+      '    { const was = h.hp; h.hp = Math.min(h.maxHp, h.hp + whole); const g = globalThis.__hrRegen || (globalThis.__hrRegen = {}); g[h.id] = (g[h.id] || 0) + h.hp - was; }'];
+    const SILENT_FOOD = ['src/core/hunt/consumables.js', "  if (landed > 0) sc.emit(makeEvent('heal', sc.atMs, { u: u.id, t: u.id, amount: landed, item: String(item || 'food') }));", '  void landed; void item; void sc;'];
+    const SILENT_BLOW = ['src/core/hunt/damage.js', "  sc.emit(makeEvent('dmg', sc.atMs, { u, t: target.id, amount: r.dmg,", "  (target.side === 'hero' ? () => {} : sc.emit)(makeEvent('dmg', sc.atMs, { u, t: target.id, amount: r.dmg,"];
+    const on = async (edits) => { const p = plant(edits, PLAY_TREES); try { return await playOn(p.root); } finally { p.done(); } };
+    const counted = await on([COUNT]);
+    if (!(counted.anchored > 10) || counted.apart) return 'regen read off the anchors parts from the regen the engine gave in ' + counted.apart + ' of ' + counted.anchored + ' windows';
+    const food = await on([COUNT, SILENT_FOOD]);
+    if (!food.apart) return 'a food heal with no event read as regeneration and nothing parted';
+    try { await on([SILENT_BLOW]); return 'a blow with no event was let through'; } catch (e) { return /moved with no event/.test(e.message) ? null : 'the silent blow was refused for the wrong reason: ' + e.message; }
+  },
 };
+/* THE SUSTAIN WINDOW: hero 1 (a knight) takes a rat's swing, a slime's spell and a bleed tick, is healed by hero 2 and eats; hero 2 heals itself,
+   casts for 11 net with 2 back, shoots a mana shot of 3, waits once for mana and once for a cooldown (no mana wait) */
+const SUSTAIN_WINDOW = [
+  ev('dmg', 100, { u: 8, t: 1, amount: 2, ability: 'basic' }),
+  ev('dmg', 110, { u: 9, t: 1, amount: 7, ability: 'slime_spit', element: 'poison' }),
+  ev('dmg', 120, { u: 8, t: 1, amount: 3, ability: 'bleed', dot: true }),
+  ev('dmg', 130, { u: 9, t: 2, amount: 6 }),
+  ev('dmg', 140, { u: 1, t: 8, amount: 5 }),
+  ev('heal', 200, { u: 2, t: 1, amount: 9, ability: 'mend' }),
+  ev('heal', 210, { u: 1, t: 1, amount: 4, item: 'wheat_bread' }),
+  ev('heal', 220, { u: 2, t: 2, amount: 5, ability: 'mend' }),
+  ev('cast', 300, { u: 2, ability: 'storm', mana: 11, back: 2 }),
+  ev('shot', 310, { u: 2, t: 8, item: '', rule: 'r2', mana: 3 }),
+  ev('rule_wait', 320, { u: 2, t: 2, rule: 'r1', rule_label: 'mend', why: 'mana' }),
+  ev('rule_wait', 330, { u: 1, t: 1, rule: 'r3', rule_label: 'bash', why: 'cooldown' }),
+];
 
 function sortDeep(v) {
   if (!v || typeof v !== 'object') return v;
@@ -132,6 +235,18 @@ const mutants = [
     edits: [['src/core/hunt/tally.js', '        if (ev.u === null) break;\n', '        if (!ids.has(ev.u)) break;\n']] },
   { name: 'a stranger is credited', case: 'refuses-what-it-cannot-place',
     edits: [['src/core/hunt/tally.js', "    if (!ids.has(id)) throw new Error(", "    if (false) throw new Error("]] },
+  { name: 'sustain is counted unasked (the settle\'s analyzer moves)', case: 'sustain-asked-for-only',
+    edits: [['src/core/hunt/tally.js', 'const sus = !!(roster && roster.sustain === true);', 'const sus = !!roster;']] },
+  { name: 'a monster\'s spell is booked as a swing', case: 'sustain-by-source',
+    edits: [['src/core/hunt/tally.js', "(ev.ability || 'basic') === 'basic' ? 'swing' : 'spell'", "'swing'"]] },
+  { name: 'an ally\'s heal is booked as the hero\'s own', case: 'sustain-by-source',
+    edits: [['src/core/hunt/tally.js', "ev.u === ev.t ? 'self' : 'ally'", "'self'"]] },
+  { name: 'a cooldown wait is a mana wait', case: 'sustain-by-source',
+    edits: [['src/core/hunt/tally.js', "if (ev.why === 'mana' && ids.has(ev.u))", 'if (ids.has(ev.u))']] },
+  { name: 'regeneration forgets the heals', case: 'regen-closes-the-window',
+    edits: [['src/core/hunt/tally.js', 'const regen = pair[1] - pair[0] - healIn + lost;', 'const regen = pair[1] - pair[0] + lost;']] },
+  { name: 'a window that does not close is let through', case: 'regen-closes-the-window',
+    edits: [['src/core/hunt/tally.js', "    if (regen < 0) throw new Error(", "    if (false) throw new Error("]] },
 ];
 
 await suite35('hunt-core/tally', cases, mutants);

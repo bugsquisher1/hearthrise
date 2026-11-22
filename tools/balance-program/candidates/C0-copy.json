@@ -1,0 +1,13 @@
+{
+ "schema": "hearthrise.balance-candidate/1",
+ "id": "C0-copy",
+ "kind": "identity",
+ "why": "The identity proof (07-balance-lab.md section 3.2): every cut slot's copy overlay at once, so the overlay machinery itself (the whole-file overlay, the shipped module kept beside it, export * through it) must play every cell byte-identical to C0",
+ "base": "tree",
+ "variants": [
+  { "slot": "armor", "family": "copy" },
+  { "slot": "party-xp", "family": "copy" },
+  { "slot": "death-cost", "family": "copy" }
+ ],
+ "assumptions": []
+}

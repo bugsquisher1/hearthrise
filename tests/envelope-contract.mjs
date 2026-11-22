@@ -249,6 +249,16 @@ function contract(R, cs, body, tl) {
   need('hunt_after', !!ha && ha.choice === 'job' && ha.skill === null && Number.isInteger(ha.graceS) && ha.graceS > 0
     && !!ha.now && typeof ha.now.session === 'string' && ha.now.choice === 'job' && ha.now.done === null,
     'huntAfterOf yields ' + JSON.stringify(ha) + ' from ' + JSON.stringify(body.hunt_after).slice(0, 240));
+  // each ground's Setup (2026-12-05-hunt-setup-per-ground.sql `hunt_setup`, read by company-sections.js groundSetupOf for Go as and the plan)
+  const hs = body.hunt_setup;
+  const hk = hs && typeof hs === 'object' ? Object.keys(hs) : [];
+  need('hunt_setup', !!hs && typeof hs === 'object' && !Array.isArray(hs) && hk.every((k) => R.CO.groundSetupOf(cs, k) === hs[k] && Number.isInteger(hs[k]))
+    && R.CO.groundSetupOf(cs, 'no_such_ground') === null,
+    'groundSetupOf over ' + JSON.stringify(hs));
+  // the company's plan (1051-company-start.sql): a new account's lines read the defaults (Wear upgrades on, the rest hunt on), no plan ground, no seat
+  const co = R.CO.companyPlanOf(cs);
+  need('company', !!co && co.wearOn === true && co.falls === 'hunt_on' && co.planHunt === null && co.joins === null && co.leadPinned === false && co.heroes >= 1,
+    'companyPlanOf yields ' + JSON.stringify(co) + ' from ' + JSON.stringify(body.company));
   // the bag's next rung (2027-04-15-bag-expand-view.sql): the cap and bank.0 at the server's price, the Storage window's Expand
   const be = R.IS.bagExpandOf(cs);
   need('bag_expand', !!be && be.cap === 100 && be.rung === 0 && !!be.next && be.next.offer === 'bank.0' && be.next.gold === 3000 && be.next.adds === 20,
@@ -383,7 +393,7 @@ function sheetContract(R, cs, body) {
     && c.critPct !== null && !!c.role,
     'after the sheet verb characterSheetOf yields ' + JSON.stringify(sh) + ' from ' + JSON.stringify(body.character_sheet));
   const ss = R.IS.setupSlotsOf(cs);
-  need('setup_slots', !!ss && isNum(ss.count) && isNum(ss.max) && ss.count <= ss.max && (ss.price === null || isNum(ss.price)),
+  need('setup_slots', !!ss && isNum(ss.count) && isNum(ss.max) && ss.count === ss.max,
     'setupSlotsOf yields ' + JSON.stringify(ss) + ' from ' + JSON.stringify(body.setup_slots));
   const tt = R.CS.titlesOf(cs);
   need('titles', !!tt && tt.rows.length > 0 && tt.rows.every((r) => isNum(r.price) && isNum(r.kills) && isNum(r.have)),
@@ -399,7 +409,7 @@ export const CONTRACT_KEYS = Object.freeze(['hunt', 'hunt_track', 'hunt_events',
   'name', 'bag_rules', 'shop', 'hunt_presets', 'role', 'party_invites', 'party_notices', 'stamina_refill', 'blessings',
   'character_sheet', 'outfit', 'death_log', 'vitals', 'hunt_bests', 'hunt_tier', 'hunt_target_kind', 'depot', 'home', 'now', 'farm_land', 'farm_tend', 'bench_run', 'rename', 'tally',
   'skill_inputs', 'bench_tax', 'setup_slots', 'titles', 'temper', 'bag_expand', 'gm', 'hallmark', 'level', 'skill_levels', 'live_events', 'training', 'factions', 'hunt_after', 'scaled_hunts', 'boss_halls',
-  'tower', 'key_ring', 'entry_gates', 'catacomb', 'features', 'unlocked_recipes', 'hearth_fire', 'presence']);
+  'tower', 'key_ring', 'entry_gates', 'catacomb', 'features', 'unlocked_recipes', 'hearth_fire', 'presence', 'company', 'hunt_setup']);
 
 /* What lane S2's sections are seeded with before the settle (each verb through the real RPC). */
 const SEED = Object.freeze({ name: 'Contract Hero', inviter: 'Contract Inviter', lock: 'cooked_shrimp', loot: 'normal_log',
@@ -460,7 +470,7 @@ async function readers(root) {
     JW: await import(u('src/session/jewelry-sections.js')), LE: await import(u('src/session/live-event-sections.js')),
     TR: await import(u('src/session/training-sections.js')), FX: await import(u('src/session/faction-sections.js')),
     TWR: await import(u('src/session/tower-sections.js')), CAT: await import(u('src/session/catacomb-sections.js')),
-    HA: await import(u('src/session/hunt-after-sections.js')),
+    HA: await import(u('src/session/hunt-after-sections.js')), CO: await import(u('src/session/company-sections.js')),
     SH: await import(u('src/session/scaled-hunts.js')),
     BQ: await import(u('src/session/boss-quote.js')), BHL: await import(u('src/data/boss-halls.js')),
     GT: await import(u('src/session/gate-sections.js')), BC: await import(u('src/data/boss-calls.js')),
@@ -583,7 +593,7 @@ const DB_MUTANTS = [
   ['shop', 'public.hr_shop_view(uuid,integer)', "'offers', coalesce(", "'offer_list', coalesce("],
   ['hunt_presets', 'public.hr_hunt_presets_view(uuid,integer)', "'action_set', p.action_set,", "'set', p.action_set,"],
   ['role', 'public.hr_role_view(uuid,integer)', "'weapon', w.weapon_type)", "'weapon_type', w.weapon_type)"],
-  ['setup_slots', 'public.hr_setup_slots_view(uuid,integer)', "jsonb_build_object('count', least(r.free + b.n,", "jsonb_build_object('slots', least(r.free + b.n,"],
+  ['setup_slots', 'public.hr_setup_slots_view(uuid,integer)', "jsonb_build_object('count', v_lim,", "jsonb_build_object('slots', v_lim,"],
   ['titles', 'public.hr_titles_view(uuid,integer)', "'rows', coalesce(jsonb_agg(", "'list', coalesce(jsonb_agg("],
   ['titles', 'public.hr_titles_view(uuid,integer)', "'have', public.hr_title_kills(", "'count', public.hr_title_kills("],
   ['party_invites', 'public.hr_party_invites_view(uuid,integer)', "'from', public.hr_character_name(", "'sender', public.hr_character_name("],
@@ -641,6 +651,7 @@ const DB_MUTANTS = [
   ['catacomb', 'public.hr_catacomb_section(uuid,integer)', "'door_every', w0.landing_every,", "'landing_every', w0.landing_every,"],
   /* lane/c-hunt-itinerary: the hunt page's control and the analyzer's line read the grace and the running hunt's own choice */
   ['hunt_after', 'public.hr_hunt_after_section(uuid,integer)', "'grace_s', v_grace,", "'grace', v_grace,"],
+  ['company', 'public.hr_company_view(uuid,integer)', "'wear_upgrades', coalesce(", "'wear', coalesce("],
   ['hunt_after', 'public.hr_hunt_after_section(uuid,integer)', "'job', public.hr_hunt_after_job(p_user, p_slot), 'now', v_now,", "'job', public.hr_hunt_after_job(p_user, p_slot), 'running', v_now,"],
 ];
 const EDGE_MUTANTS = [

@@ -1,0 +1,3 @@
+{
+  "note": "STAGED, NOT APPLIED (lane/c-company FB-6, backend-architect, 2026-11-22; redesign direction 9, Tyler approved 2026-11-22: saving a setup is free). hr_setup_slot_buy dropped and its hr_client_rpc_baseline row deleted; hr_setups_bought dropped; hr_setups_of is the setup limit (hr_hunt_limit presets) for every hero; hr_setup_slots_view answers { count, max } (no price, nothing for sale); hr_setup_locked refuses a number past the limit with no price. Rungs already bought stay as player_progress rows and are no longer read (the EA wipe deletes them). ORDER: 1049 in its name, BEFORE 1050-setups-free-gold-sinks-catalogue.generated.sql (which drops the setup_slot sink row this file stops reading). EDGE: none."
+}

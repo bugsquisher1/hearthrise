@@ -495,7 +495,7 @@ async function prepBuilderRules(base) {
       await settle();
       return calls.map((c) => c[0] + ':' + c[1] + (c[0] === 'hr_hunt_preset_save' ? ':' + c[2] : '')).join();
     };
-    const said = [await runSave(town), await runSave(Object.assign(clone(town), { hunt: fx.hunt })), await runSave(Object.assign(clone(town), { setup_slots: { count: 0, free: 0, bought: 0, max: 5, price: 3000 } })),
+    const said = [await runSave(town), await runSave(Object.assign(clone(town), { hunt: fx.hunt })), await runSave(Object.assign(clone(town), { setup_slots: { count: 0, max: 5 } })),
       await runSave(fx)];
     if (said[0] !== 'hr_action_set_options:0,hr_hunt_preset_save:0:Hunt' || said[1] !== 'hr_action_set_options:0' || said[2] !== 'hr_action_set_options:0' || said[3] !== 'hr_action_set_options:0')
       fails.push('AW-87 Save on the bar in use with no setup row sent ' + JSON.stringify(said));

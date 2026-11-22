@@ -1,0 +1,3 @@
+{
+  "note": "STAGED, NOT APPLIED (lane/c-company FB-6, backend-architect, 2026-11-22; redesign direction 9). tools/gen-gold-sinks.mjs re-issues hr_sink_rules from src/data/gold-sinks.js without the setup_slot row (saving a setup is free). Every other row unchanged. ORDER: 1050 in its name, AFTER 1049-setups-free.sql. EDGE: none (gold-sinks.js reaches no edge import)."
+}

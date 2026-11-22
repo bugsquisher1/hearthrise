@@ -243,8 +243,9 @@ function startApp(win) {
       G.mountTownCriers(win, account)];   // the town criers' tips in Global chat (display only, never sent)
     if (liveOverlayWanted(win.location.search)) watchers.push(mountLiveOverlay(win, account));
     account.social.chat.followAlerts(alerts);   // the alerts are also the chat's System lines
-    /* arrived by a friend's link: one ask once signed in (GR-72); loaded only when the address carries a code */
-    if (friendBack) { const acc = account; import('../social/friend-link.js').then((m) => m.arriveByLink(win, acc), () => {}); }
+    /* arrived by a friend's link: one ask once signed in (GR-72), from the game half (friend-link.js is one of its modules: the Friends
+       window's link and quiet switch), never a second dynamic import(), whose own chunk split the sign-in stage's (SITE-10) */
+    if (friendBack) G.arriveByLink(win, account);
     if (!resume) account.forgetOpen();
     await showCharacters(null, resume ? account.lastOpen() : null);
   }

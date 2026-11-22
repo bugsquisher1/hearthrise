@@ -243,6 +243,25 @@ export function versionQueriesIn(src) {
   return out;
 }
 
+/* NO BALANCE VARIANT IN A BUNDLE (Balance Lab phase 3, docs/design/redesign/07-balance-lab.md section 3.2: "No runtime switch"). A
+   formula family is a file on the shelf (tools/balance-program/variants/<slot>/<slot>.<family>.js) that a SCRATCH COPY lays over a slot's
+   module, keeping the module it replaced beside it as <name>.shipped.js. Neither may ever reach the server: a payload that carries a
+   shelf file (its first line names it, `// balance-variant: <slot>/<family>`), a `.shipped.js` side copy, or any file from the shelf
+   itself is a candidate game, not the game. Pure, so tests/rule-slots.mjs --selftest proves it on planted files and on a scratch copy
+   the overlay really built. */
+export const VARIANT_MARKER_RE = /^\/\/ balance-variant: \S+/m;
+export function variantProblems(files) {
+  const out = [];
+  for (const f of files) {
+    const origin = f.origin || '';
+    const why = /\.shipped\.js$/.test(f.name) || /\.shipped\.js$/.test(origin) ? 'the shipped module a balance variant replaced (a scratch copy\'s <name>.shipped.js)'
+      : origin.startsWith('tools/balance-program/variants/') ? 'a file from the balance variant shelf (' + origin + ')'
+        : VARIANT_MARKER_RE.test(f.content || '') ? 'a balance variant (' + (f.content.match(VARIANT_MARKER_RE) || [''])[0].slice(3) + ')' : null;
+    if (why) out.push(`${f.name}: ${why} — a candidate game plays only on a scratch copy; the server carries no rule switch and no variant (07-balance-lab.md 3.2)`);
+  }
+  return out;
+}
+
 /** Apply the two — and only two — prefix substitutions, then the strip. */
 export function rewriteFunctionSource(src) {
   return stripVersionQueries(
@@ -369,6 +388,7 @@ export async function pack(fnName) {
         + `"Module not found". A ?v= cache-buster is a browser mechanism and must not reach the payload.`);
     }
   }
+  problems.push(...variantProblems(out));
 
   /* THE FINGERPRINT. Taken over the payload as it stands — with payload-hash.js
      still carrying the placeholder — and then stamped into that one file. The
@@ -401,6 +421,7 @@ export async function pack(fnName) {
  *   • a function file round-trips: `unrewrite(packed) === disk`;
  *   • no `../../../src/` survived into a packed function file;
  *   • no relative specifier in the payload still carries a `?v=` (in pack());
+ *   • no balance variant, shelf file or `.shipped.js` side copy is in the payload (variantProblems, in pack());
  *   • no file under `supabase/functions/**` carries a `?v=` ON DISK either —
  *     `bump-version.sh` cannot reach them, so a version there can only drift;
  *   • the repo's payload-hash.js still holds the placeholder, never a stale hash.

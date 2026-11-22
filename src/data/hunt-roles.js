@@ -52,6 +52,10 @@ export const HUNT_ROLES = Object.freeze({
 /* WHO LEADS THE PULL (spec §3.2 #3, ASSUMED): the first hero in this order, ties by unit id. */
 export const ROLE_ORDER = Object.freeze(['tank', 'melee_dps', 'ranger', 'mage', 'healer']);
 
+/* The armor weight that suits each role (Tamsin's first card, src/data/hunt-tutorial.js; the upgrade pick's tie-break, src/core/upgrade-pick.js
+   preferredWeight): the one row both read. */
+export const WEIGHT_FOR_ROLE = Object.freeze({ tank: 'heavy', melee_dps: 'heavy', ranger: 'medium', mage: 'light', healer: 'light' });
+
 /* THE ROLE KEYS: what a worn set plays. key → { roles (the first the default), discipline (the
    src/data/abilities.js DISCIPLINES list the bar may hold) }. The key is roleKeyOf(weapon, off-hand):
    the weapon's roleWeaponOf key (its weaponType; a magic weapon by its `discipline`, gear-tiers.js:

@@ -30,7 +30,6 @@
 import { askVia } from './intent-ledger.js';
 import { afterRefusal } from './quoted-ask.js';
 import { settleTownActivity } from './party-intents.js';
-import { edgeBody, edgeRead } from './edge-intents.js';
 import { huntOf } from './hunt-sections.js';
 
 const VERB = 'carry_on';
@@ -122,12 +121,11 @@ function woreOf(heroes) {
 /** "WEAR UPGRADES": the server picks and wears for the named heroes (hr-accrue company_wear). Names slots only. */
 export function companyWear(account, cs, slots) {
   const scope = scopeOf(slots);
-  if (!usable(account, cs) || !scope || typeof account.server.accrue !== 'function') return Promise.resolve({ ok: false, error: 'bad_intent', verb: 'company_wear', heroes: [] });
+  if (!usable(account, cs) || !scope || typeof cs.edgeIntent !== 'function') return Promise.resolve({ ok: false, error: 'bad_intent', verb: 'company_wear', heroes: [] });
   return askVia(cs, 'company_wear', async () => {
-    const body = edgeBody(cs.slot, 'company_wear', { slots: scope }, newIdem());
-    if (!body) return { ok: false, error: 'bad_intent', verb: 'company_wear', heroes: [] };
-    const r = edgeRead(await account.server.accrue(body));
-    if (!r.ok) { await afterRefusal(cs, { ok: true, body: { ok: false, error: r.error } }); return { ok: false, error: r.error || 'refused', verb: 'company_wear', heroes: [] }; }
+    /* the engine's answer as it stands (CharacterSession.edgeIntent's read: nothing applied there), then each hero's envelope below */
+    const r = await cs.edgeIntent('company_wear', { slots: scope }, true);
+    if (!r || !r.ok) { await afterRefusal(cs, { ok: true, body: { ok: false, error: r && r.error } }); return { ok: false, error: (r && r.error) || 'refused', verb: 'company_wear', heroes: [] }; }
     /* every named hero as the wear left it (`envelopes` by slot, rule 11) */
     const envs = isObj(r.body.envelopes) ? r.body.envelopes : {};
     const all = typeof account.characters === 'function' ? account.characters() : [cs];

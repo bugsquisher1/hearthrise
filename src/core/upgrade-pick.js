@@ -132,7 +132,7 @@ const setCritOf = (worn) => { const { setBonus } = loadoutOf(worn, ITEMS); retur
 const tierStep = (it, cur) => !!cur && it.type === 'armor' && cur.type === 'armor' && num(it.tier) > num(cur.tier);
 
 /** A worn armor piece (a catalogue row) of a weight other than `chosen`, the one the hero picked at Tamsin's (null: none picked, so nothing is off it).
-    Jewelry, capes, weapons and shields carry no weight and are never off it. Next buy's "where that weight comes from" reads it (next-buy.js findPiece). */
+    Jewelry, capes, weapons and shields carry no weight and are never off it. Next buy's line on where to find that weight reads it (next-buy.js findPiece). */
 export function offWeight(cur, chosen) {
   return !!cur && PREFER.has(chosen) && ARMOUR_SLOTS.includes(cur.slot) && PREFER.has(weightOf(cur)) && weightOf(cur) !== chosen;
 }
@@ -140,7 +140,7 @@ export function offWeight(cur, chosen) {
 const notLower = (it, cur) => (Number.isFinite(it.tier) && Number.isFinite(cur.tier) ? it.tier >= cur.tier : num(it.reqLv) >= num(cur.reqLv));
 /**
  * THE WEIGHT RULE (the header; designer ruling 2b of 2026-11-18), the ONE reader Equip upgrades (bestFor), Next buy (next-buy.js, through
- * upgradePlan) and its "where that weight comes from" line (findPiece) share: may `it` take the slot `cur` holds (catalogue rows; `cur` null:
+ * upgradePlan) and its line on where to find that weight (findPiece) share: may `it` take the slot `cur` holds (catalogue rows; `cur` null:
  * bare) for a hero who chose `chosen` at Tamsin's? Bare: any weight. Worn off the chosen weight: only that weight, the same tier or higher.
  * Worn otherwise (of the chosen weight, no weight chosen, or a piece with none): only the worn piece's own weight. Pure.
  */
@@ -332,7 +332,7 @@ export function wearInputOf(read) {
 
 /**
  * The wear lines for the heroes going out ([{ slot, input }] in slot order, input: wearInputOf's): each hero's own bag first, then across the
- * company a piece another going hero holds and does not wear (`from`: the server passes it through the account's Storage, D-2 rule 4).
+ * company a piece another going hero holds and does not wear (its `from` slot: the server passes it through the account's Storage, D-2 rule 4).
  * A trade-off is never on it (it stays a choice: a "Needs you" row). At most 48 lines. Pure.
  * @returns {{ slot:number, equip_slot:string, item:string, from?:number }[]}
  */

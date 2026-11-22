@@ -281,7 +281,8 @@ async function tickerRules(base) {
     workLine('smelt_bronze', { copper_ore: 40 }, Object.assign({ bench_run: { left: 5 } }, tally('smelt_bronze', T0, 3)), 2 * sstep + 100),
     workLine('cook_shrimp', { shrimp: 6 }, Object.assign({ bench_run: { left: 6 } }, tally('cook_shrimp', T0, 0)), 2 * cstep + 100),
     workLine('fuel_bones', { bones: 8 }, { bench_run: { left: 2 } }),
-    /* 1026-job-counts.sql: the server's whole count wins over the tally, and the job's THEN is said; a Hearth errand of one says none */
+    /* 1026-job-counts.sql: the server's whole count wins over the tally, and the job's THEN is said; a Hearth errand of one says none.
+       A THEN the data no longer lists (hunt, withdrawn by FB-10's re-cut) reads as the default, wait. */
     workLine('smelt_bronze', { copper_ore: 40 }, { bench_run: { left: 5, count: 9, next: 'hunt' } }),
     workLine('fuel_bones', { bones: 8 }, { bench_run: { left: 1, count: 1, next: null } }),
   ];
@@ -290,7 +291,7 @@ async function tickerRules(base) {
   const countedWant = ['Making Etched Water Rune: 45 of 300 left' + W8, 'Making Etched Water Rune: 45 of 45 left' + W8, 'Making Etched Water Rune: 45 left' + W8,
     'Making Etched Water Rune: 45 of 300 left. Stops when materials run out', 'Making Etched Water Rune: 8,300 Blank Rune left. Stops when materials run out',
     'Making Bronze Bar: 3 of 8 left' + W8, 'Cooking Raw Shrimp: 2 more on the fire, 4 of 6 left' + W8, 'Fueling the Great Hearth with Bones: 2 left' + W8,
-    'Making Bronze Bar: 5 of 9 left. Then goes back to hunting', 'Fueling the Great Hearth with Bones: 1 of 1 left'];
+    'Making Bronze Bar: 5 of 9 left' + W8, 'Fueling the Great Hearth with Bones: 1 of 1 left'];
   const smeltCs = hero(envOf('artisan', 'smelt_bronze', { copper_ore: 40 }, Object.assign({ bench_run: { left: 5 } }, tally('smelt_bronze', T0, 3))));
   smeltCs.clock = T0 + 2 * sstep + 100;
   const smeltAhead = TW.nowParts(smeltCs).filter((p) => p.ahead).map((p) => p.text).join('|');

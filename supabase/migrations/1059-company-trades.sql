@@ -119,24 +119,28 @@ comment on table public.company_trades is
   '1059-company-trades.sql: the one copy of a company''s trade XP (Tyler CR-Q1 a). Every hero''s player_skills row for a trade is its projection (hr_trade_row_sync).';
 
 -- ── §2 WHAT A TRADE IS, AND THE ACCOUNT'S TRADE KEY ──────────────────────────
+-- plpgsql, not sql: each is called per row or per settle, and a plpgsql body's plan is cached for the backend (tests/settle-budget.mjs SB-3).
 create or replace function public.hr_trade_is(p_skill text)
-returns boolean language sql stable set search_path = public, pg_catalog as $fn$
+returns boolean language plpgsql stable set search_path = public, pg_catalog as $fn$
+begin
   -- COMPANY-TRADES (1059-company-trades.sql): a skill whose catalogue category is a trade category (hr_work_day, src/data/work-day.js).
-  select exists (select 1 from public.hr_skills k join public.hr_work_day w on w.id
-                  where k.skill_id = p_skill and k.cat = any (w.trade_cats))
-$fn$;
+  return exists (select 1 from public.hr_skills k join public.hr_work_day w on w.id
+                  where k.skill_id = p_skill and k.cat = any (w.trade_cats));
+end $fn$;
 
 create or replace function public.hr_trade_lock(p_user uuid)
-returns void language sql set search_path = public, pg_catalog as $fn$
+returns void language plpgsql set search_path = public, pg_catalog as $fn$
+begin
   -- COMPANY-TRADES (1059-company-trades.sql): the account's trade key, the last lock a writer of trade XP takes (header, CONCURRENCY).
-  select pg_advisory_xact_lock(hashtextextended('hr_trades:' || p_user::text, 0))
-$fn$;
+  perform pg_advisory_xact_lock(hashtextextended('hr_trades:' || p_user::text, 0));
+end $fn$;
 
 create or replace function public.hr_work_kinds()
-returns text[] language sql stable set search_path = public, pg_catalog as $fn$
+returns text[] language plpgsql stable set search_path = public, pg_catalog as $fn$
+begin
   -- COMPANY-TRADES (1059-company-trades.sql): the pointer kinds that are town work (hr_work_day, src/data/work-day.js WORK_KINDS).
-  select coalesce((select w.work_kinds from public.hr_work_day w where w.id), '{}'::text[])
-$fn$;
+  return coalesce((select w.work_kinds from public.hr_work_day w where w.id), '{}'::text[]);
+end $fn$;
 
 -- ── §3 THE FOLD: EACH COMPANY'S BEST, ON EVERY HERO (once; a second apply writes nothing) ─────────────────────────────────────
 drop trigger if exists hr_trade_row_sync on public.player_skills;
@@ -257,33 +261,37 @@ begin
 end $fn$;
 
 create or replace function public.hr_work_base_ms(p_user uuid, p_slot integer)
-returns bigint language sql stable set search_path = public, pg_catalog as $fn$
+returns bigint language plpgsql stable set search_path = public, pg_catalog as $fn$
+begin
   -- WORK-DAY (1059-company-trades.sql): the hero's base work day, the free day or the free day and Premium's extra (CR-Q3 b).
-  select ((w.free_min + case when public.hr_premium_active(p_user, p_slot, now()) then w.premium_extra_min else 0 end)::bigint * 60000)
-    from public.hr_work_day w where w.id
-$fn$;
+  return (select ((w.free_min + case when public.hr_premium_active(p_user, p_slot, now()) then w.premium_extra_min else 0 end)::bigint * 60000)
+            from public.hr_work_day w where w.id);
+end $fn$;
 
 create or replace function public.hr_work_extra_ms(p_user uuid, p_slot integer)
-returns bigint language sql stable set search_path = public, pg_catalog as $fn$
+returns bigint language plpgsql stable set search_path = public, pg_catalog as $fn$
+declare v_block bigint;
+begin
   -- WORK-DAY (1059-company-trades.sql): THE HOOK for bought work (Tyler 2026-11-22: 2 h blocks, x1.5, at most 4 a day; a later slice).
   -- Today's bought blocks of kind `work` (player_ledger kind shop, intent time_buy:work:<price>, the prefix hr_time_buy journals) times
   -- that kind's block. Until hr_time_blocks has a `work` row the ledger is not read and this is 0.
-  select case when not exists (select 1 from public.hr_time_blocks b where b.kind = 'work') then 0::bigint
-              else (select b.block_min::bigint * 60000 from public.hr_time_blocks b where b.kind = 'work')
-                 * (select count(*) from public.player_ledger l
+  select b.block_min::bigint * 60000 into v_block from public.hr_time_blocks b where b.kind = 'work';
+  if v_block is null then return 0; end if;
+  return v_block * (select count(*) from public.player_ledger l
                      where l.user_id = p_user and l.slot = p_slot and l.kind = 'shop' and l.intent like 'time\_buy:work:%'
-                       and l.at >= public.hr_utc_day_start(now())) end
-$fn$;
+                       and l.at >= public.hr_utc_day_start(now()));
+end $fn$;
 
 create or replace function public.hr_work_state(p_user uuid, p_slot integer)
-returns jsonb language sql stable security definer set search_path = public, pg_catalog as $fn$
+returns jsonb language plpgsql stable security definer set search_path = public, pg_catalog as $fn$
+begin
   -- WORK-DAY (1059-company-trades.sql): what the ENGINE reads of the hero's work day (src/core/work-day.js workStateOf): the server's
   -- today, the stored day and its ms, the base day and today's bought work. The `work_day` section and the world tick's town read
   -- (hr_tick_town_state) both carry it, so the engine's inputs are one definition on every door.
-  select jsonb_build_object('today', ((now() at time zone 'utc')::date)::text, 'day', ps.work_day::text, 'used_ms', ps.work_ms,
-           'base_ms', public.hr_work_base_ms(p_user, p_slot), 'extra_ms', public.hr_work_extra_ms(p_user, p_slot))
-    from public.player_state ps where ps.user_id = p_user and ps.slot = p_slot
-$fn$;
+  return (select jsonb_build_object('today', ((now() at time zone 'utc')::date)::text, 'day', ps.work_day::text, 'used_ms', ps.work_ms,
+                   'base_ms', public.hr_work_base_ms(p_user, p_slot), 'extra_ms', public.hr_work_extra_ms(p_user, p_slot))
+            from public.player_state ps where ps.user_id = p_user and ps.slot = p_slot);
+end $fn$;
 
 create or replace function public.hr_work_day_view(p_user uuid, p_slot integer)
 returns jsonb language plpgsql stable security definer set search_path = public, pg_catalog as $fn$

@@ -899,9 +899,10 @@ export async function collectCurrentWindow(o) {
      again. Above the floor this branch is unreachable by construction: a
      full-minute window that produced literally nothing is still worth stamping,
      because the alternative is re-simulating it forever. */
-  /* A WINDOW THAT ENDS THE JOB is always written, value or not: the work day's end (1059-company-trades.sql) can leave nothing to
-     pay and no later window that would (its stop does not move), and an unwritten end would leave the hero "working" forever. */
-  if (out.grantMs < ACCRUE_MIN_MS && !deltaHasValue(out.delta) && !(out.delta && out.delta.activity)) {
+  /* A SETTLE THAT ENDS THE JOB is always written, value or not: the work day's end (1059-company-trades.sql) can leave nothing to
+     pay and no later window that would (its stop does not move), and an unwritten end would leave the hero "working" forever. A
+     switch's collect needs no such write: the switch that follows replaces the pointer itself. */
+  if (out.grantMs < ACCRUE_MIN_MS && !deltaHasValue(out.delta) && !(pointerSurvives && out.delta && out.delta.activity)) {
     return { outcome: 'nothing', version: env.version, reason: 'below_min_span' };
   }
 

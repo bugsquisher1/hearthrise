@@ -68,6 +68,7 @@ import { engineInputsFromEnvelope, ENGINE_INPUT_KEYS }
 import { computeAccrual, CALLER_AUTHORITY } from '../supabase/functions/hr-accrue/accrual.js';
 import { ITEMS } from '../src/data/items.js';
 import { MONSTERS } from '../src/data/monsters.js';
+import * as WORK from '../src/core/work-day.js';
 import { GATHER_NODES, ARTISAN_RECIPES_ALL } from '../supabase/functions/hr-accrue/catalogue.js';
 
 const ARGS = process.argv.slice(2);
@@ -628,6 +629,8 @@ try {
       bagCap: { from: 'bank_cap', level: 'state' },
       /* THE WORK BENCH TAX (2027-02-19-bench-tax.sql): the whole section, read at the top level. */
       benchTax: { from: 'bench_tax', level: 'top' },
+      /* THE HERO'S WORK DAY (1059-company-trades.sql): the `work_day` section, read at the top level (src/core/work-day.js workStateOf). */
+      workDay: { from: 'work_day', level: 'top' },
     };
 
     const declared = Object.keys(SOURCES);
@@ -703,6 +706,7 @@ try {
       storage: env.skill_inputs && env.skill_inputs.from && env.skill_inputs.from.includes('storage') ? env.bank : null,
       bagCap: env.state.bank_cap,
       benchTax: env.bench_tax,
+      workDay: WORK.workStateOf(env.work_day),
     };
     const wrongValue = Object.keys(EXPECT).filter((k) => !same(hy[k], EXPECT[k]));
     judge('H5b', wrongValue.length === 0,

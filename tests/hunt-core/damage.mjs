@@ -464,7 +464,7 @@ const mutants = [
   { name: 'a status tick is dodged', case: 'armour-dodge', edits: [[D, ' && !(ability && ability.dot) ?', ' ?']] },
   { name: 'dodge read as percent', case: 'armour-dodge', edits: [[D, '  if (dodgePm > 0 && sc.rng.chance(dodgePm / 1000)) {', '  if (dodgePm > 0 && sc.rng.chance(dodgePm / 100)) {']] },
   { name: 'dmg forgets its ability', case: 'kill-hand-off', edits: [[D, "    ability: (ability && ability.id) || 'basic', element: element || null, ...(crit ? { crit: true } : {}),", '    element: element || null, ...(crit ? { crit: true } : {}),']] },
-  { name: 'a killed hero gets back up', case: 'kill-hand-off', edits: [['src/core/hunt/pull-cycle.js', "  if (isMonster(u)) { u.deadMs = 0; return; }\n  u.spot = null;", "  if (isMonster(u)) { u.deadMs = 0; return; }\n  u.alive = true; u.hp = 1; u.spot = null;"]] },
+  { name: 'a killed hero gets back up', case: 'kill-hand-off', edits: [['src/core/hunt/pull-cycle.js', "    return;\n  }\n  u.spot = null;", "    return;\n  }\n  u.alive = true; u.hp = 1; u.spot = null;"]] },
   { name: 'Melee swings on the move', case: 'ranged-fires-on-move', edits: [[D, '    if (!row || (row.melee && !atRest(u)) || !inRange(inst, u, t)) continue;', '    if (!row || !inRange(inst, u, t)) continue;']] },
   { name: 'a shot is priced by the loaded ammo, not the item it spent', case: 'blow-priced-by-the-item-spent',
     edits: [[D, "  if (h && isMonster(t) && price !== undefined && (price !== h.ammo || basic) && typeof h.shotRolls === 'function') {", '  if (false) {']] },

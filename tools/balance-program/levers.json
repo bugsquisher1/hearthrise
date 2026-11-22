@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "e224de20f35bb86c",
+ "authored": "c0bbe6515d11c021",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -63,7 +63,7 @@
   "dead": "nothing on the hunt path reads it: a perturbation changes no outcome"
  },
  "counts": {
-  "levers": 165,
+  "levers": 173,
   "byCategory": {
    "base-damage": 12,
    "skill-scaling": 9,
@@ -76,9 +76,9 @@
    "crit": 3,
    "leech": 2,
    "regen": 4,
-   "monster-stats": 21,
-   "spawn": 7,
-   "monster-rewards": 11,
+   "monster-stats": 23,
+   "spawn": 11,
+   "monster-rewards": 13,
    "rare-drops": 6,
    "equipment": 9,
    "imbuements": 1,
@@ -87,41 +87,41 @@
    "economy": 27
   },
   "byClass": {
-   "global": 69,
-   "archetype": 23,
+   "global": 75,
+   "archetype": 24,
    "content": 46,
-   "exception-intentional": 16,
+   "exception-intentional": 17,
    "exception-accidental": 11
   },
   "byPerturb": {
    "knob": 31,
    "not-playable:dead": 8,
    "patch": 75,
-   "not-playable:player-policy": 1,
+   "not-playable:player-policy": 2,
    "not-playable:outside-hunt": 19,
    "not-playable:harness-fixed": 6,
-   "not-playable:not-in-runs": 10,
+   "not-playable:not-in-runs": 16,
    "variant": 5,
    "not-playable:not-built": 5,
-   "not-playable:sql-only": 5
+   "not-playable:sql-only": 6
   },
   "byTest": {
-   "asserted": 54,
+   "asserted": 62,
    "mentioned only": 91,
    "none": 20
   },
   "flags": {
-   "redundant": 40,
+   "redundant": 41,
    "ineffective": 35,
    "contradictory": 40
   }
  },
  "census": {
-  "bindings": 646,
-  "typed": 15625,
-  "files": 218,
-  "lever": 274,
-  "notLever": 372,
+  "bindings": 652,
+  "typed": 15649,
+  "files": 219,
+  "lever": 279,
+  "notLever": 373,
   "unclaimed": 0
  },
  "problems": [],
@@ -4331,14 +4331,14 @@
     "mentions": [
      "tests/accrual-engine.mjs",
      "tests/alpha-windows-inventory.mjs",
+     "tests/hunt-core/danger.mjs",
      "tests/hunt-core/engine-parity.mjs",
      "tests/hunt-core/first-week-bands.mjs",
      "tests/hunt-core/grid.mjs",
      "tests/hunt-core/leash.mjs",
-     "tests/hunt-core/necrotic-storm.mjs",
-     "tests/hunt-core/pull-cycle.mjs"
+     "tests/hunt-core/necrotic-storm.mjs"
     ],
-    "mentionCount": 15,
+    "mentionCount": 16,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -5219,7 +5219,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 106,
+    "mentionCount": 107,
     "verdict": "asserted"
    },
    "perturb": {
@@ -5604,7 +5604,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 106,
+    "mentionCount": 107,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -5677,15 +5677,15 @@
     "asserts": [],
     "mentions": [
      "tests/accrual-engine.mjs",
+     "tests/hunt-core/danger.mjs",
      "tests/hunt-core/engine-parity.mjs",
      "tests/hunt-core/first-week-bands.mjs",
      "tests/hunt-core/grid.mjs",
      "tests/hunt-core/leash.mjs",
      "tests/hunt-core/pull-cycle.mjs",
-     "tests/hunt-core/world-state.mjs",
-     "tests/hunt-live.mjs"
+     "tests/hunt-core/world-state.mjs"
     ],
-    "mentionCount": 9,
+    "mentionCount": 10,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -6167,7 +6167,7 @@
      "tests/boss-call.mjs",
      "tests/boss-hall-advice.mjs"
     ],
-    "mentionCount": 40,
+    "mentionCount": 41,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -6255,7 +6255,7 @@
      "tests/boss-call.mjs",
      "tests/boss-hall-advice.mjs"
     ],
-    "mentionCount": 41,
+    "mentionCount": 42,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -6543,15 +6543,15 @@
     "asserts": [],
     "mentions": [
      "tests/accrual-engine.mjs",
+     "tests/hunt-core/danger.mjs",
      "tests/hunt-core/engine-parity.mjs",
      "tests/hunt-core/first-week-bands.mjs",
      "tests/hunt-core/grid.mjs",
      "tests/hunt-core/leash.mjs",
      "tests/hunt-core/pull-cycle.mjs",
-     "tests/hunt-core/world-state.mjs",
-     "tests/hunt-live.mjs"
+     "tests/hunt-core/world-state.mjs"
     ],
-    "mentionCount": 9,
+    "mentionCount": 10,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -6618,6 +6618,564 @@
     }
    ],
    "evidence": "CONFIRMED (read)"
+  },
+  {
+   "id": "danger.power-step",
+   "category": "monster-stats",
+   "name": "Danger power step",
+   "sites": [
+    {
+     "file": "src/data/danger.js",
+     "line": 73,
+     "text": "powerStep: 0.0035,",
+     "binding": "DANGER"
+    }
+   ],
+   "definition": "each Danger step multiplies a pull's total HP and total blow by (1 + powerStep); a monster's aim and Level stay its row's, so the growth lands once on each",
+   "range": "0.25% to 0.5% (04 section 1: a gear tier must be felt, a company a tier behind must still hunt its ground). STATED 0.35%",
+   "touches": "where a company holds on the scale (MEASURED V1: a Steady four at Level 60 on Muster holds ~590, +3 Levels +7 steps, a weapon band back -15 to -24)",
+   "outcomes": [
+    "dps",
+    "dpsHero",
+    "ttkS",
+    "killsPerH",
+    "levelXpPerH",
+    "netPerH",
+    "hoursPerLevel",
+    "xContract",
+    "takenPerH",
+    "healPerH",
+    "deathsPer1000h",
+    "lowHpTypical",
+    "lowHpP10",
+    "hpUnder30",
+    "hpUnder10",
+    "netLevelXpPerH",
+    "storePerH",
+    "suppliesPerH",
+    "huntedShare"
+   ],
+   "formulas": [
+    "C-TIER",
+    "C-MON-STATS"
+   ],
+   "reach": {
+    "feeds": 16,
+    "closure": 77
+   },
+   "class": "global",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/hunt-core/danger.mjs",
+      "what": "scale: a pull's HP and blow grow by exactly (1 + powerStep) a step",
+      "reads": [
+       "DANGER"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/boss-call-db.mjs",
+     "tests/boss-call-window.mjs",
+     "tests/danger-db.mjs",
+     "tests/hunt-core/danger.mjs"
+    ],
+    "mentionCount": 4,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "not-in-runs",
+    "note": "the V1 probe plays it (a patch of this line moves its held step); no matrix run plans a stance",
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "MEASURED (v1-climb.mjs, 8 seeds x 12 h a cell, 2026-11-22)"
+  },
+  {
+   "id": "danger.pull",
+   "category": "spawn",
+   "name": "Danger pull growth",
+   "sites": [
+    {
+     "file": "src/data/danger.js",
+     "line": 74,
+     "text": "pullStep: 0.00175,",
+     "binding": "DANGER"
+    },
+    {
+     "file": "src/data/danger.js",
+     "line": 76,
+     "text": "pullMax: 8,",
+     "binding": "DANGER"
+    },
+    {
+     "file": "src/data/danger.js",
+     "line": 79,
+     "text": "stepMax: 4000,",
+     "binding": "DANGER"
+    }
+   ],
+   "definition": "about half of each step arrives as more monsters: the pull is the as-built mean x (1 + pullStep)^step, held to a full box (pullMax), each monster carrying the rest; no step past stepMax",
+   "range": "pullStep 0 to powerStep (04 is silent on the split); pullMax a full box (DENSITY_FULL_BOX 8); stepMax keeps every number a safe float",
+   "touches": "how many stand in a pull on the scale, so the kill rate and the coin a pull pays",
+   "outcomes": [
+    "dps",
+    "dpsHero",
+    "ttkS",
+    "killsPerH",
+    "levelXpPerH",
+    "netPerH",
+    "hoursPerLevel",
+    "xContract"
+   ],
+   "formulas": [
+    "C-PULL",
+    "E10"
+   ],
+   "reach": {
+    "feeds": 3,
+    "closure": 77
+   },
+   "class": "global",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/hunt-core/danger.mjs",
+      "what": "scale: no jump across a size change",
+      "reads": [
+       "DANGER"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/boss-call-db.mjs",
+     "tests/boss-call-window.mjs",
+     "tests/danger-db.mjs",
+     "tests/hunt-core/danger.mjs"
+    ],
+    "mentionCount": 4,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "not-in-runs",
+    "note": "played by the V1 probe only",
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "STATED (src/data/danger.js), CONFIRMED (read)"
+  },
+  {
+   "id": "danger.readiness",
+   "category": "spawn",
+   "name": "Pulls on readiness",
+   "sites": [
+    {
+     "file": "src/data/danger.js",
+     "line": 80,
+     "text": "readyPm: 800,",
+     "binding": "DANGER"
+    },
+    {
+     "file": "src/data/danger.js",
+     "line": 77,
+     "text": "respawnMs: 15000,",
+     "binding": "DANGER"
+    }
+   ],
+   "definition": "on the scale the party leaves its regroup only when every standing hero is at readyPm of max HP (HP only), and a cleared pack is back after respawnMs, so the pace is the party's",
+   "range": "readyPm 1..1000 permille; respawnMs short enough that six pockets never wait on it (04 section 8)",
+   "touches": "pace: damage taken costs time before it costs a life (04 section 9: slowing rest tenfold moved pace under 2% on the tiers)",
+   "outcomes": [
+    "dps",
+    "dpsHero",
+    "ttkS",
+    "killsPerH",
+    "levelXpPerH",
+    "netPerH",
+    "hoursPerLevel",
+    "xContract",
+    "levelXpPerH",
+    "netLevelXpPerH",
+    "hoursPerLevel",
+    "xContract"
+   ],
+   "formulas": [
+    "E11"
+   ],
+   "reach": {
+    "feeds": 1,
+    "closure": 79
+   },
+   "class": "global",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/hunt-core/danger.mjs",
+      "what": "ready: the regroup waits for readyPm",
+      "reads": [
+       "DANGER"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/boss-call-db.mjs",
+     "tests/boss-call-window.mjs",
+     "tests/danger-db.mjs",
+     "tests/hunt-core/danger.mjs"
+    ],
+    "mentionCount": 4,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "not-in-runs",
+    "note": "played by the V1 probe only",
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "STATED, CONFIRMED (read)"
+  },
+  {
+   "id": "danger.start",
+   "category": "spawn",
+   "name": "Danger start margin",
+   "sites": [
+    {
+     "file": "src/data/danger.js",
+     "line": 81,
+     "text": "startMargin: 20,",
+     "binding": "DANGER"
+    }
+   ],
+   "definition": "a hunt opens startMargin steps under the LOWEST step any seated hero last held on that ground (0 for none); the server freezes it (1056-danger-scale.sql hr_danger_freeze)",
+   "range": "whole steps, 0 or more. The doubling climb finds 20 steps in five clean pulls; V1's above cell lost heroes started at a stronger company's step",
+   "touches": "the first minutes of a hunt on the scale: too small risks deaths at the open, too big pays the climb again",
+   "outcomes": [
+    "takenPerH",
+    "healPerH",
+    "deathsPer1000h",
+    "lowHpTypical",
+    "lowHpP10",
+    "hpUnder30",
+    "hpUnder10",
+    "netLevelXpPerH",
+    "storePerH",
+    "suppliesPerH",
+    "huntedShare"
+   ],
+   "formulas": [
+    "C-TIER"
+   ],
+   "reach": {
+    "feeds": 8,
+    "closure": 78
+   },
+   "class": "global",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/danger-db.mjs",
+      "what": "DZ-1 and DZ-4: the start a margin under the lowest held step",
+      "reads": [
+       "DANGER"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/boss-call-db.mjs",
+     "tests/boss-call-window.mjs",
+     "tests/danger-db.mjs",
+     "tests/hunt-core/danger.mjs"
+    ],
+    "mentionCount": 4,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "sql-only",
+    "note": "the server freezes the start; the probe plays a start by its own --start-from margin",
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "STATED (the probe's --start-from margin)"
+  },
+  {
+   "id": "danger.climb",
+   "category": "spawn",
+   "name": "The climb and the fall back",
+   "sites": [
+    {
+     "file": "src/data/danger.js",
+     "line": 90,
+     "text": "export const CLIMB = Object.freeze({ cleanRun: 2, climbMax: 8, fallSteps: 18, deathSteps: 120, coolPulls: 10 });",
+     "binding": "CLIMB"
+    }
+   ],
+   "definition": "cleanRun cleared clean pulls climb, each climb twice the last up to climbMax; a fall back is fallSteps down, a death deathSteps, then coolPulls pulls of steadying",
+   "range": "whole steps and pulls. V1: a 6-step fall with no cool-down let Steady die (15 deaths in 8 days); 18 with 10 pulls of steadying none in 48",
+   "touches": "how fast a company finds its edge and how far it falls; the server bounds a window's climb by it (hr_danger_bound)",
+   "outcomes": [
+    "takenPerH",
+    "healPerH",
+    "deathsPer1000h",
+    "lowHpTypical",
+    "lowHpP10",
+    "hpUnder30",
+    "hpUnder10",
+    "netLevelXpPerH",
+    "storePerH",
+    "suppliesPerH",
+    "huntedShare"
+   ],
+   "formulas": [
+    "C-TIER"
+   ],
+   "reach": {
+    "feeds": 8,
+    "closure": 78
+   },
+   "class": "global",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/hunt-core/danger.mjs",
+      "what": "rule: the climb, the fall back, the cool-down",
+      "reads": [
+       "CLIMB"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/alpha-server.mjs",
+     "tests/danger-db.mjs",
+     "tests/hunt-core/danger.mjs",
+     "tests/hunt-core/forest-cave.mjs",
+     "tests/shell-core.mjs",
+     "tests/tower-board.mjs",
+     "tests/tower-chest.mjs",
+     "tests/tower-climb.mjs"
+    ],
+    "mentionCount": 11,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "not-in-runs",
+    "note": "played by the V1 probe only",
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "MEASURED (V1, V1.1: 12 seeds x 12 h x 4 cells)"
+  },
+  {
+   "id": "danger.stances",
+   "category": "monster-stats",
+   "name": "Risk stance thresholds",
+   "sites": [
+    {
+     "file": "src/data/danger.js",
+     "line": 97,
+     "text": "careful: Object.freeze({ fallPm: 450, cleanPm: 650, afterDeath: 'careful' }),",
+     "binding": "RISKS"
+    },
+    {
+     "file": "src/data/danger.js",
+     "line": 98,
+     "text": "steady: Object.freeze({ fallPm: 250, cleanPm: 450, afterDeath: 'careful' }),",
+     "binding": "RISKS"
+    },
+    {
+     "file": "src/data/danger.js",
+     "line": 99,
+     "text": "bold: Object.freeze({ fallPm: 120, cleanPm: 300, afterDeath: 'steady' }),",
+     "binding": "RISKS"
+    }
+   ],
+   "definition": "a stance is its fall back trigger and its climb threshold, permille of max HP read on the lowest HP any hero reached in a pull; a death settles it one notch safer",
+   "range": "fallPm < cleanPm <= 1000. RD-Q3 a: Careful and Steady never die, Bold is the only stance that can",
+   "touches": "where a company holds and how often it dies: Steady 250/450 and Careful 0 deaths in 48 seed-days, Bold 120/300 0.4 to 1.1 deaths a day",
+   "outcomes": [
+    "takenPerH",
+    "healPerH",
+    "deathsPer1000h",
+    "lowHpTypical",
+    "lowHpP10",
+    "hpUnder30",
+    "hpUnder10",
+    "netLevelXpPerH",
+    "storePerH",
+    "suppliesPerH",
+    "huntedShare"
+   ],
+   "formulas": [
+    "C-TIER"
+   ],
+   "reach": {
+    "feeds": 8,
+    "closure": 78
+   },
+   "class": "archetype",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/hunt-core/danger.mjs",
+      "what": "rule and breakoff: the trigger and the climb threshold",
+      "reads": [
+       "RISKS"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/boss-call-db.mjs",
+     "tests/boss-call-window.mjs",
+     "tests/hunt-core/danger.mjs"
+    ],
+    "mentionCount": 3,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "player-policy",
+    "note": "the stance is the player's risk choice; the V1 and V2 probes play each",
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "MEASURED (V1.1, v2-stance.mjs)"
+  },
+  {
+   "id": "danger.pay",
+   "category": "monster-rewards",
+   "name": "Pay by depth",
+   "sites": [
+    {
+     "file": "src/data/danger.js",
+     "line": 84,
+     "text": "export const PAY = Object.freeze({ refKillsHead: 120, payStepXp: 0.007, payStepCoin: 0.007, gapMax: 120 });",
+     "binding": "PAY"
+    }
+   ],
+   "definition": "a kill on the scale pays each hero (XP to its next Level / the hours that Level takes in the hours table) / (refKillsHead x heroes at the kill) x (1 + payStepXp)^gap, the gap the step over the ground's reference step held to gapMax; coin is the roll x the pull's share x (1 + payStepCoin)^gap",
+   "range": "payStep = powerStep x a premium (04 section 7: 0.7% is a premium of two); refKillsHead the reference company's kills an hour a head at its reference step; gapMax 120 = at most 2.31x the table",
+   "touches": "Level XP and coin an hour on the scale. MEASURED 2026-11-22 (2 seeds x 6 h, Muster): Steady at Level 60 0.72x the hours table over the hunt (the climb included), Bold 0.88x, Careful 0.28x; V1's row pay read ~22x",
+   "outcomes": [
+    "levelXpPerH",
+    "netLevelXpPerH",
+    "hoursPerLevel",
+    "xContract",
+    "netPerH",
+    "storePerH"
+   ],
+   "formulas": [
+    "P01",
+    "P02",
+    "C-TIER"
+   ],
+   "reach": {
+    "feeds": 15,
+    "closure": 76
+   },
+   "class": "global",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/hunt-core/danger.mjs",
+      "what": "pay: one kill at the reference step pays the hours table, a step deeper (1 + payStepXp) more, held at gapMax",
+      "reads": [
+       "PAY"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/accrual-engine.mjs",
+     "tests/activity-intent.mjs",
+     "tests/activity-seam.mjs",
+     "tests/artisan-accrual.mjs",
+     "tests/boss-call.mjs",
+     "tests/boss-hall.mjs",
+     "tests/cadence-recovery-floor.mjs",
+     "tests/character-window.mjs"
+    ],
+    "mentionCount": 22,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "not-in-runs",
+    "note": "played by the V1 probe only; the server bounds it (hr_danger_level_xp_max, 1055)",
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "MEASURED (refKillsHead: v1-climb.mjs base:steady 481 kills an hour), STATED (gapMax)"
+  },
+  {
+   "id": "danger.ref-step",
+   "category": "monster-rewards",
+   "name": "A ground's reference step",
+   "sites": [
+    {
+     "file": "src/data/danger.js",
+     "line": 87,
+     "text": "muster_barrows: Object.freeze({ refStep: 590 }),",
+     "binding": "DANGER_GROUNDS"
+    }
+   ],
+   "definition": "the step the reference company holds on a ground, where its pay is the hours table; a ground with no row does not open the scale (the server's hr_danger_grounds, 1055)",
+   "range": "whole steps. A bridge, not a per-ground dial: a step is of the ground's own rows until the bands are re-cut in one unit (wave 2), then it goes",
+   "touches": "the absolute pay on that ground (each step off it is payStepXp)",
+   "outcomes": [
+    "levelXpPerH",
+    "netLevelXpPerH",
+    "hoursPerLevel",
+    "xContract"
+   ],
+   "formulas": [
+    "P02"
+   ],
+   "reach": {
+    "feeds": 3,
+    "closure": 78
+   },
+   "class": "exception-intentional",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/hunt-core/danger.mjs",
+      "what": "pay: Muster's reference step pays the table",
+      "reads": [
+       "DANGER_GROUNDS"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/hunt-core/danger.mjs"
+    ],
+    "mentionCount": 1,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "not-in-runs",
+    "note": "played by the V1 probe only",
+    "existingPatches": []
+   },
+   "flags": [
+    {
+     "kind": "redundant",
+     "why": "A per-ground number that stands in for one absolute step unit (LR-1: no per-ground dial); it retires when grounds carry absolute bands",
+     "ev": "02 package 3 cost; JUDGMENT"
+    }
+   ],
+   "evidence": "MEASURED (the Steady four at Level 60 held 589.5 +- 14, 2 seeds x 6 h)"
   },
   {
    "id": "reward.xp-line",
@@ -7081,7 +7639,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 106,
+    "mentionCount": 107,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -7151,7 +7709,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 106,
+    "mentionCount": 107,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -7272,7 +7830,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 106,
+    "mentionCount": 107,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -7391,7 +7949,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 106,
+    "mentionCount": 107,
     "verdict": "asserted"
    },
    "perturb": {
@@ -9407,15 +9965,15 @@
     "asserts": [],
     "mentions": [
      "tests/accrual-engine.mjs",
+     "tests/hunt-core/danger.mjs",
      "tests/hunt-core/engine-parity.mjs",
      "tests/hunt-core/first-week-bands.mjs",
      "tests/hunt-core/grid.mjs",
      "tests/hunt-core/leash.mjs",
      "tests/hunt-core/pull-cycle.mjs",
-     "tests/hunt-core/world-state.mjs",
-     "tests/hunt-live.mjs"
+     "tests/hunt-core/world-state.mjs"
     ],
-    "mentionCount": 9,
+    "mentionCount": 10,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -13576,6 +14134,59 @@
     "willow_tree"
    ],
    "typed": 17,
+   "bindings": 1
+  },
+  "src/data/danger.js#DANGER": {
+   "pin": "count",
+   "keys": [
+    "powerStep",
+    "pullMax",
+    "pullStep",
+    "readyPm",
+    "respawnMs",
+    "startMargin",
+    "stepMax"
+   ],
+   "typed": 7,
+   "bindings": 1
+  },
+  "src/data/danger.js#CLIMB": {
+   "pin": "count",
+   "keys": [
+    "climbMax",
+    "coolPulls",
+    "deathSteps",
+    "fallSteps"
+   ],
+   "typed": 4,
+   "bindings": 1
+  },
+  "src/data/danger.js#RISKS": {
+   "pin": "count",
+   "keys": [
+    "cleanPm",
+    "fallPm"
+   ],
+   "typed": 6,
+   "bindings": 1
+  },
+  "src/data/danger.js#PAY": {
+   "pin": "count",
+   "keys": [
+    "gapMax",
+    "payStepCoin",
+    "payStepXp",
+    "refKillsHead"
+   ],
+   "typed": 4,
+   "bindings": 1
+  },
+  "src/data/danger.js#DANGER_GROUNDS": {
+   "pin": "count",
+   "keys": [
+    "refStep"
+   ],
+   "typed": 1,
    "bindings": 1
   },
   "src/data/balance-sheet.js#GROUND_XP_FIT": {

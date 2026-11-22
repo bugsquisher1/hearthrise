@@ -5460,7 +5460,7 @@ const MUTANTS = [
   { arm: 'DEATH', name: 'a death costs nothing', file: 'src/core/combat-sim.js',
     from: '  const xpLost = deathXpLoss(m.state, share);', to: '  const xpLost = {};' },
   { arm: 'DEATH', name: 'a dead hero gets back up (the hunt goes on)', file: 'src/core/hunt/pull-cycle.js',
-    from: "  if (isMonster(u)) { u.deadMs = 0; return; }\n  u.spot = null;", to: "  if (isMonster(u)) { u.deadMs = 0; return; }\n  u.alive = true; u.hp = 1; u.spot = null;" },
+    from: "    return;\n  }\n  u.spot = null;", to: "    return;\n  }\n  u.alive = true; u.hp = 1; u.spot = null;" },
   { arm: 'PARTY-DEATH', name: 'a party death leaves the survivor hunting', file: 'src/core/combat-sim.js',
     from: "    if (o.hero && o.hero.leaveTogether === true) o.hs.partyEnd = why === 'died' ? 'died' : 'left';",
     to: "    if (o.hero && o.hero.leaveTogether === true && why !== 'died') o.hs.partyEnd = 'left';" },

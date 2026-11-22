@@ -4,6 +4,7 @@ import { L, at, K, P, V, NP, flag, rows, home, field, fields, present } from './
 import { KILL, SURVIVE, PACE, GOLD } from './combat.mjs';
 
 const BS = 'src/data/balance-sheet.js';
+const DZ = 'src/data/danger.js';
 const MON = 'src/data/monsters.js';
 const MON_ROWS = home(MON + '#MONSTERS', 'keys');
 const PACKS = home('src/data/grounds/*/pack.js#default', 'keys');
@@ -274,6 +275,78 @@ export const WORLD = [
     flags: [flag('ineffective', 'Inert data (pack comments: "inert until the hunt-gathering engine lands")', 'CONFIRMED (read)')],
     ev: 'CONFIRMED (read)' }),
 
+  /* THE DANGER SCALE (lane/v1-climb: probe V1, V1.1 and wave 1; 02 package 3, 04 sections 1, 5, 7 to 9). One integer step in place of the
+     three tiers, a climb and a fall back read off each pull's lowest HP, pulls on readiness, pay by depth from the hours table. It plays only
+     where a plan names a stance on a ground of DANGER_GROUNDS (Muster Barrows); no matrix RUN names one, so every row below is played by the
+     probe (tools/balance-program/redesign/v1-climb.mjs, v2-stance.mjs), not by a cell. */
+  L('danger.power-step', 'monster-stats', 'global', 'Danger power step', {
+    at: [at(DZ, 'powerStep: 0.0035,')],
+    def: 'each Danger step multiplies a pull\'s total HP and total blow by (1 + powerStep); a monster\'s aim and Level stay its row\'s, so the growth lands once on each',
+    range: '0.25% to 0.5% (04 section 1: a gear tier must be felt, a company a tier behind must still hunt its ground). STATED 0.35%',
+    touches: 'where a company holds on the scale (MEASURED V1: a Steady four at Level 60 on Muster holds ~590, +3 Levels +7 steps, a weapon band back -15 to -24)',
+    out: [...KILL, ...SURVIVE], f: ['C-TIER', 'C-MON-STATS'],
+    tests: [['tests/hunt-core/danger.mjs', 'scale: a pull\'s HP and blow grow by exactly (1 + powerStep) a step']], testReads: ['DANGER'],
+    perturb: NP('not-in-runs', 'the V1 probe plays it (a patch of this line moves its held step); no matrix run plans a stance'),
+    ev: 'MEASURED (v1-climb.mjs, 8 seeds x 12 h a cell, 2026-11-22)' }),
+  L('danger.pull', 'spawn', 'global', 'Danger pull growth', {
+    at: [at(DZ, 'pullStep: 0.00175,'), at(DZ, 'pullMax: 8,'), at(DZ, 'stepMax: 4000,')],
+    def: 'about half of each step arrives as more monsters: the pull is the as-built mean x (1 + pullStep)^step, held to a full box (pullMax), each monster carrying the rest; no step past stepMax',
+    range: 'pullStep 0 to powerStep (04 is silent on the split); pullMax a full box (DENSITY_FULL_BOX 8); stepMax keeps every number a safe float',
+    touches: 'how many stand in a pull on the scale, so the kill rate and the coin a pull pays', out: KILL, f: ['C-PULL', 'E10'],
+    tests: [['tests/hunt-core/danger.mjs', 'scale: no jump across a size change']], testReads: ['DANGER'],
+    perturb: NP('not-in-runs', 'played by the V1 probe only'),
+    ev: 'STATED (src/data/danger.js), CONFIRMED (read)' }),
+  L('danger.readiness', 'spawn', 'global', 'Pulls on readiness', {
+    at: [at(DZ, 'readyPm: 800,'), at(DZ, 'respawnMs: 15000,')],
+    def: 'on the scale the party leaves its regroup only when every standing hero is at readyPm of max HP (HP only), and a cleared pack is back after respawnMs, so the pace is the party\'s',
+    range: 'readyPm 1..1000 permille; respawnMs short enough that six pockets never wait on it (04 section 8)',
+    touches: 'pace: damage taken costs time before it costs a life (04 section 9: slowing rest tenfold moved pace under 2% on the tiers)', out: [...KILL, ...PACE], f: ['E11'],
+    tests: [['tests/hunt-core/danger.mjs', 'ready: the regroup waits for readyPm']], testReads: ['DANGER'],
+    perturb: NP('not-in-runs', 'played by the V1 probe only'),
+    ev: 'STATED, CONFIRMED (read)' }),
+  L('danger.start', 'spawn', 'global', 'Danger start margin', {
+    at: [at(DZ, 'startMargin: 20,')],
+    def: 'a hunt opens startMargin steps under the LOWEST step any seated hero last held on that ground (0 for none); the server freezes it (1056-danger-scale.sql hr_danger_freeze)',
+    range: 'whole steps, 0 or more. The doubling climb finds 20 steps in five clean pulls; V1\'s above cell lost heroes started at a stronger company\'s step',
+    touches: 'the first minutes of a hunt on the scale: too small risks deaths at the open, too big pays the climb again', out: SURVIVE, f: ['C-TIER'],
+    tests: [['tests/danger-db.mjs', 'DZ-1 and DZ-4: the start a margin under the lowest held step']], testReads: ['DANGER'],
+    perturb: NP('sql-only', 'the server freezes the start; the probe plays a start by its own --start-from margin'),
+    ev: 'STATED (the probe\'s --start-from margin)' }),
+  L('danger.climb', 'spawn', 'global', 'The climb and the fall back', {
+    at: [at(DZ, 'export const CLIMB = Object.freeze({ cleanRun: 2, climbMax: 8, fallSteps: 18, deathSteps: 120, coolPulls: 10 });')],
+    def: 'cleanRun cleared clean pulls climb, each climb twice the last up to climbMax; a fall back is fallSteps down, a death deathSteps, then coolPulls pulls of steadying',
+    range: 'whole steps and pulls. V1: a 6-step fall with no cool-down let Steady die (15 deaths in 8 days); 18 with 10 pulls of steadying none in 48',
+    touches: 'how fast a company finds its edge and how far it falls; the server bounds a window\'s climb by it (hr_danger_bound)', out: SURVIVE, f: ['C-TIER'],
+    tests: [['tests/hunt-core/danger.mjs', 'rule: the climb, the fall back, the cool-down']], testReads: ['CLIMB'],
+    perturb: NP('not-in-runs', 'played by the V1 probe only'),
+    ev: 'MEASURED (V1, V1.1: 12 seeds x 12 h x 4 cells)' }),
+  L('danger.stances', 'monster-stats', 'archetype', 'Risk stance thresholds', {
+    at: [at(DZ, "careful: Object.freeze({ fallPm: 450, cleanPm: 650, afterDeath: 'careful' }),"), at(DZ, "steady: Object.freeze({ fallPm: 250, cleanPm: 450, afterDeath: 'careful' }),"),
+      at(DZ, "bold: Object.freeze({ fallPm: 120, cleanPm: 300, afterDeath: 'steady' }),")],
+    def: 'a stance is its fall back trigger and its climb threshold, permille of max HP read on the lowest HP any hero reached in a pull; a death settles it one notch safer',
+    range: 'fallPm < cleanPm <= 1000. RD-Q3 a: Careful and Steady never die, Bold is the only stance that can',
+    touches: 'where a company holds and how often it dies: Steady 250/450 and Careful 0 deaths in 48 seed-days, Bold 120/300 0.4 to 1.1 deaths a day', out: SURVIVE, f: ['C-TIER'],
+    tests: [['tests/hunt-core/danger.mjs', 'rule and breakoff: the trigger and the climb threshold']], testReads: ['RISKS'],
+    perturb: NP('player-policy', 'the stance is the player\'s risk choice; the V1 and V2 probes play each'),
+    ev: 'MEASURED (V1.1, v2-stance.mjs)' }),
+  L('danger.pay', 'monster-rewards', 'global', 'Pay by depth', {
+    at: [at(DZ, 'export const PAY = Object.freeze({ refKillsHead: 120, payStepXp: 0.007, payStepCoin: 0.007, gapMax: 120 });')],
+    def: 'a kill on the scale pays each hero (XP to its next Level / the hours that Level takes in the hours table) / (refKillsHead x heroes at the kill) x (1 + payStepXp)^gap, the gap the step over the ground\'s reference step held to gapMax; coin is the roll x the pull\'s share x (1 + payStepCoin)^gap',
+    range: 'payStep = powerStep x a premium (04 section 7: 0.7% is a premium of two); refKillsHead the reference company\'s kills an hour a head at its reference step; gapMax 120 = at most 2.31x the table',
+    touches: 'Level XP and coin an hour on the scale. MEASURED 2026-11-22 (2 seeds x 6 h, Muster): Steady at Level 60 0.72x the hours table over the hunt (the climb included), Bold 0.88x, Careful 0.28x; V1\'s row pay read ~22x',
+    out: [...PACE, ...GOLD], f: ['P01', 'P02', 'C-TIER'],
+    tests: [['tests/hunt-core/danger.mjs', 'pay: one kill at the reference step pays the hours table, a step deeper (1 + payStepXp) more, held at gapMax']], testReads: ['PAY'],
+    perturb: NP('not-in-runs', 'played by the V1 probe only; the server bounds it (hr_danger_level_xp_max, 1055)'),
+    ev: 'MEASURED (refKillsHead: v1-climb.mjs base:steady 481 kills an hour), STATED (gapMax)' }),
+  L('danger.ref-step', 'monster-rewards', 'exception-intentional', 'A ground\'s reference step', {
+    at: [at(DZ, 'muster_barrows: Object.freeze({ refStep: 590 }),')],
+    def: 'the step the reference company holds on a ground, where its pay is the hours table; a ground with no row does not open the scale (the server\'s hr_danger_grounds, 1055)',
+    range: 'whole steps. A bridge, not a per-ground dial: a step is of the ground\'s own rows until the bands are re-cut in one unit (wave 2), then it goes',
+    touches: 'the absolute pay on that ground (each step off it is payStepXp)', out: PACE, f: ['P02'],
+    tests: [['tests/hunt-core/danger.mjs', 'pay: Muster\'s reference step pays the table']], testReads: ['DANGER_GROUNDS'],
+    perturb: NP('not-in-runs', 'played by the V1 probe only'),
+    flags: [flag('redundant', 'A per-ground number that stands in for one absolute step unit (LR-1: no per-ground dial); it retires when grounds carry absolute bands', '02 package 3 cost; JUDGMENT')],
+    ev: 'MEASURED (the Steady four at Level 60 held 589.5 +- 14, 2 seeds x 6 h)' }),
   /* ── 14. MONSTER XP AND LOOT VALUES ────────────────────────────────────────────────────────────────────────────────────────── */
   L('reward.xp-line', 'monster-rewards', 'global', 'Level XP a kill', {
     at: [at(BS, 'xp: Object.freeze({ a: 1.436')],

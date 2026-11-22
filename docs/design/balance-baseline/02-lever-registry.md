@@ -31,26 +31,26 @@ Labels. CONFIRMED means read in the code at the baseline. MEASURED means a playe
 | Critical chance and damage | 3 | 1 | 1 | 0 | 1 | 1 | 0 | 0 |
 | Life and mana leech | 2 | 0 | 0 | 2 | 0 | 0 | 1 | 0 |
 | Regeneration | 4 | 3 | 0 | 0 | 1 | 2 | 2 | 0 |
-| Monster HP, damage, armor, resistances and behavior | 21 | 6 | 3 | 4 | 8 | 7 | 3 | 7 |
-| Spawn pacing and encounter composition | 7 | 2 | 1 | 3 | 1 | 1 | 1 | 0 |
-| Monster XP and loot values | 11 | 3 | 1 | 2 | 5 | 3 | 0 | 3 |
+| Monster HP, damage, armor, resistances and behavior | 23 | 7 | 4 | 4 | 8 | 7 | 5 | 9 |
+| Spawn pacing and encounter composition | 11 | 6 | 1 | 3 | 1 | 1 | 5 | 4 |
+| Monster XP and loot values | 13 | 4 | 1 | 2 | 6 | 3 | 2 | 5 |
 | Equipment stats and progression | 9 | 1 | 1 | 7 | 0 | 0 | 0 | 3 |
 | Imbuement effects | 1 | 0 | 0 | 1 | 0 | 0 | 1 | 0 |
 | Consumable costs and effectiveness | 9 | 4 | 3 | 2 | 0 | 1 | 1 | 2 |
 | Party bonuses and interactions | 7 | 1 | 3 | 0 | 3 | 2 | 3 | 3 |
 | Rare-drop probabilities | 6 | 2 | 0 | 3 | 1 | 0 | 4 | 3 |
 | Economy sources and sinks | 27 | 13 | 3 | 10 | 1 | 0 | 24 | 14 |
-| **All** | **165** | 69 | 23 | 46 | 27 | 31 | 54 | 54 |
+| **All** | **173** | 75 | 24 | 46 | 28 | 31 | 62 | 62 |
 <!-- END GENERATED:COUNTS -->
 
 <!-- GENERATED:CENSUS (tools/balance-program/levers.mjs --write) -->
 | | Count |
 |---|---|
-| Top-level bindings in the rule code that hold a typed number | 646 (in 218 files, 15625 typed numbers) |
-| Claimed by a lever | 274 |
-| Claimed by a not-a-lever reason | 372 |
+| Top-level bindings in the rule code that hold a typed number | 652 (in 219 files, 15649 typed numbers) |
+| Claimed by a lever | 279 |
+| Claimed by a not-a-lever reason | 373 |
 | Unclaimed | 0 |
-| Exceptions, intentional and accidental | 16 and 11 |
+| Exceptions, intentional and accidental | 17 and 11 |
 | Values read at | 861ae52e3 (origin/baseline/overhaul-start). Rule code and migrations the same as the baseline: NO |
 <!-- END GENERATED:CENSUS -->
 
@@ -113,6 +113,7 @@ Each row below is a flag on a lever, with its evidence label. The sources are th
 | redundant | `mon.tier-overrides` Per-ground tier dials | The exact case Tyler's formula brief names: each compensates kill reward on one ground. A formula fix at the kill reward lets every ground take TIER_DIALS whole | 44 X-TIER-PER-GROUND, CONFIRMED. Knobs.json notKnobs |
 | redundant | `mon.scaled-danger` Scaled-hunt exceptions | A per-ground combat number. The cause is the bow against a melee pack | 44 X-SCALED-THICKET and E-X12, CONFIRMED / HYPOTHESIS |
 | redundant | `spawn.respawn` Pack respawn time | Written on the hunt row and on the ground row. The engine reads the ground's | CONFIRMED (pull-cycle.js reads inst.ground.respawnMs only) |
+| redundant | `danger.ref-step` A ground's reference step | A per-ground number that stands in for one absolute step unit (LR-1: no per-ground dial). It retires when grounds carry absolute bands | 02 package 3 cost. JUDGMENT |
 | redundant | `reward.xp-floor-fit` Early-ground XP fit | Falls away with the ground-fit fix (a kill reward that follows kills an hour) | 44 E-X04, CONFIRMED |
 | redundant | `reward.ground-xp-fit` Per-ground XP fit | Outputs of the missing kill-rate term, hand-fitted (re-fitted 11-08, 11-11, 11-19). Knobs.json lists it under notKnobs | 44 E-X01, CONFIRMED |
 | redundant | `reward.ground-gp-fit` Per-ground gold fit | One x0.7 typed 11 times and patched 3 more times in the shop's prices (the sale dial) | 44 E-X02 and E-X19, CONFIRMED |
@@ -253,6 +254,12 @@ These are coverage gaps for BL-1 and the sensitivity lane. Each gap's reason is 
 | not-built | `regen.fist-wraps` The fist wraps' own heal | Regeneration | fists are a hidden two-row sample with no way in the engine's style list |
 | not-built | `resist.storm-necrotic` Storm mana burn and Necrotic heal cut | Resistances | dark behind src/data/necrotic-storm.js live: false. The knobs stormDrain and necroticCut move numbers no cell reads until a patch switches it on |
 | not-built | `spawn.gather-nodes` Gather nodes on hunting grounds | Spawn pacing and encounter composition | the hunt-gathering engine is not built |
+| not-in-runs | `danger.climb` The climb and the fall back | Spawn pacing and encounter composition | played by the V1 probe only |
+| not-in-runs | `danger.pay` Pay by depth | Monster XP and loot values | played by the V1 probe only. The server bounds it (hr_danger_level_xp_max, 1055) |
+| not-in-runs | `danger.power-step` Danger power step | Monster HP, damage, armor, resistances and behavior | the V1 probe plays it (a patch of this line moves its held step). No matrix run plans a stance |
+| not-in-runs | `danger.pull` Danger pull growth | Spawn pacing and encounter composition | played by the V1 probe only |
+| not-in-runs | `danger.readiness` Pulls on readiness | Spawn pacing and encounter composition | played by the V1 probe only |
+| not-in-runs | `danger.ref-step` A ground's reference step | Monster XP and loot values | played by the V1 probe only |
 | not-in-runs | `econ.scaled-hunts` Scaled hunts: pay and price | Economy sources and sinks | the engine reads it and cell.mjs could play it, but no matrix RUN plays that mode (the Tower, the Catacombs, scaled hunts, boss halls and calls, the yard, live events) |
 | not-in-runs | `econ.training` Training yard pay and fee | Economy sources and sinks | the matrix plays hunts, not the yard |
 | not-in-runs | `econ.training-items` Training items | Economy sources and sinks | the engine reads it and cell.mjs could play it, but no matrix RUN plays that mode (the Tower, the Catacombs, scaled hunts, boss halls and calls, the yard, live events) |
@@ -283,6 +290,8 @@ These are coverage gaps for BL-1 and the sensitivity lane. Each gap's reason is 
 | outside-hunt | `skill.gathering-table` Capped skill XP table (Levels 1 to 99) | Skill scaling | a town system the matrix does not simulate: town work (gathering, benches, crafting), the market, sinks past the store, the House |
 | outside-hunt | `skill.town-xp-dial` Global town-skill XP dial | Skill scaling | a town system the matrix does not simulate: town work (gathering, benches, crafting), the market, sinks past the store, the House |
 | player-policy | `damage.stance` Stance damage and damage taken | Base damage coefficients | every cell plays each way's default stance (rule-subjects.js ROLE_DEFAULTS: balanced), so a patch to these rows moves no cell unless the defaults move too |
+| player-policy | `danger.stances` Risk stance thresholds | Monster HP, damage, armor, resistances and behavior | the stance is the player's risk choice. The V1 and V2 probes play each |
+| sql-only | `danger.start` Danger start margin | Spawn pacing and encounter composition | the server freezes the start. The probe plays a start by its own --start-from margin |
 | sql-only | `econ.bounty` Bounty rewards | Economy sources and sinks | the value lives in a SQL function or table. The engine the matrix runs never reads it |
 | sql-only | `econ.hearthfind-day` Hearthfind daily clamp | Economy sources and sinks | the value lives in a SQL function or table. The engine the matrix runs never reads it |
 | sql-only | `econ.market` Market fee, cut and ceiling | Economy sources and sinks | the market lives in SQL. The matrix holds no market |
@@ -302,6 +311,8 @@ Ranked by the formulas a lever's own formulas feed directly (COMPUTED from the 1
 | Lever | Formulas it feeds directly (COMPUTED) | Matrix outcomes it moves (JUDGED) | Formulas downstream (COMPUTED) | Perturbed by | Class |
 |---|---|---|---|---|---|
 | `level.hero-hp` Hero HP a Level | 17 | 11 | 77 | knob `heroHp` | global |
+| `danger.power-step` Danger power step | 16 | 19 | 77 | NOT PLAYABLE (not-in-runs) | global |
+| `danger.pay` Pay by depth | 15 | 6 | 76 | NOT PLAYABLE (not-in-runs) | global |
 | `mon.rows` A monster row's stats (formula rows and hand rows) | 14 | 19 | 77 | patch | content |
 | `mon.hp-line` Monster HP line | 14 | 9 | 76 | knob `monsterHp` | global |
 | `blow.gear-term` Gear term of the largest blow | 14 | 8 | 77 | knob `playerAttack` | global |
@@ -319,13 +330,11 @@ Ranked by the formulas a lever's own formulas feed directly (COMPUTED from the 1
 | `reward.tier-xp` Harder-tier XP | 9 | 4 | 77 | knob `tierXp` | archetype |
 | `skill.curve` Combat skill curve | 9 | 0 | 78 | NOT PLAYABLE (harness-fixed) | global |
 | `mon.tier-overrides` Per-ground tier dials | 8 | 19 | 78 | patch | exception-accidental |
+| `danger.climb` The climb and the fall back | 8 | 11 | 78 | NOT PLAYABLE (not-in-runs) | global |
+| `danger.stances` Risk stance thresholds | 8 | 11 | 78 | NOT PLAYABLE (player-policy) | archetype |
+| `danger.start` Danger start margin | 8 | 11 | 78 | NOT PLAYABLE (sql-only) | global |
 | `mon.tier-danger` Harder-tier blows | 8 | 11 | 78 | knob `tierDanger` | archetype |
 | `mon.tier-hp` Harder-tier HP | 8 | 8 | 78 | knob `tierHp` | archetype |
-| `level.hero-mana` Hero mana a Level | 7 | 3 | 77 | knob `heroMana` | global |
-| `blow.skill-term` Skill term of the largest blow | 6 | 9 | 78 | knob `playerAttack` | global |
-| `weapon.ammo` Ammunition strength and use | 6 | 9 | 78 | patch | content |
-| `blow.base` Flat base of the largest blow | 6 | 8 | 78 | knob `playerAttack` | global |
-| `blow.named-twins` The named blow constants the engine does not read | 6 | 0 | 78 | NOT PLAYABLE (dead) | global |
 <!-- END GENERATED:REACH -->
 
 ## 6. Keeping it true

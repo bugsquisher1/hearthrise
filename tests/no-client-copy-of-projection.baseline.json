@@ -15,6 +15,7 @@
       "character_sheet",
       "client_state",
       "companions",
+      "company",
       "death_log",
       "depot",
       "enchant",
@@ -26,6 +27,7 @@
       "features",
       "gm",
       "hallmark",
+      "hearth_fire",
       "hero_slots",
       "home",
       "hunt",
@@ -55,6 +57,7 @@
       "party_seek",
       "place",
       "premium",
+      "presence",
       "progress",
       "progress_truncated",
       "rename",
@@ -108,5 +111,5 @@
       "tool_carry"
     ]
   },
-  "generatedAt": "2026-11-21"
+  "generatedAt": "2026-11-22"
 }

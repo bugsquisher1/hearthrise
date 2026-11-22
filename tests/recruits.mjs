@@ -141,7 +141,7 @@ const MUTANTS = [
   ['a typed name is dropped for the town\'s (RC-PLAY)', [BLIND, ['      v_name := v_names[v_i + 1]; v_canon := v_canons[v_i + 1];\n', '      v_name := null; v_canon := null;\n']], 'RC-PLAY'],
   ['the answer carries no envelope (RC-PLAY)', [BLIND, ["  return v_r || jsonb_build_object('envelope', public.hr_state_of(v_uid, v_first));", '  return v_r;']], 'RC-PLAY'],
   ['a retried key is not replayed (RC-RETRY)', [BLIND, ['  v_r := public.hr_intent_replay(v_uid, null, p_idem, c_verb);\n', '  v_r := null;\n']], 'RC-RETRY'],
-  ['the jobs ignore the first hero\'s weapon (RC-JOBS)', [BLIND, ["order by coalesce(public.hr_recruit_set_role(j.set_id) = any (coalesce(v_roles, '{}'::text[])), false), j.rank)", 'order by j.rank)']], 'RC-JOBS'],
+  ['the jobs ignore the first hero\'s weapon (RC-JOBS)', [BLIND, ["order by coalesce(x.role = any (coalesce(v_roles, '{}'::text[])), false), j.rank)", 'order by j.rank)']], 'RC-JOBS'],
   ['a late press brings recruits at the first hero\'s Level (RC-JOBS)', [BLIND, ["    'level', greatest(1, least(r.max_level, v_lv - r.levels_under)),", "    'level', greatest(1, v_lv - r.levels_under),"]], 'RC-JOBS'],
 ];
 

@@ -25,8 +25,8 @@
 --      level   the Level the recruits arrive at: greatest(1, least(max_level, the first hero's Level - levels_under))
 --      first   the first hero's slot
 --      slots   the empty owned slots the recruits take, lowest first, recruit_count of them
---      sets    the STARTER_SETS id each wears, in slot order: hr_recruit_jobs by rank, the jobs whose role (hr_recruit_set_role: the role of
---              the set's worn weapon, a shield arm turning a sword into a tank) the first hero's worn weapon does NOT play first
+--      sets    the STARTER_SETS id each wears, in slot order: hr_recruit_jobs by rank, the jobs whose role (the role of the set's worn
+--              weapon, a shield arm turning a sword into a tank) the first hero's worn weapon does NOT play first
 --    THE SECTION `recruits` (hr_recruits_view) is this offer for every hero of the account: what the client shows is what the press makes.
 -- §3 hr_recruit_company(p_names text[] default null, p_idem uuid default null) -> jsonb. SECURITY DEFINER, authenticated (client baseline).
 --    The client sends a key and, for each recruit in slot order, a name the player typed or null (the server names it). NOTHING ELSE: the
@@ -65,8 +65,8 @@
 -- COST AT 100x: one account_kits row an account (about 2,400 rows, under 0.2 MB); three ledger rows and one intents row an account, ever.
 --   The section is computed with every envelope: for an account of more than one hero it is one count over its player_state rows (its
 --   primary key, four rows at most); for a one-hero account a handful of primary-key reads and four tiny catalogue joins.
--- REVERSIBILITY: delete the section row, drop hr_recruit_company (and its baseline row), hr_recruits_view, hr_recruit_offer,
---   hr_recruit_set_role, put account_kits' check back to '^(account|hero:[0-5])$' after deleting the 'recruits' rows. Heroes made stay made.
+-- REVERSIBILITY: delete the section row, drop hr_recruit_company (and its baseline row), hr_recruits_view and hr_recruit_offer, put
+--   account_kits' check back to '^(account|hero:[0-5])$' after deleting the 'recruits' rows. Heroes made stay made.
 -- EDGE: none. BROWSER: src/session/recruit-sections.js (the section's reader), src/session/recruit-intents.js (the press),
 --   src/shell/windows/recruits-pane.js (the press in All characters), src/shell/needs-you/recruits.js (the Needs you row),
 --   src/shell/back-in-town.js (the end card's Recruit your party), src/app/slot-offer.js rowsShown (no empty slot past the first hero).
@@ -104,23 +104,8 @@ comment on table public.account_kits is
   '1038-start-kits.sql: which starting kits an account has been paid (account once, hero:<slot> once a slot); 1053-recruits.sql: recruits, the recruit press once an account. Written only by hr_create_character__as and hr_recruit_company (insert on conflict do nothing); server-only.';
 
 -- ── §2 THE OFFER, AND THE SECTION THAT SHOWS IT ────────────────────────────
--- The role a practice set plays: its worn weapon's first role, a weapon with a shield arm (the sword) read as that arm when the set wears a
--- shield (hr_hunt_weapon_of's own rule, for a set instead of a hero).
-create or replace function public.hr_recruit_set_role(p_set text)
-returns text language sql stable set search_path = public, pg_catalog as $fn$
-  select r.roles[1]
-    from public.hr_start_kit_lines l
-    join public.hr_hunt_weapons w on w.item_id = l.item_id
-    join public.hr_hunt_weapon_roles wr on wr.weapon_type = w.weapon_type
-    join public.hr_hunt_weapon_roles r on r.weapon_type = case
-           when wr.with_shield is not null and exists (
-             select 1 from public.hr_start_kit_lines s join public.hr_hunt_shields hs on hs.item_id = s.item_id
-              where s.kit = 'practice' and s.set_id = p_set and s.worn and s.equip_slot = 'shield')
-           then wr.with_shield else w.weapon_type end
-   where l.kit = 'practice' and l.set_id = p_set and l.worn and l.equip_slot = 'weapon'
-   limit 1
-$fn$;
-
+-- plpgsql, never LANGUAGE sql with a SET clause: the section runs with every envelope, and PostgreSQL 17 re-plans such a SQL body on every
+-- call (tests/settle-budget.mjs SB-3). The role each job plays is read in the one statement that orders the jobs.
 create or replace function public.hr_recruit_offer(p_uid uuid)
 returns jsonb language plpgsql stable security definer set search_path = public, pg_catalog as $fn$
 declare
@@ -145,8 +130,23 @@ begin
   if cardinality(v_free) < r.recruit_count then return null; end if;
   v_lv := public.hr_level_of(p_uid, v_first);
   select w.roles into v_roles from public.hr_hunt_weapon_roles w where w.weapon_type = public.hr_hunt_weapon_of(p_uid, v_first);
-  select array_agg(j.set_id order by coalesce(public.hr_recruit_set_role(j.set_id) = any (coalesce(v_roles, '{}'::text[])), false), j.rank)
-    into v_sets from public.hr_recruit_jobs j;
+  -- each job's role: the first role of the weapon its practice set wears, a weapon with a shield arm (the sword) read as that arm when the
+  -- set wears a shield (hr_hunt_weapon_of's own rule, for a set instead of a hero); the jobs the first hero's weapon does not play first
+  select array_agg(j.set_id order by coalesce(x.role = any (coalesce(v_roles, '{}'::text[])), false), j.rank)
+    into v_sets
+    from public.hr_recruit_jobs j
+    left join lateral (
+      select ro.roles[1] as role
+        from public.hr_start_kit_lines l
+        join public.hr_hunt_weapons w on w.item_id = l.item_id
+        join public.hr_hunt_weapon_roles wr on wr.weapon_type = w.weapon_type
+        join public.hr_hunt_weapon_roles ro on ro.weapon_type = case
+               when wr.with_shield is not null and exists (
+                 select 1 from public.hr_start_kit_lines s join public.hr_hunt_shields hs on hs.item_id = s.item_id
+                  where s.kit = 'practice' and s.set_id = j.set_id and s.worn and s.equip_slot = 'shield')
+               then wr.with_shield else w.weapon_type end
+       where l.kit = 'practice' and l.set_id = j.set_id and l.worn and l.equip_slot = 'weapon'
+       limit 1) x on true;
   return jsonb_build_object(
     'ready', v_lv >= r.at_level,
     'at', r.at_level,
@@ -158,11 +158,11 @@ end $fn$;
 
 -- THE SECTION `recruits`: the offer, the same for every hero of the account (null for a company of two or more, or once pressed).
 create or replace function public.hr_recruits_view(p_user uuid, p_slot int)
-returns jsonb language sql stable security definer set search_path = public, pg_catalog as $fn$
-  select public.hr_recruit_offer(p_user)
-$fn$;
+returns jsonb language plpgsql stable security definer set search_path = public, pg_catalog as $fn$
+begin
+  return public.hr_recruit_offer(p_user);
+end $fn$;
 
-revoke all on function public.hr_recruit_set_role(text) from public, anon, authenticated, service_role;
 revoke all on function public.hr_recruit_offer(uuid) from public, anon, authenticated, service_role;
 revoke all on function public.hr_recruits_view(uuid, int) from public, anon, authenticated, service_role;
 insert into public.hr_state_sections (key, fn, note) values
@@ -442,8 +442,7 @@ begin
     raise exception 'VERIFY(h): §4 LEAKED a probe row'; end if;
   foreach v_role in array array['anon', 'authenticated'] loop
     if has_function_privilege(v_role, 'public.hr_recruit_offer(uuid)', 'execute')
-       or has_function_privilege(v_role, 'public.hr_recruits_view(uuid,integer)', 'execute')
-       or has_function_privilege(v_role, 'public.hr_recruit_set_role(text)', 'execute') then
+       or has_function_privilege(v_role, 'public.hr_recruits_view(uuid,integer)', 'execute') then
       raise exception 'VERIFY(h): % can reach a recruit helper', v_role; end if;
   end loop;
   if has_function_privilege('anon', 'public.hr_recruit_company(text[],uuid)', 'execute')

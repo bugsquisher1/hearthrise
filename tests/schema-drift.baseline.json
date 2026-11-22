@@ -7,10 +7,10 @@
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
  "generated": "2026-11-22",
- "digest": "02c3717b7f9092ac65664855d2958dc59e5214d5c6a6acf3a6c5dd55485c31f9",
+ "digest": "1ebd75a8266ea2d838008497eeb90d7ecaa99a0e29f9cc19710142c186d5c116",
  "counts": {
   "relations": 333,
-  "functions": 874,
+  "functions": 873,
   "policies": 119,
   "indexes": 475,
   "triggers": 120,
@@ -1004,7 +1004,6 @@
    "hr_record_rejection(p_user uuid, p_slot integer, p_intent text, p_code text, p_detail jsonb, p_count bigint)",
    "hr_recruit_company(p_names text[], p_idem uuid)",
    "hr_recruit_offer(p_uid uuid)",
-   "hr_recruit_set_role(p_set text)",
    "hr_recruits_view(p_user uuid, p_slot integer)",
    "hr_regen_permille(p_flame integer)",
    "hr_reject(p_code text, p_detail jsonb)",

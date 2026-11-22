@@ -87,7 +87,7 @@ function partyToMake(cs, h) {
  *           blessings: {tiers:{tier:number,price:number,held:boolean,permille?:number}[], freeUntil:number|null}|null, purse: number|null, did: Map<string,string>,
  *           buy?: {title:string, words:string, icon:string|null, glyph?:string|null, place:object}|null, free?: boolean,
  *           ground?: {row:{hunt:string,name:string,band:number[]}, levels:number[]}|null, outgrown?: boolean, needs?: Set<string>|null, sold?: string[],
- *           party?: {name:string, ground:string, count:number, first?:boolean}|null }} o
+ *           party?: {name:string, ground:string, count:number, level?:number, first?:boolean}|null }} o
  *        plan: upgradePlan's answer (upgrade-line.js upgradeOf); bids: the shop's (shopOf); purse: goldOf; did: the steps pressed on this
  *        card, each with its title as it was pressed (a done row keeps saying what it did: "Sell 17 stacks for 5,407 gp · Done"); buy: next-buy.js nextBuy's answer;
  *        needs: what the House's next steps name (bag-model.js upgradeNeeds), which no junk sale takes; sold: the junk this card's sale took with no plan;

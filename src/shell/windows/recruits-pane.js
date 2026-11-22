@@ -85,11 +85,13 @@ export function actRecruits(ctx, body, action, repaint) {
   if (!x || !x.o.ready || sc.pending) return true;
   const fields = Array.from(body.querySelectorAll('.hw-recruits .hw-recruit-name'));
   if (!sc.key) sc.key = globalThis.crypto.randomUUID();
-  runIntent(sc, repaint, () => recruitCompany(ctx.account, x.cs, fields.map((f) => f.value), sc.key), t('heroes.recruiting'),
-    (r) => t('heroes.recruits_done', { names: listWords(r.heroes.map((h) => h.name).filter(Boolean), 4) }), x.cs).then((r) => {
+  let ans = null;
+  const send = async () => (ans = await recruitCompany(ctx.account, x.cs, fields.map((f) => f.value), sc.key));
+  runIntent(sc, repaint, send, t('heroes.recruiting'),
+    () => t('heroes.recruits_done', { names: listWords((ans && ans.ok ? ans.heroes : []).map((h) => h.name).filter(Boolean), 4) }), x.cs).then(() => {
     /* a lost answer keeps the key (the retry replays it); an answer, yes or no, ends it */
-    if (r && (r.ok || r.answered)) sc.key = null;
-    if (r && !r.ok && Number.isInteger(r.index) && fields[r.index]) fields[r.index].focus();
+    if (ans && (ans.ok || ans.answered)) sc.key = null;
+    if (ans && !ans.ok && Number.isInteger(ans.index) && fields[ans.index]) fields[ans.index].focus();
   });
   return true;
 }

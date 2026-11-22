@@ -528,8 +528,8 @@ async function restoring(root, fn) {
 const ROW_KING = "hp: 2000, atk: 42, aim: 41, evasion: 8, def: 4, xp: 0, gp: [0, 0], speed: 2800,\n    /* A WIN PAYS HIS OWN TABLE";
 const KING_TAIL = "{ id: 'rat_kings_crown', ch: .00141, band: 'trophy' },\n      { id: 'kingstooth', ch: .01, band: 'rare' }],";
 /* the drop door's own lines (src/core/hunt-rewards.js calledSwing) */
-const DOOR_KILL = "    if (ev.type !== 'kill') continue;\n    const t = unitOf(ev.t);\n    if (t && t.side === 'mon' && t.kind === boss) {\n";
-const DOOR_DEATH = "    } else if (members.has(ev.t)) {\n      const k = unitOf(ev.u);\n      deaths.push({ unit: ev.t, atMs: ev.atMs, monster: k && k.side === 'mon' ? k.kind : '' });\n    }\n  }\n  return deaths;\n}\n\n/**";
+const DOOR_KILL = "    if (ev.type !== 'kill') continue;\n    const t = unitOf(ev.t);\n    if (isMonster(t) && t.kind === boss) {\n";
+const DOOR_DEATH = "    } else if (members.has(ev.t)) {\n      const k = unitOf(ev.u);\n      deaths.push({ unit: ev.t, atMs: ev.atMs, monster: isMonster(k) ? k.kind : '' });\n    }\n  }\n  return deaths;\n}\n\n/**";
 /* a planted roll of his table, in calledSwing's own loop: the heroes alive at event `i` (livingAt, with the swing's falls `fell`) */
 const PAY_HERE = "{ const ids = livingAt(world, members, fell, i); const row = (ctx.monsters || MONSTERS)[boss]; if (ids.length && row) payDrops(ids.map((id) => members.get(id)), ids, members.get(ids[0]), row, ctx, world, ev.atMs); }";
 const ROW_ADD = "hp: 300, atk: 66, aim: 22, evasion: 6, def: 0, xp: 0, gp: [0, 0], speed: 3400, drops: [] },";
@@ -568,7 +568,7 @@ const MUTANTS = [
   { name: 'coin planted on an add', edits: [['src/data/monsters.js', ROW_ADD, ROW_ADD.replace('gp: [0, 0]', 'gp: [1, 5]')]], want: /BC-ROW/ },
   { name: 'a drop planted on an add', edits: [['src/data/monsters.js', ROW_ADD, ROW_ADD.replace('drops: []', "drops: [{ id: 'bones', ch: 1, band: 'common' }]")]], want: /BC-ROW/ },
   { name: 'a wave of the ground\'s paying rats', edits: [['src/data/hunt-grounds.js', "adds: addRows(['drain_rat_called', 56, 18],", "adds: addRows(['drain_rat', 56, 18],"]], want: /BC-ROW/ },
-  { name: 'an add\'s kill counts on the title\'s counter', edits: [['src/core/hunt-rewards.js', "if (t && t.side === 'mon' && t.kind === boss) {", "if (t && t.side === 'mon') {"]], want: /BC-PAY/ },
+  { name: 'an add\'s kill counts on the title\'s counter', edits: [['src/core/hunt-rewards.js', "if (isMonster(t) && t.kind === boss) {", "if (isMonster(t)) {"]], want: /BC-PAY/ },
   { name: 'an add reads as a boss', edits: [['src/data/monsters.js', "family: 'Vermin', formation: true, called: true, add: true,", "family: 'Vermin', formation: true, called: true, boss: true,"]], want: /BC-ROW/ },
   /* THE LINES */
   { name: 'a stored flag: the world\'s shape moves', edits: [['src/core/hunt/damage.js', "world: Object.freeze([['fightAt', 'int']]),", "world: Object.freeze([['fightAt', 'int'], ['bossLine', 'int']]),"]], want: /BC-PHASE/ },
@@ -577,8 +577,8 @@ const MUTANTS = [
   { name: 'the first line is read at the wrong HP', edits: [['src/core/hunt/boss-phases.js', 'if (crossed(ph.addsPm)) {', 'if (crossed(ph.addsPm - 300)) {']], want: /BC-PHASE/ },
   { name: 'the adds go for the one holding him', edits: [['src/core/hunt/pull-cycle.js', 'const on = off.length ? off : standing;', 'const on = standing;']], want: /BC-PHASE/ },
   { name: 'the enrage raises nothing', edits: [['src/core/hunt/damage.js', 'const blowRow = swingRow(u, row);', 'const blowRow = row;']], want: /BC-PHASE/ },
-  { name: 'his adds shield him from nothing', edits: [['src/core/hunt/damage.js', "  if (target.side === 'mon') n = Math.floor((n * guardPmOf(inst, target)) / 1000);\n", '']], want: /BC-GUARD/ },
-  { name: 'a fallen add still shields him', edits: [['src/core/hunt/boss-phases.js', 'inst.world.units.some((u) => u.alive && u.side', 'inst.world.units.some((u) => u.side']], want: /BC-GUARD/ },
+  { name: 'his adds shield him from nothing', edits: [['src/core/hunt/damage.js', "  if (isMonster(target)) n = Math.floor((n * guardPmOf(inst, target)) / 1000);\n", '']], want: /BC-GUARD/ },
+  { name: 'a fallen add still shields him', edits: [['src/core/hunt/boss-phases.js', 'inst.world.units.some((u) => u.alive && isMonster(u)', 'inst.world.units.some((u) => isMonster(u)']], want: /BC-GUARD/ },
   { name: 'every monster hides behind an add', edits: [['src/core/hunt/boss-phases.js', "if (!ph || !Number.isInteger(ph.guardPm)) return 1000;", "if (!ph || !Number.isInteger(ph.guardPm)) return t.side === 'mon' && inst.world.units.some((u) => u.alive && (MONSTERS[u.kind] || {}).add === true) ? 500 : 1000;"]], want: /BC-GUARD/ },
   { name: 'the enrage reads the row, not his HP', edits: [['src/core/hunt/boss-phases.js', 'if (!ph || !atOrUnder(u.hp, u.maxHp, ph.enragePm)) return row;', 'if (!ph) return row;']], want: /BC-PHASE/ },
   { name: 'a leader\'s death heals him', edits: [['src/core/hunt/leash.js', "if (!pack || (inst.ground && inst.ground.call)) return;", 'if (!pack) return;']], want: /BC-RECORD/ },

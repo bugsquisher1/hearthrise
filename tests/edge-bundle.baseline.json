@@ -178,6 +178,11 @@
         "bytes": 3198808,
         "on": "2026-11-22",
         "why": "lane/lab-p2-readers: src/core/hunt/tally.js sustain counters (healing by source, damage by kind, mana spent/refunded/waits), counted only when the harness asks; the server settle never asks, stored result unchanged (+5,073 B on its own base)"
+      },
+      {
+        "bytes": 3210650,
+        "on": "2026-11-22",
+        "why": "lane/w1-side-seam: src/core/hunt/sides.js and relational decisions by side across 25 engine modules (wave 1 engine batch 1, identity for PvE; +11,842 B on its own base)"
       }
     ]
   }

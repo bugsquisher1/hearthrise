@@ -38,6 +38,7 @@ import * as xpShare from './xp-share.js';
 import * as conditions from './conditions.js';
 import * as partySplit from '../party-split.js';
 import * as danger from './danger.js';
+import { isHero, isMonster } from './sides.js';
 
 export const WORLD_VERSION = 1;
 
@@ -169,7 +170,7 @@ export function validate(world) {
     check('unit', u, 'unit ' + u.id);
     if (!(u.id > prev)) out.push('unit ids must be unique and ascending (' + u.id + ' after ' + prev + ')');
     prev = u.id;
-    if (u.side !== 'hero' && u.side !== 'mon') out.push('unit ' + u.id + ' side must be hero or mon');
+    if (!isHero(u) && !isMonster(u)) out.push('unit ' + u.id + ' side must be hero or mon');
   }
   if (!out.length) {
     const bytes = encodedBytes(world);

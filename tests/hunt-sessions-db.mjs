@@ -467,7 +467,8 @@ const UNGATED_TEXT = readFileSync(join(ROOT, 'supabase', 'migrations', UNGATED),
 const SIX = [
   ['hr_load', 'select public.hr_load(0)'],
   ['hr_create_character', 'select public.hr_create_character(0)'],
-  ['hr_clan_browser', 'select public.hr_clan_browser(25)'],
+  /* the browser with search (1041-social-clans.sql) dropped the (integer) door for (text, integer); its first line is still hr_access_check */
+  ['hr_clan_browser', 'select public.hr_clan_browser(null::text, 25)'],
   ['hr_companion_equip', "select public.hr_companion_equip(0, 'fox', true)"],
   ['hr_companion_grant', "select public.hr_companion_grant(0, 'fox', 'shop', gen_random_uuid())"],
   /* hr_rest left with the knockout (the core rebuild, 2026-10-27-core-schema.sql). */

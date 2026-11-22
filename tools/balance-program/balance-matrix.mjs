@@ -77,8 +77,9 @@ const workersOf = () => Math.max(1, Number(arg('workers', Math.min(MAX_WORKERS, 
 export async function dataView(D, root) {
   if (resolve(root) === ROOT) return D;
   const imp = (p) => import(pathToFileURL(join(root, p)).href);
-  const [XP, BS, MON, SB, TI, BL, LB] = await Promise.all(['src/core/xp.js', 'src/data/balance-sheet.js', 'src/data/monsters.js', 'src/data/supply-basics.js', 'src/data/hunt-tiers.js', 'src/data/blessings.js', 'src/data/loot-bands.js'].map(imp));
-  return { ...D, XP, BS, MONSTERS: MON.MONSTERS, SB, TI, BL, REVEAL_BANDS: LB.REVEAL_BANDS,
+  const [XP, BS, MON, SB, TI, BL, LB, AR] = await Promise.all(['src/core/xp.js', 'src/data/balance-sheet.js', 'src/data/monsters.js', 'src/data/supply-basics.js', 'src/data/hunt-tiers.js', 'src/data/blessings.js', 'src/data/loot-bands.js', 'src/core/action-rules.js'].map(imp));
+  /* AR: the tree's own death price (progression-grid.mjs deathXpAt), so a patch that moves it moves every reader */
+  return { ...D, XP, BS, MONSTERS: MON.MONSTERS, SB, TI, BL, AR, REVEAL_BANDS: LB.REVEAL_BANDS,
     projectD: { ...D.projectD, MONSTERS: MON.MONSTERS, GROUND_ROSTER: BS.GROUND_ROSTER, formulaStats: BS.formulaStats, tierRowFor: BS.tierRowFor, tiersOf: TI.tiersOf } };
 }
 
@@ -115,7 +116,9 @@ const progress = (label) => (process.stderr.isTTY ? (k, total, id, ms) => proces
 export async function playRun(D, K, run, root, o = {}) {
   const t0 = Date.now();
   const V = await dataView(D, root);
-  const plan0 = planMatrix(V, K, run, { only: o.only, blocks: o.blocks, seeds: o.seeds, hours: o.hours, quick: o.quick, plan: o.plan });
+  const planned = planMatrix(V, K, run, { only: o.only, blocks: o.blocks, seeds: o.seeds, hours: o.hours, quick: o.quick, plan: o.plan });
+  /* o.planHook (V, K, plan) -> plan: a caller's own cells beside the run's and each job's hours (tools/balance-program/baseline/scenarios.mjs) */
+  const plan0 = o.planHook ? o.planHook(V, K, planned) : planned;
   /* o.shard [i, n]: every n-th cell from the i-th (a GitHub job's share of the full run; the simulator check plays in shard 0 only) */
   const plan = o.shard ? shardOf(plan0, o.shard) : plan0;
   const cal = o.calibrate === false || (o.shard && o.shard[0] !== 0) ? { jobs: [], cols: [], samples: [] } : await calibrationJobs(V, K, ROOT, { seeds: o.seeds || run.seeds, hours: o.hours || run.hours });
@@ -131,7 +134,8 @@ export async function playRun(D, K, run, root, o = {}) {
     const seeds = (byKey[c.key] || []).map(slimSeed);
     const want = c.seeds || o.seeds || run.seeds;
     if (seeds.length < want) return { ...c, error: (errors.find((e) => e.id.startsWith(c.key + '#')) || {}).error || 'a seed is missing' };
-    return { ...c, m: cellMetrics(V, c, seeds, arch) };
+    /* o.perSeed (V, cell, answers) -> any: a caller's read of each seed's FULL answer, in seed order (the baseline keeps one outcome row a seed) */
+    return { ...c, m: cellMetrics(V, c, seeds, arch), ...(o.perSeed ? { perSeed: o.perSeed(V, c, byKey[c.key]) } : {}) };
   });
   const calibration = cal.cols.length ? calibrationTable(byKey, cal.cols, cal.samples) : null;
   return { run: run.id, seeds: o.seeds || run.seeds, hours: o.hours || run.hours, cells, calibration, V,
@@ -768,7 +772,7 @@ async function selftest() {
     check('a planted cell that ended no_fight, or an error naming a kill credited to no hero, is a tool red and the run exits 1; a death, an outgrown end or another error is not one (' + tr.map((x) => x.key).join() + ')',
       tr.length === 2 && tr[0].key === 'b' && tr[1].key === 'd' && printToolReds(planted, (s) => lines.push(s)) === 1 && lines.length >= 2 && printToolReds([planted[0], planted[2]], () => {}) === 0);
     const NOFIGHT = { id: 'selftest-nofight', levels: [], seeds: 1, hours: 0.25, blocks: [{ id: 'a', levels: [30], comps: [lone('hammer')], gears: ['mid'], tiers: ['normal'] }] };
-    const stall = { edits: [{ file: 'src/core/hunt/damage.js', from: "  if (target.side === 'mon') inst.world.fightAt = sc.atMs;", to: "  if (false) inst.world.fightAt = sc.atMs; /* MUTANT: the no-fight clock never moves */" }] };
+    const stall = { edits: [{ file: 'src/core/hunt/damage.js', from: "  if (isMonster(target)) inst.world.fightAt = sc.atMs;", to: "  if (false) inst.world.fightAt = sc.atMs; /* MUTANT: the no-fight clock never moves */" }] };
     let mut = null, why = '';
     try { const s = await plantScratch(stall); try { mut = await playRun(D, K, NOFIGHT, s.root, o); } finally { s.done(); } } catch (e) { why = e.message; }
     const mr = mut ? toolReds(mut.cells) : [], fall = mut && mut.cells[0] && mut.cells[0].m ? mut.cells[0].m.falls[0] : null;
@@ -905,7 +909,8 @@ async function selftest() {
     const cal = await calibrationJobs(D, K, ROOT, { seeds: 1, hours: 0.25 });
     check('the four sits as the real four (' + PG.compsOf(4)[0][0].join(', ') + '), and the simulator check\'s four is it', PG.compsOf(4)[0][0].join() === 'hammer,bow,mage,healer' && cal.cols.find((x) => x.col === 'harness').styles.join() === 'hammer,bow,mage,healer');
     /* 9i. GR-67: the six dropped party-size bands are never judged or printed */
-    const gq = JSON.parse(readFileSync(join(HERE, 'progression-grid-quick.json'), 'utf8')), DER = await import('./grid-derive.mjs');
+    /* the quick grid UNPACKED (progression-grid.mjs readGrid): the packed file judges no cell band at all, so a dropped cell band could never leak */
+    const gq = PG.readGrid(true), DER = await import('./grid-derive.mjs');
     const jq = DER.judgeGrid(D, gq, { K }), printed = [];
     DER.printReport(gq, jq, (s) => printed.push(s));
     const leaked = STD.DROPPED.filter((id) => jq.rows.some((r) => r.band === id) || printed.some((l) => l.startsWith('  ' + id + ' ')));
@@ -946,6 +951,23 @@ async function selftest() {
       const ratioX = lx.hook.heroes[0].levelXpPerH / lx.plain.heroes[0].levelXpPerH;
       check('S-4: a Level XP row of 10% pays about 10% more Level XP through the seam (' + ratioX.toFixed(3) + ') and nothing on a tree without it', ratioX > 1.08 && ratioX < 1.12 && Math.abs(lt.tree.heroes[0].levelXpPerH - lx.plain.heroes[0].levelXpPerH) < 1);
     } finally { size.done(); lvx.done(); }
+    /* 9m. A DEATH IS PRICED BY THE GAME (the Lab's death-cost slot, CONFLICTS 2026-11-21; lane/bl-baseline): a data view whose
+       src/core/action-rules.js doubles a death's loss moves every reader (a cell's deathXp, the grid judge's S10 row); a view without the
+       tree's rules is refused, never priced by standards.mjs's typed 6% */
+    {
+      const D2 = { ...D, AR: { ...D.AR, levelDeathLoss: (x) => 2 * D.AR.levelDeathLoss(x) } };
+      const meta = { key: 'SELF:death', L: 60, gear: 'mid', party: 1, comp: 'h', styles: ['hammer'], tier: 'normal', ground: g60 };
+      const s0 = [slimSeed(X.plain)];
+      const m0 = cellMetrics(D, meta, s0), m2 = cellMetrics(D2, meta, s0);
+      const s10 = (DD) => DER.judgeGrid(DD, gq, { K }).rows.filter((r) => r.band === 'S10' && Number.isFinite(r.value));
+      const r0 = s10(D), r2 = s10(D2);
+      let refused = false;
+      try { cellMetrics({ ...D, AR: undefined }, meta, s0); } catch { refused = true; }
+      check('a death is priced by the game: the tree\'s levelDeathLoss at 60 (' + m0.deathXp + ') is the cell\'s deathXp, a planted rule that doubles it doubles it (' + m2.deathXp + ') and moves the S10 rows ('
+        + r0.length + '), and a view without action-rules.js is refused',
+        m0.deathXp === D.AR.levelDeathLoss(D.XP.charXpForLevel(60)) && Math.abs(m2.deathXp - 2 * m0.deathXp) <= 1 && r0.length > 0 && r0.length === r2.length && r0.every((r, i) => r.value !== r2[i].value) && refused
+        && m0.deathBlessedShare === 1 - D.BL.BLESSING_CUT_PERMILLE[2] / 1000);
+    }
     const leave = planMatrix(D, K, RUNS.subset, { blocks: ['leave'] });
     check('S-6: the four on the harder tiers is played with every hero coming home (' + leave.cells.length + ' leave cells, all endTogether)', leave.cells.length > 0 && leave.jobs.every((j) => j.cell.endTogether === true));
   }

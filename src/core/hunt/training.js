@@ -31,6 +31,7 @@
 import { TRAINING_RULES, TRAINING_GEAR } from '../../data/training.js';
 import { XP_FRAC_SCALE } from '../progression.js';
 import { DEFAULT_ATTACK_ROW } from './conditions.js';
+import { isHero, isMonster } from './sides.js';
 
 const call = (fx, name, ...args) => (fx && typeof fx[name] === 'function' ? fx[name](...args) : undefined);
 
@@ -55,14 +56,14 @@ export function trainingBasic(ground, t) {
 
 /** A DUMMY'S BLOW AT A HERO (damage.js hurt): `dmg` as it would land, capped so the hero stays at or over the floor. Any other blow: `dmg`. */
 export function dummyBlow(dealerRow, target, dmg) {
-  if (!dealerRow || dealerRow.dummy !== true || !target || target.side !== 'hero') return dmg;
+  if (!dealerRow || dealerRow.dummy !== true || !isHero(target)) return dmg;
   const floor = Math.ceil((Number(target.maxHp) || 0) * TRAINING_RULES.hpFloorPm / 1000);
   return Math.max(0, Math.min(dmg, (Number(target.hp) || 0) - floor));
 }
 
 /** A DUMMY NEVER FALLS (damage.js hurt): a `dummy` row brought to 0 HP stands whole again, before anyone can read it as a kill. */
 export function dummyStands(row, target) {
-  if (row && row.dummy === true && target && target.side === 'mon' && target.hp <= 0) target.hp = target.maxHp;
+  if (row && row.dummy === true && isMonster(target) && target.hp <= 0) target.hp = target.maxHp;
 }
 
 /**
@@ -130,7 +131,7 @@ export function trainingSwing(members, events, unitOf) {
   for (const ev of events) {
     if (ev.type !== 'kill' || !members.has(ev.t)) continue;
     const k = unitOf(ev.u);
-    deaths.push({ unit: ev.t, atMs: ev.atMs, monster: k && k.side === 'mon' ? k.kind : '' });
+    deaths.push({ unit: ev.t, atMs: ev.atMs, monster: isMonster(k) ? k.kind : '' });
   }
   return deaths;
 }

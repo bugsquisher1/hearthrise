@@ -20,7 +20,7 @@
 //                 list, through all four scenarios: a writer that forgot to drop it throws there, even where the stale
 //                 answer happened not to move a hash. The audited run must also hold the pins.
 // index-writers   Every line in src/core that writes a unit's `alive`, a `target` or a world's unit list is pinned below
-//                 with why the index stays true (it drops the index; a hero's target is in no list; it runs between
+//                 with why the index stays true (it drops the index; a hero's target is in no kept list; it runs between
 //                 swings). A new writer fails here until it calls staleIndex(inst) or says why it needn't.
 //
 // mutant-anchors: src/core/hunt/damage.js src/core/hunt/roles.js src/core/hunt/movement.js src/core/hunt/grid.js src/core/hunt/targeting.js src/core/hunt/pull-cycle.js src/core/hunt/unit-index.js
@@ -181,8 +181,13 @@ R.ok(!why, 'pinned: ' + why);
 /* THE INDEX AUDIT (unit-index.js current): every answer checked against a fresh build of the same list, and counted. */
 const AUDIT = ['src/core/hunt/unit-index.js', '  if (!ix || ix.units !== units || ix.n !== units.length) ix = inst.ix = build(units);\n  return ix;\n',
   '  if (!ix || ix.units !== units || ix.n !== units.length) ix = inst.ix = build(units);\n'
-  + "  { const f = build(units); for (const k of ['engaged', 'targeted', 'mons', 'heroes', 'heroUnits']) { const a = ix[k]; const b = f[k];"
-  + " if (a.length !== b.length || a.some((u, i) => u !== b[i])) throw new Error('unit-index audit: a stale ' + k + ' list'); }"
+  + "  { const f = build(units); const same = (a, b) => a === b || (!!a && !!b && a.length === b.length && a.every((u, i) => u === b[i]));"
+  + " for (const k of ['engaged', 'mons', 'heroes', 'heroUnits']) if (!same(ix[k], f[k])) throw new Error('unit-index audit: a stale ' + k + ' list');"
+  /* (the side seam, sides.js: every side's lists, by its kind group while none is placed, and every foe list the sub-step has kept) */
+  + " const groups = (x) => (x.placed ? [...x.sides] : [[SIDE.company, x.company], [SIDE.ground, x.ground]]);"
+  + " const gi = groups(ix); const gf = groups(f); if (ix.placed !== f.placed || gi.length !== gf.length) throw new Error('unit-index audit: a stale set of sides');"
+  + " gf.forEach(([s, g], j) => { for (const k of ['living', 'engaged', 'targeted']) if (gi[j][0] !== s || !same(gi[j][1][k], g[k])) throw new Error('unit-index audit: a stale ' + k + ' list of side ' + s); });"
+  + " if (ix.foes) for (const [s, g] of ix.foes) if (!same(g.living, units.filter((u) => u.alive && sideOf(u) !== s))) throw new Error('unit-index audit: a stale foe list of side ' + s);"
   + ' globalThis.__indexReads = (globalThis.__indexReads || 0) + 1; }\n  return ix;\n'];
 if (!process.argv.includes('--no-audit')) {
   const p = plant([AUDIT], [...PLAY_TREES, 'tests/hunt-core/fixtures']);
@@ -213,17 +218,17 @@ const WRITERS = [
   ['src/core/hunt/pull-cycle.js', 'if (u && on.length) { u.target = on[i % on.length].id; staleIndex(inst); }', 'spawnAdds drops the index'],
   ['src/core/hunt/pull-cycle.js', 'u.alive = false;', 'fallen drops the index'],
   ['src/core/hunt/pull-cycle.js', 'u.target = null;', 'fallen drops the index'],
-  ['src/core/hunt/pull-cycle.js', 'h.target = null;', 'a hero\'s target, in no list'],
+  ['src/core/hunt/pull-cycle.js', 'h.target = null;', 'a hero\'s target, in no kept list'],
   ['src/core/hunt/pull-cycle.js', 'for (const m of packMonsters(inst, p)) m.target = aimOf(inst, m, k.id);', 'startPull drops the index'],
   ['src/core/hunt/pull-cycle.js', 'w.packs[p].alive = false;', 'a pack\'s alive, not a unit\'s'],
-  ['src/core/hunt/pull-cycle.js', "if (gone) { w.units = w.units.filter((u) => u.side !== 'mon' || u.alive || u.deadMs < HUNT_TUNING.corpseMs); staleIndex(inst); }", 'clearCorpses drops the index'],
+  ['src/core/hunt/pull-cycle.js', "if (gone) { w.units = w.units.filter((u) => !isMonster(u) || u.alive || u.deadMs < HUNT_TUNING.corpseMs); staleIndex(inst); }", 'clearCorpses drops the index'],
   /* the Danger scale's pull re-formed at its step's size (lane/v1-climb): the next line drops the index */
   ['src/core/hunt/pull-cycle.js', 'w.units = w.units.filter((u) => !gone.has(u.id));', 'fitPull drops the index'],
-  ['src/core/hunt/pull-cycle.js', 'for (const h of heroes(inst)) h.target = null;', 'a hero\'s target, in no list (breakOff; its resetPack drops the index)'],
-  ['src/core/hunt/roles.js', 'if (m) h.target = m.id;', 'a hero\'s target, in no list'],
+  ['src/core/hunt/pull-cycle.js', 'for (const h of heroes(inst)) h.target = null;', 'a hero\'s target, in no kept list (breakOff; its resetPack drops the index)'],
+  ['src/core/hunt/roles.js', 'if (m) h.target = m.id;', 'a hero\'s target, in no kept list'],
   ['src/core/hunt/targeting.js', 'm.target = id;', 'retarget drops the index'],
-  ['src/core/hunt/targeting.js', 'if (!u.alive || !fighting) { u.target = null; continue; }', 'a hero\'s target, in no list'],
-  ['src/core/hunt/targeting.js', 'u.target = id;', 'a hero\'s target, in no list'],
+  ['src/core/hunt/targeting.js', 'if (!u.alive || !fighting) { u.target = null; continue; }', 'a hero\'s target, in no kept list'],
+  ['src/core/hunt/targeting.js', 'u.target = id;', 'a hero\'s target, in no kept list'],
   ['src/core/hunt/world-state.js', 'w.units = ((o && o.units) || []).map(makeUnit);', 'a new world, between swings'],
   ['src/core/hunt/world-state.js', "w.units = enc.u.map((r) => unrow('unit', r));", 'a decoded world, between swings'],
 ];
@@ -255,7 +260,7 @@ const mutants = [
   { name: 'a ranged hero\'s spot search forgets the monsters beside a tile (roles.js besideNear)', only: ['glade-4'],
     edits: [['src/core/hunt/roles.js', 'const near = mons.filter((m) => cheb(m, c) <= r + 1);', 'const near = [];']] },
   { name: 'a spot search reads no other hero\'s claimed spot (movement.js claimsOf)', only: ['warrens-4', 'glade-4'],
-    edits: [['src/core/hunt/movement.js', "if (v !== hero && v.alive && v.side === 'hero' && v.spot) out.push(v.spot);", "if (v !== hero && v.alive && v.side === 'hero' && v.spot) out.length = 0;"]] },
+    edits: [['src/core/hunt/movement.js', "if (v !== hero && v.alive && isHero(v) && v.spot) out.push(v.spot);", "if (v !== hero && v.alive && isHero(v) && v.spot) out.length = 0;"]] },
   { name: 'the band asked first is a step closer than the spot rule\'s (roles.js onBand)', only: ['glade-4'],
     edits: [['src/core/hunt/roles.js', 'const onBand = (x, y) => inBand((x - tgt.x) * (x - tgt.x) + (y - tgt.y) * (y - tgt.y), want);',
       'const onBand = (x, y) => inBand((x - tgt.x) * (x - tgt.x) + (y - tgt.y) * (y - tgt.y), want - 1);']] },

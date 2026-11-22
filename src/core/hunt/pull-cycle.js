@@ -42,6 +42,7 @@ import { aimOf } from './shooters.js';
 import { towerOf, towerPull, towerCleared } from './tower.js';
 import { healTaken } from './heal-cut.js';
 import { dangerOn, pullBegins, pullEnds, readyToPull, respawnMsOf, breaksOff } from './danger.js';
+import { SIDE, sideOf, isHero, isMonster } from './sides.js';
 
 /* deadMs: a corpse's age. hpMilli: out-of-combat regen carried below one HP.
    phase / routeIdx / phaseMs / regroupNext / runs / nextId: the cycle. alive / respawnAtMs: a pack. */
@@ -58,8 +59,8 @@ const cycling = (inst) => inst.world.phase !== '';
 /* THE ROUTE: every pocket for every party size, a lone hero's too (Tyler 2026-11-08: one difficulty for every group). */
 const routeOf = (inst) => inst.ground.route;
 const pocketNow = (inst) => { const r = routeOf(inst); return r[inst.world.routeIdx % r.length]; };
-const packMonsters = (inst, p) => inst.world.units.filter((u) => u.side === 'mon' && u.alive && u.pocket === p);
-const heroes = (inst) => inst.world.units.filter((u) => u.side === 'hero');
+const packMonsters = (inst, p) => inst.world.units.filter((u) => isMonster(u) && u.alive && u.pocket === p);
+const heroes = (inst) => inst.world.units.filter((u) => isHero(u));
 
 
 /**
@@ -135,7 +136,8 @@ export function spawnPack(inst, p, sc) {
  */
 export function spawnAdds(inst, p, sc) {
   const w = inst.world;
-  const standing = heroes(inst).filter((h) => h.alive).sort((a, b) => a.id - b.id);
+  /* (the adds stand on the ground's side: they take its foes, sides.js; in a hunt the living heroes) */
+  const standing = w.units.filter((h) => h.alive && sideOf(h) !== SIDE.ground).sort((a, b) => a.id - b.id);
   const off = standing.filter((h) => h.id !== w.packs[p].holder && !(HUNT_ROLES[h.role] && HUNT_ROLES[h.role].tank));
   const on = off.length ? off : standing;
   occupancy(inst);
@@ -156,7 +158,7 @@ export function fallen(inst, u, sc) {
   u.target = null;
   staleIndex(inst);
   clearGoal(u);
-  if (u.side === 'mon') { u.deadMs = 0; return; }
+  if (isMonster(u)) { u.deadMs = 0; return; }
   u.spot = null;
   if (inst.world.leader !== u.id) return;
   /* THE DANGER SCALE (danger.js): the leader's death ends the pull here, so the step falls before the packs go home */
@@ -420,9 +422,9 @@ export function clearCorpses(inst, sc) {
   const w = inst.world;
   let gone = false;
   for (const u of w.units) {
-    if (u.side !== 'mon' || u.alive) continue;
+    if (!isMonster(u) || u.alive) continue;
     u.deadMs += sc.dtMs;
     if (u.deadMs >= HUNT_TUNING.corpseMs) gone = true;
   }
-  if (gone) { w.units = w.units.filter((u) => u.side !== 'mon' || u.alive || u.deadMs < HUNT_TUNING.corpseMs); staleIndex(inst); }
+  if (gone) { w.units = w.units.filter((u) => !isMonster(u) || u.alive || u.deadMs < HUNT_TUNING.corpseMs); staleIndex(inst); }
 }

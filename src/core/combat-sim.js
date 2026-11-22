@@ -65,6 +65,7 @@ import { towerOf, towerMonsters, towerEndsAt } from './hunt/tower.js';
 import { runRulesOf } from '../data/tower.js';
 import { sessionPayOf } from '../data/session-modes.js';
 import { dangerOn, dangerDial, openDanger, riskOf } from './hunt/danger.js';
+import { isHero } from './hunt/sides.js';
 
 /* The engine's front door: `combatSim`. */
 export { stepSwing } from './hunt/world-step.js';
@@ -364,7 +365,7 @@ export function simulateHuntInstance(inst, ctx) {
      left its unit standing, and an unowned hero would earn kills nobody is paid for. */
   if (world) {
     const owned = new Set(inWorld(members).map((m) => m.unitId));
-    for (const u of world.units.slice()) if (u.side === 'hero' && !owned.has(u.id)) leaveHero(world, u.id);
+    for (const u of world.units.slice()) if (isHero(u) && !owned.has(u.id)) leaveHero(world, u.id);
   }
 
   /* WHAT EVERY END CHECK AT A BOUNDARY READS: the no-fight clock (the world's own; a hero not yet in it has none), the Level as the
@@ -462,7 +463,7 @@ export function simulateHuntInstance(inst, ctx) {
       }
       /* MONSTER DENSITY for the packs that spawn from here: the party leader's pick (Tyler 2026-10-20),
          clamped to the ground for the party's size (hunt-grounds.js partyPick, densityFor). */
-      world.density = densityFor(ctx.ground, world.units.filter((u) => u.side === 'hero').length,
+      world.density = densityFor(ctx.ground, world.units.filter((u) => isHero(u)).length,
         pickOf(members.filter((m) => !m.left && m.unitId !== null)));
       /* ON THE DANGER SCALE (src/core/hunt/danger.js dangerDial): the step's own pull, and its dial in place of the tier's */
       const scale = dangerOn(world) ? dangerDial(ctx.ground, world.danger) : null;

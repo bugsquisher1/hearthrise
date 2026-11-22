@@ -32,7 +32,8 @@ import { inArea } from './leash.js';
 import { atRest, unitById, setGoal, clearGoal, candidateTiles, chooseSpot, standable, goToNearest, reachWithin } from './movement.js';
 import { roleOf, engaged, inRange, pickTargets } from './targeting.js';
 import { anyMark, markedAt } from './marks.js';
-import { livingOf } from './unit-index.js';
+import { foesOf, engagedMonstersOf, livingHeroesOf } from './unit-index.js';
+import { sideOf, isHero } from './sides.js';
 import { rangeOf, placeShooter } from './shooters.js';
 
 /* role/dist/chase/tmode: the hero's settings. queued: a monster with no surround slot.
@@ -50,7 +51,7 @@ export const kites = (u) => !u.chase && u.dist > 1;
 export function pickLeader(units) {
   let best = null; let rank = Infinity;
   for (const u of units) {
-    const r = u.side === 'hero' ? ROLE_ORDER.indexOf(u.role) : -1;
+    const r = isHero(u) ? ROLE_ORDER.indexOf(u.role) : -1;
     if (r >= 0 && (r < rank || (r === rank && u.id < best.id))) { best = u; rank = r; }
   }
   return best ? best.id : null;
@@ -184,7 +185,8 @@ function surroundSlot(inst, m, t, taken) {
 
 function positionMonsters(inst, sc) {
   const taken = new Set();
-  const mons = engaged(inst).map((m) => [m, unitById(inst, m.target)]).filter(([, t]) => t && t.alive)
+  /* (the monsters' own AI, by kind: unit-index.js) */
+  const mons = engagedMonstersOf(inst).map((m) => [m, unitById(inst, m.target)]).filter(([, t]) => t && t.alive)
     .sort(([a, ta], [b, tb]) => dist2(a, ta) - dist2(b, tb) || a.id - b.id);
   for (const [m, t] of mons) {
     /* A SHOOTER takes no slot: it stands where it can shoot (shooters.js) */
@@ -349,7 +351,7 @@ function rangedPos(inst, h, mons, marked) {
   if (h.aiMs > 0 && !nearMon) return;
   h.aiMs = AI_REPATH_MS.ranged;
   const want = h.dist;
-  const living = livingOf(inst, 'mon');
+  const living = foesOf(inst, sideOf(h));
   const beside = besideNear(living, tgt, SPOT.searchRadius);
   const valid = (x, y) => inBand(dist2({ x, y }, tgt), want) && los(inst.grid, { x, y }, tgt) && !beside(x, y)
     && !(marked && marked(x, y));
@@ -450,13 +452,14 @@ export function positionHeroes(inst, sc) {
   for (const u of inst.world.units) if (u.aiMs > 0) u.aiMs = Math.max(0, u.aiMs - sc.dtMs);
   positionMonsters(inst, sc);
   const fighting = inst.world.phase === 'fight';
-  const mons = engaged(inst);
   /* The ground marks standing now (marks.js), asked only while one stands: with none, every hero is placed as before. */
   const marked = anyMark(inst) ? (x, y) => markedAt(inst, x, y) : null;
   /* (only a living hero is placed: unit-index.js, in list order; placing one kills nobody) */
-  for (const h of livingOf(inst, 'hero')) {
+  for (const h of livingHeroesOf(inst)) {
     const row = roleOf(h);
     if (!row || !h.alive) continue;
+    /* (what it fights: its foes in the fight, sides.js; in a hunt the engaged monsters, one list for every hero) */
+    const mons = engaged(inst, h);
     if (!fighting || !mons.length) { h.spot = null; continue; }
     if (row.tank) tankPos(inst, h, mons);
     else if (row.melee) meleePos(inst, h, mons);

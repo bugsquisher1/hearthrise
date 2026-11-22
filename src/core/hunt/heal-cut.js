@@ -21,6 +21,7 @@
 // ============================================================
 
 import { STATUSES } from '../../data/statuses.js';
+import { isHero } from './sides.js';
 
 /** The permille unit `u` loses from every heal now (the strongest live heal-cutting stack's), 0 with none. */
 export function healCutPmOf(u) {
@@ -30,7 +31,7 @@ export function healCutPmOf(u) {
   for (const st of list) {
     const row = st && Object.prototype.hasOwnProperty.call(STATUSES, st.s) ? STATUSES[st.s] : null;
     if (!row || !row.healCutPm || !(st.left > 0)) continue;
-    const cut = u.side === 'hero' ? Math.floor((row.healCutPm.hero * (Number.isInteger(st.scale) ? st.scale : 1000)) / 1000) : row.healCutPm.monster;
+    const cut = isHero(u) ? Math.floor((row.healCutPm.hero * (Number.isInteger(st.scale) ? st.scale : 1000)) / 1000) : row.healCutPm.monster;
     if (cut > best) best = cut;
   }
   return best;

@@ -244,8 +244,9 @@ const MUTANTS = [
   { name: 'the engine never reads the pick', fn: 'public.hr_hunt_instance_read(uuid,integer)', file: LEVER_FILE,
     find: "(select jsonb_build_object('target_kind', g.monster_id) from public.hr_hunt_ground_spawns g", repl: "(select '{}'::jsonb from public.hr_hunt_ground_spawns g", want: /TK-1 browser closed/, run: 'both' },
   { name: 'a member plays the leader\'s pick', fn: 'public.hr_hunt_instance_read(uuid,integer)', file: LEVER_FILE,
-    find: "where g.hunt_id = v_i.hunt_id and g.monster_id = m0.r0->>'target_kind'), '{}'::jsonb)) as r) mr",
-    repl: "where g.hunt_id = v_i.hunt_id and g.monster_id = (select d.target_kind from public.hunt_density d where d.user_id = p_user and d.slot = p_slot and d.hunt_id = v_i.hunt_id)), '{}'::jsonb)) as r) mr", want: /TK-4/, run: 'party' },
+    /* the anchor stops before the `as r) mr` that 1046-settle-plans.sql splices to `as r offset 0) mr`, so it is the file's text and the live body's */
+    find: "where g.hunt_id = v_i.hunt_id and g.monster_id = m0.r0->>'target_kind'), '{}'::jsonb))",
+    repl: "where g.hunt_id = v_i.hunt_id and g.monster_id = (select d.target_kind from public.hunt_density d where d.user_id = p_user and d.slot = p_slot and d.hunt_id = v_i.hunt_id)), '{}'::jsonb))", want: /TK-4/, run: 'party' },
   { name: 'a kind of another ground is taken', fn: 'public.hr_hunt_target_kind_set(integer,text,text,uuid)',
     find: 'where s.hunt_id = p_hunt and s.monster_id = v_kind', repl: 'where s.monster_id = v_kind', want: /TK-2/, run: 'both' },
   { name: 'a kind off the ground is still served', fn: 'public.hr_hunt_instance_read(uuid,integer)', file: LEVER_FILE,

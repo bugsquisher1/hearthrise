@@ -23,6 +23,7 @@
 
 import { DANGER, CLIMB, RISKS } from '../../data/danger.js';
 import { makeEvent } from './events.js';
+import { isHero } from './sides.js';
 
 export const PERSISTED = Object.freeze({
   unit: Object.freeze([]),
@@ -100,7 +101,7 @@ function applyStep(inst) {
 /** THE MARGIN (damage.js landHit, after every blow that lands on a hero): the lowest HP any hero reached in this pull. */
 export function noteHurt(inst, u) {
   const w = inst.world;
-  if (!dangerOn(w) || !u || u.side !== 'hero') return;
+  if (!dangerOn(w) || !isHero(u)) return;
   const pm = u.maxHp > 0 ? Math.floor((Math.max(0, u.hp) * 1000) / u.maxHp) : 0;
   if (pm < w.low) w.low = pm;
 }

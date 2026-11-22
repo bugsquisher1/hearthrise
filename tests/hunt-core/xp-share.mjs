@@ -417,14 +417,14 @@ const cases = {
 
 const mutants = [
   { name: 'the dead share the kill\'s gold and loot', case: 'kill-pays-the-living',
-    edits: [['src/core/hunt-rewards.js', "u.side === 'hero' && members.has(u.id) && (u.alive === true || fell.get(u.id) > i)", "u.side === 'hero' && members.has(u.id)"]] },
+    edits: [['src/core/hunt-rewards.js', "isHero(u) && members.has(u.id) && (u.alive === true || fell.get(u.id) > i)", "isHero(u) && members.has(u.id)"]] },
   /* ANDY'S TOWER WIPE (2026-11-19): the kill is counted at the swing's end, so a party that falls after its last kill journals none of it */
   { name: 'the kill is counted for who stands at the swing\'s end', case: 'kill-counts-who-it-paid',
     edits: [['src/core/hunt-rewards.js', '(u.alive === true || fell.get(u.id) > i)', 'u.alive === true']] },
   { name: 'a hero who fell before the kill in the swing shares it', case: 'kill-counts-who-it-paid',
     edits: [['src/core/hunt-rewards.js', '(u.alive === true || fell.get(u.id) > i)', '(u.alive === true || fell.has(u.id))']] },
   { name: 'the dead share the kill', case: 'share-split-by-living',
-    edits: [['src/core/hunt/xp-share.js', "units.filter((u) => u.side === 'hero' && u.alive === true)", "units.filter((u) => u.side === 'hero')"]] },
+    edits: [['src/core/hunt/xp-share.js', "units.filter((u) => isHero(u) && u.alive === true && (!dead || isEnemy(dead, u)))", "units.filter((u) => isHero(u) && (!dead || isEnemy(dead, u)))"]] },
   { name: 'the multiplier is ignored', case: 'each-hero-own-multiplier',
     edits: [['src/core/hunt/xp-share.js', 'const paid = (raw * party * multOf(sc, h)) / 1000;', 'const paid = (raw * party * (multOf(sc, h) ? 1 : 1)) / 1000;']] },
   /* THE PARTY FACTOR (Tyler 2026-10-31, src/data/party-class-xp.js) */
@@ -480,7 +480,7 @@ const mutants = [
   { name: 'a staff blow pays damage XP', case: 'xp-routes',
     edits: [['src/data/skills.js', "export const DAMAGE_XP_FAMILIES = Object.freeze(['sword', 'hammer', 'axe', 'ranged', 'neutral', ...", "export const DAMAGE_XP_FAMILIES = Object.freeze(['sword', 'hammer', 'axe', 'ranged', 'neutral', 'magic', ..."]] },
   { name: 'Defense trains without armour', case: 'xp-routes',
-    edits: [['src/core/hunt-rewards.js', "if (!m || m.armoured !== true || !attacker", "if (!m || !attacker"]] },
+    edits: [['src/core/hunt-rewards.js', "if (!m || m.armoured !== true || !isMonster(attacker)", "if (!m || !isMonster(attacker)"]] },
   { name: 'a shield block pays no extra', case: 'xp-routes',
     edits: [['src/core/hunt-rewards.js', '(missed && m.shield === true ? COMBAT_XP.blockMult : 1)', '1']] },
   { name: 'Defense ignores the attacker level', case: 'xp-routes',

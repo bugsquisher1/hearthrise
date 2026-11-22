@@ -25,7 +25,7 @@
   },
   "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
   "live_measured": "2026-11-20",
-  "replay_ms": 2475,
+  "replay_ms": 3932,
   "counts": {
     "tracked_names": 1037,
     "entries": 870
@@ -4519,12 +4519,12 @@
       ],
       "live": null,
       "replay": {
-        "md5": "b4716a374c02d53b32b89f1e499adadb",
-        "norm_len": 394,
+        "md5": "220e2573cf16ed1a670fbdbf2c9749a5",
+        "norm_len": 657,
         "source": "computed-from-replay"
       },
       "agree": false,
-      "why": "STAGED for the v0.2.144 release by 1051-company-start.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body (absent on production), replay is the staged body from 1051-company-start.sql."
+      "why": "STAGED for the v0.2.144 release by 1051-company-start.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1051-company-start.sql."
     },
     {
       "sig": "hr_company_line_set(p_line text, p_value text, p_idem uuid)",
@@ -14740,12 +14740,12 @@
       ],
       "live": null,
       "replay": {
-        "md5": "742cd73a316e5b8fb2d15b6a52c70e8f",
-        "norm_len": 443,
+        "md5": "9b248cc1c836ffc48fad94f052e23b4a",
+        "norm_len": 633,
         "source": "computed-from-replay"
       },
       "agree": false,
-      "why": "STAGED for the v0.2.144 release by 1045-ground-presence.sql (new function, absent on production) (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21 after lane/c-social merged."
+      "why": "STAGED for the v0.2.144 release by 1045-ground-presence.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1045-ground-presence.sql."
     },
     {
       "sig": "hr_progress_prune(p_older interval)",

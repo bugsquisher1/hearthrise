@@ -58,6 +58,8 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
+import { isHero } from './sides.js';
+
 /** An empty tally: every field the analyzer reads, at zero. */
 export function emptyTally() {
   return {
@@ -91,7 +93,7 @@ export function addTally(acc, delta) {
 /** The roster a window's events are read against, from the instance world. */
 export function rosterOf(world) {
   const heroes = []; const kinds = {};
-  for (const u of world.units) { if (u.side === 'hero') heroes.push(u.id); kinds[u.id] = u.kind; }
+  for (const u of world.units) { if (isHero(u)) heroes.push(u.id); kinds[u.id] = u.kind; }
   return { heroes, kinds };
 }
 

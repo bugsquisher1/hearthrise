@@ -55,6 +55,7 @@ import { landHit, restart, slowed, rowOf } from './damage.js';
 import { swingRow, spellCdOf } from './boss-phases.js';
 import { healTaken } from './heal-cut.js';
 import { breaksOff } from './danger.js';
+import { isEnemy, isAlly, isMonster } from './sides.js';
 
 /* spellCds: { spell id: ms until it may start } while the monster is in a fight, a spell it does not name being ready ({} = every
    spell ready); null = not in a fight, its first casts not drawn yet. cast: its live cast (marks.js), or null. */
@@ -82,7 +83,7 @@ function drop(u, sc, why) {
 function mendable(inst, u, sp) {
   let best = null;
   for (const m of inst.world.units) {
-    if (m === u || m.side !== 'mon' || !m.alive || m.pocket !== u.pocket || !(m.hp < m.maxHp)) continue;
+    if (m === u || !isAlly(u, m) || !m.alive || m.pocket !== u.pocket || !(m.hp < m.maxHp)) continue;
     if ((rowOf(inst, m.kind) || {}).phases) continue;
     const d = cheb(u, m);
     if (d > sp.range || (d > 1 && !los(inst.grid, u, m))) continue;
@@ -96,7 +97,7 @@ function mendable(inst, u, sp) {
 function castTarget(inst, u, sp) {
   if (mends(sp)) return mendable(inst, u, sp);
   const t = unitById(inst, u.target);
-  if (!t || !t.alive || t.side !== 'hero') return null;
+  if (!t || !t.alive || !isEnemy(u, t)) return null;
   const d = cheb(u, t);
   return d > sp.range || (d > 1 && !los(inst.grid, u, t)) ? null : t;
 }
@@ -118,7 +119,7 @@ function begin(inst, sc, u, id, sp) {
      spell marks no ground: nobody moves for it. */
   if (marked(sp)) {
     for (const h of inst.world.units) {
-      const row = h.side === 'hero' && h.alive ? HUNT_ROLES[h.role] : null;
+      const row = isEnemy(u, h) && h.alive ? HUNT_ROLES[h.role] : null;
       if (row && !row.melee) h.aiMs = 0;
     }
   }
@@ -136,8 +137,8 @@ function land(inst, sc, u, sp) {
   const [lo, top] = spellHit(monsterMaxHit(row), sp);
   const t = mends(sp) ? unitById(inst, u.cast.t) : null;
   /* (a pack reset takes the caster out of the fight too, which drops the cast before it lands: dropCasts) */
-  const mended = !!t && t.alive && t.side === 'mon' && t.pocket === u.pocket && t.hp < t.maxHp;
-  const struck = s ? inst.world.units.filter((h) => h.side === 'hero' && h.alive && covers(s, h.x, h.y)).sort((a, b) => a.id - b.id) : [];
+  const mended = !!t && t.alive && isAlly(u, t) && t.pocket === u.pocket && t.hp < t.maxHp;
+  const struck = s ? inst.world.units.filter((h) => isEnemy(u, h) && h.alive && covers(s, h.x, h.y)).sort((a, b) => a.id - b.id) : [];
   u.cast = null;
   restart(u);
   sc.emit(makeEvent('spell_end', sc.atMs, { u: u.id, spell: id, why: 'landed', hits: mends(sp) ? (mended ? 1 : 0) : struck.length }));
@@ -167,7 +168,7 @@ function firstCasts(sc, list) {
     comes a full interval after it): every monster's cooldowns, windup and landing, in id order. */
 export function castSpells(inst, sc) {
   for (const u of inst.world.units) {
-    if (u.side !== 'mon') continue;
+    if (!isMonster(u)) continue;
     /* what it casts now (data/monster-spells.js castsOf: its row's list, or nothing while the switch is off) */
     const list = castsOf(rowOf(inst, u.kind));
     if (u.cast) {
@@ -201,7 +202,7 @@ export function castSpells(inst, sc) {
 /** The drop hook (world-step.js, after every blow of the sub-step): a caster that fell or left the fight drops its cast. */
 export function dropCasts(inst, sc) {
   for (const u of inst.world.units) {
-    if (u.side !== 'mon' || !u.cast) continue;
+    if (!isMonster(u) || !u.cast) continue;
     const why = outOf(u);
     if (why) drop(u, sc, why);
   }

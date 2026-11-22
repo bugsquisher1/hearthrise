@@ -245,7 +245,7 @@ const MUTANTS = [
   /* THE RESET */
   { name: 'the reset leaves his wave standing', edits: [['src/core/hunt/leash.js', '    if (isAdd(inst, u)) { u.alive = false; u.hp = 0; u.goal = null; gone.add(u.id); continue; }\n', '']], want: /GB-RESET/ },
   { name: 'an add has a home to walk to', edits: [['src/core/hunt/pull-cycle.js', 'home: add ? null : at,', 'home: at,']], want: /GB-RESET/ },
-  { name: 'any homeless monster reads as an add', edits: [['src/core/hunt/leash.js', "return u.side === 'mon' && !u.home && !!p && Array.isArray(p.adds) && p.adds.length > 0;", "return u.side === 'mon' && !u.home;"]], want: /GB-RESET/ },
+  { name: 'any homeless monster reads as an add', edits: [['src/core/hunt/leash.js', "return isMonster(u) && !u.home && !!p && Array.isArray(p.adds) && p.adds.length > 0;", "return isMonster(u) && !u.home;"]], want: /GB-RESET/ },
   { name: 'a hero still aims at an add that left', edits: [['src/core/hunt/leash.js', '    for (const u of inst.world.units) if (gone.has(u.target)) u.target = null;\n', '']], want: /GB-RESET/ },
   { name: 'a called room resets', edits: [['src/core/hunt/leash.js', 'if (!pack || (inst.ground && inst.ground.call)) return;', 'if (!pack) return;']], want: /GB-RESET/ },
   /* THE DATA'S DOORS */

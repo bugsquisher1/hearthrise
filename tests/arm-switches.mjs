@@ -18,25 +18,23 @@
 // tests/live-events-window.mjs); this one plays each feature once, the happy path, as armed.
 //
 // ARMS (the live calendar)
-//   AS-ROWS    the chain leaves event_xp_bonus, event_open_halls and scaled_hunts at everyone with no account list, a stranger's
-//              `features` names all three, a second apply of both arm files moves no switch row (updated_at included), and a second
-//              apply of 2027-05-17-scaled-best.sql leaves both its bodies and its column byte for byte
+//   AS-ROWS    the chain leaves event_xp_bonus and scaled_hunts at everyone with no account list (event_open_halls is gone with its type,
+//              1043-hearthrise.sql, D-7), a stranger's `features` names both, a second apply of the scaled hunts' arm file moves no switch
+//              row (updated_at included), and a second apply of 2027-05-17-scaled-best.sql leaves both its bodies and its column byte for
+//              byte. 2027-05-14-arm-switches.sql is applied history whose precondition names the retired Open Halls switch: never re-run
 //   AS-SCALED  SCALED HUNTS: a Level 20 stranger in its Level's iron hunting the Mill Cellar reads it in its `scaled_hunts` section at Level 20 for 40 x 20
 //              gold an hour, buys one hour at that price (one shop row, the purse down by exactly it), and its next settles play the
 //              Cellar at Level 20 and spend the hour by the world's swings; a re-read of the hero (a reload) projects the hours left,
 //              on, and the hunt playing at Level 20; the Hunts list's tag and the hunt bar read "Scaled: Level 20" from that section;
 //              the hunt ends past the best's ten minutes and sets NO personal best (its tally keeps the scaled time)
-//   AS-XP      THE BONUS XP WEEKEND: the catalogue's own row, its window moved to hold the server instant (a test cannot wait for Friday):
-//              a stranger's hunt earns +25% Level XP a kill on the tally's xp_event (the event's part a quarter of the rest, to rounding),
-//              its `live_events` section lists the weekend live at the row's dial, the World's plate reads "+25% Level XP", and the
-//              analyzer reads the event's part on its own "Weekend bonus" row (the server's xp_event)
-//   AS-HALLS   OPEN HALLS: the catalogue's own row moved to hold now: a stranger with the Rat King's natural wins is quoted 0 gold
-//              naming open_halls, calls one fight at 0 (seated, the purse untouched, one journalled row with the dial and the event,
-//              the fight's stamina spent), and Call out's line reads the event
+//   AS-XP      THE HEARTHRISE (D-7): the catalogue's own row, its window moved to hold the server instant (a test cannot wait for Friday)
+//              and not yet lit, so it pays the floor: a stranger's hunt earns +10% Level XP a kill on the tally's xp_event (the event's
+//              part a tenth of the rest, to rounding), its `live_events` section lists the Hearthrise live at that size, the World's plate
+//              reads "+10% Level XP", and the analyzer reads the event's part on its own "Hearthrise" row (the server's xp_event)
 // ARMS (the guards' calendar, a plain bootReplay)
 //   AS-QUIET   THE GUARDS' QUIET CALENDAR: every other guard boots with the event switches off (tests/schema-replay.mjs quietCalendar),
-//              so inside an Open Halls window a quote still reads the row's fee and a Wednesday evening reads like a Tuesday; the
-//              scaled_hunts switch, which runs on no clock, stays as the chain armed it
+//              so inside a Hearthrise window a hunt reads no XP window and a Friday reads like a Tuesday; the scaled_hunts switch,
+//              which runs on no clock, stays as the chain armed it
 //
 // Exit: 0 green · 1 red · 2 harness.
 // ════════════════════════════════════════════════════════════════════════
@@ -52,9 +50,9 @@ const V = sourceQuery(ROOT);
 const { HARNESS: H } = await import('./hunt-sessions-settle.mjs');
 const { one, q, inTx, UIDS } = H;
 const MIN = 60000, HOUR = 3600000;
-const ARM_FILES = ['2027-05-14-arm-switches.sql', '2027-05-18-arm-scaled-hunts.sql'];
-const SWITCHES = ['event_open_halls', 'event_xp_bonus', 'scaled_hunts'];
-const ARMS = ['AS-ROWS', 'AS-SCALED', 'AS-XP', 'AS-HALLS', 'AS-QUIET'];
+const ARM_FILES = ['2027-05-18-arm-scaled-hunts.sql'];
+const SWITCHES = ['event_xp_bonus', 'scaled_hunts'];
+const ARMS = ['AS-ROWS', 'AS-SCALED', 'AS-XP', 'AS-QUIET'];
 const BEST_FN = 'public.hr_hunt_best_fold(uuid)', MEMBER_FN = 'public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)';
 const LIVE_ARMS = ARMS.filter((a) => a !== 'AS-QUIET');
 
@@ -84,7 +82,8 @@ const ARM_FNS = {
   'AS-ROWS': async (db) => {
     const bad = [];
     const rows = await q(db, `select switch_id, scope, accounts::text as a from public.hr_feature_switches where switch_id = any($1) order by switch_id`, [SWITCHES]);
-    if (rows.length !== 3 || rows.some((r) => r.scope !== 'everyone' || r.a !== '{}')) bad.push('the chain leaves the switches at ' + JSON.stringify(rows));
+    if (rows.length !== 2 || rows.some((r) => r.scope !== 'everyone' || r.a !== '{}')) bad.push('the chain leaves the switches at ' + JSON.stringify(rows));
+    if (Number(await one(db, `select count(*)::text from public.hr_feature_switches where switch_id = 'event_open_halls'`)) !== 0) bad.push('the retired Open Halls switch is still a row');
     const stranger = '000000c0-0000-4000-a000-0000a2e5ff01';
     const f = await one(db, 'select public.hr_features_view($1::uuid, 0)', [stranger]);
     for (const s of SWITCHES) if (!(f || []).includes(s)) bad.push('a stranger\'s features section reads ' + JSON.stringify(f) + ', without ' + s);
@@ -168,9 +167,9 @@ const ARM_FNS = {
   'AS-XP': async (db, M) => {
     const bad = [];
     const U = UIDS[0];
-    const row = (await q(db, `select e.pm from public.hr_live_events e join public.hr_live_event_types t on t.type_id = e.type_id where e.event_id = 'bonus_weekend' and t.dial = 'xpPm'`))[0];
-    if (!row) return ['the catalogue has no bonus_weekend xp row'];
-    await holdNow(db, 'bonus_weekend');
+    const row = (await q(db, `select e.pm from public.hr_live_events e join public.hr_live_event_types t on t.type_id = e.type_id where e.event_id = 'hearthrise' and t.dial = 'xpPm' and e.sized_by = 'fire'`))[0];
+    if (!row) return ['the catalogue has no hearthrise xp row sized by the fire'];
+    await holdNow(db, 'hearthrise');
     /* premium: the replay turns the betas' every-hero premium off (schema-replay.mjs premiumPerCharacter), and the analyzer section is premium's */
     /* on a ground with no exit (the Cellar's hunt ends at Level 5 unscaled, hunt-grounds.js endsAtLevel): the weekend's XP is this arm's subject */
     const h = await H.hunter(db, M, { ...HERO, minutesAgo: 8, premium: true, hunt: 'meadowbrook_thicket' });
@@ -181,51 +180,20 @@ const ARM_FNS = {
     const share = base > 0 ? ev / base : 0, want = (row.pm - 1000) / 1000;
     if (!(ev > 0) || Math.abs(share - want) > 0.02) bad.push('seven minutes inside the weekend earned ' + gained + ' Level XP, ' + ev + ' of it the event\'s (' + (100 * share).toFixed(1) + '% over the rest, want ' + (100 * want) + '%)');
     const e = await env(db, U);
-    const we = (e.live_events || []).find((x) => x.id === 'bonus_weekend');
-    if (!we || we.live !== true || we.pm !== row.pm || we.dial !== 'xpPm') bad.push('the stranger\'s live_events section reads ' + JSON.stringify(e.live_events));
+    const we = (e.live_events || []).find((x) => x.id === 'hearthrise');
+    if (!we || we.live !== true || we.pm !== row.pm || we.dial !== 'xpPm' || we.lit !== false) bad.push('the stranger\'s live_events section reads ' + JSON.stringify(e.live_events));
     const LV = await import(pathToFileURL(join(ROOT, 'src/shell/live-events-view.js')).href + V);
-    const plate = LV.plateLines(csOf(e, await nowMs(db))).find((l) => l.id === 'bonus_weekend');
+    const plate = LV.plateLines(csOf(e, await nowMs(db))).find((l) => l.id === 'hearthrise');
     if (!plate || plate.head !== '+' + (100 * want) + '% Level XP' || plate.soon !== false) bad.push('the World\'s plate reads ' + JSON.stringify(plate));
     /* THE ANALYZER SAYS IT (§6): the hero's view carries the server's xp_event, the row named by the event's own words */
     const HS = await import(pathToFileURL(join(ROOT, 'src/session/hunt-sections.js')).href + V);
     const view = HS.analyzerFrom(csOf(e, await nowMs(db)), e.hunt_analyzer);
     if (!view || view.hero.eventXp !== ev || !(view.hero.levelXp >= ev)) bad.push('the analyzer reads the event\'s part as ' + (view && view.hero.eventXp) + ', the tally ' + ev);
     const T = await import(pathToFileURL(join(ROOT, 'src/data/live-events.js')).href + V);
-    if (T.LIVE_EVENTS.bonus_weekend.words.analyzer !== 'Weekend bonus') bad.push('the weekend\'s analyzer row is named ' + T.LIVE_EVENTS.bonus_weekend.words.analyzer);
+    if (T.LIVE_EVENTS.hearthrise.words.analyzer !== 'Hearthrise') bad.push('the weekend\'s analyzer row is named ' + T.LIVE_EVENTS.hearthrise.words.analyzer);
     const W = await import(pathToFileURL(join(ROOT, 'src/render/player-text.js')).href + V);
     if (!/event bonus\)$/.test(W.t('hud.an_raw_xp_h'))) bad.push('the raw Level XP line reads "' + W.t('hud.an_raw_xp_h') + '", silent on the event');
     console.log('  AS-XP seven minutes on the Cellar at Level 20 inside the weekend: ' + gained + ' Level XP, ' + ev + ' the event\'s; the plate "' + (plate && plate.head) + ' ' + (plate && plate.when) + '"');
-    return bad;
-  },
-
-  'AS-HALLS': async (db, M) => {
-    const bad = [];
-    const U = UIDS[0];
-    await H.character(db, M, U, { level: 20, gold: 100000 });
-    /* the Rat King's natural wins (2027-05-05-entry-gates.sql), as the settle writes them: this arm plays the fee, not the gate */
-    await db.query(`insert into public.player_progress (user_id, slot, kind, key, period_key, value, updated_at)
-      select $1, 0, 'stat', 'ev:kill_monster:' || c.boss_id, '', c.wins, now() from public.hr_boss_calls c where c.call_id = 'rat_king'`, [U]);
-    await holdNow(db, 'open_halls');
-    const stam = Number(await one(db, `select fight_stamina_ms::text from public.hr_boss_calls where call_id = 'rat_king'`));
-    const pool0 = Number(await one(db, 'select public.hr_stamina_of($1::uuid, 0, now())::text', [U]));
-    const quote = await one(db, `select public.hr_boss_call_quote($1::uuid, 0, 'rat_king')`, [U]);
-    if (!quote || Number(quote.price) !== 0 || quote.fee_pm !== 0 || quote.event !== 'open_halls') bad.push('the stranger is quoted ' + JSON.stringify(quote));
-    await db.query('delete from public.hr_rate_counters where user_id = $1', [U]);
-    await asUser(db, U);
-    const r = await one(db, `select public.hr_boss_call(0, 'rat_king', 1, 0, $1::uuid)`, [key()]);
-    await asUser(db, '');
-    const led = await q(db, `select intent, gold, meta from public.player_ledger where user_id = $1 and intent like 'boss\\_call:%'`, [U]);
-    const seated = Number(await one(db, `select count(*)::text from public.hunt_sessions where user_id = $1 and ended_at is null and hunt_id = 'millrace_sewer_called'`, [U]));
-    if (!r || r.ok !== true || await purse(db, U) !== 100000 || seated !== 1) bad.push('the free call answered ' + JSON.stringify(r).slice(0, 200) + ' (purse ' + await purse(db, U) + ', seated ' + seated + ')');
-    if (led.length !== 1 || Number(led[0].gold || 0) !== 0 || led[0].meta.fee_pm !== 0 || led[0].meta.event !== 'open_halls') bad.push('the free call journalled ' + JSON.stringify(led));
-    const pool1 = Number(await one(db, 'select stamina_ms::text from public.player_state where user_id = $1 and slot = 0', [U]));
-    if (pool1 > pool0 - stam + 5000 || pool1 < pool0 - stam) bad.push('the fight left the stamina pool at ' + pool1 + ' of ' + pool0 + ' (want one fight, ' + stam + ' ms, off)');
-    const e = await env(db, U);
-    const LV = await import(pathToFileURL(join(ROOT, 'src/shell/live-events-view.js')).href + V);
-    const { BOSS_CALLS } = await import(pathToFileURL(join(ROOT, 'src/data/boss-calls.js')).href + V);
-    const words = LV.callEventWords(csOf(e, await nowMs(db)), BOSS_CALLS.rat_king, { price: 0, event: 'open_halls' });
-    if (!words || !/^Open Halls is on until /.test(words.line)) bad.push('Call out reads ' + JSON.stringify(words));
-    console.log('  AS-HALLS quoted ' + (quote && quote.price) + ' gp (' + (quote && quote.event) + '), one fight at 0: ' + (r && r.ok) + '; Call out reads "' + (words && words.line) + '"');
     return bad;
   },
 
@@ -233,13 +201,11 @@ const ARM_FNS = {
     const bad = [];
     const U = UIDS[0];
     const rows = await q(db, `select switch_id, scope from public.hr_feature_switches where switch_id = any($1) order by switch_id`, [SWITCHES]);
-    const want = { event_open_halls: 'off', event_xp_bonus: 'off', scaled_hunts: 'everyone' };
-    if (rows.length !== 3 || rows.some((r) => r.scope !== want[r.switch_id])) bad.push('the guards\' calendar reads ' + JSON.stringify(rows) + ' (want the events off, scaled_hunts as armed)');
-    await H.character(db, M, U, { level: 20, gold: 100000 });
-    await holdNow(db, 'open_halls');
-    const fee = Number(await one(db, `select fight_fee::text from public.hr_boss_calls where call_id = 'rat_king'`));
-    const quote = await one(db, `select public.hr_boss_call_quote($1::uuid, 0, 'rat_king')`, [U]);
-    if (!quote || Number(quote.price) !== fee || quote.event !== null) bad.push('inside an Open Halls window a guard is quoted ' + JSON.stringify(quote) + ' (want the row\'s ' + fee + ' gp, no event)');
+    const want = { event_xp_bonus: 'off', scaled_hunts: 'everyone' };
+    if (rows.length !== 2 || rows.some((r) => r.scope !== want[r.switch_id])) bad.push('the guards\' calendar reads ' + JSON.stringify(rows) + ' (want the events off, scaled_hunts as armed)');
+    await holdNow(db, 'hearthrise');
+    const w = await one(db, `select public.hr_live_xp_windows($1::uuid, 'mill_cellar', now() - interval '1 hour', now() + interval '1 hour')`, [U]);
+    if (JSON.stringify(w) !== '[]') bad.push('inside a Hearthrise window a guard reads the XP windows ' + JSON.stringify(w) + ' (want none)');
     return bad;
   },
 };
@@ -269,7 +235,6 @@ const STATE_MUTANTS = [
   { arm: 'AS-ROWS', name: 'one switch left at the testers', plant: "update public.hr_feature_switches set scope = 'testers' where switch_id = 'event_xp_bonus'" },
   { arm: 'AS-SCALED', name: 'scaled_hunts left at the testers (a stranger is refused)', plant: "update public.hr_feature_switches set scope = 'testers' where switch_id = 'scaled_hunts'" },
   { arm: 'AS-XP', name: 'event_xp_bonus left off', plant: "update public.hr_feature_switches set scope = 'off' where switch_id = 'event_xp_bonus'" },
-  { arm: 'AS-HALLS', name: 'event_open_halls left for one other account', plant: "update public.hr_feature_switches set scope = 'accounts', accounts = array['000000c0-0000-4000-a000-0000a2e5ff02'::uuid] where switch_id = 'event_open_halls'" },
   { arm: 'AS-QUIET', name: 'the harness keeps the live calendar for every guard', calendar: 'live' },
   { arm: 'AS-QUIET', name: 'the guards\' calendar quiets scaled_hunts too (the arm unseen by every guard)', plant: "update public.hr_feature_switches set scope = 'off' where switch_id = 'scaled_hunts'" },
   /* the body mutants: the replay's own body read back, one line taken out, re-created inside the arm's transaction (rolled back with it) */

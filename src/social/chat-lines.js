@@ -23,7 +23,7 @@ import { CHAT_LIMITS } from '../data/chat-channels.js';
 import { HUNT_INDEX } from '../data/hunts.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const CHANNEL = /^(global|trade|system|local:[a-z0-9_]{1,64}|party:[0-9a-f-]{36})$/;
+const CHANNEL = /^(global|trade|system|party:[0-9a-f-]{36}|clan:[0-9a-f-]{36})$/;
 const LINK = /\[\[(item|hunt):([a-z0-9_]{1,64})\]\]/g;
 const TITLE = /^[A-Za-z][A-Za-z' -]{0,39}$/;
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -99,9 +99,9 @@ export function lineOf(row, o = {}) {
     return { id: row.id, channel: 'system', at, time: clockOf(at, o.tz), fromId: null, name: 'Game Master', level: null, role: null,
       slot: null, parts: [{ text: 'Game Master: ' }, ...partsOf(body, true)], toId: null, toName: null, system: true };
   }
-  /* A System row is the server's notice: one sentence, the hero's name first, no level or role tag. So is a town notice in Local (a powder on the Hearth): it
-     has no Level, which no line a player writes ever lacks (hr_chat_send always stamps one). */
-  if (!whisper && (row.channel === 'system' || (row.from_role === 'notice' && !Number.isInteger(row.from_level)))) {
+  /* A System row is the server's notice: one sentence, the hero's name first, no level or role tag. A town notice (a powder on the Hearth)
+     is one too: with no Local channel it is written to System (1041-social-clans.sql hr_chat_zone_of), and no player can write System. */
+  if (!whisper && row.channel === 'system') {
     return { id: row.id, channel: row.channel, at, time: clockOf(at, o.tz), fromId, name, level: null, role: null,
       slot: int(row.from_slot, 0, 32), parts: [{ text: name + ' ' }, ...partsOf(body, true)], toId: null, toName: null, system: true };
   }
@@ -145,11 +145,11 @@ export function npcLine(id, name, parts, at, o = {}) {
     role: null, slot: null, parts: parts.slice(0, 8), toId: null, toName: null, system: false, npc: true };
 }
 
-/** Which fixed tab a chat line belongs to, given the zone and party channels the server named. */
-export function tabOfChannel(channel, zone, party) {
+/** Which fixed tab a chat line belongs to, given the party and clan channels the server named (there is no Local tab, GR-69). */
+export function tabOfChannel(channel, party, clan) {
   if (channel === 'global') return 'global';
   if (channel === 'system') return 'system';
-  if (zone && channel === zone) return 'local';
   if (party && channel === party) return 'party';
+  if (clan && channel === clan) return 'clan';
   return null;
 }

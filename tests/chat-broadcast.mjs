@@ -22,6 +22,9 @@
 //       the four functions are executable by no client role; supabase_realtime
 //       carries neither chat table. So a later restatement from an older text is
 //       red here, not silent (the files' self-checks run only at their position).
+//   B2  GLOBAL IN BATCHES, CLAN TO THE INBOXES (1041-social-clans.sql, 31-1, GR-69): the trigger skips Global, which
+//       hr_chat_global_flush sends as one message a batch under its lock (cron hr-chat-global, no client may run it);
+//       a clan line fans to each member's inbox (never the sender, never a blocker); no Local topic is spelled or receivable.
 //   --mutate  plants twelve defects into 2026-12-26-chat-broadcast.sql and
 //       requires its §5 to refuse each by NAME (an apply that fails for another
 //       reason is not a catch).
@@ -70,6 +73,23 @@ async function finalState(db) {
   const pub = await one(`select count(*)::int n from pg_publication_tables
       where pubname = 'supabase_realtime' and schemaname = 'public' and tablename in ('chat_messages', 'chat_whispers')`);
   ok(pub && pub.n === 0, 'B1', 'supabase_realtime still publishes a chat table (the WAL poller decodes it for nobody)');
+  // B2 (1041-social-clans.sql, FB-12): Global goes in batches, not a line at a time (31-1); a clan line reaches each member's own inbox,
+  //    never the sender's, never a member who blocked the sender; there is no Local topic (GR-69)
+  ok(/if new\.channel = 'global' then return null; end if;/.test(chat), 'B2', 'hr_chat_broadcast still pushes Global a line at a time');
+  ok(/from public\.clan_members m/.test(chat) && /m\.user_id is distinct from new\.from_id/.test(chat)
+    && /b\.blocker_id = m\.user_id and b\.blocked_id = new\.from_id/.test(chat), 'B2',
+    'hr_chat_broadcast no longer fans a clan line to the members\' inboxes (minus the sender and blockers)');
+  const topic = await def('public.hr_chat_topic(text)');
+  const code = (s) => s.replace(/--[^\n]*/g, '');
+  ok(!/local/.test(code(topic)) && !/chat:local/.test(code(pol)), 'B2', 'a Local topic is still spelled or receivable');
+  const flush = await def('public.hr_chat_global_flush()');
+  ok(/'t', 'lines', 'lines', v_lines\), 'lines', 'chat:global'/.test(flush) && /pg_try_advisory_xact_lock/.test(flush)
+    && /update public\.hr_chat_flush set flushed_to/.test(flush), 'B2', 'hr_chat_global_flush does not send one batch on chat:global under its lock and move its cursor');
+  const fg = await one(`select bool_or(has_function_privilege(r, 'public.hr_chat_global_flush()', 'EXECUTE')) x
+      from unnest(array['anon', 'authenticated', 'service_role']) r where exists (select 1 from pg_roles where rolname = r)`);
+  ok(fg && fg.x === false, 'B2', 'hr_chat_global_flush is executable by a client role');
+  const cron = await one(`select count(*)::int n from cron.job where jobname = 'hr-chat-global' and command = 'select public.hr_chat_global_flush()'`);
+  ok(cron && cron.n === 1, 'B2', 'the hr-chat-global cron row is missing');
 }
 
 /** The mutation catalogue: each plants one defect in the migration; its §5 must refuse it with `expect`. */
@@ -129,6 +149,23 @@ async function main() {
       const caught = verdict !== 'APPLIED' && new RegExp('\\b' + m.expect + '\\b').test(verdict);
       if (caught) console.log('  ✓ ' + m.id + ' refused by §5 ' + m.expect + ' — ' + m.why);
       else { bad += 1; console.error('  ✗ ' + m.id + ' NOT refused by §5 ' + m.expect + ' (' + verdict.split('\n')[0].slice(0, 240) + ')'); }
+    }
+    /* B2's own plants, in 1041-social-clans.sql: the replay must land them (its §5 does not test the push) and B2 must name each */
+    const CLANS = '1041-social-clans.sql';
+    const B2_MUTANTS = [
+      { id: 'global_line_by_line', why: 'Global is pushed a line at a time again', from: "    if new.channel = 'global' then return null; end if;\n", to: '' },
+      { id: 'clan_ignores_block', why: 'a clan line reaches a member who blocked its sender',
+        from: '                    and not exists (select 1 from public.chat_blocks b where b.blocker_id = m.user_id and b.blocked_id = new.from_id)\n', to: '' },
+    ];
+    for (const m of B2_MUTANTS) {
+      const before = problems.length;
+      try {
+        const { db: mdb } = await bootReplay({ patches: new Map([[CLANS, [[m.from, m.to]]]]), upTo: LAST_PATCHED });
+        await finalState(mdb);
+      } catch (e) { bad += 1; console.error('  ✗ ' + m.id + ': the planted chain did not replay (' + String((e && e.message) || e).split('\n')[0].slice(0, 200) + ')'); continue; }
+      const got = problems.splice(before);
+      if (got.some((p) => p.startsWith('B2'))) console.log('  ✓ ' + m.id + ' named by B2 — ' + m.why);
+      else { bad += 1; console.error('  ✗ ' + m.id + ' NOT named by B2 (' + (got[0] || 'every claim held') + ')'); }
     }
     if (bad) { console.error('chat-broadcast --mutate: ' + bad + ' defect(s) not caught'); process.exit(1); }
   }

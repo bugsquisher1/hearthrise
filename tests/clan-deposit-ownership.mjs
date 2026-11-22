@@ -42,6 +42,7 @@
 // ════════════════════════════════════════════════════════════════════════
 import { bootReplay } from './schema-replay.mjs';
 import { isMain } from './_is-main.mjs';
+import { hiddenProblems } from './_clan-hidden.mjs';
 
 const MIG = '2026-08-18-clan-deposit-ownership.sql';
 const problems = [];
@@ -307,6 +308,9 @@ function grade(o) {
   ok(o.d6?.ok === false && o.d6?.error === 'no_character',
     `D6: a caller with no server character was not refused no_character (${JSON.stringify(o.d6)})`);
   ok(o.d6_store === 0, 'D6: a caller with no character still moved clan_stores');
+
+  // D7 (T-12): the Storehouse's deposit is the castle's, hidden from every client and never dropped (1041-social-clans.sql, X-04)
+  for (const p of hiddenProblems(['clan_deposit', 'clan_deposit__ungated'])) ok(false, 'D7: ' + p);
 }
 
 /** The smoke-suite entry point. Returns the problem list rather than exiting,

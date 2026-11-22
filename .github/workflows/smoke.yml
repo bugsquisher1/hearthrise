@@ -1743,6 +1743,17 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tools/mutant-gate.mjs node tools/balance-program/formulas/combat-register.mjs --selftest
+      # tools/balance-program/graph.mjs
+      - name: Balance model graph - an undeclared read, a wrong declaration, a new ghost edge and a wrong sign are each caught
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tools/balance-program/graph.mjs --selftest
+          node tools/balance-program/graph.mjs --check
+      # tools/balance-program/lab.mjs
+      - name: Balance Lab ask and propose - the picture of a planted lever, an undeclared outcome of a proposal and an unknown name are each read right
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tools/balance-program/lab.mjs --selftest
       # tools/balance-program/levers.mjs
       - name: Balance lever registry - an unclaimed typed number, a new key in a pinned table, a lost anchor and a bad knob are each caught
         if: ${{ !cancelled() }}
@@ -1779,6 +1790,12 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tools/mutant-gate.mjs node tools/balance-program/start-cards.mjs --selftest
+      # tools/balance-program/targets.mjs
+      - name: Balance targets - a reader that does not exist, a malformed target and a planted fault are each caught
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tools/balance-program/targets.mjs --selftest
+          node tools/balance-program/targets.mjs --check
       # ── END SELF-REGISTERED GUARDS ──
 
   # db-replay-15: the last steps of db-replay-7, from "Party flow" on, split out 2026-11-18 (lane/ci-speed). db-replay-7 took up to 44.5 min
@@ -2647,6 +2664,27 @@ jobs:
         run: |
           node tests/ledger-rollup.mjs
           node tools/mutant-gate.mjs node tests/ledger-rollup.mjs --mutate
+
+      # THE HOURLY JOURNAL (1047-hourly-journal.sql, FB-4). Plays four fixtures through their own doors, spreads their journal
+      # across a UTC midnight, folds it into hour rows and reads every day read before and after (day budget, the store's day
+      # cap, meta sums, journal rows, the monthly rollup by running the prune): all the same. Both doors save on after a fold;
+      # the cron's cursor keeps rows before the release and inside detail_minutes; the fence and the switch. --mutate: 10 defects.
+      # MEASURED locally on a cached chain: 9 s plain, 70 s --mutate.
+      - name: Hourly journal — a fold moves no day read and keeps nothing it should not
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/ledger-hours.mjs
+          node tools/mutant-gate.mjs node tests/ledger-hours.mjs --mutate
+
+      # THE NARROW TOWN READ (1048-narrow-town-read.sql, FB-4). The world tick reads a town hero through hr_tick_town_state, not
+      # hr_state_of: for an artisan on a counted run with Storage, buffs and a tool carry, a Game Master gatherer with a carried
+      # fight, and an idle hero over its HP cap, the town engine's inputs and the tick's keys are identical from both reads.
+      # --mutate: 7 planted omissions in the read, each red on its hero. MEASURED locally on a cached chain: 4 s plain, 6 s --mutate.
+      - name: Narrow town read — the tick's read gives the town engine what the whole hero gives it
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/town-read.mjs
+          node tools/mutant-gate.mjs node tests/town-read.mjs --mutate
 
       # ...AND DO THE ROWS THE REBUILD PRODUCES MATCH src/data?
       # schema-drift proves the SCHEMA replays. This is the CONTENT half, and it

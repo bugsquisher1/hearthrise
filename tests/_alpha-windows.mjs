@@ -85,6 +85,8 @@ async function stub(page, s) {
     s.calls.push({ name, body });
     if (s.onCall) s.onCall(name, body);
     const json = (b) => r.fulfill({ contentType: 'application/json', body: JSON.stringify(b) });
+    /* an account of ONE hero in four slots (o.oneHero): every other slot answers the bare no_character, as the server does for an empty slot */
+    if (name === 'hr_load' && s.oneHero && body.p_slot > 0) return json({ ok: false, error: 'no_character', hero_slots: [0, 1, 2, 3] });
     if (name === 'hr_load') return json(s.next());
     if (name === 'hr-accrue') {
       if (body.verb) {
@@ -197,6 +199,7 @@ export async function pageRun(overrides, shots, { stopAtFirst = false } = {}, pu
     page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
     const s = scripted();
     if (o.mutateEnv) o.mutateEnv(s.env);
+    if (o.oneHero) { s.oneHero = true; s.env.hero_slots = [0, 1, 2, 3]; }
     if (o.residue) Object.assign(s.residue, o.residue);
     /* a case's cards read are the ACCOUNT's now (1039): the coach's reads go to the account's row, the rest of the residue stays the hero's */
     if (o.residue && o.residue.coach && Array.isArray(o.residue.coach.read)) s.coach = { read: o.residue.coach.read.slice(), taught: [], v: 1 };

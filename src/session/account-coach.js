@@ -23,14 +23,15 @@ export function perHeroCard(card) {
 }
 
 export class AccountCoach {
-  /** @param server { rpc(name, args) -> Promise<{ ok, body }> } | null (null: held here only, nothing is sent)
-      @param seed   { read?, taught? } what is known before the server answers */
+  /** @param {{ rpc: (name: string, args: object, opts?: object) => Promise<any> } | null} server the account's server (null: held here only, nothing is sent)
+      @param {{ read?: string[], taught?: string[] }} [seed] what is known before the server answers */
   constructor(server, seed = {}) {
     this.server = server;
     this.read = new Set(ids(seed.read));
     this.taught = new Set(ids(seed.taught));
     this.v = 0;
     this._loading = null;
+    /** @type {Promise<unknown>} the writes, one after another */
     this._sending = Promise.resolve();
     this._subs = new Set();
   }

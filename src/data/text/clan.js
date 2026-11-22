@@ -23,6 +23,7 @@ export const CLAN_TEXT = Object.freeze({
   policy_invite: 'Invite only',
   leader: 'Led by {name}',
   join: 'Join',
+  full: 'Clan full',
   joined: 'You joined {name}.',
   found_head: 'Found a clan',
   found_name: 'Clan name',
@@ -30,6 +31,7 @@ export const CLAN_TEXT = Object.freeze({
   found_tag_hint: '2 to 4 letters',
   found_open: 'Anyone can join',
   found_go: 'Found for {gold} gold',
+  found_wait: 'Waiting for the price',
   found_done: '{name} is founded. You lead it.',
   /* ── IN A CLAN ── */
   roster_head: 'Members',
@@ -63,6 +65,8 @@ export const CLAN_TEXT = Object.freeze({
   link_explain: 'A new player who signs up through this link starts with you on their friends list.',
   link_copy: 'Copy link',
   link_copied: 'Link copied',
+  link_wait: 'Getting your link…',
+  link_none: 'No link right now. Open this window again later.',
   /* ── THE PRESENCE STRIP (MM-20), on a ground's page ── */
   strip_count: Object.freeze({ one: '1 other party is hunting {ground}', other: '{count} other parties are hunting {ground}' }),
   strip_none: 'No other party is hunting {ground} right now. When one does, it shows here.',
@@ -71,4 +75,5 @@ export const CLAN_TEXT = Object.freeze({
   /* ── QUIET PRESENCE (MM-20), in the Friends window ── */
   quiet_label: 'Quiet presence',
   quiet_hint: 'Leave your heroes off every list other players see.',
+  quiet_wait: 'Waiting for the server.',
 });

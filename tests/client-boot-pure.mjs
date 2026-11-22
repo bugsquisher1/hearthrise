@@ -106,7 +106,7 @@ async function pure(base) {
     let acct = accountOf(M, o);
     let rows = await acct.roster();
     const lead = M.SO.playLineOf(acct.statedLimit(), acct.limit(), rows);
-    if (rows.length !== 4 || lead !== 'Heroes at once: up to 4. 2 more heroes to make') fails.push('B-11 the line over two heroes of four reads ' + JSON.stringify(lead) + ' over ' + rows.length + ' slots');
+    if (rows.length !== 4 || lead !== 'Heroes at once: up to 4. 2 more heroes to make.') fails.push('B-11 the line over two heroes of four reads ' + JSON.stringify(lead) + ' over ' + rows.length + ' slots');
     if ('slotOffer' in acct || typeof acct.buySlot === 'function') fails.push('B-11 the account still holds a slot offer or a purchase');
     Object.assign(o, { heroes: { 0: 'Tester', 1: 'Fennick', 2: 'Wren', 3: 'Moss' } });
     acct = accountOf(M, o);

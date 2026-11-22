@@ -261,11 +261,11 @@ export function retryableSettle(v) {
    whole envelope, and the caller's envelope is no longer a term here: see HUNT_STATE_SQL.
    ONE READ A SETTLE (the 11-19 server audit row 10 = arch audit item 10): every member's perk stack is a term of
    this statement too (`perks`: hr_perks_of by `user:slot`, the same function tick-reads.js calls), not a statement
-   (a pooled transaction, four round trips) a member: a party of four's settle was 8 statements, a lone hero's 5. */
+   a member. `r` is materialized: inlined, each r.inst ran the party read (per-player-cost party_reads_a_settle). */
 export const HUNT_READ_SQL = `
   with g as (select case when $3::text is null then true
                          else public.hr_rate_gate($1::uuid, $2::int, $3::text) end as allowed),
-       r as (select g.allowed, case when g.allowed then public.hr_hunt_instance_read($1::uuid, $2::int) end as inst from g)
+       r as materialized (select g.allowed, case when g.allowed then public.hr_hunt_instance_read($1::uuid, $2::int) end as inst from g)
   select r.allowed                                                                  as allowed,
          r.inst                                                                     as inst,
          now()                                                                      as now,
@@ -285,8 +285,8 @@ function perksOf(perksBy, user, slot) {
    (not due, below the floor, no hunt, a deploy in flight, nothing accrued) carries the caller's envelope, which the client
    applies; a settle that lands answers the commit's own projection (hr_hunt_apply_instance's), and the world tick's
    answers carry nothing (tick.js reads outcomes and reasons, never a body). So it is read only when an answer needs it,
-   at most once. It was a term of HUNT_READ_SQL, built on every read — the busiest statement in the database (measured
-   2026-10-28: 61 reads in 26 min at 440 ms each), read on the tick by nobody. */
+   at most once. It was a term of HUNT_READ_SQL, built on every read (2026-10-28: 61 reads in 26 min at 440 ms
+   each), read on the tick by nobody. */
 export const HUNT_STATE_SQL = 'select public.hr_state_of($1::uuid, $2::int) as state';
 function envReader(o) {
   let memo;

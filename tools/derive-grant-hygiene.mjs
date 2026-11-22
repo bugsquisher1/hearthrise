@@ -425,10 +425,15 @@ export const LINKS = [
      (2026-09-23-world-tick-shadow-state-chain.sql dropped hr_tick_settle's old overload and its entry together). Its declared
      removals in tests/run-sql-tests.mjs PART 1f-ii are exactly the replaced block. Its base is link 24's TARGET. It is the new
      last toucher. */
+  /* ...and (lane/c-settle-cost FB-4, 2026-11-21) ONE INSERTION in the same link: the narrow town read's engine entry
+     (hr_tick_town_state, created and granted to hr_engine by 1048-narrow-town-read.sql) at the HEAD of c_engine_allow. It rides
+     link 25 because ONE staged file restates the detector (link 24's rule: the staged tail is re-applied in order, and a staged
+     link re-applied over a later one would put the later's entries out). Until 1048 applies, the entry names a function hr_engine
+     cannot execute, which check (7) never reads as a finding. An insertion: link 25's declared removals do not move. */
   {
     base: '1004-tick-pack-heroes.sql',
     target: '1032-approved-cuts.sql',
-    patchIds: ['old_dungeons_cut'],
+    patchIds: ['old_dungeons_cut', 'narrow_town_read'],
   },
 ];
 
@@ -463,6 +468,23 @@ export function innerBody(block) {
    already authorised for." Both justifications below re-derive that claim
    rather than asserting it — see the migration header for the long form. */
 export const PATCHES = [
+  /* ── LINK 25, SECOND PATCH — THE NARROW TOWN READ (an insertion at the head of c_engine_allow) ── */
+  {
+    id: 'narrow_town_read',
+    name: 'the c_engine_allow array head (link 25, the narrow town read)',
+    find: '  c_engine_allow constant text[] := array[\n',
+    add: `    -- ── ADDED 2026-11-21 — THE NARROW TOWN READ (lane/c-settle-cost FB-4) ──
+    -- At the HEAD, an INSERTION: it removes nothing, so link 25's declared
+    -- removals do not move. The function is 1048-narrow-town-read.sql's.
+    --
+    -- READ-ONLY: a STABLE projection of ONE character the caller names, each field
+    -- by hr_state_of's own definition (which hr_engine already reads whole for the
+    -- same character): the town engine's inputs, the pointer and the version. It
+    -- writes nothing and refuses every client role and hr_tick by its body too.
+    'hr_tick_town_state(uuid,integer)',
+`,
+    where: 'after',
+  },
   /* ── LINK 25 — THE OLD DUNGEONS AND THE SCRIP LEAVE (a replacement of one block, two entries) ── */
   {
     id: 'old_dungeons_cut',

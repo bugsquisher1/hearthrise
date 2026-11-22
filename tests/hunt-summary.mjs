@@ -822,8 +822,9 @@ async function runTests(M) {
     const partyCard = (o) => TN.townSteps({ plan: null, bag: [], rules: null, bids: null, blessings: null, purse: 0, did: new Map(), buy: null, free: false, outgrown: true,
       ground: { row: { hunt: 'meadowbrook_thicket', name: 'Meadowbrook Thicket', band: [5, 15] }, levels: [5] }, party: o });
     const p3 = partyCard({ name: 'Brenna', ground: 'Mill Cellar', count: 3, first: true });
-    eq([p3.primary, p3.steps[0].title, p3.steps[0].verb, p3.steps[0].place, p3.steps.find((s) => s.id === 'ground').title],
-      ['party', 'Brenna has outgrown the Mill Cellar. You have three more heroes to make, and the Sewer wants a full party.', 'Build your party', { kind: 'characters' }, 'Go on alone to Meadowbrook Thicket'],
+    eq([p3.primary, p3.steps[0].title, p3.steps[0].words, p3.steps[0].verb, p3.steps[0].glyph, p3.steps[0].place, p3.steps.find((s) => s.id === 'ground').title],
+      ['party', '3 heroes to make', 'Brenna has outgrown the Mill Cellar. You have three more heroes to make, and the Sewer wants a full party.', 'Build your party', 'navProfile',
+        { kind: 'characters' }, 'Go on alone to Meadowbrook Thicket'],
       'the first Level 5 with three heroes to make: Build your party, then Go on alone');
     eq(partyCard(null).primary, 'ground', 'CONTROL: with no hero left to make the next ground is the press');
   });

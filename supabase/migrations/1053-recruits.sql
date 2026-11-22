@@ -67,10 +67,11 @@
 --   primary key, four rows at most); for a one-hero account a handful of primary-key reads and four tiny catalogue joins.
 -- REVERSIBILITY: delete the section row, drop hr_recruit_company (and its baseline row), hr_recruits_view, hr_recruit_offer,
 --   hr_recruit_set_role, put account_kits' check back to '^(account|hero:[0-5])$' after deleting the 'recruits' rows. Heroes made stay made.
--- EDGE: none. BROWSER: src/session/recruits.js (the section's reader and the press), src/shell/recruits-pane.js (the press in All
---   characters), src/shell/needs-you/recruits.js (the Needs you row), src/app/boot.js (no empty slot past the first hero).
+-- EDGE: none. BROWSER: src/session/recruit-sections.js (the section's reader), src/session/recruit-intents.js (the press),
+--   src/shell/windows/recruits-pane.js (the press in All characters), src/shell/needs-you/recruits.js (the Needs you row),
+--   src/shell/back-in-town.js (the end card's Recruit your party), src/app/slot-offer.js rowsShown (no empty slot past the first hero).
 -- GUARDS: tests/recruits.mjs (the grant played on the replayed chain: one hero, Level 5, one press, four heroes, the press gone; a retried
---   press; mutants), and the §4 self-check below.
+--   press; mutants), tests/recruits-world.mjs (the same in the real game, by hand), and the §4 self-check below.
 -- ════════════════════════════════════════════════════════════════════════
 
 -- ── §0 PRECONDITIONS ───────────────────────────────────────────────────────

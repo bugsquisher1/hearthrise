@@ -82,7 +82,9 @@ try {
   const sale = want.steps.find((x) => x.id === 'sell');
   const card = await rowOf('sell');
   step('EC-1 the end card reads "Sell junk for N gp", one press', !!card && /^Sell junk for [\d,]+ gp$/.test(card.title) && card.press && card.verb === 'Sell', JSON.stringify(card));
-  step('EC-1 ...the outgrown card\'s gold press stays the next ground (the Sell row its own press)', JSON.stringify(await goldOf()) === '["next-ground:"]' && want.primary === 'ground', JSON.stringify({ gold: await goldOf(), primary: want.primary }));
+  /* a one-hero account at Level 5 is offered its recruits (Tyler RD-Q6 a, 1053-recruits.sql): the foot's gold press is Recruit your party,
+     the next ground the second press (tests/recruits-world.mjs plays it) */
+  step('EC-1 ...the outgrown card\'s gold press stays the foot\'s (the Sell row its own press)', JSON.stringify(await goldOf()) === '["next-ground:"]' && want.primary === 'party', JSON.stringify({ gold: await goldOf(), primary: want.primary }));
   step('EC-1 ...N and the stacks are what the server\'s own projection gives the card', !!sale && !!card && card.title === sale.title && card.words === sale.words,
     JSON.stringify({ card, server: sale && [sale.title, sale.words, sale.lines] }));
 

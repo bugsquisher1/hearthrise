@@ -39,6 +39,16 @@
         "runner": "by hand: node tests/end-card-world.mjs --shots DIR"
       }
     },
+    "recruits-world.mjs": {
+      "reason": "A MANUAL WALK, like `node tools/qa/local-world.mjs smoke`: a fresh account makes one hero, its Mill Cellar ends at Level 5 on the real play.html and hr-accrue engine over the replayed chain, the end card's Recruit your party opens All characters and ONE press makes three recruits; checked against the server's heroes and section, then a reload. The rules are mutation-proven in CI by tests/recruits.mjs, tests/needs-you.mjs NY-RECRUITS, tests/client-boot-pure.mjs B-9r and tests/hunt-core/sewer.mjs.",
+      "owner": "backend-architect",
+      "disposition": "intentional-tool",
+      "verified": {
+        "asserts": true,
+        "selftest": false,
+        "runner": "by hand: node tests/recruits-world.mjs --shots DIR"
+      }
+    },
     "town-shows-world.mjs": {
       "reason": "A MANUAL WALK, like `node tools/qa/local-world.mjs smoke`: a browser plays the real play.html on the replayed chain: a fresh account throws a powder, stands a round, cries a line and finds itself on Gold Given. The rules are mutation-proven in CI by tests/town-shows.mjs and tests/town-crier.mjs.",
       "owner": "backend-architect",

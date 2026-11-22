@@ -190,7 +190,8 @@ async function stub(page, s, fonts) {
     const body = JSON.parse(r.request().postData() || '{}');
     s.calls.push({ name, body });
     const json = (b) => r.fulfill({ contentType: 'application/json', body: JSON.stringify(b) });
-    if (name === 'hr_load' && s.emptySlot1 && body.p_slot === 1) return json({ ok: false, error: 'no_character' });
+    /* one hero first (Tyler RD-Q6 a): no empty slot shows beside a hero, so the creation step's door here is a hero the server holds unnamed */
+    if (name === 'hr_load' && s.unnamedSlot1 && body.p_slot === 1) return json({ ok: false, error: 'needs_name', slot: 1, hero_slots: [0, 1] });
     if (name === 'hr_load') return json(s.next());
     if (name === 'hr-accrue') return json(Object.assign({ accrued: true }, s.next()));
     if (name === 'hr_put_client_state') { s.residue = Object.assign({}, s.residue, body.p_patch || {}); return json({ ok: true }); }
@@ -968,8 +969,6 @@ async function heroDoor(page, tag, fails) {
   await wait(page, () => document.querySelector('[data-app="create"]'));
   await page.click('[data-app="create"]');
   if (!(await wait(page, () => document.querySelector('.hero-confirm'), null, 5000))) { fails.push('PH-22 [' + tag + '] CONTROL: no hero creation'); return; }
-  /* an account with a hero opens the party step (hero-create.js renderCompany): One at a time is the step this door reads */
-  if (await page.$('.hero-alone')) { await page.click('.hero-alone'); await wait(page, () => document.querySelector('.hero-body'), null, 5000); }
   await page.waitForTimeout(150);
   const on = await page.evaluate(RECT + `;[document.querySelector('.hero-confirm'), document.querySelector('.hero-back')].every((e) => window.__onScreen(window.__r(e)))`);
   if (!on) fails.push('PH-22 [' + tag + '] Enter town or its way back runs off the screen');
@@ -1954,7 +1953,7 @@ async function rules(overrides, shots, { stopAtFirst = false, blocks = null } = 
       try {
         const page = await ctx.newPage();
         const s = scripted(ALPHA, (env) => { env.hero_slots = [0, 1]; });
-        s.emptySlot1 = true;
+        s.unnamedSlot1 = true;
         await stub(page, s, false);
         await HOW_TWICE(page);
         await page.goto(base + '/play.html', { waitUntil: 'domcontentloaded', timeout: NAV_MS });

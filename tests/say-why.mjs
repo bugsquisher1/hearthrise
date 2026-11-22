@@ -202,6 +202,11 @@ export const REASONS = Object.freeze({
   'src/shell/windows/company-pane.js': [
     { cond: '!co || o.pending', words: "t('heroes.sending')", where: 'Go here at the next Start: hidden until the company section has come; off while a press is out, the page\'s line says Sending…' },
   ],
+  /* the recruit press (1053-recruits.sql, Tyler RD-Q6 a): off until the first hero reaches the press's Level, when the line above it says when they come */
+  'src/shell/windows/recruits-pane.js': [
+    { cond: 'sc.pending || !o.ready', words: "t('heroes.recruits_wait', { count, name, at: o.at })", where: 'a recruit\'s name field: off with the press, the line above the rows says the recruits come when the first hero reaches Level 5 (or Recruiting… while a press is out)' },
+    { cond: 'sc.pending || !o || !o.ready', words: "t('heroes.recruits_wait', { count, name, at: o.at })", where: 'Recruit 3 heroes: the line above the rows says the recruits come when the first hero reaches Level 5; with no offer the press is hidden; Recruiting… while a press is out' },
+  ],
   'src/shell/windows/house-dummy.js': [
     { cond: '!canBuy', words: "text(box.querySelector('.hd-why'), block)", where: 'Unlock on the dummy: the line under the ladder says why (no Homestead, short of the next price); every skill held reads "Every skill is unlocked" and hides the buttons' },
   ],

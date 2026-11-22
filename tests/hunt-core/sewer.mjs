@@ -353,13 +353,13 @@ const cases = {
     const walk = [
       /* Level, the facts of the stop, what the card's one line must say */
       /* one hero first (Tyler RD-Q6 a): the server's recruit press, once ready, leads the line */
-      ['one hero, the recruits ready', 10, { roster: roster(1), gold: 15000, visited: new Set([THICKET]), recruits: { ready: true, count: 3, level: 10 } }, 'Recruit 3 heroes in All characters'],
+      ['one hero, the recruits ready', 10, { roster: roster(1), gold: 15000, visited: new Set([THICKET]), recruits: { ready: true, count: 3, level: 10 } }, 'Open All characters and recruit 3 heroes'],
       ['two heroes, the Glade unwalked', 10, { gold: 15000, visited: new Set([THICKET, WICK]) }, 'Next step up: Mosslight Glade, Level 16'],
       ['the Glade walked, 41k: the hero, never the Farmstead', 17, { gold: 41172, visited: new Set([THICKET, WICK, GLADE, WARRENS]), home: { owned: true, next: { name: 'Fieldworth Farmstead', gold: 2500, items: [{ id: 'normal_log', qty: 40 }] } } }, 'Next goal: a third hero slot, 50,000 gp'],
       ['the purse is there', 18, { gold: 50000, visited: new Set([THICKET, WICK, GLADE]) }, 'Buy a third hero slot for 50,000 gp'],
       /* an empty slot with the purse for the next one: the recruits, never a sale (lane/c-hollow-proofs: at 15,000 gp the purse was too short for any
          offer, so the mutant that sells a slot past an empty one escaped once its plant could load) */
-      ['the purse is there, the recruits ready', 18, { gold: 50000, roster: roster(1), visited: new Set([THICKET, WICK, GLADE]), recruits: { ready: true, count: 3, level: 10 } }, 'Recruit 3 heroes in All characters'],
+      ['the purse is there, the recruits ready', 18, { gold: 50000, roster: roster(1), visited: new Set([THICKET, WICK, GLADE]), recruits: { ready: true, count: 3, level: 10 } }, 'Open All characters and recruit 3 heroes'],
       ['the Warrens fifteen Levels up, unwalked', 17, { gold: 1000, slotCost: 200000, slotsOwned: 3, roster: roster(3), visited: new Set([GLADE]) }, 'Next step up: Coppercap Warrens, Level 32'],
       ['sixteen Levels under names no dare', 16, { gold: 1000, slotCost: 200000, slotsOwned: 3, roster: roster(3), visited: new Set([GLADE]) }, 'Find a party for Mosslight Glade'],
       ['out of stamina, gold in hand', 20, { gold: 9000, slotCost: 200000, slotsOwned: 3, roster: roster(3), visited: new Set([GLADE, WARRENS]), staminaMs: 60000, refill: { available: true, price: 6000, restoreMs: 14400000 } }, 'Press + beside stamina: 4 h for 6,000 gp'],

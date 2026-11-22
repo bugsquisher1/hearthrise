@@ -16,7 +16,7 @@
 --   Then, 30 s later, read: select count(*) from public.player_state;   (players may have started again: heroes they made are theirs)
 --
 -- ── WHAT GOES, WHAT STAYS ────────────────────────────────────────────────────
---   GOES (c_wipe, 116 tables): heroes and every row keyed on one; the account's gold, Storage, house and land; names; parties;
+--   GOES (c_wipe, 127 tables): heroes and every row keyed on one; the company's plans; the account's gold, Storage, house and land; names; parties;
 --     hunts and their instances, worlds and leases; the ledger and its rollup; chat lines, whispers and world notices (a line names a
 --     hero); presence, town bodies and the play cap's claims; the rate counters, refusal aggregates and intent journal; the tick's
 --     per-character rows; clans; the town snapshot (its own 25 s cron rebuilds it); bought hero slots (flag rows in player_progress);
@@ -28,7 +28,8 @@
 --     beta_signup_log (the signup record), hr_lb_hidden (who the boards leave out), hr_tick_config and hr_tick_shard_cursor (their
 --     cursors nulled), hr_name_holds (owner cleared: a name a moderator pulled stays pulled; every other name is free again),
 --     hr_gm_accounts and hr_gm_log (the Game Master and his journal; his walled heroes follow the wipe like anyone's), hr_bans and hr_chat_mutes
---     (a character wipe doesn't forgive a ban).
+--     (a character wipe doesn't forgive a ban), the friend link's two tables (the friend graph), Global's batch cursor, and the Great
+--     Hearth's fire row (its fuel and boss marks reset to an unlit count: they were earned by heroes the wipe clears) and its lit windows.
 --   MUST ALREADY BE EMPTY (c_market): market_listings is the escrow, so its own file empties it first; this file refuses otherwise.
 --   NAMES NO PLAYER (c_no_player): catalogues, config, baselines, operator logs. Counted before and after.
 --   ALSO: every row of leaderboard_ranked (a refresh), private frames in realtime.messages (no page can read them back).
@@ -103,6 +104,12 @@ declare
     'hearth_bursts',
     /* the hourly journal's fold cursor, naming the hero it reached (1047-hourly-journal.sql): its next run recreates it at the wipe's hour */
     'hr_ledger_hours_state',
+    /* the company's plan lines and each hero's plan (1051-company-start.sql): no row is the defaults, which a wiped account starts on;
+       hero_plans keys on player_state, so it goes in the same TRUNCATE */
+    'company_plans', 'hero_plans',
+    /* the Great Hearth's fire (1043-hearthrise.sql): an account's fuel a day and the world boss falls that marked it, earned by heroes
+       the wipe clears (the fire's one row stays and is reset below; a lit window's size stays) */
+    'hr_hearth_fire_day', 'hr_hearth_fire_boss',
     'party', 'party_hunt', 'party_hunt_roster_log', 'party_hunt_tally', 'party_invite', 'party_member', 'party_notices', 'party_seekers',
     'party_settle_boundary', 'party_tick_lease',
     'player_action_sets', 'player_blessings', 'player_cosmetics', 'player_equipment', 'player_hunt_active', 'player_hunt_presets',
@@ -115,7 +122,13 @@ declare
     'hr_lb_hidden', 'hr_name_holds', 'hr_tick_config', 'hr_tick_shard_cursor', 'hr_account_deletions',
     'hr_gm_accounts', 'hr_gm_log', 'hr_bans', 'hr_chat_mutes',
     /* the server feature switches (2027-03-21-feature-switches.sql): config naming tester accounts, which outlive a character wipe */
-    'hr_feature_switches'];
+    'hr_feature_switches',
+    /* the friend link (1044-friend-link.sql): an account's link and the link it arrived by, part of the friend graph, which stays */
+    'friend_link_codes', 'friend_link_redeemed',
+    /* Global's batch cursor (1041-social-clans.sql): names nobody, and stays true once the lines it passed are gone */
+    'hr_chat_flush',
+    /* the Great Hearth (1043-hearthrise.sql): the fire's one row, its count reset below, and each lit window's size, the world's calendar */
+    'hr_hearth_fire', 'hr_hearthrise_lit'];
   c_market constant text[] := array['market_listings', 'market_sales', 'market_item_daily'];
   c_no_player constant text[] := array[
     'hr_activities', 'hr_bench_tax_rates', 'hr_blessing_rule', 'hr_blessing_tiers', 'hr_bounty_board_monsters', 'hr_bounty_monsters',
@@ -161,7 +174,11 @@ declare
     /* the factions' catalogues (2027-04-22-faction-catalogue.generated.sql): the sides, the rule, the paying grounds, the pieces */
     'hr_factions', 'hr_faction_rule', 'hr_faction_grounds', 'hr_faction_outfits',
     /* when the hunt ends (2027-04-25-hunt-after-catalogue.generated.sql): the choices and the rule */
-    'hr_hunt_after_choices', 'hr_hunt_after_rule'];
+    'hr_hunt_after_choices', 'hr_hunt_after_rule',
+    /* the social catalogue (1040-social-catalogue.generated.sql): the clan rules, Global's batch and slow mode, the friend link's window */
+    'hr_clan_rules', 'hr_chat_global_rule', 'hr_chat_slow_mode', 'hr_friend_link_rule',
+    /* the Great Hearth's rule (1042-hearthrise-live-events-catalogue.generated.sql) */
+    'hr_hearth_fire_rule'];
   c_probe constant uuid := '000000c0-0000-4000-a000-0000c4a2e101';
   c_stranger constant uuid := '000000c0-0000-4000-a000-0000c4a2e102';
   v_present text[] := '{}';
@@ -265,6 +282,11 @@ begin
    where cursor_user is not null or cursor_slot is not null or cursor_at is not null;
   -- A name a moderator pulled stays pulled, tied to nobody.
   update public.hr_name_holds set user_id = null where user_id is not null;
+  -- The Great Hearth's fire (1043-hearthrise.sql) counted fuel and boss marks from heroes who no longer exist: it starts again from now, as a
+  -- lighting resets it. The row stays (its fold reads it); the journal it folds is empty, so its watermark stands.
+  if to_regclass('public.hr_hearth_fire') is not null then
+    update public.hr_hearth_fire set fuel = 0, boss_marks = 0, since = now(), folded_to = greatest(folded_to, now()) where id;
+  end if;
   -- Frames and chat pushes queued for hidden heroes. No page can read one back; they would only age out in an hour.
   if to_regclass('realtime.messages') is not null then
     begin
@@ -307,6 +329,10 @@ begin
   if exists (select 1 from public.leaderboard_ranked) then raise exception 'wipe k5: leaderboard_ranked still ranks someone'; end if;
   if exists (select 1 from public.hr_tick_shard_cursor where cursor_user is not null) or exists (select 1 from public.hr_tick_config where cursor_user is not null) then
     raise exception 'wipe k5: a tick cursor still names a character'; end if;
+  if to_regclass('public.hr_hearth_fire') is not null then
+    if exists (select 1 from public.hr_hearth_fire where fuel <> 0 or boss_marks <> 0) then
+      raise exception 'wipe k5: the Great Hearth''s fire still counts fuel or boss marks from before'; end if;
+  end if;
   if exists (select 1 from public.hr_name_holds where user_id is not null) then raise exception 'wipe k5: a name hold still names its owner'; end if;
   -- k6 EVERY ACCOUNT OWNS THE CATALOGUE'S STARTERS, NOTHING BOUGHT SURVIVES.
   select jsonb_agg(s order by s) into v_slots from (select 0 as s union select slot_id from public.hr_hero_slots where starter) q;

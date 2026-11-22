@@ -2,6 +2,15 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-11-21 · lane/lab-p3-variants (Balance Lab phase 3: variants)
+1. *A slot needs no cut when its rule is already one module's exports.* Armor (mitigation.js), party XP (party-class-xp.js partyClassXp) and death cost (action-rules.js deathXpLoss + levelDeathLoss) are slots with no src change: a family is `export * from './<name>.shipped.js'` (the overlay keeps the replaced file beside it) plus its own rule exports. The contract's `inherited` line (every non-rule export === the shipped one) is what keeps a family from drifting, and `offPath` (transitive callers of a rule export) is what keeps an inherited caller from running the old rule beside the new one.
+2. *Hero power was not cut on purpose:* its line is the live knob playerAttack's site and roadmap step R2's seam (planned knobs skillPower/gearPower/basePower). A cut here would race the formula lane; it is a git-ref slot with the reason written.
+3. *A contract the shipped module breaks is a wrong contract.* "More armor never lands more" and "a harder attacker never lands less" hold for the shipped chain only in expectation and within a point and a permille of the blow (the cap's whole-permille ceiling): MEASURED, 1.96 points on a 5,000 blow.
+4. *Basenames matter to the CI gate.* tools/lib/guard-deps.mjs matches a changed file to guards by basename + extension: `slots.json` and three `copy.js` picked about 100 unrelated guards. Hence `rule-slots.json` and `<slot>.<family>.js` (derived, never typed).
+5. *The repo's ?v= scan reads test strings too:* a mutant that plants a stamped import is built from two halves.
+6. *A sum over cells is the Level 5,000 cells.* Role readings weigh each cell the same (mean of ln(B/A) a seed, an interval over seeds); a group's median change is (B - A) / |A| (a net from -1,000 to -100 is +90%, not -90%).
+7. *Handoff (CONFLICTS 2026-11-21):* the harness prices a death itself (matrix-metrics.mjs:121, grid-derive.mjs:135), so the band judge cannot see a death-cost family; the fix reads the tree's levelDeathLoss and belongs where the pinned instrument is cut.
+
 ## 2026-11-20 · lane/c-carry-on (balance program 30-plan row L07: Carry on, Hunt again all four, own heroes apart, Storage first)
 1. *One press, the existing doors.* hr_carry_on runs, per hero in its own subtransaction, the doors a hand already presses (hr_loot_dispatch, hr_tally_claim, hr_blessing_buy, hr_bank_move_stack, hr_hunt_enter_for): no second purchase or start path, so every clamp, price and journal is the door's. A hero refused at a door rolls back alone (HRC70) and is named.
 2. *Plan and press share one derivation.* hr_carry_on_plan_of is read twice by the press (unlocked to pick the locks, then under them); the card shows the same plan, and the shown Blessings gold only refuses (quote_changed). Storage is shared in slot order through a running drawn map, never read whole per hero.

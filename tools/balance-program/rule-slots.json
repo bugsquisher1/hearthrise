@@ -80,58 +80,6 @@
    ]
   },
   {
-   "id": "hero-power",
-   "label": "A hero's power as two ratios: what its blows gain and what its taken blows lose",
-   "status": "cut",
-   "module": "src/core/temper.js",
-   "formula": "C-TEMPER",
-   "why": "lane/r4 (2026-11-22): cut at temper.js, not combat.js. The blow line in combat.js is R2's seam (a whole-file family would race it); temper.js answers the two per-hero permilles every amount passes (damage.js hurt, abilities.js, mitigation.js mitigate), so a geometric power step plays as a ratio on them with no combat code changed. The skill part (weightSkill) needs member.js, R9's lane",
-   "rule": [
-    "blowsPmOf",
-    "armorPmOf"
-   ],
-   "offPath": {},
-   "contract": [
-    {
-     "id": "pmShape",
-     "says": "blowsPmOf answers a whole permille of 0 or more and armorPmOf a whole permille from 0 to 999, for every weapon and armor set of the catalogue with and without Tempering"
-    },
-    {
-     "id": "bareIsNone",
-     "says": "a hero wearing nothing gains nothing and loses nothing, Tempered or not"
-    },
-    {
-     "id": "higherGearNoLess",
-     "says": "with no Tempering, a weapon (an armor set) of a higher item Level never answers a smaller blowsPm (armorPm)"
-    },
-    {
-     "id": "deterministic",
-     "says": "the same kit and Tempering give the same answer"
-    }
-   ],
-   "families": [
-    {
-     "id": "shipped",
-     "kind": "shipped",
-     "what": "Tempering only: the weapon's Blows rung and the worn armor's Armor rungs, at their ladders' permille; nothing from gear itself",
-     "source": "today's C-TEMPER"
-    },
-    {
-     "id": "copy",
-     "kind": "identity",
-     "what": "the shipped module through the overlay, unchanged"
-    },
-    {
-     "id": "step",
-     "kind": "formula",
-     "what": "The power step on gear: blows gain (1 + powerStep)^(weightGear x the weapon's item Level) and taken blows lose (1 + powerStep)^(weightGear x the armor's mean item Level), on top of Tempering; weightGear 1.0 as a measuring value",
-     "source": "04-math-strategy.md section 1 'What a hero's rating is made of' and section 2 'The step contest'",
-     "added": "2026-11-22",
-     "expires": "2027-02-22"
-    }
-   ]
-  },
-  {
    "id": "hit-chance",
    "label": "The chance a blow lands",
    "status": "git-ref",

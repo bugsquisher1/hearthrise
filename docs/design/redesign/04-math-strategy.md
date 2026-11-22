@@ -409,8 +409,10 @@ n                       = blocks of THAT kind this hero has bought this server d
 
 | Kind | Block hours | Price per hour, in hours of wage | Growth for each block that day | Clamp a day | What one hour earns back at the hero's Level |
 |---|---|---|---|---|---|
-| **Hunting** | 2 h (band 1 to 3) | 2.0 (band 1.5 to 2.5) | 1.5 (band 1.3 to 1.8) | 4 (band 3 to 6) | About 0.75 hours of wage in coin |
+| **Hunting** | 2 h (band 1 to 3) | 2.0 (band 1.5 to 2.5) | 1.5 (band 1.3 to 1.8) | 2, fixed (the owner's ruling) | About 0.75 hours of wage in coin |
 | **Work** | 2 h (band 1 to 3) | 0.5 (band 0.4 to 0.6) | 1.5 (band 1.3 to 1.8) | 4 (band 3 to 6) | 0.25 hours of wage in goods |
+
+**The hunting cap.** The owner's ruling of 2026-11-22: "Actually yeah let's cap it." A hero buys at most 2 hunting blocks a day, 4 hours, so the most any hero hunts is 14 hours a day, or 16 with Premium. The cap is not a lever. Bought town work keeps its clamp of 4.
 
 **What an hour earns back, and why "pretty pricey" means at least the first block loses coin.** A reference hunted hour on Steady pays one hour of wage, and its kit takes 0.2 to 0.3 of that (`09-crafting.md` section 2.5), so it nets about 0.75. A work-hour makes 1 over `kitWork` hunted hours of kit (1.25 at 0.8), and the kit for one hunted hour is worth `kitWork` x `townWageShare` hours of wage (0.2). So a work-hour makes goods worth `townWageShare` x wage(L), 0.25 hours of wage, at reference prices (`09` section 4.3). Both starting prices are twice what their hour earns at reference, so the first block of either kind already costs more coin than it returns. A player buys XP, drops, remains, trade XP or a full stock, and never more gold. (COMPUTED. JUDGMENT for "twice".)
 
@@ -422,20 +424,20 @@ n                       = blocks of THAT kind this hero has bought this server d
 |---|---|---|---|---|---|---|---|---|---|---|
 | 1st | 4.0 | 2.5 | 2.5 | 33% | 28% | 1.0 | 0.5 | 0.5 | 7% | 6% |
 | 2nd | 6.0 | 4.5 | 7.0 | 93% | 78% | 1.5 | 1.0 | 1.5 | 20% | 17% |
-| 3rd | 9.0 | 7.5 | 14.5 | 193% | 161% | 2.25 | 1.75 | 3.25 | 43% | 36% |
-| 4th | 13.5 | 12.0 | 26.5 | 353% | 294% | 3.38 | 2.88 | 6.13 | 82% | 68% |
+| 3rd | Refused | | | | | 2.25 | 1.75 | 3.25 | 43% | 36% |
+| 4th | Refused | | | | | 3.38 | 2.88 | 6.13 | 82% | 68% |
 
-Net cost is the price less what the block's 2 hours earn back (1.5 for hunting, 0.5 for work). Four hunting blocks cost 32.5 hours of wage in all (24.7 at growth 1.3, 47.5 at 1.8), and four work blocks 8.1. Both are equally pricey for what they buy, twice its worth at the start. Work only looks cheaper as a share of the day because a work-hour is worth a quarter of a hunted hour. So the first hunting block costs a third of a day's net coin, the second nearly a whole day's, and the clamp is for a drop chaser with gold to burn. A free hero who buys one hunting block hunts as long as a Premium hero's own day, for 4.0 hours of wage (2.5 net). That is the gold sink that grows with wealth which `09-crafting.md` section 5.6 says crafting alone cannot supply.
+Net cost is the price less what the block's 2 hours earn back (1.5 for hunting, 0.5 for work). A third or fourth hunting block in a day is refused by the cap. Two hunting blocks cost 10.0 hours of wage in all, 7.0 net (9.2 at growth 1.3, 11.2 at 1.8), and four work blocks 8.1. Both are equally pricey for what they buy, twice its worth at the start. Work only looks cheaper as a share of the day because a work-hour is worth a quarter of a hunted hour. So the first hunting block costs a third of a day's net coin and the second nearly a whole day's, which is where the cap stops it. A free hero who buys one hunting block hunts as long as a Premium hero's own day, for 4.0 hours of wage (2.5 net). That is the gold sink that grows with wealth which `09-crafting.md` section 5.6 says crafting alone cannot supply.
 
 **Bounds both kinds share.** The per-kind clamp and the growth factor. One clock: bought time is real time on the server, a hero cannot hunt and work at once, so a hero's hunted, worked and bought hours never pass the hours in a server day. A Premium hero's own day is already 12 hunted and 10 worked at the starting values, so it has about 2 hours left to buy into. No power: a bought hunting hour gives what any hunted hour gives, and a bought work-hour makes goods at the same yield, quality and speed as any other, inside the kit spread limit. Faster, never higher: bought work trains trades sooner, and the cap at 99 and the three Masteries hold.
 
-**What it moves elsewhere.** Bought hunting raises the coin minted, the kit burned and the labor ratio. Bought work lowers the labor ratio and deepens the band markets. Premium does both and they cancel: 2 more hunted hours ask for 1.6 work-hours of kit (2 x `kitWork`), and 2 more work hours give 1.6 (2 x 0.8 used). As a what-if on `09-crafting.md` section 5.3: the fifth of heroes who hunt the longest buy two hunting blocks, a third of heroes are on Premium and use both its extras, and a tenth buy one work block. The ratio on the mix moves from 0.75 to about 0.84, inside the 0.8 to 1.0 the crafting design wants. At these prices fewer will buy than that, so the real moves are smaller. (COMPUTED. SPECULATIVE on who buys.)
+**What it moves elsewhere.** Bought hunting raises the coin minted, the kit burned and the labor ratio. Bought work lowers the labor ratio and deepens the band markets. Premium does both and they cancel: 2 more hunted hours ask for 1.6 work-hours of kit (2 x `kitWork`), and 2 more work hours give 1.6 (2 x 0.8 used). As a what-if on `09-crafting.md` section 5.3: the fifth of heroes who hunt the longest buy two hunting blocks, a third of heroes are on Premium and use both its extras, and a tenth buy one work block. The ratio on the mix moves from 0.75 to about 0.84, inside the 0.8 to 1.0 the crafting design wants. Re-checked under the hunting cap of 2: the what-if already bought two blocks, so 0.84 stands (COMPUTED: mean hunted 6.0 + 0.8 + 0.67 = 7.47 hours over a mean work day of 8 + 0.67 + 0.2 = 8.87). Tools that wear out add a twelfth to the labor asked for, which puts it near 0.92 (`09-crafting.md` section 3.7). At these prices fewer will buy than that, so the real moves are smaller. (COMPUTED. SPECULATIVE on who buys.)
 
 **The server shape.** One rule and one call for both, paid in gold. The client sends one intent, "buy a block of hunting (or work) for this hero". The server reads the hero's Level and that kind's count from its own rows, prices the block on its own clock, refuses past the clamp, debits the gold, adds the time and writes a ledger row. A plan may hold a standing limit for each kind, in blocks and in price, and the same call honors it, so nobody buys by hand every day. Crowns reach it only through gold bought from players, the same channel as the flame's bought fuel. It is one money surface, flagged once for the pre-launch Security review.
 
 **Proves it wrong:** any block, the first included, that returns more coin than it costs for any company the Lab finds, at any Level. Or a purchase pattern most players reach that moves the labor ratio on the mix by more than 0.1 either way.
 
-Levers: `wageBase`, `payStepCoin`, `supplyShare`, the tax pair, and price rows in hours (content). Five global, and the four of bought time for each kind (eight).
+Levers: `wageBase`, `payStepCoin`, `supplyShare`, the tax pair, and price rows in hours (content). Five global, and the levers of bought time: four for work and three for hunting, whose cap of 2 is ruled (seven).
 
 **4. Coupling.** Supplies link combat to gold (section 3). Personal loot multiplies drops by seats, so odds are per hero. Trait pieces and carry-over are the top of demand. The market is players' prices, which no formula sets, so the model treats it as a range.
 
@@ -630,9 +632,9 @@ The owner's direction of 2026-11-21: build the best combination of formulas from
 
 **JUDGMENT, argued on this page:** the step as the unit. The contest. Targets as times and shares. Pay as a ratio for each step. Hours for a Level that level off. Progress stored as a Level and a share. One hit contest and not two.
 
-**Settled by the owner, 2026-11-22:** the hunting day stays, at 10 hours a hero, 12 with Premium. More hunting and more town work can both be bought with gold, at the one price rule of section 11. Careful and Steady do not die, so their death rate target is zero. A lone hero has no earning floor.
+**Settled by the owner, 2026-11-22:** the hunting day stays, at 10 hours a hero, 12 with Premium. More hunting and more town work can both be bought with gold, at the one price rule of section 11, hunting at most 2 blocks a day (14 hours at most, 16 with Premium). Careful and Steady do not die, so their death rate target is zero. A lone hero has no earning floor.
 
-**Open, and the designer's to decide:** whether blows can miss. How many hours a Level should take. The eight levers of bought time inside their bands. Whether the early Levels get a bonus. The role rows. Whether `payStepCoin` should be below the XP ratio and by how much.
+**Open, and the designer's to decide:** whether blows can miss. How many hours a Level should take. The seven levers of bought time inside their bands (the hunting cap of 2 is ruled). Whether the early Levels get a bonus. The role rows. Whether `payStepCoin` should be below the XP ratio and by how much.
 
 **SPECULATIVE until played:** every starting value on this page. That a four holds deep enough to out-earn its heroes with no party bonus. That the edge is wider than a gear tier once pulls wait for readiness and monsters reach the party. Today it is about one tier wide for a lone hero (section 9). That a constant step feels good in the first hour.
 

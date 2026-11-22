@@ -6751,6 +6751,12 @@ jobs:
         run: |
           node tests/hunt-screen-pure.mjs
           node tools/mutant-gate.mjs node tests/hunt-screen-pure.mjs --mutate
+      # tests/needs-you.mjs
+      - name: Needs you on the return card: three at most, ranked, one row a kind, providers by kind
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/needs-you.mjs
+          node tools/mutant-gate.mjs node tests/needs-you.mjs --mutate
       # tests/tally-window-pure.mjs
       - name: Tally window rules that need no browser (the tally's pure half)
         if: ${{ !cancelled() }}

@@ -62,6 +62,82 @@ export const GATHER_COUNTS = Object.freeze([20, 100, 1000]);
 /** A gathering row's count until the player picks one. */
 export const GATHER_COUNT_DEFAULT = 100;
 
+/* ── THE REST PLAN'S ENDING (designer D-11, review/05-designer-rulings.md section 3; Tyler let reversal rows 27 and 27b stand 2026-11-21) ──
+   A rest plan is a queue and then ONE ending, chosen once for each hero and kept. It starts no hunt and never loops: a hunt starts on a press in
+   a session (CLAUDE.md section 1). The server half (the standing job in closed form, its stop at the next Start, a full bag, the purse or
+   STANDING_MAX_HOURS) is FB-10's; these rows are FB-6's (D-11 section 3.7).
+     standing   one job with no count: "Gather the best I can", the highest node of one gathering skill the hero's level opens
+     train      paid yard time by the hour (never the default: it spends gold); open from the yard's own Level (training.js)
+     wait       the hero waits in town
+   JOB_NEXTS' `hunt` row goes with FB-10's re-cut of staged 1026 (its CHECK and its sweep move together; D-11 section 3.4). */
+export const REST_RUNS = Object.freeze(['standing', 'training', 'nothing']);
+export const REST_ENDINGS = Object.freeze([
+  Object.freeze({ id: 'standing', runs: 'standing' }),
+  Object.freeze({ id: 'train', runs: 'training' }),
+  Object.freeze({ id: 'wait', runs: 'nothing' }),
+]);
+/** What a new account gets and what "Reset the plan" gives (D-11: the usual ending). */
+export const REST_ENDING_DEFAULT = 'standing';
+/** The standing job stops by itself this long after the hunt ended: both rests of the day and one missed visit (D-11). */
+export const STANDING_MAX_HOURS = 24;
+
+/** Every problem with the rest plan's ending rows, as strings. Empty = valid. */
+export function validateRest(rows = REST_ENDINGS, def = REST_ENDING_DEFAULT, maxHours = STANDING_MAX_HOURS) {
+  const out = [];
+  const ids = new Set();
+  for (const c of rows) {
+    if (!c || typeof c.id !== 'string' || !/^[a-z_]{1,16}$/.test(c.id)) { out.push('an ending has no plain id'); continue; }
+    if (ids.has(c.id)) out.push(c.id + ': listed twice');
+    ids.add(c.id);
+    if (!REST_RUNS.includes(c.runs)) out.push(c.id + ': runs ' + c.runs + ', which is no entry of REST_RUNS');
+    /* NO ENDING RUNS A HUNT (D-11): only these three kinds exist, and none of them enters a ground */
+    if (/hunt/.test(c.runs)) out.push(c.id + ': an ending may not start a hunt');
+  }
+  if (!ids.has(def)) out.push('the default ' + def + ' is no ending');
+  else if (rows.find((c) => c.id === def).runs === 'training') out.push('the default ending may not cost gold');
+  if (!rows.some((c) => c.runs === 'nothing')) out.push('no ending waits in town');
+  if (!Number.isInteger(maxHours) || maxHours < 1 || maxHours > 72) out.push('the standing job\'s stop is not whole hours from 1 to 72');
+  return out;
+}
+
+/* ── "NEEDS YOU" ON THE RETURN CARD (designer D-2 section 2.3) ─────────────────────────────────────────────────────────────────────
+   Eight kinds in a fixed order, ONE row a kind for the account (heroes merged into it), NEEDS_SHOWN shown by rank, "{n} more" under them.
+   A LINE PROVIDER (src/shell/needs-you/*.js) supplies the rows of one kind and nothing else: a new system adds a provider file and a row
+   here, never an edit to the card. A new kind takes a BAND and goes last in it (a rank above an existing row is a designer call).
+   What Carry on does is never a row; no row offers a refill, a Crown or a boost.
+     band 1  stops a hero hunting     band 2  costs progress     band 3  gains */
+export const NEEDS_BANDS = Object.freeze({ stops: 1, costs: 2, gains: 3 });
+export const NEEDS_YOU = Object.freeze([
+  Object.freeze({ kind: 'outgrown', band: 'stops' }),
+  Object.freeze({ kind: 'cannot_start', band: 'stops' }),
+  Object.freeze({ kind: 'death', band: 'costs' }),
+  Object.freeze({ kind: 'gear_choice', band: 'costs' }),
+  Object.freeze({ kind: 'tier_offer', band: 'gains' }),
+  Object.freeze({ kind: 'ground_opened', band: 'gains' }),
+  Object.freeze({ kind: 'talent_points', band: 'gains' }),
+  Object.freeze({ kind: 'can_build', band: 'gains' }),
+]);
+/** How many rows the card shows; the rest is one "{n} more" line. */
+export const NEEDS_SHOWN = 3;
+
+/** Every problem with the Needs you rows, as strings. Empty = valid. */
+export function validateNeeds(rows = NEEDS_YOU, shown = NEEDS_SHOWN) {
+  const out = [];
+  const kinds = new Set();
+  let band = 0;
+  for (const r of rows) {
+    if (!r || typeof r.kind !== 'string' || !/^[a-z_]{1,24}$/.test(r.kind)) { out.push('a row has no plain kind'); continue; }
+    if (kinds.has(r.kind)) out.push(r.kind + ': listed twice');
+    kinds.add(r.kind);
+    const b = NEEDS_BANDS[r.band];
+    if (!b) { out.push(r.kind + ': band ' + r.band + ' is no band'); continue; }
+    if (b < band) out.push(r.kind + ': its band comes before the row above it (rows run by band)');
+    band = b;
+  }
+  if (!Number.isInteger(shown) || shown < 1 || shown > rows.length) out.push('NEEDS_SHOWN is not a whole count of the rows');
+  return out;
+}
+
 /** Every problem with the job THEN rows, as strings. Empty = valid. */
 export function validateJobNexts(rows = JOB_NEXTS, def = JOB_NEXT_DEFAULT) {
   const out = [];

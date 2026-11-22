@@ -453,7 +453,6 @@ export const REFUSAL_WORDS = Object.freeze({
   setup_needs_weapon: 'Town only: needs another weapon',
   /* Setup slots and titles (2027-02-28-setup-slots.sql, 2027-02-28-titles.sql). With the server's numbers these read from intent-words.js refusalText. */
   setup_locked: 'Setup slots full',
-  setup_slots_max: 'Every setup slot owned',
   /* A hero's colors (2027-03-05-hero-colors.sql). With the server's number the limit reads from intent-words.js refusalText. */
   colors_same: 'Same colors, not charged',
   colors_limit: 'Daily color change limit reached',

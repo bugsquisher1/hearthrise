@@ -41,7 +41,6 @@ export const PREP_TEXT = Object.freeze({
   needs_destruction: 'Town only: needs a wand',
   needs_restoration: 'Town only: needs a staff',
   needs_weapon: 'Town only: needs another weapon',
-  need_more: 'Need {gold} more',
 
   /* FIGHTS AS: read only, the worn weapon decides it. A dim role says how to get it. */
   fights_as: 'Fights as',
@@ -121,8 +120,6 @@ export const PREP_TEXT = Object.freeze({
   deleted: 'Deleted {name}',
   renaming: 'Renaming…',
   renamed: 'Renamed to {name}',
-  buying: 'Buying…',
-  bought: 'Setup slots: {n}',
 
   /* STORE FOOD TOO WEAK HERE (src/shell/weak-food.js, the one rule): a ground's Before you go and a keyed hall's door. {where} the bar's
      slots holding it (food_where*), {food} the bar's best store food, {want} the store food measured safe here. */

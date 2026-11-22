@@ -58,7 +58,6 @@ const SAFE_BY_STATE = Object.freeze({
   hr_hero_colors_set: { check: "'colors_same'", why: 'the colours the first press wrote are the colours the second asks for' },
   hr_training_start: { check: 'public.hr_hunt_enter_for(', why: 'the session the first press opened refuses the second (busy / hunt_open)' },
   hr_boss_call: { check: "md5('boss_call:start:' || p_idem::text)", why: 'solo: the hunt the first press opened refuses the second; party: the start replays its own derived key' },
-  hr_setup_slot_buy: { check: "public.hr_sink_price('setup_slot', v_bought)", why: 'the price is in the key and the ladder must climb (the gold-sinks catalogue §4): the second press is quote_changed' },
   hr_hunt_preset_apply: { check: "if v_delta <> '{}'::jsonb then", why: 'equips the hero\'s own items; the second press finds them worn and calls no hr_apply' },
 });
 

@@ -14,6 +14,9 @@
 // counts or predicts a number; Hunt again is the server's own restart (CharacterSession.restartHunt), checked there.
 // CARRY ON (Tyler RULED 27-1, 2026-11-20; ../carry-on.js): above the heroes, ONE press for the whole account and the server's plan for
 // each hero; while it is on offer it is the card's one gold press, and each hero's own press stays the way to send just that hero.
+// NEEDS YOU (designer D-2 section 2.3, lane/c-company; ../needs-you.js): between how long the player was away and Carry on, at most three
+// rows that need a decision, ranked, one a kind for the account; each press opens the window that decides it. The company's plan lines
+// ("Wear upgrades", "If one falls") sit in the Carry on block (../carry-on.js pressLine).
 // ════════════════════════════════════════════════════════════════════════
 import { rows, text, cls, prop, attr, element } from '../../render/paint.js';
 import { whole, gold } from '../../render/format.js';
@@ -31,7 +34,8 @@ import { summariesOf } from '../../hunt-view/summary-recorder.js';
 import { roomOfHunt } from '../../data/boss-halls.js';
 import { trainingOf as trainedBy } from '../../data/training.js';
 import { runRulesOf } from '../../data/tower.js';
-import { renderCarry, patchCarry, followCarry, pressCarry } from '../carry-on.js';
+import { renderCarry, patchCarry, followCarry, pressCarry, pressLine, carryPlanFor } from '../carry-on.js';
+import { renderNeeds, patchNeeds } from '../needs-you.js';
 
 /* The away lines the centre holds now, oldest hero slot first. */
 const linesOf = (ctx) => (ctx.alerts ? ctx.alerts.list().filter((a) => a.kind === 'away') : []).sort((a, b) => a.slot - b.slot);
@@ -111,7 +115,7 @@ function blessOf(cs, f) {
 
 /** The skeleton (built once): how long the player was away, the heroes, OK. */
 export function renderAway() {
-  return '<div class="haway"><p class="haway-gone"></p>' + renderCarry() + '<ol class="haway-heroes"></ol>'
+  return '<div class="haway"><p class="haway-gone"></p>' + renderNeeds() + renderCarry() + '<ol class="haway-heroes"></ol>'
     /* THE FIRST HERO'S PRESS IN THE FOOT TOO (v0.2.141 visual gate, 922x423: with a yard session open the sheet stops above the action bar,
        275 px tall, and Open Training lay under the sticky OK): the same press as the hero's row (its alert, its go), shown in the foot on a
        phone only (summary.css), where the row's own one is hidden, so the one gold press is in view as the card opens */
@@ -138,6 +142,8 @@ renderAway.patch = function patchAway(body, ctx) {
   /* Carry on, while on offer, is the card's one gold press (../carry-on.js) */
   const carry = patchCarry(root.querySelector('.haway-carry'), ctx);
   cls(root, 'is-carry', carry);
+  /* what needs a decision, from the server's projection: the heroes' envelopes and the server's Carry on plan */
+  patchNeeds(root.querySelector('.haway-needs'), { doc: ctx.doc, peers: () => ctx.peers(), plan: carryPlanFor(ctx), wearOn: !!(carryPlanFor(ctx) || {}).wearOn });
   const longest = list.reduce((m, a) => Math.max(m, a.facts && Number.isFinite(a.facts.gone) ? a.facts.gone : 0), 0);
   text(root.querySelector('.haway-gone'), longest > 0 ? t('away.card_gone', { time: spanWords(longest) }) : '');
   const mine = ctx.character ? list.find((a) => a.slot === ctx.character.slot && awayBlockOf(ctx.character, a).summary) : null;
@@ -192,6 +198,9 @@ renderAway.patch = function patchAway(body, ctx) {
   prop(footGo, 'disabled', pending);
 };
 
+/* The window a Needs you press opens for another hero than the one on screen (the hero is shown first). */
+const NEEDS_OPENS = Object.freeze({ ground: 'hunts', bless: 'shop', prep: 'hunt-prep', bag: 'inventory' });
+
 /* Every away line is read: the card closing (OK, the close, Esc) or a press that leaves it. */
 function dismissAll(ctx) { for (const a of linesOf(ctx)) ctx.alerts.dismiss(a.key); }
 
@@ -204,6 +213,21 @@ renderAway.act = function actAway(ctx, body, action, ev, el) {
       for (const a of linesOf(ctx)) if (slots.includes(a.slot)) ctx.alerts.dismiss(a.key);
       if (!linesOf(ctx).length) ctx.wm.close('away');
     });
+    return true;
+  }
+  /* a company plan line: ONE hr_company_line_set for every hero (../carry-on.js) */
+  if (action === 'away-line') {
+    pressLine(ctx, () => { if (ctx.wm.isOpen('away')) renderAway.patch(body, ctx); }, el.getAttribute('data-line'), el.getAttribute('data-value'));
+    return true;
+  }
+  /* a Needs you row's press: the window that decides it, the hero it names first (another hero's is shown first, as the hero rows do) */
+  if (action === 'away-need') {
+    const slot = Number(el.getAttribute('data-slot')), go = el.getAttribute('data-go'), hunt = el.getAttribute('data-hunt');
+    const own = ctx.character && ctx.character.slot === slot;
+    ctx.wm.close('away');
+    if (go === 'ground' && own && hunt) ctx.wm.goTo('hunts', { tab: hunt, find: null });
+    else if (go === 'bless' && own) ctx.wm.openTab('shop', 'services');
+    else if (ctx.goTo) ctx.goTo(slot, NEEDS_OPENS[go] || null);
     return true;
   }
   /* away-free: a stamina-free loop's press (its own act: a phone hides the first hero's row copy of away-go, summary.css) */

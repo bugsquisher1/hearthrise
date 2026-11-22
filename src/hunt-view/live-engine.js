@@ -48,6 +48,7 @@ import { testSlot, aimsAtMonsters, ignores } from '../core/hunt/conditions.js';
 import { aloneIn } from '../core/hunt/abilities.js';
 import { xpMultFor } from '../core/live-events.js';
 import { towerOf, towerEndsAt } from '../core/hunt/tower.js';
+import { noteGains, hudGainsSince } from './hud-ledger.js';
 
 /* How many swings of world hashes are kept to judge a server commit against. */
 const KEEP_HASHES = 64;
@@ -233,6 +234,8 @@ export function createLiveEngine(o) {
       worldSwing: Math.max(0, Math.floor(Number(live.instance.world_swing) || 0)),
       seeds: { from: Number(live.seeds.from), list: live.seeds.list.slice() },
       hashes: new Map(), texts: new Map(), starved: false, drawn: new Map(),
+      /* THE HUD'S LEDGER (src/shell/hud-predict.js; display only): the viewer's Level XP and kills this prediction played, by swing end */
+      gains: [{ at: Number(live.instance.next_swing_at_ms), lx: 0, kills: {}, share: {} }],
       self: (live.members.find((m) => m.self) || {}).unitId ?? null,
       setup: setupOf(live), scale: scaleOf(live), peers: peerKeysOf(live),
       /** @type {((hero: { id: number }, atMs: number) => number) | null} the per-hero Level XP hook (src/core/live-events.js), null when no window */
@@ -276,6 +279,7 @@ export function createLiveEngine(o) {
     if (!(sim.nextSwingAtMs > at)) { s.ended = true; const e = new Error('live: the instance has ended'); e.ended = true; throw e; }
     s.world = sim.world;
     s.next = sim.nextSwingAtMs;
+    noteGains(s, sim, monsters);
     if (s.world) {
       const text = encodeWorld(s.world);
       s.hashes.set(s.world.swing, worldHash(text));
@@ -563,6 +567,8 @@ export function createLiveEngine(o) {
       const swing = st.world ? st.world.swing : st.worldSwing;
       return st.next + (st.seeds.from + st.seeds.list.length - swing) * COMBAT_BALANCE.tickMs;
     },
+    /** The viewer's gains this prediction played after server instant atMs (a save's settled point; hudGainsSince), or null. */
+    gainsSince(atMs) { return st && st.gains ? hudGainsSince(st.gains, atMs) : null; },
     /** What the prediction's member sinks would have dropped (inert: it proves drops are NOT foreseen). */
     predictedDrops() {
       const out = {};

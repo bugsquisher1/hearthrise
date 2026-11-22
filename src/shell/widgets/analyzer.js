@@ -44,6 +44,7 @@ import { skillLevelsOf } from '../../session/item-sections.js';
 import { skillBarHtml, patchSkillProgress } from '../windows/skills.js';
 import { t } from '../../render/player-text.js';
 import { LIVE_EVENTS } from '../../data/live-events.js';
+import { huntGains, predictedHero } from '../hud-predict.js';
 
 /* A TRAINING SESSION (../training-now.js; lane/a-training-display): it showed "Monsters killed 0, Level XP 0, Gold 0". While one runs the
    panel shows the trained skill's level and its progress (the server's skill_levels), its XP an hour, the hour's fee and the gold paid
@@ -267,7 +268,8 @@ renderAnalyzer.patch = function patchAnalyzer(el, ctx) {
     text(nextClock, a.hero.rated ? clock(a.nextLevelMs === null ? null : Math.max(0, a.nextLevelMs - live)) : '');
     text(panel.querySelector('.ha-later'), RATE_LATER_PREMIUM);
   } else text(panel.querySelector('.ha-later'), RATE_LATER);
-  patchView(panel, scope === 'party' ? a.party : a.hero, ctx, premium);
+  /* THE HERO'S TOTALS RISE BETWEEN SAVES (../hud-predict.js): the saved figures plus what the prediction played since, display only */
+  patchView(panel, scope === 'party' ? a.party : predictedHero(a.hero, huntGains(ctx.character)), ctx, premium);
   snapRows(panel);
 };
 

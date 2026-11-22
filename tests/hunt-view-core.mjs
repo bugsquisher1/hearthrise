@@ -6,7 +6,7 @@
 //   node tests/hunt-view-core.mjs --mutate  every planted defect must turn a NAMED rule RED; a copy that cannot load, a throw or a
 //                                           line with no rule id is HARNESS, never a catch (tests/_mutant-verdict.mjs)
 //
-// mutant-anchors: src/hunt-view/ src/session/hunt-sections.js src/session/character-session.js src/session/envelope.js src/session/residue.js src/data/combat-text.js
+// mutant-anchors: src/hunt-view/ src/session/hunt-sections.js src/session/character-session.js src/session/envelope.js src/session/residue.js src/data/combat-text.js src/shell/hud-predict.js src/session/carry-intents.js
 // mutant-writes-tree: no — mutants are planted into a temp copy of src/
 //
 // Snapshot vs timeline (Tyler, 2026-10-17): the envelope's sections are the
@@ -32,8 +32,13 @@
 //         a dropped network or a rate limit reads nothing and leaves the record the very one it was (never written by the intent)
 //   LOG-1 the combat log writes each event once, in plain words, by type
 //   LOG-6 a monster's spell winding up is named in the log (the screen marks it), and its hits read with the spell's own name
+//   HUD-1 THE HUD BETWEEN SAVES (lane/c-settle-flush): the live ledger answers what the prediction played after a saved point, none
+//         past its last swing, all of it before its first
+//   HUD-2 the HUD shows the SAVED figures plus that, recomputed on every read: a save that credits less than the prediction ran
+//         (it ran ahead) REPLACES it, the XP ring never shows a whole Level the save has not, and no prediction shows without one
+//   HUD-3 display only: only the two HUD widgets read src/shell/hud-predict.js, and it asks the server nothing
 // ════════════════════════════════════════════════════════════════════════
-import { mkdtempSync, cpSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, cpSync, readFileSync, writeFileSync, rmSync, readdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -56,6 +61,9 @@ async function load(base) {
     L: await u('src/hunt-view/combat-log.js'),
     CT: await u('src/data/combat-text.js'),
     CFG: await u('src/session/config.js'),
+    HP: await u('src/shell/hud-predict.js'),
+    HL: await u('src/hunt-view/hud-ledger.js'),
+    base,
   };
 }
 
@@ -375,6 +383,49 @@ async function rules(M) {
     ok('LOG-3', texts.some((x) => /^Rare roll for the Crown Shard: Tyler 87\./.test(x)), 'a live viewer never sees the server\'s rare roll: ' + JSON.stringify(texts.slice(-3)));
     ok('LOG-3', !texts.some((x) => / for 77\./.test(x)), 'a live viewer was fed the server\'s own dmg over the prediction');
   }
+  { // HUD-1, HUD-2, HUD-3 THE HUNT HUD BETWEEN SAVES (the flush saves a watched hunt about every 90 s; ../src/shell/hud-predict.js)
+    const T = Date.parse(FIXTURE.now);
+    const led = [{ at: T, lx: 0, kills: {}, share: {} }, { at: T + 2000, lx: 30, kills: { rat: 1 }, share: { rat: 1 } },
+      { at: T + 4000, lx: 70, kills: { rat: 2 }, share: { rat: 2 } }];
+    const g1 = M.HL.hudGainsSince(led, T + 2000);
+    ok('HUD-1', g1 && g1.lx === 40 && g1.kills.rat === 1 && g1.share.rat === 1, 'after a save at the second swing the ledger answers ' + JSON.stringify(g1));
+    ok('HUD-1', M.HL.hudGainsSince(led, T + 9000).lx === 0 && M.HL.hudGainsSince(led, T - 5000).lx === 70, 'a save past the last swing leaves nothing and one before the first counts it all');
+    const clock = { t: 0 };
+    const body = clone(FIXTURE);
+    const saved = (ms, lx, kills) => { body.version += 1; body.hunt_analyzer.session = Object.assign({}, body.hunt_analyzer.session, { settled_to: new Date(ms).toISOString() });
+      body.hunt_analyzer.hero.xp = Object.assign({}, body.hunt_analyzer.hero.xp, { level: lx }); body.hunt_analyzer.hero.kills = kills; };
+    saved(T, 5400, 164);
+    const { cs } = session(M, { hr_load: () => ({ ok: true, body: clone(body) }) }, clock);
+    await cs.load();
+    const shown = () => M.HP.predictedHero(M.H.analyzerOf(cs).hero, M.HP.huntGains(cs));
+    ok('HUD-2', M.HP.huntGains(cs) === null && shown().levelXp === 5400, 'with no prediction running the HUD shows the save alone, ' + shown().levelXp);
+    cs.liveLink.engine = { running: () => true, gainsSince: (at) => M.HL.hudGainsSince(led, at) };
+    cs.liveLink.failure = null;
+    const a = shown();
+    ok('HUD-2', a.levelXp === 5470 && a.kills === 166 && a.gold === M.H.analyzerOf(cs).hero.gold + 2, 'between saves the HUD reads ' + JSON.stringify([a.levelXp, a.kills, a.gold]) + ', want the save plus 70 Level XP, 2 kills, 2 coin');
+    /* THE PREDICTION RAN AHEAD: the save at the last swing credits 20 where it showed 70: the HUD falls to the save, nothing kept */
+    saved(T + 4000, 5420, 165);
+    await cs.load();
+    const b = shown();
+    ok('HUD-2', b.levelXp === 5420 && b.kills === 165, 'a save below what the prediction ran must replace it, the HUD reads ' + JSON.stringify([b.levelXp, b.kills]));
+    const ring = M.HP.predictedVitals({ level: 5, into: 100, need: 1000, xpPct: 0.1 }, { levelXp: 950 });
+    const part = M.HP.predictedVitals({ level: 5, into: 100, need: 1000, xpPct: 0.1 }, { levelXp: 50 });
+    ok('HUD-2', ring.xpPct < 1 && Math.abs(part.xpPct - 0.15) < 1e-9, 'the XP ring reads ' + ring.xpPct + ' past the Level and ' + part.xpPct + ' (want under 1, and 0.15)');
+    const users = [];
+    const walk = (d) => {
+      for (const e of readdirSync(d, { withFileTypes: true })) {
+        const f = join(d, e.name);
+        if (e.isDirectory()) walk(f);
+        else if (/\.js$/.test(e.name) && /\bfrom\s+['"][^'"]*hud-predict\.js/.test(readFileSync(f, 'utf8'))) users.push(f.slice(M.base.length + 1).split('\\').join('/'));
+      }
+    };
+    walk(join(M.base, 'src'));
+    const allowed = ['src/shell/widgets/analyzer.js', 'src/shell/widgets/vitals-hub.js'];
+    ok('HUD-3', users.sort().join() === allowed.join(), 'the prediction is read by ' + users.join(', ') + ' (only the two HUD widgets may)');
+    const own = readFileSync(join(M.base, 'src/shell/hud-predict.js'), 'utf8');
+    ok('HUD-3', !/\b(rpc|accrue|edgeIntent)\(|intents\.js/.test(own), 'the prediction module asks the server something');
+  }
+
   return fails;
 }
 
@@ -406,6 +457,11 @@ const MUTANTS = [
   ['a monster\'s miss reads as dealt (LOG-4)', 'src/hunt-view/combat-log.js', ": line(n.isHero(ev.u) ? 'dealt' : 'taken', a + ' misses '", ": line('dealt', a + ' misses '"],
   ['a dodge reads as a plain miss (LOG-4)', 'src/hunt-view/combat-log.js', "Object.assign(ev.dodge === true ? line('taken',", "Object.assign(false ? line('taken',"],
   ['a miss wears the red of damage taken (LOG-4)', 'src/hunt-view/combat-log.js', "a + ' misses ' + b + '.'), { quiet: true });", "a + ' misses ' + b + '.'), {});"],
+  /* HUD-1..3 (lane/c-settle-flush): the HUD between saves */
+  ['the ledger ignores the save (gains since the prediction began)', 'src/hunt-view/hud-ledger.js', '{ if (r.at <= atMs) base = r; else break; }', '{ break; }'],
+  ['the HUD keeps what the prediction ran past a lower save', 'src/shell/hud-predict.js', "const at = a && Number.isFinite(a.settledMs) ? a.settledMs : h.poseAtMs;", 'const at = 0;'],
+  ['the XP ring fills a Level the save has not', 'src/shell/hud-predict.js', 'Math.min(0.999, (v.into + f.levelXp) / v.need)', '(v.into + f.levelXp) / v.need'],
+  ['an intent reads the prediction', 'src/session/carry-intents.js', '// Refused settle_first', "import { huntGains } from '../shell/hud-predict.js';\n// Refused settle_first"],
   ['a monster newer than the pose reads Someone (LOG-5)', 'src/hunt-view/combat-log.js', 'const kind = x.kind || cs.timeline.kindOf(u);', 'const kind = x.kind;'],
   ['a hero only the live view knows reads Someone (LOG-5)', 'src/hunt-view/combat-log.js', '    if (m) heroes.set(x.unit, m.name);\n', ''],
 ];

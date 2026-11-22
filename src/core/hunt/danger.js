@@ -26,8 +26,9 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random: nothing here draws a die.
 // ============================================================
 
-import { DANGER, CLIMB, RISKS, PAY, DANGER_GROUNDS, POWER } from '../../data/danger.js';
-import { LEVEL_PACE, ARMOUR_SLOTS, ARMOUR_WEIGHT } from '../../data/core-model.js';
+import { DANGER, CLIMB, RISKS, PAY, DANGER_GROUNDS } from '../../data/danger.js';
+import { LEVEL_PACE } from '../../data/core-model.js';
+import { tierStepsOf } from '../gear-steps.js';
 import { charXpForLevel } from '../xp.js';
 import { makeEvent } from './events.js';
 import { isHero, isMonster } from './sides.js';
@@ -105,26 +106,12 @@ function depthRatio(ground, step, rate) {
   return g >= 0 ? powStep(1 + rate, g) : Math.max(PAY.floor, 1 / powStep(1 + rate, -g));
 }
 
-/* ── THE POWER STEP (lane/r9-power-step; src/data/danger.js POWER) ── */
-const itemLv = (it) => { const n = Math.floor(Number(it && it.reqLv)); return Number.isFinite(n) && n > 0 ? n : 0; };
-/**
- * THE GEAR LEVELS A HERO FIGHTS AT (member.js heroSnapshot, the server's gear and the catalogue): `off` the weapon's item Level (`reqLv`,
- * the Level it is worn at), `def` the mean item Level over the six armor slots, an empty slot (or a piece that is no armor) counting 0.
- * Whole Levels. Read only on the scale (powerPm).
- */
-export function gearLevelsOf(equipment, items) {
-  const eq = equipment || {};
-  const at = (slot) => (eq[slot] && items ? items[eq[slot]] : null);
-  let sum = 0;
-  for (const slot of ARMOUR_SLOTS) { const it = at(slot); if (it && ARMOUR_WEIGHT[it.armourClass]) sum += itemLv(it); }
-  return { off: itemLv(at('weapon')), def: Math.floor(sum / ARMOUR_SLOTS.length) };
-}
+/* ── THE POWER STEP (lane/r9-power-step; src/data/danger.js, the gear's steps through src/core/gear-steps.js) ── */
 const groundRow = (ground) => (ground && own(DANGER_GROUNDS, ground.id) ? DANGER_GROUNDS[ground.id] : null);
-/* A gear Level's power steps against the ground's gear Level: whole steps, held inside the scale (every ratio stays a safe float). */
-function gearSteps(lv, row) {
-  if (!row || !Number.isInteger(row.gearLv) || !Number.isFinite(lv)) return 0;
-  const s = Math.round(((lv - row.gearLv) * POWER.gearStepsPm) / 1000);
-  return Math.max(-DANGER.stepMax, Math.min(DANGER.stepMax, s));
+/* A rating's gap to the ground's base tier, in whole steps, held inside the scale (every ratio stays a safe float). */
+function gapSteps(rating, row) {
+  if (!row || !Number.isInteger(row.baseTier) || !Number.isInteger(rating)) return 0;
+  return Math.max(-DANGER.stepMax, Math.min(DANGER.stepMax, rating - tierStepsOf(row.baseTier)));
 }
 /* (1 + powerStep) ^ steps, either sign, once per whole step (a hunt's heroes wear a handful of kits) */
 const RATIO = new Map();
@@ -139,8 +126,8 @@ function stepRatio(steps) {
 
 /**
  * THE POWER STEP ON A BLOW (damage.js hurt, after the armor chain and the shield's share is still to come): on the scale, a hero's blow at a
- * monster grows by its offense steps and a blow at a hero shrinks by its defense steps (the unit's `offLv` / `defLv`, member.js
- * heroSnapshot). Answers the permille the blow moves by (temper.js temperedAmount, the part of a point one draw), 0 off the scale, at the
+ * monster grows by its offense rating's gap to the ground's base tier and a blow at a hero shrinks by its defense rating's (the unit's
+ * `offSteps` / `defSteps`, member.js heroSnapshot through gear-steps.js). Answers the permille the blow moves by (temper.js temperedAmount, the part of a point one draw), 0 off the scale, at the
  * reference kit, or for any other pair (a heal is never here). `pm` is the move the blow already carries (Tempering), folded in so the
  * blow draws once.
  */
@@ -149,8 +136,8 @@ export function powerPm(inst, source, target, pm) {
   if (!inst || !dangerOn(inst.world)) return base;
   const row = groundRow(inst.ground);
   let steps = 0;
-  if (isHero(source) && isMonster(target)) steps = gearSteps(source.offLv, row);
-  else if (isMonster(source) && isHero(target)) steps = -gearSteps(target.defLv, row);
+  if (isHero(source) && isMonster(target)) steps = gapSteps(source.offSteps, row);
+  else if (isMonster(source) && isHero(target)) steps = -gapSteps(target.defSteps, row);
   if (!steps) return base;
   return Math.round((1000 + base) * stepRatio(steps)) - 1000;
 }

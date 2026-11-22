@@ -37,10 +37,10 @@ const WINDOWS = 3;
 const MUSTER = 'muster_barrows';
 /* the step the hero last held there: shallow enough that a Level 60 climbs inside the guard's windows (the section and the climb bound read a moved step) */
 const HELD = 20;
-/* Level 30 steel under Muster's gear Level 60 (src/data/danger.js gearLv): the power step (POWER, lane/r9) is live, 36 offense and 48 defense
-   steps under the reference, so DZ-1 to DZ-5's both-path checks hold with it in play. */
+/* Tier 3 steel under Muster's base tier 5 (src/data/danger.js baseTier): the power step (lane/r9, src/core/gear-steps.js) is live, two tiers
+   of offense and more of defense (two empty slots) under the reference, so DZ-1 to DZ-5's both-path checks hold with it in play. */
 const GEAR = Object.freeze({ helmet: 'steel_helm', body: 'steel_platebody', pants: 'steel_platelegs', boots: 'steel_boots', weapon: 'steel_sword', shield: 'coppercap_shield' });
-/* (lane/r9) MUSTER'S REFERENCE KIT for DZ-6: every weapon and armor piece at item Level 60, so the power step is 0. In steel, a four started
+/* (lane/r9) MUSTER'S REFERENCE KIT for DZ-6: every weapon and armor piece tier 5 (item Level 60), so the power step is 0. In steel, a four started
    at 740 (far past its edge) died in its first pull before it could fall back, and the falls are what DZ-6 reads. */
 const REF_KIT = Object.freeze({ helmet: 'rune_helm', body: 'rune_platebody', pants: 'rune_platelegs', boots: 'rune_boots', gloves: 'rune_gauntlets', belt: 'rune_belt',
   weapon: 'rune_sword', shield: 'coppercap_shield' });

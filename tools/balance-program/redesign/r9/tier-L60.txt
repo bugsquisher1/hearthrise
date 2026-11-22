@@ -4,16 +4,16 @@ levers: CLIMB {"cleanRun":2,"climbMax":8,"fallSteps":18,"deathSteps":120,"coolPu
 held = the time-weighted step while all four hunt (to the first death), from hour 6; fourH = those hours a seed
 cell              held (mean +- sd)  drift  +-10  +-20  chg/h falls/h reach h  pulls/h  deaths wipes near(death/warned/fellAfter)  fourH  whys
 base:steady       583.8 +- 3        1.6  65.4  93.9   10.1    0.8     2.4     62.3      0     0  0 (0/0/0)                       6  {"hold":6632,"climb":2231,"fall":94}
-weapon:steady     565.4 +- 12       8.8  57.1  86.7    9.3    0.7     3.4     58.4      0     0  0 (0/0/0)                       6  {"hold":6148,"climb":2149,"fall":96}
-armor:steady      529.2 +- 33.2    16.4  46.6  73.5   15.1    1.4       3     71.5      0     0  1 (0/0/1)                       6  {"hold":7329,"climb":2751,"fall":209}
+weapon:steady       566 +- 10.5    10.4  60.3  85.9    9.1    0.7       4     58.2      0     0  0 (0/0/0)                       6  {"hold":6155,"climb":2123,"fall":95}
+armor:steady      520.8 +- 32.4    15.5  44.3  72.9   16.1    1.5     2.6     71.8      0     0  1 (0/0/1)                       6  {"hold":7325,"climb":2789,"fall":210}
 
 pay from a held start (hour 6 to the four's end), Level XP a hunted hero-hour as a multiple of the hours table
   base:steady        0.88x  sd 0.02  n 12  window 6 h  seeds 0.9 0.89 0.9 0.86 0.88 0.88 0.87 0.88 0.86 0.89 0.92 0.89
-  weapon:steady      0.73x  sd 0.05  n 12  window 6 h  seeds 0.72 0.73 0.75 0.74 0.71 0.82 0.74 0.75 0.73 0.61 0.75 0.72
-  armor:steady       0.69x  sd 0.13  n 12  window 6 h  seeds 0.54 0.68 0.55 0.81 0.89 0.65 0.81 0.64 0.54 0.78 0.85 0.55
+  weapon:steady      0.72x  sd 0.04  n 12  window 6 h  seeds 0.73 0.72 0.74 0.62 0.77 0.73 0.75 0.75 0.71 0.7 0.73 0.73
+  armor:steady       0.66x  sd 0.12  n 12  window 6 h  seeds 0.54 0.59 0.86 0.55 0.64 0.72 0.79 0.54 0.54 0.78 0.54 0.81
 
 power moves (paired seeds): the held step at the changed power minus at base
-  weapon:steady      -18.3 steps (sd 13, se 3.8, n 12)
-  armor:steady       -54.6 steps (sd 33.4, se 9.6, n 12)
+  weapon:steady      -17.7 steps (sd 9.6, se 2.8, n 12)
+  armor:steady         -63 steps (sd 32.4, se 9.3, n 12)
 
-wall 250 s
+wall 307 s

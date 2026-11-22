@@ -1,15 +1,16 @@
 #!/usr/bin/env node
 // tools/balance-program/redesign/r9/summarize.mjs — lane/r9-power-step's reading of its v1-climb reports (2026-11-22). No engine run:
 // arithmetic on the kept JSON beside it (each written by tools/balance-program/redesign/v1-climb.mjs on the engine, the commands below).
-//   THE POWER STEP'S OWN TIER: the tree (base:steady) against the candidates power-tier-back / power-tier-ahead (Muster's gearLv one tier
-//     up / down: every hero one tier of power steps weaker / stronger, the kits and dice identical), paired seed by seed.
-//   ONE GEAR TIER IN PLAY: the tree's weapon and armor cells (each one gear band back: the shipped stats AND the step), paired.
+//   THE POWER STEP'S OWN TIER: the tree (base:steady) against candidates that move every hero one tier of the gear table's steps
+//     (src/core/gear-steps.js, the stand-in for lane/g-gear-steps: tierStepsOf(1) on every slot), the kits and dice identical, paired seed
+//     by seed: power-tier-back / -ahead (Muster's baseTier one up / down: both halves), power-offense-back and power-defense-back (one half),
+//     power-tier-back-under-cap (both halves, the defense half played under the armor chain's 60% cap): what share of the tier shows.
+//   ONE GEAR BAND IN PLAY: the tree's weapon and armor cells (each one MID-kit band back: the shipped stats AND the step), paired.
 //   THE STANCE PAY: the held-start report's pay multiples, and Careful over Steady seed by seed.
 //   node tools/balance-program/redesign/r9/summarize.mjs        Exit 0 printed · 2 a report missing
-// The runs (from the worktree root):
-//   v1-climb.mjs --only base:steady,weapon:steady,armor:steady --seeds 12 --hours 12 --settle 6 --json r9/tier-L60.json
-//   v1-climb.mjs --candidate tools/balance-program/candidates/power-tier-back.json  --only base:steady --seeds 12 --hours 12 --settle 6 --json r9/own-back-L60.json
-//   v1-climb.mjs --candidate tools/balance-program/candidates/power-tier-ahead.json --only base:steady --seeds 12 --hours 12 --settle 6 --json r9/own-ahead-L60.json
+// The runs (from the worktree root; V = node tools/balance-program/redesign/v1-climb.mjs --seeds 12 --hours 12 --settle 6):
+//   V --only base:steady,weapon:steady,armor:steady --json r9/tier-L60.json
+//   V --candidate tools/balance-program/candidates/<id>.json --only base:steady --json r9/<id>-L60.json   (each candidate above)
 //   v1-climb.mjs --only base,levels,high --seeds 6 --hours 8 --settle 1 --pay-from 1 --start-from tools/balance-program/redesign/r4/climb-L60.json --margin 20 --json r9/stance-held-L60.json
 import { readFileSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -27,13 +28,17 @@ const paired = (a, ca, b, cb) => {
   return A.map((x, i) => (Number.isFinite(x) && Number.isFinite(B[i]) ? B[i] - x : null)).filter((x) => x !== null);
 };
 let missing = 0;
-const tier = read('tier-L60.json'), back = read('own-back-L60.json'), ahead = read('own-ahead-L60.json'), held = read('stance-held-L60.json');
-console.log('THE POWER STEP AT LEVEL 60, Muster Barrows, the Steady mixed four (MID kits), held step from hour 6 of 12, paired seeds');
-if (tier) console.log('  base held                         ' + fmt(tier.cells['base:steady'].held.perSeed.filter(Number.isFinite)));
-if (tier && back) console.log('  own tier back (power-tier-back)   ' + fmt(paired(tier, 'base:steady', back, 'base:steady')));
-else missing++;
-if (tier && ahead) console.log('  own tier ahead (power-tier-ahead) ' + fmt(paired(tier, 'base:steady', ahead, 'base:steady')));
-else missing++;
+const tier = read('tier-L60.json'), held = read('stance-held-L60.json');
+const ONE = 20; /* tierStepsOf(1) in the stand-in (src/core/gear-steps.js) */
+console.log('THE POWER STEP AT LEVEL 60, Muster Barrows, the Steady mixed four (MID kits), held step from hour 6 of 12, paired seeds; one tier = ' + ONE + ' steps of power');
+if (tier) console.log('  base held                                    ' + fmt(tier.cells['base:steady'].held.perSeed.filter(Number.isFinite)));
+for (const [id, what] of [['power-tier-back', 'one tier back, both halves'], ['power-tier-ahead', 'one tier ahead, both halves'], ['power-offense-back', 'offense half back'],
+  ['power-defense-back', 'defense half back'], ['power-tier-back-under-cap', 'one tier back, defense under the cap']]) {
+  const c = read(id + '-L60.json');
+  if (!tier || !c) { missing++; console.log('  ' + what.padEnd(44) + ' missing'); continue; }
+  const d = paired(tier, 'base:steady', c, 'base:steady');
+  console.log('  ' + what.padEnd(44) + ' ' + fmt(d) + '   shows ' + Math.round((100 * Math.abs(mean(d))) / ONE) + '% of ' + ONE);
+}
 if (tier) {
   const w = paired(tier, 'base:steady', tier, 'weapon:steady'), a = paired(tier, 'base:steady', tier, 'armor:steady');
   console.log('  weapon band back (shipped + step) ' + fmt(w));

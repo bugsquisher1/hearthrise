@@ -1,0 +1,136 @@
+{
+ "ground": "muster_barrows",
+ "levels": [
+  60,
+  63,
+  70
+ ],
+ "seeds": 12,
+ "hours": 12,
+ "settleFromH": 6,
+ "levers": {
+  "DANGER": {
+   "powerStep": 0.0035,
+   "pullStep": 0.00175,
+   "pullMax": 8,
+   "respawnMs": 15000,
+   "stepMax": 4000,
+   "readyPm": 800,
+   "startMargin": 20
+  },
+  "CLIMB": {
+   "cleanRun": 2,
+   "climbMax": 8,
+   "fallSteps": 18,
+   "deathSteps": 120,
+   "coolPulls": 10
+  },
+  "RISKS": {
+   "careful": {
+    "fallPm": 450,
+    "cleanPm": 650,
+    "afterDeath": "careful"
+   },
+   "steady": {
+    "fallPm": 250,
+    "cleanPm": 450,
+    "afterDeath": "careful"
+   },
+   "bold": {
+    "fallPm": 120,
+    "cleanPm": 300,
+    "afterDeath": "steady"
+   }
+  }
+ },
+ "cells": {
+  "base:steady": {
+   "id": "base:steady",
+   "variant": "base",
+   "risk": "steady",
+   "L": 60,
+   "start": 0,
+   "seedsRead": 12,
+   "payX": {
+    "mean": 0.75,
+    "sd": 0.07,
+    "n": 12,
+    "perSeed": [
+     0.78,
+     0.71,
+     0.77,
+     0.8,
+     0.78,
+     0.79,
+     0.77,
+     0.56,
+     0.79,
+     0.79,
+     0.72,
+     0.69
+    ],
+    "fromH": 6,
+    "windowH": 6
+   },
+   "held": {
+    "mean": 554.1,
+    "sd": 19.4,
+    "se": 5.6,
+    "perSeed": [
+     564,
+     545,
+     562,
+     569,
+     562,
+     568,
+     562,
+     501,
+     565,
+     566,
+     544,
+     541
+    ]
+   },
+   "drift": 10.2,
+   "within10": 52.9,
+   "within20": 74.9,
+   "changesPerH": 11.6,
+   "fallsPerH": 0.9,
+   "reachH": 4.8,
+   "pullsPerH": 65.2,
+   "killsPerH": 473,
+   "xpPerHeroH": 177489,
+   "deaths": 0,
+   "wipes": 0,
+   "seedsWithADeath": 0,
+   "huntedH": 12,
+   "fourH": 6,
+   "firstDeathH": [],
+   "nearWipes": 0,
+   "nearWithDeath": 0,
+   "nearWarned": 0,
+   "nearFellAfter": 0,
+   "whys": {
+    "hold": 6777,
+    "climb": 2466,
+    "fall": 141
+   }
+  }
+ },
+ "wallS": 114,
+ "candidate": "tools/balance-program/candidates/power-tier-back.json",
+ "moves": {
+  "levels:careful": null,
+  "weapon:careful": null,
+  "armor:careful": null,
+  "high:careful": null,
+  "levels:steady": null,
+  "weapon:steady": null,
+  "armor:steady": null,
+  "high:steady": null,
+  "levels:bold": null,
+  "weapon:bold": null,
+  "armor:bold": null,
+  "high:bold": null
+ }
+}

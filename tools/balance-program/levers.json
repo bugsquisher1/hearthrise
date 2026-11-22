@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "ae3ca1e2dd6b00f9",
+ "authored": "c8f30ba2e991b811",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -87,10 +87,10 @@
    "economy": 28
   },
   "byClass": {
-   "global": 78,
+   "global": 77,
    "archetype": 24,
    "content": 46,
-   "exception-intentional": 17,
+   "exception-intentional": 18,
    "exception-accidental": 11
   },
   "byPerturb": {
@@ -111,17 +111,17 @@
    "none": 20
   },
   "flags": {
-   "redundant": 41,
+   "redundant": 42,
    "ineffective": 36,
    "contradictory": 40
   }
  },
  "census": {
   "bindings": 657,
-  "typed": 15665,
-  "files": 221,
-  "lever": 281,
-  "notLever": 376,
+  "typed": 15671,
+  "files": 222,
+  "lever": 280,
+  "notLever": 377,
   "unclaimed": 0
  },
  "problems": [],
@@ -6920,7 +6920,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 122,
+     "line": 113,
      "text": "export const CLIMB = Object.freeze({ cleanRun: 2, climbMax: 8, fallSteps: 18, deathSteps: 120, coolPulls: 10 });",
      "binding": "CLIMB"
     }
@@ -6989,19 +6989,19 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 129,
+     "line": 120,
      "text": "careful: Object.freeze({ fallPm: 450, cleanPm: 650, afterDeath: 'careful' }),",
      "binding": "RISKS"
     },
     {
      "file": "src/data/danger.js",
-     "line": 130,
+     "line": 121,
      "text": "steady: Object.freeze({ fallPm: 250, cleanPm: 450, afterDeath: 'careful' }),",
      "binding": "RISKS"
     },
     {
      "file": "src/data/danger.js",
-     "line": 131,
+     "line": 122,
      "text": "bold: Object.freeze({ fallPm: 120, cleanPm: 300, afterDeath: 'steady' }),",
      "binding": "RISKS"
     }
@@ -7131,8 +7131,8 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 116,
-     "text": "muster_barrows: Object.freeze({ refStep: 590, floorStep: 480, topStep: 710, gearLv: 60 }),",
+     "line": 107,
+     "text": "muster_barrows: Object.freeze({ refStep: 590, floorStep: 480, topStep: 710, baseTier: 5 }),",
      "binding": "DANGER_GROUNDS"
     }
    ],
@@ -7252,26 +7252,20 @@
    "evidence": "MEASURED (lane/r9, v1-climb.mjs from a held start: tools/balance-program/redesign/r9/stance-held-L60.txt)"
   },
   {
-   "id": "danger.power-gear",
+   "id": "danger.base-tier",
    "category": "monster-stats",
-   "name": "The power step on gear",
+   "name": "A ground base gear tier",
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 108,
-     "text": "export const POWER = Object.freeze({ gearStepsPm: 1200 });",
-     "binding": "POWER"
-    },
-    {
-     "file": "src/data/danger.js",
-     "line": 116,
-     "text": "muster_barrows: Object.freeze({ refStep: 590, floorStep: 480, topStep: 710, gearLv: 60 }),",
+     "line": 107,
+     "text": "muster_barrows: Object.freeze({ refStep: 590, floorStep: 480, topStep: 710, baseTier: 5 }),",
      "binding": "DANGER_GROUNDS"
     }
    ],
-   "definition": "on the scale a hero's blows at a monster x (1 + powerStep)^(gearStepsPm/1000 x (weapon item Level - the ground's gearLv)) and blows at it / (1 + powerStep)^(gearStepsPm/1000 x (mean item Level of the six armor slots - gearLv)), whole steps, after the armor chain's cap; at the reference kit nothing moves",
-   "range": "steps an item Level x 1000. 04 section 1 sizes a gear tier at 20 steps (1333 on 15 item Levels); R4 saw 57-77% of the step show when it sat under the cap; past the cap 1200 moves a tier -22.7 / +17.2 held steps, 1333 -29.7 / +21.3 (band 15 to 26)",
-   "touches": "how far one gear tier moves the held step on the scale (C-2), on top of the shipped stats' own move",
+   "definition": "the gear tier the reference company wore when the refStep of the ground was measured; on the scale the offense and defense ratings in steps (the gear table, src/core/gear-steps.js until lane/g-gear-steps lands) are read against the rating of this tier: a blow at a monster x (1 + powerStep)^gap, a blow at the hero / (1 + powerStep)^gap, after the armor cap (12-targets 3.3: the base tier is fixed by the ground)",
+   "range": "a gear tier of the catalogue. The steps of a tier (tierSteps, slot weights, wearAhead) are levers of lane/g-gear-steps, not this row",
+   "touches": "how far one gear tier moves the held step on the scale (C-2), on top of the own move of the shipped stats",
    "outcomes": [
     "dps",
     "dpsHero",
@@ -7301,7 +7295,7 @@
     "feeds": 11,
     "closure": 77
    },
-   "class": "global",
+   "class": "exception-intentional",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
    "tests": {
     "asserts": [
@@ -7309,32 +7303,31 @@
       "file": "tests/hunt-core/danger.mjs",
       "what": "power: a tier of gear is a tier of steps, after the cap, never off the scale",
       "reads": [
-       "POWER",
        "DANGER_GROUNDS"
       ]
      }
     ],
     "mentions": [
-     "tests/bestiary-trophy.mjs",
      "tests/danger-client.mjs",
-     "tests/danger-db.mjs",
-     "tests/hunt-core/danger.mjs",
-     "tests/hunt-summary.mjs",
-     "tests/leaderboard-server-source.mjs",
-     "tests/mutation-safety.mjs",
-     "tests/recipe-yield-guard.mjs"
+     "tests/hunt-core/danger.mjs"
     ],
-    "mentionCount": 9,
+    "mentionCount": 2,
     "verdict": "asserted"
    },
    "perturb": {
     "kind": "not-playable",
     "gap": "not-in-runs",
-    "note": "played by the V1 probe (candidate power-tier-back moves gearLv one tier); no matrix run plans a stance",
+    "note": "played by the V1 probe (candidates power-tier-back / power-tier-ahead move it one tier); no matrix run plans a stance",
     "existingPatches": []
    },
-   "flags": [],
-   "evidence": "MEASURED (lane/r9, v1-climb.mjs: tools/balance-program/redesign/r9/own-tier-L60.txt)"
+   "flags": [
+    {
+     "kind": "redundant",
+     "why": "A per-ground bridge like refStep; it retires when grounds carry absolute bands",
+     "ev": "02 package 3 cost; JUDGMENT"
+    }
+   ],
+   "evidence": "MEASURED (lane/r9, v1-climb.mjs: tools/balance-program/redesign/r9/summary.txt)"
   },
   {
    "id": "reward.xp-line",
@@ -8589,11 +8582,10 @@
      "tests/alpha-windows-inventory.mjs",
      "tests/alpha-windows-pure.mjs",
      "tests/catalogue-coherence.mjs",
-     "tests/hunt-core/danger.mjs",
      "tests/hunt-core/forest-cave.mjs",
      "tests/hunt-core/sewer.mjs"
     ],
-    "mentionCount": 6,
+    "mentionCount": 5,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -12307,6 +12299,10 @@
    "why": "a memo bound (4096 power-step ratios kept): a cache size, no outcome reads it"
   },
   {
+   "at": "src/core/gear-steps.js#STAND_IN",
+   "why": "a STAND-IN for lane/g-gear-steps' gear table in steps (tierSteps, slot weights): those are G's levers, in src/data at its merge, and this module then reads them"
+  },
+  {
    "at": "src/data/time-blocks.js#RULED",
    "why": "Tyler's ruled block rule of 2026-11-22 (2 h blocks, 2 a day, x1.5): time-blocks.js validate refuses a TIME_BLOCKS row that moves them; the price is the lever (econ.hunt-block)"
   },
@@ -14419,20 +14415,12 @@
   "src/data/danger.js#DANGER_GROUNDS": {
    "pin": "count",
    "keys": [
+    "baseTier",
     "floorStep",
-    "gearLv",
     "refStep",
     "topStep"
    ],
    "typed": 4,
-   "bindings": 1
-  },
-  "src/data/danger.js#POWER": {
-   "pin": "count",
-   "keys": [
-    "gearStepsPm"
-   ],
-   "typed": 1,
    "bindings": 1
   },
   "src/data/balance-sheet.js#GROUND_XP_FIT": {

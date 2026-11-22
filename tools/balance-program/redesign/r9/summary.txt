@@ -1,10 +1,13 @@
-THE POWER STEP AT LEVEL 60, Muster Barrows, the Steady mixed four (MID kits), held step from hour 6 of 12, paired seeds
-  base held                         583.8 +- 0.9 se, median 584, n 12
-  own tier back (power-tier-back)   -22.7 +- 5.8 se, median -18, n 12
-  own tier ahead (power-tier-ahead) 17.2 +- 1.9 se, median 16, n 12
-  weapon band back (shipped + step) -18.3 +- 3.8 se, median -13.5, n 12
-  armor band back (shipped + step)  -54.6 +- 9.6 se, median -59.5, n 12
-  one gear band back, both halves   -72.9 (sum of the two cells' means)
+THE POWER STEP AT LEVEL 60, Muster Barrows, the Steady mixed four (MID kits), held step from hour 6 of 12, paired seeds; one tier = 20 steps of power
+  base held                                    583.8 +- 0.9 se, median 584, n 12
+  one tier back, both halves                   -29.7 +- 5.9 se, median -21.5, n 12   shows 148% of 20
+  one tier ahead, both halves                  21.3 +- 1.8 se, median 22, n 12   shows 107% of 20
+  offense half back                            -0.2 +- 2 se, median -0.5, n 12   shows 1% of 20
+  defense half back                            -16.4 +- 2.4 se, median -19, n 12   shows 82% of 20
+  one tier back, defense under the cap         -3.9 +- 2.8 se, median -7, n 12   shows 20% of 20
+  weapon band back (shipped + step) -17.7 +- 2.8 se, median -17, n 12
+  armor band back (shipped + step)  -63 +- 9.3 se, median -77.5, n 12
+  one gear band back, both halves   -80.7 (sum of the two cells' means)
 
 STANCE PAY FROM A HELD START (start = R4's held - 20, pay read from hour 1 to the four's end; multiple of the hours table)
   base:careful     L60  held 409.9  pay 0.56x (sd 0.02, 7 h)  deaths 0

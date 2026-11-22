@@ -160,8 +160,8 @@ function syncUnit(u, m, roles) {
   u.heroLv = snap.level;
   /* THE ARMOUR (ruling K7, mitigation.js): the member's gear values at every boundary, never persisted, so a decoded world gets them back here before any blow; each blow prices them against its attacker. */
   u.armour = snap.armour || null;
-  /* THE GEAR LEVELS (src/core/hunt/danger.js powerPm: the power step, read on the Danger scale only), the same: never persisted. */
-  u.offLv = Number.isInteger(snap.offLv) ? snap.offLv : 0; u.defLv = Number.isInteger(snap.defLv) ? snap.defLv : 0;
+  /* THE GEAR IN STEPS (src/core/hunt/danger.js powerPm: the power step, read on the Danger scale only), the same: never persisted. */
+  u.offSteps = Number.isInteger(snap.offSteps) ? snap.offSteps : 0; u.defSteps = Number.isInteger(snap.defSteps) ? snap.defSteps : 0;
   /* TEMPERING, the same: at every boundary from the server's rungs, never persisted, absent at rung 0 (damage.js hurt, abilities.js healOne). */
   if (snap.blowsPm) u.blowsPm = snap.blowsPm; else if (u.blowsPm) delete u.blowsPm;
   if (snap.armorPm) u.armorPm = snap.armorPm; else if (u.armorPm) delete u.armorPm;

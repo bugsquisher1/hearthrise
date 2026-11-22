@@ -1,11 +1,11 @@
 {
  "schema": "hearthrise.balance-candidate/1",
  "id": "power-tier-ahead",
- "why": "The power step's OWN move for one gear tier (lane/r9-power-step): the same kits on the same dice, with Muster Barrows' gear Level one tier (15 item Levels) lower, so every hero's offense and defense are one tier of power steps higher and nothing else moves. The paired held step against the tree (C0) is what one tier of the step moves (target about 20, 15 to 26 in band)",
+ "why": "The power step's OWN move for one gear tier (lane/r9-power-step): the same kits on the same dice, with Muster Barrows' base tier one tier lower, so every hero's offense and defense are one tier of power steps higher and nothing else moves. The paired held step against the tree (C0) is what one tier of the step moves (target about 20, 15 to 26 in band)",
  "base": "tree",
- "edits": [{ "file": "src/data/danger.js", "from": "topStep: 710, gearLv: 60 })", "to": "topStep: 710, gearLv: 45 })" }],
+ "edits": [{ "file": "src/data/danger.js", "from": "topStep: 710, baseTier: 5 })", "to": "topStep: 710, baseTier: 4 })" }],
  "assumptions": [
-  "A tier is 15 item Levels (today's item bands); the step counts gearStepsPm / 1000 steps an item Level, so this moves both halves by the same whole steps a real tier would",
+  "One tier is the gear table's tierSteps on every slot of both ratings (src/core/gear-steps.js, the stand-in for lane/g-gear-steps)",
   "Shipped gear stats do not move here: the shipped tier move is the weapon and armor cells, measured beside it"
  ]
 }

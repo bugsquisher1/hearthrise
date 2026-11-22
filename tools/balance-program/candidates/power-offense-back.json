@@ -1,0 +1,16 @@
+{
+ "schema": "hearthrise.balance-candidate/1",
+ "base": "tree",
+ "id": "power-offense-back",
+ "why": "The offense half alone (lane/r9): every hero's offense rating one tier (the stand-in's 20 steps) under the ground's, its defense at the ground's. Paired against the tree",
+ "edits": [
+  {
+   "file": "src/core/hunt/danger.js",
+   "from": "steps = gapSteps(source.offSteps, row);",
+   "to": "steps = gapSteps(source.offSteps - tierStepsOf(1), row);"
+  }
+ ],
+ "assumptions": [
+  "One tier is tierStepsOf(1) (src/core/gear-steps.js, the stand-in for lane/g-gear-steps)"
+ ]
+}

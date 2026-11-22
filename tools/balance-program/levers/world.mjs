@@ -355,14 +355,15 @@ export const WORLD = [
     tests: [['tests/hunt-core/danger.mjs', 'pay: under the reference a kill pays the floor, never less']], testReads: ['PAY'],
     perturb: NP('not-in-runs', 'played by the V1 probe from a held start (lane/r9 tools/balance-program/redesign/r9); the server bounds only the most a kill pays (hr_danger_level_xp_max), which the floor never raises'),
     ev: 'MEASURED (lane/r9, v1-climb.mjs from a held start: tools/balance-program/redesign/r9/stance-held-L60.txt)' }),
-  L('danger.power-gear', 'monster-stats', 'global', 'The power step on gear', {
-    at: [at(DZ, 'export const POWER = Object.freeze({ gearStepsPm: 1200 });'), at(DZ, 'topStep: 710, gearLv: 60 })')],
-    def: 'on the scale a hero\'s blows at a monster x (1 + powerStep)^(gearStepsPm/1000 x (weapon item Level - the ground\'s gearLv)) and blows at it / (1 + powerStep)^(gearStepsPm/1000 x (mean item Level of the six armor slots - gearLv)), whole steps, after the armor chain\'s cap; at the reference kit nothing moves',
-    range: 'steps an item Level x 1000. 04 section 1 sizes a gear tier at 20 steps (1333 on 15 item Levels); R4 saw 57-77% of the step show when it sat under the cap; past the cap 1200 moves a tier -22.7 / +17.2 held steps, 1333 -29.7 / +21.3 (band 15 to 26)',
-    touches: 'how far one gear tier moves the held step on the scale (C-2), on top of the shipped stats\' own move', out: [...KILL, ...SURVIVE], f: ['C-TIER', 'C-TEMPER'],
-    tests: [['tests/hunt-core/danger.mjs', 'power: a tier of gear is a tier of steps, after the cap, never off the scale']], testReads: ['POWER', 'DANGER_GROUNDS'],
-    perturb: NP('not-in-runs', 'played by the V1 probe (candidate power-tier-back moves gearLv one tier); no matrix run plans a stance'),
-    ev: 'MEASURED (lane/r9, v1-climb.mjs: tools/balance-program/redesign/r9/own-tier-L60.txt)' }),
+  L('danger.base-tier', 'monster-stats', 'exception-intentional', 'A ground base gear tier', {
+    at: [at(DZ, 'topStep: 710, baseTier: 5 })')],
+    def: 'the gear tier the reference company wore when the refStep of the ground was measured; on the scale the offense and defense ratings in steps (the gear table, src/core/gear-steps.js until lane/g-gear-steps lands) are read against the rating of this tier: a blow at a monster x (1 + powerStep)^gap, a blow at the hero / (1 + powerStep)^gap, after the armor cap (12-targets 3.3: the base tier is fixed by the ground)',
+    range: 'a gear tier of the catalogue. The steps of a tier (tierSteps, slot weights, wearAhead) are levers of lane/g-gear-steps, not this row',
+    touches: 'how far one gear tier moves the held step on the scale (C-2), on top of the own move of the shipped stats', out: [...KILL, ...SURVIVE], f: ['C-TIER', 'C-TEMPER'],
+    tests: [['tests/hunt-core/danger.mjs', 'power: a tier of gear is a tier of steps, after the cap, never off the scale']], testReads: ['DANGER_GROUNDS'],
+    perturb: NP('not-in-runs', 'played by the V1 probe (candidates power-tier-back / power-tier-ahead move it one tier); no matrix run plans a stance'),
+    flags: [flag('redundant', 'A per-ground bridge like refStep; it retires when grounds carry absolute bands', '02 package 3 cost; JUDGMENT')],
+    ev: 'MEASURED (lane/r9, v1-climb.mjs: tools/balance-program/redesign/r9/summary.txt)' }),
   /* ── 14. MONSTER XP AND LOOT VALUES ────────────────────────────────────────────────────────────────────────────────────────── */
   L('reward.xp-line', 'monster-rewards', 'global', 'Level XP a kill', {
     at: [at(BS, 'xp: Object.freeze({ a: 1.436')],

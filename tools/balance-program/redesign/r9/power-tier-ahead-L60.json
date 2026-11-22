@@ -117,7 +117,7 @@
    }
   }
  },
- "wallS": 95,
+ "wallS": 132,
  "candidate": "tools/balance-program/candidates/power-tier-ahead.json",
  "moves": {
   "levels:careful": null,

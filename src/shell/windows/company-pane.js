@@ -15,6 +15,8 @@
 //               last held there stand where the tier row stands elsewhere: Careful / Steady / Bold, ONE hr_hunt_risk_set each
 //               (danger-intents.js setRisk), sent before Start, marked only from the server's `danger` section. Never the raw step.
 //   stanceHtml() / patchStance(det, ctx, o)   { hunt, follower, pending }: the pick, built once and patched; hidden off the scale
+// THE GOLD LINE (lane/gold-per-hour, Tyler 2026-11-22) under the depth: "About 4,900 gold an hour, before supplies." at the plan's Risk, the
+//   server's number (the `gold_estimate` section, gold-estimate-sections.js); none until it comes or under the ground's floor.
 // ════════════════════════════════════════════════════════════════════════
 import { text, prop, attr, cls } from '../../render/paint.js';
 import { t } from '../../render/player-text.js';
@@ -25,6 +27,8 @@ import { companyPlanOf, groundSetupOf } from '../../session/company-sections.js'
 import { setHeroPlan, setGroundSetup } from '../../session/company-intents.js';
 import { dangerOf, onScale, depthOf, STANCE_IDS } from '../../session/danger-sections.js';
 import { setRisk } from '../../session/danger-intents.js';
+import { goldEstimateOf } from '../../session/gold-estimate-sections.js';
+import { whole } from '../../render/format.js';
 import { DEFAULT_RISK } from '../../data/danger.js';
 
 /** The stance's plain word (Careful, Steady, Bold). */
@@ -40,7 +44,7 @@ export function stanceHtml() {
     /* its name in view (R7 art pass: three bare words under The packs, and the line under them said "Pick a Risk" with no Risk on screen) */
     + '<span class="hw-stance-k" aria-hidden="true">' + t('hunts.head_stance') + '</span><span class="hh-segs">'
     + STANCE_IDS.map((id) => '<button type="button" class="hh-seg" data-hs-act="stance" data-risk="' + id + '">' + stanceName(id) + '</button>').join('')
-    + '</span></span><p class="hw-stance-note"></p><p class="hw-stance-depth"></p></div>';
+    + '</span></span><p class="hw-stance-note"></p><p class="hw-stance-depth"></p><p class="hw-stance-gold"></p></div>';
 }
 
 /** The pick on a scale ground: the server's stance pressed, its plain line, and the depth this hero last held here. A member reads its
@@ -63,6 +67,8 @@ export function patchStance(det, ctx, o) {
     : t('hunts.stance_line_' + risk) + (later ? ' ' + t('hunts.stance_next') : ''));
   const held = d ? depthOf(o.hunt, d.held[o.hunt]) : null;
   text(box.querySelector('.hw-stance-depth'), !d ? '' : held ? t('hunts.depth_held', held) : t('hunts.depth_new'));
+  const gold = risk ? goldEstimateOf(ctx.character, o.hunt, risk) : null;
+  text(box.querySelector('.hw-stance-gold'), gold === null ? '' : t('hunts.gold_about', { gold: whole(gold) }));
 }
 
 /** The ground's own Setup for Go as (the server's pointer), or null. */

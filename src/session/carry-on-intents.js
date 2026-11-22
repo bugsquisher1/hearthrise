@@ -187,6 +187,7 @@ export function setCompanyLine(account, cs, line, value) {
  * between reads, at most `o.tries` reads), the pieces are the server's pick (companyWear) and the way back is the Start (carryOn) on the server's
  * plan for exactly these heroes, so a hero the player left by hand goes too. A boss room, a training session or a Tower run is never
  * offered this press (needs-you/gear-choice.js): their one door is their own.
+ * @param {{ pause?: () => Promise<unknown>, tries?: number }} [o]  test seams: the wait between reads, and how many reads
  */
 export async function regear(account, cs, slots, o = {}) {
   const scope = scopeOf(slots);

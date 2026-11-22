@@ -828,7 +828,7 @@ async function seedLadder(exec, sel, labels) {
 async function tickOne(exec, holder, sel, body, maxWindows = 1) {
   /* (0) THE SERVER CLOCK. Every instant this function names comes from here or
          from the fence; none of them comes from the body. */
-  const read0 = await exec('select now()::timestamptz as now', []);
+  const read0 = await exec("select now()::timestamptz as now, to_regprocedure('public.hr_tick_town_state(uuid,integer)') is not null as narrow", []);
   /* THE DRIVER HANDS BACK A `Date`, NOT A STRING (T-1). `postgres` parses OID
      1184 into a JS Date and index.ts gives it no `types` override, so
      `String(...)` here spells `Mon Sep 21 2026 17:58:04 GMT+0000 (…)` — which
@@ -852,9 +852,10 @@ async function tickOne(exec, holder, sel, body, maxWindows = 1) {
            the only server-side answer to that is `active_kind` on this
            read. `hr_engine` is revoked from `player_state`. The cost is one
            read for a character that turns out to be unleased, bounded by
-           MAX_ROSTER behind the tick bearer. */
+           MAX_ROSTER behind the tick bearer. A database before 1043 (read0's
+           `narrow`) is read whole, as before: either deploy order is safe. */
   const [row] = await exec(
-    'select public.hr_tick_town_state($1::uuid, $2::int) as state,'
+    `select public.${read0[0].narrow === true ? 'hr_tick_town_state' : 'hr_state_of'}($1::uuid, $2::int) as state,`
     + ' public.hr_offline_cap_ms($1::uuid, $2::int) as cap_ms,'
     + ' now()::timestamptz as now',
     [sel.userId, sel.slot]);

@@ -65,7 +65,7 @@ export const WEIGHT_FOR_ROLE = Object.freeze({ tank: 'heavy', melee_dps: 'heavy'
    (import roleForWeapon, never a copy). items.js weaponType stays the COMBAT style (accuracy skill,
    weakness), so the rows are mapped here, not renamed. Bows and crossbows ship as `ranged` (a bow is
    two-handed: items.js `twoHanded`, so it never wears a shield). The `bow`, `crossbow`, `dual_axe` and
-   `club` keys are the party finder's words for a weapon no item plays by that name. */
+   `club` keys name a weapon no item plays by that name (WEAPON_WORDS words them). */
 const key = (roles, discipline) => Object.freeze({ roles: Object.freeze(roles), discipline });
 export const ROLE_KEYS = Object.freeze({
   /* a one-hand melee weapon with a shield: the anchor, the tank (Tyler 2026-10-23: the SHIELD makes the tank) */

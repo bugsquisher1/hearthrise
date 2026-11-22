@@ -109,6 +109,8 @@ declare
     /* the company's plan lines and each hero's plan (1051-company-start.sql): no row is the defaults, which a wiped account starts on;
        hero_plans keys on player_state, so it goes in the same TRUNCATE */
     'company_plans', 'hero_plans',
+    /* each company's trade XP (1059-company-trades.sql): the one copy every hero's trade rows project; it goes with player_skills */
+    'company_trades',
     /* the Great Hearth's fire (1043-hearthrise.sql): an account's fuel a day and the world boss falls that marked it, earned by heroes
        the wipe clears (the fire's one row stays and is reset below; a lit window's size stays) */
     'hr_hearth_fire_day', 'hr_hearth_fire_boss',
@@ -137,7 +139,7 @@ declare
     'hr_castle_buildings', 'hr_castle_items', 'hr_castle_tiers', 'hr_catalogue_meta', 'hr_character_sheet_engine', 'hr_chat_config',
     'hr_client_rpc_baseline', 'hr_client_write_baseline', 'hr_companion_grants', 'hr_crop_plot_tier', 'hr_crops', 'hr_danger_grounds', 'hr_danger_rules', 'hr_danger_stances', 'hr_db_samples', 'hr_depot_config',
     'hr_dungeon_loot', 'hr_dungeons', 'hr_equip_slots', 'hr_farm_yield_perk', 'hr_feast_foods', 'hr_flags', 'hr_gem_unlocks', 'hr_gm_wall_allow',
-    'hr_ground_session_modes', 'hr_ground_tiers', 'hr_hearth_named', 'hr_hearth_rule', 'hr_hearthfind_items', 'hr_hearthfind_meta', 'hr_hearthfind_sources', 'hr_hero_rename_rule', 'hr_hero_slots',
+    'hr_ground_session_modes', 'hr_ground_tiers', 'hr_time_blocks', 'hr_work_day', 'hr_hearth_named', 'hr_hearth_rule', 'hr_hearthfind_items', 'hr_hearthfind_meta', 'hr_hearthfind_sources', 'hr_hero_rename_rule', 'hr_hero_slots',
     'hr_hunt_abilities', 'hr_hunt_action_ids', 'hr_hunt_basic_supplies', 'hr_hunt_condition_limits', 'hr_hunt_condition_metrics', 'hr_hunt_config',
     'hr_hunt_cover_items', 'hr_hunt_end_reasons', 'hr_hunt_ground_spawns', 'hr_hunt_grounds', 'hr_hunt_kill_bounds', 'hr_hunt_lanes', 'hr_hunt_limits',
     'hr_hunt_resumable_kinds', 'hr_hunt_role_rules', 'hr_hunt_roles', 'hr_hunt_roster', 'hr_hunt_set_options', 'hr_hunt_shields', 'hr_hunt_spawns',

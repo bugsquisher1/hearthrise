@@ -128,11 +128,15 @@ async function party(db, M, uids, { level = 60, gold: g = 200000, gear = [GEAR, 
   const inv = await as(db, uids[0], 'select public.hr_hunt_party_invite(0, $1, $2::uuid)', [names + 'b', idem()]);
   if (!inv || inv.ok !== true) throw new Error('harness: invite refused: ' + JSON.stringify(inv));
   const id = await one(db, 'select public.hr_hunt_party_of($1::uuid, 0)', [uids[0]]);
-  const listed = await as(db, uids[0], 'select public.hr_hunt_party_list(0, true, $1::uuid)', [idem()]);
-  if (!listed || listed.ok !== true) throw new Error('harness: list refused: ' + JSON.stringify(listed));
-  for (const uid of uids.slice(1)) {
-    const j = await as(db, uid, 'select public.hr_hunt_party_join(0, $1::uuid, $2::uuid)', [id, idem()]);
-    if (!j || j.ok !== true) throw new Error('harness: join refused: ' + JSON.stringify(j));
+  /* No party finder (1059-no-party-finder.sql): every other hero is invited (b by name above, the rest by account) and accepts. */
+  for (const [i, uid] of uids.slice(1).entries()) {
+    if (i > 0) {
+      const more = await as(db, uids[0], 'select public.hr_hunt_party_invite_player(0, $1::uuid, 0, $2::uuid)', [uid, idem()]);
+      if (!more || more.ok !== true) throw new Error('harness: invite refused: ' + JSON.stringify(more));
+    }
+    const inviteId = await one(db, 'select id from public.hunt_party_invites where to_user = $1::uuid and to_slot = 0 and party_id = $2::uuid', [uid, id]);
+    const j = await as(db, uid, 'select public.hr_hunt_party_accept(0, $1::uuid, $2::uuid)', [inviteId, idem()]);
+    if (!j || j.ok !== true) throw new Error('harness: accept refused: ' + JSON.stringify(j));
   }
   return id;
 }

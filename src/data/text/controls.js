@@ -31,11 +31,9 @@
 //   Select / Deselect    the bag menu (was Select / Unselect)
 //   Sort / Filter        bag, Storage, Market, crafting; Chat's Combat tab (was Filter lines)
 //   Basic setup          Hunt prep: the weapon type's basic bar (a feature's name, 2026-11-16)
-//   Search               Party finder; the bag, Storage and Market search fields
 //   Clear                the bag's selection
 //   Play / Show / Rename / Sign out   All characters and the character strip
-//   Accept / Decline / Join / Invite  Friends, Party, the invite alert (was Join / No thanks)
-//   Show in finder / Hide from finder   Party (was Show in the finder / Hide from the finder)
+//   Accept / Decline     Friends, Party, the invite alert (was Join / No thanks)
 //   Refresh              the Market (Chat's Send is a literal: the file binds t for its tabs)
 //   List                 the Market's verb: List, List an item (was List something), List on market (the bag menu, was
 //                        List on the market…), List again; Buy again
@@ -85,7 +83,6 @@ export const CONTROLS_TEXT = Object.freeze({
   basic_setup: 'Basic setup',
   filter: 'Filter',
   filter_off: 'Filter ({count} off)',
-  search: 'Search',
   clear: 'Clear',
   play: 'Play',
   show: 'Show',
@@ -93,15 +90,12 @@ export const CONTROLS_TEXT = Object.freeze({
   sign_out: 'Sign out',
   accept: 'Accept',
   decline: 'Decline',
-  join: 'Join',
   refresh: 'Refresh',
   list: 'List',
   list_item: 'List an item',
   list_on_market: 'List on market',
   list_again: 'List again',
   buy_again: 'Buy again',
-  show_in_finder: 'Show in finder',
-  hide_from_finder: 'Hide from finder',
   max_affordable: 'Max affordable',
   pick_hunt: 'Pick a hunt',
   pick_weight: 'Pick a weight',

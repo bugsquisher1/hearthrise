@@ -55,7 +55,6 @@
       "party_invites",
       "party_notices",
       "party_people",
-      "party_seek",
       "place",
       "premium",
       "presence",
@@ -83,7 +82,8 @@
       "traits",
       "unlocked_recipes",
       "version",
-      "vitals"
+      "vitals",
+      "work_day"
     ],
     "state": [
       "accrued_to",

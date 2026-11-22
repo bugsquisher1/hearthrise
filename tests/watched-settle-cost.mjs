@@ -84,9 +84,10 @@ async function fixture(db, M) {
   okOf(await one(db, 'select public.hr_hunt_party_invite_own(0, 1, $1::uuid)', [idem()]), 'the own invite');
   const party = await one(db, 'select public.hr_hunt_party_of($1::uuid, 0)', [A]);
   await db.query('update public.hunt_parties set hunt_id = $2 where id = $1', [party, HUNT]);
-  okOf(await one(db, 'select public.hr_hunt_party_list(0, true, $1::uuid)', [idem()]), 'the listing');
+  okOf(await one(db, 'select public.hr_hunt_party_invite_player(0, $1::uuid, 0, $2::uuid)', [B, idem()]), 'the invite');
   await asUser(db, B);
-  okOf(await one(db, 'select public.hr_hunt_party_join(0, $1::uuid, $2::uuid)', [party, idem()]), 'the join');
+  const inviteId = await one(db, 'select id from public.hunt_party_invites where to_user = $1::uuid and to_slot = 0 and party_id = $2::uuid', [B, party]);
+  okOf(await one(db, 'select public.hr_hunt_party_accept(0, $1::uuid, $2::uuid)', [inviteId, idem()]), 'the accept');
   const sids = [];
   for (const [u, s] of [[A, 0], [A, 1], [B, 0]]) {
     await asUser(db, u);

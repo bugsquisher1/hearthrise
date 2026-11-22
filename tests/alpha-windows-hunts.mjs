@@ -49,8 +49,8 @@
 //   AW-27 BEFORE YOU GO: one line per supply kind in slot order from the server's bar,
 //         bag, stamina and gold (the designer's walk-through starter bar word for word);
 //         the next envelope replaces every number; a line that stops the hunt is marked
-//   AW-28 THE PARTY PATH: a party ground's page offers Find a party (the Party window's
-//         finder on that ground and this hero's weapon: ONE read with p_hunt) and Bring
+//   AW-28 THE PARTY PATH: a party ground's page offers Invite a player (the Party window, its
+//         name box; no read: there is no party finder) and Bring
 //         your heroes (open heroes in no party); a solo ground's page offers neither
 //   AW-29 the round trip: pick a ground, Enter, hunting, back in town: Hunts still holds
 //         that ground, after a close and reopen too
@@ -965,7 +965,7 @@ async function checks(overrides, shots, opts) {
         if (enters() !== e0 || said !== 'Setup gear missing, nothing equipped') fails.push('AW-26 a refused apply entered or said ' + JSON.stringify([enters() - e0, said]));
         s.reply = { ok: true };
         /* AW-28 THE PARTY PATH: a party ground's page leads to a party; a solo ground's does not. */
-        const party = () => page.evaluate((w) => { const b = document.querySelector(w + '.hw-hd-party'); return b && !b.hidden ? [b.querySelector('.hw-hd-party-why').textContent, b.querySelector('.hw-find-here').textContent, b.querySelector('.hw-bring-none').textContent] : null; }, W);
+        const party = () => page.evaluate((w) => { const b = document.querySelector(w + '.hw-hd-party'); return b && !b.hidden ? [b.querySelector('.hw-hd-party-why').textContent, b.querySelector('.hw-invite-here').textContent, b.querySelector('.hw-bring-none').textContent] : null; }, W);
         if (await party()) fails.push('AW-28 the Mill Cellar page offers a party path');
         await page.click(W + '.hw-hunt[data-hunt="millrace_sewer"]');
         await wait(page, (w) => document.querySelectorAll(w + '.hw-hd-mon.is-drawn').length === 6, W, 4000);
@@ -976,17 +976,16 @@ async function checks(overrides, shots, opts) {
         const castNote = await page.evaluate((w) => { const n = document.querySelector(w + '.hw-hd-casts'); return n && !n.hidden ? n.textContent : null; }, W);
         if (castNote !== 'Sewer Kobold casts Muck Fling. Rat King casts Tail Lash and Squeal.') fails.push('AW-25 the Sewer\'s casters note reads ' + JSON.stringify(castNote));
         const pp = await party();
-        if (!pp || pp[0] !== 'Players: 1 to 4' || pp[1] !== 'Find a party' || !/^Play other heroes from Characters to bring them/.test(pp[2])) fails.push('AW-28 the Sewer page\'s party path reads ' + JSON.stringify(pp));
+        if (!pp || pp[0] !== 'Players: 1 to 4' || pp[1] !== 'Invite a player' || !/^Play other heroes from Characters to bring them/.test(pp[2])) fails.push('AW-28 the Sewer page\'s party path reads ' + JSON.stringify(pp));
         if (shots) { await page.evaluate((w) => { const b = document.querySelector(w + '.hs-win-body'); b.scrollTop = 0; }, W); await shot(page, 'hunts-1440x900-sewer'); }
         if (shots) { await page.evaluate((w) => { const b = document.querySelector(w + '.hs-win-body'); b.scrollTop = b.scrollHeight; }, W); await shot(page, 'hunts-1440x900-sewer-foot'); }
-        /* Find a party: the Party window, on its finder, on this ground and this hero's weapon: ONE read with p_hunt. */
-        const f0 = sent(s, 'hr_hunt_party_finder').length;
-        await page.click(W + '.hw-find-here');
+        /* Invite a player: the Party window, its name box on screen; no read is sent (there is no party finder: 1059-no-party-finder.sql). */
+        const c0 = s.calls.length;
+        await page.click(W + '.hw-invite-here');
         const opened = await wait(page, () => document.querySelector('[data-hs-win="hunt-party"] [data-hs-built]'), null, 3000);
-        for (let i = 0; i < 30 && sent(s, 'hr_hunt_party_finder').length === f0; i++) await page.waitForTimeout(100);
-        const fq = sent(s, 'hr_hunt_party_finder').slice(f0).map((c) => c.body.p_hunt + ':' + c.body.p_weapon);
-        const tab = await page.evaluate(() => { const P = document.querySelector('[data-hs-win="hunt-party"]'); return P && [(P.querySelector('.hw-tab[aria-selected="true"]') || {}).dataset?.tab, P.querySelector('[data-hs-act="find-ground"]').value, P.querySelector('[data-hs-act="find-weapon"]').value].join(':'); });
-        if (!opened || fq.join() !== 'millrace_sewer:sword' || tab !== 'find:millrace_sewer:sword') fails.push('AW-28 Find a party opened ' + JSON.stringify({ opened, fq, tab }));
+        const box = await page.evaluate(() => { const b = document.querySelector('[data-hs-win="hunt-party"] .hw-invite-name'); return !!b && b.getClientRects().length > 0; });
+        const asked = s.calls.slice(c0).map((c) => c.name).filter((n) => /party/.test(n));
+        if (!opened || !box || asked.length) fails.push('AW-28 Invite a player opened ' + JSON.stringify({ opened, box, asked }));
       }
       if (errors.length) fails.push('AW-25 console errors: ' + errors.slice(0, 3).join(' | '));
       await ctx.close();
@@ -1205,7 +1204,7 @@ const MUTANTS = [
   ['AW-27 the gold line never shows', 'src/shell/hunt-go.js', '  if (paysStore && gp !== null) {', '  if (false) {'],
   ['AW-27 low stamina is not said', 'src/shell/hunt-go.js', '  else if (st) {', '  else if (false) {'],
   ['AW-27 a line that stops the hunt is not marked', 'src/shell/windows/hunt-detail.js', "cls(li, 'is-short', l.short);", "cls(li, 'is-short', false);"],
-  ['AW-28 Find a party searches every ground', 'src/shell/windows/party-finder.js', '  const hunt = sc.ground || null, weapon = sc.weapon || null;', '  const hunt = null, weapon = sc.weapon || null;'],
+  ['AW-28 Invite a player opens nothing', 'src/shell/windows/hunts.js', "  if (action === 'party-invite') { ctx.show('hunt-party'); return true; }", "  if (action === 'party-invite') return true;"],
   ['AW-28 the party path shows on every ground', 'src/shell/windows/hunts.js', "    partyBlock: !follower && (r.groupFit === 'party' || (party && party.isLeader)) ? {", '    partyBlock: !follower ? {'],
   ['AW-28 Bring your heroes offers a hero already in a party', 'src/shell/hunt-go.js', ' && Number.isInteger(o.slot) && !partyMembershipOf(o))', ' && Number.isInteger(o.slot))'],
   ['AW-25b the pick never follows the advice once set', 'src/shell/windows/hunts.js', '  if ((!sc.pick || sc.auto) && list.length) {', '  if (!sc.pick && list.length) {'],

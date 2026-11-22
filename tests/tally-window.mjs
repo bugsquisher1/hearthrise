@@ -703,9 +703,12 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         if (!(await backIn(page))) fails.push('TW-11 the hunt did not come back after a reload');
         st = await settle(page, (x) => x.an && x.an.folded && under(x));
         if (!(st.an && st.an.folded && st.an.height < 80)) fails.push('TW-11 a reload opened the folded analyzer again: ' + JSON.stringify(st.an));
+        const putsAtOpen = s.calls.length;
         await press(page, '[data-hs-widget="analyzer"] [data-hs-wfold]', 'TW-11');
         st = await settle(page, (x) => x.an && !x.an.folded && x.an.height > 120 && under(x));
         if (!(st.an && !st.an.folded && st.an.height > 120)) fails.push('TW-11 the plus did not open the analyzer again: ' + JSON.stringify(st.an));
+        /* the open's own put lands first (it is sent a beat after the box opens: run 45005524881 counted it as a second drop put) */
+        await putsOf(s, putsAtOpen, (l) => !!(l.desktop && l.desktop.analyzer && l.desktop.analyzer.folded === false));
         /* MOVE: its title drags it to the bottom-left; the unmoved tally rises to its own top */
         const puts = s.calls.length;
         st.an = await steadyBox(page, 'analyzer');

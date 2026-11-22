@@ -115,7 +115,7 @@ const STATIC = {
     why: 'Armor and Defense XP read the monster row\'s own Level, not the Level the dial makes; the stat formula sizes blows on 150 + 10 x (L - 1), the health a hero has. A correctness fix; 44 says the dial may need one step up to hold S3 and S4',
     kind: 'coefficient', targets: ['survival', 'S3', 'S4'],
     edits: [
-      { file: 'src/data/hunt-tiers.js', from: "export const levelAtTier = (level, dial) => { const pm = pmOf(dial, 'dmgPm'); return pm !== 1000 ? Math.round((level * pm) / 1000) : level; };",
+      { file: 'src/data/hunt-tiers.js', from: "export const levelAtTier = (level, dial) => { const pm = splitPm(dial, 'lvPm'); return pm !== 1000 ? Math.round((level * pm) / 1000) : level; };",
         to: 'export const levelAtTier = (level, dial) => (void dial, level);' },
       { file: 'src/data/balance-sheet.js', from: '  refHp: (L) => VITALS.hpBase + VITALS.hpPerLevel * L,', to: '  refHp: (L) => VITALS.hpBase + VITALS.hpPerLevel * (L - 1),' },
     ],

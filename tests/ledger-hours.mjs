@@ -34,13 +34,16 @@ import { HARNESS } from './hunt-sessions-settle.mjs';
 import { bootReplay } from './schema-replay.mjs';
 import { FIXTURES, measure } from './per-player-cost.mjs';
 import { isMain } from './_is-main.mjs';
+import { OUT_NAME as SHAPE_FILE } from '../tools/gen-hunt-sessions.mjs';
 
 const { loadEdge, pinDice, one, q, makeExec, groundsOf } = HARNESS;
 const MIG = '1047-hourly-journal.sql';
 /* A mutant's replay ends at the newest file its arms STAND ON (tests/schema-replay.mjs REPLAY SCOPE), not at MIG: the arms play the
    shipped edge, whose settle sends the hunt report's analyzer, which the database refuses `bad_analyzer` before 1053-hunt-report.sql
-   (and the flush's horizon, 1052-settle-flush.sql, before it). Ending at MIG, no fixture settled and two mutants escaped. */
-const STANDS_ON = '1053-hunt-report.sql';
+   (and the flush's horizon, 1052-settle-flush.sql, before it). Ending at MIG, no fixture settled and two mutants escaped.
+   And the world shape the shipped engine plays is the NEWEST hunt-sessions catalogue's (gen-hunt-sessions OUT_NAME; 1054 moved it for the
+   Danger scale): ending before it, every settle is held world_shape_pending and the same two mutants escape (run 45005524881). */
+const STANDS_ON = SHAPE_FILE;
 const PLAY = Object.freeze(['lone_L10_meadowbrook_thicket', 'supply4_L50_hasks_ford_deadly', 'krell4_L80_deadly_watched', 'town_hour_bench']);
 const SPREAD_S = 15;
 

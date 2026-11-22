@@ -29,6 +29,7 @@
 //                          marks the tab on a new card, opens to its full text (Tyler 2026-10-24)
 //
 //   --only a,b             run those cases and their mutants alone; --cases: the cases without mutants (CI runs everything)
+//   --batch a:b            (the file's own child) mutants a..b-1 alone: the parent runs them 40 to a process, each heap freed
 //
 // The loop case prints its measured clear times and kills (the evidence a balance claim needs).
 import { readFileSync, mkdtempSync, cpSync, writeFileSync, rmSync } from 'node:fs';
@@ -2553,25 +2554,54 @@ if (process.argv.includes('--report')) {
 }
 /* --only a,b: those cases and their mutants alone (a lane re-checking the cases it touched; CI runs them all). */
 const ONLY = process.argv.includes('--only') ? new Set(String(process.argv[process.argv.indexOf('--only') + 1] || '').split(',')) : null;
-for (const [cn, fn] of Object.entries(cases)) {
-  if (ONLY && !ONLY.has(cn)) continue;
-  let why = null;
-  try { why = await fn(M); } catch (e) { why = 'threw ' + (e && e.stack || e); }
-  R.ok(!why, cn + ': ' + why);
-}
-let caught = 0;
-for (const mu of mutants) {
-  if ((ONLY && !ONLY.has(mu.case)) || process.argv.includes('--cases')) continue;
-  if (!cases[mu.case]) { R.ok(false, 'mutant "' + mu.name + '" names no case ' + mu.case); continue; }
-  caught++;
-  const p = plant(mu.edits);
-  try {
+/* --batch a:b (this file's own child): mutants a..b-1 alone, no cases. Every mutant imports its planted copy of the module tree (about
+   10 MB of heap each, never freed: an ES module stays cached), so ~180 of them in one process passed CI's 2 GB default heap (run
+   45005524881: heap out of memory). The parent runs them in batches of MUTANT_BATCH, each in a fresh process whose heap is freed. */
+const MUTANT_BATCH = 40;
+const batchArg = process.argv.includes('--batch') ? String(process.argv[process.argv.indexOf('--batch') + 1] || '') : null;
+const [bFrom, bTo] = batchArg ? batchArg.split(':').map(Number) : [0, Infinity];
+if (!batchArg) {
+  for (const [cn, fn] of Object.entries(cases)) {
+    if (ONLY && !ONLY.has(cn)) continue;
     let why = null;
-    /* A planted copy that cannot even load is a broken mutant, not a caught one. */
-    const PM = await load(p.root);
-    try { why = await cases[mu.case](PM); } catch (e) { why = 'threw ' + e.message; }
-    R.ok(caughtBy(why), 'mutant "' + mu.name + '" was NOT caught by ' + mu.case + missWhy(why));
-  } finally { p.done(); }
+    try { why = await fn(M); } catch (e) { why = 'threw ' + (e && e.stack || e); }
+    R.ok(!why, cn + ': ' + why);
+  }
 }
-if (!R.fails.length) console.log('  ' + Object.keys(cases).filter((c) => !ONLY || ONLY.has(c)).length + ' cases, ' + caught + ' mutants caught');
+const chosen = [];
+mutants.forEach((mu, i) => {
+  if ((ONLY && !ONLY.has(mu.case)) || process.argv.includes('--cases')) return;
+  if (!cases[mu.case]) { if (!batchArg) R.ok(false, 'mutant "' + mu.name + '" names no case ' + mu.case); return; }
+  chosen.push(i);
+});
+let caught = 0;
+if (batchArg) {
+  for (const i of chosen) {
+    if (i < bFrom || i >= bTo) continue;
+    const mu = mutants[i];
+    caught++;
+    const p = plant(mu.edits);
+    try {
+      let why = null;
+      /* A planted copy that cannot even load is a broken mutant, not a caught one. */
+      const PM = await load(p.root);
+      try { why = await cases[mu.case](PM); } catch (e) { why = 'threw ' + e.message; }
+      R.ok(caughtBy(why), 'mutant "' + mu.name + '" was NOT caught by ' + mu.case + missWhy(why));
+    } finally { p.done(); }
+  }
+} else {
+  const { spawnSync } = await import('node:child_process');
+  const self = new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
+  for (let a = 0; a < mutants.length; a += MUTANT_BATCH) {
+    const mine = chosen.filter((i) => i >= a && i < a + MUTANT_BATCH);
+    if (!mine.length) continue;
+    const r = spawnSync(process.execPath, [...process.execArgv, decodeURIComponent(self), '--batch', a + ':' + (a + MUTANT_BATCH), ...(ONLY ? ['--only', [...ONLY].join(',')] : [])], { stdio: 'inherit' });
+    R.ok(r.status === 0, 'mutants ' + a + '..' + (a + MUTANT_BATCH - 1) + ': the batch exited ' + r.status + (r.signal ? ' (' + r.signal + ')' : ''));
+    caught += mine.length;
+  }
+}
+if (!R.fails.length) {
+  if (batchArg) console.log('  batch ' + batchArg + ': ' + caught + ' mutants caught');
+  else console.log('  ' + Object.keys(cases).filter((c) => !ONLY || ONLY.has(c)).length + ' cases, ' + caught + ' mutants caught');
+}
 R.finish();

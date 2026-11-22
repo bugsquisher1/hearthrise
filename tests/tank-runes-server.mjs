@@ -25,6 +25,7 @@ import { bootReplay, manifest } from './schema-replay.mjs';
 import { prepare } from '../tools/settle-cost.mjs';
 import { ABILITIES, suggestedTrigger } from '../src/data/abilities.js';
 import { SHAPE, FIELDS } from '../src/core/hunt/world-state.js';
+import { OUT_NAME as SHAPE_FILE } from '../tools/gen-hunt-sessions.mjs';
 import { readFileSync, mkdtempSync, cpSync, writeFileSync, rmSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -35,6 +36,9 @@ const CAT = '2027-05-25-tank-runes-hunt-sessions-catalogue.generated.sql';
 const RUNES = '2027-05-25-tank-runes-rune-spells.generated.sql';
 const FILES = Object.freeze([CAT, RUNES]);
 const sqlOf = (f) => readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8').replace(/\r\n/g, '\n');
+/* THE SHAPE THE TANK CATALOGUE WROTE (its own insert): the engine's at the time. A later catalogue moves the shape again (1054, the
+   Danger scale's fields), so TR-3 holds this history file to its own shape, never to today's engine (world-state.js SHAPE). */
+const CAT_SHAPE = Number((sqlOf(CAT).match(/insert into public\.hr_hunt_world_shape \(id, version, shape, fields\) values \(true, \d+, (\d+),/) || [])[1]);
 const WARRENS = 'coppercap_warrens';
 const ANCHOR = Date.UTC(2026, 10, 1, 12, 0, 0);
 const WINDOWS = 5, WINDOW_MS = 90000;
@@ -191,15 +195,16 @@ async function rowsOnly(patch, reorder) {
   }
   { // the world's shape: this engine's, its one new unit field after the old ones' own order
     const b = before.data.hr_hunt_world_shape[0], a = after.data.hr_hunt_world_shape[0];
-    if (!a || Number(a.shape) !== SHAPE || Number(a.version) !== Number(b.version)) problems.push('TR-3 the world shape on the server is ' + (a && a.shape) + ', the engine\'s ' + SHAPE);
+    if (!Number.isInteger(CAT_SHAPE)) problems.push('TR-3 HARNESS: ' + CAT + ' writes no world shape');
+    if (!a || Number(a.shape) !== CAT_SHAPE || Number(a.version) !== Number(b.version)) problems.push('TR-3 the world shape on the server is ' + (a && a.shape) + ', the tank catalogue\'s ' + CAT_SHAPE);
     const names = (f) => Object.entries(f).sort((x, y) => x[1] - y[1]).map((x) => x[0]);
     const was = names(b.fields.unit), now = names(a.fields.unit);
     const added = now.filter((n) => !was.includes(n));
     if (added.join() !== 'shieldBy' || !same(now.filter((n) => was.includes(n)), was)) problems.push('TR-3 the unit fields gained ' + (added.join() || 'nothing') + ' or lost their order, want shieldBy alone');
     if (!same(a.fields.world, b.fields.world)) problems.push('TR-3 the world fields moved');
     if (!same(now, FIELDS.unit.map((f) => f[0]))) problems.push('TR-3 the server\'s unit fields are not world-state.js FIELDS');
-    const mv = (after.data.hunt_world_shape_move || []).find((m) => Number(m.shape) === SHAPE);
-    if (!mv || Number(mv.prev_shape) !== Number(b.shape)) problems.push('TR-3 the shape move is journalled ' + short(after.data.hunt_world_shape_move) + ', want ' + b.shape + ' -> ' + SHAPE);
+    const mv = (after.data.hunt_world_shape_move || []).find((m) => Number(m.shape) === CAT_SHAPE);
+    if (!mv || Number(mv.prev_shape) !== Number(b.shape)) problems.push('TR-3 the shape move is journalled ' + short(after.data.hunt_world_shape_move) + ', want ' + b.shape + ' -> ' + CAT_SHAPE);
   }
   { // the rune spells: the two on Melee, every older spell as it was
     const b = before.runeSpells, a = after.runeSpells;
@@ -245,7 +250,9 @@ const MUTANTS = [
   { name: 'the rune spells lose Shelter', patch: (f, sql) => (f !== RUNES ? sql : sql.replace(/"shelter":\{[^}]*\{[^}]*\}[^}]*\{[^}]*\}\},?/, '')), want: /TR-3 .* does not apply|TR-3 the rune spells gained/ },
   { name: 'the catalogue drops shieldBy from the world fields', patch: (f, sql) => (f !== CAT ? sql : sql.replace(/"shieldBy":\d+,/, '')), want: /TR-3 .* does not apply|TR-3 the unit fields/ },
   { name: 'the rune spells apply before the catalogue', reorder: (o) => { const i = o.indexOf(CAT); [o[i], o[i + 1]] = [o[i + 1], o[i]]; return o; }, want: /TR-3 HARNESS/ },
-  { name: 'the server keeps the old world shape', boot: { file: CAT, find: '(true, 1, ' + SHAPE + ', ', repl: '(true, 1, 95703826, ' }, want: /TR-1 browser closed: window 1 of/ },
+  /* the newest file that writes the world shape (gen-hunt-sessions OUT_NAME) keeps an old one: the engine holds every window (the whole chain) */
+  { name: 'the server keeps the old world shape', boot: { file: SHAPE_FILE, find: '(true, 1, ' + SHAPE + ', ', repl: '(true, 1, 95703826, ',
+    fullChain: 'the newest hunt-sessions catalogue writes the world shape the engine reads; an old one there holds every window' }, want: /TR-1 browser closed: window 1 of/ },
   { name: 'a party-only spell casts alone (the engine)', engine: [['src/core/hunt/abilities.js', "    && (!solo || !partyOnly(ABILITIES[r.slot.action.id], hero.role))\n", '']], want: /TR-2 alone: the tank cast a party-only spell/ },
 ];
 
@@ -255,7 +262,7 @@ async function main() {
     for (const m of MUTANTS) {
       let got = [];
       try {
-        if (m.boot) got = await bothPaths(() => bootReplay({ patches: new Map([[m.boot.file, [[m.boot.find, m.boot.repl]]]]), upTo: RUNES }), { doors: ['fire'], lone: false });
+        if (m.boot) got = await bothPaths(() => bootReplay({ patches: new Map([[m.boot.file, [[m.boot.find, m.boot.repl]]]]), ...(m.boot.fullChain ? { fullChain: m.boot.fullChain } : { upTo: RUNES }) }), { doors: ['fire'], lone: false });
         else if (m.engine) {
           const p = plantEngine(m.engine);
           try { got = await bothPaths(() => bootReplay(), { doors: [], edgeRoot: p.root }); } finally { p.done(); }

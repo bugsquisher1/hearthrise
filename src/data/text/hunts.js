@@ -103,6 +103,12 @@ export const HUNTS_TEXT = Object.freeze({
   head_rares: 'Rare drops',
   head_best: 'Best here',
   head_go_as: 'Go as',
+  /* THE COMPANY'S PLAN ON A GROUND (src/shell/windows/company-pane.js, 1051-company-start.sql) */
+  plan_here: 'Go here at the next Start',
+  plan_set: 'Next Start goes here. Press to undo',
+  plan_saved: 'The next Start goes to {ground}',
+  plan_undone: 'The next Start goes where this hero hunted last',
+  setup_saved: 'This Setup goes to {ground} from now on',
   head_before: 'Before entering',
   head_party: 'With a party',
   rares_per: 'chance per kill of its creature',

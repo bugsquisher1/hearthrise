@@ -249,6 +249,12 @@ function contract(R, cs, body, tl) {
   need('hunt_after', !!ha && ha.choice === 'job' && ha.skill === null && Number.isInteger(ha.graceS) && ha.graceS > 0
     && !!ha.now && typeof ha.now.session === 'string' && ha.now.choice === 'job' && ha.now.done === null,
     'huntAfterOf yields ' + JSON.stringify(ha) + ' from ' + JSON.stringify(body.hunt_after).slice(0, 240));
+  // each ground's Setup (2026-12-05-hunt-setup-per-ground.sql `hunt_setup`, read by company-sections.js groundSetupOf for Go as and the plan)
+  const hs = body.hunt_setup;
+  const hk = hs && typeof hs === 'object' ? Object.keys(hs) : [];
+  need('hunt_setup', !!hs && typeof hs === 'object' && !Array.isArray(hs) && hk.every((k) => R.CO.groundSetupOf(cs, k) === hs[k] && Number.isInteger(hs[k]))
+    && R.CO.groundSetupOf(cs, 'no_such_ground') === null,
+    'groundSetupOf over ' + JSON.stringify(hs));
   // the company's plan (1051-company-start.sql): a new account's lines read the defaults (Wear upgrades on, the rest hunt on), no plan ground, no seat
   const co = R.CO.companyPlanOf(cs);
   need('company', !!co && co.wearOn === true && co.falls === 'hunt_on' && co.planHunt === null && co.joins === null && co.leadPinned === false && co.heroes >= 1,
@@ -403,7 +409,7 @@ export const CONTRACT_KEYS = Object.freeze(['hunt', 'hunt_track', 'hunt_events',
   'name', 'bag_rules', 'shop', 'hunt_presets', 'role', 'party_invites', 'party_notices', 'stamina_refill', 'blessings',
   'character_sheet', 'outfit', 'death_log', 'vitals', 'hunt_bests', 'hunt_tier', 'hunt_target_kind', 'depot', 'home', 'now', 'farm_land', 'farm_tend', 'bench_run', 'rename', 'tally',
   'skill_inputs', 'bench_tax', 'setup_slots', 'titles', 'temper', 'bag_expand', 'gm', 'hallmark', 'level', 'skill_levels', 'live_events', 'training', 'factions', 'hunt_after', 'scaled_hunts', 'boss_halls',
-  'tower', 'key_ring', 'entry_gates', 'catacomb', 'features', 'unlocked_recipes', 'hearth_fire', 'presence', 'company']);
+  'tower', 'key_ring', 'entry_gates', 'catacomb', 'features', 'unlocked_recipes', 'hearth_fire', 'presence', 'company', 'hunt_setup']);
 
 /* What lane S2's sections are seeded with before the settle (each verb through the real RPC). */
 const SEED = Object.freeze({ name: 'Contract Hero', inviter: 'Contract Inviter', lock: 'cooked_shrimp', loot: 'normal_log',

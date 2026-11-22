@@ -25,10 +25,10 @@
   },
   "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
   "live_measured": "2026-11-20",
-  "replay_ms": 2697,
+  "replay_ms": 2226,
   "counts": {
-    "tracked_names": 1036,
-    "entries": 869
+    "tracked_names": 1037,
+    "entries": 870
   },
   "functions": [
     {
@@ -1501,8 +1501,8 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "03b7acc6e24d51ac4192ab9d5ac956af",
-        "norm_len": 51446,
+        "md5": "2fe73422b767f80ebb597d62fa817410",
+        "norm_len": 52242,
         "source": "computed-from-replay"
       },
       "agree": false,
@@ -2940,7 +2940,7 @@
       "agree": true
     },
     {
-      "sig": "hr_carry_on(p_slots integer[], p_gold bigint, p_wear jsonb, p_idem uuid)",
+      "sig": "hr_carry_on(p_slots integer[], p_gold bigint, p_idem uuid)",
       "name": "hr_carry_on",
       "tracked_by": [
         "restate"
@@ -2951,8 +2951,8 @@
       ],
       "live": null,
       "replay": {
-        "md5": "9bf21f23dfcb03732298873d31307438",
-        "norm_len": 12035,
+        "md5": "050ff02bd3e65ac93f31b23efcc844fb",
+        "norm_len": 9798,
         "source": "computed-from-replay"
       },
       "agree": false,
@@ -4575,6 +4575,24 @@
       "replay": {
         "md5": "de62b61c676e8a323f0782ba3d04996a",
         "norm_len": 1480,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1051-company-start.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body (absent on production), replay is the staged body from 1051-company-start.sql."
+    },
+    {
+      "sig": "hr_company_wear_apply(p_uid uuid, p_slots integer[], p_lines jsonb, p_idem uuid)",
+      "name": "hr_company_wear_apply",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1051-company-start.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "45cfae4619d54d4c134e07c59250c4a6",
+        "norm_len": 5102,
         "source": "computed-from-replay"
       },
       "agree": false,

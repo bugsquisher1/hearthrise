@@ -15,6 +15,8 @@
 //              ending runs a hunt); every provider's kind is a NEEDS_YOU row and no two providers share one
 //   NY-RANK    rows from every kind, scrambled, with a kind twice, a kind the data does not list and a row with no words: three show, in the
 //              data's order, one a kind (the provider's first), and "{n} more" counts the rest
+//   NY-REGEAR  a hero OUT HUNTING with a plain upgrade in its bag: the row is the visiting press, "Equip upgrades and go back in", for that
+//              hero (D-2 rule 8); never for a boss room (rule 9); a hero in town waiting on a choice goes first
 //   NY-HEROES  the real providers over four heroes' envelopes (one outgrown, one died with no Blessing on, one with better gear in its bag,
 //              one the server's plan refuses for a full bag): the card shows outgrown, cannot start, death, in that order, and one more;
 //              with the company's "Wear upgrades" line on, plain gear is not a decision and the count drops
@@ -112,7 +114,33 @@ const ARMS = {
   },
 };
 
+/* NY-REGEAR: a hero OUT HUNTING with a plain upgrade in its bag (nothing changes inside a hunt, D-2 rule 7): the row's press is the visiting
+   player's "Equip upgrades and go back in" for that hero; never for a boss room (rule 9); a hero in town waiting on a choice goes first. */
+ARMS['NY-REGEAR'] = async (X) => {
+  const out = [];
+  const { BOSS_CALLS } = await import(pathToFileURL(join(ROOT, 'src/data/boss-calls.js')).href);
+  const room = Object.values(BOSS_CALLS)[0].hunt;
+  const out0 = (slot, hunt) => {
+    const env = clone(FIXTURE);
+    env.name = 'Wren';
+    env.equipment = {};
+    env.inventory = Object.assign({}, FIXTURE.inventory, { bronze_platebody: 1 });
+    env.hunt = Object.assign({}, env.hunt, { hunt_id: hunt, ended: false, session: Object.assign({}, env.hunt.session || {}, { end_reason: null }) });
+    return { slot, status: 'open', read: (k) => env[k] };
+  };
+  const r1 = X.N.needsRowsOf({ peers: () => [out0(2, 'mill_cellar')], plan: null, wearOn: true }).find((r) => r.kind === 'gear_choice');
+  if (!r1 || r1.go !== 'regear' || r1.label !== 'Equip upgrades and go back in' || JSON.stringify(r1.slots) !== '[2]' || r1.text !== '1 hero out hunting holds better gear.') out.push('a hero out hunting reads ' + JSON.stringify(r1));
+  const r2 = X.N.needsRowsOf({ peers: () => [out0(2, room)], plan: null, wearOn: true }).find((r) => r.kind === 'gear_choice');
+  if (r2) out.push('a boss room offers the press: ' + JSON.stringify(r2));
+  const town = hero(1, 'Bryn', 'stamina', { equipment: {}, inventory: Object.assign({}, FIXTURE.inventory, { bronze_helm: 1 }) });
+  const r3 = X.N.needsRowsOf({ peers: () => [out0(2, 'mill_cellar'), town], plan: null, wearOn: false }).find((r) => r.kind === 'gear_choice');
+  if (!r3 || r3.go !== 'bag' || r3.slot !== 1) out.push('a hero in town waiting on gear does not go first: ' + JSON.stringify(r3));
+  return out;
+};
+
 const MUTANTS = [
+  ['the visiting press is offered for a boss room', 'NY-REGEAR', 'src/shell/needs-you/gear-choice.js', '!!hunt && !roomOfHunt(hunt) && ', '!!hunt && '],
+  ['a hero out hunting is never offered the press', 'NY-REGEAR', 'src/shell/needs-you/gear-choice.js', 'if (plan.picks.length && regearable(h.huntId)) hunting.push(cs);', 'void regearable;'],
   ['the rows lose the data\'s order', 'NY-RANK', 'src/shell/needs-you.js', '  const all = [...byKind.values()].sort((a, b) => RANK.get(a.kind) - RANK.get(b.kind));', '  const all = [...byKind.values()];'],
   ['four rows show', 'NY-RANK', 'src/shell/needs-you.js', 'return { shown: all.slice(0, shown), more: Math.max(0, all.length - shown) };', 'return { shown: all.slice(0, shown + 1), more: Math.max(0, all.length - shown - 1) };'],
   ['a kind shows twice', 'NY-RANK', 'src/shell/needs-you.js', " || byKind.has(r.kind)) continue;\n    byKind.set(r.kind, r);", ") continue;\n    byKind.set(r.kind + byKind.size, Object.assign({}, r));"],

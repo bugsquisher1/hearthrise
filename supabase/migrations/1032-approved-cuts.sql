@@ -110,7 +110,7 @@ begin
   if v_md5 not in ('da61e5f17e005006466464900f8100ac', 'c2f9a557ce4b6f3eb51a110d5167bdd8') then
     raise exception 'PIN: hr_server_now moved (md5 %): re-derive this restatement from the new body', v_md5; end if;
   select md5(replace(prosrc, chr(13), '')) into v_md5 from pg_proc where oid = 'public.hr_assert_grant_hygiene(boolean)'::regprocedure;
-  if v_md5 not in ('e941ed280b7c9e6fbd4fd20f87b4ee11', '530f855789589049f2decbaad4091fe2') then
+  if v_md5 not in ('e941ed280b7c9e6fbd4fd20f87b4ee11', '18cfb945414be19cb75bb03b89c15fa7') then
     raise exception 'PIN: hr_assert_grant_hygiene is neither link 24''s body nor this file''s own: md5 % - re-derive (tools/derive-grant-hygiene.mjs)', v_md5; end if;
 
   -- NOTHING STRANDED (measured 0 live). A value held in a cut thing would be lost with it: refuse and let a human decide.
@@ -703,6 +703,17 @@ declare
   --   no target the caller is not already authorised for. Re-derive that for
   --   the whole list every time it changes.
   c_engine_allow constant text[] := array[
+    -- ── ADDED 2026-11-22 — "WEAR UPGRADES", THE SERVER'S PICK (lane/c-company FB-6) ──
+    -- At the HEAD, an INSERTION: it removes nothing, so link 25's declared
+    -- removals do not move. The function is 1051-company-start.sql's.
+    -- SELF-VALIDATING, NO NEW TARGET: p_uid is the engine's VERIFIED subject, the
+    -- same parameter it already passes to hr_apply, and every line names one of
+    -- that account's own heroes. Each hero's lines go on as ONE hr_apply equip
+    -- delta (ownership, slot, requirement, two hands, under the hero's lock),
+    -- only in town and idle; a pass between two of the account's own idle heroes
+    -- goes through its Storage (hr_bank_move_stack, journalled). It mints
+    -- nothing: a piece only moves from one own bag to an own body.
+    'hr_company_wear_apply(uuid,integer[],jsonb,uuid)',
     -- ── ADDED 2026-11-21 — THE NARROW TOWN READ (lane/c-settle-cost FB-4) ──
     -- At the HEAD, an INSERTION: it removes nothing, so link 25's declared
     -- removals do not move. The function is 1048-narrow-town-read.sql's.
@@ -1587,7 +1598,7 @@ begin
   -- (b) THE THREE RESTATED BODIES.
   if (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = 'public.hr_state_of(uuid,integer)'::regprocedure) <> 'e04ff4a811d10d931ba8125ad2aa8b0d'
      or (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = 'public.hr_server_now()'::regprocedure) <> 'c2f9a557ce4b6f3eb51a110d5167bdd8'
-     or (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = 'public.hr_assert_grant_hygiene(boolean)'::regprocedure) <> '530f855789589049f2decbaad4091fe2' then
+     or (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = 'public.hr_assert_grant_hygiene(boolean)'::regprocedure) <> '18cfb945414be19cb75bb03b89c15fa7' then
     raise exception 'approved-cuts §7(b): a restated body is not this file''s image'; end if;
   if exists (select 1 from pg_proc p where p.oid in ('public.hr_state_of(uuid,integer)'::regprocedure, 'public.hr_server_now()'::regprocedure)
               and (not p.prosecdef or p.prorettype <> 'jsonb'::regtype or p.proconfig is null)) then

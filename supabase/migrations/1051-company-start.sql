@@ -36,13 +36,18 @@
 --   hr_hunt_party_invite_own (RESTATED): the same checks and receipt; its answer carries the inviter's envelope (rule 11).
 -- Every verb here answers with the envelope of the hero it names (`envelope`), or of every hero (`envelopes`, the line verb); the receipt
 --   a replayed key answers carries none.
---   hr_carry_on(p_slots int[], p_gold bigint, p_wear jsonb, p_idem uuid)  THE ONE START. Replaces 1024's three-argument press (dropped,
---                                                  never applied). p_wear: at most 48 lines { slot, equip_slot, item, from? }: what the
---                                                  "Wear upgrades" line (or the "Equip upgrades for all four" press) puts on, worn through
---                                                  hr_apply's equip gate (ownership, slot, requirement, two hands) in the hero's own
---                                                  subtransaction; `from` names another going own hero whose bag holds the piece: it moves
---                                                  through Storage (hr_bank_move_stack deposit then withdraw, each journalled). A line the
---                                                  gate refuses is skipped and named (`wear_refused`); the hero still goes.
+--   hr_carry_on(p_slots int[], p_gold bigint, p_idem uuid)  THE ONE START, 1024's press restated with the company's shape.
+-- ENGINE-ONLY (granted to hr_engine alone, its c_engine_allow entry is 1032's link 25, tools/derive-grant-hygiene.mjs):
+--   hr_company_wear_apply(p_uid, p_slots int[], p_lines jsonb, p_idem uuid)  "WEAR UPGRADES", THE SERVER'S PICK (designer D-2): the
+--                                                  hr-accrue verb `company_wear` (supabase/functions/hr-accrue/company-wear.js) reads each
+--                                                  named hero's own hr_state_of, makes src/core/upgrade-pick.js's pick (companyWearLines: its
+--                                                  own bag first, then a piece another named own hero holds and does not wear) and hands the
+--                                                  lines here. Postgres decides whether each may go on: the caller's own heroes only, in town
+--                                                  and idle (a running job is never stamped: its unpaid window stays the engine's to pay), each
+--                                                  hero's lines ONE hr_apply equip delta (ownership, slot, requirement, two hands), a pass
+--                                                  through the account's Storage (hr_bank_move_stack deposit then withdraw, each journalled).
+--                                                  A hero whose lines the gate refuses keeps its gear and is named; the others still dress.
+--                                                  The client presses it before the Start (carry-on-intents.js carryOn) when the line is on.
 --   hr_carry_on_plan(p_slots)                       unchanged signature; its plan now also reads the plan's ground, each ground's Setup,
 --                                                  the pending seat (`joins`) and the account's lines.
 -- THE START, per go hero, in its own subtransaction, through the doors that already exist:
@@ -50,7 +55,6 @@
 --       the front hero), so the plan read under the locks sees the parties the heroes will hunt in
 --   (1) loot by plan  (2) Tamsin pays  (3) Blessings        as 1024
 --   (4) THE GROUND'S SETUP: hr_hunt_preset_apply (the player's own Use) when the ground points at a saved Setup other than the one in use
---   (5) WEAR: the p_wear lines for this hero (a refusal skips the wear, never the hero)
 --   (6) Storage first  (7) hunt again through hr_hunt_enter_for  as 1024, with the plan's ground and the ground's Setup
 --   (8) TAMSIN'S TASK TAKEN ON ENTRY (GR-78): the ground's task, when the hero does not hold it, has a free place and has picked a weight
 -- REFUSAL CODES NEW: none (party_hunting, not_own_party, unknown_preset, bad_line reuse the existing words or are added to refusal-words.js).
@@ -64,9 +68,9 @@
 --
 -- ── EXPLOIT SURFACE DELTA ────────────────────────────────────────────────────
 -- Four authenticated verbs that write the caller's own configuration (a boolean, a ground id checked against hr_hunt_grounds, a Setup
---   number checked against the hero's own rows, a seat of a party of the caller's own heroes). The Start gains a wear list: each line is a
---   piece the caller's own hero holds, put on through hr_apply's equip gate, or passed between two of the caller's own going heroes through
---   the account's Storage (the bank door, journalled). Nothing reaches another account: a party that seats another account's hero is never
+--   number checked against the hero's own rows, a seat of a party of the caller's own heroes). The wear is engine-only: the server picks
+--   (src/core/upgrade-pick.js) and every line is a piece the VERIFIED caller's own hero holds, put on through hr_apply's equip gate, or passed
+--   between two of the caller's own idle heroes through the account's Storage (the bank door, journalled). No client authors a wear line. Nothing reaches another account: a party that seats another account's hero is never
 --   re-led (`not_own_party`), and the pending seat joins only the caller's own heroes. No price, no count and no item is trusted from the
 --   client: the press still re-reads the plan under its locks and refuses a gold figure it did not show (quote_changed).
 --
@@ -693,13 +697,14 @@ returns boolean language sql immutable set search_path = public, pg_catalog as $
 $fn$;
 revoke execute on function public.hr_carry_on_wear_ok(jsonb) from public, anon, authenticated, service_role;
 
-drop function if exists public.hr_carry_on(int[], bigint, uuid);
-delete from public.hr_client_rpc_baseline where proname = 'hr_carry_on' and identity_args = 'p_slots integer[], p_gold bigint, p_idem uuid';
+-- The four-argument press an earlier image of this staged file carried (a wear list from the browser) is gone: the server picks the wear.
+drop function if exists public.hr_carry_on(int[], bigint, jsonb, uuid);
+delete from public.hr_client_rpc_baseline where proname = 'hr_carry_on' and identity_args = 'p_slots integer[], p_gold bigint, p_wear jsonb, p_idem uuid';
 
-create or replace function public.hr_carry_on(p_slots int[], p_gold bigint, p_wear jsonb, p_idem uuid)
+create or replace function public.hr_carry_on(p_slots int[], p_gold bigint, p_idem uuid)
 returns jsonb language plpgsql security definer set search_path = public, pg_catalog as $fn$
--- COMPANY-START (1051-company-start.sql): 1024's press, plus the pending seats and the leader under the locks, the ground's Setup, the wear
--- list through hr_apply's equip gate, and Tamsin's task taken on entry.
+-- COMPANY-START (1051-company-start.sql): 1024's press, plus the pending seats and the leader under the locks, the ground's Setup and
+-- Tamsin's task taken on entry. The wear went on before it (hr_company_wear_apply, the server's own pick).
 declare
   c_verb  constant text := 'carry_on';
   v_uid   uuid := auth.uid();
@@ -710,18 +715,14 @@ declare
   v_slot  int;
   v_id    uuid;
   v_cap   int;
-  v_ver   bigint;
   v_moved boolean;
   v_bag   jsonb;
   v_loot  jsonb;
   v_paid  jsonb;
   v_took  jsonb;
-  v_worn  jsonb;
-  v_delta jsonb;
   v_task  text;
   v_seat  text;
   v_l     record;
-  v_wore  jsonb;
   v_seats jsonb := '{}'::jsonb;
   v_out   jsonb := '[]'::jsonb;
   v_went  int := 0;
@@ -731,7 +732,7 @@ begin
   if p_idem is null then return public.hr_note_rejection(c_verb, null, jsonb_build_object('ok', false, 'error', 'bad_idem')); end if;
   if not public.hr_carry_on_scope_ok(p_slots) then
     return public.hr_note_rejection(c_verb, null, jsonb_build_object('ok', false, 'error', 'bad_slot')); end if;
-  if p_gold is null or p_gold < 0 or p_gold > 1000000000 or not public.hr_carry_on_wear_ok(p_wear) then
+  if p_gold is null or p_gold < 0 or p_gold > 1000000000 then
     return public.hr_note_rejection(c_verb, null, jsonb_build_object('ok', false, 'error', 'bad_intent')); end if;
   v_r := public.hr_intent_replay(v_uid, null, p_idem, c_verb);
   if v_r is not null then return public.hr_note_rejection(c_verb, null, v_r); end if;
@@ -786,7 +787,7 @@ begin
   for v_h in select h from jsonb_array_elements(v_plan->'heroes') h order by (h->>'slot')::int loop
     if v_h->>'state' is distinct from 'go' then v_out := v_out || jsonb_build_array(v_h); continue; end if;
     v_slot := (v_h->>'slot')::int;
-    v_loot := null; v_paid := null; v_took := '[]'::jsonb; v_wore := null; v_task := null;
+    v_loot := null; v_paid := null; v_took := '[]'::jsonb; v_task := null;
     begin
       -- (1) LOOT BY PLAN: the hero's own Dispatch, best effort.
       if coalesce((v_h->>'loot')::boolean, false) then
@@ -809,35 +810,6 @@ begin
          and exists (select 1 from public.player_hunt_presets p where p.user_id = v_uid and p.slot = v_slot and p.preset = (v_h->>'preset')::int) then
         v_r := public.hr_hunt_preset_apply(v_slot, (v_h->>'preset')::int, md5(p_idem::text || ':carry_on:setup:' || v_slot)::uuid);
         if coalesce(v_r->>'ok', '') <> 'true' then raise exception using errcode = 'HRC70', message = 'setup_' || coalesce(v_r->>'error', 'refused'); end if;
-      end if;
-      -- (5) WEAR: this hero's lines of the wear list, passed through Storage from another going own hero where named, then put on
-      -- through hr_apply's equip gate as ONE delta. A refusal skips the wear and keeps the hero going (named).
-      select coalesce(jsonb_agg(w), '[]'::jsonb) into v_worn from jsonb_array_elements(coalesce(p_wear, '[]'::jsonb)) w where (w->>'slot')::int = v_slot;
-      if jsonb_array_length(v_worn) > 0 then
-        begin
-          v_delta := '{}'::jsonb;
-          for v_x in select w from jsonb_array_elements(v_worn) w loop
-            if v_x ? 'from' then
-              if not exists (select 1 from jsonb_array_elements(v_plan->'heroes') g where (g->>'slot') = (v_x->>'from') and g->>'state' = 'go') then
-                raise exception using errcode = 'HRC71', message = 'wear_from_not_going'; end if;
-              select ps.bank_cap into v_cap from public.player_state ps where ps.user_id = v_uid and ps.slot = (v_x->>'from')::int;
-              if public.hr_bank_move_stack(v_uid, (v_x->>'from')::int, v_x->>'item', 1, 'deposit', v_cap) is not null then
-                raise exception using errcode = 'HRC71', message = 'wear_pass_refused'; end if;
-              select ps.bank_cap into v_cap from public.player_state ps where ps.user_id = v_uid and ps.slot = v_slot;
-              if public.hr_bank_move_stack(v_uid, v_slot, v_x->>'item', 1, 'withdraw', v_cap) is not null then
-                raise exception using errcode = 'HRC71', message = 'wear_pass_refused'; end if;
-              update public.player_state set version = version + 1, updated_at = now() where user_id = v_uid and slot = (v_x->>'from')::int;
-            end if;
-            v_delta := v_delta || jsonb_build_object(v_x->>'equip_slot', v_x->>'item');
-          end loop;
-          select version into v_ver from public.player_state where user_id = v_uid and slot = v_slot;
-          v_r := public.hr_apply(v_uid, v_slot, v_ver, md5(p_idem::text || ':carry_on:wear:' || v_slot)::uuid,
-                   jsonb_build_object('equip', v_delta, 'journal', jsonb_build_object('kind', 'equip', 'intent', 'carry_on:wear')));
-          if coalesce(v_r->>'ok', '') <> 'true' then raise exception using errcode = 'HRC71', message = coalesce(v_r->>'error', 'refused'); end if;
-          v_wore := v_delta;
-        exception when sqlstate 'HRC71' then
-          v_wore := jsonb_build_object('refused', sqlerrm);
-        end;
       end if;
       -- (6) STORAGE FIRST, line by line; a line the bag has no room for is skipped (the store tops it up in the hunt).
       select ps.bank_cap into v_cap from public.player_state ps where ps.user_id = v_uid and ps.slot = v_slot;
@@ -862,7 +834,7 @@ begin
       v_task := public.hr_tally_take_on_entry(v_uid, v_slot, v_h->>'hunt');
       v_went := v_went + 1;
       v_out := v_out || jsonb_build_array(jsonb_strip_nulls(v_h || jsonb_build_object('state', 'went', 'went_session', v_r->'session_id',
-                 'storage', v_took, 'loot_done', v_loot, 'tally_paid', v_paid, 'wore', v_wore, 'task', v_task, 'seat', v_seats->(v_slot::text))));
+                 'storage', v_took, 'loot_done', v_loot, 'tally_paid', v_paid, 'task', v_task, 'seat', v_seats->(v_slot::text))));
     exception when sqlstate 'HRC70' then
       v_out := v_out || jsonb_build_array(jsonb_strip_nulls((v_h - 'storage' - 'short') || jsonb_build_object('state', 'no', 'why', sqlerrm)));
     end;
@@ -876,11 +848,97 @@ begin
   return v_r || jsonb_build_object('envelopes', coalesce((select jsonb_object_agg(h->>'slot', public.hr_state_of(v_uid, (h->>'slot')::int))
     from jsonb_array_elements(v_out) h where h->>'state' in ('went', 'no')), '{}'::jsonb));
 end $fn$;
-revoke execute on function public.hr_carry_on(int[], bigint, jsonb, uuid) from public, anon, service_role;
-grant  execute on function public.hr_carry_on(int[], bigint, jsonb, uuid) to authenticated;
+revoke execute on function public.hr_carry_on(int[], bigint, uuid) from public, anon, service_role;
+grant  execute on function public.hr_carry_on(int[], bigint, uuid) to authenticated;
+
+-- ── §4b "WEAR UPGRADES": THE SERVER'S PICK, PUT ON (engine-only) ─────────────
+create or replace function public.hr_company_wear_apply(p_uid uuid, p_slots int[], p_lines jsonb, p_idem uuid)
+returns jsonb language plpgsql security definer set search_path = public, pg_catalog as $fn$
+-- COMPANY-START (1051-company-start.sql): the lines are the engine's pick (src/core/upgrade-pick.js companyWearLines over hr_state_of);
+-- every invariant is this body's: own heroes, in town and idle, each delta through hr_apply's equip gate, passes through Storage.
+declare
+  c_verb  constant text := 'company_wear';
+  v_r     jsonb;
+  v_slot  int;
+  v_s     public.hunt_sessions%rowtype;
+  v_kind  text;
+  v_free  int[] := '{}'::int[];
+  v_order int[];
+  v_lines jsonb;
+  v_x     jsonb;
+  v_cap   int;
+  v_ver   bigint;
+  v_delta jsonb;
+  v_out   jsonb := '[]'::jsonb;
+begin
+  if p_uid is null or p_idem is null or p_slots is null or not public.hr_carry_on_scope_ok(p_slots) or not public.hr_carry_on_wear_ok(p_lines) then
+    return jsonb_build_object('ok', false, 'error', 'bad_intent'); end if;
+  if exists (select 1 from jsonb_array_elements(coalesce(p_lines, '[]'::jsonb)) w
+              where not ((w->>'slot')::int = any (p_slots)) or (w ? 'from' and not ((w->>'from')::int = any (p_slots)))) then
+    return jsonb_build_object('ok', false, 'error', 'bad_intent'); end if;
+  v_r := public.hr_intent_replay(p_uid, null, p_idem, c_verb);
+  if v_r is not null then return v_r; end if;
+  select array_agg(x order by x) into v_order from unnest(p_slots) x;
+  -- THE LOCKS: each named hero (slot order, the order of every hero verb), then the account's Storage (hr_bank_move's key).
+  foreach v_slot in array v_order loop
+    v_s := public.hr_hunt_lock(p_uid, v_slot);
+    select ps.active_kind into v_kind from public.player_state ps where ps.user_id = p_uid and ps.slot = v_slot;
+    -- IN TOWN AND IDLE: a hunt runs on the kit it entered with (D-2 rule 7), and an equip stamps accrued_to (hr_apply), so a running
+    -- job's unpaid window would be confiscated: such a hero is named, never dressed.
+    if v_kind = 'idle' and v_s.id is null then v_free := v_free || v_slot; end if;
+  end loop;
+  perform pg_advisory_xact_lock(hashtextextended('hr:depot:' || p_uid::text, 0));
+  v_r := public.hr_intent_replay(p_uid, null, p_idem, c_verb);
+  if v_r is not null then return v_r; end if;
+  foreach v_slot in array v_order loop
+    select jsonb_agg(w) into v_lines from jsonb_array_elements(coalesce(p_lines, '[]'::jsonb)) w where (w->>'slot')::int = v_slot;
+    continue when v_lines is null;
+    if not (v_slot = any (v_free)) then
+      v_out := v_out || jsonb_build_array(jsonb_build_object('slot', v_slot, 'why',
+        case when exists (select 1 from public.player_state ps where ps.user_id = p_uid and ps.slot = v_slot) then 'busy' else 'no_character' end));
+      continue;
+    end if;
+    begin
+      v_delta := '{}'::jsonb;
+      for v_x in select w from jsonb_array_elements(v_lines) w loop
+        if v_x ? 'from' then
+          -- A PASS ACROSS THE COMPANY (D-2 rule 4): from one idle own hero's bag, through the account's Storage, to this one's.
+          if not ((v_x->>'from')::int = any (v_free)) then raise exception using errcode = 'HRC72', message = 'wear_from_busy'; end if;
+          select ps.bank_cap into v_cap from public.player_state ps where ps.user_id = p_uid and ps.slot = (v_x->>'from')::int;
+          if public.hr_bank_move_stack(p_uid, (v_x->>'from')::int, v_x->>'item', 1, 'deposit', v_cap) is not null then
+            raise exception using errcode = 'HRC72', message = 'wear_pass_refused'; end if;
+          select ps.bank_cap into v_cap from public.player_state ps where ps.user_id = p_uid and ps.slot = v_slot;
+          if public.hr_bank_move_stack(p_uid, v_slot, v_x->>'item', 1, 'withdraw', v_cap) is not null then
+            raise exception using errcode = 'HRC72', message = 'wear_pass_refused'; end if;
+          update public.player_state set version = version + 1, updated_at = now() where user_id = p_uid and slot = (v_x->>'from')::int;
+        end if;
+        v_delta := v_delta || jsonb_build_object(v_x->>'equip_slot', v_x->>'item');
+      end loop;
+      select version into v_ver from public.player_state where user_id = p_uid and slot = v_slot;
+      v_r := public.hr_apply(p_uid, v_slot, v_ver, md5(p_idem::text || ':company_wear:' || v_slot)::uuid,
+               jsonb_build_object('equip', v_delta, 'journal', jsonb_build_object('kind', 'equip', 'intent', c_verb)));
+      if coalesce(v_r->>'ok', '') <> 'true' then raise exception using errcode = 'HRC72', message = coalesce(v_r->>'error', 'refused'); end if;
+      v_out := v_out || jsonb_build_array(jsonb_build_object('slot', v_slot, 'wore', v_delta));
+    exception when sqlstate 'HRC72' then
+      v_out := v_out || jsonb_build_array(jsonb_build_object('slot', v_slot, 'refused', sqlerrm));
+    end;
+  end loop;
+  v_r := jsonb_build_object('ok', true, 'heroes', v_out);
+  insert into public.player_intents (user_id, intent_id, slot, intent, result, at)
+    values (p_uid, p_idem, v_order[1], c_verb, v_r, now()) on conflict (user_id, intent_id) do nothing;
+  -- THE ENVELOPES (rule 11): every named hero as the wear left it; the receipt carries none.
+  return v_r || jsonb_build_object('envelopes', coalesce((select jsonb_object_agg(x::text, public.hr_state_of(p_uid, x))
+    from unnest(v_order) x where exists (select 1 from public.player_state ps where ps.user_id = p_uid and ps.slot = x)), '{}'::jsonb));
+end $fn$;
+revoke execute on function public.hr_company_wear_apply(uuid, int[], jsonb, uuid) from public, anon, authenticated, service_role;
 do $$ begin
   if exists (select 1 from pg_roles where rolname = 'hr_engine') then
-    revoke all on function public.hr_carry_on(int[], bigint, jsonb, uuid) from hr_engine;
+    grant execute on function public.hr_company_wear_apply(uuid, int[], jsonb, uuid) to hr_engine;
+  end if;
+end $$;
+do $$ begin
+  if exists (select 1 from pg_roles where rolname = 'hr_engine') then
+    revoke all on function public.hr_carry_on(int[], bigint, uuid) from hr_engine;
     revoke all on function public.hr_company_line_set(text, text, uuid) from hr_engine;
     revoke all on function public.hr_hero_plan_set(int, text, uuid) from hr_engine;
     revoke all on function public.hr_ground_setup_set(int, text, int, uuid) from hr_engine;
@@ -892,8 +950,8 @@ end $$;
 delete from public.hr_client_rpc_baseline where grantee = 'authenticated'
   and proname in ('hr_carry_on', 'hr_company_line_set', 'hr_hero_plan_set', 'hr_ground_setup_set', 'hr_party_lead_set');
 insert into public.hr_client_rpc_baseline (proname, identity_args, grantee, note) values
-  ('hr_carry_on', 'p_slots integer[], p_gold bigint, p_wear jsonb, p_idem uuid', 'authenticated',
-   'added 1024-carry-on, restated 1051-company-start (lane/c-company): THE ONE START: the caller''s own heroes through the existing doors; the pending seats and the leader under the locks; the ground''s Setup; p_wear only puts on pieces the caller''s own heroes hold, through hr_apply''s equip gate; p_gold only refuses (quote_changed)'),
+  ('hr_carry_on', 'p_slots integer[], p_gold bigint, p_idem uuid', 'authenticated',
+   'added 1024-carry-on, restated 1051-company-start (lane/c-company): THE ONE START: the caller''s own heroes through the existing doors; the pending seats and the leader under the locks; the ground''s Setup; Tamsin on entry; p_gold only refuses (quote_changed)'),
   ('hr_company_line_set', 'p_line text, p_value text, p_idem uuid', 'authenticated',
    'added 1051-company-start (lane/c-company): a plan line set once for the caller''s whole company: wear_upgrades on/off, if_one_falls hunt_on/all_home; moves no value'),
   ('hr_hero_plan_set', 'p_slot integer, p_hunt text, p_idem uuid', 'authenticated',
@@ -910,8 +968,8 @@ insert into public.hr_client_rpc_baseline (proname, identity_args, grantee, note
 --     and both go as one party (one instance), the shield in front
 -- (c) the lines: if_one_falls all_home ticks every hero's box, hunt_on unsays it; wear_upgrades off reads off in the section
 -- (d) the ground's Setup: a pointer to a saved Setup is used by the Start (the session plays it)
--- (e) the wear list: a piece in the hero's bag goes on through the gate; a piece the hero does not hold is refused by the gate, named, and
---     the hero still goes
+-- (e) the engine's wear: a piece in the hero's bag goes on through the gate; a piece the hero does not hold is refused by the gate, named,
+--     and the hero keeps its gear; a pass from another idle own hero goes through Storage; a key twice answers once; then the Start
 -- (f) the grants: authenticated only for the five verbs, the helpers owner-only, the baseline rows, grant hygiene
 do $chk$
 declare
@@ -940,7 +998,7 @@ begin
     v := public.hr_hero_plan_set(0, c_hunt, (k || '0001')::uuid);
     if coalesce(v->>'ok', '') <> 'true' then raise exception 'company-start §6(a): the plan ground answered %', v; end if;
     delete from public.hr_rate_counters where user_id = v_u;
-    v := public.hr_carry_on(null, 0, null, (k || '0002')::uuid);
+    v := public.hr_carry_on(null, 0, (k || '0002')::uuid);
     if v->>'ok' is distinct from 'true' or (v->>'went')::int is distinct from 1
        or (select hunt_id from public.hunt_sessions where user_id = v_u and slot = 0 and ended_at is null) is distinct from c_hunt
        or (select preset from public.hunt_sessions where user_id = v_u and slot = 0 and ended_at is null) is distinct from 0 then
@@ -959,7 +1017,7 @@ begin
     perform public.hr_hunt_close(h.id, 'stamina', now(), true) from public.hunt_sessions h where h.user_id = v_u and h.ended_at is null;
     update public.hunt_sessions set entered_at = entered_at - interval '1 hour' where user_id = v_u and ended_at is not null;
     delete from public.hr_rate_counters where user_id = v_u;
-    v := public.hr_carry_on(null, 0, null, (k || '0004')::uuid);
+    v := public.hr_carry_on(null, 0, (k || '0004')::uuid);
     select id into v_s0 from public.hunt_sessions where user_id = v_u and slot = 0 and ended_at is null;
     select id into v_s1 from public.hunt_sessions where user_id = v_u and slot = 1 and ended_at is null;
     if v->>'ok' is distinct from 'true' or (v->>'went')::int is distinct from 2 or v_s0 is null or v_s1 is null
@@ -1001,14 +1059,28 @@ begin
     insert into public.player_inventory (user_id, slot, item_id, qty) values (v_u, 1, v_item, 1)
       on conflict (user_id, slot, item_id) do update set qty = 1;
     delete from public.player_equipment where user_id = v_u and slot = 1 and equip_slot = 'helmet';
-    delete from public.hr_rate_counters where user_id = v_u;
-    v := public.hr_carry_on(null, 0, jsonb_build_array(jsonb_build_object('slot', 1, 'equip_slot', 'helmet', 'item', v_item),
-                                                       jsonb_build_object('slot', 0, 'equip_slot', 'helmet', 'item', v_item)), (k || '0013')::uuid);
-    if v->>'ok' is distinct from 'true' or (v->>'went')::int is distinct from 2 then raise exception 'company-start §6(e): the Start answered %', v; end if;
+    delete from public.player_equipment where user_id = v_u and slot = 0 and equip_slot = 'helmet';
+    v := public.hr_company_wear_apply(v_u, array[0, 1], jsonb_build_array(jsonb_build_object('slot', 1, 'equip_slot', 'helmet', 'item', v_item),
+                                                                    jsonb_build_object('slot', 0, 'equip_slot', 'helmet', 'item', v_item)), (k || '0013')::uuid);
+    if v->>'ok' is distinct from 'true' then raise exception 'company-start §6(e): the wear answered %', v; end if;
     if (select item_id from public.player_equipment where user_id = v_u and slot = 1 and equip_slot = 'helmet') is distinct from v_item then
       raise exception 'company-start §6(e): the held helmet was not worn: %', v; end if;
-    if (select h->'wore'->>'refused' from jsonb_array_elements(v->'heroes') h where (h->>'slot')::int = 0) is null then
+    if (select h->>'refused' from jsonb_array_elements(v->'heroes') h where (h->>'slot')::int = 0) is null
+       or exists (select 1 from public.player_equipment where user_id = v_u and slot = 0 and equip_slot = 'helmet') then
       raise exception 'company-start §6(e): a piece hero 0 does not hold was not refused: %', v; end if;
+    -- a pass: hero 1 holds a second helmet, hero 0 none
+    insert into public.player_inventory (user_id, slot, item_id, qty) values (v_u, 1, v_item, 1)
+      on conflict (user_id, slot, item_id) do update set qty = 1;
+    v := public.hr_company_wear_apply(v_u, array[0, 1], jsonb_build_array(jsonb_build_object('slot', 0, 'equip_slot', 'helmet', 'item', v_item, 'from', 1)), (k || '0014')::uuid);
+    if (select item_id from public.player_equipment where user_id = v_u and slot = 0 and equip_slot = 'helmet') is distinct from v_item
+       or exists (select 1 from public.player_inventory where user_id = v_u and slot = 1 and item_id = v_item)
+       or (select count(*) from public.player_ledger where user_id = v_u and kind = 'bank' and item_id = v_item) <> 2 then
+      raise exception 'company-start §6(e): the pass answered %', v; end if;
+    if public.hr_company_wear_apply(v_u, array[0, 1], '[]'::jsonb, (k || '0014')::uuid) - 'replayed' is distinct from (v - 'envelopes' - 'replayed') then
+      raise exception 'company-start §6(e): a key twice answered %', public.hr_company_wear_apply(v_u, array[0, 1], '[]'::jsonb, (k || '0014')::uuid); end if;
+    delete from public.hr_rate_counters where user_id = v_u;
+    v := public.hr_carry_on(null, 0, (k || '0015')::uuid);
+    if v->>'ok' is distinct from 'true' or (v->>'went')::int is distinct from 2 then raise exception 'company-start §6(e): the Start answered %', v; end if;
     if (select preset from public.hunt_sessions where user_id = v_u and slot = 1 and ended_at is null) is distinct from 1 then
       raise exception 'company-start §6(d): the Start did not use the ground''s Setup: %', (select preset from public.hunt_sessions where user_id = v_u and slot = 1 and ended_at is null); end if;
     raise exception using errcode = 'HRC51', message = 'company-start §6 complete - rolling back';
@@ -1020,14 +1092,18 @@ begin
      or exists (select 1 from public.company_plans where user_id = v_u) or exists (select 1 from auth.users where id = v_u) then
     raise exception 'company-start §6: a probe row leaked'; end if;
   -- (f)
-  if has_function_privilege('anon', 'public.hr_carry_on(integer[],bigint,jsonb,uuid)', 'execute')
-     or not has_function_privilege('authenticated', 'public.hr_carry_on(integer[],bigint,jsonb,uuid)', 'execute')
+  if has_function_privilege('anon', 'public.hr_carry_on(integer[],bigint,uuid)', 'execute')
+     or not has_function_privilege('authenticated', 'public.hr_carry_on(integer[],bigint,uuid)', 'execute')
+     or has_function_privilege('authenticated', 'public.hr_company_wear_apply(uuid,integer[],jsonb,uuid)', 'execute')
+     or has_function_privilege('anon', 'public.hr_company_wear_apply(uuid,integer[],jsonb,uuid)', 'execute')
+     or (exists (select 1 from pg_roles where rolname = 'hr_engine')
+         and not has_function_privilege('hr_engine', 'public.hr_company_wear_apply(uuid,integer[],jsonb,uuid)', 'execute'))
      or not has_function_privilege('authenticated', 'public.hr_company_line_set(text,text,uuid)', 'execute')
      or not has_function_privilege('authenticated', 'public.hr_hero_plan_set(integer,text,uuid)', 'execute')
      or not has_function_privilege('authenticated', 'public.hr_ground_setup_set(integer,text,integer,uuid)', 'execute')
      or not has_function_privilege('authenticated', 'public.hr_party_lead_set(integer,integer,uuid)', 'execute')
      or has_function_privilege('anon', 'public.hr_party_lead_set(integer,integer,uuid)', 'execute')
-     or to_regprocedure('public.hr_carry_on(integer[],bigint,uuid)') is not null then
+     or to_regprocedure('public.hr_carry_on(integer[],bigint,jsonb,uuid)') is not null then
     raise exception 'company-start §6(f): a verb''s grant is wrong'; end if;
   if exists (select 1 from unnest(array['public.hr_role_rank(text)', 'public.hr_party_lead_of(uuid)', 'public.hr_party_is_own(uuid,uuid)',
                'public.hr_company_seat_pending(uuid,integer)', 'public.hr_tally_take_on_entry(uuid,integer,text)', 'public.hr_ground_setup_of(uuid,integer,text)',
@@ -1043,5 +1119,5 @@ begin
         and proname in ('hr_carry_on', 'hr_company_line_set', 'hr_hero_plan_set', 'hr_ground_setup_set', 'hr_party_lead_set')) <> 5 then
     raise exception 'company-start §6(f): the client baseline rows are wrong'; end if;
   perform public.hr_assert_grant_hygiene(true);
-  raise notice 'company-start §6 OK: a company of one starts on its plan, a hunting hero is planned in and seated by the next Start, the lines, the ground''s Setup, the wear list through the gate, the grants';
+  raise notice 'company-start §6 OK: a company of one starts on its plan, a hunting hero is planned in and seated by the next Start, the lines, the ground''s Setup, the engine''s wear through the gate and a pass through Storage, the grants';
 end $chk$;

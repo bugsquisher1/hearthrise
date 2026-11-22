@@ -6764,7 +6764,7 @@ jobs:
           node tests/hunt-screen-pure.mjs
           node tools/mutant-gate.mjs node tests/hunt-screen-pure.mjs --mutate
       # tests/needs-you.mjs
-      - name: Needs you on the return card: three at most, ranked, one row a kind, providers by kind
+      - name: Needs you on the return card - three at most, ranked, one row a kind, providers by kind
         if: ${{ !cancelled() }}
         run: |
           node tests/needs-you.mjs

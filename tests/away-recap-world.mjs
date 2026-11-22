@@ -8,7 +8,8 @@
 // world.wait(n, { away: true }) for the absence. Needs Node 23.6+ and, on a machine's first run, about 6 min to replay the chain;
 // so it is a manual tool (tests/guards-unregistered.json). The rules are mutation-proven in CI by tests/shell-core.mjs R3 and
 // tests/hud-reachable.mjs HR-7, HR-9. The crafter's and the friends' panels, 2026-11-01:
-//   AR-1  a hero who has only ever gathered, away 8 h at a rock: the ore gained, Mining from and to, still mining. No hunt named.
+//   AR-1  a hero who has only ever gathered, away 8 h at a rock: the ore gained, Mining from and to, the job's count done (1026-job-counts.sql:
+//         a gathering job ends), the hero waiting in town. No hunt named.
 //   AR-2  the hunt ended before the player left, then a gathering job: the line is the job's and never names the hunt
 //   AR-3  a bench run that runs out while away: what it made, the level gained, when and why it stopped, no "still"
 //   AR-4  a hunt that ended before the player left, then nothing: no line at all
@@ -17,13 +18,13 @@
 //   AR-7  a page left open is not an absence: no line through a long skip
 //   AR-8  nothing left the machine, and no console error but the harness's
 //   AR-9  THE CARD, PLAYED (UI audit 2026-11-18 #2): a hunt that ran out of stamina with the page closed comes back as ONE card, the result
-//         first ("Level 1 → n", the Level XP), why and when it ended; no hunt summary beside it; Hunt again starts the hunt on the server
-//         and the card goes
+//         first ("Level 1 → n", the Level XP), why and when it ended; no hunt summary beside it; Carry on is the card's gold press (Tyler
+//         27-1), the hero's own Hunt again starts the hunt on the server and the card goes
 //   AR-10 THE YARD TOOK OVER (full-game audit 2026-11-18 A2): a hunt that died with the page closed and went on to the yard ("When the hunt
 //         ends: Train Melee") comes back as its card: the Levels, the death and what the Blessings saved, then the yard, still training
 //   AR-11 THE CELLAR OUTGROWN (the board's 2026-11-19 complete balance look, change 1; hunt-grounds.js endsAtLevel): a fresh hero's Cellar ends
 //         at Level 5 with the page closed; the card says why ("Ground outgrown"), its press is Go to the next ground (audit 2026-11-19 L2), never
-//         Hunt again, and the summary names the next ground
+//         Hunt again, and the summary leads with Recruit your party (recruits at Level 5) with "Go on alone to" the next ground beside it
 // AR-6 and AR-9 hunt the Thicket at Level 6 (the Cellar's hunt ends at 5, so a fresh hero's Cellar can no longer run for hours).
 // The return is its own card (src/shell/windows/away.js): every check reads the card, never the alert lines.
 // mutant-anchors: none — a manual walk of the real game; the rules are mutation-proven in shell-core.mjs and hud-reachable.mjs
@@ -103,7 +104,10 @@ try {
     const q = await enter('gatherer');
     const line = await cardOf(q, 30000);
     await q.shot('ar1-gathered');
-    step('AR-1 eight hours at a rock are told', !!line && /^Away 8 h \d+ min Tessel Tessel mined the Copper Rock\. \+[\d,]+ Copper Ore, Mining 1 to \d+\. Still mining\./.test(line), line);
+    /* a gathering job carries a count (1026-job-counts.sql; the Work window's default, hunt-after.js GATHER_COUNT_DEFAULT 100): eight hours
+       finish it, so the card says how many of how many and that the hero waits in town, never "Still mining" */
+    step('AR-1 eight hours at a rock are told', !!line && /^Away 8 h \d+ min Tessel Tessel mined the Copper Rock\. \+100 Copper Ore, Mining 1 to \d+\. Done, 100 of 100\. Waiting in town\./.test(line)
+      && !/Still mining|hunt/i.test(line), line);
     await q.close();
   }
 
@@ -220,12 +224,18 @@ try {
     const line = await cardOf(q, 30000);
     const beside = await q.page.evaluate(() => ({ summary: !!document.querySelector('[data-hs-win="hunt-summary"]'), lines: document.querySelectorAll('.hw-alert[data-kind="away"]').length,
       /* the press a player sees (the phone foot holds a second copy, hidden on a desktop) */
-      gold: Array.from(document.querySelectorAll('[data-hs-win="away"] button.is-primary')).filter((b) => b.offsetParent !== null).map((b) => b.textContent) }));
+      gold: Array.from(document.querySelectorAll('[data-hs-win="away"] button.is-primary')).filter((b) => b.offsetParent !== null).map((b) => b.textContent),
+      /* the hero's own block (Needs you and Carry on sit above it on the card), and its own press */
+      hero: document.querySelector('[data-hs-win="away"] .haway-hero')?.innerText.replace(/\s+/g, ' ').trim() || null,
+      own: document.querySelector('[data-hs-win="away"] .haway-hero [data-hs-act="away-go"]')?.textContent || null }));
     await q.shot('ar10-card');
-    step('AR-9 one card: the result first, why and when it ended, Hunt again its gold press, nothing beside it',
+    /* Tyler 27-1 (2026-11-20, src/shell/carry-on.js): Carry on is the card's ONE gold press for the account; the hero's block keeps Hunt again */
+    step('AR-9 one card: the hero\'s result first, why and when it ended, Carry on its gold press, Hunt again the hero\'s own, nothing beside it',
       /* Gold is what the purse kept, with the coins and the supplies under it (audit 2026-11-18 A6) */
-      !!line && /^Away 14 h \d+ min Cardy Meadowbrook Thicket Level 6 → \d+ Level XP \+[\d,]+ Gold [+−][\d,]+ gp [\d,]+ gp in coins(, [\d,]+ gp on supplies)? Kills [\d,]+/.test(line) && /Out of stamina, so Cardy came home\. Ended \d+ h \d+ min ago/.test(line)
-      && !beside.summary && !beside.lines && JSON.stringify(beside.gold) === '["Hunt again"]', JSON.stringify({ line, beside }));
+      !!line && /^Away 14 h \d+ min /.test(line) && !!beside.hero
+      && /^Cardy Meadowbrook Thicket Level 6 → \d+ Level XP \+[\d,]+ Gold [+−][\d,]+ gp [\d,]+ gp in coins(, [\d,]+ gp on supplies)? Kills [\d,]+/.test(beside.hero)
+      && /Out of stamina, so Cardy came home\. Ended \d+ h \d+ min ago/.test(beside.hero)
+      && !beside.summary && !beside.lines && JSON.stringify(beside.gold) === '["Carry on"]' && beside.own === 'Hunt again', JSON.stringify({ line, beside }));
     await q.page.click('[data-hs-win="away"] [data-hs-act="away-go"]');
     const went = await q.page.waitForFunction(() => !document.querySelector('[data-hs-win="away"]') && !!document.querySelector('[data-hs-act="leave"]'), null, { timeout: 30000 }).then(() => true, () => false);
     const open1 = (await world.db.query("select count(*)::int as n from public.hunt_sessions where ended_at is null and hunt_id = 'meadowbrook_thicket'")).rows[0].n;
@@ -287,10 +297,13 @@ try {
     await q.page.click('[data-hs-win="away"] [data-hs-act="away-summary"]');
     const summary = await q.page.waitForFunction(() => { const w = document.querySelector('[data-hs-win="hunt-summary"]'); return w ? w.innerText.replace(/\s+/g, ' ') : null; }, null, { timeout: 30000 })
       .then((h) => h.jsonValue(), () => null);
-    step('AR-11 the summary names the Level and the next ground, leads with Go to it, and offers no Hunt again',
-      !!summary && /Ground outgrown at Level 5/.test(summary) && /Next ground: Meadowbrook Thicket/.test(summary)
+    /* a fresh account's lone hero at Level 5 has recruits waiting (Tyler RD-Q6 a, 1052/1053; back-in-town.js `party`): the summary's foot
+       leads with Recruit your party, and the next ground stays as its own row, "Go on alone to Meadowbrook Thicket" */
+    step('AR-11 the summary names the Level and the next ground, leads with Recruit your party, and offers no Hunt again',
+      !!summary && /Ground outgrown at Level 5/.test(summary) && /Go on alone to Meadowbrook Thicket/.test(summary)
       && await q.page.evaluate(() => { const w = document.querySelector('[data-hs-win="hunt-summary"]'), b = w.querySelector('[data-hs-act="again"]'), go = w.querySelector('[data-hs-act="next-ground"]');
-        return (!b || b.hidden || b.disabled) && !!go && !go.hidden && go.classList.contains('is-primary') && go.textContent === 'Go to Meadowbrook Thicket'; }),
+        return (!b || b.hidden || b.disabled) && !!go && !go.hidden && go.classList.contains('is-primary') && go.textContent === 'Recruit your party'
+          && !!w.querySelector('.hsum-step[data-step="ground"] [data-hs-act="town"]'); }),
       summary);
     await q.close();
   }

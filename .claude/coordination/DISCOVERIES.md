@@ -4,6 +4,13 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+## 2026-11-22 · qa-engineer (lane/set144-reds) · the manual-walk reds on set/v0.2.144
+
+| # | Found | Sev | Affected | Action |
+|---|---|---|---|---|
+| 1 | away-recap-world AR-1, AR-9, AR-11 and `local-world.mjs smoke` were stale, not game bugs: a gathering job now ends at its count (1026 job counts, default 100), Carry on is the away card's one gold press (Tyler 27-1), and a Level 5 lone hero's outgrown card leads with Recruit your party (1052/1053). Neither file is on GitHub (guards-unregistered.json: manual walks), so nothing judged them | P3 | tests/away-recap-world.mjs, tools/qa/local-world.mjs | Fixed to the current design; mutants (job end dropped, two gold presses, Recruit not leading) each red |
+| 2 | AR-6 is intermittent: red 2 of 3 runs on the same source. The return card credits XP from the first in-view stamp (about 250 XP into the hunt), so the goodbye stamp written on close (alerts.js leaving, stampAway(cs, true) + flushResidue keepalive) did not reach the server. Its CONTROL step only checks that SOME hunt stamp exists. Not ruled out: a real browser close losing the goodbye, which makes the card say "+33,859 Level XP" for an hour away when most of it was watched | P2 | src/shell/alerts.js leaving, src/shell/away-recap.js stampAway, src/session/character-session.js flushResidue, tests/away-recap-world.mjs AR-6 | Route: systems engineer (does the keepalive put survive a close; tighten the CONTROL to the goodbye's own stamp) |
+
 ## 2026-11-22 · qa-engineer (lane/a-ci-reds-social) · the social layer's reds on set/v0.2.144
 
 | # | Found | Sev | Affected | Action |

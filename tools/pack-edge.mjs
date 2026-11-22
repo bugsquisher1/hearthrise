@@ -244,7 +244,7 @@ export function versionQueriesIn(src) {
 }
 
 /* NO BALANCE VARIANT IN A BUNDLE (Balance Lab phase 3, docs/design/redesign/07-balance-lab.md section 3.2: "No runtime switch"). A
-   formula family is a file on the shelf (tools/balance-program/variants/<slot>/<family>.js) that a SCRATCH COPY lays over a slot's
+   formula family is a file on the shelf (tools/balance-program/variants/<slot>/<slot>.<family>.js) that a SCRATCH COPY lays over a slot's
    module, keeping the module it replaced beside it as <name>.shipped.js. Neither may ever reach the server: a payload that carries a
    shelf file (its first line names it, `// balance-variant: <slot>/<family>`), a `.shipped.js` side copy, or any file from the shelf
    itself is a candidate game, not the game. Pure, so tests/rule-slots.mjs --selftest proves it on planted files and on a scratch copy

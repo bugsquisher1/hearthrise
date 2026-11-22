@@ -4,7 +4,7 @@
 // reads and writes, and its properties (finite, whole numbers where the ledger needs them, monotonic where the design says so, no table
 // indexed by Level, same result for the same input)").
 //
-// The WRITTEN contract is tools/balance-program/slots.json (each slot's `contract`: an id and what it says). THIS file holds the code
+// The WRITTEN contract is tools/balance-program/rule-slots.json (each slot's `contract`: an id and what it says). THIS file holds the code
 // that checks each id, so a family is judged by what the slot promises and never by what the shipped module happens to do. The shipped
 // module is held to the same properties: a contract the game itself breaks is a wrong contract, and tests/rule-slots.mjs says so.
 //
@@ -237,7 +237,7 @@ async function deathStates(imp) {
   return out;
 }
 
-/** Every property of `slot` (the ids slots.json's contract names) on one family: [{ id, problem }]. */
+/** Every property of `slot` (the ids rule-slots.json's contract names) on one family: [{ id, problem }]. */
 export async function propertyProblems(slot, fam, ids) {
   const props = PROPERTIES[slot] || {};
   const out = [];

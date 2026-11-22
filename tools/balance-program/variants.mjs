@@ -148,6 +148,26 @@ export function sameBytes(x, y) {
   return { same, of, first, errors: x.errors.length + y.errors.length };
 }
 
+/**
+ * THE ROLES: the damage each monster role does, B over A, with every cell weighing the same (a sum over cells would be the Level 5,000
+ * cells alone: absolute damage grows with Level). Seed by seed, the mean over the cells where both sides took that role's damage of
+ * ln(B / A); its interval over the seeds. Answers { role: { cells, ratio (B over A - 1), lo, hi, verdict ('B' more, 'A' more, 'noise') } }.
+ * `cells` carry `roles: { role: [A's seed list, B's seed list] }`.
+ */
+export function roleReads(cells, seeds) {
+  const names = [...new Set(cells.flatMap((c) => Object.keys(c.roles || {})))].sort();
+  return Object.fromEntries(names.map((r) => {
+    let used = 0;
+    const logs = Array.from({ length: seeds }, (_, s) => {
+      const xs = cells.map((c) => (c.roles || {})[r]).filter((p) => p && p[0][s] > 0 && p[1][s] > 0).map((p) => Math.log(p[1][s] / p[0][s]));
+      used = Math.max(used, xs.length);
+      return xs.length ? mean(xs) : null;
+    });
+    const p = paired(logs.map(() => 0), logs);
+    return [r, { cells: used, ratio: finite(p.d) ? Math.exp(p.d) - 1 : null, lo: finite(p.lo) ? Math.exp(p.lo) - 1 : null, hi: finite(p.hi) ? Math.exp(p.hi) - 1 : null, verdict: p.verdict }];
+  }));
+}
+
 /** The comparison of two played sides on one plan: the cells' pairs, the groups, the roles, the band rows. */
 export function compareSides(K, A, B, o = {}) {
   const plan = A.plan, seeds = Math.max(...plan.cells.map((c) => c.seeds));
@@ -172,13 +192,7 @@ export function compareSides(K, A, B, o = {}) {
     for (const c of ok) { const k = String(of(c)); (by.get(k) || by.set(k, []).get(k)).push(c); }
     groups[axis] = Object.fromEntries([...by].map(([k, cs]) => [k, Object.fromEntries(READS.map(([id, dir]) => [id, groupRead(cs, id, dir)]))]));
   }
-  /* THE ROLES: each monster role's damage, summed over every cell, seed by seed, as one pair per seed */
-  const roleNames = [...new Set(ok.flatMap((c) => Object.keys(c.roles)))].sort();
-  const roles = Object.fromEntries(roleNames.map((r) => {
-    const a = Array.from({ length: seeds }, (_, s) => ok.reduce((t, c) => t + ((c.roles[r] || [[], []])[0][s] || 0), 0));
-    const b = Array.from({ length: seeds }, (_, s) => ok.reduce((t, c) => t + ((c.roles[r] || [[], []])[1][s] || 0), 0));
-    return [r, paired(a, b)];
-  }));
+  const roles = roleReads(ok, seeds);
   /* THE TARGETS, seed by seed: every band row both sides read, its distance outside the band as a pair (A's minus B's: above zero, B nearer) */
   const bandRows = new Map();
   for (let s = 0; s < seeds; s++) {
@@ -219,8 +233,9 @@ export function headline(rep) {
     out.push(what + ' (' + dir + ' is better): ' + name.B + ' ahead in ' + all.B + ' cells, ' + name.A + ' in ' + all.A + ', of ' + all.n);
     for (const s of ['B', 'A']) if (leads[s].length) out.push('    ' + name[s] + ' leads: ' + leads[s].join('; '));
   }
-  const roles = Object.entries(rep.roles).filter(([, p]) => p.verdict === 'A' || p.verdict === 'B');
-  if (roles.length) out.push('damage taken by monster role, all cells (' + rep.b + ' against ' + rep.a + '): ' + roles.map(([r, p]) => r + ' ' + pct(p.a ? p.d / p.a : null) + ' [' + pct(p.a ? p.lo / p.a : null) + ', ' + pct(p.a ? p.hi / p.a : null) + ']').join('; '));
+  const roles = Object.entries(rep.roles).filter(([, p]) => p.verdict !== 'same' && p.verdict !== 'thin');
+  if (roles.length) out.push('damage taken by monster role, each cell weighing the same (' + rep.b + ' over ' + rep.a + ', 95% over seeds; * beyond noise): '
+    + roles.map(([r, p]) => r + ' ' + pct(p.ratio) + ' [' + pct(p.lo) + ', ' + pct(p.hi) + ']' + (p.verdict === 'A' || p.verdict === 'B' ? '*' : '')).join('; '));
   const flips = rep.bands.filter((b) => b.statusA !== b.statusB);
   const nearer = { A: rep.bands.filter((b) => b.nearer === 'A').length, B: rep.bands.filter((b) => b.nearer === 'B').length };
   out.push('targets: ' + rep.bands.length + ' band rows moved; nearer the band beyond noise: ' + rep.b + ' ' + nearer.B + ', ' + rep.a + ' ' + nearer.A + '; status changed on ' + flips.length);
@@ -260,6 +275,13 @@ async function identity() {
   return r.same === r.of && !r.errors && r.of > 0 ? 0 : 1;
 }
 
+/** A report as it is kept: four significant digits (a reading, not a ledger), each cell's per-role seed lists dropped (the summed roles stay). */
+export function slimReport(rep) {
+  const sig = (v) => (typeof v === 'number' && Number.isFinite(v) && !Number.isInteger(v) ? Number(v.toPrecision(4)) : v);
+  const walk = (x) => (Array.isArray(x) ? x.map(walk) : x && typeof x === 'object' ? Object.fromEntries(Object.entries(x).map(([k, v]) => [k, walk(v)])) : sig(x));
+  return walk({ ...rep, cells: rep.cells.map(({ roles, ...c }) => (void roles, c)) });
+}
+
 /* `--compare A B1,B2,...`: A is played ONCE and every B on A's plan; an identity B (C0-copy) is read byte for byte instead */
 async function compareCmd(specA, specBs) {
   const ctx = await contextOf(), o = optsOf();
@@ -288,7 +310,7 @@ async function compareCmd(specA, specBs) {
     if (has('write')) {
       mkdirSync(REPORT_DIR, { recursive: true });
       const f = join(REPORT_DIR, rep.a + '--' + rep.b + '.json');
-      writeFileSync(f, JSON.stringify(rep) + '\n');
+      writeFileSync(f, JSON.stringify(slimReport(rep)) + '\n');
       console.log('kept: ' + f);
     }
   }

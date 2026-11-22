@@ -4,7 +4,7 @@
 // A VARIANT is a named delta at one of four depths, and a CANDIDATE is a set of them:
 //   1 numbers    a knob or a line edit (the patch schema hearthrise.balance-patch/1, matrix-scratch.mjs), as before
 //   2 rows       a whole data file replaced: `rows: [{ file, from }]`, a file overlay
-//   3 formulas   a rule slot's family: `variants: [{ slot, family }]` (slots.json), a file overlay on the slot's module
+//   3 formulas   a rule slot's family: `variants: [{ slot, family }]` (rule-slots.json), a file overlay on the slot's module
 //   4 mechanics  an engine branch: `base: { ref }`, played through lane/bl-baseline's materialize (tools/balance-program/baseline/tree.mjs,
 //                `baseline.mjs --materialize`): the ref's game with this checkout's harness laid over it
 //
@@ -16,7 +16,7 @@
 // THE REFUSALS (each says why, by name):
 //   - two variants on one slot in one candidate, or two candidates on one slot when composed (`compose`): one slot, one family
 //   - two overlays on one file (a rows overlay on a slot's module counts)
-//   - a slot whose seam is not cut (status 'git-ref' in slots.json): it is played only as a depth 4 ref
+//   - a slot whose seam is not cut (status 'git-ref' in rule-slots.json): it is played only as a depth 4 ref
 //   - an identity candidate naming a family that is not an identity copy
 //   - a ref candidate with anything laid over it, or two refs: one base. Commit the overlay on the ref's branch (a known limit of phase 3)
 //
@@ -36,7 +36,7 @@ import { PATCH_SCHEMA, plantScratch, checkPatch } from './matrix-scratch.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..', '..');
-export const SLOTS_FILE = 'tools/balance-program/slots.json';
+export const SLOTS_FILE = 'tools/balance-program/rule-slots.json';
 export const SLOTS_SCHEMA = 'hearthrise.rule-slots/1';
 export const CANDIDATE_DIR = 'tools/balance-program/candidates';
 export const CANDIDATE_SCHEMA = 'hearthrise.balance-candidate/1';
@@ -49,13 +49,25 @@ export const MATERIALIZE_MODULE = join(HERE, 'baseline', 'tree.mjs');
 
 const repoPath = (p) => typeof p === 'string' && p.length > 0 && !isAbsolute(p) && !p.split(/[\\/]/).includes('..');
 
+/**
+ * A family's file on the shelf, DERIVED from its slot and id (never typed twice): tools/balance-program/variants/<slot>/<slot>.<family>.js.
+ * The basename carries the slot so it is unique in the repository: the CI gate (tools/lib/guard-deps.mjs) matches a changed file to the
+ * guards that name it by basename, and three `copy.js` files would be one name to it.
+ */
+export const shelfFileOf = (slot, family) => SHELF + slot + '/' + slot + '.' + family + '.js';
+const WORDS = /^[a-z][a-z0-9-]*$/;
+
 /** The slot registry of the tree at `root`, checked for shape (the contracts themselves are tests/rule-slots.mjs's). */
 export function readSlots(root = ROOT) {
   const doc = JSON.parse(readFileSync(join(root, SLOTS_FILE), 'utf8'));
   if (doc.schema !== SLOTS_SCHEMA) throw new Error('slots: ' + SLOTS_FILE + ' is ' + doc.schema + ', not ' + SLOTS_SCHEMA);
+  return registryOf(doc);
+}
+/** The registry of one document (readSlots's, or a test's planted one): { doc, slots, byId, families: Map('slot/family' -> { slot, family }) }. */
+export function registryOf(doc) {
   const byId = new Map(), families = new Map();
   for (const s of doc.slots || []) {
-    if (!/^[a-z][a-z0-9-]*$/.test(s.id || '')) throw new Error('slots: a slot id ' + JSON.stringify(s.id) + ' is not lower-case words');
+    if (!WORDS.test(s.id || '')) throw new Error('slots: a slot id ' + JSON.stringify(s.id) + ' is not lower-case words');
     if (byId.has(s.id)) throw new Error('slots: ' + s.id + ' is listed twice');
     if (!['cut', 'git-ref'].includes(s.status)) throw new Error('slots: ' + s.id + ' has status ' + s.status + ', not cut or git-ref');
     if (!repoPath(s.module)) throw new Error('slots: ' + s.id + ' names no module');
@@ -64,9 +76,11 @@ export function readSlots(root = ROOT) {
     if (!Array.isArray(s.rule) || !s.rule.length) throw new Error('slots: ' + s.id + ' is cut but names no rule exports');
     const kinds = (s.families || []).map((f) => f.kind);
     if (kinds.filter((k) => k === 'shipped').length !== 1) throw new Error('slots: ' + s.id + ' needs exactly one shipped family');
-    for (const f of s.families || []) {
-      if (!['shipped', 'identity', 'formula'].includes(f.kind)) throw new Error('slots: ' + s.id + '/' + f.id + ' has kind ' + f.kind);
-      if (f.kind !== 'shipped' && !(repoPath(f.file) && f.file.startsWith(SHELF + s.id + '/'))) throw new Error('slots: ' + s.id + '/' + f.id + ' must live on the shelf, ' + SHELF + s.id + '/');
+    for (const f0 of s.families || []) {
+      if (!WORDS.test(f0.id || '')) throw new Error('slots: ' + s.id + ' has a family id ' + JSON.stringify(f0.id) + ' that is not lower-case words');
+      if (!['shipped', 'identity', 'formula'].includes(f0.kind)) throw new Error('slots: ' + s.id + '/' + f0.id + ' has kind ' + f0.kind);
+      if (f0.file !== undefined) throw new Error('slots: ' + s.id + '/' + f0.id + ' types a file; a family\'s file is derived (' + shelfFileOf(s.id, f0.id) + ')');
+      const f = f0.kind === 'shipped' ? f0 : { ...f0, file: shelfFileOf(s.id, f0.id) };
       const key = s.id + '/' + f.id;
       if (families.has(key)) throw new Error('slots: ' + key + ' is listed twice');
       families.set(key, { slot: s, family: f });

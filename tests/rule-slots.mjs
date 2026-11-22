@@ -2,12 +2,12 @@
 // ════════════════════════════════════════════════════════════════════════
 // tests/rule-slots.mjs — EVERY REGISTERED FAMILY OF EVERY RULE SLOT AGAINST ITS CONTRACT (Balance Lab phase 3; docs/design/redesign/
 // 07-balance-lab.md section 3.2: "tools/balance-lab/model/slots.json lists the slots. tests/rule-slots.mjs runs every registered variant of a
-// slot against the contract"; the registry lives beside phase 1's registers, tools/balance-program/slots.json).
+// slot against the contract"; the registry lives beside phase 1's registers, as tools/balance-program/rule-slots.json).
 //
 // THE PLAIN RUN
 //   RS-1  the registry reads: each slot cut (one module, rule exports, a contract) or git-ref (a seam and why); its formula is a row of
 //         formulas/formulas-architecture.json, and a cut slot's row names its module
-//   RS-2  the shelf: every non-shipped family is a file under tools/balance-program/variants/<slot>/, first line
+//   RS-2  the shelf: every non-shipped family is the file tools/balance-program/variants/<slot>/<slot>.<family>.js, first line
 //         `// balance-variant: <slot>/<family>`; a formula family carries `added` and `expires`, and is red past its date read against
 //         the commit's own date (so one commit always reads the same, and a loser cannot sit on the shelf for ever)
 //   RS-3  the written contract is the checked one: each slot's contract ids are exactly tools/balance-program/slot-contracts.mjs's
@@ -28,18 +28,18 @@
 //   report's pairs and chance count (tools/balance-program/variants.mjs) read planted series right.
 //
 // Exit: 0 green · 1 a check or a proof failed · 2 harness.
-// mutant-anchors: none — --selftest plants every mutant on scratch copies in the OS temp folder; no tracked file is patched
+// mutant-anchors: tools/balance-program/variants/armor/armor.hit-ratio.js tools/balance-program/variants/party-xp/party-xp.even-share.js tools/balance-program/variants/death-cost/death-cost.hours.js tools/balance-program/rule-slots.json
 // ci-step: economy-selftests | Rule slots - every family of every cut slot holds its contract, candidates compose, no variant in a bundle
 // ci-run: node tests/rule-slots.mjs
 // ci-run: node tools/mutant-gate.mjs node tests/rule-slots.mjs --selftest
 // ════════════════════════════════════════════════════════════════════════
-import { readFileSync, writeFileSync, existsSync, cpSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, cpSync, mkdirSync, mkdtempSync, rmSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { execFileSync } from 'node:child_process';
 import { isMain } from './_is-main.mjs';
-import { readSlots, readCandidate, listCandidates, compose, candidatePatch, checkCandidate, treeOf, markerLineOf, CANDIDATE_SCHEMA, SHELF } from '../tools/balance-program/candidates.mjs';
+import { readSlots, registryOf, shelfFileOf, readCandidate, listCandidates, compose, candidatePatch, checkCandidate, treeOf, markerLineOf, CANDIDATE_SCHEMA, SHELF, SLOTS_FILE } from '../tools/balance-program/candidates.mjs';
 import { GENERIC, PROPERTIES, genericProblems, propertyProblems, callersOf } from '../tools/balance-program/slot-contracts.mjs';
 import { PATCH_SCHEMA, plantScratch, patchEdits, checkOverlays, shippedNameOf, KnobGone, readKnobs } from '../tools/balance-program/matrix-scratch.mjs';
 import { paired, aheadOf, chanceCount, groupRead, planOf, sameBytes } from '../tools/balance-program/variants.mjs';
@@ -83,6 +83,13 @@ export function shelfProblems(reg, today, root = ROOT) {
     if (family.expires <= family.added) out.push(key + ': expires ' + family.expires + ' is not after added ' + family.added);
     if (today && family.expires < today) out.push(key + ': EXPIRED on ' + family.expires + ' (this commit is ' + today + '): move the winner into the tree and delete the loser, or extend `expires` with a reason');
   }
+  /* a file on the shelf that no family names is a variant nobody registered (no contract ran on it) */
+  const named = new Set([...reg.families.values()].map((x) => x.family.file).filter(Boolean));
+  const shelf = join(root, SHELF);
+  if (existsSync(shelf)) for (const d of readdirSync(shelf, { withFileTypes: true })) {
+    const files = d.isDirectory() ? readdirSync(join(shelf, d.name)).map((f) => SHELF + d.name + '/' + f) : [SHELF + d.name];
+    for (const f of files) if (!named.has(f)) out.push(f + ' is on the shelf and no family in ' + SLOTS_FILE + ' names it (register it, with its contract, or delete it)');
+  }
   return out;
 }
 /** The written contract against the checked one. */
@@ -121,7 +128,7 @@ export async function loadFamilies(reg, o = {}) {
     const S = await importFrom(ROOT, s.module), src = readFileSync(join(ROOT, s.module), 'utf8');
     out.push({ slot: s, family: s.families.find((f) => f.kind === 'shipped'), M: S, S, src, shippedSrc: src, imp: (p) => importFrom(ROOT, p) });
   }
-  const others = (s) => s.families.filter((f) => f.kind !== 'shipped');
+  const others = (s) => [...reg.families.values()].filter((x) => x.slot.id === s.id && x.family.kind !== 'shipped').map((x) => x.family);
   const rounds = Math.max(0, ...reg.slots.filter((x) => x.status === 'cut').map((s) => others(s).length));
   for (let k = 0; k < rounds; k++) {
     const lay = reg.slots.filter((x) => x.status === 'cut' && others(x)[k]).map((s) => ({ s, f: others(s)[k] }));
@@ -247,12 +254,25 @@ async function selftest() {
   const armor = planted.slots.find((s) => s.id === 'armor');
   armor.contract.push({ id: 'neverWritten', says: 'planted' });
   check('a contract line slot-contracts.mjs does not check is red', contractProblems({ slots: planted.slots }).some((p) => /neverWritten/.test(p)));
+  check('a family that types its own file path is refused (the path is derived from the slot and the id)', (() => { try { registryOf({ ...reg.doc, slots: reg.doc.slots.map((x) => (x.id === 'armor' ? { ...x, families: x.families.map((y) => (y.id === 'hit-ratio' ? { ...y, file: 'tools/balance-program/variants/armor/x.js' } : y)) } : x)) }); return false; } catch (e) { return /derived/.test(e.message); } })());
   const hr = armor.families.find((f) => f.id === 'hit-ratio');
-  const shelfOf = (mut) => { const d = JSON.parse(JSON.stringify(reg.doc)); mut(d.slots.find((s) => s.id === 'armor').families.find((f) => f.id === 'hit-ratio')); return reg2(d); };
-  check('a formula family past its date is red (read against the commit date it is given)', shelfProblems(shelfOf(() => {}), '2099-01-01').some((p) => /EXPIRED/.test(p)) && !shelfProblems(shelfOf(() => {}), hr.added).length);
+  const shelfOf = (mut) => { const d = JSON.parse(JSON.stringify(reg.doc)); mut(d.slots.find((s) => s.id === 'armor').families.find((f) => f.id === 'hit-ratio')); return registryOf(d); };
+  check('a formula family past its date is red (read against the commit date it is given)', shelfProblems(shelfOf(() => {}), '2099-01-01').some((p) => /EXPIRED/.test(p)) && !shelfProblems(shelfOf(() => {}), hr.added).some((p) => /EXPIRED/.test(p)));
   check('a formula family with no expiry is red', shelfProblems(shelfOf((f) => { delete f.expires; }), null).some((p) => /dates/.test(p)));
-  check('a family whose file does not open on its own name is red', shelfProblems(shelfOf((f) => { f.id = 'other'; }), null).some((p) => /first line/.test(p)));
-  const op = await offPathProblems(reg2({ ...reg.doc, slots: reg.doc.slots.map((s) => (s.id === 'party-xp' ? { ...s, offPath: {} } : s.id === 'armor' ? { ...s, offPath: { steadyPmOf: 'planted' } } : s)) }));
+  {
+    /* a shelf in a temporary root: the hit-ratio family's file opening on another family's name */
+    const dir = mkdtempSync(join(tmpdir(), 'rule-slots-shelf-')), f = join(dir, shelfFileOf('armor', 'hit-ratio'));
+    mkdirSync(dirname(f), { recursive: true });
+    writeFileSync(f, readFileSync(join(ROOT, shelfFileOf('armor', 'hit-ratio')), 'utf8').replace(markerLineOf('armor', 'hit-ratio'), markerLineOf('armor', 'copy')));
+    const one = registryOf({ ...reg.doc, slots: reg.doc.slots.map((x) => (x.id === 'armor' ? { ...x, families: x.families.filter((y) => y.id === 'shipped' || y.id === 'hit-ratio') } : x)).filter((x) => x.id === 'armor') });
+    writeFileSync(join(dir, SHELF + 'armor/armor.stray.js'), markerLineOf('armor', 'stray') + '\nexport {};\n');
+    try {
+      const got = shelfProblems(one, null, dir);
+      check('a family whose file does not open on its own name is red', got.some((p) => /first line/.test(p)), got.join('; '));
+      check('a file on the shelf that no family names is red (a variant no contract ran on)', got.some((p) => /armor\.stray\.js is on the shelf/.test(p)), got.join('; '));
+    } finally { rmSync(dir, { recursive: true, force: true }); }
+  }
+  const op = await offPathProblems(registryOf({ ...reg.doc, slots: reg.doc.slots.map((s) => (s.id === 'party-xp' ? { ...s, offPath: {} } : s.id === 'armor' ? { ...s, offPath: { steadyPmOf: 'planted' } } : s)) }));
   check('a shipped caller of a rule export missing from offPath is red, and a stale offPath entry too', op.some((p) => /partyVsAlone/.test(p)) && op.some((p) => /steadyPmOf.*stale/.test(p)), op.join('; '));
 
   /* 3. THE REFUSALS */
@@ -263,14 +283,14 @@ async function selftest() {
   check('three candidates on three slots compose into one patch of three overlays', candidatePatch(compose(['armor-hit-ratio', 'party-even-share', 'death-hours'].map((id) => readCandidate(id, reg)), reg), reg).overlays.length === 3);
   check('a git-ref slot\'s family is refused (its seam is not cut: a depth 4 ref)', refused(() => checkCandidate(C({ variants: [{ slot: 'hero-power', family: 'geometric' }] }), reg), /not cut/));
   check('an identity candidate naming a formula family is refused', refused(() => checkCandidate(C({ kind: 'identity', variants: [{ slot: 'armor', family: 'hit-ratio' }] }), reg), /identity candidate/));
-  check('two overlays on one file are refused (a rows overlay on a slot\'s module)', refused(() => checkCandidate(C({ variants: [{ slot: 'armor', family: 'hit-ratio' }], rows: [{ file: 'src/core/mitigation.js', from: 'tools/balance-program/variants/armor/copy.js' }] }), reg), /one file, one overlay/));
+  check('two overlays on one file are refused (a rows overlay on a slot\'s module)', refused(() => checkCandidate(C({ variants: [{ slot: 'armor', family: 'hit-ratio' }], rows: [{ file: 'src/core/mitigation.js', from: 'tools/balance-program/variants/armor/armor.copy.js' }] }), reg), /one file, one overlay/));
   check('a rows overlay from off the shelf is refused', refused(() => checkCandidate(C({ rows: [{ file: 'src/data/items.js', from: 'src/data/monsters.js' }] }), reg), /not the shelf/));
   check('a ref with anything laid over it, and two refs, are refused', refused(() => checkCandidate(C({ base: { ref: 'lane/v1-climb' }, variants: [{ slot: 'armor', family: 'hit-ratio' }] }), reg), /plays the ref alone/)
     && refused(() => compose([C({ id: 'r1', base: { ref: 'a' } }), C({ id: 'r2', base: { ref: 'b' } })], reg), /two bases/));
   check('an overlay outside the planted trees, of a missing file, from a missing source, or twice on one file is refused',
-    refused(() => checkOverlays([{ file: 'tools/pack-edge.mjs', from: 'tools/pack-edge.mjs' }]), /planted trees/) && refused(() => checkOverlays([{ file: 'src/core/nope.js', from: 'tools/balance-program/variants/armor/copy.js' }]), /replaces no file/)
-    && refused(() => checkOverlays([{ file: 'src/core/mitigation.js', from: 'tools/balance-program/variants/armor/nope.js' }]), /does not exist/)
-    && refused(() => checkOverlays([{ file: 'src/core/mitigation.js', from: 'tools/balance-program/variants/armor/copy.js' }, { file: 'src/core/mitigation.js', from: 'tools/balance-program/variants/armor/hit-ratio.js' }]), /two overlays/));
+    refused(() => checkOverlays([{ file: 'tools/pack-edge.mjs', from: 'tools/pack-edge.mjs' }]), /planted trees/) && refused(() => checkOverlays([{ file: 'src/core/nope.js', from: 'tools/balance-program/variants/armor/armor.copy.js' }]), /replaces no file/)
+    && refused(() => checkOverlays([{ file: 'src/core/mitigation.js', from: 'tools/balance-program/variants/armor/armor.nope.js' }]), /does not exist/)
+    && refused(() => checkOverlays([{ file: 'src/core/mitigation.js', from: 'tools/balance-program/variants/armor/armor.copy.js' }, { file: 'src/core/mitigation.js', from: 'tools/balance-program/variants/armor/armor.hit-ratio.js' }]), /two overlays/));
   /* a ref candidate plays through lane/bl-baseline's materialize; with none on the tree it says so, and a planted one is called with the ref */
   const refC = checkCandidate(C({ id: 'ref', base: { ref: 'lane/v1-climb' } }), reg);
   check('a ref candidate with no materialize on the tree is refused by name', await (async () => { try { await treeOf(refC, reg, { module: join(ROOT, 'tools/balance-program/baseline/no-such-tree.mjs') }); return false; } catch (e) { return /baseline\.mjs --materialize/.test(e.message); } })());
@@ -317,7 +337,7 @@ async function selftest() {
   const files = [{ name: 'vendor/core/a.js', origin: 'src/core/a.js', content: 'export const a = 1;\n' }];
   check('variantProblems: clean files pass', PE.variantProblems(files).length === 0);
   check('variantProblems: a file opening with the marker, a .shipped.js copy and a shelf path are each refused',
-    PE.variantProblems([{ name: 'vendor/core/mitigation.js', origin: 'src/core/mitigation.js', content: readFileSync(join(ROOT, 'tools/balance-program/variants/armor/hit-ratio.js'), 'utf8') }]).length === 1
+    PE.variantProblems([{ name: 'vendor/core/mitigation.js', origin: 'src/core/mitigation.js', content: readFileSync(join(ROOT, 'tools/balance-program/variants/armor/armor.hit-ratio.js'), 'utf8') }]).length === 1
     && PE.variantProblems([{ name: 'vendor/core/mitigation.shipped.js', origin: 'src/core/mitigation.shipped.js', content: 'export {};' }]).length === 1
     && PE.variantProblems([{ name: 'x.js', origin: SHELF + 'armor/x.js', content: 'export {};' }]).length === 1);
   const packIn = async (id, scratch) => {
@@ -344,13 +364,6 @@ async function selftest() {
   check('a group leads only past its chance count: 2 of 20 cells is chance, 6 of 20 leads',
     groupRead(cellsOf(2, 0, 20), 'x', 'higher').lead === null && groupRead(cellsOf(6, 1, 20), 'x', 'higher').lead === 'B' && groupRead(cellsOf(1, 6, 20), 'x', 'lower').lead === 'B');
   return failed ? 1 : 0;
-}
-/* a registry read from an in-memory document (the planted cases above) */
-function reg2(doc) {
-  const byId = new Map(doc.slots.map((s) => [s.id, s]));
-  const families = new Map();
-  for (const s of doc.slots) if (s.status === 'cut') for (const f of s.families || []) families.set(s.id + '/' + f.id, { slot: s, family: f });
-  return { doc, slots: doc.slots, byId, families };
 }
 
 if (isMain(import.meta.url)) (process.argv.includes('--selftest') ? selftest() : plain()).then((c) => process.exit(c), (e) => { console.error(e); process.exit(2); });

@@ -133,8 +133,7 @@ export const HUNTS_TEXT = Object.freeze({
   bag_empty: 'Hunt bag: empty',
   bag_holds: 'Hunt bag: {items}',
   party_lead: 'Party leader, {n} heroes',
-  party_finder: 'Open the party finder',
-  party_find: 'Find a party',
+  party_invite: 'Invite a player',
   /* @sentence: how a second hero joins; the Characters screen is a step a label can't name */
   party_others: 'Play other heroes from Characters to bring them',
   party_bring: 'Bring {name}',
@@ -151,6 +150,8 @@ export const HUNTS_TEXT = Object.freeze({
   stance_saved: 'Risk saved: {stance} from your next hunt',
   stance_next: 'Plays from your next hunt',
   stance_leader: 'Risk: set by the party leader',
+  /* the pick is off until the server's `danger` section has come (say-why SW-2) */
+  stance_reading: 'Reading your Risk…',
   depth_held: 'Held depth: Depth {depth} of {of}',
   depth_new: 'First time here. The party starts at Depth 1 and works its way deeper.',
   tier_set_by: 'Set by {leader}: {tier}',

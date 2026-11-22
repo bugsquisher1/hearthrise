@@ -20,8 +20,8 @@
 //   moveStorage(i,n,d) the ACCOUNT storage INTENT (hr_bank_move), re-read (every hero shows it: bankOf); refused: resync(); many whole stacks at once: storage-intents.js
 //   edgeIntent(v, f)   an item intent through the engine (equip, sell, buy, eat; edge-intents.js): names and counts only
 //   lockItem / setLootRule / savePreset / applyPreset   the bag rules and the hunt presets: one intent each, re-read (many locks at once: storage-intents.js)
-//   joinParty / leaveParty / kickSeat / inviteByName / answerInvite / restartHunt   the party and hunt-again intents, re-read the same way (party-intents.js startPartyHunt re-reads every own seat)
-//   saveOutfit(o, c) / findParties   the outfit INTENT (hr_outfit_set), re-read the same way; the party finder, a read whose rows are never the record
+//   leaveParty / kickSeat / inviteByName / answerInvite / restartHunt   the party and hunt-again intents, re-read the same way (party-intents.js startPartyHunt re-reads every own seat)
+//   saveOutfit(o, c)   the outfit INTENT (hr_outfit_set), re-read the same way
 //   hunt re-read       while a hunt is open, one hello per hunt-poll.js (the hunter's settle: state, track, events) until it ended, paced (ask-pacer.js); a frame defers it
 //   setAway(on)        the page went away or came back (page-away.js): nothing asked or heard; back, ONE catch-up
 //   timeline / now()   the settle responses' visual timeline (src/hunt-view/timeline.js), never the record; the display clock it plays on
@@ -360,12 +360,6 @@ export class CharacterSession {
      2026-10-18 party UI). Each is one intent naming THIS character's slot and ids or a seat; no user id, no
      number of the server's crosses. The party changes on screen only from the re-read envelope. ── */
 
-  /** Take a free seat in an open party (the finder's row, or one of this account's own parties). */
-  async joinParty(party) {
-    if (this._closed || !UUID.test(String(party))) return { ok: false, error: 'bad_intent' };
-    return this._ask('hunt_party_join', () => this._server.rpc('hr_hunt_party_join', { p_slot: this.slot, p_party: party, p_idem: newIdem() }));
-  }
-
   /** Leave this character's party (the server hands the lead on, or closes the last seat). */
   async leaveParty() {
     if (this._closed) return { ok: false, error: 'closed' };
@@ -437,19 +431,6 @@ export class CharacterSession {
     if (this._closed) return { ok: false, error: 'closed' };
     if (outfit !== null && !HUNT_ID.test(String(outfit))) return { ok: false, error: 'bad_intent' };
     return this._ask('outfit_set', () => this._server.rpc('hr_outfit_set', { p_slot: this.slot, p_outfit: outfit, p_colors: {}, p_idem: newIdem() }));
-  }
-
-  /** The party finder: open parties with a free seat, optionally on one hunt and only those with no member of a
-      weapon type ("a party that needs a bow"). A READ: the rows are the server's answer, never the record. */
-  async findParties(hunt, weaponType) {
-    if (this._closed) return { ok: false, error: 'closed' };
-    if ((hunt !== null && !HUNT_ID.test(String(hunt))) || (weaponType !== null && !HUNT_ID.test(String(weaponType)))) return { ok: false, error: 'bad_intent' };
-    return this.intents.track('hunt_party_finder', async () => {
-      const ans = await this._server.rpc('hr_hunt_party_finder', { p_slot: this.slot, p_hunt: hunt, p_weapon: weaponType });
-      if (this._closed) return { ok: false, error: 'closed' };
-      if (ans.ok && ans.body && ans.body.ok === true) return { ok: true, body: ans.body };
-      return { ok: false, error: (ans.body && typeof ans.body.error === 'string' && ans.body.error) || ans.error || 'refused' };
-    });
   }
 
   /* ONE ASK, tracked (intent-ledger.js) from the send to the re-read envelope: the press shows it in flight (press-ack.js). */
@@ -571,9 +552,10 @@ export class CharacterSession {
   }
 
   /** Send the pending residue now (one put). `keepalive`: the put outlives the page (it is being left). `hidden`: the page is
-      only hidden, and one flickering in and out of view writes no oftener than the debounce: inside it, the armed timer sends. */
+      only hidden, and one flickering in and out of view writes no oftener than the debounce: inside it, the armed timer sends. EXCEPT a
+      last-seen stamp (`awaySeen`): a phone's hidden tab may never run that timer, and the stamp keeps its own pace (away-recap.js LEAVE_EVERY_MS). */
   async flushResidue({ keepalive = false, hidden = false } = {}) {
-    if (hidden && this._now() - this._putAt < SESSION_CONFIG.residueDebounceMs) return false;
+    if (hidden && !('awaySeen' in this._pending) && this._now() - this._putAt < SESSION_CONFIG.residueDebounceMs) return false;
     if (this._residueTimer) { this._clearTimer(this._residueTimer); this._residueTimer = null; }
     const patch = this._pending;
     if (this._closed || !Object.keys(patch).length) return false;

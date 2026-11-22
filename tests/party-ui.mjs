@@ -50,25 +50,21 @@
 //   UI-3  the Hunts window is where a party starts: the leader's Enter reads "Enter with party"
 //         and is ONE hr_hunt_party_start naming the picked hunt, off until the server
 //         answered, and a refusal names who was not ready; a member's Enter stays off. The
-//         Party window is Invites + Find a party: Invites opens first while one waits, Join is
-//         ONE hr_hunt_party_accept; the finder defaults to this character's weapon (no ground
-//         filter) and Join is ONE hr_hunt_party_join
+//         Party window is Your party + Invites (no finder: 1059-no-party-finder.sql): Invites opens
+//         with no party, Join is ONE hr_hunt_party_accept
 //   UI-5  the party note is the PICKED ground's, from its catalogue row, on its Hunts line
 //   UI-6  an invite reaches the player as an alert line with Join / Decline; Join is ONE
 //         hr_hunt_party_accept for that character, off until the server answered
 //   UI-7  a character tab's right-click: Invite to party for an own character in no party (ONE
 //         hr_hunt_party_invite_own naming the viewed slot and that slot), Leave party for one
 //         that sits in a party, nothing party-wise otherwise
-//   UI-8  the leader's Find tab carries the listing switch (a party is private until listed,
-//         Security reopen #1): it reads the server's `listed` and is ONE hr_hunt_party_list,
-//         off until the server answered
+//   UI-8  the leader's Party window has no finder: no Find tab, no listing switch, no finder control
 //   AL-2  no out-of-stock warning while the store pays; none for a resource the hero does not use; the
 //         hunt bag's supplies are stock mid-hunt (Brannoc 10-22)
 //   AL-3  a new hunt retires the last one's ended / death / low lines (Brannoc 10-22)
 //   UI-9  IN TOWN in a party of two (Tyler live v0.2.53, "the party screen is not working"): the Party window
 //         opens on Your party with both seats, the leader's crown, the next step and a Leave party that is ONE
-//         hr_hunt_party_leave, off from the press; the finder's weapon filter reads "Needs a shield", never
-//         "No shield yet (Melee (shield))"
+//         hr_hunt_party_leave, off from the press
 //   UI-4  the command centre lists every open character; zero console errors throughout
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
@@ -99,8 +95,8 @@ const PARTY_NOTES = Object.fromEntries(Object.values(HUNT_GROUNDS).map((g) => {
 if (!PARTY_NOTES.millrace_sewer || PARTY_NOTES.coppercap_warrens !== '') throw new Error('party-ui: UI-5 needs a party-gated ground and one without');
 /* Tyler 2026-11-14 rejected "Captain Hask is built for a group of four or more. Alone, you still fight him, and he can kill you." for this exact label. */
 if (PARTY_NOTES.muster_barrows !== 'Recommended: 4+ players') throw new Error('party-ui: UI-5 the Barrows\' note reads ' + JSON.stringify(PARTY_NOTES.muster_barrows));
-const PARTY_RPCS = ['hr_hunt_party_join', 'hr_hunt_party_leave', 'hr_hunt_party_kick', 'hr_hunt_party_invite',
-  'hr_hunt_party_accept', 'hr_hunt_party_decline', 'hr_hunt_party_start', 'hr_hunt_restart', 'hr_hunt_party_invite_own', 'hr_hunt_party_disband', 'hr_hunt_party_list', 'hr_hunt_party_warn'];
+const PARTY_RPCS = ['hr_hunt_party_leave', 'hr_hunt_party_kick', 'hr_hunt_party_invite',
+  'hr_hunt_party_accept', 'hr_hunt_party_decline', 'hr_hunt_party_start', 'hr_hunt_restart', 'hr_hunt_party_invite_own', 'hr_hunt_party_disband', 'hr_hunt_party_warn'];
 
 /* ── PURE ── */
 
@@ -113,7 +109,6 @@ function fakeServer(o = {}) {
     if (st.onRpc) st.onRpc(name, args);
     if (name === 'hr_load') return { ok: true, status: 200, body: st.env[args.p_slot] ? next(args.p_slot) : { ok: false, error: 'no_character' }, closed: false };
     if (name === 'hr_put_client_state') { st.residue[args.p_slot] = Object.assign(st.residue[args.p_slot] || {}, args.p_patch); return { ok: true, status: 200, body: { ok: true } }; }
-    if (name === 'hr_hunt_party_finder') return { ok: true, status: 200, body: { ok: true, parties: [] } };
     return { ok: true, status: 200, body: clone(st.reply) };
   };
   st.accrue = async (body) => { st.calls.push(['accrue', body]); return { ok: true, status: 200, body: Object.assign({ accrued: true }, next(body.slot)) }; };
@@ -441,8 +436,8 @@ async function pureRules(M, base) {
     const cs = new M.C.CharacterSession({ slot: 1, uid: UID, server: srv, ...timers });
     await cs.load();
     const P = '11111111-0000-4000-8000-00000000000a';
-    const ALLOWED = new Set(['p_slot', 'p_hunt', 'p_party', 'p_seat', 'p_name', 'p_invite', 'p_session', 'p_idem']);
-    const verbs = [['joinParty', [P]], ['leaveParty', []], ['kickSeat', [2]], ['inviteByName', ['Mira']],
+    const ALLOWED = new Set(['p_slot', 'p_hunt', 'p_seat', 'p_name', 'p_invite', 'p_session', 'p_idem']);
+    const verbs = [['leaveParty', []], ['kickSeat', [2]], ['inviteByName', ['Mira']],
       ['answerInvite', [P, true]], ['answerInvite', [P, false]], ['restartHunt', [P]]];
     /* createParty and the 2-arg startPartyHunt are gone (2026-10-29-party-create-retired.sql): a party is made by an invite. */
     if (typeof cs.createParty === 'function' || typeof cs.startPartyHunt === 'function') return 'CharacterSession still carries createParty / startPartyHunt';
@@ -476,10 +471,10 @@ async function pureRules(M, base) {
       if (!(cs.record.version > v)) return verb + ' left the record unread';
     }
     srv.calls.length = 0;
-    const bad = [await cs.kickSeat(-1), await cs.joinParty('not-an-id'), await cs.inviteByName(' '), await cs.restartHunt(null)];
+    const bad = [await cs.kickSeat(-1), await cs.inviteByName(' '), await cs.restartHunt(null)];
     if (bad.some((r) => r.ok) || srv.calls.length) return 'a malformed party intent was sent: ' + JSON.stringify(srv.calls);
-    const f = await cs.findParties('millrace_sewer', 'bow');
-    return (f.ok && srv.calls.length === 1 && srv.calls[0][0] === 'hr_hunt_party_finder' && srv.calls[0][1].p_weapon === 'bow') || 'the finder read was wrong: ' + JSON.stringify(srv.calls);
+    /* No party finder (1059-no-party-finder.sql): the session has no finder read and no Join by id. */
+    return (typeof cs.findParties === 'undefined' && typeof cs.joinParty === 'undefined') || 'the session still carries a finder verb';
   });
 
   /* PR-3 (Tyler 10-19): a party in TOWN (no instance: every unit null) is still listed, by seat, with
@@ -500,10 +495,9 @@ async function pureRules(M, base) {
     const c0 = (await acc.open(0)).session;
     const c1 = (await acc.open(1)).session;
     if (!c0 || !c1) return 'the fixture characters did not open';
-    const ALLOWED = new Set(['p_slot', 'p_hunt', 'p_other_slot', 'p_listed', 'p_idem']);
+    const ALLOWED = new Set(['p_slot', 'p_hunt', 'p_other_slot', 'p_idem']);
     srv.calls.length = 0;
-    const bad = [await M.PI.startPartyHunt(acc, c0, 'Bad Hunt!'), await M.PI.inviteOwn(acc, c0, 0), await M.PI.inviteOwn(acc, c0, 9), await M.PI.inviteOwn(acc, c0, 1.5),
-      await M.PI.listParty(acc, c0, 'yes')];
+    const bad = [await M.PI.startPartyHunt(acc, c0, 'Bad Hunt!'), await M.PI.inviteOwn(acc, c0, 0), await M.PI.inviteOwn(acc, c0, 9), await M.PI.inviteOwn(acc, c0, 1.5)];
     if (bad.some((r) => r.ok) || srv.calls.length) return 'a malformed party intent was sent: ' + JSON.stringify(srv.calls);
     /* Start waits for everyone: the refusal names the seat, in words, and re-reads the asking hero ONCE, nobody else (A20). */
     srv.reply = { ok: false, error: 'not_ready', seats: [{ seat: 1, name: 'Mira', error: 'away' }] };
@@ -527,7 +521,7 @@ async function pureRules(M, base) {
     await c0.load();
     /* An ok re-reads every own character the verb touched: the party's, and the one that joined. */
     for (const [fn, args, want, reads] of [['startPartyHunt', ['millrace_sewer'], 'hr_hunt_party_start', '0'], ['disbandParty', [], 'hr_hunt_party_disband', '0'],
-      ['inviteOwn', [1], 'hr_hunt_party_invite_own', '0,1'], ['listParty', [true], 'hr_hunt_party_list', '0']]) {
+      ['inviteOwn', [1], 'hr_hunt_party_invite_own', '0,1']]) {
       srv.calls.length = 0;
       srv.reply = { ok: true };
       const ok = await M.PI[fn](acc, c0, ...args);
@@ -1179,8 +1173,6 @@ async function stub(page, s) {
     if (name === 'hr_load') return json(s.env[body.p_slot] ? s.next(body.p_slot) : { ok: false, error: 'no_character' });
     if (name === 'hr-accrue') return json(Object.assign({ accrued: true }, s.next(body.slot)));
     if (name === 'hr_put_client_state') { Object.assign(s.residue[body.p_slot], body.p_patch || {}); return json({ ok: true }); }
-    if (name === 'hr_hunt_party_finder') return json({ ok: true, parties: [{ id: 'dddddddd-0000-4000-8000-000000000004', hunt: 'millrace_sewer', max: 4,
-      seats: [{ seat: 0, weapon: 'shield', name: 'Oren' }, { seat: 1, weapon: 'club', name: 'Pell' }] }] });
     if (PARTY_RPCS.includes(name)) {
       await new Promise((ok) => setTimeout(ok, s.delayMs));
       return json(name === 'hr_hunt_party_start' && s.startReplies.length ? s.startReplies.shift()
@@ -1436,22 +1428,14 @@ async function pageRules(overrides, shots) {
         if (names !== 'Tyler,Druid') fails.push('UI-4 [' + tag + '] the command centre lists ' + names);
         await shot('command-centre');
       }
-      /* UI-8: the leader's listing switch (private until listed): the server's `listed`, ONE hr_hunt_party_list. */
+      /* UI-8: no party finder (GR-69, 1059-no-party-finder.sql): the leader's Party window has Your party and Invites, and nothing to list or search. */
       if (await openWin(page, 'y', 'hunt-party')) {
         const P = '[data-hs-win="hunt-party"] ';
-        await page.click(P + '.hw-tab[data-tab="find"]');
-        const sw = await page.evaluate((q) => { const d = document.querySelector(q + '.hw-list-party'); return d && { hidden: d.hidden, text: d.querySelector('button').textContent }; }, P);
-        if (!sw || sw.hidden || sw.text !== 'Show in finder') fails.push('UI-8 [' + tag + '] the leader’s listing switch reads ' + JSON.stringify(sw));
-        else {
-          const before = sent(s, 'hr_hunt_party_list').length;
-          const off = await page.evaluate((q) => { const b = document.querySelector(q + '[data-hs-act="list-party"]'); b.click(); return b.disabled; }, P);
-          if (!off) fails.push('UI-8 [' + tag + '] the listing switch stayed on while in flight');
-          await page.waitForTimeout(700);
-          const ls = sent(s, 'hr_hunt_party_list').slice(before);
-          if (ls.length !== 1 || ls[0].body.p_slot !== 0 || ls[0].body.p_listed !== true) fails.push('UI-8 [' + tag + '] the switch sent ' + JSON.stringify(ls.map((c) => c.body)));
-        }
+        const v = await page.evaluate((q) => ({ tabs: Array.from(document.querySelectorAll(q + '.hw-tab')).map((b) => b.getAttribute('data-tab')).join(),
+          finder: !!document.querySelector(q + '[data-hs-act="list-party"], ' + q + '[data-hs-act="find"], ' + q + '[data-hs-act="find-weapon"]') }), P);
+        if (v.tabs !== 'party,invites' || v.finder) fails.push('UI-8 [' + tag + '] the leader’s Party window reads ' + JSON.stringify(v));
       } else fails.push('UI-8 [' + tag + '] Y did not open the Party window for the leader');
-      /* UI-3: the finder on the town character starts on its own weapon; Join is one intent. */
+      /* UI-3: the town character's Party window: the invite waiting, then Join. */
       await closeAll(page);
       await page.click('.char-tab[data-slot="1"]');
       await wait(page, () => document.querySelector('#panel-world[data-slot="1"]') && document.querySelector('.hs-launchers'));
@@ -1460,12 +1444,11 @@ async function pageRules(overrides, shots) {
         /* An invite is waiting: the Invites tab opens first; Join is ONE accept naming it. */
         const tab = await page.evaluate((q) => { const b = document.querySelector(q + '.hw-tab[aria-selected="true"]'); return b && b.getAttribute('data-tab'); }, P);
         if (tab !== 'invites') fails.push('UI-3 [' + tag + '] the Party window opened on ' + JSON.stringify(tab) + ' with an invite waiting');
-        /* UI-17 (party panel 11-03: the window opened on the finder, "only players you invite can join", and never said how): the way to invite is on the finder tab too, and a hero
-           with no party is not told about its party's listing (the switch's [hidden] lost to .hw-add's display). */
-        await page.click(P + '.hw-tab[data-tab="find"]');
-        const way = await page.evaluate((q) => { const box = document.querySelector(q + '.hw-invite-name'), how = document.querySelector(q + '.hw-invite-how'), sw = document.querySelector(q + '.hw-list-party');
-          return { box: !!box && box.getClientRects().length > 0, how: how ? how.textContent : '', sw: !!sw && sw.getClientRects().length > 0 }; }, P);
-        if (!way.box || !/Invite to party$/.test(way.how) || way.sw) fails.push('UI-17 [' + tag + '] with no party the finder tab reads ' + JSON.stringify(way));
+        /* UI-17 (party panel 11-03: "only players you invite can join", and the window never said how): a hero in no party has the name box
+           on screen, and the Invites tab's empty line says the other way (a right-click). */
+        const way = await page.evaluate((q) => { const box = document.querySelector(q + '.hw-invite-name');
+          return { box: !!box && box.getClientRects().length > 0 }; }, P);
+        if (!way.box) fails.push('UI-17 [' + tag + '] with no party the Party window has no way to invite: ' + JSON.stringify(way));
         /* UI-18 (audit 2026-11-15 F16): Druid, in no party, invites Tyler by name while Tyler leads one. The server's already_in_party is
            TYLER's (hr_party_seat_own), so the line names him as the roster spells him; it read "You are already in a party" to a hero in none. */
         s.inviteReplies.push({ ok: false, error: 'already_in_party' });
@@ -1482,18 +1465,6 @@ async function pageRules(overrides, shots) {
         await page.waitForTimeout(700);
         const ac = sent(s, 'hr_hunt_party_accept').slice(acc1);
         if (ac.length !== 1 || ac[0].body.p_slot !== 1 || ac[0].body.p_invite !== 'bbbbbbbb-0000-4000-8000-000000000002') fails.push('UI-3 [' + tag + '] Join sent ' + JSON.stringify(ac.map((c) => c.body)));
-        await page.click(P + '.hw-tab[data-tab="find"]');
-        const w = await page.evaluate(() => document.querySelector('[data-hs-act="find-weapon"]').value);
-        if (w !== 'staff') fails.push('UI-3 [' + tag + '] the finder starts on "' + w + '", not this character’s staff');
-        await page.click(P + '[data-hs-act="find"]');
-        await wait(page, () => document.querySelector('.hw-found-row'), null, 3000);
-        const fin = sent(s, 'hr_hunt_party_finder');
-        if (fin.length !== 1 || fin[0].body.p_weapon !== 'staff' || fin[0].body.p_hunt !== null) fails.push('UI-3 [' + tag + '] the finder sent ' + JSON.stringify(fin.map((c) => c.body)));
-        await shot('party-finder');
-        await page.click('.hw-found-row [data-hs-act="join"]');
-        await page.waitForTimeout(700);
-        const j = sent(s, 'hr_hunt_party_join');
-        if (j.length !== 1 || j[0].body.p_party !== 'dddddddd-0000-4000-8000-000000000004' || j[0].body.p_slot !== 1) fails.push('UI-3 [' + tag + '] Join sent ' + JSON.stringify(j.map((c) => c.body)));
         /* A member (not the leader) cannot start: its Enter stays off, the leader picks the ground. */
         s.env[1].party = Object.assign(clone(s.env[0].party), { self_seat: 1, leader_seat: 0 });
         await pushEnvelope(page, s, 1);
@@ -1503,7 +1474,7 @@ async function pageRules(overrides, shots) {
         } else fails.push('UI-3 [' + tag + '] H did not open the Hunts window for character 1');
         /* UI-9 (Tyler live v0.2.53, "the party screen is not working"): IN TOWN, in a party of two, the Party window
            opens on Your party: both seats by name with the leader's crown, the member's next step, and a Leave party
-           that is ONE hr_hunt_party_leave for this slot, off from the press. The finder's weapon words read plainly. */
+           that is ONE hr_hunt_party_leave for this slot, off from the press. */
         s.env[1].party.members.forEach((m) => { m.hunting = false; });
         await pushEnvelope(page, s, 1);
         if (await openWin(page, 'y', 'hunt-party')) {
@@ -1514,13 +1485,12 @@ async function pageRules(overrides, shots) {
               lead: !li.querySelector('.hw-seat-lead').hidden, where: li.querySelector('.hw-seat-state').textContent, shown: li.getBoundingClientRect().height > 0 }));
             const leave = document.querySelector(q + '[data-hs-act="leave"]');
             const lr = leave && leave.getBoundingClientRect();
-            const opts = Array.from(document.querySelectorAll(q + '[data-hs-act="find-weapon"] option')).map((o) => o.textContent);
             const pick = document.querySelector(q + '[data-hs-act="party-hunts"]');
             const klass = document.querySelector(q + '.hw-party-class');
             return { tab: sel && sel.getAttribute('data-tab'), seats, next: document.querySelector(q + '.hw-party-next').textContent,
               classLine: klass && !klass.hidden && klass.getBoundingClientRect().height > 0 ? klass.textContent : null,
               memberPicks: !!pick && pick.getBoundingClientRect().width > 0,
-              leave: !!leave && !leave.hidden && !leave.disabled && lr.width > 0 && leave.textContent === 'Leave party', opts };
+              leave: !!leave && !leave.hidden && !leave.disabled && lr.width > 0 && leave.textContent === 'Leave party' };
           }, P);
           const names = v.seats.map((x) => x.name + (x.lead ? '*' : '') + ':' + x.where).join('|');
           if (v.tab !== 'party' || names !== 'Tyler*:In town|Mira (you):In town' || !v.seats.every((x) => x.shown) || !v.leave || v.memberPicks
@@ -1532,8 +1502,6 @@ async function pageRules(overrides, shots) {
             const said = 'Classes: 2 of 4. Level XP each: ' + (vs === 0 ? 'about the same as solo in The Sewer' : 'about ' + (vs > 0 ? '+' : '-') + Math.abs(vs) + '% vs solo in The Sewer');
             if (v.classLine !== said) fails.push('UI-9 [' + tag + '] the class line reads ' + JSON.stringify(v.classLine) + ', the measured line is ' + JSON.stringify(said));
           }
-          if (!v.opts.includes('Needs a shield') || !v.opts.includes('Needs a sword (Melee)') || v.opts.some((o) => o.includes('((') || /^No /.test(o)))
-            fails.push('UI-9 [' + tag + '] the finder’s weapon words read ' + JSON.stringify(v.opts));
           await shot('party-town');
           const lv = sent(s, 'hr_hunt_party_leave').length;
           const off = await page.evaluate((q) => { const b = document.querySelector(q + '[data-hs-act="leave"]'); b.click(); return b.disabled; }, P);
@@ -1652,10 +1620,9 @@ const PURE_MUTANTS = [
   ['not ready names nobody', 'src/shell/intent-words.js', "    return 'Nobody went in. ' + listWords(why, Infinity) + '.';", "    return 'Not everyone in the party is ready.';"],
 ];
 const PAGE_MUTANTS = [
-  ['the finder tab has no way to invite (UI-17)', 'src/shell/windows/party.js', "cls(root.querySelector('.hw-invite-name'), 'is-on', true);", "cls(root.querySelector('.hw-invite-name'), 'is-on', tab !== 'find');"],
+  ['a hero in no party has no way to invite (UI-17)', 'src/shell/windows/party.js', "cls(root.querySelector('.hw-invite-name'), 'is-on', true);", "cls(root.querySelector('.hw-invite-name'), 'is-on', !!mine);"],
   ['an invitee already partied reads as the inviter (UI-18, audit F16)', 'src/shell/windows/party.js', "verb: 'party_invite', invitee: own || name }", "verb: 'party_invite' }"],
-  ['the finder tab never says how to invite (UI-17)', 'src/shell/windows/party.js', "text(root.querySelector('.hw-invite-how'), tab === 'find' ?", "text(root.querySelector('.hw-invite-how'), tab === 'nowhere' ?"],
-  ['a hero with no party reads that its party is private (UI-17)', 'src/styles/windows.css', '.hw-list-party[hidden], .hw-invite-how:empty { display: none; }', '.hw-invite-how:empty { display: none; }'],
+  ['the Party window grows a finder tab again (UI-8)', 'src/shell/windows/party.js', "const TABS = Object.freeze([['party', 'Party'], ['invites', 'Invites']]);", "const TABS = Object.freeze([['party', 'Party'], ['invites', 'Invites'], ['find', 'Find a party']]);"],
   ['the leader\'s Start walks a seat under the floor in with no word (UI-TRUTH)', 'src/shell/windows/hunts.js', 'if (low.under.length && sc.warned !== warnKey(hunt, low.under)) {', 'if (false) {'],
   ['a seat that sits down after the warning is never told (UI-TRUTH)', 'src/shell/windows/hunts.js', "const warnKey = (hunt, seats) => hunt + ':' + seats.map((s) => s.seat).join();", "const warnKey = (hunt) => hunt;"],
   ['the warning is said and the seat is never told (UI-TRUTH)', 'src/shell/windows/hunts.js', '() => warnPartyGround(ctx.account, cs, hunt)', '() => Promise.resolve({ ok: true })'],
@@ -1667,19 +1634,15 @@ const PAGE_MUTANTS = [
   ['the rare line hides its Share', 'src/shell/widgets/alerts.js', "prop(share, 'hidden', !cardFacts(a) || !a.share);", "prop(share, 'hidden', true);"],
   ['Share makes no card', 'src/shell/widgets/alerts.js', '    const r = await shareCard(ctx.doc, facts);', "    const r = { ok: false, error: 'card_failed' };"],
   ['the toast stays on while in flight', 'src/shell/widgets/alerts.js', "  ctx.alerts.mark(a.key, true, '');\n  renderAlerts.patch(el, ctx);\n", "  ctx.alerts.mark(a.key, true, '');\n"],
-  ['the listing switch stays on while in flight', 'src/shell/windows/party-finder.js', "  prop(sw.querySelector('button'), 'disabled', sc.pending);", "  prop(sw.querySelector('button'), 'disabled', false);"],
-  ['the leader has no listing switch', 'src/shell/windows/party-finder.js', "  prop(sw, 'hidden', !(mine && mine.isLeader));", "  prop(sw, 'hidden', true);"],
-  ['the Party window opens on the finder with an invite waiting', 'src/shell/windows/party.js', "  const tab = picked || (mine ? 'party' : inv.length ? 'invites' : 'find');", "  const tab = picked || (mine ? 'party' : 'find');"],
+  ['the Party window opens on no tab with an invite waiting', 'src/shell/windows/party.js', "  const tab = picked || (mine ? 'party' : 'invites');", "  const tab = picked || (mine ? 'party' : 'none');"],
   /* UI-9 (Tyler live v0.2.53): a party formed in town has a screen */
-  ['the Party window in a party opens on the finder', 'src/shell/windows/party.js', "  const tab = picked || (mine ? 'party' : inv.length ? 'invites' : 'find');", "  const tab = picked || (inv.length ? 'invites' : 'find');"],
+  ['the Party window in a party opens on Invites', 'src/shell/windows/party.js', "  const tab = picked || (mine ? 'party' : 'invites');", "  const tab = picked || 'invites';"],
   ['Your party lists no seats', 'src/shell/windows/party-roster.js', "  rows(root.querySelector('.hw-seats'), r.members, {", "  rows(root.querySelector('.hw-seats'), [], {"],
   ['Leave party stays on while in flight', 'src/shell/windows/party-roster.js', "for (const b of root.querySelectorAll('.hw-party-acts button')) prop(b, 'disabled', sc.pending);", "for (const b of root.querySelectorAll('.hw-party-acts button')) prop(b, 'disabled', false);"],
   ["a member is offered the leader's hunt pick", 'src/styles/windows.css', '.hw-party-acts [hidden] { display: none; }', ''],
   ['Your party has no Leave', 'src/shell/windows/party-roster.js', "  return leaveOrDisband(ctx, ctx.character, sc, repaint, action);", "  return false;"],
-  ['the finder says Melee (shield) in brackets', 'src/shell/windows/party-finder.js', "  return role.label.toLowerCase().includes(word) ? what : what + ' (' + role.label + ')';", "  return 'No ' + word + ' yet (' + role.label + ')';"],
   ['a tab press re-reads the character', 'src/app/boot.js', "    else if (what === 'show') goTo(slot, null);", "    else if (what === 'show') { goTo(slot, null); account.character(slot).load(); }"],
   ['the strip shows no badge', 'src/app/character-strip.js', "  text(badge, x.alerts ? String(x.alerts) : '');", "  text(badge, '');"],
-  ['the finder ignores this character’s weapon', 'src/shell/windows/party-finder.js', "  return mine && mine.weapon && WEAPON_ROLES[mine.weapon] ? mine.weapon : '';", "  return '';"],
   ['the party note ignores the picked ground', 'src/shell/hunt-list.js', '  const g = Object.values(HUNT_GROUNDS).find((r) => r.hunt === hunt);', "  const g = HUNT_GROUNDS.millrace_sewer; void hunt;"],
 ];
 

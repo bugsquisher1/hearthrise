@@ -21,6 +21,7 @@ export { createAlertCenter } from '../shell/alerts.js';
 export { mountMarketWatch } from '../shell/market-watch.js';
 export { mountTownCriers } from '../shell/town-criers.js';
 export { SocialSession } from '../social/social-session.js';
+export { arriveByLink } from '../social/friend-link.js';
 export { pointerCardOf } from '../session/tutorial-sections.js';
 export { coachFactsOf } from '../shell/launcher-coach.js';
 export { HERO_READERS } from '../net/hero-readers.js';

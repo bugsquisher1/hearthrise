@@ -144,6 +144,8 @@
 //   LV-R  RECONCILE: a prediction forced off the server's world is judged
 //         `diverged` at the next commit, and the reseed eases every unit onto its true
 //         tile with no frame moving a unit more than one tile.
+//   LV-HUD THE HUD BETWEEN SAVES (lane/c-settle-flush): the prediction's ledger of the viewer's Level XP between two saved points is
+//         what the save reaching the second credits, window for window, and it counts the kills the viewer stood in the world for.
 //   LV-CLASS PARTY LEVEL XP (Tyler 2026-10-31: better only with different classes): a mixed pair earns the table's
 //         factor and a same-class pair its own smaller cell, on the server's commits (browser closed, one long settle) and
 //         viewed (the prediction's own `xp` events), the same XP on every path; every commit matches. The swing the
@@ -583,6 +585,23 @@ function rules(M) {
     ok('LV-U', viewedXp.join() === closedXp.join(), 'viewed the server paid ' + viewedXp + ', with the browser closed ' + closedXp);
     ok('LV-U', shownXp.join() === closedXp.join(), 'the prediction shows ' + shownXp + ', the server pays ' + closedXp);
     ok('LV-U', aheadXp.join() === nextXp.join(), 'the prediction past the last commit shows ' + aheadXp + ', the next commit pays ' + nextXp);
+  }
+
+  { // LV-HUD: THE HUD BETWEEN SAVES (lane/c-settle-flush; src/hunt-view/hud-ledger.js, src/shell/hud-predict.js): what the prediction says the
+    // viewer gained between two saved points is, Level XP for Level XP, what the save that reaches the second one credits; and it counts the kills.
+    const mis = [memberOf(M, 'a', 0, 'melee_dps', 12), memberOf(M, 'b', 1, 'tank', 14)];
+    for (const mi of mis) mi.huntId = 'mosslight_glade';
+    const pairs = [];
+    let prev = T0, prevXp = mis[0].levelXp, kills = 0;
+    run(M, mis, 240000, { server: { hunt: 'mosslight_glade', id: 'i-hud' }, commitMs: 30000, onCommit: ({ v, E, srv }) => {
+      const at = srv.inst.settled_to_ms;
+      const a = E.gainsSince(prev), b = E.gainsSince(at);
+      if (v === 'match' && a && b) { pairs.push([a.lx - b.lx, mis[0].levelXp - prevXp]); kills += Object.values(a.kills).reduce((x, y) => x + y, 0) - Object.values(b.kills).reduce((x, y) => x + y, 0); }
+      prev = at; prevXp = mis[0].levelXp;
+    } });
+    console.log('  LV-HUD the prediction between saves / the save credited: ' + pairs.map((p) => p.join('/')).join(', ') + '; ' + kills + ' kills');
+    ok('LV-HUD', pairs.length >= 4 && pairs.every(([p, s]) => p === s) && pairs.some(([p]) => p > 0), 'the prediction between saves and what the save credits: ' + JSON.stringify(pairs));
+    ok('LV-HUD', kills > 0, 'the ledger counted no kill the viewer stood in the world for');
   }
 
   { // LV-TIER: A HARDER HUNT, WATCHED (hunt-tiers.js; CLAUDE.md §6): the browser runs the same core on the frozen tier the leader's peer hero carries: every commit matches, and it's a harder fight than today's pull on the same dice.
@@ -2164,6 +2183,9 @@ const sorted = (o) => Object.fromEntries(Object.entries(o).sort());
 
 const MUTANTS = [
   ['a party-only spell casts alone (LV-TANK)', 'src/core/hunt/abilities.js', "    && (!solo || !partyOnly(ABILITIES[r.slot.action.id], hero.role))\n", '', /^LV-TANK: a tank alone: browser closed/],
+  /* LV-HUD (lane/c-settle-flush): the HUD's ledger, each half planted away */
+  ['the HUD ledger never counts the viewer\'s Level XP (LV-HUD)', 'src/hunt-view/hud-ledger.js', "lx: me && typeof me.levelGained === 'function' ? Math.floor(me.levelGained()) : last.lx", 'lx: last.lx', /^LV-HUD: the prediction between saves/],
+  ['the HUD ledger counts no kill (LV-HUD)', 'src/hunt-view/hud-ledger.js', "      const row = ev.type === 'kill' && sim.units ? sim.units[ev.t] : null;", "      const row = null;", /^LV-HUD: the ledger counted no kill/],
   ['a party shell reaches nobody but its caster (LV-TANK)', 'src/core/hunt/abilities.js', "        if (!(a === u || dist2(a, u) <= row.radius * row.radius)) continue;\n", "        if (a !== u) continue;\n", /^LV-TANK: a tank beside a partner: browser closed: \d+ Shelters shelled/],
   ['the browser drops the live event windows (LV-EVENT)', 'src/hunt-view/live-engine.js', 'xpMultOf: lx ? xpMultFor(sides, (sd) => lx[String(sd.mi.key)]) : null,', 'xpMultOf: null,', /^LV-EVENT: \d+ of the server's/],
   ['a kill reads its dial with no time (LV-EVENT)', 'src/core/hunt/xp-share.js', 'const m = f ? f(hero, sc.atMs) : 1;', 'const m = f ? f(hero) : 1;', /^LV-EVENT: (\d+ xp event|the leader earned)/],

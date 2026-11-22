@@ -26,6 +26,7 @@
 //         supplies.storeGold += gold|0 for store lines (own costs nothing, AN-03)
 // A `status_tick` credits nothing: the tick's damage is the `dmg` event its
 // hurt() emits, so bleed is counted once, as physical (ST-05).
+//   rule_wait, and every event above   the hero's `report` (below, ./report.js)
 //
 // SUSTAIN (Balance Lab phase 2, docs/design/redesign/07-balance-lab.md 3.4: the
 // counters the Lab and the player's report read from one source). Counted only
@@ -55,10 +56,19 @@
 // was. Storing `sustain` for the player's report is a fourth analyzer section in
 // the settle's commit (hunt_session_tally): a database change, not made here.
 //
+// THE HUNT REPORT (GR-66, build plan FB-7; ./report.js): every hero's `report`,
+// counted always, is the lowest health it reached with the monster and blow,
+// its close calls under a quarter, and each bar rule's uses and waits. Unlike
+// every other field it is not a sum: `low` keeps the lowest reading, so the
+// fold (addTally, and the party over its heroes) is report.js addReport. The
+// settle stores it as the fourth analyzer section (hunt_session_tally.report,
+// supabase/migrations/1053-hunt-report.sql).
+//
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
 import { isHero } from './sides.js';
+import { emptyReport, reportEvent, addReport } from './report.js';
 
 /** An empty tally: every field the analyzer reads, at zero. */
 export function emptyTally() {
@@ -69,6 +79,7 @@ export function emptyTally() {
     taken: { total: 0, byMonster: {}, byElement: {} },
     healed: { total: 0, bySource: {} },
     sustain: { healIn: { food: 0, self: 0, ally: 0, regen: 0 }, takenBy: { swing: 0, spell: 0, status: 0 }, mana: { spent: 0, back: 0, waits: 0 }, waitsBy: {} },
+    report: emptyReport(),
   };
 }
 
@@ -79,14 +90,17 @@ const int = (v, what) => {
 };
 const bump = (o, k, n) => { o[k] = (o[k] || 0) + n; };
 
-/** Fold `delta` into `acc` (both tallies) and answer `acc`. Numbers add; maps add key by key. */
+/** Fold `delta` into `acc` (both tallies) and answer `acc`. Numbers add; maps add key by key; the `report` folds by its own rule
+    (report.js addReport: the lowest health, counts added). */
 export function addTally(acc, delta) {
   const fold = (a, d) => {
     for (const [k, v] of Object.entries(d)) {
       if (isMap(v)) { if (!isMap(a[k])) a[k] = {}; fold(a[k], v); } else a[k] = (a[k] || 0) + v;
     }
   };
-  fold(acc, delta);
+  const { report, ...rest } = delta;
+  fold(acc, rest);
+  if (report !== undefined) acc.report = addReport(acc.report, report);
   return acc;
 }
 
@@ -173,6 +187,7 @@ export function tallyEvents(events, roster = null) {
       default: break;
     }
     if (sus) sustainOf(ev, ids, heroOf);
+    reportEvent(ev, ids, kinds, (id, e) => heroOf(id, e).report);
   }
   if (sus && roster.hp) regenOf(roster.hp, ids, heroOf);
   const party = emptyTally();

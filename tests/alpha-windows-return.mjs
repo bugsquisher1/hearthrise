@@ -167,15 +167,16 @@ async function checks(overrides, shots, opts) {
         if (o.errors.length) fails.push('AW-105 console errors at ' + tag + ': ' + o.errors.join(' | ').slice(0, 300));
         await o.ctx.close();
       }
-      /* AW-105b BUILD YOUR PARTY LEADS THE SAME WAY (art review 2026-11-21 #2, FB-5): the Cellar outgrown on an account of ONE hero in four slots. The
-         window's one gold press is the foot's "Build your party", in view at 1280x720, opening the Characters screen (boot.js data-app); no Hunt again,
-         no "Hunt again off"; the party row's own press is not gold */
+      /* AW-105b RECRUIT YOUR PARTY LEADS THE SAME WAY (art review 2026-11-21 #2, FB-5; Tyler RD-Q6 a): the Cellar outgrown on an account of ONE hero
+         whose server section says the recruit press is ready. The window's one gold press is the foot's "Recruit your party", in view at 1280x720,
+         a link to All characters (where the press is); no Hunt again, no "Hunt again off"; the party row's own press is not gold */
       {
         const o = await open({ viewport: { width: 1280, height: 720 }, mutateEnv: home5, oneHero: true, residue: { coach: { read: ['bar_intro'] } } });
         if (!o.up) fails.push('AW-105b the page did not mount');
         else {
           o.s.env.hunt = Object.assign({}, o.s.env.hunt, { hunt_id: 'mill_cellar', ended: true, session: { end_reason: 'outgrown', ended_at: '2026-10-25T00:20:00Z', phase: 'ended' } });
           o.s.env.state = Object.assign({}, o.s.env.state, { active_kind: 'idle', active_id: null });
+          o.s.env.recruits = { ready: true, at: 5, level: 5, first: 0, slots: [1, 2, 3], sets: ['tank', 'healer', 'ranger'] };
           await pushEnvelope(o.page, o.s);
           await wait(o.page, () => document.querySelector('[data-hs-win="hunt-summary"] [data-step="party"]'), null, 4000);
           await o.page.waitForTimeout(300);
@@ -186,12 +187,12 @@ async function checks(overrides, shots, opts) {
             const shown = (b) => !b.hidden && b.getClientRects().length > 0;
             const gold = Array.from(w.querySelectorAll('button.is-primary')).filter(shown);
             const r = gold.length === 1 ? gold[0].getBoundingClientRect() : null;
-            return { gold: gold.map((b) => b.getAttribute('data-hs-act') + ':' + b.textContent + ':' + b.getAttribute('data-app')),
+            return { gold: gold.map((b) => b.getAttribute('data-hs-act') + ':' + b.textContent + ':' + b.getAttribute('data-hs-goto')),
               inView: !!r && r.top >= box.top && r.bottom <= Math.min(box.bottom, window.innerHeight) && r.right <= window.innerWidth,
               again: shown(w.querySelector('[data-hs-act="again"]')), msg: w.querySelector('.hh-intent-msg').textContent, row: !!w.querySelector('[data-step="party"]') };
           });
-          if (!lead || !lead.row || JSON.stringify(lead.gold) !== '["next-ground:Build your party:characters"]' || !lead.inView || lead.again || /Hunt again off/.test(lead.msg))
-            fails.push('AW-105b the outgrown card of a one-hero account leads with ' + JSON.stringify(lead) + ', want Build your party alone, in view, no Hunt again');
+          if (!lead || !lead.row || JSON.stringify(lead.gold) !== '["next-ground:Recruit your party:characters||"]' || !lead.inView || lead.again || /Hunt again off/.test(lead.msg))
+            fails.push('AW-105b the outgrown card of a one-hero account leads with ' + JSON.stringify(lead) + ', want Recruit your party alone, in view, no Hunt again');
         }
         await o.ctx.close();
       }
@@ -618,7 +619,7 @@ const MUTANTS = [
   ['AW-74 a seed the land cannot grow yet is sold with no word', 'src/shell/windows/shop.js', "  const tier = requiredPlotLevel(crop) > (field ? field.plotLevel : 1) ? requiredPlotLevel(crop) : 0;\n", '  const tier = 0;\n'],
   ['AW-72 a ring lands under the answer line', 'src/shell/widgets/bits.js', 'if (r.bottom > floor) { p.scrollTop += r.bottom - floor + 8; return true; }', 'if (r.bottom > b.bottom) { p.scrollTop += r.bottom - b.bottom + 8; return true; }'],
   ['AW-66 the summary\'s presses lie on a phone\'s numbers', 'src/styles/summary.css', '  .hsum-card.is-on { display: flex; flex-direction: column; }\n', ''],
-  ['AW-105b Build your party falls under the fold behind a greyed Hunt again (art review #2)', 'src/shell/windows/hunt-summary.js', "const way = town.primary === 'ground' || town.primary === 'party' ? town.steps.find((s) => s.id === town.primary) : null;", "const way = town.primary === 'ground' ? town.steps.find((s) => s.id === town.primary) : null;"],
+  ['AW-105b Recruit your party falls under the fold behind a greyed Hunt again (art review #2)', 'src/shell/windows/hunt-summary.js', "const way = town.primary === 'ground' || town.primary === 'party' ? town.steps.find((s) => s.id === town.primary) : null;", "const way = town.primary === 'ground' ? town.steps.find((s) => s.id === town.primary) : null;"],
   ['AW-71 the same card keeps its first number', 'src/shell/launcher-coach.js', '  else if (key) sameCardWords(have, html);\n', ''],
   ['AW-67 the stack on the fire is refused in words', 'src/shell/windows/inventory/grid.js', "(buryingOf(st.cs) === buryRecipeOf(cur) ? '' : buryBlock(st.cs, buryRecipeOf(cur)))", 'buryBlock(st.cs, buryRecipeOf(cur))'],
   ['AW-67 the card reads as a purse', 'src/data/text/heroes.js', "  bag_worth: 'Bag worth {gold}',", "  bag_worth: 'Bag {gold}',"],

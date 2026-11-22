@@ -1030,6 +1030,12 @@
    "group": "Progression",
    "formula": "P01",
    "what": "The Level XP every Level costs (LEVEL_CURVE first and every bracket's rise). A death costs a share of it",
+   "reach": {
+    "module": "src/core/xp.js",
+    "call": "charXpForLevel",
+    "args": [[30], [31], [120], [121], [400], [401]],
+    "steps": true
+   },
    "value": [
     210,
     199,

@@ -4,9 +4,9 @@
  "baseline": {
   "ref": "origin/baseline/overhaul-start",
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
-  "ruleCodeSameAsBaseline": true
+  "ruleCodeSameAsBaseline": false
  },
- "authored": "fc1eb27b4d12a152",
+ "authored": "ca323fd9d988162b",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -117,11 +117,11 @@
   }
  },
  "census": {
-  "bindings": 631,
-  "typed": 15597,
-  "files": 213,
+  "bindings": 642,
+  "typed": 15610,
+  "files": 215,
   "lever": 273,
-  "notLever": 358,
+  "notLever": 369,
   "unclaimed": 0
  },
  "problems": [],
@@ -1725,9 +1725,10 @@
      "tests/area-spells-server.mjs",
      "tests/hunt-floor-warning.mjs",
      "tests/hunt-sessions-settle.mjs",
-     "tests/mode-death.mjs"
+     "tests/mode-death.mjs",
+     "tests/rule-slots.mjs"
     ],
-    "mentionCount": 4,
+    "mentionCount": 5,
     "verdict": "asserted"
    },
    "perturb": {
@@ -1892,9 +1893,10 @@
    "tests": {
     "asserts": [],
     "mentions": [
-     "tests/arm-switches.mjs"
+     "tests/arm-switches.mjs",
+     "tests/balance-guard.mjs"
     ],
-    "mentionCount": 1,
+    "mentionCount": 2,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -3358,9 +3360,10 @@
     ],
     "mentions": [
      "tests/hunt-core/damage.mjs",
-     "tests/hunt-core/temper.mjs"
+     "tests/hunt-core/temper.mjs",
+     "tests/rule-slots.mjs"
     ],
-    "mentionCount": 2,
+    "mentionCount": 3,
     "verdict": "asserted"
    },
    "perturb": {
@@ -3419,9 +3422,10 @@
     "asserts": [],
     "mentions": [
      "tests/hunt-core/damage.mjs",
-     "tests/hunt-core/temper.mjs"
+     "tests/hunt-core/temper.mjs",
+     "tests/rule-slots.mjs"
     ],
-    "mentionCount": 2,
+    "mentionCount": 3,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -3482,9 +3486,10 @@
     "asserts": [],
     "mentions": [
      "tests/hunt-core/damage.mjs",
-     "tests/hunt-core/temper.mjs"
+     "tests/hunt-core/temper.mjs",
+     "tests/rule-slots.mjs"
     ],
-    "mentionCount": 2,
+    "mentionCount": 3,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -5214,7 +5219,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 105,
+    "mentionCount": 106,
     "verdict": "asserted"
    },
    "perturb": {
@@ -5442,11 +5447,11 @@
      "tests/hunt-core/monster-kinds.mjs",
      "tests/hunt-core/monster-spells.mjs",
      "tests/hunt-core/necrotic-storm.mjs",
+     "tests/hunt-core/side-seam.mjs",
      "tests/hunt-core/spell-rows.mjs",
-     "tests/hunt-live.mjs",
-     "tests/target-kind-db.mjs"
+     "tests/hunt-live.mjs"
     ],
-    "mentionCount": 8,
+    "mentionCount": 9,
     "verdict": "asserted"
    },
    "perturb": {
@@ -5599,7 +5604,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 105,
+    "mentionCount": 106,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -7076,7 +7081,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 105,
+    "mentionCount": 106,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -7146,7 +7151,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 105,
+    "mentionCount": 106,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -7267,7 +7272,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 105,
+    "mentionCount": 106,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -7386,7 +7391,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 105,
+    "mentionCount": 106,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7730,12 +7735,12 @@
      "tests/alpha-server.mjs",
      "tests/alpha-windows-hunts.mjs",
      "tests/alpha-windows-pure.mjs",
+     "tests/alpha-windows-return.mjs",
      "tests/area-spells-server.mjs",
      "tests/balance-grade.mjs",
-     "tests/boss-call-window.mjs",
-     "tests/boss-hall-db.mjs"
+     "tests/boss-call-window.mjs"
     ],
-    "mentionCount": 56,
+    "mentionCount": 58,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -9435,7 +9440,7 @@
    "sites": [
     {
      "file": "src/data/hunt-roles.js",
-     "line": 145,
+     "line": 149,
      "text": "export const CHALLENGE = Object.freeze({ radius: 6, holdMs: 8000, holderMinHpPm: 900 });",
      "binding": "CHALLENGE"
     },
@@ -9524,7 +9529,7 @@
     },
     {
      "file": "src/data/hunt-roles.js",
-     "line": 160,
+     "line": 164,
      "text": "export const KITE = Object.freeze({ searchRadius: 5, awayMin: 0.5, minGap: 2, shortPenalty: 3, noSightPenalty: 4 });",
      "binding": "KITE"
     }
@@ -9624,12 +9629,12 @@
      "tests/alpha-server.mjs",
      "tests/alpha-windows-hunts.mjs",
      "tests/alpha-windows-pure.mjs",
+     "tests/alpha-windows-return.mjs",
      "tests/area-spells-server.mjs",
      "tests/balance-grade.mjs",
-     "tests/boss-call-window.mjs",
-     "tests/boss-hall-db.mjs"
+     "tests/boss-call-window.mjs"
     ],
-    "mentionCount": 56,
+    "mentionCount": 58,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -10046,7 +10051,7 @@
    "sites": [
     {
      "file": "src/data/gold-sinks.js",
-     "line": 62,
+     "line": 63,
      "text": "export const SINK_RULES = Object.freeze({",
      "binding": "SINK_RULES"
     }
@@ -10076,11 +10081,10 @@
     ],
     "mentions": [
      "tests/hero-colors.mjs",
-     "tests/preset-names.mjs",
      "tests/setup-slots.mjs",
      "tests/town-shows.mjs"
     ],
-    "mentionCount": 4,
+    "mentionCount": 3,
     "verdict": "asserted"
    },
    "perturb": {
@@ -11582,6 +11586,18 @@
   {
    "at": "src/core/action-rules.js#*",
    "why": "hunt end checks in ms and the death share's unit (its number is level.death-loss)"
+  },
+  {
+   "at": "src/core/upgrade-pick.js#EPS",
+   "why": "float epsilon of the better-piece compare (lane/c-company, D-2)"
+  },
+  {
+   "at": "src/core/upgrade-pick.js#resistsLost",
+   "why": "a permille to whole percent points conversion (/10) of the engine's capped resist profile, for the \"Needs you\" words"
+  },
+  {
+   "at": "src/core/upgrade-pick.js#companyWearLines",
+   "why": "a size cap on one press's wear list (at most 48 lines): a request bound, not a balance number"
   },
   {
    "at": "src/core/ammo.js#honeWornAt",
@@ -13247,6 +13263,7 @@
     "blockedRepathMs",
     "corpseMs",
     "diagonal",
+    "explainWindowMs",
     "followRepathMs",
     "liveSeeds",
     "oocRegenPermillePerS",
@@ -13257,7 +13274,7 @@
     "trailLen",
     "worldMaxBytes"
    ],
-   "typed": 13,
+   "typed": 14,
    "bindings": 1
   },
   "src/data/core-model.js#FLAME_REGEN": {
@@ -13996,7 +14013,6 @@
    "pin": "count",
    "keys": [
     "bookS",
-    "free",
     "gapS",
     "maxLetters",
     "minLevel",
@@ -14007,7 +14023,7 @@
     "prices",
     "seconds"
    ],
-   "typed": 35,
+   "typed": 32,
    "bindings": 1
   },
   "src/data/shops.js#HERO_SLOTS": {

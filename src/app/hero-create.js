@@ -8,9 +8,9 @@
 // for the player, the Club marked "Good first hero"; Enter town waits for a pick.
 // No class is locked: every hero owns every practice weapon and the one in hand
 // sets how it fights.
-// HEROES TWO TO FOUR COME PRE-FILLED (companyOf): once the account has a hero,
-// the step offers every empty slot at once, as a shield, a healer and a bow
-// (COMPANY_PICKS), with the first hero's colors to copy, and one press makes them.
+// ONE HERO FIRST (Tyler RD-Q6 a, 2026-11-22): this step makes the account's first
+// hero. Heroes two to four are recruited in one press at Level 5, in the game
+// (src/shell/windows/recruits-pane.js, 1053-recruits.sql), never made here.
 //
 // The step is a form over the characters card. Nothing it holds is authority:
 // Confirm sends ONE intent a hero (AccountSession.create → hr_create_hero) with
@@ -23,9 +23,8 @@
 // the prefix, and the step's .hc-body laid every chat line out (2026-10-24).
 // ════════════════════════════════════════════════════════════════════════
 
-import { HOW_YOU_FIGHT, HOW_YOU_FIGHT_LEAD, STARTER_PICKS, COMPANY_PICKS } from '../data/how-to-play.js';
+import { HOW_YOU_FIGHT, HOW_YOU_FIGHT_LEAD, STARTER_PICKS } from '../data/how-to-play.js';
 import { STARTER_SETS } from '../data/start-kit.js';
-import { HERO_SLOTS } from '../data/shops.js';
 import { escapeHtml as esc } from '../utils/dom.js';
 import { sepHtml } from '../render/format.js';
 import { BASE_REGIONS, BASE_DEFAULT_COLORS, DYE_COUNT, REGION_LABEL, HERO_DYES_SHOWN, OUTFIT_ROWS } from '../data/outfits.js';
@@ -97,27 +96,6 @@ export function howYouFightHtml(picked = null) {
     + '<p class="hero-how-more" hidden>' + t('heroes.create_more') + '</p></section>';
 }
 
-/**
- * The pre-filled party for heroes two to four (chapter 08 section 2.1), or null: the account has no hero yet (the first is made alone),
- * or `slot` is not empty. `slots`: `slot` first, then every other empty slot, at most COMPANY_PICKS.length; `copyFrom`: the first hero's
- * name and base colors, for "Same colors as". At most every slot but the first hero's (shops.js HERO_SLOTS). Pure: the roster is the
- * server's (AccountSession.roster).
- */
-export function companyOf(roster, slot) {
-  const rows = Array.isArray(roster) ? roster : [];
-  const first = rows.find((r) => r && r.exists);
-  const empty = rows.filter((r) => r && !r.exists && !r.unnamed).map((r) => r.slot);
-  if (!first || !empty.includes(slot)) return null;
-  const base = first.look && first.look.base && typeof first.look.base === 'object' ? first.look.base : null;
-  return { slots: [slot, ...empty.filter((x) => x !== slot)].slice(0, Math.min(COMPANY_PICKS.length, HERO_SLOTS.count - 1)), copyFrom: { name: first.name || '', base } };
-}
-
-/** The party's healer line: how many of `sets` heal (one, as pre-filled, or none). Pure. */
-export function healerWords(sets) {
-  const heals = sets.filter((set) => (styleOf(set) || {}).role === 'healer').length;
-  return heals ? t('heroes.company_healer_one') : t('heroes.company_healer_none');
-}
-
 /* While words wait below the step's fold, its cue says so: a phone's scrollbar shows only during a swipe (phone panel v0.2.83: "nothing shows that it scrolls"). Returns the detach. */
 function watchHowMore(card) {
   const body = card.querySelector('.hero-body'), more = body && body.querySelector('.hero-how-more');
@@ -159,26 +137,13 @@ function previewer(card, colors, colorOf, pickedOf) {
  * Render the creation step into `card` (the characters card).
  * @param card  the .auth-card element
  * @param o  the step's hooks: slot; colorOf (token) -> '#rrggbb'; create (name, colors, key, set, slot?) -> Promise of ok, reason, nameReason;
- *            done () (the hero exists: play it); back () (return to the characters); dyes (the strips and preview: outfits.js HERO_DYES_SHOWN);
- *            company (companyOf: heroes two to four pre-filled, made with one press; null: one hero, picked from nothing)
+ *            done () (the hero exists: play it); back () (return to the characters); dyes (the strips and preview: outfits.js HERO_DYES_SHOWN)
  * @returns an object with colors () (the picked indices) and destroy ()
  */
 export function renderHeroCreate(card, o) {
-  if (!o.company) return renderOne(card, o);
-  /* "One at a time": the party's first slot as a step of its own, its pick and the copy press carried over */
-  let inner = renderCompany(card, o, (picked) => {
-    inner.destroy();
-    inner = renderOne(card, Object.assign({}, o, { company: null, picked, copyFrom: o.company.copyFrom }));
-  });
-  return { colors: () => inner.colors(), destroy: () => inner.destroy() };
-}
-
-/* ONE HERO: a name, a way to fight (none picked for the first hero), the colors. `o.picked`: a way already chosen (heroes two to four);
-   `o.copyFrom`: { name, base } of the first hero, offered as one press. */
-function renderOne(card, o) {
   const colors = Object.assign({}, BASE_DEFAULT_COLORS);
-  let picked = typeof o.picked === 'string' && STARTER_SETS[o.picked] ? o.picked : null;
-  const copy = o.copyFrom && o.copyFrom.base ? o.copyFrom : null;
+  /* the first choice a player makes is theirs: no way is picked for them */
+  let picked = null;
   const dyes = o.dyes === undefined ? HERO_DYES_SHOWN : o.dyes === true;
   const swatches = (g) => {
     let h = '';
@@ -197,7 +162,6 @@ function renderOne(card, o) {
       + '<p class="hero-note">' + startWords(picked) + '</p></div>' : '')
     + '<div class="hero-form">'
     + '<label class="auth-field">' + t('heroes.create_name') + '<input type="text" class="hero-name" maxlength="20" autocomplete="off" spellcheck="false" placeholder="' + t('heroes.create_name_hint') + '"></label>'
-    + (dyes && copy ? '<button type="button" class="hh-tool hero-copy" aria-pressed="false">' + esc(t('heroes.company_copy', { name: copy.name })) + '</button>' : '')
     + (dyes ? '<div class="hero-colors">' + BASE_REGIONS.map((g) => '<fieldset class="hero-region"><legend>' + REGION_LABEL[g] + '</legend><div class="hero-dyes">' + swatches(g) + '</div></fieldset>').join('') + '</div>' : '')
     + '</div>' + howYouFightHtml(picked) + '</div>'
     + '<p class="auth-message" role="status" aria-live="polite"></p>'
@@ -269,12 +233,6 @@ function renderOne(card, o) {
       repaint();
       return;
     }
-    if (e.target.closest('.hero-copy') && copy) {
-      for (const g of BASE_REGIONS) if (Number.isInteger(copy.base[g])) colors[g] = copy.base[g];
-      e.target.closest('.hero-copy').setAttribute('aria-pressed', 'true');
-      paintColors();
-      return;
-    }
     const pick = e.target.closest('.hero-pick');
     if (pick) {
       const on = card.classList.toggle('is-picking');
@@ -294,90 +252,5 @@ function renderOne(card, o) {
     colors: () => Object.assign({}, colors),
     picked: () => picked,
     destroy() { gone = true; unwatchHow(); card.removeEventListener('click', onClick); card.removeEventListener('keydown', onKey); },
-  };
-}
-
-/* HEROES TWO TO FOUR, PRE-FILLED (chapter 08 section 2.1): every empty slot at once as a shield, a healer and a bow, each pick changeable,
-   the first hero's colors copied unless unticked, the healer line kept true as the picks change, and ONE press that makes them in order,
-   one intent a hero. A refused name stops there with its reason; the heroes made stay made and are never asked for again. */
-function renderCompany(card, o, alone) {
-  const c = o.company;
-  const sets = c.slots.map((_, i) => COMPANY_PICKS[i] || COMPANY_PICKS[0]);
-  const made = c.slots.map(() => false);
-  const tried = c.slots.map(() => null);
-  const options = (sel) => STARTER_PICKS.map((r) => '<option value="' + r.set + '"' + (r.set === sel ? ' selected' : '') + '>' + esc(r.name) + '</option>').join('');
-  card.innerHTML = '<h1 class="auth-title">' + t('heroes.company_title') + '</h1>'
-    + '<p class="auth-lead">' + t('heroes.company_lead') + '</p>'
-    + '<ol class="hero-party">' + c.slots.map((slot, i) => '<li class="hero-member" data-member="' + i + '">'
-      + '<input type="text" class="hero-name" data-member="' + i + '" maxlength="20" autocomplete="off" spellcheck="false" aria-label="' + t('heroes.create_name') + '" placeholder="' + t('heroes.create_name_hint') + '">'
-      + '<select class="hh-select hero-member-way" data-member="' + i + '" aria-label="' + t('heroes.create_pick') + '">' + options(sets[i]) + '</select></li>').join('') + '</ol>'
-    + '<p class="hero-party-healer">' + healerWords(sets) + '</p>'
-    + (c.copyFrom.base ? '<label class="hero-party-copy"><input type="checkbox" class="hero-copy-on" checked> ' + esc(t('heroes.company_copy', { name: c.copyFrom.name })) + '</label>' : '')
-    + '<p class="auth-message" role="status" aria-live="polite"></p>'
-    + '<div class="auth-foot"><button type="button" class="auth-link hero-back">' + t('controls.back') + '</button>'
-    + '<button type="button" class="auth-link hero-alone">' + t('heroes.company_one') + '</button>'
-    + '<button type="button" class="hh-tool is-primary auth-submit is-go hero-confirm">' + t('heroes.company_go', { count: c.slots.length }) + '</button></div>';
-  const msg = card.querySelector('.auth-message');
-  const confirm = card.querySelector('.hero-confirm');
-  const nameOf = (i) => card.querySelector('.hero-name[data-member="' + i + '"]');
-  let busy = false;
-  let gone = false;
-  const pressWords = confirm.textContent;
-  const colorsNow = () => {
-    const on = card.querySelector('.hero-copy-on');
-    return Object.assign({}, BASE_DEFAULT_COLORS, on && on.checked && c.copyFrom.base ? c.copyFrom.base : {});
-  };
-  async function submit() {
-    if (busy || gone) return;
-    msg.textContent = '';
-    for (let i = 0; i < c.slots.length; i++) {
-      if (made[i]) continue;
-      const name = nameOf(i).value.trim().replace(/\s+/g, ' ');
-      if (name.length < 3) { msg.textContent = t(NAME_REASON.short); nameOf(i).focus(); return; }
-    }
-    busy = true; confirm.disabled = true; confirm.textContent = t('heroes.creating');
-    for (let i = 0; i < c.slots.length; i++) {
-      if (made[i]) continue;
-      const name = nameOf(i).value.trim().replace(/\s+/g, ' ');
-      if (!tried[i] || tried[i].name !== name || tried[i].set !== sets[i]) tried[i] = { name, set: sets[i], key: globalThis.crypto.randomUUID() };
-      const r = await o.create(name, colorsNow(), tried[i].key, sets[i], c.slots[i]);
-      if (gone) return;
-      if (r && (r.ok || r.reason === 'already_created')) {
-        made[i] = true;
-        nameOf(i).disabled = true;
-        card.querySelector('.hero-member-way[data-member="' + i + '"]').disabled = true;
-        continue;
-      }
-      if (r && r.answered) tried[i] = null;
-      busy = false; confirm.disabled = false; confirm.textContent = pressWords;
-      msg.textContent = refusalText(r);
-      nameOf(i).focus();
-      return;
-    }
-    confirm.textContent = t('heroes.entering');
-    let went;
-    try { went = await o.done(); } catch (e) { went = false; }
-    if (gone || went !== false) return;
-    busy = false; confirm.disabled = false; confirm.textContent = pressWords;
-    msg.textContent = t('heroes.enter_failed');
-  }
-  const onChange = (e) => {
-    const sel = e.target.closest && e.target.closest('.hero-member-way');
-    if (!sel) return;
-    const i = Number(sel.getAttribute('data-member'));
-    if (STARTER_SETS[sel.value] && Number.isInteger(i)) sets[i] = sel.value;
-    card.querySelector('.hero-party-healer').textContent = healerWords(sets);
-  };
-  const onClick = (e) => {
-    if (e.target.closest('.hero-confirm')) submit();
-    else if (e.target.closest('.hero-back')) o.back();
-    else if (e.target.closest('.hero-alone') && !busy && !made.some(Boolean)) alone(sets[0]);
-  };
-  card.addEventListener('change', onChange);
-  card.addEventListener('click', onClick);
-  focusOffTouch(nameOf(0));
-  return {
-    colors: () => colorsNow(),
-    destroy() { gone = true; card.removeEventListener('change', onChange); card.removeEventListener('click', onClick); },
   };
 }

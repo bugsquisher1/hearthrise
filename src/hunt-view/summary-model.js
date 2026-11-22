@@ -293,8 +293,9 @@ export function trainedIn(s, an) {
  * @param {object|null} [stop]  the `training` section's last stop (training-sections.js), for a training session's card
  * @param {{lvFrom: number|null, lvTo: number|null, ups: [string, number, number][], standing?: [string, number][]}|null} [line]  levelLine's
  *   (and standingLine's `standing`), for a hunt's card
+ * @param {object|null} [report]  the hunt report's facts (./hunt-report.js reportFacts), from the server's counters, or null
  */
-export function buildSummary(s, an, deaths, role, stop, line) {
+export function buildSummary(s, an, deaths, role, stop, line, report) {
   const train = trainingCard(s, stop || null);
   /* a training session pays no kill, Level XP, coin or loot and spends no supply: its card is the skill, never a row of zeros */
   if (train) {
@@ -333,6 +334,7 @@ export function buildSummary(s, an, deaths, role, stop, line) {
     preset: s.preset, hoursLimit: s.hoursLimit, bag: s.bag, deaths,
     loss: lossLine({ hunt: s.hunt, reason: s.reason, fight: s.fight || null, role: role || null }),
     series: seriesLine(s.call || null),
+    report: report || null,
   });
 }
 

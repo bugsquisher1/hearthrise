@@ -93,6 +93,7 @@ import { ARTISAN_RECIPES } from './recipes.js';
 import { ROLE_DEFAULTS, ACTION_SET_LIMITS } from './rule-subjects.js';
 import { START_EQUIPMENT, START_BAR } from './start-kit.js';
 import { HEARTH_FUELS } from './hearth.js';
+import { RECRUITS } from './recruits.js';
 import { BAR_TEXT } from './text/bar.js';
 import { t } from './player-text.js';
 
@@ -167,8 +168,6 @@ const BROOK = t('coach.brook', RATS_WORDS);
 /* A second hero skips the knowledge cards once another hero on the account is past this Level (the designer's rule:
    it has lived through the first hour; the cards that set THIS hero's own state still show). */
 export const KNOWN_LEVEL = 5;
-/* How long into a hunt past the Cellar the "more than one hero" card waits (the designer's 5 minutes). */
-const MORE_HEROES_MS = 5 * 60000;
 /* "Taking a beating?" comes once the hero has eaten this many times in one hunt, at this many meals an hour or more: a
    count alone called 35 meals in 8.5 h a beating (panel 2026-11-01, about 4 an hour at full health). Measured: a practice-set
    tank eats 35-50 an hour at the Thicket's floor, 170-250 in the Glade under its floor, and 0-5 in armor in band. */
@@ -309,13 +308,15 @@ export const HUNT_TUTORIAL = Object.freeze([
     'Set the stance on your bar to Defensive',
     'hud_vitals', { kind: 'any', of: [READ, { kind: 'stance_changed' }] },
     { reactive: true, knowledge: true, gotIt: true, when: [HUNTING, FRESH, { kind: 'eating_fast', n: BEATING_EATS, perHour: BEATING_PER_HOUR }], hooks: ['[data-coach-hook="stance"]'] }),
-  step('more_heroes', 'More than one hero',
-    t('coach.more_heroes'),
+  /* THE RECRUITS (Tyler RD-Q6 a, 2026-11-22; 1053-recruits.sql): one hero first; when the server says its recruit press is ready (Level 5, the
+     `recruits` section), this card points at it: All characters, then its one press. Done when the account holds a second hero. */
+  step('more_heroes', 'Your recruits are ready',
+    t('coach.more_heroes', { count: RECRUITS.count }),
     /* A card that asks never walls: played 2026-11-01, a hero who wants one hero sat on this card in every hunt past 5 minutes, ahead of the Thicket's lessons. */
     'characters', orGotIt({ kind: 'heroes', atLeast: 2 }),
-    { reactive: true, knowledge: true, gotIt: true, when: [{ kind: 'hunt_age', min: MORE_HEROES_MS, past: CELLAR }, { kind: 'one_hero' }],
-      /* the strip's Character list on a desktop; on a phone, whose strip shows only Heroes, Heroes and then its sheet's Character list (UI-10) */
-      hooks: ['.char-tool.is-all', '[data-hs-win="characters"] [data-app="characters"]', '.char-tool[data-app="characters"]', '.char-pick[data-app="create"]'] }),
+    { reactive: true, knowledge: true, gotIt: true, when: [{ kind: 'recruits_ready' }],
+      /* the strip's All characters (a phone's strip calls it Heroes, UI-10), then in that window its one press */
+      hooks: ['.char-tool.is-all', '[data-hs-act="recruit-go"]'] }),
   /* Gated on THIS hero's Level (the server's level_xp), not only on the account having a second hero in town: a
      reactive card here interrupts the chain, so a Level 2 hero beside an older one was asked to party before its own
      Cellar steps (played on live 10-28, Pellow beside Corliss). Past the Cellar stretch it fits. */
@@ -757,8 +758,9 @@ const FACTS = Object.freeze({
   /* the purse holds the price of the next hero slot the server offers; none on offer: never (unknown until the account's offer is read) */
   /* The purse is a real start on the next hero (the What next line's own share): at 400,000 gp for the second (Tyler 2026-11-20) that is 200,000 gp; the first house speaks until then (lane/c-slots-lower). */
   purse_saving_hero: (p, f) => (Number.isSafeInteger(f.gold) && Number.isInteger(f.slotsOwned) ? Number.isSafeInteger(f.slotCost) && f.slotCost > 0 && f.gold >= f.slotCost * SAVING_FROM : null),
+  /* the server's recruit press is ready (the `recruits` section, tutorial-sections.js recruitFact): no section reads as no press, never a guess */
+  recruits_ready: (p, f) => (f.recruits === undefined ? null : !!f.recruits && f.recruits.ready === true),
   /* more than one hero (the account's roster, from the shell) */
-  one_hero: (p, f) => known(heroesOn(f), (h) => h.length === 1 && Number.isInteger(f.slotsOwned) && f.slotsOwned > 1),
   heroes: (p, f) => known(heroesOn(f), (h) => h.length >= p.atLeast),
   own_hero_in_town: (p, f) => known(heroesOn(f), (h) => h.some((x) => x.slot !== f.self && x.open === true && x.hunting === false)),
   partied: (p, f) => f.inParty === true || f.partied === true,
@@ -1016,8 +1018,8 @@ const SAY = Object.freeze({
     if (isStore(s) && priceOf(f, s.id) === null) return null;
     return { text: isStore(s) ? t('coach.first_drink_store') : t('coach.first_drink_own', { item: name(s.id) }), barSlot: i };
   },
-  /* unstated until the shell says the roster, the slots owned and the play limit (never a card on a guess) */
-  more_heroes: (f) => (heroesOn(f) && Number.isInteger(f.slotsOwned) && Number.isInteger(f.playLimit) ? { text: t('coach.more_heroes') } : null),
+  /* unstated until the server's recruit press is ready (never a card on a guess): its count in the words */
+  more_heroes: (f) => (f.recruits && f.recruits.ready === true ? { text: t('coach.more_heroes', { count: f.recruits.count }) } : null),
   party_own: (f) => {
     const o = (heroesOn(f) || []).find((x) => x.slot !== f.self && x.open === true && x.hunting === false && x.name);
     return o ? { text: t('coach.party_own', { name: o.name }), other: o.slot } : null;
@@ -1178,10 +1180,11 @@ function emptySlot(f) {
   const heroes = Array.isArray(f.roster) ? f.roster.length : null;
   return heroes !== null && Number.isInteger(f.slotsOwned) && f.slotsOwned > heroes ? heroes : null;
 }
-/* The hero already paid for: the best thing an empty slot can do, doubling what the account earns for no gold. */
+/* THE RECRUITS (Tyler RD-Q6 a, 1053-recruits.sql): once the server's recruit press is ready, the rest of the company is the best thing on the
+   line, doubling what the account earns for no gold. An empty slot alone says nothing: a hero is never made there by hand. */
 function freeHeroLine(f) {
-  const heroes = emptySlot(f);
-  return heroes === null || !ORDINAL[heroes + 1] ? null : t('coach.goal_free_hero', { nth: ORDINAL[heroes + 1] });
+  const r = f.recruits;
+  return r && r.ready === true && Number.isInteger(r.count) && r.count > 0 ? t('coach.goal_recruits', { count: r.count }) : null;
 }
 /* The house's next deed the purse covers, its materials said. Gold's first job is the next hero (lane/c-gold-matters): a deed speaks when no hero is on offer, or the hero is too far off to save for. */
 function deedLine(f, offer) {
@@ -1260,7 +1263,7 @@ function madeWords(lv, first, role) {
  * WHAT NEXT IS ONE GOAL (played 2026-11-04, Level 17, about 41k: eight sentences, the Farm first, the third hero not named at all; blind 20-hour panel: "What next is a five-sentence paragraph"):
  * every goal that holds, in order of what is worth doing first, the first of them the card's words and the rest behind its More. The order: what is wrong now (no armor), a hero already paid for, a
  * hero the purse can pay, stamina the purse can buy, the next step up, a harvest, Tamsin's next hour, then what takes waiting: a deed, the saving, a party, the gear, the ground, the land, the skill.
- * Or null (nothing left to name). `facts`: { charLevel, role, skillLevel, defenseXp, land, inParty, gold, slotCost, slotsOwned, home, roster, visited, staminaMs, refill, tally } (skillLevel: the
+ * Or null (nothing left to name). `facts`: { charLevel, role, skillLevel, defenseXp, land, inParty, gold, slotCost, slotsOwned, home, roster, visited, staminaMs, refill, tally, recruits } (recruits: the server's recruit press, { ready, count, level } or null; skillLevel: the
  * role's skill's level, or null when unknown; defenseXp: the server's Defense XP, or null when unknown; land: the account's field, { planted: plots holding a crop, ready: { crop: ready plots } },
  * or null when the server has not sent it; inParty: the hero sits in a party of 2+; roster: the account's heroes; visited: a Set of the grounds this hero has hunted; refill: the server's next
  * stamina quote; tally: { held }; training: the running training session, { skill, level, hoursToNext } from the server's
@@ -1288,7 +1291,7 @@ export function nextGoal(facts) {
     ids.push('armour');
   }
   const free = freeHeroLine(facts);
-  if (free) { lines.push(free); ids.push('free_hero'); }
+  if (free) { lines.push(free); ids.push('recruits'); }
   const offer = heroOffer(facts);
   if (offer && offer.purse >= offer.slot) {
     lines.push(t('coach.goal_slot', { nth: offer.nth, gold: gp(offer.slot) }));

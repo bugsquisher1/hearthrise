@@ -46,12 +46,12 @@ Labels. CONFIRMED means read in the code at the baseline. MEASURED means a playe
 <!-- GENERATED:CENSUS (tools/balance-program/levers.mjs --write) -->
 | | Count |
 |---|---|
-| Top-level bindings in the rule code that hold a typed number | 631 (in 213 files, 15597 typed numbers) |
+| Top-level bindings in the rule code that hold a typed number | 642 (in 215 files, 15610 typed numbers) |
 | Claimed by a lever | 273 |
-| Claimed by a not-a-lever reason | 358 |
+| Claimed by a not-a-lever reason | 369 |
 | Unclaimed | 0 |
 | Exceptions, intentional and accidental | 16 and 11 |
-| Values read at | 861ae52e3 (origin/baseline/overhaul-start). Rule code and migrations the same as the baseline: yes |
+| Values read at | 861ae52e3 (origin/baseline/overhaul-start). Rule code and migrations the same as the baseline: NO |
 <!-- END GENERATED:CENSUS -->
 
 **Every typed number in the rule code is accounted for.** The census walks every top-level binding of `src/core`, `src/data` and `supabase/functions/hr-accrue`, functions and values alike. Each one that holds a typed number is claimed by a lever (the binding a lever's line sits in, or a table that holds a lever's rows) or by a written reason it is not a lever (a target, a validator's bounds, art, words, plumbing). None is unclaimed.

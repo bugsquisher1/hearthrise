@@ -89,12 +89,12 @@ export const SUMMARY_TEXT = Object.freeze({
   ground_up_words: '{band}, recommended for {levels}',
   /* ...and after a ground outgrown, the card's gold press (audit 2026-11-19 L2), on the summary's foot and the away card: it opens that ground in Hunts */
   go_ground: 'Go to {ground}',
-  /* A GROUND OUTGROWN WITH HEROES STILL TO MAKE (designer D-1, the Path's first_level_5): the line, its press, and the next ground as the second press.
-     {name} the hero, {ground} the ground outgrown, {n} the heroes still to make in words */
-  party_line: { one: '{name} has outgrown the {ground}. You have {n} more hero to make, and the Sewer wants a full party.',
-    other: '{name} has outgrown the {ground}. You have {n} more heroes to make, and the Sewer wants a full party.' },
-  party_title: { one: '{count} hero to make', other: '{count} heroes to make' },
-  party_go: 'Build your party',
+  /* A GROUND OUTGROWN WITH THE RECRUITS READY (designer D-1, the Path's first_level_5; Tyler RD-Q6 a): the line, its press, and the next ground as
+     the second press. {name} the hero, {ground} the ground outgrown, {count} the recruits, {level} the Level they arrive at */
+  party_line: { one: '{name} has outgrown the {ground}. {count} recruit is ready to join at Level {level}, and the Sewer wants a full party.',
+    other: '{name} has outgrown the {ground}. {count} recruits are ready to join at Level {level}, and the Sewer wants a full party.' },
+  party_title: { one: '{count} recruit ready', other: '{count} recruits ready' },
+  party_go: 'Recruit your party',
   alone_to: 'Go on alone to {ground}',
   /* The answers. */
   selling: 'Selling…',

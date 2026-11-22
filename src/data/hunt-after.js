@@ -101,7 +101,7 @@ export function validateRest(rows = REST_ENDINGS, def = REST_ENDING_DEFAULT, max
 }
 
 /* ── "NEEDS YOU" ON THE RETURN CARD (designer D-2 section 2.3) ─────────────────────────────────────────────────────────────────────
-   Eight kinds in a fixed order, ONE row a kind for the account (heroes merged into it), NEEDS_SHOWN shown by rank, "{n} more" under them.
+   Kinds in a fixed order (D-2's eight and the hunt report's two, each in its band), ONE row a kind for the account (heroes merged into it), NEEDS_SHOWN shown by rank, "{n} more" under them.
    A LINE PROVIDER (src/shell/needs-you/*.js) supplies the rows of one kind and nothing else: a new system adds a provider file and a row
    here, never an edit to the card. A new kind takes a BAND and goes last in it (a rank above an existing row is a designer call).
    What Carry on does is never a row; no row offers a refill, a Crown or a boost.
@@ -112,10 +112,15 @@ export const NEEDS_YOU = Object.freeze([
   Object.freeze({ kind: 'cannot_start', band: 'stops' }),
   Object.freeze({ kind: 'death', band: 'costs' }),
   Object.freeze({ kind: 'gear_choice', band: 'costs' }),
+  /* THE HUNT REPORT (GR-66, FB-7; rule 4: a new kind goes last in its band): a hero's last hunt read Near death and the hero lived
+     (src/shell/needs-you/near-death.js); then its cause line, once the server stores the sustain counters (no provider yet) */
+  Object.freeze({ kind: 'near_death', band: 'costs' }),
+  Object.freeze({ kind: 'fell_back', band: 'costs' }),
   Object.freeze({ kind: 'tier_offer', band: 'gains' }),
   Object.freeze({ kind: 'ground_opened', band: 'gains' }),
   Object.freeze({ kind: 'talent_points', band: 'gains' }),
   Object.freeze({ kind: 'can_build', band: 'gains' }),
+  Object.freeze({ kind: 'recruits', band: 'gains' }),   // 1053-recruits.sql
 ]);
 /** How many rows the card shows; the rest is one "{n} more" line. */
 export const NEEDS_SHOWN = 3;

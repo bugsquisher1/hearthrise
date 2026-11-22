@@ -3,9 +3,11 @@
 //
 //   boot → auth (src/net/auth.js over the one supabase-js client)
 //        → AccountSession (src/session/account-session.js): one per login
-//        → the characters screen: the account's four slots, read from the server (src/app/slot-offer.js: the line over them)
+//        → the characters screen: the account's heroes, read from the server (src/app/slot-offer.js: the line over them, and
+//          rowsShown: one hero first, so an empty slot shows only to an account with no hero; Tyler RD-Q6 a)
 //        → an empty (or unnamed) slot opens the creation step (src/app/hero-create.js): a name, a way to fight and four
-//          colours, ONE intent a hero; heroes two to four come pre-filled; a hero enters town on the server's yes
+//          colours, ONE intent; a hero enters town on the server's yes. The rest of the company is recruited in one press at
+//          Level 5, in the game (src/shell/windows/recruits-pane.js)
 //        → the game: the character strip (src/app/character-strip.js; up to the
 //          server's concurrent limit, each its own CharacterSession, and the
 //          account's heroes not open here, one Play press each), built
@@ -272,9 +274,10 @@ function startApp(win) {
     if (was && await play(was.viewed, was.slots)) return;
     if (a !== account || a.closedGame) return;
     const open = new Set(a.characters().map((c) => c.slot));
-    /* Each owned slot: its hero by name and Level (the server's), or an empty slot to create in; the whole
-       row is the press. Every account owns two (Tyler 10-17); the next one for sale is offered under the list. */
-    const rows = roster.map((r) => '<li class="char-row' + (r.exists ? '' : ' is-empty') + '">'
+    /* Each hero by name and Level (the server's); the whole row is the press. ONE HERO FIRST (Tyler RD-Q6 a): an empty slot shows only
+       while the account has no hero, and only its first; the rest of the company comes in one press at Level 5 (slot-offer.js rowsShown). */
+    const shown = G.rowsShown(roster);
+    const rows = shown.map((r) => '<li class="char-row' + (r.exists ? '' : ' is-empty') + '">'
       + '<button type="button" class="char-pick" ' + (r.exists ? 'data-app="play"' : 'data-app="create"') + ' data-slot="' + r.slot + '">'
       /* the hero's own figure (roster-faces.js draws it), an empty well for a slot with none (UI audit 2026-11-18) */
       + (r.exists ? '<canvas class="char-face" data-face="' + r.slot + '" width="42" height="45" aria-hidden="true"></canvas>' : '<span class="char-face" aria-hidden="true"></span>')
@@ -284,7 +287,7 @@ function startApp(win) {
       + '</button></li>').join('');
     /* the server's play-at-once limit, never a client fallback (board 2026-10-25 #8: an empty account read "One can play
        at a time." because the server had not said yet); unsaid, nothing is said */
-    const playLine = G.playLineOf(a.statedLimit(), a.limit(), roster);
+    const playLine = rosterSlots.length ? G.playLineOf(a.statedLimit(), a.limit(), shown) : '';
     root.querySelector('.auth-card').innerHTML = '<h1 class="auth-title">Characters</h1>'
       + '<p class="auth-lead">Signed in as ' + esc(auth.email() || 'you') + '.</p>' + (playLine ? '<p class="auth-lead">' + playLine + '</p>' : '')
       + '<ul class="char-list">' + (rows || '<li class="char-row">No server response, reload the page</li>') + '</ul>'
@@ -327,8 +330,6 @@ function startApp(win) {
         return play(slot, rosterSlots);
       },
       back: () => showCharacters(),
-      /* heroes two to four come pre-filled (chapter 08 section 2.1): every empty slot from this one, and the first hero's look to copy */
-      company: G.companyOf(roster, slot),
     });
   }
 

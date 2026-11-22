@@ -106,7 +106,7 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
-import { ROOT, bootReplay, inventory, CATEGORIES, manifest, QUERIES, chainFiles } from './schema-replay.mjs';
+import { ROOT, bootReplay, inventory, CATEGORIES, manifest, QUERIES, chainFiles, closeReplays } from './schema-replay.mjs';
 import { CHAIN_FILE } from '../tools/lib/apply-order.mjs';
 
 const BASELINE = join(ROOT, 'tests', 'schema-drift.baseline.json');
@@ -1469,6 +1469,10 @@ async function main() {
       console.log('    cutover step, re-measure with the SQL in the baseline\'s "how_to_remeasure".');
     }
   }
+  /* A GREEN RUN EXITS (lane/c-settle-flush, 2026-11-22): a replay restored whole from the snapshot keeps PGlite's itimer chain alive until
+     db.close() (schema-replay.mjs closeReplays), so a fully cached chain printed its verdict and never exited (six runs across lanes hung
+     for hours on one machine; a cold CI runner applies files and was spared). Every replay this run booted is closed here. */
+  await closeReplays();
 }
 
 main().catch((e) => {

@@ -1,6 +1,6 @@
 {
   "note": "Ceilings, not targets: per file and error kind, counts may only fall. Written by node tests/typecheck-ratchet.mjs --write, which refuses a rise. Regenerate, never hand-merge.",
-  "total": 328,
+  "total": 326,
   "files": {
     "src/app/boot.js": {"TS2367":1,"TS2554":5},
     "src/app/world-pane.js": {"TS2322":1},
@@ -24,7 +24,6 @@
     "src/core/member.js": {"TS2339":1},
     "src/core/progression.js": {"TS1005":5,"TS2304":4,"TS2322":1},
     "src/core/skill-sim.js": {"TS1005":2,"TS2304":2},
-    "src/core/vitals.js": {"TS1005":1,"TS2304":1},
     "src/data/catalogue-coherence.js": {"TS2339":6},
     "src/data/gear-tiers.js": {"TS2339":6},
     "src/data/hunt-roles.js": {"TS2339":6,"TS2345":1},

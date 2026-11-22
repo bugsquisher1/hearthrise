@@ -24,6 +24,7 @@ import { memberSide, sharePurses } from '../../../src/core/member.js';
    and the analyzer's tally of what each hero dealt, took and healed. */
 import { encode as encodeWorldRow, decodeStored as decodeWorldRow } from '../../../src/core/hunt/world-state.js';
 import { tallyEvents } from '../../../src/core/hunt/tally.js';
+import { reportProposal, barPlayedOf, gearWornOf } from '../../../src/core/hunt/report.js';
 import { BOSS_CALLS } from '../../../src/data/boss-calls.js';
 import { roomOf } from '../../../src/core/hunt/boss-room.js';
 /* THE WORLD BOUND (hunt_instances.world <= worldMaxBytes UTF-8 bytes): the engine
@@ -77,11 +78,18 @@ const utf8Bytes = (text) => new TextEncoder().encode(text).length;
 /* THE ANALYZER TALLY of one member's hero (src/core/hunt/tally.js): what it
    dealt, took and healed, by ability / element / monster. Display stats the
    database stores with the session; every VALUE number of the analyzer comes
-   from the ledger rows the settle journals, never from here. */
-function analyzerOf(sim, unitIds, unitId) {
+   from the ledger rows the settle journals, never from here.
+   THE HUNT REPORT (GR-66, FB-7; src/core/hunt/report.js): the window's lowest
+   health with its monster and blow, close calls, each bar rule's uses and
+   waits, the bar as played and the gear worn. The database folds it into
+   hunt_session_tally.report in the tally's one write (1053-hunt-report.sql). */
+function analyzerOf(sim, unitIds, unitId, side) {
   if (!Number.isInteger(unitId)) return null;
   const t = tallyEvents(sim.events, { heroes: unitIds, kinds: sim.kinds }).heroes[unitId];
-  return t ? { dealt: t.dealt, taken: t.taken, healed: t.healed } : null;
+  if (!t) return null;
+  const hero = side && side.member && side.member.hero;
+  return { dealt: t.dealt, taken: t.taken, healed: t.healed,
+    report: reportProposal(t.report, barPlayedOf(hero ? hero.slots : null), gearWornOf(side && side.mi ? side.mi.equipment : null, side ? side.catalogue : null)) };
 }
 
 /* THE RECORD OF A ROOM'S FIGHT, called or a keyed hall (Tyler 2026-11-05: a losing line naming the phase; hunt_session_tally.fight), display only: where the boss stood when this
@@ -157,7 +165,7 @@ export function accrueHunt(inp) {
     const hs = s.hs;
     if (hs.swingIndex === swingFrom.get(s.mi.key) && !hs.endedReason) continue;   // walked nothing: nothing to settle
     out.push({ key: s.mi.key, user: s.mi.user, slot: s.mi.slot, ...memberDelta(s, summary, fromMs, toMs, tickMs),
-      analyzer: analyzerOf(sim, unitIds, summary.unitIdEver) });
+      analyzer: analyzerOf(sim, unitIds, summary.unitIdEver, s) });
     if (inp.ground.call && Number.isInteger(summary.unitIdEver)) {
       const row = out[out.length - 1];
       row.analyzer = { ...(row.analyzer || {}), fight: fightOf(sim, summary.unitIdEver, BOSS_CALLS[inp.ground.call]) };

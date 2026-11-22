@@ -707,9 +707,9 @@ async function play(world, { account, viewport = { width: 1280, height: 720 }, t
       await page.screenshot({ path: file });
       return file;
     },
+    /* the account's first hero (one hero first, Tyler RD-Q6 a: the rest come in the recruit press at Level 5, in All characters) */
     async createHero(name, slot = 0, set = 'club') {
       await page.click('[data-app="create"][data-slot="' + slot + '"]');
-      if (await page.$('.hero-alone')) await page.click('.hero-alone');   // a later hero: the party step, one at a time (FB-5)
       await page.fill('.hero-name', name);
       await page.click('.hero-way[data-hero-set="' + set + '"]');   // the pick at creation (GR-24): nothing is picked for the player
       await page.click('.hero-confirm');

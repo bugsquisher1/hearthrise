@@ -52,6 +52,7 @@ import { climbEnd } from '../tower-words.js';
 import { climbCardHtml, patchClimbCard } from '../tower-end-card.js';
 import { targetOf, gotoKey } from '../goto.js';
 import { sideName, spanWords as standingWords } from '../faction-words.js';
+import { riskHtml, rulesHtml, patchReport } from '../hunt-report.js';
 
 /* Why Hunt again has nothing to send: a called room has one door, its paid press (src/data/boss-calls.js), a keyed hall its key on the ground's
    page (src/data/boss-halls.js), and an old hunt that kept no settings. */
@@ -144,6 +145,8 @@ export function renderHuntSummary() {
        figures, then why it ended (../result-block.js, the away card's block too) */
     + resultHtml() + '<p class="hsum-reason"></p><p class="hsum-series" hidden></p><p class="hsum-loss" hidden></p>'
     + climbCardHtml()
+    /* THE HUNT REPORT'S RISK BLOCK (GR-66, FB-7; ../hunt-report.js): how close it came, right under why it ended */
+    + riskHtml()
     /* TOP LOOT next (first-30 play 2026-11-12: the first gear drop sat under the sticky foot, out of sight) */
     + '<h4 class="hw-ledger-head hsum-h-loot">Top loot</h4><ul class="hsum-list hsum-loot"></ul>'
     /* BACK IN TOWN (UX flow audit 2026-11-11, flow C): the trip home as steps, each one press with its count and value (../back-in-town.js);
@@ -168,6 +171,8 @@ export function renderHuntSummary() {
     /* a full bag (the server's cap, hr_bag_expand_view) links to Storage's Expand */
     + '<button type="button" class="hh-tool" data-hs-act="expand" hidden>' + t('controls.expand_bag') + '</button></div>'
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div>'
+    /* ...and its rules block, with the details under the presses */
+    + rulesHtml()
     + '<h4 class="hw-ledger-head hsum-h-sup">Supplies used</h4><ul class="hsum-list hsum-sup"></ul>'
     + '<h4 class="hw-ledger-head hsum-h-deaths">What happened</h4><ul class="hsum-falls hsum-deaths"></ul>'
     + '</section>'
@@ -248,6 +253,8 @@ renderHuntSummary.patch = function patchHuntSummary(body, ctx) {
     text(root.querySelector('.hsum-loss'), cur.loss || '');
     prop(root.querySelector('.hsum-loss'), 'hidden', !cur.loss);
     patchResult(root.querySelector('.hres'), resultOf(cur));
+    /* the hunt report, and the hunt before this one on the same ground for its change line (the list runs newest first) */
+    patchReport(root, ctx.doc, cur, list.slice(list.indexOf(cur) + 1).find((x) => x.hunt === cur.hunt && x.report) || null);
     /* the details: each only when the server sent it, and none on a training card */
     for (const [k, , fmt] of STATS) {
       const dd = root.querySelector('[data-stat="' + k + '"]');
@@ -289,12 +296,12 @@ renderHuntSummary.patch = function patchHuntSummary(body, ctx) {
     cls(go, 'is-primary', town.primary === 'again');
     /* A GROUND OUTGROWN (audit 2026-11-19 L2, played at 1440x900: the window led with a greyed Hunt again and "Hunt again off: Ground
        outgrown", the Next ground row under the sticky foot): the foot's gold press is that ground, Show's own link, and Hunt again goes */
-    /* ...and so is Build your party (FB-5, art review 2026-11-21 #2): its press is the foot's, opening the Characters screen (boot.js data-app) */
+    /* ...and so is Recruit your party (FB-5, art review 2026-11-21 #2; Tyler RD-Q6 a): its press is the foot's, a link to All characters, where
+       the one recruit press is (../goto.js `recruits`) */
     const way = town.primary === 'ground' || town.primary === 'party' ? town.steps.find((s) => s.id === town.primary) : null;
     const toGround = root.querySelector('[data-hs-act="next-ground"]');
     text(toGround, way ? (way.id === 'party' ? way.verb : t('summary.go_ground', { ground: way.name })) : '');
-    attr(toGround, 'data-hs-goto', way && way.id === 'ground' ? gotoKey(targetOf(way.place)) : null);
-    attr(toGround, 'data-app', way && way.id === 'party' ? 'characters' : null);
+    attr(toGround, 'data-hs-goto', way ? gotoKey(targetOf(way.place)) : null);
     prop(toGround, 'hidden', !way);
     cls(toGround, 'is-primary', !!way);
     /* a phone's stacked sheet puts the foot above the steps then (summary.css), so the press is in view as it opens */
@@ -351,8 +358,6 @@ function patchTown(root, ctx, sc, town) {
       text(btn, s.verb);
       /* THE NEXT BUY's Show is a link (goto.js): it opens the window where the buy is made, on its row, and sends nothing */
       attr(btn, 'data-hs-goto', s.place ? gotoKey(targetOf(s.place)) : null);
-      /* ...and a hero slot's opens the Characters screen, where slots are bought (the app's own door, boot.js data-app="characters") */
-      attr(btn, 'data-app', s.place && s.place.kind === 'characters' ? 'characters' : null);
       /* ...never the next ground's Show: the foot carries that press (Go to <ground>), so the window keeps one gold press */
       cls(btn, 'is-primary', town.primary === s.id && s.id !== 'ground' && s.id !== 'party');
       const done = el.querySelector('.hsum-done');

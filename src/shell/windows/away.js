@@ -216,7 +216,7 @@ async function regearPress(ctx, body, slots) {
 }
 
 /* The window a Needs you press opens for another hero than the one on screen (the hero is shown first). */
-const NEEDS_OPENS = Object.freeze({ ground: 'hunts', bless: 'shop', prep: 'hunt-prep', bag: 'inventory' });
+const NEEDS_OPENS = Object.freeze({ ground: 'hunts', bless: 'shop', prep: 'hunt-prep', bag: 'inventory', recruits: 'characters' });
 
 /* Every away line is read: the card closing (OK, the close, Esc) or a press that leaves it. */
 function dismissAll(ctx) { for (const a of linesOf(ctx)) ctx.alerts.dismiss(a.key); }

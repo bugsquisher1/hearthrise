@@ -81,6 +81,8 @@ declare
     'hunt_session_events', 'hunt_session_tally', 'hunt_sessions', 'hunt_tick_lease',
     /* an open hunt session's held setup to its seed horizon (1005-lever-horizon.sql): goes with the sessions it holds for */
     'hunt_setup_holds',
+    /* an open hunt instance's held scale to its seed horizon (1053-lever-gates.sql): goes with the instances it holds for */
+    'hunt_scale_holds',
     'account_gold_given', 'player_titles', 'town_shows', 'town_works_gifts', 'town_works_totals',
     /* the Works' day's goals, sized from the accounts the wipe clears (1014-works-goal-sized.sql): the first read after re-sizes them */
     'hr_town_works_goals',
@@ -142,7 +144,7 @@ declare
     'hr_hunt_stances', 'hr_hunt_supplies', 'hr_hunt_target_modes', 'hr_hunt_travel', 'hr_hunt_vendor_value', 'hr_hunt_weapon_roles', 'hr_hunt_weapons',
     'hr_hunt_world_shape', 'hr_hunts', 'hr_item_buffs', 'hr_item_slots', 'hr_items', 'hr_ledger_config', 'hr_level_curve', 'hr_market_config',
     'hr_market_premium_items', 'hr_name_blocklist', 'hr_outfit_dyes', 'hr_outfits', 'hr_players_online_cache', 'hr_plot_tier', 'hr_premium_login_reward',
-    'hr_qm_offers', 'hr_room_perks', 'hr_runes', 'hr_server_secrets', 'hr_session_modes', 'hr_settings', 'hr_shop_supply_offers', 'hr_skill_curve', 'hr_skills',
+    'hr_qm_offers', 'hr_recruit_jobs', 'hr_recruit_names', 'hr_recruit_rules', 'hr_room_perks', 'hr_runes', 'hr_server_secrets', 'hr_session_modes', 'hr_settings', 'hr_shop_supply_offers', 'hr_skill_curve', 'hr_skills',
     'hr_stamina_refill_rule', 'hr_start_equipment', 'hr_start_inventory', 'hr_start_kit', 'hr_start_kit_lines', 'hr_start_skill_xp', 'hr_state_sections', 'hr_storage_chests',
     'hr_tally_config', 'hr_tally_materials', 'hr_tally_pieces', 'hr_tally_tasks', 'hr_tick_cohort', 'hr_tick_cron_log',
     /* Tamsin's tier book (2027-04-08-tally-worn.generated.sql): the gear tier of every item worn in her slots, a catalogue */

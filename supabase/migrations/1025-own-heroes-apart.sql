@@ -61,9 +61,11 @@ begin
     select md5(replace(prosrc, chr(13), '')) into v_md5 from pg_proc where oid = to_regprocedure(v_r.fn);
     if v_md5 is null then raise exception 'PIN: % is missing', v_r.fn; end if;
     -- A RETRY AFTER 1046-settle-plans.sql (staged after this file) finds the instance read at 1046's image: this file's splice
-    -- already in it, plus 1046's two offset-0 fences. The splice below then finds its post text and moves nothing.
+    -- already in it, plus 1046's two offset-0 fences. The splice below then finds its post text and moves nothing. After
+    -- 1053-lever-gates.sql, at 1053's: the same, plus its hold seat read (hr_party_hold_played).
     if v_md5 is distinct from v_r.pre and v_md5 is distinct from v_r.post
-       and not (v_r.fn = 'public.hr_hunt_instance_read(uuid,integer)' and v_md5 = '43c031340d414ede76522755f7060233') then
+       and not (v_r.fn = 'public.hr_hunt_instance_read(uuid,integer)'
+                and v_md5 in ('43c031340d414ede76522755f7060233', '01b65ee3b44238d75fefb3aaedca260d')) then
       raise exception 'PIN: % is neither the image this file was written against (%) nor its own (%): md5 % - another file moved it; re-pin', v_r.fn, v_r.pre, v_r.post, v_md5;
     end if;
   end loop;

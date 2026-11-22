@@ -2,7 +2,7 @@
 // Run by run-all.mjs.
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { suite35 } from './fixtures/h35.js';
+import { suite35, unit as unitAt, worldOf as worldAt, ctx35 as ctxAt } from './fixtures/h35.js';
 import { ROOT, plant } from './fixtures/h1.js';
 
 /* Heroes 1 and 2; monsters 8 (rat) and 9 (slime). */
@@ -103,6 +103,115 @@ const cases = {
     for (const [i, j] of [[0, 3], [3, 8], [8, 9], [9, WINDOW.length]]) M.tally.addTally(acc, M.tally.tallyEvents(WINDOW.slice(i, j), ROSTER).party);
     return JSON.stringify(sortDeep(acc)) === JSON.stringify(sortDeep(whole)) ? null : 'folded windows ' + JSON.stringify(acc) + ' != ' + JSON.stringify(whole);
   },
+  /* AN-06 THE HUNT REPORT'S RISK (GR-66, FB-7): the lowest health each hero reached with the monster and blow (a tie keeps the earlier
+     blow), and its close calls: each blow that takes it from at least a quarter of its health to under it, a second fall after a heal
+     counted again, a blow already under it never. A hero's own spell and a blow at a monster count nothing. */
+  'report-risk': (M) => {
+    const w = [
+      ev('dmg', 100, { u: 8, t: 1, amount: 50, hp: 350, max: 400 }),
+      ev('dmg', 200, { u: 8, t: 1, amount: 260, hp: 90, max: 400, ability: 'gnaw' }),      // 340 -> 90: under a quarter (100), a close call
+      ev('dmg', 300, { u: 9, t: 1, amount: 10, hp: 80, max: 400 }),                       // already under: no second call; the lowest, 200 pm
+      ev('heal', 350, { u: 2, t: 1, amount: 300, ability: 'mend' }),
+      ev('dmg', 400, { u: 9, t: 1, amount: 300, hp: 80, max: 400, ability: 'spit' }),     // 380 -> 80: a second close call, the same low, later
+      ev('dmg', 500, { u: 1, t: 8, amount: 7 }),
+      ev('dmg', 600, { u: 9, t: 2, amount: 100, hp: 900, max: 1000 }),
+      ev('dmg', 650, { u: 8, t: 2, amount: 500, hp: 400, max: 1000, ability: 'gnaw' }),   // 900 -> 400: under half, not under a quarter
+      ev('dmg', 700, { u: 9, t: 2, amount: 0, hp: 400, max: 1000 }),                     // a glance: the same low, later
+    ];
+    const { heroes, party } = M.tally.tallyEvents(w, ROSTER);
+    const a = heroes[1].report, b = heroes[2].report;
+    const bad = [];
+    if (JSON.stringify(a.low) !== JSON.stringify({ pm: 200, by: 'slime', blow: 'basic', at: 300 })) bad.push('hero 1 low ' + JSON.stringify(a.low));
+    if (a.close !== 2) bad.push('hero 1 close calls ' + a.close + ' != 2');
+    if (JSON.stringify(b.low) !== JSON.stringify({ pm: 400, by: 'rat', blow: 'gnaw', at: 650 }) || b.close !== 0) bad.push('hero 2 ' + JSON.stringify(b));
+    if (party.report.low.pm !== 200 || party.report.close !== 2) bad.push('the party ' + JSON.stringify(party.report));
+    const bare = M.tally.tallyEvents([ev('dmg', 1, { u: 8, t: 1, amount: 5 })], ROSTER).heroes[1];
+    if (bare.report.low !== null) bad.push('a blow with no HP reading made a low: ' + JSON.stringify(bare.report.low));
+    return bad.length ? bad.join('; ') : null;
+  },
+  /* AN-07 THE RULES BLOCK: each bar rule's uses (a cast, a shot, a meal, a drink the bar picked: they name their rule) and why a rule whose
+     conditions held could not act; a cast no rule picked counts nothing, and a monster's wait is no hero's. */
+  'report-rules': (M) => {
+    const w = [
+      ev('cast', 1, { u: 1, ability: 'rend', rule: 'e0000aa01' }), ev('cast', 2, { u: 1, ability: 'rend', rule: 'e0000aa01' }),
+      ev('shot', 3, { u: 1, t: 8, item: 'bronze_arrow', rule: 'd_attack' }), ev('eat', 4, { u: 1, item: 'wheat_bread', source: 'own', rule: 'e0000bb02' }),
+      ev('drink', 5, { u: 2, item: 'tea', source: 'store', gold: 1, rule: 'e0000cc03' }), ev('cast', 6, { u: 2, ability: 'mend' }),
+      ev('rule_wait', 7, { u: 2, t: 2, rule: 'e0000dd04', rule_label: 'mend', why: 'mana' }),
+      ev('rule_wait', 8, { u: 2, t: 2, rule: 'e0000dd04', rule_label: 'mend', why: 'cooldown' }),
+      ev('rule_wait', 9, { u: 2, t: 2, rule: 'e0000dd04', rule_label: 'mend', why: 'mana' }),
+      ev('rule_wait', 10, { u: 8, t: 8, rule: 'x', why: 'mana' }),
+    ];
+    const { heroes } = M.tally.tallyEvents(w, ROSTER);
+    const a = heroes[1].report, b = heroes[2].report;
+    const want = [[a.fired, { e0000aa01: 2, d_attack: 1, e0000bb02: 1 }], [b.fired, { e0000cc03: 1 }], [b.waits, { e0000dd04: { mana: 2, cooldown: 1 } }], [a.waits, {}]];
+    const bad = want.filter(([got, x]) => JSON.stringify(sortDeep(got)) !== JSON.stringify(sortDeep(x))).map(([got, x]) => JSON.stringify(got) + ' != ' + JSON.stringify(x));
+    return bad.length ? bad.join('; ') : null;
+  },
+  /* AN-08 THE REPORT FOLDS THE SAME HOWEVER THE WINDOWS ARE CUT (a hunt viewed and closed): every cut of a window, folded window by
+     window, is the whole window's report, hero by hero; and the fold never changes the reports it reads. */
+  'report-windows-fold': (M) => {
+    const w = [
+      ev('dmg', 100, { u: 8, t: 1, amount: 260, hp: 90, max: 400 }), ev('cast', 150, { u: 1, ability: 'rend', rule: 'r1' }),
+      ev('heal', 180, { u: 2, t: 1, amount: 300, ability: 'mend' }), ev('dmg', 200, { u: 9, t: 1, amount: 300, hp: 90, max: 400, ability: 'spit' }),
+      ev('rule_wait', 250, { u: 2, t: 2, rule: 'r2', why: 'mana' }), ev('dmg', 300, { u: 9, t: 2, amount: 600, hp: 300, max: 1000 }),
+      ev('cast', 400, { u: 1, ability: 'rend', rule: 'r1' }),
+    ];
+    const whole = M.tally.tallyEvents(w, ROSTER);
+    for (let i = 1; i < w.length; i++) {
+      const acc = { 1: M.tally.emptyTally(), 2: M.tally.emptyTally() };
+      for (const part of [w.slice(0, i), w.slice(i)]) {
+        const t = M.tally.tallyEvents(part, ROSTER);
+        for (const id of [1, 2]) if (t.heroes[id]) { const before = JSON.stringify(t.heroes[id].report); M.tally.addTally(acc[id], t.heroes[id]); if (JSON.stringify(t.heroes[id].report) !== before) return 'the fold changed the report it read'; }
+      }
+      for (const id of [1, 2]) {
+        if (JSON.stringify(sortDeep(acc[id].report)) !== JSON.stringify(sortDeep(whole.heroes[id].report))) {
+          return 'cut at ' + i + ', hero ' + id + ': ' + JSON.stringify(acc[id].report) + ' != ' + JSON.stringify(whole.heroes[id].report);
+        }
+      }
+    }
+    return whole.heroes[1].report.low.at === 100 && whole.heroes[1].report.close === 2 ? null : 'CONTROL: the window ' + JSON.stringify(whole.heroes[1].report);
+  },
+  /* AN-09 THE ONE WORD (data/hunt-report.js): Safe with no hero under half its health, Close under half, Near death under a tenth or at
+     three close calls; never struck reads Safe. The party reads its lowest hero and every hero's close calls. */
+  'report-word': async (M) => {
+    const R = await import(pathToFileURL(join(M.root, 'src/core/hunt/report.js')).href + M.V);
+    const cases = [[null, 0, 'safe'], [500, 0, 'safe'], [499, 0, 'close'], [100, 2, 'close'], [99, 0, 'near'], [700, 3, 'near'], [0, 0, 'near']];
+    for (const [pm, close, want] of cases) if (R.riskWord(pm, close) !== want) return 'riskWord(' + pm + ', ' + close + ') = ' + R.riskWord(pm, close) + ', not ' + want;
+    /* the party: its heroes' reports folded as the tally folds them (tally.js addTally) */
+    const hero = (pm, at, close) => ({ report: { low: { pm, by: 'rat', blow: 'basic', at }, close, fired: {}, waits: {} } });
+    const p = M.tally.addTally(M.tally.addTally(M.tally.emptyTally(), hero(600, 1, 1)), hero(450, 2, 2)).report;
+    return p.low.pm === 450 && p.close === 3 && R.riskWord(p.low.pm, p.close) === 'near' ? null : 'the party ' + JSON.stringify(p);
+  },
+  /* AN-10 THE ENGINE SAYS IT: a blow at a hero carries the HP it left and the hero's max (damage.js landHit), the reading the report folds;
+     a blow at a monster carries neither. */
+  'report-blow-reading': (M) => {
+    const hero = unitAt(M, 1, 'hero', { hp: 400, maxHp: 400 }), rat = unitAt(M, 8, 'mon', { hp: 50, maxHp: 50 });
+    const w = worldAt(M, [hero, rat]);
+    const sc = ctxAt(M, 2);
+    M.damage.landHit({ world: w, ground: null, grid: null, occ: null }, sc, rat, hero, 30, null, null, false);
+    M.damage.landHit({ world: w, ground: null, grid: null, occ: null }, sc, hero, rat, 7, null, null, false);
+    const atHero = sc.events.find((e) => e.type === 'dmg' && e.t === 1), atRat = sc.events.find((e) => e.type === 'dmg' && e.t === 8);
+    if (!atHero || atHero.hp !== hero.hp || atHero.max !== 400 || atHero.hp + atHero.amount !== 400) return 'the blow at the hero reads ' + JSON.stringify(atHero) + ' beside HP ' + hero.hp;
+    if (!atRat || 'hp' in atRat || 'max' in atRat) return 'the blow at the monster carries a reading: ' + JSON.stringify(atRat);
+    const t = M.tally.tallyEvents(sc.events, M.tally.rosterOf(w));
+    return t.heroes[1] && t.heroes[1].report.low && t.heroes[1].report.low.pm === Math.floor((hero.hp * 1000) / 400) ? null : 'the tally read ' + JSON.stringify(t.heroes[1] && t.heroes[1].report);
+  },
+  /* AN-11 THE PROPOSAL IS IN THE DATABASE'S SHAPE (1053-hunt-report.sql hr_hunt_report_ok refuses any other, and a refused window counts
+     toward a forfeit): ids [a-z0-9_] (a rule's 24 long), reasons [a-z_], at most 32 rules and 8 reasons a rule; a good report goes through
+     whole, empty parts left out. */
+  'report-proposal-shape': async (M) => {
+    const R = await import(pathToFileURL(join(M.root, 'src/core/hunt/report.js')).href + M.V);
+    const good = { low: { pm: 40, by: 'rat', blow: 'basic', at: 5 }, close: 1, fired: { e1: 2 }, waits: { e2: { mana: 1 } } };
+    const p = R.reportProposal(good, [['e1', 'rend', 0]], { w: 2, a: 6, n: 3 });
+    if (JSON.stringify(p) !== JSON.stringify(Object.assign({}, good, { bar: [['e1', 'rend', 0]], gear: { w: 2, a: 6, n: 3 } }))) return 'a good report moved: ' + JSON.stringify(p);
+    if (JSON.stringify(R.reportProposal(R.emptyReport(), null, null)) !== '{}') return 'an empty report proposed ' + JSON.stringify(R.reportProposal(R.emptyReport(), null, null));
+    const fired = Object.fromEntries(Array.from({ length: 40 }, (_, i) => ['r' + String(i).padStart(2, '0'), 1]).concat([['Bad Rule', 1], ['x'.repeat(25), 1]]));
+    const waits = { e3: Object.fromEntries(['mana', 'cooldown', 'no_stock', 'no_target', 'out_of_range', 'gold_short', 'level', 'aa', 'bb', 'Odd1'].map((w) => [w, 1])) };
+    const bad = R.reportProposal({ low: { pm: 10, by: 'Rat King', blow: 'basic', at: 1 }, close: 0, fired, waits }, null, null);
+    const ok = (o, re, max) => Object.keys(o).length <= max && Object.keys(o).every((k) => re.test(k));
+    if ('low' in bad || !ok(bad.fired, /^[a-z0-9_]{1,24}$/, 32) || Object.keys(bad.fired).length !== 32 || !ok(bad.waits.e3, /^[a-z_]{1,16}$/, 8)) return 'a report past the shape was proposed: ' + JSON.stringify(bad).slice(0, 300);
+    return null;
+  },
   /* rosterOf reads heroes and monster kinds off the world. */
   'roster-from-world': (M) => {
     const w = M.worldstate.makeWorld({ units: [{ id: 1, side: 'hero', kind: 'hero' }, { id: 8, side: 'mon', kind: 'rat' }] });
@@ -116,7 +225,10 @@ const cases = {
     const zero = JSON.stringify(M.tally.emptyTally().sustain);
     for (const [id, h] of Object.entries(plain.heroes)) if (JSON.stringify(h.sustain) !== zero) return 'hero ' + id + ' counted sustain unasked: ' + JSON.stringify(h.sustain);
     const wait = [ev('rule_wait', 1, { u: 2, t: 2, rule: 'r1', rule_label: 'mend', why: 'mana' })];
-    if (Object.keys(M.tally.tallyEvents(wait, ROSTER).heroes).length) return 'a mana wait made a hero unasked';
+    /* (FB-7: a wait is the hunt report's, counted always, so the hero is made for its `report`; its sustain stays zero unasked) */
+    const unasked = M.tally.tallyEvents(wait, ROSTER).heroes[2];
+    if (unasked && JSON.stringify(unasked.sustain) !== zero) return 'a mana wait counted sustain unasked: ' + JSON.stringify(unasked.sustain);
+    if (!unasked || !unasked.report.waits.r1 || unasked.report.waits.r1.mana !== 1) return 'the report did not count the wait: ' + JSON.stringify(unasked && unasked.report);
     const asked = M.tally.tallyEvents(wait, { ...ROSTER, sustain: true }).heroes[2];
     return asked && asked.sustain.mana.waits === 1 && asked.sustain.waitsBy.mend === 1 ? null : 'asked, a mana wait was not counted: ' + JSON.stringify(asked && asked.sustain);
   },
@@ -245,6 +357,37 @@ const mutants = [
     edits: [['src/core/hunt/tally.js', "if (ev.why === 'mana' && ids.has(ev.u))", 'if (ids.has(ev.u))']] },
   { name: 'regeneration forgets the heals', case: 'regen-closes-the-window',
     edits: [['src/core/hunt/tally.js', 'const regen = pair[1] - pair[0] - healIn + lost;', 'const regen = pair[1] - pair[0] + lost;']] },
+  /* THE HUNT REPORT (FB-7) */
+  { name: 'the lowest health keeps the later of a tie', case: 'report-risk',
+    edits: [['src/core/hunt/report.js', 'if (b.pm < a.pm || (b.pm === a.pm && b.at < a.at)) return', 'if (b.pm <= a.pm) return']] },
+  { name: 'every blow under a quarter is a close call', case: 'report-risk',
+    edits: [['src/core/hunt/report.js', 'if ((hp + amount) * 1000 >= max * line && hp * 1000 < max * line)', 'if (hp * 1000 < max * line)']] },
+  { name: 'a close call is a fall under half', case: 'report-risk',
+    edits: [['src/data/hunt-report.js', 'closeCallPm: 250,', 'closeCallPm: 499,']] },
+  { name: 'Close starts under a third', case: 'report-word',
+    edits: [['src/data/hunt-report.js', 'closePm: 500,', 'closePm: 333,']] },
+  { name: 'Near death starts under a twentieth', case: 'report-word',
+    edits: [['src/data/hunt-report.js', 'nearPm: 100,', 'nearPm: 50,']] },
+  { name: 'a wait is booked as a use', case: 'report-rules',
+    edits: [['src/core/hunt/report.js', 'const w = reportOf(ev.u, ev).waits;', 'const w = reportOf(ev.u, ev).fired;']] },
+  { name: 'a cast no rule picked is counted', case: 'report-rules',
+    edits: [['src/core/hunt/report.js', "if (ids.has(ev.u) && typeof ev.rule === 'string' && ev.rule) bump(", 'if (ids.has(ev.u)) bump(']] },
+  { name: 'the report is summed like every other field (the lowest health adds up)', case: 'report-windows-fold',
+    edits: [['src/core/hunt/tally.js', '  const { report, ...rest } = delta;\n  fold(acc, rest);', '  const { report, ...rest } = delta;\n  fold(acc, delta);']] },
+  { name: 'the fold drops the later window\'s waits', case: 'report-windows-fold',
+    edits: [['src/core/hunt/report.js', 'waits: addCounts(x.waits, y.waits, true)', 'waits: addCounts(x.waits, {}, true)']] },
+  { name: 'Near death needs four close calls', case: 'report-word',
+    edits: [['src/data/hunt-report.js', 'nearCalls: 3,', 'nearCalls: 4,']] },
+  { name: 'Close starts at a quarter, not a half', case: 'report-word',
+    edits: [['src/core/hunt/report.js', 'if (pm < HUNT_REPORT.closePm) return', 'if (pm < HUNT_REPORT.closeCallPm) return']] },
+  { name: 'the proposal keeps every rule', case: 'report-proposal-shape',
+    edits: [['src/core/hunt/report.js', "  const fired = capped(r.fired, RULE, 32);", "  const fired = capped(r.fired, /./, 99);"]] },
+  { name: 'the proposal keeps a low the database refuses', case: 'report-proposal-shape',
+    edits: [['src/core/hunt/report.js', '&& ID64.test(l.by) && ID64.test(l.blow) &&', '&&']] },
+  { name: 'a blow at a hero carries no reading', case: 'report-blow-reading',
+    edits: [['src/core/hunt/damage.js', "const vit = isHero(target) ? {", "const vit = false ? {"]] },
+  { name: 'the reading is the HP before the blow', case: 'report-blow-reading',
+    edits: [['src/core/hunt/damage.js', 'hp: Math.max(0, Math.floor(Number(target.hp) || 0))', 'hp: Math.max(0, Math.floor(Number(target.hp + r.dmg) || 0))']] },
   { name: 'a window that does not close is let through', case: 'regen-closes-the-window',
     edits: [['src/core/hunt/tally.js', "    if (regen < 0) throw new Error(", "    if (false) throw new Error("]] },
 ];

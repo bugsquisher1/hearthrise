@@ -76,7 +76,7 @@ export function regenPermille(p) {
 
 /**
  * Every vital of a character: { level, maxHp, maxMana, regenPm }.
- * @param c { levelXp, skills (xp map), equipment, items }
+ * @param {{ levelXp?: number, skills?: object, equipment?: object, items?: object }} c  skills is the xp map
  */
 export function vitalsOf(c) {
   const level = charLevelFromXp(c && c.levelXp);

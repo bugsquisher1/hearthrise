@@ -31,6 +31,7 @@ import { glyphSvg } from '../launcher.js';
 import { itemIconHtml, itemName } from './bits.js';
 import { staminaPlusHtml } from './stamina-buy.js';
 import { t } from '../../render/player-text.js';
+import { huntGains, predictedVitals } from '../hud-predict.js';
 
 /* THE RING on a 120-unit grid, centre (60, 60), drawn smooth (no crispEdges) at any size the stylesheet gives it.
    From the outside in: the steel bezel (r 59), the gauge channel (r 52, 10 wide) with HP on its left from the bottom
@@ -94,7 +95,7 @@ export function patchHub(el, ctx) {
   const hero = h && !h.ended ? h.hero : null;
   /* heroVitalsOf: hunting, HP is the bar's over the hero's head (the live timeline), never the last
      commit's; out of a hunt, the character's own vitals with mana full (Tyler 10-19). */
-  const v = heroVitalsOf(cs);
+  const v = predictedVitals(heroVitalsOf(cs), huntGains(cs));   // the XP ring rises between saves (../hud-predict.js), display only
   const stam = staminaOf(cs);
   const level = v.level;
   const xp = v.xpPct;

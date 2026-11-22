@@ -57,8 +57,7 @@ export const STARTER_PICKS = Object.freeze([
       + WAND_FIRST_HUNT_GOLD + ' gold more than it earns. You start with ' + START_CURRENCY.gold + '.' }),
   pick('healer', 'Staff', 'Heals the party', 'Uses mana and drinks', { tag: SLOW_ALONE, cost: RUNE_STORE }),
 ]);
-/* Heroes two to four come pre-filled (chapter 08 section 2.1): a shield, a healer and a bow, so the party holds one healer. */
-export const COMPANY_PICKS = Object.freeze(['tank', 'healer', 'ranger']);
+/* Heroes two to four are RECRUITS (Tyler RD-Q6 a, 2026-11-22): their jobs are src/data/recruits.js RECRUITS.jobs, the server's to pick. */
 
 export const HOW_YOU_FIGHT = Object.freeze([
   style('hold', 'tank', ['practice_sword', 'practice_shield'], 'Sword and shield',
@@ -137,8 +136,6 @@ export function validate() {
   const picks = STARTER_PICKS.map((r) => r.set);
   if (picks.slice().sort().join() !== Object.keys(STARTER_SETS).sort().join()) out.push('the weapon pick cards are not the STARTER_SETS rows: ' + picks.join(', '));
   for (const r of STARTER_PICKS) if (!r.name || !r.does || !r.uses) out.push('pick ' + r.set + ': a card needs a name, what it does and what it uses');
-  if (COMPANY_PICKS.some((id) => !picks.includes(id))) out.push('a pre-filled pick is no card: ' + COMPANY_PICKS.join(', '));
-  if (COMPANY_PICKS.filter((id) => id === 'healer').length !== 1) out.push('the pre-filled company does not hold exactly one healer');
   const ids = new Set();
   for (const n of HELP_NOTES) {
     if (ids.has(n.id)) out.push('help note ' + n.id + ': duplicate');

@@ -6,7 +6,7 @@
 //   node tests/needs-you.mjs            the guard (pure Node: the real modules over the alpha envelope, no browser, no database)
 //   node tests/needs-you.mjs --mutate   every planted defect must turn its arm red
 //
-// mutant-anchors: src/shell/needs-you.js src/shell/needs-you/gear-choice.js src/shell/needs-you/death.js src/data/hunt-after.js
+// mutant-anchors: src/shell/needs-you.js src/shell/needs-you/gear-choice.js src/shell/needs-you/death.js src/shell/needs-you/near-death.js src/data/hunt-after.js src/shell/needs-you/recruits.js
 // ci-step: client-guards | Needs you on the return card - three at most, ranked, one row a kind, providers by kind
 // ci-run: node tests/needs-you.mjs
 // ci-run: node tools/mutant-gate.mjs node tests/needs-you.mjs --mutate
@@ -15,11 +15,15 @@
 //              ending runs a hunt); every provider's kind is a NEEDS_YOU row and no two providers share one
 //   NY-RANK    rows from every kind, scrambled, with a kind twice, a kind the data does not list and a row with no words: three show, in the
 //              data's order, one a kind (the provider's first), and "{n} more" counts the rest
+//   NY-NEAR    the hunt report's Near death (FB-7, GR-66) is a row last in the costs band: the lowest fall named first, in the house's
+//              voice for its blow, "Change the plan"; a Close hunt, a death and a running hunt are none; three close calls are Near death
 //   NY-REGEAR  a hero OUT HUNTING with a plain upgrade in its bag: the row is the visiting press, "Equip upgrades and go back in", for that
 //              hero (D-2 rule 8); never for a boss room (rule 9); a hero in town waiting on a choice goes first
 //   NY-HEROES  the real providers over four heroes' envelopes (one outgrown, one died with no Blessing on, one with better gear in its bag,
 //              one the server's plan refuses for a full bag): the card shows outgrown, cannot start, death, in that order, and one more;
 //              with the company's "Wear upgrades" line on, plain gear is not a decision and the count drops
+//   NY-RECRUITS the account's one hero with the server's recruit press ready: "3 recruits are ready to join {Name} at Level 5." with
+//              Recruit (opens All characters); a press not ready, or no offer, is no row (Tyler RD-Q6 a, 1053-recruits.sql)
 // Exit: 0 green · 1 red · 2 harness.
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync, mkdtempSync, rmSync, writeFileSync, cpSync } from 'node:fs';
@@ -114,6 +118,40 @@ const ARMS = {
   },
 };
 
+/* NY-NEAR (lane/c-hunt-report FB-7, GR-66): the hunt report's Near death is a decision row, kind `near_death`, last in its band (after
+   gear_choice): the hero whose last hunt fell lowest is named, in the house's voice for its blow, with "Change the plan" (Hunt prep). A Close
+   hunt, a hero who died (its own row) and a hero still hunting are none; three close calls make Near death without a deep fall. */
+ARMS['NY-NEAR'] = async (X) => {
+  const out = [];
+  const withReport = (slot, name, reason, report, ended = true) => {
+    const p = hero(slot, name, reason);
+    const env = { hunt: clone(p.read('hunt')) };
+    env.hunt.ended = ended;
+    env.hunt.session = Object.assign({}, env.hunt.session, { tally: Object.assign({}, (env.hunt.session || {}).tally || {}, { report }) });
+    return { slot, status: 'open', read: (k) => (k in env ? env[k] : p.read(k)) };
+  };
+  const low = (pm, by, blow) => ({ low: { pm, by, blow, at: 1 }, close: 1 });
+  const peers = [
+    withReport(0, 'Tess', 'stamina', low(420, 'rat', 'basic')),                 // Close: no row
+    withReport(1, 'Wren', 'stamina', low(80, 'rat', 'basic')),                  // Near death, 8%
+    withReport(2, 'Bryn', 'stamina', low(30, 'barn_spider', 'venom_spray')),    // Near death, 3%: the lowest, named first
+    withReport(3, 'Dorn', 'died', low(0, 'rat', 'basic')),                      // died: the death row's
+  ];
+  const row = X.N.needsRowsOf({ peers: () => peers, plan: null, wearOn: true }).find((r) => r.kind === 'near_death');
+  if (!row || row.slot !== 2 || row.go !== 'prep' || row.label !== 'Change the plan') out.push('the row reads ' + JSON.stringify(row));
+  else if (!/^Bryn nearly died, down to 3% health from .+'s .+\.$/.test(row.text) || /[;—–:]/.test(row.text)) out.push('the row\'s words: ' + row.text);
+  const swing = X.N.needsRowsOf({ peers: () => [peers[1]], plan: null, wearOn: true }).find((r) => r.kind === 'near_death');
+  if (!swing || !/^Wren nearly died, down to 8% health from a .+\.$/.test(swing.text)) out.push('a swing reads ' + JSON.stringify(swing && swing.text));
+  const calls = withReport(1, 'Wren', 'stamina', { low: { pm: 600, by: 'rat', blow: 'basic', at: 1 }, close: 3 });
+  if (!X.N.needsRowsOf({ peers: () => [calls], plan: null, wearOn: true }).some((r) => r.kind === 'near_death')) out.push('three close calls are not Near death');
+  const quiet = [peers[0], peers[3], withReport(1, 'Wren', 'stamina', low(80, 'rat', 'basic'), false)];
+  if (X.N.needsRowsOf({ peers: () => quiet, plan: null, wearOn: true }).some((r) => r.kind === 'near_death')) out.push('a Close hunt, a death or a hunt still running made the row');
+  const data = X.D.NEEDS_YOU.map((r) => r.kind);
+  if (!(data.indexOf('near_death') === data.indexOf('gear_choice') + 1 && data.indexOf('fell_back') === data.indexOf('near_death') + 1
+        && X.D.NEEDS_YOU[data.indexOf('fell_back')].band === 'costs')) out.push('near_death and fell_back are not last in the costs band: ' + data.join(', '));
+  return out;
+};
+
 /* NY-REGEAR: a hero OUT HUNTING with a plain upgrade in its bag (nothing changes inside a hunt, D-2 rule 7): the row's press is the visiting
    player's "Equip upgrades and go back in" for that hero; never for a boss room (rule 9); a hero in town waiting on a choice goes first. */
 ARMS['NY-REGEAR'] = async (X) => {
@@ -138,7 +176,26 @@ ARMS['NY-REGEAR'] = async (X) => {
   return out;
 };
 
+/* NY-RECRUITS (Tyler RD-Q6 a, 1053-recruits.sql): the account's one hero whose server section says the recruit press is ready reads
+   "3 recruits are ready to join {Name} at Level 5." with Recruit, which opens All characters (go 'recruits'); a press not ready yet, or no
+   section (a company of two or more, the press made), is no row. */
+ARMS['NY-RECRUITS'] = async (X) => {
+  const out = [];
+  const offer = (ready) => ({ recruits: { ready, at: 5, level: 5, first: 0, slots: [1, 2, 3], sets: ['tank', 'healer', 'ranger'] } });
+  const row = (peers) => X.N.needsRowsOf({ peers: () => peers, plan: null, wearOn: true }).find((r) => r.kind === 'recruits');
+  const r1 = row([hero(0, 'Tess', 'stamina', offer(true))]);
+  if (!r1 || r1.text !== '3 recruits are ready to join Tess at Level 5.' || r1.label !== 'Recruit' || r1.go !== 'recruits' || r1.slot !== 0) out.push('a ready press reads ' + JSON.stringify(r1));
+  const r2 = row([hero(0, 'Tess', 'stamina', offer(false))]);
+  if (r2) out.push('a press not ready yet is a row: ' + JSON.stringify(r2));
+  const r3 = row([hero(0, 'Tess', 'stamina', { recruits: null }), hero(1, 'Bryn', 'stamina', { recruits: null })]);
+  if (r3) out.push('a company with no offer is a row: ' + JSON.stringify(r3));
+  if (r1 && /[;—–]/.test(r1.text)) out.push('the recruits row has a semicolon or a dash');
+  return out;
+};
+
 const MUTANTS = [
+  ['the recruits row shows before the press is ready', 'NY-RECRUITS', 'src/shell/needs-you/recruits.js', '      if (!o || !o.ready) continue;\n', '      if (!o) continue;\n'],
+  ['the recruits row opens nothing', 'NY-RECRUITS', 'src/shell/needs-you/recruits.js', "go: 'recruits', slot: cs.slot", 'slot: cs.slot'],
   ['the visiting press is offered for a boss room', 'NY-REGEAR', 'src/shell/needs-you/gear-choice.js', '!!hunt && !roomOfHunt(hunt) && ', '!!hunt && '],
   ['a hero out hunting is never offered the press', 'NY-REGEAR', 'src/shell/needs-you/gear-choice.js', 'if (plan.picks.length && regearable(h.huntId)) hunting.push(cs);', 'void regearable;'],
   ['the rows lose the data\'s order', 'NY-RANK', 'src/shell/needs-you.js', '  const all = [...byKind.values()].sort((a, b) => RANK.get(a.kind) - RANK.get(b.kind));', '  const all = [...byKind.values()];'],
@@ -148,6 +205,9 @@ const MUTANTS = [
   ['a death with a Blessing missing is not a row', 'NY-HEROES', 'src/shell/needs-you/death.js', "h.endReason !== 'died' || blessingsMissing(cs) !== true", "h.endReason !== 'died' || blessingsMissing(cs) !== false"],
   ['an ending may run a hunt', 'NY-DATA', 'src/data/hunt-after.js', "    if (/hunt/.test(c.runs)) out.push(c.id + ': an ending may not start a hunt');\n", ''],
   ['four shown by the data', 'NY-DATA', 'src/data/hunt-after.js', 'export const NEEDS_SHOWN = 3;', 'export const NEEDS_SHOWN = 4;'],
+  ['a hero who died is also near death', 'NY-NEAR', 'src/shell/needs-you/near-death.js', "if (!h || !h.ended || h.endReason === 'died') continue;", 'if (!h || !h.ended) continue;'],
+  ['a Close hunt is a decision', 'NY-NEAR', 'src/shell/needs-you/near-death.js', "riskWord(r.low.pm, r.close) !== 'near'", "riskWord(r.low.pm, r.close) === 'safe'"],
+  ['the highest fall is named first', 'NY-NEAR', 'src/shell/needs-you/near-death.js', 'near.sort((a, b) => a.low.pm - b.low.pm || a.cs.slot - b.cs.slot);', 'near.sort((a, b) => b.low.pm - a.low.pm || a.cs.slot - b.cs.slot);'],
 ];
 
 async function runAll(X, only) {

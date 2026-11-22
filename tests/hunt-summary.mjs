@@ -817,16 +817,19 @@ async function runTests(M) {
     eq([out5.primary, out5.steps.map((s) => s.id), out5.steps.find((s) => s.id === 'ground').name], ['ground', ['equip', 'sell', 'deposit', 'bless', 'ground'], 'Meadowbrook Thicket'],
       'outgrown with chores open: the next ground is the press, named for the foot, and every chore is still listed');
     eq(chores(false).primary, 'equip', 'CONTROL: any other end keeps the first chore as the press');
-    /* BUILD YOUR PARTY (designer D-1, the Path's first_level_5; FB-5): the Cellar outgrown with three slots still empty says the Path's own line
-       word for word, its press opens the Characters screen, and the next ground stays as the second press, "Go on alone" */
+    /* RECRUIT YOUR PARTY (designer D-1, the Path's first_level_5; Tyler RD-Q6 a, 1053-recruits.sql): the Cellar outgrown with the server's recruit
+       press ready says the Path's own line word for word, its press opens All characters (the press is there), and the next ground stays as the
+       second press, "Go on alone"; a later ground says the summary's line with the recruits' Level */
     const partyCard = (o) => TN.townSteps({ plan: null, bag: [], rules: null, bids: null, blessings: null, purse: 0, did: new Map(), buy: null, free: false, outgrown: true,
       ground: { row: { hunt: 'meadowbrook_thicket', name: 'Meadowbrook Thicket', band: [5, 15] }, levels: [5] }, party: o });
-    const p3 = partyCard({ name: 'Brenna', ground: 'Mill Cellar', count: 3, first: true });
+    const p3 = partyCard({ name: 'Brenna', ground: 'Mill Cellar', count: 3, level: 5, first: true });
     eq([p3.primary, p3.steps[0].title, p3.steps[0].words, p3.steps[0].verb, p3.steps[0].glyph, p3.steps[0].place, p3.steps.find((s) => s.id === 'ground').title],
-      ['party', '3 heroes to make', 'Brenna has outgrown the Mill Cellar. You have three more heroes to make, and the Sewer wants a full party.', 'Build your party', 'navProfile',
-        { kind: 'characters' }, 'Go on alone to Meadowbrook Thicket'],
-      'the first Level 5 with three heroes to make: Build your party, then Go on alone');
-    eq(partyCard(null).primary, 'ground', 'CONTROL: with no hero left to make the next ground is the press');
+      ['party', '3 recruits ready', 'Brenna has outgrown the Mill Cellar. Three recruits are ready to join, and the Sewer wants a full party.', 'Recruit your party', 'navProfile',
+        { kind: 'recruits' }, 'Go on alone to Meadowbrook Thicket'],
+      'the first Level 5 with the recruits ready: Recruit your party, then Go on alone');
+    eq(partyCard({ name: 'Brenna', ground: 'Meadowbrook Thicket', count: 3, level: 8, first: false }).steps[0].words,
+      'Brenna has outgrown the Meadowbrook Thicket. 3 recruits are ready to join at Level 8, and the Sewer wants a full party.', 'a later ground says the recruits\' Level');
+    eq(partyCard(null).primary, 'ground', 'CONTROL: with no recruit press ready the next ground is the press');
   });
 
   /* ── THE END CARD SELLS (balance program L03, 30-plan.md; economy dive change 1: hunt one paid 130 gold in coin and left 501 unsold, and one real

@@ -58,6 +58,28 @@ export function sanitizeSummary(v) {
     /* A Call out series' line (hunt-view/boss-loss.js seriesLine): display only, the server's count of fights and wins and what it charged. */
     series: typeof v.series === 'string' ? v.series.slice(0, 200) : null,
     train: trainOf(v.train),
+    /* THE HUNT REPORT (GR-66, FB-7; src/hunt-view/hunt-report.js reportFacts): the server's report counters as this card keeps them */
+    report: reportOf(v.report),
+  };
+}
+
+const WORDS = ['safe', 'close', 'near'];
+const RAN = ['gold_out', 'heals_out', 'ammo_out', 'runes_out'];
+const WHY = /^[a-z_]{0,24}$/;
+const nat = (n) => (Number.isSafeInteger(n) && n >= 0 ? n : null);
+/* THE HUNT REPORT'S FACTS, bounded and typed: { word, low [pm, monster, blow] | null, close, dry [[item, ms]], ranOut, deaths
+   [[xp, saved, blessings]], rules [[rule, uses, place, fired, why, kind, sharePm]] }; null when it is not one. */
+function reportOf(v) {
+  if (!isObj(v) || !WORDS.includes(v.word)) return null;
+  const low = Array.isArray(v.low) && nat(v.low[0]) !== null && v.low[0] <= 1000 && id(v.low[1]) && id(v.low[2]) ? [v.low[0], v.low[1], v.low[2]] : null;
+  return {
+    word: v.word, low, close: nat(v.close) || 0,
+    dry: pairs(v.dry, (p) => (Array.isArray(p) && id(p[0]) && Number.isSafeInteger(p[1]) && p[1] >= -1 ? [p[0], p[1]] : null), 8),
+    ranOut: RAN.includes(v.ranOut) ? v.ranOut : null,
+    deaths: pairs(v.deaths, (p) => (Array.isArray(p) && p.length === 3 && p.every((n) => nat(n) !== null) ? [p[0], p[1], p[2]] : null), 2),
+    rules: pairs(v.rules, (p) => (Array.isArray(p) && id(p[0]) && id(p[1]) && nat(p[2]) !== null && nat(p[3]) !== null && typeof p[4] === 'string'
+      && WHY.test(p[4]) && (p[5] === 'd' || p[5] === 'h' || p[5] === '') && Number.isSafeInteger(p[6]) && p[6] >= -1 && p[6] <= 1000
+      ? [p[0], p[1], p[2], p[3], p[4], p[5], p[6]] : null), 16),
   };
 }
 

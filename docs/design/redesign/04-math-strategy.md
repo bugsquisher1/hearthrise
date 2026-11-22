@@ -25,7 +25,7 @@ Everything here is a recommendation for review. Nothing is final and no number i
 | A fixed gear step and a fixed Level gap cannot both hold past about Level 150 (K-9) | Gear is a straight line, so a 20 Level gap is a shrinking share | The contest reads the gap in steps. A 20 step gap is the same ratio at every Level |
 | A four earns more XP but less gold a head (K-8) | XP has a party table and a tier dial. Coin has neither | One pay rule for XP, coin and loot quality, read off the same step |
 | A four's damage barely moves its pace | Kills are capped by the respawn | Pulls come on readiness and the company climbs. Power becomes depth |
-| The harder tiers are a cliff | One hero takes it all, rest is free, and three hand-picked dials are 20 to 40 steps apart | Small steps, a fall back, monsters that reach the party, and damage that costs time and gold before it costs a life |
+| The harder tiers are a cliff | One hero takes it all, rest is free, and three hand-picked dials sit tens of steps apart (COMPUTED: blows at 1.17 and 1.33 times Normal are about 45 and 80 steps at a 0.35% step) | Small steps, a fall back, monsters that reach the party, and damage that costs time and gold before it costs a life |
 | Armor capped at 60% is worthless past Level 30 | A cap on a curve that the gear outgrows | Defense is steps in the same contest. No cap, no wall |
 | One multiple cannot fit the Level table at both ends | The reward is a power of Level fitted to a moving kill rate | Hours for a Level are the law. The reward is derived from them |
 | Skill fades to 14% of a hit at Level 1,000 | Skill cost is geometric, gear is linear | Skill is steps on the same clock as Level |
@@ -85,7 +85,7 @@ The search range is 0.25% to 0.5%. The value is settled by two readings that pul
 - **Two defence ratings.** Armor and ward. An armor piece spends its item Level between them: heavy mostly armor, light mostly ward, medium even. That replaces three different functional forms (dodge, absorb, a flat ward) with one, and the choice of weight stays a real trade.
 - **No cap.** The limit on defence is the number of steps a kit can hold, which is a budget, not a clamp. Buff and Trait steps carry one stated ceiling on what can be active at once (`conditionalStepsMax`).
 - **One roll shape with one spread.** Today a blow rolls from 1 to its maximum, a spell from half, and a heal not at all. One lever, `rollSpread`, for all of them. JUDGMENT: keep the spread narrow (plus or minus 20%) and put danger in monster wind-ups instead. A bar can answer a wind-up. Nothing answers a dice roll.
-- **Drop the separate hit chance contest, or fold it in.** Today a blow first rolls to land (a ratio of two ratings held between 5% and 97%) and then rolls damage. Both contests read the same skill and gear, so they double count, and accuracy gear is worth about an eighth of damage gear (EVIDENCE: `44-formula-architecture.md` 5.1). Spells skip it. I recommend a blow always lands, with dodge and block as moves and Traits in the rule table. That removes six levers and the "reference hero" table that monsters' aim is inverted from. `02-architecture.md` keeps accuracy as a thing a skill gives. If the designer wants misses for feel, the clean form is a fixed base miss chance (one lever) that a monster role or a Trait can move, never a second ratings contest.
+- **Drop the separate hit chance contest, or fold it in.** Today a blow first rolls to land (a ratio of two ratings held between 5% and 97%, the common shape, SURVEY: Path of Building's accuracy against evasion) and then rolls damage. Both contests read the same skill and gear, so they double count, and accuracy gear is worth about an eighth of damage gear (EVIDENCE: `44-formula-architecture.md` 5.1). Spells skip it. I recommend a blow always lands, with dodge and block as moves and Traits in the rule table. That removes six levers and the "reference hero" table that monsters' aim is inverted from. `02-architecture.md` keeps accuracy as a thing a skill gives. If the designer wants misses for feel, the clean form is a fixed base miss chance (one lever) that a monster role or a Trait can move, never a second ratings contest.
 
 Levers: `powerStep`, `weightGear`, `weightSkill`, `rollSpread`, `conditionalStepsMax`, and the armor and ward split for each weight (three rows). Eight numbers replace about fourteen.
 
@@ -429,6 +429,22 @@ A red reading is one of two things, and the response differs. A number problem g
 | **Dead lever** | A lever's row of the sensitivity matrix | Nothing moves. The mechanic behind it is dead, as armor past Level 30 was |
 
 A reading that passes all five is a number problem and goes to the search.
+
+**When one combat style underperforms.** The request lists ten places the cause can sit. Each has one home in this model, and the sensitivity matrix read by style says which one is live before anything is changed.
+
+| Where the cause can sit | Its home here | Layer |
+|---|---|---|
+| Weapon coefficients | The base shares of the family's move rows | Content row |
+| Skill scaling | `weightSkill`, `skillPace` | Global |
+| Spell mechanics, cooldowns | The move's row: size, cooldown, cost, "when" | Content row |
+| Resource sustainability | `manaSeconds`, `manaRegen`, the move's cost share | Global, then row |
+| Equipment progression | Slot weights, the Trait pool the style can roll | Content table |
+| Targeting behavior | The reach rules and the style's own targeting rule | Shared rule |
+| Monster resistances | The armor and ward split of the roles on the grounds where it trails | Role row |
+| Encounter composition | The ground's mix | Content |
+| Party synergy | Which party-wide rules it brings, and that they do not stack | Shared rule |
+
+The order of work is fixed. First check whether the style trails everywhere or only on some mixes. Trailing on some mixes is the design working, since a style is meant to be strong where its problem is common. Trailing everywhere is checked against the global levers first, then the family's rows. A number that exists only for that style on one ground is never written.
 
 ## 14. Validation and calibration
 

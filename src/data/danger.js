@@ -28,11 +28,19 @@
 // `climbMax` (a company far under its edge finds it within the first hours); any pull that is not clean puts the climb back to one step.
 // A fall back is `fallSteps` down, a pull in which a hero died `deathSteps` down; after either, clean pulls count for nothing for
 // `coolPulls` pulls (the party steadies), then the climb starts again at one step.
+// THE FALL BACK HAPPENS INSIDE THE PULL (V1.1): the moment a hero goes under the stance's trigger no monster swings again and no spell
+// lands, and at the next sub-step the party breaks off (pull-cycle.js breakOff: the pack heals and walks home, the party rests, then pulls
+// the same pocket `fallSteps` lower). A death settles the stance one notch safer for the rest of the hunt (`afterDeath`).
 // PROBE V1 (lane/v1-climb, 2026-11-22, a mixed four at Muster Barrows, 8 seeds x 12 h a cell): the first rule (a 6-step fall back, no
 // cool-down) let Steady die, 15 deaths and 3 wipes in its 8 base days; this one (variant A) 3 deaths and none, held step 606 +- 4 across
 // seeds; variant B (after the first fall back, one step a window of 6 clean pulls) crept so slowly the held step read +- 30 across seeds and
 // killed the same seeds at the same hour, so it was dropped. Every Steady death in the sample came out of a pull whose margin had sat near
 // the stance's climb threshold, not out of a fall back too late: the stance's climb threshold places the company, and it sets the death rate.
+// V1.1 (2026-11-22, 12 seeds x 12 h x 4 cells): a fall back at the pull's end could not see a one-pull spike; broken off inside the pull
+// (one sub-step late: 2 Steady deaths in 32 days; at once, as now: none in 48, at the same depth), Steady keeps 250 / 450. Bold at 80 / 250
+// wiped in every day; with the stance settling to Steady after a death it never wiped in 48 days, at 150 / 350 dying 0 to 0.4 times a day
+// and out-earning Steady over the whole day, at 120 / 300 (kept) 0.4 to 1.1 times a day, under Steady over a day in 3 of 4 cells and over
+// it in a 2-hour session in 4 of 4 (tools/balance-program/redesign/v2-stance.mjs).
 // READINESS (04 section 9, 02 section 11): the party leaves its regroup for the next pull only when every standing hero is at or over
 // `readyPm` of max HP. One threshold for every stance here, so a stance differs only in its trigger and its climb threshold.
 //
@@ -59,6 +67,6 @@ export const CLIMB = Object.freeze({ cleanRun: 2, climbMax: 8, fallSteps: 18, de
    of 8 days) */
 export const RISKS = Object.freeze({
   careful: Object.freeze({ fallPm: 450, cleanPm: 650, afterDeath: 'careful' }),
-  steady: Object.freeze({ fallPm: 300, cleanPm: 550, afterDeath: 'careful' }),
-  bold: Object.freeze({ fallPm: 150, cleanPm: 350, afterDeath: 'steady' }),
+  steady: Object.freeze({ fallPm: 250, cleanPm: 450, afterDeath: 'careful' }),
+  bold: Object.freeze({ fallPm: 120, cleanPm: 300, afterDeath: 'steady' }),
 });

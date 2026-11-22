@@ -1,6 +1,6 @@
 # 06. Comparison with the existing overhaul
 
-Written 2026-11-21 on `lane/rd-compare`, from `set/v0.2.144` at b596f0398. Refreshed the same day against the set at 604fc9386, after B gained three sections: 1b on Talents, 2b on the flame and 7b on arenas and the castle. Packages 1, 2, 6 and 7, the departures and the one screen were judged again. Docs only. This is deliverable 4 of the reset request of 2026-11-21. It is a judgment for review. Nothing here is a ruling and nothing here is final.
+Written 2026-11-21 on `lane/rd-compare`, from `set/v0.2.144` at b596f0398. Refreshed the same day, twice, after B gained four sections: 1b on Talents, 2b on the flame, 2c on where the ideas come from, and 7b on arenas and the castle. Packages 1, 2, 6 and 7, the departures and the one screen were judged again. Docs only. This is deliverable 4 of the reset request of 2026-11-21. It is a judgment for review. Nothing here is a ruling and nothing here is final.
 
 **The two candidates.** A is the existing overhaul: `docs/design/overhaul/` chapters 00 to 14, its 159 decision rows and the designer rulings in `review/05`, `06`, `08` and `10`. B is the fresh design: `01-identity.md`, `02-architecture.md`, `03-opportunities.md` and `05-roadmap.md` in this folder. I wrote neither.
 
@@ -24,7 +24,7 @@ A's answer to all three was to keep the structure and re-size the numbers. B's a
 
 **What the refresh changed.** B took three confirmed or floated requirements of 2026-11-21 and wrote them in. Two of my earlier findings are closed by it: Talents are kept as a build choice, and arenas and the castle are in the design with budgets set aside. The flame as Luck is written much as section 2.10 of the first issue argued. On all three, B is now the stronger text. On all three, nothing is measured, and each brings one new problem that section 2 names.
 
-**A warning on complexity.** B began by cutting layers. After the refresh, one move on a hero's bar can be changed by its rank, by up to three branch picks, by a Trait, by a Signature, by an imbuement and by the stance. A piece of gear has five parts. The flame has two parts and a memory. Each is argued well alone. Nobody has counted them together against the reset's line on complexity without player value. (JUDGMENT)
+**A warning on complexity.** B began by cutting layers. After the refresh, one move on a hero's bar can be changed by its rank, by up to three branch picks, by Traits, by a Signature, by an imbuement and by the stance. A piece of gear has five parts, and the rarest rolled piece now carries two Traits, each with a rank, from a weighted pool gated by depth. The flame has two parts and a memory. Each is argued well alone. Nobody has counted them together against the reset's line on complexity without player value. (JUDGMENT)
 
 **Where B oversells.** Four things B presents as new are already in the game or in A. (EVIDENCE, read in `src/data` on this branch)
 
@@ -40,7 +40,7 @@ So the real gap between the candidates is smaller than B's text suggests on pack
 | # | Package | Verdict | Label |
 |---|---|---|---|
 | 1 | Combat and skills | Merge. B's frame and its move evolutions, on A's built mechanics and measured lineups | JUDGMENT on MEASURED failures of A. Evolutions are untested |
-| 2 | Equipment | Take B, with the flame as Luck. Seed Traits from A's perk pool and unique kinds, and carry A's guard rails on Luck | JUDGMENT. Nothing in B is measured |
+| 2 | Equipment | Take B, with the flame as Luck and the four rarity steps. Prove one Trait a piece before two. Seed Traits from A's perk pool and unique kinds, and carry A's guard rails on Luck | JUDGMENT. Nothing in B is measured |
 | 3 | Hunting and monsters | Take B on probation. It becomes the design only if the climb probe passes. A's tier table is the fallback | SPECULATIVE, against MEASURED failures of A |
 | 4 | Party | Merge. B's reach and pay rule, A's on-call design and its mixed-Level line | JUDGMENT on MEASURED K-8 |
 | 5 | Economy and crafting | Merge. Least evidence on both sides. A's tools, B's law, company trades as a test and not a given | JUDGMENT |
@@ -90,7 +90,7 @@ Each package was read in both candidates, then against the same evidence: chapte
 **Where B is weaker or untested: evolutions (section 1b).** The first draft removed Talents. B now says that read the evidence too widely, which is the point this file made in its first issue. The new design is the better of the two candidates. It still has six problems.
 1. **The rank is a stat line.** The sample ranks are "about 3% longer" and "about 2% more". That is the thing measured as unfelt, and the thing B's own identity file cuts. B's "honest limit" admits that past the last branch the choice is which move gets the percent. With a point every Level and ranks with no top, most points a hero ever spends are of this kind. (JUDGMENT, on the MEASURED precedent)
 2. **Not spending is a penalty, so the choice is a duty.** A third of each Level's power arrives through the point, and monsters grow a full step. Four heroes then owe a decision at every Level, and early Levels are minutes apart. Under the first principle that has to be a standing rule, and B offers one. But once "spend as suggested" is on, the every-Level choice is gone for that player, and what is left is about three branch picks a move. That may be exactly right. It is not what the words "something to choose at every Level" promise. (JUDGMENT)
-3. **"No best path" and "a felt choice" pull against each other.** If every rank is worth the same wherever it goes, and every branch of a mark has one budget, the best build beats the suggested one by a little. A's Talents met that same target and were judged unfelt for it. B's answer is that branches matter at the edge of a step. That is A's measured result too: 0 deaths against 12 on the edge, and nothing away from it. So evolutions stand or fall with package 3. (MEASURED for the precedent, run 44925664434)
+3. **"No best path" and "a felt choice" pull against each other.** Section 2c now adds trade-off branches, which give something up for a gain. That is the best answer B has to this, and it is one line and one example so far. If every rank is worth the same wherever it goes, and every branch of a mark has one budget, the best build beats the suggested one by a little. A's Talents met that same target and were judged unfelt for it. B's answer is that branches matter at the edge of a step. That is A's measured result too: 0 deaths against 12 on the edge, and nothing away from it. So evolutions stand or fall with package 3. (MEASURED for the precedent, run 44925664434)
 4. **Spells already have stronger versions.** Every rune spell carries five versions today, bought by deeper runes. B's ranks are a second ladder on the same move and B does not say what happens to the first. (EVIDENCE, the `versions` field in `src/data/abilities.js`)
 5. **The writing load is large and must be good.** About eight branch rows a move on 26 moves is over 200 rows before any new move is written. B says to start with the two sampled moves, which is right and is the standing rule on batches. (COMPUTED from `src/data/abilities.js`)
 6. **Some branches take a decision off the bar.** "Fires by itself when a monster goes for a back-row hero" is a condition. The bar is where conditions live. Two homes for one kind of choice needs a rule. (JUDGMENT)
@@ -103,26 +103,39 @@ What B gets right here and A did not: evolutions live on the moves and not on a 
 
 ### 2.2 Equipment and progression
 
+Judged on B as it stands after section 2c: four rarity steps of Plain, Rare with one Trait, Very Rare with two Traits, and Signature. Trait pools are weighted and gated by Danger step. Sets, rerolls and passive webs are cut.
+
 **Where A falls short.**
 - It rests on fixed stats for each item, which the requirement of 2026-11-21 supersedes. No row of A answers that requirement. (EVIDENCE, the audit, R-12 and assumption 7)
 - Best gear is worth 2% of pace to a four on the easy tier and 5 to 7% on the harder ones, against an aim of 15%. (MEASURED, run 44920906999, tension K-10)
 - A fixed +17% step and a 15 to 25 Level gap cannot both hold past about Level 150. (COMPUTED, tension K-9)
 - Luck, special attributes, jewelry perks and glyphs are four layers that each nudge one number. (EVIDENCE, `src/data`)
 
-**Where B is weaker or untested.**
-- Nothing is measured. Not one Trait has been written as a row or run.
-- A Trait's worth depends on package 3. On today's structure a conditional +6% was invisible on the easy tier. A Trait is the same kind of row. If the climb fails, Traits are dull for the same measured reason Talents were. (MEASURED for the precedent, 856ffcaf4. JUDGMENT for the link)
-- B's examples are conditional percents. "Your first hit on a full-health target hits harder" is a number with a "when". That may still be good, but "a rule, not a number" claims more than the examples show. (JUDGMENT)
-- Carry-over creates a repeated decision. Every new base tier in a slot with a carried Trait asks the same question again, with the same answer and a new bill. Under the first principle that needs a standing rule in the plan, and B does not have one. (JUDGMENT)
-- Carry-over may also end the chase. Once a hero holds the best Trait for its job in each slot, every later drop is a base to carry onto. B lists this as an open question. It is the central one.
-- Free copying of ladder bars plus tradeable Traits is a fast road to one solved kit. B names the risk in two places and offers gear as the cure for copying and copying as the cure for setup work. (JUDGMENT)
-- It is the largest new money and trade surface in either candidate, and B says nothing on how single-piece listings meet Crowns sold for gold. That is Tyler's area and it must be asked.
+**What section 2c gets right.**
+- **The rarity steps fit the game.** The drop data already has a Rare band at 10 to 20 hunted hours and a Trophy band at 100 to 150, so the steps have natural homes and are not a new ladder. B does not yet map its four steps onto the six bands in the data (EVIDENCE, `src/data/loot-bands.js`). A Very Rare with two rules is a better answer to "something deeper and more exciting when rare drops occur" than one Trait at a higher rank.
+- **The cuts are right.** No reroll bench, no sets, no web of small nodes. Each would bring back the thing the reset names: one solved answer, or percents nobody feels. A's own data flags an armor set bonus as a leftover. (EVIDENCE, lever registry flag on `crit.set-bonus`)
+- **Holding combinations** until five Traits have been played is the right order.
+- **Trade-off branches sharpen evolutions.** A branch with a real cost is a choice that equal budgets alone could not give. It eases problem 3 of section 2.1.
 
-**What survives from A.** The jewelry perk pool of 23, as the seed of the Trait list. The seven kinds of unique property that change a decision (GR-41), as the seed of Signatures. Drops authored in hunted hours with the chance derived (GR-87). The named rare of each ground (GR-35). Tempering that carries up. One market book for each piece with grade and perks as filters (GR-50). The Hallmark fee, as a model for "aim a roll at a cost", which B leaves open.
+**Where B is weaker or untested.**
+1. **Nothing is measured.** Not one Trait has been written as a row or run. Section 2c adds three mechanics on top of an unplayed first one.
+2. **Two Traits answers by decision a question B had left open.** Package 2 still asks "how many Traits can a player hold in their head: one a piece, or two on the rarest?" and 2c adopts two. The sample of five Traits on one ground has not been played. The order should be: one Trait a piece proven, then one two-Trait piece tried. (JUDGMENT)
+3. **Pairs multiply the dominance problem.** Thirty Traits make 435 pairs, on each seat and ground. B says the Lab must read pairs. That is right, and it is a much larger job than the one probe V7 describes. A solved best pair is also a narrower target than a solved best Trait, so the market will find it and price everything else as carry-over fodder. (COMPUTED for the count. JUDGMENT for the rest)
+4. **Rarity now stacks four deep.** A piece must be Very Rare, roll two wanted Traits against their weights, roll rank 3 on each, and do it at a deep enough step. The flame then moves two of those odds. With no reroll, the best piece may be something no player ever sees, and nothing reads rare drop timing today. That can be a fine chase or a dead one, and only a drop reader can say which. A set a floor on how often its rarest piece comes. B has none. (JUDGMENT)
+5. **Depth gates pull against two of B's own rules.** Package 2 says every Trait of a rank has the same power budget. If a deep-only Trait is no stronger, the gate is scarcity alone. If it is stronger, it is a bigger number by another door. And package 2 says old grounds stay worth hunting for their Trait pool, while a gate by Danger step says the good rules are deeper. B should say which wins. (JUDGMENT)
+6. **Everything here leans on package 3 twice now.** A Trait's worth needs the climb, and its pool is gated by the Danger scale. On today's structure a conditional +6% was invisible on the easy tier. (MEASURED for the precedent, 856ffcaf4)
+7. **B's examples are conditional percents.** "Your first hit on a full-health target hits harder" is a number with a "when". That may still be good, but "a rule, not a number" claims more than the examples show.
+8. **Carry-over creates a repeated decision,** once for every new base tier in a slot with a carried Trait, with the same answer and a new bill. It needs a standing rule in the plan. With two Traits B also has to say whether one moves or both, and it lists that as open.
+9. **Carry-over may end the chase.** Once a hero holds the best pair for its job in each slot, every later drop is a base to carry onto. Two Traits push that day further off. They do not remove it.
+10. **Reading it on a phone.** A Very Rare shows a base, two rules with ranks, a temper and an imbuement. B asks the question and does not answer it.
+11. **One slip in the text.** Section 2c speaks of "a scarce Trait on a Plain-looking drop". Plain means no Trait.
+12. **Money.** It is the largest new trade surface in either candidate, and B still says nothing on how single-piece listings meet Crowns sold for gold. Two-Trait pieces raise the top price a piece can reach.
+
+**What survives from A.** The jewelry perk pool of 23, as the seed of the Trait list. A's Fine jewelry, which already carries a second perk and lets the player pay a Hallmark fee to choose it: that is a played precedent for two rules on one piece, and for a fixed-price pick that is not a reroll. The seven kinds of unique property that change a decision (GR-41), as the seed of Signatures. Drops authored in hunted hours with the chance derived (GR-87), which is the tool the four-deep rarity needs. The floor on how often the rarest piece can come. The named rare of each ground (GR-35). Tempering that carries up. One market book for each piece with grade and perks as filters (GR-50).
 
 **Luck and Inner Flame.** B now carries the flame as Luck in its section 2b. Section 2.10 judges it against A's two systems. In short: it is stronger than either of A's, and it gives up one protection A had.
 
-**Verdict: take B,** because A has no candidate here at all. Start from A's parts and from the sample of five Traits on one ground that B already asks for. Do not write a pool of 30 before that sample is played. (JUDGMENT)
+**Verdict: take B,** because A has no candidate here at all, and section 2c makes B's answer to the gear requirement stronger on paper. Take the four rarity steps, the weights and the cuts. Hold three things until they are tested: the second Trait until one Trait is proven on the five-Trait sample, the depth gates until B says whether a deep Trait is stronger or only scarcer, and any drop rate until a reader for rare timing exists. (JUDGMENT)
 
 ### 2.3 Hunting and monsters
 
@@ -363,7 +376,8 @@ B's own list had six. The refresh closed three of them: Talents are kept, Inner 
 | 12 | Store supplies cut to basics | Best runes paid for themselves (one playtest) | That a market exists to replace the store at today's population |
 | 13 | The first build is paused and no dates are given | B's stages are sound in order | How long. A had about 15 lanes aimed at the end of December. B has seven waves, four approvals and no estimate |
 | 14 | The existing monster classes, weapon weakness, the spell list and the five rune versions of each spell are not mentioned | They exist in data | Whether B keeps, merges or replaces them. Ranks and rune versions are two ladders on one move |
-| 15 | The count of things that change one move | Rank, three branch marks, a Trait, a Signature, an imbuement and the stance, each argued alone | Whether a player can read the sum. Nobody has counted them together |
+| 15 | The count of things that change one move | Rank, three branch marks, up to two Traits a piece, a Signature, an imbuement and the stance, each argued alone | Whether a player can read the sum. Nobody has counted them together |
+| 16 | Very Rare pieces carry two Traits, from weighted pools gated by depth | Nothing is played. A's Fine jewelry with a second perk is the nearest precedent | Whether two rules on a piece excite or confuse, and whether the best piece can ever drop. B's own open question on this was answered before its sample ran |
 
 ## 5. What neither candidate answers yet
 
@@ -389,6 +403,7 @@ B's own list had six. The refresh closed three of them: Talents are kept, Inner 
 - Chapters 01 to 11 of A were read through their decision rows, chapter 00, chapter 12, the build plan and the four designer ruling files, and not line by line.
 - Which of chapter 12's numbers move on the fixed engine is not established.
 - The claims that a mechanic "already exists" come from reading `src/data` on this branch. I did not play them.
-- B was judged as it stands on the set at 604fc9386. Packages 3, 4, 5, 8 and 9 did not change in the refresh and were not judged again.
+- B was judged as it stands on the newest set, with section 2c. Packages 3, 4, 5, 8 and 9 did not change in the refresh and were not judged again.
+- `07-balance-lab.md` arrived with the last merge. It was not part of this brief and is not judged here.
 - Sections 1b, 2b and 7b of B were read in full. None has a run, a played sample or a number that is not marked as a hypothesis.
 - Cost sizes are not compared, because B gives letter sizes and A gives lanes, and neither gives days.

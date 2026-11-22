@@ -149,7 +149,12 @@ function readSeed(res, start) {
     return (b[1] - a[1]) / hrs / tableRate(mid);
   }).filter((x) => x !== null) : [];
   const firstNear = (target) => { const e = log.find((x) => x.to >= target); return e ? e.ms / H : null; };
+  /* THE GOLD AN HOUR (lane/w-wage, 2026-11-22): coin, coin plus loot at the store's price (no Rares), and the store bill, a hunted
+     hero-hour over the whole hunt (src/core/wage.js is calibrated on these; a held start keeps the opening climb short) */
+  const heroH = res.heroes.reduce((a, h) => a + (h.hours || 0), 0);
+  const perHeroH = (k) => (heroH > 0 ? res.heroes.reduce((a, h) => a + ((h.raw && h.raw[k]) || 0), 0) / heroH : null);
   return {
+    coinPerHeroH: perHeroH('coin'), incomePerHeroH: perHeroH('income'), storePerHeroH: perHeroH('store'),
     held: wt ? wsum / wt : null, halves: halves.map((x) => (x.t ? x.s / x.t : null)), timeAt, wt,
     changesPerH: wt ? changes / (wt / H) : null, pulls: log.length, settledPulls: settled.length,
     whys: log.reduce((o, e) => ((o[e.why] = (o[e.why] || 0) + 1), o), {}),
@@ -190,6 +195,10 @@ for (const c of cells) {
     changesPerH: r1(mean(seeds.map((x) => x.changesPerH || 0))), fallsPerH: r1(mean(seeds.map((x) => x.fallsPerH || 0))),
     reachH: r1(mean(seeds.map((x) => x.reach(Math.max(0, (x.held || 0) - 20))).filter((x) => x !== null))),
     pullsPerH: r1(mean(seeds.map((x) => x.pullsPerH))), killsPerH: r0(mean(seeds.map((x) => x.killsPerH))), xpPerHeroH: r0(mean(seeds.map((x) => x.xpPerH))),
+    gold: Object.fromEntries(['coinPerHeroH', 'incomePerHeroH', 'storePerHeroH'].map((k) => {
+      const v = seeds.map((x) => x[k]).filter((x) => x !== null);
+      return [k, { mean: r0(mean(v)), sd: r0(sd(v)), n: v.length }];
+    })),
     deaths: seeds.reduce((a, x) => a + x.deaths, 0), wipes: seeds.filter((x) => x.wipe).length, seedsWithADeath: seeds.filter((x) => x.deaths > 0).length,
     huntedH: r1(mean(seeds.map((x) => x.huntedH))), fourH: r1(mean(seeds.map((x) => x.fourH))),
     firstDeathH: seeds.map((x) => r1(x.firstDeathH)).filter((x) => x !== null),
@@ -226,6 +235,8 @@ for (const [id, c] of Object.entries(report.cells)) {
 }
 console.log('\npay from a held start (hour ' + PAY_FROM_H + ' to the four\'s end), Level XP a hunted hero-hour as a multiple of the hours table');
 for (const [id, c] of Object.entries(report.cells)) console.log('  ' + id.padEnd(17) + ' ' + String(c.payX.mean).padStart(5) + 'x  sd ' + c.payX.sd + '  n ' + c.payX.n + '  window ' + c.payX.windowH + ' h  seeds ' + c.payX.perSeed.join(' '));
+console.log('\ngold a hunted hero-hour over the whole hunt (coin; coin + loot at the store\'s price, no Rares; the store bill), mean +- sd over seeds');
+for (const [id, c] of Object.entries(report.cells)) console.log('  ' + id.padEnd(17) + ' L' + c.L + '  coin ' + c.gold.coinPerHeroH.mean + ' +- ' + c.gold.coinPerHeroH.sd + '  income ' + c.gold.incomePerHeroH.mean + ' +- ' + c.gold.incomePerHeroH.sd + '  store ' + c.gold.storePerHeroH.mean + '  n ' + c.gold.coinPerHeroH.n);
 console.log('\npower moves (paired seeds): the held step at the changed power minus at base');
 for (const [k, m] of Object.entries(report.moves)) if (m) console.log('  ' + k.padEnd(16) + ' ' + String(m.mean).padStart(7) + ' steps (sd ' + m.sd + ', se ' + m.se + ', n ' + m.n + ')');
 console.log('\nwall ' + report.wallS + ' s');

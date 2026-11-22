@@ -38,6 +38,8 @@
     "node tests/services-window.mjs": "in-page-2",
     "node tools/mutant-gate.mjs node tests/services-window.mjs --mutate": "in-page-2",
     "node tests/danger-client.mjs": "in-page-2",
+    "node tests/gear-steps.mjs": "in-page-2",
+    "node tools/mutant-gate.mjs node tests/gear-steps.mjs --mutate": "in-page-2",
     "node tests/say-why.mjs": "in-page-2",
     "node tools/mutant-gate.mjs node tests/say-why.mjs --mutate": "in-page-2",
     "node tests/house-window.mjs": "in-page-2",

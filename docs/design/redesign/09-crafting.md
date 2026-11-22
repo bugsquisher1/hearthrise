@@ -583,8 +583,9 @@ store bid   = floorShare x V, falling a fixed step for each unit the store alrea
 | `imbueHours`, `temperHours`, `temperCarry`, `carryHours` | 20, 3, 0.35, 10 | | The enhancement prices |
 | `toolHours`, `toolLifeRung` | 12 h, 0.25 | 8 to 24, 0.15 to 0.35 | How long a Plain tool lasts, and the life each quality rung adds. 12 is the owner's number |
 | `toolWork` | 1.0 | 0.5 to 1.5 | Work-hours in a tool. Its price, and the share of labor tools ask for |
+| `storageBase` | Set by the Lab | Room for three bands of every kind the company works | Stacks a company stores before the hall's rung and Crowns tabs (section 6) |
 
-About eighteen global levers, counting pairs as one. `04`'s `supplyShare` becomes derived, so the net is about fifteen. Content tables beside them: the line shares, the stage shares, and the kind rows. A balance number keyed by a recipe, an item or a ground has nowhere to live, the same rule as `04` section 12.
+About nineteen global levers, counting pairs as one. `04`'s `supplyShare` becomes derived, so the net is about fifteen. Content tables beside them: the line shares, the stage shares, and the kind rows. A balance number keyed by a recipe, an item or a ground has nowhere to live, the same rule as `04` section 12.
 
 ---
 
@@ -764,6 +765,7 @@ Every craft is a request the server answers. The client never names an output, a
 | **The catalogue** | Generated on the server from the kind rows and the levers: every recipe's inputs, time, XP and catalogue value. The client reads it. A recipe id the server does not know is refused |
 | **Trade state** | One row for the company and trade: XP as a Level and a share, and the Mastery flag. Masteries are counted on the server against `masteryCap` |
 | **Stacks** | Keyed by item kind, band and quality. A stack exists only in bands the account has touched, so storage grows with a company's own range and not with the world's |
+| **Storage** | Counted in stacks, not in units: an existing stack always grows, and only a new kind, band or quality needs room. Base room (`storageBase`) is sized by the Lab so a company working all its trades in its nearest three bands never fills it. The hall's storage rung adds room, and Crowns tabs add room for good (`10-premium.md` section 4). A full store refuses only a new stack, and the loot rule then lists or sells it. Nothing is ever deleted, and the return card says what happened |
 | **A job** | One row: the hero, the recipe, the count asked, the start time on the server's clock, and a seed. The intent is "start this recipe, this many, with this hero". Inputs are debited at the start. The result is one calculation at the end or at a stop: attempts from elapsed time, yield and quality from the seeded dice. Three writes a job, the closed form the cost study requires |
 | **Stock rules** | Rows in the company plan. The server builds the job list from them. The client sends targets and price limits, never jobs it has decided were finished |
 | **Enhancement** | One request each for imbue, Temper, carry-over and salvage. Each names pieces the server already owns. The server checks ownership, reads the price from the catalogue, rolls anything that rolls, and writes the piece |

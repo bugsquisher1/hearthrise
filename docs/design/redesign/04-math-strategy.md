@@ -437,7 +437,25 @@ Net cost is the price less what the block's 2 hours earn back (1.5 for hunting, 
 
 **Proves it wrong:** any block, the first included, that returns more coin than it costs for any company the Lab finds, at any Level. Or a purchase pattern most players reach that moves the labor ratio on the mix by more than 0.1 either way.
 
-Levers: `wageBase`, `payStepCoin`, `supplyShare`, the tax pair, and price rows in hours (content). Five global, and the levers of bought time: four for work and three for hunting, whose cap of 2 is ruled (seven).
+**Talent resets.** The rule of `02-architecture.md` section 1b, in the same units. A hero drafts changes for free and pays once when the draft or a saved build is applied.
+
+```
+price of a reset (gold) = resetHours x wage(L) x resetGrowth ^ n
+n                       = resets this hero has paid for this server day, 0 for the first
+```
+
+| Reset that day | Price, hours of wage | Share of a 10 h day's net coin (7.5) |
+|---|---|---|
+| 1st | 0.5 | 7% |
+| 2nd | 1.0 | 13% |
+| 3rd | 2.0 | 27% |
+| 4th | 4.0 | 53% |
+
+`resetHours` starts at 0.5 (band 0.25 to 1) and `resetGrowth` at 2 (band 1.5 to 3). It grows with Level through the wage and with each reset that day through the growth, so a plan that switches builds once a day for its ground pays a small steady price and one that thrashes pays a lot. A new hero's first reset is free. With Premium each hero's first reset of the server day is free and is not counted, so the next is priced as a free hero's first. A reset moves points and never adds one, and the gold is burned, so it is a sink that grows with Level. (COMPUTED.)
+
+**The Crowns book as a sink.** The book moves gold between players and mints none. Its fee, 1% to list and 4% of the gold on a sale (band 3 to 10%), is burned, so every Crown sold for gold is a gold sink that grows with the money players bring. A seller at the weekly cap moves about one account-week of wage, 280 hours of wage on a 10 hour day, and burns about 14 of them. It counts in `sinkOverFaucet` like the market tax. The Crown's gold value is anchored by Premium's hours: the same hours bought as first blocks cost 20 hours of wage an account-day, about 600 a month (`10-premium.md` section 4). (COMPUTED.)
+
+Levers: `wageBase`, `payStepCoin`, `supplyShare`, the tax pair, and price rows in hours (content). Five global, the levers of bought time (four for work and three for hunting, whose cap of 2 is ruled, so seven), `resetHours` and `resetGrowth`, and the book's fee pair.
 
 **4. Coupling.** Supplies link combat to gold (section 3). Personal loot multiplies drops by seats, so odds are per hero. Trait pieces and carry-over are the top of demand. The market is players' prices, which no formula sets, so the model treats it as a range.
 
@@ -488,6 +506,8 @@ Beside them sit content tables the designer owns and the optimizer never moves: 
 | Event and arena rewards | Conditional | A reserved slice |
 
 The slices are levers and their sum is the ceiling. The ceiling times `payStep` is the most any company can be ahead of a plain one at the same Level, and the slices a player can buy with gold give the size of the paid edge the same way. A new source of power takes its steps from a slice or is refused. The flame of section 2b moves how often a Rare drops and its rank. It is luck and not steps, so it sits in section 10 under `kitSpreadMax`.
+
+**Premium has no row.** Nothing Premium sells adds a step. Its hours change how many hours a day a hero hunts and works, never what an hour holds, and bought blocks are the same. So they are read in days, not steps. The Lab reads the days the reference company takes to cross a band four ways: free (10 hunted hours a day), Premium (12), free with two bought blocks (14), and Premium with two (16). As plain division that is 1.0, 0.83, 0.71 and 0.63 of the free days (COMPUTED). The Lab replaces it with runs, since a longer day also burns more kit and reaches the flame's room sooner. Ladders read inside Level bands, so these days move a company's band and never its rank inside one (`02-architecture.md` package 7).
 
 **How they become a lever set the optimizer can move.** The registry of `lane/bl-levers` (`tools/balance-program/levers.mjs`) already holds each lever's site, range, class and how the simulator perturbs it. Three additions:
 

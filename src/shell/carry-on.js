@@ -29,7 +29,8 @@ import { itemNameFor } from './widgets/bits.js';
 import { refusalWords, runIntent } from './intent-words.js';
 import { huntName, partyMembershipOf } from '../session/party-sections.js';
 import { huntOf } from '../session/hunt-sections.js';
-import { carryOnPlan, carryOn, companyOf, setCompanyLine } from '../session/carry-on-intents.js';
+import { carryOnPlan, carryOn, setCompanyLine } from '../session/carry-on-intents.js';
+import { companyPlanOf } from '../session/company-sections.js';
 import { bagOf, equipmentOf } from '../session/item-sections.js';
 import { TIER_NAME, DEFAULT_TIER } from '../data/hunt-tiers.js';
 import { upgradeOf } from './widgets/upgrade-line.js';
@@ -121,7 +122,7 @@ function stateOf(ctx) {
 const keyOf = (ctx) => ctx.peers().map((p) => { const h = huntOf(p); return p.slot + ':' + (h ? h.sessionId + (h.ended ? '.' : '') : ''); }).join('|');
 const pressFrom = (ctx) => ctx.character || ctx.peers()[0] || null;
 
-/* THE COMPANY'S PLAN LINES: each a pair of presses, the server's value pressed (companyOf, the section), both off while one is out. */
+/* THE COMPANY'S PLAN LINES: each a pair of presses, the server's value pressed (companyPlanOf, the section), both off while one is out. */
 const LINES = Object.freeze([
   Object.freeze({ line: 'wear_upgrades', label: 'away.line_wear', tip: 'away.line_wear_tip', values: Object.freeze([['on', 'away.line_on'], ['off', 'away.line_off']]) }),
   Object.freeze({ line: 'if_one_falls', label: 'away.line_falls', tip: null, values: Object.freeze([['hunt_on', 'away.line_hunt_on'], ['all_home', 'away.line_all_home']]) }),
@@ -155,7 +156,7 @@ export function patchCarry(el, ctx) {
     patch: (li, l) => { text(li, l.text); cls(li, 'is-no', !l.go); },
   });
   /* the company's lines, as the server holds them; off until the section has come, and while a press is out */
-  const co = companyOf(pressFrom(ctx));
+  const co = companyPlanOf(pressFrom(ctx));
   for (const b of el.querySelectorAll('[data-hs-act="away-line"]')) {
     const line = b.getAttribute('data-line'), v = b.getAttribute('data-value');
     const now = !co ? null : line === 'wear_upgrades' ? (co.wearOn ? 'on' : 'off') : co.falls;
@@ -163,9 +164,11 @@ export function patchCarry(el, ctx) {
     attr(b, 'aria-pressed', now === v ? 'true' : 'false');
     prop(b, 'disabled', !co || s.pending || s.line);
   }
+  /* the note under the lines says why they are off (the plan is being read, a press is out) and when the heroes' boxes differ */
   const note = el.querySelector('.haway-line-note');
-  prop(note, 'hidden', !(co && co.falls === 'mixed'));
-  text(note, co && co.falls === 'mixed' ? t('away.line_mixed') : '');
+  const why = !co ? t('away.line_reading') : s.line || s.pending ? t('heroes.sending') : co.falls === 'mixed' ? t('away.line_mixed') : '';
+  prop(note, 'hidden', !why);
+  text(note, why);
   const press = el.querySelector('[data-hs-act="away-carry"]');
   text(press, s.pending ? t('heroes.sending') : t('away.carry_press'));
   prop(press, 'disabled', s.pending || !live);

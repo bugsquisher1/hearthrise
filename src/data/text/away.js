@@ -173,6 +173,7 @@ export const AWAY_TEXT = Object.freeze({
   line_hunt_on: 'The rest hunt on',
   line_all_home: 'All come home',
   line_mixed: 'Set hero by hero',
+  line_reading: 'Reading your plan…',
   carry_wore: '{name} put on {items}.',
   carry_wear_refused: '{name} kept its gear on.',
   carry_task: '{name} took Tamsin\'s task here.',

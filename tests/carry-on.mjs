@@ -721,16 +721,17 @@ async function linesArm(db, M) {
     const bad = [];
     await heroes(db, M, A, 2);
     const I = await imp('src/session/carry-on-intents.js');
+    const CS = await imp('src/session/company-sections.js');
     const { server, list, account } = await clientOf(db, A, [0, 1]);
     const boxes = async () => (await q(db, 'select party_leave_together as b from public.player_state where user_id = $1 order by slot', [A])).map((x) => x.b);
     let r = await I.setCompanyLine(account, list[0], 'if_one_falls', 'all_home');
-    if (!r.ok || JSON.stringify(await boxes()) !== '[true,true]' || (I.companyOf(list[1]) || {}).falls !== 'all_home') bad.push('CO-LINES all come home: ' + JSON.stringify([r, await boxes(), I.companyOf(list[1])]));
+    if (!r.ok || JSON.stringify(await boxes()) !== '[true,true]' || (CS.companyPlanOf(list[1]) || {}).falls !== 'all_home') bad.push('CO-LINES all come home: ' + JSON.stringify([r, await boxes(), CS.companyPlanOf(list[1])]));
     r = await I.setCompanyLine(account, list[1], 'if_one_falls', 'hunt_on');
-    if (!r.ok || JSON.stringify(await boxes()) !== '[null,null]' || (I.companyOf(list[0]) || {}).falls !== 'hunt_on') bad.push('CO-LINES the rest hunt on: ' + JSON.stringify([r, await boxes(), I.companyOf(list[0])]));
+    if (!r.ok || JSON.stringify(await boxes()) !== '[null,null]' || (CS.companyPlanOf(list[0]) || {}).falls !== 'hunt_on') bad.push('CO-LINES the rest hunt on: ' + JSON.stringify([r, await boxes(), CS.companyPlanOf(list[0])]));
     r = await I.setCompanyLine(account, list[0], 'wear_upgrades', 'off');
     const plan = await I.carryOnPlan(account, list[0], null);
-    if (!r.ok || (I.companyOf(list[0]) || {}).wearOn !== false || (I.companyOf(list[1]) || {}).wearOn !== false || !plan.ok || plan.plan.wearOn !== false) {
-      bad.push('CO-LINES wear upgrades off reads ' + JSON.stringify([I.companyOf(list[0]), plan.ok && plan.plan.wearOn]));
+    if (!r.ok || (CS.companyPlanOf(list[0]) || {}).wearOn !== false || (CS.companyPlanOf(list[1]) || {}).wearOn !== false || !plan.ok || plan.plan.wearOn !== false) {
+      bad.push('CO-LINES wear upgrades off reads ' + JSON.stringify([CS.companyPlanOf(list[0]), plan.ok && plan.plan.wearOn]));
     }
     const n = server.calls.length;
     r = await I.setCompanyLine(account, list[0], 'wear_upgrades', 'maybe');

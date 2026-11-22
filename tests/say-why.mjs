@@ -194,6 +194,8 @@ export const REASONS = Object.freeze({
   /* Carry on (1024-carry-on.sql): off while the server's plan has no hero to send; the block is hidden then, except right after a press */
   'src/shell/carry-on.js': [
     { cond: 's.pending || !live', words: "text(el.querySelector('.haway-carry-msg'), s.msg)", where: 'Carry on: hidden while no hero would go; shown off only after a press, when the line under it says who went or why the server refused (a hero that stays reads its own reason in the list above)' },
+    /* the company's plan lines (1051-company-start.sql): off until the server's section has come, and while a press is out */
+    { cond: '!co || s.pending || s.line', words: "t('away.line_reading')", where: 'Wear upgrades and If one falls: the note under them says the plan is being read, or Sending… while a press is out' },
   ],
   'src/shell/windows/house-dummy.js': [
     { cond: '!canBuy', words: "text(box.querySelector('.hd-why'), block)", where: 'Unlock on the dummy: the line under the ladder says why (no Homestead, short of the next price); every skill held reads "Every skill is unlocked" and hides the buttons' },

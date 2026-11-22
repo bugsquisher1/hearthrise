@@ -33,6 +33,9 @@
 --   hr_party_seat_own (RESTATED, internal to hr_hunt_party_invite_own): an own hero that is hunting, or an inviter hunting with no
 --                                                  party, is no longer refused member_hunting / hunt_open: the joiner's plan holds
 --                                                  party_with, the answer says `pending`, and the next Start seats it once both are free.
+--   hr_hunt_party_invite_own (RESTATED): the same checks and receipt; its answer carries the inviter's envelope (rule 11).
+-- Every verb here answers with the envelope of the hero it names (`envelope`), or of every hero (`envelopes`, the line verb); the receipt
+--   a replayed key answers carries none.
 --   hr_carry_on(p_slots int[], p_gold bigint, p_wear jsonb, p_idem uuid)  THE ONE START. Replaces 1024's three-argument press (dropped,
 --                                                  never applied). p_wear: at most 48 lines { slot, equip_slot, item, from? }: what the
 --                                                  "Wear upgrades" line (or the "Equip upgrades for all four" press) puts on, worn through
@@ -98,6 +101,9 @@ begin
   select replace(prosrc, chr(13), '') into v_src from pg_proc where oid = 'public.hr_party_seat_own(uuid,integer,integer)'::regprocedure;
   if strpos(v_src, '''member_hunting''') = 0 and strpos(v_src, 'COMPANY-START') = 0 then
     raise exception 'PIN: hr_party_seat_own is neither the party-flow image nor this file''s: another file moved it'; end if;
+  select replace(prosrc, chr(13), '') into v_src from pg_proc where oid = 'public.hr_hunt_party_invite_own(integer,integer,uuid)'::regprocedure;
+  if strpos(v_src, 'v_r := public.hr_party_seat_own(v_uid, p_slot, p_other_slot);') = 0 then
+    raise exception 'PIN: hr_hunt_party_invite_own does not seat through hr_party_seat_own: another file moved it'; end if;
   select replace(prosrc, chr(13), '') into v_src from pg_proc where oid = 'public.hr_carry_on_plan_of(uuid,integer[])'::regprocedure;
   if strpos(v_src, 'THE PLAYER''S OWN STOP STANDS') = 0 then
     raise exception 'PIN: hr_carry_on_plan_of is not 1024''s plan or this file''s: another file moved it'; end if;
@@ -316,7 +322,9 @@ begin
   v_r := jsonb_build_object('ok', true, 'line', p_line, 'value', p_value);
   insert into public.player_intents (user_id, intent_id, slot, intent, result, at)
     values (v_uid, p_idem, 0, v_verb, v_r, now()) on conflict (user_id, intent_id) do nothing;
-  return v_r;
+  -- THE ENVELOPES (rule 11): every hero of the account, by slot, as the line left them; the receipt carries none.
+  return v_r || jsonb_build_object('envelopes', (select jsonb_object_agg(ps.slot::text, public.hr_state_of(v_uid, ps.slot))
+                                                   from public.player_state ps where ps.user_id = v_uid));
 end $fn$;
 
 create or replace function public.hr_hero_plan_set(p_slot int, p_hunt text, p_idem uuid)
@@ -352,7 +360,7 @@ begin
   v_r := jsonb_build_object('ok', true, 'hunt', p_hunt);
   insert into public.player_intents (user_id, intent_id, slot, intent, result, at)
     values (v_uid, p_idem, p_slot, v_verb, v_r, now()) on conflict (user_id, intent_id) do nothing;
-  return v_r;
+  return v_r || jsonb_build_object('envelope', public.hr_state_of(v_uid, p_slot));   -- rule 11
 end $fn$;
 
 create or replace function public.hr_ground_setup_set(p_slot int, p_hunt text, p_preset int, p_idem uuid)
@@ -383,7 +391,7 @@ begin
   v_r := jsonb_build_object('ok', true, 'hunt', p_hunt, 'preset', p_preset);
   insert into public.player_intents (user_id, intent_id, slot, intent, result, at)
     values (v_uid, p_idem, p_slot, v_verb, v_r, now()) on conflict (user_id, intent_id) do nothing;
-  return v_r;
+  return v_r || jsonb_build_object('envelope', public.hr_state_of(v_uid, p_slot));   -- rule 11
 end $fn$;
 
 create or replace function public.hr_party_lead_set(p_slot int, p_lead int, p_idem uuid)
@@ -412,10 +420,10 @@ begin
   select * into v_l from public.hr_party_lead_of(v_party);
   update public.hunt_parties set leader_user = v_l.user_id, leader_slot = v_l.slot
    where id = v_party and (leader_user, leader_slot) is distinct from (v_l.user_id, v_l.slot);
-  v_r := jsonb_build_object('ok', true, 'leader', v_l.slot, 'pinned', p_lead is not null, 'party', public.hr_hunt_party_view(v_uid, p_slot));
+  v_r := jsonb_build_object('ok', true, 'leader', v_l.slot, 'pinned', p_lead is not null);
   insert into public.player_intents (user_id, intent_id, slot, intent, result, at)
     values (v_uid, p_idem, p_slot, v_verb, v_r, now()) on conflict (user_id, intent_id) do nothing;
-  return v_r;
+  return v_r || jsonb_build_object('envelope', public.hr_state_of(v_uid, p_slot));   -- rule 11
 end $fn$;
 
 -- THE PARTY DOOR WITH A HUNTING HERO (FB-6 "a hunting hero joined at its hunt's end and never refused with no way forward"): RESTATED WHOLE
@@ -462,6 +470,33 @@ begin
 end $fn$;
 
 revoke execute on function public.hr_party_seat_own(uuid, int, int) from public, anon, authenticated, service_role;
+
+-- THE DOOR'S VERB, RESTATED WHOLE from 2026-10-28-party-flow.sql: the same checks and receipt; its answer now carries the inviter's envelope
+-- (rule 11): the door may now write a plan (party_with) as well as a seat.
+create or replace function public.hr_hunt_party_invite_own(p_slot integer, p_other_slot integer, p_idem uuid)
+returns jsonb language plpgsql security definer set search_path = public, pg_catalog as $fn$
+-- COMPANY-START (1051-company-start.sql): the answer carries the inviter's envelope.
+declare
+  c_verb constant text := 'hunt_party_invite_own';
+  v_uid uuid := auth.uid(); v_r jsonb;
+begin
+  if v_uid is null then return jsonb_build_object('ok', false, 'error', 'not_signed_in'); end if;
+  if p_slot is null or p_slot < 0 or p_slot > 5 then
+    return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'bad_slot')); end if;
+  if p_idem is null then return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'bad_idem')); end if;
+  v_r := public.hr_intent_replay(v_uid, p_slot, p_idem, c_verb);
+  if v_r is not null then return public.hr_note_rejection(c_verb, p_slot, v_r); end if;
+  if not public.hr_rpc_gate('party') then return jsonb_build_object('ok', false, 'error', 'rate_limited'); end if;
+  if not exists (select 1 from public.player_state where user_id = v_uid and slot = p_slot) then
+    return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'no_character')); end if;
+  v_r := public.hr_party_seat_own(v_uid, p_slot, p_other_slot);
+  if coalesce(v_r->>'ok', 'false') <> 'true' then return public.hr_note_rejection(c_verb, p_slot, v_r); end if;
+  insert into public.player_intents (user_id, intent_id, slot, intent, result, at)
+    values (v_uid, p_idem, p_slot, c_verb, v_r, now()) on conflict (user_id, intent_id) do nothing;
+  return v_r || jsonb_build_object('envelope', public.hr_state_of(v_uid, p_slot));
+end $fn$;
+revoke execute on function public.hr_hunt_party_invite_own(int, int, uuid) from public, anon, service_role;
+grant  execute on function public.hr_hunt_party_invite_own(int, int, uuid) to authenticated;
 revoke execute on function public.hr_company_line_set(text, text, uuid) from public, anon, service_role;
 grant  execute on function public.hr_company_line_set(text, text, uuid) to authenticated;
 revoke execute on function public.hr_hero_plan_set(int, text, uuid) from public, anon, service_role;

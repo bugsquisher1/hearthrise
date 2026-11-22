@@ -153,6 +153,11 @@
         "bytes": 3150368,
         "on": "2026-11-21",
         "why": "cut locked in (16467 bytes)"
+      },
+      {
+        "bytes": 3155390,
+        "on": "2026-11-22",
+        "why": "lane/c-company FB-6: src/data/hunt-after.js (bundled through set-activity.js) gains the rest plan's ending rows (D-11: REST_ENDINGS, STANDING_MAX_HOURS, validateRest, FB-10's server half reads them) and the return card's Needs you rows (D-2: NEEDS_YOU, NEEDS_SHOWN, validateNeeds), about 5 KB with their comments"
       }
     ]
   }

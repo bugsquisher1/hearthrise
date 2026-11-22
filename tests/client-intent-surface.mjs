@@ -90,6 +90,7 @@ export const CLIENT_RPCS = Object.freeze({
   /* The UX flow audit 2026-11-11 (2027-04-13-bank-move-many.sql): ids and a direction, WHOLE stacks at the server’s own count, all or nothing. */
   /* CARRY ON (1024-carry-on.sql, Tyler RULED 27-1): the plan is a read; the press names slots, the gold figure the player was shown and a key */
   hr_carry_on_plan: 'what one Carry on press would do for each of the caller\'s own heroes: the slots, nothing else; a read, nothing moves (carry-on-intents.js carryOnPlan)',
+  hr_company_line_set: 'one plan line for the caller\'s whole company: wear_upgrades on or off, if_one_falls hunt_on or all_home; a line and a word, no slot, value or price (carry-on-intents.js setCompanyLine; 1051-company-start.sql)',
   hr_carry_on: 'ONE press sends the caller\'s own heroes back to their last hunt through the existing doors: the slots (or none for the account), the Blessings gold the plan showed (it only refuses: quote_changed) and a key; no ground, count, item or price (carry-on-intents.js carryOn)',
   hr_bank_move_many: 'move many whole stacks between the bag and the home storage in one call, value-neutral, all or nothing (storage-intents.js moveStorageMany)',
   /* Tyler 2026-11-02 "Yes, add a press" (2027-02-21-hunt-carry-in.sql): an item id and a count; catalogue, stock and the open hunt are the server’s. */

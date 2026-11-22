@@ -15,8 +15,6 @@
 //                                            the server's hunts and bags, never this answer's. `wear`: the "Wear upgrades" line's picks
 //                                            ({ slot, equip_slot, item, from? }, carry-on.js wearListOf), each put on by the server through
 //                                            hr_apply's equip gate; a line it refuses is named and the hero still goes.
-//   companyOf(cs)                            the `company` section: the account's lines (wear_upgrades, if_one_falls), this hero's plan
-//                                            ground, the own hero it joins once both are free, whether its party's leader is pinned.
 //   setCompanyLine(account, cs, line, value) hr_company_line_set: a plan line set once for every hero; every hero is read again.
 //
 // The client names slots, the shown gold figure and a key: never a ground, a count, a price or an item. `cs` is the hero the press was
@@ -146,30 +144,18 @@ export function carryOn(account, cs, gold, slots, jobs, wear) {
   });
 }
 
-/** The `company` section (1051-company-start.sql hr_company_view), bounded; null when the server sent none. */
-export function companyOf(cs) {
-  const c = cs && typeof cs.read === 'function' ? cs.read('company') : null;
-  if (!isObj(c) || typeof c.wear_upgrades !== 'boolean') return null;
-  return {
-    wearOn: c.wear_upgrades,
-    falls: c.if_one_falls === 'hunt_on' || c.if_one_falls === 'all_home' || c.if_one_falls === 'mixed' ? c.if_one_falls : null,
-    planHunt: typeof c.plan_hunt === 'string' && ITEM.test(c.plan_hunt) ? c.plan_hunt : null,
-    joins: isObj(c.joins) && Number.isInteger(c.joins.slot) && typeof c.joins.name === 'string' ? { slot: c.joins.slot, name: c.joins.name.slice(0, 40) } : null,
-    leadPinned: c.lead_pinned === true,
-    heroes: whole(c.heroes) || 0,
-  };
-}
-
 /** A plan line set once for every hero of the account (`line` a COMPANY_LINES key, `value` one of its values). On ok every open hero
-    is read again: each one's box and section are the server's. */
+    takes the envelope the answer carries for it (each one's box and section are the server's), read again only when one is missing. */
 export function setCompanyLine(account, cs, line, value) {
   if (!usable(account, cs) || !COMPANY_LINES[line] || !COMPANY_LINES[line].includes(value)) return Promise.resolve({ ok: false, error: 'bad_intent', verb: 'company_line_set' });
   return askVia(cs, 'company_line_set', async () => {
     const ans = await account.server.rpc('hr_company_line_set', { p_line: line, p_value: value, p_idem: newIdem() });
     const b = ans && isObj(ans.body) ? ans.body : null;
     if (!(ans && ans.ok && b && b.ok === true)) { await afterRefusal(cs, ans); return refused(ans, 'company_line_set'); }
+    /* every hero as the line left it (`envelopes` by slot, rule 11): taken like a load, read only when absent */
+    const envs = isObj(b.envelopes) ? b.envelopes : {};
     const all = typeof account.characters === 'function' ? account.characters() : [cs];
-    await Promise.all(all.filter((o) => o && o.status !== 'closed' && typeof o.load === 'function').map((o) => o.load()));
+    await Promise.all(all.filter((o) => o && o.status !== 'closed' && typeof o.load === 'function').map((o) => o.load(isObj(envs[o.slot]) ? envs[o.slot] : null)));
     return { ok: true };
   });
 }

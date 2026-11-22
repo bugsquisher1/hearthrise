@@ -63,12 +63,20 @@ function basePull(ground) {
  */
 export function dangerDial(ground, step) {
   const s = clampStep(step);
-  const r = 1 + DANGER.powerStep, n0 = basePull(ground);
-  const pull = Math.max(1, Math.min(DANGER.pullMax, Math.round(n0 * r ** (DANGER.pullShare * s))));
+  const n0 = basePull(ground);
+  const pull = Math.max(1, Math.min(DANGER.pullMax, Math.round(n0 * powStep(1 + DANGER.pullStep, s))));
   const share = n0 / pull;
-  const each = 1000 * r ** s * share;
+  const each = 1000 * powStep(1 + DANGER.powerStep, s) * share;
   return { id: 'danger', step: s, pull: [pull, pull, pull, pull], hpPm: each, dmgPm: each, aimPm: 1000, lvPm: 1000,
-    xpPm: 1000 * (1 + DANGER.payStepXp) ** s * share };
+    xpPm: 1000 * powStep(1 + DANGER.payStepXp, s) * share };
+}
+
+/* A RATIO TO A WHOLE STEP by squaring: multiplications only, each exactly rounded on every JS engine, so a browser's live view and the
+   edge's settle reach the same last bit (tests/hunt-scene-live.mjs LV-33: the spec leaves pow's last bit to each engine). */
+function powStep(r, n) {
+  let out = 1, b = r, k = n;
+  while (k > 0) { if (k % 2 === 1) out *= b; b *= b; k = Math.floor(k / 2); }
+  return out;
 }
 
 /** A world opening on the scale: its stance and the step its plan starts at, nothing climbed yet. */

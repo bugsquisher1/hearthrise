@@ -7,7 +7,7 @@
 //
 // A STEP IS ONE POWER STEP OF THE GROUND'S OWN PULL. Step 0 is the ground as built (its rows, its pockets' mean size). Each step up
 // multiplies the pull's total health and total blow by (1 + powerStep) and a kill's Level XP by (1 + payStepXp). Part of that growth
-// arrives as MORE monsters (pullShare): the pull's size is the as-built mean times (1 + powerStep)^(pullShare x step), rounded and held
+// arrives as MORE monsters (pullStep): the pull's size is the as-built mean times (1 + pullStep)^step, rounded and held
 // to a full box, and each monster carries the rest, so the rounding never puts a jump in the curve (a pull of 5 has each monster at
 // 4/5 of what a pull of 4 has). A monster's aim and its Level (what armor and Defense training read) stay the row's: the step's growth
 // is exactly the ratio, once, on health and once on blow, never twice through the to-hit or armor chain. Coin a kill is the row's
@@ -16,7 +16,8 @@
 // STARTING VALUES, NOT RULINGS (Tyler 2026-11-21: "a number inside its band is enough"):
 //   powerStep 0.35%   04 section 1's worked value (its search range 0.25% to 0.5%)
 //   payStepXp 0.7%    04 section 7's worked value (powerStep times a premium of two)
-//   pullShare 0.5     STATED: 04 is silent on how a step splits between more monsters and stronger ones
+//   pullStep 0.175%   STATED: about half of each step arrives as more monsters (04 is silent on how a step splits between more monsters
+//                     and stronger ones); the engine raises every ratio to a whole step by multiplication only (danger.js powStep)
 //   respawnMs 15 s    STATED: short enough that six pockets never wait on it, so the pace is the party's (04 section 8), long enough
 //                     that a cleared pack does not stand again on a party still resting on its pocket
 // THE STANCES (02 package 3: "the stance is the risk choice", the word is a working name): a stance is ONLY its two thresholds, in
@@ -41,7 +42,7 @@
 export const DANGER = Object.freeze({
   powerStep: 0.0035,
   payStepXp: 0.007,
-  pullShare: 0.5,
+  pullStep: 0.00175,
   /* a full box (hunt-grounds.js DENSITY_FULL_BOX): past it the whole step is on the monsters */
   pullMax: 8,
   respawnMs: 15000,

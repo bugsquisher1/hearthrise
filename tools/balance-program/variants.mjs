@@ -97,14 +97,28 @@ export function chanceCount(n, p = 0.025, alpha = 0.01) {
   return n + 1;
 }
 
-/** A group's reading of one read: { cells, A, B, chance, median (B over A - 1, the cells with both), lead ('A' | 'B' | null) }. */
+/**
+ * A group's reading of one read: { cells, A, B, chance, median, lead ('A' | 'B' | null) }. `median` is the median cell's (B - A) / |A|: a
+ * change measured from A's size, so a net that goes from -1,000 to -100 reads +90% (a ratio B / A would read it as -90%).
+ */
 export function groupRead(cells, id, dir) {
   const ps = cells.map((c) => c.reads[id]).filter((p) => p && p.verdict !== 'thin');
   const A = ps.filter((p) => aheadOf(p, dir) === 'A').length, B = ps.filter((p) => aheadOf(p, dir) === 'B').length;
-  const rel = ps.filter((p) => finite(p.a) && p.a !== 0).map((p) => p.b / p.a - 1).sort((x, y) => x - y);
+  const rel = ps.filter((p) => finite(p.a) && finite(p.b) && p.a !== 0).map((p) => (p.b - p.a) / Math.abs(p.a)).sort((x, y) => x - y);
   const chance = chanceCount(ps.length);
   const lead = B >= chance && B > A ? 'B' : A >= chance && A > B ? 'A' : null;
   return { cells: ps.length, A, B, chance, median: rel.length ? rel[Math.floor(rel.length / 2)] : null, lead };
+}
+
+/** Every axis's groups of cells, each read on every read: { axis: { value: { read: groupRead } } }. */
+export function groupsOf(cells) {
+  const groups = {};
+  for (const [axis, of] of AXES) {
+    const by = new Map();
+    for (const c of cells) { const k = String(of(c)); (by.get(k) || by.set(k, []).get(k)).push(c); }
+    groups[axis] = Object.fromEntries([...by].map(([k, cs]) => [k, Object.fromEntries(READS.map(([id, dir]) => [id, groupRead(cs, id, dir)]))]));
+  }
+  return groups;
 }
 
 /* ── PLAYING ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────── */
@@ -187,13 +201,7 @@ export function compareSides(K, A, B, o = {}) {
     cells.push({ key: c.key, block: c.block, L: c.L, party: c.party, tier: c.tier, gear: c.gear, way: wayOf(c), reads, roles });
   }
   const ok = cells.filter((c) => !c.error);
-  const groups = {};
-  for (const [axis, of] of AXES) {
-    const by = new Map();
-    for (const c of ok) { const k = String(of(c)); (by.get(k) || by.set(k, []).get(k)).push(c); }
-    groups[axis] = Object.fromEntries([...by].map(([k, cs]) => [k, Object.fromEntries(READS.map(([id, dir]) => [id, groupRead(cs, id, dir)]))]));
-  }
-  const roles = roleReads(ok, seeds);
+  const groups = groupsOf(ok), roles = roleReads(ok, seeds);
   /* THE TARGETS, seed by seed: every band row both sides read, its distance outside the band as a pair (A's minus B's: above zero, B nearer) */
   const bandRows = new Map();
   for (let s = 0; s < seeds; s++) {

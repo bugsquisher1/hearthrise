@@ -364,6 +364,7 @@ async function selftest() {
   const cellsOf = (aheadB, aheadA, n) => Array.from({ length: n }, (_, i) => ({ reads: { x: i < aheadB ? { verdict: 'B', a: 1, b: 2 } : i < aheadB + aheadA ? { verdict: 'A', a: 2, b: 1 } : { verdict: 'noise', a: 1, b: 1 } } }));
   check('a group leads only past its chance count: 2 of 20 cells is chance, 6 of 20 leads',
     groupRead(cellsOf(2, 0, 20), 'x', 'higher').lead === null && groupRead(cellsOf(6, 1, 20), 'x', 'higher').lead === 'B' && groupRead(cellsOf(1, 6, 20), 'x', 'lower').lead === 'B');
+  check('a group median change is measured from the size of A: a net from -1,000 to -100 reads +90%, where a ratio would read -90%', Math.abs(groupRead([{ reads: { x: { verdict: 'B', a: -1000, b: -100 } } }], 'x', 'higher').median - 0.9) < 1e-9);
   /* the roles: each cell weighs the same, so one Level 5,000 cell cannot outvote nine others by its size */
   const roleCells = [{ roles: { x: [[1e9, 1.1e9, 0.9e9, 1e9], [0.5e9, 0.55e9, 0.45e9, 0.5e9]], y: [[5, 5, 5, 5], [5, 5, 5, 5]] } },
     ...Array.from({ length: 9 }, (_, i) => ({ roles: { x: [[10 + i, 11 + i, 12 + i, 13 + i], [1.1 * (10 + i), 1.1 * (11 + i) + 0.01, 1.1 * (12 + i), 1.1 * (13 + i)]], y: [[5, 5, 5, 5], [5, 5, 5, 5]] } }))];

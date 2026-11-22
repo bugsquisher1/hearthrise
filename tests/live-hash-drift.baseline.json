@@ -25,7 +25,7 @@
   },
   "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
   "live_measured": "2026-11-20",
-  "replay_ms": 3173,
+  "replay_ms": 21680,
   "counts": {
     "tracked_names": 1022,
     "entries": 857
@@ -14465,7 +14465,7 @@
       "agree": true
     },
     {
-      "sig": "hr_presence_quiet_set(p_quiet boolean)",
+      "sig": "hr_presence_quiet_set(p_slot integer, p_quiet boolean)",
       "name": "hr_presence_quiet_set",
       "tracked_by": [
         "restate"
@@ -14475,12 +14475,12 @@
       ],
       "live": null,
       "replay": {
-        "md5": "27eea4f81ccc28f9ba9c589bdabfbf22",
-        "norm_len": 1238,
+        "md5": "64762a34cc5b76183c1a2979c92384c6",
+        "norm_len": 1741,
         "source": "computed-from-replay"
       },
       "agree": false,
-      "why": "STAGED for the v0.2.144 release by 1045-ground-presence.sql (new function, absent on production) (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21 after lane/c-social merged."
+      "why": "STAGED for the v0.2.144 release by 1045-ground-presence.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body (absent on production), replay is the staged body from 1045-ground-presence.sql."
     },
     {
       "sig": "hr_presence_view(p_user uuid, p_slot integer)",

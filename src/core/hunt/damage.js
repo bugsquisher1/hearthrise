@@ -48,6 +48,7 @@ import { temperedAmount } from '../temper.js';
 import { swingRow, crossLines, guardPmOf } from './boss-phases.js';
 import { dummyBlow, dummyStands, trainingBasic } from './training.js';
 import { reaches } from './shooters.js';
+import { splashOn } from './monster-roles.js';
 import { elementOnHeroOf } from '../../data/elements.js';
 import { applyStatus, statusRow } from './status.js';
 import { noteHurt, breaksOff, powerPm } from './danger.js';
@@ -266,6 +267,13 @@ export function resolveAttacks(inst, sc) {
       const blowRow = swingRow(u, row);
       /* The monster's own stats against the hero's own stats, whatever the hero's Level (Tyler 2026-11-04: "They are just simply harder"). The tier the party picked is the monster's stats too (hunt-tiers.js). */
       swing(inst, sc, u, t, monsterAccuracy(blowRow, t.def), monsterMaxHit(blowRow));
+      /* A ROLE THAT HITS AN AREA (monster-roles.js splashOn, the Danger scale only): the same blow on each hero beside its target, a share
+         of it, each its own roll; none once a hero is under the stance's line (the fall back stops every blow). Off the scale: none. */
+      const sp = splashOn(inst, u, t);
+      for (const h of sp.heroes) {
+        if (breaksOff(inst.world)) break;
+        if (h.alive) roll(inst, sc, u, h, monsterAccuracy(blowRow, h.def), Math.max(1, Math.floor((monsterMaxHit(blowRow) * sp.pm) / 1000)), 0);
+      }
       continue;
     }
     const row = roleOf(u);

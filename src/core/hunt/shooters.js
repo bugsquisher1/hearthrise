@@ -29,11 +29,13 @@ import { cheb, dist2, los } from './grid.js';
 import { inArea } from './leash.js';
 import { clearGoal, goToNearest } from './movement.js';
 import { isEnemy, isMonster } from './sides.js';
+import { roleOf, roleRange, reachPick } from './monster-roles.js';
 
 /** The tiles monster unit `m` shoots from, or 0: a hero, or a monster that fights beside its target. Its row through the
-    instance's one door (world-step.js inst.monsters: a scaled hunt's table), the catalogue for a bare caller. */
+    instance's one door (world-step.js inst.monsters: a scaled hunt's table), the catalogue for a bare caller; a row with no range of
+    its own takes its ROLE's on the Danger scale (monster-roles.js roleRange: 0 off it). */
 export function rangeOf(inst, m) {
-  return isMonster(m) ? monsterRangeOf((inst.monsters || MONSTERS)[m.kind]) : 0;
+  return isMonster(m) ? monsterRangeOf((inst.monsters || MONSTERS)[m.kind]) || roleRange(inst, m) : 0;
 }
 
 /* Can a shot of `r` tiles from (x, y) reach unit `t`: within r in a straight line, nothing opaque between (targeting.js inRange). */
@@ -46,10 +48,15 @@ export function reaches(inst, m, t) {
 }
 
 /**
- * WHO MONSTER `m` AIMS AT, given the hero a melee monster would take (`fallback`, a unit id or null): a shooter, the living hero
- * farthest from it inside its pack's area (ties: the lower id), else `fallback`; any other monster, `fallback`. Pure.
+ * WHO MONSTER `m` AIMS AT, given the hero a melee monster would take (`fallback`, a unit id or null): on the Danger scale its ROLE's
+ * reach first (monster-roles.js reachPick: the front row, the back row, the weakest, the least crowded) when a hero matches it; else a
+ * shooter, the living hero farthest from it inside its pack's area (ties: the lower id), else `fallback`; any other monster,
+ * `fallback`. Pure.
  */
 export function aimOf(inst, m, fallback) {
+  const role = roleOf(inst, m);
+  const pick = role ? reachPick(inst, m, role) : null;
+  if (pick !== null) return pick;
   if (!rangeOf(inst, m)) return fallback;
   let best = null;
   for (const h of inst.world.units) {

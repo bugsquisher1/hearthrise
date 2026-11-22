@@ -132,6 +132,8 @@ export default definePack({
       /* the swarm, the common majority: the company's foot, buried in file under the Long Barrows with their pikes beside them. The
          class as written (no override): a hammer breaks them, and they come many at a time, so the area blow earns its slot here.
          Their boots and helmets, their sidearm, their bones for the Hearth. */
+      /* THE SWARM (src/data/monster-roles.js, wave 2; the Danger scale only): each goes for the hero the fewest are on, the front first */
+      role: 'swarm',
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'bone_chips', ch: 0.4, band: 'common' }, { id: 'coffin_nail', ch: 0.08, band: 'uncommon' },
         { id: 'rune_boots', ch: 0.016, band: 'scarce' }, { id: 'wyvernhide_boots', ch: 0.016, band: 'scarce' }, { id: 'sorcerer_boots', ch: 0.016, band: 'scarce' },
         { id: 'rune_helm', ch: 0.016, band: 'scarce' }, { id: 'wyvernhide_helmet', ch: 0.016, band: 'scarce' }, { id: 'sorcerer_helmet', ch: 0.016, band: 'scarce' },
@@ -145,6 +147,8 @@ export default definePack({
          dust under the old cairns. Nothing on it turns an arrow (one override, weapon: weak to ranged; a spell sinks into the cold,
          the bestiary's words). Its grave dust for the Hearth, the legs it was wound in, and the caster's prizes. */
       weaponWeak: 'ranged', weaponResist: ['magic'],
+      /* THE STALKER (monster-roles.js; the scale only): it goes past the front for the hero with the least health */
+      role: 'stalker',
       drops: [{ id: 'grave_dust', ch: 0.3, band: 'common' }, { id: 'urn_shard', ch: 0.08, band: 'uncommon' },
         { id: 'rune_platelegs', ch: 0.048, band: 'scarce' }, { id: 'wyvernhide_pants', ch: 0.048, band: 'scarce' }, { id: 'sorcerer_pants', ch: 0.048, band: 'scarce' },
         { id: 'yew_staff', ch: 0.048, band: 'scarce' },
@@ -156,6 +160,8 @@ export default definePack({
          their horses beside them. Still in the plate (one override, weapon: a spell goes through the visor, so weak to magic; a
          blade and an arrow glance off, the bestiary's words). The bodies, the warhammer, and the gauntlets nobody could get off. */
       weaponWeak: 'magic', weaponResist: ['sword', 'ranged'],
+      /* THE BRUTE (monster-roles.js; the scale only): it goes for the nearest hero in the front row */
+      role: 'brute',
       drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'bone_chips', ch: 0.4, band: 'common' }, { id: 'sergeant_spur', ch: 0.08, band: 'uncommon' },
         { id: 'rune_platebody', ch: 0.048, band: 'scarce' }, { id: 'wyvernhide_body', ch: 0.048, band: 'scarce' }, { id: 'sorcerer_body', ch: 0.048, band: 'scarce' },
         { id: 'rune_warhammer', ch: 0.048, band: 'scarce' },
@@ -174,6 +180,8 @@ export default definePack({
         { id: 'yew_bow', ch: 0.0133, band: 'rare' }, { id: 'yew_crossbow', ch: 0.0133, band: 'rare' }],
       /* HIS LINES ARE BACK with the ground-boss engine (lane/b-barrow-integrate 2026-11-14, from lane/b-muster-barrows 36a7a2d1b; carried as a
          comment on lane/b-barrow-packs until it landed): his file at half, +15% under a quarter (measured, the header). tests/ground-boss.mjs holds him. */
+      /* A BRUTE (monster-roles.js; the scale only): his file, his adds, are the swarm that reaches the back */
+      role: 'brute',
       hp: 1712, atk: 54, aim: 58, evasion: 51, def: 24, xp: 10751, gp: [133, 401], formula: true,
       phases: { addsPm: 500, enragePm: 250, enrageAtkPm: 1150 } },
   },

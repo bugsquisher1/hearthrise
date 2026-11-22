@@ -194,6 +194,41 @@ async function c2() {
 /* ── C-4, TOWN WORK ─────────────────────────────────────────────────────────────────────────────────────────────────────────────
    Real gathering and bench hours by skill (aggregate.town_hours_by_skill), the share of a real hero's life they take beside hunting; the sims'
    rates (skill-sim.js, artisan-sim.js) are compared once the reader splits XP and items an hour by skill band, which the journal's town rows carry */
+/* ── L-04, OLD AGAINST NEW LEVEL FOR EVERY XP VALUE (review/04c L-04; 13-build-plan.md FB-8 Live state) ─────────────────────────────
+   The Level law replaces today's curve; Level XP is unchanged, so every hero's Level is re-read from the same XP. Today's curve (the tree's
+   src/core/xp.js) against the proposed game's (R13 at the pace seat's multiple, planted on a scratch copy): a table at today's Levels, and the
+   live heroes in aggregate by XP band (counts and min / median / max of the move, never one hero), read from the raw read on this machine. */
+export const L04_LEVELS = Object.freeze([5, 10, 15, 20, 25, 30, 40, 50, 60, 70, 80, 90, 100, 110, 150, 185, 250, 300, 400]);
+export const L04_BANDS = Object.freeze([[0, 1e6, 'under 1 million'], [1e6, 1e7, '1 to 10 million'], [1e7, 5e7, '10 to 50 million'], [5e7, Infinity, 'over 50 million']]);
+/** L-04 from two curves { charXpForLevel, charLevelFromXp } and the heroes' XP values: { table: [{ old, xp, new }], bands: [...] }. */
+export function readL04(oldXP, newXP, xps) {
+  const table = L04_LEVELS.map((L) => { const xp = oldXP.charXpForLevel(L); return { old: L, xp, new: newXP.charLevelFromXp(xp) }; });
+  const bands = L04_BANDS.map(([lo, hi, name]) => {
+    const moves = xps.filter((x) => x >= lo && x < hi).map((x) => newXP.charLevelFromXp(x) - oldXP.charLevelFromXp(x)).sort((a, b) => a - b);
+    return moves.length >= MIN_HEROES ? { band: name, heroes: moves.length, move: [moves[0], moves[Math.floor(moves.length / 2)], moves[moves.length - 1]] } : { band: name, heroes: moves.length, reading: moves.length ? 'under ' + MIN_HEROES + ' heroes: not shown' : 'no hero' };
+  });
+  return { table, bands, fell: xps.filter((x) => newXP.charLevelFromXp(x) < oldXP.charLevelFromXp(x)).length, rose: xps.filter((x) => newXP.charLevelFromXp(x) > oldXP.charLevelFromXp(x)).length };
+}
+async function l04() {
+  if (!existsSync(RAW)) { console.error('calibrate: no raw read on this machine: run node tools/balance-program/real-players.local.mjs first'); return 2; }
+  const raw = JSON.parse(readFileSync(RAW, 'utf8'));
+  const BM = await import('./balance-matrix.mjs'), SC = await import('./matrix-scratch.mjs');
+  const { pathToFileURL } = await import('node:url');
+  const oldXP = await import(pathToFileURL(join(ROOT, 'src/core/xp.js')).href);
+  const base = await BM.baseOf('proposed', []), sc = await SC.plantScratch(base.patch);
+  let J;
+  try {
+    const newXP = await import(pathToFileURL(join(sc.root, 'src/core/xp.js')).href + '?l04');
+    const m = (/m: ([0-9.]+), from: 10 \};/.exec(readFileSync(join(sc.root, 'src/core/xp.js'), 'utf8')) || [])[1];
+    J = { check: 'L-04', source: 'review/04c L-04', law: 'R13 at the pace seat multiple ' + m + ' (proposed game: ' + base.ids.join(', ') + ')', heroes: raw.heroes.length, ...readL04(oldXP, newXP, raw.heroes.map((h) => Number(h.level_xp) || 0)) };
+  } finally { sc.done(); }
+  console.log('L-04, OLD AGAINST NEW LEVEL (' + J.law + '): Level XP unchanged, every hero re-read');
+  console.log('  today\'s Level -> the new Level at the same XP: ' + J.table.map((r) => r.old + '->' + r.new).join('  '));
+  console.log('  the ' + J.heroes + ' live heroes: ' + J.fell + ' fall, ' + J.rose + ' rise; by Level XP: ' + J.bands.map((b) => b.band + ' ' + (b.move ? b.heroes + ' heroes, move ' + b.move.join(' / ') : b.reading)).join('; '));
+  if (arg('json')) { const p = resolve(arg('json')); mkdirSync(dirname(p), { recursive: true }); writeFileSync(p, JSON.stringify(J, null, 1) + '\n'); console.log('wrote ' + p); }
+  return 0;
+}
+
 async function c4() {
   const AGG = join(ROOT, '.scratch', 'real-players', 'aggregate.json');
   if (!existsSync(AGG)) { console.error('calibrate: no aggregate on this machine: run node tools/balance-program/real-players.local.mjs first'); return 2; }
@@ -227,6 +262,9 @@ function selftest() {
   check('a band of fewer than ' + MIN_HEROES + ' real heroes is counted and never shown (' + (two && two.reading) + ')', two && !two.real && /not shown/.test(two.reading));
   const c2 = readC2({ ground: 'g', tier: 'deadly', levels: [60, 70], hero_hours: 50, kills_h: 1000, xp_h: 100, coin_h: 10, deaths_per_100h: 0 }, { killsPerH: 1080, levelXpPerH: 120, coinPerH: 10, deathsPer1000h: 0 });
   check('C-2 reads sim over real and passes within 10% only (' + JSON.stringify(c2.ratio) + ', ' + JSON.stringify(c2.pass) + ')', c2.L === 65 && c2.pass.kills && !c2.pass.xp && c2.pass.coin && c2.ratio.xp === 1.2);
+  const lin = (k) => ({ charXpForLevel: (L) => L * 100 * k, charLevelFromXp: (x) => Math.floor(x / (100 * k)) });
+  const l4 = readL04(lin(1), lin(2), [1000, 1100, 1200, 50, 20000000]);
+  check('L-04 reads a curve twice as dear as half the Level, in aggregate (' + JSON.stringify(l4.table[1]) + ', ' + JSON.stringify(l4.bands[0]) + ')', l4.table[1].old === 10 && l4.table[1].new === 5 && l4.bands[0].heroes === 4 && l4.bands[0].move[2] === 0 && l4.bands[2].reading && l4.fell === 4);
   check('an aggregate that repeats an account id or names a player is refused', anonymityProblems({ a: 'x-123' }, ['x-123']).length === 1 && anonymityProblems({ u: 'H1' }, []).length === 1 && anonymityProblems(J, ['x-123']).length === 0);
   console.log('calibrate selftest: ' + (fails.length ? fails.length + ' FAILED' : 'green'));
   return fails.length ? 1 : 0;
@@ -237,6 +275,7 @@ async function main() {
   if (argv.includes('--c1')) return c1();
   if (argv.includes('--c2')) return c2();
   if (argv.includes('--c4')) return c4();
+  if (argv.includes('--l04')) return l04();
   console.error('calibrate: --c1 [--json <file>] | --selftest');
   return 2;
 }

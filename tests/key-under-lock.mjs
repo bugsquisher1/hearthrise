@@ -20,14 +20,17 @@
 //               after the lock answers ok and moves nothing (purse, bank, ledger); a plain replay of the key still answers and moves nothing
 //   KL-HEARTH   hr_hearth_burn: press A burns a named fuel (two in the bag); the second press after the lock lights no flame, writes no
 //               square line, keeps the second fuel and pays no Inner Flame XP
-//   KL-STAMINA  hr_stamina_refill on a FLAT table (step_num 0, a row hr_stamina_refill_rule accepts; today's climbing price hid the hole):
-//               the second press after the lock restores nothing and charges nothing
+//   KL-TIME     hr_time_buy (1058-hunting-blocks.sql, the money verb that replaced the stamina refill and copies its house pattern) on a
+//               FLAT table (growth_num = growth_den, a row hr_time_blocks accepts; the x1.5 price would hide the hole): the second press
+//               after the lock adds no stamina and charges nothing. (KL-STAMINA, the refill's own arm, retired with the refill's client
+//               grant in 1058: its body stays owner-only for 1009's self-check, and KL-CLASS still reads its shape while it exists.)
 //   KL-CLASS    every SECURITY DEFINER function on the chain that reads its key before its first lock and pays through hr_apply after it
 //               reads the key again between that lock and hr_apply, or is on SAFE_BY_STATE with the check, after the lock, that refuses
 //               a second press before hr_apply (that check still in its body); a SAFE_BY_STATE entry that no longer has the shape is stale.
 //               A verb with no lock before hr_apply must end on hr_apply's `replayed` answer instead.
-//   KL-AGAIN    a second apply of the file is byte-identical (schema, the three bodies and grants, hr_companion_grant's ACL, the client
-//               baseline), and its §0 pins refuse a body another file moved
+//   KL-AGAIN    a second apply of the file AT ITS OWN PLACE in the chain (a boot up to it: 1058-hunting-blocks.sql later revokes the
+//               refill this file grants, so a chain-end re-apply re-grants a retired door) is byte-identical (schema, the three bodies
+//               and grants, hr_companion_grant's ACL, the client baseline), and its §0 pins refuse a body another file moved
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -39,12 +42,14 @@ const { one, q, inTx, UIDS } = H;
 const UID = UIDS[0];
 const HOUR = 3600000;
 const FILE = '2027-04-19-key-under-lock.sql';
-const ARMS = ['KL-SCALED', 'KL-HEARTH', 'KL-STAMINA', 'KL-CLASS', 'KL-AGAIN'];
+const ARMS = ['KL-SCALED', 'KL-HEARTH', 'KL-TIME', 'KL-CLASS', 'KL-AGAIN'];
 const SIG = Object.freeze({
   scaled: 'public.hr_scaled_hunt_buy(integer,text,integer,bigint,uuid)',
   hearth: 'public.hr_hearth_burn(integer,text,uuid)',
-  stamina: 'public.hr_stamina_refill(integer,bigint,uuid)',
+  time: 'public.hr_time_buy(text,integer,bigint,uuid)',
 });
+/* The three bodies FILE restates, read by KL-AGAIN at its own place in the chain. */
+const FILE_SIGS = Object.freeze([SIG.scaled, SIG.hearth, 'public.hr_stamina_refill(integer,bigint,uuid)']);
 const READ = 'v_r := public.hr_intent_replay(v_uid, p_slot, p_idem, v_verb);';
 const LOCK = 'perform public.hr_hunt_lock(v_uid, p_slot);';
 
@@ -136,28 +141,26 @@ const DB_ARMS = {
     return bad;
   },
 
-  'KL-STAMINA': async (db, M) => {
+  'KL-TIME': async (db, M) => {
     const bad = [];
     await hero(db, M, { gold: 1000000, inv: {} });
-    const cap = Number(await one(db, 'select public.hr_stamina_cap($1::uuid, 0, now())::text', [UID]));
-    if (!(cap >= 120000)) return ['harness: the stamina cap is ' + cap];
-    /* A FLAT TABLE (the server accepts step_num 0) with room for two whole purchases: the second press quotes the first's price. */
-    await db.query('update public.hr_stamina_refill_rule set step_num = 0, max_min = least(max_min, $1::int) where id', [Math.floor(cap / 60000 / 2)]);
+    /* A FLAT TABLE (the server accepts growth_num = growth_den): the second press quotes the first's price, so only the key stops it. */
+    await db.query("update public.hr_time_blocks set growth_num = growth_den where kind = 'hunt'");
     await db.query('update public.player_state set stamina_ms = 0, stamina_at = now() where user_id = $1 and slot = 0', [UID]);
-    const quote = await one(db, 'select public.hr_stamina_refill_quote($1::uuid, 0) as v', [UID]);
-    if (!quote || quote.available !== true) return ['harness: no refill on an empty pool: ' + JSON.stringify(quote)];
+    const quote = await one(db, "select public.hr_time_quote($1::uuid, 0, 'hunt') as v", [UID]);
+    if (!quote || quote.available !== true) return ['harness: no block on an empty pool: ' + JSON.stringify(quote)];
     const k = crypto.randomUUID();
     const snap = async () => JSON.stringify({ purse: await purseOf(db), ms: Number(await one(db, 'select stamina_ms::text from public.player_state where user_id = $1 and slot = 0', [UID])),
-      rows: await rowsOf(db, 'stamina\\_refill:%') });
-    const a = await press(db, 'select public.hr_stamina_refill(0, $1, $2::uuid) as r', [quote.price, k]);
-    const s1 = await snap(), next = await one(db, 'select public.hr_stamina_refill_quote($1::uuid, 0) as v', [UID]);
+      rows: await rowsOf(db, 'time\\_buy:%') });
+    const a = await press(db, "select public.hr_time_buy('hunt', 0, $1, $2::uuid) as r", [quote.price, k]);
+    const s1 = await snap(), next = await one(db, "select public.hr_time_quote($1::uuid, 0, 'hunt') as v", [UID]);
     if (!a || a.ok !== true || JSON.parse(s1).rows !== 1 || !next || next.price !== quote.price) {
       return ['harness: press A answered ' + JSON.stringify(a).slice(0, 120) + ' to ' + s1 + '; the next quote ' + JSON.stringify(next)];
     }
-    await afterLock(db, SIG.stamina, 'hr__kl_stamina');
-    const b = await press(db, 'select public.hr__kl_stamina(0, $1, $2::uuid) as r', [quote.price, k]);
+    await afterLock(db, SIG.time, 'hr__kl_time');
+    const b = await press(db, "select public.hr__kl_time('hunt', 0, $1, $2::uuid) as r", [quote.price, k]);
     const s2 = await snap();
-    if (s2 !== s1) bad.push('the second press of one key, run after the lock it waited on, moved ' + s1 + ' to ' + s2 + ' (a refill with no gold)');
+    if (s2 !== s1) bad.push('the second press of one key, run after the lock it waited on, moved ' + s1 + ' to ' + s2 + ' (a block with no gold)');
     else if (!b || b.ok !== true) bad.push('the second press after the lock answered ' + JSON.stringify(b).slice(0, 160) + ', want the first press\'s decision (ok)');
     return bad;
   },
@@ -193,14 +196,14 @@ const DB_ARMS = {
     return bad;
   },
 
-  /* A SECOND APPLY of the file over the chain it ends: byte-identical (the schema, the three bodies and their grants, the companion
-     grant's ACL, the client baseline), and its §0 pins still accept their own image. */
+  /* A SECOND APPLY of the file AT ITS OWN PLACE (`db` here is the boot up to FILE, againDb below): byte-identical (the schema, the
+     three bodies and their grants, the companion grant's ACL, the client baseline), and its §0 pins still accept their own image. */
   'KL-AGAIN': async (db) => {
     const { inventory } = await import('./schema-replay.mjs');
     const read = async () => JSON.stringify({ inv: await inventory(db),
       fns: await q(db, `select p.oid::regprocedure::text as f, md5(pg_get_functiondef(p.oid)) as m, p.proacl::text as acl from pg_proc p
                          where p.oid in (select to_regprocedure(s) from unnest($1::text[]) s) order by 1`,
-                   [[...Object.values(SIG), 'public.hr_companion_grant(integer,text,text,uuid)']]),
+                   [[...FILE_SIGS, 'public.hr_companion_grant(integer,text,text,uuid)']]),
       baseline: await q(db, 'select proname, identity_args, grantee, note from public.hr_client_rpc_baseline order by 1, 2, 3') });
     const before = await read();
     try { await db.exec(readFileSync(join(H.ROOT, 'supabase', 'migrations', FILE), 'utf8')); }
@@ -209,11 +212,19 @@ const DB_ARMS = {
   },
 };
 
+/* THE CHAIN UP TO FILE, booted once (KL-AGAIN's database; its mutant is planted there). */
+let AGAIN = null;
+async function againDb() {
+  if (!AGAIN) AGAIN = (await (await import('./schema-replay.mjs')).bootReplay({ upTo: FILE })).db;
+  return AGAIN;
+}
+
 async function runArms(db, M, only) {
   const out = {};
   for (const name of ARMS) {
     if (only && !only.includes(name)) continue;
-    try { out[name] = await inTx(db, () => DB_ARMS[name](db, M)); } catch (e) { out[name] = ['threw: ' + String(e && e.message).slice(0, 400)]; }
+    const at = name === 'KL-AGAIN' ? await againDb() : db;
+    try { out[name] = await inTx(at, () => DB_ARMS[name](at, M)); } catch (e) { out[name] = ['threw: ' + String(e && e.message).slice(0, 400)]; }
   }
   return out;
 }
@@ -232,7 +243,7 @@ const old = (verb, indent) => [{ find: REREAD(verb), replace: '' }, { find: REPL
 const DB_MUTANTS = [
   { arm: 'KL-SCALED', name: 'the scaled purchase as it was: the key read only before the lock', fn: SIG.scaled, edits: old('c_verb', '  ') },
   { arm: 'KL-HEARTH', name: 'the Hearth burn as it was: the key read only before the lock', fn: SIG.hearth, edits: old("'hearth_burn'", '    ') },
-  { arm: 'KL-STAMINA', name: 'the stamina refill as it was: the key read only before the lock', fn: SIG.stamina, edits: old("'stamina_refill'", '  ') },
+  { arm: 'KL-TIME', name: 'the hunting block with the key read only before the lock', fn: SIG.time, edits: old("'time_buy'", '  ') },
   { arm: 'KL-CLASS', name: 'the scaled purchase reads its key only before the lock (its replayed line kept)', fn: SIG.scaled, edits: [{ find: REREAD('c_verb'), replace: '' }] },
   /* lane/c-tower-paydown: the Burning Tower's door read its key only before its lock (the climb's staged image); the read under its own door
      lock is the fix, and its loss must read red here. */
@@ -255,20 +266,22 @@ async function main() {
     const clean = await runArms(db, M);
     for (const [name, p] of Object.entries(clean)) if (p.length) { console.error('✗ harness: ' + name + ' is red on the clean chain, so no mutant can be judged: ' + p[0]); bad++; }
     for (const m of DB_MUTANTS) {
-      const def = String(await one(db, 'select pg_get_functiondef($1::regprocedure)', [m.fn])).replace(/\r/g, '');
+      /* planted where its arm runs: KL-AGAIN's at FILE's own place, every other at the chain's end */
+      const at = m.arm === 'KL-AGAIN' ? await againDb() : db;
+      const def = String(await one(at, 'select pg_get_functiondef($1::regprocedure)', [m.fn])).replace(/\r/g, '');
       let next = def, miss = false;
       for (const e of m.edits) {
         if (next.split(e.find).length !== 2) { miss = true; break; }
         next = next.replace(e.find, () => e.replace);
       }
       if (miss) { console.error('✗ db mutant "' + m.name + '": an anchor is not found exactly once'); bad++; continue; }
-      await db.exec(next);
+      await at.exec(next);
       try {
         const p = ((await runArms(db, M, [m.arm]))[m.arm] || [])[0];
         if (!p) { console.error('✗ ' + m.arm + ' stayed GREEN on: ' + m.name); bad++; }
         else if (/^threw|^harness/.test(p)) { console.error('✗ harness: ' + m.arm + ' broke on: ' + m.name + ' (' + p.slice(0, 160) + ')'); bad++; }
         else console.log('✓ ' + m.arm + ' goes red on: ' + m.name + '  (' + p.slice(0, 110) + ')');
-      } finally { await db.exec(def); }
+      } finally { await at.exec(def); }
     }
     console.log(bad ? 'key-under-lock --mutate: ' + bad + ' failure(s)' : 'key-under-lock --mutate: all ' + DB_MUTANTS.length + ' mutants killed');
     process.exit(bad ? 1 : 0);

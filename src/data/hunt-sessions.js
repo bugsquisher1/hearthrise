@@ -160,7 +160,7 @@ export const SESSIONS_KEPT = 20;
 export const ANALYZER_RATE_AFTER_MS = 10 * 60000;
 
 /* STAMINA (Tyler 2026-10-14: "steal the stamina system, 1:1 like Huntera,
-   keep it simple"; Tyler 2026-10-17: 8 h free, 12 h premium). One pool per
+   keep it simple"; Tyler 2026-11-22: the hunting day is 10 h free, 12 h premium). One pool per
    character, in ms: it DRAINS 1:1 on every swing interval a hunt session spends
    hunting, and RESTS BACK 1:1 at every other instant — walking out,
    in town, not in a hunt at all — never past the character's CAP:
@@ -171,8 +171,8 @@ export const ANALYZER_RATE_AFTER_MS = 10 * 60000;
    (player_state.stamina_ms / stamina_at; the generated limits rows
    `stamina_free_min` / `stamina_premium_min`); the client renders
    hr_state_of's `stamina`. ONE source: src/data/premium.js does not restate
-   it. A gold refill (a separate reviewed lane) is the only other writer. */
-export const STAMINA_MAX_MS = Object.freeze({ free: 8 * 3600000, premium: 12 * 3600000 });
+   it. A bought hunting block (src/data/time-blocks.js) is the only other writer. */
+export const STAMINA_MAX_MS = Object.freeze({ free: 10 * 3600000, premium: 12 * 3600000 });
 
 /* Checked in this order on every swing; the first that holds ends the hunt.
    Stamina sits where Vigour stood (Vigour ends no hunt — designer ruling,

@@ -378,10 +378,13 @@ export const WORLD_FIELDS_READ = Object.freeze({
    pieces, which the approved-cuts items catalogue takes out of hr_items AFTER this file. A forward file after that catalogue could not be
    re-applied before it (tests/schema-drift.mjs's second apply of the staged tail: its bids would name items hr_items no longer holds). */
 /* 1054-danger-scale-hunt-sessions-catalogue (lane/v1-climb wave 1, 2026-11-22; 02 package 3): hr_hunt_world_shape moves (the world's six Danger
-   fields and a pack's down count, src/core/hunt/danger.js PERSISTED); 1028 (STAGED) is carried whole. ...AND lane/r2-danger-falls FOLDS INTO it
+   fields and a pack's down count, src/core/hunt/danger.js PERSISTED); 1028 (STAGED) is carried whole. ...AND lane/r2-danger-falls FOLDED INTO it
    (2026-11-22, still STAGED, ONE forward file per generator): the world's lowHero and lowBy (what a fall back names) and hr_hunt_limits'
    report_falls_max (hunt-report.js HUNT_REPORT.fallsMax), read by 1057-danger-falls.sql. */
-export const OUT_NAME = '1054-danger-scale-hunt-sessions-catalogue.generated.sql';
+/* 1058-hunting-blocks-hunt-sessions-catalogue (lane/r8-hunting-day, 2026-11-22; Tyler: the hunting day is 10 h, 12 h with Premium): hr_hunt_limits'
+   stamina_free_min moves 480 -> 600 (STAMINA_MAX_MS.free); 1054 (STAGED, with R2's fold: regenerated when lane/r2-danger-falls merged) is
+   carried whole. */
+export const OUT_NAME = '1058-hunting-blocks-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -1143,7 +1146,13 @@ export function render(src) {
 --   ${r.vendor.length} vendor values, ${r.basics.length} store supplies paid per use, ${r.targets.length} target modes,
 --   ${r.lanes.length} lanes, ${r.abilities.length} abilities, ${r.setOptions.length} action-set options, ${r.grounds.length} hunt grounds
 --
--- NEW IN THIS FILE (lane/v1-climb wave 1, backend-architect, 2026-11-22; 02 package 3, 05 stage 6 wave 1: the Danger scale on the server). It carries
+-- NEW IN THIS FILE (lane/r8-hunting-day, backend-architect, 2026-11-22; Tyler 2026-11-22: "10 without premium 12 with"). It carries
+--   1054-danger-scale-hunt-sessions-catalogue (STAGED) whole. Only hr_hunt_limits' stamina_free_min moves, 480 -> 600 (src/data/hunt-sessions.js
+--   STAMINA_MAX_MS.free: the free hunting day is 10 h; stamina_premium_min stays 720). hr_stamina_cap and hr_stamina_of read the row, so the pool
+--   rests to 10 h and a full one hunts 10 h. No ground, spawn, kill bound, bid, end reason or world shape moves. ORDER: the sequence in its name,
+--   after 1056 and before 1058-hunting-blocks.sql (its self-check hunts the 10 h day). EDGE: none (the engine reads the pool and its cap from
+--   the server, never STAMINA_MAX_MS; hunt-sessions.js is in the hr-accrue payload, so its bytes move: deploy either side of the apply).
+-- CARRIED FROM 1054-danger-scale-hunt-sessions-catalogue (lane/v1-climb wave 1, backend-architect, 2026-11-22; 02 package 3, 05 stage 6 wave 1: the Danger scale on the server). It carries
 --   1028-spell-rule-hunt-sessions-catalogue (STAGED) whole. Only hr_hunt_world_shape moves: the world carries the scale's six fields (risk, danger, climb,
 --   clean, low, cool) and every pack its down count (src/core/hunt/danger.js PERSISTED). No ground, spawn, kill bound, limit, bid or end reason moves (the
 --   scale's own bounds are 1055's catalogue and 1056's). ORDER: the sequence in its name, before 1055 and 1056. EDGE: the hr-accrue carrying this lane's

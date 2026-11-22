@@ -1,0 +1,246 @@
+{
+ "ground": "muster_barrows",
+ "levels": [
+  110,
+  113,
+  70
+ ],
+ "seeds": 4,
+ "hours": 8,
+ "settleFromH": 4,
+ "levers": {
+  "DANGER": {
+   "powerStep": 0.0035,
+   "pullStep": 0.00175,
+   "pullMax": 8,
+   "respawnMs": 15000,
+   "stepMax": 4000,
+   "readyPm": 800,
+   "startMargin": 20
+  },
+  "CLIMB": {
+   "cleanRun": 2,
+   "climbMax": 8,
+   "fallSteps": 18,
+   "deathSteps": 120,
+   "coolPulls": 10
+  },
+  "RISKS": {
+   "careful": {
+    "fallPm": 450,
+    "cleanPm": 650,
+    "afterDeath": "careful"
+   },
+   "steady": {
+    "fallPm": 250,
+    "cleanPm": 450,
+    "afterDeath": "careful"
+   },
+   "bold": {
+    "fallPm": 120,
+    "cleanPm": 300,
+    "afterDeath": "steady"
+   }
+  }
+ },
+ "cells": {
+  "base:steady": {
+   "id": "base:steady",
+   "variant": "base",
+   "risk": "steady",
+   "L": 110,
+   "start": 0,
+   "seedsRead": 4,
+   "payX": {
+    "mean": 2.11,
+    "sd": 0.05,
+    "n": 4,
+    "perSeed": [
+     2.08,
+     2.18,
+     2.1,
+     2.08
+    ],
+    "fromH": 4,
+    "windowH": 4
+   },
+   "held": {
+    "mean": 791.2,
+    "sd": 5.7,
+    "se": 2.8,
+    "perSeed": [
+     791,
+     799,
+     787,
+     788
+    ]
+   },
+   "drift": -0.3,
+   "within10": 66.5,
+   "within20": 95.9,
+   "changesPerH": 11.8,
+   "fallsPerH": 1.2,
+   "reachH": 1.7,
+   "pullsPerH": 69.2,
+   "killsPerH": 509,
+   "xpPerHeroH": 1316285,
+   "deaths": 0,
+   "wipes": 0,
+   "seedsWithADeath": 0,
+   "huntedH": 8,
+   "fourH": 4,
+   "firstDeathH": [],
+   "nearWipes": 1,
+   "nearWithDeath": 0,
+   "nearWarned": 0,
+   "nearFellAfter": 1,
+   "whys": {
+    "hold": 1503,
+    "climb": 680,
+    "fall": 27
+   }
+  },
+  "weapon:steady": {
+   "id": "weapon:steady",
+   "variant": "weapon",
+   "risk": "steady",
+   "L": 110,
+   "start": 0,
+   "seedsRead": 4,
+   "payX": {
+    "mean": 2.11,
+    "sd": 0.05,
+    "n": 4,
+    "perSeed": [
+     2.08,
+     2.18,
+     2.1,
+     2.08
+    ],
+    "fromH": 4,
+    "windowH": 4
+   },
+   "held": {
+    "mean": 791.2,
+    "sd": 5.7,
+    "se": 2.8,
+    "perSeed": [
+     791,
+     799,
+     787,
+     788
+    ]
+   },
+   "drift": -0.3,
+   "within10": 66.5,
+   "within20": 95.9,
+   "changesPerH": 11.8,
+   "fallsPerH": 1.2,
+   "reachH": 1.7,
+   "pullsPerH": 69.2,
+   "killsPerH": 509,
+   "xpPerHeroH": 1316285,
+   "deaths": 0,
+   "wipes": 0,
+   "seedsWithADeath": 0,
+   "huntedH": 8,
+   "fourH": 4,
+   "firstDeathH": [],
+   "nearWipes": 1,
+   "nearWithDeath": 0,
+   "nearWarned": 0,
+   "nearFellAfter": 1,
+   "whys": {
+    "hold": 1503,
+    "climb": 680,
+    "fall": 27
+   }
+  },
+  "armor:steady": {
+   "id": "armor:steady",
+   "variant": "armor",
+   "risk": "steady",
+   "L": 110,
+   "start": 0,
+   "seedsRead": 4,
+   "payX": {
+    "mean": 2.13,
+    "sd": 0.06,
+    "n": 4,
+    "perSeed": [
+     2.05,
+     2.19,
+     2.16,
+     2.1
+    ],
+    "fromH": 4,
+    "windowH": 4
+   },
+   "held": {
+    "mean": 789.2,
+    "sd": 8.1,
+    "se": 4.1,
+    "perSeed": [
+     795,
+     796,
+     779,
+     787
+    ]
+   },
+   "drift": 6.5,
+   "within10": 41.9,
+   "within20": 80.1,
+   "changesPerH": 12.4,
+   "fallsPerH": 1.1,
+   "reachH": 1.9,
+   "pullsPerH": 70.1,
+   "killsPerH": 516,
+   "xpPerHeroH": 1339135,
+   "deaths": 0,
+   "wipes": 0,
+   "seedsWithADeath": 0,
+   "huntedH": 8,
+   "fourH": 4,
+   "firstDeathH": [],
+   "nearWipes": 0,
+   "nearWithDeath": 0,
+   "nearWarned": 0,
+   "nearFellAfter": 0,
+   "whys": {
+    "hold": 1510,
+    "climb": 699,
+    "fall": 30
+   }
+  }
+ },
+ "wallS": 112,
+ "candidate": "hero-power-step",
+ "moves": {
+  "levels:careful": null,
+  "weapon:careful": null,
+  "armor:careful": null,
+  "high:careful": null,
+  "levels:steady": null,
+  "weapon:steady": {
+   "from": "base:steady",
+   "to": "weapon:steady",
+   "mean": 0,
+   "sd": 0,
+   "se": 0,
+   "n": 4
+  },
+  "armor:steady": {
+   "from": "base:steady",
+   "to": "armor:steady",
+   "mean": -2,
+   "sd": 5,
+   "se": 2.5,
+   "n": 4
+  },
+  "high:steady": null,
+  "levels:bold": null,
+  "weapon:bold": null,
+  "armor:bold": null,
+  "high:bold": null
+ }
+}

@@ -40,7 +40,7 @@
 //   BUFF       a hunt READS the timed buff queue (fires none): a live buff pays,
 //              an expired one does not, one ending mid-window pays the same cut or not.
 //   STAMINA-RULE  the pool drains 1:1 hunting, rests 1:1 to the character's
-//              cap (8 h free / 12 h premium, one data row), a five-swing pool
+//              cap (10 h free / 12 h premium, Tyler 2026-11-22, one data row), a five-swing pool
 //              ends `stamina` after five, a knocked-out hero RESTS.
 //   SUPPLY-RULE  the one resolver: own stock first (free, the smallest that
 //              covers), then the store at catalogue price under the default
@@ -797,7 +797,8 @@ const ENGINE_ARMS = {
   'STAMINA-RULE': async (M) => {
     const problems = [];
     const st = M.AR.staminaStep; const cap = M.HSD.STAMINA_MAX_MS;
-    if (cap.free !== 8 * 3600000 || cap.premium !== 12 * 3600000) problems.push(`STAMINA_MAX_MS is ${JSON.stringify(cap)}, not 8 h free / 12 h premium`);
+    /* the hunting day (Tyler 2026-11-22: "10 without premium 12 with"; was 8 h free) */
+    if (cap.free !== 10 * 3600000 || cap.premium !== 12 * 3600000) problems.push(`STAMINA_MAX_MS is ${JSON.stringify(cap)}, not 10 h free / 12 h premium`);
     if (st(10000, 2000, true, cap.free) !== 8000 || st(1000, 2000, true, cap.free) !== 0) problems.push('a hunting interval does not drain 1:1 to 0');
     if (st(cap.free - 1000, 2000, false, cap.free) !== cap.free) problems.push('resting does not stop at the cap');
     if (st(cap.premium, 2000, false, cap.free) !== cap.premium) problems.push('resting LOWERED a pool above the free cap (a lapse must keep banked stamina)');

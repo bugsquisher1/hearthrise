@@ -8,6 +8,9 @@
 //   DC-4 setRisk refuses a word outside the catalogue without asking the server; a refusal re-reads the hero and carries the code
 //   DC-5 the top bar's depth mark names the Risk the hunt stands at now and its depth, '' off the scale or with no hunt on it
 //   DC-6 the player text is plain (no semicolons, no em dashes) and bad_risk has its own refusal line
+//   DC-7 the Risk pick answers: every press the pane draws is routed to it by the Hunts window, a press sends its one intent, and the
+//        pick names itself Risk on screen
+//   DC-8 the top bar's depth sits in its own quiet mark (.ht-mark, the body face), never inside the ground's Cinzel name
 // ════════════════════════════════════════════════════════════════════════
 import { dangerOf, parseDanger, depthOf, onScale, STANCE_IDS } from '../src/session/danger-sections.js';
 import { setRisk, riskOk } from '../src/session/danger-intents.js';
@@ -16,6 +19,7 @@ import { DANGER_GROUNDS, DEPTHS } from '../src/data/danger.js';
 import { REFUSAL_WORDS } from '../src/data/refusal-words.js';
 import { HUNTS_TEXT } from '../src/data/text/hunts.js';
 import { HUD_TEXT } from '../src/data/text/hud.js';
+import { readFileSync } from 'node:fs';
 
 let fails = 0;
 const check = (id, ok, msg) => { if (!ok) { fails++; console.log('✗ ' + id + ' ' + msg); } else console.log('✓ ' + id + ' ' + msg); };
@@ -64,6 +68,29 @@ check('DC-5', depthMark(csOf({ risk: 'steady', held: {}, playing: null }), M) ==
 const words = Object.entries(HUNTS_TEXT).filter(([k]) => /^(stance_|depth_|head_stance)/.test(k)).concat([['hud.depth_now', HUD_TEXT.depth_now]]);
 check('DC-6', words.length >= 10 && words.every(([, v]) => typeof v === 'string' && !/[;—]/.test(v)), 'the Risk text is plain');
 check('DC-6', typeof REFUSAL_WORDS.bad_risk === 'string' && STANCE_IDS.every((id) => typeof HUNTS_TEXT['stance_' + id] === 'string'), 'bad_risk and each Risk have words');
+
+// DC-7 (R7 art pass 2026-11-22, played on the local world: Careful, Steady and Bold were drawn on Muster's page and pressing one did
+// nothing, the Hunts window routed only Go as and the plan's press to the pane)
+const pane = await import('../src/shell/windows/company-pane.js');
+const drawn = [...(pane.stanceHtml() + pane.planHtml()).matchAll(/data-hs-act="([a-z-]+)"/g)].map((m) => m[1]);
+check('DC-7', drawn.includes('stance') && drawn.every((a) => pane.PLAN_ACTS.includes(a)), 'every press the pane draws is one it answers: ' + JSON.stringify(drawn));
+const huntsSrc = readFileSync(new URL('../src/shell/windows/hunts.js', import.meta.url), 'utf8');
+check('DC-7', /if \(PLAN_ACTS\.includes\(action\)\) return actPlan\(/.test(huntsSrc), 'the Hunts window hands every one of them to the pane');
+sent.length = 0;
+const sc7 = {};
+const csd = { slot: 2, status: 'ready', read: (k) => (k === 'danger' ? { risk: null, held: {}, playing: null } : undefined), load: async () => true, resync: async () => {} };
+const took = pane.actPlan({ character: csd, account }, sc7, () => {}, 'stance', { getAttribute: (k) => (k === 'data-risk' ? 'steady' : null) });
+for (let i = 0; i < 20 && !sent.length; i++) await new Promise((res) => setTimeout(res, 5));
+check('DC-7', took === true && sent.length === 1 && sent[0][0] === 'hr_hunt_risk_set' && sent[0][1].p_risk === 'steady', 'a Risk press sends its one intent: ' + JSON.stringify(sent));
+check('DC-7', /class="hw-stance-k"[^>]*>Risk</.test(pane.stanceHtml()), 'the pick says Risk on screen, not only to a screen reader');
+
+// DC-8 (R7 art pass: "THE MUSTER BARROWS (STEADY, DEPTH 1 OF 20)" in the name's Cinzel capitals)
+const barSrc = readFileSync(new URL('../src/shell/widgets/hunt-topbar.js', import.meta.url), 'utf8');
+const huntCss = readFileSync(new URL('../src/styles/hunt.css', import.meta.url), 'utf8');
+const nameLine = barSrc.split('\n').find((l) => l.includes("text(el.querySelector('.ht-name')")) || '';
+check('DC-8', /<span class="ht-name"><\/span><span class="ht-mark"><\/span>/.test(barSrc) && /text\(el\.querySelector\('\.ht-mark'\), [^\n]*marks\.join/.test(barSrc)
+  && !/marks|hard/.test(nameLine), 'the depth is written to .ht-mark, the name line holds the name only: ' + nameLine.trim().slice(0, 120));
+check('DC-8', /\.ht-mark \{[^}]*font-family: var\(--f-ui\)/.test(huntCss), 'the mark is in the body face');
 
 console.log(fails ? 'danger-client: ' + fails + ' RED' : 'danger-client: all green');
 process.exit(fails ? 1 : 0);

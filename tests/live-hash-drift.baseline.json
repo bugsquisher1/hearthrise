@@ -25,10 +25,10 @@
   },
   "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
   "live_measured": "2026-11-20",
-  "replay_ms": 10699,
+  "replay_ms": 2331,
   "counts": {
-    "tracked_names": 1054,
-    "entries": 887
+    "tracked_names": 1058,
+    "entries": 891
   },
   "functions": [
     {
@@ -18216,6 +18216,78 @@
         "source": "computed-from-replay"
       },
       "agree": true
+    },
+    {
+      "sig": "hr_time_block_price(p_kind text, p_level integer, p_n integer)",
+      "name": "hr_time_block_price",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1058-hunting-blocks-catalogue.generated.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "a3e29595bf0447ca442dd233c04807b6",
+        "norm_len": 763,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1058-hunting-blocks-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1058-hunting-blocks-catalogue.generated.sql."
+    },
+    {
+      "sig": "hr_time_blocks_view(p_user uuid, p_slot integer)",
+      "name": "hr_time_blocks_view",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1058-hunting-blocks.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "da1c4ab8b1333b62b84eebf8b9b5fd8d",
+        "norm_len": 642,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1058-hunting-blocks.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1058-hunting-blocks.sql."
+    },
+    {
+      "sig": "hr_time_buy(p_kind text, p_slot integer, p_price bigint, p_idem uuid)",
+      "name": "hr_time_buy",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1058-hunting-blocks.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "fc553cb2a7cbaf8a4af2debd9824b427",
+        "norm_len": 4146,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1058-hunting-blocks.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1058-hunting-blocks.sql."
+    },
+    {
+      "sig": "hr_time_quote(p_user uuid, p_slot integer, p_kind text)",
+      "name": "hr_time_quote",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1058-hunting-blocks.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "8e6b8f36709e53190962cdfe7d1bf6f4",
+        "norm_len": 1910,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1058-hunting-blocks.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1058-hunting-blocks.sql."
     },
     {
       "sig": "hr_title_buy(p_slot integer, p_title text, p_price bigint, p_idem uuid)",

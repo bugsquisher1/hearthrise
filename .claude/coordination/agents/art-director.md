@@ -3946,3 +3946,16 @@ it; centred on the firebox, the crest and card hid the whole Hearth. Phones see 
 Lessons: (1) a url() in a custom property resolves against the STYLESHEET that reads it, so set it absolute from JS; (2) a backdrop
 behind a centred UI wants its subject placed where the UI is not, not centred; (3) tools/build-site.mjs PUBLISH lists brand files
 one by one: a new brand asset 404s live unless it gets a row.
+## 2026-11-22 lane/r7-visual-passes (the owed visual passes on set/v0.2.144, played on tools/qa/local-world.mjs, 1440x900 and 922x423)
+Screens: away card (Needs you), characters + end card (recruits at Level 5), summary + return card, hunt HUD (ring and analyzer between
+saves), R1's Risk pick on Muster and the top bar's depth. Fixed: (1) the Risk press did nothing in the Hunts window (hunts.js routed
+only go-as/plan-here to company-pane actPlan; now PLAN_ACTS, danger-client DC-7); (2) the pick had no visible name ("Pick a Risk" with
+no Risk on screen) and its two lines were full body text: a Risk label in --f-label, the lines micro ink-2 (windows.css .hw-stance-*);
+(3) the top bar wrote "(Steady, Depth 1 of 20)" inside the ground's Cinzel name: now .ht-mark in the body face (DC-8); (4) the away
+card showed "Go to <ground>" twice (Needs you row + the hero's gold press): needs-you.js pressHeld drops a row's press the card already
+carries for that hero (needs-you NY-HELD, 2 mutants). HUD: the ring and analyzer rise kill by kill between the ~90 s saves (sampled in
+real time with no skip; a skip leaves the prediction behind); the ring holds at 99.9% until the save names the new Level.
+Seen, not changed: the end card's two "Recruit your party" presses (step row + sticky foot) are the FB-5 ruling; the bow class glyph
+(Ashe's tab and row) is a thin, dim line next to the shield and cross; "Next ground: Recommended in Hunts" reads like a ground's name.
+Lessons: (1) a pick drawn by one module and routed by another needs a shared list of its actions, or a new press is born dead;
+(2) the browser pane is throttled while hidden, so real-time HUD checks run in headless Playwright on openWorld, not in the pane.

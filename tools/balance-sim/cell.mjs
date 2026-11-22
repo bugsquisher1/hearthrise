@@ -427,6 +427,8 @@ export async function loadCellRunner(root) {
             const h = byKey[p.key], x = live[p.key], d = p.delta || {}, hu = p.hunt || {};
             h.hours += (hu.paid_ms || 0) / 3600000;
             h.levelXp += d.level_xp || 0;
+            /* cell.trace: Level XP and paid hours so far on the hunt's clock (v1-climb.mjs --pay-from reads pay from a held start) */
+            if (cell.trace) (h.xpTrace || (h.xpTrace = [])).push([winFrom - T0, h.levelXp, h.hours]);
             for (const [k, n] of Object.entries(d.xp || {})) h.skillXp[k] = (h.skillXp[k] || 0) + n;
             h.coin += d.gold || 0;
             for (const [id, n] of Object.entries(d.items || {})) {
@@ -573,6 +575,7 @@ export async function loadCellRunner(root) {
         ttdAtCloseS: quantile(h.ttdClose.filter(Number.isFinite), 0.5),
         band: bandOfCell(minMed, deaths.rate), ended: h.ended,
         /* the raw totals a career run carries into its next chunk (gains, and what deaths took back) */
+        ...(h.xpTrace ? { xpTrace: h.xpTrace } : {}),
         raw: { levelXp: h.levelXp, skillXp: h.skillXp, xpLostLevel: h.xpLostLevel, xpLostSkill: h.xpLostSkill, coin: h.coin,
           income, store: h.store, rares, wallHours: h.wallHours, xpLostLevelBlessed: h.xpLostLevelBlessed, blessingGold: h.blessingGold },
         /* a run's encounters, each its floor and its low HP % (0: the hero fell there) */

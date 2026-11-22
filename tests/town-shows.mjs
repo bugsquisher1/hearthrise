@@ -79,7 +79,9 @@ const CHAIN = [CATALOGUE, SEAMS, '2027-02-27-gold-given.sql', '2027-02-27-town-c
   '1050-setups-free-gold-sinks-catalogue.generated.sql'];
 /* A FILE OF WHICH ONLY SOME BODIES STILL STAND at the chain end: 1049-setups-free.sql restated 2027-02-28-sink-price-plan.sql's section
    (setup slots are free), so only its hr_sink_price is that file's to re-apply; the whole file would refuse its own setup-slot self-check. */
-const PARTS = Object.freeze({ '2027-02-28-sink-price-plan.sql': ['hr_sink_price'] });
+/* So with 2027-04-19-key-under-lock.sql: 1058-hunting-blocks.sql took the stamina refill it grants off every client, so only its
+   hr_hearth_burn still stands as that file wrote it (the whole file would grant the retired refill back and refuse its own hygiene check). */
+const PARTS = Object.freeze({ '2027-02-28-sink-price-plan.sql': ['hr_sink_price'], '2027-04-19-key-under-lock.sql': ['hr_hearth_burn'] });
 /* A LATER FILE RESTATED A BODY ONE OF THESE FILES PINS (2027-04-19-key-under-lock.sql: hr_hearth_burn over 2027-02-27-town-shows.sql's image;
    2027-05-05-hearth-moods.sql: hr_hearth_flame_of, the chest's window first).
    The pin refuses any other image, so the file's own body goes back first, as the chain held it when the file ran, and the later file is
@@ -180,8 +182,9 @@ export const MUTANTS = {
   /* GOLD GIVEN */
   given_not_counted: { arm: 'TS-GIVEN', why: 'a powder never reaches the board', db: [SHOW, "    perform public.hr_gold_given_add(v_uid, p_slot, v_price);\n", ''] },
   given_open_to_clients: { arm: 'TS-GIVEN', why: 'a client can climb the board for free', ddl: 'grant execute on function public.hr_gold_given_add(uuid, integer, bigint) to authenticated' },
+  /* the hunting block (1058-hunting-blocks.sql) replaced the stamina refill as the bought-time sink: it is no gift to the town either */
   given_from_a_refill: { arm: 'TS-GIVEN', why: 'a verb that is no gift to the town counts',
-    db: ['public.hr_stamina_refill(integer,bigint,uuid)', "  update public.player_state\n     set stamina_ms", "  perform public.hr_gold_given_add(v_uid, p_slot, p_price);\n  update public.player_state\n     set stamina_ms"] },
+    db: ['public.hr_time_buy(text,integer,bigint,uuid)', "  update public.player_state\n     set stamina_ms", "  perform public.hr_gold_given_add(v_uid, p_slot, p_price);\n  update public.player_state\n     set stamina_ms"] },
   given_never_resets: { arm: 'TS-GIVEN', why: 'last month still counts', allMonths: true },
   /* THE STANDING GUARD */
   meter_reads_shows: { arm: 'TS-NO-METER', why: 'a Hearthrise meter counts bought flames', ddl: 'create function public.hr_hearthrise_meter(p_map text) returns bigint language sql stable as $f$ select count(*) from public.town_shows where map_id = p_map $f$' },
@@ -768,12 +771,12 @@ const ARMS = {
     await bought(db, A, 1, 'round', 5000);
     if ((await total(A)) !== 7000) out.push('two gifts read ' + (await total(A)));
     if (Number(await one(db, 'select gold from public.account_gold_given where user_id = $1 and slot = 1', [A])) !== 5000) out.push('the gift is not counted to the hero who gave it');
-    /* A REFILL ISN'T A GIFT */
+    /* BOUGHT HUNTING TIME ISN'T A GIFT (a block, 1058-hunting-blocks.sql, the refill's successor) */
     await db.query('update public.player_state set stamina_ms = 0, stamina_at = now() where user_id = $1 and slot = 0', [A]);
-    const quote = await one(db, 'select public.hr_stamina_refill_quote($1::uuid, 0)', [A]);
-    const refill = await as(db, A, 'select public.hr_stamina_refill(0, $1::bigint, $2::uuid)', [quote.price, idem()]);
-    if (!refill || refill.ok !== true) out.push('the refill was refused: ' + JSON.stringify(refill));
-    if ((await total(A)) !== 7000) out.push('a stamina refill counted on the board');
+    const quote = await one(db, "select public.hr_time_quote($1::uuid, 0, 'hunt')", [A]);
+    const refill = await as(db, A, "select public.hr_time_buy('hunt', 0, $1::bigint, $2::uuid)", [quote.price, idem()]);
+    if (!refill || refill.ok !== true) out.push('the hunting block was refused: ' + JSON.stringify(refill));
+    if ((await total(A)) !== 7000) out.push('a hunting block counted on the board');
     /* ONLY THE TOWN'S VERBS WRITE IT, AND NO CLIENT CAN */
     const writers = (await q(db, "select p.proname from pg_proc p where p.pronamespace = 'public'::regnamespace and p.prosrc ~ 'hr_gold_given_add' and p.proname <> 'hr_gold_given_add' order by 1")).map((r) => r.proname);
     const ALLOWED = new Set(['hr_town_show', 'hr_crier_send', 'hr_town_works_give']);

@@ -507,6 +507,11 @@
 .hw-tier-read:empty { display: none; }
 .hw-tier-note { margin: 2px 0 0; font-size: var(--t-micro); color: var(--ink-3); white-space: pre-line; }
 .hw-tier-note:empty { display: none; }
+/* THE RISK on a Danger scale ground (company-pane.js stanceHtml): its name beside the pick, and its two lines as quiet as the tier's note. */
+.hw-stance { margin: 4px 0 0; }
+.hw-stance-k { font-family: var(--f-label); font-size: var(--t-micro); color: var(--ink-2); letter-spacing: .04em; }
+.hw-stance-note, .hw-stance-depth { margin: 4px 0 0; font-size: var(--t-micro); color: var(--ink-2); }
+.hw-stance-note:empty, .hw-stance-depth:empty { display: none; }
 .hw-hunt-pack { margin: 8px 0 0; font-size: var(--t-micro); color: var(--ink-2); }
 .hw-hunt-pack:empty { display: none; }
 /* Go as: the setups as lines, chosen the way a ground is (lifted, outlined in gold, the gold bar): the weapon's own

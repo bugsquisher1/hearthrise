@@ -215,9 +215,14 @@
         "why": "lane/v1-climb wave 1 fixes: the Danger margin read in src/core/hunt/damage.js is its own statement instead of an else-if on the fight-clock line (+17 B, behaviour unchanged)"
       },
       {
-        "bytes": 3263418,
+        "bytes": 3256500,
         "on": "2026-11-22",
-        "why": "lane/r2-danger-falls +7,434 B: a fall back names its hero seat and monster (danger.js lowHero/lowBy, combat-sim syncUnit seat), the report's deep and falls fold and proposal (report.js), HUNT_REPORT.fallsMax and DEFAULT_RISK (src/data)"
+        "why": "lane/r8-hunting-day: src/data/hunt-sessions.js STAMINA_MAX_MS free 8 -> 10 h and its ruling comment (+29 B), on top of +487 B set/v0.2.144 already shipped over the last pin (b2171ef6f lane/r1-danger-client: src/data/danger.js DANGER_GROUNDS floorStep/topStep and DEPTHS, which the engine's danger.js import carries)"
+      },
+      {
+        "bytes": 3263447,
+        "on": "2026-11-22",
+        "why": "lane/r2-danger-falls +6,947 B on the set after R8: a fall back names its hero seat and monster (danger.js lowHero/lowBy, combat-sim syncUnit seat), the report's deep and falls fold and proposal (report.js), HUNT_REPORT.fallsMax and DEFAULT_RISK (src/data)"
       }
     ]
   }

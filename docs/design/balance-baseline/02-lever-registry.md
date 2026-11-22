@@ -39,16 +39,16 @@ Labels. CONFIRMED means read in the code at the baseline. MEASURED means a playe
 | Consumable costs and effectiveness | 9 | 4 | 3 | 2 | 0 | 1 | 1 | 2 |
 | Party bonuses and interactions | 7 | 1 | 3 | 0 | 3 | 2 | 3 | 3 |
 | Rare-drop probabilities | 6 | 2 | 0 | 3 | 1 | 0 | 4 | 3 |
-| Economy sources and sinks | 27 | 13 | 3 | 10 | 1 | 0 | 24 | 14 |
-| **All** | **173** | 75 | 24 | 46 | 28 | 31 | 62 | 62 |
+| Economy sources and sinks | 28 | 14 | 3 | 10 | 1 | 0 | 25 | 15 |
+| **All** | **174** | 76 | 24 | 46 | 28 | 31 | 63 | 63 |
 <!-- END GENERATED:COUNTS -->
 
 <!-- GENERATED:CENSUS (tools/balance-program/levers.mjs --write) -->
 | | Count |
 |---|---|
-| Top-level bindings in the rule code that hold a typed number | 653 (in 219 files, 15655 typed numbers) |
-| Claimed by a lever | 279 |
-| Claimed by a not-a-lever reason | 374 |
+| Top-level bindings in the rule code that hold a typed number | 655 (in 220 files, 15661 typed numbers) |
+| Claimed by a lever | 280 |
+| Claimed by a not-a-lever reason | 375 |
 | Unclaimed | 0 |
 | Exceptions, intentional and accidental | 17 and 11 |
 | Values read at | 861ae52e3 (origin/baseline/overhaul-start). Rule code and migrations the same as the baseline: NO |
@@ -163,6 +163,7 @@ Each row below is a flag on a lever, with its evidence label. The sources are th
 | ineffective | `cons.food-buffs` Food and drink buffs | The built protection row (a 10% cut off every blow) does nothing for a capped hero: median 0.0%, within 1% in 19 of 24 cells | 12-balance-pass section 3.8, MEASURED |
 | ineffective | `cons.food-buffs` Food and drink buffs | A +15% damage buff paid +0 to +11% pace, median +2% | 12-balance-pass section 3.8, MEASURED |
 | ineffective | `party.tank-rules` Challenge and the healer's peel | A party is close to one health bar: back heroes' armor, Defense and weight do nothing on nine grounds | 12-balance-pass section 4.1, MEASURED (R0) |
+| ineffective | `econ.hunt-block` Bought hunting block price | On today's refill base the first block costs about a third of the coin its 2 h earn at Levels 13 to 25, short of 04 section 11's "pretty pricey" (the first block costs more than its hours earn back) until wage(L) prices it | stamina-refill.js WHY THIS PRICE. JUDGMENT |
 | ineffective | `econ.blessing-price` Blessing prices | From Level 30 all three Blessings cost minutes of gold and save days of XP: never a choice | 44 Levels table (30 on), COMPUTED there |
 | ineffective | `econ.town-sinks` Town sinks (powder, rounds, criers, setup slots, colors, the House dummy) | Every gold sink is a list that ends. From Level 110 gold only piles up | 44 summary item 4, CONFIRMED |
 | ineffective | `econ.training` Training yard pay and fee | One flat rate for every skill and level, so skill 75 to 100 takes 51 to 243 yard hours a level | 44 P-X28 and Levels table, COMPUTED there |
@@ -277,8 +278,9 @@ These are coverage gaps for BL-1 and the sensitivity lane. Each gap's reason is 
 | outside-hunt | `econ.hearth` The Hearth: fuels and burns | Economy sources and sinks | a town system the matrix does not simulate: town work (gathering, benches, crafting), the market, sinks past the store, the House |
 | outside-hunt | `econ.hero-slots` Hero slots | Economy sources and sinks | a town system the matrix does not simulate: town work (gathering, benches, crafting), the market, sinks past the store, the House |
 | outside-hunt | `econ.house` House: property, rooms, chests, room perks | Economy sources and sinks | a town system the matrix does not simulate: town work (gathering, benches, crafting), the market, sinks past the store, the House |
+| outside-hunt | `econ.hunt-block` Bought hunting block price | Economy sources and sinks | a block is bought in town or mid-hunt, never by a cell. Tools/balance-program/stamina-day.mjs models the day |
 | outside-hunt | `econ.jewelry-crafting` Jewelry tiers, Hallmark and rolls | Economy sources and sinks | a town system the matrix does not simulate: town work (gathering, benches, crafting), the market, sinks past the store, the House |
-| outside-hunt | `econ.refill` Stamina refill price | Economy sources and sinks | a refill is bought in town. Tools/balance-program/stamina-day.mjs models the day |
+| outside-hunt | `econ.refill` Stamina refill price | Economy sources and sinks | retired from play. Tools/balance-program/stamina-day.mjs models the day |
 | outside-hunt | `econ.shop-prices` Shop offers | Economy sources and sinks | a town system the matrix does not simulate: town work (gathering, benches, crafting), the market, sinks past the store, the House |
 | outside-hunt | `econ.tally` Tally task rewards | Economy sources and sinks | the cells hold no task |
 | outside-hunt | `econ.temper-price` Tempering prices | Economy sources and sinks | the kits hold rungs without paying for them |

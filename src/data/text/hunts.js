@@ -153,7 +153,7 @@ export const HUNTS_TEXT = Object.freeze({
   stance_next: 'Plays from your next hunt',
   stance_leader: 'Risk: set by the party leader',
   depth_held: 'Held depth: Depth {depth} of {of}',
-  depth_new: 'First time here. The party starts at Depth 1 and works its way deeper',
+  depth_new: 'First time here. The party starts at Depth 1 and works its way deeper.',
   tier_set_by: 'Set by {leader}: {tier}',
   tier_leader_picks: 'Tier: set by the party leader',
   tier_kept_party: 'Tier applies to the whole party, saved for this ground',

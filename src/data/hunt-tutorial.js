@@ -1199,14 +1199,14 @@ function temperLine(f) {
   if (!r || !Number.isSafeInteger(r.gold) || !Number.isSafeInteger(f.gold) || f.gold < r.gold * 2) return null;
   return t('coach.goal_temper', { piece: r.piece, gold: gp(r.gold) });
 }
-/* OUT OF STAMINA WITH GOLD IN HAND: the one purchase that never runs out, named at the moment it can be used, at the server's quote. The day's first costs about a third of what its hours earn
-   (stamina-refill.js), so it speaks ahead of saving. Nearly out: under half an hour. */
+/* OUT OF STAMINA WITH GOLD IN HAND: a bought hunting block (time-blocks.js: 2 h, two a day), named at the moment it can be used, at the server's quote. Priced on today's base
+   gold until wage(L) exists, the day's first costs about a third of what its hours earn, so it speaks ahead of saving. Nearly out: under half an hour. */
 const TOP_UP_UNDER_MS = 1800000;
 function topUpLine(f) {
   const q = f.refill;
-  if (!q || q.available !== true || !Number.isSafeInteger(q.price) || !Number.isSafeInteger(q.restoreMs) || !Number.isFinite(f.staminaMs) || f.staminaMs >= TOP_UP_UNDER_MS) return null;
+  if (!q || q.available !== true || !Number.isSafeInteger(q.price) || !Number.isSafeInteger(q.blockMs) || !Number.isFinite(f.staminaMs) || f.staminaMs >= TOP_UP_UNDER_MS) return null;
   if (!Number.isSafeInteger(f.gold) || f.gold < q.price) return null;
-  return t('coach.goal_top_up', { hours: Math.round(q.restoreMs / 3600000), gold: gp(q.price) });
+  return t('coach.goal_top_up', { hours: Math.round(q.blockMs / 3600000), gold: gp(q.price) });
 }
 
 /* How a hero who hunts alone makes a party (the go_below card's lesson, said on the What next line instead). */

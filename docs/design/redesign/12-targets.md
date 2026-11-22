@@ -232,3 +232,28 @@ Each sample goes through the Lab before it grows: rows 1 and 2 through V1 and V3
 - It played no build. The Danger scale has no client yet (R1), so no player has seen a stance. A blind play of the first scale hunt is owed after R1.
 - Every number in sections 2 and 3 is a starting value: the 0.85x floor, the 20-depth band, Muster's 480/590/710, the ×3 Rare odds, the Trait rank cuts and the dates. R4 and the Lab tune them.
 - The only things for Tyler are money: Crown prices and the Premium contents.
+
+---
+
+## 7. The Tower and the Catacombs (2026-11-22, Tyler: "I feel like catacombs and tower are super similar")
+
+**How it plays:** the Tower is the one climb with no top, run once a week for a ladder spot. The Catacombs stop being a second Tower. They become two hunting grounds deep under Havora, the Bone Wing and the Flooded Wing. You hunt them like any other ground, and they are where you find named armor.
+
+**He is right.** Today both are run modes on the same engine, each with one pocket, its own start verb, a key or chest and a climb. The Catacombs add keys, wings and checkpoints, which are three more things to learn for the same decision. Once every ground has a band (section 3), two climbs with no top are one too many.
+
+**Ruling: the Catacombs become a region of grounds on the Danger scale, and their armor becomes that region's drops.** They are not merged into halls and not cut.
+
+| | The Tower | The Catacombs (new shape) | Halls |
+|---|---|---|---|
+| **Player problem** | "I've topped my grounds. Where do I prove how strong my company is?" | "My heroes' helmets and boots are plain. Where do I hunt for armor with a rule on it?" | "Is my bar actually good?" |
+| **Decision it adds** | How far to push this week's run, and at which risk, for a ladder spot and the weekly chest | Which wing to hunt: the Bone Wing leans helmets, the Flooded Wing leans boots. Then the usual risk and depth | Which bar and lineup can answer a boss's wind-ups |
+| **Plugs into** | The uncapped scale (the only place with no top), the best-ever floor ladder, Tower weapons, clan bragging rights | Bands (3.1), the gear rule (3.3: base tier by ground, depth raises Rare odds and Trait rank), Traits (wave 4), the market | Package 7 halls, the bar as the build |
+| **Reward** | Weapons and the weekly chest | Armor. The 24 named helmets and boots in `src/data/catacomb-armor.js` become drop-table rows, with their names and story. Each one's special attribute becomes a Trait in wave 4 | Hall drops |
+
+**What goes:** the key families, the Hearth Chest route for armor, checkpoints, the separate start verb (`hr_catacomb_start`) and the `catacomb` session mode. These are the parts that copy the Tower.
+
+**What stays:** the map, the two wings' look and story, and the 24 names.
+
+**Why not halls?** Halls are short party boss checks. The Catacombs are a place to farm, and a boss room would throw away the map and the armor's reason to exist. **Why not cut them?** Armor has no home of its own, and the Tower already holds weapons. This gives a clean split, weapons up top and armor down below, at almost no new build cost.
+
+**When:** wave 2, alongside R10's next grounds on the scale. Their bands sit high (the old Level 165 to 185 range) and are measured like every other ground. The Tower stays in wave 7, unchanged.

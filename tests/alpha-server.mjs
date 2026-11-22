@@ -40,8 +40,10 @@
 //             death (one a hunt since the core rebuild) keeps loss − floor(loss x
 //             permille / 1000) of its Level and skill price, the tiers are used up,
 //             the saving journalled;
-//   A-STAMINA a refill bought DURING a hunt (attended) raises the pool at the
-//             session's settled_to, and the next settles run past the old end;
+//   (A-STAMINA RETIRED by lane/r8-hunting-day: 1058-hunting-blocks.sql takes the refill off every client and
+//             a bought hunting block replaces it. Its subject, a purchase DURING a hunt raises the pool at the
+//             session's settled_to and the hunt runs on, is tests/hunting-blocks.mjs HB-BOTH, on both doors to
+//             the exact end; its mutant "charges and never writes the pool" is HB-BOTH's, killed there.)
 //   A-PARTY   invite by name -> accept -> the leader's one start enters both
 //             members with their OWN bags, and the instance settles them; a kicked
 //             hunter is ended `left` at its leave and the instance settles on
@@ -268,30 +270,6 @@ const ARMS = {
   'A-LOOT-ATTENDED': (db, ctx) => lootArm(db, ctx, true),
   'A-BLESS-AWAY': (db, ctx) => blessArm(db, ctx, false),
   'A-BLESS-ATTENDED': (db, ctx) => blessArm(db, ctx, true),
-
-  'A-STAMINA': async (db, { H, M }) => {
-    const p = [];
-    const uid = H.UIDS[0];
-    const h = await H.hunter(db, M, { ...H.STRONG, minutesAgo: 10, stamina: 4 * 60000 });
-    const tick = H.ticksOf(30000, 3 * 60000)(h.from);
-    for (const t of tick) await H.settleTo(db, M, t);
-    const q = await H.one(db, 'select public.hr_stamina_refill_quote($1, 0)', [uid]);
-    if (!q || q.available !== true) return ['CONTROL: no refill is quoted mid-hunt: ' + JSON.stringify(q)];
-    const at = await H.one(db, 'select settled_to from public.hunt_sessions where id = $1', [h.sid]);
-    const g0 = await gold(H, db, uid);
-    const r = await asAuth(db, uid, 'select public.hr_stamina_refill(0, $1, $2::uuid)', [Number(q.price), idem()]);
-    if (!r || r.ok !== true) return ['the mid-hunt refill answered ' + JSON.stringify(r)];
-    const st = (await H.q(db, 'select stamina_ms, stamina_at from public.player_state where user_id = $1 and slot = 0', [uid]))[0];
-    if (String(st.stamina_at) !== String(at) || Number(st.stamina_ms) !== Number(q.ms) + Number(q.restore_ms)) {
-      p.push(`the pool was written as ${JSON.stringify(st)}, not ${Number(q.ms) + Number(q.restore_ms)} at ${at}`);
-    }
-    if (await gold(H, db, uid) !== g0 - Number(q.price)) p.push('the refill did not charge its quote');
-    /* The next windows settle from the raised pool, past the old 4-minute end. */
-    for (const t of H.ticksOf(30000, 5 * 60000)(h.from + 3 * 60000)) await H.settleTo(db, M, t);
-    const s = (await H.q(db, 'select ended_at, end_reason from public.hunt_sessions where id = $1', [h.sid]))[0];
-    if (s.ended_at !== null) p.push('the hunt ended (' + s.end_reason + ') although the refill raised the pool past the window');
-    return p;
-  },
 
   'A-PARTY': async (db, { H, M }) => {
     const p = [];
@@ -528,9 +506,6 @@ const MUTANTS = [
      the mutant is planted in the body that runs. */
   { arm: 'A-DATA', file: '2026-10-27-core-bodies.sql', why: 'the SQL refill skips the escalation',
     find: '* (r.step_den + r.step_num * (v_n - 1)) * v_min)', repl: '* (r.step_den) * v_min)' },
-  { arm: 'A-STAMINA', file: '2026-10-25-stamina-refill.sql', why: 'the refill charges and never writes the pool',
-    find: "   where user_id = v_uid and slot = p_slot;\n  return jsonb_build_object('ok', true, 'version', v_a->'version', 'gold', -p_price,",
-    repl: "   where false;\n  return jsonb_build_object('ok', true, 'version', v_a->'version', 'gold', -p_price," },
   /* hr_hunt_apply_member is restated last by MEMBER_LAST: the hook call is planted in the body that runs. */
   { arm: 'A-BLESS-AWAY', why: 'the death no longer applies blessings',
     ...memberPlant('    v_bless := public.hr_blessing_take(p_user, p_slot, p_session, v_dx, v_s.settled_to);', '    v_bless := null;') },

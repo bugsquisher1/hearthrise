@@ -144,8 +144,10 @@ renderAway.patch = function patchAway(body, ctx) {
   const carry = patchCarry(root.querySelector('.haway-carry'), ctx);
   cls(root, 'is-carry', carry);
   /* what needs a decision, from the server's projection: the heroes' envelopes and the server's Carry on plan */
+  /* ...each row's words, and its press only where the hero's own block below does not carry the same move (needs-you.js pressHeld) */
+  const held = list.map((a) => { const b = awayBlockOf(heroOf(ctx, a), a); return b.go ? b.go + ':' + a.slot : ''; }).filter(Boolean);
   patchNeeds(root.querySelector('.haway-needs'), { doc: ctx.doc, peers: () => ctx.peers(), plan: carryPlanFor(ctx), wearOn: !!(carryPlanFor(ctx) || {}).wearOn },
-    needStateOf(ctx));
+    Object.assign({}, needStateOf(ctx), { held }));
   const longest = list.reduce((m, a) => Math.max(m, a.facts && Number.isFinite(a.facts.gone) ? a.facts.gone : 0), 0);
   text(root.querySelector('.haway-gone'), longest > 0 ? t('away.card_gone', { time: spanWords(longest) }) : '');
   const mine = ctx.character ? list.find((a) => a.slot === ctx.character.slot && awayBlockOf(ctx.character, a).summary) : null;

@@ -1,6 +1,7 @@
 # Hearthrise — Living Priority Board
 
-**The single s| Storefronts kept stocked by hired hands (Tyler 2026-11-22) | idea, with the market designer (lane M, docs/design/redesign/13-market.md) | P3 idea | A hireling restocks a shop in your home, or a farmhand at your farm, chosen by the account's mastery. Tyler's variant: storefronts only in clan castles, with clans hiring hands to keep them stocked. Housing and castles count in crafting and market design. Must sell through the one server market and ledger. |
+**The single s| Estimated gold an hour on each ground (Tyler 2026-11-22) | queued, starts when lane W (wage) lands | P2 | Hunts window per ground: "About N gold an hour, before supplies", computed on the server from wage at the ground's depth and the chosen Risk. The hunt report shows the actual beside it: gold an hour earned and supplies used. Players see gold, never the word wage. |
+| Storefronts kept stocked by hired hands (Tyler 2026-11-22) | idea, with the market designer (lane M, docs/design/redesign/13-market.md) | P3 idea | A hireling restocks a shop in your home, or a farmhand at your farm, chosen by the account's mastery. Tyler's variant: storefronts only in clan castles, with clans hiring hands to keep them stocked. Housing and castles count in crafting and market design. Must sell through the one server market and ledger. |
 ource of truth for what's done, in flight, queued, and decided.**
 Maintained by the Coordinator: backlog items are added here consistently as they
 arise (player reports, feature ideas, discoveries) so nothing is lost. The HTML

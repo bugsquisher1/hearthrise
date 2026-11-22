@@ -103,7 +103,7 @@ The rule: keep a file if it holds under the redesign. Retire it if the redesign 
 | 1021 to-hit ratio hunt-sessions catalogue | Retire | Same |
 | 1022 to-hit ratio hearthfind catalogue | Retire | Same |
 | 1023 to-hit ratio scaled-hunts catalogue | **Retire** | Same, and scaled hunts are replaced by the Danger scale |
-| 1026 job counts | **Re-cut** in R12 | "A job takes a count and a then" stays: it saves repeated decisions. It moves to company-owned trades. 1040-rested-bank-cut restates `hr_apply` including 1026's changes, so R6 re-derives 1040 after the re-cut |
+| 1026 job counts | **Re-cut** in R12 (done 2026-11-22) | "A job takes a count and a then" stays: it saves repeated decisions. The THEN of hunt, its sweep and cron job are withdrawn (D-11). Its XP is the company's through 1059-company-trades. 1040-rested-bank-cut restates `hr_apply` including 1026's changes: R12 re-derived it (both pins re-measured) |
 | 1027 spell-rule default bar | Retire | Wave 3 rewrites the move list (jobs, evolutions) |
 | 1028 spell-rule hunt-sessions catalogue | Retire | Same |
 | 1029 spell-rule rune spells | Retire | Same |
@@ -117,7 +117,7 @@ The rule: keep a file if it holds under the redesign. Retire it if the redesign 
 | 1037 first-hour kit lines | Keep | The starting kit |
 | 1038 start kits | Keep | Security list (a grant) |
 | 1039 account coach | Keep | Lessons taught once an account |
-| 1040 rested bank cut | Keep, re-derived after 1026 | Removes a small bonus nobody feels, as the redesign asks |
+| 1040 rested bank cut | Keep, re-derived after 1026 (R12, done 2026-11-22) | Removes a small bonus nobody feels, as the redesign asks |
 | 1040 social catalogue | Keep | FB-12, continue |
 | 1041 social clans | Keep | Security list (100,000 gold founding) |
 | 1042 live-events catalogue | Keep | The Coordinator sets the calendar anchor at apply |

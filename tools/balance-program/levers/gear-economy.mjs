@@ -281,6 +281,22 @@ export const GEAR_ECONOMY = [
     perturb: NP('outside-hunt', 'a block is bought in town or mid-hunt, never by a cell; tools/balance-program/stamina-day.mjs models the day'),
     flags: [flag('ineffective', 'On today\'s refill base the first block costs about a third of the coin its 2 h earn at Levels 13 to 25, short of 04 section 11\'s "pretty pricey" (the first block costs more than its hours earn back) until wage(L) prices it', 'stamina-refill.js WHY THIS PRICE; JUDGMENT')],
     ev: 'STATED (Tyler 2026-11-22: 2 h, x1.5, cap 2; the price is today\'s base until wage(L))' }),
+  L('econ.work-day', 'economy', 'global', 'A hero\'s daily town work', {
+    at: [at('src/data/work-day.js', 'freeMin: 480,')],
+    def: 'a hero\'s town work (a gathering job or a bench run) stops for the UTC day after freeMin minutes of it; the next day opens a fresh cap',
+    range: '09-crafting.md section 4.7 `workDay`: start 8 h, search 6 to 12. RULED (Tyler 2026-11-22 CR-Q3 b): a daily cap exists and Premium lengthens it; the hours are the lever. SQL twin hr_work_day / hr_work_fold (1059, generated)',
+    touches: 'the labor supply (09 section 5.3, the labor ratio) and so every crafted price', out: [], f: [],
+    tests: [['tests/company-trades.mjs', 'the day stops the job at the cap, viewed and closed']], testReads: ['WORK_DAY'],
+    perturb: NP('outside-hunt', 'town work is not a hunt cell; 09 section 5.8 names the labor model the Lab must add'),
+    ev: 'STATED (09-crafting.md section 4.7 start value; Tyler 2026-11-22 ruled the cap, not its hours)' }),
+  L('econ.work-premium', 'economy', 'global', 'Premium\'s extra town work', {
+    at: [at('src/data/work-day.js', 'premiumExtraMin: 120,')],
+    def: 'Premium adds premiumExtraMin minutes to a hero\'s daily town work (the one premium check, hr_premium_active)',
+    range: '09-crafting.md section 4.7 `premiumWorkExtra`: start 2 h, search 1 to 2, never more than a quarter of the free day (work-day.js validate). RULED (Tyler 2026-11-22 CR-Q3 b): Premium makes the day longer',
+    touches: 'the payer gap (09 section 5.3): hours, never rate', out: [], f: [],
+    tests: [['tests/company-trades.mjs', 'the Premium day']], testReads: ['WORK_DAY'],
+    perturb: NP('outside-hunt', 'town work is not a hunt cell'),
+    ev: 'STATED (09-crafting.md section 4.7 start value)' }),
   L('econ.blessing-price', 'economy', 'archetype', 'Blessing prices', {
     at: [at('src/data/blessings.js', 'freeUntilLevel: 30')],
     rows: rows('base and perLevel of each Blessing', [home('src/data/blessings.js#BLESSING_TIERS', 'count')]),

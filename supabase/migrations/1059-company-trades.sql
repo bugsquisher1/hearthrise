@@ -6,11 +6,11 @@
 -- ORDER: the sequence in this file's name (CLAUDE.md rule 12): after 1059-company-trades-catalogue.generated.sql (hr_work_day), after
 --   1026-job-counts.sql (re-cut in this lane) and 1040-rested-bank-cut.sql (re-derived in this lane: hr_apply is its image here).
 -- Applied as ONE transaction by the apply tool; never begin/commit here. Ends with its §8 self-check.
--- EDGE: hr-accrue moves with it (accrual.js stops a town job at the work day's end and proposes `work_to` on a window that ends a job;
---   envelope.js reads the `work_day` section; tick-shadow.js carries the day between polls). Apply, then deploy: an old edge on this
---   database settles a window that ends a job by its `accrued_to` (now: the day counts the job's idle tail, the safe direction) and
---   cannot propose past the cap on a continuing window without a `work_cap` refusal, which its degrade ladder halves; a new edge on
---   the old database reads no `work_day` section and proposes no `work_to` (its self-configuring switch), so either order is safe.
+-- EDGE: hr-accrue moves with it (accrual.js stops a town job at the work day's end; accrue-gather.js and accrue-artisan.js propose
+--   `work_to` on every town-work window; envelope.js reads the `work_day` section; tick-shadow.js carries the day between polls; tick-
+--   contract.js folds `work_to`). Apply, then deploy: an old edge on this database settles a window that ends a job by its `accrued_to`
+--   (now: the day counts the job's idle tail, the safe direction) and a window past the cap is refused `work_cap`; a new edge on the
+--   old database reads no `work_day` section and proposes no `work_to` (its self-configuring switch). Deploy soon after the apply.
 -- RESTATEMENT-DEBT-ACK: hr_apply was restated whole by 1040-rested-bank-cut.sql (chain depth 0); this file adds FOUR anchored
 --   edits marked WORK-DAY, each matched once (depth 1), rather than a second 158k-char restatement a day after the first.
 --
@@ -35,14 +35,17 @@
 -- hr_work_fold(day, used, from, to, base, extra, today) -> { ok, day, used_ms, over_ms, left_ms }   the SQL twin of
 --   src/core/work-day.js foldWork (tests/company-trades.mjs CT-TWIN pins them equal). hr_work_base_ms(user, slot): the free day,
 --   or the free day and Premium's extra (hr_premium_active, the one premium check). hr_work_extra_ms(user, slot): bought work today.
--- THE SECTION `work_day` (hr_work_day_view) { today, day, used_ms, base_ms, extra_ms, cap_ms, today_ms, left_ms, premium, trades }.
+-- THE SECTION `work_day` (hr_work_day_view) { today, day, used_ms, base_ms, extra_ms, cap_ms, today_ms, left_ms, premium, trades }; its
+--   engine half is hr_work_state { today, day, used_ms, base_ms, extra_ms }, which the world tick's town read carries too:
+--   hr_tick_town_state (1048-narrow-town-read.sql) RESTATED WHOLE with one key, `work_day` (§5b; pinned to 1048's image or its own).
 -- hr_apply (WORK-DAY): a window of town work (an accrual journalled gather or craft of a hero whose SERVER pointer is a work kind)
---   spends [old watermark, its end] of the hero's day; its end is the new watermark for a window the job continues past, and for a
---   window that ends the job the engine's `work_to` (a NEW delta key: the instant the job's last action finished) or its accrued_to,
---   held into [old watermark, now()]. A day past its cap is refused `work_cap`; a counted job the cap ended says end `work_cap`
---   (1026's job_end); a NEW town job on a day with no work left is refused `work_cap`.
+--   spends [old watermark, its end] of the hero's day. Its end is the engine's `work_to` (a NEW delta key: where the window's work
+--   ended; for a window cut short by an absence's cap, before the watermark jumps past the unpaid tail), else the new watermark (a
+--   window the job continues past) or the proposed accrued_to (a window that ends the job), held into [old watermark, the new
+--   watermark]. A day past its cap is refused `work_cap`; a counted job the cap ended says end `work_cap` (1026's job_end); a NEW town
+--   job on a day with no work left is refused `work_cap`.
 -- ERROR TAXONOMY: work_cap (NEW: the day's town work is used up, or a window would pass it; detail { day, used_ms, over_ms, left_ms }),
---   bad_delta (a `work_to` that is not an instant beside the accrual that ends a job).
+--   bad_delta (a `work_to` that is not an instant, or beside no accrual).
 --
 -- ── CONCURRENCY ─────────────────────────────────────────────────────────────
 -- THE ACCOUNT'S TRADE KEY (hr_trade_lock: pg_advisory_xact_lock on 'hr_trades:<user>') is taken by the trigger before it reads or
@@ -59,8 +62,9 @@
 -- ── EXPLOIT SURFACE DELTA ───────────────────────────────────────────────────
 -- No new client verb, grant or policy. One new delta key (`work_to`), engine-only (hr_apply runs only as hr_engine), which can only
 --   SHORTEN what a window spends, never pay more: payment is unchanged and bounded as before; the cap the engine already obeys is
---   now re-checked. An engine that under-stated `work_to` on a job's last window could under-count that one window's work: the
---   bound is one window, and the same engine already decides the window's yield. Trade XP stays monotonic for every production
+--   now re-checked. The day trusts the engine's `work_to` as it trusts the window's yield: a buggy engine that both ignored the stop
+--   AND under-stated `work_to` would pass the cap (two independent defects; tests/company-trades.mjs pins the honest engine's
+--   `work_to` to its paid span on both doors). Trade XP stays monotonic for every production
 --   writer (hr_apply refuses a negative XP delta). Money surface: XP credit moves from the hero to the company; ON THE PRE-EA
 --   SECURITY LIST (the fold below raises sibling heroes' trade XP to their company's best).
 --
@@ -75,9 +79,10 @@
 --   company_trades 2,000 x 8 = 16,000 (~1 MB). Two columns on player_state (~12 B a hero). No new journal row a window.
 --
 -- ── REVERSIBILITY ───────────────────────────────────────────────────────────
--- Drop the trigger hr_trade_row_sync and its function, the section row and hr_work_day_view, hr_work_fold/base/extra/left, the four
---   WORK-DAY edits (re-apply 1040's image of hr_apply), the two columns and company_trades. Per-hero trade rows keep the company's
---   totals (the fold is not undone: a hero keeps the XP it reads).
+-- Re-apply 1048's hr_tick_town_state and 1040's image of hr_apply (the four WORK-DAY edits go); drop the trigger hr_trade_row_sync and
+--   its function, the section row, hr_work_day_view, hr_work_state, hr_work_fold, hr_work_base_ms, hr_work_extra_ms, hr_work_kinds,
+--   hr_trade_lock, hr_trade_is, the two columns and company_trades. Per-hero trade rows keep the company's totals (the fold is not
+--   undone: a hero keeps the XP it reads).
 -- ════════════════════════════════════════════════════════════════════════
 
 -- ── §0 PRECONDITIONS AND THE PIN ─────────────────────────────────────────────
@@ -96,7 +101,7 @@ begin
     raise exception 'PRECONDITION: a helper this file calls is missing'; end if;
   -- THE PIN: hr_apply is 1040-rested-bank-cut.sql's image (re-derived in this lane) or this file's own (a second apply).
   select md5(replace(prosrc, chr(13), '')) into v_md5 from pg_proc where oid = 'public.hr_apply(uuid,integer,bigint,uuid,jsonb)'::regprocedure;
-  if v_md5 not in ('dd5c083803e9a54ebe8b7765ab5c2983', '4aed8c0769fc55f6deeb4eac97840c00') then
+  if v_md5 not in ('dd5c083803e9a54ebe8b7765ab5c2983', '4c9289bb76e2f7eec7d862bb8a7ac9e1') then
     raise exception 'PIN: hr_apply is neither 1040''s image nor this file''s own (md5 %): another file moved it; re-derive', v_md5; end if;
 end $mig$;
 
@@ -226,21 +231,23 @@ declare
   v_to   bigint;
   v_dms  bigint := case when p_day is null then null else (p_day - date '1970-01-01')::bigint * 86400000 end;
   v_tms  bigint := (p_today - date '1970-01-01')::bigint * 86400000;
-  v_d bigint; v_last bigint; v_i int := 0; v_ov bigint; v_cap bigint;
+  v_d bigint; v_last bigint; v_i int := 0; v_ov bigint; v_cap bigint; v_before bigint;
   v_over bigint := 0; v_out bigint; v_used bigint := 0; v_outcap bigint := 0;
 begin
   -- WORK-DAY (1059-company-trades.sql): the SQL twin of src/core/work-day.js foldWork. What the window of work [p_from, p_to] spends of
   -- a hero whose last work day is p_day (p_used ms of it): its overlap with each UTC day it touches, each day held to its cap (p_base,
-  -- plus p_extra on p_today only). Returns the state after it (the day p_to falls in) and by how much the worst day went over.
+  -- plus p_extra on p_today only). Returns the state after it (the day p_to falls in) and by how much the window took the worst day
+  -- past its cap. A day already past its cap (Premium ran out) may not grow, but a window that adds nothing passes: a job can always end.
   v_to := greatest(v_from, floor(extract(epoch from p_to) * 1000)::bigint);
   v_d := (v_from / c_day) * c_day;
   v_out := v_d;
   v_last := (v_to / c_day) * c_day;
   while v_d <= v_last and v_i < 8 loop
     v_ov := greatest(0, least(v_to, v_d + c_day) - greatest(v_from, v_d));
-    v_used := (case when v_d = v_dms then greatest(0, coalesce(p_used, 0)) else 0 end) + v_ov;
+    v_before := case when v_d = v_dms then greatest(0, coalesce(p_used, 0)) else 0 end;
+    v_used := v_before + v_ov;
     v_cap := greatest(0, coalesce(p_base, 0)) + case when v_d = v_tms then greatest(0, coalesce(p_extra, 0)) else 0 end;
-    v_over := greatest(v_over, v_used - v_cap);
+    v_over := greatest(v_over, v_used - greatest(v_cap, v_before));
     v_out := v_d; v_outcap := v_cap;
     v_d := v_d + c_day; v_i := v_i + 1;
   end loop;
@@ -268,26 +275,77 @@ returns bigint language sql stable set search_path = public, pg_catalog as $fn$
                        and l.at >= public.hr_utc_day_start(now())) end
 $fn$;
 
+create or replace function public.hr_work_state(p_user uuid, p_slot integer)
+returns jsonb language sql stable security definer set search_path = public, pg_catalog as $fn$
+  -- WORK-DAY (1059-company-trades.sql): what the ENGINE reads of the hero's work day (src/core/work-day.js workStateOf): the server's
+  -- today, the stored day and its ms, the base day and today's bought work. The `work_day` section and the world tick's town read
+  -- (hr_tick_town_state) both carry it, so the engine's inputs are one definition on every door.
+  select jsonb_build_object('today', ((now() at time zone 'utc')::date)::text, 'day', ps.work_day::text, 'used_ms', ps.work_ms,
+           'base_ms', public.hr_work_base_ms(p_user, p_slot), 'extra_ms', public.hr_work_extra_ms(p_user, p_slot))
+    from public.player_state ps where ps.user_id = p_user and ps.slot = p_slot
+$fn$;
+
 create or replace function public.hr_work_day_view(p_user uuid, p_slot integer)
 returns jsonb language plpgsql stable security definer set search_path = public, pg_catalog as $fn$
-declare v_day date; v_used bigint; v_today date := (now() at time zone 'utc')::date; v_base bigint; v_extra bigint; v_t bigint;
+declare v jsonb; v_cap bigint; v_t bigint;
 begin
-  -- THE SECTION `work_day` (1059-company-trades.sql): the hero's work day as the server holds it. `day`/`used_ms` the stored state the
-  -- engine starts from; `today_ms`/`left_ms`/`cap_ms` today's, as of the last settle; `trades` the company's trades (every hero reads
-  -- their Levels in `skills`, the projection of company_trades).
-  select ps.work_day, ps.work_ms into v_day, v_used from public.player_state ps where ps.user_id = p_user and ps.slot = p_slot;
-  if not found then return null; end if;
-  v_base := public.hr_work_base_ms(p_user, p_slot);
-  v_extra := public.hr_work_extra_ms(p_user, p_slot);
-  v_t := case when v_day = v_today then v_used else 0 end;
-  return jsonb_build_object('today', v_today::text, 'day', v_day::text, 'used_ms', coalesce(v_used, 0), 'base_ms', v_base,
-    'extra_ms', v_extra, 'cap_ms', v_base + v_extra, 'today_ms', v_t, 'left_ms', greatest(0, v_base + v_extra - v_t),
+  -- THE SECTION `work_day` (1059-company-trades.sql): the hero's work day as the server holds it. The engine's half (hr_work_state:
+  -- `day`/`used_ms` the stored state it starts from); `today_ms`/`left_ms`/`cap_ms` today's, as of the last settle; `trades` the
+  -- company's trades (every hero reads their Levels in `skills`, the projection of company_trades).
+  v := public.hr_work_state(p_user, p_slot);
+  if v is null then return null; end if;
+  v_cap := (v->>'base_ms')::bigint + (v->>'extra_ms')::bigint;
+  v_t := case when v->>'day' = v->>'today' then (v->>'used_ms')::bigint else 0 end;
+  return v || jsonb_build_object('cap_ms', v_cap, 'today_ms', v_t, 'left_ms', greatest(0, v_cap - v_t),
     'premium', public.hr_premium_active(p_user, p_slot, now()),
     'trades', coalesce((select jsonb_agg(k.skill_id order by k.skill_id) from public.hr_skills k where public.hr_trade_is(k.skill_id)), '[]'::jsonb));
 end $fn$;
 insert into public.hr_state_sections (key, fn, note) values
   ('work_day', 'hr_work_day_view', '1059-company-trades.sql: the hero''s town work day (used, cap, left) and the company''s trades')
   on conflict (key) do update set fn = excluded.fn, note = excluded.note;
+
+-- ── §5b THE WORLD TICK'S TOWN READ CARRIES THE DAY (1048-narrow-town-read.sql's hr_tick_town_state, restated whole + one key) ─────
+-- The tick builds a town hero's engine inputs from this read (envelope.js engineInputsFromEnvelope), so without `work_day` it would
+-- not stop a job at the day's end and hr_apply would refuse its window. The key is hr_work_state, the engine's half of the section.
+do $mig$
+declare v_md5 text;
+begin
+  select md5(replace(prosrc, chr(13), '')) into v_md5 from pg_proc where oid = to_regprocedure('public.hr_tick_town_state(uuid,integer)');
+  if v_md5 is null then raise exception 'PRECONDITION: 1048-narrow-town-read.sql first (hr_tick_town_state)'; end if;
+  if v_md5 not in ('e702b0fd863d73ea2a9f88704023ed5b', 'c11bd877a9342fbe9c79caa679e6f538') then
+    raise exception 'PIN: hr_tick_town_state is neither 1048''s image nor this file''s own (md5 %): another file moved it; re-derive', v_md5; end if;
+end $mig$;
+create or replace function public.hr_tick_town_state(p_user uuid, p_slot integer)
+returns jsonb language plpgsql stable security definer set search_path = public, pg_catalog as $fn$
+declare
+  v_role text;
+  v_st   public.player_state%rowtype;
+  v_m    jsonb;
+begin
+  v_role := coalesce(nullif(current_setting('role', true), 'none'), session_user);
+  if v_role in ('anon', 'authenticated', 'service_role', 'hr_tick') then
+    raise exception 'hr_tick_town_state: not callable by %', v_role using errcode = '42501';
+  end if;
+  select * into v_st from public.player_state where user_id = p_user and slot = coalesce(p_slot, 0);
+  if not found then return jsonb_build_object('ok', false, 'error', 'no_character'); end if;
+  v_m := public.hr_hunt_member_state(p_user, v_st.slot);
+  if coalesce((v_m ->> 'ok')::boolean, false) is not true then return v_m; end if;
+  return v_m || jsonb_build_object(
+    'now', now(),
+    'state', (v_m -> 'state') || jsonb_build_object(
+      'slot', v_st.slot,
+      'active_kind', v_st.active_kind, 'active_id', v_st.active_id,
+      'active_since', v_st.active_since, 'accrued_to', v_st.accrued_to,
+      'bank_cap', v_st.bank_cap, 'tool_carry', v_st.tool_carry, 'fight', v_st.fight),
+    'bank', coalesce((
+      select jsonb_object_agg(item_id, qty)
+        from public.account_bank where user_id = p_user), '{}'::jsonb),
+    'bench_run', public.hr_bench_run_view(p_user, v_st.slot),
+    'bench_tax', public.hr_bench_tax_view(p_user, v_st.slot),
+    'skill_inputs', public.hr_skill_inputs_view(p_user, v_st.slot),
+    -- WORK-DAY (1059-company-trades.sql): the hero's work day, the engine's half of the `work_day` section
+    'work_day', public.hr_work_state(p_user, v_st.slot));
+end $fn$;
 
 -- ── §6 hr_apply: FOUR ANCHORED EDITS (WORK-DAY; RESTATEMENT-DEBT-ACK in the header) ──────────────────────────────────────────
 do $mig$
@@ -312,29 +370,29 @@ $a$  v_job_count int; v_job_next text; v_job_end jsonb; v_job_left int;
   v_work jsonb; v_work_end timestamptz; v_work_left bigint;
 $a$,
 $a$    'workers', 'workers_accrued_to',
-    -- WORK-DAY (1059-company-trades.sql): the instant a job's last action finished, beside the accrual that ENDS the job (engine
-    -- output, never client input). The work day spends up to it, not the window's `accrued_to` (now(), for an ending window).
+    -- WORK-DAY (1059-company-trades.sql): the instant a window's work ended (engine output, never client input), beside its accrual.
+    -- The work day spends up to it, never past the window's own watermark (for a window that ends the job, now()).
     'work_to'];$a$,
 $a$    -- ── WORK-DAY (1059-company-trades.sql; Tyler 2026-11-22 CR-Q3 b: each hero's town work is capped each day) ────────────────
     -- A window of town work (an accrual journalled gather or craft of a hero whose SERVER pointer is a work kind) spends [the old
     -- watermark, its end] of the hero's day, split at UTC midnights (hr_work_fold, the twin of src/core/work-day.js foldWork). Its end:
-    -- the new watermark for a window the job continues past; for a window that ENDS the job, the engine's `work_to`, else its
-    -- `accrued_to`; held into [old watermark, now()]. A day past its cap is refused: the engine stops the job at the cap (accrual.js),
-    -- so an honest window never is. A counted job the cap ended says so; a NEW town job on a day with no work left is refused.
+    -- the engine's `work_to`, else the new watermark (a window the job continues past) or the proposed `accrued_to` (a window that
+    -- ENDS the job), held into [old watermark, the new watermark]. A day past its cap is refused: the engine stops the job at the cap
+    -- (accrual.js), so an honest window never is. A counted job the cap ended says so; a NEW town job on a spent day is refused.
     v_work := null;
     if p_delta ? 'work_to' then
-      if not (p_delta ? 'activity') or not (p_delta ? 'accrued_to') or jsonb_typeof(p_delta->'work_to') <> 'string'
+      if not (p_delta ? 'accrued_to') or jsonb_typeof(p_delta->'work_to') <> 'string'
          or (p_delta->>'work_to') !~ '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?(Z|[+-]\d{2}(:?\d{2})?)$' then
-        perform public.hr_reject('bad_delta', jsonb_build_object('why', 'work_to is an instant, beside the accrual that ends a job'));
+        perform public.hr_reject('bad_delta', jsonb_build_object('why', 'work_to is an instant, beside an accrual'));
       end if;
     end if;
     if p_delta ? 'accrued_to' and coalesce(p_delta #>> '{journal,kind}', '') in ('gather', 'craft')
        and v_st.active_kind = any (public.hr_work_kinds()) then
-      v_work_end := case when not (p_delta ? 'activity') then v_accrued
-                         when p_delta ? 'work_to' then (p_delta->>'work_to')::timestamptz
+      v_work_end := case when p_delta ? 'work_to' then (p_delta->>'work_to')::timestamptz
+                         when not (p_delta ? 'activity') then v_accrued
                          when p_delta->>'accrued_to' = 'now' then now()
                          else (p_delta->>'accrued_to')::timestamptz end;
-      v_work_end := least(now(), greatest(v_st.accrued_to, v_work_end));
+      v_work_end := least(v_accrued, greatest(v_st.accrued_to, v_work_end));
       v_work := public.hr_work_fold(v_st.work_day, v_st.work_ms, v_st.accrued_to, v_work_end,
                   public.hr_work_base_ms(v_uid, v_slot), public.hr_work_extra_ms(v_uid, v_slot), (now() at time zone 'utc')::date);
       if not (v_work->>'ok')::boolean then
@@ -379,7 +437,7 @@ begin
                                'public.hr_trade_row_sync()',
                                'public.hr_work_fold(date,bigint,timestamp with time zone,timestamp with time zone,bigint,bigint,date)',
                                'public.hr_work_base_ms(uuid,integer)', 'public.hr_work_extra_ms(uuid,integer)',
-                               'public.hr_work_day_view(uuid,integer)'] loop
+                               'public.hr_work_state(uuid,integer)', 'public.hr_work_day_view(uuid,integer)'] loop
     execute format('revoke all on function %s from public, anon, authenticated, service_role', v_sig);
     foreach v_role in array array['hr_engine', 'hr_tick'] loop
       if exists (select 1 from pg_roles where rolname = v_role) then execute format('revoke all on function %s from %I', v_sig, v_role); end if;
@@ -393,7 +451,7 @@ end $grants$;
 --     equals its company row; a new hero is born at the company's totals.
 -- (b) THE TWIN: hr_work_fold at a midnight crossing that fits and one that does not, and a day with bought work.
 -- (c) THE DAY: a free hero's town job spends its window; a window past the 8 h cap is refused work_cap and moves nothing; a window to the
---     cap lands; a NEW job is then refused work_cap; the beta Premium switch makes the day 10 h; a forged `work_to` beside no job end is
+--     cap lands; a NEW job is then refused work_cap; the beta Premium switch makes the day 10 h; a forged `work_to` (no instant, no accrual) is
 --     bad_delta.
 -- (d) THE SURFACE: nothing here is client-executable, company_trades is unreadable to clients, the section is registered, the edits
 --     are in hr_apply once, grant hygiene is quiet.
@@ -486,12 +544,14 @@ begin
     if coalesce(v->>'ok', '') <> 'true' or v_st.work_day is distinct from (v_y at time zone 'utc')::date or v_st.work_ms <> v_cap
        or (select xp from public.company_trades where user_id = c_u and trade_id = 'mining') <> 160 then
       raise exception 'company-trades §8(c): a window to the cap answered % (day %, work_ms %)', v, v_st.work_day, v_st.work_ms; end if;
-    -- a forged work_to beside no job end
+    -- a forged work_to: no instant, or beside no accrual
     select version into v_ver from public.player_state where user_id = c_u and slot = 0;
     v := public.hr_apply(c_u, 0, v_ver, (k || '0c105906')::uuid, jsonb_build_object(
-           'accrued_to', now(), 'work_to', to_char(now() at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS"Z"'),
-           'journal', jsonb_build_object('kind', 'gather', 'intent', 'accrue')));
-    if v->>'error' is distinct from 'bad_delta' then raise exception 'company-trades §8(c): a work_to beside no job end answered %', v; end if;
+           'accrued_to', now(), 'work_to', 'soon', 'journal', jsonb_build_object('kind', 'gather', 'intent', 'accrue')));
+    if v->>'error' is distinct from 'bad_delta' then raise exception 'company-trades §8(c): a work_to that is no instant answered %', v; end if;
+    v := public.hr_apply(c_u, 0, v_ver, (k || '0c10590a')::uuid, jsonb_build_object(
+           'work_to', to_char(now() at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS"Z"'), 'journal', jsonb_build_object('kind', 'admin', 'intent', 'probe')));
+    if v->>'error' is distinct from 'bad_delta' then raise exception 'company-trades §8(c): a work_to beside no accrual answered %', v; end if;
     -- a NEW job on a day with no work left: give the hero a full day today, then ask
     update public.player_state set work_day = (now() at time zone 'utc')::date, work_ms = v_cap where user_id = c_u and slot = 0;
     select version into v_ver from public.player_state where user_id = c_u and slot = 0;

@@ -192,6 +192,10 @@ function contract(R, cs, body, tl) {
   // This hero is hunting: the section sends no rooms and no fees to a hunter (settle cost), only the carry; a town hero's rooms: tests/bench-tax.mjs T-HOUSE.
   need('bench_tax', R.BT.benchTaxOf(cs) !== null && Number.isInteger(body.bench_tax && body.bench_tax.carry_mg) && R.BT.benchTaxOf(cs).carry === body.bench_tax.carry_mg,
     'benchTaxOf reads ' + JSON.stringify(body.bench_tax).slice(0, 160));
+  // the hero's work day and the company's trades (1059-company-trades.sql): the Work window's two lines
+  const wd = R.BT.workDayOf(cs);
+  need('work_day', !!wd && isNum(wd.capMs) && wd.capMs > 0 && isNum(wd.leftMs) && wd.leftMs <= wd.capMs && wd.trades.includes('mining'),
+    'workDayOf yields ' + JSON.stringify(wd) + ' from ' + JSON.stringify(body.work_day).slice(0, 200));
   // the recipes this hero has learned from a pattern (2026-09-14-recipe-learn.sql hr_recipes_of; src/data/patterns.js): the gated bench reads
   // it, so a hero that read none is an EMPTY object (closed), never a missing key (null, read as closed too, but no longer the server's word)
   const learned = R.BT.learnedRecipesOf(cs);
@@ -419,7 +423,8 @@ export const CONTRACT_KEYS = Object.freeze(['hunt', 'hunt_track', 'hunt_events',
   'name', 'bag_rules', 'shop', 'hunt_presets', 'role', 'party_invites', 'party_notices', 'time_blocks', 'blessings',
   'character_sheet', 'outfit', 'death_log', 'vitals', 'hunt_bests', 'hunt_tier', 'hunt_target_kind', 'depot', 'home', 'now', 'farm_land', 'farm_tend', 'bench_run', 'rename', 'tally',
   'skill_inputs', 'bench_tax', 'setup_slots', 'titles', 'temper', 'bag_expand', 'gm', 'hallmark', 'level', 'skill_levels', 'live_events', 'training', 'factions', 'hunt_after', 'scaled_hunts', 'boss_halls',
-  'tower', 'key_ring', 'entry_gates', 'catacomb', 'features', 'unlocked_recipes', 'hearth_fire', 'presence', 'company', 'hunt_setup', 'recruits', 'danger']);
+  'tower', 'key_ring', 'entry_gates', 'catacomb', 'features', 'unlocked_recipes', 'hearth_fire', 'presence', 'company', 'hunt_setup', 'recruits', 'danger',
+  'work_day']);
 
 /* What lane S2's sections are seeded with before the settle (each verb through the real RPC). */
 const SEED = Object.freeze({ name: 'Contract Hero', inviter: 'Contract Inviter', lock: 'cooked_shrimp', loot: 'normal_log',
@@ -625,6 +630,8 @@ const DB_MUTANTS = [
   ['tally', 'public.hr_tally_count(uuid,integer,uuid,jsonb)', "coalesce((p_meta->'km'->>v_r.monster_id)::bigint, 0)", '0::bigint'],
   ['skill_inputs', 'public.hr_skill_inputs_view(uuid,integer)', "jsonb_build_object('from', jsonb_build_array('bag', 'storage'))", "jsonb_build_object('sources', jsonb_build_array('bag', 'storage'))"],
   ['bench_tax', 'public.hr_bench_tax_view(uuid,integer)', "'carry_mg', v_st.carry,", "'carry', v_st.carry,"],
+  /* lane/r12-company-trades: the Work window's work-day line reads cap_ms and left_ms (src/session/bench-sections.js workDayOf) */
+  ['work_day', 'public.hr_work_day_view(uuid,integer)', "'left_ms', greatest(0, v_cap - v_t),", "'left', greatest(0, v_cap - v_t),"],
   /* lane/d-rivets-learn: a gated bench opens off this key (src/session/bench-sections.js learnedRecipesOf) */
   ['unlocked_recipes', 'public.hr_state_of(uuid,integer)', "'unlocked_recipes', public.hr_recipes_of(p_user, v_st.slot),", "'unlockedRecipes', public.hr_recipes_of(p_user, v_st.slot),"],
   ['temper', 'public.hr_temper_view(uuid,integer)', "'rung', coalesce(pp.value, 0),", "'level', coalesce(pp.value, 0),"],

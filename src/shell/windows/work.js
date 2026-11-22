@@ -38,7 +38,8 @@ import { skillsOf, skillLevelsOf, heldOf, drawsOnStorage, equipmentOf } from '..
 import { levelOf } from '../../session/character-sections.js';
 import { huntOf } from '../../session/hunt-sections.js';
 import { text, cls, prop, attr, rows, element } from '../../render/paint.js';
-import { whole } from '../../render/format.js';
+import { whole, hoursWords } from '../../render/format.js';
+import { workDayOf } from '../../session/bench-sections.js';
 import { escapeHtml as esc } from '../../utils/dom.js';
 import { itemName, itemNameFor, itemIconHtml } from '../widgets/bits.js';
 import { runIntent } from '../intent-words.js';
@@ -72,7 +73,7 @@ const countOf = (sc, w) => (Object.prototype.hasOwnProperty.call(sc.n, w.id) ? s
   : sc.coach && sc.coach.work === w.id ? sc.coach.count : w.kind === 'gather' ? GATHER_COUNT_DEFAULT : defaultCount(w));
 /* The counts a row offers before its X. */
 const countsFor = (w) => (w.kind === 'artisan' ? BENCH_COUNTS : GATHER_COUNTS);
-/* What the hero does when a counted job is done (the window's one pick, display state until Start sends it): wait | hunt. */
+/* What the hero does when a counted job is done (the window's one pick, display state until Start sends it): a JOB_NEXTS id. */
 const nextOf = (sc) => (JOB_NEXTS.some((c) => c.id === sc.next) ? sc.next : JOB_NEXT_DEFAULT);
 /* The count the coach's held card sets for a row it rings ({ work, count }), or null. */
 function coachCountOf(ctx) {
@@ -265,14 +266,19 @@ export function renderWork() {
   return '<div class="hw-trade">'
     + '<div class="hw-burying hw-work-now" role="status"><span class="hw-burying-q"></span><button type="button" class="hh-tool" data-hs-act="work-stop">' + t('controls.stop') + '</button></div>'
     + '<p class="hs-note hw-work-end" role="status"></p>'
-    + '<div class="hw-trade-ledger"><p class="hs-note hw-work-hint">Press a skill to gather or make.</p>' + renderTradeSkills() + '</div>'
+    /* THE WORK DAY AND THE COMPANY'S TRADES (1059-company-trades.sql): today's town work left, and whose Levels the ledger shows. */
+    + '<p class="hs-note hw-work-day" role="status"></p>'
+    + '<div class="hw-trade-ledger"><p class="hs-note hw-work-hint">Press a skill to gather or make.</p>'
+    + '<p class="hs-note hw-work-company">' + esc(t('work.company_trades')) + '</p>' + renderTradeSkills() + '</div>'
     + '<section class="hw-work"><div class="hw-work-head">'
     + '<b class="hw-work-title"></b>' + skillBarHtml('Skill') + '<small class="hw-skill-xp"></small><b class="hw-skill-lv"></b></div>'
     + '<p class="hs-note hw-work-use"></p><p class="hs-note hw-work-tool"></p>'
-    /* WHAT THE HERO DOES WHEN A COUNTED JOB IS DONE (1026-job-counts.sql): one pick for the window, sent with the next Start. */
-    + '<p class="hs-note hw-work-next">' + esc(t('work.then_label')) + ' <span class="hh-segs" role="group" aria-label="' + esc(t('work.then_label')) + '">'
-    + JOB_NEXTS.map((c) => '<button type="button" class="hh-seg" data-hs-act="work-next" data-next="' + esc(c.id) + '">' + esc(t('work.then_' + c.id)) + '</button>').join('')
-    + '</span></p>' + hallmarkPaneHtml() + sortMenuHtml() + '<ul class="hw-ledger hw-work-rows"></ul><div class="hw-work-ladder"></div></section>'
+    /* WHAT THE HERO DOES WHEN A COUNTED JOB IS DONE (1026-job-counts.sql): one pick for the window, sent with the next Start. Shown only
+       while there is a pick to make (the THEN of hunt left with FB-10's re-cut: one THEN, wait, is no decision). */
+    + (JOB_NEXTS.length > 1 ? '<p class="hs-note hw-work-next">' + esc(t('work.then_label')) + ' <span class="hh-segs" role="group" aria-label="' + esc(t('work.then_label')) + '">'
+      + JOB_NEXTS.map((c) => '<button type="button" class="hh-seg" data-hs-act="work-next" data-next="' + esc(c.id) + '">' + esc(t('work.then_' + c.id)) + '</button>').join('')
+      + '</span></p>' : '')
+    + hallmarkPaneHtml() + sortMenuHtml() + '<ul class="hw-ledger hw-work-rows"></ul><div class="hw-work-ladder"></div></section>'
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div>';
 }
 
@@ -292,6 +298,11 @@ renderWork.patch = function patchWork(body, ctx) {
   const on = workOf(cs);
   const h = huntOf(cs);
   const hunting = !!(h && !h.ended);
+  /* THE WORK DAY (1059-company-trades.sql): today's town work left as the server counted it at its last settle; nothing gates on it. */
+  const day = workDayOf(cs);
+  const dayEl = root.querySelector('.hw-work-day');
+  text(dayEl, !day ? '' : day.leftMs > 0 ? t('work.day_left', { left: hoursWords(day.leftMs), cap: hoursWords(day.capMs) }) : t('work.day_done'));
+  cls(dayEl, 'is-off', !day);
   /* The line: what runs now, from the server's pointer, with its Stop (its pending part marked: town-ticker.js). */
   const line = nowParts(cs);
   const now = root.querySelector('.hw-work-now');

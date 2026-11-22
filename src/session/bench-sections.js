@@ -5,6 +5,7 @@
 // opens takes at a public bench, in milligold; per skill the share, the room and whether the account owns it; the carried
 // remainder; the gold the hero set to keep; its latest bench run. Every envelope replaces it and nothing here computes a fee.
 // And the envelope's `unlocked_recipes`: the recipes this hero has learned from a pattern (learnedRecipesOf), the set a gated bench reads.
+// And the envelope's `work_day` (1059-company-trades.sql): the hero's town work today and the company's trades (workDayOf).
 // ════════════════════════════════════════════════════════════════════════
 import { ARTISAN_RECIPES_EVERY as ARTISAN_RECIPES } from '../data/recipes.js';   // the dark (switched) jobs too: only a hero the server let start one runs one
 import { ITEMS } from '../data/items.js';
@@ -68,4 +69,19 @@ export function benchJobOver(cs, nowMs) {
   const inv = cs.read('inventory'), eq = cs.read('equipment');
   const each = artisanIntervalMs({ inventory: isObj(inv) ? inv : {}, equipment: isObj(eq) ? eq : {} }, b.skill, b.recipe, { items: ITEMS });
   return nowMs - since >= runs * each;
+}
+
+/**
+ * THE HERO'S WORK DAY, as the server holds it (1059-company-trades.sql, the `work_day` section; Tyler 2026-11-22 CR-Q3 b): today's town
+ * work cap, what is used and what is left (as of the last settle), whether Premium lengthens it, and the skills that are the company's
+ * trades (their Levels are the company's, every hero reads the same). { capMs, usedMs, leftMs, premium, trades } or null on a database
+ * before the work day. Display only: every envelope replaces it, and the server stops the work, never this.
+ */
+export function workDayOf(cs) {
+  const s = cs && typeof cs.read === 'function' ? cs.read('work_day') : null;
+  if (!isObj(s) || !Number.isSafeInteger(s.cap_ms) || !Number.isSafeInteger(s.left_ms)) return null;
+  return {
+    capMs: whole(s.cap_ms), usedMs: whole(s.today_ms), leftMs: whole(s.left_ms), premium: s.premium === true,
+    trades: Array.isArray(s.trades) ? s.trades.filter((k) => typeof k === 'string' && /^[a-z_]{1,32}$/.test(k)) : [],
+  };
 }

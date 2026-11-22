@@ -234,8 +234,12 @@ export function accrueGather(inp, span) {
   const left1 = left0 === null ? null : Math.max(0, left0 - Math.floor(nat(summary.ticks, 0)));
   const counted = left1 === 0;
   const nodeStopped = summary.stoppedBy === STOP_REASON.LEVEL || summary.stoppedBy === STOP_REASON.BAG_FULL || counted;
+  /* THE WORK DAY RAN OUT (1059-company-trades.sql): the door cut this window at the day's end (accrual.js `workCapped`), and a span
+     that ran to it ends the job like the three stops above; one of those, if it came first, is the stop it names. */
+  const workEnd = span.workCapped === true && !nodeStopped;
+  const jobOver = nodeStopped || workEnd;
   const nothingHappened = itemKinds === 0 && Object.keys(xpDelta).length === 0 && summary.ticks === 0;
-  if (nothingHappened && !nodeStopped) {
+  if (nothingHappened && !jobOver) {
     return { accrued: false, reason: SKIP.NOTHING, summary };
   }
 
@@ -264,7 +268,7 @@ export function accrueGather(inp, span) {
      re-simulated. */
   /* A counted-out job is stamped now() outright, as a stopped bench is (accrue-artisan.js): the swing that reached the
      count may leave less than a step, and the `activity: idle` below must never be re-opened. */
-  const settledTo = counted ? nowMs : settledWatermarkMs(span, summary, summary.intervalMs,
+  const settledTo = (counted || workEnd) ? nowMs : settledWatermarkMs(span, summary, summary.intervalMs,
     { caller: accrualCaller(inp) });
 
   const delta = {
@@ -282,7 +286,8 @@ export function accrueGather(inp, span) {
               ...(windowWaste(summary) ? { w: windowWaste(summary) } : {}),
               /* WHY it stopped: a full bag, and the product that had no room (the bench's keys); or its count. */
               ...(counted ? { stopped: 'count' }
-                : summary.stoppedBy === STOP_REASON.BAG_FULL ? { stopped: 'bag_full', room_for: nodes[summary.nodeId].node.prod } : {}),
+                : summary.stoppedBy === STOP_REASON.BAG_FULL ? { stopped: 'bag_full', room_for: nodes[summary.nodeId].node.prod }
+                  : workEnd ? { stopped: 'work_cap' } : {}),
               /* A JOB'S COUNT: what this window started from and what it left (absent on a job with no count). */
               ...(left0 !== null ? { n: left0, left: left1 } : {}),
               // The credited window, for the reason the combat journal carries it.
@@ -320,11 +325,14 @@ export function accrueGather(inp, span) {
       ? { ...finds[0], dropped: Math.min(finds.length - 1, 99) }
       : finds[0];
   }
-  if (nodeStopped) delta.activity = { kind: 'idle', id: null };
+  if (jobOver) delta.activity = { kind: 'idle', id: null };
   /* A JOB'S COUNT (1026-job-counts.sql): a job still short of its count proposes the lowered count; a job that ENDS
      states what it left beside its `activity: idle` (0 = counted out, which is what lets hr_apply run the job's THEN).
      hr_apply accepts only a count at or below the stored one, so a replayed or re-cut window cannot pay past N. */
-  if (left1 !== null && ((nodeStopped && inp.jobEnds === true) || (!nodeStopped && left1 < left0))) delta.active_left = left1;
+  if (left1 !== null && ((jobOver && inp.jobEnds === true) || (!jobOver && left1 < left0))) delta.active_left = left1;
+  /* THE WORK DAY (1059-company-trades.sql): where this window's work ended, which is what hr_apply spends of the hero's day (never
+     past its watermark). Sent only to a database that keeps the day (`workDay`, the section's switch). */
+  if (inp.workDay) delta.work_to = new Date(Math.min(credit.toMs, credit.fromMs + Math.floor(nat(summary.paidMs, 0)))).toISOString();
 
   return {
     accrued: true,

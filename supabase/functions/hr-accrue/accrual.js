@@ -67,6 +67,8 @@ import { nat, SKIP, PAYABLE_KINDS, accrualCaller } from './accrual-contract.js';
 import { accrueFloorMs, ACCRUE_MAX_SPAN_MS } from './accrual-window.js';
 import { accrueGather } from './accrue-gather.js';
 import { accrueArtisan } from './accrue-artisan.js';
+/* THE HERO'S WORK DAY (1059-company-trades.sql): when town work must stop. One rule, the server's twin is hr_work_fold. */
+import { workStopMs, isWorkKind } from '../../../src/core/work-day.js';
 
 /* THE DOOR'S EXPORTS, BY PIECE. Every name a caller imports from the engine. */
 export { SKIP, PAYABLE_KINDS, ACCRUAL_CALLERS, CALLER_AUTHORITY, accrualCaller } from './accrual-contract.js';
@@ -447,9 +449,20 @@ export function computeAccrual(input) {
 
   const elapsedMs = Math.max(0, nowMs - payFromMs);
   const sinceActivityMs = Math.max(0, nowMs - sinceMs);
-  const grantMs = Math.min(elapsedMs, sinceActivityMs, capMs);
+  let grantMs = Math.min(elapsedMs, sinceActivityMs, capMs);
 
   if (!(capMs > 0)) return { accrued: false, reason: SKIP.NO_CAP };
+  /* ── THE HERO'S WORK DAY (1059-company-trades.sql; Tyler 2026-11-22 CR-Q3 b) ──────────────────────────────────────────────
+     Town work stops when the day's work is used up (src/core/work-day.js workStopMs: a fresh cap at the next UTC midnight). The
+     window is cut at that instant, from where creditWindow will start it, and the job ENDS there (the accruers' `workCapped`),
+     so hr_apply's own count of the day (hr_work_fold) never refuses an honest window. A window with no work left is still priced:
+     it ends the job at once. `workDay` is null on a database without the work day: nothing is cut. */
+  let workCapped = false;
+  if (inp.workDay && isWorkKind(inp.activeKind)) {
+    const fromMs = Math.max(Math.min(nowMs, payFromMs), Math.min(nowMs, sinceMs));
+    const leftMs = Math.max(0, workStopMs(inp.workDay, payFromMs) - fromMs);
+    if (leftMs <= grantMs) { grantMs = leftMs; workCapped = true; }
+  }
   /* ── THE FLOOR, AND THE ONE CALLER IT MAY NOT APPLY TO (b531) ─────────────
      LIVE, MEASURED 2026-09-09 (QA account, twice): 28 iron bars, a platebody
      bench, `set_activity:artisan:forge_iron_platebody` accepted at 16:40:14 and
@@ -480,8 +493,9 @@ export function computeAccrual(input) {
      nothing of value (see collectCurrentWindow), so switch-spam still writes no
      rows and no ledger noise. `grantMs > 0` is required either way — a
      zero-length window has nothing to simulate. */
-  if (grantMs <= 0) return { accrued: false, reason: SKIP.TOO_SOON };
-  if (grantMs < accrueFloorMs(inp.activeKind) && accrualCaller(inp) === 'accrue') {
+  /* A window the work day cut is never deferred: no later call sees a longer one (its stop does not move). */
+  if (grantMs <= 0 && !workCapped) return { accrued: false, reason: SKIP.TOO_SOON };
+  if (grantMs < accrueFloorMs(inp.activeKind) && accrualCaller(inp) === 'accrue' && !workCapped) {
     return { accrued: false, reason: SKIP.TOO_SOON };
   }
   const capped = elapsedMs > grantMs;
@@ -519,7 +533,7 @@ export function computeAccrual(input) {
        exactly PAYABLE_KINDS, and the intent's allowlist is derived from it), so
        tests/artisan-accrual.mjs T1 reaches it directly with a synthetic fourth
        kind. Deleting it is how "add a kind" becomes "pay it wrong". */
-  const span = { nowMs, grantMs, capped, credit };
+  const span = { nowMs, grantMs, capped, credit, workCapped };
   const accruer = KIND_ACCRUERS[inp.activeKind];
   if (accruer) return accruer(inp, span);
   return { accrued: false, reason: SKIP.UNSUPPORTED };

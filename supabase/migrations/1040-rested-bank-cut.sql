@@ -80,7 +80,7 @@ begin
   select md5(replace(prosrc, chr(13), '')) into v_md5 from pg_proc where oid = 'public.hr_apply(uuid,integer,bigint,uuid,jsonb)'::regprocedure;
   -- A RETRY AFTER 1059-company-trades.sql (staged after this file) finds hr_apply at 1059's image (this file's plus four WORK-DAY
   -- edits): this file restates its own, and 1059's retry finds no WORK-DAY marker and makes the four edits again.
-  if v_md5 not in ('993d484e09f51bc31a96f3a24330af32', 'dd5c083803e9a54ebe8b7765ab5c2983', '4aed8c0769fc55f6deeb4eac97840c00') then
+  if v_md5 not in ('993d484e09f51bc31a96f3a24330af32', 'dd5c083803e9a54ebe8b7765ab5c2983', '4c9289bb76e2f7eec7d862bb8a7ac9e1') then
     raise exception 'PIN: hr_apply is neither the chain end this file was derived from nor its own image (md5 %): re-derive', v_md5; end if;
   select md5(replace(prosrc, chr(13), '')) into v_md5 from pg_proc where oid = 'public.hr_accrue_read(uuid,integer)'::regprocedure;
   if v_md5 not in ('a9e71b5b4ddaa4ba2deb73d664e43cc2', '3daa5466fbab524f384e405065002502') then

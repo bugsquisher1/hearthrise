@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "732b7ea06fdb9ea8",
+ "authored": "f46244e0b4a5e89e",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -63,7 +63,7 @@
   "dead": "nothing on the hunt path reads it: a perturbation changes no outcome"
  },
  "counts": {
-  "levers": 174,
+  "levers": 176,
   "byCategory": {
    "base-damage": 12,
    "skill-scaling": 9,
@@ -84,10 +84,10 @@
    "imbuements": 1,
    "consumables": 9,
    "party": 7,
-   "economy": 28
+   "economy": 30
   },
   "byClass": {
-   "global": 76,
+   "global": 78,
    "archetype": 24,
    "content": 46,
    "exception-intentional": 17,
@@ -98,7 +98,7 @@
    "not-playable:dead": 8,
    "patch": 75,
    "not-playable:player-policy": 2,
-   "not-playable:outside-hunt": 20,
+   "not-playable:outside-hunt": 22,
    "not-playable:harness-fixed": 6,
    "not-playable:not-in-runs": 16,
    "variant": 5,
@@ -108,7 +108,7 @@
   "byTest": {
    "asserted": 63,
    "mentioned only": 91,
-   "none": 20
+   "none": 22
   },
   "flags": {
    "redundant": 41,
@@ -117,14 +117,47 @@
   }
  },
  "census": {
-  "bindings": 655,
-  "typed": 15661,
-  "files": 220,
-  "lever": 280,
-  "notLever": 375,
-  "unclaimed": 0
+  "bindings": 663,
+  "typed": 15678,
+  "files": 222,
+  "lever": 281,
+  "notLever": 376,
+  "unclaimed": 6
  },
- "problems": [],
+ "problems": [
+  {
+   "kind": "test",
+   "what": "econ.work-day: tests/company-trades.mjs is not a test file"
+  },
+  {
+   "kind": "test",
+   "what": "econ.work-premium: tests/company-trades.mjs is not a test file"
+  },
+  {
+   "kind": "unclaimed",
+   "what": "src/core/work-day.js#DAY_MS:24 holds 1 typed number(s) [86400000] and no lever row or NOT_LEVERS reason claims it"
+  },
+  {
+   "kind": "unclaimed",
+   "what": "src/core/work-day.js#MIN_MS:25 holds 1 typed number(s) [60000] and no lever row or NOT_LEVERS reason claims it"
+  },
+  {
+   "kind": "unclaimed",
+   "what": "src/core/work-day.js#WORK_END_SLACK_MS:28 holds 1 typed number(s) [60000] and no lever row or NOT_LEVERS reason claims it"
+  },
+  {
+   "kind": "unclaimed",
+   "what": "src/core/work-day.js#dayMsOf:34 holds 5 typed number(s) [4 5 7 8 10] and no lever row or NOT_LEVERS reason claims it"
+  },
+  {
+   "kind": "unclaimed",
+   "what": "src/core/work-day.js#foldWork:70 holds 2 typed number(s) [8 8] and no lever row or NOT_LEVERS reason claims it"
+  },
+  {
+   "kind": "unclaimed",
+   "what": "src/data/work-day.js#WORK_BLOCK_RULED:38 holds 2 typed number(s) [120 4] and no lever row or NOT_LEVERS reason claims it"
+  }
+ ],
  "levers": [
   {
    "id": "blow.skill-term",
@@ -10537,6 +10570,82 @@
    "evidence": "STATED (Tyler 2026-11-22: 2 h, x1.5, cap 2; the price is today's base until wage(L))"
   },
   {
+   "id": "econ.work-day",
+   "category": "economy",
+   "name": "A hero's daily town work",
+   "sites": [
+    {
+     "file": "src/data/work-day.js",
+     "line": 25,
+     "text": "freeMin: 480,",
+     "binding": "WORK_DAY"
+    }
+   ],
+   "definition": "a hero's town work (a gathering job or a bench run) stops for the UTC day after freeMin minutes of it; the next day opens a fresh cap",
+   "range": "09-crafting.md section 4.7 `workDay`: start 8 h, search 6 to 12. RULED (Tyler 2026-11-22 CR-Q3 b): a daily cap exists and Premium lengthens it; the hours are the lever. SQL twin hr_work_day / hr_work_fold (1059, generated)",
+   "touches": "the labor supply (09 section 5.3, the labor ratio) and so every crafted price",
+   "outcomes": [],
+   "formulas": [],
+   "reach": {
+    "feeds": 0,
+    "closure": 0
+   },
+   "class": "global",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [],
+    "mentions": [],
+    "mentionCount": 0,
+    "verdict": "none"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "outside-hunt",
+    "note": "town work is not a hunt cell; 09 section 5.8 names the labor model the Lab must add",
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "STATED (09-crafting.md section 4.7 start value; Tyler 2026-11-22 ruled the cap, not its hours)"
+  },
+  {
+   "id": "econ.work-premium",
+   "category": "economy",
+   "name": "Premium's extra town work",
+   "sites": [
+    {
+     "file": "src/data/work-day.js",
+     "line": 27,
+     "text": "premiumExtraMin: 120,",
+     "binding": "WORK_DAY"
+    }
+   ],
+   "definition": "Premium adds premiumExtraMin minutes to a hero's daily town work (the one premium check, hr_premium_active)",
+   "range": "09-crafting.md section 4.7 `premiumWorkExtra`: start 2 h, search 1 to 2, never more than a quarter of the free day (work-day.js validate). RULED (Tyler 2026-11-22 CR-Q3 b): Premium makes the day longer",
+   "touches": "the payer gap (09 section 5.3): hours, never rate",
+   "outcomes": [],
+   "formulas": [],
+   "reach": {
+    "feeds": 0,
+    "closure": 0
+   },
+   "class": "global",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [],
+    "mentions": [],
+    "mentionCount": 0,
+    "verdict": "none"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "outside-hunt",
+    "note": "town work is not a hunt cell",
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "STATED (09-crafting.md section 4.7 start value)"
+  },
+  {
    "id": "econ.blessing-price",
    "category": "economy",
    "name": "Blessing prices",
@@ -14728,6 +14837,15 @@
     "perLevel"
    ],
    "typed": 4,
+   "bindings": 1
+  },
+  "src/data/work-day.js#WORK_DAY": {
+   "pin": "count",
+   "keys": [
+    "freeMin",
+    "premiumExtraMin"
+   ],
+   "typed": 2,
    "bindings": 1
   },
   "src/data/blessings.js#BLESSING_RULES": {

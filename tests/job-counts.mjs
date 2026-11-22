@@ -16,11 +16,10 @@
 //              (collectCurrentWindow with the pointer surviving: index.ts's computeAccrual literal, A14) every 20 s of
 //              server time: the job swings EXACTLY 20 times across the cut windows, ends itself, and its end says
 //              "count, 20 of 20, waited"; nothing pays after it. One ten-minute settle of a job of 20 also pays exactly 20.
-//   J-CLOSED   BROWSER CLOSED: the same job, THEN hunt, with the hero's last hunt behind it, settled by the world tick (the
-//              shipped runTick, 10 s polls folded into a 90 s flush): EXACTLY 20 swings, the job ends, its THEN is pending;
-//              the minute sweep starts the hero's last hunt again, once, journalled once; the hunt it starts will not resume
-//              the job (no count is remembered at Enter: never a loop).
-//   J-ONCE     a second fire and a second sweep over the ended job write nothing.
+//   J-CLOSED   BROWSER CLOSED: with the hero's last hunt behind it, a THEN of hunt is refused by name (FB-10's re-cut of 1026, D-11:
+//              no job's end starts a hunt); the job of 20, THEN wait, settled by the world tick (the shipped runTick, 10 s polls
+//              folded into a 90 s flush): EXACTLY 20 swings, the job ends, the hero waits in town, no hunt starts, no sweep exists.
+//   J-ONCE     a second fire over the ended job writes nothing.
 //
 // Exit: 0 green · 1 red · 2 harness.
 // ════════════════════════════════════════════════════════════════════════
@@ -206,7 +205,9 @@ async function arms(db, edge) {
   /* ── J-CLOSED: browser closed, the world tick ── */
   const c = await makeHero(db);
   const hunt = await huntBehind(db, c);
-  const cs = await startJob(db, edge, c, { kind: 'gather', id: NODE, count: 20, next: 'hunt' });
+  /* a THEN of hunt is refused by name since FB-10's re-cut (D-11: no job's end starts a hunt) */
+  const ch = await startJob(db, edge, c, { kind: 'gather', id: NODE, count: 20, next: 'hunt' });
+  const cs = await startJob(db, edge, c, { kind: 'gather', id: NODE, count: 20, next: 'wait' });
   if (cs.status !== 200) throw Object.assign(new Error('J-CLOSED start refused: ' + js(cs.body)), { harness: true });
   await db.query('update public.player_state set last_seen_at = null where user_id = $1 and slot = 0', [c]);
   await db.query('select public.hr_tick_enrol(200)');
@@ -221,26 +222,22 @@ async function arms(db, edge) {
   const crows = await gatherRows(db, c);
   const ce = ca.job_end || {};
   const closedEnd = ca.active_kind === 'idle' && swings(crows) === 20 && crows.every((m) => m.src === 'tick')
-    && ce.end === 'count' && ce.done === 20 && ce.next === 'hunt' && ce.next_state === 'pending';
-  const n1 = await one(db, 'select public.hr_job_next_sweep(500)');
-  const cb = await stateOf(db, c);
-  const thenRows = await one(db, "select count(*)::int from public.player_ledger where user_id = $1 and slot = 0 and intent = 'job_next'", [c]);
+    && ce.end === 'count' && ce.done === 20 && ce.next === 'wait' && ce.next_state === 'waited';
   const open = await one(db, 'select hunt_id from public.hunt_sessions where user_id = $1 and slot = 0 and ended_at is null', [c]);
-  const cbe = cb.job_end || {};
-  arm('J-CLOSED', closedEnd && n1 >= 1 && cb.active_kind === 'combat' && open === hunt && cbe.next_state === 'started' && cbe.hunt === hunt
-      && thenRows === 1 && cb.last_activity_left === null,
-    `browser closed: the tick swung exactly 20 in ${crows.length} row(s), ended the job, and the sweep sent the hero back to ${hunt}, once, with no job to loop back to`,
-    `browser closed: fire ${js(f1).slice(0, 200)}, ${swings(crows)} swings, end ${js(ce)}, after sweep ${js({ n1, kind: cb.active_kind, open, end: cbe, thenRows, lastLeft: cb.last_activity_left })}`);
+  const sweep = await one(db, "select to_regprocedure('public.hr_job_next_sweep(integer)')::text");
+  arm('J-CLOSED', closedEnd && ch.status === 400 && ch.body && ch.body.error === 'bad_activity' && open === undefined && sweep === null,
+    `browser closed: a THEN of hunt is refused by name, the tick swung exactly 20 in ${crows.length} row(s) and ended the job, and the hero waits in town (no sweep, no hunt starts; its last was ${hunt})`,
+    `browser closed: then-hunt ${js([ch.status, ch.body && ch.body.error])}, fire ${js(f1).slice(0, 200)}, ${swings(crows)} swings, end ${js(ce)}, open hunt ${js(open)}, sweep ${js(sweep)}`);
 
   /* ── J-ONCE ── */
   const ledger0 = await one(db, 'select count(*)::int from public.player_ledger where user_id = $1', [c]);
-  await one(db, 'select public.hr_job_next_sweep(500)');
+  await fire(db, edge, [c]);
   const ledger1 = await one(db, 'select count(*)::int from public.player_ledger where user_id = $1', [c]);
   const ov = (await stateOf(db, o)).version;
   await fire(db, edge, [o]);
   const ov1 = (await stateOf(db, o)).version;
   arm('J-ONCE', ledger1 === ledger0 && ov1 === ov,
-    'a second sweep and a second fire over an ended job write nothing',
+    'a second fire over an ended job writes nothing',
     `ledger ${ledger0} -> ${ledger1}, version ${ov} -> ${ov1}`);
   return red;
 }

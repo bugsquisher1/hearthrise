@@ -39,17 +39,17 @@ Labels. CONFIRMED means read in the code at the baseline. MEASURED means a playe
 | Consumable costs and effectiveness | 9 | 4 | 3 | 2 | 0 | 1 | 1 | 2 |
 | Party bonuses and interactions | 7 | 1 | 3 | 0 | 3 | 2 | 3 | 3 |
 | Rare-drop probabilities | 6 | 2 | 0 | 3 | 1 | 0 | 4 | 3 |
-| Economy sources and sinks | 28 | 14 | 3 | 10 | 1 | 0 | 25 | 15 |
-| **All** | **174** | 76 | 24 | 46 | 28 | 31 | 63 | 63 |
+| Economy sources and sinks | 30 | 16 | 3 | 10 | 1 | 0 | 27 | 15 |
+| **All** | **176** | 78 | 24 | 46 | 28 | 31 | 65 | 63 |
 <!-- END GENERATED:COUNTS -->
 
 <!-- GENERATED:CENSUS (tools/balance-program/levers.mjs --write) -->
 | | Count |
 |---|---|
-| Top-level bindings in the rule code that hold a typed number | 655 (in 220 files, 15661 typed numbers) |
-| Claimed by a lever | 280 |
-| Claimed by a not-a-lever reason | 375 |
-| Unclaimed | 0 |
+| Top-level bindings in the rule code that hold a typed number | 663 (in 222 files, 15678 typed numbers) |
+| Claimed by a lever | 281 |
+| Claimed by a not-a-lever reason | 376 |
+| Unclaimed | 6 |
 | Exceptions, intentional and accidental | 17 and 11 |
 | Values read at | 861ae52e3 (origin/baseline/overhaul-start). Rule code and migrations the same as the baseline: NO |
 <!-- END GENERATED:CENSUS -->
@@ -287,6 +287,8 @@ These are coverage gaps for BL-1 and the sensitivity lane. Each gap's reason is 
 | outside-hunt | `econ.town-sinks` Town sinks (powder, rounds, criers, setup slots, colors, the House dummy) | Economy sources and sinks | a town system the matrix does not simulate: town work (gathering, benches, crafting), the market, sinks past the store, the House |
 | outside-hunt | `econ.town-work` Gathering, cooking and crafting rates | Economy sources and sinks | town work (gathering and benches) is not simulated by the matrix |
 | outside-hunt | `econ.town-works` The Weighhouse goal | Economy sources and sinks | a town system the matrix does not simulate: town work (gathering, benches, crafting), the market, sinks past the store, the House |
+| outside-hunt | `econ.work-day` A hero's daily town work | Economy sources and sinks | town work is not a hunt cell. 09 section 5.8 names the labor model the Lab must add |
+| outside-hunt | `econ.work-premium` Premium's extra town work | Economy sources and sinks | town work is not a hunt cell |
 | outside-hunt | `rare.chest-keys` Chest keys and opens | Rare-drop probabilities | a town system the matrix does not simulate: town work (gathering, benches, crafting), the market, sinks past the store, the House |
 | outside-hunt | `rare.chest-luck` Chest weapon chance: warmth and stokes | Rare-drop probabilities | chests are opened in town |
 | outside-hunt | `skill.gathering-table` Capped skill XP table (Levels 1 to 99) | Skill scaling | a town system the matrix does not simulate: town work (gathering, benches, crafting), the market, sinks past the store, the House |

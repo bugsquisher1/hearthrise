@@ -19,6 +19,7 @@ import { computeAccrual, CALLER_AUTHORITY } from './accrual.js';
 import { hashSeed } from '../../../src/core/rng.js';
 import { planWindows, countersFromProgress } from './tick-contract.js';
 import { engineStateOf } from './envelope.js';
+import { foldWork, isWorkKind } from '../../../src/core/work-day.js';
 
 /* ── THE SEED, PER WINDOW, FROM THE WATERMARK ───────────────────────────────
    Production does NOT hand the engine a constant. `hr-accrue/index.ts` (~L641)
@@ -106,6 +107,15 @@ export function advance(char, res) {
   /* A JOB'S COUNT (1026-job-counts.sql), a checkpoint: the next poll of this flush window caps at what this one left,
      or a 90 s window of 10 s polls would pay each poll the whole count. 0 (counted out) leaves none. */
   if (typeof d.active_left === 'number') char.activeLeft = d.active_left > 0 ? d.active_left : null;
+  /* THE WORK DAY (1059-company-trades.sql), a checkpoint: the next poll of this flush window stops at what this one left of the hero's
+     day, or a 90 s window of 10 s polls would let every poll work the whole of it. The fold hr_apply makes, from the same rule
+     (src/core/work-day.js foldWork): [this window's watermark, where its work ended], never past its new watermark. */
+  if (char.workDay && d.accrued_to && isWorkKind(char.activeKind) && Number.isFinite(char.accruedToMs)) {
+    const to = Date.parse(d.accrued_to);
+    const end = d.work_to ? (d.activity ? Date.parse(d.work_to) : Math.min(Date.parse(d.work_to), to)) : to;
+    const f = foldWork(char.workDay, char.accruedToMs, Math.max(char.accruedToMs, end));
+    char.workDay = { ...char.workDay, dayMs: f.dayMs, usedMs: f.usedMs };
+  }
   if (d.activity && d.activity.kind) {
     char.activeKind = d.activity.kind; char.activeId = d.activity.id;
     ch.activity = { kind: d.activity.kind, id: d.activity.id ?? null };

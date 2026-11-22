@@ -7801,6 +7801,20 @@ jobs:
           node tests/hunting-blocks.mjs
           node tools/mutant-gate.mjs node tests/hunting-blocks.mjs --mutate
 
+      # COMPANY TRADES AND THE WORK DAY (1059-company-trades*.sql, lane/r12-company-trades; Tyler 2026-11-22 CR-Q1 a, CR-Q3 b): one company,
+      # two heroes, both doors (viewed and the tick) mine into ONE trade total every hero reads; a hero's town work stops at its day's end
+      # (work_cap) with the window open and with the browser closed; the server refuses a window past the day and a new job on a spent
+      # day; the JS rule and its SQL twin agree. The catalogue is GENERATED (tools/gen-work-day.mjs --check holds it to src/data/work-day.js,
+      # --selftest proves each refusal). --mutate (5): no stop in the engine, no carry between tick polls, no refusal in hr_apply, no
+      # fan-out to the other heroes, a credit that replaces the total.
+      - name: Company trades and the work day — one total, the day's end, both paths (5 mutants)
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/gen-work-day.mjs --check
+          node tools/mutant-gate.mjs node tools/gen-work-day.mjs --selftest
+          node tests/company-trades.mjs
+          node tools/mutant-gate.mjs node tests/company-trades.mjs --mutate
+
       # LIVE EVENTS, STEPS 1 AND 2 (2027-03-22-live-events*.sql, lane/c-live-events): a Level XP dial paid by each kill's own time to the
       # accounts whose switch is on, browser closed and hunt viewed alike, kept apart on the tally so a personal best leaves it out; the
       # commit's bound grows by the account's own dial only; Open Halls makes a Call out free through the quote, journalled and counted;

@@ -59,7 +59,7 @@ import { bankOf, shopOf } from '../session/item-sections.js';
 import { benchTaxOf, benchRunOf, learnedRecipesOf } from '../session/bench-sections.js';
 import { whereToGet, wherePlaces, toolEffect } from './item-lore.js';
 import { recipeOutcomes, JEWELRY_ITEMS, JEWEL_PERKS } from '../data/jewelry.js';
-import { GATHER_COUNT_DEFAULT } from '../data/hunt-after.js';
+import { GATHER_COUNT_DEFAULT, JOB_NEXT_INDEX, JOB_NEXT_DEFAULT } from '../data/hunt-after.js';
 
 /** Every gathering node the engine runs, by id: { skill, node }. The same index the server builds (hr-accrue catalogue.js). */
 export const GATHER_INDEX = indexGatherNodes({ woodcutting: TREES, mining: ROCKS, fishing: FISH_SPOTS });
@@ -150,21 +150,24 @@ export function leftOf(cs) {
   return b && Number.isInteger(b.left) && b.left > 0 ? b.left : null;
 }
 
+/* A THEN the data lists (src/data/hunt-after.js JOB_NEXTS, the server's CHECK), else the default (wait). */
+const nextIdOf = (v) => (typeof v === 'string' && Object.prototype.hasOwnProperty.call(JOB_NEXT_INDEX, v) ? v : JOB_NEXT_DEFAULT);
+
 /** THE JOB AS THE SERVER HOLDS IT (1026-job-counts.sql; the `bench_run` section): { left, count, next, ended } where `count` is
-    the whole count it was set with, `next` its THEN (wait | hunt), and `ended` the last counted job the server ended ({ kind, id,
-    count, done, left, next, end: count | stopped, at, next_state?, why? }) or null. Display only: every envelope replaces it. */
+    the whole count it was set with, `next` its THEN (a JOB_NEXTS id: wait), and `ended` the last counted job the server ended ({ kind,
+    id, count, done, left, next, end: count | stopped | work_cap, at, next_state? }) or null. Display only: every envelope replaces it. */
 export function jobOf(cs) {
   const b = cs && typeof cs.read === 'function' ? cs.read('bench_run') : null;
   const n = (v) => (Number.isInteger(v) && v >= 0 ? v : null);
   const e = b && b.ended && typeof b.ended === 'object' ? b.ended : null;
   return {
-    left: leftOf(cs), count: b ? n(b.count) : null, next: b && b.next === 'hunt' ? 'hunt' : 'wait',
+    left: leftOf(cs), count: b ? n(b.count) : null, next: nextIdOf(b && b.next),
     ended: e && typeof e.kind === 'string' && typeof e.id === 'string' && n(e.count) !== null && n(e.done) !== null ? e : null,
   };
 }
 
-/** "Then waits in town" / "Then goes back to hunting": what the running counted job does at its end. */
-export function nextLineWords(next) { return t(next === 'hunt' ? 'work.now_then_hunt' : 'work.now_then_wait'); }
+/** "Then waits in town": what the running counted job does at its end. */
+export function nextLineWords(next) { return t('work.now_then_' + nextIdOf(next)); }
 
 /** One action's time in ms, for the tool the server says the hero holds (perks only make it shorter). */
 export function actionMs(cs, w) {
@@ -365,7 +368,7 @@ export function startWork(cs, w, send, repaint, words, count, next) {
      THEN (the wire's `next`); a Hearth errand of one is a visit and goes back to the job it interrupted, so it sends none. */
   const n = Number.isInteger(count) && count > 0 ? count : w.kind === 'gather' ? GATHER_COUNT_DEFAULT : null;
   const errand = isErrand(w, n);
-  const th = n === null || errand ? null : next === 'hunt' ? 'hunt' : 'wait';
+  const th = n === null || errand ? null : nextIdOf(next);
   const activity = { kind: w.kind, id: w.id, ...(n !== null ? { count: n } : {}), ...(th ? { next: th } : {}) };
   const replaced = errand ? '' : jobReplacedWords(cs, w);
   return send(() => cs.edgeIntent('set_activity', { activity }).then(skillRefusal(cs, w)), 'Starting…', () => {

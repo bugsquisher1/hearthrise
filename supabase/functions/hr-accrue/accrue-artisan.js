@@ -369,8 +369,12 @@ export function accrueArtisan(inp, span) {
                 /* Nor can it pay until the purse is fed: the end card says so (`stopped: 'gold'`, the run's tally). */
                 || summary.stoppedBy === ARTISAN_STOP.GOLD
                 || counted;
+  /* THE WORK DAY RAN OUT (1059-company-trades.sql): the door cut this window at the day's end (accrual.js `workCapped`), and a run
+     that reached it ends like the stops above; one of those, if it came first, is the stop it names. */
+  const workEnd = span.workCapped === true && !stopped;
+  const runOver = stopped || workEnd;
   const nothingHappened = itemKinds === 0 && Object.keys(xpDelta).length === 0 && summary.ticks === 0;
-  if (nothingHappened && !stopped) return { accrued: false, reason: SKIP.NOTHING, summary };
+  if (nothingHappened && !runOver) return { accrued: false, reason: SKIP.NOTHING, summary };
 
   const stats = state.stats || {};
   const progress = [];
@@ -400,7 +404,7 @@ export function accrueArtisan(inp, span) {
      and refusal (c) stamps `now()`, so the `activity: idle` statement below is
      never re-opened. A run that stops on the action that spent its last input (report
      #68) may leave less than a step: any stopped run is stamped `now()` outright. */
-  const settledTo = stopped ? nowMs : settledWatermarkMs(span, summary, summary.intervalMs,
+  const settledTo = runOver ? nowMs : settledWatermarkMs(span, summary, summary.intervalMs,
     { caller: accrualCaller(inp) });
 
   const delta = {
@@ -425,7 +429,7 @@ export function accrueArtisan(inp, span) {
         recipe: summary.recipeId, skill: summary.skill,
         /* WHY it stopped and on WHAT, because "the night made 200 bars and the
            bag had ore for 4,000" is only answerable from the stop. */
-        stopped: counted ? 'count' : (summary.stoppedBy || null),
+        stopped: counted ? 'count' : (summary.stoppedBy || (workEnd ? 'work_cap' : null)),
         /* The input that ran out; for a full bag, the product that had no room (`room_for`). */
         out_of: stoppedReason === ARTISAN_STOP.BAG_FULL ? null : stoppedInput,
         ...(stoppedReason === ARTISAN_STOP.BAG_FULL ? { room_for: stoppedInput } : {}),
@@ -471,12 +475,15 @@ export function accrueArtisan(inp, span) {
      happened, because an `activity` key is a complete, re-validated activity
      statement and restating an unchanged pointer buys nothing but a catalogue
      lookup. */
-  if (stopped) delta.activity = { kind: 'idle', id: null };
+  if (runOver) delta.activity = { kind: 'idle', id: null };
   /* "MAKE N": a run still short of its count proposes the lowered count (hr_apply accepts it
      only below the stored one, on an accrual): a replayed or re-cut window cannot pay past N.
      A run that ENDS states what it left beside its `activity: idle` (1026-job-counts.sql: 0 = counted out, which is what
      lets hr_apply run the job's THEN; more = the inputs, the bag or the purse ended it first). */
-  if (left1 !== null && ((stopped && inp.jobEnds === true) || (!stopped && left1 < left0))) delta.active_left = left1;
+  if (left1 !== null && ((runOver && inp.jobEnds === true) || (!runOver && left1 < left0))) delta.active_left = left1;
+  /* THE WORK DAY (1059-company-trades.sql): where this window's work ended, which is what hr_apply spends of the hero's day (never
+     past its watermark). Sent only to a database that keeps the day (`workDay`, the section's switch). */
+  if (inp.workDay) delta.work_to = new Date(Math.min(credit.toMs, credit.fromMs + Math.floor(nat(summary.paidMs, 0)))).toISOString();
 
   return {
     accrued: true,

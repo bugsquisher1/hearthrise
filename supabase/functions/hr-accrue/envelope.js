@@ -22,6 +22,7 @@
 // ============================================================================
 
 import { refusalCarriesState, STATELESS_REFUSALS } from './intents.js';
+import { workStateOf } from '../../../src/core/work-day.js';
 
 /** The one statement. A single `select`, which is what transaction-mode pooling
     requires (design §2a-ii, HARD RULE). */
@@ -129,6 +130,7 @@ export const ENGINE_STATE_KEYS = Object.freeze([
   'hearthfindReady',
   'storage', 'bagCap', 'benchTax',
   'jobEnds',
+  'workDay',
 ]);
 
 /* SKILLS FROM STORAGE (2027-01-24-skills-from-storage.sql, Tyler 2026-10-25): the account's Storage a bench
@@ -269,6 +271,10 @@ export function engineInputsFromEnvelope(env, nowMs) {
        takes an `active_left` beside the engine's `activity: idle` (what an ending job left; 0 runs its THEN). Before it,
        the engine ends a counted run as it always did, and hr_apply is never asked for a key it would refuse. */
     jobEnds: !!e.bench_run && typeof e.bench_run === 'object' && Object.prototype.hasOwnProperty.call(e.bench_run, 'count'),
+    /* THE HERO'S WORK DAY (1059-company-trades.sql, the `work_day` section): the last day it worked, the ms of it, its base day
+       and today's bought work. The section is the switch: a database without it has no cap and an hr_apply that would refuse a
+       `work_to` key, so the engine then stops nothing early and proposes none (src/core/work-day.js workStateOf: null). */
+    workDay: workStateOf(e.work_day),
   };
 }
 

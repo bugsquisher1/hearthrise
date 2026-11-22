@@ -350,6 +350,8 @@ export const REFUSAL_WORDS = Object.freeze({
   stamina_full: 'Stamina full',
   block_limit: 'Today\'s blocks are bought. More after midnight UTC',
   stamina_ahead: 'Stamina full',
+  /* Town work (1059-company-trades.sql hr_apply): the hero's town work for the day is used up (Tyler 2026-11-22 CR-Q3 b). */
+  work_cap: 'No town work left today. More after midnight UTC',
   already_blessed: 'Already blessed',
   needs_previous: 'Buy the previous Blessing first',
   unknown_tier: 'No such Blessing',

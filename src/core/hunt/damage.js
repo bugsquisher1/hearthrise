@@ -178,9 +178,12 @@ export function landHit(inst, sc, source, target, amount, element, ability, crit
   const rule = target.side === 'hero' && r.dmg > 0 ? elementOnHeroOf(element) : null;
   const burn = rule && rule.manaBurnPm ? Math.min(Math.max(0, Math.floor(Number(target.mana) || 0)), Math.floor((r.dmg * rule.manaBurnPm) / 1000)) : 0;
   if (burn > 0) target.mana = Math.floor(Number(target.mana)) - burn;
+  /* A BLOW AT A HERO says the HP it left and the hero's max (the hunt report's lowest health and close calls, src/core/hunt/report.js):
+     a reading of the unit, never a played number. */
+  const vit = target.side === 'hero' ? { hp: Math.max(0, Math.floor(Number(target.hp) || 0)), max: Math.max(0, Math.floor(Number(target.maxHp) || 0)) } : null;
   sc.emit(makeEvent('dmg', sc.atMs, { u, t: target.id, amount: r.dmg,
     ability: (ability && ability.id) || 'basic', element: element || null, ...(crit ? { crit: true } : {}), ...(ability && ability.follow ? { follow: true } : {}),
-    ...(ability && ability.dot ? { dot: true } : {}), ...(burn > 0 ? { burn } : {}) }));
+    ...(ability && ability.dot ? { dot: true } : {}), ...(burn > 0 ? { burn } : {}), ...(vit || {}) }));
   if (rule && rule.withers) applyStatus(inst, target, statusRow(rule.withers), { u }, sc);
   if (target.side === 'mon') crossLines(inst, sc, target, before);
   if (r.killed) {

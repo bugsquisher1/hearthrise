@@ -209,6 +209,7 @@ report.moves = {};
 for (const risk of RISKS) {
   report.moves['levels:' + risk] = paired('base:' + risk, 'levels:' + risk);
   report.moves['weapon:' + risk] = paired('base:' + risk, 'weapon:' + risk);
+  report.moves['armor:' + risk] = paired('base:' + risk, 'armor:' + risk);
   report.moves['high:' + risk] = paired('base:' + risk, 'high:' + risk);
 }
 report.wallS = Math.round((Date.now() - t0) / 1000);

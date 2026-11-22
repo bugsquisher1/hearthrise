@@ -191,12 +191,12 @@ begin
     if public.hr_hunt_member_read(v_row)->'options' ? 'stance' then
       raise exception 'VERIFY(d): the window starting at the saved clock plays the new stance inside the horizon'; end if;
 
-    -- (f) A LEAVE lands at the clock's horizon.
+    -- (f) A LEAVE lands at the clock's horizon (hunt_sessions keeps leave_at to the millisecond: 2026-10-22-hunt-sessions-settle.sql's trigger).
     delete from public.hr_rate_counters where user_id = v_a;
     v := public.hr_hunt_leave(0, (k || 'f1a50400')::uuid);
     if coalesce(v->>'ok', '') <> 'true' then raise exception 'VERIFY(f): the leave answered %', v; end if;
-    if (select leave_at from public.hunt_sessions where id = v_s) is distinct from v_want then
-      raise exception 'VERIFY(f): a leave on a hunt saved 5 s ago lands at % (want %)', (select leave_at from public.hunt_sessions where id = v_s), v_want; end if;
+    if (select leave_at from public.hunt_sessions where id = v_s) is distinct from date_trunc('milliseconds', v_want) then
+      raise exception 'VERIFY(f): a leave on a hunt saved 5 s ago lands at % (want %)', (select leave_at from public.hunt_sessions where id = v_s), date_trunc('milliseconds', v_want); end if;
     raise exception using errcode = 'HRFL1', message = 'settle-flush §4 complete - rolling back';
   exception when sqlstate 'HRFL1' then
     null;

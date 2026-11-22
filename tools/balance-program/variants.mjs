@@ -8,7 +8,8 @@
 //                                                                          knobs, edits; the refusals say why. Plays nothing
 //   node tools/balance-program/variants.mjs --identity                     C0 on the tree against C0-copy (every slot's copy overlay) on a
 //                                                                          scratch copy: every seed's whole answer must be byte-identical
-//   node tools/balance-program/variants.mjs --compare <A> <B> [--write]   A and B on the SAME cells and the SAME dice (one plan, one seed list):
+//   node tools/balance-program/variants.mjs --compare <A> <B>[,<C>..] [--write]  A and B on the SAME cells and the SAME dice (one plan, one seed list;
+//                                                                          A played once for every B, an identity B read byte for byte):
 //                                                                          each cell's seeds read as pairs, an interval on every difference, where
 //                                                                          each family is ahead beyond noise by axis, the damage taken by monster
 //                                                                          role, and the target bands judged seed by seed. --write keeps the report
@@ -55,7 +56,7 @@ export const READS = Object.freeze([
   ['netLevelXpPerH', 'higher', 'Level XP a hero-hour after deaths'],
   ['netPerH', 'higher', 'gold a hero-hour after the store'],
 ]);
-const AXES = Object.freeze([['block', (c) => c.block], ['band', (c) => levelBand(c.L)], ['party', (c) => (c.party === 1 ? 'alone' : 'four')], ['tier', (c) => c.tier], ['gear', (c) => c.gear], ['way', (c) => wayOf(c)]]);
+const AXES = Object.freeze([['block', (c) => c.block], ['band', (c) => levelBand(c.L)], ['party', (c) => (c.party === 1 ? 'alone' : 'four')], ['tier', (c) => c.tier], ['gear', (c) => c.gear], ['way', (c) => c.way]]);
 
 /* ── THE ARITHMETIC (pure: tests/rule-slots.mjs --selftest plants its cases) ─────────────────────────────────────────────────── */
 const T975 = [null, 12.706, 4.303, 3.182, 2.776, 2.571, 2.447, 2.365, 2.306, 2.262, 2.228, 2.201, 2.179, 2.160, 2.145, 2.131];
@@ -259,28 +260,39 @@ async function identity() {
   return r.same === r.of && !r.errors && r.of > 0 ? 0 : 1;
 }
 
-async function compareCmd(specA, specB) {
+/* `--compare A B1,B2,...`: A is played ONCE and every B on A's plan; an identity B (C0-copy) is read byte for byte instead */
+async function compareCmd(specA, specBs) {
   const ctx = await contextOf(), o = optsOf();
-  const ca = candidateOf(specA, ctx.reg), cb = candidateOf(specB, ctx.reg);
+  const ca = candidateOf(specA, ctx.reg), cbs = specBs.split(',').map((s) => candidateOf(s, ctx.reg));
   const A = await playCandidate(ca, ctx, o);
-  const B = await playCandidate(cb, ctx, { ...o, plan: A.plan });
-  if (A.errors.length || B.errors.length) for (const e of [...A.errors, ...B.errors].slice(0, 5)) console.error('cell error: ' + e.id + ': ' + e.error);
-  const cmp = compareSides(ctx.K, A, B);
-  const rep = { schema: REPORT_SCHEMA, a: ca.id, b: cb.id, commit: commitOf(), at: new Date().toISOString().slice(0, 16) + 'Z',
-    plan: { run: 'subset', blocks: o.blocks || CORE_BLOCKS, only: o.only, seeds: o.seeds || 4, hours: o.hours || 1, cells: A.plan.cells.length, jobs: A.plan.jobs.length },
-    applied: { a: A.applied, b: B.applied }, runtime: { a: A.runtime, b: B.runtime }, errors: A.errors.length + B.errors.length,
-    noise: 'pairs by seed: mean ± t(n-1) sd / sqrt(n), 95%; a group leads with at least its chance count of cells ahead (binomial, 2.5% a cell, under 1%)',
-    reads: READS.map(([id, dir, what]) => ({ id, dir, what })), ...cmp };
-  rep.headline = headline(rep);
-  console.log(rep.a + ' (A) against ' + rep.b + ' (B), ' + rep.plan.cells + ' cells x ' + rep.plan.seeds + ' seeds x ' + rep.plan.hours + ' h, the same dice on both sides');
-  for (const l of rep.headline) console.log('  ' + l);
-  if (has('write')) {
-    mkdirSync(REPORT_DIR, { recursive: true });
-    const f = join(REPORT_DIR, rep.a + '--' + rep.b + '.json');
-    writeFileSync(f, JSON.stringify(rep) + '\n');
-    console.log('kept: ' + f);
+  let code = A.errors.length ? 1 : 0;
+  for (const cb of cbs) {
+    const B = await playCandidate(cb, ctx, { ...o, plan: A.plan });
+    if (A.errors.length || B.errors.length) { code = 1; for (const e of [...A.errors, ...B.errors].slice(0, 5)) console.error('cell error: ' + e.id + ': ' + e.error); }
+    if (cb.kind === 'identity') {
+      const r = sameBytes(A, B);
+      console.log('identity: ' + cb.id + ' on ' + B.where + ' (' + B.applied.filter((x) => x.overlay).map((x) => x.file).join(', ') + ') against ' + ca.id + ' on ' + A.where + ': '
+        + r.same + ' of ' + r.of + ' seed answers byte-identical' + (r.first ? '; first that moved: ' + r.first : ''));
+      if (r.same !== r.of || !r.of) code = 1;
+      continue;
+    }
+    const cmp = compareSides(ctx.K, A, B);
+    const rep = { schema: REPORT_SCHEMA, a: ca.id, b: cb.id, commit: commitOf(), at: new Date().toISOString().slice(0, 16) + 'Z',
+      plan: { run: 'subset', blocks: o.blocks || CORE_BLOCKS, only: o.only, seeds: o.seeds || 4, hours: o.hours || 1, cells: A.plan.cells.length, jobs: A.plan.jobs.length },
+      applied: { a: A.applied, b: B.applied }, runtime: { a: A.runtime, b: B.runtime }, errors: A.errors.length + B.errors.length,
+      noise: 'pairs by seed: mean ± t(n-1) sd / sqrt(n), 95%; a group leads with at least its chance count of cells ahead (binomial, 2.5% a cell, under 1%)',
+      reads: READS.map(([id, dir, what]) => ({ id, dir, what })), ...cmp };
+    rep.headline = headline(rep);
+    console.log(rep.a + ' (A) against ' + rep.b + ' (B), ' + rep.plan.cells + ' cells x ' + rep.plan.seeds + ' seeds x ' + rep.plan.hours + ' h, the same dice on both sides');
+    for (const l of rep.headline) console.log('  ' + l);
+    if (has('write')) {
+      mkdirSync(REPORT_DIR, { recursive: true });
+      const f = join(REPORT_DIR, rep.a + '--' + rep.b + '.json');
+      writeFileSync(f, JSON.stringify(rep) + '\n');
+      console.log('kept: ' + f);
+    }
   }
-  return rep.errors ? 1 : 0;
+  return code;
 }
 
 function report(file) {
@@ -296,11 +308,11 @@ async function main() {
     if (has('list')) return list();
     if (has('plan')) return plan(arg('plan'));
     if (has('identity')) return await identity();
-    if (has('compare')) { const i = argv.indexOf('--compare'); if (!argv[i + 1] || !argv[i + 2]) throw new Error('--compare <A> <B>'); return await compareCmd(argv[i + 1], argv[i + 2]); }
+    if (has('compare')) { const i = argv.indexOf('--compare'); if (!argv[i + 1] || !argv[i + 2]) throw new Error('--compare <A> <B>[,<C>...]'); return await compareCmd(argv[i + 1], argv[i + 2]); }
     if (has('report')) { const f = arg('report'); if (!f || !existsSync(f)) throw new Error('--report <file>'); return report(f); }
-    console.error('variants.mjs: --list | --plan <A[+B]> | --identity | --compare <A> <B> [--write] | --report <file>');
+    console.error('variants.mjs: --list | --plan <A[+B]> | --identity | --compare <A> <B>[,<C>...] [--write] | --report <file>');
     return 2;
-  } catch (e) { console.error('variants.mjs: ' + e.message); return 2; }
+  } catch (e) { console.error('variants.mjs: ' + (process.env.HR_TRACE ? e.stack : e.message)); return 2; }
 }
 
 if (isMain(import.meta.url)) main().then((c) => process.exit(c), (e) => { console.error(e); process.exit(2); });

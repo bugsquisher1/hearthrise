@@ -358,7 +358,7 @@ export const WORLD = [
   L('danger.power-gear', 'monster-stats', 'global', 'The power step on gear', {
     at: [at(DZ, 'export const POWER = Object.freeze({ gearStepsPm: 1200 });'), at(DZ, 'topStep: 710, gearLv: 60 })')],
     def: 'on the scale a hero\'s blows at a monster x (1 + powerStep)^(gearStepsPm/1000 x (weapon item Level - the ground\'s gearLv)) and blows at it / (1 + powerStep)^(gearStepsPm/1000 x (mean item Level of the six armor slots - gearLv)), whole steps, after the armor chain\'s cap; at the reference kit nothing moves',
-    range: '04 section 1: 20 steps a gear tier (15 item Levels today) is 1333; R4 measured 57-77% of the step showing as held depth when it sat under the cap; the brief\'s band is 15 to 26 held steps a tier',
+    range: 'steps an item Level x 1000. 04 section 1 sizes a gear tier at 20 steps (1333 on 15 item Levels); R4 saw 57-77% of the step show when it sat under the cap; past the cap 1200 moves a tier -22.7 / +17.2 held steps, 1333 -29.7 / +21.3 (band 15 to 26)',
     touches: 'how far one gear tier moves the held step on the scale (C-2), on top of the shipped stats\' own move', out: [...KILL, ...SURVIVE], f: ['C-TIER', 'C-TEMPER'],
     tests: [['tests/hunt-core/danger.mjs', 'power: a tier of gear is a tier of steps, after the cap, never off the scale']], testReads: ['POWER', 'DANGER_GROUNDS'],
     perturb: NP('not-in-runs', 'played by the V1 probe (candidate power-tier-back moves gearLv one tier); no matrix run plans a stance'),

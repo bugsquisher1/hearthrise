@@ -223,6 +223,11 @@
         "bytes": 3263447,
         "on": "2026-11-22",
         "why": "lane/r2-danger-falls +6,947 B on the set after R8: a fall back names its hero seat and monster (danger.js lowHero/lowBy, combat-sim syncUnit seat), the report's deep and falls fold and proposal (report.js), HUNT_REPORT.fallsMax and DEFAULT_RISK (src/data)"
+      },
+      {
+        "bytes": 3270560,
+        "on": "2026-11-22",
+        "why": "lane/r9-power-step: the power step on gear in the engine on scale grounds (src/core/hunt/danger.js gearLevelsOf, powerPm; damage.js hurt; member.js snapshot and frozen row carry offLv/defLv; src/data/danger.js POWER, gearLv, PAY.floor) with their comments"
       }
     ]
   }

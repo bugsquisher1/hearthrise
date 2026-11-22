@@ -1,0 +1,13 @@
+
+V1 on muster_barrows (12 seeds x 12 h, held step read from hour 6; step 0 = the ground as built, one step = +0.35000000000000003% health and blow)
+levers: CLIMB {"cleanRun":2,"climbMax":8,"fallSteps":18,"deathSteps":120,"coolPulls":10} RISKS {"careful":{"fallPm":450,"cleanPm":650,"afterDeath":"careful"},"steady":{"fallPm":250,"cleanPm":450,"afterDeath":"careful"},"bold":{"fallPm":120,"cleanPm":300,"afterDeath":"steady"}} readyPm 800
+held = the time-weighted step while all four hunt (to the first death), from hour 6; fourH = those hours a seed
+cell              held (mean +- sd)  drift  +-10  +-20  chg/h falls/h reach h  pulls/h  deaths wipes near(death/warned/fellAfter)  fourH  whys
+base:steady       600.9 +- 4.7      1.4  63.4    96   10.6    0.9       2     62.5      0     0  2 (0/1/2)                       6  {"hold":6628,"climb":2251,"fall":101}
+
+pay from a held start (hour 6 to the four's end), Level XP a hunted hero-hour as a multiple of the hours table
+  base:steady           1x  sd 0.03  n 12  window 6 h  seeds 0.99 0.99 1.01 0.98 0.99 1.06 0.99 0.99 1.04 1.01 1.01 0.97
+
+power moves (paired seeds): the held step at the changed power minus at base
+
+wall 105 s

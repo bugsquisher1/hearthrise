@@ -81,12 +81,12 @@ export const DANGER = Object.freeze({
   startMargin: 20,
 });
 
-// THE PAY FLOOR (lane/r9-power-step, 2026-11-22; 12-targets.md 2.1: "pay a kill is never below a floor of the hours table ... if Careful
-// misses, the floor moves, not the stances"): under the reference step the depth ratio falls to PAY.floor and no further, for XP and coin
-// alike, so a shallower stance's cost is its kills an hour, not twice. The floor raises only what a kill pays UNDER the reference step:
-// the most a kill can pay (the gap ceiling, hr_danger_level_xp_max) is unchanged.
-//   floor 0.5   MEASURED (v1-climb.mjs from a held start, lane/r9): see the lever row danger.pay-floor. 12-targets' starting 0.85 put
-//               Careful OVER Steady (a Careful pull is smaller and dies faster, so it kills ~1.2x Steady's reference rate an hour)
+// THE PAY FLOOR (lane/r9-power-step, 2026-11-22; 12-targets.md 2.1, the designer's ruling: a kill never pays under a floor of the hours
+// table, and if Careful misses 0.55x to 0.70x of Steady the floor moves, not the stances): under the reference step the depth ratio falls
+// to PAY.floor and no further, for XP and coin alike, so a shallower stance's cost is its kills an hour, not twice. The floor raises only
+// what a kill pays UNDER the reference step: the most a kill can pay (the gap ceiling, hr_danger_level_xp_max) is unchanged.
+//   floor 0.5   MEASURED (v1-climb.mjs from a held start, lane/r9): see the lever row danger.pay-floor. 12-targets' starting 0.85 would put
+//               Careful OVER Steady (a Careful pull is smaller and falls faster: R4 read Careful at ~1.1x the reference kills an hour)
 export const PAY = Object.freeze({ refKillsHead: 120, payStepXp: 0.007, payStepCoin: 0.007, gapMax: 120, floor: 0.5 });
 
 // THE POWER STEP ON THE SCALE (lane/r9-power-step, 2026-11-22; 04-math-strategy.md section 1 "what a hero's rating is made of" and
@@ -100,8 +100,9 @@ export const PAY = Object.freeze({ refKillsHead: 120, payStepXp: 0.007, payStepC
 // armor chain and its 60% cap, so the defense half is never eaten by a cap the old chain already reached (R4: 60% of the power showed, the
 // cap took the rest). Heals are not stepped: health is not, so a stepped heal would count the defense step twice.
 // At the reference kit both are 0 and the hunt plays exactly as before, so refStep and the band hold. Off the scale nothing here is read.
-//   gearStepsPm 1333   04 section 1's "20 steps (one gear tier)" over today's 15 item Levels a tier: MEASURED in band, see the lever row
-//                      danger.power-gear (lane/r9, v1-climb.mjs on the engine)
+//   gearStepsPm 1200   MEASURED (lane/r9, v1-climb.mjs on the engine, Level 60 Steady four, 12 seeds x 12 h): a tier (15 item Levels, 18
+//                      steps of power) moves the held step -22.7 back and +17.2 ahead, in the 15 to 26 band. 1333 (04's 20 steps a tier)
+//                      read -29.7 / +21.3: past the cap the defense half shows more than its steps (a heal is not stepped)
 // NOT HERE: the skill part (04's weightSkill). Skills already move a hero through its shipped rolls (+3 Levels: +7 to +15 steps, V1); a
 // second count waits for wave 3's rating, which replaces the rolls.
 export const POWER = Object.freeze({ gearStepsPm: 1200 });

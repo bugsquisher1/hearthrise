@@ -1,0 +1,35 @@
+
+V1 on muster_barrows (6 seeds x 8 h, held step read from hour 1; step 0 = the ground as built, one step = +0.35000000000000003% health and blow)
+levers: CLIMB {"cleanRun":2,"climbMax":8,"fallSteps":18,"deathSteps":120,"coolPulls":10} RISKS {"careful":{"fallPm":450,"cleanPm":650,"afterDeath":"careful"},"steady":{"fallPm":250,"cleanPm":450,"afterDeath":"careful"},"bold":{"fallPm":120,"cleanPm":300,"afterDeath":"steady"}} readyPm 800
+held = the time-weighted step while all four hunt (to the first death), from hour 1; fourH = those hours a seed
+cell              held (mean +- sd)  drift  +-10  +-20  chg/h falls/h reach h  pulls/h  deaths wipes near(death/warned/fellAfter)  fourH  whys
+base:careful      409.9 +- 9.6     10.9  46.4  75.6   21.6    2.1     0.1     87.3      0     0  0 (0/0/0)                       7  {"hold":3129,"climb":957,"fall":97}
+base:steady       580.8 +- 7.2      3.9  58.8  91.9   10.6    0.9     0.2     56.1      0     0  0 (0/0/0)                       7  {"hold":2156,"climb":487,"fall":41}
+base:bold         630.4 +- 4.3      4.8  51.4    88   12.6    1.4       0     53.7      3     0  46 (3/4/46)                   5.6  {"hold":1900,"climb":567,"fall":103,"death":3} first deaths at h 2.2,6.4,7.2
+levels:careful    421.4 +- 5.8      8.6    42  72.7   20.2    1.8       0     84.2      0     0  0 (0/0/0)                       7  {"hold":3065,"climb":889,"fall":83}
+levels:steady     595.6 +- 6.8      5.4  66.7  93.8   10.6    0.7     0.5       56      0     0  0 (0/0/0)                       7  {"hold":2149,"climb":497,"fall":36}
+levels:bold       640.5 +- 6.1      3.5  46.5  70.9    9.7    1.1       0     60.2      6     0  37 (6/1/37)                   3.3  {"hold":2127,"climb":631,"fall":120,"death":6} first deaths at h 4.1,2.8,0.1,4.6,7.4,5.7
+high:careful      466.4 +- 7.8     -2.3  49.2  82.3   19.4    1.8       0     80.7      0     0  0 (0/0/0)                       7  {"hold":2931,"climb":850,"fall":88}
+high:steady       618.1 +- 4.4     -7.1  62.2  92.4    9.3    0.8     0.1     52.3      0     0  0 (0/0/0)                       7  {"hold":2033,"climb":437,"fall":35}
+high:bold         656.4 +- 8.1      0.4  46.9  71.5    8.6    1.1       0       64      8     0  34 (8/6/34)                   2.3  {"hold":2249,"climb":672,"death":8,"fall":138} first deaths at h 0.4,5.6,6.7,2.9,2.6,1.1
+
+pay from a held start (hour 1 to the four's end), Level XP a hunted hero-hour as a multiple of the hours table
+  base:careful       0.56x  sd 0.02  n 6  window 7 h  seeds 0.55 0.59 0.54 0.55 0.56 0.55
+  base:steady        0.89x  sd 0.04  n 6  window 7 h  seeds 0.86 0.85 0.95 0.87 0.88 0.92
+  base:bold          1.05x  sd 0.02  n 6  window 5.6 h  seeds 1.06 1.05 1.08 1.04 1.06 1.03
+  levels:careful     0.55x  sd 0.01  n 6  window 7 h  seeds 0.55 0.55 0.55 0.55 0.56 0.54
+  levels:steady      0.97x  sd 0.05  n 6  window 7 h  seeds 0.91 0.98 1.05 0.96 1.01 0.93
+  levels:bold         1.1x  sd 0.03  n 5  window 3.3 h  seeds 1.06 1.08 1.1 1.12 1.14
+  high:careful       0.59x  sd 0.01  n 6  window 7 h  seeds 0.59 0.6 0.59 0.6 0.59 0.58
+  high:steady        1.07x  sd 0.05  n 6  window 7 h  seeds 1.18 1.05 1.04 1.06 1.04 1.07
+  high:bold          1.24x  sd 0.05  n 5  window 2.3 h  seeds 1.3 1.23 1.24 1.16 1.25
+
+power moves (paired seeds): the held step at the changed power minus at base
+  levels:careful      11.7 steps (sd 10.6, se 4.3, n 6)
+  high:careful        56.8 steps (sd 13.7, se 5.6, n 6)
+  levels:steady         15 steps (sd 7.8, se 3.2, n 6)
+  high:steady         37.3 steps (sd 8.1, se 3.3, n 6)
+  levels:bold         11.4 steps (sd 8.8, se 3.9, n 5)
+  high:bold           26.6 steps (sd 9.6, se 4.3, n 5)
+
+wall 246 s

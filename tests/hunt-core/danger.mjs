@@ -339,6 +339,10 @@ const CASES = {
     const hs = (r.world && r.world.units || []).filter((u) => u.side === 'hero');
     if (!hs.length) return 'CONTROL: no hero in the world';
     if (!hs.every((u) => u.offLv === ref + tier && u.defLv === ref - tier)) return 'a hero unit carries gear Levels ' + hs.map((u) => u.offLv + '/' + u.defLv);
+    /* the browser's peer: the frozen row the server hands it carries the same gear Levels (member.js frozenOf -> frozenSide) */
+    const side = M.member.memberSide({ key: 'a', seat: 0, equipment: IRON, skills: {}, levelXp: 0, hp: 100, gold: 0, hero: { role: 'melee_dps', slots: [] } }, { items: M.ITEMS });
+    const fr = M.member.frozenOf(side, [], 0, M.MONSTERS), peer = M.member.frozenSide({ key: 'a', seat: 0, unitId: 1, frozen: fr }).member.snapshot();
+    if (peer.offLv !== snap.offLv || peer.defLv !== snap.defLv) return 'the browser\'s peer fights at gear Levels ' + peer.offLv + '/' + peer.defLv + ', the server\'s ' + snap.offLv + '/' + snap.defLv;
     return null;
   },
   /* (R2, lane/r2-danger-falls) A FALL BACK NAMES ITS CAUSE, HOWEVER THE SETTLE IS CUT: a two-hero party planned on Bold far deeper than it
@@ -487,6 +491,7 @@ const MUTANTS = [
   { name: 'one good armor piece stands for the set', case: 'power', edits: [['src/core/hunt/danger.js', '  let sum = 0;\n', '  let sum = 0, worn = 0;\n'],
     ['src/core/hunt/danger.js', 'sum += itemLv(it); }', '{ sum += itemLv(it); worn++; } }'], ['src/core/hunt/danger.js', 'Math.floor(sum / ARMOUR_SLOTS.length)', 'Math.floor(sum / Math.max(1, worn))']] },
   { name: 'the snapshot carries no gear Levels', case: 'power', edits: [['src/core/member.js', '    offLv: gear.off, defLv: gear.def,\n', '\n']] },
+  { name: 'the frozen row drops the gear Levels', case: 'power', edits: [['src/core/member.js', '...jewelSnap(snap), offLv: snap.offLv || 0, defLv: snap.defLv || 0,\n', '...jewelSnap(snap),\n']] },
   { name: 'the unit never carries the gear Levels', case: 'power', edits: [['src/core/combat-sim.js', '  u.offLv = Number.isInteger(snap.offLv) ? snap.offLv : 0; u.defLv = Number.isInteger(snap.defLv) ? snap.defLv : 0;\n', '']] },
 ];
 

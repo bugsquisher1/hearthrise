@@ -510,8 +510,8 @@ export function frozenOf(side, kinds, atMs, monsters) {
   const session = {};
   for (const k of FROZEN_SESSION_KEYS) if (hs[k] !== undefined) session[k] = hs[k];
   return { hp: m.state.playerHp, maxHp: m.state.playerMaxHp, maxMana: m.state.playerMaxMana, regenPm: m.state.regenPm,
-    snap: { ...(snap.blowsPm ? { blowsPm: snap.blowsPm } : {}), ...(snap.armorPm ? { armorPm: snap.armorPm } : {}), ...jewelSnap(snap), acc: snap.acc, maxHit: snap.maxHit, def: snap.def, armour: snap.armour || null, level: snap.level,
-      offLv: snap.offLv || 0, defLv: snap.defLv || 0 }, vs, family: m.family, armoured: m.armoured === true,
+    snap: { ...(snap.blowsPm ? { blowsPm: snap.blowsPm } : {}), ...(snap.armorPm ? { armorPm: snap.armorPm } : {}), ...jewelSnap(snap), offLv: snap.offLv || 0, defLv: snap.defLv || 0,
+      acc: snap.acc, maxHit: snap.maxHit, def: snap.def, armour: snap.armour || null, level: snap.level }, vs, family: m.family, armoured: m.armoured === true,
     shield: m.shield === true, hero: m.hero, session, lv, shots };
 }
 

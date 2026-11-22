@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "b187d540654b185c",
+ "authored": "ae3ca1e2dd6b00f9",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -6920,7 +6920,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 121,
+     "line": 122,
      "text": "export const CLIMB = Object.freeze({ cleanRun: 2, climbMax: 8, fallSteps: 18, deathSteps: 120, coolPulls: 10 });",
      "binding": "CLIMB"
     }
@@ -6989,19 +6989,19 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 128,
+     "line": 129,
      "text": "careful: Object.freeze({ fallPm: 450, cleanPm: 650, afterDeath: 'careful' }),",
      "binding": "RISKS"
     },
     {
      "file": "src/data/danger.js",
-     "line": 129,
+     "line": 130,
      "text": "steady: Object.freeze({ fallPm: 250, cleanPm: 450, afterDeath: 'careful' }),",
      "binding": "RISKS"
     },
     {
      "file": "src/data/danger.js",
-     "line": 130,
+     "line": 131,
      "text": "bold: Object.freeze({ fallPm: 120, cleanPm: 300, afterDeath: 'steady' }),",
      "binding": "RISKS"
     }
@@ -7131,7 +7131,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 115,
+     "line": 116,
      "text": "muster_barrows: Object.freeze({ refStep: 590, floorStep: 480, topStep: 710, gearLv: 60 }),",
      "binding": "DANGER_GROUNDS"
     }
@@ -7258,19 +7258,19 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 107,
-     "text": "export const POWER = Object.freeze({ gearStepsPm: 1333 });",
+     "line": 108,
+     "text": "export const POWER = Object.freeze({ gearStepsPm: 1200 });",
      "binding": "POWER"
     },
     {
      "file": "src/data/danger.js",
-     "line": 115,
+     "line": 116,
      "text": "muster_barrows: Object.freeze({ refStep: 590, floorStep: 480, topStep: 710, gearLv: 60 }),",
      "binding": "DANGER_GROUNDS"
     }
    ],
    "definition": "on the scale a hero's blows at a monster x (1 + powerStep)^(gearStepsPm/1000 x (weapon item Level - the ground's gearLv)) and blows at it / (1 + powerStep)^(gearStepsPm/1000 x (mean item Level of the six armor slots - gearLv)), whole steps, after the armor chain's cap; at the reference kit nothing moves",
-   "range": "04 section 1: 20 steps a gear tier (15 item Levels today) is 1333; R4 measured 57-77% of the step showing as held depth when it sat under the cap; the brief's band is 15 to 26 held steps a tier",
+   "range": "steps an item Level x 1000. 04 section 1 sizes a gear tier at 20 steps (1333 on 15 item Levels); R4 saw 57-77% of the step show when it sat under the cap; past the cap 1200 moves a tier -22.7 / +17.2 held steps, 1333 -29.7 / +21.3 (band 15 to 26)",
    "touches": "how far one gear tier moves the held step on the scale (C-2), on top of the shipped stats' own move",
    "outcomes": [
     "dps",
@@ -7317,14 +7317,14 @@
     "mentions": [
      "tests/bestiary-trophy.mjs",
      "tests/danger-client.mjs",
+     "tests/danger-db.mjs",
      "tests/hunt-core/danger.mjs",
      "tests/hunt-summary.mjs",
      "tests/leaderboard-server-source.mjs",
      "tests/mutation-safety.mjs",
-     "tests/recipe-yield-guard.mjs",
-     "tests/town-works.mjs"
+     "tests/recipe-yield-guard.mjs"
     ],
-    "mentionCount": 8,
+    "mentionCount": 9,
     "verdict": "asserted"
    },
    "perturb": {

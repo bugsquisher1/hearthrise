@@ -1,0 +1,21 @@
+THE POWER STEP AT LEVEL 60, Muster Barrows, the Steady mixed four (MID kits), held step from hour 6 of 12, paired seeds
+  base held                         583.8 +- 0.9 se, median 584, n 12
+  own tier back (power-tier-back)   -22.7 +- 5.8 se, median -18, n 12
+  own tier ahead (power-tier-ahead) 17.2 +- 1.9 se, median 16, n 12
+  weapon band back (shipped + step) -18.3 +- 3.8 se, median -13.5, n 12
+  armor band back (shipped + step)  -54.6 +- 9.6 se, median -59.5, n 12
+  one gear band back, both halves   -72.9 (sum of the two cells' means)
+
+STANCE PAY FROM A HELD START (start = R4's held - 20, pay read from hour 1 to the four's end; multiple of the hours table)
+  base:careful     L60  held 409.9  pay 0.56x (sd 0.02, 7 h)  deaths 0
+  base:steady      L60  held 580.8  pay 0.89x (sd 0.04, 7 h)  deaths 0
+  base:bold        L60  held 630.4  pay 1.05x (sd 0.02, 5.6 h)  deaths 3
+  base: Careful / Steady   0.63x  (seeds 0.64 0.69 0.57 0.63 0.64 0.60; band 0.55 to 0.70)
+  levels:careful   L63  held 421.4  pay 0.55x (sd 0.01, 7 h)  deaths 0
+  levels:steady    L63  held 595.6  pay 0.97x (sd 0.05, 7 h)  deaths 0
+  levels:bold      L63  held 640.5  pay 1.1x (sd 0.03, 3.3 h)  deaths 6
+  levels: Careful / Steady 0.57x  (seeds 0.60 0.56 0.52 0.57 0.55 0.58; band 0.55 to 0.70)
+  high:careful     L70  held 466.4  pay 0.59x (sd 0.01, 7 h)  deaths 0
+  high:steady      L70  held 618.1  pay 1.07x (sd 0.05, 7 h)  deaths 0
+  high:bold        L70  held 656.4  pay 1.24x (sd 0.05, 2.3 h)  deaths 8
+  high: Careful / Steady   0.55x  (seeds 0.50 0.57 0.57 0.57 0.57 0.54; band 0.55 to 0.70)

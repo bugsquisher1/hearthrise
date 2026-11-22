@@ -45,10 +45,10 @@ if (held) {
   for (const v of ['base', 'levels', 'high']) {
     const c = (k) => held.cells[v + ':' + k];
     if (!c('careful') || !c('steady')) continue;
-    const pay = (k) => c(k).pay.perSeed;
-    for (const k of ['careful', 'steady', 'bold']) if (c(k)) console.log('  ' + (v + ':' + k).padEnd(16) + ' L' + c(k).L + '  held ' + r1(c(k).held.mean) + '  pay ' + r1(c(k).pay.mean * 100) / 100 + 'x  deaths ' + c(k).deaths);
+    const pay = (k) => c(k).payX.perSeed;
+    for (const k of ['careful', 'steady', 'bold']) if (c(k)) console.log('  ' + (v + ':' + k).padEnd(16) + ' L' + c(k).L + '  held ' + r1(c(k).held.mean) + '  pay ' + c(k).payX.mean + 'x (sd ' + c(k).payX.sd + ', ' + c(k).payX.windowH + ' h)  deaths ' + c(k).deaths);
     const ratio = pay('careful').map((x, i) => (Number.isFinite(x) && Number.isFinite(pay('steady')[i]) ? x / pay('steady')[i] : null)).filter((x) => x !== null);
-    console.log('  ' + (v + ': Careful / Steady').padEnd(22) + (Math.round(mean(ratio) * 100) / 100) + 'x  (seeds ' + ratio.map((x) => x.toFixed(2)).join(' ') + '; band 0.55 to 0.70)');
+    console.log('  ' + (v + ': Careful / Steady').padEnd(25) + (Math.round(mean(ratio) * 100) / 100) + 'x  (seeds ' + ratio.map((x) => x.toFixed(2)).join(' ') + '; band 0.55 to 0.70)');
   }
 } else missing++;
 process.exit(missing ? 2 : 0);

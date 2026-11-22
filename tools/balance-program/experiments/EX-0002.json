@@ -1,0 +1,16 @@
+{
+ "schema": "hearthrise.balance-experiment/1",
+ "id": "EX-0002",
+ "title": "A planted heal cut, declared against measured",
+ "author": "lane/lab-p2-readers",
+ "question": "Does a planted heal cut move the sustain readers, and does it move anything the model graph does not declare?",
+ "hypothesis": "Every heal a hero takes landing at half (tools/balance-program/experiments/heal-cut.patch.json, the quantity heal.cut up) moves regenShare up and sustainRatio down on most cells, beyond the sweeps' rule (graph/measured.mjs). Every outcome that moves is one the graph's trace from heal.cut reaches, so the compare names no undeclared-move finding",
+ "hypothesisAt": "2026-11-22T05:31:46.428Z",
+ "candidate": "tools/balance-program/experiments/heal-cut.patch.json",
+ "scenario": null,
+ "results": [],
+ "conclusion": null,
+ "concludedAt": null,
+ "reviewedBy": null,
+ "status": "open"
+}

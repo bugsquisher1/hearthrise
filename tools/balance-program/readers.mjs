@@ -12,6 +12,10 @@
 //   node tools/balance-program/readers.mjs --report <results.json> [--pin <findings.json>] [--write-pin <file>] [--json]
 //                                                         every reader on the played cells, each number with its interval, the findings with
 //                                                         stable ids (new, gone and unchanged against a pin), and the assumptions block
+//   node tools/balance-program/readers.mjs --declared <base results> <planted results> --moves heal.cut=+1 [--unit <name>] [--out <file>]
+//                                                         a planted change declared against measured: the model graph's trace from the quantities it
+//                                                         moves against every outcome the two runs measured (phase 1's rule and compare). Exit 1 on
+//                                                         an outcome that moved and nothing declared
 //   node tools/balance-program/readers.mjs --headroom    the number headroom reader on the game's own growth families
 //   node tools/balance-program/readers.mjs --selftest    every reader, the headroom reader and the findings diff on planted cells
 //
@@ -381,6 +385,38 @@ function treeStamp() {
   } catch { return { commit: 'unknown', dirty: true }; }
 }
 
+/* ── --declared: a planted change, declared against measured (phase 1's model graph and its rule) ─────────────────────────────────
+   Two results files on the same plan and dice: the tree (`base`) and the tree with a change planted (`planted`), and the quantities the
+   change moves (`moves`: [{ q, sign }]). The graph's trace from those quantities is the DECLARATION: what the model says moves, and which
+   way. Every cell's outcomes (matrix-metrics.mjs cellMetrics, the matrix's own) are measured base against planted under the sweeps' rule
+   (graph/measured.mjs: a cell moved at 2%, an outcome up or down at 8 moved cells, 70% one way, 3 standard deviations), and phase 1's
+   compare names every outcome that moved and nothing declared (undeclared-move), every sign the trace got wrong, and every declared
+   outcome that did not move. */
+export async function declaredAgainstMeasured(base, planted, moves, o = {}) {
+  const { cellMetrics } = await import('./matrix-metrics.mjs');
+  const { loadGridData } = await import('./progression-grid.mjs');
+  const { fromSweeps, compare } = await import('./graph/measured.mjs');
+  const { buildGraph } = await import('./graph/build.mjs');
+  const { trace } = await import('./graph/trace.mjs');
+  const { treeCtx } = await import('./graph.mjs');
+  const { OUTCOME_IDS } = await import('./graph/quantities.mjs');
+  if (base.scenario.planHash !== planted.scenario.planHash) throw new Error('the two results files did not play the same plan (' + base.scenario.planHash + ', ' + planted.scenario.planHash + ')');
+  const D = o.D || await loadGridData(ROOT);
+  const ids = OUTCOME_IDS.slice();
+  const valuesOf = (doc) => Object.fromEntries(cellsOf(doc).filter((c) => !c.step).map((c) => { const m = cellMetrics(D, c, c.seeds); return [c.key, ids.map((id) => (Number.isFinite(m[id]) ? m[id] : null))]; }));
+  const a = valuesOf(base), b = valuesOf(planted), keys = Object.keys(a).filter((k) => b[k]);
+  const doc = { metrics: ids.map((id) => ({ id })), cells: cellsOf(base).filter((c) => keys.includes(c.key)).map((c) => ({ key: c.key, tier: c.tier, party: c.party, block: c.block })),
+    baseline: Object.fromEntries(keys.map((k) => [k, a[k]])), commit: base.tree && base.tree.commit, run: 'readers --declared', seeds: base.scenario.seeds, hours: base.scenario.hours,
+    knobs: { [o.unit || 'plant']: { label: o.label || 'a planted change', steps: { 1: { cells: Object.fromEntries(keys.map((k) => [k, a[k]])) }, 2: { cells: Object.fromEntries(keys.map((k) => [k, b[k]])) } } } } };
+  const measured = fromSweeps([doc]);
+  const G = buildGraph(await treeCtx(ROOT));
+  const t = trace(G.steps, moves);
+  const declared = ids.filter((id) => t.has(id));
+  const unit = { id: o.unit || 'plant', levers: [], declared, predicted: t };
+  const c = compare([unit], measured, ids);
+  return { unit: unit.id, moves, cells: keys.length, declared: declared.map((id) => ({ id, sign: t.get(id).sign, depth: t.get(id).depth })), rows: c.rows, findings: c.findings, measured: measured.units[unit.id] };
+}
+
 /* ── --report ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── */
 export function reportOf(doc, ctx, pin = null) {
   const { rows, findings } = readAll(doc, ctx);
@@ -514,6 +550,21 @@ async function main() {
   }
   if (has('headroom')) { for (const r of headroomRows(gameFamilies(await contextOf()))) console.log((r.status === 'off' ? 'OFF  ' : 'ok   ') + r.shown); return 0; }
   if (has('play')) return play({ blocks: (arg('blocks') || 'ways,gear,tier,four').split(','), seeds: Number(arg('seeds', 2)), hours: Number(arg('hours', 1)), workers: Number(arg('workers', 3)), out: arg('out'), patch: arg('patch'), only: arg('only') ? arg('only').split(',').map(Number) : null });
+  if (has('declared')) {
+    const i = argv.indexOf('--declared'), [fa, fb] = [argv[i + 1], argv[i + 2]];
+    if (!fa || !fb || !existsSync(fa) || !existsSync(fb)) { console.error('readers.mjs: --declared <base results> <planted results> --moves q=+1[,q=-1]'); return 2; }
+    const moves = (arg('moves') || '').split(',').filter(Boolean).map((s) => { const [q, v] = s.split('='); return { q, sign: v === '-1' ? -1 : 1 }; });
+    if (!moves.length) { console.error('readers.mjs: --moves q=+1 (the quantities the planted change moves)'); return 2; }
+    const r = await declaredAgainstMeasured(JSON.parse(readFileSync(fa, 'utf8')), JSON.parse(readFileSync(fb, 'utf8')), moves, { unit: arg('unit', 'plant'), label: arg('label') });
+    if (arg('out')) writeFileSync(arg('out'), JSON.stringify(r, null, 1));
+    if (has('json')) console.log(JSON.stringify(r, null, 1));
+    else {
+      console.log('declared against measured: ' + r.unit + ' moves ' + moves.map((m) => m.q + (m.sign > 0 ? ' up' : ' down')).join(', ') + ', on ' + r.cells + ' cells');
+      for (const x of r.rows.filter((y) => y.declared || y.measured !== 'flat')) console.log('  ' + x.outcome.padEnd(16) + (x.declared ? 'declared ' + x.predicted.padEnd(8) : 'undeclared      ') + 'measured ' + x.measured.padEnd(11) + x.moved + ' of ' + x.n + ' cells moved, ' + x.up + ' up' + (x.size !== null ? ', median ' + (x.size * 100).toFixed(1) + '%' : ''));
+      for (const f of r.findings) console.log('  FINDING [' + f.kind + '] ' + f.what);
+    }
+    return r.findings.some((f) => f.kind === 'undeclared-move') ? 1 : 0;
+  }
   if (has('report')) {
     const f = arg('report');
     if (!f || !existsSync(f)) { console.error('readers.mjs: --report <results.json>'); return 2; }

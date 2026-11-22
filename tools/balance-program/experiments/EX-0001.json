@@ -1,0 +1,16 @@
+{
+ "schema": "hearthrise.balance-experiment/1",
+ "id": "EX-0001",
+ "title": "The sustain counters change no hunt",
+ "author": "lane/lab-p2-readers",
+ "question": "Do the engine's new sustain counters (src/core/hunt/tally.js, asked for only) change what any hunt plays or what the server's settle writes?",
+ "hypothesis": "No. The settle's analyzer asks for no sustain block, so the engine parity pins (world, timeline and tally of the settle) hold with no re-pin. The subset's 189 core cells, each played once by the base tree (origin/set/v0.2.144 at 22244c0ac, its own harness and engine) and once by this lane's tree, answer byte for byte the same once the new sustain field of each hero is set aside",
+ "hypothesisAt": "2026-11-22T05:31:46.357Z",
+ "candidate": "the lane's tree against origin/set/v0.2.144",
+ "scenario": null,
+ "results": [],
+ "conclusion": null,
+ "concludedAt": null,
+ "reviewedBy": null,
+ "status": "open"
+}

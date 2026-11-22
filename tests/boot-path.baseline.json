@@ -100,6 +100,12 @@
         "gzipBytes": 906176,
         "on": "2026-11-22",
         "why": "set/v0.2.144 at 90d4b0db7 after round 2's lanes: lane/c-recruits (recruits-pane.js, recruits.js, recruit-intents/sections, Needs you's recruits provider), lane/c-hunt-report (core/hunt/report.js, hunt-view and shell hunt-report.js, text/report.js, report-sections.js), the side seam (core/hunt/sides.js, unit-index.js) and the flush follow-up's HUD prediction (hud-predict.js, hud-ledger.js): town 879.7 -> 884.9 KB gzip, modules held. Each is on the town's first screens (the return card, the hunt HUD), so it loads with the town."
+      },
+      {
+        "modules": 21,
+        "gzipBytes": 907952,
+        "on": "2026-11-22",
+        "why": "lane/v1-climb wave 1 (+1.8 KB gzip, town stage): the hunt engine the live view runs carries the Danger scale's pay by depth (danger.js hoursForLevel and levelShareXp, the depth ratio, the pack's down count, xp-share.js's Level-share split, hunt-rewards.js's coin ratio) so the browser computes the server's numbers; static imports of the one engine, not loadable on need"
       }
     ]
   }

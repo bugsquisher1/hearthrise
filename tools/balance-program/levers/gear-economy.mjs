@@ -308,6 +308,14 @@ export const GEAR_ECONOMY = [
     touches: 'the account\'s heroes and the slot gold sink (~5.5M of 5.9M gone)', out: [], f: ['E39'],
     perturb: NP('outside-hunt'),
     ev: 'CONFIRMED (read)' }),
+  L('econ.recruits', 'economy', 'global', 'Recruits: three heroes in one press', {
+    at: [at('src/data/recruits.js', 'export const RECRUITS = ')],
+    def: 'one hero, then three recruits in one press when it reaches Level 5, at its Level (levelsUnder 0), never above Level 10, the kit and the practice set worn (Tyler RD-Q6 a, 2026-11-22; 1053-recruits.sql grants it)',
+    range: 'whole; atLevel <= maxLevel; count = the hero slots but the first',
+    touches: 'the account\'s heroes from the first hour (hunted hours x4) and three heroes\' Levels 1 to 5 skipped', out: [], f: [],
+    tests: [['tests/recruits.mjs', 'the press, the Level, the grant once']], testReads: ['RECRUITS'],
+    perturb: NP('harness-fixed', 'a cell names its own party and Levels'),
+    ev: 'CONFIRMED (read)' }),
   L('econ.shop-prices', 'economy', 'content', 'Shop offers', {
     at: [at('src/data/shops.js', 'export const SHOP_OFFERS')],
     rows: rows('gold costs on shop offers', [home('src/data/shops.js#DERIVED_PRICES', 'count'), home('src/data/jewelry.js#JEWEL_SHOP_PRICE', 'count'), home('src/data/jewelry.js#JEWEL_SHOP_PREMIUM', 'count'), home('src/data/companion-unlocks.js#COMPANION_OFFERS', 'keys')]),

@@ -1067,7 +1067,8 @@ const MUTANTS = [
   { arm: 'PF-INVITE', file: INV, why: 'the first invite needs a party made first',
     find: '      v_pid := public.hr_party_open(p_uid, p_slot);\n    end if;\n    select * into v_p',
     repl: "      return jsonb_build_object('ok', false, 'error', 'no_party');\n    end if;\n    select * into v_p" },
-  { arm: 'PF-OWN', why: 'an own character is not seated',
+  /* hr_party_seat_own is restated last by 1051-company-start.sql (a hunting hero is planned in), so its mutant plants there */
+  { arm: 'PF-OWN', file: '1051-company-start.sql', why: 'an own character is not seated',
     find: '  perform public.hr_party_seat_into(v_pid, p_user, p_other);', repl: '  perform 1;' },
   /* Every refusal of hr_hunt_enter_for is hr_hunt_enter_check's since 2026-12-05-hunt-setup-per-ground.sql;
      hr_hunt_party_start judges each seat by hr_party_seat_ready since 2026-12-07-party-finder.sql; both are restated

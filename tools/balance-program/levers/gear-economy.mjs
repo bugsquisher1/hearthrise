@@ -332,6 +332,14 @@ export const GEAR_ECONOMY = [
     tests: [['tests/hunting-blocks.mjs', 'HB-WAGE: the server\'s wage is the JS wage at every step']], testReads: ['WAGE', 'wage'],
     perturb: NP('outside-hunt', 'a price, never read by a cell; tools/balance-program/redesign/w/fit.mjs reads it against the measured pay'),
     ev: 'MEASURED (v1-climb.mjs, Muster Barrows, Steady, held start, 6 seeds x 8 h: 4,797 / 4,906 / 5,055 gold an hour at Levels 60 / 63 / 70)' }),
+  L('econ.gold-estimate-risk', 'economy', 'global', 'A Risk\'s gold an hour against Steady, as the Hunts window estimates it', {
+    at: [at('src/data/gold-estimate.js', 'riskPm: Object.freeze({ careful: 630, steady: 1000, bold: 1270 }),')],
+    def: 'the Hunts window\'s "About N gold an hour, before supplies" on a scale ground = floor(wage(min(Level, band top)) x riskPm / 1000) to two figures (src/core/gold-estimate.js); Steady is 1000 by definition (the wage is a Steady hour)',
+    range: '12-targets.md C-5: Careful 0.55x to 0.70x of Steady; Bold above Steady in a watched session, under it over a day (C-4). gen-gold-estimate refuses Steady off 1000 and any ratio outside 1 to 5000. SQL twin hr_gold_estimate (1060, generated)',
+    touches: 'display only: the estimate the Hunts window prints; no fight or purse reads it', out: [], f: [],
+    tests: [['tests/gold-estimate.mjs', 'GE-RULE: Careful under Steady under Bold, the band top and floor kept']], testReads: ['GOLD_ESTIMATE', 'goldEstimate'],
+    perturb: NP('outside-hunt', 'a printed estimate, never read by a cell'),
+    ev: 'MEASURED (tools/balance-program/redesign/r9/summary.txt, stance pay from a held start, Muster Barrows Levels 60 / 63 / 70: Careful / Steady 0.68 / 0.63 / 0.58, Bold / Steady 1.22 / 1.38 / 1.21 over 2.7 to 4.9 h)' }),
   L('econ.wage-step', 'economy', 'global', 'The wage\'s growth a step', {
     at: [at('src/data/wage.js', 'payStepCoin: 0.004,')],
     def: 'the wage grows (1 + payStepCoin) a step; a hero\'s Level is its step (levelStep), a good\'s band or item step is its depth',

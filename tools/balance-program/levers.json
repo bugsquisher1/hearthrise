@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "f5a988f52bda4496",
+ "authored": "60c3ac4398049527",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -63,7 +63,7 @@
   "dead": "nothing on the hunt path reads it: a perturbation changes no outcome"
  },
  "counts": {
-  "levers": 186,
+  "levers": 187,
   "byCategory": {
    "base-damage": 12,
    "skill-scaling": 9,
@@ -84,10 +84,10 @@
    "imbuements": 1,
    "consumables": 9,
    "party": 7,
-   "economy": 32
+   "economy": 33
   },
   "byClass": {
-   "global": 84,
+   "global": 85,
    "archetype": 27,
    "content": 47,
    "exception-intentional": 17,
@@ -98,7 +98,7 @@
    "not-playable:dead": 8,
    "patch": 75,
    "not-playable:player-policy": 2,
-   "not-playable:outside-hunt": 24,
+   "not-playable:outside-hunt": 25,
    "not-playable:harness-fixed": 6,
    "not-playable:not-in-runs": 19,
    "variant": 5,
@@ -106,7 +106,7 @@
    "not-playable:sql-only": 6
   },
   "byTest": {
-   "asserted": 75,
+   "asserted": 76,
    "mentioned only": 91,
    "none": 20
   },
@@ -117,11 +117,11 @@
   }
  },
  "census": {
-  "bindings": 666,
-  "typed": 15711,
-  "files": 226,
-  "lever": 285,
-  "notLever": 381,
+  "bindings": 668,
+  "typed": 15714,
+  "files": 228,
+  "lever": 286,
+  "notLever": 382,
   "unclaimed": 0
  },
  "problems": [],
@@ -11192,6 +11192,55 @@
    "evidence": "MEASURED (v1-climb.mjs, Muster Barrows, Steady, held start, 6 seeds x 8 h: 4,797 / 4,906 / 5,055 gold an hour at Levels 60 / 63 / 70)"
   },
   {
+   "id": "econ.gold-estimate-risk",
+   "category": "economy",
+   "name": "A Risk's gold an hour against Steady, as the Hunts window estimates it",
+   "sites": [
+    {
+     "file": "src/data/gold-estimate.js",
+     "line": 23,
+     "text": "riskPm: Object.freeze({ careful: 630, steady: 1000, bold: 1270 }),",
+     "binding": "GOLD_ESTIMATE"
+    }
+   ],
+   "definition": "the Hunts window's \"About N gold an hour, before supplies\" on a scale ground = floor(wage(min(Level, band top)) x riskPm / 1000) to two figures (src/core/gold-estimate.js); Steady is 1000 by definition (the wage is a Steady hour)",
+   "range": "12-targets.md C-5: Careful 0.55x to 0.70x of Steady; Bold above Steady in a watched session, under it over a day (C-4). gen-gold-estimate refuses Steady off 1000 and any ratio outside 1 to 5000. SQL twin hr_gold_estimate (1060, generated)",
+   "touches": "display only: the estimate the Hunts window prints; no fight or purse reads it",
+   "outcomes": [],
+   "formulas": [],
+   "reach": {
+    "feeds": 0,
+    "closure": 0
+   },
+   "class": "global",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/gold-estimate.mjs",
+      "what": "GE-RULE: Careful under Steady under Bold, the band top and floor kept",
+      "reads": [
+       "GOLD_ESTIMATE",
+       "goldEstimate"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/gold-estimate.mjs"
+    ],
+    "mentionCount": 1,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "outside-hunt",
+    "note": "a printed estimate, never read by a cell",
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "MEASURED (tools/balance-program/redesign/r9/summary.txt, stance pay from a held start, Muster Barrows Levels 60 / 63 / 70: Careful / Steady 0.68 / 0.63 / 0.58, Bold / Steady 1.22 / 1.38 / 1.21 over 2.7 to 4.9 h)"
+  },
+  {
    "id": "econ.wage-step",
    "category": "economy",
    "name": "The wage's growth a step",
@@ -12969,6 +13018,10 @@
   {
    "at": "src/data/work-day.js#WORK_BLOCK_RULED",
    "why": "Tyler's ruled bought-work shape of 2026-11-22 (2 h blocks, at most 4 a day): work-day.js validate reads it to keep the longest day under 24 h; the buy and its price are a later slice"
+  },
+  {
+   "at": "src/core/gold-estimate.js#roundAbout",
+   "why": "display rounding of the Hunts window's gold estimate to two significant figures (a power of ten): no fight, purse or clock reads it"
   },
   {
    "at": "src/core/work-day.js#*",
@@ -15600,6 +15653,15 @@
    "keys": [
     "payStepCoin",
     "wageBase"
+   ],
+   "typed": 2,
+   "bindings": 1
+  },
+  "src/data/gold-estimate.js#GOLD_ESTIMATE": {
+   "pin": "count",
+   "keys": [
+    "bold",
+    "careful"
    ],
    "typed": 2,
    "bindings": 1

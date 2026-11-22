@@ -47,6 +47,7 @@ import { KNOB_MOVES, LEVER_MOVES } from './graph/moves.mjs';
 import { fromSweeps, fromSensitivity, verdictOf, MEASURED_SCHEMA } from './graph/measured.mjs';
 import { trace, stepsOf, signWord } from './graph/trace.mjs';
 import { occurrences, topLevel, importsOf, homeOf } from './graph/derive.mjs';
+import { readRuleFiles } from './census.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..', '..');
@@ -68,12 +69,21 @@ export async function treeCtx(root = ROOT) {
   const arch = readJson(root, ARCH_FILE), levers = readJson(root, LEVERS_FILE), knobs = readJson(root, KNOBS_FILE), targets = readJson(root, TARGETS_FILE);
   const STD = await import('./standards.mjs');
   return {
-    arch, levers: levers.levers, knobs: knobs.knobs, targets, bands: STD.BANDS.map((b) => ({ id: b.id, on: b.on })),
+    arch, levers: levers.levers, knobs: knobs.knobs, targets, bands: STD.BANDS.map((b) => ({ id: b.id, on: b.on, group: b.group })),
     quantities: QUANTITIES, io: FORMULA_IO, readers: OUTCOME_READERS, readerSource: OUTCOME_SOURCE, interactions: INTERACTIONS, noInteraction: NO_INTERACTION,
     leverMoves: LEVER_MOVES, knobMoves: KNOB_MOVES,
     read: (f) => (existsSync(join(root, f)) ? lf(readFileSync(join(root, f), 'utf8')) : null),
+    ruleFiles: readRuleFiles(root).map(([f]) => f),
     measured: readJson(root, MEASURED_FILE),
   };
+}
+
+/* JSON with one row a line: a list of rows two levels down prints a row a line, everything deeper stays on its row. Small and diffable */
+const isRow = (x) => x && typeof x === 'object';
+export function rowsJson(v, depth = 0) {
+  if (Array.isArray(v) && depth < 3 && v.some(isRow)) return '[\n' + v.map((x) => JSON.stringify(x)).join(',\n') + '\n]';
+  if (isRow(v) && !Array.isArray(v) && depth < 2) return '{\n' + Object.entries(v).map(([k, x]) => JSON.stringify(k) + ': ' + rowsJson(x, depth + 1)).join(',\n') + '\n}';
+  return JSON.stringify(v);
 }
 
 /* a graph with every file:line cite reduced to its file: what --check compares, so a moved line is never a failure */
@@ -137,6 +147,8 @@ export function docTables(g) {
       + ', ' + (g.measured.source.cells || '?') + ' cells' + (g.measured.source.seeds ? ', ' + g.measured.source.seeds + ' seeds' : '') + (g.measured.source.hours ? ', ' + g.measured.source.hours + ' h a cell' : '') + '. Rule: ' + g.measured.rule.text + '.'
       + '\n\nNot played in that data: ' + (g.measured.notMeasured.join(', ') || 'none') + '. Levers with no measured knob (they wait on the sensitivity lane): ' + g.measured.waiting.length + ' of ' + g.counts.levers + '.';
   }
+  if (g.unhomed) t.unhomed = g.unhomed.bindings + ' top-level bindings in ' + g.unhomed.files + ' files of the rule code write a field that is a quantity\'s token and sit in no formula\'s home. The largest: '
+    + g.unhomed.top.slice(0, 12).map((u) => '`' + u.at + '` (' + u.tokens.slice(0, 5).join(', ') + (u.tokens.length > 5 ? ', ...' : '') + ')').join(', ') + '.';
   const blind = g.targets.filter((x) => !x.outcomes.length);
   t.blind = blind.length + ' of ' + g.targets.length + ' targets reach no measured outcome in the graph: ' + blind.map((x) => x.id).join(', ') + '.';
   return t;
@@ -156,7 +168,7 @@ function writeDoc(root, g) {
 
 const baselineOf = (root) => { const d = readJson(root, FINDINGS_FILE); return d ? d.findings : null; };
 function writeAll(root, built, accept) {
-  writeFileSync(join(root, GRAPH_FILE), JSON.stringify(built.graph, null, 1) + '\n');
+  writeFileSync(join(root, GRAPH_FILE), rowsJson(built.graph) + '\n');
   const before = baselineOf(root) || {};
   const next = {};
   for (const f of built.findings) if (accept || before[f.id]) next[f.id] = { kind: f.kind, key: f.key };
@@ -186,7 +198,7 @@ function measure(root, src, run) {
   const sweeps = docs.filter((d) => d.schema === 'hearthrise.balance-sweeps/1');
   if (!matrix && !sweeps.length) { console.error('graph --measure: no balance-sweeps doc and no sensitivity matrix under ' + src); return 2; }
   const out = matrix ? fromSensitivity(matrix) : fromSweeps(sweeps, run);
-  writeFileSync(join(root, MEASURED_FILE), JSON.stringify(out, null, 1) + '\n');
+  writeFileSync(join(root, MEASURED_FILE), rowsJson(out) + '\n');
   console.log('graph --measure: ' + Object.keys(out.units).length + ' units from ' + out.source.kind + ' -> ' + MEASURED_FILE);
   return 0;
 }
@@ -211,7 +223,7 @@ export function plantedCtx(o = {}) {
   };
   const q = (id, kind, tokens = []) => ({ id, kind, label: id, tokens });
   const quantities = o.quantities || [q('hero.skill', 'stat', ['skill']), q('hero.maxHit', 'stat', ['maxHit', 'blow']), q('mon.def', 'stat', ['def']), q('mon.defCut', 'stat', ['cut', 'CUT']), q('mon.hp', 'stat', ['hp']),
-    q('dmg', 'stat', ['hurt']), q('kill.xp', 'stat', ['xp', 'pay']), q('hero.crit', 'stat', ['crit']), q('ttk', 'outcome'), q('kills', 'outcome'), q('xpPerH', 'outcome')];
+    q('dmg', 'stat', ['hurt']), q('kill.xp', 'stat', ['xp', 'pay']), q('hero.crit', 'stat', ['crit']), q('ttk', 'outcome'), q('kills', 'outcome'), q('levelXpPerH', 'outcome')];
   const io = {
     A: { home: ['src/core/fight.js#blow'], reads: ['+hero.skill'], writes: ['hero.maxHit'] },
     C: { home: ['src/core/fight.js#cut'], reads: ['+mon.def'], writes: ['mon.defCut'] },
@@ -230,12 +242,12 @@ export function plantedCtx(o = {}) {
     targets: { targets: o.targets || [{ id: 'T-1', area: 'pace', metric: 'kills', readers: ['K1'], readerState: 'graded' }] },
     bands: [{ id: 'K1', on: 'Level XP an hour' }],
     quantities, io,
-    readers: o.readers || { 'O-TTK': { reads: ['+mon.hp', '-dmg'], writes: ['ttk'], why: 'a kill is HP over damage' }, 'O-KILLS': { reads: ['-ttk'], writes: ['kills'], why: 'faster kills, more kills' }, 'O-XP': { reads: ['+kills', '+kill.xp'], writes: ['xpPerH'], why: 'kills times XP' } },
+    readers: o.readers || { 'O-TTK': { reads: ['+mon.hp', '-dmg'], writes: ['ttk'], why: 'a kill is HP over damage' }, 'O-KILLS': { reads: ['-ttk'], writes: ['kills'], why: 'faster kills, more kills' }, 'O-XP': { reads: ['+kills', '+kill.xp'], writes: ['levelXpPerH'], why: 'kills times XP' } },
     readerSource: 'tools/x.mjs', interactions: o.interactions || [], noInteraction: o.noInteraction || [],
     leverMoves: o.leverMoves || {}, knobMoves: o.knobMoves || { attack: ['+hero.maxHit'] },
     read: (f) => (FILES[f] == null ? null : FILES[f]),
     measured: o.measured === undefined ? { schema: MEASURED_SCHEMA, source: { kind: 'planted' }, rule: { text: 'planted' }, units: { attack: { kind: 'knob', steps: [0.75, 1.25], cells: 40, outcomes: {
-      ttk: { n: 40, moved: 40, up: 0, size: -0.4, verdict: 'down' }, kills: { n: 40, moved: 38, up: 38, size: 0.3, verdict: 'up' }, xpPerH: { n: 40, moved: 0, up: 0, size: null, verdict: 'flat' } }, bands: {}, where: {} } } } : o.measured,
+      ttk: { n: 40, moved: 40, up: 0, size: -0.4, verdict: 'down' }, kills: { n: 40, moved: 38, up: 38, size: 0.3, verdict: 'up' }, levelXpPerH: { n: 40, moved: 0, up: 0, size: null, verdict: 'flat' } }, bands: {}, where: {} } } } : o.measured,
   };
 }
 
@@ -305,8 +317,8 @@ function selftest() {
   const p7 = run({ readers: { ...plantedCtx().readers, 'O-TTK': { reads: ['+mon.hp', '+dmg'], writes: ['ttk'], why: 'planted wrong' } } });
   ok(p7.graph.measured.match.miss === 2 && judge(p7, base).some((f) => f.kind === 'new-finding' && f.what.includes('[sign]') && f.what.includes('attack on ttk')), 'a planted wrong sign shows as a sign miss and fails, got ' + JSON.stringify(p7.graph.measured.match));
   /* declared against measured: an undeclared movement and a dead lever */
-  const m8 = plantedCtx().measured; m8.units.attack.outcomes.xpPerH = { n: 40, moved: 30, up: 30, size: 0.2, verdict: 'up' };
-  ok(run({ measured: m8 }).findings.some((f) => f.kind === 'undeclared-move' && f.key === 'attack|xpPerH'), 'a measured movement no lever declared is a finding');
+  const m8 = plantedCtx().measured; m8.units.attack.outcomes.levelXpPerH = { n: 40, moved: 30, up: 30, size: 0.2, verdict: 'up' };
+  ok(run({ measured: m8 }).findings.some((f) => f.kind === 'undeclared-move' && f.key === 'attack|levelXpPerH'), 'a measured movement no lever declared is a finding');
   const m9 = plantedCtx().measured; for (const o of Object.values(m9.units.attack.outcomes)) { o.moved = 0; o.up = 0; o.verdict = 'flat'; }
   ok(run({ measured: m9 }).findings.some((f) => f.kind === 'dead' && f.key === 'attack'), 'a played lever that moved nothing is a finding');
   const m10 = plantedCtx().measured; m10.units.attack.outcomes.kills = { n: 40, moved: 1, up: 1, size: 0.02, verdict: 'flat' };

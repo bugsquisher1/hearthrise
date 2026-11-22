@@ -35,7 +35,7 @@ export const KNOB_MOVES = Object.freeze({
   tierHp: ['+tier.hp'],
   tierXp: ['+tier.xp'],
   tierPull: [['+tier.pull', 'the pull is a column of TIER_DIALS, which C-TIER writes and C-PULL reads']],
-  heroHp: ['+hero.maxHp'],
+  heroHp: ['+hero.maxHp', ['+mon.atk', 'the same two numbers (VITALS hpBase and hpPerLevel) are read by STAT_FORMULA.refHp, so the blow of a monster is written from them too']],
   heroMana: ['+hero.maxMana'],
   armorMitigation: ['+hero.mitigation'],
   armorCurve: ['-hero.mitigation'],

@@ -198,7 +198,7 @@ export function buildGraph(ctx) {
     for (const s of L.sites || []) if (s.binding) { const k = s.file + '#' + s.binding; if (!leverSites.has(k)) leverSites.set(k, []); leverSites.get(k).push({ lever: L.id, text: s.text || '' }); }
     const knobs = L.perturb && L.perturb.kind === 'knob' ? [L.perturb.knob, ...(L.perturb.also || [])] : [];
     return { id: L.id, name: L.name, category: L.category, class: L.class, formulas, unknownFormulas: (L.formulas || []).filter((x) => !alias.has(x)), outcomes: L.outcomes || [], knobs, perturb: L.perturb ? L.perturb.kind + (L.perturb.gap ? ':' + L.perturb.gap : '') : null,
-      sites: (L.sites || []).map((s) => ({ file: s.file, line: s.line, binding: s.binding || null })), tests: L.tests || null, readers: [] };
+      sites: (L.sites || []).map((s) => ({ file: s.file, line: s.line, binding: s.binding || null })), readers: [] };
   });
   const leverById = new Map(levers.map((L) => [L.id, L]));
 
@@ -221,8 +221,10 @@ export function buildGraph(ctx) {
         if (!calls.has(ck)) calls.set(ck, { from: theirs, to: ids, at: file + ':' + o.line, via: o.token + (o.member ? '.' + o.member : '') });
       }
       for (const site of leverSites.get(base) || []) {
-        /* a read of one key of a table is a read of the lever that owns that key's line */
-        if (o.member && site.text && !new RegExp('\\b' + o.member + '\\b').test(site.text) && !new RegExp('\\b' + o.token + '\\b').test(site.text)) continue;
+        /* a lever sits on one line. A read reaches it when that line is the binding's own (the lever is the whole binding), or the
+           read names a key that stands on that line. A table handed on whole (`const b = TABLE`) reaches no single-key lever */
+        const whole = new RegExp('\\b' + o.token + '\\b').test(site.text), key = !!o.member && new RegExp('\\b' + o.member + '\\b').test(site.text);
+        if (!whole && !key) continue;
         const L = leverById.get(site.lever);
         if (!L.readers.some((r) => r.formulas.join() === ids.join())) L.readers.push({ formulas: ids, at: file + ':' + o.line, via: o.token + (o.member ? '.' + o.member : '') });
       }
@@ -359,6 +361,19 @@ export function buildGraph(ctx) {
       waiting: levers.filter((L) => !L.knobs.some((k) => ctx.measured.units[k] && ctx.measured.units[k].cells)).map((L) => L.id) };
   }
 
+  // ── what the graph does not cover: rule code that writes a quantity's token and sits in no formula's home (a count, never a failure) ──
+  const unhomed = [];
+  for (const file of ctx.ruleFiles || []) {
+    const f = fileOf(file);
+    if (!f) continue;
+    for (const [name, list] of occOf(file)) {
+      if (name === '<statements>' || owners.has(file + '#' + name) || [...owners.keys()].some((k) => k.startsWith(file + '#' + name + '.'))) continue;
+      const ws = [...new Set(list.filter((o) => o.mode === 'w' && o.kind === 'prop' && tokens.has(o.token)).map((o) => o.token))];
+      if (ws.length) unhomed.push({ at: file + '#' + name, tokens: ws });
+    }
+  }
+  unhomed.sort((a, b) => b.tokens.length - a.tokens.length || (a.at < b.at ? -1 : 1));
+
   findings.sort((a, b) => (a.kind < b.kind ? -1 : a.kind > b.kind ? 1 : (b.weight || 0) - (a.weight || 0) || (a.key < b.key ? -1 : 1)));
   const graph = {
     schema: GRAPH_SCHEMA,
@@ -373,6 +388,7 @@ export function buildGraph(ctx) {
     calls: [...calls.values()],
     levers, knobs, targets,
     measured: measuredOut,
+    unhomed: { bindings: unhomed.length, files: new Set(unhomed.map((u) => u.at.split('#')[0])).size, top: unhomed.slice(0, 25) },
     findings,
     counts: { quantities: ctx.quantities.length, formulas: ctx.arch.formulas.length, readers: readerIds.length, levers: levers.length, knobs: knobs.length, targets: targets.length,
       reads: [...mech.values()].reduce((n, m) => n + m.reads.length, 0), writes: [...mech.values()].reduce((n, m) => n + m.writes.length, 0),

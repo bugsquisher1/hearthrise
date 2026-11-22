@@ -44,6 +44,9 @@ export const REPORT_TEXT = Object.freeze({
   fell_many_more_died: 'Fell back {count}+ times (last {name}, killed by {monster})',
   fell_hero: 'Hero',
   fell_monster: 'unknown',
+  /* THE EARNED LINE (src/shell/hunt-report.js earnedLine): the server's gold an hour and store supplies an hour, beside the Hunts window's estimate */
+  earned: 'Gold/hr: {gold} · Supplies/hr: {supplies}',
+  earned_only: 'Gold/hr: {gold}',
 
   /* THE RULES BLOCK */
   rules_head: 'What the bar did',

@@ -43,6 +43,8 @@ export function sanitizeSummary(v) {
     kills: int(v.kills), xp: num(v.xp), gold: num(v.gold), lootValue: num(v.lootValue), balance: num(v.balance), died: int(v.died),
     /* The server's per-hour figures at the end (the analyzer's): balance and Level XP for everyone, raw XP premium only. */
     balanceH: num(v.balanceH), rawXpH: num(v.rawXpH), xpH: num(v.xpH),
+    /* the coins and loot an hour and the store supplies an hour (summary-model.js), the report's earned line */
+    goldH: num(v.goldH), wasteH: num(v.wasteH),
     /* THE LEVEL LINE (summary-model.js levelLine): the server's Level at the hunt's start and end, and each skill it raised [id, from, to]. */
     lvFrom: level(v.lvFrom), lvTo: level(v.lvTo),
     ups: pairs(v.ups, (p) => (Array.isArray(p) && id(p[0]) && level(p[1]) !== null && level(p[2]) !== null ? [p[0], p[1], p[2]] : null), UPS_SHOWN),

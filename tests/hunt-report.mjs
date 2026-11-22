@@ -204,7 +204,7 @@ const MUTANTS = [
   ['the open hunt ignores the danger section', 'HR-CAUSE', 'src/hunt-view/summary-recorder.js', 'live = p && p.hunt === s.hunt ? p : null', 'live = null'],
   ['the cap is not said', 'HR-CAUSE', 'src/shell/hunt-report.js', 'd.n >= HUNT_REPORT.fallsMax', 'd.n > HUNT_REPORT.fallsMax'],
   ['the residue keeps a step as a depth', 'HR-CAUSE', 'src/session/hunt-summaries.js', 'n >= 1 && n <= of ? n : null', 'n >= 1 ? n : null'],
-  ['the return card drops the cause line', 'HR-CAUSE', 'src/shell/windows/away.js', "const cause = hunt && cs && a.session ? causeLine(depthFactsOf(cs, a.session)) : '';", "const cause = '';"],
+  ['the return card drops the cause line', 'HR-CAUSE', 'src/shell/windows/away.js', "const depthWords = hunt && cs && a.session ? causeLine(depthFactsOf(cs, a.session)) : '';", "const depthWords = '';"],
   ['a report with only a low reads as none','HR-FACTS', 'src/session/report-sections.js', "if (!isObj(raw) || !Object.keys(raw).length) return null;", "if (!isObj(raw) || !raw.fired) return null;"],
 ];
 

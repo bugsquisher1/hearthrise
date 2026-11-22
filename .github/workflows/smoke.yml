@@ -6820,6 +6820,14 @@ jobs:
         run: |
           node tests/client-boot-pure.mjs
           node tools/mutant-gate.mjs node tests/client-boot-pure.mjs --mutate
+      # tests/gold-estimate.mjs
+      - name: Gold an hour - the Hunts window shows the server's estimate, the report and the return card what the hunt earned
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/gen-gold-estimate.mjs --check
+          node tools/mutant-gate.mjs node tools/gen-gold-estimate.mjs --selftest
+          node tests/gold-estimate.mjs
+          node tools/mutant-gate.mjs node tests/gold-estimate.mjs --mutate
       # tests/hunt-report.mjs
       - name: The hunt report reads the server's counters, the same card viewed and closed, plain words, bounded in the residue
         if: ${{ !cancelled() }}

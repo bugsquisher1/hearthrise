@@ -155,6 +155,8 @@ export const HUNTS_TEXT = Object.freeze({
   /* said as the report's cause line says it (visual pass 2: "Held depth: Depth 1 of 20" said depth twice) */
   depth_held: 'Last held Depth {depth} of {of}',
   depth_new: 'New ground · Starts at Depth 1',
+  /* the server's estimate at the plan's Risk (1060-gold-estimate-catalogue.generated.sql), shown under the depth line */
+  gold_about: 'Est. {gold} gold/hr (before supplies)',
   tier_set_by: 'Set by {leader}: {tier}',
   tier_leader_picks: 'Tier: set by the party leader',
   tier_kept_party: 'Tier applies to the whole party, saved for this ground',

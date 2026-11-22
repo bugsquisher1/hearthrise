@@ -25,10 +25,10 @@
   },
   "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
   "live_measured": "2026-11-20",
-  "replay_ms": 10396,
+  "replay_ms": 2105,
   "counts": {
-    "tracked_names": 1045,
-    "entries": 878
+    "tracked_names": 1054,
+    "entries": 887
   },
   "functions": [
     {
@@ -4884,6 +4884,157 @@
       "agree": true
     },
     {
+      "sig": "hr_danger_bound(p_instance uuid, p_user uuid, p_slot integer, p_window_ms bigint)",
+      "name": "hr_danger_bound",
+      "tracked_by": [
+        "pin",
+        "restate"
+      ],
+      "touched_by": [
+        "1056-danger-scale.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "717425b8c79159feca9fcc040f67df54",
+        "norm_len": 3328,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1056-danger-scale.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1056-danger-scale.sql."
+    },
+    {
+      "sig": "hr_danger_end_stamp()",
+      "name": "hr_danger_end_stamp",
+      "tracked_by": [
+        "pin",
+        "restate"
+      ],
+      "touched_by": [
+        "1056-danger-scale.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "4ef39c36fddfe3d305af2602206de186",
+        "norm_len": 1050,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1056-danger-scale.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1056-danger-scale.sql."
+    },
+    {
+      "sig": "hr_danger_freeze()",
+      "name": "hr_danger_freeze",
+      "tracked_by": [
+        "pin",
+        "restate"
+      ],
+      "touched_by": [
+        "1056-danger-scale.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "558f34b234943621204c4ac201f14d2f",
+        "norm_len": 1854,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1056-danger-scale.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1056-danger-scale.sql."
+    },
+    {
+      "sig": "hr_danger_hours_for(p_level integer)",
+      "name": "hr_danger_hours_for",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1055-danger-scale-danger-catalogue.generated.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "66013cbe25fb217e8be6b922c23299d6",
+        "norm_len": 882,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1055-danger-scale-danger-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1055-danger-scale-danger-catalogue.generated.sql."
+    },
+    {
+      "sig": "hr_danger_level_xp_max(p_level integer)",
+      "name": "hr_danger_level_xp_max",
+      "tracked_by": [
+        "pin",
+        "restate"
+      ],
+      "touched_by": [
+        "1055-danger-scale-danger-catalogue.generated.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "a09a6196e3ea257c03ae132f1f9e7322",
+        "norm_len": 756,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1055-danger-scale-danger-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1055-danger-scale-danger-catalogue.generated.sql."
+    },
+    {
+      "sig": "hr_danger_of(p_instance uuid)",
+      "name": "hr_danger_of",
+      "tracked_by": [
+        "pin",
+        "restate"
+      ],
+      "touched_by": [
+        "1056-danger-scale.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "bdec6fdbc303df8354f653fd068dc055",
+        "norm_len": 493,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1056-danger-scale.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1056-danger-scale.sql."
+    },
+    {
+      "sig": "hr_danger_view(p_user uuid, p_slot integer)",
+      "name": "hr_danger_view",
+      "tracked_by": [
+        "pin",
+        "restate"
+      ],
+      "touched_by": [
+        "1056-danger-scale.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "9f14230d45f46da1b6bbba1ebe534482",
+        "norm_len": 1493,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1056-danger-scale.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1056-danger-scale.sql."
+    },
+    {
+      "sig": "hr_danger_world(p_world text)",
+      "name": "hr_danger_world",
+      "tracked_by": [
+        "pin",
+        "restate"
+      ],
+      "touched_by": [
+        "1056-danger-scale.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "d9f6c6787fc91789ad22dbf095978f56",
+        "norm_len": 944,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1056-danger-scale.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1056-danger-scale.sql."
+    },
+    {
       "sig": "hr_day_budget_check(p_user uuid, p_slot integer, p_gold_in bigint, p_xp_in bigint, p_qty_in bigint, p_gems_in bigint)",
       "name": "hr_day_budget_check",
       "tracked_by": [
@@ -8024,6 +8175,7 @@
       "touched_by": [
         "1005-lever-horizon.sql",
         "1053-hunt-report.sql",
+        "1056-danger-scale.sql",
         "2026-10-23-hunt-world-state.sql",
         "2026-10-25-settle-hooks.sql",
         "2026-10-27-core-bodies.sql",
@@ -8053,12 +8205,12 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "e62a7cc8cd7034cae66d0d184e82c5cf",
-        "norm_len": 42183,
+        "md5": "d8d2ab7ea6312b260d6fdf89fb0bdd73",
+        "norm_len": 43455,
         "source": "computed-from-replay"
       },
       "agree": false,
-      "why": "STAGED for the v0.2.144 release by 1005-lever-horizon.sql, 1053-hunt-report.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body, replay is the staged body from 1053-hunt-report.sql."
+      "why": "STAGED for the v0.2.144 release by 1005-lever-horizon.sql, 1053-hunt-report.sql, 1056-danger-scale.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body, replay is the staged body from 1056-danger-scale.sql."
     },
     {
       "sig": "hr_hunt_bag_fuse()",
@@ -8704,6 +8856,7 @@
         "1025-own-heroes-apart.sql",
         "1046-settle-plans.sql",
         "1053-lever-gates.sql",
+        "1056-danger-scale.sql",
         "2026-10-23-hunt-world-state.sql",
         "2026-11-01-party-leader-density.sql",
         "2026-11-16-hunt-density-bounds.sql",
@@ -8726,12 +8879,12 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "bc33e8dd5ddbb7b6e285f5b2847c0127",
-        "norm_len": 7318,
+        "md5": "93b4e9b6910d8e7319f4d4e5a10eb87f",
+        "norm_len": 7503,
         "source": "computed-from-replay"
       },
       "agree": false,
-      "why": "STAGED for the v0.2.144 release by 1005-lever-horizon.sql, 1025-own-heroes-apart.sql, 1046-settle-plans.sql, 1053-lever-gates.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body, replay is the staged body from 1053-lever-gates.sql."
+      "why": "STAGED for the v0.2.144 release by 1005-lever-horizon.sql, 1025-own-heroes-apart.sql, 1046-settle-plans.sql, 1053-lever-gates.sql, 1056-danger-scale.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body, replay is the staged body from 1056-danger-scale.sql."
     },
     {
       "sig": "hr_hunt_instance_solo()",
@@ -9890,6 +10043,25 @@
         "source": "computed-from-replay"
       },
       "agree": true
+    },
+    {
+      "sig": "hr_hunt_risk_set(p_slot integer, p_risk text, p_idem uuid)",
+      "name": "hr_hunt_risk_set",
+      "tracked_by": [
+        "pin",
+        "restate"
+      ],
+      "touched_by": [
+        "1056-danger-scale.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "a4d9110d6a90066d88d005b0f57d2abb",
+        "norm_len": 2851,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1056-danger-scale.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1056-danger-scale.sql."
     },
     {
       "sig": "hr_hunt_role_default(p_role text, p_party text[])",

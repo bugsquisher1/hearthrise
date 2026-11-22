@@ -19,6 +19,7 @@ import { CHEST_ITEM_ROWS, towerWeaponItems } from './chests.js';
 import { FIST_LINE, FIST_ITEMS } from './fists.js';
 import { catacombArmorItems, CATACOMB_ARMOR_SHIPPED } from './catacomb-armor.js';
 import { PATTERN_ITEMS } from './patterns.js';
+import { scaleItemLevels } from './danger.js';
 
 export const ITEMS={
   /* b215: the generated tier ladder (7 material tiers × every armour slot ×
@@ -858,6 +859,15 @@ for (const [id, row] of Object.entries(towerWeaponItems(ITEMS))) {
 for (const [id, row] of Object.entries(catacombArmorItems(ITEMS, CATACOMB_ARMOR_SHIPPED))) {
   if (Object.prototype.hasOwnProperty.call(ITEMS, id)) throw new Error('catacomb armor ' + id + ' is already an item');
   ITEMS[id] = row;
+}
+
+/* THE ITEM LEVEL OF A SCALE GROUND'S DROP (src/data/danger.js scaleItemLevels; lane/r10-more-grounds, 12-targets.md 3.3 and 8): every piece a
+   Danger-scale ground drops carries that ground's base item Level as `iL`, the one number the power step reads there. Off the scale nothing
+   reads it. The ladder's rows and the named Catacomb pieces only; a piece no scale ground drops keeps none (its reqLv stands in). */
+{
+  const ladder = Object.fromEntries(Object.keys({ ...GEAR_ITEMS, ...SLOT_ITEMS, ...SHIELD_ITEMS }).map((id) => [id, ITEMS[id]]));
+  const named = Object.fromEntries(Object.entries(ITEMS).filter(([, it]) => it && it.catacombTier));
+  for (const [id, iL] of Object.entries(scaleItemLevels(ladder, named))) ITEMS[id] = { ...ITEMS[id], iL };
 }
 
 /* ══════════════════════════════════════════════════════════════════════

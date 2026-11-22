@@ -2,7 +2,7 @@
 // ════════════════════════════════════════════════════════════════════════
 // tools/balance-program/redesign/v1-climb.mjs — THE ROADMAP'S PROBE V1, ON THE REAL ENGINE (lane/v1-climb, 2026-11-21).
 //
-//   node tools/balance-program/redesign/v1-climb.mjs [--seeds 8] [--hours 12] [--workers 8] [--json <file>] [--only id,id]
+//   node tools/balance-program/redesign/v1-climb.mjs [--seeds 8] [--hours 12] [--workers 8] [--json <file>] [--only id,id] [--gear low|mid|bis]
 //
 // docs/design/redesign/05-roadmap.md stage 4, V1 "the climb": a four settles at a step, a small change in power moves that step, and a fall
 // back comes before a wipe on Careful and Steady. Every number is read off the engine's own `danger` events (src/core/hunt/danger.js: one
@@ -33,6 +33,9 @@ const arg = (k, d = null) => { const i = argv.indexOf('--' + k); return i >= 0 &
 const SEEDS = Number(arg('seeds', 8)), HOURS = Number(arg('hours', 12)), WORKERS = Number(arg('workers', 8)), SETTLE_H = Number(arg('settle', 4));
 const GROUND = arg('ground', 'muster_barrows'), L = Number(arg('level', 60)), L2 = Number(arg('level2', 70)), ABOVE = Number(arg('above', 680));
 const ONLY = arg('only') ? arg('only').split(',') : null;
+/* --gear low|mid|bis (lane/r10): every cell's kit state (grid-kit.mjs), MID by default. A ground's band reads LOW at its entry Level (a fresh
+   company) and BIS at its top Level (a strong four): tools/balance-program/redesign/r10 */
+const KIT = arg('gear', 'mid');
 const STYLES = ['hammer', 'bow', 'mage', 'healer'];
 const RISKS = arg('risks') ? arg('risks').split(',') : ['careful', 'steady', 'bold'];
 
@@ -71,7 +74,7 @@ const jobs = [], cells = [];
 for (const v of variants) for (const risk of v.risks) {
   const id = v.id + ':' + risk;
   if (ONLY && !ONLY.includes(v.id) && !ONLY.includes(id)) continue;
-  const b = buildCell(D, K, { L: v.L, gear: 'mid', styles: STYLES, tier: 'normal', ground: GROUND, ...(v.step ? { step: v.step } : {}) });
+  const b = buildCell(D, K, { L: v.L, gear: KIT, styles: STYLES, tier: 'normal', ground: GROUND, ...(v.step ? { step: v.step } : {}) });
   const start = startOf(id, v);
   const cell = { ...b.cell, options: { risk, danger: start }, hours: HOURS, seeds: 1, trace: true };
   cells.push({ id, variant: v.id, risk, L: v.L, start });

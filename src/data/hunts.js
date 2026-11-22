@@ -66,6 +66,7 @@
 // and then every pack's hunt (src/data/grounds/index.js), its id the pack's and `staged` while the pack is.
 // ════════════════════════════════════════════════════════════════════════
 import { GROUND_PACKS } from './grounds/index.js';
+import { CATACOMB_WING_HUNTS } from './catacomb-wings.js';
 import { TRAINING_PLACES, TRAINING_SKILLS, trainingHuntId } from './training.js';
 import { SKILLS_DEF } from './skills.js';
 import { TOWER_RULES, CATACOMB_RULES, CATACOMB_WINGS } from './tower.js';
@@ -171,6 +172,11 @@ export const HUNTS = Object.freeze([...BASE_HUNTS, ...GROUND_PACKS.map((p) => {
   if (taken.has(p.id)) throw new Error('ground pack ' + p.id + ': hunt id ' + p.id + ' is already taken; a pack only adds');
   taken.add(p.id);
   return packHunt(p);
+}), ...CATACOMB_WING_HUNTS.map((h) => {
+  /* the Catacombs' two wings (src/data/catacomb-wings.js), staged with their pack */
+  if (taken.has(h.id)) throw new Error('catacomb wing ' + h.id + ': hunt id is already taken');
+  taken.add(h.id);
+  return h;
 })]);
 
 /** The hunts a player can see and enter: every row not `staged`. */

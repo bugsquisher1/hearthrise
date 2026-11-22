@@ -224,6 +224,8 @@
     "node tools/mutant-gate.mjs node tools/balance-program/census.mjs --selftest": "economy-selftests",
     "node tools/mutant-gate.mjs node tools/balance-program/formulas/architecture-register.mjs --selftest": "economy-selftests",
     "node tools/mutant-gate.mjs node tools/balance-program/formulas/combat-register.mjs --selftest": "economy-selftests",
+    "node tools/mutant-gate.mjs node tools/balance-program/levers.mjs --selftest": "economy-selftests",
+    "node tools/balance-program/levers.mjs --check": "economy-selftests",
     "node tools/mutant-gate.mjs node tools/balance-program/paths.mjs --selftest": "economy-selftests",
     "node tools/mutant-gate.mjs node tools/balance-program/platform-cost.mjs --selftest": "economy-selftests",
     "node tools/mutant-gate.mjs node tools/balance-program/progression-grid.mjs --selftest": "economy-selftests",

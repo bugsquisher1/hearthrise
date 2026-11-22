@@ -120,7 +120,10 @@ const SEED = '-4611686018427387904';
    RE-PINNED 2026-11-22 (lane/v1-climb wave 1), THE STORED WORLD STRING ONLY: every pack carries its Danger count of the fallen (danger.js
    PERSISTED pack `down`, 0 on every tier hunt: only a pack row falling on the scale counts). Timeline, tally and kills hold at every
    settle of the four scenarios (207 / 486 / 139 / 104), compared to the pin before; the scale's pay, coin and cleared-pull rule run only
-   on a world with a stance, and no scenario plans one. */
+   on a world with a stance, and no scenario plans one.
+   RE-PINNED 2026-11-22 (lane/r2-danger-falls), THE STORED WORLD STRING ONLY: the world carries what a fall back names (danger.js PERSISTED
+   world `lowHero`, `lowBy`: null and '' on every tier hunt). Diffed against the pin before: only the 4 x 12 `each` world hashes and the 4
+   chain world hashes moved; every timeline and tally hash and every kill count (207 / 486 / 139 / 104) held. No scenario plans a stance. */
 const SCENARIOS = Object.freeze({
   'warrens-4': { hunt: 'coppercap_warrens', L: 40, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },
   'glade-4': { hunt: 'mosslight_glade', L: 24, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },

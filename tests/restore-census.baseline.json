@@ -1644,7 +1644,7 @@
   },
   "hr_hunt_limits": {
    "class": "seeded",
-   "replay": 47,
+   "replay": 48,
    "note": "Generated catalogue (2026-10-21-hunt-sessions-catalogue.generated.sql (tools/gen-hunt-sessions.mjs --check from src/data)): the session limits (presets, slots, conditions, bag lines, falls and hours ranges, cooldowns, vigour_low threshold, sessions kept). Every RPC reads them; a missing key fails the RPC closed. Rebuilt from repo, never restored; nothing player-owned."
   },
   "hr_hunt_resumable_kinds": {
@@ -2122,6 +2122,11 @@
    "class": "operational",
    "wiped_at_cutover": false,
    "note": "THE WORLD TICK ROSTER CURSOR, ONE ROW PER SHARD - created 2026-10-11-world-tick-shards.sql, ships EMPTY. Where the next fire resumes when a shard's due set exceeds batch_limit (the keyset that used to be three columns on hr_tick_config). Written only by hr_tick_cron_run (SECURITY DEFINER, owner-only). No player value: who is due is read from player_state.accrued_to and hr_tick_ownership every fire, and the fence decides every payment. Coming back EMPTY costs one pass from the start of each shard's roster (every character is still served, furthest-behind first). RLS enabled AND forced, zero policies, zero grants."
+  },
+  "hr_time_blocks": {
+   "class": "seeded",
+   "replay": 1,
+   "note": "Generated catalogue (1058-hunting-blocks-catalogue.generated.sql, tools/gen-time-blocks.mjs from src/data/time-blocks.js): one row per kind of bought time ('hunt': a 2 h block, 2 a day, x1.5 each, its price levers). Empty, hr_time_buy refuses every kind (bad_kind) and the time_blocks section is null: no block can be bought, no gold moves. Rebuilt from repo, never restored."
   },
   "hr_titles": {
    "class": "seeded",

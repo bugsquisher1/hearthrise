@@ -14,6 +14,9 @@
 -- rewritten whole, the functions restated, so a second apply is byte-identical. No begin/commit (CLAUDE.md §2).
 -- EXPLOIT SURFACE: none added. Catalogue tables, RLS on, no policy, no grant to any client role; two internal functions revoked from
 -- every client role. No value moves here.
+-- DEFAULT (lane/r2-danger-falls, backend-architect, 2026-11-22; 02 package 8, "the first party ground runs on Steady"): hr_danger_rules.default_risk,
+-- the stance a hunt on the scale plays when its leader's plan names none (src/data/danger.js DEFAULT_RISK), read by 1057-danger-falls.sql's
+-- hr_danger_freeze. The column is made if missing (an older apply of this file), so a second apply is byte-identical.
 -- REVERSIBLE: drop the two functions and the three tables (after 1056's readers are gone).
 -- ════════════════════════════════════════════════════════════════════════
 
@@ -42,8 +45,10 @@ create table if not exists public.hr_danger_rules (
   gap_max           int not null check (gap_max >= 0),
   ref_kills_head    int not null check (ref_kills_head >= 1),
   hours_at          numeric[] not null check (cardinality(hours_at) >= 1),
-  hours_per         numeric[] not null check (cardinality(hours_per) >= 1 and 0 < all (hours_per))
+  hours_per         numeric[] not null check (cardinality(hours_per) >= 1 and 0 < all (hours_per)),
+  default_risk      text not null check (default_risk ~ '^[a-z0-9_]{1,64}$')
 );
+alter table public.hr_danger_rules add column if not exists default_risk text;
 create table if not exists public.hr_danger_stances (
   risk        text primary key check (risk ~ '^[a-z0-9_]{1,64}$'),
   rank        int  not null unique check (rank >= 0),
@@ -69,9 +74,9 @@ comment on table public.hr_danger_grounds is '1055-danger-scale-danger-catalogue
 -- ── §2 THE ROWS ──────────────────────────────────────────────────────────────
 delete from public.hr_danger_rules;
 insert into public.hr_danger_rules (id, step_max, pull_max, respawn_ms, start_margin, climb_max, clean_run, regroup_ms, power_step_ppm, pay_step_xp_ppm,
-  pay_step_coin_ppm, gap_max, ref_kills_head, hours_at, hours_per) values
+  pay_step_coin_ppm, gap_max, ref_kills_head, hours_at, hours_per, default_risk) values
   (true, 4000, 8, 15000, 20, 8, 2, 1500, 3500, 7000,
-   7000, 120, 120, '{5,17.5,37.5,75,150,250,400,625,875}'::numeric[], '{0.6,2,5.28,8.64,10.8,14.4,18,26.88,40.32}'::numeric[]);
+   7000, 120, 120, '{5,17.5,37.5,75,150,250,400,625,875}'::numeric[], '{0.6,2,5.28,8.64,10.8,14.4,18,26.88,40.32}'::numeric[], 'steady');
 delete from public.hr_danger_stances;
 insert into public.hr_danger_stances (risk, rank, fall_pm, clean_pm, after_death) values
   ('careful', 0, 450, 650, 'careful'),
@@ -135,6 +140,8 @@ begin
     raise exception 'VERIFY(a): a Danger ground is no hunt ground'; end if;
   if exists (select 1 from public.hr_danger_stances s left join public.hr_danger_stances a on a.risk = s.after_death where a.risk is null or a.rank > s.rank) then
     raise exception 'VERIFY(a): a death settles a stance to a bolder one or none'; end if;
+  if not exists (select 1 from public.hr_danger_rules r join public.hr_danger_stances s on s.risk = r.default_risk where r.id) then
+    raise exception 'VERIFY(a): the default stance is no stance'; end if;
   if exists (select 1 from unnest(array['anon', 'authenticated']) g(r)
               where has_table_privilege(g.r, 'public.hr_danger_rules', 'select') or has_table_privilege(g.r, 'public.hr_danger_stances', 'select')
                  or has_table_privilege(g.r, 'public.hr_danger_grounds', 'select')

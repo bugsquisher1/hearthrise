@@ -14,12 +14,21 @@
 //   DZ-2 THE SECTION: a reload's `danger` section names the frozen stance, the start and the stored world's step (the server's numbers).
 //   DZ-3 THE END: the session ends with the world's stance and step stamped on its row, and the hero's held step on the ground is that step.
 //   DZ-4 A FOUR: the leader's stance is the party's, and the party opens a margin under its LOWEST held step (a weaker hero sets the start).
-//   DZ-5 OFF THE SCALE: the same hero with no stance freezes nothing, and the engine's world plays its tier ('' stance).
+//   DZ-5 THE DEFAULT (1057-danger-falls.sql, the Coordinator's R2 add-on; 02 package 8): the same hero whose plan names NO stance, and sends no
+//        verb, plays the catalogue's default (src/data/danger.js DEFAULT_RISK, Steady) on Muster, browser closed and hunt viewed: the
+//        instance froze it, every window landed, and the two doors store the same world on the scale. (A ground off the scale freezes nothing:
+//        1057's §7 f, and 1056's §6 i.)
+//   DZ-6 THE FALLS, BOTH PATHS (R2, 1057-danger-falls.sql): a four with no stance that last held step 760 (far past its edge) opens at 740 and
+//        falls back. Browser closed in 90 s windows and hunt viewed in 45 s windows, to the same instant: every seat's session stores the SAME
+//        report `falls` and `deep` on both doors (the engine names each fall's hero by seat and its monster; the server folds them), byte for
+//        byte; there are falls (control), at most report_falls_max of them, each a seat of the four and a monster of the ground, the deepest
+//        step the start; and the `hunt` section names each fall's hero by the character that held the seat.
 import { isMain } from './_is-main.mjs';
 import { bootReplay } from './schema-replay.mjs';
 import { prepare } from '../tools/settle-cost.mjs';
 import { decodeStored } from '../src/core/hunt/world-state.js';
-import { DANGER, CLIMB } from '../src/data/danger.js';
+import { DANGER, CLIMB, DEFAULT_RISK } from '../src/data/danger.js';
+import { HUNT_REPORT } from '../src/data/hunt-report.js';
 import { levelShareXp } from '../src/core/hunt/danger.js';
 import { HUNT_GROUNDS } from '../src/data/hunt-grounds.js';
 
@@ -47,10 +56,11 @@ const planWith = (risk, held) => async ({ db, uids, asUser, one: q, idem: id }) 
 };
 
 async function door(db, which, o = {}) {
-  const run = await prepare({ heroes: o.heroes || 1, windows: WINDOWS, hunt: MUSTER, door: which, db, level: 60, anchorMs: ANCHOR, gear: GEAR,
+  const windows = o.windows || WINDOWS;
+  const run = await prepare({ heroes: o.heroes || 1, windows, ...(o.windowMs ? { windowMs: o.windowMs } : {}), hunt: MUSTER, door: which, db, level: 60, anchorMs: ANCHOR, gear: GEAR,
     beforeEnter: planWith(o.risk === undefined ? 'steady' : o.risk, o.held || [HELD]) });
   await run.warm();
-  for (let w = 2; w <= WINDOWS + 1; w++) await run.step(w);
+  for (let w = 2; w <= windows + 1; w++) await run.step(w);
   const row = (await db.query(`select i.id, i.risk, i.danger, i.danger_top, i.refusals, i.world::text as world, s.user_id, s.id as sid
       from public.hunt_instances i join public.hunt_sessions s on s.instance_id = i.id where i.hunt_id = $1 order by s.entered_at, s.user_id limit 1`, [MUSTER])).rows[0];
   const xp = Number(await one(db, 'select level_xp - public.hr_char_xp_for_level(60) from public.player_state where user_id = $1 and slot = 0', [row.user_id]));
@@ -100,10 +110,51 @@ async function aFour(boot) {
   return problems;
 }
 
-async function offScale(boot) {
-  const r = await door((await boot()).db, 'fire', { risk: null });
-  const w = r.world ? decodeStored(JSON.parse(r.world)) : null;
-  return r.risk === null && r.danger === null && w && w.risk === '' ? [] : ['DZ-5 a hunt with no stance froze ' + r.risk + ' at ' + r.danger + ' and its world plays ' + JSON.stringify(w && w.risk)];
+async function byDefault(boot) {
+  const problems = [];
+  const closed = await door((await boot()).db, 'fire', { risk: null });
+  const viewed = await door((await boot()).db, 'viewed', { risk: null });
+  for (const [name, r] of [['browser closed', closed], ['hunt viewed', viewed]]) {
+    const w = r.world ? decodeStored(JSON.parse(r.world)) : null;
+    if (r.risk !== DEFAULT_RISK || r.danger !== HELD - DANGER.startMargin) problems.push('DZ-5 ' + name + ': a plan with no stance froze ' + r.risk + ' at ' + r.danger + ', not the default ' + DEFAULT_RISK + ' at ' + (HELD - DANGER.startMargin));
+    if (Number(r.refusals) !== 0) problems.push('DZ-5 ' + name + ': ' + r.refusals + ' window(s) refused');
+    if (!w || !w.risk) problems.push('DZ-5 ' + name + ': the stored world plays ' + JSON.stringify(w && w.risk) + ', not the scale');
+  }
+  if (closed.world !== viewed.world) problems.push('DZ-5 the two doors stored different worlds');
+  return problems;
+}
+
+/* DZ-6: each seat's stored report, its `falls` and `deep`, on one door */
+async function fallsOf(db) {
+  return (await db.query(`select s.seat, s.id, t.report->'falls' as falls, t.report->'deep' as deep from public.hunt_sessions s
+      join public.hunt_session_tally t on t.session_id = s.id where s.hunt_id = $1 order by s.seat`, [MUSTER])).rows;
+}
+async function fallsBothPaths(boot) {
+  const problems = [];
+  const DEEP = 760, START = DEEP - DANGER.startMargin;
+  const closed = await door((await boot()).db, 'fire', { heroes: 4, risk: null, held: [DEEP, DEEP, DEEP, DEEP], windows: 3, windowMs: 90000 });
+  const viewed = await door((await boot()).db, 'viewed', { heroes: 4, risk: null, held: [DEEP, DEEP, DEEP, DEEP], windows: 7, windowMs: 45000 });
+  for (const [name, r] of [['browser closed', closed], ['hunt viewed', viewed]]) if (Number(r.refusals) !== 0) problems.push('DZ-6 ' + name + ': ' + r.refusals + ' window(s) refused');
+  const a = await fallsOf(closed.db), b = await fallsOf(viewed.db);
+  const canon = (rows) => JSON.stringify(rows.map((x) => [x.seat, x.falls, x.deep]));
+  if (canon(a) !== canon(b)) problems.push('DZ-6 the browser closed stored ' + canon(a).slice(0, 300) + '\n      the hunt viewed ' + canon(b).slice(0, 300));
+  const monsters = new Set((await closed.db.query('select monster_id from public.hr_hunt_ground_spawns where hunt_id = $1', [MUSTER])).rows.map((x) => x.monster_id));
+  if (a.length !== 4) problems.push('DZ-6 CONTROL: ' + a.length + ' seats hold a report');
+  for (const x of a) {
+    const falls = Array.isArray(x.falls) ? x.falls : [];
+    if (!falls.length) { problems.push('DZ-6 CONTROL: seat ' + x.seat + ' stored no fall back from step ' + START); continue; }
+    if (falls.length > HUNT_REPORT.fallsMax) problems.push('DZ-6 seat ' + x.seat + ' stored ' + falls.length + ' falls, past ' + HUNT_REPORT.fallsMax);
+    if (x.deep !== START) problems.push('DZ-6 seat ' + x.seat + '\'s deepest step reads ' + x.deep + ', the start was ' + START);
+    for (const f of falls) {
+      if (!(Number.isInteger(f.hero) && f.hero >= 0 && f.hero < 4) || !monsters.has(f.monster) || !(f.to < f.from) || !(f.pm < 1000)) problems.push('DZ-6 seat ' + x.seat + ' stored a fall ' + JSON.stringify(f));
+    }
+    if (canon([{ ...x, seat: 0 }]) !== canon([{ ...a[0], seat: 0 }])) problems.push('DZ-6 seat ' + x.seat + ' holds other falls than seat 0: every hero carries the company\'s');
+  }
+  /* the `hunt` section names each fall's hero: the character that held the seat */
+  const v = await one(closed.db, `select public.hr_hunt_view($1::uuid)->'tally'->'report'->'falls'`, [a[0].id]);
+  const names = new Map((await closed.db.query('select seat, public.hr_character_name(user_id, slot) as name from public.hunt_sessions where hunt_id = $1', [MUSTER])).rows.map((x) => [x.seat, x.name]));
+  if (!Array.isArray(v) || !v.length || v.some((f) => !f.name || f.name !== names.get(f.hero))) problems.push('DZ-6 the hunt section names ' + JSON.stringify((v || []).map((f) => [f.hero, f.name])) + ', the seats ' + JSON.stringify([...names]));
+  return problems;
 }
 
 /* SQL mutants, patched into the booted replay: the body as it landed, one change. */
@@ -114,7 +165,12 @@ const MUTANTS = [
   { name: 'the end never stamps the held step', fn: 'public.hr_danger_end_stamp()', find: 'on conflict (user_id, slot, hunt_id) do update set danger_held = excluded.danger_held;', repl: 'on conflict (user_id, slot, hunt_id) do nothing;', want: /^DZ-3/ },
   { name: 'the section reads the plan for the hunt', fn: 'public.hr_danger_view(uuid,integer)', find: "'step', coalesce(case when jsonb_typeof(v_w->'step') = 'number' then (v_w->>'step')::int end, v_i.danger),", repl: "'step', v_i.danger,", want: /^DZ-2/ },
   { name: 'a party starts at its leader\'s held step', fn: 'public.hr_danger_freeze()', find: 'select m.user_id, m.slot from public.hunt_party_members m where m.party_id = new.instance_id\n          union ', repl: '', want: /^DZ-4/, four: true },
-  { name: 'a hunt with no stance opens on one', fn: 'public.hr_danger_freeze()', find: '  if v_risk is null or not exists (select 1 from public.hr_danger_stances s where s.risk = v_risk)', repl: "  v_risk := coalesce(v_risk, 'steady');\n  if v_risk is null or not exists (select 1 from public.hr_danger_stances s where s.risk = v_risk)", want: /^DZ-5/, off: true },
+  { name: 'a plan with no stance plays the tier on a scale ground', fn: 'public.hr_danger_freeze()', find: '    select r.default_risk into v_risk from public.hr_danger_rules r where r.id;\n', repl: '', want: /^DZ-5/, off: true },
+  /* R2: the falls (1057-danger-falls.sql) */
+  { name: 'the fold keeps the stored falls only', fn: 'public.hr_hunt_report_add(jsonb,jsonb)', find: "then b->'falls' else '[]'::jsonb end)) u", repl: "then '[]'::jsonb else '[]'::jsonb end)) u", want: /^DZ-6/, falls: true },
+  { name: 'the fold keeps every fall', fn: 'public.hr_hunt_report_add(jsonb,jsonb)', find: 'order by d.at desc limit v_max) k;', repl: 'order by d.at desc) k;', want: /^DZ-6/, falls: true },
+  { name: 'the shape refuses every fall', fn: 'public.hr_hunt_report_ok(jsonb)', find: "        if jsonb_typeof(v_v) <> 'array' then return false; end if;\n        if jsonb_array_length(v_v) < 1", repl: "        return false;\n        if jsonb_array_length(v_v) < 1", want: /^(DZ-6|THREW)/, falls: true },
+  { name: 'the section names nobody', fn: 'public.hr_hunt_view(uuid)', find: 'select public.hr_character_name(o.user_id, o.slot) from public.hunt_sessions o\n                                           where o.instance_id = s.instance_id and o.seat', repl: 'select null::text from public.hunt_sessions o\n                                           where o.instance_id = s.instance_id and o.seat', want: /^DZ-6/, falls: true },
 ];
 
 async function main() {
@@ -129,7 +185,7 @@ async function main() {
         return b;
       };
       let got = [];
-      try { got = m.four ? await aFour(boot) : m.off ? await offScale(boot) : await bothPaths(boot); } catch (e) { got = ['THREW ' + String(e && e.message).slice(0, 200)]; }
+      try { got = m.four ? await aFour(boot) : m.off ? await byDefault(boot) : m.falls ? await fallsBothPaths(boot) : await bothPaths(boot); } catch (e) { got = ['THREW ' + String(e && e.message).slice(0, 200)]; }
       if (got.some((p) => /HARNESS/.test(p))) { console.log('  HARNESS ' + m.name + ': ' + got[0]); process.exitCode = 2; return; }
       const hit = got.some((p) => m.want.test(p));
       if (!hit) escaped++;
@@ -140,9 +196,9 @@ async function main() {
     return;
   }
   const boot = () => bootReplay();
-  const problems = [...await bothPaths(boot), ...await aFour(boot), ...await offScale(boot)];
+  const problems = [...await bothPaths(boot), ...await aFour(boot), ...await byDefault(boot), ...await fallsBothPaths(boot)];
   for (const p of problems) console.log('FAIL  ' + p);
-  console.log(problems.length ? 'danger-db: ' + problems.length + ' FAILED' : 'danger-db: green (both paths, the section, the end stamp, a four from its lowest held step, off the scale)');
+  console.log(problems.length ? 'danger-db: ' + problems.length + ' FAILED' : 'danger-db: green (both paths, the section, the end stamp, a four from its lowest held step, the default stance, the falls both paths)');
   process.exitCode = problems.length ? 1 : 0;
 }
 

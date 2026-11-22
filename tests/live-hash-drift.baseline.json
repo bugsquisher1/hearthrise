@@ -25,10 +25,10 @@
   },
   "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
   "live_measured": "2026-11-20",
-  "replay_ms": 10699,
+  "replay_ms": 2085,
   "counts": {
-    "tracked_names": 1054,
-    "entries": 887
+    "tracked_names": 1058,
+    "entries": 891
   },
   "functions": [
     {
@@ -4929,16 +4929,17 @@
         "restate"
       ],
       "touched_by": [
-        "1056-danger-scale.sql"
+        "1056-danger-scale.sql",
+        "1057-danger-falls.sql"
       ],
       "live": null,
       "replay": {
-        "md5": "558f34b234943621204c4ac201f14d2f",
-        "norm_len": 1854,
+        "md5": "9045ec88a312e2e61a42730ced202683",
+        "norm_len": 2311,
         "source": "computed-from-replay"
       },
       "agree": false,
-      "why": "STAGED for the v0.2.144 release by 1056-danger-scale.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1056-danger-scale.sql."
+      "why": "STAGED for the v0.2.144 release by 1056-danger-scale.sql, 1057-danger-falls.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1057-danger-falls.sql."
     },
     {
       "sig": "hr_danger_hours_for(p_level integer)",
@@ -8065,6 +8066,7 @@
       ],
       "touched_by": [
         "1053-hunt-report.sql",
+        "1057-danger-falls.sql",
         "2026-10-26-hunt-analyzer-basic.sql",
         "2026-11-04-hunt-bests.sql",
         "2027-02-11-settle-plan-cache-2.generated.sql"
@@ -8076,12 +8078,12 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "7c58ef96c0bdccd0b932f3d4892231b2",
-        "norm_len": 1626,
+        "md5": "560e18a0014ac46a71bcb6f2cb122839",
+        "norm_len": 1918,
         "source": "computed-from-replay"
       },
       "agree": false,
-      "why": "STAGED for the v0.2.144 release by 1053-hunt-report.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body, replay is the staged body from 1053-hunt-report.sql."
+      "why": "STAGED for the v0.2.144 release by 1053-hunt-report.sql, 1057-danger-falls.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body, replay is the staged body from 1057-danger-falls.sql."
     },
     {
       "sig": "hr_hunt_analyzer_of(p_user uuid, p_slot integer, p_session uuid)",
@@ -9943,16 +9945,17 @@
         "restate"
       ],
       "touched_by": [
-        "1053-hunt-report.sql"
+        "1053-hunt-report.sql",
+        "1057-danger-falls.sql"
       ],
       "live": null,
       "replay": {
-        "md5": "28a5ef42a170b66c447cc4200368d50a",
-        "norm_len": 2911,
+        "md5": "e3517deaef68465bae54e6e0400313a2",
+        "norm_len": 3821,
         "source": "computed-from-replay"
       },
       "agree": false,
-      "why": "STAGED for the v0.2.144 release by 1053-hunt-report.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1053-hunt-report.sql."
+      "why": "STAGED for the v0.2.144 release by 1053-hunt-report.sql, 1057-danger-falls.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1057-danger-falls.sql."
     },
     {
       "sig": "hr_hunt_report_ok(p jsonb)",
@@ -9962,16 +9965,17 @@
         "restate"
       ],
       "touched_by": [
-        "1053-hunt-report.sql"
+        "1053-hunt-report.sql",
+        "1057-danger-falls.sql"
       ],
       "live": null,
       "replay": {
-        "md5": "3709f1d621198c07d4982221b3474a18",
-        "norm_len": 3148,
+        "md5": "e63872acc19c3f19a8a3d792352025b0",
+        "norm_len": 5303,
         "source": "computed-from-replay"
       },
       "agree": false,
-      "why": "STAGED for the v0.2.144 release by 1053-hunt-report.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1053-hunt-report.sql."
+      "why": "STAGED for the v0.2.144 release by 1053-hunt-report.sql, 1057-danger-falls.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1057-danger-falls.sql."
     },
     {
       "sig": "hr_hunt_restart(p_slot integer, p_session uuid, p_idem uuid)",
@@ -11012,6 +11016,7 @@
       ],
       "touched_by": [
         "1053-hunt-report.sql",
+        "1057-danger-falls.sql",
         "2026-10-21-hunt-sessions.sql",
         "2026-10-22-hunt-sessions-settle.sql",
         "2026-10-23-hunt-world-state.sql",
@@ -11034,12 +11039,12 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "50e1fccc854c0545522e1a04f0fe720e",
-        "norm_len": 4588,
+        "md5": "ebc7a4de197ac868f9bda339c5337634",
+        "norm_len": 5703,
         "source": "computed-from-replay"
       },
       "agree": false,
-      "why": "STAGED for the v0.2.144 release by 1053-hunt-report.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body, replay is the staged body from 1053-hunt-report.sql."
+      "why": "STAGED for the v0.2.144 release by 1053-hunt-report.sql, 1057-danger-falls.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body, replay is the staged body from 1057-danger-falls.sql."
     },
     {
       "sig": "hr_hunt_weapon_of(p_user uuid, p_slot integer)",
@@ -18216,6 +18221,78 @@
         "source": "computed-from-replay"
       },
       "agree": true
+    },
+    {
+      "sig": "hr_time_block_price(p_kind text, p_level integer, p_n integer)",
+      "name": "hr_time_block_price",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1058-hunting-blocks-catalogue.generated.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "a3e29595bf0447ca442dd233c04807b6",
+        "norm_len": 763,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1058-hunting-blocks-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1058-hunting-blocks-catalogue.generated.sql."
+    },
+    {
+      "sig": "hr_time_blocks_view(p_user uuid, p_slot integer)",
+      "name": "hr_time_blocks_view",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1058-hunting-blocks.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "da1c4ab8b1333b62b84eebf8b9b5fd8d",
+        "norm_len": 642,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1058-hunting-blocks.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1058-hunting-blocks.sql."
+    },
+    {
+      "sig": "hr_time_buy(p_kind text, p_slot integer, p_price bigint, p_idem uuid)",
+      "name": "hr_time_buy",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1058-hunting-blocks.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "fc553cb2a7cbaf8a4af2debd9824b427",
+        "norm_len": 4146,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1058-hunting-blocks.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1058-hunting-blocks.sql."
+    },
+    {
+      "sig": "hr_time_quote(p_user uuid, p_slot integer, p_kind text)",
+      "name": "hr_time_quote",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1058-hunting-blocks.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "8e6b8f36709e53190962cdfe7d1bf6f4",
+        "norm_len": 1910,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1058-hunting-blocks.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1058-hunting-blocks.sql."
     },
     {
       "sig": "hr_title_buy(p_slot integer, p_title text, p_price bigint, p_idem uuid)",

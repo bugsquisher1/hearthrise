@@ -1,6 +1,11 @@
 // ════════════════════════════════════════════════════════════════════════
 // src/data/stamina-refill.js — BUYING STAMINA WITH GOLD (Tyler 2026-10-18)
 //
+// RETIRED FROM PLAY (Tyler 2026-11-22: bought hunting is 2 h blocks, src/data/time-blocks.js). 1058-hunting-blocks.sql
+// takes hr_stamina_refill off every client; these rows stay only because 1009-approved-rows-alpha-catalogue (STAGED)
+// is generated from them (tools/gen-alpha-catalogue.mjs) and self-checks through the refill. They leave with 1009's
+// retirement (R6, 12-targets.md 2.7). Nothing a player can press reads them.
+//
 // Tyler's rules: a purchase restores up to 4 h; never above the character's
 // cap (src/data/hunt-sessions.js STAMINA_MAX_MS: 8 h free / 12 h premium); a
 // partial refill is priced pro rata to the stamina actually restored; every

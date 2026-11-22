@@ -48,7 +48,7 @@ const { BUILD } = await import(pathToFileURL(join(ROOT, 'src/build-info.js')).hr
 const BASE_ENV = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/alpha-envelope.json'), 'utf8'));
 const clone = (o) => JSON.parse(JSON.stringify(o));
 const SECTIONS = {
-  stamina_refill: { available: true, why: null, ms: 0, max_ms: 28800000, restore_ms: 14400000, price: 1400, n: 2, per_day: 6, level: 10 },
+  time_blocks: { hunt: { kind: 'hunt', available: true, why: null, ms: 0, max_ms: 36000000, ceiling_ms: 50400000, block_ms: 7200000, price: 1400, n: 2, bought: 1, per_day: 2, level: 10 } },
   blessings: { held: [1], permille: 320, free_until: 30, tiers: [
     { tier: 1, permille: 320, price: 110, held: true }, { tier: 2, permille: 630, price: 165, held: false },
     { tier: 3, permille: 950, price: 220, held: false }] },

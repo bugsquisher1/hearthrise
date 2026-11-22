@@ -104,3 +104,8 @@ export const RISKS = Object.freeze({
   steady: Object.freeze({ fallPm: 250, cleanPm: 450, afterDeath: 'careful' }),
   bold: Object.freeze({ fallPm: 120, cleanPm: 300, afterDeath: 'steady' }),
 });
+
+/* THE DEFAULT STANCE (02 package 3 and package 8, "the first party ground runs on Steady"; the Coordinator 2026-11-22, lane R2): a hunt on a
+   ground the scale opens on, whose leader's plan names no stance, plays this one. The server freezes it (hr_danger_rules.default_risk,
+   tools/gen-danger.mjs; 1057-danger-falls.sql hr_danger_freeze), so no verb is needed first; a client shows it where the plan names none. */
+export const DEFAULT_RISK = 'steady';

@@ -104,7 +104,11 @@ const SEED = '-4611686018427387904';
    blow loses fewer points to it); the Warrens' drop rows re-fitted to the slower Chief move warrens-4's tally too. Other landed blows, other rolls.
    RE-PINNED 2026-11-21 (set/v0.2.144 merged into lane/c-tohit-ratio), SEWER-2'S TALLY ONLY (kills 113 as pinned; the other three hold): the set's Level
    curve (lane/c-levels-7-9: Levels 7-20 re-cut, src/data/core-model.js LEVEL_CURVE) moves where its heroes' Levels fall. Proof: the merged tree with this
-   lane's pre-merge core-model.js laid back holds every pin (exit 0). */
+   lane's pre-merge core-model.js laid back holds every pin (exit 0).
+   RE-PINNED 2026-11-21 (lane/v1-climb, the Danger scale), THE STORED WORLD STRING ONLY: every scenario's world chain moves from settle 1 because the
+   world carries six more fields (src/core/hunt/danger.js PERSISTED: risk, danger, climb, clean, low, cool), blank on every tier hunt. Every timeline
+   and tally chain holds, kills as pinned (207 / 486 / 139 / 104): proof, the four scenarios played on this tree with the world string set aside, both
+   other chains compared to the 11-21 pin (all HOLD, and no tier hunt wrote a danger field). No scenario plans a stance. */
 const SCENARIOS = Object.freeze({
   'warrens-4': { hunt: 'coppercap_warrens', L: 40, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },
   'glade-4': { hunt: 'mosslight_glade', L: 24, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },
@@ -213,6 +217,8 @@ const WRITERS = [
   ['src/core/hunt/pull-cycle.js', 'for (const m of packMonsters(inst, p)) m.target = aimOf(inst, m, k.id);', 'startPull drops the index'],
   ['src/core/hunt/pull-cycle.js', 'w.packs[p].alive = false;', 'a pack\'s alive, not a unit\'s'],
   ['src/core/hunt/pull-cycle.js', "if (gone) { w.units = w.units.filter((u) => u.side !== 'mon' || u.alive || u.deadMs < HUNT_TUNING.corpseMs); staleIndex(inst); }", 'clearCorpses drops the index'],
+  /* the Danger scale's pull re-formed at its step's size (lane/v1-climb): the next line drops the index */
+  ['src/core/hunt/pull-cycle.js', 'w.units = w.units.filter((u) => !gone.has(u.id));', 'fitPull drops the index'],
   ['src/core/hunt/roles.js', 'if (m) h.target = m.id;', 'a hero\'s target, in no list'],
   ['src/core/hunt/targeting.js', 'm.target = id;', 'retarget drops the index'],
   ['src/core/hunt/targeting.js', 'if (!u.alive || !fighting) { u.target = null; continue; }', 'a hero\'s target, in no list'],

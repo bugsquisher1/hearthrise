@@ -59,7 +59,10 @@ export function hashFiles(root, files) {
 }
 export const hashPaths = (root, paths) => hashFiles(root, paths.flatMap((p) => filesUnder(root, p)));
 /** The harness's own files (HARNESS less TREE_OWN): one hash, equal on both sides of a fair comparison. */
-export const hashHarness = (root) => hashFiles(root, HARNESS.flatMap((p) => filesUnder(root, p)).filter((f) => !TREE_OWN.some((o) => f === o || f.startsWith(o + '/'))));
+/* the harness paths' files less the tree's own (TREE_OWN) */
+const notTreeOwn = (f) => !TREE_OWN.some((o) => f === o || f.startsWith(o + '/'));
+export const hashOwnPaths = (root, paths) => hashFiles(root, paths.flatMap((p) => filesUnder(root, p)).filter(notTreeOwn));
+export const hashHarness = (root) => hashOwnPaths(root, HARNESS);
 
 /** Export `game` into `into` and lay the harness over it. Answers the folder's tree record. */
 export function materialize({ game, into, label = null, harnessRoot, patches = [] }) {
@@ -77,7 +80,7 @@ export function materialize({ game, into, label = null, harnessRoot, patches = [
   const keep = join(into, '.baseline-tree-own');
   for (const p of TREE_OWN) if (existsSync(join(into, p))) cpSync(join(into, p), join(keep, p), { recursive: true });
   for (const p of HARNESS) {
-    const own = hashPaths(into, [p]), ours = hashPaths(harnessRoot, [p]);
+    const own = hashOwnPaths(into, [p]), ours = hashOwnPaths(harnessRoot, [p]);
     replaced[p] = { tree: own.files ? own.sha256.slice(0, 16) : null, harness: ours.sha256.slice(0, 16), same: own.sha256 === ours.sha256 };
     rmSync(join(into, p), { recursive: true, force: true });
     if (existsSync(join(harnessRoot, p))) cpSync(join(harnessRoot, p), join(into, p), { recursive: true });

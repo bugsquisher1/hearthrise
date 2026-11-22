@@ -8,9 +8,9 @@
 //   carries it from damage.js); a hero alone is never thinned
 //   in a SESSION MODE that pays part of a kill (src/data/session-modes.js xpPm; the Burning Tower's 375) the monster XP is that share
 //   of the row's before anything else (inst.xpPm, world-step.js; absent, the whole kill, exactly as before)
-// THE PARTY FACTOR (Tyler 2026-10-31: better only with different classes) is
-// src/data/party-class-xp.js, ONE table for every ground and tier (Tyler 2026-11-16), read from the
-// living heroes at each kill, never latched: a death or a leave changes the next kill.
+// THE PARTY FACTOR is src/data/party-class-xp.js, ONE table by party SIZE alone (Tyler 2026-11-21, S-10 c;
+// one table for every ground and tier since 2026-11-16), read from how many heroes are alive at each kill,
+// never latched: a death or a leave changes the next kill.
 // THE LEVEL SHARE (hunt-grounds.js underFloorSharePm) is read the same way: a seat
 // far under both the ground's floor and its party's top Level keeps less of its
 // share, and the rest is nobody's (nothing is passed to the others).
@@ -34,7 +34,7 @@
 // ============================================================
 
 import { HUNT_XP } from '../../data/hunt-xp.js';
-import { partyClassXp } from '../../data/party-class-xp.js';
+import { partySizeXp } from '../../data/party-class-xp.js';
 import { TOWER_PARTY_XP, runRulesOf } from '../../data/tower.js';
 import { underFloorSharePm } from '../../data/hunt-grounds.js';
 import { skillLevelFromXp, charLevelFromXp } from '../xp.js';
@@ -67,9 +67,9 @@ function splitKillXp(xp, heroes, sc, ground, partyPm = 1000, xpPm = 1000) {
   if (!heroes.length || xp <= 0) return out;
   /* THE MODE'S SHARE of the kill, first (never multiplied at 1000: a hunt's split is the same arithmetic it always was) */
   const raw = (xpPm === 1000 ? xp : (xp * xpPm) / 1000) / heroes.length;
-  const cell = partyClassXp(heroes.map((h) => h.role)).permille;
-  /* A RUN GROUND (the Burning Tower, a Catacomb wing) is a session mode, not a hunting ground: its own row by size (src/data/tower.js TOWER_PARTY_XP, the Tower board's §7; the descent plays the Tower's), no class
-     mix and no solo boost (the party's edge there is the floors it reaches). Every hunting ground reads the one table above (Tyler 2026-11-16). */
+  const cell = partySizeXp(heroes.length);
+  /* A RUN GROUND (the Burning Tower, a Catacomb wing) is a session mode, not a hunting ground: its own row by size (src/data/tower.js TOWER_PARTY_XP, the Tower board's §7; the descent plays the Tower's), no solo
+     boost (the party's edge there is the floors it reaches). Every hunting ground reads the one table above (Tyler 2026-11-16). */
   const base = ground && runRulesOf(ground.id) ? TOWER_PARTY_XP[Math.min(Math.max(heroes.length, 1), 4)] : cell;
   const party = heroes.length > 1 && Number.isInteger(partyPm) && partyPm > 0 && partyPm !== 1000 ? (base * partyPm) / 1000 : base;
   const top = heroes.reduce((m, h) => (Number.isInteger(h.heroLv) && h.heroLv > m ? h.heroLv : m), 0);

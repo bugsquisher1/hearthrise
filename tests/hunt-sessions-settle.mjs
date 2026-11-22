@@ -4230,7 +4230,7 @@ const DB_ARMS = {
         if (heroes !== 'tank,ranger') problems.push(path + ': the engine plays ' + heroes);
         const p = await M.HS.proposeHuntSettle(plan, plan.toMs, 0);
         /* Each share against the table's cell: the kill's XP was 2 x raw or 2 x raw + 1 (the even share floored), xp-share.js splitKillXp. */
-        const cell = M.PCX.partyClassXp(['tank', 'ranger']).permille;
+        const cell = M.PCX.partySizeXp(2);
         for (const e of p.out.events || []) if (e.type === 'xp' && e.raw > 0) {
           paid += e.amount; raw += e.raw;
           if (![e.raw, e.raw + 0.5].some((share) => e.amount === Math.floor((share * cell) / 1000 + 1e-9))) problems.push(path + ': a share of ' + e.raw + ' paid ' + e.amount + ', and the cell is ' + cell);

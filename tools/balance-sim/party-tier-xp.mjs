@@ -2,7 +2,7 @@
 // tools/balance-sim/party-tier-xp.mjs — WHAT A PARTY EARNS ON EACH TIER, against the pace contract and its own heroes alone
 // (lane/a-party-xp-tier, 2026-11-16: a mixed four on Deadly read 3.3-3.9x the contract on the engine, about 5x live;
 // lane/d-flat-party-xp, the same day: Tyler's "just balance the hunting grounds xp vs having a unique formula everywhere", so the
-// party bonus is ONE table, src/data/party-class-xp.js PARTY_CLASS_XP, and each ground's own dials carry the rest).
+// party bonus is ONE table, src/data/party-class-xp.js PARTY_SIZE_XP (by party size alone since S-10 c, 2026-11-21), and each ground's own dials carry the rest).
 //
 // Plays the REAL engine (tools/balance-sim cells, the settle the world tick runs) on every ground x tier the ground has x
 // Level (the band's floor and middle): five lone ways (tank, hammer, bow, mage, healer) at the Level and a healer 5 under,
@@ -13,7 +13,7 @@
 //   seat      a head over its best way alone (the lowest seat; printed, not the bar)
 // THE VERDICT, per ground (Tyler 2026-11-16): every Dangerous/Deadly mix at or over its heroes alone, and a mixed four (andy or the four, floor
 // or middle) on Deadly at most --cap x the contract (2.5). Normal is printed, never judged (not tuned for parties).
-// A party's Level XP is its cell times the even share (src/core/hunt/xp-share.js) and a cell moves no blow, so `--table "2=a,b;3=a,b,c;4=a,b,c,d"`
+// A party's Level XP is its cell times the even share (src/core/hunt/xp-share.js) and a cell moves no blow, so `--table "2=a;3=b;4=c"`
 // reads every party number as it would stand on that table (each mix scaled by its new cell over this tree's), the lone ones untouched. A kill's
 // share floors, so where a kill pays a few XP (the first grounds) re-measure on the edited tree, never trust the scaled read alone.
 //
@@ -37,7 +37,6 @@ const { HUNT_INDEX } = await import(u('src/data/hunts.js'));
 const T = await import(u('src/data/hunt-tiers.js'));
 const { contractXpPerH } = await import(u('src/data/balance-sheet.js'));
 const PCX = await import(u('src/data/party-class-xp.js'));
-const { STYLES } = await import(u('tools/balance-sim/gear.mjs'));
 
 const SEEDS = Number(arg('--seeds', 2)), HOURS = Number(arg('--hours', 0.5)), WORKERS = Number(arg('--workers', 4)), CAP = Number(arg('--cap', 2.5));
 const PROFILE = arg('--profile', 'played');
@@ -57,10 +56,10 @@ const PARTIES = Object.freeze({
   hammers: [['hammer', 'hammer', 'hammer', 'hammer'], [0, 0, 0, 0]],
 });
 const ONE_CLASS = new Set(['hammers']);
-/* --table: the what-if table, { n: [cells] } */
-const WHAT_IF = arg('--table', null) ? Object.fromEntries(arg('--table').split(';').map((x) => { const [n, c] = x.split('='); return [Number(n), c.split(',').map(Number)]; })) : null;
-const cellOf = (tab, ways) => { const cells = tab[Math.min(ways.length, 4)]; return cells[Math.min(Math.max(PCX.partyClassXp(ways.map((w) => STYLES[w].role)).classes.length, 1), cells.length) - 1]; };
-const kOf = (ways) => (WHAT_IF ? cellOf(WHAT_IF, ways) / cellOf(PCX.PARTY_CLASS_XP, ways) : 1);
+/* --table: the what-if table by size alone (S-10 c), { n: cell } */
+const WHAT_IF = arg('--table', null) ? Object.fromEntries(arg('--table').split(';').map((x) => { const [n, c] = x.split('='); return [Number(n), Number(c)]; })) : null;
+const cellOf = (tab, ways) => tab[Math.min(ways.length, 4)];
+const kOf = (ways) => (WHAT_IF ? cellOf(WHAT_IF, ways) / cellOf(PCX.PARTY_SIZE_XP, ways) : 1);
 
 const levelsOf = (g) => { const [lo, hi] = HUNT_INDEX[G.HUNT_GROUNDS[g].hunt].band; return [['floor', lo], ['middle', Math.round((lo + hi) / 2)]]; };
 const stagedGear = (g) => (Object.hasOwn(G.OPEN_GROUNDS, g) ? {} : { gear: { openAlso: [g] } });
@@ -113,8 +112,8 @@ const MIXES = Object.keys(PARTIES);
 const fours = (x) => x.name === 'andy' || x.name === 'four';
 
 function report(rows) {
-  const tab = WHAT_IF || PCX.PARTY_CLASS_XP;
-  console.log('party-tier-xp: the party table ' + JSON.stringify(tab) + (WHAT_IF ? ' (a what-if: this tree pays ' + JSON.stringify(PCX.PARTY_CLASS_XP) + ')' : '') + '; ' + SEEDS + ' seeds x ' + HOURS + ' h a cell; the ' + PROFILE + ' hero' + (PROFILE === 'played' ? ' (party-levelled skills, skill-lines.mjs)' : ''));
+  const tab = WHAT_IF || PCX.PARTY_SIZE_XP;
+  console.log('party-tier-xp: the party table ' + JSON.stringify(tab) + (WHAT_IF ? ' (a what-if: this tree pays ' + JSON.stringify(PCX.PARTY_SIZE_XP) + ')' : '') + '; ' + SEEDS + ' seeds x ' + HOURS + ' h a cell; the ' + PROFILE + ' hero' + (PROFILE === 'played' ? ' (party-levelled skills, skill-lines.mjs)' : ''));
   console.log('  xC = Level XP a head over the pace contract (solo: the median lone way); vs same = a head over the same heroes alone (mean), seat = over its best way alone; ' + MIXES.join(', '));
   console.log('ground               tier       at       L | solo xC  andy xC  four xC | vs same: ' + MIXES.map((n) => n.split(' ')[0]).join(' ') + ' | seat: ' + MIXES.map((n) => n.split(' ')[0]).join(' ') + ' | deaths');
   for (const g of grounds) for (const tier of T.tiersOf(g)) for (const lv of ['floor', 'middle']) {

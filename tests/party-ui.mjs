@@ -861,118 +861,68 @@ async function pureRules(M, base) {
     return tboxes() === 'on,-' || 'after starting again the rows read ' + tboxes();
   });
 
-  /* PR-CLASS (Tyler 2026-10-31; designer's words 2026-11-02, re-said in Tyler's voice 2026-11-11): the Your party tab's line states the measured answer
-     against hunting alone for that party on that ground, on every row and cell (PARTY_VS_ALONE; first-week-bands vs-alone plays it). Since one pack on
-     Normal for every group (Tyler 2026-11-11) a one-class party loses a lot there, so its line says how to get more (lane/d-party-xp-cells). */
-  await t('PR-CLASS', async () => {
-    const L = M.PRO.classXpLine;
-    const head = (k) => 'Classes: ' + k + ' of 4. ';
-    /* THE FIGURE IS THE MEASURED TABLE'S, read here on its own (lane/d-party-ui-class, 2026-11-19: the pinned numbers went stale twice in a day as
-       party-class-xp-line --mixed --write re-measured the lines, while the window read the table right). Each case states the RULE: how many classes
-       the seats hold (a seat with no weapon fights bare-handed, a Melee: hunt-roles.js ROLE_KEYS.neutral), which cell of PARTY_VS_ALONE that is,
-       and which words its sign takes. The class map and the cell are worked out from the raw rows, never through the window's reader. */
-    const classOf = (role) => Object.keys(M.PCX.PARTY_CLASSES).find((c) => M.PCX.PARTY_CLASSES[c].roles.includes(role));
-    const BARE = M.ROLES.roleForWeapon('neutral');
-    const ground = (g) => Object.values(HUNT_GROUNDS).find((x) => x.id === g);
-    const cellOf = (roles, g) => {
-      const seats = roles.map((r) => r || BARE), k = new Set(seats.map(classOf)).size;
-      const row = M.PCX.PARTY_VS_ALONE[g].normal[Math.min(seats.length, 4)];
-      return { k, vs: row[Math.min(k, row.length) - 1], seats };
-    };
-    const words = (k, vs, place, canMix) => head(k) + (vs === 0 ? 'Level XP each: about the same as solo in ' + place
-      : vs > 0 ? 'Level XP each: about +' + vs + '% vs solo in ' + place
-        : 'Level XP each: about -' + -vs + '% vs solo in ' + place + (canMix ? '. Mix Melee, Ranger, Mage and Healer for more' : ''));
-    const seen = new Set();
-    for (const [roles, g, oneRole] of [
-      /* the one table (Tyler 2026-11-16): a mixed pair on the first grounds earns under its heroes alone, and the number stands (no label hides it) */
-      [['tank', 'ranger'], 'meadowbrook_thicket'],
-      /* one class: with one pack for every group a one-class party loses a lot on Normal, measured, and is told to mix */
-      [['tank', 'melee_dps'], 'meadowbrook_thicket'],
-      [['tank', 'melee_dps'], 'millrace_sewer'],
-      [['tank', 'mage', 'healer'], 'coppercap_warrens'],
-      [['tank', 'ranger'], 'millrace_sewer'],
-      [['tank', 'ranger', 'mage', 'healer'], 'millrace_sewer'],
-      /* a seat with no weapon fights bare-handed, a Melee: it holds the Melee class */
-      [[null, 'ranger'], 'wickstead'],
-      [[null, 'tank'], 'wickstead'],
-      /* A Thicket four who all share one role reads its own measured line (ONE_ROLE_VS_ALONE, CLAUDE.md §6): `oneRole` */
-      [['mage', 'mage', 'mage', 'mage'], 'meadowbrook_thicket', true],
-      [['tank', 'tank', 'tank', 'tank'], 'meadowbrook_thicket', true],
-      [['melee_dps', 'melee_dps', 'melee_dps', 'melee_dps'], 'meadowbrook_thicket', true],
-      [['ranger', 'ranger', 'ranger', 'ranger'], 'meadowbrook_thicket', true],
-      [['healer', 'healer', 'healer', 'healer'], 'meadowbrook_thicket', true],
-      /* one class of two roles reads the ground's row, and another ground's wands keep theirs */
-      [['tank', 'melee_dps', 'tank', 'melee_dps'], 'meadowbrook_thicket'],
-      [['mage', 'mage', 'mage', 'mage'], 'wickstead'],
-      /* a party that already holds every class it can at its size is never told to mix (lane/a-party-xp-tier) */
-      [['tank', 'ranger'], 'hasks_ford'],
-      [['tank', 'ranger'], 'pyre_field'],
-      [['tank', 'melee_dps'], 'pyre_field'],
-    ]) {
-      const hunt = ground(g).hunt, place = M.PS.huntName(hunt), c = cellOf(roles, g);
-      /* the one-role line is data the table's rows don't carry: read through the data module's own reader, and proved in force below */
-      const vs = oneRole ? M.PCX.partyVsAlone(g, c.seats) : c.vs;
-      if (oneRole && vs !== c.vs) seen.add('one-role');
-      const canMix = c.k < Math.min(c.seats.length, 4);
-      seen.add(vs === 0 ? 'same' : vs > 0 ? 'more' : canMix ? 'less' : 'full');
-      const want = words(c.k, vs, place, canMix);
-      if (L(roles, hunt) !== want) return JSON.stringify(roles) + ' on ' + g + ' reads ' + JSON.stringify(L(roles, hunt)) + ', the measured line is ' + JSON.stringify(want);
-    }
-    /* THE CASES STILL TEST EVERY WORDING (a re-measure can move a sign): over, even, under with a class to add, under with none, and the one-role line */
-    const missing = ['more', 'same', 'less', 'full', 'one-role'].filter((k) => !seen.has(k));
-    if (missing.length) return 'CONTROL: the measured lines leave no case reading ' + missing.join(', ') + ' (pick a party or ground whose line does)';
-    const all = ['tank', 'ranger', 'mage', 'healer'];
-    /* EVERY TIER'S LINE (lane/d-party-pace): the leader's tier picks its own measured line, and the line names the tier when it is not Normal */
+  /* PR-SIZE (S-10 c, Tyler 2026-11-21: party XP by SIZE alone; the line's words, designer 2026-11-02, said in Tyler's voice 2026-11-11): the Your party
+     tab's line states the measured answer against hunting alone for a party of that size on that ground and tier (PARTY_VS_ALONE, one number a size;
+     tests/party-class-xp-line.mjs --report --write measures it). The figure is the measured table's, read here on its own (lane/d-party-ui-class,
+     2026-11-19: pinned numbers went stale as the lines were re-measured), and the RULE is stated: the party's size picks the number, never its weapons. */
+  await t('PR-SIZE', async () => {
+    const L = M.PRO.partyXpLine;
     const TN = { normal: null, dangerous: 'Dangerous', deadly: 'Deadly' };
-    for (const [g, byTier] of Object.entries(M.PCX.PARTY_VS_ALONE)) for (const [tier, row] of Object.entries(byTier)) for (const [n, cells] of Object.entries(row)) for (const [i, vs] of cells.entries()) {
-      /* the row's one-class cell is read by one class of two roles: a four of one role may read its own line (pinned above) */
-      const roles = Array.from({ length: Number(n) }, (_, s) => (i === 0 && s % 2 ? 'melee_dps' : all[Math.min(s, i)]));
-      const pay = vs > 0 ? 'about +' + vs + '% vs solo in ' : vs < 0 ? 'about -' + -vs + '% vs solo in ' : 'about the same as solo in ';
-      const hunt = Object.values(HUNT_GROUNDS).find((x) => x.id === g).hunt;
-      const said = L(roles, hunt, tier), name = M.PS.huntName(hunt);
-      if (!said.includes((i + 1) + ' of 4. Level XP each: ' + pay + name + (TN[tier] ? ' (' + TN[tier] + ')' : ''))) return g + ' ' + tier + ' ' + roles + ' reads ' + said + ', the cell is ' + vs;
+    const ground = (g) => Object.values(HUNT_GROUNDS).find((x) => x.id === g);
+    const words = (vs, place, tier) => {
+      const at = place + (TN[tier] ? ' (' + TN[tier] + ')' : '');
+      return vs === 0 ? 'Level XP each: about the same as solo in ' + at : vs > 0 ? 'Level XP each: about +' + vs + '% vs solo in ' + at : 'Level XP each: about -' + -vs + '% vs solo in ' + at;
+    };
+    const seen = new Set();
+    /* EVERY GROUND, TIER AND SIZE: the line is that cell, in its words, naming the tier when it is not Normal (lane/d-party-pace) */
+    for (const [g, byTier] of Object.entries(M.PCX.PARTY_VS_ALONE)) for (const [tier, row] of Object.entries(byTier)) for (const n of [2, 3, 4]) {
+      const vs = row[n], hunt = ground(g).hunt, want = words(vs, M.PS.huntName(hunt), tier);
+      seen.add(vs === 0 ? 'same' : vs > 0 ? 'more' : 'less');
+      if (L(n, hunt, tier) !== want) return g + ' ' + tier + ' a party of ' + n + ' reads ' + JSON.stringify(L(n, hunt, tier)) + ', the measured line is ' + JSON.stringify(want);
     }
-    /* THE GLADE'S DEADLY IS NOT ITS NORMAL (the full-game sweep, A1): a mixed four there earns over its heroes alone and the line says so, where the
-       Normal line it used to read said -20% */
-    const glade4 = L(all, 'mosslight_glade', 'deadly');
-    if (!/^Classes: 4 of 4\. Level XP each: about \+\d+% vs solo in Mosslight Glade \(Deadly\)$/.test(glade4)) return 'a mixed four on the Glade\'s Deadly reads ' + JSON.stringify(glade4);
+    /* THE CASES STILL TEST EVERY WORDING (a re-measure can move a sign): over, even and under */
+    const missing = ['more', 'same', 'less'].filter((k) => !seen.has(k));
+    if (missing.length) return 'CONTROL: the measured lines leave no cell reading ' + missing.join(', ') + ' (a ground or tier whose line does)';
+    /* THE GLADE'S DEADLY IS NOT ITS NORMAL (the full-game sweep, A1): a four there earns over its heroes alone and the line says so */
+    const glade4 = L(4, 'mosslight_glade', 'deadly');
+    if (!/^Level XP each: about \+\d+% vs solo in Mosslight Glade \(Deadly\)$/.test(glade4)) return 'a four on the Glade\'s Deadly reads ' + JSON.stringify(glade4);
     /* a tier the ground does not offer (the Cellar is Normal only) reads the Normal line, unnamed */
-    if (L(all, 'mill_cellar', 'deadly') !== L(all, 'mill_cellar')) return 'the Cellar on a tier it does not offer reads ' + JSON.stringify(L(all, 'mill_cellar', 'deadly'));
-    /* On the tab: shown before a hunt starts, gone once anyone hunts, none alone. */
+    if (L(4, 'mill_cellar', 'deadly') !== L(4, 'mill_cellar')) return 'the Cellar on a tier it does not offer reads ' + JSON.stringify(L(4, 'mill_cellar', 'deadly'));
+    /* On the tab: shown before a hunt starts, gone once anyone hunts, none alone; SIZE ALONE: two shields and a shield and a bow read one line. */
     const seat = (s, weapon, hunting) => ({ seat: s, unit: null, name: 'H' + s, level: 6, weapon, hunting: hunting === true, hp: 100, hp_max: 100 });
     const tab = (members, hunt) => {
       const cs = { read: (k) => (k === 'party' ? { id: '11111111-0000-4000-8000-00000000000a', hunt, max: 4, open: true, self_seat: 0, leader_seat: 0, members } : undefined) };
-      return M.PRO.classLineOf(M.PS.partyMembershipOf(cs), M.PP.rosterOf(cs));
+      return M.PRO.partyLineOf(M.PS.partyMembershipOf(cs), M.PP.rosterOf(cs));
     };
     const shown = tab([seat(0, 'shield'), seat(1, 'ranged')], 'mill_cellar');
-    const cellar = cellOf(['tank', 'ranger'], 'mill_cellar');
-    const cellarSaid = words(cellar.k, cellar.vs, M.PS.huntName(ground('mill_cellar').hunt), cellar.k < Math.min(cellar.seats.length, 4));
+    const cellarSaid = words(M.PCX.PARTY_VS_ALONE.mill_cellar.normal[2], M.PS.huntName(ground('mill_cellar').hunt), 'normal');
     if (shown !== cellarSaid) return 'in town the tab reads ' + JSON.stringify(shown) + ', the measured line is ' + JSON.stringify(cellarSaid);
+    if (tab([seat(0, 'shield'), seat(1, 'shield')], 'mill_cellar') !== shown) return 'two shields read ' + JSON.stringify(tab([seat(0, 'shield'), seat(1, 'shield')], 'mill_cellar')) + ', not the pair\'s line ' + JSON.stringify(shown);
     if (tab([seat(0, 'shield', true), seat(1, 'ranged', true)], 'mill_cellar') !== '') return 'the line stayed once the party hunts';
-    if (tab([seat(0, 'shield')], 'mill_cellar') !== '') return 'a party of one reads a class line';
+    if (tab([seat(0, 'shield')], 'mill_cellar') !== '') return 'a party of one reads a party line';
     /* the leader's tier on the party's ground (the party section's leader_tiers) picks the line (lane/d-party-pace) */
     const tiered = (() => {
       const four = [seat(0, 'shield'), seat(1, 'ranged'), seat(2, 'wand'), seat(3, 'staff')];
       const cs = { read: (k) => (k === 'party' ? { id: '11111111-0000-4000-8000-00000000000a', hunt: 'mosslight_glade', max: 4, open: true, self_seat: 0, leader_seat: 0, members: four, leader_tiers: { mosslight_glade: 'deadly' } } : undefined) };
-      return M.PRO.classLineOf(M.PS.partyMembershipOf(cs), M.PP.rosterOf(cs));
+      return M.PRO.partyLineOf(M.PS.partyMembershipOf(cs), M.PP.rosterOf(cs));
     })();
-    if (tiered !== L(all, 'mosslight_glade', 'deadly')) return 'a four whose leader picked Deadly on the Glade reads ' + JSON.stringify(tiered) + ', the Deadly line is ' + JSON.stringify(L(all, 'mosslight_glade', 'deadly'));
+    if (tiered !== L(4, 'mosslight_glade', 'deadly')) return 'a four whose leader picked Deadly on the Glade reads ' + JSON.stringify(tiered) + ', the Deadly line is ' + JSON.stringify(L(4, 'mosslight_glade', 'deadly'));
     const fresh = tab([seat(0, 'shield'), seat(1, 'wand')], null);
-    return (fresh && /Classes: 2 of 4\. Level XP each: about ([+-]\d+% vs solo|the same as solo) /.test(fresh)) || 'a party with no ground yet reads ' + JSON.stringify(fresh);
+    return (fresh && /^Level XP each: about ([+-]\d+% vs solo|the same as solo) /.test(fresh)) || 'a party with no ground yet reads ' + JSON.stringify(fresh);
   });
 
-  /* PR-TRUTH (blind panel 2026-11-01): what the server knows, said. A swapped weapon changes the role, the class line and the panel; a friend's
+  /* PR-TRUTH (blind panel 2026-11-01): what the server knows, said. A swapped weapon changes the role and the panel, never the party's XP line (S-10 c: size alone); a friend's
      end names its cause on the alert and the summary; a notice and a low-stamina seat each raise one line, once, on the server's ids. */
   await t('PR-TRUTH', async () => {
     /* (1) THE ROLE: the seat's weapon is the server's, so a re-read after a swap moves every reader together. */
     const party = (w1, w2) => ({ id: '11111111-0000-4000-8000-00000000000a', hunt: 'meadowbrook_thicket', max: 4, open: true, self_seat: 0, leader_seat: 0,
       members: [{ seat: 0, name: 'Bramwell', level: 6, weapon: w1, hunting: false }, { seat: 1, name: 'Wrenna', level: 6, weapon: w2, hunting: false }] });
-    const look = (p) => { const cs = { read: (k) => (k === 'party' ? p : undefined) }; return [M.PP.rosterOf(cs).members.map((m) => m.role).join(), M.PS.partyMembershipOf(cs).seats.map((s) => s.role).join(), M.PRO.classLineOf(M.PS.partyMembershipOf(cs), M.PP.rosterOf(cs))]; };
+    const look = (p) => { const cs = { read: (k) => (k === 'party' ? p : undefined) }; return [M.PP.rosterOf(cs).members.map((m) => m.role).join(), M.PS.partyMembershipOf(cs).seats.map((s) => s.role).join(), M.PRO.partyLineOf(M.PS.partyMembershipOf(cs), M.PP.rosterOf(cs))]; };
     const before = look(party('shield', 'shield')), after = look(party('shield', 'ranged'));
-    if (before[0] !== 'tank,tank' || !/^Classes: 1 of 4\./.test(before[2])) return 'two shields read ' + JSON.stringify(before);
-    /* the Thicket's two-of-two cell, the measured figure (lane/d-party-ui-class: never a pinned number) */
-    const thicket2 = PARTY_VS_ALONE.meadowbrook_thicket.normal[2][1];
-    const thicketSaid = 'Classes: 2 of 4. Level XP each: ' + (thicket2 === 0 ? 'about the same as solo in Meadowbrook Thicket' : 'about ' + (thicket2 > 0 ? '+' : '-') + Math.abs(thicket2) + '% vs solo in Meadowbrook Thicket');
+    /* the Thicket's pair line, the measured figure (lane/d-party-ui-class: never a pinned number), the same before and after the swap */
+    const thicket2 = PARTY_VS_ALONE.meadowbrook_thicket.normal[2];
+    const thicketSaid = 'Level XP each: ' + (thicket2 === 0 ? 'about the same as solo in Meadowbrook Thicket' : 'about ' + (thicket2 > 0 ? '+' : '-') + Math.abs(thicket2) + '% vs solo in Meadowbrook Thicket');
+    if (before[0] !== 'tank,tank' || before[2] !== thicketSaid) return 'two shields read ' + JSON.stringify(before) + ', the pair\'s measured line is ' + JSON.stringify(thicketSaid);
     if (after[0] !== 'tank,ranger' || after[1] !== 'tank,ranger' || after[2] !== thicketSaid) return 'a swap to a bow reads ' + JSON.stringify(after) + ', the measured line is ' + JSON.stringify(thicketSaid);
     /* (2) WHY A FRIEND CAME HOME, on both surfaces. */
     const why = (r, by, w) => M.AL.cameHomeLine({ endReason: r, endBy: by, endWhy: w }, 'Wrenna');
@@ -1525,12 +1475,12 @@ async function pageRules(overrides, shots) {
           const names = v.seats.map((x) => x.name + (x.lead ? '*' : '') + ':' + x.where).join('|');
           if (v.tab !== 'party' || names !== 'Tyler*:In town|Mira (you):In town' || !v.seats.every((x) => x.shown) || !v.leave || v.memberPicks
             || v.next !== 'Waiting for Tyler to pick a hunt.') fails.push('UI-9 [' + tag + '] the Party window in town reads ' + JSON.stringify(v));
-          /* PR-CLASS on the page: the fixture's shield and bow, on the party's Sewer row (2 heroes of 2 classes). */
+          /* PR-SIZE on the page: the fixture's shield and bow, a pair, on the party's Sewer row. */
           {
-            /* the Sewer row's two-of-two cell, in its words (the measured figure, whichever sign it has) */
-            const vs = PARTY_VS_ALONE.millrace_sewer.normal[2][1];
-            const said = 'Classes: 2 of 4. Level XP each: ' + (vs === 0 ? 'about the same as solo in The Sewer' : 'about ' + (vs > 0 ? '+' : '-') + Math.abs(vs) + '% vs solo in The Sewer');
-            if (v.classLine !== said) fails.push('UI-9 [' + tag + '] the class line reads ' + JSON.stringify(v.classLine) + ', the measured line is ' + JSON.stringify(said));
+            /* the Sewer row's pair cell, in its words (the measured figure, whichever sign it has) */
+            const vs = PARTY_VS_ALONE.millrace_sewer.normal[2];
+            const said = 'Level XP each: ' + (vs === 0 ? 'about the same as solo in The Sewer' : 'about ' + (vs > 0 ? '+' : '-') + Math.abs(vs) + '% vs solo in The Sewer');
+            if (v.classLine !== said) fails.push('UI-9 [' + tag + '] the party line reads ' + JSON.stringify(v.classLine) + ', the measured line is ' + JSON.stringify(said));
           }
           if (!v.opts.includes('Needs a shield') || !v.opts.includes('Needs a sword (Melee)') || v.opts.some((o) => o.includes('((') || /^No /.test(o)))
             fails.push('UI-9 [' + tag + '] the finder’s weapon words read ' + JSON.stringify(v.opts));
@@ -1555,13 +1505,13 @@ async function pageRules(overrides, shots) {
 
 /* ── THE MUTANTS: each must turn at least one rule red. ── */
 const PURE_MUTANTS = [
-  ['the class line promises the bonus whatever the table says (PR-CLASS)', 'src/shell/windows/party-roster.js', "if (vs === null) return have + t('party.class_none', { place });", "if (classes.length > 1) return have + t('party.class_more', { pct: 20, place });\n  if (vs === null) return have + t('party.class_none', { place });"],
-  ['a seat with no weapon holds no class on the class line (PR-CLASS)', 'src/shell/windows/party-roster.js', "roles.map((r) => r || roleForWeapon('neutral'))", 'roles'],
-  ['the class line stays on while the party hunts (PR-CLASS)', 'src/shell/windows/party-roster.js', "if (r.anyHunting || r.members.length < 2) return '';", "if (r.members.length < 2) return '';"],
-  ['the class line needs a ground the party has hunted (PR-CLASS)', 'src/shell/windows/party-roster.js', 'const hunt = p.hunt || (recommendation(r.members.map((m) => m.level), r.members.length).row || {}).hunt;', 'const hunt = p.hunt;'],
+  ['the party line promises the bonus whatever the table says (PR-SIZE)', 'src/shell/windows/party-roster.js', "if (vs === null) return t('party.xp_none', { place });", "if (size > 1) return t('party.xp_more', { pct: 20, place });\n  if (vs === null) return t('party.xp_none', { place });"],
+  ['the party line reads the party\'s classes again: a pair of one weapon reads the one-seat line (PR-SIZE)', 'src/shell/windows/party-roster.js', 'return hunt ? partyXpLine(r.members.length, hunt, tier) : \'\';', 'return hunt ? partyXpLine(new Set(r.members.map((m) => m.role)).size, hunt, tier) : \'\';'],
+  ['the party line stays on while the party hunts (PR-SIZE)', 'src/shell/windows/party-roster.js', "if (r.anyHunting || r.members.length < 2) return '';", "if (r.members.length < 2) return '';"],
+  ['the party line needs a ground the party has hunted (PR-SIZE)', 'src/shell/windows/party-roster.js', 'const hunt = p.hunt || (recommendation(r.members.map((m) => m.level), r.members.length).row || {}).hunt;', 'const hunt = p.hunt;'],
   /* lane/d-party-pace (the full-game sweep, A1): the Normal line on every tier again, and the leader's pick dropped on the way to the line */
-  ['the class line reads Normal whatever tier the leader picked (PR-CLASS)', 'src/shell/windows/party-roster.js', 'const vs = partyVsAlone(ground ? ground.id : null, seats, at);', 'const vs = partyVsAlone(ground ? ground.id : null, seats);'],
-  ['the class line forgets the leader\'s tier (PR-CLASS)', 'src/shell/windows/party-roster.js', 'return hunt ? classXpLine(r.members.map((m) => m.role), hunt, tier) : \'\';', 'return hunt ? classXpLine(r.members.map((m) => m.role), hunt) : \'\';'],
+  ['the party line reads Normal whatever tier the leader picked (PR-SIZE)', 'src/shell/windows/party-roster.js', 'const vs = partyVsAlone(ground ? ground.id : null, size, at);', 'const vs = partyVsAlone(ground ? ground.id : null, size);'],
+  ['the party line forgets the leader\'s tier (PR-SIZE)', 'src/shell/windows/party-roster.js', 'return hunt ? partyXpLine(r.members.length, hunt, tier) : \'\';', 'return hunt ? partyXpLine(r.members.length, hunt) : \'\';'],
   ['a seen end stays in the lines (AL-3, party panel 2026-11-03)', 'src/shell/alerts.js', 'if (stale || seenEnd || ', 'if (stale || '],
   ['the last hunt\'s end line stays into the next (AL-3, Brannoc 10-22)', 'src/shell/alerts.js', '|| (open && RETIRE.has(a.kind) && a.session && a.session !== open)', ''],
   ['the low alert counts the bag mid-hunt (AL-2, Brannoc 10-22)', 'src/session/item-sections.js', '  return huntBagOf(cs) || bagOf(cs);', '  return bagOf(cs);'],

@@ -1,45 +1,38 @@
 #!/usr/bin/env node
-// tests/party-class-xp-line.mjs — A SAME-CLASS PARTY NEVER BEATS SOLO, PER HEAD (Tyler 2026-10-31).
+// tests/party-class-xp-line.mjs — A PARTY'S LEVEL XP READS ITS SIZE ALONE (Tyler 2026-11-21, the sitting, S-10 option c).
 //
-// "Party exp should only be better if there are different classes in the party." The table that pays it is
-// src/data/party-class-xp.js, on the room as built for every group (Tyler 2026-11-11 retired a party's own Normal pull); this plays the line itself on
-// the REAL engine, through tools/balance-sim's cell runner (the settle the world tick runs): every ground (HUNT_GROUNDS,
-// never a typed list, so a new ground with no row is judged too), at the party's default pull and at 8 each, on several
-// seeds, at the ground's floor Level, in the ladder kit.
+// "Size alone for the first build": a party's cell reads how many heroes are alive at the kill, never which weapons they hold,
+// the ground or the tier (src/data/party-class-xp.js PARTY_SIZE_XP). The classes rule this file held from 2026-10-31 ("party exp
+// should only be better if there are different classes") may come back as one row of the table once Deadly is sized on the fixed
+// tool; until then this guard holds the size table and plays it on the REAL engine (tools/balance-sim's cell runner, the settle the
+// world tick runs):
+//   SA-1 ONE TABLE BY SIZE, read statically: the table names the sizes 2, 3 and 4, one whole-permille cell each; the reader takes a
+//        party's size and nothing else; nothing exports a class reader; no ground pack carries a pay cell (src/data/grounds/shape.js
+//        refuses one too); the module's own validate() is clean.
+//   SA-2 THE SETTLE PAYS THE SIZE CELL, WHATEVER THE LINEUP: at Muster Barrows' floor, a party of one class and a party of mixed
+//        classes of each size, and a hero alone, played on this tree and on a copy whose table is flat (every cell 1000, no solo
+//        boost): the same dice, the same kills, so Level XP on the tree over Level XP on the flat copy IS the factor the engine paid.
+//        It must be the size's cell (SOLO_XP_PM alone) for every lineup, within a kill's rounding.
+//   SA-3 BOTH PATHS: a mixed four and a four of one class on Hask's Ford's Deadly, watched (30 s settles) and with the browser
+//        closed (10 min), are paid the same Level XP to the point.
 //
-// THE MEASURE: Level XP per hero per hour in the party, over the mean of what the SAME heroes (each its own way to fight)
-// earn per hour alone, seeds pooled (one seed is dice: a short cell swings several percent, designer 11-01). The worst
-// single seed is printed beside it. A Melee pair of a shield and two axes is compared with the mean of its two solos: how
-// the two fare together against how those two fare apart.
+// WHAT IT NO LONGER BINDS, AND WHY (lane/c-formula-steps, 2026-11-21; build plan FB-2, T-03): the one-class line (a party of one class
+// at or under its heroes alone) left with the classes rule (S-10 c). The harder tiers' two bars, a mixed party at or over the same
+// heroes alone and a Deadly four at most 2.5x the pace contract, are party-size and tier targets: Tyler 2026-11-21 ("lets just not
+// really worry about the targets for solo / group stuff ... its a no brainer to hunt together") rules out bands for solo against
+// group, and the critical review's step 1 holds every tier number open until the fixed tool's full matrix reads it (FB-8 sizes the
+// tier table in engine batch 2). Both readings are still PRINTED by --report, against the sheet's numbers (balance-sheet.js PARTY,
+// tests/balance-grade.mjs keeps the two the same), so nothing that moves them is hidden; neither is a bar.
 //
-// THE BAR IS 1.00. At the default pull, against each hero alone AS BUILT (what no pick spawns for either). At 8 each, against
-// each hero alone at ITS better pull (as built or 8 each: the board's "best pull against the members' best pull alone"), since
-// a lone hero can press + too: a lone hero at 8 earns up to 1.5x its as-built, so a party at 8 against a lone hero as built
-// reads 1.2-1.7 on the solo grounds whatever the class. That reading is printed on every 8-each cell and is not the bar.
+//   node tests/party-class-xp-line.mjs             the guard (SA-1 to SA-3; about a minute)
+//   node tests/party-class-xp-line.mjs --mutate    the proof: each mutant turns its check red
+//   --report     also play every ground's harder tiers and PRINT each mixed party against the same heroes alone and each Deadly four
+//                against the pace contract (no bar)
+//   --write      (with --report) rewrite the Party window's measured lines, one number a size a tier (party-class-xp.js BASE_VS_ALONE
+//                and each pack's partyVsAlone), from this run's mixed parties
+//   --seeds N    --workers N
 //
-//   node tests/party-class-xp-line.mjs             the guard (the CI cut: 15-minute party cells, duos on every seed)
-//   node tests/party-class-xp-line.mjs --mutate    the proof: each mutant turns its cell red
-//   --wide       the designer's read: 30-minute cells, every size on more seeds (about 4x the guard)
-//   --seeds N    --workers N   --table every cell's ratio   --mixed the mixed parties too (10-25 §5)
-//   --write      (with --mixed) rewrite the Party window's measured lines, one per tier (party-class-xp.js BASE_VS_ALONE and each pack's partyVsAlone) from this run
-//
-// THE HARDER TIERS ARE THE PARTY'S (Tyler 2026-11-16: "normal isn't meant for parties anyway", "its not restricted, but it's not necessarily meant
-// for them"). On Normal a mixed party may earn under its heroes alone: no mixed bar there. ONE TABLE (Tyler 2026-11-16: "just balance the hunting
-// grounds xp vs having a unique formula everywhere"; lane/d-flat-party-xp): the party's cell is party-class-xp.js PARTY_CLASS_XP for every ground and
-// tier, and each ground's own dials carry the rest, so on Dangerous and Deadly, at the floor on the tier's own pull, every ground answers two bars:
-//   alone  every mixed party (a pair, a three, a four) earns at least what the SAME heroes earn alone on the same tier (a head over their mean, bar
-//          ALONE_BAR; Tyler 2026-11-16 "every Dangerous/Deadly party mix stays >= the same heroes alone"). The head over its best way alone is printed.
-//   pace   a mixed four on Deadly (tank, Healer, bow, wand; and Andy's: axe, bow, wand and a Healer 5 Levels under) earns at most PACE_CAP x the
-//          pace contract a head at its top Level (balance-sheet.js contractXpPerH; it read 3.3-4.4x on the per-ground rows)
-// A HEALER'S TIER (designer ruling 2026-11-19): where the ground's own row makes the tier a Healer's tier at the floor (hunt-tiers.js HEALER_TIERS), a
-// mix with no Healer is printed against its heroes alone, not bound; every mix with a Healer is bound there as anywhere.
-// and ONE TABLE, read statically: the table holds sizes, never a ground; no ground pack carries a pay cell of its own (src/data/grounds/shape.js
-// refuses one too); and BOTH PATHS: a Deadly four watched (30 s settles) and with the browser closed (10 min) is paid the same Level XP to the point.
-//
-// NO EXCEPTION (lane/b-one-difficulty, 2026-11-08): every cell answers to 1.00. Tyler 11-02's one accepted over-solo party, a Thicket four of
-// wands at its default pull (bar 1.05), reads 0.74 since a monster pays its whole kill for any party size, so its allowance and its five mutants retire.
-//
-// mutant-anchors: src/data/party-class-xp.js src/data/hunt-grounds.js src/core/hunt/xp-share.js src/data/grounds/unmarked_catacombs/pack.js
+// mutant-anchors: src/data/party-class-xp.js src/core/hunt/xp-share.js src/data/grounds/hasks_ford/pack.js
 import { readFileSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -51,60 +44,37 @@ import { loadCellRunner } from '../tools/balance-sim/cell.mjs';
 import { runPool } from '../tools/balance-sim/pool.mjs';
 import { sourceQuery } from '../tools/lib/version-stamp.mjs';
 
-const BAR = 1.0;
-const WIDE = process.argv.includes('--wide');
-/* A party cell's hours, and a lone hero's as built: every party is judged against those, and they are the cheapest cells. */
-const HOURS = WIDE ? 0.5 : 0.25;
-const SOLO_HOURS = 0.5;
-/* null = no pick: the party's default pull (the room as built where a ground has none, and for a lone hero). */
-const ARMS = Object.freeze([{ id: 'pull', density: null, words: 'default pull' }, { id: 'eight', density: 8, words: '8 each' }]);
-/* Every party is ONE class by the game's map (oneClassProblems holds it). */
-const DUOS = Object.freeze({ shields: ['tank', 'tank'], melee: ['tank', 'axes'], bows: ['bow', 'bow'], wands: ['mage', 'mage'], staves: ['healer', 'healer'] });
-const LARGER = Object.freeze({ shields3: ['tank', 'tank', 'tank'], melee3: ['tank', 'axes', 'axes'], bows3: ['bow', 'bow', 'bow'], wands3: ['mage', 'mage', 'mage'], staves3: ['healer', 'healer', 'healer'],
-  shields4: ['tank', 'tank', 'tank', 'tank'], melee4: ['tank', 'axes', 'axes', 'axes'], bows4: ['bow', 'bow', 'bow', 'bow'], wands4: ['mage', 'mage', 'mage', 'mage'], staves4: ['healer', 'healer', 'healer', 'healer'] });
-/* The mixes the designer's table was measured on (--mixed: a read for 10-25 §5, never the bar). */
-const MIXED = Object.freeze({ 'duo tank+healer': ['tank', 'healer'], 'duo tank+bow': ['tank', 'bow'], 'duo tank+wand': ['tank', 'mage'], 'trio tank+healer+bow': ['tank', 'healer', 'bow'], 'trio tank+healer+wand': ['tank', 'healer', 'mage'],
-  'four': ['tank', 'healer', 'bow', 'mage'] });
-const WAYS = Object.freeze(['tank', 'axes', 'bow', 'mage', 'healer']);
-/* THE HARDER TIERS' MIXES (Tyler 2026-11-16, above): a pair, a three and a four, each seat against its own way alone on the same tier. */
-const HARDER = Object.freeze(['dangerous', 'deadly']);
-const TIER_MIXED = Object.freeze({ 'duo tank+healer': MIXED['duo tank+healer'], 'duo tank+bow': MIXED['duo tank+bow'], 'trio tank+healer+bow': MIXED['trio tank+healer+bow'], four: MIXED.four });
-/* Andy's four (the live party that read about 5x, 2026-11-16): judged on pace only, its Healer 5 Levels under the floor (a seat under the floor earns its
-   own Level's pace alone, so its "alone" is no bar). */
-const ANDY = Object.freeze({ party: Object.freeze(['axes', 'bow', 'mage', 'healer']), under: Object.freeze([0, 0, 0, 5]) });
-const TIER_WAYS = Object.freeze(['tank', 'healer', 'bow', 'mage']);
+/* The two numbers the report prints its readings against (Tyler 2026-11-16; tests/balance-grade.mjs holds them equal to the sheet's
+   balance-sheet.js PARTY.vsAloneMin and deadlyFourVsContractMax, PACE_FROM to its paceFromLevel). Printed, never a bar (header). */
 const ALONE_BAR = 1.0;
 const PACE_CAP = 2.5;
-/* THE NUMBERS THAT STAND (Tyler 2026-11-16, asked whether the Thicket and Wickstead should become solo grounds: "all hunts work the same for everyone
-   regardless as often as we can, the only difference is the Solo Exp boost"). Their harder tiers bring no bigger pull (floors under
-   balance-sheet.js TIER_PULL_FROM_FLOOR), so a party there walks the same room a hero alone does and a mixed four reads about 0.64-0.70 of its
-   heroes alone on Dangerous and Deadly. No label hides it and no bar binds it: each run PRINTS their mixes against their heroes alone, and the
-   pace cap still binds there. A ground that reads at or over the bar again is named, so its line can go. */
-const STANDS = Object.freeze({ meadowbrook_thicket: 'Tyler 2026-11-16', wickstead: 'Tyler 2026-11-16' });
-/* A HEALER'S TIER BINDS THE PARTIES THAT BRING ONE (designer ruling 2026-11-19, the board's "2026-11-19 Two rulings for v0.2.142"). Where a ground's own
-   measured row makes a tier a Healer's tier at the cell's Level (src/data/hunt-tiers.js HEALER_TIERS: a four with no Healer was measured to die there
-   and one with a Healer holds; the Hunts page says "Recommended: Healer"), a mix with no Healer is no party the game sends there: its alone bar is
-   PRINTED, never binding, on every run (the line reads "a Healer's tier"), and every mix with a Healer answers the bar as anywhere. The case: the staged
-   Unmarked Catacombs' Deadly (a Healer's tier to 186, its whole band), where the tank alone dies 28-29 times a half hour and a tank and bow pair read
-   0.968 of the two alone; both sides of that ratio are deaths, not a way to hunt. The pace cap and both paths bind as ever. */
-const healerless = (party) => !party.includes('healer');
-/* A HARDER TIER'S CELL IS HALF AN HOUR (lane/d-party-pace, 2026-11-18): a party walks a ground's route faster than a hero alone, so a 15-minute cell
-   compares them on different rooms. With the Sewer at 5, a tank + Healer pair on its Deadly read 0.94 of the same heroes alone in 15-minute cells
-   (140 kills an hour, 182 Level XP a kill) and 1.19 in half-hour cells on the same two seeds (152, 220), 1.19 again on four seeds. */
+/* SA-2: a kill's share floors to a whole XP, so the paid factor over a quarter hour of kills reads within this of the cell */
+const FACTOR_TOL = 0.005;
+const SA2 = Object.freeze({ ground: 'muster_barrows', hours: 0.25 });
+/* a party of one class and a party of every class it can hold, at each size; and a hero alone */
+const LINEUPS = Object.freeze({
+  lone: ['bow'],
+  'pair, one class': ['bow', 'bow'], 'pair, two classes': ['tank', 'healer'],
+  'three, one class': ['mage', 'mage', 'mage'], 'three, three classes': ['tank', 'healer', 'bow'],
+  'four, one class': ['bow', 'bow', 'bow', 'bow'], 'four, four classes': ['tank', 'healer', 'bow', 'mage'],
+});
+const PATH_FOURS = Object.freeze({ 'a mixed four': LINEUPS['four, four classes'], 'a four of one class': LINEUPS['four, one class'] });
+
+/* --report: the mixes the Party window's lines are measured on, and the lone ways they are read against */
+const HARDER = Object.freeze(['dangerous', 'deadly']);
+const TIER_MIXED = Object.freeze({ 'duo tank+healer': ['tank', 'healer'], 'duo tank+bow': ['tank', 'bow'], 'trio tank+healer+bow': ['tank', 'healer', 'bow'], four: ['tank', 'healer', 'bow', 'mage'] });
+const TIER_WAYS = Object.freeze(['tank', 'healer', 'bow', 'mage']);
+const NORMAL_MIXED = Object.freeze({ 'duo tank+healer': ['tank', 'healer'], 'duo tank+bow': ['tank', 'bow'], 'trio tank+healer+bow': ['tank', 'healer', 'bow'], four: ['tank', 'healer', 'bow', 'mage'] });
 const TIER_HOURS = 0.5;
-/* THE PACE CAP READS FROM LEVEL 10 (lane/d-party-pace; Tyler 2026-11-18 "Yes, open at 5" over the 11-16 cap where they meet, CLAUDE.md §0): the contract is
-   the trend past the first ten Levels, which are paced one by one (src/data/core-model.js LEVEL_PACE: its first target is Level 10 at 6 h), and every
-   first ground overshoots it (the Thicket alone at 5 reads 2.2x). The Sewer at 5 reads 3.2x on NORMAL for a four, so a cap read there judges the
-   ground's floor, not what Deadly adds. A ground whose floor is under 10 has its Deadly fours' pace read at Level 10 (inside its band); the alone bar
-   stays at the floor. PACE_FROM is set where LEVEL_PACE is read, below. */
+const NORMAL_HOURS = 0.25;
 
 const argOf = (name, dflt) => { const i = process.argv.indexOf(name); return i > 0 ? Number(process.argv[i + 1]) : dflt; };
+const meanOf = (a) => a.reduce((x, y) => x + y, 0) / a.length;
 
 const V = sourceQuery(ROOT);
+const imp = (root, p) => import(pathToFileURL(join(root, p)).href + V + (root === ROOT ? '' : (V ? '&' : '?') + 'm=' + Math.random()));
 const G = await import(pathToFileURL(join(ROOT, 'src/data/hunt-grounds.js')).href + V);
 const { HUNT_INDEX } = await import(pathToFileURL(join(ROOT, 'src/data/hunts.js')).href + V);
-const { PARTY_CLASSES } = await import(pathToFileURL(join(ROOT, 'src/data/party-class-xp.js')).href + V);
-const { STYLES } = await import(pathToFileURL(join(ROOT, 'tools/balance-sim/gear.mjs')).href);
 const T = await import(pathToFileURL(join(ROOT, 'src/data/hunt-tiers.js')).href + V);
 const { contractXpPerH } = await import(pathToFileURL(join(ROOT, 'src/data/balance-sheet.js')).href + V);
 const { LEVEL_PACE } = await import(pathToFileURL(join(ROOT, 'src/data/core-model.js')).href + V);
@@ -112,311 +82,128 @@ const PACE_FROM = LEVEL_PACE.targets[0][0];
 
 const groundIds = Object.keys(G.HUNT_GROUNDS);
 const floorOf = (g) => HUNT_INDEX[G.HUNT_GROUNDS[g].hunt].band[0];
-/* A STAGED ground (a pack not yet open) is played as it ships, its own drops on the gear ladder (tools/balance-sim/gear.mjs openAlso,
-   the grader's rule): otherwise a ground whose tier drops only there is played a tier under. */
+/* A STAGED ground is played as it ships, its own drops on the gear ladder (tools/balance-sim/gear.mjs openAlso, the grader's rule) */
 const stagedGear = (g) => (Object.prototype.hasOwnProperty.call(G.OPEN_GROUNDS, g) ? {} : { gear: { openAlso: [g] } });
-
-const cellOf = (g, arm, seed, party, name) => ({
-  id: [g, arm.id, seed, name].join(':'), ground: g, party, level: floorOf(g), hours: party.length === 1 && arm.density === null ? SOLO_HOURS : HOURS, seeds: 1, seedBase: seed,
-  ...(arm.density === null ? {} : { density: arm.density }), ...stagedGear(g),
-});
-
-/* The Level a ground's Deadly fours are paced at: its floor, or PACE_FROM when the floor is under it (never past the band's top). */
-const paceLevelOf = (g) => Math.min(Math.max(floorOf(g), PACE_FROM), HUNT_INDEX[G.HUNT_GROUNDS[g].hunt].band[1]);
-/* A harder tier's cell: the floor (or `at`), the tier's own pull for the party's size. Ids start 'tier:' (judge() reads the others). */
-const tierCellOf = (g, tier, seed, party, name, windowMs, under, at) => {
-  const pull = T.pullOfTier(T.tierRowOf(g, tier), party.length);
-  const lv0 = at || floorOf(g);
-  const level = under ? under.map((u) => Math.max(1, lv0 - u)) : lv0;
-  return { id: ['tier', g, tier, seed, name].join(':'), ground: g, party, level, hours: TIER_HOURS, seeds: 1, seedBase: seed, options: { tier },
-    ...(pull ? { density: pull } : {}), ...(windowMs ? { windowMs } : {}), ...stagedGear(g) };
-};
 const harderOf = (g) => T.tiersOf(g).filter((t) => HARDER.includes(t));
+const paceLevelOf = (g) => Math.min(Math.max(floorOf(g), PACE_FROM), HUNT_INDEX[G.HUNT_GROUNDS[g].hunt].band[1]);
+const tierCellOf = (g, tier, seed, party, name, windowMs, at) => {
+  const pull = tier === 'normal' ? null : T.pullOfTier(T.tierRowOf(g, tier), party.length);
+  return { id: ['tier', g, tier, seed, name].join(':'), ground: g, party, level: at || floorOf(g), hours: tier === 'normal' ? NORMAL_HOURS : TIER_HOURS, seeds: 1, seedBase: seed,
+    ...(tier === 'normal' ? {} : { options: { tier } }), ...(pull ? { density: pull } : {}), ...(windowMs ? { windowMs } : {}), ...stagedGear(g) };
+};
 
-/** The harder tiers' cells: every ground's Dangerous and Deadly, the four ways alone and the three mixes, on min(seeds, 2) seeds. */
-function tierPlanOf(seeds) {
-  const jobs = [];
-  for (const g of groundIds) for (const tier of harderOf(g)) for (let seed = 0; seed < Math.min(seeds, 2); seed++) {
-    for (const w of TIER_WAYS) jobs.push(tierCellOf(g, tier, seed, [w], 'solo-' + w));
-    for (const [n, p] of Object.entries(TIER_MIXED)) jobs.push(tierCellOf(g, tier, seed, p, n));
-    if (tier === 'deadly') jobs.push(tierCellOf(g, tier, seed, ANDY.party, 'andy', undefined, ANDY.under));
-    /* the pace cells, where the floor is under PACE_FROM */
-    if (tier === 'deadly' && paceLevelOf(g) !== floorOf(g)) {
-      jobs.push(tierCellOf(g, tier, seed, MIXED.four, 'pace-four', undefined, undefined, paceLevelOf(g)));
-      jobs.push(tierCellOf(g, tier, seed, ANDY.party, 'pace-andy', undefined, ANDY.under, paceLevelOf(g)));
+// ── SA-1 ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+/** One table by size, read statically. `P`: the party-class-xp.js module, `packs`: GROUND_PACKS. Each answer is a reason. */
+function oneTableProblems(P, packs) {
+  const out = [];
+  const sizes = Object.keys(P.PARTY_SIZE_XP || {});
+  if (sizes.join() !== '2,3,4') out.push('the party table names ' + (sizes.join(', ') || 'nothing') + ', not the sizes 2, 3 and 4');
+  for (const n of sizes) if (!Number.isInteger(P.PARTY_SIZE_XP[n]) || P.PARTY_SIZE_XP[n] <= 0) out.push('the cell for ' + n + ' heroes is ' + JSON.stringify(P.PARTY_SIZE_XP[n]) + ', not one whole permille');
+  if (typeof P.partySizeXp !== 'function' || P.partySizeXp.length !== 1) out.push('the reader takes ' + (P.partySizeXp ? P.partySizeXp.length : 'no') + ' argument(s): the party\'s size only');
+  for (const k of ['partyClassXp', 'PARTY_CLASSES', 'PARTY_CLASS_XP']) if (k in P) out.push('party-class-xp.js exports ' + k + ' again: a class reader beside the size table');
+  for (const p of packs) for (const k of ['partyClassXp', 'partySizeXp']) if (p[k] !== undefined) out.push('the ' + p.id + ' pack carries its own party cell (' + k + ')');
+  for (const v of P.validate(Object.keys(G.HUNT_GROUNDS))) out.push('validate: ' + v);
+  return out;
+}
+
+// ── SA-2 ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+/* The flat copy: every cell 1000 and no solo boost, so the settle pays the plain even share. Its edits read this tree's own lines. */
+const flatEdits = () => {
+  const src = readFileSync(join(ROOT, 'src/data/party-class-xp.js'), 'utf8');
+  const table = (/export const PARTY_SIZE_XP = Object\.freeze\(\{[^}]*\}\);/.exec(src) || [null])[0];
+  const solo = (/export const SOLO_XP_PM = \d+;/.exec(src) || [null])[0];
+  if (!table || !solo) return null;
+  return [['src/data/party-class-xp.js', table, 'export const PARTY_SIZE_XP = Object.freeze({ 2: 1000, 3: 1000, 4: 1000 });'],
+    ['src/data/party-class-xp.js', solo, 'export const SOLO_XP_PM = 1000;']];
+};
+
+/** The factor the settle paid each lineup on this tree, or on this tree with `edits` planted (a mutant): { name: { paid, want, kills } }, or a
+    reason string. The flat copy carries the same edits, so the two differ by the table alone. */
+async function paidFactors(edits = []) {
+  const flatten = flatEdits();
+  if (!flatten) return 'party-class-xp.js has no PARTY_SIZE_XP or SOLO_XP_PM line to flatten';
+  const trees = [...PLAY_TREES, 'tests/hunt-core/fixtures'];
+  const tree = edits.length ? plant(edits, trees) : null;
+  const flat = plant([...edits, ...flatten], trees);
+  try {
+    const root = tree ? tree.root : ROOT;
+    const P = await imp(root, 'src/data/party-class-xp.js');
+    const [R, F] = [await loadCellRunner(root), await loadCellRunner(flat.root)];
+    const out = {};
+    for (const [name, party] of Object.entries(LINEUPS)) {
+      const cell = { id: 'sa2:' + name, ground: SA2.ground, party, level: floorOf(SA2.ground), hours: SA2.hours, seeds: 1, seedBase: 0, ...stagedGear(SA2.ground) };
+      const a = R.runCell(cell), b = F.runCell(cell);
+      const xp = (r) => r.heroes.reduce((s, h) => s + h.raw.levelXp, 0);
+      out[name] = { paid: xp(a) / xp(b), want: (party.length === 1 ? P.SOLO_XP_PM : P.PARTY_SIZE_XP[Math.min(party.length, 4)]) / 1000, kills: [a.party.killsPerH, b.party.killsPerH] };
     }
+    return out;
+  } finally { flat.done(); if (tree) tree.done(); }
+}
+const factorProblems = (f) => (typeof f === 'string' ? [f] : Object.entries(f).flatMap(([name, x]) => [
+  ...(x.kills[0] !== x.kills[1] ? ['HARNESS: ' + name + ' killed ' + x.kills[0] + ' an hour on the tree and ' + x.kills[1] + ' on the flat copy: a cell moved a blow'] : []),
+  ...(!(Math.abs(x.paid - x.want) <= FACTOR_TOL) ? [name + ' is paid ' + x.paid.toFixed(4) + ' of the even share, its size\'s cell is ' + x.want.toFixed(3)] : []),
+]));
+
+// ── SA-3 ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+/** Both paths: each four on Hask's Ford's Deadly, watched (30 s settles) and browser closed (10 min), paid the same Level XP. */
+function bothPaths(R) {
+  const g = 'hasks_ford';
+  if (!harderOf(g).includes('deadly')) return ['hasks_ford has no Deadly tier to play both paths on'];
+  const out = [];
+  for (const [name, party] of Object.entries(PATH_FOURS)) {
+    const xp = (w) => R.runCell(tierCellOf(g, 'deadly', 0, party, 'paths', w)).heroes.map((h) => h.raw.levelXp);
+    const viewed = xp(30000), closed = xp(600000);
+    if (viewed.join(',') !== closed.join(',')) out.push(name + ' on Hask\'s Ford\'s Deadly: viewed ' + viewed + ', browser closed ' + closed);
+  }
+  return out;
+}
+
+// ── --report and --write ──────────────────────────────────────────────────────────────────────────────────────────────────
+function reportPlanOf(seeds) {
+  const jobs = [];
+  for (const g of groundIds) for (const tier of ['normal', ...harderOf(g)]) for (let seed = 0; seed < Math.min(seeds, 2); seed++) {
+    for (const w of TIER_WAYS) jobs.push(tierCellOf(g, tier, seed, [w], 'solo-' + w));
+    for (const [n, p] of Object.entries(tier === 'normal' ? NORMAL_MIXED : TIER_MIXED)) jobs.push(tierCellOf(g, tier, seed, p, n));
+    if (tier === 'deadly' && paceLevelOf(g) !== floorOf(g)) jobs.push(tierCellOf(g, tier, seed, TIER_MIXED.four, 'pace-four', undefined, paceLevelOf(g)));
   }
   return jobs;
 }
-
-/** The harder tiers' verdict: rows { g, tier, name, party, head, same (the same heroes alone, their mean), alone (head over same), best (its best way
-    alone), seat (head over best, printed), pace (head over the contract at the floor) }. Andy's four reads pace only (alone null). */
-function judgeTiers(jobs, at) {
+/** Rows { g, tier, name, party, head, same, alone, pace }: a head against the same heroes alone on the tier, and a Deadly four's pace. */
+function judgeReport(jobs, at) {
   const rows = [];
-  for (const g of groundIds) for (const tier of harderOf(g)) {
-    const seeds = [...new Set(jobs.filter((j) => j.ground === g && j.id.startsWith('tier:' + g + ':' + tier + ':')).map((j) => j.seedBase))];
+  for (const g of groundIds) for (const tier of ['normal', ...harderOf(g)]) {
+    const seeds = [...new Set(jobs.filter((j) => j.id.startsWith('tier:' + g + ':' + tier + ':')).map((j) => j.seedBase))];
     const alone = (w) => meanOf(seeds.map((s) => at(['tier', g, tier, s, 'solo-' + w].join(':')).heroes[0].levelXpPerH));
     const headOf = (name) => meanOf(seeds.map((s) => at(['tier', g, tier, s, name].join(':')).party.levelXpPerHeroPerH));
-    for (const [name, party] of Object.entries(TIER_MIXED)) {
-      const head = headOf(name), same = meanOf(party.map(alone)), best = Math.max(...party.map(alone));
-      /* a Deadly four's pace at paceLevelOf (its own cells where the floor is under PACE_FROM) */
-      const paced = tier === 'deadly' && name === 'four' && paceLevelOf(g) !== floorOf(g) ? headOf('pace-four') : head;
-      rows.push({ g, tier, name, party, head: Math.round(head), same: Math.round(same), alone: head / same, best: Math.round(best), seat: head / best, pace: paced / contractXpPerH(tier === 'deadly' && name === 'four' ? paceLevelOf(g) : floorOf(g)),
-        /* the cells play the floor: a Healer's tier there leaves a mix with no Healer printed, not bound (HEALER_TIERS, above) */
-        healerTier: healerless(party) && T.isHealerTier(g, tier, floorOf(g)) });
+    for (const [name, party] of Object.entries(tier === 'normal' ? NORMAL_MIXED : TIER_MIXED)) {
+      const head = headOf(name), same = meanOf(party.map(alone));
+      const paced = tier === 'deadly' && name === 'four' ? (paceLevelOf(g) !== floorOf(g) ? headOf('pace-four') : head) / contractXpPerH(paceLevelOf(g)) : null;
+      rows.push({ g, tier, name, party, head: Math.round(head), same: Math.round(same), alone: head / same, pace: paced });
     }
-    if (tier === 'deadly') { const low = paceLevelOf(g) !== floorOf(g), head = headOf(low ? 'pace-andy' : 'andy'); rows.push({ g, tier, name: 'andy', party: ANDY.party, head: Math.round(head), same: null, alone: null, best: null, seat: null, pace: head / contractXpPerH(paceLevelOf(g)) }); }
   }
   return rows;
 }
-const PACED = Object.freeze(['four', 'andy']);
-const tierRed = (r) => (r.alone !== null && !Object.hasOwn(STANDS, r.g) && !r.healerTier && !(r.alone >= ALONE_BAR)) || (r.tier === 'deadly' && PACED.includes(r.name) && !(r.pace <= PACE_CAP));
-const tierWords = (r) => r.g + ', ' + r.tier + ', ' + r.party.join('+') + (r.name === 'andy' ? ' (a Healer 5 under)' : '') + ': ' + r.head + ' Level XP/h a head'
-  + (r.alone === null ? '' : ', the same heroes alone ' + r.same + ' = ' + r.alone.toFixed(3) + ' (its best way alone ' + r.best + ' = ' + r.seat.toFixed(3) + ')')
-  + (r.healerTier ? ' (a Healer\'s tier, no Healer: printed, not bound)' : '')
-  + (PACED.includes(r.name) ? ', ' + r.pace.toFixed(2) + 'x the pace contract' + (r.tier === 'deadly' ? ' (cap ' + PACE_CAP + ')' : '') : '');
+const reportWords = (r) => r.g + ', ' + r.tier + ', ' + r.party.join('+') + ': ' + r.head + ' Level XP/h a head, the same heroes alone ' + r.same + ' = ' + r.alone.toFixed(3)
+  + (r.alone < ALONE_BAR ? ' (under ' + ALONE_BAR.toFixed(2) + ')' : '') + (r.pace === null ? '' : ', ' + r.pace.toFixed(2) + 'x the pace contract' + (r.pace > PACE_CAP ? ' (over ' + PACE_CAP + ')' : ''));
 
-/** BOTH PATHS: a Deadly four on Hask's Ford (the hottest before the cut), watched (30 s settles) and browser closed (10 min), paid the same Level XP. */
-function bothPaths(R) {
-  const g = 'hasks_ford';
-  if (!harderOf(g).includes('deadly')) return 'hasks_ford has no Deadly tier to play both paths on';
-  const xp = (w) => R.runCell(tierCellOf(g, 'deadly', 0, MIXED.four, 'paths', w)).heroes.map((h) => h.raw.levelXp);
-  const viewed = xp(30000), closed = xp(600000);
-  return viewed.join(',') === closed.join(',') ? null : 'a Deadly four on Hask\'s Ford: viewed ' + viewed + ', browser closed ' + closed;
-}
-
-function oneClassProblems() {
-  const classOf = (style) => Object.keys(PARTY_CLASSES).find((c) => PARTY_CLASSES[c].roles.includes(STYLES[style].role));
-  return Object.entries({ ...DUOS, ...LARGER }).filter(([, p]) => new Set(p.map(classOf)).size !== 1).map(([n, p]) => n + ' (' + p + ') is not one class');
-}
-
-/** The cells a sweep plays. The CI cut: the default pull every seed for duos and lone heroes, the first seed for a larger
-    party; 8 each, the first two seeds for duos and lone heroes, the first for a four. --wide: larger parties two seeds and
-    every seed at 8 each. A party cell and its lone heroes share their seeds, so each cell's solos are played. */
-function planOf(seeds, mixed) {
-  const jobs = [];
-  for (const g of groundIds) for (const arm of ARMS) for (let seed = 0; seed < seeds; seed++) {
-    const eight = arm.density !== null;
-    if (!WIDE && eight && seed > 1) continue;
-    for (const w of WAYS) jobs.push(cellOf(g, arm, seed, [w], 'solo-' + w));
-    for (const [n, p] of Object.entries(DUOS)) jobs.push(cellOf(g, arm, seed, p, n));
-    if (seed < (WIDE && !eight ? 2 : 1)) for (const [n, p] of Object.entries(LARGER)) if (WIDE || !eight || p.length === 4) jobs.push(cellOf(g, arm, seed, p, n));
-    if (mixed && !eight) for (const [n, p] of Object.entries(MIXED)) jobs.push(cellOf(g, arm, seed, p, n));
-  }
-  return jobs;
-}
-
-const meanOf = (a) => a.reduce((x, y) => x + y, 0) / a.length;
-
-/** The verdict over played cells. `at(id)`: a played cell's metrics. Answers { rows, reds, problems }. */
-function judge(jobs, at) {
-  const problems = [];
-  /* way -> seed -> Level XP/h alone, per ground and arm */
-  const solo = new Map();
-  const soloOf = (g, armId, way, seed) => solo.get([g, armId, way, seed].join(':'));
-  for (const j of jobs) {
-    const [g, armId, seed, name] = j.id.split(':');
-    if (!name.startsWith('solo-')) continue;
-    const xp = at(j.id).heroes[0].levelXpPerH;
-    solo.set([g, armId, j.party[0], seed].join(':'), xp);
-    if (armId === 'pull' && !(xp > 0)) problems.push(j.id + ': a hero alone earned no Level XP, so nothing can be judged against it');
-  }
-  const cells = new Map();
-  for (const j of jobs) {
-    const [g, armId, seed, name] = j.id.split(':');
-    if (name.startsWith('solo-')) continue;
-    const key = [g, armId, name].join(':');
-    const c = cells.get(key) || { g, armId, name, party: j.party, heads: [], built: [], picked: [], perSeed: [] };
-    const head = at(j.id).party.levelXpPerHeroPerH;
-    const built = meanOf(j.party.map((w) => soloOf(g, 'pull', w, seed)));
-    c.heads.push(head); c.built.push(built);
-    c.picked.push(j.party.map((w) => soloOf(g, armId, w, seed)));
-    c.perSeed.push(head / built);
-    cells.set(key, c);
-  }
-  const rows = [...cells.values()].map((c) => {
-    const head = meanOf(c.heads), built = meanOf(c.built);
-    /* The same heroes alone at THEIR better pull: each way's as-built or the arm's own, seeds pooled (a lone hero can press + too). */
-    const best = meanOf(c.party.map((w, i) => Math.max(meanOf(c.built.map((_, s) => soloOf(c.g, 'pull', w, s))), meanOf(c.picked.map((p) => p[i])))));
-    return { ...c, head: Math.round(head), mean: Math.round(built), ratio: head / built, worstSeed: Math.max(...c.perSeed), best: Math.round(best), vsBest: head / best };
-  });
-  return { rows, problems };
-}
-
-const armWords = (id) => ARMS.find((a) => a.id === id).words;
-const cellWords = (r) => r.g + ', ' + armWords(r.armId) + ', ' + r.party.join('+') + ': ' + r.head + ' Level XP/h per head, ' + r.mean + ' alone as built = ' + r.ratio.toFixed(3)
-  + ' (worst of ' + r.perSeed.length + ' seeds ' + r.worstSeed.toFixed(3) + ')' + (r.armId === 'pull' ? '' : ', ' + r.best + ' alone at the better pull = ' + r.vsBest.toFixed(3));
-
-/* ── THE PROOF. Each mutant reaches the rule the way a data row or a code slip would, and plays the cell it should move. ── */
-/* ONE TABLE (Tyler 2026-11-16; lane/d-flat-party-xp): the per-ground rows the old mutants edited are retired, so each slip is written against the one
-   table's line as it stands (read here, so a retune of the numbers keeps every mutant aimed), and played where a party kills fastest against its
-   heroes alone (the Barrow Muster and the Warrens, the grounds that set the one-class column). */
-const TABLE_LINE = (/export const PARTY_CLASS_XP = row\(.*\);/.exec(readFileSync(join(ROOT, 'src/data/party-class-xp.js'), 'utf8')) || ['(no PARTY_CLASS_XP line)'])[0];
-const { PARTY_CLASS_XP: TAB } = await import(pathToFileURL(join(ROOT, 'src/data/party-class-xp.js')).href + V);
-const tableLine = (t) => 'export const PARTY_CLASS_XP = row([' + t[2].join(', ') + '], [' + t[3].join(', ') + '], [' + t[4].join(', ') + ']);';
-const withCells = (n, cells) => tableLine({ ...TAB, [n]: cells });
-const scaled = (k) => tableLine(Object.fromEntries([2, 3, 4].map((n) => [n, TAB[n].map((v) => Math.round(v * k))])));
-const MUTANTS = [
-  { name: 'a same-class pair paid the mix\'s cell', cells: [['muster_barrows', ['bow', 'bow']], ['coppercap_warrens', ['bow', 'bow']], ['muster_barrows', ['mage', 'mage']]],
-    edits: [['src/data/party-class-xp.js', TABLE_LINE, withCells(2, [TAB[2][1], TAB[2][1]])]] },
-  { name: 'every party reads its top cell, classes or no classes', cells: [['muster_barrows', ['bow', 'bow']], ['coppercap_warrens', ['bow', 'bow']]],
-    edits: [['src/data/party-class-xp.js', 'const cell = cells[Math.min(Math.max(classes.length, 1), cells.length) - 1];', 'const cell = cells[cells.length - 1];']] },
-  { name: 'a shield Melee and a Melee count as two classes', cells: [['muster_barrows', ['tank', 'axes']], ['coppercap_warrens', ['tank', 'axes']]],
-    edits: [['src/data/party-class-xp.js', "melee: Object.freeze({ label: 'Melee', roles: Object.freeze(['tank', 'melee_dps']) }),",
-      "melee: Object.freeze({ label: 'Melee', roles: Object.freeze(['melee_dps']) }), tanks: Object.freeze({ label: 'Tank', roles: Object.freeze(['tank']) }),"]] },
-  /* (re-aimed, lane/c-brook-bear: Tyler 2026-11-11 retired the ground's party pull, so the plant brings one back in the engine, the full box for a party) */
-  { name: 'a party with no pick draws the full box (the Cellar pair)', cells: [['mill_cellar', ['bow', 'bow']]],
-    edits: [['src/data/hunt-grounds.js', 'const p = Number.isInteger(pick) && pick > 0 ? pick : 0;', 'const p = Number.isInteger(pick) && pick > 0 ? pick : (n > 1 ? 8 : 0);']] },
-  /* A ONE-CLASS CELL PAID LIKE A MIX on the other sizes, and a four's shares lifted in the engine. */
-  { name: 'a three of one class paid the mix\'s cell', cells: [['muster_barrows', LARGER.wands3], ['coppercap_warrens', LARGER.bows3]],
-    edits: [['src/data/party-class-xp.js', TABLE_LINE, withCells(3, [TAB[3][2], TAB[3][2], TAB[3][2]])]] },
-  { name: 'a four of one class paid the mix\'s cell', cells: [['muster_barrows', LARGER.wands4], ['coppercap_warrens', LARGER.bows4]],
-    edits: [['src/data/party-class-xp.js', TABLE_LINE, withCells(4, [TAB[4][3], TAB[4][3], TAB[4][3], TAB[4][3]])]] },
-  { name: 'a four\'s shares x3 in the engine', cells: [['muster_barrows', LARGER.wands4], ['meadowbrook_thicket', LARGER.wands4]],
-    edits: [['src/core/hunt/xp-share.js', 'const paid = (raw * party * multOf(sc, h)) / 1000;', 'const paid = (raw * party * (heroes.length === 4 ? 3 : 1) * multOf(sc, h)) / 1000;']] },
-];
-
-/* THE HARDER TIERS' BARS BITE (Tyler 2026-11-16): the table at the old per-ground rows' scale, a table cut so deep a Deadly mix earns under its
-   heroes alone, a mix read as one class, and ONE GROUND PAID ITS OWN CELL (the stopgap's shape, typed in the engine): each plays its ground's tier at the
-   floor, one seed, against the same tree's lone ways on the tier. */
-const TIER_MUTANTS = [
-  { name: 'the table at the old rows\' scale (x1.7): a Deadly four past ' + PACE_CAP + 'x the contract', g: 'mosslight_glade', tier: 'deadly', party: 'four', bar: 'pace',
-    edits: [['src/data/party-class-xp.js', TABLE_LINE, scaled(1.7)]] },
-  { name: 'the table cut too deep (x0.5): a Deadly mix under its heroes alone', g: 'hasks_ford', tier: 'deadly', party: 'duo tank+healer', bar: 'alone',
-    edits: [['src/data/party-class-xp.js', TABLE_LINE, scaled(0.5)]] },
-  { name: 'a mixed party\'s cell read as one class on Dangerous (the Glade three)', g: 'mosslight_glade', tier: 'dangerous', party: 'trio tank+healer+bow', bar: 'alone',
-    edits: [['src/data/party-class-xp.js', 'const cell = cells[Math.min(Math.max(classes.length, 1), cells.length) - 1];', 'const cell = cells[0];']] },
-  /* lane/d-party-pace: the pace read at Level 10 on a ground whose floor is under it still bites */
-  { name: 'the Sewer\'s Deadly pays x2.5 a kill: a four at Level 10 past ' + PACE_CAP + 'x the contract', g: 'millrace_sewer', tier: 'deadly', party: 'four', bar: 'pace',
-    edits: [['src/data/balance-sheet.js', 'deadly: Object.freeze({ hpPm: 1250, xpPm: 1220 }) }),', 'deadly: Object.freeze({ hpPm: 1250, xpPm: 3050 }) }),']] },
-  /* A HEALER'S TIER (lane/d-142-rulings): it excuses a mix with no Healer only, and only where the data makes it one. With a Healer the bar binds
-     there as anywhere (Krell's Hold's Deadly is a Healer's tier at its floor); and the Catacombs' tank and bow pair, printed today, binds the day its
-     Deadly stops being a Healer's tier at the floor */
-  { name: 'the table cut too deep on a Healer\'s tier (x0.5): Krell\'s Hold\'s Deadly pair WITH a Healer under its heroes alone', g: 'krells_hold', tier: 'deadly', party: 'duo tank+healer', bar: 'alone',
-    edits: [['src/data/party-class-xp.js', TABLE_LINE, scaled(0.5)]] },
-  /* (seed 0 alone reads that pair at 1.07, the two seeds' 0.968: the table cut makes it plainly under, and only the moved row lets the bar see it) */
-  { name: 'the Catacombs\' Deadly no Healer\'s tier at its floor (healerTiers 165) and the table cut (x0.5): the tank and bow pair binds and reads under its heroes alone', g: 'unmarked_catacombs', tier: 'deadly', party: 'duo tank+bow', bar: 'alone',
-    edits: [['src/data/grounds/unmarked_catacombs/pack.js', '  healerTiers: { deadly: 186 },', '  healerTiers: { deadly: 165 },'], ['src/data/party-class-xp.js', TABLE_LINE, scaled(0.5)]] },
-  { name: 'one ground pays its own cell (Hask\'s Ford x1.7, typed in the engine)', g: 'hasks_ford', tier: 'deadly', party: 'four', bar: 'pace',
-    edits: [['src/core/hunt/xp-share.js', 'const cell = partyClassXp(heroes.map((h) => h.role)).permille;', "const cell = Math.round(partyClassXp(heroes.map((h) => h.role)).permille * (ground && ground.id === 'hasks_ford' ? 1.7 : 1));"]] },
-];
-
-/* ONE TABLE, READ STATICALLY (Tyler 2026-11-16): the table holds party sizes and nothing else; no ground pack carries a pay cell of its own; the reader
-   takes the party's roles, never a ground. Each answer is a reason, null when it holds. `P`: the party-class-xp.js module, `packs`: GROUND_PACKS. */
-function oneTableProblems(P, packs) {
-  const out = [];
-  if (Object.keys(P.PARTY_CLASS_XP).join() !== '2,3,4') out.push('the party table names ' + Object.keys(P.PARTY_CLASS_XP) + ', not the sizes 2, 3 and 4');
-  for (const p of packs) if (p.partyClassXp !== undefined) out.push('the ' + p.id + ' pack carries its own party cell');
-  if (P.partyClassXp.length !== 1) out.push('partyClassXp reads ' + P.partyClassXp.length + ' arguments: the party\'s roles only, never a ground');
-  return out;
-}
-const STATIC_MUTANTS = [
-  { name: 'a ground pack brings back its own party cell', edits: [['src/data/grounds/hasks_ford/pack.js', "  partyVsAlone: {", "  partyClassXp: { 2: [990, 1760], 3: [1150, 2145, 2310], 4: [1150, 2700, 3025, 3030] },\n  partyVsAlone: {"]] },
-  { name: 'the table keyed by ground again', edits: [['src/data/party-class-xp.js', TABLE_LINE, 'export const PARTY_CLASS_XP = Object.freeze({ ...row([990, 1500], [990, 1580, 1700], [970, 1450, 1615, 1650]), mosslight_glade: row([1085, 2035], [1290, 2190, 2360], [1270, 2730, 2940, 3000]) });']] },
-  { name: 'the reader takes a ground again', edits: [['src/data/party-class-xp.js', 'export function partyClassXp(roles) {', 'export function partyClassXp(roles, groundId) {']] },
-];
-
-async function mutate() {
-  let escaped = 0;
-  const pull = ARMS[0];
-  /* THE CONTROL: on this tree every party a mutant plays stands under the bar, so a mutant's red is the mutant's. */
-  const ratioOn = (R, g, party) => {
-    const solos = new Map();
-    for (const w of new Set(party)) solos.set(w, R.runCell(cellOf(g, pull, 0, [w], 'solo-' + w)).heroes[0].levelXpPerH);
-    return R.runCell(cellOf(g, pull, 0, party, 'x')).party.levelXpPerHeroPerH / meanOf(party.map((w) => solos.get(w)));
-  };
-  const Rh = await loadCellRunner(ROOT);
-  const over = [...new Set(MUTANTS.flatMap((mu) => mu.cells.map(([g, party]) => g + ':' + party.join('+'))))]
-    .map((k) => { const [g, p] = k.split(':'); return [k, ratioOn(Rh, g, p.split('+'))]; }).filter(([, r]) => !(r <= BAR));
-  if (over.length) { console.log('  ✗ CONTROL: on this tree ' + over.map(([k, r]) => k + ' ' + r.toFixed(3)).join(', ') + ' already over ' + BAR.toFixed(2)); escaped++; }
-  for (const mu of MUTANTS) {
-    const p = plant(mu.edits, [...PLAY_TREES, 'tests/hunt-core/fixtures']);
-    try {
-      const R = await loadCellRunner(p.root);
-      const seen = mu.cells.map(([g, party]) => ({ ratio: ratioOn(R, g, party), bar: BAR }));
-      const hit = seen.some((x) => x.ratio > x.bar);
-      console.log('  ' + (hit ? 'caught ' : 'ESCAPED') + ' ' + mu.name + ' (' + seen.map((x) => x.ratio.toFixed(3) + ' against ' + x.bar.toFixed(2)).join(', ') + ')');
-      if (!hit) escaped++;
-    } finally { p.done(); }
-  }
-  /* the harder tiers: a control on this tree first, then each mutant turns its bar red */
-  /* the Healer's tier as the tree under test writes it (a mutant may move a pack's healerTiers), the verdict's own excuse (tierRed) */
-  const healerTierOn = async (root, mu) => healerless(TIER_MIXED[mu.party])
-    && (await import(pathToFileURL(join(root, 'src/data/hunt-tiers.js')).href + V + (V ? '&' : '?') + 'm=' + Math.random())).isHealerTier(mu.g, mu.tier, floorOf(mu.g));
-  const tierOn = (R, mu) => {
-    const party = TIER_MIXED[mu.party];
-    const same = meanOf(party.map((w) => R.runCell(tierCellOf(mu.g, mu.tier, 0, [w], 'solo-' + w)).heroes[0].levelXpPerH));
-    const head = R.runCell(tierCellOf(mu.g, mu.tier, 0, party, mu.party)).party.levelXpPerHeroPerH;
-    /* the pace bar plays the four where the run reads it (paceLevelOf) */
-    const paced = mu.bar === 'pace' && paceLevelOf(mu.g) !== floorOf(mu.g) ? R.runCell(tierCellOf(mu.g, mu.tier, 0, party, mu.party, undefined, undefined, paceLevelOf(mu.g))).party.levelXpPerHeroPerH : head;
-    return { alone: head / same, pace: paced / contractXpPerH(paceLevelOf(mu.g)) };
-  };
-  const redOf = (mu, x) => (mu.bar === 'pace' ? !(x.pace <= PACE_CAP) : !x.healerTier && !(x.alone >= ALONE_BAR));
-  const said = (mu, x) => (mu.bar === 'pace' ? x.pace.toFixed(2) + 'x the contract against ' + PACE_CAP : x.alone.toFixed(3) + ' of the same heroes alone against ' + ALONE_BAR.toFixed(2)
-    + (x.healerTier ? ', a Healer\'s tier with no Healer (printed)' : ''));
-  for (const mu of TIER_MUTANTS) {
-    const here = { ...tierOn(Rh, mu), healerTier: await healerTierOn(ROOT, mu) };
-    if (redOf(mu, here)) { console.log('  ✗ CONTROL: on this tree ' + mu.g + ' ' + mu.tier + ' ' + mu.party + ' already reads ' + said(mu, here)); escaped++; continue; }
-    const p = plant(mu.edits, [...PLAY_TREES, 'tests/hunt-core/fixtures']);
-    try {
-      const x = { ...tierOn(await loadCellRunner(p.root), mu), healerTier: await healerTierOn(p.root, mu) };
-      const hit = redOf(mu, x);
-      console.log('  ' + (hit ? 'caught ' : 'ESCAPED') + ' ' + mu.name + ' (' + said(mu, x) + ')');
-      if (!hit) escaped++;
-    } finally { p.done(); }
-  }
-  /* ONE TABLE, read statically: the control holds on this tree, each mutant names its reason. A tree whose data refuses to load (grounds/shape.js
-     refuses a pack's own pay cell at definePack) is caught by that refusal: its message is the reason. */
-  const staticOn = async (root) => {
-    try {
-      return oneTableProblems(await import(pathToFileURL(join(root, 'src/data/party-class-xp.js')).href + V + (V ? '&' : '?') + 'm=' + Math.random()),
-        (await import(pathToFileURL(join(root, 'src/data/grounds/index.js')).href + V + (V ? '&' : '?') + 'm=' + Math.random())).GROUND_PACKS);
-    } catch (e) { return ['the data refuses to load: ' + (e && e.message ? e.message : String(e))]; }
-  };
-  const here = await staticOn(ROOT);
-  if (here.length) { console.log('  ✗ CONTROL: on this tree ' + here.join('; ')); escaped++; }
-  for (const mu of STATIC_MUTANTS) {
-    const p = plant(mu.edits, [...PLAY_TREES, 'tests/hunt-core/fixtures']);
-    try {
-      const why = await staticOn(p.root);
-      console.log('  ' + (why.length ? 'caught ' : 'ESCAPED') + ' ' + mu.name + (why.length ? ' (' + why.join('; ') + ')' : ''));
-      if (!why.length) escaped++;
-    } finally { p.done(); }
-  }
-  const all = MUTANTS.length + TIER_MUTANTS.length + STATIC_MUTANTS.length;
-  console.log(escaped ? 'party-class-xp-line --mutate: ' + escaped + ' ESCAPED' : 'party-class-xp-line --mutate: ' + all + '/' + all + ' caught');
-  process.exitCode = escaped ? 1 : 0;
-}
-
-/* THE PARTY WINDOW'S LINES, MEASURED (--write; the method of party-class-xp.js PARTY_VS_ALONE), ONE PER TIER the ground offers (lane/d-party-pace: the window
-   reads the leader's tier). Each at the floor, on the tier's own pull, a head against the same heroes alone ON THAT TIER, in whole percent to the nearest 5.
-   Normal: one class is the mean of its one-class parties of that size; two of two, three of three and four of four the mean of the played mixes; three of
-   two, four of two and four of three the size's mix times the table's cell ratio (a cell moves no blow). Dangerous and Deadly (the harder-tier arm's cells):
-   two of two the mean of the two played pairs, three of three the trio, four of four the four, every other cell the size's mix times the cell ratio.
-   Answers { ground: { normal: { 2: [..], 3: [..], 4: [..] }, dangerous?: .., deadly?: .. } }. */
-function linesOf(rows, tierRows, table) {
+/* THE PARTY WINDOW'S LINES BY SIZE (--write; party-class-xp.js PARTY_VS_ALONE's method): each size's line is its full mix's reading on the tier,
+   in whole percent to the nearest 5: a pair the mean of tank + Healer and tank + bow, a three tank + Healer + bow, a four tank + Healer + bow + wand. */
+function linesOf(rows) {
   const five = (r) => Math.round(((r - 1) * 100) / 5) * 5 || 0;
-  const scaled = (m2, m3, m4, one2, one3, one4) => ({ 2: [five(one2 === null ? (m2 * table[2][0]) / table[2][1] : one2), five(m2)],
-    3: [five(one3 === null ? (m3 * table[3][0]) / table[3][2] : one3), five((m3 * table[3][1]) / table[3][2]), five(m3)],
-    4: [five(one4 === null ? (m4 * table[4][0]) / table[4][3] : one4), five((m4 * table[4][1]) / table[4][3]), five((m4 * table[4][2]) / table[4][3]), five(m4)] });
   const out = {};
   for (const g of groundIds) {
-    const on = rows.filter((r) => r.g === g && r.armId === 'pull');
-    const one = (n) => meanOf(on.filter((r) => !Object.hasOwn(MIXED, r.name) && r.party.length === n).map((r) => r.ratio));
-    const mix = (n) => meanOf(on.filter((r) => Object.hasOwn(MIXED, r.name) && r.party.length === n).map((r) => r.ratio));
-    out[g] = { normal: scaled(mix(2), mix(3), mix(4), one(2), one(3), one(4)) };
-    for (const tier of harderOf(g)) {
-      const t = (name) => tierRows.find((r) => r.g === g && r.tier === tier && r.name === name).alone;
-      out[g][tier] = scaled(meanOf([t('duo tank+healer'), t('duo tank+bow')]), t('trio tank+healer+bow'), t('four'), null, null, null);
+    out[g] = {};
+    for (const tier of ['normal', ...harderOf(g)]) {
+      const t = (name) => rows.find((r) => r.g === g && r.tier === tier && r.name === name).alone;
+      out[g][tier] = { 2: five(meanOf([t('duo tank+healer'), t('duo tank+bow')])), 3: five(t('trio tank+healer+bow')), 4: five(t('four')) };
     }
   }
   return out;
 }
-
 /** Write each ground's line where it lives: the base grounds' rows in party-class-xp.js, a pack's in its pack.js. Answers the files written. */
 function writeLines(lines, packIds) {
-  const said = (r) => 'said([' + r[2].join(', ') + '], [' + r[3].join(', ') + '], [' + r[4].join(', ') + '])';
-  const plain = (r) => '{ 2: [' + r[2].join(', ') + '], 3: [' + r[3].join(', ') + '], 4: [' + r[4].join(', ') + '] }';
+  const sized = (r) => 'size(' + r[2] + ', ' + r[3] + ', ' + r[4] + ')';
+  const plain = (r) => '{ 2: ' + r[2] + ', 3: ' + r[3] + ', 4: ' + r[4] + ' }';
   const each = (byTier, one) => Object.entries(byTier).map(([tier, r]) => tier + ': ' + one(r)).join(', ');
   const written = [];
   const pcx = join(ROOT, 'src/data/party-class-xp.js');
@@ -431,7 +218,7 @@ function writeLines(lines, packIds) {
     } else {
       const re = new RegExp('^ {2}' + g + ': lines\\(\\{ normal: .*\\}\\),$', 'm');
       if (!re.test(src)) throw new Error(g + ': party-class-xp.js has no BASE_VS_ALONE row to write');
-      src = src.replace(re, '  ' + g + ': lines({ ' + each(byTier, said) + ' }),');
+      src = src.replace(re, '  ' + g + ': lines({ ' + each(byTier, sized) + ' }),');
     }
   }
   writeFileSync(pcx, src);
@@ -439,69 +226,95 @@ function writeLines(lines, packIds) {
   return written;
 }
 
+// ── THE PROOF ─────────────────────────────────────────────────────────────────────────────────────────────────────────────
+/* Each mutant reaches the rule the way a data row or a code slip would. The engine and size slips are played (SA-2); the static ones read (SA-1). */
+const MUTANTS = [
+  { name: 'the engine pays a party with a repeated role the even share (the classes rule back, typed in the engine)', check: 'SA-2',
+    edits: [['src/core/hunt/xp-share.js', 'const cell = partySizeXp(heroes.length);', 'const cell = heroes.length > 1 && new Set(heroes.map((h) => h.role)).size < heroes.length ? 1000 : partySizeXp(heroes.length);']] },
+  { name: 'the reader pays every party the pair\'s cell', check: 'SA-2',
+    edits: [['src/data/party-class-xp.js', '  return PARTY_SIZE_XP[Math.min(n, Math.max(...SIZES))];', '  return PARTY_SIZE_XP[2];']] },
+  { name: 'a hero alone loses the solo boost', check: 'SA-2',
+    edits: [['src/data/party-class-xp.js', '  if (n === 1) return SOLO_XP_PM;', '  if (n === 1) return 1000;']] },
+  { name: 'the engine reads the size cell of the party\'s first hero only', check: 'SA-2',
+    edits: [['src/core/hunt/xp-share.js', 'const cell = partySizeXp(heroes.length);', 'const cell = partySizeXp(heroes[0].role === \'ranger\' ? 1 : heroes.length);']] },
+  { name: 'a ground pack brings back its own party cell', check: 'SA-1',
+    edits: [['src/data/grounds/hasks_ford/pack.js', '  partyVsAlone: {', '  partyClassXp: { 2: [990, 1760], 3: [1150, 2145, 2310], 4: [1150, 2700, 3025, 3030] },\n  partyVsAlone: {']] },
+  { name: 'the table keyed by classes again', check: 'SA-1',
+    edits: [['src/data/party-class-xp.js', 'export const PARTY_SIZE_XP = Object.freeze({ 2: 1500, 3: 1700, 4: 1700 });', 'export const PARTY_SIZE_XP = Object.freeze({ 2: [880, 1500], 3: [990, 1600, 1700], 4: [970, 1580, 1670, 1700] });']] },
+  { name: 'the reader takes the roles again', check: 'SA-1',
+    edits: [['src/data/party-class-xp.js', 'export function partySizeXp(n) {', 'export function partySizeXp(n, roles) {']] },
+  { name: 'a class reader exported beside the size table', check: 'SA-1',
+    edits: [['src/data/party-class-xp.js', 'export function partySizeXp(n) {', 'export const partyClassXp = (roles) => ({ permille: partySizeXp(roles.length), classes: [] });\nexport function partySizeXp(n) {']] },
+];
+
+async function staticOn(root) {
+  try {
+    return oneTableProblems(await imp(root, 'src/data/party-class-xp.js'), (await imp(root, 'src/data/grounds/index.js')).GROUND_PACKS);
+  } catch (e) { return ['the data refuses to load: ' + (e && e.message ? e.message.split('\n')[0] : String(e))]; }
+}
+async function checkOn(which, edits = []) {
+  if (which === 'SA-1') {
+    if (!edits.length) return staticOn(ROOT);
+    const p = plant(edits, [...PLAY_TREES, 'tests/hunt-core/fixtures']);
+    try { return await staticOn(p.root); } finally { p.done(); }
+  }
+  try { return factorProblems(await paidFactors(edits)); }
+  catch (e) { return ['the settle refuses to run: ' + (e && e.message ? e.message.split('\n')[0] : String(e))]; }
+}
+
+async function mutate() {
+  let escaped = 0;
+  /* THE CONTROL: this tree is clean on both checks, so a mutant's red is the mutant's */
+  for (const which of ['SA-1', 'SA-2']) {
+    const here = await checkOn(which);
+    if (here.length) { console.log('  ✗ CONTROL ' + which + ': on this tree ' + here.join('; ')); escaped++; }
+  }
+  for (const mu of MUTANTS) {
+    const why = await checkOn(mu.check, mu.edits);
+    console.log('  ' + (why.length ? 'caught ' : 'ESCAPED') + ' ' + mu.check + ' ' + mu.name + (why.length ? ' (' + why[0].slice(0, 160) + ')' : ''));
+    if (!why.length) escaped++;
+  }
+  console.log(escaped ? 'party-class-xp-line --mutate: ' + escaped + ' ESCAPED' : 'party-class-xp-line --mutate: ' + MUTANTS.length + '/' + MUTANTS.length + ' caught, control clean');
+  process.exitCode = escaped ? 1 : 0;
+}
+
 async function main() {
   if (process.argv.includes('--mutate')) return mutate();
-  const P = await import(pathToFileURL(join(ROOT, 'src/data/party-class-xp.js')).href + V);
-  const { GROUND_PACKS } = await import(pathToFileURL(join(ROOT, 'src/data/grounds/index.js')).href + V);
-  const bad = [...oneClassProblems(), ...oneTableProblems(P, GROUND_PACKS)];
-  if (bad.length) { for (const b of bad) console.log('  ✗ ' + b); process.exitCode = 1; return; }
-  if (!groundIds.length) { console.log('  ✗ no grounds to play'); process.exitCode = 1; return; }
-  const seeds = argOf('--seeds', 3), workers = argOf('--workers', 4);
-  const lineJobs = planOf(seeds, process.argv.includes('--mixed'));
-  const tierJobs = tierPlanOf(seeds);
-  const jobs = [...lineJobs, ...tierJobs];
-  const mixedNames = Object.keys(MIXED);
-  const tmp = mkdtempSync(join(tmpdir(), 'party-class-xp-'));
-  const out = join(tmp, 'cells.jsonl');
   const t0 = Date.now();
-  let code = 2;
-  try {
-    /* cpuMax 101: never hold. The pool's own workers are the load here, on a CI box of this many cores. */
-    const res = await runPool(jobs, out, { root: ROOT, workers, cpuMax: 101, log: () => {} });
-    if (res.failed || res.done !== jobs.length) { console.log('  ✗ ' + res.failed + ' cell(s) failed, ' + res.done + ' of ' + jobs.length + ' played'); return; }
-    const played = new Map(readFileSync(out, 'utf8').split('\n').filter(Boolean).map((l) => { const c = JSON.parse(l); return [c.id, c]; }));
-    const cpu = [...played.values()].reduce((s, c) => s + c.ms, 0);
-    const { rows, problems } = judge(lineJobs, (id) => played.get(id));
-    const tierRows = judgeTiers(tierJobs, (id) => played.get(id));
-    for (const r of tierRows) if (process.argv.includes('--table') || r.name === 'four' || r.healerTier || tierRed(r)) console.log('  TIER ' + tierWords(r));
-    const tierReds = tierRows.filter(tierRed);
-    for (const g of Object.keys(STANDS)) {
-      const mine = tierRows.filter((r) => r.g === g && r.alone !== null);
-      if (!mine.length) continue;
-      const low = mine.reduce((m, r) => (r.alone < m.alone ? r : m));
-      console.log('  STANDS (' + STANDS[g] + ') ' + g + ': its harder-tier mixes read ' + Math.min(...mine.map((r) => r.alone)).toFixed(2) + '-' + Math.max(...mine.map((r) => r.alone)).toFixed(2)
-        + ' of the same heroes alone (lowest ' + low.tier + ' ' + low.party.join('+') + ')' + (mine.every((r) => r.alone >= ALONE_BAR) ? '; every mix at or over the bar now, so this line can go' : ''));
-    }
-    const paths = bothPaths(await loadCellRunner(ROOT));
-    if (paths) problems.push(paths);
-    const same = rows.filter((r) => !mixedNames.includes(r.name));
-    if (process.argv.includes('--table')) for (const r of same) console.log('  ' + cellWords(r));
-    if (process.argv.includes('--write')) {
-      if (!process.argv.includes('--mixed')) { console.log('  ✗ --write needs --mixed (the lines read the mixes)'); return; }
-      const lines = linesOf(rows, tierRows, P.PARTY_CLASS_XP);
-      for (const [g, r] of Object.entries(lines)) console.log('  LINE ' + g.padEnd(20) + JSON.stringify(r) + (JSON.stringify(r) === JSON.stringify(P.PARTY_VS_ALONE[g]) ? ' (as written)' : ' (was ' + JSON.stringify(P.PARTY_VS_ALONE[g]) + ')'));
-      console.log('  wrote ' + writeLines(lines, GROUND_PACKS.map((x) => x.id)).join(', '));
-    }
-    for (const r of rows.filter((x) => mixedNames.includes(x.name))) console.log('  MIXED ' + cellWords(r));
-    for (const g of groundIds) for (const arm of ARMS) {
-      const on = (r) => (arm.id === 'pull' ? r.ratio : r.vsBest);
-      const top = same.filter((r) => r.g === g && r.armId === arm.id).sort((a, b) => on(b) - on(a))[0];
-      console.log('  ' + g.padEnd(20) + arm.words.padEnd(13) + ' worst ' + on(top).toFixed(3) + ' ' + top.party.join('+'));
-    }
-    const eight = same.filter((r) => r.armId === 'eight');
-    console.log('  8 each against alone as built (read, not the bar): ' + eight.filter((r) => r.ratio > BAR).length + ' of ' + eight.length + ' cells over ' + BAR.toFixed(2));
-    const reds = same.filter((r) => (r.armId === 'pull' ? r.ratio : r.vsBest) > BAR);
-    for (const p of problems) console.log('  ✗ ' + p);
-    for (const r of reds) console.log('  ✗ ' + cellWords(r));
-    for (const r of tierReds) console.log('  ✗ TIER ' + tierWords(r));
-    const ok = !reds.length && !tierReds.length && !problems.length;
-    console.log('party-class-xp-line: ' + (ok ? 'green' : 'RED, ' + reds.length + ' cell(s) over the line, ' + tierReds.length + ' harder-tier mix(es) off its bars') + ': ' + same.length + ' party cells on ' + groundIds.length + ' grounds, ' + seeds + ' seeds, bar ' + BAR.toFixed(2)
-      + '; one table; ' + tierRows.length + ' harder-tier parties, every mix at or over its heroes alone (' + ALONE_BAR.toFixed(2) + '), a Deadly four at most ' + PACE_CAP + 'x the contract, both paths ' + (paths ? 'APART' : 'the same') + ', ' + Math.round((Date.now() - t0) / 1000) + ' s (' + Math.round(cpu / 1000) + ' s of cells)');
-    code = ok ? 0 : 1;
-  } finally {
-    rmSync(tmp, { recursive: true, force: true });
-    process.exitCode = code;
+  const P = await imp(ROOT, 'src/data/party-class-xp.js');
+  const { GROUND_PACKS } = await imp(ROOT, 'src/data/grounds/index.js');
+  const problems = oneTableProblems(P, GROUND_PACKS).map((x) => 'SA-1 ' + x);
+  const f = await paidFactors();
+  if (typeof f !== 'string') for (const [name, x] of Object.entries(f)) console.log('  SA-2 ' + name.padEnd(22) + ' paid ' + x.paid.toFixed(4) + ' of the even share (its cell ' + x.want.toFixed(3) + ')');
+  problems.push(...factorProblems(f).map((x) => 'SA-2 ' + x));
+  problems.push(...bothPaths(await loadCellRunner(ROOT)).map((x) => 'SA-3 ' + x));
+  if (process.argv.includes('--write') && !process.argv.includes('--report')) problems.push('--write needs --report (the lines read the mixes)');
+  if (process.argv.includes('--report')) {
+    const seeds = argOf('--seeds', 2), workers = argOf('--workers', 4);
+    const jobs = reportPlanOf(seeds);
+    const tmp = mkdtempSync(join(tmpdir(), 'party-size-xp-'));
+    try {
+      /* cpuMax 101: never hold. The pool's own workers are the load here. */
+      const res = await runPool(jobs, join(tmp, 'cells.jsonl'), { root: ROOT, workers, cpuMax: 101, log: () => {} });
+      if (res.failed || res.done !== jobs.length) problems.push('REPORT: ' + res.failed + ' cell(s) failed, ' + res.done + ' of ' + jobs.length + ' played');
+      else {
+        const played = new Map(readFileSync(join(tmp, 'cells.jsonl'), 'utf8').split('\n').filter(Boolean).map((l) => { const c = JSON.parse(l); return [c.id, c]; }));
+        const rows = judgeReport(jobs, (id) => played.get(id));
+        for (const r of rows) console.log('  REPORT ' + reportWords(r));
+        console.log('  REPORT (printed, no bar): ' + rows.filter((r) => r.tier !== 'normal' && r.alone < ALONE_BAR).length + ' harder-tier mix(es) under the same heroes alone, '
+          + rows.filter((r) => r.pace !== null && r.pace > PACE_CAP).length + ' Deadly four(s) over ' + PACE_CAP + 'x the contract');
+        if (process.argv.includes('--write')) {
+          const lines = linesOf(rows);
+          for (const [g, r] of Object.entries(lines)) console.log('  LINE ' + g.padEnd(20) + JSON.stringify(r) + (JSON.stringify(r) === JSON.stringify(P.PARTY_VS_ALONE[g]) ? ' (as written)' : ' (was ' + JSON.stringify(P.PARTY_VS_ALONE[g]) + ')'));
+          console.log('  wrote ' + writeLines(lines, GROUND_PACKS.map((x) => x.id)).join(', '));
+        }
+      }
+    } finally { rmSync(tmp, { recursive: true, force: true }); }
   }
+  for (const p of problems) console.log('  ✗ ' + p);
+  console.log('party-class-xp-line: ' + (problems.length ? 'RED, ' + problems.length + ' problem(s)' : 'green') + ': one table by size ' + JSON.stringify(P.PARTY_SIZE_XP)
+    + ', every lineup paid its size\'s cell on the settle, both paths the same, ' + Math.round((Date.now() - t0) / 1000) + ' s');
+  process.exitCode = problems.length ? 1 : 0;
 }
 
 if (isMain(import.meta.url)) main().catch((e) => { console.error(e); process.exit(2); });

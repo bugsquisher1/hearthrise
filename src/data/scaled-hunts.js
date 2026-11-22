@@ -119,7 +119,7 @@ export const SCALED_HUNTS = Object.freeze({
      (its rating against their evasion, where the old line sat near its 95% cap), about 167k -> 157k an hour at 41, while the Thicket scaled to 41 read
      164k -> 158k, 1.01x the right-Level ground (fee-guard red). 740 puts it under (about 0.98x), and the Glade one past its band reads about 1.5x itself. */
   /* A PARTY'S SHARE ON A SCALED HUNT (designer 2026-11-11, lane/d-solo-fifteen): a party keeps this much of its ground's party cell (party-class-xp.js
-     PARTY_CLASS_XP), a hero alone keeps the whole solo boost. The cells are fitted at the ground's floor so a mixed four earns 15-25% more a head
+     PARTY_SIZE_XP), a hero alone keeps the whole solo boost. The cells are fitted at the ground's floor so a mixed four earns 15-25% more a head
      than a hero alone there; on the same ground scaled to 41-50 a four kills far faster for its share, and since the 11-11 cells (a four's cell
      about doubled when every group met one pack) a scaled Thicket or Glade four read 0.96-0.99x the Warrens' four, the right-Level ground (tests/
      scaled-hunts fee-guard), so a bought hour was the best party grind and the Warrens' own XP could not be re-dialed. Rides the scaled row

@@ -934,10 +934,11 @@ async function selftest() {
     check('S-5: a cell plays the ladder\'s share (' + lw.raw.xpLostLevel + ' -> ' + Math.round(lw.raw.xpLostLevelBlessed) + ')', lw.deaths >= 1 && Math.abs(lw.raw.xpLostLevelBlessed - 0.125 * lw.raw.xpLostLevel) < 1);
     const size = await plantScratch(P.composePatch(ROOT, ['S-10'])), lvx = await plantScratch(P.composePatch(ROOT, ['S-4']));
     try {
-      const pcx = async (root) => (await import(pathToFileURL(join(root, 'src/data/party-class-xp.js')).href)).partyClassXp;
+      /* S-10 BUILT (lane/c-formula-steps, 2026-11-21): the tree pays a party by its size alone, so the built patch plants nothing and moves no cell */
+      const pcx = async (root) => import(pathToFileURL(join(root, 'src/data/party-class-xp.js')).href);
       const [onTree, onSize] = [await pcx(ROOT), await pcx(size.root)];
-      const four = ['mage', 'mage', 'mage', 'mage'], mixed = ['melee_dps', 'ranger', 'mage', 'healer'];
-      check('S-10: by size alone a one-class four reads the mixed four\'s cell (' + onSize(four).permille + ' = ' + onSize(mixed).permille + '; the tree ' + onTree(four).permille + ')', onSize(four).permille === onSize(mixed).permille && onTree(four).permille < onTree(mixed).permille);
+      check('S-10 (built): a party reads its size alone (a pair ' + onTree.partySizeXp(2) + ', a four ' + onTree.partySizeXp(4) + ', the table\'s ' + onTree.PARTY_SIZE_XP[2] + ' and ' + onTree.PARTY_SIZE_XP[4] + '; the patched copy ' + onSize.partySizeXp(4) + ')',
+        !('partyClassXp' in onTree) && [2, 3, 4].every((n) => onTree.partySizeXp(n) === onTree.PARTY_SIZE_XP[n] && onSize.partySizeXp(n) === onTree.partySizeXp(n)));
       const xpCell = { ...ham, buffs: [{ type: 'level_xp', magnitude: 10 }], hours: 0.5, seeds: 1 };
       const lx = (await playJobs([{ id: 'hook', cell: { ...xpCell, id: 'SELF:lx-hook' } }, { id: 'plain', cell: { ...ham, hours: 0.5, seeds: 1, id: 'SELF:lx-plain' } }], lvx.root, 2)).results;
       const lt = (await playJobs([{ id: 'tree', cell: { ...xpCell, id: 'SELF:lx-tree' } }], ROOT, 1)).results;

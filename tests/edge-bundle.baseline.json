@@ -153,6 +153,11 @@
         "bytes": 3150368,
         "on": "2026-11-21",
         "why": "cut locked in (16467 bytes)"
+      },
+      {
+        "bytes": 3136992,
+        "on": "2026-11-22",
+        "why": "cut locked in (13376 bytes)"
       }
     ]
   }

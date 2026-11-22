@@ -112,7 +112,7 @@ export const HUD_TEXT = Object.freeze({
   an_balance: 'Balance',
   an_sec_rates: 'Per hour',
   an_level_xp_h: 'Level XP per hour',
-  /* the even share of each kill (the server's raw_xp): what was paid less the party's class cell or the solo boost, the only Level XP
+  /* the even share of each kill (the server's raw_xp): what was paid less the party's size cell or the solo boost, the only Level XP
      bonuses. "Before bonuses" read as a party cutting a hero's XP (lane/a-honest-lines, re-landed by lane/a-honesty-rescue). The summary
      card's row says the same (hunt-summary.js). */
   /* Level XP before the party, solo and live-event shares (xp-share.js `raw`): it says the event too, so a weekend never goes unsaid */

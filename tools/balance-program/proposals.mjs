@@ -148,12 +148,10 @@ const STATIC = {
     ],
   },
   'patches/party-xp-by-size.json': {
-    name: 'S-10: party XP by party size alone for the first build (the sitting, RULED 2026-11-21, option C)',
-    why: 'Tyler 2026-11-21 (review/01-sitting.md S-10, C): "Size alone for the first build", the classes rule may return as one row after Deadly is sized on a fixed tool. Every party reads its size\'s cell whatever classes it holds; the cell is the one a mixed party reads today (880/1500 a pair, 1700 a three and a four), so the standard four is unchanged and a one-class party rises to it. The SIZE values are a HYPOTHESIS until the size table is written; the lineup cells stay a report of which fours win',
-    kind: 'derivation', targets: ['pace'],
-    edits: [
-      { file: 'src/data/party-class-xp.js', from: '  const cell = cells[Math.min(Math.max(classes.length, 1), cells.length) - 1];', to: '  const cell = cells[cells.length - 1];' },
-    ],
+    name: 'S-10: party XP by party size alone for the first build (the sitting, RULED 2026-11-21, option C). BUILT by lane/c-formula-steps (FB-2, 2026-11-21)',
+    why: 'Tyler 2026-11-21 (review/01-sitting.md S-10, C): "Size alone for the first build", the classes rule may return as one row after Deadly is sized on a fixed tool. BUILT: src/data/party-class-xp.js PARTY_SIZE_XP pays a party by its size alone (2: 1500, 3: 1700, 4: 1700, the cells a full mix read), so the tree is the proposed game here and nothing is left to plant. The SIZE values stay a HYPOTHESIS until the fixed tool reads which fours players run; the lineup cells stay a report of which fours win',
+    kind: 'identity', targets: [],
+    edits: [],
   },
   'patches/level-xp-hook.json': {
     name: 'S-4: the seam a clan room\'s standing Level XP bonus drops into (the sitting, RULED 2026-11-21, option A; size not designed)',

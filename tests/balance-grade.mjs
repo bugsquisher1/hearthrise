@@ -86,8 +86,9 @@ check(paceVerdicts(PARTY.deadlyFourVsContractMax * 1.04).some((v) => v.verdict =
 check(paceVerdicts(PARTY.deadlyFourVsContractMax * 0.96).length === 1 && paceVerdicts(PARTY.deadlyFourVsContractMax * 0.96)[0].verdict === 'ok', 'party-tiers: a Deadly four under the ceiling reads ok');
 check(paceVerdicts(PARTY.deadlyFourVsContractMax * 1.04, PARTY.paceFromLevel - 1).some((v) => v.verdict === 'OFF'), 'party-tiers: under Level ' + PARTY.paceFromLevel + ' the ceiling reports (OFF), never FAILS');
 check(!('fourVsSolo' in PARTY), 'party-tiers: the sheet carries no Normal four multiple (party.fourVsSolo retired 2026-11-16)');
-/* ONE RULING, TWO GUARDS: the pack check grades the sheet's party numbers and tests/party-class-xp-line.mjs binds its own (ALONE_BAR, PACE_CAP, PACE_FROM
-   at LEVEL_PACE's first target), so they are the same numbers (Tyler 2026-11-16: ">= the same heroes alone", "<= ~2.5x the pace contract") */
+/* ONE RULING, ONE SET OF NUMBERS: the pack check grades the sheet's party numbers and tests/party-class-xp-line.mjs --report prints its readings against
+   its own (ALONE_BAR, PACE_CAP, PACE_FROM at LEVEL_PACE's first target; printed, no longer a bar there since S-10 c and Tyler 2026-11-21's "no solo /
+   group targets"), so they are the same numbers (Tyler 2026-11-16: ">= the same heroes alone", "<= ~2.5x the pace contract") */
 {
   const pcx = readFileSync(join(ROOT, 'tests/party-class-xp-line.mjs'), 'utf8'), num = (k) => Number((pcx.match(new RegExp('const ' + k + ' = ([\\d.]+);')) || [])[1]);
   check(num('ALONE_BAR') === PARTY.vsAloneMin && num('PACE_CAP') === PARTY.deadlyFourVsContractMax && /const PACE_FROM = LEVEL_PACE\.targets\[0\]\[0\];/.test(pcx) && PARTY.paceFromLevel === CM.LEVEL_PACE.targets[0][0],

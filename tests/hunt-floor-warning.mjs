@@ -303,7 +303,7 @@ const MUTANTS = [
      best line is 0), so ">= 0" alone changed no advice and the plant missed. It now plants the break-even line itself (Wickstead's pair at 0, BREAK_EVEN)
      with the slip, and CONTROLS below proves that line alone, read with "> 0", stays green: the red is the comparator's, not the data's. */
   ['a party suits a ground it only breaks even on (Wickstead from 8)', 'src/shell/hunt-list.js', 'return Number.isInteger(best) && best > 0;', 'return Number.isInteger(best) && best >= 0;', [BREAK_EVEN]],
-  ['the measure reads Normal only (the Glade\'s harder tiers forgotten)', 'src/data/party-class-xp.js', 'const lines = tiersOf(groundId).map((tier) => partyVsAlone(groundId, roles, tier))', 'const lines = [DEFAULT_TIER].map((tier) => partyVsAlone(groundId, roles, tier))'],
+  ['the measure reads Normal only (the Glade\'s harder tiers forgotten)', 'src/data/party-class-xp.js', 'const said = tiersOf(groundId).map((tier) => partyVsAlone(groundId, n, tier))', 'const said = [DEFAULT_TIER].map((tier) => partyVsAlone(groundId, n, tier))'],
   ['a tie of floors ignores what a party is measured to earn', 'src/shell/hunt-list.js', '(group ? lineOf(y) - lineOf(x) : 0) || ', ''],
   /* G6 (lane/d-party-pace): the party claim on the Level tag again, where a four earns 60% under solo */
   ['a party\'s advice claims the ground for the party again (A1)', 'src/shell/hunt-list.js', "export function adviceTag(r, rec, step) {\n  if (rec && rec.row && !rec.note && rec.row.hunt === r.hunt) return t('hunts.tag_right_level');",

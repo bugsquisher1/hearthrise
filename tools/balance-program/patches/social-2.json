@@ -1,10 +1,10 @@
 {
   "schema": "hearthrise.balance-patch/1",
   "name": "social-2: the party size ladder the other way (the pair held, the three x1.10, the four x1.20)",
-  "why": "57-review-social R3 after social-1 regressed P6. P6 (ruled 10-25) reads a party a head against a lone hero on the SAME tier and wants it to rise with size: 1.05 to 1.15, 1.10 to 1.20, 1.15 to 1.25. The pair is in band on Deadly and the three and four are under. This raises every three cell by 1.10 and every four cell by 1.20. It targets P6. P7 (the party against the pace contract) is expected to move away: that is the conflict this patch measures.",
+  "why": "57-review-social R3 after social-1 regressed P6. P6 (ruled 10-25) reads a party a head against a lone hero on the SAME tier and wants it to rise with size: 1.05 to 1.15, 1.10 to 1.20, 1.15 to 1.25. The pair is in band on Deadly and the three and four are under. This raises every three cell by 1.10 and every four cell by 1.20. It targets P6. P7 (the party against the pace contract) is expected to move away: that is the conflict this patch measures. RE-AIMED at the size table (S-10 c, lane/c-formula-steps 2026-11-21): the same ratios on each size's cell, the three 1700 x1.10 and the four 1700 x1.20, the pair held.",
   "kind": "coefficient",
   "edits": [
-    { "file": "src/data/party-class-xp.js", "from": "export const PARTY_CLASS_XP = row([880, 1500], [990, 1600, 1700], [970, 1580, 1670, 1700]);", "to": "export const PARTY_CLASS_XP = row([880, 1500], [1090, 1760, 1870], [1160, 1900, 2000, 2040]);" }
+    { "file": "src/data/party-class-xp.js", "from": "export const PARTY_SIZE_XP = Object.freeze({ 2: 1500, 3: 1700, 4: 1700 });", "to": "export const PARTY_SIZE_XP = Object.freeze({ 2: 1500, 3: 1870, 4: 2040 });" }
   ],
   "targets": ["P6"]
 }

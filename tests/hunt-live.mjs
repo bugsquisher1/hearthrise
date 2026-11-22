@@ -144,8 +144,8 @@
 //   LV-R  RECONCILE: a prediction forced off the server's world is judged
 //         `diverged` at the next commit, and the reseed eases every unit onto its true
 //         tile with no frame moving a unit more than one tile.
-//   LV-CLASS PARTY LEVEL XP (Tyler 2026-10-31: better only with different classes): a mixed pair earns the table's
-//         factor and a same-class pair its own smaller cell, on the server's commits (browser closed, one long settle) and
+//   LV-CLASS PARTY LEVEL XP (by party SIZE alone since S-10 c, Tyler 2026-11-21): a mixed pair and a pair of one class each earn
+//         the pair's cell, on the server's commits (browser closed, one long settle) and
 //         viewed (the prediction's own `xp` events), the same XP on every path; every commit matches. The swing the
 //         prediction runs past the last commit shows what the server's next commit pays.
 // ════════════════════════════════════════════════════════════════════════
@@ -1840,8 +1840,8 @@ function rules(M) {
       ok('LV-YARD', verdicts.length > 40 && off.length === 0, `${skill}: viewed: ${off.length} of ${verdicts.length} commits did not match the prediction`);
     }
   }
-  { /* LV-CLASS PARTY LEVEL XP (Tyler 2026-10-31), both paths: a Melee and a Ranger in the Cellar earn the table's cell over
-       the even share (src/data/party-class-xp.js, read here: lane/b-party-xp moved it 1070 -> 1210); a Melee and a Melee earn the even share. The same swings pay the same XP viewed and browser closed. */
+  { /* LV-CLASS PARTY LEVEL XP, both paths: since S-10 c (Tyler 2026-11-21) party XP reads the party's SIZE alone, so a Melee and a Ranger
+       and a Melee and a Melee in the Cellar both earn the pair's cell over the even share (src/data/party-class-xp.js PARTY_SIZE_XP, read here). The same swings pay the same XP viewed and browser closed. */
     const SPAN = 240000;
     const cast = { mixed: ['tank', 'ranger'], same: ['tank', 'melee_dps'] };
     for (const [name, roles] of Object.entries(cast)) {
@@ -1879,13 +1879,12 @@ function rules(M) {
       ok('LV-CLASS', !!next && aheadXp.join() === nextXp.join(), name + ': the prediction past the last commit shows ' + aheadXp + ', the next commit pays ' + nextXp);
       ok('LV-CLASS', off === 0, name + ': ' + off + ' of ' + r.verdicts.length + ' commits did not match the prediction');
       /* Whole shares floor: the cell moves each share before its floor, and the event's raw is the even share floored too (xp-share.js), so a kill of odd XP
-         split two ways hides a half: the paid sum sits between the cell on the floored shares and the cell on those shares plus the hidden (n-1)/n. One class
-         reads its own cell (read from the data, never typed: lane/d-solo-fifteen scaled every cell x1150/1050 with the +15% solo boost, Tyler 2026-11-11) and
-         always sits under the mixed one (since the lane/b-one-difficulty re-tune a one-class cell is over the even share). */
-      const cell = M.PCX.partyClassXp(roles).permille, mixedCell = M.PCX.partyClassXp(cast.mixed).permille;
+         split two ways hides a half: the paid sum sits between the cell on the floored shares and the cell on those shares plus the hidden (n-1)/n. Both
+         pairs read the pair's cell (read from the data, never typed), over the even share. */
+      const cell = M.PCX.partySizeXp(roles.length), mixedCell = M.PCX.partySizeXp(cast.mixed.length);
       const want = evs.reduce((s, e) => s + Math.floor((e.raw * cell) / 1000 + 1e-9), 0);
       const most = evs.reduce((s, e) => s + Math.floor(((e.raw + (roles.length - 1) / roles.length) * cell) / 1000 + 1e-9), 0);
-      ok('LV-CLASS', name === 'same' ? paid >= want && paid <= most && cell < mixedCell : paid >= want && paid > raw, name + ': ' + paid + ' Level XP on ' + raw + ' even shares (the cell ' + cell + ', ' + want + '-' + most + ' on the whole shares)');
+      ok('LV-CLASS', paid >= want && paid <= most && paid > raw && cell === mixedCell, name + ': ' + paid + ' Level XP on ' + raw + ' even shares (the cell ' + cell + ', ' + want + '-' + most + ' on the whole shares)');
     }
     /* A PARTY'S DEFAULT PULL (designer 2026-11-01), both paths: a Thicket pair with no pick stands at 3 each in the server's world
        and in the browser's, every commit matching; the same XP viewed and with the browser closed. */
@@ -2188,9 +2187,10 @@ const MUTANTS = [
   ["the browser's prediction draws a bigger pack than the server (LV-CLASS, viewed)", 'src/hunt-view/live-engine.js',
     '    const where = huntGroundOf(String(live.instance.hunt));\n',
     '    const real = huntGroundOf(String(live.instance.hunt));\n    const where = real && { grid: real.grid, ground: Object.assign({}, real.ground, { pockets: real.ground.pockets.map((p) => Object.assign({}, p, { spawns: (p.pack || p.spawns).slice(0, 4) })) }) };\n', /^LV-CLASS: pull: \d+ of/],
-  ['a shield Melee and a Melee count as two classes (LV-CLASS)', 'src/data/party-class-xp.js',
-    "melee: Object.freeze({ label: 'Melee', roles: Object.freeze(['tank', 'melee_dps']) }),",
-    "melee: Object.freeze({ label: 'Melee', roles: Object.freeze(['melee_dps']) }), tanks: Object.freeze({ label: 'Tank', roles: Object.freeze(['tank']) }),", /^LV-CLASS: same/],
+  /* (re-aimed, S-10 c: the size table holds no class to miscount, so the slip brings a class rule back in the engine) */
+  ['a pair of Melee heroes is paid the even share again: the classes rule back (LV-CLASS)', 'src/core/hunt/xp-share.js',
+    'const cell = partySizeXp(heroes.length);',
+    "const cell = heroes.length > 1 && heroes.every((h) => h.role === 'tank' || h.role === 'melee_dps') ? 1000 : partySizeXp(heroes.length);", /^LV-CLASS: same/],
   /* A real per-frame slowdown: every 100th frame step does 60 ms of work, in every play (LV-E budget). */
   ['a frame step stalls 60 ms every 100 frames (LV-E budget)', 'src/session/live-link.js', '  advance(clientNow) {\n',
     '  advance(clientNow) {\n    this.__n = (this.__n || 0) + 1;\n    if (this.__n % 100 === 0) { const t = performance.now(); while (performance.now() - t < 60); }\n', /^LV-E: a frame step took/],

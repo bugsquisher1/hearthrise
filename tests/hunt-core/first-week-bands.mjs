@@ -217,8 +217,8 @@ cases['armor-rungs'] = (R) => {
   return null;
 };
 
-/* "LEVEL XP BEFORE BONUSES" IS THE EVEN SHARE (blind party test 2026-11-01: it always equalled what was paid). A mixed party was paid above it, a one-class
-   Sewer party under it; alone the paid is the solo boost over it (Tyler 2026-11-08, party-class-xp.js SOLO_XP_PM). Both paths: the same totals in 30 s and 10 min cuts. */
+/* "LEVEL XP BEFORE BONUSES" IS THE EVEN SHARE (blind party test 2026-11-01: it always equalled what was paid). A mixed party was paid above it, and since party XP reads the size alone (S-10 c,
+   2026-11-21) a Sewer pair of one class is too; alone the paid is the solo boost over it (Tyler 2026-11-08, party-class-xp.js SOLO_XP_PM). Both paths: the same totals in 30 s and 10 min cuts. */
 cases['before-bonuses'] = () => {
   const totals = (ground, roles, windowMs) => {
     const sum = { raw: 0, paid: 0 };
@@ -229,10 +229,10 @@ cases['before-bonuses'] = () => {
   if (!(mixed.raw > 0 && mixed.paid > mixed.raw)) return 'a mixed party was paid ' + mixed.paid + ' on a share of ' + mixed.raw;
   const again = totals('wickstead', ['tank', 'healer'], 600000);
   if (again.raw !== mixed.raw || again.paid !== mixed.paid) return 'browser closed reads ' + JSON.stringify(again) + ', viewed ' + JSON.stringify(mixed);
-  /* one class: paid its own cell over the even share, never the even share itself (since the lane/b-one-difficulty re-tune a one-class cell sits
-     over 1000 and under the mixed one), so "before bonuses" still differs from what was paid */
-  const cut = totals('millrace_sewer', ['tank', 'tank'], 30000), oneCell = PCX.partyClassXp(['tank', 'tank']).permille;
-  if (!(cut.raw > 0 && cut.paid !== cut.raw && cut.paid <= Math.ceil((cut.raw * oneCell) / 1000))) return 'a one-class Sewer party was paid ' + cut.paid + ' on a share of ' + cut.raw + ' (its cell ' + oneCell + ')';
+  /* a pair of one class: paid the pair's cell over the even share (size alone, S-10 c), never the even share itself, so "before bonuses" still
+     differs from what was paid */
+  const cut = totals('millrace_sewer', ['tank', 'tank'], 30000), oneCell = PCX.partySizeXp(2);
+  if (!(cut.raw > 0 && cut.paid !== cut.raw && cut.paid <= Math.ceil((cut.raw * oneCell) / 1000))) return 'a one-class Sewer pair was paid ' + cut.paid + ' on a share of ' + cut.raw + ' (the pair\'s cell ' + oneCell + ')';
   /* alone: over the share by the boost, never past it, and at least half of it (each kill's share floors: a Wickstead kill of a few dozen XP keeps about 3.5 of the 5%) */
   const lone = totals('wickstead', ['tank'], 30000), boost = PCX.SOLO_XP_PM / 1000;
   if (!(lone.paid >= lone.raw * (1 + (boost - 1) / 2) && lone.paid <= Math.ceil(lone.raw * boost))) return 'a lone hero reads ' + lone.raw + ' before bonuses and ' + lone.paid + ' paid, the solo boost says up to ' + Math.round(lone.raw * boost);
@@ -245,10 +245,10 @@ cases['before-bonuses'] = () => {
 cases['vs-alone'] = (R) => {
   const lone = (g, s, L) => R.runCell({ id: 'va:' + g + ':' + s, ground: g, party: [s], level: L, hours: 0.5, seeds: 1, windowMs: 120000 }).heroes[0].levelXpPerH;
   const MIX = ['tank', 'healer', 'bow', 'mage'];
-  for (const [g, L, roles] of [['meadowbrook_thicket', 10, ['tank', 'healer', 'ranger', 'mage']], ['mosslight_glade', 24, ['tank', 'healer', 'ranger', 'mage']]]) {
+  for (const [g, L] of [['meadowbrook_thicket', 10], ['mosslight_glade', 24]]) {
     const hs = R.runCell({ id: 'va:' + g, ground: g, party: MIX, level: L, hours: 0.5, seeds: 2, windowMs: 120000 }).heroes;
     const each = hs.reduce((s, h) => s + h.levelXpPerH, 0) / hs.length, alone = MIX.reduce((s, x) => s + lone(g, x, L), 0) / MIX.length;
-    const got = Math.round((each / alone - 1) * 100), said = LINES.PCX.partyVsAlone(g, roles);
+    const got = Math.round((each / alone - 1) * 100), said = LINES.PCX.partyVsAlone(g, MIX.length);
     if (Math.abs(got - said) > 10) return g + ': a full mix measures ' + got + '% against alone, and the Party window says ' + said + '%';
   }
   /* A HARDER TIER'S LINE IS MEASURED TOO (lane/d-party-pace, the full-game sweep's A1: the window read the Normal line whatever tier the leader picked,
@@ -258,15 +258,10 @@ cases['vs-alone'] = (R) => {
     const on = { options: { tier }, ...(pull ? { density: pull } : {}) };
     const alone = MIX.reduce((s, x) => s + R.runCell({ id: 'vt:' + g + ':' + tier + ':' + x, ground: g, party: [x], level: L, hours: 0.5, seeds: 2, windowMs: 120000, ...on }).heroes[0].levelXpPerH, 0) / MIX.length;
     const hs = R.runCell({ id: 'vt:' + g + ':' + tier, ground: g, party: MIX, level: L, hours: 0.5, seeds: 2, windowMs: 120000, ...on }).heroes;
-    const got = Math.round((hs.reduce((s, h) => s + h.levelXpPerH, 0) / hs.length / alone - 1) * 100), said = LINES.PCX.partyVsAlone(g, ['tank', 'healer', 'ranger', 'mage'], tier);
+    const got = Math.round((hs.reduce((s, h) => s + h.levelXpPerH, 0) / hs.length / alone - 1) * 100), said = LINES.PCX.partyVsAlone(g, MIX.length, tier);
     if (said === null || Math.abs(got - said) > 10) return g + ' ' + tier + ': a full mix measures ' + got + '% against alone on the tier, and the Party window says ' + said + '%';
   }
-  /* A THICKET FOUR OF ONE ROLE READS ITS OWN LINE (ONE_ROLE_VS_ALONE; CLAUDE.md §6), played on the two that sit furthest apart: a four of wands over solo, a four of shields under. */
-  for (const s of ['mage', 'tank']) {
-    const cell = (party) => R.runCell({ id: 'va1:' + party.length + ':' + s, ground: 'meadowbrook_thicket', party, level: 10, hours: HOURS, seeds: 2, windowMs: 120000 });
-    const got = Math.round((cell(Array(4).fill(s)).party.levelXpPerHeroPerH / cell([s]).heroes[0].levelXpPerH - 1) * 100), said = LINES.PCX.partyVsAlone('meadowbrook_thicket', Array(4).fill(s));
-    if (Math.abs(got - said) > 5) return 'a Thicket four of ' + s + ' measures ' + got + '% against alone, and the Party window says ' + said + '%';
-  }
+  /* (A Thicket four of one role read its own line until 2026-11-21: ONE_ROLE_VS_ALONE left with the classes rule, S-10 c. A party's line is its size's.) */
   return null;
 };
 
@@ -329,9 +324,10 @@ const mutants = [
   { name: 'the level share is gone: a Level 1 earns what its friends earn', case: 'risk-ladder', edits: [['src/core/hunt/xp-share.js', 'const seat = underFloorSharePm(ground, h.heroLv, top);', 'const seat = 1000;']] },
   { name: 'the level share cuts every seat under the floor: a party that pushes is punished', case: 'risk-ladder',
     edits: [['src/data/hunt-grounds.js', "level >= band[0] || level * 1000 >= top * HUNT_TUNING.partyShareRangePm) return 1000;", "level >= band[0]) return 1000;\n  if (level < band[0]) return 500;"]] },
-  /* (re-aimed, lane/d-flat-party-xp: ONE table for every ground, Tyler 2026-11-16, so each slip moves the one row; played on the Thicket) */
-  { name: 'a mixed four is paid x1.29 (1700 -> 2190), and the Thicket window still says what x1.00 measured', case: 'vs-alone',
-    edits: [['src/data/party-class-xp.js', 'row([880, 1500], [990, 1600, 1700], [970, 1580, 1670, 1700])', 'row([880, 1500], [990, 1600, 1700], [970, 1580, 1670, 2190])']] },
+  /* (re-aimed, lane/d-flat-party-xp: ONE table for every ground, Tyler 2026-11-16, so each slip moves the one row; played on the Thicket; the size table
+     since S-10 c, 2026-11-21) */
+  { name: 'a four is paid x1.29 (1700 -> 2190), and the Thicket window still says what x1.00 measured', case: 'vs-alone',
+    edits: [['src/data/party-class-xp.js', 'export const PARTY_SIZE_XP = Object.freeze({ 2: 1500, 3: 1700, 4: 1700 });', 'export const PARTY_SIZE_XP = Object.freeze({ 2: 1500, 3: 1700, 4: 2190 });']] },
   /* RE-AIMED (lane/c-brook-bear): with the Brook Bear in Vine Hollow as built a Glade kill takes longer, so the rung pays more (the shipped 7/16 +10.2%, was
      +8.5%) and the old 7/12 reads +7.0%, a passing rung. 7/10 reads +3.9% (2 seeds x 1 h at 16), the nearest strength under the bar. */
   /* (at 7/10 the Iron rung paid over +5% once every cast became a share of the blow, lane/c-spell-rule: the weaker rung the guard must catch is 7/8, a point of
@@ -344,9 +340,9 @@ const mutants = [
      that is the tier below's numbers is the defect the case exists for) */
   { name: 'the Iron Hatchets are the Bronze ones again (4/4): their upgrade pays under +5%', case: 'weapon-rungs',
     edits: [['src/data/gear-tiers.js', 'atk: [4, 9, 14, 19, 25, 33, 42], str: [4, 11, 16, 21, 22, 29, 38],', 'atk: [4, 4, 14, 19, 25, 33, 42], str: [4, 4, 16, 21, 22, 29, 38],']] },
-  /* x0.75, not x0.85: at a one-class four's -60 to -70 a x0.85 cell moves the reading about 4.5 points, inside the line's 5 */
-  { name: 'a four of one weapon is paid x0.75, and the Thicket window still says what its old cell measured', case: 'vs-alone',
-    edits: [['src/data/party-class-xp.js', 'row([880, 1500], [990, 1600, 1700], [970, 1580, 1670, 1700])', 'row([880, 1500], [990, 1600, 1700], [730, 1580, 1670, 1700])']] },
+  /* the other way: x0.75 (1700 -> 1275), the four's cell under what the window's line measured */
+  { name: 'a four is paid x0.75 (1700 -> 1275), and the Thicket window still says what x1.00 measured', case: 'vs-alone',
+    edits: [['src/data/party-class-xp.js', 'export const PARTY_SIZE_XP = Object.freeze({ 2: 1500, 3: 1700, 4: 1700 });', 'export const PARTY_SIZE_XP = Object.freeze({ 2: 1500, 3: 1700, 4: 1275 });']] },
   /* lane/d-party-pace: the harder tier's line binds both ways. A pull dial moved and the line not re-measured; the line itself written as Normal's. */
   { name: 'the Glade\'s Deadly brings no bigger pull (8 -> 0), and its window still says what 8 measured', case: 'vs-alone', expect: 'mosslight_glade deadly',
     edits: [['src/data/balance-sheet.js', 'mosslight_glade: Object.freeze({ dangerous: 6, dials:', 'mosslight_glade: Object.freeze({ dangerous: 6, deadly: 0, dials:']] },

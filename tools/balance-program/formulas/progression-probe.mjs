@@ -97,8 +97,8 @@ out.death = LEVELS.filter((L) => L >= 10).map((L) => {
 out.temper = Object.entries(TP.TEMPER_TIERS).map(([t, g]) => ({ tier: Number(t), wornAt: GT.MATERIAL_TIERS[Number(t) - 1].level, oneTrack: g.reduce((a, b) => a + b, 0), bothTracks: 2 * g.reduce((a, b) => a + b, 0), trackPm: TP.temperLadder('blows', Number(t)).pm * TP.TEMPER_RUNGS }));
 out.gearLadder = GT.MATERIAL_TIERS.map((t, i) => ({ tier: t.tier, level: t.level, hammerStr: hammer.str[i], hammerStepPct: i ? r1((hammer.str[i] / hammer.str[i - 1] - 1) * 100) : null, plateBodyDef: GT.ARMOUR_SLOTS[1].def[i], bodyStepPct: i ? r1((GT.ARMOUR_SLOTS[1].def[i] / GT.ARMOUR_SLOTS[1].def[i - 1] - 1) * 100) : null }));
 
-/* 6. PARTY: the Level XP a head, permille of a monster's kill, by size and classes (a hero alone 1150) */
-out.party = { solo: PX.SOLO_XP_PM, perHead: Object.fromEntries([2, 3, 4].map((n) => [n, PX.PARTY_CLASS_XP[n].map((c) => Math.round(c / n))])) };
+/* 6. PARTY: the Level XP a head, permille of a monster's kill, by size alone since S-10 c (a hero alone 1150) */
+out.party = { solo: PX.SOLO_XP_PM, perHead: Object.fromEntries([2, 3, 4].map((n) => [n, Math.round(PX.PARTY_SIZE_XP[n] / n)])) };
 
 if (JSON_OUT) { console.log(JSON.stringify(out, null, 1)); process.exit(0); }
 const table = (title, rows) => { console.log('\n' + title); console.table(rows); };

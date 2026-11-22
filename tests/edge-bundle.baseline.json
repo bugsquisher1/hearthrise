@@ -208,6 +208,11 @@
         "bytes": 3255967,
         "on": "2026-11-22",
         "why": "set/v0.2.144 merged into lane/v1-climb: lane/a-ci-reds-144's company-wear.js int[] literal from text (+203 B) on top of the Danger scale's raise"
+      },
+      {
+        "bytes": 3255984,
+        "on": "2026-11-22",
+        "why": "lane/v1-climb wave 1 fixes: the Danger margin read in src/core/hunt/damage.js is its own statement instead of an else-if on the fight-clock line (+17 B, behaviour unchanged)"
       }
     ]
   }

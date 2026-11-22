@@ -24,7 +24,82 @@ For a point that moves several levers, the one-at-a-time reading is what you wou
 
 Tyler's example: "Monster HP and spawn rate may both limit kill throughput." The grid is monster health at x0.5, x0.75, x1, x1.5, x2 against respawn time at x0.5, x1, x2. MEASURED, run 44972398698, 14 points, 4 seeds.
 
-<!-- GEN: exp id=hp-spawn groups=party:1,party:4,four:deadly outcomes=killsPerH,levelXpPerH -->
+<!-- GEN: exp id=hp-spawn groups=party:1,party:4 outcomes=killsPerH,levelXpPerH -->
+hp-spawn, killsPerH, lone heroes (MID, Normal) (ratio to the base)
+
+| monsterHp | respawn | measured | singles predict | gap |
+|---|---|---|---|---|
+| x0.5 | x0.5 | x1.335 | x1.283 | +4.0% +/- 0.0% |
+| x0.5 | x1 | x1.281 | single |  |
+| x0.5 | x2 | x0.699 | x0.857 | -18.4% +/- 0.0% |
+| x0.75 | x0.5 | x1.149 | x1.141 | within noise |
+| x0.75 | x1 | x1.138 | single |  |
+| x0.75 | x2 | x0.683 | x0.761 | -10.3% +/- 0.0% |
+| x1 | x0.5 | x1.002~ | single |  |
+| x1 | x2 | x0.669 | single |  |
+| x1.5 | x0.5 | x0.801 | x0.802 | within noise |
+| x1.5 | x1 | x0.801 | single |  |
+| x1.5 | x2 | x0.641 | x0.536 | +19.7% +/- 0.1% |
+| x2 | x0.5 | x0.667 | x0.668 | within noise |
+| x2 | x1 | x0.667 | single |  |
+| x2 | x2 | x0.606 | x0.446 | +35.9% +/- 0.1% |
+
+hp-spawn, levelXpPerH, lone heroes (MID, Normal) (ratio to the base)
+
+| monsterHp | respawn | measured | singles predict | gap |
+|---|---|---|---|---|
+| x0.5 | x0.5 | x0.661 | x0.636 | +4.0% +/- 0.0% |
+| x0.5 | x1 | x0.634 | single |  |
+| x0.5 | x2 | x0.346 | x0.424 | -18.4% +/- 0.0% |
+| x0.75 | x0.5 | x0.859 | x0.852 | within noise |
+| x0.75 | x1 | x0.851 | single |  |
+| x0.75 | x2 | x0.510 | x0.569 | -10.3% +/- 0.0% |
+| x1 | x0.5 | x1.002~ | single |  |
+| x1 | x2 | x0.669 | single |  |
+| x1.5 | x0.5 | x1.202 | x1.205 | within noise |
+| x1.5 | x1 | x1.202 | single |  |
+| x1.5 | x2 | x0.963 | x0.804 | +19.8% +/- 0.0% |
+| x2 | x0.5 | x1.332 | x1.335 | within noise |
+| x2 | x1 | x1.332 | single |  |
+| x2 | x2 | x1.211 | x0.891 | +36.0% +/- 0.1% |
+
+hp-spawn, killsPerH, the four (MID, Normal) (ratio to the base)
+
+| monsterHp | respawn | measured | singles predict | gap |
+|---|---|---|---|---|
+| x0.5 | x0.5 | x1.355 | x1.260 | +7.6% +/- 0.0% |
+| x0.5 | x1 | x1.095 | single |  |
+| x0.5 | x2 | x0.574 | x0.606 | -5.3% +/- 0.1% |
+| x0.75 | x0.5 | x1.258 | x1.213 | +3.6% +/- 0.1% |
+| x0.75 | x1 | x1.054 | single |  |
+| x0.75 | x2 | x0.564 | x0.584 | -3.4% +/- 0.1% |
+| x1 | x0.5 | x1.151 | single |  |
+| x1 | x2 | x0.554 | single |  |
+| x1.5 | x0.5 | x0.981 | x1.029 | -4.7% +/- 0.0% |
+| x1.5 | x1 | x0.894 | single |  |
+| x1.5 | x2 | x0.533 | x0.495 | +7.8% +/- 0.1% |
+| x2 | x0.5 | x0.871 | x0.935 | -6.8% +/- 0.1% |
+| x2 | x1 | x0.812 | single |  |
+| x2 | x2 | x0.515 | x0.450 | +14.5% +/- 0.1% |
+
+hp-spawn, levelXpPerH, the four (MID, Normal) (ratio to the base)
+
+| monsterHp | respawn | measured | singles predict | gap |
+|---|---|---|---|---|
+| x0.5 | x0.5 | x0.679 | x0.630 | +7.7% +/- 0.1% |
+| x0.5 | x1 | x0.548 | single |  |
+| x0.5 | x2 | x0.287 | x0.303 | -5.1% +/- 0.0% |
+| x0.75 | x0.5 | x0.943 | x0.910 | +3.7% +/- 0.1% |
+| x0.75 | x1 | x0.790 | single |  |
+| x0.75 | x2 | x0.422 | x0.437 | -3.4% +/- 0.1% |
+| x1 | x0.5 | x1.151 | single |  |
+| x1 | x2 | x0.553 | single |  |
+| x1.5 | x0.5 | x1.475 | x1.547 | -4.6% +/- 0.0% |
+| x1.5 | x1 | x1.344 | single |  |
+| x1.5 | x2 | x0.801 | x0.743 | +7.9% +/- 0.1% |
+| x2 | x0.5 | x1.746 | x1.873 | -6.8% +/- 0.0% |
+| x2 | x1 | x1.628 | single |  |
+| x2 | x2 | x1.031 | x0.900 | +14.6% +/- 0.1% |
 <!-- /GEN -->
 
 What it shows.
@@ -40,7 +115,45 @@ What it shows.
 
 Tyler's example: "Spell cost and mana regeneration may jointly determine whether a combat rotation is sustainable." The grid is spell mana cost at x0.5, x1, x2 against mana regeneration at x0.5, x1, x2. MEASURED, run 44972398698, 8 points, 4 seeds.
 
-<!-- GEN: exp id=cost-regen groups=way:mage,party:4 outcomes=castsPerH,manaPotionsPerH,storePerH,netPerH -->
+<!-- GEN: exp id=cost-regen groups=way:mage outcomes=castsPerH,manaPotionsPerH,netPerH -->
+cost-regen, castsPerH, mage alone (ratio to the base)
+
+| spellCost | manaRegen | measured | singles predict | gap |
+|---|---|---|---|---|
+| x0.5 | x0.5 | x1.004~ | x1.004 | within noise |
+| x0.5 | x1 | x1.004~ | single |  |
+| x0.5 | x2 | x1.004~ | x1.004 | within noise |
+| x1 | x0.5 | x1.000~ | single |  |
+| x1 | x2 | x1.000~ | single |  |
+| x2 | x0.5 | x0.997~ | x0.997 | within noise |
+| x2 | x1 | x0.997~ | single |  |
+| x2 | x2 | x0.997~ | x0.997 | within noise |
+
+cost-regen, manaPotionsPerH, mage alone (ratio to the base)
+
+| spellCost | manaRegen | measured | singles predict | gap |
+|---|---|---|---|---|
+| x0.5 | x0.5 | x0.544 | x0.380 | +44.0% +/- 5.8% |
+| x0.5 | x1 | x0.124 | single |  |
+| x0.5 | x2 | x0.001 | no single reading to compare (a lever alone was refused, or its base is zero here) | |
+| x1 | x0.5 | x3.055 | single |  |
+| x1 | x2 | x0.201 | single |  |
+| x2 | x0.5 | x9.173 | x20.030 | -54.2% +/- 0.0% |
+| x2 | x1 | x6.557 | single |  |
+| x2 | x2 | x1.896 | x1.315 | +44.6% +/- 4.7% |
+
+cost-regen, netPerH, mage alone (change from the base)
+
+| spellCost | manaRegen | measured | singles predict | gap |
+|---|---|---|---|---|
+| x0.5 | x0.5 | +566.800 | +112.600 | +454.500 +/- 2.968 |
+| x0.5 | x1 | +1030.000 | single |  |
+| x0.5 | x2 | +1210.000 | +1943.000 | -732.400 +/- 5.206 |
+| x1 | x0.5 | -917.400 | single |  |
+| x1 | x2 | +912.500 | single |  |
+| x2 | x0.5 | -4422.000 | -4169.000 | -252.700 +/- 3.737 |
+| x2 | x1 | -3252.000 | single |  |
+| x2 | x2 | -1123.000 | -2340.000 | +1216.000 +/- 5.325 |
 <!-- /GEN -->
 
 What it shows.
@@ -59,7 +172,46 @@ UNKNOWN: whether this holds for a real player. The harness never runs out of gol
 
 Not one of Tyler's examples. It was found because the pass tried it. The one basic attack interval, 2,000 ms, cannot be raised by itself: `src/core/hunt/tower.js` refuses any tree where the Tower's and the Catacombs' stair clock (4,000 ms) is under two attack intervals. So every step above x1 was refused by the engine, and the slow side was read by moving the two together. MEASURED, run 44976040886, 5 points, 4 seeds.
 
-<!-- GEN: exp id=clock groups=party:1,party:4,four:deadly outcomes=killsPerH,takenPerH -->
+<!-- GEN: exp id=clock groups=party:1,four:deadly outcomes=killsPerH,takenPerH -->
+clock, killsPerH, lone heroes (MID, Normal) (ratio to the base)
+
+| attackInterval | stairClock | measured | singles predict | gap |
+|---|---|---|---|---|
+| x1 | x2 | x1.000~ | single |  |
+| x1.5 | x1 | refused by the engine | | |
+| x1.5 | x2 | x0.903 | no single reading to compare (a lever alone was refused, or its base is zero here) | |
+| x2 | x1 | refused by the engine | | |
+| x2 | x2 | x0.846 | no single reading to compare (a lever alone was refused, or its base is zero here) | |
+
+clock, takenPerH, lone heroes (MID, Normal) (ratio to the base)
+
+| attackInterval | stairClock | measured | singles predict | gap |
+|---|---|---|---|---|
+| x1 | x2 | x1.000~ | single |  |
+| x1.5 | x1 | refused by the engine | | |
+| x1.5 | x2 | x0.818 | no single reading to compare (a lever alone was refused, or its base is zero here) | |
+| x2 | x1 | refused by the engine | | |
+| x2 | x2 | x0.728 | no single reading to compare (a lever alone was refused, or its base is zero here) | |
+
+clock, killsPerH, the four on deadly (ratio to the base)
+
+| attackInterval | stairClock | measured | singles predict | gap |
+|---|---|---|---|---|
+| x1 | x2 | x1.000~ | single |  |
+| x1.5 | x1 | refused by the engine | | |
+| x1.5 | x2 | x0.921 | no single reading to compare (a lever alone was refused, or its base is zero here) | |
+| x2 | x1 | refused by the engine | | |
+| x2 | x2 | x0.863 | no single reading to compare (a lever alone was refused, or its base is zero here) | |
+
+clock, takenPerH, the four on deadly (ratio to the base)
+
+| attackInterval | stairClock | measured | singles predict | gap |
+|---|---|---|---|---|
+| x1 | x2 | x1.000~ | single |  |
+| x1.5 | x1 | refused by the engine | | |
+| x1.5 | x2 | x0.745 | no single reading to compare (a lever alone was refused, or its base is zero here) | |
+| x2 | x1 | refused by the engine | | |
+| x2 | x2 | x0.620 | no single reading to compare (a lever alone was refused, or its base is zero here) | |
 <!-- /GEN -->
 
 - The stair clock alone moves nothing, because no cell of the pass plays a run ground.
@@ -72,7 +224,84 @@ Not one of Tyler's examples. It was found because the pass tried it. The one bas
 
 Kill time is damage over health, so the two should be one lever. The grid is each at x0.5, x1, x2. MEASURED, run 44969087150, 8 points, 4 seeds.
 
-<!-- GEN: exp id=damage-hp groups=party:1,party:4,four:deadly outcomes=killsPerH,levelXpPerH,takenPerH -->
+<!-- GEN: exp id=damage-hp groups=party:1,four:deadly outcomes=killsPerH,levelXpPerH,takenPerH -->
+damage-hp, killsPerH, lone heroes (MID, Normal) (ratio to the base)
+
+| playerAttack | monsterHp | measured | singles predict | gap |
+|---|---|---|---|---|
+| x0.5 | x0.5 | x1.020 | x0.879 | +15.9% +/- 0.1% |
+| x0.5 | x1 | x0.687 | single |  |
+| x0.5 | x2 | x0.425 | x0.458 | -7.2% +/- 0.1% |
+| x1 | x0.5 | x1.281 | single |  |
+| x1 | x2 | x0.667 | single |  |
+| x2 | x0.5 | x1.375 | x1.644 | -16.3% +/- 0.1% |
+| x2 | x1 | x1.284 | single |  |
+| x2 | x2 | x1.008 | x0.856 | +17.8% +/- 0.1% |
+
+damage-hp, levelXpPerH, lone heroes (MID, Normal) (ratio to the base)
+
+| playerAttack | monsterHp | measured | singles predict | gap |
+|---|---|---|---|---|
+| x0.5 | x0.5 | x0.505 | x0.436 | +15.8% +/- 0.0% |
+| x0.5 | x1 | x0.687 | single |  |
+| x0.5 | x2 | x0.849 | x0.915 | -7.2% +/- 0.1% |
+| x1 | x0.5 | x0.634 | single |  |
+| x1 | x2 | x1.332 | single |  |
+| x2 | x0.5 | x0.681 | x0.814 | -16.3% +/- 0.1% |
+| x2 | x1 | x1.284 | single |  |
+| x2 | x2 | x2.016 | x1.710 | +17.9% +/- 0.1% |
+
+damage-hp, takenPerH, lone heroes (MID, Normal) (ratio to the base)
+
+| playerAttack | monsterHp | measured | singles predict | gap |
+|---|---|---|---|---|
+| x0.5 | x0.5 | x1.022 | x0.924 | +10.7% +/- 0.3% |
+| x0.5 | x1 | x1.308 | single |  |
+| x0.5 | x2 | x1.611 | x1.678 | -4.0% +/- 0.1% |
+| x1 | x0.5 | x0.706 | single |  |
+| x1 | x2 | x1.282 | single |  |
+| x2 | x0.5 | x0.481 | x0.473 | +1.6% +/- 0.4% |
+| x2 | x1 | x0.671 | single |  |
+| x2 | x2 | x0.931 | x0.860 | +8.3% +/- 0.3% |
+
+damage-hp, killsPerH, the four on deadly (ratio to the base)
+
+| playerAttack | monsterHp | measured | singles predict | gap |
+|---|---|---|---|---|
+| x0.5 | x0.5 | x0.977 | x0.788 | +24.0% +/- 0.1% |
+| x0.5 | x1 | x0.613 | single |  |
+| x0.5 | x2 | x0.356 | x0.387 | -7.9% +/- 0.1% |
+| x1 | x0.5 | x1.286 | single |  |
+| x1 | x2 | x0.632 | single |  |
+| x2 | x0.5 | x1.445 | x1.672 | -13.5% +/- 0.0% |
+| x2 | x1 | x1.299 | single |  |
+| x2 | x2 | x1.011 | x0.821 | +23.2% +/- 0.0% |
+
+damage-hp, levelXpPerH, the four on deadly (ratio to the base)
+
+| playerAttack | monsterHp | measured | singles predict | gap |
+|---|---|---|---|---|
+| x0.5 | x0.5 | x0.489 | x0.394 | +24.0% +/- 0.1% |
+| x0.5 | x1 | x0.613 | single |  |
+| x0.5 | x2 | x0.714 | x0.776 | -7.9% +/- 0.0% |
+| x1 | x0.5 | x0.643 | single |  |
+| x1 | x2 | x1.266 | single |  |
+| x2 | x0.5 | x0.723 | x0.836 | -13.5% +/- 0.0% |
+| x2 | x1 | x1.300 | single |  |
+| x2 | x2 | x2.028 | x1.645 | +23.2% +/- 0.0% |
+
+damage-hp, takenPerH, the four on deadly (ratio to the base)
+
+| playerAttack | monsterHp | measured | singles predict | gap |
+|---|---|---|---|---|
+| x0.5 | x0.5 | x1.268 | x1.059 | +19.8% +/- 0.5% |
+| x0.5 | x1 | x2.045 | single |  |
+| x0.5 | x2 | x2.666 | x3.588 | -25.7% +/- 0.4% |
+| x1 | x0.5 | x0.518 | single |  |
+| x1 | x2 | x1.755 | single |  |
+| x2 | x0.5 | x0.191 | x0.169 | +12.5% +/- 1.1% |
+| x2 | x1 | x0.327 | single |  |
+| x2 | x2 | x0.653 | x0.574 | +13.8% +/- 0.4% |
 <!-- /GEN -->
 
 - **On kills they are one lever.** Double both and kills an hour come back to 1.01 times the base, alone, in the four and on Deadly. Halve both and they come back to 1.02. Whatever the ratio is, the fight is the same fight.
@@ -86,7 +315,32 @@ Kill time is damage over health, so the two should be one lever. The grid is eac
 
 The grid is party XP at x0.8, x1, x1.2 against tier XP at x0.8, x1, x1.2. MEASURED, run 44969087150, 8 points, 4 seeds.
 
-<!-- GEN: exp id=party-tier groups=party:1,four:normal,four:dangerous,four:deadly outcomes=netLevelXpPerH -->
+<!-- GEN: exp id=party-tier groups=four:normal,four:deadly outcomes=netLevelXpPerH -->
+party-tier, netLevelXpPerH, the four on normal (ratio to the base)
+
+| partyXp | tierXp | measured | singles predict | gap |
+|---|---|---|---|---|
+| x0.8 | x0.8 | x0.800 | x0.800 | within noise |
+| x0.8 | x1 | x0.800 | single |  |
+| x0.8 | x1.2 | x0.800 | x0.800 | within noise |
+| x1 | x0.8 | x1.000~ | single |  |
+| x1 | x1.2 | x1.000~ | single |  |
+| x1.2 | x0.8 | x1.201 | x1.201 | within noise |
+| x1.2 | x1 | x1.201 | single |  |
+| x1.2 | x1.2 | x1.201 | x1.201 | within noise |
+
+party-tier, netLevelXpPerH, the four on deadly (ratio to the base)
+
+| partyXp | tierXp | measured | singles predict | gap |
+|---|---|---|---|---|
+| x0.8 | x0.8 | x0.640 | x0.638 | within noise |
+| x0.8 | x1 | x0.799 | single |  |
+| x0.8 | x1.2 | x0.961 | x0.960 | within noise |
+| x1 | x0.8 | x0.799 | single |  |
+| x1 | x1.2 | x1.202 | single |  |
+| x1.2 | x0.8 | x0.960 | x0.959 | within noise |
+| x1.2 | x1 | x1.201 | single |  |
+| x1.2 | x1.2 | x1.444 | x1.443 | within noise |
 <!-- /GEN -->
 
 - **Inside the engine these two do not interact at all.** Every joint point is the product of its two single readings, within noise. Each has an elasticity of exactly 1 on the cells it touches and exactly 0 on the rest: party XP does nothing for a lone hero, and tier XP does nothing on Normal. They are the two cleanest levers in the pass.
@@ -100,7 +354,84 @@ The grid is party XP at x0.8, x1, x1.2 against tier XP at x0.8, x1, x1.2. MEASUR
 
 The last balance pass proposed the armor curve at x2.4 and found the first-week bands, the drop tables and a lone tank's supply bill moved with it. The grid is the armor curve at x1, x1.5, x2.4 against the tier blow dial at x0.9, x1, x1.25 and coin a kill at x0.75, x1, x1.25. MEASURED, run 44969087150, 26 points, 4 seeds. The slices below hold coin at x1.
 
-<!-- GEN: exp id=armor-tier-coin fix=coinPerKill:1 groups=hammer:dangerous,four:deadly outcomes=takenPerH,deathsPer1000h,storePerH,netPerH -->
+<!-- GEN: exp id=armor-tier-coin fix=coinPerKill:1 groups=hammer:dangerous,four:deadly outcomes=takenPerH,deathsPer1000h,storePerH -->
+armor-tier-coin, takenPerH, the hammer alone on dangerous (MID, Levels 30 to 110) (ratio to the base)
+
+| armorCurve | tierDanger | coinPerKill | measured | singles predict | gap |
+|---|---|---|---|---|---|
+| x1 | x0.9 | x1 | x0.851 | single |  |
+| x1 | x1.25 | x1 | x1.376 | single |  |
+| x1.5 | x0.9 | x1 | x0.856 | x0.865 | within noise |
+| x1.5 | x1 | x1 | x1.016 | single |  |
+| x1.5 | x1.25 | x1 | x1.502 | x1.398 | within noise |
+| x2.4 | x0.9 | x1 | x0.968 | x1.004 | within noise |
+| x2.4 | x1 | x1 | x1.180 | single |  |
+| x2.4 | x1.25 | x1 | x1.705 | x1.623 | within noise |
+
+armor-tier-coin, deathsPer1000h, the hammer alone on dangerous (MID, Levels 30 to 110) (deaths in 1,000 hours; base 94.09)
+
+| armorCurve | tierDanger | coinPerKill | measured | singles predict | gap |
+|---|---|---|---|---|---|
+| x1 | x0.9 | x1 | 0 | single |  |
+| x1 | x1.25 | x1 | 4013 | single |  |
+| x1.5 | x0.9 | x1 | 13.52~ | 13.6 | within noise |
+| x1.5 | x1 | x1 | 107.6~ | single |  |
+| x1.5 | x1.25 | x1 | 5825 | 4027.0 | within noise |
+| x2.4 | x0.9 | x1 | 67.43~ | 279.7 | within noise |
+| x2.4 | x1 | x1 | 373.8 | single |  |
+| x2.4 | x1.25 | x1 | 15380 | 4293.0 | +11090.0 +/- 4592 |
+
+armor-tier-coin, storePerH, the hammer alone on dangerous (MID, Levels 30 to 110) (ratio to the base)
+
+| armorCurve | tierDanger | coinPerKill | measured | singles predict | gap |
+|---|---|---|---|---|---|
+| x1 | x0.9 | x1 | x0.618 | single |  |
+| x1 | x1.25 | x1 | x2.224 | single |  |
+| x1.5 | x0.9 | x1 | x0.635 | x0.650 | -2.3% +/- 0.5% |
+| x1.5 | x1 | x1 | x1.052 | single |  |
+| x1.5 | x1.25 | x1 | x2.307 | x2.339 | within noise |
+| x2.4 | x0.9 | x1 | x0.921 | x0.914 | within noise |
+| x2.4 | x1 | x1 | x1.480 | single |  |
+| x2.4 | x1.25 | x1 | x2.867 | x3.291 | -12.9% +/- 2.4% |
+
+armor-tier-coin, takenPerH, the four on deadly (ratio to the base)
+
+| armorCurve | tierDanger | coinPerKill | measured | singles predict | gap |
+|---|---|---|---|---|---|
+| x1 | x0.9 | x1 | x0.786 | single |  |
+| x1 | x1.25 | x1 | x1.615 | single |  |
+| x1.5 | x0.9 | x1 | x0.827 | x0.849 | -2.6% +/- 0.8% |
+| x1.5 | x1 | x1 | x1.081 | single |  |
+| x1.5 | x1.25 | x1 | x1.835 | x1.745 | +5.2% +/- 0.8% |
+| x2.4 | x0.9 | x1 | x0.985 | x1.013 | -2.7% +/- 0.3% |
+| x2.4 | x1 | x1 | x1.289 | single |  |
+| x2.4 | x1.25 | x1 | x2.169 | x2.081 | +4.2% +/- 0.7% |
+
+armor-tier-coin, deathsPer1000h, the four on deadly (deaths in 1,000 hours; base 0)
+
+| armorCurve | tierDanger | coinPerKill | measured | singles predict | gap |
+|---|---|---|---|---|---|
+| x1 | x0.9 | x1 | 0~ | single |  |
+| x1 | x1.25 | x1 | 0~ | single |  |
+| x1.5 | x0.9 | x1 | 0~ | 0.0 | within noise |
+| x1.5 | x1 | x1 | 0~ | single |  |
+| x1.5 | x1.25 | x1 | 0~ | 0.0 | within noise |
+| x2.4 | x0.9 | x1 | 0~ | 0.0 | within noise |
+| x2.4 | x1 | x1 | 0~ | single |  |
+| x2.4 | x1.25 | x1 | 0~ | 0.0 | within noise |
+
+armor-tier-coin, storePerH, the four on deadly (ratio to the base)
+
+| armorCurve | tierDanger | coinPerKill | measured | singles predict | gap |
+|---|---|---|---|---|---|
+| x1 | x0.9 | x1 | x0.983 | single |  |
+| x1 | x1.25 | x1 | x1.044 | single |  |
+| x1.5 | x0.9 | x1 | x0.985 | x0.989 | within noise |
+| x1.5 | x1 | x1 | x1.005 | single |  |
+| x1.5 | x1.25 | x1 | x1.063 | x1.050 | +1.2% +/- 0.0% |
+| x2.4 | x0.9 | x1 | x0.996~ | x1.002 | within noise |
+| x2.4 | x1 | x1 | x1.019 | single |  |
+| x2.4 | x1.25 | x1 | x1.099 | x1.065 | +3.2% +/- 0.1% |
 <!-- /GEN -->
 
 - **The armor curve is a tier dial for one seat.** For the lone hammer on Dangerous, the curve at x2.4 raises damage taken by 18%, the store bill by 48% and deaths from 94 to 374 in 1,000 hours. Pairing it with the tier dial at x0.9 brings damage taken back to 0.97 of the base. So on this seat "armor curve x2.4" and "tier blows x1.1" are nearly the same change, written in two different files.
@@ -116,6 +447,57 @@ The last balance pass proposed the armor curve at x2.4 and found the first-week 
 The seat the Level pace is timed on is the MID four on Dangerous, after its deaths (candidate PACE-1 in `03-targets.md`). The worry was that the seat moves whenever a death dial moves, since it was refitted twice. The grid is the Level curve at x0.75, x1, x1.5 against the death price at x0.5, x1, x2 and monster damage at x1, x1.25, x1.5. MEASURED, run 44969087150, 26 points, 4 seeds. The slices below hold the Level curve at x1.
 
 <!-- GEN: exp id=level-death fix=levelCurve:1 groups=four:dangerous,hammer:dangerous outcomes=netLevelXpPerH,deathsPer1000h -->
+level-death, netLevelXpPerH, the four on dangerous (ratio to the base)
+
+| levelCurve | deathLoss | monsterDamage | measured | singles predict | gap |
+|---|---|---|---|---|---|
+| x1 | x0.5 | x1 | x1.000~ | single |  |
+| x1 | x0.5 | x1.25 | x1.001~ | x1.001 | within noise |
+| x1 | x0.5 | x1.5 | x1.001~ | x1.001 | within noise |
+| x1 | x1 | x1.25 | x1.001~ | single |  |
+| x1 | x1 | x1.5 | x1.001~ | single |  |
+| x1 | x2 | x1 | x1.000~ | single |  |
+| x1 | x2 | x1.25 | x1.001~ | x1.001 | within noise |
+| x1 | x2 | x1.5 | x1.001~ | x1.001 | within noise |
+
+level-death, deathsPer1000h, the four on dangerous (deaths in 1,000 hours; base 0)
+
+| levelCurve | deathLoss | monsterDamage | measured | singles predict | gap |
+|---|---|---|---|---|---|
+| x1 | x0.5 | x1 | 0~ | single |  |
+| x1 | x0.5 | x1.25 | 0~ | 0.0 | within noise |
+| x1 | x0.5 | x1.5 | 0~ | 0.0 | within noise |
+| x1 | x1 | x1.25 | 0~ | single |  |
+| x1 | x1 | x1.5 | 0~ | single |  |
+| x1 | x2 | x1 | 0~ | single |  |
+| x1 | x2 | x1.25 | 0~ | 0.0 | within noise |
+| x1 | x2 | x1.5 | 0~ | 0.0 | within noise |
+
+level-death, netLevelXpPerH, the hammer alone on dangerous (MID, Levels 30 to 110) (ratio to the base)
+
+| levelCurve | deathLoss | monsterDamage | measured | singles predict | gap |
+|---|---|---|---|---|---|
+| x1 | x0.5 | x1 | x1.107 | single |  |
+| x1 | x0.5 | x1.25 | x0.061 | no single reading to compare (a lever alone was refused, or its base is zero here) | |
+| x1 | x0.5 | x1.5 | x-0.125 | no single reading to compare (a lever alone was refused, or its base is zero here) | |
+| x1 | x1 | x1.25 | x-0.079 | single |  |
+| x1 | x1 | x1.5 | x-0.267 | single |  |
+| x1 | x2 | x1 | x0.785 | single |  |
+| x1 | x2 | x1.25 | x-0.359 | no single reading to compare (a lever alone was refused, or its base is zero here) | |
+| x1 | x2 | x1.5 | x-0.552 | no single reading to compare (a lever alone was refused, or its base is zero here) | |
+
+level-death, deathsPer1000h, the hammer alone on dangerous (MID, Levels 30 to 110) (deaths in 1,000 hours; base 94.09)
+
+| levelCurve | deathLoss | monsterDamage | measured | singles predict | gap |
+|---|---|---|---|---|---|
+| x1 | x0.5 | x1 | 94.09~ | single |  |
+| x1 | x0.5 | x1.25 | 1120 | 1120.0 | within noise |
+| x1 | x0.5 | x1.5 | 13330 | 13330.0 | within noise |
+| x1 | x1 | x1.25 | 1120 | single |  |
+| x1 | x1 | x1.5 | 13330 | single |  |
+| x1 | x2 | x1 | 94.09~ | single |  |
+| x1 | x2 | x1.25 | 1120 | 1120.0 | within noise |
+| x1 | x2 | x1.5 | 13330 | 13330.0 | within noise |
 <!-- /GEN -->
 
 - **The seat does not feel death at all.** The four on Dangerous has no deaths at monster damage x1.5, so its XP after deaths is the base to a tenth of a percent at every point of the grid, at any death price. On the seat the pace is timed on, the death price is a dead lever and monster damage is nearly one. The refits were not caused by death. They follow kills an hour, which on this seat follows the pull and the respawn (section 2).
@@ -131,7 +513,110 @@ Tyler's example: "increased damage may also increase life leech, which increases
 
 **First, the leech itself.** There is no life leech to increase. The only leech the engine reads is on the Necrotic drain spells, which sit behind a switch that is off (`src/data/necrotic-storm.js`). The life leech and mana leech imbuement rows are data that no engine code reads. One at a time, spell leech at x0.25 to x3 moved no outcome in any cell (MEASURED, `oat:spellLeech`). So the experiment plays the path that does exist: damage shortens fights, shorter fights mean less damage taken, and less damage taken means less healing bought.
 
-<!-- GEN: exp id=damage-heal fix=foodPrice:1 groups=four:deadly,hammer:dangerous outcomes=takenPerH,healInPerH,storePerH,deathsPer1000h,netPerH -->
+<!-- GEN: exp id=damage-heal fix=foodPrice:1 groups=four:deadly,hammer:dangerous outcomes=takenPerH,healInPerH,storePerH,netPerH -->
+damage-heal, takenPerH, the four on deadly (ratio to the base)
+
+| playerAttack | healPower | foodPrice | measured | singles predict | gap |
+|---|---|---|---|---|---|
+| x0.75 | x0.5 | x1 | x1.415 | x1.408 | within noise |
+| x0.75 | x1 | x1 | x1.419 | single |  |
+| x0.75 | x2 | x1 | x1.436 | x1.462 | -1.8% +/- 0.4% |
+| x1 | x0.5 | x1 | x0.992 | single |  |
+| x1 | x2 | x1 | x1.030 | single |  |
+| x1.5 | x0.5 | x1 | x0.509 | x0.512 | within noise |
+| x1.5 | x1 | x1 | x0.517 | single |  |
+| x1.5 | x2 | x1 | x0.523 | x0.532 | within noise |
+
+damage-heal, healInPerH, the four on deadly (ratio to the base)
+
+| playerAttack | healPower | foodPrice | measured | singles predict | gap |
+|---|---|---|---|---|---|
+| x0.75 | x0.5 | x1 | x1.475 | x1.345 | +9.7% +/- 1.4% |
+| x0.75 | x1 | x1 | x1.860 | single |  |
+| x0.75 | x2 | x1 | x2.397 | x2.491 | within noise |
+| x1 | x0.5 | x1 | x0.724 | single |  |
+| x1 | x2 | x1 | x1.340 | single |  |
+| x1.5 | x0.5 | x1 | x0.188 | x0.203 | -7.3% +/- 2.1% |
+| x1.5 | x1 | x1 | x0.281 | single |  |
+| x1.5 | x2 | x1 | x0.311 | x0.376 | -17.4% +/- 1.6% |
+
+damage-heal, storePerH, the four on deadly (ratio to the base)
+
+| playerAttack | healPower | foodPrice | measured | singles predict | gap |
+|---|---|---|---|---|---|
+| x0.75 | x0.5 | x1 | x1.151 | x1.120 | +2.8% +/- 0.2% |
+| x0.75 | x1 | x1 | x1.104 | single |  |
+| x0.75 | x2 | x1 | x1.076 | x1.089 | -1.2% +/- 0.2% |
+| x1 | x0.5 | x1 | x1.015 | single |  |
+| x1 | x2 | x1 | x0.986 | single |  |
+| x1.5 | x0.5 | x1 | x0.747 | x0.752 | within noise |
+| x1.5 | x1 | x1 | x0.741 | single |  |
+| x1.5 | x2 | x1 | x0.740 | x0.731 | +1.3% +/- 0.1% |
+
+damage-heal, netPerH, the four on deadly (change from the base)
+
+| playerAttack | healPower | foodPrice | measured | singles predict | gap |
+|---|---|---|---|---|---|
+| x0.75 | x0.5 | x1 | -4254.000 | -3938.000 | -316.300 +/- 65.72 |
+| x0.75 | x1 | x1 | -3849.000 | single |  |
+| x0.75 | x2 | x1 | -3594.000 | -3636.000 | within noise |
+| x1 | x0.5 | x1 | -89.220~ | single |  |
+| x1 | x2 | x1 | +213.500~ | single |  |
+| x1.5 | x0.5 | x1 | +5145.000 | +5079.000 | within noise |
+| x1.5 | x1 | x1 | +5168.000 | single |  |
+| x1.5 | x2 | x1 | +5089.000 | +5382.000 | within noise |
+
+damage-heal, takenPerH, the hammer alone on dangerous (MID, Levels 30 to 110) (ratio to the base)
+
+| playerAttack | healPower | foodPrice | measured | singles predict | gap |
+|---|---|---|---|---|---|
+| x0.75 | x0.5 | x1 | x1.104 | x1.086 | within noise |
+| x0.75 | x1 | x1 | x1.085 | single |  |
+| x0.75 | x2 | x1 | x1.080 | x1.082 | within noise |
+| x1 | x0.5 | x1 | x1.001~ | single |  |
+| x1 | x2 | x1 | x0.997~ | single |  |
+| x1.5 | x0.5 | x1 | x0.875 | x0.871 | within noise |
+| x1.5 | x1 | x1 | x0.871 | single |  |
+| x1.5 | x2 | x1 | x0.872 | x0.868 | within noise |
+
+damage-heal, healInPerH, the hammer alone on dangerous (MID, Levels 30 to 110) (ratio to the base)
+
+| playerAttack | healPower | foodPrice | measured | singles predict | gap |
+|---|---|---|---|---|---|
+| x0.75 | x0.5 | x1 | x1.225 | x1.224 | within noise |
+| x0.75 | x1 | x1 | x1.255 | single |  |
+| x0.75 | x2 | x1 | x1.311 | x1.331 | within noise |
+| x1 | x0.5 | x1 | x0.976 | single |  |
+| x1 | x2 | x1 | x1.061 | single |  |
+| x1.5 | x0.5 | x1 | x0.572 | x0.575 | within noise |
+| x1.5 | x1 | x1 | x0.589 | single |  |
+| x1.5 | x2 | x1 | x0.666 | x0.625 | +6.4% +/- 0.2% |
+
+damage-heal, storePerH, the hammer alone on dangerous (MID, Levels 30 to 110) (ratio to the base)
+
+| playerAttack | healPower | foodPrice | measured | singles predict | gap |
+|---|---|---|---|---|---|
+| x0.75 | x0.5 | x1 | x1.811 | x1.866 | within noise |
+| x0.75 | x1 | x1 | x1.379 | single |  |
+| x0.75 | x2 | x1 | x0.710 | x0.697 | within noise |
+| x1 | x0.5 | x1 | x1.353 | single |  |
+| x1 | x2 | x1 | x0.505 | single |  |
+| x1.5 | x0.5 | x1 | x0.695 | x0.656 | +6.0% +/- 1.7% |
+| x1.5 | x1 | x1 | x0.485 | single |  |
+| x1.5 | x2 | x1 | x0.232 | x0.245 | -5.3% +/- 1.3% |
+
+damage-heal, netPerH, the hammer alone on dangerous (MID, Levels 30 to 110) (change from the base)
+
+| playerAttack | healPower | foodPrice | measured | singles predict | gap |
+|---|---|---|---|---|---|
+| x0.75 | x0.5 | x1 | -57300.000 | -44950.000 | within noise |
+| x0.75 | x1 | x1 | -26540.000 | single |  |
+| x0.75 | x2 | x1 | +10920.000 | +880.000 | +10040.000 +/- 3081 |
+| x1 | x0.5 | x1 | -18410.000 | single |  |
+| x1 | x2 | x1 | +27420.000 | single |  |
+| x1.5 | x0.5 | x1 | +24210.000 | +18340.000 | +5869.000 +/- 1287 |
+| x1.5 | x1 | x1 | +36750.000 | single |  |
+| x1.5 | x2 | x1 | +51780.000 | +64170.000 | -12400.000 +/- 687.6 |
 <!-- /GEN -->
 
 - **The loop Tyler describes is real and strong, without leech.** For the four on Deadly, damage x1.5 cuts damage taken to 0.52, healing received to 0.28 and the store bill to 0.74, and adds 5,170 gold an hour a hero. Damage x0.75 raises damage taken to 1.42 and healing to 1.86. Hero damage is as strong a survival lever as the mitigation cap, the strongest armor lever (sensitivity page, section 4), and unlike the cap it also pays. A dead monster deals nothing.
@@ -146,7 +631,84 @@ Tyler's example: "increased damage may also increase life leech, which increases
 
 A monster's blow is written as a share of a same-Level hero's health. So hero health and monster damage should cancel. The grid is each at x0.5, x1, x2. MEASURED, run 44969087150, 8 points, 4 seeds.
 
-<!-- GEN: exp id=danger-hp groups=party:1,four:deadly,hammer:dangerous outcomes=takenPerH,lowHpP10,deathsPer1000h,storePerH -->
+<!-- GEN: exp id=danger-hp groups=party:1,four:deadly,hammer:dangerous outcomes=takenPerH,deathsPer1000h -->
+danger-hp, takenPerH, lone heroes (MID, Normal) (ratio to the base)
+
+| monsterDamage | heroHp | measured | singles predict | gap |
+|---|---|---|---|---|
+| x0.5 | x0.5 | x0.288 | x0.238 | +21.1% +/- 0.2% |
+| x0.5 | x1 | x0.508 | single |  |
+| x0.5 | x2 | x1.078 | x1.099 | -1.9% +/- 0.2% |
+| x1 | x0.5 | x0.469 | single |  |
+| x1 | x2 | x2.162 | single |  |
+| x2 | x0.5 | x0.936 | x0.984 | -4.9% +/- 0.3% |
+| x2 | x1 | x2.101 | single |  |
+| x2 | x2 | x4.887 | x4.542 | +7.6% +/- 0.5% |
+
+danger-hp, deathsPer1000h, lone heroes (MID, Normal) (deaths in 1,000 hours; base 0)
+
+| monsterDamage | heroHp | measured | singles predict | gap |
+|---|---|---|---|---|
+| x0.5 | x0.5 | 0~ | 0.0 | within noise |
+| x0.5 | x1 | 0~ | single |  |
+| x0.5 | x2 | 0~ | 0.0 | within noise |
+| x1 | x0.5 | 0~ | single |  |
+| x1 | x2 | 0~ | single |  |
+| x2 | x0.5 | 10.42 | 13.5 | within noise |
+| x2 | x1 | 13.54 | single |  |
+| x2 | x2 | 21.76 | 13.5 | within noise |
+
+danger-hp, takenPerH, the four on deadly (ratio to the base)
+
+| monsterDamage | heroHp | measured | singles predict | gap |
+|---|---|---|---|---|
+| x0.5 | x0.5 | x0.181 | x0.163 | +11.3% +/- 0.2% |
+| x0.5 | x1 | x0.420 | single |  |
+| x0.5 | x2 | x1.051 | x0.984 | +6.8% +/- 0.2% |
+| x1 | x0.5 | x0.388 | single |  |
+| x1 | x2 | x2.342 | single |  |
+| x2 | x0.5 | x1.008~ | x0.886 | +13.8% +/- 0.8% |
+| x2 | x1 | x2.285 | single |  |
+| x2 | x2 | x5.104 | x5.351 | -4.6% +/- 0.6% |
+
+danger-hp, deathsPer1000h, the four on deadly (deaths in 1,000 hours; base 0)
+
+| monsterDamage | heroHp | measured | singles predict | gap |
+|---|---|---|---|---|
+| x0.5 | x0.5 | 0~ | 0.0 | within noise |
+| x0.5 | x1 | 0~ | single |  |
+| x0.5 | x2 | 0~ | 0.0 | within noise |
+| x1 | x0.5 | 0~ | single |  |
+| x1 | x2 | 0~ | single |  |
+| x2 | x0.5 | 0~ | 0.0 | within noise |
+| x2 | x1 | 0~ | single |  |
+| x2 | x2 | 77.96 | 0.0 | +78.0 +/- 20.11 |
+
+danger-hp, takenPerH, the hammer alone on dangerous (MID, Levels 30 to 110) (ratio to the base)
+
+| monsterDamage | heroHp | measured | singles predict | gap |
+|---|---|---|---|---|
+| x0.5 | x0.5 | x0.292 | x0.268 | +9.2% +/- 0.2% |
+| x0.5 | x1 | x0.518 | single |  |
+| x0.5 | x2 | x0.995~ | x0.983 | within noise |
+| x1 | x0.5 | x0.517 | single |  |
+| x1 | x2 | x1.899 | single |  |
+| x2 | x0.5 | x1.085~ | no single reading to compare (a lever alone was refused, or its base is zero here) | |
+| x2 | x1 | n/a | single |  |
+| x2 | x2 | n/a | no single reading to compare (a lever alone was refused, or its base is zero here) | |
+
+danger-hp, deathsPer1000h, the hammer alone on dangerous (MID, Levels 30 to 110) (deaths in 1,000 hours; base 94.09)
+
+| monsterDamage | heroHp | measured | singles predict | gap |
+|---|---|---|---|---|
+| x0.5 | x0.5 | 0 | -80.8 | within noise |
+| x0.5 | x1 | 0 | single |  |
+| x0.5 | x2 | 0 | 445.2 | -445.2 +/- 194.4 |
+| x1 | x0.5 | 13.25~ | single |  |
+| x1 | x2 | 539.2 | single |  |
+| x2 | x0.5 | 12500 | 92220.0 | -79720.0 +/- 26890 |
+| x2 | x1 | 92310 | single |  |
+| x2 | x2 | 120000 | 92750.0 | within noise |
 <!-- /GEN -->
 
 - **Hero health is a monster damage knob.** Alone on Normal, hero health x2 raises damage taken to 2.16 times the base, and monster damage x2 raises it to 2.10. Health x2 with monster damage x0.5 lands at 1.08. In absolute damage the two are the same lever, because the blow is derived from the health.

@@ -509,6 +509,7 @@ function mdExp(M, id, out, o = {}) {
   if (!x) { out('no experiment ' + id); return; }
   const names = Object.keys(x.factors);
   const outs = o.outcomes || (arg('outcomes') ? arg('outcomes').split(',') : CORE);
+  const fixSpec = o.fix || arg('fix') || '';
   for (const g of o.groups || (arg('groups') || 'all').split(',')) for (const o of outs) {
     const rel = kindOf(o) === 'rel', dth = kindOf(o) === 'deaths';
     const show = (v) => (!finite(v) ? 'n/a' : rel ? 'x' + v.toFixed(3) : dth ? v.toFixed(1) : num(v, 3));
@@ -518,7 +519,7 @@ function mdExp(M, id, out, o = {}) {
     out('|' + names.map(() => '---').join('|') + '|---|---|---|');
     const key = (p) => names.map((n) => p.levers[n].toFixed(3).padStart(8)).join('');
     /* fix=lever:value,...: only the points where those factors sit at those levels (a slice of a three-factor grid) */
-    const fix = Object.fromEntries(String(o.fix || arg('fix') || '').split(',').filter(Boolean).map((kv) => { const [k, v] = kv.split(':'); return [k, Number(v)]; }));
+    const fix = Object.fromEntries(String(fixSpec).split(',').filter(Boolean).map((kv) => { const [k, v] = kv.split(':'); return [k, Number(v)]; }));
     for (const p of [...x.points].filter((q) => Object.entries(fix).every(([k, v]) => q.levers[k] === v)).sort((a, b) => key(a).localeCompare(key(b)))) {
       const i = p.inter && p.inter[g] && p.inter[g][o];
       if (!Object.keys(p.effects[g] || {}).length) { out('| ' + names.map((n) => 'x' + p.levers[n]).join(' | ') + ' | refused by the engine | | |'); continue; }

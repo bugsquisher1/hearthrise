@@ -1,0 +1,13 @@
+{
+ "schema": "hearthrise.balance-patch/1",
+ "name": "Talents: Force's rank 3 unlock, Focus fire (10-level-choices.md section 4; D-9), on the scratch copy only",
+ "why": "D-9 asks the Talents curve's half point and the unlock sizes after FB-3 plays the four stat lines and one unlock. Focus fire is Force's rank 3 unlock: +6% damage to a monster another hero of the party is also attacking, nothing alone. No engine seam exists (it needs the modifier table's when column, R20), so this plants one on the scratch copy: a hero's snapshot carries focusFirePm from its Talents (the TAL hook's m.perks.talents), the unit carries it, and a blow on a monster another living hero targets adds it beside the marks. A cell plays it through talentsBySeat[i].focusFire (matrix-plan.mjs RUNS.unlock). Never shipped",
+ "kind": "coefficient",
+ "targets": ["talent", "TL1", "TL4"],
+ "edits": [
+  { "file": "src/core/member.js", "from": "    ...(skillPlus ? { skillPlus } : {}), ...(selfHealPm ? { selfHealPm } : {}) };", "to": "    ...(skillPlus ? { skillPlus } : {}), ...(selfHealPm ? { selfHealPm } : {}), ...(c.talents && c.talents.focusFire > 0 ? { focusFirePm: c.talents.focusFire } : {}) };" },
+  { "file": "src/core/combat-sim.js", "from": "  if (snap.focusPm) u.focusPm = snap.focusPm; else if (u.focusPm) delete u.focusPm;", "to": "  if (snap.focusPm) u.focusPm = snap.focusPm; else if (u.focusPm) delete u.focusPm;\n  if (snap.focusFirePm) u.focusFirePm = snap.focusFirePm; else if (u.focusFirePm) delete u.focusFirePm;" },
+  { "file": "src/core/hunt/damage.js", "from": "function takenPmOf(u) {", "to": "function focusFireOf(inst, u, t) {\n  if (!u || u.side !== 'hero' || !(u.focusFirePm > 0) || !t || t.side !== 'mon') return 0;\n  for (const h of inst.world.units) if (h !== u && h.side === 'hero' && h.alive && h.target === t.id) return u.focusFirePm;\n  return 0;\n}\nfunction takenPmOf(u) {" },
+  { "file": "src/core/hunt/damage.js", "from": "  const markPm = (Number.isInteger(target.markPm) && target.markPm > 0 && target.markUntil > sc.atMs ? target.markPm : 0) + takenPmOf(target);", "to": "  const markPm = (Number.isInteger(target.markPm) && target.markPm > 0 && target.markUntil > sc.atMs ? target.markPm : 0) + takenPmOf(target) + focusFireOf(inst, source, target);" }
+ ]
+}

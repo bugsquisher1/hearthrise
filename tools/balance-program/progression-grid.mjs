@@ -155,7 +155,7 @@ export function trackBuffs(track, L) {
  * what its Magic allows, a Healer heals on the cheapest water rune; BiS casts what its Magic allows). Options: `buffs` (timed buff rows kept
  * up all hunt), `track` (a build-tracks.json track), `staminaH`, `purse` and `goldFloor` (a bar and a purse that bind).
  */
-export function buildCell(D, K, { L, gear, styles, tier, ground, step = null, buffs = null, track = null, endTogether = false, staminaH = null, purse = null, goldFloor = null, blessings = 3, build = 'S' }) {
+export function buildCell(D, K, { L, gear, styles, tier, ground, step = null, buffs = null, track = null, endTogether = false, staminaH = null, purse = null, goldFloor = null, blessings = 3, build = 'S', unlocks = null }) {
   const size = styles.length, line = size > 1 ? 'party' : 'alone';
   const skills = styles.map((style, i) => {
     const lv = { ...D.skillsAt(D.lines, line, style, L) }, d = K.skillDeltaOf(gear, L), m = MAIN[style] || 'melee';
@@ -184,7 +184,8 @@ export function buildCell(D, K, { L, gear, styles, tier, ground, step = null, bu
   const rows = [...(buffs || []), ...(track ? trackBuffs(track, L) : [])];
   /* TALENTS ARE BASELINE (10-level-choices.md 5.1): every seat carries its way's suggested build (`build` 'S'), a contrast build is a variant;
      the stat lines bite only where the tree has the seam (the Talents proposal's scratch hook) */
-  const talentsBySeat = styles.map((st) => talentsOf(st, L, build).pm);
+  /* `unlocks` { name: permille }: a Talents unlock every seat holds (matrix-plan.mjs RUNS.unlock, D-9; its engine seam is a scratch patch) */
+  const talentsBySeat = styles.map((st) => ({ ...talentsOf(st, L, build).pm, ...(unlocks || {}) }));
   const cell = { ground, party: [...styles], level: L, profile: 'played', supply: 'store', skillsBySeat: skills, gearBySeat: plans.map((p) => p.gear),
     talentsBySeat, build, deathRule: 'real', blessings, ...(Number.isFinite(blessedShareAt(L, blessings)) ? { blessedShare: blessedShareAt(L, blessings) } : {}), shopping: gear === 'bis' ? 'allowed' : 'real', ...(endTogether ? { endTogether: true } : {}),
     ...(rows.length ? { buffs: rows } : {}), ...(Number.isFinite(staminaH) ? { staminaH } : {}), ...(Number.isFinite(purse) ? { purse } : {}), ...(Number.isInteger(goldFloor) ? { goldFloor } : {}),

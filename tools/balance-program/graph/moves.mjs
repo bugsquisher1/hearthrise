@@ -167,4 +167,6 @@ export const LEVER_MOVES = Object.freeze({
     ['+sink.other', 'the same growth by depth for market prices and fees (wave 4)']],
   'econ.work-day': [['+town.skill', 'more minutes of town work a UTC day are more gathering and bench runs (work-day.js freeMin, hr_work_day)']],
   'econ.work-premium': [['+town.skill', 'Premium\'s extra minutes are more town work a day (work-day.js premiumExtraMin)']],
+  /* THE GOLD ESTIMATE (src/data/gold-estimate.js, lane/gold-per-hour): a printed number only; no fight, purse or clock reads it */
+  'econ.gold-estimate-risk': [],
 });

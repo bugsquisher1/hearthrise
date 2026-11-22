@@ -51,6 +51,7 @@ export const NOT_LEVERS = Object.freeze([
   /* rulings (Tyler's numbers, not dials: validate refuses a move) */
   { at: 'src/data/time-blocks.js#RULED', why: 'Tyler\'s ruled block rule of 2026-11-22 (2 h blocks, 2 a day, x1.5): time-blocks.js validate refuses a TIME_BLOCKS row that moves them; the price is the lever (econ.hunt-block)' },
   { at: 'src/data/work-day.js#WORK_BLOCK_RULED', why: 'Tyler\'s ruled bought-work shape of 2026-11-22 (2 h blocks, at most 4 a day): work-day.js validate reads it to keep the longest day under 24 h; the buy and its price are a later slice' },
+  { at: 'src/core/gold-estimate.js#roundAbout', why: 'display rounding of the Hunts window\'s gold estimate to two significant figures (a power of ten): no fight, purse or clock reads it' },
   { at: 'src/core/work-day.js#*', why: 'calendar arithmetic of the work day (ms a UTC day, ms a minute, the YYYY-MM-DD fields, a window\'s days scanned): the hours are the levers (econ.work-day, econ.work-premium)' },
   /* player choice bounds and history */
   { at: 'src/data/hunt-sessions.js#SESSION_LIMITS', why: 'the hours a player may set a hunt to (1..24) and the bag lines shown' },

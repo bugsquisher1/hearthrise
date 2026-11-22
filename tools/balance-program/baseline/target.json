@@ -1,7 +1,7 @@
 {
- "about": "What a push to balance-baseline/** measures (.github/workflows/balance-baseline.yml). game: a commit or branch; label: a name; patch: patch files, comma-separated, laid on it; base: a proposal base or today. The pin is baseline/overhaul-start (set/v0.2.144 at 861ae52e3).",
- "game": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
- "label": "overhaul-start",
+ "about": "MEASUREMENT BRANCH, never merged: FB-8 stage 1 (lane/c-pace STAGE 1 DONE 90ad526dd: the armor curve x2.4, the gear curve and exchange rates, Krell's card on Salted Shark, the staged weapon and armor rows) against the overhaul-start pin.",
+ "game": "90ad526dd80ac8e0b741809a679664b6b177f6ae",
+ "label": "fb8-stage1",
  "patch": "",
  "base": "today"
 }
